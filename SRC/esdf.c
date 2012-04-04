@@ -432,6 +432,11 @@ void esdf_key() {
     strcpy(kw_label[i],"output_vtot");
     strcpy(kw_typ[i],"I:E");
     strcpy(kw_dscrpt[i],"*! whether the total potential are outputed !*");
+
+    i++;
+    strcpy(kw_label[i],"deltafermi");
+    strcpy(kw_typ[i],"D:E");
+    strcpy(kw_dscrpt[i],"*! increase of the Fermi energy to control the number of candidate functions!*"); 
 }
 
 void esdf() {

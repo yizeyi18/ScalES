@@ -240,6 +240,7 @@ public:
   double _gamma;    //LLIN: Weight ratio between eigenvalue and penalty. Use the default 0.0 value
   int    _Neigperele; //LLIN: Number of eigenvalues to be solved per element in the buffer
   int    _Norbperele; //LLIN: Number of nonorthogonal oritals in the element
+  double _DeltaFermi; //LLIN: The increase of the Fermi energy to control the number of candidate functions
   int    _bufdual;    //LLIN: Whether to use dual grid for buffer solve (1/2 grid number along each direction)
   //-----------------------------------
   //LOCAL VARIABLES

@@ -78,6 +78,9 @@ public:
   double _gamma;    //LLIN: Weight ratio between eigenvalue and penalty
   int    _Neigperele; //LLIN: Number of eigenvalues to be solved per element in the buffer
   int    _Norbperele; //LLIN: Number of nonorthogonal oritals in the element
+  double _DeltaFermi; //LLIN: The increase of the Fermi energy to control the number of candidate functions
+
+  DblNumTns _EcutCnddt;  //LLIN: The cutoff of the energy for the candidate functions
 
   //
   //local stuff

@@ -324,6 +324,27 @@ int ScfDG::scf(vector<double>& rhoinput)
     eigdg._gamma = _gamma;
     eigdg._Neigperele = _Neigperele;
     eigdg._Norbperele = _Norbperele;
+    eigdg._DeltaFermi = _DeltaFermi;
+    eigdg._EcutCnddt.resize(_NElems[0],_NElems[1],_NElems[2]);
+    setvalue(eigdg._EcutCnddt, 0.0);
+
+
+    // LL: Get the energy cutoff for the candidate functions
+    for(int i2=0; i2<_NElems[2]; i2++)
+      for(int i1=0; i1<_NElems[1]; i1++)
+	for(int i0=0; i0<_NElems[0]; i0++) {
+	  if(_elemptn.owner(Index3(i0,i1,i2))==myid) {
+	      Buff& buff = _buffvec(i0,i1,i2); 	    //Buff& buff = _buffvec.lclmap()[Index3(i,j,k)];
+	      eigdg._EcutCnddt(i0,i1,i2) = buff._ev[buff._npsi-1] + _DeltaFermi;
+	  }
+	}
+
+    if(mpirank == 0 ){
+      cerr << eigdg._EcutCnddt << endl;
+    }
+    
+	  
+
 
     iC( eigdg.setup() );
     t0 = time(0);

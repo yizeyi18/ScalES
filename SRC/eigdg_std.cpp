@@ -932,7 +932,6 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
     cerr << "Nbrs   : " << Nbrs << endl;
     cerr << "NbrSfts:" << NbrSfts << endl;
   }
-  int Neigbuf = Nbr1*Nbr2*Nbr3*_Neigperele;
 
   //compute weights
   DblNumVec x1(Nlbl1);    
@@ -1167,7 +1166,19 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
     }
   }
 
+  //LLIN: Compute the number of candidate functions by its energy
   //LEXING: Ct contains first Neigbuf columns of Vt
+  int Neigbuf = 0;
+  double Ecut = _EcutCnddt(cur1, cur2, cur3);
+  for(int i = 0; i < Et.m(); i++){
+    if( Et[i] < Ecut ) 
+      Neigbuf++;
+    else
+      break;
+  }
+  fprintf(fhstat, "Number of candidate functions = %4i \n", Neigbuf);
+
+
   DblNumMat Ct(ttl,Neigbuf);
   for(int b=0; b<Neigbuf; b++)
     for(int a=0; a<ttl; a++)
@@ -1212,170 +1223,13 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 	    Wt(gof+a,gof+b) += S(a,b);
       }
 
+  // LLIN: Only weighting, no mixing with Hamiltonian any more, 4/4/2012
 
-  // if _gamma == 0.0 (default) then 
-  // Estimate the eigenvalues of Wt and At to determine the value of
-  // gamma (WeightRatio) automatically so that the change of Wt and the
-  // change of At is in the same order of magnitude
-  if( _gamma == 0.0 ){
-    double sumWt, sumAt;
-    
-    // Wt
-    {
-      DblNumMat Bt(ttl,ttl);
-      for(int a=0; a<ttl; a++)
-	for(int b=0; b<ttl; b++)
-	  Bt(a,b) = Wt(a,b);
-
-      DblNumMat Cttran(Neigbuf,ttl);
-      for(int a=0; a<Neigbuf; a++)
-	for(int b=0; b<ttl; b++)
-	  Cttran(a,b) = Ct(b,a);
-      DblNumMat Aux(Neigbuf,ttl);         setvalue(Aux,0.0);
-      iC( dgemm(1.0, Cttran, Bt, 0.0, Aux) );
-      DblNumMat CWgAC(Neigbuf,Neigbuf);  setvalue(CWgAC, 0.0);
-      iC( dgemm(1.0, Aux, Ct, 0.0, CWgAC) );
-
-      DblNumMat Gt(Neigbuf,Neigbuf);
-      DblNumVec Ft(Neigbuf);
-      //LLIN: Diagonalize  CWgAC to get Gt and Ft using dsyevd
-      {
-	int     Nmat    = Neigbuf;
-	char    jobz    = 'V';
-	char    uplo    = 'L';
-	int     lda     = Nmat;
-	int     lwork, liwork;
-	int     info;
-	DblNumVec      work;
-	IntNumVec      iwork;
-
-	Gt = CWgAC; // LLIN: IMPORTANT: dsyevd rewrites the input matrix by
-	// the output eigenvectors
-
-
-	/* Query for space */
-	lwork = -1;
-	liwork = -1;
-	work.resize(1);
-	iwork.resize(1);
-	dsyevd_(&jobz, &uplo, &Nmat, Gt.data(), &lda, Ft.data(), work.data(), 
-		&lwork, iwork.data(), &liwork, &info);
-
-	lwork = (int)work(0); // LLIN: IMPORTANT
-	liwork = (int)iwork(0);
-	work.resize(lwork);
-	iwork.resize(liwork);
-
-	dsyevd_(&jobz, &uplo, &Nmat, Gt.data(), &lda, Ft.data(), work.data(), 
-		&lwork, iwork.data(), &liwork, &info);
-
-	iC(info);
-
-	sumWt = 0.0;
-	for(int l = 0; l < _Norbperele; l++){
-	  sumWt += Ft(l) - Ft(0);
-	}
-
-	if(mpirank==0) { 
-	  fprintf(fhstat, "sum of _Norbperele eigvals for Wt - eig(Wt)[0] = %15.5e\n",
-		  sumWt);
-	  fprintf(stderr, "sum of _Norbperele eigvals for Wt - eig(Wt)[0] = %15.5e\n",
-		  sumWt);
-	}
-      }
-    } // Wt
-    
-    // At
-    {
-      DblNumMat Bt(ttl,ttl);
-      for(int a=0; a<ttl; a++)
-	for(int b=0; b<ttl; b++)
-	  Bt(a,b) = At(a,b);
-
-      DblNumMat Cttran(Neigbuf,ttl);
-      for(int a=0; a<Neigbuf; a++)
-	for(int b=0; b<ttl; b++)
-	  Cttran(a,b) = Ct(b,a);
-      DblNumMat Aux(Neigbuf,ttl);         setvalue(Aux,0.0);
-      iC( dgemm(1.0, Cttran, Bt, 0.0, Aux) );
-      DblNumMat CWgAC(Neigbuf,Neigbuf);  setvalue(CWgAC, 0.0);
-      iC( dgemm(1.0, Aux, Ct, 0.0, CWgAC) );
-
-      DblNumMat Gt(Neigbuf,Neigbuf);
-      DblNumVec Ft(Neigbuf);
-      //LLIN: Diagonalize  CWgAC to get Gt and Ft using dsyevd
-      {
-	int     Nmat    = Neigbuf;
-	char    jobz    = 'V';
-	char    uplo    = 'L';
-	int     lda     = Nmat;
-	int     lwork, liwork;
-	int     info;
-	DblNumVec      work;
-	IntNumVec      iwork;
-
-	Gt = CWgAC; // LLIN: IMPORTANT: dsyevd rewrites the input matrix by
-	// the output eigenvectors
-
-
-	/* Query for space */
-	lwork = -1;
-	liwork = -1;
-	work.resize(1);
-	iwork.resize(1);
-	dsyevd_(&jobz, &uplo, &Nmat, Gt.data(), &lda, Ft.data(), work.data(), 
-		&lwork, iwork.data(), &liwork, &info);
-
-	lwork = (int)work(0); // LLIN: IMPORTANT
-	liwork = (int)iwork(0);
-	work.resize(lwork);
-	iwork.resize(liwork);
-
-	dsyevd_(&jobz, &uplo, &Nmat, Gt.data(), &lda, Ft.data(), work.data(), 
-		&lwork, iwork.data(), &liwork, &info);
-
-	iC(info);
-
-	sumAt = 0.0;
-	for(int l = 0; l < _Norbperele; l++){
-	  sumAt += (Ft(l) - Ft(0));
-	}
-
-	if(mpirank==0) { 
-	  fprintf(fhstat, "sum of _Norbperele eigvals for At - eig(At)[0]= %15.5e\n",
-		  sumAt);
-	  fprintf(stderr, "sum of _Norbperele eigvals for At - eig(At)[0]= %15.5e\n", 
-		  sumAt); 
-	} 
-      }
-    } // At
-
-    double EPS = 1e-8; // LLIN:FIXME
-    if( sumAt > EPS ){
-      _gamma = sumWt / sumAt;
-    }
-    else{
-      _gamma = 1.0;
-    }
-    
-  }
-
-  if(mpirank==0) { 
-    fprintf(stderr, "gamma = %15.5e\n", _gamma);
-    fprintf(fhstat, "gamma = %15.5e\n", _gamma);
-  } 
-
-  //form matrix Ct' * (Wt+gamma*At) * Ct;
-  //double gamma = 0.1;
-  //LEXING: Bt = Wt + gamma*At;
   
   DblNumMat Bt(ttl,ttl);
   for(int a=0; a<ttl; a++)
     for(int b=0; b<ttl; b++)
       Bt(a,b) = Wt(a,b);
-  //      LL: FIXME
-  //      Bt(a,b) = Wt(a,b) + _gamma * At(a,b);
-
 
   DblNumMat Cttran(Neigbuf,ttl);
   for(int a=0; a<Neigbuf; a++)
@@ -1443,6 +1297,9 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
   }
 
   //LEXING: the first few columns of Gt form Ht
+  //LLIN: TODO Make Norbperele adaptive to each part of the domain in future
+  iA( _Norbperele <= Neigbuf );
+
   DblNumMat Ht(Neigbuf,_Norbperele);
   for(int a=0; a<Neigbuf; a++)
     for(int b=0; b<_Norbperele; b++)
