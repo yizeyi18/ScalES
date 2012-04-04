@@ -1,0 +1,93 @@
+#
+#  The platform identifier to suffix to the end of library names
+#
+PLAT         = RANGER
+#
+#  The directories to find the various libraries
+#
+LOBPCGDIR    = LOBPCG/include
+#
+#  The name of the libraries to be created/linked to
+#
+FFTWLIB		= -L$(TACC_FFTW3_LIB) -lfftw3
+MKL		= ${TACC_MKL_LIB}/libmkl_solver_lp64_sequential.a -Wl,--start-group -L${TACC_SCALAPACK_LIB} -lscalapack ${TACC_SCALAPACK_LIB}/blacsCinit_MPI-LINUX-0.a ${TACC_SCALAPACK_LIB}/blacs_MPI-LINUX-0.a ${TACC_MKL_LIB}/libmkl_intel_lp64.a ${TACC_MKL_LIB}/libmkl_sequential.a ${TACC_MKL_LIB}/libmkl_core.a -Wl,--end-group -lguide -L${IFC_LIB} -lifcore 
+LOBPCG_LIB 	= -LLOBPCG/lib -lBLOPEX
+
+#MKL          = -Wl,-rpath,$(TACC_MKL_LIB) -L$(TACC_MKL_LIB) -lmkl -lguide -lpthread
+
+ALIBS        = $(FFTWLIB) $(LOBPCG_LIB) -I${TACC_MKL_INC} $(MKL) $(IPM_LIB) 
+
+MODE	     = run
+
+############################################################################
+#  Make our own suffixes' list.
+#
+.SUFFIXES:
+.SUFFIXES:      .c	.o
+.SUFFIXES:      .cpp    .o
+
+#
+#  Command to build .o files from .c files.
+#
+.c.o:
+	$(CC) -c $(CCFLAGS) $(CCDEFS) $<
+.cpp.o:
+	$(CPP) -c $(CPPFLAGS) $(CPPDEFS) $<
+.f.o:
+	$(FC) -c $(FFLAGS) $<
+############################################################################
+
+#
+#  Various compilation programs and flags.
+#  You need to make sure these are correct for your system.
+#
+INCLUDE      = -I../SRC -I$(LOBPCGDIR) -I$(TACC_MKL_INC) -I$(TACC_FFTW3_INC)
+NOOPTS       =
+CC           = mpicc
+CPP          = mpicxx
+LOADER       = mpicxx
+FC           = gfortran
+FFLAGS       = -O3
+
+
+ifeq ($(MODE),run)
+  CCFLAGS    	= -O3 $(INCLUDE) -fPIC -MMD
+  CPPFLAGS    	= -O3 $(INCLUDE) -fPIC -MMD
+  LOADOPTS   	= -O3 
+endif
+
+ifeq ($(MODE),profile)
+  CCFLAGS       = -g -pg   $(INCLUDE) -fPIC -MMD
+  CPPFLAGS   	= -g -pg   $(INCLUDE) -fPIC -MMD
+  LOADOPTS   	= -pg 
+endif
+
+ifeq ($(MODE),debug)
+  CCFLAGS       = -g  $(INCLUDE) -fPIC -MMD
+  CPPFLAGS     	= -g  $(INCLUDE) -fPIC -MMD
+  LOADOPTS    	= 
+endif
+
+#
+#  C preprocessor defs for compilation (-DNoChange, -DAdd_, -DAdd__ or -DUpCase)
+#
+CCDEFS    	= 
+CPPDEFS     	= -DAdd_ -D__cplusplus
+
+
+AR           = ar
+ARFLAGS      = cr
+#  For System V based machine without ranlib, like Cray and SGI,
+#  use touch instead.
+#RANLIB      = touch
+RANLIB       = ranlib
+
+RM           = rm
+RMFLAGS      = -f
+
+
+
+
+
+#MKL 		= -L$(TACC_MKL_LIB) -Bstatic -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -Bdynamic -lguide -lpthread
+#MKL 		= -L$(TACC_MKL_LIB) -Bstatic -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -Bdynamic

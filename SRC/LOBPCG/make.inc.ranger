@@ -1,0 +1,14 @@
+include ../../../make.inc.$HOSTID
+
+# CFLAGS = -fPIC -Wall -g -DBlopexInt=long
+# CFLAGS = -fPIC -Wall -g
+# CFLAGS = -Wall -fPIC -g -pg -D__cplusplus
+CFLAGS = -O3 -fPIC -I/usr/include/atlas
+CC = icpc
+
+# CC     = CC
+# CFLAGS = -g -fPIC -D__cplusplus
+
+AR = ar -rvc
+RANLIB = ranlib
+

@@ -1,0 +1,6 @@
+CC     = cc
+CFLAGS = -g 
+
+AR = ar -rvcu
+RANLIB = ranlib
+AR_LIB_SUFFIX = a

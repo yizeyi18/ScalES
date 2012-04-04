@@ -1,0 +1,922 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.7	//
+ABORT	util.hpp	50;"	d
+Atom	periodtable.hpp	/^  Atom(int t, double m, Point3 c, Point3 v, Point3 f): _type(t), _mass(m), _coord(c),  $/;"	f	class:Atom
+Atom	periodtable.hpp	/^class Atom$/;"	c
+BlckPtn	eigdg.hpp	/^  BlckPtn() {;}$/;"	f	class:BlckPtn
+BlckPtn	eigdg.hpp	/^class BlckPtn$/;"	c
+BlopexInt	multi_vector.h	8;"	d
+BolNumMat	nummat.hpp	/^typedef NumMat<bool>   BolNumMat;$/;"	t
+BolNumTns	numtns.hpp	/^typedef NumTns<bool>   BolNumTns;$/;"	t
+BolNumVec	numvec.hpp	/^typedef NumVec<bool>   BolNumVec;$/;"	t
+Buff	scfdg.hpp	/^class Buff$/;"	c
+Buff	scfdg_setup.cpp	/^Buff::Buff()$/;"	f	class:Buff
+CONTXT	mddg.cpp	/^int CONTXT;$/;"	v
+CONTXT	mdpw.cpp	/^int CONTXT;$/;"	v
+CTXT_	cblacs.h	/^  CTXT_ = 2,$/;"	e	enum:__anon1
+CalTransMatBuf	scfdg_setup.cpp	/^int Elem::CalTransMatBuf(Domain b)$/;"	f	class:Elem
+CalTransMatGlb	scfdg_setup.cpp	/^int Elem::CalTransMatGlb(Domain g)$/;"	f	class:Elem
+CheckInterval	interp.cpp	/^bool CheckInterval(const Point3& r, const Point3& posstart, const Point3& Lsbuf, const Point3& Lsglb)$/;"	f
+ClearMultiVector	pcg_multi.cpp	/^ClearMultiVector(void *x)$/;"	f
+ComObject	comobject.hpp	/^  ComObject(const string& prefix): _prefix(prefix) {;}$/;"	f	class:ComObject
+ComObject	comobject.hpp	/^class ComObject$/;"	c
+CopyMultiVector	pcg_multi.cpp	/^CopyMultiVector( void *x, void *y)$/;"	f
+CpxNumMat	nummat.hpp	/^typedef NumMat<cpx>    CpxNumMat;$/;"	t
+CpxNumTns	numtns.hpp	/^typedef NumTns<cpx>    CpxNumTns;$/;"	t
+CpxNumVec	numvec.hpp	/^typedef NumVec<cpx>    CpxNumVec;$/;"	t
+CreateCopyMultiVector	pcg_multi.cpp	/^CreateCopyMultiVector( void* src_, BlopexInt copyValues )$/;"	f
+DEP	Makefile	/^DEP     = $(OBJS:.o=.d)$/;"	m
+DLEN_	cblacs.h	/^  DLEN_ = 9,$/;"	e	enum:__anon1
+DMOD	util.hpp	/^inline double DMOD(double a,double b){$/;"	f
+DblNumMat	nummat.hpp	/^typedef NumMat<double> DblNumMat;$/;"	t
+DblNumTns	numtns.hpp	/^typedef NumTns<double> DblNumTns;$/;"	t
+DblNumVec	numvec.hpp	/^typedef NumVec<double> DblNumVec;$/;"	t
+DestroyMultiVector	pcg_multi.cpp	/^DestroyMultiVector( void *vvector )$/;"	f
+DiffPsi	interp.cpp	/^void DiffPsi(Index3 Ns, Point3 Ls, double* psi, double* diffxpsi, double* diffypsi, double* diffzpsi)$/;"	f
+Domain	periodtable.hpp	/^  Domain() {;}$/;"	f	class:Domain
+Domain	periodtable.hpp	/^class Domain$/;"	c
+Domain_Ls	periodtable.hpp	/^  Domain_Ls = 0,$/;"	e	enum:__anon4
+Domain_Ns	periodtable.hpp	/^  Domain_Ns = 1,$/;"	e	enum:__anon4
+Domain_Number	periodtable.hpp	43;"	d
+Domain_pos	periodtable.hpp	/^  Domain_pos = 2,$/;"	e	enum:__anon4
+DumpAsciiVec	debug.hpp	/^void DumpAsciiVec(F* vec, int size)$/;"	f
+DumpAsciiVec	debug.hpp	/^void DumpAsciiVec(char *filename, F* vec, int size)$/;"	f
+DumpVec	debug.hpp	/^void DumpVec(F* vec, int size)$/;"	f
+DumpVec	debug.hpp	/^void DumpVec(char *filename, F* vec, int size)$/;"	f
+EigDG	eigdg.cpp	/^EigDG::EigDG()$/;"	f	class:EigDG
+EigDG	eigdg.hpp	/^class EigDG$/;"	c
+EigPW	eigpw.cpp	/^EigPW::EigPW()$/;"	f	class:EigPW
+EigPW	eigpw.hpp	/^class EigPW$/;"	c
+Elem	scfdg.hpp	/^  Elem() {;}$/;"	f	class:Elem
+Elem	scfdg.hpp	/^class Elem \/\/REPLACE THE OLD ELEM DATA STRUCTURE$/;"	c
+ElemPtn	scfdg.hpp	/^  ElemPtn() {;}$/;"	f	class:ElemPtn
+ElemPtn	scfdg.hpp	/^class ElemPtn$/;"	c
+EmatKey	eigdg.hpp	/^typedef pair<Index3,Index3> EmatKey;$/;"	t
+EmatPtn	eigdg.hpp	/^  EmatPtn() {;}$/;"	f	class:EmatPtn
+EmatPtn	eigdg.hpp	/^class EmatPtn \/\/element matrix, partition$/;"	c
+FPS	eigdg.hpp	/^inline double FPS(double* w, double* x, double* y, double* z, int ntot) {$/;"	f
+IMOD	util.hpp	/^inline int IMOD(int a,int b){$/;"	f
+Index2	vec2t.hpp	/^typedef Vec2T<int>    Index2;$/;"	t
+Index3	vec3t.hpp	/^typedef Vec3T<int>    Index3;$/;"	t
+Innerprod	util.hpp	/^inline double Innerprod(double* x, double* y, double *w, int ntot){$/;"	f
+IntNumMat	nummat.hpp	/^typedef NumMat<int>    IntNumMat;$/;"	t
+IntNumTns	numtns.hpp	/^typedef NumTns<int>    IntNumTns;$/;"	t
+IntNumVec	numvec.hpp	/^typedef NumVec<int>    IntNumVec;$/;"	t
+LLD_	cblacs.h	/^  LLD_  = 9,$/;"	e	enum:__anon1
+Ls	periodtable.hpp	/^  Point3& Ls() { return _Ls; }$/;"	f	class:Domain
+Ls	scfdg.hpp	/^  Point3& Ls() { return _Ls; } \/\/LY: LENGTH$/;"	f	class:Elem
+MASTER	commoninc.hpp	33;"	d
+MAX	util.hpp	27;"	d
+MB_	cblacs.h	/^  MB_   = 5,$/;"	e	enum:__anon1
+MIN	util.hpp	26;"	d
+MULTIVECTOR_VOID_FUNCTION_PROTOTYPES	pcg_multi.h	8;"	d
+M_	cblacs.h	/^  M_    = 3,$/;"	e	enum:__anon1
+MultiInnerProd	pcg_multi.cpp	/^MultiInnerProd(void * x_, void * y_,$/;"	f
+MultiInnerProdDiag	pcg_multi.cpp	/^MultiInnerProdDiag( void* x_, void* y_,$/;"	f
+MultiSetMask	pcg_multi.cpp	/^MultiSetMask( void *vector, BlopexInt *mask )$/;"	f
+MultiVectorAxpy	pcg_multi.cpp	/^MultiVectorAxpy( double alpha, void   *x, void   *y)$/;"	f
+MultiVectorByDiagonal	pcg_multi.cpp	/^MultiVectorByDiagonal( void* x,$/;"	f
+MultiVectorByMatrix	pcg_multi.cpp	/^MultiVectorByMatrix( void* x,$/;"	f
+MultiVectorPrint	pcg_multi.cpp	/^MultiVectorPrint( void *x, char * tag, BlopexInt limit )$/;"	f
+MultiVectorWidth	pcg_multi.cpp	/^MultiVectorWidth( void* v )$/;"	f
+NB_	cblacs.h	/^  NB_   = 6,$/;"	e	enum:__anon1
+N_	cblacs.h	/^  N_    = 4,$/;"	e	enum:__anon1
+Ns	periodtable.hpp	/^  Index3& Ns() { return _Ns; }$/;"	f	class:Domain
+Ns	scfdg.hpp	/^  Index3& Ns() { return _Ns; }\/\/LY: NUMBER OF GRIDPOINTS$/;"	f	class:Elem
+Nsglb	scfdg.hpp	/^  Index3& Nsglb() { return _Nsglb; } \/\/LY: how many global points in this element in each dimension$/;"	f	class:Elem
+NumMat	nummat.hpp	/^  NumMat(const NumMat& C): _m(C._m), _n(C._n), _owndata(C._owndata) {$/;"	f	class:NumMat
+NumMat	nummat.hpp	/^  NumMat(int m, int n, bool owndata, F* data): _m(m), _n(n), _owndata(owndata) {$/;"	f	class:NumMat
+NumMat	nummat.hpp	/^  NumMat(int m=0, int n=0): _m(m), _n(n), _owndata(true) {$/;"	f	class:NumMat
+NumMat	nummat.hpp	/^class NumMat$/;"	c
+NumTns	numtns.hpp	/^  NumTns(const NumTns& C): _m(C._m), _n(C._n), _p(C._p), _owndata(C._owndata) {$/;"	f	class:NumTns
+NumTns	numtns.hpp	/^  NumTns(int m, int n, int p, bool owndata, F* data): _m(m), _n(n), _p(p), _owndata(owndata) {$/;"	f	class:NumTns
+NumTns	numtns.hpp	/^  NumTns(int m=0, int n=0, int p=0): _m(m), _n(n), _p(p), _owndata(true) {$/;"	f	class:NumTns
+NumTns	numtns.hpp	/^class NumTns$/;"	c
+NumVec	numvec.hpp	/^  NumVec(const NumVec& C): _m(C._m), _owndata(C._owndata)  {$/;"	f	class:NumVec
+NumVec	numvec.hpp	/^  NumVec(int m, bool owndata, F* data): _m(m), _owndata(owndata) {$/;"	f	class:NumVec
+NumVec	numvec.hpp	/^  NumVec(int m=0): _m(m), _owndata(true)  {$/;"	f	class:NumVec
+NumVec	numvec.hpp	/^class NumVec$/;"	c
+OBJS	Makefile	/^OBJS 	= esdfutil.o  esdf.o  multi_vector.o  \\$/;"	m
+PARPACK	Makefile	/^PARPACK=\/usr\/common\/usg\/parpack\/2.1\/parpack_MPI-XE6.a  -L\/usr\/common\/usg\/parpack\/2.1 -larpack_XE6$/;"	m
+PARVEC_CMB	parvec.hpp	/^  PARVEC_CMB = 1, \/\/combine$/;"	e	enum:__anon3
+PARVEC_REP	parvec.hpp	/^  PARVEC_REP = 0, \/\/replace$/;"	e	enum:__anon3
+PTEntry	periodtable.hpp	/^class PTEntry$/;"	c
+ParVec	parvec.hpp	/^  ParVec() {;}$/;"	f	class:ParVec
+ParVec	parvec.hpp	/^class ParVec$/;"	c
+PeriodTable	periodtable.hpp	/^  PeriodTable() {;}$/;"	f	class:PeriodTable
+PeriodTable	periodtable.hpp	/^class PeriodTable$/;"	c
+Point2	vec2t.hpp	/^typedef Vec2T<double> Point2;$/;"	t
+Point3	vec3t.hpp	/^typedef Vec3T<double> Point3;$/;"	t
+Psdo	scfdg.hpp	/^  Psdo() {;}$/;"	f	class:Psdo
+Psdo	scfdg.hpp	/^class Psdo \/\/pseudopot data of an atom$/;"	c
+PsdoPtn	scfdg.hpp	/^  PsdoPtn() {;}$/;"	f	class:PsdoPtn
+PsdoPtn	scfdg.hpp	/^class PsdoPtn$/;"	c
+Psdo_Number	scfdg.hpp	170;"	d
+Psdo_rho0	scfdg.hpp	/^  Psdo_rho0 = 0,$/;"	e	enum:__anon7
+Psdo_vnls	scfdg.hpp	/^  Psdo_vnls = 1,$/;"	e	enum:__anon7
+ScfDG	scfdg.hpp	/^class ScfDG$/;"	c
+ScfDG	scfdg_setup.cpp	/^ScfDG::ScfDG()$/;"	f	class:ScfDG
+ScfPW	scfpw.cpp	/^ScfPW::ScfPW()$/;"	f	class:ScfPW
+ScfPW	scfpw.hpp	/^class ScfPW$/;"	c
+ScfPW	scfpw_dump.cpp	/^ScfPW::ScfPW()$/;"	f	class:ScfPW
+ScfPW	scfpw_gthxc.cpp	/^ScfPW::ScfPW()$/;"	f	class:ScfPW
+Separate_Read	parallel.cpp	/^int Separate_Read(string name, istringstream& is)$/;"	f
+Separate_Write	parallel.cpp	/^int Separate_Write(string name, ostringstream& os)$/;"	f
+SerialSetupInterpreter	pcg_multi.cpp	/^SerialSetupInterpreter( mv_InterfaceInterpreter *i )$/;"	f
+SetMultiVectorRandomValues	pcg_multi.cpp	/^SetMultiVectorRandomValues(void *x, BlopexInt seed)$/;"	f
+Shared_Read	parallel.cpp	/^int Shared_Read(string name, istringstream& is)$/;"	f
+Shared_Write	parallel.cpp	/^int Shared_Write(string name, ostringstream& os)$/;"	f
+SpBlckKey	testeig1.cpp	/^typedef Vec2T<int> SpBlckKey;$/;"	t	file:
+SpBlckKey	testeig2.cpp	/^typedef Vec2T<int> SpBlckKey;$/;"	t	file:
+SpBlckKey	ttmatvec1.cpp	/^typedef Vec2T<int> SpBlckKey;$/;"	t	file:
+SpBlckPtn	testeig1.cpp	/^    SpBlckPtn() {;}$/;"	f	class:SpBlckPtn
+SpBlckPtn	testeig1.cpp	/^class SpBlckPtn{$/;"	c	file:
+SpBlckPtn	testeig2.cpp	/^    SpBlckPtn() {;}$/;"	f	class:SpBlckPtn
+SpBlckPtn	testeig2.cpp	/^class SpBlckPtn{$/;"	c	file:
+SpBlckPtn	ttmatvec1.cpp	/^    SpBlckPtn() {;}$/;"	f	class:SpBlckPtn
+SpBlckPtn	ttmatvec1.cpp	/^class SpBlckPtn{$/;"	c	file:
+SpMat	testeig2.cpp	/^typedef map<SpBlckKey, DblNumMat> SpMat;$/;"	t	file:
+SparseVec	util.hpp	/^typedef pair<IntNumVec,DblNumMat> SparseVec; \/\/LY: contains four components, (val, dx, dy, dz in each column)$/;"	t
+TPS	eigdg.hpp	/^inline double TPS(double* x, double* y, double* z, int ntot) {$/;"	f
+TransBufkl	scfdg.hpp	/^  vector<vector<cpx> >&    TransBufkl() { return _TransBufkl; }\/\/LY: 3 times matrix element by buffer (k)$/;"	f	class:Elem
+TransGlblx	scfdg.hpp	/^  vector<vector<double> >& TransGlblx() { return _TransGlblx; } \/\/LY: 3 times matrix, glb by element$/;"	f	class:Elem
+Transpose	util.hpp	/^void Transpose(double* A, double* B, int m, int n){$/;"	f
+Transpose	util.hpp	/^void Transpose(vector<F>& A, vector<F>& B, int m, int n){$/;"	f
+Vec2T	vec2t.hpp	/^  Vec2T()              { _v[0]=F(0);    _v[1]=F(0); }  \/\/Vec2T(F f)           { _v[0]=f;       _v[1]=f; }$/;"	f	class:Vec2T
+Vec2T	vec2t.hpp	/^  Vec2T(F a,F b)       { _v[0]=a;       _v[1]=b; }$/;"	f	class:Vec2T
+Vec2T	vec2t.hpp	/^  Vec2T(const F* f)    { _v[0]=f[0];    _v[1]=f[1]; }$/;"	f	class:Vec2T
+Vec2T	vec2t.hpp	/^  Vec2T(const Vec2T& c){ _v[0]=c._v[0]; _v[1]=c._v[1]; }$/;"	f	class:Vec2T
+Vec2T	vec2t.hpp	/^class Vec2T {$/;"	c
+Vec3T	vec3t.hpp	/^  Vec3T()              { _v[0]=F(0);    _v[1]=F(0);    _v[2]=F(0); }$/;"	f	class:Vec3T
+Vec3T	vec3t.hpp	/^  Vec3T(F a,F b,F c)   { _v[0]=a;       _v[1]=b;       _v[2]=c; }$/;"	f	class:Vec3T
+Vec3T	vec3t.hpp	/^  Vec3T(const F* f)    { _v[0]=f[0];    _v[1]=f[1];    _v[2]=f[2]; }$/;"	f	class:Vec3T
+Vec3T	vec3t.hpp	/^  Vec3T(const Vec3T& c){ _v[0]=c._v[0]; _v[1]=c._v[1]; _v[2]=c._v[2]; }$/;"	f	class:Vec3T
+Vec3T	vec3t.hpp	/^class Vec3T {$/;"	c
+VecPtn	testeig1.cpp	/^  VecPtn() {;}$/;"	f	class:VecPtn
+VecPtn	testeig1.cpp	/^class VecPtn$/;"	c	file:
+VecPtn	testeig2.cpp	/^  VecPtn() {;}$/;"	f	class:VecPtn
+VecPtn	testeig2.cpp	/^class VecPtn$/;"	c	file:
+VecPtn	ttmatvec1.cpp	/^  VecPtn() {;}$/;"	f	class:VecPtn
+VecPtn	ttmatvec1.cpp	/^class VecPtn$/;"	c	file:
+X	vec2t.hpp	/^  enum{ X=0, Y=1 };$/;"	e	enum:Vec2T::__anon8
+X	vec3t.hpp	/^  enum{ X=0, Y=1, Z=2 };$/;"	e	enum:Vec3T::__anon9
+XScaleByY	interp.cpp	/^void XScaleByY(double* x, double* y, int ntot)$/;"	f
+Y	vec2t.hpp	/^  enum{ X=0, Y=1 };$/;"	e	enum:Vec2T::__anon8
+Y	vec3t.hpp	/^  enum{ X=0, Y=1, Z=2 };$/;"	e	enum:Vec3T::__anon9
+Z	vec3t.hpp	/^  enum{ X=0, Y=1, Z=2 };$/;"	e	enum:Vec3T::__anon9
+_BLAS_H_	blas.h	2;"	d
+_CBLACS_H_	cblacs.h	2;"	d
+_COMMONINC_HPP_	commoninc.hpp	2;"	d
+_COMOBJECT_HPP_	comobject.hpp	2;"	d
+_EIGDG_HPP_	eigdg.hpp	2;"	d
+_EIGPW_HPP_	eigpw.hpp	2;"	d
+_Ecor	scfdg.hpp	/^  double _Ecor;$/;"	m	class:ScfDG
+_Ecor	scfpw.hpp	/^  double _Ecor;$/;"	m	class:ScfPW
+_Efree	scfdg.hpp	/^  double _Efree;   \/\/LL: Free energy$/;"	m	class:ScfDG
+_Efree	scfpw.hpp	/^  double _Efree;   \/\/LL: Free energy$/;"	m	class:ScfPW
+_Ehalfmm	scfpw.hpp	/^  double _Ehalfmm;$/;"	m	class:ScfPW
+_Ehalfmp	scfpw.hpp	/^  double _Ehalfmp;$/;"	m	class:ScfPW
+_Ekin	scfdg.hpp	/^  double _Ekin;$/;"	m	class:ScfDG
+_Ekin	scfpw.hpp	/^  double _Ekin;$/;"	m	class:ScfPW
+_Es	scfpw.hpp	/^  double _Es;$/;"	m	class:ScfPW
+_Etot	scfdg.hpp	/^  double _Etot;    \/\/LL: Total energy$/;"	m	class:ScfDG
+_Etot	scfpw.hpp	/^  double _Etot;    \/\/LL: Total energy$/;"	m	class:ScfPW
+_Evxcrho	scfpw.hpp	/^  double _Evxcrho;$/;"	m	class:ScfPW
+_Exc	scfdg.hpp	/^  double _Exc;$/;"	m	class:ScfDG
+_Exc	scfpw.hpp	/^  double _Exc;$/;"	m	class:ScfPW
+_Fermi	scfdg.hpp	/^  double _Fermi; \/\/LY: Fermi level mu$/;"	m	class:ScfDG
+_Fermi	scfpw.hpp	/^  double _Fermi; \/\/LY: Fermi level mu$/;"	m	class:ScfPW
+_GLB_HPP_	domain.hpp	2;"	d
+_INTERP_HPP_	interp.hpp	2;"	d
+_LAPACK_H_	lapack.h	2;"	d
+_Ls	eigpw.hpp	/^  Point3 _Ls;$/;"	m	class:EigPW
+_Ls	periodtable.hpp	/^  Point3 _Ls; \/\/length$/;"	m	class:Domain
+_Ls	scfdg.hpp	/^  Point3 _Ls; \/\/LY: LENGTH$/;"	m	class:Buff
+_Ls	scfdg.hpp	/^  Point3 _Ls; \/\/LY: LENGTH$/;"	m	class:Elem
+_Ls	scfdg.hpp	/^  Point3 _Ls; \/\/LY: length, width and height$/;"	m	class:ScfDG
+_Ls	scfpw.hpp	/^  Point3 _Ls; \/\/LY: lenght, width and height$/;"	m	class:ScfPW
+_MB	eigdg.hpp	/^  int _MB;$/;"	m	class:EigDG
+_MB	scfdg.hpp	/^  int _MB;      \/\/LY: Scalapack MB by MB, 128 or 256$/;"	m	class:ScfDG
+_NElems	scfdg.hpp	/^  Index3 _NElems; \/\/LY: numb of elements in 3 directions$/;"	m	class:ScfDG
+_NUMMAT_HPP_	nummat.hpp	2;"	d
+_NUMTNS_HPP_	numtns.hpp	2;"	d
+_NUMVEC_HPP_	numvec.hpp	2;"	d
+_Neigperele	eigdg.hpp	/^  int    _Neigperele; \/\/LLIN: Number of eigenvalues to be solved per element in the buffer$/;"	m	class:EigDG
+_Neigperele	scfdg.hpp	/^  int    _Neigperele; \/\/LLIN: Number of eigenvalues to be solved per element in the buffer$/;"	m	class:ScfDG
+_Nlbls	eigdg.hpp	/^  Index3 _Nlbls; \/\/NUMBER OF LBL POINTS IN EACH DIRECITON$/;"	m	class:EigDG
+_Norbperele	eigdg.hpp	/^  int    _Norbperele; \/\/LLIN: Number of nonorthogonal oritals in the element$/;"	m	class:EigDG
+_Norbperele	scfdg.hpp	/^  int    _Norbperele; \/\/LLIN: Number of nonorthogonal oritals in the element$/;"	m	class:ScfDG
+_Ns	eigdg.hpp	/^  Index3 _Ns; \/\/NUMBER OF ELEMENTS IN EACH DIRECTION$/;"	m	class:EigDG
+_Ns	eigpw.hpp	/^  Index3 _Ns;$/;"	m	class:EigPW
+_Ns	periodtable.hpp	/^  Index3 _Ns; \/\/number of grids points in each direction$/;"	m	class:Domain
+_Ns	scfdg.hpp	/^  Index3 _Ns; \/\/LY: # of grid points in each dir, uniform or LGL$/;"	m	class:ScfDG
+_Ns	scfdg.hpp	/^  Index3 _Ns; \/\/LY: NUMBER OF GRIDPOINTS$/;"	m	class:Buff
+_Ns	scfdg.hpp	/^  Index3 _Ns; \/\/LY: NUMBER OF GRIDPOINTS$/;"	m	class:Elem
+_Ns	scfpw.hpp	/^  Index3 _Ns; \/\/LY: # of grid points in each dir, uniform or LGL$/;"	m	class:ScfPW
+_Nsglb	scfdg.hpp	/^  Index3 _Nsglb; \/\/LY: how many global points in this element in each dimension$/;"	m	class:Elem
+_PARALLEL_HPP_	parallel.hpp	2;"	d
+_PARVEC_HPP_	parvec.hpp	2;"	d
+_PERIODTABLE_HPP_	periodtable.hpp	2;"	d
+_SCFDG_HPP_	scfdg.hpp	2;"	d
+_SCFPW_HPP_	scfpw.hpp	2;"	d
+_SERIALIZE_HPP_	serialize.hpp	2;"	d
+_Tbeta	scfdg.hpp	/^  double _Tbeta;          \/\/ inverse temperature, unit: inverse hartree $/;"	m	class:ScfDG
+_Tbeta	scfpw.hpp	/^  double _Tbeta;          \/\/ inverse temperature, unit: inverse hartree $/;"	m	class:ScfPW
+_TransBufkl	scfdg.hpp	/^  vector<vector<cpx> >    _TransBufkl; \/\/LY: 3 times matrix element by buffer (k)$/;"	m	class:Elem
+_TransGlblx	scfdg.hpp	/^  vector<vector<double> > _TransGlblx; \/\/LY: 3 times matrix, glb by element$/;"	m	class:Elem
+_UTIL_HPP_	util.hpp	2;"	d
+_VEC2T_HPP_	vec2t.hpp	2;"	d
+_VEC3T_HPP_	vec3t.hpp	2;"	d
+_VECMATOP_HPP_	vecmatop.hpp	2;"	d
+__DEBUG_HPP	debug.hpp	2;"	d
+__ESDF_2008_05_12	esdf.h	2;"	d
+__FORTRAN_UTIL_2008_05_12	esdfutil.h	2;"	d
+_alpha	eigdg.hpp	/^  double _alpha; \/\/LLIN: Interior penalty in the DG formulation, should$/;"	m	class:EigDG
+_alpha	scfdg.hpp	/^  double _alpha;          \/\/ mixing weight$/;"	m	class:ScfDG
+_alpha	scfpw.hpp	/^  double _alpha;          \/\/ mixing weight$/;"	m	class:ScfPW
+_atomvec	scfdg.hpp	/^  vector<Atom> _atomvec;$/;"	m	class:Buff
+_atomvec	scfdg.hpp	/^  vector<Atom> _atomvec;$/;"	m	class:ScfDG
+_atomvec	scfpw.hpp	/^  vector<Atom> _atomvec;$/;"	m	class:ScfPW
+_basesvec	scfdg.hpp	/^  ParVec<Index3, vector<DblNumTns>, ElemPtn> _basesvec; \/\/LEXING: basesvec global$/;"	m	class:ScfDG
+_bufftns	scfdg.hpp	/^  NumTns<Domain> _bufftns;$/;"	m	class:ScfDG
+_buffvec	scfdg.hpp	/^  NumTns<Buff> _buffvec;\/\/ParVec<Index3, Buff, ElemPtn> _buffvec;$/;"	m	class:ScfDG
+_coord	periodtable.hpp	/^  Point3 _coord;$/;"	m	class:Atom
+_cuts	periodtable.hpp	/^  DblNumVec _cuts; \/\/cutoff value for different mode$/;"	m	class:PTEntry
+_data	nummat.hpp	/^  F* _data;$/;"	m	class:NumMat
+_data	numtns.hpp	/^  F* _data;$/;"	m	class:NumTns
+_data	numvec.hpp	/^  F* _data;$/;"	m	class:NumVec
+_delta	eigdg.hpp	/^  double _delta;    \/\/LLIN: Wall width for the Frobenius penalty  $/;"	m	class:EigDG
+_delta	scfdg.hpp	/^  double _delta;    \/\/LLIN: Wall width for the Frobenius penalty  $/;"	m	class:ScfDG
+_dgalpha	scfdg.hpp	/^  int _dgalpha; \/\/DG penalty term$/;"	m	class:ScfDG
+_dgndeg	scfdg.hpp	/^  int _dgndeg;  \/\/LY: poly deg$/;"	m	class:ScfDG
+_dgsolver	eigdg.hpp	/^  string _dgsolver; \/\/LLIN: Standard solver (std) or Nonorthogonal (nonorth)$/;"	m	class:EigDG
+_dgsolver	scfdg.hpp	/^  string _dgsolver; \/\/LLIN: Standard solver (std) or Nonorthogonal (nonorth)$/;"	m	class:ScfDG
+_dm	scfdg.hpp	/^  Domain _dm;  \/\/vector<Atom> _atomvec;$/;"	m	class:Elem
+_dm	scfdg.hpp	/^  Domain _dm;$/;"	m	class:Buff
+_dm	scfdg.hpp	/^  Domain _dm;$/;"	m	class:ScfDG
+_dm	scfpw.hpp	/^  Domain _dm;$/;"	m	class:ScfPW
+_eigmaxiter	eigpw.hpp	/^  int _eigmaxiter;$/;"	m	class:EigPW
+_eigmaxiter	scfdg.hpp	/^  int _eigmaxiter; \/\/LY: eigmaxiter=loppcg max iterationu$/;"	m	class:ScfDG
+_eigmaxiter	scfpw.hpp	/^  int _eigmaxiter; \/\/LY: eigmaxiter=loppcg max iterationu$/;"	m	class:ScfPW
+_eigtol	eigpw.hpp	/^  double _eigtol;$/;"	m	class:EigPW
+_eigtol	scfdg.hpp	/^  double _eigtol;$/;"	m	class:ScfDG
+_eigtol	scfpw.hpp	/^  double _eigtol;$/;"	m	class:ScfPW
+_eigvecsvec	scfdg.hpp	/^  ParVec<Index3, DblNumMat, ElemPtn> _eigvecsvec; \/\/LEXING: eigvec global now$/;"	m	class:ScfDG
+_elemptn	eigdg.hpp	/^  ElemPtn _elemptn;$/;"	m	class:EigDG
+_elemptn	scfdg.hpp	/^  ElemPtn _elemptn; \/\/partition the elements among processors$/;"	m	class:ScfDG
+_elemptninfo	scfdg.hpp	/^  IntNumTns _elemptninfo;$/;"	m	class:ScfDG
+_elemtns	scfdg.hpp	/^  NumTns<Domain> _elemtns;$/;"	m	class:ScfDG
+_elemvec	scfdg.hpp	/^  NumTns<Elem> _elemvec;  \/\/LEXING: elemvec is local now (stored a copy at all processor) ParVec<Index3, Elem, ElemPtn> _elemvec;$/;"	m	class:ScfDG
+_ematptn	eigdg.hpp	/^  EmatPtn _ematptn;$/;"	m	class:EigDG
+_ev	scfdg.hpp	/^  vector<double> _ev; \/\/LY: eigvals$/;"	m	class:ScfDG
+_ev	scfdg.hpp	/^  vector<double> _ev;$/;"	m	class:Buff
+_ev	scfpw.hpp	/^  vector<double> _ev; \/\/LY: eigvals$/;"	m	class:ScfPW
+_force	periodtable.hpp	/^  Point3 _force;$/;"	m	class:Atom
+_gamma	eigdg.hpp	/^  double _gamma;    \/\/LLIN: Weight ratio between eigenvalue and penalty$/;"	m	class:EigDG
+_gamma	scfdg.hpp	/^  double _gamma;    \/\/LLIN: Weight ratio between eigenvalue and penalty$/;"	m	class:ScfDG
+_gkk	eigpw.hpp	/^  vector<double> _gkk;$/;"	m	class:EigPW
+_gkk	scfdg.hpp	/^  vector<double> _gkk; \/\/LY: k^2, k contains 2pi already$/;"	m	class:ScfDG
+_gkk	scfpw.hpp	/^  vector<double> _gkk; \/\/LY: k^2, k contains 2pi already$/;"	m	class:ScfPW
+_gkkhalf	eigpw.hpp	/^  vector<double> _gkkhalf;$/;"	m	class:EigPW
+_gridpos	scfdg.hpp	/^  vector<DblNumVec> _gridpos; \/\/LY: grid in each direction, vector_size=3, not necessarily useful here$/;"	m	class:ScfDG
+_gridpos	scfdg.hpp	/^  vector<DblNumVec> _gridpos;$/;"	m	class:Buff
+_gridpos	scfdg.hpp	/^  vector<DblNumVec> _gridpos;$/;"	m	class:Elem
+_gridpos	scfpw.hpp	/^  vector<DblNumVec> _gridpos; \/\/LY: grid in each direction, vector_size=3, not necessarily useful here$/;"	m	class:ScfPW
+_hs	eigdg.hpp	/^  Point3 _hs;$/;"	m	class:EigDG
+_ik	scfdg.hpp	/^  CpxNumMat _ik; \/\/LL: ik, size: _ntot*3. For derivaitve purpose. ik contains 2pi already$/;"	m	class:ScfDG
+_ik	scfpw.hpp	/^  CpxNumMat _ik; \/\/LL: ik, size: _ntot*3. For derivaitve purpose. ik contains 2pi already$/;"	m	class:ScfPW
+_jumpvec	eigdg.hpp	/^  vector<Index3> _jumpvec; \/\/LEXING: index of other element required for jump calculation$/;"	m	class:EigDG
+_lclmap	parvec.hpp	/^  map<Key,Data> _lclmap;$/;"	m	class:ParVec
+_m	nummat.hpp	/^  int _m, _n;$/;"	m	class:NumMat
+_m	numtns.hpp	/^  int _m, _n, _p;$/;"	m	class:NumTns
+_m	numvec.hpp	/^  int  _m;$/;"	m	class:NumVec
+_mass	periodtable.hpp	/^  double _mass;$/;"	m	class:Atom
+_mixdim	scfdg.hpp	/^  int _mixdim;            \/\/ Maximum dimension of mixing history (for Anderson) $/;"	m	class:ScfDG
+_mixdim	scfpw.hpp	/^  int _mixdim;            \/\/ Maximum dimension of mixing history (for Anderson) $/;"	m	class:ScfPW
+_mixtype	scfdg.hpp	/^  string _mixtype;        \/\/ Mixing type, anderson | kerker$/;"	m	class:ScfDG
+_mixtype	scfpw.hpp	/^  string _mixtype;        \/\/ Mixing type, (anderson) | kerker$/;"	m	class:ScfPW
+_mixtypeset	scfdg.hpp	/^  set<string> _mixtypeset;$/;"	m	class:ScfDG
+_mixtypeset	scfpw.hpp	/^  set<string> _mixtypeset;$/;"	m	class:ScfPW
+_n	nummat.hpp	/^  int _m, _n;$/;"	m	class:NumMat
+_n	numtns.hpp	/^  int _m, _n, _p;$/;"	m	class:NumTns
+_nBuffUpdate	scfdg.hpp	/^  int _nBuffUpdate;     \/\/Basis functions are updated every _nBuffUpdate SCF steps.$/;"	m	class:ScfDG
+_nExtraStates	scfdg.hpp	/^  int _nExtraStates; \/\/LY: extra number of states to be calculated besides the$/;"	m	class:ScfDG
+_nExtraStates	scfpw.hpp	/^  int _nExtraStates; \/\/LY:$/;"	m	class:ScfPW
+_nOccStates	scfdg.hpp	/^  int _nOccStates; \/\/LY: nExtra + nOcc = npsi$/;"	m	class:ScfDG
+_nOccStates	scfpw.hpp	/^  int _nOccStates; \/\/LY: nExtra + nOcc = npsi$/;"	m	class:ScfPW
+_nbhdvec	eigdg.hpp	/^  vector<Index3> _nbhdvec; \/\/LEXING: index of neighbor element required (for nonlocal computation)$/;"	m	class:EigDG
+_nenrich	scfdg.hpp	/^  int _nenrich; \/\/LY: number of enriches besides poly$/;"	m	class:ScfDG
+_npsi	scfdg.hpp	/^  int _npsi; \/\/LY: number of eigenfns needed$/;"	m	class:ScfDG
+_npsi	scfdg.hpp	/^  int _npsi;$/;"	m	class:Buff
+_npsi	scfpw.hpp	/^  int _npsi; \/\/LY: number of eigenfns needed$/;"	m	class:ScfPW
+_ntot	eigpw.hpp	/^  int _ntot;$/;"	m	class:EigPW
+_ntot	scfdg.hpp	/^  int _ntot; \/\/LY: # of grid points$/;"	m	class:ScfDG
+_ntot	scfdg.hpp	/^  int _ntot;$/;"	m	class:Buff
+_ntot	scfdg.hpp	/^  int _ntot;$/;"	m	class:Elem
+_ntot	scfpw.hpp	/^  int _ntot; \/\/LY: # of grid points$/;"	m	class:ScfPW
+_occ	scfdg.hpp	/^  vector<double> _occ; \/\/LY: occ rate  \/\/int _nvnl; \/\/LY: nb of nonlocal pseudopot$/;"	m	class:ScfDG
+_occ	scfpw.hpp	/^  vector<double> _occ; \/\/LY: occ rate$/;"	m	class:ScfPW
+_owndata	nummat.hpp	/^  bool _owndata;$/;"	m	class:NumMat
+_owndata	numtns.hpp	/^  bool _owndata;$/;"	m	class:NumTns
+_owndata	numvec.hpp	/^  bool _owndata;$/;"	m	class:NumVec
+_ownerinfo	eigdg.hpp	/^  IntNumMat _ownerinfo;$/;"	m	class:BlckPtn
+_ownerinfo	eigdg.hpp	/^  IntNumTns _ownerinfo;$/;"	m	class:EmatPtn
+_ownerinfo	scfdg.hpp	/^  IntNumTns _ownerinfo;$/;"	m	class:ElemPtn
+_ownerinfo	scfdg.hpp	/^  vector<int> _ownerinfo; \/\/this tells the owner of each atom$/;"	m	class:PsdoPtn
+_ownerinfo	testeig1.cpp	/^    map<SpBlckKey, int> _ownerinfo;$/;"	m	class:SpBlckPtn	file:
+_ownerinfo	testeig1.cpp	/^  IntNumVec _ownerinfo;$/;"	m	class:VecPtn	file:
+_ownerinfo	testeig2.cpp	/^    map<SpBlckKey, int> _ownerinfo;$/;"	m	class:SpBlckPtn	file:
+_ownerinfo	testeig2.cpp	/^  IntNumVec _ownerinfo;$/;"	m	class:VecPtn	file:
+_ownerinfo	ttmatvec1.cpp	/^    map<SpBlckKey, int> _ownerinfo;$/;"	m	class:SpBlckPtn	file:
+_ownerinfo	ttmatvec1.cpp	/^  IntNumVec _ownerinfo;$/;"	m	class:VecPtn	file:
+_p	numtns.hpp	/^  int _m, _n, _p;$/;"	m	class:NumTns
+_params	periodtable.hpp	/^  DblNumVec _params; \/\/size 5$/;"	m	class:PTEntry
+_planpsibackward	eigpw.hpp	/^  fftw_plan _planpsibackward;$/;"	m	class:EigPW
+_planpsibackward	scfdg.hpp	/^  fftw_plan _planpsibackward; \/\/LY: fftw plans for psi$/;"	m	class:Buff
+_planpsibackward	scfdg.hpp	/^  fftw_plan _planpsibackward; \/\/LY: fftw plans for psi$/;"	m	class:ScfDG
+_planpsibackward	scfpw.hpp	/^  fftw_plan _planpsibackward; \/\/LY: fftw plans for psi$/;"	m	class:ScfPW
+_planpsic2r	eigpw.hpp	/^  fftw_plan _planpsic2r;$/;"	m	class:EigPW
+_planpsiforward	eigpw.hpp	/^  fftw_plan _planpsiforward;$/;"	m	class:EigPW
+_planpsiforward	scfdg.hpp	/^  fftw_plan _planpsiforward;$/;"	m	class:Buff
+_planpsiforward	scfdg.hpp	/^  fftw_plan _planpsiforward;$/;"	m	class:ScfDG
+_planpsiforward	scfpw.hpp	/^  fftw_plan _planpsiforward;$/;"	m	class:ScfPW
+_planpsir2c	eigpw.hpp	/^  fftw_plan _planpsir2c;$/;"	m	class:EigPW
+_pos	periodtable.hpp	/^  Point3 _pos; \/\/starting position$/;"	m	class:Domain
+_pos	scfdg.hpp	/^  Point3 _pos; \/\/LY: STARTING POS$/;"	m	class:Buff
+_pos	scfdg.hpp	/^  Point3 _pos; \/\/LY: STARTING POS$/;"	m	class:Elem
+_pos	scfdg.hpp	/^  Point3 _pos; \/\/LY: lower left front point location  $/;"	m	class:ScfDG
+_pos	scfpw.hpp	/^  Point3 _pos; \/\/LY: lower left front point location$/;"	m	class:ScfPW
+_posidx	scfdg.hpp	/^  Index3 _posidx;$/;"	m	class:Buff
+_posidx	scfdg.hpp	/^  Index3 _posidx;$/;"	m	class:Elem
+_posidx	scfdg.hpp	/^  Index3 _posidx;$/;"	m	class:ScfDG
+_posidx	scfpw.hpp	/^  Index3 _posidx;$/;"	m	class:ScfPW
+_prec	eigpw.hpp	/^  vector<double> _prec;$/;"	m	class:EigPW
+_prechalf	eigpw.hpp	/^  vector<double> _prechalf;$/;"	m	class:EigPW
+_prefix	comobject.hpp	/^  string _prefix;$/;"	m	class:ComObject
+_prtn	parvec.hpp	/^  Partition _prtn; \/\/has function owner:Key->pid$/;"	m	class:ParVec
+_psdoptn	eigdg.hpp	/^  PsdoPtn _psdoptn;$/;"	m	class:EigDG
+_psdoptn	scfdg.hpp	/^  PsdoPtn _psdoptn; \/\/partition the pseudopotentials among processors$/;"	m	class:ScfDG
+_psdovec	eigdg.hpp	/^  vector<Index3> _psdovec; \/\/LEXING: index of other element required for pseudo potential calculation$/;"	m	class:EigDG
+_psdovec	scfdg.hpp	/^  ParVec<int, Psdo, PsdoPtn> _psdovec;$/;"	m	class:ScfDG
+_pseudotype	scfpw.hpp	/^  string _pseudotype;     \/\/ Pseudopotential type, (GTH) | TM$/;"	m	class:ScfPW
+_pseudotypeset	scfpw.hpp	/^  set<string> _pseudotypeset;$/;"	m	class:ScfPW
+_psi	scfdg.hpp	/^  vector<double> _psi;$/;"	m	class:Buff
+_psi	scfpw.hpp	/^  vector<double> _psi; \/\/LY: all eigen fns in one vec, eqv. to vector<DblNumTNs>$/;"	m	class:ScfPW
+_ptable	scfdg.hpp	/^  PeriodTable _ptable;$/;"	m	class:ScfDG
+_ptable	scfpw.hpp	/^  PeriodTable _ptable;$/;"	m	class:ScfPW
+_ptemap	periodtable.hpp	/^  map<int, PTEntry> _ptemap; \/\/map from atom_id to PTEntry$/;"	m	class:PeriodTable
+_ptfilename	scfpw.hpp	/^  string _ptfilename;     \/\/ Input file for pseudopotential$/;"	m	class:ScfPW
+_rho	scfdg.hpp	/^  vector<double> _rho; \/\/LY: density$/;"	m	class:ScfDG
+_rho	scfpw.hpp	/^  vector<double> _rho; \/\/LY: density$/;"	m	class:ScfPW
+_rho0	scfdg.hpp	/^  SparseVec _rho0; \/\/rho0 of an atom, sampled on the whole grid$/;"	m	class:Psdo
+_rho0	scfdg.hpp	/^  vector<double> _rho0; \/\/LY: density$/;"	m	class:ScfDG
+_rho0	scfpw.hpp	/^  vector<double> _rho0; \/\/LY: move with atom, fixed$/;"	m	class:ScfPW
+_rho0s	scfpw.hpp	/^  vector<SparseVec> _rho0s;$/;"	m	class:ScfPW
+_samples	periodtable.hpp	/^  DblNumMat _samples; \/\/ns by nb$/;"	m	class:PTEntry
+_scfmaxiter	scfdg.hpp	/^  int _scfmaxiter;$/;"	m	class:ScfDG
+_scfmaxiter	scfpw.hpp	/^  int _scfmaxiter;$/;"	m	class:ScfPW
+_scftol	scfdg.hpp	/^  double _scftol; \/\/LY: eigtol for both global and buffer$/;"	m	class:ScfDG
+_scftol	scfpw.hpp	/^  double _scftol; \/\/LY: eigtol for both global and buffer$/;"	m	class:ScfPW
+_splmap	periodtable.hpp	/^  map<int, map< int,vector<DblNumVec> > > _splmap;$/;"	m	class:PeriodTable
+_type	periodtable.hpp	/^  int _type;$/;"	m	class:Atom
+_typs	periodtable.hpp	/^  IntNumVec _typs; \/\/nb$/;"	m	class:PTEntry
+_v	vec2t.hpp	/^  F _v[2];$/;"	m	class:Vec2T
+_v	vec3t.hpp	/^  F _v[3];$/;"	m	class:Vec3T
+_vel	periodtable.hpp	/^  Point3 _vel;$/;"	m	class:Atom
+_vhart	scfdg.hpp	/^  vector<double> _vhart; \/\/LY: hatree = vhart + vhart0$/;"	m	class:ScfDG
+_vhart	scfpw.hpp	/^  vector<double> _vhart; \/\/LY: hartree pot.$/;"	m	class:ScfPW
+_vnlptr	eigpw.hpp	/^  vector< pair<SparseVec,double> >* _vnlptr;$/;"	m	class:EigPW
+_vnls	scfdg.hpp	/^  vector< pair<NumTns<SparseVec>,double> > _vnls; \/\/sampled on LBL grid$/;"	m	class:Psdo
+_vnls	scfdg.hpp	/^  vector< pair<SparseVec,double> > _vnls; \/\/LY: NONLOCAL PSEUDOPOT OF ALL ATOMS GROUPED TOGETHER$/;"	m	class:Buff
+_vnlss	scfpw.hpp	/^  vector< vector< pair<SparseVec,double> > > _vnlss; \/\/LY: each atom, each pseudopot, one sparsevec $/;"	m	class:ScfPW
+_vol	eigpw.hpp	/^  double _vol;$/;"	m	class:EigPW
+_vol	scfdg.hpp	/^  double _vol;  \/\/LY: product of these three$/;"	m	class:ScfDG
+_vol	scfdg.hpp	/^  double _vol;$/;"	m	class:Buff
+_vol	scfdg.hpp	/^  double _vol;$/;"	m	class:Elem
+_vol	scfpw.hpp	/^  double _vol;  \/\/LY: product of these three$/;"	m	class:ScfPW
+_vtot	scfdg.hpp	/^  vector<double> _vtot; \/\/LY: total potential$/;"	m	class:ScfDG
+_vtot	scfdg.hpp	/^  vector<double> _vtot;$/;"	m	class:Buff
+_vtot	scfpw.hpp	/^  vector<double> _vtot; \/\/LY: total potential$/;"	m	class:ScfPW
+_vtotptr	eigpw.hpp	/^  vector<double>* _vtotptr;$/;"	m	class:EigPW
+_vtotvec	scfdg.hpp	/^  ParVec<Index3, vector<double>, ElemPtn> _vtotvec; \/\/LEXING: global vector $/;"	m	class:ScfDG
+_vxc	scfdg.hpp	/^  vector<double> _vxc; \/\/LY: $/;"	m	class:ScfDG
+_vxc	scfpw.hpp	/^  vector<double> _vxc; \/\/LY:  exchange-correlation$/;"	m	class:ScfPW
+_wgts	periodtable.hpp	/^  DblNumVec _wgts; \/\/nb$/;"	m	class:PTEntry
+access	parvec.hpp	/^Data& ParVec<Key,Data,Partition>::access(Key key)$/;"	f	class:ParVec
+active_indices	multi_vector.h	/^   BlopexInt     *active_indices;   \/* indices of active vectors; 0-based notation *\/$/;"	m	struct:__anon2
+adjustl	esdfutil.c	/^void adjustl(char *in,char *out) {$/;"	f
+amu2au	util.hpp	/^const double amu2au = 1822.8885;$/;"	v
+au2K	util.hpp	/^const double au2K = 315774.67;$/;"	v
+block_data	esdf.c	/^char **block_data;$/;"	v
+block_data	esdf.h	/^char **block_data;$/;"	v
+bool	esdf.h	/^typedef int bool;$/;"	t
+clmdata	nummat.hpp	/^  F* clmdata(int j) { return &(_data[j*_m]); }$/;"	f	class:NumMat
+combine	periodtable.cpp	/^int combine(Domain& val, Domain& ext)$/;"	f
+combine	periodtable.cpp	/^int combine(PTEntry& val, PTEntry& ext)$/;"	f
+combine	scfdg_setup.cpp	/^int combine(Psdo& val, Psdo& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(CpxNumMat& val, CpxNumMat& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(CpxNumTns& val, CpxNumTns& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(CpxNumVec& val, CpxNumVec& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(DblNumMat& val, DblNumMat& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(DblNumTns& val, DblNumTns& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(DblNumVec& val, DblNumVec& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(Index2& val, Index2& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(Index3& val, Index3& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(IntNumMat& val, IntNumMat& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(IntNumTns& val, IntNumTns& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(IntNumVec& val, IntNumVec& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(Point2& val, Point2& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(Point3& val, Point3& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(char& val, char& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(cpx& val, cpx& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(double& val, double& ext)$/;"	f
+combine	serialize.hpp	/^inline int combine(int& val, int& ext)$/;"	f
+combine	serialize.hpp	/^int combine(map<T,S>& val, map<T,S>& ext)$/;"	f
+combine	serialize.hpp	/^int combine(pair<T,S>& val, pair<T,S>& ext)$/;"	f
+combine	serialize.hpp	/^int combine(set<T>& val, set<T>& ext)$/;"	f
+combine	serialize.hpp	/^int combine(vector<T>& val, vector<T>& ext)$/;"	f
+combine	serialize.hpp	/^int inline combine(NumMat<T>& val, NumMat<T>& ext)$/;"	f
+combine	serialize.hpp	/^int inline combine(NumTns<T>& val, NumTns<T>& ext)$/;"	f
+combine	serialize.hpp	/^int inline combine(NumVec<T>& val, NumVec<T>& ext)$/;"	f
+coord	periodtable.hpp	/^  Point3& coord() { return _coord; }$/;"	f	class:Atom
+coord	periodtable.hpp	/^  double coord(int k) {return _coord[k];}$/;"	f	class:Atom
+countw	esdfutil.c	/^int countw(char *str, char **pool, int nrecords) {$/;"	f
+cpx	commoninc.hpp	/^typedef std::complex<double> cpx;$/;"	t
+cpx16	blas.h	/^typedef std::complex<double> cpx16;$/;"	t
+cpx8	blas.h	/^typedef std::complex<float> cpx8;$/;"	t
+cross	vec3t.hpp	/^template <class F> inline Vec3T<F> cross     (const Vec3T<F>& a, const Vec3T<F>& b) { $/;"	f
+cuts	periodtable.hpp	/^  DblNumVec& cuts() { return _cuts; }$/;"	f	class:PTEntry
+d	pdeig.c	118;"	d	file:
+data	multi_vector.h	/^   double  *data;$/;"	m	struct:__anon2
+data	nummat.hpp	/^  F* data() const { return _data; }$/;"	f	class:NumMat
+data	numtns.hpp	/^  F* data() const { return _data; }$/;"	f	class:NumTns
+data	numvec.hpp	/^  F* data() const { return _data; }$/;"	f	class:NumVec
+data	vec2t.hpp	/^  F* data()                { return &_v[0]; }  \/\/access array$/;"	f	class:Vec2T
+data	vec3t.hpp	/^  F* data()                { return &_v[0]; }  \/\/access array$/;"	f	class:Vec3T
+deserialize	parvec.hpp	/^int deserialize(ParVec<Key,Data,Partition>& pv, istream& is, const vector<int>& mask)$/;"	f
+deserialize	periodtable.cpp	/^int deserialize(Domain& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	periodtable.cpp	/^int deserialize(PTEntry& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	scfdg_setup.cpp	/^int deserialize(Psdo& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(CpxNumMat& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(CpxNumTns& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(CpxNumVec& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(DblNumMat& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(DblNumTns& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(DblNumVec& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(Index2& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(Index3& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(IntNumMat& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(IntNumTns& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(IntNumVec& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(Point2& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(Point3& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(char& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(cpx& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(double& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^inline int deserialize(int& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^int deserialize(map<T,S>& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^int deserialize(pair<T,S>& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^int deserialize(set<T>& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^int deserialize(vector<T>& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^int inline deserialize(NumMat<T>& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^int inline deserialize(NumTns<T>& val, istream& is, const vector<int>& mask)$/;"	f
+deserialize	serialize.hpp	/^int inline deserialize(NumVec<T>& val, istream& is, const vector<int>& mask)$/;"	f
+dgemm	vecmatop.cpp	/^int dgemm(double alpha, const DblNumMat& A, const DblNumMat& B, double beta, DblNumMat& C)$/;"	f
+dgemm	vecmatop.cpp	/^int dgemm(int m, int n, int k, double alpha, double* A, double* B, double beta, double* C)$/;"	f
+dgemv	vecmatop.cpp	/^int dgemv(double alpha, const DblNumMat& A, const DblNumVec& X, double beta, DblNumVec& Y)$/;"	f
+dgemv	vecmatop.cpp	/^int dgemv(int m, int n, double alpha, double* A, double* X, double beta, double* Y)$/;"	f
+dgmres	vecmatop.cpp	/^int dgmres(int (*A)(const DblNumVec&, DblNumVec&), const DblNumVec& b, const DblNumVec& x0,$/;"	f
+discard	parvec.hpp	/^int ParVec<Key,Data,Partition>::discard(vector<Key>& keyvec)$/;"	f	class:ParVec
+dm	scfdg.hpp	/^  Domain& dm() { return _dm; }  \/\/vector<Atom>& atomvec() { return _atomvec; }$/;"	f	class:Elem
+dot	vec2t.hpp	/^template <class F> inline F dot       (const Vec2T<F>& a, const Vec2T<F>& b) {$/;"	f
+dot	vec3t.hpp	/^template <class F> inline F dot       (const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+dunirand	util.hpp	/^inline double dunirand(void){$/;"	f
+eigvals	pdeig.c	7;"	d	file:
+eigvecs	pdeig.c	6;"	d	file:
+energy	nummat.hpp	/^template <class F> inline double energy(NumMat<F>& M)$/;"	f
+energy	numtns.hpp	/^template <class F> inline double energy(NumTns<F>& T)$/;"	f
+energy	numvec.hpp	/^template <class F> inline double energy(NumVec<F>& vec)$/;"	f
+energy	numvec.hpp	/^template <class F> inline double energy(const NumVec<F>& vec)$/;"	f
+esdf	esdf.c	/^void esdf() {$/;"	f
+esdf_bcast	esdf.c	/^void esdf_bcast(int myid, int MASTER){$/;"	f
+esdf_block	esdf.c	/^bool esdf_block(char *labl,int *nlines) {$/;"	f
+esdf_boolean	esdf.c	/^bool esdf_boolean(char *labl,bool *def) {$/;"	f
+esdf_close	esdf.c	/^void esdf_close() {$/;"	f
+esdf_convfac	esdf.c	/^double esdf_convfac(char *from,char *to) {$/;"	f
+esdf_defined	esdf.c	/^bool esdf_defined(char *labl) {$/;"	f
+esdf_die	esdf.c	/^void esdf_die(char *str) {$/;"	f
+esdf_double	esdf.c	/^double esdf_double(char *labl,double def) {$/;"	f
+esdf_file	esdf.c	/^void esdf_file(int *unit,char *filename,int *ierr) {$/;"	f
+esdf_init	esdf.c	/^void esdf_init(char *fname) {$/;"	f
+esdf_integer	esdf.c	/^int esdf_integer(char *labl,int def) {$/;"	f
+esdf_key	esdf.c	/^void esdf_key() {$/;"	f
+esdf_lablchk	esdf.c	/^void esdf_lablchk(char *str,char *typ,int *index) {$/;"	f
+esdf_physical	esdf.c	/^double esdf_physical(char *labl,double def,char *dunit) {$/;"	f
+esdf_reduce	esdf.c	/^char *esdf_reduce(char *in) {$/;"	f
+esdf_single	esdf.c	/^float esdf_single(char *labl,float def) {$/;"	f
+esdf_string	esdf.c	/^void esdf_string(char *labl,char *def,char *out) {$/;"	f
+esdf_warn	esdf.c	/^void esdf_warn(char *str) {$/;"	f
+ewabs	vec2t.hpp	/^template <class F> inline Vec2T<F> ewabs(const Vec2T<F>& a) {$/;"	f
+ewabs	vec3t.hpp	/^template <class F> inline Vec3T<F> ewabs(const Vec3T<F>& a) {$/;"	f
+ewdiv	vec2t.hpp	/^template <class F> inline Vec2T<F> ewdiv(const Vec2T<F>&a, const Vec2T<F>& b) { $/;"	f
+ewdiv	vec3t.hpp	/^template <class F> inline Vec3T<F> ewdiv(const Vec3T<F>&a, const Vec3T<F>& b) { $/;"	f
+ewmax	vec2t.hpp	/^template <class F> inline Vec2T<F> ewmax(const Vec2T<F>& a, const Vec2T<F>& b) {$/;"	f
+ewmax	vec3t.hpp	/^template <class F> inline Vec3T<F> ewmax(const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+ewmin	vec2t.hpp	/^template <class F> inline Vec2T<F> ewmin(const Vec2T<F>& a, const Vec2T<F>& b) {$/;"	f
+ewmin	vec3t.hpp	/^template <class F> inline Vec3T<F> ewmin(const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+ewmul	vec2t.hpp	/^template <class F> inline Vec2T<F> ewmul(const Vec2T<F>&a, const Vec2T<F>& b) {$/;"	f
+ewmul	vec3t.hpp	/^template <class F> inline Vec3T<F> ewmul(const Vec3T<F>&a, const Vec3T<F>& b) {$/;"	f
+ewrnd	vec2t.hpp	/^template <class F> inline Vec2T<F> ewrnd(const Vec2T<F>&a) { \/\/round$/;"	f
+ewrnd	vec3t.hpp	/^template <class F> inline Vec3T<F> ewrnd(const Vec3T<F>&a) { \/\/round$/;"	f
+expand	parvec.hpp	/^int ParVec<Key,Data,Partition>::expand(vector<Key>& keyvec)$/;"	f	class:ParVec
+fhstat	mddg.cpp	/^FILE * fhstat;$/;"	v
+fhstat	mdpw.cpp	/^FILE * fhstat;$/;"	v
+fileunit	esdf.c	/^FILE *fileunit;$/;"	v
+force	periodtable.hpp	/^  Point3& force() { return _force; }$/;"	f	class:Atom
+force	scfdg_scf.cpp	/^int ScfDG::force()$/;"	f	class:ScfDG
+force	scfpw.cpp	/^int ScfPW::force()$/;"	f	class:ScfPW
+force	scfpw_dump.cpp	/^int ScfPW::force(vector<double>& fs)$/;"	f	class:ScfPW
+force_innerprod	scfdg_scf.cpp	/^int ScfDG::force_innerprod(SparseVec& cur, double* ful, double wgt, double* res)$/;"	f	class:ScfDG
+force_innerprod	scfdg_scf.cpp	/^int ScfDG::force_innerprod(SparseVec& cur, double* ful, double* www, double* res)$/;"	f	class:ScfDG
+force_innerprod	scfpw.cpp	/^int ScfPW::force_innerprod(SparseVec& cur, double* ful, double wgt,$/;"	f	class:ScfPW
+force_innerprod	scfpw_dump.cpp	/^int ScfPW::force_innerprod(SparseVec& cur, double* ful, double wgt, double* res)$/;"	f	class:ScfPW
+force_innerprod_val	scfdg_scf.cpp	/^int ScfDG::force_innerprod_val(SparseVec& cur, double* ful, double wgt,$/;"	f	class:ScfDG
+force_innerprod_val	scfpw.cpp	/^int ScfPW::force_innerprod_val(SparseVec& cur, double* ful, double wgt,$/;"	f	class:ScfPW
+getBegin	parvec.hpp	/^int ParVec<Key,Data,Partition>::getBegin( int (*e2ps)(Key,Data&,vector<int>&), const vector<int>& mask )$/;"	f	class:ParVec
+getBegin	parvec.hpp	/^int ParVec<Key,Data,Partition>::getBegin(vector<Key>& keyvec, const vector<int>& mask)$/;"	f	class:ParVec
+getEnd	parvec.hpp	/^int ParVec<Key,Data,Partition>::getEnd( const vector<int>& mask )$/;"	f	class:ParVec
+getaline	esdfutil.c	/^void getaline(FILE *fp, char *aline) {$/;"	f
+getlines	esdfutil.c	/^void getlines(FILE *fp, char **buffer) {$/;"	f
+gettime	util.hpp	/^inline void gettime(double *t){$/;"	f
+gridpos	scfdg.hpp	/^  vector<DblNumVec>& gridpos() { return _gridpos; }$/;"	f	class:Elem
+iA	commoninc.hpp	44;"	d
+iC	commoninc.hpp	43;"	d
+i_Es	periodtable.hpp	/^    i_Es = 3,$/;"	e	enum:PeriodTable::__anon5
+i_Zion	periodtable.hpp	/^    i_Zion = 2,$/;"	e	enum:PeriodTable::__anon5
+i_Znuc	periodtable.hpp	/^    i_Znuc = 0,$/;"	e	enum:PeriodTable::__anon5
+i_drho0	periodtable.hpp	/^    i_drho0 = 2,$/;"	e	enum:PeriodTable::__anon6
+i_mass	periodtable.hpp	/^    i_mass = 1,$/;"	e	enum:PeriodTable::__anon5
+i_rad	periodtable.hpp	/^    i_rad = 0,$/;"	e	enum:PeriodTable::__anon6
+i_rho0	periodtable.hpp	/^    i_rho0 = 1,$/;"	e	enum:PeriodTable::__anon6
+indexch	esdfutil.c	/^int indexch(char *str, char ch) {$/;"	f
+indexstr	esdfutil.c	/^int indexstr(char *string, char *substring) {$/;"	f
+insert	parvec.hpp	/^int ParVec<Key,Data,Partition>::insert(Key key, Data& dat)$/;"	f	class:ParVec
+iround	util.hpp	/^inline int iround(double a){$/;"	f
+isempty	numtns.hpp	/^  int isempty() const {return (_m==0) && (_n==0) && (_p==0);}$/;"	f	class:NumTns
+klinterp	interp.cpp	/^void klinterp(double *Vl2, cpx* Vk1, Elem& Mol2, Buff& Mol1)$/;"	f
+kw_dscrpt	esdf.c	/^char kw_dscrpt[numkw][3000];$/;"	v
+kw_index	esdf.c	/^int kw_index[numkw];$/;"	v
+kw_label	esdf.c	/^char kw_label[numkw][80];$/;"	v
+kw_typ	esdf.c	/^char kw_typ[numkw][4];$/;"	v
+l1	vec2t.hpp	/^  F l1( void )     const  { F sum=F(0); for(int i=0; i<2; i++) sum=sum+abs(_v[i]); return sum; }$/;"	f	class:Vec2T
+l1	vec3t.hpp	/^  F l1( void )     const  { F sum=F(0); for(int i=0; i<3; i++) sum=sum+abs(_v[i]); return sum; }$/;"	f	class:Vec3T
+l2	vec2t.hpp	/^  F l2( void )     const  { F sum=F(0); for(int i=0; i<2; i++) sum=sum+_v[i]*_v[i]; return sqrt(sum); }$/;"	f	class:Vec2T
+l2	vec3t.hpp	/^  F l2( void )     const  { F sum=F(0); for(int i=0; i<3; i++) sum=sum+_v[i]*_v[i]; return sqrt(sum); }$/;"	f	class:Vec3T
+lclmap	parvec.hpp	/^  map<Key,Data>& lclmap() { return _lclmap; }$/;"	f	class:ParVec
+len_trim	esdfutil.c	/^int len_trim(char *in) {$/;"	f
+lglnodes	lglnodes.cpp	/^void lglnodes(double* x, double* w, int N)$/;"	f
+lglnodes	lglnodes.cpp	/^void lglnodes(double* x, int N)$/;"	f
+lglnodes	lglnodes.cpp	/^void lglnodes(vector<double>& x, int N)$/;"	f
+lglnodes	lglnodes.cpp	/^void lglnodes(vector<double>& x, vector<double>& D, int N)$/;"	f
+lglnodes	lglnodes.cpp	/^void lglnodes(vector<double>& x, vector<double>& w, vector<double>& P, int N)$/;"	f
+linfty	vec2t.hpp	/^  F linfty( void ) const  { F cur=F(0); for(int i=0; i<2; i++) cur=max(cur,abs(_v[i])); return cur; }$/;"	f	class:Vec2T
+linfty	vec3t.hpp	/^  F linfty( void ) const  { F cur=F(0); for(int i=0; i<3; i++) cur=max(cur,abs(_v[i])); return cur; }$/;"	f	class:Vec3T
+lint	blas.h	/^typedef int lint;$/;"	t
+llength	esdf.c	12;"	d	file:
+llist	esdf.c	/^char **llist;$/;"	v
+lxinterp	interp.cpp	/^void lxinterp(double *Vx2, double *Vl1, ScfDG& Mol2, Elem& Mol1)$/;"	f
+lxinterp_local	interp.cpp	/^void lxinterp_local(double *Vx2, double *Vl1, Elem& Mol1)$/;"	f
+m	nummat.hpp	/^  int m() const { return _m; }$/;"	f	class:NumMat
+m	numtns.hpp	/^  int m() const { return _m; }$/;"	f	class:NumTns
+m	numvec.hpp	/^  int m () const { return _m; }$/;"	f	class:NumVec
+main	mddg.cpp	/^int main(int argc, char **argv) $/;"	f
+main	mdpw.cpp	/^int main(int argc, char **argv) $/;"	f
+main	testeig.c	/^int main(int argc, char ** argv) $/;"	f
+main	testeig1.cpp	/^int main(int argc, char ** argv) $/;"	f
+main	testeig2.cpp	/^int main(int argc, char ** argv) $/;"	f
+main	testge.cpp	/^int main(int argc, char** argv){$/;"	f
+main	testpge.cpp	/^int main(int argc, char** argv){$/;"	f
+main	testpqr.cpp	/^int main(int argc, char** argv){$/;"	f
+main	ttmatvec1.cpp	/^int main(int argc, char **argv) $/;"	f
+mass	periodtable.hpp	/^  double& mass() { return _mass; }$/;"	f	class:Atom
+mpirank	parvec.hpp	/^  int mpirank() const { int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank); return rank; }$/;"	f	class:ParVec
+mpirank	scfdg.hpp	/^  int mpirank() const { int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank); return rank; }$/;"	f	class:ScfDG
+mpirank	scfpw.hpp	/^  int mpirank() const { int rank; MPI_Comm_rank(MPI_COMM_WORLD, &rank); return rank; }$/;"	f	class:ScfPW
+mpisize	parvec.hpp	/^  int mpisize() const { int size; MPI_Comm_size(MPI_COMM_WORLD, &size); return size; }$/;"	f	class:ParVec
+mpisize	scfdg.hpp	/^  int mpisize() const { int size; MPI_Comm_size(MPI_COMM_WORLD, &size); return size; }$/;"	f	class:ScfDG
+mpisize	scfpw.hpp	/^  int mpisize() const { int size; MPI_Comm_size(MPI_COMM_WORLD, &size); return size; }$/;"	f	class:ScfPW
+n	nummat.hpp	/^  int n() const { return _n; }$/;"	f	class:NumMat
+n	numtns.hpp	/^  int n() const { return _n; }$/;"	f	class:NumTns
+norm	util.hpp	/^inline double norm(double* x, int l){$/;"	f
+nphys	esdf.h	10;"	d
+nrecords	esdf.c	/^int nrecords;$/;"	v
+ntot	scfdg.hpp	/^  int ntot() const {return _ntot;}$/;"	f	class:ScfDG
+ntot	scfdg.hpp	/^  int& ntot() { return _ntot; }$/;"	f	class:Elem
+ntot	scfpw.hpp	/^  int ntot() const {return _ntot;}$/;"	f	class:ScfPW
+num_active_vectors	multi_vector.h	/^   BlopexInt      num_active_vectors;$/;"	m	struct:__anon2
+num_vectors	multi_vector.h	/^   BlopexInt      num_vectors;  \/* the above "size" is size of one vector *\/$/;"	m	struct:__anon2
+numkw	esdf.c	13;"	d	file:
+nwarns	esdf.c	/^int nwarns;$/;"	v
+operator !=	vec2t.hpp	/^template <class F> inline bool operator!=(const Vec2T<F>& a, const Vec2T<F>& b) {$/;"	f
+operator !=	vec3t.hpp	/^template <class F> inline bool operator!=(const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+operator ()	nummat.hpp	/^  F& operator()(int i, int j)  { $/;"	f	class:NumMat
+operator ()	nummat.hpp	/^  const F& operator()(int i, int j) const  { $/;"	f	class:NumMat
+operator ()	numtns.hpp	/^  F& operator()(int i, int j, int k)  {$/;"	f	class:NumTns
+operator ()	numtns.hpp	/^  const F& operator()(int i, int j, int k) const  {$/;"	f	class:NumTns
+operator ()	numvec.hpp	/^  F& operator()(int i)  {$/;"	f	class:NumVec
+operator ()	numvec.hpp	/^  const F& operator()(int i) const  {$/;"	f	class:NumVec
+operator ()	vec2t.hpp	/^  F& operator()(int i)             { assert(i<2); return _v[i]; }$/;"	f	class:Vec2T
+operator ()	vec2t.hpp	/^  const F& operator()(int i) const { assert(i<2); return _v[i]; }$/;"	f	class:Vec2T
+operator ()	vec3t.hpp	/^  F& operator()(int i)             { assert(i<3); return _v[i]; }$/;"	f	class:Vec3T
+operator ()	vec3t.hpp	/^  const F& operator()(int i) const { assert(i<3); return _v[i]; }$/;"	f	class:Vec3T
+operator *	vec2t.hpp	/^template <class F> inline F operator* (const Vec2T<F>& a, const Vec2T<F>& b) {$/;"	f
+operator *	vec2t.hpp	/^template <class F> inline Vec2T<F> operator* (F scl, const Vec2T<F>& a) {$/;"	f
+operator *	vec2t.hpp	/^template <class F> inline Vec2T<F> operator* (const Vec2T<F>& a, F scl) {$/;"	f
+operator *	vec3t.hpp	/^template <class F> inline F operator* (const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+operator *	vec3t.hpp	/^template <class F> inline Vec3T<F> operator* (F scl, const Vec3T<F>& a) {$/;"	f
+operator *	vec3t.hpp	/^template <class F> inline Vec3T<F> operator* (const Vec3T<F>& a, F scl) {$/;"	f
+operator *=	vec2t.hpp	/^  Vec2T& operator*=( const F& s )     { _v[0]*=s;       _v[1]*=s;       return *this; }$/;"	f	class:Vec2T
+operator *=	vec3t.hpp	/^  Vec3T& operator*=( const F& s )     { _v[0]*=s;       _v[1]*=s;       _v[2]*=s;       return *this; }$/;"	f	class:Vec3T
+operator +	vec2t.hpp	/^template <class F> inline Vec2T<F> operator+ (const Vec2T<F>& a, const Vec2T<F>& b) {$/;"	f
+operator +	vec3t.hpp	/^template <class F> inline Vec3T<F> operator+ (const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+operator +=	vec2t.hpp	/^  Vec2T& operator+=( const Vec2T& c ) { _v[0]+=c._v[0]; _v[1]+=c._v[1]; return *this; }$/;"	f	class:Vec2T
+operator +=	vec3t.hpp	/^  Vec3T& operator+=( const Vec3T& c ) { _v[0]+=c._v[0]; _v[1]+=c._v[1]; _v[2]+=c._v[2]; return *this; }$/;"	f	class:Vec3T
+operator -	vec2t.hpp	/^template <class F> inline Vec2T<F> operator- (const Vec2T<F>& a) {$/;"	f
+operator -	vec2t.hpp	/^template <class F> inline Vec2T<F> operator- (const Vec2T<F>& a, const Vec2T<F>& b) {$/;"	f
+operator -	vec3t.hpp	/^template <class F> inline Vec3T<F> operator- (const Vec3T<F>& a) {$/;"	f
+operator -	vec3t.hpp	/^template <class F> inline Vec3T<F> operator- (const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+operator -=	vec2t.hpp	/^  Vec2T& operator-=( const Vec2T& c ) { _v[0]-=c._v[0]; _v[1]-=c._v[1]; return *this; }$/;"	f	class:Vec2T
+operator -=	vec3t.hpp	/^  Vec3T& operator-=( const Vec3T& c ) { _v[0]-=c._v[0]; _v[1]-=c._v[1]; _v[2]-=c._v[2]; return *this; }$/;"	f	class:Vec3T
+operator /	vec2t.hpp	/^template <class F> inline Vec2T<F> operator\/ (const Vec2T<F>& a, F scl) {$/;"	f
+operator /	vec3t.hpp	/^template <class F> inline Vec3T<F> operator\/ (const Vec3T<F>& a, F scl) {$/;"	f
+operator /=	vec2t.hpp	/^  Vec2T& operator\/=( const F& s )     { _v[0]\/=s;       _v[1]\/=s;       return *this; }$/;"	f	class:Vec2T
+operator /=	vec3t.hpp	/^  Vec3T& operator\/=( const F& s )     { _v[0]\/=s;       _v[1]\/=s;       _v[2]\/=s;       return *this; }$/;"	f	class:Vec3T
+operator <	vec2t.hpp	/^template <class F> inline bool operator< (const Vec2T<F>& a, const Vec2T<F>& b) {$/;"	f
+operator <	vec3t.hpp	/^template <class F> inline bool operator< (const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+operator <<	nummat.hpp	/^template <class F> inline ostream& operator<<( ostream& os, const NumMat<F>& mat)$/;"	f
+operator <<	numtns.hpp	/^template <class F> inline ostream& operator<<( ostream& os, const NumTns<F>& tns)$/;"	f
+operator <<	numvec.hpp	/^template <class F> inline ostream& operator<<( ostream& os, const NumVec<F>& vec)$/;"	f
+operator <<	vec2t.hpp	/^template <class F> ostream& operator<<(ostream& os, const Vec2T<F>& a) { $/;"	f
+operator <<	vec3t.hpp	/^template <class F> ostream& operator<<(ostream& os, const Vec3T<F>& a) { $/;"	f
+operator <=	vec2t.hpp	/^template <class F> inline bool operator<=(const Vec2T<F>& a, const Vec2T<F>& b) {$/;"	f
+operator <=	vec3t.hpp	/^template <class F> inline bool operator<=(const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+operator =	nummat.hpp	/^  NumMat& operator=(const NumMat& C) {$/;"	f	class:NumMat
+operator =	numtns.hpp	/^  NumTns& operator=(const NumTns& C) {$/;"	f	class:NumTns
+operator =	numvec.hpp	/^  NumVec& operator=(const NumVec& C)  {$/;"	f	class:NumVec
+operator =	vec2t.hpp	/^  Vec2T& operator= ( const Vec2T& c ) { _v[0] =c._v[0]; _v[1] =c._v[1]; return *this; }$/;"	f	class:Vec2T
+operator =	vec3t.hpp	/^  Vec3T& operator= ( const Vec3T& c ) { _v[0] =c._v[0]; _v[1] =c._v[1]; _v[2] =c._v[2]; return *this; }$/;"	f	class:Vec3T
+operator ==	vec2t.hpp	/^template <class F> inline bool operator==(const Vec2T<F>& a, const Vec2T<F>& b) {$/;"	f
+operator ==	vec3t.hpp	/^template <class F> inline bool operator==(const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+operator >	vec2t.hpp	/^template <class F> inline bool operator> (const Vec2T<F>& a, const Vec2T<F>& b) {$/;"	f
+operator >	vec3t.hpp	/^template <class F> inline bool operator> (const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+operator >=	vec2t.hpp	/^template <class F> inline bool operator>=(const Vec2T<F>& a, const Vec2T<F>& b) {$/;"	f
+operator >=	vec3t.hpp	/^template <class F> inline bool operator>=(const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+operator >>	numvec.hpp	/^template <class F> inline istream& operator>>( istream& is, NumVec<F>& vec)$/;"	f
+operator >>	vec2t.hpp	/^template <class F> istream& operator>>(istream& is, Vec2T<F>& a) {$/;"	f
+operator >>	vec3t.hpp	/^template <class F> istream& operator>>(istream& is, Vec3T<F>& a) {$/;"	f
+operator F*	vec2t.hpp	/^  operator F*()             { return &_v[0]; }$/;"	f	class:Vec2T
+operator F*	vec3t.hpp	/^  operator F*()             { return &_v[0]; }$/;"	f	class:Vec3T
+operator []	numvec.hpp	/^  F& operator[](int i)  {$/;"	f	class:NumVec
+operator []	numvec.hpp	/^  const F& operator[](int i) const  {$/;"	f	class:NumVec
+operator []	vec2t.hpp	/^  F& operator[](int i)             { assert(i<2); return _v[i]; }$/;"	f	class:Vec2T
+operator []	vec2t.hpp	/^  const F& operator[](int i) const { assert(i<2); return _v[i]; }$/;"	f	class:Vec2T
+operator []	vec3t.hpp	/^  F& operator[](int i)             { assert(i<3); return _v[i]; }$/;"	f	class:Vec3T
+operator []	vec3t.hpp	/^  const F& operator[](int i) const { assert(i<3); return _v[i]; }$/;"	f	class:Vec3T
+operator ^	vec3t.hpp	/^template <class F> inline Vec3T<F> operator^ (const Vec3T<F>& a, const Vec3T<F>& b) {$/;"	f
+operator const F*	vec2t.hpp	/^  operator const F*() const { return &_v[0]; }$/;"	f	class:Vec2T
+operator const F*	vec3t.hpp	/^  operator const F*() const { return &_v[0]; }$/;"	f	class:Vec3T
+optionsCreate	util.hpp	/^inline int optionsCreate(int argc, char** argv, map<string,string>& options)$/;"	f
+owner	eigdg.hpp	/^  int owner(EmatKey key) {$/;"	f	class:EmatPtn
+owner	eigdg.hpp	/^  int owner(Index2 key) {$/;"	f	class:BlckPtn
+owner	scfdg.hpp	/^  int owner(Index3 key) {$/;"	f	class:ElemPtn
+owner	scfdg.hpp	/^  int owner(int key) {$/;"	f	class:PsdoPtn
+owner	testeig1.cpp	/^    int owner(SpBlckKey key) { return _ownerinfo[key];}$/;"	f	class:SpBlckPtn
+owner	testeig1.cpp	/^  int owner(int key){ return _ownerinfo(key); }$/;"	f	class:VecPtn
+owner	testeig2.cpp	/^    int owner(SpBlckKey key) { return _ownerinfo[key];}$/;"	f	class:SpBlckPtn
+owner	testeig2.cpp	/^  int owner(int key){ return _ownerinfo(key); }$/;"	f	class:VecPtn
+owner	ttmatvec1.cpp	/^    int owner(SpBlckKey key) { return _ownerinfo[key];}$/;"	f	class:SpBlckPtn
+owner	ttmatvec1.cpp	/^  int owner(int key){ return _ownerinfo(key); }$/;"	f	class:VecPtn
+ownerinfo	eigdg.hpp	/^  IntNumMat& ownerinfo() { return _ownerinfo; }$/;"	f	class:BlckPtn
+ownerinfo	eigdg.hpp	/^  IntNumTns& ownerinfo() { return _ownerinfo; }$/;"	f	class:EmatPtn
+ownerinfo	scfdg.hpp	/^  IntNumTns& ownerinfo() { return _ownerinfo; }$/;"	f	class:ElemPtn
+ownerinfo	scfdg.hpp	/^  vector<int>& ownerinfo() { return _ownerinfo; }$/;"	f	class:PsdoPtn
+ownerinfo	testeig1.cpp	/^    map<SpBlckKey, int>& ownerinfo(){ return _ownerinfo;}$/;"	f	class:SpBlckPtn
+ownerinfo	testeig1.cpp	/^  IntNumVec& ownerinfo() { return _ownerinfo; }$/;"	f	class:VecPtn
+ownerinfo	testeig2.cpp	/^    map<SpBlckKey, int>& ownerinfo(){ return _ownerinfo;}$/;"	f	class:SpBlckPtn
+ownerinfo	testeig2.cpp	/^  IntNumVec& ownerinfo() { return _ownerinfo; }$/;"	f	class:VecPtn
+ownerinfo	ttmatvec1.cpp	/^    map<SpBlckKey, int>& ownerinfo(){ return _ownerinfo;}$/;"	f	class:SpBlckPtn
+ownerinfo	ttmatvec1.cpp	/^  IntNumVec& ownerinfo() { return _ownerinfo; }$/;"	f	class:VecPtn
+owns_data	multi_vector.h	/^   BlopexInt      owns_data;$/;"	m	struct:__anon2
+p	numtns.hpp	/^  int p() const { return _p; }$/;"	f	class:NumTns
+params	periodtable.hpp	/^  DblNumVec& params() { return _params; }$/;"	f	class:PTEntry
+pdeig	pdeig.c	/^void pdeig(MPI_Comm comm, int nloc, double *pmat, int *nev, $/;"	f
+pdgemm	vecmatop.cpp	/^int pdgemm(char* transa,       char* transb, $/;"	f
+phy_d	esdf.c	/^char phy_d[nphys][11];          \/* D - dimension *\/$/;"	v
+phy_d	esdf.h	/^char phy_d[nphys][11];$/;"	v
+phy_n	esdf.c	/^char phy_n[nphys][11];          \/* N - name *\/$/;"	v
+phy_n	esdf.h	/^char phy_n[nphys][11];$/;"	v
+phy_u	esdf.c	/^double phy_u[nphys];            \/* U - unit *\/$/;"	v
+phy_u	esdf.h	/^double phy_u[nphys];$/;"	v
+pos	periodtable.hpp	/^  Point3& pos() { return _pos; }$/;"	f	class:Domain
+pos	scfdg.hpp	/^  Point3& pos() { return _pos; }\/\/LY: STARTING POS$/;"	f	class:Elem
+posidx	scfdg.hpp	/^  Index3& posidx() { return _posidx; }  \/\/ LLIN: Starting index of the global points $/;"	f	class:Elem
+pow2	commoninc.hpp	/^inline int pow2(int l) { assert(l>=0); return (1<<l); }$/;"	f
+prefix	comobject.hpp	/^  const string& prefix() { return _prefix; }$/;"	f	class:ComObject
+prtn	parvec.hpp	/^  Partition& prtn() { return _prtn; }$/;"	f	class:ParVec
+pseudoNL	periodtable.cpp	/^int PeriodTable::pseudoNL(  Atom atom, Point3 Ls, Point3 pos, $/;"	f	class:PeriodTable
+pseudoRho0	periodtable.cpp	/^int PeriodTable::pseudoRho0(Atom atom, Point3 Ls, Point3 pos, $/;"	f	class:PeriodTable
+ptemap	periodtable.hpp	/^  map<int, PTEntry>& ptemap() { return _ptemap; }$/;"	f	class:PeriodTable
+putBegin	parvec.hpp	/^int ParVec<Key,Data,Partition>::putBegin(vector<Key>& keyvec, const vector<int>& mask)$/;"	f	class:ParVec
+putEnd	parvec.hpp	/^int ParVec<Key,Data,Partition>::putEnd( const vector<int>& mask, int putmode )$/;"	f	class:ParVec
+rbufvec	parvec.hpp	/^  vector< vector<char> > rbufvec;$/;"	m	class:ParVec
+reqs	parvec.hpp	/^  MPI_Request *reqs;$/;"	m	class:ParVec
+resize	nummat.hpp	/^  void resize(int m, int n)  {$/;"	f	class:NumMat
+resize	numtns.hpp	/^  void resize(int m, int n, int p)  {$/;"	f	class:NumTns
+resize	numvec.hpp	/^  void resize(int m)  {$/;"	f	class:NumVec
+rho0	scfdg.hpp	/^  SparseVec& rho0() { return _rho0; }$/;"	f	class:Psdo
+rnbvec	parvec.hpp	/^  vector<int> rnbvec;$/;"	m	class:ParVec
+samples	periodtable.hpp	/^  DblNumMat& samples() { return _samples; }$/;"	f	class:PTEntry
+sbufvec	parvec.hpp	/^  vector< vector<char> > sbufvec;$/;"	m	class:ParVec
+scf	scfdg_scf.cpp	/^int ScfDG::scf(vector<double>& rhoinput)$/;"	f	class:ScfDG
+scf	scfpw.cpp	/^int ScfPW::scf(vector<double>& rhoinput, vector<double>& psiinput)$/;"	f	class:ScfPW
+scf	scfpw_dump.cpp	/^int ScfPW::scf(vector<double>& rhoinput)$/;"	f	class:ScfPW
+scf	scfpw_gthxc.cpp	/^int ScfPW::scf(vector<double>& rhoinput)$/;"	f	class:ScfPW
+scf_AndersonMix	scfdg_scf.cpp	/^int ScfDG::scf_AndersonMix(vector<double>& vtotnew,$/;"	f	class:ScfDG
+scf_AndersonMix	scfpw.cpp	/^int ScfPW::scf_AndersonMix(vector<double>& vtotnew,$/;"	f	class:ScfPW
+scf_AndersonMix	scfpw_dump.cpp	/^int ScfPW::scf_AndersonMix(vector<double>& vtotnew,$/;"	f	class:ScfPW
+scf_AndersonMix	scfpw_gthxc.cpp	/^int ScfPW::scf_AndersonMix(vector<double>& vtotnew,$/;"	f	class:ScfPW
+scf_CalCharge	scfpw.cpp	/^int ScfPW::scf_CalCharge()$/;"	f	class:ScfPW
+scf_CalCharge	scfpw_dump.cpp	/^int ScfPW::scf_CalCharge()$/;"	f	class:ScfPW
+scf_CalCharge	scfpw_gthxc.cpp	/^int ScfPW::scf_CalCharge()$/;"	f	class:ScfPW
+scf_CalEnergy	scfdg_scf.cpp	/^int ScfDG::scf_CalEnergy()$/;"	f	class:ScfDG
+scf_CalEnergy	scfpw.cpp	/^int ScfPW::scf_CalEnergy()$/;"	f	class:ScfPW
+scf_CalEnergy	scfpw_dump.cpp	/^int ScfPW::scf_CalEnergy()$/;"	f	class:ScfPW
+scf_CalEnergyRSDFT	scfpw_gthxc.cpp	/^int ScfPW::scf_CalEnergyRSDFT()$/;"	f	class:ScfPW
+scf_CalHartree	scfdg_scf.cpp	/^int ScfDG::scf_CalHartree()$/;"	f	class:ScfDG
+scf_CalHartree	scfpw.cpp	/^int ScfPW::scf_CalHartree()$/;"	f	class:ScfPW
+scf_CalHartree	scfpw_dump.cpp	/^int ScfPW::scf_CalHartree()$/;"	f	class:ScfPW
+scf_CalHartreeRSDFT	scfpw_gthxc.cpp	/^int ScfPW::scf_CalHartreeRSDFT()$/;"	f	class:ScfPW
+scf_CalOcc	scfdg_scf.cpp	/^int ScfDG::scf_CalOcc(double Tbeta)$/;"	f	class:ScfDG
+scf_CalOcc	scfpw.cpp	/^int ScfPW::scf_CalOcc(double Tbeta)$/;"	f	class:ScfPW
+scf_CalOcc	scfpw_dump.cpp	/^int ScfPW::scf_CalOcc(double Tbeta)$/;"	f	class:ScfPW
+scf_CalOcc	scfpw_gthxc.cpp	/^int ScfPW::scf_CalOcc(double Tbeta)$/;"	f	class:ScfPW
+scf_CalVtot	scfdg_scf.cpp	/^int ScfDG::scf_CalVtot(double* vtot)$/;"	f	class:ScfDG
+scf_CalVtot	scfpw.cpp	/^int ScfPW::scf_CalVtot(double* vtot)$/;"	f	class:ScfPW
+scf_CalVtot	scfpw_dump.cpp	/^int ScfPW::scf_CalVtot(double* vtot)$/;"	f	class:ScfPW
+scf_CalVtotRSDFT	scfpw_gthxc.cpp	/^int ScfPW::scf_CalVtotRSDFT(double* vtot)$/;"	f	class:ScfPW
+scf_CalXC	scfdg_scf.cpp	/^int ScfDG::scf_CalXC()$/;"	f	class:ScfDG
+scf_CalXC	scfpw.cpp	/^int ScfPW::scf_CalXC()$/;"	f	class:ScfPW
+scf_CalXC	scfpw_dump.cpp	/^int ScfPW::scf_CalXC()$/;"	f	class:ScfPW
+scf_CalXCRSDFT	scfpw_gthxc.cpp	/^int ScfPW::scf_CalXCRSDFT()$/;"	f	class:ScfPW
+scf_KerkerMix	scfdg_scf.cpp	/^int ScfDG::scf_KerkerMix(vector<double>& vtotnew, double alpha)$/;"	f	class:ScfDG
+scf_KerkerMix	scfpw.cpp	/^int ScfPW::scf_KerkerMix(vector<double>& vtotnew, double alpha)$/;"	f	class:ScfPW
+scf_KerkerMix	scfpw_dump.cpp	/^int ScfPW::scf_KerkerMix(vector<double>& vtotnew, double alpha)$/;"	f	class:ScfPW
+scf_KerkerMix	scfpw_gthxc.cpp	/^int ScfPW::scf_KerkerMix(vector<double>& vtotnew, double alpha)$/;"	f	class:ScfPW
+scf_PAndersonMix	scfdg_scf.cpp	/^int ScfDG::scf_PAndersonMix(vector<double>& vtotnew,$/;"	f	class:ScfDG
+scf_Print	scfdg_scf.cpp	/^int ScfDG::scf_Print(FILE *fh)$/;"	f	class:ScfDG
+scf_Print	scfpw.cpp	/^int ScfPW::scf_Print(FILE *fh)$/;"	f	class:ScfPW
+scf_Print	scfpw_dump.cpp	/^int ScfPW::scf_Print(FILE *fh)$/;"	f	class:ScfPW
+scf_Print	scfpw_gthxc.cpp	/^int ScfPW::scf_Print(FILE *fh)$/;"	f	class:ScfPW
+scf_PrintState	scfdg_scf.cpp	/^int ScfDG::scf_PrintState(FILE *fh)$/;"	f	class:ScfDG
+scf_PrintState	scfpw.cpp	/^int ScfPW::scf_PrintState(FILE *fh)$/;"	f	class:ScfPW
+scf_PrintState	scfpw_dump.cpp	/^int ScfPW::scf_PrintState(FILE *fh)$/;"	f	class:ScfPW
+scf_PrintState	scfpw_gthxc.cpp	/^int ScfPW::scf_PrintState(FILE *fh)$/;"	f	class:ScfPW
+serial_MULTI_VECTOR_HEADER	multi_vector.h	12;"	d
+serial_Multi_Vector	multi_vector.h	/^} serial_Multi_Vector ;$/;"	t	typeref:struct:__anon2
+serial_Multi_VectorAxpy	multi_vector.cpp	/^serial_Multi_VectorAxpy( double            alpha,$/;"	f
+serial_Multi_VectorByDiag	multi_vector.cpp	/^    serial_Multi_VectorByDiag( serial_Multi_Vector *x,$/;"	f
+serial_Multi_VectorByMatrix	multi_vector.cpp	/^ serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexInt rHeight,$/;"	f
+serial_Multi_VectorByMulti_Vector	multi_vector.cpp	/^ serial_Multi_VectorByMulti_Vector(serial_Multi_Vector *x,$/;"	f
+serial_Multi_VectorCopy	multi_vector.cpp	/^serial_Multi_VectorCopy( serial_Multi_Vector *x, serial_Multi_Vector *y)$/;"	f
+serial_Multi_VectorCopyWithoutMask	multi_vector.cpp	/^serial_Multi_VectorCopyWithoutMask(serial_Multi_Vector *x , serial_Multi_Vector *y)$/;"	f
+serial_Multi_VectorCreate	multi_vector.cpp	/^serial_Multi_VectorCreate( BlopexInt size, BlopexInt num_vectors  )$/;"	f
+serial_Multi_VectorData	multi_vector.h	38;"	d
+serial_Multi_VectorDestroy	multi_vector.cpp	/^serial_Multi_VectorDestroy( serial_Multi_Vector *mvector )$/;"	f
+serial_Multi_VectorInitialize	multi_vector.cpp	/^serial_Multi_VectorInitialize( serial_Multi_Vector *mvector )$/;"	f
+serial_Multi_VectorInnerProd	multi_vector.cpp	/^BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,$/;"	f
+serial_Multi_VectorInnerProdDiag	multi_vector.cpp	/^BlopexInt serial_Multi_VectorInnerProdDiag( serial_Multi_Vector *x,$/;"	f
+serial_Multi_VectorNumVectors	multi_vector.h	41;"	d
+serial_Multi_VectorOwnsData	multi_vector.h	40;"	d
+serial_Multi_VectorPrint	multi_vector.cpp	/^BlopexInt serial_Multi_VectorPrint(serial_Multi_Vector * x,char * tag, BlopexInt limit)$/;"	f
+serial_Multi_VectorSetConstantValues	multi_vector.cpp	/^serial_Multi_VectorSetConstantValues( serial_Multi_Vector *v,$/;"	f
+serial_Multi_VectorSetDataOwner	multi_vector.cpp	/^serial_Multi_VectorSetDataOwner( serial_Multi_Vector *mvector, BlopexInt owns_data )$/;"	f
+serial_Multi_VectorSetMask	multi_vector.cpp	/^ serial_Multi_VectorSetMask(serial_Multi_Vector *mvector, BlopexInt * mask)$/;"	f
+serial_Multi_VectorSetRandomValues	multi_vector.cpp	/^serial_Multi_VectorSetRandomValues( serial_Multi_Vector *v, BlopexInt seed)$/;"	f
+serial_Multi_VectorSize	multi_vector.h	39;"	d
+serialize	parvec.hpp	/^int serialize(const ParVec<Key,Data,Partition>& pv, ostream& os, const vector<int>& mask)$/;"	f
+serialize	periodtable.cpp	/^int serialize(const Domain& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	periodtable.cpp	/^int serialize(const PTEntry& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	scfdg_setup.cpp	/^int serialize(const Psdo& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const CpxNumMat& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const CpxNumTns& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const CpxNumVec& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const DblNumMat& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const DblNumTns& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const DblNumVec& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const Index2& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const Index3& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const IntNumMat& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const IntNumTns& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const IntNumVec& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const Point2& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const Point3& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const char& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const cpx& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const double& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^inline int serialize(const int& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^int inline serialize(const NumMat<T>& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^int inline serialize(const NumTns<T>& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^int inline serialize(const NumVec<T>& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^int serialize(const map<T,S>& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^int serialize(const pair<T,S>& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^int serialize(const set<T>& val, ostream& os, const vector<int>& mask)$/;"	f
+serialize	serialize.hpp	/^int serialize(const vector<T>& val, ostream& os, const vector<int>& mask)$/;"	f
+set_coord	periodtable.hpp	/^  void set_coord(const Point3& c) {_coord = c;}$/;"	f	class:Atom
+setup	eigdg.cpp	/^int EigDG::setup()$/;"	f	class:EigDG
+setup	eigpw.cpp	/^int EigPW::setup()$/;"	f	class:EigPW
+setup	periodtable.cpp	/^int PeriodTable::setup(string strptable)$/;"	f	class:PeriodTable
+setup	scfdg_setup.cpp	/^int Buff::setup()$/;"	f	class:Buff
+setup	scfdg_setup.cpp	/^int Elem::setup()$/;"	f	class:Elem
+setup	scfdg_setup.cpp	/^int ScfDG::setup()$/;"	f	class:ScfDG
+setup	scfpw.cpp	/^int ScfPW::setup()$/;"	f	class:ScfPW
+setup	scfpw_dump.cpp	/^int ScfPW::setup()$/;"	f	class:ScfPW
+setup	scfpw_gthxc.cpp	/^int ScfPW::setup()$/;"	f	class:ScfPW
+setvalue	nummat.hpp	/^template <class F> inline void setvalue(NumMat<F>& M, F val)$/;"	f
+setvalue	numtns.hpp	/^template <class F> inline void setvalue(NumTns<F>& T, F val)$/;"	f
+setvalue	numvec.hpp	/^template <class F> inline void setvalue(NumVec<F>& vec, F val)$/;"	f
+seval	spline.cpp	/^void seval(double* v, int m, double* u, int n, double* x, $/;"	f
+size	multi_vector.h	/^   BlopexInt      size;$/;"	m	struct:__anon2
+snbvec	parvec.hpp	/^  vector<int> snbvec;$/;"	m	class:ParVec
+solve	eigdg.cpp	/^int EigDG::solve(ParVec<Index3, vector<double>, ElemPtn>& vtotvec, ParVec<Index3, vector<DblNumTns>, ElemPtn>& basesvec, ParVec<int,Psdo,PsdoPtn>& psdovec,$/;"	f	class:EigDG
+solve	eigpw.cpp	/^int EigPW::solve(vector<double>& _vtot, vector< pair<SparseVec,double> >& _vnl,$/;"	f	class:EigPW
+solve_A_Aloc	eigdg_std.cpp	/^int EigDG::solve_A_Aloc(ParVec<EmatKey,DblNumMat,EmatPtn>& A,int& AM,int& AN,NumTns< vector<int> >& indexvec,$/;"	f	class:EigDG
+solve_A_C	eigdg_std.cpp	/^int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,$/;"	f	class:EigDG
+solve_Aloc_Zloc	eigdg_std.cpp	/^int EigDG::solve_Aloc_Zloc(int* desca, DblNumMat& Aloc, int& AlocM, int& AlocN,$/;"	f	class:EigDG
+solve_ApplyPrec	eigpw.cpp	/^BlopexInt EigPW::solve_ApplyPrec(  serial_Multi_Vector* x, serial_Multi_Vector * y)$/;"	f	class:EigPW
+solve_ApplyPrecWrapper	eigpw.cpp	/^void EigPW::solve_ApplyPrecWrapper(  void * A, void * X, void * AX) {$/;"	f	class:EigPW
+solve_C_Cloc	eigdg_std.cpp	/^int EigDG::solve_C_Cloc(ParVec<Index3,DblNumMat,ElemPtn>& A, int&AM, int&AN, NumTns< vector<int> >& indexvec,$/;"	f	class:EigDG
+solve_Cloc_QR	eigdg_std.cpp	/^int EigDG::solve_Cloc_QR(DblNumMat& Cloc, int& ClocM, int& ClocN, int* descC, $/;"	f	class:EigDG
+solve_Elem_A	eigdg_A.cpp	/^int EigDG::solve_Elem_A(ParVec<Index3,vector<double>,ElemPtn>& vtotvec, ParVec<Index3,vector<DblNumTns>,ElemPtn>& basesvec, ParVec<int,Psdo,PsdoPtn>& psdovec,$/;"	f	class:EigDG
+solve_GE	eigdg_std.cpp	/^int EigDG::solve_GE(DblNumMat& Aloc, int& AlocM, int& AlocN, int* descA,$/;"	f	class:EigDG
+solve_MatMultiVec	eigpw.cpp	/^BlopexInt EigPW::solve_MatMultiVec(serial_Multi_Vector* x, serial_Multi_Vector* y)$/;"	f	class:EigPW
+solve_MatMultiVecWrapper	eigpw.cpp	/^void EigPW::solve_MatMultiVecWrapper(void * A, void * X, void * AX)$/;"	f	class:EigPW
+solve_Zloc_Eig	eigdg_std.cpp	/^int EigDG::solve_Zloc_Eig(int* descz, DblNumMat& Zloc, int& ZlocM, int& ZlocN, DblNumVec& W,$/;"	f	class:EigDG
+spline	spline.cpp	/^void spline(int n, double* x, double* y, double* b, double* c, double* d){$/;"	f
+splmap	periodtable.hpp	/^  map<int, map< int,vector<DblNumVec> > > splmap() { return _splmap; }$/;"	f	class:PeriodTable
+stats	parvec.hpp	/^  MPI_Status  *stats;$/;"	m	class:ParVec
+strlwr	esdfutil.c	/^char *strlwr(char *str) {$/;"	f
+strupr	esdfutil.c	/^char *strupr(char *str) {$/;"	f
+tlist	esdf.c	/^char ***tlist;$/;"	v
+trim	esdfutil.c	/^char *trim(char *in) {$/;"	f
+type	periodtable.hpp	/^  int& type() { return _type; }$/;"	f	class:Atom
+typs	periodtable.hpp	/^  IntNumVec& typs() { return _typs; }$/;"	f	class:PTEntry
+update	scfdg_setup.cpp	/^int ScfDG::update()$/;"	f	class:ScfDG
+update	scfpw.cpp	/^int ScfPW::update()$/;"	f	class:ScfPW
+vel	periodtable.hpp	/^  Point3& vel() { return _vel; }$/;"	f	class:Atom
+vnls	scfdg.hpp	/^  vector< pair<NumTns<SparseVec>,double> >& vnls() { return _vnls; }$/;"	f	class:Psdo
+vol	scfdg.hpp	/^  double vol() const {return _vol;}$/;"	f	class:ScfDG
+vol	scfdg.hpp	/^  double& vol() { return _vol; }$/;"	f	class:Elem
+vol	scfpw.hpp	/^  double vol() const {return _vol;}$/;"	f	class:ScfPW
+warns	esdf.c	/^char **warns;$/;"	v
+wgts	periodtable.hpp	/^  DblNumVec& wgts() { return _wgts; }$/;"	f	class:PTEntry
+xinterp	interp.cpp	/^void xinterp(double* Vx2, double* Vx1, Buff& Mol2, ScfDG& Mol1)$/;"	f
+xlinterp	interp.cpp	/^void xlinterp(double* Vl2, double* Vx1, Elem& Mol2, Buff& Mol1)$/;"	f
+z	pdeig.c	117;"	d	file:
+zgemm	vecmatop.cpp	/^int zgemm(cpx alpha, const CpxNumMat& A, const CpxNumMat& B, cpx beta, CpxNumMat& C)$/;"	f
+zgemm	vecmatop.cpp	/^int zgemm(int m, int n, int k, cpx alpha, cpx* A, cpx* B, cpx beta, cpx* C)$/;"	f
+zgemv	vecmatop.cpp	/^int zgemv(cpx alpha, const CpxNumMat& A, const CpxNumVec& X, cpx beta, CpxNumVec& Y)$/;"	f
+zgemv	vecmatop.cpp	/^int zgemv(int m, int n, cpx alpha, cpx* A, cpx* X, cpx beta, cpx* Y)$/;"	f
+zgmres	vecmatop.cpp	/^int zgmres(int (*A)(const CpxNumVec&, CpxNumVec&), const CpxNumVec& b, const CpxNumVec& x0,$/;"	f
+~Atom	periodtable.hpp	/^  ~Atom() {;}$/;"	f	class:Atom
+~BlckPtn	eigdg.hpp	/^  ~BlckPtn() {;}$/;"	f	class:BlckPtn
+~Buff	scfdg_setup.cpp	/^Buff::~Buff()$/;"	f	class:Buff
+~ComObject	comobject.hpp	/^  virtual ~ComObject() {;}$/;"	f	class:ComObject
+~Domain	periodtable.hpp	/^  ~Domain() {;}$/;"	f	class:Domain
+~EigDG	eigdg.cpp	/^EigDG::~EigDG()$/;"	f	class:EigDG
+~EigPW	eigpw.cpp	/^EigPW::~EigPW()$/;"	f	class:EigPW
+~Elem	scfdg.hpp	/^  ~Elem() {;}$/;"	f	class:Elem
+~ElemPtn	scfdg.hpp	/^  ~ElemPtn() {;}$/;"	f	class:ElemPtn
+~EmatPtn	eigdg.hpp	/^  ~EmatPtn() {;}$/;"	f	class:EmatPtn
+~NumMat	nummat.hpp	/^  ~NumMat() {$/;"	f	class:NumMat
+~NumTns	numtns.hpp	/^  ~NumTns() { $/;"	f	class:NumTns
+~NumVec	numvec.hpp	/^  ~NumVec() {$/;"	f	class:NumVec
+~ParVec	parvec.hpp	/^  ~ParVec() {;}$/;"	f	class:ParVec
+~PeriodTable	periodtable.hpp	/^  ~PeriodTable() {;}$/;"	f	class:PeriodTable
+~Psdo	scfdg.hpp	/^  ~Psdo() {;}$/;"	f	class:Psdo
+~PsdoPtn	scfdg.hpp	/^  ~PsdoPtn() {;}$/;"	f	class:PsdoPtn
+~ScfDG	scfdg_setup.cpp	/^ScfDG::~ScfDG()$/;"	f	class:ScfDG
+~ScfPW	scfpw.cpp	/^ScfPW::~ScfPW()$/;"	f	class:ScfPW
+~ScfPW	scfpw_dump.cpp	/^ScfPW::~ScfPW()$/;"	f	class:ScfPW
+~ScfPW	scfpw_gthxc.cpp	/^ScfPW::~ScfPW()$/;"	f	class:ScfPW
+~SpBlckPtn	testeig1.cpp	/^    ~SpBlckPtn() {;}$/;"	f	class:SpBlckPtn
+~SpBlckPtn	testeig2.cpp	/^    ~SpBlckPtn() {;}$/;"	f	class:SpBlckPtn
+~SpBlckPtn	ttmatvec1.cpp	/^    ~SpBlckPtn() {;}$/;"	f	class:SpBlckPtn
+~Vec2T	vec2t.hpp	/^  ~Vec2T() {}$/;"	f	class:Vec2T
+~Vec3T	vec3t.hpp	/^  ~Vec3T() {}$/;"	f	class:Vec3T
+~VecPtn	testeig1.cpp	/^  ~VecPtn() {;}$/;"	f	class:VecPtn
+~VecPtn	testeig2.cpp	/^  ~VecPtn() {;}$/;"	f	class:VecPtn
+~VecPtn	ttmatvec1.cpp	/^  ~VecPtn() {;}$/;"	f	class:VecPtn
