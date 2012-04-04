@@ -1149,6 +1149,15 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 	    &lwork, iwork.data(), &liwork, &info);
     iC(info);
 
+    if(1){
+      fprintf(fhstat, "Eigenvalues for the candidate functions\n");
+      for(int i = 0; i < Et.m(); i++){
+	fprintf(fhstat, "Lambda1[%4i] = %15.5e\n", i, Et[i]);
+      }
+      fprintf(fhstat, "\n");
+    }
+
+
     t1 = time(0);
     if(mpirank==0) { 
       fprintf(fhstat, "Standard eigenvalue problem first %15.3f secs\n", 
@@ -1359,10 +1368,14 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
   //form matrix Ct' * (Wt+gamma*At) * Ct;
   //double gamma = 0.1;
   //LEXING: Bt = Wt + gamma*At;
+  
   DblNumMat Bt(ttl,ttl);
   for(int a=0; a<ttl; a++)
     for(int b=0; b<ttl; b++)
-      Bt(a,b) = Wt(a,b) + _gamma * At(a,b);
+      Bt(a,b) = Wt(a,b);
+  //      LL: FIXME
+  //      Bt(a,b) = Wt(a,b) + _gamma * At(a,b);
+
 
   DblNumMat Cttran(Neigbuf,ttl);
   for(int a=0; a<Neigbuf; a++)
@@ -1410,6 +1423,15 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 	    &lwork, iwork.data(), &liwork, &info);
 
     iC(info);
+
+
+    if(1){
+      fprintf(fhstat, "Eigenvalues for the element orbitals\n");
+      for(int i = 0; i < Ft.m(); i++){
+	fprintf(fhstat, "Lambda2[%4i] = %15.5e\n", i, Ft[i]);
+      }
+      fprintf(fhstat, "\n");
+    }
 
     t1 = time(0);
     if(mpirank==0) { 
