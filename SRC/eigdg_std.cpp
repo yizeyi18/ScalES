@@ -1113,10 +1113,17 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
   }
 
   //PERFORM EIG on matrix At
-  DblNumMat Vt(ttl,ttl);
-  DblNumVec Et(ttl);
-  //LLIN: Diagonalize  At to get Vt and Et using dsyevd
+  DblNumMat Vt;
+  DblNumVec Et;
+  int Neigbuf = 0;
+  
+  //LLIN: Diagonalize  At to get Vt and Et using dsyevd, but it can gets
+  //slow for large number of ALB per element.
+  if(0)
   {
+    Vt.resize(ttl, ttl);
+    Et.resize(ttl);
+
     t0 = time(0);
 
     int     Nmat    = ttl;
@@ -1159,6 +1166,91 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 
     t1 = time(0);
     if(mpirank==0) { 
+      fprintf(fhstat, "Diagonalizing using dsyevd \n");   
+      fprintf(stderr, "Diagonalizing using dsyevd \n");   
+      
+      fprintf(fhstat, "Standard eigenvalue problem first %15.3f secs\n", 
+	      difftime(t1,t0));   
+      fprintf(stderr, "Standard eigenvalue problem first %15.3f secs\n", 
+	      difftime(t1,t0));   
+    }
+    
+    //LLIN: Compute the number of candidate functions by its energy
+    //LEXING: Ct contains first Neigbuf columns of Vt
+    double Ecut = _EcutCnddt(cur1, cur2, cur3);
+    for(int i = 0; i < Et.m(); i++){
+      if( Et[i] < Ecut ) 
+	Neigbuf++;
+      else
+	break;
+    }
+  }
+  
+  //LLIN: Diagonalize  At to get Vt and Et using dsyevx
+  if(1)
+  {
+    int NeigbufMAX = 300; // LLIN: Temporary bound here.
+    Vt.resize(ttl, NeigbufMAX);
+    Et.resize(NeigbufMAX);
+
+
+    t0 = time(0);
+
+    int     Nmat    = ttl;
+    char    jobz    = 'V';
+    char    range   = 'V';
+    char    uplo    = 'L';
+    int     lda     = Nmat;
+    int     lwork, liwork;
+    int     info;
+    double  vl      = -100000.0;   //LLIN: just a number that is low enough
+    double  vu      = _EcutCnddt(cur1, cur2, cur3);
+    int     il      = 1;
+    int     iu      = Nmat;
+    double  abstol  = 1e-6;
+    DblNumVec      work;
+    IntNumVec      iwork;
+    IntNumVec      ifail;
+
+    DblNumMat VAt(ttl,ttl);
+    VAt = At; 
+    // LLIN: IMPORTANT: dsyevx rewrites the input matrix
+
+    /* Query for space */
+    lwork = -1;
+    work.resize(1);
+    iwork.resize(1);
+    ifail.resize(ttl);
+    dsyevx_(&jobz, &range, &uplo, &Nmat, VAt.data(), &lda, &vl, &vu, &il, &iu,
+	    &abstol, &Neigbuf, Et.data(), Vt.data(), &lda, work.data(), 
+	    &lwork, iwork.data(), ifail.data(), &info);
+
+    lwork = (int)work(0); // LLIN: IMPORTANT
+    liwork = 5 * ttl;
+    work.resize(lwork);
+    iwork.resize(liwork);
+
+    /* Compute */
+    dsyevx_(&jobz, &range, &uplo, &Nmat, VAt.data(), &lda, &vl, &vu, &il, &iu,
+	    &abstol, &Neigbuf, Et.data(), Vt.data(), &lda, work.data(), 
+	    &lwork, iwork.data(), ifail.data(), &info);
+    iA(Neigbuf <= NeigbufMAX);
+    iC(info);
+
+    if(1){
+      fprintf(fhstat, "Eigenvalues for the candidate functions\n");
+      for(int i = 0; i < Neigbuf; i++){
+	fprintf(fhstat, "Lambda1[%4i] = %15.5e\n", i, Et[i]);
+      }
+      fprintf(fhstat, "\n");
+    }
+
+
+    t1 = time(0);
+    if(mpirank==0) { 
+      fprintf(fhstat, "Diagonalizing using dsyevx \n");   
+      fprintf(stderr, "Diagonalizing using dsyevx \n");   
+      
       fprintf(fhstat, "Standard eigenvalue problem first %15.3f secs\n", 
 	      difftime(t1,t0));   
       fprintf(stderr, "Standard eigenvalue problem first %15.3f secs\n", 
@@ -1166,18 +1258,7 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
     }
   }
 
-  //LLIN: Compute the number of candidate functions by its energy
-  //LEXING: Ct contains first Neigbuf columns of Vt
-  int Neigbuf = 0;
-  double Ecut = _EcutCnddt(cur1, cur2, cur3);
-  for(int i = 0; i < Et.m(); i++){
-    if( Et[i] < Ecut ) 
-      Neigbuf++;
-    else
-      break;
-  }
   fprintf(fhstat, "Number of candidate functions = %4i \n", Neigbuf);
-
 
   DblNumMat Ct(ttl,Neigbuf);
   for(int b=0; b<Neigbuf; b++)
@@ -1224,19 +1305,18 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
       }
 
   // LLIN: Only weighting, no mixing with Hamiltonian any more, 4/4/2012
-
   
-  DblNumMat Bt(ttl,ttl);
-  for(int a=0; a<ttl; a++)
-    for(int b=0; b<ttl; b++)
-      Bt(a,b) = Wt(a,b);
+//  DblNumMat Bt(ttl,ttl);
+//  for(int a=0; a<ttl; a++)
+//    for(int b=0; b<ttl; b++)
+//      Bt(a,b) = Wt(a,b);
 
   DblNumMat Cttran(Neigbuf,ttl);
   for(int a=0; a<Neigbuf; a++)
     for(int b=0; b<ttl; b++)
       Cttran(a,b) = Ct(b,a);
   DblNumMat Aux(Neigbuf,ttl);         setvalue(Aux,0.0);
-  iC( dgemm(1.0, Cttran, Bt, 0.0, Aux) );
+  iC( dgemm(1.0, Cttran, Wt, 0.0, Aux) );
   DblNumMat CWgAC(Neigbuf,Neigbuf);  setvalue(CWgAC, 0.0);
   iC( dgemm(1.0, Aux, Ct, 0.0, CWgAC) );
 
