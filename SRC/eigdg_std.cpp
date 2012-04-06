@@ -933,6 +933,8 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
     cerr << "NbrSfts:" << NbrSfts << endl;
   }
 
+  t0 = time(0);
+
   //compute weights
   DblNumVec x1(Nlbl1);    
   lglnodes(x1.data(), Nlbl1-1);    for(int i=0; i<Nlbl1; i++)      x1(i) = x1(i)*h1/2;
@@ -1104,12 +1106,12 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 	    }
       }
 
-  tt1 = time(0);
+  t1 = time(0);
   if(mpirank==0) { 
     fprintf(fhstat, "Preparation for forming nonorthogonal basis %15.3f secs\n", 
-	    difftime(tt1,tt0));   
+	    difftime(t1,t0));   
     fprintf(stderr, "Preparation for forming nonorthogonal basis %15.3f secs\n", 
-	    difftime(tt1,tt0));   
+	    difftime(t1,t0));   
   }
 
   //PERFORM EIG on matrix At
@@ -1260,6 +1262,8 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 
   fprintf(fhstat, "Number of candidate functions = %4i \n", Neigbuf);
 
+  t0 = time(0);
+
   DblNumMat Ct(ttl,Neigbuf);
   for(int b=0; b<Neigbuf; b++)
     for(int a=0; a<ttl; a++)
@@ -1304,12 +1308,23 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 	    Wt(gof+a,gof+b) += S(a,b);
       }
 
+  t1 = time(0);
+  if(mpirank==0) { 
+    fprintf(fhstat, "Constructing weight matrix %15.3f secs\n", 
+	    difftime(t1,t0));   
+    fprintf(stderr, "Constructing weight matrix %15.3f secs\n", 
+	    difftime(t1,t0));   
+  }
+
+
   // LLIN: Only weighting, no mixing with Hamiltonian any more, 4/4/2012
   
 //  DblNumMat Bt(ttl,ttl);
 //  for(int a=0; a<ttl; a++)
 //    for(int b=0; b<ttl; b++)
 //      Bt(a,b) = Wt(a,b);
+
+  t0 = time(0);
 
   DblNumMat Cttran(Neigbuf,ttl);
   for(int a=0; a<Neigbuf; a++)
@@ -1319,6 +1334,16 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
   iC( dgemm(1.0, Cttran, Wt, 0.0, Aux) );
   DblNumMat CWgAC(Neigbuf,Neigbuf);  setvalue(CWgAC, 0.0);
   iC( dgemm(1.0, Aux, Ct, 0.0, CWgAC) );
+
+
+  t1 = time(0);
+  if(mpirank==0) { 
+    fprintf(fhstat, "DGEMM CWC %15.3f secs\n", 
+	    difftime(t1,t0));   
+    fprintf(stderr, "DGEMM CWC %15.3f secs\n", 
+	    difftime(t1,t0));   
+  }
+
 
   DblNumMat Gt(Neigbuf,Neigbuf);
   DblNumVec Ft(Neigbuf);
@@ -1376,6 +1401,9 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
     }
   }
 
+
+  t0 = time(0);
+
   //LEXING: the first few columns of Gt form Ht
   //LLIN: TODO Make Norbperele adaptive to each part of the domain in future
   iA( _Norbperele <= Neigbuf );
@@ -1426,6 +1454,15 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 	}
     iA(cnt == Norbttl);
   }
+
+  t1 = time(0);
+  if(mpirank==0) { 
+    fprintf(fhstat, "Collect coefficients %15.3f secs\n", 
+	    difftime(t1,t0));   
+    fprintf(stderr, "Collect coefficients %15.3f secs\n", 
+	    difftime(t1,t0));   
+  }
+
 
   tt1 = time(0);
   if(mpirank==0) { 
