@@ -1189,6 +1189,7 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
   }
   
   //LLIN: Diagonalize  At to get Vt and Et using dsyevx
+  //LLIN: IMPORTANT: Save some memory, and DESTROY At!
   if(1)
   {
     int NeigbufMAX = 300; // LLIN: Temporary bound here.
@@ -1214,8 +1215,10 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
     IntNumVec      iwork;
     IntNumVec      ifail;
 
-    DblNumMat VAt(ttl,ttl);
-    VAt = At; 
+    // LLIN: IMPORTANT: At will be destroyed below!
+//    DblNumMat VAt(ttl,ttl);
+//    VAt = At; 
+
     // LLIN: IMPORTANT: dsyevx rewrites the input matrix
 
     /* Query for space */
@@ -1223,7 +1226,7 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
     work.resize(1);
     iwork.resize(1);
     ifail.resize(ttl);
-    dsyevx_(&jobz, &range, &uplo, &Nmat, VAt.data(), &lda, &vl, &vu, &il, &iu,
+    dsyevx_(&jobz, &range, &uplo, &Nmat, At.data(), &lda, &vl, &vu, &il, &iu,
 	    &abstol, &Neigbuf, Et.data(), Vt.data(), &lda, work.data(), 
 	    &lwork, iwork.data(), ifail.data(), &info);
 
@@ -1233,7 +1236,7 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
     iwork.resize(liwork);
 
     /* Compute */
-    dsyevx_(&jobz, &range, &uplo, &Nmat, VAt.data(), &lda, &vl, &vu, &il, &iu,
+    dsyevx_(&jobz, &range, &uplo, &Nmat, At.data(), &lda, &vl, &vu, &il, &iu,
 	    &abstol, &Neigbuf, Et.data(), Vt.data(), &lda, work.data(), 
 	    &lwork, iwork.data(), ifail.data(), &info);
     iA(Neigbuf <= NeigbufMAX);
@@ -1262,86 +1265,92 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 
   fprintf(fhstat, "Number of candidate functions = %4i \n", Neigbuf);
 
-  t0 = time(0);
-
   DblNumMat Ct(ttl,Neigbuf);
   for(int b=0; b<Neigbuf; b++)
     for(int a=0; a<ttl; a++)
       Ct(a,b) = Vt(a,b);
 
-  //form the www weights
-  DblNumTns www(Nlbl1,Nlbl2,Nlbl3);
-  {
-    DblNumVec x1(Nlbl1), w1(Nlbl1);
-    lglnodes(x1.data(), w1.data(), Nlbl1-1);
-    for(int g=0; g<x1.m(); g++)    x1(g) = x1(g)/2.0*h1;
-    for(int g=0; g<w1.m(); g++)    w1(g) = w1(g)/2.0*h1;
-    DblNumVec x2(Nlbl2), w2(Nlbl2);
-    lglnodes(x2.data(), w2.data(), Nlbl2-1);
-    for(int g=0; g<x2.m(); g++)    x2(g) = x2(g)/2.0*h2;
-    for(int g=0; g<w2.m(); g++)    w2(g) = w2(g)/2.0*h2;
-    DblNumVec x3(Nlbl3), w3(Nlbl3);
-    lglnodes(x3.data(), w3.data(), Nlbl3-1);
-    for(int g=0; g<x3.m(); g++)    x3(g) = x3(g)/2.0*h3;
-    for(int g=0; g<w3.m(); g++)    w3(g) = w3(g)/2.0*h3;
-    for(int g1=0; g1<Nlbl1; g1++)
-      for(int g2=0; g2<Nlbl2; g2++)
-	for(int g3=0; g3<Nlbl3; g3++) {
-	  www(g1,g2,g3) = w1(g1)*w2(g2)*w3(g3);
-	}
-  }
-  DblNumMat Wt(ttl,ttl);    setvalue(Wt,0.0);
-  for(int g1=0; g1<Nbr1; g1++)
-    for(int g2=0; g2<Nbr2; g2++)
-      for(int g3=0; g3<Nbr3; g3++) {
-	Index3 gidx(aux1[g1],aux2[g2],aux3[g3]);
-	int sznow = sz_aux(g1,g2,g3);
-	DblNumMat S(sznow,sznow);
-	vector<DblNumTns>& basistmp = basis_aux(g1,g2,g3); iA(sznow==basistmp.size());
-	for(int a=0; a<sznow; a++)
-	  for(int b=0; b<sznow; b++) {
-	    S(a,b) = FPS(basistmp[a].data(),basistmp[b].data(),weight(g1,g2,g3).data(),www.data(),Nlbltot);
-	  }
-	int gof = of_aux(g1,g2,g3);
-	for(int a=0; a<S.m(); a++)
-	  for(int b=0; b<S.n(); b++)
-	    Wt(gof+a,gof+b) += S(a,b);
-      }
-
-  t1 = time(0);
-  if(mpirank==0) { 
-    fprintf(fhstat, "Constructing weight matrix %15.3f secs\n", 
-	    difftime(t1,t0));   
-    fprintf(stderr, "Constructing weight matrix %15.3f secs\n", 
-	    difftime(t1,t0));   
-  }
-
-
-  // LLIN: Only weighting, no mixing with Hamiltonian any more, 4/4/2012
-  
-//  DblNumMat Bt(ttl,ttl);
-//  for(int a=0; a<ttl; a++)
-//    for(int b=0; b<ttl; b++)
-//      Bt(a,b) = Wt(a,b);
-
-  t0 = time(0);
-
-  DblNumMat Cttran(Neigbuf,ttl);
-  for(int a=0; a<Neigbuf; a++)
-    for(int b=0; b<ttl; b++)
-      Cttran(a,b) = Ct(b,a);
-  DblNumMat Aux(Neigbuf,ttl);         setvalue(Aux,0.0);
-  iC( dgemm(1.0, Cttran, Wt, 0.0, Aux) );
   DblNumMat CWgAC(Neigbuf,Neigbuf);  setvalue(CWgAC, 0.0);
-  iC( dgemm(1.0, Aux, Ct, 0.0, CWgAC) );
 
 
-  t1 = time(0);
-  if(mpirank==0) { 
-    fprintf(fhstat, "DGEMM CWC %15.3f secs\n", 
-	    difftime(t1,t0));   
-    fprintf(stderr, "DGEMM CWC %15.3f secs\n", 
-	    difftime(t1,t0));   
+  // LL: Compute all the weight matrix elements and perform DGEMM. This
+  // can be a VERY SLOW process
+  //
+  if(1){
+    t0 = time(0);
+    //form the www weights
+    DblNumTns www(Nlbl1,Nlbl2,Nlbl3);
+    {
+      DblNumVec x1(Nlbl1), w1(Nlbl1);
+      lglnodes(x1.data(), w1.data(), Nlbl1-1);
+      for(int g=0; g<x1.m(); g++)    x1(g) = x1(g)/2.0*h1;
+      for(int g=0; g<w1.m(); g++)    w1(g) = w1(g)/2.0*h1;
+      DblNumVec x2(Nlbl2), w2(Nlbl2);
+      lglnodes(x2.data(), w2.data(), Nlbl2-1);
+      for(int g=0; g<x2.m(); g++)    x2(g) = x2(g)/2.0*h2;
+      for(int g=0; g<w2.m(); g++)    w2(g) = w2(g)/2.0*h2;
+      DblNumVec x3(Nlbl3), w3(Nlbl3);
+      lglnodes(x3.data(), w3.data(), Nlbl3-1);
+      for(int g=0; g<x3.m(); g++)    x3(g) = x3(g)/2.0*h3;
+      for(int g=0; g<w3.m(); g++)    w3(g) = w3(g)/2.0*h3;
+      for(int g1=0; g1<Nlbl1; g1++)
+	for(int g2=0; g2<Nlbl2; g2++)
+	  for(int g3=0; g3<Nlbl3; g3++) {
+	    www(g1,g2,g3) = w1(g1)*w2(g2)*w3(g3);
+	  }
+    }
+    DblNumMat Wt(ttl,ttl);    setvalue(Wt,0.0);
+    for(int g1=0; g1<Nbr1; g1++)
+      for(int g2=0; g2<Nbr2; g2++)
+	for(int g3=0; g3<Nbr3; g3++) {
+	  Index3 gidx(aux1[g1],aux2[g2],aux3[g3]);
+	  int sznow = sz_aux(g1,g2,g3);
+	  DblNumMat S(sznow,sznow);
+	  vector<DblNumTns>& basistmp = basis_aux(g1,g2,g3); iA(sznow==basistmp.size());
+	  for(int a=0; a<sznow; a++)
+	    for(int b=0; b<sznow; b++) {
+	      S(a,b) = FPS(basistmp[a].data(),basistmp[b].data(),weight(g1,g2,g3).data(),www.data(),Nlbltot);
+	    }
+	  int gof = of_aux(g1,g2,g3);
+	  for(int a=0; a<S.m(); a++)
+	    for(int b=0; b<S.n(); b++)
+	      Wt(gof+a,gof+b) += S(a,b);
+	}
+
+    t1 = time(0);
+    if(mpirank==0) { 
+      fprintf(fhstat, "Constructing weight matrix %15.3f secs\n", 
+	      difftime(t1,t0));   
+      fprintf(stderr, "Constructing weight matrix %15.3f secs\n", 
+	      difftime(t1,t0));   
+    }
+
+
+    // LLIN: Only weighting, no mixing with Hamiltonian any more, 4/4/2012
+
+    //  DblNumMat Bt(ttl,ttl);
+    //  for(int a=0; a<ttl; a++)
+    //    for(int b=0; b<ttl; b++)
+    //      Bt(a,b) = Wt(a,b);
+
+    t0 = time(0);
+
+    DblNumMat Cttran(Neigbuf,ttl);
+    for(int a=0; a<Neigbuf; a++)
+      for(int b=0; b<ttl; b++)
+	Cttran(a,b) = Ct(b,a);
+    DblNumMat Aux(Neigbuf,ttl);         setvalue(Aux,0.0);
+    iC( dgemm(1.0, Cttran, Wt, 0.0, Aux) );
+    iC( dgemm(1.0, Aux, Ct, 0.0, CWgAC) );
+
+
+    t1 = time(0);
+    if(mpirank==0) { 
+      fprintf(fhstat, "DGEMM CWC %15.3f secs\n", 
+	      difftime(t1,t0));   
+      fprintf(stderr, "DGEMM CWC %15.3f secs\n", 
+	      difftime(t1,t0));   
+    }
   }
 
 
