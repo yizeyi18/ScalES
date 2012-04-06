@@ -895,7 +895,7 @@ int main(int argc, char **argv)
       scf._basisradius = esdf_double((char*)("Basis_Radius"), 0.0);
       scf._gamma       = esdf_double((char*)("WeightRatio"),    0.00);
       scf._Neigperele  = esdf_integer((char*)("EigPerEle"), 4);
-      scf._DeltaFermi  = esdf_double((char*)("DeltaFermi"), 0.1);
+      scf._DeltaFermi  = esdf_double((char*)("DeltaFermi"), 0.0);
       scf._Norbperele  = esdf_integer((char*)("OrbPerEle"), 7);
       scf._bufdual     = esdf_integer((char*)("Buf_Dual"), 0); 
 
