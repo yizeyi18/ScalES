@@ -60,6 +60,8 @@ testpge: testpge.o
 testge: testge.o
 	$(LOADER) $(LOADOPTS) -o $@ $<
 
+convcube: convcube.o
+	$(LOADER) $(LOADOPTS) -o $@ $<
 
 clean:
 	(cd LOBPCG; make clean; cd ../; $(RM) $(RMFLAGS) *.o *.d *.a tstpw tstdg mdpw mddg \

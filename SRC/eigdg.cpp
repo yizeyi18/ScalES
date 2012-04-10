@@ -27,7 +27,8 @@ int EigDG::setup()
 
 //--------------------------------------------
 int EigDG::solve(ParVec<Index3, vector<double>, ElemPtn>& vtotvec, ParVec<Index3, vector<DblNumTns>, ElemPtn>& basesvec, ParVec<int,Psdo,PsdoPtn>& psdovec,
-		 int npsi, vector<double>& eigvals, ParVec<Index3, DblNumMat, ElemPtn>& eigvecsvec)
+		 int npsi, vector<double>& eigvals, ParVec<Index3, DblNumMat, ElemPtn>& eigvecsvec,
+		 ParVec<Index3,DblNumMat,ElemPtn> & EOcoef)
 {
   Point3 hs = _hs; //ELEMENT SIZE
   Index3 Ns = _Ns; //NUMBER OF ELEMENTS
@@ -175,27 +176,11 @@ int EigDG::solve(ParVec<Index3, vector<double>, ElemPtn>& vtotvec, ParVec<Index3
     iC( solve_Elem_A(vtotvec,basesvec,psdovec,   A,AM,AN,Aindexvec) );
     
     //LLIN: Generate the C matrix 
-    ParVec<Index3,DblNumMat,ElemPtn> C;
     int CM, CN;
     NumTns< vector<int> > Cindexvec;
-    iC( solve_A_C(A, AM, AN, Aindexvec, C, CM, CN, Cindexvec,
+    iC( solve_A_C(A, AM, AN, Aindexvec, EOcoef, CM, CN, Cindexvec,
 		  basesvec) );
  
-    // dump the coefficients for nonorthogonal adaptive local
-    // basis functions 
-    if(_output_bases){
-      for(int i3=0; i3<N3; i3++)
-	for(int i2=0; i2<N2; i2++)
-	  for(int i1=0; i1<N1; i1++) {
-	    Index3 curkey = Index3(i1,i2,i3);
-	    if( _elemptn.owner(curkey)==mpirank ) {
-	      ostringstream oss;
-	      vector<int> all(1);
-	      serialize(C.lclmap()[curkey], oss, all);
-	      Separate_Write("coef", oss);
-	    }
-	  }
-    }  
 
     //transform A to scalapack form Aloc
     int descA[DLEN_];
@@ -216,11 +201,11 @@ int EigDG::solve(ParVec<Index3, vector<double>, ElemPtn>& vtotvec, ParVec<Index3
     }
 
 
-    //transform C to scalapack form Cloc
+    //transform EOcoef to scalapack form Cloc
     int descC[DLEN_];
     DblNumMat Cloc;
     int ClocM, ClocN; 
-    iC( solve_C_Cloc(C,CM,CN,Cindexvec, descC,Cloc,ClocM,ClocN) );
+    iC( solve_C_Cloc(EOcoef,CM,CN,Cindexvec, descC,Cloc,ClocM,ClocN) );
    
     //DEBUG
     if(0){
@@ -385,7 +370,6 @@ int EigDG::solve(ParVec<Index3, vector<double>, ElemPtn>& vtotvec, ParVec<Index3
       iC( eigvecsvec.getEnd(mask) );
     }
   }
-
 
   return 0;
 }

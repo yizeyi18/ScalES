@@ -285,6 +285,8 @@ public:
   ParVec<Index3, vector<double>, ElemPtn> _vtotvec; //LEXING: global vector 
   ParVec<Index3, vector<DblNumTns>, ElemPtn> _basesvec; //LEXING: basesvec global
   ParVec<Index3, DblNumMat, ElemPtn> _eigvecsvec; //LEXING: eigvec global now
+  ParVec<Index3,DblNumMat,ElemPtn> _EOcoef; //LLIN: The coefficients for element orbitals using ALB
+  
   //
   PsdoPtn _psdoptn; //partition the pseudopotentials among processors
   ParVec<int, Psdo, PsdoPtn> _psdovec;

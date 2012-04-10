@@ -29,7 +29,7 @@ BLAS         = -lblas
 
 ALIBS        = $(FFTWLIB) $(LOBPCG_LIB) $(SCALAPACK) $(LAPACK) $(BLAS) $(GFORTRAN)
 
-MODE	     = debug
+MODE	     = run
 
 ############################################################################
 #  Make our own suffixes' list.
@@ -78,7 +78,7 @@ ifeq ($(MODE),profile)
 endif
 
 ifeq ($(MODE),debug)
-  CFLAGS       = -g -w -fPIC $(INCLUDE) 
+  CFLAGS       = -g -w -fPIC $(INCLUDE) -D__DEBUG
   LOADOPTS     = 
 endif
 

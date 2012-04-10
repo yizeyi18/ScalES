@@ -92,13 +92,15 @@ public:
   vector<Index3> _jumpvec; //LEXING: index of other element required for jump calculation
   vector<Index3> _psdovec; //LEXING: index of other element required for pseudo potential calculation
   vector<Index3> _nbhdvec; //LEXING: index of neighbor element required (for nonlocal computation)
+  
 public:
   EigDG();
   ~EigDG();
   int setup(); //for what?
   int solve(ParVec<Index3,vector<double>,ElemPtn>& vtotvec, ParVec<Index3,vector<DblNumTns>,ElemPtn>& basesvec, 
 	    ParVec<int,Psdo,PsdoPtn>& psdovec,
-	    int npsi, vector<double>& eigvals, ParVec<Index3, DblNumMat, ElemPtn>& eigvecsvec);
+	    int npsi, vector<double>& eigvals, ParVec<Index3, DblNumMat, ElemPtn>& eigvecsvec, 
+	    ParVec<Index3,DblNumMat,ElemPtn>& EOcoef);
   int solve_Elem_A(ParVec<Index3,vector<double>,ElemPtn>& vtotvec, ParVec<Index3,vector<DblNumTns>,ElemPtn>& basesvec,ParVec<int,Psdo,PsdoPtn>& psdovec,
 		   ParVec<EmatKey,DblNumMat,EmatPtn>& A,int& AM,int& AN,NumTns< vector<int> >& indexvec);
   int solve_A_Aloc(ParVec<EmatKey,DblNumMat,EmatPtn>& A,int& AM,int& AN,NumTns< vector<int> >& indexvec,

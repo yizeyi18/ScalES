@@ -348,7 +348,7 @@ int ScfDG::scf(vector<double>& rhoinput)
 
     iC( eigdg.setup() );
     t0 = time(0);
-    iC( eigdg.solve(_vtotvec, _basesvec, _psdovec, _npsi, _ev, _eigvecsvec) );
+    iC( eigdg.solve(_vtotvec, _basesvec, _psdovec, _npsi, _ev, _eigvecsvec, _EOcoef) );
     t1 = time(0);
     
     MPI_Barrier(MPI_COMM_WORLD);
@@ -388,49 +388,6 @@ int ScfDG::scf(vector<double>& rhoinput)
 //	  }
 //    }  
 
-    // DEBUG: dump the adaptive local basis functions on the global
-    // domain
-    if( _output_bases ){
-      int N1 = _NElems(0);	int N2 = _NElems(1);	int N3 = _NElems(2);
-      Index3 Nlbls = _elemtns(0,0,0).Ns();
-      int ntotelem = Nlbls[0] * Nlbls[1] * Nlbls[2];      
-     
-      //int ntot_nsglb = Nsglb[0] * Nsglb[1] * Nsglb[2];
-    
-      for(int i3=0; i3<N3; i3++)
-	for(int i2=0; i2<N2; i2++)
-	  for(int i1=0; i1<N1; i1++) {
-	    Index3 curkey = Index3(i1,i2,i3);
-	    if( _elemptn.owner(curkey)==mpirank ) {
-	      Elem& curdat = _elemvec(i1,i2,i3);
-	      Index3 Nsglb = curdat._Nsglb;
-	      Index3 posidx = curdat.posidx();
-	      
-	      ostringstream oss;
-	      vector<int> all(1);
-	      vector<DblNumTns>& bases = _basesvec.lclmap()[curkey];		//curdat.bases();
-	      int nbases = bases.size();
-	      vector<DblNumTns> basesglb(nbases);
-
-	      for(int g = 0; g < nbases; g++){
-		
-		basesglb[g].resize(Nsglb[0], Nsglb[1], Nsglb[2]);
-		setvalue(basesglb[g], 0.0);
-
-		lxinterp_local(basesglb[g].data(), bases[g].data(), curdat);
-
-	      }
-	      //LLIN: Only output the local basis functions.  The basis
-	      //functions will be combined together in a MATLAB
-	      //subroutine supported under force/UTILITIES/plotbases.m
-	      serialize(Nsglb, oss, all);
-	      serialize(posidx, oss, all);
-	      serialize(basesglb, oss, all);
-	      Separate_Write("basesglb", oss);
-	      basesglb.clear();
-	    }
-	  }
-    }  
 
 
 
@@ -613,8 +570,8 @@ int ScfDG::scf(vector<double>& rhoinput)
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-
     MPI_Bcast( &iterflag, 1, MPI_INT, MASTER, MPI_COMM_WORLD ); //LEXING: VERY IMPORTANT
+    
     
     TimeEnd = time(0);   
     if( myid == MASTER ){
@@ -632,7 +589,173 @@ int ScfDG::scf(vector<double>& rhoinput)
   if(myid == MASTER) {
     iC( scf_PrintState(stderr) );
   }
-  
+
+  //LL: File IO part
+  t0 = time(0);   
+
+  if( _output_bases ){
+    int N1 = _NElems(0);	int N2 = _NElems(1);	int N3 = _NElems(2);
+    Index3 Nlbls = _elemtns(0,0,0).Ns();
+    int ntotelem = Nlbls[0] * Nlbls[1] * Nlbls[2];      
+
+    //int ntot_nsglb = Nsglb[0] * Nsglb[1] * Nsglb[2];
+
+    for(int i3=0; i3<N3; i3++)
+      for(int i2=0; i2<N2; i2++)
+	for(int i1=0; i1<N1; i1++) {
+	  Index3 curkey = Index3(i1,i2,i3);
+	  if( _elemptn.owner(curkey)==mpirank ) {
+	    Elem& curdat = _elemvec(i1,i2,i3);
+	    Index3 Nsglb = curdat._Nsglb;
+	    Index3 posidx = curdat.posidx();
+
+	    vector<DblNumTns>& bases = _basesvec.lclmap()[curkey];		//curdat.bases();
+	    int nbases = bases.size();
+	    vector<DblNumTns> basesglb(nbases);
+
+	    for(int g = 0; g < nbases; g++){
+
+	      basesglb[g].resize(Nsglb[0], Nsglb[1], Nsglb[2]);
+	      setvalue(basesglb[g], 0.0);
+
+	      lxinterp_local(basesglb[g].data(), bases[g].data(), curdat);
+
+	    }
+
+	    // Output
+	    ostringstream oss;
+	    vector<int> all(1);
+
+	    serialize(Nsglb, oss, all);
+	    serialize(posidx, oss, all);
+	    serialize(basesglb, oss, all);
+	    Separate_Write("ALB", oss);
+	    basesglb.clear();
+	  }
+	}
+  }
+
+  if(_output_bases && _dgsolver == "nonorth" ){
+    int N1 = _NElems(0);	int N2 = _NElems(1);	int N3 = _NElems(2);
+    for(int i3=0; i3<N3; i3++)
+      for(int i2=0; i2<N2; i2++)
+	for(int i1=0; i1<N1; i1++) {
+	  Index3 curkey = Index3(i1,i2,i3);
+	  if( _elemptn.owner(curkey)==mpirank ) {
+	    DblNumMat& coef = _EOcoef.lclmap()[curkey];
+	    ostringstream oss;
+	    vector<int> all(1);
+
+	    serialize(Index3(i1,i2,i3), oss, all);
+	    serialize(coef, oss, all);
+
+	    Separate_Write("EOcoef", oss);
+	  }
+	}
+  }
+
+  // The information of the basis functions, only for the master
+  // processor
+  if(_output_bases){
+
+    // Everyone collect the number of adaptive local basis functions first.
+    
+    int N1 = _NElems(0);	int N2 = _NElems(1);	int N3 = _NElems(2);
+    IntNumTns numLocalBasis(N1, N2, N3);  
+    setvalue(numLocalBasis, 0);
+
+    for(int i3=0; i3<N3; i3++)
+      for(int i2=0; i2<N2; i2++)
+	for(int i1=0; i1<N1; i1++) {
+	  Index3 curkey = Index3(i1,i2,i3);
+	  if( _elemptn.owner(curkey)==mpirank ) {
+	    Elem& curdat = _elemvec(i1,i2,i3);
+	    vector<DblNumTns>& bases = _basesvec.lclmap()[curkey];		
+	    numLocalBasis(i1, i2, i3) += bases.size();
+	  }
+	}
+
+    IntNumTns tempBasis(N1, N2, N3);  setvalue(tempBasis, 0);
+    MPI_Reduce(numLocalBasis.data(), tempBasis.data(), N1*N2*N3, MPI_INT, 
+	       MPI_SUM, 0, MPI_COMM_WORLD);
+    numLocalBasis = tempBasis;
+
+    if(mpirank == 0){
+       ofstream fhout("BASISINFO"); iA(fhout.good());
+       int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
+       vector<int> noMask(1);
+       //LL: Now, every element occupies a processor
+       
+       serialize(mpisize, fhout, noMask);
+       serialize(_NElems, fhout, noMask);
+       serialize(_Ns,     fhout, noMask);
+       serialize(_Ls,     fhout, noMask);
+       IntNumVec elementToProcessorMap(N1*N2*N3);
+
+       for(int i3=0; i3<N3; i3++)
+	 for(int i2=0; i2<N2; i2++)
+	   for(int i1=0; i1<N1; i1++){
+	     int iElem = i1 + i2 * N1 + i3 * N1 * N2;
+	     elementToProcessorMap[iElem] = iElem;   
+	   } 
+
+       int numTotalBasis = 0;
+       for(int i3=0; i3<N3; i3++)
+	 for(int i2=0; i2<N2; i2++)
+	   for(int i1=0; i1<N1; i1++) {
+	     numTotalBasis += numLocalBasis(i1,i2,i3);
+	   }
+
+       IntNumVec adaptiveLocalBasisToProcessorMap(numTotalBasis);
+       IntNumVec adaptiveLocalBasisGlobalToLocalMap(numTotalBasis);
+       int countBasis = 0, countBasisLocal;
+       for(int i3=0; i3<N3; i3++)
+	 for(int i2=0; i2<N2; i2++)
+	   for(int i1=0; i1<N1; i1++){
+	     countBasisLocal = 0;
+	     int iElem = i1 + i2 * N1 + i3 * N1 * N2;
+	     for(int l = 0; l < numLocalBasis(i1,i2,i3); l++){
+	       adaptiveLocalBasisToProcessorMap[countBasis] = 
+		 elementToProcessorMap[iElem];
+	       adaptiveLocalBasisGlobalToLocalMap[countBasis] = 
+		 countBasisLocal;
+               countBasisLocal++;
+	       countBasis++;
+	     }
+	   }
+       
+
+       serialize(elementToProcessorMap, fhout, noMask);
+       serialize(adaptiveLocalBasisToProcessorMap, fhout, noMask);
+       serialize(adaptiveLocalBasisGlobalToLocalMap, fhout, noMask);
+
+       int natoms = _atomvec.size();
+       IntNumVec atomTypeVector(natoms);
+       DblNumMat atomPositionMatrix(natoms,3);
+       for(int i = 0; i < natoms; i ++){
+	 atomTypeVector(i) = _atomvec[i].type();
+	 Point3 coord = _atomvec[i].coord();
+	 atomPositionMatrix(i,0) = coord(0);
+	 atomPositionMatrix(i,1) = coord(1);
+	 atomPositionMatrix(i,2) = coord(2);
+       }
+
+       serialize(natoms, fhout, noMask);
+       serialize(atomTypeVector, fhout, noMask);
+       serialize(atomPositionMatrix, fhout, noMask);
+
+       fhout.close();
+    }
+  }  
+
+  t1 = time(0);
+  if( mpirank == MASTER ){
+    fprintf(stderr, "Finish IO. Time = %10.2f secs\n", 
+	    iter, difftime(t1,t0));
+    fprintf(fhstat, "Finish IO. Time = %10.2f secs\n", 
+	    iter, difftime(t1,t0));
+  }
+
   return 0;
 }
 
@@ -743,17 +866,17 @@ int ScfDG::scf_CalXC()
   double b2 = 4.504130959426697;
   double b3 = 1.110667363742916;
   double b4 = 0.02359291751427506;
-    
+
 
   double third = 1.0/3.0; 
   double pi = 3.14159265354;
   double p75vpi = 0.75/pi;
   int ntot = this->ntot();
-  
+
   double exc; 
   double rho, rs, drsdrho, ec;
   double *vxc = &(_vxc[0]);
-  
+
   double auxnum, auxdenom, auxdnum, auxddenom; 
 
   exc = 0.0;
@@ -773,14 +896,14 @@ int ScfDG::scf_CalXC()
       ec = - auxnum/auxdenom;
       exc += rho*ec;
       vxc[i] = ec + rho * (- auxdnum / auxdenom + auxnum * auxddenom / pow(auxdenom, 2)) * drsdrho;
-      
+
     }
   }
-  
+
   exc *= (vol()) / (this->ntot());
-  
+
   _Exc = exc;
- 
+
 
   return 0;
 }
@@ -841,7 +964,7 @@ int ScfDG::scf_CalHartree()
 
     return 0;
   }
-  
+
   // New version that ensures alignment
   if(1){
     double pi = 4.0 * atan(1.0);
@@ -866,7 +989,7 @@ int ScfDG::scf_CalHartree()
 	rhotemp[i][0] = 0.0;
 	rhotemp[i][1] = 0.0;
       }
-        
+
     }
 
     fftw_execute_dft(_planpsibackward, (&rhotemp[0]), (&crho[0]));
@@ -886,7 +1009,7 @@ int ScfDG::scf_CalHartree()
 
     return 0;
   }
- 
+
 }
 
 
@@ -900,7 +1023,7 @@ int ScfDG::scf_CalVtot(double* vtot)
   }
   /* 
      vtotsum /= (double)_ntot; for(int i = 0; i < _ntot; i++){ vtot[i]
-  = vtot[i] - vtotsum; }*/
+     = vtot[i] - vtotsum; }*/
   return 0;
 }
 
@@ -913,26 +1036,26 @@ int ScfDG::scf_CalEnergy()
   _Ekin = 0.0;
   for(int l = 0; l < _npsi; l++)
     _Ekin += 2.0*(_ev[l] * _occ[l]); //LEXING: THIS IS CORRECT
-  
+
   //-----------
   _Ecor = 0.0;
   vector<double> srho(_ntot);
   for(int i = 0; i < _ntot; i++)    srho[i] = _rho[i]+_rho0[i];
   for(int i = 0; i < _ntot; i++)    _Ecor += (-_vxc[i]*_rho[i] - 0.5*_vhart[i]*srho[i]);
   _Ecor *= _vol/double(_ntot);
-  
+
   _Ecor += _Exc;
-  
+
   double Es = 0;
   for(int a=0; a<_atomvec.size(); a++) {
     int type = _atomvec[a].type();
     Es = Es + _ptable.ptemap()[type].params()(PeriodTable::i_Es);
   }
   _Ecor -= Es;
-  
+
   //-----------
   _Etot = _Ekin + _Ecor ;
- 
+
   //-----------
   //LL: Calculate the free energy functional at finite temperature
   _Efree = 0.0;
@@ -969,13 +1092,13 @@ int ScfDG::scf_Print(FILE *fh)
   }
   fprintf(fh, "\n");
 
-  
+
   fprintf(fh,"Number of occupied states   = %10d\n", _nOccStates);
   fprintf(fh,"Number of extra states      = %10d\n", _nExtraStates);
   fprintf(fh,"Number of eigenvalues       = %10d\n", _npsi);
   fprintf(fh,"Inverse temperature         = %10.5e\n", _Tbeta);
   fprintf(fh, "\n");
- 
+
   fprintf(fh,"Mixing method               = %s\n", _mixtype.c_str());
   fprintf(fh,"SCF tolerance               = %10.5e\n", _scftol);
   fprintf(fh,"LOBPCG tolerance            = %10.5e\n", _eigtol);
@@ -1008,7 +1131,7 @@ int ScfDG::scf_PrintState(FILE *fh)
     fprintf(fh, "eig[%5d] :  %25.15e,   occ[%5d] : %15.5f\n", 
 	    i, _ev[i], i, _occ[i]); 
   }
- 
+
   fprintf(fh, "Total Energy = %25.15e [Ry]\n", _Etot*2);
   fprintf(fh, "Helmholtz    = %25.15e [Ry]\n", _Efree*2);
   fprintf(fh, "Ekin         = %25.15e [Ry]\n", _Ekin*2);
@@ -1029,10 +1152,10 @@ int ScfDG::scf_PAndersonMix(vector<double>& vtotnew,
   int mixdim;
   double alpha;
   int mpirank; MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
-  
+
   alpha = _alpha;
   mixdim = _mixdim;
-  
+
   int N1=_NElems[0];    int N2=_NElems[1];    int N3=_NElems[2];
   int NTOT = _Ns[0] * _Ns[1] * _Ns[2];
 
@@ -1082,16 +1205,16 @@ int ScfDG::scf_PAndersonMix(vector<double>& vtotnew,
 	}
   }
 
-  
+
   // LLIN: iter must start from 1!
   iterused = MIN(iter-1,mixdim);
 
   ipos = iter - 1 - ((iter-2)/mixdim)*mixdim;
-  
+
   //cerr << "Anderson mixing = " << iterused << endl;
   //cerr << "iterused = " << iterused << endl;
   //cerr << "ipos = " << ipos << endl;
-  
+
   // Initialize df and dv for Anderson mixing
   // iter starts from 1. VERY IMPORTANT
   if( iter == 1 ){
@@ -1117,7 +1240,7 @@ int ScfDG::scf_PAndersonMix(vector<double>& vtotnew,
 
   // LLIN: Perform Anderson mixing by solving a least square problem
   // using PDGELSS
-    
+
   if( iter > 1 ){
     /* df(:, ipos) -= vout;
        dv(:, ipos) -= vin */
@@ -1192,15 +1315,15 @@ int ScfDG::scf_PAndersonMix(vector<double>& vtotnew,
     {
       int nrhs = 1 , LWORK, info, rank;
       double rcond = 1e-12;  // LLIN: Condition number threshold
-                             // criterion for A=df'*df vector<double> WORK;
+      // criterion for A=df'*df vector<double> WORK;
       /* Choice of LWORK
        * The dimension of the array WORK. LWORK >= 1, and also: 
        * LWORK >= 3*min(M,N) + max( 2*min(M,N), max(M,N), NRHS )
        * For good performance, LWORK should generally be larger. */
       LWORK = iterused * 20;
-      
+
       DblNumVec WORK(LWORK), S(iterused);
-      
+
       if( mpirank == MASTER ){
 	cerr << "Start least square problem " << endl;
       }
@@ -1229,13 +1352,13 @@ int ScfDG::scf_PAndersonMix(vector<double>& vtotnew,
 	    int ione = 1;
 	    DblNumMat& dfcur = df.lclmap()[curkey];
 	    DblNumMat& dvcur = dv.lclmap()[curkey];
-            DblNumTns& vincur = vin.lclmap()[curkey];
+	    DblNumTns& vincur = vin.lclmap()[curkey];
 	    DblNumTns& voutcur = vout.lclmap()[curkey];
 
 	    dgemv_(&ntrans, &lclsize, &iterused, &mone,
 		   dfcur.data(), &lclsize, gammas.data(), &ione,
 		   &one, voutcur.data(), &ione);
-	    
+
 	    dgemv_(&ntrans, &lclsize, &iterused, &mone, 
 		   dvcur.data(), &lclsize, gammas.data(), &ione,
 		   &one, vincur.data(), &ione);
@@ -1304,11 +1427,11 @@ int ScfDG::scf_PAndersonMix(vector<double>& vtotnew,
 
   MPI_Barrier(MPI_COMM_WORLD);
   // LLIN: Every processor updates the local pseudopotential 
-  
+
   iC( MPI_Allreduce(vtottmp.data(), &(_vtot[0]), 
 		    NTOT, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD) );
 
-  
+
   return 0;
 }
 
@@ -1326,7 +1449,7 @@ int ScfDG::scf_AndersonMix(vector<double>& vtotnew,
   int iterused, ipos;
   int mixdim;
   double alpha;
-  
+
   alpha = _alpha;
   mixdim = _mixdim;
 
@@ -1340,20 +1463,20 @@ int ScfDG::scf_AndersonMix(vector<double>& vtotnew,
     vin[i] = _vtot[i];
     vout[i] = vtotnew[i] - _vtot[i];
   }
-  
+
   for(int i = 0; i < NTOT; i++){
     vinsave[i] = vin[i];
     voutsave[i] = vout[i];
   }
-  
+
   iterused = MIN(iter-1,mixdim);
 
   ipos = iter - 1 - ((iter-2)/mixdim)*mixdim;
-  
+
   //cerr << "Anderson mixing = " << iterused << endl;
   //cerr << "iterused = " << iterused << endl;
   //cerr << "ipos = " << ipos << endl;
-  
+
   // clear df and dv
   if( iter == 1 ){
     for(int i = 0; i < NTOT * mixdim; i++){
@@ -1362,7 +1485,7 @@ int ScfDG::scf_AndersonMix(vector<double>& vtotnew,
   }
 
   // LLIN: Calculating the pseudoinverse  using DGELSS
-    
+
   if(1){
     if( iter > 1 ){
       for(int i = 0; i < NTOT; i++){
@@ -1420,7 +1543,7 @@ int ScfDG::scf_AndersonMix(vector<double>& vtotnew,
   }
 
   // LLIN: Calculating the pseudoinverse  using DGELS
-    
+
   if(0){
     if( iter > 1 ){
       for(int i = 0; i < NTOT; i++){
@@ -1450,7 +1573,7 @@ int ScfDG::scf_AndersonMix(vector<double>& vtotnew,
       LWORK = MN + MAX( MN, nrhs ) * NB; 
       cerr << "  m = " << m << "  n = " << n << "  MN = " << MN << endl;
       cerr << "LWORK = " << LWORK << endl;
-      
+
       WORK.resize(LWORK);
 
       gammas.resize(NTOT);
@@ -1492,7 +1615,7 @@ int ScfDG::scf_AndersonMix(vector<double>& vtotnew,
   for(int i = 0; i < NTOT; i++){
     _vtot[i] = vin[i] + alpha * vout[i];
   }
-  
+
   return 0;
 }
 
@@ -1811,7 +1934,7 @@ int ScfDG::force()
     }
     return 0;
   }
-  
+
   // New version forcing alignment
   if(1){
     int myid = mpirank();
@@ -1827,7 +1950,7 @@ int ScfDG::force()
       crho[i][0] = _rho[i]-_rho0[i];
       crho[i][1] = 0.0;
     }
-    
+
     fftw_execute_dft(_planpsiforward, 
 		     (&crho[0]), 
 		     (&rhotemp[0]));
@@ -1845,7 +1968,7 @@ int ScfDG::force()
     }
 
     fftw_execute_dft(_planpsibackward, (&rhotemp[0]), (&crho[0]));
-    
+
     vector<double> vrho(_ntot, 0.0);
     for(int i = 0; i < _ntot; i++ ){
       vrho[i] = crho[i][0]/(double)_ntot;
@@ -1856,7 +1979,7 @@ int ScfDG::force()
     //electrostatic potential to improve accuracy.
 
     DblNumMat vhartdev(_ntot, 3); // three derivatives of vhart
-    
+
     fftw_complex *cpxtmp1, *cpxtmp2;
     cpxtmp1 = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*_ntot);
     cpxtmp2 = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*_ntot);
