@@ -293,21 +293,28 @@ int ScfDG::scf()
     eigdg._Neigperele = _Neigperele;
     eigdg._Norbperele = _Norbperele;
     eigdg._DeltaFermi = _DeltaFermi;
-    eigdg._EcutCnddt.resize(_NElems[0],_NElems[1],_NElems[2]);
-    setvalue(eigdg._EcutCnddt, 0.0);
 
-
+    
     // LLIN: Get the energy cutoff for the candidate functions
+    DblNumTns Ecut(_NElems[0], _NElems[1], _NElems[2]); setvalue(Ecut, 0.0);
     for(int i2=0; i2<_NElems[2]; i2++)
       for(int i1=0; i1<_NElems[1]; i1++)
 	for(int i0=0; i0<_NElems[0]; i0++) {
 	  if(_elemptn.owner(Index3(i0,i1,i2))==myid) {
 	      Buff& buff = _buffvec(i0,i1,i2); 	    
-	      eigdg._EcutCnddt(i0,i1,i2) = buff._ev[buff._npsi-1] + _DeltaFermi;
+	      Ecut(i0,i1,i2) = buff._ev[buff._npsi-1] + _DeltaFermi; 
+	      //LLIN: _DeltaFermi usually is just set to be 0.
+	      //(04/11/2012)
 	  }
 	}
 
+    eigdg._EcutCnddt.resize(_NElems[0],_NElems[1],_NElems[2]);
+    setvalue(eigdg._EcutCnddt, 0.0);
+    MPI_Allreduce(&Ecut.data(), &eigdg._EcutCnddt.data(), _NElems[0]*_NElems[1]*_NElems[2], 
+		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    
     if(mpirank == 0 ){
+      fprintf(stderr, "The Fermi energy cutoff for all the extended elements\n");
       cerr << eigdg._EcutCnddt << endl;
     }
     

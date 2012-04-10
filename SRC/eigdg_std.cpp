@@ -952,8 +952,8 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 
   //LLIN: compute _basisradius if _delta is specified
 
-  // Old version before input format v1.2
-  if(_inputformat == "v1.1" || _inputformat == "v1.0"){
+  // Old version for the weight matrix, now obsolete.
+  if(0){
     if( _delta > 0.0 ){
       _basisradius = (1-_delta)*minh*1.5;
     }
@@ -976,7 +976,7 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
   }
 
   //LLIN: New format. Rounded rectangular truncation.
-  if(_inputformat == "v1.2"){
+  if(1){
     //NOTE: The meaning of delta changes here
     if( _delta > 0.0 ){
       _basisradius = (1-_delta)*minh;
@@ -1117,7 +1117,7 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
   //PERFORM EIG on matrix At
   DblNumMat Vt;
   DblNumVec Et;
-  int Neigbuf = 0;
+  int Neigbuf;
   
   //LLIN: Diagonalize  At to get Vt and Et using dsyevd, but it can gets
   //slow for large number of ALB per element.
@@ -1180,6 +1180,7 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
     //LLIN: Compute the number of candidate functions by its energy
     //LEXING: Ct contains first Neigbuf columns of Vt
     double Ecut = _EcutCnddt(cur1, cur2, cur3);
+    Neigbuf = 0;
     for(int i = 0; i < Et.m(); i++){
       if( Et[i] < Ecut ) 
 	Neigbuf++;
@@ -1248,6 +1249,13 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 	fprintf(fhstat, "Lambda1[%4i] = %15.5e\n", i, Et[i]);
       }
       fprintf(fhstat, "\n");
+      if(mpirank == 0){
+	fprintf(stderr, "Eigenvalues for the candidate functions\n");
+	for(int i = 0; i < Neigbuf; i++){
+	  fprintf(stderr, "Lambda1[%4i] = %15.5e\n", i, Et[i]);
+	}
+	fprintf(stderr, "\n");
+      }
     }
 
 
@@ -1261,14 +1269,15 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
       fprintf(stderr, "Standard eigenvalue problem first %15.3f secs\n", 
 	      difftime(t1,t0));   
     }
+  
   }
-
-  fprintf(fhstat, "Number of candidate functions = %4i \n", Neigbuf);
 
   DblNumMat Ct(ttl,Neigbuf);
   for(int b=0; b<Neigbuf; b++)
     for(int a=0; a<ttl; a++)
       Ct(a,b) = Vt(a,b);
+
+  fprintf(fhstat, "Number of candidate functions = %4i \n", Neigbuf);
 
   DblNumMat CWgAC(Neigbuf,Neigbuf);  setvalue(CWgAC, 0.0);
 
@@ -1299,6 +1308,7 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 	    www(g1,g2,g3) = w1(g1)*w2(g2)*w3(g3);
 	  }
     }
+
     DblNumMat Wt(ttl,ttl);    setvalue(Wt,0.0);
     for(int g1=0; g1<Nbr1; g1++)
       for(int g2=0; g2<Nbr2; g2++)
@@ -1316,6 +1326,7 @@ int EigDG::solve_A_C(ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN,
 	    for(int b=0; b<S.n(); b++)
 	      Wt(gof+a,gof+b) += S(a,b);
 	}
+
 
     t1 = time(0);
     if(mpirank==0) { 

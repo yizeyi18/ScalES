@@ -62,7 +62,7 @@ int main(int argc, char **argv)
   //---------
   //Input format
 
-  esdf_string((char*)("Input_Format"), (char*)("v1.2"), strtmp);
+  esdf_string((char*)("Input_Format"), (char*)("v1.3"), strtmp);
   string inputformat(strtmp);
     
   /* Parameters used later */
@@ -70,17 +70,16 @@ int main(int argc, char **argv)
   double dt;
   int max_step;
 	
-  // LLIN: Only keep the v1.2 format after being tested for
-  // a while.  (04/10/2012)
+  // LLIN: Only keep the v1.3 format after being tested for
+  // a while with updated restarting and outputing strategy.  (04/10/2012)
+  if( inputformat != "v1.3" ){
+    if(mpirank == 0) fprintf(stderr, "The source file is obsolete!\n");
+    fclose(fhstat);
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Finalize();
+  }
   
-  if( inputformat == "v1.2" ){
-
-    //***************************************************************
-    //Input format  v1.2: 
-    //  Support reduced coordinate (Atom_Red)
-    //  WallWidth parameter can also be specified by the absolute value
-    //  of  Basis_Radius
-    //***************************************************************
+  if( inputformat == "v1.3" ){
     //---------
     //domain
     Domain dm;
@@ -552,8 +551,6 @@ int main(int argc, char **argv)
 	for(int i=0; i<ntot; i++)	scf._vext[i] = 0.0;
       }
     }
-  
- 
   }
 
 
