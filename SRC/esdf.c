@@ -252,9 +252,13 @@ void esdf_key() {
 
     i++;
     strcpy(kw_label[i],"restart_density");
-    strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! Density file to restart!*");
+    strcpy(kw_typ[i],"I:E");
+    strcpy(kw_dscrpt[i],"*! whether density is restarted!*");
 
+    i++;
+    strcpy(kw_label[i],"restart_bufwfn");
+    strcpy(kw_typ[i],"I:E");
+    strcpy(kw_dscrpt[i],"*! whether the buffer wavefunction is restarted!*");
 
     i++;
     strcpy(kw_label[i],"output_density");
@@ -277,6 +281,10 @@ void esdf_key() {
     strcpy(kw_typ[i],"I:E");
     strcpy(kw_dscrpt[i],"*! whether wavefunctions and occupations numbers are outputed !*");
 
+    i++;
+    strcpy(kw_label[i],"output_bufwfn");
+    strcpy(kw_typ[i],"I:E");
+    strcpy(kw_dscrpt[i],"*! whether wavefunctions in the buffer is outputed !*");
 
     i++;
     strcpy(kw_label[i],"element_position_start");

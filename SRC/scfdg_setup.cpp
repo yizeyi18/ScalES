@@ -3,6 +3,7 @@
 #include "interp.hpp"
 #include "eigpw.hpp"
 #include "vecmatop.hpp"
+#include "parallel.hpp"
 
 extern FILE* fhstat;
 
@@ -234,7 +235,8 @@ int ScfDG::setup()
   
   _vol = _Ls[0] * _Ls[1] * _Ls[2];
   _ntot = _Ns[0] * _Ns[1] * _Ns[2];
-  
+
+
   double pi = 4.0 * atan(1.0);
   int ndim = 3;
   _gridpos.resize(ndim);
@@ -278,6 +280,24 @@ int ScfDG::setup()
   }
   _nOccStates = ceil((double)nelec/2.0);
   _npsi = _nOccStates + _nExtraStates;
+
+  // LLIN: Initialize the electron density
+  DblNumVec rhoInput;
+  if(_isRestartDensity == false ){
+    rhoInput = DblNumVec(_ntot, false, &_rho0[0]);
+  }
+  else{
+    string restartDensityFileName= "DEN";
+    istringstream rhoStream;      iC( Shared_Read(restartDensityFileName, rhoStream) );
+
+    vector<int> noMask(1);
+    deserialize(rhoInput, rhoStream, noMask);    
+  }
+
+  _rho.resize(_ntot);
+  for(int i = 0; i < _ntot; i++){
+    _rho[i] = rhoInput[i];
+  }
   
   /* Initialize eigenvalues and wavefunctions */
   _ev.resize(_npsi);
@@ -354,7 +374,8 @@ int ScfDG::setup()
 	  buff._npsi = _nenrich + _nbufextra;
 	  buff._ev.resize(buff._npsi);
 	  
-	  // LLIN: setup the initial values of active indices
+	  // LLIN: setup the initial values of active indices. 
+	  // OBSOLETE (4/10/2012)
 	  buff._nactive = buff._npsi;
 	  buff._active_indices.resize(buff._nactive);
 	  for(int i = 0; i < buff._nactive; i++){
@@ -362,11 +383,29 @@ int ScfDG::setup()
 	  }
 	 
 	
-	  vector<double> psi;	  psi.resize(buff._npsi * buffntot);
-	  for(vector<double>::iterator vi = psi.begin(); vi != psi.end(); vi++) {
-	    (*vi) = dunirand();
+	  if( _isRestartBufWfn == false ){
+	    vector<double> psi;	  psi.resize(buff._npsi * buffntot);
+	    for(vector<double>::iterator vi = psi.begin(); vi != psi.end(); vi++) {
+	      (*vi) = dunirand();
+	    }
+	    buff._psi = psi;
 	  }
-	  buff._psi = psi;
+	  else{
+	    vector<int> noMask;
+	    istringstream iss;
+	    Separate_Read("BUFWFN", iss);
+	    Index3 buffIndex;
+	    deserialize(buffIndex, iss, noMask);
+	    iA( buffIndex == Index3(i,j,k) );
+	    DblNumMat psiMatrix; 
+	    deserialize(psiMatrix, iss, noMask);
+	    iA( psiMatrix.n() == buff._npsi &&
+		psiMatrix.m() == buff._ntot );
+	    buff._psi.resize(buff._npsi * buff._ntot);
+	    copy(psiMatrix.data(), psiMatrix.data()+buff._npsi * buff._ntot,
+		 buff._psi.begin());
+	  }
+	  
 	  // get its non-local pseudopotential for buffers
 	  for(int a=0; a<buff._atomvec.size(); a++) {
 	    vector< pair<SparseVec,double> > tmpvnls;

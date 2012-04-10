@@ -198,8 +198,11 @@ public:
   //CONTROL PARAMETERS
   int _isOutputBases;    // Whether to output the adaptive local basis and element orbitals
   int _isOutputDensity; 
-  int _isOutputWfn;
+  int _isOutputBufWfn;
   int _isOutputVtot;
+
+  int _isRestartDensity;
+  int _isRestartBufWfn;
 
   //--------------------------------------------------
   //EXTERNAL PARAMETERS
@@ -309,9 +312,11 @@ public:
   int scf_CalHartree();
   int scf_CalVtot(double* vtot); // Used here
   int scf_CalEnergy(); //Obsolete
+  int scf_EvaluateDensity(); // LLIN: Evaluate the total density in parallel.
   
   int scf_Print(FILE *fh);
   int scf_PrintState(FILE *fh);  //int scf_BcastInfo(int master); //TODO
+  int scf_FileIO();
   
   // LLIN: Parallel Anderson mixing.
   int scf_PAndersonMix(vector<double>& vtotnew, ParVec<Index3,

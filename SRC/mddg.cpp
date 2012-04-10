@@ -67,7 +67,6 @@ int main(int argc, char **argv)
     
   /* Parameters used later */
   ScfDG scf;
-  DblNumVec rhoInput;
   double dt;
   int max_step;
 	
@@ -221,8 +220,8 @@ int main(int argc, char **argv)
       //Control parameters
       inttmp            = esdf_integer((char*)("Output_Density"), 0 );
       scf._isOutputDensity = (bool)inttmp;
-      inttmp            = esdf_integer((char*)("Output_Wfn"), 0 );
-      scf._isOutputWfn  = (bool)inttmp;
+      inttmp            = esdf_integer((char*)("Output_BufWfn"), 0 );
+      scf._isOutputBufWfn  = (bool)inttmp;
       inttmp            = esdf_integer((char*)("Output_Vtot"), 0 );
       scf._isOutputVtot = (bool)inttmp;
       inttmp            = esdf_integer((char*)("Output_Bases"), 0 );
@@ -516,36 +515,18 @@ int main(int argc, char **argv)
     max_step = esdf_integer((char*)("Max_Step"), 1);
 
     //----------
+    //inital guess
+    inttmp                = esdf_integer((char*)("Restart_Density"), 0 );
+    scf._isRestartDensity = (bool)inttmp;
+    inttmp                = esdf_integer((char*)("Restart_BufWfn"), 0 );
+    scf._isRestartBufWfn  = (bool)inttmp;
+
+
+    //----------
     iC( scf.setup() );
     MPI_Barrier(MPI_COMM_WORLD);
     if(mpirank==0) { fprintf(stderr, "scf setup done\n"); }
-    //----------
-    //inital guess?
-    {
-      esdf_string((char*)("Restart_Mode"), (char*)("from_scratch"), strtmp);
-      string restartmode = strtmp;
 
-
-      if(restartmode == string("from_scratch") )
-	rhoInput = DblNumVec(scf._ntot, false, &scf._rho0[0]);
-      if(restartmode == string("restart") ){
-	Index3 Ns;
-	Point3 Ls;      
-	int ntot;
-	//
-	esdf_string((char*)("Restart_Density"), (char*)("rho_dg.dat"), strtmp);
-	string restartDensityFileName= strtmp;
-	istringstream rhoStream;      iC( Shared_Read(restartDensityFileName, rhoStream) );
-
-        vector<int> noMask(1);
-	deserialize(rhoInput, rhoStream, noMask);    
-      }
-    }
-
-
-#ifdef __DEBUG
-    fprintf(stderr, "proc %d, rhoInput val %f\n", myid, rhoInput[myid]);
-#endif
     MPI_Barrier(MPI_COMM_WORLD);
     if(mpirank==0) { fprintf(stderr, "scf guess done\n"); }
     
@@ -613,11 +594,6 @@ int main(int argc, char **argv)
     
     start = clock();
 
-    // 
-    scf._rho.resize(scf._ntot);
-    for(int i = 0; i < scf._ntot; i++){
-      scf._rho[i] = rhoInput[i];
-    }
     iC( scf.scf() );
     MPI_Barrier(MPI_COMM_WORLD);
     if(mpirank==0) { fprintf(stderr, "scf scf done\n"); }

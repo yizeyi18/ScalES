@@ -43,25 +43,6 @@ int ScfDG::scf()
 
   iC( scf_CalXC() );
   MPI_Barrier(MPI_COMM_WORLD);
-  // Output vxc
-  if(0){
-    if(mpirank==0) {
-      fprintf(stderr, "Exc          = %25.15e [Ry]\n", _Exc*2);
-      fprintf(stderr, "scf scf_CalXC done\n"); fflush(stderr); 
-      if(1)
-      {
-	char filename[100];
-	{
-	  sprintf(filename, "vxc_%d_%d", mpirank, mpisize);
-	  ofstream os(filename, ios::trunc);
-	  for(int i = 0; i < _ntot; i++){
-	    os << _vxc[i] << endl;
-	  }
-	  os.close();
-	}
-      }
-    }
-  }
 
   iC( scf_CalHartree() );
   MPI_Barrier(MPI_COMM_WORLD);
@@ -113,26 +94,29 @@ int ScfDG::scf()
 	    //PARA: interpolative vtot from global to buffer and from
 	    //buffer to element
 
-	    // Whether the reduced grid (dual grid) is used for buffer
-	    // calculation.
+	    // LLIN: Whether the reduced grid (dual grid) is used for buffer
+	    // calculation. Now it seems that the dual grid does not
+	    // help.
 	    if( _bufdual == 0 ){
 	      xinterp(&(buff._vtot)[0], &_vtot[0], buff, *this);
 	    }
 	    else{
 	      xinterp_dual(&(buff._vtot)[0], &_vtot[0], buff, *this);
 	    }
+	    
 	    _vtotvec.lclmap()[Index3(i0,i1,i2)].resize(elem.ntot());
-	    xlinterp(&(_vtotvec.lclmap()[Index3(i0,i1,i2)][0]), &(buff._vtot)[0], elem, buff); 	    //xlinterp(&(elem._vtot)[0], &(buff._vtot)[0], elem, buff);
+	    xlinterp(&(_vtotvec.lclmap()[Index3(i0,i1,i2)][0]), &(buff._vtot)[0], elem, buff); 	    
 	  }
 	}
     
+    // LLIN: Usually choose nBuffUpdate = 1
     if( ((iter-1) % _nBuffUpdate) == 0 ){
       for(int i2=0; i2<_NElems[2]; i2++)
 	for(int i1=0; i1<_NElems[1]; i1++)
 	  for(int i0=0; i0<_NElems[0]; i0++) {
 	    if(_elemptn.owner(Index3(i0,i1,i2))==myid) {
 	      //--------------
-	      Buff& buff = _buffvec(i0,i1,i2); 	    //Buff& buff = _buffvec.lclmap()[Index3(i,j,k)];
+	      Buff& buff = _buffvec(i0,i1,i2); 	    
 	      Elem& elem = _elemvec(i0,i1,i2);
 	      //-------------
 	      //PARA: solve buffer problem
@@ -142,18 +126,8 @@ int ScfDG::scf()
 	      eigpw._eigmaxiter = _eigmaxiter;
 	      eigpw._eigtol = _eigtol;
 	      iC( eigpw.setup() );
-	      // If half of the eigenvalues have converged, stop
-	      // updating the basis functions
-	      if( buff._nactive > buff._npsi * 0.75 ){
-		iC( eigpw.solve(buff._vtot, buff._vnls, _nenrich + _nbufextra, 
-				buff._psi, buff._ev, buff._nactive, buff._active_indices) );
-	      }
-	      else{
-		fprintf(fhstat, "\n Buff (%4d, %4d, %4d) skips eigpw \n",
-			i0, i1, i2);
-		fprintf(stderr, "\n Buff (%4d, %4d, %4d) skips eigpw \n",
-			i0, i1, i2);
-	      }
+	      iC( eigpw.solve(buff._vtot, buff._vnls, _nenrich + _nbufextra, 
+			      buff._psi, buff._ev, buff._nactive, buff._active_indices) );
 	      //MPI_Barrier(MPI_COMM_WORLD);
 	      //if(mpirank==0) { fprintf(stderr, "scf scf iter %d eigpw done\n", iter); }
 	      //-------------
@@ -162,7 +136,6 @@ int ScfDG::scf()
 	      elembases.resize(_nenrich);		//elem._bases.resize(_nenrich);
 	      for(int g=0; g<_nenrich; g++) {
 		double* psibufptr = &(buff._psi[0]) + g*(buff._ntot);
-		//xlinterp(bases[g][0].data(), psibufptr, molelemlist[ie], molbuflist[ie]);
 		Index3 Nlbls = elem._Ns; //LY: LBL GRIDS
 		elembases[g].resize(Nlbls(0),Nlbls(1),Nlbls(2));
 		xlinterp(elembases[g].data(), psibufptr, elem, buff); //LEXING: this stores the local basis functions
@@ -324,12 +297,12 @@ int ScfDG::scf()
     setvalue(eigdg._EcutCnddt, 0.0);
 
 
-    // LL: Get the energy cutoff for the candidate functions
+    // LLIN: Get the energy cutoff for the candidate functions
     for(int i2=0; i2<_NElems[2]; i2++)
       for(int i1=0; i1<_NElems[1]; i1++)
 	for(int i0=0; i0<_NElems[0]; i0++) {
 	  if(_elemptn.owner(Index3(i0,i1,i2))==myid) {
-	      Buff& buff = _buffvec(i0,i1,i2); 	    //Buff& buff = _buffvec.lclmap()[Index3(i,j,k)];
+	      Buff& buff = _buffvec(i0,i1,i2); 	    
 	      eigdg._EcutCnddt(i0,i1,i2) = buff._ev[buff._npsi-1] + _DeltaFermi;
 	  }
 	}
@@ -338,9 +311,6 @@ int ScfDG::scf()
       cerr << eigdg._EcutCnddt << endl;
     }
     
-	  
-
-
     iC( eigdg.setup() );
     t0 = time(0);
     iC( eigdg.solve(_vtotvec, _basesvec, _psdovec, _npsi, _ev, _eigvecsvec, _EOcoef) );
@@ -363,133 +333,18 @@ int ScfDG::scf()
     
     MPI_Barrier(MPI_COMM_WORLD);
     if(mpirank==0) { fprintf(stderr, "scf scf iter %d occ done\n", iter); }
-   
-    // DEBUG: dump the adaptive local basis functions in the local
-    // domain
-//    if( 0 ){
-//      int N1 = _NElems(0);	int N2 = _NElems(1);	int N3 = _NElems(2);
-//      for(int i3=0; i3<N3; i3++)
-//	for(int i2=0; i2<N2; i2++)
-//	  for(int i1=0; i1<N1; i1++) {
-//	    Index3 curkey = Index3(i1,i2,i3);
-//	    if( _elemptn.owner(curkey)==mpirank ) {
-//	      ostringstream oss;
-//	      vector<int> all(1);
-//	      vector<DblNumTns>& bases = _basesvec.lclmap()[curkey];		//curdat.bases();
-//	      int nbases = bases.size();
-//	      serialize(bases, oss, all);
-//	      Separate_Write("bases", oss);
-//	    }
-//	  }
-//    }  
-
-
-
 
 
     //-----------------------------
     //PARA: interpolate wave fun back to global and form density
     // Interpolate wavefunctions from element back to global and form
     // density directly.
-    DblNumTns rhotmp(_Ns[0],_Ns[1],_Ns[2]);    setvalue(rhotmp, 0.0);
-    {
-      Index3 Nlbls = _elemtns(0,0,0).Ns();
-      int N1=_NElems[0];    int N2=_NElems[1];    int N3=_NElems[2];
-      double rhofac;
-      int ntotglb = _ntot;
-      int ntotelem = Nlbls[0] * Nlbls[1] * Nlbls[2];      //int ntot_nsglb = Nsglb[0] * Nsglb[1] * Nsglb[2];
-      DblNumVec psielemtmp(ntotelem);
-      
-      t0 = time(0);
-      
-      for(int g=0; g<_npsi; g++){
-	/* local and global normalization factor for each orbital */
-	double l2psi_loc = 0.0;
-	double l2psi_glb = 0.0;
-	NumTns<DblNumTns> eigfun_glb;	eigfun_glb.resize(N1,N2,N3);
-	//eigfun_glb.resize(Nsglb[0],Nsglb[1],Nsglb[2]);
-	for(int i3=0; i3<N3; i3++)
-	  for(int i2=0; i2<N2; i2++)
-	    for(int i1=0; i1<N1; i1++) {
-	      Index3 curkey = Index3(i1,i2,i3);
-	      if( _elemptn.owner(curkey)==mpirank ) {
-		//map<Index3,Elem>::iterator mi=_elemvec.lclmap().find(curkey);
-		//iA(mi!=_elemvec.lclmap().end());
-		Elem& curdat = _elemvec(i1,i2,i3);
-		DblNumMat& eigvecs = _eigvecsvec.lclmap()[curkey];
-		vector<DblNumTns>& bases = _basesvec.lclmap()[curkey];		//curdat.bases();
-		int nbases = bases.size();
-		setvalue(psielemtmp, 0.0);
-		int I_ONE = 1;
-		for(int a=0; a<nbases; a++){
-		  daxpy_(&ntotelem, &eigvecs(a,g), bases[a].data(), &I_ONE, psielemtmp.data(), &I_ONE);
-		}
-		/* the data in eigfun_glb(i1,i2,i3) will be rewritten by lxinterp_local for next orbital */
-		Index3 Nsglb = curdat._Nsglb;
-		eigfun_glb(i1,i2,i3).resize(Nsglb[0],Nsglb[1],Nsglb[2]);
-		lxinterp_local(eigfun_glb(i1,i2,i3).data(), psielemtmp.data(), curdat);
-		l2psi_loc += energy(eigfun_glb(i1,i2,i3));
-	      }
-	    }
-	//MPI_Barrier(MPI_COMM_WORLD);
-	//if(mpirank==0) { fprintf(stderr, "scf scf iter %d rho func %d part a\n", iter, g); }
-	
-	/* All processors get the normalization factor */
-	MPI_Allreduce(&l2psi_loc, &l2psi_glb, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	/* pre-constant in front of psi^2 for density */
-	rhofac = (2.0 * _ntot / _vol) * _occ[g];
-	/* Normalize the wavefunctions, and Add the normalized wavefunction to local density function denfun_glb */
-	for(int i3=0; i3<N3; i3++)
-	  for(int i2=0; i2<N2; i2++)
-	    for(int i1=0; i1<N1; i1++) {
-	      Index3 curkey = Index3(i1,i2,i3);
-	      if(_elemptn.owner(curkey)==mpirank) {
-		//map<Index3,Elem>::iterator mi=_elemvec.lclmap().find(curkey);	
-		//iA(mi!=_elemvec.lclmap().end());
-		Elem& curdat = _elemvec(i1,i2,i3);		//Elem& curdat = (*mi).second;
-		Index3 Nsglb = curdat._Nsglb;
-		//LEXING: IMPORTANT CHECK FOLLOWING
-		//DblNumTns& eigfun_glb = curdat.eigfun_glb();
-		//DblNumTns& denfun_glb = curdat.denfun_glb();
-		//double *eigptr = eigfun_glb.data();
-		//double *rhoptr = denfun_glb.data();
-		Index3 posidx = curdat.posidx();
-		for(int k = 0; k < Nsglb[2]; k++){		  int ksh = posidx[2]+ k; 
-		  for(int j = 0; j < Nsglb[1]; j++){		    int jsh = posidx[1] + j; 
-		    for(int i = 0; i < Nsglb[0]; i++){		      int ish = posidx[0] + i;
-		      double tmp = eigfun_glb(i1,i2,i3)(i,j,k) /sqrt(l2psi_glb);
-		      eigfun_glb(i1,i2,i3)(i,j,k) = tmp;
-		      rhotmp(ish, jsh, ksh) += tmp*tmp*rhofac;
-		    }
-		  }
-		}
-	      }
-	    }
-      }
-      t1 = time(0);
-      if( mpirank == MASTER ){
-	fprintf(fhstat,"Interpolating from element to global used %15.3f secs\n", difftime(t1,t0)); 
-	fprintf(stderr,"Interpolating from element to global used %15.3f secs\n", difftime(t1,t0)); 
-      }
-      //LEXING: all processors get the total density
-      t0 = time(0);
-      //LEXING: REPLACED
-      iC( MPI_Allreduce(rhotmp.data(), &(_rho[0]), _Ns[0]*_Ns[1]*_Ns[2], MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD) );
-      t1 = time(0);
-      if( mpirank == MASTER ){
-	fprintf(fhstat,"Master processor to get total density used %15.3f secs\n", difftime(t1,t0)); 
-	fprintf(stderr,"Master processor to get total density used %15.3f secs\n", difftime(t1,t0)); 
-      }
-      if( mpirank == MASTER ){
-	double sumval = 0.0;
-	for(int i = 0; i < ntotglb; i++){
-	  sumval += _rho[i] * _vol/_ntot;
-	}
-	cerr << "Sum rho = " << sumval << endl;
-      }
-    }
+    iC(scf_EvaluateDensity());
+
     MPI_Barrier(MPI_COMM_WORLD);
-    if(mpirank==0) { fprintf(stderr, "scf scf iter %d rho done\n", iter); }
+    if(mpirank==0) { fprintf(stderr, "scf iter %d rho done\n", iter); }
+
+
     //-------------------------------------------------------
     //           Post processing
     //-------------------------------------------------------
@@ -580,14 +435,29 @@ int ScfDG::scf()
     fflush(fhstat);
   }
   
-  //LEXING: EASY TO COMPARE
   if(myid == MASTER) {
     iC( scf_PrintState(stderr) );
   }
 
+  //LLIN: Output data to hard disk
+  scf_FileIO();
+
+  return 0;
+}
+
+
+//--------------------------------------
+// Perform File IO after the SCF iterations
+int ScfDG::scf_FileIO()
+{
+  time_t t0, t1;
+
   //LLIN: File IO part
   t0 = time(0);   
+  int mpirank; MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
+  int mpisize; MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
 
+  // Adaptive local basis functions
   if( _isOutputBases ){
     int N1 = _NElems(0);	int N2 = _NElems(1);	int N3 = _NElems(2);
     Index3 Nlbls = _elemtns(0,0,0).Ns();
@@ -630,6 +500,7 @@ int ScfDG::scf()
 	}
   }
 
+  // Coefficients for element orbitals
   if(_isOutputBases && _dgsolver == "nonorth" ){
     int N1 = _NElems(0);	int N2 = _NElems(1);	int N3 = _NElems(2);
     for(int i3=0; i3<N3; i3++)
@@ -743,29 +614,29 @@ int ScfDG::scf()
     }
   }  
 
-  //---------
-  //Output the electron density and the 
-  /*
-  //
-  if( output_wfn == true ){
-  ofstream wfnid;
-  string strtmp = outputdir + string("wfn_glb.dat");
-  wfnid.open(strtmp.c_str(), ios::out | ios::trunc);
-  wfnid << scf._npsi << endl;
-  wfnid << scf._Ns << endl;
-  wfnid << scf._Ls << endl;
-  for(int g=0; g < scf._npsi; g++)
-  wfnid << scf._occ[g] << " " << endl;
-  for(int g=0; g < scf._npsi; g++){
-  wfnid << g << endl;
-  wfnid << scf._ntot<<endl;
-  for(int i=0; i<scf._ntot; i++)	  wfnid<<scf._psi[g*scf._ntot+i]<<" ";
-  wfnid<<endl;
+  // Output Wavefunctions in the extended element
+  if( _isOutputBufWfn ){
+    vector<int> noMask(1);
+    ostringstream oss;
+    int N1 = _NElems(0);	int N2 = _NElems(1);	int N3 = _NElems(2);
+
+    for(int i3=0; i3<N3; i3++)
+      for(int i2=0; i2<N2; i2++)
+	for(int i1=0; i1<N1; i1++) {
+	  Index3 curkey = Index3(i1,i2,i3);
+	  if( _elemptn.owner(curkey)==mpirank ) {
+	    Buff& buff = _buffvec(i1,i2,i3);
+	    DblNumMat psiMatrix = DblNumMat(buff._ntot, buff._npsi,
+					    false, &buff._psi[0]);
+        
+            serialize(curkey, oss, noMask);
+	    serialize(psiMatrix, oss, noMask);
+	    Separate_Write("BUFWFN", oss);
+	  }
+	}
   }
-  wfnid.close();
-  }
-  */
   
+  // Output the density in the global domain
   if( _isOutputDensity ){
     if( mpirank == 0 ){
       vector<int> noMask(1);
@@ -776,6 +647,7 @@ int ScfDG::scf()
     }
   }
 
+  // Output the total potential in the global domain
   if( _isOutputVtot ){
     if( mpirank == 0 ){
       vector<int> noMask(1);
@@ -793,13 +665,124 @@ int ScfDG::scf()
   t1 = time(0);
   if( mpirank == MASTER ){
     fprintf(stderr, "Finish IO. Time = %10.2f secs\n", 
-	    iter, difftime(t1,t0));
+	    difftime(t1,t0));
     fprintf(fhstat, "Finish IO. Time = %10.2f secs\n", 
-	    iter, difftime(t1,t0));
+	    difftime(t1,t0));
   }
 
   return 0;
 }
+
+//--------------------------------------
+int ScfDG::scf_EvaluateDensity()
+{
+  int mpirank; MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
+  int mpisize; MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
+  time_t t0, t1;
+  
+  t0 = time(0);
+
+  DblNumTns rhotmp(_Ns[0],_Ns[1],_Ns[2]);    setvalue(rhotmp, 0.0);
+
+  Index3 Nlbls = _elemtns(0,0,0).Ns();
+  int N1=_NElems[0];    int N2=_NElems[1];    int N3=_NElems[2];
+  double rhofac;
+  int ntotglb = _ntot;
+  int ntotelem = Nlbls[0] * Nlbls[1] * Nlbls[2];      //int ntot_nsglb = Nsglb[0] * Nsglb[1] * Nsglb[2];
+  DblNumVec psielemtmp(ntotelem);
+
+
+  for(int g=0; g<_npsi; g++){
+    /* local and global normalization factor for each orbital */
+    double l2psi_loc = 0.0;
+    double l2psi_glb = 0.0;
+    NumTns<DblNumTns> eigfun_glb;	eigfun_glb.resize(N1,N2,N3);
+    //eigfun_glb.resize(Nsglb[0],Nsglb[1],Nsglb[2]);
+    for(int i3=0; i3<N3; i3++)
+      for(int i2=0; i2<N2; i2++)
+	for(int i1=0; i1<N1; i1++) {
+	  Index3 curkey = Index3(i1,i2,i3);
+	  if( _elemptn.owner(curkey)==mpirank ) {
+	    Elem& curdat = _elemvec(i1,i2,i3);
+	    DblNumMat& eigvecs = _eigvecsvec.lclmap()[curkey];
+	    vector<DblNumTns>& bases = _basesvec.lclmap()[curkey];		
+	    int nbases = bases.size();
+	    setvalue(psielemtmp, 0.0);
+	    int I_ONE = 1;
+	    for(int a=0; a<nbases; a++){
+	      daxpy_(&ntotelem, &eigvecs(a,g), bases[a].data(), &I_ONE, psielemtmp.data(), &I_ONE);
+	    }
+	    // the data in eigfun_glb(i1,i2,i3) will be rewritten by
+	    // lxinterp_local for next orbital 
+	    Index3 Nsglb = curdat._Nsglb;
+	    eigfun_glb(i1,i2,i3).resize(Nsglb[0],Nsglb[1],Nsglb[2]);
+	    lxinterp_local(eigfun_glb(i1,i2,i3).data(), psielemtmp.data(), curdat);
+	    l2psi_loc += energy(eigfun_glb(i1,i2,i3));
+	  }
+	}
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if(mpirank==0) { fprintf(stderr, "scf scf iter %d rho func %d part a\n", iter, g); }
+
+    /* All processors get the normalization factor */
+    MPI_Allreduce(&l2psi_loc, &l2psi_glb, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    /* pre-constant in front of psi^2 for density */
+    rhofac = (2.0 * _ntot / _vol) * _occ[g];
+    /* Normalize the wavefunctions, and Add the normalized wavefunction to local density function denfun_glb */
+    for(int i3=0; i3<N3; i3++)
+      for(int i2=0; i2<N2; i2++)
+	for(int i1=0; i1<N1; i1++) {
+	  Index3 curkey = Index3(i1,i2,i3);
+	  if(_elemptn.owner(curkey)==mpirank) {
+	    //map<Index3,Elem>::iterator mi=_elemvec.lclmap().find(curkey);	
+	    //iA(mi!=_elemvec.lclmap().end());
+	    Elem& curdat = _elemvec(i1,i2,i3);		//Elem& curdat = (*mi).second;
+	    Index3 Nsglb = curdat._Nsglb;
+	    //LEXING: IMPORTANT CHECK FOLLOWING
+	    //DblNumTns& eigfun_glb = curdat.eigfun_glb();
+	    //DblNumTns& denfun_glb = curdat.denfun_glb();
+	    //double *eigptr = eigfun_glb.data();
+	    //double *rhoptr = denfun_glb.data();
+	    Index3 posidx = curdat.posidx();
+	    for(int k = 0; k < Nsglb[2]; k++){		  int ksh = posidx[2]+ k; 
+	      for(int j = 0; j < Nsglb[1]; j++){		    int jsh = posidx[1] + j; 
+		for(int i = 0; i < Nsglb[0]; i++){		      int ish = posidx[0] + i;
+		  double tmp = eigfun_glb(i1,i2,i3)(i,j,k) /sqrt(l2psi_glb);
+		  eigfun_glb(i1,i2,i3)(i,j,k) = tmp;
+		  rhotmp(ish, jsh, ksh) += tmp*tmp*rhofac;
+		}
+	      }
+	    }
+	  }
+	}
+  }
+  t1 = time(0);
+  if( mpirank == MASTER ){
+    fprintf(fhstat,"Interpolating from element to global used %15.3f secs\n", difftime(t1,t0)); 
+    fprintf(stderr,"Interpolating from element to global used %15.3f secs\n", difftime(t1,t0)); 
+  }
+  //LEXING: all processors get the total density
+  t0 = time(0);
+  //LEXING: REPLACED
+  iC( MPI_Allreduce(rhotmp.data(), &(_rho[0]), _Ns[0]*_Ns[1]*_Ns[2],
+		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD) ); 
+  
+  t1 = time(0);
+  if( mpirank == MASTER ){
+    fprintf(fhstat,"Master processor to get total density used %15.3f secs\n", difftime(t1,t0)); 
+    fprintf(stderr,"Master processor to get total density used %15.3f secs\n", difftime(t1,t0)); 
+  }
+  if( mpirank == MASTER ){
+    double sumval = 0.0;
+    for(int i = 0; i < ntotglb; i++){
+      sumval += _rho[i] * _vol/_ntot;
+    }
+    fprintf(fhstat,"Sum rho = %15.5f\n", sumval); 
+    fprintf(stderr,"Sum rho = %15.5f\n", sumval); 
+  }
+
+  return 0;
+}
+
 
 //--------------------------------------
 int ScfDG::scf_CalOcc(double Tbeta)

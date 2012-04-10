@@ -243,6 +243,8 @@ int main(int argc, char **argv){
     }
 
 
+    //LLIN: NOTE the special Z-Y-X order here in the Gaussian cube
+    //format.
     for(int i = 0; i < numGridGlobal[0]; i++)
       for(int j = 0; j < numGridGlobal[1]; j++)
 	for(int k = 0; k < numGridGlobal[2]; k++){
@@ -252,7 +254,7 @@ int main(int argc, char **argv){
     outputFileStream.close();
   }
 
-  return 1;
+  return 0;
 }
 
 
