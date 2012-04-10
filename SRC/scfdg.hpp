@@ -196,7 +196,10 @@ public:
   //set<string> _restartmodeset;
   //--------------------------------------------------
   //CONTROL PARAMETERS
-  int _output_bases;  // Whether to output the adaptive local basis
+  int _isOutputBases;    // Whether to output the adaptive local basis and element orbitals
+  int _isOutputDensity; 
+  int _isOutputWfn;
+  int _isOutputVtot;
 
   //--------------------------------------------------
   //EXTERNAL PARAMETERS
@@ -251,7 +254,7 @@ public:
   int _ntot; //LY: # of grid points
   vector<DblNumVec> _gridpos; //LY: grid in each direction, vector_size=3, not necessarily useful here
   
-  vector<double> _rho0; //LY: density
+  vector<double> _rho0; //LLIN: Guess density
   vector<double> _rho; //LY: density
   
   vector<double> _vtot; //LY: total potential
@@ -298,7 +301,7 @@ public:
   int setup(); // Initial setup of scf calculation
   int update(); // Update the potentials once the atomic configurations are changed
   //-------------------------------
-  int scf(vector<double>& rhoinput); //
+  int scf(); //
   int scf_CalOcc(double Tbeta); //LY: compute Fermi level and decide occ
   //int scf_CalCharge();
   

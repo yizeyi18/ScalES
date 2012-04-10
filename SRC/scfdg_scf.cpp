@@ -8,7 +8,7 @@
 extern FILE* fhstat;
 
 //--------------------------------------
-int ScfDG::scf(vector<double>& rhoinput)
+int ScfDG::scf()
 {
   /* MPI variables */
   int myid = mpirank();
@@ -38,12 +38,8 @@ int ScfDG::scf(vector<double>& rhoinput)
     iC( scf_Print(fhstat) );
   }
   
-  /* Initialize density, hartree, exchange and vtot */
-  _rho = rhoinput;
-
   // ONLY MASTER PROCESSOR works
   MPI_Barrier(MPI_COMM_WORLD);
-  if(mpirank==0) { fprintf(stderr, "scf scf rhoinput done\n"); fflush(stderr); }
 
   iC( scf_CalXC() );
   MPI_Barrier(MPI_COMM_WORLD);
@@ -310,7 +306,6 @@ int ScfDG::scf(vector<double>& rhoinput)
     EigDG eigdg;
     eigdg._inputformat  = _inputformat;
 
-    eigdg._output_bases = _output_bases;  //LLIN: output the coefficients for basis functions
 
     eigdg._hs = _elemtns(0,0,0).Ls(); //length of element
     eigdg._Ns = _NElems; //number of elements in each direction
@@ -590,10 +585,10 @@ int ScfDG::scf(vector<double>& rhoinput)
     iC( scf_PrintState(stderr) );
   }
 
-  //LL: File IO part
+  //LLIN: File IO part
   t0 = time(0);   
 
-  if( _output_bases ){
+  if( _isOutputBases ){
     int N1 = _NElems(0);	int N2 = _NElems(1);	int N3 = _NElems(2);
     Index3 Nlbls = _elemtns(0,0,0).Ns();
     int ntotelem = Nlbls[0] * Nlbls[1] * Nlbls[2];      
@@ -635,7 +630,7 @@ int ScfDG::scf(vector<double>& rhoinput)
 	}
   }
 
-  if(_output_bases && _dgsolver == "nonorth" ){
+  if(_isOutputBases && _dgsolver == "nonorth" ){
     int N1 = _NElems(0);	int N2 = _NElems(1);	int N3 = _NElems(2);
     for(int i3=0; i3<N3; i3++)
       for(int i2=0; i2<N2; i2++)
@@ -656,7 +651,7 @@ int ScfDG::scf(vector<double>& rhoinput)
 
   // The information of the basis functions, only for the master
   // processor
-  if(_output_bases){
+  if(_isOutputBases){
 
     // Everyone collect the number of adaptive local basis functions first.
     
@@ -747,6 +742,53 @@ int ScfDG::scf(vector<double>& rhoinput)
        fhout.close();
     }
   }  
+
+  //---------
+  //Output the electron density and the 
+  /*
+  //
+  if( output_wfn == true ){
+  ofstream wfnid;
+  string strtmp = outputdir + string("wfn_glb.dat");
+  wfnid.open(strtmp.c_str(), ios::out | ios::trunc);
+  wfnid << scf._npsi << endl;
+  wfnid << scf._Ns << endl;
+  wfnid << scf._Ls << endl;
+  for(int g=0; g < scf._npsi; g++)
+  wfnid << scf._occ[g] << " " << endl;
+  for(int g=0; g < scf._npsi; g++){
+  wfnid << g << endl;
+  wfnid << scf._ntot<<endl;
+  for(int i=0; i<scf._ntot; i++)	  wfnid<<scf._psi[g*scf._ntot+i]<<" ";
+  wfnid<<endl;
+  }
+  wfnid.close();
+  }
+  */
+  
+  if( _isOutputDensity ){
+    if( mpirank == 0 ){
+      vector<int> noMask(1);
+      ofstream outputFileStream("DEN");  iA(outputFileStream.good());
+      DblNumVec rho = DblNumVec(_ntot,false, &_rho[0]);
+      serialize(rho, outputFileStream, noMask);
+      outputFileStream.close();
+    }
+  }
+
+  if( _isOutputVtot ){
+    if( mpirank == 0 ){
+      vector<int> noMask(1);
+      ofstream outputFileStream("VTOT");  iA(outputFileStream.good());
+      DblNumVec vtot = DblNumVec(_ntot,false, &_vtot[0]);
+      serialize(vtot, outputFileStream, noMask);
+      outputFileStream.close();
+    }
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  if(mpirank==0) { fprintf(stderr, "scf output done\n"); }
+  //---------
 
   t1 = time(0);
   if( mpirank == MASTER ){

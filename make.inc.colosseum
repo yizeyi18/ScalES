@@ -64,11 +64,11 @@ CC           = openmpicc
 CPP          = openmpicxx
 LOADER       = openmpicxx
 FC           = openmpif90
-FFLAGS       = -g -fPIC
+FFLAGS       = -g 
 
 
 ifeq ($(MODE),run)
-  CFLAGS       = -O2 -w -fPIC $(INCLUDE) 
+  CFLAGS       = -O2 -w  $(INCLUDE) 
   LOADOPTS     = -O2
 endif
 
@@ -78,7 +78,7 @@ ifeq ($(MODE),profile)
 endif
 
 ifeq ($(MODE),debug)
-  CFLAGS       = -g -w -fPIC $(INCLUDE) -D__DEBUG
+  CFLAGS       = -g -w $(INCLUDE) -D__DEBUG
   LOADOPTS     = 
 endif
 

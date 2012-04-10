@@ -58,7 +58,6 @@ class EigDG
 public:
   //--------------------------------
   //Control parameters
-  int _output_bases; // dump the basis functions
   string _inputformat; 
 
   //--------------------------------
