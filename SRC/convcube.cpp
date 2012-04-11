@@ -102,6 +102,9 @@ int main(int argc, char **argv){
     cin >> outputFileName;
   }
   
+  time_t timeStaTotal, timeEndTotal;
+
+  timeStaTotal = time(0);
 
   // Find the correct EOcoef file to get the coefficient matrix.
   {
@@ -152,6 +155,8 @@ int main(int argc, char **argv){
     Index3 numGridLocal;
     vector<DblNumTns> adaptiveLocalBasisWaveFunction;
 
+    time_t timeSta, timeEnd;
+    timeSta = time(0);
     for(int iCoef = 0; iCoef < elementOrbitalCoefficientVector.m(); iCoef++){
       // Check whether the current coefficient is nonzero  
       if( abs(elementOrbitalCoefficientVector[iCoef]) < TOLERANCE_COEFFICIENT )
@@ -172,6 +177,9 @@ int main(int argc, char **argv){
 	openFileIndex = localProcessorIndex;
 	sprintf(adaptiveLocalBasisFileName, "ALB_%d_%d", 
 		openFileIndex, mpisize); 
+	cout << "Opening file " << adaptiveLocalBasisFileName << endl;
+	timeEnd = time(0);
+	cout << "Last file processing time " << difftime(timeEnd,timeSta) << " sec" << endl;
 	inputFileStream.open(adaptiveLocalBasisFileName);
 	iA( inputFileStream.good() );
 
@@ -253,6 +261,9 @@ int main(int argc, char **argv){
 	}
     outputFileStream.close();
   }
+
+  timeEndTotal = time(0);
+  cout << "Total processing time " << difftime(timeEndTotal, timeStaTotal) << " sec" << endl;
 
   return 0;
 }

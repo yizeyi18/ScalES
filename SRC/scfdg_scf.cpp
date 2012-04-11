@@ -310,7 +310,7 @@ int ScfDG::scf()
 
     eigdg._EcutCnddt.resize(_NElems[0],_NElems[1],_NElems[2]);
     setvalue(eigdg._EcutCnddt, 0.0);
-    MPI_Allreduce(&Ecut.data(), &eigdg._EcutCnddt.data(), _NElems[0]*_NElems[1]*_NElems[2], 
+    MPI_Allreduce(Ecut.data(), eigdg._EcutCnddt.data(), _NElems[0]*_NElems[1]*_NElems[2], 
 		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     
     if(mpirank == 0 ){
