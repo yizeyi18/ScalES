@@ -1,7 +1,10 @@
 % PLOTBASES plots the nonorthogonal adaptive local basis functions
-% outputed from MDDG.
+% outputed from MDDG. 
 % 
 % The code assumes that each element is occupied by one processor
+%
+% NOTE: This subroutine is now obsolete and substituted by
+% SRC/convcube.cpp
 %
 % Last revision: 12/8/2011
 

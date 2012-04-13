@@ -1,4 +1,4 @@
-nreps         = [1 4 4];
+nreps         = [6 6 6];
 asize         = 7.9994; 
 nat           = 2;
 coefs = [
@@ -7,4 +7,4 @@ coefs = [
 ];
 coefs = coefs + 0.0;
 
-gen_atompos(nreps, 'Na', asize, nat, coefs, 0.0);
+gen_atompos(nreps, 'Na', asize, nat, coefs, 0.2);
