@@ -316,7 +316,7 @@ public:
   
   int scf_Print(FILE *fh);
   int scf_PrintState(FILE *fh);  //int scf_BcastInfo(int master); //TODO
-  int scf_FileIO();
+  int scf_FileIO();  //LLIN: output at the end of SCF iteration
   
   // LLIN: Parallel Anderson mixing.
   int scf_PAndersonMix(vector<double>& vtotnew, ParVec<Index3,

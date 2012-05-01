@@ -28,7 +28,7 @@ fclose(fid);
 
 rho3D = reshape(rho, Ns);
 rhoCube3D = permute(rho3D, [3 2 1]);
-rhoCube = rhoCube(:);
+rhoCube = rhoCube3D(:);
 
 fid = fopen('rho.cub','w');
 fprintf(fid, '%12.5e\n', rhoCube);
