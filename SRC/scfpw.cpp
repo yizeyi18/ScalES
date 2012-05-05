@@ -1,5 +1,7 @@
 #include "scfpw.hpp"
 #include "eigpw.hpp"
+#include "parallel.hpp"
+#include "serialize.hpp"
 
 extern FILE* fhstat;
 
@@ -68,6 +70,7 @@ int ScfPW::setup()
   _vtot.resize(_ntot,0.0);
   _vhart.resize(_ntot,0.0);
   _vxc.resize(_ntot,0.0);
+  _vext.resize(_ntot, 0.0); //LLIN: IMPORTANT
   
   /* Ewald and Ealphat, CURRENTLY set to ZERO */
   //_Ewald = 0.0;
@@ -87,10 +90,7 @@ int ScfPW::setup()
   }
   _nOccStates = ceil((double)nelec/2.0); //LEXING: NUMBER OF OCC STATES
   _npsi = _nOccStates + _nExtraStates;
-  
-  /* Initialize eigenvalues and wavefunctions */
-  _ev.resize(_npsi);
-  _occ.resize(_npsi);
+ 
   
   //----------------------------------------------------
   int VL=0, DX=1, DY=2, DZ=3;
@@ -189,12 +189,49 @@ int ScfPW::setup()
 	  _gkk[cnt++] = (k1[i]*k1[i] + k2[j]*k2[j] + k3[k]*k3[k])/2.;
 	}
   }
-  
+ 
+  // LLIN: Initilize the electron density
+  DblNumVec rhoInput;
+  if(_isRestartDensity == false ){
+    rhoInput = DblNumVec(_ntot, false, &_rho0[0]);
+  }
+  else{
+    string restartDensityFileName= "DEN";
+    istringstream rhoStream;      iC( Shared_Read(restartDensityFileName, rhoStream) );
+
+    vector<int> noMask(1);
+    deserialize(rhoInput, rhoStream, noMask);    
+  }
+
+  _rho.resize(_ntot);
+  for(int i = 0; i < _ntot; i++){
+    _rho[i] = rhoInput[i];
+  }
+
+  /* Initialize eigenvalues and wavefunctions */
+  _ev.resize(_npsi);
+  _occ.resize(_npsi);
+
+
   //-----------------------------
-  //INIT _psi
-  _psi.resize(_npsi*_ntot); 
-  // for(vector<double>::iterator vi = _psi.begin(); vi != _psi.end();
-  // vi++) (*vi) = dunirand();
+  // LLIN: Initialize the wavefunction in the global domain
+  if( _isRestartWfn == false ){
+    _psi.resize(_npsi * _ntot);
+    for(vector<double>::iterator vi = _psi.begin(); vi != _psi.end(); vi++) 
+      (*vi) = dunirand();
+  }
+  else{
+    vector<int> noMask;
+    istringstream iss;
+    Shared_Read("WFN", iss);
+    DblNumMat psiMatrix;
+    deserialize(psiMatrix, iss, noMask);
+    iA( psiMatrix.n() == _npsi &&
+	psiMatrix.m() == _ntot );
+    _psi.resize(_npsi * _ntot);
+    copy(psiMatrix.data(), psiMatrix.data() + _npsi * _ntot,
+	 _psi.begin());
+  }
  
   //-----------------------------
   //LL: Construct ik for derivative purpose
@@ -294,7 +331,7 @@ int ScfPW::update()
 }
 
 //--------------------------------------
-int ScfPW::scf(vector<double>& rhoinput, vector<double>& psiinput)
+int ScfPW::scf()
 {
   /* MPI variables */
   int myid = mpirank();
@@ -317,29 +354,6 @@ int ScfPW::scf(vector<double>& rhoinput, vector<double>& psiinput)
   dfmat.resize(_ntot * _mixdim);
   dvmat.resize(_ntot * _mixdim);
   
-  /* Initialize density, hartree, exchange and vtot */
-  _rho = rhoinput;
-  _psi = psiinput;
-  /*
-  if( _restartmode == string("from_scratch") )
-    _rho = _rho0;
-  if( _restartmode == string("restart") ){
-    ifstream rhoid;
-    Index3 tNs;
-    Point3 Ls;
-    DblNumVec rho(ntot(), false, &_rho[0]); 
-    int ntot;
-    rhoid.open(_restart_density.c_str(), ios::in);
-    iA(rhoid.fail() == false);
-    rhoid >> tNs >> Ls >> ntot;
-    iA( (Ns(0) == tNs(0)) &&
-	(Ns(1) == tNs(1)) && 
-	(Ns(2) == Ns(2)) &&
-	(this->ntot() == ntot) );
-    rhoid >> rho;
-    rhoid.close();
-  }
-  */
   //--------------------
   if( myid == MASTER ) {
     iC( scf_Print(fhstat) );
@@ -375,35 +389,62 @@ int ScfPW::scf(vector<double>& rhoinput, vector<double>& psiinput)
     //--------------------
     iC( eigpw.setup() );
     //--------------------
-    int nactive = _npsi;
-    vector<int> active_indices;
-    iC( eigpw.solve(_vtot, tmpvnls, _npsi, _psi, _ev, nactive, active_indices) ); //IMPORTANT: results back into _psi and _ev
-    //LLIN: nactive and active_indices are just place holder here.
-    
-    //--------------------
-    //BELOW FROM GlobalSolver
-    vector<double>::iterator mi;
-    /* Normalize the wavefunctions */
-    for(int j=0; j < _npsi; j++){
-      mi = _psi.begin() + j*_ntot;
-      double sumval = 0.0;
-      for(int i = 0; i < _ntot; i++){
-	sumval += (*mi)*(*mi);
-	mi++;
-      }
-      sumval = sqrt(sumval);
-      mi = _psi.begin() + j*_ntot;
-      for(int i = 0; i < _ntot; i++){
-	(*mi) /= sumval;
-	mi++;
+    if( _PWSolver == "LOBPCG" ){
+      int nactive = _npsi;
+      vector<int> active_indices;
+      iC( eigpw.SolveLOBPCG(_vtot, tmpvnls, _npsi, _psi, _ev, nactive, active_indices) ); //IMPORTANT: results back into _psi and _ev
+      //LLIN: nactive and active_indices are just place holder here.
+      //--------------------
+      //BELOW FROM GlobalSolver
+      vector<double>::iterator mi;
+      /* Normalize the wavefunctions */
+      for(int j=0; j < _npsi; j++){
+	mi = _psi.begin() + j*_ntot;
+	double sumval = 0.0;
+	for(int i = 0; i < _ntot; i++){
+	  sumval += (*mi)*(*mi);
+	  mi++;
+	}
+	sumval = sqrt(sumval);
+	mi = _psi.begin() + j*_ntot;
+	for(int i = 0; i < _ntot; i++){
+	  (*mi) /= sumval;
+	  mi++;
+	}
       }
     }
+    if( _PWSolver == "ChebFilter" ){
+      double lowerBoundEnergy;
+      double upperBoundEnergy;
+      
+      if( iter == 1 ){
+	lowerBoundEnergy = 1.0;
+      }
+      else{
+	lowerBoundEnergy = _ev[_npsi-1];
+      }
+      fprintf(fhstat, "Lower bound energy = %15.5f\n", lowerBoundEnergy);
+      upperBoundEnergy = 100.0; 
+      iC( eigpw.SolveChebFilter(_vtot, tmpvnls, _npsi, _psi, _ev, lowerBoundEnergy, upperBoundEnergy) );
+    }   
+    
     //
     //--------------------
     iC( scf_CalOcc(_Tbeta) );
+    if(0){
+      //LLIN: Test
+      for(int i = 0; i < _npsi; i++){
+	_occ[i] = 0.0;
+      }
+      _occ[0] = 1.0;
+      _occ[1] = 1.0/3.0;
+      _occ[2] = 1.0/3.0;
+      _occ[3] = 1.0/3.0;
+    }
+
     //--------------------
     iC( scf_CalCharge() );
-    
+
     /* ===============================================================
        =     Post processing
        =============================================================== */
@@ -412,7 +453,7 @@ int ScfPW::scf(vector<double>& rhoinput, vector<double>& psiinput)
       fprintf(fhstat, "Post processing (Hartree & XC)...\n");
       fprintf(stderr, "Post processing (Hartree & XC)...\n");
     }
-    
+
     //--------------------
     iC( scf_CalXC() );
     iC( scf_CalHartree() );
@@ -421,19 +462,19 @@ int ScfPW::scf(vector<double>& rhoinput, vector<double>& psiinput)
       iC( scf_PrintState(fhstat) );
     }
     //--------------------
-    
+
     if( myid == MASTER ) {
       t1 = time(0);
       fprintf(fhstat, "Finish post processing (Hartree & XC). Time = %10.2f secs\n", difftime(t1,t0));
       fprintf(stderr, "Finish post processing (Hartree & XC). Time = %10.2f secs\n", difftime(t1,t0));
     }
-    
+
     /* Update new total potential */
     double vtotsum = 0.0;
     iC( scf_CalVtot(&vtotnew[0]) );
-    
+
     /* convergence check */
-    
+
     double verr;
     for(int i = 0; i < _ntot; i++){
       vdif[i] = vtotnew[i] - _vtot[i];
@@ -441,13 +482,15 @@ int ScfPW::scf(vector<double>& rhoinput, vector<double>& psiinput)
     verr = norm(&vdif[0], _ntot) / norm(&_vtot[0], _ntot);
     fprintf(fhstat, "SCF iter %4d:\n", iter);
     fprintf(fhstat, "norm(vout-vin) = %10.3e\n", verr);
+    //    fprintf(fhstat, "norm(vtotnew) = %10.3e\n", norm(&vtotnew[0], _ntot));
+    //    fprintf(fhstat, "norm(vout) = %10.3e\n", norm(&_vtot[0], _ntot));
     if( verr < _scftol ){
       /* converged */
       fprintf(fhstat, "SCF convergence reached!\n");
       iterflag = 1;
     }
     fflush(fhstat);
-    
+
     /* Mixing and update potential */
     //WILL set _vtot in the MASTER PROCESSOR
     if( myid == MASTER ) {
@@ -480,12 +523,16 @@ int ScfPW::scf(vector<double>& rhoinput, vector<double>& psiinput)
     /* Check convergence */
     //MPI_Bcast( &iterflag, 1, MPI_INT, MASTER, MPI_COMM_WORLD );
   }
-  
+
   //LEXING: EASY TO COMPARE
   if(myid == MASTER) {
     iC( scf_PrintState(stderr) );
   }
-  
+
+  //LLIN: Output data to hard disk
+  scf_FileIO();
+
+
   return 0;
 }
 
@@ -577,13 +624,13 @@ int ScfPW::scf_CalOcc(double Tbeta)
   else{
     ABORT("The number of eigenvalues in ev should be larger than nocc", 1);
   }
-    
+
   // LLIN: temporary for sodium 2*2*2 system
-//  for(j = 0; j < 7; j++)
-//    _occ[j] = 1.0;
-//  for(j = 7; j < 13; j++)
-//    _occ[j] = 1.0/6.0;
-//  _Fermi = _ev[_npsi-1]; 
+  //  for(j = 0; j < 7; j++)
+  //    _occ[j] = 1.0;
+  //  for(j = 7; j < 13; j++)
+  //    _occ[j] = 1.0/6.0;
+  //  _Fermi = _ev[_npsi-1]; 
 
   return 0;
 }
@@ -662,13 +709,13 @@ int ScfPW::scf_CalXC()
 
       }
     }
-    
+
     exc *= (vol()) / (this->ntot());
-    
+
     _Exc = exc;
 
   }
-  
+
   // Exchange-correlation function by Ceperley-Alder
   if( _pseudotype == string("TM") ){
     double g  =-0.2846,  b1 = 1.0529,
@@ -719,10 +766,10 @@ int ScfPW::scf_CalXC()
     }
     _Exc = 0.5 * exc;
   }
-  
-  
+
+
   return 0;
-  
+
 }
 
 int ScfPW::scf_CalHartree()
@@ -779,7 +826,7 @@ int ScfPW::scf_CalHartree()
 
     return 0;
   }
-  
+
   // New version that ensures alignment
   if(1){
     double pi = 4.0 * atan(1.0);
@@ -804,7 +851,7 @@ int ScfPW::scf_CalHartree()
 	rhotemp[i][0] = 0.0;
 	rhotemp[i][1] = 0.0;
       }
-        
+
     }
 
     fftw_execute_dft(_planpsibackward, (&rhotemp[0]), (&crho[0]));
@@ -824,7 +871,7 @@ int ScfPW::scf_CalHartree()
 
     return 0;
   }
- 
+
 }
 
 //--------------------------------------
@@ -850,26 +897,26 @@ int ScfPW::scf_CalEnergy()
   _Ekin = 0.0;
   for(int l = 0; l < _npsi; l++)
     _Ekin += 2.0*(_ev[l] * _occ[l]); //LEXING: THIS IS CORRECT
-  
+
   //-----------
   _Ecor = 0.0;
   vector<double> srho(_ntot);
   for(int i = 0; i < _ntot; i++)    srho[i] = _rho[i]+_rho0[i];
   for(int i = 0; i < _ntot; i++)    _Ecor += (-_vxc[i]*_rho[i] - 0.5*_vhart[i]*srho[i]);
   _Ecor *= _vol/double(_ntot);
-  
+
   _Ecor += _Exc;
-  
+
   double Es = 0;
   for(int a=0; a<_atomvec.size(); a++) {
     int type = _atomvec[a].type();
     Es = Es + _ptable.ptemap()[type].params()(PeriodTable::i_Es);
   }
   _Ecor -= Es;
-  
+
   //-----------
   _Etot = _Ekin + _Ecor ;
- 
+
   //-----------
   //LL: Calculate the free energy functional at finite temperature
   _Efree = 0.0;
@@ -885,15 +932,15 @@ int ScfPW::scf_CalEnergy()
   _Evxcrho = 0;
   for(int i=0; i<_ntot; i++)    _Evxcrho += (_vxc[i]*_rho[i]);
   _Evxcrho *= _vol/double(_ntot);
-  
+
   _Ehalfmm = 0;
   for(int i=0; i<_ntot; i++)    _Ehalfmm += 0.5*_vhart[i]*(_rho[i]-_rho0[i]);
   _Ehalfmm *= _vol/double(_ntot);
-  
+
   _Ehalfmp = 0;
   for(int i=0; i<_ntot; i++)    _Ehalfmp += 0.5*_vhart[i]*(_rho[i]+_rho0[i]);
   _Ehalfmp *= _vol/double(_ntot);
-  
+
   _Es = Es;
   return 0;
 }
@@ -921,12 +968,12 @@ int ScfPW::scf_Print(FILE *fh)
   }
   fprintf(fh, "\n");
 
-  
+
   fprintf(fh,"Number of occupied states   = %10d\n", _nOccStates);
   fprintf(fh,"Number of extra states      = %10d\n", _nExtraStates);
   fprintf(fh,"Number of eigenvalues       = %10d\n", _npsi);
   fprintf(fh, "\n");
-  
+
   fprintf(fh, "\n");
   fflush(fh);
   return 0;
@@ -939,7 +986,7 @@ int ScfPW::scf_PrintState(FILE *fh)
     fprintf(fh, "eig[%5d] :  %25.15e,   occ[%5d] : %15.5f\n", 
 	    i, _ev[i], i, _occ[i]); 
   }
-  
+
   fprintf(fh, "Total Energy = %25.15e [Ry]\n", _Etot*2);
   fprintf(fh, "Helmholtz    = %25.15e [Ry]\n", _Efree*2);
   fprintf(fh, "Ekin         = %25.15e [Ry]\n", _Ekin*2);
@@ -964,59 +1011,59 @@ int ScfPW::scf_AndersonMix(vector<double>& vtotnew,
   int iterused, ipos;
   int mixdim;
   double alpha;
-  
+
   alpha = _alpha;
   mixdim = _mixdim;
-  
+
   N1 = _Ns[0]; N2 = _Ns[1]; N3 = _Ns[2]; NTOT = _ntot;
   vin.resize(NTOT);
   vout.resize(NTOT);
   vinsave.resize(NTOT);
   voutsave.resize(NTOT);
-  
+
   for(int i = 0; i < NTOT; i++){
     vin[i] = _vtot[i];
     vout[i] = vtotnew[i] - _vtot[i];
   }
-  
+
   for(int i = 0; i < NTOT; i++){
     vinsave[i] = vin[i];
     voutsave[i] = vout[i];
   }
-  
+
   iterused = MIN(iter-1,mixdim);
-  
+
   ipos = iter - 1 - ((iter-2)/mixdim)*mixdim;
-  
+
   cerr << "Anderson mixing = " << iter << endl;
   cerr << "iterused = " << iterused << endl;
   cerr << "ipos = " << ipos << endl;
-  
+
   if( iter > 1 ){
     for(int i = 0; i < NTOT; i++){
       df[(ipos-1)*NTOT+i] -= vout[i];
       dv[(ipos-1)*NTOT+i] -= vin[i];
     }
-    
+
     /* Calculating pseudoinverse */
     vector<double> gammas, dftemp;
     int m, n, nrhs, lda, ldb, rank, LWORK, info;
     double rcond;
     vector<double> S, WORK;
-    
+
     S.resize(iterused);
-     
+
     m = NTOT;
     n = iterused;
     nrhs = 1;
     lda = m;
     ldb = m;
     rcond = 1e-6;
-    
+
     LWORK =3*MIN(m,n) + MAX(MAX(2*MIN(m,n), MAX(m,n)), nrhs);
     cerr << "LWORK = " << LWORK << endl;
     WORK.resize(LWORK);
-   
+
     gammas.resize(NTOT);
     for(int i = 0; i < NTOT; i++){
       gammas[i] = vout[i];
@@ -1033,9 +1080,9 @@ int ScfPW::scf_AndersonMix(vector<double>& vtotnew,
       cerr << "DGELSS ERROR! INFO = " << info << endl;
       ABORT("DGELSS ERROR",1);
     }
-    
+
     /* update vin, vout*/
-    
+
     for( int l = 0; l < iterused; l++){
       for(int i = 0; i < NTOT; i++){
 	vin[i]  -= gammas[l] * dv[i+l*NTOT];
@@ -1054,7 +1101,7 @@ int ScfPW::scf_AndersonMix(vector<double>& vtotnew,
   for(int i = 0; i < NTOT; i++){
     _vtot[i] = vin[i] + alpha * vout[i];
   }
-  
+
   return 0;
 }
 
@@ -1407,5 +1454,52 @@ int ScfPW::force()
 
     return 0;
   }
+
+}
+
+
+//--------------------------------------
+// Perform File IO after the SCF iterations
+int ScfPW::scf_FileIO()
+{
+  time_t t0, t1;
+
+  //LLIN: File IO part
+  t0 = time(0);   
+  int mpirank; MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
+  int mpisize; MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
+
+  // Output the density in the global domain
+  if( _isOutputDensity ){
+    if( mpirank == 0 ){
+      vector<int> noMask(1);
+      ofstream outputFileStream("DEN");  iA(outputFileStream.good());
+      DblNumVec rho = DblNumVec(_ntot,false, &_rho[0]);
+      serialize(rho, outputFileStream, noMask);
+      outputFileStream.close();
+    }
+  }
+
+  if( _isOutputWfn ){
+    if( mpirank == 0 ){
+      vector<int> noMask(1);
+      ostringstream oss;
+      DblNumMat psiMatrix = DblNumMat(_ntot, _npsi, false, &_psi[0]);
+      serialize(psiMatrix, oss, noMask);
+      Shared_Write("WFN", oss);
+    }
+  }
+
+  //---------
+
+  t1 = time(0);
+  if( mpirank == MASTER ){
+    fprintf(stderr, "Finish IO. Time = %10.2f secs\n", 
+	    difftime(t1,t0));
+    fprintf(fhstat, "Finish IO. Time = %10.2f secs\n", 
+	    difftime(t1,t0));
+  }
+
+  return 0;
 
 }

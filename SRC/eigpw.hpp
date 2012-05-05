@@ -57,13 +57,25 @@ public:
   EigPW();
   ~EigPW();
   int setup(); //fftwplan ...
-  int solve(vector<double>& vtot, vector< pair<SparseVec,double> >& vnl,
-	    int npsi, vector<double>& _psi, vector<double>& _ev, 
-	    int& nactive, vector<int>& active_indices); //change vtot and solve
+  //LLIN: Solve the eigenvalue problem via LOBPCG
+  int SolveLOBPCG(vector<double>& vtot, vector< pair<SparseVec,double> >& vnl,
+		  int npsi, vector<double>& _psi, vector<double>& _ev, 
+		  int& nactive, vector<int>& active_indices); //change vtot and solve
   static void solve_MatMultiVecWrapper(void * A, void * X, void * AX);
   static void solve_ApplyPrecWrapper(  void * A, void * X, void * AX);
   BlopexInt solve_MatMultiVec(serial_Multi_Vector* x, serial_Multi_Vector* y);
   BlopexInt solve_ApplyPrec(  serial_Multi_Vector* X, serial_Multi_Vector * AX);
+
+  
+  //LLIN: Matrix-vector multiplication, for the purpose of Chebyshev
+  //filtering
+  int HMultPsi(DblNumMat& psiX, DblNumMat& psiY);  
+  
+  //LLIN: Solve the eigenvalue problem via Chebyshev filtering (and its
+  //related Ritz problem with orthogonalization
+  int SolveChebFilter(vector<double>& vtot, vector< pair<SparseVec,double> >& vnl,
+		      int npsi, vector<double>& _psi, vector<double>& _ev,
+		      double lowerBoundEnergy, double upperBoundEnergy);
 };
 
 

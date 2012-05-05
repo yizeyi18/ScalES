@@ -53,505 +53,189 @@ int main(int argc, char **argv)
     ABORT("",1);
   }
  
-  //---------
-  //Input format
-
-  esdf_string((char*)("Input_Format"), (char*)("v1.2"), strtmp);
-  string inputformat(strtmp);
-
-  
-  //---------
   //scfpw
   ScfPW scf;
-  vector<double> rhoinput;
-  vector<double> psiinput; 
-  //MD parameters
   double dt = esdf_double((char*)("Time_Step"), 100.0);
   double max_step = esdf_integer((char*)("Max_Step"), 1);
- 
-  if( inputformat == "v1.0" ){
+  //---------
+  //domain
+  Domain dm;
+  {
+    int nlines;
+    //
+    Point3 _Ls;
+    Index3 _Ns;
+    Point3 _pos;
+    if (esdf_block((char*)("Super_Cell"),&nlines)) {
+      sscanf(block_data[0],"%lf %lf %lf",
+	     &_Ls[0],&_Ls[1],&_Ls[2]);
+    } else {
+      ABORT("ERROR: bad specification of 'Super_Cell'",1);
+    }
+    if (esdf_block((char*)("Grid_Size"),&nlines)) {
+      sscanf(block_data[0],"%d %d %d",
+	     &_Ns[0],&_Ns[1],&_Ns[2]);
+    }  else {
+      ABORT("ERROR: bad specification of 'Grid_Size'",1);
+    } /* end of if:esdf_block statement */
+    _pos = Point3(0,0,0); //LEXING: VERY IMPORTANT
+    dm.Ls() = _Ls;    dm.Ns() = _Ns;    dm.pos() = _pos;
+  }
 
-    //***************************************************************
-    //Input format  v1.0
-    //***************************************************************
+  //---------
+  //ptable
+  PeriodTable ptable;
+  {
+    esdf_string((char*)("PeriodTable"), (char*)("../ptable.bin"), strtmp);
+    string ptablefile(strtmp);
+    iC( ptable.setup(ptablefile) );
+  }
 
-    //---------
-    //domain
-    Domain dm;
-    {
-      int nlines;
-      //
-      Point3 _Ls;
-      Index3 _Ns;
-      Point3 _pos;
-      if (esdf_block((char*)("Super_Cell"),&nlines)) {
-	sscanf(block_data[0],"%lf %lf %lf",
-	       &_Ls[0],&_Ls[1],&_Ls[2]);
-      } else {
-	ABORT("ERROR: bad specification of 'Super_Cell'",1);
+
+  //---------
+  //atoms
+  vector<Atom> atomvec_in;
+  {
+    int natp = esdf_integer((char*)("Atom_Types_Num"),0);
+    if (natp == 0) {
+      ABORT("ERROR: unknown number of atom types.\r\n"
+	    "'Atom_Types_Num' not found in inputfile!\r\n",1);
+    } /* end of if:natp statement */
+
+    for(int ityp = 0; ityp < natp; ityp++){
+      char astring[3];
+      esdf_string((char*)("Atom_Type"), (char*)("H"), astring);
+      //strupr(astring);
+      //LEXING: string to integer
+      string tmp(astring);
+      int atype = 0;
+      if(     tmp=="H")
+	atype=1;
+      else if(tmp=="Li")
+	atype=3;
+      else if(tmp=="Be")
+	atype=4;
+      else if(tmp=="B")
+	atype=5;
+      else if(tmp=="C")
+	atype=6;
+      else if(tmp=="N")
+	atype=7;
+      else if(tmp=="O")
+	atype=8;
+      else if(tmp=="F")
+	atype=9;
+      else if(tmp=="Na")
+	atype=11;
+      else if(tmp=="Mg")
+	atype=12;
+      else if(tmp=="Al")
+	atype=13;
+      else if(tmp=="Si")
+	atype=14;
+      else if(tmp=="P")
+	atype=15;
+      else if(tmp=="S")
+	atype=16;
+      else if(tmp=="Cl")
+	atype=17;
+      else if(tmp=="Se")
+	atype=34;
+      else if(tmp=="Bi")
+        atype=83;
+      else {
+	cerr<<tmp<<endl;
+	ABORT("ERROR: atom type not supported",1);
       }
-      if (esdf_block((char*)("Grid_Size"),&nlines)) {
-	sscanf(block_data[0],"%d %d %d",
-	       &_Ns[0],&_Ns[1],&_Ns[2]);
-      }  else {
-	ABORT("ERROR: bad specification of 'Grid_Size'",1);
-      } /* end of if:esdf_block statement */
-      _pos = Point3(0,0,0); //LEXING: VERY IMPORTANT
-      dm.Ls() = _Ls;    dm.Ns() = _Ns;    dm.pos() = _pos;
-    }
+      iA(atype>0);
+      int natoms;
 
-    //---------
-    //ptable
-    PeriodTable ptable;
-    {
-      esdf_string((char*)("PeriodTable"), (char*)("../ptable.bin"), strtmp);
-      string ptablefile(strtmp);
-      iC( ptable.setup(ptablefile) );
-    }
+      double mass = ptable.ptemap()[atype].params()(PeriodTable::i_mass);
+      mass *= amu2au;  // LL: VERY IMPORTANT. The mass in PeriodTable 
+      // is in atomic mass unit (amu), but the mass in
+      // atomvec is in atomic unit (au).
 
-
-    //---------
-    //atoms
-    vector<Atom> atomvec_in;
-    {
-      int natp = esdf_integer((char*)("Atom_Types_Num"),0);
-      if (natp == 0) {
-	ABORT("ERROR: unknown number of atom types.\r\n"
-	      "'Atom_Types_Num' not found in inputfile!\r\n",1);
-      } /* end of if:natp statement */
-
-      for(int ityp = 0; ityp < natp; ityp++){
-	char astring[3];
-	esdf_string((char*)("Atom_Type"), (char*)("H"), astring);
-	//strupr(astring);
-	//LEXING: string to integer
-	string tmp(astring);
-	int atype = 0;
-	if(     tmp=="H")
-	  atype=1;
-	else if(tmp=="Li")
-	  atype=3;
-	else if(tmp=="Be")
-	  atype=4;
-	else if(tmp=="B")
-	  atype=5;
-	else if(tmp=="C")
-	  atype=6;
-	else if(tmp=="N")
-	  atype=7;
-	else if(tmp=="O")
-	  atype=8;
-	else if(tmp=="F")
-	  atype=9;
-	else if(tmp=="Na")
-	  atype=11;
-	else if(tmp=="Mg")
-	  atype=12;
-	else if(tmp=="Al")
-	  atype=13;
-	else if(tmp=="Si")
-	  atype=14;
-	else if(tmp=="P")
-	  atype=15;
-	else if(tmp=="S")
-	  atype=16;
-	else if(tmp=="Cl")
-	  atype=17;
-	else {
-	  cerr<<tmp<<endl;
-	  ABORT("ERROR: atom type not supported",1);
-	}
-	iA(atype>0);
-	int natoms;
-	if (!esdf_block((char*)("Atom_Coord"),&natoms)) {
-	  printf("ERROR: no atom coordinates were found for atom type"
-		 " %s\r\n",astring);
-	}
+      if (esdf_block((char*)("Atom_Cart"),&natoms)) {
+	// Cartesian coordinate (in the unit of Bohr)
 	double xx,yy,zz;
-
-
-	double mass = ptable.ptemap()[atype].params()(PeriodTable::i_mass);
-	mass *= amu2au;  // LL: VERY IMPORTANT. The mass in PeriodTable 
-	// is in atomic mass unit (amu), but the mass in
-	// atomvec is in atomic unit (au).
 	for (int j=0;j<natoms;j++) {
 	  sscanf(block_data[j],"%lf %lf %lf", &xx,&yy,&zz);
 	  atomvec_in.push_back( Atom(atype, mass, Point3(xx,yy,zz), 
 				     Point3(0,0,0), Point3(0,0,0)) );
 	}
       }
-    }
-
-    {
-      scf._dm = dm;
-      scf._atomvec = atomvec_in;   // LL: Initial position
-      scf._ptable = ptable;
-      scf._posidx = Index3(0,0,0); //LY: VERY IMPORTANT
-
-      double temperature;
-      double AU2K = 315774.67;
-
-      scf._mixdim      = esdf_integer((char*)("Max_Mixing"), 9);
-      esdf_string((char*)("Mixing_Type"), (char*)("anderson"), strtmp);
-      scf._mixtype     = strtmp;
-      scf._alpha       = esdf_double((char*)("Mixing_Alpha"), 0.8);
-      temperature        = esdf_double((char*)("Temperature"), 80.0);
-      scf._Tbeta       = AU2K / temperature;   
-
-      scf._scftol      = esdf_double((char*)("SCF_Tolerance"), 1e-4);
-      scf._scfmaxiter  = esdf_integer((char*)("SCF_Maxiter"), 30);
-
-      scf._eigtol      = esdf_double((char*)("Eig_Tolerance"), 1e-5);
-      scf._eigmaxiter  = esdf_integer((char*)("Eig_Maxiter"), 10);
-
-      scf._nExtraStates = esdf_integer((char*)("Extra_States"), 0);
-
-      esdf_string((char*)("Pseudo_Type"), (char*)("GTH"), strtmp);
-      scf._pseudotype   = strtmp;
-    }
-    //----------
-
-    //----------
-    iC( scf.setup() );  //cerr<<"LY "<<scf._scfmaxiter<<" "<<scf._scftol<<endl;
-    //----------
-    //inital guess?
-    {
-      esdf_string((char*)("Restart_Mode"), (char*)("from_scratch"), strtmp);
-      string restartmode = strtmp;
-
-      if(restartmode == string("from_scratch") )
-	rhoinput = scf._rho0;
-      if(restartmode == string("restart") ){
-	ifstream rhoid;
-	Index3 Ns;
-	Point3 Ls;      //DblNumVec rho(scf.ntot(), false, rhoinput
-	int ntot;
-	//
-	esdf_string((char*)("Restart_Density"), (char*)("rho_dg.dat"), strtmp);
-	string restart_density = strtmp;
-	rhoid.open(restart_density.c_str(), ios::in);
-	iA(rhoid.fail() == false);
-	rhoid >> Ns >> Ls;
-	iA(scf._Ns == Ns);
-	//read vector
-	rhoid >> ntot;      iA( ntot==Ns(0)*Ns(1)*Ns(2) );
-	rhoinput.resize(ntot);      for(int i=0; i<ntot; i++)	rhoid >> rhoinput[i];
-	rhoid.close();
-      }
-    }
-    // initial guess for wave functions?
-    {
-      esdf_string((char*)("Restart_Wave_Mode"), (char*)("from_scratch"), strtmp);
-      string restartmode = strtmp;
-
-      if(restartmode == string("from_scratch") ){
-	psiinput.resize(scf._npsi*scf._ntot);
-	for (int i=0; i<scf._npsi*scf._ntot; i++) psiinput[i] = dunirand();
-      }
-      if(restartmode == string("restart") ){
-	ifstream psiid;
-	int npsi, ntot, tempg;
-	Point3 Ls;
-	Index3 Ns;
-	vector<double> occ;
-
-
-	esdf_string((char*)("Restart_Wave"), (char*)("wfn_dg.dat"), strtmp);
-	string restart_wave = strtmp;
-	psiid.open(restart_wave.c_str(), ios::in);
-	iA(psiid.fail() == false);
-	psiid >> npsi >> Ns >> Ls;
-	iA(scf._Ns == Ns);
-	iA(scf._npsi == npsi);
-
-	occ.resize(npsi);
-	for(int i=0; i<npsi; i++) psiid >> occ[i];
-	//read vector
-	psiinput.resize(scf._npsi*scf._ntot);
-	for(int i=0; i<npsi; i++){
-	  psiid >> tempg;  iA(tempg == i);
-	  psiid >> ntot;  iA(ntot == Ns(0)*Ns(1)*Ns(2) );
-	  for(int j=0; j<ntot; j++)	psiid >> psiinput[i*ntot+j];
+      else if (esdf_block((char*)("Atom_Red"),&natoms)) {
+	// Reduce coordinate (in the unit of Super_Cell)
+	double xx,yy,zz;
+	Point3 Ls = dm.Ls();
+	for (int j=0;j<natoms;j++) {
+	  sscanf(block_data[j],"%lf %lf %lf", &xx,&yy,&zz);
+	  atomvec_in.push_back( Atom(atype, mass, 
+				     Point3(xx*Ls[0],yy*Ls[1],zz*Ls[2]), 
+				     Point3(0,0,0), Point3(0,0,0)) );
 	}
-	psiid.close();
-      }
-    }
-  }
-
-
-  if( inputformat == "v1.2" ){
-
-    //***************************************************************
-    //Input format  v1.2
-    //  Support reduced coordinate (Atom_Red)
-    //***************************************************************
-
-    //---------
-    //domain
-    Domain dm;
-    {
-      int nlines;
-      //
-      Point3 _Ls;
-      Index3 _Ns;
-      Point3 _pos;
-      if (esdf_block((char*)("Super_Cell"),&nlines)) {
-	sscanf(block_data[0],"%lf %lf %lf",
-	       &_Ls[0],&_Ls[1],&_Ls[2]);
-      } else {
-	ABORT("ERROR: bad specification of 'Super_Cell'",1);
-      }
-      if (esdf_block((char*)("Grid_Size"),&nlines)) {
-	sscanf(block_data[0],"%d %d %d",
-	       &_Ns[0],&_Ns[1],&_Ns[2]);
-      }  else {
-	ABORT("ERROR: bad specification of 'Grid_Size'",1);
-      } /* end of if:esdf_block statement */
-      _pos = Point3(0,0,0); //LEXING: VERY IMPORTANT
-      dm.Ls() = _Ls;    dm.Ns() = _Ns;    dm.pos() = _pos;
-    }
-
-    //---------
-    //ptable
-    PeriodTable ptable;
-    {
-      esdf_string((char*)("PeriodTable"), (char*)("../ptable.bin"), strtmp);
-      string ptablefile(strtmp);
-      iC( ptable.setup(ptablefile) );
-    }
-
-
-    //---------
-    //atoms
-    vector<Atom> atomvec_in;
-    {
-      int natp = esdf_integer((char*)("Atom_Types_Num"),0);
-      if (natp == 0) {
-	ABORT("ERROR: unknown number of atom types.\r\n"
-	      "'Atom_Types_Num' not found in inputfile!\r\n",1);
-      } /* end of if:natp statement */
-
-      for(int ityp = 0; ityp < natp; ityp++){
-	char astring[3];
-	esdf_string((char*)("Atom_Type"), (char*)("H"), astring);
-	//strupr(astring);
-	//LEXING: string to integer
-	string tmp(astring);
-	int atype = 0;
-	if(     tmp=="H")
-	  atype=1;
-	else if(tmp=="Li")
-	  atype=3;
-	else if(tmp=="Be")
-	  atype=4;
-	else if(tmp=="B")
-	  atype=5;
-	else if(tmp=="C")
-	  atype=6;
-	else if(tmp=="N")
-	  atype=7;
-	else if(tmp=="O")
-	  atype=8;
-	else if(tmp=="F")
-	  atype=9;
-	else if(tmp=="Na")
-	  atype=11;
-	else if(tmp=="Mg")
-	  atype=12;
-	else if(tmp=="Al")
-	  atype=13;
-	else if(tmp=="Si")
-	  atype=14;
-	else if(tmp=="P")
-	  atype=15;
-	else if(tmp=="S")
-	  atype=16;
-	else if(tmp=="Cl")
-	  atype=17;
-	else {
-	  cerr<<tmp<<endl;
-	  ABORT("ERROR: atom type not supported",1);
-	}
-	iA(atype>0);
-	int natoms;
-	
-	double mass = ptable.ptemap()[atype].params()(PeriodTable::i_mass);
-	mass *= amu2au;  // LL: VERY IMPORTANT. The mass in PeriodTable 
-	// is in atomic mass unit (amu), but the mass in
-	// atomvec is in atomic unit (au).
-        
-	if (esdf_block((char*)("Atom_Cart"),&natoms)) {
-	  // Cartesian coordinate (in the unit of Bohr)
-	  double xx,yy,zz;
-	  for (int j=0;j<natoms;j++) {
-	    sscanf(block_data[j],"%lf %lf %lf", &xx,&yy,&zz);
-	    atomvec_in.push_back( Atom(atype, mass, Point3(xx,yy,zz), 
-				       Point3(0,0,0), Point3(0,0,0)) );
-	  }
-	}
-	else if (esdf_block((char*)("Atom_Red"),&natoms)) {
-	  // Reduce coordinate (in the unit of Super_Cell)
-	  double xx,yy,zz;
-	  Point3 Ls = dm.Ls();
-	  for (int j=0;j<natoms;j++) {
-	    sscanf(block_data[j],"%lf %lf %lf", &xx,&yy,&zz);
-	    atomvec_in.push_back( Atom(atype, mass, 
-				       Point3(xx*Ls[0],yy*Ls[1],zz*Ls[2]), 
-				       Point3(0,0,0), Point3(0,0,0)) );
-	  }
-	}
-	else{
-	  fprintf(fhstat, "ERROR: no atom coordinates were found for atom type"
-		 " %s\r\n",astring);
-	  fprintf(stderr, "ERROR: no atom coordinates were found for atom type"
-		 " %s\r\n",astring);
-	}
-      }
-    }
-
-    {
-      scf._dm = dm;
-      scf._atomvec = atomvec_in;   // LL: Initial position
-      scf._ptable = ptable;
-      scf._posidx = Index3(0,0,0); //LY: VERY IMPORTANT
-
-      double temperature;
-      double AU2K = 315774.67;
-
-      scf._mixdim      = esdf_integer((char*)("Max_Mixing"), 9);
-      esdf_string((char*)("Mixing_Type"), (char*)("anderson"), strtmp);
-      scf._mixtype     = strtmp;
-      scf._alpha       = esdf_double((char*)("Mixing_Alpha"), 0.8);
-      temperature        = esdf_double((char*)("Temperature"), 80.0);
-      scf._Tbeta       = AU2K / temperature;   
-
-      scf._scftol      = esdf_double((char*)("SCF_Tolerance"), 1e-4);
-      scf._scfmaxiter  = esdf_integer((char*)("SCF_Maxiter"), 30);
-
-      scf._eigtol      = esdf_double((char*)("Eig_Tolerance"), 1e-5);
-      scf._eigmaxiter  = esdf_integer((char*)("Eig_Maxiter"), 10);
-
-      scf._nExtraStates = esdf_integer((char*)("Extra_States"), 0);
-
-      esdf_string((char*)("Pseudo_Type"), (char*)("GTH"), strtmp);
-      scf._pseudotype   = strtmp;
-    }
-    //----------
-
-    //----------
-    iC( scf.setup() );  //cerr<<"LY "<<scf._scfmaxiter<<" "<<scf._scftol<<endl;
-    //----------
-    //inital guess?
-    {
-      esdf_string((char*)("Restart_Mode"), (char*)("from_scratch"), strtmp);
-      string restartmode = strtmp;
-
-      if( restartmode == string("from_scratch") )
-	rhoinput = scf._rho0;
-      if( restartmode == string("restart") ){
-	ifstream rhoid;
-	Index3 Ns;
-	Point3 Ls;      //DblNumVec rho(scf.ntot(), false, rhoinput
-	int ntot;
-	//
-	esdf_string((char*)("Restart_Density"), (char*)("rho_dg.dat"), strtmp);
-	string restart_density = strtmp;
-	rhoid.open(restart_density.c_str(), ios::in);
-	iA(rhoid.fail() == false);
-	rhoid >> Ns >> Ls;
-	iA(scf._Ns == Ns);
-	//read vector
-	rhoid >> ntot;      iA( ntot==Ns(0)*Ns(1)*Ns(2) );
-	rhoinput.resize(ntot);      for(int i=0; i<ntot; i++)	rhoid >> rhoinput[i];
-	rhoid.close();
-      }
-    }
-    // initial guess for wave functions?
-    {
-      esdf_string((char*)("Restart_Wave_Mode"), (char*)("from_scratch"), strtmp);
-      string restartmode = strtmp;
-
-      if(restartmode == string("from_scratch") ){
-	psiinput.resize(scf._npsi*scf._ntot);
-	for (int i=0; i<scf._npsi*scf._ntot; i++) psiinput[i] = dunirand();
-      }
-      if(restartmode == string("restart") ){
-	ifstream psiid;
-	int npsi, ntot, tempg;
-	Point3 Ls;
-	Index3 Ns;
-	vector<double> occ;
-
-
-	esdf_string((char*)("Restart_Wave"), (char*)("wfn_dg.dat"), strtmp);
-	string restart_wave = strtmp;
-	psiid.open(restart_wave.c_str(), ios::in);
-	iA(psiid.fail() == false);
-	psiid >> npsi >> Ns >> Ls;
-	iA(scf._Ns == Ns);
-	iA(scf._npsi == npsi);
-
-	occ.resize(npsi);
-	for(int i=0; i<npsi; i++) psiid >> occ[i];
-	//read vector
-	psiinput.resize(scf._npsi*scf._ntot);
-	for(int i=0; i<npsi; i++){
-	  psiid >> tempg;  iA(tempg == i);
-	  psiid >> ntot;  iA(ntot == Ns(0)*Ns(1)*Ns(2) );
-	  for(int j=0; j<ntot; j++)	psiid >> psiinput[i*ntot+j];
-	}
-	psiid.close();
-      }
-    }
-  
-    // Reading external potential
-    {
-      esdf_string((char*)("Vext"), (char*)("null"), strtmp);
-      string vextfile = strtmp;
-
-      if( vextfile != string("null") ){
-	// Read external potential from file
-	ifstream vextid;
-        vextid.open(vextfile.c_str(), ios::in);
-	iA(vextid.fail() == false);
-	//read vector
-	Index3 Ns;
-	int ntot;
-	vextid >> Ns;  iA( Ns == scf._Ns);
-	vextid >> ntot;      iA( ntot==scf.ntot() );
-	scf._vext.resize(ntot);
-	for(int i=0; i<ntot; i++)	vextid >> scf._vext[i];
-	vextid.close();
       }
       else{
-	int ntot = scf.ntot();
-	scf._vext.resize(ntot);
-	for(int i=0; i<ntot; i++)	scf._vext[i] = 0.0;
+	fprintf(fhstat, "ERROR: no atom coordinates were found for atom type"
+		" %s\r\n",astring);
+	fprintf(stderr, "ERROR: no atom coordinates were found for atom type"
+		" %s\r\n",astring);
       }
     }
- 
-    // Output the external potential. Test purpose
-    if( 0 ){
-      ofstream vextid;
-      string strtmp = string("vext_glb.dat");
-      vextid.open(strtmp.c_str(), ios::out | ios::trunc);
-      vextid << scf._Ns << endl;
-      vextid << scf._ntot<<endl;
-      for(int i=0; i<scf._ntot; i++)	  vextid<<scf._vext[i]<<" ";
-      vextid << endl;
-      vextid.close();
-      fclose(fhstat);
-      MPI_Barrier(MPI_COMM_WORLD);
-      MPI_Finalize();
-    }
-  
   }
 
+  {
+    scf._dm = dm;
+    scf._atomvec = atomvec_in;   // LL: Initial position
+    scf._ptable = ptable;
+    scf._posidx = Index3(0,0,0); //LY: VERY IMPORTANT
+
+    double temperature;
+    double AU2K = 315774.67;
+
+    scf._mixdim      = esdf_integer((char*)("Max_Mixing"), 9);
+    esdf_string((char*)("Mixing_Type"), (char*)("anderson"), strtmp);
+    scf._mixtype     = strtmp;
+    scf._alpha       = esdf_double((char*)("Mixing_Alpha"), 0.8);
+    temperature        = esdf_double((char*)("Temperature"), 80.0);
+    scf._Tbeta       = AU2K / temperature;   
+
+    scf._scftol      = esdf_double((char*)("SCF_Tolerance"), 1e-4);
+    scf._scfmaxiter  = esdf_integer((char*)("SCF_Maxiter"), 30);
+
+    scf._eigtol      = esdf_double((char*)("Eig_Tolerance"), 1e-5);
+    scf._eigmaxiter  = esdf_integer((char*)("Eig_Maxiter"), 10);
+
+    scf._nExtraStates = esdf_integer((char*)("Extra_States"), 0);
+
+    esdf_string((char*)("Pseudo_Type"), (char*)("HGH"), strtmp);
+    scf._pseudotype   = strtmp;
+    
+    esdf_string((char*)("PWSolver"), (char*)("LOBPCG"), strtmp);
+    scf._PWSolver     = strtmp;
+  }
+  //----------
+
+  //----------
+  // Restart calculation
+  inttmp                = esdf_integer((char*)("Restart_Density"), 0 );
+  scf._isRestartDensity = (bool)inttmp;
+  inttmp                = esdf_integer((char*)("Restart_Wfn"), 0 );
+  scf._isRestartWfn     = (bool)inttmp;
+
+  //----------
+  // Output parameters
+  inttmp                = esdf_integer((char*)("Output_Density"), 0 );
+  scf._isOutputDensity  = (bool)inttmp;
+  inttmp                = esdf_integer((char*)("Output_Wfn"), 0 );
+  scf._isOutputWfn      = (bool)inttmp;
+  
+  //----------
+  iC( scf.setup() );  //cerr<<"LY "<<scf._scfmaxiter<<" "<<scf._scftol<<endl;
 
   //---------
   //Initialze Molecular dynamics simulation
   double T_init = 300.0 / au2K;
-  
   
   //NVE simulation. The initial velocity of each atom is only nonzero at
   //the first component with temperature equal to 300K.
@@ -583,7 +267,7 @@ int main(int argc, char **argv)
     start = clock();
 
 
-    iC( scf.scf(rhoinput, psiinput) );
+    iC( scf.scf() );
     iC( scf.force() );  
 
     end = clock();
@@ -653,7 +337,7 @@ int main(int argc, char **argv)
     }
 
     iC( scf.update() );  
-    iC( scf.scf(scf._rho, scf._psi) );
+    iC( scf.scf() );
     iC( scf.force() );  
    
 
@@ -717,58 +401,6 @@ int main(int argc, char **argv)
 
   } 
 
-  {
-    esdf_string((char*)("Output_Dir"), (char*)("./"), strtmp);
-    string outputdir = strtmp;
-    inttmp          = esdf_integer((char*)("Output_Density"), 0 );
-    int output_density  = (bool)inttmp;
-    inttmp          = esdf_integer((char*)("Output_Wfn"), 0 );
-    int output_wfn      = (bool)inttmp;
-    inttmp          = esdf_integer((char*)("Output_Vtot"), 0 );
-    int output_vtot      = (bool)inttmp;
-    //
-    if( output_wfn == true ){
-      ofstream wfnid;
-      string strtmp = outputdir + string("wfn_glb.dat");
-      wfnid.open(strtmp.c_str(), ios::out | ios::trunc);
-      wfnid << scf._npsi << endl;
-      wfnid << scf._Ns << endl;
-      wfnid << scf._Ls << endl;
-      for(int g=0; g < scf._npsi; g++)
-	wfnid << scf._occ[g] << " " << endl;
-      for(int g=0; g < scf._npsi; g++){
-	wfnid << g << endl;
-	wfnid << scf._ntot<<endl;
-	for(int i=0; i<scf._ntot; i++)	  wfnid<<scf._psi[g*scf._ntot+i]<<" ";
-	wfnid<<endl;
-      }
-      wfnid.close();
-    }
-    if( output_density == true ){
-      ofstream rhoid;
-      string strtmp = outputdir + string("rho_glb.dat");
-      rhoid.open(strtmp.c_str(), ios::out | ios::trunc);
-      rhoid << scf._Ns << endl;
-      rhoid << scf._Ls << endl;
-      rhoid << scf._ntot<<endl;
-      for(int i=0; i<scf._ntot; i++)	  rhoid<<scf._rho[i]<<" ";
-      rhoid << endl;
-      rhoid.close();
-    }
-    
-    if( output_vtot == true ){
-      ofstream vtotid;
-      string strtmp = outputdir + string("vtot_glb.dat");
-      vtotid.open(strtmp.c_str(), ios::out | ios::trunc);
-      vtotid << scf._Ns << endl;
-      vtotid << scf._Ls << endl;
-      vtotid << scf._ntot<<endl;
-      for(int i=0; i<scf._ntot; i++)	  vtotid<<scf._vtot[i]<<" ";
-      vtotid << endl;
-      vtotid.close();
-    }
-
-  }
   
   tottime_end = clock();
   

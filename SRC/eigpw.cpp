@@ -1,4 +1,6 @@
 #include "eigpw.hpp"
+#include "blas.h"
+#include "lapack.h"
 
 extern FILE* fhstat;
 extern int   CONTXT;
@@ -186,7 +188,7 @@ int EigPW::setup()
 }
 
 //--------------------------------------
-int EigPW::solve(vector<double>& _vtot, vector< pair<SparseVec,double> >& _vnl,
+int EigPW::SolveLOBPCG(vector<double>& _vtot, vector< pair<SparseVec,double> >& _vnl,
 		 int npsi, vector<double>& _psi, vector<double>& _ev, int& nactive, 
 		 vector<int>& active_indices)
 {
@@ -421,13 +423,13 @@ BlopexInt EigPW::solve_MatMultiVec(serial_Multi_Vector* x, serial_Multi_Vector* 
 	  weight = 0;
 	  vnliter = _vnl.begin() + l;
 	  SparseVec& vnlvec = (*vnliter).first;
-	  double vnlsgn = (*vnliter).second;
+	  double vnlwgt = (*vnliter).second;
 	  int numval = vnlvec.first.m();
 	  for(int k = 0; k < numval; k++){
 	  tmpvec[k] = psiptr[vnlvec.first[k] ];
 	  }
 	  weight = ddot_(&numval, &tmpvec[0], &INTONE, &vnlvec.second[0], &INTONE);
-	  weight *= this->_vol / double(this->_ntot) * vnlsgn;
+	  weight *= this->_vol / double(this->_ntot) * vnlwgt;
 
 	  for(int k = 0; k < numval; k++){
 	  Hpsiptr[vnlvec.first[k] ] += vnlvec.second[k] * weight;
@@ -437,7 +439,7 @@ BlopexInt EigPW::solve_MatMultiVec(serial_Multi_Vector* x, serial_Multi_Vector* 
 	int VL = 0;
 	for(int l=0; l<nvnl; l++) {
 	  SparseVec& vnlvec = _vnl[l].first;
-	  double vnlsgn = _vnl[l].second;
+	  double vnlwgt = _vnl[l].second;
 	  IntNumVec& iv = vnlvec.first;
 	  DblNumMat& dv = vnlvec.second;
 	  double weight = 0;
@@ -455,7 +457,7 @@ BlopexInt EigPW::solve_MatMultiVec(serial_Multi_Vector* x, serial_Multi_Vector* 
 	    ivptr ++;	  dvptr += dvm;
 	  }
 
-	  weight *= _vol/double(_ntot) * vnlsgn;
+	  weight *= _vol/double(_ntot) * vnlwgt;
 
 	  /*
 	     for(int k=0; k<iv.m(); k++) {
@@ -579,36 +581,39 @@ BlopexInt EigPW::solve_MatMultiVec(serial_Multi_Vector* x, serial_Multi_Vector* 
 	int VL = 0;
 	for(int l=0; l<nvnl; l++) {
 	  SparseVec& vnlvec = _vnl[l].first;
-	  double vnlsgn = _vnl[l].second;
-	  IntNumVec& iv = vnlvec.first;
-	  DblNumMat& dv = vnlvec.second;
-	  double weight = 0;
+	  double vnlwgt = _vnl[l].second;
+	  // LLIN: Not empty pseudopotential
+	  if( abs(vnlwgt) > 1e-10 ){
+	    IntNumVec& iv = vnlvec.first;
+	    DblNumMat& dv = vnlvec.second;
+	    double weight = 0;
 
-	  /*
-	     for(int k=0; k<iv.m(); k++) {
-	     weight+= dv(VL,k)*psiptr[iv(k)];
-	     }
-	     */
-	  int dvm = dv.m();
-	  int* ivptr = iv.data();
-	  double* dvptr = dv.data();
-	  for(int k=0; k<iv.m(); k++) {
-	    weight += (*dvptr) * psiptr[*ivptr];
-	    ivptr ++;	  dvptr += dvm;
-	  }
+	    /*
+	       for(int k=0; k<iv.m(); k++) {
+	       weight+= dv(VL,k)*psiptr[iv(k)];
+	       }
+	       */
+	    int dvm = dv.m();
+	    int* ivptr = iv.data();
+	    double* dvptr = dv.data();
+	    for(int k=0; k<iv.m(); k++) {
+	      weight += (*dvptr) * psiptr[*ivptr];
+	      ivptr ++;	  dvptr += dvm;
+	    }
 
-	  weight *= _vol/double(_ntot) * vnlsgn;
+	    weight *= _vol/double(_ntot) * vnlwgt;
 
-	  /*
-	     for(int k=0; k<iv.m(); k++) {
-	     Hpsiptr[iv[k]] += dv(VL,k) * weight;
-	     }
-	     */
-	  ivptr = iv.data();
-	  dvptr = dv.data();
-	  for(int k=0; k<iv.m(); k++) {
-	    Hpsiptr[*ivptr] += (*dvptr) * weight;
-	    ivptr ++;	  dvptr += dvm;
+	    /*
+	       for(int k=0; k<iv.m(); k++) {
+	       Hpsiptr[iv[k]] += dv(VL,k) * weight;
+	       }
+	       */
+	    ivptr = iv.data();
+	    dvptr = dv.data();
+	    for(int k=0; k<iv.m(); k++) {
+	      Hpsiptr[*ivptr] += (*dvptr) * weight;
+	      ivptr ++;	  dvptr += dvm;
+	    }
 	  }
 	}
       }
@@ -807,4 +812,324 @@ BlopexInt EigPW::solve_ApplyPrec(  serial_Multi_Vector* x, serial_Multi_Vector *
 }
 
 
+//--------------------------------------
+int EigPW::HMultPsi(DblNumMat& psiX, DblNumMat& psiY)
+{
+  // LLIN: IMPORTANT
+  vector<double>& _vtot = *(_vtotptr);
+  vector< pair<SparseVec,double> >& _vnl = *(_vnlptr);
+  
+  int nvnl = _vnl.size();
+  int ntot = this->_ntot;
+  int npsi = psiX.n();
+  assert( psiX.n() == psiY.n() && psiX.m() == psiY.m() );
+
+  double* psitemp;
+  fftw_complex *psicpx, *Hpsicpx;
+
+  // LLIN: New version forcing 16 byte alignment
+  psitemp = (double*)fftw_malloc(sizeof(double)*ntot);
+  psicpx  = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*ntot);
+  Hpsicpx = (fftw_complex*)fftw_malloc(sizeof(fftw_complex)*ntot);
+
+  int ntothalf = (this->_Ns[0]/2+1) * (this->_Ns[1]) * (this->_Ns[2]);
+
+  // Initialize
+  setvalue(psiY, 0.0);
+
+  // PsiY = H * PsiX
+  for(int i=0; i<npsi; i++){
+    double* psiptr  = psiX.clmdata(i);
+    double* Hpsiptr = psiY.clmdata(i);
+
+    // Local pseudopotential
+    for(int k = 0; k < ntot; k++){
+      Hpsiptr[k] += psiptr[k] * _vtot[k];
+    }
+
+    // Nonlocal pseudopotential
+    if(1){
+      int VL = 0;
+      for(int l=0; l<nvnl; l++) {
+	SparseVec& vnlvec = _vnl[l].first;
+	double vnlwgt = _vnl[l].second;
+	// LLIN: Not empty pseudopotential
+	if( abs(vnlwgt) > 1e-10 ){
+	  IntNumVec& iv = vnlvec.first;
+	  DblNumMat& dv = vnlvec.second;
+	  double weight = 0;
+
+	  int dvm = dv.m();
+	  int* ivptr = iv.data();
+	  double* dvptr = dv.data();
+	  for(int k=0; k<iv.m(); k++) {
+	    weight += (*dvptr) * psiptr[*ivptr];
+	    ivptr ++;	  dvptr += dvm;
+	  }
+
+	  weight *= _vol/double(_ntot) * vnlwgt;
+
+	  ivptr = iv.data();
+	  dvptr = dv.data();
+	  for(int k=0; k<iv.m(); k++) {
+	    Hpsiptr[*ivptr] += (*dvptr) * weight;
+	    ivptr ++;	  dvptr += dvm;
+	  }
+	}
+      }
+    }
+
+    // real version of applying Laplacian
+    if(1){
+
+      for(int k = 0; k < ntot; k++){
+	psitemp[k] = psiptr[k];
+      }
+
+      fftw_execute_dft_r2c(this->_planpsir2c, 
+			   (&psitemp[0]), 
+			   (&psicpx[0]));
+
+      /* Apply Laplacian */
+
+      for(int k = 0; k < ntothalf; k++){
+	Hpsicpx[k][0] = psicpx[k][0] * this->_gkkhalf[k];
+	Hpsicpx[k][1] = psicpx[k][1] * this->_gkkhalf[k];
+      }
+
+      fftw_execute_dft_c2r(this->_planpsic2r, 
+			   (&Hpsicpx[0]), 
+			   (&psitemp[0]) );
+
+      for(int k = 0; k < ntot; k++)
+	Hpsiptr[k] += psitemp[k] / ntot;
+    }
+  } // for(i=0; i<npsi; i++)
+
+  fftw_free(psitemp);
+  fftw_free(psicpx);
+  fftw_free(Hpsicpx);
+
+  return 0;
+}
+
+
+//--------------------------------------
+int EigPW::SolveChebFilter(vector<double>& _vtot, vector< pair<SparseVec,double> >& _vnl,
+			   int npsi, vector<double>& _psi, vector<double>& _ev, 
+			   double lowerBoundEnergy, double upperBoundEnergy)
+{
+  int ntot = this->_ntot;
+  int eigmaxiter = _eigmaxiter;
+  _vtotptr = &_vtot; // LLIN: Important for HMultPsi
+  _vnlptr = &_vnl;   // LLIN: Important for HMultPsi
+
+  DblNumMat psiX = DblNumMat(ntot, npsi, false, &_psi[0]);
+  DblNumMat psiY = DblNumMat(ntot, npsi);   setvalue(psiY, 0.0);
+  // LLIN: psiZ is roughly used to save H * psiY
+  DblNumMat psiZ = DblNumMat(ntot, npsi);   setvalue(psiZ, 0.0);
+
+  fprintf(fhstat, "Call Chebyshev filtering for diagonalization\n");
+
+  time_t t0, t1;
+  t0 = time(0);
+
+  // ------
+  // Perform Chebyshev filtering
+  double centerEnergy = (lowerBoundEnergy + upperBoundEnergy) / 2;
+  double widthEnergy  = (upperBoundEnergy - lowerBoundEnergy) / 2;
+
+  // Initial step
+  if(0){
+    double sigma, sigma1, sigma2;
+    sigma        = widthEnergy / (lowerBoundEnergy - upperBoundEnergy);
+    sigma1       = sigma;
+    iC(HMultPsi(psiX, psiY));
+
+    {
+      double *psiXptr = psiX.data();
+      double *psiYptr = psiY.data();
+      for(int i = 0; i < psiY.m()*psiY.n(); i++){
+	(*psiYptr) = ((*psiYptr) - centerEnergy * (*psiXptr)) * sigma1 / widthEnergy;
+	psiXptr++;  
+	psiYptr++;
+      }
+    }
+
+    for(int iDegree = 2; iDegree <= eigmaxiter; iDegree++){
+      sigma2 = 1.0 / (2.0 / sigma1 - sigma);
+      HMultPsi(psiY, psiZ);
+
+      double *psiXptr = psiX.data();
+      double *psiYptr = psiY.data();
+      double *psiZptr = psiZ.data();
+      for(int i = 0; i < psiY.m() * psiY.n(); i++){
+	(*psiZptr) = ((*psiZptr) - centerEnergy * (*psiYptr)) * 2.0 * sigma2 / 
+	  widthEnergy - (*psiXptr) * (sigma * sigma2);
+	psiXptr++;  
+	psiYptr++;
+	psiZptr++;
+      }
+
+      psiX  = psiY;
+      psiY  = psiZ;
+      sigma = sigma2;
+    }  // for(iDegree)
+  }
+ 
+  if(1){
+    iC(HMultPsi(psiX, psiY));
+
+    {
+      double *psiXptr = psiX.data();
+      double *psiYptr = psiY.data();
+      for(int i = 0; i < psiY.m()*psiY.n(); i++){
+	(*psiYptr) = ((*psiYptr) - centerEnergy * (*psiXptr)) / widthEnergy;
+	psiXptr++;  
+	psiYptr++;
+      }
+    }
+
+    for(int iDegree = 2; iDegree <= eigmaxiter; iDegree++){
+      HMultPsi(psiY, psiZ);
+
+      double *psiXptr = psiX.data();
+      double *psiYptr = psiY.data();
+      double *psiZptr = psiZ.data();
+      for(int i = 0; i < psiY.m() * psiY.n(); i++){
+	(*psiZptr) = ((*psiZptr) - centerEnergy * (*psiYptr)) * 2.0 / 
+	  widthEnergy - (*psiXptr);
+	psiXptr++;  
+	psiYptr++;
+	psiZptr++;
+      }
+
+      psiX  = psiY;
+      psiY  = psiZ;
+    }  // for(iDegree)
+  }
+
+
+  // ------
+  // Orthogonalize psiY 
+  if(1)
+  {
+    DblNumVec normY(npsi);
+    for(int i = 0; i < npsi; i++){
+      normY(i) = norm(psiY.clmdata(i), ntot); 
+      double* psiYptr = psiY.clmdata(i);
+      for(int j = 0; j < ntot; j++){
+	(*psiYptr) /= normY(i); 
+	psiYptr++;
+      }
+    }
+    std::cout << "normY = " << normY << endl;
+  }
+  
+  
+  if(1)
+  {
+    DblNumVec tau(npsi);
+    DblNumVec work;
+    int lwork;
+    int info;
+
+    // Generate the elementary reflectors only
+    lwork = -1;
+    work.resize(1);  // LLIN: IMPORTANT
+    
+    dgeqrf_(&ntot, &npsi, psiY.data(), &ntot, tau.data(), work.data(), &lwork, &info);
+    iC(info);
+   
+    lwork = (int) work(0); // LLIN: IMPORTANT
+    work.resize(lwork);
+    
+    dgeqrf_(&ntot, &npsi, psiY.data(), &ntot, tau.data(), work.data(), &lwork, &info);
+    iC(info);
+
+    DblNumVec RY(npsi);
+    for(int i = 0; i < npsi; i++){
+      RY(i) = psiY(i,i);
+    }
+    std::cout << "RY = " << RY << endl;
+    
+
+    // Generate the orthogonal matrix in psiY
+    lwork = -1;
+    work.resize(1);  
+    dorgqr_(&ntot, &npsi, &npsi, psiY.data(), &ntot, tau.data(), work.data(), &lwork, &info);
+
+    lwork = (int) work(0); 
+    work.resize(lwork);
+    
+    dorgqr_(&ntot, &npsi, &npsi, psiY.data(), &ntot, tau.data(), work.data(), &lwork, &info);
+    iC(info);
+  }
+ 
+  //
+  // Solve the small Ritz problem for the eigenvalues and coefficients
+  HMultPsi(psiY, psiZ);
+  DblNumMat ritzYHY(npsi, npsi);
+  {
+    char   trans    = 'T';
+    char   notrans  = 'N';
+    int    M        = npsi;
+    int    N        = npsi;
+    int    K        = ntot;
+    double one      = 1.0;
+    double zero     = 0.0;
+
+    dgemm_(&trans, &notrans, &M, &N, &K, &one, psiY.data(), &ntot,
+	   psiZ.data(), &ntot, &zero,  ritzYHY.data(), &npsi);
+  }
+
+  // After solving, ritzYHY contains the orthonormal eigenvector
+  // coefficients
+  {
+    char   jobz    = 'V';
+    char   uplo    = 'L';
+    int    lwork, liwork;
+    int    info;
+    DblNumVec   work;
+    IntNumVec   iwork;
+
+    // Query for space
+    lwork   = -1;
+    liwork  = -1;
+    work.resize(1);
+    iwork.resize(1);
+    dsyevd_(&jobz, &uplo, &npsi, ritzYHY.data(), &npsi, &_ev[0],
+	    work.data(), &lwork, iwork.data(), &liwork, &info);
+
+    lwork   = (int) work(0);
+    liwork  = (int) iwork(0);
+    work.resize(lwork);
+    iwork.resize(liwork);
+
+    dsyevd_(&jobz, &uplo, &npsi, ritzYHY.data(), &npsi, &_ev[0],
+	    work.data(), &lwork, iwork.data(), &liwork, &info);
+  }
+
+  // ------ 
+  // Perform DGEMM for the eigenvectors 
+  {
+    char   notrans  = 'N';
+    double one      = 1.0;
+    double zero     = 0.0;
+
+    dgemm_(&notrans, &notrans, &ntot, &npsi, &npsi, &one, psiY.data(), &ntot,
+	   ritzYHY.data(), &npsi, &zero, psiX.data(), &ntot);
+  }
+
+
+  for(int i = 0; i < npsi; i++){
+    fprintf(fhstat, "Eig[%5d] = %25.15e\n", i, _ev[i]);
+  } 
+
+
+  t1 = time(0);
+  fprintf(fhstat, "\n Finish Chebyshev filtering. Time = %10.2f secs \n\n", difftime(t1,t0));
+ 
+  return 0;
+}
 

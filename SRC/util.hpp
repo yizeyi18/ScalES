@@ -57,7 +57,6 @@ inline double dunirand(void){
 
 using namespace std;
 
-//typedef pair<vector<int>, vector<double> > SparseVec;
 typedef pair<IntNumVec,DblNumMat> SparseVec; //LY: contains four components, (val, dx, dy, dz in each column)
 
 inline int optionsCreate(int argc, char** argv, map<string,string>& options)

@@ -348,7 +348,7 @@ lobpcg_errorMessage( BlopexInt verbosityLevel, char* message )
 {
   if ( verbosityLevel ) {
     fprintf( stderr, "Error in LOBPCG:\n" );
-    fprintf( stderr, message );
+    fprintf( stderr, "%s\n", message );
   }
 }
 /* ------------------------------------------------------------

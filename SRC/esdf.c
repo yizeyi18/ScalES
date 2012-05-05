@@ -261,6 +261,11 @@ void esdf_key() {
     strcpy(kw_dscrpt[i],"*! whether the buffer wavefunction is restarted!*");
 
     i++;
+    strcpy(kw_label[i],"restart_wfn");
+    strcpy(kw_typ[i],"I:E");
+    strcpy(kw_dscrpt[i],"*! whether the wavefunction in the global domain is restarted!*");
+
+    i++;
     strcpy(kw_label[i],"output_density");
     strcpy(kw_typ[i],"I:E");
     strcpy(kw_dscrpt[i],"*! whether density is outputed !*");
@@ -445,6 +450,12 @@ void esdf_key() {
     strcpy(kw_label[i],"deltafermi");
     strcpy(kw_typ[i],"D:E");
     strcpy(kw_dscrpt[i],"*! increase of the Fermi energy to control the number of candidate functions!*"); 
+
+    i++;
+    strcpy(kw_label[i],"pwsolver");
+    strcpy(kw_typ[i],"T:E");
+    strcpy(kw_dscrpt[i],"*! Type of planewave solver !*");
+
 }
 
 void esdf() {

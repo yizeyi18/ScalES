@@ -75,9 +75,8 @@ int PeriodTable::setup(string strptable)
     PTEntry& ptcur = (*mi).second;
     DblNumVec& params = ptcur.params();
     DblNumMat& samples = ptcur.samples();
-    //iA(samples.n()==9);
     iA(samples.n()%2 == 1); //an odd number of samples
-    map< int, vector<DblNumVec> > spltmp;
+   map< int, vector<DblNumVec> > spltmp;
     for(int g=1; g<samples.n(); g++) {
       int nspl = samples.m();
       DblNumVec rad(nspl, true, samples.clmdata(0));
@@ -180,7 +179,7 @@ int PeriodTable::pseudoRho0(Atom atom, Point3 Ls, Point3 pos,
 //---------------------------------------------
 int PeriodTable::pseudoNL(  Atom atom, Point3 Ls, Point3 pos, 
 			    vector<DblNumVec> gridpos, 
-			    vector< pair<SparseVec,double> >& vnls)
+			    vector< pair<SparseVec,double> >& vnls )
 {
   vnls.clear();
   if(1) {
@@ -266,7 +265,7 @@ int PeriodTable::pseudoNL(  Atom atom, Point3 Ls, Point3 pos,
 	}
 	SparseVec res(iv,dv);
 	vnls.push_back( pair<SparseVec,double>(res,wgt) );
-      }
+      } // if(typ == 0);
       //--
       if(typ==1) {
 	double coef = sqrt(3.0/(4.0*M_PI)); //spherical harmonics
@@ -327,7 +326,156 @@ int PeriodTable::pseudoNL(  Atom atom, Point3 Ls, Point3 pos,
 	  SparseVec res(iv,dv);
 	  vnls.push_back( pair<SparseVec,double>(res,wgt) );
 	}
-      }
+      } // if(typ==1)
+
+      if(typ==2) {
+	// d_z2
+	{
+	  double coef = 1.0/4.0*sqrt(5.0/M_PI); // Coefficients for spherical harmonics
+	  IntNumVec iv(idx.size(), true, &(idx[0]));
+	  DblNumMat dv(4, idx.size());
+	  DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+	  for(int g=0; g<idx.size(); g++) {
+	    if(rad[g]>eps) {
+	      Ylm(0) = coef*(-xx[g]*xx[g]-yy[g]*yy[g]+2.0*zz[g]*zz[g]) / (rad[g]*rad[g]);
+	      Ylm(1) = coef*(-6.0 * xx[g]*pow(zz[g],2.0) / pow(rad[g],4.0));
+	      Ylm(2) = coef*(-6.0 * yy[g]*pow(zz[g],2.0) / pow(rad[g],4.0));
+	      Ylm(3) = coef*( 6.0 * zz[g]*(pow(xx[g],2.0)+pow(yy[g],2.0)) / pow(rad[g], 4.0));
+
+	      dv(0,g) = Ylm(0) * val[g] ;
+	      dv(1,g) = Ylm(0) * der[g] * (xx[g] / rad[g]) + Ylm(1) * val[g];
+	      dv(2,g) = Ylm(0) * der[g] * (yy[g] / rad[g]) + Ylm(2) * val[g];
+	      dv(3,g) = Ylm(0) * der[g] * (zz[g] / rad[g]) + Ylm(3) * val[g];
+	    } else {
+	      dv(0,g) = 0;
+	      dv(1,g) = 0;
+	      dv(2,g) = 0;
+	      dv(3,g) = 0;
+	    }
+	  }
+	  SparseVec res(iv,dv);
+	  vnls.push_back( pair<SparseVec,double>(res,wgt) );
+	}
+	// d_yz
+	{
+	  double coef = 1.0/2.0*sqrt(15.0/M_PI);
+	  IntNumVec iv(idx.size(), true, &(idx[0]));
+	  DblNumMat dv(4, idx.size());
+
+	  DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+	  for(int g=0; g<idx.size(); g++) {
+	    if(rad[g]>eps) {
+	      Ylm(0) = coef*(yy[g]*zz[g]) / (rad[g]*rad[g]);
+	      Ylm(1) = coef*(-2.0*xx[g]*yy[g]*zz[g] / pow(rad[g],4.0));
+	      Ylm(2) = coef*(     zz[g]*(pow(zz[g],2.0)+pow(xx[g],2.0)-pow(yy[g],2.0)) / 
+			     pow(rad[g],4.0));
+	      Ylm(3) = coef*(     yy[g]*(pow(yy[g],2.0)+pow(xx[g],2.0)-pow(zz[g],2.0)) /
+			     pow(rad[g],4.0));
+
+	      dv(0,g) = Ylm(0) * val[g] ;
+	      dv(1,g) = Ylm(0) * der[g] * (xx[g] / rad[g]) + Ylm(1) * val[g];
+	      dv(2,g) = Ylm(0) * der[g] * (yy[g] / rad[g]) + Ylm(2) * val[g];
+	      dv(3,g) = Ylm(0) * der[g] * (zz[g] / rad[g]) + Ylm(3) * val[g];
+	    } else {
+	      dv(0,g) = 0;
+	      dv(1,g) = 0;
+	      dv(2,g) = 0;
+	      dv(3,g) = 0;
+	    }
+	  }
+	  SparseVec res(iv,dv);
+	  vnls.push_back( pair<SparseVec,double>(res,wgt) );
+	}
+	// d_xz
+	{
+	  double coef = 1.0/2.0*sqrt(15.0/M_PI);
+	  IntNumVec iv(idx.size(), true, &(idx[0]));
+	  DblNumMat dv(4, idx.size());
+	  
+	  DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+	  for(int g=0; g<idx.size(); g++) {
+	    if(rad[g]>eps) {
+	      Ylm(0) = coef*(zz[g]*xx[g]) / (rad[g]*rad[g]);
+	      Ylm(1) = coef*(     zz[g]*(pow(zz[g],2.0)-pow(xx[g],2.0)+pow(yy[g],2.0)) / 
+			     pow(rad[g],4.0));
+	      Ylm(2) = coef*(-2.0*xx[g]*yy[g]*zz[g] / pow(rad[g],4.0));
+	      Ylm(3) = coef*(     xx[g]*(pow(xx[g],2.0)+pow(yy[g],2.0)-pow(zz[g],2.0)) /
+			     pow(rad[g],4.0));
+	    
+	      dv(0,g) = Ylm(0) * val[g] ;
+	      dv(1,g) = Ylm(0) * der[g] * (xx[g] / rad[g]) + Ylm(1) * val[g];
+	      dv(2,g) = Ylm(0) * der[g] * (yy[g] / rad[g]) + Ylm(2) * val[g];
+	      dv(3,g) = Ylm(0) * der[g] * (zz[g] / rad[g]) + Ylm(3) * val[g];
+	    
+	    } else {
+	      dv(0,g) = 0;
+	      dv(1,g) = 0;
+	      dv(2,g) = 0;
+	      dv(3,g) = 0;
+	    }
+	  }
+	  SparseVec res(iv,dv);
+	  vnls.push_back( pair<SparseVec,double>(res,wgt) );
+	}
+	// d_xy
+	{
+	  double coef = 1.0/2.0*sqrt(15.0/M_PI);
+	  IntNumVec iv(idx.size(), true, &(idx[0]));
+	  DblNumMat dv(4, idx.size());
+	  DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+	  for(int g=0; g<idx.size(); g++) {
+	    if(rad[g]>eps) {
+	      Ylm(0) = coef*(xx[g]*yy[g]) / (rad[g]*rad[g]);
+	      Ylm(1) = coef*(     yy[g]*(pow(yy[g],2.0)-pow(xx[g],2.0)+pow(zz[g],2.0)) / 
+			     pow(rad[g],4.0));
+	      Ylm(2) = coef*(     xx[g]*(pow(xx[g],2.0)-pow(yy[g],2.0)+pow(zz[g],2.0)) /
+			     pow(rad[g],4.0));
+	      Ylm(3) = coef*(-2.0*xx[g]*yy[g]*zz[g] / pow(rad[g],4.0));
+	    
+	      dv(0,g) = Ylm(0) * val[g] ;
+	      dv(1,g) = Ylm(0) * der[g] * (xx[g] / rad[g]) + Ylm(1) * val[g];
+	      dv(2,g) = Ylm(0) * der[g] * (yy[g] / rad[g]) + Ylm(2) * val[g];
+	      dv(3,g) = Ylm(0) * der[g] * (zz[g] / rad[g]) + Ylm(3) * val[g];
+	    } else {
+	      dv(0,g) = 0;
+	      dv(1,g) = 0;
+	      dv(2,g) = 0;
+	      dv(3,g) = 0;
+	    }
+	  }
+	  SparseVec res(iv,dv);
+	  vnls.push_back( pair<SparseVec,double>(res,wgt) );
+	}
+	// d_x^2-y^2
+	{
+	  double coef = 1.0/4.0*sqrt(15.0/M_PI);
+	  IntNumVec iv(idx.size(), true, &(idx[0]));
+	  DblNumMat dv(4, idx.size());
+	  DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+	  for(int g=0; g<idx.size(); g++) {
+	    if(rad[g]>eps) {
+	      Ylm(0) = coef*(xx[g]*xx[g]-yy[g]*yy[g]) / (rad[g]*rad[g]);
+	      Ylm(1) = coef*( 2.0*xx[g]*(2.0*pow(yy[g],2.0)+pow(zz[g],2.0)) / 
+			     pow(rad[g],4.0));
+	      Ylm(2) = coef*(-2.0*yy[g]*(2.0*pow(xx[g],2.0)+pow(zz[g],2.0)) /
+			     pow(rad[g],4.0));
+	      Ylm(3) = coef*(-2.0*zz[g]*(pow(xx[g],2.0) - pow(yy[g],2.0)) / pow(rad[g],4.0));
+	    
+	      dv(0,g) = Ylm(0) * val[g] ;
+	      dv(1,g) = Ylm(0) * der[g] * (xx[g] / rad[g]) + Ylm(1) * val[g];
+	      dv(2,g) = Ylm(0) * der[g] * (yy[g] / rad[g]) + Ylm(2) * val[g];
+	      dv(3,g) = Ylm(0) * der[g] * (zz[g] / rad[g]) + Ylm(3) * val[g];
+	    } else {
+	      dv(0,g) = 0;
+	      dv(1,g) = 0;
+	      dv(2,g) = 0;
+	      dv(3,g) = 0;
+	    }
+	  }
+	  SparseVec res(iv,dv);
+	  vnls.push_back( pair<SparseVec,double>(res,wgt) );
+	}
+      } // if(typ==2)
     }
   }
   return 0;
@@ -365,6 +513,8 @@ int PeriodTable::pseudoNL(  Atom atom, Point3 Ls, Point3 pos,
 	numpp=numpp+1;
       if(typ==1)
 	numpp=numpp+3;
+      if(typ==2)
+	numpp=numpp+5;
     }
     vector< NumTns<SparseVec> > pptmp(numpp);
     for(int a=0; a<numpp; a++)
@@ -447,7 +597,7 @@ int PeriodTable::pseudoNL(  Atom atom, Point3 Ls, Point3 pos,
 	      SparseVec res(iv,dv);
 	      pptmp[cntpp](gi,gj,gk) = res;
 	      cntpp++;
-	    }
+	    } //if(typ==0)
 	    //-------
 	    if(typ==1) {
 	      double coef = sqrt(3.0/(4.0*M_PI)); //spherical harmonics
@@ -511,10 +661,168 @@ int PeriodTable::pseudoNL(  Atom atom, Point3 Ls, Point3 pos,
 		pptmp[cntpp](gi,gj,gk) = res;
 		cntpp++;
 	      }
-	    }
-	  }
+	    } //if(typ==1)
+	    
+	  
+	    if(typ==2) {
+	      // d_z2
+	      {
+		double coef = 1.0/4.0*sqrt(5.0/M_PI); // Coefficients for spherical harmonics
+		IntNumVec iv(idx.size(), true, &(idx[0]));
+		DblNumMat dv(4, idx.size());
+		DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+		for(int g=0; g<idx.size(); g++) {
+		  if(rad[g]>eps) {
+		    Ylm(0) = coef*(-xx[g]*xx[g]-yy[g]*yy[g]+2.0*zz[g]*zz[g]) / (rad[g]*rad[g]);
+		    Ylm(1) = coef*(-6.0 * xx[g]*pow(zz[g],2.0) / pow(rad[g],4.0));
+		    Ylm(2) = coef*(-6.0 * yy[g]*pow(zz[g],2.0) / pow(rad[g],4.0));
+		    Ylm(3) = coef*( 6.0 * zz[g]*(pow(xx[g],2.0)+pow(yy[g],2.0)) / pow(rad[g], 4.0));
+
+		    dv(0,g) = Ylm(0) * val[g] ;
+		    dv(1,g) = Ylm(0) * der[g] * (xx[g] / rad[g]) + Ylm(1) * val[g];
+		    dv(2,g) = Ylm(0) * der[g] * (yy[g] / rad[g]) + Ylm(2) * val[g];
+		    dv(3,g) = Ylm(0) * der[g] * (zz[g] / rad[g]) + Ylm(3) * val[g];
+		  } else {
+		    dv(0,g) = 0;
+		    dv(1,g) = 0;
+		    dv(2,g) = 0;
+		    dv(3,g) = 0;
+		  }
+		}
+		SparseVec res(iv,dv);
+		pptmp[cntpp](gi,gj,gk) = res;
+		cntpp++;
+	      }
+	      // d_yz
+	      {
+		double coef = 1.0/2.0*sqrt(15.0/M_PI);
+		IntNumVec iv(idx.size(), true, &(idx[0]));
+		DblNumMat dv(4, idx.size());
+
+		DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+		for(int g=0; g<idx.size(); g++) {
+		  if(rad[g]>eps) {
+		    Ylm(0) = coef*(yy[g]*zz[g]) / (rad[g]*rad[g]);
+		    Ylm(1) = coef*(-2.0*xx[g]*yy[g]*zz[g] / pow(rad[g],4.0));
+		    Ylm(2) = coef*(     zz[g]*(pow(zz[g],2.0)+pow(xx[g],2.0)-pow(yy[g],2.0)) / 
+					pow(rad[g],4.0));
+		    Ylm(3) = coef*(     yy[g]*(pow(yy[g],2.0)+pow(xx[g],2.0)-pow(zz[g],2.0)) /
+					pow(rad[g],4.0));
+
+		    dv(0,g) = Ylm(0) * val[g] ;
+		    dv(1,g) = Ylm(0) * der[g] * (xx[g] / rad[g]) + Ylm(1) * val[g];
+		    dv(2,g) = Ylm(0) * der[g] * (yy[g] / rad[g]) + Ylm(2) * val[g];
+		    dv(3,g) = Ylm(0) * der[g] * (zz[g] / rad[g]) + Ylm(3) * val[g];
+		  } else {
+		    dv(0,g) = 0;
+		    dv(1,g) = 0;
+		    dv(2,g) = 0;
+		    dv(3,g) = 0;
+		  }
+		}
+		SparseVec res(iv,dv);
+		pptmp[cntpp](gi,gj,gk) = res;
+		cntpp++;
+	      }
+	      // d_xz
+	      {
+		double coef = 1.0/2.0*sqrt(15.0/M_PI);
+		IntNumVec iv(idx.size(), true, &(idx[0]));
+		DblNumMat dv(4, idx.size());
+
+		DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+		for(int g=0; g<idx.size(); g++) {
+		  if(rad[g]>eps) {
+		    Ylm(0) = coef*(zz[g]*xx[g]) / (rad[g]*rad[g]);
+		    Ylm(1) = coef*(     zz[g]*(pow(zz[g],2.0)-pow(xx[g],2.0)+pow(yy[g],2.0)) / 
+					pow(rad[g],4.0));
+		    Ylm(2) = coef*(-2.0*xx[g]*yy[g]*zz[g] / pow(rad[g],4.0));
+		    Ylm(3) = coef*(     xx[g]*(pow(xx[g],2.0)+pow(yy[g],2.0)-pow(zz[g],2.0)) /
+					pow(rad[g],4.0));
+
+		    dv(0,g) = Ylm(0) * val[g] ;
+		    dv(1,g) = Ylm(0) * der[g] * (xx[g] / rad[g]) + Ylm(1) * val[g];
+		    dv(2,g) = Ylm(0) * der[g] * (yy[g] / rad[g]) + Ylm(2) * val[g];
+		    dv(3,g) = Ylm(0) * der[g] * (zz[g] / rad[g]) + Ylm(3) * val[g];
+
+		  } else {
+		    dv(0,g) = 0;
+		    dv(1,g) = 0;
+		    dv(2,g) = 0;
+		    dv(3,g) = 0;
+		  }
+		}
+		SparseVec res(iv,dv);
+		pptmp[cntpp](gi,gj,gk) = res;
+		cntpp++;
+	      }
+	      // d_xy
+	      {
+		double coef = 1.0/2.0*sqrt(15.0/M_PI);
+		IntNumVec iv(idx.size(), true, &(idx[0]));
+		DblNumMat dv(4, idx.size());
+		DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+		for(int g=0; g<idx.size(); g++) {
+		  if(rad[g]>eps) {
+		    Ylm(0) = coef*(xx[g]*yy[g]) / (rad[g]*rad[g]);
+		    Ylm(1) = coef*(     yy[g]*(pow(yy[g],2.0)-pow(xx[g],2.0)+pow(zz[g],2.0)) / 
+					pow(rad[g],4.0));
+		    Ylm(2) = coef*(     xx[g]*(pow(xx[g],2.0)-pow(yy[g],2.0)+pow(zz[g],2.0)) /
+					pow(rad[g],4.0));
+		    Ylm(3) = coef*(-2.0*xx[g]*yy[g]*zz[g] / pow(rad[g],4.0));
+
+		    dv(0,g) = Ylm(0) * val[g] ;
+		    dv(1,g) = Ylm(0) * der[g] * (xx[g] / rad[g]) + Ylm(1) * val[g];
+		    dv(2,g) = Ylm(0) * der[g] * (yy[g] / rad[g]) + Ylm(2) * val[g];
+		    dv(3,g) = Ylm(0) * der[g] * (zz[g] / rad[g]) + Ylm(3) * val[g];
+		  } else {
+		    dv(0,g) = 0;
+		    dv(1,g) = 0;
+		    dv(2,g) = 0;
+		    dv(3,g) = 0;
+		  }
+		}
+		SparseVec res(iv,dv);
+		pptmp[cntpp](gi,gj,gk) = res;
+		cntpp++;
+	      }
+	      // d_x^2-y^2
+	      {
+		double coef = 1.0/4.0*sqrt(15.0/M_PI);
+		IntNumVec iv(idx.size(), true, &(idx[0]));
+		DblNumMat dv(4, idx.size());
+		DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+		for(int g=0; g<idx.size(); g++) {
+		  if(rad[g]>eps) {
+		    Ylm(0) = coef*(xx[g]*xx[g]-yy[g]*yy[g]) / (rad[g]*rad[g]);
+		    Ylm(1) = coef*( 2.0*xx[g]*(2.0*pow(yy[g],2.0)+pow(zz[g],2.0)) / 
+				    pow(rad[g],4.0));
+		    Ylm(2) = coef*(-2.0*yy[g]*(2.0*pow(xx[g],2.0)+pow(zz[g],2.0)) /
+				   pow(rad[g],4.0));
+		    Ylm(3) = coef*(-2.0*zz[g]*(pow(xx[g],2.0) - pow(yy[g],2.0)) / pow(rad[g],4.0));
+
+		    dv(0,g) = Ylm(0) * val[g] ;
+		    dv(1,g) = Ylm(0) * der[g] * (xx[g] / rad[g]) + Ylm(1) * val[g];
+		    dv(2,g) = Ylm(0) * der[g] * (yy[g] / rad[g]) + Ylm(2) * val[g];
+		    dv(3,g) = Ylm(0) * der[g] * (zz[g] / rad[g]) + Ylm(3) * val[g];
+		  } else {
+		    dv(0,g) = 0;
+		    dv(1,g) = 0;
+		    dv(2,g) = 0;
+		    dv(3,g) = 0;
+		  }
+		}
+		SparseVec res(iv,dv);
+		pptmp[cntpp](gi,gj,gk) = res;
+		cntpp++;
+	      }
+	    } // if(typ==2)
+
+
+	  }// for(g)
+	  cerr << cntpp << ", " << numpp  << endl;
 	  iA(cntpp==numpp);
-	}
+	} //for(gk)
     
     //
     int cntpp = 0;
@@ -525,6 +833,13 @@ int PeriodTable::pseudoNL(  Atom atom, Point3 Ls, Point3 pos,
 	vnls.push_back( pair<NumTns<SparseVec>,double>(pptmp[cntpp], wgt) );	cntpp++;
       }
       if(typ==1) {
+	vnls.push_back( pair<NumTns<SparseVec>,double>(pptmp[cntpp], wgt) );	cntpp++;
+	vnls.push_back( pair<NumTns<SparseVec>,double>(pptmp[cntpp], wgt) );	cntpp++;
+	vnls.push_back( pair<NumTns<SparseVec>,double>(pptmp[cntpp], wgt) );	cntpp++;
+      }
+      if(typ==2) {
+	vnls.push_back( pair<NumTns<SparseVec>,double>(pptmp[cntpp], wgt) );	cntpp++;
+	vnls.push_back( pair<NumTns<SparseVec>,double>(pptmp[cntpp], wgt) );	cntpp++;
 	vnls.push_back( pair<NumTns<SparseVec>,double>(pptmp[cntpp], wgt) );	cntpp++;
 	vnls.push_back( pair<NumTns<SparseVec>,double>(pptmp[cntpp], wgt) );	cntpp++;
 	vnls.push_back( pair<NumTns<SparseVec>,double>(pptmp[cntpp], wgt) );	cntpp++;

@@ -31,6 +31,14 @@ public:
   //set<string> _bufferatommodeset;
   //set<string> _restartmodeset;
   //--------------------------------------------------
+  //CONTROL PARAMETERS 
+  int _isOutputDensity;  // LLIN: Whether to output the electron density
+  int _isOutputWfn;      // LLIN: Whether to output the wavefunctions in the global domain
+  int _isOutputVtot;     // LLIN: Whether to output the total potential
+
+  int _isRestartDensity; 
+  int _isRestartWfn;
+  //--------------------------------------------------
   //EXTERNAL PARAMETERS
   Domain _dm;
   vector<Atom> _atomvec;
@@ -43,6 +51,7 @@ public:
   double _Tbeta;          // inverse temperature, unit: inverse hartree 
   string _pseudotype;     // Pseudopotential type, (GTH) | TM
   string _ptfilename;     // Input file for pseudopotential
+  string _PWSolver;       // LLIN: Choice of planewave solver
   
   
   double _scftol; //LY: eigtol for both global and buffer
@@ -111,7 +120,7 @@ public:
   int setup(); // Initial setup of scf calculation
   int update(); // Update the potentials once the atomic configurations are changed
   //-------------------------------
-  int scf(vector<double>& rhoinput, vector<double>& psiinput); //
+  int scf(); // LLIN: The input density and wavefunction are now in setup().
   int scf_CalOcc(double Tbeta); //LY: compute Fermi level and decide occ
   int scf_CalCharge(); //LY: cal charge _rho
   
@@ -121,7 +130,8 @@ public:
   int scf_CalEnergy(); //LY:  _Ekin, _Ecor, _Etot
   
   int scf_Print(FILE *fh);
-  int scf_PrintState(FILE *fh);  //int scf_BcastInfo(int master); //TODO
+  int scf_PrintState(FILE *fh);  //int scf_BcastInfo(int master); 
+  int scf_FileIO();  //LLIN: output at the end of SCF iteration
   
   int scf_AndersonMix(vector<double>& vtotnew, vector<double>& df, vector<double>& dv, int iter);
   int scf_KerkerMix(vector<double>& vtotnew, double alpha);

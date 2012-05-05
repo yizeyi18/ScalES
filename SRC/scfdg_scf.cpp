@@ -126,8 +126,9 @@ int ScfDG::scf()
 	      eigpw._eigmaxiter = _eigmaxiter;
 	      eigpw._eigtol = _eigtol;
 	      iC( eigpw.setup() );
-	      iC( eigpw.solve(buff._vtot, buff._vnls, _nenrich + _nbufextra, 
-			      buff._psi, buff._ev, buff._nactive, buff._active_indices) );
+	      // TODO: Only LOBPCG solver is supported here.
+	      iC( eigpw.SolveLOBPCG(buff._vtot, buff._vnls, _nenrich + _nbufextra, 
+				    buff._psi, buff._ev, buff._nactive, buff._active_indices) );
 	      //MPI_Barrier(MPI_COMM_WORLD);
 	      //if(mpirank==0) { fprintf(stderr, "scf scf iter %d eigpw done\n", iter); }
 	      //-------------
