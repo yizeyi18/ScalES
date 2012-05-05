@@ -1,4 +1,5 @@
-nreps         = [1 1 1];
+ntyp          = 2;
+nreps         = [1 2 2];
 asize         = [4.138   7.167   28.640]; 
 nat           = 30;
 coefs = [
@@ -44,7 +45,24 @@ coefs = coefs + 0.0;
 typeList = [83; 34];
 typeAtom  = [ones(12,1); 2*ones(18,1)];
 
+typAtomVec = repmat(typeAtom, prod(nreps),1);
+
 [C, xyzmat, xyzmatReduce] = GenReduceCoord(nreps, asize, nat, coefs, 0.0);
+
+if(1)
+  fh = fopen('rdc', 'w');
+  for ityp = 1 : ntyp 
+    fprintf(fh, 'Type %d\n\n', ityp);
+    idx = find(typAtomVec == ityp);
+    xyzmatReduceSel = xyzmatReduce(idx,:);
+    for i = 1 : numel(idx)
+      fprintf(fh, '%10.5f  %10.5f  %10.5f\n', ...
+	xyzmatReduceSel(i,1), xyzmatReduceSel(i,2), ...
+	xyzmatReduceSel(i,3));
+    end
+    fprintf(fh, '\n');
+  end
+end
 
 
 % save('rdc','-ascii','xyzmatReduce');
@@ -61,7 +79,7 @@ if(1)
   fprintf(fh, '%6d %12.5f %12.5f %12.5f\n', 1, 0, 0, C(3,3));
   for i = 1 : numAtomTot
     fprintf(fh,'%6d %12.5f %12.5f %12.5f %12.5f\n', ...
-      typeList(typeAtom(i)), 0,  ...
+      typeList(typAtomVec(i)), 0,  ...
       xyzmat(i,1), xyzmat(i,2), xyzmat(i,3));
   end
   fclose(fh);

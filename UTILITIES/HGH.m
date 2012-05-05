@@ -10,6 +10,7 @@
 % 5/4/2012:  Add support for spin-orbit coupling. Add Se.
 
 Znucs = [6 11 14 34 83];
+% Znucs = [6 11];
 res = cell(length(Znucs),2);
 
 for g=1:length(Znucs)
@@ -410,22 +411,21 @@ for g=1:length(Znucs)
 
   cur = [Znuc mass Zion Es];
 
-  numTerms = 21;
-  spl = zeros(numel(r), numTerms);
-  wgt = zeros(1,numTerms);
-  typ = zeros(1,numTerms);
-  cut = zeros(1,numTerms);
+  spl = zeros(numel(r), 0);
+  wgt = zeros(1,0);
+  typ = zeros(1,0);
+  cut = zeros(1,0);
 
   cnt = 1;
 
 
   spl(:,cnt) = r(:);
-  wgt(cnt) = -1;    typ(cnt) = -1;    cut(cnt) = rhocut;    cnt=cnt+1;
+  wgt(cnt) = -1;    typ(cnt) =  9;    cut(cnt) = rhocut;    cnt=cnt+1;
   
   spl(:,cnt) = -rho(:);
-  wgt(cnt) = -1;   typ(cnt) = -1;    cut(cnt) = rhocut;    cnt=cnt+1;
+  wgt(cnt) = -1;   typ(cnt)  =  99;    cut(cnt) = rhocut;    cnt=cnt+1;
   spl(:,cnt) = -drho(:);
-  wgt(cnt) = -1;   typ(cnt) = -1;  cut(cnt) = rhocut; cnt=cnt+1;
+  wgt(cnt) = -1;   typ(cnt)  =  99;  cut(cnt) = rhocut; cnt=cnt+1;
 
   if(abs(h0a) > 1e-10)
     spl(:,cnt) = p0a(:);

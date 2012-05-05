@@ -164,6 +164,10 @@ int main(int argc, char **argv)
 	  atype=16;
 	else if(tmp=="Cl")
 	  atype=17;
+	else if(tmp=="Se")
+	  atype=34;
+	else if(tmp=="Bi")
+	  atype=83;
 	else {
 	  cerr<<tmp<<endl;
 	  ABORT("ERROR: atom type not supported",1);
