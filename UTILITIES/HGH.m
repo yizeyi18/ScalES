@@ -1,16 +1,19 @@
 % Generation of the HGH pseudopotential
-% Currently implemented for Na, Si, C
+% Currently implemented for Na, Si, C, Se, Bi
 % 
 % LLIN: 
 %
 % 8/31/2011: Add C 
 %
 % 5/1/2012:  Add support for l=0,1,2. Add Bi 
+%
+% 5/4/2012:  Add support for spin-orbit coupling. Add Se.
 
-res = cell(3,2);
+Znucs = [6 11 14 34 83];
+res = cell(length(Znucs),2);
 
-Znucs = [6 11 14 83];
-for g=1:numel(Znucs)
+for g=1:length(Znucs)
+
   Znuc = Znucs(g); fprintf(1,'Znuc %d\n',Znuc);
 
   % Initialize.  
@@ -18,11 +21,15 @@ for g=1:numel(Znucs)
   % to avoid overflow /underflow 
   Zion = 0;
   mass = 0;
+
+  % Local pseudopotential
   rloc = 1;
   C1   = 0;
   C2   = 0;
   C3   = 0;
   C4   = 0;
+
+  % Regular nonlocal pseudopotential
   r0   = 1;
   h011 = 0;
   h022 = 0;
@@ -35,6 +42,14 @@ for g=1:numel(Znucs)
   h211 = 0;
   h222 = 0;
   h233 = 0;
+  
+  % Spin-orbit coupling
+  k111 = 0;
+  k122 = 0;
+  k133 = 0;
+  k211 = 0;
+  k222 = 0;
+  k233 = 0; 
 
   % C
   if(Znuc==6)
@@ -46,6 +61,7 @@ for g=1:numel(Znucs)
     r0 = 0.304553;
     h011 = 9.522842;
     r1 = 0.232677;
+    k111 = 0.004104;  
     rhocut = 2.5;
     wavcut = 2.5;
   end
@@ -61,6 +77,7 @@ for g=1:numel(Znucs)
     h022 = 0.582004;
     r1 = 0.857119;
     h111 = 0.471133;
+    k111 = 0.002623;
     rhocut = 5.5;
     wavcut = 5.5;
   end
@@ -76,8 +93,31 @@ for g=1:numel(Znucs)
     h022 = 3.258196;
     r1 = 0.484278;
     h111 = 2.727013;
+    k111 = 0.000373;
+    k122 = 0.014437;
     rhocut = 3;
     wavcut = 3;
+  end
+
+  % Se
+  if(Znuc==34)
+    Zion    = 6;
+    mass    = 78.96;
+    rloc    = 0.510000;
+    r0      = 0.432531;
+    h011    = 5.145131;
+    h022    = 2.052009;
+    h033    = -1.369203;
+    r1      = 0.472473;
+    h111    = 2.858806;
+    h122    = -0.590671;
+    k111    = 0.062196;
+    k122    = 0.064907;
+    r2      = 0.613420;
+    h211    = 0.434829;
+    k211    = 0.005784;
+    rhocut = 3.0;
+    wavcut = 3.0;
   end
 
   % Bi
@@ -93,11 +133,16 @@ for g=1:numel(Znucs)
     r1      = 0.798673;
     h111    = 0.655578;
     h122    = -0.402932;
+    k111    = 0.305314;
+    k122    = -0.023134;
     r2      = 0.934683;
     h211    = 0.378476;
+    k211    = 0.029217;
+
     rhocut = 4.5;
     wavcut = 4.5;
   end
+
 
   % Derived quantities
   h012 = -1/2*sqrt(3/5)*h022;
@@ -109,7 +154,14 @@ for g=1:numel(Znucs)
   h212 = -1/2 * sqrt(7/9) * h222;
   h213 = 1/2  * sqrt(63/143) * h233;
   h223 = -1/2 * 18 / sqrt(143) * h233;
-  
+ 
+  k112 = -1/2 * sqrt(5/7) * k122;
+  k113 = 1/6 * sqrt(35/11) * k133;
+  k123 = -1/6 * 14 / sqrt(11) * k133;
+  k212 = -1/2 * sqrt(7/9) * k222;
+  k213 = 1/2  * sqrt(63/143) * k233;
+  k223 = -1/2 * 18 / sqrt(143) * k233;
+
 
   % Functional form for pseudopotentials
   Vlocfn = @(r) ...
@@ -180,7 +232,7 @@ for g=1:numel(Znucs)
     (rl.^(l+(4*i-1)/2).*sqrt(gamma(l+(4*i-1)/2)));
 
 
-  % Reorthogonalize the h coefficient matrices
+  % Diagonalize the h coefficient matrices to obtain regular pseudopotential
   % l=0 channel
   tmp = [h011 h012 h013;
          h012 h022 h023;
@@ -230,6 +282,43 @@ for g=1:numel(Znucs)
   p2cfn = @(r) (p21fn(r)*V2(1,3) + p22fn(r)*V2(2,3) + p23fn(r)*V2(3,3));
   h2c   = D2(3); 
 
+  % Diagonalize the k coefficient matrices to obtain pseudopotential for
+  % spin-orbit coupling
+  
+  % l=1 channel
+  tmp = [k111 k112 k113;
+         k112 k122 k123;
+	 k113 k123 k133];
+  [Vk1,Dk1] = eig(tmp);
+  Dk1 = diag(Dk1);  [Dk1, idx] = sort(Dk1,'descend'); Vk1 = Vk1(:,idx);
+
+  p1kafn = @(r) (p11fn(r)*Vk1(1,1) + p12fn(r)*Vk1(2,1) + p13fn(r)*Vk1(3,1));
+  k1a   = Dk1(1);
+
+  p1kbfn = @(r) (p11fn(r)*Vk1(1,2) + p12fn(r)*Vk1(2,2) + p13fn(r)*Vk1(3,2));
+  k1b   = Dk1(2); 
+
+  p1kcfn = @(r) (p11fn(r)*Vk1(1,3) + p12fn(r)*Vk1(2,3) + p13fn(r)*Vk1(3,3));
+  k1c   = Dk1(3);
+
+  % l=2 channel. 
+  tmp = [k211 k212 k213;
+         k212 k222 k223;
+	 k213 k223 k233];
+  
+  [Vk2,Dk2] = eig(tmp);
+  Dk2 = diag(Dk2);  [Dk2, idx] = sort(Dk2,'descend'); Vk2 = Vk2(:,idx);
+  
+  p2kafn = @(r) (p21fn(r)*Vk2(1,1) + p22fn(r)*Vk2(2,1) + p23fn(r)*Vk2(3,1));
+  k2a   = Dk2(1);
+
+  p2kbfn = @(r) (p21fn(r)*Vk2(1,2) + p22fn(r)*Vk2(2,2) + p23fn(r)*Vk2(3,2));
+  k2b   = Dk2(2);
+
+  p2kcfn = @(r) (p21fn(r)*Vk2(1,3) + p22fn(r)*Vk2(2,3) + p23fn(r)*Vk2(3,3));
+  k2c   = Dk2(3); 
+  
+
   %sample
   stp = 0.002;
   r = [-10+stp/2:stp:10];
@@ -255,9 +344,19 @@ for g=1:numel(Znucs)
   p2b_pp = csape(r,p2b);
   p2c_pp = csape(r,p2c);
 
+  p1ka_pp = csape(r,p1ka);
+  p1kb_pp = csape(r,p1kb);
+  p1kc_pp = csape(r,p1kc);
+  p2ka_pp = csape(r,p2ka);
+  p2kb_pp = csape(r,p2kb);
+  p2kc_pp = csape(r,p2kc);
+
+
+  % Pseudo-charge and its derivatives
   rho = rho0fn(r); 
   drho = drho0fn(r); 
 
+  % Regular nonlocal pseudopotential and their derivatives
   p0a_dpp = fnder(p0a_pp,1);
   dp0a = fnval(p0a_dpp,r);
 
@@ -285,6 +384,27 @@ for g=1:numel(Znucs)
   p2c_dpp = fnder(p2c_pp,1);
   dp2c = fnval(p2c_dpp,r);
 
+
+  % Nonlocal pseudopotential for spin-orbit coupling and their
+  % derivatives
+  p1ka_dpp = fnder(p1ka_pp,1);
+  dp1ka = fnval(p1ka_dpp,r);
+
+  p1kb_dpp = fnder(p1kb_pp,1);
+  dp1kb = fnval(p1kb_dpp,r);
+ 
+  p1kc_dpp = fnder(p1kc_pp,1);
+  dp1kc = fnval(p1kc_dpp,r);
+
+  p2ka_dpp = fnder(p2ka_pp,1);
+  dp2ka = fnval(p2ka_dpp,r);
+
+  p2kb_dpp = fnder(p2kb_pp,1);
+  dp2kb = fnval(p2kb_dpp,r);
+  
+  p2kc_dpp = fnder(p2kc_pp,1);
+  dp2kc = fnval(p2kc_dpp,r);
+  
   gd = find(r>0);
   Es = 1/2* sum(4*pi*r(gd).^2 .* Vloc(gd) .* rho(gd) * stp);
 
@@ -307,55 +427,115 @@ for g=1:numel(Znucs)
   spl(:,cnt) = -drho(:);
   wgt(cnt) = -1;   typ(cnt) = -1;  cut(cnt) = rhocut; cnt=cnt+1;
 
-  spl(:,cnt) = p0a(:);
-  wgt(cnt) = h0a;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
-  spl(:,cnt) = dp0a(:);
-  wgt(cnt) = h0a;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+  if(abs(h0a) > 1e-10)
+    spl(:,cnt) = p0a(:);
+    wgt(cnt) = h0a;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp0a(:);
+    wgt(cnt) = h0a;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
 
-  spl(:,cnt) = p0b(:);
-  wgt(cnt) = h0b;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
-  spl(:,cnt) = dp0b(:);
-  wgt(cnt) = h0b;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+  if(abs(h0b) > 1e-10)
+    spl(:,cnt) = p0b(:);
+    wgt(cnt) = h0b;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp0b(:);
+    wgt(cnt) = h0b;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
 
-  spl(:,cnt) = p0c(:);
-  wgt(cnt) = h0c;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
-  spl(:,cnt) = dp0c(:);
-  wgt(cnt) = h0c;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+  if(abs(h0c) > 1e-10)
+    spl(:,cnt) = p0c(:);
+    wgt(cnt) = h0c;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp0c(:);
+    wgt(cnt) = h0c;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
 
-  spl(:,cnt) = p1a(:);
-  wgt(cnt) = h1a;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
-  spl(:,cnt) = dp1a(:);
-  wgt(cnt) = h1a;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+  if(abs(h1a) > 1e-10)
+    spl(:,cnt) = p1a(:);
+    wgt(cnt) = h1a;   typ(cnt) = 1;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp1a(:);
+    wgt(cnt) = h1a;   typ(cnt) = 1;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
 
-  spl(:,cnt) = p1b(:);
-  wgt(cnt) = h1b;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
-  spl(:,cnt) = dp1b(:);
-  wgt(cnt) = h1b;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+  if(abs(h1b) > 1e-10)
+    spl(:,cnt) = p1b(:);
+    wgt(cnt) = h1b;   typ(cnt) = 1;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp1b(:);
+    wgt(cnt) = h1b;   typ(cnt) = 1;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
 
-  spl(:,cnt) = p1c(:);
-  wgt(cnt) = h1c;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
-  spl(:,cnt) = dp1c(:);
-  wgt(cnt) = h1c;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+  if(abs(h1c) > 1e-10)
+    spl(:,cnt) = p1c(:);
+    wgt(cnt) = h1c;   typ(cnt) = 1;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp1c(:);
+    wgt(cnt) = h1c;   typ(cnt) = 1;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
 
-  spl(:,cnt) = p2a(:);
-  wgt(cnt) = h2a;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
-  spl(:,cnt) = dp2a(:);
-  wgt(cnt) = h2a;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+  if(abs(h2a) > 1e-10)
+    spl(:,cnt) = p2a(:);
+    wgt(cnt) = h2a;   typ(cnt) = 2;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp2a(:);
+    wgt(cnt) = h2a;   typ(cnt) = 2;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
   
-  spl(:,cnt) = p2b(:);
-  wgt(cnt) = h2b;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
-  spl(:,cnt) = dp2b(:);
-  wgt(cnt) = h2b;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+  if(abs(h2b) > 1e-10)
+    spl(:,cnt) = p2b(:);
+    wgt(cnt) = h2b;   typ(cnt) = 2;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp2b(:);
+    wgt(cnt) = h2b;   typ(cnt) = 2;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
 
-  spl(:,cnt) = p2c(:);
-  wgt(cnt) = h2c;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
-  spl(:,cnt) = dp2c(:);
-  wgt(cnt) = h2c;   typ(cnt) = 0;  cut(cnt) = wavcut; cnt=cnt+1;
+  if(abs(h2c) > 1e-10)
+    spl(:,cnt) = p2c(:);
+    wgt(cnt) = h2c;   typ(cnt) = 2;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp2c(:);
+    wgt(cnt) = h2c;   typ(cnt) = 2;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
 
+  if(abs(k1a) > 1e-10)
+    spl(:,cnt) = p1ka(:);
+    wgt(cnt) = k1a;   typ(cnt) = -1;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp1ka(:);
+    wgt(cnt) = k1a;   typ(cnt) = -1;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
 
+  if(abs(k1b) > 1e-10)
+    spl(:,cnt) = p1kb(:);
+    wgt(cnt) = k1b;   typ(cnt) = -1;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp1kb(:);
+    wgt(cnt) = k1b;   typ(cnt) = -1;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
+
+  if(abs(k1c) > 1e-10)
+    spl(:,cnt) = p1kc(:);
+    wgt(cnt) = k1c;   typ(cnt) = -1;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp1kc(:);
+    wgt(cnt) = k1c;   typ(cnt) = -1;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
+
+  if(abs(k2a) > 1e-10)
+    spl(:,cnt) = p2ka(:);
+    wgt(cnt) = k2a;   typ(cnt) = -2;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp2ka(:);
+    wgt(cnt) = k2a;   typ(cnt) = -2;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
+
+  if(abs(k2b) > 1e-10)
+    spl(:,cnt) = p2kb(:);
+    wgt(cnt) = k2b;   typ(cnt) = -2;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp2kb(:);
+    wgt(cnt) = k2b;   typ(cnt) = -2;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
+
+  if(abs(k2c) > 1e-10)
+    spl(:,cnt) = p2kc(:);
+    wgt(cnt) = k2c;   typ(cnt) = -2;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp2kc(:);
+    wgt(cnt) = k2c;   typ(cnt) = -2;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
 
   if(1)
     fprintf('Check for normalization condition for element %3d\n', Znuc);
+    fprintf('Total number of pseudopotentials terms %3d\n', cnt-1);
+    
     % Local pseudopotential
     pk = find(r>0 & r<rhocut); 
     fprintf('int rho         = %15.5e\n', sum(4*pi*r(pk).^2.*(-rho(pk))*stp) );
@@ -407,6 +587,42 @@ for g=1:numel(Znucs)
       fprintf('Rel: int p2c^2  = %15.5e\n', ...
 	sum(r(pk).^2.*p2c(pk).^2*stp) / (sum(r.^2.*p2c.^2*stp)/2) );
     end
+    
+    if( abs(k1a) > 1e-10 )
+      fprintf('Abs: int p1ka^2  = %15.5e\n', sum(r(pk).^2.*p1ka(pk).^2*stp) );
+      fprintf('Rel: int p1ka^2  = %15.5e\n', ...
+	sum(r(pk).^2.*p1ka(pk).^2*stp) / (sum(r.^2.*p1ka.^2*stp)/2) );
+    end
+    
+    if( abs(k1b) > 1e-10 )
+      fprintf('Abs: int p1kb^2  = %15.5e\n', sum(r(pk).^2.*p1kb(pk).^2*stp) );
+      fprintf('Rel: int p1kb^2  = %15.5e\n', ...
+	sum(r(pk).^2.*p1kb(pk).^2*stp) / (sum(r.^2.*p1kb.^2*stp)/2) );
+    end
+
+    if( abs(k1c) > 1e-10 )
+      fprintf('Abs: int p1kc^2  = %15.5e\n', sum(r(pk).^2.*p1kc(pk).^2*stp) );
+      fprintf('Rel: int p1kc^2  = %15.5e\n', ...
+	sum(r(pk).^2.*p1kc(pk).^2*stp) / (sum(r.^2.*p1kc.^2*stp)/2) );
+    end
+
+    if( abs(k2a) > 1e-10 )
+      fprintf('Abs: int p2ka^2  = %15.5e\n', sum(r(pk).^2.*p2ka(pk).^2*stp) );
+      fprintf('Rel: int p2ka^2  = %15.5e\n', ...
+	sum(r(pk).^2.*p2ka(pk).^2*stp) / (sum(r.^2.*p2ka.^2*stp)/2) );
+    end
+
+    if( abs(k2b) > 1e-10 )
+      fprintf('Abs: int p2kb^2  = %15.5e\n', sum(r(pk).^2.*p2kb(pk).^2*stp) );
+      fprintf('Rel: int p2kb^2  = %15.5e\n', ...
+	sum(r(pk).^2.*p2kb(pk).^2*stp) / (sum(r.^2.*p2kb.^2*stp)/2) );
+    end
+
+    if( abs(k2c) > 1e-10 )
+      fprintf('Abs: int p2kc^2  = %15.5e\n', sum(r(pk).^2.*p2kc(pk).^2*stp) );
+      fprintf('Rel: int p2kc^2  = %15.5e\n', ...
+	sum(r(pk).^2.*p2kc(pk).^2*stp) / (sum(r.^2.*p2kc.^2*stp)/2) );
+    end
 
     fprintf('\n');
   end
@@ -415,6 +631,7 @@ for g=1:numel(Znucs)
 
   res{g,1} = Znuc;
   res{g,2} = ess;
+
 end
 
 if(1)
