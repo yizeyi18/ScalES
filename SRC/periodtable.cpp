@@ -509,10 +509,10 @@ int PeriodTable::pseudoNL(  Atom atom, Point3 Ls, Point3 pos,
     for(int g=3; g<ptentry.samples().n(); g=g+2) {
       double wgt = ptentry.wgts()(g);
       int typ = ptentry.typs()(g);
-      int mpirank;
-      MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
-      if(mpirank == 0)
-	cerr << "typ = " << typ << endl;
+//      int mpirank;
+//      MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
+//      if(mpirank == 0)
+//	cerr << "typ = " << typ << endl;
       
       if(typ==0)
 	numpp=numpp+1;

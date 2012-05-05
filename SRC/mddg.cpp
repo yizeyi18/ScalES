@@ -268,7 +268,7 @@ int main(int argc, char **argv)
       scf._dgalpha     = esdf_double((char*)("DG_Alpha"), 500.0);
       scf._dgndeg      = esdf_integer((char*)("DG_Degree"), 3);
       scf._nenrich     = esdf_integer((char*)("Enrich_Number"), 30 );
-      scf._MB          = esdf_integer((char*)("MB"), 128 );
+      scf._MB          = esdf_integer((char*)("MB"), 16);
       Index3 NElems(1,1,1);
       if (esdf_block((char*)("Element_Size"),&nlines)) {
 	sscanf(block_data[0],"%d %d %d", &NElems[0],&NElems[1],&NElems[2]);
