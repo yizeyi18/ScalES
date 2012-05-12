@@ -1,18 +1,205 @@
-/* @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ */
-/* @@@ BLOPEX (version 1.1) LGPL Version 3 or above.  See www.gnu.org. */
-/* @@@ Copyright 2010 BLOPEX team http://code.google.com/p/blopex/     */
-/* @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ */
-/* This code was developed by Merico Argentati, Andrew Knyazev, Ilya Lashuk and Evgueni Ovtchinnikov */
+#include "lobpcg.hpp"
+namespace LOBPCG{
+/*--------------------------------------------------------------------------
+  CreateCopyMultiVector                                              generic
+  --------------------------------------------------------------------------*/
+void*
+CreateCopyMultiVector( void* src_, BlopexInt copyValues )
+{
+   serial_Multi_Vector *src = (serial_Multi_Vector *)src_;
+   serial_Multi_Vector *dest;
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
+   /* create vector with the same parameters as src */
 
-#include "multi_vector.h"
+   dest = serial_Multi_VectorCreate(src->size, src->num_vectors);
+   serial_Multi_VectorInitialize(dest);
 
-#include "blas.h"  
-//#include "mkl.h"  
+   /* copy values if necessary */
+
+   if (copyValues)
+      serial_Multi_VectorCopyWithoutMask(src, dest);
+
+   return dest;
+}
+
+/*--------------------------------------------------------------------------
+  DestroyMultiVector                                                 generic
+  --------------------------------------------------------------------------*/
+void
+DestroyMultiVector( void *vvector )
+{
+  BlopexInt dummy;
+  serial_Multi_Vector *vector = (serial_Multi_Vector*)vvector;
+
+  dummy=serial_Multi_VectorDestroy( vector );
+}
+
+/*--------------------------------------------------------------------------
+  MultiVectorWidth                                                   generic
+  --------------------------------------------------------------------------*/
+BlopexInt
+MultiVectorWidth( void* v )
+{
+  return ((serial_Multi_Vector*)v)->num_vectors;
+}
+
+/*--------------------------------------------------------------------------
+  MultiSetMask                                                       generic
+  --------------------------------------------------------------------------*/
+void
+MultiSetMask( void *vector, BlopexInt *mask )
+{
+   serial_Multi_VectorSetMask( ( serial_Multi_Vector *)vector, mask );
+}
+
+/*--------------------------------------------------------------------------
+  CopyMultiVector                                                     double
+  --------------------------------------------------------------------------*/
+void
+CopyMultiVector( void *x, void *y)
+{
+   BlopexInt dummy;
+
+   dummy = serial_Multi_VectorCopy( (serial_Multi_Vector *) x,
+                                      (serial_Multi_Vector *) y);
+}
+
+/*--------------------------------------------------------------------------
+  ClearMultiVector                                                    double
+  --------------------------------------------------------------------------*/
+void
+ClearMultiVector(void *x)
+{
+   BlopexInt dummy;
+
+   dummy=serial_Multi_VectorSetConstantValues((serial_Multi_Vector *)x,0.0);
+}
+
+/*--------------------------------------------------------------------------
+  MultiVectorSetRandomValues                                         double
+  --------------------------------------------------------------------------*/
+void
+SetMultiVectorRandomValues(void *x, BlopexInt seed)
+{
+   BlopexInt dummy;
+
+   dummy= serial_Multi_VectorSetRandomValues((serial_Multi_Vector *) x, seed) ;
+}
+
+
+/*--------------------------------------------------------------------------
+  MultiInnerProd                                                      double
+  --------------------------------------------------------------------------*/
+void
+MultiInnerProd(void * x_, void * y_,
+                    BlopexInt gh, BlopexInt h, BlopexInt w, void* v )
+{
+   serial_Multi_VectorInnerProd( (serial_Multi_Vector *)x_,
+                                 (serial_Multi_Vector *)y_,
+                                 gh, h, w, (double *) v);
+}
+
+
+/*--------------------------------------------------------------------------
+  MultiInnerProdDiag                                                  double
+  --------------------------------------------------------------------------*/
+void
+MultiInnerProdDiag( void* x_, void* y_,
+                    BlopexInt* mask, BlopexInt n, void* diag )
+{
+   serial_Multi_VectorInnerProdDiag( (serial_Multi_Vector *)x_,
+                                     (serial_Multi_Vector *)y_,
+                                      mask, n, (double *) diag);
+}
+
+/*--------------------------------------------------------------------------
+  MultiVectorByDiagonal                                               double
+  --------------------------------------------------------------------------*/
+void
+MultiVectorByDiagonal( void* x,
+                       BlopexInt* mask, BlopexInt n, void* diag,
+                       void* y )
+{
+   BlopexInt dummy;
+
+   dummy = serial_Multi_VectorByDiag( (serial_Multi_Vector *) x, mask, n,
+                                      (double *) diag,
+                                      (serial_Multi_Vector *) y );
+}
+
+/*--------------------------------------------------------------------------
+  MultiVectorByMatrix                                                 double
+  --------------------------------------------------------------------------*/
+void
+MultiVectorByMatrix( void* x,
+                   BlopexInt gh, BlopexInt h, BlopexInt w, void* v,
+                   void* y )
+{
+   serial_Multi_VectorByMatrix((serial_Multi_Vector *)x, gh, h,
+                                w, (double *) v, (serial_Multi_Vector *)y);
+
+}
+/*--------------------------------------------------------------------------
+  MultiAxpy                                                           double
+  --------------------------------------------------------------------------*/
+void
+MultiVectorAxpy( double alpha, void   *x, void   *y)
+{
+   serial_Multi_VectorAxpy(  alpha,
+                              (serial_Multi_Vector *) x,
+                              (serial_Multi_Vector *) y) ;
+}
+
+/*--------------------------------------------------------------------------
+  MultiVectorPrint                                                   double
+  --------------------------------------------------------------------------*/
+void
+MultiVectorPrint( void *x, char * tag, BlopexInt limit )
+{
+   serial_Multi_VectorPrint( (serial_Multi_Vector *) x, tag, limit );
+}
+
+/*--------------------------------------------------------------------------
+  SerialSetupInterpreter                                              double
+  --------------------------------------------------------------------------*/
+BlopexInt
+SerialSetupInterpreter( mv_InterfaceInterpreter *i )
+{
+  /* Vector part */
+
+  i->CreateVector = NULL;
+  i->DestroyVector = NULL;
+  i->InnerProd = NULL;
+  i->CopyVector = NULL;
+  i->ClearVector = NULL;
+  i->SetRandomValues = NULL;
+  i->ScaleVector = NULL;
+  i->Axpy = NULL;
+
+  /* Multivector part */
+
+  i->CreateMultiVector = NULL;
+//  i->CopyCreateMultiVector = ((void*)(*)(void*,BlopexInt))(&CreateCopyMultiVector);
+//  i->CopyCreateMultiVector = (&CreateCopyMultiVector);
+  i->DestroyMultiVector = DestroyMultiVector;
+
+  i->Width = MultiVectorWidth;
+  i->Height = NULL;
+  i->SetMask = MultiSetMask;
+  i->CopyMultiVector = CopyMultiVector;
+  i->ClearMultiVector = ClearMultiVector;
+  i->SetRandomVectors = SetMultiVectorRandomValues;
+  i->MultiInnerProd = MultiInnerProd;
+  i->MultiInnerProdDiag = MultiInnerProdDiag;
+  i->MultiVecMat = MultiVectorByMatrix;
+  i->MultiVecMatDiag = MultiVectorByDiagonal;
+  i->MultiAxpy = MultiVectorAxpy;
+  i->MultiXapy = NULL;
+  i->Eval = NULL;
+  i->MultiPrint = MultiVectorPrint;
+
+  return 0;
+}
 
 /*--------------------------------------------------------------------------
  * serial_Multi_VectorCreate                                         generic
@@ -103,33 +290,33 @@ serial_Multi_VectorDestroy( serial_Multi_Vector *mvector )
 /*--------------------------------------------------------------------------
  * serial_Multi_VectorSetMask                                        generic
  *--------------------------------------------------------------------------*/
- BlopexInt
- serial_Multi_VectorSetMask(serial_Multi_Vector *mvector, BlopexInt * mask)
- {
-   /* this routine accepts mask in "zeros and ones format, and converts it to the one used in
-   the structure "serial_Multi_Vector" */
-   BlopexInt  num_vectors = mvector->num_vectors;
-   BlopexInt i;
+BlopexInt
+serial_Multi_VectorSetMask(serial_Multi_Vector *mvector, BlopexInt * mask)
+{
+  /* this routine accepts mask in "zeros and ones format, and converts it to the one used in
+     the structure "serial_Multi_Vector" */
+  BlopexInt  num_vectors = mvector->num_vectors;
+  BlopexInt i;
 
 
-   /* may be it's better to just check if it is not null, and throw an error, if it is? */
-   if (mvector->active_indices==NULL)
-      mvector->active_indices=(BlopexInt*)malloc(sizeof(BlopexInt)*num_vectors);
+  /* may be it's better to just check if it is not null, and throw an error, if it is? */
+  if (mvector->active_indices==NULL)
+    mvector->active_indices=(BlopexInt*)malloc(sizeof(BlopexInt)*num_vectors);
 
-   mvector->num_active_vectors=0;
+  mvector->num_active_vectors=0;
 
-   if (mask!=NULL)
-      for (i=0; i<num_vectors; i++)
-      {
-         if ( mask[i] )
-            mvector->active_indices[mvector->num_active_vectors++]=i;
-      }
-   else
-      for (i=0; i<num_vectors; i++)
-         mvector->active_indices[mvector->num_active_vectors++]=i;
+  if (mask!=NULL)
+    for (i=0; i<num_vectors; i++)
+    {
+      if ( mask[i] )
+	mvector->active_indices[mvector->num_active_vectors++]=i;
+    }
+  else
+    for (i=0; i<num_vectors; i++)
+      mvector->active_indices[mvector->num_active_vectors++]=i;
 
-   return 0;
- }
+  return 0;
+}
 
 /*--------------------------------------------------------------------------
  * serial_Multi_VectorSetConstantValues                               double
@@ -298,11 +485,11 @@ serial_Multi_VectorAxpy( double            alpha,
                         " y(<y_mask>) = alpha(<mask>) .* x(<x_mask>) "
  *--------------------------------------------------------------------------*/
 BlopexInt
-    serial_Multi_VectorByDiag( serial_Multi_Vector *x,
-                             BlopexInt                *mask,
-                             BlopexInt                n,
-                             double             *alpha,
-                             serial_Multi_Vector *y)
+serial_Multi_VectorByDiag( serial_Multi_Vector *x,
+				    BlopexInt                *mask,
+				    BlopexInt                n,
+				    double             *alpha,
+				    serial_Multi_Vector *y)
 {
    double  *x_data;
    double  *y_data;
@@ -360,9 +547,10 @@ BlopexInt
 /*--------------------------------------------------------------------------
  * serial_Multi_VectorInnerProd                                      double
  *--------------------------------------------------------------------------*/
-BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
-                                  serial_Multi_Vector *y,
-                                  BlopexInt gh, BlopexInt h, BlopexInt w, double* v)
+BlopexInt 
+serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
+				       serial_Multi_Vector *y,
+				       BlopexInt gh, BlopexInt h, BlopexInt w, double* v)
 {
    /* to be reworked! */
    double  *x_data;
@@ -483,9 +671,10 @@ BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
 /*--------------------------------------------------------------------------
  * serial_Multi_VectorInnerProdDiag                                   double
  *--------------------------------------------------------------------------*/
-BlopexInt serial_Multi_VectorInnerProdDiag( serial_Multi_Vector *x,
-                                      serial_Multi_Vector *y,
-                                      BlopexInt* mask, BlopexInt n, double* diag)
+BlopexInt 
+serial_Multi_VectorInnerProdDiag( serial_Multi_Vector *x,
+					   serial_Multi_Vector *y,
+					   BlopexInt* mask, BlopexInt n, double* diag)
 {
 /* to be reworked! */
    double   *x_data;
@@ -547,8 +736,10 @@ BlopexInt serial_Multi_VectorInnerProdDiag( serial_Multi_Vector *x,
  * serial_Multi_VectorByMatrix                                        double
  *--------------------------------------------------------------------------*/
 BlopexInt
- serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexInt rHeight,
-                                 BlopexInt rWidth, double* rVal, serial_Multi_Vector *y)
+serial_Multi_VectorByMatrix(serial_Multi_Vector *x, 
+				     BlopexInt rGHeight, BlopexInt rHeight,
+				     BlopexInt rWidth, double* rVal, 
+				     serial_Multi_Vector *y)
 {
    double   *x_data;
    double   *y_data;
@@ -667,9 +858,9 @@ BlopexInt
  * serial_Multi_VectorByMulti_Vector     z=x*y   with indices        double
  *--------------------------------------------------------------------------*/
 BlopexInt
- serial_Multi_VectorByMulti_Vector(serial_Multi_Vector *x,
-                                   serial_Multi_Vector *y,
-                                   serial_Multi_Vector *z)
+serial_Multi_VectorByMulti_Vector(serial_Multi_Vector *x,
+					   serial_Multi_Vector *y,
+					   serial_Multi_Vector *z)
 {
    double *x_data;
    double *y_data;
@@ -719,7 +910,9 @@ BlopexInt
 /*--------------------------------------------------------------------------
  * serial_Multi_VectorPrint                                          double
  *--------------------------------------------------------------------------*/
-BlopexInt serial_Multi_VectorPrint(serial_Multi_Vector * x,char * tag, BlopexInt limit)
+BlopexInt 
+serial_Multi_VectorPrint(serial_Multi_Vector * x,
+				  char * tag, BlopexInt limit)
 {
    double * p;
    BlopexInt     * pact;
@@ -750,4 +943,5 @@ BlopexInt serial_Multi_VectorPrint(serial_Multi_Vector * x,char * tag, BlopexInt
    }
 
    return 0;
+}
 }
