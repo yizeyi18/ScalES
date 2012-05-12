@@ -6,14 +6,14 @@ PLAT         = OSX
 #  The directories to find the various libraries
 #
 FFTWdir      = /opt/local/include
-LOBPCGDIR    = LOBPCG/include
+LOBPCGDIR    = LOBPCG
 #
 #  The name of the libraries to be created/linked to
 #
 FFTWLIB      = -L/opt/local/lib -lfftw3
 #IPMLIB       = -L/opt/ipm/lib -lipm
 
-LOBPCG_LIB   = LOBPCG/lib/libBLOPEX.a
+LOBPCG_LIB   = LOBPCG/libBLOPEX.a
 METIS_LIB    = METIS/libmetis.a
 SELINV_LIB   = SelInv/libselinv.a
 
@@ -29,7 +29,7 @@ BLAS         = -lblas
 
 ALIBS        = $(FFTWLIB) $(LOBPCG_LIB) $(SCALAPACK) $(LAPACK) $(BLAS) $(GFORTRAN)
 
-MODE	     = debug
+MODE	     = run
 
 ############################################################################
 #  Make our own suffixes' list.
@@ -97,7 +97,7 @@ CPPDEFS       =
 
 
 AR           = ar 
-ARFLAGS      = cr
+ARFLAGS      = rvcu
 #  For System V based machine without ranlib, like Cray and SGI,
 #  use touch instead.
 #RANLIB      = touch

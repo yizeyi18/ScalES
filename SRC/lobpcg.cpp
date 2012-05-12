@@ -1023,9 +1023,9 @@ namespace COMPLEX{ namespace LOBPCG{
   void
     ClearMultiVector(void *x)
     {
-      komplex kzero = {0.0,0.0};
       BlopexInt dummy;
 
+      komplex kzero = {0.0,0.0};
       dummy=serial_Multi_VectorSetConstantValues((serial_Multi_Vector *)x,kzero);
     }
 
@@ -1486,8 +1486,9 @@ namespace COMPLEX{ namespace LOBPCG{
 	dest = y_data + y_active_ind[i]*size;
 	current_alpha=&alpha[ al_active_ind[i] ];
 
-	for (j=0; j<size; j++)
-	  complex_multiply(&dest[j],current_alpha,&src[j]);
+	for (j=0; j<size; j++){
+//	  complex_multiply(&dest[j],current_alpha,&src[j]);
+	  }
       }
 
       free(al_active_ind);
@@ -1547,8 +1548,8 @@ namespace COMPLEX{ namespace LOBPCG{
 	for(k=0; k<size; k++) {
 	  conj.real=x_ptr[k].real;
 	  conj.imag=-x_ptr[k].imag;
-	  complex_multiply(&temp,&conj,&y_ptr[k]);
-	  complex_add(&current_product,&current_product,&temp);
+//	  complex_multiply(&temp,&conj,&y_ptr[k]);
+//	  complex_add(&current_product,&current_product,&temp);
 	}
 
 	/* fortran column-wise storage for results */
@@ -1624,8 +1625,8 @@ namespace COMPLEX{ namespace LOBPCG{
       for(k=0; k<size; k++) {
 	conj.real = x_ptr[k].real;
 	conj.imag = -x_ptr[k].imag;
-	complex_multiply(&temp,&conj,&y_ptr[k]);
-	complex_add(&current_product,&current_product,&temp);
+//	complex_multiply(&temp,&conj,&y_ptr[k]);
+//	complex_add(&current_product,&current_product,&temp);
       }
       diag[al_active_ind[i]] = current_product;
     }
@@ -1674,7 +1675,7 @@ namespace COMPLEX{ namespace LOBPCG{
 	current_coef = *rVal++;
 
 	for (k=0; k<size; k++)
-	  complex_multiply(&y_ptr[k],&current_coef,&x_ptr[k]);
+//	  complex_multiply(&y_ptr[k],&current_coef,&x_ptr[k]);
 
 	/* ------ now add all other members of a sum to "y" ----- */
 	for (i=1; i<rHeight; i++)
@@ -1683,8 +1684,8 @@ namespace COMPLEX{ namespace LOBPCG{
 	  current_coef = *rVal++;
 
 	  for (k=0; k<size; k++) {
-	    complex_multiply(&temp,&current_coef,&x_ptr[k]);
-	    complex_add(&y_ptr[k],&y_ptr[k],&temp);
+//	    complex_multiply(&temp,&current_coef,&x_ptr[k]);
+//	    complex_add(&y_ptr[k],&y_ptr[k],&temp);
 	  }
 	}
 
@@ -1736,8 +1737,8 @@ namespace COMPLEX{ namespace LOBPCG{
 	  pzc->real = 0.0;
 	  pzc->imag = 0.0;
 	  for (k=0, py=pyc; k<y->size; k++) {
-	    complex_multiply(&temp, pxr, py);
-	    complex_add(pzc, pzc, &temp);
+//	    complex_multiply(&temp, pxr, py);
+//	    complex_add(pzc, pzc, &temp);
 	    pxr += x->size;
 	    py++;
 	  }
@@ -1856,7 +1857,7 @@ namespace COMPLEX{ namespace LOBPCG{
 	for ( i = j; i < h; i++, p++, q += g ) {
 	  conj_q.real = q->real;
 	  conj_q.imag = - (q->imag);
-	  complex_add(p,p,&conj_q);
+//	  complex_add(p,p,&conj_q);
 	  p->real = p->real/2;
 	  p->imag = p->imag/2;
 	  q->real = p->real;

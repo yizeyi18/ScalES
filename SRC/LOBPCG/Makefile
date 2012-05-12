@@ -1,56 +1,39 @@
-include make.inc.${HOSTID}
-#include Makefile.inc 
-
-DIRS = multivector krylov utilities
+include ../../make.inc.${HOSTID}
 
 HEADERS = \
-multivector/interpreter.h \
-multivector/multivector.h \
-krylov/lobpcg.h \
-multivector/temp_multivector.h \
-utilities/fortran_matrix.h \
-utilities/fortran_interpreter.h \
-utilities/fortran_options.h
+interpreter.h \
+multivector.h \
+lobpcg.h \
+fortran_matrix.h \
+fortran_interpreter.h \
+fortran_options.h
 
-LIB = libBLOPEX.${AR_LIB_SUFFIX}
+LIB = libBLOPEX.a
 
 ##################################################################
 # Targets
 ##################################################################
 
 all: $(LIB) 
-	mkdir -p include
-	cp -fp  ${HEADERS} include
 
-objects: 
-	@ \
-        mkdir -p lib; \
-        for i in ${DIRS}; \
-        do \
-          echo "Making $$i ..."; \
-          (cd $$i && $(MAKE)); \
-          (cp -fp $$i/***.o ./lib/); \
-          echo ""; \
-        done
+objects = fortran_matrix.o multivector.o lobpcg.o 
+
+fortran_matrix.o: fortran_matrix.c fortran_matrix.h
+
+multivector.o: multivector.c multivector.h
+
+lobpcg.o: lobpcg.c lobpcg.h fortran_matrix.h
 
 clean: 
-	@ \
-	rm -f lib/*; \
-        for i in ${DIRS}; \
-        do \
-          if [ -d $$i ]; \
-          then \
-            echo "Cleaning $$i ..."; \
-            (cd $$i &&  $(MAKE) $@); \
-          fi; \
-        done
+	rm -f *.o *.a
 	
 
 ##################################################################
 # Rules
 ##################################################################
 
-$(LIB) : objects 
+$(LIB) : $(objects)
 	@echo  "Building $@ ... "
-	cd lib && ${AR} $@ ./*.o 
-	cd lib && ${RANLIB} $@
+	echo $(objects)
+	$(AR) $(ARFLAGS) $@ $(objects)
+	$(RANLIB) $@

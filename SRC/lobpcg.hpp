@@ -131,7 +131,6 @@ namespace REAL{ namespace LOBPCG{
 namespace COMPLEX{ namespace LOBPCG{
   //----------------------------------------------------------------
   typedef struct {double real, imag;} komplex;
-  komplex kzero = {0.0,0.0};
   void complex_multiply(komplex* A, komplex* B, komplex* C);
   void complex_add(komplex* A, komplex* B, komplex* C);
   void complex_subtract(komplex* A, komplex* B, komplex* C);

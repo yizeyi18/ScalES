@@ -1,6 +1,0 @@
-CC     = mpicxx
-CFLAGS = -O3 -fPIC
-
-AR = ar -rvcu
-RANLIB = ranlib
-AR_LIB_SUFFIX = a
