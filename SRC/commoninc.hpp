@@ -57,5 +57,11 @@ using std::cerr;
 using std::ios;
 
 
-#endif
+// Macros for namespace scope.
+# define _BEGIN_NESTED_NAMESPACE(X, Y)  namespace X { namespace Y {
+# define _END_NESTED_NAMESPACE } }
+# define _BEGIN_NAMESPACE(X) 
+# define _END_NAMESPACE }
 
+
+#endif

@@ -26,8 +26,8 @@ using std::istream;
 using std::istringstream;
 using std::ifstream;
 using std::ofstream;
-using LOBPCG::serial_Multi_Vector;
-using LOBPCG::SerialSetupInterpreter;
+using REAL::LOBPCG::serial_Multi_Vector;
+using REAL::LOBPCG::SerialSetupInterpreter;
 
 //----------------------------------------------------------------
 class EigPW
