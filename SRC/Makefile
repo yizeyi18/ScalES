@@ -4,11 +4,9 @@
 include ../make.inc.${HOSTID}
 
 # With SCFPW version
-OBJS 	= esdfutil.o  esdf.o  multi_vector.o  \
-	pcg_multi.o vecmatop.o spline.o parallel.o periodtable.o \
-	eigpw.o  scfpw.o \
-	lglnodes.o interp.o scfdg_setup.o scfdg_scf.o eigdg.o eigdg_A.o eigdg_std.o \
-	lobpcg.o
+OBJS 	= esdfutil.o  esdf.o  vecmatop.o spline.o parallel.o periodtable.o \
+	lobpcg.o eigpw.o  scfpw.o lglnodes.o interp.o scfdg_setup.o scfdg_scf.o \
+	eigdg.o eigdg_A.o eigdg_std.o 
 
 # NO SCFPW version
 #OBJS 	= esdfutil.o  esdf.o  multi_vector.o  \

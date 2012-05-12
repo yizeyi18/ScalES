@@ -29,7 +29,7 @@ BLAS         = -lblas
 
 ALIBS        = $(FFTWLIB) $(LOBPCG_LIB) $(SCALAPACK) $(LAPACK) $(BLAS) $(GFORTRAN)
 
-MODE	     = run
+MODE	     = debug
 
 ############################################################################
 #  Make our own suffixes' list.

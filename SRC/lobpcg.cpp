@@ -179,8 +179,7 @@ SerialSetupInterpreter( mv_InterfaceInterpreter *i )
   /* Multivector part */
 
   i->CreateMultiVector = NULL;
-//  i->CopyCreateMultiVector = ((void*)(*)(void*,BlopexInt))(&CreateCopyMultiVector);
-//  i->CopyCreateMultiVector = (&CreateCopyMultiVector);
+  i->CopyCreateMultiVector = CreateCopyMultiVector;
   i->DestroyMultiVector = DestroyMultiVector;
 
   i->Width = MultiVectorWidth;
