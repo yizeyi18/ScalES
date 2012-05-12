@@ -9,10 +9,9 @@
 #include "fortran_matrix.h"
 #include "fortran_interpreter.h"
 #include "lobpcg.h"
-#include "multi_vector.h"
 #include "multivector.h"
-#include "pcg_multi.h"
 #include "interpreter.h"
+#include "lobpcg.hpp"
 
 #include "periodtable.hpp"
 
@@ -27,6 +26,8 @@ using std::istream;
 using std::istringstream;
 using std::ifstream;
 using std::ofstream;
+using LOBPCG::serial_Multi_Vector;
+using LOBPCG::SerialSetupInterpreter;
 
 //----------------------------------------------------------------
 class EigPW

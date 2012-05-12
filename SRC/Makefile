@@ -7,7 +7,8 @@ include ../make.inc.${HOSTID}
 OBJS 	= esdfutil.o  esdf.o  multi_vector.o  \
 	pcg_multi.o vecmatop.o spline.o parallel.o periodtable.o \
 	eigpw.o  scfpw.o \
-	lglnodes.o interp.o scfdg_setup.o scfdg_scf.o eigdg.o eigdg_A.o eigdg_std.o
+	lglnodes.o interp.o scfdg_setup.o scfdg_scf.o eigdg.o eigdg_A.o eigdg_std.o \
+	lobpcg.o
 
 # NO SCFPW version
 #OBJS 	= esdfutil.o  esdf.o  multi_vector.o  \
@@ -37,7 +38,10 @@ tstdg: 	tstdg.o libdft.a $(LOBPCG_LIB)
 $(LOBPCG_LIB):
 	(cd LOBPCG; make)
 
-PARPACK=/usr/common/usg/parpack/2.1/parpack_MPI-XE6.a  -L/usr/common/usg/parpack/2.1 -larpack_XE6
+
+
+testlobpcg: testlobpcg.o libdft.a $(LOBPCG_LIB)
+	$(LOADER) $(LOADOPTS) -o testlobpcg testlobpcg.o $(OBJS) $(ALIBS)
 
 testeig: pdeig.o testeig.o
 	$(LOADER) testeig.o pdeig.o $(PARPACK) -o testeig
