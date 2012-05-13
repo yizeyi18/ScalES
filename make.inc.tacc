@@ -6,7 +6,7 @@ PLAT         = TACC
 #  The directories to find the various libraries
 #
 FFTWdir      = /usr/include
-LOBPCGDIR    = ../SRC/LOBPCG/include
+LOBPCGDIR    = ../SRC/LOBPCG
 #
 #  The name of the libraries to be created/linked to
 #
@@ -15,7 +15,7 @@ MKL          = -Wl,-rpath,$(TACC_MKL_LIB) -L$(TACC_MKL_LIB) -lmkl_em64t -liomp5 
 ARPACK_LIB   = /opt/ARPACK/libarpack_LINUX.a
 ARPACKPP_INC    = /opt/arpack++/include 
 FORTRAN_LIB      = -lgfortran
-LOBPCG_LIB = ../SRC/LOBPCG/lib/libBLOPEX.a
+LOBPCG_LIB = ../SRC/LOBPCG/libBLOPEX.a
 
 #ALIBS        = $(FFTWLIB) $(LAPACKLIB) $(BLASLIB) $(LOBPCG_LIB) $(FORTRAN_LIB)
 ALIBS        = $(FFTWLIB) $(LOBPCG_LIB) $(MKL)

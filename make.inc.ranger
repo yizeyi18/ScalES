@@ -5,13 +5,13 @@ PLAT         = RANGER
 #
 #  The directories to find the various libraries
 #
-LOBPCGDIR    = LOBPCG/include
+LOBPCGDIR    = LOBPCG
 #
 #  The name of the libraries to be created/linked to
 #
 FFTWLIB		= -L$(TACC_FFTW3_LIB) -lfftw3
 MKL		= ${TACC_MKL_LIB}/libmkl_solver_lp64_sequential.a -Wl,--start-group -L${TACC_SCALAPACK_LIB} -lscalapack ${TACC_SCALAPACK_LIB}/blacsCinit_MPI-LINUX-0.a ${TACC_SCALAPACK_LIB}/blacs_MPI-LINUX-0.a ${TACC_MKL_LIB}/libmkl_intel_lp64.a ${TACC_MKL_LIB}/libmkl_sequential.a ${TACC_MKL_LIB}/libmkl_core.a -Wl,--end-group -lguide -L${IFC_LIB} -lifcore 
-LOBPCG_LIB 	= -LLOBPCG/lib -lBLOPEX
+LOBPCG_LIB 	= -LLOBPCG -lBLOPEX
 
 #MKL          = -Wl,-rpath,$(TACC_MKL_LIB) -L$(TACC_MKL_LIB) -lmkl -lguide -lpthread
 

@@ -856,58 +856,6 @@ namespace REAL{ namespace LOBPCG{
 
       return 0;
     }
-  /*--------------------------------------------------------------------------
-   * serial_Multi_VectorByMulti_Vector     z=x*y   with indices        double
-   *--------------------------------------------------------------------------*/
-  BlopexInt
-    serial_Multi_VectorByMulti_Vector(serial_Multi_Vector *x,
-				      serial_Multi_Vector *y,
-				      serial_Multi_Vector *z)
-    {
-      double *x_data;
-      double *y_data;
-      double *z_data;
-
-      BlopexInt    * x_index;
-      BlopexInt    * y_index;
-      BlopexInt    * z_index;
-
-      double * pzc;
-      double * pyc;
-      double * pxr;
-      double * py;
-
-      BlopexInt      i,j,k;
-
-      assert (x->num_active_vectors == y->size);
-      assert (z->size == x->size);
-      assert (z->num_active_vectors == y->num_active_vectors);
-
-      x_data = (double *) x->data;
-      y_data = (double *) y->data;
-      z_data = (double *) z->data;
-
-      x_index = x->active_indices;
-      y_index = y->active_indices;
-      z_index = z->active_indices;
-
-      for (j=0; j<y->num_active_vectors; j++) {
-	pzc = z_data + z->size*z_index[j];
-	pyc = y_data + y->size*y_index[j];
-	for (i=0;i<x->size;i++) {
-	  pxr = x_data + i + x->size*x_index[0];
-	  *pzc = 0.0;
-	  for (k=0, py=pyc; k<y->size; k++) {
-	    *pzc += *pxr * *py ;
-	    pxr += x->size;
-	    py++;
-	  }
-	  pzc++;
-	}
-      }
-
-      return 0;
-    }
 
   /*--------------------------------------------------------------------------
    * serial_Multi_VectorPrint                                          double
@@ -1025,8 +973,7 @@ namespace COMPLEX{ namespace LOBPCG{
     {
       BlopexInt dummy;
 
-      komplex kzero = {0.0,0.0};
-      dummy=serial_Multi_VectorSetConstantValues((serial_Multi_Vector *)x,kzero);
+      dummy=serial_Multi_VectorSetConstantValues((serial_Multi_Vector *)x,cpx(0.0));
     }
 
   /*--------------------------------------------------------------------------
@@ -1050,7 +997,7 @@ namespace COMPLEX{ namespace LOBPCG{
     {
       serial_Multi_VectorInnerProd( (serial_Multi_Vector *)x_,
 				    (serial_Multi_Vector *)y_,
-				    gh, h, w, (komplex *) v);
+				    gh, h, w, (cpx *) v);
     }
 
 
@@ -1063,7 +1010,7 @@ namespace COMPLEX{ namespace LOBPCG{
     {
       serial_Multi_VectorInnerProdDiag( (serial_Multi_Vector *)x_,
 					(serial_Multi_Vector *)y_,
-					mask, n, (komplex *) diag);
+					mask, n, (cpx *) diag);
     }
 
   /*--------------------------------------------------------------------------
@@ -1077,7 +1024,7 @@ namespace COMPLEX{ namespace LOBPCG{
       BlopexInt dummy;
 
       dummy = serial_Multi_VectorByDiag( (serial_Multi_Vector *) x, mask, n,
-					 (komplex *) diag,
+					 (cpx *) diag,
 					 (serial_Multi_Vector *) y );
     }
 
@@ -1090,7 +1037,7 @@ namespace COMPLEX{ namespace LOBPCG{
 			 void* y )
     {
       serial_Multi_VectorByMatrix((serial_Multi_Vector *)x, gh, h,
-				  w, (komplex *) v, (serial_Multi_Vector *)y);
+				  w, (cpx *) v, (serial_Multi_Vector *)y);
 
     }
   /*--------------------------------------------------------------------------
@@ -1188,7 +1135,7 @@ namespace COMPLEX{ namespace LOBPCG{
       num_vectors = serial_Multi_VectorNumVectors(mvector);
 
       if (NULL==serial_Multi_VectorData(mvector))
-	serial_Multi_VectorData(mvector) = (double*) malloc (sizeof(komplex)*size*num_vectors);
+	serial_Multi_VectorData(mvector) = (cpx*) malloc (sizeof(cpx)*size*num_vectors);
 
       /* now we create a "mask" of "active" vectors; initially all vectors are active */
       if (NULL==mvector->active_indices)
@@ -1275,9 +1222,9 @@ namespace COMPLEX{ namespace LOBPCG{
    *--------------------------------------------------------------------------*/
   BlopexInt
     serial_Multi_VectorSetConstantValues( serial_Multi_Vector *v,
-					  komplex value)
+					  cpx value)
     {
-      komplex  *vector_data = (komplex *) serial_Multi_VectorData(v);
+      cpx  *vector_data = (cpx *) serial_Multi_VectorData(v);
       BlopexInt      size        = serial_Multi_VectorSize(v);
       BlopexInt      i, j, start_offset, end_offset;
 
@@ -1301,11 +1248,14 @@ namespace COMPLEX{ namespace LOBPCG{
   BlopexInt
     serial_Multi_VectorSetRandomValues( serial_Multi_Vector *v, BlopexInt seed)
     {
-      komplex  *vector_data = (komplex *) serial_Multi_VectorData(v);
+      cpx  *vector_data = (cpx *) serial_Multi_VectorData(v);
       BlopexInt      size        = serial_Multi_VectorSize(v);
       BlopexInt      i, j, start_offset, end_offset;
 
-      srand48(seed);
+      // FIXME
+      // srand48(seed);
+      srand48(1);
+
       printf("random size %d\n",size);
       printf("random active vectors %d\n",v->num_active_vectors);
       for (i = 0; i < v->num_active_vectors; i++)
@@ -1314,8 +1264,7 @@ namespace COMPLEX{ namespace LOBPCG{
 	end_offset = start_offset+size;
 
 	for (j=start_offset; j < end_offset; j++) {
-	  vector_data[j].real= 2.0 * drand48() - 1.0;
-	  vector_data[j].imag= 2.0 * drand48() - 1.0;;
+	  vector_data[j] = cpx(2.0 * drand48() - 1.0, 2.0 * drand48() - 1.0);
 	}
       }
 
@@ -1330,14 +1279,14 @@ namespace COMPLEX{ namespace LOBPCG{
   BlopexInt
     serial_Multi_VectorCopy( serial_Multi_Vector *x, serial_Multi_Vector *y)
     {
-      komplex *x_data;
-      komplex *y_data;
+      cpx *x_data;
+      cpx *y_data;
       BlopexInt i;
       BlopexInt size;
       BlopexInt num_bytes;
       BlopexInt num_active_vectors;
-      komplex * dest;
-      komplex * src;
+      cpx * dest;
+      cpx * src;
       BlopexInt * x_active_ind;
       BlopexInt * y_active_ind;
 
@@ -1345,15 +1294,15 @@ namespace COMPLEX{ namespace LOBPCG{
 
       num_active_vectors = x->num_active_vectors;
       size = x->size;
-      num_bytes = size*sizeof(komplex);
-      x_data = (komplex *) x->data;
-      y_data = (komplex *) y->data;
+      num_bytes = size*sizeof(cpx);
+      x_data = (cpx *) x->data;
+      y_data = (cpx *) y->data;
       x_active_ind=x->active_indices;
       y_active_ind=y->active_indices;
 
       for (i=0; i<num_active_vectors; i++)
       {
-	src=x_data + size * x_active_ind[i];
+	src  = x_data + size * x_active_ind[i];
 	dest = y_data + size * y_active_ind[i];
 
 	memcpy(dest,src,num_bytes);
@@ -1374,7 +1323,7 @@ namespace COMPLEX{ namespace LOBPCG{
 
       assert (x->size == y->size && x->num_vectors == y->num_vectors);
 
-      byte_count = sizeof(komplex) * x->size * x->num_vectors;
+      byte_count = sizeof(cpx) * x->size * x->num_vectors;
 
       /* threading not done here since it's not done (reason?) in serial_VectorCopy
 	 from vector.c */
@@ -1395,10 +1344,10 @@ namespace COMPLEX{ namespace LOBPCG{
 			     serial_Multi_Vector *x,
 			     serial_Multi_Vector *y)
     {
-      komplex  *x_data;
-      komplex  *y_data;
-      komplex * src;
-      komplex * dest;
+      cpx * x_data;
+      cpx * y_data;
+      cpx * src;
+      cpx * dest;
       BlopexInt * x_active_ind;
       BlopexInt * y_active_ind;
       BlopexInt i, j;
@@ -1407,8 +1356,8 @@ namespace COMPLEX{ namespace LOBPCG{
 
       assert (x->size == y->size && x->num_active_vectors == y->num_active_vectors);
 
-      x_data = (komplex *) x->data;
-      y_data = (komplex *) y->data;
+      x_data = (cpx *) x->data;
+      y_data = (cpx *) y->data;
       size = x->size;
       num_active_vectors = x->num_active_vectors;
       x_active_ind = x->active_indices;
@@ -1420,8 +1369,9 @@ namespace COMPLEX{ namespace LOBPCG{
 	dest = y_data + y_active_ind[i]*size;
 
 	for (j=0; j<size; j++) {
-	  dest[j].real += alpha*src[j].real;
-	  dest[j].imag += alpha*src[j].imag;
+	  dest[j] += alpha * src[j];
+//	  dest[j].real += alpha*src[j].real;
+//	  dest[j].imag += alpha*src[j].imag;
 	}
       }
 
@@ -1434,25 +1384,26 @@ namespace COMPLEX{ namespace LOBPCG{
    * if y and x are mxn then alpha is nx1
    * call seq < MultiVectorByDiagonal < i->MultiVecMatDiag < mv_MultiVectorByDiagonal
    *--------------------------------------------------------------------------*/
+  //FIXME
   BlopexInt
     serial_Multi_VectorByDiag( serial_Multi_Vector *x,
-			       BlopexInt                 *mask,
-			       BlopexInt                 n,
-			       komplex             *alpha,
+			       BlopexInt           *mask,
+			       BlopexInt           n,
+			       cpx                 *alpha,
 			       serial_Multi_Vector *y)
     {
-      komplex  *x_data;
-      komplex  *y_data;
+      cpx  *x_data;
+      cpx  *y_data;
       BlopexInt      size;
       BlopexInt      num_active_vectors;
       BlopexInt      i,j;
-      komplex  *dest;
-      komplex  *src;
+      cpx  *dest;
+      cpx  *src;
       BlopexInt * x_active_ind;
       BlopexInt * y_active_ind;
       BlopexInt * al_active_ind;
       BlopexInt num_active_als;
-      komplex * current_alpha;
+      cpx * current_alpha;
 
       assert (x->size == y->size && x->num_active_vectors == y->num_active_vectors);
 
@@ -1473,8 +1424,8 @@ namespace COMPLEX{ namespace LOBPCG{
 
       assert (num_active_als==x->num_active_vectors);
 
-      x_data = (komplex *) x->data;
-      y_data = (komplex *) y->data;
+      x_data = (cpx *) x->data;
+      y_data = (cpx *) y->data;
       size = x->size;
       num_active_vectors = x->num_active_vectors;
       x_active_ind = x->active_indices;
@@ -1487,6 +1438,7 @@ namespace COMPLEX{ namespace LOBPCG{
 	current_alpha=&alpha[ al_active_ind[i] ];
 
 	for (j=0; j<size; j++){
+          dest[j] = (*current_alpha) * src[j]; 
 //	  complex_multiply(&dest[j],current_alpha,&src[j]);
 	  }
       }
@@ -1502,28 +1454,27 @@ namespace COMPLEX{ namespace LOBPCG{
    *--------------------------------------------------------------------------*/
   BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
 					  serial_Multi_Vector *y,
-					  BlopexInt gh, BlopexInt h, BlopexInt w, komplex* v)
+					  BlopexInt gh, BlopexInt h, BlopexInt w, cpx* v)
   {
     /* to be reworked! */
-    komplex *x_data;
-    komplex *y_data;
+    cpx *x_data;
+    cpx *y_data;
     BlopexInt      size;
     BlopexInt      x_num_active_vectors;
     BlopexInt      y_num_active_vectors;
     BlopexInt      i,j,k;
-    komplex *y_ptr;
-    komplex *x_ptr;
+    cpx *y_ptr;
+    cpx *x_ptr;
     BlopexInt * x_active_ind;
     BlopexInt * y_active_ind;
-    komplex current_product;
-    komplex temp;
-    komplex conj;
+    cpx current_product;
+    cpx temp;
     BlopexInt gap;
 
     assert (x->size==y->size);
 
-    x_data = (komplex *) x->data;
-    y_data = (komplex *) y->data;
+    x_data = (cpx *) x->data;
+    y_data = (cpx *) y->data;
     size = x->size;
     x_num_active_vectors = x->num_active_vectors;
     y_num_active_vectors = y->num_active_vectors;
@@ -1542,12 +1493,10 @@ namespace COMPLEX{ namespace LOBPCG{
       for (i=0; i<x_num_active_vectors; i++) {
 
 	x_ptr = x_data + x_active_ind[i]*size;
-	current_product.real = 0.0;
-	current_product.imag = 0.0;
+	current_product = cpx(0.0, 0.0);
 
 	for(k=0; k<size; k++) {
-	  conj.real=x_ptr[k].real;
-	  conj.imag=-x_ptr[k].imag;
+          current_product += conj(x_ptr[k]) * y_ptr[k];
 //	  complex_multiply(&temp,&conj,&y_ptr[k]);
 //	  complex_add(&current_product,&current_product,&temp);
 	}
@@ -1571,20 +1520,19 @@ namespace COMPLEX{ namespace LOBPCG{
    *--------------------------------------------------------------------------*/
   BlopexInt serial_Multi_VectorInnerProdDiag( serial_Multi_Vector *x,
 					      serial_Multi_Vector *y,
-					      BlopexInt* mask, BlopexInt n, komplex* diag)
+					      BlopexInt* mask, BlopexInt n, cpx* diag)
   {
     /* to be reworked! */
-    komplex  *x_data;
-    komplex  *y_data;
+    cpx  *x_data;
+    cpx  *y_data;
     BlopexInt      size;
     BlopexInt      num_active_vectors;
     BlopexInt      * x_active_ind;
     BlopexInt      * y_active_ind;
-    komplex  *y_ptr;
-    komplex  *x_ptr;
-    komplex  current_product;
-    komplex  temp;
-    komplex  conj;
+    cpx  *y_ptr;
+    cpx  *x_ptr;
+    cpx  current_product;
+    cpx  temp;
     BlopexInt      i, k;
     BlopexInt      * al_active_ind;
     BlopexInt      num_active_als;
@@ -1608,8 +1556,8 @@ namespace COMPLEX{ namespace LOBPCG{
 
     assert (num_active_als==x->num_active_vectors);
 
-    x_data = (komplex *) x->data;
-    y_data = (komplex *) y->data;
+    x_data = (cpx *) x->data;
+    y_data = (cpx *) y->data;
     size = x->size;
     num_active_vectors = x->num_active_vectors;
     x_active_ind = x->active_indices;
@@ -1619,12 +1567,10 @@ namespace COMPLEX{ namespace LOBPCG{
     {
       x_ptr = x_data + x_active_ind[i]*size;
       y_ptr = y_data + y_active_ind[i]*size;
-      current_product.real = 0.0;
-      current_product.imag = 0.0;
+      current_product = cpx(0.0, 0.0);
 
       for(k=0; k<size; k++) {
-	conj.real = x_ptr[k].real;
-	conj.imag = -x_ptr[k].imag;
+	current_product += conj(x_ptr[k]) * y_ptr[k];
 //	complex_multiply(&temp,&conj,&y_ptr[k]);
 //	complex_add(&current_product,&current_product,&temp);
       }
@@ -1640,27 +1586,28 @@ namespace COMPLEX{ namespace LOBPCG{
    *
    * call seq < MultiVectorByMatrix < i->MultiVecMat < mv_MultiVectorByMatrix
    *--------------------------------------------------------------------------*/
+  // FIXME
   BlopexInt
     serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexInt rHeight,
-				BlopexInt rWidth, komplex* rVal, serial_Multi_Vector *y)
+				BlopexInt rWidth, cpx* rVal, serial_Multi_Vector *y)
     {
-      komplex *x_data;
-      komplex *y_data;
+      cpx *x_data;
+      cpx *y_data;
       BlopexInt      size;
       BlopexInt     * x_active_ind;
       BlopexInt     * y_active_ind;
-      komplex *y_ptr;
-      komplex *x_ptr;
-      komplex  current_coef;
-      komplex  temp;
+      cpx *y_ptr;
+      cpx *x_ptr;
+      cpx  current_coef;
+      cpx  temp;
       BlopexInt      i,j,k;
       BlopexInt      gap;
 
       assert(rHeight>0);
       assert (rHeight==x->num_active_vectors && rWidth==y->num_active_vectors);
 
-      x_data = (komplex *) x->data;
-      y_data = (komplex *) y->data;
+      x_data = (cpx *) x->data;
+      y_data = (cpx *) y->data;
       size = x->size;
       x_active_ind = x->active_indices;
       y_active_ind = y->active_indices;
@@ -1675,6 +1622,7 @@ namespace COMPLEX{ namespace LOBPCG{
 	current_coef = *rVal++;
 
 	for (k=0; k<size; k++)
+	  y_ptr[k] = current_coef * x_ptr[k];
 //	  complex_multiply(&y_ptr[k],&current_coef,&x_ptr[k]);
 
 	/* ------ now add all other members of a sum to "y" ----- */
@@ -1684,6 +1632,7 @@ namespace COMPLEX{ namespace LOBPCG{
 	  current_coef = *rVal++;
 
 	  for (k=0; k<size; k++) {
+	    y_ptr[k] += current_coef * x_ptr[k];
 //	    complex_multiply(&temp,&current_coef,&x_ptr[k]);
 //	    complex_add(&y_ptr[k],&y_ptr[k],&temp);
 	  }
@@ -1694,67 +1643,13 @@ namespace COMPLEX{ namespace LOBPCG{
 
       return 0;
     }
-  /*--------------------------------------------------------------------------
-   * serial_Multi_VectorByMulti_Vector     z=x*y   with indices        complex
-   *--------------------------------------------------------------------------*/
-  BlopexInt
-    serial_Multi_VectorByMulti_Vector(serial_Multi_Vector *x,
-				      serial_Multi_Vector *y,
-				      serial_Multi_Vector *z)
-    {
-      komplex *x_data;
-      komplex *y_data;
-      komplex *z_data;
-
-      BlopexInt     * x_index;
-      BlopexInt     * y_index;
-      BlopexInt     * z_index;
-      komplex * pzc;
-      komplex * pyc;
-      komplex * pxr;
-      komplex * py;
-
-      komplex  temp;
-      BlopexInt      i,j,k;
-
-      assert (x->num_active_vectors == y->size);
-      assert (z->size == x->size);
-      assert (z->num_active_vectors == y->num_active_vectors);
-
-      x_data = (komplex *) x->data;
-      y_data = (komplex *) y->data;
-      z_data = (komplex *) z->data;
-
-      x_index = x->active_indices;
-      y_index = y->active_indices;
-      z_index = z->active_indices;
-
-      for (j=0; j<y->num_active_vectors; j++) {
-	pzc = z_data + z->size*z_index[j];
-	pyc = y_data + y->size*y_index[j];
-	for (i=0;i<x->size;i++) {
-	  pxr = x_data + i + x->size*x_index[0];
-	  pzc->real = 0.0;
-	  pzc->imag = 0.0;
-	  for (k=0, py=pyc; k<y->size; k++) {
-//	    complex_multiply(&temp, pxr, py);
-//	    complex_add(pzc, pzc, &temp);
-	    pxr += x->size;
-	    py++;
-	  }
-	  pzc++;
-	}
-      }
-
-      return 0;
-    }
 
   /*--------------------------------------------------------------------------
    * serial_Multi_VectorPrint                                          complex
    *--------------------------------------------------------------------------*/
   BlopexInt serial_Multi_VectorPrint(serial_Multi_Vector * x,char * tag, BlopexInt limit)
   {
-    komplex * p;
+    cpx * p;
     BlopexInt     * pact;
     BlopexInt       i, j;
     BlopexInt     rows,cols;
@@ -1776,10 +1671,10 @@ namespace COMPLEX{ namespace LOBPCG{
       printf("index %d active %d\n", i, *pact);
 
     for (i=0; i<cols; i++)
-    {  p=(komplex *)x->data;
+    {  p=(cpx *)x->data;
       p = &p[x->active_indices[i]*x->size];
       for (j = 0; j < rows; j++,p++)
-	printf("%d %d  %22.16e  %22.16e \n",j,i,p->real,p->imag);
+	printf("%d %d  %22.16e  %22.16e \n",j,i,p->real(),p->imag());
     }
 
     return 0;
@@ -1796,76 +1691,6 @@ namespace COMPLEX{ namespace LOBPCG{
     printf("num active vectors  %d\n",x->num_active_vectors);
     return(0);
   }
-
-  /*--------------------------------------------------------------------------
-   * serial_Multi_VectorLoad                                          complex
-   *--------------------------------------------------------------------------*/
-  serial_Multi_Vector *
-    serial_Multi_VectorLoad( char fileName[] ) {
-
-      BlopexInt size, num_vectors, num_elements, j;
-      serial_Multi_Vector *mvector;
-
-      FILE* fp;
-      komplex* p;
-      float freal, fimag;
-
-      if ( (fp=fopen(fileName,"r") )==NULL) {
-	printf("file open failed\n");
-	return NULL;
-      }
-      fscanf(fp,"%d %d",&size, &num_vectors);
-      num_elements = size*num_vectors;
-      mvector = serial_Multi_VectorCreate(size, num_vectors);
-      serial_Multi_VectorInitialize( mvector);
-
-      p = (komplex *)mvector->data;
-      j = 0;
-      while ( fscanf(fp,"%e %e",&freal,&fimag) != EOF && j<num_elements ) {
-	p->real = freal;
-	p->imag = fimag;
-	j++;
-	p++;
-      }
-      fclose(fp);
-      return mvector;
-    }
-  /* ------------------------------------------------------------
-     serial_Multi_VectorSymmetrize                        complex
-     mtx=(mtx+transpose(mtx))/2
-     ------------------------------------------------------------ */
-  void
-    serial_Multi_VectorSymmetrize( serial_Multi_Vector * mtx ) {
-
-      long i, j, g, h, w, jump;
-      komplex* p;
-      komplex* q;
-      komplex conj_q;
-
-      assert( mtx != NULL );
-
-      g = mtx->size;
-      h = mtx->size;
-      w = mtx->num_vectors;
-
-      assert( h == w );
-
-      jump = 0;
-
-      for ( j = 0, p = (komplex *) mtx->data; j < w; j++ ) {
-	q = p;
-	for ( i = j; i < h; i++, p++, q += g ) {
-	  conj_q.real = q->real;
-	  conj_q.imag = - (q->imag);
-//	  complex_add(p,p,&conj_q);
-	  p->real = p->real/2;
-	  p->imag = p->imag/2;
-	  q->real = p->real;
-	  q->imag = -(p->imag);
-	}
-	p += ++jump;
-      }
-    }
 
 
 } }

@@ -94,12 +94,10 @@ namespace REAL{ namespace LOBPCG{
   BlopexInt serial_Multi_VectorSetConstantValues(serial_Multi_Vector *v,double value);
   BlopexInt serial_Multi_VectorSetRandomValues(serial_Multi_Vector *v , BlopexInt seed);
   BlopexInt serial_Multi_VectorCopy( serial_Multi_Vector *x , serial_Multi_Vector *y);
-  BlopexInt serial_Multi_VectorScale( double alpha , serial_Multi_Vector *y, BlopexInt *mask  );
   BlopexInt serial_Multi_VectorAxpy( double alpha , serial_Multi_Vector *x , serial_Multi_Vector *y);
   BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
 					  serial_Multi_Vector *y,
 					  BlopexInt gh, BlopexInt h, BlopexInt w, double* v);
-  BlopexInt serial_Multi_VectorMultiScale( double *alpha, serial_Multi_Vector *v, BlopexInt *mask );
 
   BlopexInt serial_Multi_VectorByDiag( serial_Multi_Vector *x,
 				       BlopexInt                *mask,
@@ -118,10 +116,6 @@ namespace REAL{ namespace LOBPCG{
   BlopexInt
     serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexInt rHeight,
 				BlopexInt rWidth, double* rVal, serial_Multi_Vector *y);
-  BlopexInt
-    serial_Multi_VectorByMulti_Vector(serial_Multi_Vector *x,
-				      serial_Multi_Vector *y,
-				      serial_Multi_Vector *z);
 } }
 
 
@@ -130,16 +124,11 @@ namespace REAL{ namespace LOBPCG{
 // Complex version (double precision) of LOBPCG
 namespace COMPLEX{ namespace LOBPCG{
   //----------------------------------------------------------------
-  typedef struct {double real, imag;} komplex;
-  void complex_multiply(komplex* A, komplex* B, komplex* C);
-  void complex_add(komplex* A, komplex* B, komplex* C);
-  void complex_subtract(komplex* A, komplex* B, komplex* C);
-  void complex_divide(komplex* A, komplex* B, komplex* C);
 
   //----------------------------------------------------------------
   class serial_Multi_Vector {
     public:
-      double  *data;
+      cpx            *data;
       BlopexInt      size;
       BlopexInt      owns_data;
       BlopexInt      num_vectors;  /* the above "size" is size of one vector */
@@ -188,7 +177,6 @@ namespace COMPLEX{ namespace LOBPCG{
 
   // From multi_vector.h  
   serial_Multi_Vector * serial_Multi_VectorCreate( BlopexInt size, BlopexInt num_vectors  );
-  serial_Multi_Vector * serial_Multi_VectorLoad( char fileName[] );
 
   BlopexInt serial_Multi_VectorDestroy( serial_Multi_Vector *vector );
   BlopexInt serial_Multi_VectorInitialize( serial_Multi_Vector *vector );
@@ -197,25 +185,23 @@ namespace COMPLEX{ namespace LOBPCG{
      BlopexInt serial_Multi_VectorPrint( serial_Multi_Vector *vector, const char *file_name );
      */
   BlopexInt serial_Multi_VectorPrint( serial_Multi_Vector *vector, char * tag, BlopexInt limit);
-  BlopexInt serial_Multi_VectorSetConstantValues(serial_Multi_Vector *v, komplex value);
+  BlopexInt serial_Multi_VectorSetConstantValues(serial_Multi_Vector *v, cpx value);
   BlopexInt serial_Multi_VectorSetRandomValues(serial_Multi_Vector *v , BlopexInt seed);
   BlopexInt serial_Multi_VectorCopy( serial_Multi_Vector *x , serial_Multi_Vector *y);
-  BlopexInt serial_Multi_VectorScale( double alpha , serial_Multi_Vector *y, BlopexInt *mask  );
   BlopexInt serial_Multi_VectorAxpy( double alpha , serial_Multi_Vector *x , serial_Multi_Vector *y);
   BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
 					  serial_Multi_Vector *y,
-					  BlopexInt gh, BlopexInt h, BlopexInt w, komplex* v);
-  BlopexInt serial_Multi_VectorMultiScale( double *alpha, serial_Multi_Vector *v, BlopexInt *mask );
+					  BlopexInt gh, BlopexInt h, BlopexInt w, cpx* v);
 
   BlopexInt serial_Multi_VectorByDiag( serial_Multi_Vector *x,
 				       BlopexInt                *mask,
 				       BlopexInt                n,
-				       komplex            *alpha,
+				       cpx                      *alpha,
 				       serial_Multi_Vector *y);
 
   BlopexInt serial_Multi_VectorInnerProdDiag( serial_Multi_Vector *x,
 					      serial_Multi_Vector *y,
-					      BlopexInt* mask, BlopexInt n, komplex* diag);
+					      BlopexInt* mask, BlopexInt n, cpx* diag);
 
   BlopexInt
     serial_Multi_VectorSetMask(serial_Multi_Vector *mvector, BlopexInt * mask);
@@ -223,11 +209,7 @@ namespace COMPLEX{ namespace LOBPCG{
     serial_Multi_VectorCopyWithoutMask(serial_Multi_Vector *x , serial_Multi_Vector *y);
   BlopexInt
     serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexInt rHeight,
-				BlopexInt rWidth, komplex* rVal, serial_Multi_Vector *y);
-  BlopexInt
-    serial_Multi_VectorByMulti_Vector(serial_Multi_Vector *x,
-				      serial_Multi_Vector *y,
-				      serial_Multi_Vector *z);
+				BlopexInt rWidth, cpx* rVal, serial_Multi_Vector *y);
 } }
 
 

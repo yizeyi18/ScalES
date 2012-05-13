@@ -6,14 +6,14 @@ PLAT         = hopper
 #  The directories to find the various libraries
 #
 FFTWdir      = /opt/fftw/3.2.2.1/include
-LOBPCGDIR    = LOBPCG/include
+LOBPCGDIR    = LOBPCG
 #
 #  The name of the libraries to be created/linked to
 #
 FFTWLIB      = -L/opt/fftw/3.2.2.1/lib -lfftw3
 #IPMLIB       = -L/opt/ipm/lib -lipm
 
-LOBPCG_LIB   = LOBPCG/lib/libBLOPEX.a
+LOBPCG_LIB   = LOBPCG/libBLOPEX.a
 METIS_LIB    = METIS/libmetis.a
 SELINV_LIB   = SelInv/libselinv.a
 
