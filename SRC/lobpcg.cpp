@@ -461,7 +461,7 @@ namespace REAL{ namespace LOBPCG{
       y_active_ind = y->active_indices;
 
       /* OLD Code */
-      if(1){
+      if(0){
 	for(i=0; i<num_active_vectors; i++)
 	{
 	  src = x_data + x_active_ind[i]*size;
@@ -473,7 +473,7 @@ namespace REAL{ namespace LOBPCG{
       }
 
       /* NEW Code, calculate everything  */
-      if(0){
+      if(1){
 	int totalsize = size * x->num_vectors;
 	int I_ONE = 1;
 	daxpy_(&totalsize, &alpha, x_data, &I_ONE, y_data, &I_ONE);
@@ -539,7 +539,7 @@ namespace REAL{ namespace LOBPCG{
 	current_alpha=alpha[ al_active_ind[i] ];
 
 	for (j=0; j<size; j++)
-	  dest[j] = current_alpha*src[j];
+	  *(dest++) = current_alpha * (*(src++));
       }
 
       free(al_active_ind);
@@ -554,7 +554,6 @@ namespace REAL{ namespace LOBPCG{
 				  serial_Multi_Vector *y,
 				  BlopexInt gh, BlopexInt h, BlopexInt w, double* v)
     {
-      /* to be reworked! */
       double  *x_data;
       double  *y_data;
       BlopexInt      size;
@@ -678,7 +677,6 @@ namespace REAL{ namespace LOBPCG{
 				      serial_Multi_Vector *y,
 				      BlopexInt* mask, BlopexInt n, double* diag)
     {
-      /* to be reworked! */
       double   *x_data;
       double   *y_data;
       BlopexInt      size;
@@ -725,7 +723,7 @@ namespace REAL{ namespace LOBPCG{
 	current_product = 0.0;
 
 	for(k=0; k<size; k++)
-	  current_product += x_ptr[k]*y_ptr[k];
+	  current_product += (*(x_ptr++)) * (*(y_ptr++));
 
 	diag[al_active_ind[i]] = current_product;
       }
@@ -1363,17 +1361,29 @@ namespace COMPLEX{ namespace LOBPCG{
       x_active_ind = x->active_indices;
       y_active_ind = y->active_indices;
 
-      for(i=0; i<num_active_vectors; i++)
-      {
-	src = x_data + x_active_ind[i]*size;
-	dest = y_data + y_active_ind[i]*size;
+      // LLIN: Old code
+      if(0){
+	for(i=0; i<num_active_vectors; i++)
+	{
+	  src = x_data + x_active_ind[i]*size;
+	  dest = y_data + y_active_ind[i]*size;
 
-	for (j=0; j<size; j++) {
-	  dest[j] += alpha * src[j];
-//	  dest[j].real += alpha*src[j].real;
-//	  dest[j].imag += alpha*src[j].imag;
+	  for (j=0; j<size; j++) {
+	    dest[j] += alpha * src[j];
+	    //	  dest[j].real += alpha*src[j].real;
+	    //	  dest[j].imag += alpha*src[j].imag;
+	  }
 	}
       }
+
+      // LLIN: NEW Code, calculate everything  
+      if(1){
+	int totalsize = size * x->num_vectors;
+	int I_ONE = 1;
+	cpx zalpha = (cpx) alpha;
+	zaxpy_(&totalsize, &zalpha, x_data, &I_ONE, y_data, &I_ONE);
+      }
+
 
       return 0;
     }
@@ -1384,7 +1394,6 @@ namespace COMPLEX{ namespace LOBPCG{
    * if y and x are mxn then alpha is nx1
    * call seq < MultiVectorByDiagonal < i->MultiVecMatDiag < mv_MultiVectorByDiagonal
    *--------------------------------------------------------------------------*/
-  //FIXME
   BlopexInt
     serial_Multi_VectorByDiag( serial_Multi_Vector *x,
 			       BlopexInt           *mask,
@@ -1403,7 +1412,7 @@ namespace COMPLEX{ namespace LOBPCG{
       BlopexInt * y_active_ind;
       BlopexInt * al_active_ind;
       BlopexInt num_active_als;
-      cpx * current_alpha;
+      cpx current_alpha;
 
       assert (x->size == y->size && x->num_active_vectors == y->num_active_vectors);
 
@@ -1435,12 +1444,11 @@ namespace COMPLEX{ namespace LOBPCG{
       {
 	src = x_data + x_active_ind[i]*size;
 	dest = y_data + y_active_ind[i]*size;
-	current_alpha=&alpha[ al_active_ind[i] ];
+	current_alpha=alpha[ al_active_ind[i] ];
 
 	for (j=0; j<size; j++){
-          dest[j] = (*current_alpha) * src[j]; 
-//	  complex_multiply(&dest[j],current_alpha,&src[j]);
-	  }
+	  *(dest++) = (current_alpha) * (*(src++));
+	}
       }
 
       free(al_active_ind);
@@ -1456,7 +1464,6 @@ namespace COMPLEX{ namespace LOBPCG{
 					  serial_Multi_Vector *y,
 					  BlopexInt gh, BlopexInt h, BlopexInt w, cpx* v)
   {
-    /* to be reworked! */
     cpx *x_data;
     cpx *y_data;
     BlopexInt      size;
@@ -1486,26 +1493,43 @@ namespace COMPLEX{ namespace LOBPCG{
 
     gap = gh-h;
 
-    for(j=0; j<y_num_active_vectors; j++)
-    {
-      y_ptr = y_data + y_active_ind[j]*size;
+    // LLIN: Old version that does not use BLAS but allows deflation
+    if(0){
+      for(j=0; j<y_num_active_vectors; j++)
+      {
+	y_ptr = y_data + y_active_ind[j]*size;
 
-      for (i=0; i<x_num_active_vectors; i++) {
+	for (i=0; i<x_num_active_vectors; i++) {
 
-	x_ptr = x_data + x_active_ind[i]*size;
-	current_product = cpx(0.0, 0.0);
+	  x_ptr = x_data + x_active_ind[i]*size;
+	  current_product = cpx(0.0, 0.0);
 
-	for(k=0; k<size; k++) {
-          current_product += conj(x_ptr[k]) * y_ptr[k];
-//	  complex_multiply(&temp,&conj,&y_ptr[k]);
-//	  complex_add(&current_product,&current_product,&temp);
+	  for(k=0; k<size; k++) {
+	    current_product += conj(x_ptr[k]) * y_ptr[k];
+	    //	  complex_multiply(&temp,&conj,&y_ptr[k]);
+	    //	  complex_add(&current_product,&current_product,&temp);
+	  }
+
+	  /* fortran column-wise storage for results */
+	  *v++ = current_product;
 	}
-
-	/* fortran column-wise storage for results */
-	*v++ = current_product;
+	v+=gap;
       }
-      v+=gap;
     }
+
+    // LLIN: New version This assumes that deflation is not used and uses BLAS3
+    if(1){
+      assert( x->num_vectors == x->num_active_vectors &&
+	      y->num_vectors == y->num_active_vectors); 
+      char Ytrans = 'T';
+      char Ntrans = 'N';
+      cpx    Z_ONE  = cpx(1.0,0.0);
+      cpx    Z_ZERO = cpx(0.0,0.0);
+      zgemm_(&Ytrans, &Ntrans, &x_num_active_vectors, 
+	     &y_num_active_vectors, &size, &Z_ONE, x_data, &size,
+	     y_data, &size, &Z_ZERO, v, &gh);
+    }
+
 
     return 0;
   }
@@ -1586,7 +1610,6 @@ namespace COMPLEX{ namespace LOBPCG{
    *
    * call seq < MultiVectorByMatrix < i->MultiVecMat < mv_MultiVectorByMatrix
    *--------------------------------------------------------------------------*/
-  // FIXME
   BlopexInt
     serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexInt rHeight,
 				BlopexInt rWidth, cpx* rVal, serial_Multi_Vector *y)
@@ -1613,33 +1636,49 @@ namespace COMPLEX{ namespace LOBPCG{
       y_active_ind = y->active_indices;
       gap = rGHeight - rHeight;
 
-      for (j=0; j<rWidth; j++)
-      {
-	y_ptr = y_data + y_active_ind[j]*size;
-
-	/* ------ set current "y" to first member in a sum ------ */
-	x_ptr = x_data + x_active_ind[0]*size;
-	current_coef = *rVal++;
-
-	for (k=0; k<size; k++)
-	  y_ptr[k] = current_coef * x_ptr[k];
-//	  complex_multiply(&y_ptr[k],&current_coef,&x_ptr[k]);
-
-	/* ------ now add all other members of a sum to "y" ----- */
-	for (i=1; i<rHeight; i++)
+      //LLIN: Not using BLAS, but supports deflation
+      if(0){
+	for (j=0; j<rWidth; j++)
 	{
-	  x_ptr = x_data + x_active_ind[i]*size;
+	  y_ptr = y_data + y_active_ind[j]*size;
+
+	  /* ------ set current "y" to first member in a sum ------ */
+	  x_ptr = x_data + x_active_ind[0]*size;
 	  current_coef = *rVal++;
 
-	  for (k=0; k<size; k++) {
-	    y_ptr[k] += current_coef * x_ptr[k];
-//	    complex_multiply(&temp,&current_coef,&x_ptr[k]);
-//	    complex_add(&y_ptr[k],&y_ptr[k],&temp);
-	  }
-	}
+	  for (k=0; k<size; k++)
+	    y_ptr[k] = current_coef * x_ptr[k];
+	  //	  complex_multiply(&y_ptr[k],&current_coef,&x_ptr[k]);
 
-	rVal += gap;
+	  /* ------ now add all other members of a sum to "y" ----- */
+	  for (i=1; i<rHeight; i++)
+	  {
+	    x_ptr = x_data + x_active_ind[i]*size;
+	    current_coef = *rVal++;
+
+	    for (k=0; k<size; k++) {
+	      y_ptr[k] += current_coef * x_ptr[k];
+	      //	    complex_multiply(&temp,&current_coef,&x_ptr[k]);
+	      //	    complex_add(&y_ptr[k],&y_ptr[k],&temp);
+	    }
+	  }
+
+	  rVal += gap;
+	}
       }
+
+      // LLIN: This assumes that deflation is not used and uses BLAS3
+      if(1){
+	assert( x->num_vectors == x->num_active_vectors &&
+		y->num_vectors == y->num_active_vectors); 
+	char Ntrans[] = "N";
+	cpx    Z_ONE  = cpx(1.0,0.0);
+	cpx    Z_ZERO = cpx(0.0,0.0);
+	zgemm_(Ntrans, Ntrans, &size, &rWidth, 
+	       &rHeight, &Z_ONE, x_data, &size,
+	       rVal, &rGHeight, &Z_ZERO, y_data, &size);
+      }
+
 
       return 0;
     }
