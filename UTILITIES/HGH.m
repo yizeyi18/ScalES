@@ -335,6 +335,13 @@ for g=1:length(Znucs)
   p2b = p2bfn(r);
   p2c = p2cfn(r);
 
+  p1ka = p1kafn(r);
+  p1kb = p1kbfn(r);
+  p1kc = p1kcfn(r);
+  p2ka = p2kafn(r);
+  p2kb = p2kbfn(r);
+  p2kc = p2kcfn(r);
+
   p0a_pp = csape(r,p0a);
   p0b_pp = csape(r,p0b);
   p0c_pp = csape(r,p0c);
