@@ -65,6 +65,7 @@ public:
   ElemPtn() {;}
   ~ElemPtn() {;}
   IntNumTns& ownerinfo() { return _ownerinfo; }
+  // OWNER is determined by the row index only
   int owner(Index3 key) {
     return _ownerinfo(key(0), key(1), key(2));
   }

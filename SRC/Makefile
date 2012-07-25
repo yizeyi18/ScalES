@@ -65,6 +65,12 @@ testge: testge.o
 convcube: convcube.o
 	$(LOADER) $(LOADOPTS) -o $@ $<
 
+genmat: genmat.o
+	$(LOADER) $(LOADOPTS) -o $@ $<
+
+readmat: readmat.o
+	$(LOADER) $(LOADOPTS) -o $@ $<
+
 clean:
 	(cd LOBPCG; make clean; cd ../; $(RM) $(RMFLAGS) *.o *.d *.a tstpw tstdg mdpw mddg \
 	  testeig1 testeig ttmatvec1 testeig2 testpge testge)

@@ -51,6 +51,12 @@ void pdtrsm_(char* side, char* uplo, char* transa, char* diag,
 void pdpotrf_(char* uplo, int* n, double* a, int* ia,
               int* ja, int* desca, int* info);
 
+void pdpocon_(char* uplo, int* n, double* a, int* ia,
+	      int* ja, int* desca, double* anorm,
+	      double* rcond, double* work, int* lwork,
+	      int* iwork, int* liwork, int* info);
+
+
 void pdgeqpf_(int* M, int* N, double* A, int* IA, int* JA,
               int* DESCA, int* IPIV, double* TAU, double* WORK,
               int* LWORK, int* INFO);
@@ -77,6 +83,7 @@ void pdgemm_(char* transa, char* transb, int* m, int* n, int* k,
              double* alpha, double* A, int* ia, int* ja, int* desca,
              double* B, int* ib, int* jb, int* descb, double* beta,
              double* C, int* ic, int* jc, int* descc);
+
 #ifdef __cplusplus
 }
 #endif

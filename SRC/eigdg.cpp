@@ -139,7 +139,64 @@ int EigDG::solve(ParVec<Index3, vector<double>, ElemPtn>& vtotvec, ParVec<Index3
     int AM, AN;
     NumTns< vector<int> > Aindexvec;
     iC( solve_Elem_A(vtotvec,basesvec,psdovec,   A,AM,AN,Aindexvec) );
-    
+   
+    // FIXME: Dump out the DG matrix Avec in local triplet form
+#ifdef __DUMP_DGMAT
+    {
+
+      vector<int> noMask(1);
+      ostringstream oss;
+
+      vector<int> RowVec;
+      vector<int> ColVec;
+      vector<double> ValVec;
+      RowVec.clear();
+      ColVec.clear();
+      ValVec.clear();
+
+      for(int i3=0; i3<N3; i3++)
+	for(int i2=0; i2<N2; i2++)
+	  for(int i1=0; i1<N1; i1++) {
+	    Index3 ikey = Index3(i1,i2,i3);
+	    int inum = Aindexvec(i1,i2,i3).size();
+	    for(int j3=0; j3<N3; j3++)
+	      for(int j2=0; j2<N2; j2++)
+		for(int j1=0; j1<N1; j1++) {
+		  Index3 jkey = Index3(j1,j2,j3);
+		  int jnum = Aindexvec(j1,j2,j3).size();
+		  EmatKey emk(ikey,jkey);
+		  if(_ematptn.owner(emk)==mpirank) {
+		    DblNumMat& ValMat = A.lclmap()[emk];
+		    if( energy(ValMat) > 1e-10 ){
+		      for(int jc = 0; jc < jnum; jc++){
+			for(int ic = 0; ic < inum; ic++){
+			  RowVec.push_back(Aindexvec(i1,i2,i3)[ic]);
+			  ColVec.push_back(Aindexvec(j1,j2,j3)[jc]);
+			  ValVec.push_back(ValMat(ic,jc));
+			}
+		      }
+		    }
+		  }
+		}
+	  }
+
+      {
+	int LocSize = RowVec.size();
+	// Header
+	serialize(AM, oss, noMask);
+	serialize(LocSize, oss, noMask);
+	// Triplet form
+	serialize(RowVec, oss, noMask);
+	serialize(ColVec, oss, noMask);
+	serialize(ValVec, oss, noMask);
+
+	Separate_Write("DGMAT", oss);
+      }
+
+    }
+#endif
+
+
     //transform A to scalapack form
     int descA[DLEN_];
     DblNumMat Aloc;
@@ -162,6 +219,7 @@ int EigDG::solve(ParVec<Index3, vector<double>, ElemPtn>& vtotvec, ParVec<Index3
       iC( eigvecsvec.getBegin(_psdovec,mask) );
       iC( eigvecsvec.getEnd(mask) );
     }
+
   
   }
 
