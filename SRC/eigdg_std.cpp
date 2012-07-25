@@ -795,6 +795,8 @@ int EigDG::solve_GE(DblNumMat& Aloc, int& AlocM, int& AlocN, int* descA,
 	    &CONTXT, &loc_m, &info); 
 
   /* Factorization of matrix B */
+  DblNumMat  BlocSav = Bloc;
+
   pdpotrf_(&uplo, &BlocM, Bloc.data(), &ione,
 	   &ione, descB, &info);
   if(mpirank == 0){
@@ -804,6 +806,106 @@ int EigDG::solve_GE(DblNumMat& Aloc, int& AlocM, int& AlocN, int* descA,
   if(mpirank == 0){
     cerr << "Finish parallel factorization" << endl;
   }
+
+  /* FIXME Estimate the condition number by PDPOCON. This might not be very
+   * good */
+#ifdef __EST_SCOND
+  {
+    double anorm = 1.0;  // Estimate the anorm to be of O(1).
+    double rcond;
+    int lwork, liwork;
+    DblNumVec work;
+    IntNumVec iwork;
+    
+    /* Query for space. */ 
+    lwork  = -1;
+    liwork = -1;
+    work.resize(1);
+    iwork.resize(1);
+
+    pdpocon_(&uplo, &BlocM, Bloc.data(), &ione, &ione, descB, &anorm, &rcond,
+	     work.data(), &lwork, iwork.data(), &liwork, &info);
+
+    lwork  = (int)work(0);
+    liwork = (int)iwork(0);
+
+    work.resize(lwork);
+    iwork.resize(liwork);
+
+    pdpocon_(&uplo, &BlocM, Bloc.data(), &ione, &ione, descB, &anorm, &rcond,
+	     work.data(), &lwork, iwork.data(), &liwork, &info);
+
+    if(mpirank == 0){
+      fprintf(fhstat, "The estimated condition number by pdpocon is %15.3e\n", 
+	      1.0 / rcond);   
+      fprintf(stderr, "The estimated condition number by pdpocon is %15.3e\n", 
+	      1.0 / rcond);   
+
+    }
+
+  }
+
+  /* Estiamte the condition number by pdsyevd */
+  {
+    char     jobz   = 'V';
+    int      lwork, liwork;
+    DblNumVec work;
+    IntNumVec iwork;
+
+    /* Query for space. PDSYEVD has a bug! */ 
+    lwork  = -1;
+    liwork = -1;
+    work.resize(1);
+    iwork.resize(1);
+
+    pdsyevd_(&jobz, &uplo, &BlocM, BlocSav.data(), &ione, &ione, descB,
+	     EC.data(), Vloc.data(), &ione, &ione, descV, 
+	     work.data(), &lwork, iwork.data(), &liwork, &info);
+
+    lwork = ((int)work(0))+2*AlocM+5*_MB*_MB; 
+    // LLIN: PDSYEVD has a bug in the calculated LWORK. Even this is not
+    // guaranteed to work ...
+    liwork = (int)iwork(0);
+    work.resize(lwork);
+    iwork.resize(liwork);
+
+    if(mpirank == 0){
+      cerr << "Finish querying space for standard eigenvalue problem" << endl;
+      cerr << "lwork_est = " << lwork << endl;
+      cerr << "liwork_est = " << liwork << endl;
+    }
+
+    //LLIN: Somehow the query system does not work for pdsyevd
+//    int trilwmin = 3*AlocM + (mpisize+3)*_MB;
+//    lwork = 2*(max(1+6*AlocM+2*loc_m*loc_m, trilwmin) + 2 * AlocM); // Strange factor of 2
+//    liwork = (7 * AlocM + 8 * npcol + 2);                         // Strange factor of 2
+//    if(mpirank == 0){
+//      cerr << "lwork = " << lwork << endl;
+//      cerr << "liwork = " << liwork << endl;
+//    }
+//    work.resize(lwork);
+//    iwork.resize(liwork);
+
+    pdsyevd_(&jobz, &uplo, &BlocM, BlocSav.data(), &ione, &ione, descB,
+	     EC.data(), Vloc.data(), &ione, &ione, descV, 
+	     work.data(), &lwork, iwork.data(), &liwork, &info);
+    iC(info);
+   
+
+    if(mpirank == 0){
+      fprintf(fhstat, "The estimated condition number by pdsyevd is %15.3e\n", 
+	      EC[BlocM-1] / EC[0]);   
+      fprintf(stderr, "The estimated condition number by pdsyevd is %15.3e\n", 
+	      EC[BlocM-1] / EC[0]);   
+    }
+
+
+    if(mpirank == 0){
+      cerr << "Finish solving standard eigenvalue problem" << endl;
+    }
+  }
+#endif
+ 
 
   /* Form the standard eigenvalue problem, A is overwritten by
    * inv(L) * A * inv(L**T) */
@@ -829,7 +931,7 @@ int EigDG::solve_GE(DblNumMat& Aloc, int& AlocM, int& AlocN, int* descA,
 
     /* Query for space. PDSYEVD has a bug! */ 
     lwork  = -1;
-    liwork = 1;
+    liwork = -1;
     work.resize(1);
     iwork.resize(1);
 

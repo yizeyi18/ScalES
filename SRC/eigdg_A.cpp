@@ -72,6 +72,8 @@ int EigDG::solve_Elem_A(ParVec<Index3,vector<double>,ElemPtn>& vtotvec, ParVec<I
 	      Index3 jkey = Index3(j1,j2,j3);
 	      int jnum = Aindexvec(j1,j2,j3).size();
 	      EmatKey emk(ikey,jkey);
+	      // FIXME: This would generate a full matrix in each row,
+	      // and should be changed later!
 	      if(_ematptn.owner(emk)==mpirank) {
 		DblNumMat zero(inum,jnum);
 		setvalue(zero, 0.0);
