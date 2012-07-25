@@ -9,8 +9,8 @@
 %
 % 5/4/2012:  Add support for spin-orbit coupling. Add Se.
 
-Znucs = [6 11 14 34 83];
-% Znucs = [6 11];
+Znucs = [6 8 9 11 14 34 71 78 79 80 81 83];
+% Znucs = [6 9 ];
 res = cell(length(Znucs),2);
 
 for g=1:length(Znucs)
@@ -43,6 +43,8 @@ for g=1:length(Znucs)
   h211 = 0;
   h222 = 0;
   h233 = 0;
+  r3   = 1;
+  h311 = 0;
   
   % Spin-orbit coupling
   k111 = 0;
@@ -51,6 +53,34 @@ for g=1:length(Znucs)
   k211 = 0;
   k222 = 0;
   k233 = 0; 
+  k311 = 0;
+
+
+  % New element template
+  % if(Znuc==)
+    % Zion = ;
+    % mass = ;
+    % rloc    = ;
+    % C1      = ;
+    % r0      = ;
+    % h011    = ;
+    % h022    = ;
+    % r1      = ;
+    % h111    = ;
+    % h122    = ;
+    % k111    = ;
+    % k122    = ;
+    % k133    = ;
+    % r2      = ;
+    % h211    = ;
+    % h222    = ;
+    % k211    = ;
+    % k222    = ;
+    %
+    % rhocut  = ;
+    % wavcut  = ;
+  % end 
+
 
   % C
   if(Znuc==6)
@@ -66,6 +96,39 @@ for g=1:length(Znucs)
     rhocut = 2.5;
     wavcut = 2.5;
   end
+ 
+  % O
+  if(Znuc==8)
+    Zion = 6;
+    mass = 15.9994;
+    rloc    = 0.247621;
+    C1      = -16.580318;
+    C2      = 2.395701;
+    r0      = 0.221786;
+    h011    = 18.266917;
+    r1      = 0.256829;
+    k111    = 0.004476;
+    %
+    rhocut  = 2.0;
+    wavcut  = 2.0;
+  end 
+
+
+  % F
+  if(Znuc==9)
+    Zion = 7;
+    mass = 18.9984032;
+    rloc    = 0.218525;
+    C1      = -21.307361;
+    C2      = 3.072869;
+    r0      = 0.195567;
+    h011    = 23.584942;
+    r1      = 0.174268;
+    k111    = 0.015106;
+    
+    rhocut = 1.5;
+    wavcut = 1.5;
+  end 
   
   % Na (No semicore)
   if(Znuc==11)
@@ -120,6 +183,138 @@ for g=1:length(Znucs)
     rhocut = 3.0;
     wavcut = 3.0;
   end
+
+  % Lu (WITH semi-core)
+
+  if(Znuc==71)
+    Zion = 25;
+    mass = 174.9668;
+    rloc    = 0.497000;
+    C1      = 17.037053;
+    C2      = -1.661610;
+    r0      = 0.391206;
+    h011    = 2.184678;
+    h022    = -5.432346;
+    r1      = 0.393896;
+    h111    = -0.719819;
+    h122    = -2.723799;
+    k111    = 0.152450;
+    k122    = 1.395416;
+    k133    = -1.238744;
+    r2      = 0.436518;
+    h211    = -1.173245;
+    k211    = 0.072130;
+    r3      = 0.232629;
+    h311    = -31.852262;
+    k311    = 0.028006;
+    %
+    rhocut  = 3.5;
+    wavcut  = 3.0;
+  end 
+
+
+  % Pt (WITH Semi-core)
+  if(Znuc==78)
+    Zion    = 18;
+    mass    = 195.084;
+    rloc    = 0.500000;
+    C1      = 5.445832;
+    C2      = 1.156382;
+    r0      = 0.409942;
+    h011    = 2.994366;
+    h022    = -7.448772;
+    h033    = 4.243095;
+    r1      = 0.398652;
+    h111    = -0.225181;
+    h122    = -3.776974;
+    k111    = 1.017060;
+    k122    = -0.348213;
+    k133    = -0.331919;
+    r2      = 0.367964;
+    h211    = 0.632067;
+    h222    = -5.755431;
+    k211    = 0.226472;
+    k222    = -0.114346;
+
+    rhocut = 3.5;
+    wavcut = 3.5;
+  end
+
+
+  % Au (WITH Semi-core)
+  if(Znuc==79)
+    Zion    = 11;
+    mass    = 196.966569;
+    rloc    = 0.590000;
+    C1      = 11.604428;
+    r0      = 0.521180;
+    h011    = 2.538614;
+    h022    = 2.701113;
+    r1      = 0.630613;
+    h111    = 0.394853;
+    h122    = 2.057831;
+    k111    = -0.960055;
+    k122    = 1.296571;
+    r2      = 0.440706; 
+    h211    = -4.719070;
+    h222    = -1.650429;
+    k211    = 0.148484;
+    k222    = -0.169493;
+
+    rhocut = 3.5;
+    wavcut = 3.5;
+  end
+
+  % Tl (WITH semi-core)
+  if(Znuc==81)
+    Zion    = 13;
+    mass    = 204.3833;
+    rloc    = 0.550000;
+    C1      = 7.301886;
+    r0      = 0.502423;
+    h011    = 3.326560;
+    h022    = 4.341390;
+    r1      = 0.572016;
+    h111    = 1.272807;
+    h122    = 2.992206;
+    k111    = 0.012233;
+    k122    = 0.031664;
+    k133    = 1.019164;
+    r2      = 0.393185;
+    h211    = -3.200652;
+    h222    = -3.008296;
+    k211    = 0.186849;
+    k222    = -0.170651;
+
+    rhocut = 3.5;
+    wavcut = 3.5;
+  end
+
+  % Hg (WITH Semi-core)
+  if(Znuc==80)
+    Zion    = 12;
+    mass    = 200.59;
+    rloc    = 0.570000;
+    C1      = 2.134572;
+    r0      = 0.521802;
+    h011    = 3.293920;
+    h022    = 4.661001;
+    r1      = 0.621648;
+    h111    = 2.100960;
+    h122    = 1.689988;
+    k111    = 0.084989;
+    k122    = 0.072771;
+    k133    = 0.653348;
+    r2      = 0.401894;
+    h211    = -1.669886;
+    h222    = -2.473265;
+    k211    = 0.155759;
+    k222    = -0.122282;
+
+    rhocut = 3.5;
+    wavcut = 3.5;
+  end
+
 
   % Bi
   if(Znuc==83)
@@ -232,6 +427,11 @@ for g=1:length(Znucs)
     (sqrt(2) * r.^(l+2*(i-1)).*exp(-r.^2/(2*rl^2))) ./...
     (rl.^(l+(4*i-1)/2).*sqrt(gamma(l+(4*i-1)/2)));
 
+  l=3; i=1; rl=r3;
+  p31fn = @(r) ...
+    (sqrt(2) * r.^(l+2*(i-1)).*exp(-r.^2/(2*rl^2))) ./...
+    (rl.^(l+(4*i-1)/2).*sqrt(gamma(l+(4*i-1)/2)));
+
 
   % Diagonalize the h coefficient matrices to obtain regular pseudopotential
   % l=0 channel
@@ -283,6 +483,11 @@ for g=1:length(Znucs)
   p2cfn = @(r) (p21fn(r)*V2(1,3) + p22fn(r)*V2(2,3) + p23fn(r)*V2(3,3));
   h2c   = D2(3); 
 
+  % l=3 is special
+  p3afn = @(r) p31fn(r);
+  h3a   = h311; 
+
+
   % Diagonalize the k coefficient matrices to obtain pseudopotential for
   % spin-orbit coupling
   
@@ -317,8 +522,12 @@ for g=1:length(Znucs)
   k2b   = Dk2(2);
 
   p2kcfn = @(r) (p21fn(r)*Vk2(1,3) + p22fn(r)*Vk2(2,3) + p23fn(r)*Vk2(3,3));
-  k2c   = Dk2(3); 
+  k2c    = Dk2(3); 
   
+  % l=3 is special
+  p3kafn = @(r) p31fn(r);
+  k3a    = k311; 
+
 
   %sample
   stp = 0.002;
@@ -334,6 +543,7 @@ for g=1:length(Znucs)
   p2a = p2afn(r);
   p2b = p2bfn(r);
   p2c = p2cfn(r);
+  p3a = p3afn(r);
 
   p1ka = p1kafn(r);
   p1kb = p1kbfn(r);
@@ -341,6 +551,7 @@ for g=1:length(Znucs)
   p2ka = p2kafn(r);
   p2kb = p2kbfn(r);
   p2kc = p2kcfn(r);
+  p3ka = p3kafn(r);
 
   p0a_pp = csape(r,p0a);
   p0b_pp = csape(r,p0b);
@@ -351,6 +562,7 @@ for g=1:length(Znucs)
   p2a_pp = csape(r,p2a);
   p2b_pp = csape(r,p2b);
   p2c_pp = csape(r,p2c);
+  p3a_pp = csape(r,p3a);
 
   p1ka_pp = csape(r,p1ka);
   p1kb_pp = csape(r,p1kb);
@@ -358,6 +570,7 @@ for g=1:length(Znucs)
   p2ka_pp = csape(r,p2ka);
   p2kb_pp = csape(r,p2kb);
   p2kc_pp = csape(r,p2kc);
+  p3ka_pp = csape(r,p3ka);
 
 
   % Pseudo-charge and its derivatives
@@ -392,6 +605,8 @@ for g=1:length(Znucs)
   p2c_dpp = fnder(p2c_pp,1);
   dp2c = fnval(p2c_dpp,r);
 
+  p3a_dpp = fnder(p3a_pp,1);
+  dp3a = fnval(p3a_dpp,r);
 
   % Nonlocal pseudopotential for spin-orbit coupling and their
   % derivatives
@@ -412,6 +627,9 @@ for g=1:length(Znucs)
   
   p2kc_dpp = fnder(p2kc_pp,1);
   dp2kc = fnval(p2kc_dpp,r);
+
+  p3ka_dpp = fnder(p3ka_pp,1);
+  dp3ka = fnval(p3ka_dpp,r);
   
   gd = find(r>0);
   Es = 1/2* sum(4*pi*r(gd).^2 .* Vloc(gd) .* rho(gd) * stp);
@@ -497,6 +715,13 @@ for g=1:length(Znucs)
     wgt(cnt) = h2c;   typ(cnt) = 2;  cut(cnt) = wavcut; cnt=cnt+1;
   end
 
+  if(abs(h3a) > 1e-10)
+    spl(:,cnt) = p3a(:);
+    wgt(cnt) = h3a;   typ(cnt) = 3;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp3a(:);
+    wgt(cnt) = h3a;   typ(cnt) = 3;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
+
   if(abs(k1a) > 1e-10)
     spl(:,cnt) = p1ka(:);
     wgt(cnt) = k1a;   typ(cnt) = -1;  cut(cnt) = wavcut; cnt=cnt+1;
@@ -538,6 +763,14 @@ for g=1:length(Znucs)
     spl(:,cnt) = dp2kc(:);
     wgt(cnt) = k2c;   typ(cnt) = -2;  cut(cnt) = wavcut; cnt=cnt+1;
   end
+
+  if(abs(k3a) > 1e-10)
+    spl(:,cnt) = p3ka(:);
+    wgt(cnt) = k3a;   typ(cnt) = -3;  cut(cnt) = wavcut; cnt=cnt+1;
+    spl(:,cnt) = dp3ka(:);
+    wgt(cnt) = k3a;   typ(cnt) = -3;  cut(cnt) = wavcut; cnt=cnt+1;
+  end
+
 
   if(1)
     fprintf('Check for normalization condition for element %3d\n', Znuc);
@@ -594,6 +827,11 @@ for g=1:length(Znucs)
       fprintf('Rel: int p2c^2  = %15.5e\n', ...
 	sum(r(pk).^2.*p2c(pk).^2*stp) / (sum(r.^2.*p2c.^2*stp)/2) );
     end
+    if( abs(h3a) > 1e-10 )
+      fprintf('Abs: int p3a^2  = %15.5e\n', sum(r(pk).^2.*p3a(pk).^2*stp) );
+      fprintf('Rel: int p3a^2  = %15.5e\n', ...
+	sum(r(pk).^2.*p3a(pk).^2*stp) / (sum(r.^2.*p3a.^2*stp)/2) );
+    end
     
     if( abs(k1a) > 1e-10 )
       fprintf('Abs: int p1ka^2  = %15.5e\n', sum(r(pk).^2.*p1ka(pk).^2*stp) );
@@ -629,6 +867,12 @@ for g=1:length(Znucs)
       fprintf('Abs: int p2kc^2  = %15.5e\n', sum(r(pk).^2.*p2kc(pk).^2*stp) );
       fprintf('Rel: int p2kc^2  = %15.5e\n', ...
 	sum(r(pk).^2.*p2kc(pk).^2*stp) / (sum(r.^2.*p2kc.^2*stp)/2) );
+    end
+    
+    if( abs(k3a) > 1e-10 )
+      fprintf('Abs: int p3ka^2  = %15.5e\n', sum(r(pk).^2.*p3ka(pk).^2*stp) );
+      fprintf('Rel: int p3ka^2  = %15.5e\n', ...
+	sum(r(pk).^2.*p3ka(pk).^2*stp) / (sum(r.^2.*p3ka.^2*stp)/2) );
     end
 
     fprintf('\n');

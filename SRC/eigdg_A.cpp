@@ -10,7 +10,6 @@ extern FILE* fhstat;
 int EigDG::solve_Elem_A(ParVec<Index3,vector<double>,ElemPtn>& vtotvec, ParVec<Index3,vector<DblNumTns>,ElemPtn>& basesvec, ParVec<int,Psdo,PsdoPtn>& psdovec,
 			ParVec<EmatKey,DblNumMat,EmatPtn>& A, int& AM, int& AN, NumTns< vector<int> >& Aindexvec)
 {
-  //LEXING: form the stiffness matrix A, and put the data into the right location
   //
   Point3 hs = _hs; //ELEMENT SIZE
   Index3 Ns = _Ns; //NUMBER OF ELEMENTS
@@ -52,7 +51,7 @@ int EigDG::solve_Elem_A(ParVec<Index3,vector<double>,ElemPtn>& vtotvec, ParVec<I
 	int ntmp = cmb(i1,i2,i3);
 	vector<int> vtmp;
 	for(int g=0; g<ntmp; g++) {
-	  vtmp.push_back(cnt);	  //LEXING: the following line set ownerproc
+	  vtmp.push_back(cnt);	  
 	  owneraux.push_back(ownerproc);	  //owneraux[ cnt ] = ownerproc;
 	  cnt++;
 	}
@@ -62,7 +61,6 @@ int EigDG::solve_Elem_A(ParVec<Index3,vector<double>,ElemPtn>& vtotvec, ParVec<I
   int Ndof = cnt;
   //
   A.prtn() = _ematptn;  //AM = _Ndof;  //AN = _Ndof;
-  //LEXING: MAKE IT EMPTY FOR THE TIME BEING
   for(int i3=0; i3<N3; i3++)
     for(int i2=0; i2<N2; i2++)
       for(int i1=0; i1<N1; i1++) {

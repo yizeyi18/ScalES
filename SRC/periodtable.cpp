@@ -620,7 +620,7 @@ int PeriodTable::pseudoNL(  Atom atom, Point3 Ls, Point3 pos,
 		    dv(1,g) = coef*der[g];
 		    dv(2,g) = 0;
 		    dv(3,g) = 0;
-		}
+		  }
 		}
 		SparseVec res(iv,dv);
 		pptmp[cntpp](gi,gj,gk) = res;
