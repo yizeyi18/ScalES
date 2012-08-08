@@ -36,12 +36,21 @@ int main(int argc, char **argv){
   int sizeA, sizeTriplet;
   int *RowVec, *ColVec;
   double *ValVec;
+  char* inputFileName;
 
-  ReadTripletMatrixHeader(&sizeA, &sizeTriplet, "DGMAT_FULL");
+  if( argc < 2 ){
+    printf("Usage:\n");
+    printf("  readmat <filename>\n");
+    return 1;
+  }
+
+  inputFileName = argv[1];
+
+  ReadTripletMatrixHeader(&sizeA, &sizeTriplet, inputFileName);
   RowVec = (int*)malloc(sizeof(int)*sizeTriplet);
   ColVec = (int*)malloc(sizeof(int)*sizeTriplet);
   ValVec = (double*)malloc(sizeof(double)*sizeTriplet);
-  ReadTripletMatrix(&sizeA, &sizeTriplet, RowVec, ColVec, ValVec, "DGMAT_FULL");
+  ReadTripletMatrix(&sizeA, &sizeTriplet, RowVec, ColVec, ValVec, inputFileName);
   
   printf("sizeA = %d, sizeTriplet = %d\n", sizeA, sizeTriplet);
   free(RowVec);

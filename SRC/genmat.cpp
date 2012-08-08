@@ -89,19 +89,46 @@ int main(int argc, char **argv){
 
   cout << "SizeA       = " << sizeA << endl;
   cout << "SizeTriplet = " << sizeTriplet << endl;
+  
+ 
+  // Screening according to some criterion
+
+  vector<int> newRowVec;
+  vector<int> newColVec;
+  vector<double> newValVec;
+  newRowVec.clear();
+  newColVec.clear();
+  newValVec.clear();
+  // Dump the upper part only
+  // +1 is used to fit the FORTRAN (and MUMPS) format.
+  {
+    const int TOL = 1e-14;
+    for(int i = 0; i < sizeTriplet; i++){
+      if( RowVec[i] <= ColVec[i] && abs(ValVec[i]) > TOL ){
+	newRowVec.push_back(RowVec[i]+1);
+	newColVec.push_back(ColVec[i]+1);
+	newValVec.push_back(ValVec[i]);
+      }
+    }
+    sizeTriplet = newRowVec.size();
+  }
+
+
+
+  cout << "After screening for upper matrix only, SizeTriplet = " << sizeTriplet << endl;
   cout << "Writing to file... " << endl;
 
 
   // Output the global triplet format in binary file in traditional C
   // format that can be read easily by other programs
-  sprintf(outputFileName, "DGMAT_FULL");
+  sprintf(outputFileName, "DGMAT_FULL_UPPER");
   outputFileHandle = fopen(outputFileName, "wb");
 
   fwrite(&sizeA, sizeof(int), 1, outputFileHandle);
   fwrite(&sizeTriplet, sizeof(int), 1, outputFileHandle);
-  fwrite(&RowVec[0], sizeof(int), RowVec.size(), outputFileHandle);
-  fwrite(&ColVec[0], sizeof(int), ColVec.size(), outputFileHandle);
-  fwrite(&ValVec[0], sizeof(double), ValVec.size(), outputFileHandle);
+  fwrite(&newRowVec[0], sizeof(int), newRowVec.size(), outputFileHandle);
+  fwrite(&newColVec[0], sizeof(int), newColVec.size(), outputFileHandle);
+  fwrite(&newValVec[0], sizeof(double), newValVec.size(), outputFileHandle);
 
   fclose(outputFileHandle);
 

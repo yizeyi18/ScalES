@@ -195,6 +195,12 @@ int EigDG::solve(ParVec<Index3, vector<double>, ElemPtn>& vtotvec, ParVec<Index3
 
     }
 #endif
+#ifdef __DUMP_ONCE
+  fclose(fhstat);
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Finalize();
+  iA(0);
+#endif
 
 
     //transform A to scalapack form

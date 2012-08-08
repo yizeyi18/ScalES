@@ -62,6 +62,9 @@ testpge: testpge.o
 testge: testge.o
 	$(LOADER) $(LOADOPTS) -o $@ $<
 
+ConvALBCube: ConvALBCube.o
+	$(LOADER) $(LOADOPTS) -o $@ $<
+
 convcube: convcube.o
 	$(LOADER) $(LOADOPTS) -o $@ $<
 
