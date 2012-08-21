@@ -1,8 +1,0 @@
-    for i1=1:N1
-        for i2=1:N2
-            for i3=1:N3
-                dif = Atall{i1,i2,i3}-Atall{1,1,1};
-                norm(dif(:))
-            end
-        end
-    end

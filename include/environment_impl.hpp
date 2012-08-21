@@ -1,0 +1,4 @@
+#ifndef _ENVIRONMENT_IMPL_HPP_
+#define _ENVIRONMENT_IMPL_HPP_
+
+#endif // _ENVIRONMENT_IMPL_HPP_

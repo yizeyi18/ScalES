@@ -1,3 +1,0 @@
-function ind1 = index1(ind3, Ns)
-ind1 = ind3(1) + (ind3(2)-1) * Ns(1) + ...
-  (ind3(3)-1) * Ns(1) * Ns(2);
