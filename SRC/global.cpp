@@ -18,7 +18,7 @@ namespace dgdft{
 		std::ostringstream msg;
 		while( ! callStack.empty() )
 		{
-			msg << "EMStack[" << callStack.size() << "]: " << callStack.top() << "\n";
+			msg << "Stack[" << callStack.size() << "]: " << callStack.top() << "\n";
 			callStack.pop();
 		}
 		std::cerr << msg.str() << std::endl;

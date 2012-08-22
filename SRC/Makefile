@@ -3,12 +3,12 @@
 
 include ../make.inc.${HOSTID}
 
-SRCS = esdf.cpp global.cpp
+
+SRCS = spinor.cpp domain.cpp esdf.cpp global.cpp
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 
-lib: libdgdft.a
-
+libdgdft: libdgdft.a
 
 -include ${DEPS}
 

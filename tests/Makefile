@@ -7,9 +7,11 @@ SRCS = ex1.cpp ex2.cpp ex3.cpp ex4.cpp
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 
+ex5: ex5.o ${DGDFTLIB} 
+	($(LOADER) $(LOADOPTS) -o $@ ex5.o)
+
 ex4: ex4.o ${DGDFTLIB} 
 	($(LOADER) $(LOADOPTS) -o $@ ex4.o)
-
 
 ex3: ex3.o ${DGDFTLIB} 
 	($(LOADER) $(LOADOPTS) -o $@ ex3.o)
