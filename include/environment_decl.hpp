@@ -28,19 +28,39 @@
 // PETSc / SLEPc libraries
 #include <slepceps.h>
 
-
-
 /***********************************************************************
  *  Data types
  **********************************************************************/
 
 namespace dgdft{
 
-	typedef    PetscBool             Bool;
-	typedef    PetscInt              Int;
-	typedef    PetscReal             Real;
-	typedef    std::complex<double>  Complex;     
-	typedef    PetscScalar           Scalar;      
+	// Make sure that the following definition is consistent with the
+	// Petsc definition.  
+	
+	typedef    int                   Int;
+	typedef    double                Real;
+	typedef    std::complex<double>  Complex; // Must use elemental form of complex
+#ifdef _USE_COMPLEX_
+	typedef    std::complex<double>  Scalar;  // Must use elemental form of complex
+#else
+	typedef    double                Scalar;
+#endif
+	typedef    PetscScalar           PetscScalar;      // Still use PetscScalar
+
+
+	// *********************************************************************
+	// Define constants
+	// *********************************************************************
+	const Int DIM = 3;                            // Always in 3D
+  const Int I_ZERO = 0;
+  const Int I_ONE = 1;
+  const Real D_ZERO = 0.0;
+  const Real D_ONE  = 1.0;
+  const Complex Z_ZERO = Complex(0.0, 0.0);
+  const Complex Z_ONE  = Complex(1.0, 0.0);
+  const char UPPER = 'U';
+  const char LOWER = 'L';
+
 
 } // namespace dgdft
 

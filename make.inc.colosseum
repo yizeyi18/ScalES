@@ -46,6 +46,7 @@ MODE	         = debug
 
 # Use the options provided in PETSc and SLEPc
 ifeq ($(MODE), debug)
+  COMMONDEFS   = -D_USE_COMPLEX_
   CFLAGS       = ${CCPPFLAGS} ${DGDFTINCLUDE}
   FFLAGS       = ${FCPPFLAGS} ${DGDFTINCLUDE}
   CXXFLAGS     = ${CCPPFLAGS} ${DGDFTINCLUDE}
