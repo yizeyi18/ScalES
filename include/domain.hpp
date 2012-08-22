@@ -18,7 +18,7 @@ struct Domain
 	Point3       length;                          // length
 	Point3       posStart;                        // starting position
 	Index3       numGrid;                         // number of grids points in each direction
-	Int          typeGrid;                        // Type of grids: LGL / Uniform
+	Int          typeGrid;                        // Type of grids: LGL / UNIFORM
 	std::vector<NumVec<Real> >   grid;            // Grid points along each dimension
 	std::vector<NumVec<Real> >   weight;          // Integration weight along each dimension
 	MPI_Comm     comm;                            // MPI Communicator

@@ -4,7 +4,7 @@
 include ../make.inc.${HOSTID}
 
 
-SRCS = spinor.cpp domain.cpp esdf.cpp global.cpp
+SRCS = spinor.cpp fourier.cpp domain.cpp esdf.cpp global.cpp
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 

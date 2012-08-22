@@ -3,9 +3,18 @@
 
 include ../make.inc.${HOSTID}
 
-SRCS = ex1.cpp ex2.cpp ex3.cpp ex4.cpp
+SRCS = ex1.cpp ex2.cpp ex3.cpp ex4.cpp ex5.cpp ex6.cpp ex7.cpp ex8.cpp
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
+
+ex8: ex8.o ${DGDFTLIB} 
+	($(LOADER) $(LOADOPTS) -o $@ ex7.o)
+
+ex7: ex7.o ${DGDFTLIB} 
+	($(LOADER) $(LOADOPTS) -o $@ ex7.o)
+
+ex6: ex6.o ${DGDFTLIB} 
+	($(LOADER) $(LOADOPTS) -o $@ ex6.o)
 
 ex5: ex5.o ${DGDFTLIB} 
 	($(LOADER) $(LOADOPTS) -o $@ ex5.o)
@@ -34,4 +43,4 @@ cleanlib:
 	(${RM} -f ${DGDFTLIB})
 
 cleanall:
-	rm -f ex1 ex2 ex3 ex4 *.o *.d *.d.o
+	rm -f ex1 ex2 ex3 ex4 ex5 ex6 ex7 *.o *.d *.d.o

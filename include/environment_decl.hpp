@@ -60,6 +60,7 @@ const Complex Z_ZERO = Complex(0.0, 0.0);
 const Complex Z_ONE  = Complex(1.0, 0.0);
 const char UPPER = 'U';
 const char LOWER = 'L';
+const Real PI = PETSC_PI;
 
 
 } // namespace dgdft
