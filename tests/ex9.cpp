@@ -4,6 +4,9 @@
 //
 //   A = -\Delta / 2 + I
 //
+// Initial subspace can be reused, and the residual is computed twice.
+//
+// modified_blopex is used as solver.
 // *********************************************************************
 #include <slepc-private/epsimpl.h>              // Trick to use eps->
 #include "dgdft.hpp"
@@ -71,7 +74,9 @@ int main(int argc, char **argv)
 		Fourier fft;
 		PrepareFourier( fft, dm );
 
-	  Spinor  spn( dm, fft.numGridLocal, 1, 1, Complex(1.0, 0.0) ); 	
+		// FIXME the magic number  10 here.
+		ncv = 10;
+	  Spinor  spn( dm, fft.numGridLocal, 1, ncv, Complex(1.0, 0.0) ); 	
 
 		PopCallStack();
 
@@ -107,6 +112,12 @@ int main(int argc, char **argv)
 		ierr = MatShellSetOperation(P,MATOP_MULT,(void(*)())MatPrecond_Mult);CHKERRQ(ierr);
 
 
+		std::vector<Vec*>  wfnPtr(ncv);
+		for( Int i = 0; i < ncv; i++ ){
+			wfnPtr[i] = &(spn.Wavefun(0,i));
+		}
+
+
 		// *********************************************************************
 		// Create the eigensolver and set various options
 		// *********************************************************************
@@ -122,8 +133,11 @@ int main(int argc, char **argv)
 		ierr = EPSSetOperators(eps,A,PETSC_NULL);CHKERRQ(ierr);
 		ierr = EPSSetProblemType(eps,EPS_HEP);CHKERRQ(ierr);
 		ierr = EPSSetWhichEigenpairs(eps,EPS_SMALLEST_REAL);CHKERRQ(ierr);
+		// Set solver parameters at runtime
 		ierr = EPSSetFromOptions(eps);CHKERRQ(ierr);
 
+
+		// IMPORTANT: GetType after EPSSet
 		ierr = EPSGetType(eps,&type);CHKERRQ(ierr);
 		
 		// *********************************************************************
@@ -144,6 +158,8 @@ int main(int argc, char **argv)
 		// *********************************************************************
 		// Solve the eigenvalue problem
 		// *********************************************************************
+		//		No initial start for the first iteration
+//		ierr = EPSSetInitialSpace( eps, ncv, wfnPtr[0] );
 		Real timeSolveStart = MPI_Wtime();
 		ierr = EPSSolve(eps);CHKERRQ(ierr);
 		Real timeSolveEnd = MPI_Wtime();
@@ -168,32 +184,49 @@ int main(int argc, char **argv)
 		ierr = PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenvalues: %D\n",numConv);CHKERRQ(ierr);
 		ierr = PetscPrintf(PETSC_COMM_WORLD," Number of iterations taken: %D\n", numIter);CHKERRQ(ierr);
 		ierr = PetscPrintf(PETSC_COMM_WORLD," Converged reason: %D\n", reason);CHKERRQ(ierr);
-  
-		// Print out eigenvalues
-		{
-			eps->nconv = eps->nev;
-			NumVec<Scalar>  eigr(nev), eigi(nev);
-			for( Int i = 0; i < nev; i++ ){
-				ierr = EPSGetEigenvalue(eps, i, &eigr(i), &eigi(i)); CHKERRQ(ierr);
-			}
-			if( mpirank == 0 ){
-				cout << "EPSGetEigenvalue does not work if not converged" << endl;
-				for( Int i = 0; i < nev; i++ ){
-					cout << "eig[" << i << "]" << eigr(i) << endl;
-				}
-				cout << endl;
-				cout << "eps->eigr[i] works" << endl; 
-				for( Int i = 0; i < nev; i++ ){
-					cout << "eig[" << i << "]" << eps->eigr[i] << endl;
-				}
-			}
+ 
+		ierr = EPSPrintSolution(eps,PETSC_NULL);CHKERRQ(ierr);
+
+
+		// *********************************************************************
+		// Do the next iteration using the previous start
+		// *********************************************************************
+
+		// The following is not necessary if nothing is changed from wfnPtr
+		VecView( spn.LockedWavefun(0,0), PETSC_VIEWER_STDOUT_WORLD );
+		ierr = EPSGetInvariantSubspace( eps, wfnPtr[0] );
+		VecView( spn.LockedWavefun(0,0), PETSC_VIEWER_STDOUT_WORLD );
+		ierr = EPSSetInitialSpace( eps, ncv, wfnPtr[0] );
+
+		timeSolveStart = MPI_Wtime();
+		ierr = EPSSolve(eps);CHKERRQ(ierr);
+		timeSolveEnd = MPI_Wtime();
+		if( mpirank == 0 ){
+			std::cout << "Time for solving the eigenvalue problem is " <<
+				timeSolveEnd - timeSolveStart << std::endl;
 		}
-		
+
+		ierr = PetscPrintf(PETSC_COMM_WORLD," Solution method: %s\n\n",type);CHKERRQ(ierr);
+		ierr = EPSGetDimensions(eps,&nev,&ncv,PETSC_NULL);CHKERRQ(ierr);
+		ierr = EPSGetIterationNumber(eps, &numIter); CHKERRQ(ierr);
+	  ierr = EPSGetConverged(eps, &numConv); CHKERRQ(ierr);	
+		ierr = EPSGetConvergedReason(eps, &reason); CHKERRQ(ierr);
+
+		ierr = PetscPrintf(PETSC_COMM_WORLD," Number of requested eigenvalues: %D\n",nev);CHKERRQ(ierr);
+		ierr = PetscPrintf(PETSC_COMM_WORLD," Number of subspace dimension: %D\n",ncv);CHKERRQ(ierr);
+		ierr = PetscPrintf(PETSC_COMM_WORLD," Number of converged eigenvalues: %D\n",numConv);CHKERRQ(ierr);
+		ierr = PetscPrintf(PETSC_COMM_WORLD," Number of iterations taken: %D\n", numIter);CHKERRQ(ierr);
+		ierr = PetscPrintf(PETSC_COMM_WORLD," Converged reason: %D\n", reason);CHKERRQ(ierr);
+ 
+		ierr = EPSPrintSolution(eps,PETSC_NULL);CHKERRQ(ierr);
+
+
+
+
 		// *********************************************************************
 		// Clean up
 		// *********************************************************************
 		PushCallStack("Clean up");
-//		ierr = EPSPrintSolution(eps,PETSC_NULL);CHKERRQ(ierr);
 		ierr = EPSDestroy(&eps);CHKERRQ(ierr);
 		ierr = MatDestroy(&P); CHKERRQ(ierr);
 		ierr = MatDestroy(&A);CHKERRQ(ierr);

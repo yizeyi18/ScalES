@@ -9,7 +9,7 @@ OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 
 ex9: ex9.o ${DGDFTLIB} 
-	($(LOADER) $(LOADOPTS) -o $@ ex9.o)
+	($(LOADER) $(LOADOPTS) -L/Users/linlin/elementorbital/external/modified_blopex -lmodified_blopex -o $@ ex9.o)
 
 
 ex8: ex8.o ${DGDFTLIB} 

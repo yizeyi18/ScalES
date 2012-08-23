@@ -15,7 +15,7 @@ PETSC_ARCH   = osx-complex
 include ${SLEPC_DIR}/conf/slepc_common
 
 DGDFTDIR     = /Users/linlin/Projects/elementorbital
-DGDFTINCLUDE = -I${DGDFTDIR}/include -I/Users/linlin/elementorbital/external/modified_blopex 
+DGDFTINCLUDE = -I${DGDFTDIR}/include 
 
 # Link with GFORTRAN and SCALAPACK when needed
 GFORTRAN_LIB =/opt/local/lib/gcc44/libgfortran.dylib
