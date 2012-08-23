@@ -8,7 +8,7 @@ SRCS = spinor.cpp fourier.cpp domain.cpp esdf.cpp global.cpp
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 
-libdgdft: libdgdft.a
+all: libdgdft.a
 
 -include ${DEPS}
 

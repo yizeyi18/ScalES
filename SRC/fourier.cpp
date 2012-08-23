@@ -77,6 +77,7 @@ PrepareFourier ( Fourier& fft, const Domain& dm )
 	}
 
 	fft.gkk.Resize( dm.NumGridTotal() );
+	fft.TeterPrecond.Resize( dm.NumGridTotal() );
 	fft.ik.resize(DIM);
 	fft.ik[0].Resize( dm.NumGridTotal() );
 	fft.ik[1].Resize( dm.NumGridTotal() );
@@ -94,14 +95,22 @@ PrepareFourier ( Fourier& fft, const Domain& dm )
 					( KGrid[0](i) * KGrid[0](i) +
             KGrid[1](j) * KGrid[1](j) +
 						KGrid[2](k) * KGrid[2](k) ) / 2.0;
+
 				*(ikXPtr++) = Complex( 0.0, KGrid[0](i) );
 				*(ikYPtr++) = Complex( 0.0, KGrid[1](j) );
 				*(ikZPtr++) = Complex( 0.0, KGrid[2](k) );
+
 			}
 		}
 	}
 
-	// TODO TeterPreconditioner
+	// TeterPreconditioner
+	Real  a, b;
+	for( Int i = 0; i < fft.domain.NumGridTotal(); i++ ){
+		a = fft.gkk[i] * 2.0;
+		b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
+		fft.TeterPrecond[i] = b / ( b + 16.0 * pow(a, 4.0) );
+	}
 	// TODO Real to Complex
 	
 	fft.isPrepared = true;

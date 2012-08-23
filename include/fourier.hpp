@@ -23,7 +23,7 @@ struct Fourier {
 	// Laplacian operator related
   DblNumVec                gkk;
 	std::vector<CpxNumVec>   ik;
-  DblNumVec                TeterPreconditioner;
+  DblNumVec                TeterPrecond;
 
 	// Temporary vectors that can also be used globally
 	CpxNumVec                inputComplexVec;     

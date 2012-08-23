@@ -1,9 +1,8 @@
 // *********************************************************************
 // Test for solving the eigenvalue problem for periodic Laplacian
-// operator using SLEPc without using preconditioner
+// operator using SLEPc using preconditioner
 //
-//   A = -\Delta / 2
-// 
+//   A = -\Delta / 2 + I
 //
 // *********************************************************************
 #include "dgdft.hpp"
@@ -15,11 +14,15 @@ using namespace std;
 
 static char help[] = "Test for solving the eigenvalue problem for periodic Laplacian operator using SLEPc";
 
+extern "C"{
+extern PetscErrorCode EPSCreate_MODIFIED_BLOPEX(EPS eps);
+}
 
 // *********************************************************************
 // Matrix operations
 // *********************************************************************
 PetscErrorCode MatLap_Mult(Mat,Vec,Vec);
+PetscErrorCode MatPrecond_Mult(Mat,Vec,Vec);
 
 int main(int argc, char **argv) 
 {
@@ -42,8 +45,10 @@ int main(int argc, char **argv)
 		throw std::runtime_error("Test should be run under debug mode");
 #endif
 
-		Mat            A;               /* eigenvalue problem matrix */
-		EPS            eps;             /* eigenproblem solver context */
+		Mat            A;                           // eigenvalue problem matrix
+		Mat            P;                           // Preconditioning matrix
+		EPS            eps;                         // eigenproblem solver context
+		ST             st;                          // Spectral transformation
 		const EPSType  type;
 		Int            nev;
 
@@ -55,7 +60,7 @@ int main(int argc, char **argv)
 	 
 		Domain  dm;
 		dm.length  = Point3( 1.0, 1.0, 1.0 );
-		dm.numGrid = Index3( 8, 8, 8 );
+		dm.numGrid = Index3( 64, 64, 64 );
 
 		Fourier fft;
 		PrepareFourier( fft, dm );
@@ -83,15 +88,42 @@ int main(int argc, char **argv)
 		CHKERRQ(ierr);
 		
 		ierr = MatShellSetOperation(A,MATOP_MULT,(void(*)())MatLap_Mult);CHKERRQ(ierr);
+	
+		ierr = MatCreateShell(
+				PETSC_COMM_WORLD,
+				fft.numGridLocal,
+				fft.numGridLocal,
+				dm.NumGridTotal(),
+				dm.NumGridTotal(),
+				(void*) (&fft), &P );
+		CHKERRQ(ierr);
 		
+		ierr = MatShellSetOperation(P,MATOP_MULT,(void(*)())MatPrecond_Mult);CHKERRQ(ierr);
+
+
 		// *********************************************************************
 		// Create the eigensolver and set various options
 		// *********************************************************************
+		
+		// Register for a new solver: the modified blopex
+
+		EPSRegister( "modified_blopex", 0, "EPSCreate_MODIFIED_BLOPEX", 
+				EPSCreate_MODIFIED_BLOPEX );
+		
 		ierr = EPSCreate(PETSC_COMM_WORLD,&eps);CHKERRQ(ierr);
+		
+
 		ierr = EPSSetOperators(eps,A,PETSC_NULL);CHKERRQ(ierr);
 		ierr = EPSSetProblemType(eps,EPS_HEP);CHKERRQ(ierr);
 		ierr = EPSSetWhichEigenpairs(eps,EPS_SMALLEST_REAL);CHKERRQ(ierr);
 		ierr = EPSSetFromOptions(eps);CHKERRQ(ierr);
+		
+		// *********************************************************************
+		// Set for the preconditioner
+		// *********************************************************************
+		ierr = EPSGetST( eps, &st ); CHKERRQ( ierr );
+		ierr = STPrecondSetMatForPC( st, P ); CHKERRQ( ierr );
+		
 
 		// *********************************************************************
 		// Solve the eigenvalue problem
@@ -114,6 +146,7 @@ int main(int argc, char **argv)
 		PushCallStack("Clean up");
 		ierr = EPSPrintSolution(eps,PETSC_NULL);CHKERRQ(ierr);
 		ierr = EPSDestroy(&eps);CHKERRQ(ierr);
+		ierr = MatDestroy(&P); CHKERRQ(ierr);
 		ierr = MatDestroy(&A);CHKERRQ(ierr);
 		PopCallStack();
 	}
@@ -180,7 +213,63 @@ PetscErrorCode MatLap_Mult(Mat A, Vec x, Vec y)
   VecRestoreArray( x, reinterpret_cast<PetscScalar**>(&xArray) );
 	VecRestoreArray( y, reinterpret_cast<PetscScalar**>(&yArray) );
   ierr = VecScale(y, 1.0 / numGridTotal);	 CHKERRQ(ierr);
-//	ierr = VecAXPY(y, 1.0, x); CHKERRQ(ierr);
+
+	// Add the identity operator
+	ierr = VecAXPY(y, 1.0, x); CHKERRQ(ierr);
+  PetscFunctionReturn(0);
+}
+#undef __FUNCT__
+
+
+#undef  __FUNCT__
+#define __FUNCT__ "MatPrecond_Mult"
+PetscErrorCode MatPrecond_Mult(Mat P, Vec x, Vec y)
+{
+	Int numGridTotal, numGridLocal;
+	Scalar*    xArray;
+  Scalar*  	 yArray; 
+	Fourier*   fft;
+  PetscErrorCode    ierr;
+
+  PetscFunctionBegin;
+
+  ierr = MatShellGetContext(P,(void**)(&fft));CHKERRQ(ierr);
+	numGridTotal = fft->domain.NumGridTotal();
+	numGridLocal = fft->numGridLocal;
+	VecGetArray( x, reinterpret_cast<PetscScalar**>(&xArray) );
+	VecGetArray( y, reinterpret_cast<PetscScalar**>(&yArray) );
+
+	fftw_mpi_execute_dft( fft->forwardPlan, 
+			reinterpret_cast<fftw_complex*>( xArray ),  
+			reinterpret_cast<fftw_complex*>( fft->outputComplexVec.Data() ) );
+
+	Index3 numGrid = fft->domain.numGrid;
+	//TODO change this to NumTns later.
+	for( Int k = 0; k < numGrid[2]; k++ ){
+		for( Int j = 0; j < numGrid[1]; j++ ){
+			for( Int i = fft->localN0Start; 
+					 i < fft->localN0Start + fft->localN0; i++ ){
+				Int idx1 = (i - fft->localN0Start) + j * fft->localN0 + k * (fft->localN0 * numGrid[1]);
+				Int idx2 = i + j * numGrid[0] + k * numGrid[0] * numGrid[1];
+				fft->outputComplexVec[ idx1 ] *= fft->TeterPrecond( idx2 );
+			}
+		}
+	}
+	
+	fftw_mpi_execute_dft( fft->backwardPlan, 
+			reinterpret_cast<fftw_complex*>( fft->outputComplexVec.Data() ),  
+			reinterpret_cast<fftw_complex*>( yArray ) );
+
+//	for( Int i = 0; i < numGridLocal; i++ ){
+//		yArray[i] = xArray[i];
+//	}
+
+  VecRestoreArray( x, reinterpret_cast<PetscScalar**>(&xArray) );
+	VecRestoreArray( y, reinterpret_cast<PetscScalar**>(&yArray) );
+
+	ierr = VecScale(y, 1.0 / numGridTotal);	 CHKERRQ(ierr);
+
+	// Add the identity operator
   PetscFunctionReturn(0);
 }
 #undef __FUNCT__

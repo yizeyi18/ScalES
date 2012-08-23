@@ -3,12 +3,17 @@
 
 include ../make.inc.${HOSTID}
 
+
 SRCS = ex1.cpp ex2.cpp ex3.cpp ex4.cpp ex5.cpp ex6.cpp ex7.cpp ex8.cpp
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 
+ex9: ex9.o ${DGDFTLIB} 
+	($(LOADER) $(LOADOPTS) -o $@ ex9.o)
+
+
 ex8: ex8.o ${DGDFTLIB} 
-	($(LOADER) $(LOADOPTS) -o $@ ex7.o)
+	($(LOADER) $(LOADOPTS) -L/Users/linlin/elementorbital/external/modified_blopex -lmodified_blopex -o $@ ex8.o)
 
 ex7: ex7.o ${DGDFTLIB} 
 	($(LOADER) $(LOADOPTS) -o $@ ex7.o)
