@@ -42,6 +42,12 @@ struct Domain
 	Int  NumGridTotal() const { return numGrid[0] * numGrid[1] * numGrid[2]; }
 };
 
+// TODO: Serialize
+//int serialize(const Domain&, ostream&, const vector<int>&);
+//int deserialize(Domain&, istream&, const vector<int>&);
+//int combine(Domain&, Domain&);
+
+
 } // namespace dgdft
 
 

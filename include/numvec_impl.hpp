@@ -178,7 +178,7 @@ template < class F >
 			}
 		}
 		else{
-			std::cerr << "NumVec<F>::Resize is doing nothin" << std::endl;
+			std::cerr << "NumVec<F>::Resize is doing nothing" << std::endl;
 		}
 
 #ifndef _RELEASE_
