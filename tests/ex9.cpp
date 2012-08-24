@@ -135,6 +135,7 @@ int main(int argc, char **argv)
 		ierr = EPSSetWhichEigenpairs(eps,EPS_SMALLEST_REAL);CHKERRQ(ierr);
 		// Set solver parameters at runtime
 		ierr = EPSSetFromOptions(eps);CHKERRQ(ierr);
+		ierr = EPSSetType(eps, EPSMODIFIEDBLOPEX ); CHKERRQ(ierr);
 
 
 		// IMPORTANT: GetType after EPSSet
@@ -303,8 +304,6 @@ PetscErrorCode MatLap_Mult(Mat A, Vec x, Vec y)
 #undef __FUNCT__
 
 
-#undef  __FUNCT__
-#define __FUNCT__ "MatPrecond_Mult"
 PetscErrorCode MatPrecond_Mult(Mat P, Vec x, Vec y)
 {
 	Int numGridTotal, numGridLocal;
@@ -313,7 +312,6 @@ PetscErrorCode MatPrecond_Mult(Mat P, Vec x, Vec y)
 	Fourier*   fft;
   PetscErrorCode    ierr;
 
-  PetscFunctionBegin;
 
   ierr = MatShellGetContext(P,(void**)(&fft));CHKERRQ(ierr);
 	numGridTotal = fft->domain.NumGridTotal();
@@ -351,7 +349,5 @@ PetscErrorCode MatPrecond_Mult(Mat P, Vec x, Vec y)
 
 	ierr = VecScale(y, 1.0 / numGridTotal);	 CHKERRQ(ierr);
 
-	// Add the identity operator
   PetscFunctionReturn(0);
 }
-#undef __FUNCT__

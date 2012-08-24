@@ -4,7 +4,7 @@
 include ../make.inc.${HOSTID}
 
 
-SRCS = spinor.cpp fourier.cpp domain.cpp esdf.cpp global.cpp
+SRCS = eigensolver.cpp spinor.cpp fourier.cpp domain.cpp esdf.cpp global.cpp
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 
@@ -17,4 +17,4 @@ libdgdft.a: ${OBJS}
 	$(RANLIB) $@
 
 cleanall:
-	${RM} -f *.o libdgdft.a *.d *.d.*
+	${RM} -f ${OBJS} ${DEPS} libdgdft.a *.d.*

@@ -6,6 +6,7 @@
 #include  "numvec_impl.hpp"
 
 namespace dgdft{
+// TODO decide where to put grid and weight
 
 // Type of grids
 enum {
@@ -19,8 +20,8 @@ struct Domain
 	Point3       posStart;                        // starting position
 	Index3       numGrid;                         // number of grids points in each direction
 	Int          typeGrid;                        // Type of grids: LGL / UNIFORM
-	std::vector<NumVec<Real> >   grid;            // Grid points along each dimension
-	std::vector<NumVec<Real> >   weight;          // Integration weight along each dimension
+//	std::vector<NumVec<Real> >   grid;            // Grid points along each dimension
+//	std::vector<NumVec<Real> >   weight;          // Integration weight along each dimension
 	MPI_Comm     comm;                            // MPI Communicator
 
 	Domain()
@@ -31,8 +32,8 @@ struct Domain
 
 		typeGrid = UNIFORM; 
 		comm = MPI_COMM_WORLD; 
-		grid.resize(DIM);
-		weight.resize(DIM);
+//		grid.resize(DIM);
+//		weight.resize(DIM);
 	}
 
 	~Domain(){}

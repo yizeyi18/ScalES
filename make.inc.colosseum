@@ -5,24 +5,28 @@
 #
 # TODO: Interface with elemental / PETSc.  Worry about later.
 
-# Includes, libraries and compilers
 
+# PETSc/SLEPc setup
 SLEPC_DIR    = /Users/linlin/Software/slepc-3.3-p1
 PETSC_DIR    = /Users/linlin/Documents/Software/petsc-3.3
 # TODO: Get the code work for real case
 PETSC_ARCH   = osx-complex
-
 include ${SLEPC_DIR}/conf/slepc_common
 
-DGDFTDIR     = /Users/linlin/Projects/elementorbital
-DGDFTINCLUDE = -I${DGDFTDIR}/include 
+# inclues, libraries
+MODIFIED_BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/modified_blopex
+MODIFIED_BLOPEX_LIB       = ${DGDFT_DIR}/external/modified_blopex/libmodified_blopex.a 
+
+DGDFT_DIR     = /Users/linlin/Projects/elementorbital
+DGDFT_INCLUDE = -I${DGDFT_DIR}/include 
+INCLUDES      = ${DGDFT_INCLUDE} ${MODIFIED_BLOPEX_INCLUDE}
 
 # Link with GFORTRAN and SCALAPACK when needed
 GFORTRAN_LIB =/opt/local/lib/gcc44/libgfortran.dylib
 SCALAPACK_LIB=/Users/linlin/Software/scalapack-2.0/libscalapack.a
 
-DGDFTLIB     = ${DGDFTDIR}/src/libdgdft.a
-LIBS         = ${DGDFTLIB} ${SLEPC_LIB} #${ELEM_LIBS} 
+DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
+LIBS         = ${MODIFIED_BLOPEX_LIB} ${DGDFT_LIB} ${SLEPC_LIB} 
 
 # FIXME: Include is put here due to conflict of CFLAGS with PETSc
 CC           = ${PCC_LINKER} 
@@ -47,9 +51,9 @@ MODE	         = debug
 # Use the options provided in PETSc and SLEPc
 ifeq ($(MODE), debug)
   COMMONDEFS   = -D_USE_COMPLEX_
-  CFLAGS       = ${CCPPFLAGS} ${DGDFTINCLUDE}
-  FFLAGS       = ${FCPPFLAGS} ${DGDFTINCLUDE}
-  CXXFLAGS     = ${CCPPFLAGS} ${DGDFTINCLUDE}
+  CFLAGS       = ${CCPPFLAGS} ${INCLUDES}
+  FFLAGS       = ${FCPPFLAGS} ${INCLUDES}
+  CXXFLAGS     = ${CCPPFLAGS} ${INCLUDES}
 	CCDEFS       = ${COMMONDEFS}
 	CPPDEFS      = ${COMMONDEFS}
   LOADOPTS     = ${PCC_LINKER_FLAGS} ${LIBS}
