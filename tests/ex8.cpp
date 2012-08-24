@@ -238,17 +238,11 @@ PetscErrorCode MatLap_Mult(Mat A, Vec x, Vec y)
 			reinterpret_cast<fftw_complex*>( xArray ),  
 			reinterpret_cast<fftw_complex*>( fft->outputComplexVec.Data() ) );
 
-	Index3 numGrid = fft->domain.numGrid;
-	//TODO change this to NumTns later.
-	for( Int k = 0; k < numGrid[2]; k++ ){
-		for( Int j = 0; j < numGrid[1]; j++ ){
-			for( Int i = fft->localN0Start; 
-					 i < fft->localN0Start + fft->localN0; i++ ){
-				Int idx1 = (i - fft->localN0Start) + j * fft->localN0 + k * (fft->localN0 * numGrid[1]);
-				Int idx2 = i + j * numGrid[0] + k * numGrid[0] * numGrid[1];
-				fft->outputComplexVec[ idx1 ] *= fft->gkk( idx2 );
-			}
-		}
+	Int ownLB, ownUB;
+	ierr = VecGetOwnershipRange( x, &ownLB, &ownUB ); if( ierr ) throw ierr;
+	for( Int i = ownLB; i < ownUB; i++ ){
+    fft->outputComplexVec[ i - ownLB ] 
+			*= fft->gkk( i );
 	}
 	
 	fftw_mpi_execute_dft( fft->backwardPlan, 
@@ -292,17 +286,11 @@ PetscErrorCode MatPrecond_Mult(Mat P, Vec x, Vec y)
 			reinterpret_cast<fftw_complex*>( xArray ),  
 			reinterpret_cast<fftw_complex*>( fft->outputComplexVec.Data() ) );
 
-	Index3 numGrid = fft->domain.numGrid;
-	//TODO change this to NumTns later.
-	for( Int k = 0; k < numGrid[2]; k++ ){
-		for( Int j = 0; j < numGrid[1]; j++ ){
-			for( Int i = fft->localN0Start; 
-					 i < fft->localN0Start + fft->localN0; i++ ){
-				Int idx1 = (i - fft->localN0Start) + j * fft->localN0 + k * (fft->localN0 * numGrid[1]);
-				Int idx2 = i + j * numGrid[0] + k * numGrid[0] * numGrid[1];
-				fft->outputComplexVec[ idx1 ] *= fft->TeterPrecond( idx2 );
-			}
-		}
+	Int ownLB, ownUB;
+	ierr = VecGetOwnershipRange( x, &ownLB, &ownUB ); if( ierr ) throw ierr;
+	for( Int i = ownLB; i < ownUB; i++ ){
+    fft->outputComplexVec[ i - ownLB ] 
+			*= fft->TeterPrecond( i );
 	}
 	
 	fftw_mpi_execute_dft( fft->backwardPlan, 
@@ -318,7 +306,6 @@ PetscErrorCode MatPrecond_Mult(Mat P, Vec x, Vec y)
 
 	ierr = VecScale(y, 1.0 / numGridTotal);	 CHKERRQ(ierr);
 
-	// Add the identity operator
   PetscFunctionReturn(0);
 }
 #undef __FUNCT__

@@ -5,12 +5,22 @@
 #
 # TODO: Interface with elemental / PETSc.  Worry about later.
 
-
 # PETSc/SLEPc setup
 SLEPC_DIR    = /Users/linlin/Software/slepc-3.3-p1
 PETSC_DIR    = /Users/linlin/Documents/Software/petsc-3.3
+
+#SCALAR = REAL 
+SCALAR = COMPLEX
+
+ifeq (${SCALAR}, COMPLEX)
+  PETSC_ARCH   = osx-complex
+else
+  PETSC_ARCH   = osx-real
+endif
+
 # TODO: Get the code work for real case
-PETSC_ARCH   = osx-complex
+
+
 include ${SLEPC_DIR}/conf/slepc_common
 
 # inclues, libraries
@@ -50,7 +60,12 @@ MODE	         = debug
 
 # Use the options provided in PETSc and SLEPc
 ifeq ($(MODE), debug)
-  COMMONDEFS   = -D_USE_COMPLEX_
+  ifeq (${SCALAR}, COMPLEX)
+	  COMMONDEFS   = -D_USE_COMPLEX_ 
+  else
+	  COMMONDEFS   = 
+  endif
+
   CFLAGS       = ${CCPPFLAGS} ${INCLUDES}
   FFLAGS       = ${FCPPFLAGS} ${INCLUDES}
   CXXFLAGS     = ${CCPPFLAGS} ${INCLUDES}

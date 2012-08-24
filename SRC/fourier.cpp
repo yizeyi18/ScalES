@@ -31,8 +31,10 @@ PrepareFourier ( Fourier& fft, const Domain& dm )
 	Index3& numGrid = fft.domain.numGrid;
 	Point3& length  = fft.domain.length;
 
+	// IMPORTANT: the order of numGrid. This is because the FFTW arrays
+	// are row-major ordered.
 	fft.numGridLocal = (Int) fftw_mpi_local_size_3d(
-			numGrid[0], numGrid[1], numGrid[2], dm.comm, 
+			numGrid[2], numGrid[1], numGrid[0], dm.comm, 
 			&localN0, 
 			&localN0Start);
 
@@ -40,7 +42,7 @@ PrepareFourier ( Fourier& fft, const Domain& dm )
 	fft.localN0      = static_cast<Int>(localN0);
 	fft.localN0Start = static_cast<Int>(localN0Start);
 
-	if( fft.numGridLocal != static_cast<Int>(localN0) * numGrid[1] * numGrid[2] ){
+	if( fft.numGridLocal != static_cast<Int>(localN0) * numGrid[1] * numGrid[0] ){
 		std::ostringstream msg;
 		msg 
 			<< "The dimension of space does not match." << std::endl 
@@ -53,14 +55,16 @@ PrepareFourier ( Fourier& fft, const Domain& dm )
 	fft.inputComplexVec.Resize( fft.numGridLocal );
 	fft.outputComplexVec.Resize( fft.numGridLocal );
 
+	// IMPORTANT: the order of numGrid. This is because the FFTW arrays
+	// are row-major ordered.
 	fft.forwardPlan = fftw_mpi_plan_dft_3d( 
-			numGrid[0], numGrid[1], numGrid[2], 
+			numGrid[2], numGrid[1], numGrid[0], 
 			reinterpret_cast<fftw_complex*>( &fft.inputComplexVec[0] ), 
 			reinterpret_cast<fftw_complex*>( &fft.outputComplexVec[0] ),
 			dm.comm, FFTW_FORWARD, fft.plannerFlag );
 
 	fft.backwardPlan = fftw_mpi_plan_dft_3d(
-			numGrid[0], numGrid[1], numGrid[2],
+			numGrid[2], numGrid[1], numGrid[0],
 			reinterpret_cast<fftw_complex*>( &fft.outputComplexVec[0] ),
 			reinterpret_cast<fftw_complex*>( &fft.inputComplexVec[0] ),
 			dm.comm, FFTW_BACKWARD, fft.plannerFlag);

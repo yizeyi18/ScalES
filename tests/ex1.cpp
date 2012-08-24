@@ -12,7 +12,7 @@ int main(int argc, char **argv)
 	try
 	{
 		Point3  p1(1.0, 2.0, 3.0);
-		Point3  p2( p1.data() );
+		Point3  p2( p1.Data() );
 		Point3  p3( p1[0], p1[1], p1[2] );
 		Point3  p4( p1 );
 		Point3  p5; p5 = p1;
