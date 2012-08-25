@@ -29,11 +29,12 @@
 #include <slepceps.h>
 
 /***********************************************************************
- *  Data types
+ *  Data types and constants
  **********************************************************************/
 
 namespace dgdft{
 
+// Basic data types
 // Make sure that the following definition is consistent with the
 // Petsc definition.  
 
@@ -45,13 +46,15 @@ typedef    std::complex<double>  Scalar;  // Must use elemental form of complex
 #else
 typedef    double                Scalar;
 #endif
-typedef    PetscScalar           PetscScalar;      // Still use PetscScalar
+typedef    PetscScalar           PetscScalar;      // Still use PetscScalar when it is needed
+
+
 
 
 // *********************************************************************
 // Define constants
 // *********************************************************************
-const Int DIM = 3;                            // Always in 3D
+// Commonly used
 const Int I_ZERO = 0;
 const Int I_ONE = 1;
 const Real D_ZERO = 0.0;
@@ -60,7 +63,20 @@ const Complex Z_ZERO = Complex(0.0, 0.0);
 const Complex Z_ONE  = Complex(1.0, 0.0);
 const char UPPER = 'U';
 const char LOWER = 'L';
-const Real PI = PETSC_PI;
+
+// Physical constants
+
+const Int DIM = 3;                            // Always in 3D
+const Real au2K = 315774.67;
+const Real amu2au = 1822.8885;
+const Real SPEED_OF_LIGHT = 137.0359895; 
+const Real PI = 3.141592653589793;
+
+// Indicies for spinors and density
+enum {RHO, MAGX, MAGY, MAGZ};  // four-component RHO and MAGnetization
+enum {UP, DN};                 // spin-UP and spin-DowN
+enum {LGUP, LGDN, SMUP, SMDN}; // LarGe spin-UP and SMall spin-DowN
+
 
 
 } // namespace dgdft
@@ -86,13 +102,25 @@ struct NullStream : std::ostream
 {            
 	struct NullStreamBuffer : std::streambuf
 	{
-		int overflow( int c ) { return traits_type::not_eof(c); }
+		Int overflow( Int c ) { return traits_type::not_eof(c); }
 	} nullStreamBuffer_;
 
 	NullStream() 
 		: std::ios(&nullStreamBuffer_), std::ostream(&nullStreamBuffer_)
 		{ }
 };  
+
+// *********************************************************************
+// Global utility functions 
+// These utility functions do not depend on local definitions
+// *********************************************************************
+// Return the closest integer to a rela number
+Int iround( Real a );
+
+// Read the options from command line
+Int OptionsCreate(Int argc, char** argv, 
+		std::map<std::string,std::string>& options);
+
 } // namespace dgdft
 
 

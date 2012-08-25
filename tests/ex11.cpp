@@ -73,6 +73,7 @@ int main(int argc, char **argv)
 		PrepareFourier( fft, dm );
 
 		
+		
 		if( mpirank == 0 ){
 			cout << "numGridTotal = " << dm.NumGridTotal() << endl;
 			cout << "numGridLocal = " << fft.numGridLocal << endl;

@@ -51,4 +51,4 @@ struct Domain
 } // namespace dgdft
 
 
-#endif
+#endif // _DOMAIN_HPP

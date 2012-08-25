@@ -177,5 +177,4 @@ public:
 
 
 
-#endif
-
+#endif // _SPINOR_HPP_

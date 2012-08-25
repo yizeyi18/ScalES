@@ -86,5 +86,4 @@ public:
 }; // -----  end of class  EigenSolver  ----- 
 
 } // namespace dgdft
-#endif
-
+#endif // _EIGENSOLVER_HPP_

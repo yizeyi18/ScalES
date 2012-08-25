@@ -5,10 +5,14 @@ include ../make.inc.${HOSTID}
 
 
 SRCS = ex1.cpp ex2.cpp ex3.cpp ex4.cpp ex5.cpp ex6.cpp ex7.cpp ex8.cpp\
-			 ex9.cpp ex10.cpp ex11.cpp ex12.cpp
+			 ex9.cpp ex10.cpp ex11.cpp ex12.cpp ex13.cpp
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 EXES = ${SRCS:.cpp=}	
+
+
+ex13: ex13.o ${DGDFT_LIB} 
+	($(LOADER) $(LOADOPTS) -o $@ ex13.o)
 
 ex12: ex12.o ${DGDFT_LIB} 
 	($(LOADER) $(LOADOPTS) -o $@ ex12.o)

@@ -36,4 +36,4 @@ template <class F> inline Real Energy(const NumMat<F>& M)
 
 } // namespace dgdft
 
-#endif
+#endif // _NUMMAT_IMPL_HPP_

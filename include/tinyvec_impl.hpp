@@ -200,5 +200,4 @@ template <class F> std::ostream& operator<<(std::ostream& os, const Vec3T<F>& a)
 
 } // namespace dgdft
 
-#endif
-
+#endif // _TINYVEC_IMPL_HPP_

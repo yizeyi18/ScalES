@@ -104,6 +104,7 @@ typedef NumMat<Int>      IntNumMat;
 typedef NumMat<Real>     DblNumMat;
 typedef NumMat<Complex>  CpxNumMat;
 
+ 
 } // namespace dgdft
 
-#endif
+#endif // _NUMMAT_DECL_HPP_

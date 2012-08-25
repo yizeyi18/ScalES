@@ -123,4 +123,4 @@ typedef NumTns<Complex>    CpxNumTns;
 
 } // namespace dgdft
 
-#endif
+#endif // _NUMTNS_DECL_HPP_

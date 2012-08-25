@@ -1,5 +1,5 @@
-#ifndef _NUMVEC_HPP_
-#define _NUMVEC_HPP_
+#ifndef _NUMVEC_DECL_HPP_
+#define _NUMVEC_DECL_HPP_
 
 #include "environment_impl.hpp"
 
@@ -45,4 +45,4 @@ typedef NumVec<Complex>    CpxNumVec;
 
 } // namespace dgdft
 
-#endif
+#endif // _NUMVEC_DECL_HPP_

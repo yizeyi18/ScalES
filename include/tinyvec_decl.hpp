@@ -1,7 +1,6 @@
 #ifndef  _TINYVEC_DECL_HPP_
 #define  _TINYVEC_DECL_HPP_
 
-#include "environment_decl.hpp"
 #include "environment_impl.hpp"
 
 namespace dgdft{
@@ -48,5 +47,4 @@ typedef Vec3T<Int>    Index3;
 
 } // namespace dgdft
 
-#endif
-
+#endif // _TINYVEC_DECL_HPP_

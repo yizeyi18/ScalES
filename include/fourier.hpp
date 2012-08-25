@@ -48,4 +48,4 @@ void PrepareFourier( Fourier& fft, const Domain& dm );
 } // namespace dgdft
 
 
-#endif
+#endif // _FOURIER_HPP_

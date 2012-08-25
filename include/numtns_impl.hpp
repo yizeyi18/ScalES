@@ -47,4 +47,4 @@ template <class F> inline Real Energy(const NumTns<F>& T)
 
 } // namespace dgdft
 
-#endif
+#endif // _NUMTNS_IMPL_HPP_

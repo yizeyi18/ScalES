@@ -309,6 +309,4 @@ template <class F> inline void Sort( NumVec<F>& vec ){
 
 } // namespace dgdft
 
-#endif
-
-
+#endif // _NUMVEC_IMPL_HPP_

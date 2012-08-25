@@ -133,5 +133,4 @@ class Hamiltonian{
 } // namespace dgdft
 
 
-#endif
-
+#endif // _HAMILTONIAN_HPP_
