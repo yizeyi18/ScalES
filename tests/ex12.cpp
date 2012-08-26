@@ -1,5 +1,5 @@
 // *********************************************************************
-// Test for using the periodic table structure
+// Test for utilities and input interface 
 // 
 // This test subroutine is to be revised in the next step when
 // periodictable is updated.
@@ -7,15 +7,17 @@
 #include "dgdft.hpp"
 #include "spinor.hpp"
 #include "fourier.hpp"
+#include "esdf.hpp"
 #include "utility.hpp"
 
-#define EPSMODIFIEDBLOPEX      "modified_blopex"
 
 using namespace dgdft;
 using namespace std;
+using namespace esdf;
+using dgdft::esdf::ESDFInputParam;
+using dgdft::esdf::ESDFReadInput;
 
-static char help[] = "Test the periodtable class";
-
+static char help[] = "Test the utilities and input interface";
 
 int main(int argc, char **argv) 
 {
@@ -38,13 +40,37 @@ int main(int argc, char **argv)
 		statusOFS.open( ss.str().c_str() );
 
 
-		Print(statusOFS, "Etot           = ",  1.23234, "[Ry]");
-		Print(statusOFS, "Super cell     = ",  Point3(2.0,2.0,3.0) );
-		Print(statusOFS, "Grid size      = ",  Index3(20,20,30) );
+
+		ESDFInputParam  esdfParam;
+
+		ESDFReadInput( esdfParam, "dgdft.in" );
+
+
+		Print(statusOFS, "Etot              = ",  1.23234, "[Ry]");
+
+		Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
+		Print(statusOFS, "Grid size         = ",  esdfParam.domain.numGrid ); 
+		Print(statusOFS, "PeriodTableFile   = ",  esdfParam.periodTableFile );
+		Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixDim );
+		Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
+
+		statusOFS << "          Atom Type and Coordinates               " <<endl;
+
+		std::vector<Atom>&  atomList = esdfParam.atomList;
+		for(int i=0; i < atomList.size(); i++) {
+			Print(statusOFS, "Type = ", atomList[i].type, "Position  = ", atomList[i].pos);
+		}
+    
 
 
 		statusOFS.close();
 
+		std::vector<Real> a(5);
+		for(int i = 0; i < 5; i++){
+			a[i] = 2.3*i;
+		}
+
+		cout << a << endl;
 
 	}
 	catch( std::exception& e )

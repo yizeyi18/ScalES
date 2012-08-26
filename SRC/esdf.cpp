@@ -1,3 +1,14 @@
+#include "esdf.hpp"
+
+// TODO Change some of the char* to const char*
+
+namespace dgdft{
+
+
+// *********************************************************************
+// Electronic structure data format
+// *********************************************************************
+
 //===============================================================
 //
 // Electronic structure data format
@@ -157,27 +168,37 @@
 // This code is under development, and the author would be very happy to
 // receive comments by email. Any use in a commercial software package is
 // forbidden without prior arrangement with the author (Chris J. Pickard).
-//
-// C/C++ verison
-// ------------------
-//
-// The C version of this code is provided by 
-// Weiguo Gao
-// Fudan University, China.
-//
-// The C++ version of this code is converted by
-// Lin Lin
-// Computational Research Division, Lawrence Berkeley National
-// Laboratory
-//
-// 8/8/2012
 //---------------------------------------------------------------
-#include "esdf.hpp"
 
-// TODO Change some of the char* to const char*
-
-namespace dgdft{
 namespace esdf{
+
+// *********************************************************************
+// Constants
+// *********************************************************************
+const int nphys = 57;
+const int llength = 80;  /* length of the lines */
+const int numkw = 200;   /* maximum number of keywords */
+
+
+
+char **block_data;
+int nrecords;
+int nwarns;
+char **llist;
+char **warns;
+char ***tlist;
+char phy_d[nphys][11];          /* D - dimension */
+char phy_n[nphys][11];          /* N - name */
+double phy_u[nphys];            /* U - unit */
+
+char kw_label[numkw][80];
+int kw_index[numkw];
+char kw_typ[numkw][4];
+char kw_dscrpt[numkw][3000];
+
+FILE *fileunit;
+
+
 /************************************************************ 
  * Main routines
  ************************************************************/
@@ -691,11 +712,15 @@ void esdf() {
 
 /*   --------------  esdf_bcast ----------------------  */
 /*   Modified by Lin Lin, Nov 9, 2010                   */
-void esdf_bcast(int myid, int MASTER){
+void esdf_bcast(){
+	int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank ); 
+	int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+
+	const int MASTER = 0;
 	int i, j;
 	MPI_Bcast(&nrecords, 1, MPI_INT, MASTER, MPI_COMM_WORLD);
 	MPI_Bcast(&nwarns,   1, MPI_INT, MASTER, MPI_COMM_WORLD);
-	if( myid != MASTER ){
+	if( mpirank != MASTER ){
 		esdf();
 		esdf_key();
 		block_data=(char **)malloc(sizeof(char*)*nrecords);
@@ -722,7 +747,7 @@ void esdf_bcast(int myid, int MASTER){
 
 
 /*   --------------  esdf_init  ----------------------  */
-void esdf_init(char *fname) {
+void esdf_init(const char *fname) {
 	/* Initialize */
 	const int ncomm=3;
 	const int ndiv=3;
@@ -910,7 +935,7 @@ void esdf_init(char *fname) {
 }
 
 /*   --------------  esdf_string  ----------------------  */
-void esdf_string(char *labl,char *def,char *out) {
+void esdf_string(const char *labl, const char *def, char *out) {
 	/* Return the string attached to the "label" */
 	int i,kw_number;
 	int ind;
@@ -943,7 +968,7 @@ void esdf_string(char *labl,char *def,char *out) {
 }
 
 /*   --------------  esdf_integer  ----------------------  */
-int esdf_integer(char *labl,int def) {
+int esdf_integer(const char *labl,int def) {
 	/* Return the integer value attached to the "label" */
 	int i;
 	char ctemp[llength];
@@ -980,7 +1005,7 @@ int esdf_integer(char *labl,int def) {
 }
 
 /*   --------------  esdf_single  ----------------------  */
-float esdf_single(char *labl,float def) {
+float esdf_single(const char *labl,float def) {
 	/* Return the single precisioned value attached to the "label" */
 	float out;
 	int i;
@@ -1016,7 +1041,7 @@ float esdf_single(char *labl,float def) {
 }
 
 /*   --------------  esdf_double  ----------------------  */
-double esdf_double(char *labl,double def) {
+double esdf_double(const char *labl,double def) {
 	/* Return the double precisioned value attached to the "label" */
 	int i;
 	char ctemp[llength];
@@ -1052,7 +1077,7 @@ double esdf_double(char *labl,double def) {
 }
 
 /*   --------------  esdf_physical  ----------------------  */
-double esdf_physical(char *labl,double def,char *dunit) {
+double esdf_physical(const char *labl,double def,char *dunit) {
 	/* Return the double precisioned physical value attached to the "label"
 		 units converted to "dunit"
 		 */
@@ -1094,7 +1119,7 @@ double esdf_physical(char *labl,double def,char *dunit) {
 }
 
 /*   --------------  esdf_defined  ----------------------  */
-bool esdf_defined(char *labl) {
+bool esdf_defined(const char *labl) {
 	/* Is the "label" defined in the input file */
 	int i;
 	int kw_number;
@@ -1123,7 +1148,7 @@ bool esdf_defined(char *labl) {
 }
 
 /*   --------------  esdf_boolean  ----------------------  */
-bool esdf_boolean(char *labl,bool *def) {
+bool esdf_boolean(const char *labl,bool *def) {
 	/* Is the "label" defined in the input file */
 	int i;
 	char positive[3][llength],negative[3][llength];
@@ -1178,7 +1203,7 @@ bool esdf_boolean(char *labl,bool *def) {
 }
 
 /*   --------------  esdf_block  ----------------------  */
-bool esdf_block(char *labl,int *nlines) {
+bool esdf_block(const char *labl,int *nlines) {
 	int i;
 	char ctemp[llength];
 	int kw_number;
@@ -1689,5 +1714,130 @@ char *strupr(char *str) {
 
 	return str;
 }
+
+// *********************************************************************
+// Input interface
+// *********************************************************************
+
+void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename ){
+	ESDFReadInput( esdfParam, filename.c_str() );
+	return ;
+}
+
+void
+ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
+{
+#ifndef _RELEASE_
+	PushCallStack("ESDFReadInput");
+#endif
+	Int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+	Int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+	Int    nlines;
+	char*  strtmp;
+
+	// Read and distribute the input file
+	if( mpirank == 0 )  
+		esdf_init( filename );
+	esdf_bcast( );
+
+	// Now each processor can read parameters independently
+
+  // Domain
+	{
+    Domain& dm = esdfParam.domain;
+		if( esdf_block("Super_Cell", &nlines) ){
+			sscanf(block_data[0],"%lf %lf %lf",
+					&dm.length[0],&dm.length[1],&dm.length[2]);
+		}
+		else{
+			throw std::logic_error("Super_Cell cannot be found.");
+		}
+
+		if( esdf_block("Grid_Size", &nlines) ){
+			sscanf(block_data[0],"%d %d %d",
+					&dm.numGrid[0],&dm.numGrid[1],&dm.numGrid[2]);
+		}
+		else{
+			throw std::logic_error("Grid_Size cannot be found."); }
+
+		dm.posStart = Point3( 0.0, 0.0, 0.0 );
+	}
+
+	// Atoms
+	{
+		std::vector<Atom>&  atomList = esdfParam.atomList;
+		atomList.clear();
+
+		Int numAtomType = esdf_integer("Atom_Types_Num", 0);
+		if( numAtomType == 0 ){
+			throw std::logic_error("Atom_Types_Num cannot be found.");
+		}
+
+		for( Int ityp = 0; ityp < numAtomType; ityp++ ){
+			Int type = esdf_integer( "Atom_Type", 0 );
+			// TODO Add supported type list
+			if( type == 0 ){
+				throw  std::logic_error( "Atom_Type cannot be found.");
+
+			}
+			// FIXME IMPORTANT. The "mass" parameter is removed from the
+			// reading list.  Mass can be obtained later with periodtable
+			// structure and the atom type.  NOTE that the mass in PeriodTable 
+			// is in atomic mass unit (amu), but the mass in
+			// atomvec is in atomic unit (au).
+
+			Int  numAtom;
+
+			if( esdf_block("Atom_Cart", &numAtom ) ){
+				// Cartesian coordinate (in the unit of Bohr) 
+				Point3 pos;
+				for( Int j = 0; j < numAtom; j++ ){
+					sscanf(block_data[j],"%lf %lf %lf", 
+							&pos[0], &pos[1], &pos[2]);
+					atomList.push_back( 
+							Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
+				}
+			}
+			else if ( esdf_block("Atom_Red", &numAtom) ){
+				// Reduce coordinate (in the unit of Super_Cell)
+				Point3 pos;
+				Point3 length = esdfParam.domain.length;
+				for( Int j = 0; j < numAtom; j++ ){
+					sscanf(block_data[j],"%lf %lf %lf", 
+							&pos[0], &pos[1], &pos[2]);
+					atomList.push_back( 
+							Atom( type, Point3( pos[0]*length[0], pos[1]*length[1], pos[2]*length[2] ),
+								Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
+				}
+			}
+			else{
+				std::ostringstream msg;
+				msg << "Atomic coordinates cannot found for atom type "  << type;
+				throw std::logic_error( msg.str().c_str() );
+			} // Read atomic coordinates
+		} // for(ityp)
+	}
+
+	// System parameters
+	{
+		esdf_string("PeriodTable", "HGH.bin", strtmp);
+		esdfParam.periodTableFile = strtmp;
+
+		esdfParam.mixDim          = esdf_integer("Max_Mixing", 9);
+		esdf_string("Mixing_Type", "anderson", strtmp); 
+		esdfParam.mixType         = strtmp;
+
+	}
+
+
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+}		// -----  end of function ESDFReadInput  ----- 
+
 } // namespace esdf
 } // namespace dgdft

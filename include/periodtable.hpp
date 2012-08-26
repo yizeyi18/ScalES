@@ -19,13 +19,12 @@ namespace dgdft{
 struct Atom
 {
   Int          type;                            // Atomic number
-  Real         mass;                            // Mass of an atom
   Point3       pos;                             // Position
   Point3       vel;                             // Velocity
   Point3       force;                           // Atomic force
 
-	Atom( const Int t, const Real m, const Point3 p, const Point3 v, const Point3 f): 
-		type(t), mass(mass), pos(p), vel(v), force(f) {}
+	Atom( const Int t, const Point3 p, const Point3 v, const Point3 f): 
+		type(t), pos(p), vel(v), force(f) {}
   ~Atom() {;}
 };
 

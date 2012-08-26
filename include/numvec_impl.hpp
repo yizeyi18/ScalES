@@ -259,28 +259,6 @@ template <class F>
 	} 		// -----  end of method NumVec<F>::operator[]  ----- 
 
 
-// *********************************************************************
-// Input and output
-// *********************************************************************
-
-template <class F> inline std::ostream& operator<<( std::ostream& os, const NumVec<F>& vec)
-{
-	os<<vec.m()<<std::endl;
-	os.setf(std::ios_base::scientific, std::ios_base::floatfield);
-	for(Int i=0; i<vec.m(); i++)	 
-		os<<" "<<vec(i);
-	os<<std::endl;
-	return os;
-}
-
-template <class F> inline std::istream& operator>>( std::istream& is, NumVec<F>& vec)
-{
-	Int m;  is>>m;  vec.resize(m);
-	for(Int i=0; i<vec.m(); i++)	 
-		is >> vec(i);
-	return is;
-}
-
 
 template <class F> inline void SetValue( NumVec<F>& vec, F val )
 {

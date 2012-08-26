@@ -7,10 +7,6 @@
 #include  "nummat_impl.hpp"
 #include  "numtns_impl.hpp"
 
-// *********************************************************************
-// Other utility functions 
-// *********************************************************************
-
 namespace dgdft{
 
 // *********************************************************************
@@ -86,8 +82,32 @@ inline Real Innerprod(Real* x, Real* y, Real *w, Int ntot){
 
 extern void XScaleByY(Real* x, Real* y, Int ntot);
 
+
+// *********************************************************************
+// Formatted output stream
+// *********************************************************************
+
+// String
+inline Int Print(std::ostream &os, const std::string name, std::string val) {
+  os << std::setiosflags(std::ios::left) 
+     << std::setw(LENGTH_VAR_NAME) << name
+     << std::setw(LENGTH_VAR_DATA) << val
+     << std::endl;
+  return 0;
+};
+
+inline Int Print(std::ostream &os, const std::string name, const char* val) {
+  os << std::setiosflags(std::ios::left) 
+     << std::setw(LENGTH_VAR_NAME) << name
+     << std::setw(LENGTH_VAR_DATA) << std::string(val)
+     << std::endl;
+  return 0;
+};
+
+
 // Real
-// one Real
+
+// one real number
 inline Int Print(std::ostream &os, const std::string name, Real val, const std::string unit) {
   os << std::setiosflags(std::ios::left) 
      << std::setw(LENGTH_VAR_NAME) << name
@@ -100,6 +120,7 @@ inline Int Print(std::ostream &os, const std::string name, Real val, const std::
      << std::endl;
   return 0;
 };
+
 inline Int Print(std::ostream &os, const char *name, Real val, const char *unit) {
   os << std::setiosflags(std::ios::left) 
      << std::setw(LENGTH_VAR_NAME) << std::string(name)
@@ -113,7 +134,7 @@ inline Int Print(std::ostream &os, const char *name, Real val, const char *unit)
   return 0;
 };
 
-// two doubles
+// Two real numbers
 inline Int Print(std::ostream &os, const std::string name1, Real val1, const std::string unit1,
   const std::string name2, Real val2, const std::string unit2) {
   os << std::setiosflags(std::ios::left)
@@ -226,7 +247,8 @@ inline Int Print(std::ostream &os,
 };
 
 // Int
-// one Int
+
+// one integer number
 inline Int Print(std::ostream &os, const std::string name, Int val, const std::string unit) {
   os << std::setiosflags(std::ios::left)
      << std::setw(LENGTH_VAR_NAME) << name
@@ -253,7 +275,7 @@ inline Int Print(std::ostream &os, const char *name, Int val) {
   return 0;
 };
 
-// two Ints
+// two integer numbers
 inline Int Print(std::ostream &os, const std::string name1, Int val1, const std::string unit1,
   const std::string name2, Int val2, const std::string unit2) {
   os << std::setiosflags(std::ios::left)
@@ -325,26 +347,75 @@ inline Int Print(std::ostream &os,
   return 0;
 };
 
-
 // *********************************************************************
-// IO functions
+// Overload << and >> operators for basic data types
 // *********************************************************************
 
-Int SeparateRead(std::string name, std::istringstream& is);
+// std::vector
+template <class F> inline std::ostream& operator<<( std::ostream& os, const std::vector<F>& vec)
+{
+	os<<vec.size()<<std::endl;
+	os.setf(std::ios_base::scientific, std::ios_base::floatfield);
+	for(Int i=0; i<vec.size(); i++)	 
+		os<<" "<<vec[i];
+	os<<std::endl;
+	return os;
+}
 
-Int SeparateWrite(std::string name, std::ostringstream& os);
+// NumVec
+template <class F> inline std::ostream& operator<<( std::ostream& os, const NumVec<F>& vec)
+{
+	os<<vec.m()<<std::endl;
+	os.setf(std::ios_base::scientific, std::ios_base::floatfield);
+	for(Int i=0; i<vec.m(); i++)	 
+		os<<" "<<vec(i);
+	os<<std::endl;
+	return os;
+}
 
-Int SeparateWriteAscii(std::string name, std::ostringstream& os);
+//template <class F> inline std::istream& operator>>( std::istream& is, NumVec<F>& vec)
+//{
+//	Int m;  is>>m;  vec.resize(m);
+//	for(Int i=0; i<vec.m(); i++)	 
+//		is >> vec(i);
+//	return is;
+//}
 
-Int SharedRead(std::string name, std::istringstream& is);
+// NumMat
+template <class F> inline std::ostream& operator<<( std::ostream& os, const NumMat<F>& mat)
+{
+  os<<mat.m()<<" "<<mat.n()<<std::endl;
+  os.setf(std::ios_base::scientific, std::ios_base::floatfield);
+  for(Int i=0; i<mat.m(); i++) {
+    for(Int j=0; j<mat.n(); j++)
+      os<<" "<<mat(i,j);
+    os<<std::endl;
+  }
+  return os;
+}
 
-Int SharedWrite(std::string name, std::ostringstream& os);
+// NumTns
+template <class F> inline std::ostream& operator<<( std::ostream& os, const NumTns<F>& tns)
+{
+  os<<tns.m()<<" "<<tns.n()<<" "<<tns.p()<<std::endl;
+  os.setf(std::ios_base::scientific, std::ios_base::floatfield);
+  for(Int i=0; i<tns.m(); i++) {
+	 for(Int j=0; j<tns.n(); j++) {
+		for(Int k=0; k<tns.p(); k++) {
+		  os<<" "<<tns(i,j,k);
+		}
+		os<<std::endl;
+	 }
+	 os<<std::endl;
+  }
+  return os;
+}
 
 // *********************************************************************
 // serialize/deserialize for basic types
+// More specific serialize/deserialize will be defined in individual
+// class files
 // *********************************************************************
-
-//-------------------
 
 //bool
 inline Int serialize(const bool& val, std::ostream& os, const std::vector<Int>& mask)
@@ -1098,5 +1169,21 @@ Int inline combine(NumTns<T>& val, NumTns<T>& ext)
 	throw  std::logic_error( "Combine operation not implemented." );
   return 0;
 }
+
+// *********************************************************************
+// Parallel IO functions
+// *********************************************************************
+
+Int SeparateRead(std::string name, std::istringstream& is);
+
+Int SeparateWrite(std::string name, std::ostringstream& os);
+
+Int SeparateWriteAscii(std::string name, std::ostringstream& os);
+
+Int SharedRead(std::string name, std::istringstream& is);
+
+Int SharedWrite(std::string name, std::ostringstream& os);
+
+
 } // namespace dgdft
 #endif // _UTILITY_HPP_

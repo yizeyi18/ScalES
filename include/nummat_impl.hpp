@@ -7,17 +7,6 @@ namespace  dgdft{
 
 // TODO Move the things from decl to impl
 
-template <class F> inline std::ostream& operator<<( std::ostream& os, const NumMat<F>& mat)
-{
-  os<<mat.m()<<" "<<mat.n()<<std::endl;
-  os.setf(std::ios_base::scientific, std::ios_base::floatfield);
-  for(Int i=0; i<mat.m(); i++) {
-    for(Int j=0; j<mat.n(); j++)
-      os<<" "<<mat(i,j);
-    os<<std::endl;
-  }
-  return os;
-}
 
 template <class F> inline void SetValue(NumMat<F>& M, F val)
 {

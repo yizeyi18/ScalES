@@ -7,46 +7,33 @@
 #include <ctype.h>
 #include <limits.h>
 #include "mpi.h"
+#include "domain.hpp"
+#include "tinyvec_impl.hpp"
+#include "periodtable.hpp"
+
 namespace dgdft{
+
+
+// *********************************************************************
+// Electronic structure data format
+// *********************************************************************
 namespace esdf{
 
-const int nphys = 57;
-const int llength = 80;  /* length of the lines */
-const int numkw = 200;   /* maximum number of keywords */
-
-
-
-char **block_data;
-int nrecords;
-int nwarns;
-char **llist;
-char **warns;
-char ***tlist;
-char phy_d[nphys][11];          /* D - dimension */
-char phy_n[nphys][11];          /* N - name */
-double phy_u[nphys];            /* U - unit */
-
-char kw_label[numkw][80];
-int kw_index[numkw];
-char kw_typ[numkw][4];
-char kw_dscrpt[numkw][3000];
-
-FILE *fileunit;
 
 /************************************************************ 
  * Main routines
  ************************************************************/
-void esdf_bcast(int, int);
+void esdf_bcast();
 void esdf_key();
-void esdf_init(char *);
-void esdf_string(char *, char *, char *);
-int esdf_integer(char *, int);
-float esdf_single(char *, float);
-double esdf_double(char *, double);
-double esdf_physical(char *, double, char *);
-bool esdf_defined(char *);
-bool esdf_boolean(char *, bool *);
-bool esdf_block(char *, int *);
+void esdf_init(const char *);
+void esdf_string(const char *, const char *, char *);
+int esdf_integer(const char *, int);
+float esdf_single(const char *, float);
+double esdf_double(const char *, double);
+double esdf_physical(const char *, double, char *);
+bool esdf_defined(const char *);
+bool esdf_boolean(const char *, bool *);
+bool esdf_block(const char *, int *);
 char *esdf_reduce(char *);
 double esdf_convfac(char *, char *);
 int esdf_unit(int *);
@@ -69,6 +56,24 @@ int indexch(char *, char);
 int countw(char *, char **, int);
 char *strlwr(char *);
 char *strupr(char *);
+
+
+// *********************************************************************
+// Input interface
+// *********************************************************************
+struct ESDFInputParam{
+	Domain              domain;
+	std::string         periodTableFile;
+	std::vector<Atom>   atomList;
+
+	Int                 mixDim;
+	std::string         mixType;
+};
+
+void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );
+
+void ESDFReadInput( ESDFInputParam& esdfParam, const char* filename );
+
 
 } // namespace esdf
 } // namespace dgdft
