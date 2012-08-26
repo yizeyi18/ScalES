@@ -50,11 +50,29 @@ int main(int argc, char **argv)
 
 		Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
 		Print(statusOFS, "Grid size         = ",  esdfParam.domain.numGrid ); 
-		Print(statusOFS, "PeriodTableFile   = ",  esdfParam.periodTableFile );
-		Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixDim );
+		Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
 		Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
+		Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
+		Print(statusOFS, "SCF Tolerence     = ",  esdfParam.scfTolerance);
+		Print(statusOFS, "SCF MaxIter       = ",  esdfParam.scfMaxIter);
+		Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
+		Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
 
-		statusOFS << "          Atom Type and Coordinates               " <<endl;
+		Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
+		Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
+		Print(statusOFS, "OutputDensity     = ",  esdfParam.isOutputDensity);
+		Print(statusOFS, "OutputWfn         = ",  esdfParam.isOutputWfn);
+
+		Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
+		Print(statusOFS, "Extra states      = ",  esdfParam.numExtraStates );
+		Print(statusOFS, "PeriodTable File  = ",  esdfParam.periodTableFile );
+		Print(statusOFS, "Pseudo Type       = ",  esdfParam.pseudoType );
+		Print(statusOFS, "PW Solver         = ",  esdfParam.PWSolver );
+		Print(statusOFS, "XC Type           = ",  esdfParam.XCType );
+
+
+		statusOFS << "************************************************************" <<endl;
+		statusOFS << "          Atom Type and Coordinates                         " <<endl;
 
 		std::vector<Atom>&  atomList = esdfParam.atomList;
 		for(int i=0; i < atomList.size(); i++) {

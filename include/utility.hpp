@@ -87,6 +87,8 @@ extern void XScaleByY(Real* x, Real* y, Int ntot);
 // Formatted output stream
 // *********************************************************************
 
+// Bool is NOT defined due to ambiguity with Int
+
 // String
 inline Int Print(std::ostream &os, const std::string name, std::string val) {
   os << std::setiosflags(std::ios::left) 
@@ -258,7 +260,7 @@ inline Int Print(std::ostream &os, const std::string name, Int val, const std::s
   return 0;
 };
 
-inline Int Print(std::ostream &os, const char *name, Int val, char *unit) {
+inline Int Print(std::ostream &os, const char *name, Int val, const char *unit) {
   os << std::setiosflags(std::ios::left)
      << std::setw(LENGTH_VAR_NAME) << std::string(name)
      << std::setw(LENGTH_VAR_DATA) << val
@@ -266,6 +268,15 @@ inline Int Print(std::ostream &os, const char *name, Int val, char *unit) {
      << std::endl;
   return 0;
 };
+
+inline Int Print(std::ostream &os, std::string name, Int val) {
+  os << std::setiosflags(std::ios::left)
+     << std::setw(LENGTH_VAR_NAME) << name
+     << std::setw(LENGTH_VAR_DATA) << val
+     << std::endl;
+  return 0;
+};
+
 
 inline Int Print(std::ostream &os, const char *name, Int val) {
   os << std::setiosflags(std::ios::left)

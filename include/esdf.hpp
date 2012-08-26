@@ -63,11 +63,27 @@ char *strupr(char *);
 // *********************************************************************
 struct ESDFInputParam{
 	Domain              domain;
-	std::string         periodTableFile;
 	std::vector<Atom>   atomList;
 
-	Int                 mixDim;
+	Int                 mixMaxDim;
 	std::string         mixType;
+	Real                mixStepLength;            
+	Real                scfTolerance;
+	Int                 scfMaxIter;
+	Real                eigTolerance;
+	Int                 eigMaxIter;
+	bool                isRestartDensity;
+	bool                isRestartWfn;
+	bool                isOutputDensity;
+	bool                isOutputWfn;
+
+	Real                Tbeta;                    // Inverse of temperature in atomic unit
+  Int                 numExtraStates;
+	std::string         periodTableFile;
+	std::string         pseudoType;
+	std::string         PWSolver;                 // Type of exchange-correlation functional
+	std::string         XCType;
+
 };
 
 void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );

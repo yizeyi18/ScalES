@@ -1,7 +1,5 @@
 #include "esdf.hpp"
 
-// TODO Change some of the char* to const char*
-
 namespace dgdft{
 
 
@@ -328,7 +326,7 @@ void esdf_key() {
 
 
 	i++;
-	strcpy(kw_label[i],"max_mixing");
+	strcpy(kw_label[i],"mixing_maxdim");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Maximum mixing number (Broyden, Pulay) !*");
 
@@ -339,7 +337,7 @@ void esdf_key() {
 
 	/* LL: Keywords added below for DGDFT */
 	i++;
-	strcpy(kw_label[i],"mixing_alpha");
+	strcpy(kw_label[i],"mixing_steplength");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! Coefficients parameter !*");
 
@@ -425,22 +423,22 @@ void esdf_key() {
 
 	i++;
 	strcpy(kw_label[i],"restart_density");
-	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_typ[i],"L:E");
 	strcpy(kw_dscrpt[i],"*! whether density is restarted!*");
 
 	i++;
 	strcpy(kw_label[i],"restart_bufwfn");
-	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_typ[i],"L:E");
 	strcpy(kw_dscrpt[i],"*! whether the buffer wavefunction is restarted!*");
 
 	i++;
 	strcpy(kw_label[i],"restart_wfn");
-	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_typ[i],"L:E");
 	strcpy(kw_dscrpt[i],"*! whether the wavefunction in the global domain is restarted!*");
 
 	i++;
 	strcpy(kw_label[i],"output_density");
-	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_typ[i],"L:E");
 	strcpy(kw_dscrpt[i],"*! whether density is outputed !*");
 
 	i++;
@@ -456,12 +454,12 @@ void esdf_key() {
 
 	i++;
 	strcpy(kw_label[i],"output_wfn");
-	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_typ[i],"L:E");
 	strcpy(kw_dscrpt[i],"*! whether wavefunctions and occupations numbers are outputed !*");
 
 	i++;
 	strcpy(kw_label[i],"output_bufwfn");
-	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_typ[i],"L:E");
 	strcpy(kw_dscrpt[i],"*! whether wavefunctions in the buffer is outputed !*");
 
 	i++;
@@ -625,10 +623,14 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! increase of the Fermi energy to control the number of candidate functions!*"); 
 
 	i++;
-	strcpy(kw_label[i],"pwsolver");
+	strcpy(kw_label[i],"pw_solver");
 	strcpy(kw_typ[i],"T:E");
 	strcpy(kw_dscrpt[i],"*! Type of planewave solver !*");
 
+	i++;
+	strcpy(kw_label[i],"xc_type");
+	strcpy(kw_typ[i],"T:E");
+	strcpy(kw_dscrpt[i],"*! Type of exchange correlation functional !*");
 }
 
 void esdf() {
@@ -1148,7 +1150,7 @@ bool esdf_defined(const char *labl) {
 }
 
 /*   --------------  esdf_boolean  ----------------------  */
-bool esdf_boolean(const char *labl,bool *def) {
+bool esdf_boolean(const char *labl, bool def) {
 	/* Is the "label" defined in the input file */
 	int i;
 	char positive[3][llength],negative[3][llength];
@@ -1170,7 +1172,7 @@ bool esdf_boolean(const char *labl,bool *def) {
 	esdf_lablchk(label, strL,&kw_number);
 
 	/* Set to default */
-	out=*def;
+	out=def;
 
 	for (i=kw_index[kw_number];i<nrecords;i++) {
 		/* Search in the first token for "label"
@@ -1820,12 +1822,33 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
 	// System parameters
 	{
-		esdf_string("PeriodTable", "HGH.bin", strtmp);
-		esdfParam.periodTableFile = strtmp;
 
-		esdfParam.mixDim          = esdf_integer("Max_Mixing", 9);
+		esdfParam.mixMaxDim       = esdf_integer("Mixing_MaxDim", 9);
 		esdf_string("Mixing_Type", "anderson", strtmp); 
 		esdfParam.mixType         = strtmp;
+		esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
+		esdfParam.scfTolerance    = esdf_double( "SCF_Tolerance", 1e-4 );
+		esdfParam.scfMaxIter      = esdf_integer( "SCF_MaxIter",   30 );
+		esdfParam.eigTolerance    = esdf_double( "Eig_Tolerance", 1e-5 );
+		esdfParam.eigMaxIter      = esdf_integer( "Eig_MaxIter",  10 );
+		esdfParam.isRestartDensity = esdf_boolean( "Restart_Density", false );
+		esdfParam.isRestartDensity = esdf_boolean( "Restart_Wfn", false );
+		esdfParam.isOutputDensity  = esdf_boolean( "Output_Density", false );
+		esdfParam.isOutputWfn      = esdf_boolean( "Output_Wfn", false );
+
+		Real temperature;
+		temperature               = esdf_double( "Temperature", 100.0 );
+    esdfParam.Tbeta           = au2K / temperature;
+
+		esdfParam.numExtraStates  = esdf_integer( "Extra_States",  0 );
+		esdf_string("PeriodTable", "HGH.bin", strtmp);
+		esdfParam.periodTableFile = strtmp;
+		esdf_string("Pseudo_Type", "HGH", strtmp); 
+		esdfParam.pseudoType      = strtmp;
+		esdf_string("PW_Solver", "modified_blopex", strtmp); 
+		esdfParam.PWSolver        = strtmp;
+		esdf_string("XC_Type", "XC_LDA_XC_TETER93", strtmp); 
+		esdfParam.XCType          = strtmp;
 
 	}
 
