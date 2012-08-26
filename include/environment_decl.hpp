@@ -3,23 +3,25 @@
 
 // STL libraries
 #include <iostream> 
+#include <iomanip> 
 #include <fstream>
 #include <sstream>
+#include <unistd.h>
+
+#include <cfloat>
 #include <complex>
 #include <string>
-#include <set>
-#include <vector>
-#include <algorithm>
-#include <unistd.h>
-#include <cfloat>
-#include <cassert>
-#include <cmath>
-#include <ctime>
-#include <stack>
-#include <stdexcept>
 
-// NON-STL libraries
-#include <unistd.h>
+#include <set>
+#include <map>
+#include <stack>
+#include <vector>
+
+#include <algorithm>
+#include <cmath>
+
+#include <cassert>
+#include <stdexcept>
 
 // FFTW libraries
 #include "fftw3.h"
@@ -48,6 +50,8 @@ typedef    double                Scalar;
 #endif
 typedef    PetscScalar           PetscScalar;      // Still use PetscScalar when it is needed
 
+// IO
+extern  std::ofstream  statusOFS;
 
 
 

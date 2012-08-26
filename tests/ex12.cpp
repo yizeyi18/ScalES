@@ -32,6 +32,19 @@ int main(int argc, char **argv)
 #ifdef  _RELEASE_
 		throw std::runtime_error("Test should be run under debug mode");
 #endif
+		stringstream  ss;
+		ss << "statfile." << mpirank;
+		cout << "The filename for the statfile is " << ss.str() << endl;
+		statusOFS.open( ss.str().c_str() );
+
+
+		Print(statusOFS, "Etot           = ",  1.23234, "[Ry]");
+		Print(statusOFS, "Super cell     = ",  Point3(2.0,2.0,3.0) );
+		Print(statusOFS, "Grid size      = ",  Index3(20,20,30) );
+
+
+		statusOFS.close();
+
 
 	}
 	catch( std::exception& e )

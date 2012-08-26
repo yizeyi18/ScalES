@@ -59,7 +59,7 @@ public:
     }
     return *this;
   }
-  void resize(Int m, Int n, Int p)  {
+  void Resize(Int m, Int n, Int p)  {
 		if( owndata_ == false ){
 			throw std::logic_error("Tensor being resized must own data.");
 		}

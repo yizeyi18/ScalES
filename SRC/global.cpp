@@ -1,9 +1,17 @@
 #include	"dgdft.hpp"
-/***********************************************************************
- *  Error handling
- **********************************************************************/
+
 namespace dgdft{
-	// If we are not in RELEASE mode, then implement wrappers for a CallStack
+
+// *********************************************************************
+// IO
+// *********************************************************************
+  std::ofstream  statusOFS;
+
+// *********************************************************************
+// Error handling
+// *********************************************************************
+	// If we are not in RELEASE mode, then implement wrappers for a
+	// CallStack
 #ifndef _RELEASE_
 	std::stack<std::string> callStack;	
 

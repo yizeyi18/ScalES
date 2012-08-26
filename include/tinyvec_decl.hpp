@@ -45,6 +45,9 @@ template <class F>
 typedef Vec3T<Real>   Point3;
 typedef Vec3T<Int>    Index3;
 
+
+
+
 } // namespace dgdft
 
 #endif // _TINYVEC_DECL_HPP_
