@@ -40,6 +40,9 @@ namespace dgdft{
 // Make sure that the following definition is consistent with the
 // Petsc definition.  
 
+#define BLAS(name) name##_
+#define LAPACK(name) name##_
+
 typedef    int                   Int;
 typedef    double                Real;
 typedef    std::complex<double>  Complex; // Must use elemental form of complex

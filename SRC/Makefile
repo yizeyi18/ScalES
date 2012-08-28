@@ -5,7 +5,7 @@ include ../make.inc.${HOSTID}
 
 
 SRCS = periodtable.cpp eigensolver.cpp spinor.cpp fourier.cpp \
-			 domain.cpp utility.cpp esdf.cpp global.cpp
+			 domain.cpp utility.cpp esdf.cpp lapack.cpp blas.cpp global.cpp
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 

@@ -4,6 +4,9 @@
 #include "environment_decl.hpp"
 #include "environment_impl.hpp"
 
+#include "blas.hpp"
+#include "lapack.hpp"
+
 #endif // _DGDFT_HPP_
 
 
