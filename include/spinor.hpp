@@ -5,12 +5,14 @@
 #include  "domain.hpp"
 #include  "numvec_impl.hpp"
 
+// TODO include the k-points
+
 namespace dgdft{
 
 class Spinor {
 private:
 	Domain            domain_;                // mesh should be used here for general cases 
-	std::vector<Vec>  wavefun_;               // PETSc format, in a component-wise format
+	std::vector<Vec*> wavefun_;               // PETSc format, in a component-wise format
 	NumVec<Scalar>    localWavefun_;          // local wavefunction for wavefun_
 	Int               numGridLocal_;          // local number of grid points saved in localWavefun
 	Int               numComponent_;          // number of components (1,2,4)

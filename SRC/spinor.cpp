@@ -105,10 +105,9 @@ Spinor::~Spinor
 		PushCallStack("Spinor::~Spinor");
 #endif  // ifndef _RELEASE_
 		PetscErrorCode ierr;
-		for( Int i = 0; i < numComponent_ * numState_; i++ ){
-			ierr = VecDestroy( &(wavefun_[i]) ); 
-			if( ierr ) throw ierr;
-		}
+		ierr = VecDestroyVecs( numComponent_ * numState_,
+				&wavefun_[0] );
+		if( ierr ) throw ierr;
 #ifndef _RELEASE_
 		PopCallStack();
 #endif  // ifndef _RELEASE_
@@ -128,7 +127,7 @@ Vec& Spinor::Wavefun
 #ifndef _RELEASE_
 		PopCallStack();
 #endif  // ifndef _RELEASE_
-		return wavefun_[ j + k * numComponent_ ];
+		return *wavefun_[ j + k * numComponent_ ];
 	} 		// -----  end of method Spinor::Wavefun  ----- 
 
 const Vec& Spinor::LockedWavefun	
@@ -144,7 +143,7 @@ const Vec& Spinor::LockedWavefun
 #ifndef _RELEASE_
 		PopCallStack();
 #endif  // ifndef _RELEASE_
-		return wavefun_[ j + k * numComponent_ ];
+		return *wavefun_[ j + k * numComponent_ ];
 	} 		// -----  end of method Spinor::LockedWavefun  ----- 
 
 

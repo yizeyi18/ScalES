@@ -66,7 +66,7 @@ EigenSolver::Setup	(  )
 	// TODO Add allocation/ deallocation for the new packedWavefunPtr, the
 	// data comes from localWavefun in Spinor.
 	
-	// FIXME This is temporary
+	// FIXME This is temporary Remove this now
 	packedWavefunPtr_.resize( nev );
 	for( Int i = 0; i < nev; i++ ){
 		packedWavefunPtr_[i] = &( (solverData_.psiPtr)->Wavefun(0, i) );

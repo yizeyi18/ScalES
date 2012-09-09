@@ -2,6 +2,7 @@
 #define _UTILITY_HPP_
 
 #include  "environment_impl.hpp"
+#include  "domain.hpp"
 #include  "tinyvec_impl.hpp"
 #include  "numvec_impl.hpp"
 #include  "nummat_impl.hpp"
@@ -21,6 +22,12 @@ enum {VAL, DX, DY, DZ};
 // derivatives along x, y, z directions, respectively. 
 typedef std::pair<IntNumVec, DblNumMat > SparseVec; 
 
+// Each nonlocal pseudopotential is written as
+//   \int dy V(x,y) f(y) = w b(x) \int dy b(y) f(y).
+// First: b vector with integration measure.
+// Second: weight w
+typedef std::pair<std::pair<IntNumVec, DblNumMat >, Real> NonlocalPP; 
+
 
 
 // *********************************************************************
@@ -37,7 +44,7 @@ const int LENGTH_VAR_DATA = 16;
 
 
 // *********************************************************************
-// Functions
+// Mesh  and other utilities FIXME
 // *********************************************************************
 
 // TODO LGL grid and the interface will be changed later.
@@ -82,6 +89,7 @@ inline Real Innerprod(Real* x, Real* y, Real *w, Int ntot){
 
 extern void XScaleByY(Real* x, Real* y, Int ntot);
 
+extern void UniformMesh( const Domain &dm, std::vector<DblNumVec> &gridpos );
 
 // *********************************************************************
 // Formatted output stream
@@ -1194,6 +1202,7 @@ Int SeparateWriteAscii(std::string name, std::ostringstream& os);
 Int SharedRead(std::string name, std::istringstream& is);
 
 Int SharedWrite(std::string name, std::ostringstream& os);
+
 
 
 } // namespace dgdft

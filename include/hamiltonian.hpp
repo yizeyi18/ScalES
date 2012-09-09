@@ -12,124 +12,60 @@ namespace dgdft{
 // *********************************************************************
 // Base Hamiltonian class 
 // *********************************************************************
-class Hamiltonian{
+
+class Hamiltonian {
+private:
+	Domain                   domain_;
+	std::vector<Atom>        atomList_;
+	Int                      numExtraState_;
+	Int                      numOccupiedState_;
+	Int                      numTotalState_;
+
+	std::string              pseudoType_;
+	std::string              PWSolver_;                 // Type of exchange-correlation functional
+	std::string              XCType_;
+	std::vector<SparseVec>   pseudoChargeList_;   // The list of pseudocharge for each atom.
+
+	std::vector<std::vector<NonlocalPP> >  vnlList_;  // The list of nonlocal pseudopotential for each atom (first argument) for each nonlocal pseudopotential (second argument)
+
+
+	Vec                      pseudoCharge_;       // total pseudocharge
+	Vec                      density_;            // total electron density
+	std::vector<Vec>         magnetization_;      // magnitization (x,y,z)
+	Vec                      vxc_;                // scalar part of the exchange-correlation potential
+	std::vector<Vec>         Bxc_;                // magnetization part of the exchange-correlation potential
+	Vec                      vext_;
+	Vec                      vhart_;
+	Vec                      vtot_;
+	Vec                      epsxc_;    // the exchange-correlation density vector
+	Int                      numDensityComponent_; // 1, 2, or 4
+public:
+  Hamiltonian();
+  virtual ~Hamiltonian();
+	// TODO
+  Hamiltonian(const Domain &dm, 
+			const std::vector<Atom> &atvec, 
+			const Int nexstate, 
+			const Int numDensityComponent);
+  
+  virtual void SetDensity(Spinor &psi, DblNumVec &occrate, double &val);
+
+  // density dependent potentials
+  void SetHartree(FFTPrepare &fp);
+  virtual void SetXC(xc_func_type& XCFunc, double &val);
+  virtual void SetPseudoCharge(PeriodTable &ptable);
+
+  // density independet potentials
+	void SetExternal();
+  virtual void SetNonLocalPP(PeriodTable &ptable, int cnt);
+  virtual void SetVtot();
+  virtual void SetVtot(DblNumVec &vtot);
+    
+  // H*Psi
+  virtual void MultSpinor(Spinor &psi0, CpxNumTns &a3, FFTPrepare &fp);
 };
 
-//class Hamiltonian {
-//private:
-//	Domain domain_;
-//	std::vector<Atom>  atomList_;
-//	Int numExtraState_;
-//	Int numOccupiedState_;
-//
-//
-//
-//public:
-//  Domain _domain;
-//  vector<Atom> _atomvec;
-//  int _nexstate;
-//  string _PStype; // the default value is HGH
-//
-//  int _nocstate;
-//  DblNumVec _PSden;  // rho0
-//  vector<SparseVec> _atomPSden; // pseodupotentials stuff should not be
-//  // included in the general Hamiltonian class
-//  // but we will work with PS+DFT for real problems
-//  DblNumMat _density; // rho
-//
-//  // scalar potentials
-//  DblNumVec _vext;
-//  DblNumVec _vhart;
-//  DblNumMat _vxc;   // the same dimension as the dimension of _density
-//  DblNumVec _vtot;
-//  DblNumVec _epsxc; // the exchange-correlation density vector
-//  int _ntotalPS;
-//  int _npsi;
-//
-//  // nonlocal potentials
-//  vector< vector< pair<SparseVec,double> > > _vnlss;
-//
-//public:
-//  Hamiltonian();
-//  virtual ~Hamiltonian();
-//  Hamiltonian(Domain &dm, Index2 &val);
-//  Hamiltonian(Domain &dm, int n); 
-//  Hamiltonian(Domain &dm, vector<Atom> &atvec, int nexstate, string PStype, int n);
-//  
-//  virtual int get_density(Spinor &psi, DblNumVec &occrate, double &val);
-//
-//  // density dependent potentials
-//  int set_hartree(FFTPrepare &fp);
-//  virtual int set_XC(xc_func_type& XCFunc, double &val);
-//  virtual int set_atomPSden(PeriodTable &ptable);
-//
-//  // density independet potentials
-//  int set_external(); 
-//  virtual int set_nonlocalPS(PeriodTable &ptable, int cnt);
-//  virtual int set_total();
-//  virtual int set_total(DblNumVec &vtot);
-//
-//  virtual int set_PS(PeriodTable &ptable);
-//    
-//  // H*Psi
-//  virtual int act_spinor(Spinor &psi0, CpxNumTns &a3, FFTPrepare &fp);
-//};
-//
-//// Two-component Kohn-Sham with spin orbit coupling.
-//class KohnSham2C: public Hamiltonian {
-//  public:
-//    // Total number of projectors for spin-orbit coupling
-//    int _ntotalPSSpinOrbit;
-//    // nonlocal potential for spin-orbit coupling
-//    vector< vector< pair<SparseVec,double> > > _vnlSO;
-//
-//  public:
-//    KohnSham2C();
-//    ~KohnSham2C();
-//    KohnSham2C(Domain &dm, Index2 &val);
-//    KohnSham2C(Domain &dm, int val);
-//    KohnSham2C(Domain &dm, vector<Atom> &atvec, int nexstate, string PStype, int n);
-//    KohnSham2C(Domain &dm, vector<Atom> &atvec, int nexstate, int n);
-//
-//    int get_density(Spinor &psi, DblNumVec &occrate, double &val); 
-//    int set_XC(xc_func_type& XCFunc, double &val);
-//    int set_total();
-//    int set_total(DblNumVec &vtot);
-//    int set_nonlocalPS(PeriodTable &ptable, int &cnt);
-//    int set_nonlocalPSSpinOrbit(PeriodTable &ptable, int &cnt);
-//    int set_atomPSden(PeriodTable &ptable);
-//    int set_PS(PeriodTable &ptable);
-//    int act_spinor(Spinor &psi0, CpxNumTns &a3, FFTPrepare &fp);
-//};
-//
-//// Four-component Dirac-Kohn-Sham
-//class DiracKohnSham: public Hamiltonian {
-//  public:
-//    // Total number of projectors for spin-orbit coupling
-//    int _ntotalPSSpinOrbit;
-//    // nonlocal potential for spin-orbit coupling
-//    vector< vector< pair<SparseVec,double> > > _vnlSO;
-//
-//  public:
-//    DiracKohnSham();
-//    ~DiracKohnSham();
-//    DiracKohnSham(Domain &dm, Index2 &val);
-//    DiracKohnSham(Domain &dm, int val);
-//    DiracKohnSham(Domain &dm, vector<Atom> &atvec, int nexstate, string PStype, int n);
-//    DiracKohnSham(Domain &dm, vector<Atom> &atvec, int nexstate, int n);
-//
-//    int get_density(Spinor &psi, DblNumVec &occrate, double &val); 
-//    int set_XC(xc_func_type& XCFunc, double &val);
-//    int set_total();
-//    int set_total(DblNumVec &vtot);
-//    int set_nonlocalPS(PeriodTable &ptable, int &cnt);
-//    int set_nonlocalPSSpinOrbit(PeriodTable &ptable, int &cnt);
-//    int set_atomPSden(PeriodTable &ptable);
-//    int set_PS(PeriodTable &ptable);
-//    int act_spinor(Spinor &psi0, CpxNumTns &a3, FFTPrepare &fp);
-//};
-//
-//int generate_uniformmesh(Domain &dm, vector<DblNumVec> &gridpos);
+int generate_uniformmesh(Domain &dm, vector<DblNumVec> &gridpos);
 } // namespace dgdft
 
 
