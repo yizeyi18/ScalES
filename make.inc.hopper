@@ -1,6 +1,6 @@
 #/usr/bin/bash
 
-DGDFT_DIR     = /Users/linlin/Projects/NoPetscEO
+DGDFT_DIR     = /global/u1/l/linlin/project/NoPetscEO
 
 SCALAR = REAL 
 #SCALAR = COMPLEX
@@ -8,25 +8,24 @@ SCALAR = REAL
 # inclues
 BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
 
-FFTW_INCLUDE     = -I/opt/local/include
+FFTW_INCLUDE     = -I/opt/fftw/3.2.2.1/include
 DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
 INCLUDES         = ${DGDFT_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
 
-# Libraries
 BLOPEX_LIB       = ${DGDFT_DIR}/external/blopex/libblopex.a 
-GFORTRAN_LIB     =/opt/local/lib/gcc44/libgfortran.dylib
-SCALAPACK_LIB    =/Users/linlin/Software/scalapack-2.0/libscalapack.a
-FFTW_LIB         = -L/opt/local/lib -lfftw3
-LAPACK_LIB       = -llapack
-BLAS_LIB         = -lblas
+GFORTRAN_LIB     =
+SCALAPACK_LIB    =
+FFTW_LIB         = -L/opt/fftw/3.2.2.1/lib -lfftw3
+LAPACK_LIB       = 
+BLAS_LIB         = 
 
 DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
 LIBS         = ${DGDFT_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${LAPACK_LIB} ${BLAS_LIB} ${GFORTRAN_LIB}
 
-CC           = openmpicc 
-CXX          = openmpicxx
-FC           = openmpif90
-LOADER       = openmpicxx
+CC           = cc
+CXX          = CC
+FC           = ftn
+LOADER       = CC
 
 AR           = ar 
 ARFLAGS      = rvcu
@@ -44,9 +43,9 @@ MODE	         = debug
 
 ifeq ($(MODE), debug)
   ifeq (${SCALAR}, COMPLEX)
-	  COMMONDEFS   = -D_USE_COMPLEX_ 
+	  COMMONDEFS   = -D_USE_COMPLEX_ -U_RELEASE_
   else
-	  COMMONDEFS   = 
+	  COMMONDEFS   = -U_RELEASE_
   endif
 
   CFLAGS       = -O2 -g ${INCLUDES}

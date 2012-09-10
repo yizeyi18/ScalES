@@ -1734,8 +1734,9 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 #endif
 	Int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
 	Int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
-	Int    nlines;
-	char*  strtmp;
+	Int  nlines;
+	const Int MAX_CHAR = 128;
+	char  strtmp[MAX_CHAR];
 
 	// Read and distribute the input file
 	if( mpirank == 0 )  

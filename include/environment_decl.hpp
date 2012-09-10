@@ -96,7 +96,7 @@ namespace dgdft{
 void PushCallStack( std::string s );
 void PopCallStack();
 void DumpCallStack();
-void DumpElemCallStack();                     // Overload the elemental's DumpCallStack
+void DumpElemCallStack();                 // Overload the elemental's DumpCallStack
 #endif // ifndef _RELEASE_
 
 // We define an output stream that does nothing. This is done so that the 

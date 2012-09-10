@@ -44,7 +44,7 @@ void spline(int n, double* x, double* y, double* b, double* c, double* d){
 		 the accompanying function subprogram  seval  can be used
 		 to evaluate the spline.
 		 */
-	int nm1, ib, i;
+	int nm1, i;
 	double t;
 
 	for(i = 0; i < n; i++){
@@ -196,7 +196,7 @@ void seval(double* v, int m, double* u, int n, double* x,
 
 void lglnodes(double* x, int N)
 {
-  int i, j, k;
+  int i, j;
   double pi = 4.0 * atan(1.0);
   double err, tol = 1e-15;
   vector<double> xold;
@@ -245,7 +245,7 @@ void lglnodes(double* x, int N)
 
 void lglnodes(double* x, double* w, int N)
 {
-  int i, j, k;
+  int i, j;
   double pi = 4.0 * atan(1.0);
   double err, tol = 1e-15;
   vector<double> xold;
@@ -296,7 +296,7 @@ void lglnodes(double* x, double* w, int N)
 
 void lglnodes(vector<double>& x, int N)
 {
-  int i, j, k;
+  int i, j;
   double pi = 4.0 * atan(1.0);
   double err, tol = 1e-15;
   vector<double> xold;
@@ -345,7 +345,7 @@ void lglnodes(vector<double>& x, int N)
 
 void lglnodes(vector<double>& x, vector<double>& w, vector<double>& P, int N)
 {
-  int i, j, k;
+  int i, j;
   double pi = 4.0 * atan(1.0);
   double err, tol = 1e-15;
   vector<double> xold;
@@ -394,7 +394,7 @@ void lglnodes(vector<double>& x, vector<double>& w, vector<double>& P, int N)
 
 void lglnodes(vector<double>& x, vector<double>& D, int N)
 {
-  int i, j, k;
+  int i, j;
   double pi = 4.0 * atan(1.0);
   double err, tol = 1e-15;
   vector<double> xold;
