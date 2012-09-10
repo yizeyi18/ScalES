@@ -1,48 +1,33 @@
 #/usr/bin/bash
 
-# Assume SLEPc and PETSc is used.  The compiling options follow from
-# there.  
-#
-# TODO: Interface with elemental / PETSc.  Worry about later.
-
-# PETSc/SLEPc setup
-SLEPC_DIR    = /Users/linlin/Software/slepc-3.3-p1
-PETSC_DIR    = /Users/linlin/Documents/Software/petsc-3.3
+DGDFT_DIR     = /Users/linlin/Projects/elementorbital
 
 #SCALAR = REAL 
 SCALAR = COMPLEX
 
-ifeq (${SCALAR}, COMPLEX)
-  PETSC_ARCH   = osx-complex
-else
-  PETSC_ARCH   = osx-real
-endif
+# inclues
+BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
 
-# TODO: Get the code work for real case
+FFTW_INCLUDE     = /opt/local/include
+DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
+INCLUDES         = ${DGDFT_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
 
-
-include ${SLEPC_DIR}/conf/slepc_common
-
-# inclues, libraries
-MODIFIED_BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/modified_blopex
-MODIFIED_BLOPEX_LIB       = ${DGDFT_DIR}/external/modified_blopex/libmodified_blopex.a 
-
-DGDFT_DIR     = /Users/linlin/Projects/elementorbital
-DGDFT_INCLUDE = -I${DGDFT_DIR}/include 
-INCLUDES      = ${DGDFT_INCLUDE} ${MODIFIED_BLOPEX_INCLUDE}
-
-# Link with GFORTRAN and SCALAPACK when needed
-GFORTRAN_LIB =/opt/local/lib/gcc44/libgfortran.dylib
-SCALAPACK_LIB=/Users/linlin/Software/scalapack-2.0/libscalapack.a
+# Libraries
+BLOPEX_LIB       = ${DGDFT_DIR}/external/blopex/libblopex.a 
+GFORTRAN_LIB     =/opt/local/lib/gcc44/libgfortran.dylib
+SCALAPACK_LIB    =/Users/linlin/Software/scalapack-2.0/libscalapack.a
+FFTW_LIB         = -L/opt/local/lib -lfftw3
+LAPACK_LIB       = -llapack
+BLAS_LIB         = -lblas
 
 DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
-LIBS         = ${MODIFIED_BLOPEX_LIB} ${DGDFT_LIB} ${SLEPC_LIB} 
+LIBS         = ${DGDFT_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${LAPACK_LIB} ${BLAS_LIB} ${GFORTRAN_LIB}
 
 # FIXME: Include is put here due to conflict of CFLAGS with PETSc
-CC           = ${PCC_LINKER} 
-CXX          = ${PCC_LINKER} 
-FC           = ${FC_LINKER}
-LOADER       = ${PCC_LINKER}
+CC           = openmpicc 
+CXX          = openmpicxx
+FC           = openmpif90
+LOADER       = openmpicxx
 
 AR           = ar 
 ARFLAGS      = rvcu
@@ -66,12 +51,12 @@ ifeq ($(MODE), debug)
 	  COMMONDEFS   = 
   endif
 
-  CFLAGS       = ${CCPPFLAGS} ${INCLUDES}
-  FFLAGS       = ${FCPPFLAGS} ${INCLUDES}
-  CXXFLAGS     = ${CCPPFLAGS} ${INCLUDES}
+  CFLAGS       = -O2 -g ${INCLUDES}
+  FFLAGS       = -O2 -g ${INCLUDES}
+  CXXFLAGS     = -O2 -g ${INCLUDES}
 	CCDEFS       = ${COMMONDEFS}
 	CPPDEFS      = ${COMMONDEFS}
-  LOADOPTS     = ${PCC_LINKER_FLAGS} ${LIBS}
+  LOADOPTS     = ${LIBS}
 endif
 
 

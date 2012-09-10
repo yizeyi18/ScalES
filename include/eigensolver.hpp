@@ -7,46 +7,25 @@
 #include  "fourier.hpp"
 #include  "hamiltonian.hpp"
 #include  "spinor.hpp"
+#include  "lobpcg++.hpp"
 
 
 namespace dgdft{
 
-#ifndef EPSMODIFIEDBLOPEX
-#define EPSMODIFIEDBLOPEX      "modified_blopex"
-#endif
-
-extern "C"{
-extern PetscErrorCode EPSCreate_MODIFIED_BLOPEX(EPS eps);
-}
-
-
 class EigenSolver
 {
 private:
-	struct EigenSolverData{
-		Hamiltonian*      hamPtr;
-		Fourier*          fftPtr;
-		Spinor*           psiPtr;
 
-		EigenSolverData(): hamPtr(NULL), fftPtr(NULL), psiPtr(NULL){}
-		~EigenSolverData() {}
-	};
+	Hamiltonian*        hamPtr_;
+	Fourier*            fftPtr_;
+	Spinor*             psiPtr_;
 
+	Int                 maxIter_;
+	Real                absTol_;
+	Real                relTol_;
 
-	EigenSolverData     solverData_;
 	DblNumVec           eigVal_;
 	DblNumVec           resVal_;
-	bool                isPrepared_;
-	std::vector<Vec*>   packedWavefunPtr_;            // Spinor vectors with all components packed together
-
-	// PETSc/SLEPc related
-	Mat               hamiltonianShell_;
-	Mat               precondShell_;
-	EPS               eps_;
-	ST                st_;
-
-	static PetscErrorCode    ApplyHamiltonian (Mat, Vec, Vec);
-	static PetscErrorCode    ApplyPrecond     (Mat, Vec, Vec);
 
 public:
 
@@ -55,33 +34,37 @@ public:
 	EigenSolver ();
 	EigenSolver( const Hamiltonian& ham,
 			const Spinor& psi,
-			const Fourier& fft );
+			const Fourier& fft,
+		  const Int maxIter,
+			const Real absTol, 
+			const Real relTol );
 
 	~EigenSolver();
 
 	// ********************  OPERATORS   *******************************
+	static void LOBPCGHamiltonianMult(void *A, void *X, void *AX);
+	static void LOBPCGPrecondMult    (void *A, void *X, void *AX);
+
+	BlopexInt HamiltonianMult (serial_Multi_Vector *x, serial_Multi_Vector *y);
+	BlopexInt PrecondMult     (serial_Multi_Vector *x, serial_Multi_Vector *y);
+
+	// Specific for DiracKohnSham
+//	static void lobpcg_apply_preconditioner_DKS  (void *A, void *X, void *AX);
+//	BlopexInt apply_preconditioner_DKS  (serial_Multi_Vector *x, serial_Multi_Vector *y);
+//	int solve_DKS(); 
+//	int prune_spinor(CpxNumTns& X);
+
 
 	// ********************  OPERATIONS  *******************************
-	// Setup the SLEPc eigensolver
-	void Setup();                                 
-
-	// Solve the eigenvalue problem using SLEPc.
-	void Solve( const bool isInitialDataUsed = false );
+	// Solve the eigenvalue problem using BLOPEX.
+	void Solve();
 
 	// Obtaining eigenvalues, eigenvectors etc.
 	void PostProcessing();
 
 	// ********************  ACCESS      *******************************
-	void SetEigenSolverData( 
-			const Hamiltonian& ham,
-			const Spinor& psi,
-			const Fourier& fft );
-
-	// TODO: Set type, tolerance, maxit
 
 	// ********************  INQUIRY     *******************************
-
-	// TODO: Get EPS context
 
 }; // -----  end of class  EigenSolver  ----- 
 

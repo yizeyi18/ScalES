@@ -12,251 +12,240 @@ namespace  dgdft{
 // data.
 
 
-template <class F> 
-	NumVec<F>::NumVec	( Int m ) : m_(m), owndata_(true)
-	{
+template <class F> NumVec<F>::NumVec	( Int m ) : m_(m), owndata_(true)
+{
 #ifndef _RELEASE_
-		PushCallStack("NumVec<F>::NumVec");
+	PushCallStack("NumVec<F>::NumVec");
 #endif  // ifndef _RELEASE_
-		if(m_>0) { 
+	if(m_>0) { 
+		data_ = new F[m_]; 
+		if( data_ == NULL ){
+			throw std::runtime_error("Cannot allocate memory.");
+		}
+	} 
+	else 
+		data_=NULL;
+#ifndef _RELEASE_
+	PopCallStack();
+#endif  // ifndef _RELEASE_
+} 		// -----  end of method NumVec<F>::NumVec  ----- 
+
+template <class F> NumVec<F>::NumVec	( Int m, bool owndata, F* data ) : m_(m), owndata_(owndata)
+{
+#ifndef _RELEASE_
+	PushCallStack("NumVec<F>::NumVec");
+#endif  // ifndef _RELEASE_
+	if( owndata_ ){
+		if( m_ > 0 ) { 
 			data_ = new F[m_]; 
 			if( data_ == NULL ){
 				throw std::runtime_error("Cannot allocate memory.");
 			}
-		} 
-		else 
-			data_=NULL;
-#ifndef _RELEASE_
-		PopCallStack();
-#endif  // ifndef _RELEASE_
-	} 		// -----  end of method NumVec<F>::NumVec  ----- 
+		}
+		else
+			data_ = NULL;
 
-template <class F> 
-	NumVec<F>::NumVec	( Int m, bool owndata, F* data ) : m_(m), owndata_(owndata)
-	{
-#ifndef _RELEASE_
-		PushCallStack("NumVec<F>::NumVec");
-#endif  // ifndef _RELEASE_
-		if( owndata_ ){
-			if( m_ > 0 ) { 
-				data_ = new F[m_]; 
-				if( data_ == NULL ){
-					throw std::runtime_error("Cannot allocate memory.");
-				}
-			}
-			else
-				data_ = NULL;
-
-			if( m_ > 0 ) {
-				for( Int i = 0; i < m_; i++ ){
-					data_[i] = data[i];
-				}
+		if( m_ > 0 ) {
+			for( Int i = 0; i < m_; i++ ){
+				data_[i] = data[i];
 			}
 		}
-		else{
-			data_ = data;
-		}
+	}
+	else{
+		data_ = data;
+	}
 #ifndef _RELEASE_
-		PopCallStack();
+	PopCallStack();
 #endif  // ifndef _RELEASE_
-	} 		// -----  end of method NumVec<F>::NumVec  ----- 
+} 		// -----  end of method NumVec<F>::NumVec  ----- 
 
-template <class F> 
-	NumVec<F>::NumVec	( const NumVec<F>& C ) : m_(C.m_), owndata_(C.owndata_)
-	{
+template <class F> NumVec<F>::NumVec	( const NumVec<F>& C ) : m_(C.m_), owndata_(C.owndata_)
+{
 #ifndef _RELEASE_
-		PushCallStack("NumVec<F>::NumVec");
+	PushCallStack("NumVec<F>::NumVec");
 #endif  // ifndef _RELEASE_
-		if( owndata_ ){
-			if( m_ > 0 ) { 
-				data_ = new F[m_]; 
-				if( data_ == NULL ){
-					throw std::runtime_error("Cannot allocate memory.");
-				}
-			}
-			else
-				data_ = NULL;
-
-			if( m_ > 0 ) {
-				for( Int i = 0; i < m_; i++ ){
-					data_[i] = C.data_[i];
-				}
+	if( owndata_ ){
+		if( m_ > 0 ) { 
+			data_ = new F[m_]; 
+			if( data_ == NULL ){
+				throw std::runtime_error("Cannot allocate memory.");
 			}
 		}
-		else{
-			data_ = C.data_;
-		}
-#ifndef _RELEASE_
-		PopCallStack();
-#endif  // ifndef _RELEASE_
-	} 		// -----  end of method NumVec<F>::NumVec  ----- 
+		else
+			data_ = NULL;
 
-
-template < class F >
-	NumVec<F>::~NumVec	(  )
-	{
-#ifndef _RELEASE_
-		PushCallStack("NumVec<F>::~NumVec");
-#endif  // ifndef _RELEASE_
-		if( owndata_ ){
-			if( m_ > 0 ){
-				delete[] data_;  
-				data_ = NULL;
+		if( m_ > 0 ) {
+			for( Int i = 0; i < m_; i++ ){
+				data_[i] = C.data_[i];
 			}
 		}
+	}
+	else{
+		data_ = C.data_;
+	}
 #ifndef _RELEASE_
-		PopCallStack();
+	PopCallStack();
 #endif  // ifndef _RELEASE_
+} 		// -----  end of method NumVec<F>::NumVec  ----- 
 
-	} 		// -----  end of method NumVec<F>::~NumVec  ----- 
 
-
-template < class F >
-	inline NumVec<F>& NumVec<F>::operator =	( const NumVec& C  )
-	{
+template < class F > NumVec<F>::~NumVec	(  )
+{
 #ifndef _RELEASE_
-		PushCallStack("NumVec<F>::operator=");
+	PushCallStack("NumVec<F>::~NumVec");
 #endif  // ifndef _RELEASE_
-		if( owndata_ ){
-			if( m_ > 0 ){
-				delete[]  data_;
-				data_ = NULL;
-			}
+	if( owndata_ ){
+		if( m_ > 0 ){
+			delete[] data_;  
+			data_ = NULL;
 		}
-		m_ = C.m_;
-		owndata_ = C.owndata_;
+	}
+#ifndef _RELEASE_
+	PopCallStack();
+#endif  // ifndef _RELEASE_
 
-		if( owndata_ ) {
-			if( m_ > 0 ){
-				data_ = new F[m_];
-				if( data_ == NULL ){
-					throw std::runtime_error("Cannot allocate memory.");
-				}
-			}
-			else{
-				data_ = NULL;
-			}
+} 		// -----  end of method NumVec<F>::~NumVec  ----- 
 
-			if( m_ > 0 ){
-				for( Int i = 0; i < m_; i++ ){
-					data_[i] = C.data_[i];
-				}
+
+template < class F > inline NumVec<F>& NumVec<F>::operator =	( const NumVec& C  )
+{
+#ifndef _RELEASE_
+	PushCallStack("NumVec<F>::operator=");
+#endif  // ifndef _RELEASE_
+	if( owndata_ ){
+		if( m_ > 0 ){
+			delete[]  data_;
+			data_ = NULL;
+		}
+	}
+	m_ = C.m_;
+	owndata_ = C.owndata_;
+
+	if( owndata_ ) {
+		if( m_ > 0 ){
+			data_ = new F[m_];
+			if( data_ == NULL ){
+				throw std::runtime_error("Cannot allocate memory.");
 			}
 		}
 		else{
-			data_ = C.data_;
+			data_ = NULL;
 		}
 
-#ifndef _RELEASE_
-		PopCallStack();
-#endif  // ifndef _RELEASE_
-
-		return *this;
-	} 		// -----  end of method NumVec<F>::operator=  ----- 
-
-
-template < class F >
-	inline void NumVec<F>::Resize	( const Int m )
-	{
-#ifndef _RELEASE_
-		PushCallStack("NumVec<F>::Resize");
-#endif  // ifndef _RELEASE_
-		if( owndata_ == false ){
-			throw std::logic_error("Vector being resized must own data.");
-		}
-		if( m != m_ ){
-			if( m_ > 0 ){
-				delete[] data_;
-				data_ = NULL;
-			}
-			m_ = m;
-			if( m_ > 0 ){
-				data_ = new F[m_];
-				if( data_ == NULL ){
-					throw std::runtime_error("Cannot allocate memory.");
-				}
+		if( m_ > 0 ){
+			for( Int i = 0; i < m_; i++ ){
+				data_[i] = C.data_[i];
 			}
 		}
-		else{
-			std::cerr << "NumVec<F>::Resize is doing nothing" << std::endl;
-		}
+	}
+	else{
+		data_ = C.data_;
+	}
 
 #ifndef _RELEASE_
-		PopCallStack();
+	PopCallStack();
 #endif  // ifndef _RELEASE_
-		return ;
-	} 		// -----  end of method NumVec<F>::Resize  ----- 
+
+	return *this;
+} 		// -----  end of method NumVec<F>::operator=  ----- 
+
+
+template < class F > inline void NumVec<F>::Resize	( const Int m )
+{
+#ifndef _RELEASE_
+	PushCallStack("NumVec<F>::Resize");
+#endif  // ifndef _RELEASE_
+	if( owndata_ == false ){
+		throw std::logic_error("Vector being resized must own data.");
+	}
+	if( m != m_ ){
+		if( m_ > 0 ){
+			delete[] data_;
+			data_ = NULL;
+		}
+		m_ = m;
+		if( m_ > 0 ){
+			data_ = new F[m_];
+			if( data_ == NULL ){
+				throw std::runtime_error("Cannot allocate memory.");
+			}
+		}
+	}
+	else{
+		std::cerr << "NumVec<F>::Resize is doing nothing" << std::endl;
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif  // ifndef _RELEASE_
+	return ;
+} 		// -----  end of method NumVec<F>::Resize  ----- 
+
+
+template <class F> inline F& NumVec<F>::operator()	( Int i )
+{
+#ifndef _RELEASE_
+	PushCallStack("NumVec<F>::operator()");
+#endif  // ifndef _RELEASE_
+	if( i < 0 || i >= m_ ){
+		throw std::logic_error( "Index is out of bound." );
+	}
+#ifndef _RELEASE_
+	PopCallStack();
+#endif  // ifndef _RELEASE_
+	return data_[i];
+
+} 		// -----  end of method NumVec<F>::operator()  ----- 
 
 
 template <class F>
-	inline F&
-	NumVec<F>::operator()	( Int i )
-	{
+inline const F&
+NumVec<F>::operator()	( Int i ) const
+{
 #ifndef _RELEASE_
-		PushCallStack("NumVec<F>::operator()");
+	PushCallStack("NumVec<F>::operator()");
 #endif  // ifndef _RELEASE_
-		if( i < 0 || i >= m_ ){
-			throw std::logic_error( "Index is out of bound." );
-		}
+	if( i < 0 || i >= m_ ){
+		throw std::logic_error( "Index is out of bound." );
+	}
 #ifndef _RELEASE_
-		PopCallStack();
+	PopCallStack();
 #endif  // ifndef _RELEASE_
-		return data_[i];
+	return data_[i];
 
-	} 		// -----  end of method NumVec<F>::operator()  ----- 
+} 		// -----  end of method NumVec<F>::operator()  ----- 
 
 
-template <class F>
-	inline const F&
-	NumVec<F>::operator()	( Int i ) const
-	{
+template <class F> inline F& NumVec<F>::operator[]	( Int i )
+{
 #ifndef _RELEASE_
-		PushCallStack("NumVec<F>::operator()");
+	PushCallStack("NumVec<F>::operator[]");
 #endif  // ifndef _RELEASE_
-		if( i < 0 || i >= m_ ){
-			throw std::logic_error( "Index is out of bound." );
-		}
+	if( i < 0 || i >= m_ ){
+		throw std::logic_error( "Index is out of bound." );
+	}
 #ifndef _RELEASE_
-		PopCallStack();
+	PopCallStack();
 #endif  // ifndef _RELEASE_
-		return data_[i];
+	return data_[i];
 
-	} 		// -----  end of method NumVec<F>::operator()  ----- 
+} 		// -----  end of method NumVec<F>::operator[]  ----- 
 
 
-template <class F>
-	inline F& NumVec<F>::operator[]	( Int i )
-	{
+template <class F> inline const F& NumVec<F>::operator[]	( Int i ) const
+{
 #ifndef _RELEASE_
-		PushCallStack("NumVec<F>::operator[]");
+	PushCallStack("NumVec<F>::operator[]");
 #endif  // ifndef _RELEASE_
-		if( i < 0 || i >= m_ ){
-			throw std::logic_error( "Index is out of bound." );
-		}
+	if( i < 0 || i >= m_ ){
+		throw std::logic_error( "Index is out of bound." );
+	}
 #ifndef _RELEASE_
-		PopCallStack();
+	PopCallStack();
 #endif  // ifndef _RELEASE_
-		return data_[i];
+	return data_[i];
 
-	} 		// -----  end of method NumVec<F>::operator[]  ----- 
-
-
-template <class F>
-	inline const F&
-	NumVec<F>::operator[]	( Int i ) const
-	{
-#ifndef _RELEASE_
-		PushCallStack("NumVec<F>::operator[]");
-#endif  // ifndef _RELEASE_
-		if( i < 0 || i >= m_ ){
-			throw std::logic_error( "Index is out of bound." );
-		}
-#ifndef _RELEASE_
-		PopCallStack();
-#endif  // ifndef _RELEASE_
-		return data_[i];
-
-	} 		// -----  end of method NumVec<F>::operator[]  ----- 
+} 		// -----  end of method NumVec<F>::operator[]  ----- 
 
 
 

@@ -27,9 +27,6 @@
 #include "fftw3.h"
 #include "fftw3-mpi.h"
 
-// PETSc / SLEPc libraries
-#include <slepceps.h>
-
 /***********************************************************************
  *  Data types and constants
  **********************************************************************/
@@ -37,8 +34,6 @@
 namespace dgdft{
 
 // Basic data types
-// Make sure that the following definition is consistent with the
-// Petsc definition.  
 
 #define BLAS(name) name##_
 #define LAPACK(name) name##_
@@ -51,7 +46,6 @@ typedef    std::complex<double>  Scalar;  // Must use elemental form of complex
 #else
 typedef    double                Scalar;
 #endif
-typedef    PetscScalar           PetscScalar;      // Still use PetscScalar when it is needed
 
 // IO
 extern  std::ofstream  statusOFS;
@@ -68,6 +62,8 @@ const Real D_ZERO = 0.0;
 const Real D_ONE  = 1.0;
 const Complex Z_ZERO = Complex(0.0, 0.0);
 const Complex Z_ONE  = Complex(1.0, 0.0);
+const SCALAR_ZERO    = static_cast<Scalar>(0.0);
+const SCALAR_ONE     = static_cast<Scalar>(1.0);
 const char UPPER = 'U';
 const char LOWER = 'L';
 
@@ -83,7 +79,6 @@ const Real PI = 3.141592653589793;
 enum {RHO, MAGX, MAGY, MAGZ};  // four-component RHO and MAGnetization
 enum {UP, DN};                 // spin-UP and spin-DowN
 enum {LGUP, LGDN, SMUP, SMDN}; // LarGe spin-UP and SMall spin-DowN
-
 
 
 } // namespace dgdft

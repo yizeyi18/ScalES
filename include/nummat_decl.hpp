@@ -87,7 +87,7 @@ public:
   }
   
   F* Data() const { return data_; }
-  F* ColData(Int j)  const 
+  F* VecData(Int j)  const 
 	{ 
 		if( j < 0 || j >= n_ ) {
 			throw std::logic_error( "Index is out of bound." );

@@ -10,9 +10,7 @@ namespace dgdft{
 class Spinor {
 private:
 	Domain            domain_;                // mesh should be used here for general cases 
-	std::vector<Vec>  wavefun_;               // PETSc format, in a component-wise format
-	NumVec<Scalar>    localWavefun_;          // local wavefunction for wavefun_
-	Int               numGridLocal_;          // local number of grid points saved in localWavefun
+	NumTns<Scalar>    wavefun_;               // Block row partition of the numeric vector
 	Int               numComponent_;          // number of components (1,2,4)
 	Int               numState_;              // number of states, occupied or unoccupied.
 
@@ -24,12 +22,10 @@ public:
 	// *********************************************************************
 	Spinor(); 
 	
-	Spinor( const Domain &dm, const Int numGridLocal,
-			const Int numComponent, const Int numState,
+	Spinor( const Domain &dm, const Int numComponent, const Int numState,
 			const Scalar val = static_cast<Scalar>(0) );
 
-	Spinor( const Domain &dm, const Int numGridLocal,
-			const Int numComponent, const Int numState,
+	Spinor( const Domain &dm, const Int numComponent, const Int numState,
 			const bool owndata, Scalar* data );
 
 	~Spinor();
@@ -38,19 +34,13 @@ public:
 	// Inquiries
 	// *********************************************************************
 	Int NumGridTotal() const { return domain_.NumGridTotal(); }
-	Int NumGridLocal() const { return numGridLocal_; } 
 	Int NumComponent() const { return numComponent_; }
 	Int NumState()     const { return numState_; }
 
-	Vec& Wavefun( Int j, Int k ); 
-	const Vec& LockedWavefun( Int j, Int k ) const;
-	NumVec<Scalar>&   LocalWavefun() { return localWavefun_; }
-	const NumVec<Scalar>& LockedLocalWavefun() const { return localWavefun_; } 
+	NumTns<Scalar>& Wavefun() { return wavefun_; } 
+	const NumTns<Scalar>& Wavefun() const { return wavefun_; } 
 
-	Scalar* LocalWavefunData() { return localWavefun_.Data(); }
-	const Scalar* LockedLocalWavefunData() const { return localWavefun_.Data(); }
-  Scalar* LocalWavefunData( Int j, Int k );
-  const Scalar* LockedLocalWavefunData( Int j, Int k ) const; 
+
 	// *********************************************************************
 	// Access
 	// *********************************************************************
@@ -65,31 +55,33 @@ public:
 	// *********************************************************************
 	void Normalize();
 
+  void AddScalarDiag (Int iocc, const DblNumVec &val, NumTns<Scalar>& a3);
+  void AddScalarDiag (const DblNumVec &val, NumTns<Scalar> &a3);
+  void AddScalarDiag (const IntNumVec &activeIndex, DblNumVec &val, NumTns<Scalar> &a3);
+//  void AddNonlocalPseudo(Int iocc, vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);
+//  int add_nonlocalPS (vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);
+//  int add_nonlocalPS (IntNumVec &active_ind, vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);
+
+	void AddLaplacian (const NumTns<Scalar>& a3, Fourier* fftPtr);
+
+  // Spin related operations
+//  int add_sigma_x    (DblNumVec &a1, CpxNumTns &a3);
+//  int add_sigma_y    (DblNumVec &a1, CpxNumTns &a3);
+//  int add_sigma_z    (DblNumVec &a1, CpxNumTns &a3);
+//  int add_nonlocalPS_SOC 
+//    (vector< vector< pair<SparseVec,double> > > &val, 
+//     vector<Atom> &atomvec,
+//     vector<DblNumVec> &grid, CpxNumTns &a3, FFTPrepare &fp);
+//  int add_matrix_ij (int ir, int jc, DblNumVec &a1, CpxNumTns &a3);
+//  int add_matrix_ij (int ir, int jc, double  *ptr1, CpxNumTns &a3);
+//  int get_DKS       (DblNumVec &vtot, DblNumMat &vxc,
+//		     vector< vector< pair<SparseVec,double> > > &vnlss,
+//		     vector< vector< pair<SparseVec,double> > > &vnlso,
+//		     vector<Atom> &atomvec, CpxNumTns &a3, 
+//		     FFTPrepare &fp, vector<DblNumVec> &grid);
 
 
-	// operations     
-	//	void AddScalarDiag ( Vec  
-	//  int add_scalardiag (DblNumVec &val, CpxNumTns &a3);
-	//  int add_nonlocalPS (vector< vector< pair<SparseVec,double> > > &val, CpxNumTns &a3);
-	//  int add_D2_c2c     (CpxNumTns &a3, FFTPrepare &fp);
-	//  int get_D2_c2c     (CpxNumTns &a3, FFTPrepare &fp);
-
-	// Spin related operations
-	//  int add_sigma_x    (DblNumVec &a1, CpxNumTns &a3);
-	//  int add_sigma_y    (DblNumVec &a1, CpxNumTns &a3);
-	//  int add_sigma_z    (DblNumVec &a1, CpxNumTns &a3);
-	//  int add_nonlocalPS_SOC 
-	//    (vector< vector< pair<SparseVec,double> > > &val, 
-	//     vector<Atom> &atomvec,
-	//     vector<DblNumVec> &grid, CpxNumTns &a3, FFTPrepare &fp);
-	//  int add_matrix_ij (int ir, int jc, DblNumVec &a1, CpxNumTns &a3);
-	//  int add_matrix_ij (int ir, int jc, double  *ptr1, CpxNumTns &a3);
-	//  int get_DKS       (DblNumVec &vtot, DblNumMat &vxc,
-	//		     vector< vector< pair<SparseVec,double> > > &vnlss,
-	//		     vector< vector< pair<SparseVec,double> > > &vnlso,
-	//		     vector<Atom> &atomvec, CpxNumTns &a3, 
-	//		     FFTPrepare &fp, vector<DblNumVec> &grid);
-};  // 
+};  // Spinor
 
 ////////////
 

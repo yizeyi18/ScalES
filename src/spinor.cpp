@@ -2,232 +2,253 @@
 
 namespace dgdft{
 
-Spinor::Spinor 
-	() : numGridLocal_(0), numComponent_(0),
-	numState_(0), isNormalized_(false) { } 		
-// -----  end of method Spinor::Spinor  ----- 
+Spinor::Spinor () : numComponent_(0), numState_(0), isNormalized_(false) { } 		
 
-Spinor::Spinor 
-	( const Domain &dm, 
-		const Int     numGridLocal,
+Spinor::Spinor ( 
+		const Domain &dm, 
 		const Int     numComponent,
 		const Int     numState,
-		const Scalar  val )
-	{
+		const Scalar  val ) {
 #ifndef _RELEASE_
-		PushCallStack("Spinor::Spinor");
+	PushCallStack("Spinor::Spinor");
 #endif  // ifndef _RELEASE_
-		PetscErrorCode ierr;
-		domain_       = dm;
-		numGridLocal_ = numGridLocal;
-		numComponent_ = numComponent;
-		numState_     = numState;
+	domain_       = dm;
+	numComponent_ = numComponent;
+	numState_     = numState;
 
-		// TODO Make sure that the sum of local grids equal to the number
-		// of grid points in the domain
+	wavefun_.Resize( dm.numGridTotal(), numComponent_, numState_ );
+	SetValue( wavefun_, val );
+	isNormalized_ = false;
 
-		localWavefun_.Resize( numGridLocal_ * numComponent_ * numState_ );
-		SetValue( localWavefun_, val );
-		isNormalized_ = false;
-
-		wavefun_.resize( numComponent_ * numState_ );
-		for( Int k = 0; k < numState_; k++ ){
-			for( Int j = 0; j < numComponent_; j++ ){
-				ierr = VecCreateMPIWithArray( dm.comm, 1, numGridLocal_, dm.NumGridTotal(),
-						reinterpret_cast<const PetscScalar*>(this->LocalWavefunData( j, k )), 
-						&(this->Wavefun( j, k )) );
-				if( ierr ) throw ierr;
-			}
-		}
 #ifndef _RELEASE_
-		PopCallStack();
+	PopCallStack();
 #endif  // ifndef _RELEASE_
-	} 		// -----  end of method Spinor::Spinor  ----- 
+} 		// -----  end of method Spinor::Spinor  ----- 
 
 
-Spinor::Spinor
-	( const Domain &dm, 
-		const Int numGridLocal,
+Spinor::Spinor ( const Domain &dm, 
 		const Int numComponent, 
 		const Int numState,
 		const bool owndata, 
 		Scalar* data )
-	{
+{
 #ifndef _RELEASE_
-		PushCallStack("Spinor::Spinor");
+	PushCallStack("Spinor::Spinor");
 #endif  // ifndef _RELEASE_
-		PetscErrorCode ierr;
-		domain_       = dm;
-		numGridLocal_ = numGridLocal;
-		numComponent_ = numComponent;
-		numState_     = numState;
+	domain_       = dm;
+	numComponent_ = numComponent;
+	numState_     = numState;
+	wavefun_      = NumTns<Scalar>( dm.NumGridTotal(), numComponent_, numState_,
+			owndata, data );
+	isNormalized_ = false;
 
-		// TODO Make sure that the sum of local grids equal to the number
-		// of grid points in the domain
+#ifndef _RELEASE_
+	PopCallStack();
+#endif  // ifndef _RELEASE_
 
-		if( owndata == true ){
-			// Make a copy
-			localWavefun_.Resize( numGridLocal_ * numComponent_ * numState_ );
+} 		// -----  end of method Spinor::Spinor  ----- 
 
-			for( Int i = 0; i < numGridLocal_; i++ ){
-				localWavefun_[i] = data[i];
+
+Spinor::~Spinor	() {}
+
+
+void
+Spinor::Normalize	(  )
+{
+#ifndef _RELEASE_
+	PushCallStack("Spinor::Normalize");
+#endif
+	if ( ! isNormalized_ ) {
+		Int size = wavefun_.m() * wavefun_.n();
+		Int nocc = wavefun_.p();
+
+		for (Int k=0; k<nocc; k++) {
+			Scalar *ptr = wavefun_.MatData(k);
+			Real   sum = 0.0;
+			for (Int i=0; i<size; i++) {
+				sum += pow(abs(*ptr++), 2.0);
+			}
+			sum = sqrt(sum);
+			if (sum != 0.0) {
+				ptr = wavefun_.MatData(k);
+				for (Int i=0; i<size; i++) *(ptr++) /= sum;
 			}
 		}
-		else{
-			// Just view the array obtained from data
-			localWavefun_ = NumVec<Scalar>
-				( numGridLocal_ * numComponent_ * numState_, false, 
-					data );
+		isNormalized_ = true;
+	}
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return ;
+} 		// -----  end of method Spinor::Normalize  ----- 
+
+
+void
+Spinor::AddScalarDiag	(Int iocc, const DblNumVec &val, NumTns<Scalar>& a3)
+{
+#ifndef _RELEASE_
+	PushCallStack("Spinor::AddScalarDiag");
+#endif
+	if( val.m() == 0 || val.m() != wavefun_.m() ){
+		throw std::logic_error("Vector dimension does not match.");
+	}
+
+	Int ntot = wavefun_.m();
+	Int ncom = wavefun_.n();
+	Int nocc = wavefun_.p();
+
+	if( iocc < 0 || iocc >= nocc ){
+		throw std::logic_error("iocc is out of bound.");
+	}	
+
+
+	Int k = iocc;
+	for (Int j=0; j<ncom; j++) {
+		Scalar *p1 = wavefun_.VecData(j, k);
+		Real   *p2 = val.Data();
+		Scalar *p3 = a3.VecData(j, k);
+		for (Int i=0; i<ntot; i++) { *(p3) += (*p1) * (*p2); p3++; p1++; p2++; }
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method Spinor::AddScalarDiag  ----- 
+
+void Spinor::AddScalarDiag	(const DblNumVec &val, NumTns<Scalar> &a3)
+{
+#ifndef _RELEASE_
+	PushCallStack("Spinor::AddScalarDiag");
+#endif
+	if( val.m() == 0 || val.m() != wavefun_.m() ){
+		throw std::logic_error("Vector dimension does not match.");
+	}
+
+	Int ntot = wavefun_.m();
+	Int ncom = wavefun_.n();
+	Int nocc = wavefun_.p();
+
+	for (Int k=0; k<nocc; k++) {
+		for (Int j=0; j<ncom; j++) {
+			Scalar *p1 = wavefun_.VecData(j, k);
+			Real   *p2 = val.Data();
+			Scalar *p3 = a3.VecData(j, k);
+			for (Int i=0; i<ntot; i++) { *(p3) += (*p1) * (*p2); p3++; p1++; p2++; }
 		}
+	}
 
-		isNormalized_ = false;
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
 
-		wavefun_.resize( numComponent_ * numState_ );
-		for( Int k = 0; k < numState_; k++ ){
-			for( Int j = 0; j < numComponent_; j++ ){
-				ierr = VecCreateMPIWithArray( dm.comm, 1, numGridLocal_, dm.NumGridTotal(),
-						reinterpret_cast<const PetscScalar*>(this->LocalWavefunData( j, k )), 
-						&(this->Wavefun( j, k )) );
-				if( ierr ) throw ierr;
+	return ;
+} 		// -----  end of method Spinor::AddScalarDiag  ----- 
+
+void Spinor::AddScalarDiag (const IntNumVec &activeIndex, DblNumVec &val, NumTns<Scalar> &a3)
+{
+#ifndef _RELEASE_
+	PushCallStack("Spinor::AddScalarDiag");
+#endif
+	if( val.m() == 0 || val.m() != wavefun_.m() ){
+		throw std::logic_error("Vector dimension does not match.");
+	}
+
+	Int ntot = wavefun_.m();
+	Int ncom = wavefun_.n();
+	Int nocc = wavefun_.p();
+
+	for( Int i = 0; i < activeIndex.m(); i++ ){
+		if( activeIndex(i) < 0 || activeIndex(i) > nocc ){
+			throw std::logic_error("Index is out of bound.");
+		}
+	}
+
+	for (Int iact=0; iact<nact; iact++) {
+		Int k = activeIndex(iact);
+		for (Int j=0; j<ncom; j++) {
+			Scalar *p1 = wavefun_.VecData(j, k);
+			Real   *p2 = val.Data();
+			Scalar *p3 = a3.VecData(j, k);
+			for (Int i=0; i<ntot; i++) { *(p3) += (*p1) * (*p2); p3++; p1++; p2++; }
+		}
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method Spinor::AddScalarDiag  ----- 
+
+
+void
+Spinor::AddLaplacian	(const NumTns<Scalar>& a3, Fourier* fftPtr)
+{
+#ifndef _RELEASE_
+	PushCallStack("Spinor::AddLaplacian");
+#endif
+	if( !fftPtr->isPrepared ){
+		throw std::runtime_error("Fourier is not prepared.");
+	}
+	Int ntot = wavefun_.m();
+	Int ncom = wavefun_.n();
+	Int nocc = wavefun_.p();
+
+	if( fftPtr->domain.NumGridTotal() != ntot ){
+		throw std::logic_error("Domain size does not match.");
+	}
+
+#ifndef _USE_COMPLEX_ // Real caes
+	CpxNumVec   cpxtmp(ntot);
+	for (Int k=0; k<nocc; k++) {
+		for (Int j=0; j<ncom; j++) {
+			Real *ptrwfn = wavefun_.MatData(j, k);
+			for(Int i = 0; i < ntot; i++){
+				cpxtmp[i] = Complex( ptwfn[i], 0.0 );
 			}
+			Complex *ptr0 = cpxtmp.Data();
+			
+			fftw_execute_dft(fftPtr->forwardPlan, reinterpret_cast<fftw_complex*>(ptr0), 
+					reinterpret_cast<fftw_complex*>(fftPtr->outputComplexVec));
+			Real *ptr1d = fftPtr->gkk.Data();
+			ptr0 = fftPtr->outputComplexVec;
+			for (Int i=0; i<ntot; i++) 
+				*(ptr0++) *= *(ptr1d++);
+
+			fftw_execute(fftPtr->backwardPlan);
+			Real *ptr1 = a3.VecData(j, k);
+			ptr0 = fftPtr->inputComplexVec;
+			for (Int i=0; i<ntot; i++) *(ptr1++) += (*(ptr0++)).real() / Real(ntot);
 		}
+	}
+#else // Complex case
+	for (Int k=0; k<nocc; k++) {
+		for (Int j=0; j<ncom; j++) {
+			Complex *ptr0 = wavefun_.MatData(j, k);
+			fftw_execute_dft(fftPtr->forwardPlan, reinterpret_cast<fftw_complex*>(ptr0), 
+					reinterpret_cast<fftw_complex*>(fftPtr->outputComplexVec));
+			Real *ptr1d = fftPtr->gkk.Data();
+			ptr0 = fftPtr->outputComplexVec;
+			for (Int i=0; i<ntot; i++) 
+				*(ptr0++) *= *(ptr1d++);
 
-#ifndef _RELEASE_
-		PopCallStack();
-#endif  // ifndef _RELEASE_
-
-	} 		// -----  end of method Spinor::Spinor  ----- 
-
-
-Spinor::~Spinor	
-	() {
-#ifndef _RELEASE_
-		PushCallStack("Spinor::~Spinor");
-#endif  // ifndef _RELEASE_
-		PetscErrorCode ierr;
-		for( Int i = 0; i < numComponent_ * numState_; i++ ){
-			ierr = VecDestroy( &(wavefun_[i]) ); 
-			if( ierr ) throw ierr;
+			fftw_execute(fftPtr->backwardPlan);
+			Complex *ptr1 = a3.VecData(j, k);
+			ptr0 = fftPtr->inputComplexVec;
+			for (Int i=0; i<ntot; i++) *(ptr1++) += *(ptr0++) / Real(ntot);
 		}
-#ifndef _RELEASE_
-		PopCallStack();
-#endif  // ifndef _RELEASE_
-	} 		// -----  end of method Spinor::~Spinor  ----- 
-
-
-Vec& Spinor::Wavefun	
-	( Int j, Int k ) {
-#ifndef _RELEASE_
-		PushCallStack("Spinor::Wavefun");
-#endif  // ifndef _RELEASE_
-		if( j < 0 || j >= numComponent_ ) 
-			throw std::logic_error( "Component index is out of bound" );
-		if( k < 0 || k >= numState_ )
-			throw std::logic_error( "State index is out of bound" );
+	}
+#endif
 
 #ifndef _RELEASE_
-		PopCallStack();
-#endif  // ifndef _RELEASE_
-		return wavefun_[ j + k * numComponent_ ];
-	} 		// -----  end of method Spinor::Wavefun  ----- 
+	PopCallStack();
+#endif
 
-const Vec& Spinor::LockedWavefun	
-	( Int j, Int k ) const {
-#ifndef _RELEASE_
-		PushCallStack("Spinor::LockedWavefun");
-#endif  // ifndef _RELEASE_
-		if( j < 0 || j >= numComponent_ ) 
-			throw std::logic_error( "Component index is out of bound" );
-		if( k < 0 || k >= numState_ )
-			throw std::logic_error( "State index is out of bound" );
+	return ;
+} 		// -----  end of method Spinor::AddLaplacian  ----- 
 
-#ifndef _RELEASE_
-		PopCallStack();
-#endif  // ifndef _RELEASE_
-		return wavefun_[ j + k * numComponent_ ];
-	} 		// -----  end of method Spinor::LockedWavefun  ----- 
-
-
-Scalar* 
-	Spinor::LocalWavefunData	( Int j, Int k  )
-	{
-#ifndef _RELEASE_
-		PushCallStack("Spinor::LocalWavefunData");
-#endif  // ifndef _RELEASE_
-		if( j < 0 || j >= numComponent_ ) 
-			throw std::logic_error( "Component index is out of bound" );
-		if( k < 0 || k >= numState_ )
-			throw std::logic_error( "State index is out of bound" );
-
-#ifndef _RELEASE_
-		PopCallStack();
-#endif  // ifndef _RELEASE_
-
-		return localWavefun_.Data() + ( j + k * numComponent_ ) * numGridLocal_; 
-	} 		// -----  end of method Spinor::LocalWavefunData  ----- 
-
-const Scalar* 
-	Spinor::LockedLocalWavefunData	( Int j, Int k  ) const
-	{
-#ifndef _RELEASE_
-		PushCallStack("Spinor::LockedLocalWavefunData");
-#endif  // ifndef _RELEASE_
-		if( j < 0 || j >= numComponent_ ) 
-			throw std::logic_error( "Component index is out of bound" );
-		if( k < 0 || k >= numState_ )
-			throw std::logic_error( "State index is out of bound" );
-
-#ifndef _RELEASE_
-		PopCallStack();
-#endif  // ifndef _RELEASE_
-
-		return localWavefun_.Data() + ( j + k * numComponent_ ) * numGridLocal_;
-	} 		// -----  end of method Spinor::LockedLocalWavefunData  ----- 
-
-
-//int Spinor::normalize() { // not used in practice, already normalized in eigensolver	
-//	if (_is_normalized) { return 0; }
-//	else {
-//		int size = _wavefun._m * _wavefun._n;
-//		int nocc = _wavefun._p;
-//
-//		for (int k=0; k<nocc; k++) {
-//			cpx    *ptr = _wavefun.matdata(k);
-//			double sum = 0.0;
-//			for (int i=0; i<size; i++) {
-//				sum += pow(abs(*ptr++), 2.0);
-//			}
-//			sum = sqrt(sum);
-//			if (sum != 0.0) {
-//				ptr = _wavefun.matdata(k);
-//				for (int i=0; i<size; i++) *(ptr++) /= sum;
-//			}
-//		}
-//		_is_normalized = true;
-//		return 0;
-//	}
-//};
-
-//int Spinor::add_scalardiag (DblNumVec &val, CpxNumTns &a3) {
-//	iA ((val._m != 0) && (val._m == _wavefun._m));
-//	// beforing call this subroutine
-//	// make sure that all the needed data is initialized
-//
-//	int ntot = _wavefun._m;
-//	int ncom = _wavefun._n;
-//	int nocc = _wavefun._p;
-//
-//	for (int k=0; k<nocc; k++) {
-//		for (int j=0; j<ncom; j++) {
-//			cpx    *p1 = _wavefun.clmdata(j,k);
-//			double *p2 = val.Data();
-//			cpx    *p3 = a3.clmdata(j,k);
-//			for (int i=0; i<ntot; i++) { *(p3) += (*p1) * (*p2); p3++; p1++; p2++; }
-//		}
-//	}
-//	return 0;
-//};
-//
 //int Spinor::add_nonlocalPS 
 //(vector< vector< pair<SparseVec,double> > > &val, CpxNumTns &a3) {
 //	int ntot = _wavefun._m;

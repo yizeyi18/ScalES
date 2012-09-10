@@ -100,7 +100,7 @@ public:
 		return &(data_[j*m_*n_]);
 	};
 
-	F* ColData (Int j, Int k) const {
+	F* VecData (Int j, Int k) const {
 		if( j < 0 || j >= n_ ||
 				k < 0 || k >= p_ ) {
 			throw std::logic_error( "Index is out of bound." );
