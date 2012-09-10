@@ -4,6 +4,8 @@
 #include  "environment_impl.hpp"
 #include  "domain.hpp"
 #include  "numvec_impl.hpp"
+#include  "numtns_impl.hpp"
+#include  "fourier.hpp"
 
 namespace dgdft{
 
@@ -55,9 +57,9 @@ public:
 	// *********************************************************************
 	void Normalize();
 
-  void AddScalarDiag (Int iocc, const DblNumVec &val, NumTns<Scalar>& a3);
+  void AddScalarDiag (const Int iocc, const DblNumVec &val, NumTns<Scalar>& a3);
   void AddScalarDiag (const DblNumVec &val, NumTns<Scalar> &a3);
-  void AddScalarDiag (const IntNumVec &activeIndex, DblNumVec &val, NumTns<Scalar> &a3);
+//  void AddScalarDiag (const IntNumVec &activeIndex, DblNumVec &val, NumTns<Scalar> &a3);
 //  void AddNonlocalPseudo(Int iocc, vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);
 //  int add_nonlocalPS (vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);
 //  int add_nonlocalPS (IntNumVec &active_ind, vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);

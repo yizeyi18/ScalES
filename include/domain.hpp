@@ -17,7 +17,6 @@ struct Domain
 	Point3       length;                          // length
 	Point3       posStart;                        // starting position
 	Index3       numGrid;                         // number of grids points in each direction
-	Int          typeGrid;                        // Type of grids: LGL / UNIFORM
 	MPI_Comm     comm;                            // MPI Communicator
 
 	Domain()
@@ -26,7 +25,6 @@ struct Domain
 		posStart      = Point3( 0.0, 0.0, 0.0 );
 		numGrid       = Index3( 0, 0, 0 );
 
-		typeGrid = UNIFORM; 
 		comm = MPI_COMM_WORLD; 
 	}
 

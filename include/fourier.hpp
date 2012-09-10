@@ -10,9 +10,10 @@ namespace dgdft{
 struct Fourier {
 	Domain           domain;
   bool             isPrepared;
-	Int              numGridLocal;
-	Int              localN0;
-	Int              localN0Start;
+	//	TODO MPI
+	Int              numGridTotal;
+//	Int              localN0;
+//	Int              localN0Start;
 
   // plans
   fftw_plan backwardPlan;
@@ -28,7 +29,6 @@ struct Fourier {
 	// Temporary vectors that can also be used globally
 	CpxNumVec                inputComplexVec;     
 	CpxNumVec                outputComplexVec;     
-
 
 	//  TODO Real Fourier transform
 //  Int  halfsize;                                // For the usage of r2c and c2r

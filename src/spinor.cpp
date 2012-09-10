@@ -16,7 +16,7 @@ Spinor::Spinor (
 	numComponent_ = numComponent;
 	numState_     = numState;
 
-	wavefun_.Resize( dm.numGridTotal(), numComponent_, numState_ );
+	wavefun_.Resize( dm.NumGridTotal(), numComponent_, numState_ );
 	SetValue( wavefun_, val );
 	isNormalized_ = false;
 
@@ -24,7 +24,6 @@ Spinor::Spinor (
 	PopCallStack();
 #endif  // ifndef _RELEASE_
 } 		// -----  end of method Spinor::Spinor  ----- 
-
 
 Spinor::Spinor ( const Domain &dm, 
 		const Int numComponent, 
@@ -48,12 +47,10 @@ Spinor::Spinor ( const Domain &dm,
 
 } 		// -----  end of method Spinor::Spinor  ----- 
 
-
 Spinor::~Spinor	() {}
 
-
 void
-Spinor::Normalize	(  )
+Spinor::Normalize	( )
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Normalize");
@@ -82,9 +79,8 @@ Spinor::Normalize	(  )
 	return ;
 } 		// -----  end of method Spinor::Normalize  ----- 
 
-
 void
-Spinor::AddScalarDiag	(Int iocc, const DblNumVec &val, NumTns<Scalar>& a3)
+Spinor::AddScalarDiag	(const Int iocc, const DblNumVec &val, NumTns<Scalar>& a3)
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddScalarDiag");
@@ -146,42 +142,41 @@ void Spinor::AddScalarDiag	(const DblNumVec &val, NumTns<Scalar> &a3)
 	return ;
 } 		// -----  end of method Spinor::AddScalarDiag  ----- 
 
-void Spinor::AddScalarDiag (const IntNumVec &activeIndex, DblNumVec &val, NumTns<Scalar> &a3)
-{
-#ifndef _RELEASE_
-	PushCallStack("Spinor::AddScalarDiag");
-#endif
-	if( val.m() == 0 || val.m() != wavefun_.m() ){
-		throw std::logic_error("Vector dimension does not match.");
-	}
-
-	Int ntot = wavefun_.m();
-	Int ncom = wavefun_.n();
-	Int nocc = wavefun_.p();
-
-	for( Int i = 0; i < activeIndex.m(); i++ ){
-		if( activeIndex(i) < 0 || activeIndex(i) > nocc ){
-			throw std::logic_error("Index is out of bound.");
-		}
-	}
-
-	for (Int iact=0; iact<nact; iact++) {
-		Int k = activeIndex(iact);
-		for (Int j=0; j<ncom; j++) {
-			Scalar *p1 = wavefun_.VecData(j, k);
-			Real   *p2 = val.Data();
-			Scalar *p3 = a3.VecData(j, k);
-			for (Int i=0; i<ntot; i++) { *(p3) += (*p1) * (*p2); p3++; p1++; p2++; }
-		}
-	}
-
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-
-	return ;
-} 		// -----  end of method Spinor::AddScalarDiag  ----- 
-
+//void Spinor::AddScalarDiag (const IntNumVec &activeIndex, DblNumVec &val, NumTns<Scalar> &a3)
+//{
+//#ifndef _RELEASE_
+//	PushCallStack("Spinor::AddScalarDiag");
+//#endif
+//	if( val.m() == 0 || val.m() != wavefun_.m() ){
+//		throw std::logic_error("Vector dimension does not match.");
+//	}
+//
+//	Int ntot = wavefun_.m();
+//	Int ncom = wavefun_.n();
+//	Int nocc = wavefun_.p();
+//
+//	for( Int i = 0; i < activeIndex.m(); i++ ){
+//		if( activeIndex(i) < 0 || activeIndex(i) > nocc ){
+//			throw std::logic_error("Index is out of bound.");
+//		}
+//	}
+//
+//	for (Int iact=0; iact < activeIndex.m(); iact++) {
+//		Int k = activeIndex(iact);
+//		for (Int j=0; j<ncom; j++) {
+//			Scalar *p1 = wavefun_.VecData(j, k);
+//			Real   *p2 = val.Data();
+//			Scalar *p3 = a3.VecData(j, k);
+//			for (Int i=0; i<ntot; i++) { *(p3) += (*p1) * (*p2); p3++; p1++; p2++; }
+//		}
+//	}
+//
+//#ifndef _RELEASE_
+//	PopCallStack();
+//#endif
+//
+//	return ;
+//} 		// -----  end of method Spinor::AddScalarDiag  ----- 
 
 void
 Spinor::AddLaplacian	(const NumTns<Scalar>& a3, Fourier* fftPtr)
@@ -200,43 +195,43 @@ Spinor::AddLaplacian	(const NumTns<Scalar>& a3, Fourier* fftPtr)
 		throw std::logic_error("Domain size does not match.");
 	}
 
-#ifndef _USE_COMPLEX_ // Real caes
-	CpxNumVec   cpxtmp(ntot);
+#ifndef _USE_COMPLEX_ // Real case
 	for (Int k=0; k<nocc; k++) {
 		for (Int j=0; j<ncom; j++) {
-			Real *ptrwfn = wavefun_.MatData(j, k);
+			Real *ptrwfn = wavefun_.VecData(j, k);
+			Complex *ptr0 = fftPtr->inputComplexVec.Data();
 			for(Int i = 0; i < ntot; i++){
-				cpxtmp[i] = Complex( ptwfn[i], 0.0 );
+				ptr0[i] = Complex( ptrwfn[i], 0.0 );
 			}
-			Complex *ptr0 = cpxtmp.Data();
-			
-			fftw_execute_dft(fftPtr->forwardPlan, reinterpret_cast<fftw_complex*>(ptr0), 
-					reinterpret_cast<fftw_complex*>(fftPtr->outputComplexVec));
+			fftw_execute(fftPtr->forwardPlan);
+
 			Real *ptr1d = fftPtr->gkk.Data();
-			ptr0 = fftPtr->outputComplexVec;
+			ptr0 = fftPtr->outputComplexVec.Data();
 			for (Int i=0; i<ntot; i++) 
 				*(ptr0++) *= *(ptr1d++);
 
 			fftw_execute(fftPtr->backwardPlan);
 			Real *ptr1 = a3.VecData(j, k);
-			ptr0 = fftPtr->inputComplexVec;
+			ptr0 = fftPtr->inputComplexVec.Data();
 			for (Int i=0; i<ntot; i++) *(ptr1++) += (*(ptr0++)).real() / Real(ntot);
 		}
 	}
 #else // Complex case
 	for (Int k=0; k<nocc; k++) {
 		for (Int j=0; j<ncom; j++) {
-			Complex *ptr0 = wavefun_.MatData(j, k);
+			Complex *ptr0 = wavefun_.VecData(j, k);
 			fftw_execute_dft(fftPtr->forwardPlan, reinterpret_cast<fftw_complex*>(ptr0), 
-					reinterpret_cast<fftw_complex*>(fftPtr->outputComplexVec));
+					reinterpret_cast<fftw_complex*>(fftPtr->outputComplexVec.Data() ));
+			
 			Real *ptr1d = fftPtr->gkk.Data();
-			ptr0 = fftPtr->outputComplexVec;
+			ptr0 = fftPtr->outputComplexVec.Data();
 			for (Int i=0; i<ntot; i++) 
 				*(ptr0++) *= *(ptr1d++);
 
+
 			fftw_execute(fftPtr->backwardPlan);
 			Complex *ptr1 = a3.VecData(j, k);
-			ptr0 = fftPtr->inputComplexVec;
+			ptr0 = fftPtr->inputComplexVec.Data();
 			for (Int i=0; i<ntot; i++) *(ptr1++) += *(ptr0++) / Real(ntot);
 		}
 	}

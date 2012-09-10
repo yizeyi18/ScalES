@@ -25,7 +25,9 @@
 
 // FFTW libraries
 #include "fftw3.h"
-#include "fftw3-mpi.h"
+
+// MPI
+#include "mpi.h"
 
 /***********************************************************************
  *  Data types and constants
@@ -62,8 +64,8 @@ const Real D_ZERO = 0.0;
 const Real D_ONE  = 1.0;
 const Complex Z_ZERO = Complex(0.0, 0.0);
 const Complex Z_ONE  = Complex(1.0, 0.0);
-const SCALAR_ZERO    = static_cast<Scalar>(0.0);
-const SCALAR_ONE     = static_cast<Scalar>(1.0);
+const Scalar SCALAR_ZERO    = static_cast<Scalar>(0.0);
+const Scalar SCALAR_ONE     = static_cast<Scalar>(1.0);
 const char UPPER = 'U';
 const char LOWER = 'L';
 

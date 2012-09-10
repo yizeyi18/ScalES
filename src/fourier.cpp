@@ -3,7 +3,7 @@
 namespace dgdft{
 Fourier::Fourier () : 
 isPrepared(false),
-	numGridLocal(0),
+	numGridTotal(0),
 	plannerFlag(FFTW_MEASURE)
 {
 	backwardPlan  = NULL;
@@ -30,44 +30,59 @@ PrepareFourier ( Fourier& fft, const Domain& dm )
 	ptrdiff_t localN0, localN0Start;
 	Index3& numGrid = fft.domain.numGrid;
 	Point3& length  = fft.domain.length;
+	
 
+	// TODO MPI
 	// IMPORTANT: the order of numGrid. This is because the FFTW arrays
 	// are row-major ordered.
-	fft.numGridLocal = (Int) fftw_mpi_local_size_3d(
-			numGrid[2], numGrid[1], numGrid[0], dm.comm, 
-			&localN0, 
-			&localN0Start);
+//  fft.numGridLocal = (Int) fftw_mpi_local_size_3d(
+//      numGrid[2], numGrid[1], numGrid[0], dm.comm, 
+//      &localN0, 
+//      &localN0Start);
 
 	// IMPORTANT: the static cast here is necessary. Do not remove.
-	fft.localN0      = static_cast<Int>(localN0);
-	fft.localN0Start = static_cast<Int>(localN0Start);
+//	fft.localN0      = static_cast<Int>(localN0);
+//	fft.localN0Start = static_cast<Int>(localN0Start);
+//
+//	if( fft.numGridLocal != static_cast<Int>(localN0) * numGrid[1] * numGrid[0] ){
+//		std::ostringstream msg;
+//		msg 
+//			<< "The dimension of space does not match." << std::endl 
+//			<< "numGridLocal obtained from fftw_mpi_local_size_3d is " << fft.numGridLocal << std::endl
+//			<< "localN0 = " << localN0 << std::endl
+//			<< "localN0 * numGrid[1] * numGrid[2] = " << localN0 * numGrid[1] * numGrid[2] << std::endl;
+//		throw std::logic_error( msg.str().c_str() );
+//	}
 
-	if( fft.numGridLocal != static_cast<Int>(localN0) * numGrid[1] * numGrid[0] ){
-		std::ostringstream msg;
-		msg 
-			<< "The dimension of space does not match." << std::endl 
-			<< "numGridLocal obtained from fftw_mpi_local_size_3d is " << fft.numGridLocal << std::endl
-			<< "localN0 = " << localN0 << std::endl
-			<< "localN0 * numGrid[1] * numGrid[2] = " << localN0 * numGrid[1] * numGrid[2] << std::endl;
-		throw std::logic_error( msg.str().c_str() );
-	}
+	fft.numGridTotal = fft.domain.NumGridTotal();
 
-	fft.inputComplexVec.Resize( fft.numGridLocal );
-	fft.outputComplexVec.Resize( fft.numGridLocal );
+	fft.inputComplexVec.Resize( fft.numGridTotal );
+	fft.outputComplexVec.Resize( fft.numGridTotal );
 
 	// IMPORTANT: the order of numGrid. This is because the FFTW arrays
 	// are row-major ordered.
-	fft.forwardPlan = fftw_mpi_plan_dft_3d( 
+//	fft.forwardPlan = fftw_mpi_plan_dft_3d( 
+//			numGrid[2], numGrid[1], numGrid[0], 
+//			reinterpret_cast<fftw_complex*>( &fft.inputComplexVec[0] ), 
+//			reinterpret_cast<fftw_complex*>( &fft.outputComplexVec[0] ),
+//			dm.comm, FFTW_FORWARD, fft.plannerFlag );
+//
+//	fft.backwardPlan = fftw_mpi_plan_dft_3d(
+//			numGrid[2], numGrid[1], numGrid[0],
+//			reinterpret_cast<fftw_complex*>( &fft.outputComplexVec[0] ),
+//			reinterpret_cast<fftw_complex*>( &fft.inputComplexVec[0] ),
+//			dm.comm, FFTW_BACKWARD, fft.plannerFlag);
+	fft.forwardPlan = fftw_plan_dft_3d( 
 			numGrid[2], numGrid[1], numGrid[0], 
 			reinterpret_cast<fftw_complex*>( &fft.inputComplexVec[0] ), 
 			reinterpret_cast<fftw_complex*>( &fft.outputComplexVec[0] ),
-			dm.comm, FFTW_FORWARD, fft.plannerFlag );
+			FFTW_FORWARD, fft.plannerFlag );
 
-	fft.backwardPlan = fftw_mpi_plan_dft_3d(
+	fft.backwardPlan = fftw_plan_dft_3d(
 			numGrid[2], numGrid[1], numGrid[0],
 			reinterpret_cast<fftw_complex*>( &fft.outputComplexVec[0] ),
 			reinterpret_cast<fftw_complex*>( &fft.inputComplexVec[0] ),
-			dm.comm, FFTW_BACKWARD, fft.plannerFlag);
+			FFTW_BACKWARD, fft.plannerFlag);
 
 	std::vector<DblNumVec>  KGrid(DIM);                // Fourier grid
 	for( Int idim = 0; idim < DIM; idim++ ){

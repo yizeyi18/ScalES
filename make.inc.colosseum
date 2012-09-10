@@ -1,14 +1,14 @@
 #/usr/bin/bash
 
-DGDFT_DIR     = /Users/linlin/Projects/elementorbital
+DGDFT_DIR     = /Users/linlin/Projects/NoPetscEO
 
-#SCALAR = REAL 
-SCALAR = COMPLEX
+SCALAR = REAL 
+#SCALAR = COMPLEX
 
 # inclues
 BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
 
-FFTW_INCLUDE     = /opt/local/include
+FFTW_INCLUDE     = -I/opt/local/include
 DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
 INCLUDES         = ${DGDFT_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
 

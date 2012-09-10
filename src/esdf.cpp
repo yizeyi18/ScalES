@@ -1512,7 +1512,7 @@ void adjustl(char *in,char *out) {
 	int i;
 
 	for (i=0;in[i]==' '||in[i]=='\t';i++);
-	for (pin=in+i,pout=out;*pout=*pin;pin++,pout++);
+	for (pin=in+i,pout=out;(*pout=*pin);pin++,pout++);
 	for (;i>0;i--,pout++)
 		*pout=' ';
 	*pout='\0';
