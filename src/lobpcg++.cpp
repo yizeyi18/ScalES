@@ -424,23 +424,20 @@ BlopexInt
 		x_active_ind = x->active_indices;
 		y_active_ind = y->active_indices;
 
-		// LLIN: Old code
-//		if(0){
-//			for(i=0; i<num_active_vectors; i++)
-//			{
-//				src = x_data + x_active_ind[i]*size;
-//				dest = y_data + y_active_ind[i]*size;
-//
-//				for (j=0; j<size; j++) {
-//					*(dest++) += alpha * (*(src++));
-//					//	  dest[j].real += alpha*src[j].real;
-//					//	  dest[j].imag += alpha*src[j].imag;
-//				}
-//			}
-//		}
+		// Does not use full BLAS but allows deflation
+		if(1){
+			for(i=0; i<num_active_vectors; i++)
+			{
+				src = x_data + x_active_ind[i]*size;
+				dest = y_data + y_active_ind[i]*size;
+
+				blas::Axpy( size, static_cast<Scalar>(alpha), 
+						src, 1, dest, 1 );
+			}
+		}
 
 		// NEW Code, calculate everything. Make sure it works with deflation  
-		if(1){
+		if(0){
 			blas::Axpy( (size * x->num_vectors), static_cast<Scalar>(alpha), 
 					x_data, 1, y_data, 1 );
 		}
@@ -461,7 +458,6 @@ BlopexInt
 			Scalar              *alpha,
 			serial_Multi_Vector *y)
 	{
-		// TODO a more modern version
 		Scalar  *x_data;
 		Scalar  *y_data;
 		BlopexInt      size;
@@ -506,7 +502,7 @@ BlopexInt
 			src = x_data + x_active_ind[i]*size;
 			dest = y_data + y_active_ind[i]*size;
 			current_alpha=alpha[ al_active_ind[i] ];
-
+				
 			for (j=0; j<size; j++){
 				*(dest++) = (current_alpha) * (*(src++));
 			}
@@ -535,8 +531,6 @@ BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
 	Scalar *x_ptr;
 	BlopexInt * x_active_ind;
 	BlopexInt * y_active_ind;
-	Scalar current_product;
-	Scalar temp;
 	BlopexInt gap;
 
 	assert (x->size==y->size);
@@ -554,39 +548,26 @@ BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
 
 	gap = gh-h;
 
-	// LLIN: Old version that does not use BLAS but allows deflation
-	if(0){
+	// Does not use full BLAS but allows deflation
+	if(1){
 		for(j=0; j<y_num_active_vectors; j++)
 		{
 			y_ptr = y_data + y_active_ind[j]*size;
 
 			for (i=0; i<x_num_active_vectors; i++) {
-
 				x_ptr = x_data + x_active_ind[i]*size;
-				current_product = SCALAR_ZERO;
-
-#ifdef _USE_COMPLEX_
-				for(k=0; k<size; k++) {
-					current_product += std::conj(x_ptr[k]) * y_ptr[k];
-				}
-#else
-				for(k=0; k<size; k++) {
-					current_product += (x_ptr[k]) * y_ptr[k];
-				}
-#endif
-
-				/* fortran column-wise storage for results */
-				*v++ = current_product;
+				*v++  = blas::Dot( size, x_ptr, 1, y_ptr, 1 );
 			}
 			v+=gap;
 		}
 	}
 
 	// LLIN: New version This assumes that deflation is not used and uses BLAS3
-	if(1){
+	// Another disadvantage of this method is that it is not so easy to
+	// generalize to parallel setup.
+	if(0){
 		assert( x->num_vectors == x->num_active_vectors &&
 				y->num_vectors == y->num_active_vectors); 
-    // VERY IMPORTANT: Use complex conjugate ('C' option).
 		blas::Gemm('C', 'N', x_num_active_vectors, y_num_active_vectors,
 				 size, SCALAR_ONE, x_data, size, y_data, size,
 				 SCALAR_ZERO, v, gh);
@@ -608,7 +589,6 @@ BlopexInt serial_Multi_VectorInnerProdDiag( serial_Multi_Vector *x,
 		serial_Multi_Vector *y,
 		BlopexInt* mask, BlopexInt n, Scalar* diag)
 {
-	/* TODO to be reworked! */
 	Scalar  *x_data;
 	Scalar  *y_data;
 	BlopexInt      size;
@@ -617,8 +597,6 @@ BlopexInt serial_Multi_VectorInnerProdDiag( serial_Multi_Vector *x,
 	BlopexInt      * y_active_ind;
 	Scalar  *y_ptr;
 	Scalar  *x_ptr;
-	Scalar  current_product;
-	Scalar  temp;
 	BlopexInt      i, k;
 	BlopexInt      * al_active_ind;
 	BlopexInt      num_active_als;
@@ -653,18 +631,7 @@ BlopexInt serial_Multi_VectorInnerProdDiag( serial_Multi_Vector *x,
 	{
 		x_ptr = x_data + x_active_ind[i]*size;
 		y_ptr = y_data + y_active_ind[i]*size;
-		current_product = SCALAR_ZERO;
-
-#ifdef _USE_COMPLEX_
-		for(k=0; k<size; k++) {
-			current_product += std::conj(x_ptr[k]) * y_ptr[k];
-		}
-#else
-		for(k=0; k<size; k++) {
-			current_product += (x_ptr[k]) * y_ptr[k];
-		}
-#endif
-		diag[al_active_ind[i]] = current_product;
+		diag[al_active_ind[i]] = blas::Dot( size, x_ptr, 1, y_ptr, 1 );	
 	}
 
 	free(al_active_ind);
@@ -688,7 +655,6 @@ serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexIn
 	Scalar *y_ptr;
 	Scalar *x_ptr;
 	Scalar  current_coef;
-	Scalar  temp;
 	BlopexInt      i,j,k;
 	BlopexInt      gap;
 
@@ -703,7 +669,7 @@ serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexIn
 	gap = rGHeight - rHeight;
 
 	//LLIN: Not using BLAS, but supports deflation
-	if(0){
+	if(1){
 		for (j=0; j<rWidth; j++)
 		{
 			y_ptr = y_data + y_active_ind[j]*size;
@@ -731,7 +697,7 @@ serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexIn
 	}
 
 	// LLIN: This assumes that deflation is not used and uses BLAS3
-	if(1){
+	if(0){
 		assert( x->num_vectors == x->num_active_vectors &&
 				y->num_vectors == y->num_active_vectors); 
 		blas::Gemm( 'N', 'N', size, rWidth, rHeight, SCALAR_ONE, 

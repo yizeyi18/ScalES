@@ -41,13 +41,13 @@ int main(int argc, char **argv)
 	 
 		Domain  dm;
 		dm.length  = Point3( 1.0, 1.0, 1.0 );
-		dm.numGrid = Index3( 40, 40, 40 );
+		dm.numGrid = Index3( 4, 4, 4 );
 
 		Hamiltonian ham;
 		Fourier fft;
 		PrepareFourier( fft, dm );
 
-		Int nev = 10;
+		Int nev = 15;
 #ifdef _USE_COMPLEX_
 		Spinor  spn( dm, 1, nev, Complex(1.0, 1.0) );
 #else
@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 //		cout << "spn.Wavefun() = " << spn.Wavefun() << endl;
 
 
-		EigenSolver eigSol( ham, spn, fft, 10, 1e-20, 1e-20 );
+		EigenSolver eigSol( ham, spn, fft, 20, 1e-6, 1e-6 );
 
 		PopCallStack();
 
