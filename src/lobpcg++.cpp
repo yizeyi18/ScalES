@@ -115,7 +115,7 @@ void
 		BlopexInt dummy;
 
 		dummy = serial_Multi_VectorByDiag( (serial_Multi_Vector *) x, mask, n,
-				(scalar *) diag,
+				(Scalar *) diag,
 				(serial_Multi_Vector *) y );
 	}
 
@@ -441,7 +441,8 @@ BlopexInt
 
 		// NEW Code, calculate everything. Make sure it works with deflation  
 		if(1){
-			Axpy( size * x->num_vectors, alpha, x_data, 1, y_data, 1);
+			blas::Axpy( (size * x->num_vectors), static_cast<Scalar>(alpha), 
+					x_data, 1, y_data, 1 );
 		}
 
 		return 0;
@@ -564,9 +565,15 @@ BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
 				x_ptr = x_data + x_active_ind[i]*size;
 				current_product = SCALAR_ZERO;
 
+#ifdef _USE_COMPLEX_
 				for(k=0; k<size; k++) {
-					current_product += conj(x_ptr[k]) * y_ptr[k];
+					current_product += std::conj(x_ptr[k]) * y_ptr[k];
 				}
+#else
+				for(k=0; k<size; k++) {
+					current_product += (x_ptr[k]) * y_ptr[k];
+				}
+#endif
 
 				/* fortran column-wise storage for results */
 				*v++ = current_product;
@@ -580,7 +587,7 @@ BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
 		assert( x->num_vectors == x->num_active_vectors &&
 				y->num_vectors == y->num_active_vectors); 
     // VERY IMPORTANT: Use complex conjugate ('C' option).
-		Gemm('C', 'N', x_num_active_vectors, y_num_active_vectors,
+		blas::Gemm('C', 'N', x_num_active_vectors, y_num_active_vectors,
 				 size, SCALAR_ONE, x_data, size, y_data, size,
 				 SCALAR_ZERO, v, gh);
 	}
@@ -648,9 +655,15 @@ BlopexInt serial_Multi_VectorInnerProdDiag( serial_Multi_Vector *x,
 		y_ptr = y_data + y_active_ind[i]*size;
 		current_product = SCALAR_ZERO;
 
+#ifdef _USE_COMPLEX_
 		for(k=0; k<size; k++) {
-			current_product += conj(x_ptr[k]) * y_ptr[k];
+			current_product += std::conj(x_ptr[k]) * y_ptr[k];
 		}
+#else
+		for(k=0; k<size; k++) {
+			current_product += (x_ptr[k]) * y_ptr[k];
+		}
+#endif
 		diag[al_active_ind[i]] = current_product;
 	}
 
@@ -721,7 +734,7 @@ serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexIn
 	if(1){
 		assert( x->num_vectors == x->num_active_vectors &&
 				y->num_vectors == y->num_active_vectors); 
-    Gemm( 'N', 'N', size, rWidth, rHeight, SCALAR_ONE, 
+		blas::Gemm( 'N', 'N', size, rWidth, rHeight, SCALAR_ONE, 
 				x_data, size, rVal, rGHeight, SCALAR_ZERO, y_data,
 				size );
 	}

@@ -64,7 +64,7 @@ public:
 //  int add_nonlocalPS (vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);
 //  int add_nonlocalPS (IntNumVec &active_ind, vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);
 
-	void AddLaplacian (const NumTns<Scalar>& a3, Fourier* fftPtr);
+	void AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr);
 
   // Spin related operations
 //  int add_sigma_x    (DblNumVec &a1, CpxNumTns &a3);

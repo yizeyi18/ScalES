@@ -16,6 +16,8 @@ template <class F> inline void SetValue(NumTns<F>& T, F val)
 	return;
 }
 
+
+
 template <class F> inline Real Energy(const NumTns<F>& T)
 {
   Real sum = 0;

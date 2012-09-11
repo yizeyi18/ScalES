@@ -9,6 +9,7 @@
 #include <assert.h>
 
 #include "numtns_impl.hpp"
+#include "blas.hpp"
 
 #include "fortran_matrix.h"
 #include "fortran_interpreter.h"
@@ -37,9 +38,14 @@ namespace LOBPCG{
   // version).  The komplex data structure used by LOBPCG is defined in
   // LOBPCG/fortran_matrix.h. Overloads the functions in lapack.h.
   extern "C"{
-    void zpotrf_ (char *uplo, BlopexInt *n,
+    void LAPACK(dpotrf) (char *uplo, BlopexInt *n,
+                 double *a, BlopexInt * lda, BlopexInt *info);
+    void LAPACK(dsygv)  (BlopexInt *itype, char *jobz, char *uplo, BlopexInt * n,
+                 double *a, BlopexInt *lda, double *b, BlopexInt *ldb,
+                 double *w, double *work, BlopexInt *lwork, BlopexInt *info);
+    void LAPACK(zpotrf) (char *uplo, BlopexInt *n,
 		  komplex *a, BlopexInt *lda, BlopexInt *info);
-    void zhegv_ (BlopexInt *itype, char *jobz, char *uplo, BlopexInt * n,
+    void LAPACK(zhegv) (BlopexInt *itype, char *jobz, char *uplo, BlopexInt * n,
 	       komplex *a, BlopexInt *lda, komplex *b, BlopexInt *ldb,
 	       double *w, komplex *work, BlopexInt *lwork,
 	       double * rwork,BlopexInt *info);

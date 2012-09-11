@@ -8,9 +8,11 @@
 #include  "hamiltonian.hpp"
 #include  "spinor.hpp"
 #include  "lobpcg++.hpp"
-
+#include  "lapack.hpp"
 
 namespace dgdft{
+
+using namespace dgdft::LOBPCG;
 
 class EigenSolver
 {
@@ -32,9 +34,9 @@ public:
 	// ********************  LIFECYCLE   *******************************
 
 	EigenSolver ();
-	EigenSolver( const Hamiltonian& ham,
-			const Spinor& psi,
-			const Fourier& fft,
+	EigenSolver( Hamiltonian& ham,
+			Spinor& psi,
+			Fourier& fft,
 		  const Int maxIter,
 			const Real absTol, 
 			const Real relTol );
@@ -59,10 +61,9 @@ public:
 	// Solve the eigenvalue problem using BLOPEX.
 	void Solve();
 
-	// Obtaining eigenvalues, eigenvectors etc.
-	void PostProcessing();
-
 	// ********************  ACCESS      *******************************
+	DblNumVec& EigVal() { return eigVal_; }
+	DblNumVec& ResVal() { return resVal_; }
 
 	// ********************  INQUIRY     *******************************
 

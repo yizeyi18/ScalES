@@ -7,7 +7,6 @@ typedef  int                    Int;
 typedef  std::complex<float>    scomplex;
 typedef  std::complex<double>   dcomplex;
 
-
 //
 // Machine constants
 //

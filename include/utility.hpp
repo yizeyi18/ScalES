@@ -1,6 +1,7 @@
 #ifndef _UTILITY_HPP_ 
 #define _UTILITY_HPP_
 
+#include  <stdlib.h>
 #include  "environment_impl.hpp"
 #include  "domain.hpp"
 #include  "tinyvec_impl.hpp"
@@ -1199,6 +1200,44 @@ Int SeparateWriteAscii(std::string name, std::ostringstream& os);
 Int SharedRead(std::string name, std::istringstream& is);
 
 Int SharedWrite(std::string name, std::ostringstream& os);
+
+
+// *********************************************************************
+// Random numbers
+// *********************************************************************
+inline void SetRandomSeed(long int seed){
+	srand48(seed);
+}
+
+inline Real UniformRandom(){
+	return (Real)drand48();
+}
+
+inline void UniformRandom( NumVec<Real>& vec )
+{
+	for(Int i=0; i<vec.m(); i++)
+		vec(i) = UniformRandom();
+}
+
+inline void UniformRandom( NumVec<Complex>& vec )
+{
+	for(Int i=0; i<vec.m(); i++)
+		vec(i) = Complex(UniformRandom(), UniformRandom());
+}
+
+inline void UniformRandom( NumTns<Real>& T )
+{
+	Real *ptr = T.data_;
+  for(Int i=0; i < T.m() * T.n() * T.p(); i++) 
+		*(ptr++) = UniformRandom(); 
+}
+
+inline void UniformRandom( NumTns<Complex>& T )
+{
+	Complex *ptr = T.data_;
+  for(Int i=0; i < T.m() * T.n() * T.p(); i++) 
+		*(ptr++) = Complex(UniformRandom(), UniformRandom()); 
+}
 
 
 

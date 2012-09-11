@@ -3,7 +3,7 @@
 
 include ../make.inc.${HOSTID}
 
-SRCS = spinor.cpp fourier.cpp domain.cpp utility.cpp esdf.cpp lapack.cpp blas.cpp global.cpp 
+SRCS = eigensolver.cpp lobpcg++.cpp spinor.cpp fourier.cpp domain.cpp utility.cpp esdf.cpp lapack.cpp blas.cpp global.cpp 
 #SRCS = periodtable.cpp eigensolver.cpp spinor.cpp fourier.cpp \
 			 domain.cpp utility.cpp esdf.cpp lapack.cpp blas.cpp global.cpp
 OBJS = ${SRCS:.cpp=.o}

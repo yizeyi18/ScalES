@@ -179,7 +179,7 @@ void Spinor::AddScalarDiag	(const DblNumVec &val, NumTns<Scalar> &a3)
 //} 		// -----  end of method Spinor::AddScalarDiag  ----- 
 
 void
-Spinor::AddLaplacian	(const NumTns<Scalar>& a3, Fourier* fftPtr)
+Spinor::AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr)
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddLaplacian");
