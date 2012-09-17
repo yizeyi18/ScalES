@@ -7,7 +7,7 @@
 #include  "periodtable.hpp"
 #include  "spinor.hpp"
 #include  "utility.hpp"
-//#include  <xc.h>
+#include  <xc.h>
 
 namespace dgdft{
 
@@ -77,25 +77,26 @@ public:
 	// Operations
 	// *********************************************************************
 
-	virtual void CalculatePseudoCharge( const PeriodTable &ptable );
+	virtual void CalculatePseudoCharge( const PeriodTable &ptable ) = 0;
 
-	virtual void CalculateNonlocalPS( const PeriodTable &ptable, Int cnt );
+	virtual void CalculateNonlocalPP( const PeriodTable &ptable ) = 0;
 
-	virtual void CalculateDensity( const Spinor &psi, DblNumVec &occrate, double &val );
+	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val ) = 0;
 
-	virtual int  CalculateXC (double &val);
+	virtual void CalculateXC (Real &val) = 0;
 
-	virtual void CalculateHartree( Fourier& fft );
+	virtual void CalculateHartree( Fourier& fft ) = 0;
 
-	virtual void CalculateVtot();
+	virtual void CalculateVtot( DblNumVec& vtot ) = 0;
 
 	// Matrix vector multiplication
-	void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft);
+	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft) = 0;
 
 
 	// *********************************************************************
 	// Access
 	// *********************************************************************
+  DblNumVec&  Vtot() { return vtot_; }
 
 
 	// *********************************************************************
@@ -107,6 +108,49 @@ public:
 	Int NumDensityComponent() const { return density_.n(); }
 	
 };
+
+
+// *********************************************************************
+// One-component Kohn-Sham class
+// *********************************************************************
+class KohnSham: public Hamiltonian {
+public:
+
+	// *********************************************************************
+	// Lifecycle
+	// *********************************************************************
+  KohnSham();
+  ~KohnSham();
+	KohnSham( 
+			const Domain                   &dm, 
+			const std::vector<Atom>        &atomList, 
+			const std::string               pseudoType,
+			const xc_func_type             &XCFuncType; 
+			const Int                       numExtraState, 
+      const Int                       numDensityComponent );
+
+	// *********************************************************************
+	// Operations
+	// *********************************************************************
+
+	virtual void CalculatePseudoCharge( const PeriodTable &ptable );
+
+	virtual void CalculateNonlocalPP( const PeriodTable &ptable );
+
+	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val );
+
+	virtual void CalculateXC ( Real &val );
+
+	virtual void CalculateHartree( Fourier& fft );
+	
+	virtual void CalculateVtot( DblNumVec& vtot );
+
+	// Matrix vector multiplication
+	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft);
+
+};
+
+
 
 // Two-component Kohn-Sham with spin orbit coupling.
 //class KohnSham2C: public Hamiltonian {

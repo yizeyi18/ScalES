@@ -41,6 +41,8 @@ public:
 
 	NumTns<Scalar>& Wavefun() { return wavefun_; } 
 	const NumTns<Scalar>& Wavefun() const { return wavefun_; } 
+	Scalar& Wavefun(const Int i, const Int j, const Int k) {return wavefun_(i,j,k); }
+	const Scalar& Wavefun(const Int i, const Int j, const Int k) const {return wavefun_(i,j,k); }
 
 
 	// *********************************************************************
