@@ -339,7 +339,7 @@ void esdf_key() {
 	i++;
 	strcpy(kw_label[i],"mixing_steplength");
 	strcpy(kw_typ[i],"D:E");
-	strcpy(kw_dscrpt[i],"*! Coefficients parameter !*");
+	strcpy(kw_dscrpt[i],"*! Mixing coefficients parameter !*");
 
 	i++;
 	strcpy(kw_label[i],"dg_alpha");
@@ -1850,11 +1850,15 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.PWSolver        = strtmp;
 		esdf_string("XC_Type", "XC_LDA_XC_TETER93", strtmp); 
 		esdfParam.XCType          = strtmp;
-
 	}
 
-
-
+	// Obtain the exchange-correlation id
+	{
+		if( esdfParam.XCType == "XC_LDA_XC_TETER93" )
+			esdfParam.XCId = XC_LDA_XC_TETER93;
+		else
+      throw std::logic_error("Unrecognized exchange-correlation type");
+	}
 
 #ifndef _RELEASE_
 	PopCallStack();

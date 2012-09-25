@@ -10,7 +10,7 @@ BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
 
 FFTW_INCLUDE     = -I/opt/local/include
 DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
-LIBXC_INCLUDE    = /opt/local/include
+LIBXC_INCLUDE    = -I/opt/local/include
 INCLUDES         = ${DGDFT_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
 
 # Libraries

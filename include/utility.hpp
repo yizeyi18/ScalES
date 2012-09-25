@@ -98,6 +98,14 @@ extern void UniformMesh( const Domain &dm, std::vector<DblNumVec> &gridpos );
 
 // Bool is NOT defined due to ambiguity with Int
 
+inline Int PrintBlock(std::ostream &os, const std::string name){
+
+	os << std::endl<< "*********************************************************************" << std::endl;
+	os << name << std::endl;
+	os << "*********************************************************************" << std::endl << std::endl;
+	return 0;
+}
+
 // String
 inline Int Print(std::ostream &os, const std::string name, std::string val) {
   os << std::setiosflags(std::ios::left) 
@@ -119,6 +127,32 @@ inline Int Print(std::ostream &os, const std::string name, const char* val) {
 // Real
 
 // one real number
+
+inline Int Print(std::ostream &os, const std::string name, Real val) {
+  os << std::setiosflags(std::ios::left) 
+     << std::setw(LENGTH_VAR_NAME) << name
+     << std::setiosflags(std::ios::scientific)
+     << std::setiosflags(std::ios::showpos)
+     << std::setw(LENGTH_DBL_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val
+     << std::resetiosflags(std::ios::scientific)
+     << std::resetiosflags(std::ios::showpos)
+     << std::endl;
+  return 0;
+};
+
+inline Int Print(std::ostream &os, const char* name, Real val) {
+  os << std::setiosflags(std::ios::left) 
+     << std::setw(LENGTH_VAR_NAME) << std::string(name)
+     << std::setiosflags(std::ios::scientific)
+     << std::setiosflags(std::ios::showpos)
+     << std::setw(LENGTH_DBL_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val
+     << std::resetiosflags(std::ios::scientific)
+     << std::resetiosflags(std::ios::showpos)
+     << std::endl;
+  return 0;
+};
+
+
 inline Int Print(std::ostream &os, const std::string name, Real val, const std::string unit) {
   os << std::setiosflags(std::ios::left) 
      << std::setw(LENGTH_VAR_NAME) << name
@@ -260,24 +294,6 @@ inline Int Print(std::ostream &os,
 // Int
 
 // one integer number
-inline Int Print(std::ostream &os, const std::string name, Int val, const std::string unit) {
-  os << std::setiosflags(std::ios::left)
-     << std::setw(LENGTH_VAR_NAME) << name
-     << std::setw(LENGTH_VAR_DATA) << val
-     << std::setw(LENGTH_VAR_UNIT) << unit 
-     << std::endl;
-  return 0;
-};
-
-inline Int Print(std::ostream &os, const char *name, Int val, const char *unit) {
-  os << std::setiosflags(std::ios::left)
-     << std::setw(LENGTH_VAR_NAME) << std::string(name)
-     << std::setw(LENGTH_VAR_DATA) << val
-     << std::setw(LENGTH_VAR_UNIT) << std::string(unit) 
-     << std::endl;
-  return 0;
-};
-
 inline Int Print(std::ostream &os, std::string name, Int val) {
   os << std::setiosflags(std::ios::left)
      << std::setw(LENGTH_VAR_NAME) << name
@@ -294,6 +310,28 @@ inline Int Print(std::ostream &os, const char *name, Int val) {
      << std::endl;
   return 0;
 };
+
+
+inline Int Print(std::ostream &os, const std::string name, Int val, const std::string unit) {
+  os << std::setiosflags(std::ios::left)
+     << std::setw(LENGTH_VAR_NAME) << name
+     << std::setw(LENGTH_VAR_DATA) << val
+     << std::setw(LENGTH_VAR_UNIT) << unit 
+     << std::endl;
+  return 0;
+};
+
+
+inline Int Print(std::ostream &os, const char* name, Int val, const std::string unit) {
+  os << std::setiosflags(std::ios::left)
+     << std::setw(LENGTH_VAR_NAME) << std::string(name)
+     << std::setw(LENGTH_VAR_DATA) << val
+     << std::setw(LENGTH_VAR_UNIT) << unit 
+     << std::endl;
+  return 0;
+};
+
+
 
 // two integer numbers
 inline Int Print(std::ostream &os, const std::string name1, Int val1, const std::string unit1,
@@ -321,6 +359,31 @@ inline Int Print(std::ostream &os, const char *name1, Int val1, const char *unit
      << std::endl;
   return 0;
 };
+
+// Bool
+
+// one boolean number
+inline Int Print(std::ostream &os, const std::string name, bool val) {
+  os << std::setiosflags(std::ios::left)
+     << std::setw(LENGTH_VAR_NAME) << name;
+	if( val == true )
+     os << std::setw(LENGTH_VAR_NAME) << "true" << std::endl;
+	else
+     os << std::setw(LENGTH_VAR_NAME) << "false" << std::endl;
+  return 0;
+};
+
+
+inline Int Print(std::ostream &os, const char* name, bool val) {
+  os << std::setiosflags(std::ios::left)
+     << std::setw(LENGTH_VAR_NAME) << std::string(name);
+	if( val == true )
+     os << std::setw(LENGTH_VAR_NAME) << "true" << std::endl;
+	else
+     os << std::setw(LENGTH_VAR_NAME) << "false" << std::endl;
+  return 0;
+};
+
 
 // Index 3 and Point 3
 inline Int Print(std::ostream &os, 
