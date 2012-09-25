@@ -12,11 +12,11 @@ Hamiltonian::Hamiltonian	(
 			const Domain                   &dm, 
 			const std::vector<Atom>        &atomList, 
 			const std::string               pseudoType,
-			const xc_func_type             &XCFuncType, 
+			const Int                       XCId, 
 			const Int                       numExtraState, 
       const Int                       numDensityComponent):
   domain_(dm), atomList_(atomList), pseudoType_(pseudoType),
-	XCFuncType_(XCFuncType), numExtraState_(numExtraState)
+	XCId_(XCId), numExtraState_(numExtraState)
 {
 #ifndef _RELEASE_
 	PushCallStack("Hamiltonian::Hamiltonian");
@@ -161,15 +161,33 @@ Hamiltonian::CalculateOccupationRate	( const Real Tbeta )
 // KohnSham class
 // *********************************************************************
 
+KohnSham::KohnSham() {}
+
+KohnSham::~KohnSham() {
+	xc_func_end(&XCFuncType_);
+}
 
 KohnSham::KohnSham( 
 			const Domain                   &dm, 
 			const std::vector<Atom>        &atomList, 
 			const std::string               pseudoType,
-			const xc_func_type             &XCFuncType,
+			const Int                       XCId,
 			const Int                       numExtraState, 
       const Int                       numDensityComponent ) : Hamiltonian(
-				dm, atomList, pseudoType, XCFuncType, numExtraState, numDensityComponent ) {};
+				dm, atomList, pseudoType, XCId, numExtraState, numDensityComponent ) 
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::KohnSham");
+#endif
+	// Initialize the XC functional.  
+	// Spin-unpolarized functional is used here
+	if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+    throw std::runtime_error( "XC functional initialization error." );
+	} 
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+};
 
 
 void
@@ -220,6 +238,7 @@ KohnSham::CalculatePseudoCharge	( PeriodTable &ptable ){
   Real diff = (numOccupiedState_ - sumrho) / vol;
   for (Int i=0; i<ntot; i++) 
 		pseudoCharge_[i] += diff; 
+
 
 #ifndef _RELEASE_
 	PopCallStack();

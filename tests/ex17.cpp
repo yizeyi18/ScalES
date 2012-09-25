@@ -38,12 +38,17 @@ int main(int argc, char **argv)
 		Domain  dm;
 		dm.length  = Point3( 1.0, 1.0, 1.0 );
 		dm.numGrid = Index3( 4, 4, 4 );
+		std::vector<Atom> atomList;
+		atomList.clear();
 
-		KohnSham ham;
+		string pseudoType = "HGH";
+		Int  XCId = XC_LDA_XC_TETER93;
+		
+		Int nev = 15;
+		KohnSham ks(dm, atomList, pseudoType, XCId, nev, 1);
 		Fourier fft;
 		PrepareFourier( fft, dm );
 
-		Int nev = 15;
 #ifdef _USE_COMPLEX_
 		Spinor  spn( dm, 1, nev, Complex(1.0, 1.0) );
 #else
@@ -54,20 +59,19 @@ int main(int argc, char **argv)
 
 		UniformRandom( spn.Wavefun() );
 
-
-//		EigenSolver eigSol( ham, spn, fft, 20, 1e-6, 1e-6 );
+		EigenSolver eigSol( ks, spn, fft, 20, 1e-6, 1e-6 );
 
 		PopCallStack();
 
 		// *********************************************************************
 		// Solve
 		// *********************************************************************
-//		PushCallStack( "Solving" );
-//		eigSol.Solve();
-//
-//		cout << "Eigenvalues " << eigSol.EigVal() << endl;
-//
-//		PopCallStack();
+		PushCallStack( "Solving" );
+		eigSol.Solve();
+
+		cout << "Eigenvalues " << eigSol.EigVal() << endl;
+
+		PopCallStack();
 
 
 	}
