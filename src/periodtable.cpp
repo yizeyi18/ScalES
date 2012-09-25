@@ -198,7 +198,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 	Index3 Ns  = dm.numGrid;
 	vnlList.clear();
 
-#ifndef _NO_NONLOCAL_ // Nonlocal potential is used
+#ifndef _NO_NONLOCAL_ // Nonlocal potential is used. Debug option
 	Int type = atom.type;
 	Point3 pos = atom.pos;
 
@@ -211,18 +211,14 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 
 	Real dtmp;
 	DblNumVec dx(Ns(0)), dy(Ns(1)), dz(Ns(2));
-	Real *posdata = NULL;
-	posdata = gridpos[0].Data();
 	for(Int i = 0; i < Ns(0); i++){
-		dtmp = posdata[i] - pos(0);      dtmp = dtmp - iround(dtmp/Ls(0))*Ls(0);      dx(i) = dtmp;
+		dtmp = gridpos[0][i] - pos(0);      dtmp = dtmp - iround(dtmp/Ls(0))*Ls(0);      dx(i) = dtmp;
 	}
-	posdata = gridpos[1].Data();
 	for(Int j = 0; j < Ns(1); j++){
-		dtmp = posdata[j] - pos(1);      dtmp = dtmp - iround(dtmp/Ls(1))*Ls(1);      dy(j) = dtmp;
+		dtmp = gridpos[1][j] - pos(1);      dtmp = dtmp - iround(dtmp/Ls(1))*Ls(1);      dy(j) = dtmp;
 	}
-	posdata = gridpos[2].Data();
 	for(Int k = 0; k < Ns(2); k++){
-		dtmp = posdata[k] - pos(2);      dtmp = dtmp - iround(dtmp/Ls(2))*Ls(2);      dz(k) = dtmp;
+		dtmp = gridpos[2][k] - pos(2);      dtmp = dtmp - iround(dtmp/Ls(2))*Ls(2);      dz(k) = dtmp;
 	}
 	Int irad = 0;
 	std::vector<Int> idx;
@@ -248,8 +244,6 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 	for(Int g=3; g<ptentry.samples().n(); g=g+2) {
 		Real wgt = ptentry.wgts()(g);
 		Int typ = ptentry.typs()(g);
-		// iA( abs(wgt)>eps );  LL: IMPORTANT: wgt might be zero if h_11
-		// or h_22 is 0 (say for C) in the table.
 		//
 		std::vector<DblNumVec>& valspl = spldata[g]; 
 		std::vector<Real> val(idxsize,0.0);
@@ -285,7 +279,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			Real coef = sqrt(3.0/(4.0*PI)); //spherical harmonics
 			{
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						dv(g,VAL) = coef*( (xx[g]/rad[g]) * val[g] );
@@ -304,7 +298,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			}
 			{
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						dv(g,VAL) = coef*( (yy[g]/rad[g]) * val[g] );
@@ -323,7 +317,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			}
 			{
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						dv(g,VAL) = coef*( (zz[g]/rad[g]) * val[g] );
@@ -347,8 +341,8 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			{
 				Real coef = 1.0/4.0*sqrt(5.0/PI); // Coefficients for spherical harmonics
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
-				DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
+				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						Ylm(0) = coef*(-xx[g]*xx[g]-yy[g]*yy[g]+2.0*zz[g]*zz[g]) / (rad[g]*rad[g]);
@@ -374,9 +368,9 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			{
 				Real coef = 1.0/2.0*sqrt(15.0/PI);
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 
-				DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						Ylm(0) = coef*(yy[g]*zz[g]) / (rad[g]*rad[g]);
@@ -404,9 +398,9 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			{
 				Real coef = 1.0/2.0*sqrt(15.0/PI);
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 
-				DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						Ylm(0) = coef*(zz[g]*xx[g]) / (rad[g]*rad[g]);
@@ -435,8 +429,8 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			{
 				Real coef = 1.0/2.0*sqrt(15.0/PI);
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
-				DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
+				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						Ylm(0) = coef*(xx[g]*yy[g]) / (rad[g]*rad[g]);
@@ -464,8 +458,8 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			{
 				Real coef = 1.0/4.0*sqrt(15.0/PI);
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
-				DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
+				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						Ylm(0) = coef*(xx[g]*xx[g]-yy[g]*yy[g]) / (rad[g]*rad[g]);
@@ -496,8 +490,8 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			{
 				Real coef = 1.0/4.0*sqrt(7.0/PI); // Coefficients for spherical harmonics
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
-				DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
+				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						Real x2 = xx[g]*xx[g];
@@ -529,8 +523,8 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			{
 				Real coef = 1.0/4.0*sqrt(35./(2.*PI)); // Coefficients for spherical harmonics
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
-				DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
+				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						Real x2 = xx[g]*xx[g];
@@ -562,8 +556,8 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			{
 				Real coef = 1.0/4.0*sqrt(35./(2.*PI)); // Coefficients for spherical harmonics
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
-				DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
+				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						Real x2 = xx[g]*xx[g];
@@ -595,8 +589,8 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			{
 				Real coef = 1.0/4.0*sqrt(105./(PI)); // Coefficients for spherical harmonics
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
-				DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
+				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						Real x2 = xx[g]*xx[g];
@@ -628,8 +622,8 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			{
 				Real coef = 1.0/2.0*sqrt(105./(PI)); // Coefficients for spherical harmonics
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
-				DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
+				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						Real x2 = xx[g]*xx[g];
@@ -661,8 +655,8 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			{
 				Real coef = 1.0/4.0*sqrt(21./(2.*PI)); // Coefficients for spherical harmonics
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
-				DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
+				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						Real x2 = xx[g]*xx[g];
@@ -694,8 +688,8 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			{
 				Real coef = 1.0/4.0*sqrt(21./(2.*PI)); // Coefficients for spherical harmonics
 				IntNumVec iv(idx.size(), true, &(idx[0]));
-				DblNumMat dv(4, idx.size());
-				DblNumVec Ylm(4); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
+				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
+				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
 					if(rad[g]>eps) {
 						Real x2 = xx[g]*xx[g];
@@ -724,7 +718,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				vnlList.push_back( NonlocalPP(res,wgt) );
 			}
 		} // if(typ==3)
-	}
+	} // for (g)
 #endif // #ifndef _NO_NONLOCAL_
 
 #ifndef _RELEASE_

@@ -107,6 +107,16 @@ inline Int PrintBlock(std::ostream &os, const std::string name){
 }
 
 // String
+inline Int Print(std::ostream &os, const std::string name) {
+  os << std::setiosflags(std::ios::left) << name << std::endl;
+  return 0;
+};
+
+inline Int Print(std::ostream &os, const char* name) {
+  os << std::setiosflags(std::ios::left) << std::string(name) << std::endl;
+  return 0;
+};
+
 inline Int Print(std::ostream &os, const std::string name, std::string val) {
   os << std::setiosflags(std::ios::left) 
      << std::setw(LENGTH_VAR_NAME) << name

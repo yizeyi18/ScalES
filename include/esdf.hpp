@@ -10,6 +10,7 @@
 #include "domain.hpp"
 #include "tinyvec_impl.hpp"
 #include "periodtable.hpp"
+#include <xc.h>
 
 namespace dgdft{
 
@@ -78,11 +79,12 @@ struct ESDFInputParam{
 	bool                isOutputWfn;
 
 	Real                Tbeta;                    // Inverse of temperature in atomic unit
-  Int                 numExtraStates;
+  Int                 numExtraState;
 	std::string         periodTableFile;
 	std::string         pseudoType;
 	std::string         PWSolver;                 // Type of exchange-correlation functional
 	std::string         XCType;
+	Int                 XCId;
 
 };
 

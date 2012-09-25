@@ -31,7 +31,9 @@ protected:
 	Int                         numOccupiedState_;
 	// Type of pseudopotential, default HGH
 	std::string                 pseudoType_;
-	// Type of exchange-correlation potential using libxc package.
+	// Id of the exchange-correlation potential
+	Int                         XCId_;
+	// Exchange-correlation potential using libxc package.
 	xc_func_type                XCFuncType_; 
 
 	// Pseudocharge to represent the local pseudopotential
@@ -76,7 +78,7 @@ public:
 			const Domain                   &dm, 
 			const std::vector<Atom>        &atomList, 
 			const std::string               pseudoType,
-			const xc_func_type             &XCFuncType, 
+			const Int                       XCId, 
 			const Int                       numExtraState, 
       const Int                       numDensityComponent);
 
@@ -128,13 +130,14 @@ public:
 	// *********************************************************************
 	// Lifecycle
 	// *********************************************************************
-  KohnSham() {}
-  ~KohnSham() {} 
+  KohnSham();
+  ~KohnSham();
+
 	KohnSham( 
 			const Domain                   &dm, 
 			const std::vector<Atom>        &atomList, 
 			const std::string               pseudoType,
-			const xc_func_type             &XCFuncType, 
+			const Int                       XCId, 
 			const Int                       numExtraState, 
       const Int                       numDensityComponent );
 

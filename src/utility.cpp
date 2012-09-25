@@ -489,6 +489,9 @@ UniformMesh ( const Domain &dm, std::vector<DblNumVec> &gridpos )
 //---------------------------------------------------------
 Int SeparateRead(std::string name, std::istringstream& is)
 {
+#ifndef _RELEASE_
+	PushCallStack("SeparateRead");
+#endif
   MPI_Barrier(MPI_COMM_WORLD);
   int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
   int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
@@ -496,16 +499,26 @@ Int SeparateRead(std::string name, std::istringstream& is)
   char filename[100];
   sprintf(filename, "%s_%d_%d", name.c_str(), mpirank, mpisize);  //cerr<<filename<<endl;
   ifstream fin(filename);
-  is.str( std::string(std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>()) );
+	if( !fin.good() ){
+		throw std::logic_error( "File cannot be open!" );
+	}
+ 
+ 	is.str( std::string(std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>()) );
   fin.close();
   //
   MPI_Barrier(MPI_COMM_WORLD);
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
   return 0;
 }
 
 //---------------------------------------------------------
 Int SeparateWrite(std::string name, std::ostringstream& os)
 {
+#ifndef _RELEASE_
+	PushCallStack("SeparateWrite");
+#endif
    MPI_Barrier(MPI_COMM_WORLD);
   int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
   int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
@@ -513,16 +526,25 @@ Int SeparateWrite(std::string name, std::ostringstream& os)
   char filename[100];
   sprintf(filename, "%s_%d_%d", name.c_str(), mpirank, mpisize);
   ofstream fout(filename);
+	if( !fout.good() ){
+		throw std::logic_error( "File cannot be open!" );
+	}
   fout<<os.str();
   fout.close();
   //
   MPI_Barrier(MPI_COMM_WORLD);
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
   return 0;
 }
 
 //---------------------------------------------------------
 Int SharedRead(std::string name, std::istringstream& is)
 {
+#ifndef _RELEASE_
+	PushCallStack("SharedRead");
+#endif
   MPI_Barrier(MPI_COMM_WORLD);
   int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
   int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
@@ -530,6 +552,9 @@ Int SharedRead(std::string name, std::istringstream& is)
   vector<char> tmpstr;
   if(mpirank==0) {
     ifstream fin(name.c_str());
+		if( !fin.good() ){
+			throw std::logic_error( "File cannot be open!" );
+		}
     //std::string str(std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>());
     //tmpstr.insert(tmpstr.end(), str.begin(), str.end());
     tmpstr.insert(tmpstr.end(), std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>());
@@ -546,22 +571,34 @@ Int SharedRead(std::string name, std::istringstream& is)
   is.str( std::string(tmpstr.begin(), tmpstr.end()) );
   //
   MPI_Barrier(MPI_COMM_WORLD);
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
   return 0;
 }
 
 //---------------------------------------------------------
 Int SharedWrite(std::string name, std::ostringstream& os)
 {
+#ifndef _RELEASE_
+	PushCallStack("SharedWrite");
+#endif
   MPI_Barrier(MPI_COMM_WORLD);
   int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
   int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
   //
   if(mpirank==0) {
     ofstream fout(name.c_str());
+		if( !fout.good() ){
+			throw std::logic_error( "File cannot be open!" );
+		}
     fout<<os.str();
     fout.close();
   }
   MPI_Barrier(MPI_COMM_WORLD);
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
   return 0;
 }
 
@@ -569,6 +606,9 @@ Int SharedWrite(std::string name, std::ostringstream& os)
 //---------------------------------------------------------
 Int SeparateWriteAscii(std::string name, std::ostringstream& os)
 {
+#ifndef _RELEASE_
+	PushCallStack("SeparateWriteAscii");
+#endif
   MPI_Barrier(MPI_COMM_WORLD);
   int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
   int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
@@ -576,10 +616,16 @@ Int SeparateWriteAscii(std::string name, std::ostringstream& os)
   char filename[100];
   sprintf(filename, "%s_%d_%d", name.c_str(), mpirank, mpisize);
   ofstream fout(filename, ios::trunc);
+	if( !fout.good() ){
+		throw std::logic_error( "File cannot be open!" );
+	}
   fout<<os;
   fout.close();
   //
   MPI_Barrier(MPI_COMM_WORLD);
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
   return 0;
 }
 

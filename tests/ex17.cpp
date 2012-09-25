@@ -65,7 +65,7 @@ int main(int argc, char **argv)
 		Print(statusOFS, "OutputWfn         = ",  esdfParam.isOutputWfn);
 
 		Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
-		Print(statusOFS, "Extra states      = ",  esdfParam.numExtraStates );
+		Print(statusOFS, "Extra states      = ",  esdfParam.numExtraState );
 		Print(statusOFS, "PeriodTable File  = ",  esdfParam.periodTableFile );
 		Print(statusOFS, "Pseudo Type       = ",  esdfParam.pseudoType );
 		Print(statusOFS, "PW Solver         = ",  esdfParam.PWSolver );
@@ -87,10 +87,21 @@ int main(int argc, char **argv)
 		Int nev = 15;
 		Domain&  dm = esdfParam.domain;
 
-//		PeriodTable ptable;
-//		ptable.Setup( esdfParam.periodTableFile );
+		PeriodTable ptable;
+		ptable.Setup( esdfParam.periodTableFile );
 
-		KohnSham ks(esdfParam.domain, esdfParam.atomList, esdfParam.pseudoType, esdfParam.XCId, nev, 1);
+		PrintBlock( statusOFS, "Preparing the Hamiltonian" );
+		Print( statusOFS, "Periodic table setup finished." );
+
+		KohnSham hamKS(esdfParam.domain, esdfParam.atomList, esdfParam.pseudoType, 
+				esdfParam.XCId, esdfParam.numExtraState, 1);
+    
+		hamKS.CalculatePseudoCharge( ptable );
+		hamKS.CalculateNonlocalPP  ( ptable );
+
+
+		Print( statusOFS, "Pseudopotential setup finished." );
+
 		Fourier fft;
 		PrepareFourier( fft, dm );
 
@@ -104,7 +115,7 @@ int main(int argc, char **argv)
 
 		UniformRandom( spn.Wavefun() );
 
-		EigenSolver eigSol( ks, spn, fft, 20, 1e-6, 1e-6 );
+		EigenSolver eigSol( hamKS, spn, fft, 20, 1e-6, 1e-6 );
 
 		PopCallStack();
 

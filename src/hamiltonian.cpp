@@ -14,7 +14,7 @@ Hamiltonian::Hamiltonian	(
 			const std::string               pseudoType,
 			const Int                       XCId, 
 			const Int                       numExtraState, 
-      const Int                       numDensityComponent):
+      const Int                       numDensityComponent ):
   domain_(dm), atomList_(atomList), pseudoType_(pseudoType),
 	XCId_(XCId), numExtraState_(numExtraState)
 {
@@ -184,6 +184,10 @@ KohnSham::KohnSham(
 	if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
     throw std::runtime_error( "XC functional initialization error." );
 	} 
+
+	if( numDensityComponent != 1 ){
+		throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
+	}
 #ifndef _RELEASE_
 	PopCallStack();
 #endif

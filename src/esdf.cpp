@@ -1841,7 +1841,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		temperature               = esdf_double( "Temperature", 100.0 );
     esdfParam.Tbeta           = au2K / temperature;
 
-		esdfParam.numExtraStates  = esdf_integer( "Extra_States",  0 );
+		esdfParam.numExtraState   = esdf_integer( "Extra_States",  0 );
 		esdf_string("PeriodTable", "HGH.bin", strtmp);
 		esdfParam.periodTableFile = strtmp;
 		esdf_string("Pseudo_Type", "HGH", strtmp); 
