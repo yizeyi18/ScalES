@@ -244,6 +244,56 @@ Spinor::AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr)
 	return ;
 } 		// -----  end of method Spinor::AddLaplacian  ----- 
 
+
+void
+Spinor::AddNonlocalPP	(const std::vector<std::vector<NonlocalPP> >& vnlDoubleList, NumTns<Scalar> &a3)
+{
+#ifndef _RELEASE_
+	PushCallStack("Spinor::AddNonlocalPP");
+#endif
+	Int ntot = wavefun_.m(); 
+	Int ncom = wavefun_.n();
+	Int nocc = wavefun_.p();
+	Real vol = domain_.Volume();
+
+	for (Int k=0; k<nocc; k++) {
+		for (Int j=0; j<ncom; j++) {
+			Scalar    *ptr0 = wavefun_.VecData(j,k);
+			Scalar    *ptr1 = a3.VecData(j,k);
+			Int natm = vnlDoubleList.size();
+			for (Int iatm=0; iatm<natm; iatm++) {
+				Int nobt = vnlDoubleList[iatm].size();
+				for (Int iobt=0; iobt<nobt; iobt++) {
+					const SparseVec &vnlvec = vnlDoubleList[iatm][iobt].first;
+					const Real       vnlwgt = vnlDoubleList[iatm][iobt].second;
+					const IntNumVec &iv = vnlvec.first;
+					const DblNumMat &dv = vnlvec.second;
+
+					Scalar    weight = SCALAR_ZERO; 
+					const Int    *ivptr = iv.Data();
+					const Real   *dvptr = dv.VecData(VAL);
+					for (Int i=0; i<iv.m(); i++) {
+						weight += (*(dvptr++)) * ptr0[*(ivptr++)];
+					}
+					weight *= vol/Real(ntot)*vnlwgt;
+
+					ivptr = iv.Data();
+					dvptr = dv.VecData(VAL);
+					for (Int i=0; i<iv.m(); i++) {
+						ptr1[*(ivptr++)] += (*(dvptr++)) * weight;
+					}
+				}
+			}
+		}
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return ;
+} 		// -----  end of method Spinor::AddNonlocalPP  ----- 
+
+
 //int Spinor::add_nonlocalPS 
 //(vector< vector< pair<SparseVec,double> > > &val, CpxNumTns &a3) {
 //	int ntot = _wavefun._m;

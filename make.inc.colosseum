@@ -10,9 +10,11 @@ BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
 
 FFTW_INCLUDE     = -I/opt/local/include
 DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
-INCLUDES         = ${DGDFT_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
+LIBXC_INCLUDE    = /opt/local/include
+INCLUDES         = ${DGDFT_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
 
 # Libraries
+LIBXC_LIB    = /opt/local/lib/libxc.a
 BLOPEX_LIB       = ${DGDFT_DIR}/external/blopex/libblopex.a 
 GFORTRAN_LIB     =/opt/local/lib/gcc44/libgfortran.dylib
 SCALAPACK_LIB    =/Users/linlin/Software/scalapack-2.0/libscalapack.a
@@ -21,7 +23,7 @@ LAPACK_LIB       = -llapack
 BLAS_LIB         = -lblas
 
 DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
-LIBS         = ${DGDFT_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${LAPACK_LIB} ${BLAS_LIB} ${GFORTRAN_LIB}
+LIBS         = ${DGDFT_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${LAPACK_LIB} ${BLAS_LIB} ${GFORTRAN_LIB}
 
 CC           = openmpicc 
 CXX          = openmpicxx

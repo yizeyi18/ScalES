@@ -27,7 +27,7 @@ typedef std::pair<IntNumVec, DblNumMat > SparseVec;
 //   \int dy V(x,y) f(y) = w b(x) \int dy b(y) f(y).
 // First: b vector with integration measure.
 // Second: weight w
-typedef std::pair<std::pair<IntNumVec, DblNumMat >, Real> NonlocalPP; 
+typedef std::pair<SparseVec, Real> NonlocalPP; 
 
 
 
@@ -1239,7 +1239,12 @@ inline void UniformRandom( NumTns<Complex>& T )
 		*(ptr++) = Complex(UniformRandom(), UniformRandom()); 
 }
 
-
+// *********************************************************************
+// Timing
+// *********************************************************************
+inline void GetTime(Real&  t){
+	t = MPI_Wtime();
+}
 
 } // namespace dgdft
 #endif // _UTILITY_HPP_

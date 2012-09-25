@@ -6,6 +6,7 @@
 #include  "numvec_impl.hpp"
 #include  "numtns_impl.hpp"
 #include  "fourier.hpp"
+#include  "utility.hpp"
 
 namespace dgdft{
 
@@ -67,6 +68,7 @@ public:
 //  int add_nonlocalPS (IntNumVec &active_ind, vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);
 
 	void AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr);
+	void AddNonlocalPP (const std::vector<std::vector<NonlocalPP> >& vnlDoubleList, NumTns<Scalar> &a3);
 
   // Spin related operations
 //  int add_sigma_x    (DblNumVec &a1, CpxNumTns &a3);

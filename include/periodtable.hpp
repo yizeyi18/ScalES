@@ -80,7 +80,7 @@ public:
 
 	// Read the information of the periodic table from file.  All
 	// processors can call this routine at the same time
-	Int Setup( const std::string );
+	void Setup( const std::string );
 	
 	//---------------------------------------------
 	//Generate the pseudo-charge and its derivatives, and saved in the
@@ -88,19 +88,18 @@ public:
 	//  res[0]         : pseudo-charge values
 	//  res[1]--res[3] : x,y,z components of the derivatives of the
 	//		     pseudo-charge
-	Int SetPseudoCharge( const Atom& atom, const Point3 Ls, const Point3 pos, 
-			const Index3 Ns, SparseVec& res );
+	void CalculatePseudoCharge( const Atom& atom, const Domain& dm, SparseVec& res );
 
 	//----------------------
-	Int SetNonlocalPseudoPotential(  const Atom& atom, const Point3 Ls, const Point3 pos, 
+	void CalculateNonlocalPP( const Atom& atom, const Domain& dm, 
 			const std::vector<DblNumVec>& gridpos,
-			std::vector< std::pair<SparseVec,Real> >& vnls );
+			std::vector<NonlocalPP>& vnlList );
 
-	//----------------------
-//	Int pseudoNLSpinOrbit(  Atom, Point3 Ls, Point3 pos, 
-//			std::vector<DblNumVec> gridpos,
-//			std::vector< pair<SparseVec,Real> >& vnls);
+	//---------------------------------------------
+	// TODO SpinOrbit from RelDFT
 
+	//---------------------------------------------
+	// TODO: DG pseudopotential from DGDFT
 
 };
 

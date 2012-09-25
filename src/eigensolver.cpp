@@ -1,4 +1,5 @@
 #include	"eigensolver.hpp"
+#include  "utility.hpp"
 
 namespace dgdft{
 
@@ -41,7 +42,7 @@ BlopexInt EigenSolver::HamiltonianMult
   NumTns<Scalar> a3(ntot, ncom, nocc, false, y->data);
 
 	SetValue( a3, SCALAR_ZERO ); // IMPORTANT
-  hamPtr_->MultSpinor(psitemp, a3, fftPtr_);
+  hamPtr_->MultSpinor(psitemp, a3, *fftPtr_);
 	
 #ifndef _RELEASE_
 	PopCallStack();
@@ -164,7 +165,7 @@ EigenSolver::Solve	()
   Int iterations;
 	Real  timeSolveStart, timeSolveEnd;
 	
-	timeSolveStart = MPI_Wtime();
+	GetTime( timeSolveStart );
 
 #ifndef _USE_COMPLEX_ // Real case
   blap_fn.dpotrf = LAPACK(dpotrf);
@@ -222,7 +223,7 @@ EigenSolver::Solve	()
     eigVal_(i) = cpxEigVal(i).real();
 #endif
   
-	timeSolveEnd   = MPI_Wtime();
+	GetTime( timeSolveEnd );
 
 	std::cout << "Solution time: " << timeSolveEnd - timeSolveStart
 		<< std::endl;

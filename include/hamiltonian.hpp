@@ -23,7 +23,7 @@ namespace dgdft{
 //};
 
 class Hamiltonian {
-private:
+protected:
 	Domain                      domain_;
 	// List of atoms
 	std::vector<Atom>           atomList_;
@@ -54,21 +54,29 @@ private:
 	DblNumVec                   vtot_; 
 	// the exchange-correlation energy density
 	DblNumVec                   epsxc_; 
-	// Nonlocal pseudopotential list associated with each atom
-	NonlocalPP                  vnlList_;
+	// Nonlocal pseudopotential list
+	// First index: atom
+	// Second index: nonlocal pseudopotential
+	std::vector<std::vector<NonlocalPP> >    vnlDoubleList_;
+	// Fermi energy
+	Real                        fermi_;
+	// Eigenvalues
+	DblNumVec                   eigVal_;
+	// Occupation rate
+	DblNumVec                   occupationRate_;
 
 public:
 
 	// *********************************************************************
 	// Lifecycle
 	// *********************************************************************
-	Hamiltonian();
-	virtual ~Hamiltonian();
+	Hamiltonian() {}
+	virtual ~Hamiltonian() {}
 	Hamiltonian( 
 			const Domain                   &dm, 
 			const std::vector<Atom>        &atomList, 
 			const std::string               pseudoType,
-			const xc_func_type             &XCFuncType; 
+			const xc_func_type             &XCFuncType, 
 			const Int                       numExtraState, 
       const Int                       numDensityComponent);
 
@@ -77,9 +85,9 @@ public:
 	// Operations
 	// *********************************************************************
 
-	virtual void CalculatePseudoCharge( const PeriodTable &ptable ) = 0;
+	virtual void CalculatePseudoCharge( PeriodTable &ptable ) = 0;
 
-	virtual void CalculateNonlocalPP( const PeriodTable &ptable ) = 0;
+	virtual void CalculateNonlocalPP( PeriodTable &ptable ) = 0;
 
 	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val ) = 0;
 
@@ -92,6 +100,7 @@ public:
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft) = 0;
 
+	void CalculateOccupationRate( const Real Tbeta );
 
 	// *********************************************************************
 	// Access
@@ -119,13 +128,13 @@ public:
 	// *********************************************************************
 	// Lifecycle
 	// *********************************************************************
-  KohnSham();
-  ~KohnSham();
+  KohnSham() {}
+  ~KohnSham() {} 
 	KohnSham( 
 			const Domain                   &dm, 
 			const std::vector<Atom>        &atomList, 
 			const std::string               pseudoType,
-			const xc_func_type             &XCFuncType; 
+			const xc_func_type             &XCFuncType, 
 			const Int                       numExtraState, 
       const Int                       numDensityComponent );
 
@@ -133,9 +142,9 @@ public:
 	// Operations
 	// *********************************************************************
 
-	virtual void CalculatePseudoCharge( const PeriodTable &ptable );
+	virtual void CalculatePseudoCharge( PeriodTable &ptable );
 
-	virtual void CalculateNonlocalPP( const PeriodTable &ptable );
+	virtual void CalculateNonlocalPP( PeriodTable &ptable );
 
 	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val );
 
