@@ -7,23 +7,29 @@ EigenSolver::EigenSolver() {}
 
 EigenSolver::~EigenSolver() {}
 
-EigenSolver::EigenSolver( 
-		Hamiltonian& ham,
-		Spinor& psi,
-		Fourier& fft,
-		const Int maxIter,
-		const Real absTol, 
-		const Real relTol) : hamPtr_(&ham), psiPtr_(&psi), fftPtr_(&fft), 
-	maxIter_(maxIter), absTol_(absTol), relTol_(relTol) {
+void EigenSolver::Setup(
+			const esdf::ESDFInputParam& esdfParam,
+			Hamiltonian& ham,
+			Spinor& psi,
+			Fourier& fft ) {
 #ifndef _RELEASE_
-		PushCallStack("EigenSolver::EigenSolver");
+	PushCallStack("EigenSolver::SEtup");
 #endif  // ifndef _RELEASE_
-		eigVal_.Resize(psiPtr_->NumState());  SetValue(eigVal_, 0.0);
-		resVal_.Resize(psiPtr_->NumState());  SetValue(resVal_, 0.0);
+	hamPtr_ = &ham;
+	psiPtr_ = &psi;
+	fftPtr_ = &fft;
+
+	eigMaxIter_    = esdfParam.eigMaxIter;
+	eigTolerance_  = esdfParam.eigTolerance;
+
+
+	eigVal_.Resize(psiPtr_->NumState());  SetValue(eigVal_, 0.0);
+	resVal_.Resize(psiPtr_->NumState());  SetValue(resVal_, 0.0);
 #ifndef _RELEASE_
-		PopCallStack();
+	PopCallStack();
 #endif  // ifndef _RELEASE_
-	} 		// -----  end of method EigenSolver::EigenSolver  ----- 
+	return;
+} 		// -----  end of method EigenSolver::Setup ----- 
 
 BlopexInt EigenSolver::HamiltonianMult
 (serial_Multi_Vector *x, serial_Multi_Vector *y) {
@@ -156,8 +162,8 @@ EigenSolver::Solve	()
   lobpcg_Tolerance lobpcg_tol;
   lobpcg_BLASLAPACKFunctions blap_fn;
 
-  lobpcg_tol.absolute = absTol_;
-  lobpcg_tol.relative = relTol_;
+  lobpcg_tol.absolute = eigTolerance_;
+  lobpcg_tol.relative = eigTolerance_;
 
   SerialSetupInterpreter ( &ii );
   xx = mv_MultiVectorWrap( &ii, x, 0);
@@ -182,7 +188,7 @@ EigenSolver::Solve	()
 			NULL,
 			blap_fn,
 			lobpcg_tol,
-			maxIter_,
+			eigMaxIter_,
 			1,
 			&iterations,
 			eigVal_.Data(),
@@ -210,7 +216,7 @@ EigenSolver::Solve	()
 			NULL,
 			blap_fn,
 			lobpcg_tol,
-			maxIter_,
+			eigMaxIter_,
 			0,
 			&iterations,
 			(komplex*)(cpxEigVal.Data()),

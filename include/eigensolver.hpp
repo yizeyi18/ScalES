@@ -9,6 +9,7 @@
 #include  "spinor.hpp"
 #include  "lobpcg++.hpp"
 #include  "lapack.hpp"
+#include  "esdf.hpp"
 
 namespace dgdft{
 
@@ -22,9 +23,8 @@ private:
 	Fourier*            fftPtr_;
 	Spinor*             psiPtr_;
 
-	Int                 maxIter_;
-	Real                absTol_;
-	Real                relTol_;
+	Int                 eigMaxIter_;
+	Real                eigTolerance_;
 
 	DblNumVec           eigVal_;
 	DblNumVec           resVal_;
@@ -34,16 +34,17 @@ public:
 	// ********************  LIFECYCLE   *******************************
 
 	EigenSolver ();
-	EigenSolver( Hamiltonian& ham,
-			Spinor& psi,
-			Fourier& fft,
-		  const Int maxIter,
-			const Real absTol, 
-			const Real relTol );
 
 	~EigenSolver();
 
 	// ********************  OPERATORS   *******************************
+
+	void Setup(
+			const esdf::ESDFInputParam& esdfParam,
+			Hamiltonian& ham,
+			Spinor& psi,
+			Fourier& fft );
+
 	static void LOBPCGHamiltonianMult(void *A, void *X, void *AX);
 	static void LOBPCGPrecondMult    (void *A, void *X, void *AX);
 
@@ -64,6 +65,9 @@ public:
 	// ********************  ACCESS      *******************************
 	DblNumVec& EigVal() { return eigVal_; }
 	DblNumVec& ResVal() { return resVal_; }
+
+	Hamiltonian& Ham()  {return *hamPtr_;}
+	Spinor&      Psi()  {return *psiPtr_;}
 
 	// ********************  INQUIRY     *******************************
 

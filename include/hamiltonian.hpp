@@ -7,6 +7,7 @@
 #include  "periodtable.hpp"
 #include  "spinor.hpp"
 #include  "utility.hpp"
+#include  "esdf.hpp"
 #include  <xc.h>
 
 namespace dgdft{
@@ -75,12 +76,8 @@ public:
 	Hamiltonian() {}
 	virtual ~Hamiltonian() {}
 	Hamiltonian( 
-			const Domain                   &dm, 
-			const std::vector<Atom>        &atomList, 
-			const std::string               pseudoType,
-			const Int                       XCId, 
-			const Int                       numExtraState, 
-      const Int                       numDensityComponent);
+			const esdf::ESDFInputParam& esdfParam,
+			const Int                   numDensityComponent );
 
 
 	// *********************************************************************
@@ -108,6 +105,8 @@ public:
 	// Access
 	// *********************************************************************
   DblNumVec&  Vtot() { return vtot_; }
+	DblNumMat&  Density() { return density_; }
+	DblNumVec&  PseudoCharge() { return pseudoCharge_; }
 
 
 	// *********************************************************************
@@ -134,11 +133,7 @@ public:
   ~KohnSham();
 
 	KohnSham( 
-			const Domain                   &dm, 
-			const std::vector<Atom>        &atomList, 
-			const std::string               pseudoType,
-			const Int                       XCId, 
-			const Int                       numExtraState, 
+			const esdf::ESDFInputParam& esdfParam,
       const Int                       numDensityComponent );
 
 	// *********************************************************************

@@ -17,10 +17,10 @@ Fourier::~Fourier ()
 }
 
 void
-PrepareFourier ( Fourier& fft, const Domain& dm )
+SetupFourier ( Fourier& fft, const Domain& dm )
 {
 #ifndef _RELEASE_
-	PushCallStack("PrepareFourier");
+	PushCallStack("SetupFourier");
 #endif  // ifndef _RELEASE_
 	if( fft.isPrepared ) {
 		throw std::logic_error("Fourier has been prepared.");
@@ -139,6 +139,6 @@ PrepareFourier ( Fourier& fft, const Domain& dm )
 #endif  // ifndef _RELEASE_
 
 	return ;
-}		// -----  end of function PrepareFourier  ----- 
+}		// -----  end of function SetupFourier  ----- 
 
 } // namespace dgdft

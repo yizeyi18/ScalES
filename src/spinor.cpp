@@ -2,7 +2,7 @@
 
 namespace dgdft{
 
-Spinor::Spinor () : numComponent_(0), numState_(0), isNormalized_(false) { } 		
+Spinor::Spinor () : isNormalized_(false) { } 		
 
 Spinor::Spinor ( 
 		const Domain &dm, 
@@ -13,10 +13,8 @@ Spinor::Spinor (
 	PushCallStack("Spinor::Spinor");
 #endif  // ifndef _RELEASE_
 	domain_       = dm;
-	numComponent_ = numComponent;
-	numState_     = numState;
 
-	wavefun_.Resize( dm.NumGridTotal(), numComponent_, numState_ );
+	wavefun_.Resize( dm.NumGridTotal(), numComponent, numState );
 	SetValue( wavefun_, val );
 	isNormalized_ = false;
 
@@ -35,9 +33,7 @@ Spinor::Spinor ( const Domain &dm,
 	PushCallStack("Spinor::Spinor");
 #endif  // ifndef _RELEASE_
 	domain_       = dm;
-	numComponent_ = numComponent;
-	numState_     = numState;
-	wavefun_      = NumTns<Scalar>( dm.NumGridTotal(), numComponent_, numState_,
+	wavefun_      = NumTns<Scalar>( dm.NumGridTotal(), numComponent, numState,
 			owndata, data );
 	isNormalized_ = false;
 

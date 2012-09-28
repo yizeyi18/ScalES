@@ -2,8 +2,8 @@
 #define _UTILITY_HPP_
 
 #include  <stdlib.h>
-#include  "environment_impl.hpp"
 #include  "domain.hpp"
+#include  "environment_impl.hpp"
 #include  "tinyvec_impl.hpp"
 #include  "numvec_impl.hpp"
 #include  "nummat_impl.hpp"
@@ -42,6 +42,7 @@ const int LENGTH_INT_DATA = 5;
 const int LENGTH_VAR_UNIT = 6;
 const int LENGTH_DBL_PREC = 8;
 const int LENGTH_VAR_DATA = 16;
+
 
 
 // *********************************************************************
@@ -509,6 +510,9 @@ template <class F> inline std::ostream& operator<<( std::ostream& os, const NumT
 // More specific serialize/deserialize will be defined in individual
 // class files
 // *********************************************************************
+
+// standard case for most serialization/deserialization process.
+const std::vector<Int> NO_MASK(1);
 
 //bool
 inline Int serialize(const bool& val, std::ostream& os, const std::vector<Int>& mask)
@@ -1260,6 +1264,28 @@ Int inline combine(NumTns<T>& val, NumTns<T>& ext)
   return 0;
 }
 
+Int inline serialize(const Domain& dm, std::ostream& os, const std::vector<Int>& mask){
+	serialize( dm.length, os, mask );
+	serialize( dm.posStart, os, mask );
+	serialize( dm.numGrid, os, mask );
+	// Do not serialize the communicatior
+	return 0;
+}
+
+Int inline deserialize(Domain& dm, std::istream& is, const std::vector<Int>& mask){
+	deserialize( dm.length, is, mask );
+	deserialize( dm.posStart, is, mask );
+	deserialize( dm.numGrid, is, mask );
+	// Do not deserialize the communicatior 
+	return 0;
+}
+
+Int inline combine(Domain& dm1, Domain& dm2){
+	throw  std::logic_error( "Combine operation not implemented." );
+  return 0;
+}
+
+
 // *********************************************************************
 // Parallel IO functions
 // *********************************************************************
@@ -1298,16 +1324,31 @@ inline void UniformRandom( NumVec<Complex>& vec )
 		vec(i) = Complex(UniformRandom(), UniformRandom());
 }
 
+inline void UniformRandom( NumMat<Real>& M )
+{
+	Real *ptr = M.Data();
+  for(Int i=0; i < M.m() * M.n(); i++) 
+		*(ptr++) = UniformRandom(); 
+}
+
+inline void UniformRandom( NumMat<Complex>& M )
+{
+	Complex *ptr = M.Data();
+  for(Int i=0; i < M.m() * M.n(); i++) 
+		*(ptr++) = Complex(UniformRandom(), UniformRandom()); 
+}
+
+
 inline void UniformRandom( NumTns<Real>& T )
 {
-	Real *ptr = T.data_;
+	Real *ptr = T.Data();
   for(Int i=0; i < T.m() * T.n() * T.p(); i++) 
 		*(ptr++) = UniformRandom(); 
 }
 
 inline void UniformRandom( NumTns<Complex>& T )
 {
-	Complex *ptr = T.data_;
+	Complex *ptr = T.Data();
   for(Int i=0; i < T.m() * T.n() * T.p(); i++) 
 		*(ptr++) = Complex(UniformRandom(), UniformRandom()); 
 }

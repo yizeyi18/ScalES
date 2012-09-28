@@ -13,10 +13,7 @@ namespace dgdft{
 class Spinor {
 private:
 	Domain            domain_;                // mesh should be used here for general cases 
-	NumTns<Scalar>    wavefun_;               // Block row partition of the numeric vector
-	Int               numComponent_;          // number of components (1,2,4)
-	Int               numState_;              // number of states, occupied or unoccupied.
-
+	NumTns<Scalar>    wavefun_;               // Local data of the wavefunction 
 	bool              isNormalized_;
 
 public:
@@ -36,9 +33,9 @@ public:
 	// *********************************************************************
 	// Inquiries
 	// *********************************************************************
-	Int NumGridTotal() const { return domain_.NumGridTotal(); }
-	Int NumComponent() const { return numComponent_; }
-	Int NumState()     const { return numState_; }
+	Int NumGridTotal() const { return wavefun_.m(); }
+	Int NumComponent() const { return wavefun_.n(); }
+	Int NumState()     const { return wavefun_.p(); }
 
 	NumTns<Scalar>& Wavefun() { return wavefun_; } 
 	const NumTns<Scalar>& Wavefun() const { return wavefun_; } 
@@ -91,11 +88,11 @@ public:
 
 ////////////
 
-//LLIN: IMPORTANT: inline function must be defined OUT of the scope of
-//the namespace.
-//inline int serialize(const REAL::Spinor &val, ostream &os, 
+// IMPORTANT: inline function must be defined OUT of the scope of
+// the namespace.
+//inline int serialize(const Spinor &val, std::ostream &os, 
 //		const vector<int> &mask) {
-//	serialize(val._is_normalized, os, mask);
+//	serialize(val.isNormalized_, os, mask);
 //	serialize(val._domain._Ls,    os, mask);
 //	serialize(val._domain._Ns,    os, mask);
 //	serialize(val._domain._pos,   os, mask);

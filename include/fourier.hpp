@@ -43,7 +43,7 @@ struct Fourier {
 
 };
 
-void PrepareFourier( Fourier& fft, const Domain& dm );
+void SetupFourier( Fourier& fft, const Domain& dm );
 
 } // namespace dgdft
 

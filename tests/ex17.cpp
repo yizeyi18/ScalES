@@ -7,6 +7,7 @@
 #include "eigensolver.hpp"
 #include "periodtable.hpp"
 #include "esdf.hpp"
+#include "scf.hpp"
 
 using namespace dgdft;
 using namespace dgdft::esdf;
@@ -84,7 +85,6 @@ int main(int argc, char **argv)
 		// *********************************************************************
 		PushCallStack( "Preparation" );
 
-		Int nev = 15;
 		Domain&  dm = esdfParam.domain;
 
 		PeriodTable ptable;
@@ -93,9 +93,8 @@ int main(int argc, char **argv)
 		PrintBlock( statusOFS, "Preparing the Hamiltonian" );
 		Print( statusOFS, "Periodic table setup finished." );
 
-		KohnSham hamKS(esdfParam.domain, esdfParam.atomList, esdfParam.pseudoType, 
-				esdfParam.XCId, esdfParam.numExtraState, 1);
-    
+		KohnSham hamKS( esdfParam, 1 );
+
 		hamKS.CalculatePseudoCharge( ptable );
 		hamKS.CalculateNonlocalPP  ( ptable );
 
@@ -103,31 +102,43 @@ int main(int argc, char **argv)
 		Print( statusOFS, "Pseudopotential setup finished." );
 
 		Fourier fft;
-		PrepareFourier( fft, dm );
+		SetupFourier( fft, dm );
+
+		Int nev = 15;
 
 #ifdef _USE_COMPLEX_
-		Spinor  spn( dm, 1, nev, Complex(1.0, 1.0) );
+		Spinor  spn( dm, 2, nev, Complex(1.0, 1.0) );
 #else
-		Spinor  spn( dm, 1, nev, 1.0 );
+		Spinor  spn( dm, 2, nev, 1.0 );
 #endif
 
 		SetRandomSeed(1);
 
 		UniformRandom( spn.Wavefun() );
 
-		EigenSolver eigSol( hamKS, spn, fft, 20, 1e-6, 1e-6 );
+		EigenSolver eigSol;
+		
+		eigSol.Setup( esdfParam, hamKS, spn, fft );
+
+		Print( statusOFS, "Eigensolver setup finished." );
+
+		SCF   scf;
+		scf.Setup( esdfParam, eigSol, ptable );
+
+
+		Print( statusOFS, "SCF setup finished." );
 
 		PopCallStack();
 
 		// *********************************************************************
 		// Solve
 		// *********************************************************************
-		PushCallStack( "Solving" );
-		eigSol.Solve();
-
-		cout << "Eigenvalues " << eigSol.EigVal() << endl;
-
-		PopCallStack();
+//		PushCallStack( "Solving" );
+//		eigSol.Solve();
+//
+//		cout << "Eigenvalues " << eigSol.EigVal() << endl;
+//
+//		PopCallStack();
 
 		statusOFS.close();
 

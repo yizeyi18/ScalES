@@ -9,18 +9,18 @@ namespace dgdft{
 // *********************************************************************
 
 Hamiltonian::Hamiltonian	( 
-			const Domain                   &dm, 
-			const std::vector<Atom>        &atomList, 
-			const std::string               pseudoType,
-			const Int                       XCId, 
-			const Int                       numExtraState, 
-      const Int                       numDensityComponent ):
-  domain_(dm), atomList_(atomList), pseudoType_(pseudoType),
-	XCId_(XCId), numExtraState_(numExtraState)
+			const esdf::ESDFInputParam& esdfParam,
+      const Int                       numDensityComponent )
 {
 #ifndef _RELEASE_
 	PushCallStack("Hamiltonian::Hamiltonian");
 #endif
+	domain_        = esdfParam.domain;
+	atomList_      = esdfParam.atomList;
+	pseudoType_    = esdfParam.pseudoType;
+	XCId_          = esdfParam.XCId;
+	numExtraState_ = esdfParam.numExtraState;
+
   Int ntot = domain_.NumGridTotal();
 
 	density_.Resize( ntot, numDensityComponent );   
@@ -167,14 +167,11 @@ KohnSham::~KohnSham() {
 	xc_func_end(&XCFuncType_);
 }
 
-KohnSham::KohnSham( 
-			const Domain                   &dm, 
-			const std::vector<Atom>        &atomList, 
-			const std::string               pseudoType,
-			const Int                       XCId,
-			const Int                       numExtraState, 
-      const Int                       numDensityComponent ) : Hamiltonian(
-				dm, atomList, pseudoType, XCId, numExtraState, numDensityComponent ) 
+KohnSham::
+	KohnSham( 
+			const esdf::ESDFInputParam& esdfParam,
+      const Int                       numDensityComponent ) : 
+		Hamiltonian( esdfParam , numDensityComponent ) 
 {
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::KohnSham");
