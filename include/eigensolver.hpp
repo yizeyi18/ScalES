@@ -68,6 +68,7 @@ public:
 
 	Hamiltonian& Ham()  {return *hamPtr_;}
 	Spinor&      Psi()  {return *psiPtr_;}
+	Fourier&     FFT()  {return *fftPtr_;}
 
 	// ********************  INQUIRY     *******************************
 

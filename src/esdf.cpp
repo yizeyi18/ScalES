@@ -1316,8 +1316,10 @@ void esdf_file(int *unit,char *filename,int *ierr) {
 	/* Open an old file */
 	(*ierr)=0;
 
-	if ((fileunit=fopen(trim(filename),"r"))==NULL)
+	if ((fileunit=fopen(trim(filename),"r"))==NULL){
+		throw std::logic_error( "Input file cannot be open" );
 		(*ierr)=1;
+	}
 }
 
 /*   --------------  esdf_lablchk  ----------------------  */

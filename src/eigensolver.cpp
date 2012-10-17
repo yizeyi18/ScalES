@@ -22,7 +22,6 @@ void EigenSolver::Setup(
 	eigMaxIter_    = esdfParam.eigMaxIter;
 	eigTolerance_  = esdfParam.eigTolerance;
 
-
 	eigVal_.Resize(psiPtr_->NumState());  SetValue(eigVal_, 0.0);
 	resVal_.Resize(psiPtr_->NumState());  SetValue(resVal_, 0.0);
 #ifndef _RELEASE_
@@ -177,6 +176,7 @@ EigenSolver::Solve	()
   blap_fn.dpotrf = LAPACK(dpotrf);
   blap_fn.dsygv  = LAPACK(dsygv);
 	std::cout<<"Call lobpcg_double"<<std::endl;
+	
 	lobpcg_solve_double ( 
 			xx,
 			this,
@@ -225,14 +225,19 @@ EigenSolver::Solve	()
 			resVal_.Data(),
 			NULL,
 			0);
+
   for(Int i = 0; i < eigVal_.m(); i++)
     eigVal_(i) = cpxEigVal(i).real();
 #endif
+
   
 	GetTime( timeSolveEnd );
 
-	std::cout << "Solution time: " << timeSolveEnd - timeSolveStart
-		<< std::endl;
+	statusOFS << "Eigensolver time = " 	<< timeSolveEnd - timeSolveStart
+		<< "[sec]" << std::endl;
+
+	// Assign the eigenvalues to the Hamiltonian
+	hamPtr_->EigVal() = eigVal_;
 
   serial_Multi_VectorDestroy(x);
   mv_MultiVectorDestroy(xx);

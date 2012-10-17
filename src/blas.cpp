@@ -1218,4 +1218,4 @@ void Trsm
 } 
 
 } // namespace blas
-} // namespace elem
+} // namespace dgdft

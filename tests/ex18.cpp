@@ -1,5 +1,5 @@
 // *********************************************************************
-// Test for the periodic table class without using Petsc.
+// Test for the SCF procedure for KohnSham class
 //
 // *********************************************************************
 #include "dgdft.hpp"
@@ -14,7 +14,7 @@ using namespace dgdft::esdf;
 using namespace std;
 
 void Usage(){
-	cout << "Test for the periodic table" << endl;
+	cout << "Test for the SCF procedure for KohnSham class" << endl;
 }
 
 int main(int argc, char **argv) 
@@ -46,36 +46,7 @@ int main(int argc, char **argv)
 
 		ESDFReadInput( esdfParam, "dgdft.in" );
 
-		PrintBlock(statusOFS, "Basic information");
-
-		Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
-		Print(statusOFS, "Grid size         = ",  esdfParam.domain.numGrid ); 
-		Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
-		Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
-		Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
-		Print(statusOFS, "SCF Tolerence     = ",  esdfParam.scfTolerance);
-		Print(statusOFS, "SCF MaxIter       = ",  esdfParam.scfMaxIter);
-		Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
-		Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
-
-		Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
-		Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
-		Print(statusOFS, "OutputDensity     = ",  esdfParam.isOutputDensity);
-		Print(statusOFS, "OutputWfn         = ",  esdfParam.isOutputWfn);
-
-		Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
-		Print(statusOFS, "Extra states      = ",  esdfParam.numExtraState );
-		Print(statusOFS, "PeriodTable File  = ",  esdfParam.periodTableFile );
-		Print(statusOFS, "Pseudo Type       = ",  esdfParam.pseudoType );
-		Print(statusOFS, "PW Solver         = ",  esdfParam.PWSolver );
-		Print(statusOFS, "XC Type           = ",  esdfParam.XCType );
-
-		PrintBlock(statusOFS, "Atom Type and Coordinates");
-
-		std::vector<Atom>&  atomList = esdfParam.atomList;
-		for(int i=0; i < atomList.size(); i++) {
-			Print(statusOFS, "Type = ", atomList[i].type, "Position  = ", atomList[i].pos);
-		}
+		PrintInitialState( esdfParam );
 
 
 		// *********************************************************************
@@ -96,18 +67,15 @@ int main(int argc, char **argv)
 		hamKS.CalculatePseudoCharge( ptable );
 		hamKS.CalculateNonlocalPP  ( ptable );
 
-
 		Print( statusOFS, "Pseudopotential setup finished." );
 
 		Fourier fft;
 		SetupFourier( fft, dm );
 
-		Int nev = 15;
-
 #ifdef _USE_COMPLEX_
-		Spinor  spn( dm, 2, nev, Complex(1.0, 1.0) );
+		Spinor  spn( dm, 2, hamKS.NumStateTotal(), Complex(1.0, 1.0) );
 #else
-		Spinor  spn( dm, 2, nev, 1.0 );
+		Spinor  spn( dm, 2, hamKS.NumStateTotal(), 1.0 );
 #endif
 
 		SetRandomSeed(1);
@@ -131,12 +99,7 @@ int main(int argc, char **argv)
 		// *********************************************************************
 		// Solve
 		// *********************************************************************
-//		PushCallStack( "Solving" );
-//		eigSol.Solve();
-//
-//		cout << "Eigenvalues " << eigSol.EigVal() << endl;
-//
-//		PopCallStack();
+		scf.Iterate();
 
 		statusOFS.close();
 

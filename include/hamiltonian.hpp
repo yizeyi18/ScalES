@@ -61,8 +61,6 @@ protected:
 	// First index: atom
 	// Second index: nonlocal pseudopotential
 	std::vector<std::vector<NonlocalPP> >    vnlDoubleList_;
-	// Fermi energy
-	Real                        fermi_;
 	// Eigenvalues
 	DblNumVec                   eigVal_;
 	// Occupation rate
@@ -99,15 +97,19 @@ public:
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft) = 0;
 
-	void CalculateOccupationRate( const Real Tbeta );
-
 	// *********************************************************************
 	// Access
 	// *********************************************************************
   DblNumVec&  Vtot() { return vtot_; }
+	DblNumMat&  Vxc()  { return vxc_; }
+	DblNumVec&  Vhart() { return vhart_; }
+
 	DblNumMat&  Density() { return density_; }
 	DblNumVec&  PseudoCharge() { return pseudoCharge_; }
+	DblNumVec&  EigVal() { return eigVal_; }
+	DblNumVec&  OccupationRate() { return occupationRate_; }
 
+	std::vector<Atom>&  AtomList() { return atomList_; }
 
 	// *********************************************************************
 	// Inquiry

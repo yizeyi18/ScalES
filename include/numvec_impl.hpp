@@ -188,7 +188,12 @@ template <class F> inline F& NumVec<F>::operator()	( Int i )
 	PushCallStack("NumVec<F>::operator()");
 #endif  // ifndef _RELEASE_
 	if( i < 0 || i >= m_ ){
-		throw std::logic_error( "Index is out of bound." );
+		std::ostringstream msg;
+		msg 
+			<< "Index is out of bound."  << std::endl
+			<< "Index bound    ~ (" << m_ << ")" << std::endl
+			<< "This index     ~ (" << i << ")" << std::endl;
+		throw std::logic_error( msg.str().c_str() );
 	}
 #ifndef _RELEASE_
 	PopCallStack();
@@ -206,7 +211,12 @@ NumVec<F>::operator()	( Int i ) const
 	PushCallStack("NumVec<F>::operator()");
 #endif  // ifndef _RELEASE_
 	if( i < 0 || i >= m_ ){
-		throw std::logic_error( "Index is out of bound." );
+		std::ostringstream msg;
+		msg 
+			<< "Index is out of bound."  << std::endl
+			<< "Index bound    ~ (" << m_ << ")" << std::endl
+			<< "This index     ~ (" << i << ")" << std::endl;
+		throw std::logic_error( msg.str().c_str() );
 	}
 #ifndef _RELEASE_
 	PopCallStack();
@@ -222,7 +232,12 @@ template <class F> inline F& NumVec<F>::operator[]	( Int i )
 	PushCallStack("NumVec<F>::operator[]");
 #endif  // ifndef _RELEASE_
 	if( i < 0 || i >= m_ ){
-		throw std::logic_error( "Index is out of bound." );
+		std::ostringstream msg;
+		msg 
+			<< "Index is out of bound."  << std::endl
+			<< "Index bound    ~ (" << m_ << ")" << std::endl
+			<< "This index     ~ (" << i << ")" << std::endl;
+		throw std::logic_error( msg.str().c_str() );
 	}
 #ifndef _RELEASE_
 	PopCallStack();
@@ -238,7 +253,12 @@ template <class F> inline const F& NumVec<F>::operator[]	( Int i ) const
 	PushCallStack("NumVec<F>::operator[]");
 #endif  // ifndef _RELEASE_
 	if( i < 0 || i >= m_ ){
-		throw std::logic_error( "Index is out of bound." );
+		std::ostringstream msg;
+		msg 
+			<< "Index is out of bound."  << std::endl
+			<< "Index bound    ~ (" << m_ << ")" << std::endl
+			<< "This index     ~ (" << i << ")" << std::endl;
+		throw std::logic_error( msg.str().c_str() );
 	}
 #ifndef _RELEASE_
 	PopCallStack();

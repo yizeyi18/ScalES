@@ -2,7 +2,7 @@
 
 namespace dgdft{
 
-Spinor::Spinor () : isNormalized_(false) { } 		
+Spinor::Spinor () { } 		
 
 Spinor::Spinor ( 
 		const Domain &dm, 
@@ -16,7 +16,6 @@ Spinor::Spinor (
 
 	wavefun_.Resize( dm.NumGridTotal(), numComponent, numState );
 	SetValue( wavefun_, val );
-	isNormalized_ = false;
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -35,7 +34,6 @@ Spinor::Spinor ( const Domain &dm,
 	domain_       = dm;
 	wavefun_      = NumTns<Scalar>( dm.NumGridTotal(), numComponent, numState,
 			owndata, data );
-	isNormalized_ = false;
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -51,23 +49,20 @@ Spinor::Normalize	( )
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Normalize");
 #endif
-	if ( ! isNormalized_ ) {
-		Int size = wavefun_.m() * wavefun_.n();
-		Int nocc = wavefun_.p();
+	Int size = wavefun_.m() * wavefun_.n();
+	Int nocc = wavefun_.p();
 
-		for (Int k=0; k<nocc; k++) {
-			Scalar *ptr = wavefun_.MatData(k);
-			Real   sum = 0.0;
-			for (Int i=0; i<size; i++) {
-				sum += pow(abs(*ptr++), 2.0);
-			}
-			sum = sqrt(sum);
-			if (sum != 0.0) {
-				ptr = wavefun_.MatData(k);
-				for (Int i=0; i<size; i++) *(ptr++) /= sum;
-			}
+	for (Int k=0; k<nocc; k++) {
+		Scalar *ptr = wavefun_.MatData(k);
+		Real   sum = 0.0;
+		for (Int i=0; i<size; i++) {
+			sum += pow(abs(*ptr++), 2.0);
 		}
-		isNormalized_ = true;
+		sum = sqrt(sum);
+		if (sum != 0.0) {
+			ptr = wavefun_.MatData(k);
+			for (Int i=0; i<size; i++) *(ptr++) /= sum;
+		}
 	}
 #ifndef _RELEASE_
 	PopCallStack();

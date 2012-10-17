@@ -14,7 +14,6 @@ class Spinor {
 private:
 	Domain            domain_;                // mesh should be used here for general cases 
 	NumTns<Scalar>    wavefun_;               // Local data of the wavefunction 
-	bool              isNormalized_;
 
 public:
 	// *********************************************************************
