@@ -159,8 +159,9 @@ KohnSham::CalculateNonlocalPP	( PeriodTable &ptable )
 				vnlDoubleList_[a]); 
 		cnt = cnt + vnlDoubleList_[a].size();
   }
-	// FIXME
-	std::cerr << "Total number of nonlocal pseudopotential = " << cnt << std::endl;
+
+	statusOFS << "Total number of nonlocal pseudopotential = " << 
+		cnt << std::endl;
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -188,7 +189,7 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 		for (Int j=0; j<ncom; j++) {
 			for (Int i=0; i<ntot; i++) {
 				density_(i,RHO) += occrate(k) * 
-					pow( abs(psi.Wavefun(i,j,k)), 2.0 );
+					pow( std::abs(psi.Wavefun(i,j,k)), 2.0 );
 			}
 		}
 	}
@@ -311,9 +312,9 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 	PushCallStack("KohnSham::MultSpinor");
 #endif
 	SetValue( a3, SCALAR_ZERO );
-//	psi.AddScalarDiag( vtot_, a3 );
+	psi.AddScalarDiag( vtot_, a3 );
 	psi.AddLaplacian( a3, &fft );
-//  psi.AddNonlocalPP( vnlDoubleList_, a3 );
+  psi.AddNonlocalPP( vnlDoubleList_, a3 );
 #ifndef _RELEASE_
 	PopCallStack();
 #endif

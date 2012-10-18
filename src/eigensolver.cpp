@@ -234,7 +234,7 @@ EigenSolver::Solve	()
 	GetTime( timeSolveEnd );
 
 	statusOFS << "Eigensolver time = " 	<< timeSolveEnd - timeSolveStart
-		<< "[sec]" << std::endl;
+		<< " [sec]" << std::endl;
 
 	// Assign the eigenvalues to the Hamiltonian
 	hamPtr_->EigVal() = eigVal_;

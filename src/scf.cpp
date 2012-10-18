@@ -146,7 +146,12 @@ SCF::Iterate	(  )
 		// *********************************************************************
 		// Performing each iteartion
 		// *********************************************************************
-    
+		{
+			std::ostringstream msg;
+			msg << "SCF iteration # " << iter;
+			PrintBlock( statusOFS, msg.str() );
+		}
+
     GetTime( timeIterStart );
 
     if ( isSCFConverged ) break;
@@ -208,7 +213,8 @@ SCF::Iterate	(  )
 
 		GetTime( timeIterEnd );
    
-		Print( statusOFS, "Wall clock time = ", timeIterEnd - timeIterStart );
+		statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
+			<< " [sec]" << std::endl;
   }
 
 #ifndef _RELEASE_
@@ -550,17 +556,12 @@ SCF::PrintState	( const Int iter  )
 #ifndef _RELEASE_
 	PushCallStack("SCF::PrintState");
 #endif
-	{
-		std::ostringstream msg;
-		msg << "SCF iteration # " << iter;
-		PrintBlock( statusOFS, msg.str() );
-	}
 	for(Int i = 0; i < eigSolPtr_->EigVal().m(); i++){
     Print(statusOFS, 
-				"band#  = ", i, 
-	      "eigval = ", eigSolPtr_->EigVal()(i),
-	      "resval = ", eigSolPtr_->ResVal()(i),
-	      "occupy = ", eigSolPtr_->Ham().OccupationRate()(i));
+				"band#    = ", i, 
+	      "eigval   = ", eigSolPtr_->EigVal()(i),
+	      "resval   = ", eigSolPtr_->ResVal()(i),
+	      "occrate  = ", eigSolPtr_->Ham().OccupationRate()(i));
 	}
 	statusOFS << std::endl;
 	Print(statusOFS, "Etot              = ",  Etot_, "[au]");
