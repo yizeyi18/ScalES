@@ -78,6 +78,7 @@ public:
 	void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
 	void  CalculateEnergy();
 	void  PrintState( const Int iter );
+	void  OutputState();
 
 	// Mixing
 	// TODO

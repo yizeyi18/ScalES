@@ -101,6 +101,8 @@ int main(int argc, char **argv)
 		// *********************************************************************
 		scf.Iterate();
 
+		scf.OutputState();
+
 		statusOFS.close();
 
 	}

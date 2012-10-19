@@ -43,6 +43,8 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 		scfMaxIter_    = esdfParam.scfMaxIter;
 		isRestartDensity_ = esdfParam.isRestartDensity;
 		isRestartWfn_     = esdfParam.isRestartWfn;
+		isOutputDensity_  = esdfParam.isOutputDensity;
+		isOutputWfn_      = esdfParam.isOutputWfn;
     Tbeta_         = esdfParam.Tbeta;
 	}
 
@@ -142,6 +144,7 @@ SCF::Iterate	(  )
 
 
   for (Int iter=1; iter <= scfMaxIter_; iter++) {
+    if ( isSCFConverged ) break;
 		
 		// *********************************************************************
 		// Performing each iteartion
@@ -154,7 +157,6 @@ SCF::Iterate	(  )
 
     GetTime( timeIterStart );
 
-    if ( isSCFConverged ) break;
 
 		// Solve the eigenvalue problem
 		eigSolPtr_->Solve();
@@ -251,7 +253,7 @@ SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
 	}
 
 
-	occupationRate.Resize( npsi );
+	if( occupationRate.m() != npsi ) occupationRate.Resize( npsi );
 
 	if( npsi > nOccStates )  {
 		/* use bisection to find efermi such that 
@@ -581,6 +583,39 @@ SCF::PrintState	( const Int iter  )
 } 		// -----  end of method SCF::PrintState  ----- 
 
 
+void SCF::OutputState	(  )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCF::OutputState");
+#endif
+  if( isOutputDensity_ ){
+		std::ofstream ofs(restartDensityFileName_.c_str());
+		if( !ofs.good() ){
+			throw std::logic_error( "Density file cannot be opened." );
+		}
+		serialize( eigSolPtr_->Ham().Density(), ofs, NO_MASK );
+		ofs.close();
+	}	
+
+
+  if( isOutputWfn_ ){
+		std::ofstream ofs(restartWfnFileName_.c_str());
+		if( !ofs.good() ){
+			throw std::logic_error( "Wavefunction file cannot be opened." );
+		}
+		serialize( eigSolPtr_->Psi().Wavefun(), ofs, NO_MASK );
+		ofs.close();
+	}	
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCF::OutputState  ----- 
+
+// *********************************************************************
+// Auxiliary subroutines
+// *********************************************************************
 void
 PrintInitialState ( const esdf::ESDFInputParam& esdfParam )
 {
@@ -624,5 +659,7 @@ PrintInitialState ( const esdf::ESDFInputParam& esdfParam )
 
 	return ;
 }		// -----  end of function PrintInitialState  ----- 
+
+
 
 } // namespace dgdft
