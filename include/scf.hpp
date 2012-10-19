@@ -42,8 +42,11 @@ private:
 	Real                Efree_;                    // Helmholtz free energy
 	Real                Etot_;                     // Total energy
 	Real                Ekin_;                     // Kinetic energy
+	Real                Ehart_;                    // Hartree energy
 	Real                Ecor_;                     // Nonlinear correction energy
 	Real                Exc_;                      // Exchange-correlation energy
+	Real                EVxc_;                     // Exchange-correlation potential energy
+	Real                Eself_;                    // Self energy due to the pseudopotential
 	Real                fermi_;                    // Fermi energy
 
 	Real                totalCharge_;              // Total number of computed electron charge

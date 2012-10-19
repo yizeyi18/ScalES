@@ -358,31 +358,32 @@ SCF::CalculateEnergy	(  )
 		Ekin_  += eigVal(i) * occupationRate(i);
 	}
 
-	// "Correction" energy 
 	// Hartree and xc part
-	Ecor_ = 0.0;
 	Int  ntot = eigSolPtr_->FFT().domain.NumGridTotal();
 	Real vol  = eigSolPtr_->FFT().domain.Volume();
 	DblNumMat&  density      = eigSolPtr_->Ham().Density();
   DblNumMat&  vxc          = eigSolPtr_->Ham().Vxc();
   DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
 	DblNumVec&  vhart        = eigSolPtr_->Ham().Vhart();
+	Ehart_ = 0.0;
+	EVxc_  = 0.0;
 	for (Int i=0; i<ntot; i++) {
-		Ecor_ += -vxc(i,VAL) * density(i,VAL) - 
-			0.5 * vhart(i) * ( density(i,VAL) + pseudoCharge(i) );
+		EVxc_  += vxc(i,VAL) * density(i,VAL);
+		Ehart_ += 0.5 * vhart(i) * ( density(i,VAL) + pseudoCharge(i) );
 	}
-	Ecor_ *= vol/Real(ntot);
-
-	Ecor_ += Exc_;
+	Ehart_ *= vol/Real(ntot);
+	EVxc_  *= vol/Real(ntot);
 
 	// Self energy part
-	Real Es = 0;
+	Eself_ = 0;
 	std::vector<Atom>&  atomList = eigSolPtr_->Ham().AtomList();
 	for(Int a=0; a< atomList.size() ; a++) {
 		Int type = atomList[a].type;
-		Es +=  ptablePtr_->ptemap()[type].params()(PeriodTable::i_Es);
+		Eself_ +=  ptablePtr_->ptemap()[type].params()(PeriodTable::i_Es);
 	}
-	Ecor_ -= Es;
+
+	// Correction energy
+	Ecor_   = (Exc_ - EVxc_) - Ehart_ - Eself_;
 
 	// Total energy
 	Etot_ = Ekin_ + Ecor_;
@@ -566,11 +567,18 @@ SCF::PrintState	( const Int iter  )
 	      "occrate  = ", eigSolPtr_->Ham().OccupationRate()(i));
 	}
 	statusOFS << std::endl;
+	statusOFS 
+		<< "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself" << std::endl
+	  << "       Etot  = Ekin + Ecor" << std::endl
+	  << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
 	Print(statusOFS, "Etot              = ",  Etot_, "[au]");
 	Print(statusOFS, "Efree             = ",  Efree_, "[au]");
 	Print(statusOFS, "Ekin              = ",  Ekin_, "[au]");
-	Print(statusOFS, "Ecor              = ",  Ecor_, "[au]");
+	Print(statusOFS, "Ehart             = ",  Ehart_, "[au]");
+	Print(statusOFS, "EVxc              = ",  EVxc_, "[au]");
 	Print(statusOFS, "Exc               = ",  Exc_, "[au]"); 
+	Print(statusOFS, "Eself             = ",  Eself_, "[au]");
+	Print(statusOFS, "Ecor              = ",  Ecor_, "[au]");
 	Print(statusOFS, "Fermi             = ",  fermi_, "[au]");
 	Print(statusOFS, "Total charge      = ",  totalCharge_, "[au]");
 	Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm_ );
