@@ -84,7 +84,6 @@ public:
 	void  OutputState();
 
 	// Mixing
-	// TODO
 	void  AndersonMix( const Int iter );
 	void  KerkerMix();
 	// TODO

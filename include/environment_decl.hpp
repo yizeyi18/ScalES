@@ -24,7 +24,8 @@
 #include <stdexcept>
 
 // FFTW libraries
-#include "fftw3.h"
+#include <fftw3.h>
+#include <fftw3-mpi.h>
 
 // MPI
 #include "mpi.h"
@@ -42,9 +43,9 @@ namespace dgdft{
 
 typedef    int                   Int;
 typedef    double                Real;
-typedef    std::complex<double>  Complex; // Must use elemental form of complex
+typedef    std::complex<double>  Complex; 
 #ifdef _USE_COMPLEX_
-typedef    std::complex<double>  Scalar;  // Must use elemental form of complex
+typedef    std::complex<double>  Scalar;  
 #else
 typedef    double                Scalar;
 #endif

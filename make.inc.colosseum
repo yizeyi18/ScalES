@@ -8,7 +8,7 @@ SCALAR = REAL
 # inclues
 BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
 
-FFTW_INCLUDE     = -I/opt/local/include
+FFTW_INCLUDE     = -I/usr/local/include
 DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
 LIBXC_INCLUDE    = -I/opt/local/include
 INCLUDES         = ${DGDFT_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
@@ -18,7 +18,7 @@ LIBXC_LIB    = /opt/local/lib/libxc.a
 BLOPEX_LIB       = ${DGDFT_DIR}/external/blopex/libblopex.a 
 GFORTRAN_LIB     =/opt/local/lib/gcc44/libgfortran.dylib
 SCALAPACK_LIB    =/Users/linlin/Software/scalapack-2.0/libscalapack.a
-FFTW_LIB         = -L/opt/local/lib -lfftw3
+FFTW_LIB         = -L/usr/local/lib -lfftw3_mpi -lfftw3 -lm
 LAPACK_LIB       = -llapack
 BLAS_LIB         = -lblas
 

@@ -247,7 +247,7 @@ void KohnSham::CalculateHartree( Fourier& fft ) {
 #ifndef _RELEASE_ 
 	PushCallStack("KohnSham::CalculateHartree");
 #endif
-	if( !fft.isPrepared ){
+	if( !fft.isInitialized ){
 		throw std::runtime_error("Fourier is not prepared.");
 	}
  	

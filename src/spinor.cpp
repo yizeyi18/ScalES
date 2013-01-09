@@ -175,7 +175,7 @@ Spinor::AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr)
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddLaplacian");
 #endif
-	if( !fftPtr->isPrepared ){
+	if( !fftPtr->isInitialized ){
 		throw std::runtime_error("Fourier is not prepared.");
 	}
 	Int ntot = wavefun_.m();

@@ -60,7 +60,7 @@ BlopexInt EigenSolver::PrecondMult
 #ifndef _RELEASE_
 	PushCallStack("EigenSolver::PrecondMult");
 #endif
-	if( !fftPtr_->isPrepared ){
+	if( !fftPtr_->isInitialized ){
 		throw std::runtime_error("Fourier is not prepared.");
 	}
   Int ntot = psiPtr_->NumGridTotal();

@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 		Print( statusOFS, "Pseudopotential setup finished." );
 
 		Fourier fft;
-		SetupFourier( fft, dm );
+		fft.Initialize( dm );
 
 #ifdef _USE_COMPLEX_
 		Spinor  spn( dm, 2, hamKS.NumStateTotal(), Complex(1.0, 1.0) );
