@@ -5,7 +5,7 @@
 #ifndef _MPI_INTERF_HPP_
 #define _MPI_INTERF_HPP_
 
-#include  "environment_impl.hpp"
+#include  "environment.hpp"
 
 namespace dgdft{
 

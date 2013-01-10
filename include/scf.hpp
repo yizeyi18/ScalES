@@ -1,7 +1,7 @@
 #ifndef _SCF_HPP_ 
 #define _SCF_HPP_
 
-#include  "environment_impl.hpp"
+#include  "environment.hpp"
 #include  "numvec_impl.hpp"
 #include  "domain.hpp"
 #include  "fourier.hpp"

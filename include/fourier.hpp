@@ -1,7 +1,7 @@
 #ifndef _FOURIER_HPP_
 #define _FOURIER_HPP_
 
-#include  "environment_impl.hpp"
+#include  "environment.hpp"
 #include  "domain.hpp"
 #include  "numvec_impl.hpp"
 

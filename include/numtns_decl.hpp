@@ -1,7 +1,7 @@
 #ifndef _NUMTNS_DECL_HPP_
 #define _NUMTNS_DECL_HPP_
 
-#include "environment_impl.hpp"
+#include "environment.hpp"
 #include "nummat_impl.hpp"
 
 // TODO Move the things from decl to impl

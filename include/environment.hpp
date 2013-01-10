@@ -92,7 +92,6 @@ enum {LGUP, LGDN, SMUP, SMDN}; // LarGe spin-UP and SMall spin-DowN
 
 namespace dgdft{
 
-
 #ifndef _RELEASE_
 void PushCallStack( std::string s );
 void PopCallStack();
@@ -115,16 +114,10 @@ struct NullStream : std::ostream
 		{ }
 };  
 
-// *********************************************************************
-// Global utility functions 
-// These utility functions do not depend on local definitions
-// *********************************************************************
-// Return the closest integer to a rela number
-Int iround( Real a );
+// iA / iC macros.  Not often used.
+#define iC(fun)  { int ierr=fun; if(ierr!=0) exit(1); }
+#define iA(expr) { if((expr)==0) { std::cerr<<"wrong "<<__LINE__<<" in " <<__FILE__<<std::endl; std::cerr.flush(); exit(1); } }
 
-// Read the options from command line
-Int OptionsCreate(Int argc, char** argv, 
-		std::map<std::string,std::string>& options);
 
 } // namespace dgdft
 

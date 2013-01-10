@@ -2,7 +2,8 @@
 /// @brief Thin interface to BLAS
 /// @author Jack Poulson and Lin Lin
 /// @date 2012-09-12
-#include  "environment_impl.hpp"
+
+#include  "environment.hpp"
 
 namespace dgdft {
 

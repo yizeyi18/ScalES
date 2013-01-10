@@ -1,7 +1,7 @@
 #ifndef _SPINOR_HPP_
 #define _SPINOR_HPP_
 
-#include  "environment_impl.hpp"
+#include  "environment.hpp"
 #include  "domain.hpp"
 #include  "numvec_impl.hpp"
 #include  "numtns_impl.hpp"

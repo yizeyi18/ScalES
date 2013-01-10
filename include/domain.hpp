@@ -1,7 +1,7 @@
 #ifndef _DOMAIN_HPP_
 #define _DOMAIN_HPP_
 
-#include  "environment_impl.hpp"
+#include  "environment.hpp"
 #include  "tinyvec_impl.hpp"
 #include  "numvec_impl.hpp"
 

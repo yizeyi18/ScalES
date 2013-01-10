@@ -379,7 +379,7 @@ SCF::CalculateEnergy	(  )
 	std::vector<Atom>&  atomList = eigSolPtr_->Ham().AtomList();
 	for(Int a=0; a< atomList.size() ; a++) {
 		Int type = atomList[a].type;
-		Eself_ +=  ptablePtr_->ptemap()[type].params()(PeriodTable::i_Es);
+		Eself_ +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
 	}
 
 	// Correction energy

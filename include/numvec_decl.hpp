@@ -1,7 +1,7 @@
 #ifndef _NUMVEC_DECL_HPP_
 #define _NUMVEC_DECL_HPP_
 
-#include "environment_impl.hpp"
+#include "environment.hpp"
 
 namespace  dgdft{
 

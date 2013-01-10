@@ -1,7 +1,7 @@
 #ifndef _LOBPCG_HPP_
 #define _LOBPCG_HPP_
 
-#include  "environment_impl.hpp"
+#include  "environment.hpp"
 
 #include <stdlib.h>
 #include <stdio.h>

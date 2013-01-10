@@ -1,5 +1,4 @@
 #include  "hamiltonian.hpp"
-#include  "blas.hpp"
 
 namespace dgdft{
 
@@ -102,7 +101,7 @@ KohnSham::CalculatePseudoCharge	( PeriodTable &ptable ){
 		if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
 			throw std::logic_error( "Cannot find the atom type." );
 		}
-    nelec = nelec + ptable.ptemap()[atype].params()(PeriodTable::i_Zion);
+    nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
   }
 	// FIXME This is the spin-restricted calculation
 	if( nelec % 2 != 0 ){

@@ -1,14 +1,15 @@
+/// @file periodtable.hpp
+/// @brief Periodic table and its entries.
+/// @author Lin Lin
+/// @date 2012-08-10
 #ifndef _PERIODTABLE_HPP_
 #define _PERIODTABLE_HPP_
 
-#include "environment_impl.hpp"
+#include "environment.hpp"
 #include "tinyvec_impl.hpp"
 #include "numvec_impl.hpp"
 #include "nummat_impl.hpp"
 #include "utility.hpp"
-
-// TODO PTEntry and PeriodTable are relatively independent.  Deal with
-// the names later.
 
 namespace dgdft{
 
@@ -16,36 +17,83 @@ namespace dgdft{
 // *********************************************************************
 // Atomic information
 // *********************************************************************
+/// @struct Atom
+/// @brief Atom structure.
 struct Atom
 {
-  Int          type;                            // Atomic number
-  Point3       pos;                             // Position
-  Point3       vel;                             // Velocity
-  Point3       force;                           // Atomic force
+	/// @brief Atomic number.
+  Int          type;                            
+	/// @brief Position.
+  Point3       pos;  
+	/// @brief Velocity.
+  Point3       vel;  
+	/// @brief Force.
+  Point3       force; 
 
 	Atom( const Int t, const Point3 p, const Point3 v, const Point3 f): 
 		type(t), pos(p), vel(v), force(f) {}
   ~Atom() {;}
 };
 
+/// @namespace PTParam
+/// @brief Index of the parameters in each entry of the periodic table.
+namespace PTParam{
+enum {
+	/// @brief Atomic number.
+	ZNUC   = 0,
+	/// @brief Nuclear mass.
+	MASS   = 1,
+	/// @brief Nuclear charge (valence).
+	ZION   = 2,
+	/// @brief Self-interaction energy.
+	ESELF  = 3
+};
+}
 
-//---------------------------------------------
-class PTEntry
+/// @namespace PTSample
+/// @brief Index of the radial grid, the pseudocharge and derivative
+/// of the pseudocharge in samples and cuts.
+namespace PTSample{
+enum {
+	RADIAL_GRID       = 0,
+	PSEUDO_CHARGE     = 1,
+	DRV_PSEUDO_CHARGE = 2
+};
+}
+
+/// @namespace PTType
+/// @brief Type of each sample, including radial grid, pseudocharge, and
+/// nonlocal projectors of different angular momentum, and the
+/// spin-orbit contribution. 
+namespace PTType{
+enum{
+	RADIAL            = 9,
+	PSEUDO_CHARGE     = 99,
+	L0                = 0,
+	L1                = 1,
+	L2                = 2,
+  L3                = 3,
+  SPINORBIT_L1 	    = -1,
+	SPINORBIT_L2      = -2,
+	SPINORBIT_L3      = -3
+};
+};
+
+/// @struct PTEntry
+/// @brief Each entry for the periodic table structure.
+struct PTEntry
 {
-public:
-	DblNumVec _params; //size 5
-	DblNumMat _samples; //ns by nb
-	DblNumVec _wgts; //nb
-	IntNumVec _typs; //nb
-	DblNumVec _cuts; //cutoff value for different mode
-	//std::map<Int, std::vector<DblNumVec> > _spldata; //data to be generated
-public:
-	DblNumVec& params() { return _params; }
-	DblNumMat& samples() { return _samples; }
-	DblNumVec& wgts() { return _wgts; }
-	IntNumVec& typs() { return _typs; }
-	DblNumVec& cuts() { return _cuts; }
-	//std::map<Int, std::vector<DblNumVec> >& spldata() { return _spldata; } //data to be generated
+	/// @brief Parameters following the order in PTParam.
+	DblNumVec params; 
+	/// @brief Radial grid, pseudocharge and nonlocal projectors and
+	/// their derivatives.
+	DblNumMat samples; 
+	/// @brief Weight of each sample. Only used for the nonlocal projectors. 
+	DblNumVec weights; 
+	/// @brief Type of each sample, following PTType.
+	IntNumVec types; 
+	/// @brief Cutoff value for different sample, following PTSample.
+	DblNumVec cutoffs; 
 };
 
 Int serialize(const PTEntry&, std::ostream&, const std::vector<Int>&);
@@ -53,44 +101,39 @@ Int deserialize(PTEntry&, std::istream&, const std::vector<Int>&);
 Int combine(PTEntry&, PTEntry&);
 
 
-//---------------------------------------------
+/// @class PeriodTable
+/// @brief Periodic table for pseudopotentials.
 class PeriodTable
 {
-public:
-	enum {
-		i_Znuc = 0,
-		i_mass = 1,
-		i_Zion = 2,
-		i_Es = 3,
-	};
-	enum {
-		i_rad = 0,
-		i_rho0 = 1,
-		i_drho0 = 2,
-		//the following ones are all pseudopotentials
-	};
-public:
-	std::map<Int, PTEntry> _ptemap; //std::map from atom_id to PTEntry
-	std::map<Int, std::map< Int,std::vector<DblNumVec> > > _splmap;
+private:
+	/// @brief Map from atomic number to PTEntry
+	std::map<Int, PTEntry> ptemap_; 
+	/// @brief Map from atomic number to splines for pseudopotentials.
+	std::map<Int, std::map< Int,std::vector<DblNumVec> > > splmap_;
 public:
 	PeriodTable() {;}
 	~PeriodTable() {;}
-	std::map<Int, PTEntry>& ptemap() { return _ptemap; }
-	std::map<Int, std::map< Int,std::vector<DblNumVec> > > splmap() { return _splmap; }
+	
+	/// @brief Map from atomic number to PTEntry
+	std::map<Int, PTEntry>& ptemap() { return ptemap_; }
 
-	// Read the information of the periodic table from file.  All
-	// processors can call this routine at the same time
+	/// @brief Map from atomic number to splines for pseudopotentials.
+	std::map<Int, std::map< Int,std::vector<DblNumVec> > > splmap() { return splmap_; }
+
+	/// @brief Read the information of the periodic table from file.  
+	///
+	/// All processors can call this routine at the same time
 	void Setup( const std::string );
 	
-	//---------------------------------------------
-	//Generate the pseudo-charge and its derivatives, and saved in the
-	//sparse veector res
-	//  res[0]         : pseudo-charge values
-	//  res[1]--res[3] : x,y,z components of the derivatives of the
-	//		     pseudo-charge
+	/// @brief Generate the pseudo-charge and its derivatives.
+	///
+	/// The data are saved in the sparse veector res
+	///   res[0]         : pseudo-charge values
+	///   res[1]--res[3] : x,y,z components of the derivatives of the
+	///		     pseudo-charge
 	void CalculatePseudoCharge( const Atom& atom, const Domain& dm, SparseVec& res );
 
-	//----------------------
+	/// @brief Generate the nonlocal pseudopotential projectors.
 	void CalculateNonlocalPP( const Atom& atom, const Domain& dm, 
 			const std::vector<DblNumVec>& gridpos,
 			std::vector<NonlocalPP>& vnlList );
@@ -103,42 +146,6 @@ public:
 
 };
 
-
-//// *********************************************************************
-//// An entry for periodic table
-//// *********************************************************************
-//struct PeriodTableEntry
-//{
-//	// TODO See HGH.m and remark the following
-//	
-//  // size 5
-//	DblNumVec                 param;  
-//	// number of grids by number of number of basis	
-//	DblNumMat                 sample; 
-//  // number of 
-//  DblNumVec                 weight; 
-//	// 
-//  IntNumVec                 type;   
-//	//cutoff value for different mode	
-//	DblNumVec                 cut;    
-//};
-
-//
-//Int serialize(const PTEntry&, ostream&, const std::vector<Int>&);
-//Int deserialize(PTEntry&, istream&, const std::vector<Int>&);
-//Int combine(PTEntry&, PTEntry&);
-
-
-
-// *********************************************************************
-// Periodic table
-// *********************************************************************
-
-//struct PeriodTable{
-//  std::map<Int, PeriodTableEntry>   PeriodTableEMap; //map from atom_id to PTEntry
-//  std::map<Int, std::map< Int,std::vector<DblNumVec> > > _splmap;
-//}
-//
 } // namespace dgdft
 
 

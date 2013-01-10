@@ -3,6 +3,7 @@
 /// @author Lin Lin
 /// @date 2012-11-03
 #include  "mpi_interf.hpp"
+#include  "utility.hpp"
 
 namespace dgdft{
 

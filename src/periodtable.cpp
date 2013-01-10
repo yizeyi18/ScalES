@@ -1,8 +1,10 @@
+/// @file periodtable.hpp
+/// @brief Periodic table and its entries.
+/// @author Lin Lin
+/// @date 2012-08-10
 #include "periodtable.hpp"
 
-// TODO Change the names of variables
 // TODO Add the error handling stack
-// TODO Change the argument of PseoduCharge etc into domain
 
 namespace  dgdft{
 
@@ -12,21 +14,21 @@ namespace  dgdft{
 
 Int serialize(const PTEntry& val, std::ostream& os, const std::vector<Int>& mask)
 {
-	serialize(val._params, os, mask);
-	serialize(val._samples, os, mask);
-	serialize(val._wgts, os, mask);
-	serialize(val._typs, os, mask);
-	serialize(val._cuts, os, mask);
+	serialize(val.params, os, mask);
+	serialize(val.samples, os, mask);
+	serialize(val.weights, os, mask);
+	serialize(val.types, os, mask);
+	serialize(val.cutoffs, os, mask);
 	return 0;
 }
 
 Int deserialize(PTEntry& val, std::istream& is, const std::vector<Int>& mask)
 {
-	deserialize(val._params, is, mask);
-	deserialize(val._samples, is, mask);
-	deserialize(val._wgts, is, mask);
-	deserialize(val._typs, is, mask);
-	deserialize(val._cuts, is, mask);
+	deserialize(val.params, is, mask);
+	deserialize(val.samples, is, mask);
+	deserialize(val.weights, is, mask);
+	deserialize(val.types, is, mask);
+	deserialize(val.cutoffs, is, mask);
 	return 0;
 }
 
@@ -50,14 +52,14 @@ void PeriodTable::Setup( const std::string strptable )
 
 	std::istringstream iss;  
 	SharedRead( strptable, iss );
-	deserialize(_ptemap, iss, all);
+	deserialize(ptemap_, iss, all);
 
 	//create splines
-	for(std::map<Int,PTEntry>::iterator mi=_ptemap.begin(); mi!=_ptemap.end(); mi++) {
+	for(std::map<Int,PTEntry>::iterator mi=ptemap_.begin(); mi!=ptemap_.end(); mi++) {
 		Int type = (*mi).first;    
 		PTEntry& ptcur = (*mi).second;
-		DblNumVec& params = ptcur.params();
-		DblNumMat& samples = ptcur.samples();
+		DblNumVec& params = ptcur.params;
+		DblNumMat& samples = ptcur.samples;
 		if( samples.n() % 2 == 0 ){
 			throw std::logic_error( "Wrong number of samples" );
 		}
@@ -73,7 +75,7 @@ void PeriodTable::Setup( const std::string strptable )
 			aux[0] = rad;      aux[1] = a;      aux[2] = b;      aux[3] = c;      aux[4] = d;
 			spltmp[g] = aux;
 		}
-		_splmap[type] = spltmp;
+		splmap_[type] = spltmp;
 	}
 #ifndef _RELEASE_
 	PopCallStack();
@@ -97,10 +99,10 @@ PeriodTable::CalculatePseudoCharge	(
 	Index3 Ns  = dm.numGrid;
 
 	//get entry data and spline data
-	PTEntry& ptentry = _ptemap[type];
-	std::map< Int, std::vector<DblNumVec> >& spldata = _splmap[type];
+	PTEntry& ptentry = ptemap_[type];
+	std::map< Int, std::vector<DblNumVec> >& spldata = splmap_[type];
 
-	Real Rzero = ptentry.cuts()(i_rho0); //CUTOFF VALUE FOR rho0
+	Real Rzero = ptentry.cutoffs(PTSample::PSEUDO_CHARGE); 
 
 	DblNumVec dx(Ns(0)), dy(Ns(1)), dz(Ns(2));
 	Real hx, hy, hz;
@@ -146,12 +148,12 @@ PeriodTable::CalculatePseudoCharge	(
 	// FIXME magic number here
 	Real eps = 1e-8;
 	//
-	std::vector<DblNumVec>& valspl = spldata[i_rho0]; 
+	std::vector<DblNumVec>& valspl = spldata[PTSample::PSEUDO_CHARGE]; 
 	std::vector<Real> val(idxsize,0.0);
 	seval(&(val[0]), idxsize, &(rad[0]), valspl[0].m(), valspl[0].Data(), 
 			valspl[1].Data(), valspl[2].Data(), valspl[3].Data(), valspl[4].Data());
 	//
-	std::vector<DblNumVec>& derspl = spldata[i_drho0];
+	std::vector<DblNumVec>& derspl = spldata[PTSample::DRV_PSEUDO_CHARGE];
 	std::vector<Real> der(idxsize,0.0);
 	
 	
@@ -203,11 +205,10 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 	Point3 pos = atom.pos;
 
 	//get entry data and spline data
-	PTEntry& ptentry = _ptemap[type];
-	std::map< Int, std::vector<DblNumVec> >& spldata = _splmap[type];
+	PTEntry& ptentry = ptemap_[type];
+	std::map< Int, std::vector<DblNumVec> >& spldata = splmap_[type];
 
-	Real Rzero = 0;    if(ptentry.cuts().m()>3)      Rzero = ptentry.cuts()(3); //CUTOFF VALUE FOR nonlocal ones
-
+	Real Rzero = 0;    if(ptentry.cutoffs.m()>3)      Rzero = ptentry.cutoffs(3); //CUTOFF VALUE FOR nonlocal ones
 
 	Real dtmp;
 	DblNumVec dx(Ns(0)), dy(Ns(1)), dz(Ns(2));
@@ -241,9 +242,9 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 	// FIXME the magic number of eps
 	Real eps = 1e-8;
 	//process non-local pseudopotential one by one
-	for(Int g=3; g<ptentry.samples().n(); g=g+2) {
-		Real wgt = ptentry.wgts()(g);
-		Int typ = ptentry.typs()(g);
+	for(Int g=3; g<ptentry.samples.n(); g=g+2) {
+		Real wgt = ptentry.weights(g);
+		Int typ = ptentry.types(g);
 		//
 		std::vector<DblNumVec>& valspl = spldata[g]; 
 		std::vector<Real> val(idxsize,0.0);
@@ -253,7 +254,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 		std::vector<Real> der(idxsize,0.0);
 		seval(&(der[0]), idxsize, &(rad[0]), derspl[0].m(), derspl[0].Data(), derspl[1].Data(), derspl[2].Data(), derspl[3].Data(), derspl[4].Data());
 		//--
-		if(typ==0) {
+		if(typ==PTType::L0) {
 			Real coef = sqrt(1.0/(4.0*PI)); //spherical harmonics
 			IntNumVec iv(idx.size(), true, &(idx[0]));
 			DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
@@ -273,9 +274,9 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			}
 			SparseVec res(iv,dv);
 			vnlList.push_back( NonlocalPP(res,wgt) );
-		} // if(typ == 0);
-		//--
-		if(typ==1) {
+		} // if(typ==PTType::L0);
+
+		if(typ==PTType::L1) {
 			Real coef = sqrt(3.0/(4.0*PI)); //spherical harmonics
 			{
 				IntNumVec iv(idx.size(), true, &(idx[0]));
@@ -334,9 +335,9 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				SparseVec res(iv,dv);
 				vnlList.push_back( NonlocalPP(res,wgt) );
 			}
-		} // if(typ==1)
+		} // if(typ==PTType::L1)
 
-		if(typ==2) {
+		if(typ==PTType::L2) {
 			// d_z2
 			{
 				Real coef = 1.0/4.0*sqrt(5.0/PI); // Coefficients for spherical harmonics
@@ -483,9 +484,9 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				SparseVec res(iv,dv);
 				vnlList.push_back( NonlocalPP(res,wgt) );
 			}
-		} // if(typ==2)
+		} // if(typ==PTType::L2)
 
-		if(typ==3) {
+		if(typ==PTType::L3) {
 			// f_z3
 			{
 				Real coef = 1.0/4.0*sqrt(7.0/PI); // Coefficients for spherical harmonics
@@ -717,7 +718,8 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				SparseVec res(iv,dv);
 				vnlList.push_back( NonlocalPP(res,wgt) );
 			}
-		} // if(typ==3)
+		} // if(typ==PTType::L3)
+
 	} // for (g)
 #endif // #ifndef _NO_NONLOCAL_
 
@@ -730,7 +732,6 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 
 //---------------------------------------------
 // TODO SpinOrbit from RelDFT
-
 
 //---------------------------------------------
 // TODO: DG pseudopotential from DGDFT
