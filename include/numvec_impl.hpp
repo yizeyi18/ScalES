@@ -16,7 +16,7 @@ template <class F> NumVec<F>::NumVec	( Int m ) : m_(m), owndata_(true)
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::NumVec");
-#endif  // ifndef _RELEASE_
+#endif  
 	if(m_>0) { 
 		data_ = new F[m_]; 
 		if( data_ == NULL ){
@@ -27,14 +27,14 @@ template <class F> NumVec<F>::NumVec	( Int m ) : m_(m), owndata_(true)
 		data_=NULL;
 #ifndef _RELEASE_
 	PopCallStack();
-#endif  // ifndef _RELEASE_
+#endif  
 } 		// -----  end of method NumVec<F>::NumVec  ----- 
 
 template <class F> NumVec<F>::NumVec	( Int m, bool owndata, F* data ) : m_(m), owndata_(owndata)
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::NumVec");
-#endif  // ifndef _RELEASE_
+#endif  
 	if( owndata_ ){
 		if( m_ > 0 ) { 
 			data_ = new F[m_]; 
@@ -56,14 +56,14 @@ template <class F> NumVec<F>::NumVec	( Int m, bool owndata, F* data ) : m_(m), o
 	}
 #ifndef _RELEASE_
 	PopCallStack();
-#endif  // ifndef _RELEASE_
+#endif  
 } 		// -----  end of method NumVec<F>::NumVec  ----- 
 
 template <class F> NumVec<F>::NumVec	( const NumVec<F>& C ) : m_(C.m_), owndata_(C.owndata_)
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::NumVec");
-#endif  // ifndef _RELEASE_
+#endif  
 	if( owndata_ ){
 		if( m_ > 0 ) { 
 			data_ = new F[m_]; 
@@ -85,7 +85,7 @@ template <class F> NumVec<F>::NumVec	( const NumVec<F>& C ) : m_(C.m_), owndata_
 	}
 #ifndef _RELEASE_
 	PopCallStack();
-#endif  // ifndef _RELEASE_
+#endif  
 } 		// -----  end of method NumVec<F>::NumVec  ----- 
 
 
@@ -93,7 +93,7 @@ template < class F > NumVec<F>::~NumVec	(  )
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::~NumVec");
-#endif  // ifndef _RELEASE_
+#endif  
 	if( owndata_ ){
 		if( m_ > 0 ){
 			delete[] data_;  
@@ -102,7 +102,7 @@ template < class F > NumVec<F>::~NumVec	(  )
 	}
 #ifndef _RELEASE_
 	PopCallStack();
-#endif  // ifndef _RELEASE_
+#endif  
 
 } 		// -----  end of method NumVec<F>::~NumVec  ----- 
 
@@ -111,7 +111,7 @@ template < class F > inline NumVec<F>& NumVec<F>::operator =	( const NumVec& C  
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::operator=");
-#endif  // ifndef _RELEASE_
+#endif  
 	if( owndata_ ){
 		if( m_ > 0 ){
 			delete[]  data_;
@@ -144,7 +144,7 @@ template < class F > inline NumVec<F>& NumVec<F>::operator =	( const NumVec& C  
 
 #ifndef _RELEASE_
 	PopCallStack();
-#endif  // ifndef _RELEASE_
+#endif  
 
 	return *this;
 } 		// -----  end of method NumVec<F>::operator=  ----- 
@@ -154,7 +154,7 @@ template < class F > inline void NumVec<F>::Resize	( const Int m )
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::Resize");
-#endif  // ifndef _RELEASE_
+#endif  
 	if( owndata_ == false ){
 		throw std::logic_error("Vector being resized must own data.");
 	}
@@ -177,7 +177,7 @@ template < class F > inline void NumVec<F>::Resize	( const Int m )
 
 #ifndef _RELEASE_
 	PopCallStack();
-#endif  // ifndef _RELEASE_
+#endif  
 	return ;
 } 		// -----  end of method NumVec<F>::Resize  ----- 
 
@@ -186,7 +186,7 @@ template <class F> inline F& NumVec<F>::operator()	( Int i )
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::operator()");
-#endif  // ifndef _RELEASE_
+#endif 
 	if( i < 0 || i >= m_ ){
 		std::ostringstream msg;
 		msg 
@@ -197,7 +197,7 @@ template <class F> inline F& NumVec<F>::operator()	( Int i )
 	}
 #ifndef _RELEASE_
 	PopCallStack();
-#endif  // ifndef _RELEASE_
+#endif  
 	return data_[i];
 
 } 		// -----  end of method NumVec<F>::operator()  ----- 
@@ -209,7 +209,7 @@ NumVec<F>::operator()	( Int i ) const
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::operator()");
-#endif  // ifndef _RELEASE_
+#endif  
 	if( i < 0 || i >= m_ ){
 		std::ostringstream msg;
 		msg 
@@ -220,7 +220,7 @@ NumVec<F>::operator()	( Int i ) const
 	}
 #ifndef _RELEASE_
 	PopCallStack();
-#endif  // ifndef _RELEASE_
+#endif  
 	return data_[i];
 
 } 		// -----  end of method NumVec<F>::operator()  ----- 
@@ -230,7 +230,7 @@ template <class F> inline F& NumVec<F>::operator[]	( Int i )
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::operator[]");
-#endif  // ifndef _RELEASE_
+#endif  
 	if( i < 0 || i >= m_ ){
 		std::ostringstream msg;
 		msg 
@@ -241,7 +241,7 @@ template <class F> inline F& NumVec<F>::operator[]	( Int i )
 	}
 #ifndef _RELEASE_
 	PopCallStack();
-#endif  // ifndef _RELEASE_
+#endif  
 	return data_[i];
 
 } 		// -----  end of method NumVec<F>::operator[]  ----- 
@@ -251,7 +251,7 @@ template <class F> inline const F& NumVec<F>::operator[]	( Int i ) const
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::operator[]");
-#endif  // ifndef _RELEASE_
+#endif  
 	if( i < 0 || i >= m_ ){
 		std::ostringstream msg;
 		msg 
@@ -262,7 +262,7 @@ template <class F> inline const F& NumVec<F>::operator[]	( Int i ) const
 	}
 #ifndef _RELEASE_
 	PopCallStack();
-#endif  // ifndef _RELEASE_
+#endif  
 	return data_[i];
 
 } 		// -----  end of method NumVec<F>::operator[]  ----- 

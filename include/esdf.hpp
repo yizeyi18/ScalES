@@ -8,9 +8,8 @@
 #include <limits.h>
 #include "mpi.h"
 #include "domain.hpp"
-#include "tinyvec_impl.hpp"
 #include "periodtable.hpp"
-#include <xc.h>
+#include "tinyvec_impl.hpp"
 
 namespace dgdft{
 
@@ -86,12 +85,15 @@ struct ESDFInputParam{
 	std::string         XCType;
 	Int                 XCId;
 
+	// DG related
+	Index3              numElem;
+	Index3              numGridLGL;
+	Real                penaltyAlpha;
 };
 
 void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );
 
 void ESDFReadInput( ESDFInputParam& esdfParam, const char* filename );
-
 
 } // namespace esdf
 } // namespace dgdft

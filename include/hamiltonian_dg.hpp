@@ -8,7 +8,7 @@
 #include  "environment.hpp"
 #include  "numvec_impl.hpp"
 #include  "numtns_impl.hpp"
-#include  "dist_numvec_impl.hpp"
+#include  "distvec_impl.hpp"
 #include  "domain.hpp"
 #include  "periodtable.hpp"
 #include  "utility.hpp"
@@ -18,27 +18,100 @@
 
 namespace dgdft{
 
+// *********************************************************************
+// Partitions
+// *********************************************************************
+
+/// @struct ElemPrtn
+/// @brief Partition class (used by DistVec) according to the element
+/// index.
+struct ElemPrtn
+{
+	IntNumTns                 ownerInfo;
+
+	Int Owner(Index3 key) {
+		return ownerInfo(key(0), key(1), key(2));
+	}
+};
 
 
+/// @struct AtomPrtn
+/// @brief Partition class (used by DistVec) according to the atom
+/// index.
+struct AtomPrtn 
+{
+	std::vector<Int> ownerInfo; 
+
+	Int Owner(Int key) {
+		return ownerInfo[key];
+	}
+};
+
+struct PseudoPotential 
+{
+	/// @brief Pseudocharge of an atom, defined on the uniform grid.
+  NumTns<SparseVec>                                    pseudoCharge; 
+	/// @brief Nonlocal projectors of an atom, defined on the LGL grid.
+	std::vector<std::pair<NumTns<SparseVec>, Real> >     vnlList;
+};
+
+
+// *********************************************************************
+// Typedefs
+// *********************************************************************
+
+typedef DistVec<Index3, DblNumVec, ElemPrtn>   DistDblNumVec;
+
+typedef DistVec<Index3, CpxNumVec, ElemPrtn>   DistCpxNumVec;
+
+typedef DistVec<Index3, DblNumMat, ElemPrtn>   DistDblNumMat;
+
+typedef DistVec<Index3, CpxNumMat, ElemPrtn>   DistCpxNumMat;
+
+typedef DistVec<Index3, DblNumTns, ElemPrtn>   DistDblNumTns;
+
+typedef DistVec<Index3, CpxNumTns, ElemPrtn>   DistCpxNumTns;
+
+typedef DistVec<Int, PseudoPotential, AtomPrtn>  DistPseudoPotential;
+
+// *********************************************************************
+// Main class
+// *********************************************************************
 
 /// @class HamiltonianDG 
 /// @brief Main class of DG for storing and assembling the DG matrix.
 class HamiltonianDG {
 private:
+	
+	// *********************************************************************
+	// Physical variables
+	// *********************************************************************
 	/// @brief Global domain.
 	Domain                      domain_;
-	NumTns<Domain>              elementTns_;
-	NumTns<Domain>              extendedElementTns_;
 
-	/// @brief 1D distribution of the electron density which is compatible
-	/// with the input DistFourier structure.
-	DblNumVec                   densityLocal_;
-	/// @brief 1D distribution of the pseudo charge which is compatible
-	/// with the input DistFourier structure.
-	DblNumVec                   pseudoChargeLocal_;
-	/// @brief 1D distribution of the Hartree potential which is compatible
-	/// with the input DistFourier structure.
-	DblNumVec                   vhartLocal_;
+	/// @brief Element subdomains.
+	NumTns<Domain>              domainElem_;
+
+	/// @brief Uniform grid in the global domain
+	std::vector<DblNumVec>      uniformGrid_;
+
+	/// @brief Number of uniform grids in each element.  
+	///
+	/// Note: It must be satisifed that
+	///
+	/// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
+	Index3                      numUniformGridElem_;
+
+	/// @brief Number of LGL grids in each element.
+	Index3                      numLGLGridElem_;
+
+	/// @brief Uniform grid in the elements, each has size 
+	/// numUniformGridElem_
+	NumTns<std::vector<DblNumVec> >   uniformGridElem_;
+
+	/// @brief Legendre-Gauss-Lobatto grid in the elements, each has size
+	/// numLGLGridElem_
+	NumTns<std::vector<DblNumVec> >   LGLGridElem_;
 
 	/// @brief List of atoms.
 	std::vector<Atom>           atomList_;
@@ -53,7 +126,36 @@ private:
 	/// @brief Exchange-correlation potential using libxc package.
 	xc_func_type                XCFuncType_; 
 
-	/// @brief Pseudo charge in the global domain.
+
+
+
+	// *********************************************************************
+	// Computational variables
+	// *********************************************************************
+
+	/// @brief The number of elements.
+	Index3                      numElem_;
+
+	/// @brief Partition of element.
+	ElemPrtn                    elemPrtn_;
+
+	/// @brief Partition of atom.
+	AtomPrtn                    atomPrtn_;
+
+	/// @brief Interior penalty parameter.
+	Real                        penaltyAlpha_;
+
+	/// @brief 1D distribution of the electron density which is compatible
+	/// with the input DistFourier structure.
+	DblNumVec                   densityLocal_;
+	/// @brief 1D distribution of the pseudo charge which is compatible
+	/// with the input DistFourier structure.
+	DblNumVec                   pseudoChargeLocal_;
+	/// @brief 1D distribution of the Hartree potential which is compatible
+	/// with the input DistFourier structure.
+	DblNumVec                   vhartLocal_;
+
+	/// @brief Pseudocharge in the global domain. 
 	DistDblNumVec    pseudoCharge_;
 
 	/// @brief Electron density in the global domain. No magnitization for
@@ -76,14 +178,16 @@ private:
 	/// @brief Total potential in the global domain.
 	DistDblNumVec    vtot_;
 
-	/// @brief Pseudocharge list associated to each atom.
-	std::vector<SparseVec>      pseudoChargeList_; 
 
-	/// @brief Nonlocal pseudopotential list.
-	///
-	/// First index: atom
-	/// Second index: nonlocal pseudopotential
-	std::vector<std::vector<NonlocalPP> >    vnlDoubleList_;
+	/// @brief Total potential on the local LGL grid.
+	DistDblNumVec    vtotLGL_;
+
+	/// @brief Basis functions on the local LGL grid.
+	DistDblNumMat    basisLGL_;
+
+	/// @brief Pseudopotential and nonlocal projectors associated with
+	/// each atom.
+	DistPseudoPotential  pseudo_;
 
 public:
 
@@ -99,7 +203,7 @@ public:
 	// Operations
 	// *********************************************************************
 
-	void CalculatePseudoCharge( PeriodTable &ptable );
+	void CalculatePseudoPotential( PeriodTable &ptable );
 	//
 	//	virtual void CalculateNonlocalPP( PeriodTable &ptable ) = 0;
 	//
@@ -135,8 +239,11 @@ public:
 	// *********************************************************************
 	// Inquiry
 	// *********************************************************************
+
 	Int NumStateTotal() const { return numExtraState_ + numOccupiedState_; }
+
 	Int NumOccupiedState() const { return numOccupiedState_; }
+
 	Int NumExtraState() const { return numExtraState_; }
 
 };

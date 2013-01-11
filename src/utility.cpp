@@ -1,13 +1,8 @@
+/// @file utility.cpp
+/// @brief Utility subroutines
+/// @author Lin Lin
+/// @date 2012-08-12
 #include "utility.hpp"
-
-// TODO Change int->Int, double->Real etc.
-// TODO Error handlding
-// FIXME using namespace
-using namespace std;
-using std::ifstream;
-using std::ofstream;
-using std::vector;
-using std::cerr;
 
 namespace dgdft{
 
@@ -194,14 +189,14 @@ void seval(double* v, int m, double* u, int n, double* x,
 // Generating grids in a domain
 // *********************************************************************
 
-void lglnodes(double* x, int N)
+void GenerateLGL(double* x, int N)
 {
   int i, j;
   double pi = 4.0 * atan(1.0);
   double err, tol = 1e-15;
-  vector<double> xold;
+  std::vector<double> xold;
   int N1 = N + 1;
-  vector<double> P;
+  std::vector<double> P;
 
   xold.resize(N1);
   P.resize(N1*N1);
@@ -243,14 +238,14 @@ void lglnodes(double* x, int N)
   return;  
 }
 
-void lglnodes(double* x, double* w, int N)
+void GenerateLGL(double* x, double* w, int N)
 {
   int i, j;
   double pi = 4.0 * atan(1.0);
   double err, tol = 1e-15;
-  vector<double> xold;
+  std::vector<double> xold;
   int N1 = N + 1;
-  vector<double> P;
+  std::vector<double> P;
 
   xold.resize(N1);
   P.resize(N1*N1);
@@ -294,14 +289,14 @@ void lglnodes(double* x, double* w, int N)
   }
 }
 
-void lglnodes(vector<double>& x, int N)
+void GenerateLGL(std::vector<double>& x, int N)
 {
   int i, j;
   double pi = 4.0 * atan(1.0);
   double err, tol = 1e-15;
-  vector<double> xold;
+  std::vector<double> xold;
   int N1 = N + 1;
-  vector<double> P;
+  std::vector<double> P;
 
   xold.resize(N1);
   P.resize(N1*N1);
@@ -343,12 +338,12 @@ void lglnodes(vector<double>& x, int N)
   return;  
 }
 
-void lglnodes(vector<double>& x, vector<double>& w, vector<double>& P, int N)
+void GenerateLGL(std::vector<double>& x, std::vector<double>& w, std::vector<double>& P, int N)
 {
   int i, j;
   double pi = 4.0 * atan(1.0);
   double err, tol = 1e-15;
-  vector<double> xold;
+  std::vector<double> xold;
   int N1 = N + 1;
 
   xold.resize(N1);
@@ -392,14 +387,14 @@ void lglnodes(vector<double>& x, vector<double>& w, vector<double>& P, int N)
   }
 }
 
-void lglnodes(vector<double>& x, vector<double>& D, int N)
+void GenerateLGL(std::vector<double>& x, std::vector<double>& D, int N)
 {
   int i, j;
   double pi = 4.0 * atan(1.0);
   double err, tol = 1e-15;
-  vector<double> xold;
+  std::vector<double> xold;
   int N1 = N + 1;
-  vector<double> P;
+  std::vector<double> P;
 
   xold.resize(N1);
   P.resize(N1*N1);
@@ -467,11 +462,11 @@ UniformMesh ( const Domain &dm, std::vector<DblNumVec> &gridpos )
 	PushCallStack("UniformMesh");
 #endif
   gridpos.resize(DIM);
-  for (int d=0; d<DIM; d++) {
+  for (Int d=0; d<DIM; d++) {
     gridpos[d].Resize(dm.numGrid[d]);
-    double h = dm.length[d] / dm.numGrid[d];
-    for (int i=0; i < dm.numGrid[d]; i++) {
-      gridpos[d](i) = dm.posStart[d] + double(i)*h;
+    Real h = dm.length[d] / dm.numGrid[d];
+    for (Int i=0; i < dm.numGrid[d]; i++) {
+      gridpos[d](i) = dm.posStart[d] + Real(i)*h;
     }
   }
 #ifndef _RELEASE_
@@ -482,6 +477,29 @@ UniformMesh ( const Domain &dm, std::vector<DblNumVec> &gridpos )
 }		// -----  end of function UniformMesh  ----- 
 
 
+void
+LGLMesh ( const Domain &dm, const Index3& numGrid, std::vector<DblNumVec> &gridpos )
+{
+#ifndef _RELEASE_
+	PushCallStack("LGLMesh");
+#endif
+  gridpos.resize(DIM);
+  for (Int d=0; d<DIM; d++) {
+    gridpos[d].Resize( numGrid[d] );
+
+		std::vector<Real>  mesh( numGrid[d] );
+		GenerateLGL( mesh, numGrid[d] - 1 );
+		for( Int i = 0; i < numGrid[d]; i++ ){
+			gridpos[d][i] = dm.posStart[d] + 
+				( mesh[i] + 1.0 ) * dm.length[d] * 0.5;
+		}
+  }
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+}		// -----  end of function LGLMesh  ----- 
 
 // *********************************************************************
 // IO functions
@@ -497,8 +515,8 @@ Int SeparateRead(std::string name, std::istringstream& is)
   int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
   //
   char filename[100];
-  sprintf(filename, "%s_%d_%d", name.c_str(), mpirank, mpisize);  //cerr<<filename<<endl;
-  ifstream fin(filename);
+  sprintf(filename, "%s_%d_%d", name.c_str(), mpirank, mpisize);  
+  std::ifstream fin(filename);
 	if( !fin.good() ){
 		throw std::logic_error( "File cannot be open!" );
 	}
@@ -525,7 +543,7 @@ Int SeparateWrite(std::string name, std::ostringstream& os)
   //
   char filename[100];
   sprintf(filename, "%s_%d_%d", name.c_str(), mpirank, mpisize);
-  ofstream fout(filename);
+  std::ofstream fout(filename);
 	if( !fout.good() ){
 		throw std::logic_error( "File cannot be open!" );
 	}
@@ -549,9 +567,9 @@ Int SharedRead(std::string name, std::istringstream& is)
   int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
   int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
   //
-  vector<char> tmpstr;
+  std::vector<char> tmpstr;
   if(mpirank==0) {
-    ifstream fin(name.c_str());
+    std::ifstream fin(name.c_str());
 		if( !fin.good() ){
 			throw std::logic_error( "File cannot be open!" );
 		}
@@ -559,7 +577,7 @@ Int SharedRead(std::string name, std::istringstream& is)
     //tmpstr.insert(tmpstr.end(), str.begin(), str.end());
     tmpstr.insert(tmpstr.end(), std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>());
     fin.close();
-    int size = tmpstr.size();	//cerr<<size<<endl;
+    int size = tmpstr.size();	
     MPI_Bcast((void*)&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast((void*)&(tmpstr[0]), size, MPI_BYTE, 0, MPI_COMM_WORLD);
   } else {
@@ -588,7 +606,7 @@ Int SharedWrite(std::string name, std::ostringstream& os)
   int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
   //
   if(mpirank==0) {
-    ofstream fout(name.c_str());
+    std::ofstream fout(name.c_str());
 		if( !fout.good() ){
 			throw std::logic_error( "File cannot be open!" );
 		}
@@ -615,7 +633,7 @@ Int SeparateWriteAscii(std::string name, std::ostringstream& os)
   //
   char filename[100];
   sprintf(filename, "%s_%d_%d", name.c_str(), mpirank, mpisize);
-  ofstream fout(filename, ios::trunc);
+  std::ofstream fout(filename, std::ios::trunc);
 	if( !fout.good() ){
 		throw std::logic_error( "File cannot be open!" );
 	}

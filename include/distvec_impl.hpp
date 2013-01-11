@@ -342,9 +342,9 @@ Int DistVec<Key,Data,Partition>::PutEnd( const std::vector<Int>& mask, Int putmo
 				lclmap_[key] = tmp;
 			} else { //DO EXIST
 				//----------------------------------
-				if(       putmode==DIST_VEC_REP) {
+				if( putmode == PutMode::REPLACE) {
 					deserialize((*mi).second, *(issvec[k]), mask);
-				} else if(putmode==DIST_VEC_CMB) {
+				} else if( putmode == PutMode::COMBINE ) {
 					Data tmp;	deserialize(tmp, *(issvec[k]), mask);
 					combine( (*mi).second, tmp); 
 				}

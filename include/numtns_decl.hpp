@@ -68,24 +68,43 @@ public:
       m_ = m; n_ = n; p_=p;
       if(m_>0 && n_>0 && p_>0) { data_ = new F[m_*n_*p_]; if( data_ == NULL ) throw std::runtime_error("Cannot allocate memory."); } else data_=NULL;
     }
-		else {
-			std::cerr << "NumTns<F>::Resize is doing nothing" << std::endl;
-		}
   }
   const F& operator()(Int i, Int j, Int k) const  {
+#ifndef _RELEASE_
+		PushCallStack("NumTns<F>::operator()");
+#endif 
 		if( i < 0 || i >= m_ ||
 				j < 0 || j >= n_ ||
 				k < 0 || k >= p_ ) {
-			throw std::logic_error( "Index is out of bound." );
+			std::ostringstream msg;
+			msg 
+				<< "Index is out of bound."  << std::endl
+				<< "Index bound    ~ (" << m_ << ", " << n_ << ", " << p_ << ")" << std::endl
+				<< "This index     ~ (" << i  << ", " << j  << ", " << k  << ")" << std::endl;
+			throw std::logic_error( msg.str().c_str() );
 		}
+#ifndef _RELEASE_
+		PopCallStack();
+#endif  
     return data_[i+j*m_+k*m_*n_];
   }
   F& operator()(Int i, Int j, Int k)  {
+#ifndef _RELEASE_
+		PushCallStack("NumTns<F>::operator()");
+#endif 
 		if( i < 0 || i >= m_ ||
 				j < 0 || j >= n_ ||
 				k < 0 || k >= p_ ) {
-			throw std::logic_error( "Index is out of bound." );
+			std::ostringstream msg;
+			msg 
+				<< "Index is out of bound."  << std::endl
+				<< "Index bound    ~ (" << m_ << ", " << n_ << ", " << p_ << ")" << std::endl
+				<< "This index     ~ (" << i  << ", " << j  << ", " << k  << ")" << std::endl;
+			throw std::logic_error( msg.str().c_str() );
 		}
+#ifndef _RELEASE_
+		PopCallStack();
+#endif  
     return data_[i+j*m_+k*m_*n_];
   }
   
@@ -93,19 +112,40 @@ public:
   
   F* Data() const { return data_; }
 
-	F* MatData (Int j) const {
-		if( j < 0 || j >= p_ ) {
-			throw std::logic_error( "Index is out of bound." );
+	F* MatData (Int k) const {
+#ifndef _RELEASE_
+		PushCallStack("NumTns<F>::MatData");
+#endif 
+		if( k < 0 || k >= p_ ) {
+			std::ostringstream msg;
+			msg 
+				<< "Index is out of bound."  << std::endl
+				<< "Index bound    ~ (" << p_ << ")" << std::endl
+				<< "This index     ~ (" << k  << ")" << std::endl;
+			throw std::logic_error( msg.str().c_str() );
 		}
-		return &(data_[j*m_*n_]);
+#ifndef _RELEASE_
+		PopCallStack();
+#endif  
+		return &(data_[k*m_*n_]);
 	};
 
 	F* VecData (Int j, Int k) const {
+#ifndef _RELEASE_
+		PushCallStack("NumTns<F>::VecData");
+#endif 
 		if( j < 0 || j >= n_ ||
 				k < 0 || k >= p_ ) {
-			throw std::logic_error( "Index is out of bound." );
+			std::ostringstream msg;
+			msg 
+				<< "Index is out of bound."  << std::endl
+				<< "Index bound    ~ (" << n_ << ", " << p_ << ")" << std::endl
+				<< "This index     ~ (" << j  << ", " << k  << ")" << std::endl;
+			throw std::logic_error( msg.str().c_str() );
 		}
-
+#ifndef _RELEASE_
+		PopCallStack();
+#endif  
 		return &(data_[k*m_*n_+j*m_]);
 	};
 

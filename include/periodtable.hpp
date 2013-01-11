@@ -9,6 +9,7 @@
 #include "tinyvec_impl.hpp"
 #include "numvec_impl.hpp"
 #include "nummat_impl.hpp"
+#include "numtns_impl.hpp"
 #include "utility.hpp"
 
 namespace dgdft{
@@ -57,7 +58,8 @@ namespace PTSample{
 enum {
 	RADIAL_GRID       = 0,
 	PSEUDO_CHARGE     = 1,
-	DRV_PSEUDO_CHARGE = 2
+	DRV_PSEUDO_CHARGE = 2,
+	NONLOCAL          = 3,
 };
 }
 
@@ -78,6 +80,9 @@ enum{
 	SPINORBIT_L3      = -3
 };
 };
+
+/// @brief The start of the radial grid.
+const Real MIN_RADIAL = 1e-8;
 
 /// @struct PTEntry
 /// @brief Each entry for the periodic table structure.
@@ -132,6 +137,19 @@ public:
 	///   res[1]--res[3] : x,y,z components of the derivatives of the
 	///		     pseudo-charge
 	void CalculatePseudoCharge( const Atom& atom, const Domain& dm, SparseVec& res );
+
+	/// @brief Generate the pseudo-charge and its derivatives on a set of
+	/// elements.
+	///
+	/// The data are saved in the sparse veector res
+	///   res[0]         : pseudo-charge values
+	///   res[1]--res[3] : x,y,z components of the derivatives of the
+	///		     pseudo-charge
+	void CalculatePseudoCharge	(
+			const Atom& atom, 
+			const Domain& dm,
+			const NumTns<std::vector<DblNumVec> >& gridposElem,
+			NumTns<SparseVec>& res );
 
 	/// @brief Generate the nonlocal pseudopotential projectors.
 	void CalculateNonlocalPP( const Atom& atom, const Domain& dm, 

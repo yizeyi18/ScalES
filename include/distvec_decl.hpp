@@ -9,10 +9,14 @@
 
 namespace dgdft{
 
+/// @namespace PutMode
+/// @brief Mode for put operation of DistVec.
+namespace PutMode{
 enum {
-	DIST_VEC_REP = 0, //replace
-	DIST_VEC_CMB = 1, //combine
+	REPLACE = 0,
+	COMBINE = 1,
 };
+}
 
 /// @class DistVec
 /// @brief General purpose parallel vector interfaces.

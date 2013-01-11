@@ -1,3 +1,7 @@
+/// @file utility.hpp
+/// @brief Utility subroutines.
+/// @author Lin Lin
+/// @date 2012-08-13
 #ifndef _UTILITY_HPP_ 
 #define _UTILITY_HPP_
 
@@ -15,13 +19,23 @@ namespace dgdft{
 // Global utility functions 
 // These utility functions do not depend on local definitions
 // *********************************************************************
-inline Int 
-	iround(Real a){ 
+inline Int IRound(Real a){ 
 		Int b = 0;
 		if(a>0) b = (a-Int(a)<0.5)?Int(a):(Int(a)+1);
 		else b = (Int(a)-a<0.5)?Int(a):(Int(a)-1);
 		return b; 
 	}
+
+inline Int IMod(int a,int b){
+	assert( b > 0 );
+  return ((a%b)<0)?((a%b)+b):(a%b);
+}
+
+inline Real DMod( Real a, Real b){
+  assert(b>0);
+  return (a>=0)?(a-Int(a/b)*b):(a-(Int(a/b)-1)*b);
+}
+
 
 inline Int OptionsCreate(Int argc, char** argv, std::map<std::string,std::string>& options)
 {
@@ -85,13 +99,60 @@ const int LENGTH_VAR_DATA = 16;
 // Mesh  and other utilities FIXME
 // *********************************************************************
 
-// TODO LGL grid and the interface will be changed later.
-extern void lglnodes(Real* x,  Int N);
-extern void lglnodes(Real* x,  Real* w, Int N);
-extern void lglnodes(std::vector<Real>& x,  Int N);
-extern void lglnodes(std::vector<Real>& x,  std::vector<Real>& w, std::vector<Real>& P, Int N);
-extern void lglnodes(std::vector<Real>& x, std::vector<Real>& D, Int N);
-extern void lag1dm(Real*, Int, Int, Real*, Real*);
+/// @brief Check whether a point is in a sub-domain which is a part of a
+/// global domain with periodic boundary conditions
+inline bool IsInSubdomain( 
+		const Point3& r, 
+		const Domain& dm, 
+		const Point3& Lsglb )
+{
+  bool isIn = true;
+	Point3 posstart = dm.posStart;
+	Point3 Lsbuf = dm.length;
+  Point3 shiftstart;
+  Point3 shiftr;
+  for( Int i = 0; i < DIM; i++){
+    shiftstart[i] = DMod(posstart[i], Lsglb[i]);
+    shiftr[i]     = DMod(r[i],        Lsglb[i]);
+    /* Case 1 of the buffer interval */
+		if( shiftstart[i] + Lsbuf[i] > Lsglb[i] ){
+			if( (shiftr[i] > shiftstart[i] + Lsbuf[i] - Lsglb[i]) &&
+					(shiftr[i] < shiftstart[i]) ){
+				isIn = false;
+			}
+		}
+    /* Case 2 of the buffer interval */
+		else{
+			if( (shiftr[i] < shiftstart[i]) ||
+					(shiftr[i] > shiftstart[i] + Lsbuf[i]) ){
+				isIn = false;
+			}
+		}
+  }
+  return isIn;
+}
+
+/// @brief Converts a 1D global index to a 3D index.
+inline Index3 Index1To3( const Int idx1, const Index3& numGrid ){
+	Index3 idx3;
+	idx3[2] = idx1 / ( numGrid[0] * numGrid[1] );
+	idx3[1] = ( idx1 % ( numGrid[0] * numGrid[1] ) ) / numGrid[0];
+	idx3[0] = idx1 % numGrid[0];
+	return idx3;
+}
+
+/// @brief Converts a 3D index to a 1D global index.
+inline Int Index3To1( const Index3& idx3, const Index3& numGrid ){
+	Int idx1 = idx3[0] + idx3[1] * numGrid[0] + idx3[2] * numGrid[0] * numGrid[1];
+	return idx1;
+}
+
+/// @brief Generate the unscaled LGL grid points, integration weights, polynomials and differentiation matrix.
+void GenerateLGL(Real* x,  Int N);
+void GenerateLGL(Real* x,  Real* w, Int N);
+void GenerateLGL(std::vector<Real>& x,  Int N);
+void GenerateLGL(std::vector<Real>& x,  std::vector<Real>& w, std::vector<Real>& P, Int N);
+void GenerateLGL(std::vector<Real>& x,  std::vector<Real>& D, Int N);
 
 template<class F>
 void Transpose(std::vector<F>& A, std::vector<F>& B, Int m, Int n){
@@ -113,10 +174,14 @@ void Transpose(Real* A, Real* B, Int m, Int n){
   }
 }
 
+/// @brief Generate 1D spline coefficients
 void spline(Int, Real*, Real*, Real*, Real*, Real*);
+
+/// @brief Evaluate the spline
 void seval(Real*, Int, Real*, Int, Real*, Real*, Real*, Real*, Real*);
 
 
+/// @brief Three component inner product.
 inline Real Innerprod(Real* x, Real* y, Real *w, Int ntot){
   Real tmp = 0.0;
   for(Int i = 0; i < ntot; i++){
@@ -125,9 +190,12 @@ inline Real Innerprod(Real* x, Real* y, Real *w, Int ntot){
   return tmp;
 }
 
-extern void XScaleByY(Real* x, Real* y, Int ntot);
+/// @brief Generate a uniform mesh from a domain.
+void UniformMesh( const Domain &dm, std::vector<DblNumVec> &gridpos );
 
-extern void UniformMesh( const Domain &dm, std::vector<DblNumVec> &gridpos );
+/// @brief Generate a LGL mesh from a domain.
+void LGLMesh( const Domain &dm, const Index3& numGrid, std::vector<DblNumVec> &gridpos );
+
 
 // *********************************************************************
 // Formatted output stream

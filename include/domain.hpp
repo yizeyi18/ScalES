@@ -6,11 +6,6 @@
 #include  "numvec_impl.hpp"
 
 namespace dgdft{
-// Type of grids
-enum {
-	UNIFORM = 0,
-	LGL     = 1 
-};
 
 struct Domain
 {

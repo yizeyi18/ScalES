@@ -9,7 +9,8 @@ namespace dgdft{
 
 Hamiltonian::Hamiltonian	( 
 			const esdf::ESDFInputParam& esdfParam,
-      const Int                       numDensityComponent )
+      const Int                   numDensityComponent, 
+			const Int                   numSpin )
 {
 #ifndef _RELEASE_
 	PushCallStack("Hamiltonian::Hamiltonian");
@@ -19,6 +20,12 @@ Hamiltonian::Hamiltonian	(
 	pseudoType_    = esdfParam.pseudoType;
 	XCId_          = esdfParam.XCId;
 	numExtraState_ = esdfParam.numExtraState;
+
+	numSpin_       = numSpin;
+
+	if( numSpin_ != 1 && numSpin_ != 2 ){
+		throw std::logic_error( "numSpin = [ 1 | 2 ]." );
+	}
 
   Int ntot = domain_.NumGridTotal();
 
@@ -62,8 +69,9 @@ KohnSham::~KohnSham() {
 KohnSham::
 	KohnSham( 
 			const esdf::ESDFInputParam& esdfParam,
-      const Int                       numDensityComponent ) : 
-		Hamiltonian( esdfParam , numDensityComponent ) 
+      const Int                   numDensityComponent,
+		  const Int                   numSpin	) : 
+		Hamiltonian( esdfParam , numDensityComponent, numSpin ) 
 {
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::KohnSham");
@@ -107,7 +115,7 @@ KohnSham::CalculatePseudoCharge	( PeriodTable &ptable ){
 	if( nelec % 2 != 0 ){
 		throw std::runtime_error( "This is spin-restricted calculation. nelec should be even." );
 	}
-	numOccupiedState_ = nelec;
+	numOccupiedState_ = nelec / numSpin_;
 
   pseudoChargeList_.resize( numAtom );
   for (Int a=0; a<numAtom; a++) {
@@ -127,7 +135,7 @@ KohnSham::CalculatePseudoCharge	( PeriodTable &ptable ){
 	Print( statusOFS, "Sum of Pseudocharge        = ", sumrho );
 	Print( statusOFS, "Number of Occupied States  = ", numOccupiedState_ );
   
-  Real diff = (numOccupiedState_ - sumrho) / vol;
+  Real diff = ( numSpin_ * numOccupiedState_ - sumrho ) / vol;
   for (Int i=0; i<ntot; i++) 
 		pseudoCharge_(i) += diff; 
 
@@ -187,7 +195,7 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 	for (Int k=0; k<nocc; k++) {
 		for (Int j=0; j<ncom; j++) {
 			for (Int i=0; i<ntot; i++) {
-				density_(i,RHO) += occrate(k) * 
+				density_(i,RHO) += numSpin_ * occrate(k) * 
 					pow( std::abs(psi.Wavefun(i,j,k)), 2.0 );
 			}
 		}

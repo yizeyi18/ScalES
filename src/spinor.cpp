@@ -615,9 +615,9 @@ Spinor::AddNonlocalPP	(const std::vector<std::vector<NonlocalPP> >& vnlDoubleLis
 //						double rel1 = grid[1](icoord(1))-coord(1);
 //						double rel2 = grid[2](icoord(2))-coord(2);
 //						// Shifting: VERY IMPORTANT
-//						rel0 = rel0 - iround(rel0 / _domain._Ls[0]) * _domain._Ls[0];
-//						rel1 = rel1 - iround(rel1 / _domain._Ls[1]) * _domain._Ls[1];
-//						rel2 = rel2 - iround(rel2 / _domain._Ls[2]) * _domain._Ls[2];
+//						rel0 = rel0 - IRound(rel0 / _domain._Ls[0]) * _domain._Ls[0];
+//						rel1 = rel1 - IRound(rel1 / _domain._Ls[1]) * _domain._Ls[1];
+//						rel2 = rel2 - IRound(rel2 / _domain._Ls[2]) * _domain._Ls[2];
 //
 //						weight0 += dtmp * (rel1*ptr2[itmp]-rel2*ptr1[itmp]);
 //						weight1 += dtmp * (rel2*ptr0[itmp]-rel0*ptr2[itmp]);
@@ -864,9 +864,9 @@ Spinor::AddNonlocalPP	(const std::vector<std::vector<NonlocalPP> >& vnlDoubleLis
 //						double rel1 = grid[1](icoord(1))-coord(1);
 //						double rel2 = grid[2](icoord(2))-coord(2);
 //						// Shifting: VERY IMPORTANT
-//						rel0 = rel0 - iround(rel0 / _domain._Ls[0]) * _domain._Ls[0];
-//						rel1 = rel1 - iround(rel1 / _domain._Ls[1]) * _domain._Ls[1];
-//						rel2 = rel2 - iround(rel2 / _domain._Ls[2]) * _domain._Ls[2];
+//						rel0 = rel0 - IRound(rel0 / _domain._Ls[0]) * _domain._Ls[0];
+//						rel1 = rel1 - IRound(rel1 / _domain._Ls[1]) * _domain._Ls[1];
+//						rel2 = rel2 - IRound(rel2 / _domain._Ls[2]) * _domain._Ls[2];
 //
 //						weight0 += dtmp * (rel1*ptr2[itmp]-rel2*ptr1[itmp]);
 //						weight1 += dtmp * (rel2*ptr0[itmp]-rel0*ptr2[itmp]);

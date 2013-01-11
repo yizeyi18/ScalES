@@ -354,8 +354,9 @@ SCF::CalculateEnergy	(  )
 	DblNumVec&  occupationRate = eigSolPtr_->Ham().OccupationRate();
 
 	// Kinetic energy
+	Int numSpin = eigSolPtr_->Ham().NumSpin();
 	for (Int i=0; i < eigVal.m(); i++) {
-		Ekin_  += eigVal(i) * occupationRate(i);
+		Ekin_  += numSpin * eigVal(i) * occupationRate(i);
 	}
 
 	// Hartree and xc part
@@ -620,54 +621,5 @@ void SCF::OutputState	(  )
 
 	return ;
 } 		// -----  end of method SCF::OutputState  ----- 
-
-// *********************************************************************
-// Auxiliary subroutines
-// *********************************************************************
-void
-PrintInitialState ( const esdf::ESDFInputParam& esdfParam )
-{
-#ifndef _RELEASE_
-	PushCallStack("PrintInitialState");
-#endif
-	PrintBlock(statusOFS, "Basic information");
-
-	Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
-	Print(statusOFS, "Grid size         = ",  esdfParam.domain.numGrid ); 
-	Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
-	Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
-	Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
-	Print(statusOFS, "SCF Tolerence     = ",  esdfParam.scfTolerance);
-	Print(statusOFS, "SCF MaxIter       = ",  esdfParam.scfMaxIter);
-	Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
-	Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
-
-	Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
-	Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
-	Print(statusOFS, "OutputDensity     = ",  esdfParam.isOutputDensity);
-	Print(statusOFS, "OutputWfn         = ",  esdfParam.isOutputWfn);
-
-	Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
-	Print(statusOFS, "Extra states      = ",  esdfParam.numExtraState );
-	Print(statusOFS, "PeriodTable File  = ",  esdfParam.periodTableFile );
-	Print(statusOFS, "Pseudo Type       = ",  esdfParam.pseudoType );
-	Print(statusOFS, "PW Solver         = ",  esdfParam.PWSolver );
-	Print(statusOFS, "XC Type           = ",  esdfParam.XCType );
-
-	PrintBlock(statusOFS, "Atom Type and Coordinates");
-
-	const std::vector<Atom>&  atomList = esdfParam.atomList;
-	for(Int i=0; i < atomList.size(); i++) {
-		Print(statusOFS, "Type = ", atomList[i].type, "Position  = ", atomList[i].pos);
-	}
-
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-
-	return ;
-}		// -----  end of function PrintInitialState  ----- 
-
-
 
 } // namespace dgdft

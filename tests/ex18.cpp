@@ -46,7 +46,39 @@ int main(int argc, char **argv)
 
 		ESDFReadInput( esdfParam, "dgdft.in" );
 
-		PrintInitialState( esdfParam );
+		// Print the initial state
+		{
+			PrintBlock(statusOFS, "Basic information");
+
+			Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
+			Print(statusOFS, "Grid size         = ",  esdfParam.domain.numGrid ); 
+			Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
+			Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
+			Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
+			Print(statusOFS, "SCF Tolerence     = ",  esdfParam.scfTolerance);
+			Print(statusOFS, "SCF MaxIter       = ",  esdfParam.scfMaxIter);
+			Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
+			Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
+
+			Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
+			Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
+			Print(statusOFS, "OutputDensity     = ",  esdfParam.isOutputDensity);
+			Print(statusOFS, "OutputWfn         = ",  esdfParam.isOutputWfn);
+
+			Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
+			Print(statusOFS, "Extra states      = ",  esdfParam.numExtraState );
+			Print(statusOFS, "PeriodTable File  = ",  esdfParam.periodTableFile );
+			Print(statusOFS, "Pseudo Type       = ",  esdfParam.pseudoType );
+			Print(statusOFS, "PW Solver         = ",  esdfParam.PWSolver );
+			Print(statusOFS, "XC Type           = ",  esdfParam.XCType );
+
+			PrintBlock(statusOFS, "Atom Type and Coordinates");
+
+			const std::vector<Atom>&  atomList = esdfParam.atomList;
+			for(Int i=0; i < atomList.size(); i++) {
+				Print(statusOFS, "Type = ", atomList[i].type, "Position  = ", atomList[i].pos);
+			}
+		}
 
 
 		// *********************************************************************
@@ -62,7 +94,7 @@ int main(int argc, char **argv)
 		PrintBlock( statusOFS, "Preparing the Hamiltonian" );
 		Print( statusOFS, "Periodic table setup finished." );
 
-		KohnSham hamKS( esdfParam, 1 );
+		KohnSham hamKS( esdfParam, 1, 2 );
 
 		hamKS.CalculatePseudoCharge( ptable );
 		hamKS.CalculateNonlocalPP  ( ptable );
@@ -73,9 +105,9 @@ int main(int argc, char **argv)
 		fft.Initialize( dm );
 
 #ifdef _USE_COMPLEX_
-		Spinor  spn( dm, 2, hamKS.NumStateTotal(), Complex(1.0, 1.0) );
+		Spinor  spn( dm, 1, hamKS.NumStateTotal(), Complex(1.0, 1.0) );
 #else
-		Spinor  spn( dm, 2, hamKS.NumStateTotal(), 1.0 );
+		Spinor  spn( dm, 1, hamKS.NumStateTotal(), 1.0 );
 #endif
 
 		SetRandomSeed(1);

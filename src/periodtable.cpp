@@ -112,17 +112,17 @@ PeriodTable::CalculatePseudoCharge	(
 	hz = Ls(2) / Ns(2); 
 	for(Int i = 0; i < Ns(0); i++){
 		dtmp = posStart(0) + i * hx - pos(0); // move the center to atom      
-		dtmp = dtmp - iround(dtmp/Ls(0))*Ls(0);      
+		dtmp = dtmp - IRound(dtmp/Ls(0))*Ls(0);      
 		dx(i) = dtmp;
 	}
 	for(Int j = 0; j < Ns(1); j++){
 		dtmp = posStart(1) + j * hy - pos(1);      
-		dtmp = dtmp - iround(dtmp/Ls(1))*Ls(1);      
+		dtmp = dtmp - IRound(dtmp/Ls(1))*Ls(1);      
 		dy(j) = dtmp;
 	}
 	for(Int k = 0; k < Ns(2); k++){
 		dtmp = posStart(2) + k * hz - pos(2);      
-		dtmp = dtmp - iround(dtmp/Ls(2))*Ls(2);      
+		dtmp = dtmp - IRound(dtmp/Ls(2))*Ls(2);      
 		dz(k) = dtmp;
 	}
 	Int irad = 0;
@@ -145,8 +145,6 @@ PeriodTable::CalculatePseudoCharge	(
 		}
 	}
 	Int idxsize = idx.size();
-	// FIXME magic number here
-	Real eps = 1e-8;
 	//
 	std::vector<DblNumVec>& valspl = spldata[PTSample::PSEUDO_CHARGE]; 
 	std::vector<Real> val(idxsize,0.0);
@@ -156,7 +154,6 @@ PeriodTable::CalculatePseudoCharge	(
 	std::vector<DblNumVec>& derspl = spldata[PTSample::DRV_PSEUDO_CHARGE];
 	std::vector<Real> der(idxsize,0.0);
 	
-	
 	seval(&(der[0]), idxsize, &(rad[0]), derspl[0].m(), derspl[0].Data(), 
 			derspl[1].Data(), derspl[2].Data(), derspl[3].Data(), derspl[4].Data());
 	//
@@ -165,7 +162,7 @@ PeriodTable::CalculatePseudoCharge	(
 	//
 	for(Int g=0; g<idx.size(); g++) {
 		dv(g, VAL) = val[g];
-		if(rad[g]>eps) {
+		if( rad[g]> MIN_RADIAL ) {
 			dv(g, DX) = der[g] * xx[g]/rad[g];
 			dv(g, DY) = der[g] * yy[g]/rad[g];
 			dv(g, DZ) = der[g] * zz[g]/rad[g];
@@ -183,6 +180,124 @@ PeriodTable::CalculatePseudoCharge	(
 
 	return ;
 } 		// -----  end of method PeriodTable::CalculatePseudoCharge  ----- 
+
+
+void
+PeriodTable::CalculatePseudoCharge	(
+		const Atom& atom, 
+		const Domain& dm,
+		const NumTns<std::vector<DblNumVec> >& gridposElem,
+		NumTns<SparseVec>& res )
+{
+#ifndef _RELEASE_
+	PushCallStack("PeriodTable::CalculatePseudoCharge");
+#endif
+	Int type        = atom.type;
+	Point3 pos      = atom.pos;
+	Point3 Ls       = dm.length;
+	Point3 posStart = dm.posStart;
+	Index3 Ns       = dm.numGrid;
+
+	//get entry data and spline data
+	PTEntry& ptentry = ptemap_[type];
+	std::map< Int, std::vector<DblNumVec> >& spldata = splmap_[type];
+
+	Real Rzero = ptentry.cutoffs(PTSample::PSEUDO_CHARGE); 
+
+	Index3 numElem( gridposElem.m(), gridposElem.n(), gridposElem.p() );
+
+	for( Int elemk = 0; elemk < numElem[2]; elemk++ )
+		for( Int elemj = 0; elemj < numElem[1]; elemj++ )
+			for( Int elemi = 0; elemi < numElem[0]; elemi++ ){
+				const std::vector<DblNumVec>& gridpos = 
+					gridposElem(elemi, elemj, elemk);
+				std::vector<DblNumVec>  dist(DIM);
+
+				// Compute the minimal distance of the atom to this element and
+				// determine whether to continue 
+
+				Point3 minDist;
+				for( Int d = 0; d < DIM; d++ ){
+					dist[d].Resize( gridpos[d].m() );
+
+					minDist[d] = Rzero;
+					for( Int i = 0; i < gridpos[d].m(); i++ ){
+						dist[d](i) = gridpos[d](i) - pos[d];
+						dist[d](i) = dist[d](i) - IRound( dist[d](i) / Ls[d] ) * Ls[d];
+						if( std::abs( dist[d](i) ) < minDist[d] )
+							minDist[d] = std::abs( dist[d](i) );
+					}
+				}
+				if( std::sqrt( dot(minDist, minDist) ) > Rzero ){
+					SparseVec  empty;
+					res(elemi, elemj, elemk) = empty;
+				}
+				else{
+					// At least one grid point is within Rzero
+					Int irad = 0;
+					std::vector<Int>  idx;
+					std::vector<Real> rad;
+					std::vector<Real> xx, yy, zz;
+					for(Int k = 0; k < gridpos[2].m(); k++)
+						for(Int j = 0; j < gridpos[1].m(); j++)
+							for(Int i = 0; i < gridpos[0].m(); i++){
+								Real dtmp = std::sqrt( 
+										dist[0](i) * dist[0](i) +
+										dist[1](j) * dist[1](j) +
+										dist[2](k) * dist[2](k) );
+
+								if( dtmp < Rzero ) {
+									idx.push_back(irad);
+									rad.push_back(dtmp);
+									xx.push_back(dist[0](i));	    
+									yy.push_back(dist[1](j));	    
+									zz.push_back(dist[2](k));
+								}
+								irad++;
+							} // for (i)
+
+					Int idxsize = idx.size();
+					//
+					std::vector<DblNumVec>& valspl = spldata[PTSample::PSEUDO_CHARGE]; 
+					std::vector<Real> val(idxsize,0.0);
+					seval(&(val[0]), idxsize, &(rad[0]), valspl[0].m(), valspl[0].Data(), 
+							valspl[1].Data(), valspl[2].Data(), valspl[3].Data(), valspl[4].Data());
+					//
+					std::vector<DblNumVec>& derspl = spldata[PTSample::DRV_PSEUDO_CHARGE];
+					std::vector<Real> der(idxsize,0.0);
+
+
+					seval(&(der[0]), idxsize, &(rad[0]), derspl[0].m(), derspl[0].Data(), 
+							derspl[1].Data(), derspl[2].Data(), derspl[3].Data(), derspl[4].Data());
+					//
+					IntNumVec iv(idx.size(), true, &(idx[0])); 
+					DblNumMat dv( idx.size(), DIM+1 );  // Value and its three derivatives
+					//
+					for(Int g=0; g<idx.size(); g++) {
+						dv(g, VAL) = val[g];
+						if( rad[g]> MIN_RADIAL ) {
+							dv(g, DX) = der[g] * xx[g]/rad[g];
+							dv(g, DY) = der[g] * yy[g]/rad[g];
+							dv(g, DZ) = der[g] * zz[g]/rad[g];
+						} else {
+							dv(g, DX) = 0;
+							dv(g, DY) = 0;
+							dv(g, DZ) = 0;
+						}
+					}
+					res(elemi, elemj, elemk) = SparseVec(iv,dv);
+
+
+				} // if ( norm(minDist) > Rzero )
+			} // for (i)
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method PeriodTable::CalculatePseudoCharge  ----- 
+
 
 //---------------------------------------------
 
@@ -208,18 +323,18 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 	PTEntry& ptentry = ptemap_[type];
 	std::map< Int, std::vector<DblNumVec> >& spldata = splmap_[type];
 
-	Real Rzero = 0;    if(ptentry.cutoffs.m()>3)      Rzero = ptentry.cutoffs(3); //CUTOFF VALUE FOR nonlocal ones
+	Real Rzero = 0;    if(ptentry.cutoffs.m()>3)      Rzero = ptentry.cutoffs(PTSample::NONLOCAL); //CUTOFF VALUE FOR nonlocal ones
 
 	Real dtmp;
 	DblNumVec dx(Ns(0)), dy(Ns(1)), dz(Ns(2));
 	for(Int i = 0; i < Ns(0); i++){
-		dtmp = gridpos[0][i] - pos(0);      dtmp = dtmp - iround(dtmp/Ls(0))*Ls(0);      dx(i) = dtmp;
+		dtmp = gridpos[0][i] - pos(0);      dtmp = dtmp - IRound(dtmp/Ls(0))*Ls(0);      dx(i) = dtmp;
 	}
 	for(Int j = 0; j < Ns(1); j++){
-		dtmp = gridpos[1][j] - pos(1);      dtmp = dtmp - iround(dtmp/Ls(1))*Ls(1);      dy(j) = dtmp;
+		dtmp = gridpos[1][j] - pos(1);      dtmp = dtmp - IRound(dtmp/Ls(1))*Ls(1);      dy(j) = dtmp;
 	}
 	for(Int k = 0; k < Ns(2); k++){
-		dtmp = gridpos[2][k] - pos(2);      dtmp = dtmp - iround(dtmp/Ls(2))*Ls(2);      dz(k) = dtmp;
+		dtmp = gridpos[2][k] - pos(2);      dtmp = dtmp - IRound(dtmp/Ls(2))*Ls(2);      dz(k) = dtmp;
 	}
 	Int irad = 0;
 	std::vector<Int> idx;
@@ -239,8 +354,6 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 		}
 	}
 	Int idxsize = idx.size();
-	// FIXME the magic number of eps
-	Real eps = 1e-8;
 	//process non-local pseudopotential one by one
 	for(Int g=3; g<ptentry.samples.n(); g=g+2) {
 		Real wgt = ptentry.weights(g);
@@ -260,7 +373,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 			DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 			//
 			for(Int g=0; g<idx.size(); g++) {
-				if(rad[g]>eps) {
+				if( rad[g]>MIN_RADIAL ) {
 					dv(g,VAL) = coef * val[g];
 					dv(g,DX) = coef * der[g] * xx[g]/rad[g];
 					dv(g,DY) = coef * der[g] * yy[g]/rad[g];
@@ -282,7 +395,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				IntNumVec iv(idx.size(), true, &(idx[0]));
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if( rad[g]> MIN_RADIAL ) {
 						dv(g,VAL) = coef*( (xx[g]/rad[g]) * val[g] );
 						dv(g,DX) = coef*( (der[g]-val[g]/rad[g])*(xx[g]/rad[g])*(xx[g]/rad[g]) + val[g]/rad[g] );
 						dv(g,DY) = coef*( (der[g]-val[g]/rad[g])*(xx[g]/rad[g])*(yy[g]/rad[g])                 );
@@ -301,7 +414,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				IntNumVec iv(idx.size(), true, &(idx[0]));
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]> MIN_RADIAL) {
 						dv(g,VAL) = coef*( (yy[g]/rad[g]) * val[g] );
 						dv(g,DX) = coef*( (der[g]-val[g]/rad[g])*(yy[g]/rad[g])*(xx[g]/rad[g])                 );
 						dv(g,DY) = coef*( (der[g]-val[g]/rad[g])*(yy[g]/rad[g])*(yy[g]/rad[g]) + val[g]/rad[g] );
@@ -320,7 +433,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				IntNumVec iv(idx.size(), true, &(idx[0]));
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						dv(g,VAL) = coef*( (zz[g]/rad[g]) * val[g] );
 						dv(g,DX) = coef*( (der[g]-val[g]/rad[g])*(zz[g]/rad[g])*(xx[g]/rad[g])                 );
 						dv(g,DY) = coef*( (der[g]-val[g]/rad[g])*(zz[g]/rad[g])*(yy[g]/rad[g])                 );
@@ -345,7 +458,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						Ylm(0) = coef*(-xx[g]*xx[g]-yy[g]*yy[g]+2.0*zz[g]*zz[g]) / (rad[g]*rad[g]);
 						Ylm(1) = coef*(-6.0 * xx[g]*pow(zz[g],2.0) / pow(rad[g],4.0));
 						Ylm(2) = coef*(-6.0 * yy[g]*pow(zz[g],2.0) / pow(rad[g],4.0));
@@ -373,7 +486,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 
 				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						Ylm(0) = coef*(yy[g]*zz[g]) / (rad[g]*rad[g]);
 						Ylm(1) = coef*(-2.0*xx[g]*yy[g]*zz[g] / pow(rad[g],4.0));
 						Ylm(2) = coef*(     zz[g]*(pow(zz[g],2.0)+pow(xx[g],2.0)-pow(yy[g],2.0)) / 
@@ -403,7 +516,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 
 				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						Ylm(0) = coef*(zz[g]*xx[g]) / (rad[g]*rad[g]);
 						Ylm(1) = coef*(     zz[g]*(pow(zz[g],2.0)-pow(xx[g],2.0)+pow(yy[g],2.0)) / 
 								pow(rad[g],4.0));
@@ -433,7 +546,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						Ylm(0) = coef*(xx[g]*yy[g]) / (rad[g]*rad[g]);
 						Ylm(1) = coef*(     yy[g]*(pow(yy[g],2.0)-pow(xx[g],2.0)+pow(zz[g],2.0)) / 
 								pow(rad[g],4.0));
@@ -462,7 +575,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						Ylm(0) = coef*(xx[g]*xx[g]-yy[g]*yy[g]) / (rad[g]*rad[g]);
 						Ylm(1) = coef*( 2.0*xx[g]*(2.0*pow(yy[g],2.0)+pow(zz[g],2.0)) / 
 								pow(rad[g],4.0));
@@ -494,7 +607,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						Real x2 = xx[g]*xx[g];
 						Real y2 = yy[g]*yy[g];
 						Real z2 = zz[g]*zz[g];
@@ -527,7 +640,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						Real x2 = xx[g]*xx[g];
 						Real y2 = yy[g]*yy[g];
 						Real z2 = zz[g]*zz[g];
@@ -560,7 +673,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						Real x2 = xx[g]*xx[g];
 						Real y2 = yy[g]*yy[g];
 						Real z2 = zz[g]*zz[g];
@@ -593,7 +706,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						Real x2 = xx[g]*xx[g];
 						Real y2 = yy[g]*yy[g];
 						Real z2 = zz[g]*zz[g];
@@ -626,7 +739,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						Real x2 = xx[g]*xx[g];
 						Real y2 = yy[g]*yy[g];
 						Real z2 = zz[g]*zz[g];
@@ -659,7 +772,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						Real x2 = xx[g]*xx[g];
 						Real y2 = yy[g]*yy[g];
 						Real z2 = zz[g]*zz[g];
@@ -692,7 +805,7 @@ PeriodTable::CalculateNonlocalPP	( const Atom& atom,
 				DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
 				DblNumVec Ylm( DIM + 1 ); //LLIN: Spherical harmonics (0) and its derivatives (1-3)
 				for(Int g=0; g<idx.size(); g++) {
-					if(rad[g]>eps) {
+					if(rad[g]>MIN_RADIAL) {
 						Real x2 = xx[g]*xx[g];
 						Real y2 = yy[g]*yy[g];
 						Real z2 = zz[g]*zz[g];

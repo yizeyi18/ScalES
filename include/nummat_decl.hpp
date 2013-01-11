@@ -67,31 +67,63 @@ public:
       m_ = m; n_ = n;
       if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) throw std::runtime_error("Cannot allocate memory."); } else data_=NULL;
     }
-		else {
-			std::cerr << "NumMat<F>::Resize is doing nothing" << std::endl;
-		}
   }
+
   const F& operator()(Int i, Int j) const  { 
+#ifndef _RELEASE_
+		PushCallStack("NumMat<F>::operator()");
+#endif  
 		if( i < 0 || i >= m_ ||
 				j < 0 || j >= n_ ) {
-			throw std::logic_error( "Index is out of bound." );
+			std::ostringstream msg;
+			msg 
+				<< "Index is out of bound."  << std::endl
+				<< "Index bound    ~ (" << m_ << ", " << n_ << ")" << std::endl
+				<< "This index     ~ (" << i  << ", " << j  << ")" << std::endl;
+			throw std::logic_error( msg.str().c_str() ); 
 		}
+#ifndef _RELEASE_
+		PopCallStack();
+#endif  
     return data_[i+j*m_];
   }
+
   F& operator()(Int i, Int j)  { 
+#ifndef _RELEASE_
+		PushCallStack("NumMat<F>::operator()");
+#endif  
 		if( i < 0 || i >= m_ ||
 				j < 0 || j >= n_ ) {
-			throw std::logic_error( "Index is out of bound." );
+			std::ostringstream msg;
+			msg 
+				<< "Index is out of bound."  << std::endl
+				<< "Index bound    ~ (" << m_ << ", " << n_ << ")" << std::endl
+				<< "This index     ~ (" << i  << ", " << j  << ")" << std::endl;
+			throw std::logic_error( msg.str().c_str() ); 
 		}
+#ifndef _RELEASE_
+		PopCallStack();
+#endif  
     return data_[i+j*m_];
   }
   
   F* Data() const { return data_; }
   F* VecData(Int j)  const 
 	{ 
+#ifndef _RELEASE_
+		PushCallStack("NumMat<F>::VecData");
+#endif  
 		if( j < 0 || j >= n_ ) {
-			throw std::logic_error( "Index is out of bound." );
+			std::ostringstream msg;
+			msg 
+				<< "Index is out of bound."  << std::endl
+				<< "Index bound    ~ (" << n_ << ")" << std::endl
+				<< "This index     ~ (" << j  << ")" << std::endl;
+			throw std::logic_error( msg.str().c_str() ); 
 		}
+#ifndef _RELEASE_
+		PopCallStack();
+#endif  
 		return &(data_[j*m_]); 
 	}
   Int m() const { return m_; }

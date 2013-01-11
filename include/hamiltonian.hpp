@@ -29,6 +29,7 @@ protected:
 	Domain                      domain_;
 	// List of atoms
 	std::vector<Atom>           atomList_;
+	Int                         numSpin_;
 	Int                         numExtraState_;
 	Int                         numOccupiedState_;
 	// Type of pseudopotential, default HGH
@@ -76,7 +77,8 @@ public:
 	virtual ~Hamiltonian() {}
 	Hamiltonian( 
 			const esdf::ESDFInputParam& esdfParam,
-			const Int                   numDensityComponent );
+			const Int                   numDensityComponent,
+		  const Int                   numSpin	);
 
 
 	// *********************************************************************
@@ -115,10 +117,11 @@ public:
 	// *********************************************************************
 	// Inquiry
 	// *********************************************************************
-	Int NumStateTotal() const { return numExtraState_ + numOccupiedState_; }
-	Int NumOccupiedState() const { return numOccupiedState_; }
-	Int NumExtraState() const { return numExtraState_; }
-	Int NumDensityComponent() const { return density_.n(); }
+	Int  NumSpin() const { return numSpin_; }
+	Int  NumStateTotal() const { return numExtraState_ + numOccupiedState_; }
+	Int  NumOccupiedState() const { return numOccupiedState_; }
+	Int  NumExtraState() const { return numExtraState_; }
+	Int  NumDensityComponent() const { return density_.n(); }
 	
 };
 
@@ -137,7 +140,8 @@ public:
 
 	KohnSham( 
 			const esdf::ESDFInputParam& esdfParam,
-      const Int                       numDensityComponent );
+      const Int                   numDensityComponent,
+		  const Int                   numSpin	);
 
 	// *********************************************************************
 	// Operations

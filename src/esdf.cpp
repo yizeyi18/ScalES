@@ -1,4 +1,6 @@
 #include "esdf.hpp"
+#include "utility.hpp" 
+#include <xc.h>
 
 namespace dgdft{
 
@@ -342,7 +344,7 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Mixing coefficients parameter !*");
 
 	i++;
-	strcpy(kw_label[i],"dg_alpha");
+	strcpy(kw_label[i],"penalty_alpha");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! DG penalty parameter !*");
 
@@ -1862,12 +1864,31 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
       throw std::logic_error("Unrecognized exchange-correlation type");
 	}
 
+	// DG
+	{
+		Index3& numElem = esdfParam.numElem;
+		if (esdf_block("Element_Size",&nlines)) {
+			sscanf(block_data[0],"%d %d %d", 
+					&numElem[0],&numElem[1],&numElem[2]);
+		}
+
+		Index3& numGridLGL = esdfParam.numGridLGL;
+		if (esdf_block("Element_Grid_Size", &nlines)) {
+			sscanf(block_data[0],"%d %d %d", 
+					&numGridLGL[0],&numGridLGL[1],&numGridLGL[2] );
+		}
+
+		esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 100.0 );
+	}
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
 
 	return ;
 }		// -----  end of function ESDFReadInput  ----- 
+
+
 
 } // namespace esdf
 } // namespace dgdft

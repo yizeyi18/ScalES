@@ -98,13 +98,6 @@ public:
 }; // -----  end of class  SCF ----- 
 
 
-
-// *********************************************************************
-// Other subroutines
-// *********************************************************************
-void PrintInitialState( const esdf::ESDFInputParam& esdfParam );
-
-
 } // namespace dgdft
 #endif // _SCF_HPP_
 
