@@ -16,7 +16,8 @@ namespace  dgdft{
 // data.
 
 
-template <class F> NumVec<F>::NumVec	( Int m ) : m_(m), owndata_(true)
+template <class F> 
+inline NumVec<F>::NumVec	( Int m ) : m_(m), owndata_(true)
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::NumVec");
@@ -34,7 +35,8 @@ template <class F> NumVec<F>::NumVec	( Int m ) : m_(m), owndata_(true)
 #endif  
 } 		// -----  end of method NumVec<F>::NumVec  ----- 
 
-template <class F> NumVec<F>::NumVec	( Int m, bool owndata, F* data ) : m_(m), owndata_(owndata)
+template <class F> 
+inline NumVec<F>::NumVec	( Int m, bool owndata, F* data ) : m_(m), owndata_(owndata)
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::NumVec");
@@ -63,7 +65,8 @@ template <class F> NumVec<F>::NumVec	( Int m, bool owndata, F* data ) : m_(m), o
 #endif  
 } 		// -----  end of method NumVec<F>::NumVec  ----- 
 
-template <class F> NumVec<F>::NumVec	( const NumVec<F>& C ) : m_(C.m_), owndata_(C.owndata_)
+template <class F> 
+inline NumVec<F>::NumVec	( const NumVec<F>& C ) : m_(C.m_), owndata_(C.owndata_)
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::NumVec");
@@ -93,7 +96,8 @@ template <class F> NumVec<F>::NumVec	( const NumVec<F>& C ) : m_(C.m_), owndata_
 } 		// -----  end of method NumVec<F>::NumVec  ----- 
 
 
-template < class F > NumVec<F>::~NumVec	(  )
+template < class F > 
+inline NumVec<F>::~NumVec	(  )
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::~NumVec");
@@ -111,7 +115,8 @@ template < class F > NumVec<F>::~NumVec	(  )
 } 		// -----  end of method NumVec<F>::~NumVec  ----- 
 
 
-template < class F > inline NumVec<F>& NumVec<F>::operator =	( const NumVec& C  )
+template < class F > 
+inline NumVec<F>& NumVec<F>::operator =	( const NumVec& C  )
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::operator=");
@@ -154,7 +159,8 @@ template < class F > inline NumVec<F>& NumVec<F>::operator =	( const NumVec& C  
 } 		// -----  end of method NumVec<F>::operator=  ----- 
 
 
-template < class F > inline void NumVec<F>::Resize	( const Int m )
+template < class F > 
+inline void NumVec<F>::Resize	( const Int m )
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::Resize");
@@ -186,7 +192,8 @@ template < class F > inline void NumVec<F>::Resize	( const Int m )
 } 		// -----  end of method NumVec<F>::Resize  ----- 
 
 
-template <class F> inline F& NumVec<F>::operator()	( Int i )
+template <class F> 
+inline F& NumVec<F>::operator()	( Int i )
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::operator()");
@@ -208,8 +215,7 @@ template <class F> inline F& NumVec<F>::operator()	( Int i )
 
 
 template <class F>
-inline const F&
-NumVec<F>::operator()	( Int i ) const
+inline const F& NumVec<F>::operator()	( Int i ) const
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::operator()");
@@ -230,7 +236,8 @@ NumVec<F>::operator()	( Int i ) const
 } 		// -----  end of method NumVec<F>::operator()  ----- 
 
 
-template <class F> inline F& NumVec<F>::operator[]	( Int i )
+template <class F> 
+inline F& NumVec<F>::operator[]	( Int i )
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::operator[]");
@@ -251,7 +258,8 @@ template <class F> inline F& NumVec<F>::operator[]	( Int i )
 } 		// -----  end of method NumVec<F>::operator[]  ----- 
 
 
-template <class F> inline const F& NumVec<F>::operator[]	( Int i ) const
+template <class F> 
+inline const F& NumVec<F>::operator[]	( Int i ) const
 {
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::operator[]");

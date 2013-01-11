@@ -9,11 +9,11 @@
 
 namespace  dgdft{
 
-template <class F> NumMat<F>::NumMat(Int m, Int n): m_(m), n_(n), owndata_(true) {
+template <class F> inline NumMat<F>::NumMat(Int m, Int n): m_(m), n_(n), owndata_(true) {
 	if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) throw std::runtime_error("Cannot allocate memory."); } else data_=NULL;
 }
 
-template <class F> NumMat<F>::NumMat(Int m, Int n, bool owndata, F* data): m_(m), n_(n), owndata_(owndata) {
+template <class F> inline NumMat<F>::NumMat(Int m, Int n, bool owndata, F* data): m_(m), n_(n), owndata_(owndata) {
 	if(owndata_) {
 		if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) throw std::runtime_error("Cannot allocate memory."); } else data_=NULL;
 		if(m_>0 && n_>0) { for(Int i=0; i<m_*n_; i++) data_[i] = data[i]; }
@@ -22,7 +22,7 @@ template <class F> NumMat<F>::NumMat(Int m, Int n, bool owndata, F* data): m_(m)
 	}
 }
 
-template <class F> NumMat<F>::NumMat(const NumMat& C): m_(C.m_), n_(C.n_), owndata_(C.owndata_) {
+template <class F> inline NumMat<F>::NumMat(const NumMat& C): m_(C.m_), n_(C.n_), owndata_(C.owndata_) {
 	if(owndata_) {
 		if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) throw std::runtime_error("Cannot allocate memory."); } else data_=NULL;
 		if(m_>0 && n_>0) { for(Int i=0; i<m_*n_; i++) data_[i] = C.data_[i]; }
@@ -31,7 +31,7 @@ template <class F> NumMat<F>::NumMat(const NumMat& C): m_(C.m_), n_(C.n_), ownda
 	}
 }
 
-template <class F> NumMat<F>::~NumMat() {
+template <class F> inline NumMat<F>::~NumMat() {
 	if(owndata_) {
 		if(m_>0 && n_>0) { delete[] data_; data_ = NULL; }
 	}
