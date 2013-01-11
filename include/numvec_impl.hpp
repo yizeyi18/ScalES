@@ -1,3 +1,7 @@
+/// @file numvec_impl.hpp
+/// @brief Implementation of Numerical Vector.
+/// @author Lexing Ying and Lin Lin
+/// @date 2010-09-27
 #ifndef _NUMVEC_IMPL_HPP_
 #define _NUMVEC_IMPL_HPP_
 
@@ -267,7 +271,9 @@ template <class F> inline const F& NumVec<F>::operator[]	( Int i ) const
 
 } 		// -----  end of method NumVec<F>::operator[]  ----- 
 
-
+// *********************************************************************
+// Utilities
+// *********************************************************************
 
 template <class F> inline void SetValue( NumVec<F>& vec, F val )
 {

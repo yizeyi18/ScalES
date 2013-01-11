@@ -78,10 +78,34 @@ const Real amu2au = 1822.8885;
 const Real SPEED_OF_LIGHT = 137.0359895; 
 const Real PI = 3.141592653589793;
 
-// Indicies for spinors and density
-enum {RHO, MAGX, MAGY, MAGZ};  // four-component RHO and MAGnetization
-enum {UP, DN};                 // spin-UP and spin-DowN
-enum {LGUP, LGDN, SMUP, SMDN}; // LarGe spin-UP and SMall spin-DowN
+/// @namespace DensityComponent
+/// 
+/// @brief Four-component RHO and MAGnetization
+namespace DensityComponent{
+enum {RHO, MAGX, MAGY, MAGZ};  
+}
+
+/// @namespace SpinTwo
+///
+/// @brief Two-component spin, spin-UP and spin-DowN
+namespace SpinTwo{
+enum {UP, DN};                 
+}
+
+/// @namespace SpinFour
+///
+/// @brief Four-component spin, LarGe/SMall spin-UP/DowN
+namespace SpinFour{
+enum {LGUP, LGDN, SMUP, SMDN}; 
+}
+
+/// @namespace PseudoComponent
+///
+/// @brief Pseudopotential component, VALue and Derivatives along the X,
+/// Y, Z directions
+namespace PseudoComponent{
+enum {VAL, DX, DY, DZ};
+}
 
 
 } // namespace dgdft
@@ -117,7 +141,6 @@ struct NullStream : std::ostream
 // iA / iC macros.  Not often used.
 #define iC(fun)  { int ierr=fun; if(ierr!=0) exit(1); }
 #define iA(expr) { if((expr)==0) { std::cerr<<"wrong "<<__LINE__<<" in " <<__FILE__<<std::endl; std::cerr.flush(); exit(1); } }
-
 
 } // namespace dgdft
 

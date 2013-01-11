@@ -64,8 +64,6 @@ inline Int Size( std::stringstream& sstm ){
 // *********************************************************************
 // Data types
 // *********************************************************************
-enum {VAL, DX, DY, DZ};
-
 // Sparse vector used for a domain with uniform grid (not for LGL grid).  
 // SparseVec.first is the indices of grid points for which the sparse
 // vector has nonzero value.  

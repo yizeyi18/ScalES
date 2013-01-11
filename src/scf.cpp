@@ -2,6 +2,8 @@
 
 namespace  dgdft{
 
+using namespace dgdft::DensityComponent;
+
 SCF::SCF	(  )
 {
 #ifndef _RELEASE_
@@ -84,14 +86,14 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 
 			// make sure that the electron density is positive
 			for (Int i=0; i<ntot; i++){
-				density(i, VAL) = ( pseudoCharge(i) > EPS ) ? pseudoCharge(i) : EPS;
-				sum0 += density(i, VAL);
+				density(i, RHO) = ( pseudoCharge(i) > EPS ) ? pseudoCharge(i) : EPS;
+				sum0 += density(i, RHO);
 				sum1 += pseudoCharge(i);
 			}
 			
 			// Rescale the density
 			for (int i=0; i <ntot; i++){
-				density(i, VAL) *= sum1 / sum0;
+				density(i, RHO) *= sum1 / sum0;
 			} 
 		}
 	}
@@ -369,8 +371,8 @@ SCF::CalculateEnergy	(  )
 	Ehart_ = 0.0;
 	EVxc_  = 0.0;
 	for (Int i=0; i<ntot; i++) {
-		EVxc_  += vxc(i,VAL) * density(i,VAL);
-		Ehart_ += 0.5 * vhart(i) * ( density(i,VAL) + pseudoCharge(i) );
+		EVxc_  += vxc(i,RHO) * density(i,RHO);
+		Ehart_ += 0.5 * vhart(i) * ( density(i,RHO) + pseudoCharge(i) );
 	}
 	Ehart_ *= vol/Real(ntot);
 	EVxc_  *= vol/Real(ntot);

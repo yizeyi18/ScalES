@@ -1,3 +1,7 @@
+/// @file numvec_decl.hpp
+/// @brief  Numerical vector.
+/// @author Lexing Ying and Lin Lin
+/// @date 2010-09-27
 #ifndef _NUMVEC_DECL_HPP_
 #define _NUMVEC_DECL_HPP_
 
@@ -42,6 +46,12 @@ typedef NumVec<bool>       BolNumVec;
 typedef NumVec<Int>        IntNumVec;
 typedef NumVec<Real>       DblNumVec;
 typedef NumVec<Complex>    CpxNumVec;
+
+
+// Utilities
+template <class F> inline void SetValue( NumVec<F>& vec, F val );
+template <class F> inline Real Energy( const NumVec<F>& vec );
+template <class F> inline void Sort( NumVec<F>& vec );
 
 } // namespace dgdft
 

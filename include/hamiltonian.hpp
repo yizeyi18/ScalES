@@ -16,13 +16,8 @@ namespace dgdft{
 // *********************************************************************
 // Base Hamiltonian class 
 // *********************************************************************
-//class Hamiltonian{
-//public:
-//	void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier* fftPtr)
-//	{
-//		psi.AddLaplacian(a3, fftPtr);
-//	}
-//};
+
+
 
 class Hamiltonian {
 protected:
@@ -41,8 +36,6 @@ protected:
 
 	// Pseudocharge to represent the local pseudopotential
   DblNumVec                   pseudoCharge_;
-	// Pseudocharge associated to each atom
-	std::vector<SparseVec>      pseudoChargeList_; 
 	// density_(:,1)    electron density
 	// density_(:,2-4)  magnetization along x,y,z directions
 	DblNumMat                   density_;         
@@ -59,10 +52,10 @@ protected:
 	DblNumVec                   vtot_; 
 	// the exchange-correlation energy density
 	DblNumVec                   epsxc_; 
-	// Nonlocal pseudopotential list
-	// First index: atom
-	// Second index: nonlocal pseudopotential
-	std::vector<std::vector<NonlocalPP> >    vnlDoubleList_;
+
+	// Pseudopotential for each atom
+	std::vector<PseudoPot>      pseudo_;
+
 	// Eigenvalues
 	DblNumVec                   eigVal_;
 	// Occupation rate
@@ -77,17 +70,14 @@ public:
 	virtual ~Hamiltonian() {}
 	Hamiltonian( 
 			const esdf::ESDFInputParam& esdfParam,
-			const Int                   numDensityComponent,
-		  const Int                   numSpin	);
+			const Int                   numDensityComponent );
 
 
 	// *********************************************************************
 	// Operations
 	// *********************************************************************
 
-	virtual void CalculatePseudoCharge( PeriodTable &ptable ) = 0;
-
-	virtual void CalculateNonlocalPP( PeriodTable &ptable ) = 0;
+	virtual void CalculatePseudoPotential( PeriodTable &ptable ) = 0;
 
 	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val ) = 0;
 
@@ -140,16 +130,13 @@ public:
 
 	KohnSham( 
 			const esdf::ESDFInputParam& esdfParam,
-      const Int                   numDensityComponent,
-		  const Int                   numSpin	);
+      const Int                   numDensityComponent );
 
 	// *********************************************************************
 	// Operations
 	// *********************************************************************
 
-	virtual void CalculatePseudoCharge( PeriodTable &ptable );
-
-	virtual void CalculateNonlocalPP( PeriodTable &ptable );
+	virtual void CalculatePseudoPotential( PeriodTable &ptable );
 
 	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val );
 
@@ -161,7 +148,6 @@ public:
 
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft);
-
 };
 
 

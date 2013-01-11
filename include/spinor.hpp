@@ -10,6 +10,18 @@
 
 namespace dgdft{
 
+/// @struct PseudoPot
+/// @brief The pseudocharge and nonlocal projectors for each atom. 
+///
+/// Each vector is on the global grid in the format of SparseVec.
+struct PseudoPot
+{
+	/// @brief Pseudocharge of an atom, defined on the uniform grid.
+  SparseVec                                    pseudoCharge; 
+	/// @brief Nonlocal projectors of an atom, defined on the LGL grid.
+	std::vector<std::pair<SparseVec, Real> >     vnlList;
+};
+
 class Spinor {
 private:
 	Domain            domain_;                // mesh should be used here for general cases 
@@ -64,7 +76,7 @@ public:
 //  int add_nonlocalPS (IntNumVec &active_ind, vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);
 
 	void AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr);
-	void AddNonlocalPP (const std::vector<std::vector<NonlocalPP> >& vnlDoubleList, NumTns<Scalar> &a3);
+	void AddNonlocalPP (const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3);
 
   // Spin related operations
 //  int add_sigma_x    (DblNumVec &a1, CpxNumTns &a3);

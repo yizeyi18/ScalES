@@ -2,6 +2,8 @@
 
 namespace dgdft{
 
+using namespace dgdft::PseudoComponent;
+using namespace dgdft::DensityComponent;
 
 // *********************************************************************
 // Hamiltonian class (base class)
@@ -9,8 +11,7 @@ namespace dgdft{
 
 Hamiltonian::Hamiltonian	( 
 			const esdf::ESDFInputParam& esdfParam,
-      const Int                   numDensityComponent, 
-			const Int                   numSpin )
+      const Int                   numDensityComponent )
 {
 #ifndef _RELEASE_
 	PushCallStack("Hamiltonian::Hamiltonian");
@@ -21,11 +22,7 @@ Hamiltonian::Hamiltonian	(
 	XCId_          = esdfParam.XCId;
 	numExtraState_ = esdfParam.numExtraState;
 
-	numSpin_       = numSpin;
-
-	if( numSpin_ != 1 && numSpin_ != 2 ){
-		throw std::logic_error( "numSpin = [ 1 | 2 ]." );
-	}
+	// NOTE: NumSpin variable will be determined in derivative classes.
 
   Int ntot = domain_.NumGridTotal();
 
@@ -69,9 +66,8 @@ KohnSham::~KohnSham() {
 KohnSham::
 	KohnSham( 
 			const esdf::ESDFInputParam& esdfParam,
-      const Int                   numDensityComponent,
-		  const Int                   numSpin	) : 
-		Hamiltonian( esdfParam , numDensityComponent, numSpin ) 
+      const Int                   numDensityComponent ) : 
+		Hamiltonian( esdfParam , numDensityComponent ) 
 {
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::KohnSham");
@@ -85,6 +81,9 @@ KohnSham::
 	if( numDensityComponent != 1 ){
 		throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
 	}
+
+	// Since the number of density components is always 1 here, set numSpin = 2.
+	numSpin_ = 2;
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -92,16 +91,16 @@ KohnSham::
 
 
 void
-KohnSham::CalculatePseudoCharge	( PeriodTable &ptable ){
+KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 #ifndef _RELEASE_
-	PushCallStack("KohnSham::CalculatePseudoCharge");
+	PushCallStack("KohnSham::CalculatePseudoPotential");
 #endif
 	Int ntot = domain_.NumGridTotal();
 	Int numAtom = atomList_.size();
-
 	Real vol = domain_.Volume();
 
-	SetValue( pseudoCharge_, 0.0 );
+	pseudo_.resize( numAtom );
+
   // calculate the number of occupied states
   Int nelec = 0;
   for (Int a=0; a<numAtom; a++) {
@@ -111,18 +110,18 @@ KohnSham::CalculatePseudoCharge	( PeriodTable &ptable ){
 		}
     nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
   }
-	// FIXME This is the spin-restricted calculation
 	if( nelec % 2 != 0 ){
 		throw std::runtime_error( "This is spin-restricted calculation. nelec should be even." );
 	}
 	numOccupiedState_ = nelec / numSpin_;
 
-  pseudoChargeList_.resize( numAtom );
+	// Compute pseudocharge
+	SetValue( pseudoCharge_, 0.0 );
   for (Int a=0; a<numAtom; a++) {
-    ptable.CalculatePseudoCharge( atomList_[a], domain_, pseudoChargeList_[a] );
-    //accumulate
-    IntNumVec &idx = pseudoChargeList_[a].first;
-    DblNumMat &val = pseudoChargeList_[a].second;
+    ptable.CalculatePseudoCharge( atomList_[a], domain_, pseudo_[a].pseudoCharge );
+    //accumulate to the global vector
+    IntNumVec &idx = pseudo_[a].pseudoCharge.first;
+    DblNumMat &val = pseudo_[a].pseudoCharge.second;
     for (Int k=0; k<idx.m(); k++) 
 			pseudoCharge_[idx(k)] += val(k, VAL);
   }
@@ -132,12 +131,32 @@ KohnSham::CalculatePseudoCharge	( PeriodTable &ptable ){
 		sumrho += pseudoCharge_[i]; 
   sumrho *= vol / Real(ntot);
 
-	Print( statusOFS, "Sum of Pseudocharge        = ", sumrho );
-	Print( statusOFS, "Number of Occupied States  = ", numOccupiedState_ );
+	Print( statusOFS, "Sum of Pseudocharge                          = ", 
+			sumrho );
+	Print( statusOFS, "Number of Occupied States                    = ", 
+			numOccupiedState_ );
   
   Real diff = ( numSpin_ * numOccupiedState_ - sumrho ) / vol;
   for (Int i=0; i<ntot; i++) 
 		pseudoCharge_(i) += diff; 
+
+	Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
+			numSpin_ * numOccupiedState_ );
+
+
+	// Nonlocal projectors
+	
+	std::vector<DblNumVec> gridpos;
+  UniformMesh ( domain_, gridpos );
+
+  Int cnt = 0; // the total number of PS used
+  for ( Int a=0; a < atomList_.size(); a++ ) {
+		ptable.CalculateNonlocalPP( atomList_[a], domain_, gridpos,
+				pseudo_[a].vnlList ); 
+		cnt = cnt + pseudo_[a].vnlList.size();
+  }
+
+	Print( statusOFS, "Total number of nonlocal pseudopotential = ",  cnt );
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -145,38 +164,6 @@ KohnSham::CalculatePseudoCharge	( PeriodTable &ptable ){
 
 	return ;
 } 		// -----  end of method KohnSham::CalculatePseudoCharge  ----- 
-
-
-
-
-void
-KohnSham::CalculateNonlocalPP	( PeriodTable &ptable )
-{
-#ifndef _RELEASE_
-	PushCallStack("KohnSham::CalculateNonlocalPP");
-#endif
-  vnlDoubleList_.resize( atomList_.size() );
-
-	std::vector<DblNumVec> gridpos;
-  UniformMesh ( domain_, gridpos );
-
-  Int cnt = 0; // the total number of PS used
-  for ( Int a=0; a < atomList_.size(); a++ ) {
-		ptable.CalculateNonlocalPP( atomList_[a], domain_, gridpos,
-				vnlDoubleList_[a]); 
-		cnt = cnt + vnlDoubleList_[a].size();
-  }
-
-	statusOFS << "Total number of nonlocal pseudopotential = " << 
-		cnt << std::endl;
-
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-
-	return ;
-} 		// -----  end of method KohnSham::CalculateNonlocalPP  ----- 
-
 
 
 
@@ -321,7 +308,7 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 	SetValue( a3, SCALAR_ZERO );
 	psi.AddScalarDiag( vtot_, a3 );
 	psi.AddLaplacian( a3, &fft );
-  psi.AddNonlocalPP( vnlDoubleList_, a3 );
+  psi.AddNonlocalPP( pseudo_, a3 );
 #ifndef _RELEASE_
 	PopCallStack();
 #endif

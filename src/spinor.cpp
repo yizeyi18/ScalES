@@ -2,6 +2,8 @@
 
 namespace dgdft{
 
+using namespace dgdft::PseudoComponent;
+
 Spinor::Spinor () { } 		
 
 Spinor::Spinor ( 
@@ -237,7 +239,7 @@ Spinor::AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr)
 
 
 void
-Spinor::AddNonlocalPP	(const std::vector<std::vector<NonlocalPP> >& vnlDoubleList, NumTns<Scalar> &a3)
+Spinor::AddNonlocalPP	(const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddNonlocalPP");
@@ -251,12 +253,12 @@ Spinor::AddNonlocalPP	(const std::vector<std::vector<NonlocalPP> >& vnlDoubleLis
 		for (Int j=0; j<ncom; j++) {
 			Scalar    *ptr0 = wavefun_.VecData(j,k);
 			Scalar    *ptr1 = a3.VecData(j,k);
-			Int natm = vnlDoubleList.size();
+			Int natm = pseudo.size();
 			for (Int iatm=0; iatm<natm; iatm++) {
-				Int nobt = vnlDoubleList[iatm].size();
+				Int nobt = pseudo[iatm].vnlList.size();
 				for (Int iobt=0; iobt<nobt; iobt++) {
-					const SparseVec &vnlvec = vnlDoubleList[iatm][iobt].first;
-					const Real       vnlwgt = vnlDoubleList[iatm][iobt].second;
+					const SparseVec &vnlvec = pseudo[iatm].vnlList[iobt].first;
+					const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
 					const IntNumVec &iv = vnlvec.first;
 					const DblNumMat &dv = vnlvec.second;
 

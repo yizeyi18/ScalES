@@ -94,10 +94,9 @@ int main(int argc, char **argv)
 		PrintBlock( statusOFS, "Preparing the Hamiltonian" );
 		Print( statusOFS, "Periodic table setup finished." );
 
-		KohnSham hamKS( esdfParam, 1, 2 );
+		KohnSham hamKS( esdfParam, 1 );
 
-		hamKS.CalculatePseudoCharge( ptable );
-		hamKS.CalculateNonlocalPP  ( ptable );
+		hamKS.CalculatePseudoPotential( ptable );
 
 		Print( statusOFS, "Pseudopotential setup finished." );
 

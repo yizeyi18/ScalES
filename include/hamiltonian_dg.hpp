@@ -29,7 +29,7 @@ struct ElemPrtn
 {
 	IntNumTns                 ownerInfo;
 
-	Int Owner(Index3 key) {
+	Int Owner (Index3 key) const {
 		return ownerInfo(key(0), key(1), key(2));
 	}
 };
@@ -42,12 +42,18 @@ struct AtomPrtn
 {
 	std::vector<Int> ownerInfo; 
 
-	Int Owner(Int key) {
+	Int Owner(Int key) const {
 		return ownerInfo[key];
 	}
 };
 
-struct PseudoPotential 
+/// @struct PseudoPotElem
+/// @brief The pseudocharge and nonlocal projectors for each atom. 
+///
+/// Each vector is defined element-by-element, in the format of
+/// SparseVec.
+/// 
+struct PseudoPotElem 
 {
 	/// @brief Pseudocharge of an atom, defined on the uniform grid.
   NumTns<SparseVec>                                    pseudoCharge; 
@@ -72,7 +78,7 @@ typedef DistVec<Index3, DblNumTns, ElemPrtn>   DistDblNumTns;
 
 typedef DistVec<Index3, CpxNumTns, ElemPrtn>   DistCpxNumTns;
 
-typedef DistVec<Int, PseudoPotential, AtomPrtn>  DistPseudoPotential;
+typedef DistVec<Int, PseudoPotElem, AtomPrtn>  DistPseudoPotElem;
 
 // *********************************************************************
 // Main class
@@ -115,6 +121,8 @@ private:
 
 	/// @brief List of atoms.
 	std::vector<Atom>           atomList_;
+	/// @brief Number of spin-degeneracy, can be 1 or 2.
+	Int                         numSpin_;
 	/// @brief Number of extra states for fractional occupation number.
 	Int                         numExtraState_;
 	/// @brief Number of occupied states.
@@ -187,7 +195,7 @@ private:
 
 	/// @brief Pseudopotential and nonlocal projectors associated with
 	/// each atom.
-	DistPseudoPotential  pseudo_;
+	DistPseudoPotElem  pseudo_;
 
 public:
 
@@ -248,6 +256,208 @@ public:
 
 };
 
+
+// *********************************************************************
+// Utility subroutines
+// *********************************************************************
+
+/// @brief Convert a DistNumVec structure to the row partitioned vector,
+/// which can be used for instance by DistFourier.
+template<typename F>
+void DistNumVecToDistRowVec(
+		const DistVec<Index3, NumVec<F>, ElemPrtn>&   distVec,
+		NumVec<F>&                                    distRowVec,
+		const Index3&                                 numGrid,
+		const Index3&                                 numElem,
+    Int                                           localNzStart,
+		Int                                           localNz,
+	  MPI_Comm                                      commDistVec,
+	  MPI_Comm                                      commDistRowVec )
+{
+#ifndef _RELEASE_
+	PushCallStack("DistNumVecToDistRowVec");
+#endif
+
+	Int mpirank, mpisize;
+	MPI_Comm_rank( commDistVec, &mpirank );
+	MPI_Comm_size( commDistVec, &mpisize );
+	
+  Index3  numGridElem;
+
+	for( Int d = 0; d < DIM; d++ ){
+		numGridElem[d] = numGrid[d] / numElem[d];
+	}
+
+	// Prepare distVecRecv
+
+	DistVec<Index3, NumVec<F>, ElemPrtn>  distVecRecv;
+	distVecRecv.Prtn() = distVec.Prtn();
+
+	for(typename std::map<Index3, NumVec<F> >::const_iterator 
+			mi = distVec.LocalMap().begin();
+			mi != distVec.LocalMap().end(); mi++ ){
+		Index3 key = (*mi).first;  
+		if( distVec.Prtn().Owner( key ) != mpirank ){
+			throw std::runtime_error( "DistNumVec owns a wrong key." );
+		}
+		distVecRecv.LocalMap()[key] = (*mi).second;
+	}
+
+
+	// Specify the elements of data to receive according to the index of
+	// the z-dimension. 
+	std::vector<Index3>  getKey;
+	if( commDistRowVec != MPI_COMM_NULL ){
+		for( Int k = 0; k < numElem[2]; k++ ){
+			if( k     * numGridElem[2] < localNzStart + localNz &&
+					(k+1) * numGridElem[2] > localNzStart ){
+				// The processor needs these elements
+				for( Int j = 0; j < numElem[1]; j++ ){
+					for( Int i = 0; i < numElem[0]; i++ ){
+						getKey.push_back( Index3(i,j,k) );
+					}
+				} // for (j)
+			}
+		} // for (k)
+	} // if (commDistRowVec)
+
+	// Data communication.
+	distVecRecv.GetBegin( getKey, NO_MASK );
+	distVecRecv.GetEnd( NO_MASK );
+
+	// Unpack the data locally into distRowVec
+	if( commDistRowVec != MPI_COMM_NULL ){
+		Int numGridLocal = numGrid[0] * numGrid[1] * localNz;
+		distRowVec.Resize( numGridLocal );
+		for(typename std::map<Index3, NumVec<F> >::const_iterator 
+				mi = distVecRecv.LocalMap().begin();
+				mi != distVecRecv.LocalMap().end(); mi++ ){
+			Index3 key = (*mi).first;  
+			const NumVec<F> & val = (*mi).second;
+			Int kStart = std::max( 0, localNzStart - key[2] * numGridElem[2] );
+			Int kEnd   = std::min( numGridElem[2], 
+					localNzStart + localNz - key[2] * numGridElem[2] );
+			for( Int k = kStart; k < kEnd; k++ )
+				for( Int j = 0; j < numGridElem[1]; j++ )
+					for( Int i = 0; i < numGridElem[0]; i++ ){
+						Index3 glbIdx( 
+								key[0] * numGridElem[0] + i,
+								key[1] * numGridElem[1] + j,
+								key[2] * numGridElem[2] + k - localNzStart );
+
+						distRowVec( glbIdx[0] + glbIdx[1] * numGrid[0] + glbIdx[2] *
+								numGrid[0] * numGrid[1] ) = 
+							val( i + j * numGridElem[0] + k * numGridElem[0] *
+									numGridElem[1] );
+					} // for (i)
+		}
+	} // if (commDistRowVec)
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+}  // -----  end of function DistNumVecToDistRowVec  ----- 
+
+
+/// @brief Convert a distributed row partitioned vector to a DistNumVec,
+/// which can be used for instance after DistFourier.
+template<typename F>
+void DistRowVecToDistNumVec(
+		const NumVec<F>&                              distRowVec,
+		DistVec<Index3, NumVec<F>, ElemPrtn>&         distVec,
+		const Index3&                                 numGrid,
+		const Index3&                                 numElem,
+    Int                                           localNzStart,
+		Int                                           localNz,
+	  MPI_Comm                                      commDistVec,
+	  MPI_Comm                                      commDistRowVec )
+{
+#ifndef _RELEASE_
+	PushCallStack("DistRowVecToDistNumVec");
+#endif
+
+	Int mpirank, mpisize;
+	MPI_Comm_rank( commDistVec, &mpirank );
+	MPI_Comm_size( commDistVec, &mpisize );
+	
+  Index3  numGridElem;
+
+	for( Int d = 0; d < DIM; d++ ){
+		numGridElem[d] = numGrid[d] / numElem[d];
+	}
+
+	// Collect the element indicies
+	std::vector<Index3> putKey;
+	if( commDistRowVec != MPI_COMM_NULL ){
+		for( Int k = 0; k < numElem[2]; k++ ){
+			if( k     * numGridElem[2] < localNzStart + localNz &&
+					(k+1) * numGridElem[2] > localNzStart ){
+				// The current processor contains these elements
+				for( Int j = 0; j < numElem[1]; j++ ){
+					for( Int i = 0; i < numElem[0]; i++ ){
+						putKey.push_back( Index3(i,j,k) );
+					}
+				} 
+			}
+		} // for (k)
+	} // if (commDistRowVec )
+
+	// Prepare the local data
+	for( std::vector<Index3>::iterator vi = putKey.begin();
+			 vi != putKey.end(); vi++ ){
+		Index3 key = (*vi);
+		typename std::map<Index3, NumVec<F> >::iterator mi = 
+			distVec.LocalMap().find(key);
+		if( mi == distVec.LocalMap().end() ){
+			NumVec<F> empty( numGridElem[0] * numGridElem[1] * numGridElem[2] );
+			SetValue( empty, (F)(0) ); 
+			distVec.LocalMap()[key] = empty;
+		}
+		NumVec<F>& val = distVec.LocalMap()[key];
+
+		Int kStart = std::max( 0, localNzStart - key[2] * numGridElem[2] );
+		Int kEnd   = std::min( numGridElem[2], 
+				localNzStart + localNz - key[2] * numGridElem[2] );
+
+		for( Int k = kStart; k < kEnd; k++ )
+			for( Int j = 0; j < numGridElem[1]; j++ )
+				for( Int i = 0; i < numGridElem[0]; i++ ){
+					Index3 glbIdx( 
+							key[0] * numGridElem[0] + i,
+							key[1] * numGridElem[1] + j,
+							key[2] * numGridElem[2] + k - localNzStart );
+
+					val( i + j * numGridElem[0] + k * numGridElem[0] *
+							 numGridElem[1] ) +=
+						distRowVec( glbIdx[0] + glbIdx[1] * numGrid[0] +
+								glbIdx[2] * numGrid[0] * numGrid[1] );
+				}
+	}
+
+
+	// Data communication.
+	distVec.PutBegin( putKey, NO_MASK );
+	distVec.PutEnd( NO_MASK, PutMode::COMBINE );
+
+	// Erase the elements distVec does not own
+	std::vector<Index3>  eraseKey;
+	for(typename std::map<Index3, NumVec<F> >::iterator
+			mi = distVec.LocalMap().begin();
+			mi != distVec.LocalMap().end(); mi++ ){
+		Index3 key = (*mi).first;
+		if( distVec.Prtn().Owner( key ) != mpirank ){
+			eraseKey.push_back( key );
+		}
+	}
+	for( std::vector<Index3>::iterator vi = eraseKey.begin();
+			 vi != eraseKey.end(); vi++ ){
+		distVec.LocalMap().erase( *vi );
+	}
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+}  // -----  end of function DistNumVecToDistRowVec  ----- 
 
 
 } // namespace dgdft

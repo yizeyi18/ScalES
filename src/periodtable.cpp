@@ -4,7 +4,7 @@
 /// @date 2012-08-10
 #include "periodtable.hpp"
 
-// TODO Add the error handling stack
+using namespace dgdft::PseudoComponent;
 
 namespace  dgdft{
 
@@ -205,6 +205,8 @@ PeriodTable::CalculatePseudoCharge	(
 	Real Rzero = ptentry.cutoffs(PTSample::PSEUDO_CHARGE); 
 
 	Index3 numElem( gridposElem.m(), gridposElem.n(), gridposElem.p() );
+
+	res.Resize( numElem[0], numElem[1], numElem[2] );
 
 	for( Int elemk = 0; elemk < numElem[2]; elemk++ )
 		for( Int elemj = 0; elemj < numElem[1]; elemj++ )

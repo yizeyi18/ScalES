@@ -25,6 +25,9 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
   
 	Int ntot = domain_.NumGridTotal();
 
+	// Only consider numSpin == 2 in the DG calculation.
+	numSpin_ = 2;
+
 	for( Int d = 0; d < DIM; d++ ){
 		if( domain_.numGrid[d] % numElem_[d] != 0 ){
 			throw std::runtime_error( 
@@ -69,6 +72,7 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 			}
 #endif
 
+	pseudoCharge_.Prtn()  = elemPrtn_;
 	density_.Prtn()       = elemPrtn_;
 	vext_.Prtn()          = elemPrtn_;
 	vhart_.Prtn()         = elemPrtn_;
@@ -200,7 +204,8 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 	if( nelec % 2 != 0 ){
 		throw std::runtime_error( "This is a spin-restricted calculation. nelec should be even." );
 	}
-	numOccupiedState_ = nelec / 2;
+	
+	numOccupiedState_ = nelec / numSpin_;
 
 	Print( statusOFS, "Number of Occupied States                    = ", numOccupiedState_ );
 
@@ -213,7 +218,7 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 
   for (Int a=0; a<numAtom; a++) {
 		if( pseudo_.Prtn().Owner(a) == mpirank ){
-			PseudoPotential pp;
+			PseudoPotElem pp;
 			// Pseudocharge
 			ptable.CalculatePseudoCharge( atomList_[a], domain_, uniformGridElem_, pp.pseudoCharge );
 			// Nonlocal pseudopotential
@@ -222,6 +227,10 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 			pseudo_.LocalMap()[a] = pp;
 		}
   }
+
+#if ( _DEBUGlevel_ >= 1 )
+	statusOFS << std::endl << "Atomic pseudocharge computed." << std::endl;
+#endif
 
 	// Assembly the pseudocharge 
 
@@ -248,12 +257,16 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 							}
 							DblNumVec& vec = pseudoCharge_.LocalMap()[key];
 							for( Int l = 0; l < idx.m(); l++ ){
-								vec[idx(l)] += val(l, VAL);
+								vec[idx(l)] += val(l, PseudoComponent::VAL);
 							}
 						}
 					} // for (i)
 		}
 	} // for (a)
+
+#if ( _DEBUGlevel_ >= 1 )
+	statusOFS << std::endl << "Assembly of pseudocharge: first step passed." << std::endl;
+#endif
 
 	// Second step: communication of the pseudoCharge among all processors
 	{
@@ -268,6 +281,10 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 		pseudoCharge_.PutBegin( putKey, NO_MASK );
 		pseudoCharge_.PutEnd( NO_MASK, PutMode::COMBINE );
 	}
+
+#if ( _DEBUGlevel_ >= 1 )
+	statusOFS << std::endl << "Assembly of pseudocharge: second step passed." << std::endl;
+#endif
 
 	// Third step: erase the vectors the current processor does not own
 	{
@@ -284,6 +301,10 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 			pseudoCharge_.LocalMap().erase( *vi );
 		}
 	}
+
+#if ( _DEBUGlevel_ >= 1 )
+	statusOFS << std::endl << "Assembly of pseudocharge: third step passed." << std::endl;
+#endif
 
 	// Compute the sum of pseudocharge
 	{
@@ -305,23 +326,18 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 		Print( statusOFS, "Sum of Pseudocharge                          = ", sumRho );
 		
 		// Make adjustments to the pseudocharge
-		Real diff = ( numOccupiedState_ - sumRho ) / domain_.Volume();
+		Real diff = ( numSpin_ * numOccupiedState_ - sumRho ) / domain_.Volume();
 		
-		localSum = 0.0; 
-		sumRho = 0.0;
 		for( std::map<Index3, DblNumVec>::iterator mi = pseudoCharge_.LocalMap().begin();
 				mi != pseudoCharge_.LocalMap().end(); mi++ ){
 			DblNumVec& vec = (*mi).second;
 			for( Int i = 0; i < vec.m(); i++ ){
 				vec[i] += diff;
-				localSum += vec[i];
 			}
-			localSum *= domain_.Volume() / domain_.NumGridTotal();
 		}
 	
-		mpi::Allreduce( &localSum, &sumRho, 1, MPI_SUM, domain_.comm );
-
-		Print( statusOFS, "After adjustment, sum of Pseudocharge        = ", sumRho );
+		Print( statusOFS, "After adjustment, sum of Pseudocharge        = ", 
+				numSpin_ * numOccupiedState_);
 	}
 
 
@@ -375,5 +391,6 @@ void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
 #endif
 	return; 
 }  // -----  end of method HamiltonianDG::CalculateHartree ----- 
+
 
 } // namespace dgdft

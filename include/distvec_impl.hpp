@@ -37,6 +37,9 @@ Data& DistVec<Key,Data,Partition>::Access(Key key)
 template <class Key, class Data, class Partition>
 Int DistVec<Key,Data,Partition>::GetBegin( Int (*e2ps)(Key,Data&,std::vector<Int>&), const std::vector<Int>& mask )
 {
+#ifndef _RELEASE_
+	PushCallStack("DistVec::GetBegin");
+#endif
 	Int mpirank = this->mpirank();
 	Int mpisize = this->mpisize();
 	//---------
@@ -98,6 +101,9 @@ Int DistVec<Key,Data,Partition>::GetBegin( Int (*e2ps)(Key,Data&,std::vector<Int
 		iC( MPI_Isend( (void*)&(sbufvec_[k][0]), sszvec[k], MPI_BYTE, k, 0, comm_, &reqs_[2*k+1] ) );
 	}
 	iC( MPI_Barrier(comm_) );
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
 	return 0;
 }
 
@@ -105,6 +111,9 @@ Int DistVec<Key,Data,Partition>::GetBegin( Int (*e2ps)(Key,Data&,std::vector<Int
 template <class Key, class Data, class Partition>
 Int DistVec<Key,Data,Partition>::GetBegin(std::vector<Key>& keyvec, const std::vector<Int>& mask)
 {
+#ifndef _RELEASE_
+	PushCallStack("DistVec::GetBegin");
+#endif
 	time_t t0(0), t1(0);
 
 	t0 = time(0);
@@ -198,6 +207,9 @@ Int DistVec<Key,Data,Partition>::GetBegin(std::vector<Key>& keyvec, const std::v
 		iC( MPI_Isend( (void*)&(sbufvec_[k][0]), sszvec[k], MPI_BYTE, k, 0, comm_, &reqs_[2*k+1] ) );
 	}
 	iC( MPI_Barrier(comm_) );
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
 	return 0;
 }
 
@@ -205,6 +217,9 @@ Int DistVec<Key,Data,Partition>::GetBegin(std::vector<Key>& keyvec, const std::v
 template <class Key, class Data, class Partition>
 Int DistVec<Key,Data,Partition>::GetEnd( const std::vector<Int>& mask )
 {
+#ifndef _RELEASE_
+	PushCallStack("DistVec::GetEnd");
+#endif
 	time_t t0(0), t1(0);
 
 	t0 = time(0);
@@ -246,6 +261,9 @@ Int DistVec<Key,Data,Partition>::GetEnd( const std::vector<Int>& mask )
 	t1 = time(0);
 
 	iC( MPI_Barrier(comm_) );
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
 	return 0;
 }
 
@@ -253,6 +271,9 @@ Int DistVec<Key,Data,Partition>::GetEnd( const std::vector<Int>& mask )
 template <class Key, class Data, class Partition>
 Int DistVec<Key,Data,Partition>::PutBegin(std::vector<Key>& keyvec, const std::vector<Int>& mask)
 {
+#ifndef _RELEASE_
+	PushCallStack("DistVec::PutBegin");
+#endif
 	Int mpirank = this->mpirank();
 	Int mpisize = this->mpisize();
 	//---------
@@ -310,6 +331,9 @@ Int DistVec<Key,Data,Partition>::PutBegin(std::vector<Key>& keyvec, const std::v
 		iC( MPI_Isend( (void*)&(sbufvec_[k][0]), sszvec[k], MPI_BYTE, k, 0, comm_, &reqs_[2*k+1] ) );
 	}
 	iC( MPI_Barrier(comm_) );
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
 	return 0;
 }
 
@@ -317,6 +341,9 @@ Int DistVec<Key,Data,Partition>::PutBegin(std::vector<Key>& keyvec, const std::v
 template <class Key, class Data, class Partition>
 Int DistVec<Key,Data,Partition>::PutEnd( const std::vector<Int>& mask, Int putmode )
 {
+#ifndef _RELEASE_
+	PushCallStack("DistVec::PutEnd");
+#endif
 	Int mpirank = this->mpirank();
 	Int mpisize = this->mpisize();
 
@@ -353,6 +380,9 @@ Int DistVec<Key,Data,Partition>::PutEnd( const std::vector<Int>& mask, Int putmo
 	}
 	for(Int k=0; k<mpisize; k++) {	delete issvec[k];	issvec[k] = NULL;  }
 	iC( MPI_Barrier(comm_) );
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
 	return 0;
 }
 

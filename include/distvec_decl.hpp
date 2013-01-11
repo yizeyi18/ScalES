@@ -42,8 +42,10 @@ public:
 	DistVec( MPI_Comm comm = MPI_COMM_WORLD ) : comm_(comm) {;}
 	~DistVec() {;}
 	//
-	std::map<Key,Data>& LocalMap() { return lclmap_; }
-	Partition& Prtn()              { return prtn_; }
+	std::map<Key,Data>& LocalMap()             { return lclmap_; }
+	const std::map<Key,Data>& LocalMap() const { return lclmap_; }
+	Partition& Prtn()                          { return prtn_; }
+	const Partition& Prtn() const              { return prtn_; }
 	//
 	Int Insert(Key, Data&);
 	Data& Access(Key);
