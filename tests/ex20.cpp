@@ -37,6 +37,9 @@ int main(int argc, char **argv)
 #ifdef  _RELEASE_
 		throw std::runtime_error("Test should be run under debug mode");
 #endif
+		if( mpisize <= 1 ){
+			throw std::runtime_error("At least 2 processors should be used.");
+		}
 		
 		fftw_mpi_init();
 
@@ -45,19 +48,24 @@ int main(int argc, char **argv)
 		dm.numGrid = Index3( 32, 32, 32 );
 
 		DistFourier fft;
-		fft.Initialize( dm );
+		Int numProc = mpisize-1;
+		
+		if( mpirank == 0 ){
+			cout << mpisize << " processors used in total. Rank 0 -- " << 
+				numProc-1 << " are actually used for computation." << endl;
+		}
+
+		fft.Initialize( dm, numProc );
 		Point3 gridSize;
 		for(Int i = 0; i < 3; i++){
 			gridSize[i] = dm.length[i] / dm.numGrid[i];
 		}
 
-		CpxNumVec& in  = fft.inputComplexVecLocal;
-		CpxNumVec& out = fft.outputComplexVecLocal;
 		Int Nx = dm.numGrid[0], Ny = dm.numGrid[1], Nz = dm.numGrid[2];
 		Index3&    numGrid = dm.numGrid;
 
 		DblNumVec  rho(fft.numGridTotal), vhart( fft.numGridTotal );
-		
+
 		Real x, y, z;
 		Real sigma = 0.2;
 		for( Int k = 0; k < Nz; k++ ){
@@ -71,59 +79,64 @@ int main(int argc, char **argv)
 			}
 		}
 
-		for( Int k = 0; k < fft.localNz; k++ ){
-			for(Int j = 0; j < Ny; j++ ){
-				for(Int i = 0; i < Nx; i++ ){
-					in(i + j*Nx + k * Nx * Ny) = 
-						Complex( rho(i + j*Nx + (k+fft.localNzStart) * Nx * Ny), 0.0 );
+		cerr << "mpirank = " << mpirank << ", isInGrid = " << fft.isInGrid << endl;
+
+		if( fft.isInGrid ){
+			CpxNumVec& in  = fft.inputComplexVecLocal;
+			CpxNumVec& out = fft.outputComplexVecLocal;
+
+			for( Int k = 0; k < fft.localNz; k++ ){
+				for(Int j = 0; j < Ny; j++ ){
+					for(Int i = 0; i < Nx; i++ ){
+						in(i + j*Nx + k * Nx * Ny) = 
+							Complex( rho(i + j*Nx + (k+fft.localNzStart) * Nx * Ny), 0.0 );
+					}
 				}
 			}
-		}
 
-		fftw_execute( fft.forwardPlan );
+			fftw_execute( fft.forwardPlan );
 
-		for(Int i = 0; i < fft.numGridLocal; i++){
-			if( fft.gkkLocal(i) == 0 ){
-				out(i) = Z_ZERO;
-			}
-			else{
-				// NOTE: gkk already contains the factor 1/2.
-				out(i) *= 2.0 * PI / fft.gkkLocal(i);
-			}
-		}
-
-		fftw_execute( fft.backwardPlan );
-
-		DblNumVec  vhartLocal( fft.numGridTotal );
-		SetValue( vhartLocal, 0.0 );
-
-		for( Int i = 0; i < fft.numGridLocal; i++ ){
-			
-			in(i) /= fft.numGridTotal;
-		}
-
-		for( Int k = 0; k < fft.localNz; k++ ){
-			for(Int j = 0; j < Ny; j++ ){
-				for(Int i = 0; i < Nx; i++ ){
-					vhartLocal(i + j*Nx + (k+fft.localNzStart) * Nx * Ny) = 
-						in(i + j*Nx + k * Nx * Ny).real();
+			for(Int i = 0; i < fft.numGridLocal; i++){
+				if( fft.gkkLocal(i) == 0 ){
+					out(i) = Z_ZERO;
+				}
+				else{
+					// NOTE: gkk already contains the factor 1/2.
+					out(i) *= 2.0 * PI / fft.gkkLocal(i);
 				}
 			}
-		}
 
-		mpi::Reduce( vhartLocal.Data(), vhart.Data(), fft.numGridTotal,
-				MPI_SUM, 0, MPI_COMM_WORLD );
+			fftw_execute( fft.backwardPlan );
 
-		if( mpirank == 0 ){
-			ofstream ofs("vhart");
-			if( !ofs.good() ){
-				throw std::runtime_error( "Cannot open file." );
+			DblNumVec  vhartLocal( fft.numGridTotal );
+			SetValue( vhartLocal, 0.0 );
+
+			for( Int i = 0; i < fft.numGridLocal; i++ ){
+				in(i) /= fft.numGridTotal;
 			}
-			serialize( vhart, ofs, NO_MASK );
-			ofs.close();
-			cout << "Finished. Output to file vhart." << endl;
-		}
 
+			for( Int k = 0; k < fft.localNz; k++ ){
+				for(Int j = 0; j < Ny; j++ ){
+					for(Int i = 0; i < Nx; i++ ){
+						vhartLocal(i + j*Nx + (k+fft.localNzStart) * Nx * Ny) = 
+							in(i + j*Nx + k * Nx * Ny).real();
+					}
+				}
+			}
+
+			mpi::Reduce( vhartLocal.Data(), vhart.Data(), fft.numGridTotal,
+					MPI_SUM, 0, fft.comm );
+
+			if( mpirank == 0 ){
+				ofstream ofs("vhart");
+				if( !ofs.good() ){
+					throw std::runtime_error( "Cannot open file." );
+				}
+				serialize( vhart, ofs, NO_MASK );
+				ofs.close();
+				cout << "Finished. Output to file vhart." << endl;
+			}
+		} // if (fft.isInGrid)
 
 		
 		fftw_mpi_cleanup();

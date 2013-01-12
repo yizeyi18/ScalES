@@ -121,19 +121,21 @@ DistFourier::DistFourier () :
 	localNz(0),
 	localNzStart(0),
 	numAllocLocal(0),
-	plannerFlag(FFTW_MEASURE)
-{
-	backwardPlan  = NULL;
-	forwardPlan   = NULL;
-}
+	isInGrid(false),
+	plannerFlag(FFTW_MEASURE),
+	comm(MPI_COMM_NULL),
+	forwardPlan(NULL),
+	backwardPlan(NULL)
+{ }
 
 DistFourier::~DistFourier () 
 {
 	if( backwardPlan ) fftw_destroy_plan( backwardPlan );
 	if( forwardPlan  ) fftw_destroy_plan( forwardPlan );
+	if( comm != MPI_COMM_NULL ) MPI_Comm_free( & comm );
 }
 
-void DistFourier::Initialize ( const Domain& dm )
+void DistFourier::Initialize ( const Domain& dm, Int numProc )
 {
 #ifndef _RELEASE_
 	PushCallStack("DistFourier::Initialize");
@@ -146,100 +148,124 @@ void DistFourier::Initialize ( const Domain& dm )
 	Index3& numGrid = domain.numGrid;
 	Point3& length  = domain.length;
 
-	Int mpirank, mpisize;
-	MPI_Comm_rank( dm.comm, &mpirank );
-	MPI_Comm_size( dm.comm, &mpisize );
-
-	if( numGrid[2] < mpisize ){
-		std::ostringstream msg;
-		msg << "numGrid[2] > mpisize. FFTW initialization failed. "  << std::endl
-			<< "numGrid ~ " << numGrid << std::endl
-			<< "mpisize = " << mpisize << std::endl;
-		throw std::runtime_error( msg.str().c_str() );
-	}
-
-	// IMPORTANT: the order of numGrid. This is because the FFTW arrays
-	// are row-major ordered.
-	numAllocLocal =  fftw_mpi_local_size_3d(
-			numGrid[2], numGrid[1], numGrid[0], dm.comm, 
-			&localNz, &localNzStart );
-
-	numGridLocal = numGrid[0] * numGrid[1] * localNz;
-
 	numGridTotal = domain.NumGridTotal();
 
-#if ( _DEBUGlevel_ >= 0 )
-	statusOFS << "localNz        = " << localNz << std::endl;
-	statusOFS << "localNzStart   = " << localNzStart << std::endl;
-	statusOFS << "numAllocLocal  = " << numAllocLocal << std::endl;
-	statusOFS << "numGridLocal   = " << numGridLocal << std::endl;
-	statusOFS << "numGridTotal   = " << numGridTotal << std::endl;
-#endif
-	
-	inputComplexVecLocal.Resize( numAllocLocal );
-	outputComplexVecLocal.Resize( numAllocLocal );
-
-	// IMPORTANT: the order of numGrid. This is because the FFTW arrays
-	// are row-major ordered.
-	forwardPlan = fftw_mpi_plan_dft_3d( 
-			numGrid[2], numGrid[1], numGrid[0], 
-			reinterpret_cast<fftw_complex*>( &inputComplexVecLocal[0] ), 
-			reinterpret_cast<fftw_complex*>( &outputComplexVecLocal[0] ),
-			dm.comm, FFTW_FORWARD, plannerFlag );
-
-
-	backwardPlan = fftw_mpi_plan_dft_3d(
-			numGrid[2], numGrid[1], numGrid[0],
-			reinterpret_cast<fftw_complex*>( &outputComplexVecLocal[0] ),
-			reinterpret_cast<fftw_complex*>( &inputComplexVecLocal[0] ),
-			dm.comm, FFTW_BACKWARD, plannerFlag);
-
-	std::vector<DblNumVec>  KGrid(DIM);                // Fourier grid
-	for( Int idim = 0; idim < DIM; idim++ ){
-		KGrid[idim].Resize( numGrid[idim] );
-		for( Int i = 0; i <= numGrid[idim] / 2; i++ ){
-			KGrid[idim](i) = i * 2.0 * PI / length[idim];
+	// Create the new communicator
+	{
+		Int mpirankDomain, mpisizeDomain;
+		MPI_Comm_rank( dm.comm, &mpirankDomain );
+		MPI_Comm_size( dm.comm, &mpisizeDomain );
+		if( numProc > mpisizeDomain ){
+			std::ostringstream msg;
+			msg << "numProc cannot exceed mpisize."  << std::endl
+				<< "numProc ~ " << numProc << std::endl
+				<< "mpisize = " << mpisizeDomain << std::endl;
+			throw std::runtime_error( msg.str().c_str() );
 		}
-		for( Int i = numGrid[idim] / 2 + 1; i < numGrid[idim]; i++ ){
-			KGrid[idim](i) = ( i - numGrid[idim] ) * 2.0 * PI / length[idim];
-		}
+		if( mpirankDomain < numProc )
+			isInGrid = true;
+		else
+			isInGrid = false;
+
+		MPI_Comm_split( dm.comm, isInGrid, mpirankDomain, &comm );
 	}
 
-	gkkLocal.Resize( numGridLocal );
-	TeterPrecondLocal.Resize( numGridLocal );
-	ikLocal.resize(DIM);
-	ikLocal[0].Resize( numGridLocal );
-	ikLocal[1].Resize( numGridLocal );
-	ikLocal[2].Resize( numGridLocal );
+	if( isInGrid ){
+	
+		// Rank and size of the processor group participating in FFT calculation.
+		Int mpirank, mpisize;
+		MPI_Comm_rank( comm, &mpirank );
+		MPI_Comm_size( comm, &mpisize );
 
-	Real*     gkkPtr = gkkLocal.Data();
-	Complex*  ikXPtr = ikLocal[0].Data();
-	Complex*  ikYPtr = ikLocal[1].Data();
-	Complex*  ikZPtr = ikLocal[2].Data();
+		if( numGrid[2] < mpisize ){
+			std::ostringstream msg;
+			msg << "numGrid[2] > mpisize. FFTW initialization failed. "  << std::endl
+				<< "numGrid ~ " << numGrid << std::endl
+				<< "mpisize = " << mpisize << std::endl;
+			throw std::runtime_error( msg.str().c_str() );
+		}
 
-	for( Int k = localNzStart; k < localNzStart + localNz; k++ ){
-		for( Int j = 0; j < numGrid[1]; j++ ){
-			for( Int i = 0; i < numGrid[0]; i++ ){
-				*(gkkPtr++) = 
-					( KGrid[0](i) * KGrid[0](i) +
-						KGrid[1](j) * KGrid[1](j) +
-						KGrid[2](k) * KGrid[2](k) ) / 2.0;
+		// IMPORTANT: the order of numGrid. This is because the FFTW arrays
+		// are row-major ordered.
+		numAllocLocal =  fftw_mpi_local_size_3d(
+				numGrid[2], numGrid[1], numGrid[0], comm, 
+				&localNz, &localNzStart );
 
-				*(ikXPtr++) = Complex( 0.0, KGrid[0](i) );
-				*(ikYPtr++) = Complex( 0.0, KGrid[1](j) );
-				*(ikZPtr++) = Complex( 0.0, KGrid[2](k) );
+		numGridLocal = numGrid[0] * numGrid[1] * localNz;
 
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "localNz        = " << localNz << std::endl;
+		statusOFS << "localNzStart   = " << localNzStart << std::endl;
+		statusOFS << "numAllocLocal  = " << numAllocLocal << std::endl;
+		statusOFS << "numGridLocal   = " << numGridLocal << std::endl;
+		statusOFS << "numGridTotal   = " << numGridTotal << std::endl;
+#endif
+
+		inputComplexVecLocal.Resize( numAllocLocal );
+		outputComplexVecLocal.Resize( numAllocLocal );
+
+		// IMPORTANT: the order of numGrid. This is because the FFTW arrays
+		// are row-major ordered.
+		forwardPlan = fftw_mpi_plan_dft_3d( 
+				numGrid[2], numGrid[1], numGrid[0], 
+				reinterpret_cast<fftw_complex*>( &inputComplexVecLocal[0] ), 
+				reinterpret_cast<fftw_complex*>( &outputComplexVecLocal[0] ),
+				comm, FFTW_FORWARD, plannerFlag );
+
+
+		backwardPlan = fftw_mpi_plan_dft_3d(
+				numGrid[2], numGrid[1], numGrid[0],
+				reinterpret_cast<fftw_complex*>( &outputComplexVecLocal[0] ),
+				reinterpret_cast<fftw_complex*>( &inputComplexVecLocal[0] ),
+				comm, FFTW_BACKWARD, plannerFlag);
+
+		std::vector<DblNumVec>  KGrid(DIM);                // Fourier grid
+		for( Int idim = 0; idim < DIM; idim++ ){
+			KGrid[idim].Resize( numGrid[idim] );
+			for( Int i = 0; i <= numGrid[idim] / 2; i++ ){
+				KGrid[idim](i) = i * 2.0 * PI / length[idim];
+			}
+			for( Int i = numGrid[idim] / 2 + 1; i < numGrid[idim]; i++ ){
+				KGrid[idim](i) = ( i - numGrid[idim] ) * 2.0 * PI / length[idim];
 			}
 		}
-	}
 
-	// TeterPreconditioner
-	Real  a, b;
-	for( Int i = 0; i < numGridLocal; i++ ){
-		a = gkkLocal[i] * 2.0;
-		b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
-		TeterPrecondLocal[i] = b / ( b + 16.0 * pow(a, 4.0) );
-	}
+		gkkLocal.Resize( numGridLocal );
+		TeterPrecondLocal.Resize( numGridLocal );
+		ikLocal.resize(DIM);
+		ikLocal[0].Resize( numGridLocal );
+		ikLocal[1].Resize( numGridLocal );
+		ikLocal[2].Resize( numGridLocal );
+
+		Real*     gkkPtr = gkkLocal.Data();
+		Complex*  ikXPtr = ikLocal[0].Data();
+		Complex*  ikYPtr = ikLocal[1].Data();
+		Complex*  ikZPtr = ikLocal[2].Data();
+
+		for( Int k = localNzStart; k < localNzStart + localNz; k++ ){
+			for( Int j = 0; j < numGrid[1]; j++ ){
+				for( Int i = 0; i < numGrid[0]; i++ ){
+					*(gkkPtr++) = 
+						( KGrid[0](i) * KGrid[0](i) +
+							KGrid[1](j) * KGrid[1](j) +
+							KGrid[2](k) * KGrid[2](k) ) / 2.0;
+
+					*(ikXPtr++) = Complex( 0.0, KGrid[0](i) );
+					*(ikYPtr++) = Complex( 0.0, KGrid[1](j) );
+					*(ikZPtr++) = Complex( 0.0, KGrid[2](k) );
+
+				}
+			}
+		}
+
+		// TeterPreconditioner
+		Real  a, b;
+		for( Int i = 0; i < numGridLocal; i++ ){
+			a = gkkLocal[i] * 2.0;
+			b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
+			TeterPrecondLocal[i] = b / ( b + 16.0 * pow(a, 4.0) );
+		}
+	} // if (isInGrid)
 
 	isInitialized = true;
 

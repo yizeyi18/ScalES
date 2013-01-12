@@ -8,7 +8,6 @@
 #include  "spinor.hpp"
 #include  "utility.hpp"
 #include  "esdf.hpp"
-#include  "blas.hpp"
 #include  <xc.h>
 
 namespace dgdft{

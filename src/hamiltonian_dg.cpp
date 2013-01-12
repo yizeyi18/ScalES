@@ -1,5 +1,6 @@
 #include  "hamiltonian_dg.hpp"
 #include  "mpi_interf.hpp"
+#include  "blas.hpp"
 
 namespace dgdft{
 
@@ -14,6 +15,10 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::HamiltonianDG");
 #endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
 	domain_            = esdfParam.domain;
 	atomList_          = esdfParam.atomList;
 	pseudoType_        = esdfParam.pseudoType;
@@ -56,6 +61,18 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	IntNumTns& elemPrtnInfo = elemPrtn_.ownerInfo;
 	elemPrtnInfo.Resize( numElem_[0], numElem_[1], numElem_[2] );
 
+	// FIXME Assign one element to one processor. (Hopefully) this is the
+	// only place where such assumption is made explicitly, and the rest
+	// of the code should be adapted to the general partition plan: 
+	// both the case of one processor owns more than one element, and also
+	// several processors own the same element.
+
+	if( mpisize != numElem_.prod() ){
+			std::ostringstream msg;
+			msg << "The number of processors is not equal to the total number of elements." << std::endl;
+			throw std::runtime_error( msg.str().c_str() );
+	}
+
 	Int cnt = 0;
 	for( Int k=0; k< numElem_[2]; k++ )
 		for( Int j=0; j< numElem_[1]; j++ )
@@ -72,6 +89,7 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 			}
 #endif
 
+	// Initialize the DistNumVecs.
 	pseudoCharge_.Prtn()  = elemPrtn_;
 	density_.Prtn()       = elemPrtn_;
 	vext_.Prtn()          = elemPrtn_;
@@ -79,6 +97,25 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	vxc_.Prtn()           = elemPrtn_;
 	epsxc_.Prtn()         = elemPrtn_;
 	vtot_.Prtn()          = elemPrtn_;
+
+	for( Int k=0; k< numElem_[2]; k++ )
+		for( Int j=0; j< numElem_[1]; j++ )
+			for( Int i=0; i< numElem_[0]; i++ ) {
+				Index3 key = Index3(i,j,k);
+				if( elemPrtn_.Owner(key) == mpirank ){
+					DblNumVec  empty( numUniformGridElem_.prod() );
+					SetValue( empty, 0.0 );
+					density_.LocalMap()[key]     = empty;
+					vext_.LocalMap()[key]        = empty;
+					vhart_.LocalMap()[key]       = empty;
+					vxc_.LocalMap()[key]         = empty;
+					epsxc_.LocalMap()[key]       = empty;
+					vtot_.LocalMap()[key]        = empty;
+				}
+			}
+  
+
+
 	vtotLGL_.Prtn()       = elemPrtn_;
 	basisLGL_.Prtn()      = elemPrtn_;
 
@@ -247,11 +284,7 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 							Index3 key( i, j, k );
 							if( pseudoCharge_.LocalMap().find(key) == pseudoCharge_.LocalMap().end() ){
 								// Start a new element
-								Int numTotal = 
-									numUniformGridElem_[0] *
-									numUniformGridElem_[1] * 
-									numUniformGridElem_[2];
-								DblNumVec empty( numTotal );
+								DblNumVec empty( numUniformGridElem_.prod() );
 							  SetValue( empty, 0.0 );
 								pseudoCharge_.LocalMap()[key] = empty;
 							}
@@ -324,6 +357,8 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 		mpi::Allreduce( &localSum, &sumRho, 1, MPI_SUM, domain_.comm );
 
 		Print( statusOFS, "Sum of Pseudocharge                          = ", sumRho );
+		Print( statusOFS, "numOccupiedState                             = ", 
+				numOccupiedState_ );
 		
 		// Make adjustments to the pseudocharge
 		Real diff = ( numSpin_ * numOccupiedState_ - sumRho ) / domain_.Volume();
@@ -337,7 +372,7 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 		}
 	
 		Print( statusOFS, "After adjustment, sum of Pseudocharge        = ", 
-				numSpin_ * numOccupiedState_);
+				(Real) numSpin_ * numOccupiedState_ );
 	}
 
 
@@ -356,35 +391,84 @@ void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
 	if( !fft.isInitialized ){
 		throw std::runtime_error("Fourier is not prepared.");
 	}
- 	
+ 
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
   Int ntot      = fft.numGridTotal;
 	Int ntotLocal = fft.numGridLocal;
 
-	// TODO Convert density to densityLocal;
+	DistDblNumVec   tempVec;
+	tempVec.Prtn() = elemPrtn_;
+
+	// tempVec = density_ - pseudoCharge_
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key = Index3( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					tempVec.LocalMap()[key] = density_.LocalMap()[key];
+					blas::Axpy( numUniformGridElem_.prod(), -1.0, 
+							pseudoCharge_.LocalMap()[key].Data(), 1,
+							tempVec.LocalMap()[key].Data(), 1 );
+				}
+			}
+
+	// Convert tempVec to tempVecLocal in distributed row vector format
+	DblNumVec  tempVecLocal;
+
+  DistNumVecToDistRowVec(
+			tempVec,
+			tempVecLocal,
+			domain_.numGrid,
+			numElem_,
+			fft.localNzStart,
+			fft.localNz,
+			fft.isInGrid,
+			domain_.comm );
 
 	// The contribution of the pseudoCharge is subtracted. So the Poisson
 	// equation is well defined for neutral system.
+	// Only part of the processors participate in the FFTW calculation
 
-	for( Int i = 0; i < ntotLocal; i++ ){
-		fft.inputComplexVecLocal(i) = Complex( 
-				densityLocal_(i) - pseudoChargeLocal_(i), 0.0 );
-	}
-	fftw_execute( fft.forwardPlan );
+	if( fft.comm != MPI_COMM_NULL ){
 
-	for( Int i = 0; i < ntotLocal; i++ ){
-		if( fft.gkkLocal(i) == 0 ){
-			fft.outputComplexVecLocal(i) = Z_ZERO;
+		for( Int i = 0; i < ntotLocal; i++ ){
+			fft.inputComplexVecLocal(i) = Complex( 
+					tempVecLocal(i), 0.0 );
 		}
-		else{
-			// NOTE: gkk already contains the factor 1/2.
-			fft.outputComplexVecLocal(i) *= 2.0 * PI / fft.gkkLocal(i);
-		}
-	}
-	fftw_execute( fft.backwardPlan );
+		fftw_execute( fft.forwardPlan );
 
-	for( Int i = 0; i < ntotLocal; i++ ){
-		vhartLocal_(i) = fft.inputComplexVecLocal(i).real() / ntot;
-	}
+		for( Int i = 0; i < ntotLocal; i++ ){
+			if( fft.gkkLocal(i) == 0 ){
+				fft.outputComplexVecLocal(i) = Z_ZERO;
+			}
+			else{
+				// NOTE: gkk already contains the factor 1/2.
+				fft.outputComplexVecLocal(i) *= 2.0 * PI / fft.gkkLocal(i);
+			}
+		}
+		fftw_execute( fft.backwardPlan );
+
+		// tempVecLocal saves the Hartree potential
+
+		for( Int i = 0; i < ntotLocal; i++ ){
+			tempVecLocal(i) = fft.inputComplexVecLocal(i).real() / ntot;
+		}
+	} // if (fft.comm)
+
+	// Convert tempVecLocal to vhart_ in the DistNumVec format
+  DistRowVecToDistNumVec(
+			tempVecLocal,
+			vhart_,
+			domain_.numGrid,
+			numElem_,
+			fft.localNzStart,
+			fft.localNz,
+			fft.isInGrid,
+			domain_.comm );
+
 
 #ifndef _RELEASE_
 	PopCallStack();

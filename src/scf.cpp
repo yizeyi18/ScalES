@@ -1,4 +1,7 @@
 #include  "scf.hpp"
+#include	"blas.hpp"
+#include	"lapack.hpp"
+#include  "utility.hpp"
 
 namespace  dgdft{
 

@@ -153,16 +153,6 @@ private:
 	/// @brief Interior penalty parameter.
 	Real                        penaltyAlpha_;
 
-	/// @brief 1D distribution of the electron density which is compatible
-	/// with the input DistFourier structure.
-	DblNumVec                   densityLocal_;
-	/// @brief 1D distribution of the pseudo charge which is compatible
-	/// with the input DistFourier structure.
-	DblNumVec                   pseudoChargeLocal_;
-	/// @brief 1D distribution of the Hartree potential which is compatible
-	/// with the input DistFourier structure.
-	DblNumVec                   vhartLocal_;
-
 	/// @brief Pseudocharge in the global domain. 
 	DistDblNumVec    pseudoCharge_;
 
@@ -271,8 +261,8 @@ void DistNumVecToDistRowVec(
 		const Index3&                                 numElem,
     Int                                           localNzStart,
 		Int                                           localNz,
-	  MPI_Comm                                      commDistVec,
-	  MPI_Comm                                      commDistRowVec )
+		bool                                          isInGrid,
+	  MPI_Comm                                      commDistVec )
 {
 #ifndef _RELEASE_
 	PushCallStack("DistNumVecToDistRowVec");
@@ -307,7 +297,7 @@ void DistNumVecToDistRowVec(
 	// Specify the elements of data to receive according to the index of
 	// the z-dimension. 
 	std::vector<Index3>  getKey;
-	if( commDistRowVec != MPI_COMM_NULL ){
+	if( isInGrid ){
 		for( Int k = 0; k < numElem[2]; k++ ){
 			if( k     * numGridElem[2] < localNzStart + localNz &&
 					(k+1) * numGridElem[2] > localNzStart ){
@@ -319,14 +309,14 @@ void DistNumVecToDistRowVec(
 				} // for (j)
 			}
 		} // for (k)
-	} // if (commDistRowVec)
+	} // if (isInGrid)
 
 	// Data communication.
 	distVecRecv.GetBegin( getKey, NO_MASK );
 	distVecRecv.GetEnd( NO_MASK );
 
 	// Unpack the data locally into distRowVec
-	if( commDistRowVec != MPI_COMM_NULL ){
+	if( isInGrid ){
 		Int numGridLocal = numGrid[0] * numGrid[1] * localNz;
 		distRowVec.Resize( numGridLocal );
 		for(typename std::map<Index3, NumVec<F> >::const_iterator 
@@ -351,7 +341,7 @@ void DistNumVecToDistRowVec(
 									numGridElem[1] );
 					} // for (i)
 		}
-	} // if (commDistRowVec)
+	} // if (isInGrid)
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -368,8 +358,8 @@ void DistRowVecToDistNumVec(
 		const Index3&                                 numElem,
     Int                                           localNzStart,
 		Int                                           localNz,
-	  MPI_Comm                                      commDistVec,
-	  MPI_Comm                                      commDistRowVec )
+		bool                                          isInGrid,
+	  MPI_Comm                                      commDistVec )
 {
 #ifndef _RELEASE_
 	PushCallStack("DistRowVecToDistNumVec");
@@ -387,7 +377,7 @@ void DistRowVecToDistNumVec(
 
 	// Collect the element indicies
 	std::vector<Index3> putKey;
-	if( commDistRowVec != MPI_COMM_NULL ){
+	if( isInGrid ){
 		for( Int k = 0; k < numElem[2]; k++ ){
 			if( k     * numGridElem[2] < localNzStart + localNz &&
 					(k+1) * numGridElem[2] > localNzStart ){
@@ -399,7 +389,7 @@ void DistRowVecToDistNumVec(
 				} 
 			}
 		} // for (k)
-	} // if (commDistRowVec )
+	} // if (isInGrid)
 
 	// Prepare the local data
 	for( std::vector<Index3>::iterator vi = putKey.begin();

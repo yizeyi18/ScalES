@@ -10,9 +10,6 @@
 #include  "periodtable.hpp"
 #include  "esdf.hpp"
 #include  "eigensolver.hpp"
-#include  "utility.hpp"
-#include	"blas.hpp"
-#include	"lapack.hpp"
 
 // TODO In the case of K-point, should the occupation rate, the energy
 // and the potential subroutines be moved to SCF class rather than

@@ -1,15 +1,7 @@
 #ifndef _LOBPCG_HPP_
 #define _LOBPCG_HPP_
 
-#include  "environment.hpp"
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-
-#include "numtns_impl.hpp"
-#include "blas.hpp"
+#include "environment.hpp"
 
 #include "fortran_matrix.h"
 #include "fortran_interpreter.h"

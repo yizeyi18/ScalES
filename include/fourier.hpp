@@ -11,6 +11,8 @@ namespace dgdft{
 // Sequential FFTW interface
 // *********************************************************************
 
+/// @struct Fourier
+/// @brief Sequential FFTW interface.
 struct Fourier {
 	Domain           domain;
   bool             isInitialized;
@@ -31,19 +33,10 @@ struct Fourier {
 	CpxNumVec                inputComplexVec;     
 	CpxNumVec                outputComplexVec;     
 
-	//  TODO Real Fourier transform
-//  Int  halfsize;                                // For the usage of r2c and c2r
-//  fftw_plan cpx2real;
-//  fftw_plan real2cpx;
-//  DblNumVec gkkhalf;
-//  DblNumVec prechalf;
-//  Real    * in_dbl;
-
 	Fourier();
 	~Fourier();
 
 	void Initialize( const Domain& dm );
-
 };
 
 
@@ -51,9 +44,9 @@ struct Fourier {
 // Parallel FFTW interface
 // *********************************************************************
 
+/// @struct DistFourier
+/// @brief Distributed memory (MPI only) parallel FFTW interface.
 struct DistFourier {
-	// The communicator in the domain may be different from the global communicator
-	// This is because FFTW cannot use employ many processors. 
 	Domain           domain;                      
   bool             isInitialized;
 	Int              numGridTotal;
@@ -65,6 +58,13 @@ struct DistFourier {
 	// localNz * Ny * Nx.  This is because FFTW may need some intermediate
 	// space.  For more information see FFTW's manual.
 	ptrdiff_t        numAllocLocal;
+	
+	/// @brief Whether the processor according to the rank in domain
+	/// participate in the FFTW calculation.
+	bool             isInGrid;
+	/// @brief The communicator used by parallel FFTW, should be
+	/// consistent with inGrid.
+	MPI_Comm         comm;
 
   // plans
   fftw_plan        backwardPlan;
@@ -84,7 +84,13 @@ struct DistFourier {
 	DistFourier();
 	~DistFourier();
 
-	void Initialize( const Domain& dm );
+	/// @brief Initialize the FFTW variables.
+	/// 
+	/// @param[in] dm Domain for the FFTW calculation. 
+	/// @param[in] numProc The number of processors actually participate
+	/// in the FFTW calculation.  A processor participates in the FFTW
+	/// calculation if mpirank(dm.comm) < numProc.
+	void Initialize( const Domain& dm, Int numProc );
 };
 
 } // namespace dgdft

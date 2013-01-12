@@ -1,4 +1,5 @@
 #include  "hamiltonian.hpp"
+#include  "blas.hpp"
 
 namespace dgdft{
 

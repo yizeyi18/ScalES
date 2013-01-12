@@ -8,7 +8,6 @@
 #include  "hamiltonian.hpp"
 #include  "spinor.hpp"
 #include  "lobpcg++.hpp"
-#include  "lapack.hpp"
 #include  "esdf.hpp"
 
 namespace dgdft{

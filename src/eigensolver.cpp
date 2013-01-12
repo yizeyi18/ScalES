@@ -1,5 +1,6 @@
 #include	"eigensolver.hpp"
 #include  "utility.hpp"
+#include  "lapack.hpp"
 
 namespace dgdft{
 

@@ -1,4 +1,15 @@
 #include "lobpcg++.hpp"
+#include "blas.hpp"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+#include "fortran_matrix.h"
+#include "fortran_interpreter.h"
+#include "lobpcg.h"
+#include "multivector.h"
+#include "interpreter.h"
+
 
 namespace dgdft{ 
 namespace LOBPCG{
