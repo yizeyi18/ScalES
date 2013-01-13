@@ -226,6 +226,10 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 
 	Real vol = domain_.Volume();
 
+	// *********************************************************************
+	// Atomic information
+	// *********************************************************************
+
   // Calculate the number of occupied states
   Int nelec = 0;
   for (Int a=0; a<numAtom; a++) {
@@ -259,7 +263,7 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 			// Pseudocharge
 			ptable.CalculatePseudoCharge( atomList_[a], domain_, uniformGridElem_, pp.pseudoCharge );
 			// Nonlocal pseudopotential
-//			ptable.CalculateNonlocalPP( atomList_[a], domain_, uniformGridElem_, pp.vnlList );
+			ptable.CalculateNonlocalPP( atomList_[a], domain_, LGLGridElem_, pp.vnlList );
 
 			pseudo_.LocalMap()[a] = pp;
 		}
@@ -269,8 +273,9 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 	statusOFS << std::endl << "Atomic pseudocharge computed." << std::endl;
 #endif
 
-	// Assembly the pseudocharge 
-
+	// *********************************************************************
+	// Local pseudopotential: computed by pseudocharge
+	// *********************************************************************
 	// First step: local assemly of values for pseudocharge
 	for( Int a = 0; a < numAtom; a++ ){
 		if( pseudo_.Prtn().Owner(a) == mpirank ){
@@ -374,7 +379,6 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 		Print( statusOFS, "After adjustment, sum of Pseudocharge        = ", 
 				(Real) numSpin_ * numOccupiedState_ );
 	}
-
 
 #ifndef _RELEASE_
 	PopCallStack();

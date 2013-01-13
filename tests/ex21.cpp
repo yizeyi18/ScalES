@@ -160,35 +160,24 @@ int main(int argc, char **argv)
 				diff = std::sqrt( diff );
 				std::cout << "diff of vhart = " << diff << std::endl;
 
-//				{
-//					ofstream ofs("vhartDG");
-//					if( !ofs.good() )
-//						throw runtime_error("File cannot be opened.");
-//					serialize( localVec, ofs, NO_MASK );
-//					ofs.close();
-//				}
-//				{
-//					ofstream ofs("vhartKS");
-//					if( !ofs.good() )
-//						throw runtime_error("File cannot be opened.");
-//					serialize( hamKS.Vhart(), ofs, NO_MASK );
-//					ofs.close();
-//				}
+				{
+					ofstream ofs("vhartDG");
+					if( !ofs.good() )
+						throw runtime_error("File cannot be opened.");
+					serialize( localVec, ofs, NO_MASK );
+					ofs.close();
+				}
+				{
+					ofstream ofs("vhartKS");
+					if( !ofs.good() )
+						throw runtime_error("File cannot be opened.");
+					serialize( hamKS.Vhart(), ofs, NO_MASK );
+					ofs.close();
+				}
 			
 			}
 			
-
-
-//			if( mpirank == 0 ){
-//				ofstream ofs("vhart21");
-//				if( !ofs.good() )
-//					throw runtime_error("File cannot be opened.");
-//				serialize( localVec, ofs, NO_MASK );
-//				ofs.close();
-//			}
 			MPI_Comm_free( &commMaster );
-
-
 
 		}
 		

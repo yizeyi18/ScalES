@@ -102,6 +102,9 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 
 	pseudo_.resize( numAtom );
 
+	std::vector<DblNumVec> gridpos;
+  UniformMesh ( domain_, gridpos );
+
   // calculate the number of occupied states
   Int nelec = 0;
   for (Int a=0; a<numAtom; a++) {
@@ -119,7 +122,8 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 	// Compute pseudocharge
 	SetValue( pseudoCharge_, 0.0 );
   for (Int a=0; a<numAtom; a++) {
-    ptable.CalculatePseudoCharge( atomList_[a], domain_, pseudo_[a].pseudoCharge );
+    ptable.CalculatePseudoCharge( atomList_[a], domain_, 
+				gridpos, pseudo_[a].pseudoCharge );
     //accumulate to the global vector
     IntNumVec &idx = pseudo_[a].pseudoCharge.first;
     DblNumMat &val = pseudo_[a].pseudoCharge.second;
@@ -147,8 +151,6 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 
 	// Nonlocal projectors
 	
-	std::vector<DblNumVec> gridpos;
-  UniformMesh ( domain_, gridpos );
 
   Int cnt = 0; // the total number of PS used
   for ( Int a=0; a < atomList_.size(); a++ ) {

@@ -136,7 +136,9 @@ public:
 	///   res[0]         : pseudo-charge values
 	///   res[1]--res[3] : x,y,z components of the derivatives of the
 	///		     pseudo-charge
-	void CalculatePseudoCharge( const Atom& atom, const Domain& dm, SparseVec& res );
+	void CalculatePseudoCharge( const Atom& atom, const Domain& dm, 
+			const std::vector<DblNumVec>& gridpos,
+			SparseVec& res );
 
 	/// @brief Generate the pseudo-charge and its derivatives on a set of
 	/// elements.
@@ -155,6 +157,14 @@ public:
 	void CalculateNonlocalPP( const Atom& atom, const Domain& dm, 
 			const std::vector<DblNumVec>& gridpos,
 			std::vector<NonlocalPP>& vnlList );
+
+	/// @brief Generate the nonlocal pseudopotential projectors over a set
+	/// of elements.
+	void CalculateNonlocalPP( const Atom& atom, const Domain& dm, 
+			const NumTns<std::vector<DblNumVec> >&   gridposElem,
+			std::vector<std::pair<NumTns<SparseVec>, Real> >& vnlList );
+
+
 
 	//---------------------------------------------
 	// TODO SpinOrbit from RelDFT
