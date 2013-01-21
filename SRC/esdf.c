@@ -206,6 +206,11 @@ void esdf_key() {
     strcpy(kw_dscrpt[i],"*! Maximum polynomial degrees in DG solver !*");
 
     i++;
+    strcpy(kw_label[i],"enrich_array");
+    strcpy(kw_typ[i],"B:E");
+    strcpy(kw_dscrpt[i],"*! Number of enrichment DOF per element in each element !*");
+
+    i++;
     strcpy(kw_label[i],"enrich_number");
     strcpy(kw_typ[i],"I:E");
     strcpy(kw_dscrpt[i],"*! Number of enrichment DOF per element !*");

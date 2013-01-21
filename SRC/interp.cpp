@@ -249,60 +249,60 @@ void lxinterp_local(double *Vx2, double *Vl1, Elem& Mol1)
 //--------------------------------
 void DiffPsi(Index3 Ns, Point3 Ls, double* psi, double* diffxpsi, double* diffypsi, double* diffzpsi)
 {
-  int mi, ni, ki;
-  int ndim = 3;
-  //int ntot = molelem._ntot;
-  //Index3 Ns = molelem._Ns;
-  //Point3 Ls = molelem._Ls;
-  int ntot = Ns(0)*Ns(1)*Ns(2);
-  
-  /* Calculate Trans matrices for Buffer to element kl-interpolation */
-  vector<double> lglmesh;
-  vector<vector<double> > Dp;
-  double alpha = 1.0, beta = 0.0;
-  vector<double> tmp1, tmp2;
-  char Nchar = 'n';
-  
-  tmp1.resize(ntot);
-  tmp2.resize(ntot);
+	int mi, ni, ki;
+	int ndim = 3;
+	//int ntot = molelem._ntot;
+	//Index3 Ns = molelem._Ns;
+	//Point3 Ls = molelem._Ls;
+	int ntot = Ns(0)*Ns(1)*Ns(2);
 
-  Dp.resize(ndim);
-  for(int d = 0; d < ndim; d++){
-    /* Calculate lgl mesh at element level*/
-    lglmesh.resize(Ns[d]);
-    Dp[d].resize(Ns[d]*Ns[d]);
-    lglnodes(lglmesh, Dp[d], Ns[d]-1);
-    
-    for (int j=0; j<Ns[d]; j++){
-      for (int i=0; i<Ns[d]; i++){
-	Dp[d][j*Ns[d]+i] *= 2.0/Ls[d];
-      }
-    }
-  }
+	/* Calculate Trans matrices for Buffer to element kl-interpolation */
+	vector<double> lglmesh;
+	vector<vector<double> > Dp;
+	double alpha = 1.0, beta = 0.0;
+	vector<double> tmp1, tmp2;
+	char Nchar = 'n';
 
-  double *enrichptr, *dxenrichptr, *dyenrichptr, *dzenrichptr;
-  enrichptr   = &psi[0];
-  dxenrichptr = &diffxpsi[0];
-  dyenrichptr = &diffypsi[0];
-  dzenrichptr = &diffzpsi[0];
+	tmp1.resize(ntot);
+	tmp2.resize(ntot);
 
-  mi = Ns[0]; ni = Ns[1]*Ns[2]; ki = Ns[0];
-  dgemm_(&Nchar, &Nchar, &mi, &ni, &ki, &alpha, &Dp[0][0], 
-	 &mi, &enrichptr[0], &ki, &beta, &dxenrichptr[0], &mi);
-    
-  Transpose<double>(&enrichptr[0], &tmp1[0], Ns[0], Ns[1]*Ns[2]);
-  mi = Ns[1]; ni = Ns[2]*Ns[0]; ki = Ns[1];
-  dgemm_(&Nchar, &Nchar, &mi, &ni, &ki, &alpha, &Dp[1][0], 
-	 &mi, &tmp1[0], &ki, &beta, &tmp2[0], &mi);
-  Transpose<double>(&tmp2[0], &dyenrichptr[0], Ns[1]*Ns[2], Ns[0]);
+	Dp.resize(ndim);
+	for(int d = 0; d < ndim; d++){
+		/* Calculate lgl mesh at element level*/
+		lglmesh.resize(Ns[d]);
+		Dp[d].resize(Ns[d]*Ns[d]);
+		lglnodes(lglmesh, Dp[d], Ns[d]-1);
 
-  Transpose<double>(&enrichptr[0], &tmp1[0], Ns[0]*Ns[1], Ns[2]);
-  mi = Ns[2]; ni = Ns[0]*Ns[1]; ki = Ns[2];
-  dgemm_(&Nchar, &Nchar, &mi, &ni, &ki, &alpha, &Dp[2][0],
-	 &mi, &tmp1[0], &ki, &beta, &tmp2[0], &mi);
-  Transpose<double>(&tmp2[0], &dzenrichptr[0], Ns[2], Ns[0]*Ns[1]);
+		for (int j=0; j<Ns[d]; j++){
+			for (int i=0; i<Ns[d]; i++){
+				Dp[d][j*Ns[d]+i] *= 2.0/Ls[d];
+			}
+		}
+	}
 
-  return;
+	double *enrichptr, *dxenrichptr, *dyenrichptr, *dzenrichptr;
+	enrichptr   = &psi[0];
+	dxenrichptr = &diffxpsi[0];
+	dyenrichptr = &diffypsi[0];
+	dzenrichptr = &diffzpsi[0];
+
+	mi = Ns[0]; ni = Ns[1]*Ns[2]; ki = Ns[0];
+	dgemm_(&Nchar, &Nchar, &mi, &ni, &ki, &alpha, &Dp[0][0], 
+				 &mi, &enrichptr[0], &ki, &beta, &dxenrichptr[0], &mi);
+
+	Transpose<double>(&enrichptr[0], &tmp1[0], Ns[0], Ns[1]*Ns[2]);
+	mi = Ns[1]; ni = Ns[2]*Ns[0]; ki = Ns[1];
+	dgemm_(&Nchar, &Nchar, &mi, &ni, &ki, &alpha, &Dp[1][0], 
+				 &mi, &tmp1[0], &ki, &beta, &tmp2[0], &mi);
+	Transpose<double>(&tmp2[0], &dyenrichptr[0], Ns[1]*Ns[2], Ns[0]);
+
+	Transpose<double>(&enrichptr[0], &tmp1[0], Ns[0]*Ns[1], Ns[2]);
+	mi = Ns[2]; ni = Ns[0]*Ns[1]; ki = Ns[2];
+	dgemm_(&Nchar, &Nchar, &mi, &ni, &ki, &alpha, &Dp[2][0],
+				 &mi, &tmp1[0], &ki, &beta, &tmp2[0], &mi);
+	Transpose<double>(&tmp2[0], &dzenrichptr[0], Ns[2], Ns[0]*Ns[1]);
+
+	return;
 }
 
 

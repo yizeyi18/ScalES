@@ -9,8 +9,8 @@
 %
 % 5/4/2012:  Add support for spin-orbit coupling. Add Se.
 
-Znucs = [6 8 9 11 14 34 71 78 79 80 81 83];
-% Znucs = [6 9 ];
+% Znucs = [1 3 6 8 9 11 13 14 34 58 71 78 79 80 81 83];
+Znucs = [1 3];
 res = cell(length(Znucs),2);
 
 for g=1:length(Znucs)
@@ -81,6 +81,32 @@ for g=1:length(Znucs)
     % wavcut  = ;
   % end 
 
+  % H
+  if(Znuc==1)
+    Zion = 1;
+    mass = 1.00794;
+    rloc    = 0.200000;
+    C1      = -4.180237;
+		C2      = 0.725075;
+    %
+    rhocut  = 1.5;
+    wavcut  = 1.5;
+  end 
+
+  % Li (semicore)
+  if(Znuc==3)
+    Zion = 3;
+    mass = 6.941;
+    rloc    = 0.400000;
+    C1      = -14.034868;
+		C2      = 9.553476;
+		C3      = -1.766488;
+		C4      = 0.084370;
+    %
+    rhocut  = 3.0;
+    wavcut  = 3.0;
+  end 
+
 
   % C
   if(Znuc==6)
@@ -146,6 +172,24 @@ for g=1:length(Znucs)
     wavcut = 5.5;
   end
 
+  % Al 
+  if(Znuc==13)
+    Zion = 3;
+    mass = 26.9815386;
+    rloc = 0.450000;
+    C1   = -8.491351;
+    r0   = 0.460104;
+    h011 = 5.088340;
+    h022 = 2.679700;
+    r1   = 0.536744;
+    h111 = 2.193438;
+    k111 = 0.006154;
+		k122 = 0.003947;
+    rhocut = 3.0;
+    wavcut = 3.0;
+  end
+
+
   %Si
   if(Znuc==14)
     Zion = 4;
@@ -184,6 +228,35 @@ for g=1:length(Znucs)
     wavcut = 3.0;
   end
 
+  % Ce
+  if(Znuc==58)
+    Zion    = 12;
+    mass    = 140.116;
+    rloc    = 0.535000;
+    C1      = 18.847470;
+		C2      = -0.765636;
+    r0      = 0.521790;
+    h011    = 1.321616;
+    h022    = -1.700444;
+    r1      = 0.470324;
+    h111    = 0.972641;
+    h122    = -1.451337;
+    h133    = 0.000000;
+    k111    = 0.463710;
+    k122    = 0.090257;
+    k133    = 0.012566;
+    r2      = 0.703593;
+    h211    = 0.074241;
+    k211    = 0.013265;
+    r3      = 0.306717;
+    h311    = -17.214790;
+    k311    = 0.007568;
+    %
+    rhocut  = 3.5;
+    wavcut  = 3.5;
+  end 
+
+
   % Lu (WITH semi-core)
 
   if(Znuc==71)
@@ -211,6 +284,30 @@ for g=1:length(Znucs)
     rhocut  = 3.5;
     wavcut  = 3.0;
   end 
+
+  % Pt (WITHOUT Semi-core)
+  if(Znuc==78 & 0)
+    Zion    = 10;
+    mass    = 195.084;
+    rloc    = 0.616000;
+    C1      = 11.027417;
+    r0      = 0.520132;
+    h011    = 2.447430;
+    h022    = 2.640360;
+    r1      = 0.658976;
+    h111    = 0.408453;
+    h122    = 1.647716;
+    k111    = -0.763296;
+    k122    = 1.065883;
+    r2      = 0.451243;
+    h211    = -4.552295;
+    h222    = -2.102396;
+    k211    = 0.146912;
+    k222    = -0.169306;
+
+    rhocut = 4.0;
+    wavcut = 3.5;
+  end
 
 
   % Pt (WITH Semi-core)
@@ -778,7 +875,7 @@ for g=1:length(Znucs)
     
     % Local pseudopotential
     pk = find(r>0 & r<rhocut); 
-    fprintf('int rho         = %15.5e\n', sum(4*pi*r(pk).^2.*(-rho(pk))*stp) );
+    fprintf('int rho         = %15.10e\n', sum(4*pi*r(pk).^2.*(-rho(pk))*stp) );
 
     % Nonlocal pseudopotential
     pk = find(r>0 & r<wavcut);

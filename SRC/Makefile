@@ -16,6 +16,7 @@ OBJS 	= esdfutil.o  esdf.o  vecmatop.o spline.o parallel.o periodtable.o \
 
 DEP     = $(OBJS:.o=.d)
 
+-include ${DEP}
 
 libdft.a: ${OBJS}
 	$(AR) $(ARFLAGS) $@ $(OBJS)
@@ -81,5 +82,3 @@ clean:
 help:
 	echo "usage: make [ dgdft | clean ]"
 
-
--include $(DEP)

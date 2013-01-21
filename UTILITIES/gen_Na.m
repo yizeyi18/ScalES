@@ -1,6 +1,6 @@
 nreps         = [1 1 4];
 nelems        = [1 1 4];
-bufferratio   = [1.0 1.0 1.0];
+bufferratio   = [0.0 0.0 1.0];
 asize         = 7.9994;
 nat           = 2;
 coefs = [
