@@ -230,7 +230,7 @@ public:
   int _nBuffUpdate;     //Basis functions are updated every _nBuffUpdate SCF steps.
   int _dgalpha; //DG penalty term
   int _dgndeg;  //LY: poly deg
-  int _nenrich; //LY: number of enriches besides poly
+	IntNumTns _enrichTns;  // LL: number of enrichment functions for each element. _nenrich obsolete
   int _nbufextra; //LLIN: extra number of basis functions solved in buffer to guarantee stability (NOT USEFUL)
   int _MB;      //LY: Scalapack MB by MB, 128 or 256
   Index3 _NElems; //LY: numb of elements in 3 directions
@@ -258,7 +258,7 @@ public:
   int _ntot; //LY: # of grid points
   vector<DblNumVec> _gridpos; //LY: grid in each direction, vector_size=3, not necessarily useful here
   
-  vector<double> _rho0; //LLIN: Guess density
+  vector<double> _rho0; //LLIN: Pseudo-charge
   vector<double> _rho; //LY: density
   
   vector<double> _vtot; //LY: total potential
