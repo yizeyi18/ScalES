@@ -63,7 +63,7 @@ FC           = ftn
 
 
 ifeq ($(MODE),run)
-  CFLAGS       = -fast -w -fPIC -D__DUMP_DGMAT $(INCLUDE) 
+  CFLAGS       = -fast -w -fPIC $(INCLUDE) 
   #CFLAGS       = -fast -w -fPIC -D__DUMP_DGMAT -D__DUMP_ONCE $(INCLUDE) 
   LOADOPTS     = -fast
   FFLAGS       = -fast -fPIC
