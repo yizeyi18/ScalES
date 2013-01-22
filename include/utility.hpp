@@ -145,12 +145,21 @@ inline Int Index3To1( const Index3& idx3, const Index3& numGrid ){
 	return idx1;
 }
 
-/// @brief Generate the unscaled LGL grid points, integration weights, polynomials and differentiation matrix.
-void GenerateLGL(Real* x,  Int N);
-void GenerateLGL(Real* x,  Real* w, Int N);
-void GenerateLGL(std::vector<Real>& x,  Int N);
-void GenerateLGL(std::vector<Real>& x,  std::vector<Real>& w, std::vector<Real>& P, Int N);
-void GenerateLGL(std::vector<Real>& x,  std::vector<Real>& D, Int N);
+/// @brief Interface for generating the unscaled LGL grid points, integration weights, polynomials and differentiation matrix.
+///
+/// Note: size(x) = size(w) = size(P,1|2) = size(D,1|2) = N
+void GenerateLGL(
+		DblNumVec&         x, 
+		DblNumVec&         w, 
+		DblNumMat&         P,
+		DblNumMat&         D,
+		Int                N);
+
+/// @brief Actual subroutine for generating the unscaled LGL grid points, integration weights, polynomials and differentiation matrix.
+///
+/// Note: for historical reason,  
+/// size(x) = size(w) = size(P,1|2) = size(D,1|2) = N-1
+void GenerateLGL(double* x, double* w, double* P, double* D, int Nm1);
 
 template<class F>
 void Transpose(std::vector<F>& A, std::vector<F>& B, Int m, Int n){

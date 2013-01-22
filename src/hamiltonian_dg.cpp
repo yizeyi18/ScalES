@@ -182,21 +182,36 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	}
 
 #if ( _DEBUGlevel_ >= 1 )
-		for( Int k = 0; k < numElem_[2]; k++ ){
-			for( Int j = 0; j < numElem_[1]; j++ ){
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					statusOFS << "Uniform grid for element " << Index3(i,j,k) << std::endl;
-					for( Int d = 0; d < DIM; d++ ){
-						statusOFS << uniformGridElem_(i,j,k)[d] << std::endl;
-					}
-					statusOFS << "LGL grid for element " << Index3(i,j,k) << std::endl;
-					for( Int d = 0; d < DIM; d++ ){
-						statusOFS << LGLGridElem_(i,j,k)[d] << std::endl;
-					}
+	for( Int k = 0; k < numElem_[2]; k++ ){
+		for( Int j = 0; j < numElem_[1]; j++ ){
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				statusOFS << "Uniform grid for element " << Index3(i,j,k) << std::endl;
+				for( Int d = 0; d < DIM; d++ ){
+					statusOFS << uniformGridElem_(i,j,k)[d] << std::endl;
+				}
+				statusOFS << "LGL grid for element " << Index3(i,j,k) << std::endl;
+				for( Int d = 0; d < DIM; d++ ){
+					statusOFS << LGLGridElem_(i,j,k)[d] << std::endl;
 				}
 			}
 		}
+	} // for (k)
 #endif
+
+	// Generate the differentiation matrix on the LGL grid
+	// NOTE: This assumes uniform mesh used for each element.
+	DMat_.resize( DIM );
+	for( Int d = 0; d < DIM; d++ ){
+		DblNumVec  dummyX, dummyW;
+		DblNumMat  dummyP;
+		GenerateLGL( dummyX, dummyW, dummyP, DMat_[d], 
+				numLGLGridElem_[d] );
+
+		// Scale the differentiation matrix
+		blas::Scal( numLGLGridElem_[d] * numLGLGridElem_[d],
+				2.0 / (domain_.length[d] / numElem_[d]), 
+				DMat_[d].Data(), 1 );
+	}
 
 
 	// Initialize the XC functional.  
@@ -212,6 +227,49 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 
 	return ;
 } 		// -----  end of method HamiltonianDG::HamiltonianDG  ----- 
+
+void
+HamiltonianDG::DiffPsi	(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d)
+{
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::DiffPsi");
+#endif
+	if( d == 0 ){
+		// Use Gemm
+		Int m = numGrid[0], n = numGrid[1]*numGrid[2];
+		blas::Gemm( 'N', 'N', m, n, m, 1.0, DMat_[0].Data(),
+				m, psi, m, 0.0, Dpsi, m );
+	}
+	else if( d == 1 ){
+		// Middle dimension, use Gemv
+		Int   m = numGrid[1], n = numGrid[0]*numGrid[2];
+		Int   ptrShift;
+		Int   inc = numGrid[0];
+		for( Int k = 0; k < numGrid[2]; k++ ){
+			for( Int i = 0; i < numGrid[0]; i++ ){
+				ptrShift = i + k * numGrid[0] * numGrid[1];
+				blas::Gemv( 'N', m, m, 1.0, DMat_[1].Data(), m, 
+						psi + ptrShift, inc, 0.0, Dpsi + ptrShift, inc );
+			}
+		} // for (k)
+	}
+	else if ( d == 2 ){
+		// Use Gemm
+		Int m = numGrid[0]*numGrid[1], n = numGrid[2];
+		blas::Gemm( 'N', 'T', m, n, n, 1.0, psi, m,
+				DMat_[2].Data(), n, 0.0, Dpsi, m );
+	}
+	else{
+		throw std::logic_error("Wrong dimension.");
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method HamiltonianDG::DiffPsi  ----- 
+
 
 void
 HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){

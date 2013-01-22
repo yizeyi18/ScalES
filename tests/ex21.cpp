@@ -121,6 +121,7 @@ int main(int argc, char **argv)
 		hamDG.CalculateHartree( fft );
 
 		// Output the potential by master processor
+		if(0)
 		{
 			MPI_Comm commMaster;
 			bool isInGrid = (mpirank == 0) ? true : false;
@@ -178,9 +179,29 @@ int main(int argc, char **argv)
 			}
 			
 			MPI_Comm_free( &commMaster );
+			MPI_Barrier( MPI_COMM_WORLD );
 
 		}
+
 		
+		// Test the manipulation of basis functions
+		{
+			DblNumVec psi(esdfParam.numGridLGL.prod());
+			SetValue( psi, 0.0 );
+			psi[0] = 1.0;
+			DblNumVec Dpsi(psi.m());
+			SetValue( Dpsi, 0.0 );
+			hamDG.DiffPsi( esdfParam.numGridLGL, 
+					psi.Data(), Dpsi.Data(), 0);
+			statusOFS << std::endl << "D[0] = " << Dpsi << std::endl;
+			hamDG.DiffPsi( esdfParam.numGridLGL, 
+					psi.Data(), Dpsi.Data(), 1);
+			statusOFS << std::endl << "D[1] = " << Dpsi << std::endl;
+			hamDG.DiffPsi( esdfParam.numGridLGL, 
+					psi.Data(), Dpsi.Data(), 2);
+			statusOFS << std::endl << "D[2] = " << Dpsi << std::endl;
+		}
+
 
 
 		// Output the pseudoCharge by master processor

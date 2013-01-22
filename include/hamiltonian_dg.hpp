@@ -187,6 +187,9 @@ private:
 	/// each atom.
 	DistPseudoPotElem  pseudo_;
 
+	/// @brief Differentiation matrix on the LGL grid.
+	std::vector<DblNumMat>    DMat_;
+
 public:
 
 	// *********************************************************************
@@ -200,6 +203,12 @@ public:
 	// *********************************************************************
 	// Operations
 	// *********************************************************************
+
+	/// @brief Differentiate the basis functions on a certain element
+	/// along the dimension d.
+	void DiffPsi(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d);
+
+
 
 	void CalculatePseudoPotential( PeriodTable &ptable );
 	//

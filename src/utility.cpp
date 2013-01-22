@@ -189,161 +189,16 @@ void seval(double* v, int m, double* u, int n, double* x,
 // Generating grids in a domain
 // *********************************************************************
 
-void GenerateLGL(double* x, int N)
+void GenerateLGL(double* x, double* w, double* P, double* D, int Nm1)
 {
+#ifndef _RELEASE_
+	PushCallStack("GenerateLGL");
+#endif
   int i, j;
   double pi = 4.0 * atan(1.0);
   double err, tol = 1e-15;
   std::vector<double> xold;
-  int N1 = N + 1;
-  std::vector<double> P;
-
-  xold.resize(N1);
-  P.resize(N1*N1);
-
-  for (i=0; i<N1; i++){
-    x[i] = cos(pi*(N1-i-1)/(double)N);
-  }
-   
-  for (j=0; j<N1; j++){
-    for (i=0; i<N1; i++){
-      P[j*N1+i] = 0;
-    }
-  }
-
-  do{
-    for (i=0; i<N1; i++){
-      xold[i] = x[i]; 
-      P[i] = 1; 
-      P[N1+i] = x[i];
-    }
-    for (j=2; j<N1; j++){
-      for (i=0; i<N1; i++){
-        P[j*N1+i] = ((2*j-1)*x[i]*P[(j-1)*N1+i] - (j-1)*P[(j-2)*N1+i])/j;
-      }
-    }
-
-    for (i=0; i<N1; i++){
-      x[i] = xold[i] - (x[i]*P[N*N1+i] - P[(N-1)*N1+i])/(N1*P[N*N1+i]);
-    }
-
-    err = 0;
-    for (i=0; i<N1; i++){
-      if (err < fabs(xold[i] - x[i])){
-        err = fabs(xold[i] - x[i]);
-      }
-    }
-  } while(err>tol);
-
-  return;  
-}
-
-void GenerateLGL(double* x, double* w, int N)
-{
-  int i, j;
-  double pi = 4.0 * atan(1.0);
-  double err, tol = 1e-15;
-  std::vector<double> xold;
-  int N1 = N + 1;
-  std::vector<double> P;
-
-  xold.resize(N1);
-  P.resize(N1*N1);
-
-  for (i=0; i<N1; i++){
-    x[i] = cos(pi*(N1-i-1)/(double)N);
-  }
-   
-  for (j=0; j<N1; j++){
-    for (i=0; i<N1; i++){
-      P[j*N1+i] = 0;
-    }
-  }
-
-  do{
-    for (i=0; i<N1; i++){
-      xold[i] = x[i]; 
-      P[i] = 1; 
-      P[N1+i] = x[i];
-    }
-    for (j=2; j<N1; j++){
-      for (i=0; i<N1; i++){
-        P[j*N1+i] = ((2*j-1)*x[i]*P[(j-1)*N1+i] - (j-1)*P[(j-2)*N1+i])/j;
-      }
-    }
-
-    for (i=0; i<N1; i++){
-      x[i] = xold[i] - (x[i]*P[N*N1+i] - P[(N-1)*N1+i])/(N1*P[N*N1+i]);
-    }
-
-    err = 0;
-    for (i=0; i<N1; i++){
-      if (err < fabs(xold[i] - x[i])){
-        err = fabs(xold[i] - x[i]);
-      }
-    }
-  } while(err>tol);
-
-  for (i=0; i<N1; i++){
-    w[i] = 2/(N*N1*P[N*N1+i]*P[N*N1+i]);
-  }
-}
-
-void GenerateLGL(std::vector<double>& x, int N)
-{
-  int i, j;
-  double pi = 4.0 * atan(1.0);
-  double err, tol = 1e-15;
-  std::vector<double> xold;
-  int N1 = N + 1;
-  std::vector<double> P;
-
-  xold.resize(N1);
-  P.resize(N1*N1);
-
-  for (i=0; i<N1; i++){
-    x[i] = cos(pi*(N1-i-1)/(double)N);
-  }
-   
-  for (j=0; j<N1; j++){
-    for (i=0; i<N1; i++){
-      P[j*N1+i] = 0;
-    }
-  }
-
-  do{
-    for (i=0; i<N1; i++){
-      xold[i] = x[i]; 
-      P[i] = 1; 
-      P[N1+i] = x[i];
-    }
-    for (j=2; j<N1; j++){
-      for (i=0; i<N1; i++){
-        P[j*N1+i] = ((2*j-1)*x[i]*P[(j-1)*N1+i] - (j-1)*P[(j-2)*N1+i])/j;
-      }
-    }
-
-    for (i=0; i<N1; i++){
-      x[i] = xold[i] - (x[i]*P[N*N1+i] - P[(N-1)*N1+i])/(N1*P[N*N1+i]);
-    }
-
-    err = 0;
-    for (i=0; i<N1; i++){
-      if (err < fabs(xold[i] - x[i])){
-        err = fabs(xold[i] - x[i]);
-      }
-    }
-  } while(err>tol);
-
-  return;  
-}
-
-void GenerateLGL(std::vector<double>& x, std::vector<double>& w, std::vector<double>& P, int N)
-{
-  int i, j;
-  double pi = 4.0 * atan(1.0);
-  double err, tol = 1e-15;
-  std::vector<double> xold;
+	int N = Nm1;
   int N1 = N + 1;
 
   xold.resize(N1);
@@ -385,55 +240,7 @@ void GenerateLGL(std::vector<double>& x, std::vector<double>& w, std::vector<dou
   for (i=0; i<N1; i++){
     w[i] = 2/(N*N1*P[N*N1+i]*P[N*N1+i]);
   }
-}
 
-void GenerateLGL(std::vector<double>& x, std::vector<double>& D, int N)
-{
-  int i, j;
-  double pi = 4.0 * atan(1.0);
-  double err, tol = 1e-15;
-  std::vector<double> xold;
-  int N1 = N + 1;
-  std::vector<double> P;
-
-  xold.resize(N1);
-  P.resize(N1*N1);
-
-  for (i=0; i<N1; i++){
-    x[i] = cos(pi*(N1-i-1)/(double)N);
-  }
-   
-  for (j=0; j<N1; j++){
-    for (i=0; i<N1; i++){
-      P[j*N1+i] = 0;
-    }
-  }
-
-  do{
-    for (i=0; i<N1; i++){
-      xold[i] = x[i]; 
-      P[i] = 1; 
-      P[N1+i] = x[i];
-    }
-    for (j=2; j<N1; j++){
-      for (i=0; i<N1; i++){
-        P[j*N1+i] = ((2*j-1)*x[i]*P[(j-1)*N1+i] - (j-1)*P[(j-2)*N1+i])/j;
-      }
-    }
-
-    for (i=0; i<N1; i++){
-      x[i] = xold[i] - (x[i]*P[N*N1+i] - P[(N-1)*N1+i])/(N1*P[N*N1+i]);
-    }
-
-    err = 0;
-    for (i=0; i<N1; i++){
-      if (err < fabs(xold[i] - x[i])){
-        err = fabs(xold[i] - x[i]);
-      }
-    }
-  } while(err>tol);
-
-  
   for (j=0; j<N1; j++){
     for (i=0; i<N1; i++){
       if (i!=j) {
@@ -451,8 +258,34 @@ void GenerateLGL(std::vector<double>& x, std::vector<double>& D, int N)
     }
   }
 
-
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return;
 }
+
+void GenerateLGL(
+		DblNumVec&         x, 
+		DblNumVec&         w, 
+		DblNumMat&         P,
+		DblNumMat&         D,
+		Int                N)
+{
+#ifndef _RELEASE_
+	PushCallStack("GenerateLGL");
+#endif
+	x.Resize( N );
+	w.Resize( N );
+	P.Resize( N, N );
+	D.Resize( N, N );
+	GenerateLGL( x.Data(), w.Data(), P.Data(), D.Data(), N-1 );
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return;
+}
+
 
 
 void
@@ -487,8 +320,10 @@ LGLMesh ( const Domain &dm, const Index3& numGrid, std::vector<DblNumVec> &gridp
   for (Int d=0; d<DIM; d++) {
     gridpos[d].Resize( numGrid[d] );
 
-		std::vector<Real>  mesh( numGrid[d] );
-		GenerateLGL( mesh, numGrid[d] - 1 );
+		DblNumVec  mesh;
+		DblNumVec  dummyW;
+		DblNumMat  dummyP, dummyD;
+		GenerateLGL( mesh, dummyW, dummyP, dummyD, numGrid[d] );
 		for( Int i = 0; i < numGrid[d]; i++ ){
 			gridpos[d][i] = dm.posStart[d] + 
 				( mesh[i] + 1.0 ) * dm.length[d] * 0.5;
