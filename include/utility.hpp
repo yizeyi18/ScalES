@@ -811,7 +811,7 @@ Int deserialize(std::vector<T>& val, std::istream& is, const std::vector<Int>& m
 {
   Int sz;
   is.read((char*)&sz, sizeof(Int));
-  val.Resize(sz);
+  val.resize(sz);
   for(Int k=0; k<sz; k++)
     deserialize(val[k], is, mask);
   return 0;

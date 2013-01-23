@@ -29,11 +29,26 @@ struct ElemPrtn
 {
 	IntNumTns                 ownerInfo;
 
-	Int Owner (Index3 key) const {
+	Int Owner (const Index3& key) const {
 		return ownerInfo(key(0), key(1), key(2));
 	}
 };
 
+typedef std::pair<Index3, Index3>  ElemMatKey;
+
+/// @struct ElemMatPrtn
+/// @brief Partition class of a matrix according to the element index
+/// (row index).  This is used to represent the stiffness matrix and
+/// mass matrix.
+struct ElemMatPrtn
+{
+	IntNumTns                 ownerInfo;
+
+	Int Owner (const ElemMatKey& key) const {
+		Index3 keyRow = key.first;
+		return ownerInfo(keyRow(0), keyRow(1), keyRow(2));
+	}
+};
 
 /// @struct AtomPrtn
 /// @brief Partition class (used by DistVec) according to the atom
@@ -147,6 +162,9 @@ private:
 	/// @brief Partition of element.
 	ElemPrtn                    elemPrtn_;
 
+	/// @brief Partition of a matrix defined through elements.
+	ElemMatPrtn                 elemMatPrtn_;
+
 	/// @brief Partition of atom.
 	AtomPrtn                    atomPrtn_;
 
@@ -242,6 +260,10 @@ public:
 	DistDblNumVec&  PseudoCharge() { return pseudoCharge_; }
 	
 	std::vector<Atom>&  AtomList() { return atomList_; }
+
+	DistDblNumVec&  VtotLGL() { return vtotLGL_; }
+
+	DistDblNumMat&  BasisLGL() { return basisLGL_; }
 
 	// *********************************************************************
 	// Inquiry

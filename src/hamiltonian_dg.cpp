@@ -114,8 +114,6 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 				}
 			}
   
-
-
 	vtotLGL_.Prtn()       = elemPrtn_;
 	basisLGL_.Prtn()      = elemPrtn_;
 

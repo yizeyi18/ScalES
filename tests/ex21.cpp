@@ -185,6 +185,7 @@ int main(int argc, char **argv)
 
 		
 		// Test the manipulation of basis functions
+		if(0)
 		{
 			DblNumVec psi(esdfParam.numGridLGL.prod());
 			SetValue( psi, 0.0 );
@@ -202,6 +203,67 @@ int main(int argc, char **argv)
 			statusOFS << std::endl << "D[2] = " << Dpsi << std::endl;
 		}
 
+		// Test loading the basis functions from the old code
+		{
+			istringstream iss;
+			SeparateRead("ALB", iss);
+			std::vector<DblNumTns>  basis;
+			{
+				Index3  key;
+				deserialize(key, iss, NO_MASK);
+				deserialize(basis, iss, NO_MASK);
+				if( basis.size() > 0 ){
+					if( basis[0].Size() != esdfParam.numGridLGL.prod() ){
+						throw std::runtime_error("Grid size does not match.");
+					}
+					if( hamDG.BasisLGL().Prtn().Owner(key) != mpirank ){
+						throw std::runtime_error("Basis owner does not match.");
+					}
+				}
+				Int numBasis = basis.size();
+				DblNumMat psi(esdfParam.numGridLGL.prod(), numBasis);
+				for( Int p = 0; p < numBasis; p++ ){
+					blas::Copy( psi.m(), basis[p].Data(), 1, 
+							psi.VecData(p), 1 );
+				}
+				hamDG.BasisLGL().LocalMap()[key] = psi;
+			}
+			// Dump out the basis for the first element
+			if(0){
+				Index3 key(0,0,0);
+				if( hamDG.BasisLGL().Prtn().Owner(key) == mpirank ){
+					ofstream ofs("ALB_NEW");
+					if( !ofs.good() )
+						throw runtime_error("File cannot be opened.");
+					serialize( hamDG.BasisLGL().LocalMap()[key], ofs, NO_MASK );
+					ofs.close();
+				}
+			}
+			
+			// Differentiation along three directions
+			if(1){
+				Index3 key(0,0,0);
+				if( hamDG.BasisLGL().Prtn().Owner(key) == mpirank ){
+					DblNumMat& psi = hamDG.BasisLGL().LocalMap()[key];
+					DblNumMat  Dpsi(psi.m(), DIM);
+					hamDG.DiffPsi( esdfParam.numGridLGL, 
+							psi.VecData(0), Dpsi.VecData(0), 0 );
+					hamDG.DiffPsi( esdfParam.numGridLGL, 
+							psi.VecData(0), Dpsi.VecData(1), 1 );
+					hamDG.DiffPsi( esdfParam.numGridLGL, 
+							psi.VecData(0), Dpsi.VecData(2), 2 );
+
+					ofstream ofs("ALB_DIFF");
+					if( !ofs.good() )
+						throw runtime_error("File cannot be opened.");
+					serialize( Dpsi, ofs, NO_MASK );
+					ofs.close();
+				}
+			}
+
+
+
+		}
 
 
 		// Output the pseudoCharge by master processor

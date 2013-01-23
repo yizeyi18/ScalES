@@ -38,6 +38,8 @@ public:
   const F& operator()(Int i, Int j) const;  
 
   F& operator()(Int i, Int j);  
+	
+	bool IsOwnData() const { return owndata_; }
   
   F* Data() const { return data_; }
 
@@ -46,6 +48,9 @@ public:
   Int m() const { return m_; }
 
   Int n() const { return n_; }
+
+	Int Size() const { return m_ * n_; }
+
 };
 
 // Commonly used

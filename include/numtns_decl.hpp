@@ -40,6 +40,8 @@ public:
 
   F& operator()(Int i, Int j, Int k);
 
+	bool IsOwnData() const { return owndata_; }
+
   F* Data() const { return data_; }
 
 	F* MatData (Int k) const; 
@@ -51,6 +53,8 @@ public:
   Int n() const { return n_; }
 
   Int p() const { return p_; }
+
+	Int Size() const { return m_ * n_ * p_; }
 };
 
 

@@ -37,8 +37,12 @@ public:
 	F& operator[](Int i);
 
 	bool IsOwnData() const { return owndata_; }
+
 	F*   Data() const { return data_; }
+
 	Int  m () const { return m_; }
+	
+	Int Size() const { return m_; }
 };
 
 // Commonly used
