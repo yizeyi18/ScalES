@@ -168,7 +168,7 @@ template <class F> inline Real Energy(const NumTns<F>& T)
 
 	F *ptr = T.Data();
   for(Int i=0; i < T.m() * T.n() * T.p(); i++) 
-		sum += abs(ptr[i]) * abs(ptr[i]);
+		sum += std::abs(ptr[i]) * std::abs(ptr[i]);
 
 	return sum;
 }

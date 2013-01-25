@@ -208,6 +208,13 @@ private:
 	/// @brief Differentiation matrix on the LGL grid.
 	std::vector<DblNumMat>    DMat_;
 
+	/// @brief DG Hamiltonian matrix.
+	DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>  HMat_;
+
+	Int    sizeHMat_;
+
+  NumTns< std::vector<Int> >  elemBasisIdx_;
+
 public:
 
 	// *********************************************************************
@@ -241,6 +248,8 @@ public:
 	//	virtual void CalculateVtot( DblNumVec& vtot ) = 0;
 	//
 
+	void CalculateDGMatrix( ); 
+
 	// *********************************************************************
 	// Access
 	// *********************************************************************
@@ -255,6 +264,8 @@ public:
 	/// @brief Hartree potential in the global domain.
 	DistDblNumVec&  Vhart() { return vhart_; }
 
+	/// @brief Electron density in the global domain. No magnitization for
+	/// DG calculation.
 	DistDblNumVec&  Density() { return density_; }
 
 	DistDblNumVec&  PseudoCharge() { return pseudoCharge_; }
@@ -264,6 +275,11 @@ public:
 	DistDblNumVec&  VtotLGL() { return vtotLGL_; }
 
 	DistDblNumMat&  BasisLGL() { return basisLGL_; }
+
+
+	/// @brief DG Hamiltonian matrix.
+	DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>&  
+		HMat() { return HMat_; } 
 
 	// *********************************************************************
 	// Inquiry
