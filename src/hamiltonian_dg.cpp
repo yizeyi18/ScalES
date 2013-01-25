@@ -840,6 +840,50 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 						} // y-direction
 
+						// z-direction
+						{
+							Int  numGridFace = numGrid[0] * numGrid[1];
+							DblNumMat emptyZ( numGridFace, numBasis );
+							SetValue( emptyZ, 0.0 );
+							basisJump[ZL].LocalMap()[key] = emptyZ;
+							basisJump[ZR].LocalMap()[key] = emptyZ;
+							DbasisAverage[ZL].LocalMap()[key] = emptyZ;
+							DbasisAverage[ZR].LocalMap()[key] = emptyZ;
+
+							DblNumMat&  valL = basisJump[ZL].LocalMap()[key];
+							DblNumMat&  valR = basisJump[ZR].LocalMap()[key];
+							DblNumMat&  drvL = DbasisAverage[ZL].LocalMap()[key];
+							DblNumMat&  drvR = DbasisAverage[ZR].LocalMap()[key];
+							DblNumMat&  DbasisZ = Dbasis[2].LocalMap()[key];
+
+							// Form jumps and averages from volume to face.
+							// basis(0,:,:)             -> valL
+							// basis(numGrid[0]-1,:,:)  -> valR
+							// Dbasis(0,:,:)            -> drvL
+							// Dbasis(numGrid[0]-1,:,:) -> drvR
+							for( Int g = 0; g < numBasis; g++ ){
+								Int idx, idxL, idxR;
+								for( Int gj = 0; gj < numGrid[1]; gj++ )
+									for( Int gi = 0; gi < numGrid[0]; gi++ ){
+										idx  = gi + gj*numGrid[0];
+										idxL = gi + gj*numGrid[0] +
+											0 * (numGrid[0] * numGrid[1]);
+										idxR = gi + gj*numGrid[0] +
+											(numGrid[2]-1) * (numGrid[0] * numGrid[1]);
+
+										// 0.5 comes from average
+										// {{a}} = 1/2 (a_L + a_R)
+										drvL(idx, g) = +0.5 * DbasisZ( idxL, g );
+										drvR(idx, g) = +0.5 * DbasisZ( idxR, g );
+										// 1.0, -1.0 comes from jump with different normal vectors
+										// [[a]] = -(1.0) a_L + (1.0) a_R
+										valL(idx, g) = -1.0 * basis( idxL, g );
+										valR(idx, g) = +1.0 * basis( idxR, g );
+									} // for (gj)
+							} // for (g)
+
+						} // z-direction
+
 					}
 				} // for (i)
 
@@ -976,14 +1020,11 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 		DbasisAverage[XR].GetBegin( boundaryXIdx, NO_MASK );
 		DbasisAverage[YR].GetBegin( boundaryYIdx, NO_MASK );
-		if(0){
-			DbasisAverage[ZR].GetBegin( boundaryZIdx, NO_MASK );
-		}
+		DbasisAverage[ZR].GetBegin( boundaryZIdx, NO_MASK );
+
 		basisJump[XR].GetBegin( boundaryXIdx, NO_MASK );
 		basisJump[YR].GetBegin( boundaryYIdx, NO_MASK );
-		if(0){
-			basisJump[ZR].GetBegin( boundaryZIdx, NO_MASK );
-		}
+		basisJump[ZR].GetBegin( boundaryZIdx, NO_MASK );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
 		statusOFS << "After the GetBegin part of communication." << std::endl;
@@ -1158,6 +1199,56 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								} // for (b)
 						} // y-direction
 
+						// z-direction: intra-element part of the boundary term
+						{
+							Int  numGridFace = numGrid[0] * numGrid[1];
+
+							DblNumMat&  valL = basisJump[ZL].LocalMap()[key];
+							DblNumMat&  valR = basisJump[ZR].LocalMap()[key];
+							DblNumMat&  drvL = DbasisAverage[ZL].LocalMap()[key];
+							DblNumMat&  drvR = DbasisAverage[ZR].LocalMap()[key];
+
+							// intra-element part of the boundary term
+							Real intByPartTerm, penaltyTerm;
+							for( Int a = 0; a < numBasis; a++ )
+								for( Int b = a; b < numBasis; b++ ){
+									intByPartTerm = 
+										-0.5 * ThreeDotProduct( 
+												drvL.VecData(a), 
+												valL.VecData(b),
+												LGLWeight2D[2].Data(),
+												numGridFace )
+										-0.5 * ThreeDotProduct(
+												valL.VecData(a),
+												drvL.VecData(b), 
+												LGLWeight2D[2].Data(),
+												numGridFace )
+										-0.5 * ThreeDotProduct( 
+												drvR.VecData(a), 
+												valR.VecData(b),
+												LGLWeight2D[2].Data(),
+												numGridFace )
+										-0.5 * ThreeDotProduct(
+												valR.VecData(a),
+												drvR.VecData(b), 
+												LGLWeight2D[2].Data(),
+												numGridFace );
+									penaltyTerm = 
+										penaltyAlpha_ * ThreeDotProduct(
+												valL.VecData(a),
+												valL.VecData(b),
+												LGLWeight2D[2].Data(),
+												numGridFace )
+										+ penaltyAlpha_ * ThreeDotProduct(
+												valR.VecData(a),
+												valR.VecData(b),
+												LGLWeight2D[2].Data(),
+												numGridFace );
+
+									localMat(a,b) += 
+										intByPartTerm + penaltyTerm;
+								} // for (b)
+						} // z-direction
 
 						// Symmetrize
 						for( Int a = 0; a < numBasis; a++ )
@@ -1210,8 +1301,12 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		GetTime( timeSta );
 		DbasisAverage[XR].GetEnd( NO_MASK );
 		DbasisAverage[YR].GetEnd( NO_MASK );
+		DbasisAverage[ZR].GetEnd( NO_MASK );
+
 		basisJump[XR].GetEnd( NO_MASK );
 		basisJump[YR].GetEnd( NO_MASK );
+		basisJump[ZR].GetEnd( NO_MASK );
+
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1397,6 +1492,90 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								}
 							}
 						} // y-direction
+					
+						// z-direction
+						{
+							// keyL is the previous element received from GetBegin/GetEnd.
+							// keyR is the current element
+							Int p3; if( k == 0 )  p3 = numElem_[2]-1; else   p3 = k-1;
+							Index3 keyL( i, j, p3 );
+							Index3 keyR = key;
+
+							Int  numGridFace = numGrid[0] * numGrid[1];
+
+							// Note that the notation can be very confusing here:
+							// The left element (keyL) contributes to the right face
+							// (ZR), and the right element (keyR) contributes to the
+							// left face (ZL)
+							DblNumMat&  valL = basisJump[ZR].LocalMap()[keyL];
+							DblNumMat&  valR = basisJump[ZL].LocalMap()[keyR];
+							DblNumMat&  drvL = DbasisAverage[ZR].LocalMap()[keyL];
+							DblNumMat&  drvR = DbasisAverage[ZL].LocalMap()[keyR];
+
+							Int numBasisL = valL.n();
+							Int numBasisR = valR.n();
+							DblNumMat   localMat( numBasisL, numBasisR );
+							SetValue( localMat, 0.0 );
+
+							// inter-element part of the boundary term
+							Real intByPartTerm, penaltyTerm;
+							for( Int a = 0; a < numBasisL; a++ )
+								for( Int b = 0; b < numBasisR; b++ ){
+									intByPartTerm = 
+										-0.5 * ThreeDotProduct( 
+												drvL.VecData(a), 
+												valR.VecData(b),
+												LGLWeight2D[2].Data(),
+												numGridFace )
+										-0.5 * ThreeDotProduct(
+												valL.VecData(a),
+												drvR.VecData(b), 
+												LGLWeight2D[2].Data(),
+												numGridFace );
+									penaltyTerm = 
+										penaltyAlpha_ * ThreeDotProduct(
+												valL.VecData(a),
+												valR.VecData(b),
+												LGLWeight2D[2].Data(),
+												numGridFace );
+
+									localMat(a,b) += 
+										intByPartTerm + penaltyTerm;
+								} // for (b)
+						
+							// Add (keyL, keyR) to HMat_
+							{
+								ElemMatKey matKey( keyL, keyR );
+								std::map<ElemMatKey, DblNumMat>::iterator mi = 
+									HMat_.LocalMap().find( matKey );
+								if( mi == HMat_.LocalMap().end() ){
+									HMat_.LocalMap()[matKey] = localMat;
+								}
+								else{
+									DblNumMat&  mat = (*mi).second;
+									blas::Axpy( mat.Size(), 1.0, localMat.Data(), 1,
+											mat.Data(), 1);
+								}
+							}
+
+							// Add (keyR, keyL) to HMat_
+							{
+								DblNumMat localMatTran;
+								Transpose( localMat, localMatTran );
+								ElemMatKey matKey( keyR, keyL );
+								std::map<ElemMatKey, DblNumMat>::iterator mi = 
+									HMat_.LocalMap().find( matKey );
+								if( mi == HMat_.LocalMap().end() ){
+									HMat_.LocalMap()[matKey] = localMatTran;
+								}
+								else{
+									DblNumMat&  mat = (*mi).second;
+									blas::Axpy( mat.Size(), 1.0, localMatTran.Data(), 1,
+											mat.Data(), 1);
+								}
+							}
+						} // z-direction
+					
 					}
 				} // for (i)
 
