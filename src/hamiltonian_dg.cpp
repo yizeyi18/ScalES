@@ -774,7 +774,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 							// Dbasis(numGrid[0]-1,:,:) -> drvR
 							for( Int g = 0; g < numBasis; g++ ){
 								Int idx, idxL, idxR;
-								for( Int gk = 0; gk < numGrid[2]; gk++ ){
+								for( Int gk = 0; gk < numGrid[2]; gk++ )
 									for( Int gj = 0; gj < numGrid[1]; gj++ ){
 										idx  = gj + gk*numGrid[1];
 										idxL = 0 + gj*numGrid[0] + gk * (numGrid[0] *
@@ -791,10 +791,55 @@ HamiltonianDG::CalculateDGMatrix	(  )
 										valL(idx, g) = -1.0 * basis( idxL, g );
 										valR(idx, g) = +1.0 * basis( idxR, g );
 									} // for (gj)
-								}
 							} // for (g)
 
-						}
+						} // x-direction
+
+
+						// y-direction
+						{
+							Int  numGridFace = numGrid[0] * numGrid[2];
+							DblNumMat emptyY( numGridFace, numBasis );
+							SetValue( emptyY, 0.0 );
+							basisJump[YL].LocalMap()[key] = emptyY;
+							basisJump[YR].LocalMap()[key] = emptyY;
+							DbasisAverage[YL].LocalMap()[key] = emptyY;
+							DbasisAverage[YR].LocalMap()[key] = emptyY;
+
+							DblNumMat&  valL = basisJump[YL].LocalMap()[key];
+							DblNumMat&  valR = basisJump[YR].LocalMap()[key];
+							DblNumMat&  drvL = DbasisAverage[YL].LocalMap()[key];
+							DblNumMat&  drvR = DbasisAverage[YR].LocalMap()[key];
+							DblNumMat&  DbasisY = Dbasis[1].LocalMap()[key];
+
+							// Form jumps and averages from volume to face.
+							// basis(0,:,:)             -> valL
+							// basis(numGrid[0]-1,:,:)  -> valR
+							// Dbasis(0,:,:)            -> drvL
+							// Dbasis(numGrid[0]-1,:,:) -> drvR
+							for( Int g = 0; g < numBasis; g++ ){
+								Int idx, idxL, idxR;
+								for( Int gk = 0; gk < numGrid[2]; gk++ )
+									for( Int gi = 0; gi < numGrid[0]; gi++ ){
+										idx  = gi + gk*numGrid[0];
+										idxL = gi + 0 *numGrid[0] +
+											gk * (numGrid[0] * numGrid[1]);
+										idxR = gi + (numGrid[1]-1)*numGrid[0] + 
+											gk * (numGrid[0] * numGrid[1]);
+
+										// 0.5 comes from average
+										// {{a}} = 1/2 (a_L + a_R)
+										drvL(idx, g) = +0.5 * DbasisY( idxL, g );
+										drvR(idx, g) = +0.5 * DbasisY( idxR, g );
+										// 1.0, -1.0 comes from jump with different normal vectors
+										// [[a]] = -(1.0) a_L + (1.0) a_R
+										valL(idx, g) = -1.0 * basis( idxL, g );
+										valR(idx, g) = +1.0 * basis( idxR, g );
+									} // for (gj)
+							} // for (g)
+
+						} // y-direction
+
 					}
 				} // for (i)
 
@@ -927,14 +972,16 @@ HamiltonianDG::CalculateDGMatrix	(  )
 					}
 				} // for (i)
 		
+		// The left element passes the values on the right face.
+
 		DbasisAverage[XR].GetBegin( boundaryXIdx, NO_MASK );
+		DbasisAverage[YR].GetBegin( boundaryYIdx, NO_MASK );
 		if(0){
-			DbasisAverage[YR].GetBegin( boundaryYIdx, NO_MASK );
 			DbasisAverage[ZR].GetBegin( boundaryZIdx, NO_MASK );
 		}
 		basisJump[XR].GetBegin( boundaryXIdx, NO_MASK );
+		basisJump[YR].GetBegin( boundaryYIdx, NO_MASK );
 		if(0){
-			basisJump[YR].GetBegin( boundaryYIdx, NO_MASK );
 			basisJump[ZR].GetBegin( boundaryZIdx, NO_MASK );
 		}
 		GetTime( timeEnd );
@@ -1058,7 +1105,59 @@ HamiltonianDG::CalculateDGMatrix	(  )
 									localMat(a,b) += 
 										intByPartTerm + penaltyTerm;
 								} // for (b)
-						}
+						} // x-direction
+
+						// y-direction: intra-element part of the boundary term
+						{
+							Int  numGridFace = numGrid[0] * numGrid[2];
+
+							DblNumMat&  valL = basisJump[YL].LocalMap()[key];
+							DblNumMat&  valR = basisJump[YR].LocalMap()[key];
+							DblNumMat&  drvL = DbasisAverage[YL].LocalMap()[key];
+							DblNumMat&  drvR = DbasisAverage[YR].LocalMap()[key];
+
+							// intra-element part of the boundary term
+							Real intByPartTerm, penaltyTerm;
+							for( Int a = 0; a < numBasis; a++ )
+								for( Int b = a; b < numBasis; b++ ){
+									intByPartTerm = 
+										-0.5 * ThreeDotProduct( 
+												drvL.VecData(a), 
+												valL.VecData(b),
+												LGLWeight2D[1].Data(),
+												numGridFace )
+										-0.5 * ThreeDotProduct(
+												valL.VecData(a),
+												drvL.VecData(b), 
+												LGLWeight2D[1].Data(),
+												numGridFace )
+										-0.5 * ThreeDotProduct( 
+												drvR.VecData(a), 
+												valR.VecData(b),
+												LGLWeight2D[1].Data(),
+												numGridFace )
+										-0.5 * ThreeDotProduct(
+												valR.VecData(a),
+												drvR.VecData(b), 
+												LGLWeight2D[1].Data(),
+												numGridFace );
+									penaltyTerm = 
+										penaltyAlpha_ * ThreeDotProduct(
+												valL.VecData(a),
+												valL.VecData(b),
+												LGLWeight2D[1].Data(),
+												numGridFace )
+										+ penaltyAlpha_ * ThreeDotProduct(
+												valR.VecData(a),
+												valR.VecData(b),
+												LGLWeight2D[1].Data(),
+												numGridFace );
+
+									localMat(a,b) += 
+										intByPartTerm + penaltyTerm;
+								} // for (b)
+						} // y-direction
+
 
 						// Symmetrize
 						for( Int a = 0; a < numBasis; a++ )
@@ -1110,7 +1209,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	{
 		GetTime( timeSta );
 		DbasisAverage[XR].GetEnd( NO_MASK );
+		DbasisAverage[YR].GetEnd( NO_MASK );
 		basisJump[XR].GetEnd( NO_MASK );
+		basisJump[YR].GetEnd( NO_MASK );
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1212,6 +1313,90 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								}
 							}
 						} // x-direction
+
+
+						// y-direction
+						{
+							// keyL is the previous element received from GetBegin/GetEnd.
+							// keyR is the current element
+							Int p2; if( j == 0 )  p2 = numElem_[1]-1; else   p2 = j-1;
+							Index3 keyL( i, p2, k );
+							Index3 keyR = key;
+
+							Int  numGridFace = numGrid[0] * numGrid[2];
+
+							// Note that the notation can be very confusing here:
+							// The left element (keyL) contributes to the right face
+							// (YR), and the right element (keyR) contributes to the
+							// left face (YL)
+							DblNumMat&  valL = basisJump[YR].LocalMap()[keyL];
+							DblNumMat&  valR = basisJump[YL].LocalMap()[keyR];
+							DblNumMat&  drvL = DbasisAverage[YR].LocalMap()[keyL];
+							DblNumMat&  drvR = DbasisAverage[YL].LocalMap()[keyR];
+
+							Int numBasisL = valL.n();
+							Int numBasisR = valR.n();
+							DblNumMat   localMat( numBasisL, numBasisR );
+							SetValue( localMat, 0.0 );
+
+							// inter-element part of the boundary term
+							Real intByPartTerm, penaltyTerm;
+							for( Int a = 0; a < numBasisL; a++ )
+								for( Int b = 0; b < numBasisR; b++ ){
+									intByPartTerm = 
+										-0.5 * ThreeDotProduct( 
+												drvL.VecData(a), 
+												valR.VecData(b),
+												LGLWeight2D[1].Data(),
+												numGridFace )
+										-0.5 * ThreeDotProduct(
+												valL.VecData(a),
+												drvR.VecData(b), 
+												LGLWeight2D[1].Data(),
+												numGridFace );
+									penaltyTerm = 
+										penaltyAlpha_ * ThreeDotProduct(
+												valL.VecData(a),
+												valR.VecData(b),
+												LGLWeight2D[1].Data(),
+												numGridFace );
+
+									localMat(a,b) += 
+										intByPartTerm + penaltyTerm;
+								} // for (b)
+						
+							// Add (keyL, keyR) to HMat_
+							{
+								ElemMatKey matKey( keyL, keyR );
+								std::map<ElemMatKey, DblNumMat>::iterator mi = 
+									HMat_.LocalMap().find( matKey );
+								if( mi == HMat_.LocalMap().end() ){
+									HMat_.LocalMap()[matKey] = localMat;
+								}
+								else{
+									DblNumMat&  mat = (*mi).second;
+									blas::Axpy( mat.Size(), 1.0, localMat.Data(), 1,
+											mat.Data(), 1);
+								}
+							}
+
+							// Add (keyR, keyL) to HMat_
+							{
+								DblNumMat localMatTran;
+								Transpose( localMat, localMatTran );
+								ElemMatKey matKey( keyR, keyL );
+								std::map<ElemMatKey, DblNumMat>::iterator mi = 
+									HMat_.LocalMap().find( matKey );
+								if( mi == HMat_.LocalMap().end() ){
+									HMat_.LocalMap()[matKey] = localMatTran;
+								}
+								else{
+									DblNumMat&  mat = (*mi).second;
+									blas::Axpy( mat.Size(), 1.0, localMatTran.Data(), 1,
+											mat.Data(), 1);
+								}
+							}
+						} // y-direction
 					}
 				} // for (i)
 
