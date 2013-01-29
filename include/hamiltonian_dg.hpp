@@ -13,6 +13,7 @@
 #include  "periodtable.hpp"
 #include  "utility.hpp"
 #include  "esdf.hpp"
+#include  "spinor.hpp"
 #include  "fourier.hpp"
 #include  <xc.h>
 
@@ -205,6 +206,13 @@ private:
 	/// each atom.
 	DistPseudoPotElem  pseudo_;
 
+	// FIXME remove AA later.
+	DistVec<Index3, std::map<Int, PseudoPot>, ElemPrtn>  pseudoAA_;
+
+	DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn>  vnlCoef_;
+
+	std::map<Int, DblNumVec>  vnlWeightMap_;
+
 	/// @brief Differentiation matrix on the LGL grid.
 	std::vector<DblNumMat>    DMat_;
 
@@ -236,6 +244,8 @@ public:
 
 
 	void CalculatePseudoPotential( PeriodTable &ptable );
+	
+	void CalculatePseudoPotentialAA( PeriodTable &ptable );
 	//
 	//	virtual void CalculateNonlocalPP( PeriodTable &ptable ) = 0;
 	//

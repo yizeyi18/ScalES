@@ -2,8 +2,12 @@
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 
+
+// FIXME :Boundary maybe need to change to set?
+
 namespace dgdft{
 
+using namespace PseudoComponent;
 
 // *********************************************************************
 // Utility functions used in this subroutine
@@ -138,6 +142,10 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
   
 	vtotLGL_.Prtn()       = elemPrtn_;
 	basisLGL_.Prtn()      = elemPrtn_;
+
+	// Pseudopotential
+	pseudoAA_.Prtn()      = elemPrtn_;
+	vnlCoef_.Prtn()       = elemPrtn_;
 
 	// Partition of the DG matrix
 	elemMatPrtn_.ownerInfo = elemPrtn_.ownerInfo;
@@ -339,11 +347,6 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 
 	// Generate the atomic pseudopotentials
 
-	Index3 elemNumGridFirst;
-	for( Int d = 0; d < DIM; d++ ){
-		elemNumGridFirst[d] = domain_.numGrid[d] / numElem_[d];
-	}
-
   for (Int a=0; a<numAtom; a++) {
 		if( pseudo_.Prtn().Owner(a) == mpirank ){
 			PseudoPotElem pp;
@@ -479,6 +482,179 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 } 		// -----  end of method HamiltonianDG::CalculatePseudoPotential  ----- 
 
 
+void
+HamiltonianDG::CalculatePseudoPotentialAA	( PeriodTable &ptable ){
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::CalculatePseudoPotentialAA");
+#endif
+	Int ntot = domain_.NumGridTotal();
+	Int numAtom = atomList_.size();
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+	Real vol = domain_.Volume();
+
+	// *********************************************************************
+	// Atomic information
+	// *********************************************************************
+
+  // Calculate the number of occupied states
+  Int nelec = 0;
+  for (Int a=0; a<numAtom; a++) {
+		Int atype  = atomList_[a].type;
+		if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
+			std::ostringstream msg;
+			msg << "Cannot find the atom type for atom #" << a << std::endl;
+			throw std::runtime_error( msg.str().c_str() );
+		}
+		nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
+  }
+
+	if( nelec % 2 != 0 ){
+		throw std::runtime_error( "This is a spin-restricted calculation. nelec should be even." );
+	}
+	
+	numOccupiedState_ = nelec / numSpin_;
+
+#if ( _DEBUGlevel_ >= 0 )
+	Print( statusOFS, "Number of Occupied States                    = ", numOccupiedState_ );
+#endif
+
+	// Generate the atomic pseudopotentials
+
+	// Also prepare the integration weights for constructing the DG matrix later.
+
+	vnlWeightMap_.clear();
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					std::map<Int, PseudoPot>   ppMap;
+					std::vector<DblNumVec>&    gridpos = uniformGridElem_( i, j, k );
+					for( Int a = 0; a < numAtom; a++ ){
+						PTEntry& ptentry = ptable.ptemap()[atomList_[a].type];
+						// Cutoff radius: Take the largest one
+						Real Rzero = ptentry.cutoffs( PTSample::PSEUDO_CHARGE );
+						if(ptentry.cutoffs.m()>PTSample::NONLOCAL)      
+							Rzero = std::max( Rzero, ptentry.cutoffs(PTSample::NONLOCAL) );
+
+						// Compute the minimum distance of this atom to all grid points
+						Point3 minDist;
+						Point3& length = domain_.length;
+						Point3& pos    = atomList_[a].pos;
+						for( Int d = 0; d < DIM; d++ ){
+							minDist[d] = Rzero;
+							Real dist;
+							for( Int i = 0; i < gridpos[d].m(); i++ ){
+								dist = gridpos[d](i) - pos[d];
+								dist = dist - IRound( dist / length[d] ) * length[d];
+								if( std::abs( dist ) < minDist[d] )
+									minDist[d] = std::abs( dist );
+							}
+						}
+						// If this atom overlaps with this element, compute the pseudopotential
+						if( minDist.l2() <= Rzero ){
+							PseudoPot   pp;
+							ptable.CalculatePseudoCharge( atomList_[a], 
+									domain_, uniformGridElem_(i, j, k), pp.pseudoCharge );
+							ptable.CalculateNonlocalPP( atomList_[a], 
+									domain_, LGLGridElem_(i, j, k), pp.vnlList );
+							ppMap[a] = pp;
+							DblNumVec   weight( pp.vnlList.size() );
+							for( Int l = 0; l < weight.Size(); l++ ){
+								weight(l) = pp.vnlList[l].second;
+							}
+							vnlWeightMap_[a] = weight;
+						}
+					} // for (a)
+					pseudoAA_.LocalMap()[key] = ppMap;
+				} // own this element
+			} // for (i)
+
+#if ( _DEBUGlevel_ >= 1 )
+	statusOFS << std::endl << "Atomic pseudocharge computed." << std::endl;
+#endif
+
+	// *********************************************************************
+	// Local pseudopotential: computed by pseudocharge
+	// *********************************************************************
+	
+	// Compute the pseudocharge by summing over contributions from all atoms
+	{
+		Real localSum = 0.0, sumRho = 0.0;
+
+		pseudoCharge_.LocalMap().clear();
+
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						std::map<Int, PseudoPot>&  ppMap = pseudoAA_.LocalMap()[key];
+						DblNumVec  localVec( numUniformGridElem_.prod() );
+						SetValue( localVec, 0.0 );
+						for( std::map<Int, PseudoPot>::iterator mi = ppMap.begin();
+								 mi != ppMap.end(); mi++ ){
+							Int atomIdx = (*mi).first;
+							PseudoPot& pp = (*mi).second;
+							SparseVec& sp = pp.pseudoCharge;
+							IntNumVec& idx = sp.first;
+							DblNumMat& val = sp.second;
+							for( Int l = 0; l < idx.m(); l++ ){
+								localVec[idx(l)] += val(l, VAL);
+							}
+						} // for (mi)
+						pseudoCharge_.LocalMap()[key] = localVec;
+					} // own this element
+				} // for (i)
+
+		// Compute the sum of the pseudocharge and make adjustment.
+	
+		for( std::map<Index3, DblNumVec>::iterator mi = pseudoCharge_.LocalMap().begin();
+				mi != pseudoCharge_.LocalMap().end(); mi++ ){
+			DblNumVec& vec = (*mi).second;
+			for( Int i = 0; i < vec.m(); i++ ){
+				localSum += vec[i];
+			}
+		}
+
+		localSum *= domain_.Volume() / domain_.NumGridTotal();
+
+		mpi::Allreduce( &localSum, &sumRho, 1, MPI_SUM, domain_.comm );
+
+#if ( _DEBUGlevel_ >= 0 )
+		Print( statusOFS, "Sum of Pseudocharge                          = ", sumRho );
+		Print( statusOFS, "numOccupiedState                             = ", 
+				numOccupiedState_ );
+#endif
+		
+		// Make adjustments to the pseudocharge
+		Real diff = ( numSpin_ * numOccupiedState_ - sumRho ) / domain_.Volume();
+		
+		for( std::map<Index3, DblNumVec>::iterator mi = pseudoCharge_.LocalMap().begin();
+				mi != pseudoCharge_.LocalMap().end(); mi++ ){
+			DblNumVec& vec = (*mi).second;
+			for( Int i = 0; i < vec.m(); i++ ){
+				vec[i] += diff;
+			}
+		}
+	
+#if ( _DEBUGlevel_ >= 0 )
+		Print( statusOFS, "After adjustment, sum of Pseudocharge        = ", 
+				(Real) numSpin_ * numOccupiedState_ );
+#endif
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method HamiltonianDG::CalculatePseudoPotentialAA  ----- 
+
+
 void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
 #ifndef _RELEASE_ 
 	PushCallStack("HamiltonianDG::CalculateHartree");
@@ -579,6 +755,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	PushCallStack("HamiltonianDG::CalculateDGMatrix");
 #endif
 	Int mpirank, mpisize;
+	Int numAtom = atomList_.size();
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
 	Real timeSta, timeEnd;
@@ -610,6 +787,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	std::vector<DblNumVec>  LGLWeight1D(DIM);
 	std::vector<DblNumMat>  LGLWeight2D(DIM);
 	DblNumTns               LGLWeight3D;
+
 
 	// *********************************************************************
 	// Initial setup
@@ -706,12 +884,38 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for initial setup" <<
+		statusOFS << "Time for initial setup is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 	}
+	
 	// *********************************************************************
-	// Local gradient calculation
+	// Start the communication of nonlocal pseudopotential
+	// 
+	// This is started first because it does not require any precomputation
+	// such as gradient calculation, and can overlap communication with
+	// computation
+	// *********************************************************************
+	if(0)
+	{
+		GetTime(timeSta);
+
+		// From pseudo_.vnlList, put the information into pseudoLGL
+
+		// Communication of pseudoLGL
+    
+
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "After the GetBegin part of pseudopotential communication." << std::endl;
+		statusOFS << "Time for GetBegin of pseudopotentialis " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+	}
+	
+	
+	// *********************************************************************
+	// Local gradient calculation: Overlap communication with computation
 	// *********************************************************************
 	{
 		GetTime(timeSta);
@@ -892,110 +1096,12 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		statusOFS << "Time for constructing the boundary terms is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-
 	}
 
 	// *********************************************************************
-	// Start the inter-element communication
+	// Start the communication of boundary terms
 	// *********************************************************************
-
-	// Construct communication pattern
-
-	// Indices for communication due to the jump term
-	std::vector<Index3>   jumpCommIdx;            
-	// Indices for communication due to the nonlocal pseudopotential term
-	std::vector<Index3>   pseudoCommIdx;            
-
-	// Old code for communicating the basis
-	if(0)
 	{
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Constructing communication pattern." << std::endl;
-#endif
-		// jump
-		std::set<Index3>    jumpSet;
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					Index3 key(i, j, k);
-					if( elemPrtn_.Owner(key) == mpirank ){
-						// Periodic boundary condition for jump vectors
-						Int p1; if( i == 0 )  p1 = numElem_[0]-1; else   p1 = i-1;
-						Int p2; if( j == 0 )  p2 = numElem_[1]-1; else   p2 = j-1;
-						Int p3; if( k == 0 )  p3 = numElem_[2]-1; else   p3 = k-1;
-						jumpSet.insert( Index3( p1, j,  k ) );
-						jumpSet.insert( Index3( i, p2,  k ) );
-						jumpSet.insert( Index3( i,  j, p3 ) );
-					}
-				} // for (i)
-    jumpCommIdx.insert( jumpCommIdx.begin(), jumpSet.begin(), jumpSet.end() );
-
-		// nonlocal pseudopotential
-		std::set<Index3>  pseudoSet;
-		for( std::map<Int, PseudoPotElem>::iterator 
-				 mi  = pseudo_.LocalMap().begin();
-				 mi != pseudo_.LocalMap().end(); mi++ ){
-			Int            curkey = (*mi).first;
-			PseudoPotElem& curdat = (*mi).second;
-			if( pseudo_.Prtn().Owner(curkey) == mpirank ){
-				std::vector<std::pair<NumTns<SparseVec>, Real> >& vnlList =
-					curdat.vnlList;
-				for( Int g = 0; g < vnlList.size(); g++ ){
-					NumTns<SparseVec>& vnl = vnlList[g].first;
-					for( Int k = 0; k < numElem_[2]; k++ )
-						for( Int j = 0; j < numElem_[1]; j++ )
-							for( Int i = 0; i < numElem_[0]; i++ ){
-								// If the current nonlocal pseudopotential has nonzero
-								// values on the element, put into the communication
-								// list 
-								if( vnl(i,j,k).first.Size() > 0 ){
-									pseudoSet.insert( Index3(i,j,k) );
-								}
-							}
-				} // for (g)
-			}
-		} // for (mi)
-
-		pseudoCommIdx.insert( pseudoCommIdx.begin(),
-				pseudoSet.begin(), pseudoSet.end() );
-	}
-
-
-	// Start communication, and then overlap communication with computation
-	// Old code for communicating the basis
-	if(0)
-	{
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Before communication." << std::endl;
-#endif
-		GetTime( timeSta );
-		std::vector<Index3>  commIdx;
-		commIdx.resize( jumpCommIdx.size() + pseudoCommIdx.size() );
-		std::vector<Index3>::iterator commIdxEnd = 
-			std::set_union( 
-					jumpCommIdx.begin(), jumpCommIdx.end(),
-					pseudoCommIdx.begin(), pseudoCommIdx.end(), 
-					commIdx.begin() );
-
-		// Note: keyIdx can be different from commIdx since there is overlap
-		// between jump and pseudo indices
-		std::vector<Index3> keyIdx;
-		keyIdx.insert( keyIdx.begin(), commIdx.begin(), commIdx.end() );
-
-		basisLGL_.GetBegin( keyIdx, NO_MASK );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "After the GetBegin part of communication." << std::endl;
-		statusOFS << "Time for GetBegin is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-	}
-
-	// Communication of boundary terms
-	{
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Constructing communication pattern." << std::endl;
-#endif
 		GetTime(timeSta);
 		std::vector<Index3>   boundaryXIdx;
 		std::vector<Index3>   boundaryYIdx; 
@@ -1034,7 +1140,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	}
 	
 	
-
 	// *********************************************************************
 	// Diagonal part: Overlap communication with computation
 	// *********************************************************************
@@ -1277,24 +1382,237 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		statusOFS << "Time for the diagonal part of the DG matrix is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-
-	}
+	} 
 
 	// *********************************************************************
-	// Finish the inter-element communication
+	// Finish the communication of nonlocal pseudopotential
 	// *********************************************************************
-	// Old code for communicating the basis
 	if(0)
 	{
 		GetTime( timeSta );
-		basisLGL_.GetEnd( NO_MASK );
+
+		// Receive pseudoLGL
+		
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for the remaining communication cost is " <<
+		statusOFS << "Extra time for receiving pseudopotential is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 	}
+
+	// *********************************************************************
+	// Nonlocal pseudopotential term
+	// *********************************************************************
+	if(1)
+	{
+		GetTime( timeSta );
+		// Compute the coefficient (i.e. the inner product of the nonlocal
+		// pseudopotential and basis functions in the form of <phi|l>) for
+		// nonlocal pseudopotential projectors locally
+
+		// FIXME Remove AA
+		vnlCoef_.LocalMap().clear();
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner(key) == mpirank ){
+						std::map<Int, DblNumMat>  coefMap;
+						std::map<Int, PseudoPot>& pseudoMap =
+							pseudoAA_.LocalMap()[key];
+						DblNumMat&   basis = basisLGL_.LocalMap()[key];
+						Int numBasis = basis.n();
+
+						// Loop over atoms
+						for( std::map<Int, PseudoPot>::iterator 
+							 	 mi  = pseudoMap.begin();
+							   mi != pseudoMap.end(); mi++ ){
+							Int atomIdx = (*mi).first;
+							std::vector<NonlocalPP>&  vnlList = (*mi).second.vnlList;
+							DblNumMat coef( numBasis, vnlList.size() );
+							SetValue( coef, 0.0 );
+							// Loop over projector
+							for( Int g = 0; g < vnlList.size(); g++ ){
+								SparseVec&  vnl = vnlList[g].first;
+								IntNumVec&  idx = vnl.first;
+								DblNumMat&  val = vnl.second;
+								Real*       ptrWeight = LGLWeight3D.Data();
+								if( idx.Size() > 0 ) {
+									// Loop over basis function
+									for( Int a = 0; a < numBasis; a++ ){
+										// Loop over grid point
+										for( Int l = 0; l < idx.Size(); l++ ){
+											coef(a, g) += basis( idx(l), a ) * val(l, VAL) * 
+												ptrWeight[idx(l)];
+										}
+									}
+								} // non-empty
+							} // for (g)
+
+							coefMap[atomIdx] = coef;
+						}
+						vnlCoef_.LocalMap()[key] = coefMap;
+					} // own this element
+				} // for (i)
+
+
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << 
+			"Time for computing the coefficient for nonlocal projector is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+		GetTime( timeSta );
+		
+		// Communication of the coefficient matrices.
+		// Each element owns all the coefficient matrices in its neighbors
+		// and then perform data processing later. It can be as many as 
+		// 3^3-1 = 26 elements. 
+		//
+		// Note that it is assumed that the size of the element size cannot
+		// be smaller than the pseudopotential (local or nonlocal) cutoff radius.
+		//
+		// Use std::set to avoid repetitive entries
+		std::set<Index3>  pseudoSet;
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner(key) == mpirank ){
+						IntNumVec  idxX(3);
+						IntNumVec  idxY(3);
+						IntNumVec  idxZ(3); 
+
+						// Previous
+						if( i == 0 )  idxX(0) = numElem_[0]-1; else   idxX(0) = i-1;
+						if( j == 0 )  idxY(0) = numElem_[1]-1; else   idxY(0) = j-1;
+						if( k == 0 )  idxZ(0) = numElem_[2]-1; else   idxZ(0) = k-1;
+
+						// Current
+						idxX(1) = i;
+						idxY(1) = j;
+						idxZ(1) = k;
+
+						// Next
+						if( i == numElem_[0]-1 )  idxX(2) = 0; else   idxX(2) = i+1;
+						if( j == numElem_[1]-1 )  idxY(2) = 0; else   idxY(2) = j+1;
+						if( k == numElem_[2]-1 )  idxZ(2) = 0; else   idxZ(2) = k+1;
+
+						// Tensor product 
+						for( Int c = 0; c < 3; c++ )
+							for( Int b = 0; b < 3; b++ )
+								for( Int a = 0; a < 3; a++ ){
+									// Not the element key itself
+									if( idxX[a] != i || idxY[b] != j || idxZ[b] != k ){
+										pseudoSet.insert( Index3( idxX(a), idxY(b), idxZ(c) ) );
+									}
+								} // for (a)
+					}
+				} // for (i)
+		std::vector<Index3>  pseudoIdx;
+		pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
+		
+		vnlCoef_.GetBegin( pseudoIdx, NO_MASK );
+		vnlCoef_.GetEnd( NO_MASK );
+
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << 
+			"Time for the communication of pseudopotential coefficent is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+		GetTime( timeSta );
+
+		// Loop over atoms
+		for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
+			if( atomPrtn_.Owner(atomIdx) == mpirank ){
+			  DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
+				// Loop over element 1
+				for( std::map<Index3, std::map<Int, DblNumMat> >::iterator 
+						ei  = vnlCoef_.LocalMap().begin();
+						ei != vnlCoef_.LocalMap().end(); ei++ ){
+					Index3 key1 = (*ei).first;
+					std::map<Int, DblNumMat>& coefMap1 = (*ei).second; 
+					std::map<Int, PseudoPot>& pseudoMap = pseudoAA_.LocalMap()[key1];
+
+					std::map<Int, DblNumMat>::iterator mi = 
+						coefMap1.find( atomIdx );
+					if( mi != coefMap1.end() ){
+						DblNumMat&  coef1 = (*mi).second;
+						// Loop over element j
+						for( std::map<Index3, std::map<Int, DblNumMat> >::iterator 
+								ej  = vnlCoef_.LocalMap().begin();
+								ej != vnlCoef_.LocalMap().end(); ej++ ){
+							Index3 key2 = (*ej).first;
+							std::map<Int, DblNumMat>& coefMap2 = (*ej).second;
+
+							std::map<Int, DblNumMat>::iterator ni = 
+								coefMap2.find( atomIdx );
+							// Compute the contribution to HMat_(key1, key2)
+							if( ni != coefMap2.end() ){
+								DblNumMat& coef2 = (*ni).second;
+								DblNumMat localMat( coef1.m(), coef2.m() );
+								SetValue( localMat, 0.0 );
+								// Check size consistency
+								if( coef1.n() != coef2.n() ||
+										coef1.n() != vnlWeight.Size() ){
+									std::ostringstream msg;
+									msg 
+										<< "Error in assembling the nonlocal pseudopotential part of the DG matrix." << std::endl
+										<< "Atom number " << atomIdx << std::endl
+										<< "Element 1: " << key1 << ", Element 2: " << key2 << std::endl
+										<< "Coef matrix 1 size : " << coef1.m() << " x " << coef1.n() << std::endl
+										<< "Coef matrix 2 size : " << coef2.m() << " x " << coef2.n() << std::endl
+										<< "vnlWeight     size : " << vnlWeight.Size() << std::endl;
+
+									throw std::runtime_error( msg.str().c_str() );
+								}
+								// Outer product with the weight of the nonlocal
+								// pseudopotential to form local matrix
+								//
+								// localMat = coef1 * diag(weight) * coef2^T.
+								for( Int l = 0; l < vnlWeight.Size(); l++ ){
+									Real weight = vnlWeight(l);
+									blas::Ger( coef1.m(), coef2.m(), weight, 
+											coef1.VecData(l), 1, coef2.VecData(l), 1,
+											localMat.Data(), localMat.m() );
+								}
+								// Add to HMat_
+								ElemMatKey matKey( key1, key2 );
+								std::map<ElemMatKey, DblNumMat>::iterator mati = 
+									HMat_.LocalMap().find( matKey );
+								if( mati == HMat_.LocalMap().end() ){
+									HMat_.LocalMap()[matKey] = localMat;
+								}
+								else{
+									DblNumMat&  mat = (*mati).second;
+									blas::Axpy( mat.Size(), 1.0, localMat.Data(), 1,
+											mat.Data(), 1 );
+								}
+							} // found atomIdx in element 2
+						} // for (ej)
+					} // found atomIdx in element 1
+				} // for (ei)
+			} // own this atom
+		}
+
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << 
+			"Time for updating the nonlocal potential part of the matrix is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+	}
+
+
+
+	// *********************************************************************
+	// Finish the communication of boundary terms
+	// *********************************************************************
 
 	// New code for communicating boundary elements
 	{
@@ -1588,15 +1906,8 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 
 	// *********************************************************************
-	// Nonlocal pseudopotential
-	// *********************************************************************
-
-
-	// *********************************************************************
 	// Collect information and combine HMat_
 	// *********************************************************************
-
-	if(1)
 	{
 		GetTime( timeSta );
 		std::vector<ElemMatKey>  keyIdx;
@@ -1640,35 +1951,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	// Clean up
 	// *********************************************************************
 
-	// Remove the basis functions that are not used to save memory
-	if(0)
-	{
-		std::vector<Index3>  eraseKey;
-		for( std::map<Index3, DblNumMat>::iterator
-				 mi = basisLGL_.LocalMap().begin();
-				 mi != basisLGL_.LocalMap().end(); mi++ ){
-			const Index3& key = (*mi).first;
-			if( basisLGL_.Prtn().Owner( key ) != mpirank ){
-				eraseKey.push_back( key );
-			}
-		}
-		for( std::vector<Index3>::iterator vi = eraseKey.begin();
-			   vi != eraseKey.end(); vi++ ){
-			basisLGL_.LocalMap().erase( *vi );
-		}
-	}
-
-	// Print out the H matrix
-	if(0)
-	{
-		for( std::map<ElemMatKey, DblNumMat>::iterator
-				 mi =  HMat_.LocalMap().begin();
-				 mi != HMat_.LocalMap().end(); mi++ ){
-			statusOFS << (*mi).first.first << std::endl;
-			statusOFS << (*mi).second << std::endl;
-
-		}
-	}
 
 #ifndef _RELEASE_
 	PopCallStack();

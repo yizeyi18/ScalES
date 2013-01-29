@@ -41,7 +41,7 @@ public:
 	//-----------LENGTH
 	F l1( void )     const  { F sum=F(0); for(Int i=0; i<3; i++) sum=sum+std::abs(v_[i]); return sum; }
 	F linfty( void ) const  { F cur=F(0); for(Int i=0; i<3; i++) cur=std::max(cur,std::abs(v_[i])); return cur; }
-	F l2( void )     const  { F sum=F(0); for(Int i=0; i<3; i++) sum=sum+v_[i]*v_[i]; return sqrt(sum); }
+	F l2( void )     const  { F sum=F(0); for(Int i=0; i<3; i++) sum=sum+std::abs(v_[i]*v_[i]); return std::sqrt(sum); }
 	F prod( void )   const  { return v_[0]*v_[1]*v_[2]; }
 };
 
@@ -81,9 +81,9 @@ public:
   Vec2T& operator*=( const F& s )     { v_[0]*=s;       v_[1]*=s;       return *this; }
   Vec2T& operator/=( const F& s )     { v_[0]/=s;       v_[1]/=s;       return *this; }
   //-----------LENGTH...
-  F l1( void )     const  { F sum=F(0); for(int i=0; i<2; i++) sum=sum+abs(v_[i]); return sum; }
-  F linfty( void ) const  { F cur=F(0); for(int i=0; i<2; i++) cur=max(cur,abs(v_[i])); return cur; }
-  F l2( void )     const  { F sum=F(0); for(int i=0; i<2; i++) sum=sum+v_[i]*v_[i]; return sqrt(sum); }
+  F l1( void )     const  { F sum=F(0); for(int i=0; i<2; i++) sum=sum+std::abs(v_[i]); return sum; }
+  F linfty( void ) const  { F cur=F(0); for(int i=0; i<2; i++) cur=std::max(cur,std::abs(v_[i])); return cur; }
+  F l2( void )     const  { F sum=F(0); for(int i=0; i<2; i++) sum=sum+std::abs(v_[i]*v_[i]); return std::sqrt(sum); }
 	F prod( void )   const  { return v_[0]*v_[1]; }
 };
 

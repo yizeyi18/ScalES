@@ -17,9 +17,9 @@ namespace dgdft{
 struct PseudoPot
 {
 	/// @brief Pseudocharge of an atom, defined on the uniform grid.
-  SparseVec                                    pseudoCharge; 
+  SparseVec                         pseudoCharge; 
 	/// @brief Nonlocal projectors of an atom, defined on the LGL grid.
-	std::vector<std::pair<SparseVec, Real> >     vnlList;
+	std::vector<NonlocalPP>           vnlList;
 };
 
 class Spinor {
