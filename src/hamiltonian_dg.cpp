@@ -2,8 +2,9 @@
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 
+#define _DEBUGlevel_ 0
 
-// FIXME :Boundary maybe need to change to set?
+// FIXME Remove AA
 
 namespace dgdft{
 
@@ -1103,6 +1104,10 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	// *********************************************************************
 	{
 		GetTime(timeSta);
+		std::set<Index3>   boundaryXset;
+		std::set<Index3>   boundaryYset;
+		std::set<Index3>   boundaryZset;
+
 		std::vector<Index3>   boundaryXIdx;
 		std::vector<Index3>   boundaryYIdx; 
 		std::vector<Index3>   boundaryZIdx;
@@ -1116,13 +1121,17 @@ HamiltonianDG::CalculateDGMatrix	(  )
 						Int p1; if( i == 0 )  p1 = numElem_[0]-1; else   p1 = i-1;
 						Int p2; if( j == 0 )  p2 = numElem_[1]-1; else   p2 = j-1;
 						Int p3; if( k == 0 )  p3 = numElem_[2]-1; else   p3 = k-1;
-						boundaryXIdx.push_back( Index3( p1, j,  k) );
-						boundaryYIdx.push_back( Index3( i, p2,  k ) );
-						boundaryZIdx.push_back( Index3( i,  j, p3 ) ); 
+						boundaryXset.insert( Index3( p1, j,  k) );
+						boundaryYset.insert( Index3( i, p2,  k ) );
+						boundaryZset.insert( Index3( i,  j, p3 ) ); 
 					}
 				} // for (i)
 		
 		// The left element passes the values on the right face.
+
+		boundaryXIdx.insert( boundaryXIdx.begin(), boundaryXset.begin(), boundaryXset.end() );
+		boundaryYIdx.insert( boundaryYIdx.begin(), boundaryYset.begin(), boundaryYset.end() );
+		boundaryZIdx.insert( boundaryZIdx.begin(), boundaryZset.begin(), boundaryZset.end() );
 
 		DbasisAverage[XR].GetBegin( boundaryXIdx, NO_MASK );
 		DbasisAverage[YR].GetBegin( boundaryYIdx, NO_MASK );
@@ -1411,7 +1420,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		// pseudopotential and basis functions in the form of <phi|l>) for
 		// nonlocal pseudopotential projectors locally
 
-		// FIXME Remove AA
 		vnlCoef_.LocalMap().clear();
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
@@ -1424,7 +1432,8 @@ HamiltonianDG::CalculateDGMatrix	(  )
 						DblNumMat&   basis = basisLGL_.LocalMap()[key];
 						Int numBasis = basis.n();
 
-						// Loop over atoms
+						// Loop over atoms, regardless of whether this atom belongs
+						// to this element or not.
 						for( std::map<Int, PseudoPot>::iterator 
 							 	 mi  = pseudoMap.begin();
 							   mi != pseudoMap.end(); mi++ ){
@@ -1605,7 +1614,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 			"Time for updating the nonlocal potential part of the matrix is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-
 	}
 
 

@@ -3,6 +3,8 @@
 /// @author Jack Poulson and Lin Lin 
 /// @date 2012-09-12
 #include  "environment.hpp"
+#ifndef _LAPACK_HPP_
+#define _LAPACK_HPP_
 
 namespace dgdft {
 
@@ -166,3 +168,4 @@ void Getri ( Int n, dcomplex* A, Int lda, const Int* ipiv );
 
 } // namespace lapack
 } // namespace dgdft
+#endif // _LAPACK_HPP_

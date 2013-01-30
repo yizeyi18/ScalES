@@ -23,7 +23,7 @@ LAPACK_LIB       = -llapack
 BLAS_LIB         = -lblas
 
 DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
-LIBS         = ${DGDFT_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${LAPACK_LIB} ${BLAS_LIB} ${GFORTRAN_LIB}
+LIBS         = ${DGDFT_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${SCALAPACK_LIB} ${LAPACK_LIB} ${BLAS_LIB} ${GFORTRAN_LIB}
 
 CC           = openmpicc 
 CXX          = openmpicxx
@@ -42,7 +42,7 @@ RMFLAGS      = -f
 
 # Different compiling and linking options.
 #
-MODE	         = debug
+MODE	         = release
 
 ifeq ($(MODE), debug)
   ifeq (${SCALAR}, COMPLEX)

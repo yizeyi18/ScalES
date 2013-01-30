@@ -2,6 +2,8 @@
 /// @brief Thin interface to BLAS
 /// @author Jack Poulson and Lin Lin
 /// @date 2012-09-12
+#ifndef _BLAS_HPP_
+#define _BLAS_HPP_
 
 #include  "environment.hpp"
 
@@ -513,3 +515,5 @@ template<typename T>
 
 } // namespace blas
 } // namespace dgdft
+
+#endif // _BLAS_HPP_

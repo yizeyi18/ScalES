@@ -25,9 +25,6 @@ int main(int argc, char **argv)
 
 	try
 	{
-#ifdef  _RELEASE_
-		throw std::runtime_error("Test should be run under debug mode");
-#endif
 
 		fftw_mpi_init();
 		
@@ -103,8 +100,6 @@ int main(int argc, char **argv)
 		// *********************************************************************
 		// Preparation
 		// *********************************************************************
-		PushCallStack( "Preparation" );
-
 		Domain&  dm = esdfParam.domain;
 
 		PeriodTable ptable;
@@ -454,7 +449,9 @@ int main(int argc, char **argv)
 	{
 		std::cerr << " caught exception with message: "
 			<< e.what() << std::endl;
+#ifndef _RELEASE_
 		DumpCallStack();
+#endif
 	}
 
 	MPI_Finalize();
