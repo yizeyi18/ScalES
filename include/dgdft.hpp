@@ -4,6 +4,7 @@
 #include  "environment.hpp"
 #include	"blas.hpp"
 #include	"lapack.hpp"
+#include	"scalapack.hpp"
 #include  "mpi_interf.hpp"
 #include  "numvec_impl.hpp"
 #include  "nummat_impl.hpp"
