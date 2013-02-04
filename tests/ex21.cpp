@@ -8,6 +8,7 @@
 using namespace dgdft;
 using namespace std;
 using namespace dgdft::esdf;
+using namespace dgdft::scalapack;
 
 void Usage(){
 	cout << "Test for the HamiltonianDG" << endl;
@@ -25,13 +26,27 @@ int main(int argc, char **argv)
 
 	try
 	{
-
-		fftw_mpi_init();
-		
+		// Initialize log file
 		stringstream  ss;
 		ss << "statfile." << mpirank;
 		cout << "The filename for the statfile is " << ss.str() << endl;
 		statusOFS.open( ss.str().c_str() );
+
+		// Initialize FFTW
+		fftw_mpi_init();
+
+		// Initialize BLACS
+		Int nprow, npcol;
+		Int contxt;
+		Cblacs_get(0, 0, &contxt);
+		for( Int i = IRound(sqrt(double(mpisize))); i <= mpisize; i++){
+			nprow = i; npcol = mpisize / nprow;
+			if( nprow * npcol == mpisize ) break;
+		} 
+		Print( statusOFS, "nprow = ", nprow );
+		Print( statusOFS, "npcol = ", npcol ); 
+		Cblacs_gridinit(&contxt, "C", nprow, npcol);
+		
 
 		ESDFInputParam  esdfParam;
 
@@ -363,6 +378,58 @@ int main(int argc, char **argv)
 				}
 			}
 		}
+		
+		// Diagonalize the Hamiltonian matrix
+		{
+			DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>& HMat = 
+				hamDG.HMat();
+			
+			DistVec<Index3, DblNumMat, ElemPrtn>  ZMat;
+
+			Int sizeH = hamDG.NumBasisTotal();
+			Int MB = 16;
+
+			statusOFS << "sizeH = " << sizeH << std::endl;
+				
+			Descriptor descH( sizeH, sizeH, MB, MB, 0, 0, contxt );
+
+			ScaLAPACKMatrix<Real>  scaH, scaZ;
+
+			DistElemMatToScaMat( HMat, 	descH,
+					scaH, hamDG.ElemBasisIdx(), MPI_COMM_WORLD );
+				
+//			if( mpirank == 0 ){
+//				Index3 key0 = Index3(0,0,0);
+//				statusOFS << "Hmat     : " << 
+//					HMat.LocalMap()[ElemMatKey(key0,key0)] << std::endl;
+//				statusOFS << "scaHmat  : " << 
+//					DblNumMat( scaH.LocalHeight(), 
+//							scaH.LocalWidth(), false,
+//							scaH.Data() ) << std::endl;
+//			}
+
+			std::vector<double> eigs;
+
+			scalapack::Syevd('L', scaH, eigs, scaZ);
+
+			statusOFS << "Eigs = " << eigs << std::endl;
+
+			ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
+					ZMat, hamDG.ElemBasisIdx(), MPI_COMM_WORLD );
+		
+			if( mpirank == 0 ){
+				Index3 key = Index3(0,0,0);
+				statusOFS << "Zmat     : " << 
+					ZMat.LocalMap()[key] << std::endl;
+			}
+			statusOFS << "scaZmat  : " << 
+				DblNumMat( scaZ.LocalHeight(), 
+						scaZ.LocalWidth(), false,
+						scaZ.Data() ) << std::endl;
+
+
+
+		}
 
 		// Output the pseudoCharge by master processor
 //		{
@@ -441,7 +508,10 @@ int main(int argc, char **argv)
 //			}
 //		}
 		
+		// Finish Cblacs
+		Cblacs_gridexit( contxt );
 
+		// Finish fftw
 		fftw_mpi_cleanup();
 
 	}

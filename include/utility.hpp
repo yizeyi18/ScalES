@@ -717,44 +717,44 @@ inline Int combine(Complex& val, Complex& ext)
 }
 
 //-------------------
-//Index2  TODO
-//inline Int serialize(const Index2& val, std::ostream& os, const std::vector<Int>& mask)
-//{
-//  os.write((char*)&(val[0]), 2*sizeof(Int));
-//  return 0;
-//}
-//
-//inline Int deserialize(Index2& val, std::istream& is, const std::vector<Int>& mask)
-//{
-//  is.read((char*)&(val[0]), 2*sizeof(Int));
-//  return 0;
-//}
-//
-//inline Int combine(Index2& val, Index2& ext)
-//{
-//	throw  std::logic_error( "Combine operation not implemented." );
-//  return 0;
-//}
+//Index2  
+inline Int serialize(const Index2& val, std::ostream& os, const std::vector<Int>& mask)
+{
+  os.write((char*)&(val[0]), 2*sizeof(Int));
+  return 0;
+}
 
-//-------------------
-//Point2  TODO
-//inline Int serialize(const Point2& val, std::ostream& os, const std::vector<Int>& mask)
-//{
-//  os.write((char*)&(val[0]), 2*sizeof(Real));
-//  return 0;
-//}
-//
-//inline Int deserialize(Point2& val, std::istream& is, const std::vector<Int>& mask)
-//{
-//  is.read((char*)&(val[0]), 2*sizeof(Real));
-//  return 0;
-//}
-//
-//inline Int combine(Point2& val, Point2& ext)
-//{
-//	throw  std::logic_error( "Combine operation not implemented." );
-//  return 0;
-//}
+inline Int deserialize(Index2& val, std::istream& is, const std::vector<Int>& mask)
+{
+  is.read((char*)&(val[0]), 2*sizeof(Int));
+  return 0;
+}
+
+inline Int combine(Index2& val, Index2& ext)
+{
+	throw  std::logic_error( "Combine operation not implemented." );
+  return 0;
+}
+
+// -------------------
+// Point2  
+inline Int serialize(const Point2& val, std::ostream& os, const std::vector<Int>& mask)
+{
+  os.write((char*)&(val[0]), 2*sizeof(Real));
+  return 0;
+}
+
+inline Int deserialize(Point2& val, std::istream& is, const std::vector<Int>& mask)
+{
+  is.read((char*)&(val[0]), 2*sizeof(Real));
+  return 0;
+}
+
+inline Int combine(Point2& val, Point2& ext)
+{
+	throw  std::logic_error( "Combine operation not implemented." );
+  return 0;
+}
 
 //-------------------
 //Index3

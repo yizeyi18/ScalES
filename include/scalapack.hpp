@@ -162,10 +162,13 @@ public:
 
 	Int LocalLDim()  const 
 	{ 
-		if(desc_.Get(Descriptor::LLD) != this->LocalHeight() );
+		if( desc_.Get(Descriptor::LLD) != this->LocalHeight() )
 		{
 			std::ostringstream msg;
-			msg << "ScaLAPACK: the leading dimension does not match" << std::endl;
+			msg 
+				<< "ScaLAPACK: the leading dimension does not match" << std::endl
+				<< "LLD from descriptor = " << desc_.Get(Descriptor::LLD) << std::endl
+				<< "LocalHeight         = " << this->LocalHeight() << std::endl;
 			throw std::logic_error( msg.str().c_str() );
 		}
 		return desc_.Get(Descriptor::LLD);
