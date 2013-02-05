@@ -221,6 +221,9 @@ private:
 	/// @brief Basis functions on the local LGL grid.
 	DistDblNumMat    basisLGL_;
 
+	/// @brief Coefficients of the eigenfunctions
+	DistDblNumMat    eigvecCoef_;
+
 	/// @brief Pseudopotential and nonlocal projectors associated with
 	/// each atom.
 	DistPseudoPotElem  pseudo_;
@@ -235,8 +238,13 @@ private:
 	/// @brief Differentiation matrix on the LGL grid.
 	std::vector<DblNumMat>    DMat_;
 
+	/// @brief Interpolation matrix from LGL to uniform grid in each
+	/// element (assuming all the elements are the same).
+	std::vector<DblNumMat>    LGLToUniformMat_;
+
 	/// @brief DG Hamiltonian matrix.
 	DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>  HMat_;
+
 
 	/// @brief The size of the H matrix.
 	Int    sizeHMat_;
@@ -262,15 +270,21 @@ public:
 	/// along the dimension d.
 	void DiffPsi(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d);
 
+	/// @brief Differentiate the basis functions on a certain element
+	/// along the dimension d.
+	void InterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniformGrid, 
+			const Real* psiLGL, Real* psiUniform );
 
 
+	// To be removed
 	void CalculatePseudoPotential( PeriodTable &ptable );
 	
 	void CalculatePseudoPotentialAA( PeriodTable &ptable );
-	//
-	//	virtual void CalculateNonlocalPP( PeriodTable &ptable ) = 0;
-	//
-	//	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val ) = 0;
+	
+	/// @brief Compute the electron density after the diagonalization
+	/// of the DG Hamiltonian matrix.
+	void CalculateDensity( const DblNumVec &occrate );
+	
 	//
 	//	virtual void CalculateXC (Real &val) = 0;
 	//
@@ -307,6 +321,7 @@ public:
 
 	DistDblNumMat&  BasisLGL() { return basisLGL_; }
 
+	DistDblNumMat&  EigvecCoef() { return eigvecCoef_; }
 
 	/// @brief DG Hamiltonian matrix.
 	DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>&  

@@ -384,7 +384,8 @@ int main(int argc, char **argv)
 			DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>& HMat = 
 				hamDG.HMat();
 			
-			DistVec<Index3, DblNumMat, ElemPrtn>  ZMat;
+			DistVec<Index3, DblNumMat, ElemPrtn>&  ZMat = 
+				hamDG.EigvecCoef();
 
 			Int sizeH = hamDG.NumBasisTotal();
 			Int MB = 16;
@@ -414,8 +415,9 @@ int main(int argc, char **argv)
 
 			statusOFS << "Eigs = " << eigs << std::endl;
 
+			Int numEig = 4;
 			ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
-					ZMat, hamDG.ElemBasisIdx(), MPI_COMM_WORLD );
+					ZMat, hamDG.ElemBasisIdx(), MPI_COMM_WORLD, numEig );
 		
 			if( mpirank == 0 ){
 				Index3 key = Index3(0,0,0);
@@ -427,41 +429,43 @@ int main(int argc, char **argv)
 						scaZ.LocalWidth(), false,
 						scaZ.Data() ) << std::endl;
 
+			DblNumVec occrate( numEig );
+			SetValue( occrate, 1.0 );
 
+			hamDG.CalculateDensity( occrate );
 
+			if( mpirank == 0 ){
+				ofstream ofs("den1");
+				if( !ofs.good() )
+					throw runtime_error("File cannot be opened.");
+				serialize( hamDG.Density().LocalMap()[Index3(0,0,0)], ofs, NO_MASK );
+				ofs.close();
+			}
 		}
 
-		// Output the pseudoCharge by master processor
-//		{
-//			MPI_Comm commMaster;
-//			Int color = 0;
-//			if( mpirank != 0 && mpirank != 1 )
-//				color = 1;
-//			MPI_Comm_split( MPI_COMM_WORLD, color, mpirank, &commMaster );
-//			if( color != 0 )
-//				commMaster = MPI_COMM_NULL;
-//			
-//			Int localNzStart, localNz;
-//			if( mpirank == 0 ){
-//				localNzStart = 0;
-//				localNz      = dm.numGrid[2]/2;
-//			}
-//			if( mpirank == 1 ){
-//				localNzStart = dm.numGrid[2] / 2;
-//				localNz      = dm.numGrid[2] / 2;
-//			}
-//			
-//			DblNumVec localVec;
-//			DistNumVecToDistRowVec( 
-//					hamDG.PseudoCharge(),
-//					localVec,
-//					dm.numGrid,
-//					esdfParam.numElem,
-//					localNzStart,
-//					localNz,
-//					MPI_COMM_WORLD,
-//					commMaster);
-//
+		// Output the density by master processor
+		{
+			MPI_Comm commMaster;
+			bool isInGrid = (mpirank == 0) ? true : false;
+			MPI_Comm_split( MPI_COMM_WORLD, isInGrid, mpirank, &commMaster );
+			
+			Int localNzStart, localNz;
+			if( mpirank == 0 ){
+				localNzStart = 0;
+				localNz      = dm.numGrid[2];
+			}
+			
+			DblNumVec localVec;
+			DistNumVecToDistRowVec( 
+					hamDG.Density(),
+					localVec,
+					dm.numGrid,
+					esdfParam.numElem,
+					localNzStart,
+					localNz,
+					isInGrid,
+					MPI_COMM_WORLD);
+
 //			DistDblNumVec  tt;
 //			tt.Prtn() = hamDG.PseudoCharge().Prtn();
 //
@@ -498,15 +502,15 @@ int main(int argc, char **argv)
 //				}
 //			} // for (k)
 //
-//
-//			if( mpirank == 1 ){
-//				ofstream ofs("pseudo");
-//				if( !ofs.good() )
-//					throw runtime_error("File cannot be opened.");
-//				serialize( localVec, ofs, NO_MASK );
-//				ofs.close();
-//			}
-//		}
+
+			if( mpirank == 0 ){
+				ofstream ofs("density");
+				if( !ofs.good() )
+					throw runtime_error("File cannot be opened.");
+				serialize( localVec, ofs, NO_MASK );
+				ofs.close();
+			}
+		}
 		
 		// Finish Cblacs
 		Cblacs_gridexit( contxt );

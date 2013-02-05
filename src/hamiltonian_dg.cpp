@@ -249,6 +249,52 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 				DMat_[d].Data(), 1 );
 	}
 
+	// Generate the transfer matrix from LGL grid to uniform grid on each
+	// element. The Lagrange polynomials involved in the transfer matrix
+	// is computed using the Barycentric method.  For more information see
+	//
+	// [J.P. Berrut and L.N. Trefethen, Barycentric Lagrange Interpolation,
+	// SIAM Rev. 2004]
+	//
+	// NOTE: This assumes uniform mesh used for each element.
+	{
+		LGLToUniformMat_.resize(DIM);
+		Index3& numLGL                      = numLGLGridElem_;
+		Index3& numUniform                  = numUniformGridElem_;
+		// Small stablization parameter 
+		const Real EPS                      = 1e-13; 
+		for( Int d = 0; d < DIM; d++ ){
+			DblNumVec& LGLGrid     = LGLGridElem_(0,0,0)[d];
+			DblNumVec& uniformGrid = uniformGridElem_(0,0,0)[d];
+			// Stablization constant factor, according to Berrut and Trefethen
+			Real    stableFac = 0.25 * domainElem_(0,0,0).length[d];
+			DblNumMat& localMat = LGLToUniformMat_[d];
+			localMat.Resize( numUniform[d], numLGL[d] );
+			DblNumVec lambda( numLGL[d] );
+			DblNumVec denom( numUniform[d] );
+			SetValue( lambda, 0.0 );
+			SetValue( denom, 0.0 );
+			for( Int i = 0; i < numLGL[d]; i++ ){
+				lambda[i] = 1.0;
+				for( Int j = 0; j < numLGL[d]; j++ ){
+					if( j != i ) 
+						lambda[i] *= (LGLGrid[i] - LGLGrid[j]) / stableFac; 
+				} // for (j)
+				lambda[i] = 1.0 / lambda[i];
+				for( Int j = 0; j < numUniform[d]; j++ ){
+					denom[j] += lambda[i] / ( uniformGrid[j] - LGLGrid[i] + EPS );
+				}
+			} // for (i)
+
+			for( Int i = 0; i < numLGL[d]; i++ ){
+				for( Int j = 0; j < numUniform[d]; j++ ){
+					localMat( j, i ) = (lambda[i] / ( uniformGrid[j] - LGLGrid[i]
+								+ EPS )) / denom[j]; 
+				} // for (j)
+			} // for (i)
+		} // for (d)
+	}
+
 
 	// Initialize the XC functional.  
 	// Spin-unpolarized functional is used here
@@ -305,6 +351,60 @@ HamiltonianDG::DiffPsi	(const Index3& numGrid, const Real* psi, Real* Dpsi, Int 
 
 	return ;
 } 		// -----  end of method HamiltonianDG::DiffPsi  ----- 
+
+
+void
+HamiltonianDG::InterpLGLToUniform	( const Index3& numLGLGrid, const
+		Index3& numUniformGrid, const Real* psiLGL, Real* psiUniform )
+{
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::InterpLGLToUniform");
+#endif
+	Index3 Ns1 = numLGLGrid;
+	Index3 Ns2 = numUniformGrid;
+	DblNumVec  tmp1( Ns2[0] * Ns1[1] * Ns1[2] );
+	DblNumVec  tmp2( Ns2[0] * Ns2[1] * Ns1[2] );
+	SetValue( tmp1, 0.0 );
+	SetValue( tmp2, 0.0 );
+
+	// x-direction, use Gemm
+	{
+		Int m = Ns2[0], n = Ns1[1] * Ns1[2], k = Ns1[0];
+		blas::Gemm( 'N', 'N', m, n, k, 1.0, LGLToUniformMat_[0].Data(),
+				m, psiLGL, k, 0.0, tmp1.Data(), m );
+	}
+	
+	// y-direction, use Gemv
+	{
+		Int   m = Ns2[1], k = Ns1[1];
+		Int   ptrShift1, ptrShift2;
+		Int   inc = Ns2[0];
+		for( Int k = 0; k < Ns1[2]; k++ ){
+			for( Int i = 0; i < Ns2[0]; i++ ){
+				ptrShift1 = i + k * Ns2[0] * Ns1[1];
+				ptrShift2 = i + k * Ns2[0] * Ns2[1];
+				blas::Gemv( 'N', m, k, 1.0, 
+						LGLToUniformMat_[1].Data(), m, 
+						tmp1.Data() + ptrShift1, inc, 0.0, 
+						tmp2.Data() + ptrShift2, inc );
+			}
+		} // for (k)
+	}
+	
+	// z-direction, use Gemm
+	{
+		Int m = Ns2[0] * Ns2[1], n = Ns2[2], k = Ns1[2]; 
+		blas::Gemm( 'N', 'T', m, n, k, 1.0, tmp2.Data(), m,
+				LGLToUniformMat_[2].Data(), n, 0.0, 
+				psiUniform, m );
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method HamiltonianDG::InterpLGLToUniform  ----- 
 
 
 void
@@ -482,7 +582,6 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 	return ;
 } 		// -----  end of method HamiltonianDG::CalculatePseudoPotential  ----- 
 
-
 void
 HamiltonianDG::CalculatePseudoPotentialAA	( PeriodTable &ptable ){
 #ifndef _RELEASE_
@@ -655,6 +754,122 @@ HamiltonianDG::CalculatePseudoPotentialAA	( PeriodTable &ptable ){
 	return ;
 } 		// -----  end of method HamiltonianDG::CalculatePseudoPotentialAA  ----- 
 
+void
+HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
+{
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::CalculateDensity");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+	Int numEig = occrate.m();
+
+	DistDblNumVec  psiUniform;
+	psiUniform.Prtn() = elemPrtn_;
+
+	// Loop over all the eigenfunctions
+	for( Int g = 0; g < numEig; g++ ){
+		// Normalization constants
+		Real normPsiLocal  = 0.0;
+		Real normPsi       = 0.0;
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumMat& localBasis = basisLGL_.LocalMap()[key];
+						Int numGrid  = localBasis.m();
+						Int numBasis = localBasis.n();
+
+						DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
+						if( localCoef.n() != numEig ){
+							throw std::runtime_error( 
+									"Numbers of eigenfunction coefficients do not match.");
+						}
+						if( localCoef.m() != numBasis ){
+							throw std::runtime_error(
+									"Number of LGL grids do not match.");
+						}
+						DblNumVec  localPsiLGL( numGrid );
+						DblNumVec  localPsiUniform( numUniformGridElem_.prod() );
+						SetValue( localPsiLGL, 0.0 );
+
+						// FIXME
+						SetValue( localPsiUniform, 1.0 );
+
+						// Compute local wavefunction on the LGL grid
+						blas::Gemv( 'N', numGrid, numBasis, 1.0, 
+								localBasis.Data(), numGrid, 
+								localCoef.VecData(g), 1, 0.0,
+								localPsiLGL.Data(), 1 );
+
+						// Interpolate local wavefunction from LGL grid to uniform grid
+            InterpLGLToUniform( 
+								numLGLGridElem_, 
+								numUniformGridElem_, 
+								localPsiLGL.Data(), 
+								localPsiUniform.Data() );
+
+						// Compute the local norm
+						normPsiLocal += Energy( localPsiUniform );
+
+						psiUniform.LocalMap()[key] = localPsiUniform;
+
+					} // own this element
+				} // for (i)
+
+		// All processors get the normalization factor
+		mpi::Allreduce( &normPsiLocal, &normPsi, 1, MPI_SUM, domain_.comm );
+
+		// pre-constant in front of psi^2 for density
+		Real rhofac = (numSpin_ * domain_.NumGridTotal() / domain_.Volume() ) 
+			* occrate[g] / normPsi;
+
+		// Add the normalized wavefunction to density
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumVec& localRho = density_.LocalMap()[key];
+						DblNumVec& localPsi = psiUniform.LocalMap()[key];
+						for( Int p = 0; p < localRho.Size(); p++ ){
+							localRho[p] += localPsi[p] * localPsi[p] * rhofac;
+						}	
+					} // own this element
+				} // for (i)
+	} // for (g)
+
+	// Check the sum of the electron density
+#if ( _DEBUGlevel_ >= 0 )
+	Real sumRhoLocal = 0.0;
+	Real sumRho      = 0.0;
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					DblNumVec& localRho = density_.LocalMap()[key];
+					for( Int p = 0; p < localRho.Size(); p++ ){
+						sumRhoLocal += localRho[p];
+					}	
+				} // own this element
+			} // for (i)
+	mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.comm );
+  
+	sumRho *= domain_.Volume() / domain_.NumGridTotal();
+
+	Print( statusOFS, "Sum rho = ", sumRho );
+#endif
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method HamiltonianDG::CalculateDensity  ----- 
 
 void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
 #ifndef _RELEASE_ 
