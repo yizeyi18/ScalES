@@ -1,7 +1,13 @@
+/// // FIXME
+/// @file hamiltonian_dg.cpp
+/// @brief Implementation of the Hamiltonian class for DG calculation.
+/// @author Lin Lin
+/// @date 2013-01-09
 #include  "hamiltonian_dg.hpp"
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 
+// FIXME Debug
 #define _DEBUGlevel_ 0
 
 // FIXME Remove AA
@@ -295,6 +301,11 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 		} // for (d)
 	}
 
+#if ( _DEBUGlevel_ >= 1 )
+	statusOFS << "LGLToUniformMat[0] = " << LGLToUniformMat_[0] << std::endl;
+	statusOFS << "LGLToUniformMat[1] = " << LGLToUniformMat_[1] << std::endl; 
+	statusOFS << "LGLToUniformMat[2] = " << LGLToUniformMat_[2] << std::endl; 
+#endif
 
 	// Initialize the XC functional.  
 	// Spin-unpolarized functional is used here
@@ -362,6 +373,7 @@ HamiltonianDG::InterpLGLToUniform	( const Index3& numLGLGrid, const
 #endif
 	Index3 Ns1 = numLGLGrid;
 	Index3 Ns2 = numUniformGrid;
+	
 	DblNumVec  tmp1( Ns2[0] * Ns1[1] * Ns1[2] );
 	DblNumVec  tmp2( Ns2[0] * Ns2[1] * Ns1[2] );
 	SetValue( tmp1, 0.0 );
@@ -376,28 +388,30 @@ HamiltonianDG::InterpLGLToUniform	( const Index3& numLGLGrid, const
 	
 	// y-direction, use Gemv
 	{
-		Int   m = Ns2[1], k = Ns1[1];
+		Int   m = Ns2[1], n = Ns1[1];
 		Int   ptrShift1, ptrShift2;
 		Int   inc = Ns2[0];
 		for( Int k = 0; k < Ns1[2]; k++ ){
 			for( Int i = 0; i < Ns2[0]; i++ ){
 				ptrShift1 = i + k * Ns2[0] * Ns1[1];
 				ptrShift2 = i + k * Ns2[0] * Ns2[1];
-				blas::Gemv( 'N', m, k, 1.0, 
+				blas::Gemv( 'N', m, n, 1.0, 
 						LGLToUniformMat_[1].Data(), m, 
 						tmp1.Data() + ptrShift1, inc, 0.0, 
 						tmp2.Data() + ptrShift2, inc );
-			}
+			} // for (i)
 		} // for (k)
 	}
+
 	
 	// z-direction, use Gemm
 	{
 		Int m = Ns2[0] * Ns2[1], n = Ns2[2], k = Ns1[2]; 
-		blas::Gemm( 'N', 'T', m, n, k, 1.0, tmp2.Data(), m,
-				LGLToUniformMat_[2].Data(), n, 0.0, 
-				psiUniform, m );
+		blas::Gemm( 'N', 'T', m, n, k, 1.0, 
+				tmp2.Data(), m, 
+				LGLToUniformMat_[2].Data(), n, 0.0, psiUniform, m );
 	}
+
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -796,9 +810,6 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 						DblNumVec  localPsiUniform( numUniformGridElem_.prod() );
 						SetValue( localPsiLGL, 0.0 );
 
-						// FIXME
-						SetValue( localPsiUniform, 1.0 );
-
 						// Compute local wavefunction on the LGL grid
 						blas::Gemv( 'N', numGrid, numBasis, 1.0, 
 								localBasis.Data(), numGrid, 
@@ -811,6 +822,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 								numUniformGridElem_, 
 								localPsiLGL.Data(), 
 								localPsiUniform.Data() );
+
 
 						// Compute the local norm
 						normPsiLocal += Energy( localPsiUniform );
