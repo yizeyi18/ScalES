@@ -17,11 +17,36 @@ Hamiltonian::Hamiltonian	(
 #ifndef _RELEASE_
 	PushCallStack("Hamiltonian::Hamiltonian");
 #endif
-	domain_        = esdfParam.domain;
-	atomList_      = esdfParam.atomList;
-	pseudoType_    = esdfParam.pseudoType;
-	XCId_          = esdfParam.XCId;
-	numExtraState_ = esdfParam.numExtraState;
+	this->Setup( 
+			esdfParam.domain,
+			esdfParam.atomList,
+			esdfParam.pseudoType,
+			esdfParam.XCId,
+			esdfParam.numExtraState,
+			numDensityComponent );
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return ;
+} 		// -----  end of method Hamiltonian::Hamiltonian  ----- 
+
+void
+Hamiltonian::Setup ( 
+		const Domain&              dm,
+		const std::vector<Atom>&   atomList,
+		std::string                pseudoType,
+		Int                        XCId,
+		Int                        numExtraState,
+    Int                        numDensityComponent )
+{
+#ifndef _RELEASE_
+	PushCallStack("Hamiltonian::Setup");
+#endif
+	domain_        = dm;
+	atomList_      = atomList;
+	pseudoType_    = pseudoType;
+	XCId_          = XCId;
+	numExtraState_ = numExtraState;
 
 	// NOTE: NumSpin variable will be determined in derivative classes.
 
@@ -52,16 +77,20 @@ Hamiltonian::Hamiltonian	(
 	PopCallStack();
 #endif
 	return ;
-} 		// -----  end of method Hamiltonian::Hamiltonian  ----- 
+} 		// -----  end of method Hamiltonian::Setup  ----- 
+
 
 // *********************************************************************
 // KohnSham class
 // *********************************************************************
 
-KohnSham::KohnSham() {}
+KohnSham::KohnSham() {
+	XCInitialized_ = false;
+}
 
 KohnSham::~KohnSham() {
-	xc_func_end(&XCFuncType_);
+	if( XCInitialized_ )
+		xc_func_end(&XCFuncType_);
 }
 
 KohnSham::
@@ -79,6 +108,8 @@ KohnSham::
     throw std::runtime_error( "XC functional initialization error." );
 	} 
 
+	XCInitialized_ = true;
+
 	if( numDensityComponent != 1 ){
 		throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
 	}
@@ -88,8 +119,49 @@ KohnSham::
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
-};
+}
 
+
+void
+KohnSham::Setup	(
+		const Domain&              dm,
+		const std::vector<Atom>&   atomList,
+		std::string                pseudoType,
+		Int                        XCId,
+		Int                        numExtraState,
+    Int                        numDensityComponent )
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::Setup");
+#endif
+	Hamiltonian::Setup(
+		dm,
+		atomList,
+		pseudoType,
+		XCId,
+		numExtraState,
+    numDensityComponent);
+
+	// Initialize the XC functional.  
+	// Spin-unpolarized functional is used here
+	if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+    throw std::runtime_error( "XC functional initialization error." );
+	} 
+
+	if( numDensityComponent != 1 ){
+		throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
+	}
+
+	// Since the number of density components is always 1 here, set numSpin = 2.
+	numSpin_ = 2;
+  	
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method KohnSham::Setup  ----- 
 
 void
 KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){

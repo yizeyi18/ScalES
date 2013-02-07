@@ -10,18 +10,6 @@
 
 namespace dgdft{
 
-/// @struct PseudoPot
-/// @brief The pseudocharge and nonlocal projectors for each atom. 
-///
-/// Each vector is on the global grid in the format of SparseVec.
-struct PseudoPot
-{
-	/// @brief Pseudocharge of an atom, defined on the uniform grid.
-  SparseVec                         pseudoCharge; 
-	/// @brief Nonlocal projectors of an atom, defined on the LGL grid.
-	std::vector<NonlocalPP>           vnlList;
-};
-
 class Spinor {
 private:
 	Domain            domain_;                // mesh should be used here for general cases 
@@ -41,6 +29,12 @@ public:
 
 	~Spinor();
 
+	void Setup( const Domain &dm, const Int numComponent, const Int numState,
+			const Scalar val = static_cast<Scalar>(0) ); 
+
+	void Setup( const Domain &dm, const Int numComponent, const Int numState,
+			const bool owndata, Scalar* data );
+
 	// *********************************************************************
 	// Inquiries
 	// *********************************************************************
@@ -57,11 +51,6 @@ public:
 	// *********************************************************************
 	// Access
 	// *********************************************************************
-
-	// *********************************************************************
-	// Operators
-	// *********************************************************************
-	Spinor& operator = (const Spinor& psi); 
 
 	// *********************************************************************
 	// Operations

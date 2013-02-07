@@ -379,12 +379,12 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Maximum polynomial degrees in DG solver !*");
 
 	i++;
-	strcpy(kw_label[i],"enrich_number");
+	strcpy(kw_label[i],"alb_num");
 	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! Number of enrichment DOF per element !*");
+	strcpy(kw_dscrpt[i],"*! Number of adaptive local basis functions per element !*");
 
 	i++;
-	strcpy(kw_label[i],"mb");
+	strcpy(kw_label[i],"scalapack_block_size");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Number of block size used in scalapack!*");
 
@@ -1879,6 +1879,10 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		}
 
 		esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 100.0 );
+
+		esdfParam.numALB        = esdf_integer( "ALB_Num", 4 );
+
+		esdfParam.scaBlockSize  = esdf_integer( "ScaLAPACK_Block_Size", 16 );
 	}
 
 #ifndef _RELEASE_

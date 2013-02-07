@@ -14,10 +14,7 @@ Spinor::Spinor (
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Spinor");
 #endif  // ifndef _RELEASE_
-	domain_       = dm;
-
-	wavefun_.Resize( dm.NumGridTotal(), numComponent, numState );
-	SetValue( wavefun_, val );
+	this->Setup( dm, numComponent, numState, val );
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -33,10 +30,7 @@ Spinor::Spinor ( const Domain &dm,
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Spinor");
 #endif  // ifndef _RELEASE_
-	domain_       = dm;
-	wavefun_      = NumTns<Scalar>( dm.NumGridTotal(), numComponent, numState,
-			owndata, data );
-
+	this->Setup( dm, numComponent, numState, owndata, data );
 #ifndef _RELEASE_
 	PopCallStack();
 #endif  // ifndef _RELEASE_
@@ -44,6 +38,42 @@ Spinor::Spinor ( const Domain &dm,
 } 		// -----  end of method Spinor::Spinor  ----- 
 
 Spinor::~Spinor	() {}
+
+void Spinor::Setup ( 
+		const Domain &dm, 
+		const Int     numComponent,
+		const Int     numState,
+		const Scalar  val ) {
+#ifndef _RELEASE_
+	PushCallStack("Spinor::Setup ");
+#endif  // ifndef _RELEASE_
+	domain_       = dm;
+
+	wavefun_.Resize( dm.NumGridTotal(), numComponent, numState );
+	SetValue( wavefun_, val );
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif  // ifndef _RELEASE_
+} 		// -----  end of method Spinor::Setup  ----- 
+
+void Spinor::Setup ( const Domain &dm, 
+		const Int numComponent, 
+		const Int numState,
+		const bool owndata, 
+		Scalar* data )
+{
+#ifndef _RELEASE_
+	PushCallStack("Spinor::Setup");
+#endif  // ifndef _RELEASE_
+	domain_       = dm;
+	wavefun_      = NumTns<Scalar>( dm.NumGridTotal(), numComponent, numState,
+			owndata, data );
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif  // ifndef _RELEASE_
+} 		// -----  end of method Spinor::Setup  ----- 
 
 void
 Spinor::Normalize	( )

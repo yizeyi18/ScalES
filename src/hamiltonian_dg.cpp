@@ -42,6 +42,9 @@ inline Real FourDotProduct(Real* w, Real* x, Real* y, Real* z, Int ntot) {
 // Hamiltonian class for DG
 // *********************************************************************
 
+HamiltonianDG::HamiltonianDG() {
+	XCInitialized_ = false;
+}
 
 HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 {
@@ -62,6 +65,8 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	numLGLGridElem_    = esdfParam.numGridLGL;
   
 	Int ntot = domain_.NumGridTotal();
+
+	XCInitialized_ = false;
 
 	// Only consider numSpin == 2 in the DG calculation.
 	numSpin_ = 2;
@@ -320,6 +325,21 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 
 	return ;
 } 		// -----  end of method HamiltonianDG::HamiltonianDG  ----- 
+
+HamiltonianDG::~HamiltonianDG	( )
+{
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::~HamiltonianDG");
+#endif
+
+	if( XCInitialized_ )
+		xc_func_end(&XCFuncType_);
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+} 		// -----  end of method HamiltonianDG::HamiltonianDG  ----- 
+
 
 void
 HamiltonianDG::DiffPsi	(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d)
@@ -823,7 +843,6 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 								localPsiLGL.Data(), 
 								localPsiUniform.Data() );
 
-
 						// Compute the local norm
 						normPsiLocal += Energy( localPsiUniform );
 
@@ -882,6 +901,56 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 
 	return ;
 } 		// -----  end of method HamiltonianDG::CalculateDensity  ----- 
+
+
+
+void
+HamiltonianDG::CalculateXC	( Real &Exc )
+{
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::CalculateXC");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+	
+	Real ExcLocal = 0.0;
+
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					DblNumVec& localRho   = density_.LocalMap()[key];
+					DblNumVec& localEpsxc = epsxc_.LocalMap()[key];
+					DblNumVec& localVxc   = vxc_.LocalMap()[key];
+
+					switch( XCFuncType_.info->family ){
+						case XC_FAMILY_LDA:
+							xc_lda_exc_vxc( &XCFuncType_, localRho.Size(), 
+									localRho.Data(),
+									localEpsxc.Data(), 
+									localVxc.Data() );
+							break;
+						default:
+							throw std::logic_error( "Unsupported XC family!" );
+							break;
+					}
+					ExcLocal += blas::Dot( localRho.Size(), 
+							localRho.Data(), 1, localEpsxc.Data(), 1 );
+				} // own this element
+			} // for (i)
+
+	ExcLocal *= domain_.Volume() / domain_.NumGridTotal();
+
+	mpi::Allreduce( &ExcLocal, &Exc, 1, MPI_SUM, domain_.comm );
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method HamiltonianDG::CalculateXC  ----- 
 
 void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
 #ifndef _RELEASE_ 
@@ -975,6 +1044,40 @@ void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
 	return; 
 }  // -----  end of method HamiltonianDG::CalculateHartree ----- 
 
+void
+HamiltonianDG::CalculateVtot	( DistDblNumVec& vtot  )
+{
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::CalculateVtot");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key = Index3( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					DblNumVec&   localVtot  = vtot.LocalMap()[key];
+					DblNumVec&   localVext  = vext_.LocalMap()[key];
+					DblNumVec&   localVhart = vhart_.LocalMap()[key];
+					DblNumVec&   localVxc   = vxc_.LocalMap()[key];
+
+					localVtot.Resize( localVxc.Size() );
+					for( Int p = 0; p < localVtot.Size(); p++){
+						localVtot[p] = localVext[p] + localVhart[p] +
+							localVxc[p];
+					}
+				}
+			} // for (i)
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method HamiltonianDG::CalculateVtot  ----- 
 
 void
 HamiltonianDG::CalculateDGMatrix	(  )
@@ -1113,30 +1216,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
 		statusOFS << "Time for initial setup is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-	}
-	
-	// *********************************************************************
-	// Start the communication of nonlocal pseudopotential
-	// 
-	// This is started first because it does not require any precomputation
-	// such as gradient calculation, and can overlap communication with
-	// computation
-	// *********************************************************************
-	if(0)
-	{
-		GetTime(timeSta);
-
-		// From pseudo_.vnlList, put the information into pseudoLGL
-
-		// Communication of pseudoLGL
-    
-
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "After the GetBegin part of pseudopotential communication." << std::endl;
-		statusOFS << "Time for GetBegin of pseudopotentialis " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 	}
@@ -1620,22 +1699,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 #endif
 	} 
 
-	// *********************************************************************
-	// Finish the communication of nonlocal pseudopotential
-	// *********************************************************************
-	if(0)
-	{
-		GetTime( timeSta );
-
-		// Receive pseudoLGL
-		
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Extra time for receiving pseudopotential is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-	}
 
 	// *********************************************************************
 	// Nonlocal pseudopotential term
@@ -1741,7 +1804,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 							for( Int b = 0; b < 3; b++ )
 								for( Int a = 0; a < 3; a++ ){
 									// Not the element key itself
-									if( idxX[a] != i || idxY[b] != j || idxZ[b] != k ){
+									if( idxX[a] != i || idxY[b] != j || idxZ[c] != k ){
 										pseudoSet.insert( Index3( idxX(a), idxY(b), idxZ(c) ) );
 									}
 								} // for (a)

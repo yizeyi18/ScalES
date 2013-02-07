@@ -77,6 +77,18 @@ typedef std::pair<IntNumVec, DblNumMat > SparseVec;
 // Second: weight w
 typedef std::pair<SparseVec, Real> NonlocalPP; 
 
+/// @struct PseudoPot
+/// @brief The pseudocharge and nonlocal projectors for each atom. 
+///
+/// Each vector is on the global grid in the format of SparseVec.
+struct PseudoPot
+{
+	/// @brief Pseudocharge of an atom, defined on the uniform grid.
+  SparseVec                         pseudoCharge; 
+	/// @brief Nonlocal projectors of an atom, defined on the LGL grid.
+	std::vector<NonlocalPP>           vnlList;
+};
+
 
 
 // *********************************************************************

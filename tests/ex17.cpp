@@ -1,6 +1,5 @@
 // *********************************************************************
 // Test for the periodic table class without using Petsc.
-//
 // *********************************************************************
 #include "dgdft.hpp"
 #include "utility.hpp"

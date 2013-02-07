@@ -13,7 +13,6 @@
 #include  "periodtable.hpp"
 #include  "utility.hpp"
 #include  "esdf.hpp"
-#include  "spinor.hpp"
 #include  "fourier.hpp"
 #include  <xc.h>
 #include  "mpi_interf.hpp"
@@ -168,6 +167,8 @@ private:
 	Int                         XCId_;
 	/// @brief Exchange-correlation potential using libxc package.
 	xc_func_type                XCFuncType_; 
+	/// @brief Whether libXC has been initialized.
+	bool                        XCInitialized_;
 
 
 
@@ -221,6 +222,12 @@ private:
 	/// @brief Basis functions on the local LGL grid.
 	DistDblNumMat    basisLGL_;
 
+	/// @brief Eigenvalues
+	DblNumVec        eigVal_;
+
+	/// @brief Occupation number
+	DblNumVec        occupationRate_;
+
 	/// @brief Coefficients of the eigenfunctions
 	DistDblNumMat    eigvecCoef_;
 
@@ -257,8 +264,10 @@ public:
 	// *********************************************************************
 	// Lifecycle
 	// *********************************************************************
-	HamiltonianDG() {}
-	~HamiltonianDG() {}
+	HamiltonianDG();
+
+	~HamiltonianDG();
+
 	HamiltonianDG( const esdf::ESDFInputParam& esdfParam );
 
 
@@ -285,14 +294,18 @@ public:
 	/// of the DG Hamiltonian matrix.
 	void CalculateDensity( const DblNumVec &occrate );
 	
-	//
-	//	virtual void CalculateXC (Real &val) = 0;
-	//
-	void CalculateHartree( DistFourier& fft );
-	//
-	//	virtual void CalculateVtot( DblNumVec& vtot ) = 0;
-	//
 
+	/// @brief Compute the exchange-correlation potential and energy.
+	void CalculateXC ( Real &Exc );
+
+	/// @brief Compute the Hartree potential.
+	void CalculateHartree( DistFourier& fft );
+	
+	/// @brief Compute the total potential
+	void CalculateVtot( DistDblNumVec& vtot );
+
+	/// @brief Assemble the DG Hamiltonian matrix. The mass matrix is
+	/// identity in the framework of adaptive local basis functions.
 	void CalculateDGMatrix( ); 
 
 	// *********************************************************************
@@ -300,7 +313,7 @@ public:
 	// *********************************************************************
 
 	/// @brief Total potential in the global domain.
-	DistDblNumVec&  Vtot() { return vtot_; }
+	DistDblNumVec&  Vtot( ) { return vtot_; }
 
 	/// @brief Exchange-correlation potential in the global domain. No
 	/// magnization calculation in the DG code.
@@ -316,6 +329,13 @@ public:
 	DistDblNumVec&  PseudoCharge() { return pseudoCharge_; }
 	
 	std::vector<Atom>&  AtomList() { return atomList_; }
+
+	Int NumSpin () { return numSpin_; }
+
+	DblNumVec&  EigVal() { return eigVal_; }
+	
+	DblNumVec&  OccupationRate() { return occupationRate_; }
+
 
 	DistDblNumVec&  VtotLGL() { return vtotLGL_; }
 

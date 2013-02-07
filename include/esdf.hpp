@@ -89,6 +89,8 @@ struct ESDFInputParam{
 	Index3              numElem;
 	Index3              numGridLGL;
 	Real                penaltyAlpha;
+	Int                 numALB;
+	Int                 scaBlockSize;
 };
 
 void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );

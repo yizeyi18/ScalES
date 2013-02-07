@@ -408,13 +408,13 @@ SCF::CalculateEnergy	(  )
 		for(Int l=0; l< eigVal.m(); l++) {
 			Real eig = eigVal(l);
 			if( eig - fermi >= 0){
-				Efree_ += -1.0/Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
+				Efree_ += -numSpin / Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
 			}
 			else{
-				Efree_ += (eig - fermi) - 1.0/Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
+				Efree_ += (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
 			}
 		}
-		Efree_ += Ecor_ + fermi * eigSolPtr_->Ham().NumOccupiedState(); 
+		Efree_ += Ecor_ + fermi * eigSolPtr_->Ham().NumOccupiedState() * numSpin; 
 	}
 
 

@@ -1,3 +1,7 @@
+/// @file hamiltonian.hpp
+/// @brief Hamiltonian class for planewave basis diagonalization method.
+/// @author Lin Lin
+/// @date 2012-09-16
 #ifndef _HAMILTONIAN_HPP_
 #define _HAMILTONIAN_HPP_
 
@@ -32,6 +36,7 @@ protected:
 	Int                         XCId_;
 	// Exchange-correlation potential using libxc package.
 	xc_func_type                XCFuncType_; 
+	bool                        XCInitialized_;
 
 	// Pseudocharge to represent the local pseudopotential
   DblNumVec                   pseudoCharge_;
@@ -71,6 +76,14 @@ public:
 			const esdf::ESDFInputParam& esdfParam,
 			const Int                   numDensityComponent );
 
+	virtual void Setup (
+		const Domain&              dm,
+		const std::vector<Atom>&   atomList,
+		std::string                pseudoType,
+		Int                        XCId,
+		Int                        numExtraState,
+    Int                        numDensityComponent );
+ 
 
 	// *********************************************************************
 	// Operations
@@ -130,6 +143,15 @@ public:
 	KohnSham( 
 			const esdf::ESDFInputParam& esdfParam,
       const Int                   numDensityComponent );
+
+	void Setup (
+		const Domain&              dm,
+		const std::vector<Atom>&   atomList,
+		std::string                pseudoType,
+		Int                        XCId,
+		Int                        numExtraState = 0,
+    Int                        numDensityComponent = 1 );
+
 
 	// *********************************************************************
 	// Operations

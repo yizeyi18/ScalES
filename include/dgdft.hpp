@@ -22,6 +22,7 @@
 #include  "utility.hpp"
 #include  "hamiltonian_dg.hpp"
 #include  "scf.hpp"
+#include  "scf_dg.hpp"
 
 
 #endif // _DGDFT_HPP_

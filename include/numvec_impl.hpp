@@ -181,9 +181,6 @@ inline void NumVec<F>::Resize	( const Int m )
 			}
 		}
 	}
-	else{
-		std::cerr << "NumVec<F>::Resize is doing nothing" << std::endl;
-	}
 
 #ifndef _RELEASE_
 	PopCallStack();
