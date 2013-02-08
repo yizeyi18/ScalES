@@ -149,11 +149,23 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 					vxc_.LocalMap()[key]         = empty;
 					epsxc_.LocalMap()[key]       = empty;
 					vtot_.LocalMap()[key]        = empty;
-				}
-			}
+				} // own this element
+			}  // for (i)
   
 	vtotLGL_.Prtn()       = elemPrtn_;
 	basisLGL_.Prtn()      = elemPrtn_;
+
+	for( Int k=0; k< numElem_[2]; k++ )
+		for( Int j=0; j< numElem_[1]; j++ )
+			for( Int i=0; i< numElem_[0]; i++ ) {
+				Index3 key = Index3(i,j,k);
+				if( elemPrtn_.Owner(key) == mpirank ){
+					DblNumVec  empty( numLGLGridElem_.prod() );
+					SetValue( empty, 0.0 );
+					vtotLGL_.LocalMap()[key]        = empty;
+				}
+			}
+
 
 	// Pseudopotential
 	pseudoAA_.Prtn()      = elemPrtn_;
@@ -803,6 +815,17 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 	DistDblNumVec  psiUniform;
 	psiUniform.Prtn() = elemPrtn_;
 
+	// Clear the density
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					DblNumVec& localRho = density_.LocalMap()[key];
+					SetValue( localRho, 0.0 );
+				} // own this element
+			} // for (i)
+
 	// Loop over all the eigenfunctions
 	for( Int g = 0; g < numEig; g++ ){
 		// Normalization constants
@@ -1027,6 +1050,11 @@ void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
 	} // if (fft.comm)
 
 	// Convert tempVecLocal to vhart_ in the DistNumVec format
+
+	// FIXME  Better and more uniform strategy for preparing the data. At
+	//  the moment clearing is important 
+	vhart_.LocalMap().clear();
+
   DistRowVecToDistNumVec(
 			tempVecLocal,
 			vhart_,
@@ -1504,6 +1532,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								Dbasis[d].LocalMap().erase(key);
 							}
 						}
+#if ( _DEBUGlevel_ >= 0 )
+						statusOFS << "After the Laplacian part." << std::endl;
+#endif
 
 						// Local potential part
 						{
@@ -1516,6 +1547,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								} // for (b)
 						}
 						
+#if ( _DEBUGlevel_ >= 0 )
+						statusOFS << "After the local potential part." << std::endl;
+#endif
 
 						// x-direction: intra-element part of the boundary term
 						{
@@ -1669,6 +1703,10 @@ HamiltonianDG::CalculateDGMatrix	(  )
 										intByPartTerm + penaltyTerm;
 								} // for (b)
 						} // z-direction
+
+#if ( _DEBUGlevel_ >= 0 )
+						statusOFS << "After the boundary part." << std::endl;
+#endif
 
 						// Symmetrize
 						for( Int a = 0; a < numBasis; a++ )

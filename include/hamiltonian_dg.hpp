@@ -351,6 +351,12 @@ public:
 
   NumTns< std::vector<Int> >&  ElemBasisIdx() { return elemBasisIdx_; }
 	
+	/// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
+	Index3 NumUniformGridElem() const { return numUniformGridElem_; }
+
+	/// @brief Number of LGL grids in each element.
+	Index3 NumLGLGridElem() const { return numLGLGridElem_; }
+
 
 	// *********************************************************************
 	// Inquiry

@@ -48,8 +48,6 @@ private:
 	Real                Eself_;                    // Self energy due to the pseudopotential
 	Real                fermi_;                    // Fermi energy
 
-	Real                totalCharge_;              // Total number of computed electron charge
-	
 	PeriodTable*        ptablePtr_;
 
 	HamiltonianDG*      hamDGPtr_;
@@ -68,12 +66,22 @@ private:
 
 	Index3                      numElem_;
 
+	Index3                      extElemRatio_;
+
 	/// @brief Partition of element.
 	ElemPrtn                    elemPrtn_;
 
 	Int                 scaBlockSize_;
 
 	Int                 numALB_;
+
+	/// @brief Interpolation matrix from uniform grid in the extended
+	/// element with periodic boundary condition to LGL grid in each
+	/// element (assuming all the elements are the same).
+	std::vector<DblNumMat>    PeriodicUniformToLGLMat_;
+
+	/// @brief Context for BLACS.
+	Int                 contxt_;
 
 public:
 	
@@ -94,11 +102,22 @@ public:
 			HamiltonianDG& hamDG,
 			DistVec<Index3, EigenSolver, ElemPrtn>&  distEigSol,
 			DistFourier&   distfft,
-			PeriodTable&   ptable ); 
+			PeriodTable&   ptable,
+		  Int            contxt ); 
 
+	/// @brief Main self consistent iteration subroutine.
 	void  Iterate();
-//
-//	void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
+
+	/// @brief Calculate the occupation rate and the Fermi energy given
+	/// the eigenvalues
+	void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec&
+			occupationRate );
+
+	/// @brief Interpolate the uniform grid in the periodic extended
+	/// element domain to LGL grid in each element.
+	void InterpPeriodicUniformToLGL( const Index3& numUniformGrid,
+			const Index3& numLGLGrid, const Real* psiUniform, Real* psiLGL );
+
 
 	/// @brief Calculate all energies for output
 	void  CalculateEnergy();

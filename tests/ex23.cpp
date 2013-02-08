@@ -267,7 +267,7 @@ int main(int argc, char **argv)
 
 		SCFDG  scfDG;
 		
-		scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable );
+		scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt );
 
 		scfDG.Iterate();
 

@@ -7,7 +7,7 @@
 #include	"lapack.hpp"
 #include  "utility.hpp"
 
-#define _DEBUGlevel_ 1
+#define _DEBUGlevel_ 0
 
 namespace  dgdft{
 
@@ -43,7 +43,8 @@ SCFDG::Setup	(
 		HamiltonianDG&              hamDG,
 	  DistVec<Index3, EigenSolver, ElemPrtn>&  distEigSol,
 		DistFourier&                distfft,
-		PeriodTable&                ptable )
+		PeriodTable&                ptable,
+	  Int                         contxt	)
 {
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::Setup");
@@ -77,10 +78,27 @@ SCFDG::Setup	(
 		distfftPtr_    = &distfft;
     ptablePtr_     = &ptable;
 		elemPrtn_      = distEigSol.Prtn();
+		contxt_        = contxt;
 		
 		vtotNew_.Prtn() = elemPrtn_;
 
-//		vtotNew_.Resize(ntot); SetValue(vtotNew_, 0.0);
+		// FIXME fixed ratio between the size of the extended element and
+		// the element
+		for( Int d = 0; d < DIM; d++ ){
+			extElemRatio_[d] = ( numElem_[d]>1 ) ? 3 : 1;
+		}
+
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumVec  empty( hamDG.NumUniformGridElem().prod() );
+						vtotNew_.LocalMap()[key] = empty;
+					} // own this element
+				}  // for (i)
+		
+
 //		dfMat_.Resize( ntot, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
 //		dvMat_.Resize( ntot, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
 	
@@ -151,6 +169,63 @@ SCFDG::Setup	(
 		} // Restart the density
 	}
 
+
+	// Generate the transfer matrix from the periodic uniform grid on each
+	// extended element to LGL grid.  
+	{
+		PeriodicUniformToLGLMat_.resize(DIM);
+		// FIXME
+		EigenSolver& eigSol = (*distEigSol.LocalMap().begin()).second;
+		Domain dmExtElem = eigSol.FFT().domain;
+		Domain dmElem;
+		for( Int d = 0; d < DIM; d++ ){
+			dmElem.length[d]   = domain_.length[d] / numElem_[d];
+			dmElem.numGrid[d]  = domain_.numGrid[d] / numElem_[d];
+			// PosStart relative to the extended element
+			dmElem.posStart[d] = ( numElem_[d] > 1 ) ? dmElem.length[d] : 0;
+		}
+
+		Index3 numLGL        = hamDG.NumLGLGridElem();
+		Index3 numUniform    = dmExtElem.numGrid;
+		Point3 lengthUniform = dmExtElem.length;
+
+		std::vector<DblNumVec>  LGLGrid(DIM);
+		LGLMesh( dmElem, numLGL, LGLGrid ); 
+
+		for( Int d = 0; d < DIM; d++ ){
+			DblNumMat&  localMat = PeriodicUniformToLGLMat_[d];
+			localMat.Resize( numLGL[d], numUniform[d] );
+			SetValue( localMat, 0.0 );
+			Int maxK;
+			if (numUniform[d] % 2 == 0)
+				maxK = numUniform[d] / 2 - 1;
+			else
+				maxK = ( numUniform[d] - 1 ) / 2;
+			for( Int j = 0; j < numUniform[d]; j++ )
+				for( Int i = 0; i < numLGL[d]; i++ ){
+					// 1.0 accounts for the k=0 mode
+					localMat(i,j) = 1.0;
+					for( Int k = 1; k < maxK; k++ ){
+						localMat(i,j) += 2.0 * std::cos( 
+								2 * PI * k / lengthUniform[d] * 
+								( LGLGrid[d](i) - j * lengthUniform[d] / numUniform[d] ) );
+					} // for (k)
+					localMat(i,j) /= numUniform[d];
+				} // for (i)
+		} // for (d)
+
+#if ( _DEBUGlevel_ >= 1 )
+		statusOFS << "PeriodicUniformToLGLMat[0] = "
+			<< PeriodicUniformToLGLMat_[0] << std::endl;
+		statusOFS << "PeriodicUniformToLGLMat[1] = " 
+			<< PeriodicUniformToLGLMat_[1] << std::endl;
+		statusOFS << "PeriodicUniformToLGLMat[2] = "
+			<< PeriodicUniformToLGLMat_[2] << std::endl;
+#endif
+
+
+	}
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -174,8 +249,6 @@ SCFDG::Iterate	(  )
 	// Compute the exchange-correlation potential and energy
 	hamDG.CalculateXC( Exc_ );
 
-	statusOFS << "Exc = " << Exc_ << std::endl;
-
 	// Compute the Hartree energy
 	hamDG.CalculateHartree( *distfftPtr_ );
 
@@ -183,6 +256,11 @@ SCFDG::Iterate	(  )
 
 	// Compute the total potential
 	hamDG.CalculateVtot( hamDG.Vtot() );
+
+	CalculateEnergy();
+
+	PrintState(0);
+
 
   Real timeIterStart(0), timeIterEnd(0);
   
@@ -201,7 +279,7 @@ SCFDG::Iterate	(  )
     GetTime( timeIterStart );
 		
 		// *********************************************************************
-		// Update the potential in the extended element
+		// Update the potential in the extended element and the element
 		// *********************************************************************
 
 		{
@@ -255,10 +333,22 @@ SCFDG::Iterate	(  )
 			vtot.GetEnd( NO_MASK );
 
 
-			// Update of the local potential in each element locally.  The
-			// nonlocal potential does not need to be updated
-			// NOTE: It is hard coded that the extended element is 1 or 3
+			// Update of the local potential in each extended element locally.
+			// The nonlocal potential does not need to be updated
+			//
+			// Also update the local potential on the LGL grid in hamDG.
+			//
+			// NOTE:
+			//
+			// 1. It is hard coded that the extended element is 1 or 3
 			// times the size of the element
+			//
+			// 2. The local potential on the LGL grid is done by using Fourier
+			// interpolation from the extended element to the element. Gibbs
+			// phenomena MAY be there but at least this is better than
+			// Lagrange interpolation on a uniform grid.
+			//  
+			//
 			for( Int k = 0; k < numElem_[2]; k++ )
 				for( Int j = 0; j < numElem_[1]; j++ )
 					for( Int i = 0; i < numElem_[0]; i++ ){
@@ -269,13 +359,10 @@ SCFDG::Iterate	(  )
 							DblNumVec&    vtotExtElem = hamExtElem.Vtot();
 							SetValue( vtotExtElem, 0.0 );
 
-							Index3 numGridElem;
-							for( Int d = 0; d < DIM; d++ ){
-								numGridElem[d] = domain_.numGrid[d] / numElem_[d];
-							}
-
+							Index3 numGridElem = hamDG.NumUniformGridElem();
 							Index3 numGridExtElem = eigSol.FFT().domain.numGrid;
 							
+							// Update the potential in the extended element
 							for(std::map<Index3, DblNumVec>::iterator 
 									mi = vtot.LocalMap().begin();
 									mi != vtot.LocalMap().end(); mi++ ){
@@ -289,7 +376,7 @@ SCFDG::Iterate	(  )
 									shiftIdx[d] = keyElem[d] - key[d];
 									shiftIdx[d] = shiftIdx[d] - IRound( Real(shiftIdx[d]) / 
 											numElem_[d] ) * numElem_[d];
-									// Adjustment
+									// FIXME Adjustment  
 									if( numElem_[d] > 1 ) shiftIdx[d] ++;
 
 									shiftIdx[d] *= numGridElem[d];
@@ -315,13 +402,22 @@ SCFDG::Iterate	(  )
 										} // for (i)
 							} // for (mi)
 
+							// Update the potential in the element on LGL grid
+							DblNumVec&  vtotLGLElem = hamDG.VtotLGL().LocalMap()[key];
+							Index3 numLGLGrid       = hamDG.NumLGLGridElem();
+
+							InterpPeriodicUniformToLGL( 
+									numGridExtElem,
+									numLGLGrid,
+									vtotExtElem.Data(),
+									vtotLGLElem.Data() );
 
 							// Loop over the neighborhood
 
 						} // own this element
 					} // for (i)
 
-			// Clean up
+			// Clean up vtot not owned by this element
 			std::vector<Index3>  eraseKey;
 			for( std::map<Index3, DblNumVec>::iterator 
 					mi  = vtot.LocalMap().begin();
@@ -349,6 +445,8 @@ SCFDG::Iterate	(  )
 					if( elemPrtn_.Owner( key ) == mpirank ){
 						EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
 						DblNumVec&    vtotExtElem = eigSol.Ham().Vtot();
+						Index3 numGridExtElem = eigSol.FFT().domain.numGrid;
+						Index3 numLGLGrid     = hamDG.NumLGLGridElem();
 
 						// Solve the basis functions in the extended element
 						eigSol.Solve();
@@ -365,122 +463,182 @@ SCFDG::Iterate	(  )
 						statusOFS << std::endl;
 
 
-//						Spinor& psi = eigSol.Psi();
-//
-//						// Assuming that wavefun has only 1 component
-//						DblNumTns& wavefun = psi.Wavefun();
-//
-//						DblNumMat localBasis( 
-//								psi.NumGridTotal(), 
-//								psi.NumState() );
-//
-//						SetValue( localBasis, 0.0 );
-//
-//						for( Int l = 0; l < psi.NumState(); l++ ){
-//							InterpPeriodicUniformToLGL( 
-//									wavefun.VecData(0, l), 
-//									localBasis.VecData(l) );
+						Spinor& psi = eigSol.Psi();
+
+						// Assuming that wavefun has only 1 component
+						DblNumTns& wavefun = psi.Wavefun();
+
+						DblNumMat localBasis( 
+								numLGLGrid.prod(), 
+								psi.NumState() );
+
+						SetValue( localBasis, 0.0 );
+
+						for( Int l = 0; l < psi.NumState(); l++ ){
+							InterpPeriodicUniformToLGL( 
+									numGridExtElem,
+									numLGLGrid,
+									wavefun.VecData(0, l), 
+									localBasis.VecData(l) );
+						}
+
+						// FIXME
+//						if( mpirank == 1 ){
+//							std::ofstream ofs("psi");
+//							serialize( DblNumVec(localBasis.m(), false, localBasis.VecData(5)),
+//									ofs, NO_MASK );
+//							ofs.close();
 //						}
-//
-//						// Perform SVD for the basis functions
-//						DblNumMat localOrthoBasis;
-//
-//						
-//						// Write localOrthoBasis to basisLGL_
-//						hamDG.BasisLGL().LocalMap()[key] = localOrthoBasis;
 						
+
+						// Perform SVD for the basis functions
+						{
+							// Compute the LGL weights
+							std::vector<DblNumVec>  LGLWeight1D(DIM);
+							Point3                  lengthLGL;
+							for( Int d = 0; d < DIM; d++ ){
+								lengthLGL[d] = domain_.length[d] / numElem_[d];
+								DblNumVec  dummyX;
+								DblNumMat  dummyP, dummpD;
+								GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
+										numLGLGrid[d] );
+								blas::Scal( numLGLGrid[d], 0.5 * lengthLGL[d], 
+										LGLWeight1D[d].Data(), 1 );
+							}
+							DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
+							for( Int k1 = 0; k1 < numLGLGrid[2]; k1++ )
+								for( Int j1 = 0; j1 < numLGLGrid[1]; j1++ )
+									for( Int i1 = 0; i1 < numLGLGrid[0]; i1++ ){
+										sqrtLGLWeight3D(i1, j1, k1) = 
+											std::sqrt ( LGLWeight1D[0](i1) *
+													LGLWeight1D[1](j1) * LGLWeight1D[2](k1) ); }
+							// for (i1)
+							
+							// Scale the basis functions by sqrt of integration weight
+							for( Int g = 0; g < localBasis.n(); g++ ){
+								Real *ptr1 = localBasis.VecData(g);
+								Real *ptr2 = sqrtLGLWeight3D.Data();
+								for( Int l = 0; l < localBasis.m(); l++ ){
+									*(ptr1++)  *= *(ptr2++);
+								}
+							}
+
+							DblNumMat    U( localBasis.m(), localBasis.n() );
+							DblNumMat   VT( localBasis.n(), localBasis.n() );
+							DblNumVec    S( localBasis.n() );
+
+
+							lapack::QRSVD( localBasis.m(), localBasis.n(), 
+									localBasis.Data(), localBasis.m(),
+									S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
+
+							// Unscale the orthogonal basis functions by sqrt of
+							// integration weight
+							for( Int g = 0; g < localBasis.n(); g++ ){
+								Real *ptr1 = U.VecData(g);
+								Real *ptr2 = sqrtLGLWeight3D.Data();
+								for( Int l = 0; l < localBasis.m(); l++ ){
+									*(ptr1++)  /= *(ptr2++);
+								}
+							}
+
+
+							// FIXME No SVD truncation
+							hamDG.BasisLGL().LocalMap()[key] = U;  
+						}
+
 					} // own this element
 				} // for (i)
-//
-//
-//		// *********************************************************************
-//		// Assemble the DG matrix
-//		// *********************************************************************
-//
-//		hamDG.CalculateDGMatrix( );
-//
-//
-//		// *********************************************************************
-//		// Diagonalize the DG matrix
-//		// *********************************************************************
-//
-//		{
-//			Int sizeH = hamDG.NumBasisTotal();
-//
-//			Descriptor descH( sizeH, sizeH, MB_, MB_, 0, 0, contxt_ );
-//
-//			ScaLAPACKMatrix<Real>  scaH, scaZ;
-//			
-//			std::vector<Real> eigs;
-//
-//			DistElemMatToScaMat( hamDG.HMat(), 	descH,
-//					scaH, hamDG.ElemBasisIdx(), domain_.comm );
-//
-//			scalapack::Syevd('U', scaH, eigs, scaZ);
-//
-//			DblNumVec& eigval = hamDG.EigVal(); 
-//      eigval.Resize( hamDG.NumStateTotal() );		
-//			for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
-//				eigval[i] = eigs[i];
-//			
-//			ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
-//					hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.comm, 
-//					hamDG.NumStateTotal() );
-//
-//		}
-//
-//
-//		// *********************************************************************
-//		// Post processing
-//		// *********************************************************************
-//
-//		// Compute the occupation rate
-//		CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
-//
-//		// Compute the electron density
-//		hamDG.CalculateDensity( hamDG.OccupationRate() );
-//
-//		// Compute the exchange-correlation potential and energy
-//		hamDG.CalculateXC( Exc_ );
-//
-//		// Compute the Hartree energy
-//		hamDG.CalculateHartree( *distfftPtr_ );
-//
-//		// No external potential
-//
-//		// Compute the new total potential
-//		hamDG.CalculateVtot( vtotNew_ );
-//
-//		// Compute the error of the potential
-//		{
-//			Real normVtotDifLocal = 0.0, normVtotOldLocal = 0.0;
-//			Real normVtotDif, normVtotOld;
-//			for( Int k = 0; k < numElem_[2]; k++ )
-//				for( Int j = 0; j < numElem_[1]; j++ )
-//					for( Int i = 0; i < numElem_[0]; i++ ){
-//						Index3 key( i, j, k );
-//						if( elemPrtn_.Owner( key ) == mpirank ){
-//							DblNumVec& oldVec = hamDG.Vtot().LocalMap()[key];
-//							DblNumVec& newVec = vtotNew_.LocalMap()[key];
-//
-//							for( Int p = 0; p < oldVec.m(); p++ ){
-//								normVtotDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
-//								normVtotOldLocal += pow( oldVec(p), 2.0 );
-//							}
-//						} // own this element
-//					} // for (i)
-//
-//
-//			mpi::Allreduce( &normVtotDifLocal, &normVtotDif, 1, MPI_SUM, 
-//					domain_.comm );
-//			mpi::Allreduce( &normVtotOldLocal, &normVtotOld, 1, MPI_SUM,
-//					domain_.comm );
-//
-//			normVtotDif = std::sqrt( normVtotDif );
-//			normVtotOld = std::sqrt( normVtotOld );
-//
-//			scfNorm_    = normVtotDif / normVtotOld;
-//		}
+
+
+		// *********************************************************************
+		// Assemble the DG matrix
+		// *********************************************************************
+
+		hamDG.CalculateDGMatrix( );
+
+
+		// *********************************************************************
+		// Diagonalize the DG matrix
+		// *********************************************************************
+
+		{
+			Int sizeH = hamDG.NumBasisTotal();
+
+			scalapack::Descriptor descH( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
+					0, 0, contxt_ );
+
+			scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
+			
+			std::vector<Real> eigs;
+
+			DistElemMatToScaMat( hamDG.HMat(), 	descH,
+					scaH, hamDG.ElemBasisIdx(), domain_.comm );
+
+			scalapack::Syevd('U', scaH, eigs, scaZ);
+
+			DblNumVec& eigval = hamDG.EigVal(); 
+      eigval.Resize( hamDG.NumStateTotal() );		
+			for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
+				eigval[i] = eigs[i];
+			
+			ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
+					hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.comm, 
+					hamDG.NumStateTotal() );
+		}
+
+
+		// *********************************************************************
+		// Post processing
+		// *********************************************************************
+
+		// Compute the occupation rate
+		CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
+
+		// Compute the electron density
+		hamDG.CalculateDensity( hamDG.OccupationRate() );
+
+		// Compute the exchange-correlation potential and energy
+		hamDG.CalculateXC( Exc_ );
+
+		// Compute the Hartree energy
+		hamDG.CalculateHartree( *distfftPtr_ );
+
+		// No external potential
+
+		// Compute the new total potential
+		hamDG.CalculateVtot( vtotNew_ );
+
+		// Compute the error of the potential
+		{
+			Real normVtotDifLocal = 0.0, normVtotOldLocal = 0.0;
+			Real normVtotDif, normVtotOld;
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							DblNumVec& oldVec = hamDG.Vtot().LocalMap()[key];
+							DblNumVec& newVec = vtotNew_.LocalMap()[key];
+
+							for( Int p = 0; p < oldVec.m(); p++ ){
+								normVtotDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
+								normVtotOldLocal += pow( oldVec(p), 2.0 );
+							}
+						} // own this element
+					} // for (i)
+
+
+			mpi::Allreduce( &normVtotDifLocal, &normVtotDif, 1, MPI_SUM, 
+					domain_.comm );
+			mpi::Allreduce( &normVtotOldLocal, &normVtotOld, 1, MPI_SUM,
+					domain_.comm );
+
+			normVtotDif = std::sqrt( normVtotDif );
+			normVtotOld = std::sqrt( normVtotOld );
+
+			scfNorm_    = normVtotDif / normVtotOld;
+		}
 		
 //		// Compute the energies
     CalculateEnergy();
@@ -516,6 +674,183 @@ SCFDG::Iterate	(  )
 
 	return ;
 } 		// -----  end of method SCFDG::Iterate  ----- 
+
+void
+SCFDG::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::CalculateOccupationRate");
+#endif
+	// For a given finite temperature, update the occupation number */
+	// FIXME Magic number here
+	Real tol = 1e-10; 
+	Int maxiter = 100;  
+
+	Real lb, ub, flb, fub, occsum;
+	Int ilb, iub, iter;
+
+	Int npsi       = hamDGPtr_->NumStateTotal();
+	Int nOccStates = hamDGPtr_->NumOccupiedState();
+
+	if( eigVal.m() != npsi ){
+		std::ostringstream msg;
+		msg 
+			<< "The number of eigenstates do not match."  << std::endl
+			<< "eigVal         ~ " << eigVal.m() << std::endl
+			<< "numStateTotal  ~ " << npsi << std::endl;
+		throw std::logic_error( msg.str().c_str() );
+	}
+
+
+	if( occupationRate.m() != npsi ) occupationRate.Resize( npsi );
+
+	if( npsi > nOccStates )  {
+		/* use bisection to find efermi such that 
+		 * sum_i fermidirac(ev(i)) = nocc
+		 */
+		ilb = nOccStates-1;
+		iub = nOccStates+1;
+
+		lb = eigVal(ilb-1);
+		ub = eigVal(iub-1);
+
+		/* Calculate Fermi-Dirac function and make sure that
+		 * flb < nocc and fub > nocc
+		 */
+
+		flb = 0.0;
+		fub = 0.0;
+		for(Int j = 0; j < npsi; j++) {
+			flb += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-lb)));
+			fub += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-ub))); 
+		}
+
+		while( (nOccStates-flb)*(fub-nOccStates) < 0 ) {
+			if( flb > nOccStates ) {
+				if(ilb > 0){
+					ilb--;
+					lb = eigVal(ilb-1);
+					flb = 0.0;
+					for(Int j = 0; j < npsi; j++) flb += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-lb)));
+				}
+				else {
+					throw std::logic_error( "Cannot find a lower bound for efermi" );
+				}
+			}
+
+			if( fub < nOccStates ) {
+				if( iub < npsi ) {
+					iub++;
+					ub = eigVal(iub-1);
+					fub = 0.0;
+					for(Int j = 0; j < npsi; j++) fub += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-ub)));
+				}
+				else {
+					throw std::logic_error( "Cannot find a lower bound for efermi, try to increase the number of wavefunctions" );
+				}
+			}
+		}  /* end while */
+
+		fermi_ = (lb+ub)*0.5;
+		occsum = 0.0;
+		for(Int j = 0; j < npsi; j++) {
+			occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
+			occsum += occupationRate(j);
+		}
+
+		/* Start bisection iteration */
+		iter = 1;
+		while( (fabs(occsum - nOccStates) > tol) && (iter < maxiter) ) {
+			if( occsum < nOccStates ) {lb = fermi_;}
+			else {ub = fermi_;}
+
+			fermi_ = (lb+ub)*0.5;
+			occsum = 0.0;
+			for(Int j = 0; j < npsi; j++) {
+				occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
+				occsum += occupationRate(j);
+			}
+			iter++;
+		}
+	}
+	else {
+		if (npsi == nOccStates ) {
+			for(Int j = 0; j < npsi; j++) 
+				occupationRate(j) = 1.0;
+			fermi_ = eigVal(npsi-1);
+		}
+		else {
+			throw std::logic_error( "The number of eigenvalues in ev should be larger than nocc" );
+		}
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::CalculateOccupationRate  ----- 
+
+
+
+void
+SCFDG::InterpPeriodicUniformToLGL	( 
+		const Index3& numUniformGrid, 
+		const Index3& numLGLGrid, 
+		const Real*   psiUniform, 
+		Real*         psiLGL )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::InterpPeriodicUniformToLGL");
+#endif
+
+	Index3 Ns1 = numUniformGrid;
+	Index3 Ns2 = numLGLGrid;
+	
+	DblNumVec  tmp1( Ns2[0] * Ns1[1] * Ns1[2] );
+	DblNumVec  tmp2( Ns2[0] * Ns2[1] * Ns1[2] );
+	SetValue( tmp1, 0.0 );
+	SetValue( tmp2, 0.0 );
+
+	// x-direction, use Gemm
+	{
+		Int m = Ns2[0], n = Ns1[1] * Ns1[2], k = Ns1[0];
+		blas::Gemm( 'N', 'N', m, n, k, 1.0, PeriodicUniformToLGLMat_[0].Data(),
+				m, psiUniform, k, 0.0, tmp1.Data(), m );
+	}
+	
+	// y-direction, use Gemv
+	{
+		Int   m = Ns2[1], n = Ns1[1];
+		Int   ptrShift1, ptrShift2;
+		Int   inc = Ns2[0];
+		for( Int k = 0; k < Ns1[2]; k++ ){
+			for( Int i = 0; i < Ns2[0]; i++ ){
+				ptrShift1 = i + k * Ns2[0] * Ns1[1];
+				ptrShift2 = i + k * Ns2[0] * Ns2[1];
+				blas::Gemv( 'N', m, n, 1.0, 
+						PeriodicUniformToLGLMat_[1].Data(), m, 
+						tmp1.Data() + ptrShift1, inc, 0.0, 
+						tmp2.Data() + ptrShift2, inc );
+			} // for (i)
+		} // for (k)
+	}
+
+	
+	// z-direction, use Gemm
+	{
+		Int m = Ns2[0] * Ns2[1], n = Ns2[2], k = Ns1[2]; 
+		blas::Gemm( 'N', 'T', m, n, k, 1.0, 
+				tmp2.Data(), m, 
+				PeriodicUniformToLGLMat_[2].Data(), n, 0.0, psiLGL, m );
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::InterpPeriodicUniformToLGL  ----- 
 
 void
 SCFDG::CalculateEnergy	(  )
@@ -570,7 +905,7 @@ SCFDG::CalculateEnergy	(  )
 	EVxc_  *= domain_.Volume() / domain_.NumGridTotal();
 
 	// Self energy part
-	Eself_ = 0;
+	Eself_ = 0.0;
 	std::vector<Atom>&  atomList = hamDG.AtomList();
 	for(Int a=0; a< atomList.size() ; a++) {
 		Int type = atomList[a].type;
@@ -643,7 +978,6 @@ SCFDG::PrintState	( const Int iter  )
 	Print(statusOFS, "Eself             = ",  Eself_, "[au]");
 	Print(statusOFS, "Ecor              = ",  Ecor_, "[au]");
 	Print(statusOFS, "Fermi             = ",  fermi_, "[au]");
-	Print(statusOFS, "Total charge      = ",  totalCharge_, "[au]");
 	Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm_ );
 
 #ifndef _RELEASE_
