@@ -7,8 +7,6 @@
 #include	"lapack.hpp"
 #include  "utility.hpp"
 
-#define _DEBUGlevel_ 0
-
 namespace  dgdft{
 
 using namespace dgdft::DensityComponent;
@@ -1256,6 +1254,7 @@ SCFDG::PrintState	( const Int iter  )
   
 	HamiltonianDG&  hamDG = *hamDGPtr_;
 
+	statusOFS << std::endl << "Eigenvalues in the global domain." << std::endl;
 	for(Int i = 0; i < hamDG.EigVal().m(); i++){
     Print(statusOFS, 
 				"band#    = ", i, 

@@ -42,7 +42,7 @@ RMFLAGS      = -f
 
 # Different compiling and linking options.
 #
-MODE	         = debug
+MODE	         = release
 
 ifeq ($(MODE), debug)
   ifeq (${SCALAR}, COMPLEX)

@@ -7,9 +7,6 @@
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 
-// FIXME Debug
-#define _DEBUGlevel_ 0
-
 // FIXME Remove AA
 
 namespace dgdft{
