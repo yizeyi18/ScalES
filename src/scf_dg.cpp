@@ -662,10 +662,10 @@ SCFDG::Iterate	(  )
     if( mixType_ == "anderson" ){
       AndersonMix(iter);
     }
-//    if( mixType_ == "kerker" ){
-//      KerkerMix();  
-//      AndersonMix(iter);
-//    }
+    if( mixType_ == "kerker" ){
+      KerkerMix();  
+      AndersonMix(iter);
+    }
 
 		GetTime( timeIterEnd );
    
@@ -1120,6 +1120,131 @@ SCFDG::AndersonMix	( const Int iter )
 	return ;
 } 		// -----  end of method SCFDG::AndersonMix  ----- 
 
+void
+SCFDG::KerkerMix	(  )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::KerkerMix");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+	DistFourier& fft = *distfftPtr_;
+
+  Int ntot      = fft.numGridTotal;
+	Int ntotLocal = fft.numGridLocal;
+
+	DistDblNumVec   tempVec;
+	tempVec.Prtn() = elemPrtn_;
+
+	DistDblNumVec&  distvtot    = hamDGPtr_->Vtot();
+	DistDblNumVec&  distvtotnew = vtotNew_;
+
+	Index3 numUniformGridElem = hamDGPtr_->NumUniformGridElem();
+
+	// FIXME Magic number here
+	Real mixStepLengthKerker = 0.8; 
+
+	// tempVec(:) = vtotnew(:) - vtot(:)
+	// FIXME Why add the residue here?
+	// vtot(:) += mixStepLengthKerker * (vtotnew(:) - vtot(:))
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key = Index3( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+
+					tempVec.LocalMap()[key] = 
+						distvtotnew.LocalMap()[key];
+
+					blas::Axpy( numUniformGridElem.prod(), -1.0, 
+							distvtot.LocalMap()[key].Data(), 1,
+							tempVec.LocalMap()[key].Data(), 1 );
+
+					blas::Axpy( numUniformGridElem.prod(), mixStepLengthKerker, 
+							tempVec.LocalMap()[key].Data(), 1,
+							distvtot.LocalMap()[key].Data(), 1 );
+				} // own this element
+			} // for (i)
+
+	// Convert tempVec to tempVecLocal in distributed row vector format
+	DblNumVec  tempVecLocal;
+
+  DistNumVecToDistRowVec(
+			tempVec,
+			tempVecLocal,
+			domain_.numGrid,
+			numElem_,
+			fft.localNzStart,
+			fft.localNz,
+			fft.isInGrid,
+			domain_.comm );
+
+	// Only part of the processors participate in the FFTW calculation
+
+	if( fft.comm != MPI_COMM_NULL ){
+
+		for( Int i = 0; i < ntotLocal; i++ ){
+			fft.inputComplexVecLocal(i) = Complex( 
+					tempVecLocal(i), 0.0 );
+		}
+		fftw_execute( fft.forwardPlan );
+
+		for( Int i = 0; i < ntotLocal; i++ ){
+			if( fft.gkkLocal(i) == 0 ){
+				fft.outputComplexVecLocal(i) = Z_ZERO;
+			}
+			else{
+				// FIXME Magic number
+				fft.outputComplexVecLocal(i) *= 
+					mixStepLengthKerker * ( fft.gkkLocal(i) / 
+							( fft.gkkLocal(i) + 0.5 ) - 1.0 );
+			}
+		}
+		fftw_execute( fft.backwardPlan );
+
+		// tempVecLocal saves the update of vtot
+
+		for( Int i = 0; i < ntotLocal; i++ ){
+			tempVecLocal(i) = fft.inputComplexVecLocal(i).real() / ntot;
+		}
+	} // if (fft.comm)
+
+	// Convert tempVecLocal to tempVec in the DistNumVec format 
+	// It is important to clear the value of tempVec
+	tempVec.LocalMap().clear();
+
+  DistRowVecToDistNumVec(
+			tempVecLocal,
+			tempVec,
+			domain_.numGrid,
+			numElem_,
+			fft.localNzStart,
+			fft.localNz,
+			fft.isInGrid,
+			domain_.comm );
+  
+	// Update vtot
+	// vtot(:) += tempVec(:)
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key = Index3( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					blas::Axpy( numUniformGridElem.prod(), 1.0, 
+							tempVec.LocalMap()[key].Data(), 1,
+							distvtot.LocalMap()[key].Data(), 1 );
+				} // own this element
+			} // for (i)
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::KerkerMix  ----- 
 
 
 void

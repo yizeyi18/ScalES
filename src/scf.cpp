@@ -541,7 +541,7 @@ SCF::KerkerMix	(  )
 			eigSolPtr_->FFT().outputComplexVec(i) = Z_ZERO;
 		}
 		else{
-			// FIXME magic number
+			// FIXME Magic number
 			eigSolPtr_->FFT().outputComplexVec(i) *= 
 				mixStepLengthKerker * ( gkk(i) / (gkk(i)+0.5) - 1.0 );
 		}

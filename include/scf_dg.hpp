@@ -129,10 +129,11 @@ public:
 
 //	void  OutputState();
 
-	// Mixing
+	/// @brief Parallel Anderson mixing.
 	void  AndersonMix( const Int iter );
-
-//	void  KerkerMix();
+	
+	/// @brief Parallel Kerker mixing.
+	void  KerkerMix();
 
 	// *********************************************************************
 	// Inquiry

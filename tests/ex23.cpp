@@ -49,7 +49,6 @@ int main(int argc, char **argv)
 		Print( statusOFS, "npcol = ", npcol ); 
 		Cblacs_gridinit(&contxt, "C", nprow, npcol);
 		
-
 		ESDFInputParam  esdfParam;
 
 		ESDFReadInput( esdfParam, "dgdft.in" );
