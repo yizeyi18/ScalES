@@ -1,4 +1,3 @@
-/// // FIXME
 /// @file hamiltonian_dg.cpp
 /// @brief Implementation of the Hamiltonian class for DG calculation.
 /// @author Lin Lin
@@ -6,8 +5,6 @@
 #include  "hamiltonian_dg.hpp"
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
-
-// FIXME Remove AA
 
 namespace dgdft{
 
@@ -165,7 +162,7 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 
 
 	// Pseudopotential
-	pseudoAA_.Prtn()      = elemPrtn_;
+	pseudo_.Prtn()      = elemPrtn_;
 	vnlCoef_.Prtn()       = elemPrtn_;
 
 	// Partition of the DG matrix
@@ -207,8 +204,6 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 		// Determine the ownership by the ownership of the corresponding element
 		atomPrtnInfo[a] = elemPrtn_.Owner( idx );
 	} // for (a)
-
-	pseudo_.Prtn()     = atomPrtn_;
 
 #if ( _DEBUGlevel_ >= 1 )
 	for( Int a = 0; a < numAtom; a++ ){
@@ -491,181 +486,6 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 
 	// Generate the atomic pseudopotentials
 
-  for (Int a=0; a<numAtom; a++) {
-		if( pseudo_.Prtn().Owner(a) == mpirank ){
-			PseudoPotElem pp;
-			// Pseudocharge
-			ptable.CalculatePseudoCharge( atomList_[a], domain_, uniformGridElem_, pp.pseudoCharge );
-			// Nonlocal pseudopotential
-			ptable.CalculateNonlocalPP( atomList_[a], domain_, LGLGridElem_, pp.vnlList );
-
-			pseudo_.LocalMap()[a] = pp;
-		}
-  }
-
-#if ( _DEBUGlevel_ >= 1 )
-	statusOFS << std::endl << "Atomic pseudocharge computed." << std::endl;
-#endif
-
-	// *********************************************************************
-	// Local pseudopotential: computed by pseudocharge
-	// *********************************************************************
-	// First step: local assemly of values for pseudocharge
-	for( Int a = 0; a < numAtom; a++ ){
-		if( pseudo_.Prtn().Owner(a) == mpirank ){
-			for( Int k = 0; k < numElem_[2]; k++ )
-				for( Int j = 0; j < numElem_[1]; j++ )
-					for( Int i = 0; i < numElem_[0]; i++ ){
-						SparseVec& sp  = pseudo_.LocalMap()[a].pseudoCharge(i,j,k);
-						IntNumVec& idx = sp.first;
-						DblNumMat& val = sp.second;
-						if( idx.m() > 0 ){
-							Index3 key( i, j, k );
-							if( pseudoCharge_.LocalMap().find(key) == pseudoCharge_.LocalMap().end() ){
-								// Start a new element
-								DblNumVec empty( numUniformGridElem_.prod() );
-							  SetValue( empty, 0.0 );
-								pseudoCharge_.LocalMap()[key] = empty;
-							}
-							DblNumVec& vec = pseudoCharge_.LocalMap()[key];
-							for( Int l = 0; l < idx.m(); l++ ){
-								vec[idx(l)] += val(l, PseudoComponent::VAL);
-							}
-						}
-					} // for (i)
-		}
-	} // for (a)
-
-#if ( _DEBUGlevel_ >= 1 )
-	statusOFS << std::endl << "Assembly of pseudocharge: first step passed." << std::endl;
-#endif
-
-	// Second step: communication of the pseudoCharge among all processors
-	{
-		std::vector<Index3>  putKey;
-		for( std::map<Index3, DblNumVec>::iterator mi = pseudoCharge_.LocalMap().begin();
-				 mi != pseudoCharge_.LocalMap().end(); mi++ ){
-			Index3 key = (*mi).first;
-			if( pseudoCharge_.Prtn().Owner( key ) != mpirank ){
-				putKey.push_back( key );
-			}
-		}
-		pseudoCharge_.PutBegin( putKey, NO_MASK );
-		pseudoCharge_.PutEnd( NO_MASK, PutMode::COMBINE );
-	}
-
-#if ( _DEBUGlevel_ >= 1 )
-	statusOFS << std::endl << "Assembly of pseudocharge: second step passed." << std::endl;
-#endif
-
-	// Third step: erase the vectors the current processor does not own
-	{
-		std::vector<Index3>  eraseKey;
-		for( std::map<Index3, DblNumVec>::iterator mi = pseudoCharge_.LocalMap().begin();
-				 mi != pseudoCharge_.LocalMap().end(); mi++ ){
-			Index3 key = (*mi).first;
-			if( pseudoCharge_.Prtn().Owner( key ) != mpirank ){
-				eraseKey.push_back( key );
-			}
-		}
-		for( std::vector<Index3>::iterator vi = eraseKey.begin();
-			   vi != eraseKey.end(); vi++ ){
-			pseudoCharge_.LocalMap().erase( *vi );
-		}
-	}
-
-#if ( _DEBUGlevel_ >= 1 )
-	statusOFS << std::endl << "Assembly of pseudocharge: third step passed." << std::endl;
-#endif
-
-	// Compute the sum of pseudocharge
-	{
-		Real localSum = 0.0, sumRho = 0.0;
-		for( std::map<Index3, DblNumVec>::iterator mi = pseudoCharge_.LocalMap().begin();
-				mi != pseudoCharge_.LocalMap().end(); mi++ ){
-			if( pseudoCharge_.Prtn().Owner((*mi).first) != mpirank ){
-				throw std::runtime_error("The current processor should not own an element in the pseudocharge.");
-			}	
-			DblNumVec& vec = (*mi).second;
-			for( Int i = 0; i < vec.m(); i++ ){
-				localSum += vec[i];
-			}
-			localSum *= domain_.Volume() / domain_.NumGridTotal();
-		}
-
-		mpi::Allreduce( &localSum, &sumRho, 1, MPI_SUM, domain_.comm );
-
-#if ( _DEBUGlevel_ >= 0 )
-		Print( statusOFS, "Sum of Pseudocharge                          = ", sumRho );
-		Print( statusOFS, "numOccupiedState                             = ", 
-				numOccupiedState_ );
-#endif
-		
-		// Make adjustments to the pseudocharge
-		Real diff = ( numSpin_ * numOccupiedState_ - sumRho ) / domain_.Volume();
-		
-		for( std::map<Index3, DblNumVec>::iterator mi = pseudoCharge_.LocalMap().begin();
-				mi != pseudoCharge_.LocalMap().end(); mi++ ){
-			DblNumVec& vec = (*mi).second;
-			for( Int i = 0; i < vec.m(); i++ ){
-				vec[i] += diff;
-			}
-		}
-	
-#if ( _DEBUGlevel_ >= 0 )
-		Print( statusOFS, "After adjustment, sum of Pseudocharge        = ", 
-				(Real) numSpin_ * numOccupiedState_ );
-#endif
-	}
-
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-
-	return ;
-} 		// -----  end of method HamiltonianDG::CalculatePseudoPotential  ----- 
-
-void
-HamiltonianDG::CalculatePseudoPotentialAA	( PeriodTable &ptable ){
-#ifndef _RELEASE_
-	PushCallStack("HamiltonianDG::CalculatePseudoPotentialAA");
-#endif
-	Int ntot = domain_.NumGridTotal();
-	Int numAtom = atomList_.size();
-	Int mpirank, mpisize;
-	MPI_Comm_rank( domain_.comm, &mpirank );
-	MPI_Comm_size( domain_.comm, &mpisize );
-
-	Real vol = domain_.Volume();
-
-	// *********************************************************************
-	// Atomic information
-	// *********************************************************************
-
-  // Calculate the number of occupied states
-  Int nelec = 0;
-  for (Int a=0; a<numAtom; a++) {
-		Int atype  = atomList_[a].type;
-		if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
-			std::ostringstream msg;
-			msg << "Cannot find the atom type for atom #" << a << std::endl;
-			throw std::runtime_error( msg.str().c_str() );
-		}
-		nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
-  }
-
-	if( nelec % 2 != 0 ){
-		throw std::runtime_error( "This is a spin-restricted calculation. nelec should be even." );
-	}
-	
-	numOccupiedState_ = nelec / numSpin_;
-
-#if ( _DEBUGlevel_ >= 0 )
-	Print( statusOFS, "Number of Occupied States                    = ", numOccupiedState_ );
-#endif
-
-	// Generate the atomic pseudopotentials
-
 	// Also prepare the integration weights for constructing the DG matrix later.
 
 	vnlWeightMap_.clear();
@@ -712,7 +532,7 @@ HamiltonianDG::CalculatePseudoPotentialAA	( PeriodTable &ptable ){
 							vnlWeightMap_[a] = weight;
 						}
 					} // for (a)
-					pseudoAA_.LocalMap()[key] = ppMap;
+					pseudo_.LocalMap()[key] = ppMap;
 				} // own this element
 			} // for (i)
 
@@ -735,7 +555,7 @@ HamiltonianDG::CalculatePseudoPotentialAA	( PeriodTable &ptable ){
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
-						std::map<Int, PseudoPot>&  ppMap = pseudoAA_.LocalMap()[key];
+						std::map<Int, PseudoPot>&  ppMap = pseudo_.LocalMap()[key];
 						DblNumVec  localVec( numUniformGridElem_.prod() );
 						SetValue( localVec, 0.0 );
 						for( std::map<Int, PseudoPot>::iterator mi = ppMap.begin();
@@ -795,7 +615,7 @@ HamiltonianDG::CalculatePseudoPotentialAA	( PeriodTable &ptable ){
 #endif
 
 	return ;
-} 		// -----  end of method HamiltonianDG::CalculatePseudoPotentialAA  ----- 
+} 		// -----  end of method HamiltonianDG::CalculatePseudoPotential  ----- 
 
 void
 HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
@@ -1756,7 +1576,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 					if( elemPrtn_.Owner(key) == mpirank ){
 						std::map<Int, DblNumMat>  coefMap;
 						std::map<Int, PseudoPot>& pseudoMap =
-							pseudoAA_.LocalMap()[key];
+							pseudo_.LocalMap()[key];
 						DblNumMat&   basis = basisLGL_.LocalMap()[key];
 						Int numBasis = basis.n();
 
@@ -1873,7 +1693,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 						ei != vnlCoef_.LocalMap().end(); ei++ ){
 					Index3 key1 = (*ei).first;
 					std::map<Int, DblNumMat>& coefMap1 = (*ei).second; 
-					std::map<Int, PseudoPot>& pseudoMap = pseudoAA_.LocalMap()[key1];
+					std::map<Int, PseudoPot>& pseudoMap = pseudo_.LocalMap()[key1];
 
 					std::map<Int, DblNumMat>::iterator mi = 
 						coefMap1.find( atomIdx );

@@ -262,8 +262,6 @@ int main(int argc, char **argv)
 
 		hamDG.CalculatePseudoPotential( ptable );
 
-		hamDG.CalculatePseudoPotentialAA( ptable );
-
 		SCFDG  scfDG;
 		
 		scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt );

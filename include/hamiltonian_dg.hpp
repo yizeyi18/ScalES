@@ -20,8 +20,6 @@
 #include  "scalapack.hpp"
 
 
-// FIXME remove AA
-// Remove PseudoPotElem
 namespace dgdft{
 
 // *********************************************************************
@@ -81,20 +79,6 @@ struct BlockMatPrtn
 };
 
 
-/// @struct PseudoPotElem
-/// @brief The pseudocharge and nonlocal projectors for each atom. 
-///
-/// Each vector is defined element-by-element, in the format of
-/// SparseVec.
-/// 
-struct PseudoPotElem 
-{
-	/// @brief Pseudocharge of an atom, defined on the uniform grid.
-  NumTns<SparseVec>                                    pseudoCharge; 
-	/// @brief Nonlocal projectors of an atom, defined on the LGL grid.
-	std::vector<std::pair<NumTns<SparseVec>, Real> >     vnlList;
-};
-
 
 // *********************************************************************
 // Typedefs
@@ -112,7 +96,6 @@ typedef DistVec<Index3, DblNumTns, ElemPrtn>   DistDblNumTns;
 
 typedef DistVec<Index3, CpxNumTns, ElemPrtn>   DistCpxNumTns;
 
-typedef DistVec<Int, PseudoPotElem, AtomPrtn>  DistPseudoPotElem;
 
 // *********************************************************************
 // Main class
@@ -231,12 +214,9 @@ private:
 	/// @brief Coefficients of the eigenfunctions
 	DistDblNumMat    eigvecCoef_;
 
-	/// @brief Pseudopotential and nonlocal projectors associated with
+	/// @brief Pseudopotential and nonlocal projectors in each element for
 	/// each atom.
-	DistPseudoPotElem  pseudo_;
-
-	// FIXME remove AA later.
-	DistVec<Index3, std::map<Int, PseudoPot>, ElemPrtn>  pseudoAA_;
+	DistVec<Index3, std::map<Int, PseudoPot>, ElemPrtn>  pseudo_;
 
 	DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn>  vnlCoef_;
 
@@ -284,11 +264,7 @@ public:
 	void InterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniformGrid, 
 			const Real* psiLGL, Real* psiUniform );
 
-
-	// To be removed
 	void CalculatePseudoPotential( PeriodTable &ptable );
-	
-	void CalculatePseudoPotentialAA( PeriodTable &ptable );
 	
 	/// @brief Compute the electron density after the diagonalization
 	/// of the DG Hamiltonian matrix.
