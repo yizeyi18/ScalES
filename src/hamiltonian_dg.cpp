@@ -1147,10 +1147,13 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	std::vector<DblNumMat>  LGLWeight2D(DIM);
 	DblNumTns               LGLWeight3D;
 
+	// Clear the DG Matrix
+	HMat_.LocalMap().clear();
 
 	// *********************************************************************
 	// Initial setup
 	// *********************************************************************
+	
 
 	{
 		GetTime(timeSta);

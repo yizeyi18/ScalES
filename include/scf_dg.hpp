@@ -58,18 +58,20 @@ private:
 
 	// SCF variables
 	DistDblNumVec       vtotNew_;
+	DistDblNumMat       dfMat_;
+	DistDblNumMat       dvMat_;
 	
 	Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
 
 	/// @brief Global domain.
-	Domain                      domain_;
+	Domain              domain_;
 
-	Index3                      numElem_;
+	Index3              numElem_;
 
-	Index3                      extElemRatio_;
+	Index3              extElemRatio_;
 
 	/// @brief Partition of element.
-	ElemPrtn                    elemPrtn_;
+	ElemPrtn            elemPrtn_;
 
 	Int                 scaBlockSize_;
 
@@ -128,7 +130,8 @@ public:
 //	void  OutputState();
 
 	// Mixing
-//	void  AndersonMix( const Int iter );
+	void  AndersonMix( const Int iter );
+
 //	void  KerkerMix();
 
 	// *********************************************************************

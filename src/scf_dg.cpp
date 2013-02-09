@@ -81,6 +81,8 @@ SCFDG::Setup	(
 		contxt_        = contxt;
 		
 		vtotNew_.Prtn() = elemPrtn_;
+		dfMat_.Prtn()   = elemPrtn_;
+		dvMat_.Prtn()   = elemPrtn_;
 
 		// FIXME fixed ratio between the size of the extended element and
 		// the element
@@ -93,14 +95,16 @@ SCFDG::Setup	(
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
-						DblNumVec  empty( hamDG.NumUniformGridElem().prod() );
-						vtotNew_.LocalMap()[key] = empty;
+						DblNumVec  emptyVec( hamDG.NumUniformGridElem().prod() );
+						SetValue( emptyVec, 0.0 );
+						vtotNew_.LocalMap()[key] = emptyVec;
+						DblNumMat  emptyMat( hamDG.NumUniformGridElem().prod(), mixMaxDim_ );
+						SetValue( emptyMat, 0.0 );
+						dfMat_.LocalMap()[key]   = emptyMat;
+						dvMat_.LocalMap()[key]   = emptyMat;
 					} // own this element
 				}  // for (i)
 		
-
-//		dfMat_.Resize( ntot, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
-//		dvMat_.Resize( ntot, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
 	
 //		restartDensityFileName_ = "DEN";
 //		restartWfnFileName_     = "WFN";
@@ -110,6 +114,7 @@ SCFDG::Setup	(
 	{
 		DistDblNumVec&  density = hamDGPtr_->Density();
 		if( isRestartDensity_ ) {
+			throw std::runtime_error("Cannot restart density now.");
 //			std::istringstream rhoStream;      
 //			SharedRead( restartDensityFileName_, rhoStream);
 //			// TODO Error checking
@@ -640,23 +645,23 @@ SCFDG::Iterate	(  )
 			scfNorm_    = normVtotDif / normVtotOld;
 		}
 		
-//		// Compute the energies
+		// Compute the energies
     CalculateEnergy();
-//
-//		// Print out the state variables of the current iteration
+
+		// Print out the state variables of the current iteration
     PrintState( iter );
-//
-//
-//    if( scfNorm_ < scfTolerance_ ){
-//      /* converged */
-//      Print( statusOFS, "SCF is converged!\n" );
-//      isSCFConverged = true;
-//    }
-//
-//		// Potential mixing
-//    if( mixType_ == "anderson" ){
-//      AndersonMix(iter);
-//    }
+
+
+    if( scfNorm_ < scfTolerance_ ){
+      /* converged */
+      Print( statusOFS, "SCF is converged!\n" );
+      isSCFConverged = true;
+    }
+
+		// Potential mixing
+    if( mixType_ == "anderson" ){
+      AndersonMix(iter);
+    }
 //    if( mixType_ == "kerker" ){
 //      KerkerMix();  
 //      AndersonMix(iter);
@@ -948,6 +953,174 @@ SCFDG::CalculateEnergy	(  )
 
 	return ;
 } 		// -----  end of method SCFDG::CalculateEnergy  ----- 
+
+void
+SCFDG::AndersonMix	( const Int iter )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::AndersonMix");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+	
+	DistDblNumVec distvin, distvout, distvinsave, distvoutsave;
+
+	Int ntot  = hamDGPtr_->NumUniformGridElem().prod();
+	
+	DistDblNumVec&  distvtot = hamDGPtr_->Vtot();
+	DistDblNumVec&  distvtotnew = vtotNew_;
+
+	Int iterused = std::min( iter-1, mixMaxDim_ ); // iter should start from 1
+	Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
+
+
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					DblNumVec& vin        = distvin.LocalMap()[key];
+					DblNumVec& vout       = distvout.LocalMap()[key];
+					DblNumVec& vinsave    = distvinsave.LocalMap()[key];
+					DblNumVec& voutsave   = distvoutsave.LocalMap()[key];
+					DblNumMat& df         = dfMat_.LocalMap()[key];
+					DblNumMat& dv         = dvMat_.LocalMap()[key];
+
+					// vin(:)  = vtot(:)
+					// vout(:) = vtotnew(:) - vtot(:)
+					vin  = distvtot.LocalMap()[key];
+					vout = distvtotnew.LocalMap()[key];
+					blas::Axpy( ntot, -1.0, vin.Data(), 1, vout.Data(), 1 );
+
+					// save vin and vout
+					vinsave  = vin;
+					voutsave = vout;
+
+				  // dfMat_(:, ipos-1) -= vout(:);
+				  // dvMat_(:, ipos-1) -= vin(:);
+					if( iter > 1 ){
+						blas::Axpy( ntot, -1.0, vout.Data(), 1, df.VecData(ipos-1), 1);
+						blas::Axpy( ntot, -1.0, vin.Data(),  1, dv.VecData(ipos-1), 1);
+					}
+				} // own this element
+			} // for (i)
+
+
+
+	if( iter > 1 ){
+
+		Int nrow = iterused;
+
+		// Normal matrix FTF = F^T * F
+		DblNumMat FTFLocal( nrow, nrow ), FTF( nrow, nrow );
+		SetValue( FTFLocal, 0.0 );
+		SetValue( FTF, 0.0 );
+
+		// Right hand side FTv = F^T * vout
+		DblNumVec FTvLocal( nrow ), FTv( nrow );
+		SetValue( FTvLocal, 0.0 );
+		SetValue( FTv, 0.0 );
+
+		// Local construction of FTF and FTv
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumMat& df     = dfMat_.LocalMap()[key];
+						DblNumVec& vout   = distvout.LocalMap()[key];
+						for( Int q = 0; q < nrow; q++ ){
+							FTvLocal(q) += blas::Dot( ntot, df.VecData(q), 1,
+									vout.Data(), 1 );
+
+							for( Int p = q; p < nrow; p++ ){
+								FTFLocal(p, q) += blas::Dot( ntot, df.VecData(p), 1, 
+										df.VecData(q), 1 );
+								if( p > q )
+									FTFLocal(q,p) = FTFLocal(p,q);
+							} // for (p)
+						} // for (q)
+
+					} // own this element
+				} // for (i)
+		
+		// Reduce the data
+		mpi::Allreduce( FTFLocal.Data(), FTF.Data(), nrow * nrow, MPI_SUM, domain_.comm );
+		mpi::Allreduce( FTvLocal.Data(), FTv.Data(), nrow, MPI_SUM, domain_.comm );
+
+		// All processors solve the least square problem
+
+		// FIXME Magic number
+		Real rcond = 1e-6;
+		Int rank;
+
+		DblNumVec  S( nrow );
+
+		// FTv = pinv( FTF ) * vout
+		lapack::SVDLeastSquare( nrow, nrow, 1, 
+				FTF.Data(), nrow, FTv.Data(), nrow,
+        S.Data(), rcond, &rank );
+
+		Print( statusOFS, "  Rank of dfmat = ", rank );
+			
+
+		// Update vin, vout
+		// vin  = vin  - dv * FTv
+		// vout = vout - df * FTv
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumVec& vin    = distvin.LocalMap()[key];
+						DblNumVec& vout   = distvout.LocalMap()[key];
+						DblNumMat& df     = dfMat_.LocalMap()[key];
+						DblNumMat& dv     = dvMat_.LocalMap()[key];
+						
+						blas::Gemv('N', ntot, nrow, -1.0, dv.Data(),
+								ntot, FTv.Data(), 1, 1.0, vin.Data(), 1 );
+						blas::Gemv('N', ntot, nrow, -1.0, df.Data(),
+								ntot, FTv.Data(), 1, 1.0, vout.Data(), 1 );
+					} // own this element
+				} // for (i)
+	} // (iter > 1)
+
+	Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
+
+	// Update df, dv, vtot
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					DblNumVec& vtot       = distvtot.LocalMap()[key];
+					DblNumVec& vin        = distvin.LocalMap()[key];
+					DblNumVec& vout       = distvout.LocalMap()[key];
+					DblNumVec& vinsave    = distvinsave.LocalMap()[key];
+					DblNumVec& voutsave   = distvoutsave.LocalMap()[key];
+					DblNumMat& df         = dfMat_.LocalMap()[key];
+					DblNumMat& dv         = dvMat_.LocalMap()[key];
+
+					// dfMat_(:, inext-1) = voutsave(:)
+					// dvMat_(:, inext-1) = vinsave(:)
+					blas::Copy( ntot, voutsave.Data(), 1, df.VecData(inext-1), 1 );
+					blas::Copy( ntot, vinsave.Data(),  1, dv.VecData(inext-1), 1 );
+
+					// vtot(:) = vin(:) + alpha * vout(:)
+					blas::Copy( ntot, vin.Data(), 1, vtot.Data(), 1 );
+					blas::Axpy( ntot, mixStepLength_, vout.Data(), 1, vtot.Data(), 1);
+				} // own this element
+			} // for (i)
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::AndersonMix  ----- 
+
+
 
 void
 SCFDG::PrintState	( const Int iter  )
