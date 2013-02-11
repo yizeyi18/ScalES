@@ -186,9 +186,12 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 		}
     nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
   }
-	if( nelec % 2 != 0 ){
-		throw std::runtime_error( "This is spin-restricted calculation. nelec should be even." );
-	}
+	// FIXME Deal with the case when this is a buffer calculation and the
+	// number of electrons is not a even number.
+	//
+//	if( nelec % 2 != 0 ){
+//		throw std::runtime_error( "This is spin-restricted calculation. nelec should be even." );
+//	}
 	numOccupiedState_ = nelec / numSpin_;
 
 	// Compute pseudocharge

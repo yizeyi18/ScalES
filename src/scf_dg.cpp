@@ -7,6 +7,8 @@
 #include	"lapack.hpp"
 #include  "utility.hpp"
 
+#define _DEBUGlevel_ 0
+
 namespace  dgdft{
 
 using namespace dgdft::DensityComponent;
@@ -247,6 +249,8 @@ SCFDG::Iterate	(  )
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
 
+	Real timeSta, timeEnd;
+
   HamiltonianDG&  hamDG = *hamDGPtr_;
 
 	// Compute the exchange-correlation potential and energy
@@ -260,9 +264,9 @@ SCFDG::Iterate	(  )
 	// Compute the total potential
 	hamDG.CalculateVtot( hamDG.Vtot() );
 
-	CalculateEnergy();
-
-	PrintState(0);
+//	CalculateEnergy();
+//
+//	PrintState(0);
 
 
   Real timeIterStart(0), timeIterEnd(0);
@@ -286,6 +290,7 @@ SCFDG::Iterate	(  )
 		// *********************************************************************
 
 		{
+			GetTime(timeSta);
 			// vtot gather the neighborhood
 			DistDblNumVec&  vtot = hamDG.Vtot();
 			std::set<Index3> neighborSet;
@@ -435,12 +440,19 @@ SCFDG::Iterate	(  )
 				vtot.LocalMap().erase( *vi );
 			}
 
+			MPI_Barrier( domain_.comm );
+			GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+			statusOFS << "Time for updating the potential is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 		}
 
 		// *********************************************************************
 		// Solve the basis functions in the extended element
 		// *********************************************************************
 
+		GetTime(timeSta);
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
@@ -552,13 +564,26 @@ SCFDG::Iterate	(  )
 
 					} // own this element
 				} // for (i)
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for generating the adaptive local basis function is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 
 		// *********************************************************************
 		// Assemble the DG matrix
 		// *********************************************************************
 
+		GetTime(timeSta);
 		hamDG.CalculateDGMatrix( );
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for constructing the DG matrix is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 
 		// *********************************************************************
@@ -566,6 +591,7 @@ SCFDG::Iterate	(  )
 		// *********************************************************************
 
 		{
+			GetTime(timeSta);
 			Int sizeH = hamDG.NumBasisTotal();
 
 			scalapack::Descriptor descH( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
@@ -588,12 +614,21 @@ SCFDG::Iterate	(  )
 			ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
 					hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.comm, 
 					hamDG.NumStateTotal() );
+		
+			MPI_Barrier( domain_.comm );
+			GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+			statusOFS << "Time for diagonalizing the DG matrix using ScaLAPACK is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 		}
 
 
 		// *********************************************************************
 		// Post processing
 		// *********************************************************************
+		
+		GetTime(timeSta);
 
 		// Compute the occupation rate
 		CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
@@ -656,7 +691,16 @@ SCFDG::Iterate	(  )
       isSCFConverged = true;
     }
 
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for post processing is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
 		// Potential mixing
+		GetTime( timeSta );
     if( mixType_ == "anderson" ){
       AndersonMix(iter);
     }
@@ -664,6 +708,14 @@ SCFDG::Iterate	(  )
       KerkerMix();  
       AndersonMix(iter);
     }
+
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for potential mixing is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
 
 		GetTime( timeIterEnd );
    
