@@ -1233,7 +1233,7 @@ SCFDG::KerkerMix	(  )
 
 	// Only part of the processors participate in the FFTW calculation
 
-	if( fft.comm != MPI_COMM_NULL ){
+	if( fft.isInGrid ){
 
 		for( Int i = 0; i < ntotLocal; i++ ){
 			fft.inputComplexVecLocal(i) = Complex( 
@@ -1259,11 +1259,9 @@ SCFDG::KerkerMix	(  )
 		for( Int i = 0; i < ntotLocal; i++ ){
 			tempVecLocal(i) = fft.inputComplexVecLocal(i).real() / ntot;
 		}
-	} // if (fft.comm)
+	} // if (fft.isInGrid)
 
 	// Convert tempVecLocal to tempVec in the DistNumVec format 
-	// It is important to clear the value of tempVec
-	tempVec.LocalMap().clear();
 
   DistRowVecToDistNumVec(
 			tempVecLocal,

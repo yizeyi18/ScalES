@@ -842,7 +842,7 @@ void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
 	// equation is well defined for neutral system.
 	// Only part of the processors participate in the FFTW calculation
 
-	if( fft.comm != MPI_COMM_NULL ){
+	if( fft.isInGrid ){
 
 		for( Int i = 0; i < ntotLocal; i++ ){
 			fft.inputComplexVecLocal(i) = Complex( 
@@ -866,13 +866,9 @@ void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
 		for( Int i = 0; i < ntotLocal; i++ ){
 			tempVecLocal(i) = fft.inputComplexVecLocal(i).real() / ntot;
 		}
-	} // if (fft.comm)
+	} // if (fft.isInGrid)
 
 	// Convert tempVecLocal to vhart_ in the DistNumVec format
-
-	// FIXME  Better and more uniform strategy for preparing the data. At
-	//  the moment clearing is important 
-	vhart_.LocalMap().clear();
 
   DistRowVecToDistNumVec(
 			tempVecLocal,

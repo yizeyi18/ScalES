@@ -471,6 +471,8 @@ void DistRowVecToDistNumVec(
 	
   Index3  numGridElem;
 
+	distVec.LocalMap().clear();
+
 	for( Int d = 0; d < DIM; d++ ){
 		numGridElem[d] = numGrid[d] / numElem[d];
 	}

@@ -8,6 +8,7 @@
 using namespace dgdft;
 using namespace std;
 using namespace dgdft::esdf;
+using namespace dgdft::scalapack;
 
 
 void Usage(){
