@@ -1,14 +1,13 @@
-/// @file ex23.cpp
-/// @brief Test for SCFDG class.
+/// @file dgdft.cpp
+/// @brief Main driver for DGDFT for self-consistent field iteration.
 ///
 /// @author Lin Lin
-/// @date 2013-02-06
+/// @date 2013-02-11
 #include "dgdft.hpp"
 
 using namespace dgdft;
 using namespace std;
 using namespace dgdft::esdf;
-using namespace dgdft::scalapack;
 
 
 void Usage(){
@@ -25,6 +24,7 @@ int main(int argc, char **argv)
 	int mpirank, mpisize;
 	MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
 	MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+	Real timeSta, timeEnd;
 
 	if( mpirank == 0 )
 		Usage();
@@ -38,7 +38,6 @@ int main(int argc, char **argv)
 		// Initialize log file
 		stringstream  ss;
 		ss << "statfile." << mpirank;
-		cout << "The filename for the statfile is " << ss.str() << endl;
 		statusOFS.open( ss.str().c_str() );
 
 		// Initialize FFTW
@@ -279,7 +278,12 @@ int main(int argc, char **argv)
 		// Setup SCFDG
 		SCFDG  scfDG;
 		
+
+		GetTime( timeSta );
 		scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt );
+		GetTime( timeEnd );
+		statusOFS << "Time for setting up SCFDG is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
 		// *********************************************************************
 		// Solve
