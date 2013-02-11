@@ -425,22 +425,22 @@ void esdf_key() {
 
 	i++;
 	strcpy(kw_label[i],"restart_density");
-	strcpy(kw_typ[i],"L:E");
+	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether density is restarted!*");
 
 	i++;
 	strcpy(kw_label[i],"restart_bufwfn");
-	strcpy(kw_typ[i],"L:E");
+	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether the buffer wavefunction is restarted!*");
 
 	i++;
 	strcpy(kw_label[i],"restart_wfn");
-	strcpy(kw_typ[i],"L:E");
+	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether the wavefunction in the global domain is restarted!*");
 
 	i++;
 	strcpy(kw_label[i],"output_density");
-	strcpy(kw_typ[i],"L:E");
+	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether density is outputed !*");
 
 	i++;
@@ -456,12 +456,12 @@ void esdf_key() {
 
 	i++;
 	strcpy(kw_label[i],"output_wfn");
-	strcpy(kw_typ[i],"L:E");
+	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether wavefunctions and occupations numbers are outputed !*");
 
 	i++;
 	strcpy(kw_label[i],"output_bufwfn");
-	strcpy(kw_typ[i],"L:E");
+	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether wavefunctions in the buffer is outputed !*");
 
 	i++;
@@ -1836,10 +1836,10 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.scfMaxIter      = esdf_integer( "SCF_MaxIter",   30 );
 		esdfParam.eigTolerance    = esdf_double( "Eig_Tolerance", 1e-5 );
 		esdfParam.eigMaxIter      = esdf_integer( "Eig_MaxIter",  10 );
-		esdfParam.isRestartDensity = esdf_boolean( "Restart_Density", false );
-		esdfParam.isRestartDensity = esdf_boolean( "Restart_Wfn", false );
-		esdfParam.isOutputDensity  = esdf_boolean( "Output_Density", false );
-		esdfParam.isOutputWfn      = esdf_boolean( "Output_Wfn", false );
+		esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
+		esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
+		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
+		esdfParam.isOutputWfn      = esdf_integer( "Output_Wfn", 0 );
 
 		Real temperature;
 		temperature               = esdf_double( "Temperature", 100.0 );

@@ -32,7 +32,7 @@ float esdf_single(const char *, float);
 double esdf_double(const char *, double);
 double esdf_physical(const char *, double, char *);
 bool esdf_defined(const char *);
-bool esdf_boolean(const char *, bool *);
+bool esdf_boolean(const char *, bool);
 bool esdf_block(const char *, int *);
 char *esdf_reduce(char *);
 double esdf_convfac(char *, char *);

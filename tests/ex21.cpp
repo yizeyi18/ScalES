@@ -127,8 +127,6 @@ int main(int argc, char **argv)
 
 		// FIXME for the time being, calculate PP twice
 		hamDG.CalculatePseudoPotential( ptable );
-
-		hamDG.CalculatePseudoPotentialAA( ptable );
 		
 		// Compute the Hartree potential
 		hamDG.CalculateHartree( fft );

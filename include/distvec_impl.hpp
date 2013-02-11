@@ -114,9 +114,6 @@ Int DistVec<Key,Data,Partition>::GetBegin(std::vector<Key>& keyvec, const std::v
 #ifndef _RELEASE_
 	PushCallStack("DistVec::GetBegin");
 #endif
-	time_t t0(0), t1(0);
-
-	t0 = time(0);
 
 	Int mpirank = this->mpirank();
 	Int mpisize = this->mpisize();
@@ -198,7 +195,6 @@ Int DistVec<Key,Data,Partition>::GetBegin(std::vector<Key>& keyvec, const std::v
 		rnbvec_[k] = rifvec[2*k  ];
 		rszvec[k] = rifvec[2*k+1];
 	}
-	t1 = time(0);
 	//6. allocate space, send and receive
 	for(Int k=0; k<mpisize; k++)
 		rbufvec_[k].resize(rszvec[k]);
@@ -220,9 +216,6 @@ Int DistVec<Key,Data,Partition>::GetEnd( const std::vector<Int>& mask )
 #ifndef _RELEASE_
 	PushCallStack("DistVec::GetEnd");
 #endif
-	time_t t0(0), t1(0);
-
-	t0 = time(0);
 	Int mpirank = this->mpirank();
 	Int mpisize = this->mpisize();
 	
@@ -232,7 +225,6 @@ Int DistVec<Key,Data,Partition>::GetEnd( const std::vector<Int>& mask )
 	sbufvec_.clear(); //save space
 	iC( MPI_Barrier(comm_) );
 
-	t0 = time(0);
 	//4. write back
 	//to stream
 	std::vector<std::istringstream*> issvec(mpisize);  for(Int k=0; k<mpisize; k++)	{ issvec[k] = new std::istringstream(); iA(issvec[k]!=NULL); }
@@ -257,8 +249,6 @@ Int DistVec<Key,Data,Partition>::GetEnd( const std::vector<Int>& mask )
 	}
 	for(Int k=0; k<mpisize; k++) {	delete issvec[k];	issvec[k] = NULL;  }
 	iC( MPI_Barrier(comm_) );
-
-	t1 = time(0);
 
 	iC( MPI_Barrier(comm_) );
 #ifndef _RELEASE_
