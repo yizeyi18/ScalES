@@ -1,7 +1,7 @@
 # NOTE: This Makefile does NOT support auto-dependency for the .h files.
 # If the header files are changed, do "make clean" first.
 
-include ../make.inc.${HOSTID}
+include ../make.inc
 
 SRCS = ex23.cpp ex21.cpp ex22.cpp ex20.cpp ex18.cpp
 

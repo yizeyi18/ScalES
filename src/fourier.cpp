@@ -14,12 +14,16 @@ Fourier::Fourier () :
 	{
 		backwardPlan  = NULL;
 		forwardPlan   = NULL;
+		backwardPlanR2C  = NULL;
+		forwardPlanR2C   = NULL;
 	}
 
 Fourier::~Fourier () 
 {
 	if( backwardPlan ) fftw_destroy_plan( backwardPlan );
 	if( forwardPlan  ) fftw_destroy_plan( forwardPlan );
+	if( backwardPlanR2C  ) fftw_destroy_plan( backwardPlanR2C );
+	if( forwardPlanR2C   ) fftw_destroy_plan( forwardPlanR2C );
 }
 
 void Fourier::Initialize ( const Domain& dm )
@@ -98,8 +102,50 @@ void Fourier::Initialize ( const Domain& dm )
 		b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
 		TeterPrecond[i] = b / ( b + 16.0 * pow(a, 4.0) );
 	}
-	// TODO Real to Complex
 
+
+	// R2C transform
+	numGridTotalR2C = (numGrid[0]/2+1) * numGrid[1] * numGrid[2];
+
+	inputVecR2C.Resize( numGridTotal );
+	outputVecR2C.Resize( numGridTotalR2C );
+
+	forwardPlanR2C = fftw_plan_dft_r2c_3d( 
+			numGrid[2], numGrid[1], numGrid[0], 
+			( &inputVecR2C[0] ), 
+			reinterpret_cast<fftw_complex*>( &outputVecR2C[0] ),
+			plannerFlag );
+
+	backwardPlanR2C = fftw_plan_dft_c2r_3d(
+			numGrid[2], numGrid[1], numGrid[0],
+			reinterpret_cast<fftw_complex*>( &outputVecR2C[0] ),
+			&inputVecR2C[0],
+			plannerFlag);
+
+	// -1/2 \Delta  and Teter preconditioner in R2C
+	gkkR2C.Resize( numGridTotalR2C );
+	TeterPrecondR2C.Resize( numGridTotalR2C );
+
+	Real*  gkkR2CPtr = gkkR2C.Data();
+	for( Int k = 0; k < numGrid[2]; k++ ){
+		for( Int j = 0; j < numGrid[1]; j++ ){
+			for( Int i = 0; i < numGrid[0]/2+1; i++ ){
+				*(gkkR2CPtr++) = 
+					( KGrid[0](i) * KGrid[0](i) +
+						KGrid[1](j) * KGrid[1](j) +
+						KGrid[2](k) * KGrid[2](k) ) / 2.0;
+			}
+		}
+	}
+
+	// TeterPreconditioner
+	for( Int i = 0; i < numGridTotalR2C; i++ ){
+		a = gkkR2C[i] * 2.0;
+		b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
+		TeterPrecondR2C[i] = b / ( b + 16.0 * pow(a, 4.0) );
+	}
+
+	// Mark Fourier to be initialized
 	isInitialized = true;
 
 #ifndef _RELEASE_

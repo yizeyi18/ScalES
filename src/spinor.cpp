@@ -219,24 +219,25 @@ Spinor::AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr)
 	}
 
 #ifndef _USE_COMPLEX_ // Real case
+	Int ntothalf = fftPtr->numGridTotalR2C;
 	for (Int k=0; k<nocc; k++) {
 		for (Int j=0; j<ncom; j++) {
 			Real *ptrwfn = wavefun_.VecData(j, k);
-			Complex *ptr0 = fftPtr->inputComplexVec.Data();
+			Real *ptr0 = fftPtr->inputVecR2C.Data();
 			for(Int i = 0; i < ntot; i++){
-				ptr0[i] = Complex( ptrwfn[i], 0.0 );
+				ptr0[i] = ptrwfn[i];
 			}
-			fftw_execute(fftPtr->forwardPlan);
+			fftw_execute(fftPtr->forwardPlanR2C);
 
-			Real *ptr1d = fftPtr->gkk.Data();
-			ptr0 = fftPtr->outputComplexVec.Data();
-			for (Int i=0; i<ntot; i++) 
-				*(ptr0++) *= *(ptr1d++);
+			Real*    ptr1d   = fftPtr->gkkR2C.Data();
+			Complex* ptr2    = fftPtr->outputVecR2C.Data();
+			for (Int i=0; i<ntothalf; i++) 
+				*(ptr2++) *= *(ptr1d++);
 
-			fftw_execute(fftPtr->backwardPlan);
+			fftw_execute(fftPtr->backwardPlanR2C);
 			Real *ptr1 = a3.VecData(j, k);
-			ptr0 = fftPtr->inputComplexVec.Data();
-			for (Int i=0; i<ntot; i++) *(ptr1++) += (*(ptr0++)).real() / Real(ntot);
+			ptr0 = fftPtr->inputVecR2C.Data();
+			for (Int i=0; i<ntot; i++) *(ptr1++) += (*(ptr0++)) / Real(ntot);
 		}
 	}
 #else // Complex case

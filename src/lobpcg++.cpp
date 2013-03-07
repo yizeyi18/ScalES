@@ -436,7 +436,7 @@ BlopexInt
 		y_active_ind = y->active_indices;
 
 		// Does not use full BLAS but allows deflation
-		if(1){
+		if(0){
 			for(i=0; i<num_active_vectors; i++)
 			{
 				src = x_data + x_active_ind[i]*size;
@@ -447,8 +447,8 @@ BlopexInt
 			}
 		}
 
-		// NEW Code, calculate everything. Make sure it works with deflation  
-		if(0){
+		// NEW Code, calculate everything like BLAS3. Make sure it works with deflation  
+		if(1){
 			blas::Axpy( (size * x->num_vectors), static_cast<Scalar>(alpha), 
 					x_data, 1, y_data, 1 );
 		}
@@ -560,7 +560,7 @@ BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
 	gap = gh-h;
 
 	// Does not use full BLAS but allows deflation
-	if(1){
+	if(0){
 		for(j=0; j<y_num_active_vectors; j++)
 		{
 			y_ptr = y_data + y_active_ind[j]*size;
@@ -576,12 +576,18 @@ BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
 	// LLIN: New version This assumes that deflation is not used and uses BLAS3
 	// Another disadvantage of this method is that it is not so easy to
 	// generalize to parallel setup.
-	if(0){
+	if(1){
 		assert( x->num_vectors == x->num_active_vectors &&
 				y->num_vectors == y->num_active_vectors); 
+#ifndef _USE_COMPLEX_
+		blas::Gemm('T', 'N', x_num_active_vectors, y_num_active_vectors,
+				 size, SCALAR_ONE, x_data, size, y_data, size,
+				 SCALAR_ZERO, v, gh);
+#else
 		blas::Gemm('C', 'N', x_num_active_vectors, y_num_active_vectors,
 				 size, SCALAR_ONE, x_data, size, y_data, size,
 				 SCALAR_ZERO, v, gh);
+#endif
 	}
 
 
@@ -680,7 +686,7 @@ serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexIn
 	gap = rGHeight - rHeight;
 
 	//LLIN: Not using BLAS, but supports deflation
-	if(1){
+	if(0){
 		for (j=0; j<rWidth; j++)
 		{
 			y_ptr = y_data + y_active_ind[j]*size;
@@ -708,7 +714,7 @@ serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexIn
 	}
 
 	// LLIN: This assumes that deflation is not used and uses BLAS3
-	if(0){
+	if(1){
 		assert( x->num_vectors == x->num_active_vectors &&
 				y->num_vectors == y->num_active_vectors); 
 		blas::Gemm( 'N', 'N', size, rWidth, rHeight, SCALAR_ONE, 

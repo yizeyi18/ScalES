@@ -33,6 +33,20 @@ struct Fourier {
 	CpxNumVec                inputComplexVec;     
 	CpxNumVec                outputComplexVec;     
 
+	// Real data Fourier transform
+	Int       numGridTotalR2C;
+  fftw_plan backwardPlanR2C;
+  fftw_plan forwardPlanR2C;
+
+
+  DblNumVec                gkkR2C;
+  DblNumVec                TeterPrecondR2C;
+
+	// Temporary vectors that can also be used globally
+	DblNumVec                inputVecR2C;     
+	CpxNumVec                outputVecR2C;     
+
+
 	Fourier();
 	~Fourier();
 

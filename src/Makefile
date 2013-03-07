@@ -1,7 +1,7 @@
 # NOTE: This Makefile does NOT support auto-dependency for the .h files.
 # If the header files are changed, do "make clean" first.
 
-include ../make.inc.${HOSTID}
+include ../make.inc
 
 SRCS = scf_dg.cpp scf.cpp eigensolver.cpp lobpcg++.cpp \
 			 hamiltonian_dg.cpp hamiltonian.cpp periodtable.cpp \
