@@ -135,6 +135,10 @@ public:
 	/// @brief Parallel Kerker mixing.
 	void  KerkerMix();
 
+	/// @brief Calculate the Hellmann-Feynman force for each atom.
+	void  CalculateForce();
+
+
 	// *********************************************************************
 	// Inquiry
 	// *********************************************************************

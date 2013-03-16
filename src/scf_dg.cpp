@@ -636,6 +636,14 @@ SCFDG::Iterate	(  )
 		// Compute the electron density
 		hamDG.CalculateDensity( hamDG.OccupationRate() );
 
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing density in the global domain is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+		GetTime(timeSta);
+
 		// Compute the exchange-correlation potential and energy
 		hamDG.CalculateXC( Exc_ );
 
@@ -1334,5 +1342,21 @@ SCFDG::PrintState	( const Int iter  )
 	return ;
 } 		// -----  end of method SCFDG::PrintState  ----- 
 
+
+void
+SCFDG::CalculateForce	(  )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::CalculateForce");
+#endif
+	// What is the best way for performing FFT here?
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::CalculateForce  ----- 
 
 } // namespace dgdft
