@@ -166,6 +166,10 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	// Pseudopotential
 	pseudo_.Prtn()      = elemPrtn_;
 	vnlCoef_.Prtn()       = elemPrtn_;
+	vnlDrvCoef_.resize(DIM);
+	for( Int d = 0; d < DIM; d++ ){
+		vnlDrvCoef_[d].Prtn() = elemPrtn_;
+	}
 
 	// Partition of the DG matrix
 	elemMatPrtn_.ownerInfo = elemPrtn_.ownerInfo;
@@ -1346,9 +1350,10 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								} // for (b)
 
 							// Release the gradient as volume data to save memory
-							for( Int d = 0; d < DIM; d++ ){
-								Dbasis[d].LocalMap().erase(key);
-							}
+							// FIXME
+//							for( Int d = 0; d < DIM; d++ ){
+//								Dbasis[d].LocalMap().erase(key);
+//							}
 						}
 #if ( _DEBUGlevel_ >= 0 )
 						statusOFS << "After the Laplacian part." << std::endl;
@@ -1565,17 +1570,31 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		// Compute the coefficient (i.e. the inner product of the nonlocal
 		// pseudopotential and basis functions in the form of <phi|l>) for
 		// nonlocal pseudopotential projectors locally
+		//
+		// Also get the inner product of the form <D_{x,y,z} phi | l> for
+		// nonlocal pseudopotential projectors locally
 
 		vnlCoef_.LocalMap().clear();
+		for( Int d = 0; d < DIM; d++ ){
+			vnlDrvCoef_[d].LocalMap().clear();
+		}
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner(key) == mpirank ){
 						std::map<Int, DblNumMat>  coefMap;
+						std::map<Int, DblNumMat>  coefDrvXMap;
+						std::map<Int, DblNumMat>  coefDrvYMap;
+						std::map<Int, DblNumMat>  coefDrvZMap;
+
 						std::map<Int, PseudoPot>& pseudoMap =
 							pseudo_.LocalMap()[key];
 						DblNumMat&   basis = basisLGL_.LocalMap()[key];
+						DblNumMat& DbasisX = Dbasis[0].LocalMap()[key];
+						DblNumMat& DbasisY = Dbasis[1].LocalMap()[key];
+						DblNumMat& DbasisZ = Dbasis[2].LocalMap()[key];
+
 						Int numBasis = basis.n();
 
 						// Loop over atoms, regardless of whether this atom belongs
@@ -1586,7 +1605,15 @@ HamiltonianDG::CalculateDGMatrix	(  )
 							Int atomIdx = (*mi).first;
 							std::vector<NonlocalPP>&  vnlList = (*mi).second.vnlList;
 							DblNumMat coef( numBasis, vnlList.size() );
+							DblNumMat coefDrvX( numBasis, vnlList.size() );
+							DblNumMat coefDrvY( numBasis, vnlList.size() ); 
+							DblNumMat coefDrvZ( numBasis, vnlList.size() );
+
 							SetValue( coef, 0.0 );
+							SetValue( coefDrvX, 0.0 );
+							SetValue( coefDrvY, 0.0 );
+							SetValue( coefDrvZ, 0.0 );
+
 							// Loop over projector
 							for( Int g = 0; g < vnlList.size(); g++ ){
 								SparseVec&  vnl = vnlList[g].first;
@@ -1600,14 +1627,26 @@ HamiltonianDG::CalculateDGMatrix	(  )
 										for( Int l = 0; l < idx.Size(); l++ ){
 											coef(a, g) += basis( idx(l), a ) * val(l, VAL) * 
 												ptrWeight[idx(l)];
+											coefDrvX(a,g) += DbasisX( idx(l), a ) * val(l, VAL) *
+												ptrWeight[idx(l)];
+											coefDrvY(a,g) += DbasisY( idx(l), a ) * val(l, VAL) *
+												ptrWeight[idx(l)];
+											coefDrvZ(a,g) += DbasisZ( idx(l), a ) * val(l, VAL) *
+												ptrWeight[idx(l)];
 										}
 									}
 								} // non-empty
 							} // for (g)
 
 							coefMap[atomIdx] = coef;
+							coefDrvXMap[atomIdx] = coefDrvX;
+							coefDrvYMap[atomIdx] = coefDrvY;
+							coefDrvZMap[atomIdx] = coefDrvZ;
 						}
 						vnlCoef_.LocalMap()[key] = coefMap;
+						vnlDrvCoef_[0].LocalMap()[key] = coefDrvXMap;
+						vnlDrvCoef_[1].LocalMap()[key] = coefDrvYMap;
+						vnlDrvCoef_[2].LocalMap()[key] = coefDrvZMap;
 					} // own this element
 				} // for (i)
 
@@ -1670,7 +1709,12 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
 		
 		vnlCoef_.GetBegin( pseudoIdx, NO_MASK );
+		for( Int d = 0; d < DIM; d++ )
+			vnlDrvCoef_[d].GetBegin( pseudoIdx, NO_MASK );
+
 		vnlCoef_.GetEnd( NO_MASK );
+		for( Int d = 0; d < DIM; d++ )
+			vnlDrvCoef_[d].GetEnd( NO_MASK );
 
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -2112,4 +2156,371 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 	return ;
 } 		// -----  end of method HamiltonianDG::CalculateDGMatrix  ----- 
+
+
+void
+HamiltonianDG::CalculateForce	( DistFourier& fft )
+{
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::CalculateForce");
+#endif
+	if( !fft.isInitialized ){
+		throw std::runtime_error("Fourier is not prepared.");
+	}
+ 
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+
+	// *********************************************************************
+	// Initialize the force computation
+	// *********************************************************************
+  Int ntot      = fft.numGridTotal;
+	Int ntotLocal = fft.numGridLocal;
+	Int numAtom   = atomList_.size();
+
+
+	DblNumMat   forceLocal( numAtom, DIM );
+	DblNumMat   force( numAtom, DIM );
+	SetValue( forceLocal, 0.0 );
+	SetValue( force, 0.0 );
+	
+
+
+	// Compute the integration weights
+	DblNumTns               LGLWeight3D;
+	{
+		std::vector<DblNumVec>  LGLWeight1D(DIM);
+		Point3 length       = domainElem_(0,0,0).length;
+		Index3 numGrid      = numLGLGridElem_;             
+		Int    numGridTotal = numGrid.prod();
+
+		// Compute the integration weights
+		// 1D
+		for( Int d = 0; d < DIM; d++ ){
+			DblNumVec  dummyX;
+			DblNumMat  dummyP, dummpD;
+			GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
+					numGrid[d] );
+			blas::Scal( numGrid[d], 0.5 * length[d], 
+					LGLWeight1D[d].Data(), 1 );
+		}
+
+		// 3D
+		LGLWeight3D.Resize( numGrid[0], numGrid[1], numGrid[2] );
+		for( Int k = 0; k < numGrid[2]; k++ )
+			for( Int j = 0; j < numGrid[1]; j++ )
+				for( Int i = 0; i < numGrid[0]; i++ ){
+					LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
+						LGLWeight1D[2](k);
+				} // for (i)
+	}
+
+
+	// *********************************************************************
+	// Compute the derivative of the Hartree potential for computing the 
+	// local pseudopotential contribution to the Hellmann-Feynman force
+	// *********************************************************************
+	std::vector<DistDblNumVec>  vhartDrv(DIM);
+	std::vector<DblNumVec>      vhartDrvLocal(DIM);
+	DistDblNumVec   tempVec;
+
+	tempVec.Prtn() = elemPrtn_;
+	for( Int d = 0; d < DIM; d++ )
+		vhartDrv[d].Prtn() = elemPrtn_;
+
+	// tempVec = density_ - pseudoCharge_
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key = Index3( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					tempVec.LocalMap()[key] = density_.LocalMap()[key];
+					blas::Axpy( numUniformGridElem_.prod(), -1.0, 
+							pseudoCharge_.LocalMap()[key].Data(), 1,
+							tempVec.LocalMap()[key].Data(), 1 );
+				}
+			}
+
+	// Convert tempVec to tempVecLocal in distributed row vector format
+	DblNumVec  tempVecLocal;
+
+  DistNumVecToDistRowVec(
+			tempVec,
+			tempVecLocal,
+			domain_.numGrid,
+			numElem_,
+			fft.localNzStart,
+			fft.localNz,
+			fft.isInGrid,
+			domain_.comm );
+
+	// The contribution of the pseudoCharge is subtracted. So the Poisson
+	// equation is well defined for neutral system.
+	// Only part of the processors participate in the FFTW calculation
+
+	if( fft.isInGrid ){
+
+		// cpxVecLocal saves the Fourier transform of 
+		// density_ - pseudoCharge_ 
+		CpxNumVec  cpxVecLocal( tempVecLocal.Size() );
+
+		for( Int i = 0; i < ntotLocal; i++ ){
+			fft.inputComplexVecLocal(i) = Complex( 
+					tempVecLocal(i), 0.0 );
+		}
+
+		fftw_execute( fft.forwardPlan );
+
+		blas::Copy( ntotLocal, fft.outputComplexVecLocal.Data(), 1,
+				cpxVecLocal.Data(), 1 );
+
+		// Compute the derivative of the Hartree potential via Fourier
+		// transform 
+		for( Int d = 0; d < DIM; d++ ){
+			CpxNumVec& ikLocal  = fft.ikLocal[d];
+			for( Int i = 0; i < ntotLocal; i++ ){
+				if( fft.gkkLocal(i) == 0 ){
+					fft.outputComplexVecLocal(i) = Z_ZERO;
+				}
+				else{
+					// NOTE: gkk already contains the factor 1/2.
+					fft.outputComplexVecLocal(i) = cpxVecLocal(i) *
+						2.0 * PI / fft.gkkLocal(i) * ikLocal(i);
+				}
+			}
+
+			fftw_execute( fft.backwardPlan );
+
+			// vhartDrvLocal saves the derivative of the Hartree potential in
+			// the distributed row format
+			vhartDrvLocal[d].Resize( tempVecLocal.Size() );
+
+			for( Int i = 0; i < ntotLocal; i++ ){
+				vhartDrvLocal[d](i) = fft.inputComplexVecLocal(i).real() / ntot;
+			}
+
+		} // for (d)
+
+
+	} // if (fft.isInGrid)
+
+	// Convert vhartDrvLocal to vhartDrv in the DistNumVec format
+
+	for( Int d = 0; d < DIM; d++ ){
+		DistRowVecToDistNumVec( 
+				vhartDrvLocal[d],
+				vhartDrv[d],
+				domain_.numGrid,
+				numElem_,
+				fft.localNzStart,
+				fft.localNz,
+				fft.isInGrid,
+				domain_.comm );
+	}
+
+
+	
+		
+	// *********************************************************************
+	// Compute the force from local pseudopotential
+	// *********************************************************************
+	{
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						std::map<Int, PseudoPot>&  ppMap = pseudo_.LocalMap()[key];
+						for( std::map<Int, PseudoPot>::iterator mi = ppMap.begin();
+								 mi != ppMap.end(); mi++ ){
+							Int atomIdx = (*mi).first;
+							PseudoPot& pp = (*mi).second;
+							SparseVec& sp = pp.pseudoCharge;
+							IntNumVec& idx = sp.first;
+							DblNumMat& val = sp.second;
+							Real    wgt = domain_.Volume() / domain_.NumGridTotal();
+							for( Int d = 0; d < DIM; d++ ){
+								DblNumVec&  drv = vhartDrv[d].LocalMap()[key];
+								Real res = 0.0;
+								for( Int l = 0; l < idx.m(); l++ ){
+									res += val(l, VAL) * drv[idx(l)] * wgt;
+								}
+								forceLocal( atomIdx, d ) += res;
+							}
+						} // for (mi)
+					} // own this element
+				} // for (i)
+	}
+
+
+	// *********************************************************************
+	// Compute the force from nonlocal pseudopotential
+	// *********************************************************************
+	{
+		// Step 1. Collect the eigenvectors from the neighboring elements
+		// according to the support of the pseudopotential
+		// Note: the following part is the same as that in 
+		//
+		// HamiltonianDG::CalculateDGMatrix
+		//
+		// Each element owns all the coefficient matrices in its neighbors
+		// and then perform data processing later. It can be as many as 
+		// 3^3-1 = 26 elements. 
+		//
+		// Note that it is assumed that the size of the element size cannot
+		// be smaller than the pseudopotential (local or nonlocal) cutoff radius.
+		//
+		// Use std::set to avoid repetitive entries
+		std::set<Index3>  pseudoSet;
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner(key) == mpirank ){
+						IntNumVec  idxX(3);
+						IntNumVec  idxY(3);
+						IntNumVec  idxZ(3); 
+
+						// Previous
+						if( i == 0 )  idxX(0) = numElem_[0]-1; else   idxX(0) = i-1;
+						if( j == 0 )  idxY(0) = numElem_[1]-1; else   idxY(0) = j-1;
+						if( k == 0 )  idxZ(0) = numElem_[2]-1; else   idxZ(0) = k-1;
+
+						// Current
+						idxX(1) = i;
+						idxY(1) = j;
+						idxZ(1) = k;
+
+						// Next
+						if( i == numElem_[0]-1 )  idxX(2) = 0; else   idxX(2) = i+1;
+						if( j == numElem_[1]-1 )  idxY(2) = 0; else   idxY(2) = j+1;
+						if( k == numElem_[2]-1 )  idxZ(2) = 0; else   idxZ(2) = k+1;
+
+						// Tensor product 
+						for( Int c = 0; c < 3; c++ )
+							for( Int b = 0; b < 3; b++ )
+								for( Int a = 0; a < 3; a++ ){
+									// Not the element key itself
+									if( idxX[a] != i || idxY[b] != j || idxZ[c] != k ){
+										pseudoSet.insert( Index3( idxX(a), idxY(b), idxZ(c) ) );
+									}
+								} // for (a)
+					}
+				} // for (i)
+		std::vector<Index3>  pseudoIdx;
+		pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
+		
+		eigvecCoef_.GetBegin( pseudoIdx, NO_MASK );
+		eigvecCoef_.GetEnd( NO_MASK );
+
+		// Step 2. Loop through the atoms and eigenvecs for the contribution
+		// to the force
+		//
+		// Note: this procedure shall be substituted with the density matrix
+		// formulation when PEXSI is used. TODO
+
+		// Loop over atoms and pseudopotentials
+		Int numEig = occupationRate_.m();
+		for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
+			if( atomPrtn_.Owner(atomIdx) == mpirank ){
+			  DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
+				Int numVnl = vnlWeight.Size();
+				DblNumMat resVal ( numEig, numVnl );
+				DblNumMat resDrvX( numEig, numVnl );
+				DblNumMat resDrvY( numEig, numVnl );
+				DblNumMat resDrvZ( numEig, numVnl );
+				SetValue( resVal,  0.0 );
+				SetValue( resDrvX, 0.0 );
+				SetValue( resDrvY, 0.0 );
+				SetValue( resDrvZ, 0.0 );
+
+				// Loop over the elements overlapping with the nonlocal
+				// pseudopotential
+				for( std::map<Index3, std::map<Int, DblNumMat> >::iterator 
+						ei  = vnlCoef_.LocalMap().begin();
+						ei != vnlCoef_.LocalMap().end(); ei++ ){
+					Index3 key = (*ei).first;
+					std::map<Int, DblNumMat>& coefMap = (*ei).second; 
+					std::map<Int, DblNumMat>& coefDrvXMap = vnlDrvCoef_[0].LocalMap()[key];
+					std::map<Int, DblNumMat>& coefDrvYMap = vnlDrvCoef_[1].LocalMap()[key];
+					std::map<Int, DblNumMat>& coefDrvZMap = vnlDrvCoef_[2].LocalMap()[key];
+					
+					if( eigvecCoef_.LocalMap().find( key ) == eigvecCoef_.LocalMap().end() ){
+						throw std::runtime_error( "Eigenfunction coefficient matrix cannot be located." );
+					}
+
+					DblNumMat&  localCoef = eigvecCoef_.LocalMap()[key];
+
+					Int numBasis = localCoef.m();
+
+					if( coefMap.find( atomIdx ) != coefMap.end() ){
+
+						DblNumMat&  coef      = coefMap[atomIdx];
+						DblNumMat&  coefDrvX  = coefDrvXMap[atomIdx];
+						DblNumMat&  coefDrvY  = coefDrvYMap[atomIdx];
+						DblNumMat&  coefDrvZ  = coefDrvZMap[atomIdx];
+
+						// Value
+						blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
+								1.0, localCoef.Data(), numBasis, 
+								coef.Data(), numBasis,
+								1.0, resVal.Data(), numEig );
+						
+						// Derivative
+						blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
+								1.0, localCoef.Data(), numBasis, 
+								coefDrvX.Data(), numBasis,
+								1.0, resDrvX.Data(), numEig );
+
+						blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
+								1.0, localCoef.Data(), numBasis, 
+								coefDrvY.Data(), numBasis,
+								1.0, resDrvY.Data(), numEig );
+
+						blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
+								1.0, localCoef.Data(), numBasis, 
+								coefDrvZ.Data(), numBasis,
+								1.0, resDrvZ.Data(), numEig );
+
+					} // found the atom
+				} // for (ei)
+
+				// Add the contribution to the local force
+				// The minus sign comes from integration by parts
+				// The 4.0 comes from spin (2.0) and that |l> appears twice (2.0)
+				for( Int g = 0; g < numEig; g++ ){
+					for( Int l = 0; l < numVnl; l++ ){
+						forceLocal(atomIdx, 0) += -4.0 * occupationRate_[g] * vnlWeight[l] *
+							resVal(g, l) * resDrvX(g, l);
+						forceLocal(atomIdx, 1) += -4.0 * occupationRate_[g] * vnlWeight[l] *
+							resVal(g, l) * resDrvY(g, l);
+						forceLocal(atomIdx, 2) += -4.0 * occupationRate_[g] * vnlWeight[l] *
+							resVal(g, l) * resDrvZ(g, l);
+					}
+				}
+			} // own this atom
+		} // for (atomIdx)
+
+	}
+
+
+	// *********************************************************************
+	// Compute the total force and give the value to atomList
+	// *********************************************************************
+	mpi::Allreduce( forceLocal.Data(), force.Data(), numAtom * DIM,
+			MPI_SUM, domain_.comm );
+
+	for( Int a = 0; a < numAtom; a++ ){
+		atomList_[a].force = Point3( force(a,0), force(a,1), force(a,2) );
+	} 
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method HamiltonianDG::CalculateForce  ----- 
+
 } // namespace dgdft

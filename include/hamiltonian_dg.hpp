@@ -218,7 +218,11 @@ private:
 	/// each atom.
 	DistVec<Index3, std::map<Int, PseudoPot>, ElemPrtn>  pseudo_;
 
+	// FIXME
 	DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn>  vnlCoef_;
+	
+	// FIXME
+	std::vector<DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn> >  vnlDrvCoef_;
 
 	std::map<Int, DblNumVec>  vnlWeightMap_;
 
@@ -283,6 +287,10 @@ public:
 	/// @brief Assemble the DG Hamiltonian matrix. The mass matrix is
 	/// identity in the framework of adaptive local basis functions.
 	void CalculateDGMatrix( ); 
+
+	/// @brief Calculate the Hellmann-Feynman force for each atom.
+	void CalculateForce ( DistFourier& fft );
+
 
 	// *********************************************************************
 	// Access

@@ -291,8 +291,28 @@ int main(int argc, char **argv)
 		// *********************************************************************
 
 		// Main SCF iteration
+		GetTime( timeSta );
 		scfDG.Iterate();
+		GetTime( timeEnd );
+		statusOFS << "Time for SCF iteration is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
+		// Compute force
+		GetTime( timeSta );
+		hamDG.CalculateForce( distfft );
+		GetTime( timeEnd );
+		statusOFS << "Time for computing the force is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+		// Print out the force
+		PrintBlock( statusOFS, "Force" );
+		{
+			std::vector<Atom>& atomList = hamDG.AtomList();
+			Int numAtom = atomList.size();
+			for( Int a = 0; a < numAtom; a++ ){
+				Print( statusOFS, "Atom", a, "Force", atomList[a].force );
+			}
+		}
 
 		// *********************************************************************
 		// Clean up

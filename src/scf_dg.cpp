@@ -1343,20 +1343,5 @@ SCFDG::PrintState	( const Int iter  )
 } 		// -----  end of method SCFDG::PrintState  ----- 
 
 
-void
-SCFDG::CalculateForce	(  )
-{
-#ifndef _RELEASE_
-	PushCallStack("SCFDG::CalculateForce");
-#endif
-	// What is the best way for performing FFT here?
-
-
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-
-	return ;
-} 		// -----  end of method SCFDG::CalculateForce  ----- 
 
 } // namespace dgdft
