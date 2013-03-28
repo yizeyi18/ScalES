@@ -362,6 +362,11 @@ SCFDG::Iterate	(  )
 						Index3 key( i, j, k );
 						if( elemPrtn_.Owner( key ) == mpirank ){
               EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
+							// Skip the calculation if there is no adaptive local
+							// basis function.  
+							if( eigSol.Psi().NumState() == 0 )
+								continue;
+
 							Hamiltonian&  hamExtElem  = eigSol.Ham();
 							DblNumVec&    vtotExtElem = hamExtElem.Vtot();
 							SetValue( vtotExtElem, 0.0 );
@@ -462,6 +467,14 @@ SCFDG::Iterate	(  )
 						DblNumVec&    vtotExtElem = eigSol.Ham().Vtot();
 						Index3 numGridExtElem = eigSol.FFT().domain.numGrid;
 						Index3 numLGLGrid     = hamDG.NumLGLGridElem();
+
+						// Skip the interpoation if there is no adaptive local
+						// basis function.  
+						if( eigSol.Psi().NumState() == 0 ){
+							hamDG.BasisLGL().LocalMap()[key].Resize( numLGLGrid.prod(), 0 );  
+							continue;
+						}
+
 
 						// Solve the basis functions in the extended element
 						GetTime( timeSta );

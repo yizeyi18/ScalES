@@ -1208,6 +1208,12 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 						DblNumMat&  coefDrvX  = coefDrvXMap[atomIdx];
 						DblNumMat&  coefDrvY  = coefDrvYMap[atomIdx];
 						DblNumMat&  coefDrvZ  = coefDrvZMap[atomIdx];
+						
+						// Skip the calculation if there is no adaptive local
+						// basis function.  
+						if( coef.m() == 0 ){
+							continue;
+						}
 
 						// Value
 						blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
