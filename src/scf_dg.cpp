@@ -105,7 +105,7 @@ SCFDG::Setup	(
 				}  // for (i)
 		
 	
-//		restartDensityFileName_ = "DEN";
+		restartDensityFileName_ = "DEN";
 //		restartWfnFileName_     = "WFN";
 	}
 
@@ -113,20 +113,48 @@ SCFDG::Setup	(
 	{
 		DistDblNumVec&  density = hamDGPtr_->Density();
 		if( isRestartDensity_ ) {
-			throw std::runtime_error("Cannot restart density now.");
-//			std::istringstream rhoStream;      
-//			SharedRead( restartDensityFileName_, rhoStream);
-//			// TODO Error checking
-//			deserialize( density, rhoStream, NO_MASK );    
+			std::istringstream rhoStream;      
+			SeparateRead( restartDensityFileName_, rhoStream );
+			
+			Real sumDensityLocal = 0.0, sumDensity = 0.0;
+
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							DblNumVec   denVecRead;
+							DblNumVec&  denVec = density.LocalMap()[key];
+							deserialize( denVecRead, rhoStream, NO_MASK );
+							if( denVecRead.Size() != denVec.Size() ){
+								std::ostringstream msg;
+								msg 
+									<< "The size of restarting density does not match with the current setup."  
+									<< std::endl
+									<< "input density size   ~ " << denVecRead.Size() << std::endl
+									<< "current density size ~ " << denVec.Size()     << std::endl;
+								throw std::logic_error( msg.str().c_str() );
+							}
+							denVec = denVecRead;
+							for( Int p = 0; p < denVec.Size(); p++ ){
+								sumDensityLocal += denVec(p);
+							}
+						}
+					} // for (i)
+
+			// Rescale the density
+			mpi::Allreduce( &sumDensityLocal, &sumDensity, 1, MPI_SUM,
+					domain_.comm );
+
+			Print( statusOFS, "Restart density. Sum of density      = ", 
+					sumDensity * domain_.Volume() / domain_.NumGridTotal() );
+
 		} // else using the zero initial guess
 		else {
 			// Initialize the electron density using the pseudocharge
 			// make sure the pseudocharge is initialized
 			DistDblNumVec& pseudoCharge = hamDGPtr_->PseudoCharge();
 
-			ElemPrtn&  elemPrtn = pseudoCharge.Prtn();
-			
-      
 			Real sumDensityLocal = 0.0, sumPseudoChargeLocal = 0.0;
 			Real sumDensity, sumPseudoCharge;
 			Real EPS = 1e-6;
@@ -136,7 +164,7 @@ SCFDG::Setup	(
 				for( Int j = 0; j < numElem_[1]; j++ )
 					for( Int i = 0; i < numElem_[0]; i++ ){
 						Index3 key( i, j, k );
-						if( elemPrtn.Owner( key ) == mpirank ){
+						if( elemPrtn_.Owner( key ) == mpirank ){
 							DblNumVec&  denVec = density.LocalMap()[key];
 							DblNumVec&  ppVec  = pseudoCharge.LocalMap()[key];
 							for( Int p = 0; p < denVec.Size(); p++ ){
@@ -153,9 +181,9 @@ SCFDG::Setup	(
 			mpi::Allreduce( &sumPseudoChargeLocal, &sumPseudoCharge, 
 					1, MPI_SUM, domain_.comm );
 
-#if ( _DEBUGlevel_ >= 1 )
-			Print( statusOFS, "Sum of initial density      = ", 
+			Print( statusOFS, "Initial density. Sum of density      = ", 
 					sumDensity * domain_.Volume() / domain_.NumGridTotal() );
+#if ( _DEBUGlevel_ >= 1 )
 			Print( statusOFS, "Sum of pseudo charge        = ", 
 					sumPseudoCharge * domain_.Volume() / domain_.NumGridTotal() );
 #endif
@@ -164,7 +192,7 @@ SCFDG::Setup	(
 				for( Int j = 0; j < numElem_[1]; j++ )
 					for( Int i = 0; i < numElem_[0]; i++ ){
 						Index3 key( i, j, k );
-						if( elemPrtn.Owner( key ) == mpirank ){
+						if( elemPrtn_.Owner( key ) == mpirank ){
 							DblNumVec&  denVec = density.LocalMap()[key];
 							blas::Scal( denVec.Size(), sumPseudoCharge / sumDensity, 
 									denVec.Data(), 1 );
@@ -757,6 +785,21 @@ SCFDG::Iterate	(  )
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
+		// Output the electron density
+		if( isOutputDensity_ ){
+			std::ostringstream rhoStream;      
+			
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							DblNumVec&  denVec = hamDG.Density().LocalMap()[key];
+							serialize( denVec, rhoStream, NO_MASK );
+						}
+					} // for (i)
+			SeparateWrite( restartDensityFileName_, rhoStream );
+		} // if ( output density )
 
 		GetTime( timeIterEnd );
    
