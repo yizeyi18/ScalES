@@ -452,7 +452,8 @@ SCFDG::Iterate	(  )
 		// Solve the basis functions in the extended element
 		// *********************************************************************
 
-		GetTime(timeSta);
+		Real timeBasisSta, timeBasisEnd;
+		GetTime(timeBasisSta);
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
@@ -464,7 +465,11 @@ SCFDG::Iterate	(  )
 						Index3 numLGLGrid     = hamDG.NumLGLGridElem();
 
 						// Solve the basis functions in the extended element
+						GetTime( timeSta );
 						eigSol.Solve();
+						GetTime( timeEnd );
+						statusOFS << "Eigensolver time = " 	<< timeEnd - timeSta
+							<< " [sec]" << std::endl;
 
 						// Print out the information
 						statusOFS << std::endl 
@@ -478,6 +483,7 @@ SCFDG::Iterate	(  )
 						statusOFS << std::endl;
 
 
+						GetTime( timeSta );
 						Spinor& psi = eigSol.Psi();
 
 						// Assuming that wavefun has only 1 component
@@ -489,6 +495,7 @@ SCFDG::Iterate	(  )
 
 						SetValue( localBasis, 0.0 );
 
+//#pragma omp parallel for
 						for( Int l = 0; l < psi.NumState(); l++ ){
 							InterpPeriodicUniformToLGL( 
 									numGridExtElem,
@@ -496,6 +503,10 @@ SCFDG::Iterate	(  )
 									wavefun.VecData(0, l), 
 									localBasis.VecData(l) );
 						}
+
+						GetTime( timeEnd );
+						statusOFS << "Time for interpolating basis = " 	<< timeEnd - timeSta
+							<< " [sec]" << std::endl;
 
 						// FIXME
 //						if( mpirank == 1 ){
@@ -507,6 +518,7 @@ SCFDG::Iterate	(  )
 						
 
 						// Perform SVD for the basis functions
+						GetTime( timeSta );
 						{
 							// Compute the LGL weights
 							std::vector<DblNumVec>  LGLWeight1D(DIM);
@@ -530,6 +542,7 @@ SCFDG::Iterate	(  )
 							// for (i1)
 							
 							// Scale the basis functions by sqrt of integration weight
+//#pragma omp parallel for 
 							for( Int g = 0; g < localBasis.n(); g++ ){
 								Real *ptr1 = localBasis.VecData(g);
 								Real *ptr2 = sqrtLGLWeight3D.Data();
@@ -547,8 +560,12 @@ SCFDG::Iterate	(  )
 									localBasis.Data(), localBasis.m(),
 									S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
 
+							statusOFS << "Singular values of the basis = " 
+								<< S << std::endl;
+
 							// Unscale the orthogonal basis functions by sqrt of
 							// integration weight
+#pragma omp parallel for schedule(dynamic,1) 
 							for( Int g = 0; g < localBasis.n(); g++ ){
 								Real *ptr1 = U.VecData(g);
 								Real *ptr2 = sqrtLGLWeight3D.Data();
@@ -561,14 +578,17 @@ SCFDG::Iterate	(  )
 							// FIXME No SVD truncation
 							hamDG.BasisLGL().LocalMap()[key] = U;  
 						}
+						GetTime( timeEnd );
+						statusOFS << "Time for SVD of basis = " 	<< timeEnd - timeSta
+							<< " [sec]" << std::endl;
 
 					} // own this element
 				} // for (i)
 		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
+		GetTime( timeBasisEnd );
 #if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for generating the adaptive local basis function is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+		statusOFS << "Total time for generating the adaptive local basis function is " <<
+			timeBasisEnd - timeBasisSta << " [s]" << std::endl << std::endl;
 #endif
 
 
@@ -636,6 +656,7 @@ SCFDG::Iterate	(  )
 		// Compute the electron density
 		hamDG.CalculateDensity( hamDG.OccupationRate() );
 
+		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
 		statusOFS << "Time for computing density in the global domain is " <<

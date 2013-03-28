@@ -1089,6 +1089,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 						for( Int d = 0; d < DIM; d++ ){
 							DblNumMat D(basis.m(), basis.n());
 							SetValue( D, 0.0 );
+//#pragma omp parallel for
 							for( Int g = 0; g < numBasis; g++ ){
 								DiffPsi( numGrid, basis.VecData(g), D.VecData(g), d );
 							}
@@ -1335,6 +1336,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 							DblNumMat&  DbasisY = Dbasis[1].LocalMap()[key];
 							DblNumMat&  DbasisZ = Dbasis[2].LocalMap()[key];
 
+//#pragma omp parallel for schedule(dynamic,1) 
 							for( Int a = 0; a < numBasis; a++ )
 								for( Int b = a; b < numBasis; b++ ){
 									localMat(a,b) += 
@@ -1362,6 +1364,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 						// Local potential part
 						{
 							DblNumVec&  vtot  = vtotLGL_.LocalMap()[key];
+//#pragma omp parallel for 
 							for( Int a = 0; a < numBasis; a++ )
 								for( Int b = a; b < numBasis; b++ ){
 									localMat(a,b) += FourDotProduct( 
@@ -1385,6 +1388,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 							// intra-element part of the boundary term
 							Real intByPartTerm, penaltyTerm;
+//#pragma omp parallel for 
 							for( Int a = 0; a < numBasis; a++ )
 								for( Int b = a; b < numBasis; b++ ){
 									intByPartTerm = 
@@ -1436,6 +1440,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 							// intra-element part of the boundary term
 							Real intByPartTerm, penaltyTerm;
+//#pragma omp parallel for 
 							for( Int a = 0; a < numBasis; a++ )
 								for( Int b = a; b < numBasis; b++ ){
 									intByPartTerm = 
@@ -1470,7 +1475,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 												valR.VecData(b),
 												LGLWeight2D[1].Data(),
 												numGridFace );
-
+ 
 									localMat(a,b) += 
 										intByPartTerm + penaltyTerm;
 								} // for (b)
@@ -1487,6 +1492,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 							// intra-element part of the boundary term
 							Real intByPartTerm, penaltyTerm;
+//#pragma omp parallel for 
 							for( Int a = 0; a < numBasis; a++ )
 								for( Int b = a; b < numBasis; b++ ){
 									intByPartTerm = 
@@ -2144,10 +2150,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 	}
-
-	// *********************************************************************
-	// Clean up
-	// *********************************************************************
 
 
 #ifndef _RELEASE_

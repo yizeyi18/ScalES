@@ -462,66 +462,69 @@ BlopexInt
  * if y and x are mxn then alpha is nx1
  * call seq < MultiVectorByDiagonal < i->MultiVecMatDiag < mv_MultiVectorByDiagonal
  *--------------------------------------------------------------------------*/
-BlopexInt
-	serial_Multi_VectorByDiag( serial_Multi_Vector *x,
-			BlopexInt           *mask,
-			BlopexInt           n,
-			Scalar              *alpha,
-			serial_Multi_Vector *y)
-	{
-		Scalar  *x_data;
-		Scalar  *y_data;
-		BlopexInt      size;
-		BlopexInt      num_active_vectors;
-		BlopexInt      i,j;
-		Scalar  *dest;
-		Scalar  *src;
-		BlopexInt * x_active_ind;
-		BlopexInt * y_active_ind;
-		BlopexInt * al_active_ind;
-		BlopexInt num_active_als;
-		Scalar current_alpha;
+BlopexInt serial_Multi_VectorByDiag( serial_Multi_Vector *x,
+		BlopexInt           *mask,
+		BlopexInt           n,
+		Scalar              *alpha,
+		serial_Multi_Vector *y)
+{
+	Scalar  *x_data;
+	Scalar  *y_data;
+	BlopexInt      size;
+	BlopexInt      num_active_vectors;
+	BlopexInt      i,j;
+	Scalar  *dest;
+	Scalar  *src;
+	BlopexInt * x_active_ind;
+	BlopexInt * y_active_ind;
+	BlopexInt * al_active_ind;
+	BlopexInt num_active_als;
+	Scalar current_alpha;
 
-		assert (x->size == y->size && x->num_active_vectors == y->num_active_vectors);
+	assert (x->size == y->size && x->num_active_vectors == y->num_active_vectors);
 
-		/* build list of active indices in alpha */
+	/* build list of active indices in alpha */
 
-		al_active_ind = (BlopexInt *) malloc(sizeof(BlopexInt)*n);
-		num_active_als = 0;
+	al_active_ind = (BlopexInt *) malloc(sizeof(BlopexInt)*n);
+	num_active_als = 0;
 
-		if (mask!=NULL)
-			for (i=0; i<n; i++)
-			{
-				if (mask[i])
-					al_active_ind[num_active_als++]=i;
-			}
-		else
-			for (i=0; i<n; i++)
-				al_active_ind[num_active_als++]=i;
-
-		assert (num_active_als==x->num_active_vectors);
-
-		x_data = (Scalar *) x->data;
-		y_data = (Scalar *) y->data;
-		size = x->size;
-		num_active_vectors = x->num_active_vectors;
-		x_active_ind = x->active_indices;
-		y_active_ind = y->active_indices;
-
-		for(i=0; i<num_active_vectors; i++)
+	if (mask!=NULL)
+		for (i=0; i<n; i++)
 		{
-			src = x_data + x_active_ind[i]*size;
-			dest = y_data + y_active_ind[i]*size;
-			current_alpha=alpha[ al_active_ind[i] ];
-				
-			for (j=0; j<size; j++){
-				*(dest++) = (current_alpha) * (*(src++));
-			}
+			if (mask[i])
+				al_active_ind[num_active_als++]=i;
 		}
+	else
+		for (i=0; i<n; i++)
+			al_active_ind[num_active_als++]=i;
 
-		free(al_active_ind);
-		return 0;
+	assert (num_active_als==x->num_active_vectors);
+
+	x_data = (Scalar *) x->data;
+	y_data = (Scalar *) y->data;
+	size = x->size;
+	num_active_vectors = x->num_active_vectors;
+	x_active_ind = x->active_indices;
+	y_active_ind = y->active_indices;
+
+//#pragma omp parallel for
+	for(i=0; i<num_active_vectors; i++)
+	{
+		src = x_data + x_active_ind[i]*size;
+		dest = y_data + y_active_ind[i]*size;
+		current_alpha=alpha[ al_active_ind[i] ];
+
+//		for (j=0; j<size; j++){
+//			*(dest++) = (current_alpha) * (*(src++));
+//		}
+
+		blas::Copy( size, src, 1, dest, 1 );
+		blas::Scal( size, current_alpha, dest, 1 );
 	}
+
+	free(al_active_ind);
+	return 0;
+}
 
 /*--------------------------------------------------------------------------
  * serial_Multi_VectorInnerProd        v=x'*y  using indices          scalar
@@ -644,6 +647,7 @@ BlopexInt serial_Multi_VectorInnerProdDiag( serial_Multi_Vector *x,
 	x_active_ind = x->active_indices;
 	y_active_ind = y->active_indices;
 
+//#pragma omp parallel for
 	for (i=0; i<num_active_vectors; i++)
 	{
 		x_ptr = x_data + x_active_ind[i]*size;

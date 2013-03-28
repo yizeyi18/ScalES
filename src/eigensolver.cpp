@@ -169,9 +169,6 @@ EigenSolver::Solve	()
   xx = mv_MultiVectorWrap( &ii, x, 0);
 
   Int iterations;
-	Real  timeSolveStart, timeSolveEnd;
-	
-	GetTime( timeSolveStart );
 
 #ifndef _USE_COMPLEX_ // Real case
   blap_fn.dpotrf = LAPACK(dpotrf);
@@ -232,10 +229,6 @@ EigenSolver::Solve	()
 #endif
 
   
-	GetTime( timeSolveEnd );
-
-	statusOFS << "Eigensolver time = " 	<< timeSolveEnd - timeSolveStart
-		<< " [sec]" << std::endl;
 
 	// Assign the eigenvalues to the Hamiltonian
 	hamPtr_->EigVal() = eigVal_;

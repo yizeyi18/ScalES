@@ -149,12 +149,13 @@ void Spinor::AddScalarDiag	(const DblNumVec &val, NumTns<Scalar> &a3)
 	Int ncom = wavefun_.n();
 	Int nocc = wavefun_.p();
 
+//#pragma omp parallel for
 	for (Int k=0; k<nocc; k++) {
 		for (Int j=0; j<ncom; j++) {
 			Scalar *p1 = wavefun_.VecData(j, k);
 			Real   *p2 = val.Data();
 			Scalar *p3 = a3.VecData(j, k);
-			for (Int i=0; i<ntot; i++) { *(p3) += (*p1) * (*p2); p3++; p1++; p2++; }
+			for (Int i=0; i<ntot; i++) { *(p3++) += (*p1++) * (*p2++); }
 		}
 	}
 
@@ -221,34 +222,38 @@ Spinor::AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr)
 #ifndef _USE_COMPLEX_ // Real case
 	Int ntothalf = fftPtr->numGridTotalR2C;
 	// FIXME Start to add OMP parallelization
-	DblNumVec realInVec(ntot);
-	CpxNumVec cpxOutVec(ntothalf);
+//#pragma omp parallel default(shared) 
+	{
+		DblNumVec realInVec(ntot);
+		CpxNumVec cpxOutVec(ntothalf);
 
-	for (Int k=0; k<nocc; k++) {
-		for (Int j=0; j<ncom; j++) {
-			Real *ptrwfn = wavefun_.VecData(j, k);
-			Real *ptr0 = realInVec.Data();
-			for(Int i = 0; i < ntot; i++){
-				ptr0[i] = ptrwfn[i];
+//#pragma omp for 
+		for (Int k=0; k<nocc; k++) {
+			for (Int j=0; j<ncom; j++) {
+				Real *ptrwfn = wavefun_.VecData(j, k);
+				Real *ptr0 = realInVec.Data();
+				for(Int i = 0; i < ntot; i++){
+					ptr0[i] = ptrwfn[i];
+				}
+				fftw_execute_dft_r2c(
+						fftPtr->forwardPlanR2C, 
+						realInVec.Data(),
+						reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ));
+
+				Real*    ptr1d   = fftPtr->gkkR2C.Data();
+				Complex* ptr2    = cpxOutVec.Data();
+				for (Int i=0; i<ntothalf; i++) 
+					*(ptr2++) *= *(ptr1d++);
+
+				fftw_execute_dft_c2r(
+						fftPtr->backwardPlanR2C,
+						reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ),
+						realInVec.Data() );
+
+				Real *ptr1 = a3.VecData(j, k);
+				ptr0 = realInVec.Data();
+				for (Int i=0; i<ntot; i++) *(ptr1++) += (*(ptr0++)) / Real(ntot);
 			}
-			fftw_execute_dft_r2c(
-					fftPtr->forwardPlanR2C, 
-					realInVec.Data(),
-					reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ));
-
-			Real*    ptr1d   = fftPtr->gkkR2C.Data();
-			Complex* ptr2    = cpxOutVec.Data();
-			for (Int i=0; i<ntothalf; i++) 
-				*(ptr2++) *= *(ptr1d++);
-
-			fftw_execute_dft_c2r(
-					fftPtr->backwardPlanR2C,
-					reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ),
-					realInVec.Data() );
-
-			Real *ptr1 = a3.VecData(j, k);
-			ptr0 = realInVec.Data();
-			for (Int i=0; i<ntot; i++) *(ptr1++) += (*(ptr0++)) / Real(ntot);
 		}
 	}
 #else // Complex case
