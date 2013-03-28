@@ -1,3 +1,7 @@
+/// @file esdf.cpp
+/// @brief Electronic structure data format for reading the input data.
+/// @author Chris J. Pickard and Lin Lin
+/// @date 2012-08-10
 #ifndef _ESDF_HPP_
 #define _ESDF_HPP_
 

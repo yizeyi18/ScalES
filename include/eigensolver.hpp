@@ -1,3 +1,7 @@
+/// @file eigensolver.cpp
+/// @brief Eigensolver in the global domain or extended element.
+/// @author Lin Lin
+/// @date 2012-11-20
 #ifndef _EIGENSOLVER_HPP_
 #define _EIGENSOLVER_HPP_
 

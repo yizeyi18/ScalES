@@ -1,3 +1,7 @@
+/// @file fourier.cpp
+/// @brief Sequential and Distributed Fourier wrapper.
+/// @author Lin Lin
+/// @date 2011-11-01
 #ifndef _FOURIER_HPP_
 #define _FOURIER_HPP_
 

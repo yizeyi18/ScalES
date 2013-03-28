@@ -1,3 +1,7 @@
+/// @file lobpcg++.cpp
+/// @brief Interface to LOBPCG.
+/// @author Lin Lin
+/// @date 2012-09-20
 #ifndef _LOBPCG_HPP_
 #define _LOBPCG_HPP_
 

@@ -1,3 +1,7 @@
+/// @file lobpcg++.cpp
+/// @brief Implementation of the interface to LOBPCG.
+/// @author Lin Lin
+/// @date 2012-09-20
 #include "lobpcg++.hpp"
 #include "blas.hpp"
 #include <stdlib.h>

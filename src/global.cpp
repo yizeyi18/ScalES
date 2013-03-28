@@ -1,3 +1,7 @@
+/// @file global.cpp
+/// @brief Global structure.
+/// @author Lin Lin
+/// @date 2012-08-01
 #include	"environment.hpp"
 
 namespace dgdft{

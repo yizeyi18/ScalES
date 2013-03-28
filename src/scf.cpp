@@ -1,3 +1,7 @@
+/// @file scf.cpp
+/// @brief SCF class for the global domain or extended element.
+/// @author Lin Lin
+/// @date 2012-10-25
 #include  "scf.hpp"
 #include	"blas.hpp"
 #include	"lapack.hpp"

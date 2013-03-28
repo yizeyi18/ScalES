@@ -1,3 +1,7 @@
+/// @file eigensolver.cpp
+/// @brief Eigensolver in the global domain or extended element.
+/// @author Lin Lin
+/// @date 2012-11-20
 #include	"eigensolver.hpp"
 #include  "utility.hpp"
 #include  "lapack.hpp"

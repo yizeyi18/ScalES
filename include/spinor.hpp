@@ -1,3 +1,8 @@
+/// @file spinor.cpp
+/// @brief Spinor (wavefunction) for the global domain or extended
+/// element.
+/// @author Lin Lin
+/// @date 2012-10-06
 #ifndef _SPINOR_HPP_
 #define _SPINOR_HPP_
 

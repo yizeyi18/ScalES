@@ -1,3 +1,7 @@
+/// @file scf.cpp
+/// @brief SCF class for the global domain or extended element.
+/// @author Lin Lin
+/// @date 2012-10-25
 #ifndef _SCF_HPP_ 
 #define _SCF_HPP_
 

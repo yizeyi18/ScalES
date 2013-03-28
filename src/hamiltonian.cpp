@@ -1,3 +1,7 @@
+/// @file hamiltonian.cpp
+/// @brief Hamiltonian class for planewave basis diagonalization method.
+/// @author Lin Lin
+/// @date 2012-09-16
 #include  "hamiltonian.hpp"
 #include  "blas.hpp"
 
