@@ -388,6 +388,11 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Number of adaptive local basis functions per element !*");
 
 	i++;
+	strcpy(kw_label[i],"alb_num_element");
+	strcpy(kw_typ[i],"B:E");
+	strcpy(kw_dscrpt[i],"*! Number of adaptive local basis functions for each element !*");
+
+	i++;
 	strcpy(kw_label[i],"scalapack_block_size");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Number of block size used in scalapack!*");
@@ -1884,9 +1889,42 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
 		esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 100.0 );
 
-		esdfParam.numALB        = esdf_integer( "ALB_Num", 4 );
 
 		esdfParam.scaBlockSize  = esdf_integer( "ScaLAPACK_Block_Size", 16 );
+
+		// Get the number of basis functions per element
+		// NOTE: ALB_Num_Element overwrites the parameter numALB later		
+		{
+			esdfParam.numALBElem.Resize( numElem[0], numElem[1], numElem[2] );
+
+			Int sizeALBElem;
+			
+			Int numALB        = esdf_integer( "ALB_Num", 4 );
+
+			if (esdf_block((char*)("ALB_Num_Element"),&sizeALBElem)) {
+				// Use different number of ALB functions for each element.
+				if( sizeALBElem != numElem.prod() ){
+					throw std::logic_error(
+							"The size of the number of ALB does not match the number of elements.");
+				}
+				for( Int k = 0; k < numElem[2]; k++ )
+					for( Int j = 0; j < numElem[1]; j++ )
+						for( Int i = 0; i < numElem[0]; i++ ){
+							sscanf( block_data[i+j*numElem[0]+k*numElem[0]*numElem[1]],
+									"%d", &esdfParam.numALBElem(i,j,k) );
+						}
+			}
+			else{
+				// Use the same number of ALB functions for each element.
+				for( Int k = 0; k < numElem[2]; k++ )
+					for( Int j = 0; j < numElem[1]; j++ )
+						for( Int i = 0; i < numElem[0]; i++ ){
+							esdfParam.numALBElem(i,j,k) = numALB;
+						}
+			}
+		}
+
+
 	}
 
 #ifndef _RELEASE_

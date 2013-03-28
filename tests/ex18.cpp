@@ -27,9 +27,6 @@ int main(int argc, char **argv)
 
 	try
 	{
-#ifdef  _RELEASE_
-		throw std::runtime_error("Test should be run under debug mode");
-#endif
 
 		// *********************************************************************
 		// Reading files
@@ -83,7 +80,9 @@ int main(int argc, char **argv)
 		// *********************************************************************
 		// Preparation
 		// *********************************************************************
+#ifndef  _RELEASE_
 		PushCallStack( "Preparation" );
+#endif
 
 		Domain&  dm = esdfParam.domain;
 
@@ -124,7 +123,9 @@ int main(int argc, char **argv)
 
 		Print( statusOFS, "SCF setup finished." );
 
+#ifndef  _RELEASE_
 		PopCallStack();
+#endif
 
 		// *********************************************************************
 		// Solve
@@ -140,7 +141,9 @@ int main(int argc, char **argv)
 	{
 		std::cerr << " caught exception with message: "
 			<< e.what() << std::endl;
+#ifndef  _RELEASE_
 		DumpCallStack();
+#endif
 	}
 
 	MPI_Finalize();

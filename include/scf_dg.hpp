@@ -75,8 +75,6 @@ private:
 
 	Int                 scaBlockSize_;
 
-	Int                 numALB_;
-
 	/// @brief Interpolation matrix from uniform grid in the extended
 	/// element with periodic boundary condition to LGL grid in each
 	/// element (assuming all the elements are the same).

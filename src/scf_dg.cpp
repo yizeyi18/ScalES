@@ -67,7 +67,6 @@ SCFDG::Setup	(
 		isOutputWfn_      = esdfParam.isOutputWfn;
     Tbeta_            = esdfParam.Tbeta;
 		scaBlockSize_     = esdfParam.scaBlockSize;
-		numALB_           = esdfParam.numALB;
 		numElem_          = esdfParam.numElem;
 	}
 

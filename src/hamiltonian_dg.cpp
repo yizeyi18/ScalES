@@ -1278,6 +1278,29 @@ HamiltonianDG::CalculateAPosterioriError	(  )
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::CalculateAPosterioriError");
 #endif
+  
+	Int mpirank, mpisize;
+	Int numAtom = atomList_.size();
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+	Real timeSta, timeEnd;
+  
+	// Here numGrid is the LGL grid
+	Point3 length       = domainElem_(0,0,0).length;
+	Index3 numGrid      = numLGLGridElem_;             
+	Int    numGridTotal = numGrid.prod();
+
+	// The derivative of basisLGL along x,y,z directions
+	std::vector<DistDblNumMat>   Dbasis(DIM);
+	// The Laplacian of basisLGL along x,y,z directions
+	std::vector<DistDblNumMat>   Lapbasis(DIM);
+
+	
+	// Integration weights
+	std::vector<DblNumVec>  LGLWeight1D(DIM);
+	std::vector<DblNumMat>  LGLWeight2D(DIM);
+	DblNumTns               LGLWeight3D;
+
 
 #ifndef _RELEASE_
 	PopCallStack();

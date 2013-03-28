@@ -93,7 +93,7 @@ struct ESDFInputParam{
 	Index3              numElem;
 	Index3              numGridLGL;
 	Real                penaltyAlpha;
-	Int                 numALB;
+	IntNumTns           numALBElem;
 	Int                 scaBlockSize;
 };
 

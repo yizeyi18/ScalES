@@ -130,7 +130,8 @@ int main(int argc, char **argv)
 			Print(statusOFS, "Element size      = ",  esdfParam.numElem ); 
 			Print(statusOFS, "LGL Grid size     = ",  esdfParam.numGridLGL ); 
 			Print(statusOFS, "ScaLAPACK block   = ",  esdfParam.scaBlockSize); 
-			Print(statusOFS, "ALB per element   = ",  esdfParam.numALB ); 
+			statusOFS << "Number of ALB for each element: " << std::endl 
+				<< esdfParam.numALBElem << std::endl;
 
 
 			PrintBlock(statusOFS, "Atom Type and Coordinates");
@@ -237,7 +238,7 @@ int main(int argc, char **argv)
 
 							// Wavefunction
 							Spinor& spn = distPsi.LocalMap()[key];
-							spn.Setup( dmExtElem, 1, esdfParam.numALB, 0.0 );
+							spn.Setup( dmExtElem, 1, esdfParam.numALBElem(i,j,k), 0.0 );
 							
 							UniformRandom( spn.Wavefun() );
 
