@@ -46,9 +46,9 @@ MODE	         = release
 
 ifeq ($(MODE), debug)
   ifeq (${SCALAR}, COMPLEX)
-	  COMMONDEFS   = -D_DEBUGlevel_=1 -D_USE_COMPLEX_ 
+	  COMMONDEFS   = -DDEBUG=1 -D_USE_COMPLEX_ 
   else
-	  COMMONDEFS   = -D_DEBUGlevel_=1
+	  COMMONDEFS   = -DDEBUG=1
   endif
 
   CFLAGS       = -O2 -w -g ${INCLUDES}
@@ -61,9 +61,9 @@ endif
 
 ifeq ($(MODE), release)
   ifeq (${SCALAR}, COMPLEX)
-	  COMMONDEFS   = -D_DEBUGlevel_=-1 -D_RELEASE_ -DAdd_ -D_USE_COMPLEX_ 
+	  COMMONDEFS   = -DRELEASE -D_USE_COMPLEX_ 
   else
-	  COMMONDEFS   = -D_DEBUGlevel_=-1 -D_RELEASE_ -DAdd_
+	  COMMONDEFS   = -DRELEASE
   endif
 
   CFLAGS       = -O3 -w ${INCLUDES}

@@ -291,6 +291,16 @@ public:
 	/// @brief Calculate the Hellmann-Feynman force for each atom.
 	void CalculateForce ( DistFourier& fft );
 
+	/// @brief Calculate the residual type a posteriori error estimator
+	/// for the solution. 
+	///
+	/// Currently only the residual term is computed, and it is assumed
+	/// that the eigenvalues and eigenfunctions have been computed and
+	/// saved in eigVal_ and eigvecCoef_.
+	///
+	/// Currently the nonlocal pseudopotential is not implemented in this
+	/// subroutine.
+	void CalculateAPosterioriError( );
 
 	// *********************************************************************
 	// Access

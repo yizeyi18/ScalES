@@ -30,6 +30,24 @@
 // MPI
 #include "mpi.h"
 
+// *********************************************************************
+// Redefine the global macros
+// *********************************************************************
+
+// The verbose level of debugging information
+#ifdef  DEBUG
+#define _DEBUGlevel_ DEBUG
+#endif
+
+// Release mode. For speed up the calculation and reduce verbose level.
+// Note that RELEASE overwrites DEBUG level.
+#ifdef RELEASE
+#define _RELEASE_
+#define _DEBUGlevel -1
+#endif
+
+
+
 /***********************************************************************
  *  Data types and constants
  **********************************************************************/
