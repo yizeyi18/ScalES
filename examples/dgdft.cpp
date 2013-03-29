@@ -305,6 +305,8 @@ int main(int argc, char **argv)
 		statusOFS << "Time for computing the force is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
+		
+
 		// Print out the force
 		PrintBlock( statusOFS, "Force" );
 		{
@@ -313,6 +315,21 @@ int main(int argc, char **argv)
 			for( Int a = 0; a < numAtom; a++ ){
 				Print( statusOFS, "Atom", a, "Force", atomList[a].force );
 			}
+			statusOFS << std::endl;
+		}
+
+		// Compute the a posteriori error estimator
+		GetTime( timeSta );
+		DblNumTns  eta2Residual;
+		hamDG.CalculateAPosterioriError( eta2Residual );
+		GetTime( timeEnd );
+		statusOFS << "Time for computing the a posteriori error is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+		PrintBlock( statusOFS, "A Posteriori error" );
+		{
+			statusOFS << std::endl << "Residual term:" << std::endl;
+			statusOFS << eta2Residual << std::endl;
 		}
 
 		// *********************************************************************

@@ -1279,7 +1279,8 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 
 
 void
-HamiltonianDG::CalculateAPosterioriError	(  )
+HamiltonianDG::CalculateAPosterioriError	( 
+	DblNumTns&       eta2Residual )
 {
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::CalculateAPosterioriError");
@@ -1296,10 +1297,8 @@ HamiltonianDG::CalculateAPosterioriError	(  )
 	Index3 numGrid      = numLGLGridElem_;             
 	Int    numGridTotal = numGrid.prod();
 
-	// The derivative of basisLGL along x,y,z directions
-	std::vector<DistDblNumMat>   Dbasis(DIM);
-	// The Laplacian of basisLGL along x,y,z directions
-	std::vector<DistDblNumMat>   Lapbasis(DIM);
+	// Hamiltonian acting on the basis functions
+	DistDblNumMat   HbasisLGL;
 
 	
 	// Integration weights
@@ -1307,6 +1306,191 @@ HamiltonianDG::CalculateAPosterioriError	(  )
 	std::vector<DblNumMat>  LGLWeight2D(DIM);
 	DblNumTns               LGLWeight3D;
 
+
+	// *********************************************************************
+	// Initial setup
+	// *********************************************************************
+
+	{
+		HbasisLGL.Prtn()     = elemPrtn_;
+
+		eta2Residual.Resize( numElem_[0], numElem_[1], numElem_[2] );
+		SetValue( eta2Residual, 0.0 );
+
+		// Compute the integration weights
+		// 1D
+		for( Int d = 0; d < DIM; d++ ){
+			DblNumVec  dummyX;
+			DblNumMat  dummyP, dummpD;
+			GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
+					numGrid[d] );
+			blas::Scal( numGrid[d], 0.5 * length[d], 
+					LGLWeight1D[d].Data(), 1 );
+		}
+
+		// 2D: faces labeled by normal vectors, i.e. 
+		// yz face : 0
+		// xz face : 1
+		// xy face : 2
+
+		// yz face
+		LGLWeight2D[0].Resize( numGrid[1], numGrid[2] );
+		for( Int k = 0; k < numGrid[2]; k++ )
+			for( Int j = 0; j < numGrid[1]; j++ ){
+				LGLWeight2D[0](j, k) = LGLWeight1D[1](j) * LGLWeight1D[2](k);
+			} // for (j)
+
+		// xz face
+		LGLWeight2D[1].Resize( numGrid[0], numGrid[2] );
+		for( Int k = 0; k < numGrid[2]; k++ )
+			for( Int i = 0; i < numGrid[0]; i++ ){
+				LGLWeight2D[1](i, k) = LGLWeight1D[0](i) * LGLWeight1D[2](k);
+			} // for (i)
+
+		// xy face
+		LGLWeight2D[2].Resize( numGrid[0], numGrid[1] );
+		for( Int j = 0; j < numGrid[1]; j++ )
+			for( Int i = 0; i < numGrid[0]; i++ ){
+				LGLWeight2D[2](i, j) = LGLWeight1D[0](i) * LGLWeight1D[1](j);
+			}
+
+
+		// 3D
+		LGLWeight3D.Resize( numGrid[0], numGrid[1],
+				numGrid[2] );
+		for( Int k = 0; k < numGrid[2]; k++ )
+			for( Int j = 0; j < numGrid[1]; j++ )
+				for( Int i = 0; i < numGrid[0]; i++ ){
+					LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
+						LGLWeight1D[2](k);
+				} // for (i)
+	}
+
+	// *********************************************************************
+	// Compute the local residual
+	// *********************************************************************
+	{
+		GetTime(timeSta);
+
+		// Compute H * basis
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner(key) == mpirank ){
+						DblNumMat&  basis = basisLGL_.LocalMap()[key];
+						Int numBasis = basis.n();
+
+						DblNumMat empty( basis.m(), basis.n() );
+						SetValue( empty, 0.0 );
+						HbasisLGL.LocalMap()[key] = empty; 
+
+						// Skip the calculation if there is no basis functions in
+						// the element.
+						if( numBasis == 0 )
+							continue;
+
+						DblNumMat& Hbasis = HbasisLGL.LocalMap()[key];
+
+						// Laplacian part
+						for( Int d = 0; d < DIM; d++ ){
+							DblNumMat D(basis.m(), basis.n());
+							DblNumMat D2(basis.m(), basis.n());
+							SetValue( D, 0.0 );
+							SetValue( D2, 0.0 );
+							for( Int g = 0; g < numBasis; g++ ){
+								DiffPsi( numGrid, basis.VecData(g), D.VecData(g), d );
+								DiffPsi( numGrid, D.VecData(g), D2.VecData(g), d );
+							}
+							blas::Axpy( D2.Size(), -0.5, D2.Data(), 1,
+									Hbasis.Data(), 1 );
+						}
+
+						// Local pseudopotential part
+						{
+							DblNumVec&  vtot  = vtotLGL_.LocalMap()[key];
+							Real*   ptrVtot   = vtot.Data();
+							Real*   ptrBasis  = basis.Data();
+							Real*   ptrHbasis = Hbasis.Data();
+							for( Int p = 0; p < vtot.Size(); p++ ){
+								*(ptrHbasis++) += (*(ptrVtot++)) * (*(ptrBasis++));
+							}
+						}
+					} // if (own this element)
+				} // for (i)
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for H * basis is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+	}
+
+	{
+		GetTime(timeSta);
+
+		DblNumTns eta2ResidualLocal( numElem_[0], numElem_[1], numElem_[2] );
+		SetValue( eta2ResidualLocal, 0.0 );
+
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner(key) == mpirank ){
+						DblNumMat&  basis =  basisLGL_.LocalMap()[key];
+						Int numLGL   = basis.m();
+						Int numBasis = basis.n();
+
+						// Skip the calculation if there is no basis functions in
+						// the element.
+						if( numBasis == 0 )
+							continue;
+
+						DblNumMat& Hbasis     = HbasisLGL.LocalMap()[key];
+						DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
+						DblNumVec& eig        = eigVal_;
+						DblNumVec& occrate    = occupationRate_;
+						
+						Int numEig = localCoef.n();
+
+						DblNumVec  residual( numLGL );
+						for( Int g = 0; g < numEig; g++ ){
+							SetValue( residual, 0.0 );
+							// r = Hbasis * V(g) 
+							blas::Gemv( 'N', numLGL, numBasis, 1.0, Hbasis.Data(),
+									numLGL, localCoef.VecData(g), 1, 1.0, 
+									residual.Data(), 1 );
+							// r = r - e(g) * basis * V(g)
+							blas::Gemv( 'N', numLGL, numBasis, -eig(g), basis.Data(),
+									numLGL, localCoef.VecData(g), 1, 1.0,
+									residual.Data(), 1 );
+
+							Real* ptrR = residual.Data();
+							Real* ptrW = LGLWeight3D.Data();
+							Real  tmp = 0.0;
+							for( Int p = 0; p < numLGL; p++ ){
+								tmp += (*ptrR) * (*ptrR) * (*ptrW);
+								ptrR++; ptrW++;
+							}
+							eta2ResidualLocal( i, j, k ) += tmp * occrate(g);
+						} // for (eigenfunction)
+
+						// NOTE: The eta2 is not scaled with the power of h since we
+						// are not performing h-refinement.  
+						eta2ResidualLocal(i,j,k) *= 1.0 / pow(numBasis, 2.0);
+
+					} // if (own this element)
+				} // for (i)
+
+		// Reduce the residual for different elements
+		mpi::Allreduce( eta2ResidualLocal.Data(), eta2Residual.Data(),
+				numElem_.prod(), MPI_SUM, domain_.comm );
+
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing the local residual is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+	}
 
 #ifndef _RELEASE_
 	PopCallStack();

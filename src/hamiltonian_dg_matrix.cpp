@@ -12,30 +12,10 @@ namespace dgdft{
 
 using namespace PseudoComponent;
 
-// *********************************************************************
-// Utility functions used in this subroutine
-// *********************************************************************
-
-inline Real ThreeDotProduct(Real* x, Real* y, Real* z, Int ntot) {
-  Real sum =0;
-  for(Int i=0; i<ntot; i++) {
-    sum += (*x++)*(*y++)*(*z++);
-  }
-  return sum;
-}
-
-inline Real FourDotProduct(Real* w, Real* x, Real* y, Real* z, Int ntot) {
-  Real sum =0;
-  for(Int i=0; i<ntot; i++) {
-    sum += (*w++)*(*x++)*(*y++)*(*z++);
-  }
-  return sum;
-}
 
 // *********************************************************************
 // Hamiltonian class for constructing the DG matrix
 // *********************************************************************
-
 
 void
 HamiltonianDG::CalculateDGMatrix	(  )

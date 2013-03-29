@@ -300,7 +300,7 @@ public:
 	///
 	/// Currently the nonlocal pseudopotential is not implemented in this
 	/// subroutine.
-	void CalculateAPosterioriError( );
+	void CalculateAPosterioriError( DblNumTns&  eta2Residual );
 
 	// *********************************************************************
 	// Access
@@ -937,6 +937,24 @@ void ScaMatToDistNumMat(
 	return;
 }  // -----  end of function ScaMatToDistNumMat  ----- 
 
+
+/// @brief Computes the inner product of three terms.
+inline Real ThreeDotProduct(Real* x, Real* y, Real* z, Int ntot) {
+  Real sum =0;
+  for(Int i=0; i<ntot; i++) {
+    sum += (*x++)*(*y++)*(*z++);
+  }
+  return sum;
+}
+
+/// @brief Computes the inner product of four terms.
+inline Real FourDotProduct(Real* w, Real* x, Real* y, Real* z, Int ntot) {
+  Real sum =0;
+  for(Int i=0; i<ntot; i++) {
+    sum += (*w++)*(*x++)*(*y++)*(*z++);
+  }
+  return sum;
+}
 
 } // namespace dgdft
 
