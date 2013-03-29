@@ -1280,7 +1280,10 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 
 void
 HamiltonianDG::CalculateAPosterioriError	( 
-	DblNumTns&       eta2Residual )
+		DblNumTns&       eta2Total,
+		DblNumTns&       eta2Residual,
+		DblNumTns&       eta2GradJump,
+		DblNumTns&       eta2Jump	)
 {
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::CalculateAPosterioriError");
@@ -1300,7 +1303,34 @@ HamiltonianDG::CalculateAPosterioriError	(
 	// Hamiltonian acting on the basis functions
 	DistDblNumMat   HbasisLGL;
 
-	
+	// The derivative of basisLGL along x,y,z directions
+	std::vector<DistDblNumMat>   Dbasis(DIM);
+
+
+	// Jump of the value of the basis, and average of the
+	// derivative of the basis function, each of size 6 describing
+	// the different faces along the X/Y/Z directions. L/R: left/right.
+	enum{
+		XL = 0,
+		XR = 1,
+		YL = 2,
+		YR = 3,
+		ZL = 4,
+		ZR = 5,
+		NUM_FACE = 6,
+	};
+	std::vector<DistDblNumMat>   basisJump(NUM_FACE);
+	std::vector<DistDblNumMat>   DbasisJump(NUM_FACE);
+
+
+	// Define the local estimators on each processor.
+	DblNumTns eta2TotalLocal( numElem_[0], numElem_[1], numElem_[2] );
+	DblNumTns eta2ResidualLocal( numElem_[0], numElem_[1], numElem_[2] );
+	DblNumTns eta2GradJumpLocal( numElem_[0], numElem_[1], numElem_[2] );
+	DblNumTns eta2JumpLocal( numElem_[0], numElem_[1], numElem_[2] );
+
+
+
 	// Integration weights
 	std::vector<DblNumVec>  LGLWeight1D(DIM);
 	std::vector<DblNumMat>  LGLWeight2D(DIM);
@@ -1314,8 +1344,30 @@ HamiltonianDG::CalculateAPosterioriError	(
 	{
 		HbasisLGL.Prtn()     = elemPrtn_;
 
+		for( Int i = 0; i < NUM_FACE; i++ ){
+			basisJump[i].Prtn()     = elemPrtn_;
+			DbasisJump[i].Prtn()    = elemPrtn_;
+		}
+
+		for( Int i = 0; i < DIM; i++ ){
+			Dbasis[i].Prtn() = elemPrtn_;
+		}
+
+		eta2Total.Resize( numElem_[0], numElem_[1], numElem_[2] );
 		eta2Residual.Resize( numElem_[0], numElem_[1], numElem_[2] );
+		eta2GradJump.Resize( numElem_[0], numElem_[1], numElem_[2] );
+		eta2Jump.Resize( numElem_[0], numElem_[1], numElem_[2] );
+		
+		SetValue( eta2Total, 0.0 );
 		SetValue( eta2Residual, 0.0 );
+		SetValue( eta2GradJump, 0.0 );
+		SetValue( eta2Jump, 0.0 );
+
+		SetValue( eta2TotalLocal, 0.0 );
+		SetValue( eta2ResidualLocal, 0.0 );
+		SetValue( eta2GradJumpLocal, 0.0 );
+		SetValue( eta2JumpLocal, 0.0 );
+
 
 		// Compute the integration weights
 		// 1D
@@ -1366,8 +1418,71 @@ HamiltonianDG::CalculateAPosterioriError	(
 				} // for (i)
 	}
 
+
 	// *********************************************************************
-	// Compute the local residual
+	// Collect the eigenvectors from the neighboring elements according to
+	// the support of the pseudopotential
+	// *********************************************************************
+	{
+		// Each element owns all the coefficient matrices in its neighbors
+		// and then perform data processing later. It can be as many as 
+		// 3^3-1 = 26 elements. 
+		//
+		// Note that it is assumed that the size of the element size cannot
+		// be smaller than the pseudopotential (local or nonlocal) cutoff radius.
+		//
+		// Use std::set to avoid repetitive entries
+		GetTime( timeSta );
+		std::set<Index3>  pseudoSet;
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner(key) == mpirank ){
+						IntNumVec  idxX(3);
+						IntNumVec  idxY(3);
+						IntNumVec  idxZ(3); 
+
+						// Previous
+						if( i == 0 )  idxX(0) = numElem_[0]-1; else   idxX(0) = i-1;
+						if( j == 0 )  idxY(0) = numElem_[1]-1; else   idxY(0) = j-1;
+						if( k == 0 )  idxZ(0) = numElem_[2]-1; else   idxZ(0) = k-1;
+
+						// Current
+						idxX(1) = i;
+						idxY(1) = j;
+						idxZ(1) = k;
+
+						// Next
+						if( i == numElem_[0]-1 )  idxX(2) = 0; else   idxX(2) = i+1;
+						if( j == numElem_[1]-1 )  idxY(2) = 0; else   idxY(2) = j+1;
+						if( k == numElem_[2]-1 )  idxZ(2) = 0; else   idxZ(2) = k+1;
+
+						// Tensor product 
+						for( Int c = 0; c < 3; c++ )
+							for( Int b = 0; b < 3; b++ )
+								for( Int a = 0; a < 3; a++ ){
+									// Not the element key itself
+									if( idxX[a] != i || idxY[b] != j || idxZ[c] != k ){
+										pseudoSet.insert( Index3( idxX(a), idxY(b), idxZ(c) ) );
+									}
+								} // for (a)
+					}
+				} // for (i)
+		std::vector<Index3>  pseudoIdx;
+		pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
+		
+		eigvecCoef_.GetBegin( pseudoIdx, NO_MASK );
+		eigvecCoef_.GetEnd( NO_MASK );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for getting the coefficients is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+	}
+
+	// *********************************************************************
+	// Compute the residual term (local pseudopotential only)
 	// *********************************************************************
 	{
 		GetTime(timeSta);
@@ -1402,6 +1517,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 								DiffPsi( numGrid, basis.VecData(g), D.VecData(g), d );
 								DiffPsi( numGrid, D.VecData(g), D2.VecData(g), d );
 							}
+							Dbasis[d].LocalMap()[key] = D;
 							blas::Axpy( D2.Size(), -0.5, D2.Data(), 1,
 									Hbasis.Data(), 1 );
 						}
@@ -1428,8 +1544,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 	{
 		GetTime(timeSta);
 
-		DblNumTns eta2ResidualLocal( numElem_[0], numElem_[1], numElem_[2] );
-		SetValue( eta2ResidualLocal, 0.0 );
 
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
@@ -1452,6 +1566,11 @@ HamiltonianDG::CalculateAPosterioriError	(
 						
 						Int numEig = localCoef.n();
 
+						// Prefactor for the residual term.
+						// Note: The hK term is not included.
+						Real pK = numBasis;
+						Real facR = 1.0 / ( pK * pK );
+
 						DblNumVec  residual( numLGL );
 						for( Int g = 0; g < numEig; g++ ){
 							SetValue( residual, 0.0 );
@@ -1466,24 +1585,18 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 							Real* ptrR = residual.Data();
 							Real* ptrW = LGLWeight3D.Data();
-							Real  tmp = 0.0;
+							Real  tmpR = 0.0;
 							for( Int p = 0; p < numLGL; p++ ){
-								tmp += (*ptrR) * (*ptrR) * (*ptrW);
+								tmpR += (*ptrR) * (*ptrR) * (*ptrW);
 								ptrR++; ptrW++;
 							}
-							eta2ResidualLocal( i, j, k ) += tmp * occrate(g);
+							eta2ResidualLocal( i, j, k ) += 
+								tmpR * occrate(g) * facR;
 						} // for (eigenfunction)
 
-						// NOTE: The eta2 is not scaled with the power of h since we
-						// are not performing h-refinement.  
-						eta2ResidualLocal(i,j,k) *= 1.0 / pow(numBasis, 2.0);
 
 					} // if (own this element)
 				} // for (i)
-
-		// Reduce the residual for different elements
-		mpi::Allreduce( eta2ResidualLocal.Data(), eta2Residual.Data(),
-				numElem_.prod(), MPI_SUM, domain_.comm );
 
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1491,6 +1604,566 @@ HamiltonianDG::CalculateAPosterioriError	(
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 	}
+
+	// *********************************************************************
+	// Compute the jump term
+	// *********************************************************************
+	{
+		GetTime(timeSta);
+		// Compute average of derivatives and jump of values
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner(key) == mpirank ){
+						DblNumMat&  basis = basisLGL_.LocalMap()[key];
+						Int numBasis = basis.n();
+
+						// x-direction
+						{
+							Int  numGridFace = numGrid[1] * numGrid[2];
+							DblNumMat emptyX( numGridFace, numBasis );
+							SetValue( emptyX, 0.0 );
+							basisJump[XL].LocalMap()[key] = emptyX;
+							basisJump[XR].LocalMap()[key] = emptyX;
+							DbasisJump[XL].LocalMap()[key] = emptyX;
+							DbasisJump[XR].LocalMap()[key] = emptyX;
+
+							DblNumMat&  valL = basisJump[XL].LocalMap()[key];
+							DblNumMat&  valR = basisJump[XR].LocalMap()[key];
+							DblNumMat&  drvL = DbasisJump[XL].LocalMap()[key];
+							DblNumMat&  drvR = DbasisJump[XR].LocalMap()[key];
+							DblNumMat&  DbasisX = Dbasis[0].LocalMap()[key];
+
+							// Form jumps of the values and derivatives of the basis
+							// functions from volume to face.
+
+							// basis(0,:,:)             -> valL
+							// basis(numGrid[0]-1,:,:)  -> valR
+							// Dbasis(0,:,:)            -> drvL
+							// Dbasis(numGrid[0]-1,:,:) -> drvR
+							for( Int g = 0; g < numBasis; g++ ){
+								Int idx, idxL, idxR;
+								for( Int gk = 0; gk < numGrid[2]; gk++ )
+									for( Int gj = 0; gj < numGrid[1]; gj++ ){
+										idx  = gj + gk*numGrid[1];
+										idxL = 0 + gj*numGrid[0] + gk * (numGrid[0] *
+													 numGrid[1]);
+										idxR = (numGrid[0]-1) + gj*numGrid[0] + gk * (numGrid[0] *
+													numGrid[1]);
+
+										// 1.0, -1.0 comes from jump with different normal vectors
+										// [[a]] = -(1.0) a_L + (1.0) a_R
+										drvL(idx, g) = -1.0 * DbasisX( idxL, g );
+										drvR(idx, g) = +1.0 * DbasisX( idxR, g );
+
+										valL(idx, g) = -1.0 * basis( idxL, g );
+										valR(idx, g) = +1.0 * basis( idxR, g );
+									} // for (gj)
+							} // for (g)
+
+						} // x-direction
+
+
+						// y-direction
+						{
+							Int  numGridFace = numGrid[0] * numGrid[2];
+							DblNumMat emptyY( numGridFace, numBasis );
+							SetValue( emptyY, 0.0 );
+							basisJump[YL].LocalMap()[key] = emptyY;
+							basisJump[YR].LocalMap()[key] = emptyY;
+							DbasisJump[YL].LocalMap()[key] = emptyY;
+							DbasisJump[YR].LocalMap()[key] = emptyY;
+
+							DblNumMat&  valL = basisJump[YL].LocalMap()[key];
+							DblNumMat&  valR = basisJump[YR].LocalMap()[key];
+							DblNumMat&  drvL = DbasisJump[YL].LocalMap()[key];
+							DblNumMat&  drvR = DbasisJump[YR].LocalMap()[key];
+							DblNumMat&  DbasisY = Dbasis[1].LocalMap()[key];
+
+							// Form jumps of the values and derivatives of the basis
+							// functions from volume to face.
+							
+							// basis(0,:,:)             -> valL
+							// basis(numGrid[0]-1,:,:)  -> valR
+							// Dbasis(0,:,:)            -> drvL
+							// Dbasis(numGrid[0]-1,:,:) -> drvR
+							for( Int g = 0; g < numBasis; g++ ){
+								Int idx, idxL, idxR;
+								for( Int gk = 0; gk < numGrid[2]; gk++ )
+									for( Int gi = 0; gi < numGrid[0]; gi++ ){
+										idx  = gi + gk*numGrid[0];
+										idxL = gi + 0 *numGrid[0] +
+											gk * (numGrid[0] * numGrid[1]);
+										idxR = gi + (numGrid[1]-1)*numGrid[0] + 
+											gk * (numGrid[0] * numGrid[1]);
+
+										// 1.0, -1.0 comes from jump with different normal vectors
+										// [[a]] = -(1.0) a_L + (1.0) a_R
+										drvL(idx, g) = -1.0 * DbasisY( idxL, g );
+										drvR(idx, g) = +1.0 * DbasisY( idxR, g );
+
+										valL(idx, g) = -1.0 * basis( idxL, g );
+										valR(idx, g) = +1.0 * basis( idxR, g );
+									} // for (gj)
+							} // for (g)
+
+						} // y-direction
+
+						// z-direction
+						{
+							Int  numGridFace = numGrid[0] * numGrid[1];
+							DblNumMat emptyZ( numGridFace, numBasis );
+							SetValue( emptyZ, 0.0 );
+							basisJump[ZL].LocalMap()[key] = emptyZ;
+							basisJump[ZR].LocalMap()[key] = emptyZ;
+							DbasisJump[ZL].LocalMap()[key] = emptyZ;
+							DbasisJump[ZR].LocalMap()[key] = emptyZ;
+
+							DblNumMat&  valL = basisJump[ZL].LocalMap()[key];
+							DblNumMat&  valR = basisJump[ZR].LocalMap()[key];
+							DblNumMat&  drvL = DbasisJump[ZL].LocalMap()[key];
+							DblNumMat&  drvR = DbasisJump[ZR].LocalMap()[key];
+							DblNumMat&  DbasisZ = Dbasis[2].LocalMap()[key];
+
+							// Form jumps of the values and derivatives of the basis
+							// functions from volume to face.
+							
+							// basis(0,:,:)             -> valL
+							// basis(numGrid[0]-1,:,:)  -> valR
+							// Dbasis(0,:,:)            -> drvL
+							// Dbasis(numGrid[0]-1,:,:) -> drvR
+							for( Int g = 0; g < numBasis; g++ ){
+								Int idx, idxL, idxR;
+								for( Int gj = 0; gj < numGrid[1]; gj++ )
+									for( Int gi = 0; gi < numGrid[0]; gi++ ){
+										idx  = gi + gj*numGrid[0];
+										idxL = gi + gj*numGrid[0] +
+											0 * (numGrid[0] * numGrid[1]);
+										idxR = gi + gj*numGrid[0] +
+											(numGrid[2]-1) * (numGrid[0] * numGrid[1]);
+
+										// 1.0, -1.0 comes from jump with different normal vectors
+										// [[a]] = -(1.0) a_L + (1.0) a_R
+										drvL(idx, g) = -1.0 * DbasisZ( idxL, g );
+										drvR(idx, g) = +1.0 * DbasisZ( idxR, g );
+
+										valL(idx, g) = -1.0 * basis( idxL, g );
+										valR(idx, g) = +1.0 * basis( idxR, g );
+									} // for (gj)
+							} // for (g)
+
+						} // z-direction
+
+					}
+				} // for (i)
+
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for constructing the boundary terms is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+	}
+
+	{
+		GetTime(timeSta);
+		std::set<Index3>   boundaryXset;
+		std::set<Index3>   boundaryYset;
+		std::set<Index3>   boundaryZset;
+
+		std::vector<Index3>   boundaryXIdx;
+		std::vector<Index3>   boundaryYIdx; 
+		std::vector<Index3>   boundaryZIdx;
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key(i, j, k);
+					if( elemPrtn_.Owner(key) == mpirank ){
+						// Periodic boundary condition. Everyone only considers the
+					  // previous(left/back/down) directions and compute.
+						Int p1; if( i == 0 )  p1 = numElem_[0]-1; else   p1 = i-1;
+						Int p2; if( j == 0 )  p2 = numElem_[1]-1; else   p2 = j-1;
+						Int p3; if( k == 0 )  p3 = numElem_[2]-1; else   p3 = k-1;
+						boundaryXset.insert( Index3( p1, j,  k) );
+						boundaryYset.insert( Index3( i, p2,  k ) );
+						boundaryZset.insert( Index3( i,  j, p3 ) ); 
+					}
+				} // for (i)
+		
+		// The left element passes the values on the right face.
+
+		boundaryXIdx.insert( boundaryXIdx.begin(), boundaryXset.begin(), boundaryXset.end() );
+		boundaryYIdx.insert( boundaryYIdx.begin(), boundaryYset.begin(), boundaryYset.end() );
+		boundaryZIdx.insert( boundaryZIdx.begin(), boundaryZset.begin(), boundaryZset.end() );
+
+		DbasisJump[XR].GetBegin( boundaryXIdx, NO_MASK );
+		DbasisJump[YR].GetBegin( boundaryYIdx, NO_MASK );
+		DbasisJump[ZR].GetBegin( boundaryZIdx, NO_MASK );
+
+		basisJump[XR].GetBegin( boundaryXIdx, NO_MASK );
+		basisJump[YR].GetBegin( boundaryYIdx, NO_MASK );
+		basisJump[ZR].GetBegin( boundaryZIdx, NO_MASK );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "After the GetBegin part of communication." << std::endl;
+		statusOFS << "Time for GetBegin is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+	}
+	
+	{
+		GetTime( timeSta );
+		DbasisJump[XR].GetEnd( NO_MASK );
+		DbasisJump[YR].GetEnd( NO_MASK );
+		DbasisJump[ZR].GetEnd( NO_MASK );
+
+		basisJump[XR].GetEnd( NO_MASK );
+		basisJump[YR].GetEnd( NO_MASK );
+		basisJump[ZR].GetEnd( NO_MASK );
+
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for the remaining communication cost is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+	}
+
+	{
+		GetTime( timeSta );
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner(key) == mpirank ){
+
+						// x-direction
+						{
+							// keyL is the previous element received from GetBegin/GetEnd.
+							// keyR is the current element
+							Int p1; if( i == 0 )  p1 = numElem_[0]-1; else   p1 = i-1;
+							Index3 keyL( p1, j, k );
+							Index3 keyR = key;
+
+							Int  numGridFace = numGrid[1] * numGrid[2];
+
+							// Note that the notation can be very confusing here:
+							// The left element (keyL) contributes to the right face
+							// (XR), and the right element (keyR) contributes to the
+							// left face (XL)
+							DblNumMat&  valL = basisJump[XR].LocalMap()[keyL];
+							DblNumMat&  valR = basisJump[XL].LocalMap()[keyR];
+							DblNumMat&  drvL = DbasisJump[XR].LocalMap()[keyL];
+							DblNumMat&  drvR = DbasisJump[XL].LocalMap()[keyR];
+
+							Int numBasisL = valL.n();
+							Int numBasisR = valR.n();
+
+							DblNumMat& localCoefL  = eigvecCoef_.LocalMap()[keyL];
+							DblNumMat& localCoefR  = eigvecCoef_.LocalMap()[keyR];
+							DblNumVec& eig         = eigVal_;
+							DblNumVec& occrate     = occupationRate_;
+
+							Real pF = std::max( numBasisL, numBasisR );
+							// factor in the estimator for jump of the derivative and
+							// the jump of the values
+							// NOTE:
+							// Originally in [Giani 2012] the penalty term in the a
+							// posteriori error estimator should be
+							//
+							// facJ = gamma^2 * p_F^3 / h_F.  However, there the jump term
+							// should be
+							//
+							// gamma * p_F^2 / h_F = penaltyAlpha_
+							//
+							// used in this code.  So 
+							//
+							// facJ = penaltyAlpha_^2 * h_F / p_F
+							//
+							// and h_F is omittd.
+							Real facGJ = 0.5 / pF;
+							Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
+							
+							if( localCoefL.n() != localCoefR.n() ){
+								throw std::runtime_error( 
+										"The number of eigenfunctions do not match." );
+							}
+
+							Int numEig = localCoefL.n();
+
+							DblNumVec  jump( numGridFace );
+							DblNumVec  gradJump( numGridFace );
+
+							for( Int g = 0; g < numEig; g++ ){
+								SetValue( jump, 0.0 );
+								SetValue( gradJump, 0.0 );
+
+								// Left side: gradjump and jump
+								if( numBasisL > 0 ){
+									blas::Gemv( 'N', numGridFace, numBasisL, 1.0,
+											drvL.Data(), numGridFace, localCoefL.VecData(g), 1,
+											1.0, gradJump.Data(), 1 );
+									blas::Gemv( 'N', numGridFace, numBasisL, 1.0, 
+											valL.Data(), numGridFace, localCoefL.VecData(g), 1,
+											1.0, jump.Data(), 1 );
+								}
+
+								// Right side: gradjump and jump
+								if( numBasisR > 0 ){
+									blas::Gemv( 'N', numGridFace, numBasisR, 1.0,
+											drvR.Data(), numGridFace, localCoefR.VecData(g), 1,
+											1.0, gradJump.Data(), 1 );
+									blas::Gemv( 'N', numGridFace, numBasisR, 1.0, 
+											valR.Data(), numGridFace, localCoefR.VecData(g), 1,
+										1.0, jump.Data(), 1 );
+								}
+
+								Real* ptrGJ = gradJump.Data();
+								Real* ptrJ  = jump.Data();
+								Real* ptrW  = LGLWeight2D[0].Data();
+								Real  tmpGJ = 0.0;
+								Real  tmpJ  = 0.0;
+								for( Int p = 0; p < numGridFace; p++ ){
+									tmpGJ += (*ptrGJ) * (*ptrGJ) * (*ptrW);
+									tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
+									ptrGJ++; ptrJ++; ptrW++;
+								}
+								eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * facGJ;
+								eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * facJ;
+							} // for (eigenfunction)
+						} // x-direction
+
+						// y-direction
+						{
+							// keyL is the previous element received from GetBegin/GetEnd.
+							// keyR is the current element
+							Int p2; if( j == 0 )  p2 = numElem_[1]-1; else   p2 = j-1;
+							Index3 keyL( i, p2, k );
+							Index3 keyR = key;
+
+							Int  numGridFace = numGrid[0] * numGrid[2];
+
+							// Note that the notation can be very confusing here:
+							// The left element (keyL) contributes to the right face
+							// (YR), and the right element (keyR) contributes to the
+							// left face (YL)
+							DblNumMat&  valL = basisJump[YR].LocalMap()[keyL];
+							DblNumMat&  valR = basisJump[YL].LocalMap()[keyR];
+							DblNumMat&  drvL = DbasisJump[YR].LocalMap()[keyL];
+							DblNumMat&  drvR = DbasisJump[YL].LocalMap()[keyR];
+
+							Int numBasisL = valL.n();
+							Int numBasisR = valR.n();
+
+							DblNumMat& localCoefL  = eigvecCoef_.LocalMap()[keyL];
+							DblNumMat& localCoefR  = eigvecCoef_.LocalMap()[keyR];
+							DblNumVec& eig         = eigVal_;
+							DblNumVec& occrate     = occupationRate_;
+
+							Real pF = std::max( numBasisL, numBasisR );
+							// factor in the estimator for jump of the derivative and
+							// the jump of the values
+							// NOTE:
+							// Originally in [Giani 2012] the penalty term in the a
+							// posteriori error estimator should be
+							//
+							// facJ = gamma^2 * p_F^3 / h_F.  However, there the jump term
+							// should be
+							//
+							// gamma * p_F^2 / h_F = penaltyAlpha_
+							//
+							// used in this code.  So 
+							//
+							// facJ = penaltyAlpha_^2 * h_F / p_F
+							//
+							// and h_F is omittd.
+							Real facGJ = 0.5 / pF;
+							Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
+
+							if( localCoefL.n() != localCoefR.n() ){
+								throw std::runtime_error( 
+										"The number of eigenfunctions do not match." );
+							}
+
+							Int numEig = localCoefL.n();
+
+							DblNumVec  jump( numGridFace );
+							DblNumVec  gradJump( numGridFace );
+
+							for( Int g = 0; g < numEig; g++ ){
+								SetValue( jump, 0.0 );
+								SetValue( gradJump, 0.0 );
+
+								// Left side: gradjump and jump
+								if( numBasisL > 0 ){
+									blas::Gemv( 'N', numGridFace, numBasisL, 1.0,
+											drvL.Data(), numGridFace, localCoefL.VecData(g), 1,
+											1.0, gradJump.Data(), 1 );
+									blas::Gemv( 'N', numGridFace, numBasisL, 1.0, 
+											valL.Data(), numGridFace, localCoefL.VecData(g), 1,
+											1.0, jump.Data(), 1 );
+								}
+
+								// Right side: gradjump and jump
+								if( numBasisR > 0 ){
+									blas::Gemv( 'N', numGridFace, numBasisR, 1.0,
+											drvR.Data(), numGridFace, localCoefR.VecData(g), 1,
+											1.0, gradJump.Data(), 1 );
+									blas::Gemv( 'N', numGridFace, numBasisR, 1.0, 
+											valR.Data(), numGridFace, localCoefR.VecData(g), 1,
+										1.0, jump.Data(), 1 );
+								}
+
+								Real* ptrGJ = gradJump.Data();
+								Real* ptrJ  = jump.Data();
+								Real* ptrW  = LGLWeight2D[1].Data();
+								Real  tmpGJ = 0.0;
+								Real  tmpJ  = 0.0;
+								for( Int p = 0; p < numGridFace; p++ ){
+									tmpGJ += (*ptrGJ) * (*ptrGJ) * (*ptrW);
+									tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
+									ptrGJ++; ptrJ++; ptrW++;
+								}
+								eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * facGJ;
+								eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * facJ;
+							} // for (eigenfunction)
+						} // y-direction
+					
+						// z-direction
+						{
+							// keyL is the previous element received from GetBegin/GetEnd.
+							// keyR is the current element
+							Int p3; if( k == 0 )  p3 = numElem_[2]-1; else   p3 = k-1;
+							Index3 keyL( i, j, p3 );
+							Index3 keyR = key;
+
+							Int  numGridFace = numGrid[0] * numGrid[1];
+
+							// Note that the notation can be very confusing here:
+							// The left element (keyL) contributes to the right face
+							// (ZR), and the right element (keyR) contributes to the
+							// left face (ZL)
+							DblNumMat&  valL = basisJump[ZR].LocalMap()[keyL];
+							DblNumMat&  valR = basisJump[ZL].LocalMap()[keyR];
+							DblNumMat&  drvL = DbasisJump[ZR].LocalMap()[keyL];
+							DblNumMat&  drvR = DbasisJump[ZL].LocalMap()[keyR];
+
+							Int numBasisL = valL.n();
+							Int numBasisR = valR.n();
+
+							DblNumMat& localCoefL  = eigvecCoef_.LocalMap()[keyL];
+							DblNumMat& localCoefR  = eigvecCoef_.LocalMap()[keyR];
+							DblNumVec& eig         = eigVal_;
+							DblNumVec& occrate     = occupationRate_;
+
+							Real pF = std::max( numBasisL, numBasisR );
+							// factor in the estimator for jump of the derivative and
+							// the jump of the values
+							// NOTE:
+							// Originally in [Giani 2012] the penalty term in the a
+							// posteriori error estimator should be
+							//
+							// facJ = gamma^2 * p_F^3 / h_F.  However, there the jump term
+							// should be
+							//
+							// gamma * p_F^2 / h_F = penaltyAlpha_
+							//
+							// used in this code.  So 
+							//
+							// facJ = penaltyAlpha_^2 * h_F / p_F
+							//
+							// and h_F is omittd.
+							Real facGJ = 0.5 / pF;
+							Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
+
+							if( localCoefL.n() != localCoefR.n() ){
+								throw std::runtime_error( 
+										"The number of eigenfunctions do not match." );
+							}
+
+							Int numEig = localCoefL.n();
+
+							DblNumVec  jump( numGridFace );
+							DblNumVec  gradJump( numGridFace );
+
+							for( Int g = 0; g < numEig; g++ ){
+								SetValue( jump, 0.0 );
+								SetValue( gradJump, 0.0 );
+
+								// Left side: gradjump and jump
+								if( numBasisL > 0 ){
+									blas::Gemv( 'N', numGridFace, numBasisL, 1.0,
+											drvL.Data(), numGridFace, localCoefL.VecData(g), 1,
+											1.0, gradJump.Data(), 1 );
+									blas::Gemv( 'N', numGridFace, numBasisL, 1.0, 
+											valL.Data(), numGridFace, localCoefL.VecData(g), 1,
+											1.0, jump.Data(), 1 );
+								}
+
+								// Right side: gradjump and jump
+								if( numBasisR > 0 ){
+									blas::Gemv( 'N', numGridFace, numBasisR, 1.0,
+											drvR.Data(), numGridFace, localCoefR.VecData(g), 1,
+											1.0, gradJump.Data(), 1 );
+									blas::Gemv( 'N', numGridFace, numBasisR, 1.0, 
+											valR.Data(), numGridFace, localCoefR.VecData(g), 1,
+										1.0, jump.Data(), 1 );
+								}
+
+								Real* ptrGJ = gradJump.Data();
+								Real* ptrJ  = jump.Data();
+								Real* ptrW  = LGLWeight2D[2].Data();
+								Real  tmpGJ = 0.0;
+								Real  tmpJ  = 0.0;
+								for( Int p = 0; p < numGridFace; p++ ){
+									tmpGJ += (*ptrGJ) * (*ptrGJ) * (*ptrW);
+									tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
+									ptrGJ++; ptrJ++; ptrW++;
+								}
+								eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * facGJ;
+								eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * facJ;
+							} // for (eigenfunction)
+
+						} // z-direction
+					
+					} // if (own this element)
+				} // for (i)
+
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for the face and jump term is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+	}
+
+	// *********************************************************************
+	// Reduce the computed error estimator among all elements.
+	// *********************************************************************
+	
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner(key) == mpirank ){
+					eta2TotalLocal(i,j,k) = 
+						eta2ResidualLocal(i,j,k) +
+						eta2GradJumpLocal(i,j,k) +
+						eta2JumpLocal(i,j,k);
+				} // if (own this element)
+			} // for (i)
+
+
+	mpi::Allreduce( eta2TotalLocal.Data(), eta2Total.Data(),
+			numElem_.prod(), MPI_SUM, domain_.comm );
+
+	mpi::Allreduce( eta2ResidualLocal.Data(), eta2Residual.Data(),
+			numElem_.prod(), MPI_SUM, domain_.comm );
+
+	mpi::Allreduce( eta2GradJumpLocal.Data(), eta2GradJump.Data(),
+			numElem_.prod(), MPI_SUM, domain_.comm );
+
+	mpi::Allreduce( eta2JumpLocal.Data(), eta2Jump.Data(),
+			numElem_.prod(), MPI_SUM, domain_.comm );
 
 #ifndef _RELEASE_
 	PopCallStack();

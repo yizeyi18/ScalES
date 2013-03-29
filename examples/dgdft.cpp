@@ -320,16 +320,23 @@ int main(int argc, char **argv)
 
 		// Compute the a posteriori error estimator
 		GetTime( timeSta );
-		DblNumTns  eta2Residual;
-		hamDG.CalculateAPosterioriError( eta2Residual );
+		DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
+		hamDG.CalculateAPosterioriError( 
+				eta2Total, eta2Residual, eta2GradJump, eta2Jump );
 		GetTime( timeEnd );
 		statusOFS << "Time for computing the a posteriori error is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
 		PrintBlock( statusOFS, "A Posteriori error" );
 		{
+			statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+			statusOFS << eta2Total << std::endl;
 			statusOFS << std::endl << "Residual term:" << std::endl;
 			statusOFS << eta2Residual << std::endl;
+			statusOFS << std::endl << "Face term:" << std::endl;
+			statusOFS << eta2GradJump << std::endl;
+			statusOFS << std::endl << "Jump term:" << std::endl;
+			statusOFS << eta2Jump << std::endl;
 		}
 
 		// *********************************************************************

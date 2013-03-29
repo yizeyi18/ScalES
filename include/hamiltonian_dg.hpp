@@ -300,7 +300,19 @@ public:
 	///
 	/// Currently the nonlocal pseudopotential is not implemented in this
 	/// subroutine.
-	void CalculateAPosterioriError( DblNumTns&  eta2Residual );
+	///
+	/// @param[out] eta2Total Total residual-based error estimator.
+	/// Reduced among all processors.
+	/// @param[out] eta2Residual Residual term.
+	/// @param[out] eta2GradJump Jump of the gradient of the
+	/// eigenfunction, or "face" term.  
+	/// @param[out] eta2Jump Jump of the value of the eigenfunction, or
+	/// "jump" term.
+	void CalculateAPosterioriError( 
+		DblNumTns&       eta2Total,
+		DblNumTns&       eta2Residual,
+		DblNumTns&       eta2GradJump,
+		DblNumTns&       eta2Jump	);
 
 	// *********************************************************************
 	// Access
