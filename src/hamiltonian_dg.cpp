@@ -1299,6 +1299,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 	Point3 length       = domainElem_(0,0,0).length;
 	Index3 numGrid      = numLGLGridElem_;             
 	Int    numGridTotal = numGrid.prod();
+	Int    numSpin      = this->NumSpin();
 
 	// Hamiltonian acting on the basis functions
 	DistDblNumMat   HbasisLGL;
@@ -1525,11 +1526,13 @@ HamiltonianDG::CalculateAPosterioriError	(
 						// Local pseudopotential part
 						{
 							DblNumVec&  vtot  = vtotLGL_.LocalMap()[key];
-							Real*   ptrVtot   = vtot.Data();
-							Real*   ptrBasis  = basis.Data();
-							Real*   ptrHbasis = Hbasis.Data();
-							for( Int p = 0; p < vtot.Size(); p++ ){
-								*(ptrHbasis++) += (*(ptrVtot++)) * (*(ptrBasis++));
+							for( Int g = 0; g < numBasis; g++ ){
+								Real*   ptrVtot   = vtot.Data();
+								Real*   ptrBasis  = basis.VecData(g);
+								Real*   ptrHbasis = Hbasis.VecData(g);
+								for( Int p = 0; p < vtot.Size(); p++ ){
+									*(ptrHbasis++) += (*(ptrVtot++)) * (*(ptrBasis++));
+								}
 							}
 						}
 					} // if (own this element)
@@ -1563,7 +1566,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 						DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
 						DblNumVec& eig        = eigVal_;
 						DblNumVec& occrate    = occupationRate_;
-						
+
 						Int numEig = localCoef.n();
 
 						// Prefactor for the residual term.
@@ -1591,7 +1594,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 								ptrR++; ptrW++;
 							}
 							eta2ResidualLocal( i, j, k ) += 
-								tmpR * occrate(g) * facR;
+								tmpR * occrate(g) * numSpin * facR;
 						} // for (eigenfunction)
 
 
@@ -1881,6 +1884,8 @@ HamiltonianDG::CalculateAPosterioriError	(
 							// facJ = penaltyAlpha_^2 * h_F / p_F
 							//
 							// and h_F is omittd.
+							
+
 							Real facGJ = 0.5 / pF;
 							Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
 							
@@ -1915,7 +1920,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 											1.0, gradJump.Data(), 1 );
 									blas::Gemv( 'N', numGridFace, numBasisR, 1.0, 
 											valR.Data(), numGridFace, localCoefR.VecData(g), 1,
-										1.0, jump.Data(), 1 );
+											1.0, jump.Data(), 1 );
 								}
 
 								Real* ptrGJ = gradJump.Data();
@@ -1928,8 +1933,8 @@ HamiltonianDG::CalculateAPosterioriError	(
 									tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
 									ptrGJ++; ptrJ++; ptrW++;
 								}
-								eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * facGJ;
-								eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * facJ;
+								eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
+								eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * numSpin * facJ;
 							} // for (eigenfunction)
 						} // x-direction
 
@@ -1977,6 +1982,9 @@ HamiltonianDG::CalculateAPosterioriError	(
 							// facJ = penaltyAlpha_^2 * h_F / p_F
 							//
 							// and h_F is omittd.
+							
+
+
 							Real facGJ = 0.5 / pF;
 							Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
 
@@ -2011,7 +2019,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 											1.0, gradJump.Data(), 1 );
 									blas::Gemv( 'N', numGridFace, numBasisR, 1.0, 
 											valR.Data(), numGridFace, localCoefR.VecData(g), 1,
-										1.0, jump.Data(), 1 );
+											1.0, jump.Data(), 1 );
 								}
 
 								Real* ptrGJ = gradJump.Data();
@@ -2024,8 +2032,8 @@ HamiltonianDG::CalculateAPosterioriError	(
 									tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
 									ptrGJ++; ptrJ++; ptrW++;
 								}
-								eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * facGJ;
-								eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * facJ;
+								eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
+								eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * numSpin * facJ;
 							} // for (eigenfunction)
 						} // y-direction
 					
@@ -2073,6 +2081,9 @@ HamiltonianDG::CalculateAPosterioriError	(
 							// facJ = penaltyAlpha_^2 * h_F / p_F
 							//
 							// and h_F is omittd.
+							
+
+
 							Real facGJ = 0.5 / pF;
 							Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
 
@@ -2107,7 +2118,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 											1.0, gradJump.Data(), 1 );
 									blas::Gemv( 'N', numGridFace, numBasisR, 1.0, 
 											valR.Data(), numGridFace, localCoefR.VecData(g), 1,
-										1.0, jump.Data(), 1 );
+											1.0, jump.Data(), 1 );
 								}
 
 								Real* ptrGJ = gradJump.Data();
@@ -2120,8 +2131,8 @@ HamiltonianDG::CalculateAPosterioriError	(
 									tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
 									ptrGJ++; ptrJ++; ptrW++;
 								}
-								eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * facGJ;
-								eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * facJ;
+								eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
+								eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * numSpin * facJ;
 							} // for (eigenfunction)
 
 						} // z-direction

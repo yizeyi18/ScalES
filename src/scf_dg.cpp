@@ -605,7 +605,7 @@ SCFDG::Iterate	(  )
 
 							// Unscale the orthogonal basis functions by sqrt of
 							// integration weight
-#pragma omp parallel for schedule(dynamic,1) 
+//#pragma omp parallel for schedule(dynamic,1) 
 							for( Int g = 0; g < localBasis.n(); g++ ){
 								Real *ptr1 = U.VecData(g);
 								Real *ptr2 = sqrtLGLWeight3D.Data();
