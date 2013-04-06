@@ -548,15 +548,17 @@ SCFDG::Iterate	(  )
 			normVtotDif = std::sqrt( normVtotDif );
 			normVtotOld = std::sqrt( normVtotOld );
 
-			scfNorm_    = normVtotDif / normVtotOld;
+			scfOuterNorm_    = normVtotDif / normVtotOld;
 
-			Print(statusOFS, "Outer SCF iteration: norm(vout-vin)/norm(vin) = ", scfNorm_ ); 
+			Print(statusOFS, "OUTERSCF: Efree = ", Efree_ ); 
+			Print(statusOFS, "OUTERSCF: inner norm(vout-vin)/norm(vin) = ", scfInnerNorm_ ); 
+			Print(statusOFS, "OUTERSCF: outer norm(vout-vin)/norm(vin) = ", scfOuterNorm_ ); 
 		}
 
 //		// Print out the state variables of the current iteration
 //    PrintState( );
 
-    if( scfNorm_ < scfOuterTolerance_ ){
+    if( scfOuterNorm_ < scfOuterTolerance_ ){
       /* converged */
       Print( statusOFS, "Outer SCF is converged!\n" );
       isSCFConverged = true;
@@ -786,8 +788,8 @@ SCFDG::InnerIterate	(  )
 			normVtotDif = std::sqrt( normVtotDif );
 			normVtotOld = std::sqrt( normVtotOld );
 
-			// FIXME
-			scfNorm_    = normVtotDif / normVtotOld;
+			scfInnerNorm_    = normVtotDif / normVtotOld;
+			Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfInnerNorm_ );
 		}
 		
 		// Compute the energies
@@ -797,7 +799,7 @@ SCFDG::InnerIterate	(  )
     PrintState( );
 
 
-    if( scfNorm_ < scfInnerTolerance_ ){
+    if( scfInnerNorm_ < scfInnerTolerance_ ){
       /* converged */
       Print( statusOFS, "Inner SCF is converged!\n" );
       isInnerSCFConverged = true;
@@ -1641,7 +1643,6 @@ SCFDG::PrintState	( )
 	Print(statusOFS, "Eself             = ",  Eself_, "[au]");
 	Print(statusOFS, "Ecor              = ",  Ecor_, "[au]");
 	Print(statusOFS, "Fermi             = ",  fermi_, "[au]");
-	Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm_ );
 
 #ifndef _RELEASE_
 	PopCallStack();
