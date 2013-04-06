@@ -109,8 +109,10 @@ int main(int argc, char **argv)
 			Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
 			Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
 			Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
-			Print(statusOFS, "SCF Tolerence     = ",  esdfParam.scfTolerance);
-			Print(statusOFS, "SCF MaxIter       = ",  esdfParam.scfMaxIter);
+			Print(statusOFS, "SCF Outer Tol     = ",  esdfParam.scfOuterTolerance);
+			Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
+			Print(statusOFS, "SCF Inner Tol     = ",  esdfParam.scfInnerTolerance);
+			Print(statusOFS, "SCF Inner MaxIter = ",  esdfParam.scfInnerMaxIter);
 			Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
 			Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
 

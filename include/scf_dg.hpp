@@ -26,8 +26,10 @@ private:
 	Int                 mixMaxDim_;
 	std::string         mixType_;
 	Real                mixStepLength_;            
-	Real                scfTolerance_;
-	Int                 scfMaxIter_;
+	Real                scfInnerTolerance_;
+	Int                 scfInnerMaxIter_;
+	Real                scfOuterTolerance_;
+	Int                 scfOuterMaxIter_;
 	bool                isRestartDensity_;
 	bool                isRestartWfn_;
 	bool                isOutputDensity_;
@@ -57,9 +59,19 @@ private:
 	DistFourier*        distfftPtr_;
 
 	// SCF variables
-	DistDblNumVec       vtotNew_;
-	DistDblNumMat       dfMat_;
-	DistDblNumMat       dvMat_;
+
+	/// @brief Work array for the old potential in the outer iteration.
+	DistDblNumVec       vtotOuterSave_;
+	/// @brief Work array for the new potential in the inner iteration.
+	DistDblNumVec       vtotInnerNew_;
+	/// @brief Work array for the Anderson mixing in the outer iteration.
+	DistDblNumMat       dfOuterMat_;
+	/// @brief Work array for the Anderson mixing in the outer iteration.
+	DistDblNumMat       dvOuterMat_;
+	/// @brief Work array for the Anderson mixing in the inner iteration.
+	DistDblNumMat       dfInnerMat_;
+	/// @brief Work array for the Anderson mixing in the inner iteration.
+	DistDblNumMat       dvInnerMat_;
 	
 	Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
 
@@ -108,6 +120,13 @@ public:
 	/// @brief Main self consistent iteration subroutine.
 	void  Iterate();
 
+	/// @brief Inner self consistent iteration subroutine without
+	/// correcting the basis functions.
+	void  InnerIterate();
+
+	/// @brief Update the local potential in the extended element and the element.
+	void  UpdateElemLocalPotential();
+
 	/// @brief Calculate the occupation rate and the Fermi energy given
 	/// the eigenvalues
 	void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec&
@@ -123,15 +142,23 @@ public:
 	void  CalculateEnergy();
 	
 	/// @brief Print out the state variables at each SCF iteration.
-	void  PrintState( const Int iter );
-
-//	void  OutputState();
+	void  PrintState(  );
 
 	/// @brief Parallel Anderson mixing.
-	void  AndersonMix( const Int iter );
+	void  AndersonMix( 
+			const Int iter, 
+			const Real mixStepLength,
+			DistDblNumVec&  vMix,
+			DistDblNumVec&  vOld,
+			DistDblNumVec&  vNew,
+			DistDblNumMat&  dfMat,
+			DistDblNumMat&  dvMat);
 	
 	/// @brief Parallel Kerker mixing.
-	void  KerkerMix();
+	void  KerkerMix(
+			DistDblNumVec&  vMix,
+			DistDblNumVec&  vOld,
+			DistDblNumVec&  vNew );
 
 
 

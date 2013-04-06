@@ -355,27 +355,38 @@ void esdf_key() {
 	i++;
 	strcpy(kw_label[i],"eig_tolerance");
 	strcpy(kw_typ[i],"D:E");
-	strcpy(kw_dscrpt[i],"*! Inner loop tolerance!*");
+	strcpy(kw_dscrpt[i],"*! eigenvalue solver tolerance!*");
 
 	i++;
-	strcpy(kw_label[i],"scf_tolerance");
+	strcpy(kw_label[i],"eig_maxiter");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Maximum iteration number for eigenvalue solver!*");
+
+	i++;
+	strcpy(kw_label[i],"scf_inner_tolerance");
 	strcpy(kw_typ[i],"D:E");
-	strcpy(kw_dscrpt[i],"*! Outer loop tolerance!*");
+	strcpy(kw_dscrpt[i],"*! Inner SCF loop tolerance!*");
+
+	i++;
+	strcpy(kw_label[i],"scf_outer_tolerance");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Outer SCF loop tolerance!*");
 
 	i++;
 	strcpy(kw_label[i],"temperature");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! temperature (in Kelvin)!*");
 
-	i++;
-	strcpy(kw_label[i],"eig_maxiter");
-	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! Maximum iteration number for inner loop !*");
 
 	i++;
-	strcpy(kw_label[i],"scf_maxiter");
+	strcpy(kw_label[i],"scf_inner_maxiter");
 	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! Maximum iteration number for outer loop !*");
+	strcpy(kw_dscrpt[i],"*! Maximum iteration number for inner SCF loop !*");
+
+	i++;
+	strcpy(kw_label[i],"scf_outer_maxiter");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Maximum iteration number for outer SCF loop !*");
 
 	i++;
 	strcpy(kw_label[i],"dg_degree");
@@ -1841,8 +1852,10 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdf_string("Mixing_Type", "anderson", strtmp); 
 		esdfParam.mixType         = strtmp;
 		esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
-		esdfParam.scfTolerance    = esdf_double( "SCF_Tolerance", 1e-4 );
-		esdfParam.scfMaxIter      = esdf_integer( "SCF_MaxIter",   30 );
+		esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
+		esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   30 );
+		esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-4 );
+		esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
 		esdfParam.eigTolerance    = esdf_double( "Eig_Tolerance", 1e-5 );
 		esdfParam.eigMaxIter      = esdf_integer( "Eig_MaxIter",  10 );
 		esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );

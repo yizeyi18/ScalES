@@ -48,8 +48,10 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
     mixMaxDim_     = esdfParam.mixMaxDim;
     mixType_       = esdfParam.mixType;
 		mixStepLength_ = esdfParam.mixStepLength;
-		scfTolerance_  = esdfParam.scfTolerance;
-		scfMaxIter_    = esdfParam.scfMaxIter;
+		// Note: for PW SCF there is no inner loop. Use the parameter value
+		// for the outer SCF loop only.
+		scfTolerance_  = esdfParam.scfOuterTolerance;
+		scfMaxIter_    = esdfParam.scfOuterMaxIter;
 		isRestartDensity_ = esdfParam.isRestartDensity;
 		isRestartWfn_     = esdfParam.isRestartWfn;
 		isOutputDensity_  = esdfParam.isOutputDensity;

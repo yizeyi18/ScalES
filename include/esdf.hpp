@@ -72,8 +72,10 @@ struct ESDFInputParam{
 	Int                 mixMaxDim;
 	std::string         mixType;
 	Real                mixStepLength;            
-	Real                scfTolerance;
-	Int                 scfMaxIter;
+	Real                scfInnerTolerance;
+	Real                scfOuterTolerance;
+	Int                 scfInnerMaxIter;
+	Int                 scfOuterMaxIter;
 	Real                eigTolerance;
 	Int                 eigMaxIter;
 	bool                isRestartDensity;

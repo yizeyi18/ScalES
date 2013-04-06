@@ -59,8 +59,10 @@ SCFDG::Setup	(
     mixMaxDim_     = esdfParam.mixMaxDim;
     mixType_       = esdfParam.mixType;
 		mixStepLength_ = esdfParam.mixStepLength;
-		scfTolerance_  = esdfParam.scfTolerance;
-		scfMaxIter_    = esdfParam.scfMaxIter;
+		scfInnerTolerance_  = esdfParam.scfInnerTolerance;
+		scfInnerMaxIter_    = esdfParam.scfInnerMaxIter;
+		scfOuterTolerance_  = esdfParam.scfOuterTolerance;
+		scfOuterMaxIter_    = esdfParam.scfOuterMaxIter;
 		isRestartDensity_ = esdfParam.isRestartDensity;
 		isRestartWfn_     = esdfParam.isRestartWfn;
 		isOutputDensity_  = esdfParam.isOutputDensity;
@@ -79,9 +81,12 @@ SCFDG::Setup	(
 		elemPrtn_      = distEigSol.Prtn();
 		contxt_        = contxt;
 		
-		vtotNew_.Prtn() = elemPrtn_;
-		dfMat_.Prtn()   = elemPrtn_;
-		dvMat_.Prtn()   = elemPrtn_;
+		vtotOuterSave_.Prtn() = elemPrtn_;
+		vtotInnerNew_.Prtn()  = elemPrtn_;
+		dfOuterMat_.Prtn()    = elemPrtn_;
+		dvOuterMat_.Prtn()    = elemPrtn_;
+		dfInnerMat_.Prtn()    = elemPrtn_;
+		dvInnerMat_.Prtn()    = elemPrtn_;
 
 		// FIXME fixed ratio between the size of the extended element and
 		// the element
@@ -96,11 +101,14 @@ SCFDG::Setup	(
 					if( elemPrtn_.Owner( key ) == mpirank ){
 						DblNumVec  emptyVec( hamDG.NumUniformGridElem().prod() );
 						SetValue( emptyVec, 0.0 );
-						vtotNew_.LocalMap()[key] = emptyVec;
+						vtotOuterSave_.LocalMap()[key] = emptyVec;
+						vtotInnerNew_.LocalMap()[key] = emptyVec;
 						DblNumMat  emptyMat( hamDG.NumUniformGridElem().prod(), mixMaxDim_ );
 						SetValue( emptyMat, 0.0 );
-						dfMat_.LocalMap()[key]   = emptyMat;
-						dvMat_.LocalMap()[key]   = emptyMat;
+						dfOuterMat_.LocalMap()[key]   = emptyMat;
+						dvOuterMat_.LocalMap()[key]   = emptyMat;
+						dfInnerMat_.LocalMap()[key]   = emptyMat;
+						dvInnerMat_.LocalMap()[key]   = emptyMat;
 					} // own this element
 				}  // for (i)
 		
@@ -291,191 +299,37 @@ SCFDG::Iterate	(  )
 	// Compute the total potential
 	hamDG.CalculateVtot( hamDG.Vtot() );
 
-//	CalculateEnergy();
-//
-//	PrintState(0);
-
 
   Real timeIterStart(0), timeIterEnd(0);
   
 	bool isSCFConverged = false;
 
-  for (Int iter=1; iter <= scfMaxIter_; iter++) {
+  for (Int iter=1; iter <= scfOuterMaxIter_; iter++) {
     if ( isSCFConverged ) break;
+		
 		
 		// Performing each iteartion
 		{
 			std::ostringstream msg;
-			msg << "SCF iteration # " << iter;
+			msg << "Outer SCF iteration # " << iter;
 			PrintBlock( statusOFS, msg.str() );
 		}
 
     GetTime( timeIterStart );
 		
 		// *********************************************************************
-		// Update the potential in the extended element and the element
+		// Update the local potential in the extended element and the element.
 		// *********************************************************************
 
 		{
 			GetTime(timeSta);
-			// vtot gather the neighborhood
-			DistDblNumVec&  vtot = hamDG.Vtot();
-			std::set<Index3> neighborSet;
-			for( Int k = 0; k < numElem_[2]; k++ )
-				for( Int j = 0; j < numElem_[1]; j++ )
-					for( Int i = 0; i < numElem_[0]; i++ ){
-						Index3 key( i, j, k );
-						if( elemPrtn_.Owner(key) == mpirank ){
-							std::vector<Index3>   idx(3);
 
-							for( Int d = 0; d < DIM; d++ ){
-								// Previous
-								if( key[d] == 0 ) 
-									idx[0][d] = numElem_[d]-1; 
-								else 
-									idx[0][d] = key[d]-1;
-
-								// Current
-								idx[1][d] = key[d];
-
-								// Next
-								if( key[d] == numElem_[d]-1) 
-									idx[2][d] = 0;
-								else
-									idx[2][d] = key[d] + 1;
-							} // for (d)
-
-							// Tensor product 
-							for( Int c = 0; c < 3; c++ )
-								for( Int b = 0; b < 3; b++ )
-									for( Int a = 0; a < 3; a++ ){
-										// Not the element key itself
-										if( idx[a][0] != i || idx[b][1] != j || idx[c][2] != k ){
-											neighborSet.insert( Index3( idx[a][0], idx[b][1], idx[c][2] ) );
-										}
-									} // for (a)
-						} // own this element
-					} // for (i)
-			std::vector<Index3>  neighborIdx;
-			neighborIdx.insert( neighborIdx.begin(), neighborSet.begin(), neighborSet.end() );
-
-#if ( _DEBUGlevel_ >= 1 )
-			statusOFS << "neighborIdx = " << neighborIdx << std::endl;
-#endif
-
-			// communicate
-			vtot.GetBegin( neighborIdx, NO_MASK );
-			vtot.GetEnd( NO_MASK );
-
-
-			// Update of the local potential in each extended element locally.
-			// The nonlocal potential does not need to be updated
-			//
-			// Also update the local potential on the LGL grid in hamDG.
-			//
-			// NOTE:
-			//
-			// 1. It is hard coded that the extended element is 1 or 3
-			// times the size of the element
-			//
-			// 2. The local potential on the LGL grid is done by using Fourier
-			// interpolation from the extended element to the element. Gibbs
-			// phenomena MAY be there but at least this is better than
-			// Lagrange interpolation on a uniform grid.
-			//  
-			//
-			for( Int k = 0; k < numElem_[2]; k++ )
-				for( Int j = 0; j < numElem_[1]; j++ )
-					for( Int i = 0; i < numElem_[0]; i++ ){
-						Index3 key( i, j, k );
-						if( elemPrtn_.Owner( key ) == mpirank ){
-              EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
-							// Skip the calculation if there is no adaptive local
-							// basis function.  
-							if( eigSol.Psi().NumState() == 0 )
-								continue;
-
-							Hamiltonian&  hamExtElem  = eigSol.Ham();
-							DblNumVec&    vtotExtElem = hamExtElem.Vtot();
-							SetValue( vtotExtElem, 0.0 );
-
-							Index3 numGridElem = hamDG.NumUniformGridElem();
-							Index3 numGridExtElem = eigSol.FFT().domain.numGrid;
-							
-							// Update the potential in the extended element
-							for(std::map<Index3, DblNumVec>::iterator 
-									mi = vtot.LocalMap().begin();
-									mi != vtot.LocalMap().end(); mi++ ){
-								Index3      keyElem = (*mi).first;
-								DblNumVec&  vtotElem = (*mi).second;
-
-								// Determine the shiftIdx which maps the position of vtotElem to 
-								// vtotExtElem
-								Index3 shiftIdx;
-								for( Int d = 0; d < DIM; d++ ){
-									shiftIdx[d] = keyElem[d] - key[d];
-									shiftIdx[d] = shiftIdx[d] - IRound( Real(shiftIdx[d]) / 
-											numElem_[d] ) * numElem_[d];
-									// FIXME Adjustment  
-									if( numElem_[d] > 1 ) shiftIdx[d] ++;
-
-									shiftIdx[d] *= numGridElem[d];
-								}
-
-#if ( _DEBUGlevel_ >= 1 )
-								statusOFS << "keyExtElem     = " << key << std::endl;
-								statusOFS << "numGridExtElem = " << numGridExtElem << std::endl;
-								statusOFS << "numGridElem    = " << numGridElem << std::endl;
-								statusOFS << "keyElem        = " << keyElem << ", shiftIdx = " << shiftIdx << std::endl;
-#endif
-
-								Int ptrExtElem, ptrElem;
-								for( Int k = 0; k < numGridElem[2]; k++ )
-									for( Int j = 0; j < numGridElem[1]; j++ )
-										for( Int i = 0; i < numGridElem[0]; i++ ){
-											ptrExtElem = (shiftIdx[0] + i) + 
-												( shiftIdx[1] + j ) * numGridExtElem[0] +
-												( shiftIdx[2] + k ) * numGridExtElem[0] * numGridExtElem[1];
-											ptrElem    = i + j * numGridElem[0] + 
-												k * numGridElem[0] * numGridElem[1];
-											vtotExtElem( ptrExtElem ) = vtotElem( ptrElem );
-										} // for (i)
-							} // for (mi)
-
-							// Update the potential in the element on LGL grid
-							DblNumVec&  vtotLGLElem = hamDG.VtotLGL().LocalMap()[key];
-							Index3 numLGLGrid       = hamDG.NumLGLGridElem();
-
-							InterpPeriodicUniformToLGL( 
-									numGridExtElem,
-									numLGLGrid,
-									vtotExtElem.Data(),
-									vtotLGLElem.Data() );
-
-							// Loop over the neighborhood
-
-						} // own this element
-					} // for (i)
-
-			// Clean up vtot not owned by this element
-			std::vector<Index3>  eraseKey;
-			for( std::map<Index3, DblNumVec>::iterator 
-					mi  = vtot.LocalMap().begin();
-					mi != vtot.LocalMap().end(); mi++ ){
-				Index3 key = (*mi).first;
-				if( vtot.Prtn().Owner(key) != mpirank ){
-					eraseKey.push_back( key );
-				}
-			}
-			for( std::vector<Index3>::iterator vi = eraseKey.begin();
-					vi != eraseKey.end(); vi++ ){
-				vtot.LocalMap().erase( *vi );
-			}
+			UpdateElemLocalPotential();
 
 			MPI_Barrier( domain_.comm );
 			GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-			statusOFS << "Time for updating the potential is " <<
+			statusOFS << "Time for updating the local potential in the extended element and the element is " <<
 				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 		}
@@ -535,7 +389,7 @@ SCFDG::Iterate	(  )
 
 						SetValue( localBasis, 0.0 );
 
-//#pragma omp parallel for
+						//#pragma omp parallel for
 						for( Int l = 0; l < psi.NumState(); l++ ){
 							InterpPeriodicUniformToLGL( 
 									numGridExtElem,
@@ -549,13 +403,13 @@ SCFDG::Iterate	(  )
 							<< " [sec]" << std::endl;
 
 						// FIXME
-//						if( mpirank == 1 ){
-//							std::ofstream ofs("psi");
-//							serialize( DblNumVec(localBasis.m(), false, localBasis.VecData(5)),
-//									ofs, NO_MASK );
-//							ofs.close();
-//						}
-						
+						//						if( mpirank == 1 ){
+						//							std::ofstream ofs("psi");
+						//							serialize( DblNumVec(localBasis.m(), false, localBasis.VecData(5)),
+						//									ofs, NO_MASK );
+						//							ofs.close();
+						//						}
+
 
 						// Perform SVD for the basis functions
 						GetTime( timeSta );
@@ -580,9 +434,9 @@ SCFDG::Iterate	(  )
 											std::sqrt ( LGLWeight1D[0](i1) *
 													LGLWeight1D[1](j1) * LGLWeight1D[2](k1) ); }
 							// for (i1)
-							
+
 							// Scale the basis functions by sqrt of integration weight
-//#pragma omp parallel for 
+							//#pragma omp parallel for 
 							for( Int g = 0; g < localBasis.n(); g++ ){
 								Real *ptr1 = localBasis.VecData(g);
 								Real *ptr2 = sqrtLGLWeight3D.Data();
@@ -605,7 +459,7 @@ SCFDG::Iterate	(  )
 
 							// Unscale the orthogonal basis functions by sqrt of
 							// integration weight
-//#pragma omp parallel for schedule(dynamic,1) 
+							//#pragma omp parallel for schedule(dynamic,1) 
 							for( Int g = 0; g < localBasis.n(); g++ ){
 								Real *ptr1 = U.VecData(g);
 								Real *ptr2 = sqrtLGLWeight3D.Data();
@@ -631,9 +485,198 @@ SCFDG::Iterate	(  )
 			timeBasisEnd - timeBasisSta << " [s]" << std::endl << std::endl;
 #endif
 
+		
+		// *********************************************************************
+		// Inner SCF iteration 
+		//
+		// Assemble and diagonalize the DG matrix until convergence is
+		// reached for updating the basis functions in the next step.
+		// *********************************************************************
+
+		GetTime(timeSta);
+
+		// Save the potential for the mixing in the outer SCF iteration 
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumVec& oldVec = hamDG.Vtot().LocalMap()[key];
+						vtotOuterSave_.LocalMap()[key] = oldVec;
+					} // own this element
+				} // for (i)
+
+
+		InnerIterate( );
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for inner SCF iteration is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+		// *********************************************************************
+		// Post processing (mixing only)
+		// *********************************************************************
+		
+
+		// Compute the error of the potential
+		{
+			Real normVtotDifLocal = 0.0, normVtotOldLocal = 0.0;
+			Real normVtotDif, normVtotOld;
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							DblNumVec& oldVec = vtotOuterSave_.LocalMap()[key];
+							DblNumVec& newVec = hamDG.Vtot().LocalMap()[key];
+
+							for( Int p = 0; p < oldVec.m(); p++ ){
+								normVtotDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
+								normVtotOldLocal += pow( oldVec(p), 2.0 );
+							}
+						} // own this element
+					} // for (i)
+
+
+			mpi::Allreduce( &normVtotDifLocal, &normVtotDif, 1, MPI_SUM, 
+					domain_.comm );
+			mpi::Allreduce( &normVtotOldLocal, &normVtotOld, 1, MPI_SUM,
+					domain_.comm );
+
+			normVtotDif = std::sqrt( normVtotDif );
+			normVtotOld = std::sqrt( normVtotOld );
+
+			scfNorm_    = normVtotDif / normVtotOld;
+
+			Print(statusOFS, "Outer SCF iteration: norm(vout-vin)/norm(vin) = ", scfNorm_ ); 
+		}
+
+//		// Print out the state variables of the current iteration
+//    PrintState( );
+
+    if( scfNorm_ < scfOuterTolerance_ ){
+      /* converged */
+      Print( statusOFS, "Outer SCF is converged!\n" );
+      isSCFConverged = true;
+    }
+
+		// Potential mixing for the outer SCF iteration.
+		
+		GetTime( timeSta );
+
+		// FIXME Large step length
+		Real largeMix = std::min(0.8, 2 * mixStepLength_);
+
+    if( mixType_ == "anderson" ){
+			AndersonMix(
+					iter, 
+					largeMix,
+					hamDG.Vtot(),
+					vtotOuterSave_,
+					hamDG.Vtot(),
+					dfOuterMat_,
+					dvOuterMat_);
+    }
+    if( mixType_ == "kerker" ){
+      KerkerMix(
+					hamDG.Vtot(),
+					vtotOuterSave_,
+					hamDG.Vtot() );
+			AndersonMix(
+					iter, 
+					largeMix,
+					hamDG.Vtot(),
+					vtotOuterSave_,
+					hamDG.Vtot(),
+					dfOuterMat_,
+					dvOuterMat_);
+    }
+
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for potential mixing is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+		// Output the electron density
+		if( isOutputDensity_ ){
+			std::ostringstream rhoStream;      
+			
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							DblNumVec&  denVec = hamDG.Density().LocalMap()[key];
+							serialize( denVec, rhoStream, NO_MASK );
+						}
+					} // for (i)
+			SeparateWrite( restartDensityFileName_, rhoStream );
+		} // if ( output density )
+
+		
+		GetTime( timeIterEnd );
+		statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
+			<< " [sec]" << std::endl;
+  }
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::Iterate  ----- 
+
+
+void
+SCFDG::InnerIterate	(  )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::InnerIterate");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+	Real timeSta, timeEnd;
+	Real timeIterStart, timeIterEnd;
+
+  HamiltonianDG&  hamDG = *hamDGPtr_;
+
+	bool isInnerSCFConverged = false;
+
+	for( Int innerIter = 1; innerIter <= scfInnerMaxIter_; innerIter++ ){
+		if ( isInnerSCFConverged ) break;
+
+		statusOFS << std::endl << "Inner SCF iteration #"  
+			<< innerIter << " starts." << std::endl << std::endl;
+
+
+    GetTime( timeIterStart );
+
+		// *********************************************************************
+		// Update the potential in the element (and the extended element)
+		// *********************************************************************
+			
+		GetTime(timeSta);
+
+		UpdateElemLocalPotential();
+
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for updating the local potential in the extended element and the element is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 		// *********************************************************************
 		// Assemble the DG matrix
+		//
+		// TODO: Distinguish the process or assembling the matrix or
+		// updating the matrix.
 		// *********************************************************************
 
 		GetTime(timeSta);
@@ -658,7 +701,7 @@ SCFDG::Iterate	(  )
 					0, 0, contxt_ );
 
 			scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
-			
+
 			std::vector<Real> eigs;
 
 			DistElemMatToScaMat( hamDG.HMat(), 	descH,
@@ -667,14 +710,14 @@ SCFDG::Iterate	(  )
 			scalapack::Syevd('U', scaH, eigs, scaZ);
 
 			DblNumVec& eigval = hamDG.EigVal(); 
-      eigval.Resize( hamDG.NumStateTotal() );		
+			eigval.Resize( hamDG.NumStateTotal() );		
 			for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
 				eigval[i] = eigs[i];
-			
+
 			ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
 					hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.comm, 
 					hamDG.NumStateTotal() );
-		
+
 			MPI_Barrier( domain_.comm );
 			GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -682,7 +725,6 @@ SCFDG::Iterate	(  )
 				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 		}
-
 
 		// *********************************************************************
 		// Post processing
@@ -714,7 +756,7 @@ SCFDG::Iterate	(  )
 		// No external potential
 
 		// Compute the new total potential
-		hamDG.CalculateVtot( vtotNew_ );
+		hamDG.CalculateVtot( vtotInnerNew_ );
 
 		// Compute the error of the potential
 		{
@@ -726,7 +768,7 @@ SCFDG::Iterate	(  )
 						Index3 key( i, j, k );
 						if( elemPrtn_.Owner( key ) == mpirank ){
 							DblNumVec& oldVec = hamDG.Vtot().LocalMap()[key];
-							DblNumVec& newVec = vtotNew_.LocalMap()[key];
+							DblNumVec& newVec = vtotInnerNew_.LocalMap()[key];
 
 							for( Int p = 0; p < oldVec.m(); p++ ){
 								normVtotDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
@@ -744,6 +786,7 @@ SCFDG::Iterate	(  )
 			normVtotDif = std::sqrt( normVtotDif );
 			normVtotOld = std::sqrt( normVtotOld );
 
+			// FIXME
 			scfNorm_    = normVtotDif / normVtotOld;
 		}
 		
@@ -751,13 +794,13 @@ SCFDG::Iterate	(  )
     CalculateEnergy();
 
 		// Print out the state variables of the current iteration
-    PrintState( iter );
+    PrintState( );
 
 
-    if( scfNorm_ < scfTolerance_ ){
+    if( scfNorm_ < scfInnerTolerance_ ){
       /* converged */
-      Print( statusOFS, "SCF is converged!\n" );
-      isSCFConverged = true;
+      Print( statusOFS, "Inner SCF is converged!\n" );
+      isInnerSCFConverged = true;
     }
 
 		MPI_Barrier( domain_.comm );
@@ -768,14 +811,32 @@ SCFDG::Iterate	(  )
 #endif
 
 
-		// Potential mixing
+		// Potential mixing for the inner SCF iteration. FIXME
 		GetTime( timeSta );
+
     if( mixType_ == "anderson" ){
-      AndersonMix(iter);
+			AndersonMix(
+					innerIter, 
+					mixStepLength_,
+					hamDG.Vtot(),
+					hamDG.Vtot(),
+					vtotInnerNew_,
+					dfInnerMat_,
+					dvInnerMat_);
     }
     if( mixType_ == "kerker" ){
-      KerkerMix();  
-      AndersonMix(iter);
+      KerkerMix(
+					hamDG.Vtot(),
+					hamDG.Vtot(),
+					vtotInnerNew_ );  
+      AndersonMix(
+					innerIter, 
+					mixStepLength_,
+					hamDG.Vtot(),
+					hamDG.Vtot(),
+					vtotInnerNew_,
+					dfInnerMat_,
+					dvInnerMat_);
     }
 
 		MPI_Barrier( domain_.comm );
@@ -785,34 +846,193 @@ SCFDG::Iterate	(  )
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-		// Output the electron density
-		if( isOutputDensity_ ){
-			std::ostringstream rhoStream;      
-			
-			for( Int k = 0; k < numElem_[2]; k++ )
-				for( Int j = 0; j < numElem_[1]; j++ )
-					for( Int i = 0; i < numElem_[0]; i++ ){
-						Index3 key( i, j, k );
-						if( elemPrtn_.Owner( key ) == mpirank ){
-							DblNumVec&  denVec = hamDG.Density().LocalMap()[key];
-							serialize( denVec, rhoStream, NO_MASK );
-						}
-					} // for (i)
-			SeparateWrite( restartDensityFileName_, rhoStream );
-		} // if ( output density )
-
 		GetTime( timeIterEnd );
    
-		statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
-			<< " [sec]" << std::endl;
-  }
+		statusOFS << "Time time for this inner SCF iteration = " << timeIterEnd - timeIterStart
+			<< " [sec]" << std::endl << std::endl;
+
+	} // for (innerIter)
 
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
 
 	return ;
-} 		// -----  end of method SCFDG::Iterate  ----- 
+} 		// -----  end of method SCFDG::InnerIterate  ----- 
+
+
+void
+SCFDG::UpdateElemLocalPotential	(  )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::UpdateElemLocalPotential");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+  HamiltonianDG&  hamDG = *hamDGPtr_;
+
+	// vtot gather the neighborhood
+	DistDblNumVec&  vtot = hamDG.Vtot();
+	std::set<Index3> neighborSet;
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner(key) == mpirank ){
+					std::vector<Index3>   idx(3);
+
+					for( Int d = 0; d < DIM; d++ ){
+						// Previous
+						if( key[d] == 0 ) 
+							idx[0][d] = numElem_[d]-1; 
+						else 
+							idx[0][d] = key[d]-1;
+
+						// Current
+						idx[1][d] = key[d];
+
+						// Next
+						if( key[d] == numElem_[d]-1) 
+							idx[2][d] = 0;
+						else
+							idx[2][d] = key[d] + 1;
+					} // for (d)
+
+					// Tensor product 
+					for( Int c = 0; c < 3; c++ )
+						for( Int b = 0; b < 3; b++ )
+							for( Int a = 0; a < 3; a++ ){
+								// Not the element key itself
+								if( idx[a][0] != i || idx[b][1] != j || idx[c][2] != k ){
+									neighborSet.insert( Index3( idx[a][0], idx[b][1], idx[c][2] ) );
+								}
+							} // for (a)
+				} // own this element
+			} // for (i)
+	std::vector<Index3>  neighborIdx;
+	neighborIdx.insert( neighborIdx.begin(), neighborSet.begin(), neighborSet.end() );
+
+#if ( _DEBUGlevel_ >= 1 )
+	statusOFS << "neighborIdx = " << neighborIdx << std::endl;
+#endif
+
+	// communicate
+	vtot.GetBegin( neighborIdx, NO_MASK );
+	vtot.GetEnd( NO_MASK );
+
+
+	// Update of the local potential in each extended element locally.
+	// The nonlocal potential does not need to be updated
+	//
+	// Also update the local potential on the LGL grid in hamDG.
+	//
+	// NOTE:
+	//
+	// 1. It is hard coded that the extended element is 1 or 3
+	// times the size of the element
+	//
+	// 2. The local potential on the LGL grid is done by using Fourier
+	// interpolation from the extended element to the element. Gibbs
+	// phenomena MAY be there but at least this is better than
+	// Lagrange interpolation on a uniform grid.
+	//  
+	//
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
+					// Skip the calculation if there is no adaptive local
+					// basis function.  
+					if( eigSol.Psi().NumState() == 0 )
+						continue;
+
+					Hamiltonian&  hamExtElem  = eigSol.Ham();
+					DblNumVec&    vtotExtElem = hamExtElem.Vtot();
+					SetValue( vtotExtElem, 0.0 );
+
+					Index3 numGridElem = hamDG.NumUniformGridElem();
+					Index3 numGridExtElem = eigSol.FFT().domain.numGrid;
+
+					// Update the potential in the extended element
+					for(std::map<Index3, DblNumVec>::iterator 
+							mi = vtot.LocalMap().begin();
+							mi != vtot.LocalMap().end(); mi++ ){
+						Index3      keyElem = (*mi).first;
+						DblNumVec&  vtotElem = (*mi).second;
+
+						// Determine the shiftIdx which maps the position of vtotElem to 
+						// vtotExtElem
+						Index3 shiftIdx;
+						for( Int d = 0; d < DIM; d++ ){
+							shiftIdx[d] = keyElem[d] - key[d];
+							shiftIdx[d] = shiftIdx[d] - IRound( Real(shiftIdx[d]) / 
+									numElem_[d] ) * numElem_[d];
+							// FIXME Adjustment  
+							if( numElem_[d] > 1 ) shiftIdx[d] ++;
+
+							shiftIdx[d] *= numGridElem[d];
+						}
+
+#if ( _DEBUGlevel_ >= 1 )
+						statusOFS << "keyExtElem     = " << key << std::endl;
+						statusOFS << "numGridExtElem = " << numGridExtElem << std::endl;
+						statusOFS << "numGridElem    = " << numGridElem << std::endl;
+						statusOFS << "keyElem        = " << keyElem << ", shiftIdx = " << shiftIdx << std::endl;
+#endif
+
+						Int ptrExtElem, ptrElem;
+						for( Int k = 0; k < numGridElem[2]; k++ )
+							for( Int j = 0; j < numGridElem[1]; j++ )
+								for( Int i = 0; i < numGridElem[0]; i++ ){
+									ptrExtElem = (shiftIdx[0] + i) + 
+										( shiftIdx[1] + j ) * numGridExtElem[0] +
+										( shiftIdx[2] + k ) * numGridExtElem[0] * numGridExtElem[1];
+									ptrElem    = i + j * numGridElem[0] + 
+										k * numGridElem[0] * numGridElem[1];
+									vtotExtElem( ptrExtElem ) = vtotElem( ptrElem );
+								} // for (i)
+					} // for (mi)
+
+					// Update the potential in the element on LGL grid
+					DblNumVec&  vtotLGLElem = hamDG.VtotLGL().LocalMap()[key];
+					Index3 numLGLGrid       = hamDG.NumLGLGridElem();
+
+					InterpPeriodicUniformToLGL( 
+							numGridExtElem,
+							numLGLGrid,
+							vtotExtElem.Data(),
+							vtotLGLElem.Data() );
+
+					// Loop over the neighborhood
+
+				} // own this element
+			} // for (i)
+
+	// Clean up vtot not owned by this element
+	std::vector<Index3>  eraseKey;
+	for( std::map<Index3, DblNumVec>::iterator 
+			mi  = vtot.LocalMap().begin();
+			mi != vtot.LocalMap().end(); mi++ ){
+		Index3 key = (*mi).first;
+		if( vtot.Prtn().Owner(key) != mpirank ){
+			eraseKey.push_back( key );
+		}
+	}
+	for( std::vector<Index3>::iterator vi = eraseKey.begin();
+			vi != eraseKey.end(); vi++ ){
+		vtot.LocalMap().erase( *vi );
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::UpdateElemLocalPotential  ----- 
 
 void
 SCFDG::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
@@ -1089,7 +1309,14 @@ SCFDG::CalculateEnergy	(  )
 } 		// -----  end of method SCFDG::CalculateEnergy  ----- 
 
 void
-SCFDG::AndersonMix	( const Int iter )
+SCFDG::AndersonMix	( 
+		const Int iter, 
+		const Real mixStepLength,
+		DistDblNumVec&  vMix,
+		DistDblNumVec&  vOld,
+		DistDblNumVec&  vNew,
+		DistDblNumMat&  dfMat,
+		DistDblNumMat&  dvMat)
 {
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::AndersonMix");
@@ -1102,8 +1329,8 @@ SCFDG::AndersonMix	( const Int iter )
 
 	Int ntot  = hamDGPtr_->NumUniformGridElem().prod();
 	
-	DistDblNumVec&  distvtot = hamDGPtr_->Vtot();
-	DistDblNumVec&  distvtotnew = vtotNew_;
+	DistDblNumVec&  distvtot    = vOld;
+	DistDblNumVec&  distvtotnew = vNew;
 
 	Int iterused = std::min( iter-1, mixMaxDim_ ); // iter should start from 1
 	Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
@@ -1118,8 +1345,8 @@ SCFDG::AndersonMix	( const Int iter )
 					DblNumVec& vout       = distvout.LocalMap()[key];
 					DblNumVec& vinsave    = distvinsave.LocalMap()[key];
 					DblNumVec& voutsave   = distvoutsave.LocalMap()[key];
-					DblNumMat& df         = dfMat_.LocalMap()[key];
-					DblNumMat& dv         = dvMat_.LocalMap()[key];
+					DblNumMat& df         = dfMat.LocalMap()[key];
+					DblNumMat& dv         = dvMat.LocalMap()[key];
 
 					// vin(:)  = vtot(:)
 					// vout(:) = vtotnew(:) - vtot(:)
@@ -1131,8 +1358,8 @@ SCFDG::AndersonMix	( const Int iter )
 					vinsave  = vin;
 					voutsave = vout;
 
-				  // dfMat_(:, ipos-1) -= vout(:);
-				  // dvMat_(:, ipos-1) -= vin(:);
+				  // dfMat(:, ipos-1) -= vout(:);
+				  // dvMat(:, ipos-1) -= vin(:);
 					if( iter > 1 ){
 						blas::Axpy( ntot, -1.0, vout.Data(), 1, df.VecData(ipos-1), 1);
 						blas::Axpy( ntot, -1.0, vin.Data(),  1, dv.VecData(ipos-1), 1);
@@ -1162,7 +1389,7 @@ SCFDG::AndersonMix	( const Int iter )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
-						DblNumMat& df     = dfMat_.LocalMap()[key];
+						DblNumMat& df     = dfMat.LocalMap()[key];
 						DblNumVec& vout   = distvout.LocalMap()[key];
 						for( Int q = 0; q < nrow; q++ ){
 							FTvLocal(q) += blas::Dot( ntot, df.VecData(q), 1,
@@ -1209,8 +1436,8 @@ SCFDG::AndersonMix	( const Int iter )
 					if( elemPrtn_.Owner( key ) == mpirank ){
 						DblNumVec& vin    = distvin.LocalMap()[key];
 						DblNumVec& vout   = distvout.LocalMap()[key];
-						DblNumMat& df     = dfMat_.LocalMap()[key];
-						DblNumMat& dv     = dvMat_.LocalMap()[key];
+						DblNumMat& df     = dfMat.LocalMap()[key];
+						DblNumMat& dv     = dvMat.LocalMap()[key];
 						
 						blas::Gemv('N', ntot, nrow, -1.0, dv.Data(),
 								ntot, FTv.Data(), 1, 1.0, vin.Data(), 1 );
@@ -1228,22 +1455,23 @@ SCFDG::AndersonMix	( const Int iter )
 			for( Int i = 0; i < numElem_[0]; i++ ){
 				Index3 key( i, j, k );
 				if( elemPrtn_.Owner( key ) == mpirank ){
-					DblNumVec& vtot       = distvtot.LocalMap()[key];
+					// vMix is the output
+					DblNumVec& vtot       = vMix.LocalMap()[key];
 					DblNumVec& vin        = distvin.LocalMap()[key];
 					DblNumVec& vout       = distvout.LocalMap()[key];
 					DblNumVec& vinsave    = distvinsave.LocalMap()[key];
 					DblNumVec& voutsave   = distvoutsave.LocalMap()[key];
-					DblNumMat& df         = dfMat_.LocalMap()[key];
-					DblNumMat& dv         = dvMat_.LocalMap()[key];
+					DblNumMat& df         = dfMat.LocalMap()[key];
+					DblNumMat& dv         = dvMat.LocalMap()[key];
 
-					// dfMat_(:, inext-1) = voutsave(:)
-					// dvMat_(:, inext-1) = vinsave(:)
+					// dfMat(:, inext-1) = voutsave(:)
+					// dvMat(:, inext-1) = vinsave(:)
 					blas::Copy( ntot, voutsave.Data(), 1, df.VecData(inext-1), 1 );
 					blas::Copy( ntot, vinsave.Data(),  1, dv.VecData(inext-1), 1 );
 
 					// vtot(:) = vin(:) + alpha * vout(:)
 					blas::Copy( ntot, vin.Data(), 1, vtot.Data(), 1 );
-					blas::Axpy( ntot, mixStepLength_, vout.Data(), 1, vtot.Data(), 1);
+					blas::Axpy( ntot, mixStepLength, vout.Data(), 1, vtot.Data(), 1);
 				} // own this element
 			} // for (i)
 
@@ -1255,7 +1483,10 @@ SCFDG::AndersonMix	( const Int iter )
 } 		// -----  end of method SCFDG::AndersonMix  ----- 
 
 void
-SCFDG::KerkerMix	(  )
+SCFDG::KerkerMix	( 
+		DistDblNumVec&  vMix,
+		DistDblNumVec&  vOld,
+		DistDblNumVec&  vNew )
 {
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::KerkerMix");
@@ -1272,8 +1503,8 @@ SCFDG::KerkerMix	(  )
 	DistDblNumVec   tempVec;
 	tempVec.Prtn() = elemPrtn_;
 
-	DistDblNumVec&  distvtot    = hamDGPtr_->Vtot();
-	DistDblNumVec&  distvtotnew = vtotNew_;
+	DistDblNumVec&  distvtot    = vOld;
+	DistDblNumVec&  distvtotnew = vNew;
 
 	Index3 numUniformGridElem = hamDGPtr_->NumUniformGridElem();
 
@@ -1358,15 +1589,16 @@ SCFDG::KerkerMix	(  )
 			domain_.comm );
   
 	// Update vtot
-	// vtot(:) += tempVec(:)
+	// vMix(:) = vOld(:) + tempVec(:)
 	for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
 			for( Int i = 0; i < numElem_[0]; i++ ){
 				Index3 key = Index3( i, j, k );
 				if( elemPrtn_.Owner( key ) == mpirank ){
+					vMix.LocalMap()[key] = vOld.LocalMap()[key];
 					blas::Axpy( numUniformGridElem.prod(), 1.0, 
 							tempVec.LocalMap()[key].Data(), 1,
-							distvtot.LocalMap()[key].Data(), 1 );
+							vMix.LocalMap()[key].Data(), 1 );
 				} // own this element
 			} // for (i)
 
@@ -1380,7 +1612,7 @@ SCFDG::KerkerMix	(  )
 
 
 void
-SCFDG::PrintState	( const Int iter  )
+SCFDG::PrintState	( )
 {
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::PrintState");
