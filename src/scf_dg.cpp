@@ -462,17 +462,27 @@ SCFDG::Iterate	(  )
 							// Unscale the orthogonal basis functions by sqrt of
 							// integration weight
 							//#pragma omp parallel for schedule(dynamic,1) 
+
+							// TODO Introduce an SVD truncation criterion parameter.
+							Real SVDBasisTolerance_ = 1e-6;
+						  Int  numSVDBasis = 0;	
 							for( Int g = 0; g < localBasis.n(); g++ ){
 								Real *ptr1 = U.VecData(g);
 								Real *ptr2 = sqrtLGLWeight3D.Data();
 								for( Int l = 0; l < localBasis.m(); l++ ){
 									*(ptr1++)  /= *(ptr2++);
 								}
+								if( S[g] / S[0] > SVDBasisTolerance_ )
+									numSVDBasis++;
 							}
 
+							// Get the first numSVDBasis which are significant.
+							hamDG.BasisLGL().LocalMap()[key].Resize( localBasis.m(), numSVDBasis );
+							DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
+							blas::Copy( localBasis.m() * numSVDBasis, 
+									U.Data(), 1, basis.Data(), 1 );
 
-							// FIXME No SVD truncation
-							hamDG.BasisLGL().LocalMap()[key] = U;  
+							statusOFS << "Number of significant SVD basis = " 	<< numSVDBasis << std::endl;
 						}
 						GetTime( timeEnd );
 						statusOFS << "Time for SVD of basis = " 	<< timeEnd - timeSta
