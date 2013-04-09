@@ -304,6 +304,8 @@ SCFDG::Iterate	(  )
   
 	bool isSCFConverged = false;
 
+	scfTotalInnerIter_  = 0;
+
   for (Int iter=1; iter <= scfOuterMaxIter_; iter++) {
     if ( isSCFConverged ) break;
 		
@@ -564,13 +566,13 @@ SCFDG::Iterate	(  )
       isSCFConverged = true;
     }
 
-		// Potential mixing for the outer SCF iteration.
+		// Potential mixing for the outer SCF iteration. or no mixing at all anymore?
+		// It seems that no mixing is the best.
 		
-		GetTime( timeSta );
+//		GetTime( timeSta );
 
-//		// FIXME Large step length
-//		Real largeMix = std::min(0.8, 2 * mixStepLength_);
-//
+		// FIXME Large step length 
+//		Real largeMix = std::min(0.8, mixStepLength_);
 //    if( mixType_ == "anderson" ){
 //			AndersonMix(
 //					iter, 
@@ -595,13 +597,13 @@ SCFDG::Iterate	(  )
 //					dfOuterMat_,
 //					dvOuterMat_);
 //    }
-
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for potential mixing is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
+//
+//		MPI_Barrier( domain_.comm );
+//		GetTime( timeEnd );
+//#if ( _DEBUGlevel_ >= 0 )
+//		statusOFS << "Time for potential mixing is " <<
+//			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//#endif
 
 		// Output the electron density
 		if( isOutputDensity_ ){
@@ -652,6 +654,8 @@ SCFDG::InnerIterate	(  )
 
 	for( Int innerIter = 1; innerIter <= scfInnerMaxIter_; innerIter++ ){
 		if ( isInnerSCFConverged ) break;
+
+		scfTotalInnerIter_++;
 
 		statusOFS << std::endl << "Inner SCF iteration #"  
 			<< innerIter << " starts." << std::endl << std::endl;
@@ -818,7 +822,7 @@ SCFDG::InnerIterate	(  )
 
     if( mixType_ == "anderson" ){
 			AndersonMix(
-					innerIter, 
+					scfTotalInnerIter_, 
 					mixStepLength_,
 					hamDG.Vtot(),
 					hamDG.Vtot(),
@@ -832,7 +836,7 @@ SCFDG::InnerIterate	(  )
 					hamDG.Vtot(),
 					vtotInnerNew_ );  
       AndersonMix(
-					innerIter, 
+					scfTotalInnerIter_, 
 					mixStepLength_,
 					hamDG.Vtot(),
 					hamDG.Vtot(),

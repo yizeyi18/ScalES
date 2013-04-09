@@ -73,8 +73,9 @@ private:
 	/// @brief Work array for the Anderson mixing in the inner iteration.
 	DistDblNumMat       dvInnerMat_;
 	
-	Real                scfInnerNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
-	Real                scfOuterNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
+	Int                 scfTotalInnerIter_;       // For the purpose of Anderson mixing
+	Real                scfInnerNorm_;            // ||V_{new} - V_{old}|| / ||V_{old}||
+	Real                scfOuterNorm_;            // ||V_{new} - V_{old}|| / ||V_{old}||
 
 	/// @brief Global domain.
 	Domain              domain_;
