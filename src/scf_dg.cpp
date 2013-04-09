@@ -568,33 +568,33 @@ SCFDG::Iterate	(  )
 		
 		GetTime( timeSta );
 
-		// FIXME Large step length
-		Real largeMix = std::min(0.8, 2 * mixStepLength_);
-
-    if( mixType_ == "anderson" ){
-			AndersonMix(
-					iter, 
-					largeMix,
-					hamDG.Vtot(),
-					vtotOuterSave_,
-					hamDG.Vtot(),
-					dfOuterMat_,
-					dvOuterMat_);
-    }
-    if( mixType_ == "kerker" ){
-      KerkerMix(
-					hamDG.Vtot(),
-					vtotOuterSave_,
-					hamDG.Vtot() );
-			AndersonMix(
-					iter, 
-					largeMix,
-					hamDG.Vtot(),
-					vtotOuterSave_,
-					hamDG.Vtot(),
-					dfOuterMat_,
-					dvOuterMat_);
-    }
+//		// FIXME Large step length
+//		Real largeMix = std::min(0.8, 2 * mixStepLength_);
+//
+//    if( mixType_ == "anderson" ){
+//			AndersonMix(
+//					iter, 
+//					largeMix,
+//					hamDG.Vtot(),
+//					vtotOuterSave_,
+//					hamDG.Vtot(),
+//					dfOuterMat_,
+//					dvOuterMat_);
+//    }
+//    if( mixType_ == "kerker" ){
+//      KerkerMix(
+//					hamDG.Vtot(),
+//					vtotOuterSave_,
+//					hamDG.Vtot() );
+//			AndersonMix(
+//					iter, 
+//					largeMix,
+//					hamDG.Vtot(),
+//					vtotOuterSave_,
+//					hamDG.Vtot(),
+//					dfOuterMat_,
+//					dvOuterMat_);
+//    }
 
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
