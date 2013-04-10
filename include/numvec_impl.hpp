@@ -121,6 +121,8 @@ inline NumVec<F>& NumVec<F>::operator =	( const NumVec& C  )
 #ifndef _RELEASE_
 	PushCallStack("NumVec<F>::operator=");
 #endif  
+	// Do not copy if it is the same matrix.
+	if(C.data_ == data_) return *this;
 	if( owndata_ ){
 		if( m_ > 0 ){
 			delete[]  data_;

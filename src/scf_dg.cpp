@@ -475,14 +475,16 @@ SCFDG::Iterate	(  )
 								if( S[g] / S[0] > SVDBasisTolerance_ )
 									numSVDBasis++;
 							}
+//
+//							// Get the first numSVDBasis which are significant.
+//							hamDG.BasisLGL().LocalMap()[key].Resize( localBasis.m(), numSVDBasis );
+//							DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
+//							blas::Copy( localBasis.m() * numSVDBasis, 
+//									U.Data(), 1, basis.Data(), 1 );
+//
+//							statusOFS << "Number of significant SVD basis = " 	<< numSVDBasis << std::endl;
 
-							// Get the first numSVDBasis which are significant.
-							hamDG.BasisLGL().LocalMap()[key].Resize( localBasis.m(), numSVDBasis );
-							DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
-							blas::Copy( localBasis.m() * numSVDBasis, 
-									U.Data(), 1, basis.Data(), 1 );
-
-							statusOFS << "Number of significant SVD basis = " 	<< numSVDBasis << std::endl;
+							hamDG.BasisLGL().LocalMap()[key] = U;
 						}
 						GetTime( timeEnd );
 						statusOFS << "Time for SVD of basis = " 	<< timeEnd - timeSta
@@ -803,6 +805,8 @@ SCFDG::InnerIterate	(  )
 			normVtotOld = std::sqrt( normVtotOld );
 
 			scfInnerNorm_    = normVtotDif / normVtotOld;
+			Print(statusOFS, "norm(VtotDif) = ", normVtotDif );
+			Print(statusOFS, "norm(VtotOld) = ", normVtotOld );
 			Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfInnerNorm_ );
 		}
 		
@@ -1345,9 +1349,6 @@ SCFDG::AndersonMix	(
 
 	Int ntot  = hamDGPtr_->NumUniformGridElem().prod();
 	
-	DistDblNumVec&  distvtot    = vOld;
-	DistDblNumVec&  distvtotnew = vNew;
-
 	Int iterused = std::min( iter-1, mixMaxDim_ ); // iter should start from 1
 	Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
 
@@ -1366,8 +1367,8 @@ SCFDG::AndersonMix	(
 
 					// vin(:)  = vtot(:)
 					// vout(:) = vtotnew(:) - vtot(:)
-					vin  = distvtot.LocalMap()[key];
-					vout = distvtotnew.LocalMap()[key];
+					vin  = vOld.LocalMap()[key];
+					vout = vNew.LocalMap()[key];
 					blas::Axpy( ntot, -1.0, vin.Data(), 1, vout.Data(), 1 );
 
 					// save vin and vout
@@ -1498,6 +1499,7 @@ SCFDG::AndersonMix	(
 	return ;
 } 		// -----  end of method SCFDG::AndersonMix  ----- 
 
+// TODO Proper way of using Vold, Vnew vmix
 void
 SCFDG::KerkerMix	( 
 		DistDblNumVec&  vMix,
@@ -1519,8 +1521,25 @@ SCFDG::KerkerMix	(
 	DistDblNumVec   tempVec;
 	tempVec.Prtn() = elemPrtn_;
 
-	DistDblNumVec&  distvtot    = vOld;
-	DistDblNumVec&  distvtotnew = vNew;
+	DistDblNumVec  distvtot, distvtotnew;
+
+	distvtot.Prtn() = elemPrtn_;
+	distvtotnew.Prtn() = elemPrtn_;
+
+	// Copy the data to avoid overwriting
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key = Index3( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+
+					distvtot.LocalMap()[key]    = vOld.LocalMap()[key];
+					distvtotnew.LocalMap()[key] = vNew.LocalMap()[key];
+					vMix.LocalMap()[key]        = vOld.LocalMap()[key];
+
+				} // own this element
+			} // for (i)
+	
 
 	Index3 numUniformGridElem = hamDGPtr_->NumUniformGridElem();
 
@@ -1529,7 +1548,7 @@ SCFDG::KerkerMix	(
 
 	// tempVec(:) = vtotnew(:) - vtot(:)
 	// FIXME Why add the residue here?
-	// vtot(:) += mixStepLengthKerker * (vtotnew(:) - vtot(:))
+	// vMix(:) += mixStepLengthKerker * tempVec
 	for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
 			for( Int i = 0; i < numElem_[0]; i++ ){
@@ -1545,7 +1564,7 @@ SCFDG::KerkerMix	(
 
 					blas::Axpy( numUniformGridElem.prod(), mixStepLengthKerker, 
 							tempVec.LocalMap()[key].Data(), 1,
-							distvtot.LocalMap()[key].Data(), 1 );
+							vMix.LocalMap()[key].Data(), 1 );
 				} // own this element
 			} // for (i)
 
@@ -1604,14 +1623,13 @@ SCFDG::KerkerMix	(
 			fft.isInGrid,
 			domain_.comm );
   
-	// Update vtot
-	// vMix(:) = vOld(:) + tempVec(:)
+	// Update vMix
+	// vMix(:) += tempVec(:)
 	for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
 			for( Int i = 0; i < numElem_[0]; i++ ){
 				Index3 key = Index3( i, j, k );
 				if( elemPrtn_.Owner( key ) == mpirank ){
-					vMix.LocalMap()[key] = vOld.LocalMap()[key];
 					blas::Axpy( numUniformGridElem.prod(), 1.0, 
 							tempVec.LocalMap()[key].Data(), 1,
 							vMix.LocalMap()[key].Data(), 1 );

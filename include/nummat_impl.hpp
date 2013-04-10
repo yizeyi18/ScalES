@@ -38,6 +38,8 @@ template <class F> inline NumMat<F>::~NumMat() {
 }
 
 template <class F> inline NumMat<F>& NumMat<F>::operator=(const NumMat& C) {
+	// Do not copy if it is the same matrix.
+	if(C.data_ == data_) return *this;
 	if(owndata_) {
 		if(m_>0 && n_>0) { delete[] data_; data_ = NULL; }
 	}

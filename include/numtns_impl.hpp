@@ -43,6 +43,9 @@ inline NumTns<F>::~NumTns() {
 
 template <class F> 
 inline NumTns<F>& NumTns<F>::operator=(const NumTns& C) {
+	// Do not copy if it is the same matrix.
+	if(C.data_ == data_) return *this;
+
 	if(owndata_) { 
 		if(m_>0 && n_>0 && p_>0) { delete[] data_; data_ = NULL; } 
 	}
