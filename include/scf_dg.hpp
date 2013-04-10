@@ -30,6 +30,7 @@ private:
 	Int                 scfInnerMaxIter_;
 	Real                scfOuterTolerance_;
 	Int                 scfOuterMaxIter_;
+	Real                SVDBasisTolerance_;
 	bool                isRestartDensity_;
 	bool                isRestartWfn_;
 	bool                isOutputDensity_;

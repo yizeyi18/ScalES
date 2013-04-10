@@ -78,6 +78,7 @@ struct ESDFInputParam{
 	Int                 scfOuterMaxIter;
 	Real                eigTolerance;
 	Int                 eigMaxIter;
+	Real                SVDBasisTolerance;
 	bool                isRestartDensity;
 	bool                isRestartWfn;
 	bool                isOutputDensity;

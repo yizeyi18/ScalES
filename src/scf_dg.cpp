@@ -63,6 +63,7 @@ SCFDG::Setup	(
 		scfInnerMaxIter_    = esdfParam.scfInnerMaxIter;
 		scfOuterTolerance_  = esdfParam.scfOuterTolerance;
 		scfOuterMaxIter_    = esdfParam.scfOuterMaxIter;
+		SVDBasisTolerance_  = esdfParam.SVDBasisTolerance;
 		isRestartDensity_ = esdfParam.isRestartDensity;
 		isRestartWfn_     = esdfParam.isRestartWfn;
 		isOutputDensity_  = esdfParam.isOutputDensity;
@@ -464,7 +465,6 @@ SCFDG::Iterate	(  )
 							//#pragma omp parallel for schedule(dynamic,1) 
 
 							// TODO Introduce an SVD truncation criterion parameter.
-							Real SVDBasisTolerance_ = 1e-6;
 						  Int  numSVDBasis = 0;	
 							for( Int g = 0; g < localBasis.n(); g++ ){
 								Real *ptr1 = U.VecData(g);
@@ -475,16 +475,14 @@ SCFDG::Iterate	(  )
 								if( S[g] / S[0] > SVDBasisTolerance_ )
 									numSVDBasis++;
 							}
-//
-//							// Get the first numSVDBasis which are significant.
-//							hamDG.BasisLGL().LocalMap()[key].Resize( localBasis.m(), numSVDBasis );
-//							DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
-//							blas::Copy( localBasis.m() * numSVDBasis, 
-//									U.Data(), 1, basis.Data(), 1 );
-//
-//							statusOFS << "Number of significant SVD basis = " 	<< numSVDBasis << std::endl;
 
-							hamDG.BasisLGL().LocalMap()[key] = U;
+							// Get the first numSVDBasis which are significant.
+							DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
+							basis.Resize( localBasis.m(), numSVDBasis );
+							blas::Copy( localBasis.m() * numSVDBasis, 
+									U.Data(), 1, basis.Data(), 1 );
+
+							statusOFS << "Number of significant SVD basis = " 	<< numSVDBasis << std::endl;
 						}
 						GetTime( timeEnd );
 						statusOFS << "Time for SVD of basis = " 	<< timeEnd - timeSta
@@ -836,7 +834,7 @@ SCFDG::InnerIterate	(  )
 
     if( mixType_ == "anderson" ){
 			AndersonMix(
-					scfTotalInnerIter_, 
+					innerIter, 
 					mixStepLength_,
 					hamDG.Vtot(),
 					hamDG.Vtot(),
@@ -850,7 +848,7 @@ SCFDG::InnerIterate	(  )
 					hamDG.Vtot(),
 					vtotInnerNew_ );  
       AndersonMix(
-					scfTotalInnerIter_, 
+					innerIter, 
 					mixStepLength_,
 					hamDG.Vtot(),
 					hamDG.Vtot(),
@@ -1487,7 +1485,7 @@ SCFDG::AndersonMix	(
 					blas::Copy( ntot, vinsave.Data(),  1, dv.VecData(inext-1), 1 );
 
 					// vtot(:) = vin(:) + alpha * vout(:)
-					blas::Copy( ntot, vin.Data(), 1, vtot.Data(), 1 );
+					vtot = vin;
 					blas::Axpy( ntot, mixStepLength, vout.Data(), 1, vtot.Data(), 1);
 				} // own this element
 			} // for (i)
@@ -1521,10 +1519,10 @@ SCFDG::KerkerMix	(
 	DistDblNumVec   tempVec;
 	tempVec.Prtn() = elemPrtn_;
 
-	DistDblNumVec  distvtot, distvtotnew;
+	DistDblNumVec  distvin, distvout;
 
-	distvtot.Prtn() = elemPrtn_;
-	distvtotnew.Prtn() = elemPrtn_;
+	distvin.Prtn()  = elemPrtn_;
+	distvout.Prtn() = elemPrtn_;
 
 	// Copy the data to avoid overwriting
 	for( Int k = 0; k < numElem_[2]; k++ )
@@ -1533,9 +1531,9 @@ SCFDG::KerkerMix	(
 				Index3 key = Index3( i, j, k );
 				if( elemPrtn_.Owner( key ) == mpirank ){
 
-					distvtot.LocalMap()[key]    = vOld.LocalMap()[key];
-					distvtotnew.LocalMap()[key] = vNew.LocalMap()[key];
-					vMix.LocalMap()[key]        = vOld.LocalMap()[key];
+					distvin.LocalMap()[key]    = vOld.LocalMap()[key];
+					distvout.LocalMap()[key]   = vNew.LocalMap()[key];
+					vMix.LocalMap()[key]       = distvin.LocalMap()[key];
 
 				} // own this element
 			} // for (i)
@@ -1546,7 +1544,7 @@ SCFDG::KerkerMix	(
 	// FIXME Magic number here
 	Real mixStepLengthKerker = 0.8; 
 
-	// tempVec(:) = vtotnew(:) - vtot(:)
+	// tempVec(:) = vout(:) - vin(:)
 	// FIXME Why add the residue here?
 	// vMix(:) += mixStepLengthKerker * tempVec
 	for( Int k = 0; k < numElem_[2]; k++ )
@@ -1556,10 +1554,10 @@ SCFDG::KerkerMix	(
 				if( elemPrtn_.Owner( key ) == mpirank ){
 
 					tempVec.LocalMap()[key] = 
-						distvtotnew.LocalMap()[key];
+						distvout.LocalMap()[key];
 
 					blas::Axpy( numUniformGridElem.prod(), -1.0, 
-							distvtot.LocalMap()[key].Data(), 1,
+							distvin.LocalMap()[key].Data(), 1,
 							tempVec.LocalMap()[key].Data(), 1 );
 
 					blas::Axpy( numUniformGridElem.prod(), mixStepLengthKerker, 

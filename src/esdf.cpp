@@ -373,6 +373,11 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Outer SCF loop tolerance!*");
 
 	i++;
+	strcpy(kw_label[i],"svd_basis_tolerance");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Threshold for adaptive local basis in the SVD procedure!*");
+
+	i++;
 	strcpy(kw_label[i],"temperature");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! temperature (in Kelvin)!*");
@@ -1856,8 +1861,9 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   30 );
 		esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-4 );
 		esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
-		esdfParam.eigTolerance    = esdf_double( "Eig_Tolerance", 1e-5 );
-		esdfParam.eigMaxIter      = esdf_integer( "Eig_MaxIter",  10 );
+		esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-5 );
+		esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  10 );
+		esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-4 );
 		esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
 		esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
 		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
