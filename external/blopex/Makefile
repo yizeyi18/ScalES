@@ -1,4 +1,4 @@
-include ../../make.inc.${HOSTID}
+include ../../make.inc
 
 HEADERS = \
 interpreter.h \
