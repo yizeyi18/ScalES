@@ -594,30 +594,30 @@ SCFDG::Iterate	(  )
 //				dvOuterMat_);
 		
 		
-		if( mixType_ == "anderson" ){
-			AndersonMix(
-					iter, 
-					largeMix,
-					hamDG.Vtot(),
-					vtotOuterSave_,
-					hamDG.Vtot(),
-					dfOuterMat_,
-					dvOuterMat_);
-    }
-    if( mixType_ == "kerker" ){
-      KerkerMix(
-					hamDG.Vtot(),
-					vtotOuterSave_,
-					hamDG.Vtot() );
-			AndersonMix(
-					iter, 
-					largeMix,
-					hamDG.Vtot(),
-					vtotOuterSave_,
-					hamDG.Vtot(),
-					dfOuterMat_,
-					dvOuterMat_);
-    }
+//		if( mixType_ == "anderson" ){
+//			AndersonMix(
+//					iter, 
+//					largeMix,
+//					hamDG.Vtot(),
+//					vtotOuterSave_,
+//					hamDG.Vtot(),
+//					dfOuterMat_,
+//					dvOuterMat_);
+//    }
+//    if( mixType_ == "kerker" ){
+//      KerkerMix(
+//					hamDG.Vtot(),
+//					vtotOuterSave_,
+//					hamDG.Vtot() );
+//			AndersonMix(
+//					iter, 
+//					largeMix,
+//					hamDG.Vtot(),
+//					vtotOuterSave_,
+//					hamDG.Vtot(),
+//					dfOuterMat_,
+//					dvOuterMat_);
+//    }
 //
 //		MPI_Barrier( domain_.comm );
 //		GetTime( timeEnd );

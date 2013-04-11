@@ -1559,6 +1559,9 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 						// Skip the calculation if there is no basis functions in
 						// the element.
+						// FIXME This might be problematic if nonlocal
+						// pseudopotential is added.
+
 						if( numBasis == 0 )
 							continue;
 
@@ -1570,9 +1573,9 @@ HamiltonianDG::CalculateAPosterioriError	(
 						Int numEig = localCoef.n();
 
 						// Prefactor for the residual term.
-						// Note: The hK term is not included.
+						Real hK = domainElem_(i, j, k).length.l2(); // diameter of the domain
 						Real pK = numBasis;
-						Real facR = 1.0 / ( pK * pK );
+						Real facR = ( hK * hK ) / ( pK * pK );
 
 						DblNumVec  residual( numLGL );
 						for( Int g = 0; g < numEig; g++ ){
@@ -1870,6 +1873,9 @@ HamiltonianDG::CalculateAPosterioriError	(
 							DblNumVec& eig         = eigVal_;
 							DblNumVec& occrate     = occupationRate_;
 
+							// Diameter of the face
+							Point3 length = domainElem_(i,j,k).length;
+							Real hF = std::sqrt( length[1] * length[1] + length[2] * length[2] );
 							Real pF = std::max( numBasisL, numBasisR );
 
 							// Skip the computation if there is no basis function on
@@ -1889,12 +1895,10 @@ HamiltonianDG::CalculateAPosterioriError	(
 								// used in this code.  So 
 								//
 								// facJ = penaltyAlpha_^2 * h_F / p_F
-								//
-								// and h_F is omittd.
 
 
-								Real facGJ = 0.5 / pF;
-								Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
+								Real facGJ = 0.5 * hF / pF;
+								Real facJ  = 0.5 * penaltyAlpha_ * penaltyAlpha_ * hF / pF;
 
 								if( localCoefL.n() != localCoefR.n() ){
 									throw std::runtime_error( 
@@ -1974,6 +1978,8 @@ HamiltonianDG::CalculateAPosterioriError	(
 							DblNumVec& eig         = eigVal_;
 							DblNumVec& occrate     = occupationRate_;
 
+							Point3 length = domainElem_(i,j,k).length;
+							Real hF = std::sqrt( length[0] * length[0] + length[2] * length[2] );
 							Real pF = std::max( numBasisL, numBasisR );
 
 							// Skip the computation if there is no basis function on
@@ -1995,12 +2001,9 @@ HamiltonianDG::CalculateAPosterioriError	(
 								//
 								// facJ = penaltyAlpha_^2 * h_F / p_F
 								//
-								// and h_F is omittd.
-
-
-
-								Real facGJ = 0.5 / pF;
-								Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
+								
+								Real facGJ = 0.5 * hF / pF;
+								Real facJ  = 0.5 * penaltyAlpha_ * penaltyAlpha_ * hF / pF;
 
 								if( localCoefL.n() != localCoefR.n() ){
 									throw std::runtime_error( 
@@ -2081,6 +2084,8 @@ HamiltonianDG::CalculateAPosterioriError	(
 							DblNumVec& occrate     = occupationRate_;
 
 
+							Point3 length = domainElem_(i,j,k).length;
+							Real hF = std::sqrt( length[0] * length[0] + length[1] * length[1] );
 							Real pF = std::max( numBasisL, numBasisR );
 
 							// Skip the computation if there is no basis function on
@@ -2102,12 +2107,9 @@ HamiltonianDG::CalculateAPosterioriError	(
 								//
 								// facJ = penaltyAlpha_^2 * h_F / p_F
 								//
-								// and h_F is omittd.
-
-
-
-								Real facGJ = 0.5 / pF;
-								Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
+								
+								Real facGJ = 0.5 * hF / pF;
+								Real facJ  = 0.5 * penaltyAlpha_ * penaltyAlpha_ * hF / pF;
 
 								if( localCoefL.n() != localCoefR.n() ){
 									throw std::runtime_error( 
