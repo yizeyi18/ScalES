@@ -73,6 +73,9 @@ private:
 	DistDblNumMat       dfInnerMat_;
 	/// @brief Work array for the Anderson mixing in the inner iteration.
 	DistDblNumMat       dvInnerMat_;
+	/// @brief Work array for updating the local potential on the LGL
+	/// grid.
+	DistDblNumVec       vtotLGLSave_;
 	
 	Int                 scfTotalInnerIter_;       // For the purpose of Anderson mixing
 	Real                scfInnerNorm_;            // ||V_{new} - V_{old}|| / ||V_{old}||

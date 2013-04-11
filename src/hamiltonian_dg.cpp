@@ -1573,7 +1573,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 						Int numEig = localCoef.n();
 
 						// Prefactor for the residual term.
-						Real hK = domainElem_(i, j, k).length.l2(); // diameter of the domain
+						Real hK = length.l2(); // diameter of the domain
 						Real pK = numBasis;
 						Real facR = ( hK * hK ) / ( pK * pK );
 
@@ -1874,7 +1874,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 							DblNumVec& occrate     = occupationRate_;
 
 							// Diameter of the face
-							Point3 length = domainElem_(i,j,k).length;
 							Real hF = std::sqrt( length[1] * length[1] + length[2] * length[2] );
 							Real pF = std::max( numBasisL, numBasisR );
 
@@ -1978,7 +1977,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 							DblNumVec& eig         = eigVal_;
 							DblNumVec& occrate     = occupationRate_;
 
-							Point3 length = domainElem_(i,j,k).length;
 							Real hF = std::sqrt( length[0] * length[0] + length[2] * length[2] );
 							Real pF = std::max( numBasisL, numBasisR );
 
@@ -2084,7 +2082,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 							DblNumVec& occrate     = occupationRate_;
 
 
-							Point3 length = domainElem_(i,j,k).length;
 							Real hF = std::sqrt( length[0] * length[0] + length[1] * length[1] );
 							Real pF = std::max( numBasisL, numBasisR );
 

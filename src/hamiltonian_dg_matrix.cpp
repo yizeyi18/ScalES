@@ -1262,4 +1262,184 @@ HamiltonianDG::CalculateDGMatrix	(  )
 } 		// -----  end of method HamiltonianDG::CalculateDGMatrix  ----- 
 
 
+void
+HamiltonianDG::UpdateDGMatrix	(
+		DistDblNumVec&   vtotLGLDiff )
+{
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::UpdateDGMatrix");
+#endif
+	Int mpirank, mpisize;
+	Int numAtom = atomList_.size();
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+	Real timeSta, timeEnd;
+
+	// Here numGrid is the LGL grid
+	Point3 length       = domainElem_(0,0,0).length;
+	Index3 numGrid      = numLGLGridElem_;             
+	Int    numGridTotal = numGrid.prod();
+
+	// Integration weights
+	std::vector<DblNumVec>  LGLWeight1D(DIM);
+	std::vector<DblNumMat>  LGLWeight2D(DIM);
+	DblNumTns               LGLWeight3D;
+
+	// NOTE: Since this is an update process, DO NOT clear the DG Matrix
+
+	// *********************************************************************
+	// Initial setup
+	// *********************************************************************
+
+	{
+		GetTime(timeSta);
+		// Compute the global index set
+		IntNumTns  numBasisLocal(numElem_[0], numElem_[1], numElem_[2]);
+		SetValue( numBasisLocal, 0 );
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key(i, j, k);
+					if( elemPrtn_.Owner(key) == mpirank ){
+						numBasisLocal(i, j, k) = basisLGL_.LocalMap()[key].n();
+					}
+				} // for (i)
+		IntNumTns numBasis(numElem_[0], numElem_[1], numElem_[2]);
+		mpi::Allreduce( numBasisLocal.Data(), numBasis.Data(),
+				numElem_.prod(), MPI_SUM, domain_.comm );
+		// Every processor compute all index sets
+		elemBasisIdx_.Resize(numElem_[0], numElem_[1], numElem_[2]);
+
+		Int cnt = 0;
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					std::vector<Int> idxVec;
+					for(Int g = 0; g < numBasis(i, j, k); g++){
+						idxVec.push_back( cnt++ );
+					}
+					elemBasisIdx_(i, j, k) = idxVec;
+				} // for (i)
+
+		sizeHMat_ = cnt;
+
+		// Compute the integration weights
+		// 1D
+		for( Int d = 0; d < DIM; d++ ){
+			DblNumVec  dummyX;
+			DblNumMat  dummyP, dummpD;
+			GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
+					numGrid[d] );
+			blas::Scal( numGrid[d], 0.5 * length[d], 
+					LGLWeight1D[d].Data(), 1 );
+		}
+
+		// 2D: faces labeled by normal vectors, i.e. 
+		// yz face : 0
+		// xz face : 1
+		// xy face : 2
+
+		// yz face
+		LGLWeight2D[0].Resize( numGrid[1], numGrid[2] );
+		for( Int k = 0; k < numGrid[2]; k++ )
+			for( Int j = 0; j < numGrid[1]; j++ ){
+				LGLWeight2D[0](j, k) = LGLWeight1D[1](j) * LGLWeight1D[2](k);
+			} // for (j)
+
+		// xz face
+		LGLWeight2D[1].Resize( numGrid[0], numGrid[2] );
+		for( Int k = 0; k < numGrid[2]; k++ )
+			for( Int i = 0; i < numGrid[0]; i++ ){
+				LGLWeight2D[1](i, k) = LGLWeight1D[0](i) * LGLWeight1D[2](k);
+			} // for (i)
+
+		// xy face
+		LGLWeight2D[2].Resize( numGrid[0], numGrid[1] );
+		for( Int j = 0; j < numGrid[1]; j++ )
+			for( Int i = 0; i < numGrid[0]; i++ ){
+				LGLWeight2D[2](i, j) = LGLWeight1D[0](i) * LGLWeight1D[1](j);
+			}
+
+
+		// 3D
+		LGLWeight3D.Resize( numGrid[0], numGrid[1],
+				numGrid[2] );
+		for( Int k = 0; k < numGrid[2]; k++ )
+			for( Int j = 0; j < numGrid[1]; j++ )
+				for( Int i = 0; i < numGrid[0]; i++ ){
+					LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
+						LGLWeight1D[2](k);
+				} // for (i)
+		
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for initial setup is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+	}
+	
+	
+	// *********************************************************************
+	// Update the local potential part
+	// *********************************************************************
+
+	{
+		GetTime(timeSta);
+
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner(key) == mpirank ){
+						DblNumMat&  basis = basisLGL_.LocalMap()[key];
+						Int numBasis = basis.n();
+
+						// Skip the calculation if there is no adaptive local
+						// basis function.  
+						if( numBasis == 0 )
+							continue;
+
+						ElemMatKey  matKey( key, key );
+						DblNumMat&  localMat = HMat_.LocalMap()[matKey];
+
+						// In all matrix assembly process, Only compute the upper
+						// triangular matrix use symmetry later
+
+						// Local potential part
+						{
+							DblNumVec&  vtot  = vtotLGLDiff.LocalMap()[key];
+							for( Int a = 0; a < numBasis; a++ )
+								for( Int b = a; b < numBasis; b++ ){
+									localMat(a,b) += FourDotProduct( 
+											basis.VecData(a), basis.VecData(b), 
+											vtot.Data(), LGLWeight3D.Data(), numGridTotal );
+								} // for (b)
+						}
+
+						// Symmetrize
+						for( Int a = 0; a < numBasis; a++ )
+							for( Int b = 0; b < a; b++ ){
+								localMat(a,b) = localMat(b,a);
+							}
+
+					} // if (own this element)
+				} // for (i)
+
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for updating the DG matrix is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+	} 
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method HamiltonianDG::UpdateDGMatrix  ----- 
+
+
 } // namespace dgdft

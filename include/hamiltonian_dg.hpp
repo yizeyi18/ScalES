@@ -288,6 +288,17 @@ public:
 	/// identity in the framework of adaptive local basis functions.
 	void CalculateDGMatrix( ); 
 
+	/// @brief Update the DG Hamiltonian matrix with the same set of
+	/// adaptive local basis functions, but different local potential. 
+	///
+	/// This subroutine is used in the inner SCF loop when only the local
+	/// pseudopotential is updated.
+	///
+	/// @param vtotLGLDiff Difference of vtot defined on each LGL grid.
+	/// The contribution of this difference is to be added to the
+	/// Hamiltonian matrix HMat_.
+	void UpdateDGMatrix( DistDblNumVec&  vtotLGLDiff );
+
 	/// @brief Calculate the Hellmann-Feynman force for each atom.
 	void CalculateForce ( DistFourier& fft );
 

@@ -88,6 +88,7 @@ SCFDG::Setup	(
 		dvOuterMat_.Prtn()    = elemPrtn_;
 		dfInnerMat_.Prtn()    = elemPrtn_;
 		dvInnerMat_.Prtn()    = elemPrtn_;
+		vtotLGLSave_.Prtn()   = elemPrtn_;
 
 		// FIXME fixed ratio between the size of the extended element and
 		// the element
@@ -110,6 +111,10 @@ SCFDG::Setup	(
 						dvOuterMat_.LocalMap()[key]   = emptyMat;
 						dfInnerMat_.LocalMap()[key]   = emptyMat;
 						dvInnerMat_.LocalMap()[key]   = emptyMat;
+
+						DblNumVec  emptyLGLVec( hamDG.NumLGLGridElem().prod() );
+						SetValue( emptyLGLVec, 0.0 );
+						vtotLGLSave_.LocalMap()[key] = emptyLGLVec;
 					} // own this element
 				}  // for (i)
 		
@@ -690,7 +695,38 @@ SCFDG::InnerIterate	(  )
 			
 		GetTime(timeSta);
 
+		// Save the old potential on the LGL grid
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						Index3 numLGLGrid     = hamDG.NumLGLGridElem();
+						blas::Copy( numLGLGrid.prod(),
+								hamDG.VtotLGL().LocalMap()[key].Data(), 1,
+								vtotLGLSave_.LocalMap()[key].Data(), 1 );
+					} // if (own this element)
+				} // for (i)
+
 		UpdateElemLocalPotential();
+
+		// Save the difference of the potential on the LGL grid into vtotLGLSave_
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						Index3 numLGLGrid     = hamDG.NumLGLGridElem();
+						Real *ptrNew = hamDG.VtotLGL().LocalMap()[key].Data();
+						Real *ptrDif = vtotLGLSave_.LocalMap()[key].Data();
+						for( Int p = 0; p < numLGLGrid.prod(); p++ ){
+							(*ptrDif) = (*ptrNew) - (*ptrDif);
+							ptrNew++;
+							ptrDif++;
+						} 
+					} // if (own this element)
+				} // for (i)
+
 
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
@@ -700,20 +736,29 @@ SCFDG::InnerIterate	(  )
 #endif
 
 		// *********************************************************************
-		// Assemble the DG matrix
-		//
-		// TODO: Distinguish the process or assembling the matrix or
-		// updating the matrix.
+		// Assemble the DG matrix or update the DG matrix
 		// *********************************************************************
 
-		GetTime(timeSta);
-		hamDG.CalculateDGMatrix( );
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
+		if( innerIter == 1 ){
+			GetTime(timeSta);
+			hamDG.CalculateDGMatrix( );
+			MPI_Barrier( domain_.comm );
+			GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for constructing the DG matrix is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+			statusOFS << "Time for constructing the DG matrix is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+		}
+		else{
+			GetTime(timeSta);
+			hamDG.UpdateDGMatrix( vtotLGLSave_ );
+			MPI_Barrier( domain_.comm );
+			GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+			statusOFS << "Time for updating the DG matrix is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+		}
 
 
 		// *********************************************************************
