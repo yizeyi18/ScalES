@@ -115,6 +115,7 @@ int main(int argc, char **argv)
 			Print(statusOFS, "SCF Inner MaxIter = ",  esdfParam.scfInnerMaxIter);
 			Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
 			Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
+			Print(statusOFS, "SVD Basis Tol     = ",  esdfParam.SVDBasisTolerance);
 
 			Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
 			Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);

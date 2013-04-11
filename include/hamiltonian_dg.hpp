@@ -684,6 +684,10 @@ void DistElemMatToScaMat(
 			const std::vector<Int>& idx1 = basisIdx( key1(0), key1(1), key1(2) );
 			const std::vector<Int>& idx2 = basisIdx( key2(0), key2(1), key2(2) );
 			const NumMat<F>& localMat = (*mi).second;
+			// Skip if there is no basis functions.
+			if( localMat.Size() == 0 )
+				continue;
+
 			if( localMat.m() != idx1.size() ||
 					localMat.n() != idx2.size() ){
 				std::ostringstream msg;
@@ -925,6 +929,10 @@ void ScaMatToDistNumMat(
 					const std::vector<Int>&  idx = basisIdx(i, j, k);
 					NumMat<F>& localMat = distMat.LocalMap()[key];
 					localMat.Resize( idx.size(), numColKeep );
+					// Skip if there is no basis functions.
+					if( localMat.Size() == 0 )
+						continue;
+
 					SetValue( localMat, (F)0 );
 					for( Int g = 0; g < idx.size(); g++ ){
 						Int ib = idx[g] / MB;

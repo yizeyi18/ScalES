@@ -1622,6 +1622,9 @@ HamiltonianDG::CalculateAPosterioriError	(
 						DblNumMat&  basis = basisLGL_.LocalMap()[key];
 						Int numBasis = basis.n();
 
+						// NOTE Still construct empty matrices when numBasis = 0
+
+
 						// x-direction
 						{
 							Int  numGridFace = numGrid[1] * numGrid[2];
@@ -1868,75 +1871,81 @@ HamiltonianDG::CalculateAPosterioriError	(
 							DblNumVec& occrate     = occupationRate_;
 
 							Real pF = std::max( numBasisL, numBasisR );
-							// factor in the estimator for jump of the derivative and
-							// the jump of the values
-							// NOTE:
-							// Originally in [Giani 2012] the penalty term in the a
-							// posteriori error estimator should be
-							//
-							// facJ = gamma^2 * p_F^3 / h_F.  However, there the jump term
-							// should be
-							//
-							// gamma * p_F^2 / h_F = penaltyAlpha_
-							//
-							// used in this code.  So 
-							//
-							// facJ = penaltyAlpha_^2 * h_F / p_F
-							//
-							// and h_F is omittd.
-							
 
-							Real facGJ = 0.5 / pF;
-							Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
-							
-							if( localCoefL.n() != localCoefR.n() ){
-								throw std::runtime_error( 
-										"The number of eigenfunctions do not match." );
-							}
+							// Skip the computation if there is no basis function on
+							// either side.  
+							if( pF > 0 ){
+								// factor in the estimator for jump of the derivative and
+								// the jump of the values
+								// NOTE:
+								// Originally in [Giani 2012] the penalty term in the a
+								// posteriori error estimator should be
+								//
+								// facJ = gamma^2 * p_F^3 / h_F.  However, there the jump term
+								// should be
+								//
+								// gamma * p_F^2 / h_F = penaltyAlpha_
+								//
+								// used in this code.  So 
+								//
+								// facJ = penaltyAlpha_^2 * h_F / p_F
+								//
+								// and h_F is omittd.
 
-							Int numEig = localCoefL.n();
 
-							DblNumVec  jump( numGridFace );
-							DblNumVec  gradJump( numGridFace );
+								Real facGJ = 0.5 / pF;
+								Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
 
-							for( Int g = 0; g < numEig; g++ ){
-								SetValue( jump, 0.0 );
-								SetValue( gradJump, 0.0 );
-
-								// Left side: gradjump and jump
-								if( numBasisL > 0 ){
-									blas::Gemv( 'N', numGridFace, numBasisL, 1.0,
-											drvL.Data(), numGridFace, localCoefL.VecData(g), 1,
-											1.0, gradJump.Data(), 1 );
-									blas::Gemv( 'N', numGridFace, numBasisL, 1.0, 
-											valL.Data(), numGridFace, localCoefL.VecData(g), 1,
-											1.0, jump.Data(), 1 );
+								if( localCoefL.n() != localCoefR.n() ){
+									throw std::runtime_error( 
+											"The number of eigenfunctions do not match." );
 								}
 
-								// Right side: gradjump and jump
-								if( numBasisR > 0 ){
-									blas::Gemv( 'N', numGridFace, numBasisR, 1.0,
-											drvR.Data(), numGridFace, localCoefR.VecData(g), 1,
-											1.0, gradJump.Data(), 1 );
-									blas::Gemv( 'N', numGridFace, numBasisR, 1.0, 
-											valR.Data(), numGridFace, localCoefR.VecData(g), 1,
-											1.0, jump.Data(), 1 );
-								}
+								Int numEig = localCoefL.n();
 
-								Real* ptrGJ = gradJump.Data();
-								Real* ptrJ  = jump.Data();
-								Real* ptrW  = LGLWeight2D[0].Data();
-								Real  tmpGJ = 0.0;
-								Real  tmpJ  = 0.0;
-								for( Int p = 0; p < numGridFace; p++ ){
-									tmpGJ += (*ptrGJ) * (*ptrGJ) * (*ptrW);
-									tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
-									ptrGJ++; ptrJ++; ptrW++;
-								}
-								eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
-								eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * numSpin * facJ;
-							} // for (eigenfunction)
+								DblNumVec  jump( numGridFace );
+								DblNumVec  gradJump( numGridFace );
+
+								for( Int g = 0; g < numEig; g++ ){
+									SetValue( jump, 0.0 );
+									SetValue( gradJump, 0.0 );
+
+									// Left side: gradjump and jump
+									if( numBasisL > 0 ){
+										blas::Gemv( 'N', numGridFace, numBasisL, 1.0,
+												drvL.Data(), numGridFace, localCoefL.VecData(g), 1,
+												1.0, gradJump.Data(), 1 );
+										blas::Gemv( 'N', numGridFace, numBasisL, 1.0, 
+												valL.Data(), numGridFace, localCoefL.VecData(g), 1,
+												1.0, jump.Data(), 1 );
+									}
+
+									// Right side: gradjump and jump
+									if( numBasisR > 0 ){
+										blas::Gemv( 'N', numGridFace, numBasisR, 1.0,
+												drvR.Data(), numGridFace, localCoefR.VecData(g), 1,
+												1.0, gradJump.Data(), 1 );
+										blas::Gemv( 'N', numGridFace, numBasisR, 1.0, 
+												valR.Data(), numGridFace, localCoefR.VecData(g), 1,
+												1.0, jump.Data(), 1 );
+									}
+
+									Real* ptrGJ = gradJump.Data();
+									Real* ptrJ  = jump.Data();
+									Real* ptrW  = LGLWeight2D[0].Data();
+									Real  tmpGJ = 0.0;
+									Real  tmpJ  = 0.0;
+									for( Int p = 0; p < numGridFace; p++ ){
+										tmpGJ += (*ptrGJ) * (*ptrGJ) * (*ptrW);
+										tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
+										ptrGJ++; ptrJ++; ptrW++;
+									}
+									eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
+									eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * numSpin * facJ;
+								} // for (eigenfunction)
+							} // if (pF>0)
 						} // x-direction
+
 
 						// y-direction
 						{
@@ -1966,77 +1975,84 @@ HamiltonianDG::CalculateAPosterioriError	(
 							DblNumVec& occrate     = occupationRate_;
 
 							Real pF = std::max( numBasisL, numBasisR );
-							// factor in the estimator for jump of the derivative and
-							// the jump of the values
-							// NOTE:
-							// Originally in [Giani 2012] the penalty term in the a
-							// posteriori error estimator should be
-							//
-							// facJ = gamma^2 * p_F^3 / h_F.  However, there the jump term
-							// should be
-							//
-							// gamma * p_F^2 / h_F = penaltyAlpha_
-							//
-							// used in this code.  So 
-							//
-							// facJ = penaltyAlpha_^2 * h_F / p_F
-							//
-							// and h_F is omittd.
-							
+
+							// Skip the computation if there is no basis function on
+							// either side.  
+							if( pF > 0 ){
+
+								// factor in the estimator for jump of the derivative and
+								// the jump of the values
+								// NOTE:
+								// Originally in [Giani 2012] the penalty term in the a
+								// posteriori error estimator should be
+								//
+								// facJ = gamma^2 * p_F^3 / h_F.  However, there the jump term
+								// should be
+								//
+								// gamma * p_F^2 / h_F = penaltyAlpha_
+								//
+								// used in this code.  So 
+								//
+								// facJ = penaltyAlpha_^2 * h_F / p_F
+								//
+								// and h_F is omittd.
 
 
-							Real facGJ = 0.5 / pF;
-							Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
 
-							if( localCoefL.n() != localCoefR.n() ){
-								throw std::runtime_error( 
-										"The number of eigenfunctions do not match." );
-							}
+								Real facGJ = 0.5 / pF;
+								Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
 
-							Int numEig = localCoefL.n();
-
-							DblNumVec  jump( numGridFace );
-							DblNumVec  gradJump( numGridFace );
-
-							for( Int g = 0; g < numEig; g++ ){
-								SetValue( jump, 0.0 );
-								SetValue( gradJump, 0.0 );
-
-								// Left side: gradjump and jump
-								if( numBasisL > 0 ){
-									blas::Gemv( 'N', numGridFace, numBasisL, 1.0,
-											drvL.Data(), numGridFace, localCoefL.VecData(g), 1,
-											1.0, gradJump.Data(), 1 );
-									blas::Gemv( 'N', numGridFace, numBasisL, 1.0, 
-											valL.Data(), numGridFace, localCoefL.VecData(g), 1,
-											1.0, jump.Data(), 1 );
+								if( localCoefL.n() != localCoefR.n() ){
+									throw std::runtime_error( 
+											"The number of eigenfunctions do not match." );
 								}
 
-								// Right side: gradjump and jump
-								if( numBasisR > 0 ){
-									blas::Gemv( 'N', numGridFace, numBasisR, 1.0,
-											drvR.Data(), numGridFace, localCoefR.VecData(g), 1,
-											1.0, gradJump.Data(), 1 );
-									blas::Gemv( 'N', numGridFace, numBasisR, 1.0, 
-											valR.Data(), numGridFace, localCoefR.VecData(g), 1,
-											1.0, jump.Data(), 1 );
-								}
+								Int numEig = localCoefL.n();
 
-								Real* ptrGJ = gradJump.Data();
-								Real* ptrJ  = jump.Data();
-								Real* ptrW  = LGLWeight2D[1].Data();
-								Real  tmpGJ = 0.0;
-								Real  tmpJ  = 0.0;
-								for( Int p = 0; p < numGridFace; p++ ){
-									tmpGJ += (*ptrGJ) * (*ptrGJ) * (*ptrW);
-									tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
-									ptrGJ++; ptrJ++; ptrW++;
-								}
-								eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
-								eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * numSpin * facJ;
-							} // for (eigenfunction)
+								DblNumVec  jump( numGridFace );
+								DblNumVec  gradJump( numGridFace );
+
+								for( Int g = 0; g < numEig; g++ ){
+									SetValue( jump, 0.0 );
+									SetValue( gradJump, 0.0 );
+
+									// Left side: gradjump and jump
+									if( numBasisL > 0 ){
+										blas::Gemv( 'N', numGridFace, numBasisL, 1.0,
+												drvL.Data(), numGridFace, localCoefL.VecData(g), 1,
+												1.0, gradJump.Data(), 1 );
+										blas::Gemv( 'N', numGridFace, numBasisL, 1.0, 
+												valL.Data(), numGridFace, localCoefL.VecData(g), 1,
+												1.0, jump.Data(), 1 );
+									}
+
+									// Right side: gradjump and jump
+									if( numBasisR > 0 ){
+										blas::Gemv( 'N', numGridFace, numBasisR, 1.0,
+												drvR.Data(), numGridFace, localCoefR.VecData(g), 1,
+												1.0, gradJump.Data(), 1 );
+										blas::Gemv( 'N', numGridFace, numBasisR, 1.0, 
+												valR.Data(), numGridFace, localCoefR.VecData(g), 1,
+												1.0, jump.Data(), 1 );
+									}
+
+									Real* ptrGJ = gradJump.Data();
+									Real* ptrJ  = jump.Data();
+									Real* ptrW  = LGLWeight2D[1].Data();
+									Real  tmpGJ = 0.0;
+									Real  tmpJ  = 0.0;
+									for( Int p = 0; p < numGridFace; p++ ){
+										tmpGJ += (*ptrGJ) * (*ptrGJ) * (*ptrW);
+										tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
+										ptrGJ++; ptrJ++; ptrW++;
+									}
+									eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
+									eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * numSpin * facJ;
+								} // for (eigenfunction)
+							} // if (pF>0)
 						} // y-direction
-					
+				
+
 						// z-direction
 						{
 							// keyL is the previous element received from GetBegin/GetEnd.
@@ -2064,79 +2080,86 @@ HamiltonianDG::CalculateAPosterioriError	(
 							DblNumVec& eig         = eigVal_;
 							DblNumVec& occrate     = occupationRate_;
 
+
 							Real pF = std::max( numBasisL, numBasisR );
-							// factor in the estimator for jump of the derivative and
-							// the jump of the values
-							// NOTE:
-							// Originally in [Giani 2012] the penalty term in the a
-							// posteriori error estimator should be
-							//
-							// facJ = gamma^2 * p_F^3 / h_F.  However, there the jump term
-							// should be
-							//
-							// gamma * p_F^2 / h_F = penaltyAlpha_
-							//
-							// used in this code.  So 
-							//
-							// facJ = penaltyAlpha_^2 * h_F / p_F
-							//
-							// and h_F is omittd.
-							
+
+							// Skip the computation if there is no basis function on
+							// either side.  
+							if( pF > 0 ){
+
+								// factor in the estimator for jump of the derivative and
+								// the jump of the values
+								// NOTE:
+								// Originally in [Giani 2012] the penalty term in the a
+								// posteriori error estimator should be
+								//
+								// facJ = gamma^2 * p_F^3 / h_F.  However, there the jump term
+								// should be
+								//
+								// gamma * p_F^2 / h_F = penaltyAlpha_
+								//
+								// used in this code.  So 
+								//
+								// facJ = penaltyAlpha_^2 * h_F / p_F
+								//
+								// and h_F is omittd.
 
 
-							Real facGJ = 0.5 / pF;
-							Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
 
-							if( localCoefL.n() != localCoefR.n() ){
-								throw std::runtime_error( 
-										"The number of eigenfunctions do not match." );
-							}
+								Real facGJ = 0.5 / pF;
+								Real facJ  = 0.5 * pow(penaltyAlpha_, 2.0) / pF;
 
-							Int numEig = localCoefL.n();
-
-							DblNumVec  jump( numGridFace );
-							DblNumVec  gradJump( numGridFace );
-
-							for( Int g = 0; g < numEig; g++ ){
-								SetValue( jump, 0.0 );
-								SetValue( gradJump, 0.0 );
-
-								// Left side: gradjump and jump
-								if( numBasisL > 0 ){
-									blas::Gemv( 'N', numGridFace, numBasisL, 1.0,
-											drvL.Data(), numGridFace, localCoefL.VecData(g), 1,
-											1.0, gradJump.Data(), 1 );
-									blas::Gemv( 'N', numGridFace, numBasisL, 1.0, 
-											valL.Data(), numGridFace, localCoefL.VecData(g), 1,
-											1.0, jump.Data(), 1 );
+								if( localCoefL.n() != localCoefR.n() ){
+									throw std::runtime_error( 
+											"The number of eigenfunctions do not match." );
 								}
 
-								// Right side: gradjump and jump
-								if( numBasisR > 0 ){
-									blas::Gemv( 'N', numGridFace, numBasisR, 1.0,
-											drvR.Data(), numGridFace, localCoefR.VecData(g), 1,
-											1.0, gradJump.Data(), 1 );
-									blas::Gemv( 'N', numGridFace, numBasisR, 1.0, 
-											valR.Data(), numGridFace, localCoefR.VecData(g), 1,
-											1.0, jump.Data(), 1 );
-								}
+								Int numEig = localCoefL.n();
 
-								Real* ptrGJ = gradJump.Data();
-								Real* ptrJ  = jump.Data();
-								Real* ptrW  = LGLWeight2D[2].Data();
-								Real  tmpGJ = 0.0;
-								Real  tmpJ  = 0.0;
-								for( Int p = 0; p < numGridFace; p++ ){
-									tmpGJ += (*ptrGJ) * (*ptrGJ) * (*ptrW);
-									tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
-									ptrGJ++; ptrJ++; ptrW++;
-								}
-								eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
-								eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * numSpin * facJ;
-							} // for (eigenfunction)
+								DblNumVec  jump( numGridFace );
+								DblNumVec  gradJump( numGridFace );
 
+								for( Int g = 0; g < numEig; g++ ){
+									SetValue( jump, 0.0 );
+									SetValue( gradJump, 0.0 );
+
+									// Left side: gradjump and jump
+									if( numBasisL > 0 ){
+										blas::Gemv( 'N', numGridFace, numBasisL, 1.0,
+												drvL.Data(), numGridFace, localCoefL.VecData(g), 1,
+												1.0, gradJump.Data(), 1 );
+										blas::Gemv( 'N', numGridFace, numBasisL, 1.0, 
+												valL.Data(), numGridFace, localCoefL.VecData(g), 1,
+												1.0, jump.Data(), 1 );
+									}
+
+									// Right side: gradjump and jump
+									if( numBasisR > 0 ){
+										blas::Gemv( 'N', numGridFace, numBasisR, 1.0,
+												drvR.Data(), numGridFace, localCoefR.VecData(g), 1,
+												1.0, gradJump.Data(), 1 );
+										blas::Gemv( 'N', numGridFace, numBasisR, 1.0, 
+												valR.Data(), numGridFace, localCoefR.VecData(g), 1,
+												1.0, jump.Data(), 1 );
+									}
+
+									Real* ptrGJ = gradJump.Data();
+									Real* ptrJ  = jump.Data();
+									Real* ptrW  = LGLWeight2D[2].Data();
+									Real  tmpGJ = 0.0;
+									Real  tmpJ  = 0.0;
+									for( Int p = 0; p < numGridFace; p++ ){
+										tmpGJ += (*ptrGJ) * (*ptrGJ) * (*ptrW);
+										tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
+										ptrGJ++; ptrJ++; ptrW++;
+									}
+									eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
+									eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * numSpin * facJ;
+								} // for (eigenfunction)
+							} // if (pF>0)
 						} // z-direction
-					
+
+
 					} // if (own this element)
 				} // for (i)
 
