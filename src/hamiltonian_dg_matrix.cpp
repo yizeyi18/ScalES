@@ -1293,7 +1293,6 @@ HamiltonianDG::UpdateDGMatrix	(
 	// *********************************************************************
 
 	{
-		GetTime(timeSta);
 		// Compute the global index set
 		IntNumTns  numBasisLocal(numElem_[0], numElem_[1], numElem_[2]);
 		SetValue( numBasisLocal, 0 );
@@ -1371,12 +1370,6 @@ HamiltonianDG::UpdateDGMatrix	(
 					LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
 						LGLWeight1D[2](k);
 				} // for (i)
-		
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for initial setup is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
 	}
 	
 	
@@ -1385,8 +1378,6 @@ HamiltonianDG::UpdateDGMatrix	(
 	// *********************************************************************
 
 	{
-		GetTime(timeSta);
-
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
@@ -1425,12 +1416,6 @@ HamiltonianDG::UpdateDGMatrix	(
 
 					} // if (own this element)
 				} // for (i)
-
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for updating the DG matrix is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
 	} 
 
 

@@ -627,11 +627,110 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 				} // own this element
 			} // for (i)
 
-	// Loop over all the eigenfunctions
-	for( Int g = 0; g < numEig; g++ ){
-		// Normalization constants
-		Real normPsiLocal  = 0.0;
-		Real normPsi       = 0.0;
+	// Method 1: Normalize each eigenfunctions.  This may take many
+	// interpolation steps, and the communication cost may be large
+	if(0)
+	{
+		// Loop over all the eigenfunctions
+		for( Int g = 0; g < numEig; g++ ){
+			// Normalization constants
+			Real normPsiLocal  = 0.0;
+			Real normPsi       = 0.0;
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							DblNumMat& localBasis = basisLGL_.LocalMap()[key];
+							Int numGrid  = localBasis.m();
+							Int numBasis = localBasis.n();
+
+							DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
+							if( localCoef.n() != numEig ){
+								throw std::runtime_error( 
+										"Numbers of eigenfunction coefficients do not match.");
+							}
+							if( localCoef.m() != numBasis ){
+								throw std::runtime_error(
+										"Number of LGL grids do not match.");
+							}
+							DblNumVec  localPsiLGL( numGrid );
+							DblNumVec  localPsiUniform( numUniformGridElem_.prod() );
+							SetValue( localPsiLGL, 0.0 );
+
+							// Compute local wavefunction on the LGL grid
+							blas::Gemv( 'N', numGrid, numBasis, 1.0, 
+									localBasis.Data(), numGrid, 
+									localCoef.VecData(g), 1, 0.0,
+									localPsiLGL.Data(), 1 );
+
+							// Interpolate local wavefunction from LGL grid to uniform grid
+							InterpLGLToUniform( 
+									numLGLGridElem_, 
+									numUniformGridElem_, 
+									localPsiLGL.Data(), 
+									localPsiUniform.Data() );
+
+							// Compute the local norm
+							normPsiLocal += Energy( localPsiUniform );
+
+							psiUniform.LocalMap()[key] = localPsiUniform;
+
+						} // own this element
+					} // for (i)
+
+			// All processors get the normalization factor
+			mpi::Allreduce( &normPsiLocal, &normPsi, 1, MPI_SUM, domain_.comm );
+
+			// pre-constant in front of psi^2 for density
+			Real rhofac = (numSpin_ * domain_.NumGridTotal() / domain_.Volume() ) 
+				* occrate[g] / normPsi;
+
+			// Add the normalized wavefunction to density
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							DblNumVec& localRho = density_.LocalMap()[key];
+							DblNumVec& localPsi = psiUniform.LocalMap()[key];
+							for( Int p = 0; p < localRho.Size(); p++ ){
+								localRho[p] += localPsi[p] * localPsi[p] * rhofac;
+							}	
+						} // own this element
+					} // for (i)
+		} // for (g)
+		// Check the sum of the electron density
+#if ( _DEBUGlevel_ >= 0 )
+		Real sumRhoLocal = 0.0;
+		Real sumRho      = 0.0;
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumVec& localRho = density_.LocalMap()[key];
+						for( Int p = 0; p < localRho.Size(); p++ ){
+							sumRhoLocal += localRho[p];
+						}	
+					} // own this element
+				} // for (i)
+		mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.comm );
+
+		sumRho *= domain_.Volume() / domain_.NumGridTotal();
+
+		Print( statusOFS, "Sum rho = ", sumRho );
+#endif
+	}
+
+
+	// Method 2: Compute the electron density locally, and then normalize
+	// only in the global domain. The result should be almost the same as
+	// that in Method 1, but should be much faster.
+	if(1)
+	{
+		Real sumRhoLocal = 0.0, sumRho = 0.0;
+		// Compute the local density in each element
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
@@ -640,6 +739,10 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 						DblNumMat& localBasis = basisLGL_.LocalMap()[key];
 						Int numGrid  = localBasis.m();
 						Int numBasis = localBasis.n();
+
+						// Skip the element if there is no basis functions.
+						if( numBasis == 0 )
+							continue;
 
 						DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
 						if( localCoef.n() != numEig ){
@@ -650,74 +753,66 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 							throw std::runtime_error(
 									"Number of LGL grids do not match.");
 						}
+						
+						DblNumVec& localRho = density_.LocalMap()[key];
+
+						DblNumVec  localRhoLGL( numGrid );
 						DblNumVec  localPsiLGL( numGrid );
-						DblNumVec  localPsiUniform( numUniformGridElem_.prod() );
+						SetValue( localRhoLGL, 0.0 );
 						SetValue( localPsiLGL, 0.0 );
 
-						// Compute local wavefunction on the LGL grid
-						blas::Gemv( 'N', numGrid, numBasis, 1.0, 
-								localBasis.Data(), numGrid, 
-								localCoef.VecData(g), 1, 0.0,
-								localPsiLGL.Data(), 1 );
+						// Loop over all the eigenfunctions
+						for( Int g = 0; g < numEig; g++ ){
+							// Compute local wavefunction on the LGL grid
+							blas::Gemv( 'N', numGrid, numBasis, 1.0, 
+									localBasis.Data(), numGrid, 
+									localCoef.VecData(g), 1, 0.0,
+									localPsiLGL.Data(), 1 );
+							// Update the local density
+							Real* ptrRho = localRhoLGL.Data();
+							Real* ptrPsi = localPsiLGL.Data();
+							Real  occ    = occrate[g];
+							for( Int p = 0; p < numGrid; p++ ){
+								*ptrRho  += (*ptrPsi) * (*ptrPsi) * occ;
+								ptrRho++; ptrPsi++;
+							}
+						}
 
-						// Interpolate local wavefunction from LGL grid to uniform grid
-            InterpLGLToUniform( 
+						// Interpolate the local density from LGL grid to uniform
+						// grid
+						InterpLGLToUniform( 
 								numLGLGridElem_, 
 								numUniformGridElem_, 
-								localPsiLGL.Data(), 
-								localPsiUniform.Data() );
+								localRhoLGL.Data(), 
+								localRho.Data() );
 
-						// Compute the local norm
-						normPsiLocal += Energy( localPsiUniform );
-
-						psiUniform.LocalMap()[key] = localPsiUniform;
+						Real* ptrRho = localRho.Data();
+						for( Int p = 0; p < localRho.Size(); p++ ){
+							sumRhoLocal += (*ptrRho);
+							ptrRho++;
+						}
 
 					} // own this element
 				} // for (i)
 
 		// All processors get the normalization factor
-		mpi::Allreduce( &normPsiLocal, &normPsi, 1, MPI_SUM, domain_.comm );
+		mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.comm );
 
-		// pre-constant in front of psi^2 for density
-		Real rhofac = (numSpin_ * domain_.NumGridTotal() / domain_.Volume() ) 
-			* occrate[g] / normPsi;
+		Real rhofac = numSpin_ * numOccupiedState_ 
+			* (domain_.NumGridTotal() / domain_.Volume()) / sumRho;
 
-		// Add the normalized wavefunction to density
+		// Normalize the electron density in the global domain
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
 						DblNumVec& localRho = density_.LocalMap()[key];
-						DblNumVec& localPsi = psiUniform.LocalMap()[key];
-						for( Int p = 0; p < localRho.Size(); p++ ){
-							localRho[p] += localPsi[p] * localPsi[p] * rhofac;
-						}	
+						blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
 					} // own this element
 				} // for (i)
-	} // for (g)
+	}
 
-	// Check the sum of the electron density
-#if ( _DEBUGlevel_ >= 0 )
-	Real sumRhoLocal = 0.0;
-	Real sumRho      = 0.0;
-	for( Int k = 0; k < numElem_[2]; k++ )
-		for( Int j = 0; j < numElem_[1]; j++ )
-			for( Int i = 0; i < numElem_[0]; i++ ){
-				Index3 key( i, j, k );
-				if( elemPrtn_.Owner( key ) == mpirank ){
-					DblNumVec& localRho = density_.LocalMap()[key];
-					for( Int p = 0; p < localRho.Size(); p++ ){
-						sumRhoLocal += localRho[p];
-					}	
-				} // own this element
-			} // for (i)
-	mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.comm );
-  
-	sumRho *= domain_.Volume() / domain_.NumGridTotal();
-
-	Print( statusOFS, "Sum rho = ", sumRho );
-#endif
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -1483,7 +1578,11 @@ HamiltonianDG::CalculateAPosterioriError	(
 	}
 
 	// *********************************************************************
-	// Compute the residual term (local pseudopotential only)
+	// Compute the residual term.
+	// This includes the contribution only from the local pseudopotential.
+	// Since <l|phi> has been computed in vnlCoef_, the contribution from
+	// the nonlocal pseudopotential will be added to the estimator
+	// directly in the next step.
 	// *********************************************************************
 	{
 		GetTime(timeSta);
@@ -1535,6 +1634,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 								}
 							}
 						}
+
 					} // if (own this element)
 				} // for (i)
 		GetTime( timeEnd );
@@ -1557,13 +1657,9 @@ HamiltonianDG::CalculateAPosterioriError	(
 						Int numLGL   = basis.m();
 						Int numBasis = basis.n();
 
-						// Skip the calculation if there is no basis functions in
-						// the element.
-						// FIXME This might be problematic if nonlocal
-						// pseudopotential is added.
-
-						if( numBasis == 0 )
-							continue;
+						// Do not directly skip the calculatoin even if numBasis ==
+						// 0, due to the contribution from the nonlocal
+						// pseudopotential. 
 
 						DblNumMat& Hbasis     = HbasisLGL.LocalMap()[key];
 						DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
@@ -1574,20 +1670,107 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 						// Prefactor for the residual term.
 						Real hK = length.l2(); // diameter of the domain
-						Real pK = numBasis;
+						Real pK = std::max( 1, numBasis );
 						Real facR = ( hK * hK ) / ( pK * pK );
 
 						DblNumVec  residual( numLGL );
 						for( Int g = 0; g < numEig; g++ ){
 							SetValue( residual, 0.0 );
-							// r = Hbasis * V(g) 
-							blas::Gemv( 'N', numLGL, numBasis, 1.0, Hbasis.Data(),
-									numLGL, localCoef.VecData(g), 1, 1.0, 
-									residual.Data(), 1 );
-							// r = r - e(g) * basis * V(g)
-							blas::Gemv( 'N', numLGL, numBasis, -eig(g), basis.Data(),
-									numLGL, localCoef.VecData(g), 1, 1.0,
-									residual.Data(), 1 );
+							// Contribution from local part
+							if( numBasis > 0 ){
+								// r = Hbasis * V(g) 
+								blas::Gemv( 'N', numLGL, numBasis, 1.0, Hbasis.Data(),
+										numLGL, localCoef.VecData(g), 1, 1.0, 
+										residual.Data(), 1 );
+								// r = r - e(g) * basis * V(g)
+								blas::Gemv( 'N', numLGL, numBasis, -eig(g), basis.Data(),
+										numLGL, localCoef.VecData(g), 1, 1.0,
+										residual.Data(), 1 );
+							} // local part
+
+							// Contribution from the nonlocal pseudopotential
+//							{
+//								for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
+//									if( atomPrtn_.Owner(atomIdx) == mpirank ){
+//										DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
+//										Int numVnl = vnlWeight.Size();
+//										DblNumMat resVal ( numEig, numVnl );
+//										SetValue( resVal,  0.0 );
+//
+//										if( vnlCoef_.LocalMap()
+//
+//										// Loop over the elements overlapping with the nonlocal
+//										// pseudopotential
+//										for( std::map<Index3, std::map<Int, DblNumMat> >::iterator 
+//												ei  = vnlCoef_.LocalMap().begin();
+//												ei != vnlCoef_.LocalMap().end(); ei++ ){
+//											Index3 key = (*ei).first;
+//											std::map<Int, DblNumMat>& coefMap = (*ei).second; 
+//
+//											if( eigvecCoef_.LocalMap().find( key ) == eigvecCoef_.LocalMap().end() ){
+//												throw std::runtime_error( "Eigenfunction coefficient matrix cannot be located." );
+//											}
+//
+//											DblNumMat&  localCoef = eigvecCoef_.LocalMap()[key];
+//
+//											Int numBasis = localCoef.m();
+//
+//											if( coefMap.find( atomIdx ) != coefMap.end() ){
+//
+//												DblNumMat&  coef      = coefMap[atomIdx];
+//												DblNumMat&  coefDrvX  = coefDrvXMap[atomIdx];
+//												DblNumMat&  coefDrvY  = coefDrvYMap[atomIdx];
+//												DblNumMat&  coefDrvZ  = coefDrvZMap[atomIdx];
+//
+//												// Skip the calculation if there is no adaptive local
+//												// basis function.  
+//												if( coef.m() == 0 ){
+//													continue;
+//												}
+//
+//												// Value
+//												blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
+//														1.0, localCoef.Data(), numBasis, 
+//														coef.Data(), numBasis,
+//														1.0, resVal.Data(), numEig );
+//
+//												// Derivative
+//												blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
+//														1.0, localCoef.Data(), numBasis, 
+//														coefDrvX.Data(), numBasis,
+//														1.0, resDrvX.Data(), numEig );
+//
+//												blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
+//														1.0, localCoef.Data(), numBasis, 
+//														coefDrvY.Data(), numBasis,
+//														1.0, resDrvY.Data(), numEig );
+//
+//												blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
+//														1.0, localCoef.Data(), numBasis, 
+//														coefDrvZ.Data(), numBasis,
+//														1.0, resDrvZ.Data(), numEig );
+//
+//											} // found the atom
+//										} // for (ei)
+//
+//										// Add the contribution to the local force
+//										// The minus sign comes from integration by parts
+//										// The 4.0 comes from spin (2.0) and that |l> appears twice (2.0)
+//										for( Int g = 0; g < numEig; g++ ){
+//											for( Int l = 0; l < numVnl; l++ ){
+//												forceLocal(atomIdx, 0) += -4.0 * occupationRate_[g] * vnlWeight[l] *
+//													resVal(g, l) * resDrvX(g, l);
+//												forceLocal(atomIdx, 1) += -4.0 * occupationRate_[g] * vnlWeight[l] *
+//													resVal(g, l) * resDrvY(g, l);
+//												forceLocal(atomIdx, 2) += -4.0 * occupationRate_[g] * vnlWeight[l] *
+//													resVal(g, l) * resDrvZ(g, l);
+//											}
+//										}
+//									} // own this atom
+//								} // for (atomIdx)
+//							} // nonlocal part
+							
+						
 
 							Real* ptrR = residual.Data();
 							Real* ptrW = LGLWeight3D.Data();
