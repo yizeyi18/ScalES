@@ -156,9 +156,9 @@ public:
 			Int             iter, 
 			Real            mixStepLength,
 			std::string     mixType,
-			DistDblNumVec&  vMix,
-			DistDblNumVec&  vOld,
-			DistDblNumVec&  vNew,
+			DistDblNumVec&  distvMix,
+			DistDblNumVec&  distvOld,
+			DistDblNumVec&  distvNew,
 			DistDblNumMat&  dfMat,
 			DistDblNumMat&  dvMat);
 	

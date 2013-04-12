@@ -1328,11 +1328,11 @@ SCFDG::AndersonMix	(
 		Int             iter, 
 		Real            mixStepLength,
 		std::string     mixType,
-		DistDblNumVec&  vMix,
-		DistDblNumVec&  vOld,
-		DistDblNumVec&  vNew,
+		DistDblNumVec&  distvMix,
+		DistDblNumVec&  distvOld,
+		DistDblNumVec&  distvNew,
 		DistDblNumMat&  dfMat,
-		DistDblNumMat&  dvMat)
+		DistDblNumMat&  dvMat )
 {
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::AndersonMix");
@@ -1341,56 +1341,83 @@ SCFDG::AndersonMix	(
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
 	
-	DistDblNumVec distvin, distvout, distvinsave, distvoutsave;
-	// Preconditioned residue in Anderson mixing
-	DistDblNumVec distPrecRes;
+	// Residual 
+	DistDblNumVec distRes;
+	// Optimal input potential in Anderon mixing.
+	DistDblNumVec distvOpt; 
+	// Optimal residual in Anderson mixing
+  DistDblNumVec distResOpt; 
+	// Preconditioned optimal residual in Anderson mixing
+	DistDblNumVec distPrecResOpt;
 
-	distvin.Prtn()     = elemPrtn_;
-	distvout.Prtn()    = elemPrtn_;
-	distvinsave.Prtn() = elemPrtn_;
-	distvoutsave.Prtn()= elemPrtn_;
-	distPrecRes.Prtn() = elemPrtn_;
-
-
+	
+	// *********************************************************************
+	// Initialize
+	// *********************************************************************
 	Int ntot  = hamDGPtr_->NumUniformGridElem().prod();
 	
-	Int iterused = std::min( iter-1, mixMaxDim_ ); // iter should start from 1
+	// Number of iterations used, iter should start from 1
+	Int iterused = std::min( iter-1, mixMaxDim_ ); 
+	// The current position of dfMat, dvMat
 	Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
+	// The next position of dfMat, dvMat
+	Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
 
+	distRes.Prtn()          = elemPrtn_;
+	distvOpt.Prtn()         = elemPrtn_;
+	distResOpt.Prtn()       = elemPrtn_;
+	distPrecResOpt.Prtn()   = elemPrtn_;
 
+	
 	for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
 			for( Int i = 0; i < numElem_[0]; i++ ){
 				Index3 key( i, j, k );
 				if( elemPrtn_.Owner( key ) == mpirank ){
-					DblNumVec& vin        = distvin.LocalMap()[key];
-					DblNumVec& vout       = distvout.LocalMap()[key];
-					DblNumVec& vinsave    = distvinsave.LocalMap()[key];
-					DblNumVec& voutsave   = distvoutsave.LocalMap()[key];
-					DblNumMat& df         = dfMat.LocalMap()[key];
-					DblNumMat& dv         = dvMat.LocalMap()[key];
+					DblNumVec  emptyVec( ntot );
+					SetValue( emptyVec, 0.0 );
+					distRes.LocalMap()[key]        = emptyVec;
+					distvOpt.LocalMap()[key]       = emptyVec;
+					distResOpt.LocalMap()[key]     = emptyVec;
+					distPrecResOpt.LocalMap()[key] = emptyVec;
+				} // if ( own this element )
+			} // for (i)
 
-					// vin(:)  = vtot(:)
-					// vout(:) = vtot(:) - vtotnew(:) is the residual
-					vin  = vOld.LocalMap()[key];
-					vout = vOld.LocalMap()[key];
-					blas::Axpy( ntot, -1.0, vNew.LocalMap()[key].Data(), 1, vout.Data(), 1 );
 
-					// save vin and vout
-					vinsave  = vin;
-					voutsave = vout;
+	// *********************************************************************
+	// Anderson mixing
+	// *********************************************************************
+	
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					// res(:) = vOld(:) - vNew(:) is the residual
+					distRes.LocalMap()[key] = distvOld.LocalMap()[key];
+					blas::Axpy( ntot, -1.0, distvNew.LocalMap()[key].Data(), 1, 
+							distRes.LocalMap()[key].Data(), 1 );
 
-				  // dfMat(:, ipos-1) -= vout(:);
-				  // dvMat(:, ipos-1) -= vin(:);
+					distvOpt.LocalMap()[key]   = distvOld.LocalMap()[key];
+					distResOpt.LocalMap()[key] = distRes.LocalMap()[key];
+
+
+				  // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
+				  // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
 					if( iter > 1 ){
-						blas::Axpy( ntot, -1.0, vout.Data(), 1, df.VecData(ipos-1), 1);
-						blas::Axpy( ntot, -1.0, vin.Data(),  1, dv.VecData(ipos-1), 1);
+						blas::Scal( ntot, -1.0, dfMat.LocalMap()[key].VecData(ipos-1), 1 );
+						blas::Axpy( ntot, 1.0,  distRes.LocalMap()[key].Data(), 1, 
+								dfMat.LocalMap()[key].VecData(ipos-1), 1 );
+						blas::Scal( ntot, -1.0, dvMat.LocalMap()[key].VecData(ipos-1), 1 );
+						blas::Axpy( ntot, 1.0,  distvOld.LocalMap()[key].Data(),  1, 
+								dvMat.LocalMap()[key].VecData(ipos-1), 1 );
 					}
 				} // own this element
 			} // for (i)
 
 
 
+	// For iter == 1, Anderson mixing is the same as simple mixing.
 	if( iter > 1 ){
 
 		Int nrow = iterused;
@@ -1412,10 +1439,10 @@ SCFDG::AndersonMix	(
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
 						DblNumMat& df     = dfMat.LocalMap()[key];
-						DblNumVec& vout   = distvout.LocalMap()[key];
+						DblNumVec& res    = distRes.LocalMap()[key];
 						for( Int q = 0; q < nrow; q++ ){
 							FTvLocal(q) += blas::Dot( ntot, df.VecData(q), 1,
-									vout.Data(), 1 );
+									res.Data(), 1 );
 
 							for( Int p = q; p < nrow; p++ ){
 								FTFLocal(p, q) += blas::Dot( ntot, df.VecData(p), 1, 
@@ -1429,51 +1456,51 @@ SCFDG::AndersonMix	(
 				} // for (i)
 		
 		// Reduce the data
-		mpi::Allreduce( FTFLocal.Data(), FTF.Data(), nrow * nrow, MPI_SUM, domain_.comm );
-		mpi::Allreduce( FTvLocal.Data(), FTv.Data(), nrow, MPI_SUM, domain_.comm );
+		mpi::Allreduce( FTFLocal.Data(), FTF.Data(), nrow * nrow, 
+				MPI_SUM, domain_.comm );
+		mpi::Allreduce( FTvLocal.Data(), FTv.Data(), nrow, 
+				MPI_SUM, domain_.comm );
 
 		// All processors solve the least square problem
 
-		// FIXME Magic number
+		// FIXME Magic number for pseudo-inverse
 		Real rcond = 1e-6;
 		Int rank;
 
 		DblNumVec  S( nrow );
 
-		// FTv = pinv( FTF ) * vout
+		// FTv = pinv( FTF ) * res
 		lapack::SVDLeastSquare( nrow, nrow, 1, 
 				FTF.Data(), nrow, FTv.Data(), nrow,
         S.Data(), rcond, &rank );
 
-		Print( statusOFS, "  Rank of dfmat = ", rank );
-			
+		statusOFS << "Rank of dfmat = " << rank <<
+			", rcond = " << rcond << std::endl;
 
-		// Update vin, vout
-		// vin  = vin  - dv * FTv
-		// vout = vout - df * FTv
+		// Update vOpt, resOpt. 
+		// FTv = Y^{\dagger} r as in the usual notation.
+		// 
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
-						DblNumVec& vin    = distvin.LocalMap()[key];
-						DblNumVec& vout   = distvout.LocalMap()[key];
-						DblNumMat& df     = dfMat.LocalMap()[key];
-						DblNumMat& dv     = dvMat.LocalMap()[key];
-						
-						blas::Gemv('N', ntot, nrow, -1.0, dv.Data(),
-								ntot, FTv.Data(), 1, 1.0, vin.Data(), 1 );
-						blas::Gemv('N', ntot, nrow, -1.0, df.Data(),
-								ntot, FTv.Data(), 1, 1.0, vout.Data(), 1 );
+						// vOpt   -= dv * FTv
+						blas::Gemv('N', ntot, nrow, -1.0, dvMat.LocalMap()[key].Data(),
+								ntot, FTv.Data(), 1, 1.0, 
+								distvOpt.LocalMap()[key].Data(), 1 );
+
+						// resOpt -= df * FTv
+						blas::Gemv('N', ntot, nrow, -1.0, dfMat.LocalMap()[key].Data(),
+								ntot, FTv.Data(), 1, 1.0, 
+								distResOpt.LocalMap()[key].Data(), 1 );
 					} // own this element
 				} // for (i)
 	} // (iter > 1)
 
-	Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
-
 	
 	if( mixType == "kerker+anderson" ){
-		KerkerPrecond( distPrecRes, distvout );
+		KerkerPrecond( distPrecResOpt, distResOpt );
 	}
 	else if( mixType == "anderson" ){
 		for( Int k = 0; k < numElem_[2]; k++ )
@@ -1481,8 +1508,8 @@ SCFDG::AndersonMix	(
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
-						distPrecRes.LocalMap()[key] = 
-							distvout.LocalMap()[key];
+						distPrecResOpt.LocalMap()[key] = 
+							distResOpt.LocalMap()[key];
 					} // own this element
 				} // for (i)
 	}
@@ -1503,29 +1530,24 @@ SCFDG::AndersonMix	(
 //				} // for (i)
 
 
-	// Update df, dv, vtot
+	// Update dfMat, dvMat, vMix 
 	for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
 			for( Int i = 0; i < numElem_[0]; i++ ){
 				Index3 key( i, j, k );
 				if( elemPrtn_.Owner( key ) == mpirank ){
-					// vMix is the output
-					DblNumVec& vtot       = vMix.LocalMap()[key];
-					DblNumVec& vin        = distvin.LocalMap()[key];
-					DblNumVec& precRes    = distPrecRes.LocalMap()[key];
-					DblNumVec& vinsave    = distvinsave.LocalMap()[key];
-					DblNumVec& voutsave   = distvoutsave.LocalMap()[key];
-					DblNumMat& df         = dfMat.LocalMap()[key];
-					DblNumMat& dv         = dvMat.LocalMap()[key];
+					// dfMat(:, inext-1) = res(:)
+					// dvMat(:, inext-1) = vOld(:)
+					blas::Copy( ntot, distRes.LocalMap()[key].Data(), 1, 
+							dfMat.LocalMap()[key].VecData(inext-1), 1 );
+					blas::Copy( ntot, distvOld.LocalMap()[key].Data(),  1, 
+							dvMat.LocalMap()[key].VecData(inext-1), 1 );
 
-					// dfMat(:, inext-1) = voutsave(:)
-					// dvMat(:, inext-1) = vinsave(:)
-					blas::Copy( ntot, voutsave.Data(), 1, df.VecData(inext-1), 1 );
-					blas::Copy( ntot, vinsave.Data(),  1, dv.VecData(inext-1), 1 );
-
-					// vtot(:) = vin(:) - alpha * PrecRes(:)
-					vtot = vin;
-					blas::Axpy( ntot, -mixStepLength, precRes.Data(), 1, vtot.Data(), 1);
+					// vMix(:) = vOpt(:) - mixStepLength * precRes(:)
+					distvMix.LocalMap()[key] = distvOpt.LocalMap()[key];
+					blas::Axpy( ntot, -mixStepLength, 
+							distPrecResOpt.LocalMap()[key].Data(), 1, 
+							distvMix.LocalMap()[key].Data(), 1 );
 				} // own this element
 			} // for (i)
 
