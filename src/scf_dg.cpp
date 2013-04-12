@@ -633,66 +633,21 @@ SCFDG::InnerIterate	(  )
 
 	for( Int innerIter = 1; innerIter <= scfInnerMaxIter_; innerIter++ ){
 		if ( isInnerSCFConverged ) break;
-
 		scfTotalInnerIter_++;
+
+    GetTime( timeIterStart );
 
 		statusOFS << std::endl << "Inner SCF iteration #"  
 			<< innerIter << " starts." << std::endl << std::endl;
 
 
-    GetTime( timeIterStart );
-
 		// *********************************************************************
-		// Update the potential in the element (and the extended element)
-		// *********************************************************************
-			
-		GetTime(timeSta);
-
-		// Save the old potential on the LGL grid
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					Index3 key( i, j, k );
-					if( elemPrtn_.Owner( key ) == mpirank ){
-						Index3 numLGLGrid     = hamDG.NumLGLGridElem();
-						blas::Copy( numLGLGrid.prod(),
-								hamDG.VtotLGL().LocalMap()[key].Data(), 1,
-								vtotLGLSave_.LocalMap()[key].Data(), 1 );
-					} // if (own this element)
-				} // for (i)
-
-		UpdateElemLocalPotential();
-
-		// Save the difference of the potential on the LGL grid into vtotLGLSave_
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					Index3 key( i, j, k );
-					if( elemPrtn_.Owner( key ) == mpirank ){
-						Index3 numLGLGrid     = hamDG.NumLGLGridElem();
-						Real *ptrNew = hamDG.VtotLGL().LocalMap()[key].Data();
-						Real *ptrDif = vtotLGLSave_.LocalMap()[key].Data();
-						for( Int p = 0; p < numLGLGrid.prod(); p++ ){
-							(*ptrDif) = (*ptrNew) - (*ptrDif);
-							ptrNew++;
-							ptrDif++;
-						} 
-					} // if (own this element)
-				} // for (i)
-
-
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for updating the local potential in the extended element and the element is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-		// *********************************************************************
-		// Assemble the DG matrix or update the DG matrix
+		// Update potential and construct/update the DG matrix
 		// *********************************************************************
 
 		if( innerIter == 1 ){
+			// The first inner iteration does not update the potential, and
+			// construct the global Hamiltonian matrix from scratch
 			GetTime(timeSta);
 			hamDG.CalculateDGMatrix( );
 			MPI_Barrier( domain_.comm );
@@ -703,6 +658,55 @@ SCFDG::InnerIterate	(  )
 #endif
 		}
 		else{
+			// The consequent inner iterations update the potential in the
+			// element, and only update the global Hamiltonian matrix
+			
+			// Update the potential in the element (and the extended element)
+
+			GetTime(timeSta);
+
+			// Save the old potential on the LGL grid
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							Index3 numLGLGrid     = hamDG.NumLGLGridElem();
+							blas::Copy( numLGLGrid.prod(),
+									hamDG.VtotLGL().LocalMap()[key].Data(), 1,
+									vtotLGLSave_.LocalMap()[key].Data(), 1 );
+						} // if (own this element)
+					} // for (i)
+
+			UpdateElemLocalPotential();
+
+			// Save the difference of the potential on the LGL grid into vtotLGLSave_
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							Index3 numLGLGrid     = hamDG.NumLGLGridElem();
+							Real *ptrNew = hamDG.VtotLGL().LocalMap()[key].Data();
+							Real *ptrDif = vtotLGLSave_.LocalMap()[key].Data();
+							for( Int p = 0; p < numLGLGrid.prod(); p++ ){
+								(*ptrDif) = (*ptrNew) - (*ptrDif);
+								ptrNew++;
+								ptrDif++;
+							} 
+						} // if (own this element)
+					} // for (i)
+
+
+			MPI_Barrier( domain_.comm );
+			GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+			statusOFS << "Time for updating the local potential in the extended element and the element is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+			// Update the DG Matrix
 			GetTime(timeSta);
 			hamDG.UpdateDGMatrix( vtotLGLSave_ );
 			MPI_Barrier( domain_.comm );
@@ -711,7 +715,8 @@ SCFDG::InnerIterate	(  )
 			statusOFS << "Time for updating the DG matrix is " <<
 				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-		}
+
+		} // if ( innerIter == 1 )
 
 
 		// *********************************************************************
@@ -838,13 +843,30 @@ SCFDG::InnerIterate	(  )
 #endif
 
 
-		// Potential mixing for the inner SCF iteration. FIXME
+		// Potential mixing for the inner SCF iteration.
 		GetTime( timeSta );
+
+		// The number of iterations used for Anderson mixing
+		Int numAndersonIter;
+
+		if( scfInnerMaxIter_ == 1 ){
+			// Maximum inner iteration = 1 means there is no distinction of
+			// inner/outer SCF.  Anderson mixing uses the global history
+			numAndersonIter = scfTotalInnerIter_;
+		}
+		else{
+			// If more than one inner iterations is used, then Anderson only
+			// uses local history.  For explanation see 
+			//
+			// Note 04/11/2013:  
+			// "Problem of Anderson mixing in inner/outer SCF loop"
+			numAndersonIter = innerIter;
+		}
 
     if( mixType_ == "anderson" ||
 		    mixType_ == "kerker+anderson"	){
 			AndersonMix(
-					innerIter, 
+					numAndersonIter, 
 					mixStepLength_,
 					mixType_,
 					hamDG.Vtot(),
@@ -852,7 +874,9 @@ SCFDG::InnerIterate	(  )
 					vtotInnerNew_,
 					dfInnerMat_,
 					dvInnerMat_);
-    }
+    } else{
+			throw std::runtime_error("Invalid mixing type.");
+		}
 
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
@@ -1513,22 +1537,12 @@ SCFDG::AndersonMix	(
 					} // own this element
 				} // for (i)
 	}
+	else{
+		throw std::runtime_error("Invalid mixing type.");
+	}
 	
-//		for( Int k = 0; k < numElem_[2]; k++ )
-//			for( Int j = 0; j < numElem_[1]; j++ )
-//				for( Int i = 0; i < numElem_[0]; i++ ){
-//					Index3 key( i, j, k );
-//					if( elemPrtn_.Owner( key ) == mpirank ){
-//						DblNumVec& a = distPrecRes.LocalMap()[key];
-//						DblNumVec& b = distvout.LocalMap()[key];
-//
-//						for( Int p = 0; p < a.Size(); p++){
-//							statusOFS << a[p] - b[p]; 
-//						}
-//						statusOFS << std::endl;
-//					} // own this element
-//				} // for (i)
-
+	
+	
 
 	// Update dfMat, dvMat, vMix 
 	for( Int k = 0; k < numElem_[2]; k++ )
