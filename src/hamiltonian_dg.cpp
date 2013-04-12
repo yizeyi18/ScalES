@@ -1402,6 +1402,13 @@ HamiltonianDG::CalculateAPosterioriError	(
 	// The derivative of basisLGL along x,y,z directions
 	std::vector<DistDblNumMat>   Dbasis(DIM);
 
+	// The inner product of <l|psi> for each pair of nonlocal projector
+	// saved on the local processor and all eigenfunctions psi.
+	//
+	// The data attribute of this structure is 
+	//
+	// atom index (map to) Matrix value of the corresponding <l|psi>
+	DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn>  vnlPsi;
 
 	// Jump of the value of the basis, and average of the
 	// derivative of the basis function, each of size 6 describing
@@ -1448,6 +1455,8 @@ HamiltonianDG::CalculateAPosterioriError	(
 		for( Int i = 0; i < DIM; i++ ){
 			Dbasis[i].Prtn() = elemPrtn_;
 		}
+
+		vnlPsi.Prtn()        = elemPrtn_;
 
 		eta2Total.Resize( numElem_[0], numElem_[1], numElem_[2] );
 		eta2Residual.Resize( numElem_[0], numElem_[1], numElem_[2] );
@@ -1579,11 +1588,9 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 	// *********************************************************************
 	// Compute the residual term.
-	// This includes the contribution only from the local pseudopotential.
-	// Since <phi|l> has been computed in vnlCoef_, the contribution from
-	// the nonlocal pseudopotential will be added to the estimator
-	// directly in the next step.
 	// *********************************************************************
+
+	// Prepare the H*basis but without the nonlocal contribution
 	{
 		GetTime(timeSta);
 
@@ -1644,6 +1651,84 @@ HamiltonianDG::CalculateAPosterioriError	(
 #endif
 	}
 
+	// Prepare <l|psi> for each nonlocal projector l and eigenfunction
+	// psi.  This is done through the structure vnlPsi
+	{
+		GetTime(timeSta);
+		
+		Int numEig = occupationRate_.m();
+
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner(key) == mpirank ){
+						std::map<Int, PseudoPot>& pseudoMap =
+							pseudo_.LocalMap()[key];
+						std::map<Int, DblNumMat>  vnlPsiMap;
+
+						// Loop over atoms, regardless of whether this atom belongs
+						// to this element or not.
+						for(std::map<Int, PseudoPot>::iterator 
+								mi  = pseudoMap.begin();
+								mi != pseudoMap.end(); mi++ ){
+							Int atomIdx = (*mi).first;
+							std::vector<NonlocalPP>&  vnlList = (*mi).second.vnlList;
+							Int numVnl = vnlList.size();
+							DblNumMat   vnlPsiMat( numVnl, numEig );
+							SetValue( vnlPsiMat, 0.0 );
+
+							// Loop over all neighboring elements to compute the
+							// inner product. 
+							// vnlCoef saves the information of <l|phi> where phi are
+							// the basis functions.  
+							//
+							// <l|psi_i> = \sum_{jk} <l|phi_{jk}> C_{jk;i}
+							//
+							// where C_{jk;i} is saved in eigvecCoef
+							for(std::map<Index3, std::map<Int, DblNumMat> >::iterator 
+									ei  = vnlCoef_.LocalMap().begin();
+									ei != vnlCoef_.LocalMap().end(); ei++ ){
+								Index3 keyNB                      = (*ei).first;
+								std::map<Int, DblNumMat>& coefMap = (*ei).second; 
+								DblNumMat&  eigCoef               = eigvecCoef_.LocalMap()[keyNB];
+
+								if( coefMap.find( atomIdx ) != coefMap.end() ){
+
+									DblNumMat&  coef      = coefMap[atomIdx];
+
+									Int numBasis = coef.m();
+
+									// Skip the calculation if there is no adaptive local
+									// basis function.  
+									if( numBasis == 0 ){
+										continue;
+									}
+
+									// Inner product (NOTE The conjugate is done in a
+									// very crude way here, may need to be revised
+									// when complex arithmetic is considered)
+									blas::Gemm( 'T', 'N', numVnl, numEig, numBasis,
+											1.0, coef.Data(), numBasis, 
+											eigCoef.Data(), numBasis,
+											1.0, vnlPsiMat.Data(), numVnl );
+
+								} // found the atom
+							} // for (ei)
+							vnlPsiMap[atomIdx] = vnlPsiMat;
+						} // for (mi)
+
+						vnlPsi.LocalMap()[key] = vnlPsiMap;
+
+					} // if (own this element)
+				} // for (i)
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing <l|psi> is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+	}
+
 	{
 		GetTime(timeSta);
 
@@ -1662,8 +1747,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 						// pseudopotential. 
 
 
-						// Contribu
-						
 						DblNumMat& Hbasis     = HbasisLGL.LocalMap()[key];
 						DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
 						DblNumVec& eig        = eigVal_;
@@ -1692,194 +1775,34 @@ HamiltonianDG::CalculateAPosterioriError	(
 							} // local part
 
 							// Contribution from the nonlocal pseudopotential
-//							{
-//								std::map<Int, PseudoPot>& pseudoMap =
-//									pseudo_.LocalMap()[key];
-//
-//								// Loop over atoms, regardless of whether this atom belongs
-//								// to this element or not.
-//								for(std::map<Int, PseudoPot>::iterator 
-//										mi  = pseudoMap.begin();
-//										mi != pseudoMap.end(); mi++ ){
-//									Int atomIdx = (*mi).first;
-//									std::vector<NonlocalPP>&  vnlList = (*mi).second.vnlList;
-//
-//									// Compute the inner product of the nonlocal projector
-//									// with respect to the eigenfunction <l|psi_i>
-//
-//									DblNumVec  innerProdVec( vnlList.size() );
-//
-//									// Loop over all neighboring elements to compute the
-//									// inner product
-//									for(std::map<Index3, std::map<Int, DblNumMat> >::iterator 
-//											ei  = vnlCoef_.LocalMap().begin();
-//											ei != vnlCoef_.LocalMap().end(); ei++ ){
-//										// NOTE Neighbor (NB) may include the element (key)
-//										// itself in this context
-//										Index3 keyNB = (*ei).first;
-//										std::map<Int, DblNumMat>& coefMap = (*ei).second; 
-//										DblNumMat&  localCoefNB = eigvecCoef_.LocalMap()[keyNB];
-//
-//										if( coefMap.find( atomIdx ) != coefMap.end() ){
-//
-//											DblNumMat&  coef      = coefMap[atomIdx];
-//
-//											// Skip the calculation if there is no adaptive local
-//											// basis function.  
-//											if( coef.m() == 0 ){
-//												continue;
-//											}
-//
-//											// Inner product (NOTE The conjugate is done in a
-//											// very crude way here, may need to be revised
-//											// when complex arithmetic is considered)
-//											blas::Gemv( 'T', 'N', numEig, numVnl, numBasis,
-//													1.0, localCoef.Data(), numBasis, 
-//													coef.Data(), numBasis,
-//													1.0, resVal.Data(), numEig );
-//
-//											// Derivative
-//											blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
-//													1.0, localCoef.Data(), numBasis, 
-//													coefDrvX.Data(), numBasis,
-//													1.0, resDrvX.Data(), numEig );
-//
-//											blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
-//													1.0, localCoef.Data(), numBasis, 
-//													coefDrvY.Data(), numBasis,
-//													1.0, resDrvY.Data(), numEig );
-//
-//											blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
-//													1.0, localCoef.Data(), numBasis, 
-//													coefDrvZ.Data(), numBasis,
-//													1.0, resDrvZ.Data(), numEig );
-//
-//										} // found the atom
-//									} // for (ei)
-//
-//
-//									// No use
-//
-//									DblNumMat coef( numBasis, vnlList.size() );
-//
-//									SetValue( coef, 0.0 );
-//									SetValue( coefDrvX, 0.0 );
-//									SetValue( coefDrvY, 0.0 );
-//									SetValue( coefDrvZ, 0.0 );
-//
-//									// Loop over projector
-//									for( Int g = 0; g < vnlList.size(); g++ ){
-//										SparseVec&  vnl = vnlList[g].first;
-//										IntNumVec&  idx = vnl.first;
-//										DblNumMat&  val = vnl.second;
-//										Real*       ptrWeight = LGLWeight3D.Data();
-//										if( idx.Size() > 0 ) {
-//											// Loop over basis function
-//											for( Int a = 0; a < numBasis; a++ ){
-//												// Loop over grid point
-//												for( Int l = 0; l < idx.Size(); l++ ){
-//													coef(a, g) += basis( idx(l), a ) * val(l, VAL) * 
-//														ptrWeight[idx(l)];
-//													coefDrvX(a,g) += DbasisX( idx(l), a ) * val(l, VAL) *
-//														ptrWeight[idx(l)];
-//													coefDrvY(a,g) += DbasisY( idx(l), a ) * val(l, VAL) *
-//														ptrWeight[idx(l)];
-//													coefDrvZ(a,g) += DbasisZ( idx(l), a ) * val(l, VAL) *
-//														ptrWeight[idx(l)];
-//												}
-//											}
-//										} // non-empty
-//									} // for (g)
-//
-//									coefMap[atomIdx] = coef;
-//									coefDrvXMap[atomIdx] = coefDrvX;
-//									coefDrvYMap[atomIdx] = coefDrvY;
-//									coefDrvZMap[atomIdx] = coefDrvZ;
-//								}
-//
-//
-//
-//								for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
-//									if( atomPrtn_.Owner(atomIdx) == mpirank ){
-//										DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
-//										Int numVnl = vnlWeight.Size();
-//										DblNumMat resVal ( numEig, numVnl );
-//										SetValue( resVal,  0.0 );
-//
-//										if( vnlCoef_.LocalMap()
-//
-//										// Loop over the elements overlapping with the nonlocal
-//										// pseudopotential
-//										for( std::map<Index3, std::map<Int, DblNumMat> >::iterator 
-//												ei  = vnlCoef_.LocalMap().begin();
-//												ei != vnlCoef_.LocalMap().end(); ei++ ){
-//											Index3 key = (*ei).first;
-//											std::map<Int, DblNumMat>& coefMap = (*ei).second; 
-//
-//											if( eigvecCoef_.LocalMap().find( key ) == eigvecCoef_.LocalMap().end() ){
-//												throw std::runtime_error( "Eigenfunction coefficient matrix cannot be located." );
-//											}
-//
-//											DblNumMat&  localCoef = eigvecCoef_.LocalMap()[key];
-//
-//											Int numBasis = localCoef.m();
-//
-//											if( coefMap.find( atomIdx ) != coefMap.end() ){
-//
-//												DblNumMat&  coef      = coefMap[atomIdx];
-//												DblNumMat&  coefDrvX  = coefDrvXMap[atomIdx];
-//												DblNumMat&  coefDrvY  = coefDrvYMap[atomIdx];
-//												DblNumMat&  coefDrvZ  = coefDrvZMap[atomIdx];
-//
-//												// Skip the calculation if there is no adaptive local
-//												// basis function.  
-//												if( coef.m() == 0 ){
-//													continue;
-//												}
-//
-//												// Value
-//												blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
-//														1.0, localCoef.Data(), numBasis, 
-//														coef.Data(), numBasis,
-//														1.0, resVal.Data(), numEig );
-//
-//												// Derivative
-//												blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
-//														1.0, localCoef.Data(), numBasis, 
-//														coefDrvX.Data(), numBasis,
-//														1.0, resDrvX.Data(), numEig );
-//
-//												blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
-//														1.0, localCoef.Data(), numBasis, 
-//														coefDrvY.Data(), numBasis,
-//														1.0, resDrvY.Data(), numEig );
-//
-//												blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
-//														1.0, localCoef.Data(), numBasis, 
-//														coefDrvZ.Data(), numBasis,
-//														1.0, resDrvZ.Data(), numEig );
-//
-//											} // found the atom
-//										} // for (ei)
-//
-//										// Add the contribution to the local force
-//										// The minus sign comes from integration by parts
-//										// The 4.0 comes from spin (2.0) and that |l> appears twice (2.0)
-//										for( Int g = 0; g < numEig; g++ ){
-//											for( Int l = 0; l < numVnl; l++ ){
-//												forceLocal(atomIdx, 0) += -4.0 * occupationRate_[g] * vnlWeight[l] *
-//													resVal(g, l) * resDrvX(g, l);
-//												forceLocal(atomIdx, 1) += -4.0 * occupationRate_[g] * vnlWeight[l] *
-//													resVal(g, l) * resDrvY(g, l);
-//												forceLocal(atomIdx, 2) += -4.0 * occupationRate_[g] * vnlWeight[l] *
-//													resVal(g, l) * resDrvZ(g, l);
-//											}
-//										}
-//									} // own this atom
-//								} // for (atomIdx)
-//							} // nonlocal part
-							
-						
+							{
+								std::map<Int, PseudoPot>& pseudoMap  = pseudo_.LocalMap()[key];
+								std::map<Int, DblNumMat>&  vnlPsiMap = vnlPsi.LocalMap()[key];
+								for(std::map<Int, PseudoPot>::iterator 
+										mi  = pseudoMap.begin();
+										mi != pseudoMap.end(); mi++ ){
+									Int atomIdx = (*mi).first;
+									std::vector<NonlocalPP>&  vnlList = (*mi).second.vnlList;
+									Int numVnl = vnlList.size();
+									DblNumMat&  vnlPsiMat = vnlPsiMap[atomIdx];
+									DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
+
+									// Loop over projector
+									for( Int l = 0; l < vnlList.size(); l++ ){
+										SparseVec&  vnl = vnlList[l].first;
+										IntNumVec&  idx = vnl.first;
+										DblNumMat&  val = vnl.second;
+
+
+										Real fac = vnlWeight[l] * vnlPsiMat( l, g );
+
+										for( Int p = 0; p < idx.Size(); p++ ){
+											residual[idx(p)] += fac * val(p, VAL);
+										}
+									}
+
+								} // for (mi)
+							}
 
 							Real* ptrR = residual.Data();
 							Real* ptrW = LGLWeight3D.Data();
