@@ -1676,11 +1676,8 @@ SCFDG::KerkerPrecond (
 		fftw_execute( fft.forwardPlan );
 
 		for( Int i = 0; i < ntotLocal; i++ ){
-			if( fft.gkkLocal(i) == 0 ){
-				// Do not touch the zero frequency
-//				fft.outputComplexVecLocal(i) = Z_ZERO;
-			}
-			else{
+			// Do not touch the zero frequency
+			if( fft.gkkLocal(i) != 0 ){
 				fft.outputComplexVecLocal(i) *= fft.gkkLocal(i) / 
 					( fft.gkkLocal(i) + 2.0 * PI * KerkerB );
 			}
