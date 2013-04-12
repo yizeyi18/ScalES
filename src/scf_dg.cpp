@@ -775,20 +775,53 @@ SCFDG::InnerIterate	(  )
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-		GetTime(timeSta);
 
 		// Compute the exchange-correlation potential and energy
+		GetTime(timeSta);
+
 		hamDG.CalculateXC( Exc_ );
 
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing the XC energy is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
 		// Compute the Hartree energy
+		GetTime(timeSta);
+
 		hamDG.CalculateHartree( *distfftPtr_ );
+
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing the Hartree potential and energy is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
 
 		// No external potential
 
 		// Compute the new total potential
+
+		GetTime(timeSta);
+
 		hamDG.CalculateVtot( vtotInnerNew_ );
 
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing the total potential is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
 		// Compute the error of the potential
+
+		GetTime(timeSta);
+
 		{
 			Real normVtotDifLocal = 0.0, normVtotOldLocal = 0.0;
 			Real normVtotDif, normVtotOld;
@@ -821,9 +854,27 @@ SCFDG::InnerIterate	(  )
 			Print(statusOFS, "norm(VtotOld) = ", normVtotOld );
 			Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfInnerNorm_ );
 		}
-		
+	
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing the SCF residual is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
 		// Compute the energies
+		GetTime( timeSta );
+
     CalculateEnergy();
+
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing the energy is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
 
 		// Print out the state variables of the current iteration
     PrintState( );
@@ -836,11 +887,6 @@ SCFDG::InnerIterate	(  )
     }
 
 		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for post processing is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
 
 
 		// Potential mixing for the inner SCF iteration.

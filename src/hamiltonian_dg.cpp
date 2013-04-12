@@ -721,7 +721,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 
 		Print( statusOFS, "Sum rho = ", sumRho );
 #endif
-	}
+	} // Method 1
 
 
 	// Method 2: Compute the electron density locally, and then normalize
@@ -762,6 +762,9 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 						SetValue( localPsiLGL, 0.0 );
 
 						// Loop over all the eigenfunctions
+						// 
+						// NOTE: Gemm is not a feasible choice when a large number of
+						// eigenfunctions are there.
 						for( Int g = 0; g < numEig; g++ ){
 							// Compute local wavefunction on the LGL grid
 							blas::Gemv( 'N', numGrid, numBasis, 1.0, 
@@ -769,12 +772,9 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 									localCoef.VecData(g), 1, 0.0,
 									localPsiLGL.Data(), 1 );
 							// Update the local density
-							Real* ptrRho = localRhoLGL.Data();
-							Real* ptrPsi = localPsiLGL.Data();
 							Real  occ    = occrate[g];
 							for( Int p = 0; p < numGrid; p++ ){
-								*ptrRho  += (*ptrPsi) * (*ptrPsi) * occ;
-								ptrRho++; ptrPsi++;
+								localRhoLGL(p) += pow( localPsiLGL(p), 2.0 ) * occ;
 							}
 						}
 
@@ -811,7 +811,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 						blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
 					} // own this element
 				} // for (i)
-	}
+	} // Method 2
 
 
 #ifndef _RELEASE_
@@ -1580,7 +1580,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 	// *********************************************************************
 	// Compute the residual term.
 	// This includes the contribution only from the local pseudopotential.
-	// Since <l|phi> has been computed in vnlCoef_, the contribution from
+	// Since <phi|l> has been computed in vnlCoef_, the contribution from
 	// the nonlocal pseudopotential will be added to the estimator
 	// directly in the next step.
 	// *********************************************************************
@@ -1661,6 +1661,9 @@ HamiltonianDG::CalculateAPosterioriError	(
 						// 0, due to the contribution from the nonlocal
 						// pseudopotential. 
 
+
+						// Contribu
+						
 						DblNumMat& Hbasis     = HbasisLGL.LocalMap()[key];
 						DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
 						DblNumVec& eig        = eigVal_;
@@ -1690,6 +1693,112 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 							// Contribution from the nonlocal pseudopotential
 //							{
+//								std::map<Int, PseudoPot>& pseudoMap =
+//									pseudo_.LocalMap()[key];
+//
+//								// Loop over atoms, regardless of whether this atom belongs
+//								// to this element or not.
+//								for(std::map<Int, PseudoPot>::iterator 
+//										mi  = pseudoMap.begin();
+//										mi != pseudoMap.end(); mi++ ){
+//									Int atomIdx = (*mi).first;
+//									std::vector<NonlocalPP>&  vnlList = (*mi).second.vnlList;
+//
+//									// Compute the inner product of the nonlocal projector
+//									// with respect to the eigenfunction <l|psi_i>
+//
+//									DblNumVec  innerProdVec( vnlList.size() );
+//
+//									// Loop over all neighboring elements to compute the
+//									// inner product
+//									for(std::map<Index3, std::map<Int, DblNumMat> >::iterator 
+//											ei  = vnlCoef_.LocalMap().begin();
+//											ei != vnlCoef_.LocalMap().end(); ei++ ){
+//										// NOTE Neighbor (NB) may include the element (key)
+//										// itself in this context
+//										Index3 keyNB = (*ei).first;
+//										std::map<Int, DblNumMat>& coefMap = (*ei).second; 
+//										DblNumMat&  localCoefNB = eigvecCoef_.LocalMap()[keyNB];
+//
+//										if( coefMap.find( atomIdx ) != coefMap.end() ){
+//
+//											DblNumMat&  coef      = coefMap[atomIdx];
+//
+//											// Skip the calculation if there is no adaptive local
+//											// basis function.  
+//											if( coef.m() == 0 ){
+//												continue;
+//											}
+//
+//											// Inner product (NOTE The conjugate is done in a
+//											// very crude way here, may need to be revised
+//											// when complex arithmetic is considered)
+//											blas::Gemv( 'T', 'N', numEig, numVnl, numBasis,
+//													1.0, localCoef.Data(), numBasis, 
+//													coef.Data(), numBasis,
+//													1.0, resVal.Data(), numEig );
+//
+//											// Derivative
+//											blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
+//													1.0, localCoef.Data(), numBasis, 
+//													coefDrvX.Data(), numBasis,
+//													1.0, resDrvX.Data(), numEig );
+//
+//											blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
+//													1.0, localCoef.Data(), numBasis, 
+//													coefDrvY.Data(), numBasis,
+//													1.0, resDrvY.Data(), numEig );
+//
+//											blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
+//													1.0, localCoef.Data(), numBasis, 
+//													coefDrvZ.Data(), numBasis,
+//													1.0, resDrvZ.Data(), numEig );
+//
+//										} // found the atom
+//									} // for (ei)
+//
+//
+//									// No use
+//
+//									DblNumMat coef( numBasis, vnlList.size() );
+//
+//									SetValue( coef, 0.0 );
+//									SetValue( coefDrvX, 0.0 );
+//									SetValue( coefDrvY, 0.0 );
+//									SetValue( coefDrvZ, 0.0 );
+//
+//									// Loop over projector
+//									for( Int g = 0; g < vnlList.size(); g++ ){
+//										SparseVec&  vnl = vnlList[g].first;
+//										IntNumVec&  idx = vnl.first;
+//										DblNumMat&  val = vnl.second;
+//										Real*       ptrWeight = LGLWeight3D.Data();
+//										if( idx.Size() > 0 ) {
+//											// Loop over basis function
+//											for( Int a = 0; a < numBasis; a++ ){
+//												// Loop over grid point
+//												for( Int l = 0; l < idx.Size(); l++ ){
+//													coef(a, g) += basis( idx(l), a ) * val(l, VAL) * 
+//														ptrWeight[idx(l)];
+//													coefDrvX(a,g) += DbasisX( idx(l), a ) * val(l, VAL) *
+//														ptrWeight[idx(l)];
+//													coefDrvY(a,g) += DbasisY( idx(l), a ) * val(l, VAL) *
+//														ptrWeight[idx(l)];
+//													coefDrvZ(a,g) += DbasisZ( idx(l), a ) * val(l, VAL) *
+//														ptrWeight[idx(l)];
+//												}
+//											}
+//										} // non-empty
+//									} // for (g)
+//
+//									coefMap[atomIdx] = coef;
+//									coefDrvXMap[atomIdx] = coefDrvX;
+//									coefDrvYMap[atomIdx] = coefDrvY;
+//									coefDrvZMap[atomIdx] = coefDrvZ;
+//								}
+//
+//
+//
 //								for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
 //									if( atomPrtn_.Owner(atomIdx) == mpirank ){
 //										DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
