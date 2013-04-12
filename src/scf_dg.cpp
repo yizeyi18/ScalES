@@ -584,53 +584,6 @@ SCFDG::Iterate	(  )
 		// Potential mixing for the outer SCF iteration. or no mixing at all anymore?
 		// It seems that no mixing is the best.
 		
-//		GetTime( timeSta );
-
-		// FIXME Large step length 
-		Real largeMix = 0.8;
-    
-//		AndersonMix(
-//				iter, 
-//				largeMix,
-//				hamDG.Vtot(),
-//				vtotOuterSave_,
-//				hamDG.Vtot(),
-//				dfOuterMat_,
-//				dvOuterMat_);
-		
-		
-//		if( mixType_ == "anderson" ){
-//			AndersonMix(
-//					iter, 
-//					largeMix,
-//					hamDG.Vtot(),
-//					vtotOuterSave_,
-//					hamDG.Vtot(),
-//					dfOuterMat_,
-//					dvOuterMat_);
-//    }
-//    if( mixType_ == "kerker" ){
-//      KerkerMix(
-//					hamDG.Vtot(),
-//					vtotOuterSave_,
-//					hamDG.Vtot() );
-//			AndersonMix(
-//					iter, 
-//					largeMix,
-//					hamDG.Vtot(),
-//					vtotOuterSave_,
-//					hamDG.Vtot(),
-//					dfOuterMat_,
-//					dvOuterMat_);
-//    }
-//
-//		MPI_Barrier( domain_.comm );
-//		GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//		statusOFS << "Time for potential mixing is " <<
-//			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-
 		// Output the electron density
 		if( isOutputDensity_ ){
 			std::ostringstream rhoStream;      
@@ -888,24 +841,12 @@ SCFDG::InnerIterate	(  )
 		// Potential mixing for the inner SCF iteration. FIXME
 		GetTime( timeSta );
 
-    if( mixType_ == "anderson" ){
+    if( mixType_ == "anderson" ||
+		    mixType_ == "kerker+anderson"	){
 			AndersonMix(
 					innerIter, 
 					mixStepLength_,
-					hamDG.Vtot(),
-					hamDG.Vtot(),
-					vtotInnerNew_,
-					dfInnerMat_,
-					dvInnerMat_);
-    }
-    if( mixType_ == "kerker" ){
-      KerkerMix(
-					hamDG.Vtot(),
-					hamDG.Vtot(),
-					vtotInnerNew_ );  
-      AndersonMix(
-					innerIter, 
-					mixStepLength_,
+					mixType_,
 					hamDG.Vtot(),
 					hamDG.Vtot(),
 					vtotInnerNew_,
@@ -1384,8 +1325,9 @@ SCFDG::CalculateEnergy	(  )
 
 void
 SCFDG::AndersonMix	( 
-		const Int iter, 
-		const Real mixStepLength,
+		Int             iter, 
+		Real            mixStepLength,
+		std::string     mixType,
 		DistDblNumVec&  vMix,
 		DistDblNumVec&  vOld,
 		DistDblNumVec&  vNew,
@@ -1400,6 +1342,15 @@ SCFDG::AndersonMix	(
 	MPI_Comm_size( domain_.comm, &mpisize );
 	
 	DistDblNumVec distvin, distvout, distvinsave, distvoutsave;
+	// Preconditioned residue in Anderson mixing
+	DistDblNumVec distPrecRes;
+
+	distvin.Prtn()     = elemPrtn_;
+	distvout.Prtn()    = elemPrtn_;
+	distvinsave.Prtn() = elemPrtn_;
+	distvoutsave.Prtn()= elemPrtn_;
+	distPrecRes.Prtn() = elemPrtn_;
+
 
 	Int ntot  = hamDGPtr_->NumUniformGridElem().prod();
 	
@@ -1420,10 +1371,10 @@ SCFDG::AndersonMix	(
 					DblNumMat& dv         = dvMat.LocalMap()[key];
 
 					// vin(:)  = vtot(:)
-					// vout(:) = vtotnew(:) - vtot(:)
+					// vout(:) = vtot(:) - vtotnew(:) is the residual
 					vin  = vOld.LocalMap()[key];
-					vout = vNew.LocalMap()[key];
-					blas::Axpy( ntot, -1.0, vin.Data(), 1, vout.Data(), 1 );
+					vout = vOld.LocalMap()[key];
+					blas::Axpy( ntot, -1.0, vNew.LocalMap()[key].Data(), 1, vout.Data(), 1 );
 
 					// save vin and vout
 					vinsave  = vin;
@@ -1520,6 +1471,38 @@ SCFDG::AndersonMix	(
 
 	Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
 
+	
+	if( mixType == "kerker+anderson" ){
+		KerkerPrecond( distPrecRes, distvout );
+	}
+	else if( mixType == "anderson" ){
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						distPrecRes.LocalMap()[key] = 
+							distvout.LocalMap()[key];
+					} // own this element
+				} // for (i)
+	}
+	
+//		for( Int k = 0; k < numElem_[2]; k++ )
+//			for( Int j = 0; j < numElem_[1]; j++ )
+//				for( Int i = 0; i < numElem_[0]; i++ ){
+//					Index3 key( i, j, k );
+//					if( elemPrtn_.Owner( key ) == mpirank ){
+//						DblNumVec& a = distPrecRes.LocalMap()[key];
+//						DblNumVec& b = distvout.LocalMap()[key];
+//
+//						for( Int p = 0; p < a.Size(); p++){
+//							statusOFS << a[p] - b[p]; 
+//						}
+//						statusOFS << std::endl;
+//					} // own this element
+//				} // for (i)
+
+
 	// Update df, dv, vtot
 	for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
@@ -1529,7 +1512,7 @@ SCFDG::AndersonMix	(
 					// vMix is the output
 					DblNumVec& vtot       = vMix.LocalMap()[key];
 					DblNumVec& vin        = distvin.LocalMap()[key];
-					DblNumVec& vout       = distvout.LocalMap()[key];
+					DblNumVec& precRes    = distPrecRes.LocalMap()[key];
 					DblNumVec& vinsave    = distvinsave.LocalMap()[key];
 					DblNumVec& voutsave   = distvoutsave.LocalMap()[key];
 					DblNumMat& df         = dfMat.LocalMap()[key];
@@ -1540,9 +1523,9 @@ SCFDG::AndersonMix	(
 					blas::Copy( ntot, voutsave.Data(), 1, df.VecData(inext-1), 1 );
 					blas::Copy( ntot, vinsave.Data(),  1, dv.VecData(inext-1), 1 );
 
-					// vtot(:) = vin(:) + alpha * vout(:)
+					// vtot(:) = vin(:) - alpha * PrecRes(:)
 					vtot = vin;
-					blas::Axpy( ntot, mixStepLength, vout.Data(), 1, vtot.Data(), 1);
+					blas::Axpy( ntot, -mixStepLength, precRes.Data(), 1, vtot.Data(), 1);
 				} // own this element
 			} // for (i)
 
@@ -1553,15 +1536,13 @@ SCFDG::AndersonMix	(
 	return ;
 } 		// -----  end of method SCFDG::AndersonMix  ----- 
 
-// TODO Proper way of using Vold, Vnew vmix
 void
-SCFDG::KerkerMix	( 
-		DistDblNumVec&  vMix,
-		DistDblNumVec&  vOld,
-		DistDblNumVec&  vNew )
+SCFDG::KerkerPrecond ( 
+		DistDblNumVec&  distPrecResidual,
+		const DistDblNumVec&  distResidual )
 {
 #ifndef _RELEASE_
-	PushCallStack("SCFDG::KerkerMix");
+	PushCallStack("SCFDG::KerkerPrecond");
 #endif
 	Int mpirank, mpisize;
 	MPI_Comm_rank( domain_.comm, &mpirank );
@@ -1572,61 +1553,13 @@ SCFDG::KerkerMix	(
   Int ntot      = fft.numGridTotal;
 	Int ntotLocal = fft.numGridLocal;
 
-	DistDblNumVec   tempVec;
-	tempVec.Prtn() = elemPrtn_;
-
-	DistDblNumVec  distvin, distvout;
-
-	distvin.Prtn()  = elemPrtn_;
-	distvout.Prtn() = elemPrtn_;
-
-	// Copy the data to avoid overwriting
-	for( Int k = 0; k < numElem_[2]; k++ )
-		for( Int j = 0; j < numElem_[1]; j++ )
-			for( Int i = 0; i < numElem_[0]; i++ ){
-				Index3 key = Index3( i, j, k );
-				if( elemPrtn_.Owner( key ) == mpirank ){
-
-					distvin.LocalMap()[key]    = vOld.LocalMap()[key];
-					distvout.LocalMap()[key]   = vNew.LocalMap()[key];
-					vMix.LocalMap()[key]       = distvin.LocalMap()[key];
-
-				} // own this element
-			} // for (i)
-	
-
 	Index3 numUniformGridElem = hamDGPtr_->NumUniformGridElem();
 
-	// FIXME Magic number here
-	Real mixStepLengthKerker = 0.8; 
-
-	// tempVec(:) = vout(:) - vin(:)
-	// FIXME Why add the residue here?
-	// vMix(:) += mixStepLengthKerker * tempVec
-	for( Int k = 0; k < numElem_[2]; k++ )
-		for( Int j = 0; j < numElem_[1]; j++ )
-			for( Int i = 0; i < numElem_[0]; i++ ){
-				Index3 key = Index3( i, j, k );
-				if( elemPrtn_.Owner( key ) == mpirank ){
-
-					tempVec.LocalMap()[key] = 
-						distvout.LocalMap()[key];
-
-					blas::Axpy( numUniformGridElem.prod(), -1.0, 
-							distvin.LocalMap()[key].Data(), 1,
-							tempVec.LocalMap()[key].Data(), 1 );
-
-					blas::Axpy( numUniformGridElem.prod(), mixStepLengthKerker, 
-							tempVec.LocalMap()[key].Data(), 1,
-							vMix.LocalMap()[key].Data(), 1 );
-				} // own this element
-			} // for (i)
-
-	// Convert tempVec to tempVecLocal in distributed row vector format
+	// Convert distResidual to tempVecLocal in distributed row vector format
 	DblNumVec  tempVecLocal;
 
   DistNumVecToDistRowVec(
-			tempVec,
+			distResidual,
 			tempVecLocal,
 			domain_.numGrid,
 			numElem_,
@@ -1635,7 +1568,22 @@ SCFDG::KerkerMix	(
 			fft.isInGrid,
 			domain_.comm );
 
-	// Only part of the processors participate in the FFTW calculation
+	// NOTE Fixed KerkerB parameter
+	//
+	// From the point of view of the elliptic preconditioner
+	//
+	// (-\Delta + 4 * pi * b) r_p = -Delta r
+	//
+	// The Kerker preconditioner in the Fourier space is
+	//
+	// k^2 / (k^2 + 4 * pi * b)
+	//
+	// or using gkk = k^2 /2 
+	//
+	// gkk / ( gkk + 2 * pi * b )
+	//
+	// Here we choose KerkerB to be a fixed number.
+	Real KerkerB = 0.1; 
 
 	if( fft.isInGrid ){
 
@@ -1647,48 +1595,32 @@ SCFDG::KerkerMix	(
 
 		for( Int i = 0; i < ntotLocal; i++ ){
 			if( fft.gkkLocal(i) == 0 ){
-				fft.outputComplexVecLocal(i) = Z_ZERO;
+				// Do not touch the zero frequency
+//				fft.outputComplexVecLocal(i) = Z_ZERO;
 			}
 			else{
-				// FIXME Magic number
-				fft.outputComplexVecLocal(i) *= 
-					mixStepLengthKerker * ( fft.gkkLocal(i) / 
-							( fft.gkkLocal(i) + 0.5 ) - 1.0 );
+				fft.outputComplexVecLocal(i) *= fft.gkkLocal(i) / 
+					( fft.gkkLocal(i) + 2.0 * PI * KerkerB );
 			}
 		}
 		fftw_execute( fft.backwardPlan );
-
-		// tempVecLocal saves the update of vtot
 
 		for( Int i = 0; i < ntotLocal; i++ ){
 			tempVecLocal(i) = fft.inputComplexVecLocal(i).real() / ntot;
 		}
 	} // if (fft.isInGrid)
 
-	// Convert tempVecLocal to tempVec in the DistNumVec format 
+	// Convert tempVecLocal to distPrecResidual in the DistNumVec format 
 
   DistRowVecToDistNumVec(
 			tempVecLocal,
-			tempVec,
+			distPrecResidual,
 			domain_.numGrid,
 			numElem_,
 			fft.localNzStart,
 			fft.localNz,
 			fft.isInGrid,
 			domain_.comm );
-  
-	// Update vMix
-	// vMix(:) += tempVec(:)
-	for( Int k = 0; k < numElem_[2]; k++ )
-		for( Int j = 0; j < numElem_[1]; j++ )
-			for( Int i = 0; i < numElem_[0]; i++ ){
-				Index3 key = Index3( i, j, k );
-				if( elemPrtn_.Owner( key ) == mpirank ){
-					blas::Axpy( numUniformGridElem.prod(), 1.0, 
-							tempVec.LocalMap()[key].Data(), 1,
-							vMix.LocalMap()[key].Data(), 1 );
-				} // own this element
-			} // for (i)
 
 
 #ifndef _RELEASE_
@@ -1696,7 +1628,7 @@ SCFDG::KerkerMix	(
 #endif
 
 	return ;
-} 		// -----  end of method SCFDG::KerkerMix  ----- 
+} 		// -----  end of method SCFDG::KerkerPrecond  ----- 
 
 
 void

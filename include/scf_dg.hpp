@@ -65,6 +65,7 @@ private:
 	DistDblNumVec       vtotOuterSave_;
 	/// @brief Work array for the new potential in the inner iteration.
 	DistDblNumVec       vtotInnerNew_;
+	// TODO Remove dfOuterMat_, dvOuterMat_
 	/// @brief Work array for the Anderson mixing in the outer iteration.
 	DistDblNumMat       dfOuterMat_;
 	/// @brief Work array for the Anderson mixing in the outer iteration.
@@ -150,21 +151,21 @@ public:
 	/// @brief Print out the state variables at each SCF iteration.
 	void  PrintState(  );
 
-	/// @brief Parallel Anderson mixing.
+	/// @brief Parallel preconditioned Anderson mixing.
 	void  AndersonMix( 
-			const Int iter, 
-			const Real mixStepLength,
+			Int             iter, 
+			Real            mixStepLength,
+			std::string     mixType,
 			DistDblNumVec&  vMix,
 			DistDblNumVec&  vOld,
 			DistDblNumVec&  vNew,
 			DistDblNumMat&  dfMat,
 			DistDblNumMat&  dvMat);
 	
-	/// @brief Parallel Kerker mixing.
-	void  KerkerMix(
-			DistDblNumVec&  vMix,
-			DistDblNumVec&  vOld,
-			DistDblNumVec&  vNew );
+	/// @brief Parallel Kerker preconditioner.
+	void  KerkerPrecond(
+		DistDblNumVec&  distPrecResidual,
+		const DistDblNumVec&  distResidual );
 
 
 
