@@ -658,6 +658,12 @@ void esdf_key() {
 	strcpy(kw_label[i],"xc_type");
 	strcpy(kw_typ[i],"T:E");
 	strcpy(kw_dscrpt[i],"*! Type of exchange correlation functional !*");
+
+	i++;
+	strcpy(kw_label[i],"calculate_aposteriori_each_scf");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether to compute the a posteriori estimator at each SCF step !*");
+
 }
 
 void esdf() {
@@ -1868,6 +1874,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
 		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
 		esdfParam.isOutputWfn      = esdf_integer( "Output_Wfn", 0 );
+		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
 
 		Real temperature;
 		temperature               = esdf_double( "Temperature", 100.0 );

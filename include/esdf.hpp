@@ -83,6 +83,7 @@ struct ESDFInputParam{
 	bool                isRestartWfn;
 	bool                isOutputDensity;
 	bool                isOutputWfn;
+	bool                isCalculateAPosterioriEachSCF; 
 
 	Real                Tbeta;                    // Inverse of temperature in atomic unit
   Int                 numExtraState;

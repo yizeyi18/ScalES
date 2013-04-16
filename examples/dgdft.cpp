@@ -121,6 +121,8 @@ int main(int argc, char **argv)
 			Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
 			Print(statusOFS, "OutputDensity     = ",  esdfParam.isOutputDensity);
 			Print(statusOFS, "OutputWfn         = ",  esdfParam.isOutputWfn);
+			Print(statusOFS, "Calculate A Posteriori error estimator at each step = ",  
+					esdfParam.isCalculateAPosterioriEachSCF);
 
 			Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
 			Print(statusOFS, "Extra states      = ",  esdfParam.numExtraState );

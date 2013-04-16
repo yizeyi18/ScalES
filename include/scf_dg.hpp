@@ -35,6 +35,7 @@ private:
 	bool                isRestartWfn_;
 	bool                isOutputDensity_;
 	bool                isOutputWfn_;
+	bool                isCalculateAPosterioriEachSCF_;
   
 	std::string         restartDensityFileName_;
   std::string         restartWfnFileName_;

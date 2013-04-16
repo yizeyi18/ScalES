@@ -68,6 +68,7 @@ SCFDG::Setup	(
 		isRestartWfn_     = esdfParam.isRestartWfn;
 		isOutputDensity_  = esdfParam.isOutputDensity;
 		isOutputWfn_      = esdfParam.isOutputWfn;
+		isCalculateAPosterioriEachSCF_ = esdfParam.isCalculateAPosterioriEachSCF;
     Tbeta_            = esdfParam.Tbeta;
 		scaBlockSize_     = esdfParam.scaBlockSize;
 		numElem_          = esdfParam.numElem;
@@ -583,7 +584,33 @@ SCFDG::Iterate	(  )
 
 		// Potential mixing for the outer SCF iteration. or no mixing at all anymore?
 		// It seems that no mixing is the best.
-		
+	
+
+		// Compute the a posteriori error estimator at every step
+		if( isCalculateAPosterioriEachSCF_ )
+		{
+			GetTime( timeSta );
+			DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
+			hamDG.CalculateAPosterioriError( 
+					eta2Total, eta2Residual, eta2GradJump, eta2Jump );
+			GetTime( timeEnd );
+			statusOFS << "Time for computing the a posteriori error is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+			PrintBlock( statusOFS, "A Posteriori error" );
+			{
+				statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+				statusOFS << eta2Total << std::endl;
+				statusOFS << std::endl << "Residual term:" << std::endl;
+				statusOFS << eta2Residual << std::endl;
+				statusOFS << std::endl << "Face term:" << std::endl;
+				statusOFS << eta2GradJump << std::endl;
+				statusOFS << std::endl << "Jump term:" << std::endl;
+				statusOFS << eta2Jump << std::endl;
+			}
+		}
+
+
 		// Output the electron density
 		if( isOutputDensity_ ){
 			std::ostringstream rhoStream;      
@@ -765,7 +792,31 @@ SCFDG::InnerIterate	(  )
 		// Compute the occupation rate
 		CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
 
+		// Compute the energies.  When energy is computed just after the
+		// occupation rate, so that this is the Harris-Foulkes functional.
+		//
+		// Reference:
+		//
+		// [Soler et al. "The SIESTA method for ab initio order-N
+		// materials", J. Phys. Condens. Matter. 14, 2745 (2002) pp 18]
+    CalculateEnergy();
+
+		// Print out the state variables of the current iteration
+    PrintState( );
+
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing the energy is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+
+
 		// Compute the electron density
+		GetTime( timeSta );
+
 		hamDG.CalculateDensity( hamDG.OccupationRate() );
 
 		MPI_Barrier( domain_.comm );
@@ -854,30 +905,6 @@ SCFDG::InnerIterate	(  )
 			Print(statusOFS, "norm(VtotOld) = ", normVtotOld );
 			Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfInnerNorm_ );
 		}
-	
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for computing the SCF residual is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-
-		// Compute the energies
-		GetTime( timeSta );
-
-    CalculateEnergy();
-
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for computing the energy is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-
-		// Print out the state variables of the current iteration
-    PrintState( );
 
 
     if( scfInnerNorm_ < scfInnerTolerance_ ){
@@ -886,7 +913,14 @@ SCFDG::InnerIterate	(  )
       isInnerSCFConverged = true;
     }
 
+
 		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing the SCF residual is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
 
 
 		// Potential mixing for the inner SCF iteration.
