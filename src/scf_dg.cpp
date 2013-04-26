@@ -603,9 +603,9 @@ SCFDG::Iterate	(  )
 				statusOFS << eta2Total << std::endl;
 				statusOFS << std::endl << "Residual term:" << std::endl;
 				statusOFS << eta2Residual << std::endl;
-				statusOFS << std::endl << "Face term:" << std::endl;
+				statusOFS << std::endl << "Jump of gradient term:" << std::endl;
 				statusOFS << eta2GradJump << std::endl;
-				statusOFS << std::endl << "Jump term:" << std::endl;
+				statusOFS << std::endl << "Jump of function value term:" << std::endl;
 				statusOFS << eta2Jump << std::endl;
 			}
 		}

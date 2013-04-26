@@ -2111,8 +2111,11 @@ HamiltonianDG::CalculateAPosterioriError	(
 								// facJ = penaltyAlpha_^2 * h_F / p_F
 
 
-								Real facGJ = 0.5 * hF / pF;
-								Real facJ  = 0.5 * penaltyAlpha_ * penaltyAlpha_ * hF / pF;
+								// One 0.5 comes from double counting on the faces F,
+								// and the other comes from the 1/2 in front of the
+								// Laplacian operator.
+								Real facGJ = 0.5 * 0.5 * hF / pF;
+								Real facJ  = 0.5 * 0.5 * penaltyAlpha_ * penaltyAlpha_ * hF / pF;
 
 								if( localCoefL.n() != localCoefR.n() ){
 									throw std::runtime_error( 
@@ -2158,8 +2161,12 @@ HamiltonianDG::CalculateAPosterioriError	(
 										tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
 										ptrGJ++; ptrJ++; ptrW++;
 									}
+									// Previous element
+									eta2GradJumpLocal( p1, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
+									eta2JumpLocal( p1, j, k )     += tmpJ  * occrate(g) * numSpin * facJ;
+									// Current element
 									eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
-									eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * numSpin * facJ;
+									eta2JumpLocal( i, j, k )     += tmpJ  * occrate(g) * numSpin * facJ;
 								} // for (eigenfunction)
 							} // if (pF>0)
 						} // x-direction
@@ -2215,8 +2222,11 @@ HamiltonianDG::CalculateAPosterioriError	(
 								// facJ = penaltyAlpha_^2 * h_F / p_F
 								//
 								
-								Real facGJ = 0.5 * hF / pF;
-								Real facJ  = 0.5 * penaltyAlpha_ * penaltyAlpha_ * hF / pF;
+								// One 0.5 comes from double counting on the faces F,
+								// and the other comes from the 1/2 in front of the
+								// Laplacian operator.
+								Real facGJ = 0.5 * 0.5 * hF / pF;
+								Real facJ  = 0.5 * 0.5 * penaltyAlpha_ * penaltyAlpha_ * hF / pF;
 
 								if( localCoefL.n() != localCoefR.n() ){
 									throw std::runtime_error( 
@@ -2262,8 +2272,12 @@ HamiltonianDG::CalculateAPosterioriError	(
 										tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
 										ptrGJ++; ptrJ++; ptrW++;
 									}
+									// Previous element
+									eta2GradJumpLocal( i, p2, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
+									eta2JumpLocal( i, p2, k )     += tmpJ  * occrate(g) * numSpin * facJ;
+									// Current element
 									eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
-									eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * numSpin * facJ;
+									eta2JumpLocal( i, j, k )     += tmpJ  * occrate(g) * numSpin * facJ;
 								} // for (eigenfunction)
 							} // if (pF>0)
 						} // y-direction
@@ -2320,8 +2334,11 @@ HamiltonianDG::CalculateAPosterioriError	(
 								// facJ = penaltyAlpha_^2 * h_F / p_F
 								//
 								
-								Real facGJ = 0.5 * hF / pF;
-								Real facJ  = 0.5 * penaltyAlpha_ * penaltyAlpha_ * hF / pF;
+								// One 0.5 comes from double counting on the faces F,
+								// and the other comes from the 1/2 in front of the
+								// Laplacian operator.
+								Real facGJ = 0.5 * 0.5 * hF / pF;
+								Real facJ  = 0.5 * 0.5 * penaltyAlpha_ * penaltyAlpha_ * hF / pF;
 
 								if( localCoefL.n() != localCoefR.n() ){
 									throw std::runtime_error( 
@@ -2367,8 +2384,12 @@ HamiltonianDG::CalculateAPosterioriError	(
 										tmpJ  += (*ptrJ)  * (*ptrJ)  * (*ptrW);
 										ptrGJ++; ptrJ++; ptrW++;
 									}
+									// Previous element
+									eta2GradJumpLocal( i, j, p3 ) += tmpGJ * occrate(g) * numSpin * facGJ;
+									eta2JumpLocal( i, j, p3 )     += tmpJ  * occrate(g) * numSpin * facJ;
+									// Current element
 									eta2GradJumpLocal( i, j, k ) += tmpGJ * occrate(g) * numSpin * facGJ;
-									eta2JumpLocal( i, j, k ) += tmpJ * occrate(g) * numSpin * facJ;
+									eta2JumpLocal( i, j, k )     += tmpJ  * occrate(g) * numSpin * facJ;
 								} // for (eigenfunction)
 							} // if (pF>0)
 						} // z-direction
