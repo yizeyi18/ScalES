@@ -664,6 +664,21 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether to compute the a posteriori estimator at each SCF step !*");
 
+	i++;
+	strcpy(kw_label[i],"potential_barrier_w");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Width parameter of potential barrier to the extended element!*");
+
+	i++;
+	strcpy(kw_label[i],"potential_barrier_s");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Strength parameter of potential barrier to the extended element!*");
+
+	i++;
+	strcpy(kw_label[i],"potential_barrier_r");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Radius parameter of potential barrier to the extended element!*");
+
 }
 
 void esdf() {
@@ -1875,6 +1890,10 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
 		esdfParam.isOutputWfn      = esdf_integer( "Output_Wfn", 0 );
 		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
+
+		esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
+		esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 10.0 );
+		esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );
 
 		Real temperature;
 		temperature               = esdf_double( "Temperature", 100.0 );

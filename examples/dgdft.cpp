@@ -123,6 +123,9 @@ int main(int argc, char **argv)
 			Print(statusOFS, "OutputWfn         = ",  esdfParam.isOutputWfn);
 			Print(statusOFS, "Calculate A Posteriori error estimator at each step = ",  
 					esdfParam.isCalculateAPosterioriEachSCF);
+			Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
+			Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
+			Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
 
 			Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
 			Print(statusOFS, "Extra states      = ",  esdfParam.numExtraState );
@@ -255,6 +258,53 @@ int main(int argc, char **argv)
 							
 							hamKS.Setup( dmExtElem, atomListExtElem, 
 								 esdfParam.pseudoType, esdfParam.XCId );
+
+							// Setup the external barrier potential in the extended element
+							Real barrierR = esdfParam.potentialBarrierR;
+							Real barrierW = esdfParam.potentialBarrierW;
+							Real barrierS = esdfParam.potentialBarrierS;
+							std::vector<DblNumVec> gridpos(DIM);
+							UniformMesh ( dmExtElem, gridpos );
+							// Barrier potential along each dimension
+							std::vector<DblNumVec> vBarrier(DIM);
+
+							for( Int d = 0; d < DIM; d++ ){
+								Real length   = dmExtElem.length[d];
+								Int numGrid   = dmExtElem.numGrid[d];
+								Real posStart = dmExtElem.posStart[d]; 
+								Real center   = posStart + length / 2.0;
+								Real EPS      = 1.0;           // For stability reason
+								Real dist;
+								statusOFS << "center = " << center << std::endl;
+								vBarrier[d].Resize( numGrid );
+								SetValue( vBarrier[d], 0.0 );
+								for( Int p = 0; p < numGrid; p++ ){
+									dist = std::abs( gridpos[d][p] - center );
+									// Only apply the barrier for region outside barrierR
+									if( dist > barrierR ){
+										vBarrier[d][p] = barrierS * std::exp( - barrierW / 
+												( dist - barrierR ) ) / std::pow( dist - length / 2.0 - EPS, 2.0 );
+									}
+								}
+							} // for (d)
+
+							statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
+							statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
+							statusOFS << "gridpos[2] = " << std::endl << gridpos[2] << std::endl;
+							statusOFS << "vBarrier[0] = " << std::endl << vBarrier[0] << std::endl;
+							statusOFS << "vBarrier[1] = " << std::endl << vBarrier[1] << std::endl;
+							statusOFS << "vBarrier[2] = " << std::endl << vBarrier[2] << std::endl;
+
+							DblNumVec& vext = hamKS.Vext();
+							SetValue( vext, 0.0 );
+							for( Int gk = 0; gk < dmExtElem.numGrid[2]; gk++)
+								for( Int gj = 0; gj < dmExtElem.numGrid[1]; gj++ )
+									for( Int gi = 0; gi < dmExtElem.numGrid[0]; gi++ ){
+										Int idx = gi + gj * dmExtElem.numGrid[0] + 
+											gk * dmExtElem.numGrid[0] * dmExtElem.numGrid[1];
+										vext[idx] = vBarrier[0][gi] + vBarrier[1][gj] + vBarrier[2][gk];
+									} // for (gi)
+							
 
 							hamKS.CalculatePseudoPotential( ptable );
 

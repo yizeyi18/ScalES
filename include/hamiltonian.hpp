@@ -106,6 +106,7 @@ public:
 	// Access
 	// *********************************************************************
   DblNumVec&  Vtot() { return vtot_; }
+  DblNumVec&  Vext() { return vext_; }
 	DblNumMat&  Vxc()  { return vxc_; }
 	DblNumVec&  Vhart() { return vhart_; }
 

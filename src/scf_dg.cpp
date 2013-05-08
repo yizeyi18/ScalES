@@ -366,6 +366,9 @@ SCFDG::Iterate	(  )
 							continue;
 						}
 
+						// Add the external barrier potential
+						blas::Axpy( numGridExtElem.prod(), 1.0, eigSol.Ham().Vext().Data(), 1,
+								eigSol.Ham().Vtot().Data(), 1 );
 
 						// Solve the basis functions in the extended element
 						GetTime( timeSta );

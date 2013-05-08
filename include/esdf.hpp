@@ -99,6 +99,9 @@ struct ESDFInputParam{
 	Real                penaltyAlpha;
 	IntNumTns           numALBElem;
 	Int                 scaBlockSize;
+	Real                potentialBarrierW;
+	Real                potentialBarrierS;
+	Real                potentialBarrierR;
 };
 
 void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );
