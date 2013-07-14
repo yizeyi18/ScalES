@@ -11,6 +11,7 @@
 #include  "numtns_impl.hpp"
 #include  "tinyvec_impl.hpp"
 #include	"distvec_impl.hpp"
+#include  "sparse_matrix_impl.hpp"
 
 #include  "domain.hpp"
 #include  "fourier.hpp"

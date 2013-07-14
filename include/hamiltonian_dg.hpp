@@ -9,6 +9,7 @@
 #include  "numvec_impl.hpp"
 #include  "numtns_impl.hpp"
 #include  "distvec_impl.hpp"
+#include  "sparse_matrix_impl.hpp"
 #include  "domain.hpp"
 #include  "periodtable.hpp"
 #include  "utility.hpp"
@@ -78,6 +79,18 @@ struct BlockMatPrtn
 	}
 };
 
+/// @struct VecPrtn
+/// @brief Partition class for a structure indexed by a one dimensional
+/// integer vector.  For instance, this can be used to partition the
+/// row (column) index of a matrix.
+struct VecPrtn
+{
+	IntNumVec                 ownerInfo;
+
+	Int Owner (const Int & key) const {
+		return ownerInfo(key);
+	}
+};
 
 
 // *********************************************************************
@@ -967,6 +980,214 @@ void ScaMatToDistNumMat(
 #endif
 	return;
 }  // -----  end of function ScaMatToDistNumMat  ----- 
+
+
+/// @brief Convert a matrix distributed according to 2D element indices
+/// to a DistSparseMatrix.
+///
+/// Note: 
+///
+/// 1) This routine assumes that the input matrix (DistElemMat) and the
+/// output matrix (DistSparseMat) shares the same MPI communicator.
+/// This may not be always the case.  For instance, in PEXSI we might
+/// want to use a smaller communicator for distSparseMat so that
+/// parallelization can be performed over the number of poles.  This
+/// will be done in the future work.
+///
+/// 2) It is assumed that the matrix is symmetric.  Therefore the
+/// position of row and column may be confusing.  This will be a
+/// problem later when structurally symmetric matrix is considered.
+/// This shall be fixed later.
+template<typename F>
+void DistElemMatToDistSparseMat(
+		const DistVec<ElemMatKey, NumMat<F>, ElemMatPrtn>&   distMat,
+		const Int                                            sizeMat,
+		DistSparseMatrix<F>&                                 distSparseMat,
+		const NumTns<std::vector<Int> >&                     basisIdx,
+	  MPI_Comm  	                                         comm ){
+#ifndef _RELEASE_
+	PushCallStack("DistElemMatToDistSparseMat");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( comm, &mpirank );
+	MPI_Comm_size( comm, &mpisize );
+
+	// Compute the local column partition in DistSparseMatrix
+	Int numColFirst = sizeMat / mpisize;
+	Int firstCol = mpirank * numColFirst;
+	Int numColLocal;
+	if( mpirank == mpisize - 1 )
+		numColLocal = sizeMat - numColFirst * (mpisize - 1 );
+	else
+		numColLocal = numColFirst;
+
+	VecPrtn  vecPrtn;
+	vecPrtn.ownerInfo.Resize( sizeMat );
+	IntNumVec&  vecOwner = vecPrtn.ownerInfo;
+	for( Int i = 0; i < sizeMat; i++ ){
+		vecOwner(i) = std::min( i / numColFirst, mpisize - 1 );
+	}
+
+	// nonzero row indices distributedly saved according to column partitions.
+	DistVec<Int, std::vector<Int>, VecPrtn>   distRow;
+	// nonzero values distributedly saved according to column partitions.
+	DistVec<Int, std::vector<F>,   VecPrtn>   distVal;
+
+	distRow.Prtn() = vecPrtn;
+	distVal.Prtn() = vecPrtn;
+
+	std::set<Int>  ownerSet;
+
+	// Convert DistElemMat to intermediate data structure
+	for( typename std::map<ElemMatKey, NumMat<F> >::const_iterator 
+			 mi  = distMat.LocalMap().begin();
+			 mi != distMat.LocalMap().end(); mi++ ){
+		ElemMatKey elemKey = (*mi).first;
+		if( distMat.Prtn().Owner( elemKey ) == mpirank ){
+			Index3 key1 = elemKey.first;
+			Index3 key2 = elemKey.second;
+			const std::vector<Int>& idx1 = basisIdx( key1(0), key1(1), key1(2) );
+			const std::vector<Int>& idx2 = basisIdx( key2(0), key2(1), key2(2) );
+			const NumMat<F>& localMat = (*mi).second;
+			// Skip if there is no basis functions.
+			if( localMat.Size() == 0 )
+				continue;
+
+			if( localMat.m() != idx1.size() ||
+					localMat.n() != idx2.size() ){
+				std::ostringstream msg;
+				msg 
+					<< "Local matrix size is not consistent." << std::endl
+					<< "localMat   size : " << localMat.m() << " x " << localMat.n() << std::endl
+					<< "idx1       size : " << idx1.size() << std::endl
+					<< "idx2       size : " << idx2.size() << std::endl;
+				throw std::runtime_error( msg.str().c_str() );
+			}
+
+			// Distribute the matrix element and row indices to intermediate
+			// data structure in an element by element fashion.
+
+			for( Int a = 0; a < localMat.m(); a++ ){
+				Int row = idx1[a];
+				ownerSet.insert( row );
+				std::vector<Int>& vecRow = distRow.LocalMap()[row];
+				std::vector<F>& vecVal = distVal.LocalMap()[row];
+				for( Int b = 0; b < localMat.n(); b++ ){
+					vecRow.push_back( idx2[b] );
+					vecVal.push_back( localMat( a, b ) );
+				}
+			} // for (a)
+		} // own this matrix block
+	} // for (mi)
+
+#if ( _DEBUGlevel_ >= 2 )
+	if( mpirank == 0 ){
+		for( typename std::map<Int, std::vector<Int> >::const_iterator 
+				mi  = distRow.LocalMap().begin();
+				mi != distRow.LocalMap().end(); mi++ ){
+			std::cout << "Row " << (*mi).first << std::endl << (*mi).second << std::endl;
+		}
+		for( typename std::map<Int, std::vector<F> >::const_iterator 
+				mi  = distVal.LocalMap().begin();
+				mi != distVal.LocalMap().end(); mi++ ){
+			std::cout << "Row " << (*mi).first << std::endl << (*mi).second << std::endl;
+		}
+	}
+#endif
+
+
+	// Communication of the matrix
+	{
+
+		std::vector<Int>  keyIdx;
+		keyIdx.insert( keyIdx.end(), ownerSet.begin(), ownerSet.end() );
+//		std::cout << keyIdx << std::endl;
+//		std::cout << vecOwner << std::endl;
+
+		distRow.PutBegin( keyIdx, NO_MASK );
+		distVal.PutBegin( keyIdx, NO_MASK );
+
+		distRow.PutEnd( NO_MASK, PutMode::REPLACE );
+		distVal.PutEnd( NO_MASK, PutMode::REPLACE );
+
+		// Clean to save space
+		std::vector<Int>  eraseKey;
+		for( typename std::map<Int, std::vector<Int> >::iterator 
+				 mi  = distRow.LocalMap().begin();
+				 mi != distRow.LocalMap().end(); mi++ ){
+			Int key = (*mi).first;
+			if( distRow.Prtn().Owner( key ) != mpirank ){
+				eraseKey.push_back( key );
+			}
+		} // for (mi)
+
+		for( std::vector<Int>::iterator vi = eraseKey.begin();
+				 vi != eraseKey.end(); vi++ ){
+			distRow.LocalMap().erase( *vi );
+			distVal.LocalMap().erase( *vi );
+		}	
+	}
+
+	// Copy the values from intermediate data structure to distSparseMat
+	{
+		// Global information
+		distSparseMat.size        = sizeMat;
+		// Note the 1-based convention
+		distSparseMat.firstCol    = firstCol + 1;
+		distSparseMat.comm        = comm;
+
+		// Local information
+		IntNumVec& colptrLocal = distSparseMat.colptrLocal;
+		IntNumVec& rowindLocal = distSparseMat.rowindLocal;
+		NumVec<F>& nzvalLocal  = distSparseMat.nzvalLocal;
+
+		Int nnzLocal = 0;
+		Int nnz = 0;
+		colptrLocal.Resize( numColLocal + 1 );
+		colptrLocal[0] = 0;
+
+		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
+			if( distRow.Prtn().Owner( row ) != mpirank ){
+				throw std::runtime_error( "The owner information in distRow is incorrect.");
+			}
+			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
+			nnzLocal += rowVec.size();
+			Int cur = row - firstCol;
+			colptrLocal[cur+1] = colptrLocal[cur] + rowVec.size();
+		}	
+
+		mpi::Allreduce( &nnzLocal, &nnz, 1, MPI_SUM, comm );
+
+		rowindLocal.Resize( nnzLocal );
+		nzvalLocal.Resize( nnzLocal );
+
+		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
+			if( distRow.Prtn().Owner( row ) != mpirank ){
+				throw std::runtime_error( "The owner information in distRow is incorrect.");
+			}
+			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
+			std::vector<F>&    valVec = distVal.LocalMap()[row];
+			Int cur = row - firstCol;
+			std::copy( rowVec.begin(), rowVec.end(), &rowindLocal[colptrLocal[cur]] );
+			std::copy( valVec.begin(), valVec.end(), &nzvalLocal[colptrLocal[cur]] );
+		}	
+
+
+		// Other global and local information
+		distSparseMat.nnzLocal = nnzLocal;
+		distSparseMat.nnz      = nnz;
+
+	}
+
+
+	// Initialize the output sparse matrix, and convert the data structure
+	distSparseMat.comm = comm;
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return;
+}  // -----  end of function DistElemMatToDistSparseMat  ----- 
 
 
 /// @brief Computes the inner product of three terms.
