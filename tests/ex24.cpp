@@ -158,9 +158,7 @@ int main(int argc, char **argv)
 		}
 
 		
-
-
-    
+		WriteDistSparseMatrixFormatted( "5x5.matrix", distSparseMat );
 
 	}
 	catch( std::exception& e )

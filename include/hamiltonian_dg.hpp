@@ -1073,7 +1073,7 @@ void DistElemMatToDistSparseMat(
 				std::vector<Int>& vecRow = distRow.LocalMap()[row];
 				std::vector<F>& vecVal = distVal.LocalMap()[row];
 				for( Int b = 0; b < localMat.n(); b++ ){
-					vecRow.push_back( idx2[b] );
+					vecRow.push_back( idx2[b] + 1 );
 					vecVal.push_back( localMat( a, b ) );
 				}
 			} // for (a)
@@ -1144,7 +1144,7 @@ void DistElemMatToDistSparseMat(
 		Int nnzLocal = 0;
 		Int nnz = 0;
 		colptrLocal.Resize( numColLocal + 1 );
-		colptrLocal[0] = 0;
+		colptrLocal[0] = 1;
 
 		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
 			if( distRow.Prtn().Owner( row ) != mpirank ){
@@ -1168,8 +1168,8 @@ void DistElemMatToDistSparseMat(
 			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
 			std::vector<F>&    valVec = distVal.LocalMap()[row];
 			Int cur = row - firstCol;
-			std::copy( rowVec.begin(), rowVec.end(), &rowindLocal[colptrLocal[cur]] );
-			std::copy( valVec.begin(), valVec.end(), &nzvalLocal[colptrLocal[cur]] );
+			std::copy( rowVec.begin(), rowVec.end(), &rowindLocal[colptrLocal[cur]-1] );
+			std::copy( valVec.begin(), valVec.end(), &nzvalLocal[colptrLocal[cur]-1] );
 		}	
 
 
