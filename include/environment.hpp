@@ -127,6 +127,10 @@ enum {VAL, DX, DY, DZ};
 }
 
 
+/// @brief Default argument for most serialization/deserialization process.
+const std::vector<Int> NO_MASK(1);
+
+
 } // namespace dgdft
 
 /***********************************************************************

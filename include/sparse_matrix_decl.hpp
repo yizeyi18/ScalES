@@ -11,6 +11,7 @@
 
 namespace  dgdft{
 
+
 /// @struct SparseMatrix
 /// 
 /// @brief SparseMatrix describes a sequential sparse matrix saved in
@@ -89,6 +90,25 @@ template <class F> struct DistSparseMatrix{
 typedef DistSparseMatrix<Real>       DblDistSparseMatrix;
 typedef DistSparseMatrix<Complex>    CpxDistSparseMatrix;
 
+// Utility subroutines
+
+/// @brief Read a sparse matrix from a binary file using one processor.
+template<typename F>
+void ReadSparseMatrix ( const char* filename, SparseMatrix<F>& spmat );
+
+/// @brief Read a sparse matrix from a formatted file using one processor.
+template <class F> void
+ReadSparseMatrixFormatted	( const char* filename, SparseMatrix<F>& spmat );
+
+/// @brief Read a distributed sparse matrix from a binary file.
+template<typename F>
+void ReadDistSparseMatrix ( const char* filename, 
+		DistSparseMatrix<F>& pspmat, MPI_Comm comm );
+
+/// @brief Read a distributed sparse matrix from a formatted file.
+template<typename F>
+void ReadDistSparseMatrixFormatted ( const char* filename, 
+		DistSparseMatrix<F>& pspmat, MPI_Comm comm );
 
 
 } // namespace dgdft

@@ -12,6 +12,7 @@
 #include  "numvec_impl.hpp"
 #include  "nummat_impl.hpp"
 #include  "numtns_impl.hpp"
+#include  "sparse_matrix_impl.hpp"
 
 namespace dgdft{
 
@@ -633,9 +634,6 @@ template <class F> inline std::ostream& operator<<( std::ostream& os, const NumT
 // More specific serialize/deserialize will be defined in individual
 // class files
 // *********************************************************************
-
-// standard case for most serialization/deserialization process.
-const std::vector<Int> NO_MASK(1);
 
 //bool
 inline Int serialize(const bool& val, std::ostream& os, const std::vector<Int>& mask)
@@ -1408,6 +1406,43 @@ Int inline combine(Domain& dm1, Domain& dm2){
   return 0;
 }
 
+//-------------------
+//DistSparseMatrix
+template<class T>
+Int inline serialize(const DistSparseMatrix<T>& val, std::ostream& os, const std::vector<Int>& mask)
+{
+	serialize( val.size,        os, mask );
+	serialize( val.nnz,         os, mask );
+	serialize( val.nnzLocal,    os, mask );
+	serialize( val.firstCol,    os, mask );
+	serialize( val.colptrLocal, os, mask );
+	serialize( val.rowindLocal, os, mask );
+	serialize( val.nzvalLocal,  os, mask );
+	// No need to serialize the communicator
+	return 0;
+}
+
+template<class T>
+Int inline deserialize(DistSparseMatrix<T>& val, std::istream& is, const std::vector<Int>& mask)
+{
+	deserialize( val.size,        is, mask );
+	deserialize( val.nnz,         is, mask );
+	deserialize( val.nnzLocal,    is, mask );
+	deserialize( val.firstCol,    is, mask );
+	deserialize( val.colptrLocal, is, mask );
+	deserialize( val.rowindLocal, is, mask );
+	deserialize( val.nzvalLocal,  is, mask );
+	// No need to deserialize the communicator
+  return 0;
+}
+
+template<class T>
+Int inline combine(DistSparseMatrix<T>& val, DistSparseMatrix<T>& ext)
+{
+	throw  std::logic_error( "Combine operation not implemented." );
+  return 0;
+}
+
 
 // *********************************************************************
 // Parallel IO functions
@@ -1512,5 +1547,59 @@ public:
 };
 
 
+// *********************************************************************
+// Sparse Matrix
+// *********************************************************************
+
+// TODO Complex format
+void ReadSparseMatrix ( const char* filename, SparseMatrix<Real>& spmat );
+
+void ReadDistSparseMatrix( const char* filename, DistSparseMatrix<Real>& pspmat, MPI_Comm comm );
+
+void ReadDistSparseMatrixFormatted( const char* filename, DistSparseMatrix<Real>& pspmat, MPI_Comm comm );
+
+void WriteDistSparseMatrixFormatted( const char* filename, const DistSparseMatrix<Real>& pspmat);
+
+template <class F1, class F2> 
+void
+CopyPattern	( const SparseMatrix<F1>& A, SparseMatrix<F2>& B )
+{
+#ifndef _RELEASE_
+	PushCallStack("CopyPattern");
+#endif
+	B.size        = A.size;
+	B.nnz         = A.nnz;
+	B.colptr      = A.colptr;
+	B.rowind      = A.rowind;
+	B.nzval.Resize( A.nnz );
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return ;
+}		// -----  end of template function CopyPattern  ----- 
+
+
+// Functions for DistSparseMatrix
+
+template <class F1, class F2> 
+void
+CopyPattern	( const DistSparseMatrix<F1>& A, DistSparseMatrix<F2>& B )
+{
+#ifndef _RELEASE_
+	PushCallStack("CopyPattern");
+#endif
+	B.size        = A.size;
+	B.nnz         = A.nnz;
+	B.nnzLocal    = A.nnzLocal;
+	B.firstCol    = A.firstCol;
+	B.colptrLocal = A.colptrLocal;
+	B.rowindLocal = A.rowindLocal;
+	B.nzvalLocal.Resize( A.nnzLocal );
+	B.comm        = A.comm;
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return ;
+}		// -----  end of template function CopyPattern  ----- 
 } // namespace dgdft
 #endif // _UTILITY_HPP_

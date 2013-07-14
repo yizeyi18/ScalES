@@ -1,4 +1,4 @@
-/// @file ex23.cpp
+/// @file ex24.cpp
 /// @brief Test for converting a DistElemMatrix to a DistSparseMatrix.
 ///
 /// @author Lin Lin

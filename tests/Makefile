@@ -3,7 +3,7 @@
 
 include ../make.inc
 
-SRCS = ex24.cpp ex23.cpp ex21.cpp ex22.cpp ex20.cpp ex18.cpp
+SRCS = ex25.cpp ex24.cpp ex23.cpp ex21.cpp ex22.cpp ex20.cpp ex18.cpp
 
 #SRCS = ex1.cpp ex2.cpp ex3.cpp ex4.cpp ex5.cpp ex6.cpp ex7.cpp ex8.cpp\
 			 ex9.cpp ex10.cpp ex11.cpp ex12.cpp ex13.cpp ex14.cpp ex15.cpp\
@@ -12,6 +12,9 @@ SRCS = ex24.cpp ex23.cpp ex21.cpp ex22.cpp ex20.cpp ex18.cpp
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 EXES = ${SRCS:.cpp=}	
+
+ex25: ex25.o ${DGDFT_LIB} 
+	($(LOADER) -o $@ ex25.o $(LOADOPTS) )
 
 ex24: ex24.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ ex24.o $(LOADOPTS) )
