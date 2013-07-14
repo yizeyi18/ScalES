@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 
 			ReadDistSparseMatrixFormatted<Real>( fname.c_str(), AMat, MPI_COMM_WORLD );
 
-			if( mpirank == 1 ){
+			if( mpirank == 1 & 0 ){
 				cout << "Finish reading the matrix the data structure." << endl;
 				cout << "Size = " << AMat.size << endl;
 				cout << "nnzLocal = " << AMat.nnzLocal << endl;
@@ -50,6 +50,8 @@ int main(int argc, char **argv)
 				cout << "rowindLocal = " << AMat.rowindLocal;
 				cout << "nzvalLocal = " << AMat.nzvalLocal;
 			}
+
+			WriteDistSparseMatrixFormatted( "g20out.matrix", AMat );
 		}
 		if( mpisize == 1 ){
 			cout << "Reading the matrix as a SparseMatrix..." << endl;

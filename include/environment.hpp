@@ -131,6 +131,16 @@ enum {VAL, DX, DY, DZ};
 const std::vector<Int> NO_MASK(1);
 
 
+// Write format control parameters 
+const int LENGTH_VAR_NAME = 8;
+const int LENGTH_DBL_DATA = 16;
+const int LENGTH_INT_DATA = 5;
+const int LENGTH_VAR_UNIT = 6;
+const int LENGTH_DBL_PREC = 8;
+const int LENGTH_FULL_PREC = 16;
+const int LENGTH_VAR_DATA = 16;
+
+
 } // namespace dgdft
 
 /***********************************************************************

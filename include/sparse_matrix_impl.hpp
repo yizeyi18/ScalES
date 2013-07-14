@@ -97,7 +97,9 @@ void ReadDistSparseMatrix ( const char* filename, DistSparseMatrix<F>& pspmat, M
 		fin.read((char*)&dummy, sizeof(Int));
 		fin.read((char*)&pspmat.nnz,  sizeof(Int));
 	}
-	
+
+	pspmat.comm = comm;
+
 	MPI_Bcast(&pspmat.size, 1, MPI_INT, 0, comm);
 	MPI_Bcast(&pspmat.nnz,  1, MPI_INT, 0, comm);
 
@@ -265,6 +267,8 @@ void ReadDistSparseMatrixFormatted ( const char* filename, DistSparseMatrix<F>& 
 		fin >> pspmat.size >> dummy;
 		fin >> pspmat.nnz;
 	}
+
+	pspmat.comm = comm;
 	
 	MPI_Bcast(&pspmat.size, 1, MPI_INT, 0, comm);
 	MPI_Bcast(&pspmat.nnz,  1, MPI_INT, 0, comm);
@@ -394,6 +398,243 @@ void ReadDistSparseMatrixFormatted ( const char* filename, DistSparseMatrix<F>& 
 
 	return ;
 }		// -----  end of function ReadDistSparseMatrixFormatted  ----- 
+
+
+template<typename F>
+void WriteDistSparseMatrixFormatted ( 
+		const char* filename, 
+		DistSparseMatrix<F>& pspmat )
+{
+#ifndef _RELEASE_
+	PushCallStack("WriteDistSparseMatrixFormatted");
+#endif
+	// Get the processor information within the current communicator
+	MPI_Comm comm = pspmat.comm;
+  Int mpirank;  MPI_Comm_rank(comm, &mpirank);
+  Int mpisize;  MPI_Comm_size(comm, &mpisize);
+
+	MPI_Status mpistat;
+	std::ofstream ofs;
+
+  // Write basic information
+	if( mpirank == 0 ){
+		ofs.open(filename, std::ios_base::out);
+		if( !ofs.good() ){
+			throw std::logic_error( "File cannot be openeded!" );
+		}
+		ofs << std::setiosflags(std::ios::left) 
+			<< std::setw(LENGTH_VAR_DATA) << pspmat.size
+			<< std::setw(LENGTH_VAR_DATA) << pspmat.size
+			<< std::setw(LENGTH_VAR_DATA) << pspmat.nnz << std::endl;
+		ofs.close();
+	}
+
+	// Write colptr information, one processor after another
+	IntNumVec colptrSizeLocal(mpisize);
+	SetValue( colptrSizeLocal, 0 );
+	IntNumVec colptrSize(mpisize);
+	SetValue( colptrSize, 0 );
+	colptrSizeLocal(mpirank) = pspmat.colptrLocal[pspmat.colptrLocal.Size()-1] - 1;
+	mpi::Allreduce( colptrSizeLocal.Data(), colptrSize.Data(),
+			mpisize, MPI_SUM, comm );
+	IntNumVec colptrStart(mpisize);
+	colptrStart[0] = 1;
+	for( Int l = 1; l < mpisize; l++ ){
+		colptrStart[l] = colptrStart[l-1] + colptrSize[l-1];
+	}
+	for( Int p = 0; p < mpisize; p++ ){
+		if( mpirank == p ){
+			ofs.open(filename, std::ios_base::out | std::ios_base::app );
+			if( !ofs.good() ){
+				throw std::logic_error( "File cannot be openeded!" );
+			}
+			IntNumVec& colptrLocal = pspmat.colptrLocal;
+			for( Int i = 0; i < colptrLocal.Size() - 1; i++ ){
+				ofs << std::setiosflags(std::ios::left) 
+					<< colptrLocal[i] + colptrStart[p] - 1 << "  ";
+			}
+			if( p == mpisize - 1 ){
+				ofs << std::setiosflags(std::ios::left) 
+					<< colptrLocal[colptrLocal.Size()-1] + colptrStart[p] - 1 << std::endl;
+			}
+			ofs.close();
+		}
+
+		MPI_Barrier( comm );
+	}	
+
+	// Write rowind information, one processor after another
+	for( Int p = 0; p < mpisize; p++ ){
+		if( mpirank == p ){
+			ofs.open(filename, std::ios_base::out | std::ios_base::app );
+			if( !ofs.good() ){
+				throw std::logic_error( "File cannot be openeded!" );
+			}
+			IntNumVec& rowindLocal = pspmat.rowindLocal;
+			for( Int i = 0; i < rowindLocal.Size(); i++ ){
+				ofs << std::setiosflags(std::ios::left) 
+					<< rowindLocal[i] << "  ";
+			}
+			if( p == mpisize - 1 ){
+				ofs << std::endl;
+			}
+			ofs.close();
+		}
+
+		MPI_Barrier( comm );
+	}	
+
+	// Write nzval information, one processor after another
+	for( Int p = 0; p < mpisize; p++ ){
+		if( mpirank == p ){
+			ofs.open(filename, std::ios_base::out | std::ios_base::app );
+			if( !ofs.good() ){
+				throw std::logic_error( "File cannot be openeded!" );
+			}
+			NumVec<F>& nzvalLocal = pspmat.nzvalLocal;
+			for( Int i = 0; i < nzvalLocal.Size(); i++ ){
+				ofs << std::setiosflags(std::ios::left) 
+					<< std::setiosflags(std::ios::scientific)
+					<< std::setiosflags(std::ios::showpos)
+					<< std::setprecision(LENGTH_FULL_PREC)
+					<< nzvalLocal[i] << "  ";
+			}
+			if( p == mpisize - 1 ){
+				ofs << std::endl;
+			}
+			ofs.close();
+		}
+
+		MPI_Barrier( comm );
+	}	
+
+
+//	// Read colptr
+//
+//	IntNumVec  colptr(pspmat.size+1);
+//	if( mpirank == 0 ){
+//		Int* ptr = colptr.Data();
+//		for( Int i = 0; i < pspmat.size+1; i++ )
+//			fin >> *(ptr++);
+//	}
+//
+//	MPI_Bcast(colptr.Data(), pspmat.size+1, MPI_INT, 0, comm);
+//
+//	// Compute the number of columns on each processor
+//	IntNumVec numColLocalVec(mpisize);
+//	Int numColLocal, numColFirst;
+//	numColFirst = pspmat.size / mpisize;
+//  SetValue( numColLocalVec, numColFirst );
+//  numColLocalVec[mpisize-1] = pspmat.size - numColFirst * (mpisize-1);  // Modify the last entry	
+//	numColLocal = numColLocalVec[mpirank];
+//
+//	// The first column follows the 1-based (FORTRAN convention) index.
+//	pspmat.firstCol = mpirank * numColFirst + 1;
+//
+//	pspmat.colptrLocal.Resize( numColLocal + 1 );
+//	for( Int i = 0; i < numColLocal + 1; i++ ){
+//		pspmat.colptrLocal[i] = colptr[mpirank * numColFirst+i] - colptr[mpirank * numColFirst] + 1;
+//	}
+//
+//	// Calculate nnz_loc on each processor
+//	pspmat.nnzLocal = pspmat.colptrLocal[numColLocal] - pspmat.colptrLocal[0];
+//
+//  pspmat.rowindLocal.Resize( pspmat.nnzLocal );
+//	pspmat.nzvalLocal.Resize ( pspmat.nnzLocal );
+//
+//	// Read and distribute the row indices
+//	if( mpirank == 0 ){
+//		Int tmp;
+//		IntNumVec buf;
+//		Int numRead;
+//		for( Int ip = 0; ip < mpisize; ip++ ){
+//			numRead = colptr[ip*numColFirst + numColLocalVec[ip]] - 
+//				colptr[ip*numColFirst];
+//			buf.Resize(numRead);
+//			Int *ptr = buf.Data();
+//			for( Int i = 0; i < numRead; i++ ){
+//				fin >> *(ptr++);
+//			}
+//			if( ip > 0 ){
+//				MPI_Send(&numRead, 1, MPI_INT, ip, 0, comm);
+//				MPI_Send(buf.Data(), numRead, MPI_INT, ip, 1, comm);
+//			}
+//			else{
+//        pspmat.rowindLocal = buf;
+//			}
+//		}
+//	}
+//	else{
+//		Int numRead;
+//		MPI_Recv(&numRead, 1, MPI_INT, 0, 0, comm, &mpistat);
+//		if( numRead != pspmat.nnzLocal ){
+//			std::ostringstream msg;
+//			msg << "The number of columns in row indices do not match." << std::endl
+//				<< "numRead  = " << numRead << std::endl
+//				<< "nnzLocal = " << pspmat.nnzLocal << std::endl;
+//			throw std::logic_error( msg.str().c_str() );
+//		}
+//
+//    pspmat.rowindLocal.Resize( numRead );
+//		MPI_Recv( pspmat.rowindLocal.Data(), numRead, MPI_INT, 0, 1, comm, &mpistat );
+//	}
+//		
+//#if ( _DEBUGlevel_ >= 2 )
+//	std::cout << "Proc " << mpirank << " outputs rowindLocal.size() = " 
+//		<< pspmat.rowindLocal.m() << endl;
+//#endif
+//
+//
+//	// Read and distribute the nonzero values
+//	if( mpirank == 0 ){
+//		Int tmp;
+//		NumVec<F> buf;
+//		Int numRead;
+//		for( Int ip = 0; ip < mpisize; ip++ ){
+//			numRead = colptr[ip*numColFirst + numColLocalVec[ip]] - 
+//				colptr[ip*numColFirst];
+//			buf.Resize(numRead);
+//			F *ptr = buf.Data();
+//			for( Int i = 0; i < numRead; i++ ){
+//				fin >> *(ptr++);
+//			}
+//			if( ip > 0 ){
+//				std::stringstream sstm;
+//				serialize( buf, sstm, NO_MASK );
+//				mpi::Send( sstm, ip, 0, 1, comm );
+//			}
+//			else{
+//        pspmat.nzvalLocal = buf;
+//			}
+//		}
+//	}
+//	else{
+//		std::stringstream sstm;
+//		mpi::Recv( sstm, 0, 0, 1, comm, mpistat, mpistat );
+//		deserialize( pspmat.nzvalLocal, sstm, NO_MASK );
+//		if( pspmat.nzvalLocal.m() != pspmat.nnzLocal ){
+//			std::ostringstream msg;
+//			msg << "The number of columns in values do not match." << std::endl
+//				<< "numRead  = " << pspmat.nzvalLocal.m() << std::endl
+//				<< "nnzLocal = " << pspmat.nnzLocal << std::endl;
+//			throw std::logic_error( msg.str().c_str() );
+//		}
+//	}
+//
+//	// Close the file
+//	if( mpirank == 0 ){
+//    fin.close();
+//	}
+
+  MPI_Barrier( comm );
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+}		// -----  end of function WriteDistSparseMatrixFormatted  ----- 
+
 
 } // namespace dgdft
 

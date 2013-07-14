@@ -110,6 +110,12 @@ template<typename F>
 void ReadDistSparseMatrixFormatted ( const char* filename, 
 		DistSparseMatrix<F>& pspmat, MPI_Comm comm );
 
+/// @brief Write distributed sparse matrix to a formatted file.
+template<typename F>
+void WriteDistSparseMatrixFormatted ( 
+		const char* filename, 
+		DistSparseMatrix<F>& pspmat );
+
 
 } // namespace dgdft
 

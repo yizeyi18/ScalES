@@ -92,19 +92,6 @@ struct PseudoPot
 
 
 
-// *********************************************************************
-// Define constants
-// *********************************************************************
-
-// Write format control parameters 
-const int LENGTH_VAR_NAME = 8;
-const int LENGTH_DBL_DATA = 16;
-const int LENGTH_INT_DATA = 5;
-const int LENGTH_VAR_UNIT = 6;
-const int LENGTH_DBL_PREC = 8;
-const int LENGTH_VAR_DATA = 16;
-
-
 
 // *********************************************************************
 // Mesh  and other utilities FIXME
