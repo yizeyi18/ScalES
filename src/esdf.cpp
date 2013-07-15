@@ -490,6 +490,11 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! whether wavefunctions in the buffer is outputed !*");
 
 	i++;
+	strcpy(kw_label[i],"output_hmatrix");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether the DG Hamiltonian matrix is outputed !*");
+
+	i++;
 	strcpy(kw_label[i],"element_position_start");
 	strcpy(kw_typ[i],"B:E");
 	strcpy(kw_dscrpt[i],"*! Starting position of each molecule element !*");
@@ -1890,6 +1895,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
 		esdfParam.isOutputWfn      = esdf_integer( "Output_Wfn", 0 );
 		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
+		esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
 
 		esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
 		esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 10.0 );

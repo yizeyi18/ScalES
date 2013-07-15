@@ -36,6 +36,7 @@ private:
 	bool                isOutputDensity_;
 	bool                isOutputWfn_;
 	bool                isCalculateAPosterioriEachSCF_;
+	bool                isOutputHMatrix_;
   
 	std::string         restartDensityFileName_;
   std::string         restartWfnFileName_;

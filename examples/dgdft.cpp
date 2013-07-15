@@ -123,6 +123,7 @@ int main(int argc, char **argv)
 			Print(statusOFS, "OutputWfn         = ",  esdfParam.isOutputWfn);
 			Print(statusOFS, "Calculate A Posteriori error estimator at each step = ",  
 					esdfParam.isCalculateAPosterioriEachSCF);
+			Print(statusOFS, "OutputHMatrix     = ",  esdfParam.isOutputHMatrix );
 			Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
 			Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
 			Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);

@@ -69,6 +69,7 @@ SCFDG::Setup	(
 		isOutputDensity_  = esdfParam.isOutputDensity;
 		isOutputWfn_      = esdfParam.isOutputWfn;
 		isCalculateAPosterioriEachSCF_ = esdfParam.isCalculateAPosterioriEachSCF;
+		isOutputHMatrix_  = esdfParam.isOutputHMatrix;
     Tbeta_            = esdfParam.Tbeta;
 		scaBlockSize_     = esdfParam.scaBlockSize;
 		numElem_          = esdfParam.numElem;
@@ -748,6 +749,36 @@ SCFDG::InnerIterate	(  )
 
 		} // if ( innerIter == 1 )
 
+
+		// *********************************************************************
+		// Write the Hamiltonian matrix to a file (if needed) 
+		// *********************************************************************
+
+		if( isOutputHMatrix_ ){
+			DistSparseMatrix<Real>  HSparseMat;
+
+			GetTime(timeSta);
+			DistElemMatToDistSparseMat( 
+					hamDG.HMat(),
+					hamDG.NumBasisTotal(),
+					HSparseMat,
+					hamDG.ElemBasisIdx(),
+					domain_.comm );
+			GetTime(timeEnd);
+#if ( _DEBUGlevel_ >= 0 )
+			statusOFS << "Time for converting the DG matrix to DistSparseMatrix format is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+			GetTime(timeSta);
+			WriteDistSparseMatrixFormatted( "H.matrix", HSparseMat );
+			GetTime(timeEnd);
+#if ( _DEBUGlevel_ >= 0 )
+			statusOFS << "Time for writing the matrix in parallel is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+		}
 
 		// *********************************************************************
 		// Diagonalize the DG matrix
