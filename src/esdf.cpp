@@ -1898,7 +1898,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
 
 		esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
-		esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 10.0 );
+		esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 0.0 );
 		esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );
 
 		Real temperature;
