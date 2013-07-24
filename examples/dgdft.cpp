@@ -82,23 +82,23 @@ int main(int argc, char **argv)
 
 		ESDFReadInput( esdfParam, inFile.c_str() );
 
-		// Adjust the input parameters
-		{
-			bool isGridAdjusted = false;
-			Index3& numGrid = esdfParam.domain.numGrid;
-			Index3& numElem = esdfParam.numElem;
-			for( Int d = 0; d < DIM; d++ ){
-				if( numGrid[d] % numElem[d] != 0 ){
-					numGrid[d] = IRound( (Real)numGrid[d] / numElem[d] ) * numElem[d];
-					isGridAdjusted = true;
-				}
-			}
-			if( isGridAdjusted ){
-				statusOFS << std::endl 
-					<< "Grid size is adjusted to be a multiple of the number of elements." 
-					<< std::endl;
-			}
-		}
+		// The number of grid points have already been adjusted in ESDFReadInput.
+//		{
+//			bool isGridAdjusted = false;
+//			Index3& numGrid = esdfParam.domain.numGrid;
+//			Index3& numElem = esdfParam.numElem;
+//			for( Int d = 0; d < DIM; d++ ){
+//				if( numGrid[d] % numElem[d] != 0 ){
+//					numGrid[d] = IRound( (Real)numGrid[d] / numElem[d] ) * numElem[d];
+//					isGridAdjusted = true;
+//				}
+//			}
+//			if( isGridAdjusted ){
+//				statusOFS << std::endl 
+//					<< "Grid size is adjusted to be a multiple of the number of elements." 
+//					<< std::endl;
+//			}
+//		}
 
 		// Print the initial state
 		{
@@ -127,6 +127,9 @@ int main(int argc, char **argv)
 			Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
 			Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
 			Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
+			Print(statusOFS, "EcutWavefunction  = ",  esdfParam.ecutWavefunction);
+			Print(statusOFS, "Density GridFactor= ",  esdfParam.densityGridFactor);
+			Print(statusOFS, "LGL GridFactor    = ",  esdfParam.LGLGridFactor);
 
 			Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
 			Print(statusOFS, "Extra states      = ",  esdfParam.numExtraState );
@@ -137,6 +140,7 @@ int main(int argc, char **argv)
 
 			Print(statusOFS, "Penalty Alpha     = ",  esdfParam.penaltyAlpha );
 			Print(statusOFS, "Element size      = ",  esdfParam.numElem ); 
+			Print(statusOFS, "Wfn Elem GridSize = ",  esdfParam.numGridWavefunctionElem ); 
 			Print(statusOFS, "LGL Grid size     = ",  esdfParam.numGridLGL ); 
 			Print(statusOFS, "ScaLAPACK block   = ",  esdfParam.scaBlockSize); 
 			statusOFS << "Number of ALB for each element: " << std::endl 
@@ -207,12 +211,12 @@ int main(int argc, char **argv)
 								// Assume the global domain starts from 0.0
 								if( numElem[d] == 1 ){
 									dmExtElem.length[d]     = dm.length[d];
-									dmExtElem.numGrid[d]    = dm.numGrid[d];
+									dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d];
 									dmExtElem.posStart[d]   = 0.0;
 								}
 								else if ( numElem[d] >= 4 ){
 									dmExtElem.length[d]     = dm.length[d]  / numElem[d] * 3;
-									dmExtElem.numGrid[d]    = dm.numGrid[d] / numElem[d] * 3;
+									dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d] * 3;
 									dmExtElem.posStart[d]   = dm.length[d]  / numElem[d] * ( key[d] - 1 );
 								}
 								else{
@@ -289,15 +293,18 @@ int main(int argc, char **argv)
 								}
 							} // for (d)
 
+#if 0
 							statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
 							statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
 							statusOFS << "gridpos[2] = " << std::endl << gridpos[2] << std::endl;
 							statusOFS << "vBarrier[0] = " << std::endl << vBarrier[0] << std::endl;
 							statusOFS << "vBarrier[1] = " << std::endl << vBarrier[1] << std::endl;
 							statusOFS << "vBarrier[2] = " << std::endl << vBarrier[2] << std::endl;
+#endif
 
 							DblNumVec& vext = hamKS.Vext();
 							SetValue( vext, 0.0 );
+#if 0
 							for( Int gk = 0; gk < dmExtElem.numGrid[2]; gk++)
 								for( Int gj = 0; gj < dmExtElem.numGrid[1]; gj++ )
 									for( Int gi = 0; gi < dmExtElem.numGrid[0]; gi++ ){
@@ -305,8 +312,8 @@ int main(int argc, char **argv)
 											gk * dmExtElem.numGrid[0] * dmExtElem.numGrid[1];
 										vext[idx] = vBarrier[0][gi] + vBarrier[1][gj] + vBarrier[2][gk];
 									} // for (gi)
+#endif
 							
-
 							hamKS.CalculatePseudoPotential( ptable );
 
 							statusOFS << "Hamiltonian constructed." << std::endl;

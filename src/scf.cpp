@@ -227,7 +227,7 @@ SCF::Iterate	(  )
 		GetTime( timeIterEnd );
    
 		statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
-			<< " [sec]" << std::endl;
+			<< " [s]" << std::endl;
   }
 
 #ifndef _RELEASE_

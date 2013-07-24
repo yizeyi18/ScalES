@@ -245,7 +245,7 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 #endif
 
 	return ;
-} 		// -----  end of method KohnSham::CalculatePseudoCharge  ----- 
+} 		// -----  end of method KohnSham::CalculatePseudoPotential ----- 
 
 
 

@@ -97,6 +97,7 @@ struct ESDFInputParam{
 
 	// DG related
 	Index3              numElem;
+	Index3              numGridWavefunctionElem;
 	Index3              numGridLGL;
 	Real                penaltyAlpha;
 	IntNumTns           numALBElem;
@@ -104,6 +105,9 @@ struct ESDFInputParam{
 	Real                potentialBarrierW;
 	Real                potentialBarrierS;
 	Real                potentialBarrierR;
+	Real                ecutWavefunction;
+	Real                densityGridFactor;
+	Real                LGLGridFactor;
 };
 
 void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );

@@ -684,6 +684,20 @@ void esdf_key() {
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! Radius parameter of potential barrier to the extended element!*");
 
+	i++;
+	strcpy(kw_label[i],"ecut_wavefunction");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Equivalent kinetic energy cutoff (in the unit of Hartree) for wavefunctions or adaptive local basis functions in a uniform grid!*");
+
+	i++;
+	strcpy(kw_label[i],"density_grid_factor");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! The number of grid points for density over the number of grid points over wavefunction along each dimension !*");
+
+	i++;
+	strcpy(kw_label[i],"lgl_grid_factor");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! The number of LGL grid points over the number of grid points over wavefunction along each dimension !*");
 }
 
 void esdf() {
@@ -1811,12 +1825,17 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 			throw std::logic_error("Super_Cell cannot be found.");
 		}
 
-		if( esdf_block("Grid_Size", &nlines) ){
-			sscanf(block_data[0],"%d %d %d",
-					&dm.numGrid[0],&dm.numGrid[1],&dm.numGrid[2]);
-		}
-		else{
-			throw std::logic_error("Grid_Size cannot be found."); }
+		// 07/24/2013: Instead of grid size, use ecut to determine the grid
+		// size in the global domain for wavefunctions, density, and also
+		// other quantities in the local LGL domain.
+		//
+		// So dm.numGrid is not specified here.
+//		if( esdf_block("Grid_Size", &nlines) ){
+//			sscanf(block_data[0],"%d %d %d",
+//					&dm.numGrid[0],&dm.numGrid[1],&dm.numGrid[2]);
+//		}
+//		else{
+//			throw std::logic_error("Grid_Size cannot be found."); }
 
 		dm.posStart = Point3( 0.0, 0.0, 0.0 );
 	}
@@ -1900,6 +1919,12 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
 		esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 0.0 );
 		esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );
+		
+		esdfParam.ecutWavefunction     = esdf_double( "Ecut_Wavefunction", 10.0 );
+		esdfParam.densityGridFactor    = esdf_double( "Density_Grid_Factor", 2.0 );
+
+		// The density grid factor must be an integer
+		esdfParam.densityGridFactor    = std::ceil( esdfParam.densityGridFactor );
 
 		Real temperature;
 		temperature               = esdf_double( "Temperature", 100.0 );
@@ -1932,11 +1957,16 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 					&numElem[0],&numElem[1],&numElem[2]);
 		}
 
-		Index3& numGridLGL = esdfParam.numGridLGL;
-		if (esdf_block("Element_Grid_Size", &nlines)) {
-			sscanf(block_data[0],"%d %d %d", 
-					&numGridLGL[0],&numGridLGL[1],&numGridLGL[2] );
-		}
+		// Instead of grid size, use ecut to determine the number of grid
+		// points in the local LGL domain.
+		// The LGL grid factor does not need to be an integer.
+		esdfParam.LGLGridFactor = esdf_double( "LGL_Grid_Factor", 1.0 );
+
+//		Index3& numGridLGL = esdfParam.numGridLGL;
+//		if (esdf_block("Element_Grid_Size", &nlines)) {
+//			sscanf(block_data[0],"%d %d %d", 
+//					&numGridLGL[0],&numGridLGL[1],&numGridLGL[2] );
+//		}
 
 		esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 100.0 );
 
@@ -1977,6 +2007,58 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
 
 	}
+	
+
+	// Choose the number of grid points
+	// NOTE: This part of the code only applies to DGDFT, since the
+	// wavefunction grid and the density grid size is assumed to be a
+	// multiple of the number of elements along each dimension.
+	//
+	// The formula for the number of grid points along each dimension with
+	// length L is
+	//
+	// 1/2 K_max^2 = Ecut,   with K_max = pi N_max / L, 
+	//
+	// i.e.
+	//
+	// N_max = \frac{\sqrt{2 E_cut} * L}{pi}.
+	//
+	// The number of grid point along this dimension is chosen to be the
+	// largest even number bigger than N_max.  The number of global grid
+	// points is also required to be divisible by the number of elements
+	// along that dimension.
+	//
+	// TODO Later the number of grid points can be improved to only
+	// contain the factor of 2, 3 and 5.
+	//
+	// TODO Current ecutDensity is only used for global grid quantities
+	// such as density and potential.  When solving the local problem, the
+	// number of grid points for density is still the same as that for the
+	// wavefunction.  This constraint can be improved later by saving the
+	// wavefunction in the extended element really in the Fourier domain.
+	// This real dual grid approach will be done in the next step.
+	{
+    Domain&  dm      = esdfParam.domain;
+		Index3&  numGridWavefunctionElem = esdfParam.numGridWavefunctionElem;
+		Index3&  numGridLGL = esdfParam.numGridLGL;
+		Index3   numElem = esdfParam.numElem;
+
+		Point3  elemLength;
+
+		for( Int d = 0; d < DIM; d++ ){
+			elemLength[d] = dm.length[d] / numElem[d];
+			// the number of grid is assumed to be at least an even number
+			numGridWavefunctionElem[d] = 
+				std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
+						elemLength[d] / PI / 2.0) * 2;
+			dm.numGrid[d] = numGridWavefunctionElem[d] * numElem[d] * 
+				esdfParam.densityGridFactor;
+			
+			numGridLGL[d] = std::ceil( numGridWavefunctionElem[d] * esdfParam.LGLGridFactor );
+		} // for (d)
+
+	}
+	
 
 #ifndef _RELEASE_
 	PopCallStack();

@@ -7,8 +7,6 @@
 #include	"lapack.hpp"
 #include  "utility.hpp"
 
-#define _DEBUGlevel_ 0
-
 namespace  dgdft{
 
 using namespace dgdft::DensityComponent;
@@ -73,6 +71,7 @@ SCFDG::Setup	(
     Tbeta_            = esdfParam.Tbeta;
 		scaBlockSize_     = esdfParam.scaBlockSize;
 		numElem_          = esdfParam.numElem;
+		densityGridFactor_= esdfParam.densityGridFactor;
 	}
 
 	// other SCFDG parameters
@@ -376,7 +375,7 @@ SCFDG::Iterate	(  )
 						eigSol.Solve();
 						GetTime( timeEnd );
 						statusOFS << "Eigensolver time = " 	<< timeEnd - timeSta
-							<< " [sec]" << std::endl;
+							<< " [s]" << std::endl;
 
 						// Print out the information
 						statusOFS << std::endl 
@@ -413,7 +412,7 @@ SCFDG::Iterate	(  )
 
 						GetTime( timeEnd );
 						statusOFS << "Time for interpolating basis = " 	<< timeEnd - timeSta
-							<< " [sec]" << std::endl;
+							<< " [s]" << std::endl;
 
 						// FIXME
 						//						if( mpirank == 1 ){
@@ -496,7 +495,7 @@ SCFDG::Iterate	(  )
 						}
 						GetTime( timeEnd );
 						statusOFS << "Time for SVD of basis = " 	<< timeEnd - timeSta
-							<< " [sec]" << std::endl;
+							<< " [s]" << std::endl;
 
 					} // own this element
 				} // for (i)
@@ -634,7 +633,7 @@ SCFDG::Iterate	(  )
 		
 		GetTime( timeIterEnd );
 		statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
-			<< " [sec]" << std::endl;
+			<< " [s]" << std::endl;
   }
 
 #ifndef _RELEASE_
@@ -1002,7 +1001,7 @@ SCFDG::InnerIterate	(  )
 		GetTime( timeIterEnd );
    
 		statusOFS << "Time time for this inner SCF iteration = " << timeIterEnd - timeIterStart
-			<< " [sec]" << std::endl << std::endl;
+			<< " [s]" << std::endl << std::endl;
 
 	} // for (innerIter)
 
@@ -1020,6 +1019,7 @@ SCFDG::UpdateElemLocalPotential	(  )
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::UpdateElemLocalPotential");
 #endif
+
 	Int mpirank, mpisize;
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
@@ -1127,7 +1127,7 @@ SCFDG::UpdateElemLocalPotential	(  )
 							// FIXME Adjustment  
 							if( numElem_[d] > 1 ) shiftIdx[d] ++;
 
-							shiftIdx[d] *= numGridElem[d];
+							shiftIdx[d] *= IRound( numGridElem[d] / densityGridFactor_ );
 						}
 
 #if ( _DEBUGlevel_ >= 1 )
@@ -1136,18 +1136,30 @@ SCFDG::UpdateElemLocalPotential	(  )
 						statusOFS << "numGridElem    = " << numGridElem << std::endl;
 						statusOFS << "keyElem        = " << keyElem << ", shiftIdx = " << shiftIdx << std::endl;
 #endif
-
 						Int ptrExtElem, ptrElem;
-						for( Int k = 0; k < numGridElem[2]; k++ )
-							for( Int j = 0; j < numGridElem[1]; j++ )
-								for( Int i = 0; i < numGridElem[0]; i++ ){
+						for( Int k = 0; k < IRound(numGridElem[2] / densityGridFactor_); k++ )
+							for( Int j = 0; j < IRound(numGridElem[1] / densityGridFactor_); j++ )
+								for( Int i = 0; i < IRound(numGridElem[0] / densityGridFactor_); i++ ){
 									ptrExtElem = (shiftIdx[0] + i) + 
 										( shiftIdx[1] + j ) * numGridExtElem[0] +
 										( shiftIdx[2] + k ) * numGridExtElem[0] * numGridExtElem[1];
-									ptrElem    = i + j * numGridElem[0] + 
-										k * numGridElem[0] * numGridElem[1];
+									ptrElem    = i * densityGridFactor_ + 
+										j * densityGridFactor_ * numGridElem[0] + 
+										k * densityGridFactor_ * numGridElem[0] * numGridElem[1];
 									vtotExtElem( ptrExtElem ) = vtotElem( ptrElem );
 								} // for (i)
+
+//						Int ptrExtElem, ptrElem;
+//						for( Int k = 0; k < numGridElem[2]; k++ )
+//							for( Int j = 0; j < numGridElem[1]; j++ )
+//								for( Int i = 0; i < numGridElem[0]; i++ ){
+//									ptrExtElem = (shiftIdx[0] + i) + 
+//										( shiftIdx[1] + j ) * numGridExtElem[0] +
+//										( shiftIdx[2] + k ) * numGridExtElem[0] * numGridExtElem[1];
+//									ptrElem    = i + j * numGridElem[0] + 
+//										k * numGridElem[0] * numGridElem[1];
+//									vtotExtElem( ptrExtElem ) = vtotElem( ptrElem );
+//								} // for (i)
 					} // for (mi)
 
 					// Update the potential in the element on LGL grid
