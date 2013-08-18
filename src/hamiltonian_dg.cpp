@@ -6,7 +6,7 @@
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 
-#define _DEBUGlevel_ 0
+#define _DEBUGlevel_ 1
 
 namespace dgdft{
 
@@ -118,8 +118,9 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 				if( elemPrtn_.Owner(key) == mpirank ){
 					DblNumVec  empty( numUniformGridElem_.prod() );
 					SetValue( empty, 0.0 );
+					DblNumVec emptyLGL( numLGLGridElem_.prod() );
 					density_.LocalMap()[key]     = empty;
-					densityLGL_.LocalMap()[key]  = empty;
+					densityLGL_.LocalMap()[key]  = emptyLGL;
 					vext_.LocalMap()[key]        = empty;
 					vhart_.LocalMap()[key]       = empty;
 					vxc_.LocalMap()[key]         = empty;
@@ -913,6 +914,8 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 							}
 						}
 
+						statusOFS << "Before interpolation" << std::endl;
+
 						// Interpolate the local density from LGL grid to uniform
 						// grid
 						InterpLGLToUniform( 
@@ -920,6 +923,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 								numUniformGridElem_, 
 								localRhoLGL.Data(), 
 								localRho.Data() );
+						statusOFS << "After interpolation" << std::endl;
 
 						sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
 								localRhoLGL.Data(), 1, 
