@@ -395,6 +395,22 @@ SCFDG::Iterate	(  )
 						// Assuming that wavefun has only 1 component
 						DblNumTns& wavefun = psi.Wavefun();
 
+						// FIXME output the wavefunction
+						if(1)
+						{
+							// Output the wavefunctions in the extended element.
+							std::ostringstream wavefunStream;      
+
+							// Generate the uniform mesh on the extended element.
+							std::vector<DblNumVec> gridpos;
+							UniformMesh ( eigSol.FFT().domain, gridpos );
+							for( Int d = 0; d < DIM; d++ ){
+								serialize( gridpos[d], wavefunStream, NO_MASK );
+							}
+							serialize( wavefun, wavefunStream, NO_MASK );
+							SeparateWrite( "WAVEFUN", wavefunStream);
+						}
+
 						DblNumMat localBasis( 
 								numLGLGrid.prod(), 
 								psi.NumState() );
@@ -616,18 +632,51 @@ SCFDG::Iterate	(  )
 
 		// Output the electron density
 		if( isOutputDensity_ ){
-			std::ostringstream rhoStream;      
-			
-			for( Int k = 0; k < numElem_[2]; k++ )
-				for( Int j = 0; j < numElem_[1]; j++ )
-					for( Int i = 0; i < numElem_[0]; i++ ){
-						Index3 key( i, j, k );
-						if( elemPrtn_.Owner( key ) == mpirank ){
-							DblNumVec&  denVec = hamDG.Density().LocalMap()[key];
-							serialize( denVec, rhoStream, NO_MASK );
-						}
-					} // for (i)
-			SeparateWrite( restartDensityFileName_, rhoStream );
+			{
+				// Output the electron density on the uniform grid in each element
+				std::ostringstream rhoStream;      
+
+				NumTns<std::vector<DblNumVec> >& uniformGridElem =
+					hamDG.UniformGridElem();
+
+				for( Int k = 0; k < numElem_[2]; k++ )
+					for( Int j = 0; j < numElem_[1]; j++ )
+						for( Int i = 0; i < numElem_[0]; i++ ){
+							Index3 key( i, j, k );
+							if( elemPrtn_.Owner( key ) == mpirank ){
+								DblNumVec&  denVec = hamDG.Density().LocalMap()[key];
+								std::vector<DblNumVec>& grid = uniformGridElem(i, j, k);
+								for( Int d = 0; d < DIM; d++ ){
+									serialize( grid[d], rhoStream, NO_MASK );
+								}
+								serialize( denVec, rhoStream, NO_MASK );
+							}
+						} // for (i)
+				SeparateWrite( restartDensityFileName_, rhoStream );
+			}
+
+			{
+				// Output the electron density on the LGL grid in each element
+				std::ostringstream rhoStream;      
+
+				NumTns<std::vector<DblNumVec> >& LGLGridElem =
+					hamDG.LGLGridElem();
+
+				for( Int k = 0; k < numElem_[2]; k++ )
+					for( Int j = 0; j < numElem_[1]; j++ )
+						for( Int i = 0; i < numElem_[0]; i++ ){
+							Index3 key( i, j, k );
+							if( elemPrtn_.Owner( key ) == mpirank ){
+								DblNumVec&  denVec = hamDG.DensityLGL().LocalMap()[key];
+								std::vector<DblNumVec>& grid = LGLGridElem(i, j, k);
+								for( Int d = 0; d < DIM; d++ ){
+									serialize( grid[d], rhoStream, NO_MASK );
+								}
+								serialize( denVec, rhoStream, NO_MASK );
+							}
+						} // for (i)
+				SeparateWrite( "DENLGL", rhoStream );
+			}
 		} // if ( output density )
 
 		

@@ -214,13 +214,13 @@ int main(int argc, char **argv)
 									dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d];
 									dmExtElem.posStart[d]   = 0.0;
 								}
-								else if ( numElem[d] >= 4 ){
+								else if ( numElem[d] >= 3 ){
 									dmExtElem.length[d]     = dm.length[d]  / numElem[d] * 3;
 									dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d] * 3;
 									dmExtElem.posStart[d]   = dm.length[d]  / numElem[d] * ( key[d] - 1 );
 								}
 								else{
-									throw std::runtime_error( "numElem[d] is either 1 or >=4." );
+									throw std::runtime_error( "numElem[d] is either 1 or >=3." );
 								}
 
 								// Do not specify the communicator for the domain yet

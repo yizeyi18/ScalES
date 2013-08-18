@@ -195,6 +195,11 @@ private:
 	/// DG calculation.
 	DistDblNumVec    density_;
 
+	/// @brief Electron density in the global domain defined on the LGL
+	/// grid. No magnitization for DG calculation.
+	DistDblNumVec    densityLGL_;
+
+
 	/// @brief External potential in the global domain. (not implemented)
 	DistDblNumVec    vext_;
 
@@ -356,6 +361,8 @@ public:
 	/// DG calculation.
 	DistDblNumVec&  Density() { return density_; }
 
+	DistDblNumVec&  DensityLGL() { return densityLGL_; }
+
 	DistDblNumVec&  PseudoCharge() { return pseudoCharge_; }
 	
 	std::vector<Atom>&  AtomList() { return atomList_; }
@@ -386,6 +393,15 @@ public:
 
 	/// @brief Number of LGL grids in each element.
 	Index3 NumLGLGridElem() const { return numLGLGridElem_; }
+
+	/// @brief Return the uniform grid on each element
+	NumTns<std::vector<DblNumVec> >& UniformGridElem(){ return  uniformGridElem_; }
+
+	/// @brief Return the LGL grid on each element
+	NumTns<std::vector<DblNumVec> >& LGLGridElem(){ return  LGLGridElem_; }
+
+	/// @brief Return the element domain information
+	NumTns<Domain>&  DomainElem(){ return domainElem_; }
 
 
 	// *********************************************************************

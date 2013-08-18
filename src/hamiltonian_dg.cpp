@@ -104,6 +104,7 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	// Initialize the DistNumVecs.
 	pseudoCharge_.Prtn()  = elemPrtn_;
 	density_.Prtn()       = elemPrtn_;
+	densityLGL_.Prtn()    = elemPrtn_;
 	vext_.Prtn()          = elemPrtn_;
 	vhart_.Prtn()         = elemPrtn_;
 	vxc_.Prtn()           = elemPrtn_;
@@ -118,6 +119,7 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 					DblNumVec  empty( numUniformGridElem_.prod() );
 					SetValue( empty, 0.0 );
 					density_.LocalMap()[key]     = empty;
+					densityLGL_.LocalMap()[key]  = empty;
 					vext_.LocalMap()[key]        = empty;
 					vhart_.LocalMap()[key]       = empty;
 					vxc_.LocalMap()[key]         = empty;
@@ -726,7 +728,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 	// Method 2: Compute the electron density locally, and then normalize
 	// only in the global domain. The result should be almost the same as
 	// that in Method 1, but should be much faster.
-	if(1)
+	if(0)
 	{
 		Real sumRhoLocal = 0.0, sumRho = 0.0;
 		// Compute the local density in each element
@@ -812,7 +814,155 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 				} // for (i)
 	} // Method 2
 
+	// Method 3: Method 3 is the same as the Method 2, but to output the
+	// eigenfunctions locally. TODO
+	if(1)
+	{
+		Real sumRhoLocal = 0.0, sumRho = 0.0;
+		Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
+		// Generate the LGL weight. FIXME. Put it to hamiltonian_dg
+		// Compute the integration weights
+		DblNumTns               LGLWeight3D;
+		{
+			std::vector<DblNumVec>  LGLWeight1D(DIM);
+			Point3 length       = domainElem_(0,0,0).length;
+			Index3 numGrid      = numLGLGridElem_;             
+			Int    numGridTotal = numGrid.prod();
 
+			// Compute the integration weights
+			// 1D
+			for( Int d = 0; d < DIM; d++ ){
+				DblNumVec  dummyX;
+				DblNumMat  dummyP, dummpD;
+				GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
+						numGrid[d] );
+				blas::Scal( numGrid[d], 0.5 * length[d], 
+						LGLWeight1D[d].Data(), 1 );
+			}
+
+			// 3D
+			LGLWeight3D.Resize( numGrid[0], numGrid[1], numGrid[2] );
+			for( Int k = 0; k < numGrid[2]; k++ )
+				for( Int j = 0; j < numGrid[1]; j++ )
+					for( Int i = 0; i < numGrid[0]; i++ ){
+						LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
+							LGLWeight1D[2](k);
+					} // for (i)
+		}
+
+		// Clear the density FIXME. Combine with above
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumVec& localRho    = density_.LocalMap()[key];
+						DblNumVec& localRhoLGL = densityLGL_.LocalMap()[key];
+
+						SetValue( localRho, 0.0 );
+						SetValue( localRhoLGL, 0.0 );
+						
+					}
+				} // for (i)
+
+		// Compute the local density in each element
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumMat& localBasis = basisLGL_.LocalMap()[key];
+						Int numGrid  = localBasis.m();
+						Int numBasis = localBasis.n();
+
+						// Skip the element if there is no basis functions.
+						if( numBasis == 0 )
+							continue;
+
+						DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
+						if( localCoef.n() != numEig ){
+							throw std::runtime_error( 
+									"Numbers of eigenfunction coefficients do not match.");
+						}
+						if( localCoef.m() != numBasis ){
+							throw std::runtime_error(
+									"Number of LGL grids do not match.");
+						}
+						
+						DblNumVec& localRho    = density_.LocalMap()[key];
+						DblNumVec& localRhoLGL = densityLGL_.LocalMap()[key];
+
+						DblNumVec  localPsiLGL( numGrid );
+						SetValue( localPsiLGL, 0.0 );
+
+
+						// Loop over all the eigenfunctions
+						// 
+						// NOTE: Gemm is not a feasible choice when a large number of
+						// eigenfunctions are there.
+						for( Int g = 0; g < numEig; g++ ){
+							// Compute local wavefunction on the LGL grid
+							blas::Gemv( 'N', numGrid, numBasis, 1.0, 
+									localBasis.Data(), numGrid, 
+									localCoef.VecData(g), 1, 0.0,
+									localPsiLGL.Data(), 1 );
+							// Update the local density
+							Real  occ    = occrate[g];
+							for( Int p = 0; p < numGrid; p++ ){
+								localRhoLGL(p) += pow( localPsiLGL(p), 2.0 ) * occ * numSpin_;
+							}
+						}
+
+						// Interpolate the local density from LGL grid to uniform
+						// grid
+						InterpLGLToUniform( 
+								numLGLGridElem_, 
+								numUniformGridElem_, 
+								localRhoLGL.Data(), 
+								localRho.Data() );
+
+						sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
+								localRhoLGL.Data(), 1, 
+								LGLWeight3D.Data(), 1 );
+
+						Real* ptrRho = localRho.Data();
+						for( Int p = 0; p < localRho.Size(); p++ ){
+							sumRhoLocal += (*ptrRho);
+							ptrRho++;
+						}
+
+					} // own this element
+				} // for (i)
+
+		sumRhoLocal *= domain_.Volume() / domain_.NumGridTotal(); 
+
+		// All processors get the normalization factor
+		mpi::Allreduce( &sumRhoLGLLocal, &sumRhoLGL, 1, MPI_SUM, domain_.comm );
+		mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.comm );
+
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << std::endl;
+		Print( statusOFS, "Sum Rho on LGL grid (raw data) = ", sumRhoLGL );
+		Print( statusOFS, "Sum Rho on uniform grid (interpolated) = ", sumRho );
+		statusOFS << std::endl;
+#endif
+		
+
+		Real rhofac = numSpin_ * numOccupiedState_ / sumRho;
+	  
+		// FIXME No normalizatoin of the electron density!
+
+//		// Normalize the electron density in the global domain
+//		for( Int k = 0; k < numElem_[2]; k++ )
+//			for( Int j = 0; j < numElem_[1]; j++ )
+//				for( Int i = 0; i < numElem_[0]; i++ ){
+//					Index3 key( i, j, k );
+//					if( elemPrtn_.Owner( key ) == mpirank ){
+//						DblNumVec& localRho = density_.LocalMap()[key];
+//						blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
+//					} // own this element
+//				} // for (i)
+	}
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
