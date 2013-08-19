@@ -1580,7 +1580,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 
 	// Define the local estimators on each processor.
-	DblNumTns eta2TotalLocal( numElem_[0], numElem_[1], numElem_[2] );
 	DblNumTns eta2ResidualLocal( numElem_[0], numElem_[1], numElem_[2] );
 	DblNumTns eta2GradJumpLocal( numElem_[0], numElem_[1], numElem_[2] );
 	DblNumTns eta2JumpLocal( numElem_[0], numElem_[1], numElem_[2] );
@@ -1621,7 +1620,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 		SetValue( eta2GradJump, 0.0 );
 		SetValue( eta2Jump, 0.0 );
 
-		SetValue( eta2TotalLocal, 0.0 );
 		SetValue( eta2ResidualLocal, 0.0 );
 		SetValue( eta2GradJumpLocal, 0.0 );
 		SetValue( eta2JumpLocal, 0.0 );
@@ -2562,21 +2560,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 	// Reduce the computed error estimator among all elements.
 	// *********************************************************************
 	
-	for( Int k = 0; k < numElem_[2]; k++ )
-		for( Int j = 0; j < numElem_[1]; j++ )
-			for( Int i = 0; i < numElem_[0]; i++ ){
-				Index3 key( i, j, k );
-				if( elemPrtn_.Owner(key) == mpirank ){
-					eta2TotalLocal(i,j,k) = 
-						eta2ResidualLocal(i,j,k) +
-						eta2GradJumpLocal(i,j,k) +
-						eta2JumpLocal(i,j,k);
-				} // if (own this element)
-			} // for (i)
-
-
-	mpi::Allreduce( eta2TotalLocal.Data(), eta2Total.Data(),
-			numElem_.prod(), MPI_SUM, domain_.comm );
 
 	mpi::Allreduce( eta2ResidualLocal.Data(), eta2Residual.Data(),
 			numElem_.prod(), MPI_SUM, domain_.comm );
@@ -2586,6 +2569,18 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 	mpi::Allreduce( eta2JumpLocal.Data(), eta2Jump.Data(),
 			numElem_.prod(), MPI_SUM, domain_.comm );
+
+  // Compute the total estimator
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				eta2Total(i,j,k) = 
+					eta2Residual(i,j,k) +
+					eta2GradJump(i,j,k) +
+					eta2Jump(i,j,k);
+			} // for (i)
+
+
 
 #ifndef _RELEASE_
 	PopCallStack();
