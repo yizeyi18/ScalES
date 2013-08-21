@@ -398,6 +398,9 @@ SCFDG::Iterate	(  )
 						// on the potential V in order to result in a C^{inf}
 						// potential.
 						if( isPeriodizePotential_ ){
+
+							// Compute the bubble function in the extended element.
+
 							Domain& dmExtElem = eigSol.FFT().domain;
 							std::vector<DblNumVec> gridpos(DIM);
 							UniformMesh ( dmExtElem, gridpos );
@@ -429,7 +432,7 @@ SCFDG::Iterate	(  )
 								}
 							} // for (d)
 
-#if ( _DEBUGlevel_ >= 1 || 1 )
+#if ( _DEBUGlevel_ >= 1  )
 							statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
 							statusOFS << "vBubble[0] = " << std::endl << vBubble[0] << std::endl;
 							statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
@@ -438,15 +441,20 @@ SCFDG::Iterate	(  )
 							statusOFS << "vBubble[2] = " << std::endl << vBubble[2] << std::endl;
 #endif
 
+							// Get the potential
 							DblNumVec& vext = eigSol.Ham().Vext();
 							DblNumVec& vtot = eigSol.Ham().Vtot();
+
+							// Find the max of the potential in the extended element
+							Real vtotMax = *std::max_element( &vtot[0], &vtot[0] + vtot.Size() );
+
 							SetValue( vext, 0.0 );
 							for( Int gk = 0; gk < dmExtElem.numGrid[2]; gk++)
 								for( Int gj = 0; gj < dmExtElem.numGrid[1]; gj++ )
 									for( Int gi = 0; gi < dmExtElem.numGrid[0]; gi++ ){
 										Int idx = gi + gj * dmExtElem.numGrid[0] + 
 											gk * dmExtElem.numGrid[0] * dmExtElem.numGrid[1];
-										vext[idx] = vtot[idx] * 
+										vext[idx] = ( vtot[idx] - vtotMax ) * 
 											( vBubble[0][gi] * vBubble[1][gj] * vBubble[2][gk] - 1.0 );
 									} // for (gi)
 
@@ -491,8 +499,8 @@ SCFDG::Iterate	(  )
 							for( Int d = 0; d < DIM; d++ ){
 								serialize( gridpos[d], potStream, NO_MASK );
 							}
-							serialize( eigSol.Ham().Vtot(), vStream, NO_MASK );
-							serialize( eigSol.Ham().Vext(), vStream, NO_MASK );
+							serialize( eigSol.Ham().Vtot(), potStream, NO_MASK );
+							serialize( eigSol.Ham().Vext(), potStream, NO_MASK );
 							SeparateWrite( "POTEXT", potStream);
 						}
 
