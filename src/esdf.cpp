@@ -453,10 +453,6 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether density is restarted!*");
 
-	i++;
-	strcpy(kw_label[i],"restart_bufwfn");
-	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! whether the buffer wavefunction is restarted!*");
 
 	i++;
 	strcpy(kw_label[i],"restart_wfn");
@@ -485,9 +481,14 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! whether wavefunctions and occupations numbers are outputed !*");
 
 	i++;
-	strcpy(kw_label[i],"output_bufwfn");
+	strcpy(kw_label[i],"output_wfn_extelem");
 	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! whether wavefunctions in the buffer is outputed !*");
+	strcpy(kw_dscrpt[i],"*! whether wavefunctions in the extended element is outputed !*");
+
+	i++;
+	strcpy(kw_label[i],"output_pot_extelem");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether potential in the extended element is outputed !*");
 
 	i++;
 	strcpy(kw_label[i],"output_hmatrix");
@@ -510,54 +511,10 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Starting position of each molecule element !*");
 
 	i++;
-	strcpy(kw_label[i],"buffer_position_start");
-	strcpy(kw_typ[i],"B:E");
-	strcpy(kw_dscrpt[i],"*! Starting position of each molecule buffer !*");
-
-	i++;
-	strcpy(kw_label[i],"buffer_grid_size");
-	strcpy(kw_typ[i],"B:E");
-	strcpy(kw_dscrpt[i],"*! Starting position of each molecule buffer !*");
-
-	i++;
-	strcpy(kw_label[i],"buffer_cell");
-	strcpy(kw_typ[i],"B:E");
-	strcpy(kw_dscrpt[i],"*! Starting position of each molecule buffer !*");
-
-	i++;
-	strcpy(kw_label[i],"buffer_atom_types_num");
-	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! Number of atom types !*");
-
-	i++;
-	strcpy(kw_label[i],"buffer_atom_type");
-	strcpy(kw_typ[i],"T:E");
-	strcpy(kw_dscrpt[i],"*! Type of the atom !*");
-
-	i++;
-	strcpy(kw_label[i],"buffer_atom_coord");
-	strcpy(kw_typ[i],"B:E");
-	strcpy(kw_dscrpt[i],"*! Coordinates of atom !*");
-
-	i++;
 	strcpy(kw_label[i],"position_start");
 	strcpy(kw_typ[i],"B:E");
 	strcpy(kw_dscrpt[i],"*! Starting position of molecule !*");
 
-	i++;
-	strcpy(kw_label[i],"buffer_atom_mode");
-	strcpy(kw_typ[i],"T:E");
-	strcpy(kw_dscrpt[i],"*! Mode for generating atom positions in the buffer!*");
-
-	i++;
-	strcpy(kw_label[i],"barriera");
-	strcpy(kw_typ[i],"D:E");
-	strcpy(kw_dscrpt[i],"*! Barrier height in the buffer !*");
-
-	i++;
-	strcpy(kw_label[i],"barrierd");
-	strcpy(kw_typ[i],"D:E");
-	strcpy(kw_dscrpt[i],"*! Barrier starting position in the buffer !*");
 
 	i++;
 	strcpy(kw_label[i],"time_step");
@@ -698,6 +655,17 @@ void esdf_key() {
 	strcpy(kw_label[i],"lgl_grid_factor");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! The number of LGL grid points over the number of grid points over wavefunction along each dimension !*");
+
+	i++;
+	strcpy(kw_label[i],"periodize_potential");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Whether to periodize the potential in the extended element!*");
+
+	i++;
+	strcpy(kw_label[i],"distance_periodize");
+	strcpy(kw_typ[i],"B:E");
+	strcpy(kw_dscrpt[i],"*! Distance to the boundary of the extended element to be periodized !*");
+
 }
 
 void esdf() {
@@ -1911,14 +1879,13 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-4 );
 		esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
 		esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
-		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
-		esdfParam.isOutputWfn      = esdf_integer( "Output_Wfn", 0 );
+		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 1 );
+		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 1 );
+		esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 1 );
 		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
 		esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
 
-		esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
-		esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 0.0 );
-		esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );
+
 		
 		esdfParam.ecutWavefunction     = esdf_double( "Ecut_Wavefunction", 10.0 );
 		esdfParam.densityGridFactor    = esdf_double( "Density_Grid_Factor", 2.0 );
@@ -2006,7 +1973,44 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		}
 
 
-	}
+		// Modification of the potential in the extended element
+		{
+
+			// FIXME The potential barrier is now obsolete.
+			esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
+			esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 0.0 );
+			esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );
+
+			// Periodization of the external potential
+			esdfParam.isPeriodizePotential = esdf_integer( "Periodize_Potential", 1 );
+
+			esdfParam.distancePeriodize[0] = 0.0;
+			esdfParam.distancePeriodize[1] = 0.0;
+			esdfParam.distancePeriodize[2] = 0.0;
+
+			if( esdfParam.isPeriodizePotential ){
+				if( esdf_block("Distance_Periodize", &nlines) ){
+					sscanf(block_data[0],"%lf %lf %lf",
+							&esdfParam.distancePeriodize[0],
+							&esdfParam.distancePeriodize[1],
+							&esdfParam.distancePeriodize[2]);
+				}
+				else{
+					// Default value for DistancePeriodize
+					for( Int d = 0; d < DIM; d++ ){
+						if( esdfParam.numElem[d] == 1 ){
+							esdfParam.distancePeriodize[d] = 0.0;
+						}
+						else{
+							esdfParam.distancePeriodize[d] = 
+								esdfParam.domain.length[d] / esdfParam.numElem[d] * 0.5;
+						}
+					}
+				}
+			}
+		} // Modify the potential
+
+	} // DG
 	
 
 	// Choose the number of grid points

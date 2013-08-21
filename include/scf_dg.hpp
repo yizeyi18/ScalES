@@ -34,10 +34,13 @@ private:
 	bool                isRestartDensity_;
 	bool                isRestartWfn_;
 	bool                isOutputDensity_;
-	bool                isOutputWfn_;
+	bool                isOutputWfnExtElem_;
+	bool                isOutputPotExtElem_; 
 	bool                isCalculateAPosterioriEachSCF_;
 	bool                isOutputHMatrix_;
 	Real                densityGridFactor_;        
+	bool                isPeriodizePotential_;
+	Point3              distancePeriodize_;
   
 	std::string         restartDensityFileName_;
   std::string         restartWfnFileName_;

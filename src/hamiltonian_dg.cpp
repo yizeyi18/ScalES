@@ -6,7 +6,7 @@
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 
-#define _DEBUGlevel_ 1
+#define _DEBUGlevel_ 0
 
 namespace dgdft{
 

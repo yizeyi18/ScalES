@@ -82,7 +82,8 @@ struct ESDFInputParam{
 	bool                isRestartDensity;
 	bool                isRestartWfn;
 	bool                isOutputDensity;
-	bool                isOutputWfn;
+	bool                isOutputWfnExtElem;
+	bool                isOutputPotExtElem;
 	bool                isCalculateAPosterioriEachSCF; 
 	bool                isOutputHMatrix;
 
@@ -102,9 +103,16 @@ struct ESDFInputParam{
 	Real                penaltyAlpha;
 	IntNumTns           numALBElem;
 	Int                 scaBlockSize;
+
+	// The parameters related to potential barrier is now obsolete.
 	Real                potentialBarrierW;
 	Real                potentialBarrierS;
 	Real                potentialBarrierR;
+
+	// Periodization of the potential in the extended element
+	Real                isPeriodizePotential;
+  Point3              distancePeriodize;	
+
 	Real                ecutWavefunction;
 	Real                densityGridFactor;
 	Real                LGLGridFactor;

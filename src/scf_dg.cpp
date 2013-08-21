@@ -12,6 +12,32 @@ namespace  dgdft{
 using namespace dgdft::DensityComponent;
 
 
+// FIXME Leave the smoother function to somewhere more appropriate
+Real
+Smoother ( Real x )
+{
+#ifndef _RELEASE_
+	PushCallStack("Smoother");
+#endif
+	Real t, z;
+	if( x <= 0 )
+		t = 1.0;
+	else if( x >= 1 )
+		t = 0.0;
+	else{
+		z = -1.0 / x + 1.0 / (1.0 - x );
+		if( z < 0 )
+			t = 1.0 / ( std::exp(z) + 1.0 );
+		else
+			t = std::exp(-z) / ( std::exp(-z) + 1.0 );
+	}
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return t;
+}		// -----  end of function Smoother  ----- 
+
+
 SCFDG::SCFDG	(  )
 {
 #ifndef _RELEASE_
@@ -65,13 +91,16 @@ SCFDG::Setup	(
 		isRestartDensity_ = esdfParam.isRestartDensity;
 		isRestartWfn_     = esdfParam.isRestartWfn;
 		isOutputDensity_  = esdfParam.isOutputDensity;
-		isOutputWfn_      = esdfParam.isOutputWfn;
+		isOutputWfnExtElem_  = esdfParam.isOutputWfnExtElem;
+		isOutputPotExtElem_  = esdfParam.isOutputPotExtElem;
 		isCalculateAPosterioriEachSCF_ = esdfParam.isCalculateAPosterioriEachSCF;
 		isOutputHMatrix_  = esdfParam.isOutputHMatrix;
     Tbeta_            = esdfParam.Tbeta;
 		scaBlockSize_     = esdfParam.scaBlockSize;
 		numElem_          = esdfParam.numElem;
 		densityGridFactor_= esdfParam.densityGridFactor;
+		isPeriodizePotential_ = esdfParam.isPeriodizePotential;
+		distancePeriodize_= esdfParam.distancePeriodize;
 	}
 
 	// other SCFDG parameters
@@ -269,8 +298,6 @@ SCFDG::Setup	(
 		statusOFS << "PeriodicUniformToLGLMat[2] = "
 			<< PeriodicUniformToLGLMat_[2] << std::endl;
 #endif
-
-
 	}
 
 #ifndef _RELEASE_
@@ -367,8 +394,66 @@ SCFDG::Iterate	(  )
 						}
 
 						// Add the external barrier potential
-						blas::Axpy( numGridExtElem.prod(), 1.0, eigSol.Ham().Vext().Data(), 1,
-								eigSol.Ham().Vtot().Data(), 1 );
+						// In the periodized version, the external potential depends
+						// on the potential V in order to result in a C^{inf}
+						// potential.
+						if( isPeriodizePotential_ ){
+							Domain& dmExtElem = eigSol.FFT().domain;
+							std::vector<DblNumVec> gridpos(DIM);
+							UniformMesh ( dmExtElem, gridpos );
+							// Bubble function along each dimension
+							std::vector<DblNumVec> vBubble(DIM);
+
+							for( Int d = 0; d < DIM; d++ ){
+								Real length   = dmExtElem.length[d];
+								Int numGrid   = dmExtElem.numGrid[d];
+								Real posStart = dmExtElem.posStart[d]; 
+								Real EPS = 1e-10; // Criterion for distancePeriodize_
+								vBubble[d].Resize( numGrid );
+								SetValue( vBubble[d], 1.0 );
+
+								if( distancePeriodize_[d] > EPS ){
+									Real lb = posStart + distancePeriodize_[d];
+									Real rb = posStart + length - distancePeriodize_[d];
+									for( Int p = 0; p < numGrid; p++ ){
+										if( gridpos[d][p] > rb ){
+											vBubble[d][p] = Smoother( (gridpos[d][p] - rb ) / 
+													distancePeriodize_[d]);
+										}
+
+										if( gridpos[d][p] < lb ){
+											vBubble[d][p] = Smoother( (lb - gridpos[d][p] ) / 
+													distancePeriodize_[d]);
+										}
+									}
+								}
+							} // for (d)
+
+#if ( _DEBUGlevel_ >= 1 || 1 )
+							statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
+							statusOFS << "vBubble[0] = " << std::endl << vBubble[0] << std::endl;
+							statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
+							statusOFS << "vBubble[1] = " << std::endl << vBubble[1] << std::endl;
+							statusOFS << "gridpos[2] = " << std::endl << gridpos[2] << std::endl;
+							statusOFS << "vBubble[2] = " << std::endl << vBubble[2] << std::endl;
+#endif
+
+							DblNumVec& vext = eigSol.Ham().Vext();
+							DblNumVec& vtot = eigSol.Ham().Vtot();
+							SetValue( vext, 0.0 );
+							for( Int gk = 0; gk < dmExtElem.numGrid[2]; gk++)
+								for( Int gj = 0; gj < dmExtElem.numGrid[1]; gj++ )
+									for( Int gi = 0; gi < dmExtElem.numGrid[0]; gi++ ){
+										Int idx = gi + gj * dmExtElem.numGrid[0] + 
+											gk * dmExtElem.numGrid[0] * dmExtElem.numGrid[1];
+										vext[idx] = vtot[idx] * 
+											( vBubble[0][gi] * vBubble[1][gj] * vBubble[2][gk] - 1.0 );
+									} // for (gi)
+
+							blas::Axpy( numGridExtElem.prod(), 1.0, eigSol.Ham().Vext().Data(), 1,
+									eigSol.Ham().Vtot().Data(), 1 );
+						} // if ( isPeriodizePotential_ ) 
+
 
 						// Solve the basis functions in the extended element
 						GetTime( timeSta );
@@ -395,8 +480,23 @@ SCFDG::Iterate	(  )
 						// Assuming that wavefun has only 1 component
 						DblNumTns& wavefun = psi.Wavefun();
 
-						// FIXME output the wavefunction
-						if(1)
+						if( isOutputPotExtElem_ )
+						{
+							// Output the total potential in the extended element.
+							std::ostringstream potStream;      
+
+							// Generate the uniform mesh on the extended element.
+							std::vector<DblNumVec> gridpos;
+							UniformMesh ( eigSol.FFT().domain, gridpos );
+							for( Int d = 0; d < DIM; d++ ){
+								serialize( gridpos[d], potStream, NO_MASK );
+							}
+							serialize( eigSol.Ham().Vtot(), vStream, NO_MASK );
+							serialize( eigSol.Ham().Vext(), vStream, NO_MASK );
+							SeparateWrite( "POTEXT", potStream);
+						}
+
+						if( isOutputWfnExtElem_ )
 						{
 							// Output the wavefunctions in the extended element.
 							std::ostringstream wavefunStream;      
@@ -408,7 +508,7 @@ SCFDG::Iterate	(  )
 								serialize( gridpos[d], wavefunStream, NO_MASK );
 							}
 							serialize( wavefun, wavefunStream, NO_MASK );
-							SeparateWrite( "WAVEFUN", wavefunStream);
+							SeparateWrite( "WFNEXT", wavefunStream);
 						}
 
 						DblNumMat localBasis( 
@@ -429,15 +529,6 @@ SCFDG::Iterate	(  )
 						GetTime( timeEnd );
 						statusOFS << "Time for interpolating basis = " 	<< timeEnd - timeSta
 							<< " [s]" << std::endl;
-
-						// FIXME
-						//						if( mpirank == 1 ){
-						//							std::ofstream ofs("psi");
-						//							serialize( DblNumVec(localBasis.m(), false, localBasis.VecData(5)),
-						//									ofs, NO_MASK );
-						//							ofs.close();
-						//						}
-
 
 						// Perform SVD for the basis functions
 						GetTime( timeSta );
@@ -802,6 +893,7 @@ SCFDG::InnerIterate	(  )
 		// Write the Hamiltonian matrix to a file (if needed) 
 		// *********************************************************************
 
+		// TODO Use MPI_IO for outputing the matrix.
 		if( isOutputHMatrix_ ){
 			DistSparseMatrix<Real>  HSparseMat;
 

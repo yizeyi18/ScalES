@@ -55,7 +55,6 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 		isRestartDensity_ = esdfParam.isRestartDensity;
 		isRestartWfn_     = esdfParam.isRestartWfn;
 		isOutputDensity_  = esdfParam.isOutputDensity;
-		isOutputWfn_      = esdfParam.isOutputWfn;
     Tbeta_         = esdfParam.Tbeta;
 	}
 
@@ -618,14 +617,14 @@ void SCF::OutputState	(  )
 	}	
 
 
-  if( isOutputWfn_ ){
-		std::ofstream ofs(restartWfnFileName_.c_str());
-		if( !ofs.good() ){
-			throw std::logic_error( "Wavefunction file cannot be opened." );
-		}
-		serialize( eigSolPtr_->Psi().Wavefun(), ofs, NO_MASK );
-		ofs.close();
-	}	
+//  if( isOutputWfn_ ){
+//		std::ofstream ofs(restartWfnFileName_.c_str());
+//		if( !ofs.good() ){
+//			throw std::logic_error( "Wavefunction file cannot be opened." );
+//		}
+//		serialize( eigSolPtr_->Psi().Wavefun(), ofs, NO_MASK );
+//		ofs.close();
+//	}	
 #ifndef _RELEASE_
 	PopCallStack();
 #endif

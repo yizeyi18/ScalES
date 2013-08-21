@@ -120,13 +120,16 @@ int main(int argc, char **argv)
 			Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
 			Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
 			Print(statusOFS, "OutputDensity     = ",  esdfParam.isOutputDensity);
-			Print(statusOFS, "OutputWfn         = ",  esdfParam.isOutputWfn);
-			Print(statusOFS, "Calculate A Posteriori error estimator at each step = ",  
-					esdfParam.isCalculateAPosterioriEachSCF);
+			Print(statusOFS, "OutputWfnExtElem  = ",  esdfParam.isOutputWfnExtElem);
+			Print(statusOFS, "OutputPotExtElem  = ",  esdfParam.isOutputPotExtElem);
 			Print(statusOFS, "OutputHMatrix     = ",  esdfParam.isOutputHMatrix );
-			Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
-			Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
-			Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
+
+			Print(statusOFS, "PeriodizePotential= ",  esdfParam.isPeriodizePotential);
+			Print(statusOFS, "DistancePeriodize = ",  esdfParam.distancePeriodize);
+
+//			Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
+//			Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
+//			Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
 			Print(statusOFS, "EcutWavefunction  = ",  esdfParam.ecutWavefunction);
 			Print(statusOFS, "Density GridFactor= ",  esdfParam.densityGridFactor);
 			Print(statusOFS, "LGL GridFactor    = ",  esdfParam.LGLGridFactor);
@@ -145,6 +148,9 @@ int main(int argc, char **argv)
 			Print(statusOFS, "ScaLAPACK block   = ",  esdfParam.scaBlockSize); 
 			statusOFS << "Number of ALB for each element: " << std::endl 
 				<< esdfParam.numALBElem << std::endl;
+
+			Print(statusOFS, "Calculate A Posteriori error estimator at each step = ",  
+					esdfParam.isCalculateAPosterioriEachSCF);
 
 
 			PrintBlock(statusOFS, "Atom Type and Coordinates");
