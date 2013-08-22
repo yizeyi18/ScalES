@@ -251,6 +251,22 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 				DMat_[d].Data(), 1 );
 	}
 
+#if ( _DEBUGlevel_ >= 1 )
+	statusOFS << "Sanity check " << std::endl;
+
+	for( Int d = 0; d < DIM; d++ ){
+		DblNumVec t( numLGLGridElem_[d] );
+		DblNumVec s( numLGLGridElem_[d] );
+		SetValue(t, 1.0);
+		blas::Gemm( 'N', 'N', numLGLGridElem_[d], 1, numLGLGridElem_[d],
+				1.0, DMat_[d].Data(), numLGLGridElem_[d],
+				t.Data(), numLGLGridElem_[d], 0.0,
+				s.Data(), numLGLGridElem_[d] );
+		statusOFS << "Derivative of constant along dimension " << d 
+			<< " gives  " << s << std::endl;
+	}
+#endif
+
 	// Generate the transfer matrix from LGL grid to uniform grid on each
 	// element. The Lagrange polynomials involved in the transfer matrix
 	// is computed using the Barycentric method.  For more information see

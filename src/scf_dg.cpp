@@ -519,9 +519,11 @@ SCFDG::Iterate	(  )
 							SeparateWrite( "WFNEXT", wavefunStream);
 						}
 
+						Int numBasis = psi.NumState() + 1;
+
 						DblNumMat localBasis( 
 								numLGLGrid.prod(), 
-								psi.NumState() );
+								numBasis );
 
 						SetValue( localBasis, 0.0 );
 
@@ -533,84 +535,238 @@ SCFDG::Iterate	(  )
 									wavefun.VecData(0, l), 
 									localBasis.VecData(l) );
 						}
+						for( Int p = 0; p < numLGLGrid.prod(); p++ ){
+							localBasis(p,psi.NumState()) = 1.0;
+						}
 
 						GetTime( timeEnd );
 						statusOFS << "Time for interpolating basis = " 	<< timeEnd - timeSta
 							<< " [s]" << std::endl;
 
-						// Perform SVD for the basis functions
-						GetTime( timeSta );
-						{
-							// Compute the LGL weights
-							std::vector<DblNumVec>  LGLWeight1D(DIM);
-							Point3                  lengthLGL;
-							for( Int d = 0; d < DIM; d++ ){
-								lengthLGL[d] = domain_.length[d] / numElem_[d];
-								DblNumVec  dummyX;
-								DblNumMat  dummyP, dummpD;
-								GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
-										numLGLGrid[d] );
-								blas::Scal( numLGLGrid[d], 0.5 * lengthLGL[d], 
-										LGLWeight1D[d].Data(), 1 );
-							}
-							DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
-							for( Int k1 = 0; k1 < numLGLGrid[2]; k1++ )
-								for( Int j1 = 0; j1 < numLGLGrid[1]; j1++ )
-									for( Int i1 = 0; i1 < numLGLGrid[0]; i1++ ){
-										sqrtLGLWeight3D(i1, j1, k1) = 
-											std::sqrt ( LGLWeight1D[0](i1) *
-													LGLWeight1D[1](j1) * LGLWeight1D[2](k1) ); }
-							// for (i1)
-
-							// Scale the basis functions by sqrt of integration weight
-							//#pragma omp parallel for 
-							for( Int g = 0; g < localBasis.n(); g++ ){
-								Real *ptr1 = localBasis.VecData(g);
-								Real *ptr2 = sqrtLGLWeight3D.Data();
-								for( Int l = 0; l < localBasis.m(); l++ ){
-									*(ptr1++)  *= *(ptr2++);
+						// Post processing for the basis functions on the LGL grid.
+						// Method 1: SVD
+						if(1){
+							GetTime( timeSta );
+							{
+								// Compute the LGL weights
+								std::vector<DblNumVec>  LGLWeight1D(DIM);
+								Point3                  lengthLGL;
+								for( Int d = 0; d < DIM; d++ ){
+									lengthLGL[d] = domain_.length[d] / numElem_[d];
+									DblNumVec  dummyX;
+									DblNumMat  dummyP, dummpD;
+									GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
+											numLGLGrid[d] );
+									blas::Scal( numLGLGrid[d], 0.5 * lengthLGL[d], 
+											LGLWeight1D[d].Data(), 1 );
 								}
-							}
+								DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
+								for( Int k1 = 0; k1 < numLGLGrid[2]; k1++ )
+									for( Int j1 = 0; j1 < numLGLGrid[1]; j1++ )
+										for( Int i1 = 0; i1 < numLGLGrid[0]; i1++ ){
+											sqrtLGLWeight3D(i1, j1, k1) = 
+												std::sqrt ( LGLWeight1D[0](i1) *
+														LGLWeight1D[1](j1) * LGLWeight1D[2](k1) ); }
+								// for (i1)
 
-							DblNumMat    U( localBasis.m(), localBasis.n() );
-							DblNumMat   VT( localBasis.n(), localBasis.n() );
-							DblNumVec    S( localBasis.n() );
-
-
-							lapack::QRSVD( localBasis.m(), localBasis.n(), 
-									localBasis.Data(), localBasis.m(),
-									S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
-
-							statusOFS << "Singular values of the basis = " 
-								<< S << std::endl;
-
-							// Unscale the orthogonal basis functions by sqrt of
-							// integration weight
-							//#pragma omp parallel for schedule(dynamic,1) 
-
-							// TODO Introduce an SVD truncation criterion parameter.
-						  Int  numSVDBasis = 0;	
-							for( Int g = 0; g < localBasis.n(); g++ ){
-								Real *ptr1 = U.VecData(g);
-								Real *ptr2 = sqrtLGLWeight3D.Data();
-								for( Int l = 0; l < localBasis.m(); l++ ){
-									*(ptr1++)  /= *(ptr2++);
+								// Scale the basis functions by sqrt of integration weight
+								//#pragma omp parallel for 
+								for( Int g = 0; g < localBasis.n(); g++ ){
+									Real *ptr1 = localBasis.VecData(g);
+									Real *ptr2 = sqrtLGLWeight3D.Data();
+									for( Int l = 0; l < localBasis.m(); l++ ){
+										*(ptr1++)  *= *(ptr2++);
+									}
 								}
-								if( S[g] / S[0] > SVDBasisTolerance_ )
-									numSVDBasis++;
+
+								DblNumMat    U( localBasis.m(), localBasis.n() );
+								DblNumMat   VT( localBasis.n(), localBasis.n() );
+								DblNumVec    S( localBasis.n() );
+
+
+								lapack::QRSVD( localBasis.m(), localBasis.n(), 
+										localBasis.Data(), localBasis.m(),
+										S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
+
+								statusOFS << "Singular values of the basis = " 
+									<< S << std::endl;
+
+								// Unscale the orthogonal basis functions by sqrt of
+								// integration weight
+								//#pragma omp parallel for schedule(dynamic,1) 
+
+								// Introduce an SVD truncation criterion parameter.
+								Int  numSVDBasis = 0;	
+								for( Int g = 0; g < localBasis.n(); g++ ){
+									Real *ptr1 = U.VecData(g);
+									Real *ptr2 = sqrtLGLWeight3D.Data();
+									for( Int l = 0; l < localBasis.m(); l++ ){
+										*(ptr1++)  /= *(ptr2++);
+									}
+									if( S[g] / S[0] > SVDBasisTolerance_ )
+										numSVDBasis++;
+								}
+
+								// Get the first numSVDBasis which are significant.
+								DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
+								basis.Resize( localBasis.m(), numSVDBasis );
+								blas::Copy( localBasis.m() * numSVDBasis, 
+										U.Data(), 1, basis.Data(), 1 );
+
+								statusOFS << "Number of significant SVD basis = " 	<< numSVDBasis << std::endl;
 							}
-
-							// Get the first numSVDBasis which are significant.
-							DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
-							basis.Resize( localBasis.m(), numSVDBasis );
-							blas::Copy( localBasis.m() * numSVDBasis, 
-									U.Data(), 1, basis.Data(), 1 );
-
-							statusOFS << "Number of significant SVD basis = " 	<< numSVDBasis << std::endl;
+							GetTime( timeEnd );
+							statusOFS << "Time for SVD of basis = " 	<< timeEnd - timeSta
+								<< " [s]" << std::endl;
 						}
-						GetTime( timeEnd );
-						statusOFS << "Time for SVD of basis = " 	<< timeEnd - timeSta
-							<< " [s]" << std::endl;
+
+						// Method 2: Solve generalized eigenvalue problem
+						//   (D Phi)^T W (D Phi) v = lambda Phi^T W Phi v
+						// and threshold on the eigenvalue lambda to obtain
+						// orthogonal basis functions.  Here Phi are the local basis
+						// functions computed on the LGL grid, W is the LGL weight
+						// matrix and D is the differentiation matrix same as
+						// hamiltonian_dg.cpp.
+						//
+						if(0){
+							GetTime( timeSta );
+							{
+								// Compute the LGL weights
+								std::vector<DblNumVec>  LGLWeight1D(DIM);
+								Point3                  lengthLGL;
+								for( Int d = 0; d < DIM; d++ ){
+									lengthLGL[d] = domain_.length[d] / numElem_[d];
+									DblNumVec  dummyX;
+									DblNumMat  dummyP, dummpD;
+									GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
+											numLGLGrid[d] );
+									blas::Scal( numLGLGrid[d], 0.5 * lengthLGL[d], 
+											LGLWeight1D[d].Data(), 1 );
+								}
+								DblNumTns    LGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
+								DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
+								for( Int k1 = 0; k1 < numLGLGrid[2]; k1++ )
+									for( Int j1 = 0; j1 < numLGLGrid[1]; j1++ )
+										for( Int i1 = 0; i1 < numLGLGrid[0]; i1++ ){
+											LGLWeight3D(i1, j1, k1) = 
+												LGLWeight1D[0](i1) * LGLWeight1D[1](j1) *
+												LGLWeight1D[2](k1); 
+											sqrtLGLWeight3D(i1, j1, k1) = 
+												std::sqrt ( LGLWeight1D[0](i1) *
+														LGLWeight1D[1](j1) * LGLWeight1D[2](k1) ); 
+										} // for (i1)
+
+								// Compute the derivatives of the basis functions
+								std::vector<DblNumMat> DlocalBasis(DIM);
+								for( Int d = 0; d < DIM; d++ ){
+									DlocalBasis[d].Resize( numLGLGrid.prod(), 
+											numBasis );
+									for( int g = 0; g < numBasis; g++ ){
+										hamDG.DiffPsi( numLGLGrid, localBasis.VecData(g), 
+												DlocalBasis[d].VecData(g), d );
+									}
+								}
+								
+								// Solve the generalized eigenvalue problem
+								DblNumMat KMat( numBasis, numBasis );
+								DblNumMat MMat( numBasis, numBasis );
+								SetValue( KMat, 0.0 );
+								SetValue( MMat, 0.0 );
+								for( Int a = 0; a < numBasis; a++ ){
+									for( Int b = a; b < numBasis; b++ ){
+										KMat(a,b) = 
+											+ ThreeDotProduct(
+													DlocalBasis[0].VecData(a), DlocalBasis[0].VecData(b), 
+													LGLWeight3D.Data(), numLGLGrid.prod() )
+											+ ThreeDotProduct(
+													DlocalBasis[1].VecData(a), DlocalBasis[1].VecData(b), 
+													LGLWeight3D.Data(), numLGLGrid.prod() )
+											+ ThreeDotProduct(
+													DlocalBasis[2].VecData(a), DlocalBasis[2].VecData(b), 
+													LGLWeight3D.Data(), numLGLGrid.prod() );
+										MMat(a,b) =
+											+ ThreeDotProduct(
+													localBasis.VecData(a), localBasis.VecData(b), 
+													LGLWeight3D.Data(), numLGLGrid.prod() );
+										KMat(b,a) = KMat(a,b);
+										MMat(b,a) = MMat(a,b);
+									}
+								}
+
+#if ( _DEBUGlevel_ >= 1 )
+								statusOFS << "KMat = " << std::endl << KMat << std::endl;
+								statusOFS << "MMat = " << std::endl << MMat << std::endl;
+								DblNumVec t( numLGLGrid.prod() );
+								blas::Copy( numLGLGrid.prod(), DlocalBasis[0].VecData(numBasis-1), 1,
+										t.Data(), 1 );
+								statusOFS << "DlocalBasis[0](:,end) = " << t << std::endl;
+								blas::Copy( numLGLGrid.prod(), DlocalBasis[1].VecData(numBasis-1), 1,
+										t.Data(), 1 );
+								statusOFS << "DlocalBasis[1](:,end) = " << t << std::endl;
+								blas::Copy( numLGLGrid.prod(), DlocalBasis[2].VecData(numBasis-1), 1,
+										t.Data(), 1 );
+								statusOFS << "DlocalBasis[2](:,end) = " << t << std::endl;
+#endif
+
+
+								lapack::Potrf( 'U', numBasis, MMat.Data(), numBasis );
+
+								lapack::Hegst( 1, 'U', numBasis, 
+										KMat.Data(), numBasis, 
+										MMat.Data(), numBasis );
+
+								std::vector<Real>  eigs(numBasis);
+								lapack::Syevd( 'V', 'U', numBasis, KMat.Data(), numBasis,
+										&eigs[0] );
+
+								// Multiply eigs by 0.5 to obtain the effective ecut
+							  for( Int a = 0; a < numBasis; a++ ){
+									eigs[a] *= 0.5;
+								}
+								
+								statusOFS << "Effective ecut = " << std::endl << eigs << std::endl;
+
+								// Get the eigenfunctions for the generalized eigenvalue
+								// problem.
+								// NOTE The formulation only works with 'U' option.
+								// TODO Make Sygvd function which takes into account the
+								// 'L' option.
+								blas::Trsm( 'L', 'U', 'N', 'N', numBasis, numBasis,
+										1.0, MMat.Data(), numBasis, 
+										KMat.Data(), numBasis );
+
+								// Get the adaptive local basis functions
+								DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
+								basis.Resize( localBasis.m(), numBasis );
+								blas::Gemm( 'N', 'N', localBasis.m(), numBasis, localBasis.n(),
+										1.0, localBasis.Data(), localBasis.m(),
+										KMat.Data(), numBasis,
+										0.0, basis.Data(), localBasis.m() );
+
+								// Check the orthogonality of the basis functions
+#if ( _DEBUGlevel_ >= 1 )
+								MMat.Resize( basis.n(), basis.n() );
+								for( Int a = 0; a < basis.n(); a++ ){
+									for( Int b = a; b < basis.n(); b++ ){
+										MMat(a,b) =
+											+ ThreeDotProduct(
+													basis.VecData(a), basis.VecData(b), 
+													LGLWeight3D.Data(), numLGLGrid.prod() );
+										MMat(b,a) = MMat(a,b);
+									}
+								}
+								statusOFS << "Checking the validity of the orthogonality: " << 
+									MMat << std::endl;
+#endif
+
+
+//								statusOFS << "Number of significant SVD basis = " 	<< numSVDBasis << std::endl;
+							}
+							GetTime( timeEnd );
+							statusOFS << "Time for post processing of the basis = " 	<< timeEnd - timeSta
+								<< " [s]" << std::endl;
+						}
+
 
 					} // own this element
 				} // for (i)
