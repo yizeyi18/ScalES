@@ -535,8 +535,9 @@ SCFDG::Iterate	(  )
 									wavefun.VecData(0, l), 
 									localBasis.VecData(l) );
 						}
+						// FIXME Temporary adding the constant mode. Should be done more systematically later.
 						for( Int p = 0; p < numLGLGrid.prod(); p++ ){
-							localBasis(p,psi.NumState()) = 1.0;
+							localBasis(p,psi.NumState()) = 0.;
 						}
 
 						GetTime( timeEnd );
