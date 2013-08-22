@@ -216,7 +216,7 @@ void GenerateLGL(double* x, double* w, double* P, double* D, int Nm1)
   do{
     for (i=0; i<N1; i++){
       xold[i] = x[i]; 
-      P[i] = 1; 
+      P[i] = 1.0; 
       P[N1+i] = x[i];
     }
     for (j=2; j<N1; j++){
@@ -229,7 +229,7 @@ void GenerateLGL(double* x, double* w, double* P, double* D, int Nm1)
       x[i] = xold[i] - (x[i]*P[N*N1+i] - P[(N-1)*N1+i])/(N1*P[N*N1+i]);
     }
 
-    err = 0;
+    err = 0.0;
     for (i=0; i<N1; i++){
       if (err < fabs(xold[i] - x[i])){
         err = fabs(xold[i] - x[i]);
@@ -238,7 +238,7 @@ void GenerateLGL(double* x, double* w, double* P, double* D, int Nm1)
   } while(err>tol);
 
   for (i=0; i<N1; i++){
-    w[i] = 2/(N*N1*P[N*N1+i]*P[N*N1+i]);
+    w[i] = 2.0/(N*N1*P[N*N1+i]*P[N*N1+i]);
   }
 
   for (j=0; j<N1; j++){
@@ -247,13 +247,13 @@ void GenerateLGL(double* x, double* w, double* P, double* D, int Nm1)
         D[j*N1+i] = P[N*N1+i]/P[N*N1+j]/(x[i] - x[j]);
       }
       else if (i==0){
-        D[j*N1+i] = - N*N1/4.;
+        D[j*N1+i] = - N*N1/4.0;
       }
       else if (i==N1-1){
-        D[j*N1+i] = N*N1/4;
+        D[j*N1+i] = N*N1/4.0;
       }
       else{
-        D[j*N1+i] = 0;      
+        D[j*N1+i] = 0.0;      
       }
     }
   }
