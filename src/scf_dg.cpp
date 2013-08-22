@@ -537,7 +537,7 @@ SCFDG::Iterate	(  )
 						}
 						// FIXME Temporary adding the constant mode. Should be done more systematically later.
 						for( Int p = 0; p < numLGLGrid.prod(); p++ ){
-							localBasis(p,psi.NumState()) = 0.;
+							localBasis(p,psi.NumState()) = 0.1;
 						}
 
 						GetTime( timeEnd );
