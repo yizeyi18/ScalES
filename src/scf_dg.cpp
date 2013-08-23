@@ -98,7 +98,9 @@ SCFDG::Setup	(
     Tbeta_            = esdfParam.Tbeta;
 		scaBlockSize_     = esdfParam.scaBlockSize;
 		numElem_          = esdfParam.numElem;
+		ecutWavefunction_ = esdfParam.ecutWavefunction;
 		densityGridFactor_= esdfParam.densityGridFactor;
+		LGLGridFactor_    = esdfParam.LGLGridFactor;
 		isPeriodizePotential_ = esdfParam.isPeriodizePotential;
 		distancePeriodize_= esdfParam.distancePeriodize;
 	}
@@ -257,7 +259,8 @@ SCFDG::Setup	(
 		for( Int d = 0; d < DIM; d++ ){
 			dmElem.length[d]   = domain_.length[d] / numElem_[d];
 			dmElem.numGrid[d]  = domain_.numGrid[d] / numElem_[d];
-			// PosStart relative to the extended element
+			// PosStart relative to the extended element FIXME
+			dmExtElem.posStart[d] = 0.0;
 			dmElem.posStart[d] = ( numElem_[d] > 1 ) ? dmElem.length[d] : 0;
 		}
 
@@ -267,28 +270,53 @@ SCFDG::Setup	(
 
 		std::vector<DblNumVec>  LGLGrid(DIM);
 		LGLMesh( dmElem, numLGL, LGLGrid ); 
+		std::vector<DblNumVec>  UniformGrid(DIM);
+		UniformMesh( dmExtElem, UniformGrid ); 
+
+//		for( Int d = 0; d < DIM; d++ ){
+//			DblNumMat&  localMat = PeriodicUniformToLGLMat_[d];
+//			localMat.Resize( numLGL[d], numUniform[d] );
+//			SetValue( localMat, 0.0 );
+//			Int maxK;
+//			if (numUniform[d] % 2 == 0)
+//				maxK = numUniform[d] / 2 - 1;
+//			else
+//				maxK = ( numUniform[d] - 1 ) / 2;
+//			for( Int j = 0; j < numUniform[d]; j++ )
+//				for( Int i = 0; i < numLGL[d]; i++ ){
+//					// 1.0 accounts for the k=0 mode
+//					localMat(i,j) = 1.0;
+//					for( Int k = 1; k < maxK; k++ ){
+//						localMat(i,j) += 2.0 * std::cos( 
+//								2 * PI * k / lengthUniform[d] * 
+//								( LGLGrid[d](i) - j * lengthUniform[d] / numUniform[d] ) );
+//					} // for (k)
+//					localMat(i,j) /= numUniform[d];
+//				} // for (i)
+//		} // for (d)
 
 		for( Int d = 0; d < DIM; d++ ){
 			DblNumMat&  localMat = PeriodicUniformToLGLMat_[d];
 			localMat.Resize( numLGL[d], numUniform[d] );
 			SetValue( localMat, 0.0 );
-			Int maxK;
-			if (numUniform[d] % 2 == 0)
-				maxK = numUniform[d] / 2 - 1;
-			else
-				maxK = ( numUniform[d] - 1 ) / 2;
+			DblNumVec KGrid( numUniform[d] );
+			for( Int i = 0; i <= numUniform[d] / 2; i++ ){
+				KGrid(i) = i * 2.0 * PI / lengthUniform[d];
+			}
+			for( Int i = numUniform[d] / 2 + 1; i < numUniform[d]; i++ ){
+				KGrid(i) = ( i - numUniform[d] ) * 2.0 * PI / lengthUniform[d];
+			}
+
 			for( Int j = 0; j < numUniform[d]; j++ )
 				for( Int i = 0; i < numLGL[d]; i++ ){
-					// 1.0 accounts for the k=0 mode
-					localMat(i,j) = 1.0;
-					for( Int k = 1; k < maxK; k++ ){
-						localMat(i,j) += 2.0 * std::cos( 
-								2 * PI * k / lengthUniform[d] * 
-								( LGLGrid[d](i) - j * lengthUniform[d] / numUniform[d] ) );
+					localMat(i, j) = 0.0;
+					for( Int k = 0; k < numUniform[d]; k++ ){
+						localMat(i,j) += std::cos( KGrid(k) * ( LGLGrid[d](i) -
+									UniformGrid[d](j) ) ) / numUniform[d];
 					} // for (k)
-					localMat(i,j) /= numUniform[d];
 				} // for (i)
 		} // for (d)
+
 
 #if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "PeriodicUniformToLGLMat[0] = "
@@ -537,7 +565,7 @@ SCFDG::Iterate	(  )
 						}
 						// FIXME Temporary adding the constant mode. Should be done more systematically later.
 						for( Int p = 0; p < numLGLGrid.prod(); p++ ){
-							localBasis(p,psi.NumState()) = 0.1;
+							localBasis(p,psi.NumState()) = 1.0 / std::sqrt( domain_.Volume() / numElem_.prod() );
 						}
 
 						GetTime( timeEnd );
@@ -694,7 +722,7 @@ SCFDG::Iterate	(  )
 									}
 								}
 
-#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 1  )
 								statusOFS << "KMat = " << std::endl << KMat << std::endl;
 								statusOFS << "MMat = " << std::endl << MMat << std::endl;
 								DblNumVec t( numLGLGrid.prod() );
@@ -721,8 +749,15 @@ SCFDG::Iterate	(  )
 										&eigs[0] );
 
 								// Multiply eigs by 0.5 to obtain the effective ecut
+								Int numBasisKeep = 0;
 							  for( Int a = 0; a < numBasis; a++ ){
 									eigs[a] *= 0.5;
+									// Keeping the basis if it is smooth enough
+									// TODO Introduce a number for 
+									// ecutWavefunction_ / 16.0
+									if( eigs[a] < ecutWavefunction_ / 16.0 ){
+										numBasisKeep = a+1;
+									}
 								}
 								
 								statusOFS << "Effective ecut = " << std::endl << eigs << std::endl;
@@ -738,14 +773,14 @@ SCFDG::Iterate	(  )
 
 								// Get the adaptive local basis functions
 								DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
-								basis.Resize( localBasis.m(), numBasis );
-								blas::Gemm( 'N', 'N', localBasis.m(), numBasis, localBasis.n(),
+								basis.Resize( localBasis.m(), numBasisKeep );
+								blas::Gemm( 'N', 'N', localBasis.m(), numBasisKeep, localBasis.n(),
 										1.0, localBasis.Data(), localBasis.m(),
 										KMat.Data(), numBasis,
 										0.0, basis.Data(), localBasis.m() );
 
 								// Check the orthogonality of the basis functions
-#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 1  )
 								MMat.Resize( basis.n(), basis.n() );
 								for( Int a = 0; a < basis.n(); a++ ){
 									for( Int b = a; b < basis.n(); b++ ){
@@ -761,7 +796,7 @@ SCFDG::Iterate	(  )
 #endif
 
 
-//								statusOFS << "Number of significant SVD basis = " 	<< numSVDBasis << std::endl;
+								statusOFS << "Number of basis kept = " 	<< numBasisKeep << std::endl;
 							}
 							GetTime( timeEnd );
 							statusOFS << "Time for post processing of the basis = " 	<< timeEnd - timeSta

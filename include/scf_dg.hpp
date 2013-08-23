@@ -38,7 +38,10 @@ private:
 	bool                isOutputPotExtElem_; 
 	bool                isCalculateAPosterioriEachSCF_;
 	bool                isOutputHMatrix_;
+	Real                ecutWavefunction_;
 	Real                densityGridFactor_;        
+	Real                LGLGridFactor_;
+
 	bool                isPeriodizePotential_;
 	Point3              distancePeriodize_;
   
