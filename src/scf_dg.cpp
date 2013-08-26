@@ -7,6 +7,8 @@
 #include	"lapack.hpp"
 #include  "utility.hpp"
 
+#define _DEBUGlevel_ 0
+
 namespace  dgdft{
 
 using namespace dgdft::DensityComponent;
@@ -878,7 +880,8 @@ SCFDG::Iterate	(  )
 
 			scfOuterNorm_    = normMixDif / normMixOld;
 
-			Print(statusOFS, "OUTERSCF: Efree = ", Efree_ ); 
+			Print(statusOFS, "OUTERSCF: EfreeHarris                 = ", EfreeHarris_ ); 
+			Print(statusOFS, "OUTERSCF: Efree                       = ", Efree_ ); 
 			Print(statusOFS, "OUTERSCF: inner norm(out-in)/norm(in) = ", scfInnerNorm_ ); 
 			Print(statusOFS, "OUTERSCF: outer norm(out-in)/norm(in) = ", scfOuterNorm_ ); 
 		}
@@ -1166,21 +1169,9 @@ SCFDG::InnerIterate	(  )
 		// Compute the occupation rate
 		CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
 
-		// Compute the energies.  When density mixing is used, the energy is
-		// computed just after the occupation rate, so that this is the
-		// Harris-Foulkes functional.
-		//
-		// Reference:
-		//
-		// [Soler et al. "The SIESTA method for ab initio order-N
-		// materials", J. Phys. Condens. Matter. 14, 2745 (2002) pp 18]
+		// Compute the Harris energy functional
+    CalculateHarrisEnergy();
 
-		// TODO Separate the calculation of the Harris energy and other
-		// energy.
-    CalculateEnergy();
-
-		// Print out the state variables of the current iteration
-    PrintState( );
 
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
@@ -1189,13 +1180,10 @@ SCFDG::InnerIterate	(  )
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-
-
-
 		// Compute the electron density
 		GetTime( timeSta );
 
-		// FIXME after this function, hamDG.Density() and hamDG.DensityLGL()
+		// NOTE after this function, hamDG.Density() and hamDG.DensityLGL()
 		// does not correspond to the same thing!  08/26/2013
 		hamDG.CalculateDensity( mixInnerNew_, hamDG.DensityLGL() );
 
@@ -1301,6 +1289,48 @@ SCFDG::InnerIterate	(  )
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
+		// Post processing for the density mixing. Make sure that the
+		// density is positive
+		{
+			Real sumRhoLocal = 0.0;
+			Real sumRho;
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							DblNumVec&  density      = hamDG.Density().LocalMap()[key];
+
+							for (Int p=0; p < density.Size(); p++) {
+								density(p) = std::max( density(p), 0.0 );
+								sumRhoLocal += density(p);
+							}
+						} // own this element
+					} // for (i)
+			mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.comm );
+			sumRho *= domain_.Volume() / domain_.NumGridTotal();
+
+			Real rhofac = hamDG.NumSpin() * hamDG.NumOccupiedState() / sumRho;
+
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << std::endl;
+		Print( statusOFS, "Sum Rho after mixing (raw data) = ", sumRho );
+		statusOFS << std::endl;
+#endif
+
+
+			// Normalize the electron density in the global domain
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							DblNumVec& localRho = hamDG.Density().LocalMap()[key];
+							blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
+						} // own this element
+					} // for (i)
+		}
+
 
 
 		// Compute the exchange-correlation potential and energy from the
@@ -1344,7 +1374,15 @@ SCFDG::InnerIterate	(  )
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
+		// Compute the KS energy 
+		// FIXME Literally speaking this KS energy is NOT correct.  It
+		// should be computed after the output density.  But since we use
+		// Harris energy functional now, this does not matter much at this
+		// moment.  But this should be changed later.
+		CalculateKSEnergy();
 
+		// Print out the state variables of the current iteration
+    PrintState( );
 
 		GetTime( timeIterEnd );
    
@@ -1725,10 +1763,10 @@ SCFDG::InterpPeriodicUniformToLGL	(
 } 		// -----  end of method SCFDG::InterpPeriodicUniformToLGL  ----- 
 
 void
-SCFDG::CalculateEnergy	(  )
+SCFDG::CalculateKSEnergy	(  )
 {
 #ifndef _RELEASE_
-	PushCallStack("SCFDG::CalculateEnergy");
+	PushCallStack("SCFDG::CalculateKSEnergy");
 #endif
 	Int mpirank, mpisize;
 	MPI_Comm_rank( domain_.comm, &mpirank );
@@ -1746,7 +1784,16 @@ SCFDG::CalculateEnergy	(  )
 		Ekin_  += numSpin * eigVal(i) * occupationRate(i);
 	}
 
-	// Hartree and xc part
+	// Self energy part
+	Eself_ = 0.0;
+	std::vector<Atom>&  atomList = hamDG.AtomList();
+	for(Int a=0; a< atomList.size() ; a++) {
+		Int type = atomList[a].type;
+		Eself_ +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
+	}
+
+
+	// Hartree and XC part
 	Ehart_ = 0.0;
 	EVxc_  = 0.0;
 
@@ -1775,14 +1822,6 @@ SCFDG::CalculateEnergy	(  )
 
 	Ehart_ *= domain_.Volume() / domain_.NumGridTotal();
 	EVxc_  *= domain_.Volume() / domain_.NumGridTotal();
-
-	// Self energy part
-	Eself_ = 0.0;
-	std::vector<Atom>&  atomList = hamDG.AtomList();
-	for(Int a=0; a< atomList.size() ; a++) {
-		Int type = atomList[a].type;
-		Eself_ +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
-	}
 
 	// Correction energy
 	Ecor_   = (Exc_ - EVxc_) - Ehart_ - Eself_;
@@ -1819,7 +1858,114 @@ SCFDG::CalculateEnergy	(  )
 #endif
 
 	return ;
-} 		// -----  end of method SCFDG::CalculateEnergy  ----- 
+} 		// -----  end of method SCFDG::CalculateKSEnergy  ----- 
+
+void
+SCFDG::CalculateHarrisEnergy	(  )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::CalculateHarrisEnergy");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+  HamiltonianDG&  hamDG = *hamDGPtr_;
+
+	DblNumVec&  eigVal         = hamDG.EigVal();
+	DblNumVec&  occupationRate = hamDG.OccupationRate();
+
+	// NOTE: To avoid confusion, all energies in this routine are
+	// temporary variables other than EfreeHarris_.
+	//
+	// The related energies will be computed again in the routine
+	//
+	// CalculateKSEnergy()
+	
+	Real Ekin, Eself, Ehart, EVxc, Exc, Ecor;
+
+	// Kinetic energy from the new density matrix.
+	Int numSpin = hamDG.NumSpin();
+	Ekin = 0.0;
+	for (Int i=0; i < eigVal.m(); i++) {
+		Ekin  += numSpin * eigVal(i) * occupationRate(i);
+	}
+
+	// Self energy part
+	Eself = 0.0;
+	std::vector<Atom>&  atomList = hamDG.AtomList();
+	for(Int a=0; a< atomList.size() ; a++) {
+		Int type = atomList[a].type;
+		Eself +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
+	}
+
+
+	// Nonlinear correction part.  This part uses the Hartree energy and
+	// XC correlation energy from the old electron density.
+
+	Real EhartLocal = 0.0, EVxcLocal = 0.0;
+	
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					DblNumVec&  density      = hamDG.Density().LocalMap()[key];
+					DblNumVec&  vxc          = hamDG.Vxc().LocalMap()[key];
+					DblNumVec&  pseudoCharge = hamDG.PseudoCharge().LocalMap()[key];
+					DblNumVec&  vhart        = hamDG.Vhart().LocalMap()[key];
+
+					for (Int p=0; p < density.Size(); p++) {
+						EVxcLocal  += vxc(p) * density(p);
+						EhartLocal += 0.5 * vhart(p) * ( density(p) + pseudoCharge(p) );
+					}
+
+				} // own this element
+			} // for (i)
+
+	mpi::Allreduce( &EVxcLocal, &EVxc, 1, MPI_SUM, domain_.comm );
+	mpi::Allreduce( &EhartLocal, &Ehart, 1, MPI_SUM, domain_.comm );
+
+	Ehart *= domain_.Volume() / domain_.NumGridTotal();
+	EVxc  *= domain_.Volume() / domain_.NumGridTotal();
+	// Use the previous exchange-correlation energy
+	Exc    = Exc_;
+
+
+	// Correction energy.  
+	Ecor   = (Exc - EVxc) - Ehart - Eself;
+
+	// Harris free energy functional
+	if( hamDG.NumOccupiedState() == 
+			hamDG.NumStateTotal() ){
+		// Zero temperature
+		EfreeHarris_ = Ekin + Ecor;
+	}
+	else{
+		// Finite temperature
+		EfreeHarris_ = 0.0;
+		Real fermi = fermi_;
+		Real Tbeta = Tbeta_;
+		for(Int l=0; l< eigVal.m(); l++) {
+			Real eig = eigVal(l);
+			if( eig - fermi >= 0){
+				EfreeHarris_ += -numSpin /Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
+			}
+			else{
+				EfreeHarris_ += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
+			}
+		}
+		EfreeHarris_ += Ecor + fermi * hamDG.NumOccupiedState() * numSpin; 
+	}
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::CalculateHarrisEnergy  ----- 
+
 
 void
 SCFDG::AndersonMix	( 
@@ -2159,6 +2305,7 @@ SCFDG::PrintState	( )
 		<< "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself" << std::endl
 	  << "       Etot  = Ekin + Ecor" << std::endl
 	  << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
+	Print(statusOFS, "EfreeHarris       = ",  EfreeHarris_, "[au]");
 	Print(statusOFS, "Etot              = ",  Etot_, "[au]");
 	Print(statusOFS, "Efree             = ",  Efree_, "[au]");
 	Print(statusOFS, "Ekin              = ",  Ekin_, "[au]");

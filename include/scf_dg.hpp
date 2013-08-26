@@ -50,9 +50,8 @@ private:
 
 	// Physical parameters
 	Real                Tbeta_;                    // Inverse of temperature in atomic unit
-	Real                Efree_;                    // Helmholtz free energy (KS energy functional)
-	// TODO Separate Efree and EfreeHarris
 	Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional
+	Real                Efree_;                    // Helmholtz free energy (KS energy functional)
 	Real                Etot_;                     // Total energy (KSenergy functional)
 	Real                Ekin_;                     // Kinetic energy
 	Real                Ehart_;                    // Hartree energy
@@ -156,9 +155,23 @@ public:
 			const Index3& numLGLGrid, const Real* psiUniform, Real* psiLGL );
 
 
-	/// @brief Calculate all energies for output
-	void  CalculateEnergy();
-	
+	/// @brief Calculate the Kohn-Sham energy and other related energies.
+	void  CalculateKSEnergy();
+
+	/// @brief Calculate the Harris (free) energy.  
+	///
+	/// The difference between the Kohn-Sham energy and the Harris energy
+	/// is that the nonlinear correction term in the Harris energy
+	/// functional must be computed via the input electron density, rather
+	/// than the output electron density or the mixed electron density.
+	///
+	/// Reference:
+	///
+	/// [Soler et al. "The SIESTA method for ab initio order-N
+	/// materials", J. Phys. Condens. Matter. 14, 2745 (2002) pp 18]
+	void  CalculateHarrisEnergy();
+
+
 	/// @brief Print out the state variables at each SCF iteration.
 	void  PrintState(  );
 
