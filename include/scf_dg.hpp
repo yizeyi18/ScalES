@@ -50,8 +50,10 @@ private:
 
 	// Physical parameters
 	Real                Tbeta_;                    // Inverse of temperature in atomic unit
-	Real                Efree_;                    // Helmholtz free energy
-	Real                Etot_;                     // Total energy
+	Real                Efree_;                    // Helmholtz free energy (KS energy functional)
+	// TODO Separate Efree and EfreeHarris
+	Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional
+	Real                Etot_;                     // Total energy (KSenergy functional)
 	Real                Ekin_;                     // Kinetic energy
 	Real                Ehart_;                    // Hartree energy
 	Real                Ecor_;                     // Nonlinear correction energy
@@ -70,10 +72,10 @@ private:
 
 	// SCF variables
 
-	/// @brief Work array for the old potential in the outer iteration.
-	DistDblNumVec       vtotOuterSave_;
-	/// @brief Work array for the new potential in the inner iteration.
-	DistDblNumVec       vtotInnerNew_;
+	/// @brief Work array for the old mixing variable in the outer iteration.
+	DistDblNumVec       mixOuterSave_;
+	/// @brief Work array for the new mixing variable in the inner iteration.
+	DistDblNumVec       mixInnerNew_;
 	// TODO Remove dfOuterMat_, dvOuterMat_
 	/// @brief Work array for the Anderson mixing in the outer iteration.
 	DistDblNumMat       dfOuterMat_;
@@ -160,7 +162,8 @@ public:
 	/// @brief Print out the state variables at each SCF iteration.
 	void  PrintState(  );
 
-	/// @brief Parallel preconditioned Anderson mixing.
+	/// @brief Parallel preconditioned Anderson mixing. Can be used for
+	/// potential mixing or density mixing.
 	void  AndersonMix( 
 			Int             iter, 
 			Real            mixStepLength,
@@ -171,7 +174,8 @@ public:
 			DistDblNumMat&  dfMat,
 			DistDblNumMat&  dvMat);
 	
-	/// @brief Parallel Kerker preconditioner.
+	/// @brief Parallel Kerker preconditioner. Can be used for
+	/// potential mixing or density mixing.
 	void  KerkerPrecond(
 		DistDblNumVec&  distPrecResidual,
 		const DistDblNumVec&  distResidual );

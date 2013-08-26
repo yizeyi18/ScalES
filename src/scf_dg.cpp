@@ -114,8 +114,8 @@ SCFDG::Setup	(
 		elemPrtn_      = distEigSol.Prtn();
 		contxt_        = contxt;
 		
-		vtotOuterSave_.Prtn() = elemPrtn_;
-		vtotInnerNew_.Prtn()  = elemPrtn_;
+		mixOuterSave_.Prtn()  = elemPrtn_;
+		mixInnerNew_.Prtn()   = elemPrtn_;
 		dfOuterMat_.Prtn()    = elemPrtn_;
 		dvOuterMat_.Prtn()    = elemPrtn_;
 		dfInnerMat_.Prtn()    = elemPrtn_;
@@ -135,8 +135,8 @@ SCFDG::Setup	(
 					if( elemPrtn_.Owner( key ) == mpirank ){
 						DblNumVec  emptyVec( hamDG.NumUniformGridElem().prod() );
 						SetValue( emptyVec, 0.0 );
-						vtotOuterSave_.LocalMap()[key] = emptyVec;
-						vtotInnerNew_.LocalMap()[key] = emptyVec;
+						mixOuterSave_.LocalMap()[key] = emptyVec;
+						mixInnerNew_.LocalMap()[key]  = emptyVec;
 						DblNumMat  emptyMat( hamDG.NumUniformGridElem().prod(), mixMaxDim_ );
 						SetValue( emptyMat, 0.0 );
 						dfOuterMat_.LocalMap()[key]   = emptyMat;
@@ -823,14 +823,14 @@ SCFDG::Iterate	(  )
 
 		GetTime(timeSta);
 
-		// Save the potential for the mixing in the outer SCF iteration 
+		// Save the mixing variable in the outer SCF iteration 
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
-						DblNumVec& oldVec = hamDG.Vtot().LocalMap()[key];
-						vtotOuterSave_.LocalMap()[key] = oldVec;
+						DblNumVec& oldVec = hamDG.Density().LocalMap()[key];
+						mixOuterSave_.LocalMap()[key] = oldVec;
 					} // own this element
 				} // for (i)
 
@@ -848,39 +848,39 @@ SCFDG::Iterate	(  )
 		// *********************************************************************
 		
 
-		// Compute the error of the potential
+		// Compute the error of the mixing variable 
 		{
-			Real normVtotDifLocal = 0.0, normVtotOldLocal = 0.0;
-			Real normVtotDif, normVtotOld;
+			Real normMixDifLocal = 0.0, normMixOldLocal = 0.0;
+			Real normMixDif, normMixOld;
 			for( Int k = 0; k < numElem_[2]; k++ )
 				for( Int j = 0; j < numElem_[1]; j++ )
 					for( Int i = 0; i < numElem_[0]; i++ ){
 						Index3 key( i, j, k );
 						if( elemPrtn_.Owner( key ) == mpirank ){
-							DblNumVec& oldVec = vtotOuterSave_.LocalMap()[key];
-							DblNumVec& newVec = hamDG.Vtot().LocalMap()[key];
+							DblNumVec& oldVec = mixOuterSave_.LocalMap()[key];
+							DblNumVec& newVec = hamDG.Density().LocalMap()[key];
 
 							for( Int p = 0; p < oldVec.m(); p++ ){
-								normVtotDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
-								normVtotOldLocal += pow( oldVec(p), 2.0 );
+								normMixDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
+								normMixOldLocal += pow( oldVec(p), 2.0 );
 							}
 						} // own this element
 					} // for (i)
 
 
-			mpi::Allreduce( &normVtotDifLocal, &normVtotDif, 1, MPI_SUM, 
+			mpi::Allreduce( &normMixDifLocal, &normMixDif, 1, MPI_SUM, 
 					domain_.comm );
-			mpi::Allreduce( &normVtotOldLocal, &normVtotOld, 1, MPI_SUM,
+			mpi::Allreduce( &normMixOldLocal, &normMixOld, 1, MPI_SUM,
 					domain_.comm );
 
-			normVtotDif = std::sqrt( normVtotDif );
-			normVtotOld = std::sqrt( normVtotOld );
+			normMixDif = std::sqrt( normMixDif );
+			normMixOld = std::sqrt( normMixOld );
 
-			scfOuterNorm_    = normVtotDif / normVtotOld;
+			scfOuterNorm_    = normMixDif / normMixOld;
 
 			Print(statusOFS, "OUTERSCF: Efree = ", Efree_ ); 
-			Print(statusOFS, "OUTERSCF: inner norm(vout-vin)/norm(vin) = ", scfInnerNorm_ ); 
-			Print(statusOFS, "OUTERSCF: outer norm(vout-vin)/norm(vin) = ", scfOuterNorm_ ); 
+			Print(statusOFS, "OUTERSCF: inner norm(out-in)/norm(in) = ", scfInnerNorm_ ); 
+			Print(statusOFS, "OUTERSCF: outer norm(out-in)/norm(in) = ", scfOuterNorm_ ); 
 		}
 
 //		// Print out the state variables of the current iteration
@@ -1166,13 +1166,17 @@ SCFDG::InnerIterate	(  )
 		// Compute the occupation rate
 		CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
 
-		// Compute the energies.  When energy is computed just after the
-		// occupation rate, so that this is the Harris-Foulkes functional.
+		// Compute the energies.  When density mixing is used, the energy is
+		// computed just after the occupation rate, so that this is the
+		// Harris-Foulkes functional.
 		//
 		// Reference:
 		//
 		// [Soler et al. "The SIESTA method for ab initio order-N
 		// materials", J. Phys. Condens. Matter. 14, 2745 (2002) pp 18]
+
+		// TODO Separate the calculation of the Harris energy and other
+		// energy.
     CalculateEnergy();
 
 		// Print out the state variables of the current iteration
@@ -1191,7 +1195,9 @@ SCFDG::InnerIterate	(  )
 		// Compute the electron density
 		GetTime( timeSta );
 
-		hamDG.CalculateDensity( hamDG.OccupationRate() );
+		// FIXME after this function, hamDG.Density() and hamDG.DensityLGL()
+		// does not correspond to the same thing!  08/26/2013
+		hamDG.CalculateDensity( mixInnerNew_, hamDG.DensityLGL() );
 
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
@@ -1200,84 +1206,41 @@ SCFDG::InnerIterate	(  )
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-
-		// Compute the exchange-correlation potential and energy
-		GetTime(timeSta);
-
-		hamDG.CalculateXC( Exc_ );
-
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for computing the XC energy is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-
-		// Compute the Hartree energy
-		GetTime(timeSta);
-
-		hamDG.CalculateHartree( *distfftPtr_ );
-
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for computing the Hartree potential and energy is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-
-		// No external potential
-
-		// Compute the new total potential
-
-		GetTime(timeSta);
-
-		hamDG.CalculateVtot( vtotInnerNew_ );
-
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for computing the total potential is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-
-		// Compute the error of the potential
+		// Compute the error of the mixing variable
 
 		GetTime(timeSta);
 
 		{
-			Real normVtotDifLocal = 0.0, normVtotOldLocal = 0.0;
-			Real normVtotDif, normVtotOld;
+			Real normMixDifLocal = 0.0, normMixOldLocal = 0.0;
+			Real normMixDif, normMixOld;
 			for( Int k = 0; k < numElem_[2]; k++ )
 				for( Int j = 0; j < numElem_[1]; j++ )
 					for( Int i = 0; i < numElem_[0]; i++ ){
 						Index3 key( i, j, k );
 						if( elemPrtn_.Owner( key ) == mpirank ){
-							DblNumVec& oldVec = hamDG.Vtot().LocalMap()[key];
-							DblNumVec& newVec = vtotInnerNew_.LocalMap()[key];
+							DblNumVec& oldVec = hamDG.Density().LocalMap()[key];
+							DblNumVec& newVec = mixInnerNew_.LocalMap()[key];
 
 							for( Int p = 0; p < oldVec.m(); p++ ){
-								normVtotDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
-								normVtotOldLocal += pow( oldVec(p), 2.0 );
+								normMixDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
+								normMixOldLocal += pow( oldVec(p), 2.0 );
 							}
 						} // own this element
 					} // for (i)
 
 
-			mpi::Allreduce( &normVtotDifLocal, &normVtotDif, 1, MPI_SUM, 
+			mpi::Allreduce( &normMixDifLocal, &normMixDif, 1, MPI_SUM, 
 					domain_.comm );
-			mpi::Allreduce( &normVtotOldLocal, &normVtotOld, 1, MPI_SUM,
+			mpi::Allreduce( &normMixOldLocal, &normMixOld, 1, MPI_SUM,
 					domain_.comm );
 
-			normVtotDif = std::sqrt( normVtotDif );
-			normVtotOld = std::sqrt( normVtotOld );
+			normMixDif = std::sqrt( normMixDif );
+			normMixOld = std::sqrt( normMixOld );
 
-			scfInnerNorm_    = normVtotDif / normVtotOld;
-			Print(statusOFS, "norm(VtotDif) = ", normVtotDif );
-			Print(statusOFS, "norm(VtotOld) = ", normVtotOld );
-			Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfInnerNorm_ );
+			scfInnerNorm_    = normMixDif / normMixOld;
+			Print(statusOFS, "norm(MixDif) = ", normMixDif );
+			Print(statusOFS, "norm(MixOld) = ", normMixOld );
+			Print(statusOFS, "norm(out-in)/norm(in) = ", scfInnerNorm_ );
 		}
 
 
@@ -1296,8 +1259,7 @@ SCFDG::InnerIterate	(  )
 #endif
 
 
-
-		// Potential mixing for the inner SCF iteration.
+		// Mixing for the inner SCF iteration.
 		GetTime( timeSta );
 
 		// The number of iterations used for Anderson mixing
@@ -1323,9 +1285,9 @@ SCFDG::InnerIterate	(  )
 					numAndersonIter, 
 					mixStepLength_,
 					mixType_,
-					hamDG.Vtot(),
-					hamDG.Vtot(),
-					vtotInnerNew_,
+					hamDG.Density(),
+					hamDG.Density(),
+					mixInnerNew_,
 					dfInnerMat_,
 					dvInnerMat_);
     } else{
@@ -1338,6 +1300,51 @@ SCFDG::InnerIterate	(  )
 		statusOFS << "Time for potential mixing is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+
+
+
+		// Compute the exchange-correlation potential and energy from the
+		// new density
+		GetTime(timeSta);
+
+		hamDG.CalculateXC( Exc_ );
+
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing the XC energy is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+		// Compute the Hartree energy
+		GetTime(timeSta);
+
+		hamDG.CalculateHartree( *distfftPtr_ );
+
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing the Hartree potential and energy is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+		// No external potential
+
+		// Compute the new total potential
+
+		GetTime(timeSta);
+
+		hamDG.CalculateVtot( hamDG.Vtot() );
+
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing the total potential is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
 
 		GetTime( timeIterEnd );
    

@@ -620,7 +620,9 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 } 		// -----  end of method HamiltonianDG::CalculatePseudoPotential  ----- 
 
 void
-HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
+HamiltonianDG::CalculateDensity	( 
+		DistDblNumVec& rho,
+		DistDblNumVec& rhoLGL )
 {
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::CalculateDensity");
@@ -629,6 +631,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
 
+	DblNumVec& occrate = occupationRate_;
 	Int numEig = occrate.m();
 
 	DistDblNumVec  psiUniform;
@@ -640,7 +643,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 			for( Int i = 0; i < numElem_[0]; i++ ){
 				Index3 key( i, j, k );
 				if( elemPrtn_.Owner( key ) == mpirank ){
-					DblNumVec& localRho = density_.LocalMap()[key];
+					DblNumVec& localRho = rho.LocalMap()[key];
 					SetValue( localRho, 0.0 );
 				} // own this element
 			} // for (i)
@@ -710,7 +713,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 					for( Int i = 0; i < numElem_[0]; i++ ){
 						Index3 key( i, j, k );
 						if( elemPrtn_.Owner( key ) == mpirank ){
-							DblNumVec& localRho = density_.LocalMap()[key];
+							DblNumVec& localRho = rho.LocalMap()[key];
 							DblNumVec& localPsi = psiUniform.LocalMap()[key];
 							for( Int p = 0; p < localRho.Size(); p++ ){
 								localRho[p] += localPsi[p] * localPsi[p] * rhofac;
@@ -727,7 +730,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
-						DblNumVec& localRho = density_.LocalMap()[key];
+						DblNumVec& localRho = rho.LocalMap()[key];
 						for( Int p = 0; p < localRho.Size(); p++ ){
 							sumRhoLocal += localRho[p];
 						}	
@@ -772,7 +775,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 									"Number of LGL grids do not match.");
 						}
 						
-						DblNumVec& localRho = density_.LocalMap()[key];
+						DblNumVec& localRho = rho.LocalMap()[key];
 
 						DblNumVec  localRhoLGL( numGrid );
 						DblNumVec  localPsiLGL( numGrid );
@@ -825,7 +828,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
-						DblNumVec& localRho = density_.LocalMap()[key];
+						DblNumVec& localRho = rho.LocalMap()[key];
 						blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
 					} // own this element
 				} // for (i)
@@ -873,8 +876,8 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
-						DblNumVec& localRho    = density_.LocalMap()[key];
-						DblNumVec& localRhoLGL = densityLGL_.LocalMap()[key];
+						DblNumVec& localRho    = rho.LocalMap()[key];
+						DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
 
 						SetValue( localRho, 0.0 );
 						SetValue( localRhoLGL, 0.0 );
@@ -906,8 +909,8 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 									"Number of LGL grids do not match.");
 						}
 						
-						DblNumVec& localRho    = density_.LocalMap()[key];
-						DblNumVec& localRhoLGL = densityLGL_.LocalMap()[key];
+						DblNumVec& localRho    = rho.LocalMap()[key];
+						DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
 
 						DblNumVec  localPsiLGL( numGrid );
 						SetValue( localPsiLGL, 0.0 );
@@ -978,7 +981,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 //				for( Int i = 0; i < numElem_[0]; i++ ){
 //					Index3 key( i, j, k );
 //					if( elemPrtn_.Owner( key ) == mpirank ){
-//						DblNumVec& localRho = density_.LocalMap()[key];
+//						DblNumVec& localRho = rho.LocalMap()[key];
 //						blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
 //					} // own this element
 //				} // for (i)

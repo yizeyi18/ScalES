@@ -196,7 +196,9 @@ private:
 	DistDblNumVec    density_;
 
 	/// @brief Electron density in the global domain defined on the LGL
-	/// grid. No magnitization for DG calculation.
+	/// grid. No magnitization for DG calculation.  
+	/// FIXME This is only a temporary variable and MAY NOT BE the same as
+	/// the density_ variable.
 	DistDblNumVec    densityLGL_;
 
 
@@ -290,7 +292,7 @@ public:
 	
 	/// @brief Compute the electron density after the diagonalization
 	/// of the DG Hamiltonian matrix.
-	void CalculateDensity( const DblNumVec &occrate );
+	void CalculateDensity( DistDblNumVec& rho, DistDblNumVec& rhoLGL );
 	
 
 	/// @brief Compute the exchange-correlation potential and energy.
