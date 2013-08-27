@@ -83,10 +83,9 @@ SCFDG::Setup	(
 	{
 		domain_        = esdfParam.domain;
     mixMaxDim_     = esdfParam.mixMaxDim;
+		mixVariable_   = esdfParam.mixVariable;
     mixType_       = esdfParam.mixType;
 		mixStepLength_ = esdfParam.mixStepLength;
-		// FIXME
-		mixVariable_   = "density";
 		scfInnerTolerance_  = esdfParam.scfInnerTolerance;
 		scfInnerMaxIter_    = esdfParam.scfInnerMaxIter;
 		scfOuterTolerance_  = esdfParam.scfOuterTolerance;
@@ -900,7 +899,8 @@ SCFDG::Iterate	(  )
 			scfOuterNorm_    = normMixDif / normMixOld;
 
 			Print(statusOFS, "OUTERSCF: EfreeHarris                 = ", EfreeHarris_ ); 
-			Print(statusOFS, "OUTERSCF: EfreeSecondOrder            = ", EfreeSecondOrder_ ); 
+//			FIXME
+//			Print(statusOFS, "OUTERSCF: EfreeSecondOrder            = ", EfreeSecondOrder_ ); 
 			Print(statusOFS, "OUTERSCF: Efree                       = ", Efree_ ); 
 			Print(statusOFS, "OUTERSCF: inner norm(out-in)/norm(in) = ", scfInnerNorm_ ); 
 			Print(statusOFS, "OUTERSCF: outer norm(out-in)/norm(in) = ", scfOuterNorm_ ); 
@@ -2501,7 +2501,8 @@ SCFDG::PrintState	( )
 //	  << "       Etot  = Ekin + Ecor" << std::endl
 //	  << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
 	Print(statusOFS, "EfreeHarris       = ",  EfreeHarris_, "[au]");
-	Print(statusOFS, "EfreeSecondOrder  = ",  EfreeSecondOrder_, "[au]");
+//			FIXME
+//	Print(statusOFS, "EfreeSecondOrder  = ",  EfreeSecondOrder_, "[au]");
 	Print(statusOFS, "Etot              = ",  Etot_, "[au]");
 	Print(statusOFS, "Efree             = ",  Efree_, "[au]");
 	Print(statusOFS, "Ekin              = ",  Ekin_, "[au]");

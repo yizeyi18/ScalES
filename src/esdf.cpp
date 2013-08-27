@@ -323,7 +323,12 @@ void esdf_key() {
 	i++;
 	strcpy(kw_label[i],"mixing_type");
 	strcpy(kw_typ[i],"T:B");
-	strcpy(kw_dscrpt[i],"*! Simple, Anderson, Broyden, Purlay !*");
+	strcpy(kw_dscrpt[i],"*! Simple, Anderson, Broyden, Pulay !*");
+
+	i++;
+	strcpy(kw_label[i],"mixing_variable");
+	strcpy(kw_typ[i],"T:B");
+	strcpy(kw_dscrpt[i],"*! density, potential !*");
 
 	i++;
 	strcpy(kw_label[i],"mixing_param");
@@ -1867,8 +1872,22 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 	{
 
 		esdfParam.mixMaxDim       = esdf_integer("Mixing_MaxDim", 9);
+
 		esdf_string("Mixing_Type", "anderson", strtmp); 
 		esdfParam.mixType         = strtmp;
+		if( esdfParam.mixType != "anderson" &&
+				esdfParam.mixType != "kerker+anderson" ){
+			throw std::runtime_error("Invalid mixing type.");
+		}
+
+		esdf_string("Mixing_Variable", "density", strtmp); 
+		esdfParam.mixVariable     = strtmp;
+		if( esdfParam.mixVariable != "density" &&
+				esdfParam.mixVariable != "potential" ){
+			throw std::runtime_error("Invalid mixing variable.");
+		}
+
+
 		esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
 		esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
 		esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   30 );

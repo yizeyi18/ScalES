@@ -107,6 +107,7 @@ int main(int argc, char **argv)
 			Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
 			Print(statusOFS, "Grid size         = ",  esdfParam.domain.numGrid ); 
 			Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
+			Print(statusOFS, "Mixing variable   = ",  esdfParam.mixVariable );
 			Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
 			Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
 			Print(statusOFS, "SCF Outer Tol     = ",  esdfParam.scfOuterTolerance);

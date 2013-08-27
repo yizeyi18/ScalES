@@ -71,6 +71,7 @@ struct ESDFInputParam{
 
 	Int                 mixMaxDim;
 	std::string         mixType;
+	std::string         mixVariable;
 	Real                mixStepLength;            
 	Real                scfInnerTolerance;
 	Real                scfOuterTolerance;
