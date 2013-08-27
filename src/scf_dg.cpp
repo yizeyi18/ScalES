@@ -117,7 +117,7 @@ SCFDG::Setup	(
 		contxt_        = contxt;
 		
 		mixOuterSave_.Prtn()  = elemPrtn_;
-		mixInnerNew_.Prtn()   = elemPrtn_;
+		mixInnerSave_.Prtn()  = elemPrtn_;
 		dfOuterMat_.Prtn()    = elemPrtn_;
 		dvOuterMat_.Prtn()    = elemPrtn_;
 		dfInnerMat_.Prtn()    = elemPrtn_;
@@ -138,7 +138,7 @@ SCFDG::Setup	(
 						DblNumVec  emptyVec( hamDG.NumUniformGridElem().prod() );
 						SetValue( emptyVec, 0.0 );
 						mixOuterSave_.LocalMap()[key] = emptyVec;
-						mixInnerNew_.LocalMap()[key]  = emptyVec;
+						mixInnerSave_.LocalMap()[key] = emptyVec;
 						DblNumMat  emptyMat( hamDG.NumUniformGridElem().prod(), mixMaxDim_ );
 						SetValue( emptyMat, 0.0 );
 						dfOuterMat_.LocalMap()[key]   = emptyMat;
@@ -881,6 +881,7 @@ SCFDG::Iterate	(  )
 			scfOuterNorm_    = normMixDif / normMixOld;
 
 			Print(statusOFS, "OUTERSCF: EfreeHarris                 = ", EfreeHarris_ ); 
+			Print(statusOFS, "OUTERSCF: EfreeSecondOrder            = ", EfreeSecondOrder_ ); 
 			Print(statusOFS, "OUTERSCF: Efree                       = ", Efree_ ); 
 			Print(statusOFS, "OUTERSCF: inner norm(out-in)/norm(in) = ", scfInnerNorm_ ); 
 			Print(statusOFS, "OUTERSCF: outer norm(out-in)/norm(in) = ", scfOuterNorm_ ); 
@@ -1169,9 +1170,11 @@ SCFDG::InnerIterate	(  )
 		// Compute the occupation rate
 		CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
 
-		// Compute the Harris energy functional
+		// Compute the Harris energy functional.  
+		// NOTE: In computing the Harris energy, the density and the
+		// potential must be the INPUT density and potential without ANY
+		// update.
     CalculateHarrisEnergy();
-
 
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
@@ -1180,12 +1183,29 @@ SCFDG::InnerIterate	(  )
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
+
 		// Compute the electron density
 		GetTime( timeSta );
 
-		// NOTE after this function, hamDG.Density() and hamDG.DensityLGL()
-		// does not correspond to the same thing!  08/26/2013
-		hamDG.CalculateDensity( mixInnerNew_, hamDG.DensityLGL() );
+		// Save the electron density first
+		{
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							DblNumVec& oldVec = hamDG.Density().LocalMap()[key];
+							DblNumVec& newVec = mixInnerSave_.LocalMap()[key];
+
+							blas::Copy( oldVec.Size(), oldVec.Data(), 1,
+									newVec.Data(), 1 );
+						} // own this element
+					} // for (i)
+		}
+
+		// Calculate the new electron density
+		// FIXME The interface might need to be updated.
+		hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
 
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
@@ -1193,6 +1213,40 @@ SCFDG::InnerIterate	(  )
 		statusOFS << "Time for computing density in the global domain is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+
+		// Update the Hartree energy and the exchange correlation energy and
+		// potential for computing the KS energy and the second order
+		// energy.
+		
+		// FIXME The interface of CalculateXC may need to be updated to
+		// reflect toe explicit change of hamDG.Vxc()
+		hamDG.CalculateXC( Exc_ );
+
+		// Update the Hartree potential first with the OUTPUTelectron
+		// density. 
+		// FIXME The interval for CalculateHartree may need to be updated,
+		// where the modification of hamDG.Vhart becomes more transparent.
+		hamDG.CalculateHartree( *distfftPtr_ );
+
+		// NOTE vtot should not be updated.
+
+
+		// Compute the second order accurate energy functional.
+		// NOTE: In computing the second order energy, the density and the
+		// potential must be the OUTPUT density and potential without ANY
+		// MIXING.
+		CalculateSecondOrderEnergy();
+
+
+		// Compute the KS energy 
+		// FIXME Literally speaking this KS energy is NOT correct.  It
+		// should be computed after the output density.  But since we use
+		// Harris energy functional now, this does not matter much at this
+		// moment.  But this should be changed later.
+		CalculateKSEnergy();
+
+		// No update of the total potential here in DENSITY MIXING.
+
 
 		// Compute the error of the mixing variable
 
@@ -1206,8 +1260,8 @@ SCFDG::InnerIterate	(  )
 					for( Int i = 0; i < numElem_[0]; i++ ){
 						Index3 key( i, j, k );
 						if( elemPrtn_.Owner( key ) == mpirank ){
-							DblNumVec& oldVec = hamDG.Density().LocalMap()[key];
-							DblNumVec& newVec = mixInnerNew_.LocalMap()[key];
+							DblNumVec& oldVec = mixInnerSave_.LocalMap()[key];
+							DblNumVec& newVec = hamDG.Density().LocalMap()[key];
 
 							for( Int p = 0; p < oldVec.m(); p++ ){
 								normMixDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
@@ -1274,8 +1328,8 @@ SCFDG::InnerIterate	(  )
 					mixStepLength_,
 					mixType_,
 					hamDG.Density(),
+					mixInnerSave_,
 					hamDG.Density(),
-					mixInnerNew_,
 					dfInnerMat_,
 					dvInnerMat_);
     } else{
@@ -1373,13 +1427,6 @@ SCFDG::InnerIterate	(  )
 		statusOFS << "Time for computing the total potential is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-
-		// Compute the KS energy 
-		// FIXME Literally speaking this KS energy is NOT correct.  It
-		// should be computed after the output density.  But since we use
-		// Harris energy functional now, this does not matter much at this
-		// moment.  But this should be changed later.
-		CalculateKSEnergy();
 
 		// Print out the state variables of the current iteration
     PrintState( );
@@ -1966,6 +2013,132 @@ SCFDG::CalculateHarrisEnergy	(  )
 	return ;
 } 		// -----  end of method SCFDG::CalculateHarrisEnergy  ----- 
 
+void
+SCFDG::CalculateSecondOrderEnergy  (  )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::CalculateSecondOrderEnergy");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+  HamiltonianDG&  hamDG = *hamDGPtr_;
+
+	DblNumVec&  eigVal         = hamDG.EigVal();
+	DblNumVec&  occupationRate = hamDG.OccupationRate();
+
+	// NOTE: To avoid confusion, all energies in this routine are
+	// temporary variables other than EfreeSecondOrder_.
+  // 
+	// This is similar to the situation in 
+	//
+	// CalculateHarrisEnergy()
+
+	
+	Real Ekin, Eself, Ehart, EVtot, Exc, Ecor;
+
+	// Kinetic energy from the new density matrix.
+	Int numSpin = hamDG.NumSpin();
+	Ekin = 0.0;
+	for (Int i=0; i < eigVal.m(); i++) {
+		Ekin  += numSpin * eigVal(i) * occupationRate(i);
+	}
+
+	// Self energy part
+	Eself = 0.0;
+	std::vector<Atom>&  atomList = hamDG.AtomList();
+	for(Int a=0; a< atomList.size() ; a++) {
+		Int type = atomList[a].type;
+		Eself +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
+	}
+
+
+	// Nonlinear correction part.  This part uses the Hartree energy and
+	// XC correlation energy from the OUTPUT electron density, but the total
+	// potential is the INPUT one used in the diagonalization process.
+	// The density is also the OUTPUT density.
+  //
+	// NOTE the sign flip in Ehart, which is different from those in KS
+	// energy functional and Harris energy functional.
+
+	Real EhartLocal = 0.0, EVtotLocal = 0.0;
+
+
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					DblNumVec&  density      = hamDG.Density().LocalMap()[key];
+					DblNumVec&  vext         = hamDG.Vext().LocalMap()[key];
+					DblNumVec&  vtot         = hamDG.Vtot().LocalMap()[key];
+					DblNumVec&  pseudoCharge = hamDG.PseudoCharge().LocalMap()[key];
+					DblNumVec&  vhart        = hamDG.Vhart().LocalMap()[key];
+
+					for (Int p=0; p < density.Size(); p++) {
+						EVtotLocal  += (vtot(p) - vext(p)) * density(p);
+						// NOTE the sign flip
+						EhartLocal  += 0.5 * vhart(p) * ( density(p) - pseudoCharge(p) );
+					}
+
+				} // own this element
+			} // for (i)
+
+	mpi::Allreduce( &EVtotLocal, &EVtot, 1, MPI_SUM, domain_.comm );
+	mpi::Allreduce( &EhartLocal, &Ehart, 1, MPI_SUM, domain_.comm );
+
+	Ehart *= domain_.Volume() / domain_.NumGridTotal();
+	EVtot *= domain_.Volume() / domain_.NumGridTotal();
+
+	// Use the exchange-correlation energy with respect to the new
+	// electron density
+	Exc = Exc_;
+	
+	// Correction energy.  
+	// NOTE The correction energy in the second order method means
+	// differently from that in Harris energy functional or the KS energy
+	// functional.
+	Ecor   = (Exc + Ehart - Eself) - EVtot;
+	statusOFS
+		<< "Exc     = " << Exc      << std::endl
+		<< "Ehart   = " << Ehart    << std::endl
+		<< "Eself   = " << Eself    << std::endl
+		<< "EVtot   = " << EVtot    << std::endl
+		<< "Ecor    = " << Ecor     << std::endl;
+	
+
+
+	// Second order accurate free energy functional
+	if( hamDG.NumOccupiedState() == 
+			hamDG.NumStateTotal() ){
+		// Zero temperature
+		EfreeSecondOrder_ = Ekin + Ecor;
+	}
+	else{
+		// Finite temperature
+		EfreeSecondOrder_ = 0.0;
+		Real fermi = fermi_;
+		Real Tbeta = Tbeta_;
+		for(Int l=0; l< eigVal.m(); l++) {
+			Real eig = eigVal(l);
+			if( eig - fermi >= 0){
+				EfreeSecondOrder_ += -numSpin /Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
+			}
+			else{
+				EfreeSecondOrder_ += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
+			}
+		}
+		EfreeSecondOrder_ += Ecor + fermi * hamDG.NumOccupiedState() * numSpin; 
+	}
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::CalculateSecondOrderEnergy  ----- 
 
 void
 SCFDG::AndersonMix	( 
@@ -2301,11 +2474,13 @@ SCFDG::PrintState	( )
 	      "occrate  = ", hamDG.OccupationRate()(i));
 	}
 	statusOFS << std::endl;
-	statusOFS 
-		<< "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself" << std::endl
-	  << "       Etot  = Ekin + Ecor" << std::endl
-	  << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
+	// FIXME
+//	statusOFS 
+//		<< "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself" << std::endl
+//	  << "       Etot  = Ekin + Ecor" << std::endl
+//	  << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
 	Print(statusOFS, "EfreeHarris       = ",  EfreeHarris_, "[au]");
+	Print(statusOFS, "EfreeSecondOrder  = ",  EfreeSecondOrder_, "[au]");
 	Print(statusOFS, "Etot              = ",  Etot_, "[au]");
 	Print(statusOFS, "Efree             = ",  Efree_, "[au]");
 	Print(statusOFS, "Ekin              = ",  Ekin_, "[au]");

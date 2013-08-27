@@ -202,7 +202,8 @@ private:
 	DistDblNumVec    densityLGL_;
 
 
-	/// @brief External potential in the global domain. (not implemented)
+	/// @brief External potential in the global domain. This is usually
+	/// not used.
 	DistDblNumVec    vext_;
 
 	/// @brief Hartree potential in the global domain.
@@ -351,6 +352,9 @@ public:
 
 	/// @brief Total potential in the global domain.
 	DistDblNumVec&  Vtot( ) { return vtot_; }
+
+	/// @brief External potential in the global domain.
+	DistDblNumVec&  Vext( ) { return vext_; }
 
 	/// @brief Exchange-correlation potential in the global domain. No
 	/// magnization calculation in the DG code.

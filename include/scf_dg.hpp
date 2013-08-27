@@ -51,6 +51,7 @@ private:
 	// Physical parameters
 	Real                Tbeta_;                    // Inverse of temperature in atomic unit
 	Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional
+	Real                EfreeSecondOrder_;         // Second order accurate Helmholtz free energy 
 	Real                Efree_;                    // Helmholtz free energy (KS energy functional)
 	Real                Etot_;                     // Total energy (KSenergy functional)
 	Real                Ekin_;                     // Kinetic energy
@@ -73,8 +74,8 @@ private:
 
 	/// @brief Work array for the old mixing variable in the outer iteration.
 	DistDblNumVec       mixOuterSave_;
-	/// @brief Work array for the new mixing variable in the inner iteration.
-	DistDblNumVec       mixInnerNew_;
+	/// @brief Work array for the old mixing variable in the inner iteration.
+	DistDblNumVec       mixInnerSave_;
 	// TODO Remove dfOuterMat_, dvOuterMat_
 	/// @brief Work array for the Anderson mixing in the outer iteration.
 	DistDblNumMat       dfOuterMat_;
@@ -171,6 +172,14 @@ public:
 	/// materials", J. Phys. Condens. Matter. 14, 2745 (2002) pp 18]
 	void  CalculateHarrisEnergy();
 
+	/// @brief Calculate the second order accurate energy that is
+	/// applicable to both density and potential mixing.
+	///
+	/// Reference:
+	///
+	/// Research note, "On the understanding and generalization of Harris
+	/// energy functional", 08/26/2013.
+	void  CalculateSecondOrderEnergy();
 
 	/// @brief Print out the state variables at each SCF iteration.
 	void  PrintState(  );
