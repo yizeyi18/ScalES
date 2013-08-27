@@ -85,6 +85,8 @@ SCFDG::Setup	(
     mixMaxDim_     = esdfParam.mixMaxDim;
     mixType_       = esdfParam.mixType;
 		mixStepLength_ = esdfParam.mixStepLength;
+		// FIXME
+		mixVariable_   = "density";
 		scfInnerTolerance_  = esdfParam.scfInnerTolerance;
 		scfInnerMaxIter_    = esdfParam.scfInnerMaxIter;
 		scfOuterTolerance_  = esdfParam.scfOuterTolerance;
@@ -831,8 +833,14 @@ SCFDG::Iterate	(  )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
-						DblNumVec& oldVec = hamDG.Density().LocalMap()[key];
-						mixOuterSave_.LocalMap()[key] = oldVec;
+						if( mixVariable_ == "density" ){
+							DblNumVec& oldVec = hamDG.Density().LocalMap()[key];
+							mixOuterSave_.LocalMap()[key] = oldVec;
+						}
+						else if( mixVariable_ == "potential" ){
+							DblNumVec& oldVec = hamDG.Vtot().LocalMap()[key];
+							mixOuterSave_.LocalMap()[key] = oldVec;
+						}
 					} // own this element
 				} // for (i)
 
@@ -859,12 +867,23 @@ SCFDG::Iterate	(  )
 					for( Int i = 0; i < numElem_[0]; i++ ){
 						Index3 key( i, j, k );
 						if( elemPrtn_.Owner( key ) == mpirank ){
-							DblNumVec& oldVec = mixOuterSave_.LocalMap()[key];
-							DblNumVec& newVec = hamDG.Density().LocalMap()[key];
+							if( mixVariable_ == "density" ){
+								DblNumVec& oldVec = mixOuterSave_.LocalMap()[key];
+								DblNumVec& newVec = hamDG.Density().LocalMap()[key];
 
-							for( Int p = 0; p < oldVec.m(); p++ ){
-								normMixDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
-								normMixOldLocal += pow( oldVec(p), 2.0 );
+								for( Int p = 0; p < oldVec.m(); p++ ){
+									normMixDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
+									normMixOldLocal += pow( oldVec(p), 2.0 );
+								}
+							}
+							else if( mixVariable_ == "potential" ){
+								DblNumVec& oldVec = mixOuterSave_.LocalMap()[key];
+								DblNumVec& newVec = hamDG.Vtot().LocalMap()[key];
+
+								for( Int p = 0; p < oldVec.m(); p++ ){
+									normMixDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
+									normMixOldLocal += pow( oldVec(p), 2.0 );
+								}
 							}
 						} // own this element
 					} // for (i)
@@ -1164,8 +1183,32 @@ SCFDG::InnerIterate	(  )
 		// *********************************************************************
 		// Post processing
 		// *********************************************************************
-		
-		GetTime(timeSta);
+	
+
+		// Save the mixing variable first
+		{
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == mpirank ){
+							if( mixVariable_ == "density" ){
+								DblNumVec& oldVec = hamDG.Density().LocalMap()[key];
+								DblNumVec& newVec = mixInnerSave_.LocalMap()[key];
+								blas::Copy( oldVec.Size(), oldVec.Data(), 1,
+										newVec.Data(), 1 );
+							}
+							else if( mixVariable_ == "potential" ){
+								DblNumVec& oldVec = hamDG.Vtot().LocalMap()[key];
+								DblNumVec& newVec = mixInnerSave_.LocalMap()[key];
+								blas::Copy( oldVec.Size(), oldVec.Data(), 1,
+										newVec.Data(), 1 );
+							}
+
+						} // own this element
+					} // for (i)
+		}
+
 
 		// Compute the occupation rate
 		CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
@@ -1177,34 +1220,12 @@ SCFDG::InnerIterate	(  )
     CalculateHarrisEnergy();
 
 		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for computing the energy is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
 
 
-		// Compute the electron density
+		// Compute the output electron density
 		GetTime( timeSta );
 
-		// Save the electron density first
-		{
-			for( Int k = 0; k < numElem_[2]; k++ )
-				for( Int j = 0; j < numElem_[1]; j++ )
-					for( Int i = 0; i < numElem_[0]; i++ ){
-						Index3 key( i, j, k );
-						if( elemPrtn_.Owner( key ) == mpirank ){
-							DblNumVec& oldVec = hamDG.Density().LocalMap()[key];
-							DblNumVec& newVec = mixInnerSave_.LocalMap()[key];
-
-							blas::Copy( oldVec.Size(), oldVec.Data(), 1,
-									newVec.Data(), 1 );
-						} // own this element
-					} // for (i)
-		}
-
 		// Calculate the new electron density
-		// FIXME The interface might need to be updated.
 		hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
 
 		MPI_Barrier( domain_.comm );
@@ -1214,60 +1235,41 @@ SCFDG::InnerIterate	(  )
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-		// Update the Hartree energy and the exchange correlation energy and
-		// potential for computing the KS energy and the second order
-		// energy.
-		
-		hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
 
-		// Update the Hartree potential first with the OUTPUTelectron
-		// density. 
-		hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+		// Update the output potential, and the KS and second order accurate
+		// energy
+		{
+			// Update the Hartree energy and the exchange correlation energy and
+			// potential for computing the KS energy and the second order
+			// energy.
+			// NOTE Vtot should not be updated until finishing the computation
+			// of the energies.
 
-		// NOTE vtot should not be updated.
+			hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
+			hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
 
+			// Compute the second order accurate energy functional.
+			// NOTE: In computing the second order energy, the density and the
+			// potential must be the OUTPUT density and potential without ANY
+			// MIXING.
+			CalculateSecondOrderEnergy();
 
-		// Compute the second order accurate energy functional.
-		// NOTE: In computing the second order energy, the density and the
-		// potential must be the OUTPUT density and potential without ANY
-		// MIXING.
-		CalculateSecondOrderEnergy();
+			// Compute the KS energy 
+			CalculateKSEnergy();
 
+			// Update the total potential AFTER updating the energy
 
-		// Compute the KS energy 
-		// FIXME Literally speaking this KS energy is NOT correct.  It
-		// should be computed after the output density.  But since we use
-		// Harris energy functional now, this does not matter much at this
-		// moment.  But this should be changed later.
-		CalculateKSEnergy();
+			// No external potential
 
-		// Update the total potential AFTER updating the energy
+			// Compute the new total potential
 
-		// No external potential
+			hamDG.CalculateVtot( hamDG.Vtot() );
 
-		// Compute the new total potential
-
-		GetTime(timeSta);
-
-		hamDG.CalculateVtot( hamDG.Vtot() );
-
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for computing the total potential is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-		// Print out the state variables of the current iteration
-    PrintState( );
-
-		GetTime( timeIterEnd );
-
+		}
 
 		// Compute the error of the mixing variable
 
 		GetTime(timeSta);
-
 		{
 			Real normMixDifLocal = 0.0, normMixOldLocal = 0.0;
 			Real normMixDif, normMixOld;
@@ -1276,12 +1278,23 @@ SCFDG::InnerIterate	(  )
 					for( Int i = 0; i < numElem_[0]; i++ ){
 						Index3 key( i, j, k );
 						if( elemPrtn_.Owner( key ) == mpirank ){
-							DblNumVec& oldVec = mixInnerSave_.LocalMap()[key];
-							DblNumVec& newVec = hamDG.Density().LocalMap()[key];
+							if( mixVariable_ == "density" ){
+								DblNumVec& oldVec = mixInnerSave_.LocalMap()[key];
+								DblNumVec& newVec = hamDG.Density().LocalMap()[key];
 
-							for( Int p = 0; p < oldVec.m(); p++ ){
-								normMixDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
-								normMixOldLocal += pow( oldVec(p), 2.0 );
+								for( Int p = 0; p < oldVec.m(); p++ ){
+									normMixDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
+									normMixOldLocal += pow( oldVec(p), 2.0 );
+								}
+							}
+							else if( mixVariable_ == "potential" ){
+								DblNumVec& oldVec = mixInnerSave_.LocalMap()[key];
+								DblNumVec& newVec = hamDG.Vtot().LocalMap()[key];
+
+								for( Int p = 0; p < oldVec.m(); p++ ){
+									normMixDifLocal += pow( oldVec(p) - newVec(p), 2.0 );
+									normMixOldLocal += pow( oldVec(p), 2.0 );
+								}
 							}
 						} // own this element
 					} // for (i)
@@ -1296,11 +1309,10 @@ SCFDG::InnerIterate	(  )
 			normMixOld = std::sqrt( normMixOld );
 
 			scfInnerNorm_    = normMixDif / normMixOld;
-			Print(statusOFS, "norm(MixDif) = ", normMixDif );
-			Print(statusOFS, "norm(MixOld) = ", normMixOld );
+			Print(statusOFS, "norm(MixDif)          = ", normMixDif );
+			Print(statusOFS, "norm(MixOld)          = ", normMixOld );
 			Print(statusOFS, "norm(out-in)/norm(in) = ", scfInnerNorm_ );
 		}
-
 
     if( scfInnerNorm_ < scfInnerTolerance_ ){
       /* converged */
@@ -1315,7 +1327,6 @@ SCFDG::InnerIterate	(  )
 		statusOFS << "Time for computing the SCF residual is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-
 
 		// Mixing for the inner SCF iteration.
 		GetTime( timeSta );
@@ -1337,30 +1348,50 @@ SCFDG::InnerIterate	(  )
 			numAndersonIter = innerIter;
 		}
 
-    if( mixType_ == "anderson" ||
-		    mixType_ == "kerker+anderson"	){
-			AndersonMix(
-					numAndersonIter, 
-					mixStepLength_,
-					mixType_,
-					hamDG.Density(),
-					mixInnerSave_,
-					hamDG.Density(),
-					dfInnerMat_,
-					dvInnerMat_);
-    } else{
-			throw std::runtime_error("Invalid mixing type.");
+		if( mixVariable_ == "density" ){
+			if( mixType_ == "anderson" ||
+					mixType_ == "kerker+anderson"	){
+				AndersonMix(
+						numAndersonIter, 
+						mixStepLength_,
+						mixType_,
+						hamDG.Density(),
+						mixInnerSave_,
+						hamDG.Density(),
+						dfInnerMat_,
+						dvInnerMat_);
+			} else{
+				throw std::runtime_error("Invalid mixing type.");
+			}
+		}
+		else if( mixVariable_ == "potential" ){
+			if( mixType_ == "anderson" ||
+					mixType_ == "kerker+anderson"	){
+				AndersonMix(
+						numAndersonIter, 
+						mixStepLength_,
+						mixType_,
+						hamDG.Vtot(),
+						mixInnerSave_,
+						hamDG.Vtot(),
+						dfInnerMat_,
+						dvInnerMat_);
+			} else{
+				throw std::runtime_error("Invalid mixing type.");
+			}
 		}
 
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for potential mixing is " <<
+		statusOFS << "Time for mixing is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
 		// Post processing for the density mixing. Make sure that the
-		// density is positive
+		// density is positive, and compute the potential again. 
+		// This is only used for density mixing.
+		if( mixVariable_ == "density" )
 		{
 			Real sumRhoLocal = 0.0;
 			Real sumRho;
@@ -1383,9 +1414,9 @@ SCFDG::InnerIterate	(  )
 			Real rhofac = hamDG.NumSpin() * hamDG.NumOccupiedState() / sumRho;
 
 #if ( _DEBUGlevel_ >= 0 )
-		statusOFS << std::endl;
-		Print( statusOFS, "Sum Rho after mixing (raw data) = ", sumRho );
-		statusOFS << std::endl;
+			statusOFS << std::endl;
+			Print( statusOFS, "Sum Rho after mixing (raw data) = ", sumRho );
+			statusOFS << std::endl;
 #endif
 
 
@@ -1399,51 +1430,24 @@ SCFDG::InnerIterate	(  )
 							blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
 						} // own this element
 					} // for (i)
+
+
+			// Update the potential after mixing for the next iteration.  
+			// This is only used for potential mixing
+
+			// Compute the exchange-correlation potential and energy from the
+			// new density
+			hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
+
+			hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+
+			// No external potential
+
+			// Compute the new total potential
+
+			hamDG.CalculateVtot( hamDG.Vtot() );
 		}
 
-		// Update the potential after mixing for the next iteration
-
-
-		// Compute the exchange-correlation potential and energy from the
-		// new density
-		GetTime(timeSta);
-
-		hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
-
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for computing the XC energy is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-
-		// Compute the Hartree energy
-		GetTime(timeSta);
-
-		hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
-
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for computing the Hartree potential and energy is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-		// No external potential
-
-		// Compute the new total potential
-
-		GetTime(timeSta);
-
-		hamDG.CalculateVtot( hamDG.Vtot() );
-
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for computing the total potential is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
 
 		// Print out the state variables of the current iteration
     PrintState( );

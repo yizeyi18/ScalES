@@ -72,6 +72,9 @@ private:
 
 	// SCF variables
 
+	std::string         mixVariable_;
+
+
 	/// @brief Work array for the old mixing variable in the outer iteration.
 	DistDblNumVec       mixOuterSave_;
 	/// @brief Work array for the old mixing variable in the inner iteration.
