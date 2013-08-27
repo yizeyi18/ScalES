@@ -353,10 +353,10 @@ SCFDG::Iterate	(  )
   HamiltonianDG&  hamDG = *hamDGPtr_;
 
 	// Compute the exchange-correlation potential and energy
-	hamDG.CalculateXC( Exc_ );
+	hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
 
-	// Compute the Hartree energy
-	hamDG.CalculateHartree( *distfftPtr_ );
+	// Compute the Hartree potential
+	hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
 
 	// No external potential
 
@@ -1218,15 +1218,11 @@ SCFDG::InnerIterate	(  )
 		// potential for computing the KS energy and the second order
 		// energy.
 		
-		// FIXME The interface of CalculateXC may need to be updated to
-		// reflect toe explicit change of hamDG.Vxc()
-		hamDG.CalculateXC( Exc_ );
+		hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
 
 		// Update the Hartree potential first with the OUTPUTelectron
 		// density. 
-		// FIXME The interval for CalculateHartree may need to be updated,
-		// where the modification of hamDG.Vhart becomes more transparent.
-		hamDG.CalculateHartree( *distfftPtr_ );
+		hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
 
 		// NOTE vtot should not be updated.
 
@@ -1245,7 +1241,27 @@ SCFDG::InnerIterate	(  )
 		// moment.  But this should be changed later.
 		CalculateKSEnergy();
 
-		// No update of the total potential here in DENSITY MIXING.
+		// Update the total potential AFTER updating the energy
+
+		// No external potential
+
+		// Compute the new total potential
+
+		GetTime(timeSta);
+
+		hamDG.CalculateVtot( hamDG.Vtot() );
+
+		MPI_Barrier( domain_.comm );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for computing the total potential is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+		// Print out the state variables of the current iteration
+    PrintState( );
+
+		GetTime( timeIterEnd );
 
 
 		// Compute the error of the mixing variable
@@ -1385,13 +1401,14 @@ SCFDG::InnerIterate	(  )
 					} // for (i)
 		}
 
+		// Update the potential after mixing for the next iteration
 
 
 		// Compute the exchange-correlation potential and energy from the
 		// new density
 		GetTime(timeSta);
 
-		hamDG.CalculateXC( Exc_ );
+		hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
 
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
@@ -1404,7 +1421,7 @@ SCFDG::InnerIterate	(  )
 		// Compute the Hartree energy
 		GetTime(timeSta);
 
-		hamDG.CalculateHartree( *distfftPtr_ );
+		hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
 
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );

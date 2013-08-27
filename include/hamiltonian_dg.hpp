@@ -297,10 +297,15 @@ public:
 	
 
 	/// @brief Compute the exchange-correlation potential and energy.
-	void CalculateXC ( Real &Exc );
+	void CalculateXC ( 
+			Real &Exc, 
+			DistDblNumVec&   epsxc,
+			DistDblNumVec&   vxc );
 
 	/// @brief Compute the Hartree potential.
-	void CalculateHartree( DistFourier& fft );
+	void CalculateHartree( 
+			DistDblNumVec& vhart, 
+			DistFourier&   fft );
 	
 	/// @brief Compute the total potential
 	void CalculateVtot( DistDblNumVec& vtot );
@@ -359,6 +364,9 @@ public:
 	/// @brief Exchange-correlation potential in the global domain. No
 	/// magnization calculation in the DG code.
 	DistDblNumVec&  Vxc()  { return vxc_; }
+
+	/// @brief Exchange-correlation energy density in the global domain.
+	DistDblNumVec&  Epsxc()  { return epsxc_; }
 
 	/// @brief Hartree potential in the global domain.
 	DistDblNumVec&  Vhart() { return vhart_; }

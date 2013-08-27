@@ -996,7 +996,10 @@ HamiltonianDG::CalculateDensity	(
 
 
 void
-HamiltonianDG::CalculateXC	( Real &Exc )
+HamiltonianDG::CalculateXC	( 
+		Real &Exc, 
+		DistDblNumVec&   epsxc,
+		DistDblNumVec&   vxc )
 {
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::CalculateXC");
@@ -1013,8 +1016,8 @@ HamiltonianDG::CalculateXC	( Real &Exc )
 				Index3 key( i, j, k );
 				if( elemPrtn_.Owner( key ) == mpirank ){
 					DblNumVec& localRho   = density_.LocalMap()[key];
-					DblNumVec& localEpsxc = epsxc_.LocalMap()[key];
-					DblNumVec& localVxc   = vxc_.LocalMap()[key];
+					DblNumVec& localEpsxc = epsxc.LocalMap()[key];
+					DblNumVec& localVxc   = vxc.LocalMap()[key];
 
 					switch( XCFuncType_.info->family ){
 						case XC_FAMILY_LDA:
@@ -1043,7 +1046,9 @@ HamiltonianDG::CalculateXC	( Real &Exc )
 	return ;
 } 		// -----  end of method HamiltonianDG::CalculateXC  ----- 
 
-void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
+void HamiltonianDG::CalculateHartree( 
+		DistDblNumVec&  vhart,
+		DistFourier&    fft ) {
 #ifndef _RELEASE_ 
 	PushCallStack("HamiltonianDG::CalculateHartree");
 #endif
@@ -1117,11 +1122,11 @@ void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
 		}
 	} // if (fft.isInGrid)
 
-	// Convert tempVecLocal to vhart_ in the DistNumVec format
+	// Convert tempVecLocal to vhart in the DistNumVec format
 
   DistRowVecToDistNumVec(
 			tempVecLocal,
-			vhart_,
+			vhart,
 			domain_.numGrid,
 			numElem_,
 			fft.localNzStart,
