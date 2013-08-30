@@ -632,6 +632,11 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! whether to compute the a posteriori estimator at each SCF step !*");
 
 	i++;
+	strcpy(kw_label[i],"calculate_force_each_scf");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether to compute the force at each SCF step !*");
+
+	i++;
 	strcpy(kw_label[i],"potential_barrier_w");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! Width parameter of potential barrier to the extended element!*");
@@ -1901,7 +1906,8 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 1 );
 		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 1 );
 		esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 1 );
-		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
+		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 1 );
+		esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 1 );
 		esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
 
 

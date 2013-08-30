@@ -37,6 +37,7 @@ private:
 	bool                isOutputWfnExtElem_;
 	bool                isOutputPotExtElem_; 
 	bool                isCalculateAPosterioriEachSCF_;
+	bool                isCalculateForceEachSCF_;
 	bool                isOutputHMatrix_;
 	Real                ecutWavefunction_;
 	Real                densityGridFactor_;        

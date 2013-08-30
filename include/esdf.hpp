@@ -86,6 +86,7 @@ struct ESDFInputParam{
 	bool                isOutputWfnExtElem;
 	bool                isOutputPotExtElem;
 	bool                isCalculateAPosterioriEachSCF; 
+	bool                isCalculateForceEachSCF; 
 	bool                isOutputHMatrix;
 
 

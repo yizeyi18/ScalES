@@ -97,6 +97,7 @@ SCFDG::Setup	(
 		isOutputWfnExtElem_  = esdfParam.isOutputWfnExtElem;
 		isOutputPotExtElem_  = esdfParam.isOutputPotExtElem;
 		isCalculateAPosterioriEachSCF_ = esdfParam.isCalculateAPosterioriEachSCF;
+		isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
 		isOutputHMatrix_  = esdfParam.isOutputHMatrix;
     Tbeta_            = esdfParam.Tbeta;
 		scaBlockSize_     = esdfParam.scaBlockSize;
@@ -631,6 +632,9 @@ SCFDG::Iterate	(  )
 									}
 								}
 
+#if ( _DEBUGlevel_ >= 1  )
+								// Check the orthogonalizity of the basis especially
+								// with respect to the constant mode
 								DblNumMat MMat( numBasis, numBasis );
 								SetValue( MMat, 0.0 );
 								for( Int a = 0; a < numBasis; a++ ){
@@ -644,6 +648,7 @@ SCFDG::Iterate	(  )
 								}
 
 								statusOFS << "MMat = " << std::endl << MMat << std::endl;
+#endif
 
 
 								DblNumMat    U( localBasis.m(), localBasis.n() );
@@ -930,6 +935,7 @@ SCFDG::Iterate	(  )
 			Print(statusOFS, "OUTERSCF: Efree                       = ", Efree_ ); 
 			Print(statusOFS, "OUTERSCF: inner norm(out-in)/norm(in) = ", scfInnerNorm_ ); 
 			Print(statusOFS, "OUTERSCF: outer norm(out-in)/norm(in) = ", scfOuterNorm_ ); 
+			statusOFS << std::endl;
 		}
 
 //		// Print out the state variables of the current iteration
@@ -938,12 +944,36 @@ SCFDG::Iterate	(  )
     if( scfOuterNorm_ < scfOuterTolerance_ ){
       /* converged */
       Print( statusOFS, "Outer SCF is converged!\n" );
+			statusOFS << std::endl;
       isSCFConverged = true;
     }
 
 		// Potential mixing for the outer SCF iteration. or no mixing at all anymore?
 		// It seems that no mixing is the best.
 	
+
+
+
+		// Compute the force at every step
+		if( isCalculateForceEachSCF_ ){
+			// Compute force
+			GetTime( timeSta );
+			hamDG.CalculateForce( *distfftPtr_ );
+			GetTime( timeEnd );
+			statusOFS << "Time for computing the force is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+			// Print out the force
+			PrintBlock( statusOFS, "Atomic force" );
+			{
+				std::vector<Atom>& atomList = hamDG.AtomList();
+				Int numAtom = atomList.size();
+				for( Int a = 0; a < numAtom; a++ ){
+					Print( statusOFS, "atom", a, "force", atomList[a].force );
+				}
+				statusOFS << std::endl;
+			}
+		}
 
 		// Compute the a posteriori error estimator at every step
 		if( isCalculateAPosterioriEachSCF_ )
@@ -2147,13 +2177,15 @@ SCFDG::CalculateSecondOrderEnergy  (  )
 	// differently from that in Harris energy functional or the KS energy
 	// functional.
 	Ecor   = (Exc + Ehart - Eself) - EVtot;
-	statusOFS
-		<< "Exc     = " << Exc      << std::endl
-		<< "Ehart   = " << Ehart    << std::endl
-		<< "Eself   = " << Eself    << std::endl
-		<< "EVtot   = " << EVtot    << std::endl
-		<< "Ecor    = " << Ecor     << std::endl;
-	
+	// FIXME
+//	statusOFS
+//		<< "Component energy for second order correction formula = " << std::endl
+//		<< "Exc     = " << Exc      << std::endl
+//		<< "Ehart   = " << Ehart    << std::endl
+//		<< "Eself   = " << Eself    << std::endl
+//		<< "EVtot   = " << EVtot    << std::endl
+//		<< "Ecor    = " << Ecor     << std::endl;
+//	
 
 
 	// Second order accurate free energy functional

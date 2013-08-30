@@ -150,6 +150,8 @@ int main(int argc, char **argv)
 			statusOFS << "Number of ALB for each element: " << std::endl 
 				<< esdfParam.numALBElem << std::endl;
 
+			Print(statusOFS, "Calculate force at each step                        = ",  
+					esdfParam.isCalculateForceEachSCF );
 			Print(statusOFS, "Calculate A Posteriori error estimator at each step = ",  
 					esdfParam.isCalculateAPosterioriEachSCF);
 
@@ -378,12 +380,12 @@ int main(int argc, char **argv)
 		
 
 		// Print out the force
-		PrintBlock( statusOFS, "Force" );
+		PrintBlock( statusOFS, "Atomic Force" );
 		{
 			std::vector<Atom>& atomList = hamDG.AtomList();
 			Int numAtom = atomList.size();
 			for( Int a = 0; a < numAtom; a++ ){
-				Print( statusOFS, "Atom", a, "Force", atomList[a].force );
+				Print( statusOFS, "atom", a, "force", atomList[a].force );
 			}
 			statusOFS << std::endl;
 		}
