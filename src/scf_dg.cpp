@@ -489,6 +489,9 @@ SCFDG::Iterate	(  )
 											( vBubble[0][gi] * vBubble[1][gj] * vBubble[2][gk] - 1.0 );
 									} // for (gi)
 
+							// NOTE:
+							// Directly modify the vtot.  vext is not used in the
+							// matrix-vector multiplication in the eigensolver.
 							blas::Axpy( numGridExtElem.prod(), 1.0, eigSol.Ham().Vext().Data(), 1,
 									eigSol.Ham().Vtot().Data(), 1 );
 						} // if ( isPeriodizePotential_ ) 
@@ -550,6 +553,33 @@ SCFDG::Iterate	(  )
 							SeparateWrite( "WFNEXT", wavefunStream);
 						}
 
+						// Compute the LGL weights
+						std::vector<DblNumVec>  LGLWeight1D(DIM);
+						DblNumTns    LGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
+						DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
+						{
+							Point3                  lengthLGL;
+							for( Int d = 0; d < DIM; d++ ){
+								lengthLGL[d] = domain_.length[d] / numElem_[d];
+								DblNumVec  dummyX;
+								DblNumMat  dummyP, dummpD;
+								GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
+										numLGLGrid[d] );
+								blas::Scal( numLGLGrid[d], 0.5 * lengthLGL[d], 
+										LGLWeight1D[d].Data(), 1 );
+							}
+							for( Int k1 = 0; k1 < numLGLGrid[2]; k1++ )
+								for( Int j1 = 0; j1 < numLGLGrid[1]; j1++ )
+									for( Int i1 = 0; i1 < numLGLGrid[0]; i1++ ){
+										LGLWeight3D(i1, j1, k1) = 
+											LGLWeight1D[0](i1) * LGLWeight1D[1](j1) *
+											LGLWeight1D[2](k1); 
+										sqrtLGLWeight3D(i1, j1, k1) = 
+											std::sqrt ( LGLWeight1D[0](i1) *
+													LGLWeight1D[1](j1) * LGLWeight1D[2](k1) ); 
+									} // for (i1)
+						}
+
 						Int numBasis = psi.NumState() + 1;
 
 						DblNumMat localBasis( 
@@ -565,6 +595,16 @@ SCFDG::Iterate	(  )
 									numLGLGrid,
 									wavefun.VecData(0, l), 
 									localBasis.VecData(l) );
+							// FIXME Temporarily removing the mean value from each
+							// basis function and add the constant mode later
+							Real avg = blas::Dot( numLGLGrid.prod(),
+									localBasis.VecData(l), 1,
+									LGLWeight3D.Data(), 1 );
+							avg /= ( domain_.Volume() / numElem_.prod() );
+							for( Int p = 0; p < numLGLGrid.prod(); p++ ){
+								localBasis(p, l) -= avg;
+							}
+
 						}
 						// FIXME Temporary adding the constant mode. Should be done more systematically later.
 						for( Int p = 0; p < numLGLGrid.prod(); p++ ){
@@ -580,26 +620,6 @@ SCFDG::Iterate	(  )
 						if(1){
 							GetTime( timeSta );
 							{
-								// Compute the LGL weights
-								std::vector<DblNumVec>  LGLWeight1D(DIM);
-								Point3                  lengthLGL;
-								for( Int d = 0; d < DIM; d++ ){
-									lengthLGL[d] = domain_.length[d] / numElem_[d];
-									DblNumVec  dummyX;
-									DblNumMat  dummyP, dummpD;
-									GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
-											numLGLGrid[d] );
-									blas::Scal( numLGLGrid[d], 0.5 * lengthLGL[d], 
-											LGLWeight1D[d].Data(), 1 );
-								}
-								DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
-								for( Int k1 = 0; k1 < numLGLGrid[2]; k1++ )
-									for( Int j1 = 0; j1 < numLGLGrid[1]; j1++ )
-										for( Int i1 = 0; i1 < numLGLGrid[0]; i1++ ){
-											sqrtLGLWeight3D(i1, j1, k1) = 
-												std::sqrt ( LGLWeight1D[0](i1) *
-														LGLWeight1D[1](j1) * LGLWeight1D[2](k1) ); }
-								// for (i1)
 
 								// Scale the basis functions by sqrt of integration weight
 								//#pragma omp parallel for 
@@ -610,6 +630,21 @@ SCFDG::Iterate	(  )
 										*(ptr1++)  *= *(ptr2++);
 									}
 								}
+
+								DblNumMat MMat( numBasis, numBasis );
+								SetValue( MMat, 0.0 );
+								for( Int a = 0; a < numBasis; a++ ){
+									for( Int b = a; b < numBasis; b++ ){
+										MMat(a,b) = blas::Dot(
+												numLGLGrid.prod(),
+												localBasis.VecData(a), 1,
+												localBasis.VecData(b), 1 );
+										MMat(b,a) = MMat(a,b);
+									}
+								}
+
+								statusOFS << "MMat = " << std::endl << MMat << std::endl;
+
 
 								DblNumMat    U( localBasis.m(), localBasis.n() );
 								DblNumMat   VT( localBasis.n(), localBasis.n() );
@@ -663,31 +698,6 @@ SCFDG::Iterate	(  )
 						if(0){
 							GetTime( timeSta );
 							{
-								// Compute the LGL weights
-								std::vector<DblNumVec>  LGLWeight1D(DIM);
-								Point3                  lengthLGL;
-								for( Int d = 0; d < DIM; d++ ){
-									lengthLGL[d] = domain_.length[d] / numElem_[d];
-									DblNumVec  dummyX;
-									DblNumMat  dummyP, dummpD;
-									GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
-											numLGLGrid[d] );
-									blas::Scal( numLGLGrid[d], 0.5 * lengthLGL[d], 
-											LGLWeight1D[d].Data(), 1 );
-								}
-								DblNumTns    LGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
-								DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
-								for( Int k1 = 0; k1 < numLGLGrid[2]; k1++ )
-									for( Int j1 = 0; j1 < numLGLGrid[1]; j1++ )
-										for( Int i1 = 0; i1 < numLGLGrid[0]; i1++ ){
-											LGLWeight3D(i1, j1, k1) = 
-												LGLWeight1D[0](i1) * LGLWeight1D[1](j1) *
-												LGLWeight1D[2](k1); 
-											sqrtLGLWeight3D(i1, j1, k1) = 
-												std::sqrt ( LGLWeight1D[0](i1) *
-														LGLWeight1D[1](j1) * LGLWeight1D[2](k1) ); 
-										} // for (i1)
-
 								// Compute the derivatives of the basis functions
 								std::vector<DblNumMat> DlocalBasis(DIM);
 								for( Int d = 0; d < DIM; d++ ){
@@ -806,6 +816,22 @@ SCFDG::Iterate	(  )
 								<< " [s]" << std::endl;
 						}
 
+
+						// FIXME variable not defined
+						bool isOutputWfnElem_ = true;
+						if( isOutputWfnElem_ )
+						{
+							// Output the wavefunctions in the extended element.
+							std::ostringstream wavefunStream;      
+
+							// Generate the uniform mesh on the extended element.
+							std::vector<DblNumVec>& gridpos = hamDG.LGLGridElem()(i,j,k);
+							for( Int d = 0; d < DIM; d++ ){
+								serialize( gridpos[d], wavefunStream, NO_MASK );
+							}
+							serialize( hamDG.BasisLGL().LocalMap()[key], wavefunStream, NO_MASK );
+							SeparateWrite( "WFNELEM", wavefunStream);
+						}
 
 					} // own this element
 				} // for (i)

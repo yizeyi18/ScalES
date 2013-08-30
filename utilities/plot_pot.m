@@ -30,7 +30,7 @@ end
 d = 3;
 xi = 16;
 yi = 16;
-l  = 4;
+l  = 2;
 
 close all
 figure
