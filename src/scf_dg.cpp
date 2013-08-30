@@ -964,7 +964,7 @@ SCFDG::Iterate	(  )
 				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
 			// Print out the force
-			PrintBlock( statusOFS, "Atomic force" );
+			PrintBlock( statusOFS, "Atomic Force" );
 			{
 				std::vector<Atom>& atomList = hamDG.AtomList();
 				Int numAtom = atomList.size();
