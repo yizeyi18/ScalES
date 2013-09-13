@@ -124,6 +124,7 @@ struct ESDFInputParam{
 	bool                isRestartDensity;
 	bool                isRestartWfn;
 	bool                isOutputDensity;
+	bool                isOutputWfnElem;
 	bool                isOutputWfnExtElem;
 	bool                isOutputPotExtElem;
 	bool                isCalculateAPosterioriEachSCF; 

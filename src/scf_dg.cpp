@@ -135,6 +135,7 @@ SCFDG::Setup	(
 		isRestartDensity_ = esdfParam.isRestartDensity;
 		isRestartWfn_     = esdfParam.isRestartWfn;
 		isOutputDensity_  = esdfParam.isOutputDensity;
+		isOutputWfnElem_     = esdfParam.isOutputWfnElem;
 		isOutputWfnExtElem_  = esdfParam.isOutputWfnExtElem;
 		isOutputPotExtElem_  = esdfParam.isOutputPotExtElem;
 		isCalculateAPosterioriEachSCF_ = esdfParam.isCalculateAPosterioriEachSCF;
@@ -863,8 +864,6 @@ SCFDG::Iterate	(  )
 						}
 
 
-						// FIXME variable not defined
-						bool isOutputWfnElem_ = true;
 						if( isOutputWfnElem_ )
 						{
 							// Output the wavefunctions in the extended element.

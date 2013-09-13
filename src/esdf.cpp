@@ -525,6 +525,11 @@ void esdf_key() {
 	strcpy(kw_label[i],"output_wfn");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether wavefunctions and occupations numbers are outputed !*");
+	
+	i++;
+	strcpy(kw_label[i],"output_wfn_elem");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether wavefunctions in the element is outputed !*");
 
 	i++;
 	strcpy(kw_label[i],"output_wfn_extelem");
@@ -1945,8 +1950,9 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
 		esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
 		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 1 );
-		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 1 );
-		esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 1 );
+		esdfParam.isOutputWfnElem         = esdf_integer( "Output_Wfn_Elem", 0 );
+		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 0 );
+		esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 0 );
 		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 1 );
 		esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 1 );
 		esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
