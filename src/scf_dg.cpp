@@ -1212,7 +1212,6 @@ SCFDG::InnerIterate	(  )
 		// Write the Hamiltonian matrix to a file (if needed) 
 		// *********************************************************************
 
-		// TODO Use MPI_IO for outputing the matrix.
 		if( isOutputHMatrix_ ){
 			DistSparseMatrix<Real>  HSparseMat;
 
@@ -1230,7 +1229,8 @@ SCFDG::InnerIterate	(  )
 #endif
 
 			GetTime(timeSta);
-			WriteDistSparseMatrixFormatted( "H.matrix", HSparseMat );
+			ParaWriteDistSparseMatrix( "H.csc", HSparseMat );
+//			WriteDistSparseMatrixFormatted( "H.matrix", HSparseMat );
 			GetTime(timeEnd);
 #if ( _DEBUGlevel_ >= 0 )
 			statusOFS << "Time for writing the matrix in parallel is " <<

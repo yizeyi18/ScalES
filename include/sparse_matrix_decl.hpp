@@ -158,6 +158,27 @@ void WriteDistSparseMatrixFormatted (
 		DistSparseMatrix<F>& pspmat );
 
 
+/// @brief Read distributed sparse matrix from an unformatted file using
+/// MPI-IO.
+template<typename F>
+void ParaReadDistSparseMatrix( 
+		const char* filename, 
+		DistSparseMatrix<F>& pspmat,
+	  MPI_Comm comm	);
+
+
+/// @brief Write distributed sparse matrix to an unformatted file using
+/// MPI-IO.
+template<typename F>
+void ParaWriteDistSparseMatrix( 
+		const char* filename, 
+		DistSparseMatrix<F>& pspmat );
+
+
+
 } // namespace dgdft
+
+
+
 
 #endif // _SPARSE_MATRIX_DECL_HPP_
