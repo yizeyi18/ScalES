@@ -423,11 +423,15 @@ int main(int argc, char **argv)
 		// Print out the force
 		PrintBlock( statusOFS, "Atomic Force" );
 		{
+			Point3 forceCM(0.0, 0.0, 0.0);
 			std::vector<Atom>& atomList = hamDG.AtomList();
 			Int numAtom = atomList.size();
 			for( Int a = 0; a < numAtom; a++ ){
 				Print( statusOFS, "atom", a, "force", atomList[a].force );
+				forceCM += atomList[a].force;
 			}
+			statusOFS << std::endl;
+			Print( statusOFS, "force for centroid: ", forceCM );
 			statusOFS << std::endl;
 		}
 
