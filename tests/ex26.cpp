@@ -5,12 +5,11 @@
 /// @author Lin Lin
 /// @date 2013-09-27
 #include "dgdft.hpp"
-#include <omp.h>
 
 using namespace dgdft;
 using namespace std;
 
-const	Int CHUNK_SIZE   = 1;
+Int CHUNK_SIZE   = 1;
 
 
 void Mult
@@ -25,9 +24,13 @@ void Mult
 	DblNumMat xMat( height, width, false, x->data );
   DblNumMat yMat( height, width, false, y->data );	
 
+#ifdef _USE_OPENMP_
 #pragma omp parallel shared(CHUNK_SIZE, xMat, yMat, width, height)
+#endif
 	{
+#ifdef _USE_OPENMP_
 #pragma omp for schedule(static, CHUNK_SIZE)
+#endif
 		for( Int j = 0; j < width; j++ ){
 			for( Int i = 0; i < height; i++ ){
 				yMat(i,j) = xMat(i,j) * Real(i+1);
