@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 
 	cout << "Number of threads = " << ompsize << endl;
 
-	Int numMat = 8;
+	Int numMat = 24;
 	
 	cout << "Generate " << numMat << " matrices of size = " 
 		<< height << " x " << height << endl;
@@ -61,16 +61,13 @@ int main(int argc, char **argv)
 
 	{
 		GetTime( timeSta );
-//		omp_set_num_threads(1);
-		cout << "Number of threads using here = " << omp_get_num_threads() << endl;
 		for( Int i = 0; i < numMat; i++ ){
 			blas::Gemm( 'N', 'N', height, height, height, 1.0, 
 					x0.MatData(i), height, x0.MatData(i), height, 0.0, 
 					x1.MatData(i), height );
 		}
-		omp_set_num_threads(ompsize);
 		GetTime( timeEnd );
-		cout << "Time elapsed = " << timeEnd - timeSta << endl; 
+		cout << "Method 1 Time elapsed = " << timeEnd - timeSta << endl; 
 	}
 
 	cout << "Get the result using " << ompsize 
@@ -79,34 +76,19 @@ int main(int argc, char **argv)
 	{
 		GetTime( timeSta );
 		Int i;
-		Int CHUNK_SIZE = numMat / ompsize;
+		Int CHUNK_SIZE = 1;
 #pragma omp parallel shared(ompsize, numMat, x0, x2, height, CHUNK_SIZE) private(i)
 		{
 #pragma omp for schedule(static,CHUNK_SIZE) 
 			for( i = 0; i < numMat; i++ ){
-//				omp_set_num_threads(1);
-				omp_set_nested(1);
-				if( omp_get_thread_num() == 0 ){
-					cout << "OMP NESTED? = " << omp_get_nested() << endl;
-					cout << "number of threads using here = " << omp_get_num_threads() << endl;
-					cout << "Thread #" << omp_get_thread_num() << " is working on matrix #" << i << endl;
-				}
-//#pragma omp parallel 
-//				{
-//					if( omp_get_thread_num() == 0 ){
-//						cout << "INSIDE: number of threads using here = " << omp_get_num_threads() << endl;
-//					}
-
 					blas::Gemm( 'N', 'N', height, height, height, 1.0, 
 							x0.MatData(i), height, x0.MatData(i), height, 0.0, 
 							x2.MatData(i), height );
-//				}
 			}
-			omp_set_num_threads(ompsize);
 		}
 
 		GetTime( timeEnd );
-		cout << "Time elapsed = " << timeEnd - timeSta << endl; 
+		cout << "Method 2 Time elapsed = " << timeEnd - timeSta << endl; 
 
 #pragma omp parallel shared(ompsize) private(omprank)
 		{
