@@ -32,8 +32,10 @@ void Mult
 #pragma omp for schedule(static, CHUNK_SIZE)
 #endif
 		for( Int j = 0; j < width; j++ ){
+			Real* xdata = xMat.VecData(j);
+			Real* ydata = yMat.VecData(j);
 			for( Int i = 0; i < height; i++ ){
-				yMat(i,j) = xMat(i,j) * Real(i+1);
+				*(ydata++) = *(xdata++) * Real(i+1);
 			}
 		}
 	}
