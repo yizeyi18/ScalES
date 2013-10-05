@@ -1786,5 +1786,9 @@ SCFDG::PrintState	( )
 } 		// -----  end of method SCFDG::PrintState  ----- 
 
 
+Real SCFDG::getEfree()
+{ 
+   return Efree_;
+} 
 
 } // namespace dgdft

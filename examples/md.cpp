@@ -158,10 +158,58 @@ int main(int argc, char **argv)
 		// *********************************************************************
 		SetRandomSeed(1);
 
-		Domain&  dm = esdfParam.domain;
+		Domain&  dm = esdfParam.domain;	//?
 		PeriodTable ptable;
 		ptable.Setup( esdfParam.periodTableFile );
 
+		// MD Initializaiton: nuclei mass, position, velocity scaled by Temperature
+		Int NSW=10;	//number of ionic relaxation
+		real dt=0.01;	//time step
+	
+		real sumv[3] = {0};	//sum of velocity
+		real sumv2 = 0;	//m[i]*v[i]*v[i]
+		real sumMass = 0;	//sum of mass
+
+		real temperature;
+		temperature = au2K / esdfParam.Tbeta;	//read temperature correctly??
+
+		Int atomMass[500]={0};		//need a better way to sign the length
+		real atompos[500][3]={0};	//current position
+		real atomposm[500][3]={0};	//previous position
+		real atomv[500][3]={0};		//current velocity
+		real atomforce[500][3]={0};	//current force
+
+		const std::vector<Atom>&  atomList = esdfParam.atomList; //? check
+		for(Int i=0; i < atomList.size(); i++) {
+			atomMass[i]=atomList[i].mass;	//does esdfParam.atomList has mass info???
+			atompos[i]=atomList[i].pos;	//check if it works
+			sumMass += atomList[i].mass;
+		} //end for	
+
+		for(Int i=0; i< atomList.size(); i++) {
+			for (Int j=0; j< 3; j++){
+				atomv[i][j]=(ranf()-0.5);		//check c++ function to generate random numner
+				sumv[j] += atomMass[i]*atomv[i][j]/sumMass;
+				sumv2 += atomMass[i]*atomv[i][j]*atomv[i][j]/atomList.size();
+			}
+		} //end for
+
+		real fs;	//scale factor of the velocities
+		fs = sqrt(3*temperature/sumv2);
+
+		for(Int i=0; i<atomList.size(); i++){
+			for(Int j=0; j<3; j++) {
+				atomv[i][j] = (atomv[i][j]-sumv[j])*fs;
+				atomposm[i][j] = atompos[i][j] - atomv[i][j]*dt;
+			}
+		} //end for
+
+		//end of initiallization
+
+		// **********
+		// MD Loop starts: assuming the potential setup is after this line, need check
+		// **********
+		do {
 
 		// Setup the element and extended element information
 		DistVec<Index3, EigenSolver, ElemPrtn>  distEigSol; 
@@ -393,6 +441,46 @@ int main(int argc, char **argv)
 			statusOFS << std::endl << "Jump term:" << std::endl;
 			statusOFS << eta2Jump << std::endl;
 		}
+
+		if (NSW == 0)
+			break;	//no geometry updates if NSW=0
+
+		//MD Verlet geometry update
+		std::vector<Atom>&  atomList = esdfParam.atomList;//is this the way to get the atomList? not sure!
+
+		Int numAtom = atomList.size();
+		for(Int i = 0; i < numAtom; i++ ){
+			atompos[i] = atomList[a].pos;	//check
+			atomforce[i] = atomList[a].force;	//check
+		}
+
+		real xx = 0;
+		real sumv[3] = {0};
+		real sumv2 = 0;
+
+		for(Int i=0; i<numAtom; i++) {
+			for(Int j = 0; j<3; j++) {
+				xx = 2*atompos[i][j]-atomposm[i][j]+atomforce[i][j]*dt*dt/atomMass[i];	//current position
+				atomv[i][j] = (xx-atomposm[i][j])/(2*dt);
+				sumv[j] +=  atomMass[i]*atomv[i][j]/sumMass;
+				sumv2 += atomMass[i]*atomv[i][j]*atomv[i][j];	//m[i]*v[i}^2
+				atomposm[i][j] = atompos[i][j];
+				atompos[i][j] = xx;
+			}
+		}
+
+		temperature = sumv2/(3*numAtom);	//instantaneous temperature
+		Print(statusOFS, "instantaneous Temperature    = ",  temperature);
+
+		//print updated position and put to atomList
+		for(Int i = 0; i < numAtom; i++){
+			atomList[i].pos = atompos[i];	//check if it is the right way to put to atomList
+			Print(statusOFS, "Position    = ",  atomList[i].pos);
+		}
+
+		NSW -= 1;
+		} while (NSW >= 0);
+		//end for MD
 
 		// *********************************************************************
 		// Clean up

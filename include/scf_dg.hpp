@@ -174,7 +174,7 @@ public:
 	// Inquiry
 	// *********************************************************************
 	// Energy etc.
-	
+        Real getEfree();	
 
 }; // -----  end of class  SCFDG ----- 
 
