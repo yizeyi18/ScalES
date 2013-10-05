@@ -417,13 +417,24 @@ BlopexInt
 		x_active_ind=x->active_indices;
 		y_active_ind=y->active_indices;
 
-		for (i=0; i<num_active_vectors; i++)
-		{
-			src  = x_data + size * x_active_ind[i];
-			dest = y_data + size * y_active_ind[i];
 
-			memcpy(dest,src,num_bytes);
+		// OLD code 
+		if(0){
+			for (i=0; i<num_active_vectors; i++)
+			{
+				src  = x_data + size * x_active_ind[i];
+				dest = y_data + size * y_active_ind[i];
+
+				memcpy(dest,src,num_bytes);
+			}
 		}
+
+		// NEW Code, calculate everything like BLAS. Make sure it works with deflation  
+		if(1){
+			blas::Copy( (size * x->num_vectors), x_data, 1, y_data, 1 );
+		}
+
+
 
 		return 0;
 	}

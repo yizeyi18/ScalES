@@ -75,6 +75,12 @@
 // MPI
 #include "mpi.h"
 
+// OpenMP
+#ifdef OPENMP
+#define _USE_OPENMP_ 
+#include <omp.h>
+#endif
+
 // *********************************************************************
 // Redefine the global macros
 // *********************************************************************
