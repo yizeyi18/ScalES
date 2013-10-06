@@ -56,9 +56,11 @@ using namespace dgdft::scalapack;
 
 
 void Usage(){
-	cout << "Read a matrix generated from DGDFT in parallel, " 
-		<< "convert to block cyclic format and diagonalize it using ScaLAPACK."
-		<< endl << endl;
+	cout 
+		<< "Read a matrix generated from DGDFT in parallel, " << endl
+		<< "convert to block cyclic format and diagonalize it using ScaLAPACK." << endl << endl
+		<< "Usage: diagonalize -H [Hfile] -r [nprow] -c [npcol] -MB [Blocksize] "
+		<< "-D [Diagonalization method] -NE [numEig] -O [outputOptions]" << endl << endl;
 }
 
 int main(int argc, char **argv) 
@@ -82,10 +84,6 @@ int main(int argc, char **argv)
     std::map<std::string,std::string> options;
 
     OptionsCreate(argc, argv, options);
-
-		stringstream  ss;
-		ss << "logTest" << mpirank;
-		statusOFS.open( ss.str().c_str() );
 
     // Default processor number 
 		Int nprow, npcol;
@@ -161,7 +159,36 @@ int main(int argc, char **argv)
 			routine = 0;
 		}
 
+		Int outputOptions;
+		if( options.find("-O") != options.end() ){ 
+			outputOptions = atoi(options["-O"].c_str());
+			if( outputOptions != 0 && outputOptions != 1 ){
+				throw std::runtime_error("outputOptions must be 0 (single output) or 1 (multiple output).");
+			}
+		}
+		else{
+			// Default output options
+		  outputOptions = 0;
+		}
+
+
 		// Output input parameters
+
+		if( outputOptions == 1 ){
+			// Multiple output
+			stringstream  ss; ss << "logTest" << mpirank;
+			statusOFS.open( ss.str().c_str() );
+		}
+		else{
+			// Single output
+			if( mpirank == 0 ){
+				stringstream  ss; ss << "logTest";
+				statusOFS.open( ss.str().c_str() );
+			}
+		}
+
+
+
 		PrintBlock( statusOFS, "Input parameters" );
 		Print( statusOFS, "nprow                   = ", nprow );
 		Print( statusOFS, "npcol                   = ", npcol ); 
@@ -176,6 +203,12 @@ int main(int argc, char **argv)
 			Print( statusOFS, "Diagonalization routine = PDSYEVR" );
 		if( routine == 1 )
 			Print( statusOFS, "Diagonalization routine = PDSYEVD" );
+
+		if( outputOptions == 0 )
+			Print( statusOFS, "Output options          = single logTest" );
+		else
+			Print( statusOFS, "Output options          = multiple logTest*" );
+
 
 		statusOFS << endl;
 
@@ -241,7 +274,9 @@ int main(int argc, char **argv)
 
 		statusOFS << "Eigenvalues = " << eigs << endl;
 
-		
+		if( outputOptions == 1 || mpirank == 0 ){
+			statusOFS.close();
+		}
 
 	}
 	catch( std::exception& e )
