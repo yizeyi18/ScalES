@@ -1261,6 +1261,196 @@ void DistElemMatToDistSparseMat(
 }  // -----  end of function DistElemMatToDistSparseMat  ----- 
 
 
+/// @brief Convert a DistSparseMatrix distributed in compressed sparse
+/// column format to a matrix distributed block-cyclicly as in
+/// ScaLAPACK.
+///
+/// NOTE: 
+///
+/// 1. This subroutine assumes that proper descriptor has been given
+/// by desc, which agrees with distMat.
+///
+/// 2. This subroutine is mainly used for converting a DistSparseMatrix
+/// read from input file to ScaLAPACK format for diagonalization
+/// purpose.
+///
+template<typename F>
+void DistSparseMatToScaMat(
+		const DistSparseMatrix<F>&                           distMat,
+		const scalapack::Descriptor&                         desc, 
+		scalapack::ScaLAPACKMatrix<F>&                       scaMat,
+	  MPI_Comm  	                                         comm ){
+#ifndef _RELEASE_
+	PushCallStack("DistSparseMatToScaMat");
+#endif
+	using namespace dgdft::scalapack;
+
+	Int mpirank, mpisize;
+	MPI_Comm_rank( comm, &mpirank );
+	MPI_Comm_size( comm, &mpisize );
+
+	Int nprow  = desc.NpRow();
+	Int npcol  = desc.NpCol();
+	Int myprow = desc.MypRow();
+	Int mypcol = desc.MypCol();
+
+	scaMat.SetDescriptor( desc );
+
+	{
+    std::vector<F>& vec = scaMat.LocalMatrix();
+		for( Int i = 0; i < vec.size(); i++ ){
+			vec[i] = (F) 0.0;
+		}
+	}
+
+	Int MB = scaMat.MB(); 
+	Int NB = scaMat.NB();
+
+	if( MB != NB ){
+		throw std::runtime_error("MB must be equal to NB.");
+	}
+
+	Int numRowBlock = scaMat.NumRowBlocks();
+	Int numColBlock = scaMat.NumColBlocks();
+
+	// Get the processor map
+	IntNumMat  procGrid( nprow, npcol );
+	SetValue( procGrid, 0 );
+	{
+		IntNumMat  procTmp( nprow, npcol );
+		SetValue( procTmp, 0 );
+		procTmp( myprow, mypcol ) = mpirank;
+		mpi::Allreduce( procTmp.Data(), procGrid.Data(), nprow * npcol,
+				MPI_SUM, comm );
+	}
+
+
+	BlockMatPrtn  blockPrtn;
+	blockPrtn.ownerInfo.Resize( numRowBlock, numColBlock );
+	IntNumMat&    blockOwner = blockPrtn.ownerInfo;
+	for( Int jb = 0; jb < numColBlock; jb++ ){
+		for( Int ib = 0; ib < numRowBlock; ib++ ){
+			blockOwner( ib, jb ) = procGrid( ib % nprow, jb % npcol );
+		}
+	}
+
+	// Intermediate variable for constructing the distributed matrix in
+	// ScaLAPACK format.  
+  DistVec<Index2, NumMat<F>, BlockMatPrtn> distScaMat;
+	distScaMat.Prtn() = blockPrtn;
+
+	// Initialize
+	DblNumMat empty( MB, MB );
+	SetValue( empty, 0.0 );
+	for( Int jb = 0; jb < numColBlock; jb++ )
+		for( Int ib = 0; ib < numRowBlock; ib++ ){
+			Index2 key( ib, jb );
+			if( distScaMat.Prtn().Owner( key ) == mpirank ){
+				distScaMat.LocalMap()[key] = empty;
+			}
+		} // for (ib)
+
+	// Convert a DistSparseMatrix in Compressed Sparse Column format to distScaMat
+	// Compute the local column partition in DistSparseMatrix 
+	Int sizeMat = distMat.size;
+	Int numColFirst = sizeMat / mpisize;
+	Int firstCol = mpirank * numColFirst;
+	Int numColLocal;
+	if( mpirank == mpisize - 1 )
+		numColLocal = sizeMat - numColFirst * (mpisize - 1 );
+	else
+		numColLocal = numColFirst;
+
+	// TODO Check the consistency of communicator
+
+	// Local information 
+	const IntNumVec& colptrLocal = distMat.colptrLocal;
+	const IntNumVec& rowindLocal = distMat.rowindLocal;
+	const NumVec<F>& nzvalLocal  = distMat.nzvalLocal;
+
+	Int row, col, ib, jb, io, jo;
+	F   val;
+
+	for( Int j = 0; j < numColLocal; j++ ){
+		col = firstCol + j;
+		for( Int i = colptrLocal(j)-1; 
+				 i < colptrLocal(j+1)-1; i++ ){
+			row = rowindLocal(i) - 1;
+			val = nzvalLocal(i);
+
+			ib = row / MB;
+			jb = col / MB;
+			io = row % MB;
+			jo = col % MB;
+			typename std::map<Index2, NumMat<F> >::iterator 
+				ni = distScaMat.LocalMap().find( Index2(ib, jb) );
+			// Contributes to blocks not owned by the current processor
+			if( ni == distScaMat.LocalMap().end() ){
+				distScaMat.LocalMap()[Index2(ib, jb)] = empty;
+				ni = distScaMat.LocalMap().find( Index2(ib, jb) );
+			}
+			DblNumMat&  mat = (*ni).second;
+			mat(io, jo) += val;
+		} // for (i)
+	} // for (j)
+	
+	// Communication of the matrix
+	{
+		// Prepare
+		std::vector<Index2>  keyIdx;
+		for( typename std::map<Index2, NumMat<F> >::iterator 
+				 mi  = distScaMat.LocalMap().begin();
+				 mi != distScaMat.LocalMap().end(); mi++ ){
+			Index2 key = (*mi).first;
+			if( distScaMat.Prtn().Owner( key ) != mpirank ){
+				keyIdx.push_back( key );
+			}
+		} // for (mi)
+
+		// Communication
+		distScaMat.PutBegin( keyIdx, NO_MASK );
+		distScaMat.PutEnd( NO_MASK, PutMode::COMBINE );
+
+		// Clean to save space
+		std::vector<Index2>  eraseKey;
+		for( typename std::map<Index2, NumMat<F> >::iterator 
+				 mi  = distScaMat.LocalMap().begin();
+				 mi != distScaMat.LocalMap().end(); mi++ ){
+			Index2 key = (*mi).first;
+			if( distScaMat.Prtn().Owner( key ) != mpirank ){
+				eraseKey.push_back( key );
+			}
+		} // for (mi)
+
+		for( std::vector<Index2>::iterator vi = eraseKey.begin();
+				 vi != eraseKey.end(); vi++ ){
+			distScaMat.LocalMap().erase( *vi );
+		}	
+	}
+
+	// Copy the matrix values from distScaMat to scaMat
+	{
+		for( typename std::map<Index2, NumMat<F> >::iterator 
+				 mi  = distScaMat.LocalMap().begin();
+				 mi != distScaMat.LocalMap().end(); mi++ ){
+			Index2 key = (*mi).first;
+			if( distScaMat.Prtn().Owner( key ) == mpirank ){
+				Int ib = key(0), jb = key(1);
+				Int offset = ( jb / npcol ) * MB * scaMat.LocalLDim() + 
+					( ib / nprow ) * MB;
+				lapack::Lacpy( 'A', MB, MB, (*mi).second.Data(),
+						MB, scaMat.Data() + offset, scaMat.LocalLDim() );
+			} // own this block
+		} // for (mi)
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return;
+}  // -----  end of function DistElemMatToScaMat  ----- 
+
+
 /// @brief Computes the inner product of three terms.
 inline Real ThreeDotProduct(Real* x, Real* y, Real* z, Int ntot) {
   Real sum =0;
