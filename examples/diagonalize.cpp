@@ -88,8 +88,11 @@ int main(int argc, char **argv)
 		statusOFS.open( ss.str().c_str() );
 
     // Default processor number 
-		Int nprow = 1;
-    Int npcol = mpisize;
+		Int nprow, npcol;
+		for( Int i = IRound(sqrt(double(mpisize))); i <= mpisize; i++){
+			nprow = i; npcol = mpisize / nprow;
+			if( nprow * npcol == mpisize ) break;
+		} 
 
     if( options.find("-r") != options.end() ){
       if( options.find("-c") != options.end() ){
