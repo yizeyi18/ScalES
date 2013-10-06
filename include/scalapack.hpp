@@ -289,13 +289,37 @@ Syevd(char uplo, ScaLAPACKMatrix<double>& A,
 /// matrices using the MRRR algoritm for diagonalizing the tri-diagonal
 /// problem.
 ///
-/// Performs p_syevd.
+/// Performs p_syevr.
 /// NOTE: The eigenvector matrix Z is assumed to use the same
 /// descriptor as A.
 void 
 Syevr(char uplo, ScaLAPACKMatrix<double>& A,
 		std::vector<double>& eigs,
 		ScaLAPACKMatrix<double>& Z);
+
+/// @brief Compute the selected range of eigenvalues and the
+/// eigenvectors for symmetric matrices using the MRRR algoritm for
+/// diagonalizing the tri-diagonal problem.
+///
+///
+/// Performs p_syevr.
+/// NOTE: The eigenvector matrix Z is assumed to use the same
+/// descriptor as A.
+///
+///
+/// @param[in] il The index (from smallest to largest) of the smallest
+/// eigenvalue to be returned.  il >= 1 following the FORTRAN index
+/// notation.
+///
+/// @param[in] iu The index (from smallest to largest) of the largest
+/// eigenvalue to be returned.  iu >= 1 following the FORTRAN index
+/// notation.
+void 
+Syevr(char uplo, ScaLAPACKMatrix<double>& A,
+		std::vector<double>& eigs,
+		ScaLAPACKMatrix<double>& Z,
+		Int il,
+		Int iu);
 
 
 } // namespace scalapack

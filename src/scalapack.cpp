@@ -494,5 +494,97 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
 	return;
 }   // -----  end of function Syevr ----- 
 
+void
+Syevr(char uplo, ScaLAPACKMatrix<double>& A, 
+		std::vector<double>& eigs,
+		ScaLAPACKMatrix<double>& Z,
+		Int il,
+		Int iu){
+#ifndef _RELEASE_
+	PushCallStack("scalapack::Syevr");
+#endif
+
+	if( A.Height() != A.Width() ){
+		std::ostringstream msg;
+		msg 
+			<< "Syevr: A must be a square matrix. \n" 
+			<< "The dimension of A is " << A.Height() << " x " << A.Width() << std::endl;
+		throw std::logic_error( msg.str().c_str() );
+	}
+
+	char jobz = 'V';
+	char range = 'I'; // Compute selected range of eigenvalues
+
+	Int  liwork = -1, lwork = -1, info;
+	std::vector<double> work(1);
+	std::vector<Int>    iwork(1);
+	Int N = A.Height();
+	Int numEigValue = std::min( N, iu - il + 1 );
+
+	eigs.resize( N );
+	Z.SetDescriptor(A.Desc());
+	double dummyV = 0.0;
+	Int dummyI = 0;
+	Int numEigValueFound, numEigVectorFound;
+
+
+	SCALAPACK(pdsyevr)(&jobz, &range, &uplo, &N, A.Data(), &I_ONE, &I_ONE,
+			A.Desc().Values(), &dummyV, &dummyV, 
+			&il, &iu, &numEigValueFound, &numEigVectorFound,
+			&eigs[0], Z.Data(), &I_ONE, &I_ONE, Z.Desc().Values(), 
+			&work[0], &lwork,&iwork[0], &liwork, &info);
+	lwork = (Int)work[0];
+	work.resize(lwork);
+	liwork = iwork[0];
+	iwork.resize(liwork);
+
+	SCALAPACK(pdsyevr)(&jobz, &range, &uplo, &N, A.Data(), &I_ONE, &I_ONE,
+			A.Desc().Values(), &dummyV, &dummyV, 
+			&il, &iu, &numEigValueFound, &numEigVectorFound,
+			&eigs[0], Z.Data(), &I_ONE, &I_ONE, Z.Desc().Values(), 
+			&work[0], &lwork,&iwork[0], &liwork, &info);
+
+	if( info < 0 )
+	{
+		std::ostringstream msg;
+		msg << "pdsyevr: logic error. Info = " << info << std::endl;
+		throw std::logic_error( msg.str().c_str() );
+	}
+	else if( info > 0 )
+	{
+		std::ostringstream msg;
+		msg << "pdsyevr: runtime error. Info = " << info << std::endl;
+		throw std::runtime_error( msg.str().c_str() );
+	}
+
+	if( numEigValueFound != numEigValue ){
+		std::ostringstream msg;
+		msg 
+			<< "pdsyevr: Not all eigenvalues are found.\n " 
+			<< "Found " << numEigValueFound << " eigenvalues, " << 
+			N << " eigenvalues in total." << std::endl;
+		throw std::runtime_error( msg.str().c_str() );
+	}
+	if( numEigVectorFound != numEigValue ){
+		std::ostringstream msg;
+		msg 
+			<< "pdsyevr: Not all eigenvectors are found.\n " 
+			<< "Found " << numEigVectorFound << " eigenvectors, " << 
+			N << " eigenvectors in total." << std::endl;
+		throw std::runtime_error( msg.str().c_str() );
+	}
+
+	// Post processing of eigs by resize (not destroying the computed
+	// eigenvalues) 
+	eigs.resize( numEigValue );
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return;
+}   // -----  end of function Syevr ----- 
+
+
 } // namespace scalapack
 } // namespace dgdft
