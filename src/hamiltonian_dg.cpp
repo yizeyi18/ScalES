@@ -1282,6 +1282,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 	// Compute the derivative of the Hartree potential for computing the 
 	// local pseudopotential contribution to the Hellmann-Feynman force
 	// *********************************************************************
+	DistDblNumVec&              vhart = vhart_;
 	std::vector<DistDblNumVec>  vhartDrv(DIM);
 	std::vector<DblNumVec>      vhartDrvLocal(DIM);
 	DistDblNumVec   tempVec;
@@ -1386,6 +1387,43 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 	// *********************************************************************
 	// Compute the force from local pseudopotential
 	// *********************************************************************
+	// Method 1: Using the derivative of the pseudopotential
+	if(1){
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						std::map<Int, PseudoPot>&  ppMap = pseudo_.LocalMap()[key];
+						for( std::map<Int, PseudoPot>::iterator mi = ppMap.begin();
+								 mi != ppMap.end(); mi++ ){
+							Int atomIdx = (*mi).first;
+							PseudoPot& pp = (*mi).second;
+							SparseVec& sp = pp.pseudoCharge;
+							IntNumVec& idx = sp.first;
+							DblNumMat& val = sp.second;
+							Real    wgt = domain_.Volume() / domain_.NumGridTotal();
+							DblNumVec&  vhartVal = vhart.LocalMap()[key];
+							Real resX = 0.0;
+							Real resY = 0.0;
+							Real resZ = 0.0;
+							for( Int l = 0; l < idx.m(); l++ ){
+								resX -= val(l, DX) * vhartVal[idx(l)] * wgt;
+								resY -= val(l, DY) * vhartVal[idx(l)] * wgt;
+								resZ -= val(l, DZ) * vhartVal[idx(l)] * wgt;
+							}
+							forceLocal( atomIdx, 0 ) += resX;
+							forceLocal( atomIdx, 1 ) += resY;
+							forceLocal( atomIdx, 2 ) += resZ;
+
+						} // for (mi)
+					} // own this element
+				} // for (i)
+	}
+
+
+	// Method 2: Using integration by parts
+	if(0)
 	{
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
