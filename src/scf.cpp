@@ -1,6 +1,47 @@
+/*
+	 Copyright (c) 2012 The Regents of the University of California,
+	 through Lawrence Berkeley National Laboratory.  
+
+   Author: Lin Lin
+	 
+   This file is part of DGDFT. All rights reserved.
+
+	 Redistribution and use in source and binary forms, with or without
+	 modification, are permitted provided that the following conditions are met:
+
+	 (1) Redistributions of source code must retain the above copyright notice, this
+	 list of conditions and the following disclaimer.
+	 (2) Redistributions in binary form must reproduce the above copyright notice,
+	 this list of conditions and the following disclaimer in the documentation
+	 and/or other materials provided with the distribution.
+	 (3) Neither the name of the University of California, Lawrence Berkeley
+	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+	 be used to endorse or promote products derived from this software without
+	 specific prior written permission.
+
+	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+	 You are under no obligation whatsoever to provide any bug fixes, patches, or
+	 upgrades to the features, functionality or performance of the source code
+	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
+	 available either publicly, or directly to Lawrence Berkeley National
+	 Laboratory, without imposing a separate written license agreement for such
+	 Enhancements, then you hereby grant the following license: a non-exclusive,
+	 royalty-free perpetual license to install, use, modify, prepare derivative
+	 works, incorporate into other computer software, distribute, and sublicense
+	 such enhancements or derivative works thereof, in binary and source code form.
+*/
 /// @file scf.cpp
 /// @brief SCF class for the global domain or extended element.
-/// @author Lin Lin
 /// @date 2012-10-25
 #include  "scf.hpp"
 #include	"blas.hpp"
@@ -55,7 +96,6 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 		isRestartDensity_ = esdfParam.isRestartDensity;
 		isRestartWfn_     = esdfParam.isRestartWfn;
 		isOutputDensity_  = esdfParam.isOutputDensity;
-		isOutputWfn_      = esdfParam.isOutputWfn;
     Tbeta_         = esdfParam.Tbeta;
 	}
 
@@ -129,6 +169,7 @@ SCF::Iterate	(  )
 #ifndef _RELEASE_
 	PushCallStack("SCF::Iterate");
 #endif
+	Real timeSta, timeEnd;
 
 #ifndef _RELEASE_
 	PushCallStack("SCF::Iterate::Initialize");
@@ -209,6 +250,28 @@ SCF::Iterate	(  )
     PrintState( iter );
 
 
+		
+		GetTime( timeSta );
+		eigSolPtr_->Ham().CalculateForce( eigSolPtr_->Psi(), eigSolPtr_->FFT() );
+		GetTime( timeEnd );
+		statusOFS << "Time for computing the force is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+		// Print out the force
+		PrintBlock( statusOFS, "Atomic Force" );
+		{
+			Point3 forceCM(0.0, 0.0, 0.0);
+			std::vector<Atom>& atomList = eigSolPtr_->Ham().AtomList();
+			Int numAtom = atomList.size();
+			for( Int a = 0; a < numAtom; a++ ){
+				Print( statusOFS, "atom", a, "force", atomList[a].force );
+				forceCM += atomList[a].force;
+			}
+			statusOFS << std::endl;
+			Print( statusOFS, "force for centroid: ", forceCM );
+			statusOFS << std::endl;
+		}
+
     if( scfNorm_ < scfTolerance_ ){
       /* converged */
       Print( statusOFS, "SCF is converged!\n" );
@@ -227,7 +290,7 @@ SCF::Iterate	(  )
 		GetTime( timeIterEnd );
    
 		statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
-			<< " [sec]" << std::endl;
+			<< " [s]" << std::endl;
   }
 
 #ifndef _RELEASE_
@@ -618,14 +681,14 @@ void SCF::OutputState	(  )
 	}	
 
 
-  if( isOutputWfn_ ){
-		std::ofstream ofs(restartWfnFileName_.c_str());
-		if( !ofs.good() ){
-			throw std::logic_error( "Wavefunction file cannot be opened." );
-		}
-		serialize( eigSolPtr_->Psi().Wavefun(), ofs, NO_MASK );
-		ofs.close();
-	}	
+//  if( isOutputWfn_ ){
+//		std::ofstream ofs(restartWfnFileName_.c_str());
+//		if( !ofs.good() ){
+//			throw std::logic_error( "Wavefunction file cannot be opened." );
+//		}
+//		serialize( eigSolPtr_->Psi().Wavefun(), ofs, NO_MASK );
+//		ofs.close();
+//	}	
 #ifndef _RELEASE_
 	PopCallStack();
 #endif

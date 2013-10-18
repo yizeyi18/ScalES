@@ -1,6 +1,47 @@
+/*
+	 Copyright (c) 2012 The Regents of the University of California,
+	 through Lawrence Berkeley National Laboratory.  
+
+   Authors: Lin Lin and Lexing Ying
+	 
+   This file is part of DGDFT. All rights reserved.
+
+	 Redistribution and use in source and binary forms, with or without
+	 modification, are permitted provided that the following conditions are met:
+
+	 (1) Redistributions of source code must retain the above copyright notice, this
+	 list of conditions and the following disclaimer.
+	 (2) Redistributions in binary form must reproduce the above copyright notice,
+	 this list of conditions and the following disclaimer in the documentation
+	 and/or other materials provided with the distribution.
+	 (3) Neither the name of the University of California, Lawrence Berkeley
+	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+	 be used to endorse or promote products derived from this software without
+	 specific prior written permission.
+
+	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+	 You are under no obligation whatsoever to provide any bug fixes, patches, or
+	 upgrades to the features, functionality or performance of the source code
+	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
+	 available either publicly, or directly to Lawrence Berkeley National
+	 Laboratory, without imposing a separate written license agreement for such
+	 Enhancements, then you hereby grant the following license: a non-exclusive,
+	 royalty-free perpetual license to install, use, modify, prepare derivative
+	 works, incorporate into other computer software, distribute, and sublicense
+	 such enhancements or derivative works thereof, in binary and source code form.
+*/
 /// @file hamiltonian_dg.cpp
 /// @brief Implementation of the Hamiltonian class for DG calculation.
-/// @author Lin Lin
 /// @date 2013-01-09
 #include  "hamiltonian_dg.hpp"
 #include  "mpi_interf.hpp"
@@ -11,7 +52,6 @@
 namespace dgdft{
 
 using namespace PseudoComponent;
-
 
 // *********************************************************************
 // Hamiltonian class for DG
@@ -105,6 +145,7 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	// Initialize the DistNumVecs.
 	pseudoCharge_.Prtn()  = elemPrtn_;
 	density_.Prtn()       = elemPrtn_;
+	densityLGL_.Prtn()    = elemPrtn_;
 	vext_.Prtn()          = elemPrtn_;
 	vhart_.Prtn()         = elemPrtn_;
 	vxc_.Prtn()           = elemPrtn_;
@@ -118,7 +159,9 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 				if( elemPrtn_.Owner(key) == mpirank ){
 					DblNumVec  empty( numUniformGridElem_.prod() );
 					SetValue( empty, 0.0 );
+					DblNumVec emptyLGL( numLGLGridElem_.prod() );
 					density_.LocalMap()[key]     = empty;
+					densityLGL_.LocalMap()[key]  = emptyLGL;
 					vext_.LocalMap()[key]        = empty;
 					vhart_.LocalMap()[key]       = empty;
 					vxc_.LocalMap()[key]         = empty;
@@ -248,6 +291,22 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 				2.0 / (domain_.length[d] / numElem_[d]), 
 				DMat_[d].Data(), 1 );
 	}
+
+#if ( _DEBUGlevel_ >= 1 )
+	statusOFS << "Sanity check " << std::endl;
+
+	for( Int d = 0; d < DIM; d++ ){
+		DblNumVec t( numLGLGridElem_[d] );
+		DblNumVec s( numLGLGridElem_[d] );
+		SetValue(t, 1.0);
+		blas::Gemm( 'N', 'N', numLGLGridElem_[d], 1, numLGLGridElem_[d],
+				1.0, DMat_[d].Data(), numLGLGridElem_[d],
+				t.Data(), numLGLGridElem_[d], 0.0,
+				s.Data(), numLGLGridElem_[d] );
+		statusOFS << "Derivative of constant along dimension " << d 
+			<< " gives  " << s << std::endl;
+	}
+#endif
 
 	// Generate the transfer matrix from LGL grid to uniform grid on each
 	// element. The Lagrange polynomials involved in the transfer matrix
@@ -602,7 +661,9 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 } 		// -----  end of method HamiltonianDG::CalculatePseudoPotential  ----- 
 
 void
-HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
+HamiltonianDG::CalculateDensity	( 
+		DistDblNumVec& rho,
+		DistDblNumVec& rhoLGL )
 {
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::CalculateDensity");
@@ -611,6 +672,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
 
+	DblNumVec& occrate = occupationRate_;
 	Int numEig = occrate.m();
 
 	DistDblNumVec  psiUniform;
@@ -622,7 +684,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 			for( Int i = 0; i < numElem_[0]; i++ ){
 				Index3 key( i, j, k );
 				if( elemPrtn_.Owner( key ) == mpirank ){
-					DblNumVec& localRho = density_.LocalMap()[key];
+					DblNumVec& localRho = rho.LocalMap()[key];
 					SetValue( localRho, 0.0 );
 				} // own this element
 			} // for (i)
@@ -692,7 +754,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 					for( Int i = 0; i < numElem_[0]; i++ ){
 						Index3 key( i, j, k );
 						if( elemPrtn_.Owner( key ) == mpirank ){
-							DblNumVec& localRho = density_.LocalMap()[key];
+							DblNumVec& localRho = rho.LocalMap()[key];
 							DblNumVec& localPsi = psiUniform.LocalMap()[key];
 							for( Int p = 0; p < localRho.Size(); p++ ){
 								localRho[p] += localPsi[p] * localPsi[p] * rhofac;
@@ -709,7 +771,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
-						DblNumVec& localRho = density_.LocalMap()[key];
+						DblNumVec& localRho = rho.LocalMap()[key];
 						for( Int p = 0; p < localRho.Size(); p++ ){
 							sumRhoLocal += localRho[p];
 						}	
@@ -727,7 +789,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 	// Method 2: Compute the electron density locally, and then normalize
 	// only in the global domain. The result should be almost the same as
 	// that in Method 1, but should be much faster.
-	if(1)
+	if(0)
 	{
 		Real sumRhoLocal = 0.0, sumRho = 0.0;
 		// Compute the local density in each element
@@ -754,7 +816,7 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 									"Number of LGL grids do not match.");
 						}
 						
-						DblNumVec& localRho = density_.LocalMap()[key];
+						DblNumVec& localRho = rho.LocalMap()[key];
 
 						DblNumVec  localRhoLGL( numGrid );
 						DblNumVec  localPsiLGL( numGrid );
@@ -807,13 +869,164 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
-						DblNumVec& localRho = density_.LocalMap()[key];
+						DblNumVec& localRho = rho.LocalMap()[key];
 						blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
 					} // own this element
 				} // for (i)
 	} // Method 2
 
+	// Method 3: Method 3 is the same as the Method 2, but to output the
+	// eigenfunctions locally. TODO
+	if(1)
+	{
+		Real sumRhoLocal = 0.0, sumRho = 0.0;
+		Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
+		// Generate the LGL weight. FIXME. Put it to hamiltonian_dg
+		// Compute the integration weights
+		DblNumTns               LGLWeight3D;
+		{
+			std::vector<DblNumVec>  LGLWeight1D(DIM);
+			Point3 length       = domainElem_(0,0,0).length;
+			Index3 numGrid      = numLGLGridElem_;             
+			Int    numGridTotal = numGrid.prod();
 
+			// Compute the integration weights
+			// 1D
+			for( Int d = 0; d < DIM; d++ ){
+				DblNumVec  dummyX;
+				DblNumMat  dummyP, dummpD;
+				GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
+						numGrid[d] );
+				blas::Scal( numGrid[d], 0.5 * length[d], 
+						LGLWeight1D[d].Data(), 1 );
+			}
+
+			// 3D
+			LGLWeight3D.Resize( numGrid[0], numGrid[1], numGrid[2] );
+			for( Int k = 0; k < numGrid[2]; k++ )
+				for( Int j = 0; j < numGrid[1]; j++ )
+					for( Int i = 0; i < numGrid[0]; i++ ){
+						LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
+							LGLWeight1D[2](k);
+					} // for (i)
+		}
+
+		// Clear the density FIXME. Combine with above
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumVec& localRho    = rho.LocalMap()[key];
+						DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+
+						SetValue( localRho, 0.0 );
+						SetValue( localRhoLGL, 0.0 );
+						
+					}
+				} // for (i)
+
+		// Compute the local density in each element
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumMat& localBasis = basisLGL_.LocalMap()[key];
+						Int numGrid  = localBasis.m();
+						Int numBasis = localBasis.n();
+
+						// Skip the element if there is no basis functions.
+						if( numBasis == 0 )
+							continue;
+
+						DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
+						if( localCoef.n() != numEig ){
+							throw std::runtime_error( 
+									"Numbers of eigenfunction coefficients do not match.");
+						}
+						if( localCoef.m() != numBasis ){
+							throw std::runtime_error(
+									"Number of LGL grids do not match.");
+						}
+						
+						DblNumVec& localRho    = rho.LocalMap()[key];
+						DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+
+						DblNumVec  localPsiLGL( numGrid );
+						SetValue( localPsiLGL, 0.0 );
+
+
+						// Loop over all the eigenfunctions
+						// 
+						// NOTE: Gemm is not a feasible choice when a large number of
+						// eigenfunctions are there.
+						for( Int g = 0; g < numEig; g++ ){
+							// Compute local wavefunction on the LGL grid
+							blas::Gemv( 'N', numGrid, numBasis, 1.0, 
+									localBasis.Data(), numGrid, 
+									localCoef.VecData(g), 1, 0.0,
+									localPsiLGL.Data(), 1 );
+							// Update the local density
+							Real  occ    = occrate[g];
+							for( Int p = 0; p < numGrid; p++ ){
+								localRhoLGL(p) += pow( localPsiLGL(p), 2.0 ) * occ * numSpin_;
+							}
+						}
+
+						statusOFS << "Before interpolation" << std::endl;
+
+						// Interpolate the local density from LGL grid to uniform
+						// grid
+						InterpLGLToUniform( 
+								numLGLGridElem_, 
+								numUniformGridElem_, 
+								localRhoLGL.Data(), 
+								localRho.Data() );
+						statusOFS << "After interpolation" << std::endl;
+
+						sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
+								localRhoLGL.Data(), 1, 
+								LGLWeight3D.Data(), 1 );
+
+						Real* ptrRho = localRho.Data();
+						for( Int p = 0; p < localRho.Size(); p++ ){
+							sumRhoLocal += (*ptrRho);
+							ptrRho++;
+						}
+
+					} // own this element
+				} // for (i)
+
+		sumRhoLocal *= domain_.Volume() / domain_.NumGridTotal(); 
+
+		// All processors get the normalization factor
+		mpi::Allreduce( &sumRhoLGLLocal, &sumRhoLGL, 1, MPI_SUM, domain_.comm );
+		mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.comm );
+
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << std::endl;
+		Print( statusOFS, "Sum Rho on LGL grid (raw data) = ", sumRhoLGL );
+		Print( statusOFS, "Sum Rho on uniform grid (interpolated) = ", sumRho );
+		statusOFS << std::endl;
+#endif
+		
+
+		Real rhofac = numSpin_ * numOccupiedState_ / sumRho;
+	  
+		// FIXME No normalizatoin of the electron density!
+
+//		// Normalize the electron density in the global domain
+//		for( Int k = 0; k < numElem_[2]; k++ )
+//			for( Int j = 0; j < numElem_[1]; j++ )
+//				for( Int i = 0; i < numElem_[0]; i++ ){
+//					Index3 key( i, j, k );
+//					if( elemPrtn_.Owner( key ) == mpirank ){
+//						DblNumVec& localRho = rho.LocalMap()[key];
+//						blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
+//					} // own this element
+//				} // for (i)
+	}
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -824,7 +1037,10 @@ HamiltonianDG::CalculateDensity	( const DblNumVec& occrate  )
 
 
 void
-HamiltonianDG::CalculateXC	( Real &Exc )
+HamiltonianDG::CalculateXC	( 
+		Real &Exc, 
+		DistDblNumVec&   epsxc,
+		DistDblNumVec&   vxc )
 {
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::CalculateXC");
@@ -841,8 +1057,8 @@ HamiltonianDG::CalculateXC	( Real &Exc )
 				Index3 key( i, j, k );
 				if( elemPrtn_.Owner( key ) == mpirank ){
 					DblNumVec& localRho   = density_.LocalMap()[key];
-					DblNumVec& localEpsxc = epsxc_.LocalMap()[key];
-					DblNumVec& localVxc   = vxc_.LocalMap()[key];
+					DblNumVec& localEpsxc = epsxc.LocalMap()[key];
+					DblNumVec& localVxc   = vxc.LocalMap()[key];
 
 					switch( XCFuncType_.info->family ){
 						case XC_FAMILY_LDA:
@@ -871,7 +1087,9 @@ HamiltonianDG::CalculateXC	( Real &Exc )
 	return ;
 } 		// -----  end of method HamiltonianDG::CalculateXC  ----- 
 
-void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
+void HamiltonianDG::CalculateHartree( 
+		DistDblNumVec&  vhart,
+		DistFourier&    fft ) {
 #ifndef _RELEASE_ 
 	PushCallStack("HamiltonianDG::CalculateHartree");
 #endif
@@ -945,11 +1163,11 @@ void HamiltonianDG::CalculateHartree( DistFourier& fft ) {
 		}
 	} // if (fft.isInGrid)
 
-	// Convert tempVecLocal to vhart_ in the DistNumVec format
+	// Convert tempVecLocal to vhart in the DistNumVec format
 
   DistRowVecToDistNumVec(
 			tempVecLocal,
-			vhart_,
+			vhart,
 			domain_.numGrid,
 			numElem_,
 			fft.localNzStart,
@@ -1064,6 +1282,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 	// Compute the derivative of the Hartree potential for computing the 
 	// local pseudopotential contribution to the Hellmann-Feynman force
 	// *********************************************************************
+	DistDblNumVec&              vhart = vhart_;
 	std::vector<DistDblNumVec>  vhartDrv(DIM);
 	std::vector<DblNumVec>      vhartDrvLocal(DIM);
 	DistDblNumVec   tempVec;
@@ -1168,6 +1387,43 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 	// *********************************************************************
 	// Compute the force from local pseudopotential
 	// *********************************************************************
+	// Method 1: Using the derivative of the pseudopotential
+	if(1){
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						std::map<Int, PseudoPot>&  ppMap = pseudo_.LocalMap()[key];
+						for( std::map<Int, PseudoPot>::iterator mi = ppMap.begin();
+								 mi != ppMap.end(); mi++ ){
+							Int atomIdx = (*mi).first;
+							PseudoPot& pp = (*mi).second;
+							SparseVec& sp = pp.pseudoCharge;
+							IntNumVec& idx = sp.first;
+							DblNumMat& val = sp.second;
+							Real    wgt = domain_.Volume() / domain_.NumGridTotal();
+							DblNumVec&  vhartVal = vhart.LocalMap()[key];
+							Real resX = 0.0;
+							Real resY = 0.0;
+							Real resZ = 0.0;
+							for( Int l = 0; l < idx.m(); l++ ){
+								resX -= val(l, DX) * vhartVal[idx(l)] * wgt;
+								resY -= val(l, DY) * vhartVal[idx(l)] * wgt;
+								resZ -= val(l, DZ) * vhartVal[idx(l)] * wgt;
+							}
+							forceLocal( atomIdx, 0 ) += resX;
+							forceLocal( atomIdx, 1 ) += resY;
+							forceLocal( atomIdx, 2 ) += resZ;
+
+						} // for (mi)
+					} // own this element
+				} // for (i)
+	}
+
+
+	// Method 2: Using integration by parts
+	if(0)
 	{
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
@@ -1427,7 +1683,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 
 	// Define the local estimators on each processor.
-	DblNumTns eta2TotalLocal( numElem_[0], numElem_[1], numElem_[2] );
 	DblNumTns eta2ResidualLocal( numElem_[0], numElem_[1], numElem_[2] );
 	DblNumTns eta2GradJumpLocal( numElem_[0], numElem_[1], numElem_[2] );
 	DblNumTns eta2JumpLocal( numElem_[0], numElem_[1], numElem_[2] );
@@ -1468,7 +1723,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 		SetValue( eta2GradJump, 0.0 );
 		SetValue( eta2Jump, 0.0 );
 
-		SetValue( eta2TotalLocal, 0.0 );
 		SetValue( eta2ResidualLocal, 0.0 );
 		SetValue( eta2GradJumpLocal, 0.0 );
 		SetValue( eta2JumpLocal, 0.0 );
@@ -2409,21 +2663,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 	// Reduce the computed error estimator among all elements.
 	// *********************************************************************
 	
-	for( Int k = 0; k < numElem_[2]; k++ )
-		for( Int j = 0; j < numElem_[1]; j++ )
-			for( Int i = 0; i < numElem_[0]; i++ ){
-				Index3 key( i, j, k );
-				if( elemPrtn_.Owner(key) == mpirank ){
-					eta2TotalLocal(i,j,k) = 
-						eta2ResidualLocal(i,j,k) +
-						eta2GradJumpLocal(i,j,k) +
-						eta2JumpLocal(i,j,k);
-				} // if (own this element)
-			} // for (i)
-
-
-	mpi::Allreduce( eta2TotalLocal.Data(), eta2Total.Data(),
-			numElem_.prod(), MPI_SUM, domain_.comm );
 
 	mpi::Allreduce( eta2ResidualLocal.Data(), eta2Residual.Data(),
 			numElem_.prod(), MPI_SUM, domain_.comm );
@@ -2433,6 +2672,18 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 	mpi::Allreduce( eta2JumpLocal.Data(), eta2Jump.Data(),
 			numElem_.prod(), MPI_SUM, domain_.comm );
+
+  // Compute the total estimator
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				eta2Total(i,j,k) = 
+					eta2Residual(i,j,k) +
+					eta2GradJump(i,j,k) +
+					eta2Jump(i,j,k);
+			} // for (i)
+
+
 
 #ifndef _RELEASE_
 	PopCallStack();

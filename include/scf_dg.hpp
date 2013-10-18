@@ -1,6 +1,47 @@
+/*
+	 Copyright (c) 2012 The Regents of the University of California,
+	 through Lawrence Berkeley National Laboratory.  
+
+   Author: Lin Lin
+	 
+   This file is part of DGDFT. All rights reserved.
+
+	 Redistribution and use in source and binary forms, with or without
+	 modification, are permitted provided that the following conditions are met:
+
+	 (1) Redistributions of source code must retain the above copyright notice, this
+	 list of conditions and the following disclaimer.
+	 (2) Redistributions in binary form must reproduce the above copyright notice,
+	 this list of conditions and the following disclaimer in the documentation
+	 and/or other materials provided with the distribution.
+	 (3) Neither the name of the University of California, Lawrence Berkeley
+	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+	 be used to endorse or promote products derived from this software without
+	 specific prior written permission.
+
+	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+	 You are under no obligation whatsoever to provide any bug fixes, patches, or
+	 upgrades to the features, functionality or performance of the source code
+	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
+	 available either publicly, or directly to Lawrence Berkeley National
+	 Laboratory, without imposing a separate written license agreement for such
+	 Enhancements, then you hereby grant the following license: a non-exclusive,
+	 royalty-free perpetual license to install, use, modify, prepare derivative
+	 works, incorporate into other computer software, distribute, and sublicense
+	 such enhancements or derivative works thereof, in binary and source code form.
+*/
 /// @file scf_dg.hpp
 /// @brief Self consistent iteration using the DF method.
-/// @author Lin Lin
 /// @date 2013-02-05
 #ifndef _SCF_DG_HPP_ 
 #define _SCF_DG_HPP_
@@ -34,16 +75,28 @@ private:
 	bool                isRestartDensity_;
 	bool                isRestartWfn_;
 	bool                isOutputDensity_;
-	bool                isOutputWfn_;
+	bool                isOutputWfnElem_;
+	bool                isOutputWfnExtElem_;
+	bool                isOutputPotExtElem_; 
 	bool                isCalculateAPosterioriEachSCF_;
+	bool                isCalculateForceEachSCF_;
+	bool                isOutputHMatrix_;
+	Real                ecutWavefunction_;
+	Real                densityGridFactor_;        
+	Real                LGLGridFactor_;
+
+	bool                isPeriodizePotential_;
+	Point3              distancePeriodize_;
   
 	std::string         restartDensityFileName_;
   std::string         restartWfnFileName_;
 
 	// Physical parameters
 	Real                Tbeta_;                    // Inverse of temperature in atomic unit
-	Real                Efree_;                    // Helmholtz free energy
-	Real                Etot_;                     // Total energy
+	Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional
+	Real                EfreeSecondOrder_;         // Second order accurate Helmholtz free energy 
+	Real                Efree_;                    // Helmholtz free energy (KS energy functional)
+	Real                Etot_;                     // Total energy (KSenergy functional)
 	Real                Ekin_;                     // Kinetic energy
 	Real                Ehart_;                    // Hartree energy
 	Real                Ecor_;                     // Nonlinear correction energy
@@ -62,10 +115,13 @@ private:
 
 	// SCF variables
 
-	/// @brief Work array for the old potential in the outer iteration.
-	DistDblNumVec       vtotOuterSave_;
-	/// @brief Work array for the new potential in the inner iteration.
-	DistDblNumVec       vtotInnerNew_;
+	std::string         mixVariable_;
+
+
+	/// @brief Work array for the old mixing variable in the outer iteration.
+	DistDblNumVec       mixOuterSave_;
+	/// @brief Work array for the old mixing variable in the inner iteration.
+	DistDblNumVec       mixInnerSave_;
 	// TODO Remove dfOuterMat_, dvOuterMat_
 	/// @brief Work array for the Anderson mixing in the outer iteration.
 	DistDblNumMat       dfOuterMat_;
@@ -146,13 +202,36 @@ public:
 			const Index3& numLGLGrid, const Real* psiUniform, Real* psiLGL );
 
 
-	/// @brief Calculate all energies for output
-	void  CalculateEnergy();
-	
+	/// @brief Calculate the Kohn-Sham energy and other related energies.
+	void  CalculateKSEnergy();
+
+	/// @brief Calculate the Harris (free) energy.  
+	///
+	/// The difference between the Kohn-Sham energy and the Harris energy
+	/// is that the nonlinear correction term in the Harris energy
+	/// functional must be computed via the input electron density, rather
+	/// than the output electron density or the mixed electron density.
+	///
+	/// Reference:
+	///
+	/// [Soler et al. "The SIESTA method for ab initio order-N
+	/// materials", J. Phys. Condens. Matter. 14, 2745 (2002) pp 18]
+	void  CalculateHarrisEnergy();
+
+	/// @brief Calculate the second order accurate energy that is
+	/// applicable to both density and potential mixing.
+	///
+	/// Reference:
+	///
+	/// Research note, "On the understanding and generalization of Harris
+	/// energy functional", 08/26/2013.
+	void  CalculateSecondOrderEnergy();
+
 	/// @brief Print out the state variables at each SCF iteration.
 	void  PrintState(  );
 
-	/// @brief Parallel preconditioned Anderson mixing.
+	/// @brief Parallel preconditioned Anderson mixing. Can be used for
+	/// potential mixing or density mixing.
 	void  AndersonMix( 
 			Int             iter, 
 			Real            mixStepLength,
@@ -163,7 +242,8 @@ public:
 			DistDblNumMat&  dfMat,
 			DistDblNumMat&  dvMat);
 	
-	/// @brief Parallel Kerker preconditioner.
+	/// @brief Parallel Kerker preconditioner. Can be used for
+	/// potential mixing or density mixing.
 	void  KerkerPrecond(
 		DistDblNumVec&  distPrecResidual,
 		const DistDblNumVec&  distResidual );

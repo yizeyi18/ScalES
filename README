@@ -1,3 +1,8 @@
+Discontinuous Galerkin Density Functional Theory (DGDFT) 
+========================================================
+
+NOTE!!! This installation file is obsolete and needs to be updated.
+
 INSTALLATION
 
 1. Set environmental variable HOST.  For example, on shark run
