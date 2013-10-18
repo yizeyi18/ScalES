@@ -21,7 +21,7 @@ void Mult
 	Int width       = x->num_vectors;
 
 
-	DblNumMat xMat( height, width, false, x->data );
+	DblNumMat xMat( height, width, false, x->data ); //double numerical matrix view(false) data
   DblNumMat yMat( height, width, false, y->data );	
 
 #ifdef _USE_OPENMP_
@@ -84,8 +84,8 @@ int main(int argc, char **argv)
   x->active_indices = (BlopexInt*)malloc(sizeof(BlopexInt)*x->num_active_vectors);
   for (Int i=0; i<x->num_active_vectors; i++) x->active_indices[i] = i;
 
-  mv_MultiVectorPtr xx;
-  mv_InterfaceInterpreter ii;
+  mv_MultiVectorPtr xx; //Hypre_Lobpcgsolver(hypresolver, mv_MultiVectorPtr, mv_multiVectorPtr, double*)?
+  mv_InterfaceInterpreter ii; //Hypre_LobpcgCreate?
   lobpcg_Tolerance lobpcg_tol;
   lobpcg_BLASLAPACKFunctions blap_fn;
 
