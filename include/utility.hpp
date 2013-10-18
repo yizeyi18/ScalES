@@ -1,6 +1,47 @@
+/*
+	 Copyright (c) 2012 The Regents of the University of California,
+	 through Lawrence Berkeley National Laboratory.  
+
+   Authors: Lin Lin
+	 
+   This file is part of DGDFT. All rights reserved.
+
+	 Redistribution and use in source and binary forms, with or without
+	 modification, are permitted provided that the following conditions are met:
+
+	 (1) Redistributions of source code must retain the above copyright notice, this
+	 list of conditions and the following disclaimer.
+	 (2) Redistributions in binary form must reproduce the above copyright notice,
+	 this list of conditions and the following disclaimer in the documentation
+	 and/or other materials provided with the distribution.
+	 (3) Neither the name of the University of California, Lawrence Berkeley
+	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+	 be used to endorse or promote products derived from this software without
+	 specific prior written permission.
+
+	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+	 You are under no obligation whatsoever to provide any bug fixes, patches, or
+	 upgrades to the features, functionality or performance of the source code
+	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
+	 available either publicly, or directly to Lawrence Berkeley National
+	 Laboratory, without imposing a separate written license agreement for such
+	 Enhancements, then you hereby grant the following license: a non-exclusive,
+	 royalty-free perpetual license to install, use, modify, prepare derivative
+	 works, incorporate into other computer software, distribute, and sublicense
+	 such enhancements or derivative works thereof, in binary and source code form.
+*/
 /// @file utility.hpp
 /// @brief Utility subroutines.
-/// @author Lin Lin
 /// @date 2012-08-12
 #ifndef _UTILITY_HPP_ 
 #define _UTILITY_HPP_
@@ -12,6 +53,7 @@
 #include  "numvec_impl.hpp"
 #include  "nummat_impl.hpp"
 #include  "numtns_impl.hpp"
+#include  "sparse_matrix_impl.hpp"
 
 namespace dgdft{
 
@@ -89,19 +131,6 @@ struct PseudoPot
 	std::vector<NonlocalPP>           vnlList;
 };
 
-
-
-// *********************************************************************
-// Define constants
-// *********************************************************************
-
-// Write format control parameters 
-const int LENGTH_VAR_NAME = 8;
-const int LENGTH_DBL_DATA = 16;
-const int LENGTH_INT_DATA = 5;
-const int LENGTH_VAR_UNIT = 6;
-const int LENGTH_DBL_PREC = 8;
-const int LENGTH_VAR_DATA = 16;
 
 
 
@@ -633,9 +662,6 @@ template <class F> inline std::ostream& operator<<( std::ostream& os, const NumT
 // More specific serialize/deserialize will be defined in individual
 // class files
 // *********************************************************************
-
-// standard case for most serialization/deserialization process.
-const std::vector<Int> NO_MASK(1);
 
 //bool
 inline Int serialize(const bool& val, std::ostream& os, const std::vector<Int>& mask)
@@ -1408,6 +1434,43 @@ Int inline combine(Domain& dm1, Domain& dm2){
   return 0;
 }
 
+//-------------------
+//DistSparseMatrix
+template<class T>
+Int inline serialize(const DistSparseMatrix<T>& val, std::ostream& os, const std::vector<Int>& mask)
+{
+	serialize( val.size,        os, mask );
+	serialize( val.nnz,         os, mask );
+	serialize( val.nnzLocal,    os, mask );
+	serialize( val.firstCol,    os, mask );
+	serialize( val.colptrLocal, os, mask );
+	serialize( val.rowindLocal, os, mask );
+	serialize( val.nzvalLocal,  os, mask );
+	// No need to serialize the communicator
+	return 0;
+}
+
+template<class T>
+Int inline deserialize(DistSparseMatrix<T>& val, std::istream& is, const std::vector<Int>& mask)
+{
+	deserialize( val.size,        is, mask );
+	deserialize( val.nnz,         is, mask );
+	deserialize( val.nnzLocal,    is, mask );
+	deserialize( val.firstCol,    is, mask );
+	deserialize( val.colptrLocal, is, mask );
+	deserialize( val.rowindLocal, is, mask );
+	deserialize( val.nzvalLocal,  is, mask );
+	// No need to deserialize the communicator
+  return 0;
+}
+
+template<class T>
+Int inline combine(DistSparseMatrix<T>& val, DistSparseMatrix<T>& ext)
+{
+	throw  std::logic_error( "Combine operation not implemented." );
+  return 0;
+}
+
 
 // *********************************************************************
 // Parallel IO functions
@@ -1512,5 +1575,59 @@ public:
 };
 
 
+// *********************************************************************
+// Sparse Matrix
+// *********************************************************************
+
+// TODO Complex format
+void ReadSparseMatrix ( const char* filename, SparseMatrix<Real>& spmat );
+
+void ReadDistSparseMatrix( const char* filename, DistSparseMatrix<Real>& pspmat, MPI_Comm comm );
+
+void ReadDistSparseMatrixFormatted( const char* filename, DistSparseMatrix<Real>& pspmat, MPI_Comm comm );
+
+void WriteDistSparseMatrixFormatted( const char* filename, const DistSparseMatrix<Real>& pspmat);
+
+template <class F1, class F2> 
+void
+CopyPattern	( const SparseMatrix<F1>& A, SparseMatrix<F2>& B )
+{
+#ifndef _RELEASE_
+	PushCallStack("CopyPattern");
+#endif
+	B.size        = A.size;
+	B.nnz         = A.nnz;
+	B.colptr      = A.colptr;
+	B.rowind      = A.rowind;
+	B.nzval.Resize( A.nnz );
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return ;
+}		// -----  end of template function CopyPattern  ----- 
+
+
+// Functions for DistSparseMatrix
+
+template <class F1, class F2> 
+void
+CopyPattern	( const DistSparseMatrix<F1>& A, DistSparseMatrix<F2>& B )
+{
+#ifndef _RELEASE_
+	PushCallStack("CopyPattern");
+#endif
+	B.size        = A.size;
+	B.nnz         = A.nnz;
+	B.nnzLocal    = A.nnzLocal;
+	B.firstCol    = A.firstCol;
+	B.colptrLocal = A.colptrLocal;
+	B.rowindLocal = A.rowindLocal;
+	B.nzvalLocal.Resize( A.nnzLocal );
+	B.comm        = A.comm;
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return ;
+}		// -----  end of template function CopyPattern  ----- 
 } // namespace dgdft
 #endif // _UTILITY_HPP_

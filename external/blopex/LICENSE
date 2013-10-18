@@ -1,0 +1,7 @@
+It is understood that BLOPEX is currently published under the GNU
+license, which is not entirely compatible with the BSD license used by
+DGDFT.  
+
+In the future, either DGDFT will convert to GNU license, or DGDFT will
+implement its own version of LOBPCG and /or other eigenvalue solver(s)
+to avoid the dependence on GNU license.

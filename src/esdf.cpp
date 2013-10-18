@@ -1,6 +1,47 @@
+/*
+	 Copyright (c) 2012 The Regents of the University of California,
+	 through Lawrence Berkeley National Laboratory.  
+
+   Authors: Chris J. Pickard and Lin Lin
+	 
+   This file is part of DGDFT. All rights reserved.
+
+	 Redistribution and use in source and binary forms, with or without
+	 modification, are permitted provided that the following conditions are met:
+
+	 (1) Redistributions of source code must retain the above copyright notice, this
+	 list of conditions and the following disclaimer.
+	 (2) Redistributions in binary form must reproduce the above copyright notice,
+	 this list of conditions and the following disclaimer in the documentation
+	 and/or other materials provided with the distribution.
+	 (3) Neither the name of the University of California, Lawrence Berkeley
+	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+	 be used to endorse or promote products derived from this software without
+	 specific prior written permission.
+
+	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+	 You are under no obligation whatsoever to provide any bug fixes, patches, or
+	 upgrades to the features, functionality or performance of the source code
+	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
+	 available either publicly, or directly to Lawrence Berkeley National
+	 Laboratory, without imposing a separate written license agreement for such
+	 Enhancements, then you hereby grant the following license: a non-exclusive,
+	 royalty-free perpetual license to install, use, modify, prepare derivative
+	 works, incorporate into other computer software, distribute, and sublicense
+	 such enhancements or derivative works thereof, in binary and source code form.
+*/
 /// @file esdf.cpp
 /// @brief Electronic structure data format for reading the input data.
-/// @author Chris J. Pickard and Lin Lin
 /// @date 2012-08-10
 #include "esdf.hpp"
 #include "utility.hpp" 
@@ -323,7 +364,12 @@ void esdf_key() {
 	i++;
 	strcpy(kw_label[i],"mixing_type");
 	strcpy(kw_typ[i],"T:B");
-	strcpy(kw_dscrpt[i],"*! Simple, Anderson, Broyden, Purlay !*");
+	strcpy(kw_dscrpt[i],"*! Simple, Anderson, Broyden, Pulay !*");
+
+	i++;
+	strcpy(kw_label[i],"mixing_variable");
+	strcpy(kw_typ[i],"T:B");
+	strcpy(kw_dscrpt[i],"*! density, potential !*");
 
 	i++;
 	strcpy(kw_label[i],"mixing_param");
@@ -453,10 +499,6 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether density is restarted!*");
 
-	i++;
-	strcpy(kw_label[i],"restart_bufwfn");
-	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! whether the buffer wavefunction is restarted!*");
 
 	i++;
 	strcpy(kw_label[i],"restart_wfn");
@@ -483,11 +525,26 @@ void esdf_key() {
 	strcpy(kw_label[i],"output_wfn");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether wavefunctions and occupations numbers are outputed !*");
+	
+	i++;
+	strcpy(kw_label[i],"output_wfn_elem");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether wavefunctions in the element is outputed !*");
 
 	i++;
-	strcpy(kw_label[i],"output_bufwfn");
+	strcpy(kw_label[i],"output_wfn_extelem");
 	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! whether wavefunctions in the buffer is outputed !*");
+	strcpy(kw_dscrpt[i],"*! whether wavefunctions in the extended element is outputed !*");
+
+	i++;
+	strcpy(kw_label[i],"output_pot_extelem");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether potential in the extended element is outputed !*");
+
+	i++;
+	strcpy(kw_label[i],"output_hmatrix");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether the DG Hamiltonian matrix is outputed !*");
 
 	i++;
 	strcpy(kw_label[i],"element_position_start");
@@ -505,54 +562,10 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Starting position of each molecule element !*");
 
 	i++;
-	strcpy(kw_label[i],"buffer_position_start");
-	strcpy(kw_typ[i],"B:E");
-	strcpy(kw_dscrpt[i],"*! Starting position of each molecule buffer !*");
-
-	i++;
-	strcpy(kw_label[i],"buffer_grid_size");
-	strcpy(kw_typ[i],"B:E");
-	strcpy(kw_dscrpt[i],"*! Starting position of each molecule buffer !*");
-
-	i++;
-	strcpy(kw_label[i],"buffer_cell");
-	strcpy(kw_typ[i],"B:E");
-	strcpy(kw_dscrpt[i],"*! Starting position of each molecule buffer !*");
-
-	i++;
-	strcpy(kw_label[i],"buffer_atom_types_num");
-	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! Number of atom types !*");
-
-	i++;
-	strcpy(kw_label[i],"buffer_atom_type");
-	strcpy(kw_typ[i],"T:E");
-	strcpy(kw_dscrpt[i],"*! Type of the atom !*");
-
-	i++;
-	strcpy(kw_label[i],"buffer_atom_coord");
-	strcpy(kw_typ[i],"B:E");
-	strcpy(kw_dscrpt[i],"*! Coordinates of atom !*");
-
-	i++;
 	strcpy(kw_label[i],"position_start");
 	strcpy(kw_typ[i],"B:E");
 	strcpy(kw_dscrpt[i],"*! Starting position of molecule !*");
 
-	i++;
-	strcpy(kw_label[i],"buffer_atom_mode");
-	strcpy(kw_typ[i],"T:E");
-	strcpy(kw_dscrpt[i],"*! Mode for generating atom positions in the buffer!*");
-
-	i++;
-	strcpy(kw_label[i],"barriera");
-	strcpy(kw_typ[i],"D:E");
-	strcpy(kw_dscrpt[i],"*! Barrier height in the buffer !*");
-
-	i++;
-	strcpy(kw_label[i],"barrierd");
-	strcpy(kw_typ[i],"D:E");
-	strcpy(kw_dscrpt[i],"*! Barrier starting position in the buffer !*");
 
 	i++;
 	strcpy(kw_label[i],"time_step");
@@ -665,6 +678,11 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! whether to compute the a posteriori estimator at each SCF step !*");
 
 	i++;
+	strcpy(kw_label[i],"calculate_force_each_scf");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether to compute the force at each SCF step !*");
+
+	i++;
 	strcpy(kw_label[i],"potential_barrier_w");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! Width parameter of potential barrier to the extended element!*");
@@ -678,6 +696,31 @@ void esdf_key() {
 	strcpy(kw_label[i],"potential_barrier_r");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! Radius parameter of potential barrier to the extended element!*");
+
+	i++;
+	strcpy(kw_label[i],"ecut_wavefunction");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Equivalent kinetic energy cutoff (in the unit of Hartree) for wavefunctions or adaptive local basis functions in a uniform grid!*");
+
+	i++;
+	strcpy(kw_label[i],"density_grid_factor");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! The number of grid points for density over the number of grid points over wavefunction along each dimension !*");
+
+	i++;
+	strcpy(kw_label[i],"lgl_grid_factor");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! The number of LGL grid points over the number of grid points over wavefunction along each dimension !*");
+
+	i++;
+	strcpy(kw_label[i],"periodize_potential");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Whether to periodize the potential in the extended element!*");
+
+	i++;
+	strcpy(kw_label[i],"distance_periodize");
+	strcpy(kw_typ[i],"B:E");
+	strcpy(kw_dscrpt[i],"*! Distance to the boundary of the extended element to be periodized !*");
 
 }
 
@@ -1806,12 +1849,17 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 			throw std::logic_error("Super_Cell cannot be found.");
 		}
 
-		if( esdf_block("Grid_Size", &nlines) ){
-			sscanf(block_data[0],"%d %d %d",
-					&dm.numGrid[0],&dm.numGrid[1],&dm.numGrid[2]);
-		}
-		else{
-			throw std::logic_error("Grid_Size cannot be found."); }
+		// 07/24/2013: Instead of grid size, use ecut to determine the grid
+		// size in the global domain for wavefunctions, density, and also
+		// other quantities in the local LGL domain.
+		//
+		// So dm.numGrid is not specified here.
+//		if( esdf_block("Grid_Size", &nlines) ){
+//			sscanf(block_data[0],"%d %d %d",
+//					&dm.numGrid[0],&dm.numGrid[1],&dm.numGrid[2]);
+//		}
+//		else{
+//			throw std::logic_error("Grid_Size cannot be found."); }
 
 		dm.posStart = Point3( 0.0, 0.0, 0.0 );
 	}
@@ -1875,8 +1923,22 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 	{
 
 		esdfParam.mixMaxDim       = esdf_integer("Mixing_MaxDim", 9);
+
 		esdf_string("Mixing_Type", "anderson", strtmp); 
 		esdfParam.mixType         = strtmp;
+		if( esdfParam.mixType != "anderson" &&
+				esdfParam.mixType != "kerker+anderson" ){
+			throw std::runtime_error("Invalid mixing type.");
+		}
+
+		esdf_string("Mixing_Variable", "density", strtmp); 
+		esdfParam.mixVariable     = strtmp;
+		if( esdfParam.mixVariable != "density" &&
+				esdfParam.mixVariable != "potential" ){
+			throw std::runtime_error("Invalid mixing variable.");
+		}
+
+
 		esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
 		esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
 		esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   30 );
@@ -1887,13 +1949,21 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-4 );
 		esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
 		esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
-		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
-		esdfParam.isOutputWfn      = esdf_integer( "Output_Wfn", 0 );
-		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
+		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 1 );
+		esdfParam.isOutputWfnElem         = esdf_integer( "Output_Wfn_Elem", 0 );
+		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 0 );
+		esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 0 );
+		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 1 );
+		esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 1 );
+		esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
 
-		esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
-		esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 10.0 );
-		esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );
+
+		
+		esdfParam.ecutWavefunction     = esdf_double( "Ecut_Wavefunction", 10.0 );
+		esdfParam.densityGridFactor    = esdf_double( "Density_Grid_Factor", 2.0 );
+
+		// The density grid factor must be an integer
+		esdfParam.densityGridFactor    = std::ceil( esdfParam.densityGridFactor );
 
 		Real temperature;
 		temperature               = esdf_double( "Temperature", 100.0 );
@@ -1925,12 +1995,22 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 			sscanf(block_data[0],"%d %d %d", 
 					&numElem[0],&numElem[1],&numElem[2]);
 		}
-
-		Index3& numGridLGL = esdfParam.numGridLGL;
-		if (esdf_block("Element_Grid_Size", &nlines)) {
-			sscanf(block_data[0],"%d %d %d", 
-					&numGridLGL[0],&numGridLGL[1],&numGridLGL[2] );
+		else{
+			numElem(0) = 1;
+			numElem(1) = 1;
+			numElem(2) = 1;
 		}
+
+		// Instead of grid size, use ecut to determine the number of grid
+		// points in the local LGL domain.
+		// The LGL grid factor does not need to be an integer.
+		esdfParam.LGLGridFactor = esdf_double( "LGL_Grid_Factor", 1.0 );
+
+//		Index3& numGridLGL = esdfParam.numGridLGL;
+//		if (esdf_block("Element_Grid_Size", &nlines)) {
+//			sscanf(block_data[0],"%d %d %d", 
+//					&numGridLGL[0],&numGridLGL[1],&numGridLGL[2] );
+//		}
 
 		esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 100.0 );
 
@@ -1970,7 +2050,96 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		}
 
 
+		// Modification of the potential in the extended element
+		{
+
+			// FIXME The potential barrier is now obsolete.
+			esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
+			esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 0.0 );
+			esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );
+
+			// Periodization of the external potential
+			esdfParam.isPeriodizePotential = esdf_integer( "Periodize_Potential", 1 );
+
+			esdfParam.distancePeriodize[0] = 0.0;
+			esdfParam.distancePeriodize[1] = 0.0;
+			esdfParam.distancePeriodize[2] = 0.0;
+
+			if( esdfParam.isPeriodizePotential ){
+				if( esdf_block("Distance_Periodize", &nlines) ){
+					sscanf(block_data[0],"%lf %lf %lf",
+							&esdfParam.distancePeriodize[0],
+							&esdfParam.distancePeriodize[1],
+							&esdfParam.distancePeriodize[2]);
+				}
+				else{
+					// Default value for DistancePeriodize
+					for( Int d = 0; d < DIM; d++ ){
+						if( esdfParam.numElem[d] == 1 ){
+							esdfParam.distancePeriodize[d] = 0.0;
+						}
+						else{
+							esdfParam.distancePeriodize[d] = 
+								esdfParam.domain.length[d] / esdfParam.numElem[d] * 0.5;
+						}
+					}
+				}
+			}
+		} // Modify the potential
+
+	} // DG
+	
+
+	// Choose the number of grid points
+	// NOTE: This part of the code only applies to DGDFT, since the
+	// wavefunction grid and the density grid size is assumed to be a
+	// multiple of the number of elements along each dimension.
+	//
+	// The formula for the number of grid points along each dimension with
+	// length L is
+	//
+	// 1/2 K_max^2 = Ecut,   with K_max = pi N_max / L, 
+	//
+	// i.e.
+	//
+	// N_max = \frac{\sqrt{2 E_cut} * L}{pi}.
+	//
+	// The number of grid point along this dimension is chosen to be the
+	// largest even number bigger than N_max.  The number of global grid
+	// points is also required to be divisible by the number of elements
+	// along that dimension.
+	//
+	// TODO Later the number of grid points can be improved to only
+	// contain the factor of 2, 3 and 5.
+	//
+	// TODO Current ecutDensity is only used for global grid quantities
+	// such as density and potential.  When solving the local problem, the
+	// number of grid points for density is still the same as that for the
+	// wavefunction.  This constraint can be improved later by saving the
+	// wavefunction in the extended element really in the Fourier domain.
+	// This real dual grid approach will be done in the next step.
+	{
+    Domain&  dm      = esdfParam.domain;
+		Index3&  numGridWavefunctionElem = esdfParam.numGridWavefunctionElem;
+		Index3&  numGridLGL = esdfParam.numGridLGL;
+		Index3   numElem = esdfParam.numElem;
+
+		Point3  elemLength;
+
+		for( Int d = 0; d < DIM; d++ ){
+			elemLength[d] = dm.length[d] / numElem[d];
+			// the number of grid is assumed to be at least an even number
+			numGridWavefunctionElem[d] = 
+				std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
+						elemLength[d] / PI / 2.0) * 2;
+			dm.numGrid[d] = numGridWavefunctionElem[d] * numElem[d] * 
+				esdfParam.densityGridFactor;
+			
+			numGridLGL[d] = std::ceil( numGridWavefunctionElem[d] * esdfParam.LGLGridFactor );
+		} // for (d)
+
 	}
+	
 
 #ifndef _RELEASE_
 	PopCallStack();

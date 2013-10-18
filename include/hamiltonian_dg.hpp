@@ -1,6 +1,47 @@
+/*
+	 Copyright (c) 2012 The Regents of the University of California,
+	 through Lawrence Berkeley National Laboratory.  
+
+   Author: Lin Lin
+	 
+   This file is part of DGDFT. All rights reserved.
+
+	 Redistribution and use in source and binary forms, with or without
+	 modification, are permitted provided that the following conditions are met:
+
+	 (1) Redistributions of source code must retain the above copyright notice, this
+	 list of conditions and the following disclaimer.
+	 (2) Redistributions in binary form must reproduce the above copyright notice,
+	 this list of conditions and the following disclaimer in the documentation
+	 and/or other materials provided with the distribution.
+	 (3) Neither the name of the University of California, Lawrence Berkeley
+	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+	 be used to endorse or promote products derived from this software without
+	 specific prior written permission.
+
+	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+	 You are under no obligation whatsoever to provide any bug fixes, patches, or
+	 upgrades to the features, functionality or performance of the source code
+	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
+	 available either publicly, or directly to Lawrence Berkeley National
+	 Laboratory, without imposing a separate written license agreement for such
+	 Enhancements, then you hereby grant the following license: a non-exclusive,
+	 royalty-free perpetual license to install, use, modify, prepare derivative
+	 works, incorporate into other computer software, distribute, and sublicense
+	 such enhancements or derivative works thereof, in binary and source code form.
+*/
 /// @file hamiltonian_dg.hpp
 /// @brief The Hamiltonian class for DG calculation.
-/// @author Lin Lin
 /// @date 2013-01-09
 #ifndef _HAMILTONIAN_DG_HPP_
 #define _HAMILTONIAN_DG_HPP_
@@ -9,6 +50,7 @@
 #include  "numvec_impl.hpp"
 #include  "numtns_impl.hpp"
 #include  "distvec_impl.hpp"
+#include  "sparse_matrix_impl.hpp"
 #include  "domain.hpp"
 #include  "periodtable.hpp"
 #include  "utility.hpp"
@@ -78,6 +120,18 @@ struct BlockMatPrtn
 	}
 };
 
+/// @struct VecPrtn
+/// @brief Partition class for a structure indexed by a one dimensional
+/// integer vector.  For instance, this can be used to partition the
+/// row (column) index of a matrix.
+struct VecPrtn
+{
+	IntNumVec                 ownerInfo;
+
+	Int Owner (const Int & key) const {
+		return ownerInfo(key);
+	}
+};
 
 
 // *********************************************************************
@@ -182,7 +236,15 @@ private:
 	/// DG calculation.
 	DistDblNumVec    density_;
 
-	/// @brief External potential in the global domain. (not implemented)
+	/// @brief Electron density in the global domain defined on the LGL
+	/// grid. No magnitization for DG calculation.  
+	/// FIXME This is only a temporary variable and MAY NOT BE the same as
+	/// the density_ variable.
+	DistDblNumVec    densityLGL_;
+
+
+	/// @brief External potential in the global domain. This is usually
+	/// not used.
 	DistDblNumVec    vext_;
 
 	/// @brief Hartree potential in the global domain.
@@ -272,14 +334,19 @@ public:
 	
 	/// @brief Compute the electron density after the diagonalization
 	/// of the DG Hamiltonian matrix.
-	void CalculateDensity( const DblNumVec &occrate );
+	void CalculateDensity( DistDblNumVec& rho, DistDblNumVec& rhoLGL );
 	
 
 	/// @brief Compute the exchange-correlation potential and energy.
-	void CalculateXC ( Real &Exc );
+	void CalculateXC ( 
+			Real &Exc, 
+			DistDblNumVec&   epsxc,
+			DistDblNumVec&   vxc );
 
 	/// @brief Compute the Hartree potential.
-	void CalculateHartree( DistFourier& fft );
+	void CalculateHartree( 
+			DistDblNumVec& vhart, 
+			DistFourier&   fft );
 	
 	/// @brief Compute the total potential
 	void CalculateVtot( DistDblNumVec& vtot );
@@ -332,9 +399,15 @@ public:
 	/// @brief Total potential in the global domain.
 	DistDblNumVec&  Vtot( ) { return vtot_; }
 
+	/// @brief External potential in the global domain.
+	DistDblNumVec&  Vext( ) { return vext_; }
+
 	/// @brief Exchange-correlation potential in the global domain. No
 	/// magnization calculation in the DG code.
 	DistDblNumVec&  Vxc()  { return vxc_; }
+
+	/// @brief Exchange-correlation energy density in the global domain.
+	DistDblNumVec&  Epsxc()  { return epsxc_; }
 
 	/// @brief Hartree potential in the global domain.
 	DistDblNumVec&  Vhart() { return vhart_; }
@@ -342,6 +415,8 @@ public:
 	/// @brief Electron density in the global domain. No magnitization for
 	/// DG calculation.
 	DistDblNumVec&  Density() { return density_; }
+
+	DistDblNumVec&  DensityLGL() { return densityLGL_; }
 
 	DistDblNumVec&  PseudoCharge() { return pseudoCharge_; }
 	
@@ -373,6 +448,15 @@ public:
 
 	/// @brief Number of LGL grids in each element.
 	Index3 NumLGLGridElem() const { return numLGLGridElem_; }
+
+	/// @brief Return the uniform grid on each element
+	NumTns<std::vector<DblNumVec> >& UniformGridElem(){ return  uniformGridElem_; }
+
+	/// @brief Return the LGL grid on each element
+	NumTns<std::vector<DblNumVec> >& LGLGridElem(){ return  LGLGridElem_; }
+
+	/// @brief Return the element domain information
+	NumTns<Domain>&  DomainElem(){ return domainElem_; }
 
 
 	// *********************************************************************
@@ -967,6 +1051,404 @@ void ScaMatToDistNumMat(
 #endif
 	return;
 }  // -----  end of function ScaMatToDistNumMat  ----- 
+
+
+/// @brief Convert a matrix distributed according to 2D element indices
+/// to a DistSparseMatrix.
+///
+/// Note: 
+///
+/// 1) This routine assumes that the input matrix (DistElemMat) and the
+/// output matrix (DistSparseMat) shares the same MPI communicator.
+/// This may not be always the case.  For instance, in PEXSI we might
+/// want to use a smaller communicator for distSparseMat so that
+/// parallelization can be performed over the number of poles.  This
+/// will be done in the future work.
+///
+/// 2) It is assumed that the matrix is symmetric.  Therefore the
+/// position of row and column may be confusing.  This will be a
+/// problem later when structurally symmetric matrix is considered.
+/// This shall be fixed later.
+template<typename F>
+void DistElemMatToDistSparseMat(
+		const DistVec<ElemMatKey, NumMat<F>, ElemMatPrtn>&   distMat,
+		const Int                                            sizeMat,
+		DistSparseMatrix<F>&                                 distSparseMat,
+		const NumTns<std::vector<Int> >&                     basisIdx,
+	  MPI_Comm  	                                         comm ){
+#ifndef _RELEASE_
+	PushCallStack("DistElemMatToDistSparseMat");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( comm, &mpirank );
+	MPI_Comm_size( comm, &mpisize );
+
+	// Compute the local column partition in DistSparseMatrix
+	Int numColFirst = sizeMat / mpisize;
+	Int firstCol = mpirank * numColFirst;
+	Int numColLocal;
+	if( mpirank == mpisize - 1 )
+		numColLocal = sizeMat - numColFirst * (mpisize - 1 );
+	else
+		numColLocal = numColFirst;
+
+	VecPrtn  vecPrtn;
+	vecPrtn.ownerInfo.Resize( sizeMat );
+	IntNumVec&  vecOwner = vecPrtn.ownerInfo;
+	for( Int i = 0; i < sizeMat; i++ ){
+		vecOwner(i) = std::min( i / numColFirst, mpisize - 1 );
+	}
+
+	// nonzero row indices distributedly saved according to column partitions.
+	DistVec<Int, std::vector<Int>, VecPrtn>   distRow;
+	// nonzero values distributedly saved according to column partitions.
+	DistVec<Int, std::vector<F>,   VecPrtn>   distVal;
+
+	distRow.Prtn() = vecPrtn;
+	distVal.Prtn() = vecPrtn;
+
+	std::set<Int>  ownerSet;
+
+	// Convert DistElemMat to intermediate data structure
+	for( typename std::map<ElemMatKey, NumMat<F> >::const_iterator 
+			 mi  = distMat.LocalMap().begin();
+			 mi != distMat.LocalMap().end(); mi++ ){
+		ElemMatKey elemKey = (*mi).first;
+		if( distMat.Prtn().Owner( elemKey ) == mpirank ){
+			Index3 key1 = elemKey.first;
+			Index3 key2 = elemKey.second;
+			const std::vector<Int>& idx1 = basisIdx( key1(0), key1(1), key1(2) );
+			const std::vector<Int>& idx2 = basisIdx( key2(0), key2(1), key2(2) );
+			const NumMat<F>& localMat = (*mi).second;
+			// Skip if there is no basis functions.
+			if( localMat.Size() == 0 )
+				continue;
+
+			if( localMat.m() != idx1.size() ||
+					localMat.n() != idx2.size() ){
+				std::ostringstream msg;
+				msg 
+					<< "Local matrix size is not consistent." << std::endl
+					<< "localMat   size : " << localMat.m() << " x " << localMat.n() << std::endl
+					<< "idx1       size : " << idx1.size() << std::endl
+					<< "idx2       size : " << idx2.size() << std::endl;
+				throw std::runtime_error( msg.str().c_str() );
+			}
+
+			// Distribute the matrix element and row indices to intermediate
+			// data structure in an element by element fashion.
+
+			for( Int a = 0; a < localMat.m(); a++ ){
+				Int row = idx1[a];
+				ownerSet.insert( row );
+				std::vector<Int>& vecRow = distRow.LocalMap()[row];
+				std::vector<F>& vecVal = distVal.LocalMap()[row];
+				for( Int b = 0; b < localMat.n(); b++ ){
+					vecRow.push_back( idx2[b] + 1 );
+					vecVal.push_back( localMat( a, b ) );
+				}
+			} // for (a)
+		} // own this matrix block
+	} // for (mi)
+
+#if ( _DEBUGlevel_ >= 2 )
+	if( mpirank == 0 ){
+		for( typename std::map<Int, std::vector<Int> >::const_iterator 
+				mi  = distRow.LocalMap().begin();
+				mi != distRow.LocalMap().end(); mi++ ){
+			std::cout << "Row " << (*mi).first << std::endl << (*mi).second << std::endl;
+		}
+		for( typename std::map<Int, std::vector<F> >::const_iterator 
+				mi  = distVal.LocalMap().begin();
+				mi != distVal.LocalMap().end(); mi++ ){
+			std::cout << "Row " << (*mi).first << std::endl << (*mi).second << std::endl;
+		}
+	}
+#endif
+
+
+	// Communication of the matrix
+	{
+
+		std::vector<Int>  keyIdx;
+		keyIdx.insert( keyIdx.end(), ownerSet.begin(), ownerSet.end() );
+//		std::cout << keyIdx << std::endl;
+//		std::cout << vecOwner << std::endl;
+
+		distRow.PutBegin( keyIdx, NO_MASK );
+		distVal.PutBegin( keyIdx, NO_MASK );
+
+		distRow.PutEnd( NO_MASK, PutMode::REPLACE );
+		distVal.PutEnd( NO_MASK, PutMode::REPLACE );
+
+		// Clean to save space
+		std::vector<Int>  eraseKey;
+		for( typename std::map<Int, std::vector<Int> >::iterator 
+				 mi  = distRow.LocalMap().begin();
+				 mi != distRow.LocalMap().end(); mi++ ){
+			Int key = (*mi).first;
+			if( distRow.Prtn().Owner( key ) != mpirank ){
+				eraseKey.push_back( key );
+			}
+		} // for (mi)
+
+		for( std::vector<Int>::iterator vi = eraseKey.begin();
+				 vi != eraseKey.end(); vi++ ){
+			distRow.LocalMap().erase( *vi );
+			distVal.LocalMap().erase( *vi );
+		}	
+	}
+
+	// Copy the values from intermediate data structure to distSparseMat
+	{
+		// Global information
+		distSparseMat.size        = sizeMat;
+		// Note the 1-based convention
+		distSparseMat.firstCol    = firstCol + 1;
+		distSparseMat.comm        = comm;
+
+		// Local information
+		IntNumVec& colptrLocal = distSparseMat.colptrLocal;
+		IntNumVec& rowindLocal = distSparseMat.rowindLocal;
+		NumVec<F>& nzvalLocal  = distSparseMat.nzvalLocal;
+
+		Int nnzLocal = 0;
+		Int nnz = 0;
+		colptrLocal.Resize( numColLocal + 1 );
+		colptrLocal[0] = 1;
+
+		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
+			if( distRow.Prtn().Owner( row ) != mpirank ){
+				throw std::runtime_error( "The owner information in distRow is incorrect.");
+			}
+			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
+			nnzLocal += rowVec.size();
+			Int cur = row - firstCol;
+			colptrLocal[cur+1] = colptrLocal[cur] + rowVec.size();
+		}	
+
+		mpi::Allreduce( &nnzLocal, &nnz, 1, MPI_SUM, comm );
+
+		rowindLocal.Resize( nnzLocal );
+		nzvalLocal.Resize( nnzLocal );
+
+		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
+			if( distRow.Prtn().Owner( row ) != mpirank ){
+				throw std::runtime_error( "The owner information in distRow is incorrect.");
+			}
+			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
+			std::vector<F>&    valVec = distVal.LocalMap()[row];
+			Int cur = row - firstCol;
+			std::copy( rowVec.begin(), rowVec.end(), &rowindLocal[colptrLocal[cur]-1] );
+			std::copy( valVec.begin(), valVec.end(), &nzvalLocal[colptrLocal[cur]-1] );
+		}	
+
+
+		// Other global and local information
+		distSparseMat.nnzLocal = nnzLocal;
+		distSparseMat.nnz      = nnz;
+
+	}
+
+
+	// Initialize the output sparse matrix, and convert the data structure
+	distSparseMat.comm = comm;
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return;
+}  // -----  end of function DistElemMatToDistSparseMat  ----- 
+
+
+/// @brief Convert a DistSparseMatrix distributed in compressed sparse
+/// column format to a matrix distributed block-cyclicly as in
+/// ScaLAPACK.
+///
+/// NOTE: 
+///
+/// 1. This subroutine assumes that proper descriptor has been given
+/// by desc, which agrees with distMat.
+///
+/// 2. This subroutine is mainly used for converting a DistSparseMatrix
+/// read from input file to ScaLAPACK format for diagonalization
+/// purpose.
+///
+template<typename F>
+void DistSparseMatToScaMat(
+		const DistSparseMatrix<F>&                           distMat,
+		const scalapack::Descriptor&                         desc, 
+		scalapack::ScaLAPACKMatrix<F>&                       scaMat,
+	  MPI_Comm  	                                         comm ){
+#ifndef _RELEASE_
+	PushCallStack("DistSparseMatToScaMat");
+#endif
+	using namespace dgdft::scalapack;
+
+	Int mpirank, mpisize;
+	MPI_Comm_rank( comm, &mpirank );
+	MPI_Comm_size( comm, &mpisize );
+
+	Int nprow  = desc.NpRow();
+	Int npcol  = desc.NpCol();
+	Int myprow = desc.MypRow();
+	Int mypcol = desc.MypCol();
+
+	scaMat.SetDescriptor( desc );
+
+	{
+    std::vector<F>& vec = scaMat.LocalMatrix();
+		for( Int i = 0; i < vec.size(); i++ ){
+			vec[i] = (F) 0.0;
+		}
+	}
+
+	Int MB = scaMat.MB(); 
+	Int NB = scaMat.NB();
+
+	if( MB != NB ){
+		throw std::runtime_error("MB must be equal to NB.");
+	}
+
+	Int numRowBlock = scaMat.NumRowBlocks();
+	Int numColBlock = scaMat.NumColBlocks();
+
+	// Get the processor map
+	IntNumMat  procGrid( nprow, npcol );
+	SetValue( procGrid, 0 );
+	{
+		IntNumMat  procTmp( nprow, npcol );
+		SetValue( procTmp, 0 );
+		procTmp( myprow, mypcol ) = mpirank;
+		mpi::Allreduce( procTmp.Data(), procGrid.Data(), nprow * npcol,
+				MPI_SUM, comm );
+	}
+
+
+	BlockMatPrtn  blockPrtn;
+	blockPrtn.ownerInfo.Resize( numRowBlock, numColBlock );
+	IntNumMat&    blockOwner = blockPrtn.ownerInfo;
+	for( Int jb = 0; jb < numColBlock; jb++ ){
+		for( Int ib = 0; ib < numRowBlock; ib++ ){
+			blockOwner( ib, jb ) = procGrid( ib % nprow, jb % npcol );
+		}
+	}
+
+	// Intermediate variable for constructing the distributed matrix in
+	// ScaLAPACK format.  
+  DistVec<Index2, NumMat<F>, BlockMatPrtn> distScaMat;
+	distScaMat.Prtn() = blockPrtn;
+
+	// Initialize
+	DblNumMat empty( MB, MB );
+	SetValue( empty, 0.0 );
+	for( Int jb = 0; jb < numColBlock; jb++ )
+		for( Int ib = 0; ib < numRowBlock; ib++ ){
+			Index2 key( ib, jb );
+			if( distScaMat.Prtn().Owner( key ) == mpirank ){
+				distScaMat.LocalMap()[key] = empty;
+			}
+		} // for (ib)
+
+	// Convert a DistSparseMatrix in Compressed Sparse Column format to distScaMat
+	// Compute the local column partition in DistSparseMatrix 
+	Int sizeMat = distMat.size;
+	Int numColFirst = sizeMat / mpisize;
+	Int firstCol = mpirank * numColFirst;
+	Int numColLocal;
+	if( mpirank == mpisize - 1 )
+		numColLocal = sizeMat - numColFirst * (mpisize - 1 );
+	else
+		numColLocal = numColFirst;
+
+	// TODO Check the consistency of communicator
+
+	// Local information 
+	const IntNumVec& colptrLocal = distMat.colptrLocal;
+	const IntNumVec& rowindLocal = distMat.rowindLocal;
+	const NumVec<F>& nzvalLocal  = distMat.nzvalLocal;
+
+	Int row, col, ib, jb, io, jo;
+	F   val;
+
+	for( Int j = 0; j < numColLocal; j++ ){
+		col = firstCol + j;
+		for( Int i = colptrLocal(j)-1; 
+				 i < colptrLocal(j+1)-1; i++ ){
+			row = rowindLocal(i) - 1;
+			val = nzvalLocal(i);
+
+			ib = row / MB;
+			jb = col / MB;
+			io = row % MB;
+			jo = col % MB;
+			typename std::map<Index2, NumMat<F> >::iterator 
+				ni = distScaMat.LocalMap().find( Index2(ib, jb) );
+			// Contributes to blocks not owned by the current processor
+			if( ni == distScaMat.LocalMap().end() ){
+				distScaMat.LocalMap()[Index2(ib, jb)] = empty;
+				ni = distScaMat.LocalMap().find( Index2(ib, jb) );
+			}
+			DblNumMat&  mat = (*ni).second;
+			mat(io, jo) += val;
+		} // for (i)
+	} // for (j)
+	
+	// Communication of the matrix
+	{
+		// Prepare
+		std::vector<Index2>  keyIdx;
+		for( typename std::map<Index2, NumMat<F> >::iterator 
+				 mi  = distScaMat.LocalMap().begin();
+				 mi != distScaMat.LocalMap().end(); mi++ ){
+			Index2 key = (*mi).first;
+			if( distScaMat.Prtn().Owner( key ) != mpirank ){
+				keyIdx.push_back( key );
+			}
+		} // for (mi)
+
+		// Communication
+		distScaMat.PutBegin( keyIdx, NO_MASK );
+		distScaMat.PutEnd( NO_MASK, PutMode::COMBINE );
+
+		// Clean to save space
+		std::vector<Index2>  eraseKey;
+		for( typename std::map<Index2, NumMat<F> >::iterator 
+				 mi  = distScaMat.LocalMap().begin();
+				 mi != distScaMat.LocalMap().end(); mi++ ){
+			Index2 key = (*mi).first;
+			if( distScaMat.Prtn().Owner( key ) != mpirank ){
+				eraseKey.push_back( key );
+			}
+		} // for (mi)
+
+		for( std::vector<Index2>::iterator vi = eraseKey.begin();
+				 vi != eraseKey.end(); vi++ ){
+			distScaMat.LocalMap().erase( *vi );
+		}	
+	}
+
+	// Copy the matrix values from distScaMat to scaMat
+	{
+		for( typename std::map<Index2, NumMat<F> >::iterator 
+				 mi  = distScaMat.LocalMap().begin();
+				 mi != distScaMat.LocalMap().end(); mi++ ){
+			Index2 key = (*mi).first;
+			if( distScaMat.Prtn().Owner( key ) == mpirank ){
+				Int ib = key(0), jb = key(1);
+				Int offset = ( jb / npcol ) * MB * scaMat.LocalLDim() + 
+					( ib / nprow ) * MB;
+				lapack::Lacpy( 'A', MB, MB, (*mi).second.Data(),
+						MB, scaMat.Data() + offset, scaMat.LocalLDim() );
+			} // own this block
+		} // for (mi)
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return;
+}  // -----  end of function DistElemMatToScaMat  ----- 
 
 
 /// @brief Computes the inner product of three terms.

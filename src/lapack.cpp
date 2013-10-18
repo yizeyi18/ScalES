@@ -1,6 +1,47 @@
+/*
+	 Copyright (c) 2012 The Regents of the University of California,
+	 through Lawrence Berkeley National Laboratory.  
+
+   Authors: Jack Poulson and Lin Lin
+	 
+   This file is part of DGDFT. All rights reserved.
+
+	 Redistribution and use in source and binary forms, with or without
+	 modification, are permitted provided that the following conditions are met:
+
+	 (1) Redistributions of source code must retain the above copyright notice, this
+	 list of conditions and the following disclaimer.
+	 (2) Redistributions in binary form must reproduce the above copyright notice,
+	 this list of conditions and the following disclaimer in the documentation
+	 and/or other materials provided with the distribution.
+	 (3) Neither the name of the University of California, Lawrence Berkeley
+	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+	 be used to endorse or promote products derived from this software without
+	 specific prior written permission.
+
+	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+	 You are under no obligation whatsoever to provide any bug fixes, patches, or
+	 upgrades to the features, functionality or performance of the source code
+	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
+	 available either publicly, or directly to Lawrence Berkeley National
+	 Laboratory, without imposing a separate written license agreement for such
+	 Enhancements, then you hereby grant the following license: a non-exclusive,
+	 royalty-free perpetual license to install, use, modify, prepare derivative
+	 works, incorporate into other computer software, distribute, and sublicense
+	 such enhancements or derivative works thereof, in binary and source code form.
+*/
 /// @file lapack.cpp
 /// @brief Thin interface to LAPACK
-/// @author Jack Poulson and Lin Lin
 /// @date 2012-09-12
 #include "lapack.hpp"
 
@@ -67,6 +108,15 @@ void LAPACK(zhegst)
 ( const Int* itype, const char* uplo, const Int* n,
         dcomplex* A, const Int* lda,
   const dcomplex* B, const Int* ldb, Int* info );
+
+// For solving the standard eigenvalue problem using the divide and
+// conquer algorithm
+// TODO all versions
+void LAPACK(dsyevd)
+( const char *jobz, const char *uplo, const Int *n, 
+	double *A, const Int *lda, double *W, double *work, 
+	const int *lwork, Int *iwork, const int *liwork, int *info );
+
 
 // Triangular inversion
 void LAPACK(strtri)
@@ -442,6 +492,42 @@ void Hegst
         msg << "zhegst returned with info = " << info;
         throw std::logic_error( msg.str().c_str() );
     }
+#ifndef _RELEASE_
+    PopCallStack();
+#endif
+}
+
+// *********************************************************************
+// For solving the standard eigenvalue problem using the divide and
+// conquer algorithm
+// *********************************************************************
+
+void Syevd
+( char jobz, char uplo, Int n, double* A, Int lda, double* eigs ){
+#ifndef _RELEASE_
+	PushCallStack("lapack::Syevd");
+#endif
+	Int lwork = -1, info;
+	Int liwork = -1;
+	std::vector<double> work(1);
+	std::vector<int>    iwork(1);
+
+	LAPACK(dsyevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
+		 &lwork, &iwork[0], &liwork, &info );
+	lwork = (Int)work[0];
+	work.resize(lwork);
+	liwork = iwork[0];
+	iwork.resize(liwork);
+	
+	LAPACK(dsyevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
+		 &lwork, &iwork[0], &liwork, &info );
+
+	if( info != 0 )
+	{
+		std::ostringstream msg;
+		msg << "syevd returned with info = " << info;
+		throw std::logic_error( msg.str().c_str() );
+	}
 #ifndef _RELEASE_
     PopCallStack();
 #endif

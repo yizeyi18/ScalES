@@ -1,7 +1,47 @@
+/*
+	 Copyright (c) 2012 The Regents of the University of California,
+	 through Lawrence Berkeley National Laboratory.  
+
+   Author: Lin Lin
+	 
+   This file is part of DGDFT. All rights reserved.
+
+	 Redistribution and use in source and binary forms, with or without
+	 modification, are permitted provided that the following conditions are met:
+
+	 (1) Redistributions of source code must retain the above copyright notice, this
+	 list of conditions and the following disclaimer.
+	 (2) Redistributions in binary form must reproduce the above copyright notice,
+	 this list of conditions and the following disclaimer in the documentation
+	 and/or other materials provided with the distribution.
+	 (3) Neither the name of the University of California, Lawrence Berkeley
+	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+	 be used to endorse or promote products derived from this software without
+	 specific prior written permission.
+
+	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+	 You are under no obligation whatsoever to provide any bug fixes, patches, or
+	 upgrades to the features, functionality or performance of the source code
+	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
+	 available either publicly, or directly to Lawrence Berkeley National
+	 Laboratory, without imposing a separate written license agreement for such
+	 Enhancements, then you hereby grant the following license: a non-exclusive,
+	 royalty-free perpetual license to install, use, modify, prepare derivative
+	 works, incorporate into other computer software, distribute, and sublicense
+	 such enhancements or derivative works thereof, in binary and source code form.
+*/
 /// @file dgdft.cpp
 /// @brief Main driver for DGDFT for self-consistent field iteration.
-///
-/// @author Lin Lin
 /// @date 2013-02-11
 #include "dgdft.hpp"
 
@@ -82,23 +122,23 @@ int main(int argc, char **argv)
 
 		ESDFReadInput( esdfParam, inFile.c_str() );
 
-		// Adjust the input parameters
-		{
-			bool isGridAdjusted = false;
-			Index3& numGrid = esdfParam.domain.numGrid;
-			Index3& numElem = esdfParam.numElem;
-			for( Int d = 0; d < DIM; d++ ){
-				if( numGrid[d] % numElem[d] != 0 ){
-					numGrid[d] = IRound( (Real)numGrid[d] / numElem[d] ) * numElem[d];
-					isGridAdjusted = true;
-				}
-			}
-			if( isGridAdjusted ){
-				statusOFS << std::endl 
-					<< "Grid size is adjusted to be a multiple of the number of elements." 
-					<< std::endl;
-			}
-		}
+		// The number of grid points have already been adjusted in ESDFReadInput.
+//		{
+//			bool isGridAdjusted = false;
+//			Index3& numGrid = esdfParam.domain.numGrid;
+//			Index3& numElem = esdfParam.numElem;
+//			for( Int d = 0; d < DIM; d++ ){
+//				if( numGrid[d] % numElem[d] != 0 ){
+//					numGrid[d] = IRound( (Real)numGrid[d] / numElem[d] ) * numElem[d];
+//					isGridAdjusted = true;
+//				}
+//			}
+//			if( isGridAdjusted ){
+//				statusOFS << std::endl 
+//					<< "Grid size is adjusted to be a multiple of the number of elements." 
+//					<< std::endl;
+//			}
+//		}
 
 		// Print the initial state
 		{
@@ -107,6 +147,7 @@ int main(int argc, char **argv)
 			Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
 			Print(statusOFS, "Grid size         = ",  esdfParam.domain.numGrid ); 
 			Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
+			Print(statusOFS, "Mixing variable   = ",  esdfParam.mixVariable );
 			Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
 			Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
 			Print(statusOFS, "SCF Outer Tol     = ",  esdfParam.scfOuterTolerance);
@@ -120,12 +161,20 @@ int main(int argc, char **argv)
 			Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
 			Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
 			Print(statusOFS, "OutputDensity     = ",  esdfParam.isOutputDensity);
-			Print(statusOFS, "OutputWfn         = ",  esdfParam.isOutputWfn);
-			Print(statusOFS, "Calculate A Posteriori error estimator at each step = ",  
-					esdfParam.isCalculateAPosterioriEachSCF);
-			Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
-			Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
-			Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
+			Print(statusOFS, "OutputWfnElem     = ",  esdfParam.isOutputWfnElem);
+			Print(statusOFS, "OutputWfnExtElem  = ",  esdfParam.isOutputWfnExtElem);
+			Print(statusOFS, "OutputPotExtElem  = ",  esdfParam.isOutputPotExtElem);
+			Print(statusOFS, "OutputHMatrix     = ",  esdfParam.isOutputHMatrix );
+
+			Print(statusOFS, "PeriodizePotential= ",  esdfParam.isPeriodizePotential);
+			Print(statusOFS, "DistancePeriodize = ",  esdfParam.distancePeriodize);
+
+//			Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
+//			Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
+//			Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
+			Print(statusOFS, "EcutWavefunction  = ",  esdfParam.ecutWavefunction);
+			Print(statusOFS, "Density GridFactor= ",  esdfParam.densityGridFactor);
+			Print(statusOFS, "LGL GridFactor    = ",  esdfParam.LGLGridFactor);
 
 			Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
 			Print(statusOFS, "Extra states      = ",  esdfParam.numExtraState );
@@ -136,10 +185,16 @@ int main(int argc, char **argv)
 
 			Print(statusOFS, "Penalty Alpha     = ",  esdfParam.penaltyAlpha );
 			Print(statusOFS, "Element size      = ",  esdfParam.numElem ); 
+			Print(statusOFS, "Wfn Elem GridSize = ",  esdfParam.numGridWavefunctionElem ); 
 			Print(statusOFS, "LGL Grid size     = ",  esdfParam.numGridLGL ); 
 			Print(statusOFS, "ScaLAPACK block   = ",  esdfParam.scaBlockSize); 
 			statusOFS << "Number of ALB for each element: " << std::endl 
 				<< esdfParam.numALBElem << std::endl;
+
+			Print(statusOFS, "Calculate force at each step                        = ",  
+					esdfParam.isCalculateForceEachSCF );
+			Print(statusOFS, "Calculate A Posteriori error estimator at each step = ",  
+					esdfParam.isCalculateAPosterioriEachSCF);
 
 
 			PrintBlock(statusOFS, "Atom Type and Coordinates");
@@ -231,16 +286,16 @@ int main(int argc, char **argv)
 								// Assume the global domain starts from 0.0
 								if( numElem[d] == 1 ){
 									dmExtElem.length[d]     = dm.length[d];
-									dmExtElem.numGrid[d]    = dm.numGrid[d];
+									dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d];
 									dmExtElem.posStart[d]   = 0.0;
 								}
-								else if ( numElem[d] >= 4 ){
+								else if ( numElem[d] >= 3 ){
 									dmExtElem.length[d]     = dm.length[d]  / numElem[d] * 3;
-									dmExtElem.numGrid[d]    = dm.numGrid[d] / numElem[d] * 3;
+									dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d] * 3;
 									dmExtElem.posStart[d]   = dm.length[d]  / numElem[d] * ( key[d] - 1 );
 								}
 								else{
-									throw std::runtime_error( "numElem[d] is either 1 or >=4." );
+									throw std::runtime_error( "numElem[d] is either 1 or >=3." );
 								}
 
 								// Do not specify the communicator for the domain yet
@@ -313,15 +368,18 @@ int main(int argc, char **argv)
 								}
 							} // for (d)
 
+#if 0
 							statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
 							statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
 							statusOFS << "gridpos[2] = " << std::endl << gridpos[2] << std::endl;
 							statusOFS << "vBarrier[0] = " << std::endl << vBarrier[0] << std::endl;
 							statusOFS << "vBarrier[1] = " << std::endl << vBarrier[1] << std::endl;
 							statusOFS << "vBarrier[2] = " << std::endl << vBarrier[2] << std::endl;
+#endif
 
 							DblNumVec& vext = hamKS.Vext();
 							SetValue( vext, 0.0 );
+#if 0
 							for( Int gk = 0; gk < dmExtElem.numGrid[2]; gk++)
 								for( Int gj = 0; gj < dmExtElem.numGrid[1]; gj++ )
 									for( Int gi = 0; gi < dmExtElem.numGrid[0]; gi++ ){
@@ -329,8 +387,8 @@ int main(int argc, char **argv)
 											gk * dmExtElem.numGrid[0] * dmExtElem.numGrid[1];
 										vext[idx] = vBarrier[0][gi] + vBarrier[1][gj] + vBarrier[2][gk];
 									} // for (gi)
+#endif
 							
-
 							hamKS.CalculatePseudoPotential( ptable );
 
 							statusOFS << "Hamiltonian constructed." << std::endl;
@@ -388,13 +446,17 @@ int main(int argc, char **argv)
 		
 
 		// Print out the force
-		PrintBlock( statusOFS, "Force" );
+		PrintBlock( statusOFS, "Atomic Force" );
 		{
+			Point3 forceCM(0.0, 0.0, 0.0);
 			std::vector<Atom>& atomList = hamDG.AtomList();
 			Int numAtom = atomList.size();
 			for( Int a = 0; a < numAtom; a++ ){
-				Print( statusOFS, "Atom", a, "Force", atomList[a].force );
+				Print( statusOFS, "atom", a, "force", atomList[a].force );
+				forceCM += atomList[a].force;
 			}
+			statusOFS << std::endl;
+			Print( statusOFS, "force for centroid: ", forceCM );
 			statusOFS << std::endl;
 		}
 

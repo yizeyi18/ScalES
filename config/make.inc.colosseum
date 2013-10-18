@@ -1,6 +1,6 @@
 #/usr/bin/bash
 
-DGDFT_DIR     = /Users/linlin/Projects/NoPetscEO
+DGDFT_DIR     = /Users/linlin/Projects/dgdft
 
 SCALAR = REAL 
 #SCALAR = COMPLEX
