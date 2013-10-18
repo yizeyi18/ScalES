@@ -924,7 +924,7 @@ SCFDG::Iterate	(  )
 #endif
 
 		// *********************************************************************
-		// Post processing (mixing only)
+		// Post processing 
 		// *********************************************************************
 		
 
@@ -992,56 +992,6 @@ SCFDG::Iterate	(  )
 		// It seems that no mixing is the best.
 	
 
-
-
-		// Compute the force at every step
-		if( isCalculateForceEachSCF_ ){
-			// Compute force
-			GetTime( timeSta );
-			hamDG.CalculateForce( *distfftPtr_ );
-			GetTime( timeEnd );
-			statusOFS << "Time for computing the force is " <<
-				timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-			// Print out the force
-			PrintBlock( statusOFS, "Atomic Force" );
-			{
-				Point3 forceCM(0.0, 0.0, 0.0);
-				std::vector<Atom>& atomList = hamDG.AtomList();
-				Int numAtom = atomList.size();
-				for( Int a = 0; a < numAtom; a++ ){
-					Print( statusOFS, "atom", a, "force", atomList[a].force );
-					forceCM += atomList[a].force;
-				}
-				statusOFS << std::endl;
-				Print( statusOFS, "force for centroid: ", forceCM );
-				statusOFS << std::endl;
-			}
-		}
-
-		// Compute the a posteriori error estimator at every step
-		if( isCalculateAPosterioriEachSCF_ )
-		{
-			GetTime( timeSta );
-			DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-			hamDG.CalculateAPosterioriError( 
-					eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-			GetTime( timeEnd );
-			statusOFS << "Time for computing the a posteriori error is " <<
-				timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-			PrintBlock( statusOFS, "A Posteriori error" );
-			{
-				statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-				statusOFS << eta2Total << std::endl;
-				statusOFS << std::endl << "Residual term:" << std::endl;
-				statusOFS << eta2Residual << std::endl;
-				statusOFS << std::endl << "Jump of gradient term:" << std::endl;
-				statusOFS << eta2GradJump << std::endl;
-				statusOFS << std::endl << "Jump of function value term:" << std::endl;
-				statusOFS << eta2Jump << std::endl;
-			}
-		}
 
 
 		// Output the electron density
@@ -1366,6 +1316,59 @@ SCFDG::InnerIterate	(  )
 			hamDG.CalculateVtot( hamDG.Vtot() );
 
 		}
+
+
+		// Compute the force at every step
+		if( isCalculateForceEachSCF_ ){
+			// Compute force
+			GetTime( timeSta );
+			hamDG.CalculateForce( *distfftPtr_ );
+			GetTime( timeEnd );
+			statusOFS << "Time for computing the force is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+			// Print out the force
+			PrintBlock( statusOFS, "Atomic Force" );
+			{
+				Point3 forceCM(0.0, 0.0, 0.0);
+				std::vector<Atom>& atomList = hamDG.AtomList();
+				Int numAtom = atomList.size();
+				for( Int a = 0; a < numAtom; a++ ){
+					Print( statusOFS, "atom", a, "force", atomList[a].force );
+					forceCM += atomList[a].force;
+				}
+				statusOFS << std::endl;
+				Print( statusOFS, "force for centroid: ", forceCM );
+				statusOFS << std::endl;
+			}
+		}
+
+		// Compute the a posteriori error estimator at every step
+		if( isCalculateAPosterioriEachSCF_ )
+		{
+			GetTime( timeSta );
+			DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
+			hamDG.CalculateAPosterioriError( 
+					eta2Total, eta2Residual, eta2GradJump, eta2Jump );
+			GetTime( timeEnd );
+			statusOFS << "Time for computing the a posteriori error is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+			PrintBlock( statusOFS, "A Posteriori error" );
+			{
+				statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+				statusOFS << eta2Total << std::endl;
+				statusOFS << std::endl << "Residual term:" << std::endl;
+				statusOFS << eta2Residual << std::endl;
+				statusOFS << std::endl << "Jump of gradient term:" << std::endl;
+				statusOFS << eta2GradJump << std::endl;
+				statusOFS << std::endl << "Jump of function value term:" << std::endl;
+				statusOFS << eta2Jump << std::endl;
+			}
+		}
+
+
+
 
 		// Compute the error of the mixing variable
 

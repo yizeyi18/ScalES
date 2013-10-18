@@ -140,6 +140,10 @@ public:
 
 	virtual void CalculateVtot( DblNumVec& vtot ) = 0;
 
+	/// @brief Calculate the Hellmann-Feynman force for each atom.
+	virtual void CalculateForce ( Spinor& psi, Fourier& fft ) = 0;
+
+
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft) = 0;
 
@@ -208,6 +212,10 @@ public:
 	virtual void CalculateHartree( Fourier& fft );
 	
 	virtual void CalculateVtot( DblNumVec& vtot );
+
+	/// @brief Calculate the Hellmann-Feynman force for each atom.
+	virtual void CalculateForce ( Spinor& psi, Fourier& fft );
+
 
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft);

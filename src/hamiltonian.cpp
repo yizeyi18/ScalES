@@ -423,6 +423,177 @@ KohnSham::CalculateVtot	( DblNumVec& vtot  )
 
 
 void
+KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::CalculateForce");
+#endif
+
+  Int ntot      = fft.numGridTotal;
+	Int numAtom   = atomList_.size();
+
+	DblNumMat  force( numAtom, DIM );
+	SetValue( force, 0.0 );
+
+	// *********************************************************************
+	// Compute the derivative of the Hartree potential for computing the 
+	// local pseudopotential contribution to the Hellmann-Feynman force
+	// *********************************************************************
+	DblNumVec               vhart;
+	std::vector<DblNumVec>  vhartDrv(DIM);
+
+	DblNumVec  tempVec(ntot);
+	SetValue( tempVec, 0.0 );
+
+	// tempVec = density_ - pseudoCharge_
+	blas::Copy( ntot, density_.VecData(0), 1, tempVec.Data(), 1 );
+	blas::Axpy( ntot, -1.0, pseudoCharge_.Data(),1,
+			tempVec.Data(), 1 );
+	
+	// cpxVec saves the Fourier transform of 
+	// density_ - pseudoCharge_ 
+	CpxNumVec  cpxVec( tempVec.Size() );
+
+	for( Int i = 0; i < ntot; i++ ){
+		fft.inputComplexVec(i) = Complex( 
+				tempVec(i), 0.0 );
+	}
+
+	fftw_execute( fft.forwardPlan );
+
+	blas::Copy( ntot, fft.outputComplexVec.Data(), 1,
+			cpxVec.Data(), 1 );
+
+	// Compute the derivative of the Hartree potential via Fourier
+	// transform 
+	{
+		for( Int i = 0; i < ntot; i++ ){
+			if( fft.gkk(i) == 0 ){
+				fft.outputComplexVec(i) = Z_ZERO;
+			}
+			else{
+				// NOTE: gkk already contains the factor 1/2.
+				fft.outputComplexVec(i) = cpxVec(i) *
+					2.0 * PI / fft.gkk(i);
+			}
+		}
+
+		fftw_execute( fft.backwardPlan );
+
+		vhart.Resize( ntot );
+
+		for( Int i = 0; i < ntot; i++ ){
+			vhart(i) = fft.inputComplexVec(i).real() / ntot;
+		}
+	}
+	
+	for( Int d = 0; d < DIM; d++ ){
+		CpxNumVec& ik = fft.ik[d];
+		for( Int i = 0; i < ntot; i++ ){
+			if( fft.gkk(i) == 0 ){
+				fft.outputComplexVec(i) = Z_ZERO;
+			}
+			else{
+				// NOTE: gkk already contains the factor 1/2.
+				fft.outputComplexVec(i) = cpxVec(i) *
+					2.0 * PI / fft.gkk(i) * ik(i);
+			}
+		}
+
+		fftw_execute( fft.backwardPlan );
+
+		// vhartDrv saves the derivative of the Hartree potential
+		vhartDrv[d].Resize( ntot );
+
+		for( Int i = 0; i < ntot; i++ ){
+			vhartDrv[d](i) = fft.inputComplexVec(i).real() / ntot;
+		}
+
+	} // for (d)
+
+
+	// *********************************************************************
+	// Compute the force from local pseudopotential
+	// *********************************************************************
+	// Method 1: Using the derivative of the pseudopotential
+	if(1){
+		for (Int a=0; a<numAtom; a++) {
+			PseudoPot& pp = pseudo_[a];
+			SparseVec& sp = pp.pseudoCharge;
+			IntNumVec& idx = sp.first;
+			DblNumMat& val = sp.second;
+
+			Real wgt = domain_.Volume() / domain_.NumGridTotal();
+			Real resX = 0.0;
+			Real resY = 0.0;
+			Real resZ = 0.0;
+			for( Int l = 0; l < idx.m(); l++ ){
+				resX -= val(l, DX) * vhart[idx(l)] * wgt;
+				resY -= val(l, DY) * vhart[idx(l)] * wgt;
+				resZ -= val(l, DZ) * vhart[idx(l)] * wgt;
+			}
+			force( a, 0 ) += resX;
+			force( a, 1 ) += resY;
+			force( a, 2 ) += resZ;
+
+		} // for (a)
+	}
+
+
+	// *********************************************************************
+	// Compute the force from nonlocal pseudopotential
+	// *********************************************************************
+	{
+		// Loop over atoms and pseudopotentials
+		Int numEig = occupationRate_.m();
+
+		for( Int a = 0; a < numAtom; a++ ){
+			std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlList;
+			for( Int l = 0; l < vnlList.size(); l++ ){
+				SparseVec& bl = vnlList[l].first;
+				Real  gamma   = vnlList[l].second;
+				Real wgt = domain_.Volume() / domain_.NumGridTotal();
+				IntNumVec& idx = bl.first;
+				DblNumMat& val = bl.second;
+
+				for( Int g = 0; g < numEig; g++ ){
+					DblNumVec res(4);
+					SetValue( res, 0.0 );
+					Real* psiPtr = psi.Wavefun().VecData(0, g);
+					for( Int i = 0; i < idx.Size(); i++ ){
+						res(VAL) += val(i, VAL ) * psiPtr[ idx(i) ] * sqrt(wgt);
+						res(DX) += val(i, DX ) * psiPtr[ idx(i) ] * sqrt(wgt);
+						res(DY) += val(i, DY ) * psiPtr[ idx(i) ] * sqrt(wgt);
+						res(DZ) += val(i, DZ ) * psiPtr[ idx(i) ] * sqrt(wgt);
+					}
+
+					force( a, 0 ) += 4.0 * occupationRate_(g) * gamma * res[VAL] * res[DX];
+					force( a, 1 ) += 4.0 * occupationRate_(g) * gamma * res[VAL] * res[DY];
+					force( a, 2 ) += 4.0 * occupationRate_(g) * gamma * res[VAL] * res[DZ];
+				} // for (g)
+			} // for (l)
+		} // for (a)
+
+	}
+
+
+	// *********************************************************************
+	// Compute the total force and give the value to atomList
+	// *********************************************************************
+
+	for( Int a = 0; a < numAtom; a++ ){
+		atomList_[a].force = Point3( force(a,0), force(a,1), force(a,2) );
+	} 
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method KohnSham::CalculateForce  ----- 
+
+void
 KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 {
 #ifndef _RELEASE_

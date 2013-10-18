@@ -1995,6 +1995,11 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 			sscanf(block_data[0],"%d %d %d", 
 					&numElem[0],&numElem[1],&numElem[2]);
 		}
+		else{
+			numElem(0) = 1;
+			numElem(1) = 1;
+			numElem(2) = 1;
+		}
 
 		// Instead of grid size, use ecut to determine the number of grid
 		// points in the local LGL domain.
