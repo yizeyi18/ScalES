@@ -9,7 +9,7 @@ OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 EXES = ${SRCS:.cpp=}	
 
-pwdft: pwdft.o ${pwdft_LIB} 
+pwdft: pwdft.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ pwdft.o $(LOADOPTS) )
 
 dgdft: dgdft.o ${DGDFT_LIB} 

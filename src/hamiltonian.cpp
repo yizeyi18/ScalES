@@ -446,6 +446,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 	SetValue( tempVec, 0.0 );
 
 	// tempVec = density_ - pseudoCharge_
+	// FIXME No density
 	blas::Copy( ntot, density_.VecData(0), 1, tempVec.Data(), 1 );
 	blas::Axpy( ntot, -1.0, pseudoCharge_.Data(),1,
 			tempVec.Data(), 1 );
@@ -543,6 +544,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 	// *********************************************************************
 	// Compute the force from nonlocal pseudopotential
 	// *********************************************************************
+	if(1)
 	{
 		// Loop over atoms and pseudopotentials
 		Int numEig = occupationRate_.m();
