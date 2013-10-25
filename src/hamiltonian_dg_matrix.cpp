@@ -447,6 +447,10 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	// 2) Local potential
 	// 3) Intra-element part of boundary terms
 	{
+#ifdef _USE_OPENMP_
+//#pragma omp parallel shared
+#endif
+
 		GetTime(timeSta);
 
 
