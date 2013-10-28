@@ -63,6 +63,7 @@ int main(int argc, char **argv)
 
 
  
+	// Straightforward parallelization with pointers
 	{
 		Int i, j, k;
 		Real res;
@@ -91,7 +92,7 @@ int main(int argc, char **argv)
 			GetTime( timeEnd );
 		}
 		GetTime( timeTotalEnd );
-		cout << "Implemention 1" <<endl;
+		cout << "Implementation 1" <<endl;
 		cout << "Time elapsed for computation = " << 
 			timeEnd - timeSta << endl; 
 		cout << "Time elapsed in total (including OPENMP overhead) = " << 
@@ -100,6 +101,7 @@ int main(int argc, char **argv)
 	}
 
 
+	// Manual copy of the commonly shared arrays
 	{
 		Int i, j, k;
 		Real res;
@@ -129,7 +131,80 @@ int main(int argc, char **argv)
 			GetTime( timeEnd );
 		}
 		GetTime( timeTotalEnd );
-		cout << "Implemention 2 (replicate the vector v)" <<endl;
+		cout << "Implementation 2 (replicate the vector v)" <<endl;
+		cout << "Time elapsed for computation = " << 
+			timeEnd - timeSta << endl; 
+		cout << "Time elapsed in total (including OPENMP overhead) = " << 
+			timeTotalEnd - timeTotalSta << endl; 
+
+	}
+
+	// Do not use pointers for collecting the results.  There might be
+	// possible parallelization issue when operating on x2.
+	{
+		Int i, j, k;
+		Real res;
+		Real timeSta, timeEnd;
+		Real timeTotalSta, timeTotalEnd;
+		Real *ptrx0, *ptrx1, *ptrv0;
+
+		GetTime( timeTotalSta );
+#pragma omp parallel private(i, j, k, omprank, ptrx0, ptrx1, ptrv0)
+		{
+			omprank = omp_get_thread_num();
+			GetTime( timeSta );
+#pragma omp for
+			for( j = 0; j < height; j++ ){
+				for( i = 0; i < height; i++ ){
+					ptrx0 = x0.VecData(i);
+					ptrx1 = x1.VecData(j);
+					ptrv0 = v0.Data();
+
+					res = 0.0;
+					for( k = 0; k < height; k++ )
+						res += ptrx0[k] * ptrx1[k] * ptrv0[k];
+					x2(i,j) = res;
+				}
+			}
+
+			GetTime( timeEnd );
+		}
+		GetTime( timeTotalEnd );
+		cout << "Implementation 3 (Use x2(i,j) directly)" <<endl;
+		cout << "Time elapsed for computation = " << 
+			timeEnd - timeSta << endl; 
+		cout << "Time elapsed in total (including OPENMP overhead) = " << 
+			timeTotalEnd - timeTotalSta << endl; 
+
+	}
+
+	// Do not use pointers for collecting the results.  There might be
+	// possible parallelization issue when operating on x2. Use the inline
+	// function ThreeDotProduct
+	{
+		Int i, j, k;
+		Real res;
+		Real timeSta, timeEnd;
+		Real timeTotalSta, timeTotalEnd;
+		Real *ptrx0, *ptrx1, *ptrv0;
+
+		GetTime( timeTotalSta );
+#pragma omp parallel private(i, j, k, omprank)
+		{
+			omprank = omp_get_thread_num();
+			GetTime( timeSta );
+#pragma omp for
+			for( j = 0; j < height; j++ ){
+				for( i = 0; i < height; i++ ){
+					x2(i,j) = ThreeDotProduct( 
+							x0.VecData(i), x1.VecData(j), v0.Data(), height );
+				}
+			}
+
+			GetTime( timeEnd );
+		}
+		GetTime( timeTotalEnd );
+		cout << "Implementation 4 (Use x2(i,j) directly with ThreeDotProduct)" <<endl;
 		cout << "Time elapsed for computation = " << 
 			timeEnd - timeSta << endl; 
 		cout << "Time elapsed in total (including OPENMP overhead) = " << 
