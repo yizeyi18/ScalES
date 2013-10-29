@@ -631,7 +631,9 @@ SCFDG::Iterate	(  )
 
 						SetValue( localBasis, 0.0 );
 
-						//#pragma omp parallel for
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
 						for( Int l = 0; l < psi.NumState(); l++ ){
 							InterpPeriodicUniformToLGL( 
 									numGridExtElem,
@@ -647,8 +649,8 @@ SCFDG::Iterate	(  )
 							for( Int p = 0; p < numLGLGrid.prod(); p++ ){
 								localBasis(p, l) -= avg;
 							}
-
 						}
+						
 						// FIXME Temporary adding the constant mode. Should be done more systematically later.
 						for( Int p = 0; p < numLGLGrid.prod(); p++ ){
 							localBasis(p,psi.NumState()) = 1.0 / std::sqrt( domain_.Volume() / numElem_.prod() );
