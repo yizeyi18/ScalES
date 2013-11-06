@@ -921,7 +921,7 @@ SCFDG::Iterate	(  )
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for inner SCF iteration is " <<
+		statusOFS << "Time for outer SCF iteration is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
