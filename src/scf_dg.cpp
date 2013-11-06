@@ -1330,19 +1330,22 @@ SCFDG::InnerIterate	(  )
 				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
 			// Print out the force
-			PrintBlock( statusOFS, "Atomic Force" );
-			{
-				Point3 forceCM(0.0, 0.0, 0.0);
-				std::vector<Atom>& atomList = hamDG.AtomList();
-				Int numAtom = atomList.size();
-				for( Int a = 0; a < numAtom; a++ ){
-					Print( statusOFS, "atom", a, "force", atomList[a].force );
-					forceCM += atomList[a].force;
-				}
-				statusOFS << std::endl;
-				Print( statusOFS, "force for centroid: ", forceCM );
-				statusOFS << std::endl;
-			}
+      // Only master processor output information containing all atoms
+      if( mpirank == 0 ){
+        PrintBlock( statusOFS, "Atomic Force" );
+        {
+          Point3 forceCM(0.0, 0.0, 0.0);
+          std::vector<Atom>& atomList = hamDG.AtomList();
+          Int numAtom = atomList.size();
+          for( Int a = 0; a < numAtom; a++ ){
+            Print( statusOFS, "atom", a, "force", atomList[a].force );
+            forceCM += atomList[a].force;
+          }
+          statusOFS << std::endl;
+          Print( statusOFS, "force for centroid: ", forceCM );
+          statusOFS << std::endl;
+        }
+      }
 		}
 
 		// Compute the a posteriori error estimator at every step
@@ -1356,17 +1359,20 @@ SCFDG::InnerIterate	(  )
 			statusOFS << "Time for computing the a posteriori error is " <<
 				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-			PrintBlock( statusOFS, "A Posteriori error" );
-			{
-				statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-				statusOFS << eta2Total << std::endl;
-				statusOFS << std::endl << "Residual term:" << std::endl;
-				statusOFS << eta2Residual << std::endl;
-				statusOFS << std::endl << "Jump of gradient term:" << std::endl;
-				statusOFS << eta2GradJump << std::endl;
-				statusOFS << std::endl << "Jump of function value term:" << std::endl;
-				statusOFS << eta2Jump << std::endl;
-			}
+      // Only master processor output information containing all atoms
+      if( mpirank == 0 ){
+        PrintBlock( statusOFS, "A Posteriori error" );
+        {
+          statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+          statusOFS << eta2Total << std::endl;
+          statusOFS << std::endl << "Residual term:" << std::endl;
+          statusOFS << eta2Residual << std::endl;
+          statusOFS << std::endl << "Jump of gradient term:" << std::endl;
+          statusOFS << eta2GradJump << std::endl;
+          statusOFS << std::endl << "Jump of function value term:" << std::endl;
+          statusOFS << eta2Jump << std::endl;
+        }
+      }
 		}
 
 
@@ -1555,7 +1561,11 @@ SCFDG::InnerIterate	(  )
 
 
 		// Print out the state variables of the current iteration
-    PrintState( );
+
+    // Only master processor output information containing all atoms
+    if( mpirank == 0 ){
+      PrintState( );
+    }
 
 		GetTime( timeIterEnd );
    

@@ -67,17 +67,17 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	PushCallStack("HamiltonianDG::HamiltonianDG");
 #endif
 	Int mpirank, mpisize;
-	MPI_Comm_rank( domain_.comm, &mpirank );
+  MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
 
-	domain_            = esdfParam.domain;
-	atomList_          = esdfParam.atomList;
-	pseudoType_        = esdfParam.pseudoType;
-	XCId_              = esdfParam.XCId;
-	numExtraState_     = esdfParam.numExtraState;
-	numElem_           = esdfParam.numElem;
-	penaltyAlpha_      = esdfParam.penaltyAlpha;
-	numLGLGridElem_    = esdfParam.numGridLGL;
+  domain_            = esdfParam.domain;
+  atomList_          = esdfParam.atomList;
+  pseudoType_        = esdfParam.pseudoType;
+  XCId_              = esdfParam.XCId;
+  numExtraState_     = esdfParam.numExtraState;
+  numElem_           = esdfParam.numElem;
+  penaltyAlpha_      = esdfParam.penaltyAlpha;
+  numLGLGridElem_    = esdfParam.numGridLGL;
   
 	Int ntot = domain_.NumGridTotal();
 
