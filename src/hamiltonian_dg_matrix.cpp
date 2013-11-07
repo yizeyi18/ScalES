@@ -616,20 +616,21 @@ HamiltonianDG::CalculateDGMatrix	(  )
 #ifdef _USE_OPENMP_
 #pragma omp parallel 
 								{
+#endif
+
 #ifdef _USE_OPENMP_
 #pragma omp for schedule(dynamic,1)
-#endif
 #endif
 									for( Int g = 0; g < vnlList.size(); g++ ){
 										SparseVec&  vnl = vnlList[g].first;
 										Int         idxSize = vnl.first.Size();
-										Int        *ptrIdx = vnl.first.Data();
-										Real       *ptrVal = vnl.second.VecData(VAL);
-										Real       *ptrWeight = LGLWeight3D.Data();
-										Real       *ptrBasis, *ptrDbasisX, *ptrDbasisY, *ptrDbasisZ;
-										Real       *ptrCoef, *ptrCoefDrvX, *ptrCoefDrvY, *ptrCoefDrvZ;
 
 										if( idxSize > 0 ) {
+                      Int        *ptrIdx = vnl.first.Data();
+                      Real       *ptrVal = vnl.second.VecData(VAL);
+                      Real       *ptrWeight = LGLWeight3D.Data();
+                      Real       *ptrBasis, *ptrDbasisX, *ptrDbasisY, *ptrDbasisZ;
+                      Real       *ptrCoef, *ptrCoefDrvX, *ptrCoefDrvY, *ptrCoefDrvZ;
 											// Loop over basis function
 											for( Int a = 0; a < numBasis; a++ ){
 												// Loop over grid point
@@ -658,8 +659,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								}
 #endif
 							}
-
-
 
 							coefMap[atomIdx] = coef;
 							coefDrvXMap[atomIdx] = coefDrvX;
