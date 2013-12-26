@@ -397,15 +397,33 @@ SCFDG::Iterate	(  )
   HamiltonianDG&  hamDG = *hamDGPtr_;
 
 	// Compute the exchange-correlation potential and energy
+  GetTime( timeSta );
 	hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for calculating XC is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 	// Compute the Hartree potential
+  GetTime( timeSta );
 	hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for calculating Hartree is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 	// No external potential
 
 	// Compute the total potential
+  GetTime( timeSta );
 	hamDG.CalculateVtot( hamDG.Vtot() );
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for calculating Vtot is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 
   Real timeIterStart(0), timeIterEnd(0);
