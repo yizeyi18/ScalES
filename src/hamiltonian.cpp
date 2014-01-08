@@ -229,6 +229,7 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 		if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
 			throw std::logic_error( "Cannot find the atom type." );
 		}
+    // Z = \sum_I Z_I 
     nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
   }
 	// FIXME Deal with the case when this is a buffer calculation and the
@@ -240,7 +241,7 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 	numOccupiedState_ = nelec / numSpin_;
 
 	// Compute pseudocharge
-	SetValue( pseudoCharge_, 0.0 );
+  SetValue( pseudoCharge_, 0.0 );
   for (Int a=0; a<numAtom; a++) {
     ptable.CalculatePseudoCharge( atomList_[a], domain_, 
 				gridpos, pseudo_[a].pseudoCharge );
@@ -383,6 +384,7 @@ void KohnSham::CalculateHartree( Fourier& fft ) {
 
 	for( Int i = 0; i < ntot; i++ ){
 		if( fft.gkk(i) == 0 ){
+      // Due to the charge neutrality condition
 			fft.outputComplexVec(i) = Z_ZERO;
 		}
 		else{

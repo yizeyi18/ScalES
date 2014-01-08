@@ -77,7 +77,7 @@ void Fourier::Initialize ( const Domain& dm )
 	PushCallStack("Fourier::Initialize");
 #endif  // ifndef _RELEASE_
 	if( isInitialized ) {
-		throw std::logic_error("Fourier has been prepared.");
+		throw std::logic_error("Fourier has been initialized.");
 	}
 
 	domain = dm;
