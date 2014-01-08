@@ -40,7 +40,7 @@
 	 works, incorporate into other computer software, distribute, and sublicense
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file fourier.cpp
+/// @file fourier.hpp
 /// @brief Sequential and Distributed Fourier wrapper.
 /// @date 2011-11-01
 #ifndef _FOURIER_HPP_
@@ -59,23 +59,36 @@ namespace dgdft{
 /// @struct Fourier
 /// @brief Sequential FFTW interface.
 struct Fourier {
+  /// @brief Domain for the Fourier transform.
 	Domain           domain;
+  /// @brief Whether the Fourier structure is initialized.
   bool             isInitialized;
+  /// @brief The total number of grid points in the domain.
 	Int              numGridTotal;
 
   // plans
+  /// @brief Plan for backward Fourier transform
   fftw_plan backwardPlan;
+  /// @brief Plan for forward Fourier transform
   fftw_plan forwardPlan;
 
+  /// @brief Mode for executing FFTW.
   unsigned  plannerFlag;
 
 	// Laplacian operator related
+  /// @brief 1/2 k^2 in the 3D domain, for the Laplacian operator
+  /// \f$-\frac12 \Delta\f$.
   DblNumVec                gkk;
+  /// @brief ikx, iky, ikz in the 3D domain, for the partial
+  /// differential operator \f$\partial_x, \partial_y, \partial_z\f$.
 	std::vector<CpxNumVec>   ik;
+  /// @brief T(k) for Teter's preconditioner for eigenvalue computation.
   DblNumVec                TeterPrecond;
 
 	// Temporary vectors that can also be used globally
+  /// @brief Temporary input vector for FFTW.
 	CpxNumVec                inputComplexVec;     
+  /// @brief Temporary output vector for FFTW.
 	CpxNumVec                outputComplexVec;     
 
 	// Real data Fourier transform

@@ -597,6 +597,8 @@ PeriodTable::CalculateNonlocalPP	(
 				}
 			} // if(typ==PTType::L2)
 
+			// FIXME: The derivative at r=0 for the f orbital MAY NOT BE CORRECT.
+			// LLIN: 10/21/2013
 			if(typ==PTType::L3) {
 				// f_z3
 				{

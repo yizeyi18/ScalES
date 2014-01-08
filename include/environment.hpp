@@ -56,6 +56,7 @@
 #include <cfloat>
 #include <complex>
 #include <string>
+#include <cstring>
 
 #include <set>
 #include <map>

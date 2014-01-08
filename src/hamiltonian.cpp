@@ -261,6 +261,7 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 		if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
 			throw std::logic_error( "Cannot find the atom type." );
 		}
+    // Z = \sum_I Z_I 
     nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
   }
 	// FIXME Deal with the case when this is a buffer calculation and the
@@ -272,7 +273,7 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 	numOccupiedState_ = nelec / numSpin_;
 
 	// Compute pseudocharge
-	SetValue( pseudoCharge_, 0.0 );
+  SetValue( pseudoCharge_, 0.0 );
   for (Int a=0; a<numAtom; a++) {
     ptable.CalculatePseudoCharge( atomList_[a], domain_, 
 				gridpos, pseudo_[a].pseudoCharge );
@@ -497,6 +498,7 @@ void KohnSham::CalculateHartree( Fourier& fft ) {
 
 	for( Int i = 0; i < ntot; i++ ){
 		if( fft.gkk(i) == 0 ){
+      // Due to the charge neutrality condition
 			fft.outputComplexVec(i) = Z_ZERO;
 		}
 		else{
@@ -560,6 +562,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 	SetValue( tempVec, 0.0 );
 
 	// tempVec = density_ - pseudoCharge_
+	// FIXME No density
 	blas::Copy( ntot, density_.VecData(0), 1, tempVec.Data(), 1 );
 	blas::Axpy( ntot, -1.0, pseudoCharge_.Data(),1,
 			tempVec.Data(), 1 );
@@ -657,6 +660,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 	// *********************************************************************
 	// Compute the force from nonlocal pseudopotential
 	// *********************************************************************
+	if(1)
 	{
 		// Loop over atoms and pseudopotentials
 		Int numEig = occupationRate_.m();
@@ -714,9 +718,18 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 	PushCallStack("KohnSham::MultSpinor");
 #endif
 	SetValue( a3, SCALAR_ZERO );
-	psi.AddScalarDiag( vtot_, a3 );
-	psi.AddLaplacian( a3, &fft );
-  psi.AddNonlocalPP( pseudo_, a3 );
+
+#ifdef _USE_OPENMP_
+#pragma omp parallel
+  {
+#endif
+    psi.AddLaplacian( a3, &fft );
+    psi.AddScalarDiag( vtot_, a3 );
+    psi.AddNonlocalPP( pseudo_, a3 );
+#ifdef _USE_OPENMP_
+  }
+#endif
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif

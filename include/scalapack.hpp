@@ -1,44 +1,44 @@
 /*
-	 Copyright (c) 2012 The Regents of the University of California,
-	 through Lawrence Berkeley National Laboratory.  
-
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
+   
    Author: Lin Lin
 	 
    This file is part of DGDFT. All rights reserved.
 
-	 Redistribution and use in source and binary forms, with or without
-	 modification, are permitted provided that the following conditions are met:
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
 
-	 (1) Redistributions of source code must retain the above copyright notice, this
-	 list of conditions and the following disclaimer.
-	 (2) Redistributions in binary form must reproduce the above copyright notice,
-	 this list of conditions and the following disclaimer in the documentation
-	 and/or other materials provided with the distribution.
-	 (3) Neither the name of the University of California, Lawrence Berkeley
-	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-	 be used to endorse or promote products derived from this software without
-	 specific prior written permission.
+   (1) Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+   (2) Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+   (3) Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
 
-	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	 You are under no obligation whatsoever to provide any bug fixes, patches, or
-	 upgrades to the features, functionality or performance of the source code
-	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
-	 available either publicly, or directly to Lawrence Berkeley National
-	 Laboratory, without imposing a separate written license agreement for such
-	 Enhancements, then you hereby grant the following license: a non-exclusive,
-	 royalty-free perpetual license to install, use, modify, prepare derivative
-	 works, incorporate into other computer software, distribute, and sublicense
-	 such enhancements or derivative works thereof, in binary and source code form.
+   You are under no obligation whatsoever to provide any bug fixes, patches, or
+   upgrades to the features, functionality or performance of the source code
+   ("Enhancements") to anyone; however, if you choose to make your Enhancements
+   available either publicly, or directly to Lawrence Berkeley National
+   Laboratory, without imposing a separate written license agreement for such
+   Enhancements, then you hereby grant the following license: a non-exclusive,
+   royalty-free perpetual license to install, use, modify, prepare derivative
+   works, incorporate into other computer software, distribute, and sublicense
+   such enhancements or derivative works thereof, in binary and source code form.
 */
 /// @file scalapack.hpp
 /// @brief Thin interface to ScaLAPACK
@@ -48,7 +48,14 @@
 
 #include  "environment.hpp"
 
+/// @namespace dgdft
+///
+/// @brief Main namespace for DGDFT routines.
 namespace dgdft{
+
+/// @namespace scalapack
+///
+/// @brief Thin interface to ScaLAPACK.
 namespace scalapack{
 
 typedef  int                    Int;
@@ -248,12 +255,21 @@ public:
  * Methods
  *********************************************************************************/
 
-/// @brief Redistribute a ScaLAPACKMatrix A into a ScaLAPACKMatrix
-/// B which shares the same context as A. 
+/// @brief Redistribute a matrix A into a matrix B which shares the same
+/// context as A. 
 ///
-/// Performs p_gemr2d.
+/// This routine performs p_gemr2d.
 void
 Gemr2d(const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B);
+
+/// @brief Solve triangular matrix equation
+///
+/// @param[in]     A (local) Contains the local entries of the matrix A.
+/// @param[in,out] B (local) Contains the local entries of the matrix B.
+/// On exit, the local entries are overwritten by the solution.
+void
+Trsm( char side, char uplo, char trans, char diag, double alpha,
+    const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B );
 
 
 /// @brief Compute the eigenvalues only for symmetric matrices. 
@@ -320,6 +336,39 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
 		ScaLAPACKMatrix<double>& Z,
 		Int il,
 		Int iu);
+
+/// @brief Compute the Cholesky factorization of an N-by-N 
+/// real symmetric positive definite matrix.
+///
+/// @param[in,out] A (local) On entry, this array
+/// contains the local pieces of the N-by-N symmetric distributed matrix
+/// sub( A ) to be factored. On exit, if UPLO = 'U', the upper
+/// triangular part of the distributed matrix contains the Cholesky
+/// factor U, if UPLO = 'L', the lower triangular part of the
+/// distributed matrix contains the Cholesky factor L. 
+void 
+Potrf( char uplo, ScaLAPACKMatrix<double>& A );
+
+
+/// @brief Reduces a real symmetric-definite generalized eigenproblem
+/// to standard form.
+///
+/// @param[in] ibtype (global) Matrix conversion type.  Currently always
+/// set ibtype = 1, which overwrites A by inv(U^T)* A *inv(U) or
+/// inv(L)*sub( A )*inv(L^T).
+///
+/// @param[in,out]  A (local) On entry, this array contains the local
+/// pieces of the N-by-N symmetric distributed matrix A.  
+/// On exit, the transformed matrix is stored in
+/// the same format as A.
+///
+/// @param[in]      B (local) Contains the local pieces of the
+/// triangular factor from the Cholesky factorization of B, as returned
+/// by Potrf.
+///
+void 
+Sygst( Int ibtype, char uplo, ScaLAPACKMatrix<double>& A,
+   ScaLAPACKMatrix<double>& B );
 
 
 } // namespace scalapack
