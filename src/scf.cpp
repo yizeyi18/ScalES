@@ -164,6 +164,96 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 
 
 void
+SCF::Update	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCF::Update");
+#endif
+	
+	// esdf parameters
+//	{
+//    mixMaxDim_     = esdfParam.mixMaxDim;
+//    mixType_       = esdfParam.mixType;
+//		mixStepLength_ = esdfParam.mixStepLength;
+		// Note: for PW SCF there is no inner loop. Use the parameter value
+		// for the outer SCF loop only.
+//		scfTolerance_  = esdfParam.scfOuterTolerance;
+//		scfMaxIter_    = esdfParam.scfOuterMaxIter;
+//		isRestartDensity_ = esdfParam.isRestartDensity;
+//		isRestartWfn_     = esdfParam.isRestartWfn;
+//		isOutputDensity_  = esdfParam.isOutputDensity;
+//    Tbeta_         = esdfParam.Tbeta;
+//	}
+
+	// other SCF parameters
+	{
+//		eigSolPtr_ = &eigSol;
+//    ptablePtr_ = &ptable;
+
+		Int ntot = eigSolPtr_->Psi().NumGridTotal();
+
+		vtotNew_.Resize(ntot); SetValue(vtotNew_, 0.0);
+		dfMat_.Resize( ntot, mixMaxDim_ ); SetValue( dfMat_, 0.0 );//debug
+		dvMat_.Resize( ntot, mixMaxDim_ ); SetValue( dvMat_, 0.0 );//debug
+
+//debug		dfMat_.Resize( ntot, 0.0 ); SetValue( dfMat_, 0.0 );
+//debug		dvMat_.Resize( ntot, 0.0 ); SetValue( dvMat_, 0.0 );
+
+//		restartDensityFileName_ = "DEN";
+//		restartWfnFileName_     = "WFN";
+	}
+
+/*
+	// Density
+	{
+    DblNumMat&  density = eigSolPtr_->Ham().Density();
+		if( isRestartDensity_ ) {
+			std::istringstream rhoStream;      
+			SharedRead( restartDensityFileName_, rhoStream);
+			// TODO Error checking
+			deserialize( density, rhoStream, NO_MASK );    
+		} // else using the zero initial guess
+		else {
+			// make sure the pseudocharge is initialized
+			DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
+			
+			SetValue( density, 0.0 );
+      
+			Int ntot = eigSolPtr_->Psi().NumGridTotal();
+			Real sum0 = 0.0, sum1 = 0.0;
+			Real EPS = 1e-6;
+
+			// make sure that the electron density is positive
+			for (Int i=0; i<ntot; i++){
+				density(i, RHO) = ( pseudoCharge(i) > EPS ) ? pseudoCharge(i) : EPS;
+				sum0 += density(i, RHO);
+				sum1 += pseudoCharge(i);
+			}
+			
+			// Rescale the density
+			for (int i=0; i <ntot; i++){
+				density(i, RHO) *= sum1 / sum0;
+			} 
+		}
+	}
+	if( !isRestartWfn_ ) {
+		UniformRandom( eigSolPtr_->Psi().Wavefun() );
+	}
+	else {
+		std::istringstream iss;
+		SharedRead( restartWfnFileName_, iss );
+		deserialize( eigSolPtr_->Psi().Wavefun(), iss, NO_MASK );
+	}
+*/
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCF::Update  ----- 
+
+
+void
 SCF::Iterate	(  )
 {
 #ifndef _RELEASE_
@@ -525,6 +615,8 @@ SCF::AndersonMix	( const Int iter )
 	Int iterused = std::min( iter-1, mixMaxDim_ ); // iter should start from 1
 	Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
 
+//	Print( statusOFS, "debug Point 0");//debug
+
 	// TODO Set verbose level 
 	Print( statusOFS, "Anderson mixing" );
 	Print( statusOFS, "  iterused = ", iterused );
@@ -539,6 +631,7 @@ SCF::AndersonMix	( const Int iter )
 
 		// Calculating pseudoinverse
     
+//		Print( statusOFS, "debug Point 1");//debug
 
 		DblNumVec gammas, S;
 		DblNumMat dftemp;
@@ -548,12 +641,18 @@ SCF::AndersonMix	( const Int iter )
 
 		S.Resize(iterused);
 
+//		Print(statusOFS, "debug Point 2");//debug
+
 		gammas = vout;
 		dftemp = dfMat_;
+
+//		Print(statusOFS, "debug Point 3");//debug
 
 		lapack::SVDLeastSquare( ntot, iterused, 1, 
 				dftemp.Data(), ntot, gammas.Data(), ntot,
         S.Data(), rcond, &rank );
+
+//		Print(statusOFS, "debug Point 4");//debug
 
 		Print( statusOFS, "  Rank of dfmat = ", rank );
 			
@@ -566,15 +665,28 @@ SCF::AndersonMix	( const Int iter )
 				ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
 	}
 
+
+	Print(statusOFS, "debug Point 5");//debug
+
 	Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
+
+	
+	Print(statusOFS, "debug print: inext", inext);//debug
+
 	for (Int i=0; i<ntot; i++) {
 		dfMat_(i, inext-1) = voutsave(i);
 		dvMat_(i, inext-1) = vinsave(i);
 	}
 
+
+	Print(statusOFS, "debug Point 6");//debug
+
 	for (Int i=0; i<ntot; i++) {
 		vtot(i) = vin(i) + mixStepLength_ * vout(i);
 	}
+
+
+	Print(statusOFS, "debug Point 7");//debug
 
 #ifndef _RELEASE_
 	PopCallStack();

@@ -119,6 +119,7 @@ public:
 	// Basic parameters. Density and wavefunction
 	void  Setup( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable ); 
 	void  Iterate();
+	void  Update( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable );//ZG
 
 	void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
 	void  CalculateEnergy();

@@ -110,6 +110,8 @@ struct ESDFInputParam{
 	Domain              domain;
 	std::vector<Atom>   atomList;
 
+	Int									nsw; //ZG: MD
+	Int									dt; //ZG: MD								
 	Int                 mixMaxDim;
 	std::string         mixType;
 	std::string         mixVariable;

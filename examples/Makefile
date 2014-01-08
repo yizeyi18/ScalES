@@ -3,14 +3,14 @@
 
 include ../make.inc
 
-SRCS = pwdft.cpp dgdft.cpp diagonalize.cpp
+SRCS = mdpwdft.cpp dgdft.cpp diagonalize.cpp
 
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 EXES = ${SRCS:.cpp=}	
 
-pwdft: pwdft.o ${pwdft_LIB} 
-	($(LOADER) -o $@ pwdft.o $(LOADOPTS) )
+mdpwdft: mdpwdft.o ${mdpwdft_LIB} 
+	($(LOADER) -o $@ mdpwdft.o $(LOADOPTS) )
 
 dgdft: dgdft.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ dgdft.o $(LOADOPTS) )

@@ -132,6 +132,7 @@ public:
 
 	virtual void CalculatePseudoPotential( PeriodTable &ptable ) = 0;
 
+
 	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val ) = 0;
 
 	virtual void CalculateXC (Real &val) = 0;
@@ -198,12 +199,16 @@ public:
 		Int                        numExtraState = 0,
     Int                        numDensityComponent = 1 );
 
+	void Update (
+		const std::vector<Atom>&   atomList);
 
 	// *********************************************************************
 	// Operations
 	// *********************************************************************
 
 	virtual void CalculatePseudoPotential( PeriodTable &ptable );
+
+	virtual void UpdatePseudoPotential( PeriodTable &ptable );
 
 	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val );
 

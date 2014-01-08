@@ -162,7 +162,7 @@ int main(int argc, char **argv)
 		PeriodTable ptable;
 		ptable.Setup( esdfParam.periodTableFile );
 
-		Int NSW=10;	//number of ionic relaxation
+		Int nsw=10;	//number of ionic relaxation
 		Real dt=100;	//time step, abinit default = 100, a.u for dt is 2.4189e-17sec
 	
 //		Real sumv[3] = {0};	//sum of velocity
@@ -421,8 +421,8 @@ int main(int argc, char **argv)
 
 //********MD starts***********//
 
-		//MD Velocity Verlet geometry update if NSW !=0.
-		if (NSW != 0) {
+		//MD Velocity Verlet geometry update if nsw !=0.
+		if (nsw != 0) {
 
 						std::vector<Atom>& atomList1 = esdfParam.atomList;
 						std::vector<Atom>& atomList2 = hamDG.AtomList();
@@ -438,7 +438,7 @@ int main(int argc, char **argv)
 										atomforcem[i]=atomList2[i].force; 
 						}//x1, f1, v1=0
 
-						for (Int n=0; n<NSW; n++){
+						for (Int n=0; n<nsw; n++){
 
 										Print(statusOFS, "Num of MD step = ", n);
 
@@ -707,8 +707,8 @@ int main(int argc, char **argv)
 														}
 										}//v2, -> ex
 
-						}//for(n<NSW) loop ends here
-		}//if(NSW!=0) ends
+						}//for(n<nsw) loop ends here
+		}//if(nsw!=0) ends
 
 		// *********************************************************************
 		// Clean up

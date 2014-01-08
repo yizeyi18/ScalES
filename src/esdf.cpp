@@ -351,6 +351,17 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Maximum iterations !*");
 
+
+	i++;
+	strcpy(kw_label[i],"Num of MD");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Num of MD !*");
+
+	i++;
+	strcpy(kw_label[i],"MD time step");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! MD time step !*");
+
 	i++;
 	strcpy(kw_label[i],"tolerance");
 	strcpy(kw_typ[i],"D:E");
@@ -1921,6 +1932,10 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
 	// System parameters
 	{
+
+
+		esdfParam.nsw       = esdf_integer("Num of MD", 10);
+		esdfParam.dt       = esdf_integer("MD time step", 100);
 
 		esdfParam.mixMaxDim       = esdf_integer("Mixing_MaxDim", 9);
 
