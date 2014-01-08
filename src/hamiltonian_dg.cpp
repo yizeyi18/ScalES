@@ -67,17 +67,17 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	PushCallStack("HamiltonianDG::HamiltonianDG");
 #endif
 	Int mpirank, mpisize;
-	MPI_Comm_rank( domain_.comm, &mpirank );
+  MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
 
-	domain_            = esdfParam.domain;
-	atomList_          = esdfParam.atomList;
-	pseudoType_        = esdfParam.pseudoType;
-	XCId_              = esdfParam.XCId;
-	numExtraState_     = esdfParam.numExtraState;
-	numElem_           = esdfParam.numElem;
-	penaltyAlpha_      = esdfParam.penaltyAlpha;
-	numLGLGridElem_    = esdfParam.numGridLGL;
+  domain_            = esdfParam.domain;
+  atomList_          = esdfParam.atomList;
+  pseudoType_        = esdfParam.pseudoType;
+  XCId_              = esdfParam.XCId;
+  numExtraState_     = esdfParam.numExtraState;
+  numElem_           = esdfParam.numElem;
+  penaltyAlpha_      = esdfParam.penaltyAlpha;
+  numLGLGridElem_    = esdfParam.numGridLGL;
   
 	Int ntot = domain_.NumGridTotal();
 
@@ -953,26 +953,52 @@ HamiltonianDG::CalculateDensity	(
 						DblNumVec& localRho    = rho.LocalMap()[key];
 						DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
 
-						DblNumVec  localPsiLGL( numGrid );
-						SetValue( localPsiLGL, 0.0 );
-
-
 						// Loop over all the eigenfunctions
 						// 
 						// NOTE: Gemm is not a feasible choice when a large number of
 						// eigenfunctions are there.
-						for( Int g = 0; g < numEig; g++ ){
-							// Compute local wavefunction on the LGL grid
-							blas::Gemv( 'N', numGrid, numBasis, 1.0, 
-									localBasis.Data(), numGrid, 
-									localCoef.VecData(g), 1, 0.0,
-									localPsiLGL.Data(), 1 );
-							// Update the local density
-							Real  occ    = occrate[g];
-							for( Int p = 0; p < numGrid; p++ ){
-								localRhoLGL(p) += pow( localPsiLGL(p), 2.0 ) * occ * numSpin_;
+						
+#ifdef _USE_OPENMP_
+#pragma omp parallel 
+						{
+#endif
+							DblNumVec  localPsiLGL( numGrid );
+							SetValue( localPsiLGL, 0.0 );
+
+							// For thread safety, declare as private variable
+							DblNumVec  localRhoLGLTmp( numGrid );
+							SetValue( localRhoLGLTmp, 0.0 );
+
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+							for( Int g = 0; g < numEig; g++ ){
+								// Compute local wavefunction on the LGL grid
+								blas::Gemv( 'N', numGrid, numBasis, 1.0, 
+										localBasis.Data(), numGrid, 
+										localCoef.VecData(g), 1, 0.0,
+										localPsiLGL.Data(), 1 );
+								// Update the local density
+								Real  occ    = occrate[g];
+								for( Int p = 0; p < numGrid; p++ ){
+									localRhoLGLTmp(p) += localPsiLGL(p) * localPsiLGL(p) * occ * numSpin_;
+								}
 							}
+
+#ifdef _USE_OPENMP_
+#pragma omp critical
+							{
+#endif
+							// This is a reduce operation for an array, and should be
+							// done in the OMP critical syntax
+								blas::Axpy( numGrid, 1.0, localRhoLGLTmp.Data(), 1, localRhoLGL.Data(), 1 );
+#ifdef _USE_OPENMP_
+							}
+#endif
+
+#ifdef _USE_OPENMP_
 						}
+#endif
 
 						statusOFS << "Before interpolation" << std::endl;
 
@@ -994,7 +1020,6 @@ HamiltonianDG::CalculateDensity	(
 							sumRhoLocal += (*ptrRho);
 							ptrRho++;
 						}
-
 					} // own this element
 				} // for (i)
 

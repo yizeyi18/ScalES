@@ -45,6 +45,7 @@
 /// @date 2012-11-20
 #include	"eigensolver.hpp"
 #include  "utility.hpp"
+#include  "blas.hpp"
 #include  "lapack.hpp"
 
 namespace dgdft{
@@ -93,6 +94,7 @@ BlopexInt EigenSolver::HamiltonianMult
   NumTns<Scalar> a3(ntot, ncom, nocc, false, y->data);
 
 	SetValue( a3, SCALAR_ZERO ); // IMPORTANT
+
   hamPtr_->MultSpinor(psitemp, a3, *fftPtr_);
 	
 #ifndef _RELEASE_
@@ -106,68 +108,90 @@ BlopexInt EigenSolver::PrecondMult
 #ifndef _RELEASE_
 	PushCallStack("EigenSolver::PrecondMult");
 #endif
-	if( !fftPtr_->isInitialized ){
-		throw std::runtime_error("Fourier is not prepared.");
-	}
+  if( !fftPtr_->isInitialized ){
+    throw std::runtime_error("Fourier is not prepared.");
+  }
   Int ntot = psiPtr_->NumGridTotal();
   Int ncom = psiPtr_->NumComponent();
   Int nocc = psiPtr_->NumState();
-	
-	if( fftPtr_->domain.NumGridTotal() != ntot ){
-		throw std::logic_error("Domain size does not match.");
-	}
+
+  if( fftPtr_->domain.NumGridTotal() != ntot ){
+    throw std::logic_error("Domain size does not match.");
+  }
 
   NumTns<Scalar> a3i(ntot, ncom, nocc, false, x->data);
   NumTns<Scalar> a3o(ntot, ncom, nocc, false, y->data);
 
+  // Important to set the values of y to be 0
+  SetValue( a3o, SCALAR_ZERO );
+
+#ifdef _USE_OPENMP_
+#pragma omp parallel
+  {
+#endif
 #ifndef _USE_COMPLEX_ // Real case
-  for (Int k=0; k<nocc; k++) {
-    for (Int j=0; j<ncom; j++) {
-			Real   *ptra3i = a3i.VecData(j,k);
-      Complex *ptr0 = fftPtr_->inputComplexVec.Data();
-			for(Int i = 0; i < ntot; i++){
-				ptr0[i] = Complex(ptra3i[i], 0.0);
-			}
+    Int ntothalf = fftPtr_->numGridTotalR2C;
+    // These two are private variables in the OpenMP context
+    DblNumVec realInVec(ntot);
+		CpxNumVec cpxOutVec(ntothalf);
 
-			fftw_execute( fftPtr_->forwardPlan );
-			
-			Real *ptr1d = fftPtr_->TeterPrecond.Data();
-			ptr0 = fftPtr_->outputComplexVec.Data();
-			for (Int i=0; i<ntot; i++) 
-				*(ptr0++) *= *(ptr1d++);
-      
-			fftw_execute( fftPtr_->backwardPlan );
+#ifdef _USE_OPENMP_
+#pragma omp for schedule (dynamic,1) nowait
+#endif
+    for (Int k=0; k<nocc; k++) {
+      for (Int j=0; j<ncom; j++) {
+        // For c2r and r2c transforms, the default is to DESTROY the
+        // input, therefore a copy of the original matrix is necessary. 
+        blas::Copy( ntot, a3i.VecData(j,k), 1, 
+            realInVec.Data(), 1 );
 
-			ptr0 = fftPtr_->inputComplexVec.Data();
-			Real *ptra3o = a3o.VecData(j, k); 
-			for (Int i=0; i<ntot; i++) 
-				*(ptra3o++) = (*(ptr0++)).real() / Real(ntot);
+				fftw_execute_dft_r2c(
+						fftPtr_->forwardPlanR2C, 
+						realInVec.Data(),
+						reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ));
+
+        Real*    ptr1d   = fftPtr_->TeterPrecondR2C.Data();
+				Complex* ptr2    = cpxOutVec.Data();
+        for (Int i=0; i<ntothalf; i++) 
+					*(ptr2++) *= *(ptr1d++);
+
+				fftw_execute_dft_c2r(
+						fftPtr_->backwardPlanR2C,
+						reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ),
+						realInVec.Data() );
+
+        blas::Axpy( ntot, 1.0 / Real(ntot), realInVec.Data(), 1, 
+            a3o.VecData(j, k), 1 );
+      }
     }
-  }
 #else // Complex case
-  for (Int k=0; k<nocc; k++) {
-    for (Int j=0; j<ncom; j++) {
-			Complex *ptr0  = a3i.VecData(j,k);
-			
-			fftw_execute_dft(fftPtr_>forwardPlan, reinterpret_cast<fftw_complex*>(ptr0), 
-					reinterpret_cast<fftw_complex*>(fftPtr_->outputComplexVec.Data() ));
-			Real *ptr1d = fftPtr_->TeterPrecond.Data();
-			ptr0 = fftPtr_->outputComplexVec.Data();
-			for (Int i=0; i<ntot; i++) 
-				*(ptr0++) *= *(ptr1d++);
-      
-			fftw_execute(fftPtr_->backwardPlan);
-			ptr0 = fftPtr_->inputComplexVec.Data();
+  // TODO OpenMP implementation
+    for (Int k=0; k<nocc; k++) {
+      for (Int j=0; j<ncom; j++) {
+        Complex *ptr0  = a3i.VecData(j,k);
 
-			Complex *ptra3o = a3o.VecData(j, k); 
-			for (Int i=0; i<ntot; i++) 
-				*(ptra3o++) = *(ptr0++) / Real(ntot);
+        fftw_execute_dft(fftPtr_>forwardPlan, reinterpret_cast<fftw_complex*>(ptr0), 
+            reinterpret_cast<fftw_complex*>(fftPtr_->outputComplexVec.Data() ));
+        Real *ptr1d = fftPtr_->TeterPrecond.Data();
+        ptr0 = fftPtr_->outputComplexVec.Data();
+        for (Int i=0; i<ntot; i++) 
+          *(ptr0++) *= *(ptr1d++);
+
+        fftw_execute(fftPtr_->backwardPlan);
+        ptr0 = fftPtr_->inputComplexVec.Data();
+
+        Complex *ptra3o = a3o.VecData(j, k); 
+        for (Int i=0; i<ntot; i++) 
+          *(ptra3o++) = *(ptr0++) / Real(ntot);
+      }
     }
+#endif
+#ifdef _USE_OPENMP_
   }
 #endif
 
 #ifndef _RELEASE_
-	PopCallStack();
+  PopCallStack();
 #endif  
   return 0;
 }

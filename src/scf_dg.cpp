@@ -397,15 +397,33 @@ SCFDG::Iterate	(  )
   HamiltonianDG&  hamDG = *hamDGPtr_;
 
 	// Compute the exchange-correlation potential and energy
+  GetTime( timeSta );
 	hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for calculating XC is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 	// Compute the Hartree potential
+  GetTime( timeSta );
 	hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for calculating Hartree is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 	// No external potential
 
 	// Compute the total potential
+  GetTime( timeSta );
 	hamDG.CalculateVtot( hamDG.Vtot() );
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for calculating Vtot is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 
   Real timeIterStart(0), timeIterEnd(0);
@@ -559,7 +577,6 @@ SCFDG::Iterate	(  )
 						statusOFS << std::endl;
 
 
-						GetTime( timeSta );
 						Spinor& psi = eigSol.Psi();
 
 						// Assuming that wavefun has only 1 component
@@ -624,6 +641,8 @@ SCFDG::Iterate	(  )
 						}
 
 						Int numBasis = psi.NumState() + 1;
+						
+            GetTime( timeSta );
 
 						DblNumMat localBasis( 
 								numLGLGrid.prod(), 
@@ -631,36 +650,159 @@ SCFDG::Iterate	(  )
 
 						SetValue( localBasis, 0.0 );
 
-						//#pragma omp parallel for
-						for( Int l = 0; l < psi.NumState(); l++ ){
-							InterpPeriodicUniformToLGL( 
-									numGridExtElem,
-									numLGLGrid,
-									wavefun.VecData(0, l), 
-									localBasis.VecData(l) );
-							// FIXME Temporarily removing the mean value from each
-							// basis function and add the constant mode later
-							Real avg = blas::Dot( numLGLGrid.prod(),
-									localBasis.VecData(l), 1,
-									LGLWeight3D.Data(), 1 );
-							avg /= ( domain_.Volume() / numElem_.prod() );
-							for( Int p = 0; p < numLGLGrid.prod(); p++ ){
-								localBasis(p, l) -= avg;
-							}
+#ifdef _USE_OPENMP_
+#pragma omp parallel
+            {
+#endif
+#ifdef _USE_OPENMP_
+#pragma omp for schedule (dynamic,1) nowait
+#endif
+              for( Int l = 0; l < psi.NumState(); l++ ){
+                InterpPeriodicUniformToLGL( 
+                    numGridExtElem,
+                    numLGLGrid,
+                    wavefun.VecData(0, l), 
+                    localBasis.VecData(l) );
+              }
 
-						}
-						// FIXME Temporary adding the constant mode. Should be done more systematically later.
-						for( Int p = 0; p < numLGLGrid.prod(); p++ ){
-							localBasis(p,psi.NumState()) = 1.0 / std::sqrt( domain_.Volume() / numElem_.prod() );
-						}
 
+#ifdef _USE_OPENMP_
+#pragma omp for schedule (dynamic,1) nowait
+#endif
+              for( Int l = 0; l < psi.NumState(); l++ ){
+                // FIXME Temporarily removing the mean value from each
+                // basis function and add the constant mode later
+                Real avg = blas::Dot( numLGLGrid.prod(),
+                    localBasis.VecData(l), 1,
+                    LGLWeight3D.Data(), 1 );
+                avg /= ( domain_.Volume() / numElem_.prod() );
+                for( Int p = 0; p < numLGLGrid.prod(); p++ ){
+                  localBasis(p, l) -= avg;
+                }
+              }
+
+              // FIXME Temporary adding the constant mode. Should be done more systematically later.
+              for( Int p = 0; p < numLGLGrid.prod(); p++ ){
+                localBasis(p,psi.NumState()) = 1.0 / std::sqrt( domain_.Volume() / numElem_.prod() );
+              }
+
+#ifdef _USE_OPENMP_
+            }
+#endif
 						GetTime( timeEnd );
 						statusOFS << "Time for interpolating basis = " 	<< timeEnd - timeSta
 							<< " [s]" << std::endl;
 
 						// Post processing for the basis functions on the LGL grid.
-						// Method 1: SVD
+						// Method 1: Perform GEMM and threshold the basis functions
+            // for the small matrix
 						if(1){
+							GetTime( timeSta );
+							{
+								// Scale the basis functions by sqrt of integration weight
+								for( Int g = 0; g < localBasis.n(); g++ ){
+									Real *ptr1 = localBasis.VecData(g);
+									Real *ptr2 = sqrtLGLWeight3D.Data();
+									for( Int l = 0; l < localBasis.m(); l++ ){
+										*(ptr1++)  *= *(ptr2++);
+									}
+								}
+
+								// Check the orthogonalizity of the basis especially
+								// with respect to the constant mode
+								DblNumMat MMat( numBasis, numBasis );
+                Int numLGLGridTotal = numLGLGrid.prod();
+                blas::Gemm( 'T', 'N', numBasis, numBasis, numLGLGridTotal,
+                    1.0, localBasis.Data(), numLGLGridTotal, 
+                    localBasis.Data(), numLGLGridTotal, 0.0,
+                    MMat.Data(), numBasis );
+
+								DblNumMat    U( numBasis, numBasis );
+								DblNumMat   VT( numBasis, numBasis );
+								DblNumVec    S( numBasis );
+
+								lapack::QRSVD( numBasis, numBasis, 
+										MMat.Data(), numBasis,
+										S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
+
+								Int  numSVDBasis = 0;	
+                for( Int g = 0; g < numBasis; g++ ){
+                  S[g] = std::sqrt( S[g] );
+									if( S[g] / S[0] > SVDBasisTolerance_ )
+										numSVDBasis++;
+                }
+
+								// Unscale the orthogonal basis functions by sqrt of
+								// integration weight
+								for( Int g = 0; g < localBasis.n(); g++ ){
+									Real *ptr1 = localBasis.VecData(g);
+									Real *ptr2 = sqrtLGLWeight3D.Data();
+									for( Int l = 0; l < localBasis.m(); l++ ){
+										*(ptr1++)  /= *(ptr2++);
+									}
+								}
+
+
+								// Get the first numSVDBasis which are significant.
+								DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
+								basis.Resize( localBasis.m(), numSVDBasis );
+
+                for( Int g = 0; g < numSVDBasis; g++ ){
+                  blas::Scal( numBasis, 1.0 / S[g], U.VecData(g), 1 );
+                }
+
+                blas::Gemm( 'N', 'N', numLGLGridTotal, numSVDBasis,
+                    numBasis, 1.0, localBasis.Data(), numLGLGridTotal,
+                    U.Data(), numBasis, 0.0, basis.Data(), numLGLGridTotal );
+
+#if ( _DEBUGlevel_ >= 1  )
+                {
+                  // Scale the basis functions by sqrt of integration weight
+                  for( Int g = 0; g < basis.n(); g++ ){
+                    Real *ptr1 = basis.VecData(g);
+                    Real *ptr2 = sqrtLGLWeight3D.Data();
+                    for( Int l = 0; l < basis.m(); l++ ){
+                      *(ptr1++)  *= *(ptr2++);
+                    }
+                  }
+
+                  // Check the orthogonalizity of the basis especially
+                  // with respect to the constant mode
+                  DblNumMat MMat( numSVDBasis, numSVDBasis );
+                  Int numLGLGridTotal = numLGLGrid.prod();
+                  blas::Gemm( 'T', 'N', numSVDBasis, numSVDBasis, numLGLGridTotal,
+                      1.0, basis.Data(), numLGLGridTotal, 
+                      basis.Data(), numLGLGridTotal, 0.0,
+                      MMat.Data(), numSVDBasis );
+
+                  statusOFS << "MMat = " << MMat << std::endl;
+
+
+                  for( Int g = 0; g < basis.n(); g++ ){
+                    Real *ptr1 = basis.VecData(g);
+                    Real *ptr2 = sqrtLGLWeight3D.Data();
+                    for( Int l = 0; l < basis.m(); l++ ){
+                      *(ptr1++)  /= *(ptr2++);
+                    }
+                  }
+                }
+#endif
+
+
+								statusOFS << "Singular values of the basis = " 
+									<< S << std::endl;
+
+								statusOFS << "Number of significant SVD basis = " 
+                  << numSVDBasis << std::endl;
+
+							}
+							GetTime( timeEnd );
+							statusOFS << "Time for SVD of basis = " 	<< timeEnd - timeSta
+								<< " [s]" << std::endl;
+						}
+						
+            // Method 2: SVD
+						if(0){
 							GetTime( timeSta );
 							{
 
@@ -734,7 +876,9 @@ SCFDG::Iterate	(  )
 								<< " [s]" << std::endl;
 						}
 
-						// Method 2: Solve generalized eigenvalue problem
+
+
+						// Method 3: Solve generalized eigenvalue problem
 						//   (D Phi)^T W (D Phi) v = lambda Phi^T W Phi v
 						// and threshold on the eigenvalue lambda to obtain
 						// orthogonal basis functions.  Here Phi are the local basis
@@ -919,7 +1063,7 @@ SCFDG::Iterate	(  )
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for inner SCF iteration is " <<
+		statusOFS << "Time for outer SCF iteration is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -1328,19 +1472,22 @@ SCFDG::InnerIterate	(  )
 				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
 			// Print out the force
-			PrintBlock( statusOFS, "Atomic Force" );
-			{
-				Point3 forceCM(0.0, 0.0, 0.0);
-				std::vector<Atom>& atomList = hamDG.AtomList();
-				Int numAtom = atomList.size();
-				for( Int a = 0; a < numAtom; a++ ){
-					Print( statusOFS, "atom", a, "force", atomList[a].force );
-					forceCM += atomList[a].force;
-				}
-				statusOFS << std::endl;
-				Print( statusOFS, "force for centroid: ", forceCM );
-				statusOFS << std::endl;
-			}
+      // Only master processor output information containing all atoms
+      if( mpirank == 0 ){
+        PrintBlock( statusOFS, "Atomic Force" );
+        {
+          Point3 forceCM(0.0, 0.0, 0.0);
+          std::vector<Atom>& atomList = hamDG.AtomList();
+          Int numAtom = atomList.size();
+          for( Int a = 0; a < numAtom; a++ ){
+            Print( statusOFS, "atom", a, "force", atomList[a].force );
+            forceCM += atomList[a].force;
+          }
+          statusOFS << std::endl;
+          Print( statusOFS, "force for centroid: ", forceCM );
+          statusOFS << std::endl;
+        }
+      }
 		}
 
 		// Compute the a posteriori error estimator at every step
@@ -1354,17 +1501,20 @@ SCFDG::InnerIterate	(  )
 			statusOFS << "Time for computing the a posteriori error is " <<
 				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-			PrintBlock( statusOFS, "A Posteriori error" );
-			{
-				statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-				statusOFS << eta2Total << std::endl;
-				statusOFS << std::endl << "Residual term:" << std::endl;
-				statusOFS << eta2Residual << std::endl;
-				statusOFS << std::endl << "Jump of gradient term:" << std::endl;
-				statusOFS << eta2GradJump << std::endl;
-				statusOFS << std::endl << "Jump of function value term:" << std::endl;
-				statusOFS << eta2Jump << std::endl;
-			}
+      // Only master processor output information containing all atoms
+      if( mpirank == 0 ){
+        PrintBlock( statusOFS, "A Posteriori error" );
+        {
+          statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+          statusOFS << eta2Total << std::endl;
+          statusOFS << std::endl << "Residual term:" << std::endl;
+          statusOFS << eta2Residual << std::endl;
+          statusOFS << std::endl << "Jump of gradient term:" << std::endl;
+          statusOFS << eta2GradJump << std::endl;
+          statusOFS << std::endl << "Jump of function value term:" << std::endl;
+          statusOFS << eta2Jump << std::endl;
+        }
+      }
 		}
 
 
@@ -1553,7 +1703,11 @@ SCFDG::InnerIterate	(  )
 
 
 		// Print out the state variables of the current iteration
-    PrintState( );
+
+    // Only master processor output information containing all atoms
+    if( mpirank == 0 ){
+      PrintState( );
+    }
 
 		GetTime( timeIterEnd );
    
