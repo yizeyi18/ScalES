@@ -93,6 +93,7 @@ BlopexInt EigenSolver::HamiltonianMult
   NumTns<Scalar> a3(ntot, ncom, nocc, false, y->data);
 
 	SetValue( a3, SCALAR_ZERO ); // IMPORTANT
+
   hamPtr_->MultSpinor(psitemp, a3, *fftPtr_);
 	
 #ifndef _RELEASE_

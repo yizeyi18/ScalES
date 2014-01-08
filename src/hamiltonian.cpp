@@ -604,9 +604,18 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 	PushCallStack("KohnSham::MultSpinor");
 #endif
 	SetValue( a3, SCALAR_ZERO );
-	psi.AddScalarDiag( vtot_, a3 );
-	psi.AddLaplacian( a3, &fft );
-  psi.AddNonlocalPP( pseudo_, a3 );
+
+    psi.AddLaplacian( a3, &fft );
+#ifdef _USE_OPENMP_
+#pragma omp parallel
+  {
+#endif
+    psi.AddScalarDiag( vtot_, a3 );
+    psi.AddNonlocalPP( pseudo_, a3 );
+#ifdef _USE_OPENMP_
+  }
+#endif
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif

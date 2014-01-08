@@ -172,7 +172,9 @@ Spinor::AddScalarDiag	(const Int iocc, const DblNumVec &val, NumTns<Scalar>& a3)
 		Scalar *p1 = wavefun_.VecData(j, k);
 		Real   *p2 = val.Data();
 		Scalar *p3 = a3.VecData(j, k);
-		for (Int i=0; i<ntot; i++) { *(p3) += (*p1) * (*p2); p3++; p1++; p2++; }
+		for (Int i=0; i<ntot; i++) { 
+      *(p3) += (*p1) * (*p2); p3++; p1++; p2++; 
+    }
 	}
 
 #ifndef _RELEASE_
@@ -195,15 +197,19 @@ void Spinor::AddScalarDiag	(const DblNumVec &val, NumTns<Scalar> &a3)
 	Int ncom = wavefun_.n();
 	Int nocc = wavefun_.p();
 
-//#pragma omp parallel for
-	for (Int k=0; k<nocc; k++) {
-		for (Int j=0; j<ncom; j++) {
-			Scalar *p1 = wavefun_.VecData(j, k);
-			Real   *p2 = val.Data();
-			Scalar *p3 = a3.VecData(j, k);
-			for (Int i=0; i<ntot; i++) { *(p3++) += (*p1++) * (*p2++); }
-		}
-	}
+#ifdef _USE_OPENMP_
+#pragma omp for schedule (dynamic,1) nowait
+#endif
+  for (Int k=0; k<nocc; k++) {
+    for (Int j=0; j<ncom; j++) {
+      Scalar *p1 = wavefun_.VecData(j, k);
+      Real   *p2 = val.Data();
+      Scalar *p3 = a3.VecData(j, k);
+      for (Int i=0; i<ntot; i++) { 
+        *(p3++) += (*p1++) * (*p2++); 
+      }
+    }
+  }
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -342,6 +348,9 @@ Spinor::AddNonlocalPP	(const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
 	Int nocc = wavefun_.p();
 	Real vol = domain_.Volume();
 
+#ifdef _USE_OPENMP_
+#pragma omp for schedule (dynamic,1) nowait
+#endif
 	for (Int k=0; k<nocc; k++) {
 		for (Int j=0; j<ncom; j++) {
 			Scalar    *ptr0 = wavefun_.VecData(j,k);
