@@ -605,11 +605,11 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 #endif
 	SetValue( a3, SCALAR_ZERO );
 
-    psi.AddLaplacian( a3, &fft );
 #ifdef _USE_OPENMP_
 #pragma omp parallel
   {
 #endif
+    psi.AddLaplacian( a3, &fft );
     psi.AddScalarDiag( vtot_, a3 );
     psi.AddNonlocalPP( pseudo_, a3 );
 #ifdef _USE_OPENMP_

@@ -732,12 +732,6 @@ SCFDG::Iterate	(  )
 										numSVDBasis++;
                 }
 
-								statusOFS << "Singular values of the basis = " 
-									<< S << std::endl;
-
-								statusOFS << "Number of significant SVD basis = " 
-                  << numSVDBasis << std::endl;
-
 								// Unscale the orthogonal basis functions by sqrt of
 								// integration weight
 								for( Int g = 0; g < localBasis.n(); g++ ){
@@ -761,7 +755,8 @@ SCFDG::Iterate	(  )
                     numBasis, 1.0, localBasis.Data(), numLGLGridTotal,
                     U.Data(), numBasis, 0.0, basis.Data(), numLGLGridTotal );
 
-                if(1){
+#if ( _DEBUGlevel_ >= 1  )
+                {
                   // Scale the basis functions by sqrt of integration weight
                   for( Int g = 0; g < basis.n(); g++ ){
                     Real *ptr1 = basis.VecData(g);
@@ -791,7 +786,14 @@ SCFDG::Iterate	(  )
                     }
                   }
                 }
+#endif
 
+
+								statusOFS << "Singular values of the basis = " 
+									<< S << std::endl;
+
+								statusOFS << "Number of significant SVD basis = " 
+                  << numSVDBasis << std::endl;
 
 							}
 							GetTime( timeEnd );
