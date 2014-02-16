@@ -1060,6 +1060,192 @@ HamiltonianDG::CalculateDensity	(
 } 		// -----  end of method HamiltonianDG::CalculateDensity  ----- 
 
 
+void
+HamiltonianDG::CalculateDensity	( 
+		DistDblNumVec& rho,
+		DistDblNumVec& rhoLGL,
+    DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat )
+{
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::CalculateDensity");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+
+	if(1)
+	{
+		Real sumRhoLocal = 0.0, sumRho = 0.0;
+		Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
+		// Generate the LGL weight. FIXME. Put it to hamiltonian_dg
+		// Compute the integration weights
+		DblNumTns               LGLWeight3D;
+		{
+			std::vector<DblNumVec>  LGLWeight1D(DIM);
+			Point3 length       = domainElem_(0,0,0).length;
+			Index3 numGrid      = numLGLGridElem_;             
+			Int    numGridTotal = numGrid.prod();
+
+			// Compute the integration weights
+			// 1D
+			for( Int d = 0; d < DIM; d++ ){
+				DblNumVec  dummyX;
+				DblNumMat  dummyP, dummpD;
+				GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
+						numGrid[d] );
+				blas::Scal( numGrid[d], 0.5 * length[d], 
+						LGLWeight1D[d].Data(), 1 );
+			}
+
+			// 3D
+			LGLWeight3D.Resize( numGrid[0], numGrid[1], numGrid[2] );
+			for( Int k = 0; k < numGrid[2]; k++ )
+				for( Int j = 0; j < numGrid[1]; j++ )
+					for( Int i = 0; i < numGrid[0]; i++ ){
+						LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
+							LGLWeight1D[2](k);
+					} // for (i)
+		}
+
+		// Clear the density FIXME. Combine with above
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumVec& localRho    = rho.LocalMap()[key];
+						DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+
+						SetValue( localRho, 0.0 );
+						SetValue( localRhoLGL, 0.0 );
+						
+					}
+				} // for (i)
+
+		// Compute the local density in each element
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumMat& localBasis = basisLGL_.LocalMap()[key];
+						Int numGrid  = localBasis.m();
+						Int numBasis = localBasis.n();
+
+						// Skip the element if there is no basis functions.
+						if( numBasis == 0 )
+							continue;
+
+						DblNumMat& localDM = distDMMat.LocalMap()[
+              std::pair<Index3,Index3>(key, key)];
+
+            if( numBasis != localDM.m() ||
+                numBasis != localDM.n() ){
+              std::ostringstream msg;
+              msg << std::endl
+                << "Error happens in the element (" << key << ")" << std::endl
+                << "The number of basis functions is " << numBasis << std::endl
+                << "The size of the local density matrix is " 
+                << localDM.m() << " x " << localDM.n() << std::endl;
+              throw std::runtime_error( msg.str().c_str() );
+            }
+
+						DblNumVec& localRho    = rho.LocalMap()[key];
+						DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+
+#ifdef _USE_OPENMP_
+#pragma omp parallel 
+						{
+#endif
+							// For thread safety, declare as private variable
+							DblNumVec  localRhoLGLTmp( numGrid );
+							SetValue( localRhoLGLTmp, 0.0 );
+              Real factor;
+
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+              // Explicit take advantage of the symmetry
+							for( Int a = 0; a < numBasis; a++ )
+                for( Int b = a; b < numBasis; b++ ){
+                  factor = (b == a ) ? ( 1.0 * localDM(a,b) ) : ( 2.0 * localDM(a,b) );
+                  for( Int p = 0; p < numGrid; p++ ){
+                    localRhoLGLTmp(p) += localBasis(p,a) * localBasis(p,b) * factor; 
+                  }
+                }
+#ifdef _USE_OPENMP_
+#pragma omp critical
+							{
+#endif
+							// This is a reduce operation for an array, and should be
+							// done in the OMP critical syntax
+								blas::Axpy( numGrid, 1.0, localRhoLGLTmp.Data(), 1, localRhoLGL.Data(), 1 );
+#ifdef _USE_OPENMP_
+							}
+#endif
+
+#ifdef _USE_OPENMP_
+						}
+#endif
+
+						statusOFS << "Before interpolation" << std::endl;
+
+						// Interpolate the local density from LGL grid to uniform
+						// grid
+						InterpLGLToUniform( 
+								numLGLGridElem_, 
+								numUniformGridElem_, 
+								localRhoLGL.Data(), 
+								localRho.Data() );
+						statusOFS << "After interpolation" << std::endl;
+
+						sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
+								localRhoLGL.Data(), 1, 
+								LGLWeight3D.Data(), 1 );
+
+						Real* ptrRho = localRho.Data();
+						for( Int p = 0; p < localRho.Size(); p++ ){
+							sumRhoLocal += (*ptrRho);
+							ptrRho++;
+						}
+					} // own this element
+				} // for (i)
+
+		sumRhoLocal *= domain_.Volume() / domain_.NumGridTotal(); 
+
+		// All processors get the normalization factor
+		mpi::Allreduce( &sumRhoLGLLocal, &sumRhoLGL, 1, MPI_SUM, domain_.comm );
+		mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.comm );
+
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << std::endl;
+		Print( statusOFS, "Sum Rho on LGL grid (raw data) = ", sumRhoLGL );
+		Print( statusOFS, "Sum Rho on uniform grid (interpolated) = ", sumRho );
+		statusOFS << std::endl;
+#endif
+		
+
+		Real rhofac = numSpin_ * numOccupiedState_ / sumRho;
+	  
+
+		// Normalize the electron density in the global domain
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == mpirank ){
+						DblNumVec& localRho = rho.LocalMap()[key];
+						blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
+					} // own this element
+				} // for (i)
+	}
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method HamiltonianDG::CalculateDensity  ----- 
 
 void
 HamiltonianDG::CalculateXC	( 

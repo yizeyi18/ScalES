@@ -48,6 +48,13 @@
 #include	"lapack.hpp"
 #include  "utility.hpp"
 
+// FIXME Move this to the configuration file
+#define _USE_PEXSI_
+
+#ifdef _USE_PEXSI_
+#include  "c_pexsi_interface.h"
+#endif
+
 #define _DEBUGlevel_ 0
 
 namespace  dgdft{
@@ -1338,46 +1345,10 @@ SCFDG::InnerIterate	(  )
 		}
 
 		// *********************************************************************
-		// Diagonalize the DG matrix
+		// Evaluate the density matrix
+    // 
+    // This can be done either using diagonalization method or using PEXSI
 		// *********************************************************************
-
-		{
-			GetTime(timeSta);
-			Int sizeH = hamDG.NumBasisTotal();
-
-			scalapack::Descriptor descH( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
-					0, 0, contxt_ );
-
-			scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
-
-			std::vector<Real> eigs;
-
-			DistElemMatToScaMat( hamDG.HMat(), 	descH,
-					scaH, hamDG.ElemBasisIdx(), domain_.comm );
-
-			scalapack::Syevd('U', scaH, eigs, scaZ);
-
-			DblNumVec& eigval = hamDG.EigVal(); 
-			eigval.Resize( hamDG.NumStateTotal() );		
-			for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
-				eigval[i] = eigs[i];
-
-			ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
-					hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.comm, 
-					hamDG.NumStateTotal() );
-
-			MPI_Barrier( domain_.comm );
-			GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-			statusOFS << "Time for diagonalizing the DG matrix using ScaLAPACK is " <<
-				timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-		}
-
-		// *********************************************************************
-		// Post processing
-		// *********************************************************************
-	
 
 		// Save the mixing variable first
 		{
@@ -1404,118 +1375,409 @@ SCFDG::InnerIterate	(  )
 		}
 
 
-		// Compute the occupation rate
-		CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
+    // FIXME Introduce an option called the solutionMethod_
+    // with the choice of 1) PEXSI 2) DIAG
+    std::string solutionMethod_ = "pexsi";
+    // Method 1: Using diagonalization method
+    if( solutionMethod_ == "diag"  ){
+      {
+        GetTime(timeSta);
+        Int sizeH = hamDG.NumBasisTotal();
 
-		// Compute the Harris energy functional.  
-		// NOTE: In computing the Harris energy, the density and the
-		// potential must be the INPUT density and potential without ANY
-		// update.
-    CalculateHarrisEnergy();
+        scalapack::Descriptor descH( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
+            0, 0, contxt_ );
 
-		MPI_Barrier( domain_.comm );
+        scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
 
+        std::vector<Real> eigs;
 
-		// Compute the output electron density
-		GetTime( timeSta );
+        DistElemMatToScaMat( hamDG.HMat(), 	descH,
+            scaH, hamDG.ElemBasisIdx(), domain_.comm );
 
-		// Calculate the new electron density
-		hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
+        scalapack::Syevd('U', scaH, eigs, scaZ);
 
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
+        DblNumVec& eigval = hamDG.EigVal(); 
+        eigval.Resize( hamDG.NumStateTotal() );		
+        for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
+          eigval[i] = eigs[i];
+
+        ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
+            hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.comm, 
+            hamDG.NumStateTotal() );
+
+        MPI_Barrier( domain_.comm );
+        GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for computing density in the global domain is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        statusOFS << "Time for diagonalizing the DG matrix using ScaLAPACK is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+      }
+
+      // Post processing
+
+      // Compute the occupation rate
+      CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
+
+      // Compute the Harris energy functional.  
+      // NOTE: In computing the Harris energy, the density and the
+      // potential must be the INPUT density and potential without ANY
+      // update.
+      CalculateHarrisEnergy();
+
+      MPI_Barrier( domain_.comm );
+
+      // Compute the output electron density
+      GetTime( timeSta );
+
+      // Calculate the new electron density
+      hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
+
+      MPI_Barrier( domain_.comm );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing density in the global domain is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      // Update the output potential, and the KS and second order accurate
+      // energy
+      {
+        // Update the Hartree energy and the exchange correlation energy and
+        // potential for computing the KS energy and the second order
+        // energy.
+        // NOTE Vtot should not be updated until finishing the computation
+        // of the energies.
+
+        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
+        hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+
+        // Compute the second order accurate energy functional.
+        // NOTE: In computing the second order energy, the density and the
+        // potential must be the OUTPUT density and potential without ANY
+        // MIXING.
+        CalculateSecondOrderEnergy();
+
+        // Compute the KS energy 
+        CalculateKSEnergy();
+
+        // Update the total potential AFTER updating the energy
+
+        // No external potential
+
+        // Compute the new total potential
+
+        hamDG.CalculateVtot( hamDG.Vtot() );
+
+      }
+
+
+      // Compute the force at every step
+      if( isCalculateForceEachSCF_ ){
+        // Compute force
+        GetTime( timeSta );
+        hamDG.CalculateForce( *distfftPtr_ );
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the force is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // Print out the force
+        // Only master processor output information containing all atoms
+        if( mpirank == 0 ){
+          PrintBlock( statusOFS, "Atomic Force" );
+          {
+            Point3 forceCM(0.0, 0.0, 0.0);
+            std::vector<Atom>& atomList = hamDG.AtomList();
+            Int numAtom = atomList.size();
+            for( Int a = 0; a < numAtom; a++ ){
+              Print( statusOFS, "atom", a, "force", atomList[a].force );
+              forceCM += atomList[a].force;
+            }
+            statusOFS << std::endl;
+            Print( statusOFS, "force for centroid: ", forceCM );
+            statusOFS << std::endl;
+          }
+        }
+      }
+
+      // Compute the a posteriori error estimator at every step
+      if( isCalculateAPosterioriEachSCF_ )
+      {
+        GetTime( timeSta );
+        DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
+        hamDG.CalculateAPosterioriError( 
+            eta2Total, eta2Residual, eta2GradJump, eta2Jump );
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the a posteriori error is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // Only master processor output information containing all atoms
+        if( mpirank == 0 ){
+          PrintBlock( statusOFS, "A Posteriori error" );
+          {
+            statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+            statusOFS << eta2Total << std::endl;
+            statusOFS << std::endl << "Residual term:" << std::endl;
+            statusOFS << eta2Residual << std::endl;
+            statusOFS << std::endl << "Jump of gradient term:" << std::endl;
+            statusOFS << eta2GradJump << std::endl;
+            statusOFS << std::endl << "Jump of function value term:" << std::endl;
+            statusOFS << eta2Jump << std::endl;
+          }
+        }
+      }
+    }
+
+    // Method 2: Using the pole expansion and selected inversion (PEXSI) method
+    // FIXME Currently it is assumed that all processors used by DG will be used by PEXSI.
+#ifdef _USE_PEXSI_
+    if( solutionMethod_ == "pexsi" ){
+      Real numElectronExact = hamDG.NumOccupiedState() * hamDG.NumSpin();
+      Real muMin0 = -1.0;
+      Real muMax0 =  1.0;
+      Int  numPole = 40;
+      Int  inertiaIter;
+      Int  inertiaMaxIter = 3;
+      Int  muMaxIter = 3;
+      Real inertiaNumElectronTolerance = 2.0;
+      Real PEXSINumElectronTolerance = 1e-5;
+      Int  ordering = 0;
+      Int  npPerPole = 1;
+      Int  npSymbFact = 1;
+      Real gap = 0.0;
+      Real deltaE = 1000;
+      Real muMinInertia, muMaxInertia, muUpperEdge, muLowerEdge, muInertia;
+      DblNumVec shiftList( numPole ), inertiaList( numPole );
+      IntNumVec inertiaListInt( numPole );
+      Real muPEXSI, numElectron, muMinPEXSI, muMaxPEXSI; 
+      DblNumVec muList( muMaxIter ), numElectronList( muMaxIter ),
+                numElectronDrvList( muMaxIter );
+      Int muIter;
+
+
+      Int info;
+			DistSparseMatrix<Real>  HSparseMat;
+      
+      // Create an MPI communicator for saving the H matrix in a
+      // subgroup of processors
+      MPI_Comm HCSCComm;
+      Int isProcHCSC = ( mpirank < npPerPole ) ? 1 : 0;
+      
+      MPI_Comm_split( MPI_COMM_WORLD, isProcHCSC, mpirank, &HCSCComm );
+      
+      // Convert the DG matrix into the distributed CSC format
+
+			GetTime(timeSta);
+			DistElemMatToDistSparseMat( 
+					hamDG.HMat(),
+					hamDG.NumBasisTotal(),
+					HSparseMat,
+					hamDG.ElemBasisIdx(),
+					domain_.comm, 
+          npPerPole );
+			GetTime(timeEnd);
+
+      // FIXME The following line is NECESSARY, and is because of the
+      // unmature implementation of DistElemMatToDistSparseMat
+      if( mpirank < npPerPole ){
+        HSparseMat.comm = HCSCComm;
+        mpi::Allreduce( &HSparseMat.nnzLocal, 
+            &HSparseMat.nnz, 1, MPI_SUM, HSparseMat.comm );
+      }
+#if ( _DEBUGlevel_ >= 0 )
+			statusOFS << "Time for converting the DG matrix to DistSparseMatrix format is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
 
-		// Update the output potential, and the KS and second order accurate
-		// energy
-		{
-			// Update the Hartree energy and the exchange correlation energy and
-			// potential for computing the KS energy and the second order
-			// energy.
-			// NOTE Vtot should not be updated until finishing the computation
-			// of the energies.
-
-			hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
-			hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
-
-			// Compute the second order accurate energy functional.
-			// NOTE: In computing the second order energy, the density and the
-			// potential must be the OUTPUT density and potential without ANY
-			// MIXING.
-			CalculateSecondOrderEnergy();
-
-			// Compute the KS energy 
-			CalculateKSEnergy();
-
-			// Update the total potential AFTER updating the energy
-
-			// No external potential
-
-			// Compute the new total potential
-
-			hamDG.CalculateVtot( hamDG.Vtot() );
-
-		}
-
-
-		// Compute the force at every step
-		if( isCalculateForceEachSCF_ ){
-			// Compute force
-			GetTime( timeSta );
-			hamDG.CalculateForce( *distfftPtr_ );
-			GetTime( timeEnd );
-			statusOFS << "Time for computing the force is " <<
-				timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-			// Print out the force
-      // Only master processor output information containing all atoms
-      if( mpirank == 0 ){
-        PrintBlock( statusOFS, "Atomic Force" );
-        {
-          Point3 forceCM(0.0, 0.0, 0.0);
-          std::vector<Atom>& atomList = hamDG.AtomList();
-          Int numAtom = atomList.size();
-          for( Int a = 0; a < numAtom; a++ ){
-            Print( statusOFS, "atom", a, "force", atomList[a].force );
-            forceCM += atomList[a].force;
-          }
-          statusOFS << std::endl;
-          Print( statusOFS, "force for centroid: ", forceCM );
-          statusOFS << std::endl;
-        }
+#if ( _DEBUGlevel_ >= 1 )
+      if( mpirank < npPerPole ){
+        statusOFS << "H.size = " << HSparseMat.size << std::endl;
+        statusOFS << "H.nnz  = " << HSparseMat.nnz << std::endl;
+        statusOFS << "H.nnzLocal  = " << HSparseMat.nnzLocal << std::endl;
+        statusOFS << "H.colptrLocal.m() = " << HSparseMat.colptrLocal.m() << std::endl;
+        statusOFS << "H.rowindLocal.m() = " << HSparseMat.rowindLocal.m() << std::endl;
+        statusOFS << "H.nzvalLocal.m() = " << HSparseMat.nzvalLocal.m() << std::endl;
       }
-		}
+#endif
+ 
 
-		// Compute the a posteriori error estimator at every step
-		if( isCalculateAPosterioriEachSCF_ )
-		{
-			GetTime( timeSta );
-			DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-			hamDG.CalculateAPosterioriError( 
-					eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-			GetTime( timeEnd );
-			statusOFS << "Time for computing the a posteriori error is " <<
-				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-      // Only master processor output information containing all atoms
-      if( mpirank == 0 ){
-        PrintBlock( statusOFS, "A Posteriori error" );
-        {
-          statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-          statusOFS << eta2Total << std::endl;
-          statusOFS << std::endl << "Residual term:" << std::endl;
-          statusOFS << eta2Residual << std::endl;
-          statusOFS << std::endl << "Jump of gradient term:" << std::endl;
-          statusOFS << eta2GradJump << std::endl;
-          statusOFS << std::endl << "Jump of function value term:" << std::endl;
-          statusOFS << eta2Jump << std::endl;
+#if ( _DEBUGlevel_ >= 1 )
+      // Convert matrix back and forth to test the correctness of the
+      // conversion routines.
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      HMat1;
+      DistSparseMatrix<Real>      HSparseMat1;
+      DistSparseMatToDistElemMat( 
+          HSparseMat,
+          hamDG.NumBasisTotal(),
+          hamDG.HMat().Prtn(),
+          HMat1,
+					hamDG.ElemBasisIdx(),
+          domain_.comm,
+          npPerPole );
+
+			DistElemMatToDistSparseMat( 
+					HMat1,
+					hamDG.NumBasisTotal(),
+					HSparseMat1,
+					hamDG.ElemBasisIdx(),
+					domain_.comm, 
+          npPerPole );
+
+      // FIXME The following line is NECESSARY, and is because of the
+      // unmature implementation of DistElemMatToDistSparseMat
+      if( mpirank < npPerPole ){
+        HSparseMat1.comm = HCSCComm;
+        mpi::Allreduce( &HSparseMat1.nnzLocal, 
+            &HSparseMat1.nnz, 1, MPI_SUM, HSparseMat1.comm );
+
+        // Check the agreement between HSparseMat and HSparseMat1
+        statusOFS << "H1.size = " << HSparseMat1.size << std::endl;
+        statusOFS << "H1.nnz  = " << HSparseMat1.nnz << std::endl;
+        statusOFS << "H1.nnzLocal  = " << HSparseMat1.nnzLocal << std::endl;
+        statusOFS << "H1.colptrLocal.m() = " << HSparseMat1.colptrLocal.m() << std::endl;
+        statusOFS << "H1.rowindLocal.m() = " << HSparseMat1.rowindLocal.m() << std::endl;
+        statusOFS << "H1.nzvalLocal.m() = " << HSparseMat1.nzvalLocal.m() << std::endl;
+
+        Real nzvalErr = 0.0;
+        for( Int i = 0; i < HSparseMat.nnzLocal; i++ ){
+          nzvalErr += pow( std::abs( 
+                HSparseMat.nzvalLocal(i) - HSparseMat1.nzvalLocal(i) ), 2.0 );
         }
+        nzvalErr = std::sqrt( nzvalErr );
+        statusOFS << "||H.nzvalLocal - H1.nzvalLocal||_2 = " << nzvalErr << std::endl;
       }
-		}
+#endif
+
+
+      // Find the range of chemical potential
+
+      PPEXSIInertiaCountInterface(
+          HSparseMat.size,
+          HSparseMat.nnz,
+          HSparseMat.nnzLocal,
+          HSparseMat.colptrLocal.m() - 1,
+          HSparseMat.colptrLocal.Data(),
+          HSparseMat.rowindLocal.Data(),
+          HSparseMat.nzvalLocal.Data(),
+          1,  // isSIdentity
+          NULL,
+          1.0 / Tbeta_,
+          numElectronExact,
+          muMin0,
+          muMax0,
+          numPole,
+          inertiaMaxIter,
+          inertiaNumElectronTolerance,
+          ordering,
+          npPerPole,
+          npSymbFact,
+          MPI_COMM_WORLD,
+          &muMinInertia,
+          &muMaxInertia,
+          &muLowerEdge,
+          &muUpperEdge,
+          &inertiaIter,
+          shiftList.Data(),
+          inertiaList.Data(),
+          &info);
+
+      muInertia = (muLowerEdge + muUpperEdge)/2.0;
+
+      if( mpirank == 0 ){ 
+        printf("The computed finite temperature inertia = \n");
+        for( Int i = 0; i < numPole; i++ )
+          printf( "Shift = %25.15f, inertia = %25.15f\n", 
+              shiftList[i], inertiaList[i] );
+      }
+
+
+      // PEXSI solver
+			DistSparseMatrix<Real>  DMSparseMat, EDMSparseMat, FDMSparseMat;
+      if( mpirank < npPerPole ){
+        CopyPattern( HSparseMat, DMSparseMat );
+        CopyPattern( HSparseMat, EDMSparseMat );
+        CopyPattern( HSparseMat, FDMSparseMat );
+      }
+
+      PPEXSISolveInterface(
+          HSparseMat.size,
+          HSparseMat.nnz,
+          HSparseMat.nnzLocal,
+          HSparseMat.colptrLocal.m() - 1,
+          HSparseMat.colptrLocal.Data(),
+          HSparseMat.rowindLocal.Data(),
+          HSparseMat.nzvalLocal.Data(),
+          1,  // isSIdentity
+          NULL,
+          1.0 / Tbeta_,
+          numElectronExact,
+          muInertia,
+          muMinInertia,
+          muMaxInertia,
+          gap,
+          deltaE,
+          numPole,
+          muMaxIter,
+          PEXSINumElectronTolerance,
+          ordering,
+          npPerPole,
+          npSymbFact,
+          MPI_COMM_WORLD,
+          DMSparseMat.nzvalLocal.Data(),
+          EDMSparseMat.nzvalLocal.Data(),
+          FDMSparseMat.nzvalLocal.Data(),
+          &muPEXSI,
+          &numElectron,
+          &muMinPEXSI,
+          &muMaxPEXSI,
+          &muIter,
+          muList.Data(),
+          numElectronList.Data(),
+          numElectronDrvList.Data(),
+          &info );
+
+      if( mpirank == 0 ){ 
+        printf("After PEXSI iteration, muIter = %10d, \n", muIter );
+        for( Int i = 0; i < muIter; i++ )
+          printf( "mu = %25.15f, numElectron = %25.15f\n", 
+              muList[i], numElectronList[i] );
+      }
+
+
+      // Convert the density matrix from DistSparseMatrix format to the
+      // DistElemMat format
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distDMMat;
+      DistSparseMatToDistElemMat( 
+          DMSparseMat,
+          hamDG.NumBasisTotal(),
+          hamDG.HMat().Prtn(),
+          distDMMat,
+					hamDG.ElemBasisIdx(),
+          domain_.comm,
+          npPerPole );
+
+      // Evaluate the electron density
+
+      hamDG.CalculateDensity( 
+          hamDG.Density(), hamDG.DensityLGL(), distDMMat );
+
+      // FIXME Terminate the code
+//      if( info != 0 ){
+      if( 1 ){
+        if( mpirank == 0 ){
+          printf("Inertia count routine gives info = %d. Exit now.\n", info );
+        }
+        MPI_Finalize();
+        exit(0);
+      }
+
+      // TODO Evaluate the force and a posteriori error estimator
+
+      MPI_Comm_free( &HCSCComm );
+       
+    }
+#endif
 
 
 
