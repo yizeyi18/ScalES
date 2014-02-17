@@ -340,7 +340,7 @@ public:
 	
 	/// @brief Compute the electron density using the density matrix. This
   /// is used after obtaining the density matrix using PEXSI.
-	void CalculateDensity( 
+	void CalculateDensityDM( 
       DistDblNumVec& rho, 
       DistDblNumVec& rhoLGL, 
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
@@ -376,6 +376,12 @@ public:
 
 	/// @brief Calculate the Hellmann-Feynman force for each atom.
 	void CalculateForce ( DistFourier& fft );
+
+	/// @brief Calculate the Hellmann-Feynman force for each atom using
+  /// the density matrix formulation.
+	void CalculateForceDM ( DistFourier& fft, 
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
+
 
 	/// @brief Calculate the residual type a posteriori error estimator
 	/// for the solution. 

@@ -205,6 +205,13 @@ public:
 	/// @brief Calculate the Kohn-Sham energy and other related energies.
 	void  CalculateKSEnergy();
 
+	/// @brief Calculate the Kohn-Sham energy and other related energies
+  /// using the energy density matrix and the free energy density matrix.
+	void  CalculateKSEnergyDM(
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distEDMMat,
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
+
+
 	/// @brief Calculate the Harris (free) energy.  
 	///
 	/// The difference between the Kohn-Sham energy and the Harris energy
@@ -217,6 +224,15 @@ public:
 	/// [Soler et al. "The SIESTA method for ab initio order-N
 	/// materials", J. Phys. Condens. Matter. 14, 2745 (2002) pp 18]
 	void  CalculateHarrisEnergy();
+
+
+	/// @brief Calculate the Harris (free) energy using density matrix and
+  /// free energy density matrix.  
+  ///
+  /// @see CalculateHarrisEnergy
+	void  CalculateHarrisEnergyDM(
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
+
 
 	/// @brief Calculate the second order accurate energy that is
 	/// applicable to both density and potential mixing.
