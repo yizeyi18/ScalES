@@ -1530,7 +1530,7 @@ SCFDG::InnerIterate	(  )
       Int  inertiaIter;
       Int  inertiaMaxIter = 3;
       Int  muMaxIter = 3;
-      Real inertiaNumElectronTolerance = 2.0;
+      Real inertiaNumElectronTolerance = 4.0;
       Real PEXSINumElectronTolerance = 1e-5;
       Int  ordering = 0;
       Int  npPerPole = 1;
@@ -2686,7 +2686,6 @@ SCFDG::CalculateKSEnergyDM (
     statusOFS << std::endl
       << "Ekin  = " << Ekin_ << std::endl
       << "Ehelm = " << Ehelm << std::endl;
-
   }
 
 

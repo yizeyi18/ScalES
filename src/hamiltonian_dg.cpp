@@ -2084,7 +2084,7 @@ HamiltonianDG::CalculateForceDM	(
 
 
   // Use the density matrix instead of the eigenfunctions. 
-  if(0)
+  if(1)
 	{
 #if ( _DEBUGlevel_ >= 0 )
     statusOFS << "Starting the nonlocal part of the force calculation "
