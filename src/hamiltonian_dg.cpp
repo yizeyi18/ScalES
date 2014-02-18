@@ -47,6 +47,7 @@
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 
+// FIXME Always debugging this file for now.
 #define _DEBUGlevel_ 0
 
 namespace dgdft{
@@ -1137,8 +1138,7 @@ HamiltonianDG::CalculateDensityDM	(
 						if( numBasis == 0 )
 							continue;
 
-						DblNumMat& localDM = distDMMat.LocalMap()[
-              std::pair<Index3,Index3>(key, key)];
+						DblNumMat& localDM = distDMMat.LocalMap()[ElemMatKey(key, key)];
 
             if( numBasis != localDM.m() ||
                 numBasis != localDM.n() ){
@@ -1856,6 +1856,7 @@ HamiltonianDG::CalculateForceDM	(
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
 
+  Real timeSta, timeEnd;
 
 	// *********************************************************************
 	// Initialize the force computation
@@ -2080,156 +2081,226 @@ HamiltonianDG::CalculateForceDM	(
 	// *********************************************************************
 	// Compute the force from nonlocal pseudopotential
 	// *********************************************************************
+
+
+  // Use the density matrix instead of the eigenfunctions. 
+  if(0)
 	{
-		// Step 1. Collect the eigenvectors from the neighboring elements
-		// according to the support of the pseudopotential
-		// Note: the following part is the same as that in 
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Starting the nonlocal part of the force calculation "
+      << std::endl;
+#endif
+
+    // Step 1. Collect the blocks of density matrices according to the
+    // support of the pseudopotential 
 		//
-		// HamiltonianDG::CalculateDGMatrix
+		// Use std::set to avoid repetitive entries
+    GetTime( timeSta );
+		std::set<ElemMatKey>  pseudoSet;
+    for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
+      if( atomPrtn_.Owner(atomIdx) == mpirank ){
+        // Loop over the elements (row indices in the density matrix)
+        // containing the atom
+        for( std::map<Index3, std::map<Int, DblNumMat> >::iterator 
+            ei  = vnlCoef_.LocalMap().begin();
+            ei != vnlCoef_.LocalMap().end(); ei++ ){
+          Index3 iKey = (*ei).first;
+
+          // vnlCoef finds the pseudopotential for atomIdx in the element
+          // iKey
+          if( (*ei).second.find( atomIdx ) == (*ei).second.end() )
+            continue;
+
+          // Loop over the elements (column indices in the density
+          // matrix) containing the atom
+          for( std::map<Index3, std::map<Int, DblNumMat> >::iterator 
+              ej  = vnlCoef_.LocalMap().begin();
+              ej != vnlCoef_.LocalMap().end(); ej++ ){
+            Index3 jKey = (*ej).first;
+
+            // vnlCoef finds the pseudopotential for atomIdx in the
+            // element jKey 
+            if( (*ej).second.find( atomIdx ) == (*ej).second.end() )
+              continue;
+
+            pseudoSet.insert( ElemMatKey( iKey, jKey ) );
+          }
+        }
+      }
+    }
+
+		std::vector<ElemMatKey>  pseudoIdx;
+		pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
+
+
+    // Step 1. Collect the blocks of density matrices from the neighboring
+    // elements according to the support of the pseudopotential 
+    //
+    // Each element owns all the density matrix blocks in its neighbors
+    // and then perform data processing later. It can be as many as
+    // 3^3 = 27 elements.  The element itself is included as well.
 		//
-		// Each element owns all the coefficient matrices in its neighbors
-		// and then perform data processing later. It can be as many as 
-		// 3^3-1 = 26 elements. 
-		//
-		// Note that it is assumed that the size of the element size cannot
+		// NOTE that it is assumed that the size of the element size cannot
 		// be smaller than the pseudopotential (local or nonlocal) cutoff radius.
 		//
 		// Use std::set to avoid repetitive entries
-		std::set<Index3>  pseudoSet;
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					Index3 key( i, j, k );
-					if( elemPrtn_.Owner(key) == mpirank ){
-						IntNumVec  idxX(3);
-						IntNumVec  idxY(3);
-						IntNumVec  idxZ(3); 
+//		for( Int k = 0; k < numElem_[2]; k++ )
+//			for( Int j = 0; j < numElem_[1]; j++ )
+//				for( Int i = 0; i < numElem_[0]; i++ ){
+//					Index3 key( i, j, k );
+//					if( elemPrtn_.Owner(key) == mpirank ){
+//						IntNumVec  idxX(3);
+//						IntNumVec  idxY(3);
+//						IntNumVec  idxZ(3); 
+//
+//						// Previous
+//						if( i == 0 )  idxX(0) = numElem_[0]-1; else   idxX(0) = i-1;
+//						if( j == 0 )  idxY(0) = numElem_[1]-1; else   idxY(0) = j-1;
+//						if( k == 0 )  idxZ(0) = numElem_[2]-1; else   idxZ(0) = k-1;
+//
+//						// Current
+//						idxX(1) = i;
+//						idxY(1) = j;
+//						idxZ(1) = k;
+//
+//						// Next
+//						if( i == numElem_[0]-1 )  idxX(2) = 0; else   idxX(2) = i+1;
+//						if( j == numElem_[1]-1 )  idxY(2) = 0; else   idxY(2) = j+1;
+//						if( k == numElem_[2]-1 )  idxZ(2) = 0; else   idxZ(2) = k+1;
+//
+//						// Tensor product, including the element itself
+//						for( Int c = 0; c < 3; c++ )
+//							for( Int b = 0; b < 3; b++ )
+//								for( Int a = 0; a < 3; a++ ){
+//                  pseudoSet.insert( Index3( idxX(a), idxY(b), idxZ(c) ) );
+//								} // for (a)
+//					}
+//				} // for (i)
+//		std::vector<ElemMatKey>  pseudoIdx;
+//    for( std::set<Index3>::iterator si = pseudoSet.begin();
+//        si != pseudoSet.end(); si++ ){
+//      for( std::set<Index3>::iterator sj = pseudoSet.begin();
+//          sj != pseudoSet.end(); sj++ ){
+//        // FIXME
+//        // Due to the ASSUMPTION that the radius of each pseudopotential
+//        // does not exceed the length of the element, 
+//        pseudoIdx.push_back( 
+//            std::pair<Index3,Index3>( (*si), (*sj) ) );
+//      }
+//    }
 
-						// Previous
-						if( i == 0 )  idxX(0) = numElem_[0]-1; else   idxX(0) = i-1;
-						if( j == 0 )  idxY(0) = numElem_[1]-1; else   idxY(0) = j-1;
-						if( k == 0 )  idxZ(0) = numElem_[2]-1; else   idxZ(0) = k-1;
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Required density matrix blocks " << std::endl;
+    for( std::vector<ElemMatKey>::iterator vi = pseudoIdx.begin();
+         vi != pseudoIdx.end(); vi++ ){
+      statusOFS << (*vi).first << " -- " << (*vi).second << std::endl;
+    }
+		statusOFS << "Owned density matrix blocks on this processor" << std::endl;
+    for( std::map<ElemMatKey, DblNumMat>::iterator 
+       mi  = distDMMat.LocalMap().begin();
+       mi != distDMMat.LocalMap().end(); mi++ ){
+      ElemMatKey key = (*mi).first;
+      statusOFS << key.first << " -- " << key.second << std::endl;
+    }
+    statusOFS << "Ownerinfo for ElemMatPrtn " <<
+      distDMMat.Prtn().ownerInfo << std::endl; 
+#endif
+		distDMMat.GetBegin( pseudoIdx, NO_MASK );
+		distDMMat.GetEnd( NO_MASK );
+		GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << "Time for getting the density matrix blocks is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
-						// Current
-						idxX(1) = i;
-						idxY(1) = j;
-						idxZ(1) = k;
 
-						// Next
-						if( i == numElem_[0]-1 )  idxX(2) = 0; else   idxX(2) = i+1;
-						if( j == numElem_[1]-1 )  idxY(2) = 0; else   idxY(2) = j+1;
-						if( k == numElem_[2]-1 )  idxZ(2) = 0; else   idxZ(2) = k+1;
 
-						// Tensor product 
-						for( Int c = 0; c < 3; c++ )
-							for( Int b = 0; b < 3; b++ )
-								for( Int a = 0; a < 3; a++ ){
-									// Not the element key itself
-									if( idxX[a] != i || idxY[b] != j || idxZ[c] != k ){
-										pseudoSet.insert( Index3( idxX(a), idxY(b), idxZ(c) ) );
-									}
-								} // for (a)
-					}
-				} // for (i)
-		std::vector<Index3>  pseudoIdx;
-		pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
-		
-		eigvecCoef_.GetBegin( pseudoIdx, NO_MASK );
-		eigvecCoef_.GetEnd( NO_MASK );
+    // Step 2. Loop through the atoms, find the corresponding nonlocal
+    // pseudopotential and the density matrix for the contribution to
+    // the force
+    for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
+      if( atomPrtn_.Owner(atomIdx) == mpirank ){
+        DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
+        Int numVnl = vnlWeight.Size();
 
-		// Step 2. Loop through the atoms and eigenvecs for the contribution
-		// to the force
-		//
-		// Note: this procedure shall be substituted with the density matrix
-		// formulation when PEXSI is used. TODO
+        // Loop over the elements (row indices in the density matrix)
+        // containing the atom
+        for( std::map<Index3, std::map<Int, DblNumMat> >::iterator 
+            ei  = vnlCoef_.LocalMap().begin();
+            ei != vnlCoef_.LocalMap().end(); ei++ ){
+          Index3 iKey = (*ei).first;
 
-		// Loop over atoms and pseudopotentials
-		Int numEig = occupationRate_.m();
-		for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
-			if( atomPrtn_.Owner(atomIdx) == mpirank ){
-			  DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
-				Int numVnl = vnlWeight.Size();
-				DblNumMat resVal ( numEig, numVnl );
-				DblNumMat resDrvX( numEig, numVnl );
-				DblNumMat resDrvY( numEig, numVnl );
-				DblNumMat resDrvZ( numEig, numVnl );
-				SetValue( resVal,  0.0 );
-				SetValue( resDrvX, 0.0 );
-				SetValue( resDrvY, 0.0 );
-				SetValue( resDrvZ, 0.0 );
+          // vnlCoef finds the pseudopotential for atomIdx in the element
+          // iKey
+          if( (*ei).second.find( atomIdx ) == (*ei).second.end() )
+            continue;
 
-				// Loop over the elements overlapping with the nonlocal
-				// pseudopotential
-				for( std::map<Index3, std::map<Int, DblNumMat> >::iterator 
-						ei  = vnlCoef_.LocalMap().begin();
-						ei != vnlCoef_.LocalMap().end(); ei++ ){
-					Index3 key = (*ei).first;
-					std::map<Int, DblNumMat>& coefMap = (*ei).second; 
-					std::map<Int, DblNumMat>& coefDrvXMap = vnlDrvCoef_[0].LocalMap()[key];
-					std::map<Int, DblNumMat>& coefDrvYMap = vnlDrvCoef_[1].LocalMap()[key];
-					std::map<Int, DblNumMat>& coefDrvZMap = vnlDrvCoef_[2].LocalMap()[key];
-					
-					if( eigvecCoef_.LocalMap().find( key ) == eigvecCoef_.LocalMap().end() ){
-						throw std::runtime_error( "Eigenfunction coefficient matrix cannot be located." );
-					}
+          std::map<Int, DblNumMat>& coefMap = (*ei).second; 
 
-					DblNumMat&  localCoef = eigvecCoef_.LocalMap()[key];
+          // Loop over the elements (column indices in the density
+          // matrix) containing the atom
+          for( std::map<Index3, std::map<Int, DblNumMat> >::iterator 
+              ej  = vnlCoef_.LocalMap().begin();
+              ej != vnlCoef_.LocalMap().end(); ej++ ){
+            Index3 jKey = (*ej).first;
 
-					Int numBasis = localCoef.m();
+            // vnlCoef finds the pseudopotential for atomIdx in the
+            // element jKey 
+            if( (*ej).second.find( atomIdx ) == (*ej).second.end() )
+              continue;
 
-					if( coefMap.find( atomIdx ) != coefMap.end() ){
+            std::map<Int, DblNumMat>& coefDrvXMap = vnlDrvCoef_[0].LocalMap()[jKey];
+            std::map<Int, DblNumMat>& coefDrvYMap = vnlDrvCoef_[1].LocalMap()[jKey];
+            std::map<Int, DblNumMat>& coefDrvZMap = vnlDrvCoef_[2].LocalMap()[jKey];
 
-						DblNumMat&  coef      = coefMap[atomIdx];
-						DblNumMat&  coefDrvX  = coefDrvXMap[atomIdx];
-						DblNumMat&  coefDrvY  = coefDrvYMap[atomIdx];
-						DblNumMat&  coefDrvZ  = coefDrvZMap[atomIdx];
-						
-						// Skip the calculation if there is no adaptive local
-						// basis function.  
-						if( coef.m() == 0 ){
-							continue;
-						}
+            ElemMatKey matKey = ElemMatKey(iKey, jKey);
 
-						// Value
-						blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
-								1.0, localCoef.Data(), numBasis, 
-								coef.Data(), numBasis,
-								1.0, resVal.Data(), numEig );
-						
-						// Derivative
-						blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
-								1.0, localCoef.Data(), numBasis, 
-								coefDrvX.Data(), numBasis,
-								1.0, resDrvX.Data(), numEig );
+            if( distDMMat.LocalMap().find( matKey ) == 
+                distDMMat.LocalMap().end() ){
+              std::ostringstream msg;
+              msg << std::endl
+                << "Cannot find the density matrix component." << std::endl
+                << "AtomIdx: " << atomIdx << std::endl
+                << "Row index3: " << iKey << std::endl
+                << "Col index3: " << jKey << std::endl;
+              throw std::runtime_error( msg.str().c_str() );
+            }
 
-						blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
-								1.0, localCoef.Data(), numBasis, 
-								coefDrvY.Data(), numBasis,
-								1.0, resDrvY.Data(), numEig );
+            DblNumMat&  localDM   = distDMMat.LocalMap()[matKey];
 
-						blas::Gemm( 'T', 'N', numEig, numVnl, numBasis,
-								1.0, localCoef.Data(), numBasis, 
-								coefDrvZ.Data(), numBasis,
-								1.0, resDrvZ.Data(), numEig );
+            DblNumMat&  coef      = coefMap[atomIdx];
+            DblNumMat&  coefDrvX  = coefDrvXMap[atomIdx];
+            DblNumMat&  coefDrvY  = coefDrvYMap[atomIdx];
+            DblNumMat&  coefDrvZ  = coefDrvZMap[atomIdx];
 
-					} // found the atom
-				} // for (ei)
+            // Skip the calculation if there is no adaptive local
+            // basis function.  
+            if( coef.m() == 0 ){
+              continue;
+            }
 
-				// Add the contribution to the local force
-				// The minus sign comes from integration by parts
-				// The 4.0 comes from spin (2.0) and that |l> appears twice (2.0)
-				for( Int g = 0; g < numEig; g++ ){
-					for( Int l = 0; l < numVnl; l++ ){
-						forceLocal(atomIdx, 0) += -4.0 * occupationRate_[g] * vnlWeight[l] *
-							resVal(g, l) * resDrvX(g, l);
-						forceLocal(atomIdx, 1) += -4.0 * occupationRate_[g] * vnlWeight[l] *
-							resVal(g, l) * resDrvY(g, l);
-						forceLocal(atomIdx, 2) += -4.0 * occupationRate_[g] * vnlWeight[l] *
-							resVal(g, l) * resDrvZ(g, l);
-					}
-				}
-			} // own this atom
-		} // for (atomIdx)
+            // Add to the force.
+            // The minus sign comes from integration by parts Spin = 2.0
+            // is assumed.  The 2.0 comes from that |l> appears twice,
+            // one in the value and one in the derivative
+
+            for( Int l = 0; l < numVnl; l++ ){
+              for( Int a = 0; a < localDM.m(); a++ ){
+                for( Int b = 0; b < localDM.n(); b++ ){
+                  forceLocal(atomIdx, 0) += -2.0 * vnlWeight[l] *
+                    coef(a, l) * coefDrvX(b, l) * localDM(a,b);
+                  forceLocal(atomIdx, 1) += -2.0 * vnlWeight[l] *
+                    coef(a, l) * coefDrvY(b, l) * localDM(a,b);
+                  forceLocal(atomIdx, 2) += -2.0 * vnlWeight[l] *
+                    coef(a, l) * coefDrvZ(b, l) * localDM(a,b);
+                }
+              }
+            }
+            
+          } // for (ej)
+        } // for (ei)
+      } // own this atom
+    } // for (atomIdx)
 
 	}
 

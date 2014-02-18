@@ -40,7 +40,7 @@
 	 works, incorporate into other computer software, distribute, and sublicense
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file distvec.hpp
+/// @file distvec_impl.hpp
 /// @brief Implementation of general purpose parallel vectors.
 /// @date 2013-01-09
 #ifndef _DISTVEC_IMPL_HPP_

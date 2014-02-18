@@ -98,7 +98,16 @@
 #define _DEBUGlevel -1
 #endif
 
+// Real arithmetic
+#ifdef COMPLEXSCALAR
+#define _USE_COMPLEX_
+#endif
 
+// Usage of the PEXSI package
+#ifdef PEXSI
+#define _USE_PEXSI_
+#include  "c_pexsi_interface.h"
+#endif
 
 /***********************************************************************
  *  Data types and constants

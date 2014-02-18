@@ -48,13 +48,6 @@
 #include	"lapack.hpp"
 #include  "utility.hpp"
 
-// FIXME Move this to the configuration file
-#define _USE_PEXSI_
-
-#ifdef _USE_PEXSI_
-#include  "c_pexsi_interface.h"
-#endif
-
 #define _DEBUGlevel_ 0
 
 namespace  dgdft{
@@ -148,6 +141,8 @@ SCFDG::Setup	(
 		isCalculateAPosterioriEachSCF_ = esdfParam.isCalculateAPosterioriEachSCF;
 		isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
 		isOutputHMatrix_  = esdfParam.isOutputHMatrix;
+    solutionMethod_   = esdfParam.solutionMethod;
+
     Tbeta_            = esdfParam.Tbeta;
 		scaBlockSize_     = esdfParam.scaBlockSize;
 		numElem_          = esdfParam.numElem;
@@ -1375,9 +1370,6 @@ SCFDG::InnerIterate	(  )
 		}
 
 
-    // FIXME Introduce an option called the solutionMethod_
-    // with the choice of 1) PEXSI 2) DIAG
-    std::string solutionMethod_ = "pexsi";
     // Method 1: Using diagonalization method
     if( solutionMethod_ == "diag"  ){
       {
@@ -1534,17 +1526,17 @@ SCFDG::InnerIterate	(  )
       Real numElectronExact = hamDG.NumOccupiedState() * hamDG.NumSpin();
       Real muMin0 = -1.0;
       Real muMax0 =  1.0;
-      Int  numPole = 160;
+      Int  numPole = 120;
       Int  inertiaIter;
       Int  inertiaMaxIter = 3;
       Int  muMaxIter = 3;
       Real inertiaNumElectronTolerance = 2.0;
       Real PEXSINumElectronTolerance = 1e-5;
       Int  ordering = 0;
-      Int  npPerPole = 4;
+      Int  npPerPole = 1;
       Int  npSymbFact = 1;
       Real gap = 0.0;
-      Real deltaE = 100000;
+      Real deltaE = 10000;
       Real muMinInertia, muMaxInertia, muUpperEdge, muLowerEdge, muInertia;
       DblNumVec shiftList( numPole ), inertiaList( numPole );
       IntNumVec inertiaListInt( numPole );
@@ -1857,16 +1849,39 @@ SCFDG::InnerIterate	(  )
 
       }
 
+      // Compute the force at every step
+      if( isCalculateForceEachSCF_ ){
+        // Compute force
+        GetTime( timeSta );
+        hamDG.CalculateForceDM( *distfftPtr_, distDMMat );
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the force is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-      // TODO Evaluate the force and a posteriori error estimator
+        // Print out the force
+        // Only master processor output information containing all atoms
+        if( mpirank == 0 ){
+          PrintBlock( statusOFS, "Atomic Force" );
+          {
+            Point3 forceCM(0.0, 0.0, 0.0);
+            std::vector<Atom>& atomList = hamDG.AtomList();
+            Int numAtom = atomList.size();
+            for( Int a = 0; a < numAtom; a++ ){
+              Print( statusOFS, "atom", a, "force", atomList[a].force );
+              forceCM += atomList[a].force;
+            }
+            statusOFS << std::endl;
+            Print( statusOFS, "force for centroid: ", forceCM );
+            statusOFS << std::endl;
+          }
+        }
+      }
+
+      // TODO Evaluate the a posteriori error estimator
 
       MPI_Comm_free( &HCSCComm );
-       
     }
 #endif
-
-
-
 
 		// Compute the error of the mixing variable
 
@@ -2600,13 +2615,13 @@ SCFDG::CalculateKSEnergyDM (
   // energy and free energy density matrices.
   // Here 
   // 
-  //   Ekin = Tr[(H+\mu) 2/(1+exp(beta(H-mu)))] - mu*N_e
+  //   Ekin = Tr[H 2/(1+exp(beta(H-mu)))] 
   // and
   //   Ehelm = -2/beta Tr[log(1+exp(mu-H))] + mu*N_e
   // FIXME Put the above documentation to the proper place like the hpp
   // file
 
-  Real Ehelm = 0.0, EhelmLocal = 0.0, Ekin = 0.0, EkinLocal = 0.0;
+  Real Ehelm = 0.0, EhelmLocal = 0.0, EkinLocal = 0.0;
   
   if( 1 ) {
     // Compute the trace of the energy density matrix in each element
@@ -2624,9 +2639,9 @@ SCFDG::CalculateKSEnergyDM (
               continue;
 
             DblNumMat& localEDM = distEDMMat.LocalMap()[
-              std::pair<Index3,Index3>(key, key)];
+              ElemMatKey(key, key)];
             DblNumMat& localFDM = distFDMMat.LocalMap()[
-              std::pair<Index3,Index3>(key, key)];
+              ElemMatKey(key, key)];
 
             if( numBasis != localEDM.m() ||
                 numBasis != localEDM.n() ){
@@ -2659,26 +2674,19 @@ SCFDG::CalculateKSEnergyDM (
         } // for (i)
 
     // Reduce the results 
-    mpi::Allreduce( &EkinLocal, &Ekin, 
+    mpi::Allreduce( &EkinLocal, &Ekin_, 
         1, MPI_SUM, domain_.comm );
 
     mpi::Allreduce( &EhelmLocal, &Ehelm, 
         1, MPI_SUM, domain_.comm );
 
-    // Subtract the mu*N term for the kinetic energy
-    Ekin -= fermi_ * hamDG.NumOccupiedState() * numSpin;
-
     // Add the mu*N term for the free energy
     Ehelm += fermi_ * hamDG.NumOccupiedState() * numSpin;
 
     statusOFS << std::endl
-      << "Ekin  = " << Ekin << std::endl
+      << "Ekin  = " << Ekin_ << std::endl
       << "Ehelm = " << Ehelm << std::endl;
 
-    // Kinetic part as a saved variable.  
-    // FIXME  treat Ehelm properly
-    Ekin_ = Ekin;
-    
   }
 
 
@@ -2897,7 +2905,7 @@ SCFDG::CalculateHarrisEnergyDM(
               continue;
 
             DblNumMat& localFDM = distFDMMat.LocalMap()[
-              std::pair<Index3,Index3>(key, key)];
+              ElemMatKey(key, key)];
 
             if( numBasis != localFDM.m() ||
                 numBasis != localFDM.n() ){

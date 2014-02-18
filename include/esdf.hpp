@@ -40,7 +40,7 @@
 	 works, incorporate into other computer software, distribute, and sublicense
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file esdf.cpp
+/// @file esdf.hpp
 /// @brief Electronic structure data format for reading the input data.
 /// @date 2012-08-10
 #ifndef _ESDF_HPP_
@@ -136,7 +136,19 @@ struct ESDFInputParam{
   Int                 numExtraState;
 	std::string         periodTableFile;
 	std::string         pseudoType;
-	std::string         PWSolver;                 // Type of exchange-correlation functional
+  /// @brief Solver for the planewave problem.  
+  ///
+  /// - = "modified_blopex"    : BLOPEX package (modified in the
+  ///                            external/ directory using the LOBPCG
+  ///                            method but with BLAS3 for linear
+  ///                            algebra operations.  (default)
+	std::string         PWSolver;                 
+  /// @brief Method for solving the projected problem.
+  /// - = "diag"      : Diagonalization method using ScaLAPACK (default)
+  /// - = "pexsi"     : Pole expansion and selected inversion method.
+  ///                   This option needs to turn on the macro -DPEXSI
+  ///                   to support the libraries.
+	std::string         solutionMethod; 
 	std::string         XCType;
 	Int                 XCId;
 

@@ -188,6 +188,7 @@ int main(int argc, char **argv)
       Print(statusOFS, "Pseudo Type       = ",  esdfParam.pseudoType );
       Print(statusOFS, "PW Solver         = ",  esdfParam.PWSolver );
       Print(statusOFS, "XC Type           = ",  esdfParam.XCType );
+      Print(statusOFS, "Solution Method   = ",  esdfParam.solutionMethod );
 
       Print(statusOFS, "Penalty Alpha     = ",  esdfParam.penaltyAlpha );
       Print(statusOFS, "Element size      = ",  esdfParam.numElem ); 
@@ -442,57 +443,67 @@ int main(int argc, char **argv)
     GetTime( timeEnd );
     statusOFS << "Time for SCF iteration is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    
 
     // Compute force
-    GetTime( timeSta );
-    hamDG.CalculateForce( distfft );
-    GetTime( timeEnd );
-    statusOFS << "Time for computing the force is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    if( esdfParam.solutionMethod == "diag" ){
+      GetTime( timeSta );
 
-
-
-    // Print out the force. 
-    // Only master processor output information containing all atoms
-    if( mpirank == 0 ){
-      PrintBlock( statusOFS, "Atomic Force" );
-      {
-        Point3 forceCM(0.0, 0.0, 0.0);
-        std::vector<Atom>& atomList = hamDG.AtomList();
-        Int numAtom = atomList.size();
-        for( Int a = 0; a < numAtom; a++ ){
-          Print( statusOFS, "atom", a, "force", atomList[a].force );
-          forceCM += atomList[a].force;
+      hamDG.CalculateForce( distfft );
+      // Print out the force. 
+      // Only master processor output information containing all atoms
+      if( mpirank == 0 ){
+        PrintBlock( statusOFS, "Atomic Force" );
+        {
+          Point3 forceCM(0.0, 0.0, 0.0);
+          std::vector<Atom>& atomList = hamDG.AtomList();
+          Int numAtom = atomList.size();
+          for( Int a = 0; a < numAtom; a++ ){
+            Print( statusOFS, "atom", a, "force", atomList[a].force );
+            forceCM += atomList[a].force;
+          }
+          statusOFS << std::endl;
+          Print( statusOFS, "force for centroid: ", forceCM );
+          statusOFS << std::endl;
         }
-        statusOFS << std::endl;
-        Print( statusOFS, "force for centroid: ", forceCM );
-        statusOFS << std::endl;
+      }
+
+      GetTime( timeEnd );
+      statusOFS << "Time for computing the force is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      // Compute the a posteriori error estimator
+      GetTime( timeSta );
+      DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
+      hamDG.CalculateAPosterioriError( 
+          eta2Total, eta2Residual, eta2GradJump, eta2Jump );
+      GetTime( timeEnd );
+      statusOFS << "Time for computing the a posteriori error is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      // Only master processor output information containing all atoms
+      if( mpirank == 0 ){
+        PrintBlock( statusOFS, "A Posteriori error" );
+        {
+          statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+          statusOFS << eta2Total << std::endl;
+          statusOFS << std::endl << "Residual term:" << std::endl;
+          statusOFS << eta2Residual << std::endl;
+          statusOFS << std::endl << "Face term:" << std::endl;
+          statusOFS << eta2GradJump << std::endl;
+          statusOFS << std::endl << "Jump term:" << std::endl;
+          statusOFS << eta2Jump << std::endl;
+        }
       }
     }
-
-    // Compute the a posteriori error estimator
-    GetTime( timeSta );
-    DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-    hamDG.CalculateAPosterioriError( 
-        eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-    GetTime( timeEnd );
-    statusOFS << "Time for computing the a posteriori error is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-    // Only master processor output information containing all atoms
-    if( mpirank == 0 ){
-      PrintBlock( statusOFS, "A Posteriori error" );
-      {
-        statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-        statusOFS << eta2Total << std::endl;
-        statusOFS << std::endl << "Residual term:" << std::endl;
-        statusOFS << eta2Residual << std::endl;
-        statusOFS << std::endl << "Face term:" << std::endl;
-        statusOFS << eta2GradJump << std::endl;
-        statusOFS << std::endl << "Jump term:" << std::endl;
-        statusOFS << eta2Jump << std::endl;
-      }
+#ifdef _USE_PEXSI_
+    if( esdfParam.solutionMethod == "pexsi" ){
+      // FIXME Introduce distDMMat to hamDG
+      //      hamDG.CalculateForceDM( *distfftPtr_, distDMMat );
     }
+#endif
+
+
 
     // *********************************************************************
     // Clean up
@@ -507,7 +518,7 @@ int main(int argc, char **argv)
   }
   catch( std::exception& e )
   {
-    std::cerr << " caught exception with message: "
+    std::cerr << "Processor " << mpirank << " caught exception with message: "
       << e.what() << std::endl;
 #ifndef _RELEASE_
     DumpCallStack();

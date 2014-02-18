@@ -91,6 +91,9 @@ private:
 	std::string         restartDensityFileName_;
   std::string         restartWfnFileName_;
 
+  /// @brief Same as @ref esdf::ESDFInputParam::solutionMethod
+  std::string         solutionMethod_;
+
 	// Physical parameters
 	Real                Tbeta_;                    // Inverse of temperature in atomic unit
 	Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional

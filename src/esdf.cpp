@@ -722,6 +722,11 @@ void esdf_key() {
 	strcpy(kw_typ[i],"B:E");
 	strcpy(kw_dscrpt[i],"*! Distance to the boundary of the extended element to be periodized !*");
 
+	i++;
+	strcpy(kw_label[i],"solution_method");
+	strcpy(kw_typ[i],"T:E");
+	strcpy(kw_dscrpt[i],"*! Type of solver for the projected problem!*");
+
 }
 
 void esdf() {
@@ -2086,6 +2091,18 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 				}
 			}
 		} // Modify the potential
+
+    esdf_string("Solution_Method", "diag", strtmp); 
+    esdfParam.solutionMethod  = strtmp;
+		if( esdfParam.solutionMethod != "diag" &&
+				esdfParam.solutionMethod != "pexsi" ){
+			throw std::runtime_error("Invalid solution method for the projected problem.");
+		}
+    if( esdfParam.solutionMethod == "pexsi" ){
+#ifndef _USE_PEXSI_
+			throw std::runtime_error("Usage of PEXSI requires -DPEXSI to be defined in make.inc.");
+#endif
+    }
 
 	} // DG
 	
