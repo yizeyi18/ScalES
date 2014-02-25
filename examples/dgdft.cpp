@@ -151,7 +151,8 @@ int main(int argc, char **argv)
       PrintBlock(statusOFS, "Basic information");
 
       Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
-      Print(statusOFS, "Grid size         = ",  esdfParam.domain.numGrid ); 
+      Print(statusOFS, "Grid wfc size     = ",  esdfParam.domain.numGrid ); 
+      Print(statusOFS, "Grid rho size     = ",  esdfParam.domain.numGridFine );
       Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
       Print(statusOFS, "Mixing variable   = ",  esdfParam.mixVariable );
       Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
@@ -191,7 +192,8 @@ int main(int argc, char **argv)
 
       Print(statusOFS, "Penalty Alpha     = ",  esdfParam.penaltyAlpha );
       Print(statusOFS, "Element size      = ",  esdfParam.numElem ); 
-      Print(statusOFS, "Wfn Elem GridSize = ",  esdfParam.numGridWavefunctionElem ); 
+      Print(statusOFS, "Wfn Elem GridSize = ",  esdfParam.numGridWavefunctionElem );
+      Print(statusOFS, "Rho Elem GridSize = ",  esdfParam.numGridDensityElem ); 
       Print(statusOFS, "LGL Grid size     = ",  esdfParam.numGridLGL ); 
       Print(statusOFS, "ScaLAPACK block   = ",  esdfParam.scaBlockSize); 
       statusOFS << "Number of ALB for each element: " << std::endl 
@@ -281,11 +283,13 @@ int main(int argc, char **argv)
                 if( numElem[d] == 1 ){
                   dmExtElem.length[d]     = dm.length[d];
                   dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d];
+                  dmExtElem.numGridFine[d] = esdfParam.numGridDensityElem[d];
                   dmExtElem.posStart[d]   = 0.0;
                 }
                 else if ( numElem[d] >= 3 ){
                   dmExtElem.length[d]     = dm.length[d]  / numElem[d] * 3;
                   dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d] * 3;
+                  dmExtElem.numGridFine[d] = esdfParam.numGridDensityElem[d] * 3;
                   dmExtElem.posStart[d]   = dm.length[d]  / numElem[d] * ( key[d] - 1 );
                 }
                 else{
@@ -317,7 +321,8 @@ int main(int argc, char **argv)
 
               // Fourier
               fftExtElem.Initialize( dmExtElem );
-
+              fftExtElem.InitializeFine( dmExtElem );
+             
               // Wavefunction
               Spinor& spn = distPsi.LocalMap()[key];
               spn.Setup( dmExtElem, 1, esdfParam.numALBElem(i,j,k), 0.0 );
@@ -386,7 +391,6 @@ int main(int argc, char **argv)
               hamKS.CalculatePseudoPotential( ptable );
 
               statusOFS << "Hamiltonian constructed." << std::endl;
-
 
               // Eigensolver class
               EigenSolver& eigSol = distEigSol.LocalMap()[key];
