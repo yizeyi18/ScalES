@@ -55,12 +55,18 @@ namespace dgdft{
 Fourier::Fourier () : 
 	isInitialized(false),
 	numGridTotal(0),
-	plannerFlag(FFTW_MEASURE | FFTW_UNALIGNED)
+  numGridTotalFine(0),
+	plannerFlag(FFTW_MEASURE)
 	{
 		backwardPlan  = NULL;
 		forwardPlan   = NULL;
 		backwardPlanR2C  = NULL;
 		forwardPlanR2C   = NULL;
+		backwardPlanFine  = NULL;
+		forwardPlanFine   = NULL;
+		backwardPlanR2CFine  = NULL;
+		forwardPlanR2CFine   = NULL;
+    
 	}
 
 Fourier::~Fourier () 
@@ -69,6 +75,10 @@ Fourier::~Fourier ()
 	if( forwardPlan  ) fftw_destroy_plan( forwardPlan );
 	if( backwardPlanR2C  ) fftw_destroy_plan( backwardPlanR2C );
 	if( forwardPlanR2C   ) fftw_destroy_plan( forwardPlanR2C );
+	if( backwardPlanFine ) fftw_destroy_plan( backwardPlanFine );
+	if( forwardPlanFine  ) fftw_destroy_plan( forwardPlanFine );
+	if( backwardPlanR2CFine  ) fftw_destroy_plan( backwardPlanR2CFine );
+	if( forwardPlanR2CFine   ) fftw_destroy_plan( forwardPlanR2CFine );
 }
 
 void Fourier::Initialize ( const Domain& dm )
@@ -218,6 +228,154 @@ void Fourier::Initialize ( const Domain& dm )
 }		// -----  end of function Fourier::Initialize  ----- 
 
 
+
+
+
+
+
+
+// huwei begin
+
+
+void Fourier::InitializeFine ( const Domain& dm )
+{
+#ifndef _RELEASE_
+	PushCallStack("Fourier::Initialize");
+#endif  // ifndef _RELEASE_
+
+//  if( isInitialized ) {
+//		throw std::logic_error("Fourier has been prepared.");
+//	}
+
+	domain = dm;
+	Index3& numGrid = domain.numGridFine;
+	Point3& length  = domain.length;
+
+	numGridTotalFine = domain.NumGridTotalFine();
+
+	inputComplexVecFine.Resize( numGridTotalFine );
+	outputComplexVecFine.Resize( numGridTotalFine );
+
+	forwardPlanFine = fftw_plan_dft_3d( 
+			numGrid[2], numGrid[1], numGrid[0], 
+			reinterpret_cast<fftw_complex*>( &inputComplexVecFine[0] ), 
+			reinterpret_cast<fftw_complex*>( &outputComplexVecFine[0] ),
+			FFTW_FORWARD, plannerFlag );
+
+	backwardPlanFine = fftw_plan_dft_3d(
+			numGrid[2], numGrid[1], numGrid[0],
+			reinterpret_cast<fftw_complex*>( &outputComplexVecFine[0] ),
+			reinterpret_cast<fftw_complex*>( &inputComplexVecFine[0] ),
+			FFTW_BACKWARD, plannerFlag);
+
+	std::vector<DblNumVec>  KGrid(DIM);                // Fourier grid
+	for( Int idim = 0; idim < DIM; idim++ ){
+		KGrid[idim].Resize( numGrid[idim] );
+		for( Int i = 0; i <= numGrid[idim] / 2; i++ ){
+			KGrid[idim](i) = i * 2.0 * PI / length[idim];
+		}
+		for( Int i = numGrid[idim] / 2 + 1; i < numGrid[idim]; i++ ){
+			KGrid[idim](i) = ( i - numGrid[idim] ) * 2.0 * PI / length[idim];
+		}
+	}
+
+	gkkFine.Resize( dm.NumGridTotalFine() );
+	TeterPrecondFine.Resize( dm.NumGridTotalFine() );
+	ikFine.resize(DIM);
+	ikFine[0].Resize( dm.NumGridTotalFine() );
+	ikFine[1].Resize( dm.NumGridTotalFine() );
+	ikFine[2].Resize( dm.NumGridTotalFine() );
+
+	Real*     gkkPtr = gkkFine.Data();
+	Complex*  ikXPtr = ikFine[0].Data();
+	Complex*  ikYPtr = ikFine[1].Data();
+	Complex*  ikZPtr = ikFine[2].Data();
+
+	for( Int k = 0; k < numGrid[2]; k++ ){
+		for( Int j = 0; j < numGrid[1]; j++ ){
+			for( Int i = 0; i < numGrid[0]; i++ ){
+				*(gkkPtr++) = 
+					( KGrid[0](i) * KGrid[0](i) +
+						KGrid[1](j) * KGrid[1](j) +
+						KGrid[2](k) * KGrid[2](k) ) / 2.0;
+
+				*(ikXPtr++) = Complex( 0.0, KGrid[0](i) );
+				*(ikYPtr++) = Complex( 0.0, KGrid[1](j) );
+				*(ikZPtr++) = Complex( 0.0, KGrid[2](k) );
+
+			}
+		}
+	}
+
+
+	// TeterPreconditioner
+	Real  a, b;
+	for( Int i = 0; i < domain.NumGridTotalFine(); i++ ){
+		a = gkkFine[i] * 2.0;
+		b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
+		TeterPrecondFine[i] = b / ( b + 16.0 * pow(a, 4.0) );
+	}
+
+	// R2C transform
+	numGridTotalR2CFine = (numGrid[0]/2+1) * numGrid[1] * numGrid[2];
+
+	inputVecR2CFine.Resize( numGridTotalFine );
+	outputVecR2CFine.Resize( numGridTotalR2CFine );
+
+	forwardPlanR2CFine = fftw_plan_dft_r2c_3d( 
+			numGrid[2], numGrid[1], numGrid[0], 
+			( &inputVecR2CFine[0] ), 
+			reinterpret_cast<fftw_complex*>( &outputVecR2CFine[0] ),
+			plannerFlag );
+
+	backwardPlanR2CFine = fftw_plan_dft_c2r_3d(
+			numGrid[2], numGrid[1], numGrid[0],
+			reinterpret_cast<fftw_complex*>( &outputVecR2CFine[0] ),
+			&inputVecR2CFine[0],
+			plannerFlag);
+
+	// -1/2 \Delta  and Teter preconditioner in R2C
+	gkkR2CFine.Resize( numGridTotalR2CFine );
+	TeterPrecondR2CFine.Resize( numGridTotalR2CFine );
+
+	Real*  gkkR2CPtr = gkkR2CFine.Data();
+
+  for( Int k = 0; k < numGrid[2]; k++ ){
+		for( Int j = 0; j < numGrid[1]; j++ ){
+			for( Int i = 0; i < numGrid[0]/2+1; i++ ){
+				*(gkkR2CPtr++) = 
+					( KGrid[0](i) * KGrid[0](i) +
+						KGrid[1](j) * KGrid[1](j) +
+						KGrid[2](k) * KGrid[2](k) ) / 2.0;
+			}
+		}
+	}
+
+	// TeterPreconditioner
+	for( Int i = 0; i < numGridTotalR2CFine; i++ ){
+		a = gkkR2CFine[i] * 2.0;
+		b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
+		TeterPrecondR2CFine[i] = b / ( b + 16.0 * pow(a, 4.0) );
+	}
+
+	// Mark Fourier to be initialized
+//	isInitialized = true;
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif  // ifndef _RELEASE_
+
+	return ;
+}		// -----  end of function Fourier::InitializeFine  ----- 
+
+
+// huwei  end
+
+
+
+
+
+
 // *********************************************************************
 // Parallel FFTW
 // *********************************************************************
@@ -253,10 +411,10 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
 	}
 
 	domain = dm;
-	Index3& numGrid = domain.numGrid;
+	Index3& numGrid = domain.numGridFine;
 	Point3& length  = domain.length;
 
-	numGridTotal = domain.NumGridTotal();
+	numGridTotal = domain.NumGridTotalFine();
 
 	// Create the new communicator
 	{

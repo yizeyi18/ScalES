@@ -73,6 +73,10 @@ private:
 	DblNumVec           eigVal_;
 	DblNumVec           resVal_;
 
+  Index3  numGridWavefunctionElem_;
+  Index3  numGridDensityElem_;
+
+
 public:
 
 	// ********************  LIFECYCLE   *******************************

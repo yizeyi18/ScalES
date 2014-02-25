@@ -158,6 +158,7 @@ private:
 	/// element with periodic boundary condition to LGL grid in each
 	/// element (assuming all the elements are the same).
 	std::vector<DblNumMat>    PeriodicUniformToLGLMat_;
+  std::vector<DblNumMat>    PeriodicUniformFineToLGLMat_;
 
 	/// @brief Context for BLACS.
 	Int                 contxt_;
@@ -203,7 +204,9 @@ public:
 	/// element domain to LGL grid in each element.
 	void InterpPeriodicUniformToLGL( const Index3& numUniformGrid,
 			const Index3& numLGLGrid, const Real* psiUniform, Real* psiLGL );
-
+  
+	void InterpPeriodicUniformFineToLGL( const Index3& numUniformGridFine,
+			const Index3& numLGLGrid, const Real* rhoUniform, Real* rhoLGL );
 
 	/// @brief Calculate the Kohn-Sham energy and other related energies.
 	void  CalculateKSEnergy();

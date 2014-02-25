@@ -240,6 +240,7 @@ inline Real Innerprod(Real* x, Real* y, Real *w, Int ntot){
 
 /// @brief Generate a uniform mesh from a domain.
 void UniformMesh( const Domain &dm, std::vector<DblNumVec> &gridpos );
+void UniformMeshFine( const Domain &dm, std::vector<DblNumVec> &gridpos );
 
 /// @brief Generate a LGL mesh from a domain.
 void LGLMesh( const Domain &dm, const Index3& numGrid, std::vector<DblNumVec> &gridpos );

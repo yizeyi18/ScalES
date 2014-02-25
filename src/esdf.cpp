@@ -1849,7 +1849,8 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		if( esdf_block("Super_Cell", &nlines) ){
 			sscanf(block_data[0],"%lf %lf %lf",
 					&dm.length[0],&dm.length[1],&dm.length[2]);
-		}
+    }
+
 		else{
 			throw std::logic_error("Super_Cell cannot be found.");
 		}
@@ -1867,6 +1868,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 //			throw std::logic_error("Grid_Size cannot be found."); }
 
 		dm.posStart = Point3( 0.0, 0.0, 0.0 );
+
 	}
 
 	// Atoms
@@ -1968,7 +1970,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.densityGridFactor    = esdf_double( "Density_Grid_Factor", 2.0 );
 
 		// The density grid factor must be an integer
-		esdfParam.densityGridFactor    = std::ceil( esdfParam.densityGridFactor );
+		// esdfParam.densityGridFactor    = std::ceil( esdfParam.densityGridFactor );
 
 		Real temperature;
 		temperature               = esdf_double( "Temperature", 100.0 );
@@ -2136,9 +2138,10 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 	// wavefunction in the extended element really in the Fourier domain.
 	// This real dual grid approach will be done in the next step.
 	{
-    Domain&  dm      = esdfParam.domain;
+    Domain&  dm       = esdfParam.domain;
 		Index3&  numGridWavefunctionElem = esdfParam.numGridWavefunctionElem;
-		Index3&  numGridLGL = esdfParam.numGridLGL;
+	  Index3&  numGridDensityElem = esdfParam.numGridDensityElem;
+    Index3&  numGridLGL = esdfParam.numGridLGL;
 		Index3   numElem = esdfParam.numElem;
 
 		Point3  elemLength;
@@ -2146,14 +2149,21 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		for( Int d = 0; d < DIM; d++ ){
 			elemLength[d] = dm.length[d] / numElem[d];
 			// the number of grid is assumed to be at least an even number
+
 			numGridWavefunctionElem[d] = 
 				std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
 						elemLength[d] / PI / 2.0) * 2;
-			dm.numGrid[d] = numGridWavefunctionElem[d] * numElem[d] * 
-				esdfParam.densityGridFactor;
-			
+      
+      numGridDensityElem[d] = std::ceil(numGridWavefunctionElem[d] * esdfParam.densityGridFactor / 2.0) * 2;
+
+      dm.numGrid[d] = numGridWavefunctionElem[d] * numElem[d];  // Coarse Grid
+
+      dm.numGridFine[d] = numGridDensityElem[d] * numElem[d]; // Fine Frid
+
 			numGridLGL[d] = std::ceil( numGridWavefunctionElem[d] * esdfParam.LGLGridFactor );
-		} // for (d)
+
+    } // for (d)
+
 
 	}
 	
