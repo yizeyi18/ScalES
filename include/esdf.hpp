@@ -143,7 +143,8 @@ struct ESDFInputParam{
 	// DG related
 	Index3              numElem;
 	Index3              numGridWavefunctionElem;
-	Index3              numGridLGL;
+  Index3              numGridDensityElem;
+  Index3              numGridLGL;
 	Real                penaltyAlpha;
 	IntNumTns           numALBElem;
 	Int                 scaBlockSize;

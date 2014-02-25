@@ -352,6 +352,28 @@ UniformMesh ( const Domain &dm, std::vector<DblNumVec> &gridpos )
 
 
 void
+UniformMeshFine ( const Domain &dm, std::vector<DblNumVec> &gridpos )
+{
+#ifndef _RELEASE_
+	PushCallStack("UniformMesh");
+#endif
+  gridpos.resize(DIM);
+  for (Int d=0; d<DIM; d++) {
+    gridpos[d].Resize(dm.numGridFine[d]);
+    Real h = dm.length[d] / dm.numGridFine[d];
+    for (Int i=0; i < dm.numGridFine[d]; i++) {
+      gridpos[d](i) = dm.posStart[d] + Real(i)*h;
+    }
+  }
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+}		// -----  end of function UniformMesh  ----- 
+
+
+void
 LGLMesh ( const Domain &dm, const Index3& numGrid, std::vector<DblNumVec> &gridpos )
 {
 #ifndef _RELEASE_

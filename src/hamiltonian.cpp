@@ -95,27 +95,31 @@ Hamiltonian::Setup (
 
 	// NOTE: NumSpin variable will be determined in derivative classes.
 
-  Int ntot = domain_.NumGridTotal();
+  Int ntotCoarse = domain_.NumGridTotal();
+  Int ntotFine = domain_.NumGridTotalFine();
 
-	density_.Resize( ntot, numDensityComponent );   
+	density_.Resize( ntotFine, numDensityComponent );   
 	SetValue( density_, 0.0 );
 
-	pseudoCharge_.Resize( ntot );
+	pseudoCharge_.Resize( ntotFine );
 	SetValue( pseudoCharge_, 0.0 );
 	
-	vext_.Resize( ntot );
+	vext_.Resize( ntotFine );
 	SetValue( vext_, 0.0 );
 
-	vhart_.Resize( ntot );
+	vhart_.Resize( ntotFine );
 	SetValue( vhart_, 0.0 );
 
-	vtot_.Resize( ntot );
+	vtot_.Resize( ntotFine );
 	SetValue( vtot_, 0.0 );
 
-	epsxc_.Resize( ntot );
+  vtotCoarse_.Resize( ntotCoarse );
+  SetValue( vtot_, 0.0 );
+
+	epsxc_.Resize( ntotFine );
 	SetValue( epsxc_, 0.0 );
 
-	vxc_.Resize( ntot, numDensityComponent );
+	vxc_.Resize( ntotFine, numDensityComponent );
 	SetValue( vxc_, 0.0 );
 
 #ifndef _RELEASE_
@@ -213,14 +217,14 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::CalculatePseudoPotential");
 #endif
-	Int ntot = domain_.NumGridTotal();
+	Int ntotFine = domain_.NumGridTotalFine();
 	Int numAtom = atomList_.size();
 	Real vol = domain_.Volume();
 
 	pseudo_.resize( numAtom );
 
 	std::vector<DblNumVec> gridpos;
-  UniformMesh ( domain_, gridpos );
+  UniformMeshFine ( domain_, gridpos );
 
   // calculate the number of occupied states
   Int nelec = 0;
@@ -229,7 +233,6 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 		if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
 			throw std::logic_error( "Cannot find the atom type." );
 		}
-    // Z = \sum_I Z_I 
     nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
   }
 	// FIXME Deal with the case when this is a buffer calculation and the
@@ -241,7 +244,7 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 	numOccupiedState_ = nelec / numSpin_;
 
 	// Compute pseudocharge
-  SetValue( pseudoCharge_, 0.0 );
+	SetValue( pseudoCharge_, 0.0 );
   for (Int a=0; a<numAtom; a++) {
     ptable.CalculatePseudoCharge( atomList_[a], domain_, 
 				gridpos, pseudo_[a].pseudoCharge );
@@ -253,9 +256,9 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
   }
 
   Real sumrho = 0.0;
-  for (Int i=0; i<ntot; i++) 
+  for (Int i=0; i<ntotFine; i++) 
 		sumrho += pseudoCharge_[i]; 
-  sumrho *= vol / Real(ntot);
+  sumrho *= vol / Real(ntotFine);
 
 	Print( statusOFS, "Sum of Pseudocharge                          = ", 
 			sumrho );
@@ -263,7 +266,7 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 			numOccupiedState_ );
   
   Real diff = ( numSpin_ * numOccupiedState_ - sumrho ) / vol;
-  for (Int i=0; i<ntot; i++) 
+  for (Int i=0; i<ntotFine; i++) 
 		pseudoCharge_(i) += diff; 
 
 	Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
@@ -272,10 +275,12 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 
 	// Nonlocal projectors
 	
+	std::vector<DblNumVec> gridposCoarse;
+  UniformMesh ( domain_, gridposCoarse );
 
   Int cnt = 0; // the total number of PS used
   for ( Int a=0; a < atomList_.size(); a++ ) {
-		ptable.CalculateNonlocalPP( atomList_[a], domain_, gridpos,
+		ptable.CalculateNonlocalPP( atomList_[a], domain_, gridposCoarse,
 				pseudo_[a].vnlList ); 
 		cnt = cnt + pseudo_[a].vnlList.size();
   }
@@ -292,7 +297,7 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 
 
 void
-KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &val )
+KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft)
 {
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::CalculateDensity");
@@ -302,23 +307,111 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 	Int nocc  = psi.NumState();
 	Real vol  = domain_.Volume();
 
+  // huwei
+
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+
 	SetValue( density_, 0.0 );
 	for (Int k=0; k<nocc; k++) {
 		for (Int j=0; j<ncom; j++) {
-			for (Int i=0; i<ntot; i++) {
-				density_(i,RHO) += numSpin_ * occrate(k) * 
-					pow( std::abs(psi.Wavefun(i,j,k)), 2.0 );
-			}
+
+
+      for( Int i = 0; i < ntot; i++ ){
+        fft.inputComplexVec(i) = Complex( psi.Wavefun(i,j,k), 0.0 ); 
+      }
+      fftw_execute( fft.forwardPlan );
+ 
+
+
+      // fft Coarse to Fine 
+
+
+      Int PtrC = 0;
+      Int PtrF = 0;
+
+      Int iF = 0;
+      Int jF = 0;
+      Int kF = 0;
+
+      SetValue( fft.outputComplexVecFine, Z_ZERO );
+
+      for( Int kk = 0; kk < fft.domain.numGrid[2]; kk++ ){
+        for( Int jj = 0; jj < fft.domain.numGrid[1]; jj++ ){
+          for( Int ii = 0; ii < fft.domain.numGrid[0]; ii++ ){
+
+            PtrC = ii + jj * fft.domain.numGrid[0] + kk * fft.domain.numGrid[0] * fft.domain.numGrid[1];
+
+            if ( (0 <= ii) && (ii <= fft.domain.numGrid[0] / 2) ) { iF = ii; } 
+            else { iF = fft.domain.numGridFine[0] - fft.domain.numGrid[0] + ii; } 
+
+            if ( (0 <= jj) && (jj <= fft.domain.numGrid[1] / 2) ) { jF = jj; } 
+            else { jF = fft.domain.numGridFine[1] - fft.domain.numGrid[1] + jj; } 
+
+            if ( (0 <= kk) && (kk <= fft.domain.numGrid[2] / 2) ) { kF = kk; } 
+            else { kF = fft.domain.numGridFine[2] - fft.domain.numGrid[2] + kk; } 
+
+            PtrF = iF + jF * fft.domain.numGridFine[0] + kF * fft.domain.numGridFine[0] * fft.domain.numGridFine[1];
+
+            fft.outputComplexVecFine(PtrF) = fft.outputComplexVec(PtrC);
+
+          } 
+        }
+      }
+
+      // end fft Coarse to Fine
+    
+
+
+
+//    	for( Int i = 0; i < ntotFine; i++ ){
+//		    if( fft.gkkFine(i) == 0 ){
+//			    fft.outputComplexVecFine(i) = Z_ZERO; }
+//	  	  else{
+//			    fft.outputComplexVecFine(i) *= 2.0 * PI / fft.gkkFine(i);
+//	   	  }
+//`    	}
+      fftw_execute( fft.backwardPlanFine );
+
+      for( Int i = 0; i < ntotFine; i++ ){
+				density_(i,RHO) += numSpin_ * occrate(k) * pow( std::abs(fft.inputComplexVecFine(i).real() / ntot), 2.0 );
+      }
 		}
 	}
 
+  // huwei
+
+//	SetValue( density_, 0.0 );
+//	for (Int k=0; k<nocc; k++) {
+//		for (Int j=0; j<ncom; j++) {
+//			for (Int i=0; i<ntot; i++) {
+//				density_(i,RHO) += numSpin_ * occrate(k) * 
+//					pow( std::abs(psi.Wavefun(i,j,k)), 2.0 );
+//			}
+//		}
+//	}
+
 	// Scale the density
-	blas::Scal( ntot, ntot / vol, density_.VecData(RHO), 1 );
+//	blas::Scal( ntotFine, ntotFine / vol, density_.VecData(RHO), 1 );
+//  val = 0.0; // sum of density
+//  for (Int i=0; i<ntotFine; i++) {
+//    val  += density_(i, RHO) * vol / ntotFine;
+//  }
+
   val = 0.0; // sum of density
-  for (Int i=0; i<ntot; i++) {
-    val  += density_(i, RHO) * vol / ntot;
+  for (Int i=0; i<ntotFine; i++) {
+    val  += density_(i, RHO);
   }
-	
+
+  // Scale the density
+  blas::Scal( ntotFine, (numSpin_ * numOccupiedState_ * ntotFine) / ( vol * val ), density_.VecData(RHO), 1 );
+
+  // Double check (can be neglected)
+  val = 0.0; // sum of density
+  for (Int i=0; i<ntotFine; i++) {
+    val  += density_(i, RHO) * vol / ntotFine;
+  }
+  
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -333,7 +426,7 @@ KohnSham::CalculateXC	( Real &val )
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::CalculateXC");
 #endif
-	Int ntot = domain_.NumGridTotal();
+	Int ntot = domain_.NumGridTotalFine();
 	Real vol = domain_.Volume();
 
   switch( XCFuncType_.info->family ){
@@ -369,33 +462,32 @@ void KohnSham::CalculateHartree( Fourier& fft ) {
 		throw std::runtime_error("Fourier is not prepared.");
 	}
  	
-  Int ntot = domain_.NumGridTotal();
-	if( fft.domain.NumGridTotal() != ntot ){
+  Int ntot = domain_.NumGridTotalFine();
+	if( fft.domain.NumGridTotalFine() != ntot ){
 		throw std::logic_error( "Grid size does not match!" );
 	}
 
 	// The contribution of the pseudoCharge is subtracted. So the Poisson
 	// equation is well defined for neutral system.
 	for( Int i = 0; i < ntot; i++ ){
-		fft.inputComplexVec(i) = Complex( 
+		fft.inputComplexVecFine(i) = Complex( 
 				density_(i,RHO) - pseudoCharge_(i), 0.0 );
 	}
-	fftw_execute( fft.forwardPlan );
+	fftw_execute( fft.forwardPlanFine );
 
 	for( Int i = 0; i < ntot; i++ ){
-		if( fft.gkk(i) == 0 ){
-      // Due to the charge neutrality condition
-			fft.outputComplexVec(i) = Z_ZERO;
+		if( fft.gkkFine(i) == 0 ){
+			fft.outputComplexVecFine(i) = Z_ZERO;
 		}
 		else{
 			// NOTE: gkk already contains the factor 1/2.
-			fft.outputComplexVec(i) *= 2.0 * PI / fft.gkk(i);
+			fft.outputComplexVecFine(i) *= 2.0 * PI / fft.gkkFine(i);
 		}
 	}
-	fftw_execute( fft.backwardPlan );
+	fftw_execute( fft.backwardPlanFine );
 
 	for( Int i = 0; i < ntot; i++ ){
-		vhart_(i) = fft.inputComplexVec(i).real() / ntot;
+		vhart_(i) = fft.inputComplexVecFine(i).real() / ntot;
 	}
 
 #ifndef _RELEASE_
@@ -406,12 +498,12 @@ void KohnSham::CalculateHartree( Fourier& fft ) {
 
 
 void
-KohnSham::CalculateVtot	( DblNumVec& vtot  )
+KohnSham::CalculateVtot	( DblNumVec& vtot )
 {
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::CalculateVtot");
 #endif
-	Int ntot = domain_.NumGridTotal();
+	Int ntot = domain_.NumGridTotalFine();
   for (int i=0; i<ntot; i++) {
 		vtot(i) = vext_(i) + vhart_(i) + vxc_(i, RHO);
   }
@@ -431,8 +523,9 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 	PushCallStack("KohnSham::CalculateForce");
 #endif
 
-  Int ntot      = fft.numGridTotal;
-	Int numAtom   = atomList_.size();
+//  Int ntot      = fft.numGridTotal;
+  Int ntot      = fft.domain.NumGridTotalFine();
+  Int numAtom   = atomList_.size();
 
 	DblNumMat  force( numAtom, DIM );
 	SetValue( force, 0.0 );
@@ -458,58 +551,58 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 	CpxNumVec  cpxVec( tempVec.Size() );
 
 	for( Int i = 0; i < ntot; i++ ){
-		fft.inputComplexVec(i) = Complex( 
+		fft.inputComplexVecFine(i) = Complex( 
 				tempVec(i), 0.0 );
 	}
 
-	fftw_execute( fft.forwardPlan );
+	fftw_execute( fft.forwardPlanFine );
 
-	blas::Copy( ntot, fft.outputComplexVec.Data(), 1,
+	blas::Copy( ntot, fft.outputComplexVecFine.Data(), 1,
 			cpxVec.Data(), 1 );
 
 	// Compute the derivative of the Hartree potential via Fourier
 	// transform 
 	{
 		for( Int i = 0; i < ntot; i++ ){
-			if( fft.gkk(i) == 0 ){
-				fft.outputComplexVec(i) = Z_ZERO;
+			if( fft.gkkFine(i) == 0 ){
+				fft.outputComplexVecFine(i) = Z_ZERO;
 			}
 			else{
 				// NOTE: gkk already contains the factor 1/2.
-				fft.outputComplexVec(i) = cpxVec(i) *
-					2.0 * PI / fft.gkk(i);
+				fft.outputComplexVecFine(i) = cpxVec(i) *
+					2.0 * PI / fft.gkkFine(i);
 			}
 		}
 
-		fftw_execute( fft.backwardPlan );
+		fftw_execute( fft.backwardPlanFine );
 
 		vhart.Resize( ntot );
 
 		for( Int i = 0; i < ntot; i++ ){
-			vhart(i) = fft.inputComplexVec(i).real() / ntot;
+			vhart(i) = fft.inputComplexVecFine(i).real() / ntot;
 		}
 	}
 	
 	for( Int d = 0; d < DIM; d++ ){
-		CpxNumVec& ik = fft.ik[d];
+		CpxNumVec& ik = fft.ikFine[d];
 		for( Int i = 0; i < ntot; i++ ){
-			if( fft.gkk(i) == 0 ){
-				fft.outputComplexVec(i) = Z_ZERO;
+			if( fft.gkkFine(i) == 0 ){
+				fft.outputComplexVecFine(i) = Z_ZERO;
 			}
 			else{
 				// NOTE: gkk already contains the factor 1/2.
-				fft.outputComplexVec(i) = cpxVec(i) *
-					2.0 * PI / fft.gkk(i) * ik(i);
+				fft.outputComplexVecFine(i) = cpxVec(i) *
+					2.0 * PI / fft.gkkFine(i) * ik(i);
 			}
 		}
 
-		fftw_execute( fft.backwardPlan );
+		fftw_execute( fft.backwardPlanFine );
 
 		// vhartDrv saves the derivative of the Hartree potential
 		vhartDrv[d].Resize( ntot );
 
 		for( Int i = 0; i < ntot; i++ ){
-			vhartDrv[d](i) = fft.inputComplexVec(i).real() / ntot;
+			vhartDrv[d](i) = fft.inputComplexVecFine(i).real() / ntot;
 		}
 
 	} // for (d)
@@ -526,7 +619,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 			IntNumVec& idx = sp.first;
 			DblNumMat& val = sp.second;
 
-			Real wgt = domain_.Volume() / domain_.NumGridTotal();
+			Real wgt = domain_.Volume() / domain_.NumGridTotalFine();
 			Real resX = 0.0;
 			Real resY = 0.0;
 			Real resZ = 0.0;
@@ -556,6 +649,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 			for( Int l = 0; l < vnlList.size(); l++ ){
 				SparseVec& bl = vnlList[l].first;
 				Real  gamma   = vnlList[l].second;
+        // FIXME Change to caorse
 				Real wgt = domain_.Volume() / domain_.NumGridTotal();
 				IntNumVec& idx = bl.first;
 				DblNumMat& val = bl.second;
@@ -604,18 +698,9 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 	PushCallStack("KohnSham::MultSpinor");
 #endif
 	SetValue( a3, SCALAR_ZERO );
-
-#ifdef _USE_OPENMP_
-#pragma omp parallel
-  {
-#endif
-    psi.AddLaplacian( a3, &fft );
-    psi.AddScalarDiag( vtot_, a3 );
-    psi.AddNonlocalPP( pseudo_, a3 );
-#ifdef _USE_OPENMP_
-  }
-#endif
-
+	psi.AddScalarDiag( vtotCoarse_, a3 );
+	psi.AddLaplacian( a3, &fft );
+  psi.AddNonlocalPP( pseudo_, a3 );
 #ifndef _RELEASE_
 	PopCallStack();
 #endif

@@ -80,6 +80,7 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
   numLGLGridElem_    = esdfParam.numGridLGL;
   
 	Int ntot = domain_.NumGridTotal();
+  Int ntotFine = domain_.NumGridTotalFine();
 
 	XCInitialized_ = false;
 
@@ -89,9 +90,14 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	for( Int d = 0; d < DIM; d++ ){
 		if( domain_.numGrid[d] % numElem_[d] != 0 ){
 			throw std::runtime_error( 
-					"The number of global grid points is not divisible by the number of elements" );
+					"The number of global wfc grid points is not divisible by the number of elements" );
 		}
+    if( domain_.numGridFine[d] % numElem_[d] != 0 ){
+      throw std::runtime_error(
+          "The number of global rho grid points is not divisible by the number of elements" );
+    }
 		numUniformGridElem_[d] = domain_.numGrid[d] / numElem_[d];
+    numUniformGridElemFine_[d] = domain_.numGridFine[d] / numElem_[d];
 	}
 
 	// Setup the element domains
@@ -104,6 +110,7 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 				for( Int d = 0; d < DIM; d++ ){
 					dm.length[d]     = domain_.length[d] / numElem_[d];
 					dm.numGrid[d]    = numUniformGridElem_[d];
+          dm.numGridFine[d]    = numUniformGridElemFine_[d];
 					dm.posStart[d]   = dm.length[d] * key[d];
 				}
 				dm.comm = domain_.comm;
@@ -157,7 +164,7 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 			for( Int i=0; i< numElem_[0]; i++ ) {
 				Index3 key = Index3(i,j,k);
 				if( elemPrtn_.Owner(key) == mpirank ){
-					DblNumVec  empty( numUniformGridElem_.prod() );
+					DblNumVec  empty( numUniformGridElemFine_.prod() );
 					SetValue( empty, 0.0 );
 					DblNumVec emptyLGL( numLGLGridElem_.prod() );
 					density_.LocalMap()[key]     = empty;
@@ -243,8 +250,10 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	// Generate the grids
 
 	UniformMesh( domain_, uniformGrid_ );
+  UniformMeshFine( domain_, uniformGridFine_ );
 
 	uniformGridElem_.Resize( numElem_[0], numElem_[1], numElem_[2] );
+  uniformGridElemFine_.Resize( numElem_[0], numElem_[1], numElem_[2] );
 
 	LGLGridElem_.Resize( numElem_[0], numElem_[1], numElem_[2] );
 
@@ -253,6 +262,8 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 			for( Int i = 0; i < numElem_[0]; i++ ){
 				UniformMesh( domainElem_(i, j, k), 
 						uniformGridElem_(i, j, k) );
+        UniformMeshFine( domainElem_(i, j, k),
+            uniformGridElemFine_(i, j, k) );
 				LGLMesh( domainElem_(i, j, k),
 						numLGLGridElem_,
 						LGLGridElem_(i, j, k) );
@@ -268,6 +279,10 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 				for( Int d = 0; d < DIM; d++ ){
 					statusOFS << uniformGridElem_(i,j,k)[d] << std::endl;
 				}
+        statusOFS << "Uniform Fine grid for element " << Index3(i,j,k) << std::endl;
+        for( Int d = 0; d < DIM; d++ ){
+          statusOFS << uniformGridElemFine_(i,j,k)[d] << std::endl;
+        }
 				statusOFS << "LGL grid for element " << Index3(i,j,k) << std::endl;
 				for( Int d = 0; d < DIM; d++ ){
 					statusOFS << LGLGridElem_(i,j,k)[d] << std::endl;
@@ -318,21 +333,28 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	// NOTE: This assumes uniform mesh used for each element.
 	{
 		LGLToUniformMat_.resize(DIM);
+    LGLToUniformMatFine_.resize(DIM);
 		Index3& numLGL                      = numLGLGridElem_;
 		Index3& numUniform                  = numUniformGridElem_;
-		// Small stablization parameter 
+		Index3& numUniformFine              = numUniformGridElemFine_;
+    // Small stablization parameter 
 		const Real EPS                      = 1e-13; 
 		for( Int d = 0; d < DIM; d++ ){
 			DblNumVec& LGLGrid     = LGLGridElem_(0,0,0)[d];
 			DblNumVec& uniformGrid = uniformGridElem_(0,0,0)[d];
+      DblNumVec& uniformGridFine = uniformGridElemFine_(0,0,0)[d];
 			// Stablization constant factor, according to Berrut and Trefethen
 			Real    stableFac = 0.25 * domainElem_(0,0,0).length[d];
 			DblNumMat& localMat = LGLToUniformMat_[d];
+      DblNumMat& localMatFine = LGLToUniformMatFine_[d];
 			localMat.Resize( numUniform[d], numLGL[d] );
+      localMatFine.Resize( numUniformFine[d], numLGL[d] );
 			DblNumVec lambda( numLGL[d] );
 			DblNumVec denom( numUniform[d] );
+      DblNumVec denomFine( numUniformFine[d] );
 			SetValue( lambda, 0.0 );
 			SetValue( denom, 0.0 );
+      SetValue( denomFine, 0.0 );
 			for( Int i = 0; i < numLGL[d]; i++ ){
 				lambda[i] = 1.0;
 				for( Int j = 0; j < numLGL[d]; j++ ){
@@ -343,6 +365,9 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 				for( Int j = 0; j < numUniform[d]; j++ ){
 					denom[j] += lambda[i] / ( uniformGrid[j] - LGLGrid[i] + EPS );
 				}
+        for( Int j = 0; j < numUniformFine[d]; j++ ){
+          denomFine[j] += lambda[i] / ( uniformGridFine[j] - LGLGrid[i] + EPS );
+        }
 			} // for (i)
 
 			for( Int i = 0; i < numLGL[d]; i++ ){
@@ -350,6 +375,10 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 					localMat( j, i ) = (lambda[i] / ( uniformGrid[j] - LGLGrid[i]
 								+ EPS )) / denom[j]; 
 				} // for (j)
+        for( Int j = 0; j < numUniformFine[d]; j++ ){
+          localMatFine( j, i ) = (lambda[i] / ( uniformGridFine[j] - LGLGrid[i]
+                + EPS )) / denomFine[j];
+        } // for (j)
 			} // for (i)
 		} // for (d)
 	}
@@ -358,6 +387,9 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	statusOFS << "LGLToUniformMat[0] = " << LGLToUniformMat_[0] << std::endl;
 	statusOFS << "LGLToUniformMat[1] = " << LGLToUniformMat_[1] << std::endl; 
 	statusOFS << "LGLToUniformMat[2] = " << LGLToUniformMat_[2] << std::endl; 
+	statusOFS << "LGLToUniformMatFine[0] = " << LGLToUniformMatFine_[0] << std::endl;
+	statusOFS << "LGLToUniformMatFine[1] = " << LGLToUniformMatFine_[1] << std::endl; 
+	statusOFS << "LGLToUniformMatFine[2] = " << LGLToUniformMatFine_[2] << std::endl; 
 #endif
 
 	// Initialize the XC functional.  
@@ -433,13 +465,13 @@ HamiltonianDG::DiffPsi	(const Index3& numGrid, const Real* psi, Real* Dpsi, Int 
 
 void
 HamiltonianDG::InterpLGLToUniform	( const Index3& numLGLGrid, const
-		Index3& numUniformGrid, const Real* psiLGL, Real* psiUniform )
+		Index3& numUniformGridFine, const Real* rhoLGL, Real* rhoUniform )
 {
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::InterpLGLToUniform");
 #endif
 	Index3 Ns1 = numLGLGrid;
-	Index3 Ns2 = numUniformGrid;
+	Index3 Ns2 = numUniformGridFine;
 	
 	DblNumVec  tmp1( Ns2[0] * Ns1[1] * Ns1[2] );
 	DblNumVec  tmp2( Ns2[0] * Ns2[1] * Ns1[2] );
@@ -449,23 +481,23 @@ HamiltonianDG::InterpLGLToUniform	( const Index3& numLGLGrid, const
 	// x-direction, use Gemm
 	{
 		Int m = Ns2[0], n = Ns1[1] * Ns1[2], k = Ns1[0];
-		blas::Gemm( 'N', 'N', m, n, k, 1.0, LGLToUniformMat_[0].Data(),
-				m, psiLGL, k, 0.0, tmp1.Data(), m );
+		blas::Gemm( 'N', 'N', m, n, k, 1.0, LGLToUniformMatFine_[0].Data(),
+				m, rhoLGL, k, 0.0, tmp1.Data(), m );
 	}
 	
 	// y-direction, use Gemv
 	{
 		Int   m = Ns2[1], n = Ns1[1];
-		Int   ptrShift1, ptrShift2;
+		Int   rhoShift1, rhoShift2;
 		Int   inc = Ns2[0];
 		for( Int k = 0; k < Ns1[2]; k++ ){
 			for( Int i = 0; i < Ns2[0]; i++ ){
-				ptrShift1 = i + k * Ns2[0] * Ns1[1];
-				ptrShift2 = i + k * Ns2[0] * Ns2[1];
+				rhoShift1 = i + k * Ns2[0] * Ns1[1];
+				rhoShift2 = i + k * Ns2[0] * Ns2[1];
 				blas::Gemv( 'N', m, n, 1.0, 
-						LGLToUniformMat_[1].Data(), m, 
-						tmp1.Data() + ptrShift1, inc, 0.0, 
-						tmp2.Data() + ptrShift2, inc );
+						LGLToUniformMatFine_[1].Data(), m, 
+						tmp1.Data() + rhoShift1, inc, 0.0, 
+						tmp2.Data() + rhoShift2, inc );
 			} // for (i)
 		} // for (k)
 	}
@@ -476,7 +508,7 @@ HamiltonianDG::InterpLGLToUniform	( const Index3& numLGLGrid, const
 		Int m = Ns2[0] * Ns2[1], n = Ns2[2], k = Ns1[2]; 
 		blas::Gemm( 'N', 'T', m, n, k, 1.0, 
 				tmp2.Data(), m, 
-				LGLToUniformMat_[2].Data(), n, 0.0, psiUniform, m );
+				LGLToUniformMatFine_[2].Data(), n, 0.0, rhoUniform, m );
 	}
 
 
@@ -493,7 +525,7 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::CalculatePseudoPotential");
 #endif
-	Int ntot = domain_.NumGridTotal();
+	Int ntotFine = domain_.NumGridTotalFine();
 	Int numAtom = atomList_.size();
 	Int mpirank, mpisize;
 	MPI_Comm_rank( domain_.comm, &mpirank );
@@ -538,7 +570,7 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 				Index3 key( i, j, k );
 				if( elemPrtn_.Owner( key ) == mpirank ){
 					std::map<Int, PseudoPot>   ppMap;
-					std::vector<DblNumVec>&    gridpos = uniformGridElem_( i, j, k );
+					std::vector<DblNumVec>&    gridpos = uniformGridElemFine_( i, j, k );
 					for( Int a = 0; a < numAtom; a++ ){
 						PTEntry& ptentry = ptable.ptemap()[atomList_[a].type];
 						// Cutoff radius: Take the largest one
@@ -564,7 +596,7 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 						if( minDist.l2() <= Rzero ){
 							PseudoPot   pp;
 							ptable.CalculatePseudoCharge( atomList_[a], 
-									domain_, uniformGridElem_(i, j, k), pp.pseudoCharge );
+									domain_, uniformGridElemFine_(i, j, k), pp.pseudoCharge );
 							ptable.CalculateNonlocalPP( atomList_[a], 
 									domain_, LGLGridElem_(i, j, k), pp.vnlList );
 							ppMap[a] = pp;
@@ -599,7 +631,7 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner( key ) == mpirank ){
 						std::map<Int, PseudoPot>&  ppMap = pseudo_.LocalMap()[key];
-						DblNumVec  localVec( numUniformGridElem_.prod() );
+						DblNumVec  localVec( numUniformGridElemFine_.prod() );
 						SetValue( localVec, 0.0 );
 						for( std::map<Int, PseudoPot>::iterator mi = ppMap.begin();
 								 mi != ppMap.end(); mi++ ){
@@ -626,7 +658,7 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 			}
 		}
 
-		localSum *= domain_.Volume() / domain_.NumGridTotal();
+		localSum *= domain_.Volume() / domain_.NumGridTotalFine();
 
 		mpi::Allreduce( &localSum, &sumRho, 1, MPI_SUM, domain_.comm );
 
@@ -1006,9 +1038,14 @@ HamiltonianDG::CalculateDensity	(
 						// grid
 						InterpLGLToUniform( 
 								numLGLGridElem_, 
-								numUniformGridElem_, 
+								numUniformGridElemFine_, 
 								localRhoLGL.Data(), 
 								localRho.Data() );
+//						InterpLGLToUniform( 
+//								numLGLGridElem_, 
+//								numUniformGridElem_, 
+//								localRhoLGL.Data(), 
+//								localRho.Data() );
 						statusOFS << "After interpolation" << std::endl;
 
 						sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
@@ -1023,7 +1060,7 @@ HamiltonianDG::CalculateDensity	(
 					} // own this element
 				} // for (i)
 
-		sumRhoLocal *= domain_.Volume() / domain_.NumGridTotal(); 
+		sumRhoLocal *= domain_.Volume() / domain_.NumGridTotalFine(); 
 
 		// All processors get the normalization factor
 		mpi::Allreduce( &sumRhoLGLLocal, &sumRhoLGL, 1, MPI_SUM, domain_.comm );
@@ -1101,7 +1138,7 @@ HamiltonianDG::CalculateXC	(
 				} // own this element
 			} // for (i)
 
-	ExcLocal *= domain_.Volume() / domain_.NumGridTotal();
+	ExcLocal *= domain_.Volume() / domain_.NumGridTotalFine();
 
 	mpi::Allreduce( &ExcLocal, &Exc, 1, MPI_SUM, domain_.comm );
 
@@ -1139,7 +1176,7 @@ void HamiltonianDG::CalculateHartree(
 				Index3 key = Index3( i, j, k );
 				if( elemPrtn_.Owner( key ) == mpirank ){
 					tempVec.LocalMap()[key] = density_.LocalMap()[key];
-					blas::Axpy( numUniformGridElem_.prod(), -1.0, 
+					blas::Axpy( numUniformGridElemFine_.prod(), -1.0, 
 							pseudoCharge_.LocalMap()[key].Data(), 1,
 							tempVec.LocalMap()[key].Data(), 1 );
 				}
@@ -1151,7 +1188,7 @@ void HamiltonianDG::CalculateHartree(
   DistNumVecToDistRowVec(
 			tempVec,
 			tempVecLocal,
-			domain_.numGrid,
+			domain_.numGridFine,
 			numElem_,
 			fft.localNzStart,
 			fft.localNz,
@@ -1193,7 +1230,7 @@ void HamiltonianDG::CalculateHartree(
   DistRowVecToDistNumVec(
 			tempVecLocal,
 			vhart,
-			domain_.numGrid,
+			domain_.numGridFine,
 			numElem_,
 			fft.localNzStart,
 			fft.localNz,
@@ -1335,7 +1372,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
   DistNumVecToDistRowVec(
 			tempVec,
 			tempVecLocal,
-			domain_.numGrid,
+			domain_.numGridFine,
 			numElem_,
 			fft.localNzStart,
 			fft.localNz,
@@ -1398,7 +1435,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 		DistRowVecToDistNumVec( 
 				vhartDrvLocal[d],
 				vhartDrv[d],
-				domain_.numGrid,
+				domain_.numGridFine,
 				numElem_,
 				fft.localNzStart,
 				fft.localNz,
@@ -1427,7 +1464,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 							SparseVec& sp = pp.pseudoCharge;
 							IntNumVec& idx = sp.first;
 							DblNumMat& val = sp.second;
-							Real    wgt = domain_.Volume() / domain_.NumGridTotal();
+							Real    wgt = domain_.Volume() / domain_.NumGridTotalFine();
 							DblNumVec&  vhartVal = vhart.LocalMap()[key];
 							Real resX = 0.0;
 							Real resY = 0.0;
@@ -1463,7 +1500,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 							SparseVec& sp = pp.pseudoCharge;
 							IntNumVec& idx = sp.first;
 							DblNumMat& val = sp.second;
-							Real    wgt = domain_.Volume() / domain_.NumGridTotal();
+							Real    wgt = domain_.Volume() / domain_.NumGridTotalFine();
 							for( Int d = 0; d < DIM; d++ ){
 								DblNumVec&  drv = vhartDrv[d].LocalMap()[key];
 								Real res = 0.0;
