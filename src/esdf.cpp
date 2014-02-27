@@ -353,14 +353,19 @@ void esdf_key() {
 
 
 	i++;
-	strcpy(kw_label[i],"Num_of_MD");
+	strcpy(kw_label[i],"num_of_md");
 	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! Num_of_MD !*");
+	strcpy(kw_dscrpt[i],"*! Number of Molecular Dynamics !*");
 
 	i++;
-	strcpy(kw_label[i],"MD_time_step");
+	strcpy(kw_label[i],"md_time_step");
 	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! MD_time_step !*");
+	strcpy(kw_dscrpt[i],"*! Time step of Molecular Dynamics !*");
+
+	i++;
+	strcpy(kw_label[i],"thermostat_mass");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Thermostat mass !*");
 
 	i++;
 	strcpy(kw_label[i],"tolerance");
@@ -1934,8 +1939,9 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 	{
 
 
-		esdfParam.nsw       = esdf_integer("Num_of_MD", 10);
-		esdfParam.dt       = esdf_integer("MD_time_step", 100);
+		esdfParam.nsw       = esdf_integer("Num_Of_MD", 2000);
+		esdfParam.dt       = esdf_integer("MD_Time_Step", 75);
+		esdfParam.qmass    = esdf_double("Thermostat_Mass", 10.0);
 
 		esdfParam.mixMaxDim       = esdf_integer("Mixing_MaxDim", 9);
 

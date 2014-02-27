@@ -218,6 +218,7 @@ int main(int argc, char **argv)
 		// Print out the force
 		PrintBlock( statusOFS, "Atomic Force" );
 		{
+      hamKS.CalculateForce( spn, fft );
 			Point3 forceCM(0.0, 0.0, 0.0);
 			std::vector<Atom>& atomList = hamKS.AtomList();
 			Int numAtom = atomList.size();
@@ -231,12 +232,12 @@ int main(int argc, char **argv)
 		}
 
 //Nose Hoover Parameters//
-  	Int L=1;
+  	Int L=6; //check
 		Real E, K=0.;
   	Real xi1=0., xi2=0.;
   	Real vxi1 = 1.0, vxi2=1.0;
   	Real G1, G2;
-  	Real Q1=1.0, Q2=1.0;
+  	Real Q1=100.0, Q2=100.0;
   	Real s; //scale factor
 //		Real A, B, C, D, X;
 
@@ -285,7 +286,7 @@ int main(int argc, char **argv)
                     Print(statusOFS, "Num of MD step = ", n);
 
 //  chain(K[i], T, dt, vxi1[i], vxi2[i], xi1[i], xi2[i], v[i]);//
-    								G2 = (Q1*vxi1*vxi1-T);
+    								G2 = (Q1*vxi1*vxi1-T)/Q2; //add /Q2
 										Print(statusOFS, "debug: G2",G2);//debug
 								    vxi2 = vxi2+G2*dt/4.;
 										Print(statusOFS, "debug: vxi2",vxi2);//debug
@@ -325,7 +326,7 @@ int main(int argc, char **argv)
 
                     for(Int i = 0; i < numAtom; i++){
                             atomList1[i].pos = atompos[i];
-                            Print(statusOFS, "Current Position    = ",  atomList[i].pos);
+                            Print(statusOFS, "Current Position before SCF    = ",  atomList1[i].pos); //add List1
                     }//x=x+v*dt/2
 
 										hamKS.Update( esdfParam.atomList ); //ZG:updated atomList.pos
@@ -340,12 +341,25 @@ int main(int argc, char **argv)
 
 										scf.Iterate();
 
+										hamKS.CalculateForce( spn, fft ); //new
+
 								    std::vector<Atom>& atomList = hamKS.AtomList();
 								    Int numAtom = atomList.size();
 								    for( Int i = 0; i < numAtom; i++ ){
 						    			atomforce[i]=atomList[i].force;
 						      	  Print( statusOFS, "Atom", i, "Force", atomList[i].force );
 								    }//update f
+
+//debug block//
+
+						for (Int i=0;i<numAtom;i++)
+								Print(statusOFS, "debug: check position after SCF ",atompos[i]); //checked! correct
+
+						std::vector<Atom>& atomList3 = esdfParam.atomList;
+                    for(Int i = 0; i < numAtom; i++){
+                            Print(statusOFS, "Current Position after SCF   = ",  atomList3[i].pos); //checked! correct
+                    }//x=x+v*dt/2
+//debug block ends//
 
 										for(Int i=0; i<numAtom; i++){
 												for(Int j=0; j<3; j++){
@@ -363,9 +377,10 @@ int main(int argc, char **argv)
 												Print(statusOFS, "debug: position",atompos[i]);
 //end of debug block//	
 
+										Print(statusOFS, "debug: Kinetic energy of ions ",K);
 
 //  chain(K[i], T, dt, vxi1[i], vxi2[i], xi1[i], xi2[i], v[i]);//
-    								G2 = (Q1*vxi1*vxi1-T);
+    								G2 = (Q1*vxi1*vxi1-T)/Q2;
 								    vxi2 = vxi2+G2*dt/4.;
 								    vxi1 = vxi1*exp(-vxi2*dt/8.);
 								    G1 = (2*K-L*T)/Q1;

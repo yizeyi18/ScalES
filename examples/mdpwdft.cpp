@@ -218,6 +218,7 @@ int main(int argc, char **argv)
 		// Print out the force
 		PrintBlock( statusOFS, "Atomic Force" );
 		{
+      hamKS.CalculateForce( spn, fft );
 			Point3 forceCM(0.0, 0.0, 0.0);
 			std::vector<Atom>& atomList = hamKS.AtomList();
 			Int numAtom = atomList.size();
@@ -239,10 +240,26 @@ int main(int argc, char **argv)
 						std::vector<Atom>& atomList1 = esdfParam.atomList;
             std::vector<Atom>& atomList2 = hamKS.AtomList();
             Int numAtom = atomList2.size();
-            Point3 atompos[500];     //x2 ZG: fix: 500 to numAtom
-            Real atomv[500][3]={0.};         //v2
-            Point3 atomforce[500];    //f2
-            Point3 atomforcem[500];   //f1
+
+            std::vector<Point3>  atompos;
+						std::vector<Point3>  atomv;
+						std::vector<Point3>  atomforce;
+						std::vector<Point3>		atomforcem;
+		            
+            atompos.resize( numAtom );
+            atomv.resize( numAtom );
+            atomforce.resize( numAtom );
+            atomforcem.resize( numAtom );
+
+            for(Int i=0; i<numAtom; i++) {
+            	for(Int j = 0; j<3; j++)
+              	atomv[i][j]=0.;
+						}
+
+//            Point3 atompos[500];     //x2 ZG: fix: 500 to numAtom
+//            Real atomv[500][3]={0.};         //v2
+//            Point3 atomforce[500];    //f2
+//            Point3 atomforcem[500];   //f1
 
             for( Int i = 0; i < numAtom; i++ ){
                     atompos[i]   = atomList1[i].pos;
@@ -298,6 +315,8 @@ int main(int argc, char **argv)
 										// ************************************************
 
 										scf.Iterate();
+
+										hamKS.CalculateForce( spn, fft ); //new
 
 								    /* Force block ends here*/
 								    std::vector<Atom>& atomList = hamKS.AtomList();

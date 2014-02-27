@@ -111,7 +111,8 @@ struct ESDFInputParam{
 	std::vector<Atom>   atomList;
 
 	Int									nsw; //ZG: MD
-	Int									dt; //ZG: MD								
+	Int									dt; //ZG: MD
+	Real								qmass; //ZG: MD								
 	Int                 mixMaxDim;
 	std::string         mixType;
 	std::string         mixVariable;
