@@ -45,6 +45,7 @@
 /// element.
 /// @date 2012-10-06
 #include  "spinor.hpp"
+#include  "blas.hpp"
 
 namespace dgdft{
 
@@ -195,15 +196,19 @@ void Spinor::AddScalarDiag	(const DblNumVec &val, NumTns<Scalar> &a3)
 	Int ncom = wavefun_.n();
 	Int nocc = wavefun_.p();
 
-//#pragma omp parallel for
-	for (Int k=0; k<nocc; k++) {
-		for (Int j=0; j<ncom; j++) {
-			Scalar *p1 = wavefun_.VecData(j, k);
-			Real   *p2 = val.Data();
-			Scalar *p3 = a3.VecData(j, k);
-			for (Int i=0; i<ntot; i++) { *(p3++) += (*p1++) * (*p2++); }
-		}
-	}
+#ifdef _USE_OPENMP_
+#pragma omp for schedule (dynamic,1) nowait
+#endif
+  for (Int k=0; k<nocc; k++) {
+    for (Int j=0; j<ncom; j++) {
+      Scalar *p1 = wavefun_.VecData(j, k);
+      Real   *p2 = val.Data();
+      Scalar *p3 = a3.VecData(j, k);
+      for (Int i=0; i<ntot; i++) { 
+        *(p3++) += (*p1++) * (*p2++); 
+      }
+    }
+  }
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -267,20 +272,20 @@ Spinor::AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr)
 
 #ifndef _USE_COMPLEX_ // Real case
 	Int ntothalf = fftPtr->numGridTotalR2C;
-	// FIXME Start to add OMP parallelization
-//#pragma omp parallel default(shared) 
 	{
-		DblNumVec realInVec(ntot);
+    // These two are private variables in the OpenMP context
+    DblNumVec realInVec(ntot);
 		CpxNumVec cpxOutVec(ntothalf);
 
-//#pragma omp for 
+#ifdef _USE_OPENMP_
+#pragma omp for schedule (dynamic,1) nowait
+#endif
 		for (Int k=0; k<nocc; k++) {
 			for (Int j=0; j<ncom; j++) {
-				Real *ptrwfn = wavefun_.VecData(j, k);
-				Real *ptr0 = realInVec.Data();
-				for(Int i = 0; i < ntot; i++){
-					ptr0[i] = ptrwfn[i];
-				}
+        // For c2r and r2c transforms, the default is to DESTROY the
+        // input, therefore a copy of the original matrix is necessary. 
+        blas::Copy( ntot, wavefun_.VecData(j, k), 1, 
+            realInVec.Data(), 1 );
 				fftw_execute_dft_r2c(
 						fftPtr->forwardPlanR2C, 
 						realInVec.Data(),
@@ -296,13 +301,13 @@ Spinor::AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr)
 						reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ),
 						realInVec.Data() );
 
-				Real *ptr1 = a3.VecData(j, k);
-				ptr0 = realInVec.Data();
-				for (Int i=0; i<ntot; i++) *(ptr1++) += (*(ptr0++)) / Real(ntot);
+        blas::Axpy( ntot, 1.0 / Real(ntot), realInVec.Data(), 1, 
+            a3.VecData(j, k), 1 );
 			}
 		}
 	}
 #else // Complex case
+  // TODO OpenMP implementation
 	for (Int k=0; k<nocc; k++) {
 		for (Int j=0; j<ncom; j++) {
 			Complex *ptr0 = wavefun_.VecData(j, k);
@@ -342,6 +347,9 @@ Spinor::AddNonlocalPP	(const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
 	Int nocc = wavefun_.p();
 	Real vol = domain_.Volume();
 
+#ifdef _USE_OPENMP_
+#pragma omp for schedule (dynamic,1) nowait
+#endif
 	for (Int k=0; k<nocc; k++) {
 		for (Int j=0; j<ncom; j++) {
 			Scalar    *ptr0 = wavefun_.VecData(j,k);
