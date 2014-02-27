@@ -1,44 +1,44 @@
 /*
-   Copyright (c) 2012 The Regents of the University of California,
-   through Lawrence Berkeley National Laboratory.  
+	 Copyright (c) 2012 The Regents of the University of California,
+	 through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
 	 
    This file is part of DGDFT. All rights reserved.
 
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are met:
+	 Redistribution and use in source and binary forms, with or without
+	 modification, are permitted provided that the following conditions are met:
 
-   (1) Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-   (2) Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-   (3) Neither the name of the University of California, Lawrence Berkeley
-   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-   be used to endorse or promote products derived from this software without
-   specific prior written permission.
+	 (1) Redistributions of source code must retain the above copyright notice, this
+	 list of conditions and the following disclaimer.
+	 (2) Redistributions in binary form must reproduce the above copyright notice,
+	 this list of conditions and the following disclaimer in the documentation
+	 and/or other materials provided with the distribution.
+	 (3) Neither the name of the University of California, Lawrence Berkeley
+	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+	 be used to endorse or promote products derived from this software without
+	 specific prior written permission.
 
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-   You are under no obligation whatsoever to provide any bug fixes, patches, or
-   upgrades to the features, functionality or performance of the source code
-   ("Enhancements") to anyone; however, if you choose to make your Enhancements
-   available either publicly, or directly to Lawrence Berkeley National
-   Laboratory, without imposing a separate written license agreement for such
-   Enhancements, then you hereby grant the following license: a non-exclusive,
-   royalty-free perpetual license to install, use, modify, prepare derivative
-   works, incorporate into other computer software, distribute, and sublicense
-   such enhancements or derivative works thereof, in binary and source code form.
+	 You are under no obligation whatsoever to provide any bug fixes, patches, or
+	 upgrades to the features, functionality or performance of the source code
+	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
+	 available either publicly, or directly to Lawrence Berkeley National
+	 Laboratory, without imposing a separate written license agreement for such
+	 Enhancements, then you hereby grant the following license: a non-exclusive,
+	 royalty-free perpetual license to install, use, modify, prepare derivative
+	 works, incorporate into other computer software, distribute, and sublicense
+	 such enhancements or derivative works thereof, in binary and source code form.
 */
 /// @file scf.cpp
 /// @brief SCF class for the global domain or extended element.
@@ -96,20 +96,24 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 		isRestartDensity_ = esdfParam.isRestartDensity;
 		isRestartWfn_     = esdfParam.isRestartWfn;
 		isOutputDensity_  = esdfParam.isOutputDensity;
-		isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
     Tbeta_         = esdfParam.Tbeta;
-	}
+
+    numGridWavefunctionElem_ = esdfParam.numGridWavefunctionElem;
+    numGridDensityElem_      = esdfParam.numGridDensityElem;  
+  }
 
 	// other SCF parameters
 	{
 		eigSolPtr_ = &eigSol;
     ptablePtr_ = &ptable;
 
-		Int ntot = eigSolPtr_->Psi().NumGridTotal();
+//		Int ntot = eigSolPtr_->Psi().NumGridTotal();
+    Int ntot = esdfParam.domain.NumGridTotal();
+    Int ntotFine = esdfParam.domain.NumGridTotalFine();
 
-		vtotNew_.Resize(ntot); SetValue(vtotNew_, 0.0);
-		dfMat_.Resize( ntot, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
-		dvMat_.Resize( ntot, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
+		vtotNew_.Resize(ntotFine); SetValue(vtotNew_, 0.0);
+		dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
+		dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
 	
 		restartDensityFileName_ = "DEN";
 		restartWfnFileName_     = "WFN";
@@ -118,7 +122,8 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 	// Density
 	{
     DblNumMat&  density = eigSolPtr_->Ham().Density();
-		if( isRestartDensity_ ) {
+
+    if( isRestartDensity_ ) {
 			std::istringstream rhoStream;      
 			SharedRead( restartDensityFileName_, rhoStream);
 			// TODO Error checking
@@ -130,23 +135,26 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 			
 			SetValue( density, 0.0 );
       
-			Int ntot = eigSolPtr_->Psi().NumGridTotal();
-			Real sum0 = 0.0, sum1 = 0.0;
+			Int ntot = esdfParam.domain.NumGridTotal();
+      Int ntotFine = esdfParam.domain.NumGridTotalFine();
+
+      Real sum0 = 0.0, sum1 = 0.0;
 			Real EPS = 1e-6;
 
 			// make sure that the electron density is positive
-			for (Int i=0; i<ntot; i++){
+			for (Int i=0; i<ntotFine; i++){
 				density(i, RHO) = ( pseudoCharge(i) > EPS ) ? pseudoCharge(i) : EPS;
 				sum0 += density(i, RHO);
 				sum1 += pseudoCharge(i);
 			}
-			
-			// Rescale the density
-			for (int i=0; i <ntot; i++){
+
+      // Rescale the density
+			for (int i=0; i <ntotFine; i++){
 				density(i, RHO) *= sum1 / sum0;
 			} 
 		}
 	}
+
 	if( !isRestartWfn_ ) {
 		UniformRandom( eigSolPtr_->Psi().Wavefun() );
 	}
@@ -276,7 +284,6 @@ SCF::Iterate	(  )
 	// Compute the total potential
 	eigSolPtr_->Ham().CalculateVtot( eigSolPtr_->Ham().Vtot() );
 
-
   Real timeIterStart(0), timeIterEnd(0);
   
 	bool isSCFConverged = false;
@@ -284,7 +291,6 @@ SCF::Iterate	(  )
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
-
 
   for (Int iter=1; iter <= scfMaxIter_; iter++) {
     if ( isSCFConverged ) break;
@@ -301,12 +307,72 @@ SCF::Iterate	(  )
     GetTime( timeIterStart );
 
 
-		// Solve the eigenvalue problem
-    GetTime( timeSta );
+  // huwei
+
+    Int ntotCoarse  = eigSolPtr_->FFT().domain.NumGridTotal();
+    Int ntotFine  = eigSolPtr_->FFT().domain.NumGridTotalFine();
+
+    DblNumVec& vtotFine = eigSolPtr_->Ham().Vtot();
+    DblNumVec& vtotCoarse = eigSolPtr_->Ham().VtotCoarse();
+
+    Fourier& fft =  eigSolPtr_->FFT();
+
+    for( Int i = 0; i < ntotFine; i++ ){
+      fft.inputComplexVecFine(i) = Complex( vtotFine(i), 0.0 ); 
+    }
+
+    fftw_execute( fft.forwardPlanFine );
+
+  // fft Fine to Coarse 
+
+    Int PtrC = 0;
+    Int PtrF = 0;
+
+    Int iF = 0;
+    Int jF = 0;
+    Int kF = 0;
+
+    SetValue( fft.outputComplexVec, Z_ZERO );
+
+    for( Int kk = 0; kk < fft.domain.numGrid[2]; kk++ ){
+      for( Int jj = 0; jj <  fft.domain.numGrid[1]; jj++ ){
+        for( Int ii = 0; ii <  fft.domain.numGrid[0]; ii++ ){
+
+          PtrC = ii + jj * fft.domain.numGrid[0] + kk * fft.domain.numGrid[0] * fft.domain.numGrid[1];
+
+          if ( (0 <= ii) && (ii <=  fft.domain.numGrid[0] / 2) ) { iF = ii; } 
+          else {iF =  fft.domain.numGridFine[0] - fft.domain.numGrid[0] + ii; } 
+
+          if ( (0 <= jj) && (jj <=  fft.domain.numGrid[1] / 2) ) { jF = jj; }
+          else { jF =  fft.domain.numGridFine[1] - fft.domain.numGrid[1] + jj; }
+
+          if ( (0 <= kk) && (kk <=  fft.domain.numGrid[2] / 2) ) { kF = kk; }
+          else { kF =  fft.domain.numGridFine[2] - fft.domain.numGrid[2] + kk; }
+
+          PtrF = iF + jF *  fft.domain.numGridFine[0] + kF *  fft.domain.numGridFine[0] *  fft.domain.numGridFine[1];
+
+          fft.outputComplexVec(PtrC) = fft.outputComplexVecFine(PtrF);
+
+        }
+      }
+    }
+
+//    for( Int i = 0; i < ntotCoarse; i++ ){
+//      if( fft.gkk(i) == 0 ){
+//        fft.outputComplexVec(i) = Z_ZERO; 
+//      }
+//      else{
+//       fft.outputComplexVec(i) *= 2.0 * PI / fft.gkk(i);
+//       }
+//    }
+    fftw_execute( fft.backwardPlan );
+
+    for( Int i = 0; i < ntotCoarse; i++ ){
+      vtotCoarse(i) = fft.inputComplexVec(i).real() / ntotFine;
+    }
+
+    // Solve the eigenvalue problem
 		eigSolPtr_->Solve();
-    GetTime( timeEnd );
-    statusOFS << "Eigensolver time = " 	<< timeEnd - timeSta
-      << " [s]" << std::endl;
 		// No need for normalization using LOBPCG
 
 		// Compute the occupation rate
@@ -317,7 +383,8 @@ SCF::Iterate	(  )
 		eigSolPtr_->Ham().CalculateDensity(
 				eigSolPtr_->Psi(),
 				eigSolPtr_->Ham().OccupationRate(),
-        totalCharge_);
+        totalCharge_, 
+        eigSolPtr_->FFT() );
 
 		// Compute the exchange-correlation potential and energy
 		eigSolPtr_->Ham().CalculateXC( Exc_ ); 
@@ -344,28 +411,26 @@ SCF::Iterate	(  )
 
     PrintState( iter );
 
-    if( isCalculateForceEachSCF_ ){
-      GetTime( timeSta );
-      eigSolPtr_->Ham().CalculateForce( eigSolPtr_->Psi(), eigSolPtr_->FFT() );
-      GetTime( timeEnd );
-      statusOFS << "Time for computing the force is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+		GetTime( timeSta );
+		eigSolPtr_->Ham().CalculateForce( eigSolPtr_->Psi(), eigSolPtr_->FFT() );
+		GetTime( timeEnd );
+		statusOFS << "Time for computing the force is " <<
+			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-      // Print out the force
-      PrintBlock( statusOFS, "Atomic Force" );
-      {
-        Point3 forceCM(0.0, 0.0, 0.0);
-        std::vector<Atom>& atomList = eigSolPtr_->Ham().AtomList();
-        Int numAtom = atomList.size();
-        for( Int a = 0; a < numAtom; a++ ){
-          Print( statusOFS, "atom", a, "force", atomList[a].force );
-          forceCM += atomList[a].force;
-        }
-        statusOFS << std::endl;
-        Print( statusOFS, "force for centroid: ", forceCM );
-        statusOFS << std::endl;
-      }
-    }
+		// Print out the force
+		PrintBlock( statusOFS, "Atomic Force" );
+		{
+			Point3 forceCM(0.0, 0.0, 0.0);
+			std::vector<Atom>& atomList = eigSolPtr_->Ham().AtomList();
+			Int numAtom = atomList.size();
+			for( Int a = 0; a < numAtom; a++ ){
+				Print( statusOFS, "atom", a, "force", atomList[a].force );
+				forceCM += atomList[a].force;
+			}
+			statusOFS << std::endl;
+			Print( statusOFS, "force for centroid: ", forceCM );
+			statusOFS << std::endl;
+		}
 
     if( scfNorm_ < scfTolerance_ ){
       /* converged */
@@ -375,8 +440,11 @@ SCF::Iterate	(  )
 
 		// Potential mixing
     if( mixType_ == "anderson" ){
+
       AndersonMix(iter);
+
     }
+
     if( mixType_ == "kerker" ){
       KerkerMix();  
       AndersonMix(iter);
@@ -529,7 +597,7 @@ SCF::CalculateEnergy	(  )
 	}
 
 	// Hartree and xc part
-	Int  ntot = eigSolPtr_->FFT().domain.NumGridTotal();
+	Int  ntot = eigSolPtr_->FFT().domain.NumGridTotalFine();
 	Real vol  = eigSolPtr_->FFT().domain.Volume();
 	DblNumMat&  density      = eigSolPtr_->Ham().Density();
   DblNumMat&  vxc          = eigSolPtr_->Ham().Vxc();
@@ -598,7 +666,7 @@ SCF::AndersonMix	( const Int iter )
 #endif
 	DblNumVec vin, vout, vinsave, voutsave;
 
-	Int ntot  = eigSolPtr_->FFT().domain.NumGridTotal();
+	Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
 
 	vin.Resize(ntot);
 	vout.Resize(ntot);
@@ -635,7 +703,7 @@ SCF::AndersonMix	( const Int iter )
 		}
 
 		// Calculating pseudoinverse
-    
+
 //		Print( statusOFS, "debug Point 1");//debug
 
 		DblNumVec gammas, S;
@@ -661,12 +729,12 @@ SCF::AndersonMix	( const Int iter )
 
 		Print( statusOFS, "  Rank of dfmat = ", rank );
 			
-
 		// Update vin, vout
 
 		blas::Gemv('N', ntot, iterused, -1.0, dvMat_.Data(),
 				ntot, gammas.Data(), 1, 1.0, vin.Data(), 1 );
-		blas::Gemv('N', ntot, iterused, -1.0, dfMat_.Data(),
+
+    blas::Gemv('N', ntot, iterused, -1.0, dfMat_.Data(),
 				ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
 	}
 
@@ -698,6 +766,7 @@ SCF::AndersonMix	( const Int iter )
 #endif
 
 	return ;
+
 } 		// -----  end of method SCF::AndersonMix  ----- 
 
 
@@ -709,7 +778,7 @@ SCF::KerkerMix	(  )
 #endif
 	// FIXME Magic number here
 	Real mixStepLengthKerker = 0.8; 
-	Int ntot  = eigSolPtr_->FFT().domain.NumGridTotal();
+	Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
 	DblNumVec& vtot = eigSolPtr_->Ham().Vtot();
 
   for (Int i=0; i<ntot; i++) {

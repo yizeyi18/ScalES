@@ -138,7 +138,7 @@ PeriodTable::CalculatePseudoCharge	(
 	Point3 pos = atom.pos;
 	Point3 Ls  = dm.length;
 	Point3 posStart = dm.posStart;
-	Index3 Ns  = dm.numGrid;
+	Index3 Ns  = dm.numGridFine;
 
 	//get entry data and spline data
 	PTEntry& ptentry = ptemap_[type];
@@ -852,7 +852,7 @@ PeriodTable::CalculateNonlocalPP	(
 #endif
 	Point3 Ls       = dm.length;
 	Point3 posStart = dm.posStart;
-	Index3 Ns       = dm.numGrid;
+	Index3 Ns       = dm.numGridFine;
 
 #ifndef _NO_NONLOCAL_ // Nonlocal potential is used. Debug option
 	Int type   = atom.type;

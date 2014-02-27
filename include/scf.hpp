@@ -75,8 +75,6 @@ private:
 	bool                isRestartWfn_;
 	bool                isOutputDensity_;
 	bool                isOutputWfn_;
-
-  bool                isCalculateForceEachSCF_;
   
 	std::string         restartDensityFileName_;
   std::string         restartWfnFileName_;
@@ -105,6 +103,10 @@ private:
 	DblNumMat           dfMat_;
 	DblNumMat           dvMat_;
 	// TODO Elliptic preconditioner
+
+
+  Index3  numGridWavefunctionElem_;
+  Index3  numGridDensityElem_;
 
 public:
 	

@@ -1391,7 +1391,7 @@ void SVDLeastSquare( Int m, Int n, Int nrhs, double * A, Int lda,
 		( &m, &n, &nrhs, A, &lda, B, &ldb, S,
 			&rcond, rank, &dummyWork, &lwork, &info );
 
-	lwork = dummyWork;
+	lwork = (Int) (dummyWork * 2);
 
 	std::vector<double> work(lwork);
 	LAPACK(dgelss)

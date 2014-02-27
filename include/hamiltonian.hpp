@@ -94,7 +94,8 @@ protected:
 	// The same dimension as the dimension of density_
 	DblNumMat                   vxc_;             
 	// Total potential
-	DblNumVec                   vtot_; 
+	DblNumVec                   vtot_;        
+  DblNumVec                   vtotCoarse_;  // Coarse 
 	// the exchange-correlation energy density
 	DblNumVec                   epsxc_; 
 
@@ -132,8 +133,7 @@ public:
 
 	virtual void CalculatePseudoPotential( PeriodTable &ptable ) = 0;
 
-
-	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val ) = 0;
+	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft ) = 0;
 
 	virtual void CalculateXC (Real &val) = 0;
 
@@ -152,6 +152,7 @@ public:
 	// Access
 	// *********************************************************************
   DblNumVec&  Vtot() { return vtot_; }
+  DblNumVec&  VtotCoarse() { return vtotCoarse_; }
   DblNumVec&  Vext() { return vext_; }
 	DblNumMat&  Vxc()  { return vxc_; }
 	DblNumVec&  Vhart() { return vhart_; }
@@ -210,7 +211,7 @@ public:
 
 	virtual void UpdatePseudoPotential( PeriodTable &ptable );
 
-	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val );
+	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft );
 
 	virtual void CalculateXC ( Real &val );
 

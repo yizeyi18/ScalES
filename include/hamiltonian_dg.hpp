@@ -171,6 +171,7 @@ private:
 
 	/// @brief Uniform grid in the global domain
 	std::vector<DblNumVec>      uniformGrid_;
+  std::vector<DblNumVec>      uniformGridFine_;
 
 	/// @brief Number of uniform grids in each element.  
 	///
@@ -178,6 +179,7 @@ private:
 	///
 	/// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
 	Index3                      numUniformGridElem_;
+  Index3                      numUniformGridElemFine_;
 
 	/// @brief Number of LGL grids in each element.
 	Index3                      numLGLGridElem_;
@@ -185,6 +187,7 @@ private:
 	/// @brief Uniform grid in the elements, each has size 
 	/// numUniformGridElem_
 	NumTns<std::vector<DblNumVec> >   uniformGridElem_;
+  NumTns<std::vector<DblNumVec> >   uniformGridElemFine_;
 
 	/// @brief Legendre-Gauss-Lobatto grid in the elements, each has size
 	/// numLGLGridElem_
@@ -260,7 +263,6 @@ private:
 	/// @brief Total potential in the global domain.
 	DistDblNumVec    vtot_;
 
-
 	/// @brief Total potential on the local LGL grid.
 	DistDblNumVec    vtotLGL_;
 
@@ -294,6 +296,7 @@ private:
 	/// @brief Interpolation matrix from LGL to uniform grid in each
 	/// element (assuming all the elements are the same).
 	std::vector<DblNumMat>    LGLToUniformMat_;
+  std::vector<DblNumMat>    LGLToUniformMatFine_;
 
 	/// @brief DG Hamiltonian matrix.
 	DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>  HMat_;
@@ -327,8 +330,8 @@ public:
 
 	/// @brief Differentiate the basis functions on a certain element
 	/// along the dimension d.
-	void InterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniformGrid, 
-			const Real* psiLGL, Real* psiUniform );
+	void InterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniformGridFine, 
+			const Real* rhoLGL, Real* rhoUniform );
 
 	void CalculatePseudoPotential( PeriodTable &ptable );
 	
@@ -445,12 +448,14 @@ public:
 	
 	/// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
 	Index3 NumUniformGridElem() const { return numUniformGridElem_; }
+  Index3 NumUniformGridElemFine() const { return numUniformGridElemFine_; }
 
 	/// @brief Number of LGL grids in each element.
 	Index3 NumLGLGridElem() const { return numLGLGridElem_; }
 
 	/// @brief Return the uniform grid on each element
 	NumTns<std::vector<DblNumVec> >& UniformGridElem(){ return  uniformGridElem_; }
+  NumTns<std::vector<DblNumVec> >& UniformGridElemFine(){ return  uniformGridElemFine_; }
 
 	/// @brief Return the LGL grid on each element
 	NumTns<std::vector<DblNumVec> >& LGLGridElem(){ return  LGLGridElem_; }
