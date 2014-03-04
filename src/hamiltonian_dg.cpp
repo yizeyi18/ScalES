@@ -394,6 +394,67 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 	statusOFS << "LGLToUniformMatFine[2] = " << LGLToUniformMatFine_[2] << std::endl; 
 #endif
 
+
+  // Compute the LGL weights at 1D, 2D, 3D
+  {
+    Point3 length       = domainElem_(0,0,0).length;
+    Index3 numGrid      = numLGLGridElem_;             
+    Int    numGridTotal = numGrid.prod();
+
+    // Compute the integration weights
+    // 1D
+    LGLWeight1D_.resize(DIM);
+
+    for( Int d = 0; d < DIM; d++ ){
+      DblNumVec  dummyX;
+      DblNumMat  dummyP, dummpD;
+      GenerateLGL( dummyX, LGLWeight1D_[d], dummyP, dummpD, 
+          numGrid[d] );
+      blas::Scal( numGrid[d], 0.5 * length[d], 
+          LGLWeight1D_[d].Data(), 1 );
+    }
+
+		// 2D: faces labeled by normal vectors, i.e. 
+		// yz face : 0
+		// xz face : 1
+		// xy face : 2
+
+    LGLWeight2D_.resize(DIM);
+
+		// yz face
+		LGLWeight2D_[0].Resize( numGrid[1], numGrid[2] );
+		for( Int k = 0; k < numGrid[2]; k++ )
+			for( Int j = 0; j < numGrid[1]; j++ ){
+				LGLWeight2D_[0](j, k) = LGLWeight1D_[1](j) * LGLWeight1D_[2](k);
+			} // for (j)
+
+		// xz face
+		LGLWeight2D_[1].Resize( numGrid[0], numGrid[2] );
+		for( Int k = 0; k < numGrid[2]; k++ )
+			for( Int i = 0; i < numGrid[0]; i++ ){
+				LGLWeight2D_[1](i, k) = LGLWeight1D_[0](i) * LGLWeight1D_[2](k);
+			} // for (i)
+
+		// xy face
+		LGLWeight2D_[2].Resize( numGrid[0], numGrid[1] );
+		for( Int j = 0; j < numGrid[1]; j++ )
+			for( Int i = 0; i < numGrid[0]; i++ ){
+				LGLWeight2D_[2](i, j) = LGLWeight1D_[0](i) * LGLWeight1D_[1](j);
+			}
+
+
+		// 3D
+		LGLWeight3D_.Resize( numGrid[0], numGrid[1], numGrid[2] );
+		for( Int k = 0; k < numGrid[2]; k++ )
+			for( Int j = 0; j < numGrid[1]; j++ )
+				for( Int i = 0; i < numGrid[0]; i++ ){
+					LGLWeight3D_(i, j, k) = LGLWeight1D_[0](i) * LGLWeight1D_[1](j) *
+						LGLWeight1D_[2](k);
+				} // for (i)
+
+  }
+
+
 	// Initialize the XC functional.  
 	// Spin-unpolarized functional is used here
 	if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
@@ -917,33 +978,6 @@ HamiltonianDG::CalculateDensity	(
 		Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
 		// Generate the LGL weight. FIXME. Put it to hamiltonian_dg
 		// Compute the integration weights
-		DblNumTns               LGLWeight3D;
-		{
-			std::vector<DblNumVec>  LGLWeight1D(DIM);
-			Point3 length       = domainElem_(0,0,0).length;
-			Index3 numGrid      = numLGLGridElem_;             
-			Int    numGridTotal = numGrid.prod();
-
-			// Compute the integration weights
-			// 1D
-			for( Int d = 0; d < DIM; d++ ){
-				DblNumVec  dummyX;
-				DblNumMat  dummyP, dummpD;
-				GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
-						numGrid[d] );
-				blas::Scal( numGrid[d], 0.5 * length[d], 
-						LGLWeight1D[d].Data(), 1 );
-			}
-
-			// 3D
-			LGLWeight3D.Resize( numGrid[0], numGrid[1], numGrid[2] );
-			for( Int k = 0; k < numGrid[2]; k++ )
-				for( Int j = 0; j < numGrid[1]; j++ )
-					for( Int i = 0; i < numGrid[0]; i++ ){
-						LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
-							LGLWeight1D[2](k);
-					} // for (i)
-		}
 
 		// Clear the density FIXME. Combine with above
 		for( Int k = 0; k < numElem_[2]; k++ )
@@ -1052,7 +1086,7 @@ HamiltonianDG::CalculateDensity	(
 
 						sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
 								localRhoLGL.Data(), 1, 
-								LGLWeight3D.Data(), 1 );
+								LGLWeight3D_.Data(), 1 );
 
 						Real* ptrRho = localRho.Data();
 						for( Int p = 0; p < localRho.Size(); p++ ){
@@ -1117,35 +1151,6 @@ HamiltonianDG::CalculateDensityDM	(
 	{
 		Real sumRhoLocal = 0.0, sumRho = 0.0;
 		Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
-		// Generate the LGL weight. FIXME. Put it to hamiltonian_dg
-		// Compute the integration weights
-		DblNumTns               LGLWeight3D;
-		{
-			std::vector<DblNumVec>  LGLWeight1D(DIM);
-			Point3 length       = domainElem_(0,0,0).length;
-			Index3 numGrid      = numLGLGridElem_;             
-			Int    numGridTotal = numGrid.prod();
-
-			// Compute the integration weights
-			// 1D
-			for( Int d = 0; d < DIM; d++ ){
-				DblNumVec  dummyX;
-				DblNumMat  dummyP, dummpD;
-				GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
-						numGrid[d] );
-				blas::Scal( numGrid[d], 0.5 * length[d], 
-						LGLWeight1D[d].Data(), 1 );
-			}
-
-			// 3D
-			LGLWeight3D.Resize( numGrid[0], numGrid[1], numGrid[2] );
-			for( Int k = 0; k < numGrid[2]; k++ )
-				for( Int j = 0; j < numGrid[1]; j++ )
-					for( Int i = 0; i < numGrid[0]; i++ ){
-						LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
-							LGLWeight1D[2](k);
-					} // for (i)
-		}
 
 		// Clear the density 
 		for( Int k = 0; k < numElem_[2]; k++ )
@@ -1241,7 +1246,7 @@ HamiltonianDG::CalculateDensityDM	(
 
 						sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
 								localRhoLGL.Data(), 1, 
-								LGLWeight3D.Data(), 1 );
+								LGLWeight3D_.Data(), 1 );
 
 						Real* ptrRho = localRho.Data();
 						for( Int p = 0; p < localRho.Size(); p++ ){
@@ -1496,37 +1501,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 	SetValue( forceLocal, 0.0 );
 	SetValue( force, 0.0 );
 	
-
-
-	// Compute the integration weights
-	DblNumTns               LGLWeight3D;
-	{
-		std::vector<DblNumVec>  LGLWeight1D(DIM);
-		Point3 length       = domainElem_(0,0,0).length;
-		Index3 numGrid      = numLGLGridElem_;             
-		Int    numGridTotal = numGrid.prod();
-
-		// Compute the integration weights
-		// 1D
-		for( Int d = 0; d < DIM; d++ ){
-			DblNumVec  dummyX;
-			DblNumMat  dummyP, dummpD;
-			GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
-					numGrid[d] );
-			blas::Scal( numGrid[d], 0.5 * length[d], 
-					LGLWeight1D[d].Data(), 1 );
-		}
-
-		// 3D
-		LGLWeight3D.Resize( numGrid[0], numGrid[1], numGrid[2] );
-		for( Int k = 0; k < numGrid[2]; k++ )
-			for( Int j = 0; j < numGrid[1]; j++ )
-				for( Int i = 0; i < numGrid[0]; i++ ){
-					LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
-						LGLWeight1D[2](k);
-				} // for (i)
-	}
-
 
 	// *********************************************************************
 	// Compute the derivative of the Hartree potential for computing the 
@@ -1909,36 +1883,6 @@ HamiltonianDG::CalculateForceDM	(
 	SetValue( forceLocal, 0.0 );
 	SetValue( force, 0.0 );
 	
-
-
-	// Compute the integration weights
-	DblNumTns               LGLWeight3D;
-	{
-		std::vector<DblNumVec>  LGLWeight1D(DIM);
-		Point3 length       = domainElem_(0,0,0).length;
-		Index3 numGrid      = numLGLGridElem_;             
-		Int    numGridTotal = numGrid.prod();
-
-		// Compute the integration weights
-		// 1D
-		for( Int d = 0; d < DIM; d++ ){
-			DblNumVec  dummyX;
-			DblNumMat  dummyP, dummpD;
-			GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
-					numGrid[d] );
-			blas::Scal( numGrid[d], 0.5 * length[d], 
-					LGLWeight1D[d].Data(), 1 );
-		}
-
-		// 3D
-		LGLWeight3D.Resize( numGrid[0], numGrid[1], numGrid[2] );
-		for( Int k = 0; k < numGrid[2]; k++ )
-			for( Int j = 0; j < numGrid[1]; j++ )
-				for( Int i = 0; i < numGrid[0]; i++ ){
-					LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
-						LGLWeight1D[2](k);
-				} // for (i)
-	}
 
 
 	// *********************************************************************
@@ -2420,11 +2364,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 
 
-	// Integration weights
-	std::vector<DblNumVec>  LGLWeight1D(DIM);
-	std::vector<DblNumMat>  LGLWeight2D(DIM);
-	DblNumTns               LGLWeight3D;
-
 
 	// *********************************************************************
 	// Initial setup
@@ -2458,54 +2397,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 		SetValue( eta2GradJumpLocal, 0.0 );
 		SetValue( eta2JumpLocal, 0.0 );
 
-
-		// Compute the integration weights
-		// 1D
-		for( Int d = 0; d < DIM; d++ ){
-			DblNumVec  dummyX;
-			DblNumMat  dummyP, dummpD;
-			GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
-					numGrid[d] );
-			blas::Scal( numGrid[d], 0.5 * length[d], 
-					LGLWeight1D[d].Data(), 1 );
-		}
-
-		// 2D: faces labeled by normal vectors, i.e. 
-		// yz face : 0
-		// xz face : 1
-		// xy face : 2
-
-		// yz face
-		LGLWeight2D[0].Resize( numGrid[1], numGrid[2] );
-		for( Int k = 0; k < numGrid[2]; k++ )
-			for( Int j = 0; j < numGrid[1]; j++ ){
-				LGLWeight2D[0](j, k) = LGLWeight1D[1](j) * LGLWeight1D[2](k);
-			} // for (j)
-
-		// xz face
-		LGLWeight2D[1].Resize( numGrid[0], numGrid[2] );
-		for( Int k = 0; k < numGrid[2]; k++ )
-			for( Int i = 0; i < numGrid[0]; i++ ){
-				LGLWeight2D[1](i, k) = LGLWeight1D[0](i) * LGLWeight1D[2](k);
-			} // for (i)
-
-		// xy face
-		LGLWeight2D[2].Resize( numGrid[0], numGrid[1] );
-		for( Int j = 0; j < numGrid[1]; j++ )
-			for( Int i = 0; i < numGrid[0]; i++ ){
-				LGLWeight2D[2](i, j) = LGLWeight1D[0](i) * LGLWeight1D[1](j);
-			}
-
-
-		// 3D
-		LGLWeight3D.Resize( numGrid[0], numGrid[1],
-				numGrid[2] );
-		for( Int k = 0; k < numGrid[2]; k++ )
-			for( Int j = 0; j < numGrid[1]; j++ )
-				for( Int i = 0; i < numGrid[0]; i++ ){
-					LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
-						LGLWeight1D[2](k);
-				} // for (i)
 	}
 
 
@@ -2790,7 +2681,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 							}
 
 							Real* ptrR = residual.Data();
-							Real* ptrW = LGLWeight3D.Data();
+							Real* ptrW = LGLWeight3D_.Data();
 							Real  tmpR = 0.0;
 							for( Int p = 0; p < numLGL; p++ ){
 								tmpR += (*ptrR) * (*ptrR) * (*ptrW);
@@ -3138,7 +3029,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 									Real* ptrGJ = gradJump.Data();
 									Real* ptrJ  = jump.Data();
-									Real* ptrW  = LGLWeight2D[0].Data();
+									Real* ptrW  = LGLWeight2D_[0].Data();
 									Real  tmpGJ = 0.0;
 									Real  tmpJ  = 0.0;
 									for( Int p = 0; p < numGridFace; p++ ){
@@ -3249,7 +3140,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 									Real* ptrGJ = gradJump.Data();
 									Real* ptrJ  = jump.Data();
-									Real* ptrW  = LGLWeight2D[1].Data();
+									Real* ptrW  = LGLWeight2D_[1].Data();
 									Real  tmpGJ = 0.0;
 									Real  tmpJ  = 0.0;
 									for( Int p = 0; p < numGridFace; p++ ){
@@ -3361,7 +3252,7 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 									Real* ptrGJ = gradJump.Data();
 									Real* ptrJ  = jump.Data();
-									Real* ptrW  = LGLWeight2D[2].Data();
+									Real* ptrW  = LGLWeight2D_[2].Data();
 									Real  tmpGJ = 0.0;
 									Real  tmpJ  = 0.0;
 									for( Int p = 0; p < numGridFace; p++ ){

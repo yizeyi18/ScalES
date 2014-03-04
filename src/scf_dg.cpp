@@ -710,32 +710,13 @@ SCFDG::Iterate	(  )
 							SeparateWrite( "WFNEXT", wavefunStream);
 						}
 
-						// Compute the LGL weights
-						std::vector<DblNumVec>  LGLWeight1D(DIM);
-						DblNumTns    LGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
+            DblNumTns&   LGLWeight3D = hamDG.LGLWeight3D();
 						DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
-						{
-							Point3                  lengthLGL;
-							for( Int d = 0; d < DIM; d++ ){
-								lengthLGL[d] = domain_.length[d] / numElem_[d];
-								DblNumVec  dummyX;
-								DblNumMat  dummyP, dummpD;
-								GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
-										numLGLGrid[d] );
-								blas::Scal( numLGLGrid[d], 0.5 * lengthLGL[d], 
-										LGLWeight1D[d].Data(), 1 );
-							}
-							for( Int k1 = 0; k1 < numLGLGrid[2]; k1++ )
-								for( Int j1 = 0; j1 < numLGLGrid[1]; j1++ )
-									for( Int i1 = 0; i1 < numLGLGrid[0]; i1++ ){
-										LGLWeight3D(i1, j1, k1) = 
-											LGLWeight1D[0](i1) * LGLWeight1D[1](j1) *
-											LGLWeight1D[2](k1); 
-										sqrtLGLWeight3D(i1, j1, k1) = 
-											std::sqrt ( LGLWeight1D[0](i1) *
-													LGLWeight1D[1](j1) * LGLWeight1D[2](k1) ); 
-									} // for (i1)
-						}
+
+            Real *ptr1 = LGLWeight3D.Data(), *ptr2 = sqrtLGLWeight3D.Data();
+            for( Int i = 0; i < numLGLGrid.prod(); i++ ){
+              *(ptr2++) = std::sqrt( *(ptr1++) );
+            }
 
 						Int numBasis = psi.NumState() + 1;
 

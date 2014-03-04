@@ -193,6 +193,17 @@ private:
 	/// numLGLGridElem_
 	NumTns<std::vector<DblNumVec> >   LGLGridElem_;
 
+  /// @brief The 1D LGL weight along the x,y,z dimensions of each element.
+  std::vector<DblNumVec>            LGLWeight1D_;
+
+  /// @brief The 2D LGL weight for the surface perpendicular to the x,y,z
+  /// axis of each element.
+  std::vector<DblNumMat>            LGLWeight2D_;
+
+  /// @brief The 3D LGL weight for each element.
+  DblNumTns                         LGLWeight3D_;
+
+
 	/// @brief List of atoms.
 	std::vector<Atom>           atomList_;
 	/// @brief Number of spin-degeneracy, can be 1 or 2.
@@ -477,6 +488,14 @@ public:
 	/// @brief Return the element domain information
 	NumTns<Domain>&  DomainElem(){ return domainElem_; }
 
+	/// @brief Return the 1D LGL weights
+	std::vector<DblNumVec>&  LGLWeight1D(){ return LGLWeight1D_; }
+
+	/// @brief Return the 2D LGL weights
+	std::vector<DblNumMat>&  LGLWeight2D(){ return LGLWeight2D_; }
+
+	/// @brief Return the 3D LGL weights
+	DblNumTns&  LGLWeight3D(){ return LGLWeight3D_; }
 
 	// *********************************************************************
 	// Inquiry
