@@ -133,6 +133,7 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 				}
 				dm.comm = domain_.comm;
 			}
+
 	
 	// Partition by element
 
@@ -613,6 +614,8 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 
 	Real vol = domain_.Volume();
 
+
+
 	// *********************************************************************
 	// Atomic information
 	// *********************************************************************
@@ -639,7 +642,36 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 	Print( statusOFS, "Number of Occupied States                    = ", numOccupiedState_ );
 #endif
 
+  // *********************************************************************
 	// Generate the atomic pseudopotentials
+  // *********************************************************************
+
+  // Check that the cutoff radius of the pseudopotential is smaller than
+  // the length of the element.
+  {
+    Real minLength = std::min( domainElem_(0,0,0).length[0],
+        std::min( domainElem_(0,0,0).length[1], domainElem_(0,0,0).length[2] ) );
+    Real Rzero;
+    for( Int a = 0; a < numAtom; a++ ){
+      Int type = atomList_[a].type;
+      Rzero = ptable.ptemap()[type].cutoffs(PTSample::NONLOCAL);
+      if( Rzero >= minLength ){
+        std::ostringstream msg;
+        msg << "In order for the current DG partition to work, " 
+          << "the support of the nonlocal pseudopotential must be smaller than "
+          << "the length of the element along each dimension.  " << std::endl
+          << "It is now found for atom " << a << ", which is of type " << type 
+          << ", Rzero = " << Rzero << std::endl
+          << "while the length of the element is " 
+          << domainElem_(0,0,0).length[0] << " x " 
+          << domainElem_(0,0,0).length[1] << " x " 
+          << domainElem_(0,0,0).length[2] << std::endl;
+        throw std::runtime_error( msg.str().c_str() );
+      }
+    }
+  }
+
+
 
 	// Also prepare the integration weights for constructing the DG matrix later.
 
