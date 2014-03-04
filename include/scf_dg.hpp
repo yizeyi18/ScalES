@@ -95,6 +95,23 @@ private:
   /// @brief Same as @ref esdf::ESDFInputParam::solutionMethod
   std::string         solutionMethod_;
 
+  // PEXSI parameters
+  Int                 numPole_;
+  Int                 npPerPole_;
+  Int                 npSymbFact_;
+  Real                spectralRadius_;
+  Int                 matrixOrdering_;
+  bool                isInertiaCount_;
+  Int                 maxInertiaIter_;
+  Int                 inertiaCountSteps_;
+  Real                inertiaNumElectronRelativeTolerance_;
+  Int                 maxPEXSIIter_;
+  Real                muMin_;
+  Real                muMax_;
+  Real                PEXSINumElectronRelativeTolerance_;
+
+
+
 	// Physical parameters
 	Real                Tbeta_;                    // Inverse of temperature in atomic unit
 	Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional

@@ -143,6 +143,22 @@ SCFDG::Setup	(
 		isOutputHMatrix_  = esdfParam.isOutputHMatrix;
     solutionMethod_   = esdfParam.solutionMethod;
 
+    // PEXSI parameters
+    numPole_          = esdfParam.numPole;
+    npPerPole_        = esdfParam.jd;
+    npSymbFact_;
+    spectralRadius_;
+    matrixOrdering_;
+    isInertiaCount_;
+    maxInertiaIter_;
+    inertiaCountSteps_;
+    inertiaNumElectronRelativeTolerance_;
+    maxPEXSIIter_;
+    Real                muMin_;
+    muMax_;
+    PEXSINumElectronRelativeTolerance_;
+    
+
     Tbeta_            = esdfParam.Tbeta;
 		scaBlockSize_     = esdfParam.scaBlockSize;
 		numElem_          = esdfParam.numElem;
