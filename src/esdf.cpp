@@ -222,7 +222,7 @@ namespace esdf{
 // *********************************************************************
 const int nphys = 57;
 const int llength = 80;  /* length of the lines */
-const int numkw = 200;   /* maximum number of keywords */
+const int numkw = 400;   /* maximum number of keywords */
 
 
 
@@ -726,6 +726,80 @@ void esdf_key() {
 	strcpy(kw_label[i],"solution_method");
 	strcpy(kw_typ[i],"T:E");
 	strcpy(kw_dscrpt[i],"*! Type of solver for the projected problem!*");
+
+	i++;
+	strcpy(kw_label[i],"solution_method");
+	strcpy(kw_typ[i],"T:E");
+	strcpy(kw_dscrpt[i],"*! Type of solver for the projected problem!*");
+
+	i++;
+	strcpy(kw_label[i],"num_pole");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of poles for the pole expansion !*");
+
+
+	i++;
+	strcpy(kw_label[i],"num_proc_per_pole");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of processors used per pole for PSelInv !*");
+
+	i++;
+	strcpy(kw_label[i],"num_proc_symb_fact");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of processors used the parallel symbolic factorization !*");
+
+	i++;
+	strcpy(kw_label[i],"spectral_radius");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Estimated spectral radius !*");
+
+	i++;
+	strcpy(kw_label[i],"matrix_ordering");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Matrix reordering strategy !*");
+
+	i++;
+	strcpy(kw_label[i],"inertia_count");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Whether or not to use the inertia count !*");
+
+	i++;
+	strcpy(kw_label[i],"max_inertia_iter");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Maximum number of iterations for the inertia count !*");
+
+	i++;
+	strcpy(kw_label[i],"inertia_count_steps");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! After this number of SCF the inertia count is not used !*");
+
+	i++;
+	strcpy(kw_label[i],"inertia_num_electron_relative_tolerance");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Relative tolerance for the number of electrons for inertia counting !*");
+
+	i++;
+	strcpy(kw_label[i],"max_pexsi_iter");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Maximum number of iterations for PEXSI !*");
+
+	i++;
+	strcpy(kw_label[i],"mu_min");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Minimum for the chemical potential !*");
+
+	i++;
+	strcpy(kw_label[i],"mu_max");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Maximum for the chemical potential !*");
+
+	i++;
+	strcpy(kw_label[i],"pexsi_num_electron_relative_tolerance");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Relative tolerance for the number of electrons for PEXSI !*");
+
+
+
 
 }
 
@@ -2105,6 +2179,26 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 			throw std::runtime_error("Usage of PEXSI requires -DPEXSI to be defined in make.inc.");
 #endif
     }
+
+    // PEXSI parameters
+    esdfParam.numPole           = esdf_integer( "Num_Pole", 60 );
+    esdfParam.npPerPole         = esdf_integer( "Num_Proc_Per_Pole", 16 );
+    esdfParam.npSymbFact        = esdf_integer( "Num_Proc_Symb_Fact", 4 );
+    esdfParam.spectralRadius    = esdf_double( "Spectral_Raidus", 100.0 );
+    esdfParam.matrixOrdering    = esdf_integer( "Matrix_Ordering", 0 );
+    esdfParam.isInertiaCount    = esdf_integer( "Inertia_Count", 1 );
+    esdfParam.maxInertiaIter    = esdf_integer( "Max_Inertia_Iter", 3 );
+    esdfParam.inertiaCountSteps = esdf_integer( "Inertia_Count_Steps", 10 );
+    esdfParam.inertiaNumElectronRelativeTolerance = 
+      esdf_double( "Inertia_Num_Electron_Relative_Tolerance", 0.05 );
+    esdfParam.maxPEXSIIter         = esdf_integer( "Max_PEXSI_Iter", 5 );
+    esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
+    esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
+    esdfParam.PEXSINumElectronRelativeTolerance =
+      esdf_double( "PEXSI_Num_Electron_Relative_Tolerance", 1e-5 );
+
+
+
 
 	} // DG
 	
