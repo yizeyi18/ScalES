@@ -68,6 +68,22 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::HamiltonianDG");
 #endif
+
+  Setup( esdfParam );
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method HamiltonianDG::HamiltonianDG  ----- 
+
+
+void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
+{
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::Setup");
+#endif
 	Int mpirank, mpisize;
   MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
@@ -467,7 +483,8 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 #endif
 
 	return ;
-} 		// -----  end of method HamiltonianDG::HamiltonianDG  ----- 
+} 		// -----  end of method HamiltonianDG::Setup  ----- 
+
 
 HamiltonianDG::~HamiltonianDG	( )
 {

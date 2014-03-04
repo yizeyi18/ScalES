@@ -330,6 +330,8 @@ public:
 
 	HamiltonianDG( const esdf::ESDFInputParam& esdfParam );
 
+  /// @brief Setup the Hamiltonian DG class.
+	void Setup ( const esdf::ESDFInputParam& esdfParam );
 
 	// *********************************************************************
 	// Operations
