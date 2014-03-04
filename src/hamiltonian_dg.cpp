@@ -44,6 +44,7 @@
 /// @brief Implementation of the Hamiltonian class for DG calculation.
 /// @date 2013-01-09
 #include  "hamiltonian_dg.hpp"
+#include  "hamiltonian_dg_conversion.hpp"
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 

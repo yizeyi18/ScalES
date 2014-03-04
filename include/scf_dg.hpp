@@ -57,6 +57,7 @@
 #include  "eigensolver.hpp"
 #include  "utility.hpp"
 #include  "hamiltonian_dg.hpp"
+#include  "hamiltonian_dg_conversion.hpp"
 
 namespace dgdft{
 
