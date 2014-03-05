@@ -99,9 +99,9 @@ private:
   Int                 numPole_;
   Int                 npPerPole_;
   Int                 npSymbFact_;
+  Real                energyGap_;
   Real                spectralRadius_;
   Int                 matrixOrdering_;
-  bool                isInertiaCount_;
   Int                 maxInertiaIter_;
   Int                 inertiaCountSteps_;
   Real                inertiaNumElectronRelativeTolerance_;

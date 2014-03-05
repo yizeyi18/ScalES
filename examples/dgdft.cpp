@@ -189,7 +189,6 @@ int main(int argc, char **argv)
       Print(statusOFS, "Pseudo Type       = ",  esdfParam.pseudoType );
       Print(statusOFS, "PW Solver         = ",  esdfParam.PWSolver );
       Print(statusOFS, "XC Type           = ",  esdfParam.XCType );
-      Print(statusOFS, "Solution Method   = ",  esdfParam.solutionMethod );
 
       Print(statusOFS, "Penalty Alpha     = ",  esdfParam.penaltyAlpha );
       Print(statusOFS, "Element size      = ",  esdfParam.numElem ); 
@@ -199,6 +198,25 @@ int main(int argc, char **argv)
       Print(statusOFS, "ScaLAPACK block   = ",  esdfParam.scaBlockSize); 
       statusOFS << "Number of ALB for each element: " << std::endl 
         << esdfParam.numALBElem << std::endl;
+
+      Print(statusOFS, "Solution Method   = ",  esdfParam.solutionMethod );
+      if( esdfParam.solutionMethod == "pexsi" ){
+        Print(statusOFS, "Number of poles   = ",  esdfParam.numPole); 
+        Print(statusOFS, "Nproc per pole    = ",  esdfParam.npPerPole); 
+        Print(statusOFS, "Nproc for symbfact= ",  esdfParam.npSymbFact); 
+        Print(statusOFS, "Energy gap        = ",  esdfParam.energyGap); 
+        Print(statusOFS, "Spectral radius   = ",  esdfParam.spectralRadius); 
+        Print(statusOFS, "Matrix ordering   = ",  esdfParam.matrixOrdering); 
+        Print(statusOFS, "Max inertia iter  = ",  esdfParam.maxInertiaIter); 
+        Print(statusOFS, "Inertia before SCF= ",  esdfParam.inertiaCountSteps);
+        Print(statusOFS, "Inertia rel tol   = ",  esdfParam.inertiaNumElectronRelativeTolerance); 
+        Print(statusOFS, "Max PEXSI iter    = ",  esdfParam.maxPEXSIIter); 
+        Print(statusOFS, "PEXSI rel tol     = ",  esdfParam.PEXSINumElectronRelativeTolerance); 
+        Print(statusOFS, "MuMin0            = ",  esdfParam.muMin); 
+        Print(statusOFS, "MuMax0            = ",  esdfParam.muMax); 
+      }
+
+
 
       Print(statusOFS, "Calculate force at each step                        = ",  
           esdfParam.isCalculateForceEachSCF );

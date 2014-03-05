@@ -178,9 +178,9 @@ struct ESDFInputParam{
   Int                 numPole;
   Int                 npPerPole;
   Int                 npSymbFact;
+  Real                energyGap;
   Real                spectralRadius;
   Int                 matrixOrdering;
-  bool                isInertiaCount;
   Int                 maxInertiaIter;
   Int                 inertiaCountSteps;
   Real                inertiaNumElectronRelativeTolerance;

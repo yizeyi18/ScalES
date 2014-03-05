@@ -728,11 +728,6 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Type of solver for the projected problem!*");
 
 	i++;
-	strcpy(kw_label[i],"solution_method");
-	strcpy(kw_typ[i],"T:E");
-	strcpy(kw_dscrpt[i],"*! Type of solver for the projected problem!*");
-
-	i++;
 	strcpy(kw_label[i],"num_pole");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Number of poles for the pole expansion !*");
@@ -747,6 +742,11 @@ void esdf_key() {
 	strcpy(kw_label[i],"num_proc_symb_fact");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Number of processors used the parallel symbolic factorization !*");
+
+	i++;
+	strcpy(kw_label[i],"energy_gap");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Estimated energy gap !*");
 
 	i++;
 	strcpy(kw_label[i],"spectral_radius");
@@ -2183,19 +2183,20 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     // PEXSI parameters
     esdfParam.numPole           = esdf_integer( "Num_Pole", 60 );
     esdfParam.npPerPole         = esdf_integer( "Num_Proc_Per_Pole", 16 );
-    esdfParam.npSymbFact        = esdf_integer( "Num_Proc_Symb_Fact", 4 );
-    esdfParam.spectralRadius    = esdf_double( "Spectral_Raidus", 100.0 );
+    esdfParam.npSymbFact        = esdf_integer( "Num_Proc_Symb_Fact", 
+       std::min( 4, esdfParam.npPerPole ) );
+    esdfParam.energyGap         = esdf_double( "Energy_Gap", 0.0 );
+    esdfParam.spectralRadius    = esdf_double( "Spectral_Radius", 100.0 );
     esdfParam.matrixOrdering    = esdf_integer( "Matrix_Ordering", 0 );
-    esdfParam.isInertiaCount    = esdf_integer( "Inertia_Count", 1 );
     esdfParam.maxInertiaIter    = esdf_integer( "Max_Inertia_Iter", 3 );
     esdfParam.inertiaCountSteps = esdf_integer( "Inertia_Count_Steps", 10 );
     esdfParam.inertiaNumElectronRelativeTolerance = 
       esdf_double( "Inertia_Num_Electron_Relative_Tolerance", 0.05 );
     esdfParam.maxPEXSIIter         = esdf_integer( "Max_PEXSI_Iter", 5 );
-    esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
-    esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
     esdfParam.PEXSINumElectronRelativeTolerance =
       esdf_double( "PEXSI_Num_Electron_Relative_Tolerance", 1e-5 );
+    esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
+    esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
 
 
 
