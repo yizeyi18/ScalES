@@ -3497,7 +3497,7 @@ SCFDG::KerkerPrecond (
   DistNumVecToDistRowVec(
 			distResidual,
 			tempVecLocal,
-			domain_.numGrid,
+			domain_.numGridFine,
 			numElem_,
 			fft.localNzStart,
 			fft.localNz,
@@ -3548,7 +3548,7 @@ SCFDG::KerkerPrecond (
   DistRowVecToDistNumVec(
 			tempVecLocal,
 			distPrecResidual,
-			domain_.numGrid,
+			domain_.numGridFine,
 			numElem_,
 			fft.localNzStart,
 			fft.localNz,
