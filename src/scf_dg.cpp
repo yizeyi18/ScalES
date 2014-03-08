@@ -1,44 +1,44 @@
 /*
-	 Copyright (c) 2012 The Regents of the University of California,
-	 through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+
    This file is part of DGDFT. All rights reserved.
 
-	 Redistribution and use in source and binary forms, with or without
-	 modification, are permitted provided that the following conditions are met:
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
 
-	 (1) Redistributions of source code must retain the above copyright notice, this
-	 list of conditions and the following disclaimer.
-	 (2) Redistributions in binary form must reproduce the above copyright notice,
-	 this list of conditions and the following disclaimer in the documentation
-	 and/or other materials provided with the distribution.
-	 (3) Neither the name of the University of California, Lawrence Berkeley
-	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-	 be used to endorse or promote products derived from this software without
-	 specific prior written permission.
+   (1) Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+   (2) Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+   (3) Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
 
-	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	 You are under no obligation whatsoever to provide any bug fixes, patches, or
-	 upgrades to the features, functionality or performance of the source code
-	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
-	 available either publicly, or directly to Lawrence Berkeley National
-	 Laboratory, without imposing a separate written license agreement for such
-	 Enhancements, then you hereby grant the following license: a non-exclusive,
-	 royalty-free perpetual license to install, use, modify, prepare derivative
-	 works, incorporate into other computer software, distribute, and sublicense
-	 such enhancements or derivative works thereof, in binary and source code form.
+   You are under no obligation whatsoever to provide any bug fixes, patches, or
+   upgrades to the features, functionality or performance of the source code
+   ("Enhancements") to anyone; however, if you choose to make your Enhancements
+   available either publicly, or directly to Lawrence Berkeley National
+   Laboratory, without imposing a separate written license agreement for such
+   Enhancements, then you hereby grant the following license: a non-exclusive,
+   royalty-free perpetual license to install, use, modify, prepare derivative
+   works, incorporate into other computer software, distribute, and sublicense
+   such enhancements or derivative works thereof, in binary and source code form.
 */
 /// @file scf_dg.hpp
 /// @brief Self consistent iteration using the DF method.
@@ -1167,7 +1167,7 @@ SCFDG::Iterate	(  )
 				} // for (i)
 
 
-		InnerIterate( );
+		InnerIterate( iter );
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1310,7 +1310,7 @@ SCFDG::Iterate	(  )
 
 
 void
-SCFDG::InnerIterate	(  )
+SCFDG::InnerIterate	( Int outerIter )
 {
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::InnerIterate");
@@ -1630,14 +1630,12 @@ SCFDG::InnerIterate	(  )
 #ifdef _USE_PEXSI_
     if( solutionMethod_ == "pexsi" ){
       Real numElectronExact = hamDG.NumOccupiedState() * hamDG.NumSpin();
-      Real muMin0  = muMin_;
-      Real muMax0  = muMax_;
       Int  inertiaIter, PEXSIIter;
       Real inertiaNumElectronTolerance = 
         std::max( 4.0, inertiaNumElectronRelativeTolerance_ * numElectronExact ); 
       Real PEXSINumElectronTolerance = 
         PEXSINumElectronRelativeTolerance_ * numElectronExact;
-      Real muMinInertia, muMaxInertia, muUpperEdge, muLowerEdge, muInertia;
+      Real muMinInertia, muMaxInertia, muUpperEdge, muLowerEdge, muPEXSI0;
       DblNumVec shiftList( numPole_ ), inertiaList( numPole_ );
       IntNumVec inertiaListInt( numPole_ );
       Real muPEXSI, numElectron, muMinPEXSI, muMaxPEXSI; 
@@ -1742,40 +1740,53 @@ SCFDG::InnerIterate	(  )
 
 
       // Find the range of chemical potential
+      // TODO More heuristics built into the inertia count interface.
+      // If a robust procedure is not really necessary, maybe the
+      // functionality of inertia count should be moved out, so that
+      // some reverse communication interface is to be built.
 
-      // FIXME Introduce inertiaCountSteps here!!
+      if( outerIter <= inertiaCountSteps_ ){
+        // Perform the inertia counting
+        PPEXSIInertiaCountInterface(
+            HSparseMat.size,
+            HSparseMat.nnz,
+            HSparseMat.nnzLocal,
+            HSparseMat.colptrLocal.m() - 1,
+            HSparseMat.colptrLocal.Data(),
+            HSparseMat.rowindLocal.Data(),
+            HSparseMat.nzvalLocal.Data(),
+            1,  // isSIdentity
+            NULL,
+            1.0 / Tbeta_,
+            numElectronExact,
+            muMin_,
+            muMax_,
+            numPole_,
+            maxInertiaIter_,
+            inertiaNumElectronTolerance,
+            matrixOrdering_,
+            npPerPole_,
+            npSymbFact_,
+            MPI_COMM_WORLD,
+            &muMinInertia,
+            &muMaxInertia,
+            &muLowerEdge,
+            &muUpperEdge,
+            &inertiaIter,
+            shiftList.Data(),
+            inertiaList.Data(),
+            &info);
 
-      PPEXSIInertiaCountInterface(
-          HSparseMat.size,
-          HSparseMat.nnz,
-          HSparseMat.nnzLocal,
-          HSparseMat.colptrLocal.m() - 1,
-          HSparseMat.colptrLocal.Data(),
-          HSparseMat.rowindLocal.Data(),
-          HSparseMat.nzvalLocal.Data(),
-          1,  // isSIdentity
-          NULL,
-          1.0 / Tbeta_,
-          numElectronExact,
-          muMin0,
-          muMax0,
-          numPole_,
-          maxInertiaIter_,
-          inertiaNumElectronTolerance,
-          matrixOrdering_,
-          npPerPole_,
-          npSymbFact_,
-          MPI_COMM_WORLD,
-          &muMinInertia,
-          &muMaxInertia,
-          &muLowerEdge,
-          &muUpperEdge,
-          &inertiaIter,
-          shiftList.Data(),
-          inertiaList.Data(),
-          &info);
+        muPEXSI0  = (muLowerEdge + muUpperEdge)/2.0;
+        muMin_    = muMinInertia;
+        muMax_    = muMaxInertia;
+      }
+      else{
+        // No inertia counting
+        muPEXSI0  = fermi_;
+        // muMin_, muMax_ not updated.
+      }
 
-      muInertia = (muLowerEdge + muUpperEdge)/2.0;
 
       if( info != 0 ){
         std::ostringstream msg;
@@ -1815,7 +1826,7 @@ SCFDG::InnerIterate	(  )
           NULL,
           1.0 / Tbeta_,
           numElectronExact,
-          muInertia,
+          muPEXSI0,
           muMinInertia,
           muMaxInertia,
           energyGap_,
@@ -1847,9 +1858,11 @@ SCFDG::InnerIterate	(  )
         throw std::runtime_error( msg.str().c_str() );
       }
 
-
-      // Fermi energy is determined by the value at the final iteration
+      // Update the fermi level and muMin, muMax
       fermi_ = muPEXSI;
+      muMin_ = muMinPEXSI;
+      muMax_ = muMaxPEXSI;
+
 
 #if ( _DEBUGlevel_ >= 1 )
       if( mpirank == 0 ){ 

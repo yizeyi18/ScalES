@@ -208,7 +208,7 @@ public:
 
 	/// @brief Inner self consistent iteration subroutine without
 	/// correcting the basis functions.
-	void  InnerIterate();
+	void  InnerIterate( Int outerIter );
 
 	/// @brief Update the local potential in the extended element and the element.
 	void  UpdateElemLocalPotential();

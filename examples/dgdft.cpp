@@ -117,9 +117,12 @@ int main(int argc, char **argv)
     }
 
 
+
+
     // Read ESDF input file
     GetTime( timeSta );
     ESDFInputParam  esdfParam;
+
 
     ESDFReadInput( esdfParam, inFile.c_str() );
 

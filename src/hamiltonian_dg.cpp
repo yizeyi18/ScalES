@@ -2220,7 +2220,7 @@ HamiltonianDG::CalculateForceDM	(
 //      }
 //    }
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "Required density matrix blocks " << std::endl;
     for( std::vector<ElemMatKey>::iterator vi = pseudoIdx.begin();
          vi != pseudoIdx.end(); vi++ ){
