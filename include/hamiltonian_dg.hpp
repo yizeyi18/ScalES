@@ -324,7 +324,13 @@ public:
 	// Operations
 	// *********************************************************************
 
-	/// @brief Differentiate the basis functions on a certain element
+  /// @brief Update hamiltonianDG for MD  
+	void UpdateHamiltonianDG( const std::vector<Atom>& atomList );
+
+  /// @brief Update dg Pseudopotential for MD  
+	void UpdatePseudoPotential( PeriodTable &ptable );
+
+  /// @brief Differentiate the basis functions on a certain element
 	/// along the dimension d.
 	void DiffPsi(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d);
 

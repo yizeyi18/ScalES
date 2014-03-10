@@ -193,6 +193,9 @@ SCF::Update	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, Period
 //		isRestartWfn_     = esdfParam.isRestartWfn;
 //		isOutputDensity_  = esdfParam.isOutputDensity;
 //    Tbeta_         = esdfParam.Tbeta;
+
+//    numGridWavefunctionElem_ = esdfParam.numGridWavefunctionElem;
+//    numGridDensityElem_      = esdfParam.numGridDensityElem;  
 //	}
 
 	// other SCF parameters
@@ -201,11 +204,15 @@ SCF::Update	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, Period
 //    ptablePtr_ = &ptable;
 
 		Int ntot = eigSolPtr_->Psi().NumGridTotal();
+    Int ntotFine = esdfParam.domain.NumGridTotalFine();
 
-		vtotNew_.Resize(ntot); SetValue(vtotNew_, 0.0);
-		dfMat_.Resize( ntot, mixMaxDim_ ); SetValue( dfMat_, 0.0 );//debug
-		dvMat_.Resize( ntot, mixMaxDim_ ); SetValue( dvMat_, 0.0 );//debug
+//    vtotNew_.Resize(ntot); SetValue(vtotNew_, 0.0);//wo dual-grid
+//		dfMat_.Resize( ntot, mixMaxDim_ ); SetValue( dfMat_, 0.0 );//wo dual-grid
+//		dvMat_.Resize( ntot, mixMaxDim_ ); SetValue( dvMat_, 0.0 );//wo dual-grid
 
+    vtotNew_.Resize(ntotFine); SetValue(vtotNew_, 0.0);
+		dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );//debug
+		dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );//debug
 //debug		dfMat_.Resize( ntot, 0.0 ); SetValue( dfMat_, 0.0 );
 //debug		dvMat_.Resize( ntot, 0.0 ); SetValue( dvMat_, 0.0 );
 
@@ -253,7 +260,8 @@ SCF::Update	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, Period
 		std::istringstream iss;
 		SharedRead( restartWfnFileName_, iss );
 		deserialize( eigSolPtr_->Psi().Wavefun(), iss, NO_MASK );
-	}
+	o}
+
 */
 #ifndef _RELEASE_
 	PopCallStack();

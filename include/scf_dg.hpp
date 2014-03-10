@@ -182,6 +182,15 @@ public:
 			PeriodTable&   ptable,
 		  Int            contxt ); 
 
+  /// @brief Update the basic parameters for SCF interation for MD.
+  void  Update( 
+			const esdf::ESDFInputParam& esdfParam, 
+			HamiltonianDG& hamDG,
+			DistVec<Index3, EigenSolver, ElemPrtn>&  distEigSol,
+			DistFourier&   distfft,
+			PeriodTable&   ptable,
+		  Int            contxt ); 
+
 	/// @brief Main self consistent iteration subroutine.
 	void  Iterate();
 

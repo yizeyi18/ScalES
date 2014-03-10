@@ -332,14 +332,16 @@ KohnSham::UpdatePseudoPotential	( PeriodTable &ptable ){
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::UpdatePseudoPotential");
 #endif
-	Int ntot = domain_.NumGridTotal();
+//	Int ntot = domain_.NumGridTotal();//wo dual-grid
+
+	Int ntotFine = domain_.NumGridTotalFine();
 	Int numAtom = atomList_.size();
 	Real vol = domain_.Volume();
 
 //	pseudo_.resize( numAtom );
 
 	std::vector<DblNumVec> gridpos;
-  UniformMesh ( domain_, gridpos );
+  UniformMeshFine ( domain_, gridpos );
 
 /*
   // calculate the number of occupied states
@@ -374,9 +376,9 @@ KohnSham::UpdatePseudoPotential	( PeriodTable &ptable ){
 
 
   Real sumrho = 0.0;
-  for (Int i=0; i<ntot; i++) 
+  for (Int i=0; i<ntotFine; i++) //dual-grid ntot->ntotFine
 		sumrho += pseudoCharge_[i]; 
-  sumrho *= vol / Real(ntot);
+  sumrho *= vol / Real(ntotFine);
 
 	Print( statusOFS, "Sum of Pseudocharge                          = ", 
 			sumrho );
@@ -384,7 +386,7 @@ KohnSham::UpdatePseudoPotential	( PeriodTable &ptable ){
 			numOccupiedState_ );
   
   Real diff = ( numSpin_ * numOccupiedState_ - sumrho ) / vol;
-  for (Int i=0; i<ntot; i++) 
+  for (Int i=0; i<ntotFine; i++) //dual-grid
 		pseudoCharge_(i) += diff; 
 
 	Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
@@ -393,10 +395,12 @@ KohnSham::UpdatePseudoPotential	( PeriodTable &ptable ){
 
 	// Nonlocal projectors
 	
+	std::vector<DblNumVec> gridposCoarse;
+  UniformMesh ( domain_, gridposCoarse );
 
   Int cnt = 0; // the total number of PS used
   for ( Int a=0; a < atomList_.size(); a++ ) {
-		ptable.CalculateNonlocalPP( atomList_[a], domain_, gridpos,
+		ptable.CalculateNonlocalPP( atomList_[a], domain_, gridposCoarse,
 				pseudo_[a].vnlList ); 
 		cnt = cnt + pseudo_[a].vnlList.size();
   }
