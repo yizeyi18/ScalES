@@ -732,11 +732,16 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Number of poles for the pole expansion !*");
 
+	i++;
+	strcpy(kw_label[i],"num_proc_row_pexsi");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of processors per row used by pexsi !*");
 
 	i++;
-	strcpy(kw_label[i],"num_proc_per_pole");
+	strcpy(kw_label[i],"num_proc_col_pexsi");
 	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! Number of processors used per pole for PSelInv !*");
+	strcpy(kw_dscrpt[i],"*! Number of processors per column used by pexsi !*");
+
 
 	i++;
 	strcpy(kw_label[i],"num_proc_symb_fact");
@@ -763,20 +768,11 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Whether or not to use the inertia count !*");
 
-	i++;
-	strcpy(kw_label[i],"max_inertia_iter");
-	strcpy(kw_typ[i],"I:E");
-	strcpy(kw_dscrpt[i],"*! Maximum number of iterations for the inertia count !*");
 
 	i++;
 	strcpy(kw_label[i],"inertia_count_steps");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! After this number of SCF the inertia count is not used !*");
-
-	i++;
-	strcpy(kw_label[i],"inertia_num_electron_relative_tolerance");
-	strcpy(kw_typ[i],"D:E");
-	strcpy(kw_dscrpt[i],"*! Relative tolerance for the number of electrons for inertia counting !*");
 
 	i++;
 	strcpy(kw_label[i],"max_pexsi_iter");
@@ -794,13 +790,24 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Maximum for the chemical potential !*");
 
 	i++;
-	strcpy(kw_label[i],"pexsi_num_electron_relative_tolerance");
+	strcpy(kw_label[i],"num_electron_pexsi_tolerance");
 	strcpy(kw_typ[i],"D:E");
-	strcpy(kw_dscrpt[i],"*! Relative tolerance for the number of electrons for PEXSI !*");
+	strcpy(kw_dscrpt[i],"*! Absolute tolerance for the number of electrons for PEXSI !*");
 
+	i++;
+	strcpy(kw_label[i],"mu_inertia_tolerance");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Tolerance for the chemical potential for inertia counting !*");
 
+	i++;
+	strcpy(kw_label[i],"mu_inertia_expansion");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! The length of expanding the chemical potential interval !*");
 
-
+	i++;
+	strcpy(kw_label[i],"mu_pexsi_safeguard");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Safeguard value for switching back to inertia counting !*");
 }
 
 void esdf() {
@@ -2182,25 +2189,25 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
     // PEXSI parameters
     esdfParam.numPole           = esdf_integer( "Num_Pole", 60 );
-    esdfParam.npPerPole         = esdf_integer( "Num_Proc_Per_Pole", 16 );
+    esdfParam.numProcRowPEXSI   = esdf_integer( "Num_Proc_Row_PEXSI", 1 );
+    esdfParam.numProcColPEXSI   = esdf_integer( "Num_Proc_Col_PEXSI", 1 );
     esdfParam.npSymbFact        = esdf_integer( "Num_Proc_Symb_Fact", 
-       std::min( 4, esdfParam.npPerPole ) );
+       std::min( 4, esdfParam.numProcRowPEXSI * esdfParam.numProcColPEXSI ) );
     esdfParam.energyGap         = esdf_double( "Energy_Gap", 0.0 );
     esdfParam.spectralRadius    = esdf_double( "Spectral_Radius", 100.0 );
     esdfParam.matrixOrdering    = esdf_integer( "Matrix_Ordering", 0 );
-    esdfParam.maxInertiaIter    = esdf_integer( "Max_Inertia_Iter", 3 );
     esdfParam.inertiaCountSteps = esdf_integer( "Inertia_Count_Steps", 10 );
-    esdfParam.inertiaNumElectronRelativeTolerance = 
-      esdf_double( "Inertia_Num_Electron_Relative_Tolerance", 0.05 );
     esdfParam.maxPEXSIIter         = esdf_integer( "Max_PEXSI_Iter", 5 );
-    esdfParam.PEXSINumElectronRelativeTolerance =
-      esdf_double( "PEXSI_Num_Electron_Relative_Tolerance", 1e-5 );
+    esdfParam.numElectronPEXSITolerance =
+      esdf_double( "Num_Electron_PEXSI_Tolerance", 1e-2 );
+    esdfParam.muInertiaTolerance =
+      esdf_double( "Mu_Inertia_Tolerance", 0.05 );
+    esdfParam.muInertiaExpansion =
+      esdf_double( "Mu_Inertia_Expansion", 0.3 );
+    esdfParam.muPEXSISafeGuard =
+      esdf_double( "Mu_PEXSI_SafeGuard", 0.05 );
     esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
     esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
-
-
-
-
 	} // DG
 	
 

@@ -205,18 +205,20 @@ int main(int argc, char **argv)
       Print(statusOFS, "Solution Method   = ",  esdfParam.solutionMethod );
       if( esdfParam.solutionMethod == "pexsi" ){
         Print(statusOFS, "Number of poles   = ",  esdfParam.numPole); 
-        Print(statusOFS, "Nproc per pole    = ",  esdfParam.npPerPole); 
+        Print(statusOFS, "Nproc row PEXSI   = ",  esdfParam.numProcRowPEXSI); 
+        Print(statusOFS, "Nproc col PEXSI   = ",  esdfParam.numProcColPEXSI); 
         Print(statusOFS, "Nproc for symbfact= ",  esdfParam.npSymbFact); 
         Print(statusOFS, "Energy gap        = ",  esdfParam.energyGap); 
         Print(statusOFS, "Spectral radius   = ",  esdfParam.spectralRadius); 
         Print(statusOFS, "Matrix ordering   = ",  esdfParam.matrixOrdering); 
-        Print(statusOFS, "Max inertia iter  = ",  esdfParam.maxInertiaIter); 
         Print(statusOFS, "Inertia before SCF= ",  esdfParam.inertiaCountSteps);
-        Print(statusOFS, "Inertia rel tol   = ",  esdfParam.inertiaNumElectronRelativeTolerance); 
         Print(statusOFS, "Max PEXSI iter    = ",  esdfParam.maxPEXSIIter); 
-        Print(statusOFS, "PEXSI rel tol     = ",  esdfParam.PEXSINumElectronRelativeTolerance); 
         Print(statusOFS, "MuMin0            = ",  esdfParam.muMin); 
         Print(statusOFS, "MuMax0            = ",  esdfParam.muMax); 
+        Print(statusOFS, "NumElectron tol   = ",  esdfParam.numElectronPEXSITolerance); 
+        Print(statusOFS, "mu Inertia tol    = ",  esdfParam.muInertiaTolerance); 
+        Print(statusOFS, "mu Inertia expand = ",  esdfParam.muInertiaExpansion); 
+        Print(statusOFS, "mu PEXSI safeguard= ",  esdfParam.muPEXSISafeGuard); 
       }
 
 

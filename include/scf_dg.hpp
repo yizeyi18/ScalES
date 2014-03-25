@@ -97,22 +97,18 @@ private:
 
   // PEXSI parameters
   PPEXSIPlan          pexsiPlan_;
+  PPEXSIOptions       pexsiOptions_;
+
   bool                isPEXSIInitialized_;
-  Int                 numPole_;
-  Int                 npPerPole_;
-  Int                 npSymbFact_;
-  Real                energyGap_;
-  Real                spectralRadius_;
-  Int                 matrixOrdering_;
-  Int                 maxInertiaIter_;
+  Int                 numProcRowPEXSI_;
+  Int                 numProcColPEXSI_;
   Int                 inertiaCountSteps_;
-  Real                inertiaNumElectronRelativeTolerance_;
-  Int                 maxPEXSIIter_;
-  Real                muMin_;
-  Real                muMax_;
-  Real                PEXSINumElectronRelativeTolerance_;
-
-
+  // Minimum of the tolerance for the inertia counting in the
+  // dynamically adjustment strategy
+  Real                muInertiaToleranceTarget_; 
+  // Minimum of the tolerance for the PEXSI solve in the
+  // dynamically adjustment strategy
+  Real                numElectronPEXSIToleranceTarget_;
 
 	// Physical parameters
 	Real                Tbeta_;                    // Inverse of temperature in atomic unit

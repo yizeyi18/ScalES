@@ -169,33 +169,40 @@ SCFDG::Setup	(
 
 	}
 
-  // PEXSI parameters
-  {
-    numPole_          = esdfParam.numPole;
-//    npPerPole_        = esdfParam.npPerPole;
-    npSymbFact_       = esdfParam.npSymbFact;
-    energyGap_        = esdfParam.energyGap;
-    spectralRadius_   = esdfParam.spectralRadius;
-    matrixOrdering_   = esdfParam.matrixOrdering;
-    maxInertiaIter_   = esdfParam.maxInertiaIter;
-    inertiaCountSteps_   = esdfParam.inertiaCountSteps;
-    maxPEXSIIter_     = esdfParam.maxPEXSIIter;
-    muMin_            = esdfParam.muMin;
-    muMax_            = esdfParam.muMax;
-    inertiaNumElectronRelativeTolerance_  = 
-      esdfParam.inertiaNumElectronRelativeTolerance;
-    PEXSINumElectronRelativeTolerance_    = 
-      esdfParam.PEXSINumElectronRelativeTolerance;
-  }
-   
   // Initialize PEXSI
 #ifdef _USE_PEXSI_
   {
     Int info;
-    // FIXME
-    Int numProcRowPEXSI_ = 1;
-    Int numProcColPEXSI_ = 1;
-    npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_;
+    // Initialize the PEXSI options
+    PPEXSISetDefaultOptions( &pexsiOptions_ );
+
+    pexsiOptions_.temperature      = 1.0 / Tbeta_;
+    pexsiOptions_.gap              = esdfParam.energyGap;
+    pexsiOptions_.deltaE           = esdfParam.spectralRadius;
+    pexsiOptions_.numPole          = esdfParam.numPole;
+    pexsiOptions_.isInertiaCount   = 1; 
+    pexsiOptions_.maxPEXSIIter     = esdfParam.maxPEXSIIter;
+    pexsiOptions_.muMin0           = esdfParam.muMin;
+    pexsiOptions_.muMax0           = esdfParam.muMax;
+    pexsiOptions_.muInertiaTolerance = 
+      esdfParam.muInertiaTolerance;
+    pexsiOptions_.muInertiaExpansion = 
+      esdfParam.muInertiaExpansion;
+    pexsiOptions_.muPEXSISafeGuard   = 
+      esdfParam.muPEXSISafeGuard;
+    pexsiOptions_.numElectronPEXSITolerance = 
+      esdfParam.numElectronPEXSITolerance;
+
+    muInertiaToleranceTarget_ = esdfParam.muInertiaTolerance;
+    numElectronPEXSIToleranceTarget_ = esdfParam.numElectronPEXSITolerance;
+
+    pexsiOptions_.ordering           = esdfParam.matrixOrdering;
+    pexsiOptions_.npSymbFact         = esdfParam.npSymbFact;
+    pexsiOptions_.verbosity          = 1; // FIXME
+
+    numProcRowPEXSI_     = esdfParam.numProcRowPEXSI;
+    numProcColPEXSI_     = esdfParam.numProcColPEXSI;
+    inertiaCountSteps_   = esdfParam.inertiaCountSteps;
 
     pexsiPlan_        = PPEXSIPlanInitialize( 
         domain_.comm,
@@ -209,6 +216,8 @@ SCFDG::Setup	(
         << "PEXSI initialization returns info " << info << std::endl;
       throw std::runtime_error( msg.str().c_str() );
     }
+
+
   }
 #endif
     
@@ -457,6 +466,9 @@ SCFDG::Setup	(
 				} // for (i)
 		} // for (d)
 
+    // Assume the initial error is O(1)
+    scfOuterNorm_ = 1.0;
+    scfInnerNorm_ = 1.0;
 
 #if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "PeriodicUniformToLGLMat[0] = "
@@ -1662,10 +1674,6 @@ SCFDG::InnerIterate	( Int outerIter )
 #ifdef _USE_PEXSI_
     if( solutionMethod_ == "pexsi" ){
       Real numElectronExact = hamDG.NumOccupiedState() * hamDG.NumSpin();
-      Real inertiaNumElectronTolerance = 
-        std::max( 4.0, inertiaNumElectronRelativeTolerance_ * numElectronExact ); 
-      Real PEXSINumElectronTolerance = 
-        PEXSINumElectronRelativeTolerance_ * numElectronExact;
       Real muMinInertia, muMaxInertia;
 //      DblNumVec shiftList( numPole_ ), inertiaList( numPole_ );
 //      IntNumVec inertiaListInt( numPole_ );
@@ -1677,6 +1685,7 @@ SCFDG::InnerIterate	( Int outerIter )
       
       // Create an MPI communicator for saving the H matrix in a
       // subgroup of processors
+      Int npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_;
       MPI_Comm HCSCComm;
       Int isProcHCSC = ( mpirank < npPerPole_ ) ? 1 : 0;
       
@@ -1798,18 +1807,23 @@ SCFDG::InnerIterate	( Int outerIter )
         throw std::runtime_error( msg.str().c_str() );
       }
 
-      // FIXME
-      PPEXSIOptions  pexsiOptions_;
-      PPEXSISetDefaultOptions( &pexsiOptions_ );
-      pexsiOptions_.deltaE = spectralRadius_;
-      pexsiOptions_.numPole = numPole_;
-      pexsiOptions_.temperature = 1.0 / Tbeta_;
-      pexsiOptions_.muPEXSISafeGuard = 0.2;
-      pexsiOptions_.numElectronPEXSITolerance = PEXSINumElectronTolerance;
-
-      statusOFS << "PEXSI.temperature = " << 1.0 / Tbeta_ << std::endl;
-
       // PEXSI solver
+
+      {
+        if( outerIter >= inertiaCountSteps_ ){
+          pexsiOptions_.isInertiaCount = 0;
+        }
+        // Note: Heuristics strategy for dynamically adjusting the
+        // tolerance
+        pexsiOptions_.muInertiaTolerance = 
+          std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.05 );
+        pexsiOptions_.numElectronPEXSITolerance = 
+          std::min( std::max( numElectronPEXSIToleranceTarget_, 1.0 * scfOuterNorm_ ), 0.5 );
+        statusOFS << std::endl 
+          << "muInertiaTolerance = " << pexsiOptions_.muInertiaTolerance << std::endl
+          << "numElectronPEXSITolerance = " << pexsiOptions_.numElectronPEXSITolerance << std::endl;
+      }
+
 
       PPEXSIDFTDriver(
           pexsiPlan_,
@@ -1830,12 +1844,12 @@ SCFDG::InnerIterate	( Int outerIter )
         throw std::runtime_error( msg.str().c_str() );
       }
 
-      // Update the fermi level and muMin, muMax
-      // FIXME the information is not used yet 
+      // Update the fermi level 
       fermi_ = muPEXSI;
-      muMin_ = muMinInertia;
-      muMax_ = muMaxInertia;
 
+      // Heuristics for the next step
+      pexsiOptions_.muMin0 = muMinInertia - 5.0 * pexsiOptions_.temperature;
+      pexsiOptions_.muMax0 = muMaxInertia + 5.0 * pexsiOptions_.temperature;
 
 #if ( _DEBUGlevel_ >= 0 )
       if( mpirank == 0 ){ 
@@ -2054,7 +2068,6 @@ SCFDG::InnerIterate	( Int outerIter )
       Print( statusOFS, "Inner SCF is converged!\n" );
       isInnerSCFConverged = true;
     }
-
 
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
