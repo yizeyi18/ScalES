@@ -41,7 +41,7 @@
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
 /// @file scf_dg.hpp
-/// @brief Self consistent iteration using the DF method.
+/// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
 #ifndef _SCF_DG_HPP_ 
 #define _SCF_DG_HPP_
@@ -96,6 +96,8 @@ private:
   std::string         solutionMethod_;
 
   // PEXSI parameters
+  PPEXSIPlan          pexsiPlan_;
+  bool                isPEXSIInitialized_;
   Int                 numPole_;
   Int                 npPerPole_;
   Int                 npSymbFact_;

@@ -41,7 +41,7 @@
    such enhancements or derivative works thereof, in binary and source code form.
 */
 /// @file scf_dg.hpp
-/// @brief Self consistent iteration using the DF method.
+/// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
 #include  "scf_dg.hpp"
 #include	"blas.hpp"
@@ -86,7 +86,7 @@ SCFDG::SCFDG	(  )
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::SCFDG");
 #endif
-
+  isPEXSIInitialized_ = false;
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -98,7 +98,18 @@ SCFDG::~SCFDG	(  )
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::~SCFDG");
 #endif
-
+  if( isPEXSIInitialized_ == true ){
+    Int info;
+    PPEXSIPlanFinalize(
+        pexsiPlan_,
+        &info );
+    if( info != 0 ){
+      std::ostringstream msg;
+      msg 
+        << "PEXSI finalization returns info " << info << std::endl;
+      throw std::runtime_error( msg.str().c_str() );
+    }
+  }
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -161,7 +172,7 @@ SCFDG::Setup	(
   // PEXSI parameters
   {
     numPole_          = esdfParam.numPole;
-    npPerPole_        = esdfParam.npPerPole;
+//    npPerPole_        = esdfParam.npPerPole;
     npSymbFact_       = esdfParam.npSymbFact;
     energyGap_        = esdfParam.energyGap;
     spectralRadius_   = esdfParam.spectralRadius;
@@ -177,9 +188,30 @@ SCFDG::Setup	(
       esdfParam.PEXSINumElectronRelativeTolerance;
   }
    
+  // Initialize PEXSI
+#ifdef _USE_PEXSI_
+  {
+    Int info;
+    // FIXME
+    Int numProcRowPEXSI_ = 1;
+    Int numProcColPEXSI_ = 1;
+    npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_;
+
+    pexsiPlan_        = PPEXSIPlanInitialize( 
+        domain_.comm,
+        numProcRowPEXSI_,
+        numProcColPEXSI_,
+        mpirank,
+        &info );
+    if( info != 0 ){
+      std::ostringstream msg;
+      msg 
+        << "PEXSI initialization returns info " << info << std::endl;
+      throw std::runtime_error( msg.str().c_str() );
+    }
+  }
+#endif
     
-
-
 
 	// other SCFDG parameters
 	{
@@ -1630,18 +1662,15 @@ SCFDG::InnerIterate	( Int outerIter )
 #ifdef _USE_PEXSI_
     if( solutionMethod_ == "pexsi" ){
       Real numElectronExact = hamDG.NumOccupiedState() * hamDG.NumSpin();
-      Int  inertiaIter, PEXSIIter;
       Real inertiaNumElectronTolerance = 
         std::max( 4.0, inertiaNumElectronRelativeTolerance_ * numElectronExact ); 
       Real PEXSINumElectronTolerance = 
         PEXSINumElectronRelativeTolerance_ * numElectronExact;
-      Real muMinInertia, muMaxInertia, muUpperEdge, muLowerEdge, muPEXSI0;
-      DblNumVec shiftList( numPole_ ), inertiaList( numPole_ );
-      IntNumVec inertiaListInt( numPole_ );
-      Real muPEXSI, numElectron, muMinPEXSI, muMaxPEXSI; 
-      DblNumVec muList( maxPEXSIIter_ ), numElectronList( maxPEXSIIter_ ),
-                numElectronDrvList( maxPEXSIIter_ );
-
+      Real muMinInertia, muMaxInertia;
+//      DblNumVec shiftList( numPole_ ), inertiaList( numPole_ );
+//      IntNumVec inertiaListInt( numPole_ );
+      Real muPEXSI, numElectronPEXSI;
+      Int numTotalInertiaIter, numTotalPEXSIIter;
 
       Int info;
 			DistSparseMatrix<Real>  HSparseMat;
@@ -1667,7 +1696,7 @@ SCFDG::InnerIterate	( Int outerIter )
 
       // FIXME The following line is NECESSARY, and is because of the
       // unmature implementation of DistElemMatToDistSparseMat
-      if( mpirank < npPerPole_ ){
+      if( isProcHCSC ){
         HSparseMat.comm = HCSCComm;
         mpi::Allreduce( &HSparseMat.nnzLocal, 
             &HSparseMat.nnz, 1, MPI_SUM, HSparseMat.comm );
@@ -1738,83 +1767,20 @@ SCFDG::InnerIterate	( Int outerIter )
       }
 #endif
 
-
-      // Find the range of chemical potential
-      // TODO More heuristics built into the inertia count interface.
-      // If a robust procedure is not really necessary, maybe the
-      // functionality of inertia count should be moved out, so that
-      // some reverse communication interface is to be built.
-
-      if( outerIter <= inertiaCountSteps_ ){
-        // Perform the inertia counting
-        PPEXSIInertiaCountInterface(
-            HSparseMat.size,
-            HSparseMat.nnz,
-            HSparseMat.nnzLocal,
-            HSparseMat.colptrLocal.m() - 1,
-            HSparseMat.colptrLocal.Data(),
-            HSparseMat.rowindLocal.Data(),
-            HSparseMat.nzvalLocal.Data(),
-            1,  // isSIdentity
-            NULL,
-            1.0 / Tbeta_,
-            numElectronExact,
-            muMin_,
-            muMax_,
-            numPole_,
-            maxInertiaIter_,
-            inertiaNumElectronTolerance,
-            matrixOrdering_,
-            npPerPole_,
-            npSymbFact_,
-            MPI_COMM_WORLD,
-            &muMinInertia,
-            &muMaxInertia,
-            &muLowerEdge,
-            &muUpperEdge,
-            &inertiaIter,
-            shiftList.Data(),
-            inertiaList.Data(),
-            &info);
-
-        muPEXSI0  = (muLowerEdge + muUpperEdge)/2.0;
-        muMin_    = muMinInertia;
-        muMax_    = muMaxInertia;
-      }
-      else{
-        // No inertia counting
-        muPEXSI0  = fermi_;
-        // muMin_, muMax_ not updated.
-      }
-
-
-      if( info != 0 ){
-        std::ostringstream msg;
-        msg 
-          << "PEXSI inertia counting routine returns info " << info << std::endl;
-        throw std::runtime_error( msg.str().c_str() );
-      }
-
-
-#if ( _DEBUGlevel_ >= 1 )
-      if( mpirank == 0 ){ 
-        printf("The computed finite temperature inertia = \n");
-        for( Int i = 0; i < numPole_; i++ )
-          printf( "Shift = %25.15f, inertia = %25.15f\n", 
-              shiftList[i], inertiaList[i] );
-      }
-#endif
-
-
-      // PEXSI solver
+      // FIXME Should be in scf_dg.hpp
 			DistSparseMatrix<Real>  DMSparseMat, EDMSparseMat, FDMSparseMat;
-      if( mpirank < npPerPole_ ){
+      if( isProcHCSC ){
         CopyPattern( HSparseMat, DMSparseMat );
         CopyPattern( HSparseMat, EDMSparseMat );
         CopyPattern( HSparseMat, FDMSparseMat );
       }
 
-      PPEXSISolveInterface(
+
+      // Load the matrices into PEXSI.  
+      // Only the processors with isProcHCSC == 1 need to carry the
+      // nonzero values of HSparseMat
+      PPEXSILoadRealSymmetricHSMatrix(
+          pexsiPlan_,
           HSparseMat.size,
           HSparseMat.nnz,
           HSparseMat.nnzLocal,
@@ -1824,60 +1790,100 @@ SCFDG::InnerIterate	( Int outerIter )
           HSparseMat.nzvalLocal.Data(),
           1,  // isSIdentity
           NULL,
-          1.0 / Tbeta_,
+          &info );
+      if( info != 0 ){
+        std::ostringstream msg;
+        msg 
+          << "PEXSI loading H matrix returns info " << info << std::endl;
+        throw std::runtime_error( msg.str().c_str() );
+      }
+
+      // FIXME
+      PPEXSIOptions  pexsiOptions_;
+      PPEXSISetDefaultOptions( &pexsiOptions_ );
+      pexsiOptions_.deltaE = spectralRadius_;
+      pexsiOptions_.numPole = numPole_;
+      pexsiOptions_.temperature = 1.0 / Tbeta_;
+      pexsiOptions_.muPEXSISafeGuard = 0.2;
+      pexsiOptions_.numElectronPEXSITolerance = PEXSINumElectronTolerance;
+
+      statusOFS << "PEXSI.temperature = " << 1.0 / Tbeta_ << std::endl;
+
+      // PEXSI solver
+
+      PPEXSIDFTDriver(
+          pexsiPlan_,
           numElectronExact,
-          muPEXSI0,
-          muMinInertia,
-          muMaxInertia,
-          energyGap_,
-          spectralRadius_,
-          numPole_,
-          maxPEXSIIter_,
-          PEXSINumElectronTolerance,
-          matrixOrdering_,
-          npPerPole_,
-          npSymbFact_,
-          MPI_COMM_WORLD,
-          DMSparseMat.nzvalLocal.Data(),
-          EDMSparseMat.nzvalLocal.Data(),
-          FDMSparseMat.nzvalLocal.Data(),
+          pexsiOptions_,
           &muPEXSI,
-          &numElectron,
-          &muMinPEXSI,
-          &muMaxPEXSI,
-          &PEXSIIter,
-          muList.Data(),
-          numElectronList.Data(),
-          numElectronDrvList.Data(),
+          &numElectronPEXSI,         
+          &muMinInertia,              
+          &muMaxInertia,             
+          &numTotalInertiaIter,
+          &numTotalPEXSIIter,
           &info );
 
       if( info != 0 ){
         std::ostringstream msg;
         msg 
-          << "PEXSI Solve returns info " << info << std::endl;
+          << "PEXSI main driver returns info " << info << std::endl;
         throw std::runtime_error( msg.str().c_str() );
       }
 
       // Update the fermi level and muMin, muMax
+      // FIXME the information is not used yet 
       fermi_ = muPEXSI;
-      muMin_ = muMinPEXSI;
-      muMax_ = muMaxPEXSI;
+      muMin_ = muMinInertia;
+      muMax_ = muMaxInertia;
 
 
-#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 0 )
       if( mpirank == 0 ){ 
-        printf("After PEXSI iteration, PEXSIIter = %10d, \n", PEXSIIter );
-        for( Int i = 0; i < PEXSIIter; i++ )
-          printf( "mu = %25.15f, numElectron = %25.15f\n", 
-              muList[i], numElectronList[i] );
+        printf("After PEXSI iteration, InertiaIter = %5d, PEXSIIter = %5d \n", 
+            numTotalInertiaIter, numTotalPEXSIIter );
+        printf( "mu = %25.15f, numElectron = %25.15f\n", 
+            muPEXSI, numElectronPEXSI );
       }
 #endif
 
+      // Retrieve the PEXSI data
+
+
+      if( isProcHCSC ){
+        Real totalEnergyH, totalEnergyS, totalFreeEnergy;
+        PPEXSIRetrieveRealSymmetricDFTMatrix(
+            pexsiPlan_,
+            DMSparseMat.nzvalLocal.Data(),
+            EDMSparseMat.nzvalLocal.Data(),
+            FDMSparseMat.nzvalLocal.Data(),
+            &totalEnergyH,
+            &totalEnergyS,
+            &totalFreeEnergy,
+            &info );
+
+        // FIXME
+#if ( _DEBUGlevel_ >= 0 )
+        if( mpirank == 0 ){ 
+          printf("Output from the main program\n");
+          printf("Total energy (H*DM)         = %15.5f\n", totalEnergyH);
+          printf("Total energy (S*EDM)        = %15.5f\n", totalEnergyS);
+          printf("Total free energy           = %15.5f\n", totalFreeEnergy);
+        }
+#endif
+
+      
+        if( info != 0 ){
+          std::ostringstream msg;
+          msg 
+            << "PEXSI data retrieval returns info " << info << std::endl;
+          throw std::runtime_error( msg.str().c_str() );
+        }
+      }
 
       // Convert the density matrix from DistSparseMatrix format to the
       // DistElemMat format
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distDMMat;
-      DistSparseMatToDistElemMat( 
+      DistSparseMatToDistElemMat(
           DMSparseMat,
           hamDG.NumBasisTotal(),
           hamDG.HMat().Prtn(),
