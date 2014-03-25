@@ -175,19 +175,23 @@ struct ESDFInputParam{
 	Real                LGLGridFactor;
 
   // PEXSI
+  Int                 numProcRowPEXSI;
+  Int                 numProcColPEXSI;
+
   Int                 numPole;
-  Int                 npPerPole;
   Int                 npSymbFact;
   Real                energyGap;
   Real                spectralRadius;
   Int                 matrixOrdering;
-  Int                 maxInertiaIter;
   Int                 inertiaCountSteps;
-  Real                inertiaNumElectronRelativeTolerance;
   Int                 maxPEXSIIter;
   Real                muMin;
   Real                muMax;
-  Real                PEXSINumElectronRelativeTolerance;
+  Real                numElectronPEXSITolerance;
+  Real                muInertiaTolerance;
+  Real                muInertiaExpansion;
+  Real                muPEXSISafeGuard;
+
 
 
 };
