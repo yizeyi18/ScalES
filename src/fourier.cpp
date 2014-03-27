@@ -86,6 +86,7 @@ void Fourier::Initialize ( const Domain& dm )
 #ifndef _RELEASE_
 	PushCallStack("Fourier::Initialize");
 #endif  // ifndef _RELEASE_
+
 	if( isInitialized ) {
 		throw std::logic_error("Fourier has been initialized.");
 	}
@@ -134,6 +135,8 @@ void Fourier::Initialize ( const Domain& dm )
 	Complex*  ikYPtr = ik[1].Data();
 	Complex*  ikZPtr = ik[2].Data();
 
+
+
 	for( Int k = 0; k < numGrid[2]; k++ ){
 		for( Int j = 0; j < numGrid[1]; j++ ){
 			for( Int i = 0; i < numGrid[0]; i++ ){
@@ -176,12 +179,21 @@ void Fourier::Initialize ( const Domain& dm )
 			reinterpret_cast<fftw_complex*>( &outputVecR2C[0] ),
 			&inputVecR2C[0],
 			plannerFlag);
+  
 
 	// -1/2 \Delta  and Teter preconditioner in R2C
 	gkkR2C.Resize( numGridTotalR2C );
 	TeterPrecondR2C.Resize( numGridTotalR2C );
+	ikR2C.resize(DIM);
+	ikR2C[0].Resize( numGridTotalR2C );
+	ikR2C[1].Resize( numGridTotalR2C );
+	ikR2C[2].Resize( numGridTotalR2C );
+
 
 	Real*  gkkR2CPtr = gkkR2C.Data();
+	Complex*  ikXR2CPtr = ikR2C[0].Data();
+	Complex*  ikYR2CPtr = ikR2C[1].Data();
+	Complex*  ikZR2CPtr = ikR2C[2].Data();
 	for( Int k = 0; k < numGrid[2]; k++ ){
 		for( Int j = 0; j < numGrid[1]; j++ ){
 			for( Int i = 0; i < numGrid[0]/2+1; i++ ){
@@ -189,9 +201,14 @@ void Fourier::Initialize ( const Domain& dm )
 					( KGrid[0](i) * KGrid[0](i) +
 						KGrid[1](j) * KGrid[1](j) +
 						KGrid[2](k) * KGrid[2](k) ) / 2.0;
+
+				*(ikXR2CPtr++) = Complex( 0.0, KGrid[0](i) );
+				*(ikYR2CPtr++) = Complex( 0.0, KGrid[1](j) );
+				*(ikZR2CPtr++) = Complex( 0.0, KGrid[2](k) );
 			}
 		}
 	}
+
 
 	// TeterPreconditioner
 	for( Int i = 0; i < numGridTotalR2C; i++ ){

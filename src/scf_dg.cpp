@@ -1,47 +1,47 @@
 /*
-	 Copyright (c) 2012 The Regents of the University of California,
-	 through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+
    This file is part of DGDFT. All rights reserved.
 
-	 Redistribution and use in source and binary forms, with or without
-	 modification, are permitted provided that the following conditions are met:
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
 
-	 (1) Redistributions of source code must retain the above copyright notice, this
-	 list of conditions and the following disclaimer.
-	 (2) Redistributions in binary form must reproduce the above copyright notice,
-	 this list of conditions and the following disclaimer in the documentation
-	 and/or other materials provided with the distribution.
-	 (3) Neither the name of the University of California, Lawrence Berkeley
-	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-	 be used to endorse or promote products derived from this software without
-	 specific prior written permission.
+   (1) Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+   (2) Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+   (3) Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
 
-	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	 You are under no obligation whatsoever to provide any bug fixes, patches, or
-	 upgrades to the features, functionality or performance of the source code
-	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
-	 available either publicly, or directly to Lawrence Berkeley National
-	 Laboratory, without imposing a separate written license agreement for such
-	 Enhancements, then you hereby grant the following license: a non-exclusive,
-	 royalty-free perpetual license to install, use, modify, prepare derivative
-	 works, incorporate into other computer software, distribute, and sublicense
-	 such enhancements or derivative works thereof, in binary and source code form.
+   You are under no obligation whatsoever to provide any bug fixes, patches, or
+   upgrades to the features, functionality or performance of the source code
+   ("Enhancements") to anyone; however, if you choose to make your Enhancements
+   available either publicly, or directly to Lawrence Berkeley National
+   Laboratory, without imposing a separate written license agreement for such
+   Enhancements, then you hereby grant the following license: a non-exclusive,
+   royalty-free perpetual license to install, use, modify, prepare derivative
+   works, incorporate into other computer software, distribute, and sublicense
+   such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file scf_dg.hpp
-/// @brief Self consistent iteration using the DF method.
+/// @file scf_dg.cpp
+/// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
 #include  "scf_dg.hpp"
 #include	"blas.hpp"
@@ -86,7 +86,7 @@ SCFDG::SCFDG	(  )
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::SCFDG");
 #endif
-
+  isPEXSIInitialized_ = false;
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -98,7 +98,18 @@ SCFDG::~SCFDG	(  )
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::~SCFDG");
 #endif
-
+  if( isPEXSIInitialized_ == true ){
+    Int info;
+    PPEXSIPlanFinalize(
+        pexsiPlan_,
+        &info );
+    if( info != 0 ){
+      std::ostringstream msg;
+      msg 
+        << "PEXSI finalization returns info " << info << std::endl;
+      throw std::runtime_error( msg.str().c_str() );
+    }
+  }
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -120,7 +131,10 @@ SCFDG::Setup	(
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
 	
-	// esdf parameters
+  // *********************************************************************
+  // Read parameters from ESDFParam
+  // *********************************************************************
+	// Control parameters
 	{
 		domain_        = esdfParam.domain;
     mixMaxDim_     = esdfParam.mixMaxDim;
@@ -141,6 +155,8 @@ SCFDG::Setup	(
 		isCalculateAPosterioriEachSCF_ = esdfParam.isCalculateAPosterioriEachSCF;
 		isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
 		isOutputHMatrix_  = esdfParam.isOutputHMatrix;
+    solutionMethod_   = esdfParam.solutionMethod;
+
     Tbeta_            = esdfParam.Tbeta;
 		scaBlockSize_     = esdfParam.scaBlockSize;
 		numElem_          = esdfParam.numElem;
@@ -149,7 +165,62 @@ SCFDG::Setup	(
 		LGLGridFactor_    = esdfParam.LGLGridFactor;
 		isPeriodizePotential_ = esdfParam.isPeriodizePotential;
 		distancePeriodize_= esdfParam.distancePeriodize;
+
+
 	}
+
+  // Initialize PEXSI
+#ifdef _USE_PEXSI_
+  {
+    Int info;
+    // Initialize the PEXSI options
+    PPEXSISetDefaultOptions( &pexsiOptions_ );
+
+    pexsiOptions_.temperature      = 1.0 / Tbeta_;
+    pexsiOptions_.gap              = esdfParam.energyGap;
+    pexsiOptions_.deltaE           = esdfParam.spectralRadius;
+    pexsiOptions_.numPole          = esdfParam.numPole;
+    pexsiOptions_.isInertiaCount   = 1; 
+    pexsiOptions_.maxPEXSIIter     = esdfParam.maxPEXSIIter;
+    pexsiOptions_.muMin0           = esdfParam.muMin;
+    pexsiOptions_.muMax0           = esdfParam.muMax;
+    pexsiOptions_.muInertiaTolerance = 
+      esdfParam.muInertiaTolerance;
+    pexsiOptions_.muInertiaExpansion = 
+      esdfParam.muInertiaExpansion;
+    pexsiOptions_.muPEXSISafeGuard   = 
+      esdfParam.muPEXSISafeGuard;
+    pexsiOptions_.numElectronPEXSITolerance = 
+      esdfParam.numElectronPEXSITolerance;
+
+    muInertiaToleranceTarget_ = esdfParam.muInertiaTolerance;
+    numElectronPEXSIToleranceTarget_ = esdfParam.numElectronPEXSITolerance;
+
+    pexsiOptions_.ordering           = esdfParam.matrixOrdering;
+    pexsiOptions_.npSymbFact         = esdfParam.npSymbFact;
+    pexsiOptions_.verbosity          = 1; // FIXME
+
+    numProcRowPEXSI_     = esdfParam.numProcRowPEXSI;
+    numProcColPEXSI_     = esdfParam.numProcColPEXSI;
+    inertiaCountSteps_   = esdfParam.inertiaCountSteps;
+
+    pexsiPlan_        = PPEXSIPlanInitialize( 
+        domain_.comm,
+        numProcRowPEXSI_,
+        numProcColPEXSI_,
+        mpirank,
+        &info );
+    if( info != 0 ){
+      std::ostringstream msg;
+      msg 
+        << "PEXSI initialization returns info " << info << std::endl;
+      throw std::runtime_error( msg.str().c_str() );
+    }
+
+
+  }
+#endif
+    
 
 	// other SCFDG parameters
 	{
@@ -200,6 +271,10 @@ SCFDG::Setup	(
 		restartDensityFileName_ = "DEN";
 //		restartWfnFileName_     = "WFN";
 	}
+
+  // *********************************************************************
+  // Initialization
+  // *********************************************************************
 
 	// Density
 	{
@@ -391,6 +466,9 @@ SCFDG::Setup	(
 				} // for (i)
 		} // for (d)
 
+    // Assume the initial error is O(1)
+    scfOuterNorm_ = 1.0;
+    scfInnerNorm_ = 1.0;
 
 #if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "PeriodicUniformToLGLMat[0] = "
@@ -708,32 +786,13 @@ SCFDG::Iterate	(  )
 							SeparateWrite( "WFNEXT", wavefunStream);
 						}
 
-						// Compute the LGL weights
-						std::vector<DblNumVec>  LGLWeight1D(DIM);
-						DblNumTns    LGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
+            DblNumTns&   LGLWeight3D = hamDG.LGLWeight3D();
 						DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
-						{
-							Point3                  lengthLGL;
-							for( Int d = 0; d < DIM; d++ ){
-								lengthLGL[d] = domain_.length[d] / numElem_[d];
-								DblNumVec  dummyX;
-								DblNumMat  dummyP, dummpD;
-								GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
-										numLGLGrid[d] );
-								blas::Scal( numLGLGrid[d], 0.5 * lengthLGL[d], 
-										LGLWeight1D[d].Data(), 1 );
-							}
-							for( Int k1 = 0; k1 < numLGLGrid[2]; k1++ )
-								for( Int j1 = 0; j1 < numLGLGrid[1]; j1++ )
-									for( Int i1 = 0; i1 < numLGLGrid[0]; i1++ ){
-										LGLWeight3D(i1, j1, k1) = 
-											LGLWeight1D[0](i1) * LGLWeight1D[1](j1) *
-											LGLWeight1D[2](k1); 
-										sqrtLGLWeight3D(i1, j1, k1) = 
-											std::sqrt ( LGLWeight1D[0](i1) *
-													LGLWeight1D[1](j1) * LGLWeight1D[2](k1) ); 
-									} // for (i1)
-						}
+
+            Real *ptr1 = LGLWeight3D.Data(), *ptr2 = sqrtLGLWeight3D.Data();
+            for( Int i = 0; i < numLGLGrid.prod(); i++ ){
+              *(ptr2++) = std::sqrt( *(ptr1++) );
+            }
 
 						Int numBasis = psi.NumState() + 1;
 
@@ -1152,7 +1211,7 @@ SCFDG::Iterate	(  )
 				} // for (i)
 
 
-		InnerIterate( );
+		InnerIterate( iter );
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1295,7 +1354,7 @@ SCFDG::Iterate	(  )
 
 
 void
-SCFDG::InnerIterate	(  )
+SCFDG::InnerIterate	( Int outerIter )
 {
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::InnerIterate");
@@ -1431,46 +1490,10 @@ SCFDG::InnerIterate	(  )
 		}
 
 		// *********************************************************************
-		// Diagonalize the DG matrix
+		// Evaluate the density matrix
+    // 
+    // This can be done either using diagonalization method or using PEXSI
 		// *********************************************************************
-
-		{
-			GetTime(timeSta);
-			Int sizeH = hamDG.NumBasisTotal();
-
-			scalapack::Descriptor descH( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
-					0, 0, contxt_ );
-
-			scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
-
-			std::vector<Real> eigs;
-
-			DistElemMatToScaMat( hamDG.HMat(), 	descH,
-					scaH, hamDG.ElemBasisIdx(), domain_.comm );
-
-			scalapack::Syevd('U', scaH, eigs, scaZ);
-
-			DblNumVec& eigval = hamDG.EigVal(); 
-			eigval.Resize( hamDG.NumStateTotal() );		
-			for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
-				eigval[i] = eigs[i];
-
-			ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
-					hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.comm, 
-					hamDG.NumStateTotal() );
-
-			MPI_Barrier( domain_.comm );
-			GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-			statusOFS << "Time for diagonalizing the DG matrix using ScaLAPACK is " <<
-				timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-		}
-
-		// *********************************************************************
-		// Post processing
-		// *********************************************************************
-	
 
 		// Save the mixing variable first
 		{
@@ -1497,121 +1520,500 @@ SCFDG::InnerIterate	(  )
 		}
 
 
-		// Compute the occupation rate
-		CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
+    // Method 1: Using diagonalization method
+    if( solutionMethod_ == "diag"  ){
+      {
+        GetTime(timeSta);
+        Int sizeH = hamDG.NumBasisTotal();
 
-		// Compute the Harris energy functional.  
-		// NOTE: In computing the Harris energy, the density and the
-		// potential must be the INPUT density and potential without ANY
-		// update.
-    CalculateHarrisEnergy();
+        scalapack::Descriptor descH( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
+            0, 0, contxt_ );
 
-		MPI_Barrier( domain_.comm );
+        scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
 
+        std::vector<Real> eigs;
 
-		// Compute the output electron density
-		GetTime( timeSta );
+        DistElemMatToScaMat( hamDG.HMat(), 	descH,
+            scaH, hamDG.ElemBasisIdx(), domain_.comm );
 
-		// Calculate the new electron density
-		hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
+        scalapack::Syevd('U', scaH, eigs, scaZ);
 
-		MPI_Barrier( domain_.comm );
-		GetTime( timeEnd );
+        DblNumVec& eigval = hamDG.EigVal(); 
+        eigval.Resize( hamDG.NumStateTotal() );		
+        for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
+          eigval[i] = eigs[i];
+
+        ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
+            hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.comm, 
+            hamDG.NumStateTotal() );
+
+        MPI_Barrier( domain_.comm );
+        GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for computing density in the global domain is " <<
-			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        statusOFS << "Time for diagonalizing the DG matrix using ScaLAPACK is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+      }
+
+      // Post processing
+
+      // Compute the occupation rate
+      CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
+
+      // Compute the Harris energy functional.  
+      // NOTE: In computing the Harris energy, the density and the
+      // potential must be the INPUT density and potential without ANY
+      // update.
+      CalculateHarrisEnergy();
+
+      MPI_Barrier( domain_.comm );
+
+      // Compute the output electron density
+      GetTime( timeSta );
+
+      // Calculate the new electron density
+      hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
+
+      MPI_Barrier( domain_.comm );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing density in the global domain is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      // Update the output potential, and the KS and second order accurate
+      // energy
+      {
+        // Update the Hartree energy and the exchange correlation energy and
+        // potential for computing the KS energy and the second order
+        // energy.
+        // NOTE Vtot should not be updated until finishing the computation
+        // of the energies.
+
+        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
+        hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+
+        // Compute the second order accurate energy functional.
+        // NOTE: In computing the second order energy, the density and the
+        // potential must be the OUTPUT density and potential without ANY
+        // MIXING.
+        CalculateSecondOrderEnergy();
+
+        // Compute the KS energy 
+        CalculateKSEnergy();
+
+        // Update the total potential AFTER updating the energy
+
+        // No external potential
+
+        // Compute the new total potential
+
+        hamDG.CalculateVtot( hamDG.Vtot() );
+
+      }
+
+
+      // Compute the force at every step
+      if( isCalculateForceEachSCF_ ){
+        // Compute force
+        GetTime( timeSta );
+        hamDG.CalculateForce( *distfftPtr_ );
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the force is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // Print out the force
+        // Only master processor output information containing all atoms
+        if( mpirank == 0 ){
+          PrintBlock( statusOFS, "Atomic Force" );
+          {
+            Point3 forceCM(0.0, 0.0, 0.0);
+            std::vector<Atom>& atomList = hamDG.AtomList();
+            Int numAtom = atomList.size();
+            for( Int a = 0; a < numAtom; a++ ){
+              Print( statusOFS, "atom", a, "force", atomList[a].force );
+              forceCM += atomList[a].force;
+            }
+            statusOFS << std::endl;
+            Print( statusOFS, "force for centroid: ", forceCM );
+            statusOFS << std::endl;
+          }
+        }
+      }
+
+      // Compute the a posteriori error estimator at every step
+      if( isCalculateAPosterioriEachSCF_ )
+      {
+        GetTime( timeSta );
+        DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
+        hamDG.CalculateAPosterioriError( 
+            eta2Total, eta2Residual, eta2GradJump, eta2Jump );
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the a posteriori error is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // Only master processor output information containing all atoms
+        if( mpirank == 0 ){
+          PrintBlock( statusOFS, "A Posteriori error" );
+          {
+            statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+            statusOFS << eta2Total << std::endl;
+            statusOFS << std::endl << "Residual term:" << std::endl;
+            statusOFS << eta2Residual << std::endl;
+            statusOFS << std::endl << "Jump of gradient term:" << std::endl;
+            statusOFS << eta2GradJump << std::endl;
+            statusOFS << std::endl << "Jump of function value term:" << std::endl;
+            statusOFS << eta2Jump << std::endl;
+          }
+        }
+      }
+    }
+
+    // Method 2: Using the pole expansion and selected inversion (PEXSI) method
+    // FIXME Currently it is assumed that all processors used by DG will be used by PEXSI.
+#ifdef _USE_PEXSI_
+    if( solutionMethod_ == "pexsi" ){
+      Real timePEXSISta, timePEXSIEnd;
+      GetTime( timePEXSISta );
+
+      Real numElectronExact = hamDG.NumOccupiedState() * hamDG.NumSpin();
+      Real muMinInertia, muMaxInertia;
+      Real muPEXSI, numElectronPEXSI;
+      Int numTotalInertiaIter, numTotalPEXSIIter;
+
+      // Temporary matrices 
+      DistSparseMatrix<Real>  HSparseMat;
+      DistSparseMatrix<Real>  DMSparseMat;
+      DistSparseMatrix<Real>  EDMSparseMat;
+      DistSparseMatrix<Real>  FDMSparseMat;
+
+
+      Int info;
+      
+      // Create an MPI communicator for saving the H matrix in a
+      // subgroup of processors
+      Int npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_;
+      MPI_Comm HCSCComm;
+      Int isProcHCSC = ( mpirank < npPerPole_ ) ? 1 : 0;
+      
+      MPI_Comm_split( MPI_COMM_WORLD, isProcHCSC, mpirank, &HCSCComm );
+      
+      // Convert the DG matrix into the distributed CSC format
+
+			GetTime(timeSta);
+			DistElemMatToDistSparseMat( 
+					hamDG.HMat(),
+					hamDG.NumBasisTotal(),
+					HSparseMat,
+					hamDG.ElemBasisIdx(),
+					domain_.comm, 
+          npPerPole_ );
+			GetTime(timeEnd);
+
+      // FIXME The following line is NECESSARY, and is because of the
+      // unmature implementation of DistElemMatToDistSparseMat
+      if( isProcHCSC ){
+        HSparseMat.comm = HCSCComm;
+        mpi::Allreduce( &HSparseMat.nnzLocal, 
+            &HSparseMat.nnz, 1, MPI_SUM, HSparseMat.comm );
+      }
+#if ( _DEBUGlevel_ >= 0 )
+			statusOFS << "Time for converting the DG matrix to DistSparseMatrix format is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
 
-		// Update the output potential, and the KS and second order accurate
-		// energy
-		{
-			// Update the Hartree energy and the exchange correlation energy and
-			// potential for computing the KS energy and the second order
-			// energy.
-			// NOTE Vtot should not be updated until finishing the computation
-			// of the energies.
-
-			hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
-			hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
-
-			// Compute the second order accurate energy functional.
-			// NOTE: In computing the second order energy, the density and the
-			// potential must be the OUTPUT density and potential without ANY
-			// MIXING.
-			CalculateSecondOrderEnergy();
-
-			// Compute the KS energy 
-			CalculateKSEnergy();
-
-			// Update the total potential AFTER updating the energy
-
-			// No external potential
-
-			// Compute the new total potential
-
-			hamDG.CalculateVtot( hamDG.Vtot() );
-
-		}
+#if ( _DEBUGlevel_ >= 1 )
+      if( mpirank < npPerPole_ ){
+        statusOFS << "H.size = " << HSparseMat.size << std::endl;
+        statusOFS << "H.nnz  = " << HSparseMat.nnz << std::endl;
+        statusOFS << "H.nnzLocal  = " << HSparseMat.nnzLocal << std::endl;
+        statusOFS << "H.colptrLocal.m() = " << HSparseMat.colptrLocal.m() << std::endl;
+        statusOFS << "H.rowindLocal.m() = " << HSparseMat.rowindLocal.m() << std::endl;
+        statusOFS << "H.nzvalLocal.m() = " << HSparseMat.nzvalLocal.m() << std::endl;
+      }
+#endif
+ 
 
 
-		// Compute the force at every step
-		if( isCalculateForceEachSCF_ ){
-			// Compute force
-			GetTime( timeSta );
-			hamDG.CalculateForce( *distfftPtr_ );
-			GetTime( timeEnd );
-			statusOFS << "Time for computing the force is " <<
-				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#if ( _DEBUGlevel_ >= 1 )
+      // Convert matrix back and forth to test the correctness of the
+      // conversion routines.
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      HMat1;
+      DistSparseMatrix<Real>      HSparseMat1;
+      DistSparseMatToDistElemMat( 
+          HSparseMat,
+          hamDG.NumBasisTotal(),
+          hamDG.HMat().Prtn(),
+          HMat1,
+					hamDG.ElemBasisIdx(),
+          domain_.comm,
+          npPerPole_ );
 
-			// Print out the force
-      // Only master processor output information containing all atoms
-      if( mpirank == 0 ){
-        PrintBlock( statusOFS, "Atomic Force" );
-        {
-          Point3 forceCM(0.0, 0.0, 0.0);
-          std::vector<Atom>& atomList = hamDG.AtomList();
-          Int numAtom = atomList.size();
-          for( Int a = 0; a < numAtom; a++ ){
-            Print( statusOFS, "atom", a, "force", atomList[a].force );
-            forceCM += atomList[a].force;
+			DistElemMatToDistSparseMat( 
+					HMat1,
+					hamDG.NumBasisTotal(),
+					HSparseMat1,
+					hamDG.ElemBasisIdx(),
+					domain_.comm, 
+          npPerPole_ );
+
+      // FIXME The following line is NECESSARY, and is because of the
+      // unmature implementation of DistElemMatToDistSparseMat
+      if( mpirank < npPerPole_ ){
+        HSparseMat1.comm = HCSCComm;
+        mpi::Allreduce( &HSparseMat1.nnzLocal, 
+            &HSparseMat1.nnz, 1, MPI_SUM, HSparseMat1.comm );
+
+        // Check the agreement between HSparseMat and HSparseMat1
+        statusOFS << "H1.size = " << HSparseMat1.size << std::endl;
+        statusOFS << "H1.nnz  = " << HSparseMat1.nnz << std::endl;
+        statusOFS << "H1.nnzLocal  = " << HSparseMat1.nnzLocal << std::endl;
+        statusOFS << "H1.colptrLocal.m() = " << HSparseMat1.colptrLocal.m() << std::endl;
+        statusOFS << "H1.rowindLocal.m() = " << HSparseMat1.rowindLocal.m() << std::endl;
+        statusOFS << "H1.nzvalLocal.m() = " << HSparseMat1.nzvalLocal.m() << std::endl;
+
+        Real nzvalErr = 0.0;
+        for( Int i = 0; i < HSparseMat.nnzLocal; i++ ){
+          nzvalErr += pow( std::abs( 
+                HSparseMat.nzvalLocal(i) - HSparseMat1.nzvalLocal(i) ), 2.0 );
+        }
+        nzvalErr = std::sqrt( nzvalErr );
+        statusOFS << "||H.nzvalLocal - H1.nzvalLocal||_2 = " << nzvalErr << std::endl;
+      }
+#endif
+
+      if( isProcHCSC ){
+        CopyPattern( HSparseMat, DMSparseMat );
+        CopyPattern( HSparseMat, EDMSparseMat );
+        CopyPattern( HSparseMat, FDMSparseMat );
+      }
+
+
+      // Load the matrices into PEXSI.  
+      // Only the processors with isProcHCSC == 1 need to carry the
+      // nonzero values of HSparseMat
+      PPEXSILoadRealSymmetricHSMatrix(
+          pexsiPlan_,
+          HSparseMat.size,
+          HSparseMat.nnz,
+          HSparseMat.nnzLocal,
+          HSparseMat.colptrLocal.m() - 1,
+          HSparseMat.colptrLocal.Data(),
+          HSparseMat.rowindLocal.Data(),
+          HSparseMat.nzvalLocal.Data(),
+          1,  // isSIdentity
+          NULL,
+          &info );
+      if( info != 0 ){
+        std::ostringstream msg;
+        msg 
+          << "PEXSI loading H matrix returns info " << info << std::endl;
+        throw std::runtime_error( msg.str().c_str() );
+      }
+
+      // PEXSI solver
+
+      {
+        if( outerIter >= inertiaCountSteps_ ){
+          pexsiOptions_.isInertiaCount = 0;
+        }
+        // Note: Heuristics strategy for dynamically adjusting the
+        // tolerance
+        pexsiOptions_.muInertiaTolerance = 
+          std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.05 );
+        pexsiOptions_.numElectronPEXSITolerance = 
+          std::min( std::max( numElectronPEXSIToleranceTarget_, 1.0 * scfOuterNorm_ ), 0.5 );
+        pexsiOptions_.isSymbolicFactorize = (innerIter == 1) ? 1 : 0;
+        statusOFS << std::endl 
+          << "muInertiaTolerance        = " << pexsiOptions_.muInertiaTolerance << std::endl
+          << "numElectronPEXSITolerance = " << pexsiOptions_.numElectronPEXSITolerance << std::endl
+          << "Symbolic factorization    =  " << pexsiOptions_.isSymbolicFactorize << std::endl;
+      }
+
+
+      PPEXSIDFTDriver(
+          pexsiPlan_,
+          numElectronExact,
+          pexsiOptions_,
+          &muPEXSI,
+          &numElectronPEXSI,         
+          &muMinInertia,              
+          &muMaxInertia,             
+          &numTotalInertiaIter,
+          &numTotalPEXSIIter,
+          &info );
+
+      if( info != 0 ){
+        std::ostringstream msg;
+        msg 
+          << "PEXSI main driver returns info " << info << std::endl;
+        throw std::runtime_error( msg.str().c_str() );
+      }
+
+      // Update the fermi level 
+      fermi_ = muPEXSI;
+
+      // Heuristics for the next step
+      pexsiOptions_.muMin0 = muMinInertia - 5.0 * pexsiOptions_.temperature;
+      pexsiOptions_.muMax0 = muMaxInertia + 5.0 * pexsiOptions_.temperature;
+
+      // Retrieve the PEXSI data
+
+      if( isProcHCSC ){
+        Real totalEnergyH, totalEnergyS, totalFreeEnergy;
+        PPEXSIRetrieveRealSymmetricDFTMatrix(
+            pexsiPlan_,
+            DMSparseMat.nzvalLocal.Data(),
+            EDMSparseMat.nzvalLocal.Data(),
+            FDMSparseMat.nzvalLocal.Data(),
+            &totalEnergyH,
+            &totalEnergyS,
+            &totalFreeEnergy,
+            &info );
+
+        statusOFS << std::endl
+          << "Results obtained from PEXSI:" << std::endl
+          << "Total energy (H*DM)         = " << totalEnergyH << std::endl
+          << "Total energy (S*EDM)        = " << totalEnergyS << std::endl
+          << "Total free energy           = " << totalFreeEnergy << std::endl 
+          << "InertiaIter                 = " << numTotalInertiaIter << std::endl
+          << "PEXSIIter                   = " <<  numTotalPEXSIIter << std::endl
+          << "mu                          = " << muPEXSI << std::endl
+          << "numElectron                 = " << numElectronPEXSI << std::endl 
+          << std::endl;
+
+        if( info != 0 ){
+          std::ostringstream msg;
+          msg 
+            << "PEXSI data retrieval returns info " << info << std::endl;
+          throw std::runtime_error( msg.str().c_str() );
+        }
+      }
+
+      // Convert the density matrix from DistSparseMatrix format to the
+      // DistElemMat format
+      DistSparseMatToDistElemMat(
+          DMSparseMat,
+          hamDG.NumBasisTotal(),
+          hamDG.HMat().Prtn(),
+          distDMMat_,
+					hamDG.ElemBasisIdx(),
+          domain_.comm,
+          npPerPole_ );
+
+      // Convert the energy density matrix from DistSparseMatrix
+      // format to the DistElemMat format
+      DistSparseMatToDistElemMat( 
+          EDMSparseMat,
+          hamDG.NumBasisTotal(),
+          hamDG.HMat().Prtn(),
+          distEDMMat_,
+					hamDG.ElemBasisIdx(),
+          domain_.comm,
+          npPerPole_ );
+
+
+      // Convert the free energy density matrix from DistSparseMatrix
+      // format to the DistElemMat format
+      DistSparseMatToDistElemMat( 
+          FDMSparseMat,
+          hamDG.NumBasisTotal(),
+          hamDG.HMat().Prtn(),
+          distFDMMat_,
+					hamDG.ElemBasisIdx(),
+          domain_.comm,
+          npPerPole_ );
+
+      // Compute the Harris energy functional.  
+      // NOTE: In computing the Harris energy, the density and the
+      // potential must be the INPUT density and potential without ANY
+      // update.
+      CalculateHarrisEnergyDM( distFDMMat_ );
+
+      // Evaluate the electron density
+
+      GetTime( timeSta );
+      hamDG.CalculateDensityDM( 
+          hamDG.Density(), hamDG.DensityLGL(), distDMMat_ );
+      MPI_Barrier( domain_.comm );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing density in the global domain is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+      // Update the output potential, and the KS and second order accurate
+      // energy
+      {
+        // Update the Hartree energy and the exchange correlation energy and
+        // potential for computing the KS energy and the second order
+        // energy.
+        // NOTE Vtot should not be updated until finishing the computation
+        // of the energies.
+
+        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
+        hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+
+        // Compute the second order accurate energy functional.
+        // NOTE: In computing the second order energy, the density and the
+        // potential must be the OUTPUT density and potential without ANY
+        // MIXING.
+//        CalculateSecondOrderEnergy();
+
+        // Compute the KS energy 
+        CalculateKSEnergyDM( 
+            distEDMMat_, distFDMMat_ );
+
+        // Update the total potential AFTER updating the energy
+
+        // No external potential
+
+        // Compute the new total potential
+
+        hamDG.CalculateVtot( hamDG.Vtot() );
+
+      }
+
+      // Compute the force at every step
+      if( isCalculateForceEachSCF_ ){
+        // Compute force
+        GetTime( timeSta );
+        hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the force is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // Print out the force
+        // Only master processor output information containing all atoms
+        if( mpirank == 0 ){
+          PrintBlock( statusOFS, "Atomic Force" );
+          {
+            Point3 forceCM(0.0, 0.0, 0.0);
+            std::vector<Atom>& atomList = hamDG.AtomList();
+            Int numAtom = atomList.size();
+            for( Int a = 0; a < numAtom; a++ ){
+              Print( statusOFS, "atom", a, "force", atomList[a].force );
+              forceCM += atomList[a].force;
+            }
+            statusOFS << std::endl;
+            Print( statusOFS, "force for centroid: ", forceCM );
+            statusOFS << std::endl;
           }
-          statusOFS << std::endl;
-          Print( statusOFS, "force for centroid: ", forceCM );
-          statusOFS << std::endl;
         }
       }
-		}
 
-		// Compute the a posteriori error estimator at every step
-		if( isCalculateAPosterioriEachSCF_ )
-		{
-			GetTime( timeSta );
-			DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-			hamDG.CalculateAPosterioriError( 
-					eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-			GetTime( timeEnd );
-			statusOFS << "Time for computing the a posteriori error is " <<
-				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+      // TODO Evaluate the a posteriori error estimator
 
-      // Only master processor output information containing all atoms
-      if( mpirank == 0 ){
-        PrintBlock( statusOFS, "A Posteriori error" );
-        {
-          statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-          statusOFS << eta2Total << std::endl;
-          statusOFS << std::endl << "Residual term:" << std::endl;
-          statusOFS << eta2Residual << std::endl;
-          statusOFS << std::endl << "Jump of gradient term:" << std::endl;
-          statusOFS << eta2GradJump << std::endl;
-          statusOFS << std::endl << "Jump of function value term:" << std::endl;
-          statusOFS << eta2Jump << std::endl;
-        }
-      }
-		}
-
-
-
+      MPI_Comm_free( &HCSCComm );
+      GetTime( timePEXSISta );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for PEXSI evaluation is " <<
+        timePEXSIEnd - timePEXSISta << " [s]" << std::endl << std::endl;
+#endif
+    }
+#endif
 
 		// Compute the error of the mixing variable
 
@@ -1665,7 +2067,6 @@ SCFDG::InnerIterate	(  )
       Print( statusOFS, "Inner SCF is converged!\n" );
       isInnerSCFConverged = true;
     }
-
 
 		MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
@@ -2306,7 +2707,7 @@ SCFDG::CalculateKSEnergy	(  )
 	// Total energy
 	Etot_ = Ekin_ + Ecor_;
 
-	// Helmholtz fre energy
+	// Helmholtz free energy
 	if( hamDG.NumOccupiedState() == 
 			hamDG.NumStateTotal() ){
 		// Zero temperature
@@ -2336,6 +2737,160 @@ SCFDG::CalculateKSEnergy	(  )
 
 	return ;
 } 		// -----  end of method SCFDG::CalculateKSEnergy  ----- 
+
+
+void
+SCFDG::CalculateKSEnergyDM (
+    DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distEDMMat,
+    DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::CalculateKSEnergyDM");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+  HamiltonianDG&  hamDG = *hamDGPtr_;
+
+	DblNumVec&  eigVal         = hamDG.EigVal();
+	DblNumVec&  occupationRate = hamDG.OccupationRate();
+
+	// Kinetic energy
+	Int numSpin = hamDG.NumSpin();
+
+	// Self energy part
+	Eself_ = 0.0;
+	std::vector<Atom>&  atomList = hamDG.AtomList();
+	for(Int a=0; a< atomList.size() ; a++) {
+		Int type = atomList[a].type;
+		Eself_ +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
+	}
+
+
+	// Hartree and XC part
+	Ehart_ = 0.0;
+	EVxc_  = 0.0;
+
+	Real EhartLocal = 0.0, EVxcLocal = 0.0;
+	
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					DblNumVec&  density      = hamDG.Density().LocalMap()[key];
+					DblNumVec&  vxc          = hamDG.Vxc().LocalMap()[key];
+					DblNumVec&  pseudoCharge = hamDG.PseudoCharge().LocalMap()[key];
+					DblNumVec&  vhart        = hamDG.Vhart().LocalMap()[key];
+
+					for (Int p=0; p < density.Size(); p++) {
+						EVxcLocal  += vxc(p) * density(p);
+						EhartLocal += 0.5 * vhart(p) * ( density(p) + pseudoCharge(p) );
+					}
+
+				} // own this element
+			} // for (i)
+
+	mpi::Allreduce( &EVxcLocal, &EVxc_, 1, MPI_SUM, domain_.comm );
+	mpi::Allreduce( &EhartLocal, &Ehart_, 1, MPI_SUM, domain_.comm );
+
+	Ehart_ *= domain_.Volume() / domain_.NumGridTotal();
+	EVxc_  *= domain_.Volume() / domain_.NumGridTotal();
+
+	// Correction energy
+	Ecor_   = (Exc_ - EVxc_) - Ehart_ - Eself_;
+
+  // Kinetic energy and helmholtz free energy, calculated from the
+  // energy and free energy density matrices.
+  // Here 
+  // 
+  //   Ekin = Tr[H 2/(1+exp(beta(H-mu)))] 
+  // and
+  //   Ehelm = -2/beta Tr[log(1+exp(mu-H))] + mu*N_e
+  // FIXME Put the above documentation to the proper place like the hpp
+  // file
+
+  Real Ehelm = 0.0, EhelmLocal = 0.0, EkinLocal = 0.0;
+  
+  if( 1 ) {
+    // Compute the trace of the energy density matrix in each element
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == mpirank ){
+            DblNumMat& localBasis = hamDG.BasisLGL().LocalMap()[key];
+            Int numGrid  = localBasis.m();
+            Int numBasis = localBasis.n();
+
+            // Skip the element if there is no basis functions.
+            if( numBasis == 0 )
+              continue;
+
+            DblNumMat& localEDM = distEDMMat.LocalMap()[
+              ElemMatKey(key, key)];
+            DblNumMat& localFDM = distFDMMat.LocalMap()[
+              ElemMatKey(key, key)];
+
+            if( numBasis != localEDM.m() ||
+                numBasis != localEDM.n() ){
+              std::ostringstream msg;
+              msg << std::endl
+                << "Error happens in the element (" << key << ")" << std::endl
+                << "The number of basis functions is " << numBasis << std::endl
+                << "The size of the local energy density matrix is " 
+                << localEDM.m() << " x " << localEDM.n() << std::endl;
+              throw std::runtime_error( msg.str().c_str() );
+            }
+
+
+            if( numBasis != localFDM.m() ||
+                numBasis != localFDM.n() ){
+              std::ostringstream msg;
+              msg << std::endl
+                << "Error happens in the element (" << key << ")" << std::endl
+                << "The number of basis functions is " << numBasis << std::endl
+                << "The size of the local free energy density matrix is " 
+                << localFDM.m() << " x " << localFDM.n() << std::endl;
+              throw std::runtime_error( msg.str().c_str() );
+            }
+
+            for( Int a = 0; a < numBasis; a++ ){
+              EkinLocal  += localEDM(a,a);
+              EhelmLocal += localFDM(a,a);
+            }
+          } // own this element
+        } // for (i)
+
+    // Reduce the results 
+    mpi::Allreduce( &EkinLocal, &Ekin_, 
+        1, MPI_SUM, domain_.comm );
+
+    mpi::Allreduce( &EhelmLocal, &Ehelm, 
+        1, MPI_SUM, domain_.comm );
+
+    // Add the mu*N term for the free energy
+    Ehelm += fermi_ * hamDG.NumOccupiedState() * numSpin;
+
+  }
+
+
+
+	// Total energy
+	Etot_ = Ekin_ + Ecor_;
+
+  // Free energy at finite temperature
+  Efree_ = Ehelm + Ecor_;
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::CalculateKSEnergyDM  ----- 
+
 
 void
 SCFDG::CalculateHarrisEnergy	(  )
@@ -2442,6 +2997,139 @@ SCFDG::CalculateHarrisEnergy	(  )
 
 	return ;
 } 		// -----  end of method SCFDG::CalculateHarrisEnergy  ----- 
+
+void
+SCFDG::CalculateHarrisEnergyDM(
+    DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::CalculateHarrisEnergyDM");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+  HamiltonianDG&  hamDG = *hamDGPtr_;
+
+	// NOTE: To avoid confusion, all energies in this routine are
+	// temporary variables other than EfreeHarris_.
+	//
+	// The related energies will be computed again in the routine
+	//
+	// CalculateKSEnergy()
+	
+	Real Ehelm, Eself, Ehart, EVxc, Exc, Ecor;
+
+	Int numSpin = hamDG.NumSpin();
+
+	// Self energy part
+	Eself = 0.0;
+	std::vector<Atom>&  atomList = hamDG.AtomList();
+	for(Int a=0; a< atomList.size() ; a++) {
+		Int type = atomList[a].type;
+		Eself +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
+	}
+
+
+	// Nonlinear correction part.  This part uses the Hartree energy and
+	// XC correlation energy from the old electron density.
+
+	Real EhartLocal = 0.0, EVxcLocal = 0.0;
+	
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == mpirank ){
+					DblNumVec&  density      = hamDG.Density().LocalMap()[key];
+					DblNumVec&  vxc          = hamDG.Vxc().LocalMap()[key];
+					DblNumVec&  pseudoCharge = hamDG.PseudoCharge().LocalMap()[key];
+					DblNumVec&  vhart        = hamDG.Vhart().LocalMap()[key];
+
+					for (Int p=0; p < density.Size(); p++) {
+						EVxcLocal  += vxc(p) * density(p);
+						EhartLocal += 0.5 * vhart(p) * ( density(p) + pseudoCharge(p) );
+					}
+
+				} // own this element
+			} // for (i)
+
+	mpi::Allreduce( &EVxcLocal, &EVxc, 1, MPI_SUM, domain_.comm );
+	mpi::Allreduce( &EhartLocal, &Ehart, 1, MPI_SUM, domain_.comm );
+
+	Ehart *= domain_.Volume() / domain_.NumGridTotal();
+	EVxc  *= domain_.Volume() / domain_.NumGridTotal();
+	// Use the previous exchange-correlation energy
+	Exc    = Exc_;
+
+
+	// Correction energy.  
+	Ecor   = (Exc - EVxc) - Ehart - Eself;
+
+
+
+	// The Helmholtz part of the free energy
+  //   Ehelm = -2/beta Tr[log(1+exp(mu-H))] + mu*N_e
+  // FIXME Put the above documentation to the proper place like the hpp
+  // file
+  if( 1 ) {
+    Real EhelmLocal = 0.0;
+    Ehelm = 0.0;
+
+    // Compute the trace of the energy density matrix in each element
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == mpirank ){
+            DblNumMat& localBasis = hamDG.BasisLGL().LocalMap()[key];
+            Int numGrid  = localBasis.m();
+            Int numBasis = localBasis.n();
+
+            // Skip the element if there is no basis functions.
+            if( numBasis == 0 )
+              continue;
+
+            DblNumMat& localFDM = distFDMMat.LocalMap()[
+              ElemMatKey(key, key)];
+
+            if( numBasis != localFDM.m() ||
+                numBasis != localFDM.n() ){
+              std::ostringstream msg;
+              msg << std::endl
+                << "Error happens in the element (" << key << ")" << std::endl
+                << "The number of basis functions is " << numBasis << std::endl
+                << "The size of the local free energy density matrix is " 
+                << localFDM.m() << " x " << localFDM.n() << std::endl;
+              throw std::runtime_error( msg.str().c_str() );
+            }
+
+            for( Int a = 0; a < numBasis; a++ ){
+              EhelmLocal += localFDM(a,a);
+            }
+          } // own this element
+        } // for (i)
+
+    mpi::Allreduce( &EhelmLocal, &Ehelm, 
+        1, MPI_SUM, domain_.comm );
+
+    // Add the mu*N term
+    Ehelm += fermi_ * hamDG.NumOccupiedState() * numSpin;
+
+  }
+		
+
+  // Harris free energy functional. This has to be the finite
+  // temperature formulation
+
+  EfreeHarris_ = Ehelm + Ecor;
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::CalculateHarrisEnergyDM  ----- 
 
 void
 SCFDG::CalculateSecondOrderEnergy  (  )
@@ -2571,6 +3259,8 @@ SCFDG::CalculateSecondOrderEnergy  (  )
 
 	return ;
 } 		// -----  end of method SCFDG::CalculateSecondOrderEnergy  ----- 
+
+
 
 void
 SCFDG::AndersonMix	( 
