@@ -1089,6 +1089,8 @@ void DistSparseMatToDistElemMat(
   }
 
 
+  distMat.LocalMap().clear();
+
   distMat.Prtn() = elemMatPrtn;
 
   // Convert the inverse map of basisIdx 

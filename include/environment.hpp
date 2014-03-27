@@ -106,7 +106,7 @@
 // Usage of the PEXSI package
 #ifdef PEXSI
 #define _USE_PEXSI_
-#include  "c_pexsi_new_interface.h"
+#include  "c_pexsi_interface.h"
 #endif
 
 /***********************************************************************

@@ -124,6 +124,12 @@ private:
 	Real                Eself_;                    // Self energy due to the pseudopotential
 	Real                fermi_;                    // Fermi energy
 
+  // Density matrices
+
+  DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distDMMat_;
+  DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distEDMMat_;
+  DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distFDMMat_;
+
 	PeriodTable*        ptablePtr_;
 
 	HamiltonianDG*      hamDGPtr_;

@@ -40,7 +40,7 @@
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file scf_dg.hpp
+/// @file scf_dg.cpp
 /// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
 #include  "scf_dg.hpp"
@@ -1673,15 +1673,22 @@ SCFDG::InnerIterate	( Int outerIter )
     // FIXME Currently it is assumed that all processors used by DG will be used by PEXSI.
 #ifdef _USE_PEXSI_
     if( solutionMethod_ == "pexsi" ){
+      Real timePEXSISta, timePEXSIEnd;
+      GetTime( timePEXSISta );
+
       Real numElectronExact = hamDG.NumOccupiedState() * hamDG.NumSpin();
       Real muMinInertia, muMaxInertia;
-//      DblNumVec shiftList( numPole_ ), inertiaList( numPole_ );
-//      IntNumVec inertiaListInt( numPole_ );
       Real muPEXSI, numElectronPEXSI;
       Int numTotalInertiaIter, numTotalPEXSIIter;
 
+      // Temporary matrices 
+      DistSparseMatrix<Real>  HSparseMat;
+      DistSparseMatrix<Real>  DMSparseMat;
+      DistSparseMatrix<Real>  EDMSparseMat;
+      DistSparseMatrix<Real>  FDMSparseMat;
+
+
       Int info;
-			DistSparseMatrix<Real>  HSparseMat;
       
       // Create an MPI communicator for saving the H matrix in a
       // subgroup of processors
@@ -1776,8 +1783,6 @@ SCFDG::InnerIterate	( Int outerIter )
       }
 #endif
 
-      // FIXME Should be in scf_dg.hpp
-			DistSparseMatrix<Real>  DMSparseMat, EDMSparseMat, FDMSparseMat;
       if( isProcHCSC ){
         CopyPattern( HSparseMat, DMSparseMat );
         CopyPattern( HSparseMat, EDMSparseMat );
@@ -1819,9 +1824,11 @@ SCFDG::InnerIterate	( Int outerIter )
           std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.05 );
         pexsiOptions_.numElectronPEXSITolerance = 
           std::min( std::max( numElectronPEXSIToleranceTarget_, 1.0 * scfOuterNorm_ ), 0.5 );
+        pexsiOptions_.isSymbolicFactorize = (innerIter == 1) ? 1 : 0;
         statusOFS << std::endl 
-          << "muInertiaTolerance = " << pexsiOptions_.muInertiaTolerance << std::endl
-          << "numElectronPEXSITolerance = " << pexsiOptions_.numElectronPEXSITolerance << std::endl;
+          << "muInertiaTolerance        = " << pexsiOptions_.muInertiaTolerance << std::endl
+          << "numElectronPEXSITolerance = " << pexsiOptions_.numElectronPEXSITolerance << std::endl
+          << "Symbolic factorization    =  " << pexsiOptions_.isSymbolicFactorize << std::endl;
       }
 
 
@@ -1851,17 +1858,7 @@ SCFDG::InnerIterate	( Int outerIter )
       pexsiOptions_.muMin0 = muMinInertia - 5.0 * pexsiOptions_.temperature;
       pexsiOptions_.muMax0 = muMaxInertia + 5.0 * pexsiOptions_.temperature;
 
-#if ( _DEBUGlevel_ >= 0 )
-      if( mpirank == 0 ){ 
-        printf("After PEXSI iteration, InertiaIter = %5d, PEXSIIter = %5d \n", 
-            numTotalInertiaIter, numTotalPEXSIIter );
-        printf( "mu = %25.15f, numElectron = %25.15f\n", 
-            muPEXSI, numElectronPEXSI );
-      }
-#endif
-
       // Retrieve the PEXSI data
-
 
       if( isProcHCSC ){
         Real totalEnergyH, totalEnergyS, totalFreeEnergy;
@@ -1875,17 +1872,17 @@ SCFDG::InnerIterate	( Int outerIter )
             &totalFreeEnergy,
             &info );
 
-        // FIXME
-#if ( _DEBUGlevel_ >= 0 )
-        if( mpirank == 0 ){ 
-          printf("Output from the main program\n");
-          printf("Total energy (H*DM)         = %15.5f\n", totalEnergyH);
-          printf("Total energy (S*EDM)        = %15.5f\n", totalEnergyS);
-          printf("Total free energy           = %15.5f\n", totalFreeEnergy);
-        }
-#endif
+        statusOFS << std::endl
+          << "Results obtained from PEXSI:" << std::endl
+          << "Total energy (H*DM)         = " << totalEnergyH << std::endl
+          << "Total energy (S*EDM)        = " << totalEnergyS << std::endl
+          << "Total free energy           = " << totalFreeEnergy << std::endl 
+          << "InertiaIter                 = " << numTotalInertiaIter << std::endl
+          << "PEXSIIter                   = " <<  numTotalPEXSIIter << std::endl
+          << "mu                          = " << muPEXSI << std::endl
+          << "numElectron                 = " << numElectronPEXSI << std::endl 
+          << std::endl;
 
-      
         if( info != 0 ){
           std::ostringstream msg;
           msg 
@@ -1896,24 +1893,22 @@ SCFDG::InnerIterate	( Int outerIter )
 
       // Convert the density matrix from DistSparseMatrix format to the
       // DistElemMat format
-      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distDMMat;
       DistSparseMatToDistElemMat(
           DMSparseMat,
           hamDG.NumBasisTotal(),
           hamDG.HMat().Prtn(),
-          distDMMat,
+          distDMMat_,
 					hamDG.ElemBasisIdx(),
           domain_.comm,
           npPerPole_ );
 
       // Convert the energy density matrix from DistSparseMatrix
       // format to the DistElemMat format
-      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distEDMMat;
       DistSparseMatToDistElemMat( 
           EDMSparseMat,
           hamDG.NumBasisTotal(),
           hamDG.HMat().Prtn(),
-          distEDMMat,
+          distEDMMat_,
 					hamDG.ElemBasisIdx(),
           domain_.comm,
           npPerPole_ );
@@ -1921,12 +1916,11 @@ SCFDG::InnerIterate	( Int outerIter )
 
       // Convert the free energy density matrix from DistSparseMatrix
       // format to the DistElemMat format
-      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distFDMMat;
       DistSparseMatToDistElemMat( 
           FDMSparseMat,
           hamDG.NumBasisTotal(),
           hamDG.HMat().Prtn(),
-          distFDMMat,
+          distFDMMat_,
 					hamDG.ElemBasisIdx(),
           domain_.comm,
           npPerPole_ );
@@ -1935,13 +1929,13 @@ SCFDG::InnerIterate	( Int outerIter )
       // NOTE: In computing the Harris energy, the density and the
       // potential must be the INPUT density and potential without ANY
       // update.
-      CalculateHarrisEnergyDM( distFDMMat );
+      CalculateHarrisEnergyDM( distFDMMat_ );
 
       // Evaluate the electron density
 
       GetTime( timeSta );
       hamDG.CalculateDensityDM( 
-          hamDG.Density(), hamDG.DensityLGL(), distDMMat );
+          hamDG.Density(), hamDG.DensityLGL(), distDMMat_ );
       MPI_Barrier( domain_.comm );
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1970,7 +1964,7 @@ SCFDG::InnerIterate	( Int outerIter )
 
         // Compute the KS energy 
         CalculateKSEnergyDM( 
-            distEDMMat, distFDMMat );
+            distEDMMat_, distFDMMat_ );
 
         // Update the total potential AFTER updating the energy
 
@@ -1986,7 +1980,7 @@ SCFDG::InnerIterate	( Int outerIter )
       if( isCalculateForceEachSCF_ ){
         // Compute force
         GetTime( timeSta );
-        hamDG.CalculateForceDM( *distfftPtr_, distDMMat );
+        hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );
         GetTime( timeEnd );
         statusOFS << "Time for computing the force is " <<
           timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -2013,6 +2007,11 @@ SCFDG::InnerIterate	( Int outerIter )
       // TODO Evaluate the a posteriori error estimator
 
       MPI_Comm_free( &HCSCComm );
+      GetTime( timePEXSISta );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for PEXSI evaluation is " <<
+        timePEXSIEnd - timePEXSISta << " [s]" << std::endl << std::endl;
+#endif
     }
 #endif
 
@@ -2874,9 +2873,6 @@ SCFDG::CalculateKSEnergyDM (
     // Add the mu*N term for the free energy
     Ehelm += fermi_ * hamDG.NumOccupiedState() * numSpin;
 
-    statusOFS << std::endl
-      << "Ekin  = " << Ekin_ << std::endl
-      << "Ehelm = " << Ehelm << std::endl;
   }
 
 
