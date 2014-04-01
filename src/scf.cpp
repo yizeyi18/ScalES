@@ -893,4 +893,9 @@ void SCF::OutputState	(  )
 	return ;
 } 		// -----  end of method SCF::OutputState  ----- 
 
+Real SCF::getEfree()
+{ 
+   return Efree_;
+} 
+
 } // namespace dgdft
