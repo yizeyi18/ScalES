@@ -2,7 +2,7 @@
 
 COMPILE_MODE     = release
 USE_COMPLEX      = 0
-USE_OPENMP       = 0
+USE_OPENMP       = 1
 USE_PROFILE      = 0
 USE_PEXSI        = 1
 
@@ -39,7 +39,7 @@ ifeq (${USE_PEXSI}, 1)
   SCOTCH_DIR       = $(HOME)/Software/scotch_6.0.0
 
   PEXSI_INCLUDE    = -I$(PEXSI_DIR)/include
-  PEXSI_SRC_LIB    = ${PEXSI_DIR}/src/libpexsi_release_osx_v0.5.5.a
+  PEXSI_SRC_LIB    = ${PEXSI_DIR}/src/libpexsi_osx_newiterf_v0.6.0.a
   DSUPERLU_LIB     = ${DSUPERLU_DIR}/build_release/libsuperlu_dist_3.3.a
   SCOTCH_LIB       = -L${SCOTCH_DIR}/lib -lptscotchparmetis -lptscotch -lptscotcherr -lscotch
   METIS_LIB        = -L${METIS_DIR}/lib -lmetis
