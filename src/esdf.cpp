@@ -499,7 +499,6 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether density is restarted!*");
 
-
 	i++;
 	strcpy(kw_label[i],"restart_wfn");
 	strcpy(kw_typ[i],"I:E");
@@ -509,16 +508,6 @@ void esdf_key() {
 	strcpy(kw_label[i],"output_density");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether density is outputed !*");
-
-	i++;
-	strcpy(kw_label[i],"restart_wave_mode");
-	strcpy(kw_typ[i],"T:E");
-	strcpy(kw_dscrpt[i],"*! Restart mode !*");
-
-	i++;
-	strcpy(kw_label[i],"restart_wave");
-	strcpy(kw_typ[i],"T:E");
-	strcpy(kw_dscrpt[i],"*! Wave function file to restart!*");
 
 
 	i++;
@@ -2039,7 +2028,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
 		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 1 );
 		esdfParam.isOutputWfnElem         = esdf_integer( "Output_Wfn_Elem", 0 );
-		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 0 );
+		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 1 );
 		esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 0 );
 		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 1 );
 		esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 1 );

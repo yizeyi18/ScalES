@@ -351,8 +351,6 @@ int main(int argc, char **argv)
               Spinor& spn = distPsi.LocalMap()[key];
               spn.Setup( dmExtElem, 1, esdfParam.numALBElem(i,j,k), 0.0 );
 
-              UniformRandom( spn.Wavefun() );
-
               // Hamiltonian
               // The exchange-correlation type and numExtraState is not
               // used in the extended element calculation
