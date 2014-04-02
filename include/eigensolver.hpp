@@ -40,7 +40,7 @@
 	 works, incorporate into other computer software, distribute, and sublicense
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file eigensolver.cpp
+/// @file eigensolver.hpp
 /// @brief Eigensolver in the global domain or extended element.
 /// @date 2012-11-20
 #ifndef _EIGENSOLVER_HPP_

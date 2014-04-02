@@ -41,7 +41,7 @@
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
 /// @file scf_dg.hpp
-/// @brief Self consistent iteration using the DF method.
+/// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
 #ifndef _SCF_DG_HPP_ 
 #define _SCF_DG_HPP_
@@ -57,6 +57,7 @@
 #include  "eigensolver.hpp"
 #include  "utility.hpp"
 #include  "hamiltonian_dg.hpp"
+#include  "hamiltonian_dg_conversion.hpp"
 
 namespace dgdft{
 
@@ -91,6 +92,24 @@ private:
 	std::string         restartDensityFileName_;
   std::string         restartWfnFileName_;
 
+  /// @brief Same as @ref esdf::ESDFInputParam::solutionMethod
+  std::string         solutionMethod_;
+
+  // PEXSI parameters
+  PPEXSIPlan          pexsiPlan_;
+  PPEXSIOptions       pexsiOptions_;
+
+  bool                isPEXSIInitialized_;
+  Int                 numProcRowPEXSI_;
+  Int                 numProcColPEXSI_;
+  Int                 inertiaCountSteps_;
+  // Minimum of the tolerance for the inertia counting in the
+  // dynamically adjustment strategy
+  Real                muInertiaToleranceTarget_; 
+  // Minimum of the tolerance for the PEXSI solve in the
+  // dynamically adjustment strategy
+  Real                numElectronPEXSIToleranceTarget_;
+
 	// Physical parameters
 	Real                Tbeta_;                    // Inverse of temperature in atomic unit
 	Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional
@@ -104,6 +123,12 @@ private:
 	Real                EVxc_;                     // Exchange-correlation potential energy
 	Real                Eself_;                    // Self energy due to the pseudopotential
 	Real                fermi_;                    // Fermi energy
+
+  // Density matrices
+
+  DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distDMMat_;
+  DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distEDMMat_;
+  DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distFDMMat_;
 
 	PeriodTable*        ptablePtr_;
 
@@ -196,7 +221,7 @@ public:
 
 	/// @brief Inner self consistent iteration subroutine without
 	/// correcting the basis functions.
-	void  InnerIterate();
+	void  InnerIterate( Int outerIter );
 
 	/// @brief Update the local potential in the extended element and the element.
 	void  UpdateElemLocalPotential();
@@ -217,6 +242,13 @@ public:
 	/// @brief Calculate the Kohn-Sham energy and other related energies.
 	void  CalculateKSEnergy();
 
+	/// @brief Calculate the Kohn-Sham energy and other related energies
+  /// using the energy density matrix and the free energy density matrix.
+	void  CalculateKSEnergyDM(
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distEDMMat,
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
+
+
 	/// @brief Calculate the Harris (free) energy.  
 	///
 	/// The difference between the Kohn-Sham energy and the Harris energy
@@ -229,6 +261,15 @@ public:
 	/// [Soler et al. "The SIESTA method for ab initio order-N
 	/// materials", J. Phys. Condens. Matter. 14, 2745 (2002) pp 18]
 	void  CalculateHarrisEnergy();
+
+
+	/// @brief Calculate the Harris (free) energy using density matrix and
+  /// free energy density matrix.  
+  ///
+  /// @see CalculateHarrisEnergy
+	void  CalculateHarrisEnergyDM(
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
+
 
 	/// @brief Calculate the second order accurate energy that is
 	/// applicable to both density and potential mixing.

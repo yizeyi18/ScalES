@@ -40,7 +40,7 @@
 	 works, incorporate into other computer software, distribute, and sublicense
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file tinyvec_decl.hpp
+/// @file tinyvec_impl.hpp
 /// @brief Implementation of tiny vectors of dimension 2 and 3.
 /// @date 2010-09-20
 #ifndef  _TINYVEC_IMPL_HPP_
