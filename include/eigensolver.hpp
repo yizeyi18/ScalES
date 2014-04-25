@@ -42,7 +42,8 @@
 */
 /// @file eigensolver.hpp
 /// @brief Eigensolver in the global domain or extended element.
-/// @date 2012-11-20
+/// @date 2012-11-20 Original version
+/// @date 2014-04-25 Parallel eigensolver.
 #ifndef _EIGENSOLVER_HPP_
 #define _EIGENSOLVER_HPP_
 
@@ -53,15 +54,17 @@
 #include  "hamiltonian.hpp"
 #include  "spinor.hpp"
 #include  "lobpcg++.hpp"
+#include  "plobpcg++.hpp"
 #include  "esdf.hpp"
 
 namespace dgdft{
 
 using namespace dgdft::LOBPCG;
 
+
 class EigenSolver
 {
-private:
+protected:
 
 	Hamiltonian*        hamPtr_;
 	Fourier*            fftPtr_;
@@ -81,23 +84,20 @@ public:
 
 	// ********************  LIFECYCLE   *******************************
 
-	EigenSolver ();
+	EigenSolver () {};
 
-	~EigenSolver();
+	virtual ~EigenSolver() {};
 
 	// ********************  OPERATORS   *******************************
 
-	void Setup(
+	virtual void Setup(
 			const esdf::ESDFInputParam& esdfParam,
 			Hamiltonian& ham,
 			Spinor& psi,
-			Fourier& fft );
+			Fourier& fft ) {};
 
-	static void LOBPCGHamiltonianMult(void *A, void *X, void *AX);
-	static void LOBPCGPrecondMult    (void *A, void *X, void *AX);
-
-	BlopexInt HamiltonianMult (serial_Multi_Vector *x, serial_Multi_Vector *y);
-	BlopexInt PrecondMult     (serial_Multi_Vector *x, serial_Multi_Vector *y);
+	virtual BlopexInt HamiltonianMult (serial_Multi_Vector *x, serial_Multi_Vector *y) {};
+	virtual BlopexInt PrecondMult     (serial_Multi_Vector *x, serial_Multi_Vector *y) {};
 
 	// Specific for DiracKohnSham
 //	static void lobpcg_apply_preconditioner_DKS  (void *A, void *X, void *AX);
@@ -108,7 +108,7 @@ public:
 
 	// ********************  OPERATIONS  *******************************
 	// Solve the eigenvalue problem using BLOPEX.
-	void Solve();
+	virtual void Solve() {};
 
 	// ********************  ACCESS      *******************************
 	DblNumVec& EigVal() { return eigVal_; }
@@ -121,6 +121,80 @@ public:
 	// ********************  INQUIRY     *******************************
 
 }; // -----  end of class  EigenSolver  ----- 
+
+
+// *********************************************************************
+// Sequential eigensolver
+// *********************************************************************
+
+class SEigenSolver: public EigenSolver
+{
+public:
+
+	// ********************  LIFECYCLE   *******************************
+
+	SEigenSolver () {};
+
+	~SEigenSolver() {};
+
+	// ********************  OPERATORS   *******************************
+
+	virtual void Setup(
+			const esdf::ESDFInputParam& esdfParam,
+			Hamiltonian& ham,
+			Spinor& psi,
+			Fourier& fft );
+
+	static void LOBPCGHamiltonianMult(void *A, void *X, void *AX);
+	static void LOBPCGPrecondMult    (void *A, void *X, void *AX);
+
+	virtual BlopexInt HamiltonianMult (serial_Multi_Vector *x, serial_Multi_Vector *y);
+	virtual BlopexInt PrecondMult     (serial_Multi_Vector *x, serial_Multi_Vector *y);
+
+	// ********************  OPERATIONS  *******************************
+	// Solve the eigenvalue problem using BLOPEX.
+	virtual void Solve();
+
+
+}; // -----  end of class  SEigenSolver  ----- 
+
+
+
+// *********************************************************************
+// Parallel eigensolver
+// *********************************************************************
+
+class PEigenSolver: public EigenSolver
+{
+public:
+
+	// ********************  LIFECYCLE   *******************************
+
+	PEigenSolver ();
+
+	~PEigenSolver();
+
+	// ********************  OPERATORS   *******************************
+
+	virtual void Setup(
+			const esdf::ESDFInputParam& esdfParam,
+			Hamiltonian& ham,
+			Spinor& psi,
+			Fourier& fft );
+
+	static void LOBPCGHamiltonianMult(void *A, void *X, void *AX);
+	static void LOBPCGPrecondMult    (void *A, void *X, void *AX);
+
+	virtual BlopexInt HamiltonianMult (parallel_Multi_Vector *x, parallel_Multi_Vector *y);
+	virtual BlopexInt PrecondMult     (parallel_Multi_Vector *x, parallel_Multi_Vector *y);
+
+	// ********************  OPERATIONS  *******************************
+	// Solve the eigenvalue problem using BLOPEX.
+	virtual void Solve();
+
+
+}; // -----  end of class  PEigenSolver  ----- 
+
 
 } // namespace dgdft
 #endif // _EIGENSOLVER_HPP_

@@ -1919,17 +1919,17 @@ SCFDG::InnerIterate	( Int outerIter )
       }
 
 
-      PPEXSIDFTDriver(
-          pexsiPlan_,
-          numElectronExact,
-          pexsiOptions_,
-          &muPEXSI,
-          &numElectronPEXSI,         
-          &muMinInertia,              
-          &muMaxInertia,             
-          &numTotalInertiaIter,
-          &numTotalPEXSIIter,
-          &info );
+//      PPEXSIDFTDriver(
+//          pexsiPlan_,
+//          numElectronExact,
+//          pexsiOptions_,
+//          &muPEXSI,
+//          &numElectronPEXSI,         
+//          &muMinInertia,              
+//          &muMaxInertia,             
+//          &numTotalInertiaIter,
+//          &numTotalPEXSIIter,
+//          &info );
 
       if( info != 0 ){
         std::ostringstream msg;

@@ -161,7 +161,7 @@ int main(int argc, char **argv)
     Fourier fftFine;
 		Spinor  spn;
 		KohnSham hamKS;
-		EigenSolver eigSol;
+		SEigenSolver eigSol;
 		SCF  scf;
 
 		ptable.Setup( esdfParam.periodTableFile );
