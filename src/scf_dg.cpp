@@ -98,6 +98,8 @@ SCFDG::~SCFDG	(  )
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::~SCFDG");
 #endif
+
+#ifdef _USE_PEXSI_
   if( isPEXSIInitialized_ == true ){
     Int info;
     PPEXSIPlanFinalize(
@@ -110,13 +112,15 @@ SCFDG::~SCFDG	(  )
       throw std::runtime_error( msg.str().c_str() );
     }
   }
+#endif
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
 } 		// -----  end of method SCFDG::~SCFDG  ----- 
 
 void
-SCFDG::Setup	( 
+SCFDG::Setup	(
 		const esdf::ESDFInputParam& esdfParam, 
 		HamiltonianDG&              hamDG,
 	  DistVec<Index3, EigenSolver, ElemPrtn>&  distEigSol,
@@ -165,8 +169,6 @@ SCFDG::Setup	(
 		LGLGridFactor_    = esdfParam.LGLGridFactor;
 		isPeriodizePotential_ = esdfParam.isPeriodizePotential;
 		distancePeriodize_= esdfParam.distancePeriodize;
-
-
 	}
 
   // Initialize PEXSI
@@ -1921,8 +1923,8 @@ SCFDG::InnerIterate	( Int outerIter )
 
       PPEXSIDFTDriver(
           pexsiPlan_,
-          numElectronExact,
           pexsiOptions_,
+          numElectronExact,
           &muPEXSI,
           &numElectronPEXSI,         
           &muMinInertia,              
