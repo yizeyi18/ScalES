@@ -132,7 +132,7 @@ namespace LOBPCG{
     MultiVectorAxpy( double, void*, void* );
 
   BlopexInt
-    SerialSetupInterpreter( mv_InterfaceInterpreter *i );
+    serialSetupInterpreter( mv_InterfaceInterpreter *i );
   void
     MultiVectorPrint(  void   *x, char* tag, BlopexInt limit);
 

@@ -56,12 +56,13 @@ Spinor::Spinor () { }
 Spinor::Spinor ( 
 		const Domain &dm, 
 		const Int     numComponent,
-		const Int     numState,
+		const Int     numStateTotal,
+          Int     numStateLocal,
 		const Scalar  val ) {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Spinor");
 #endif  // ifndef _RELEASE_
-	this->Setup( dm, numComponent, numState, val );
+	this->Setup( dm, numComponent, numStateTotal, numStateLocal, val );
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -70,14 +71,15 @@ Spinor::Spinor (
 
 Spinor::Spinor ( const Domain &dm, 
 		const Int numComponent, 
-		const Int numState,
+		const Int numStateTotal,
+          Int numStateLocal,
 		const bool owndata, 
 		Scalar* data )
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Spinor");
 #endif  // ifndef _RELEASE_
-	this->Setup( dm, numComponent, numState, owndata, data );
+	this->Setup( dm, numComponent, numStateTotal, numStateLocal, owndata, data );
 #ifndef _RELEASE_
 	PopCallStack();
 #endif  // ifndef _RELEASE_
@@ -89,14 +91,77 @@ Spinor::~Spinor	() {}
 void Spinor::Setup ( 
 		const Domain &dm, 
 		const Int     numComponent,
-		const Int     numState,
+		const Int     numStateTotal,
+          Int     numStateLocal,
 		const Scalar  val ) {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Setup ");
 #endif  // ifndef _RELEASE_
 	domain_       = dm;
 
-	wavefun_.Resize( dm.NumGridTotal(), numComponent, numState );
+  // huwei
+  
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  Int blocksize;
+  numStateTotal_ = numStateTotal;
+  blocksize_ = blocksize;
+
+  if ( numStateTotal <=  mpisize ) {
+    blocksize = 1;
+
+    if ( mpirank < numStateTotal ){
+      numStateLocal = 1; // blocksize == 1;
+    }
+    else {
+      numStateLocal = 0;
+    }
+  
+  }
+  
+  else {
+  
+    if ( numStateTotal % mpisize == 0 ){
+      blocksize = numStateTotal / mpisize;
+      numStateLocal = blocksize * (mpirank + 1);
+    }
+    else {
+      blocksize = ((numStateTotal - 1) / mpisize) + 1;
+      if ( mpirank < ( mpisize - 1 )){
+        numStateLocal = blocksize * (mpirank + 1);
+      }
+      else {
+        numStateLocal = numStateTotal - blocksize * ( mpisize -1 );
+      }
+    }    
+
+  }
+
+  wavefunIdx_.Resize( numStateLocal );
+  SetValue( wavefunIdx_, 0 );
+  for (Int i = 0; i < numStateLocal; i++){
+    if(blocksize * mpirank < numStateTotal){
+      wavefunIdx_[i] = i + blocksize * mpirank;
+    }
+  }
+
+  numStateTotal_ = numStateTotal;
+  blocksize_ = blocksize;
+
+  // Check Sum{numStateLocal} = numStateTotal
+  Int numStateTotalTest; 
+
+  mpi::Allreduce( &numStateLocal, &numStateTotalTest, 1, MPI_SUM, domain_.comm );
+
+  if( numStateTotalTest != numStateTotal ){
+    throw std::logic_error("Sum{numStateLocal} = numStateTotal does not match.");
+  }
+ 
+  // huwei
+
+  wavefun_.Resize( dm.NumGridTotal(), numComponent, numStateLocal );
 	SetValue( wavefun_, val );
 
 #ifndef _RELEASE_
@@ -106,7 +171,8 @@ void Spinor::Setup (
 
 void Spinor::Setup ( const Domain &dm, 
 		const Int numComponent, 
-		const Int numState,
+		const Int numStateTotal,
+    const Int numStateLocal,
 		const bool owndata, 
 		Scalar* data )
 {
@@ -114,8 +180,9 @@ void Spinor::Setup ( const Domain &dm,
 	PushCallStack("Spinor::Setup");
 #endif  // ifndef _RELEASE_
 	domain_       = dm;
-	wavefun_      = NumTns<Scalar>( dm.NumGridTotal(), numComponent, numState,
-			owndata, data );
+  // FIXME Partition the spinor here
+	wavefun_      = NumTns<Scalar>( dm.NumGridTotal(), numComponent, numStateLocal,
+      owndata, data );
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -133,10 +200,13 @@ Spinor::Normalize	( )
 
 	for (Int k=0; k<nocc; k++) {
 		Scalar *ptr = wavefun_.MatData(k);
-		Real   sum = 0.0;
+		Real   sumLocal = 0.0, sum = 0.0;
 		for (Int i=0; i<size; i++) {
-			sum += pow(abs(*ptr++), 2.0);
+			sumLocal += pow(abs(*ptr++), 2.0);
 		}
+
+    mpi::Allreduce( &sumLocal, &sum, 1, MPI_SUM, domain_.comm );
+
 		sum = sqrt(sum);
 		if (sum != 0.0) {
 			ptr = wavefun_.MatData(k);

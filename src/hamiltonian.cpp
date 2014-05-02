@@ -307,24 +307,26 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 	Int nocc  = psi.NumState();
 	Real vol  = domain_.Volume();
 
+  DblNumMat   densityLocal;
+
   // huwei
 
   Int ntotFine  = fft.domain.NumGridTotalFine();
 
-	SetValue( density_, 0.0 );
+//	SetValue( density_, 0.0 );
+
+	densityLocal.Resize( density_.m(), density_.n() );   
+	SetValue( densityLocal, 0.0 );
+
 	for (Int k=0; k<nocc; k++) {
 		for (Int j=0; j<ncom; j++) {
-
 
       for( Int i = 0; i < ntot; i++ ){
         fft.inputComplexVec(i) = Complex( psi.Wavefun(i,j,k), 0.0 ); 
       }
       fftw_execute( fft.forwardPlan );
  
-
-
       // fft Coarse to Fine 
-
 
       Int PtrC = 0;
       Int PtrF = 0;
@@ -360,20 +362,17 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 
       // end fft Coarse to Fine
     
-
-
-
 //    	for( Int i = 0; i < ntotFine; i++ ){
 //		    if( fft.gkkFine(i) == 0 ){
 //			    fft.outputComplexVecFine(i) = Z_ZERO; }
 //	  	  else{
 //			    fft.outputComplexVecFine(i) *= 2.0 * PI / fft.gkkFine(i);
 //	   	  }
-//`    	}
+//     	}
       fftw_execute( fft.backwardPlanFine );
 
       for( Int i = 0; i < ntotFine; i++ ){
-				density_(i,RHO) += numSpin_ * occrate(k) * pow( std::abs(fft.inputComplexVecFine(i).real() / ntot), 2.0 );
+				densityLocal(i,RHO) += numSpin_ * occrate(k) * pow( std::abs(fft.inputComplexVecFine(i).real() / ntot), 2.0 );
       }
 		}
 	}
@@ -396,6 +395,9 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 //  for (Int i=0; i<ntotFine; i++) {
 //    val  += density_(i, RHO) * vol / ntotFine;
 //  }
+
+	mpi::Allreduce( densityLocal.Data(), density_.Data(), ntotFine * RHO,
+			MPI_SUM, domain_.comm );
 
   val = 0.0; // sum of density
   for (Int i=0; i<ntotFine; i++) {
@@ -644,6 +646,16 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 	{
 		// Loop over atoms and pseudopotentials
 		Int numEig = occupationRate_.m();
+    Int numStateTotal = psi.NumStateTotal();
+    Int numStateLocal = psi.NumState();
+
+    MPI_Barrier(domain_.comm);
+    int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+    int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+    if( numEig != numStateTotal ){
+      throw std::runtime_error( "numEig != numStateTotal in CalculateForce" );
+    }
 
 		for( Int a = 0; a < numAtom; a++ ){
 			std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlList;
@@ -655,7 +667,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 				IntNumVec& idx = bl.first;
 				DblNumMat& val = bl.second;
 
-				for( Int g = 0; g < numEig; g++ ){
+				for( Int g = 0; g < numStateLocal; g++ ){
 					DblNumVec res(4);
 					SetValue( res, 0.0 );
 					Real* psiPtr = psi.Wavefun().VecData(0, g);
@@ -666,11 +678,29 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 						res(DZ) += val(i, DZ ) * psiPtr[ idx(i) ] * sqrt(wgt);
 					}
 
-					force( a, 0 ) += 4.0 * occupationRate_(g) * gamma * res[VAL] * res[DX];
-					force( a, 1 ) += 4.0 * occupationRate_(g) * gamma * res[VAL] * res[DY];
-					force( a, 2 ) += 4.0 * occupationRate_(g) * gamma * res[VAL] * res[DZ];
+					force( a, 0 ) += 4.0 * occupationRate_( g + mpirank * psi.Blocksize() ) * gamma * res[VAL] * res[DX];
+					force( a, 1 ) += 4.0 * occupationRate_( g + mpirank * psi.Blocksize() ) * gamma * res[VAL] * res[DY];
+					force( a, 2 ) += 4.0 * occupationRate_( g + mpirank * psi.Blocksize() ) * gamma * res[VAL] * res[DZ];
 				} // for (g)
 			} // for (l)
+
+      // huwei
+
+      // FIXME Allreduce force.  Use a variable forceLocal
+	    
+      DblNumMat  forceTmp( numAtom, DIM );
+	    SetValue( forceTmp, 0.0 );
+      
+      mpi::Allreduce( &force( a, 0 ), &forceTmp( a, 0 ), 1, MPI_SUM, domain_.comm );
+      mpi::Allreduce( &force( a, 1 ), &forceTmp( a, 1 ), 1, MPI_SUM, domain_.comm );
+      mpi::Allreduce( &force( a, 2 ), &forceTmp( a, 2 ), 1, MPI_SUM, domain_.comm );
+
+      force( a, 0 ) = forceTmp( a, 0 );
+      force( a, 1 ) = forceTmp( a, 1 );
+      force( a, 2 ) = forceTmp( a, 2 );
+
+      // huwei
+
 		} // for (a)
 	}
 

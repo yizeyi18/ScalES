@@ -89,14 +89,15 @@ BlopexInt SEigenSolver::HamiltonianMult
 #endif
   Int ntot = psiPtr_->NumGridTotal();
   Int ncom = psiPtr_->NumComponent();
-  Int nocc = psiPtr_->NumState();
+  Int noccTotal = psiPtr_->NumStateTotal();
+  Int noccLocal = psiPtr_->NumState();
 
-	if( (x->size * x->num_vectors) != ntot*ncom*nocc ) {
+	if( (x->size * x->num_vectors) != ntot*ncom*noccLocal ) {
 		throw std::logic_error("Vector size does not match.");
 	}
 
-  Spinor psitemp(fftPtr_->domain, ncom, nocc, false, x->data);
-  NumTns<Scalar> a3(ntot, ncom, nocc, false, y->data);
+  Spinor psitemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, x->data);
+  NumTns<Scalar> a3(ntot, ncom, noccLocal, false, y->data);
 
 	SetValue( a3, SCALAR_ZERO ); // IMPORTANT
   hamPtr_->MultSpinor(psitemp, a3, *fftPtr_);
@@ -238,7 +239,7 @@ SEigenSolver::Solve	()
   lobpcg_tol.absolute = eigTolerance_;
   lobpcg_tol.relative = eigTolerance_;
 
-  SerialSetupInterpreter ( &ii );
+  serialSetupInterpreter ( &ii );
   xx = mv_MultiVectorWrap( &ii, x, 0);
 
   Int iterations;
@@ -357,14 +358,15 @@ BlopexInt PEigenSolver::HamiltonianMult
 #endif
   Int ntot = psiPtr_->NumGridTotal();
   Int ncom = psiPtr_->NumComponent();
-  Int nocc = psiPtr_->NumState();
-
-	if( (x->size * x->num_vectors) != ntot*ncom*nocc ) {
+  Int noccLocal = psiPtr_->NumState();
+  Int noccTotal = psiPtr_->NumState();
+	
+  if( (x->size * x->num_vectors) != ntot*ncom*noccLocal ) {
 		throw std::logic_error("Vector size does not match.");
 	}
 
-  Spinor psitemp(fftPtr_->domain, ncom, nocc, false, x->data);
-  NumTns<Scalar> a3(ntot, ncom, nocc, false, y->data);
+  Spinor psitemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, x->data);
+  NumTns<Scalar> a3(ntot, ncom, noccLocal, false, y->data);
 
 	SetValue( a3, SCALAR_ZERO ); // IMPORTANT
   hamPtr_->MultSpinor(psitemp, a3, *fftPtr_);
@@ -490,12 +492,15 @@ PEigenSolver::Solve	()
   parallel_Multi_Vector *x;
   x = (parallel_Multi_Vector*)malloc(sizeof(parallel_Multi_Vector));
 
+  // FIXME Convert information of spinor to parallel_Multi_Vector
   x->data = psiPtr_->Wavefun().Data();
   x->owns_data = 0;
   x->size = psiPtr_->NumGridTotal() * psiPtr_->NumComponent();
   x->num_vectors = psiPtr_->NumState();
   x->num_active_vectors = x->num_vectors;
   x->active_indices = (BlopexInt*)malloc(sizeof(BlopexInt)*x->num_active_vectors);
+
+
   for (Int i=0; i<x->num_active_vectors; i++) x->active_indices[i] = i;
 
   mv_MultiVectorPtr xx;

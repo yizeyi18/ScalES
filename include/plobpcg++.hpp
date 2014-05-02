@@ -47,6 +47,7 @@
 #define _PLOBPCG_HPP_
 
 #include "environment.hpp"
+#include "mpi_interf.hpp"
 
 #include "fortran_matrix.h"
 #include "fortran_interpreter.h"
@@ -69,19 +70,115 @@
 
 
 namespace dgdft{ 
-namespace LOBPCG{
+namespace PLOBPCG{
+  //----------------------------------------------------------------
+  // Definition of LAPACK functions used in LOBPCG (complex
+  // version).  The komplex data structure used by LOBPCG is defined in
+  // LOBPCG/fortran_matrix.h. Overloads the functions in lapack.h.
+  extern "C"{
+    void LAPACK(dpotrf) (char *uplo, BlopexInt *n,
+                 double *a, BlopexInt * lda, BlopexInt *info);
+    void LAPACK(dsygv)  (BlopexInt *itype, char *jobz, char *uplo, BlopexInt * n,
+                 double *a, BlopexInt *lda, double *b, BlopexInt *ldb,
+                 double *w, double *work, BlopexInt *lwork, BlopexInt *info);
+    void LAPACK(zpotrf) (char *uplo, BlopexInt *n,
+		  komplex *a, BlopexInt *lda, BlopexInt *info);
+    void LAPACK(zhegv) (BlopexInt *itype, char *jobz, char *uplo, BlopexInt * n,
+	       komplex *a, BlopexInt *lda, komplex *b, BlopexInt *ldb,
+	       double *w, komplex *work, BlopexInt *lwork,
+	       double * rwork,BlopexInt *info);
+  }
+
   //----------------------------------------------------------------
   class parallel_Multi_Vector {
     public:
+
+      MPI_Comm       comm;                            // MPI Communicator
+      
       Scalar*        data;
       BlopexInt      size;
       BlopexInt      owns_data;
-      BlopexInt      num_vectors;  /* the above "size" is size of one vector */
+      BlopexInt      num_vectors;        /* The local number of eigenvectors */
+      BlopexInt      numTotal_vectors;  /* The total number of eigenvectors */
 
-      BlopexInt      num_active_vectors;
-      BlopexInt*     active_indices;   /* indices of active vectors; 0-based notation */
+      BlopexInt      num_active_vectors; /* Local number of active vectors */
+      BlopexInt*     active_indices;   /* indices of local active vectors; 0-based notation */
+      // FIXME
+      BlopexInt*     global_indices; /* Global indices of each eigenvector. size: num_vectors_local */
   };
 
+  // From pcg_multi.h
+  void*
+    CreateCopyMultiVector( void*, BlopexInt copyValues );
+  void
+    DestroyMultiVector( void* );
+  BlopexInt
+    MultiVectorWidth( void* v );
+  BlopexInt
+    MultiVectorHeight( void* v );
+  void
+    MultiSetMask( void *vector, BlopexInt *mask );
+  void
+    CopyMultiVector( void* src, void* dest );
+  void
+    ClearMultiVector( void* );
+  void
+    MultiInnerProd( void*, void*,
+		    BlopexInt gh, BlopexInt h, BlopexInt w, void* v );
+  void
+    MultiInnerProdDiag( void* x, void* y,
+			BlopexInt* mask, BlopexInt n, void* diag );
+  void
+    MultiVectorByMatrix( void*,
+			 BlopexInt gh, BlopexInt h, BlopexInt w, void* v,
+			 void* );
+  void MultiVectorByDiagonal( void* x,
+			      BlopexInt* mask, BlopexInt n, void* diag,
+			      void* y );
+  void
+    MultiVectorAxpy( double, void*, void* );
+
+  BlopexInt
+    parallelSetupInterpreter( mv_InterfaceInterpreter *i );
+  void
+    MultiVectorPrint(  void   *x, char* tag, BlopexInt limit);
+
+  // From multi_vector.h  
+  parallel_Multi_Vector * parallel_Multi_VectorCreate( BlopexInt size, BlopexInt num_vectors  );
+  parallel_Multi_Vector * parallel_Multi_VectorRead( char *file_name );
+
+  BlopexInt parallel_Multi_VectorDestroy( parallel_Multi_Vector *vector );
+  BlopexInt parallel_Multi_VectorInitialize( parallel_Multi_Vector *vector );
+  BlopexInt parallel_Multi_VectorSetDataOwner(parallel_Multi_Vector *vector , BlopexInt owns_data);
+  /*
+     BlopexInt parallel_Multi_VectorPrint( parallel_Multi_Vector *vector, const char *file_name );
+     */
+  BlopexInt parallel_Multi_VectorPrint( parallel_Multi_Vector *vector, char * tag, BlopexInt limit);
+
+  BlopexInt parallel_Multi_VectorSetConstantValues(parallel_Multi_Vector *v,Scalar value);
+  BlopexInt parallel_Multi_VectorCopy( parallel_Multi_Vector *x , parallel_Multi_Vector *y);
+  BlopexInt parallel_Multi_VectorAxpy( double alpha , parallel_Multi_Vector *x , parallel_Multi_Vector *y);
+  BlopexInt parallel_Multi_VectorInnerProd( parallel_Multi_Vector *x,
+					  parallel_Multi_Vector *y,
+					  BlopexInt gh, BlopexInt h, BlopexInt w, Scalar* v);
+
+  BlopexInt parallel_Multi_VectorByDiag( parallel_Multi_Vector *x,
+				       BlopexInt                *mask,
+				       BlopexInt                n,
+				       Scalar                   *alpha,
+				       parallel_Multi_Vector      *y);
+
+  BlopexInt parallel_Multi_VectorInnerProdDiag( parallel_Multi_Vector *x,
+					      parallel_Multi_Vector *y,
+					      BlopexInt* mask, BlopexInt n, Scalar* diag);
+
+  BlopexInt
+    parallel_Multi_VectorSetMask(parallel_Multi_Vector *mvector, BlopexInt * mask);
+  BlopexInt
+    parallel_Multi_VectorCopyWithoutMask(parallel_Multi_Vector *x , parallel_Multi_Vector *y);
+  BlopexInt
+    parallel_Multi_VectorByMatrix(parallel_Multi_Vector *x, BlopexInt rGHeight, BlopexInt rHeight,
+				BlopexInt rWidth, Scalar* rVal, parallel_Multi_Vector *y);
 } // namespace LOBPCG 
 } // namespace dgdft
 

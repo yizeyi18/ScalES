@@ -98,6 +98,7 @@ SCFDG::~SCFDG	(  )
 #ifndef _RELEASE_
 	PushCallStack("SCFDG::~SCFDG");
 #endif
+#ifdef _USE_PEXSI_
   if( isPEXSIInitialized_ == true ){
     Int info;
     PPEXSIPlanFinalize(
@@ -110,6 +111,7 @@ SCFDG::~SCFDG	(  )
       throw std::runtime_error( msg.str().c_str() );
     }
   }
+#endif
 #ifndef _RELEASE_
 	PopCallStack();
 #endif

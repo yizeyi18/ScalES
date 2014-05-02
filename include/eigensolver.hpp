@@ -60,7 +60,7 @@
 namespace dgdft{
 
 using namespace dgdft::LOBPCG;
-
+using namespace dgdft::PLOBPCG;
 
 class EigenSolver
 {
@@ -84,9 +84,9 @@ public:
 
 	// ********************  LIFECYCLE   *******************************
 
-	EigenSolver () {};
+	EigenSolver () {}
 
-	virtual ~EigenSolver() {};
+	virtual ~EigenSolver(){}
 
 	// ********************  OPERATORS   *******************************
 
@@ -96,8 +96,8 @@ public:
 			Spinor& psi,
 			Fourier& fft ) {};
 
-	virtual BlopexInt HamiltonianMult (serial_Multi_Vector *x, serial_Multi_Vector *y) {};
-	virtual BlopexInt PrecondMult     (serial_Multi_Vector *x, serial_Multi_Vector *y) {};
+	virtual BlopexInt HamiltonianMult (LOBPCG::serial_Multi_Vector *x, LOBPCG::serial_Multi_Vector *y) {};
+	virtual BlopexInt PrecondMult     (LOBPCG::serial_Multi_Vector *x, LOBPCG::serial_Multi_Vector *y) {};
 
 	// Specific for DiracKohnSham
 //	static void lobpcg_apply_preconditioner_DKS  (void *A, void *X, void *AX);
@@ -133,9 +133,9 @@ public:
 
 	// ********************  LIFECYCLE   *******************************
 
-	SEigenSolver () {};
+	SEigenSolver () {}
 
-	~SEigenSolver() {};
+	virtual ~SEigenSolver() {}
 
 	// ********************  OPERATORS   *******************************
 
@@ -148,8 +148,8 @@ public:
 	static void LOBPCGHamiltonianMult(void *A, void *X, void *AX);
 	static void LOBPCGPrecondMult    (void *A, void *X, void *AX);
 
-	virtual BlopexInt HamiltonianMult (serial_Multi_Vector *x, serial_Multi_Vector *y);
-	virtual BlopexInt PrecondMult     (serial_Multi_Vector *x, serial_Multi_Vector *y);
+	virtual BlopexInt HamiltonianMult (LOBPCG::serial_Multi_Vector *x, LOBPCG::serial_Multi_Vector *y);
+	virtual BlopexInt PrecondMult     (LOBPCG::serial_Multi_Vector *x, LOBPCG::serial_Multi_Vector *y);
 
 	// ********************  OPERATIONS  *******************************
 	// Solve the eigenvalue problem using BLOPEX.
@@ -170,9 +170,9 @@ public:
 
 	// ********************  LIFECYCLE   *******************************
 
-	PEigenSolver ();
+	PEigenSolver () {}
 
-	~PEigenSolver();
+	virtual ~PEigenSolver() {}
 
 	// ********************  OPERATORS   *******************************
 
@@ -185,8 +185,8 @@ public:
 	static void LOBPCGHamiltonianMult(void *A, void *X, void *AX);
 	static void LOBPCGPrecondMult    (void *A, void *X, void *AX);
 
-	virtual BlopexInt HamiltonianMult (parallel_Multi_Vector *x, parallel_Multi_Vector *y);
-	virtual BlopexInt PrecondMult     (parallel_Multi_Vector *x, parallel_Multi_Vector *y);
+	virtual BlopexInt HamiltonianMult (PLOBPCG::parallel_Multi_Vector *x, PLOBPCG::parallel_Multi_Vector *y);
+	virtual BlopexInt PrecondMult     (PLOBPCG::parallel_Multi_Vector *x, PLOBPCG::parallel_Multi_Vector *y);
 
 	// ********************  OPERATIONS  *******************************
 	// Solve the eigenvalue problem using BLOPEX.

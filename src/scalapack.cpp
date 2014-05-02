@@ -78,6 +78,8 @@ extern "C"{
       Int *iwork, const Int *liwork, Int *info);
 
 
+  /// FIXME
+  void SCALAPACK(pdgemm)();
 
 
   void SCALAPACK(pdgemr2d)(const Int* m, const Int* n, const double* A, const Int* ia, 

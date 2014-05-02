@@ -262,6 +262,14 @@ public:
 void
 Gemr2d(const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B);
 
+/// FIXME: Add a function GEMM
+void
+Gemm(
+    const ScaLAPACKMatrix<double>& A, 
+    const ScaLAPACKMatrix<double>& B,
+    ScaLAPACKMatrix<double>& C );
+
+
 /// @brief Solve triangular matrix equation
 ///
 /// @param[in]     A (local) Contains the local entries of the matrix A.

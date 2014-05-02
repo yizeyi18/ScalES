@@ -161,7 +161,8 @@ int main(int argc, char **argv)
     Fourier fftFine;
 		Spinor  spn;
 		KohnSham hamKS;
-		SEigenSolver eigSol;
+//    EigenSolver eigSol;
+    PEigenSolver eigSol;
 		SCF  scf;
 
 		ptable.Setup( esdfParam.periodTableFile );
@@ -184,7 +185,9 @@ int main(int argc, char **argv)
 		statusOFS << "Hamiltonian constructed." << std::endl;
 
 		// Wavefunctions
-		spn.Setup( dm, 1, hamKS.NumStateTotal(), 0.0 );
+    // FIXME Partition the spinor here.
+    Int numStateLocal; 
+    spn.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
 		UniformRandom( spn.Wavefun() );
 
 		// Eigensolver class

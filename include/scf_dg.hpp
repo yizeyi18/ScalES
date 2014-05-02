@@ -96,8 +96,10 @@ private:
   std::string         solutionMethod_;
 
   // PEXSI parameters
+#ifdef _USE_PEXSI_
   PPEXSIPlan          pexsiPlan_;
   PPEXSIOptions       pexsiOptions_;
+#endif
 
   bool                isPEXSIInitialized_;
   Int                 numProcRowPEXSI_;

@@ -208,9 +208,9 @@ void
 
 BlopexInt
 	/*--------------------------------------------------------------------------
-		SerialSetupInterpreter                                             generic
+		serialSetupInterpreter                                             generic
 		--------------------------------------------------------------------------*/
-	SerialSetupInterpreter( mv_InterfaceInterpreter *i )
+	serialSetupInterpreter( mv_InterfaceInterpreter *i )
 	{
 		/* Vector part */
 
