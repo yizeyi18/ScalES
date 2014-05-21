@@ -315,4 +315,394 @@ EigenSolver::Solve	()
 } 		// -----  end of method EigenSolver::Solve  ----- 
 
 
+void
+EigenSolver::LOBPCGSolveReal	( Int numEig )
+{
+#ifndef _RELEASE_
+	PushCallStack("EigenSolver::LOBPCGSolveReal");
+#endif
+
+  // *********************************************************************
+  // Initialization
+  // *********************************************************************
+  Int ntot = psiPtr_->NumGridTotal();
+  Int ncom = psiPtr_->NumComponent();
+  Int nocc = psiPtr_->NumState();
+
+  Int height = ntot * ncom, width = nocc;
+  Int lda = 3 * width;
+
+  if( numEig > width ){
+    std::ostringstream msg;
+    msg 
+      << "Number of eigenvalues requested  = " << numEig << std::endl
+      << "which is larger than the number of columns in psi = " << width << std::endl;
+    throw std::runtime_error( msg.str().c_str() );
+  }
+
+
+
+  DblNumMat  AMat( 3*width, 3*width ), BMat( 3*width, 3*width );
+  DblNumMat  AMatSave( 3*width, 3*width ), BMatSave( 3*width, 3*width );
+  DblNumMat  XTX( width, width );
+  DblNumMat  S( height, 3*width ), AS( height, 3*width ); 
+  DblNumMat  Xtemp( height, width );
+  DblNumVec  resNorm( width );
+
+  // For convenience
+  DblNumMat  X( height, width, false, S.VecData(0) );
+  DblNumMat  W( height, width, false, S.VecData(width) );
+  DblNumMat  P( height, width, false, S.VecData(2*width) );
+  DblNumMat AX( height, width, false, AS.VecData(0) );
+  DblNumMat AW( height, width, false, AS.VecData(width) );
+  DblNumMat AP( height, width, false, AS.VecData(2*width) );
+
+  
+  Int info;
+  bool isRestart = false;
+  // numSet = 2    : Steepest descent (Davidson)
+  //        = 3    : Conjugate gradient
+  Int numSet = 2;
+  Int numLocked = 0, numLockedSave = 0, numActive;
+  Real lockTolerance = std::min( eigTolerance_, 1e-2 );
+
+  //
+  SetValue( S, 0.0 );
+  SetValue( AS, 0.0 );
+	eigVal_.Resize(lda);  
+  SetValue(eigVal_, 0.0);
+
+  // Initialize X by the data in psi
+  blas::Copy( height * width, psiPtr_->Wavefun().Data(), 1, X.Data(), 1 );
+
+  // *********************************************************************
+  // Main loop
+  // *********************************************************************
+
+  // Orthogonalization through Cholesky factorization
+  blas::Gemm( 'T', 'N', width, width, height, 1.0, X.Data(), 
+     height, X.Data(), height, 0.0, XTX.Data(), width );
+
+  lapack::Potrf( 'U', width, XTX.Data(), width );
+
+  blas::Trsm( 'R', 'U', 'N', 'N', height, width, 1.0, XTX.Data(), width, 
+      X.Data(), height );
+
+
+  // Applying the Hamiltonian matrix
+
+  {
+    Spinor spnTemp(fftPtr_->domain, ncom, width, false, X.Data());
+    NumTns<Scalar> tnsTemp(ntot, ncom, width, false, AX.Data());
+
+    hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+  }
+
+  for( Int iter = 1; iter <= eigMaxIter_; iter++ ){
+    if( iter == 1 || isRestart == true )
+      numSet = 2;
+    else
+      numSet = 3;
+
+    SetValue( AMat, 0.0 );
+    SetValue( BMat, 0.0 );
+
+    // Rayleigh Ritz in Q = span( X, gradient )
+
+    // X' * (AX)
+
+    blas::Gemm( 'T', 'N', width, width, height, 1.0, X.Data(),
+        height, AX.Data(), height, 0.0, XTX.Data(), width );
+
+    
+    lapack::Lacpy( 'A', width, width, XTX.Data(), width, AMat.Data(), lda );
+
+    // Compute the residual
+    lapack::Lacpy( 'A', height, width, AX.Data(), height, Xtemp.Data(), height );
+
+    blas::Gemm( 'N', 'N', height, width, width, -1.0, 
+        X.Data(), height, AMat.Data(), lda, 1.0, Xtemp.Data(), height );
+
+    // Compute the norm of the residual
+    for( Int k = 0; k < width; k++ ){
+      resNorm(k) = std::sqrt( Energy(DblNumVec(height, false, Xtemp.VecData(k))) ) / 
+        std::max( 1.0, std::abs( XTX(k,k) ) );
+    }
+
+    Real resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
+    Real resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
+
+#if ( _DEBUGlevel_ >= 0 )
+    std::cout << "resNorm = " << resNorm << std::endl;
+    std::cout << "maxRes  = " << resMax  << std::endl;
+    std::cout << "minRes  = " << resMin  << std::endl;
+#endif
+
+    if( resMax < eigTolerance_ ){
+      statusOFS << "Convergence is reached." << std::endl;
+      break;
+    }
+
+    // Locking according to the residual value
+    numLockedSave = numLocked;
+    numLocked = 0;
+    for( Int k = 0; k < numEig; k++ ){
+      if( resNorm(k) < lockTolerance )
+        numLocked++;
+      else
+        break;
+    }
+    numActive = width - numLocked;
+
+    // If the number of locked vectors goes down, perform steppest
+    // descent rather than conjugate gradient
+    if( numLocked < numLockedSave )
+      numSet = 2;
+
+    // Compute the preconditioned residual W = T*R
+    {
+      Spinor spnTemp(fftPtr_->domain, ncom, width-numLocked, false, Xtemp.VecData(numLocked));
+      NumTns<Scalar> tnsTemp(ntot, ncom, width-numLocked, false, W.VecData(numLocked));
+
+      SetValue( tnsTemp, 0.0 );
+      spnTemp.AddTeterPrecond( fftPtr_, tnsTemp );
+    }
+    
+    // Compute AMat
+    // AMat = (X'*AX   X'*AW   X'*AP)
+    //      = (  *     W'*AW   W'*AP)
+    //      = (  *       *     P'*AP)
+
+    // Compute AW = A*W
+    {
+      Spinor spnTemp(fftPtr_->domain, ncom, width-numLocked, false, W.VecData(numLocked));
+      NumTns<Scalar> tnsTemp(ntot, ncom, width-numLocked, false, AW.VecData(numLocked));
+
+      hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+    }
+
+    // Compute X' * (AW)
+    blas::Gemm( 'T', 'N', width, numActive, height, 1.0, X.Data(),
+        height, AW.VecData(numLocked), height, 
+        0.0, &AMat(0,width), lda );
+
+    // Compute W' * (AW)
+    blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
+        W.VecData(numLocked), height, AW.VecData(numLocked), height, 
+        0.0, &AMat(width, width), lda );
+
+    if( numSet == 3 ){
+      // Compute X' * (AP)
+      blas::Gemm( 'T', 'N', width, numActive, height, 1.0,
+          X.Data(), height, AP.VecData(numLocked), height, 
+          0.0, &AMat(0, width+numActive), lda );
+
+      // Compute W' * (AP)
+      blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
+          W.VecData(numLocked), height, AP.VecData(numLocked), height, 
+          0.0, &AMat(width, width+numActive), lda );
+
+      // Compute P' * (AP)
+      blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
+          P.VecData(numLocked), height, AP.VecData(numLocked), height, 
+          0.0, &AMat(width+numActive, width+numActive), lda );
+    }
+
+    // Compute BMat (overlap matrix)
+    // BMat = (X'*X   X'*W   X'*P)
+    //      = (  *    W'*W   W'*P)
+    //      = (  *      *    P'*P)
+
+    // Compute X'*X
+    blas::Gemm( 'T', 'N', width, width, height, 1.0, 
+        X.Data(), height, X.Data(), height, 
+        0.0, &BMat(0,0), lda );
+
+    // Compute X'*W
+    blas::Gemm( 'T', 'N', width, numActive, height, 1.0,
+        X.Data(), height, W.VecData(numLocked), height,
+        0.0, &BMat(0,width), lda );
+
+    // Compute W'*W
+    blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
+        W.VecData(numLocked), height, W.VecData(numLocked), height,
+        0.0, &BMat(width, width), lda );
+
+    if( numSet == 3 ){
+      // Compute X'*P
+      blas::Gemm( 'T', 'N', width, numActive, height, 1.0,
+          X.Data(), height, P.VecData(numLocked), height, 
+          0.0, &BMat(0, width+numActive), lda );
+      
+      // Compute W'*P
+      blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
+          W.VecData(numLocked), height, P.VecData(numLocked), height,
+          0.0, &BMat(width, width+numActive), lda );
+
+      // Compute P'*P
+      blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
+          P.VecData(numLocked), height, P.VecData(numLocked), height,
+          0.0, &BMat(width+numActive, width+numActive), lda );
+    }
+
+    // Keep a copy of the A and B matrices for restarting purpose
+    lapack::Lacpy( 'A', lda, lda, AMat.Data(), lda, AMatSave.Data(), lda );
+    lapack::Lacpy( 'A', lda, lda, BMat.Data(), lda, BMatSave.Data(), lda );
+
+    isRestart = false;
+
+    // Rayleigh-Ritz procedure
+    if( numSet == 3 ){
+      // Conjugate gradient
+      Int numCol = width + 2 * numActive;
+
+      lapack::Potrf( 'U', numCol, BMat.Data(), lda );
+
+      // TODO Add Pocon and restart strategy
+      lapack::Hegst( 1, 'U', numCol, AMat.Data(), lda,
+          BMat.Data(), lda );
+
+      lapack::Syevd( 'V', 'U', numCol, AMat.Data(), lda, 
+          eigVal_.Data() );
+
+      blas::Trsm( 'L', 'U', 'N', 'N', numCol, numCol, 1.0, 
+          BMat.Data(), lda, AMat.Data(), lda );
+
+
+      // TODO Add Pocon and restart strategy, and try steepest descent first
+    }
+    
+    
+    if( numSet == 2 ){
+      // Steepest descent
+      Int numCol = width + numActive;
+
+//      std::cout << "BMat (before fact) = " << BMat << std::endl;
+
+      lapack::Potrf( 'U', numCol, BMat.Data(), lda );
+
+//      std::cout << "BMat (after fact) = " << BMat << std::endl;
+
+      // TODO Add Pocon and restart strategy
+      lapack::Hegst( 1, 'U', numCol, AMat.Data(), lda,
+          BMat.Data(), lda );
+
+      lapack::Syevd( 'V', 'U', numCol, AMat.Data(), lda, 
+          eigVal_.Data() );
+
+      blas::Trsm( 'L', 'U', 'N', 'N', numCol, numCol, 1.0, 
+          BMat.Data(), lda, AMat.Data(), lda );
+
+
+      // TODO Add Pocon and restart strategy
+    }
+
+
+    if( isRestart ){
+      // TODO Add restart strategy
+    }
+    else{
+      // Update X and P
+      if( numSet == 2 ){
+        // Update the eigenvectors 
+        // X <- X * C_X + W * C_W
+        blas::Gemm( 'N', 'N', height, width, width, 1.0,
+            X.Data(), height, &AMat(0,0), lda,
+            0.0, Xtemp.Data(), height );
+
+        blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
+            W.VecData(numLocked), height, &AMat(width,0), lda,
+            1.0, Xtemp.Data(), height );
+
+        // Save the result into X
+        lapack::Lacpy( 'A', height, width, Xtemp.Data(), height, 
+            X.Data(), height );
+        lapack::Lacpy( 'A', height, numActive, W.VecData(numLocked), 
+            height, P.VecData(numLocked), height );
+      }
+      else{
+        // Compute the conjugate direction
+        // P <- W * C_W + P * C_P
+        blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
+            W.VecData(numLocked), height, &AMat(width, 0), lda, 
+            0.0, Xtemp.Data(), height );
+
+        blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
+            P.VecData(numLocked), height, &AMat(width+numActive,0), lda,
+            1.0, Xtemp.Data(), height );
+
+        lapack::Lacpy( 'A', height, numActive, Xtemp.VecData(numLocked), 
+            height, P.VecData(numLocked), height );
+
+        // Update the eigenvectors
+        // X <- X * C_X + P
+        blas::Gemm( 'N', 'N', height, width, width, 1.0, 
+            X.Data(), height, &AMat(0,0), lda, 
+            1.0, Xtemp.Data(), height );
+
+        lapack::Lacpy( 'A', height, width, Xtemp.Data(), height,
+            X.Data(), height );
+      } // if ( numSet == 2 )
+    } // if ( isRestart )
+
+    // Update AX and AP
+    if( numSet == 2 ){
+      // AX <- AX * C_X + AW * C_W
+      blas::Gemm( 'N', 'N', height, width, width, 1.0,
+          AX.Data(), height, &AMat(0,0), lda,
+          0.0, Xtemp.Data(), height );
+
+      blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
+          AW.VecData(numLocked), height, &AMat(width,0), lda,
+          1.0, Xtemp.Data(), height );
+
+      lapack::Lacpy( 'A', height, width, Xtemp.Data(), height,
+          AX.Data(), height );
+
+      // AP <- AW
+      lapack::Lacpy( 'A', height, numActive, AW.VecData(numLocked), height,
+          AP.VecData(numLocked), height );
+    }
+    else{
+      // AP <- AW * C_W + A_P * C_P
+      blas::Gemm( 'N', 'N', height, width, numActive, 1.0, 
+          AW.VecData(numLocked), height, &AMat(width,0), lda,
+          0.0, Xtemp.Data(), height );
+
+      blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
+          AP.VecData(numLocked), height, &AMat(width+numActive, 0), lda,
+          1.0, Xtemp.Data(), height );
+
+      lapack::Lacpy( 'A', height, numActive, Xtemp.VecData(numLocked), 
+          height, AP.VecData(numLocked), height );
+
+      // AX <- AX * C_X + AP
+      blas::Gemm( 'N', 'N', height, width, width, 1.0,
+          AX.Data(), height, &AMat(0,0), lda,
+          1.0, Xtemp.Data(), height );
+
+      lapack::Lacpy( 'A', height, width, Xtemp.Data(), height, 
+          AX.Data(), height );
+    } // if ( numSet == 2 )
+
+
+    std::cout << "numLocked = " << numLocked << std::endl;
+    std::cout << "eigval    = " << eigVal_ << std::endl;
+
+
+  } // for (iter)
+
+
+
+  // *********************************************************************
+  // Post processing
+  // *********************************************************************
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method EigenSolver::LOBPCGSolveReal  ----- 
+
+
 } // namespace dgdft

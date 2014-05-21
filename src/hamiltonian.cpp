@@ -791,12 +791,34 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 #pragma omp parallel
   {
 #endif
-	psi.AddScalarDiag( vtotCoarse_, a3 );
-	psi.AddLaplacian( a3, &fft );
-  psi.AddNonlocalPP( pseudo_, a3 );
+    // FIXME
+    psi.AddScalarDiag( vtotCoarse_, a3 );
+    psi.AddLaplacian( &fft, a3 );
+    psi.AddNonlocalPP( pseudo_, a3 );
 #ifdef _USE_OPENMP_
   }
 #endif
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method KohnSham::MultSpinor  ----- 
+
+void
+KohnSham::MultSpinor	( Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft )
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::MultSpinor");
+#endif
+  // Make sure that the address corresponding to the pointer y has been
+  // allocated.
+  SetValue( y, SCALAR_ZERO );
+
+	psi.AddScalarDiag( iocc, vtotCoarse_, y );
+	psi.AddLaplacian( iocc, &fft, y );
+  psi.AddNonlocalPP( iocc, pseudo_, y );
 
 #ifndef _RELEASE_
 	PopCallStack();
