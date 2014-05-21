@@ -200,7 +200,7 @@ int main(int argc, char **argv)
       pseudo[a] = PseudoPot();
     }
 
-    eigSol.LOBPCGSolveReal( 3 );
+    eigSol.LOBPCGSolveReal( );
 
 //
 //		GetTime( timeSta );

@@ -316,7 +316,7 @@ EigenSolver::Solve	()
 
 
 void
-EigenSolver::LOBPCGSolveReal	( Int numEig )
+EigenSolver::LOBPCGSolveReal	( )
 {
 #ifndef _RELEASE_
 	PushCallStack("EigenSolver::LOBPCGSolveReal");
@@ -331,6 +331,9 @@ EigenSolver::LOBPCGSolveReal	( Int numEig )
 
   Int height = ntot * ncom, width = nocc;
   Int lda = 3 * width;
+
+  // TODO It could be possible to introduce numEig as a tunable parameter.
+  Int numEig = width;
 
   if( numEig > width ){
     std::ostringstream msg;
@@ -369,11 +372,13 @@ EigenSolver::LOBPCGSolveReal	( Int numEig )
   //
   SetValue( S, 0.0 );
   SetValue( AS, 0.0 );
-	eigVal_.Resize(lda);  
-  SetValue(eigVal_, 0.0);
+
+  DblNumVec  eigValS(lda);
+  SetValue( eigValS, 0.0 );
 
   // Initialize X by the data in psi
-  blas::Copy( height * width, psiPtr_->Wavefun().Data(), 1, X.Data(), 1 );
+  lapack::Lacpy( 'A', height, width, psiPtr_->Wavefun().Data(), height, 
+      X.Data(), height );
 
   // *********************************************************************
   // Main loop
@@ -399,6 +404,11 @@ EigenSolver::LOBPCGSolveReal	( Int numEig )
   }
 
   for( Int iter = 1; iter <= eigMaxIter_; iter++ ){
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "iter = " << iter << std::endl;
+#endif
+
+
     if( iter == 1 || isRestart == true )
       numSet = 2;
     else
@@ -433,9 +443,9 @@ EigenSolver::LOBPCGSolveReal	( Int numEig )
     Real resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
 
 #if ( _DEBUGlevel_ >= 0 )
-    std::cout << "resNorm = " << resNorm << std::endl;
-    std::cout << "maxRes  = " << resMax  << std::endl;
-    std::cout << "minRes  = " << resMin  << std::endl;
+    statusOFS << "resNorm = " << resNorm << std::endl;
+    statusOFS << "maxRes  = " << resMax  << std::endl;
+    statusOFS << "minRes  = " << resMin  << std::endl;
 #endif
 
     if( resMax < eigTolerance_ ){
@@ -563,7 +573,7 @@ EigenSolver::LOBPCGSolveReal	( Int numEig )
           BMat.Data(), lda );
 
       lapack::Syevd( 'V', 'U', numCol, AMat.Data(), lda, 
-          eigVal_.Data() );
+          eigValS.Data() );
 
       blas::Trsm( 'L', 'U', 'N', 'N', numCol, numCol, 1.0, 
           BMat.Data(), lda, AMat.Data(), lda );
@@ -577,18 +587,14 @@ EigenSolver::LOBPCGSolveReal	( Int numEig )
       // Steepest descent
       Int numCol = width + numActive;
 
-//      std::cout << "BMat (before fact) = " << BMat << std::endl;
-
       lapack::Potrf( 'U', numCol, BMat.Data(), lda );
-
-//      std::cout << "BMat (after fact) = " << BMat << std::endl;
 
       // TODO Add Pocon and restart strategy
       lapack::Hegst( 1, 'U', numCol, AMat.Data(), lda,
           BMat.Data(), lda );
 
       lapack::Syevd( 'V', 'U', numCol, AMat.Data(), lda, 
-          eigVal_.Data() );
+          eigValS.Data() );
 
       blas::Trsm( 'L', 'U', 'N', 'N', numCol, numCol, 1.0, 
           BMat.Data(), lda, AMat.Data(), lda );
@@ -686,8 +692,10 @@ EigenSolver::LOBPCGSolveReal	( Int numEig )
     } // if ( numSet == 2 )
 
 
-    std::cout << "numLocked = " << numLocked << std::endl;
-    std::cout << "eigval    = " << eigVal_ << std::endl;
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "numLocked = " << numLocked << std::endl;
+    statusOFS << "eigValS   = " << eigValS << std::endl;
+#endif
 
 
   } // for (iter)
@@ -697,6 +705,33 @@ EigenSolver::LOBPCGSolveReal	( Int numEig )
   // *********************************************************************
   // Post processing
   // *********************************************************************
+
+  // Obtain the eigenvalues and orthogonalize the eigenvectors
+  lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
+
+  blas::Gemm( 'N', 'N', height, width, width, 1.0, X.Data(),
+      height, XTX.Data(), width, 0.0, Xtemp.Data(), height );
+
+  lapack::Lacpy( 'A', height, width, Xtemp.Data(), height,
+      X.Data(), height );
+
+#if ( _DEBUGlevel_ >= 0 )
+
+  blas::Gemm( 'T', 'N', width, width, height, 1.0, X.Data(), 
+      height, X.Data(), height, 0.0, XTX.Data(), width );
+  
+  statusOFS << "After the LOBPCG, XTX = " << XTX << std::endl;
+#endif
+
+  // Save the eigenvalues and eigenvectors back to the eigensolver data
+  // structure
+
+  eigVal_ = DblNumVec( numEig, true, eigValS.Data() );
+	hamPtr_->EigVal() = eigVal_;
+
+  lapack::Lacpy( 'A', height, width, X.Data(), height, 
+      psiPtr_->Wavefun().Data(), height );
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif

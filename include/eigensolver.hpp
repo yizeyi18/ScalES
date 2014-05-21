@@ -114,7 +114,8 @@ public:
   // stable than blopex.
   // Originally written by Chao Yang in FORTRAN, and is now adapted to
   // the C++ version.
-  void LOBPCGSolveReal( Int numEig );
+  // TODO: The restart mechanism has not been implemented.
+  void LOBPCGSolveReal();
 
 	// ********************  ACCESS      *******************************
 	DblNumVec& EigVal() { return eigVal_; }
