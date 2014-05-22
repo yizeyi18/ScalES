@@ -48,6 +48,8 @@
 #include  "blas.hpp"
 #include  "lapack.hpp"
 
+#define _DEBUGlevel_ 0
+
 namespace dgdft{
 
 EigenSolver::EigenSolver() {}
@@ -754,7 +756,7 @@ EigenSolver::LOBPCGSolveReal	( )
   lapack::Lacpy( 'A', height, width, Xtemp.Data(), height,
       X.Data(), height );
 
-#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 2 )
 
   blas::Gemm( 'T', 'N', width, width, height, 1.0, X.Data(), 
       height, X.Data(), height, 0.0, XTX.Data(), width );
