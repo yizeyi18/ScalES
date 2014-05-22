@@ -420,7 +420,6 @@ EigenSolver::LOBPCGSolveReal	( )
 
 
   // Applying the Hamiltonian matrix
-
   {
     Spinor spnTemp(fftPtr_->domain, ncom, width, false, X.Data());
     NumTns<Scalar> tnsTemp(ntot, ncom, width, false, AX.Data());
@@ -505,7 +504,22 @@ EigenSolver::LOBPCGSolveReal	( )
       SetValue( tnsTemp, 0.0 );
       spnTemp.AddTeterPrecond( fftPtr_, tnsTemp );
     }
-    
+
+    // Normalize the preconditioned residual
+    for( Int k = numLocked; k < width; k++ ){
+      Real norm = std::sqrt( Energy(DblNumVec(height, false, W.VecData(k))) );
+      blas::Scal( height, 1.0 / norm, W.VecData(k), 1 );
+    }
+   
+    // Normalize the conjugate direction
+    if( numSet == 3 ){
+      for( Int k = numLocked; k < width; k++ ){
+        Real norm = std::sqrt( Energy(DblNumVec(height, false, P.VecData(k))) );
+        blas::Scal( height, 1.0 / norm, P.VecData(k), 1 );
+        blas::Scal( height, 1.0 / norm, AP.VecData(k), 1 );
+      }
+    }
+
     // Compute AMat
 
     // Compute AW = A*W
@@ -564,6 +578,7 @@ EigenSolver::LOBPCGSolveReal	( )
         W.VecData(numLocked), height, W.VecData(numLocked), height,
         0.0, &BMat(width, width), lda );
 
+
     if( numSet == 3 ){
       // Compute X'*P
       blas::Gemm( 'T', 'N', width, numActive, height, 1.0,
@@ -580,6 +595,25 @@ EigenSolver::LOBPCGSolveReal	( )
           P.VecData(numLocked), height, P.VecData(numLocked), height,
           0.0, &BMat(width+numActive, width+numActive), lda );
     }
+
+#if ( _DEBUGlevel_ >= 2 )
+    {
+      DblNumMat WTW( width, width );
+      lapack::Lacpy( 'A', width, width, &BMat(width, width), lda,
+          WTW.Data(), width );
+      statusOFS << "W'*W = " << WTW << std::endl;
+      if( numSet == 3 )
+      {
+        DblNumMat PTP( width, width );
+        lapack::Lacpy( 'A', width, width, &BMat(width+numActive, width+numActive), 
+            lda, PTP.Data(), width );
+        statusOFS << "P'*P = " << PTP << std::endl;
+      }
+    }
+#endif
+
+
+
 
     // Keep a copy of the A and B matrices for restarting purpose
     lapack::Lacpy( 'A', lda, lda, AMat.Data(), lda, AMatSave.Data(), lda );
@@ -687,6 +721,7 @@ EigenSolver::LOBPCGSolveReal	( )
         lapack::Lacpy( 'A', height, width, Xtemp.Data(), height,
             X.Data(), height );
       } // if ( numSet == 2 )
+
     } // if ( isRestart )
 
     // Update AX and AP
@@ -728,6 +763,7 @@ EigenSolver::LOBPCGSolveReal	( )
       lapack::Lacpy( 'A', height, width, Xtemp.Data(), height, 
           AX.Data(), height );
     } // if ( numSet == 2 )
+
 
 
 #if ( _DEBUGlevel_ >= 1 )
