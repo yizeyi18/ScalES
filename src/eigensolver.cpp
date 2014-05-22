@@ -345,12 +345,27 @@ EigenSolver::LOBPCGSolveReal	( )
 
 
 
-  DblNumMat  AMat( 3*width, 3*width ), BMat( 3*width, 3*width );
-  DblNumMat  AMatSave( 3*width, 3*width ), BMatSave( 3*width, 3*width );
-  DblNumMat  XTX( width, width );
+  // S = ( X | W | P ) is a triplet used for LOBPCG.  
+  // W is the preconditioned residual
   DblNumMat  S( height, 3*width ), AS( height, 3*width ); 
-  DblNumMat  Xtemp( height, width );
+  // AMat = S' * (AS),  BMat = S' * S
+  // 
+  // AMat = (X'*AX   X'*AW   X'*AP)
+  //      = (  *     W'*AW   W'*AP)
+  //      = (  *       *     P'*AP)
+  //
+  // BMat = (X'*X   X'*W   X'*P)
+  //      = (  *    W'*W   W'*P)
+  //      = (  *      *    P'*P)
+  //
+  DblNumMat  AMat( 3*width, 3*width ), BMat( 3*width, 3*width );
+  // AMatSave and BMatSave are used for restart
+  DblNumMat  AMatSave( 3*width, 3*width ), BMatSave( 3*width, 3*width );
+  // Temporary buffer array.
+  // The unpreconditioned residual will also be saved in Xtemp
+  DblNumMat  XTX( width, width ), Xtemp( height, width );
   DblNumVec  resNorm( width );
+  Real       resMax, resMin;
 
   // For convenience
   DblNumMat  X( height, width, false, S.VecData(0) );
@@ -363,13 +378,19 @@ EigenSolver::LOBPCGSolveReal	( )
   
   Int info;
   bool isRestart = false;
-  // numSet = 2    : Steepest descent (Davidson)
-  //        = 3    : Conjugate gradient
+  // numSet = 2    : Steepest descent (Davidson), only use (X | W)
+  //        = 3    : Conjugate gradient, use all the triplet (X | W | P)
   Int numSet = 2;
-  Int numLocked = 0, numLockedSave = 0, numActive;
-  Real lockTolerance = std::min( eigTolerance_, 1e-2 );
 
-  //
+  // numLocked is the number of converged vectors
+  Int numLocked = 0, numLockedSave = 0; 
+  // numActive = width - numLocked
+  Int numActive;
+
+  Real lockTolerance = std::min( eigTolerance_, 1e-2 );
+  bool isConverged = false;
+
+  // Initialization
   SetValue( S, 0.0 );
   SetValue( AS, 0.0 );
 
@@ -388,8 +409,10 @@ EigenSolver::LOBPCGSolveReal	( )
   blas::Gemm( 'T', 'N', width, width, height, 1.0, X.Data(), 
      height, X.Data(), height, 0.0, XTX.Data(), width );
 
+  // X'*X=U'*U
   lapack::Potrf( 'U', width, XTX.Data(), width );
 
+  // X <- X * U^{-1} is orthogonal
   blas::Trsm( 'R', 'U', 'N', 'N', height, width, 1.0, XTX.Data(), width, 
       X.Data(), height );
 
@@ -403,8 +426,10 @@ EigenSolver::LOBPCGSolveReal	( )
     hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
   }
 
-  for( Int iter = 1; iter <= eigMaxIter_; iter++ ){
-#if ( _DEBUGlevel_ >= 0 )
+  // Start the main loop
+  Int iter;
+  for( iter = 1; iter < eigMaxIter_; iter++ ){
+#if ( _DEBUGlevel_ >= 1 )
     statusOFS << "iter = " << iter << std::endl;
 #endif
 
@@ -419,15 +444,15 @@ EigenSolver::LOBPCGSolveReal	( )
 
     // Rayleigh Ritz in Q = span( X, gradient )
 
-    // X' * (AX)
+    // XTX <- X' * (AX)
 
     blas::Gemm( 'T', 'N', width, width, height, 1.0, X.Data(),
         height, AX.Data(), height, 0.0, XTX.Data(), width );
 
-    
     lapack::Lacpy( 'A', width, width, XTX.Data(), width, AMat.Data(), lda );
 
-    // Compute the residual
+    // Compute the residual.
+    // R <- AX - X*(X'*AX)
     lapack::Lacpy( 'A', height, width, AX.Data(), height, Xtemp.Data(), height );
 
     blas::Gemm( 'N', 'N', height, width, width, -1.0, 
@@ -439,17 +464,17 @@ EigenSolver::LOBPCGSolveReal	( )
         std::max( 1.0, std::abs( XTX(k,k) ) );
     }
 
-    Real resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
-    Real resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
+    resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
+    resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
     statusOFS << "resNorm = " << resNorm << std::endl;
     statusOFS << "maxRes  = " << resMax  << std::endl;
     statusOFS << "minRes  = " << resMin  << std::endl;
 #endif
 
     if( resMax < eigTolerance_ ){
-      statusOFS << "Convergence is reached." << std::endl;
+      isConverged = true;;
       break;
     }
 
@@ -469,7 +494,8 @@ EigenSolver::LOBPCGSolveReal	( )
     if( numLocked < numLockedSave )
       numSet = 2;
 
-    // Compute the preconditioned residual W = T*R
+    // Compute the preconditioned residual W = T*R.
+    // The residual is saved in Xtemp
     {
       Spinor spnTemp(fftPtr_->domain, ncom, width-numLocked, false, Xtemp.VecData(numLocked));
       NumTns<Scalar> tnsTemp(ntot, ncom, width-numLocked, false, W.VecData(numLocked));
@@ -479,9 +505,6 @@ EigenSolver::LOBPCGSolveReal	( )
     }
     
     // Compute AMat
-    // AMat = (X'*AX   X'*AW   X'*AP)
-    //      = (  *     W'*AW   W'*AP)
-    //      = (  *       *     P'*AP)
 
     // Compute AW = A*W
     {
@@ -492,6 +515,10 @@ EigenSolver::LOBPCGSolveReal	( )
     }
 
     // Compute X' * (AW)
+    // Instead of saving the block at &AMat(0,width+numLocked), the data
+    // is saved at &AMat(0,width) to guarantee a continuous data
+    // arrangement of AMat.  The same treatment applies to the blocks
+    // below in both AMat and BMat.
     blas::Gemm( 'T', 'N', width, numActive, height, 1.0, X.Data(),
         height, AW.VecData(numLocked), height, 
         0.0, &AMat(0,width), lda );
@@ -519,9 +546,6 @@ EigenSolver::LOBPCGSolveReal	( )
     }
 
     // Compute BMat (overlap matrix)
-    // BMat = (X'*X   X'*W   X'*P)
-    //      = (  *    W'*W   W'*P)
-    //      = (  *      *    P'*P)
 
     // Compute X'*X
     blas::Gemm( 'T', 'N', width, width, height, 1.0, 
@@ -562,26 +586,36 @@ EigenSolver::LOBPCGSolveReal	( )
     isRestart = false;
 
     // Rayleigh-Ritz procedure
+    // AMat * C = BMat * C * Lambda
+    // Assuming the dimension (needed) for C is width * width, then
+    //     ( C_X )
+    //     ( --- )
+    // C = ( C_W )
+    //     ( --- )
+    //     ( C_P )
+    //
     if( numSet == 3 ){
       // Conjugate gradient
       Int numCol = width + 2 * numActive;
 
+      // BMat = U' * U
       lapack::Potrf( 'U', numCol, BMat.Data(), lda );
 
       // TODO Add Pocon and restart strategy
+      // AMat <- U^{-T} * AMat * U^{-1}
       lapack::Hegst( 1, 'U', numCol, AMat.Data(), lda,
           BMat.Data(), lda );
 
+      // Eigenvalue problem, the eigenvectors are saved in AMat
       lapack::Syevd( 'V', 'U', numCol, AMat.Data(), lda, 
           eigValS.Data() );
 
+      // Compute the correct eigenvectors C (but saved in AMat)
       blas::Trsm( 'L', 'U', 'N', 'N', numCol, numCol, 1.0, 
           BMat.Data(), lda, AMat.Data(), lda );
 
-
       // TODO Add Pocon and restart strategy, and try steepest descent first
     }
-    
     
     if( numSet == 2 ){
       // Steepest descent
@@ -623,6 +657,8 @@ EigenSolver::LOBPCGSolveReal	( )
         // Save the result into X
         lapack::Lacpy( 'A', height, width, Xtemp.Data(), height, 
             X.Data(), height );
+
+        // P <- W
         lapack::Lacpy( 'A', height, numActive, W.VecData(numLocked), 
             height, P.VecData(numLocked), height );
       }
@@ -692,7 +728,7 @@ EigenSolver::LOBPCGSolveReal	( )
     } // if ( numSet == 2 )
 
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
     statusOFS << "numLocked = " << numLocked << std::endl;
     statusOFS << "eigValS   = " << eigValS << std::endl;
 #endif
@@ -706,16 +742,19 @@ EigenSolver::LOBPCGSolveReal	( )
   // Post processing
   // *********************************************************************
 
-  // Obtain the eigenvalues and orthogonalize the eigenvectors
+  // Obtain the eigenvalues and eigenvectors
+  // XTX should now contain the matrix X' * (AX), and X is an
+  // orthonormal set
   lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
 
+  // X <- X*C
   blas::Gemm( 'N', 'N', height, width, width, 1.0, X.Data(),
       height, XTX.Data(), width, 0.0, Xtemp.Data(), height );
 
   lapack::Lacpy( 'A', height, width, Xtemp.Data(), height,
       X.Data(), height );
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 
   blas::Gemm( 'T', 'N', width, width, height, 1.0, X.Data(), 
       height, X.Data(), height, 0.0, XTX.Data(), width );
@@ -727,10 +766,26 @@ EigenSolver::LOBPCGSolveReal	( )
   // structure
 
   eigVal_ = DblNumVec( numEig, true, eigValS.Data() );
+  resVal_ = resNorm;
+
 	hamPtr_->EigVal() = eigVal_;
 
   lapack::Lacpy( 'A', height, width, X.Data(), height, 
       psiPtr_->Wavefun().Data(), height );
+
+  if( isConverged ){
+    statusOFS << std::endl << "After " << iter 
+      << " iterations, LOBPCG has converged."  << std::endl
+      << "The maximum norm of the residual is " 
+      << resMax << std::endl << std::endl;
+  }
+  else{
+    statusOFS << std::endl << "After " << iter 
+      << " iterations, LOBPCG did not converge. " << std::endl
+      << "The maximum norm of the residual is " 
+      << resMax << std::endl << std::endl;
+  }
+
 
 #ifndef _RELEASE_
 	PopCallStack();
