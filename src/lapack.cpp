@@ -241,6 +241,10 @@ void LAPACK(zgetri)
 	( const Int* n, dcomplex* A, const Int* lda, const Int* ipiv, dcomplex* work,
 		const Int* lwork, Int* info );
 
+// Estimating the reciprocal of the condition number
+// TODO Add Pocon and Lansy
+
+
 } // extern "C"
 
 

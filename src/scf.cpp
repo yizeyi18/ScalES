@@ -283,7 +283,11 @@ SCF::Iterate	(  )
     }
 
     // Solve the eigenvalue problem
-		eigSolPtr_->Solve();
+    if(0)
+      eigSolPtr_->Solve();
+    else
+      eigSolPtr_->LOBPCGSolveReal();
+
 		// No need for normalization using LOBPCG
 
 		// Compute the occupation rate
