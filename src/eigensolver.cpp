@@ -69,10 +69,9 @@ void EigenSolver::Setup(
 	fftPtr_ = &fft;
 
 	eigMaxIter_    = esdfParam.eigMaxIter;
-	eigTolerance_  = esdfParam.eigTolerance;
+	eigToleranceSave_  = esdfParam.eigTolerance;
+  eigTolerance_      = esdfParam.eigTolerance;
 
-  numGridWavefunctionElem_ = esdfParam.numGridWavefunctionElem;
-  numGridDensityElem_      = esdfParam.numGridDensityElem;
 
 	eigVal_.Resize(psiPtr_->NumState());  SetValue(eigVal_, 0.0);
 	resVal_.Resize(psiPtr_->NumState());  SetValue(resVal_, 0.0);
@@ -318,7 +317,10 @@ EigenSolver::Solve	()
 
 
 void
-EigenSolver::LOBPCGSolveReal	( )
+EigenSolver::LOBPCGSolveReal	(
+      Int          numEig,
+      Int          eigMaxIter,
+      Real         eigTolerance)
 {
 #ifndef _RELEASE_
 	PushCallStack("EigenSolver::LOBPCGSolveReal");
@@ -333,9 +335,6 @@ EigenSolver::LOBPCGSolveReal	( )
 
   Int height = ntot * ncom, width = nocc;
   Int lda = 3 * width;
-
-  // TODO It could be possible to introduce numEig as a tunable parameter.
-  Int numEig = width;
 
   if( numEig > width ){
     std::ostringstream msg;
@@ -389,7 +388,7 @@ EigenSolver::LOBPCGSolveReal	( )
   // numActive = width - numLocked
   Int numActive;
 
-  Real lockTolerance = std::min( eigTolerance_, 1e-2 );
+  Real lockTolerance = std::min( eigTolerance, 1e-2 );
   bool isConverged = false;
 
   // Initialization
@@ -429,7 +428,7 @@ EigenSolver::LOBPCGSolveReal	( )
 
   // Start the main loop
   Int iter;
-  for( iter = 1; iter < eigMaxIter_; iter++ ){
+  for( iter = 1; iter < eigMaxIter; iter++ ){
 #if ( _DEBUGlevel_ >= 1 )
     statusOFS << "iter = " << iter << std::endl;
 #endif
@@ -465,6 +464,7 @@ EigenSolver::LOBPCGSolveReal	( )
         std::max( 1.0, std::abs( XTX(k,k) ) );
     }
 
+    // Only take into account the residual of the first numEig eigenvalues.
     resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
     resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
 
@@ -474,7 +474,7 @@ EigenSolver::LOBPCGSolveReal	( )
     statusOFS << "minRes  = " << resMin  << std::endl;
 #endif
 
-    if( resMax < eigTolerance_ ){
+    if( resMax < eigTolerance ){
       isConverged = true;;
       break;
     }
@@ -611,9 +611,6 @@ EigenSolver::LOBPCGSolveReal	( )
       }
     }
 #endif
-
-
-
 
     // Keep a copy of the A and B matrices for restarting purpose
     lapack::Lacpy( 'A', lda, lda, AMat.Data(), lda, AMatSave.Data(), lda );
@@ -803,10 +800,8 @@ EigenSolver::LOBPCGSolveReal	( )
   // Save the eigenvalues and eigenvectors back to the eigensolver data
   // structure
 
-  eigVal_ = DblNumVec( numEig, true, eigValS.Data() );
-  resVal_ = resNorm;
-
-	hamPtr_->EigVal() = eigVal_;
+  eigVal_ = DblNumVec( width, true, eigValS.Data() );
+  resVal_ = DblNumVec( width, true, resNorm.Data() );
 
   lapack::Lacpy( 'A', height, width, X.Data(), height, 
       psiPtr_->Wavefun().Data(), height );

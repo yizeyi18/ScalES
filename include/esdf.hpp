@@ -140,6 +140,12 @@ namespace esdf{
 
     Real                Tbeta;                    // Inverse of temperature in atomic unit
     Int                 numExtraState;
+    /// @brief Some states for the planewave solver are unused in order
+    /// to accelerate the convergence rate of the eigensolver
+    Int                 numUnusedState;
+    /// @brief Whether to control the tolerance of the eigensolver
+    /// dynamically.
+    bool                isEigToleranceDynamic;
     std::string         periodTableFile;
     std::string         pseudoType;
     /// @brief Solver for the planewave problem.  
@@ -164,6 +170,7 @@ namespace esdf{
     Index3              numGridDensityElem;
     Index3              numGridLGL;
     Real                penaltyAlpha;
+    // FIXME Make it clear that numALBElem includes the *unused* states
     IntNumTns           numALBElem;
     Int                 scaBlockSize;
 
