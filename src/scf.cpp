@@ -91,8 +91,12 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 		mixStepLength_ = esdfParam.mixStepLength;
 		// Note: for PW SCF there is no inner loop. Use the parameter value
 		// for the outer SCF loop only.
+    eigMaxIter_    = esdfParam.eigMaxIter;
+    eigTolerance_  = esdfParam.eigTolerance;
 		scfTolerance_  = esdfParam.scfOuterTolerance;
 		scfMaxIter_    = esdfParam.scfOuterMaxIter;
+    numUnusedState_ = esdfParam.numUnusedState;
+    isEigToleranceDynamic_ = esdfParam.isEigToleranceDynamic;
 		isRestartDensity_ = esdfParam.isRestartDensity;
 		isRestartWfn_     = esdfParam.isRestartWfn;
 		isOutputDensity_  = esdfParam.isOutputDensity;
@@ -283,10 +287,44 @@ SCF::Iterate	(  )
     }
 
     // Solve the eigenvalue problem
+
+    Real eigTolNow;
+    if( isEigToleranceDynamic_ ){
+      // Dynamic strategy to control the tolerance
+      if( iter == 1 )
+        eigTolNow = 1e-2;
+      else
+        eigTolNow = std::max( std::min( scfNorm_*1e-2, 1e-2 ) , eigTolerance_);
+    }
+    else{
+      // Static strategy to control the tolerance
+      eigTolNow = eigTolerance_;
+    }
+
+    Int numEig = (eigSolPtr_->Psi().NumState())-numUnusedState_;
+
+    statusOFS << "The current tolerance used by the eigensolver is " 
+      << eigTolNow << std::endl;
+    statusOFS << "The target number of converged eigenvectors is " 
+      << numEig << std::endl;
+   
+    
+    GetTime( timeSta );
     if(0)
       eigSolPtr_->Solve();
     else
-      eigSolPtr_->LOBPCGSolveReal();
+      eigSolPtr_->LOBPCGSolveReal(
+          numEig,
+          eigMaxIter_,
+          eigTolNow );
+
+    GetTime( timeEnd );
+
+    eigSolPtr_->Ham().EigVal() = eigSolPtr_->EigVal();
+
+    statusOFS << "Time for the eigensolver is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
 
 		// No need for normalization using LOBPCG
 

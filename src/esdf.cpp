@@ -797,6 +797,17 @@ void esdf_key() {
 	strcpy(kw_label[i],"mu_pexsi_safeguard");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! Safeguard value for switching back to inertia counting !*");
+
+	i++;
+	strcpy(kw_label[i],"unused_states");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! States that are not used to accelerate the convergence of eigensolver !*");
+
+	i++;
+	strcpy(kw_label[i],"eig_tolerance_dynamic");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Whether to control the eigenvalue solver tolerance dynamically!*");
+
 }
 
 void esdf() {
@@ -2047,6 +2058,10 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.Tbeta           = au2K / temperature;
 
 		esdfParam.numExtraState   = esdf_integer( "Extra_States",  0 );
+		esdfParam.numUnusedState  = esdf_integer( "Unused_States",  0 );
+		esdfParam.isEigToleranceDynamic = esdf_integer( "Eig_Tolerance_Dynamic", 1 );
+
+
 		esdf_string("PeriodTable", "HGH.bin", strtmp);
 		esdfParam.periodTableFile = strtmp;
 		esdf_string("Pseudo_Type", "HGH", strtmp); 
