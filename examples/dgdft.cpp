@@ -360,7 +360,7 @@ int main(int argc, char **argv)
               KohnSham& hamKS = distHamKS.LocalMap()[key];
 
               hamKS.Setup( dmExtElem, atomListExtElem, 
-                  esdfParam.pseudoType, esdfParam.XCId );
+                  esdfParam.pseudoType, esdfParam.XCType );
 
               // Setup the external barrier potential in the extended element
               Real barrierR = esdfParam.potentialBarrierR;

@@ -66,7 +66,7 @@ Hamiltonian::Hamiltonian	(
 			esdfParam.domain,
 			esdfParam.atomList,
 			esdfParam.pseudoType,
-			esdfParam.XCId,
+			esdfParam.XCType,
 			esdfParam.numExtraState,
 			numDensityComponent );
 #ifndef _RELEASE_
@@ -80,7 +80,7 @@ Hamiltonian::Setup (
 		const Domain&              dm,
 		const std::vector<Atom>&   atomList,
 		std::string                pseudoType,
-		Int                        XCId,
+		std::string                XCType,
 		Int                        numExtraState,
     Int                        numDensityComponent )
 {
@@ -90,8 +90,16 @@ Hamiltonian::Setup (
 	domain_        = dm;
 	atomList_      = atomList;
 	pseudoType_    = pseudoType;
-	XCId_          = XCId;
 	numExtraState_ = numExtraState;
+
+	// Obtain the exchange-correlation id
+	{
+		if( XCType == "XC_LDA_XC_TETER93" )
+			XCId_ = XC_LDA_XC_TETER93;
+		else
+      throw std::logic_error("Unrecognized exchange-correlation type");
+	}
+
 
 	// NOTE: NumSpin variable will be determined in derivative classes.
 
@@ -176,7 +184,7 @@ KohnSham::Setup	(
 		const Domain&              dm,
 		const std::vector<Atom>&   atomList,
 		std::string                pseudoType,
-		Int                        XCId,
+		std::string                XCType,
 		Int                        numExtraState,
     Int                        numDensityComponent )
 {
@@ -187,7 +195,7 @@ KohnSham::Setup	(
 		dm,
 		atomList,
 		pseudoType,
-		XCId,
+		XCType,
 		numExtraState,
     numDensityComponent);
 

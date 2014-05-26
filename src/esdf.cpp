@@ -2009,7 +2009,6 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
 	// System parameters
 	{
-
 		esdfParam.mixMaxDim       = esdf_integer("Mixing_MaxDim", 9);
 
 		esdf_string("Mixing_Type", "anderson", strtmp); 
@@ -2029,19 +2028,19 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
 		esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
 		esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
-		esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   30 );
-		esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-4 );
+		esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
+		esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-6 );
 		esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
-		esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-5 );
+		esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-6 );
 		esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  10 );
-		esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-4 );
+		esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
 		esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
 		esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
 		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 1 );
 		esdfParam.isOutputWfnElem         = esdf_integer( "Output_Wfn_Elem", 0 );
 		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 1 );
 		esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 0 );
-		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 1 );
+		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
 		esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 1 );
 		esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
 
@@ -2072,13 +2071,6 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.XCType          = strtmp;
 	}
 
-	// Obtain the exchange-correlation id
-	{
-		if( esdfParam.XCType == "XC_LDA_XC_TETER93" )
-			esdfParam.XCId = XC_LDA_XC_TETER93;
-		else
-      throw std::logic_error("Unrecognized exchange-correlation type");
-	}
 
 	// DG
 	{
@@ -2203,7 +2195,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.inertiaCountSteps = esdf_integer( "Inertia_Count_Steps", 10 );
     esdfParam.maxPEXSIIter         = esdf_integer( "Max_PEXSI_Iter", 5 );
     esdfParam.numElectronPEXSITolerance =
-      esdf_double( "Num_Electron_PEXSI_Tolerance", 1e-2 );
+      esdf_double( "Num_Electron_PEXSI_Tolerance", 1e-3 );
     esdfParam.muInertiaTolerance =
       esdf_double( "Mu_Inertia_Tolerance", 0.05 );
     esdfParam.muInertiaExpansion =

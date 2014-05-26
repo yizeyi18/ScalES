@@ -176,7 +176,7 @@ int main(int argc, char **argv)
 		// Hamiltonian
 
 		hamKS.Setup( dm, esdfParam.atomList, esdfParam.pseudoType, 
-				esdfParam.XCId, esdfParam.numExtraState );
+				esdfParam.XCType, esdfParam.numExtraState );
 
 		DblNumVec& vext = hamKS.Vext();
 		SetValue( vext, 0.0 );

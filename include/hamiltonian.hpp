@@ -122,7 +122,7 @@ public:
 		const Domain&              dm,
 		const std::vector<Atom>&   atomList,
 		std::string                pseudoType,
-		Int                        XCId,
+		std::string                XCType,
 		Int                        numExtraState,
     Int                        numDensityComponent );
  
@@ -200,7 +200,7 @@ public:
 		const Domain&              dm,
 		const std::vector<Atom>&   atomList,
 		std::string                pseudoType,
-		Int                        XCId,
+		std::string                XCType,
 		Int                        numExtraState = 0,
     Int                        numDensityComponent = 1 );
 

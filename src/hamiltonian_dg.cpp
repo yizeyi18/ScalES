@@ -91,12 +91,19 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
   domain_            = esdfParam.domain;
   atomList_          = esdfParam.atomList;
   pseudoType_        = esdfParam.pseudoType;
-  XCId_              = esdfParam.XCId;
   numExtraState_     = esdfParam.numExtraState;
   numElem_           = esdfParam.numElem;
   penaltyAlpha_      = esdfParam.penaltyAlpha;
   numLGLGridElem_    = esdfParam.numGridLGL;
-  
+ 
+	{
+		if( esdfParam.XCType == "XC_LDA_XC_TETER93" )
+			XCId_ = XC_LDA_XC_TETER93;
+		else
+      throw std::logic_error("Unrecognized exchange-correlation type");
+	}
+
+
 	Int ntot = domain_.NumGridTotal();
   Int ntotFine = domain_.NumGridTotalFine();
 
