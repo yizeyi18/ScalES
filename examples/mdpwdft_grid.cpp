@@ -107,13 +107,17 @@ int main(int argc, char **argv)
 		// Read ESDF input file
 		ESDFInputParam  esdfParam;
 
-		ESDFReadInput( esdfParam, inFile.c_str() );
+		ESDFReadInput( esdfParam, inFile.c_str() ); //ZGGTODO: add in nsw and dt
 
 		// Print the initial state
 		{
 			PrintBlock(statusOFS, "Basic information");
 
+			Print(statusOFS, "MD Steps          = ",  esdfParam.nsw );//ZGG
+			Print(statusOFS, "MD time Step      = ",  esdfParam.dt );//ZGG
+
 			Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
+//			Print(statusOFS, "Grid size         = ",  esdfParam.domain.numGrid ); 
 			Print(statusOFS, "Grid Wavefunction = ",  esdfParam.domain.numGrid );
       Print(statusOFS, "Grid Density      = ",  esdfParam.domain.numGridFine ); 
 			Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
@@ -124,8 +128,6 @@ int main(int argc, char **argv)
 			Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
 			Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
 			Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
-			Print(statusOFS, "Eig Tolerance Dyn = ",  esdfParam.isEigToleranceDynamic);
-			Print(statusOFS, "Num unused state  = ",  esdfParam.numUnusedState);
 
 			Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
 			Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
@@ -142,6 +144,7 @@ int main(int argc, char **argv)
 			Print(statusOFS, "XC Type           = ",  esdfParam.XCType );
 
 			PrintBlock(statusOFS, "Atom Type and Coordinates");
+
 
 			const std::vector<Atom>&  atomList = esdfParam.atomList;
 			for(Int i=0; i < atomList.size(); i++) {
@@ -166,17 +169,32 @@ int main(int argc, char **argv)
 		EigenSolver eigSol;
 		SCF  scf;
 
-		ptable.Setup( esdfParam.periodTableFile );
+		Int NSW=esdfParam.nsw;
+		Int dt=esdfParam.dt;
 
-    fft.Initialize( dm );
+		ptable.Setup( esdfParam.periodTableFile );
+		fft.Initialize( dm );
 
     fft.InitializeFine( dm );
-//    fftFine.InitializeFine( dm );
+
+		const std::vector<Atom>&  atomList = esdfParam.atomList;//ZG: need this?
+		Int numAtom = atomList.size();
+		Real *atomMass;
+		atomMass = new Real[numAtom];
+		for(Int a=0; a < numAtom; a++) {
+			Int atype = atomList[a].type;
+			if (ptable.ptemap().find(atype)==ptable.ptemap().end() ){
+				throw std::logic_error( "Cannot find the atom type." );
+			}
+			atomMass[a]=amu2au*ptable.ptemap()[atype].params(PTParam::MASS); //amu2au = 1822.8885
+			Print(statusOFS, "atom Mass  = ", atomMass[a]);
+		}
 
 		// Hamiltonian
+		statusOFS << "Hamiltonian begin." << std::endl;
 
 		hamKS.Setup( dm, esdfParam.atomList, esdfParam.pseudoType, 
-				esdfParam.XCType, esdfParam.numExtraState );
+				esdfParam.XCId, esdfParam.numExtraState );
 
 		DblNumVec& vext = hamKS.Vext();
 		SetValue( vext, 0.0 );
@@ -194,6 +212,7 @@ int main(int argc, char **argv)
 
 		scf.Setup( esdfParam, eigSol, ptable );
 
+
 		GetTime( timeSta );
 
 		// *********************************************************************
@@ -201,7 +220,6 @@ int main(int argc, char **argv)
 		// *********************************************************************
 
 		scf.Iterate();
-
 		// Print out the force
 		PrintBlock( statusOFS, "Atomic Force" );
 		{
@@ -218,7 +236,111 @@ int main(int argc, char **argv)
 			statusOFS << std::endl;
 		}
 
+	
+//ZG:*********MD starts***********
+
+    Real Efree=0.;
+    Real K=0.;
+    Real Etotal=0.;
+
+		//MD Velocity Verlet geometry update if NSW!=0
+    if (NSW != 0) {
+
+						std::vector<Atom>& atomList1 = esdfParam.atomList;
+            std::vector<Atom>& atomList2 = hamKS.AtomList();
+            Int numAtom = atomList2.size();
+
+            std::vector<Point3>  atompos;
+						std::vector<Point3>  atomv;
+						std::vector<Point3>  atomforce;
+						std::vector<Point3>		atomforcem;
+		            
+            atompos.resize( numAtom );
+            atomv.resize( numAtom );
+            atomforce.resize( numAtom );
+            atomforcem.resize( numAtom );
+
+            for(Int i=0; i<numAtom; i++) {
+            	for(Int j = 0; j<3; j++)
+              	atomv[i][j]=0.;
+						}
+
+
+            for( Int i = 0; i < numAtom; i++ ){
+                    atompos[i]   = atomList1[i].pos;
+                    atomforcem[i]=atomList2[i].force;
+            }//x1, f1, v1=0
+
+/*debug*/
+						for (Int i=0;i<numAtom;i++)
+								Print(statusOFS, "debug: position",atompos[i]);
+
+						for (Int i=0;i<numAtom;i++)
+								Print(statusOFS, "debug: force",atomforcem[i]); //debug: OK
+
+            for (Int n=0; n<NSW; n++){
+
+                    K=0.;
+
+                    Print(statusOFS, "Num of MD step = ", n);
+
+                    for(Int i=0; i<numAtom; i++) {
+                            for(Int j = 0; j<3; j++)
+                                    atompos[i][j]=atompos[i][j]+atomv[i][j]*dt+atomforcem[i][j]*dt*dt/atomMass[i]/2;
+
+                    }//x2=x1+v1*dt+f1*dt^2/2M
+
+                    for(Int i = 0; i < numAtom; i++){
+                            atomList1[i].pos = atompos[i];
+                            Print(statusOFS, "Current Position    = ",  atomList[i].pos);
+                    }//print out OK
+
+                    /* Add the block to calculate force again, output as atomforce[i][j], copied from original code */
+
+										hamKS.Update( esdfParam.atomList ); //ZG:updated atomList.pos
+
+										hamKS.UpdatePseudoPotential( ptable );//hamiltonian.cpp
+
+										statusOFS << "Hamiltonian updated." << std::endl;
+
+										scf.Update( esdfParam, eigSol, ptable ); //ZG: Update scf
+
+										GetTime( timeSta ); //debug
+
+										scf.Iterate();
+
+										hamKS.CalculateForce( spn, fft ); //new
+
+								    /* Force block ends here*/
+								    std::vector<Atom>& atomList = hamKS.AtomList();
+								    Int numAtom = atomList.size();
+								    for( Int i = 0; i < numAtom; i++ ){
+						    			atomforce[i]=atomList[i].force;
+						      	  Print( statusOFS, "Atom", i, "Force", atomList[i].force );
+								    }//f2
+
+								    for(Int i = 0; i < numAtom; i++ ){
+							        for (Int j=0; j<3; j++){
+							        atomv[i][j] = atomv[i][j]+(atomforcem[i][j]+atomforce[i][j])*dt/atomMass[i]/2.;
+							        atomforcem[i][j]=atomforce[i][j];//f2->f1
+							        Print(statusOFS, "Current Velocity = ", atomv[i][j]); //debug
+                      K += atomMass[i]*atomv[i][j]*atomv[i][j]/2.;
+						        }
+						     }//v2, -> ex
+
+                 Efree = scf.getEfree();
+                 Print(statusOFS, "MD_Efree =  ",Efree);
+                 Print(statusOFS, "MD_K =  ",K);
+                 Etotal=Efree+K;
+                 Print(statusOFS, "Etotal=Efree+Kin", Etotal);
+					   }//for(n<NSW) loop ends here
+					 }//if(NSW!=0) ends
 	}
+//****MD end*******
+
+//******************************
+//Clean up
+//******************************
 	catch( std::exception& e )
 	{
 		std::cerr << " caught exception with message: "

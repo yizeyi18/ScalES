@@ -40,13 +40,12 @@
 	 works, incorporate into other computer software, distribute, and sublicense
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file pwdft.cpp
-/// @brief Main driver for self-consistent field iteration using plane
-/// wave basis set.  
+/// @file ex32.cpp
+/// @brief Test the new planewave solver using the new built-in LOBPCG
+/// solver.
 ///
-/// The current version of pwdft is a sequential code and is used for
-/// testing purpose, both for energy and for force.
-/// @date 2013-10-16
+/// This LOBPCG solver does not rely on the blopex solver.
+/// @date 2014-05-20
 #include "dgdft.hpp"
 
 using namespace dgdft;
@@ -57,7 +56,7 @@ using namespace dgdft::scalapack;
 
 void Usage(){
   std::cout 
-		<< "pwdft -in [inFile]" << std::endl
+		<< "ex32 -in [inFile]" << std::endl
 		<< "in:             Input file (default: pwdft.in)" << std::endl;
 }
 
@@ -124,8 +123,6 @@ int main(int argc, char **argv)
 			Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
 			Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
 			Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
-			Print(statusOFS, "Eig Tolerance Dyn = ",  esdfParam.isEigToleranceDynamic);
-			Print(statusOFS, "Num unused state  = ",  esdfParam.numUnusedState);
 
 			Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
 			Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
@@ -176,7 +173,7 @@ int main(int argc, char **argv)
 		// Hamiltonian
 
 		hamKS.Setup( dm, esdfParam.atomList, esdfParam.pseudoType, 
-				esdfParam.XCType, esdfParam.numExtraState );
+				esdfParam.XCId, esdfParam.numExtraState );
 
 		DblNumVec& vext = hamKS.Vext();
 		SetValue( vext, 0.0 );
@@ -194,29 +191,41 @@ int main(int argc, char **argv)
 
 		scf.Setup( esdfParam, eigSol, ptable );
 
-		GetTime( timeSta );
+    // Clear the potential and the pseudopotential
+    SetValue( hamKS.VtotCoarse(), 0.0 );
+
+    Int numAtom = hamKS.AtomList().size();
+    std::vector<PseudoPot>& pseudo = hamKS.Pseudo();
+    for( Int a = 0; a < numAtom; a++ ){
+      pseudo[a] = PseudoPot();
+    }
+
+    eigSol.LOBPCGSolveReal( );
+
+//
+//		GetTime( timeSta );
 
 		// *********************************************************************
 		// Solve
 		// *********************************************************************
 
-		scf.Iterate();
+//		scf.Iterate();
 
 		// Print out the force
-		PrintBlock( statusOFS, "Atomic Force" );
-		{
-      hamKS.CalculateForce( spn, fft );
-			Point3 forceCM(0.0, 0.0, 0.0);
-			std::vector<Atom>& atomList = hamKS.AtomList();
-			Int numAtom = atomList.size();
-			for( Int a = 0; a < numAtom; a++ ){
-				Print( statusOFS, "atom", a, "force", atomList[a].force );
-				forceCM += atomList[a].force;
-			}
-			statusOFS << std::endl;
-			Print( statusOFS, "force for centroid: ", forceCM );
-			statusOFS << std::endl;
-		}
+//		PrintBlock( statusOFS, "Atomic Force" );
+//		{
+//      hamKS.CalculateForce( spn, fft );
+//			Point3 forceCM(0.0, 0.0, 0.0);
+//			std::vector<Atom>& atomList = hamKS.AtomList();
+//			Int numAtom = atomList.size();
+//			for( Int a = 0; a < numAtom; a++ ){
+//				Print( statusOFS, "atom", a, "force", atomList[a].force );
+//				forceCM += atomList[a].force;
+//			}
+//			statusOFS << std::endl;
+//			Print( statusOFS, "force for centroid: ", forceCM );
+//			statusOFS << std::endl;
+//		}
 
 	}
 	catch( std::exception& e )

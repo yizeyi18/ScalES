@@ -67,14 +67,15 @@ private:
 	Fourier*            fftPtr_;
 	Spinor*             psiPtr_;
 
+  // FIXME all the varaibles below to be removd.
 	Int                 eigMaxIter_;
-	Real                eigTolerance_;
+  // Dynamic tolerance
+	Real                eigTolerance_; 
+  // Input tolerance
+	Real                eigToleranceSave_;
 
 	DblNumVec           eigVal_;
 	DblNumVec           resVal_;
-
-  Index3  numGridWavefunctionElem_;
-  Index3  numGridDensityElem_;
 
 
 public:
@@ -93,26 +94,50 @@ public:
 			Spinor& psi,
 			Fourier& fft );
 
+  // FIXME the four subroutine below together with BLOPEX to be removed
 	static void LOBPCGHamiltonianMult(void *A, void *X, void *AX);
 	static void LOBPCGPrecondMult    (void *A, void *X, void *AX);
 
 	BlopexInt HamiltonianMult (serial_Multi_Vector *x, serial_Multi_Vector *y);
 	BlopexInt PrecondMult     (serial_Multi_Vector *x, serial_Multi_Vector *y);
 
-	// Specific for DiracKohnSham
-//	static void lobpcg_apply_preconditioner_DKS  (void *A, void *X, void *AX);
-//	BlopexInt apply_preconditioner_DKS  (serial_Multi_Vector *x, serial_Multi_Vector *y);
-//	int solve_DKS(); 
-//	int prune_spinor(CpxNumTns& X);
-
-
 	// ********************  OPERATIONS  *******************************
 	// Solve the eigenvalue problem using BLOPEX.
+  // FIXME to be removed
 	void Solve();
+
+  // 
+  /// @brief Sequential LOBPCG solver.
+  ///
+  /// This is more efficient and possibly more stable than blopex.
+  /// Originally written by Chao Yang in FORTRAN, and is now adapted to
+  /// the C++ version.  
+  ///
+  /// @note The input vectors is saved in the spinor (psiPtr_), and the
+  /// number of input vectors is denoted by `width`.
+  /// The output is saved in eigVal_ and resVal_.
+  /// In a converged calculation, only the first numEig eigenvalues are required to
+  /// meet the convergence criterion.
+  ///
+  /// @todo: The restart mechanism has not been implemented.
+  ///
+  /// @param[in] numEig  Number of eigenvalues to be counted in the
+  /// convergence criterion.  numEig must be less than or equal to
+  /// width.
+  /// @param[in] eigMaxIter    Maximum number of iterations
+  /// @param[in] eigTolerance  Residual tolerance.
+  void LOBPCGSolveReal(
+      Int          numEig,
+      Int          eigMaxIter,
+      Real         eigTolerance );
 
 	// ********************  ACCESS      *******************************
 	DblNumVec& EigVal() { return eigVal_; }
 	DblNumVec& ResVal() { return resVal_; }
+
+  // FIXME following 2 subroutines to be removed
+  Real&      Tolerance() { return eigTolerance_; }
+  Real&      ToleranceSave() { return eigToleranceSave_; }
 
 	Hamiltonian& Ham()  {return *hamPtr_;}
 	Spinor&      Psi()  {return *psiPtr_;}

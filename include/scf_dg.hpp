@@ -68,11 +68,15 @@ private:
 	Int                 mixMaxDim_;
 	std::string         mixType_;
 	Real                mixStepLength_;            
+  Real                eigTolerance_;
+  Int                 eigMaxIter_;
 	Real                scfInnerTolerance_;
 	Int                 scfInnerMaxIter_;
 	Real                scfOuterTolerance_;
 	Int                 scfOuterMaxIter_;
 	Real                SVDBasisTolerance_;
+  Int                 numUnusedState_;
+  bool                isEigToleranceDynamic_;
 	bool                isRestartDensity_;
 	bool                isRestartWfn_;
 	bool                isOutputDensity_;
