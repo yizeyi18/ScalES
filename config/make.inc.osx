@@ -1,7 +1,6 @@
 #/usr/bin/bash
 
 COMPILE_MODE     = release
-#COMPILE_MODE     = debug
 USE_COMPLEX      = 0
 USE_OPENMP       = 1
 USE_PROFILE      = 0
@@ -34,44 +33,53 @@ endif
 ifeq (${USE_PEXSI}, 1)
   PEXSI_DEF        = -DPEXSI
 
-  PEXSI_DIR        = /global/homes/l/linlin/project/pexsi_edison
-  DSUPERLU_DIR     = /global/homes/l/linlin/software/SuperLU_DIST_3.3_edison
-  METIS_DIR        = /project/projectdirs/m1027/PEXSI/libpexsi_edison
-  SCOTCH_DIR       = /project/projectdirs/m1027/PEXSI/libpexsi_edison
+  PEXSI_DIR        = $(HOME)/Projects/pexsi
+  DSUPERLU_DIR     = $(HOME)/Documents/Software/SuperLU_DIST_3.3
+  METIS_DIR        = $(HOME)/Software/metis-5.1.0/build_release
+  SCOTCH_DIR       = $(HOME)/Software/scotch_6.0.0
 
   PEXSI_INCLUDE    = -I$(PEXSI_DIR)/include
-  PEXSI_SRC_LIB    = ${PEXSI_DIR}/src/libpexsi_release_edison_v0.7.0.a
-  DSUPERLU_LIB     = ${DSUPERLU_DIR}/build_release/lib/libsuperlu_dist_3.3.a
-  SCOTCH_LIB       = -L${SCOTCH_DIR} -lptscotchparmetis -lptscotch -lptscotcherr -lscotch
-  METIS_LIB        = -L${METIS_DIR} -lmetis
+  PEXSI_SRC_LIB    = ${PEXSI_DIR}/src/libpexsi_osx_newiterf_v0.6.0.a
+  DSUPERLU_LIB     = ${DSUPERLU_DIR}/build_release/libsuperlu_dist_3.3.a
+  SCOTCH_LIB       = -L${SCOTCH_DIR}/lib -lptscotchparmetis -lptscotch -lptscotcherr -lscotch
+  METIS_LIB        = -L${METIS_DIR}/lib -lmetis
   PEXSI_LIB        = ${PEXSI_SRC_LIB} ${DSUPERLU_LIB} ${SCOTCH_LIB}  ${METIS_LIB} 
 endif
 
-DGDFT_DIR     = /global/u1/l/linlin/project/dgdft_edison
+
+
+
+DGDFT_DIR     = /Users/linlin/Projects/dgdft
 
 # inclues
 BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
-FFTW_INCLUDE     = -I/opt/fftw/3.3.0.1/x86_64/include
+FFTW_INCLUDE     = -I/usr/local/include
 DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
-LIBXC_INCLUDE    = -I/global/homes/l/linlin/software/libxc_edison/lib/include
+LIBXC_INCLUDE    = -I/Users/linlin/Software/libxc/build/include
+#LIBXC_INCLUDE    = -I/opt/local/include
 INCLUDES         = ${DGDFT_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE}
 
 # Libraries
-LIBXC_LIB        = /global/homes/l/linlin/software/libxc_edison/lib/lib/libxc.a
+LIBXC_LIB        = /Users/linlin/Software/libxc/build/lib/libxc.a
 BLOPEX_LIB       = ${DGDFT_DIR}/external/blopex/libblopex.a 
-FFTW_LIB         = -L/opt/fftw/3.3.0.1/x86_64/lib -lfftw3_mpi -lfftw3 -lm
-MKL_LIB          = -Wl,--start-group  ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_core.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a -Wl,--end-group -lpthread -lm
-#MKL_LIB          = -mkl
+GFORTRAN_LIB     = /usr/local/lib/libgfortran.dylib
+#GFORTRAN_LIB     =/opt/local/lib/gcc44/libgfortran.dylib
+SCALAPACK_LIB    =/Users/linlin/Software/scalapack-2.0/libscalapack.a
+FFTW_LIB         = -L/usr/local/lib -lfftw3_mpi -lfftw3 -lm
+LAPACK_LIB       = -llapack
+BLAS_LIB         = -lblas
+#BLAS_LIB         = /Users/linlin/Software/BLAS/libblas.a
+#BLAS_LIB         = /Users/linlin/Software/OpenBLAS/build/lib/libopenblas.a
 
 DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
-LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${MKL_LIB} ${IPM}
+LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${SCALAPACK_LIB} ${LAPACK_LIB} ${BLAS_LIB} ${GFORTRAN_LIB}
 
-CC           = cc
-CXX          = CC
-FC           = ftn
-LOADER       = CC
+CC           = mpicc 
+CXX          = mpicxx
+FC           = mpif90
+LOADER       = mpicxx
 
-AR           = ar
+AR           = ar 
 ARFLAGS      = rvcu
 # For System V based machine without ranlib, like Cray and SGI,
 # use touch instead.

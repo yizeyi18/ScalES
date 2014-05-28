@@ -40,7 +40,7 @@
 	 works, incorporate into other computer software, distribute, and sublicense
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file scf.cpp
+/// @file scf.hpp
 /// @brief SCF class for the global domain or extended element.
 /// @date 2012-10-25
 #ifndef _SCF_HPP_ 

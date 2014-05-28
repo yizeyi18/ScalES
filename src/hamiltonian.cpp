@@ -338,7 +338,8 @@ KohnSham::UpdatePseudoPotential	( PeriodTable &ptable ){
 	Int numAtom = atomList_.size();
 	Real vol = domain_.Volume();
 
-//	pseudo_.resize( numAtom );
+  pseudo_.clear();
+  pseudo_.resize( numAtom );
 
 	std::vector<DblNumVec> gridpos;
   UniformMeshFine ( domain_, gridpos );
@@ -400,9 +401,17 @@ KohnSham::UpdatePseudoPotential	( PeriodTable &ptable ){
 
   Int cnt = 0; // the total number of PS used
   for ( Int a=0; a < atomList_.size(); a++ ) {
+    // FIXME
+//    statusOFS << "Processing the pseudopotential for atom " << a << std::endl;
+
 		ptable.CalculateNonlocalPP( atomList_[a], domain_, gridposCoarse,
 				pseudo_[a].vnlList ); 
+
+//    statusOFS << "checkpoint1 " << a << std::endl;
+
 		cnt = cnt + pseudo_[a].vnlList.size();
+
+//    statusOFS << "checkpoint2 " << a << std::endl;
   }
 
 	Print( statusOFS, "Total number of nonlocal pseudopotential = ",  cnt );
@@ -757,6 +766,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 	// *********************************************************************
 	// Compute the force from nonlocal pseudopotential
 	// *********************************************************************
+	// Method 1: Using the derivative of the pseudopotential
 	if(1)
 	{
 		// Loop over atoms and pseudopotentials
@@ -789,9 +799,96 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 				} // for (g)
 			} // for (l)
 		} // for (a)
-
 	}
 
+	// Method 2: Using integration by parts, and throw the derivative to the wavefunctions
+  // FIXME: Assumign real arithmetic is used here.
+	if(0)
+	{
+    // Compute the derivative of the wavefunctions
+
+    Fourier* fftPtr = &(fft);
+
+    Int ntothalf = fftPtr->numGridTotalR2C;
+    Int ntot  = psi.NumGridTotal();
+    Int ncom  = psi.NumComponent();
+    Int nocc  = psi.NumState();
+
+    DblNumVec realInVec(ntot);
+		CpxNumVec cpxSaveVec(ntothalf);
+		CpxNumVec cpxOutVec(ntothalf);
+
+    std::vector<DblNumTns>   psiDrv(DIM);
+    for( Int d = 0; d < DIM; d++ ){
+      psiDrv[d].Resize( ntot, ncom, nocc );
+      SetValue( psiDrv[d], 0.0 );
+    }
+
+    for (Int k=0; k<nocc; k++) {
+      for (Int j=0; j<ncom; j++) {
+        // For c2r and r2c transforms, the default is to DESTROY the
+        // input, therefore a copy of the original matrix is necessary. 
+        blas::Copy( ntot, psi.Wavefun().VecData(j, k), 1, 
+            realInVec.Data(), 1 );
+        fftw_execute_dft_r2c(
+            fftPtr->forwardPlanR2C, 
+            realInVec.Data(),
+            reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ));
+
+        cpxSaveVec = cpxOutVec;
+
+        for( Int d = 0; d < DIM; d++ ){
+          Complex* ptr1   = fftPtr->ikR2C[d].Data();
+          Complex* ptr2   = cpxSaveVec.Data();
+          Complex* ptr3   = cpxOutVec.Data();
+          for (Int i=0; i<ntothalf; i++) {
+            *(ptr3++) = (*(ptr1++)) * (*(ptr2++));
+          }
+
+          fftw_execute_dft_c2r(
+              fftPtr->backwardPlanR2C,
+              reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ),
+              realInVec.Data() );
+
+          blas::Axpy( ntot, 1.0 / Real(ntot), realInVec.Data(), 1, 
+              psiDrv[d].VecData(j, k), 1 );
+        }
+      }
+    }
+
+    // Loop over atoms and pseudopotentials
+    Int numEig = occupationRate_.m();
+
+    for( Int a = 0; a < numAtom; a++ ){
+      std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlList;
+      for( Int l = 0; l < vnlList.size(); l++ ){
+        SparseVec& bl = vnlList[l].first;
+        Real  gamma   = vnlList[l].second;
+        Real wgt = domain_.Volume() / domain_.NumGridTotal();
+        IntNumVec& idx = bl.first;
+        DblNumMat& val = bl.second;
+
+        for( Int g = 0; g < numEig; g++ ){
+          DblNumVec res(4);
+          SetValue( res, 0.0 );
+          Real* psiPtr = psi.Wavefun().VecData(0, g);
+          Real* DpsiXPtr = psiDrv[0].VecData(0, g);
+          Real* DpsiYPtr = psiDrv[1].VecData(0, g);
+          Real* DpsiZPtr = psiDrv[2].VecData(0, g);
+          for( Int i = 0; i < idx.Size(); i++ ){
+            res(VAL) += val(i, VAL ) * psiPtr[ idx(i) ] * sqrt(wgt);
+            res(DX)  += val(i, VAL ) * DpsiXPtr[ idx(i) ] * sqrt(wgt);
+            res(DY)  += val(i, VAL ) * DpsiYPtr[ idx(i) ] * sqrt(wgt);
+            res(DZ)  += val(i, VAL ) * DpsiZPtr[ idx(i) ] * sqrt(wgt);
+          }
+
+          force( a, 0 ) += -4.0 * occupationRate_(g) * gamma * res[VAL] * res[DX];
+          force( a, 1 ) += -4.0 * occupationRate_(g) * gamma * res[VAL] * res[DY];
+          force( a, 2 ) += -4.0 * occupationRate_(g) * gamma * res[VAL] * res[DZ];
+        } // for (g)
+      } // for (l)
+    } // for (a)
+	}
 
 	// *********************************************************************
 	// Compute the total force and give the value to atomList

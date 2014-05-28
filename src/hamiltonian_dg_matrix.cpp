@@ -97,9 +97,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	std::vector<DistDblNumMat>   Dbasis(DIM);
 
 	// Integration weights
-	std::vector<DblNumVec>  LGLWeight1D(DIM);
-	std::vector<DblNumMat>  LGLWeight2D(DIM);
-	DblNumTns               LGLWeight3D;
+	std::vector<DblNumVec>&  LGLWeight1D = LGLWeight1D_;
+	std::vector<DblNumMat>&  LGLWeight2D = LGLWeight2D_;
+	DblNumTns&               LGLWeight3D = LGLWeight3D_;
 
 	// Clear the DG Matrix
 	HMat_.LocalMap().clear();
@@ -150,54 +150,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 			Dbasis[i].Prtn() = elemPrtn_;
 		}
 
-		// Compute the integration weights
-		// 1D
-		for( Int d = 0; d < DIM; d++ ){
-			DblNumVec  dummyX;
-			DblNumMat  dummyP, dummpD;
-			GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
-					numGrid[d] );
-			blas::Scal( numGrid[d], 0.5 * length[d], 
-					LGLWeight1D[d].Data(), 1 );
-		}
-
-		// 2D: faces labeled by normal vectors, i.e. 
-		// yz face : 0
-		// xz face : 1
-		// xy face : 2
-
-		// yz face
-		LGLWeight2D[0].Resize( numGrid[1], numGrid[2] );
-		for( Int k = 0; k < numGrid[2]; k++ )
-			for( Int j = 0; j < numGrid[1]; j++ ){
-				LGLWeight2D[0](j, k) = LGLWeight1D[1](j) * LGLWeight1D[2](k);
-			} // for (j)
-
-		// xz face
-		LGLWeight2D[1].Resize( numGrid[0], numGrid[2] );
-		for( Int k = 0; k < numGrid[2]; k++ )
-			for( Int i = 0; i < numGrid[0]; i++ ){
-				LGLWeight2D[1](i, k) = LGLWeight1D[0](i) * LGLWeight1D[2](k);
-			} // for (i)
-
-		// xy face
-		LGLWeight2D[2].Resize( numGrid[0], numGrid[1] );
-		for( Int j = 0; j < numGrid[1]; j++ )
-			for( Int i = 0; i < numGrid[0]; i++ ){
-				LGLWeight2D[2](i, j) = LGLWeight1D[0](i) * LGLWeight1D[1](j);
-			}
-
-
-		// 3D
-		LGLWeight3D.Resize( numGrid[0], numGrid[1],
-				numGrid[2] );
-		for( Int k = 0; k < numGrid[2]; k++ )
-			for( Int j = 0; j < numGrid[1]; j++ )
-				for( Int i = 0; i < numGrid[0]; i++ ){
-					LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
-						LGLWeight1D[2](k);
-				} // for (i)
-		
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
 		statusOFS << "Time for initial setup is " <<
@@ -1515,8 +1467,8 @@ HamiltonianDG::UpdateDGMatrix	(
 	Int    numGridTotal = numGrid.prod();
 
 	// Integration weights
-	std::vector<DblNumVec>  LGLWeight1D(DIM);
-	DblNumTns               LGLWeight3D;
+	std::vector<DblNumVec>&  LGLWeight1D = LGLWeight1D_;
+	DblNumTns&               LGLWeight3D = LGLWeight3D_;
 
 	// NOTE: Since this is an update process, DO NOT clear the DG Matrix
 
@@ -1554,28 +1506,6 @@ HamiltonianDG::UpdateDGMatrix	(
 				} // for (i)
 
 		sizeHMat_ = cnt;
-
-		// Compute the integration weights
-		// 1D
-		for( Int d = 0; d < DIM; d++ ){
-			DblNumVec  dummyX;
-			DblNumMat  dummyP, dummpD;
-			GenerateLGL( dummyX, LGLWeight1D[d], dummyP, dummpD, 
-					numGrid[d] );
-			blas::Scal( numGrid[d], 0.5 * length[d], 
-					LGLWeight1D[d].Data(), 1 );
-		}
-
-
-		// 3D
-		LGLWeight3D.Resize( numGrid[0], numGrid[1],
-				numGrid[2] );
-		for( Int k = 0; k < numGrid[2]; k++ )
-			for( Int j = 0; j < numGrid[1]; j++ )
-				for( Int i = 0; i < numGrid[0]; i++ ){
-					LGLWeight3D(i, j, k) = LGLWeight1D[0](i) * LGLWeight1D[1](j) *
-						LGLWeight1D[2](k);
-				} // for (i)
 	}
 	
 	

@@ -222,7 +222,7 @@ namespace esdf{
 // *********************************************************************
 const int nphys = 57;
 const int llength = 80;  /* length of the lines */
-const int numkw = 200;   /* maximum number of keywords */
+const int numkw = 400;   /* maximum number of keywords */
 
 
 
@@ -515,27 +515,35 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether density is restarted!*");
 
-
 	i++;
 	strcpy(kw_label[i],"restart_wfn");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether the wavefunction in the global domain is restarted!*");
 
 	i++;
+	strcpy(kw_label[i],"restart_position");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether the last position is restarted!*");
+
+	i++;
+	strcpy(kw_label[i],"restart_thermostate");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether the last thermostate is restarted!*");
+
+  i++;
 	strcpy(kw_label[i],"output_density");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether density is outputed !*");
 
-	i++;
-	strcpy(kw_label[i],"restart_wave_mode");
-	strcpy(kw_typ[i],"T:E");
-	strcpy(kw_dscrpt[i],"*! Restart mode !*");
+  i++;
+	strcpy(kw_label[i],"output_thermostate");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether thermostate is outputed !*");
 
 	i++;
-	strcpy(kw_label[i],"restart_wave");
-	strcpy(kw_typ[i],"T:E");
-	strcpy(kw_dscrpt[i],"*! Wave function file to restart!*");
-
+	strcpy(kw_label[i],"output_position");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether the last position is outputed !*");
 
 	i++;
 	strcpy(kw_label[i],"output_wfn");
@@ -738,6 +746,92 @@ void esdf_key() {
 	strcpy(kw_typ[i],"B:E");
 	strcpy(kw_dscrpt[i],"*! Distance to the boundary of the extended element to be periodized !*");
 
+	i++;
+	strcpy(kw_label[i],"solution_method");
+	strcpy(kw_typ[i],"T:E");
+	strcpy(kw_dscrpt[i],"*! Type of solver for the projected problem!*");
+
+	i++;
+	strcpy(kw_label[i],"num_pole");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of poles for the pole expansion !*");
+
+	i++;
+	strcpy(kw_label[i],"num_proc_row_pexsi");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of processors per row used by pexsi !*");
+
+	i++;
+	strcpy(kw_label[i],"num_proc_col_pexsi");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of processors per column used by pexsi !*");
+
+
+	i++;
+	strcpy(kw_label[i],"num_proc_symb_fact");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of processors used the parallel symbolic factorization !*");
+
+	i++;
+	strcpy(kw_label[i],"energy_gap");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Estimated energy gap !*");
+
+	i++;
+	strcpy(kw_label[i],"spectral_radius");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Estimated spectral radius !*");
+
+	i++;
+	strcpy(kw_label[i],"matrix_ordering");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Matrix reordering strategy !*");
+
+	i++;
+	strcpy(kw_label[i],"inertia_count");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Whether or not to use the inertia count !*");
+
+
+	i++;
+	strcpy(kw_label[i],"inertia_count_steps");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! After this number of SCF the inertia count is not used !*");
+
+	i++;
+	strcpy(kw_label[i],"max_pexsi_iter");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Maximum number of iterations for PEXSI !*");
+
+	i++;
+	strcpy(kw_label[i],"mu_min");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Minimum for the chemical potential !*");
+
+	i++;
+	strcpy(kw_label[i],"mu_max");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Maximum for the chemical potential !*");
+
+	i++;
+	strcpy(kw_label[i],"num_electron_pexsi_tolerance");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Absolute tolerance for the number of electrons for PEXSI !*");
+
+	i++;
+	strcpy(kw_label[i],"mu_inertia_tolerance");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Tolerance for the chemical potential for inertia counting !*");
+
+	i++;
+	strcpy(kw_label[i],"mu_inertia_expansion");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! The length of expanding the chemical potential interval !*");
+
+	i++;
+	strcpy(kw_label[i],"mu_pexsi_safeguard");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Safeguard value for switching back to inertia counting !*");
 }
 
 void esdf() {
@@ -1972,10 +2066,14 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-4 );
 		esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
 		esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
+		esdfParam.isRestartPosition= esdf_integer( "Restart_Position", 0 );
+		esdfParam.isRestartThermostate= esdf_integer( "Restart_Thermostate", 0 );
 		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 1 );
 		esdfParam.isOutputWfnElem         = esdf_integer( "Output_Wfn_Elem", 0 );
-		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 0 );
+		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 1 );
 		esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 0 );
+		esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 0 );
+		esdfParam.isOutputThermostate      = esdf_integer( "Output_Thermostate", 0 );
 		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 1 );
 		esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 1 );
 		esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
@@ -2110,6 +2208,39 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 			}
 		} // Modify the potential
 
+    esdf_string("Solution_Method", "diag", strtmp); 
+    esdfParam.solutionMethod  = strtmp;
+		if( esdfParam.solutionMethod != "diag" &&
+				esdfParam.solutionMethod != "pexsi" ){
+			throw std::runtime_error("Invalid solution method for the projected problem.");
+		}
+    if( esdfParam.solutionMethod == "pexsi" ){
+#ifndef _USE_PEXSI_
+			throw std::runtime_error("Usage of PEXSI requires -DPEXSI to be defined in make.inc.");
+#endif
+    }
+
+    // PEXSI parameters
+    esdfParam.numPole           = esdf_integer( "Num_Pole", 60 );
+    esdfParam.numProcRowPEXSI   = esdf_integer( "Num_Proc_Row_PEXSI", 1 );
+    esdfParam.numProcColPEXSI   = esdf_integer( "Num_Proc_Col_PEXSI", 1 );
+    esdfParam.npSymbFact        = esdf_integer( "Num_Proc_Symb_Fact", 
+       std::min( 4, esdfParam.numProcRowPEXSI * esdfParam.numProcColPEXSI ) );
+    esdfParam.energyGap         = esdf_double( "Energy_Gap", 0.0 );
+    esdfParam.spectralRadius    = esdf_double( "Spectral_Radius", 100.0 );
+    esdfParam.matrixOrdering    = esdf_integer( "Matrix_Ordering", 0 );
+    esdfParam.inertiaCountSteps = esdf_integer( "Inertia_Count_Steps", 10 );
+    esdfParam.maxPEXSIIter         = esdf_integer( "Max_PEXSI_Iter", 5 );
+    esdfParam.numElectronPEXSITolerance =
+      esdf_double( "Num_Electron_PEXSI_Tolerance", 1e-2 );
+    esdfParam.muInertiaTolerance =
+      esdf_double( "Mu_Inertia_Tolerance", 0.05 );
+    esdfParam.muInertiaExpansion =
+      esdf_double( "Mu_Inertia_Expansion", 0.3 );
+    esdfParam.muPEXSISafeGuard =
+      esdf_double( "Mu_PEXSI_SafeGuard", 0.05 );
+    esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
+    esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
 	} // DG
 	
 

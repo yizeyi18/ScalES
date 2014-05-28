@@ -94,6 +94,7 @@ struct Fourier {
   fftw_plan forwardPlanR2C;
 
   DblNumVec                gkkR2C;
+	std::vector<CpxNumVec>   ikR2C;
   DblNumVec                TeterPrecondR2C;
 
 	// Temporary vectors that can also be used globally
