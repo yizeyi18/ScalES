@@ -241,6 +241,13 @@ void LAPACK(zgetri)
 	( const Int* n, dcomplex* A, const Int* lda, const Int* ipiv, dcomplex* work,
 		const Int* lwork, Int* info );
 
+// Compute the factorization of a real symmetric matrix: Sytrf
+void LAPACK(dsytrf)
+  ( const char* uplo, const Int* N, double* A, const Int* lda,
+    Int* ipiv, double* work, const Int* lwork, Int* info );
+
+
+
 // Estimating the reciprocal of the condition number
 // TODO Add Pocon and Lansy
 
@@ -1610,6 +1617,49 @@ Getri ( Int n, dcomplex* A, Int lda, const Int* ipiv )
 
 	return ;
 }		// -----  end of function Getri  ----- 
+
+
+
+// Compute the factorization of a real symmetric matrix: Sytrf
+
+void
+Sytrf ( char uplo, Int n, double* A, Int lda, Int* ipiv ){
+#ifndef _RELEASE_
+  PushCallStack("Sytrf");
+#endif
+  Int lwork = -1, info;
+  double dummyWork;
+
+  LAPACK(dsytrf) ( &uplo, &n, A, &lda,
+      ipiv, &dummyWork, &lwork, &info );
+
+  lwork = dummyWork;
+  std::vector<double> work(lwork);
+
+  LAPACK(dsytrf) ( &uplo, &n, A, &lda,
+      ipiv, &work[0], &lwork, &info );
+
+  if( info < 0 )
+  {
+    std::ostringstream msg;
+    msg << "Argument " << -info << " had illegal value";
+    throw std::logic_error( msg.str().c_str() );
+  }
+  else if( info > 0 )
+  {
+    std::ostringstream msg;
+    msg << "U(" << info << ", " << info << ") = 0. "
+      << "The matrix is singular and factorization cannot proceed.";
+    throw std::runtime_error( msg.str().c_str() );
+  }
+
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+
+  return ;
+}		// -----  end of function Sytrf  ----- 
+
 
 } // namespace lapack
 } // namespace dgdft

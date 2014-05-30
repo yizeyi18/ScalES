@@ -823,7 +823,7 @@ SCFDG::Iterate	(  )
             if(0)
               eigSol.Solve();
             else
-              eigSol.LOBPCGSolveReal(
+              eigSol.LOBPCGSolveReal2(
                   numBasis,
                   eigMaxIter_,
                   eigTolNow );

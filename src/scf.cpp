@@ -313,7 +313,7 @@ SCF::Iterate	(  )
     if(0)
       eigSolPtr_->Solve();
     else
-      eigSolPtr_->LOBPCGSolveReal(
+      eigSolPtr_->LOBPCGSolveReal2(
           numEig,
           eigMaxIter_,
           eigTolNow );

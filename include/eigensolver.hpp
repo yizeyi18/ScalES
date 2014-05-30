@@ -106,7 +106,6 @@ public:
   // FIXME to be removed
 	void Solve();
 
-  // 
   /// @brief Sequential LOBPCG solver.
   ///
   /// This is more efficient and possibly more stable than blopex.
@@ -130,6 +129,35 @@ public:
       Int          numEig,
       Int          eigMaxIter,
       Real         eigTolerance );
+
+
+  /// @brief Sequential LOBPCG solver.
+  ///
+  /// Comapred to LOBPCGSolveReal, the main difference is that this
+  /// version does not use deflation, but use orthogonalization instead
+  /// to provide (better) stability.  To enhance stability, LDLT
+  /// factorization is used for orthogonalization, rather than using the
+  /// Cholesky factorization which assumes that the overlap matrix is
+  /// positive definite.
+  ///
+  /// @note The input vectors is saved in the spinor (psiPtr_), and the
+  /// number of input vectors is denoted by `width`.
+  /// The output is saved in eigVal_ and resVal_.
+  /// In a converged calculation, only the first numEig eigenvalues are required to
+  /// meet the convergence criterion.
+  ///
+  /// @todo: The restart mechanism has not been implemented.
+  ///
+  /// @param[in] numEig  Number of eigenvalues to be counted in the
+  /// convergence criterion.  numEig must be less than or equal to
+  /// width.
+  /// @param[in] eigMaxIter    Maximum number of iterations
+  /// @param[in] eigTolerance  Residual tolerance.
+  void LOBPCGSolveReal2(
+      Int          numEig,
+      Int          eigMaxIter,
+      Real         eigTolerance );
+
 
 	// ********************  ACCESS      *******************************
 	DblNumVec& EigVal() { return eigVal_; }
