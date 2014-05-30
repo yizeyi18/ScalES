@@ -48,7 +48,7 @@
 #include  "blas.hpp"
 #include  "lapack.hpp"
 
-#define _DEBUGlevel_ 0
+#define _DEBUGlevel_ 1
 
 namespace dgdft{
 
@@ -62,7 +62,7 @@ void EigenSolver::Setup(
 			Spinor& psi,
 			Fourier& fft ) {
 #ifndef _RELEASE_
-	PushCallStack("EigenSolver::SEtup");
+	PushCallStack("EigenSolver::Setup");
 #endif  // ifndef _RELEASE_
 	hamPtr_ = &ham;
 	psiPtr_ = &psi;
@@ -765,9 +765,11 @@ EigenSolver::LOBPCGSolveReal	(
 
 #if ( _DEBUGlevel_ >= 1 )
     statusOFS << "numLocked = " << numLocked << std::endl;
-    statusOFS << "eigValS   = " << eigValS << std::endl;
 #endif
 
+#if ( _DEBUGlevel_ >= 1 )
+    statusOFS << "eigValS   = " << eigValS << std::endl;
+#endif
 
   } // for (iter)
 

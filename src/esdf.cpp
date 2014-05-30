@@ -2116,14 +2116,15 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.XCType          = strtmp;
 	}
 
-
+/*
 	// Obtain the exchange-correlation id
 	{
 		if( esdfParam.XCType == "XC_LDA_XC_TETER93" )
 			esdfParam.XCId = XC_LDA_XC_TETER93;
 		else
       throw std::logic_error("Unrecognized exchange-correlation type");
-	}
+	} */
+
 	// DG
 	{
 		Index3& numElem = esdfParam.numElem;
