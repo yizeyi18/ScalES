@@ -138,7 +138,7 @@ namespace LOBPCG{
 
   // From multi_vector.h  
   serial_Multi_Vector * serial_Multi_VectorCreate( BlopexInt size, BlopexInt num_vectors  );
-  serial_Multi_Vector *serial_Multi_VectorRead( char *file_name );
+  serial_Multi_Vector * serial_Multi_VectorRead( char *file_name );
 
   BlopexInt serial_Multi_VectorDestroy( serial_Multi_Vector *vector );
   BlopexInt serial_Multi_VectorInitialize( serial_Multi_Vector *vector );

@@ -78,10 +78,10 @@ public:
 
 	~Spinor();
 
-	void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
+	void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
       const Scalar val = static_cast<Scalar>(0) ); 
 
-	void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
+	void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
       const bool owndata, Scalar* data );
 
 	// *********************************************************************
@@ -93,8 +93,10 @@ public:
   Int NumStateTotal() const { return numStateTotal_; }
   Int Blocksize()     const { return blocksize_; }
   
-  IntNumVec&  WavefunIdxi() { return wavefunIdx_; }
-  const IntNumVec&  WavefunIdxi() const { return wavefunIdx_; }
+  IntNumVec&  WavefunIdx() { return wavefunIdx_; }
+  const IntNumVec&  WavefunIdx() const { return wavefunIdx_; }
+  Int&  WavefunIdx(const Int k) { return wavefunIdx_(k); }
+  const Int&  WavefunIdx(const Int k) const { return wavefunIdx_(k); }
 
 	NumTns<Scalar>& Wavefun() { return wavefun_; } 
 	const NumTns<Scalar>& Wavefun() const { return wavefun_; } 
@@ -111,15 +113,17 @@ public:
 	// *********************************************************************
 	void Normalize();
 
-  void AddScalarDiag (const Int iocc, const DblNumVec &val, NumTns<Scalar>& a3);
+  void AddScalarDiag (Int iocc, const DblNumVec &val, NumMat<Scalar>& y);
   void AddScalarDiag (const DblNumVec &val, NumTns<Scalar> &a3);
-//  void AddScalarDiag (const IntNumVec &activeIndex, DblNumVec &val, NumTns<Scalar> &a3);
-//  void AddNonlocalPseudo(Int iocc, vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);
-//  int add_nonlocalPS (vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);
-//  int add_nonlocalPS (IntNumVec &active_ind, vector< vector< pair<SparseVec,double> > > &val, DblNumTns &a3);
 
-	void AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr);
+	void AddLaplacian (Int iocc, Fourier* fftPtr, NumMat<Scalar>& y);
+	void AddLaplacian (Fourier* fftPtr, NumTns<Scalar>& a3);
+
+	void AddNonlocalPP (Int iocc, const std::vector<PseudoPot>& pseudo, NumMat<Scalar>& y);
 	void AddNonlocalPP (const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3);
+
+  void AddTeterPrecond( Int iocc, Fourier* fftPtr, NumTns<Scalar>& a3 );
+  void AddTeterPrecond( Fourier* fftPtr, NumTns<Scalar>& a3 );
 
   // Spin related operations
 //  int add_sigma_x    (DblNumVec &a1, CpxNumTns &a3);

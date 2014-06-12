@@ -92,7 +92,7 @@ void Spinor::Setup (
 		const Domain &dm, 
 		const Int     numComponent,
 		const Int     numStateTotal,
-          Int     numStateLocal,
+    const Int     numStateLocal,
 		const Scalar  val ) {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Setup ");
@@ -106,58 +106,37 @@ void Spinor::Setup (
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
 
   Int blocksize;
-  numStateTotal_ = numStateTotal;
-  blocksize_ = blocksize;
 
   if ( numStateTotal <=  mpisize ) {
     blocksize = 1;
-
-    if ( mpirank < numStateTotal ){
-      numStateLocal = 1; // blocksize == 1;
-    }
-    else {
-      numStateLocal = 0;
-    }
-  
   }
-  
-  else {
-  
+  else {  // numStateTotal >  mpisize
     if ( numStateTotal % mpisize == 0 ){
       blocksize = numStateTotal / mpisize;
-      numStateLocal = blocksize * (mpirank + 1);
     }
     else {
       blocksize = ((numStateTotal - 1) / mpisize) + 1;
-      if ( mpirank < ( mpisize - 1 )){
-        numStateLocal = blocksize * (mpirank + 1);
-      }
-      else {
-        numStateLocal = numStateTotal - blocksize * ( mpisize -1 );
-      }
     }    
-
-  }
-
-  wavefunIdx_.Resize( numStateLocal );
-  SetValue( wavefunIdx_, 0 );
-  for (Int i = 0; i < numStateLocal; i++){
-    if(blocksize * mpirank < numStateTotal){
-      wavefunIdx_[i] = i + blocksize * mpirank;
-    }
   }
 
   numStateTotal_ = numStateTotal;
   blocksize_ = blocksize;
+  
+  wavefunIdx_.Resize( numStateLocal );
+  SetValue( wavefunIdx_, 0 );
+  for (Int i = 0; i < numStateLocal; i++){
+    wavefunIdx_[i] = i * mpisize + mpirank ;
+  }
 
   // Check Sum{numStateLocal} = numStateTotal
   Int numStateTotalTest; 
+  Int numState = numStateLocal;
 
-  mpi::Allreduce( &numStateLocal, &numStateTotalTest, 1, MPI_SUM, domain_.comm );
+  mpi::Allreduce( &numState, &numStateTotalTest, 1, MPI_SUM, domain_.comm );
 
-  if( numStateTotalTest != numStateTotal ){
-    throw std::logic_error("Sum{numStateLocal} = numStateTotal does not match.");
-  }
+//  if( numStateTotalTest != numStateTotal ){
+//    throw std::logic_error("Sum{numStateLocal} = numStateTotal does not match.");
+//  }
  
   // huwei
 
@@ -200,13 +179,10 @@ Spinor::Normalize	( )
 
 	for (Int k=0; k<nocc; k++) {
 		Scalar *ptr = wavefun_.MatData(k);
-		Real   sumLocal = 0.0, sum = 0.0;
+		Real   sum = 0.0;
 		for (Int i=0; i<size; i++) {
-			sumLocal += pow(abs(*ptr++), 2.0);
+			sum += pow(abs(*ptr++), 2.0);
 		}
-
-    mpi::Allreduce( &sumLocal, &sum, 1, MPI_SUM, domain_.comm );
-
 		sum = sqrt(sum);
 		if (sum != 0.0) {
 			ptr = wavefun_.MatData(k);
@@ -220,7 +196,7 @@ Spinor::Normalize	( )
 } 		// -----  end of method Spinor::Normalize  ----- 
 
 void
-Spinor::AddScalarDiag	(const Int iocc, const DblNumVec &val, NumTns<Scalar>& a3)
+Spinor::AddScalarDiag	(Int iocc, const DblNumVec &val, NumMat<Scalar>& y)
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddScalarDiag");
@@ -242,8 +218,10 @@ Spinor::AddScalarDiag	(const Int iocc, const DblNumVec &val, NumTns<Scalar>& a3)
 	for (Int j=0; j<ncom; j++) {
 		Scalar *p1 = wavefun_.VecData(j, k);
 		Real   *p2 = val.Data();
-		Scalar *p3 = a3.VecData(j, k);
-		for (Int i=0; i<ntot; i++) { *(p3) += (*p1) * (*p2); p3++; p1++; p2++; }
+		Scalar *p3 = y.VecData(j);
+    for (Int i=0; i<ntot; i++) { 
+      *(p3) += (*p1) * (*p2); p3++; p1++; p2++; 
+    }
 	}
 
 #ifndef _RELEASE_
@@ -287,44 +265,68 @@ void Spinor::AddScalarDiag	(const DblNumVec &val, NumTns<Scalar> &a3)
 	return ;
 } 		// -----  end of method Spinor::AddScalarDiag  ----- 
 
-//void Spinor::AddScalarDiag (const IntNumVec &activeIndex, DblNumVec &val, NumTns<Scalar> &a3)
-//{
-//#ifndef _RELEASE_
-//	PushCallStack("Spinor::AddScalarDiag");
-//#endif
-//	if( val.m() == 0 || val.m() != wavefun_.m() ){
-//		throw std::logic_error("Vector dimension does not match.");
-//	}
-//
-//	Int ntot = wavefun_.m();
-//	Int ncom = wavefun_.n();
-//	Int nocc = wavefun_.p();
-//
-//	for( Int i = 0; i < activeIndex.m(); i++ ){
-//		if( activeIndex(i) < 0 || activeIndex(i) > nocc ){
-//			throw std::logic_error("Index is out of bound.");
-//		}
-//	}
-//
-//	for (Int iact=0; iact < activeIndex.m(); iact++) {
-//		Int k = activeIndex(iact);
-//		for (Int j=0; j<ncom; j++) {
-//			Scalar *p1 = wavefun_.VecData(j, k);
-//			Real   *p2 = val.Data();
-//			Scalar *p3 = a3.VecData(j, k);
-//			for (Int i=0; i<ntot; i++) { *(p3) += (*p1) * (*p2); p3++; p1++; p2++; }
-//		}
-//	}
-//
-//#ifndef _RELEASE_
-//	PopCallStack();
-//#endif
-//
-//	return ;
-//} 		// -----  end of method Spinor::AddScalarDiag  ----- 
+void
+Spinor::AddLaplacian (Int iocc, Fourier* fftPtr, NumMat<Scalar>& y)
+{
+#ifndef _RELEASE_
+	PushCallStack("Spinor::AddLaplacian");
+#endif
+	if( !fftPtr->isInitialized ){
+		throw std::runtime_error("Fourier is not prepared.");
+	}
+	Int ntot = wavefun_.m();
+	Int ncom = wavefun_.n();
+	Int nocc = wavefun_.p();
+
+	if( fftPtr->domain.NumGridTotal() != ntot ){
+		throw std::logic_error("Domain size does not match.");
+	}
+
+#ifndef _USE_COMPLEX_ // Real case
+	Int ntothalf = fftPtr->numGridTotalR2C;
+	{
+    // These two are private variables in the OpenMP context
+    DblNumVec realInVec(ntot);
+		CpxNumVec cpxOutVec(ntothalf);
+
+    Int k = iocc;
+    for (Int j=0; j<ncom; j++) {
+      Scalar* p3 = y.VecData(j);
+      // For c2r and r2c transforms, the default is to DESTROY the
+      // input, therefore a copy of the original matrix is necessary. 
+      blas::Copy( ntot, wavefun_.VecData(j, k), 1, 
+          realInVec.Data(), 1 );
+      fftw_execute_dft_r2c(
+          fftPtr->forwardPlanR2C, 
+          realInVec.Data(),
+          reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ));
+
+      Real*    ptr1d   = fftPtr->gkkR2C.Data();
+      Complex* ptr2    = cpxOutVec.Data();
+      for (Int i=0; i<ntothalf; i++) 
+        *(ptr2++) *= *(ptr1d++);
+
+      fftw_execute_dft_c2r(
+          fftPtr->backwardPlanR2C,
+          reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ),
+          realInVec.Data() );
+
+      blas::Axpy( ntot, 1.0 / Real(ntot), realInVec.Data(), 1, 
+          p3, 1 );
+    }
+	}
+#endif
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method Spinor::AddLaplacian  ----- 
+
 
 void
-Spinor::AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr)
+Spinor::AddLaplacian (Fourier* fftPtr, NumTns<Scalar>& a3)
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddLaplacian");
@@ -407,6 +409,55 @@ Spinor::AddLaplacian (NumTns<Scalar>& a3, Fourier* fftPtr)
 
 
 void
+Spinor::AddNonlocalPP	(Int iocc, const std::vector<PseudoPot>& pseudo, 
+    NumMat<Scalar>& y)
+{
+#ifndef _RELEASE_
+	PushCallStack("Spinor::AddNonlocalPP");
+#endif
+	Int ntot = wavefun_.m(); 
+	Int ncom = wavefun_.n();
+	Int nocc = wavefun_.p();
+	Real vol = domain_.Volume();
+
+  Int k = iocc;
+  for (Int j=0; j<ncom; j++) {
+    Scalar    *ptr0 = wavefun_.VecData(j,k);
+    Scalar    *ptr1 = y.VecData(j);
+    Int natm = pseudo.size();
+    for (Int iatm=0; iatm<natm; iatm++) {
+      Int nobt = pseudo[iatm].vnlList.size();
+      for (Int iobt=0; iobt<nobt; iobt++) {
+        const SparseVec &vnlvec = pseudo[iatm].vnlList[iobt].first;
+        const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
+        const IntNumVec &iv = vnlvec.first;
+        const DblNumMat &dv = vnlvec.second;
+
+        Scalar    weight = SCALAR_ZERO; 
+        const Int    *ivptr = iv.Data();
+        const Real   *dvptr = dv.VecData(VAL);
+        for (Int i=0; i<iv.m(); i++) {
+          weight += (*(dvptr++)) * ptr0[*(ivptr++)];
+        }
+        weight *= vol/Real(ntot)*vnlwgt;
+
+        ivptr = iv.Data();
+        dvptr = dv.VecData(VAL);
+        for (Int i=0; i<iv.m(); i++) {
+          ptr1[*(ivptr++)] += (*(dvptr++)) * weight;
+        }
+      }
+    }
+	}
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return ;
+} 		// -----  end of method Spinor::AddNonlocalPP  ----- 
+
+
+void
 Spinor::AddNonlocalPP	(const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
 {
 #ifndef _RELEASE_
@@ -456,6 +507,165 @@ Spinor::AddNonlocalPP	(const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
 #endif
 	return ;
 } 		// -----  end of method Spinor::AddNonlocalPP  ----- 
+
+void
+Spinor::AddTeterPrecond ( Int iocc, Fourier* fftPtr, NumTns<Scalar>& a3)
+{
+#ifndef _RELEASE_
+	PushCallStack("Spinor::AddTeterPrecond");
+#endif
+	if( !fftPtr->isInitialized ){
+		throw std::runtime_error("Fourier is not prepared.");
+	}
+	Int ntot = wavefun_.m();
+	Int ncom = wavefun_.n();
+	Int nocc = wavefun_.p();
+
+	if( fftPtr->domain.NumGridTotal() != ntot ){
+		throw std::logic_error("Domain size does not match.");
+	}
+
+  // For convenience
+  NumTns<Scalar>& a3i = wavefun_; 
+  NumTns<Scalar>& a3o = a3;
+
+//#ifndef _USE_COMPLEX_ // Real case
+    Int ntothalf = fftPtr->numGridTotalR2C;
+    // These two are private variables in the OpenMP context
+    DblNumVec realInVec(ntot);
+		CpxNumVec cpxOutVec(ntothalf);
+
+    Int k = iocc; 
+      for (Int j=0; j<ncom; j++) {
+        // For c2r and r2c transforms, the default is to DESTROY the
+        // input, therefore a copy of the original matrix is necessary. 
+        blas::Copy( ntot, a3i.VecData(j,k), 1, 
+            realInVec.Data(), 1 );
+
+				fftw_execute_dft_r2c(
+						fftPtr->forwardPlanR2C, 
+						realInVec.Data(),
+						reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ));
+
+        Real*    ptr1d   = fftPtr->TeterPrecondR2C.Data();
+				Complex* ptr2    = cpxOutVec.Data();
+        for (Int i=0; i<ntothalf; i++) 
+					*(ptr2++) *= *(ptr1d++);
+
+				fftw_execute_dft_c2r(
+						fftPtr->backwardPlanR2C,
+						reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ),
+						realInVec.Data() );
+
+        blas::Axpy( ntot, 1.0 / Real(ntot), realInVec.Data(), 1, 
+            a3o.VecData(j, k), 1 );
+      }
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method Spinor::AddTeterPrecond ----- 
+
+void
+Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Scalar>& a3)
+{
+#ifndef _RELEASE_
+	PushCallStack("Spinor::AddTeterPrecond");
+#endif
+	if( !fftPtr->isInitialized ){
+		throw std::runtime_error("Fourier is not prepared.");
+	}
+	Int ntot = wavefun_.m();
+	Int ncom = wavefun_.n();
+	Int nocc = wavefun_.p();
+
+	if( fftPtr->domain.NumGridTotal() != ntot ){
+		throw std::logic_error("Domain size does not match.");
+	}
+
+  // For convenience
+  NumTns<Scalar>& a3i = wavefun_; 
+  NumTns<Scalar>& a3o = a3;
+
+#ifdef _USE_OPENMP_
+#pragma omp parallel
+  {
+#endif
+#ifndef _USE_COMPLEX_ // Real case
+    Int ntothalf = fftPtr->numGridTotalR2C;
+    // These two are private variables in the OpenMP context
+    DblNumVec realInVec(ntot);
+		CpxNumVec cpxOutVec(ntothalf);
+
+#ifdef _USE_OPENMP_
+#pragma omp for schedule (dynamic,1) nowait
+#endif
+    for (Int k=0; k<nocc; k++) {
+      for (Int j=0; j<ncom; j++) {
+        // For c2r and r2c transforms, the default is to DESTROY the
+        // input, therefore a copy of the original matrix is necessary. 
+        blas::Copy( ntot, a3i.VecData(j,k), 1, 
+            realInVec.Data(), 1 );
+
+				fftw_execute_dft_r2c(
+						fftPtr->forwardPlanR2C, 
+						realInVec.Data(),
+						reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ));
+
+        Real*    ptr1d   = fftPtr->TeterPrecondR2C.Data();
+				Complex* ptr2    = cpxOutVec.Data();
+        for (Int i=0; i<ntothalf; i++) 
+					*(ptr2++) *= *(ptr1d++);
+
+				fftw_execute_dft_c2r(
+						fftPtr->backwardPlanR2C,
+						reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ),
+						realInVec.Data() );
+
+        blas::Axpy( ntot, 1.0 / Real(ntot), realInVec.Data(), 1, 
+            a3o.VecData(j, k), 1 );
+      }
+    }
+#else // Complex case
+  // TODO OpenMP implementation
+    for (Int k=0; k<nocc; k++) {
+      for (Int j=0; j<ncom; j++) {
+        Complex *ptr0  = a3i.VecData(j,k);
+
+        fftw_execute_dft(fftPtr>forwardPlan, reinterpret_cast<fftw_complex*>(ptr0), 
+            reinterpret_cast<fftw_complex*>(fftPtr->outputComplexVec.Data() ));
+        Real *ptr1d = fftPtr->TeterPrecond.Data();
+        ptr0 = fftPtr->outputComplexVec.Data();
+        for (Int i=0; i<ntot; i++) 
+          *(ptr0++) *= *(ptr1d++);
+
+        fftw_execute(fftPtr->backwardPlan);
+        ptr0 = fftPtr->inputComplexVec.Data();
+
+        Complex *ptra3o = a3o.VecData(j, k); 
+        for (Int i=0; i<ntot; i++) 
+          *(ptra3o++) = *(ptr0++) / Real(ntot);
+      }
+    }
+#endif
+#ifdef _USE_OPENMP_
+  }
+#endif
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method Spinor::AddTeterPrecond ----- 
+
+
+
+
+
+
 
 
 //int Spinor::add_nonlocalPS 

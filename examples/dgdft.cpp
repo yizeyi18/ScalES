@@ -166,6 +166,8 @@ int main(int argc, char **argv)
       Print(statusOFS, "SCF Inner MaxIter = ",  esdfParam.scfInnerMaxIter);
       Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
       Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
+			Print(statusOFS, "Eig Tolerance Dyn = ",  esdfParam.isEigToleranceDynamic);
+			Print(statusOFS, "Num unused state  = ",  esdfParam.numUnusedState);
       Print(statusOFS, "SVD Basis Tol     = ",  esdfParam.SVDBasisTolerance);
 
       Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
@@ -358,7 +360,7 @@ int main(int argc, char **argv)
               KohnSham& hamKS = distHamKS.LocalMap()[key];
 
               hamKS.Setup( dmExtElem, atomListExtElem, 
-                  esdfParam.pseudoType, esdfParam.XCId );
+                  esdfParam.pseudoType, esdfParam.XCType );
 
               // Setup the external barrier potential in the extended element
               Real barrierR = esdfParam.potentialBarrierR;

@@ -91,12 +91,19 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
   domain_            = esdfParam.domain;
   atomList_          = esdfParam.atomList;
   pseudoType_        = esdfParam.pseudoType;
-  XCId_              = esdfParam.XCId;
   numExtraState_     = esdfParam.numExtraState;
   numElem_           = esdfParam.numElem;
   penaltyAlpha_      = esdfParam.penaltyAlpha;
   numLGLGridElem_    = esdfParam.numGridLGL;
-  
+ 
+	{
+		if( esdfParam.XCType == "XC_LDA_XC_TETER93" )
+			XCId_ = XC_LDA_XC_TETER93;
+		else
+      throw std::logic_error("Unrecognized exchange-correlation type");
+	}
+
+
 	Int ntot = domain_.NumGridTotal();
   Int ntotFine = domain_.NumGridTotalFine();
 
@@ -654,7 +661,12 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
     Real Rzero;
     for( Int a = 0; a < numAtom; a++ ){
       Int type = atomList_[a].type;
-      Rzero = ptable.ptemap()[type].cutoffs(PTSample::NONLOCAL);
+      // For the case where there is no nonlocal pseudopotential
+      if(ptable.ptemap()[type].cutoffs.m()>PTSample::NONLOCAL)      
+        Rzero = ptable.ptemap()[type].cutoffs(PTSample::NONLOCAL);
+      else
+        Rzero = 0.0;
+
       if( Rzero >= minLength ){
         std::ostringstream msg;
         msg << "In order for the current DG partition to work, " 

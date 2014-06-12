@@ -122,7 +122,7 @@ public:
 		const Domain&              dm,
 		const std::vector<Atom>&   atomList,
 		std::string                pseudoType,
-		Int                        XCId,
+		std::string                XCType,
 		Int                        numExtraState,
     Int                        numDensityComponent );
  
@@ -148,6 +148,9 @@ public:
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft) = 0;
 
+	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft) = 0;
+
+
 	// *********************************************************************
 	// Access
 	// *********************************************************************
@@ -159,7 +162,8 @@ public:
 
 	DblNumMat&  Density() { return density_; }
 	DblNumVec&  PseudoCharge() { return pseudoCharge_; }
-	DblNumVec&  EigVal() { return eigVal_; }
+	std::vector<PseudoPot>& Pseudo() {return pseudo_; };
+  DblNumVec&  EigVal() { return eigVal_; }
 	DblNumVec&  OccupationRate() { return occupationRate_; }
 
 	std::vector<Atom>&  AtomList() { return atomList_; }
@@ -196,7 +200,7 @@ public:
 		const Domain&              dm,
 		const std::vector<Atom>&   atomList,
 		std::string                pseudoType,
-		Int                        XCId,
+		std::string                XCType,
 		Int                        numExtraState = 0,
     Int                        numDensityComponent = 1 );
 
@@ -221,6 +225,9 @@ public:
 
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft);
+
+	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft);
+
 };
 
 

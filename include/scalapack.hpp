@@ -259,16 +259,31 @@ public:
 /// context as A. 
 ///
 /// This routine performs p_gemr2d.
+
+// FIXME: Add a function GEMM huwei
+//void
+//Gemm(char transA, char transB, const double alpha, 
+//    const ScaLAPACKMatrix<double>& A, const ScaLAPACKMatrix<double>& B, 
+//    const double beta, ScaLAPACKMatrix<double>& C );
+
+void
+Lacpy( char uplo,
+       Int m, Int n,
+       double* A, Int ia, Int ja, Int* desca,
+       double* B, Int ib, Int jb, Int* descb);
+
+void
+Gemm( char transA, char transB,
+      Int m, Int n, Int k,
+      double alpha,
+      double* A, Int ia, Int ja, Int* desca, 
+      double* B, Int ib, Int jb, Int* descb,
+      double beta,
+      double* C, Int ic, Int jc, Int* descc,
+      Int contxt);
+  
 void
 Gemr2d(const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B);
-
-/// FIXME: Add a function GEMM
-void
-Gemm(
-    const ScaLAPACKMatrix<double>& A, 
-    const ScaLAPACKMatrix<double>& B,
-    ScaLAPACKMatrix<double>& C );
-
 
 /// @brief Solve triangular matrix equation
 ///

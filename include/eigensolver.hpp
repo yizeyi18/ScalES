@@ -42,8 +42,7 @@
 */
 /// @file eigensolver.hpp
 /// @brief Eigensolver in the global domain or extended element.
-/// @date 2012-11-20 Original version
-/// @date 2014-04-25 Parallel eigensolver.
+/// @date 2012-11-20
 #ifndef _EIGENSOLVER_HPP_
 #define _EIGENSOLVER_HPP_
 
@@ -54,65 +53,94 @@
 #include  "hamiltonian.hpp"
 #include  "spinor.hpp"
 #include  "lobpcg++.hpp"
-#include  "plobpcg++.hpp"
 #include  "esdf.hpp"
 
 namespace dgdft{
 
 using namespace dgdft::LOBPCG;
-using namespace dgdft::PLOBPCG;
 
 class EigenSolver
 {
-protected:
+private:
 
 	Hamiltonian*        hamPtr_;
 	Fourier*            fftPtr_;
 	Spinor*             psiPtr_;
 
+  // FIXME all the varaibles below to be removd.
 	Int                 eigMaxIter_;
-	Real                eigTolerance_;
+  // Dynamic tolerance
+	Real                eigTolerance_; 
+  // Input tolerance
+	Real                eigToleranceSave_;
 
 	DblNumVec           eigVal_;
 	DblNumVec           resVal_;
-
-  Index3  numGridWavefunctionElem_;
-  Index3  numGridDensityElem_;
 
 
 public:
 
 	// ********************  LIFECYCLE   *******************************
 
-	EigenSolver () {}
+	EigenSolver ();
 
-	virtual ~EigenSolver(){}
+	~EigenSolver();
 
 	// ********************  OPERATORS   *******************************
 
-	virtual void Setup(
+	void Setup(
 			const esdf::ESDFInputParam& esdfParam,
 			Hamiltonian& ham,
 			Spinor& psi,
-			Fourier& fft ) {};
+			Fourier& fft );
 
-	virtual BlopexInt HamiltonianMult (LOBPCG::serial_Multi_Vector *x, LOBPCG::serial_Multi_Vector *y) {};
-	virtual BlopexInt PrecondMult     (LOBPCG::serial_Multi_Vector *x, LOBPCG::serial_Multi_Vector *y) {};
+  // FIXME the four subroutine below together with BLOPEX to be removed
+	static void LOBPCGHamiltonianMult(void *A, void *X, void *AX);
+	static void LOBPCGPrecondMult    (void *A, void *X, void *AX);
 
-	// Specific for DiracKohnSham
-//	static void lobpcg_apply_preconditioner_DKS  (void *A, void *X, void *AX);
-//	BlopexInt apply_preconditioner_DKS  (serial_Multi_Vector *x, serial_Multi_Vector *y);
-//	int solve_DKS(); 
-//	int prune_spinor(CpxNumTns& X);
-
+	BlopexInt HamiltonianMult (serial_Multi_Vector *x, serial_Multi_Vector *y);
+	BlopexInt PrecondMult     (serial_Multi_Vector *x, serial_Multi_Vector *y);
 
 	// ********************  OPERATIONS  *******************************
 	// Solve the eigenvalue problem using BLOPEX.
-	virtual void Solve() {};
+  // FIXME to be removed
+	void Solve();
+
+  /// @brief Sequential LOBPCG solver.
+  ///
+  /// Comapred to LOBPCGSolveReal, the main difference is that this
+  /// version does not use deflation, but use orthogonalization instead
+  /// to provide (better) stability.  To enhance stability, LDLT
+  /// factorization is used for orthogonalization, rather than using the
+  /// Cholesky factorization which assumes that the overlap matrix is
+  /// positive definite.
+  ///
+  /// @note The input vectors is saved in the spinor (psiPtr_), and the
+  /// number of input vectors is denoted by `width`.
+  /// The output is saved in eigVal_ and resVal_.
+  /// In a converged calculation, only the first numEig eigenvalues are required to
+  /// meet the convergence criterion.
+  ///
+  /// @todo: The restart mechanism has not been implemented.
+  ///
+  /// @param[in] numEig  Number of eigenvalues to be counted in the
+  /// convergence criterion.  numEig must be less than or equal to
+  /// width.
+  /// @param[in] eigMaxIter    Maximum number of iterations
+  /// @param[in] eigTolerance  Residual tolerance.
+  void LOBPCGSolveReal(
+      Int          numEig,
+      Int          eigMaxIter,
+      Real         eigTolerance );
+
 
 	// ********************  ACCESS      *******************************
 	DblNumVec& EigVal() { return eigVal_; }
 	DblNumVec& ResVal() { return resVal_; }
+
+  // FIXME following 2 subroutines to be removed
+  Real&      Tolerance() { return eigTolerance_; }
+  Real&      ToleranceSave() { return eigToleranceSave_; }
 
 	Hamiltonian& Ham()  {return *hamPtr_;}
 	Spinor&      Psi()  {return *psiPtr_;}
@@ -121,80 +149,6 @@ public:
 	// ********************  INQUIRY     *******************************
 
 }; // -----  end of class  EigenSolver  ----- 
-
-
-// *********************************************************************
-// Sequential eigensolver
-// *********************************************************************
-
-class SEigenSolver: public EigenSolver
-{
-public:
-
-	// ********************  LIFECYCLE   *******************************
-
-	SEigenSolver () {}
-
-	virtual ~SEigenSolver() {}
-
-	// ********************  OPERATORS   *******************************
-
-	virtual void Setup(
-			const esdf::ESDFInputParam& esdfParam,
-			Hamiltonian& ham,
-			Spinor& psi,
-			Fourier& fft );
-
-	static void LOBPCGHamiltonianMult(void *A, void *X, void *AX);
-	static void LOBPCGPrecondMult    (void *A, void *X, void *AX);
-
-	virtual BlopexInt HamiltonianMult (LOBPCG::serial_Multi_Vector *x, LOBPCG::serial_Multi_Vector *y);
-	virtual BlopexInt PrecondMult     (LOBPCG::serial_Multi_Vector *x, LOBPCG::serial_Multi_Vector *y);
-
-	// ********************  OPERATIONS  *******************************
-	// Solve the eigenvalue problem using BLOPEX.
-	virtual void Solve();
-
-
-}; // -----  end of class  SEigenSolver  ----- 
-
-
-
-// *********************************************************************
-// Parallel eigensolver
-// *********************************************************************
-
-class PEigenSolver: public EigenSolver
-{
-public:
-
-	// ********************  LIFECYCLE   *******************************
-
-	PEigenSolver () {}
-
-	virtual ~PEigenSolver() {}
-
-	// ********************  OPERATORS   *******************************
-
-	virtual void Setup(
-			const esdf::ESDFInputParam& esdfParam,
-			Hamiltonian& ham,
-			Spinor& psi,
-			Fourier& fft );
-
-	static void LOBPCGHamiltonianMult(void *A, void *X, void *AX);
-	static void LOBPCGPrecondMult    (void *A, void *X, void *AX);
-
-	virtual BlopexInt HamiltonianMult (PLOBPCG::parallel_Multi_Vector *x, PLOBPCG::parallel_Multi_Vector *y);
-	virtual BlopexInt PrecondMult     (PLOBPCG::parallel_Multi_Vector *x, PLOBPCG::parallel_Multi_Vector *y);
-
-	// ********************  OPERATIONS  *******************************
-	// Solve the eigenvalue problem using BLOPEX.
-	virtual void Solve();
-
-
-}; // -----  end of class  PEigenSolver  ----- 
-
 
 } // namespace dgdft
 #endif // _EIGENSOLVER_HPP_

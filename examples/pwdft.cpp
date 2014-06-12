@@ -73,12 +73,13 @@ int main(int argc, char **argv)
 	if( mpirank == 0 )
 		Usage();
 
-	if( mpisize > 1 ){
-		std::cout 
-			<< "The current version of pwdft is a sequential code." << std::endl;
-		MPI_Finalize();
-		return -1;
-	}
+// FIEME huwei
+//	if( mpisize > 1 ){
+//		std::cout 
+//			<< "The current version of pwdft is a sequential code." << std::endl;
+//		MPI_Finalize();
+//		return -1;
+//	}
 
 	try
 	{
@@ -91,7 +92,10 @@ int main(int argc, char **argv)
 		ss << "statfile." << mpirank;
 		statusOFS.open( ss.str().c_str() );
 
-		// Initialize input parameters
+    Print( statusOFS, "mpirank = ", mpirank );
+    Print( statusOFS, "mpisize = ", mpisize );
+		
+    // Initialize input parameters
 		std::map<std::string,std::string> options;
 		OptionsCreate(argc, argv, options);
 
@@ -124,6 +128,8 @@ int main(int argc, char **argv)
 			Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
 			Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
 			Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
+			Print(statusOFS, "Eig Tolerance Dyn = ",  esdfParam.isEigToleranceDynamic);
+			Print(statusOFS, "Num unused state  = ",  esdfParam.numUnusedState);
 
 			Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
 			Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
@@ -153,7 +159,7 @@ int main(int argc, char **argv)
 		// *********************************************************************
 		// Preparation
 		// *********************************************************************
-		SetRandomSeed(1);
+		SetRandomSeed(mpirank);
 
 		Domain&  dm = esdfParam.domain;
 		PeriodTable ptable;
@@ -161,8 +167,7 @@ int main(int argc, char **argv)
     Fourier fftFine;
 		Spinor  spn;
 		KohnSham hamKS;
-//    EigenSolver eigSol;
-    PEigenSolver eigSol;
+		EigenSolver eigSol;
 		SCF  scf;
 
 		ptable.Setup( esdfParam.periodTableFile );
@@ -175,7 +180,7 @@ int main(int argc, char **argv)
 		// Hamiltonian
 
 		hamKS.Setup( dm, esdfParam.atomList, esdfParam.pseudoType, 
-				esdfParam.XCId, esdfParam.numExtraState );
+				esdfParam.XCType, esdfParam.numExtraState );
 
 		DblNumVec& vext = hamKS.Vext();
 		SetValue( vext, 0.0 );
@@ -185,10 +190,40 @@ int main(int argc, char **argv)
 		statusOFS << "Hamiltonian constructed." << std::endl;
 
 		// Wavefunctions
-    // FIXME Partition the spinor here.
-    Int numStateLocal; 
+    int numStateTotal = hamKS.NumStateTotal();
+    int numStateLocal, blocksize;
+
+    if ( numStateTotal <=  mpisize ) {
+      blocksize = 1;
+
+      if ( mpirank < numStateTotal ){
+        numStateLocal = 1; // blocksize == 1;
+      }
+      else { // FIXME huwei numStateLocal = 0???
+        numStateLocal = 0;
+      }
+  
+    }
+  
+    else {  // numStateTotal >  mpisize
+  
+      if ( numStateTotal % mpisize == 0 ){
+        blocksize = numStateTotal / mpisize;
+        numStateLocal = blocksize ;
+      }
+      else {
+        // blocksize = ((numStateTotal - 1) / mpisize) + 1;
+        blocksize = numStateTotal / mpisize;
+        numStateLocal = blocksize ;
+        if ( mpirank < ( numStateTotal % mpisize ) ) {
+          numStateLocal = numStateLocal + 1 ;
+        }
+      }    
+
+    }
+     
     spn.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
-		UniformRandom( spn.Wavefun() );
+    UniformRandom( spn.Wavefun() );
 
 		// Eigensolver class
 		eigSol.Setup( esdfParam, hamKS, spn, fft );
