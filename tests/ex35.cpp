@@ -40,8 +40,9 @@
 	 works, incorporate into other computer software, distribute, and sublicense
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file ex34.cpp
-/// @brief Simple test of the matrix matrix multiplication routine.
+/// @file ex35.cpp
+/// @brief Simple test of the matrix matrix multiplication routine but
+/// performed with GEMR2D.
 /// @date 2014-06-12
 #include "dgdft.hpp"
 
@@ -94,11 +95,19 @@ int main(int argc, char **argv)
 	{
 		SetRandomSeed(mpirank);
 
-    Int M = 1000, N = 1000;
+    Int M = 1000000, N = 32;
+    Int MB = M;
+    Int NB = 1;
+    Int MB2D = 100;
+    Int NB2D = 8;
 
     Int NLocal = N / mpisize;
+    Int M2DLocal = M / MB2D;
+    Int N2DLocal = N / NB2D;
 
     DblNumMat XLocal(M, NLocal), YLocal(M, NLocal);
+    DblNumMat X2DLocal( M2DLocal, N2DLocal );
+    DblNumMat Y2DLocal( M2DLocal, N2DLocal );
     DblNumMat XTY(N, N);
 
     UniformRandom( XLocal );
@@ -106,6 +115,7 @@ int main(int argc, char **argv)
     UniformRandom( YLocal );
 
     Int descX[9];
+    Int descX2D[9];
     Int descM[9];
 
     Int nprow = 1;
@@ -114,14 +124,14 @@ int main(int argc, char **argv)
 
     Int contxt;
     Cblacs_get(0, 0, &contxt);
+
     Cblacs_gridinit(&contxt, "C", nprow, npcol); 
 
     Int info;
     Int irsrc = 0;
     Int icsrc = 0;
-    Int MB = M;
-    Int NB = 100;
     SCALAPACK(descinit)(&descX[0], &M, &N, &MB, &NB, &irsrc, &icsrc, &contxt, &M, &info);
+    SCALAPACK(descinit)(&descX2D[0], &M, &N, &MB2D, &NB2D, &irsrc, &icsrc, &contxt, &M, &info);
     SCALAPACK(descinit)(&descM[0], &N, &N, &NB, &NB, &irsrc, &icsrc, &contxt, &N, &info);
 
     Real timeSta, timeEnd;
@@ -134,13 +144,27 @@ int main(int argc, char **argv)
     MPI_Barrier( MPI_COMM_WORLD );
 
     GetTime( timeSta );
+
+
+    SCALAPACK(pdgemr2d)(&M, &N, 
+        XLocal.Data(), &I_ONE, &I_ONE, &descX[0],
+        X2DLocal.Data(), &I_ONE, &I_ONE, &descX2D[0],
+        &contxt );
+
+    SCALAPACK(pdgemr2d)(&M, &N, 
+        YLocal.Data(), &I_ONE, &I_ONE, &descX[0],
+        Y2DLocal.Data(), &I_ONE, &I_ONE, &descX2D[0],
+        &contxt );
+        
+
     SCALAPACK(pdgemm)(&TT, &NN, &N, &N, &M, 
         &D_ONE,
-        XLocal.Data(), &I_ONE, &I_ONE, &descX[0],
-        YLocal.Data(), &I_ONE, &I_ONE, &descX[0], 
+        X2DLocal.Data(), &I_ONE, &I_ONE, &descX2D[0],
+        Y2DLocal.Data(), &I_ONE, &I_ONE, &descX2D[0], 
         &D_ZERO,
         XTY.Data(), &I_ONE, &I_ONE, &descM[0], 
         &contxt );
+
     GetTime( timeEnd );
 
     MPI_Barrier( MPI_COMM_WORLD );
