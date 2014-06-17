@@ -89,7 +89,7 @@ int main(int argc, char **argv)
 	{
 		SetRandomSeed(mpirank);
 
-    Int height = 3000000, width = 400;
+    Int height = 1000000, width = 160;
 
     Int widthLocal = width / mpisize;
     Int heightLocal = height / mpisize;
