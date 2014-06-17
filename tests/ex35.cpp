@@ -41,8 +41,7 @@
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
 /// @file ex35.cpp
-/// @brief Simple test of the matrix matrix multiplication routine but
-/// performed with GEMR2D.
+/// @brief Simple test of the matrix matrix multiplication routine.
 /// @date 2014-06-12
 #include "dgdft.hpp"
 
@@ -66,16 +65,11 @@ void SCALAPACK(pdgemm)(const char* transA, const char* transB,
     double* C, const Int* ic, const Int* jc, const Int* descc,
     const Int* contxt);
 
-
-void SCALAPACK(pdgemr2d)(const Int* m, const Int* n, const double* A, const Int* ia, 
-    const Int* ja, const Int* desca, double* B,
-    const Int* ib, const Int* jb, const Int* descb,
-    const Int* contxt);
 }
 
 void Usage(){
   std::cout 
-		<< "ex34 " << std::endl;
+		<< "ex35 " << std::endl;
 }
 
 
@@ -95,28 +89,28 @@ int main(int argc, char **argv)
 	{
 		SetRandomSeed(mpirank);
 
-    Int M = 1000000, N = 32;
-    Int MB = M;
-    Int NB = 1;
-    Int MB2D = 100;
-    Int NB2D = 8;
+    Int height = 3000000, width = 400;
 
-    Int NLocal = N / mpisize;
-    Int M2DLocal = M / MB2D;
-    Int N2DLocal = N / NB2D;
+    Int widthLocal = width / mpisize;
+    Int heightLocal = height / mpisize;
 
-    DblNumMat XLocal(M, NLocal), YLocal(M, NLocal);
-    DblNumMat X2DLocal( M2DLocal, N2DLocal );
-    DblNumMat Y2DLocal( M2DLocal, N2DLocal );
-    DblNumMat XTY(N, N);
+    DblNumMat X1(height, widthLocal), Y1(height, widthLocal);
+    DblNumMat X1TY1(width, width);
+    DblNumMat X1TX1(width, width);
 
-    UniformRandom( XLocal );
+    UniformRandom( X1 );
+    UniformRandom( Y1 );
 
-    UniformRandom( YLocal );
-
-    Int descX[9];
-    Int descX2D[9];
-    Int descM[9];
+    DblNumMat X2(heightLocal, width), Y2(heightLocal, width);
+    DblNumMat X2TY2(width, width);
+    DblNumMat X2TX2(width, width);
+    
+    UniformRandom( X2 );
+    UniformRandom( Y2 );
+    
+    Int descX1[9];
+    Int descX2[9];
+    Int desc_width[9];
 
     Int nprow = 1;
     Int npcol = mpisize;
@@ -124,15 +118,19 @@ int main(int argc, char **argv)
 
     Int contxt;
     Cblacs_get(0, 0, &contxt);
-
     Cblacs_gridinit(&contxt, "C", nprow, npcol); 
+    Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
 
     Int info;
     Int irsrc = 0;
     Int icsrc = 0;
-    SCALAPACK(descinit)(&descX[0], &M, &N, &MB, &NB, &irsrc, &icsrc, &contxt, &M, &info);
-    SCALAPACK(descinit)(&descX2D[0], &M, &N, &MB2D, &NB2D, &irsrc, &icsrc, &contxt, &M, &info);
-    SCALAPACK(descinit)(&descM[0], &N, &N, &NB, &NB, &irsrc, &icsrc, &contxt, &N, &info);
+    Int MBX1 = height;
+    Int NBX1 = 1;
+    Int MBX2 = heightLocal;
+    Int NBX2 = width;
+    SCALAPACK(descinit)(&descX1[0], &height, &width, &MBX1, &NBX1, &irsrc, &icsrc, &contxt, &height, &info);
+    SCALAPACK(descinit)(&descX2[0], &height, &width, &MBX2, &NBX2, &irsrc, &icsrc, &contxt, &height, &info);
+    SCALAPACK(descinit)(&desc_width[0], &width, &width, &width, &width, &irsrc, &icsrc, &contxt, &width, &info);
 
     Real timeSta, timeEnd;
     char TT = 'T';
@@ -144,33 +142,184 @@ int main(int argc, char **argv)
     MPI_Barrier( MPI_COMM_WORLD );
 
     GetTime( timeSta );
-
-
-    SCALAPACK(pdgemr2d)(&M, &N, 
-        XLocal.Data(), &I_ONE, &I_ONE, &descX[0],
-        X2DLocal.Data(), &I_ONE, &I_ONE, &descX2D[0],
-        &contxt );
-
-    SCALAPACK(pdgemr2d)(&M, &N, 
-        YLocal.Data(), &I_ONE, &I_ONE, &descX[0],
-        Y2DLocal.Data(), &I_ONE, &I_ONE, &descX2D[0],
-        &contxt );
-        
-
-    SCALAPACK(pdgemm)(&TT, &NN, &N, &N, &M, 
+    SCALAPACK(pdgemm)(&TT, &NN, &width, &width, &height, 
         &D_ONE,
-        X2DLocal.Data(), &I_ONE, &I_ONE, &descX2D[0],
-        Y2DLocal.Data(), &I_ONE, &I_ONE, &descX2D[0], 
+        X1.Data(), &I_ONE, &I_ONE, &descX1[0],
+        Y1.Data(), &I_ONE, &I_ONE, &descX1[0], 
         &D_ZERO,
-        XTY.Data(), &I_ONE, &I_ONE, &descM[0], 
+        X1TY1.Data(), &I_ONE, &I_ONE, &desc_width[0], 
         &contxt );
-
     GetTime( timeEnd );
 
     MPI_Barrier( MPI_COMM_WORLD );
 
-    if( mpirank == 0 ){
-      std::cout << "The time for the X'*Y is " << timeEnd - timeSta << " sec." << std::endl;
+    if ( mpirank == 0) {
+    std::cout << "The time for pdgemm X1'*Y1 is " << timeEnd - timeSta << " sec." << std::endl;
+    }
+
+
+
+    MPI_Barrier( MPI_COMM_WORLD );
+
+    GetTime( timeSta );
+    SCALAPACK(pdgemm)(&TT, &NN, &width, &width, &height, 
+        &D_ONE,
+        X1.Data(), &I_ONE, &I_ONE, &descX1[0],
+        X1.Data(), &I_ONE, &I_ONE, &descX1[0], 
+        &D_ZERO,
+        X1TX1.Data(), &I_ONE, &I_ONE, &desc_width[0], 
+        &contxt );
+    GetTime( timeEnd );
+
+    MPI_Barrier( MPI_COMM_WORLD );
+
+    if ( mpirank == 0) {
+    std::cout << "The time for pdgemm X1'*X1 is " << timeEnd - timeSta << " sec." << std::endl;
+    }
+
+    SetValue( X2, 0.0 ); 
+    int sendk = height*widthLocal;
+    int recvk = heightLocal*width;
+   
+    double sendbuf[sendk]; 
+    double recvbuf[recvk];
+    int sendcounts[mpisize];
+    int recvcounts[mpisize];
+    int senddispls[mpisize];
+    int recvdispls[mpisize];
+
+    
+
+    GetTime( timeSta );
+    int kk;
+    for( Int j = 0; j < widthLocal; j++ ){ 
+      for( Int i = 0; i < height; i++ ){ 
+        kk = j * heightLocal + (i / heightLocal) * widthLocal * heightLocal + i % heightLocal;
+        sendbuf[kk] = X1(i, j);
+      }
+    }
+    GetTime( timeEnd );
+    double t1 = timeEnd - timeSta;
+
+//    IntNumMat addr(height, widthLocal);
+//    for( Int j = 0; j < widthLocal; j++ ){ 
+//      for( Int i = 0; i < height; i++ ){ 
+//        addr(i,j) = j * heightLocal + (i / heightLocal) * widthLocal * heightLocal + i % heightLocal;
+//      }
+//    }
+
+//    if ( mpirank == 0) {
+//    std::cout << "The time for step 1 is " << timeEnd - timeSta  << " sec." << std::endl;
+//    }    
+
+//    Int *a = addr.Data();;
+//    Real *ptrSendBuf = &sendbuf[0];
+//    Real *ptrX1 = X1.Data();
+//    for( Int l = 0; l < height * widthLocal; l++ ){
+//      ptrSendBuf[*(a++)] = *(ptrX1++);
+//    }
+
+
+    for( Int k = 0; k < mpisize; k++ ){ 
+      sendcounts[k] = sendk / mpisize;
+      recvcounts[k] = recvk / mpisize;
+    }
+    
+    senddispls[0] = 0;
+    recvdispls[0] = 0;
+    for( Int k = 1; k < mpisize; k++ ){ 
+      senddispls[k] = senddispls[k-1] + sendcounts[k-1]  ;
+      recvdispls[k] = recvdispls[k-1] + recvcounts[k-1]  ;
+    }
+
+
+    GetTime( timeSta );
+    MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, MPI_COMM_WORLD );
+    GetTime( timeEnd );
+
+    if ( mpirank == 0) {
+    std::cout << "The time for Alltoallv X1 to X2 is " << timeEnd - timeSta << " sec." << std::endl;
+    }    
+
+//    for( Int j = 0; j < width; j++ ){ 
+//      for( Int i = 0; i < heightLocal; i++ ){ 
+//        kk = (j % widthLocal) * heightLocal + (j / widthLocal) * widthLocal * heightLocal + i;
+//        X2(i, j) = recvbuf[kk];
+//      }
+//    }
+    
+    GetTime( timeSta );
+    for( Int j = 0; j < width; j++ ){ 
+      for( Int i = 0; i < heightLocal; i++ ){ 
+        kk = (j % mpisize) * widthLocal * heightLocal + (j / mpisize) * heightLocal + i;
+        X2(i, j) = recvbuf[kk];
+      }
+    }
+    GetTime( timeEnd );
+
+    if ( mpirank == 0) {
+    std::cout << "The time for X1 to X2 is " << t1 + timeEnd - timeSta << " sec." << std::endl;
+    }    
+   
+    GetTime( timeSta );
+    blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X2.Data(), heightLocal, X2.Data(), heightLocal, 0.0, X2TX2.Data(), width );
+    GetTime( timeEnd );
+    
+    if ( mpirank == 0) {
+    std::cout << "The time for Gemm X2'*X2 is " << timeEnd - timeSta << " sec." << std::endl;
+    }
+
+    DblNumMat X2TX2Temp(width, width);
+    SetValue( X2TX2Temp, 0.0 ); 
+   
+    GetTime( timeSta );
+    MPI_Allreduce( X2TX2.Data(), X2TX2Temp.Data(), width*width, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
+    GetTime( timeEnd );
+
+    if ( mpirank == 0) {
+    std::cout << "The time for Allreduce X2'X2 is " << timeEnd - timeSta << " sec." << std::endl;
+    }
+
+    if ( mpirank == 0) {
+    
+    double sum;
+    for( Int j = 0; j < width; j++ ){ 
+      for( Int i = 0; i < width; i++ ){ 
+        sum = sum + std::abs( X2TX2Temp(i, j) - X1TX1(i, j)) ;
+      }
+    }
+    
+    std::cout << "Sum of X2'X2 - X1'X1 is " << sum << std::endl;
+    
+    }
+
+
+    GetTime( timeSta );
+    blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X2.Data(), heightLocal, Y2.Data(), heightLocal, 0.0, X2TY2.Data(), width );
+    GetTime( timeEnd );
+    
+    if ( mpirank == 0) {
+    std::cout << "The time for Gemm X2'*Y2 is " << timeEnd - timeSta << " sec." << std::endl;
+    }
+
+    DblNumMat X2TY2Temp(width, width);
+    SetValue( X2TY2Temp, 0.0 ); 
+   
+    GetTime( timeSta );
+    MPI_Allreduce( X2TY2.Data(), X2TY2Temp.Data(), width*width, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
+    GetTime( timeEnd );
+
+    if ( mpirank == 0) {
+    std::cout << "The time for Allreduce X2'Y2 is " << timeEnd - timeSta << " sec." << std::endl;
+    }
+
+    GetTime( timeSta );
+    blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X2.Data(), heightLocal, X2TY2Temp.Data(), width, 0.0, Y2.Data(), heightLocal );
+    GetTime( timeEnd );
+    
+    if ( mpirank == 0) {
+    std::cout << "The time for Gemm X2*(X2'Y2) is " << timeEnd - timeSta << " sec." << std::endl;
     }
 
     Cblacs_gridexit	(	contxt );	

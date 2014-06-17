@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 	{
 		SetRandomSeed(mpirank);
 
-    Int M = 1000, N = 1000;
+    Int M = 1000000, N = 160;
 
     Int NLocal = N / mpisize;
 
@@ -102,7 +102,6 @@ int main(int argc, char **argv)
     DblNumMat XTY(N, N);
 
     UniformRandom( XLocal );
-
     UniformRandom( YLocal );
 
     Int descX[9];
@@ -115,14 +114,16 @@ int main(int argc, char **argv)
     Int contxt;
     Cblacs_get(0, 0, &contxt);
     Cblacs_gridinit(&contxt, "C", nprow, npcol); 
+    Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
 
     Int info;
     Int irsrc = 0;
     Int icsrc = 0;
     Int MB = M;
-    Int NB = 100;
+    Int NB = 8;
+    Int ldaN = (myrow == 0) ? N : 1;
     SCALAPACK(descinit)(&descX[0], &M, &N, &MB, &NB, &irsrc, &icsrc, &contxt, &M, &info);
-    SCALAPACK(descinit)(&descM[0], &N, &N, &NB, &NB, &irsrc, &icsrc, &contxt, &N, &info);
+    SCALAPACK(descinit)(&descM[0], &N, &N, &N, &N, &irsrc, &icsrc, &contxt, &ldaN, &info);
 
     Real timeSta, timeEnd;
     char TT = 'T';
@@ -145,9 +146,8 @@ int main(int argc, char **argv)
 
     MPI_Barrier( MPI_COMM_WORLD );
 
-    if( mpirank == 0 ){
-      std::cout << "The time for the X'*Y is " << timeEnd - timeSta << " sec." << std::endl;
-    }
+    std::cout << "mpirank = " << mpirank << " NLocal = " << NLocal << std::endl;
+    std::cout << "The time for the X'*Y is " << timeEnd - timeSta << " sec." << std::endl;
 
     Cblacs_gridexit	(	contxt );	
 
