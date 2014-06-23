@@ -175,7 +175,6 @@ int main(int argc, char **argv)
     fft.Initialize( dm );
 
     fft.InitializeFine( dm );
-//    fftFine.InitializeFine( dm );
 
 		// Hamiltonian
 
@@ -224,6 +223,32 @@ int main(int argc, char **argv)
      
     spn.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
     UniformRandom( spn.Wavefun() );
+
+//    MPI_Comm mpi_comm = dm.comm;
+    
+//		Spinor  spnTemp;
+//    spnTemp.Setup( dm, 1, hamKS.NumStateTotal(), hamKS.NumStateTotal(), 0.0 );
+   
+//    if (mpirank == 0){
+//      UniformRandom( spnTemp.Wavefun() );
+//    }
+//    MPI_Bcast(spnTemp.Wavefun().Data(), spnTemp.Wavefun().m()*spnTemp.Wavefun().n()*spnTemp.Wavefun().p(), MPI_DOUBLE, 0, mpi_comm);
+
+//	Int size = spn.Wavefun().m() * spn.Wavefun().n();
+//	Int nocc = spn.Wavefun().p();
+ 
+//  IntNumVec& wavefunIdx = spn.WavefunIdx();
+//  NumTns<Scalar>& wavefun = spn.Wavefun();
+
+//	for (Int k=0; k<nocc; k++) {
+//		Scalar *ptr = spn.Wavefun().MatData(k);
+//		Scalar *ptr1 = spnTemp.Wavefun().MatData(wavefunIdx(k));
+//		for (Int i=0; i<size; i++) {
+//      *ptr = *ptr1;
+//		  ptr = ptr + 1;
+//		  ptr1 = ptr1 + 1;
+//    }
+//	}
 
 		// Eigensolver class
 		eigSol.Setup( esdfParam, hamKS, spn, fft );

@@ -310,14 +310,17 @@ SCF::Iterate	(  )
    
     
     GetTime( timeSta );
-    if(0)
+    if(0){
       eigSolPtr_->Solve();
-    else
-      eigSolPtr_->LOBPCGSolveReal(
-          numEig,
-          eigMaxIter_,
-          eigTolNow );
+    }
+  
+    if(0){
+      eigSolPtr_->LOBPCGSolveReal(numEig, eigMaxIter_, eigTolNow );
+    }
 
+    if(1){
+      eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
+    }
     GetTime( timeEnd );
 
     eigSolPtr_->Ham().EigVal() = eigSolPtr_->EigVal();

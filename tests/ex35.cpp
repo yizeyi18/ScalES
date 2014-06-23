@@ -281,6 +281,9 @@ int main(int argc, char **argv)
     std::cout << "The time for Allreduce X2'X2 is " << timeEnd - timeSta << " sec." << std::endl;
     }
 
+    DblNumVec  eigValS(width);
+    SetValue( eigValS, 0.0 );
+    
     if ( mpirank == 0) {
     
     double sum;
@@ -292,8 +295,21 @@ int main(int argc, char **argv)
     
     std::cout << "Sum of X2'X2 - X1'X1 is " << sum << std::endl;
     
+    GetTime( timeSta );
+    lapack::Syevd( 'V', 'U', width, X2TX2.Data(), width, eigValS.Data() );
+    GetTime( timeEnd );
+    
+    std::cout << "The time for Syevd X2'X2 is " << timeEnd - timeSta << " sec." << std::endl;
+    
     }
 
+    GetTime( timeSta );
+    MPI_Bcast(X2TX2.Data(), width*width, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(eigValS.Data(), width, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    GetTime( timeEnd );
+    if ( mpirank == 0) {
+    std::cout << "The time for Bcast X2'X2 is " << timeEnd - timeSta << " sec." << std::endl;
+    }
 
     GetTime( timeSta );
     blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X2.Data(), heightLocal, Y2.Data(), heightLocal, 0.0, X2TY2.Data(), width );
