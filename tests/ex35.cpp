@@ -95,13 +95,13 @@ int main(int argc, char **argv)
 	{
 		SetRandomSeed(mpirank);
 
-    Int M = 1000000, N = 32;
+    Int M = 1000000, N = 160;
     Int MB = M;
     Int NB = 1;
     Int MB2D = 100;
-    Int NB2D = 8;
+    Int NB2D = N;
 
-    Int NLocal = N / mpisize;
+    Int NLocal   = N / mpisize;
     Int M2DLocal = M / MB2D;
     Int N2DLocal = N / NB2D;
 
@@ -111,15 +111,14 @@ int main(int argc, char **argv)
     DblNumMat XTY(N, N);
 
     UniformRandom( XLocal );
-
     UniformRandom( YLocal );
 
     Int descX[9];
     Int descX2D[9];
     Int descM[9];
 
-    Int nprow = 1;
-    Int npcol = mpisize;
+    Int nprow = mpisize;
+    Int npcol = 1;
     Int myrow, mycol;
 
     Int contxt;

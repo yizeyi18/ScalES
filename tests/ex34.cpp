@@ -94,11 +94,16 @@ int main(int argc, char **argv)
 	{
 		SetRandomSeed(mpirank);
 
-    Int M = 1000, N = 1000;
+    Int M = 1000000, N = 160;
 
-    Int NLocal = N / mpisize;
+//    Int MLocal = M;
+//    Int NLocal = N / mpisize;
 
-    DblNumMat XLocal(M, NLocal), YLocal(M, NLocal);
+    Int MLocal = M / mpisize;
+    Int NLocal = N;
+
+
+    DblNumMat XLocal(MLocal, NLocal), YLocal(MLocal, NLocal);
     DblNumMat XTY(N, N);
 
     UniformRandom( XLocal );
@@ -108,8 +113,11 @@ int main(int argc, char **argv)
     Int descX[9];
     Int descM[9];
 
-    Int nprow = 1;
-    Int npcol = mpisize;
+//    Int nprow = 1;
+//    Int npcol = mpisize;
+    Int nprow = mpisize;
+    Int npcol = 1;
+
     Int myrow, mycol;
 
     Int contxt;
@@ -119,9 +127,11 @@ int main(int argc, char **argv)
     Int info;
     Int irsrc = 0;
     Int icsrc = 0;
-    Int MB = M;
-    Int NB = 100;
-    SCALAPACK(descinit)(&descX[0], &M, &N, &MB, &NB, &irsrc, &icsrc, &contxt, &M, &info);
+//    Int MB = M;
+//    Int NB = 4;
+    Int MB = 128;
+    Int NB = 128;
+    SCALAPACK(descinit)(&descX[0], &M, &N, &MB, &NB, &irsrc, &icsrc, &contxt, &MLocal, &info);
     SCALAPACK(descinit)(&descM[0], &N, &N, &NB, &NB, &irsrc, &icsrc, &contxt, &N, &info);
 
     Real timeSta, timeEnd;
@@ -144,6 +154,17 @@ int main(int argc, char **argv)
     GetTime( timeEnd );
 
     MPI_Barrier( MPI_COMM_WORLD );
+
+//    DblNumMat XTYGlobal(N,N);
+//    blas::Gemm( 'T', 'N', N, N, M, 1.0, 
+//        XLocal.Data(), M,
+//        YLocal.Data(), M,
+//        0.0, XTYGlobal.Data(), N );
+
+//    Real err = 0.0;
+//    for( Int i = 0; i < N*N; i++ ){
+//      err = err + 
+//    }
 
     if( mpirank == 0 ){
       std::cout << "The time for the X'*Y is " << timeEnd - timeSta << " sec." << std::endl;
