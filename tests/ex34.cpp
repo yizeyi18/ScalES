@@ -107,7 +107,6 @@ int main(int argc, char **argv)
     DblNumMat XTY(N, N);
 
     UniformRandom( XLocal );
-
     UniformRandom( YLocal );
 
     Int descX[9];
@@ -123,16 +122,25 @@ int main(int argc, char **argv)
     Int contxt;
     Cblacs_get(0, 0, &contxt);
     Cblacs_gridinit(&contxt, "C", nprow, npcol); 
+    Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
 
     Int info;
     Int irsrc = 0;
     Int icsrc = 0;
+<<<<<<< HEAD
 //    Int MB = M;
 //    Int NB = 4;
     Int MB = 128;
     Int NB = 128;
     SCALAPACK(descinit)(&descX[0], &M, &N, &MB, &NB, &irsrc, &icsrc, &contxt, &MLocal, &info);
     SCALAPACK(descinit)(&descM[0], &N, &N, &NB, &NB, &irsrc, &icsrc, &contxt, &N, &info);
+=======
+    Int MB = M;
+    Int NB = 8;
+    Int ldaN = (myrow == 0) ? N : 1;
+    SCALAPACK(descinit)(&descX[0], &M, &N, &MB, &NB, &irsrc, &icsrc, &contxt, &M, &info);
+    SCALAPACK(descinit)(&descM[0], &N, &N, &N, &N, &irsrc, &icsrc, &contxt, &ldaN, &info);
+>>>>>>> 2690a80e1b41d33e4a051aea5023df51305bb8ef
 
     Real timeSta, timeEnd;
     char TT = 'T';
@@ -155,6 +163,7 @@ int main(int argc, char **argv)
 
     MPI_Barrier( MPI_COMM_WORLD );
 
+<<<<<<< HEAD
 //    DblNumMat XTYGlobal(N,N);
 //    blas::Gemm( 'T', 'N', N, N, M, 1.0, 
 //        XLocal.Data(), M,
@@ -169,6 +178,10 @@ int main(int argc, char **argv)
     if( mpirank == 0 ){
       std::cout << "The time for the X'*Y is " << timeEnd - timeSta << " sec." << std::endl;
     }
+=======
+    std::cout << "mpirank = " << mpirank << " NLocal = " << NLocal << std::endl;
+    std::cout << "The time for the X'*Y is " << timeEnd - timeSta << " sec." << std::endl;
+>>>>>>> 2690a80e1b41d33e4a051aea5023df51305bb8ef
 
     Cblacs_gridexit	(	contxt );	
 

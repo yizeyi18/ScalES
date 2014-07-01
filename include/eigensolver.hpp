@@ -148,6 +148,15 @@ public:
 
 	// ********************  INQUIRY     *******************************
 
+
+
+  void LOBPCGSolveReal2(
+      Int          numEig,
+      Int          eigMaxIter,
+      Real         eigTolerance );
+
+
+
 }; // -----  end of class  EigenSolver  ----- 
 
 } // namespace dgdft
