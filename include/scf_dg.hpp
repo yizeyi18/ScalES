@@ -68,11 +68,16 @@ private:
 	Int                 mixMaxDim_;
 	std::string         mixType_;
 	Real                mixStepLength_;            
-	Real                scfInnerTolerance_;
+  Real                eigTolerance_;
+  Int                 eigMaxIter_;
+  Real                scfInnerTolerance_;
 	Int                 scfInnerMaxIter_;
 	Real                scfOuterTolerance_;
 	Int                 scfOuterMaxIter_;
+	Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
+  Int                 numUnusedState_;
 	Real                SVDBasisTolerance_;
+  bool                isEigToleranceDynamic_;
 	bool                isRestartDensity_;
 	bool                isRestartWfn_;
 	bool                isOutputDensity_;
@@ -125,6 +130,13 @@ private:
 	Real                EVxc_;                     // Exchange-correlation potential energy
 	Real                Eself_;                    // Self energy due to the pseudopotential
 	Real                fermi_;                    // Fermi energy
+
+
+
+  // huwei
+  Int                 dmRow_;
+  Int                 dmCol_;
+  //IntNumVec                   groupRank_;
 
   // Density matrices
 

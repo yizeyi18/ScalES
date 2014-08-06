@@ -2204,6 +2204,26 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
       esdf_double( "Mu_PEXSI_SafeGuard", 0.05 );
     esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
     esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
+
+    // FIXME Split MPI communicators into row and column communicators
+    // huwei
+  
+    Domain& dm = esdfParam.domain;
+    
+    int dmCol = numElem[0] * numElem[1] * numElem[2];
+    int dmRow = mpisize / dmCol;
+
+    if( (mpisize % dmCol) != 0 ){
+      std::ostringstream msg;
+      msg
+        << "(mpisize % dmCol) != 0" << std::endl;
+      throw std::runtime_error( msg.str().c_str() );
+    }
+
+    dm.comm    = MPI_COMM_WORLD;
+    MPI_Comm_split( dm.comm, mpirank / dmRow, mpirank, &dm.rowComm );
+    MPI_Comm_split( dm.comm, mpirank % dmRow, mpirank, &dm.colComm );
+
 	} // DG
 	
 

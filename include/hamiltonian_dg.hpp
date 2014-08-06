@@ -168,8 +168,8 @@ private:
 
 	/// @brief Element subdomains.
 	NumTns<Domain>              domainElem_;
-
-	/// @brief Uniform grid in the global domain
+  
+  /// @brief Uniform grid in the global domain
 	std::vector<DblNumVec>      uniformGrid_;
   std::vector<DblNumVec>      uniformGridFine_;
 
@@ -234,7 +234,12 @@ private:
 	/// @brief Partition of element.
 	ElemPrtn                    elemPrtn_;
 
-	/// @brief Partition of a matrix defined through elements.
+  /// huwei
+  Int                         dmRow_;
+  Int                         dmCol_;
+  //IntNumVec                   groupRank_;
+
+  /// @brief Partition of a matrix defined through elements.
 	ElemMatPrtn                 elemMatPrtn_;
 
 	/// @brief Partition of atom.
@@ -278,6 +283,7 @@ private:
 	DistDblNumVec    vtotLGL_;
 
 	/// @brief Basis functions on the local LGL grid.
+  IntNumVec        basisLGLIdx_;
 	DistDblNumMat    basisLGL_;
 
 	/// @brief Eigenvalues
@@ -461,7 +467,12 @@ public:
 
 	DistDblNumVec&  VtotLGL() { return vtotLGL_; }
 
-	DistDblNumMat&  BasisLGL() { return basisLGL_; }
+  IntNumVec&  BasisLGLIdx() { return basisLGLIdx_; }
+  const IntNumVec&  BasisLGLIdx() const { return basisLGLIdx_; }
+  Int&  BasisLGLIdx(const Int k) { return basisLGLIdx_(k); }
+  const Int&  BasisLGLIdx(const Int k) const { return basisLGLIdx_(k); }
+
+  DistDblNumMat&  BasisLGL() { return basisLGL_; }
 
 	DistDblNumMat&  EigvecCoef() { return eigvecCoef_; }
 

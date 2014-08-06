@@ -105,7 +105,11 @@ template <class F> inline void SetValue(NumMat<F>& M, F val);
 template <class F> inline Real Energy(const NumMat<F>& M);
 template <class F> inline void Transpose ( const NumMat<F>& A, NumMat<F>& B );
 template <class F> inline void Symmetrize( NumMat<F>& A );
- 
+
+// huwei Alltoall
+inline void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
+inline void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
+
 } // namespace dgdft
 
 #endif // _NUMMAT_DECL_HPP_

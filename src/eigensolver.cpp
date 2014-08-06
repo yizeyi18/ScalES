@@ -1885,10 +1885,8 @@ EigenSolver::LOBPCGSolveReal2	(
 
   DblNumMat  Xcol( height, widthLocal );
   DblNumMat  Wcol( height, widthLocal );
-  DblNumMat  Pcol( height, widthLocal );
   DblNumMat AXcol( height, widthLocal );
   DblNumMat AWcol( height, widthLocal );
-  DblNumMat APcol( height, widthLocal );
 
   //Int info;
   bool isRestart = false;
@@ -2100,6 +2098,7 @@ EigenSolver::LOBPCGSolveReal2	(
 
 #if ( _DEBUGlevel_ >= 1 )
     statusOFS << "resNorm = " << resNorm << std::endl;
+    statusOFS << "eigValS = " << eigValS << std::endl;
     statusOFS << "maxRes  = " << resMax  << std::endl;
     statusOFS << "minRes  = " << resMin  << std::endl;
 #endif
@@ -2457,7 +2456,7 @@ EigenSolver::LOBPCGSolveReal2	(
     }
 
     // Solve the generalized eigenvalue problem with thresholding
-    if(1){  
+    if(1){
 
       if ( mpirank == 0 ) {
 
@@ -2477,7 +2476,7 @@ EigenSolver::LOBPCGSolveReal2	(
 
         Int numKeep = 0;
         for( Int i = numCol-1; i>=0; i-- ){
-          if( sigma2(i) / sigma2(numCol-1) >  1e-12 )
+          if( sigma2(i) / sigma2(numCol-1) >  1e-8 )
             numKeep++;
           else
             break;

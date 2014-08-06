@@ -71,7 +71,11 @@ void DistNumVecToDistRowVec(
 	PushCallStack("DistNumVecToDistRowVec");
 #endif
 
-	Int mpirank, mpisize;
+
+  statusOFS << "huwei 11 hamiltonian_dg_conversion.hpp" << std::endl;
+	
+ 
+  Int mpirank, mpisize;
 	MPI_Comm_rank( commDistVec, &mpirank );
 	MPI_Comm_size( commDistVec, &mpisize );
 	
@@ -86,7 +90,12 @@ void DistNumVecToDistRowVec(
 	DistVec<Index3, NumVec<F>, ElemPrtn>  distVecRecv;
 	distVecRecv.Prtn() = distVec.Prtn();
 
-	for(typename std::map<Index3, NumVec<F> >::const_iterator 
+  distVecRecv.SetComm( commDistVec );
+
+  statusOFS << "huwei 12 hamiltonian_dg_conversion.hpp" << std::endl;
+	
+ 
+  for(typename std::map<Index3, NumVec<F> >::const_iterator 
 			mi = distVec.LocalMap().begin();
 			mi != distVec.LocalMap().end(); mi++ ){
 		Index3 key = (*mi).first;  
@@ -97,7 +106,10 @@ void DistNumVecToDistRowVec(
 	}
 
 
-	// Specify the elements of data to receive according to the index of
+  statusOFS << "huwei 13 hamiltonian_dg_conversion.hpp" << std::endl;
+	
+ 
+  // Specify the elements of data to receive according to the index of
 	// the z-dimension. 
 	std::vector<Index3>  getKey;
 	if( isInGrid ){
@@ -114,11 +126,19 @@ void DistNumVecToDistRowVec(
 		} // for (k)
 	} // if (isInGrid)
 
-	// Data communication.
+
+  statusOFS << "huwei 14 hamiltonian_dg_conversion.hpp" << std::endl;
+	
+ 
+  // Data communication.
 	distVecRecv.GetBegin( getKey, NO_MASK );
 	distVecRecv.GetEnd( NO_MASK );
 
-	// Unpack the data locally into distRowVec
+
+  statusOFS << "huwei 15 hamiltonian_dg_conversion.hpp" << std::endl;
+	
+ 
+  // Unpack the data locally into distRowVec
 	if( isInGrid ){
 		Int numGridLocal = numGrid[0] * numGrid[1] * localNz;
 		distRowVec.Resize( numGridLocal );
@@ -145,6 +165,11 @@ void DistNumVecToDistRowVec(
 					} // for (i)
 		}
 	} // if (isInGrid)
+
+
+  statusOFS << "huwei 16 hamiltonian_dg_conversion.hpp" << std::endl;
+
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -168,6 +193,10 @@ void DistRowVecToDistNumVec(
 	PushCallStack("DistRowVecToDistNumVec");
 #endif
 
+
+  statusOFS << "huwei 1 hamiltonian_dg_conversion.hpp" << std::endl;
+
+
 	Int mpirank, mpisize;
 	MPI_Comm_rank( commDistVec, &mpirank );
 	MPI_Comm_size( commDistVec, &mpisize );
@@ -180,7 +209,11 @@ void DistRowVecToDistNumVec(
 		numGridElem[d] = numGrid[d] / numElem[d];
 	}
 
-	// Collect the element indicies
+
+  statusOFS << "huwei 2 hamiltonian_dg_conversion.hpp" << std::endl;
+	
+ 
+  // Collect the element indicies
 	std::vector<Index3> putKey;
 	if( isInGrid ){
 		for( Int k = 0; k < numElem[2]; k++ ){
@@ -196,7 +229,12 @@ void DistRowVecToDistNumVec(
 		} // for (k)
 	} // if (isInGrid)
 
-	// Prepare the local data
+
+
+  statusOFS << "huwei 3 hamiltonian_dg_conversion.hpp" << std::endl;
+	
+ 
+  // Prepare the local data
 	for( std::vector<Index3>::iterator vi = putKey.begin();
 			 vi != putKey.end(); vi++ ){
 		Index3 key = (*vi);
@@ -228,12 +266,19 @@ void DistRowVecToDistNumVec(
 				}
 	}
 
+  
+  statusOFS << "huwei 4 hamiltonian_dg_conversion.hpp" << std::endl;
+
 
 	// Data communication.
 	distVec.PutBegin( putKey, NO_MASK );
 	distVec.PutEnd( NO_MASK, PutMode::COMBINE );
 
-	// Erase the elements distVec does not own
+
+  statusOFS << "huwei 5 hamiltonian_dg_conversion.hpp" << std::endl;
+	
+ 
+  // Erase the elements distVec does not own
 	std::vector<Index3>  eraseKey;
 	for(typename std::map<Index3, NumVec<F> >::iterator
 			mi = distVec.LocalMap().begin();
@@ -247,6 +292,9 @@ void DistRowVecToDistNumVec(
 			 vi != eraseKey.end(); vi++ ){
 		distVec.LocalMap().erase( *vi );
 	}
+
+
+  statusOFS << "huwei 6 hamiltonian_dg_conversion.hpp" << std::endl;
 
 
 #ifndef _RELEASE_
@@ -334,6 +382,7 @@ void DistElemMatToScaMat(
 	// ScaLAPACK format.  
   DistVec<Index2, NumMat<F>, BlockMatPrtn> distScaMat;
 	distScaMat.Prtn() = blockPrtn;
+  distScaMat.SetComm(comm);
 
 	// Initialize
 	DblNumMat empty( MB, MB );
@@ -430,7 +479,7 @@ void DistElemMatToScaMat(
 		}	
 	}
 
-	// Copy the matrix values from distScaMat to scaMat
+  // Copy the matrix values from distScaMat to scaMat
 	{
 		for( typename std::map<Index2, NumMat<F> >::iterator 
 				 mi  = distScaMat.LocalMap().begin();
@@ -538,6 +587,7 @@ void ScaMatToDistNumMat(
 	// ScaLAPACK format.  
   DistVec<Index2, NumMat<F>, BlockMatPrtn> distScaMat;
 	distScaMat.Prtn() = blockPrtn;
+  distScaMat.SetComm(comm);
 
 	// Initialize
 	DblNumMat empty( MB, MB );

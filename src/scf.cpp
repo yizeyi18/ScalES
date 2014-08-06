@@ -1,3 +1,4 @@
+
 /*
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
@@ -91,8 +92,8 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 		mixStepLength_ = esdfParam.mixStepLength;
 		// Note: for PW SCF there is no inner loop. Use the parameter value
 		// for the outer SCF loop only.
-    eigMaxIter_    = esdfParam.eigMaxIter;
     eigTolerance_  = esdfParam.eigTolerance;
+    eigMaxIter_    = esdfParam.eigMaxIter;
 		scfTolerance_  = esdfParam.scfOuterTolerance;
 		scfMaxIter_    = esdfParam.scfOuterMaxIter;
     numUnusedState_ = esdfParam.numUnusedState;
@@ -294,6 +295,7 @@ SCF::Iterate	(  )
       if( iter == 1 )
         eigTolNow = 1e-2;
       else
+        
         eigTolNow = std::max( std::min( scfNorm_*1e-2, 1e-2 ) , eigTolerance_);
     }
     else{

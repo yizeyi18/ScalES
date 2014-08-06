@@ -92,7 +92,7 @@ void Spinor::Setup (
 		const Domain &dm, 
 		const Int     numComponent,
 		const Int     numStateTotal,
-    const Int     numStateLocal,
+          Int     numStateLocal,
 		const Scalar  val ) {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Setup ");
@@ -129,14 +129,19 @@ void Spinor::Setup (
   }
 
   // Check Sum{numStateLocal} = numStateTotal
-  Int numStateTotalTest; 
-  Int numState = numStateLocal;
+  //Int numStateTotalTest = 0; 
+  //Int numState = numStateLocal;
 
-  mpi::Allreduce( &numState, &numStateTotalTest, 1, MPI_SUM, domain_.comm );
+  //mpi::Allreduce( &numState, &numStateTotalTest, 1, MPI_SUM, domain_.comm );
 
-//  if( numStateTotalTest != numStateTotal ){
-//    throw std::logic_error("Sum{numStateLocal} = numStateTotal does not match.");
-//  }
+  //if( numStateTotalTest != numStateTotal ){
+  //  statusOFS << "mpisize = " << mpisize << std::endl;
+  //  statusOFS << "mpirank = " << mpirank << std::endl;
+  //  statusOFS << "numStateLocal = " << numStateLocal << std::endl;
+  //  statusOFS << "Sum{numStateLocal} = " << numStateTotalTest << std::endl;
+  //  statusOFS << "numStateTotal = " << numStateTotal << std::endl; 
+  //  throw std::logic_error("Sum{numStateLocal} = numStateTotal does not match.");
+  //}
  
   // huwei
 
@@ -151,7 +156,7 @@ void Spinor::Setup (
 void Spinor::Setup ( const Domain &dm, 
 		const Int numComponent, 
 		const Int numStateTotal,
-    const Int numStateLocal,
+          Int numStateLocal,
 		const bool owndata, 
 		Scalar* data )
 {

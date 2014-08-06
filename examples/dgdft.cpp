@@ -85,16 +85,41 @@ int main(int argc, char **argv)
     fftw_mpi_init();
 
     // Initialize BLACS
+    // FIXME
+    // For intra-element parallelization, 
+    // nprow*npcol for ScaLAPACK should be the number of processors in a
+    // mpi column communicator (mpisizecol, which is the number of
+    // elements)
+    //
     Int nprow, npcol;
-    Int contxt;
+    Int contxt, contxt_C;
     Cblacs_get(0, 0, &contxt);
-    for( Int i = IRound(sqrt(double(mpisize))); i <= mpisize; i++){
-      nprow = i; npcol = mpisize / nprow;
-      if( nprow * npcol == mpisize ) break;
-    } 
-    Print( statusOFS, "nprow = ", nprow );
-    Print( statusOFS, "npcol = ", npcol ); 
-    Cblacs_gridinit(&contxt, "C", nprow, npcol);
+    //for( Int i = IRound(sqrt(double(mpisize))); i <= mpisize; i++){
+    //  nprow = i; npcol = mpisize / nprow;
+    //  if( nprow * npcol == mpisize ) break;
+    //} 
+    Print( statusOFS, "mpisize = ", mpisize );
+    Print( statusOFS, "mpirank = ", mpirank );
+    //Print( statusOFS, "nprow = ", nprow );
+    //Print( statusOFS, "npcol = ", npcol ); 
+
+    //nprow = 2;
+    //npcol = 2;
+    //Int ldpmap = 2;
+    //Int pmap[mpisize];
+    //if(mpisize == 4){
+    //  for ( Int i = 0; i < 4; i++ ){
+    //    pmap[i] = i;
+    //  }
+    //}
+    //if(mpisize == 8){
+    //  for ( Int i = 0; i < 4; i++ ){
+    //    pmap[i] = i*2;
+    //  }
+    //}
+    //Cblacs_gridmap(&contxt, &pmap[0], ldpmap, nprow, npcol);
+    //Cblacs_gridmap(&contxt, &pmap, ldpmap, nprow, npcol);
+    //Cblacs_gridinit(&contxt, "C", nprow, npcol);
 
     // Initialize input parameters
     std::map<std::string,std::string> options;
@@ -251,7 +276,10 @@ int main(int argc, char **argv)
     // *********************************************************************
     // Preparation
     // *********************************************************************
+    
+    // FIXME IMPORTANT: RandomSeed cannot be the same.
     SetRandomSeed(1);
+    // SetRandomSeed(mpirank);
 
     GetTime( timeSta );
 
@@ -269,6 +297,11 @@ int main(int argc, char **argv)
     DistVec<Index3, EigenSolver, ElemPrtn>  distEigSol; 
     DistVec<Index3, KohnSham, ElemPrtn>     distHamKS;
     DistVec<Index3, Spinor, ElemPrtn>       distPsi;
+    // FIXME no use?
+    distEigSol.SetComm( dm.comm );
+    distHamKS.SetComm( dm.comm );
+    distPsi.SetComm( dm.comm );
+
     // All extended elements share the same Fourier structure.
     Fourier fftExtElem;
 
@@ -280,11 +313,76 @@ int main(int argc, char **argv)
       IntNumTns& elemPrtnInfo = distEigSol.Prtn().ownerInfo;
       elemPrtnInfo.Resize( numElem[0], numElem[1], numElem[2] );
 
-      if( mpisize != numElem.prod() ){
+      // huwei
+      int dmCol = numElem[0] * numElem[1] * numElem[2];
+      int dmRow = mpisize / dmCol;
+
+      Cblacs_gridinit(&contxt, "C", dmRow, dmCol);
+      
+      for( Int i = IRound(sqrt(double(dmCol))); i <= dmCol; i++){
+        nprow = i; npcol = dmCol / nprow;
+        if( nprow * npcol == dmCol ) break;
+      }
+      //nprow = dmCol;
+      //npcol = 1;
+      Int ldpmap = npcol;
+      Int pmap[dmCol];
+      //for ( Int i = 0; i < mpisize; i++ ){
+      //  pmap[i] = 0;
+      //}
+      for ( Int i = 0; i < dmCol; i++ ){
+        pmap[i] = i * dmRow;
+      }
+      Cblacs_get( contxt, 0, &contxt_C );
+      //Cblacs_gridmap(&context_C, map, 1, 1, npcol);
+      //Cblacs_gridmap(&contxt_C, &pmap[0], 1, 1, dmCol);
+      Cblacs_gridmap(&contxt_C, &pmap[0], npcol, nprow, npcol);
+
+      statusOFS << "huwei 1 dgdft.cpp" << std::endl;
+      statusOFS << "mpisize = " << mpisize << std::endl;
+      statusOFS << "dmRow = " << dmRow << std::endl;
+      statusOFS << "dmCol = " << dmCol << std::endl;
+
+
+      if( (mpisize % dmCol) != 0 ){
         std::ostringstream msg;
-        msg << "The number of processors is not equal to the total number of elements." << std::endl;
+        msg << "Total number of processors do not fit to the number processors per element." << std::endl;
         throw std::runtime_error( msg.str().c_str() );
       }
+
+      //int elemSize = numElem[0] * numElem[1] * numElem[2];
+      //int elemBlocksize = mpisize / elemSize;
+      //int npPerElem[elemSize];
+      //int npPerElemSum[elemSize];
+      //int groupRank[mpisize];
+    
+      //for( Int i=0; i< elemSize; i++ ) {
+      //  npPerElem[0] = elemBlocksize;
+      //}
+
+      //npPerElemSum[0] = 0;
+      //for( Int i=1; i< elemSize; i++ ) {
+      //  npPerElemSum[i] = npPerElemSum[i-1] + npPerElem[i-1];
+      //}
+
+      //groupRank[0] = 0;
+      //for( Int i=0; i< mpisize; i++ ) {
+      //  for( Int j=1; j< elemSize; j++ ) {
+      //    if((i >= npPerElemSum[j-1])&&(i < npPerElemSum[j])){
+      //      groupRank[i] = j-1;
+      //    }        
+      //  } 
+      //  if((i >= npPerElemSum[elemSize-1])){
+      //    groupRank[i] = elemSize-1;
+      //  }        
+      //}
+      // huwei
+
+//      if( mpisize != numElem.prod() ){
+//        std::ostringstream msg;
+//        msg << "The number of processors is not equal to the total number of elements." << std::endl;
+//        throw std::runtime_error( msg.str().c_str() );
+//      }
 
       Int cnt = 0;
       for( Int k=0; k< numElem[2]; k++ )
@@ -301,22 +399,29 @@ int main(int argc, char **argv)
         for( Int j=0; j< numElem[1]; j++ )
           for( Int i=0; i< numElem[0]; i++ ) {
             Index3 key (i,j,k);
-            if( distEigSol.Prtn().Owner(key) == mpirank ){
+            if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
               // Setup the domain in the extended element
               Domain dmExtElem;
               for( Int d = 0; d < DIM; d++ ){
+               
+                // huwei
+                dmExtElem.comm    = dm.rowComm;
+                // For consistency no use
+                dmExtElem.rowComm = dm.rowComm;
+                dmExtElem.colComm = dm.rowComm;
+              
                 // Assume the global domain starts from 0.0
                 if( numElem[d] == 1 ){
-                  dmExtElem.length[d]     = dm.length[d];
-                  dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d];
+                  dmExtElem.length[d]      = dm.length[d];
+                  dmExtElem.numGrid[d]     = esdfParam.numGridWavefunctionElem[d];
                   dmExtElem.numGridFine[d] = esdfParam.numGridDensityElem[d];
-                  dmExtElem.posStart[d]   = 0.0;
+                  dmExtElem.posStart[d]    = 0.0;
                 }
                 else if ( numElem[d] >= 3 ){
-                  dmExtElem.length[d]     = dm.length[d]  / numElem[d] * 3;
-                  dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d] * 3;
+                  dmExtElem.length[d]      = dm.length[d]  / numElem[d] * 3;
+                  dmExtElem.numGrid[d]     = esdfParam.numGridWavefunctionElem[d] * 3;
                   dmExtElem.numGridFine[d] = esdfParam.numGridDensityElem[d] * 3;
-                  dmExtElem.posStart[d]   = dm.length[d]  / numElem[d] * ( key[d] - 1 );
+                  dmExtElem.posStart[d]    = dm.length[d]  / numElem[d] * ( key[d] - 1 );
                 }
                 else{
                   throw std::runtime_error( "numElem[d] is either 1 or >=3." );
@@ -324,7 +429,7 @@ int main(int argc, char **argv)
 
                 // Do not specify the communicator for the domain yet
                 // since it is not used for parallelization
-              }
+              } // for d
 
               // Atoms	
               std::vector<Atom>&  atomList = esdfParam.atomList;
@@ -350,8 +455,86 @@ int main(int argc, char **argv)
               fftExtElem.InitializeFine( dmExtElem );
              
               // Wavefunction
+              //Spinor& spn = distPsi.LocalMap()[key];
+              //spn.Setup( dmExtElem, 1, esdfParam.numALBElem(i,j,k), 0.0 );
+
+              // FIXME huwei
+              int dmExtElemMpirank, dmExtElemMpisize;
+              MPI_Comm_rank( dmExtElem.comm, &dmExtElemMpirank );
+              MPI_Comm_size( dmExtElem.comm, &dmExtElemMpisize );
+              int numStateTotal = esdfParam.numALBElem(i,j,k);
+              int numStateLocal, blocksize;
+
+              if ( numStateTotal <=  dmExtElemMpisize ) {
+                blocksize = 1;
+
+                if ( dmExtElemMpirank < numStateTotal ){
+                  numStateLocal = 1; // blocksize == 1;
+                }
+                else { // FIXME huwei numStateLocal = 0???
+                  numStateLocal = 0;
+                }
+  
+              } 
+    
+              else {  // numStateTotal >  mpisize
+      
+                if ( numStateTotal % dmExtElemMpisize == 0 ){
+                  blocksize = numStateTotal / dmExtElemMpisize;
+                  numStateLocal = blocksize ;
+                }
+                else {
+                  // blocksize = ((numStateTotal - 1) / mpisize) + 1;
+                  blocksize = numStateTotal / dmExtElemMpisize;
+                  numStateLocal = blocksize ;
+                  if ( dmExtElemMpirank < ( numStateTotal % dmExtElemMpisize ) ) {
+                    numStateLocal = numStateLocal + 1 ;
+                  }
+                }    
+    
+              }
+     
+              statusOFS << "huwei 111 dgdft.cpp" << std::endl;
+              statusOFS << "dmExtElemMpisize = " << dmExtElemMpisize << std::endl;
+              statusOFS << "dmExtElemMpirank = " << dmExtElemMpirank << std::endl;
+              statusOFS << "numStateLocal = " << numStateLocal << std::endl;
+              statusOFS << "numStateTotal = " << numStateTotal << std::endl;
+      
               Spinor& spn = distPsi.LocalMap()[key];
-              spn.Setup( dmExtElem, 1, esdfParam.numALBElem(i,j,k), 0.0 );
+              spn.Setup( dmExtElem, 1, numStateTotal, numStateLocal, 0.0 );
+              UniformRandom( spn.Wavefun() );
+
+//    MPI_Comm mpi_comm = dm.comm;
+    
+//		Spinor  spnTemp;
+//    spnTemp.Setup( dm, 1, hamKS.NumStateTotal(), hamKS.NumStateTotal(), 0.0 );
+   
+//    if (mpirank == 0){
+//      UniformRandom( spnTemp.Wavefun() );
+//    }
+//    MPI_Bcast(spnTemp.Wavefun().Data(), spnTemp.Wavefun().m()*spnTemp.Wavefun().n()*spnTemp.Wavefun().p(), MPI_DOUBLE, 0, mpi_comm);
+
+//	Int size = spn.Wavefun().m() * spn.Wavefun().n();
+//	Int nocc = spn.Wavefun().p();
+ 
+//  IntNumVec& wavefunIdx = spn.WavefunIdx();
+//  NumTns<Scalar>& wavefun = spn.Wavefun();
+
+//	for (Int k=0; k<nocc; k++) {
+//		Scalar *ptr = spn.Wavefun().MatData(k);
+//		Scalar *ptr1 = spnTemp.Wavefun().MatData(wavefunIdx(k));
+//		for (Int i=0; i<size; i++) {
+//      *ptr = *ptr1;
+//		  ptr = ptr + 1;
+//		  ptr1 = ptr1 + 1;
+//    }
+//	}
+
+
+// huwei
+
+
+
 
               // Hamiltonian
               // The exchange-correlation type and numExtraState is not
@@ -440,11 +623,24 @@ int main(int argc, char **argv)
     statusOFS << "Time for setting up Distributed Fourier is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
+
+    statusOFS << "huwei 2 dgdft.cpp" << std::endl;
+   
+  
     // Setup HamDG
     GetTime( timeSta );
 
     HamiltonianDG hamDG( esdfParam );
+
+
+    statusOFS << "huwei 3 dgdft.cpp" << std::endl;
+
+
     hamDG.CalculatePseudoPotential( ptable );
+
+
+    statusOFS << "huwei 4 dgdft.cpp" << std::endl;
+
 
     GetTime( timeEnd );
     statusOFS << "Time for setting up the DG Hamiltonian is " <<
@@ -453,13 +649,23 @@ int main(int argc, char **argv)
     // Setup SCFDG
     GetTime( timeSta );
 
+
+    statusOFS << "huwei 5 dgdft.cpp" << std::endl;
+
+
     SCFDG  scfDG;
-    scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt );
+    scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt_C );
 
     GetTime( timeEnd );
     statusOFS << "Time for setting up SCFDG is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
+
+
+    statusOFS << "huwei 6 dgdft.cpp" << std::endl;
+    
+   
+  
     // *********************************************************************
     // Solve
     // *********************************************************************
@@ -471,7 +677,11 @@ int main(int argc, char **argv)
     statusOFS << "Time for SCF iteration is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
     
+    
+    statusOFS << "huwei 7 dgdft.cpp" << std::endl;
 
+   
+  
     // Compute force
     if( esdfParam.solutionMethod == "diag" ){
       GetTime( timeSta );
@@ -500,28 +710,28 @@ int main(int argc, char **argv)
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
       // Compute the a posteriori error estimator
-      GetTime( timeSta );
-      DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-      hamDG.CalculateAPosterioriError( 
-          eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-      GetTime( timeEnd );
-      statusOFS << "Time for computing the a posteriori error is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-      // Only master processor output information containing all atoms
-      if( mpirank == 0 ){
-        PrintBlock( statusOFS, "A Posteriori error" );
-        {
-          statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-          statusOFS << eta2Total << std::endl;
-          statusOFS << std::endl << "Residual term:" << std::endl;
-          statusOFS << eta2Residual << std::endl;
-          statusOFS << std::endl << "Face term:" << std::endl;
-          statusOFS << eta2GradJump << std::endl;
-          statusOFS << std::endl << "Jump term:" << std::endl;
-          statusOFS << eta2Jump << std::endl;
-        }
-      }
+//      GetTime( timeSta );
+//      DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
+//      hamDG.CalculateAPosterioriError( 
+//          eta2Total, eta2Residual, eta2GradJump, eta2Jump );
+//      GetTime( timeEnd );
+//      statusOFS << "Time for computing the a posteriori error is " <<
+//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//
+//      // Only master processor output information containing all atoms
+//      if( mpirank == 0 ){
+//        PrintBlock( statusOFS, "A Posteriori error" );
+//        {
+//          statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+//          statusOFS << eta2Total << std::endl;
+//          statusOFS << std::endl << "Residual term:" << std::endl;
+//          statusOFS << eta2Residual << std::endl;
+//          statusOFS << std::endl << "Face term:" << std::endl;
+//          statusOFS << eta2GradJump << std::endl;
+//          statusOFS << std::endl << "Jump term:" << std::endl;
+//          statusOFS << eta2Jump << std::endl;
+//        }
+//      }
     }
 #ifdef _USE_PEXSI_
     if( esdfParam.solutionMethod == "pexsi" ){
@@ -537,10 +747,33 @@ int main(int argc, char **argv)
     // *********************************************************************
 
     // Finish Cblacs
+
+    statusOFS << "huwei 1111 dgdft.cpp" << std::endl;
+    //if(0){
+    //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
+    //  abort();
+    //}
+
+
+    if(contxt_C >= 0) {
+      Cblacs_gridexit( contxt_C );
+    }
+    
     Cblacs_gridexit( contxt );
 
+
+    statusOFS << "huwei 1112 dgdft.cpp" << std::endl;
+    //if(1){
+    //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
+    //  abort();
+    //}
+    
+   
     // Finish fftw
     fftw_mpi_cleanup();
+
+    MPI_Comm_free( &dm.rowComm );
+    MPI_Comm_free( &dm.colComm );
 
   }
   catch( std::exception& e )

@@ -90,6 +90,8 @@ public:
 	//
 	Int Insert(Key, Data&);
 	Data& Access(Key);
+  //
+  void SetComm( MPI_Comm comm ) {comm_ = comm;}
 	//
 	Int GetBegin(Int (*e2ps)(Key, Data& ,std::vector<Int>&), const std::vector<Int>& mask); //gather all entries st pid contains this proc
 	Int GetBegin(std::vector<Key>& keyvec, const std::vector<Int>& mask); //gather all entries with key in keyvec

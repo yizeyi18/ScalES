@@ -419,9 +419,25 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
 	// Create the new communicator
 	{
 		Int mpirankDomain, mpisizeDomain;
-		MPI_Comm_rank( dm.comm, &mpirankDomain );
-		MPI_Comm_size( dm.comm, &mpisizeDomain );
-		if( numProc > mpisizeDomain ){
+		MPI_Comm_rank( dm.colComm, &mpirankDomain );
+		MPI_Comm_size( dm.colComm, &mpisizeDomain );
+    
+    Int mpirank, mpisize;
+    MPI_Comm_rank( dm.comm, &mpirank );
+    MPI_Comm_size( dm.comm, &mpisize );
+    
+    MPI_Barrier(dm.rowComm);
+    Int mpirankRow;  MPI_Comm_rank(dm.rowComm, &mpirankRow);
+    Int mpisizeRow;  MPI_Comm_size(dm.rowComm, &mpisizeRow);
+
+    MPI_Barrier(dm.colComm);
+    Int mpirankCol;  MPI_Comm_rank(dm.colComm, &mpirankCol);
+    Int mpisizeCol;  MPI_Comm_size(dm.colComm, &mpisizeCol);
+
+    // FIXME huwei
+    numProc = mpisizeCol;
+
+    if( numProc > mpisizeDomain ){
 			std::ostringstream msg;
 			msg << "numProc cannot exceed mpisize."  << std::endl
 				<< "numProc ~ " << numProc << std::endl
@@ -433,7 +449,7 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
 		else
 			isInGrid = false;
 
-		MPI_Comm_split( dm.comm, isInGrid, mpirankDomain, &comm );
+		MPI_Comm_split( dm.colComm, isInGrid, mpirankDomain, &comm );
 	}
 
 	if( isInGrid ){
