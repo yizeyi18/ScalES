@@ -67,11 +67,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::CalculateDGMatrix");
 #endif
-
-
-  statusOFS << "huwei 1 hamiltonian_dg_matrix.cpp" << std::endl;
-
-
   Int mpirank, mpisize;
 	Int numAtom = atomList_.size();
 	MPI_Comm_rank( domain_.comm, &mpirank );
@@ -162,16 +157,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
       sqrtLGLWeight2D[2](i, j) = std::sqrt( LGLWeight2D[2](i, j) );
     }
 
-
-  statusOFS << "huwei 2 hamiltonian_dg_matrix.cpp" << std::endl;
-  statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-  statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-  statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-  statusOFS << "dmCol_ = " << dmCol_ << " dmRow_ = " << dmRow_ << std::endl;
-  statusOFS << "NUM_FACE = " << NUM_FACE << std::endl;
-  statusOFS << "DIM = " << DIM << std::endl;
-	
- 
   // Clear the DG Matrix
 	HMat_.LocalMap().clear();
 
@@ -196,15 +181,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
             int numBasisLocalElem = basisLGL_.LocalMap()[key].n();
             numBasisLocal(i, j, k) = 0;
             mpi::Allreduce( &numBasisLocalElem, &numBasisLocal(i, j, k), 1, MPI_SUM, domain_.rowComm );
-					
-            statusOFS << "huwei 3 hamiltonian_dg_matrix.cpp" << std::endl;
-            statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-            statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-            statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-            statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-            statusOFS << "basisLGL_.LocalMap()[key].n() = " << basisLGL_.LocalMap()[key].n() << std::endl;
-            statusOFS << "numBasisLocal(i, j, k) = " << numBasisLocal(i, j, k) << std::endl;
-         
           }
 				} // for (i)
 	
@@ -212,12 +188,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		mpi::Allreduce( numBasisLocal.Data(), numBasis.Data(),
 				numElem_.prod(), MPI_SUM, domain_.colComm );
 		
-  
-    statusOFS << "huwei 4 hamiltonian_dg_matrix.cpp" << std::endl;
-    statusOFS << "numBasisLocal = " << numBasisLocal << std::endl;
-    statusOFS << "numBasis = " << numBasis << std::endl;
- 
-
     // Every processor compute all index sets
 		elemBasisIdx_.Resize(numElem_[0], numElem_[1], numElem_[2]);
 
@@ -251,9 +221,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	}
 	
 	
-  statusOFS << "huwei 5 hamiltonian_dg_matrix.cpp" << std::endl;
-	
- 
   // *********************************************************************
 	// Compute the local derivatives
 	// Start the communication of the derivatives
@@ -269,14 +236,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
             // FIXME huwei
             DblNumMat&  basis = basisLGL_.LocalMap()[key];
-            
-            statusOFS << "huwei 50 hamiltonian_dg_matrix.cpp" << std::endl;
-            statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-            statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-            statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-            statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-            statusOFS << "basis = " << basis << std::endl;
-					
             Int numBasis = basis.n();
 
 						// NOTE: For large matrices, test can take excessive amount
@@ -312,17 +271,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 						}
 
 
-
-            statusOFS << "huwei 500 hamiltonian_dg_matrix.cpp" << std::endl;
-            statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-            statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-            statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-            statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-            statusOFS << "DbasisX = " << DbasisX << std::endl;
-            statusOFS << "DbasisY = " << DbasisY << std::endl;
-            statusOFS << "DbasisZ = " << DbasisZ << std::endl;
-						
-           
             // Complicated implementation, more for debugging purpose
 						if(0){
 #ifdef _USE_OPENMP_
@@ -405,13 +353,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 						DblNumMat&  basis = basisLGL_.LocalMap()[key];
 						Int numBasis = basis.n();
 
-            statusOFS << "huwei 51 hamiltonian_dg_matrix.cpp" << std::endl;
-            statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-            statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-            statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-            statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-            statusOFS << "basis = " << basis << std::endl;
-						
             // x-direction
 						{
 							Int  numGridFace = numGrid[1] * numGrid[2];
@@ -555,12 +496,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 #endif
 	}
 
-
-
-  statusOFS << "huwei 6 hamiltonian_dg_matrix.cpp" << std::endl;
-	
- 
-
   // *********************************************************************
 	// Boundary terms, Part I
 	// Start the communication of the boundary terms
@@ -611,19 +546,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 #endif
 	}
 	
-
-
-  statusOFS << "huwei 7 hamiltonian_dg_matrix.cpp" << std::endl;
-  statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-  statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-  statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-  statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-
-
-
-  //if(0){//huwei 
-
-
   // *********************************************************************
 	// Nonlocal pseudopotential term, Part I
 	// Compute the coefficients for the nonlocal pseudopotential 
@@ -690,25 +612,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 							SetValue( coefDrvY, 0.0 );
 							SetValue( coefDrvZ, 0.0 );
 
-
-              statusOFS << "huwei 71 hamiltonian_dg_matrix.cpp" << std::endl;
-              statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-              statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-              statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-              statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-              statusOFS << "numBasis = " << numBasis << " vnlList.size() = " << vnlList.size() <<  std::endl;
-              statusOFS << "numBasisTotal = " << numBasisTotal << " vnlList.size() = " << vnlList.size() <<  std::endl;
-              statusOFS << "basis = " << basis <<  std::endl;
-              statusOFS << "DbasisX = " << DbasisX <<  std::endl;
-              statusOFS << "DbasisY = " << DbasisY <<  std::endl;
-              statusOFS << "DbasisZ = " << DbasisZ <<  std::endl;
-              statusOFS << "coef = " << coef <<  std::endl;
-              statusOFS << "coefDrvX = " << coefDrvX <<  std::endl;
-              statusOFS << "coefDrvY = " << coefDrvY <<  std::endl;
-              statusOFS << "coefDrvZ = " << coefDrvZ <<  std::endl;
-             
-
-
 							// Loop over projector
 							// Method 1: Inefficient way of implementation
 							if(0){
@@ -736,11 +639,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								} // for (g)
 							} // if(0)
 
-
-
-              statusOFS << "huwei 72 hamiltonian_dg_matrix.cpp" << std::endl;
-						
-
 							// Method 2: Efficient way of implementation
 							if(1){
 #ifdef _USE_OPENMP_
@@ -755,36 +653,12 @@ HamiltonianDG::CalculateDGMatrix	(  )
 										SparseVec&  vnl = vnlList[g].first;
 										Int         idxSize = vnl.first.Size();
 
-                    
-                    statusOFS << "huwei 720 hamiltonian_dg_matrix.cpp" << std::endl;
-                    statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                    statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                    statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-                    statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-                    statusOFS << "numBasis = " << numBasis << " vnlList.size() = " << vnlList.size() <<  std::endl;
-                    statusOFS << "idxSize = " << idxSize << std::endl;
-                    statusOFS << "basisLGLIdx_ = " << basisLGLIdx_ << std::endl;
-
-                    
                     if( idxSize > 0 ) {
                       Int        *ptrIdx = vnl.first.Data();
                       Real       *ptrVal = vnl.second.VecData(VAL);
                       Real       *ptrWeight = LGLWeight3D.Data();
                       Real       *ptrBasis, *ptrDbasisX, *ptrDbasisY, *ptrDbasisZ;
                       Real       *ptrCoef, *ptrCoefDrvX, *ptrCoefDrvY, *ptrCoefDrvZ;
-											
-
-                      statusOFS << "huwei 721 hamiltonian_dg_matrix.cpp" << std::endl;
-                      statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                      statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                      statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-                      statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-                      statusOFS << "numBasis = " << numBasis << " vnlList.size() = " << vnlList.size() <<  std::endl;
-                      statusOFS << "idxSize = " << idxSize << std::endl;
-                      statusOFS << "basisLGLIdx_ = " << basisLGLIdx_ << std::endl;
-
-
-
                       // Loop over basis function
 											for( Int b = 0; b < numBasis; b++ ){
 												// Loop over grid point
@@ -796,11 +670,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 												ptrCoefDrvX = coefDrvX.VecData(g);
 												ptrCoefDrvY = coefDrvY.VecData(g);
 												ptrCoefDrvZ = coefDrvZ.VecData(g);
-												
-                      
-
-                        statusOFS << "huwei 7210 hamiltonian_dg_matrix.cpp" << std::endl;
-                        statusOFS << "b = " << b << std::endl;
                      
                         Int a = basisLGLIdx_(b); 
 
@@ -815,11 +684,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 														ptrDbasisZ[ptrIdx[l]] * ptrVal[l];
 												}
                       }
-
-
-                      statusOFS << "huwei 722 hamiltonian_dg_matrix.cpp" << std::endl;
-                    
-                   
                     } // non-empty
                   } // for (g)
 #ifdef _USE_OPENMP_
@@ -827,9 +691,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 #endif
 							} // if(1)
 
-             
-              statusOFS << "huwei 723 hamiltonian_dg_matrix.cpp" << std::endl;
-            
 
               DblNumMat coefTemp( numBasisTotal, vnlList.size() );
 
@@ -849,28 +710,8 @@ HamiltonianDG::CalculateDGMatrix	(  )
               MPI_Allreduce( coefDrvZ.Data(), coefTemp.Data(), numBasisTotal * vnlList.size(), MPI_DOUBLE, MPI_SUM, domain_.rowComm );
 							coefDrvZMap[atomIdx] = coefTemp;
               
-             
-              statusOFS << "huwei 73 hamiltonian_dg_matrix.cpp" << std::endl;
-              statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-              statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-              statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-              statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-              statusOFS << "numBasis = " << numBasis << " vnlList.size() = " << vnlList.size() <<  std::endl;
-              statusOFS << "basis = " << basis <<  std::endl;
-              statusOFS << "DbasisX = " << DbasisX <<  std::endl;
-              statusOFS << "DbasisY = " << DbasisY <<  std::endl;
-              statusOFS << "DbasisZ = " << DbasisZ <<  std::endl;
-              statusOFS << "coef = " << coef <<  std::endl;
-              statusOFS << "coefDrvX = " << coefDrvX <<  std::endl;
-              statusOFS << "coefDrvY = " << coefDrvY <<  std::endl;
-              statusOFS << "coefDrvZ = " << coefDrvZ <<  std::endl;
-						
-           
-          
             } // mi
 
-
-            statusOFS << "huwei 74 hamiltonian_dg_matrix.cpp" << std::endl;
 
 
             // FIXME
@@ -885,10 +726,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 				} // for (i)
 
 
-
-    statusOFS << "huwei 75 hamiltonian_dg_matrix.cpp" << std::endl;
-    
-   
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
 		statusOFS << 
@@ -946,20 +783,10 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		std::vector<Index3>  pseudoIdx;
 		pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
 		
-  
-    statusOFS << "huwei 76 hamiltonian_dg_matrix.cpp" << std::endl;
-    statusOFS << "pseudoIdx = " << pseudoIdx << std::endl;
-    statusOFS << "NO_MASK = " << NO_MASK << std::endl;
-		
-   
     vnlCoef_.GetBegin( pseudoIdx, NO_MASK );
 		for( Int d = 0; d < DIM; d++ )
 			vnlDrvCoef_[d].GetBegin( pseudoIdx, NO_MASK );
 
-
-    statusOFS << "huwei 77 hamiltonian_dg_matrix.cpp" << std::endl;
-		
-   
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
 		statusOFS << 
@@ -970,11 +797,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	}
 
 
-
-  //}//if(0)huwei
-
-
-  statusOFS << "huwei 8 hamiltonian_dg_matrix.cpp" << std::endl;
 
 
   // *********************************************************************
@@ -1123,17 +945,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
                 } //if(1)
 
-
-                statusOFS << "huwei 81 hamiltonian_dg_matrix.cpp" << std::endl;
-                statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-                statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-                statusOFS << "LGLWeight3D = " << LGLWeight3D << std::endl;
-                statusOFS << "sqrtLGLWeight3D = " << sqrtLGLWeight3D << std::endl;
-                statusOFS << "localMat = " << localMat << std::endl;
-
-
                 // Release the gradient as volume data to save memory
 								// NOTE: Not used anymore since the gradient are used to
 								// construct other quantities
@@ -1168,16 +979,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
                   DblNumMat basisTemp (basis.m(), basis.n()); // We need a copy of basis
                   SetValue( basisTemp, 0.0 );
-                  
-                  statusOFS << "huwei 820 hamiltonian_dg_matrix.cpp" << std::endl;
-                  statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                  statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                  statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-                  statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-                  statusOFS << "basis = " << basis << std::endl;
-                  statusOFS << "basisTemp = " << basisTemp << std::endl;
-                  statusOFS << "vtot = " << vtot << std::endl;
-                  
                  
                   for( Int g = 0; g < basis.n(); g++ ){
                     Real *ptr1 = LGLWeight3D.Data();
@@ -1189,15 +990,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
                     }
                   }
 
-
-                  statusOFS << "huwei 821 hamiltonian_dg_matrix.cpp" << std::endl;
-                  statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                  statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                  statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-                  statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-                  statusOFS << "basis = " << basis << std::endl;
-                  statusOFS << "basisTemp = " << basisTemp << std::endl;
-                  
                  
                   Int height = basis.m();
                   Int width = numBasisTotal;
@@ -1244,26 +1036,11 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
                 } //if(1)
 
-
-                statusOFS << "huwei 823 hamiltonian_dg_matrix.cpp" << std::endl;
-                statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-                statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-                statusOFS << "localMat = " << localMat << std::endl;
-
-
-
               }// Local potential part
 
 #if ( _DEBUGlevel_ >= 1 )
 							statusOFS << "After the local potential part." << std::endl;
 #endif
-
-             
-              //if(0){ //huwei test
-
-
 
 							// x-direction: intra-element part of the boundary term
 							{
@@ -1356,10 +1133,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   }
 
                  
-
-                  statusOFS << "huwei 82301 hamiltonian_dg_matrix.cpp" << std::endl;
-                  
-                  
                   Int height = numGridFace;
                   Int width = numBasisTotal;
 
@@ -1398,17 +1171,11 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   DblNumMat localMatTemp8( width, width );
                  
 
-                  statusOFS << "huwei 82302 hamiltonian_dg_matrix.cpp" << std::endl;
-                 
-
                   AlltoallForward (valLTemp, valLTempRow, domain_.rowComm);
                   AlltoallForward (valRTemp, valRTempRow, domain_.rowComm);
                   AlltoallForward (drvLTemp, drvLTempRow, domain_.rowComm);
                   AlltoallForward (drvRTemp, drvRTempRow, domain_.rowComm);
                 
-                
-                  statusOFS << "huwei 82303 hamiltonian_dg_matrix.cpp" << std::endl;
-                  
                  
                   SetValue( localMatTemp1, 0.0 );
                   blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
@@ -1464,51 +1231,10 @@ HamiltonianDG::CalculateDGMatrix	(  )
                       localMat(a,b) += localMatTemp8(a,b);  
                     } 
 
-                statusOFS << "huwei 82300 hamiltonian_dg_matrix.cpp" << std::endl;
-                statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-                statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-                statusOFS << "LGLWeight2D[0] = " << LGLWeight2D[0] << std::endl;
-                statusOFS << "sqrtLGLWeight2D[0] = " << sqrtLGLWeight2D[0] << std::endl;
-                statusOFS << "valL = " << valL << std::endl;
-                statusOFS << "valR = " << valR << std::endl;
-                statusOFS << "drvL = " << drvL << std::endl;
-                statusOFS << "drvR = " << drvR << std::endl;
-                statusOFS << "valLTemp = " << valLTemp << std::endl;
-                statusOFS << "valRTemp = " << valRTemp << std::endl;
-                statusOFS << "drvLTemp = " << drvLTemp << std::endl;
-                statusOFS << "drvRTemp = " << drvRTemp << std::endl;
-                statusOFS << "valLTempRow = " << valLTempRow << std::endl;
-                statusOFS << "valRTempRow = " << valRTempRow << std::endl;
-                statusOFS << "drvLTempRow = " << drvLTempRow << std::endl;
-                statusOFS << "drvRTempRow = " << drvRTempRow << std::endl;
-                statusOFS << "localMatTemp8 = " << localMatTemp8 << std::endl;
-                statusOFS << "localMat = " << localMat << std::endl;
-
-
                 } //if(1)
 
 
-                statusOFS << "huwei 8230 hamiltonian_dg_matrix.cpp" << std::endl;
-                statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-                statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-                statusOFS << "LGLWeight2D[0] = " << LGLWeight2D[0] << std::endl;
-                statusOFS << "valL = " << valL << std::endl;
-                statusOFS << "valR = " << valR << std::endl;
-                statusOFS << "drvL = " << drvL << std::endl;
-                statusOFS << "drvR = " << drvR << std::endl;
-                statusOFS << "localMat = " << localMat << std::endl;
-
-
-
-
               } // x-direction
-
-
-
 
 							// y-direction: intra-element part of the boundary term
 							{
@@ -1704,27 +1430,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
                 } //if(1)
 
 
-                statusOFS << "huwei 8231 hamiltonian_dg_matrix.cpp" << std::endl;
-                statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-                statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-                statusOFS << "LGLWeight2D[1] = " << LGLWeight2D[1] << std::endl;
-                statusOFS << "valL = " << valL << std::endl;
-                statusOFS << "valR = " << valR << std::endl;
-                statusOFS << "drvL = " << drvL << std::endl;
-                statusOFS << "drvR = " << drvR << std::endl;
-                statusOFS << "localMat = " << localMat << std::endl;
-
-
-
-
-
-
               } // y-direction
-
-
-
 
 							// z-direction: intra-element part of the boundary term
 							{
@@ -1920,26 +1626,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
                 } //if(1)
 
 
-                statusOFS << "huwei 8232 hamiltonian_dg_matrix.cpp" << std::endl;
-                statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-                statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-                statusOFS << "LGLWeight2D[2] = " << LGLWeight2D[2] << std::endl;
-                statusOFS << "valL = " << valL << std::endl;
-                statusOFS << "valR = " << valR << std::endl;
-                statusOFS << "drvL = " << drvL << std::endl;
-                statusOFS << "drvR = " << drvR << std::endl;
-                statusOFS << "localMat = " << localMat << std::endl;
-
-
-
-
               } // z-direction
-
-
-
-
 
 #if ( _DEBUGlevel_ >= 1 )
 							statusOFS << "After the boundary part." << std::endl;
@@ -1968,17 +1655,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 							blas::Axpy( mat.Size(), 1.0, localMat.Data(), 1,
 									mat.Data(), 1); // y = a*x + y -> mat = localMat + mat
 						}
-					
-         
-            statusOFS << "huwei 888 hamiltonian_dg_matrix.cpp" << std::endl;
-            statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-            statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-            statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-            statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-            statusOFS << "key = " << key << std::endl;
-            statusOFS << "localMat = " << localMat << std::endl;
-       
-
           }
 				} // for (i)
 
@@ -1989,26 +1665,13 @@ HamiltonianDG::CalculateDGMatrix	(  )
 #endif
 	} 
 
-  
- 
-  statusOFS << "huwei 9 hamiltonian_dg_matrix.cpp" << std::endl;
-  statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-  statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-  statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-  statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
 
-
-
-  //if(0){ // huwei
 
 	// *********************************************************************
 	// Nonlocal pseudopotential term, Part II
 	// Finish the communication of the nonlocal pseudopotential
 	// Update the nonlocal potential part of the matrix
 	// *********************************************************************
-  
-  // FIXME
-  // The following can be done only on mpirankrow == 0 
 	if(_NON_LOCAL_){
 		GetTime( timeSta );
 		// Finish the communication of the nonlocal pseudopotential
@@ -2120,16 +1783,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	}
 
 
-  statusOFS << "huwei10 hamiltonian_dg_matrix.cpp" << std::endl;
-  statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-  statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-  statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-  statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-	
-  
- 
-  // if(0){ // huwei
- 
   // *********************************************************************
 	// Boundary terms, Part II
 	// Finish the communication of boundary terms
@@ -2347,22 +2000,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
               } //if(1)
 
 
-              statusOFS << "huwei 1001 hamiltonian_dg_matrix.cpp" << std::endl;
-              statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-              statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-              statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-              statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-              statusOFS << "LGLWeight2D[0] = " << LGLWeight2D[0] << std::endl;
-              statusOFS << "valL = " << valL << std::endl;
-              statusOFS << "valR = " << valR << std::endl;
-              statusOFS << "drvL = " << drvL << std::endl;
-              statusOFS << "drvR = " << drvR << std::endl;
-              statusOFS << "localMat = " << localMat << std::endl;
-
-
-
-
-
             // Add (keyL, keyR) to HMat_
             // FIXME
             // After allreduce, the following should be done on
@@ -2397,7 +2034,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 											mat.Data(), 1);
 								}
               }
-            
             } // x-direction
 
 
@@ -2585,22 +2221,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
               } //if(1)
 
 
-              statusOFS << "huwei 1002 hamiltonian_dg_matrix.cpp" << std::endl;
-              statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-              statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-              statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-              statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-              statusOFS << "LGLWeight2D[1] = " << LGLWeight2D[1] << std::endl;
-              statusOFS << "valL = " << valL << std::endl;
-              statusOFS << "valR = " << valR << std::endl;
-              statusOFS << "drvL = " << drvL << std::endl;
-              statusOFS << "drvR = " << drvR << std::endl;
-              statusOFS << "localMat = " << localMat << std::endl;
-
-
-
-
-
 							// Add (keyL, keyR) to HMat_
 							{
 								ElemMatKey matKey( keyL, keyR );
@@ -2633,8 +2253,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								}
 							}
 						} // y-direction
-				
-
 						// z-direction
 						{
 							// keyL is the previous element received from GetBegin/GetEnd.
@@ -2819,23 +2437,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
               } //if(1)
 
 
-              statusOFS << "huwei 1003 hamiltonian_dg_matrix.cpp" << std::endl;
-              statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-              statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-              statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-              statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-              statusOFS << "LGLWeight2D[2] = " << LGLWeight2D[2] << std::endl;
-              statusOFS << "valL = " << valL << std::endl;
-              statusOFS << "valR = " << valR << std::endl;
-              statusOFS << "drvL = " << drvL << std::endl;
-              statusOFS << "drvR = " << drvR << std::endl;
-              statusOFS << "localMat = " << localMat << std::endl;
-
-
-
-
-
-
 							// Add (keyL, keyR) to HMat_
 							{
 								ElemMatKey matKey( keyL, keyR );
@@ -2868,15 +2469,8 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								}
 							}
 						} // z-direction
-  
-
 					}
 				} // for (i)
-
-
-
-
-
 
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -2884,15 +2478,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 	}
-
-  
-
-
-  statusOFS << "huwei 11 hamiltonian_dg_matrix.cpp" << std::endl;
-
-
-
-
 
 
 	// *********************************************************************
@@ -2938,20 +2523,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		statusOFS << "Time for combining the matrix is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-
-    //huwei
-		for( std::map<ElemMatKey, DblNumMat>::iterator 
-				 mi  = HMat_.LocalMap().begin();
-				 mi != HMat_.LocalMap().end(); mi++ ){
-			ElemMatKey key = (*mi).first;
-      statusOFS << "HMat_ = " << (*mi).second << std::endl;
-		}
-
-
 	}
-
-  
-  statusOFS << "huwei 12 hamiltonian_dg_matrix.cpp" << std::endl;
 
 
 #ifndef _RELEASE_

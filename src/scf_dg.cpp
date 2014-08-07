@@ -232,7 +232,6 @@ SCFDG::Setup	(
 #endif
     
 
-  statusOFS << "huwei 1 scf_dg.cpp" << std::endl;
 
 
 	// other SCFDG parameters
@@ -457,8 +456,6 @@ SCFDG::Setup	(
 
 
 
-  statusOFS << "huwei 01 scf_dg.cpp" << std::endl;
-  statusOFS << "isRestartWfn_ = " << isRestartWfn_ << std::endl;
   
  
 
@@ -469,7 +466,6 @@ SCFDG::Setup	(
 
 
 
-    statusOFS << "huwei 02 scf_dg.cpp" << std::endl;
    
    
    
@@ -509,7 +505,6 @@ SCFDG::Setup	(
   else{ 
  
 
-    statusOFS << "huwei 03 scf_dg.cpp" << std::endl;
    
     // FIXME huwei
     
@@ -522,66 +517,54 @@ SCFDG::Setup	(
             EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
             Spinor& psi = eigSol.Psi();
 
-//            UniformRandom( psi.Wavefun() );
+            UniformRandom( psi.Wavefun() );
 
 
+            if(0){ //huwei
+              Spinor  psiTemp;
+              psiTemp.Setup( eigSol.FFT().domain, 1, psi.NumStateTotal(), psi.NumStateTotal(), 0.0 );
 
-      
-      Spinor  psiTemp;
-      psiTemp.Setup( eigSol.FFT().domain, 1, psi.NumStateTotal(), psi.NumStateTotal(), 0.0 );
+              Int mpirankp, mpisizep;
+              MPI_Comm_rank( domain_.rowComm, &mpirankp );
+              MPI_Comm_size( domain_.rowComm, &mpisizep );
 
-	    Int mpirankp, mpisizep;
-     	MPI_Comm_rank( domain_.rowComm, &mpirankp );
-	    MPI_Comm_size( domain_.rowComm, &mpisizep );
-    
-      if (mpirankp == 0){
-        SetRandomSeed(1);
-        UniformRandom( psiTemp.Wavefun() );
-      }
-      MPI_Bcast(psiTemp.Wavefun().Data(), psiTemp.Wavefun().m()*psiTemp.Wavefun().n()*psiTemp.Wavefun().p(), MPI_DOUBLE, 0, domain_.rowComm);
+              if (mpirankp == 0){
+                SetRandomSeed(1);
+                UniformRandom( psiTemp.Wavefun() );
+              }
+              MPI_Bcast(psiTemp.Wavefun().Data(), psiTemp.Wavefun().m()*psiTemp.Wavefun().n()*psiTemp.Wavefun().p(), MPI_DOUBLE, 0, domain_.rowComm);
 
-	    Int size = psi.Wavefun().m() * psi.Wavefun().n();
-	    Int nocc = psi.Wavefun().p();
- 
-      IntNumVec& wavefunIdx = psi.WavefunIdx();
-      NumTns<Scalar>& wavefun = psi.Wavefun();
+              Int size = psi.Wavefun().m() * psi.Wavefun().n();
+              Int nocc = psi.Wavefun().p();
 
-	    for (Int k=0; k<nocc; k++) {
-        Scalar *ptr = psi.Wavefun().MatData(k);
-        Scalar *ptr1 = psiTemp.Wavefun().MatData(wavefunIdx(k));
-        for (Int i=0; i<size; i++) {
-          *ptr = *ptr1;
-          ptr = ptr + 1;
-          ptr1 = ptr1 + 1;
-        }
-      }
+              IntNumVec& wavefunIdx = psi.WavefunIdx();
+              NumTns<Scalar>& wavefun = psi.Wavefun();
 
-
-// huwei
+              for (Int k=0; k<nocc; k++) {
+                Scalar *ptr = psi.Wavefun().MatData(k);
+                Scalar *ptr1 = psiTemp.Wavefun().MatData(wavefunIdx(k));
+                for (Int i=0; i<size; i++) {
+                  *ptr = *ptr1;
+                  ptr = ptr + 1;
+                  ptr1 = ptr1 + 1;
+                }
+              }
 
 
+            }//if(0)
 
 
-
-
-
-            statusOFS << "huwei 04 scf_dg.cpp" << std::endl;
-            statusOFS << "psiTemp.Wavefun() = " << psiTemp.Wavefun() << std::endl;
-            statusOFS << "psi.Wavefun() = " << psi.Wavefun() << std::endl;
-          
-          
           }
         } // for (i)
     Print( statusOFS, "Initial basis functions with random guess." );
   } // if (isRestartWfn_)
 
-  
-  statusOFS << "huwei 05 scf_dg.cpp" << std::endl;
 
 
-	// Generate the transfer matrix from the periodic uniform grid on each
-	// extended element to LGL grid.  
-	{
+
+  // Generate the transfer matrix from the periodic uniform grid on each
+  // extended element to LGL grid.  
+  {
 		PeriodicUniformToLGLMat_.resize(DIM);
     PeriodicUniformFineToLGLMat_.resize(DIM);
 		// FIXME
@@ -712,7 +695,6 @@ SCFDG::Iterate	(  )
 #endif
 
 
-  statusOFS << "huwei 01 scf_dg.cpp" << std::endl;
 
 
   MPI_Barrier(domain_.comm);
@@ -720,18 +702,15 @@ SCFDG::Iterate	(  )
   MPI_Barrier(domain_.rowComm);
  
 
-  statusOFS << "huwei 02 scf_dg.cpp" << std::endl;
  
 
   Int mpirank; MPI_Comm_rank( domain_.comm, &mpirank );
   Int mpisize; MPI_Comm_size( domain_.comm, &mpisize );
   
-  statusOFS << "huwei 03 scf_dg.cpp" << std::endl;
  
   Int mpirankRow;  MPI_Comm_rank(domain_.rowComm, &mpirankRow);
   Int mpisizeRow;  MPI_Comm_size(domain_.rowComm, &mpisizeRow);
 
-  statusOFS << "huwei 04 scf_dg.cpp" << std::endl;
 
   Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
   Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
@@ -742,9 +721,6 @@ SCFDG::Iterate	(  )
 
 
 
-  statusOFS << "huwei 2 scf_dg.cpp" << std::endl;
-  statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-  statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
 
  
 
@@ -758,7 +734,6 @@ SCFDG::Iterate	(  )
 #endif
 
 
-  statusOFS << "huwei 3 scf_dg.cpp" << std::endl;
 	
  
   // Compute the Hartree potential
@@ -771,7 +746,6 @@ SCFDG::Iterate	(  )
 #endif
 
 
-  statusOFS << "huwei 4 scf_dg.cpp" << std::endl;
 	
  
   // No external potential
@@ -786,7 +760,6 @@ SCFDG::Iterate	(  )
 #endif
 
 
-  statusOFS << "huwei 5 scf_dg.cpp" << std::endl;
 
 
 
@@ -814,16 +787,6 @@ SCFDG::Iterate	(  )
 		// *********************************************************************
 
     
-    statusOFS << "huwei 6 scf_dg.cpp" << std::endl;
-    statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-    statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-    DistDblNumVec&  vtot = hamDG.Vtot();
-    for( std::map<Index3, DblNumVec>::iterator 
-        mi  = vtot.LocalMap().begin();
-        mi != vtot.LocalMap().end(); mi++ ){
-      Index3 key = (*mi).first;
-      statusOFS << "vtot.key (begin) = " << key << std::endl;
-    }
 
 
 
@@ -842,15 +805,6 @@ SCFDG::Iterate	(  )
 		}
 
 
-    statusOFS << "huwei 7 scf_dg.cpp" << std::endl;
-    statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-    statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-    for( std::map<Index3, DblNumVec>::iterator 
-        mi  = vtot.LocalMap().begin();
-        mi != vtot.LocalMap().end(); mi++ ){
-      Index3 key = (*mi).first;
-      statusOFS << "vtot.key (begin) = " << key << std::endl;
-    }
 		
    
     // *********************************************************************
@@ -960,7 +914,6 @@ SCFDG::Iterate	(  )
             DblNumVec& vtotCoarse = eigSol.Ham().VtotCoarse();
 
 
-            statusOFS << "huwei 71 scf_dg.cpp" << std::endl;
           
          
             Fourier& fft = eigSol.FFT();
@@ -1012,10 +965,6 @@ SCFDG::Iterate	(  )
             // huwei end for fft VtotFine to VtotCoarse
 
 
-            statusOFS << "huwei 72 scf_dg.cpp" << std::endl;
-            statusOFS << "vtotFine = " << vtotFine << std::endl;
-            statusOFS << "vtotCoarse = " << vtotCoarse << std::endl;
-
 
 						// Solve the basis functions in the extended element
   
@@ -1039,11 +988,6 @@ SCFDG::Iterate	(  )
               << numEig << std::endl;
    
           
-            statusOFS << "huwei 73 scf_dg.cpp" << std::endl;
-            statusOFS << "numEig = " << numEig << std::endl;
-            statusOFS << "eigMaxIter_ = " << eigMaxIter_ << std::endl;
-            statusOFS << "eigTolNow = " << eigTolNow << std::endl;
-            
            
             GetTime( timeSta );
 					  if(0){
@@ -1056,10 +1000,6 @@ SCFDG::Iterate	(  )
 						statusOFS << "Eigensolver time = " 	<< timeEnd - timeSta
 							<< " [s]" << std::endl;
 
-
-            statusOFS << "huwei 74 scf_dg.cpp" << std::endl;
-            statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-            statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
 
 
 
@@ -1218,14 +1158,6 @@ SCFDG::Iterate	(  )
 
 
 
-                statusOFS << "huwei 710 scf_dg.cpp" << std::endl;
-                statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-                statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-                statusOFS << "numBasisTotal = " << numBasisTotal << "  numBasisLocal = " << numBasisLocal << std::endl;
-                statusOFS << "numLGLGridTotal = " << numLGLGridTotal << "  numLGLGridLocal = " << numLGLGridLocal << std::endl;
-                statusOFS << "MMat = " << MMat << std::endl;
-                statusOFS << "MMatTemp = " << MMatTemp << std::endl;
-
                
                 //if(0){
 
@@ -1243,7 +1175,6 @@ SCFDG::Iterate	(  )
 
 
 
-                statusOFS << "huwei 7100 scf_dg.cpp" << std::endl;
 
 
                 for( Int k = 0; k < mpisizeRow; k++ ){ 
@@ -1301,20 +1232,11 @@ SCFDG::Iterate	(  )
                 // end For Alltoall
                 
 
-                statusOFS << "huwei 71000 scf_dg.cpp" << std::endl;
-                statusOFS << "sendk = " << sendk << std::endl;
-                statusOFS << "recvk = " << recvk << std::endl;
 
 
                 //if(0){
 
 
-                statusOFS << "huwei 711 scf_dg.cpp" << std::endl;
-                statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                statusOFS << "MMat = " << MMat << std::endl;
-                statusOFS << "localBasis = " << localBasis << std::endl;
-                statusOFS << "localBasisRow = " << localBasisRow << std::endl;
 
 
                 for( Int j = 0; j < widthLocal; j++ ){ 
@@ -1337,10 +1259,6 @@ SCFDG::Iterate	(  )
                 //if(0){
                 
                  
-                statusOFS << "huwei 712 scf_dg.cpp" << std::endl;
-                statusOFS << "MMat = " << MMat << std::endl;
-                statusOFS << "localBasis = " << localBasis << std::endl;
-                statusOFS << "localBasisRow = " << localBasisRow << std::endl;
 
 
                 //blas::Gemm( 'T', 'N', numBasis, numBasis, numLGLGridTotal,
@@ -1358,23 +1276,12 @@ SCFDG::Iterate	(  )
 
 
 
-                statusOFS << "huwei 713 scf_dg.cpp" << std::endl;
-                statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                statusOFS << "MMat = " << MMat << std::endl;
-
 
 
                 SetValue( MMat, 0.0 );
                 MPI_Allreduce( MMatTemp.Data(), MMat.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
                 
               
-
-                //1if(0){
-
-                statusOFS << "huwei 714 scf_dg.cpp" << std::endl;
-                statusOFS << "MMat = " << MMat << std::endl;
-               
 
 
                 // The following operation is only performed on the
@@ -1410,20 +1317,6 @@ SCFDG::Iterate	(  )
                 //MPI_Bcast(VT.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
                 
                 
-                //if(0){
-
-
-                statusOFS << "huwei 715 scf_dg.cpp" << std::endl;
-                statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                statusOFS << "MMat = " << MMat << std::endl;
-                statusOFS << "S = " << S << std::endl;
-                statusOFS << "U = " << U << std::endl;
-                statusOFS << "VT = " << VT << std::endl;
-              
-
-                //if(0){
-                
                
                 MPI_Barrier( domain_.rowComm );
 
@@ -1455,13 +1348,6 @@ SCFDG::Iterate	(  )
                   throw std::logic_error("numSVDBasisTotal != numSVDBasisTotalTest");
                 }
                 
-                
-               
-                statusOFS << "huwei 716 scf_dg.cpp" << std::endl;
-                statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                statusOFS << "numSVDBasisTotal = " << numSVDBasisTotal << " numSVDBasisLocal = " << numSVDBasisLocal << std::endl;
-              
             
                 // Multiply X <- X*U in the row-partitioned format
 								// Get the first numSVDBasis which are significant.
@@ -1482,10 +1368,6 @@ SCFDG::Iterate	(  )
                   blas::Scal( numBasisTotal, 1.0 / S[g], U.VecData(g), 1 );
                 }
 
-                statusOFS << "huwei 717 scf_dg.cpp" << std::endl;
-                statusOFS << "numBasisTotal = " << numBasisTotal << std::endl;
-                statusOFS << "numSVDBasisTotal = " << numSVDBasisTotal << std::endl;
-           
                 
                 //if(1){
                 //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
@@ -1507,14 +1389,6 @@ SCFDG::Iterate	(  )
                 Int widthSVDBlocksize = numSVDBasisBlocksize;
 
                 
-                statusOFS << "huwei 7177 scf_dg.cpp" << std::endl;
-                statusOFS << "numBasisTotal = " << numBasisTotal << std::endl;
-                statusOFS << "numSVDBasisTotal = " << numSVDBasisTotal << std::endl;
-                statusOFS << "heightLGL = " << heightLGL << " heightLGLLocal = " << heightLGLLocal  << std::endl;
-                statusOFS << "widthSVD = " << widthSVD << " widthSVDLocal = " << widthSVDLocal  << std::endl;
-               
-              
-              
                 MPI_Barrier( domain_.rowComm );
                
                 double sendbufSVD[heightLGL * widthSVDLocal]; 
@@ -1531,12 +1405,6 @@ SCFDG::Iterate	(  )
                 MPI_Barrier( domain_.rowComm );
                
               
-                statusOFS << "huwei 7178 scf_dg.cpp" << std::endl;
-                statusOFS << "numBasisTotal = " << numBasisTotal << std::endl;
-                statusOFS << "numSVDBasisTotal = " << numSVDBasisTotal << std::endl;
-                statusOFS << "heightLGL = " << heightLGL << " heightLGLLocal = " << heightLGLLocal  << std::endl;
-                statusOFS << "widthSVD = " << widthSVD << " widthSVDLocal = " << widthSVDLocal  << std::endl;
-                
                
                 for( Int k = 0; k < mpisizeRow; k++ ){ 
                   if( k < (mpisizeRow - 1)){
@@ -1591,22 +1459,6 @@ SCFDG::Iterate	(  )
                 // end For Alltoall
 
                 
-                statusOFS << "huwei 718 scf_dg.cpp" << std::endl;
-                statusOFS << "numLGLGridLocal = " << numLGLGridLocal << std::endl;
-                statusOFS << "numSVDBasisTotal = " << numSVDBasisTotal << std::endl;
-                statusOFS << "numBasisTotal = " << numBasisTotal << std::endl;
-                
-                statusOFS << "localBasisRow = " << localBasisRow << std::endl;
-                statusOFS << "U = " << U << std::endl;
-                statusOFS << "basisRow = " << basisRow << std::endl;
-              
-
-                //if(1){
-                //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-                //  abort();
-                //}
-
-
                 //blas::Gemm( 'N', 'N', numLGLGridTotal, numSVDBasis,
                 //    numBasis, 1.0, localBasis.Data(), numLGLGridTotal,
                 //    U.Data(), numBasis, 0.0, basis.Data(), numLGLGridTotal );
@@ -1617,18 +1469,6 @@ SCFDG::Iterate	(  )
                     U.Data(), numBasisTotal, 0.0, basisRow.Data(), numLGLGridLocal );
 
 
-                statusOFS << "huwei 7188 scf_dg.cpp" << std::endl;
-                statusOFS << "localBasisRow = " << localBasisRow << std::endl;
-                statusOFS << "U = " << U << std::endl;
-                statusOFS << "basisRow = " << basisRow << std::endl;
-                statusOFS << "sendkSVD = " << sendkSVD << std::endl;
-                statusOFS << "recvkSVD = " << recvkSVD << std::endl;
-                
-                //if(1){
-                //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-                //   abort();
-                //}
-              
 
                 MPI_Barrier( domain_.rowComm );
                 
@@ -1650,16 +1490,6 @@ SCFDG::Iterate	(  )
 
 
 
-                statusOFS << "huwei 719 scf_dg.cpp" << std::endl;
-                //statusOFS << "basisRow = " << basisRow << std::endl;
-                //statusOFS << "basis = " << basis << std::endl;
-                
-                
-                //if(1){
-                //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-                 // abort();
-                //}
-              
 
                 // FIXME
                 // row-partition to column partition via MPI_Alltoallv
@@ -1677,12 +1507,6 @@ SCFDG::Iterate	(  )
 									}
 								}
 
-                statusOFS << "huwei 720 scf_dg.cpp" << std::endl;
-                statusOFS << "basis = " << basis << std::endl;
-
-
-
-
 
 
                 statusOFS << "Singular values of the basis = " 
@@ -1691,27 +1515,13 @@ SCFDG::Iterate	(  )
 								statusOFS << "Number of significant SVD basis = " 
                   << numSVDBasisTotal << std::endl;
 
-                statusOFS << "huwei 721 scf_dg.cpp" << std::endl;
-
-
-               //}//if(0)
-               
-            
            
               MPI_Barrier( domain_.rowComm );
-
-                //if(1){
-                 // statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-                 // abort();
-             //   }
-            
 
             
            
               }
 
-              statusOFS << "huwei 722 scf_dg.cpp" << std::endl;
-		        
 
             
               GetTime( timeEnd );
@@ -1737,23 +1547,6 @@ SCFDG::Iterate	(  )
 				} // for (i)
 
 
-    statusOFS << "huwei 80 scf_dg.cpp" << std::endl;
-    statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-    statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-    for( std::map<Index3, DblNumVec>::iterator 
-        mi  = vtot.LocalMap().begin();
-        mi != vtot.LocalMap().end(); mi++ ){
-      Index3 key = (*mi).first;
-      statusOFS << "vtot.key (begin) = " << key << std::endl;
-    }
-						
-
-
-    //if(1){
-    //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-    //  abort();
-   // }
-
 
     
     GetTime( timeBasisEnd );
@@ -1763,7 +1556,6 @@ SCFDG::Iterate	(  )
 		statusOFS << "Total time for generating the adaptive local basis function is " <<
 			timeBasisEnd - timeBasisSta << " [s]" << std::endl << std::endl;
 
-    statusOFS << "huwei 8 scf_dg.cpp" << std::endl;
 		
 		// *********************************************************************
 		// Inner SCF iteration 
@@ -1793,30 +1585,8 @@ SCFDG::Iterate	(  )
 
 
 
-    statusOFS << "huwei 9 scf_dg.cpp" << std::endl;
-    statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-    statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-    for( std::map<Index3, DblNumVec>::iterator 
-        mi  = vtot.LocalMap().begin();
-        mi != vtot.LocalMap().end(); mi++ ){
-      Index3 key = (*mi).first;
-      statusOFS << "vtot.key (begin) = " << key << std::endl;
-    }
-						
-
     InnerIterate( iter );
 
-
-    statusOFS << "huwei 10 scf_dg.cpp" << std::endl;
-    statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-    statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-    for( std::map<Index3, DblNumVec>::iterator 
-        mi  = vtot.LocalMap().begin();
-        mi != vtot.LocalMap().end(); mi++ ){
-      Index3 key = (*mi).first;
-      statusOFS << "vtot.key (begin) = " << key << std::endl;
-    }
-						
 
  
     MPI_Barrier( domain_.comm );
@@ -2047,26 +1817,10 @@ SCFDG::InnerIterate	( Int outerIter )
 	Real timeSta, timeEnd;
 	Real timeIterStart, timeIterEnd;
 
-  statusOFS << "huwei 100 scf_dg.cpp" << std::endl;
-  
   
   HamiltonianDG&  hamDG = *hamDGPtr_;
 
 
-  statusOFS << "huwei 101 scf_dg.cpp" << std::endl;
-  statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-  statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-  statusOFS << "hamDG.NumBasisTotal() = " << hamDG.NumBasisTotal()  << std::endl;
-  DistDblNumVec&  vtot = hamDG.Vtot();
-  for( std::map<Index3, DblNumVec>::iterator 
-      mi  = vtot.LocalMap().begin();
-      mi != vtot.LocalMap().end(); mi++ ){
-    Index3 key = (*mi).first;
-    statusOFS << "vtot.key (begin) = " << key << std::endl;
-  }
-
-	
- 
   bool isInnerSCFConverged = false;
 
 	for( Int innerIter = 1; innerIter <= scfInnerMaxIter_; innerIter++ ){
@@ -2089,19 +1843,6 @@ SCFDG::InnerIterate	( Int outerIter )
 			GetTime(timeSta);
       
 
-      statusOFS << "huwei 102 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-      statusOFS << "hamDG.NumBasisTotal() = " << hamDG.NumBasisTotal()  << std::endl;
-      for( std::map<Index3, DblNumVec>::iterator 
-          mi  = vtot.LocalMap().begin();
-          mi != vtot.LocalMap().end(); mi++ ){
-        Index3 key = (*mi).first;
-        statusOFS << "vtot.key (begin) = " << key << std::endl;
-      }
-
-			
-		
       MPI_Barrier( domain_.comm );
       MPI_Barrier( domain_.rowComm );
       MPI_Barrier( domain_.colComm );
@@ -2109,17 +1850,6 @@ SCFDG::InnerIterate	( Int outerIter )
       hamDG.CalculateDGMatrix( );
       
      
-      statusOFS << "huwei 103 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-      statusOFS << "hamDG.NumBasisTotal() = " << hamDG.NumBasisTotal()  << std::endl;
-      for( std::map<Index3, DblNumVec>::iterator 
-          mi  = vtot.LocalMap().begin();
-          mi != vtot.LocalMap().end(); mi++ ){
-        Index3 key = (*mi).first;
-        statusOFS << "vtot.key (begin) = " << key << std::endl;
-      }
-		
    
       MPI_Barrier( domain_.comm );
       MPI_Barrier( domain_.rowComm );
@@ -2136,9 +1866,6 @@ SCFDG::InnerIterate	( Int outerIter )
 			
 			// Update the potential in the element (and the extended element)
 
-    
-      statusOFS << "huwei 104 scf_dg.cpp" << std::endl;
-			
      
       GetTime(timeSta);
 
@@ -2156,32 +1883,9 @@ SCFDG::InnerIterate	( Int outerIter )
 					} // for (i)
 
       
-      statusOFS << "huwei 105 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-      for( std::map<Index3, DblNumVec>::iterator 
-          mi  = vtot.LocalMap().begin();
-          mi != vtot.LocalMap().end(); mi++ ){
-        Index3 key = (*mi).first;
-        statusOFS << "vtot.key (begin) = " << key << std::endl;
-      }
-
-
-
       UpdateElemLocalPotential();
 
 
-      statusOFS << "huwei 106 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-      for( std::map<Index3, DblNumVec>::iterator 
-          mi  = vtot.LocalMap().begin();
-          mi != vtot.LocalMap().end(); mi++ ){
-        Index3 key = (*mi).first;
-        statusOFS << "vtot.key (begin) = " << key << std::endl;
-      }
-			
-     
       // Save the difference of the potential on the LGL grid into vtotLGLSave_
 			for( Int k = 0; k < numElem_[2]; k++ )
 				for( Int j = 0; j < numElem_[1]; j++ )
@@ -2201,20 +1905,6 @@ SCFDG::InnerIterate	( Int outerIter )
 
       
      
-      statusOFS << "huwei 107 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-      statusOFS << "hamDG.NumBasisTotal() = " << hamDG.NumBasisTotal()  << std::endl;
-      statusOFS << "hamDG.NumOccupiedState() = " << hamDG.NumOccupiedState()  << std::endl;
-      statusOFS << "hamDG.NumExtraState() = " << hamDG.NumExtraState()  << std::endl;
-      for( std::map<Index3, DblNumVec>::iterator 
-          mi  = vtot.LocalMap().begin();
-          mi != vtot.LocalMap().end(); mi++ ){
-        Index3 key = (*mi).first;
-        statusOFS << "vtot.key (begin) = " << key << std::endl;
-      }
-
-
 			MPI_Barrier( domain_.comm );
 			GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -2234,20 +1924,6 @@ SCFDG::InnerIterate	( Int outerIter )
 #endif
 
 		} // if ( innerIter == 1 )
-
-
-    statusOFS << "huwei 108 scf_dg.cpp" << std::endl;
-    statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-    statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-    statusOFS << "hamDG.NumBasisTotal() = " << hamDG.NumBasisTotal()  << std::endl;
-    statusOFS << "hamDG.NumOccupiedState() = " << hamDG.NumOccupiedState()  << std::endl;
-    statusOFS << "hamDG.NumExtraState() = " << hamDG.NumExtraState()  << std::endl;
-    for( std::map<Index3, DblNumVec>::iterator 
-        mi  = vtot.LocalMap().begin();
-        mi != vtot.LocalMap().end(); mi++ ){
-      Index3 key = (*mi).first;
-      statusOFS << "vtot.key (begin) = " << key << std::endl;
-    }
 
 
 
@@ -2283,18 +1959,6 @@ SCFDG::InnerIterate	( Int outerIter )
 		}
 
 
-    statusOFS << "huwei 109 scf_dg.cpp" << std::endl;
-    statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-    statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-    for( std::map<Index3, DblNumVec>::iterator 
-        mi  = vtot.LocalMap().begin();
-        mi != vtot.LocalMap().end(); mi++ ){
-      Index3 key = (*mi).first;
-      statusOFS << "vtot.key (begin) = " << key << std::endl;
-    }
-    statusOFS << "hamDG.NumBasisTotal() = " << hamDG.NumBasisTotal()  << std::endl;
-		
-   
     // *********************************************************************
 		// Evaluate the density matrix
     // 
@@ -2327,19 +1991,6 @@ SCFDG::InnerIterate	( Int outerIter )
 
 
 
-    statusOFS << "huwei 110 scf_dg.cpp" << std::endl;
-    statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-    statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-    statusOFS << "hamDG.NumBasisTotal() = " << hamDG.NumBasisTotal()  << std::endl;
-    for( std::map<Index3, DblNumVec>::iterator 
-        mi  = vtot.LocalMap().begin();
-        mi != vtot.LocalMap().end(); mi++ ){
-      Index3 key = (*mi).first;
-      statusOFS << "vtot.key (begin) = " << key << std::endl;
-    }
-   
-
-   
     // Method 1: Using diagonalization method
     if( solutionMethod_ == "diag"  ){
       {
@@ -2360,13 +2011,6 @@ SCFDG::InnerIterate	( Int outerIter )
               }
             } 
         
-        statusOFS << "huwei 111 scf_dg.cpp" << std::endl;
-        statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << " contxt_ = " << contxt_ << std::endl;
-        statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-        statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-        statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-        statusOFS << "hamDG.NumBasisTotal() = " << hamDG.NumBasisTotal()  << std::endl;
-       
 
         if(contxt_ >= 0){
 
@@ -2377,22 +2021,12 @@ SCFDG::InnerIterate	( Int outerIter )
 
         std::vector<Real> eigs;
 
-
-        statusOFS << "huwei 112 scf_dg.cpp" << std::endl;
-        statusOFS << "hamDG.ElemBasisIdx() = " << hamDG.ElemBasisIdx()  << std::endl;
-
         DistElemMatToScaMat( hamDG.HMat(), 	descH,
             scaH, hamDG.ElemBasisIdx(), domain_.colComm );
 
 
-        statusOFS << "huwei 113 scf_dg.cpp" << std::endl;
-
-
         scalapack::Syevd('U', scaH, eigs, scaZ);
        
-        statusOFS << "huwei 114 scf_dg.cpp" << std::endl;
-        statusOFS << "eigs = " << eigs  << std::endl;
-
 
         //DblNumVec& eigval = hamDG.EigVal(); 
         //eigval.Resize( hamDG.NumStateTotal() );		
@@ -2400,14 +2034,12 @@ SCFDG::InnerIterate	( Int outerIter )
           eigval[i] = eigs[i];
 
 
-        statusOFS << "huwei 1140 scf_dg.cpp" << std::endl;
         
         ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
             hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.colComm, 
             hamDG.NumStateTotal() );
       
      
-        statusOFS << "huwei 115 scf_dg.cpp" << std::endl;
         
        
         } //if(contxt_ >= 0)
@@ -2421,17 +2053,6 @@ SCFDG::InnerIterate	( Int outerIter )
               if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
                 DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
                 MPI_Bcast(localCoef.Data(), localCoef.m() * localCoef.n(), MPI_DOUBLE, 0, domain_.rowComm);
-              
-             
-                statusOFS << "huwei 1151 scf_dg.cpp" << std::endl;
-                statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-                statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-                statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-                statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-                statusOFS << "localCoef.m() = " << localCoef.m() << " localCoef.n() = " << localCoef.n() << std::endl;
-                statusOFS << "localCoef = " << localCoef  << std::endl;
-
-           
               }
             } 
         
@@ -2447,86 +2068,17 @@ SCFDG::InnerIterate	( Int outerIter )
 #endif
       }
 
-      statusOFS << "huwei 116 scf_dg.cpp" << std::endl;
-      statusOFS << "hamDG.EigVal() = " << hamDG.EigVal() << std::endl;
-
-
-
-
-
-      //if(1){
-      //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-      //  abort();
-      //}
-
-      statusOFS << "huwei 117 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-      for( std::map<Index3, DblNumVec>::iterator 
-          mi  = vtot.LocalMap().begin();
-          mi != vtot.LocalMap().end(); mi++ ){
-        Index3 key = (*mi).first;
-        statusOFS << "vtot.key (begin) = " << key << std::endl;
-      }
-
-
       // Post processing
 
       // Compute the occupation rate
       CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
 
-     
-      statusOFS << "huwei 118 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-      statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-      statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-      statusOFS << "hamDG.EigVal() = " << hamDG.EigVal() << std::endl;
-      statusOFS << "hamDG.OccupationRate() = " << hamDG.OccupationRate() << std::endl;
-
-      //if(1){
-      //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-      //  abort();
-      //}
-      
-      statusOFS << "huwei 119 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-      for( std::map<Index3, DblNumVec>::iterator 
-          mi  = vtot.LocalMap().begin();
-          mi != vtot.LocalMap().end(); mi++ ){
-        Index3 key = (*mi).first;
-        statusOFS << "vtot.key (begin) = " << key << std::endl;
-      }
-     
 
       // Compute the Harris energy functional.  
       // NOTE: In computing the Harris energy, the density and the
       // potential must be the INPUT density and potential without ANY
       // update.
       CalculateHarrisEnergy();
-
-      statusOFS << "huwei 120 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-      statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-      statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-      
-      //if(1){
-      //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-      //  abort();
-      //}
-     
-      
-      statusOFS << "huwei 121 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-      for( std::map<Index3, DblNumVec>::iterator 
-          mi  = vtot.LocalMap().begin();
-          mi != vtot.LocalMap().end(); mi++ ){
-        Index3 key = (*mi).first;
-        statusOFS << "vtot.key (begin) = " << key << std::endl;
-      }
 
 
       MPI_Barrier( domain_.comm );
@@ -2541,25 +2093,6 @@ SCFDG::InnerIterate	( Int outerIter )
       // Do not need the conversion from column to row partition as well
       hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
       
-     
-      statusOFS << "huwei 122 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-      for( std::map<Index3, DblNumVec>::iterator 
-          mi  = vtot.LocalMap().begin();
-          mi != vtot.LocalMap().end(); mi++ ){
-        Index3 key = (*mi).first;
-        statusOFS << "vtot.key (begin) = " << key << std::endl;
-      }
-
-      //if(1){
-      //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-      //  abort();
-      //}
-
-
-      statusOFS << "huwei 123 scf_dg.cpp" << std::endl;
-     
 
       MPI_Barrier( domain_.comm );
       MPI_Barrier( domain_.rowComm );
@@ -2581,36 +2114,12 @@ SCFDG::InnerIterate	( Int outerIter )
         // of the energies.
 
 
-        statusOFS << "huwei 124 scf_dg.cpp" << std::endl;
-        statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-        statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-        for( std::map<Index3, DblNumVec>::iterator 
-            mi  = vtot.LocalMap().begin();
-            mi != vtot.LocalMap().end(); mi++ ){
-          Index3 key = (*mi).first;
-          statusOFS << "vtot.key (begin) = " << key << std::endl;
-        }
-       
-
         hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
-       
-
-        statusOFS << "huwei 125 scf_dg.cpp" << std::endl;
-        statusOFS << "Exc_" << Exc_ << std::endl;
        
       
         hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
 
 
-        statusOFS << "huwei 126 scf_dg.cpp" << std::endl;
-        statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-        statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-        for( std::map<Index3, DblNumVec>::iterator 
-            mi  = vtot.LocalMap().begin();
-            mi != vtot.LocalMap().end(); mi++ ){
-          Index3 key = (*mi).first;
-          statusOFS << "vtot.key (begin) = " << key << std::endl;
-        }
         
        
         // Compute the second order accurate energy functional.
@@ -2620,32 +2129,10 @@ SCFDG::InnerIterate	( Int outerIter )
         CalculateSecondOrderEnergy();
 
    
-        statusOFS << "huwei 127 scf_dg.cpp" << std::endl;
-        statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-        statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-        for( std::map<Index3, DblNumVec>::iterator 
-            mi  = vtot.LocalMap().begin();
-            mi != vtot.LocalMap().end(); mi++ ){
-          Index3 key = (*mi).first;
-          statusOFS << "vtot.key (begin) = " << key << std::endl;
-        }
-     
-    
         // Compute the KS energy 
         CalculateKSEnergy();
 
       
-        statusOFS << "huwei 128 scf_dg.cpp" << std::endl;
-        statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-        statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-        for( std::map<Index3, DblNumVec>::iterator 
-            mi  = vtot.LocalMap().begin();
-            mi != vtot.LocalMap().end(); mi++ ){
-          Index3 key = (*mi).first;
-          statusOFS << "vtot.key (begin) = " << key << std::endl;
-        }
-        
-       
         // Update the total potential AFTER updating the energy
 
         // No external potential
@@ -2655,35 +2142,9 @@ SCFDG::InnerIterate	( Int outerIter )
         hamDG.CalculateVtot( hamDG.Vtot() );
 
 
-        statusOFS << "huwei 129 scf_dg.cpp" << std::endl;
-        statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-        statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-        for( std::map<Index3, DblNumVec>::iterator 
-            mi  = vtot.LocalMap().begin();
-            mi != vtot.LocalMap().end(); mi++ ){
-          Index3 key = (*mi).first;
-          statusOFS << "vtot.key (begin) = " << key << std::endl;
-        }
-      
       
       }
 
-
-      statusOFS << "huwei 130 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-      for( std::map<Index3, DblNumVec>::iterator 
-          mi  = vtot.LocalMap().begin();
-          mi != vtot.LocalMap().end(); mi++ ){
-        Index3 key = (*mi).first;
-        statusOFS << "vtot.key (begin) = " << key << std::endl;
-      }
-      
-      
-      //if(1){
-      //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-      //  abort();
-      //}
 
       
       // Compute the force at every step
@@ -2692,13 +2153,11 @@ SCFDG::InnerIterate	( Int outerIter )
         GetTime( timeSta );
         
         
-        statusOFS << "huwei 1301 scf_dg.cpp" << std::endl;
         
         
         hamDG.CalculateForce( *distfftPtr_ );
         
         
-        statusOFS << "huwei 1302 scf_dg.cpp" << std::endl;
         
         
         GetTime( timeEnd );
@@ -3101,16 +2560,6 @@ SCFDG::InnerIterate	( Int outerIter )
 #endif
 
     
-    statusOFS << "huwei 131 scf_dg.cpp" << std::endl;
-    statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-    statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-    for( std::map<Index3, DblNumVec>::iterator 
-        mi  = vtot.LocalMap().begin();
-        mi != vtot.LocalMap().end(); mi++ ){
-      Index3 key = (*mi).first;
-      statusOFS << "vtot.key (begin) = " << key << std::endl;
-    }
-
     // Compute the error of the mixing variable
 
 		GetTime(timeSta);
@@ -3144,7 +2593,6 @@ SCFDG::InnerIterate	( Int outerIter )
 					} // for (i)
 
       
-      statusOFS << "huwei 132 scf_dg.cpp" << std::endl;
 
 
 			mpi::Allreduce( &normMixDifLocal, &normMixDif, 1, MPI_SUM, 
@@ -3195,7 +2643,6 @@ SCFDG::InnerIterate	( Int outerIter )
 		}
 
 
-    statusOFS << "huwei 1000 scf_dg.cpp" << std::endl;
 		
 
     if( mixVariable_ == "density" ){
@@ -3232,20 +2679,6 @@ SCFDG::InnerIterate	( Int outerIter )
 		}
 
 
-    statusOFS << "huwei 10000 scf_dg.cpp" << std::endl;
-    statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-    statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-    for( std::map<Index3, DblNumVec>::iterator 
-        mi  = vtot.LocalMap().begin();
-        mi != vtot.LocalMap().end(); mi++ ){
-      Index3 key = (*mi).first;
-      statusOFS << "vtot.key (begin) = " << key << std::endl;
-    }
-    //if(1){
-    //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-    //  abort();
-    //}
-	
 
     MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
@@ -3310,15 +2743,6 @@ SCFDG::InnerIterate	( Int outerIter )
 			// No external potential
 
 
-      statusOFS << "huwei 10001 scf_dg.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-      statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-      for( std::map<Index3, DblNumVec>::iterator 
-          mi  = vtot.LocalMap().begin();
-          mi != vtot.LocalMap().end(); mi++ ){
-        Index3 key = (*mi).first;
-        statusOFS << "vtot.key (begin) = " << key << std::endl;
-      }
 
 
       // Compute the new total potential
@@ -3327,15 +2751,6 @@ SCFDG::InnerIterate	( Int outerIter )
     }
 
 
-    statusOFS << "huwei 10002 scf_dg.cpp" << std::endl;
-    statusOFS << "mpisize = " << mpisize << "  mpirank = " << mpirank << std::endl;
-    statusOFS << "mpisizeRow = " << mpisizeRow << "  mpirankRow = " << mpirankRow << std::endl;
-    for( std::map<Index3, DblNumVec>::iterator 
-        mi  = vtot.LocalMap().begin();
-        mi != vtot.LocalMap().end(); mi++ ){
-      Index3 key = (*mi).first;
-      statusOFS << "vtot.key (begin) = " << key << std::endl;
-    }
 
 
 		// Print out the state variables of the current iteration
@@ -3379,16 +2794,6 @@ SCFDG::UpdateElemLocalPotential	(  )
 	DistDblNumVec&  vtot = hamDG.Vtot();
 
 
-  statusOFS << "huwei 61 scf_dg.cpp" << std::endl;
-  for( std::map<Index3, DblNumVec>::iterator 
-			mi  = vtot.LocalMap().begin();
-			mi != vtot.LocalMap().end(); mi++ ){
-		Index3 key = (*mi).first;
-    statusOFS << "vtot.key (begin) = " << key << std::endl;
-	}
-
-
-
 	std::set<Index3> neighborSet;
 	for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
@@ -3428,7 +2833,7 @@ SCFDG::UpdateElemLocalPotential	(  )
 	std::vector<Index3>  neighborIdx;
 	neighborIdx.insert( neighborIdx.begin(), neighborSet.begin(), neighborSet.end() );
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 	statusOFS << "neighborIdx = " << neighborIdx << std::endl;
 #endif
 
@@ -3438,13 +2843,6 @@ SCFDG::UpdateElemLocalPotential	(  )
 	vtot.GetBegin( neighborIdx, NO_MASK );
 	vtot.GetEnd( NO_MASK );
 
-
-	for( std::map<Index3, DblNumVec>::iterator 
-			mi  = vtot.LocalMap().begin();
-			mi != vtot.LocalMap().end(); mi++ ){
-		Index3 key = (*mi).first;
-    statusOFS << "vtot.key (comm) = " << key << std::endl;
-	}
 
 
 	// Update of the local potential in each extended element locally.
@@ -3489,13 +2887,6 @@ SCFDG::UpdateElemLocalPotential	(  )
 						DblNumVec&  vtotElem = (*mi).second;
 
 
-            statusOFS << "huwei 621 scf_dg.cpp" << std::endl;
-            statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-            statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-            statusOFS << "keyElem = " << keyElem << std::endl;
-            statusOFS << "key = " << key << std::endl;
-            statusOFS << "numElem_ = " << numElem_ << std::endl;
-            statusOFS << "numGridElem = " << numGridElem << std::endl;
 
 
 						// Determine the shiftIdx which maps the position of vtotElem to 
@@ -3511,7 +2902,7 @@ SCFDG::UpdateElemLocalPotential	(  )
 							shiftIdx[d] *= numGridElem[d];
 						}
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 						statusOFS << "keyExtElem         = " << key << std::endl;
 						statusOFS << "numGridExtElemFine = " << numGridExtElem << std::endl;
 						statusOFS << "numGridElemFine    = " << numGridElem << std::endl;
@@ -3520,7 +2911,6 @@ SCFDG::UpdateElemLocalPotential	(  )
 
 
 
-            statusOFS << "huwei 622 scf_dg.cpp" << std::endl;
 						
             
             
@@ -3549,7 +2939,6 @@ SCFDG::UpdateElemLocalPotential	(  )
 					} // for (mi)
 
 
-          statusOFS << "huwei 63 scf_dg.cpp" << std::endl;
 				
 
           // Update the potential in the element on LGL grid
@@ -3557,7 +2946,6 @@ SCFDG::UpdateElemLocalPotential	(  )
 					Index3 numLGLGrid       = hamDG.NumLGLGridElem();
 
 
-          statusOFS << "huwei 64 scf_dg.cpp" << std::endl;
 					
           
           InterpPeriodicUniformFineToLGL( 
@@ -3573,7 +2961,6 @@ SCFDG::UpdateElemLocalPotential	(  )
 
   
   
-  statusOFS << "huwei 65 scf_dg.cpp" << std::endl;
 	
   
   // Clean up vtot not owned by this element
@@ -3591,16 +2978,6 @@ SCFDG::UpdateElemLocalPotential	(  )
 		vtot.LocalMap().erase( *vi );
 	}
 
-
-	for( std::map<Index3, DblNumVec>::iterator 
-			mi  = vtot.LocalMap().begin();
-			mi != vtot.LocalMap().end(); mi++ ){
-		Index3 key = (*mi).first;
-    statusOFS << "vtot.key (after) = " << key << std::endl;
-	}
-
-
-  statusOFS << "huwei 66 scf_dg.cpp" << std::endl;
 
 
 #ifndef _RELEASE_
@@ -4200,15 +3577,6 @@ SCFDG::CalculateHarrisEnergy	(  )
 
 
 
-  statusOFS << "huwei 1200 scf_dg.cpp" << std::endl;
-  statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-  statusOFS << "Ekin = " << Ekin << std::endl;
-  statusOFS << "Eself = " << Eself << std::endl;
-  statusOFS << "Ehart = " << Ehart << std::endl;
-  statusOFS << "EVxc = " << EVxc << std::endl;
-  statusOFS << "Exc = " << Exc << std::endl;
-  statusOFS << "Ecor = " << Ecor << std::endl;
-  statusOFS << "EfreeHarris_ = " << EfreeHarris_ << std::endl;
 
 
 
@@ -4544,7 +3912,6 @@ SCFDG::AndersonMix	(
 	distPrecResOpt.Prtn()   = elemPrtn_;
 
 	
-  statusOFS << "huwei 1001 scf_dg.cpp" << std::endl;
 	
   for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
@@ -4561,7 +3928,6 @@ SCFDG::AndersonMix	(
 			} // for (i)
 
 
-  statusOFS << "huwei 1002 scf_dg.cpp" << std::endl;
 	
   // *********************************************************************
 	// Anderson mixing
@@ -4595,7 +3961,6 @@ SCFDG::AndersonMix	(
 			} // for (i)
 
 
-  statusOFS << "huwei 1003 scf_dg.cpp" << std::endl;
 
 	// For iter == 1, Anderson mixing is the same as simple mixing.
 	if( iter > 1 ){
@@ -4679,7 +4044,6 @@ SCFDG::AndersonMix	(
 	} // (iter > 1)
 
 	
-  statusOFS << "huwei 1004 scf_dg.cpp" << std::endl;
 	
  
   if( mixType == "kerker+anderson" ){
@@ -4701,7 +4065,6 @@ SCFDG::AndersonMix	(
 	}
 	
 	
-  statusOFS << "huwei 1005 scf_dg.cpp" << std::endl;
 	
 
 	// Update dfMat, dvMat, vMix 
@@ -4726,7 +4089,6 @@ SCFDG::AndersonMix	(
 			} // for (i)
 
 
-  statusOFS << "huwei 1006 scf_dg.cpp" << std::endl;
 
 #ifndef _RELEASE_
 	PopCallStack();

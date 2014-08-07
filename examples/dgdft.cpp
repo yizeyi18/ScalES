@@ -102,23 +102,6 @@ int main(int argc, char **argv)
     Print( statusOFS, "mpirank = ", mpirank );
     //Print( statusOFS, "nprow = ", nprow );
     //Print( statusOFS, "npcol = ", npcol ); 
-
-    //nprow = 2;
-    //npcol = 2;
-    //Int ldpmap = 2;
-    //Int pmap[mpisize];
-    //if(mpisize == 4){
-    //  for ( Int i = 0; i < 4; i++ ){
-    //    pmap[i] = i;
-    //  }
-    //}
-    //if(mpisize == 8){
-    //  for ( Int i = 0; i < 4; i++ ){
-    //    pmap[i] = i*2;
-    //  }
-    //}
-    //Cblacs_gridmap(&contxt, &pmap[0], ldpmap, nprow, npcol);
-    //Cblacs_gridmap(&contxt, &pmap, ldpmap, nprow, npcol);
     //Cblacs_gridinit(&contxt, "C", nprow, npcol);
 
     // Initialize input parameters
@@ -142,12 +125,9 @@ int main(int argc, char **argv)
     }
 
 
-
-
     // Read ESDF input file
     GetTime( timeSta );
     ESDFInputParam  esdfParam;
-
 
     ESDFReadInput( esdfParam, inFile.c_str() );
 
@@ -278,8 +258,8 @@ int main(int argc, char **argv)
     // *********************************************************************
     
     // FIXME IMPORTANT: RandomSeed cannot be the same.
-    SetRandomSeed(1);
-    // SetRandomSeed(mpirank);
+    // SetRandomSeed(1);
+    SetRandomSeed(mpirank);
 
     GetTime( timeSta );
 
@@ -323,66 +303,20 @@ int main(int argc, char **argv)
         nprow = i; npcol = dmCol / nprow;
         if( nprow * npcol == dmCol ) break;
       }
-      //nprow = dmCol;
-      //npcol = 1;
+      
       Int ldpmap = npcol;
       Int pmap[dmCol];
-      //for ( Int i = 0; i < mpisize; i++ ){
-      //  pmap[i] = 0;
-      //}
       for ( Int i = 0; i < dmCol; i++ ){
         pmap[i] = i * dmRow;
       }
       Cblacs_get( contxt, 0, &contxt_C );
-      //Cblacs_gridmap(&context_C, map, 1, 1, npcol);
-      //Cblacs_gridmap(&contxt_C, &pmap[0], 1, 1, dmCol);
       Cblacs_gridmap(&contxt_C, &pmap[0], npcol, nprow, npcol);
-
-      statusOFS << "huwei 1 dgdft.cpp" << std::endl;
-      statusOFS << "mpisize = " << mpisize << std::endl;
-      statusOFS << "dmRow = " << dmRow << std::endl;
-      statusOFS << "dmCol = " << dmCol << std::endl;
-
 
       if( (mpisize % dmCol) != 0 ){
         std::ostringstream msg;
         msg << "Total number of processors do not fit to the number processors per element." << std::endl;
         throw std::runtime_error( msg.str().c_str() );
       }
-
-      //int elemSize = numElem[0] * numElem[1] * numElem[2];
-      //int elemBlocksize = mpisize / elemSize;
-      //int npPerElem[elemSize];
-      //int npPerElemSum[elemSize];
-      //int groupRank[mpisize];
-    
-      //for( Int i=0; i< elemSize; i++ ) {
-      //  npPerElem[0] = elemBlocksize;
-      //}
-
-      //npPerElemSum[0] = 0;
-      //for( Int i=1; i< elemSize; i++ ) {
-      //  npPerElemSum[i] = npPerElemSum[i-1] + npPerElem[i-1];
-      //}
-
-      //groupRank[0] = 0;
-      //for( Int i=0; i< mpisize; i++ ) {
-      //  for( Int j=1; j< elemSize; j++ ) {
-      //    if((i >= npPerElemSum[j-1])&&(i < npPerElemSum[j])){
-      //      groupRank[i] = j-1;
-      //    }        
-      //  } 
-      //  if((i >= npPerElemSum[elemSize-1])){
-      //    groupRank[i] = elemSize-1;
-      //  }        
-      //}
-      // huwei
-
-//      if( mpisize != numElem.prod() ){
-//        std::ostringstream msg;
-//        msg << "The number of processors is not equal to the total number of elements." << std::endl;
-//        throw std::runtime_error( msg.str().c_str() );
-//      }
 
       Int cnt = 0;
       for( Int k=0; k< numElem[2]; k++ )
@@ -404,9 +338,7 @@ int main(int argc, char **argv)
               Domain dmExtElem;
               for( Int d = 0; d < DIM; d++ ){
                
-                // huwei
                 dmExtElem.comm    = dm.rowComm;
-                // For consistency no use
                 dmExtElem.rowComm = dm.rowComm;
                 dmExtElem.colComm = dm.rowComm;
               
@@ -494,46 +426,10 @@ int main(int argc, char **argv)
     
               }
      
-              statusOFS << "huwei 111 dgdft.cpp" << std::endl;
-              statusOFS << "dmExtElemMpisize = " << dmExtElemMpisize << std::endl;
-              statusOFS << "dmExtElemMpirank = " << dmExtElemMpirank << std::endl;
-              statusOFS << "numStateLocal = " << numStateLocal << std::endl;
-              statusOFS << "numStateTotal = " << numStateTotal << std::endl;
-      
               Spinor& spn = distPsi.LocalMap()[key];
               spn.Setup( dmExtElem, 1, numStateTotal, numStateLocal, 0.0 );
+
               UniformRandom( spn.Wavefun() );
-
-//    MPI_Comm mpi_comm = dm.comm;
-    
-//		Spinor  spnTemp;
-//    spnTemp.Setup( dm, 1, hamKS.NumStateTotal(), hamKS.NumStateTotal(), 0.0 );
-   
-//    if (mpirank == 0){
-//      UniformRandom( spnTemp.Wavefun() );
-//    }
-//    MPI_Bcast(spnTemp.Wavefun().Data(), spnTemp.Wavefun().m()*spnTemp.Wavefun().n()*spnTemp.Wavefun().p(), MPI_DOUBLE, 0, mpi_comm);
-
-//	Int size = spn.Wavefun().m() * spn.Wavefun().n();
-//	Int nocc = spn.Wavefun().p();
- 
-//  IntNumVec& wavefunIdx = spn.WavefunIdx();
-//  NumTns<Scalar>& wavefun = spn.Wavefun();
-
-//	for (Int k=0; k<nocc; k++) {
-//		Scalar *ptr = spn.Wavefun().MatData(k);
-//		Scalar *ptr1 = spnTemp.Wavefun().MatData(wavefunIdx(k));
-//		for (Int i=0; i<size; i++) {
-//      *ptr = *ptr1;
-//		  ptr = ptr + 1;
-//		  ptr1 = ptr1 + 1;
-//    }
-//	}
-
-
-// huwei
-
-
 
 
               // Hamiltonian
@@ -623,24 +519,11 @@ int main(int argc, char **argv)
     statusOFS << "Time for setting up Distributed Fourier is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-
-    statusOFS << "huwei 2 dgdft.cpp" << std::endl;
-   
-  
     // Setup HamDG
     GetTime( timeSta );
 
     HamiltonianDG hamDG( esdfParam );
-
-
-    statusOFS << "huwei 3 dgdft.cpp" << std::endl;
-
-
     hamDG.CalculatePseudoPotential( ptable );
-
-
-    statusOFS << "huwei 4 dgdft.cpp" << std::endl;
-
 
     GetTime( timeEnd );
     statusOFS << "Time for setting up the DG Hamiltonian is " <<
@@ -649,10 +532,6 @@ int main(int argc, char **argv)
     // Setup SCFDG
     GetTime( timeSta );
 
-
-    statusOFS << "huwei 5 dgdft.cpp" << std::endl;
-
-
     SCFDG  scfDG;
     scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt_C );
 
@@ -660,12 +539,6 @@ int main(int argc, char **argv)
     statusOFS << "Time for setting up SCFDG is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-
-
-    statusOFS << "huwei 6 dgdft.cpp" << std::endl;
-    
-   
-  
     // *********************************************************************
     // Solve
     // *********************************************************************
@@ -676,12 +549,7 @@ int main(int argc, char **argv)
     GetTime( timeEnd );
     statusOFS << "Time for SCF iteration is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
-    
-    
-    statusOFS << "huwei 7 dgdft.cpp" << std::endl;
 
-   
-  
     // Compute force
     if( esdfParam.solutionMethod == "diag" ){
       GetTime( timeSta );
@@ -747,28 +615,12 @@ int main(int argc, char **argv)
     // *********************************************************************
 
     // Finish Cblacs
-
-    statusOFS << "huwei 1111 dgdft.cpp" << std::endl;
-    //if(0){
-    //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-    //  abort();
-    //}
-
-
     if(contxt_C >= 0) {
       Cblacs_gridexit( contxt_C );
     }
     
     Cblacs_gridexit( contxt );
 
-
-    statusOFS << "huwei 1112 dgdft.cpp" << std::endl;
-    //if(1){
-    //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-    //  abort();
-    //}
-    
-   
     // Finish fftw
     fftw_mpi_cleanup();
 

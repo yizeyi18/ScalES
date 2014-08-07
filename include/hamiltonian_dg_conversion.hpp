@@ -71,11 +71,7 @@ void DistNumVecToDistRowVec(
 	PushCallStack("DistNumVecToDistRowVec");
 #endif
 
-
-  statusOFS << "huwei 11 hamiltonian_dg_conversion.hpp" << std::endl;
-	
- 
-  Int mpirank, mpisize;
+	Int mpirank, mpisize;
 	MPI_Comm_rank( commDistVec, &mpirank );
 	MPI_Comm_size( commDistVec, &mpisize );
 	
@@ -89,13 +85,9 @@ void DistNumVecToDistRowVec(
 
 	DistVec<Index3, NumVec<F>, ElemPrtn>  distVecRecv;
 	distVecRecv.Prtn() = distVec.Prtn();
-
   distVecRecv.SetComm( commDistVec );
 
-  statusOFS << "huwei 12 hamiltonian_dg_conversion.hpp" << std::endl;
-	
- 
-  for(typename std::map<Index3, NumVec<F> >::const_iterator 
+	for(typename std::map<Index3, NumVec<F> >::const_iterator 
 			mi = distVec.LocalMap().begin();
 			mi != distVec.LocalMap().end(); mi++ ){
 		Index3 key = (*mi).first;  
@@ -106,10 +98,7 @@ void DistNumVecToDistRowVec(
 	}
 
 
-  statusOFS << "huwei 13 hamiltonian_dg_conversion.hpp" << std::endl;
-	
- 
-  // Specify the elements of data to receive according to the index of
+	// Specify the elements of data to receive according to the index of
 	// the z-dimension. 
 	std::vector<Index3>  getKey;
 	if( isInGrid ){
@@ -126,19 +115,11 @@ void DistNumVecToDistRowVec(
 		} // for (k)
 	} // if (isInGrid)
 
-
-  statusOFS << "huwei 14 hamiltonian_dg_conversion.hpp" << std::endl;
-	
- 
-  // Data communication.
+	// Data communication.
 	distVecRecv.GetBegin( getKey, NO_MASK );
 	distVecRecv.GetEnd( NO_MASK );
 
-
-  statusOFS << "huwei 15 hamiltonian_dg_conversion.hpp" << std::endl;
-	
- 
-  // Unpack the data locally into distRowVec
+	// Unpack the data locally into distRowVec
 	if( isInGrid ){
 		Int numGridLocal = numGrid[0] * numGrid[1] * localNz;
 		distRowVec.Resize( numGridLocal );
@@ -165,11 +146,6 @@ void DistNumVecToDistRowVec(
 					} // for (i)
 		}
 	} // if (isInGrid)
-
-
-  statusOFS << "huwei 16 hamiltonian_dg_conversion.hpp" << std::endl;
-
-
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -193,10 +169,6 @@ void DistRowVecToDistNumVec(
 	PushCallStack("DistRowVecToDistNumVec");
 #endif
 
-
-  statusOFS << "huwei 1 hamiltonian_dg_conversion.hpp" << std::endl;
-
-
 	Int mpirank, mpisize;
 	MPI_Comm_rank( commDistVec, &mpirank );
 	MPI_Comm_size( commDistVec, &mpisize );
@@ -209,11 +181,7 @@ void DistRowVecToDistNumVec(
 		numGridElem[d] = numGrid[d] / numElem[d];
 	}
 
-
-  statusOFS << "huwei 2 hamiltonian_dg_conversion.hpp" << std::endl;
-	
- 
-  // Collect the element indicies
+	// Collect the element indicies
 	std::vector<Index3> putKey;
 	if( isInGrid ){
 		for( Int k = 0; k < numElem[2]; k++ ){
@@ -229,12 +197,7 @@ void DistRowVecToDistNumVec(
 		} // for (k)
 	} // if (isInGrid)
 
-
-
-  statusOFS << "huwei 3 hamiltonian_dg_conversion.hpp" << std::endl;
-	
- 
-  // Prepare the local data
+	// Prepare the local data
 	for( std::vector<Index3>::iterator vi = putKey.begin();
 			 vi != putKey.end(); vi++ ){
 		Index3 key = (*vi);
@@ -266,19 +229,12 @@ void DistRowVecToDistNumVec(
 				}
 	}
 
-  
-  statusOFS << "huwei 4 hamiltonian_dg_conversion.hpp" << std::endl;
-
 
 	// Data communication.
 	distVec.PutBegin( putKey, NO_MASK );
 	distVec.PutEnd( NO_MASK, PutMode::COMBINE );
 
-
-  statusOFS << "huwei 5 hamiltonian_dg_conversion.hpp" << std::endl;
-	
- 
-  // Erase the elements distVec does not own
+	// Erase the elements distVec does not own
 	std::vector<Index3>  eraseKey;
 	for(typename std::map<Index3, NumVec<F> >::iterator
 			mi = distVec.LocalMap().begin();
@@ -292,9 +248,6 @@ void DistRowVecToDistNumVec(
 			 vi != eraseKey.end(); vi++ ){
 		distVec.LocalMap().erase( *vi );
 	}
-
-
-  statusOFS << "huwei 6 hamiltonian_dg_conversion.hpp" << std::endl;
 
 
 #ifndef _RELEASE_
@@ -479,7 +432,7 @@ void DistElemMatToScaMat(
 		}	
 	}
 
-  // Copy the matrix values from distScaMat to scaMat
+	// Copy the matrix values from distScaMat to scaMat
 	{
 		for( typename std::map<Index2, NumMat<F> >::iterator 
 				 mi  = distScaMat.LocalMap().begin();

@@ -89,35 +89,15 @@ int main(int argc, char **argv)
 	{
 		SetRandomSeed(mpirank);
 
-<<<<<<< HEAD
-    Int M = 1000000, N = 160;
-    Int MB = M;
-    Int NB = 1;
-    Int MB2D = 100;
-    Int NB2D = N;
-
-    Int NLocal   = N / mpisize;
-    Int M2DLocal = M / MB2D;
-    Int N2DLocal = N / NB2D;
-=======
     Int height = 1000000, width = 160;
 
     Int widthLocal = width / mpisize;
     Int heightLocal = height / mpisize;
->>>>>>> 2690a80e1b41d33e4a051aea5023df51305bb8ef
 
     DblNumMat X1(height, widthLocal), Y1(height, widthLocal);
     DblNumMat X1TY1(width, width);
     DblNumMat X1TX1(width, width);
 
-<<<<<<< HEAD
-    UniformRandom( XLocal );
-    UniformRandom( YLocal );
-
-    Int descX[9];
-    Int descX2D[9];
-    Int descM[9];
-=======
     UniformRandom( X1 );
     UniformRandom( Y1 );
 
@@ -131,10 +111,9 @@ int main(int argc, char **argv)
     Int descX1[9];
     Int descX2[9];
     Int desc_width[9];
->>>>>>> 2690a80e1b41d33e4a051aea5023df51305bb8ef
 
-    Int nprow = mpisize;
-    Int npcol = 1;
+    Int nprow = 1;
+    Int npcol = mpisize;
     Int myrow, mycol;
 
     Int contxt;

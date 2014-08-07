@@ -257,16 +257,8 @@ inline void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
   Int height = A.m();
   Int widthTemp = A.n();
 
-  statusOFS << "huwei 0 nummat_impl.hpp " << std::endl;
-
   Int width = 0;
   MPI_Allreduce( &widthTemp, &width, 1, MPI_INT, MPI_SUM, comm );
-
-
-  statusOFS << "huwei 1 nummat_impl.hpp " << std::endl;
-  statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank  << std::endl;
-  statusOFS << "height = " << height << " width = " << width << " widthTemp = " << widthTemp  << std::endl;
- 
 
   Int widthBlocksize = width / mpisize;
   Int heightBlocksize = height / mpisize;
@@ -281,14 +273,6 @@ inline void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
     heightLocal = heightBlocksize + height % mpisize;
   }
 
-
-  statusOFS << "huwei 2 nummat_impl.hpp " << std::endl;
-  statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank  << std::endl;
-  statusOFS << "height = " << height << " width = " << width << std::endl;
-  statusOFS << "heightBlocksize = " << heightBlocksize << " widthBlocksize = " << widthBlocksize << std::endl;
-  statusOFS << "heightLocal = " << heightLocal << " widthLocal = " << widthLocal << std::endl;
-  
- 
   double sendbuf[height*widthLocal]; 
   double recvbuf[heightLocal*width];
   int sendcounts[mpisize];
@@ -297,10 +281,6 @@ inline void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
   int recvdispls[mpisize];
   IntNumMat  sendk( height, widthLocal );
   IntNumMat  recvk( heightLocal, width );
-
-
-  statusOFS << "huwei 3 nummat_impl.hpp " << std::endl;
- 
 
   for( Int k = 0; k < mpisize; k++ ){ 
     if( k < (mpisize - 1)){
@@ -311,8 +291,6 @@ inline void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
     }
   }
 
-  statusOFS << "huwei 4 nummat_impl.hpp " << std::endl;
-  
   for( Int k = 0; k < mpisize; k++ ){ 
     recvcounts[k] = heightLocal * widthBlocksize;
     if( k < (width % mpisize)){
@@ -327,10 +305,6 @@ inline void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
     recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
   }
 
-
-  statusOFS << "huwei 5 nummat_impl.hpp " << std::endl;
-  
- 
   if((height % heightBlocksize) == 0){
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
@@ -352,58 +326,24 @@ inline void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
     }
   }
 
-
-  statusOFS << "huwei 6 nummat_impl.hpp " << std::endl;
-  
- 
   for( Int j = 0; j < width; j++ ){ 
     for( Int i = 0; i < heightLocal; i++ ){
       recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
     }
   }
 
-
-  statusOFS << "huwei 7 nummat_impl.hpp " << std::endl;
-   
- 
   for( Int j = 0; j < widthLocal; j++ ){ 
     for( Int i = 0; i < height; i++ ){
-    
-     //statusOFS << "huwei 71 nummat_impl.hpp " << std::endl;
-     //statusOFS << "i = " << i << " j = " << j << std::endl; 
-     //statusOFS << "A(i, j) = " << A(i, j) << std::endl;
-     //statusOFS << "sendk(i, j) = " << sendk(i, j) << std::endl;
-     //statusOFS << "sendbuf[sendk(i, j)] = " << sendbuf[sendk(i, j)] << std::endl;
-   
       sendbuf[sendk(i, j)] = A(i, j); 
-
-
-     //statusOFS << "huwei 72 nummat_impl.hpp " << std::endl;
-     //statusOFS << "i = " << i << " j = " << j << std::endl; 
-     //statusOFS << "A(i, j) = " << A(i, j) << std::endl;
-     //statusOFS << "sendk(i, j) = " << sendk(i, j) << std::endl;
-     //statusOFS << "sendbuf[sendk(i, j)] = " << sendbuf[sendk(i, j)] << std::endl;
-
     }
   }
-  
-  statusOFS << "huwei 8 nummat_impl.hpp " << std::endl;
-   
-
   MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
       &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, comm );
-  
-  statusOFS << "huwei 9 nummat_impl.hpp " << std::endl;
- 
   for( Int j = 0; j < width; j++ ){ 
     for( Int i = 0; i < heightLocal; i++ ){
       B(i, j) = recvbuf[recvk(i, j)];
     }
   }
-
-
-  statusOFS << "huwei 10 nummat_impl.hpp " << std::endl;
-
 
 #ifndef _RELEASE_
   PopCallStack();

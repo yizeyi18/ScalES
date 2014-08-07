@@ -135,7 +135,6 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
     numUniformGridElemFine_[d] = domain_.numGridFine[d] / numElem_[d];
 	}
 
-
   // FIXME huwei
   dmCol_ = numElem_[0] * numElem_[1] * numElem_[2];
   dmRow_ = mpisize / dmCol_;
@@ -145,37 +144,6 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
     throw std::runtime_error( msg.str().c_str() );
   }
  
-  //int elemSize = numElem_[0] * numElem_[1] * numElem_[2];
-  //int elemBlocksize = mpisize / elemSize;
-  //int npPerElem[elemSize];
-  //int npPerElemSum[elemSize];
-
-  //groupRank_.Resize( mpisize ); 
-  
-  //for( Int i=0; i< elemSize; i++ ) {
-  //  npPerElem[0] = elemBlocksize;
-  //}
-
-  //npPerElemSum[0] = 0;
-  //for( Int i=1; i< elemSize; i++ ) {
-  //  npPerElemSum[i] = npPerElemSum[i-1] + npPerElem[i-1];
-  //}
-
-  //groupRank_[0] = 0;
-  //for( Int i=0; i< mpisize; i++ ) {
-  //  for( Int j=1; j< elemSize; j++ ) {
-  //    if((i >= npPerElemSum[j-1])&&(i < npPerElemSum[j])){
-  //      groupRank_[i] = j-1;
-  //    }        
-  //  } 
-  //  if((i >= npPerElemSum[elemSize-1])){
-  //    groupRank_[i] = elemSize-1;
-  //  }        
-  //}
-  // huwei
-
-
-
 	// Setup the element domains
 	domainElem_.Resize( numElem_[0], numElem_[1], numElem_[2] );
 	for( Int k=0; k< numElem_[2]; k++ )
@@ -589,18 +557,6 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
             for (Int i = 0; i < numBasisLGLLocal; i++){
               basisLGLIdx_[i] = i * mpisizeRow + mpirankRow ;
           }
-
-
-          statusOFS << "huwei 000 hamiltonian_dg.cpp" << std::endl;
-          statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-          statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-          statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-          statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-          statusOFS << " numBasisLGLTotal = " << numBasisLGLTotal << " numBasisLGLLocal = " << numBasisLGLLocal << std::endl;
-          statusOFS << " basisLGLIdx_ = " << basisLGLIdx_ << std::endl;
-
-
-
         }
       }
 
@@ -972,18 +928,6 @@ HamiltonianDG::CalculateDensity	(
 				} // own this element
 			} // for (i)
 
-
-
-  statusOFS << "huwei 1210 hamiltonian_dg.cpp" << std::endl;
-  statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-  statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-  statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-  statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-  statusOFS << "numEig = " << numEig << std::endl;
-  statusOFS << "occrate = " << occrate << std::endl;
-
-
- 
   // Method 1: Normalize each eigenfunctions.  This may take many
 	// interpolation steps, and the communication cost may be large
 	if(0)
@@ -1170,9 +1114,6 @@ HamiltonianDG::CalculateDensity	(
 				} // for (i)
   } // Method 2
 
-
-  statusOFS << "huwei 1211 hamiltonian_dg.cpp" << std::endl;
-  
   // Method 3: Method 3 is the same as the Method 2, but to output the
 	// eigenfunctions locally. TODO
 	if(1)
@@ -1220,26 +1161,11 @@ HamiltonianDG::CalculateDensity	(
 						if( numBasis == 0 )
 							continue;
 
-
-            statusOFS << "huwei 1212 hamiltonian_dg.cpp" << std::endl;
-					
-
             DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
 						
             DblNumVec& localRho    = rho.LocalMap()[key];
             DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
 
-
-            statusOFS << "huwei 1213 hamiltonian_dg.cpp" << std::endl;
-            statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-            statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-            statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-            statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-            statusOFS << "localBasis = " << localBasis << std::endl;
-            statusOFS << "localCoef = " << localCoef << std::endl;
-            statusOFS << "localRho = " << localRho << std::endl;
-            statusOFS << "localRhoLGL = " << localRhoLGL << std::endl;
-           
 
 
 						//if( localCoef.n() != numEig ){
@@ -1312,33 +1238,35 @@ HamiltonianDG::CalculateDensity	(
 
                 AlltoallForward (localBasis, localBasisRow, domain_.rowComm);
          
-							  DblNumVec  localPsiLGLLocal( numGridLocal );
-                
+							  DblNumVec  localPsiLGLRow( numGridLocal );
+							  DblNumVec  localRhoLGLRow( numGridLocal ); 
+                SetValue( localRhoLGLRow, 0.0 );
+
                 for( Int g = 0; g < numEig; g++ ){
                   // Compute local wavefunction on the LGL grid
                   blas::Gemv( 'N', numGridLocal, numBasisTotal, 1.0, 
                       localBasisRow.Data(), numGridLocal, 
                       localCoef.VecData(g), 1, 0.0,
-                      localPsiLGLLocal.Data(), 1 );
+                      localPsiLGLRow.Data(), 1 );
                   
                   // Update the local density
                   Real  occ    = occrate[g];
                  
-							    DblNumVec  localRhoLGLTemp1( numGridTotal );
-                  SetValue( localRhoLGLTemp1, 0.0 );
                   for( Int p = 0; p < numGridLocal; p++ ){
-                    localRhoLGLTemp1( p + heightBlocksize * mpirankRow ) = localPsiLGLLocal(p) * localPsiLGLLocal(p) * occ * numSpin_;
+                    localRhoLGLRow(p) += localPsiLGLRow(p) * localPsiLGLRow(p) * occ * numSpin_;
                   }
-							    
-                  DblNumVec  localRhoLGLTemp2( numGridTotal );
-                  SetValue( localRhoLGLTemp2, 0.0 );
-                  MPI_Allreduce( localRhoLGLTemp1.Data(), localRhoLGLTemp2.Data(), numGridTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
-                
-                  for( Int p = 0; p < numGridTotal; p++ ){
-                    localRhoLGLTmp(p) += localRhoLGLTemp2(p);
-                  }
-               
                 }
+
+                DblNumVec  localRhoLGLTemp1( numGridTotal );
+                SetValue( localRhoLGLTemp1, 0.0 );
+                for( Int p = 0; p < numGridLocal; p++ ){
+                  localRhoLGLTemp1( p + heightBlocksize * mpirankRow ) = localRhoLGLRow(p);
+                }
+
+                SetValue( localRhoLGLTmp, 0.0 );
+                MPI_Allreduce( localRhoLGLTemp1.Data(), localRhoLGLTmp.Data(), numGridTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+
+
               } // if(0) huwei
 
 
@@ -1383,22 +1311,6 @@ HamiltonianDG::CalculateDensity	(
 							sumRhoLocal += (*ptrRho);
 							ptrRho++;
             }
-
-
-
-            statusOFS << "huwei 1214 hamiltonian_dg.cpp" << std::endl;
-            statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-            statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-            statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-            statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-            statusOFS << "localBasis = " << localBasis << std::endl;
-            statusOFS << "localCoef = " << localCoef << std::endl;
-            statusOFS << "localRho = " << localRho << std::endl;
-            statusOFS << "localRhoLGL = " << localRhoLGL << std::endl;
-
-
-
-
           } // own this element
 				} // for (i)
 
@@ -1418,10 +1330,6 @@ HamiltonianDG::CalculateDensity	(
 
     Real rhofac = numSpin_ * numOccupiedState_ / sumRho;
 
-
-    statusOFS << "huwei 1215 hamiltonian_dg.cpp" << std::endl;
-
-   
     // FIXME No normalizatoin of the electron density!
 
 //		// Normalize the electron density in the global domain
@@ -1661,11 +1569,6 @@ void HamiltonianDG::CalculateHartree(
 	if( !fft.isInitialized ){
 		throw std::runtime_error("Fourier is not prepared.");
 	}
-
-
-  statusOFS << "huwei 11 hamiltonian_dg.cpp" << std::endl;
-
-
 	Int mpirank, mpisize;
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
@@ -1679,10 +1582,6 @@ void HamiltonianDG::CalculateHartree(
 	tempVec.SetComm(domain_.colComm);
   tempVec.Prtn() = elemPrtn_;
 
-
-  statusOFS << "huwei 12 hamiltonian_dg.cpp" << std::endl;
-	
- 
   // tempVec = density_ - pseudoCharge_
 	for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
@@ -1696,10 +1595,6 @@ void HamiltonianDG::CalculateHartree(
 				}
 			}
 
-
-  statusOFS << "huwei 13 hamiltonian_dg.cpp" << std::endl;
-	
- 
   // Convert tempVec to tempVecLocal in distributed row vector format
 	DblNumVec  tempVecLocal;
 
@@ -1713,10 +1608,6 @@ void HamiltonianDG::CalculateHartree(
 			fft.isInGrid,
 			domain_.colComm );
 
-
-  statusOFS << "huwei 14 hamiltonian_dg.cpp" << std::endl;
-	
- 
   // The contribution of the pseudoCharge is subtracted. So the Poisson
 	// equation is well defined for neutral system.
 	// Only part of the processors participate in the FFTW calculation
@@ -1776,69 +1667,25 @@ HamiltonianDG::CalculateVtot	( DistDblNumVec& vtot  )
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
 
-
-  statusOFS << "huwei 111 hamiltonian_dg.cpp" << std::endl;
-  
   vtot.SetComm(domain_.colComm);
-
-
-  statusOFS << "huwei 222 hamiltonian_dg.cpp" << std::endl;
-  statusOFS << "mpisize = " << mpisize << std::endl;
-  statusOFS << "mpirank = " << mpirank << std::endl;
-  statusOFS << "dmRow_ = " << dmRow_ << std::endl;
-  statusOFS << "dmCol_ = " << dmCol_ << std::endl;
-	
  
   for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
 			for( Int i = 0; i < numElem_[0]; i++ ){
 				Index3 key = Index3( i, j, k );
-  
-        
-        statusOFS << "huwei 2221 hamiltonian_dg.cpp" << std::endl;
-        statusOFS << "key = " << key << std::endl;
-        statusOFS << "elemPrtn_.Owner( key ) = " << elemPrtn_.Owner( key ) << std::endl;
-        statusOFS << "mpirank / dmRow_ = " << mpirank / dmRow_ << std::endl;
-        
-        
         if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
 					DblNumVec&   localVtot  = vtot.LocalMap()[key];
 					DblNumVec&   localVext  = vext_.LocalMap()[key];
 					DblNumVec&   localVhart = vhart_.LocalMap()[key];
 					DblNumVec&   localVxc   = vxc_.LocalMap()[key];
 
-
-
-        statusOFS << "localVtot = " << localVtot << std::endl;
-        statusOFS << "localVext = " << localVext << std::endl;
-        statusOFS << "localVhart = " << localVhart << std::endl;
-        statusOFS << "localVxc = " << localVxc << std::endl;
-
-
-
-
-
 					localVtot.Resize( localVxc.Size() );
 					for( Int p = 0; p < localVtot.Size(); p++){
 						localVtot[p] = localVext[p] + localVhart[p] +
 							localVxc[p];
 					}
-
-
-        statusOFS << "localVtot = " << localVtot << std::endl;
-        statusOFS << "localVext = " << localVext << std::endl;
-        statusOFS << "localVhart = " << localVhart << std::endl;
-        statusOFS << "localVxc = " << localVxc << std::endl;
-
-
-
-
-
 				}
 			} // for (i)
-
-
-  statusOFS << "huwei 333 hamiltonian_dg.cpp" << std::endl;
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -1869,10 +1716,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
   MPI_Barrier(domain_.colComm);
   Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
   Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
-
-
-  statusOFS << "huwei 1300 hamiltonian_dg.cpp" << std::endl;
-
 
   // *********************************************************************
 	// Initialize the force computation
@@ -1907,10 +1750,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
     vhartDrv[d].SetComm( domain_.colComm );
   }
 
-
-  statusOFS << "huwei 1301 hamiltonian_dg.cpp" << std::endl;
-	
- 
   // tempVec = density_ - pseudoCharge_
 	for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
@@ -1927,10 +1766,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 	// Convert tempVec to tempVecLocal in distributed row vector format
 	DblNumVec  tempVecLocal;
 
-
-  statusOFS << "huwei 1302 hamiltonian_dg.cpp" << std::endl;
-  
- 
   DistNumVecToDistRowVec(
 			tempVec,
 			tempVecLocal,
@@ -1945,10 +1780,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 	// equation is well defined for neutral system.
 	// Only part of the processors participate in the FFTW calculation
 
-
-  statusOFS << "huwei 1303 hamiltonian_dg.cpp" << std::endl;
-	
- 
   if( fft.isInGrid ){
 
 		// cpxVecLocal saves the Fourier transform of 
@@ -1995,10 +1826,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 
 	} // if (fft.isInGrid)
 
-
-  statusOFS << "huwei 1304 hamiltonian_dg.cpp" << std::endl;
-	
- 
   // Convert vhartDrvLocal to vhartDrv in the DistNumVec format
 
 	for( Int d = 0; d < DIM; d++ ){
@@ -2015,9 +1842,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 
 
 	
-  statusOFS << "huwei 1305 hamiltonian_dg.cpp" << std::endl;
-	
-
 
 	// *********************************************************************
 	// Compute the force from local pseudopotential
@@ -2057,10 +1881,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 	}
 
 
-
-  statusOFS << "huwei 1306 hamiltonian_dg.cpp" << std::endl;
-	
- 
   // Method 2: Using integration by parts
 	if(0)
 	{
@@ -2148,34 +1968,9 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 				} // for (i)
 		std::vector<Index3>  pseudoIdx;
 		pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
-	
-
-    statusOFS << "huwei 1307 hamiltonian_dg.cpp" << std::endl;
-    statusOFS << "pseudoIdx = " << pseudoIdx << std::endl;
-
-    for( Int k = 0; k < numElem_[2]; k++ )
-      for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
-            DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
-            statusOFS << "huwei 13071 hamiltonian_dg.cpp" << std::endl;
-            statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
-            statusOFS << "mpisizeRow = " << mpisizeRow << " mpirankRow = " << mpirankRow << std::endl;
-            statusOFS << "mpisizeCol = " << mpisizeCol << " mpirankCol = " << mpirankCol << std::endl;
-            statusOFS << "dmRow_ = " << dmRow_ << " dmCol_ = " << dmCol_ << std::endl;
-            statusOFS << "localCoef = " << localCoef << std::endl;
-          }
-        } 
-
     // FIXME huwei
     eigvecCoef_.SetComm( domain_.colComm );
     eigvecCoef_.GetBegin( pseudoIdx, NO_MASK );
-    
-
-    statusOFS << "huwei 13072 hamiltonian_dg.cpp" << std::endl;
-    
-    
     eigvecCoef_.GetEnd( NO_MASK );
 
 		// Step 2. Loop through the atoms and eigenvecs for the contribution
@@ -2184,10 +1979,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 		// Note: this procedure shall be substituted with the density matrix
 		// formulation when PEXSI is used. TODO
 
-  
-    statusOFS << "huwei 1308 hamiltonian_dg.cpp" << std::endl;
-		
-   
     // Loop over atoms and pseudopotentials
 		Int numEig = occupationRate_.m();
 		for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
@@ -2260,10 +2051,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 					} // found the atom
 				} // for (ei)
 
-
-        statusOFS << "huwei 1308 hamiltonian_dg.cpp" << std::endl;
-
-
         // Add the contribution to the local force
         // The minus sign comes from integration by parts
 				// The 4.0 comes from spin (2.0) and that |l> appears twice (2.0)
@@ -2283,10 +2070,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 	}
 
 
-
-  statusOFS << "huwei 1309 hamiltonian_dg.cpp" << std::endl;
-	
- 
   // *********************************************************************
 	// Compute the total force and give the value to atomList
 	// *********************************************************************
@@ -2296,10 +2079,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 	for( Int a = 0; a < numAtom; a++ ){
 		atomList_[a].force = Point3( force(a,0), force(a,1), force(a,2) );
 	} 
-
-
-  statusOFS << "huwei 1310 hamiltonian_dg.cpp" << std::endl;
-
 
 #ifndef _RELEASE_
 	PopCallStack();
