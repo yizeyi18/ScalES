@@ -3,7 +3,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -44,6 +44,8 @@
 /// @file scf.cpp
 /// @brief SCF class for the global domain or extended element.
 /// @date 2012-10-25
+/// @date 2014-02-01 Dual grid implementation
+/// @date 2014-08-07 Parallelization for PWDFT
 #include  "scf.hpp"
 #include	"blas.hpp"
 #include	"lapack.hpp"
@@ -223,7 +225,6 @@ SCF::Iterate	(  )
     GetTime( timeIterStart );
 
 
-  // huwei
 
     Int ntotCoarse  = eigSolPtr_->FFT().domain.NumGridTotal();
     Int ntotFine  = eigSolPtr_->FFT().domain.NumGridTotalFine();

@@ -2205,8 +2205,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
     esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
 
-    // FIXME Split MPI communicators into row and column communicators
-    // huwei
+    // Split MPI communicators into row and column communicators
   
     Domain& dm = esdfParam.domain;
     

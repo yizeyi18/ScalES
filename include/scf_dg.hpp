@@ -2,7 +2,7 @@
 	 Copyright (c) 2012 The Regents of the University of California,
 	 through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -43,6 +43,7 @@
 /// @file scf_dg.hpp
 /// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
+/// @date 2014-08-06 Intra-element parallelization
 #ifndef _SCF_DG_HPP_ 
 #define _SCF_DG_HPP_
 
@@ -131,9 +132,7 @@ private:
 	Real                Eself_;                    // Self energy due to the pseudopotential
 	Real                fermi_;                    // Fermi energy
 
-
-
-  // huwei
+  /// @brief Number of processor rows and columns
   Int                 dmRow_;
   Int                 dmCol_;
   //IntNumVec                   groupRank_;

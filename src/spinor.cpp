@@ -2,7 +2,7 @@
 	 Copyright (c) 2012 The Regents of the University of California,
 	 through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -99,7 +99,6 @@ void Spinor::Setup (
 #endif  // ifndef _RELEASE_
 	domain_       = dm;
 
-  // huwei
   
   MPI_Barrier(domain_.comm);
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
@@ -143,7 +142,6 @@ void Spinor::Setup (
   //  throw std::logic_error("Sum{numStateLocal} = numStateTotal does not match.");
   //}
  
-  // huwei
 
   wavefun_.Resize( dm.NumGridTotal(), numComponent, numStateLocal );
 	SetValue( wavefun_, val );

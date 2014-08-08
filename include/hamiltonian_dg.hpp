@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -43,6 +43,7 @@
 /// @file hamiltonian_dg.hpp
 /// @brief The Hamiltonian class for DG calculation.
 /// @date 2013-01-09
+/// @date 2014-08-06 Intra-element parallelization
 #ifndef _HAMILTONIAN_DG_HPP_
 #define _HAMILTONIAN_DG_HPP_
 
@@ -234,7 +235,7 @@ private:
 	/// @brief Partition of element.
 	ElemPrtn                    elemPrtn_;
 
-  /// huwei
+  /// @brief Number of processor rows and columns
   Int                         dmRow_;
   Int                         dmCol_;
   //IntNumVec                   groupRank_;
@@ -336,7 +337,7 @@ public:
 
 	HamiltonianDG( const esdf::ESDFInputParam& esdfParam );
 
-  /// @brief Setup the Hamiltonian DG class.
+  /// @brief Setup the Hamiltonian DG class from the input parameter.
 	void Setup ( const esdf::ESDFInputParam& esdfParam );
 
 	// *********************************************************************
@@ -352,6 +353,8 @@ public:
 	void InterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniformGridFine, 
 			const Real* rhoLGL, Real* rhoUniform );
 
+  /// @brief Initialize the pseudopotential used on the LGL grid for
+  /// each element.
 	void CalculatePseudoPotential( PeriodTable &ptable );
 	
 	/// @brief Compute the electron density after the diagonalization

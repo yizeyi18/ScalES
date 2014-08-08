@@ -2,7 +2,7 @@
 	 Copyright (c) 2012 The Regents of the University of California,
 	 through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -42,7 +42,10 @@
 */
 /// @file eigensolver.cpp
 /// @brief Eigensolver in the global domain or extended element.
-/// @date 2014-04-25 Paralle version
+/// @date 2014-04-25 First version of parallelized version. This does
+/// not scale well.
+/// @date 2014-08-07 Intra-element parallelization.  This has much
+/// improved scalability.
 #include	"eigensolver.hpp"
 #include  "utility.hpp"
 #include  "blas.hpp"
@@ -392,6 +395,7 @@ EigenSolver::Solve	()
 } 		// -----  end of method EigenSolver::Solve  ----- 
 
 
+// NOTE: This version uses ScaLAPACK and is not used anymore
 void
 EigenSolver::LOBPCGSolveReal	( 
       Int          numEig,
@@ -1708,15 +1712,9 @@ EigenSolver::LOBPCGSolveReal	(
 
 
 
-
-
-
-
-
-// huwei
-
+// NOTE: This is the scalable version.
 void
-EigenSolver::LOBPCGSolveReal2	( 
+EigenSolver::LOBPCGSolveReal2	(
       Int          numEig,
       Int          eigMaxIter,
       Real         eigTolerance)
@@ -1759,6 +1757,9 @@ EigenSolver::LOBPCGSolveReal2	(
     throw std::logic_error("widthLocal != noccLocal.");
   }
 
+  // TODO Add comments on what the operations GemmT, GemmN, Spinor etc
+  // are doing.
+
   Real timeSta, timeEnd;
   Real timeGemmT = 0.0;
   Real timeGemmN = 0.0;
@@ -1781,7 +1782,11 @@ EigenSolver::LOBPCGSolveReal2	(
     throw std::runtime_error( msg.str().c_str() );
   }
 
-  // For Alltoall
+
+  // The following codes are not replaced by AlltoallForward /
+  // AlltoallBackward since they are repetitively used in the
+  // eigensolver.
+  //
   double sendbuf[height*widthLocal]; 
   double recvbuf[heightLocal*width];
   int sendcounts[mpisize];
@@ -1900,7 +1905,6 @@ EigenSolver::LOBPCGSolveReal2	(
   Int numLockedSave = 0;
   Int numActiveLocal = 0;
   Int numActiveTotal = 0;
-  // Real lockTolerance = std::min( eigTolerance_, 1e-2 );
 
   const Int numLocked = 0;  // Never perform locking in this version
   const Int numActive = width;
@@ -2202,7 +2206,6 @@ EigenSolver::LOBPCGSolveReal2	(
       timeSpinor = timeSpinor + ( timeEnd - timeSta );
     }
 
-    // huwei
     // Convert from column format to row format
     // MPI_Alltoallv
     // Only convert W and AW
@@ -2788,12 +2791,14 @@ EigenSolver::LOBPCGSolveReal2	(
       << resMax << std::endl << std::endl;
   }
 
+#if ( _DEBUGlevel_ >= 0 )
   statusOFS << "Time for iterGemmT = " << iterGemmT << "  timeGemmT = " << timeGemmT << std::endl;
   statusOFS << "Time for iterGemmN = " << iterGemmN << "  timeGemmN = " << timeGemmN << std::endl;
   statusOFS << "Time for iterAlltoallv = " << iterAlltoallv << "  timeAlltoallv = " << timeAlltoallv << std::endl;
   statusOFS << "Time for iterSpinor = " << iterSpinor << "  timeSpinor = " << timeSpinor << std::endl;
   statusOFS << "Time for iterTrsm = " << iterTrsm << "  timeTrsm = " << timeTrsm << std::endl;
   statusOFS << "Time for iterMpirank0 = " << iterMpirank0 << "  timeMpirank0 = " << timeMpirank0 << std::endl;
+#endif
 
 #ifndef _RELEASE_
   PopCallStack();

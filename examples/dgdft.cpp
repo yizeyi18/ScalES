@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
    
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -43,6 +43,7 @@
 /// @file dgdft.cpp
 /// @brief Main driver for DGDFT for self-consistent field iteration.
 /// @date 2013-02-11
+/// @date 2014-08-06 Intra-element parallelization
 #include "dgdft.hpp"
 
 using namespace dgdft;
@@ -293,7 +294,6 @@ int main(int argc, char **argv)
       IntNumTns& elemPrtnInfo = distEigSol.Prtn().ownerInfo;
       elemPrtnInfo.Resize( numElem[0], numElem[1], numElem[2] );
 
-      // huwei
       int dmCol = numElem[0] * numElem[1] * numElem[2];
       int dmRow = mpisize / dmCol;
 
@@ -390,7 +390,6 @@ int main(int argc, char **argv)
               //Spinor& spn = distPsi.LocalMap()[key];
               //spn.Setup( dmExtElem, 1, esdfParam.numALBElem(i,j,k), 0.0 );
 
-              // FIXME huwei
               int dmExtElemMpirank, dmExtElemMpisize;
               MPI_Comm_rank( dmExtElem.comm, &dmExtElemMpirank );
               MPI_Comm_size( dmExtElem.comm, &dmExtElemMpisize );
@@ -403,7 +402,8 @@ int main(int argc, char **argv)
                 if ( dmExtElemMpirank < numStateTotal ){
                   numStateLocal = 1; // blocksize == 1;
                 }
-                else { // FIXME huwei numStateLocal = 0???
+                else { 
+                  // FIXME Throw an error here
                   numStateLocal = 0;
                 }
   

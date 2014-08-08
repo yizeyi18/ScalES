@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Authors: Lin Lin and Lexing Ying
+   Authors: Lin Lin, Wei Hu and Lexing Ying
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -43,6 +43,8 @@
 /// @file hamiltonian_dg.cpp
 /// @brief Implementation of the Hamiltonian class for DG calculation.
 /// @date 2013-01-09
+/// @date 2014-08-07 Add intra-element paralelization.  NOTE: the OpenMP
+/// parallelization is not used in this version.
 #include  "hamiltonian_dg.hpp"
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
@@ -101,20 +103,20 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	};
 	std::vector<DistDblNumMat>   basisJump(NUM_FACE);
 	std::vector<DistDblNumMat>   DbasisAverage(NUM_FACE);
-  // FIXME  Set the communicator to domain_.colComm
-  // huwei 
 
+  // IMPORTANT:
+  //
+  // When intra-element parallelization is invoked, the communication of
+  // boundary terms are refined to each column processor communicator.
   for( Int k = 0; k < NUM_FACE; k++ ) {
     basisJump[k].SetComm(domain_.colComm);
     DbasisAverage[k].SetComm(domain_.colComm);
   } 
    
-  //basisJump.SetComm(domain_.colComm);
-  //DbasisAverage.SetComm(domain_.colComm);
-	
   // The derivative of basisLGL along x,y,z directions
 	std::vector<DistDblNumMat>   Dbasis(DIM);
 
+  // Same as above
   for( Int k = 0; k < DIM; k++ ) {
     Dbasis[k].SetComm(domain_.colComm);
   } 
@@ -124,9 +126,10 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	std::vector<DblNumMat>&  LGLWeight2D = LGLWeight2D_;
 	DblNumTns&               LGLWeight3D = LGLWeight3D_;
 
-  // FIXME huwei
+  // Square root of the LGL integration weight in 3D.
   DblNumTns    sqrtLGLWeight3D( numGrid[0], numGrid[1], numGrid[2] );
  
+  // Square root of the LGL integration weight in 2D for each face.
   std::vector<DblNumMat>   sqrtLGLWeight2D;
   sqrtLGLWeight2D.resize(DIM);
 
@@ -163,21 +166,17 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	// *********************************************************************
 	// Initial setup
 	// *********************************************************************
-	
 
 	{
 		GetTime(timeSta);
-		// Compute the global index set
+		// Compute the indices for all basis functions
 		IntNumTns  numBasisLocal(numElem_[0], numElem_[1], numElem_[2]);
-		//IntNumTns  numBasisPernp(numElem_[0]*mpisizeRow, numElem_[1]*mpisizeRow, numElem_[2]*mpisizeRow);
 		SetValue( numBasisLocal, 0 );
-		//SetValue( numBasisPernp, 0 );
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key(i, j, k);
 					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
-            //numBasisLocal(i, j, k) = basisLGL_.LocalMap()[key].n();
             int numBasisLocalElem = basisLGL_.LocalMap()[key].n();
             numBasisLocal(i, j, k) = 0;
             mpi::Allreduce( &numBasisLocalElem, &numBasisLocal(i, j, k), 1, MPI_SUM, domain_.rowComm );
@@ -188,7 +187,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		mpi::Allreduce( numBasisLocal.Data(), numBasis.Data(),
 				numElem_.prod(), MPI_SUM, domain_.colComm );
 		
-    // Every processor compute all index sets
+    // Every processor computes all index sets
 		elemBasisIdx_.Resize(numElem_[0], numElem_[1], numElem_[2]);
 
 		Int cnt = 0;
@@ -228,20 +227,15 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	{
 		GetTime(timeSta);
 
-		// Compute derivatives
+		// Compute derivatives on each local element
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
 					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
-            // FIXME huwei
             DblNumMat&  basis = basisLGL_.LocalMap()[key];
             Int numBasis = basis.n();
 
-						// NOTE: For large matrices, test can take excessive amount
-						// of time.  
-						// Avoid memory copy by directly updating the matrix
-						// LLIN 10/29/2013
 						Dbasis[0].LocalMap()[key].Resize( basis.m(), basis.n() );
 						Dbasis[1].LocalMap()[key].Resize( basis.m(), basis.n() );
 						Dbasis[2].LocalMap()[key].Resize( basis.m(), basis.n() );
@@ -259,7 +253,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 #ifdef _USE_OPENMP_
 #pragma omp for schedule (dynamic,1) nowait
 #endif
-                // FIXME
 								for( Int g = 0; g < numBasis; g++ ){
 									DiffPsi( numGrid, basis.VecData(g), DbasisX.VecData(g), 0 );
 									DiffPsi( numGrid, basis.VecData(g), DbasisY.VecData(g), 1 );
@@ -499,13 +492,19 @@ HamiltonianDG::CalculateDGMatrix	(  )
   // *********************************************************************
 	// Boundary terms, Part I
 	// Start the communication of the boundary terms
+  //
+  // When intra-element parallelization is invoked, the communication of
+  // boundary terms are refined to each column processor communicator.
 	// *********************************************************************
 	{
 		GetTime(timeSta);
+    // Set of element indicies for boundary term communication.
 		std::set<Index3>   boundaryXset;
 		std::set<Index3>   boundaryYset;
 		std::set<Index3>   boundaryZset;
 
+    // Vector of element indicies for boundary term communication.
+    // Should contain the same information as the sets above.
 		std::vector<Index3>   boundaryXIdx;
 		std::vector<Index3>   boundaryYIdx; 
 		std::vector<Index3>   boundaryZIdx;
@@ -526,6 +525,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 				} // for (i)
 		
 		// The left element passes the values on the right face.
+    // This is due to the use of periodic boundary condition.
 
 		boundaryXIdx.insert( boundaryXIdx.begin(), boundaryXset.begin(), boundaryXset.end() );
 		boundaryYIdx.insert( boundaryYIdx.begin(), boundaryYset.begin(), boundaryYset.end() );
@@ -550,6 +550,11 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	// Nonlocal pseudopotential term, Part I
 	// Compute the coefficients for the nonlocal pseudopotential 
 	// Start the communiation of the nonlocal pseudopotential terms
+  //
+  // When intra-element parallelization is invoked, the inner product of
+  // basis functions and the nonlocal potential projectors are first
+  // done independently on each processors, and then all processors in
+  // the same processor row communicator share the same information.
 	// *********************************************************************
 	if(_NON_LOCAL_)
 	{
@@ -584,7 +589,8 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 						Int numBasis = basis.n();
 						Int numBasisTotal = 0;
-            MPI_Allreduce( &numBasis, &numBasisTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
+            MPI_Allreduce( &numBasis, &numBasisTotal, 1, MPI_INT,
+                MPI_SUM, domain_.rowComm );
 
 						// Loop over atoms, regardless of whether this atom belongs
 						// to this element or not.
@@ -593,14 +599,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
 							   mi != pseudoMap.end(); mi++ ){
 							Int atomIdx = (*mi).first;
 							std::vector<NonlocalPP>&  vnlList = (*mi).second.vnlList;
-              // FIXME 
-              // Note that in intra-element parallelization, coef and
+              // NOTE: in intra-element parallelization, coef and
               // coefDrvX/Y/Z contain different data among processors in
               // each processor row in the same element.
-							// DblNumMat coef( numBasis, vnlList.size() );
-							// DblNumMat coefDrvX( numBasis, vnlList.size() );
-							// DblNumMat coefDrvY( numBasis, vnlList.size() ); 
-              // DblNumMat coefDrvZ( numBasis, vnlList.size() );
 							
               DblNumMat coef( numBasisTotal, vnlList.size() );
 							DblNumMat coefDrvX( numBasisTotal, vnlList.size() );
@@ -640,6 +641,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 							} // if(0)
 
 							// Method 2: Efficient way of implementation
+              // Local inner product computation
 							if(1){
 #ifdef _USE_OPENMP_
 #pragma omp parallel 
@@ -713,11 +715,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
             } // mi
 
 
-
-            // FIXME
-            // Tentatively, should have a reduce option here to reduce
-            // the coefficient within the processor row in the same
-            // element.
+            // Save coef and its derivativees in vnlCoef and vnlDrvCoef
+            // strctures, for the use of constructing DG matrix, force
+            // computation and a posteriori error estimation.
 						vnlCoef_.LocalMap()[key] = coefMap;
 						vnlDrvCoef_[0].LocalMap()[key] = coefDrvXMap;
 						vnlDrvCoef_[1].LocalMap()[key] = coefDrvYMap;
@@ -735,7 +735,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 		GetTime( timeSta );
 		
-		// Communication of the coefficient matrices.
+		// Inter-element communication of the coefficient matrices for
+    // nonlocal pseudopotential.
+    //
 		// Each element owns all the coefficient matrices in its neighbors
 		// and then perform data processing later. It can be as many as 
 		// 3^3-1 = 26 elements. 
@@ -797,15 +799,14 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	}
 
 
-
-
   // *********************************************************************
-	// Diagonal part: 
+	// Diagonal part of the DG Hamiltonian matrix:  
   // 1) Laplacian 
 	// 2) Local potential
 	// 3) Intra-element part of boundary terms
 	// 
-	// Overlap communication with computation
+	// Overlap communication (basis on the boundary and nonlocal
+  // potential) with computation
 	// *********************************************************************
 	{
 		GetTime(timeSta);
@@ -843,7 +844,8 @@ HamiltonianDG::CalculateDGMatrix	(  )
 //#pragma omp for schedule(dynamic,1) nowait
 //#endif
 							
-                if(0){ //FIXME huwei 
+                // Old implementation using ThreeDotProduct routine
+                if(0){ 
                   for( Int a = 0; a < numBasis; a++ )
                     for( Int b = a; b < numBasis; b++ ){
                       ptrLocalMat[a+numBasis*b] += 
@@ -861,8 +863,11 @@ HamiltonianDG::CalculateDGMatrix	(  )
                 } //if(0)
 
 
-                if(1){ //FIXME huwei
-
+                if(1){ 
+                  // In order to compute the Laplacian part
+                  //
+                  // Dphi_i * w * Dphi_j, sqrt(w) is first multiplied to
+                  // the derivative of the basis functions.
                   for( Int g = 0; g < basis.n(); g++ ){
                     Real *ptr = sqrtLGLWeight3D.Data();
                     Real *ptrX = DbasisX.VecData(g);
@@ -872,10 +877,12 @@ HamiltonianDG::CalculateDGMatrix	(  )
                       *(ptrX++)  *= *ptr;
                       *(ptrY++)  *= *ptr;
                       *(ptrZ++)  *= *ptr;
-                      ptr = ptr++;
+                      ptr++;
                     }
                   }
 
+                  // Convert the basis functions from column based
+                  // partition to row based partition
                   Int height = basis.m();
                   Int width = numBasisTotal;
 
@@ -911,6 +918,8 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   AlltoallForward (DbasisY, DbasisYRow, domain_.rowComm);
                   AlltoallForward (DbasisZ, DbasisZRow, domain_.rowComm);
                 
+                  // Compute the local contribution to the Laplacian
+                  // part for the row partitioned basis functions.
                   SetValue( localMatXTemp, 0.0 );
                   blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
                       1.0, DbasisXRow.Data(), numLGLGridLocal, 
@@ -924,19 +933,24 @@ HamiltonianDG::CalculateDGMatrix	(  )
                       localMatYTemp.Data(), numBasisTotal );
 
                   SetValue( localMatZTemp, 0.0 );
-                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
-                      1.0, DbasisZRow.Data(), numLGLGridLocal, 
-                      DbasisZRow.Data(), numLGLGridLocal, 0.0,
-                      localMatZTemp.Data(), numBasisTotal );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal,
+                      numLGLGridLocal, 1.0, DbasisZRow.Data(),
+                      numLGLGridLocal, DbasisZRow.Data(),
+                      numLGLGridLocal, 0.0, localMatZTemp.Data(),
+                      numBasisTotal );
 
                   SetValue( localMatTemp1, 0.0 );
                   for( Int a = 0; a < numBasisTotal; a++ )
                     for( Int b = a; b < numBasisTotal; b++ ){
-                      localMatTemp1(a,b) = localMatXTemp(a,b) + localMatYTemp(a,b) + localMatZTemp(a,b);  
+                      localMatTemp1(a,b) = localMatXTemp(a,b) +
+                        localMatYTemp(a,b) + localMatZTemp(a,b);  
                     }
 
                   SetValue( localMatTemp2, 0.0 );
-                  MPI_Allreduce( localMatTemp1.Data(), localMatTemp2.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+                  MPI_Allreduce( localMatTemp1.Data(),
+                      localMatTemp2.Data(), numBasisTotal *
+                      numBasisTotal, MPI_DOUBLE, MPI_SUM,
+                      domain_.rowComm );
 
                   for( Int a = 0; a < numBasisTotal; a++ )
                     for( Int b = a; b < numBasisTotal; b++ ){
@@ -945,12 +959,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
                 } //if(1)
 
-                // Release the gradient as volume data to save memory
-								// NOTE: Not used anymore since the gradient are used to
-								// construct other quantities
-								//							for( Int d = 0; d < DIM; d++ ){
-								//								Dbasis[d].LocalMap().erase(key);
-								//							}
 							}
 #if ( _DEBUGlevel_ >= 1 )
 							statusOFS << "After the Laplacian part." << std::endl;
@@ -962,7 +970,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 //#ifdef _USE_OPENMP_
 //#pragma omp for schedule(dynamic,1) nowait
 //#endif
-                if(0){ //FIXME huwei	
+                if(0){ 
                   for( Int a = 0; a < numBasis; a++ )
                     for( Int b = a; b < numBasis; b++ ){
                       ptrLocalMat[a+numBasis*b] += 
@@ -974,12 +982,17 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
                 }// if(0)
 
+                // For this step, we need a copy of the basis in the
+                // FourDotProduct process.  This is because the local
+                // potential has both positive and negative
+                // contribution, and the sqrt trick is not applicable
+                // here.
+                if(1){
 
-                if(1){ //FIXME huwei
-
-                  DblNumMat basisTemp (basis.m(), basis.n()); // We need a copy of basis
+                  DblNumMat basisTemp (basis.m(), basis.n()); 
                   SetValue( basisTemp, 0.0 );
                  
+                  // This is the same as the FourDotProduct process.
                   for( Int g = 0; g < basis.n(); g++ ){
                     Real *ptr1 = LGLWeight3D.Data();
                     Real *ptr2 = vtot.Data();
@@ -991,6 +1004,8 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   }
 
                  
+                  // Convert the basis functions from column based
+                  // partition to row based partition
                   Int height = basis.m();
                   Int width = numBasisTotal;
 
@@ -1027,7 +1042,10 @@ HamiltonianDG::CalculateDGMatrix	(  )
                       localMatTemp1.Data(), numBasisTotal );
 
                   SetValue( localMatTemp2, 0.0 );
-                  MPI_Allreduce( localMatTemp1.Data(), localMatTemp2.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+                  MPI_Allreduce( localMatTemp1.Data(),
+                      localMatTemp2.Data(), numBasisTotal *
+                      numBasisTotal, MPI_DOUBLE, MPI_SUM,
+                      domain_.rowComm );
 
                   for( Int a = 0; a < numBasisTotal; a++ )
                     for( Int b = a; b < numBasisTotal; b++ ){
@@ -1057,7 +1075,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 //#pragma omp for schedule(dynamic,1) nowait
 //#endif
 							
-                if(0){ //huwei
+                if(0){ 
                   for( Int a = 0; a < numBasis; a++ )
                     for( Int b = a; b < numBasis; b++ ){
                       intByPartTerm = 
@@ -1097,11 +1115,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
                         //										localMat(a,b) += 
                         intByPartTerm + penaltyTerm;
                     } // for (b)
-                } // if(0)huwei
+                } // if(0)
 
-
-
-                if(1){ //huwei
+                if(1){
                   
                   DblNumMat valLTemp(numGridFace, numBasis); 
                   DblNumMat valRTemp(numGridFace, numBasis); 
@@ -1113,6 +1129,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   SetValue( drvLTemp, 0.0 );
                   SetValue( drvRTemp, 0.0 );
 
+                  // sqrt(w) is first multiplied to the derivative of
+                  // the derivatives and function values on the surface
+                  // for inner product.
                   for( Int g = 0; g < numBasis; g++ ){
                     Real *ptr = sqrtLGLWeight2D[0].Data();
                     Real *ptr1 = valL.VecData(g);
@@ -1128,10 +1147,12 @@ HamiltonianDG::CalculateDGMatrix	(  )
                       *(ptr22++) = (*(ptr2++)) * (*ptr);
                       *(ptr33++) = (*(ptr3++)) * (*ptr);
                       *(ptr44++) = (*(ptr4++)) * (*ptr);
-                      ptr = ptr++;
+                      ptr++;
                     }
                   }
 
+                  // Convert the basis functions from column based
+                  // partition to row based partition
                  
                   Int height = numGridFace;
                   Int width = numBasisTotal;
@@ -1230,7 +1251,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
                     for( Int b = a; b < numBasisTotal; b++ ){
                       localMat(a,b) += localMatTemp8(a,b);  
                     } 
-
                 } //if(1)
 
 
@@ -1251,7 +1271,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 //#pragma omp for schedule(dynamic,1) nowait
 //#endif
                 
-                if(0){ //huwei
+                if(0){ 
                   for( Int a = 0; a < numBasis; a++ )
                     for( Int b = a; b < numBasis; b++ ){
                       intByPartTerm = 
@@ -1292,13 +1312,13 @@ HamiltonianDG::CalculateDGMatrix	(  )
                         intByPartTerm + penaltyTerm;
                     } // for (b)
 
-                } // if(0)huwei
+                } // if(0)
 
 
 
 
 
-                if(1){ //huwei
+                if(1){ 
 
                   DblNumMat valLTemp(numGridFace, numBasis); 
                   DblNumMat valRTemp(numGridFace, numBasis); 
@@ -1310,6 +1330,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   SetValue( drvLTemp, 0.0 );
                   SetValue( drvRTemp, 0.0 );
 
+                  // sqrt(w) is first multiplied to the derivative of
+                  // the derivatives and function values on the surface
+                  // for inner product.
                   for( Int g = 0; g < numBasis; g++ ){
                     Real *ptr = sqrtLGLWeight2D[1].Data();
                     Real *ptr1 = valL.VecData(g);
@@ -1330,6 +1353,8 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   }
 
                  
+                  // Convert the basis functions from column based
+                  // partition to row based partition
                   Int height = numGridFace;
                   Int width = numBasisTotal;
 
@@ -1447,7 +1472,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 //#pragma omp for schedule(dynamic,1) nowait
 //#endif
                 
-                if(0){ //huwei
+                if(0){ 
                   for( Int a = 0; a < numBasis; a++ )
                     for( Int b = a; b < numBasis; b++ ){
                       intByPartTerm = 
@@ -1488,13 +1513,13 @@ HamiltonianDG::CalculateDGMatrix	(  )
                         intByPartTerm + penaltyTerm;
                     } // for (b)
 
-                } // if(0)huwei
+                } // if(0)
 
 
 
 
 
-                if(1){ //huwei
+                if(1){ 
 
                   DblNumMat valLTemp(numGridFace, numBasis); 
                   DblNumMat valRTemp(numGridFace, numBasis); 
@@ -1506,6 +1531,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   SetValue( drvLTemp, 0.0 );
                   SetValue( drvRTemp, 0.0 );
 
+                  // sqrt(w) is first multiplied to the derivative of
+                  // the derivatives and function values on the surface
+                  // for inner product.
                   for( Int g = 0; g < numBasis; g++ ){
                     Real *ptr = sqrtLGLWeight2D[2].Data();
                     Real *ptr1 = valL.VecData(g);
@@ -1526,6 +1554,8 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   }
 
                  
+                  // Convert the basis functions from column based
+                  // partition to row based partition
                   Int height = numGridFace;
                   Int width = numBasisTotal;
 
@@ -1621,11 +1651,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
                     for( Int b = a; b < numBasisTotal; b++ ){
                       localMat(a,b) += localMatTemp8(a,b);  
                     } 
-
-
                 } //if(1)
-
-
               } // z-direction
 
 #if ( _DEBUGlevel_ >= 1 )
@@ -1634,16 +1660,13 @@ HamiltonianDG::CalculateDGMatrix	(  )
 //#ifdef _USE_OPENMP_
 						}
 //#endif
-						// Symmetrize
-						for( Int a = 0; a < numBasisTotal; a++ )
-							for( Int b = 0; b < a; b++ ){
-								localMat(a,b) = localMat(b,a);
-							}
+						// Symmetrize the diagonal part of the DG matrix
+            for( Int a = 0; a < numBasisTotal; a++ )
+              for( Int b = 0; b < a; b++ ){
+                localMat(a,b) = localMat(b,a);
+              }
 
-
-						// Add to HMat_
-            // FIXME
-            // if( mpirankrow == 0 ) do the following
+						// Add localMat to HMat_
 						ElemMatKey matKey( key, key );
 						std::map<ElemMatKey, DblNumMat>::iterator mi = 
 							HMat_.LocalMap().find( matKey );
@@ -1671,6 +1694,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	// Nonlocal pseudopotential term, Part II
 	// Finish the communication of the nonlocal pseudopotential
 	// Update the nonlocal potential part of the matrix
+  //
+  // In the intra-element parallelization, every processor in the same
+  // processor row communication is doing the same (repetitive) work.
 	// *********************************************************************
 	if(_NON_LOCAL_){
 		GetTime( timeSta );
@@ -1787,11 +1813,13 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	// Boundary terms, Part II
 	// Finish the communication of boundary terms
 	// Update the inter-element boundary part of the matrix
+  //
+  // In the intra-element parallelization, processors in the same
+  // processor row communication are doing different work.
 	// *********************************************************************
 
 	{
 		GetTime( timeSta );
-		// New code for communicating boundary elements
 		DbasisAverage[XR].GetEnd( NO_MASK );
 		DbasisAverage[YR].GetEnd( NO_MASK );
 		DbasisAverage[ZR].GetEnd( NO_MASK );
@@ -1842,15 +1870,17 @@ HamiltonianDG::CalculateDGMatrix	(  )
               Int numBasisLTotal = 0;
               Int numBasisRTotal = 0;
 
-              MPI_Allreduce( &numBasisL, &numBasisLTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
-              MPI_Allreduce( &numBasisR, &numBasisRTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
+              MPI_Allreduce( &numBasisL, &numBasisLTotal, 1, MPI_INT,
+                  MPI_SUM, domain_.rowComm );
+              MPI_Allreduce( &numBasisR, &numBasisRTotal, 1, MPI_INT,
+                  MPI_SUM, domain_.rowComm );
              
               DblNumMat   localMat( numBasisLTotal, numBasisRTotal );
 							SetValue( localMat, 0.0 );
 
               // inter-element part of the boundary term
              
-              if(0){ //huwei
+              if(0){ 
             
                 Real intByPartTerm, penaltyTerm;
                 for( Int a = 0; a < numBasisL; a++ )
@@ -1877,10 +1907,10 @@ HamiltonianDG::CalculateDGMatrix	(  )
                       intByPartTerm + penaltyTerm;
                   } // for (b)
 
-              } //if(0) huwei
+              } //if(0) 
 
               
-              if(1){ //huwei
+              if(1){ 
 
                 DblNumMat valLTemp(numGridFace, numBasisL); 
                 DblNumMat valRTemp(numGridFace, numBasisR); 
@@ -2001,9 +2031,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 
             // Add (keyL, keyR) to HMat_
-            // FIXME
-            // After allreduce, the following should be done on
-            // mpirowrank == 0 
             {
               ElemMatKey matKey( keyL, keyR );
               std::map<ElemMatKey, DblNumMat>::iterator mi = 
@@ -2070,7 +2097,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 							// inter-element part of the boundary term
               
-              if(0){ //huwei
+              if(0){ 
 
                 Real intByPartTerm, penaltyTerm;
                 for( Int a = 0; a < numBasisL; a++ )
@@ -2101,7 +2128,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 
 
-              if(1){ //huwei
+              if(1){ 
 
                 DblNumMat valLTemp(numGridFace, numBasisL); 
                 DblNumMat valRTemp(numGridFace, numBasisR); 
@@ -2286,7 +2313,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 							// inter-element part of the boundary term
               
-              if(0){ //huwei
+              if(0){ 
 
                 Real intByPartTerm, penaltyTerm;
                 for( Int a = 0; a < numBasisL; a++ )
@@ -2317,7 +2344,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 
 
-              if(1){ //huwei
+              if(1){ 
 
                 DblNumMat valLTemp(numGridFace, numBasisL); 
                 DblNumMat valRTemp(numGridFace, numBasisR); 
@@ -2482,10 +2509,11 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 	// *********************************************************************
 	// Collect information and combine HMat_
+  // 
+  // When intra-element parallelization is invoked, at this stage all
+  // processors in the same processor row communicator do the same job,
+  // and communication is restricted to each column communicator group.
 	// *********************************************************************
-  // FIXME This should be done within processors with mpirankrow == 0 
-  // Start from the beginning, note that the communicator of HMat_
-  // should be mpiColComm.
 	{
 		GetTime( timeSta );
 		std::vector<ElemMatKey>  keyIdx;
@@ -2582,7 +2610,6 @@ HamiltonianDG::UpdateDGMatrix	(
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key(i, j, k);
 					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
-						//numBasisLocal(i, j, k) = basisLGL_.LocalMap()[key].n();
             int numBasisLocalElem = basisLGL_.LocalMap()[key].n();
             numBasisLocal(i, j, k) = 0;
             mpi::Allreduce( &numBasisLocalElem, &numBasisLocal(i, j, k), 1, MPI_SUM, domain_.rowComm );
@@ -2644,7 +2671,7 @@ HamiltonianDG::UpdateDGMatrix	(
 //#ifdef _USE_OPENMP_
 //#pragma omp parallel for schedule(dynamic,1) firstprivate(ptrLocalMat) 
 //#endif
-              if(0){ // huwei	
+              if(0){ 
          
                 for( Int a = 0; a < numBasis; a++ )
                   for( Int b = a; b < numBasis; b++ ){
@@ -2658,11 +2685,12 @@ HamiltonianDG::UpdateDGMatrix	(
               } // if(0)
           
          
-              if(1){ //FIXME huwei
+              if(1){ 
 
                 DblNumMat basisTemp (basis.m(), basis.n()); // We need a copy of basis
                 SetValue( basisTemp, 0.0 );
 
+                // This is the same as the FourDotProduct process.
                 for( Int g = 0; g < basis.n(); g++ ){
                   Real *ptr1 = LGLWeight3D.Data();
                   Real *ptr2 = vtot.Data();
@@ -2672,6 +2700,9 @@ HamiltonianDG::UpdateDGMatrix	(
                     *(ptr4++) = (*(ptr1++)) * (*(ptr2++)) * (*(ptr3++));
                   }
                 }
+
+                // Convert the basis functions from column based
+                // partition to row based partition
 
                 Int height = basis.m();
                 Int width = numBasisTotal;

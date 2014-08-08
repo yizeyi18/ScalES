@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 
    This file is part of DGDFT. All rights reserved.
 
@@ -43,6 +43,7 @@
 /// @file scf_dg.cpp
 /// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
+/// @date 2014-08-06 Add intra-element parallelization.
 #include  "scf_dg.hpp"
 #include	"blas.hpp"
 #include	"lapack.hpp"
@@ -243,7 +244,6 @@ SCFDG::Setup	(
 		elemPrtn_      = distEigSol.Prtn();
 		contxt_        = contxt;
 	
-    // FIXME huwei colComm
 
 		distDMMat_.SetComm(domain_.colComm);
 		distEDMMat_.SetComm(domain_.colComm);
@@ -271,7 +271,9 @@ SCFDG::Setup	(
 		vtotLGLSave_.Prtn()   = elemPrtn_;
 
 
-    // huwei
+    // The number of processors in the column communicator must be the
+    // number of elements, and mpisize should be a multiple of the
+    // number of elements.
     dmCol_ = numElem_[0] * numElem_[1] * numElem_[2];
     dmRow_ = mpisize / dmCol_;
     if( (mpisize % dmCol_) != 0 ){
@@ -282,37 +284,6 @@ SCFDG::Setup	(
       throw std::runtime_error( msg.str().c_str() );
     }
     
-    
-    //int elemSize = numElem_[0] * numElem_[1] * numElem_[2];
-    //int elemBlocksize = mpisize / elemSize;
-    //int npPerElem[elemSize];
-    //int npPerElemSum[elemSize];
-
-    //groupRank_.Resize( mpisize ); 
-  
-    //for( Int i=0; i< elemSize; i++ ) {
-    //  npPerElem[0] = elemBlocksize;
-    //}
-
-    //npPerElemSum[0] = 0;
-    //for( Int i=1; i< elemSize; i++ ) {
-    //  npPerElemSum[i] = npPerElemSum[i-1] + npPerElem[i-1];
-    //}
-
-    //groupRank_[0] = 0;
-    //for( Int i=0; i< mpisize; i++ ) {
-    //  for( Int j=1; j< elemSize; j++ ) {
-    //    if((i >= npPerElemSum[j-1])&&(i < npPerElemSum[j])){
-    //      groupRank_[i] = j-1;
-    //    }        
-    //  } 
-    //  if((i >= npPerElemSum[elemSize-1])){
-    //    groupRank_[i] = elemSize-1;
-    //  }        
-    //}
-    // huwei
-
-
 
 		// FIXME fixed ratio between the size of the extended element and
 		// the element
@@ -455,19 +426,10 @@ SCFDG::Setup	(
   } // Restart the density
 
 
-
-  
- 
-
   // Wavefunctions in the extended element
   if( isRestartWfn_ ){
     std::istringstream wfnStream;      
     SeparateRead( restartWfnFileName_, wfnStream );
-
-
-
-   
-   
    
     for( Int k = 0; k < numElem_[2]; k++ )
       for( Int j = 0; j < numElem_[1]; j++ )
@@ -504,10 +466,6 @@ SCFDG::Setup	(
   } 
   else{ 
  
-
-   
-    // FIXME huwei
-    
     // Use random initial guess for basis functions in the extended element.
     for( Int k = 0; k < numElem_[2]; k++ )
       for( Int j = 0; j < numElem_[1]; j++ )
@@ -520,7 +478,11 @@ SCFDG::Setup	(
             UniformRandom( psi.Wavefun() );
 
 
-            if(0){ //huwei
+            // For debugging purpose
+            // Make sure that the initial wavefunctions in each element
+            // are the same, when different number of processors are
+            // used for intra-element parallelization.
+            if(0){ 
               Spinor  psiTemp;
               psiTemp.Setup( eigSol.FFT().domain, 1, psi.NumStateTotal(), psi.NumStateTotal(), 0.0 );
 
@@ -549,11 +511,7 @@ SCFDG::Setup	(
                   ptr1 = ptr1 + 1;
                 }
               }
-
-
             }//if(0)
-
-
           }
         } // for (i)
     Print( statusOFS, "Initial basis functions with random guess." );
@@ -567,7 +525,7 @@ SCFDG::Setup	(
   {
 		PeriodicUniformToLGLMat_.resize(DIM);
     PeriodicUniformFineToLGLMat_.resize(DIM);
-		// FIXME
+
 		EigenSolver& eigSol = (*distEigSol.LocalMap().begin()).second;
 		Domain dmExtElem = eigSol.FFT().domain;
 		Domain dmElem;
@@ -575,7 +533,7 @@ SCFDG::Setup	(
 			dmElem.length[d]   = domain_.length[d] / numElem_[d];
 			dmElem.numGrid[d]  = domain_.numGrid[d] / numElem_[d];
       dmElem.numGridFine[d]  = domain_.numGridFine[d] / numElem_[d];
-			// PosStart relative to the extended element FIXME
+			// PosStart relative to the extended element 
 			dmExtElem.posStart[d] = 0.0;
 			dmElem.posStart[d] = ( numElem_[d] > 1 ) ? dmElem.length[d] : 0;
 		}
@@ -720,10 +678,6 @@ SCFDG::Iterate	(  )
   HamiltonianDG&  hamDG = *hamDGPtr_;
 
 
-
-
- 
-
   // Compute the exchange-correlation potential and energy
   GetTime( timeSta );
 	hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
@@ -733,9 +687,6 @@ SCFDG::Iterate	(  )
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-
-	
- 
   // Compute the Hartree potential
   GetTime( timeSta );
 	hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
@@ -744,9 +695,6 @@ SCFDG::Iterate	(  )
   statusOFS << "Time for calculating Hartree is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-
-
-	
  
   // No external potential
 
@@ -758,10 +706,6 @@ SCFDG::Iterate	(  )
   statusOFS << "Time for calculating Vtot is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-
-
-
-
 
   Real timeIterStart(0), timeIterEnd(0);
   
@@ -785,13 +729,6 @@ SCFDG::Iterate	(  )
 		// *********************************************************************
 		// Update the local potential in the extended element and the element.
 		// *********************************************************************
-
-    
-
-
-
-	
-
     {
 			GetTime(timeSta);
 
@@ -803,7 +740,6 @@ SCFDG::Iterate	(  )
 				timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 		}
-
 
 		
    
@@ -905,7 +841,9 @@ SCFDG::Iterate	(  )
 						} // if ( isPeriodizePotential_ ) 
 
 
-            // huweii fft VtotFine to VtotCoarse
+            // VtotFine to VtotCoarse: Restricting vtot on a fine grid
+            // to a coarse grid for computing the basis functions on a
+            // coarse grid.
 
             Int ntotCoarse  = eigSol.FFT().domain.NumGridTotal();
             Int ntotFine  = eigSol.FFT().domain.NumGridTotalFine();
@@ -913,8 +851,6 @@ SCFDG::Iterate	(  )
             DblNumVec& vtotFine = eigSol.Ham().Vtot();
             DblNumVec& vtotCoarse = eigSol.Ham().VtotCoarse();
 
-
-          
          
             Fourier& fft = eigSol.FFT();
 
@@ -962,16 +898,13 @@ SCFDG::Iterate	(  )
               vtotCoarse(ii) = fft.inputComplexVec(ii).real() / ntotFine;
             }
 
-            // huwei end for fft VtotFine to VtotCoarse
-
-
-
 						// Solve the basis functions in the extended element
   
             Real eigTolNow;
             if( isEigToleranceDynamic_ ){
               // Dynamic strategy to control the tolerance
               if( iter == 1 )
+                // FIXME magic number
                 eigTolNow = 1e-2;
               else
                 eigTolNow = eigTolerance_;
@@ -987,9 +920,10 @@ SCFDG::Iterate	(  )
             statusOFS << "The target number of converged eigenvectors is " 
               << numEig << std::endl;
    
-          
            
             GetTime( timeSta );
+            // FIXME multiple choices of solvers for the extended
+            // element should be given in the input file
 					  if(0){
               eigSol.Solve();
             }
@@ -999,8 +933,6 @@ SCFDG::Iterate	(  )
             GetTime( timeEnd );
 						statusOFS << "Eigensolver time = " 	<< timeEnd - timeSta
 							<< " [s]" << std::endl;
-
-
 
 
 						// Print out the information
@@ -1018,9 +950,9 @@ SCFDG::Iterate	(  )
 						GetTime( timeSta );
 						Spinor& psi = eigSol.Psi();
 
-						// Assuming that wavefun has only 1 component
+						// Assuming that wavefun has only 1 component.  This should
+            // be changed when spin-polarization is added.
 						DblNumTns& wavefun = psi.Wavefun();
-
 
             DblNumTns&   LGLWeight3D = hamDG.LGLWeight3D();
 						DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
@@ -1043,14 +975,13 @@ SCFDG::Iterate	(  )
               throw std::logic_error("Sum{numBasis} = numBasisTotal does not match.");
             }
 
-            // FIXME
+            // FIXME The constant mode is now not used.
 						DblNumMat localBasis( 
 								numLGLGrid.prod(), 
 								numBasis );
 
 						SetValue( localBasis, 0.0 );
 
-            // FIXME
 //#ifdef _USE_OPENMP_
 //#pragma omp parallel
             {
@@ -1058,7 +989,6 @@ SCFDG::Iterate	(  )
 //#ifdef _USE_OPENMP_
 //#pragma omp for schedule (dynamic,1) nowait
 //#endif
-              // FIXME Parallel
               for( Int l = 0; l < psi.NumState(); l++ ){
                 InterpPeriodicUniformToLGL( 
                     numGridExtElem,
@@ -1097,15 +1027,20 @@ SCFDG::Iterate	(  )
 
 						
             // Post processing for the basis functions on the LGL grid.
-						// Method 1: Perform GEMM and threshold the basis functions
-            // for the small matrix
+            // Perform GEMM and threshold the basis functions for the
+            // small matrix.
+            //
+            // This method might have lower numerical accuracy, but is
+            // much more scalable than other known options.
 						if(1){
 							
               GetTime( timeSta );
 						
               {
-								// Scale the basis functions by sqrt of integration weight
-                // FIXME
+								// Scale the basis functions by sqrt(weight).  This
+                // allows the consequent SVD decomposition of the form
+                //
+                // X' * W * X
 								for( Int g = 0; g < localBasis.n(); g++ ){
 									Real *ptr1 = localBasis.VecData(g);
 									Real *ptr2 = sqrtLGLWeight3D.Data();
@@ -1114,7 +1049,7 @@ SCFDG::Iterate	(  )
 									}
 								}
 
-                //if(0){
+                // Convert the column partition to row partition
 
                 Int height = psi.NumGridTotal() * psi.NumComponent();
                 Int heightLGL = numLGLGrid.prod();
@@ -1140,29 +1075,18 @@ SCFDG::Iterate	(  )
                   heightLGLLocal = heightLGLBlocksize + heightLGL % mpisizeRow;
                 }
 
-                // FIXME huwei
-                // DblNumMat MMat( numBasis, numBasis );
+                // FIXME Use AlltoallForward and AlltoallBackward
+                // functions to replace below
+
                 DblNumMat MMat( numBasisTotal, numBasisTotal );
                 DblNumMat MMatTemp( numBasisTotal, numBasisTotal );
                 SetValue( MMat, 0.0 );
                 SetValue( MMatTemp, 0.0 );
                 Int numLGLGridTotal = numLGLGrid.prod();
                 Int numLGLGridLocal = heightLGLLocal;
-                // FIXME Parallel
-                // Column partition -> row partition via Alltoallv.
-                // Compute X^T X
   
 						    DblNumMat localBasisRow(heightLGLLocal, numBasisTotal );
 						    SetValue( localBasisRow, 0.0 );
-
-
-
-
-               
-                //if(0){
-
-            
-                // For Alltoall
   
                 double sendbuf[heightLGL * widthLocal]; 
                 double recvbuf[heightLGLLocal * width];
@@ -1172,8 +1096,6 @@ SCFDG::Iterate	(  )
                 int recvdispls[mpisizeRow];
                 IntNumMat  sendk( heightLGL, widthLocal );
                 IntNumMat  recvk( heightLGLLocal, width );
-
-
 
 
 
@@ -1229,14 +1151,6 @@ SCFDG::Iterate	(  )
                   }
                 }
            
-                // end For Alltoall
-                
-
-
-
-                //if(0){
-
-
 
 
                 for( Int j = 0; j < widthLocal; j++ ){ 
@@ -1256,10 +1170,6 @@ SCFDG::Iterate	(  )
 		            MPI_Barrier( domain_.rowComm );
                 
                
-                //if(0){
-                
-                 
-
 
                 //blas::Gemm( 'T', 'N', numBasis, numBasis, numLGLGridTotal,
                 //    1.0, localBasis.Data(), numLGLGridTotal, 
@@ -1276,30 +1186,19 @@ SCFDG::Iterate	(  )
 
 
 
-
-
                 SetValue( MMat, 0.0 );
                 MPI_Allreduce( MMatTemp.Data(), MMat.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
                 
-              
-
 
                 // The following operation is only performed on the
                 // master processor in the row communicator
 
-                // FIXME
-                
-                //DblNumMat    U( numBasis, numBasis );
-                //DblNumMat   VT( numBasis, numBasis );
-                //DblNumVec    S( numBasis );
                 DblNumMat    U( numBasisTotal, numBasisTotal );
                 DblNumMat   VT( numBasisTotal, numBasisTotal );
                 DblNumVec    S( numBasisTotal );
                 SetValue(U, 0.0);
                 SetValue(VT, 0.0);
                 SetValue(S, 0.0);
-
-                //if(0){
 
                 MPI_Barrier( domain_.rowComm );
                 
@@ -1329,8 +1228,6 @@ SCFDG::Iterate	(  )
                   if( S[g] / S[0] > SVDBasisTolerance_ )
                     numSVDBasisTotal++;
                 }
-                //huwei
-                //numSVDBasisTotal = numBasisTotal;
   
                 Int numSVDBasisBlocksize = numSVDBasisTotal / mpisizeRow;
                 
@@ -1352,11 +1249,8 @@ SCFDG::Iterate	(  )
                 // Multiply X <- X*U in the row-partitioned format
 								// Get the first numSVDBasis which are significant.
 								
-                // FIXME huwei
                 DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
 								
-								//DblNumMat basis;
-               
                 basis.Resize( numLGLGridTotal, numSVDBasisLocal );
                 DblNumMat basisRow( numLGLGridLocal, numSVDBasisTotal );
 
@@ -1368,19 +1262,11 @@ SCFDG::Iterate	(  )
                   blas::Scal( numBasisTotal, 1.0 / S[g], U.VecData(g), 1 );
                 }
 
-                
-                //if(1){
-                //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-                //  abort();
-                //}
-
-
-
 
                 MPI_Barrier( domain_.rowComm );
               
-              
-                
+                // FIXME Use AlltoallForward and AlltoallBackward
+                // functions to replace below
                
                 // For Alltoall
  
@@ -1486,11 +1372,6 @@ SCFDG::Iterate	(  )
                 }
 
 
-
-
-
-
-
                 // FIXME
                 // row-partition to column partition via MPI_Alltoallv
 
@@ -1516,10 +1397,8 @@ SCFDG::Iterate	(  )
                   << numSVDBasisTotal << std::endl;
 
            
-              MPI_Barrier( domain_.rowComm );
+                MPI_Barrier( domain_.rowComm );
 
-            
-           
               }
 
 
@@ -1583,12 +1462,9 @@ SCFDG::Iterate	(  )
 					} // own this element
 				} // for (i)
 
-
-
+    // Main function here
     InnerIterate( iter );
 
-
- 
     MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1664,19 +1540,15 @@ SCFDG::Iterate	(  )
 		// Potential mixing for the outer SCF iteration. or no mixing at all anymore?
 		// It seems that no mixing is the best.
 	
-
-		
 		GetTime( timeIterEnd );
 		statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
 			<< " [s]" << std::endl;
   }
 
 
-
-
-
   // Output the electron density
   if( isOutputDensity_ ){
+    if(1)
     {
       statusOFS << std::endl 
         << "Output the electron density on the global grid" << std::endl;
@@ -1729,68 +1601,68 @@ SCFDG::Iterate	(  )
     }
   } // if ( output density )
 
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-            if( isOutputPotExtElem_ )
-            {
-              statusOFS 
-                << std::endl 
-                << "Output the total potential in the extended element."
-                << std::endl;
-              std::ostringstream potStream;      
-              EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
+  for( Int k = 0; k < numElem_[2]; k++ )
+    for( Int j = 0; j < numElem_[1]; j++ )
+      for( Int i = 0; i < numElem_[0]; i++ ){
+        Index3 key( i, j, k );
+        if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+          if( isOutputPotExtElem_ )
+          {
+            statusOFS 
+              << std::endl 
+              << "Output the total potential in the extended element."
+              << std::endl;
+            std::ostringstream potStream;      
+            EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
 
-              // Generate the uniform mesh on the extended element.
-              std::vector<DblNumVec> gridpos;
-              //UniformMesh ( eigSol.FFT().domain, gridpos );
-              UniformMeshFine ( eigSol.FFT().domain, gridpos );
-              for( Int d = 0; d < DIM; d++ ){
-                serialize( gridpos[d], potStream, NO_MASK );
-              }
-              serialize( eigSol.Ham().Vtot(), potStream, NO_MASK );
-              serialize( eigSol.Ham().Vext(), potStream, NO_MASK );
-              SeparateWrite( "POTEXT", potStream);
+            // Generate the uniform mesh on the extended element.
+            std::vector<DblNumVec> gridpos;
+            //UniformMesh ( eigSol.FFT().domain, gridpos );
+            UniformMeshFine ( eigSol.FFT().domain, gridpos );
+            for( Int d = 0; d < DIM; d++ ){
+              serialize( gridpos[d], potStream, NO_MASK );
             }
+            serialize( eigSol.Ham().Vtot(), potStream, NO_MASK );
+            serialize( eigSol.Ham().Vext(), potStream, NO_MASK );
+            SeparateWrite( "POTEXT", potStream);
+          }
 
-            if( isOutputWfnExtElem_ )
-            {
-              statusOFS 
-                << std::endl 
-                << "Output the wavefunctions in the extended element."
-                << std::endl;
+          if( isOutputWfnExtElem_ )
+          {
+            statusOFS 
+              << std::endl 
+              << "Output the wavefunctions in the extended element."
+              << std::endl;
 
-              EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
-              std::ostringstream wavefunStream;      
+            EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
+            std::ostringstream wavefunStream;      
 
-              // Generate the uniform mesh on the extended element.
-              std::vector<DblNumVec> gridpos;
-              UniformMesh ( eigSol.FFT().domain, gridpos );
-              for( Int d = 0; d < DIM; d++ ){
-                serialize( gridpos[d], wavefunStream, NO_MASK );
-              }
-              serialize( eigSol.Psi().Wavefun(), wavefunStream, NO_MASK );
-              SeparateWrite( "WFNEXT", wavefunStream);
+            // Generate the uniform mesh on the extended element.
+            std::vector<DblNumVec> gridpos;
+            UniformMesh ( eigSol.FFT().domain, gridpos );
+            for( Int d = 0; d < DIM; d++ ){
+              serialize( gridpos[d], wavefunStream, NO_MASK );
             }
+            serialize( eigSol.Psi().Wavefun(), wavefunStream, NO_MASK );
+            SeparateWrite( "WFNEXT", wavefunStream);
+          }
 
-            if( isOutputWfnElem_ )
-            {
-              // Output the wavefunctions in the extended element.
-              std::ostringstream wavefunStream;      
+          if( isOutputWfnElem_ )
+          {
+            // Output the wavefunctions in the extended element.
+            std::ostringstream wavefunStream;      
 
-              // Generate the uniform mesh on the extended element.
-              std::vector<DblNumVec>& gridpos = hamDG.LGLGridElem()(i,j,k);
-              for( Int d = 0; d < DIM; d++ ){
-                serialize( gridpos[d], wavefunStream, NO_MASK );
-              }
-              serialize( hamDG.BasisLGL().LocalMap()[key], wavefunStream, NO_MASK );
-              SeparateWrite( "WFNELEM", wavefunStream);
+            // Generate the uniform mesh on the extended element.
+            std::vector<DblNumVec>& gridpos = hamDG.LGLGridElem()(i,j,k);
+            for( Int d = 0; d < DIM; d++ ){
+              serialize( gridpos[d], wavefunStream, NO_MASK );
             }
+            serialize( hamDG.BasisLGL().LocalMap()[key], wavefunStream, NO_MASK );
+            SeparateWrite( "WFNELEM", wavefunStream);
+          }
 
-          } // (own this element)
-        } // for (i)
+        } // (own this element)
+      } // for (i)
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -1883,6 +1755,8 @@ SCFDG::InnerIterate	( Int outerIter )
 					} // for (i)
 
       
+      // Update the local potential on the extended element and on the
+      // element.
       UpdateElemLocalPotential();
 
 
@@ -1992,6 +1866,17 @@ SCFDG::InnerIterate	( Int outerIter )
 
 
     // Method 1: Using diagonalization method
+    //
+    // FIXME The diagonalization procedure is now only performed on each
+    // processor column.  A better implementation should 
+    //
+    // 1) Convert the HMat_ to a distributed ScaLAPACK matrix involving
+    // all (or a given number of) processors
+    //
+    // 2) Diagonalize using all (or a given number of) processors.
+    //
+    // 3) Convert the eigenfunction matrices to the format that is
+    // distributed among all processors.
     if( solutionMethod_ == "diag"  ){
       {
         GetTime(timeSta);
@@ -2024,10 +1909,8 @@ SCFDG::InnerIterate	( Int outerIter )
         DistElemMatToScaMat( hamDG.HMat(), 	descH,
             scaH, hamDG.ElemBasisIdx(), domain_.colComm );
 
-
         scalapack::Syevd('U', scaH, eigs, scaZ);
        
-
         //DblNumVec& eigval = hamDG.EigVal(); 
         //eigval.Resize( hamDG.NumStateTotal() );		
         for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
@@ -2140,9 +2023,6 @@ SCFDG::InnerIterate	( Int outerIter )
         // Compute the new total potential
 
         hamDG.CalculateVtot( hamDG.Vtot() );
-
-
-      
       }
 
 
@@ -2151,9 +2031,6 @@ SCFDG::InnerIterate	( Int outerIter )
       if( isCalculateForceEachSCF_ ){
         // Compute force
         GetTime( timeSta );
-        
-        
-        
         
         hamDG.CalculateForce( *distfftPtr_ );
         
@@ -2184,8 +2061,9 @@ SCFDG::InnerIterate	( Int outerIter )
       }
 
       // Compute the a posteriori error estimator at every step
-      // if( isCalculateAPosterioriEachSCF_ )
-      if(0)
+      // FIXME This is not used when intra-element parallelization is
+      // used.
+      if( isCalculateAPosterioriEachSCF_ && 0 )
       {
         GetTime( timeSta );
         DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
@@ -2774,7 +2652,6 @@ SCFDG::InnerIterate	( Int outerIter )
 	return ;
 } 		// -----  end of method SCFDG::InnerIterate  ----- 
 
-
 void
 SCFDG::UpdateElemLocalPotential	(  )
 {
@@ -2908,11 +2785,6 @@ SCFDG::UpdateElemLocalPotential	(  )
 						statusOFS << "numGridElemFine    = " << numGridElem << std::endl;
 						statusOFS << "keyElem            = " << keyElem << ", shiftIdx = " << shiftIdx << std::endl;
 #endif
-
-
-
-						
-            
             
             Int ptrExtElem, ptrElem;
 						for( Int k = 0; k < numGridElem[2]; k++ )
@@ -2925,29 +2797,12 @@ SCFDG::UpdateElemLocalPotential	(  )
 									vtotExtElem( ptrExtElem ) = vtotElem( ptrElem );
 								} // for (i)
 
-//						Int ptrExtElem, ptrElem;
-//						for( Int k = 0; k < numGridElem[2]; k++ )
-//							for( Int j = 0; j < numGridElem[1]; j++ )
-//								for( Int i = 0; i < numGridElem[0]; i++ ){
-//									ptrExtElem = (shiftIdx[0] + i) + 
-//										( shiftIdx[1] + j ) * numGridExtElem[0] +
-//										( shiftIdx[2] + k ) * numGridExtElem[0] * numGridExtElem[1];
-//									ptrElem    = i + j * numGridElem[0] + 
-//										k * numGridElem[0] * numGridElem[1];
-//									vtotExtElem( ptrExtElem ) = vtotElem( ptrElem );
-//								} // for (i)
 					} // for (mi)
-
-
-				
 
           // Update the potential in the element on LGL grid
 					DblNumVec&  vtotLGLElem = hamDG.VtotLGL().LocalMap()[key];
 					Index3 numLGLGrid       = hamDG.NumLGLGridElem();
 
-
-					
-          
           InterpPeriodicUniformFineToLGL( 
 							numGridExtElem,
 							numLGLGrid,
@@ -2959,10 +2814,6 @@ SCFDG::UpdateElemLocalPotential	(  )
 				} // own this element
 			} // for (i)
 
-  
-  
-	
-  
   // Clean up vtot not owned by this element
 	std::vector<Index3>  eraseKey;
 	for( std::map<Index3, DblNumVec>::iterator 
@@ -2973,12 +2824,11 @@ SCFDG::UpdateElemLocalPotential	(  )
 			eraseKey.push_back( key );
 		}
 	}
+
 	for( std::vector<Index3>::iterator vi = eraseKey.begin();
 			vi != eraseKey.end(); vi++ ){
 		vtot.LocalMap().erase( *vi );
 	}
-
-
 
 #ifndef _RELEASE_
 	PopCallStack();

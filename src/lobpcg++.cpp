@@ -42,6 +42,7 @@
 */
 /// @file lobpcg++.cpp
 /// @brief Implementation of the interface to LOBPCG.
+/// This functionality is deprecated.
 /// @date 2012-09-20
 #include "lobpcg++.hpp"
 #include "blas.hpp"

@@ -2,7 +2,7 @@
 	 Copyright (c) 2012 The Regents of the University of California,
 	 through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -47,6 +47,7 @@
 /// The current version of pwdft is a sequential code and is used for
 /// testing purpose, both for energy and for force.
 /// @date 2013-10-16
+/// @date 2014-07-15 Parallelization of PWDFT.
 #include "dgdft.hpp"
 
 using namespace dgdft;
@@ -72,14 +73,6 @@ int main(int argc, char **argv)
 
 	if( mpirank == 0 )
 		Usage();
-
-// FIEME huwei
-//	if( mpisize > 1 ){
-//		std::cout 
-//			<< "The current version of pwdft is a sequential code." << std::endl;
-//		MPI_Finalize();
-//		return -1;
-//	}
 
 	try
 	{
@@ -198,7 +191,8 @@ int main(int argc, char **argv)
       if ( mpirank < numStateTotal ){
         numStateLocal = 1; // blocksize == 1;
       }
-      else { // FIXME huwei numStateLocal = 0???
+      else { 
+        // FIXME Throw an error here.
         numStateLocal = 0;
       }
   

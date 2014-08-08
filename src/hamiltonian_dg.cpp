@@ -2,7 +2,7 @@
 	 Copyright (c) 2012 The Regents of the University of California,
 	 through Lawrence Berkeley National Laboratory.  
 
-   Authors: Lin Lin and Lexing Ying
+   Authors: Lin Lin, Wei Hu and Lexing Ying
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -43,12 +43,12 @@
 /// @file hamiltonian_dg.cpp
 /// @brief Implementation of the Hamiltonian class for DG calculation.
 /// @date 2013-01-09
+/// @date 2014-08-07 Add intra-element parallelization
 #include  "hamiltonian_dg.hpp"
 #include  "hamiltonian_dg_conversion.hpp"
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 
-// FIXME Always debugging this file for now.
 #define _DEBUGlevel_ 0
 
 namespace dgdft{
@@ -96,11 +96,9 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
   MPI_Comm_rank( domain_.comm, &mpirank );
   MPI_Comm_size( domain_.comm, &mpisize );
 
-  MPI_Barrier(domain_.rowComm);
   Int mpirankRow;  MPI_Comm_rank(domain_.rowComm, &mpirankRow);
   Int mpisizeRow;  MPI_Comm_size(domain_.rowComm, &mpisizeRow);
 
-  MPI_Barrier(domain_.colComm);
   Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
   Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
 
@@ -135,7 +133,6 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
     numUniformGridElemFine_[d] = domain_.numGridFine[d] / numElem_[d];
 	}
 
-  // FIXME huwei
   dmCol_ = numElem_[0] * numElem_[1] * numElem_[2];
   dmRow_ = mpisize / dmCol_;
   if( (mpisize % dmCol_) != 0 ){
@@ -157,11 +154,6 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
           dm.numGridFine[d]    = numUniformGridElemFine_[d];
 					dm.posStart[d]   = dm.length[d] * key[d];
 				}
-        //FIXME huwei
-        //MPI_Comm dmComm; 
-		    //MPI_Comm_split( domain_.comm, (mpirank / dmRow_), mpirank, &dmComm );
-				//dm.comm = dmComm;
-				//dm.comm = domain_.comm;
 	
         dm.comm    = domain_.rowComm;
         dm.rowComm = domain_.rowComm;
@@ -175,11 +167,8 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 	IntNumTns& elemPrtnInfo = elemPrtn_.ownerInfo;
 	elemPrtnInfo.Resize( numElem_[0], numElem_[1], numElem_[2] );
 
-	// FIXME Assign one element to one processor. (Hopefully) this is the
-	// only place where such assumption is made explicitly, and the rest
-	// of the code should be adapted to the general partition plan: 
-	// both the case of one processor owns more than one element, and also
-	// several processors own the same element.
+  // When intra-element parallelization is invoked, assign one element
+  // to processors belong to the same processor row communicator.
 
 	if( mpisize != dmRow_ * dmCol_ ){
 			std::ostringstream msg;
@@ -204,7 +193,9 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 #endif
 
 	// Initialize the DistNumVecs.
-  // FIXME huwei
+  // All quantities below are shared among all processors in the same
+  // row communicator, and therefore they only communicate in the column
+  // communicators.
   pseudoCharge_.SetComm( domain_.colComm );
   density_.SetComm( domain_.colComm );
   densityLGL_.SetComm( domain_.colComm );
@@ -214,18 +205,20 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
   epsxc_.SetComm( domain_.colComm );
   vtot_.SetComm( domain_.colComm );
   vtotLGL_.SetComm( domain_.colComm );
- 
-  // eigVal_.SetComm( domain_.colComm );
-  // occupationRate_.SetComm( domain_.colComm );
- 
-  // FIXME huwei
-  basisLGL_.SetComm( domain_.comm );
- 
+
   eigvecCoef_.SetComm( domain_.colComm );
   pseudo_.SetComm( domain_.colComm );
   vnlCoef_.SetComm( domain_.colComm );
-  // huwei
 
+  // The exception is basis, for which all processors have distinct
+  // values.
+  // This also means that collective communication procedure
+  // (GetBegin/GetEnd/PutBegin/PutEnd) are not directly used for
+  // basisLGL_.
+  basisLGL_.SetComm( domain_.comm );
+ 
+  // All quantities follow elemPrtn_, but the communication are only
+  // performed in the column communicator.
 	pseudoCharge_.Prtn()  = elemPrtn_;
 	density_.Prtn()       = elemPrtn_;
 	densityLGL_.Prtn()    = elemPrtn_;
@@ -235,6 +228,8 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 	epsxc_.Prtn()         = elemPrtn_;
 	vtot_.Prtn()          = elemPrtn_;
 
+  // Initialize the quantities shared among processors in the same row
+  // communicator.
 	for( Int k=0; k< numElem_[2]; k++ )
 		for( Int j=0; j< numElem_[1]; j++ )
 			for( Int i=0; i< numElem_[0]; i++ ) {
@@ -266,7 +261,6 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 					vtotLGL_.LocalMap()[key]        = empty;
 				}
 			}
-
 
   eigvecCoef_.Prtn()    = elemPrtn_;
 	
@@ -327,6 +321,10 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 #endif
 
 	// Generate the grids
+  //
+  // When dual grid is used, the fine grid is used for quantities such
+  // as density and potential.  The coarse grid is used for
+  // wavefunctions (basis functions)
 
 	UniformMesh( domain_, uniformGrid_ );
   UniformMeshFine( domain_, uniformGridFine_ );
@@ -539,7 +537,6 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
   } 
 
   
-  // huwei
   for( Int k = 0; k < numElem_[2]; k++ )
     for( Int j = 0; j < numElem_[1]; j++ )
       for( Int i = 0; i < numElem_[0]; i++ ){
@@ -695,9 +692,7 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 	MPI_Comm_size( domain_.comm, &mpisize );
 
 	Real vol = domain_.Volume();
-
-
-
+  
 	// *********************************************************************
 	// Atomic information
 	// *********************************************************************
@@ -757,8 +752,6 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
       }
     }
   }
-
-
 
 	// Also prepare the integration weights for constructing the DG matrix later.
 
@@ -1115,15 +1108,12 @@ HamiltonianDG::CalculateDensity	(
   } // Method 2
 
   // Method 3: Method 3 is the same as the Method 2, but to output the
-	// eigenfunctions locally. TODO
+	// eigenfunctions locally. 
 	if(1)
 	{
 		Real sumRhoLocal = 0.0, sumRho = 0.0;
 		Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
-		// Generate the LGL weight. FIXME. Put it to hamiltonian_dg
-		// Compute the integration weights
-
-		// Clear the density FIXME. Combine with above
+		// Clear the density 
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
@@ -1151,7 +1141,6 @@ HamiltonianDG::CalculateDensity	(
 						Int numBasisTotal = 0;
             MPI_Allreduce( &numBasis, &numBasisTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
             
-            // FIXME 
             // Compute the density by matrix vector multiplication
             // This is done by going from column partition to row 
             // parition, perform Gemv locally, and transform the output
@@ -1165,8 +1154,6 @@ HamiltonianDG::CalculateDensity	(
 						
             DblNumVec& localRho    = rho.LocalMap()[key];
             DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
-
-
 
 						//if( localCoef.n() != numEig ){
 						//	throw std::runtime_error( 
@@ -1196,7 +1183,7 @@ HamiltonianDG::CalculateDensity	(
 //#ifdef _USE_OPENMP_
 //#pragma omp for schedule(dynamic,1)
 //#endif
-              if(0){ //huwei
+              if(0){ 
                 for( Int g = 0; g < numEig; g++ ){
                   // Compute local wavefunction on the LGL grid
                   blas::Gemv( 'N', numGrid, numBasis, 1.0, 
@@ -1209,10 +1196,18 @@ HamiltonianDG::CalculateDensity	(
                     localRhoLGLTmp(p) += localPsiLGL(p) * localPsiLGL(p) * occ * numSpin_;
                   }
                 }
-              } // if(0) huwei
+              } // if(0) 
 
 
-              if(1){ //huwei
+              // Compute the density by converting the basis function
+              // from column partition to row partition, and then
+              // compute the Kohn-Sham wavefunction on each local
+              // processor, which contributes to the electron density.
+              //
+              // The electron density is reduced among all processors in
+              // the same row processor communicator to obtain the
+              // electron density in each element.  
+              if(1){ 
             
                 Int height = numGrid;
                 Int width = numBasisTotal;
@@ -1267,7 +1262,7 @@ HamiltonianDG::CalculateDensity	(
                 MPI_Allreduce( localRhoLGLTemp1.Data(), localRhoLGLTmp.Data(), numGridTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
 
 
-              } // if(0) huwei
+              } // if(0) 
 
 
 
@@ -1968,7 +1963,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 				} // for (i)
 		std::vector<Index3>  pseudoIdx;
 		pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
-    // FIXME huwei
+
     eigvecCoef_.SetComm( domain_.colComm );
     eigvecCoef_.GetBegin( pseudoIdx, NO_MASK );
     eigvecCoef_.GetEnd( NO_MASK );
@@ -1977,7 +1972,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 		// to the force
 		//
 		// Note: this procedure shall be substituted with the density matrix
-		// formulation when PEXSI is used. TODO
+		// formulation when PEXSI is used. 
 
     // Loop over atoms and pseudopotentials
 		Int numEig = occupationRate_.m();
@@ -2546,6 +2541,7 @@ HamiltonianDG::CalculateForceDM	(
 	return ;
 } 		// -----  end of method HamiltonianDG::CalculateForce  ----- 
 
+// FIXME This does not work when intra-element parallelization is used.
 void
 HamiltonianDG::CalculateAPosterioriError	( 
 		DblNumTns&       eta2Total,
