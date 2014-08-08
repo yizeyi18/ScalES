@@ -42,7 +42,7 @@
 */
 /// @file dgdft.cpp
 /// @brief Main driver for DGDFT for self-consistent field iteration.
-/// @date 2013-02-11
+/// @date 2013-02-11 Dual grid implementation
 /// @date 2014-08-06 Intra-element parallelization
 #include "dgdft.hpp"
 

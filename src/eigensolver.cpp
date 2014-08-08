@@ -1612,7 +1612,6 @@ EigenSolver::LOBPCGSolveReal	(
   // Obtain the eigenvalues and eigenvectors
   // XTX should now contain the matrix X' * (AX), and X is an
   // orthonormal set
-  // FIXME
   // lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
 
   char VV = 'V';
@@ -1757,8 +1756,12 @@ EigenSolver::LOBPCGSolveReal2	(
     throw std::logic_error("widthLocal != noccLocal.");
   }
 
-  // TODO Add comments on what the operations GemmT, GemmN, Spinor etc
-  // are doing.
+  // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
+  // GemmT: blas::Gemm( 'T', 'N')
+  // GemmN: blas::Gemm( 'N', 'N')
+  // Alltoallv: row-partition to column partition via MPI_Alltoallv 
+  // Spinor: Applying the Hamiltonian matrix 
+  // Mpirank0: Serial calculation part
 
   Real timeSta, timeEnd;
   Real timeGemmT = 0.0;
