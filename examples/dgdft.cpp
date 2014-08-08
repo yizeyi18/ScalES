@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
    
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -42,7 +42,8 @@
 */
 /// @file dgdft.cpp
 /// @brief Main driver for DGDFT for self-consistent field iteration.
-/// @date 2013-02-11
+/// @date 2013-02-11 Dual grid implementation
+/// @date 2014-08-06 Intra-element parallelization
 #include "dgdft.hpp"
 
 using namespace dgdft;
@@ -85,16 +86,24 @@ int main(int argc, char **argv)
     fftw_mpi_init();
 
     // Initialize BLACS
+    // FIXME
+    // For intra-element parallelization, 
+    // nprow*npcol for ScaLAPACK should be the number of processors in a
+    // mpi column communicator (mpisizecol, which is the number of
+    // elements)
+    //
     Int nprow, npcol;
-    Int contxt;
+    Int contxt, contxt_C;
     Cblacs_get(0, 0, &contxt);
-    for( Int i = IRound(sqrt(double(mpisize))); i <= mpisize; i++){
-      nprow = i; npcol = mpisize / nprow;
-      if( nprow * npcol == mpisize ) break;
-    } 
-    Print( statusOFS, "nprow = ", nprow );
-    Print( statusOFS, "npcol = ", npcol ); 
-    Cblacs_gridinit(&contxt, "C", nprow, npcol);
+    //for( Int i = IRound(sqrt(double(mpisize))); i <= mpisize; i++){
+    //  nprow = i; npcol = mpisize / nprow;
+    //  if( nprow * npcol == mpisize ) break;
+    //} 
+    Print( statusOFS, "mpisize = ", mpisize );
+    Print( statusOFS, "mpirank = ", mpirank );
+    //Print( statusOFS, "nprow = ", nprow );
+    //Print( statusOFS, "npcol = ", npcol ); 
+    //Cblacs_gridinit(&contxt, "C", nprow, npcol);
 
     // Initialize input parameters
     std::map<std::string,std::string> options;
@@ -117,12 +126,9 @@ int main(int argc, char **argv)
     }
 
 
-
-
     // Read ESDF input file
     GetTime( timeSta );
     ESDFInputParam  esdfParam;
-
 
     ESDFReadInput( esdfParam, inFile.c_str() );
 
@@ -251,7 +257,10 @@ int main(int argc, char **argv)
     // *********************************************************************
     // Preparation
     // *********************************************************************
-    SetRandomSeed(1);
+    
+    // FIXME IMPORTANT: RandomSeed cannot be the same.
+    // SetRandomSeed(1);
+    SetRandomSeed(mpirank);
 
     GetTime( timeSta );
 
@@ -269,6 +278,11 @@ int main(int argc, char **argv)
     DistVec<Index3, EigenSolver, ElemPrtn>  distEigSol; 
     DistVec<Index3, KohnSham, ElemPrtn>     distHamKS;
     DistVec<Index3, Spinor, ElemPrtn>       distPsi;
+    // FIXME no use?
+    distEigSol.SetComm( dm.comm );
+    distHamKS.SetComm( dm.comm );
+    distPsi.SetComm( dm.comm );
+
     // All extended elements share the same Fourier structure.
     Fourier fftExtElem;
 
@@ -280,9 +294,27 @@ int main(int argc, char **argv)
       IntNumTns& elemPrtnInfo = distEigSol.Prtn().ownerInfo;
       elemPrtnInfo.Resize( numElem[0], numElem[1], numElem[2] );
 
-      if( mpisize != numElem.prod() ){
+      int dmCol = numElem[0] * numElem[1] * numElem[2];
+      int dmRow = mpisize / dmCol;
+
+      Cblacs_gridinit(&contxt, "C", dmRow, dmCol);
+      
+      for( Int i = IRound(sqrt(double(dmCol))); i <= dmCol; i++){
+        nprow = i; npcol = dmCol / nprow;
+        if( nprow * npcol == dmCol ) break;
+      }
+      
+      Int ldpmap = npcol;
+      Int pmap[dmCol];
+      for ( Int i = 0; i < dmCol; i++ ){
+        pmap[i] = i * dmRow;
+      }
+      Cblacs_get( contxt, 0, &contxt_C );
+      Cblacs_gridmap(&contxt_C, &pmap[0], npcol, nprow, npcol);
+
+      if( (mpisize % dmCol) != 0 ){
         std::ostringstream msg;
-        msg << "The number of processors is not equal to the total number of elements." << std::endl;
+        msg << "Total number of processors do not fit to the number processors per element." << std::endl;
         throw std::runtime_error( msg.str().c_str() );
       }
 
@@ -301,22 +333,27 @@ int main(int argc, char **argv)
         for( Int j=0; j< numElem[1]; j++ )
           for( Int i=0; i< numElem[0]; i++ ) {
             Index3 key (i,j,k);
-            if( distEigSol.Prtn().Owner(key) == mpirank ){
+            if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
               // Setup the domain in the extended element
               Domain dmExtElem;
               for( Int d = 0; d < DIM; d++ ){
+               
+                dmExtElem.comm    = dm.rowComm;
+                dmExtElem.rowComm = dm.rowComm;
+                dmExtElem.colComm = dm.rowComm;
+              
                 // Assume the global domain starts from 0.0
                 if( numElem[d] == 1 ){
-                  dmExtElem.length[d]     = dm.length[d];
-                  dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d];
+                  dmExtElem.length[d]      = dm.length[d];
+                  dmExtElem.numGrid[d]     = esdfParam.numGridWavefunctionElem[d];
                   dmExtElem.numGridFine[d] = esdfParam.numGridDensityElem[d];
-                  dmExtElem.posStart[d]   = 0.0;
+                  dmExtElem.posStart[d]    = 0.0;
                 }
                 else if ( numElem[d] >= 3 ){
-                  dmExtElem.length[d]     = dm.length[d]  / numElem[d] * 3;
-                  dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d] * 3;
+                  dmExtElem.length[d]      = dm.length[d]  / numElem[d] * 3;
+                  dmExtElem.numGrid[d]     = esdfParam.numGridWavefunctionElem[d] * 3;
                   dmExtElem.numGridFine[d] = esdfParam.numGridDensityElem[d] * 3;
-                  dmExtElem.posStart[d]   = dm.length[d]  / numElem[d] * ( key[d] - 1 );
+                  dmExtElem.posStart[d]    = dm.length[d]  / numElem[d] * ( key[d] - 1 );
                 }
                 else{
                   throw std::runtime_error( "numElem[d] is either 1 or >=3." );
@@ -324,7 +361,7 @@ int main(int argc, char **argv)
 
                 // Do not specify the communicator for the domain yet
                 // since it is not used for parallelization
-              }
+              } // for d
 
               // Atoms	
               std::vector<Atom>&  atomList = esdfParam.atomList;
@@ -350,8 +387,50 @@ int main(int argc, char **argv)
               fftExtElem.InitializeFine( dmExtElem );
              
               // Wavefunction
+              //Spinor& spn = distPsi.LocalMap()[key];
+              //spn.Setup( dmExtElem, 1, esdfParam.numALBElem(i,j,k), 0.0 );
+
+              int dmExtElemMpirank, dmExtElemMpisize;
+              MPI_Comm_rank( dmExtElem.comm, &dmExtElemMpirank );
+              MPI_Comm_size( dmExtElem.comm, &dmExtElemMpisize );
+              int numStateTotal = esdfParam.numALBElem(i,j,k);
+              int numStateLocal, blocksize;
+
+              if ( numStateTotal <=  dmExtElemMpisize ) {
+                blocksize = 1;
+
+                if ( dmExtElemMpirank < numStateTotal ){
+                  numStateLocal = 1; // blocksize == 1;
+                }
+                else { 
+                  // FIXME Throw an error here
+                  numStateLocal = 0;
+                }
+  
+              } 
+    
+              else {  // numStateTotal >  mpisize
+      
+                if ( numStateTotal % dmExtElemMpisize == 0 ){
+                  blocksize = numStateTotal / dmExtElemMpisize;
+                  numStateLocal = blocksize ;
+                }
+                else {
+                  // blocksize = ((numStateTotal - 1) / mpisize) + 1;
+                  blocksize = numStateTotal / dmExtElemMpisize;
+                  numStateLocal = blocksize ;
+                  if ( dmExtElemMpirank < ( numStateTotal % dmExtElemMpisize ) ) {
+                    numStateLocal = numStateLocal + 1 ;
+                  }
+                }    
+    
+              }
+     
               Spinor& spn = distPsi.LocalMap()[key];
-              spn.Setup( dmExtElem, 1, esdfParam.numALBElem(i,j,k), 0.0 );
+              spn.Setup( dmExtElem, 1, numStateTotal, numStateLocal, 0.0 );
+
+              UniformRandom( spn.Wavefun() );
+
 
               // Hamiltonian
               // The exchange-correlation type and numExtraState is not
@@ -454,7 +533,7 @@ int main(int argc, char **argv)
     GetTime( timeSta );
 
     SCFDG  scfDG;
-    scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt );
+    scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt_C );
 
     GetTime( timeEnd );
     statusOFS << "Time for setting up SCFDG is " <<
@@ -470,7 +549,6 @@ int main(int argc, char **argv)
     GetTime( timeEnd );
     statusOFS << "Time for SCF iteration is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
-    
 
     // Compute force
     if( esdfParam.solutionMethod == "diag" ){
@@ -500,28 +578,28 @@ int main(int argc, char **argv)
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
       // Compute the a posteriori error estimator
-      GetTime( timeSta );
-      DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-      hamDG.CalculateAPosterioriError( 
-          eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-      GetTime( timeEnd );
-      statusOFS << "Time for computing the a posteriori error is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-      // Only master processor output information containing all atoms
-      if( mpirank == 0 ){
-        PrintBlock( statusOFS, "A Posteriori error" );
-        {
-          statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-          statusOFS << eta2Total << std::endl;
-          statusOFS << std::endl << "Residual term:" << std::endl;
-          statusOFS << eta2Residual << std::endl;
-          statusOFS << std::endl << "Face term:" << std::endl;
-          statusOFS << eta2GradJump << std::endl;
-          statusOFS << std::endl << "Jump term:" << std::endl;
-          statusOFS << eta2Jump << std::endl;
-        }
-      }
+//      GetTime( timeSta );
+//      DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
+//      hamDG.CalculateAPosterioriError( 
+//          eta2Total, eta2Residual, eta2GradJump, eta2Jump );
+//      GetTime( timeEnd );
+//      statusOFS << "Time for computing the a posteriori error is " <<
+//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//
+//      // Only master processor output information containing all atoms
+//      if( mpirank == 0 ){
+//        PrintBlock( statusOFS, "A Posteriori error" );
+//        {
+//          statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+//          statusOFS << eta2Total << std::endl;
+//          statusOFS << std::endl << "Residual term:" << std::endl;
+//          statusOFS << eta2Residual << std::endl;
+//          statusOFS << std::endl << "Face term:" << std::endl;
+//          statusOFS << eta2GradJump << std::endl;
+//          statusOFS << std::endl << "Jump term:" << std::endl;
+//          statusOFS << eta2Jump << std::endl;
+//        }
+//      }
     }
 #ifdef _USE_PEXSI_
     if( esdfParam.solutionMethod == "pexsi" ){
@@ -537,10 +615,17 @@ int main(int argc, char **argv)
     // *********************************************************************
 
     // Finish Cblacs
+    if(contxt_C >= 0) {
+      Cblacs_gridexit( contxt_C );
+    }
+    
     Cblacs_gridexit( contxt );
 
     // Finish fftw
     fftw_mpi_cleanup();
+
+    MPI_Comm_free( &dm.rowComm );
+    MPI_Comm_free( &dm.colComm );
 
   }
   catch( std::exception& e )

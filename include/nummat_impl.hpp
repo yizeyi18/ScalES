@@ -46,7 +46,7 @@
 #ifndef _NUMMAT_IMPL_HPP_
 #define _NUMMAT_IMPL_HPP_
 
-#include  "nummat_decl.hpp"
+#include "nummat_decl.hpp"
 
 namespace  dgdft{
 
@@ -242,7 +242,6 @@ Symmetrize( NumMat<F>& A )
 
 	return ;
 }		// -----  end of function Symmetrize ----- 
-
 
 } // namespace dgdft
 

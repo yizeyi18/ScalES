@@ -2,7 +2,7 @@
 	 Copyright (c) 2012 The Regents of the University of California,
 	 through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -47,6 +47,8 @@
 /// The current version of pwdft is a sequential code and is used for
 /// testing purpose, both for energy and for force.
 /// @date 2013-10-16
+/// @date 2013-02-01 Dual grid implementation
+/// @date 2014-07-15 Parallelization of PWDFT.
 #include "dgdft.hpp"
 
 using namespace dgdft;
@@ -73,13 +75,6 @@ int main(int argc, char **argv)
 	if( mpirank == 0 )
 		Usage();
 
-	if( mpisize > 1 ){
-		std::cout 
-			<< "The current version of pwdft is a sequential code." << std::endl;
-		MPI_Finalize();
-		return -1;
-	}
-
 	try
 	{
 		// *********************************************************************
@@ -91,7 +86,10 @@ int main(int argc, char **argv)
 		ss << "statfile." << mpirank;
 		statusOFS.open( ss.str().c_str() );
 
-		// Initialize input parameters
+    Print( statusOFS, "mpirank = ", mpirank );
+    Print( statusOFS, "mpisize = ", mpisize );
+		
+    // Initialize input parameters
 		std::map<std::string,std::string> options;
 		OptionsCreate(argc, argv, options);
 
@@ -155,7 +153,7 @@ int main(int argc, char **argv)
 		// *********************************************************************
 		// Preparation
 		// *********************************************************************
-		SetRandomSeed(1);
+		SetRandomSeed(mpirank);
 
 		Domain&  dm = esdfParam.domain;
 		PeriodTable ptable;
@@ -171,7 +169,6 @@ int main(int argc, char **argv)
     fft.Initialize( dm );
 
     fft.InitializeFine( dm );
-//    fftFine.InitializeFine( dm );
 
 		// Hamiltonian
 
@@ -186,8 +183,67 @@ int main(int argc, char **argv)
 		statusOFS << "Hamiltonian constructed." << std::endl;
 
 		// Wavefunctions
-		spn.Setup( dm, 1, hamKS.NumStateTotal(), 0.0 );
-		UniformRandom( spn.Wavefun() );
+    int numStateTotal = hamKS.NumStateTotal();
+    int numStateLocal, blocksize;
+
+    if ( numStateTotal <=  mpisize ) {
+      blocksize = 1;
+
+      if ( mpirank < numStateTotal ){
+        numStateLocal = 1; // blocksize == 1;
+      }
+      else { 
+        // FIXME Throw an error here.
+        numStateLocal = 0;
+      }
+  
+    }
+  
+    else {  // numStateTotal >  mpisize
+  
+      if ( numStateTotal % mpisize == 0 ){
+        blocksize = numStateTotal / mpisize;
+        numStateLocal = blocksize ;
+      }
+      else {
+        // blocksize = ((numStateTotal - 1) / mpisize) + 1;
+        blocksize = numStateTotal / mpisize;
+        numStateLocal = blocksize ;
+        if ( mpirank < ( numStateTotal % mpisize ) ) {
+          numStateLocal = numStateLocal + 1 ;
+        }
+      }    
+
+    }
+     
+    spn.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
+    UniformRandom( spn.Wavefun() );
+
+//    MPI_Comm mpi_comm = dm.comm;
+    
+//		Spinor  spnTemp;
+//    spnTemp.Setup( dm, 1, hamKS.NumStateTotal(), hamKS.NumStateTotal(), 0.0 );
+   
+//    if (mpirank == 0){
+//      UniformRandom( spnTemp.Wavefun() );
+//    }
+//    MPI_Bcast(spnTemp.Wavefun().Data(), spnTemp.Wavefun().m()*spnTemp.Wavefun().n()*spnTemp.Wavefun().p(), MPI_DOUBLE, 0, mpi_comm);
+
+//	Int size = spn.Wavefun().m() * spn.Wavefun().n();
+//	Int nocc = spn.Wavefun().p();
+ 
+//  IntNumVec& wavefunIdx = spn.WavefunIdx();
+//  NumTns<Scalar>& wavefun = spn.Wavefun();
+
+//	for (Int k=0; k<nocc; k++) {
+//		Scalar *ptr = spn.Wavefun().MatData(k);
+//		Scalar *ptr1 = spnTemp.Wavefun().MatData(wavefunIdx(k));
+//		for (Int i=0; i<size; i++) {
+//      *ptr = *ptr1;
+//		  ptr = ptr + 1;
+//		  ptr1 = ptr1 + 1;
+//    }
+//	}
 
 		// Eigensolver class
 		eigSol.Setup( esdfParam, hamKS, spn, fft );

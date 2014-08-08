@@ -3,7 +3,7 @@
 
 include ../make.inc
 
-SRCS = ex33.cpp ex32.cpp ex31.cpp ex30.cpp ex29.cpp ex28.cpp ex27.cpp ex26.cpp ex25.cpp ex24.cpp ex23.cpp ex21.cpp ex22.cpp ex20.cpp ex18.cpp
+SRCS = ex38.cpp ex37.cpp ex36.cpp ex35.cpp ex34.cpp ex31.cpp ex30.cpp ex29.cpp ex28.cpp ex27.cpp ex26.cpp ex25.cpp ex24.cpp ex23.cpp ex21.cpp ex22.cpp
 
 #SRCS = ex1.cpp ex2.cpp ex3.cpp ex4.cpp ex5.cpp ex6.cpp ex7.cpp ex8.cpp\
 			 ex9.cpp ex10.cpp ex11.cpp ex12.cpp ex13.cpp ex14.cpp ex15.cpp\
@@ -13,11 +13,20 @@ OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 EXES = ${SRCS:.cpp=}	
 
-ex33: ex33.o ${DGDFT_LIB} 
-	($(LOADER) -o $@ ex33.o $(LOADOPTS) )
+ex38: ex38.o ${DGDFT_LIB} 
+	($(LOADER) -o $@ ex38.o $(LOADOPTS) )
 
-ex32: ex32.o ${DGDFT_LIB} 
-	($(LOADER) -o $@ ex32.o $(LOADOPTS) )
+ex37: ex37.o ${DGDFT_LIB} 
+	($(LOADER) -o $@ ex37.o $(LOADOPTS) )
+
+ex36: ex36.o ${DGDFT_LIB} 
+	($(LOADER) -o $@ ex36.o $(LOADOPTS) )
+
+ex35: ex35.o ${DGDFT_LIB} 
+	($(LOADER) -o $@ ex35.o $(LOADOPTS) )
+
+ex34: ex34.o ${DGDFT_LIB} 
+	($(LOADER) -o $@ ex34.o $(LOADOPTS) )
 
 ex31: ex31.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ ex31.o $(LOADOPTS) )

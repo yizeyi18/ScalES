@@ -40,13 +40,14 @@
 	 works, incorporate into other computer software, distribute, and sublicense
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file lobpcg++.hpp
-/// @brief Interface to LOBPCG.
-/// @date 2012-09-20
-#ifndef _LOBPCG_HPP_
-#define _LOBPCG_HPP_
+/// @file plobpcg++.hpp
+/// @brief Interface to parallel LOBPCG.
+/// @date 2014-04-25 Parallel eigensolver
+#ifndef _PLOBPCG_HPP_
+#define _PLOBPCG_HPP_
 
 #include "environment.hpp"
+#include "mpi_interf.hpp"
 
 #include "fortran_matrix.h"
 #include "fortran_interpreter.h"
@@ -62,14 +63,14 @@
  * Accessor functions for the Multi_Vector structure
  *--------------------------------------------------------------------------*/
 
-#define serial_Multi_VectorData(vector)      ((vector) -> data)
-#define serial_Multi_VectorSize(vector)      ((vector) -> size)
-#define serial_Multi_VectorOwnsData(vector)  ((vector) -> owns_data)
-#define serial_Multi_VectorNumVectors(vector) ((vector) -> num_vectors)
+#define parallel_Multi_VectorData(vector)      ((vector) -> data)
+#define parallel_Multi_VectorSize(vector)      ((vector) -> size)
+#define parallel_Multi_VectorOwnsData(vector)  ((vector) -> owns_data)
+#define parallel_Multi_VectorNumVectors(vector) ((vector) -> num_vectors)
 
 
 namespace dgdft{ 
-namespace LOBPCG{
+namespace PLOBPCG{
   //----------------------------------------------------------------
   // Definition of LAPACK functions used in LOBPCG (complex
   // version).  The komplex data structure used by LOBPCG is defined in
@@ -89,15 +90,21 @@ namespace LOBPCG{
   }
 
   //----------------------------------------------------------------
-  class serial_Multi_Vector {
+  class parallel_Multi_Vector {
     public:
+
+      MPI_Comm       comm;                            // MPI Communicator
+      
       Scalar*        data;
       BlopexInt      size;
       BlopexInt      owns_data;
-      BlopexInt      num_vectors;  /* the above "size" is size of one vector */
+      BlopexInt      num_vectors;        /* The local number of eigenvectors */
+      BlopexInt      numTotal_vectors;  /* The total number of eigenvectors */
 
-      BlopexInt      num_active_vectors;
-      BlopexInt*     active_indices;   /* indices of active vectors; 0-based notation */
+      BlopexInt      num_active_vectors; /* Local number of active vectors */
+      BlopexInt*     active_indices;   /* indices of local active vectors; 0-based notation */
+      // FIXME
+      BlopexInt*     global_indices; /* Global indices of each eigenvector. size: num_vectors_local */
   };
 
   // From pcg_multi.h
@@ -132,48 +139,48 @@ namespace LOBPCG{
     MultiVectorAxpy( double, void*, void* );
 
   BlopexInt
-    serialSetupInterpreter( mv_InterfaceInterpreter *i );
+    parallelSetupInterpreter( mv_InterfaceInterpreter *i );
   void
     MultiVectorPrint(  void   *x, char* tag, BlopexInt limit);
 
   // From multi_vector.h  
-  serial_Multi_Vector * serial_Multi_VectorCreate( BlopexInt size, BlopexInt num_vectors  );
-  serial_Multi_Vector * serial_Multi_VectorRead( char *file_name );
+  parallel_Multi_Vector * parallel_Multi_VectorCreate( BlopexInt size, BlopexInt num_vectors  );
+  parallel_Multi_Vector * parallel_Multi_VectorRead( char *file_name );
 
-  BlopexInt serial_Multi_VectorDestroy( serial_Multi_Vector *vector );
-  BlopexInt serial_Multi_VectorInitialize( serial_Multi_Vector *vector );
-  BlopexInt serial_Multi_VectorSetDataOwner(serial_Multi_Vector *vector , BlopexInt owns_data);
+  BlopexInt parallel_Multi_VectorDestroy( parallel_Multi_Vector *vector );
+  BlopexInt parallel_Multi_VectorInitialize( parallel_Multi_Vector *vector );
+  BlopexInt parallel_Multi_VectorSetDataOwner(parallel_Multi_Vector *vector , BlopexInt owns_data);
   /*
-     BlopexInt serial_Multi_VectorPrint( serial_Multi_Vector *vector, const char *file_name );
+     BlopexInt parallel_Multi_VectorPrint( parallel_Multi_Vector *vector, const char *file_name );
      */
-  BlopexInt serial_Multi_VectorPrint( serial_Multi_Vector *vector, char * tag, BlopexInt limit);
+  BlopexInt parallel_Multi_VectorPrint( parallel_Multi_Vector *vector, char * tag, BlopexInt limit);
 
-  BlopexInt serial_Multi_VectorSetConstantValues(serial_Multi_Vector *v,Scalar value);
-  BlopexInt serial_Multi_VectorCopy( serial_Multi_Vector *x , serial_Multi_Vector *y);
-  BlopexInt serial_Multi_VectorAxpy( double alpha , serial_Multi_Vector *x , serial_Multi_Vector *y);
-  BlopexInt serial_Multi_VectorInnerProd( serial_Multi_Vector *x,
-					  serial_Multi_Vector *y,
+  BlopexInt parallel_Multi_VectorSetConstantValues(parallel_Multi_Vector *v,Scalar value);
+  BlopexInt parallel_Multi_VectorCopy( parallel_Multi_Vector *x , parallel_Multi_Vector *y);
+  BlopexInt parallel_Multi_VectorAxpy( double alpha , parallel_Multi_Vector *x , parallel_Multi_Vector *y);
+  BlopexInt parallel_Multi_VectorInnerProd( parallel_Multi_Vector *x,
+					  parallel_Multi_Vector *y,
 					  BlopexInt gh, BlopexInt h, BlopexInt w, Scalar* v);
 
-  BlopexInt serial_Multi_VectorByDiag( serial_Multi_Vector *x,
+  BlopexInt parallel_Multi_VectorByDiag( parallel_Multi_Vector *x,
 				       BlopexInt                *mask,
 				       BlopexInt                n,
 				       Scalar                   *alpha,
-				       serial_Multi_Vector      *y);
+				       parallel_Multi_Vector      *y);
 
-  BlopexInt serial_Multi_VectorInnerProdDiag( serial_Multi_Vector *x,
-					      serial_Multi_Vector *y,
+  BlopexInt parallel_Multi_VectorInnerProdDiag( parallel_Multi_Vector *x,
+					      parallel_Multi_Vector *y,
 					      BlopexInt* mask, BlopexInt n, Scalar* diag);
 
   BlopexInt
-    serial_Multi_VectorSetMask(serial_Multi_Vector *mvector, BlopexInt * mask);
+    parallel_Multi_VectorSetMask(parallel_Multi_Vector *mvector, BlopexInt * mask);
   BlopexInt
-    serial_Multi_VectorCopyWithoutMask(serial_Multi_Vector *x , serial_Multi_Vector *y);
+    parallel_Multi_VectorCopyWithoutMask(parallel_Multi_Vector *x , parallel_Multi_Vector *y);
   BlopexInt
-    serial_Multi_VectorByMatrix(serial_Multi_Vector *x, BlopexInt rGHeight, BlopexInt rHeight,
-				BlopexInt rWidth, Scalar* rVal, serial_Multi_Vector *y);
+    parallel_Multi_VectorByMatrix(parallel_Multi_Vector *x, BlopexInt rGHeight, BlopexInt rHeight,
+				BlopexInt rWidth, Scalar* rVal, parallel_Multi_Vector *y);
 } // namespace LOBPCG 
 } // namespace dgdft
 
-#endif // _LOBPCG_HPP_
+#endif // _PLOBPCG_HPP_
 

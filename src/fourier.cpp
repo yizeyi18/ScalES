@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -43,6 +43,7 @@
 /// @file fourier.cpp
 /// @brief Sequential and Distributed Fourier wrapper.
 /// @date 2011-11-01
+/// @date 2014-02-01 Dual grid implementation.
 #include  "fourier.hpp"
 
 namespace dgdft{
@@ -234,8 +235,6 @@ void Fourier::Initialize ( const Domain& dm )
 
 
 
-// huwei begin
-
 
 void Fourier::InitializeFine ( const Domain& dm )
 {
@@ -369,7 +368,6 @@ void Fourier::InitializeFine ( const Domain& dm )
 }		// -----  end of function Fourier::InitializeFine  ----- 
 
 
-// huwei  end
 
 
 
@@ -419,9 +417,24 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
 	// Create the new communicator
 	{
 		Int mpirankDomain, mpisizeDomain;
-		MPI_Comm_rank( dm.comm, &mpirankDomain );
-		MPI_Comm_size( dm.comm, &mpisizeDomain );
-		if( numProc > mpisizeDomain ){
+		MPI_Comm_rank( dm.colComm, &mpirankDomain );
+		MPI_Comm_size( dm.colComm, &mpisizeDomain );
+    
+    Int mpirank, mpisize;
+    MPI_Comm_rank( dm.comm, &mpirank );
+    MPI_Comm_size( dm.comm, &mpisize );
+    
+    MPI_Barrier(dm.rowComm);
+    Int mpirankRow;  MPI_Comm_rank(dm.rowComm, &mpirankRow);
+    Int mpisizeRow;  MPI_Comm_size(dm.rowComm, &mpisizeRow);
+
+    MPI_Barrier(dm.colComm);
+    Int mpirankCol;  MPI_Comm_rank(dm.colComm, &mpirankCol);
+    Int mpisizeCol;  MPI_Comm_size(dm.colComm, &mpisizeCol);
+
+    numProc = mpisizeCol;
+
+    if( numProc > mpisizeDomain ){
 			std::ostringstream msg;
 			msg << "numProc cannot exceed mpisize."  << std::endl
 				<< "numProc ~ " << numProc << std::endl
@@ -433,7 +446,7 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
 		else
 			isInGrid = false;
 
-		MPI_Comm_split( dm.comm, isInGrid, mpirankDomain, &comm );
+		MPI_Comm_split( dm.colComm, isInGrid, mpirankDomain, &comm );
 	}
 
 	if( isInGrid ){

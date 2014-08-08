@@ -77,11 +77,24 @@ extern "C"{
       const Int *descz, double *work, const Int *lwork, 
       Int *iwork, const Int *liwork, Int *info);
 
+// huwei
+  void SCALAPACK(pdlacpy)(const char* uplo,
+      const Int* m, const Int* n,
+      const double* A, const Int* ia, const Int* ja, const Int* desca, 
+      const double* B, const Int* ib, const Int* jb, const Int* descb );
 
-
+  // FIXME huwei
+  void SCALAPACK(pdgemm)(const char* transA, const char* transB,
+      const Int* m, const Int* n, const Int* k,
+      const double* alpha,
+      const double* A, const Int* ia, const Int* ja, const Int* desca, 
+      const double* B, const Int* ib, const Int* jb, const Int* descb,
+      const double* beta,
+      double* C, const Int* ic, const Int* jc, const Int* descc,
+      const Int* contxt);
 
   void SCALAPACK(pdgemr2d)(const Int* m, const Int* n, const double* A, const Int* ia, 
-      const Int* ja, const Int* desca, double*B,
+      const Int* ja, const Int* desca, double* B,
       const Int* ib, const Int* jb, const Int* descb,
       const Int* contxt);
 
@@ -223,6 +236,102 @@ ScaLAPACKMatrix<F>::operator=	( const ScaLAPACKMatrix<F>& A )
 #endif
   return *this;
 } 		// -----  end of method ScaLAPACKMatrix::operator=  ----- 
+
+
+// huwei
+//void
+//Gemm(char transA, char transB, const double alpha,
+//    const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B, 
+//    const double beta, ScaLAPACKMatrix<double>& C){
+//#ifndef _RELEASE_
+//  PushCallStack("scalapack::Gemm");
+//#endif
+//  if( A.Height() != B.Height() ){
+//    std::ostringstream msg;
+//    msg 
+//      << "Gemm:: Global matrix dimension does not match\n" 
+//      << "The dimension of A is " << A.Height() << " x " << A.Width() << std::endl
+//      << "The dimension of B is " << B.Height() << " x " << B.Width() << std::endl;
+//    throw std::logic_error( msg.str().c_str() );
+//  }
+
+//  if( A.Context() != B.Context() ){
+//    std::ostringstream msg;
+//    msg << "Gemm:: A and B are not sharing the same context." << std::endl; 
+//    throw std::logic_error( msg.str().c_str() );
+//  }
+
+//  const Int M = A.Height();
+//  const Int N = A.Width();
+//  const Int K = B.Width();
+//  const Int contxt = A.Context();
+
+//  SCALAPACK(pdgemm)(&transA, &transB,
+//      &M, &N, &K, 
+//      &alpha,
+//      A.Data(), &I_ONE, &I_ONE, A.Desc().Values(), 
+//      B.Data(), &I_ONE, &I_ONE, B.Desc().Values(), 
+//      &beta,
+//      C.Data(), &I_ONE, &I_ONE, C.Desc().Values(), 
+//      &contxt );	
+//#ifndef _RELEASE_
+//  PopCallStack();
+//#endif
+//  return;
+//}   // -----  end of function Gemm  ----- 
+
+
+// huwei
+void
+Lacpy( char uplo, 
+       Int m, Int n, 
+       double* A, Int ia, Int ja, Int* desca, 
+       double* B, Int ib, Int jb, Int* descb){
+
+#ifndef _RELEASE_
+  PushCallStack("scalapack::Lacpy");
+#endif
+
+SCALAPACK(pdlacpy)( &uplo,
+      &m, &n,
+      A, &ia, &ja, desca, 
+      B, &ib, &jb, descb );
+  
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+  return;
+}   // -----  end of function Lacpy  ----- 
+
+// huwei
+void
+Gemm( char transA, char transB,
+      Int m, Int n, Int k,
+      double alpha,
+      double* A, Int ia, Int ja, Int* desca, 
+      double* B, Int ib, Int jb, Int* descb,
+      double beta,
+      double* C, Int ic, Int jc, Int* descc,
+      Int contxt){
+  
+#ifndef _RELEASE_
+  PushCallStack("scalapack::Gemm");
+#endif
+
+SCALAPACK(pdgemm)( &transA, &transB,
+      &m, &n, &k,
+      &alpha,
+      A, &ia, &ja, desca, 
+      B, &ib, &jb, descb,
+      &beta,
+      C, &ic, &jc, descc,
+      &contxt );
+  
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+  return;
+}   // -----  end of function Gemm  ----- 
 
 
 
@@ -485,7 +594,7 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
       A.Desc().Values(), &dummyV, &dummyV, 
       &dummyI, &dummyI, &numEigValueFound, &numEigVectorFound,
       &eigs[0], Z.Data(), &I_ONE, &I_ONE, Z.Desc().Values(), 
-      &work[0], &lwork,&iwork[0], &liwork, &info);
+      &work[0], &lwork, &iwork[0], &liwork, &info);
   lwork = (Int)work[0];
   work.resize(lwork);
   liwork = iwork[0];
@@ -495,7 +604,7 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
       A.Desc().Values(), &dummyV, &dummyV, 
       &dummyI, &dummyI, &numEigValueFound, &numEigVectorFound,
       &eigs[0], Z.Data(), &I_ONE, &I_ONE, Z.Desc().Values(), 
-      &work[0], &lwork,&iwork[0], &liwork, &info);
+      &work[0], &lwork, &iwork[0], &liwork, &info);
 
   if( info < 0 )
   {

@@ -85,6 +85,7 @@ void DistNumVecToDistRowVec(
 
 	DistVec<Index3, NumVec<F>, ElemPrtn>  distVecRecv;
 	distVecRecv.Prtn() = distVec.Prtn();
+  distVecRecv.SetComm( commDistVec );
 
 	for(typename std::map<Index3, NumVec<F> >::const_iterator 
 			mi = distVec.LocalMap().begin();
@@ -334,6 +335,7 @@ void DistElemMatToScaMat(
 	// ScaLAPACK format.  
   DistVec<Index2, NumMat<F>, BlockMatPrtn> distScaMat;
 	distScaMat.Prtn() = blockPrtn;
+  distScaMat.SetComm(comm);
 
 	// Initialize
 	DblNumMat empty( MB, MB );
@@ -538,6 +540,7 @@ void ScaMatToDistNumMat(
 	// ScaLAPACK format.  
   DistVec<Index2, NumMat<F>, BlockMatPrtn> distScaMat;
 	distScaMat.Prtn() = blockPrtn;
+  distScaMat.SetComm(comm);
 
 	// Initialize
 	DblNumMat empty( MB, MB );

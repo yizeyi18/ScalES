@@ -1630,5 +1630,12 @@ CopyPattern	( const DistSparseMatrix<F1>& A, DistSparseMatrix<F2>& B )
 #endif
 	return ;
 }		// -----  end of template function CopyPattern  ----- 
+
+
+void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
+void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
+
+
+
 } // namespace dgdft
 #endif // _UTILITY_HPP_

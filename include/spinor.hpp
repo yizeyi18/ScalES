@@ -60,6 +60,9 @@ class Spinor {
 private:
 	Domain            domain_;                // mesh should be used here for general cases 
 	NumTns<Scalar>    wavefun_;               // Local data of the wavefunction 
+  IntNumVec         wavefunIdx_;
+  Int               numStateTotal_;
+  Int               blocksize_;
 
 public:
 	// *********************************************************************
@@ -67,26 +70,33 @@ public:
 	// *********************************************************************
 	Spinor(); 
 	
-	Spinor( const Domain &dm, const Int numComponent, const Int numState,
-			const Scalar val = static_cast<Scalar>(0) );
+	Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
+      const Scalar val = static_cast<Scalar>(0) );
 
-	Spinor( const Domain &dm, const Int numComponent, const Int numState,
-			const bool owndata, Scalar* data );
+	Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
+      const bool owndata, Scalar* data );
 
 	~Spinor();
 
-	void Setup( const Domain &dm, const Int numComponent, const Int numState,
-			const Scalar val = static_cast<Scalar>(0) ); 
+	void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
+      const Scalar val = static_cast<Scalar>(0) ); 
 
-	void Setup( const Domain &dm, const Int numComponent, const Int numState,
-			const bool owndata, Scalar* data );
+	void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
+      const bool owndata, Scalar* data );
 
 	// *********************************************************************
 	// Inquiries
 	// *********************************************************************
-	Int NumGridTotal() const { return wavefun_.m(); }
-	Int NumComponent() const { return wavefun_.n(); }
-	Int NumState()     const { return wavefun_.p(); }
+	Int NumGridTotal()  const { return wavefun_.m(); }
+	Int NumComponent()  const { return wavefun_.n(); }
+	Int NumState()      const { return wavefun_.p(); }
+  Int NumStateTotal() const { return numStateTotal_; }
+  Int Blocksize()     const { return blocksize_; }
+  
+  IntNumVec&  WavefunIdx() { return wavefunIdx_; }
+  const IntNumVec&  WavefunIdx() const { return wavefunIdx_; }
+  Int&  WavefunIdx(const Int k) { return wavefunIdx_(k); }
+  const Int&  WavefunIdx(const Int k) const { return wavefunIdx_(k); }
 
 	NumTns<Scalar>& Wavefun() { return wavefun_; } 
 	const NumTns<Scalar>& Wavefun() const { return wavefun_; } 
@@ -112,6 +122,7 @@ public:
 	void AddNonlocalPP (Int iocc, const std::vector<PseudoPot>& pseudo, NumMat<Scalar>& y);
 	void AddNonlocalPP (const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3);
 
+  void AddTeterPrecond( Int iocc, Fourier* fftPtr, NumTns<Scalar>& a3 );
   void AddTeterPrecond( Fourier* fftPtr, NumTns<Scalar>& a3 );
 
   // Spin related operations

@@ -59,6 +59,9 @@ struct Domain
 	Index3       numGrid;                         // number of coarse grids points in each direction
   Index3       numGridFine;                     // number of fine grids points in each direction
   MPI_Comm     comm;                            // MPI Communicator
+  // FIXME new MPI Communicator for rowComm and colComm
+  MPI_Comm     rowComm;
+  MPI_Comm     colComm;
 
 	Domain()
 	{ 
@@ -67,7 +70,9 @@ struct Domain
 		numGrid       = Index3( 0, 0, 0 );
     numGridFine   = Index3( 0, 0, 0 );
 
-		comm = MPI_COMM_WORLD; 
+		comm    = MPI_COMM_WORLD; 
+    rowComm = MPI_COMM_WORLD;
+    colComm = MPI_COMM_WORLD;
 	}
 
 	~Domain(){}

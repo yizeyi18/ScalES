@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -43,6 +43,7 @@
 /// @file hamiltonian_dg.hpp
 /// @brief The Hamiltonian class for DG calculation.
 /// @date 2013-01-09
+/// @date 2014-08-06 Intra-element parallelization
 #ifndef _HAMILTONIAN_DG_HPP_
 #define _HAMILTONIAN_DG_HPP_
 
@@ -168,8 +169,8 @@ private:
 
 	/// @brief Element subdomains.
 	NumTns<Domain>              domainElem_;
-
-	/// @brief Uniform grid in the global domain
+  
+  /// @brief Uniform grid in the global domain
 	std::vector<DblNumVec>      uniformGrid_;
   std::vector<DblNumVec>      uniformGridFine_;
 
@@ -234,7 +235,12 @@ private:
 	/// @brief Partition of element.
 	ElemPrtn                    elemPrtn_;
 
-	/// @brief Partition of a matrix defined through elements.
+  /// @brief Number of processor rows and columns
+  Int                         dmRow_;
+  Int                         dmCol_;
+  //IntNumVec                   groupRank_;
+
+  /// @brief Partition of a matrix defined through elements.
 	ElemMatPrtn                 elemMatPrtn_;
 
 	/// @brief Partition of atom.
@@ -278,6 +284,7 @@ private:
 	DistDblNumVec    vtotLGL_;
 
 	/// @brief Basis functions on the local LGL grid.
+  IntNumVec        basisLGLIdx_;
 	DistDblNumMat    basisLGL_;
 
 	/// @brief Eigenvalues
@@ -330,7 +337,7 @@ public:
 
 	HamiltonianDG( const esdf::ESDFInputParam& esdfParam );
 
-  /// @brief Setup the Hamiltonian DG class.
+  /// @brief Setup the Hamiltonian DG class from the input parameter.
 	void Setup ( const esdf::ESDFInputParam& esdfParam );
 
 	// *********************************************************************
@@ -346,6 +353,8 @@ public:
 	void InterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniformGridFine, 
 			const Real* rhoLGL, Real* rhoUniform );
 
+  /// @brief Initialize the pseudopotential used on the LGL grid for
+  /// each element.
 	void CalculatePseudoPotential( PeriodTable &ptable );
 	
 	/// @brief Compute the electron density after the diagonalization
@@ -461,7 +470,12 @@ public:
 
 	DistDblNumVec&  VtotLGL() { return vtotLGL_; }
 
-	DistDblNumMat&  BasisLGL() { return basisLGL_; }
+  IntNumVec&  BasisLGLIdx() { return basisLGLIdx_; }
+  const IntNumVec&  BasisLGLIdx() const { return basisLGLIdx_; }
+  Int&  BasisLGLIdx(const Int k) { return basisLGLIdx_(k); }
+  const Int&  BasisLGLIdx(const Int k) const { return basisLGLIdx_(k); }
+
+  DistDblNumMat&  BasisLGL() { return basisLGL_; }
 
 	DistDblNumMat&  EigvecCoef() { return eigvecCoef_; }
 

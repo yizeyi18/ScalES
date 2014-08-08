@@ -2,7 +2,7 @@
 	 Copyright (c) 2012 The Regents of the University of California,
 	 through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -43,6 +43,7 @@
 /// @file scf_dg.hpp
 /// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
+/// @date 2014-08-06 Intra-element parallelization
 #ifndef _SCF_DG_HPP_ 
 #define _SCF_DG_HPP_
 
@@ -70,12 +71,13 @@ private:
 	Real                mixStepLength_;            
   Real                eigTolerance_;
   Int                 eigMaxIter_;
-	Real                scfInnerTolerance_;
+  Real                scfInnerTolerance_;
 	Int                 scfInnerMaxIter_;
 	Real                scfOuterTolerance_;
 	Int                 scfOuterMaxIter_;
-	Real                SVDBasisTolerance_;
+	Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
   Int                 numUnusedState_;
+	Real                SVDBasisTolerance_;
   bool                isEigToleranceDynamic_;
 	bool                isRestartDensity_;
 	bool                isRestartWfn_;
@@ -100,7 +102,6 @@ private:
   std::string         solutionMethod_;
 
   // PEXSI parameters
-
 #ifdef _USE_PEXSI_
   PPEXSIPlan          pexsiPlan_;
   PPEXSIOptions       pexsiOptions_;
@@ -130,6 +131,11 @@ private:
 	Real                EVxc_;                     // Exchange-correlation potential energy
 	Real                Eself_;                    // Self energy due to the pseudopotential
 	Real                fermi_;                    // Fermi energy
+
+  /// @brief Number of processor rows and columns
+  Int                 dmRow_;
+  Int                 dmCol_;
+  //IntNumVec                   groupRank_;
 
   // Density matrices
 

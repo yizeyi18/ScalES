@@ -2,7 +2,7 @@
 	 Copyright (c) 2012 The Regents of the University of California,
 	 through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -56,12 +56,13 @@ Spinor::Spinor () { }
 Spinor::Spinor ( 
 		const Domain &dm, 
 		const Int     numComponent,
-		const Int     numState,
+		const Int     numStateTotal,
+          Int     numStateLocal,
 		const Scalar  val ) {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Spinor");
 #endif  // ifndef _RELEASE_
-	this->Setup( dm, numComponent, numState, val );
+	this->Setup( dm, numComponent, numStateTotal, numStateLocal, val );
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -70,14 +71,15 @@ Spinor::Spinor (
 
 Spinor::Spinor ( const Domain &dm, 
 		const Int numComponent, 
-		const Int numState,
+		const Int numStateTotal,
+          Int numStateLocal,
 		const bool owndata, 
 		Scalar* data )
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Spinor");
 #endif  // ifndef _RELEASE_
-	this->Setup( dm, numComponent, numState, owndata, data );
+	this->Setup( dm, numComponent, numStateTotal, numStateLocal, owndata, data );
 #ifndef _RELEASE_
 	PopCallStack();
 #endif  // ifndef _RELEASE_
@@ -89,14 +91,59 @@ Spinor::~Spinor	() {}
 void Spinor::Setup ( 
 		const Domain &dm, 
 		const Int     numComponent,
-		const Int     numState,
+		const Int     numStateTotal,
+          Int     numStateLocal,
 		const Scalar  val ) {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Setup ");
 #endif  // ifndef _RELEASE_
 	domain_       = dm;
 
-	wavefun_.Resize( dm.NumGridTotal(), numComponent, numState );
+  
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  Int blocksize;
+
+  if ( numStateTotal <=  mpisize ) {
+    blocksize = 1;
+  }
+  else {  // numStateTotal >  mpisize
+    if ( numStateTotal % mpisize == 0 ){
+      blocksize = numStateTotal / mpisize;
+    }
+    else {
+      blocksize = ((numStateTotal - 1) / mpisize) + 1;
+    }    
+  }
+
+  numStateTotal_ = numStateTotal;
+  blocksize_ = blocksize;
+  
+  wavefunIdx_.Resize( numStateLocal );
+  SetValue( wavefunIdx_, 0 );
+  for (Int i = 0; i < numStateLocal; i++){
+    wavefunIdx_[i] = i * mpisize + mpirank ;
+  }
+
+  // Check Sum{numStateLocal} = numStateTotal
+  //Int numStateTotalTest = 0; 
+  //Int numState = numStateLocal;
+
+  //mpi::Allreduce( &numState, &numStateTotalTest, 1, MPI_SUM, domain_.comm );
+
+  //if( numStateTotalTest != numStateTotal ){
+  //  statusOFS << "mpisize = " << mpisize << std::endl;
+  //  statusOFS << "mpirank = " << mpirank << std::endl;
+  //  statusOFS << "numStateLocal = " << numStateLocal << std::endl;
+  //  statusOFS << "Sum{numStateLocal} = " << numStateTotalTest << std::endl;
+  //  statusOFS << "numStateTotal = " << numStateTotal << std::endl; 
+  //  throw std::logic_error("Sum{numStateLocal} = numStateTotal does not match.");
+  //}
+ 
+
+  wavefun_.Resize( dm.NumGridTotal(), numComponent, numStateLocal );
 	SetValue( wavefun_, val );
 
 #ifndef _RELEASE_
@@ -106,7 +153,8 @@ void Spinor::Setup (
 
 void Spinor::Setup ( const Domain &dm, 
 		const Int numComponent, 
-		const Int numState,
+		const Int numStateTotal,
+          Int numStateLocal,
 		const bool owndata, 
 		Scalar* data )
 {
@@ -114,8 +162,9 @@ void Spinor::Setup ( const Domain &dm,
 	PushCallStack("Spinor::Setup");
 #endif  // ifndef _RELEASE_
 	domain_       = dm;
-	wavefun_      = NumTns<Scalar>( dm.NumGridTotal(), numComponent, numState,
-			owndata, data );
+  // FIXME Partition the spinor here
+	wavefun_      = NumTns<Scalar>( dm.NumGridTotal(), numComponent, numStateLocal,
+      owndata, data );
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -463,6 +512,66 @@ Spinor::AddNonlocalPP	(const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
 } 		// -----  end of method Spinor::AddNonlocalPP  ----- 
 
 void
+Spinor::AddTeterPrecond ( Int iocc, Fourier* fftPtr, NumTns<Scalar>& a3)
+{
+#ifndef _RELEASE_
+	PushCallStack("Spinor::AddTeterPrecond");
+#endif
+	if( !fftPtr->isInitialized ){
+		throw std::runtime_error("Fourier is not prepared.");
+	}
+	Int ntot = wavefun_.m();
+	Int ncom = wavefun_.n();
+	Int nocc = wavefun_.p();
+
+	if( fftPtr->domain.NumGridTotal() != ntot ){
+		throw std::logic_error("Domain size does not match.");
+	}
+
+  // For convenience
+  NumTns<Scalar>& a3i = wavefun_; 
+  NumTns<Scalar>& a3o = a3;
+
+//#ifndef _USE_COMPLEX_ // Real case
+    Int ntothalf = fftPtr->numGridTotalR2C;
+    // These two are private variables in the OpenMP context
+    DblNumVec realInVec(ntot);
+		CpxNumVec cpxOutVec(ntothalf);
+
+    Int k = iocc; 
+      for (Int j=0; j<ncom; j++) {
+        // For c2r and r2c transforms, the default is to DESTROY the
+        // input, therefore a copy of the original matrix is necessary. 
+        blas::Copy( ntot, a3i.VecData(j,k), 1, 
+            realInVec.Data(), 1 );
+
+				fftw_execute_dft_r2c(
+						fftPtr->forwardPlanR2C, 
+						realInVec.Data(),
+						reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ));
+
+        Real*    ptr1d   = fftPtr->TeterPrecondR2C.Data();
+				Complex* ptr2    = cpxOutVec.Data();
+        for (Int i=0; i<ntothalf; i++) 
+					*(ptr2++) *= *(ptr1d++);
+
+				fftw_execute_dft_c2r(
+						fftPtr->backwardPlanR2C,
+						reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ),
+						realInVec.Data() );
+
+        blas::Axpy( ntot, 1.0 / Real(ntot), realInVec.Data(), 1, 
+            a3o.VecData(j, k), 1 );
+      }
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method Spinor::AddTeterPrecond ----- 
+
+void
 Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Scalar>& a3)
 {
 #ifndef _RELEASE_
@@ -554,6 +663,12 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Scalar>& a3)
 
 	return ;
 } 		// -----  end of method Spinor::AddTeterPrecond ----- 
+
+
+
+
+
+
 
 
 //int Spinor::add_nonlocalPS 

@@ -1,8 +1,9 @@
+
 /*
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -43,6 +44,8 @@
 /// @file scf.cpp
 /// @brief SCF class for the global domain or extended element.
 /// @date 2012-10-25
+/// @date 2014-02-01 Dual grid implementation
+/// @date 2014-08-07 Parallelization for PWDFT
 #include  "scf.hpp"
 #include	"blas.hpp"
 #include	"lapack.hpp"
@@ -91,8 +94,8 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 		mixStepLength_ = esdfParam.mixStepLength;
 		// Note: for PW SCF there is no inner loop. Use the parameter value
 		// for the outer SCF loop only.
-    eigMaxIter_    = esdfParam.eigMaxIter;
     eigTolerance_  = esdfParam.eigTolerance;
+    eigMaxIter_    = esdfParam.eigMaxIter;
 		scfTolerance_  = esdfParam.scfOuterTolerance;
 		scfMaxIter_    = esdfParam.scfOuterMaxIter;
     numUnusedState_ = esdfParam.numUnusedState;
@@ -161,7 +164,7 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 	}
 
 	if( !isRestartWfn_ ) {
-		UniformRandom( eigSolPtr_->Psi().Wavefun() );
+    //		UniformRandom( eigSolPtr_->Psi().Wavefun() );
 	}
 	else {
 		std::istringstream iss;
@@ -222,7 +225,6 @@ SCF::Iterate	(  )
     GetTime( timeIterStart );
 
 
-  // huwei
 
     Int ntotCoarse  = eigSolPtr_->FFT().domain.NumGridTotal();
     Int ntotFine  = eigSolPtr_->FFT().domain.NumGridTotalFine();
@@ -294,6 +296,7 @@ SCF::Iterate	(  )
       if( iter == 1 )
         eigTolNow = 1e-2;
       else
+        
         eigTolNow = std::max( std::min( scfNorm_*1e-2, 1e-2 ) , eigTolerance_);
     }
     else{
@@ -301,7 +304,7 @@ SCF::Iterate	(  )
       eigTolNow = eigTolerance_;
     }
 
-    Int numEig = (eigSolPtr_->Psi().NumState())-numUnusedState_;
+    Int numEig = (eigSolPtr_->Psi().NumStateTotal())-numUnusedState_;
 
     statusOFS << "The current tolerance used by the eigensolver is " 
       << eigTolNow << std::endl;
@@ -310,14 +313,17 @@ SCF::Iterate	(  )
    
     
     GetTime( timeSta );
-    if(0)
+    if(0){
       eigSolPtr_->Solve();
-    else
-      eigSolPtr_->LOBPCGSolveReal2(
-          numEig,
-          eigMaxIter_,
-          eigTolNow );
+    }
+  
+    if(0){
+      eigSolPtr_->LOBPCGSolveReal(numEig, eigMaxIter_, eigTolNow );
+    }
 
+    if(1){
+      eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
+    }
     GetTime( timeEnd );
 
     eigSolPtr_->Ham().EigVal() = eigSolPtr_->EigVal();

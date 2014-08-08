@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Authors: Lin Lin and Lexing Ying
+   Authors: Lin Lin, Wei Hu and Lexing Ying
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -43,6 +43,8 @@
 /// @file hamiltonian_dg.cpp
 /// @brief Implementation of the Hamiltonian class for DG calculation.
 /// @date 2013-01-09
+/// @date 2014-08-07 Add intra-element paralelization.  NOTE: the OpenMP
+/// parallelization is not used in this version.
 #include  "hamiltonian_dg.hpp"
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
@@ -67,18 +69,27 @@ HamiltonianDG::CalculateDGMatrix	(  )
 #ifndef _RELEASE_
 	PushCallStack("HamiltonianDG::CalculateDGMatrix");
 #endif
-	Int mpirank, mpisize;
+  Int mpirank, mpisize;
 	Int numAtom = atomList_.size();
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
-	Real timeSta, timeEnd;
+	
+  MPI_Barrier(domain_.rowComm);
+  Int mpirankRow;  MPI_Comm_rank(domain_.rowComm, &mpirankRow);
+  Int mpisizeRow;  MPI_Comm_size(domain_.rowComm, &mpisizeRow);
+
+  MPI_Barrier(domain_.colComm);
+  Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
+  Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
+
+  Real timeSta, timeEnd;
 
 	// Here numGrid is the LGL grid
 	Point3 length       = domainElem_(0,0,0).length;
 	Index3 numGrid      = numLGLGridElem_;             
 	Int    numGridTotal = numGrid.prod();
 
-	// Jump of the value of the basis, and average of the
+  // Jump of the value of the basis, and average of the
 	// derivative of the basis function, each of size 6 describing
 	// the different faces along the X/Y/Z directions. L/R: left/right.
 	enum{
@@ -93,39 +104,90 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	std::vector<DistDblNumMat>   basisJump(NUM_FACE);
 	std::vector<DistDblNumMat>   DbasisAverage(NUM_FACE);
 
-	// The derivative of basisLGL along x,y,z directions
+  // IMPORTANT:
+  //
+  // When intra-element parallelization is invoked, the communication of
+  // boundary terms are refined to each column processor communicator.
+  for( Int k = 0; k < NUM_FACE; k++ ) {
+    basisJump[k].SetComm(domain_.colComm);
+    DbasisAverage[k].SetComm(domain_.colComm);
+  } 
+   
+  // The derivative of basisLGL along x,y,z directions
 	std::vector<DistDblNumMat>   Dbasis(DIM);
 
-	// Integration weights
+  // Same as above
+  for( Int k = 0; k < DIM; k++ ) {
+    Dbasis[k].SetComm(domain_.colComm);
+  } 
+	
+  // Integration weights
 	std::vector<DblNumVec>&  LGLWeight1D = LGLWeight1D_;
 	std::vector<DblNumMat>&  LGLWeight2D = LGLWeight2D_;
 	DblNumTns&               LGLWeight3D = LGLWeight3D_;
 
-	// Clear the DG Matrix
+  // Square root of the LGL integration weight in 3D.
+  DblNumTns    sqrtLGLWeight3D( numGrid[0], numGrid[1], numGrid[2] );
+ 
+  // Square root of the LGL integration weight in 2D for each face.
+  std::vector<DblNumMat>   sqrtLGLWeight2D;
+  sqrtLGLWeight2D.resize(DIM);
+
+  sqrtLGLWeight2D[0].Resize( numGrid[1], numGrid[2]);
+  sqrtLGLWeight2D[1].Resize( numGrid[0], numGrid[2]);
+  sqrtLGLWeight2D[2].Resize( numGrid[0], numGrid[1]);
+
+  Real *ptr1 = LGLWeight3D.Data(), *ptr2 = sqrtLGLWeight3D.Data();
+  for( Int i = 0; i < numGrid.prod(); i++ ){
+    *(ptr2++) = std::sqrt( *(ptr1++) );
+  }
+
+  // yz face
+  for( Int k = 0; k < numGrid[2]; k++ )
+    for( Int j = 0; j < numGrid[1]; j++ ){
+      sqrtLGLWeight2D[0](j, k) = std::sqrt( LGLWeight2D[0](j, k) );
+    } // for (j)
+
+  // xz face
+  for( Int k = 0; k < numGrid[2]; k++ )
+    for( Int i = 0; i < numGrid[0]; i++ ){
+      sqrtLGLWeight2D[1](i, k) = std::sqrt( LGLWeight2D[1](i, k) );
+    } // for (i)
+
+  // xy face
+  for( Int j = 0; j < numGrid[1]; j++ )
+    for( Int i = 0; i < numGrid[0]; i++ ){
+      sqrtLGLWeight2D[2](i, j) = std::sqrt( LGLWeight2D[2](i, j) );
+    }
+
+  // Clear the DG Matrix
 	HMat_.LocalMap().clear();
 
 	// *********************************************************************
 	// Initial setup
 	// *********************************************************************
-	
 
 	{
 		GetTime(timeSta);
-		// Compute the global index set
+		// Compute the indices for all basis functions
 		IntNumTns  numBasisLocal(numElem_[0], numElem_[1], numElem_[2]);
 		SetValue( numBasisLocal, 0 );
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key(i, j, k);
-					if( elemPrtn_.Owner(key) == mpirank ){
-						numBasisLocal(i, j, k) = basisLGL_.LocalMap()[key].n();
-					}
+					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
+            int numBasisLocalElem = basisLGL_.LocalMap()[key].n();
+            numBasisLocal(i, j, k) = 0;
+            mpi::Allreduce( &numBasisLocalElem, &numBasisLocal(i, j, k), 1, MPI_SUM, domain_.rowComm );
+          }
 				} // for (i)
-		IntNumTns numBasis(numElem_[0], numElem_[1], numElem_[2]);
+	
+    IntNumTns numBasis(numElem_[0], numElem_[1], numElem_[2]);
 		mpi::Allreduce( numBasisLocal.Data(), numBasis.Data(),
-				numElem_.prod(), MPI_SUM, domain_.comm );
-		// Every processor compute all index sets
+				numElem_.prod(), MPI_SUM, domain_.colComm );
+		
+    // Every processor computes all index sets
 		elemBasisIdx_.Resize(numElem_[0], numElem_[1], numElem_[2]);
 
 		Int cnt = 0;
@@ -158,26 +220,22 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	}
 	
 	
-	// *********************************************************************
+  // *********************************************************************
 	// Compute the local derivatives
 	// Start the communication of the derivatives
 	// *********************************************************************
 	{
 		GetTime(timeSta);
 
-		// Compute derivatives
+		// Compute derivatives on each local element
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
-					if( elemPrtn_.Owner(key) == mpirank ){
-						DblNumMat&  basis = basisLGL_.LocalMap()[key];
-						Int numBasis = basis.n();
+					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
+            DblNumMat&  basis = basisLGL_.LocalMap()[key];
+            Int numBasis = basis.n();
 
-						// NOTE: For large matrices, test can take excessive amount
-						// of time.  
-						// Avoid memory copy by directly updating the matrix
-						// LLIN 10/29/2013
 						Dbasis[0].LocalMap()[key].Resize( basis.m(), basis.n() );
 						Dbasis[1].LocalMap()[key].Resize( basis.m(), basis.n() );
 						Dbasis[2].LocalMap()[key].Resize( basis.m(), basis.n() );
@@ -206,7 +264,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 						}
 
 
-						// Complicated implementation, more for debugging purpose
+            // Complicated implementation, more for debugging purpose
 						if(0){
 #ifdef _USE_OPENMP_
 #pragma omp parallel 
@@ -284,11 +342,11 @@ HamiltonianDG::CalculateDGMatrix	(  )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
-					if( elemPrtn_.Owner(key) == mpirank ){
+					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
 						DblNumMat&  basis = basisLGL_.LocalMap()[key];
 						Int numBasis = basis.n();
 
-						// x-direction
+            // x-direction
 						{
 							Int  numGridFace = numGrid[1] * numGrid[2];
 							DblNumMat emptyX( numGridFace, numBasis );
@@ -431,16 +489,22 @@ HamiltonianDG::CalculateDGMatrix	(  )
 #endif
 	}
 
-	// *********************************************************************
+  // *********************************************************************
 	// Boundary terms, Part I
 	// Start the communication of the boundary terms
+  //
+  // When intra-element parallelization is invoked, the communication of
+  // boundary terms are refined to each column processor communicator.
 	// *********************************************************************
 	{
 		GetTime(timeSta);
+    // Set of element indicies for boundary term communication.
 		std::set<Index3>   boundaryXset;
 		std::set<Index3>   boundaryYset;
 		std::set<Index3>   boundaryZset;
 
+    // Vector of element indicies for boundary term communication.
+    // Should contain the same information as the sets above.
 		std::vector<Index3>   boundaryXIdx;
 		std::vector<Index3>   boundaryYIdx; 
 		std::vector<Index3>   boundaryZIdx;
@@ -448,7 +512,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key(i, j, k);
-					if( elemPrtn_.Owner(key) == mpirank ){
+					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
 						// Periodic boundary condition. Everyone only considers the
 					  // previous(left/back/down) directions and compute.
 						Int p1; if( i == 0 )  p1 = numElem_[0]-1; else   p1 = i-1;
@@ -461,6 +525,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 				} // for (i)
 		
 		// The left element passes the values on the right face.
+    // This is due to the use of periodic boundary condition.
 
 		boundaryXIdx.insert( boundaryXIdx.begin(), boundaryXset.begin(), boundaryXset.end() );
 		boundaryYIdx.insert( boundaryYIdx.begin(), boundaryYset.begin(), boundaryYset.end() );
@@ -481,10 +546,15 @@ HamiltonianDG::CalculateDGMatrix	(  )
 #endif
 	}
 	
-	// *********************************************************************
+  // *********************************************************************
 	// Nonlocal pseudopotential term, Part I
 	// Compute the coefficients for the nonlocal pseudopotential 
 	// Start the communiation of the nonlocal pseudopotential terms
+  //
+  // When intra-element parallelization is invoked, the inner product of
+  // basis functions and the nonlocal potential projectors are first
+  // done independently on each processors, and then all processors in
+  // the same processor row communicator share the same information.
 	// *********************************************************************
 	if(_NON_LOCAL_)
 	{
@@ -504,7 +574,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
-					if( elemPrtn_.Owner(key) == mpirank ){
+					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
 						std::map<Int, DblNumMat>  coefMap;
 						std::map<Int, DblNumMat>  coefDrvXMap;
 						std::map<Int, DblNumMat>  coefDrvYMap;
@@ -518,6 +588,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
 						DblNumMat& DbasisZ = Dbasis[2].LocalMap()[key];
 
 						Int numBasis = basis.n();
+						Int numBasisTotal = 0;
+            MPI_Allreduce( &numBasis, &numBasisTotal, 1, MPI_INT,
+                MPI_SUM, domain_.rowComm );
 
 						// Loop over atoms, regardless of whether this atom belongs
 						// to this element or not.
@@ -526,13 +599,17 @@ HamiltonianDG::CalculateDGMatrix	(  )
 							   mi != pseudoMap.end(); mi++ ){
 							Int atomIdx = (*mi).first;
 							std::vector<NonlocalPP>&  vnlList = (*mi).second.vnlList;
-							DblNumMat coef( numBasis, vnlList.size() );
-							DblNumMat coefDrvX( numBasis, vnlList.size() );
-							DblNumMat coefDrvY( numBasis, vnlList.size() ); 
-							DblNumMat coefDrvZ( numBasis, vnlList.size() );
+              // NOTE: in intra-element parallelization, coef and
+              // coefDrvX/Y/Z contain different data among processors in
+              // each processor row in the same element.
+							
+              DblNumMat coef( numBasisTotal, vnlList.size() );
+							DblNumMat coefDrvX( numBasisTotal, vnlList.size() );
+							DblNumMat coefDrvY( numBasisTotal, vnlList.size() ); 
+              DblNumMat coefDrvZ( numBasisTotal, vnlList.size() );
 
-							SetValue( coef, 0.0 );
-							SetValue( coefDrvX, 0.0 );
+              SetValue( coef, 0.0 );
+              SetValue( coefDrvX, 0.0 );
 							SetValue( coefDrvY, 0.0 );
 							SetValue( coefDrvZ, 0.0 );
 
@@ -561,9 +638,10 @@ HamiltonianDG::CalculateDGMatrix	(  )
 										}
 									} // non-empty
 								} // for (g)
-							}
-							
+							} // if(0)
+
 							// Method 2: Efficient way of implementation
+              // Local inner product computation
 							if(1){
 #ifdef _USE_OPENMP_
 #pragma omp parallel 
@@ -577,24 +655,27 @@ HamiltonianDG::CalculateDGMatrix	(  )
 										SparseVec&  vnl = vnlList[g].first;
 										Int         idxSize = vnl.first.Size();
 
-										if( idxSize > 0 ) {
+                    if( idxSize > 0 ) {
                       Int        *ptrIdx = vnl.first.Data();
                       Real       *ptrVal = vnl.second.VecData(VAL);
                       Real       *ptrWeight = LGLWeight3D.Data();
                       Real       *ptrBasis, *ptrDbasisX, *ptrDbasisY, *ptrDbasisZ;
                       Real       *ptrCoef, *ptrCoefDrvX, *ptrCoefDrvY, *ptrCoefDrvZ;
-											// Loop over basis function
-											for( Int a = 0; a < numBasis; a++ ){
+                      // Loop over basis function
+											for( Int b = 0; b < numBasis; b++ ){
 												// Loop over grid point
-												ptrBasis    = basis.VecData(a);
-												ptrDbasisX  = DbasisX.VecData(a);
-												ptrDbasisY  = DbasisY.VecData(a);
-												ptrDbasisZ  = DbasisZ.VecData(a);
+												ptrBasis    = basis.VecData(b);
+												ptrDbasisX  = DbasisX.VecData(b);
+												ptrDbasisY  = DbasisY.VecData(b);
+												ptrDbasisZ  = DbasisZ.VecData(b);
 												ptrCoef     = coef.VecData(g);
 												ptrCoefDrvX = coefDrvX.VecData(g);
 												ptrCoefDrvY = coefDrvY.VecData(g);
 												ptrCoefDrvZ = coefDrvZ.VecData(g);
-												for( Int l = 0; l < idxSize; l++ ){
+                     
+                        Int a = basisLGLIdx_(b); 
+
+                        for( Int l = 0; l < idxSize; l++ ){
 													ptrCoef[a]     += ptrWeight[ptrIdx[l]] * 
 														ptrBasis[ptrIdx[l]] * ptrVal[l];
 													ptrCoefDrvX[a] += ptrWeight[ptrIdx[l]] *
@@ -604,19 +685,39 @@ HamiltonianDG::CalculateDGMatrix	(  )
 													ptrCoefDrvZ[a] += ptrWeight[ptrIdx[l]] *
 														ptrDbasisZ[ptrIdx[l]] * ptrVal[l];
 												}
-											}
-										} // non-empty
-									} // for (g)
+                      }
+                    } // non-empty
+                  } // for (g)
 #ifdef _USE_OPENMP_
-								}
+                }
 #endif
-							}
+							} // if(1)
 
-							coefMap[atomIdx] = coef;
-							coefDrvXMap[atomIdx] = coefDrvX;
-							coefDrvYMap[atomIdx] = coefDrvY;
-							coefDrvZMap[atomIdx] = coefDrvZ;
-						}
+
+              DblNumMat coefTemp( numBasisTotal, vnlList.size() );
+
+              SetValue( coefTemp, 0.0 );
+              MPI_Allreduce( coef.Data(), coefTemp.Data(), numBasisTotal * vnlList.size(), MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+              coefMap[atomIdx] = coefTemp;
+
+              SetValue( coefTemp, 0.0 );
+              MPI_Allreduce( coefDrvX.Data(), coefTemp.Data(), numBasisTotal * vnlList.size(), MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+							coefDrvXMap[atomIdx] = coefTemp;
+
+              SetValue( coefTemp, 0.0 );
+              MPI_Allreduce( coefDrvY.Data(), coefTemp.Data(), numBasisTotal * vnlList.size(), MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+							coefDrvYMap[atomIdx] = coefTemp;
+              
+              SetValue( coefTemp, 0.0 );
+              MPI_Allreduce( coefDrvZ.Data(), coefTemp.Data(), numBasisTotal * vnlList.size(), MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+							coefDrvZMap[atomIdx] = coefTemp;
+              
+            } // mi
+
+
+            // Save coef and its derivativees in vnlCoef and vnlDrvCoef
+            // strctures, for the use of constructing DG matrix, force
+            // computation and a posteriori error estimation.
 						vnlCoef_.LocalMap()[key] = coefMap;
 						vnlDrvCoef_[0].LocalMap()[key] = coefDrvXMap;
 						vnlDrvCoef_[1].LocalMap()[key] = coefDrvYMap;
@@ -625,7 +726,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 				} // for (i)
 
 
-		GetTime( timeEnd );
+    GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
 		statusOFS << 
 			"Time for computing the coefficient for nonlocal projector is " <<
@@ -634,7 +735,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 		GetTime( timeSta );
 		
-		// Communication of the coefficient matrices.
+		// Inter-element communication of the coefficient matrices for
+    // nonlocal pseudopotential.
+    //
 		// Each element owns all the coefficient matrices in its neighbors
 		// and then perform data processing later. It can be as many as 
 		// 3^3-1 = 26 elements. 
@@ -648,7 +751,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
-					if( elemPrtn_.Owner(key) == mpirank ){
+					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
 						IntNumVec  idxX(3);
 						IntNumVec  idxY(3);
 						IntNumVec  idxZ(3); 
@@ -682,11 +785,11 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		std::vector<Index3>  pseudoIdx;
 		pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
 		
-		vnlCoef_.GetBegin( pseudoIdx, NO_MASK );
+    vnlCoef_.GetBegin( pseudoIdx, NO_MASK );
 		for( Int d = 0; d < DIM; d++ )
 			vnlDrvCoef_[d].GetBegin( pseudoIdx, NO_MASK );
 
-		GetTime( timeEnd );
+    GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
 		statusOFS << 
 			"Time for starting the communication of pseudopotential coefficent is " <<
@@ -696,15 +799,14 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	}
 
 
-
-
-	// *********************************************************************
-	// Diagonal part: 
+  // *********************************************************************
+	// Diagonal part of the DG Hamiltonian matrix:  
   // 1) Laplacian 
 	// 2) Local potential
 	// 3) Intra-element part of boundary terms
 	// 
-	// Overlap communication with computation
+	// Overlap communication (basis on the boundary and nonlocal
+  // potential) with computation
 	// *********************************************************************
 	{
 		GetTime(timeSta);
@@ -714,19 +816,21 @@ HamiltonianDG::CalculateDGMatrix	(  )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
-					if( elemPrtn_.Owner(key) == mpirank ){
+					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
 						DblNumMat&  basis = basisLGL_.LocalMap()[key];
 						Int numBasis = basis.n();
-						DblNumMat   localMat( numBasis, numBasis );
+						Int numBasisTotal = 0;
+            MPI_Allreduce( &numBasis, &numBasisTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
+						DblNumMat   localMat( numBasisTotal, numBasisTotal );
 						SetValue( localMat, 0.0 );
 						// In all matrix assembly process, Only compute the upper
 						// triangular matrix use symmetry later
 
 
-#ifdef _USE_OPENMP_
-#pragma omp parallel 
+//#ifdef _USE_OPENMP_
+//#pragma omp parallel 
 						{
-#endif
+//#endif
 							// Private pointer among the OpenMP sessions
 							Real* ptrLocalMat = localMat.Data();
 							
@@ -736,30 +840,125 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								DblNumMat&  DbasisY = Dbasis[1].LocalMap()[key];
 								DblNumMat&  DbasisZ = Dbasis[2].LocalMap()[key];
 
-#ifdef _USE_OPENMP_
-#pragma omp for schedule(dynamic,1) nowait
-#endif
-								for( Int a = 0; a < numBasis; a++ )
-									for( Int b = a; b < numBasis; b++ ){
-										ptrLocalMat[a+numBasis*b] += 
-//										localMat(a,b) += 
-											+ 0.5 * ThreeDotProduct( 
-													DbasisX.VecData(a), DbasisX.VecData(b), 
-													LGLWeight3D.Data(), numGridTotal )
-											+ 0.5 * ThreeDotProduct( 
-													DbasisY.VecData(a), DbasisY.VecData(b), 
-													LGLWeight3D.Data(), numGridTotal )
-											+ 0.5 * ThreeDotProduct( 
-													DbasisZ.VecData(a), DbasisZ.VecData(b), 
-													LGLWeight3D.Data(), numGridTotal );
-									} // for (b)
+//#ifdef _USE_OPENMP_
+//#pragma omp for schedule(dynamic,1) nowait
+//#endif
+							
+                // Old implementation using ThreeDotProduct routine
+                if(0){ 
+                  for( Int a = 0; a < numBasis; a++ )
+                    for( Int b = a; b < numBasis; b++ ){
+                      ptrLocalMat[a+numBasis*b] += 
+                        //										localMat(a,b) += 
+                        + 0.5 * ThreeDotProduct( 
+                            DbasisX.VecData(a), DbasisX.VecData(b), 
+                            LGLWeight3D.Data(), numGridTotal )
+                        + 0.5 * ThreeDotProduct( 
+                            DbasisY.VecData(a), DbasisY.VecData(b), 
+                            LGLWeight3D.Data(), numGridTotal )
+                        + 0.5 * ThreeDotProduct( 
+                            DbasisZ.VecData(a), DbasisZ.VecData(b), 
+                            LGLWeight3D.Data(), numGridTotal );
+                    } // for (b)
+                } //if(0)
 
-								// Release the gradient as volume data to save memory
-								// NOTE: Not used anymore since the gradient are used to
-								// construct other quantities
-								//							for( Int d = 0; d < DIM; d++ ){
-								//								Dbasis[d].LocalMap().erase(key);
-								//							}
+
+                if(1){ 
+                  // In order to compute the Laplacian part
+                  //
+                  // Dphi_i * w * Dphi_j, sqrt(w) is first multiplied to
+                  // the derivative of the basis functions.
+                  for( Int g = 0; g < basis.n(); g++ ){
+                    Real *ptr = sqrtLGLWeight3D.Data();
+                    Real *ptrX = DbasisX.VecData(g);
+                    Real *ptrY = DbasisY.VecData(g);
+                    Real *ptrZ = DbasisZ.VecData(g);
+                    for( Int l = 0; l < basis.m(); l++ ){
+                      *(ptrX++)  *= *ptr;
+                      *(ptrY++)  *= *ptr;
+                      *(ptrZ++)  *= *ptr;
+                      ptr++;
+                    }
+                  }
+
+                  // Convert the basis functions from column based
+                  // partition to row based partition
+                  Int height = basis.m();
+                  Int width = numBasisTotal;
+
+                  Int widthBlocksize = width / mpisizeRow;
+                  Int heightBlocksize = height / mpisizeRow;
+
+                  Int widthLocal = widthBlocksize;
+                  Int heightLocal = heightBlocksize;
+
+                  if(mpirankRow < (width % mpisizeRow)){
+                    widthLocal = widthBlocksize + 1;
+                  }
+
+                  if(mpirankRow == (mpisizeRow - 1)){
+                    heightLocal = heightBlocksize + height % mpisizeRow;
+                  }
+
+                  Int numLGLGridTotal = height;  
+                  Int numLGLGridLocal = heightLocal;  
+
+                  DblNumMat DbasisXRow( heightLocal, width );
+                  DblNumMat DbasisYRow( heightLocal, width );
+                  DblNumMat DbasisZRow( heightLocal, width );
+                  
+                  DblNumMat localMatXTemp( width, width );
+                  DblNumMat localMatYTemp( width, width );
+                  DblNumMat localMatZTemp( width, width );
+                
+                  DblNumMat localMatTemp1( width, width );
+                  DblNumMat localMatTemp2( width, width );
+                  
+                  AlltoallForward (DbasisX, DbasisXRow, domain_.rowComm);
+                  AlltoallForward (DbasisY, DbasisYRow, domain_.rowComm);
+                  AlltoallForward (DbasisZ, DbasisZRow, domain_.rowComm);
+                
+                  // Compute the local contribution to the Laplacian
+                  // part for the row partitioned basis functions.
+                  SetValue( localMatXTemp, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, DbasisXRow.Data(), numLGLGridLocal, 
+                      DbasisXRow.Data(), numLGLGridLocal, 0.0,
+                      localMatXTemp.Data(), numBasisTotal );
+
+                  SetValue( localMatYTemp, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, DbasisYRow.Data(), numLGLGridLocal, 
+                      DbasisYRow.Data(), numLGLGridLocal, 0.0,
+                      localMatYTemp.Data(), numBasisTotal );
+
+                  SetValue( localMatZTemp, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal,
+                      numLGLGridLocal, 1.0, DbasisZRow.Data(),
+                      numLGLGridLocal, DbasisZRow.Data(),
+                      numLGLGridLocal, 0.0, localMatZTemp.Data(),
+                      numBasisTotal );
+
+                  SetValue( localMatTemp1, 0.0 );
+                  for( Int a = 0; a < numBasisTotal; a++ )
+                    for( Int b = a; b < numBasisTotal; b++ ){
+                      localMatTemp1(a,b) = localMatXTemp(a,b) +
+                        localMatYTemp(a,b) + localMatZTemp(a,b);  
+                    }
+
+                  SetValue( localMatTemp2, 0.0 );
+                  MPI_Allreduce( localMatTemp1.Data(),
+                      localMatTemp2.Data(), numBasisTotal *
+                      numBasisTotal, MPI_DOUBLE, MPI_SUM,
+                      domain_.rowComm );
+
+                  for( Int a = 0; a < numBasisTotal; a++ )
+                    for( Int b = a; b < numBasisTotal; b++ ){
+                      localMat(a,b) += 0.5 * localMatTemp2(a,b);  
+                    } 
+
+                } //if(1)
+
 							}
 #if ( _DEBUGlevel_ >= 1 )
 							statusOFS << "After the Laplacian part." << std::endl;
@@ -768,18 +967,94 @@ HamiltonianDG::CalculateDGMatrix	(  )
 							// Local potential part
 							{
 								DblNumVec&  vtot  = vtotLGL_.LocalMap()[key];
-#ifdef _USE_OPENMP_
-#pragma omp for schedule(dynamic,1) nowait
-#endif
-								for( Int a = 0; a < numBasis; a++ )
-									for( Int b = a; b < numBasis; b++ ){
-										ptrLocalMat[a+numBasis*b] += 
-//										localMat(a,b) += 
-											FourDotProduct( 
-												basis.VecData(a), basis.VecData(b), 
-												vtot.Data(), LGLWeight3D.Data(), numGridTotal );
-									} // for (b)
-							}
+//#ifdef _USE_OPENMP_
+//#pragma omp for schedule(dynamic,1) nowait
+//#endif
+                if(0){ 
+                  for( Int a = 0; a < numBasis; a++ )
+                    for( Int b = a; b < numBasis; b++ ){
+                      ptrLocalMat[a+numBasis*b] += 
+                        //										localMat(a,b) += 
+                        FourDotProduct( 
+                            basis.VecData(a), basis.VecData(b), 
+                            vtot.Data(), LGLWeight3D.Data(), numGridTotal );
+                    } // for (b)
+
+                }// if(0)
+
+                // For this step, we need a copy of the basis in the
+                // FourDotProduct process.  This is because the local
+                // potential has both positive and negative
+                // contribution, and the sqrt trick is not applicable
+                // here.
+                if(1){
+
+                  DblNumMat basisTemp (basis.m(), basis.n()); 
+                  SetValue( basisTemp, 0.0 );
+                 
+                  // This is the same as the FourDotProduct process.
+                  for( Int g = 0; g < basis.n(); g++ ){
+                    Real *ptr1 = LGLWeight3D.Data();
+                    Real *ptr2 = vtot.Data();
+                    Real *ptr3 = basis.VecData(g);
+                    Real *ptr4 = basisTemp.VecData(g);
+                    for( Int l = 0; l < basis.m(); l++ ){
+                      *(ptr4++) = (*(ptr1++)) * (*(ptr2++)) * (*(ptr3++));
+                    }
+                  }
+
+                 
+                  // Convert the basis functions from column based
+                  // partition to row based partition
+                  Int height = basis.m();
+                  Int width = numBasisTotal;
+
+                  Int widthBlocksize = width / mpisizeRow;
+                  Int heightBlocksize = height / mpisizeRow;
+
+                  Int widthLocal = widthBlocksize;
+                  Int heightLocal = heightBlocksize;
+
+                  if(mpirankRow < (width % mpisizeRow)){
+                    widthLocal = widthBlocksize + 1;
+                  }
+
+                  if(mpirankRow == (mpisizeRow - 1)){
+                    heightLocal = heightBlocksize + height % mpisizeRow;
+                  }
+
+                  Int numLGLGridTotal = height;  
+                  Int numLGLGridLocal = heightLocal;  
+
+                  DblNumMat basisRow( heightLocal, width );
+                  DblNumMat basisTempRow( heightLocal, width );
+                  
+                  DblNumMat localMatTemp1( width, width );
+                  DblNumMat localMatTemp2( width, width );
+                  
+                  AlltoallForward (basis, basisRow, domain_.rowComm);
+                  AlltoallForward (basisTemp, basisTempRow, domain_.rowComm);
+                
+                  SetValue( localMatTemp1, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, basisRow.Data(), numLGLGridLocal, 
+                      basisTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp1.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp2, 0.0 );
+                  MPI_Allreduce( localMatTemp1.Data(),
+                      localMatTemp2.Data(), numBasisTotal *
+                      numBasisTotal, MPI_DOUBLE, MPI_SUM,
+                      domain_.rowComm );
+
+                  for( Int a = 0; a < numBasisTotal; a++ )
+                    for( Int b = a; b < numBasisTotal; b++ ){
+                      localMat(a,b) += localMatTemp2(a,b);  
+                    } 
+
+                } //if(1)
+
+              }// Local potential part
 
 #if ( _DEBUGlevel_ >= 1 )
 							statusOFS << "After the local potential part." << std::endl;
@@ -796,49 +1071,190 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 								// intra-element part of the boundary term
 								Real intByPartTerm, penaltyTerm;
-#ifdef _USE_OPENMP_
-#pragma omp for schedule(dynamic,1) nowait
-#endif
-								for( Int a = 0; a < numBasis; a++ )
-									for( Int b = a; b < numBasis; b++ ){
-										intByPartTerm = 
-											-0.5 * ThreeDotProduct( 
-													drvL.VecData(a), 
-													valL.VecData(b),
-													LGLWeight2D[0].Data(),
-													numGridFace )
-											-0.5 * ThreeDotProduct(
-													valL.VecData(a),
-													drvL.VecData(b), 
-													LGLWeight2D[0].Data(),
-													numGridFace )
-											-0.5 * ThreeDotProduct( 
-													drvR.VecData(a), 
-													valR.VecData(b),
-													LGLWeight2D[0].Data(),
-													numGridFace )
-											-0.5 * ThreeDotProduct(
-													valR.VecData(a),
-													drvR.VecData(b), 
-													LGLWeight2D[0].Data(),
-													numGridFace );
-										penaltyTerm = 
-											penaltyAlpha_ * ThreeDotProduct(
-													valL.VecData(a),
-													valL.VecData(b),
-													LGLWeight2D[0].Data(),
-													numGridFace )
-											+ penaltyAlpha_ * ThreeDotProduct(
-													valR.VecData(a),
-													valR.VecData(b),
-													LGLWeight2D[0].Data(),
-													numGridFace );
+//#ifdef _USE_OPENMP_
+//#pragma omp for schedule(dynamic,1) nowait
+//#endif
+							
+                if(0){ 
+                  for( Int a = 0; a < numBasis; a++ )
+                    for( Int b = a; b < numBasis; b++ ){
+                      intByPartTerm = 
+                        -0.5 * ThreeDotProduct( 
+                            drvL.VecData(a), 
+                            valL.VecData(b),
+                            LGLWeight2D[0].Data(),
+                            numGridFace )
+                        -0.5 * ThreeDotProduct(
+                            valL.VecData(a),
+                            drvL.VecData(b), 
+                            LGLWeight2D[0].Data(),
+                            numGridFace )
+                        -0.5 * ThreeDotProduct( 
+                            drvR.VecData(a), 
+                            valR.VecData(b),
+                            LGLWeight2D[0].Data(),
+                            numGridFace )
+                        -0.5 * ThreeDotProduct(
+                            valR.VecData(a),
+                            drvR.VecData(b), 
+                            LGLWeight2D[0].Data(),
+                            numGridFace );
+                      penaltyTerm = 
+                        penaltyAlpha_ * ThreeDotProduct(
+                            valL.VecData(a),
+                            valL.VecData(b),
+                            LGLWeight2D[0].Data(),
+                            numGridFace )
+                        + penaltyAlpha_ * ThreeDotProduct(
+                            valR.VecData(a),
+                            valR.VecData(b),
+                            LGLWeight2D[0].Data(),
+                            numGridFace );
 
-										ptrLocalMat[a+numBasis*b] += 
-//										localMat(a,b) += 
-											intByPartTerm + penaltyTerm;
-									} // for (b)
-							} // x-direction
+                      ptrLocalMat[a+numBasis*b] += 
+                        //										localMat(a,b) += 
+                        intByPartTerm + penaltyTerm;
+                    } // for (b)
+                } // if(0)
+
+                if(1){
+                  
+                  DblNumMat valLTemp(numGridFace, numBasis); 
+                  DblNumMat valRTemp(numGridFace, numBasis); 
+                  DblNumMat drvLTemp(numGridFace, numBasis); 
+                  DblNumMat drvRTemp(numGridFace, numBasis); 
+
+                  SetValue( valLTemp, 0.0 );
+                  SetValue( valRTemp, 0.0 );
+                  SetValue( drvLTemp, 0.0 );
+                  SetValue( drvRTemp, 0.0 );
+
+                  // sqrt(w) is first multiplied to the derivative of
+                  // the derivatives and function values on the surface
+                  // for inner product.
+                  for( Int g = 0; g < numBasis; g++ ){
+                    Real *ptr = sqrtLGLWeight2D[0].Data();
+                    Real *ptr1 = valL.VecData(g);
+                    Real *ptr2 = valR.VecData(g);
+                    Real *ptr3 = drvL.VecData(g);
+                    Real *ptr4 = drvR.VecData(g);
+                    Real *ptr11 = valLTemp.VecData(g);
+                    Real *ptr22 = valRTemp.VecData(g);
+                    Real *ptr33 = drvLTemp.VecData(g);
+                    Real *ptr44 = drvRTemp.VecData(g);
+                    for( Int l = 0; l < numGridFace; l++ ){
+                      *(ptr11++) = (*(ptr1++)) * (*ptr);
+                      *(ptr22++) = (*(ptr2++)) * (*ptr);
+                      *(ptr33++) = (*(ptr3++)) * (*ptr);
+                      *(ptr44++) = (*(ptr4++)) * (*ptr);
+                      ptr++;
+                    }
+                  }
+
+                  // Convert the basis functions from column based
+                  // partition to row based partition
+                 
+                  Int height = numGridFace;
+                  Int width = numBasisTotal;
+
+                  Int widthBlocksize = width / mpisizeRow;
+                  Int heightBlocksize = height / mpisizeRow;
+
+                  Int widthLocal = widthBlocksize;
+                  Int heightLocal = heightBlocksize;
+
+                  if(mpirankRow < (width % mpisizeRow)){
+                    widthLocal = widthBlocksize + 1;
+                  }
+
+                  if(mpirankRow == (mpisizeRow - 1)){
+                    heightLocal = heightBlocksize + height % mpisizeRow;
+                  }
+
+                  Int numLGLGridTotal = height;  
+                  Int numLGLGridLocal = heightLocal;  
+
+                  Int numBasisLocal = widthLocal;
+
+                  DblNumMat valLTempRow( heightLocal, width );
+                  DblNumMat valRTempRow( heightLocal, width );
+                  DblNumMat drvLTempRow( heightLocal, width );
+                  DblNumMat drvRTempRow( heightLocal, width );
+                  
+                  DblNumMat localMatTemp1( width, width );
+                  DblNumMat localMatTemp2( width, width );
+                  DblNumMat localMatTemp3( width, width );
+                  DblNumMat localMatTemp4( width, width );
+                  DblNumMat localMatTemp5( width, width );
+                  DblNumMat localMatTemp6( width, width );
+                  
+                  DblNumMat localMatTemp7( width, width );
+                  DblNumMat localMatTemp8( width, width );
+                 
+
+                  AlltoallForward (valLTemp, valLTempRow, domain_.rowComm);
+                  AlltoallForward (valRTemp, valRTempRow, domain_.rowComm);
+                  AlltoallForward (drvLTemp, drvLTempRow, domain_.rowComm);
+                  AlltoallForward (drvRTemp, drvRTempRow, domain_.rowComm);
+                
+                 
+                  SetValue( localMatTemp1, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, drvLTempRow.Data(), numLGLGridLocal, 
+                      valLTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp1.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp2, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, valLTempRow.Data(), numLGLGridLocal, 
+                      drvLTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp2.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp3, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, drvRTempRow.Data(), numLGLGridLocal, 
+                      valRTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp3.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp4, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, valRTempRow.Data(), numLGLGridLocal, 
+                      drvRTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp4.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp5, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, valLTempRow.Data(), numLGLGridLocal, 
+                      valLTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp5.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp6, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, valRTempRow.Data(), numLGLGridLocal, 
+                      valRTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp6.Data(), numBasisTotal );
+
+
+                  SetValue( localMatTemp7, 0.0 );
+                  for( Int a = 0; a < numBasisTotal; a++ )
+                    for( Int b = a; b < numBasisTotal; b++ ){
+                      localMatTemp7(a,b) = 0.0 - 0.5 * localMatTemp1(a,b) - 0.5 * localMatTemp2(a,b) 
+                        - 0.5 * localMatTemp3(a,b) - 0.5 * localMatTemp4(a,b)
+                        + penaltyAlpha_ * localMatTemp5(a,b) + penaltyAlpha_ * localMatTemp6(a,b);  
+                    } 
+
+
+                  SetValue( localMatTemp8, 0.0 );
+                  MPI_Allreduce( localMatTemp7.Data(), localMatTemp8.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+                  
+                  for( Int a = 0; a < numBasisTotal; a++ )
+                    for( Int b = a; b < numBasisTotal; b++ ){
+                      localMat(a,b) += localMatTemp8(a,b);  
+                    } 
+                } //if(1)
+
+
+              } // x-direction
 
 							// y-direction: intra-element part of the boundary term
 							{
@@ -851,49 +1267,195 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 								// intra-element part of the boundary term
 								Real intByPartTerm, penaltyTerm;
-#ifdef _USE_OPENMP_
-#pragma omp for schedule(dynamic,1) nowait
-#endif
-								for( Int a = 0; a < numBasis; a++ )
-									for( Int b = a; b < numBasis; b++ ){
-										intByPartTerm = 
-											-0.5 * ThreeDotProduct( 
-													drvL.VecData(a), 
-													valL.VecData(b),
-													LGLWeight2D[1].Data(),
-													numGridFace )
-											-0.5 * ThreeDotProduct(
-													valL.VecData(a),
-													drvL.VecData(b), 
-													LGLWeight2D[1].Data(),
-													numGridFace )
-											-0.5 * ThreeDotProduct( 
-													drvR.VecData(a), 
-													valR.VecData(b),
-													LGLWeight2D[1].Data(),
-													numGridFace )
-											-0.5 * ThreeDotProduct(
-													valR.VecData(a),
-													drvR.VecData(b), 
-													LGLWeight2D[1].Data(),
-													numGridFace );
-										penaltyTerm = 
-											penaltyAlpha_ * ThreeDotProduct(
-													valL.VecData(a),
-													valL.VecData(b),
-													LGLWeight2D[1].Data(),
-													numGridFace )
-											+ penaltyAlpha_ * ThreeDotProduct(
-													valR.VecData(a),
-													valR.VecData(b),
-													LGLWeight2D[1].Data(),
-													numGridFace );
+//#ifdef _USE_OPENMP_
+//#pragma omp for schedule(dynamic,1) nowait
+//#endif
+                
+                if(0){ 
+                  for( Int a = 0; a < numBasis; a++ )
+                    for( Int b = a; b < numBasis; b++ ){
+                      intByPartTerm = 
+                        -0.5 * ThreeDotProduct( 
+                            drvL.VecData(a), 
+                            valL.VecData(b),
+                            LGLWeight2D[1].Data(),
+                            numGridFace )
+                        -0.5 * ThreeDotProduct(
+                            valL.VecData(a),
+                            drvL.VecData(b), 
+                            LGLWeight2D[1].Data(),
+                            numGridFace )
+                        -0.5 * ThreeDotProduct( 
+                            drvR.VecData(a), 
+                            valR.VecData(b),
+                            LGLWeight2D[1].Data(),
+                            numGridFace )
+                        -0.5 * ThreeDotProduct(
+                            valR.VecData(a),
+                            drvR.VecData(b), 
+                            LGLWeight2D[1].Data(),
+                            numGridFace );
+                      penaltyTerm = 
+                        penaltyAlpha_ * ThreeDotProduct(
+                            valL.VecData(a),
+                            valL.VecData(b),
+                            LGLWeight2D[1].Data(),
+                            numGridFace )
+                        + penaltyAlpha_ * ThreeDotProduct(
+                            valR.VecData(a),
+                            valR.VecData(b),
+                            LGLWeight2D[1].Data(),
+                            numGridFace );
 
-										ptrLocalMat[a+numBasis*b] += 
-//										localMat(a,b) += 
-											intByPartTerm + penaltyTerm;
-									} // for (b)
-							} // y-direction
+                      ptrLocalMat[a+numBasis*b] += 
+                        //										localMat(a,b) += 
+                        intByPartTerm + penaltyTerm;
+                    } // for (b)
+
+                } // if(0)
+
+
+
+
+
+                if(1){ 
+
+                  DblNumMat valLTemp(numGridFace, numBasis); 
+                  DblNumMat valRTemp(numGridFace, numBasis); 
+                  DblNumMat drvLTemp(numGridFace, numBasis); 
+                  DblNumMat drvRTemp(numGridFace, numBasis); 
+
+                  SetValue( valLTemp, 0.0 );
+                  SetValue( valRTemp, 0.0 );
+                  SetValue( drvLTemp, 0.0 );
+                  SetValue( drvRTemp, 0.0 );
+
+                  // sqrt(w) is first multiplied to the derivative of
+                  // the derivatives and function values on the surface
+                  // for inner product.
+                  for( Int g = 0; g < numBasis; g++ ){
+                    Real *ptr = sqrtLGLWeight2D[1].Data();
+                    Real *ptr1 = valL.VecData(g);
+                    Real *ptr2 = valR.VecData(g);
+                    Real *ptr3 = drvL.VecData(g);
+                    Real *ptr4 = drvR.VecData(g);
+                    Real *ptr11 = valLTemp.VecData(g);
+                    Real *ptr22 = valRTemp.VecData(g);
+                    Real *ptr33 = drvLTemp.VecData(g);
+                    Real *ptr44 = drvRTemp.VecData(g);
+                    for( Int l = 0; l < numGridFace; l++ ){
+                      *(ptr11++) = (*(ptr1++)) * (*ptr);
+                      *(ptr22++) = (*(ptr2++)) * (*ptr);
+                      *(ptr33++) = (*(ptr3++)) * (*ptr);
+                      *(ptr44++) = (*(ptr4++)) * (*ptr);
+                      ptr = ptr++;
+                    }
+                  }
+
+                 
+                  // Convert the basis functions from column based
+                  // partition to row based partition
+                  Int height = numGridFace;
+                  Int width = numBasisTotal;
+
+                  Int widthBlocksize = width / mpisizeRow;
+                  Int heightBlocksize = height / mpisizeRow;
+
+                  Int widthLocal = widthBlocksize;
+                  Int heightLocal = heightBlocksize;
+
+                  if(mpirankRow < (width % mpisizeRow)){
+                    widthLocal = widthBlocksize + 1;
+                  }
+
+                  if(mpirankRow == (mpisizeRow - 1)){
+                    heightLocal = heightBlocksize + height % mpisizeRow;
+                  }
+
+                  Int numLGLGridTotal = height;  
+                  Int numLGLGridLocal = heightLocal;  
+
+                  Int numBasisLocal = widthLocal;
+
+                  DblNumMat valLTempRow( heightLocal, width );
+                  DblNumMat valRTempRow( heightLocal, width );
+                  DblNumMat drvLTempRow( heightLocal, width );
+                  DblNumMat drvRTempRow( heightLocal, width );
+                  
+                  DblNumMat localMatTemp1( width, width );
+                  DblNumMat localMatTemp2( width, width );
+                  DblNumMat localMatTemp3( width, width );
+                  DblNumMat localMatTemp4( width, width );
+                  DblNumMat localMatTemp5( width, width );
+                  DblNumMat localMatTemp6( width, width );
+                  
+                  DblNumMat localMatTemp7( width, width );
+                  DblNumMat localMatTemp8( width, width );
+                  
+                  AlltoallForward (valLTemp, valLTempRow, domain_.rowComm);
+                  AlltoallForward (valRTemp, valRTempRow, domain_.rowComm);
+                  AlltoallForward (drvLTemp, drvLTempRow, domain_.rowComm);
+                  AlltoallForward (drvRTemp, drvRTempRow, domain_.rowComm);
+                
+                  SetValue( localMatTemp1, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, drvLTempRow.Data(), numLGLGridLocal, 
+                      valLTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp1.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp2, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, valLTempRow.Data(), numLGLGridLocal, 
+                      drvLTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp2.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp3, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, drvRTempRow.Data(), numLGLGridLocal, 
+                      valRTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp3.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp4, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, valRTempRow.Data(), numLGLGridLocal, 
+                      drvRTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp4.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp5, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, valLTempRow.Data(), numLGLGridLocal, 
+                      valLTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp5.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp6, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, valRTempRow.Data(), numLGLGridLocal, 
+                      valRTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp6.Data(), numBasisTotal );
+
+
+                  SetValue( localMatTemp7, 0.0 );
+                  for( Int a = 0; a < numBasisTotal; a++ )
+                    for( Int b = a; b < numBasisTotal; b++ ){
+                      localMatTemp7(a,b) = 0.0 - 0.5 * localMatTemp1(a,b) - 0.5 * localMatTemp2(a,b) 
+                        - 0.5 * localMatTemp3(a,b) - 0.5 * localMatTemp4(a,b)
+                        + penaltyAlpha_ * localMatTemp5(a,b) + penaltyAlpha_ * localMatTemp6(a,b);  
+                    } 
+
+
+                  SetValue( localMatTemp8, 0.0 );
+                  MPI_Allreduce( localMatTemp7.Data(), localMatTemp8.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+                  
+                  for( Int a = 0; a < numBasisTotal; a++ )
+                    for( Int b = a; b < numBasisTotal; b++ ){
+                      localMat(a,b) += localMatTemp8(a,b);  
+                    } 
+
+
+                } //if(1)
+
+
+              } // y-direction
 
 							// z-direction: intra-element part of the boundary term
 							{
@@ -906,64 +1468,205 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 								// intra-element part of the boundary term
 								Real intByPartTerm, penaltyTerm;
-#ifdef _USE_OPENMP_
-#pragma omp for schedule(dynamic,1) nowait
-#endif
-								for( Int a = 0; a < numBasis; a++ )
-									for( Int b = a; b < numBasis; b++ ){
-										intByPartTerm = 
-											-0.5 * ThreeDotProduct( 
-													drvL.VecData(a), 
-													valL.VecData(b),
-													LGLWeight2D[2].Data(),
-													numGridFace )
-											-0.5 * ThreeDotProduct(
-													valL.VecData(a),
-													drvL.VecData(b), 
-													LGLWeight2D[2].Data(),
-													numGridFace )
-											-0.5 * ThreeDotProduct( 
-													drvR.VecData(a), 
-													valR.VecData(b),
-													LGLWeight2D[2].Data(),
-													numGridFace )
-											-0.5 * ThreeDotProduct(
-													valR.VecData(a),
-													drvR.VecData(b), 
-													LGLWeight2D[2].Data(),
-													numGridFace );
-										penaltyTerm = 
-											penaltyAlpha_ * ThreeDotProduct(
-													valL.VecData(a),
-													valL.VecData(b),
-													LGLWeight2D[2].Data(),
-													numGridFace )
-											+ penaltyAlpha_ * ThreeDotProduct(
-													valR.VecData(a),
-													valR.VecData(b),
-													LGLWeight2D[2].Data(),
-													numGridFace );
+//#ifdef _USE_OPENMP_
+//#pragma omp for schedule(dynamic,1) nowait
+//#endif
+                
+                if(0){ 
+                  for( Int a = 0; a < numBasis; a++ )
+                    for( Int b = a; b < numBasis; b++ ){
+                      intByPartTerm = 
+                        -0.5 * ThreeDotProduct( 
+                            drvL.VecData(a), 
+                            valL.VecData(b),
+                            LGLWeight2D[2].Data(),
+                            numGridFace )
+                        -0.5 * ThreeDotProduct(
+                            valL.VecData(a),
+                            drvL.VecData(b), 
+                            LGLWeight2D[2].Data(),
+                            numGridFace )
+                        -0.5 * ThreeDotProduct( 
+                            drvR.VecData(a), 
+                            valR.VecData(b),
+                            LGLWeight2D[2].Data(),
+                            numGridFace )
+                        -0.5 * ThreeDotProduct(
+                            valR.VecData(a),
+                            drvR.VecData(b), 
+                            LGLWeight2D[2].Data(),
+                            numGridFace );
+                      penaltyTerm = 
+                        penaltyAlpha_ * ThreeDotProduct(
+                            valL.VecData(a),
+                            valL.VecData(b),
+                            LGLWeight2D[2].Data(),
+                            numGridFace )
+                        + penaltyAlpha_ * ThreeDotProduct(
+                            valR.VecData(a),
+                            valR.VecData(b),
+                            LGLWeight2D[2].Data(),
+                            numGridFace );
 
-										ptrLocalMat[a+numBasis*b] += 
-//										localMat(a,b) += 
-											intByPartTerm + penaltyTerm;
-									} // for (b)
-							} // z-direction
+                      ptrLocalMat[a+numBasis*b] += 
+                        //										localMat(a,b) += 
+                        intByPartTerm + penaltyTerm;
+                    } // for (b)
+
+                } // if(0)
+
+
+
+
+
+                if(1){ 
+
+                  DblNumMat valLTemp(numGridFace, numBasis); 
+                  DblNumMat valRTemp(numGridFace, numBasis); 
+                  DblNumMat drvLTemp(numGridFace, numBasis); 
+                  DblNumMat drvRTemp(numGridFace, numBasis); 
+
+                  SetValue( valLTemp, 0.0 );
+                  SetValue( valRTemp, 0.0 );
+                  SetValue( drvLTemp, 0.0 );
+                  SetValue( drvRTemp, 0.0 );
+
+                  // sqrt(w) is first multiplied to the derivative of
+                  // the derivatives and function values on the surface
+                  // for inner product.
+                  for( Int g = 0; g < numBasis; g++ ){
+                    Real *ptr = sqrtLGLWeight2D[2].Data();
+                    Real *ptr1 = valL.VecData(g);
+                    Real *ptr2 = valR.VecData(g);
+                    Real *ptr3 = drvL.VecData(g);
+                    Real *ptr4 = drvR.VecData(g);
+                    Real *ptr11 = valLTemp.VecData(g);
+                    Real *ptr22 = valRTemp.VecData(g);
+                    Real *ptr33 = drvLTemp.VecData(g);
+                    Real *ptr44 = drvRTemp.VecData(g);
+                    for( Int l = 0; l < numGridFace; l++ ){
+                      *(ptr11++) = (*(ptr1++)) * (*ptr);
+                      *(ptr22++) = (*(ptr2++)) * (*ptr);
+                      *(ptr33++) = (*(ptr3++)) * (*ptr);
+                      *(ptr44++) = (*(ptr4++)) * (*ptr);
+                      ptr = ptr++;
+                    }
+                  }
+
+                 
+                  // Convert the basis functions from column based
+                  // partition to row based partition
+                  Int height = numGridFace;
+                  Int width = numBasisTotal;
+
+                  Int widthBlocksize = width / mpisizeRow;
+                  Int heightBlocksize = height / mpisizeRow;
+
+                  Int widthLocal = widthBlocksize;
+                  Int heightLocal = heightBlocksize;
+
+                  if(mpirankRow < (width % mpisizeRow)){
+                    widthLocal = widthBlocksize + 1;
+                  }
+
+                  if(mpirankRow == (mpisizeRow - 1)){
+                    heightLocal = heightBlocksize + height % mpisizeRow;
+                  }
+
+                  Int numLGLGridTotal = height;  
+                  Int numLGLGridLocal = heightLocal;  
+
+                  Int numBasisLocal = widthLocal;
+
+                  DblNumMat valLTempRow( heightLocal, width );
+                  DblNumMat valRTempRow( heightLocal, width );
+                  DblNumMat drvLTempRow( heightLocal, width );
+                  DblNumMat drvRTempRow( heightLocal, width );
+                  
+                  DblNumMat localMatTemp1( width, width );
+                  DblNumMat localMatTemp2( width, width );
+                  DblNumMat localMatTemp3( width, width );
+                  DblNumMat localMatTemp4( width, width );
+                  DblNumMat localMatTemp5( width, width );
+                  DblNumMat localMatTemp6( width, width );
+                  
+                  DblNumMat localMatTemp7( width, width );
+                  DblNumMat localMatTemp8( width, width );
+                  
+                  AlltoallForward (valLTemp, valLTempRow, domain_.rowComm);
+                  AlltoallForward (valRTemp, valRTempRow, domain_.rowComm);
+                  AlltoallForward (drvLTemp, drvLTempRow, domain_.rowComm);
+                  AlltoallForward (drvRTemp, drvRTempRow, domain_.rowComm);
+                
+                  SetValue( localMatTemp1, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, drvLTempRow.Data(), numLGLGridLocal, 
+                      valLTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp1.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp2, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, valLTempRow.Data(), numLGLGridLocal, 
+                      drvLTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp2.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp3, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, drvRTempRow.Data(), numLGLGridLocal, 
+                      valRTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp3.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp4, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, valRTempRow.Data(), numLGLGridLocal, 
+                      drvRTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp4.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp5, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, valLTempRow.Data(), numLGLGridLocal, 
+                      valLTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp5.Data(), numBasisTotal );
+
+                  SetValue( localMatTemp6, 0.0 );
+                  blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                      1.0, valRTempRow.Data(), numLGLGridLocal, 
+                      valRTempRow.Data(), numLGLGridLocal, 0.0,
+                      localMatTemp6.Data(), numBasisTotal );
+
+
+                  SetValue( localMatTemp7, 0.0 );
+                  for( Int a = 0; a < numBasisTotal; a++ )
+                    for( Int b = a; b < numBasisTotal; b++ ){
+                      localMatTemp7(a,b) = 0.0 - 0.5 * localMatTemp1(a,b) - 0.5 * localMatTemp2(a,b) 
+                        - 0.5 * localMatTemp3(a,b) - 0.5 * localMatTemp4(a,b)
+                        + penaltyAlpha_ * localMatTemp5(a,b) + penaltyAlpha_ * localMatTemp6(a,b);  
+                    } 
+
+
+                  SetValue( localMatTemp8, 0.0 );
+                  MPI_Allreduce( localMatTemp7.Data(), localMatTemp8.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+                  
+                  for( Int a = 0; a < numBasisTotal; a++ )
+                    for( Int b = a; b < numBasisTotal; b++ ){
+                      localMat(a,b) += localMatTemp8(a,b);  
+                    } 
+                } //if(1)
+              } // z-direction
 
 #if ( _DEBUGlevel_ >= 1 )
 							statusOFS << "After the boundary part." << std::endl;
 #endif
-#ifdef _USE_OPENMP_
+//#ifdef _USE_OPENMP_
 						}
-#endif
-						// Symmetrize
-						for( Int a = 0; a < numBasis; a++ )
-							for( Int b = 0; b < a; b++ ){
-								localMat(a,b) = localMat(b,a);
-							}
+//#endif
+						// Symmetrize the diagonal part of the DG matrix
+            for( Int a = 0; a < numBasisTotal; a++ )
+              for( Int b = 0; b < a; b++ ){
+                localMat(a,b) = localMat(b,a);
+              }
 
-
-						// Add to HMat_
+						// Add localMat to HMat_
 						ElemMatKey matKey( key, key );
 						std::map<ElemMatKey, DblNumMat>::iterator mi = 
 							HMat_.LocalMap().find( matKey );
@@ -973,9 +1676,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
 						else{
 							DblNumMat&  mat = (*mi).second;
 							blas::Axpy( mat.Size(), 1.0, localMat.Data(), 1,
-									mat.Data(), 1);
+									mat.Data(), 1); // y = a*x + y -> mat = localMat + mat
 						}
-					}
+          }
 				} // for (i)
 
 		GetTime( timeEnd );
@@ -991,6 +1694,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	// Nonlocal pseudopotential term, Part II
 	// Finish the communication of the nonlocal pseudopotential
 	// Update the nonlocal potential part of the matrix
+  //
+  // In the intra-element parallelization, every processor in the same
+  // processor row communication is doing the same (repetitive) work.
 	// *********************************************************************
 	if(_NON_LOCAL_){
 		GetTime( timeSta );
@@ -1012,7 +1718,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 		// Loop over atoms
 		for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
-			if( atomPrtn_.Owner(atomIdx) == mpirank ){
+			if( atomPrtn_.Owner(atomIdx) == (mpirank / dmRow_) ){
 				DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
 				// Loop over element 1
 				for( std::map<Index3, std::map<Int, DblNumMat> >::iterator 
@@ -1103,15 +1809,17 @@ HamiltonianDG::CalculateDGMatrix	(  )
 	}
 
 
-	// *********************************************************************
+  // *********************************************************************
 	// Boundary terms, Part II
 	// Finish the communication of boundary terms
 	// Update the inter-element boundary part of the matrix
+  //
+  // In the intra-element parallelization, processors in the same
+  // processor row communication are doing different work.
 	// *********************************************************************
 
 	{
 		GetTime( timeSta );
-		// New code for communicating boundary elements
 		DbasisAverage[XR].GetEnd( NO_MASK );
 		DbasisAverage[YR].GetEnd( NO_MASK );
 		DbasisAverage[ZR].GetEnd( NO_MASK );
@@ -1121,6 +1829,8 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		basisJump[ZR].GetEnd( NO_MASK );
 
 		MPI_Barrier( domain_.comm );
+		MPI_Barrier( domain_.rowComm );
+		MPI_Barrier( domain_.colComm );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
 		statusOFS << "Time for the remaining communication cost is " <<
@@ -1133,9 +1843,9 @@ HamiltonianDG::CalculateDGMatrix	(  )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
-					if( elemPrtn_.Owner(key) == mpirank ){
+					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
 
-						// x-direction
+            // x-direction
 						{
 							// keyL is the previous element received from GetBegin/GetEnd.
 							// keyR is the current element
@@ -1145,7 +1855,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 							Int  numGridFace = numGrid[1] * numGrid[2];
 
-							// Note that the notation can be very confusing here:
+              // Note that the notation can be very confusing here:
 							// The left element (keyL) contributes to the right face
 							// (XR), and the right element (keyR) contributes to the
 							// left face (XL)
@@ -1154,46 +1864,181 @@ HamiltonianDG::CalculateDGMatrix	(  )
 							DblNumMat&  drvL = DbasisAverage[XR].LocalMap()[keyL];
 							DblNumMat&  drvR = DbasisAverage[XL].LocalMap()[keyR];
 
-							Int numBasisL = valL.n();
-							Int numBasisR = valR.n();
-							DblNumMat   localMat( numBasisL, numBasisR );
+              Int numBasisL = valL.n();
+              Int numBasisR = valR.n();
+              
+              Int numBasisLTotal = 0;
+              Int numBasisRTotal = 0;
+
+              MPI_Allreduce( &numBasisL, &numBasisLTotal, 1, MPI_INT,
+                  MPI_SUM, domain_.rowComm );
+              MPI_Allreduce( &numBasisR, &numBasisRTotal, 1, MPI_INT,
+                  MPI_SUM, domain_.rowComm );
+             
+              DblNumMat   localMat( numBasisLTotal, numBasisRTotal );
 							SetValue( localMat, 0.0 );
 
-							// inter-element part of the boundary term
-							Real intByPartTerm, penaltyTerm;
-							for( Int a = 0; a < numBasisL; a++ )
-								for( Int b = 0; b < numBasisR; b++ ){
-									intByPartTerm = 
-										-0.5 * ThreeDotProduct( 
-												drvL.VecData(a), 
-												valR.VecData(b),
-												LGLWeight2D[0].Data(),
-												numGridFace )
-										-0.5 * ThreeDotProduct(
-												valL.VecData(a),
-												drvR.VecData(b), 
-												LGLWeight2D[0].Data(),
-												numGridFace );
-									penaltyTerm = 
-										penaltyAlpha_ * ThreeDotProduct(
-												valL.VecData(a),
-												valR.VecData(b),
-												LGLWeight2D[0].Data(),
-												numGridFace );
+              // inter-element part of the boundary term
+             
+              if(0){ 
+            
+                Real intByPartTerm, penaltyTerm;
+                for( Int a = 0; a < numBasisL; a++ )
+                  for( Int b = 0; b < numBasisR; b++ ){
+                    intByPartTerm = 
+                      -0.5 * ThreeDotProduct( 
+                          drvL.VecData(a), 
+                          valR.VecData(b),
+                          LGLWeight2D[0].Data(),
+                          numGridFace )
+                      -0.5 * ThreeDotProduct(
+                          valL.VecData(a),
+                          drvR.VecData(b), 
+                          LGLWeight2D[0].Data(),
+                          numGridFace );
+                    penaltyTerm = 
+                      penaltyAlpha_ * ThreeDotProduct(
+                          valL.VecData(a),
+                          valR.VecData(b),
+                          LGLWeight2D[0].Data(),
+                          numGridFace );
 
-									localMat(a,b) += 
-										intByPartTerm + penaltyTerm;
-								} // for (b)
-						
-							// Add (keyL, keyR) to HMat_
-							{
-								ElemMatKey matKey( keyL, keyR );
-								std::map<ElemMatKey, DblNumMat>::iterator mi = 
-									HMat_.LocalMap().find( matKey );
-								if( mi == HMat_.LocalMap().end() ){
-									HMat_.LocalMap()[matKey] = localMat;
-								}
-								else{
+                    localMat(a,b) += 
+                      intByPartTerm + penaltyTerm;
+                  } // for (b)
+
+              } //if(0) 
+
+              
+              if(1){ 
+
+                DblNumMat valLTemp(numGridFace, numBasisL); 
+                DblNumMat valRTemp(numGridFace, numBasisR); 
+                DblNumMat drvLTemp(numGridFace, numBasisL); 
+                DblNumMat drvRTemp(numGridFace, numBasisR); 
+
+                SetValue( valLTemp, 0.0 );
+                SetValue( valRTemp, 0.0 );
+                SetValue( drvLTemp, 0.0 );
+                SetValue( drvRTemp, 0.0 );
+
+                for( Int g = 0; g < numBasisL; g++ ){
+                  Real *ptr = sqrtLGLWeight2D[0].Data();
+                  Real *ptr1 = valL.VecData(g);
+                  Real *ptr2 = drvL.VecData(g);
+                  Real *ptr11 = valLTemp.VecData(g);
+                  Real *ptr22 = drvLTemp.VecData(g);
+                  for( Int l = 0; l < numGridFace; l++ ){
+                    *(ptr11++) = (*(ptr1++)) * (*ptr);
+                    *(ptr22++) = (*(ptr2++)) * (*ptr);
+                    ptr = ptr++;
+                  }
+                }
+
+                for( Int g = 0; g < numBasisR; g++ ){
+                  Real *ptr = sqrtLGLWeight2D[0].Data();
+                  Real *ptr1 = valR.VecData(g);
+                  Real *ptr2 = drvR.VecData(g);
+                  Real *ptr11 = valRTemp.VecData(g);
+                  Real *ptr22 = drvRTemp.VecData(g);
+                  for( Int l = 0; l < numGridFace; l++ ){
+                    *(ptr11++) = (*(ptr1++)) * (*ptr);
+                    *(ptr22++) = (*(ptr2++)) * (*ptr);
+                    ptr = ptr++;
+                  }
+                }
+                
+                Int height = numGridFace;
+                Int widthL = numBasisLTotal;
+                Int widthR = numBasisRTotal;
+
+                Int widthLBlocksize = widthL / mpisizeRow;
+                Int widthRBlocksize = widthR / mpisizeRow;
+                Int heightBlocksize = height / mpisizeRow;
+
+                Int widthLLocal = widthLBlocksize;
+                Int widthRLocal = widthRBlocksize;
+                Int heightLocal = heightBlocksize;
+
+                if(mpirankRow < (widthL % mpisizeRow)){
+                  widthLLocal = widthLBlocksize + 1;
+                }
+                
+                if(mpirankRow < (widthR % mpisizeRow)){
+                  widthRLocal = widthRBlocksize + 1;
+                }
+
+                if(mpirankRow == (mpisizeRow - 1)){
+                  heightLocal = heightBlocksize + height % mpisizeRow;
+                }
+
+                Int numLGLGridTotal = height;  
+                Int numLGLGridLocal = heightLocal;  
+
+                Int numBasisLLocal = widthLLocal;
+                Int numBasisRLocal = widthRLocal;
+
+                DblNumMat valLTempRow( heightLocal, widthL );
+                DblNumMat valRTempRow( heightLocal, widthR );
+                DblNumMat drvLTempRow( heightLocal, widthL );
+                DblNumMat drvRTempRow( heightLocal, widthR );
+
+                DblNumMat localMatTemp1( widthL, widthR );
+                DblNumMat localMatTemp2( widthL, widthR );
+                DblNumMat localMatTemp3( widthL, widthR );
+                DblNumMat localMatTemp4( widthL, widthR );
+                DblNumMat localMatTemp5( widthL, widthR );
+
+                AlltoallForward (valLTemp, valLTempRow, domain_.rowComm);
+                AlltoallForward (valRTemp, valRTempRow, domain_.rowComm);
+                AlltoallForward (drvLTemp, drvLTempRow, domain_.rowComm);
+                AlltoallForward (drvRTemp, drvRTempRow, domain_.rowComm);
+
+                SetValue( localMatTemp1, 0.0 );
+                blas::Gemm( 'T', 'N', numBasisLTotal, numBasisRTotal, numLGLGridLocal,
+                    1.0, drvLTempRow.Data(), numLGLGridLocal, 
+                    valRTempRow.Data(), numLGLGridLocal, 0.0,
+                    localMatTemp1.Data(), numBasisLTotal );
+
+                SetValue( localMatTemp2, 0.0 );
+                blas::Gemm( 'T', 'N', numBasisLTotal, numBasisRTotal, numLGLGridLocal,
+                    1.0, valLTempRow.Data(), numLGLGridLocal, 
+                    drvRTempRow.Data(), numLGLGridLocal, 0.0,
+                    localMatTemp2.Data(), numBasisLTotal );
+
+                SetValue( localMatTemp3, 0.0 );
+                blas::Gemm( 'T', 'N', numBasisLTotal, numBasisRTotal, numLGLGridLocal,
+                    1.0, valLTempRow.Data(), numLGLGridLocal, 
+                    valRTempRow.Data(), numLGLGridLocal, 0.0,
+                    localMatTemp3.Data(), numBasisLTotal );
+
+                SetValue( localMatTemp4, 0.0 );
+                for( Int a = 0; a < numBasisLTotal; a++ )
+                  for( Int b = 0; b < numBasisRTotal; b++ ){
+                    localMatTemp4(a,b) = 0.0 - 0.5 * localMatTemp1(a,b) - 0.5 * localMatTemp2(a,b) 
+                      + penaltyAlpha_ * localMatTemp3(a,b);  
+                  } 
+
+                SetValue( localMatTemp5, 0.0 );
+                MPI_Allreduce( localMatTemp4.Data(), localMatTemp5.Data(), numBasisLTotal * numBasisRTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+               
+                for( Int a = 0; a < numBasisLTotal; a++ )
+                  for( Int b = 0; b < numBasisRTotal; b++ ){
+                    localMat(a,b) += localMatTemp5(a,b);  
+                  } 
+
+              } //if(1)
+
+
+            // Add (keyL, keyR) to HMat_
+            {
+              ElemMatKey matKey( keyL, keyR );
+              std::map<ElemMatKey, DblNumMat>::iterator mi = 
+                HMat_.LocalMap().find( matKey );
+              if( mi == HMat_.LocalMap().end() ){
+                HMat_.LocalMap()[matKey] = localMat;
+              }
+              else{
 									DblNumMat&  mat = (*mi).second;
 									blas::Axpy( mat.Size(), 1.0, localMat.Data(), 1,
 											mat.Data(), 1);
@@ -1215,8 +2060,8 @@ HamiltonianDG::CalculateDGMatrix	(  )
 									blas::Axpy( mat.Size(), 1.0, localMatTran.Data(), 1,
 											mat.Data(), 1);
 								}
-							}
-						} // x-direction
+              }
+            } // x-direction
 
 
 						// y-direction
@@ -1240,35 +2085,169 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 							Int numBasisL = valL.n();
 							Int numBasisR = valR.n();
-							DblNumMat   localMat( numBasisL, numBasisR );
+              
+              Int numBasisLTotal = 0;
+              Int numBasisRTotal = 0;
+
+              MPI_Allreduce( &numBasisL, &numBasisLTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
+              MPI_Allreduce( &numBasisR, &numBasisRTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
+						
+              DblNumMat   localMat( numBasisLTotal, numBasisRTotal );
 							SetValue( localMat, 0.0 );
 
 							// inter-element part of the boundary term
-							Real intByPartTerm, penaltyTerm;
-							for( Int a = 0; a < numBasisL; a++ )
-								for( Int b = 0; b < numBasisR; b++ ){
-									intByPartTerm = 
-										-0.5 * ThreeDotProduct( 
-												drvL.VecData(a), 
-												valR.VecData(b),
-												LGLWeight2D[1].Data(),
-												numGridFace )
-										-0.5 * ThreeDotProduct(
-												valL.VecData(a),
-												drvR.VecData(b), 
-												LGLWeight2D[1].Data(),
-												numGridFace );
-									penaltyTerm = 
-										penaltyAlpha_ * ThreeDotProduct(
-												valL.VecData(a),
-												valR.VecData(b),
-												LGLWeight2D[1].Data(),
-												numGridFace );
+              
+              if(0){ 
 
-									localMat(a,b) += 
-										intByPartTerm + penaltyTerm;
-								} // for (b)
-						
+                Real intByPartTerm, penaltyTerm;
+                for( Int a = 0; a < numBasisL; a++ )
+                  for( Int b = 0; b < numBasisR; b++ ){
+                    intByPartTerm = 
+                      -0.5 * ThreeDotProduct( 
+                          drvL.VecData(a), 
+                          valR.VecData(b),
+                          LGLWeight2D[1].Data(),
+                          numGridFace )
+                      -0.5 * ThreeDotProduct(
+                          valL.VecData(a),
+                          drvR.VecData(b), 
+                          LGLWeight2D[1].Data(),
+                          numGridFace );
+                    penaltyTerm = 
+                      penaltyAlpha_ * ThreeDotProduct(
+                          valL.VecData(a),
+                          valR.VecData(b),
+                          LGLWeight2D[1].Data(),
+                          numGridFace );
+
+                    localMat(a,b) += 
+                      intByPartTerm + penaltyTerm;
+                  } // for (b)
+
+              } // if(0)
+
+
+
+              if(1){ 
+
+                DblNumMat valLTemp(numGridFace, numBasisL); 
+                DblNumMat valRTemp(numGridFace, numBasisR); 
+                DblNumMat drvLTemp(numGridFace, numBasisL); 
+                DblNumMat drvRTemp(numGridFace, numBasisR); 
+
+                SetValue( valLTemp, 0.0 );
+                SetValue( valRTemp, 0.0 );
+                SetValue( drvLTemp, 0.0 );
+                SetValue( drvRTemp, 0.0 );
+
+                for( Int g = 0; g < numBasisL; g++ ){
+                  Real *ptr = sqrtLGLWeight2D[1].Data();
+                  Real *ptr1 = valL.VecData(g);
+                  Real *ptr2 = drvL.VecData(g);
+                  Real *ptr11 = valLTemp.VecData(g);
+                  Real *ptr22 = drvLTemp.VecData(g);
+                  for( Int l = 0; l < numGridFace; l++ ){
+                    *(ptr11++) = (*(ptr1++)) * (*ptr);
+                    *(ptr22++) = (*(ptr2++)) * (*ptr);
+                    ptr = ptr++;
+                  }
+                }
+
+                for( Int g = 0; g < numBasisR; g++ ){
+                  Real *ptr = sqrtLGLWeight2D[1].Data();
+                  Real *ptr1 = valR.VecData(g);
+                  Real *ptr2 = drvR.VecData(g);
+                  Real *ptr11 = valRTemp.VecData(g);
+                  Real *ptr22 = drvRTemp.VecData(g);
+                  for( Int l = 0; l < numGridFace; l++ ){
+                    *(ptr11++) = (*(ptr1++)) * (*ptr);
+                    *(ptr22++) = (*(ptr2++)) * (*ptr);
+                    ptr = ptr++;
+                  }
+                }
+                
+                Int height = numGridFace;
+                Int widthL = numBasisLTotal;
+                Int widthR = numBasisRTotal;
+
+                Int widthLBlocksize = widthL / mpisizeRow;
+                Int widthRBlocksize = widthR / mpisizeRow;
+                Int heightBlocksize = height / mpisizeRow;
+
+                Int widthLLocal = widthLBlocksize;
+                Int widthRLocal = widthRBlocksize;
+                Int heightLocal = heightBlocksize;
+
+                if(mpirankRow < (widthL % mpisizeRow)){
+                  widthLLocal = widthLBlocksize + 1;
+                }
+                
+                if(mpirankRow < (widthR % mpisizeRow)){
+                  widthRLocal = widthRBlocksize + 1;
+                }
+
+                if(mpirankRow == (mpisizeRow - 1)){
+                  heightLocal = heightBlocksize + height % mpisizeRow;
+                }
+
+                Int numLGLGridTotal = height;  
+                Int numLGLGridLocal = heightLocal;  
+
+                Int numBasisLLocal = widthLLocal;
+                Int numBasisRLocal = widthRLocal;
+
+                DblNumMat valLTempRow( heightLocal, widthL );
+                DblNumMat valRTempRow( heightLocal, widthR );
+                DblNumMat drvLTempRow( heightLocal, widthL );
+                DblNumMat drvRTempRow( heightLocal, widthR );
+
+                DblNumMat localMatTemp1( widthL, widthR );
+                DblNumMat localMatTemp2( widthL, widthR );
+                DblNumMat localMatTemp3( widthL, widthR );
+                DblNumMat localMatTemp4( widthL, widthR );
+                DblNumMat localMatTemp5( widthL, widthR );
+
+                AlltoallForward (valLTemp, valLTempRow, domain_.rowComm);
+                AlltoallForward (valRTemp, valRTempRow, domain_.rowComm);
+                AlltoallForward (drvLTemp, drvLTempRow, domain_.rowComm);
+                AlltoallForward (drvRTemp, drvRTempRow, domain_.rowComm);
+
+                SetValue( localMatTemp1, 0.0 );
+                blas::Gemm( 'T', 'N', numBasisLTotal, numBasisRTotal, numLGLGridLocal,
+                    1.0, drvLTempRow.Data(), numLGLGridLocal, 
+                    valRTempRow.Data(), numLGLGridLocal, 0.0,
+                    localMatTemp1.Data(), numBasisLTotal );
+
+                SetValue( localMatTemp2, 0.0 );
+                blas::Gemm( 'T', 'N', numBasisLTotal, numBasisRTotal, numLGLGridLocal,
+                    1.0, valLTempRow.Data(), numLGLGridLocal, 
+                    drvRTempRow.Data(), numLGLGridLocal, 0.0,
+                    localMatTemp2.Data(), numBasisLTotal );
+
+                SetValue( localMatTemp3, 0.0 );
+                blas::Gemm( 'T', 'N', numBasisLTotal, numBasisRTotal, numLGLGridLocal,
+                    1.0, valLTempRow.Data(), numLGLGridLocal, 
+                    valRTempRow.Data(), numLGLGridLocal, 0.0,
+                    localMatTemp3.Data(), numBasisLTotal );
+
+                SetValue( localMatTemp4, 0.0 );
+                for( Int a = 0; a < numBasisLTotal; a++ )
+                  for( Int b = 0; b < numBasisRTotal; b++ ){
+                    localMatTemp4(a,b) = 0.0 - 0.5 * localMatTemp1(a,b) - 0.5 * localMatTemp2(a,b) 
+                      + penaltyAlpha_ * localMatTemp3(a,b);  
+                  } 
+
+                SetValue( localMatTemp5, 0.0 );
+                MPI_Allreduce( localMatTemp4.Data(), localMatTemp5.Data(), numBasisLTotal * numBasisRTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+               
+                for( Int a = 0; a < numBasisLTotal; a++ )
+                  for( Int b = 0; b < numBasisRTotal; b++ ){
+                    localMat(a,b) += localMatTemp5(a,b);  
+                  } 
+
+              } //if(1)
+
+
 							// Add (keyL, keyR) to HMat_
 							{
 								ElemMatKey matKey( keyL, keyR );
@@ -1301,7 +2280,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								}
 							}
 						} // y-direction
-					
 						// z-direction
 						{
 							// keyL is the previous element received from GetBegin/GetEnd.
@@ -1323,35 +2301,169 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 							Int numBasisL = valL.n();
 							Int numBasisR = valR.n();
-							DblNumMat   localMat( numBasisL, numBasisR );
+              
+              Int numBasisLTotal = 0;
+              Int numBasisRTotal = 0;
+
+              MPI_Allreduce( &numBasisL, &numBasisLTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
+              MPI_Allreduce( &numBasisR, &numBasisRTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
+						
+              DblNumMat   localMat( numBasisLTotal, numBasisRTotal );
 							SetValue( localMat, 0.0 );
 
 							// inter-element part of the boundary term
-							Real intByPartTerm, penaltyTerm;
-							for( Int a = 0; a < numBasisL; a++ )
-								for( Int b = 0; b < numBasisR; b++ ){
-									intByPartTerm = 
-										-0.5 * ThreeDotProduct( 
-												drvL.VecData(a), 
-												valR.VecData(b),
-												LGLWeight2D[2].Data(),
-												numGridFace )
-										-0.5 * ThreeDotProduct(
-												valL.VecData(a),
-												drvR.VecData(b), 
-												LGLWeight2D[2].Data(),
-												numGridFace );
-									penaltyTerm = 
-										penaltyAlpha_ * ThreeDotProduct(
-												valL.VecData(a),
-												valR.VecData(b),
-												LGLWeight2D[2].Data(),
-												numGridFace );
+              
+              if(0){ 
 
-									localMat(a,b) += 
-										intByPartTerm + penaltyTerm;
-								} // for (b)
-						
+                Real intByPartTerm, penaltyTerm;
+                for( Int a = 0; a < numBasisL; a++ )
+                  for( Int b = 0; b < numBasisR; b++ ){
+                    intByPartTerm = 
+                      -0.5 * ThreeDotProduct( 
+                          drvL.VecData(a), 
+                          valR.VecData(b),
+                          LGLWeight2D[2].Data(),
+                          numGridFace )
+                      -0.5 * ThreeDotProduct(
+                          valL.VecData(a),
+                          drvR.VecData(b), 
+                          LGLWeight2D[2].Data(),
+                          numGridFace );
+                    penaltyTerm = 
+                      penaltyAlpha_ * ThreeDotProduct(
+                          valL.VecData(a),
+                          valR.VecData(b),
+                          LGLWeight2D[2].Data(),
+                          numGridFace );
+
+                    localMat(a,b) += 
+                      intByPartTerm + penaltyTerm;
+                  } // for (b)
+
+              } //if(0)
+
+
+
+              if(1){ 
+
+                DblNumMat valLTemp(numGridFace, numBasisL); 
+                DblNumMat valRTemp(numGridFace, numBasisR); 
+                DblNumMat drvLTemp(numGridFace, numBasisL); 
+                DblNumMat drvRTemp(numGridFace, numBasisR); 
+
+                SetValue( valLTemp, 0.0 );
+                SetValue( valRTemp, 0.0 );
+                SetValue( drvLTemp, 0.0 );
+                SetValue( drvRTemp, 0.0 );
+
+                for( Int g = 0; g < numBasisL; g++ ){
+                  Real *ptr = sqrtLGLWeight2D[2].Data();
+                  Real *ptr1 = valL.VecData(g);
+                  Real *ptr2 = drvL.VecData(g);
+                  Real *ptr11 = valLTemp.VecData(g);
+                  Real *ptr22 = drvLTemp.VecData(g);
+                  for( Int l = 0; l < numGridFace; l++ ){
+                    *(ptr11++) = (*(ptr1++)) * (*ptr);
+                    *(ptr22++) = (*(ptr2++)) * (*ptr);
+                    ptr = ptr++;
+                  }
+                }
+
+                for( Int g = 0; g < numBasisR; g++ ){
+                  Real *ptr = sqrtLGLWeight2D[2].Data();
+                  Real *ptr1 = valR.VecData(g);
+                  Real *ptr2 = drvR.VecData(g);
+                  Real *ptr11 = valRTemp.VecData(g);
+                  Real *ptr22 = drvRTemp.VecData(g);
+                  for( Int l = 0; l < numGridFace; l++ ){
+                    *(ptr11++) = (*(ptr1++)) * (*ptr);
+                    *(ptr22++) = (*(ptr2++)) * (*ptr);
+                    ptr = ptr++;
+                  }
+                }
+                
+                Int height = numGridFace;
+                Int widthL = numBasisLTotal;
+                Int widthR = numBasisRTotal;
+
+                Int widthLBlocksize = widthL / mpisizeRow;
+                Int widthRBlocksize = widthR / mpisizeRow;
+                Int heightBlocksize = height / mpisizeRow;
+
+                Int widthLLocal = widthLBlocksize;
+                Int widthRLocal = widthRBlocksize;
+                Int heightLocal = heightBlocksize;
+
+                if(mpirankRow < (widthL % mpisizeRow)){
+                  widthLLocal = widthLBlocksize + 1;
+                }
+                
+                if(mpirankRow < (widthR % mpisizeRow)){
+                  widthRLocal = widthRBlocksize + 1;
+                }
+
+                if(mpirankRow == (mpisizeRow - 1)){
+                  heightLocal = heightBlocksize + height % mpisizeRow;
+                }
+
+                Int numLGLGridTotal = height;  
+                Int numLGLGridLocal = heightLocal;  
+
+                Int numBasisLLocal = widthLLocal;
+                Int numBasisRLocal = widthRLocal;
+
+                DblNumMat valLTempRow( heightLocal, widthL );
+                DblNumMat valRTempRow( heightLocal, widthR );
+                DblNumMat drvLTempRow( heightLocal, widthL );
+                DblNumMat drvRTempRow( heightLocal, widthR );
+
+                DblNumMat localMatTemp1( widthL, widthR );
+                DblNumMat localMatTemp2( widthL, widthR );
+                DblNumMat localMatTemp3( widthL, widthR );
+                DblNumMat localMatTemp4( widthL, widthR );
+                DblNumMat localMatTemp5( widthL, widthR );
+
+                AlltoallForward (valLTemp, valLTempRow, domain_.rowComm);
+                AlltoallForward (valRTemp, valRTempRow, domain_.rowComm);
+                AlltoallForward (drvLTemp, drvLTempRow, domain_.rowComm);
+                AlltoallForward (drvRTemp, drvRTempRow, domain_.rowComm);
+
+                SetValue( localMatTemp1, 0.0 );
+                blas::Gemm( 'T', 'N', numBasisLTotal, numBasisRTotal, numLGLGridLocal,
+                    1.0, drvLTempRow.Data(), numLGLGridLocal, 
+                    valRTempRow.Data(), numLGLGridLocal, 0.0,
+                    localMatTemp1.Data(), numBasisLTotal );
+
+                SetValue( localMatTemp2, 0.0 );
+                blas::Gemm( 'T', 'N', numBasisLTotal, numBasisRTotal, numLGLGridLocal,
+                    1.0, valLTempRow.Data(), numLGLGridLocal, 
+                    drvRTempRow.Data(), numLGLGridLocal, 0.0,
+                    localMatTemp2.Data(), numBasisLTotal );
+
+                SetValue( localMatTemp3, 0.0 );
+                blas::Gemm( 'T', 'N', numBasisLTotal, numBasisRTotal, numLGLGridLocal,
+                    1.0, valLTempRow.Data(), numLGLGridLocal, 
+                    valRTempRow.Data(), numLGLGridLocal, 0.0,
+                    localMatTemp3.Data(), numBasisLTotal );
+
+                SetValue( localMatTemp4, 0.0 );
+                for( Int a = 0; a < numBasisLTotal; a++ )
+                  for( Int b = 0; b < numBasisRTotal; b++ ){
+                    localMatTemp4(a,b) = 0.0 - 0.5 * localMatTemp1(a,b) - 0.5 * localMatTemp2(a,b) 
+                      + penaltyAlpha_ * localMatTemp3(a,b);  
+                  } 
+
+                SetValue( localMatTemp5, 0.0 );
+                MPI_Allreduce( localMatTemp4.Data(), localMatTemp5.Data(), numBasisLTotal * numBasisRTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+               
+                for( Int a = 0; a < numBasisLTotal; a++ )
+                  for( Int b = 0; b < numBasisRTotal; b++ ){
+                    localMat(a,b) += localMatTemp5(a,b);  
+                  } 
+
+              } //if(1)
+
+
 							// Add (keyL, keyR) to HMat_
 							{
 								ElemMatKey matKey( keyL, keyR );
@@ -1384,7 +2496,6 @@ HamiltonianDG::CalculateDGMatrix	(  )
 								}
 							}
 						} // z-direction
-					
 					}
 				} // for (i)
 
@@ -1398,6 +2509,10 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 	// *********************************************************************
 	// Collect information and combine HMat_
+  // 
+  // When intra-element parallelization is invoked, at this stage all
+  // processors in the same processor row communicator do the same job,
+  // and communication is restricted to each column communicator group.
 	// *********************************************************************
 	{
 		GetTime( timeSta );
@@ -1406,7 +2521,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 				 mi  = HMat_.LocalMap().begin();
 				 mi != HMat_.LocalMap().end(); mi++ ){
 			ElemMatKey key = (*mi).first;
-			if( HMat_.Prtn().Owner(key) != mpirank ){
+			if( HMat_.Prtn().Owner(key) != (mpirank / dmRow_) ){
 				keyIdx.push_back( key );
 			}
 		}
@@ -1421,7 +2536,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 				 mi  = HMat_.LocalMap().begin();
 				 mi != HMat_.LocalMap().end(); mi++ ){
 			ElemMatKey key = (*mi).first;
-			if( HMat_.Prtn().Owner(key) != mpirank ){
+			if( HMat_.Prtn().Owner(key) != (mpirank / dmRow_) ){
 				eraseKey.push_back( key );
 			}
 		}
@@ -1456,8 +2571,18 @@ HamiltonianDG::UpdateDGMatrix	(
 #endif
 	Int mpirank, mpisize;
 	Int numAtom = atomList_.size();
+  
+  MPI_Barrier(domain_.comm);
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
+  
+  MPI_Barrier(domain_.rowComm);
+  Int mpirankRow;  MPI_Comm_rank(domain_.rowComm, &mpirankRow);
+  Int mpisizeRow;  MPI_Comm_size(domain_.rowComm, &mpisizeRow);
+
+  MPI_Barrier(domain_.colComm);
+  Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
+  Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
 
 	Real timeSta, timeEnd;
 
@@ -1484,13 +2609,17 @@ HamiltonianDG::UpdateDGMatrix	(
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key(i, j, k);
-					if( elemPrtn_.Owner(key) == mpirank ){
-						numBasisLocal(i, j, k) = basisLGL_.LocalMap()[key].n();
-					}
+					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
+            int numBasisLocalElem = basisLGL_.LocalMap()[key].n();
+            numBasisLocal(i, j, k) = 0;
+            mpi::Allreduce( &numBasisLocalElem, &numBasisLocal(i, j, k), 1, MPI_SUM, domain_.rowComm );
+          }
 				} // for (i)
-		IntNumTns numBasis(numElem_[0], numElem_[1], numElem_[2]);
-		mpi::Allreduce( numBasisLocal.Data(), numBasis.Data(),
-				numElem_.prod(), MPI_SUM, domain_.comm );
+	
+    IntNumTns numBasis(numElem_[0], numElem_[1], numElem_[2]);
+		SetValue( numBasis, 0 );
+    mpi::Allreduce( numBasisLocal.Data(), numBasis.Data(),
+				numElem_.prod(), MPI_SUM, domain_.colComm );
 		// Every processor compute all index sets
 		elemBasisIdx_.Resize(numElem_[0], numElem_[1], numElem_[2]);
 
@@ -1518,11 +2647,13 @@ HamiltonianDG::UpdateDGMatrix	(
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
 					Index3 key( i, j, k );
-					if( elemPrtn_.Owner(key) == mpirank ){
+					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
 						DblNumMat&  basis = basisLGL_.LocalMap()[key];
 						Int numBasis = basis.n();
-
-						// Skip the calculation if there is no adaptive local
+						Int numBasisTotal = 0;
+            MPI_Allreduce( &numBasis, &numBasisTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
+						
+            // Skip the calculation if there is no adaptive local
 						// basis function.  
 						if( numBasis == 0 )
 							continue;
@@ -1537,23 +2668,93 @@ HamiltonianDG::UpdateDGMatrix	(
 						{
 							DblNumVec&  vtot  = vtotLGLDiff.LocalMap()[key];
 							Real* ptrLocalMat = localMat.Data();
-#ifdef _USE_OPENMP_
-#pragma omp parallel for schedule(dynamic,1) firstprivate(ptrLocalMat) 
-#endif
-							for( Int a = 0; a < numBasis; a++ )
-								for( Int b = a; b < numBasis; b++ ){
-										ptrLocalMat[a+numBasis*b] += 
-//										localMat(a,b) += 
-											FourDotProduct( 
-													basis.VecData(a), basis.VecData(b), 
-													vtot.Data(), LGLWeight3D.Data(), numGridTotal );
-								} // for (b)
-						}
+//#ifdef _USE_OPENMP_
+//#pragma omp parallel for schedule(dynamic,1) firstprivate(ptrLocalMat) 
+//#endif
+              if(0){ 
+         
+                for( Int a = 0; a < numBasis; a++ )
+                  for( Int b = a; b < numBasis; b++ ){
+                    ptrLocalMat[a+numBasis*b] += 
+                      // localMat(a,b) += 
+                      FourDotProduct( 
+                          basis.VecData(a), basis.VecData(b), 
+                          vtot.Data(), LGLWeight3D.Data(), numGridTotal );
+                  } // for (b)
+        
+              } // if(0)
+          
+         
+              if(1){ 
 
-						// Symmetrize
-						for( Int a = 0; a < numBasis; a++ )
-							for( Int b = 0; b < a; b++ ){
-								localMat(a,b) = localMat(b,a);
+                DblNumMat basisTemp (basis.m(), basis.n()); // We need a copy of basis
+                SetValue( basisTemp, 0.0 );
+
+                // This is the same as the FourDotProduct process.
+                for( Int g = 0; g < basis.n(); g++ ){
+                  Real *ptr1 = LGLWeight3D.Data();
+                  Real *ptr2 = vtot.Data();
+                  Real *ptr3 = basis.VecData(g);
+                  Real *ptr4 = basisTemp.VecData(g);
+                  for( Int l = 0; l < basis.m(); l++ ){
+                    *(ptr4++) = (*(ptr1++)) * (*(ptr2++)) * (*(ptr3++));
+                  }
+                }
+
+                // Convert the basis functions from column based
+                // partition to row based partition
+
+                Int height = basis.m();
+                Int width = numBasisTotal;
+
+                Int widthBlocksize = width / mpisizeRow;
+                Int heightBlocksize = height / mpisizeRow;
+
+                Int widthLocal = widthBlocksize;
+                Int heightLocal = heightBlocksize;
+
+                if(mpirankRow < (width % mpisizeRow)){
+                  widthLocal = widthBlocksize + 1;
+                }
+
+                if(mpirankRow == (mpisizeRow - 1)){
+                  heightLocal = heightBlocksize + height % mpisizeRow;
+                }
+
+                Int numLGLGridTotal = height;  
+                Int numLGLGridLocal = heightLocal;  
+
+                DblNumMat basisRow( heightLocal, width );
+                DblNumMat basisTempRow( heightLocal, width );
+
+                DblNumMat localMatTemp1( width, width );
+                DblNumMat localMatTemp2( width, width );
+
+                AlltoallForward (basis, basisRow, domain_.rowComm);
+                AlltoallForward (basisTemp, basisTempRow, domain_.rowComm);
+
+                SetValue( localMatTemp1, 0.0 );
+                blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                    1.0, basisRow.Data(), numLGLGridLocal, 
+                    basisTempRow.Data(), numLGLGridLocal, 0.0,
+                    localMatTemp1.Data(), numBasisTotal );
+
+                SetValue( localMatTemp2, 0.0 );
+                MPI_Allreduce( localMatTemp1.Data(), localMatTemp2.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+
+                for( Int a = 0; a < numBasisTotal; a++ )
+                  for( Int b = a; b < numBasisTotal; b++ ){
+                    localMat(a,b) += localMatTemp2(a,b);  
+                  } 
+
+              } //if(1)
+
+            } // Local potential part
+
+            // Symmetrize
+            for( Int a = 0; a < numBasis; a++ )
+              for( Int b = 0; b < a; b++ ){
+                localMat(a,b) = localMat(b,a);
 							}
 
 					} // if (own this element)
