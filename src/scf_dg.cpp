@@ -1088,102 +1088,13 @@ SCFDG::Iterate	(  )
 						    DblNumMat localBasisRow(heightLGLLocal, numBasisTotal );
 						    SetValue( localBasisRow, 0.0 );
   
-                double sendbuf[heightLGL * widthLocal]; 
-                double recvbuf[heightLGLLocal * width];
-                int sendcounts[mpisizeRow];
-                int recvcounts[mpisizeRow];
-                int senddispls[mpisizeRow];
-                int recvdispls[mpisizeRow];
-                IntNumMat  sendk( heightLGL, widthLocal );
-                IntNumMat  recvk( heightLGLLocal, width );
-
-
-
-                for( Int k = 0; k < mpisizeRow; k++ ){ 
-                  if( k < (mpisizeRow - 1)){
-                    sendcounts[k] = heightLGLBlocksize * widthLocal;
-                  }
-                  else {
-                    sendcounts[mpisizeRow - 1] = (heightLGLBlocksize + (heightLGL % mpisizeRow)) * widthLocal;  
-                  }
-                }
-
-                for( Int k = 0; k < mpisizeRow; k++ ){ 
-                  recvcounts[k] = heightLGLLocal * widthBlocksize;
-                  if( k < (width % mpisizeRow)){
-                    recvcounts[k] = recvcounts[k] + heightLGLLocal;  
-                  }
-                }
-            
-                senddispls[0] = 0;
-                recvdispls[0] = 0;
-                for( Int k = 1; k < mpisizeRow; k++ ){ 
-                  senddispls[k] = senddispls[k-1] + sendcounts[k-1];
-                  recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
-                }
-                
-
-
-                if((heightLGL % heightLGLBlocksize) == 0){
-                  for( Int j = 0; j < widthLocal; j++ ){ 
-                    for( Int i = 0; i < heightLGL; i++ ){
-                      sendk(i, j) = senddispls[i / heightLGLBlocksize] + j * heightLGLBlocksize + i % heightLGLBlocksize;
-                    } 
-                  }
-                } 
-                else {
-                  for( Int j = 0; j < widthLocal; j++ ){ 
-                    for( Int i = 0; i < heightLGL; i++ ){
-                      if((i / heightLGLBlocksize) < (mpisizeRow - 1)){
-                        sendk(i, j) = senddispls[i / heightLGLBlocksize] + j * heightLGLBlocksize + i % heightLGLBlocksize;
-                      }
-                      else {
-                        sendk(i, j) = senddispls[mpisizeRow - 1] + j * (heightLGLBlocksize + heightLGL % heightLGLBlocksize) 
-                          + (i - (mpisizeRow - 1) * heightLGLBlocksize) % (heightLGLBlocksize + heightLGL % heightLGLBlocksize);
-                      }
-                    }
-                  }
-                }
-
-                for( Int j = 0; j < width; j++ ){ 
-                  for( Int i = 0; i < heightLGLLocal; i++ ){
-                    recvk(i, j) = recvdispls[j % mpisizeRow] + (j / mpisizeRow) * heightLGLLocal + i;
-                  }
-                }
-           
-
-
-                for( Int j = 0; j < widthLocal; j++ ){ 
-                  for( Int i = 0; i < heightLGL; i++ ){
-                    sendbuf[sendk(i, j)] = localBasis(i, j); 
-                  }
-                }
-                MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-                    &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, domain_.rowComm );
-                for( Int j = 0; j < width; j++ ){ 
-                  for( Int i = 0; i < heightLGLLocal; i++ ){
-                    localBasisRow(i, j) = recvbuf[recvk(i, j)];
-                  }
-                }
-  
-              
-		            MPI_Barrier( domain_.rowComm );
-                
+                AlltoallForward (localBasis, localBasisRow, domain_.rowComm);
                
-
-                //blas::Gemm( 'T', 'N', numBasis, numBasis, numLGLGridTotal,
-                //    1.0, localBasis.Data(), numLGLGridTotal, 
-                //    localBasis.Data(), numLGLGridTotal, 0.0,
-                //    MMat.Data(), numBasis );
-                
-
                 SetValue( MMatTemp, 0.0 );
-                
                 blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
                     1.0, localBasisRow.Data(), numLGLGridLocal, 
                     localBasisRow.Data(), numLGLGridLocal, 0.0,
                     MMatTemp.Data(), numBasisTotal );
-
 
 
                 SetValue( MMat, 0.0 );
@@ -1263,114 +1174,12 @@ SCFDG::Iterate	(  )
                 }
 
 
-                MPI_Barrier( domain_.rowComm );
-              
-                // FIXME Use AlltoallForward and AlltoallBackward
-                // functions to replace below
-               
-                // For Alltoall
- 
-                Int widthSVD = numSVDBasisTotal;
-                Int widthSVDLocal = numSVDBasisLocal;
-                Int widthSVDBlocksize = numSVDBasisBlocksize;
-
-                
-                MPI_Barrier( domain_.rowComm );
-               
-                double sendbufSVD[heightLGL * widthSVDLocal]; 
-                double recvbufSVD[heightLGLLocal * widthSVD];
-                int sendcountsSVD[mpisizeRow];
-                int recvcountsSVD[mpisizeRow];
-                int senddisplsSVD[mpisizeRow];
-                int recvdisplsSVD[mpisizeRow];
-                IntNumMat  sendkSVD( heightLGL, widthSVDLocal );
-                IntNumMat  recvkSVD( heightLGLLocal, widthSVD );
-          
-
-              
-                MPI_Barrier( domain_.rowComm );
-               
-              
-               
-                for( Int k = 0; k < mpisizeRow; k++ ){ 
-                  if( k < (mpisizeRow - 1)){
-                    sendcountsSVD[k] = heightLGLBlocksize * widthSVDLocal;
-                  }
-                  else {
-                    sendcountsSVD[mpisizeRow - 1] = (heightLGLBlocksize + (heightLGL % mpisizeRow)) * widthSVDLocal;  
-                  }
-                }
-
-                for( Int k = 0; k < mpisizeRow; k++ ){ 
-                  recvcountsSVD[k] = heightLGLLocal * widthSVDBlocksize;
-                  if( k < (widthSVD % mpisizeRow)){
-                    recvcountsSVD[k] = recvcountsSVD[k] + heightLGLLocal;  
-                  }
-                }
-
-                senddisplsSVD[0] = 0;
-                recvdisplsSVD[0] = 0;
-                for( Int k = 1; k < mpisizeRow; k++ ){ 
-                  senddisplsSVD[k] = senddisplsSVD[k-1] + sendcountsSVD[k-1];
-                  recvdisplsSVD[k] = recvdisplsSVD[k-1] + recvcountsSVD[k-1];
-                }
-
-                if((heightLGL % heightLGLBlocksize) == 0){
-                  for( Int j = 0; j < widthSVDLocal; j++ ){ 
-                    for( Int i = 0; i < heightLGL; i++ ){
-                      sendkSVD(i, j) = senddisplsSVD[i / heightLGLBlocksize] + j * heightLGLBlocksize + i % heightLGLBlocksize;
-                    } 
-                  }
-                } 
-                else {
-                  for( Int j = 0; j < widthSVDLocal; j++ ){ 
-                    for( Int i = 0; i < heightLGL; i++ ){
-                      if((i / heightLGLBlocksize) < (mpisizeRow - 1)){
-                        sendkSVD(i, j) = senddisplsSVD[i / heightLGLBlocksize] + j * heightLGLBlocksize + i % heightLGLBlocksize;
-                      }
-                      else {
-                        sendkSVD(i, j) = senddisplsSVD[mpisizeRow - 1] + j * (heightLGLBlocksize + heightLGL % heightLGLBlocksize) 
-                          + (i - (mpisizeRow - 1) * heightLGLBlocksize) % (heightLGLBlocksize + heightLGL % heightLGLBlocksize);
-                      }
-                    }
-                  }
-                }
-
-                for( Int j = 0; j < widthSVD; j++ ){ 
-                  for( Int i = 0; i < heightLGLLocal; i++ ){
-                    recvkSVD(i, j) = recvdisplsSVD[j % mpisizeRow] + (j / mpisizeRow) * heightLGLLocal + i;
-                  }
-                }
-            
-                // end For Alltoall
-
-                
-                //blas::Gemm( 'N', 'N', numLGLGridTotal, numSVDBasis,
-                //    numBasis, 1.0, localBasis.Data(), numLGLGridTotal,
-                //    U.Data(), numBasis, 0.0, basis.Data(), numLGLGridTotal );
-
                 // FIXME
                 blas::Gemm( 'N', 'N', numLGLGridLocal, numSVDBasisTotal,
                     numBasisTotal, 1.0, localBasisRow.Data(), numLGLGridLocal,
                     U.Data(), numBasisTotal, 0.0, basisRow.Data(), numLGLGridLocal );
 
-
-
-                MPI_Barrier( domain_.rowComm );
-                
-                for( Int j = 0; j < widthSVD; j++ ){ 
-                  for( Int i = 0; i < heightLGLLocal; i++ ){
-                    recvbufSVD[recvkSVD(i, j)] = basisRow(i, j);
-                  }
-                }
-                MPI_Alltoallv( &recvbufSVD[0], &recvcountsSVD[0], &recvdisplsSVD[0], MPI_DOUBLE, 
-                    &sendbufSVD[0], &sendcountsSVD[0], &senddisplsSVD[0], MPI_DOUBLE, domain_.rowComm );
-                for( Int j = 0; j < widthSVDLocal; j++ ){ 
-                  for( Int i = 0; i < heightLGL; i++ ){
-                    basis(i, j) = sendbufSVD[sendkSVD(i, j)]; 
-                  }
-                }
-
+                AlltoallBackward (basisRow, basis, domain_.rowComm);
 
                 // FIXME
                 // row-partition to column partition via MPI_Alltoallv
