@@ -1113,23 +1113,17 @@ SCFDG::Iterate	(  )
 
                 MPI_Barrier( domain_.rowComm );
                 
-                //if ( mpirankRow == 0) {
+                if ( mpirankRow == 0) {
                   lapack::QRSVD( numBasisTotal, numBasisTotal, 
                       MMat.Data(), numBasisTotal,
                       S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
-                //} 
+                } 
 
-
-                //if(0){
-
-                //MPI_Bcast(S.Data(), numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
-                //MPI_Bcast(U.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
-                //MPI_Bcast(VT.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
-                
-                
+                MPI_Bcast(S.Data(), numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
+                MPI_Bcast(U.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
+                MPI_Bcast(VT.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
                
                 MPI_Barrier( domain_.rowComm );
-
 
                 // Broadcast U and S
 
@@ -1144,7 +1138,7 @@ SCFDG::Iterate	(  )
                 
                 Int numSVDBasisLocal = numSVDBasisBlocksize;	
 
-                if(mpirankRow < (width % mpisizeRow)){
+                if(mpirankRow < (numSVDBasisTotal % mpisizeRow)){
                   numSVDBasisLocal = numSVDBasisBlocksize + 1;
                 }
 
@@ -1153,6 +1147,9 @@ SCFDG::Iterate	(  )
                 mpi::Allreduce( &numSVDBasisLocal, &numSVDBasisTotalTest, 1, MPI_SUM, domain_.rowComm );
                 
                 if( numSVDBasisTotal != numSVDBasisTotalTest ){
+                  statusOFS << "numSVDBasisLocal = " << numSVDBasisLocal << std::endl;
+								  statusOFS << "numSVDBasisTotal = " << numSVDBasisTotal << std::endl;
+								  statusOFS << "numSVDBasisTotalTest = " << numSVDBasisTotalTest << std::endl;
                   throw std::logic_error("numSVDBasisTotal != numSVDBasisTotalTest");
                 }
                 
