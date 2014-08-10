@@ -331,6 +331,11 @@ void DistElemMatToScaMat(
 		}
 	}
 
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "blockPrtn.ownerInfo = " << blockPrtn.ownerInfo << std::endl;
+#endif
+
+
 	// Intermediate variable for constructing the distributed matrix in
 	// ScaLAPACK format.  
   DistVec<Index2, NumMat<F>, BlockMatPrtn> distScaMat;
@@ -743,6 +748,9 @@ void DistElemMatToScaMat(
 /// current step with intra-element parallelization, the comm for
 /// distElemMat can be colComm.
 ///
+/// 5. commSca is not needed since ScaLAPACK does not use MPI
+/// communicators directly.
+///
 /// 
 /// @param[in] distMat (local) Matrix distributed according to 2D element
 /// indices.  The data saved in each processor column of comm1 should be
@@ -752,20 +760,17 @@ void DistElemMatToScaMat(
 /// ScaLAPACK matrix.
 /// @param[in] basisIdx (global) Indices for all basis functions.  The input from
 /// each processor column of comm1 should be exactly the same.
-/// @param[in] comm (global) Global communicator.  Processors in commElem and
-/// commSca should belong to this communicator. 
+/// @param[in] comm (global) Global communicator. 
 /// @param[in] commElem (local) Communicator for distElemMat. In the current step
 /// with intra-element parallelization, the comm for distElemMat can be
 /// colComm.
-/// @param[in] commSca (local) Communicator for the scaMat, which should be
-/// compatible with desc.
 /// @param[in] mpirankElemVec (global) mpiranks in the global
 /// communicator comm for processors in commElem.  This vector should
 /// follow a non-decreasing order.
 /// @param[in] mpirankScaVec (global) mpiranks in the global
-/// communicator comm for processors in commSca.  This vector should
-/// follow a non-decreasing order, and should agree with the 2D
-/// row-major processor mapping in ScaLAPACK.
+/// communicator comm for processors using ScaLAPACK.  This vector should
+/// follow a non-decreasing order, and should use the 2D column-major
+/// processor mapping.
 template<typename F>
 void DistElemMatToScaMat2(
 		const DistVec<ElemMatKey, NumMat<F>, ElemMatPrtn>&   distMat,
@@ -774,7 +779,6 @@ void DistElemMatToScaMat2(
 		const NumTns<std::vector<Int> >&                     basisIdx,
 	  MPI_Comm  	                                         comm,
 	  MPI_Comm  	                                         commElem,
-    MPI_Comm                                             commSca,
     const std::vector<Int>&                              mpirankElemVec,
     const std::vector<Int>&                              mpirankScaVec){
 #ifndef _RELEASE_
@@ -811,7 +815,6 @@ void DistElemMatToScaMat2(
   }
 
   // commSca rank and size
-  Int mpirankSca;
   Int mpisizeSca = mpirankScaVec.size();
   Int nprowSca;
   Int npcolSca;
@@ -821,13 +824,6 @@ void DistElemMatToScaMat2(
   Int numColBlock;
 
   if( isInSca ){
-    Int tmp;
-    MPI_Comm_rank( commSca, &mpirankSca );
-    MPI_Comm_size( commSca, &tmp );
-
-    if( mpisizeSca != tmp ){
-      throw std::logic_error("mpisizeSca read from input does not agree with commSca.");
-    }
     
     nprowSca  = desc.NpRow();
     npcolSca  = desc.NpCol();
@@ -872,17 +868,16 @@ void DistElemMatToScaMat2(
 
   // Define the data to processor mapping
 
-
   BlockMatPrtn  blockPrtn;
   {
     IntNumMat  procGrid( nprowSca, npcolSca );
     SetValue( procGrid, 0 );
     Int count = 0;
-    // Note the row-major distribution here, and that mpirankScaVec must
+    // Note the column-major distribution here, and that mpirankScaVec must
     // be sorted in the correct order.  The communication
     // is later performed in comm instead of commSca
-    for( Int ip = 0; ip < nprowSca; ip++ ){
-      for( Int jp = 0; jp < npcolSca; jp++ ){
+    for( Int jp = 0; jp < npcolSca; jp++ ){
+      for( Int ip = 0; ip < nprowSca; ip++ ){
         procGrid( ip, jp ) = mpirankScaVec[count++];
       }
     } // for (ip)
@@ -910,6 +905,9 @@ void DistElemMatToScaMat2(
 	DblNumMat empty( MB, MB ); 
   SetValue( empty, 0.0 );
 
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "blockPrtn.ownerInfo = " << blockPrtn.ownerInfo << std::endl;
+#endif
 
 
 	// Initialize the distScaMat for processors in commSca

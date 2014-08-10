@@ -46,8 +46,8 @@
 ///
 /// The current version of pwdft is a sequential code and is used for
 /// testing purpose, both for energy and for force.
-/// @date 2013-10-16
-/// @date 2013-02-01 Dual grid implementation
+/// @date 2013-10-16 Original implementation
+/// @date 2014-02-01 Dual grid implementation
 /// @date 2014-07-15 Parallelization of PWDFT.
 #include "dgdft.hpp"
 

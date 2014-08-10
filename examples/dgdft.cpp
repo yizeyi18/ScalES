@@ -42,7 +42,8 @@
 */
 /// @file dgdft.cpp
 /// @brief Main driver for DGDFT for self-consistent field iteration.
-/// @date 2013-02-11 Dual grid implementation
+/// @date 2012-09-16 Original version
+/// @date 2014-02-11 Dual grid implementation
 /// @date 2014-08-06 Intra-element parallelization
 #include "dgdft.hpp"
 
@@ -86,24 +87,15 @@ int main(int argc, char **argv)
     fftw_mpi_init();
 
     // Initialize BLACS
-    // FIXME
-    // For intra-element parallelization, 
-    // nprow*npcol for ScaLAPACK should be the number of processors in a
-    // mpi column communicator (mpisizecol, which is the number of
-    // elements)
-    //
+    // FIXME make this an option in esdfParam
+    Int numProcScaLAPACK = mpisize;
+
     Int nprow, npcol;
     Int contxt, contxt_C;
     Cblacs_get(0, 0, &contxt);
-    //for( Int i = IRound(sqrt(double(mpisize))); i <= mpisize; i++){
-    //  nprow = i; npcol = mpisize / nprow;
-    //  if( nprow * npcol == mpisize ) break;
-    //} 
+    
     Print( statusOFS, "mpisize = ", mpisize );
     Print( statusOFS, "mpirank = ", mpirank );
-    //Print( statusOFS, "nprow = ", nprow );
-    //Print( statusOFS, "npcol = ", npcol ); 
-    //Cblacs_gridinit(&contxt, "C", nprow, npcol);
 
     // Initialize input parameters
     std::map<std::string,std::string> options;
@@ -294,23 +286,38 @@ int main(int argc, char **argv)
       IntNumTns& elemPrtnInfo = distEigSol.Prtn().ownerInfo;
       elemPrtnInfo.Resize( numElem[0], numElem[1], numElem[2] );
 
+      // Note the usage of notation can be a bit misleading here:
+      // dmRow is the number of processors per row, which normally is
+      // denoted by number of column processors
+      // dmCol is the number of processors per column, which normally is
+      // denoted by number of row processors
       int dmCol = numElem[0] * numElem[1] * numElem[2];
       int dmRow = mpisize / dmCol;
 
       Cblacs_gridinit(&contxt, "C", dmRow, dmCol);
       
-      for( Int i = IRound(sqrt(double(dmCol))); i <= dmCol; i++){
-        nprow = i; npcol = dmCol / nprow;
-        if( nprow * npcol == dmCol ) break;
+      // Here nprow, npcol is for the usage of ScaLAPACK in
+      // diagonalization
+      for( Int i = IRound(sqrt(double(numProcScaLAPACK))); 
+          i <= numProcScaLAPACK; i++){
+        nprow = i; npcol = numProcScaLAPACK / nprow;
+        if( nprow * npcol == numProcScaLAPACK ) break;
       }
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "nprow = " << nprow << std::endl;
+      statusOFS << "npcol = " << npcol << std::endl;
+#endif
       
       Int ldpmap = npcol;
-      Int pmap[dmCol];
-      for ( Int i = 0; i < dmCol; i++ ){
-        pmap[i] = i * dmRow;
+      Int pmap[numProcScaLAPACK];
+      // Take the first numProcScaLAPACK processors for diagonalization
+      for ( Int i = 0; i < numProcScaLAPACK; i++ ){
+        pmap[i] = i;
       }
+
       Cblacs_get( contxt, 0, &contxt_C );
-      Cblacs_gridmap(&contxt_C, &pmap[0], npcol, nprow, npcol);
+      Cblacs_gridmap(&contxt_C, &pmap[0], nprow, nprow, npcol);
 
       if( (mpisize % dmCol) != 0 ){
         std::ostringstream msg;
@@ -430,7 +437,6 @@ int main(int argc, char **argv)
               spn.Setup( dmExtElem, 1, numStateTotal, numStateLocal, 0.0 );
 
               UniformRandom( spn.Wavefun() );
-
 
               // Hamiltonian
               // The exchange-correlation type and numExtraState is not

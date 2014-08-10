@@ -135,7 +135,6 @@ private:
   /// @brief Number of processor rows and columns
   Int                 dmRow_;
   Int                 dmCol_;
-  //IntNumVec                   groupRank_;
 
   // Density matrices
 
