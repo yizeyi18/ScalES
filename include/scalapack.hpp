@@ -260,7 +260,6 @@ public:
 ///
 /// This routine performs p_gemr2d.
 
-// FIXME: Add a function GEMM huwei
 //void
 //Gemm(char transA, char transB, const double alpha, 
 //    const ScaLAPACKMatrix<double>& A, const ScaLAPACKMatrix<double>& B, 

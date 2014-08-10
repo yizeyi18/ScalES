@@ -2,7 +2,7 @@
 	 Copyright (c) 2012 The Regents of the University of California,
 	 through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
+   Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -148,14 +148,18 @@ public:
 
 	// ********************  INQUIRY     *******************************
 
-
-
+  /// @brief Parallel LOBPCG solver with intra-element
+  /// parallelization.
+  ///
+  /// @param[in] numEig  Number of eigenvalues to be counted in the
+  /// convergence criterion.  numEig must be less than or equal to
+  /// width.
+  /// @param[in] eigMaxIter    Maximum number of iterations
+  /// @param[in] eigTolerance  Residual tolerance.
   void LOBPCGSolveReal2(
       Int          numEig,
       Int          eigMaxIter,
       Real         eigTolerance );
-
-
 
 }; // -----  end of class  EigenSolver  ----- 
 

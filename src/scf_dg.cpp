@@ -1705,32 +1705,29 @@ SCFDG::InnerIterate	( Int outerIter )
 
         if(contxt_ >= 0){
 
-        scalapack::Descriptor descH( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
-            0, 0, contxt_ );
+          scalapack::Descriptor descH( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
+              0, 0, contxt_ );
 
-        scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
+          scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
 
-        std::vector<Real> eigs;
+          std::vector<Real> eigs;
 
-        DistElemMatToScaMat( hamDG.HMat(), 	descH,
-            scaH, hamDG.ElemBasisIdx(), domain_.colComm );
+          DistElemMatToScaMat( hamDG.HMat(), 	descH,
+              scaH, hamDG.ElemBasisIdx(), domain_.colComm );
 
-        scalapack::Syevd('U', scaH, eigs, scaZ);
-       
-        //DblNumVec& eigval = hamDG.EigVal(); 
-        //eigval.Resize( hamDG.NumStateTotal() );		
-        for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
-          eigval[i] = eigs[i];
+          scalapack::Syevd('U', scaH, eigs, scaZ);
+
+          //DblNumVec& eigval = hamDG.EigVal(); 
+          //eigval.Resize( hamDG.NumStateTotal() );		
+          for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
+            eigval[i] = eigs[i];
 
 
-        
-        ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
-            hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.colComm, 
-            hamDG.NumStateTotal() );
-      
-     
-        
-       
+
+          ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
+              hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.colComm, 
+              hamDG.NumStateTotal() );
+
         } //if(contxt_ >= 0)
 
         MPI_Bcast(eigval.Data(), hamDG.NumStateTotal(), MPI_DOUBLE, 0, domain_.rowComm);
