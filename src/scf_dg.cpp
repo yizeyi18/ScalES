@@ -1948,10 +1948,18 @@ SCFDG::InnerIterate	( Int outerIter )
         statusOFS << "mpirankScaVec = " << mpirankScaVec << std::endl;
 #endif
 
+        Real timeConversionSta, timeConversionEnd;
+
+        GetTime( timeConversionSta );
         DistElemMatToScaMat2( hamDG.HMat(), 	descH,
             scaH, hamDG.ElemBasisIdx(), domain_.comm,
             domain_.colComm, mpirankElemVec,
             mpirankScaVec );
+#if ( _DEBUGlevel_ >= 0 )
+        GetTime( timeConversionEnd );
+        statusOFS << "Time for converting from DistElemMat to ScaMat is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
         if(contxt_ >= 0){
 
@@ -1972,19 +1980,18 @@ SCFDG::InnerIterate	( Int outerIter )
           for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
             eigval[i] = eigs[i];
 
-          statusOFS << "eigval = " << eigval << std::endl;
-
-          break;
-
-          ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
-              hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.colComm, 
-              hamDG.NumStateTotal() );
-
         } //if(contxt_ >= 0)
 
-
-        std::abort();
-
+        GetTime( timeConversionSta );
+        ScaMatToDistNumMat2( scaZ, hamDG.Density().Prtn(), 
+            hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.comm,
+            domain_.colComm, mpirankElemVec, mpirankScaVec, 
+            hamDG.NumStateTotal() );
+        GetTime( timeConversionEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for converting from ScaMat to DistNumMat is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
         MPI_Bcast(eigval.Data(), hamDG.NumStateTotal(), MPI_DOUBLE, 0, domain_.rowComm);
         

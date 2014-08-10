@@ -305,8 +305,8 @@ int main(int argc, char **argv)
       }
 
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "nprow = " << nprow << std::endl;
-      statusOFS << "npcol = " << npcol << std::endl;
+      statusOFS << "nprowSca = " << nprow << std::endl;
+      statusOFS << "npcolSca = " << npcol << std::endl;
 #endif
       
       Int ldpmap = npcol;
