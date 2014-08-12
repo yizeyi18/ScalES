@@ -325,6 +325,8 @@ int main(int argc, char **argv)
         throw std::runtime_error( msg.str().c_str() );
       }
 
+      GetTime( timeSta );
+      
       Int cnt = 0;
       for( Int k=0; k< numElem[2]; k++ )
         for( Int j=0; j< numElem[1]; j++ )
@@ -334,7 +336,6 @@ int main(int argc, char **argv)
 
       distHamKS.Prtn() = distEigSol.Prtn();
       distPsi.Prtn()   = distEigSol.Prtn(); 
-
 
       for( Int k=0; k< numElem[2]; k++ )
         for( Int j=0; j< numElem[1]; j++ )
@@ -389,14 +390,31 @@ int main(int argc, char **argv)
                 } // Atom is in the extended element
               }
 
+              GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 1 )
+              statusOFS << "Time for Initialize ExtElem = " << timeEnd - timeSta << std::endl;
+#endif
+
               // Fourier
+              GetTime( timeSta );
               fftExtElem.Initialize( dmExtElem );
+              GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+              statusOFS << "Time for fftExtElem.Initialize = " << timeEnd - timeSta << std::endl;
+#endif
+              
+              GetTime( timeSta );
               fftExtElem.InitializeFine( dmExtElem );
-             
+              GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+              statusOFS << "Time for fftExtElem.InitializeFine = " << timeEnd - timeSta << std::endl;
+#endif
               // Wavefunction
               //Spinor& spn = distPsi.LocalMap()[key];
               //spn.Setup( dmExtElem, 1, esdfParam.numALBElem(i,j,k), 0.0 );
 
+              GetTime( timeSta );
+              
               int dmExtElemMpirank, dmExtElemMpisize;
               MPI_Comm_rank( dmExtElem.comm, &dmExtElemMpirank );
               MPI_Comm_size( dmExtElem.comm, &dmExtElemMpisize );
@@ -430,23 +448,33 @@ int main(int argc, char **argv)
                     numStateLocal = numStateLocal + 1 ;
                   }
                 }    
-    
+
               }
-     
+
               Spinor& spn = distPsi.LocalMap()[key];
+              
               spn.Setup( dmExtElem, 1, numStateTotal, numStateLocal, 0.0 );
 
               UniformRandom( spn.Wavefun() );
-
+              
+              GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 1 )
+              statusOFS << "Time for Initialize Spinor = " << timeEnd - timeSta << std::endl;
+#endif
               // Hamiltonian
               // The exchange-correlation type and numExtraState is not
               // used in the extended element calculation
               statusOFS << "Hamiltonian begin." << std::endl;
               KohnSham& hamKS = distHamKS.LocalMap()[key];
 
+              GetTime( timeSta );
               hamKS.Setup( dmExtElem, atomListExtElem, 
                   esdfParam.pseudoType, esdfParam.XCType );
+              GetTime( timeEnd );
 
+#if ( _DEBUGlevel_ >= 1 )
+              statusOFS << "Time for hamKS.Setup = " << timeEnd - timeSta << std::endl;
+#endif
               // Setup the external barrier potential in the extended element
               Real barrierR = esdfParam.potentialBarrierR;
               Real barrierW = esdfParam.potentialBarrierW;

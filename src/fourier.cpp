@@ -57,7 +57,7 @@ Fourier::Fourier () :
 	isInitialized(false),
 	numGridTotal(0),
   numGridTotalFine(0),
-	plannerFlag(FFTW_MEASURE)
+	plannerFlag(FFTW_ESTIMATE)
 	{
 		backwardPlan  = NULL;
 		forwardPlan   = NULL;
@@ -386,7 +386,7 @@ DistFourier::DistFourier () :
 	localNzStart(0),
 	numAllocLocal(0),
 	isInGrid(false),
-	plannerFlag(FFTW_MEASURE),
+	plannerFlag(FFTW_ESTIMATE),
 	comm(MPI_COMM_NULL),
 	forwardPlan(NULL),
 	backwardPlan(NULL)
