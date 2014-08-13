@@ -1943,7 +1943,7 @@ SCFDG::InnerIterate	( Int outerIter )
           mpirankScaVec[i] = i;
         }
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
         statusOFS << "mpirankElemVec = " << mpirankElemVec << std::endl;
         statusOFS << "mpirankScaVec = " << mpirankScaVec << std::endl;
 #endif

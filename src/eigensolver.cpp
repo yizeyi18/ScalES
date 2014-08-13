@@ -2492,7 +2492,7 @@ EigenSolver::LOBPCGSolveReal2	(
         statusOFS << "sigma2 = " << sigma2 << std::endl;
 #endif
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
         statusOFS << "sigma2(0)        = " << sigma2(0) << std::endl;
         statusOFS << "sigma2(numCol-1) = " << sigma2(numCol-1) << std::endl;
         statusOFS << "numKeep          = " << numKeep << std::endl;
