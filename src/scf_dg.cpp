@@ -1955,10 +1955,10 @@ SCFDG::InnerIterate	( Int outerIter )
             scaH, hamDG.ElemBasisIdx(), domain_.comm,
             domain_.colComm, mpirankElemVec,
             mpirankScaVec );
-#if ( _DEBUGlevel_ >= 0 )
         GetTime( timeConversionEnd );
+#if ( _DEBUGlevel_ >= 0 )
         statusOFS << "Time for converting from DistElemMat to ScaMat is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+          timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
 
         if(contxt_ >= 0){
@@ -1972,8 +1972,13 @@ SCFDG::InnerIterate	( Int outerIter )
 
           std::vector<Real> eigs;
 
-
+          GetTime( timeConversionSta );
           scalapack::Syevd('U', scaH, eigs, scaZ);
+          GetTime( timeConversionEnd );
+#if ( _DEBUGlevel_ >= 0 )
+          statusOFS << "Time for scalapack::Syevd is " <<
+            timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
+#endif
 
           //DblNumVec& eigval = hamDG.EigVal(); 
           //eigval.Resize( hamDG.NumStateTotal() );		
@@ -1990,9 +1995,10 @@ SCFDG::InnerIterate	( Int outerIter )
         GetTime( timeConversionEnd );
 #if ( _DEBUGlevel_ >= 0 )
         statusOFS << "Time for converting from ScaMat to DistNumMat is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+          timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
 
+        GetTime( timeConversionSta );
         MPI_Bcast(eigval.Data(), hamDG.NumStateTotal(), MPI_DOUBLE, 0, domain_.rowComm);
         
         for( Int k = 0; k < numElem_[2]; k++ )
@@ -2004,7 +2010,11 @@ SCFDG::InnerIterate	( Int outerIter )
                 MPI_Bcast(localCoef.Data(), localCoef.m() * localCoef.n(), MPI_DOUBLE, 0, domain_.rowComm);
               }
             } 
-        
+        GetTime( timeConversionEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for MPI_Bcast eigval and localCoef is " <<
+          timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
+#endif
        
         MPI_Barrier( domain_.comm );
         MPI_Barrier( domain_.rowComm );
