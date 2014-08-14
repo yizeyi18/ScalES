@@ -2042,12 +2042,12 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
 		esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
 		esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
-		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 1 );
+		esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
 		esdfParam.isOutputWfnElem         = esdf_integer( "Output_Wfn_Elem", 0 );
-		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 1 );
+		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 0 );
 		esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 0 );
 		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
-		esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 1 );
+		esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 0 );
 		esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
 
 
