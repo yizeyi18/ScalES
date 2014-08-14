@@ -132,9 +132,11 @@ private:
 	Real                Eself_;                    // Self energy due to the pseudopotential
 	Real                fermi_;                    // Fermi energy
 
-  /// @brief Number of processor rows and columns
+  /// @brief Number of processor rows and columns for ScaLAPACK
   Int                 dmRow_;
   Int                 dmCol_;
+
+  Int                 numProcScaLAPACK_;
 
   // Density matrices
 

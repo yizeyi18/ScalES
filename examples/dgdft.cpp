@@ -87,8 +87,6 @@ int main(int argc, char **argv)
     fftw_mpi_init();
 
     // Initialize BLACS
-    // FIXME make this an option in esdfParam
-    Int numProcScaLAPACK = mpisize;
 
     Int nprow, npcol;
     Int contxt, contxt_C;
@@ -203,6 +201,9 @@ int main(int argc, char **argv)
         << esdfParam.numALBElem << std::endl;
 
       Print(statusOFS, "Solution Method   = ",  esdfParam.solutionMethod );
+      if( esdfParam.solutionMethod == "diag" ){
+        Print(statusOFS, "Number of procs for ScaLAPACK  = ",  esdfParam.numProcScaLAPACK); 
+      }
       if( esdfParam.solutionMethod == "pexsi" ){
         Print(statusOFS, "Number of poles   = ",  esdfParam.numPole); 
         Print(statusOFS, "Nproc row PEXSI   = ",  esdfParam.numProcRowPEXSI); 
@@ -295,6 +296,7 @@ int main(int argc, char **argv)
       int dmRow = mpisize / dmCol;
 
       Cblacs_gridinit(&contxt, "C", dmRow, dmCol);
+      Int numProcScaLAPACK = esdfParam.numProcScaLAPACK;
       
       // Here nprow, npcol is for the usage of ScaLAPACK in
       // diagonalization

@@ -1344,11 +1344,16 @@ void ScaMatToDistNumMat2(
   MPI_Bcast( &numElem[0], 3, MPI_INT, mpirankElemSta, comm );
 
 
-	if( numColKeep < 0 )
-		numColKeep = scaMat.Width();
+  if( isInSca ){
+    if( numColKeep < 0 )
+      numColKeep = scaMat.Width();
 
-	if( numColKeep > scaMat.Width() )
-		throw std::runtime_error("NumColKeep cannot be bigger than the matrix width.");
+    if( numColKeep > scaMat.Width() )
+      throw std::runtime_error("NumColKeep cannot be bigger than the matrix width.");
+  }
+  // Communicate and make sure that numColKeep is globally shared
+  MPI_Bcast( &numColKeep, 1, MPI_INT, mpirankScaSta, comm );
+
 
   // Define the data to processor mapping for ScaLAPACK matrix
   BlockMatPrtn  blockPrtn;

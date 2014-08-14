@@ -180,6 +180,8 @@ SCFDG::Setup	(
   Int mpisizeRow;  MPI_Comm_size(domain_.rowComm, &mpisizeRow);
   Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
   Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
+
+  numProcScaLAPACK_ = esdfParam.numProcScaLAPACK;
   
   // Initialize PEXSI
 #ifdef _USE_PEXSI_
@@ -1928,22 +1930,19 @@ SCFDG::InnerIterate	( Int outerIter )
 
         scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
 
-        // FIXME 
-        Int numProcScaLAPACK = mpisize;
-
         std::vector<Int> mpirankElemVec(dmCol_);
-        std::vector<Int> mpirankScaVec( numProcScaLAPACK );
+        std::vector<Int> mpirankScaVec( numProcScaLAPACK_ );
 
         // The processors in the first column are the source
         for( Int i = 0; i < dmCol_; i++ ){
           mpirankElemVec[i] = i * dmRow_;
         }
         // The first numProcScaLAPACK processors are the target
-        for( Int i = 0; i < numProcScaLAPACK; i++ ){
+        for( Int i = 0; i < numProcScaLAPACK_; i++ ){
           mpirankScaVec[i] = i;
         }
 
-#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 0 )
         statusOFS << "mpirankElemVec = " << mpirankElemVec << std::endl;
         statusOFS << "mpirankScaVec = " << mpirankScaVec << std::endl;
 #endif
@@ -1980,8 +1979,6 @@ SCFDG::InnerIterate	( Int outerIter )
             timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
 
-          //DblNumVec& eigval = hamDG.EigVal(); 
-          //eigval.Resize( hamDG.NumStateTotal() );		
           for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
             eigval[i] = eigs[i];
 
@@ -1999,7 +1996,6 @@ SCFDG::InnerIterate	( Int outerIter )
 #endif
 
         GetTime( timeConversionSta );
-        MPI_Bcast(eigval.Data(), hamDG.NumStateTotal(), MPI_DOUBLE, 0, domain_.rowComm);
         
         for( Int k = 0; k < numElem_[2]; k++ )
           for( Int j = 0; j < numElem_[1]; j++ )
@@ -2022,10 +2018,17 @@ SCFDG::InnerIterate	( Int outerIter )
         
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for diagonalizing the DG matrix using ScaLAPACK is " <<
+        statusOFS << "Time for diagonalizing the DG matrix using ScaLAPACK in total is " <<
           timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+
+        // Communicate the eigenvalues
+        Int mpirankScaSta = mpirankScaVec[0];
+        MPI_Bcast(eigval.Data(), hamDG.NumStateTotal(), MPI_DOUBLE, 
+            mpirankScaVec[0], domain_.comm);
       }
+
+
 
       // Post processing
 

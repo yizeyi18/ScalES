@@ -720,6 +720,12 @@ void esdf_key() {
 	strcpy(kw_label[i],"num_pole");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Number of poles for the pole expansion !*");
+	
+  i++;
+	strcpy(kw_label[i],"num_proc_scalapack");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of processors used by ScaLAPACK !*");
+
 
 	i++;
 	strcpy(kw_label[i],"num_proc_row_pexsi");
@@ -2182,6 +2188,9 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 			throw std::runtime_error("Usage of PEXSI requires -DPEXSI to be defined in make.inc.");
 #endif
     }
+
+    // ScaLAPACK parameter
+    esdfParam.numProcScaLAPACK  = esdf_integer( "Num_Proc_ScaLAPACK", mpisize );
 
     // PEXSI parameters
     esdfParam.numPole           = esdf_integer( "Num_Pole", 60 );

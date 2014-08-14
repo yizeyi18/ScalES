@@ -464,6 +464,12 @@ namespace esdf{
     /// extended element or element.
     Real                LGLGridFactor;
 
+
+    /// @brief Number of processors used by ScaLAPACK.
+    ///
+    /// Default: mpisize
+    Int                 numProcScaLAPACK;
+
     // PEXSI
     /// @brief Number of processors in the row communication group for
     /// each pole.
