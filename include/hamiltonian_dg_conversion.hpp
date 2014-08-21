@@ -1542,6 +1542,8 @@ void DistElemMatToDistSparseMat(
 
 	distRow.Prtn() = vecPrtn;
 	distVal.Prtn() = vecPrtn;
+  distRow.SetComm( comm );
+  distVal.SetComm( comm );
 
 	std::set<Int>  ownerSet;
 

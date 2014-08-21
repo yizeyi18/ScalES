@@ -1614,29 +1614,34 @@ SCFDG::InnerIterate	( Int outerIter )
     // *********************************************************************
 
 		if( isOutputHMatrix_ ){
-			DistSparseMatrix<Real>  HSparseMat;
+      // Only the first processor column participates in the conversion
+      if( mpirankRow == 0 ){
+        DistSparseMatrix<Real>  HSparseMat;
 
-			GetTime(timeSta);
-			DistElemMatToDistSparseMat( 
-					hamDG.HMat(),
-					hamDG.NumBasisTotal(),
-					HSparseMat,
-					hamDG.ElemBasisIdx(),
-					domain_.comm );
-			GetTime(timeEnd);
+        GetTime(timeSta);
+        DistElemMatToDistSparseMat( 
+            hamDG.HMat(),
+            hamDG.NumBasisTotal(),
+            HSparseMat,
+            hamDG.ElemBasisIdx(),
+            domain_.colComm );
+        GetTime(timeEnd);
 #if ( _DEBUGlevel_ >= 0 )
-			statusOFS << "Time for converting the DG matrix to DistSparseMatrix format is " <<
-				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        statusOFS << "Time for converting the DG matrix to DistSparseMatrix format is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-			GetTime(timeSta);
-			ParaWriteDistSparseMatrix( "H.csc", HSparseMat );
-//			WriteDistSparseMatrixFormatted( "H.matrix", HSparseMat );
-			GetTime(timeEnd);
+        GetTime(timeSta);
+        ParaWriteDistSparseMatrix( "H.csc", HSparseMat );
+        //			WriteDistSparseMatrixFormatted( "H.matrix", HSparseMat );
+        GetTime(timeEnd);
 #if ( _DEBUGlevel_ >= 0 )
-			statusOFS << "Time for writing the matrix in parallel is " <<
-				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        statusOFS << "Time for writing the matrix in parallel is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+      }
+
+      MPI_Barrier( domain_.comm );
 
 		}
 
