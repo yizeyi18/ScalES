@@ -54,6 +54,8 @@
 // FIXME Whether to include the non-local part
 #define _NON_LOCAL_  1
 
+// FIXME Check all numBasis == 0 and see whether it should be numBasisTotal = 0
+
 namespace dgdft{
 
 using namespace PseudoComponent;

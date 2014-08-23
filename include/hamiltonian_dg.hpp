@@ -370,6 +370,15 @@ public:
       DistDblNumVec& rhoLGL, 
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
 
+	/// @brief Compute the electron density using the density matrix and
+  /// with intra-element parallelization. This is used after obtaining
+  /// the density matrix using PEXSI.
+	void CalculateDensityDM2( 
+      DistDblNumVec& rho, 
+      DistDblNumVec& rhoLGL, 
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
+
+
 	/// @brief Compute the exchange-correlation potential and energy.
 	void CalculateXC ( 
 			Real &Exc, 

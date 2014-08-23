@@ -1147,56 +1147,27 @@ HamiltonianDG::CalculateDensity	(
             // from row partition to column partition.
 
 						// Skip the element if there is no basis functions.
-						if( numBasis == 0 )
+						if( numBasisTotal == 0 )
 							continue;
 
             DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
 						
             DblNumVec& localRho    = rho.LocalMap()[key];
             DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+            SetValue( localRhoLGL, 0.0 );
 
-						//if( localCoef.n() != numEig ){
-						//	throw std::runtime_error( 
-						//			"Numbers of eigenfunction coefficients do not match.");
-						//}
-						//if( localCoef.m() != numBasis ){
-						//	throw std::runtime_error(
-						//			"Number of LGL grids do not match.");
-						//}
            
             // Loop over all the eigenfunctions
             // 
             // NOTE: Gemm is not a feasible choice when a large number of
 						// eigenfunctions are there.
-						
-//#ifdef _USE_OPENMP_
-//#pragma omp parallel 
 						{
-//#endif
 							DblNumVec  localPsiLGL( numGrid );
 							SetValue( localPsiLGL, 0.0 );
 
 							// For thread safety, declare as private variable
 							DblNumVec  localRhoLGLTmp( numGrid );
 							SetValue( localRhoLGLTmp, 0.0 );
-
-//#ifdef _USE_OPENMP_
-//#pragma omp for schedule(dynamic,1)
-//#endif
-              if(0){ 
-                for( Int g = 0; g < numEig; g++ ){
-                  // Compute local wavefunction on the LGL grid
-                  blas::Gemv( 'N', numGrid, numBasis, 1.0, 
-                      localBasis.Data(), numGrid, 
-                      localCoef.VecData(g), 1, 0.0,
-                      localPsiLGL.Data(), 1 );
-                  // Update the local density
-                  Real  occ    = occrate[g];
-                  for( Int p = 0; p < numGrid; p++ ){
-                    localRhoLGLTmp(p) += localPsiLGL(p) * localPsiLGL(p) * occ * numSpin_;
-                  }
-                }
-              } // if(0) 
 
 
               // Compute the density by converting the basis function
@@ -1207,7 +1178,7 @@ HamiltonianDG::CalculateDensity	(
               // The electron density is reduced among all processors in
               // the same row processor communicator to obtain the
               // electron density in each element.  
-              if(1){ 
+              if(1){
             
                 Int height = numGrid;
                 Int width = numBasisTotal;
@@ -1259,10 +1230,12 @@ HamiltonianDG::CalculateDensity	(
                 }
 
                 SetValue( localRhoLGLTmp, 0.0 );
-                MPI_Allreduce( localRhoLGLTemp1.Data(), localRhoLGLTmp.Data(), numGridTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+                MPI_Allreduce( localRhoLGLTemp1.Data(),
+                    localRhoLGLTmp.Data(), numGridTotal, MPI_DOUBLE,
+                    MPI_SUM, domain_.rowComm );
 
 
-              } // if(0) 
+              } 
 
 
 
@@ -1347,7 +1320,7 @@ HamiltonianDG::CalculateDensity	(
 
 
 void
-HamiltonianDG::CalculateDensityDM	( 
+HamiltonianDG::CalculateDensityDM	(
 		DistDblNumVec& rho,
 		DistDblNumVec& rhoLGL,
     DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat )
@@ -1452,7 +1425,7 @@ HamiltonianDG::CalculateDensityDM	(
 						// grid
 						InterpLGLToUniform( 
 								numLGLGridElem_, 
-								numUniformGridElem_, 
+								numUniformGridElemFine_,
 								localRhoLGL.Data(), 
 								localRho.Data() );
 						statusOFS << "After interpolation" << std::endl;
@@ -1469,7 +1442,7 @@ HamiltonianDG::CalculateDensityDM	(
 					} // own this element
 				} // for (i)
 
-		sumRhoLocal *= domain_.Volume() / domain_.NumGridTotal(); 
+		sumRhoLocal *= domain_.Volume() / domain_.NumGridTotalFine(); 
 
 		// All processors get the normalization factor
 		mpi::Allreduce( &sumRhoLGLLocal, &sumRhoLGL, 1, MPI_SUM, domain_.colComm );
@@ -1503,6 +1476,177 @@ HamiltonianDG::CalculateDensityDM	(
 
 	return ;
 } 		// -----  end of method HamiltonianDG::CalculateDensityDM  ----- 
+
+
+void
+HamiltonianDG::CalculateDensityDM2	(
+		DistDblNumVec& rho,
+		DistDblNumVec& rhoLGL,
+    DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat )
+{
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::CalculateDensityDM2");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+  Int mpirankRow;  MPI_Comm_rank(domain_.rowComm, &mpirankRow);
+  Int mpisizeRow;  MPI_Comm_size(domain_.rowComm, &mpisizeRow);
+
+  Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
+  Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
+
+
+
+	if(1)
+	{
+		Real sumRhoLocal = 0.0, sumRho = 0.0;
+		Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
+
+		// Clear the density 
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+						DblNumVec& localRho    = rho.LocalMap()[key];
+						DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+
+						SetValue( localRho, 0.0 );
+						SetValue( localRhoLGL, 0.0 );
+						
+					}
+				} // for (i)
+
+		// Compute the local density in each element
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+						DblNumMat& localBasis = basisLGL_.LocalMap()[key];
+						Int numGrid  = localBasis.m();
+						Int numBasis = localBasis.n();
+
+						Int numBasisTotal = 0;
+            MPI_Allreduce( &numBasis, &numBasisTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
+
+						// Skip the element if there is no basis functions.
+						if( numBasisTotal == 0 )
+							continue;
+
+            // Convert the basis functions from column based
+            // partition to row based partition
+            Int height = localBasis.m();
+            Int width = numBasisTotal;
+
+            Int widthBlocksize = width / mpisizeRow;
+            Int heightBlocksize = height / mpisizeRow;
+
+            Int widthLocal = widthBlocksize;
+            Int heightLocal = heightBlocksize;
+
+            if(mpirankRow < (width % mpisizeRow)){
+              widthLocal = widthBlocksize + 1;
+            }
+
+            if(mpirankRow == (mpisizeRow - 1)){
+              heightLocal = heightBlocksize + height % mpisizeRow;
+            }
+
+            Int numLGLGridTotal = height;  
+            Int numLGLGridLocal = heightLocal;  
+
+            DblNumMat localBasisRow( heightLocal, width );
+
+            AlltoallForward (localBasis, localBasisRow, domain_.rowComm);
+
+						DblNumMat& localDM = distDMMat.LocalMap()[ElemMatKey(key, key)];
+
+						DblNumVec& localRho    = rho.LocalMap()[key];
+						DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+
+						{
+							// For thread safety, declare as private variable
+							DblNumVec  localRhoLGLTmp( numGrid );
+							SetValue( localRhoLGLTmp, 0.0 );
+              Real factor;
+
+              // Explicit take advantage of the symmetry
+							for( Int a = 0; a < numBasisTotal; a++ )
+                for( Int b = a; b < numBasisTotal; b++ ){
+                  factor = localDM(a,b);
+                  if( b > a ) factor *= 2.0;
+                  Int idxSta = mpirankRow * heightBlocksize;
+                  for( Int p = 0; p < heightLocal; p++ ){
+                    localRhoLGLTmp(idxSta + p) += 
+                      localBasisRow(p,a) * localBasisRow(p,b) * factor; 
+                  }
+                }
+              MPI_Allreduce( localRhoLGLTmp.Data(), localRhoLGL.Data(),
+                  numLGLGridTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+						}
+
+						statusOFS << "Before interpolation" << std::endl;
+
+						// Interpolate the local density from LGL grid to uniform
+						// grid
+						InterpLGLToUniform( 
+								numLGLGridElem_, 
+								numUniformGridElemFine_, 
+								localRhoLGL.Data(), 
+								localRho.Data() );
+						statusOFS << "After interpolation" << std::endl;
+
+						sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
+								localRhoLGL.Data(), 1, 
+								LGLWeight3D_.Data(), 1 );
+
+						Real* ptrRho = localRho.Data();
+						for( Int p = 0; p < localRho.Size(); p++ ){
+							sumRhoLocal += (*ptrRho);
+							ptrRho++;
+						}
+					} // own this element
+				} // for (i)
+
+		sumRhoLocal *= domain_.Volume() / domain_.NumGridTotalFine(); 
+
+		// All processors get the normalization factor
+		mpi::Allreduce( &sumRhoLGLLocal, &sumRhoLGL, 1, MPI_SUM, domain_.colComm );
+		mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
+
+#if ( _DEBUGlevel_ >= 0 )
+		statusOFS << std::endl;
+		Print( statusOFS, "Sum Rho on LGL grid (raw data) = ", sumRhoLGL );
+		Print( statusOFS, "Sum Rho on uniform grid (interpolated) = ", sumRho );
+		statusOFS << std::endl;
+#endif
+		
+
+		Real rhofac = numSpin_ * numOccupiedState_ / sumRho;
+	  
+
+		// Normalize the electron density in the global domain
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+						DblNumVec& localRho = rho.LocalMap()[key];
+						blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
+					} // own this element
+				} // for (i)
+	}
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method HamiltonianDG::CalculateDensityDM2  ----- 
+
+
 
 void
 HamiltonianDG::CalculateXC	( 
@@ -2352,61 +2496,6 @@ HamiltonianDG::CalculateForceDM	(
 		pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
 
 
-    // Step 1. Collect the blocks of density matrices from the neighboring
-    // elements according to the support of the pseudopotential 
-    //
-    // Each element owns all the density matrix blocks in its neighbors
-    // and then perform data processing later. It can be as many as
-    // 3^3 = 27 elements.  The element itself is included as well.
-		//
-		// NOTE that it is assumed that the size of the element size cannot
-		// be smaller than the pseudopotential (local or nonlocal) cutoff radius.
-		//
-		// Use std::set to avoid repetitive entries
-//		for( Int k = 0; k < numElem_[2]; k++ )
-//			for( Int j = 0; j < numElem_[1]; j++ )
-//				for( Int i = 0; i < numElem_[0]; i++ ){
-//					Index3 key( i, j, k );
-//					if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
-//						IntNumVec  idxX(3);
-//						IntNumVec  idxY(3);
-//						IntNumVec  idxZ(3); 
-//
-//						// Previous
-//						if( i == 0 )  idxX(0) = numElem_[0]-1; else   idxX(0) = i-1;
-//						if( j == 0 )  idxY(0) = numElem_[1]-1; else   idxY(0) = j-1;
-//						if( k == 0 )  idxZ(0) = numElem_[2]-1; else   idxZ(0) = k-1;
-//
-//						// Current
-//						idxX(1) = i;
-//						idxY(1) = j;
-//						idxZ(1) = k;
-//
-//						// Next
-//						if( i == numElem_[0]-1 )  idxX(2) = 0; else   idxX(2) = i+1;
-//						if( j == numElem_[1]-1 )  idxY(2) = 0; else   idxY(2) = j+1;
-//						if( k == numElem_[2]-1 )  idxZ(2) = 0; else   idxZ(2) = k+1;
-//
-//						// Tensor product, including the element itself
-//						for( Int c = 0; c < 3; c++ )
-//							for( Int b = 0; b < 3; b++ )
-//								for( Int a = 0; a < 3; a++ ){
-//                  pseudoSet.insert( Index3( idxX(a), idxY(b), idxZ(c) ) );
-//								} // for (a)
-//					}
-//				} // for (i)
-//		std::vector<ElemMatKey>  pseudoIdx;
-//    for( std::set<Index3>::iterator si = pseudoSet.begin();
-//        si != pseudoSet.end(); si++ ){
-//      for( std::set<Index3>::iterator sj = pseudoSet.begin();
-//          sj != pseudoSet.end(); sj++ ){
-//        // FIXME
-//        // Due to the ASSUMPTION that the radius of each pseudopotential
-//        // does not exceed the length of the element, 
-//        pseudoIdx.push_back( 
-//            std::pair<Index3,Index3>( (*si), (*sj) ) );
-//      }
-//    }
 
 #if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "Required density matrix blocks " << std::endl;
@@ -2539,7 +2628,8 @@ HamiltonianDG::CalculateForceDM	(
 #endif
 
 	return ;
-} 		// -----  end of method HamiltonianDG::CalculateForce  ----- 
+} 		// -----  end of method HamiltonianDG::CalculateForceDM  ----- 
+
 
 // FIXME This does not work when intra-element parallelization is used.
 void

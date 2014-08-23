@@ -219,6 +219,7 @@ SCFDG::Setup	(
     numProcColPEXSI_     = esdfParam.numProcColPEXSI;
     inertiaCountSteps_   = esdfParam.inertiaCountSteps;
 
+    // FIXME
     pexsiPlan_        = PPEXSIPlanInitialize( 
         domain_.comm,
         numProcRowPEXSI_,
@@ -272,6 +273,12 @@ SCFDG::Setup	(
 		dvInnerMat_.Prtn()    = elemPrtn_;
 		vtotLGLSave_.Prtn()   = elemPrtn_;
 
+#ifdef _USE_PEXSI_
+    distDMMat_.Prtn()     = hamDG.HMat().Prtn();
+    distEDMMat_.Prtn()     = hamDG.HMat().Prtn();
+    distFDMMat_.Prtn()     = hamDG.HMat().Prtn(); 
+#endif
+    
 
     // The number of processors in the column communicator must be the
     // number of elements, and mpisize should be a multiple of the
@@ -2178,7 +2185,8 @@ SCFDG::InnerIterate	( Int outerIter )
     // Method 2: Using the pole expansion and selected inversion (PEXSI) method
     // FIXME Currently it is assumed that all processors used by DG will be used by PEXSI.
 #ifdef _USE_PEXSI_
-    if( solutionMethod_ == "pexsi" ){
+    // The following version is without intra-element parallelization
+    if( solutionMethod_ == "pexsi" & 0 ){
       Real timePEXSISta, timePEXSIEnd;
       GetTime( timePEXSISta );
 
@@ -2341,8 +2349,8 @@ SCFDG::InnerIterate	( Int outerIter )
 
 //      PPEXSIDFTDriver(
 //          pexsiPlan_,
-//          numElectronExact,
 //          pexsiOptions_,
+//          numElectronExact,
 //          &muPEXSI,
 //          &numElectronPEXSI,         
 //          &muMinInertia,              
@@ -2432,6 +2440,17 @@ SCFDG::InnerIterate	( Int outerIter )
           domain_.comm,
           npPerPole_ );
 
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key( i, j, k );
+            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+              DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
+              MPI_Bcast(localCoef.Data(), localCoef.m() * localCoef.n(), MPI_DOUBLE, 0, domain_.rowComm);
+            }
+          } 
+
+
       // Compute the Harris energy functional.  
       // NOTE: In computing the Harris energy, the density and the
       // potential must be the INPUT density and potential without ANY
@@ -2514,12 +2533,468 @@ SCFDG::InnerIterate	( Int outerIter )
       // TODO Evaluate the a posteriori error estimator
 
       MPI_Comm_free( &HCSCComm );
-      GetTime( timePEXSISta );
+      GetTime( timePEXSIEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for PEXSI evaluation is " <<
         timePEXSIEnd - timePEXSISta << " [s]" << std::endl << std::endl;
 #endif
     } //if( solutionMethod_ == "pexsi" )
+
+    // The following version is with intra-element parallelization
+    if( solutionMethod_ == "pexsi" & 1 ){
+      Real timePEXSISta, timePEXSIEnd;
+      GetTime( timePEXSISta );
+
+      Real numElectronExact = hamDG.NumOccupiedState() * hamDG.NumSpin();
+      Real muMinInertia, muMaxInertia;
+      Real muPEXSI, numElectronPEXSI;
+      Int numTotalInertiaIter, numTotalPEXSIIter;
+      Int npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_;
+
+      std::vector<Int> mpirankElemVec( dmCol_ );
+      std::vector<Int> mpirankSparseVec( npPerPole_ );
+
+      // The processors in the first column are the source
+      for( Int i = 0; i < dmCol_; i++ ){
+        mpirankElemVec[i] = i * dmRow_;
+      }
+      // The first numPerPole_ processors are the target
+      for( Int i = 0; i < npPerPole_; i++ ){
+        mpirankSparseVec[i] = i;
+      }
+
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "mpirankElemVec = " << mpirankElemVec << std::endl;
+        statusOFS << "mpirankSparseVec = " << mpirankSparseVec << std::endl;
+#endif
+
+
+      // Temporary matrices 
+      DistSparseMatrix<Real>  HSparseMat;
+      DistSparseMatrix<Real>  DMSparseMat;
+      DistSparseMatrix<Real>  EDMSparseMat;
+      DistSparseMatrix<Real>  FDMSparseMat;
+
+      Int info;
+      
+      // Create an MPI communicator for saving the H matrix in a
+      // subgroup of processors
+      MPI_Comm HCSCComm;
+      Int isProcHCSC = ( mpirank < npPerPole_ ) ? 1 : 0;
+      
+      MPI_Comm_split( MPI_COMM_WORLD, isProcHCSC, mpirank, &HCSCComm );
+      
+      // Convert the DG matrix into the distributed CSC format
+      // All processors participate in this step
+
+			GetTime(timeSta);
+			DistElemMatToDistSparseMat2( 
+					hamDG.HMat(),
+					hamDG.NumBasisTotal(),
+					HSparseMat,
+					hamDG.ElemBasisIdx(),
+					domain_.comm, 
+          domain_.colComm,
+          HCSCComm,
+          mpirankElemVec,
+          mpirankSparseVec );
+			GetTime(timeEnd);
+
+      // FIXME The following line is NECESSARY, and is because of the
+      // unmature implementation of DistElemMatToDistSparseMat
+      if( isProcHCSC ){
+        HSparseMat.comm = HCSCComm;
+        mpi::Allreduce( &HSparseMat.nnzLocal, 
+            &HSparseMat.nnz, 1, MPI_SUM, HSparseMat.comm );
+      }
+#if ( _DEBUGlevel_ >= 0 )
+			statusOFS << "Time for converting the DG matrix to DistSparseMatrix format is " <<
+				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+#if ( _DEBUGlevel_ >= 0 )
+      if( mpirank < npPerPole_ ){
+        statusOFS << "H.size = " << HSparseMat.size << std::endl;
+        statusOFS << "H.nnz  = " << HSparseMat.nnz << std::endl;
+        statusOFS << "H.nnzLocal  = " << HSparseMat.nnzLocal << std::endl;
+        statusOFS << "H.colptrLocal.m() = " << HSparseMat.colptrLocal.m() << std::endl;
+        statusOFS << "H.rowindLocal.m() = " << HSparseMat.rowindLocal.m() << std::endl;
+        statusOFS << "H.nzvalLocal.m() = " << HSparseMat.nzvalLocal.m() << std::endl;
+      }
+#endif
+ 
+
+
+#if ( _DEBUGlevel_ >= 1 )
+      // Convert matrix back and forth to test the correctness of the
+      // conversion routines.
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      HMat1;
+      DistSparseMatrix<Real>      HSparseMat1;
+      DistSparseMatToDistElemMat( 
+          HSparseMat,
+          hamDG.NumBasisTotal(),
+          hamDG.HMat().Prtn(),
+          HMat1,
+					hamDG.ElemBasisIdx(),
+          domain_.comm,
+          npPerPole_ );
+
+			DistElemMatToDistSparseMat( 
+					HMat1,
+					hamDG.NumBasisTotal(),
+					HSparseMat1,
+					hamDG.ElemBasisIdx(),
+					domain_.comm, 
+          npPerPole_ );
+
+      // FIXME The following line is NECESSARY, and is because of the
+      // unmature implementation of DistElemMatToDistSparseMat
+      if( mpirank < npPerPole_ ){
+        HSparseMat1.comm = HCSCComm;
+        mpi::Allreduce( &HSparseMat1.nnzLocal, 
+            &HSparseMat1.nnz, 1, MPI_SUM, HSparseMat1.comm );
+
+        // Check the agreement between HSparseMat and HSparseMat1
+        statusOFS << "H1.size = " << HSparseMat1.size << std::endl;
+        statusOFS << "H1.nnz  = " << HSparseMat1.nnz << std::endl;
+        statusOFS << "H1.nnzLocal  = " << HSparseMat1.nnzLocal << std::endl;
+        statusOFS << "H1.colptrLocal.m() = " << HSparseMat1.colptrLocal.m() << std::endl;
+        statusOFS << "H1.rowindLocal.m() = " << HSparseMat1.rowindLocal.m() << std::endl;
+        statusOFS << "H1.nzvalLocal.m() = " << HSparseMat1.nzvalLocal.m() << std::endl;
+
+        Real nzvalErr = 0.0;
+        for( Int i = 0; i < HSparseMat.nnzLocal; i++ ){
+          nzvalErr += pow( std::abs( 
+                HSparseMat.nzvalLocal(i) - HSparseMat1.nzvalLocal(i) ), 2.0 );
+        }
+        nzvalErr = std::sqrt( nzvalErr );
+        statusOFS << "||H.nzvalLocal - H1.nzvalLocal||_2 = " << nzvalErr << std::endl;
+      }
+#endif
+
+      if( isProcHCSC ){
+        CopyPattern( HSparseMat, DMSparseMat );
+        CopyPattern( HSparseMat, EDMSparseMat );
+        CopyPattern( HSparseMat, FDMSparseMat );
+      }
+
+
+      // Load the matrices into PEXSI.  
+      // Only the processors with isProcHCSC == 1 need to carry the
+      // nonzero values of HSparseMat
+      PPEXSILoadRealSymmetricHSMatrix(
+          pexsiPlan_,
+          pexsiOptions_,
+          HSparseMat.size,
+          HSparseMat.nnz,
+          HSparseMat.nnzLocal,
+          HSparseMat.colptrLocal.m() - 1,
+          HSparseMat.colptrLocal.Data(),
+          HSparseMat.rowindLocal.Data(),
+          HSparseMat.nzvalLocal.Data(),
+          1,  // isSIdentity
+          NULL,
+          &info );
+      if( info != 0 ){
+        std::ostringstream msg;
+        msg 
+          << "PEXSI loading H matrix returns info " << info << std::endl;
+        throw std::runtime_error( msg.str().c_str() );
+      }
+
+      // PEXSI solver
+
+      {
+        if( outerIter >= inertiaCountSteps_ ){
+          pexsiOptions_.isInertiaCount = 0;
+        }
+        // Note: Heuristics strategy for dynamically adjusting the
+        // tolerance
+        pexsiOptions_.muInertiaTolerance = 
+          std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.05 );
+        pexsiOptions_.numElectronPEXSITolerance = 
+          std::min( std::max( numElectronPEXSIToleranceTarget_, 1.0 * scfOuterNorm_ ), 0.5 );
+        pexsiOptions_.isSymbolicFactorize = (innerIter == 1) ? 1 : 0;
+        statusOFS << std::endl 
+          << "muInertiaTolerance        = " << pexsiOptions_.muInertiaTolerance << std::endl
+          << "numElectronPEXSITolerance = " << pexsiOptions_.numElectronPEXSITolerance << std::endl
+          << "Symbolic factorization    =  " << pexsiOptions_.isSymbolicFactorize << std::endl;
+      }
+
+
+      PPEXSIDFTDriver(
+          pexsiPlan_,
+          pexsiOptions_,
+          numElectronExact,
+          &muPEXSI,
+          &numElectronPEXSI,         
+          &muMinInertia,              
+          &muMaxInertia,             
+          &numTotalInertiaIter,
+          &numTotalPEXSIIter,
+          &info );
+
+      if( info != 0 ){
+        std::ostringstream msg;
+        msg 
+          << "PEXSI main driver returns info " << info << std::endl;
+        throw std::runtime_error( msg.str().c_str() );
+      }
+
+      // Update the fermi level 
+      fermi_ = muPEXSI;
+
+      // Heuristics for the next step
+      pexsiOptions_.muMin0 = muMinInertia - 5.0 * pexsiOptions_.temperature;
+      pexsiOptions_.muMax0 = muMaxInertia + 5.0 * pexsiOptions_.temperature;
+
+      // Retrieve the PEXSI data
+
+      if( isProcHCSC ){
+        Real totalEnergyH, totalEnergyS, totalFreeEnergy;
+        PPEXSIRetrieveRealSymmetricDFTMatrix(
+            pexsiPlan_,
+            DMSparseMat.nzvalLocal.Data(),
+            EDMSparseMat.nzvalLocal.Data(),
+            FDMSparseMat.nzvalLocal.Data(),
+            &totalEnergyH,
+            &totalEnergyS,
+            &totalFreeEnergy,
+            &info );
+
+        statusOFS << std::endl
+          << "Results obtained from PEXSI:" << std::endl
+          << "Total energy (H*DM)         = " << totalEnergyH << std::endl
+          << "Total energy (S*EDM)        = " << totalEnergyS << std::endl
+          << "Total free energy           = " << totalFreeEnergy << std::endl 
+          << "InertiaIter                 = " << numTotalInertiaIter << std::endl
+          << "PEXSIIter                   = " <<  numTotalPEXSIIter << std::endl
+          << "mu                          = " << muPEXSI << std::endl
+          << "numElectron                 = " << numElectronPEXSI << std::endl 
+          << std::endl;
+
+        if( info != 0 ){
+          std::ostringstream msg;
+          msg 
+            << "PEXSI data retrieval returns info " << info << std::endl;
+          throw std::runtime_error( msg.str().c_str() );
+        }
+      }
+
+      // Convert the density matrix from DistSparseMatrix format to the
+      // DistElemMat format
+      DistSparseMatToDistElemMat2(
+          DMSparseMat,
+          hamDG.NumBasisTotal(),
+          hamDG.HMat().Prtn(),
+          distDMMat_,
+					hamDG.ElemBasisIdx(),
+          domain_.comm,
+          domain_.colComm,
+          HCSCComm,
+          mpirankElemVec,
+          mpirankSparseVec );
+
+
+      // Convert the energy density matrix from DistSparseMatrix
+      // format to the DistElemMat format
+      DistSparseMatToDistElemMat2(
+          EDMSparseMat,
+          hamDG.NumBasisTotal(),
+          hamDG.HMat().Prtn(),
+          distEDMMat_,
+					hamDG.ElemBasisIdx(),
+          domain_.comm,
+          domain_.colComm,
+          HCSCComm,
+          mpirankElemVec,
+          mpirankSparseVec );
+
+
+      // Convert the free energy density matrix from DistSparseMatrix
+      // format to the DistElemMat format
+      DistSparseMatToDistElemMat2(
+          FDMSparseMat,
+          hamDG.NumBasisTotal(),
+          hamDG.HMat().Prtn(),
+          distFDMMat_,
+					hamDG.ElemBasisIdx(),
+          domain_.comm,
+          domain_.colComm,
+          HCSCComm,
+          mpirankElemVec,
+          mpirankSparseVec );
+
+      // Broadcast the distElemMat matrices
+      // FIXME this is not a memory efficient implementation
+      {
+        Int sstrSize;
+        std::vector<char> sstr;
+        if( mpirank % dmRow_ == 0 ){
+          std::stringstream distElemMatStream;
+          Int cnt = 0;
+          for( typename std::map<ElemMatKey, DblNumMat >::iterator mi  = distDMMat_.LocalMap().begin();
+              mi != distDMMat_.LocalMap().end(); mi++ ){
+            cnt++;
+          } // for (mi)
+          serialize( cnt, distElemMatStream, NO_MASK );
+          for( typename std::map<ElemMatKey, DblNumMat >::iterator mi  = distDMMat_.LocalMap().begin();
+              mi != distDMMat_.LocalMap().end(); mi++ ){
+            ElemMatKey key = (*mi).first;
+            serialize( key, distElemMatStream, NO_MASK );
+            serialize( distDMMat_.LocalMap()[key], distElemMatStream, NO_MASK );
+            serialize( distEDMMat_.LocalMap()[key], distElemMatStream, NO_MASK ); 
+            serialize( distFDMMat_.LocalMap()[key], distElemMatStream, NO_MASK ); 
+          } // for (mi)
+          sstr.resize( Size( distElemMatStream ) );
+          distElemMatStream.read( &sstr[0], sstr.size() );
+          sstrSize = sstr.size();
+        }
+        
+        statusOFS << "Before communication. " << std::endl;
+
+        MPI_Bcast( &sstrSize, 1, MPI_INT, 0, domain_.rowComm );
+        sstr.resize( sstrSize );
+        MPI_Bcast( &sstr[0], sstrSize, MPI_BYTE, 0, domain_.rowComm );
+
+        statusOFS << "Finish communication. sstrSize =" <<  sstrSize << std::endl;
+
+        if( mpirank % dmRow_ != 0 ){
+          std::stringstream distElemMatStream;
+          distElemMatStream.write( &sstr[0], sstrSize );
+          Int cnt;
+          deserialize( cnt, distElemMatStream, NO_MASK );
+          for( Int i = 0; i < cnt; i++ ){
+            ElemMatKey key;
+            DblNumMat mat;
+            deserialize( key, distElemMatStream, NO_MASK );
+            deserialize( mat, distElemMatStream, NO_MASK );
+            distDMMat_.LocalMap()[key] = mat;
+            deserialize( mat, distElemMatStream, NO_MASK );
+            distEDMMat_.LocalMap()[key] = mat;
+            deserialize( mat, distElemMatStream, NO_MASK );
+            distFDMMat_.LocalMap()[key] = mat;
+          } // for (mi)
+        }
+      }
+
+
+
+
+      // Compute the Harris energy functional.  
+      // NOTE: In computing the Harris energy, the density and the
+      // potential must be the INPUT density and potential without ANY
+      // update.
+      CalculateHarrisEnergyDM( distFDMMat_ );
+
+      // Evaluate the electron density
+
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key( i, j, k );
+            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+              DblNumVec&  density      = hamDG.Density().LocalMap()[key];
+
+              statusOFS << "density1 = " << density << std::endl;
+            } // own this element
+          } // for (i)
+
+
+      GetTime( timeSta );
+      hamDG.CalculateDensityDM2( 
+          hamDG.Density(), hamDG.DensityLGL(), distDMMat_ );
+      MPI_Barrier( domain_.comm );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing density in the global domain is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+	
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key( i, j, k );
+            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+              DblNumVec&  density      = hamDG.Density().LocalMap()[key];
+
+              statusOFS << "density2 = " << density << std::endl;
+            } // own this element
+          } // for (i)
+
+
+      // Update the output potential, and the KS and second order accurate
+      // energy
+      {
+        // Update the Hartree energy and the exchange correlation energy and
+        // potential for computing the KS energy and the second order
+        // energy.
+        // NOTE Vtot should not be updated until finishing the computation
+        // of the energies.
+
+        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
+        hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+
+        // Compute the second order accurate energy functional.
+        // NOTE: In computing the second order energy, the density and the
+        // potential must be the OUTPUT density and potential without ANY
+        // MIXING.
+//        CalculateSecondOrderEnergy();
+
+        // Compute the KS energy 
+        CalculateKSEnergyDM( 
+            distEDMMat_, distFDMMat_ );
+
+        // Update the total potential AFTER updating the energy
+
+        // No external potential
+
+        // Compute the new total potential
+
+        hamDG.CalculateVtot( hamDG.Vtot() );
+
+      }
+
+      // Compute the force at every step
+      if( isCalculateForceEachSCF_ ){
+        // Compute force
+        GetTime( timeSta );
+        hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the force is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // Print out the force
+        // Only master processor output information containing all atoms
+        if( mpirank == 0 ){
+          PrintBlock( statusOFS, "Atomic Force" );
+          {
+            Point3 forceCM(0.0, 0.0, 0.0);
+            std::vector<Atom>& atomList = hamDG.AtomList();
+            Int numAtom = atomList.size();
+            for( Int a = 0; a < numAtom; a++ ){
+              Print( statusOFS, "atom", a, "force", atomList[a].force );
+              forceCM += atomList[a].force;
+            }
+            statusOFS << std::endl;
+            Print( statusOFS, "force for centroid: ", forceCM );
+            statusOFS << std::endl;
+          }
+        }
+      }
+
+      // TODO Evaluate the a posteriori error estimator
+
+      MPI_Comm_free( &HCSCComm );
+      GetTime( timePEXSIEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for PEXSI evaluation is " <<
+        timePEXSIEnd - timePEXSISta << " [s]" << std::endl << std::endl;
+#endif
+    } //if( solutionMethod_ == "pexsi" )
+
+
 #endif
 
     
@@ -3268,8 +3743,8 @@ SCFDG::CalculateKSEnergyDM (
 	PushCallStack("SCFDG::CalculateKSEnergyDM");
 #endif
 	Int mpirank, mpisize;
-	MPI_Comm_rank( domain_.colComm, &mpirank );
-	MPI_Comm_size( domain_.colComm, &mpisize );
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
 
   HamiltonianDG&  hamDG = *hamDGPtr_;
 
@@ -3303,6 +3778,9 @@ SCFDG::CalculateKSEnergyDM (
 					DblNumVec&  vxc          = hamDG.Vxc().LocalMap()[key];
 					DblNumVec&  pseudoCharge = hamDG.PseudoCharge().LocalMap()[key];
 					DblNumVec&  vhart        = hamDG.Vhart().LocalMap()[key];
+          
+          statusOFS << "density = " << density << std::endl;
+          statusOFS << "vxc     = " << vxc << std::endl;
 
 					for (Int p=0; p < density.Size(); p++) {
 						EVxcLocal  += vxc(p) * density(p);
@@ -3315,8 +3793,8 @@ SCFDG::CalculateKSEnergyDM (
 	mpi::Allreduce( &EVxcLocal, &EVxc_, 1, MPI_SUM, domain_.colComm );
 	mpi::Allreduce( &EhartLocal, &Ehart_, 1, MPI_SUM, domain_.colComm );
 
-	Ehart_ *= domain_.Volume() / domain_.NumGridTotal();
-	EVxc_  *= domain_.Volume() / domain_.NumGridTotal();
+	Ehart_ *= domain_.Volume() / domain_.NumGridTotalFine();
+	EVxc_  *= domain_.Volume() / domain_.NumGridTotalFine();
 
 	// Correction energy
 	Ecor_   = (Exc_ - EVxc_) - Ehart_ - Eself_;
@@ -3340,43 +3818,13 @@ SCFDG::CalculateKSEnergyDM (
         for( Int i = 0; i < numElem_[0]; i++ ){
           Index3 key( i, j, k );
           if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-            DblNumMat& localBasis = hamDG.BasisLGL().LocalMap()[key];
-            Int numGrid  = localBasis.m();
-            Int numBasis = localBasis.n();
-
-            // Skip the element if there is no basis functions.
-            if( numBasis == 0 )
-              continue;
-
+            
             DblNumMat& localEDM = distEDMMat.LocalMap()[
               ElemMatKey(key, key)];
             DblNumMat& localFDM = distFDMMat.LocalMap()[
               ElemMatKey(key, key)];
 
-            if( numBasis != localEDM.m() ||
-                numBasis != localEDM.n() ){
-              std::ostringstream msg;
-              msg << std::endl
-                << "Error happens in the element (" << key << ")" << std::endl
-                << "The number of basis functions is " << numBasis << std::endl
-                << "The size of the local energy density matrix is " 
-                << localEDM.m() << " x " << localEDM.n() << std::endl;
-              throw std::runtime_error( msg.str().c_str() );
-            }
-
-
-            if( numBasis != localFDM.m() ||
-                numBasis != localFDM.n() ){
-              std::ostringstream msg;
-              msg << std::endl
-                << "Error happens in the element (" << key << ")" << std::endl
-                << "The number of basis functions is " << numBasis << std::endl
-                << "The size of the local free energy density matrix is " 
-                << localFDM.m() << " x " << localFDM.n() << std::endl;
-              throw std::runtime_error( msg.str().c_str() );
-            }
-
-            for( Int a = 0; a < numBasis; a++ ){
+            for( Int a = 0; a < localEDM.m(); a++ ){
               EkinLocal  += localEDM(a,a);
               EhelmLocal += localFDM(a,a);
             }
@@ -3530,8 +3978,8 @@ SCFDG::CalculateHarrisEnergyDM(
 	PushCallStack("SCFDG::CalculateHarrisEnergyDM");
 #endif
 	Int mpirank, mpisize;
-	MPI_Comm_rank( domain_.colComm, &mpirank );
-	MPI_Comm_size( domain_.colComm, &mpisize );
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
 
   HamiltonianDG&  hamDG = *hamDGPtr_;
 
@@ -3581,8 +4029,8 @@ SCFDG::CalculateHarrisEnergyDM(
 	mpi::Allreduce( &EVxcLocal, &EVxc, 1, MPI_SUM, domain_.colComm );
 	mpi::Allreduce( &EhartLocal, &Ehart, 1, MPI_SUM, domain_.colComm );
 
-	Ehart *= domain_.Volume() / domain_.NumGridTotal();
-	EVxc  *= domain_.Volume() / domain_.NumGridTotal();
+	Ehart *= domain_.Volume() / domain_.NumGridTotalFine();
+	EVxc  *= domain_.Volume() / domain_.NumGridTotalFine();
 	// Use the previous exchange-correlation energy
 	Exc    = Exc_;
 
@@ -3606,29 +4054,10 @@ SCFDG::CalculateHarrisEnergyDM(
         for( Int i = 0; i < numElem_[0]; i++ ){
           Index3 key( i, j, k );
           if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-            DblNumMat& localBasis = hamDG.BasisLGL().LocalMap()[key];
-            Int numGrid  = localBasis.m();
-            Int numBasis = localBasis.n();
-
-            // Skip the element if there is no basis functions.
-            if( numBasis == 0 )
-              continue;
-
             DblNumMat& localFDM = distFDMMat.LocalMap()[
               ElemMatKey(key, key)];
 
-            if( numBasis != localFDM.m() ||
-                numBasis != localFDM.n() ){
-              std::ostringstream msg;
-              msg << std::endl
-                << "Error happens in the element (" << key << ")" << std::endl
-                << "The number of basis functions is " << numBasis << std::endl
-                << "The size of the local free energy density matrix is " 
-                << localFDM.m() << " x " << localFDM.n() << std::endl;
-              throw std::runtime_error( msg.str().c_str() );
-            }
-
-            for( Int a = 0; a < numBasis; a++ ){
+            for( Int a = 0; a < localFDM.m(); a++ ){
               EhelmLocal += localFDM(a,a);
             }
           } // own this element
