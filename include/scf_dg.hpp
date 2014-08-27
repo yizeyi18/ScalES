@@ -107,9 +107,31 @@ private:
   PPEXSIOptions       pexsiOptions_;
 #endif
 
+
+  /// @brief The total number of processors used by PEXSI.
+  /// 
+  /// Let npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_, then
+  /// The size of pexsiComm_ is 
+  ///
+  /// min( int(mpisize/npPerPole_)*npPerPole_, 
+  /// npPerPole_ * numPole ),
+  ///
+  /// which is the maximum number of processors that can be used by
+  /// PEXSI.
+  ///
+  /// This assumes that the number of processors used by PEXSI is
+  /// smaller than the number of processors used by DG.
+  Int                 numProcTotalPEXSI_;
+  /// @brief Communicator used only by PEXSI.  
+  ///
+  MPI_Comm            pexsiComm_;
+  /// @brief Whether PEXSI has been initialized.
   bool                isPEXSIInitialized_;
+  /// @brief The number of row processors used by PEXSI for each pole.
   Int                 numProcRowPEXSI_;
+  /// @brief The number of column processors used by PEXSI for each pole.
   Int                 numProcColPEXSI_;
+
   Int                 inertiaCountSteps_;
   // Minimum of the tolerance for the inertia counting in the
   // dynamically adjustment strategy
@@ -153,9 +175,7 @@ private:
 	DistFourier*        distfftPtr_;
 
 	// SCF variables
-
 	std::string         mixVariable_;
-
 
 	/// @brief Work array for the old mixing variable in the outer iteration.
 	DistDblNumVec       mixOuterSave_;
