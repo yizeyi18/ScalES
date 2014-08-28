@@ -312,7 +312,7 @@ int main(int argc, char **argv)
 #endif
       
       Int ldpmap = npcol;
-      Int pmap[numProcScaLAPACK];
+      IntNumVec pmap(numProcScaLAPACK);
       // Take the first numProcScaLAPACK processors for diagonalization
       for ( Int i = 0; i < numProcScaLAPACK; i++ ){
         pmap[i] = i;
