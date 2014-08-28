@@ -607,7 +607,7 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
     recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
   }
 
-  if((height % heightBlocksize) == 0){
+  if((height % mpisize) == 0){
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
         sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
@@ -621,8 +621,8 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
           sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
         }
         else {
-          sendk(i, j) = senddispls[mpisize -1] + j * (heightBlocksize + height % heightBlocksize) 
-            + (i - (mpisize - 1) * heightBlocksize) % (heightBlocksize + height % heightBlocksize);
+          sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
+            + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
         }
       }
     }
@@ -715,7 +715,7 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
     recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
   }
 
-  if((height % heightBlocksize) == 0){
+  if((height % mpisize) == 0){
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
         sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
@@ -729,8 +729,8 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
           sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
         }
         else {
-          sendk(i, j) = senddispls[mpisize -1] + j * (heightBlocksize + height % heightBlocksize) 
-            + (i - (mpisize - 1) * heightBlocksize) % (heightBlocksize + height % heightBlocksize);
+          sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
+            + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
         }
       }
     }

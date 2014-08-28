@@ -1270,7 +1270,7 @@ SCFDG::Iterate	(  )
 
 
 
-		statusOFS << "Total time for generating the adaptive local basis function is " <<
+		statusOFS << "Time for generating ALB function is " <<
 			timeBasisEnd - timeBasisSta << " [s]" << std::endl << std::endl;
 
 		
@@ -1836,13 +1836,25 @@ SCFDG::InnerIterate	( Int outerIter )
         // NOTE Vtot should not be updated until finishing the computation
         // of the energies.
 
-
+        GetTime( timeSta );
+        
         hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
        
-      
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing Exc in the global domain is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+     
+        GetTime( timeSta );
+
         hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
 
-
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing Vhart in the global domain is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
         
        
         // Compute the second order accurate energy functional.
@@ -1862,9 +1874,17 @@ SCFDG::InnerIterate	( Int outerIter )
 
         // Compute the new total potential
 
+        GetTime( timeSta );
+        
         hamDG.CalculateVtot( hamDG.Vtot() );
+      
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing Vtot in the global domain is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+     
       }
-
 
       
       // Compute the force at every step
@@ -1873,9 +1893,6 @@ SCFDG::InnerIterate	( Int outerIter )
         GetTime( timeSta );
         
         hamDG.CalculateForce( *distfftPtr_ );
-        
-        
-        
         
         GetTime( timeEnd );
         statusOFS << "Time for computing the force is " <<
@@ -2110,46 +2127,69 @@ SCFDG::InnerIterate	( Int outerIter )
         // NOTE Vtot should not be updated until finishing the computation
         // of the energies.
 
+        GetTime( timeSta );
 
         hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
-       
-      
+
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing Exc in the global domain is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+        GetTime( timeSta );
+        
         hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
 
-
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing Vhart in the global domain is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
         
-       
+        // Compute the second order accurate energy functional.
+
         // Compute the second order accurate energy functional.
         // NOTE: In computing the second order energy, the density and the
         // potential must be the OUTPUT density and potential without ANY
         // MIXING.
         CalculateSecondOrderEnergy();
 
-   
         // Compute the KS energy 
+        
+        GetTime( timeSta );
+        
         CalculateKSEnergy();
 
-      
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing KSEnergy in the global domain is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+        
         // Update the total potential AFTER updating the energy
 
         // No external potential
 
         // Compute the new total potential
 
+        GetTime( timeSta );
+        
         hamDG.CalculateVtot( hamDG.Vtot() );
+        
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing Vtot in the global domain is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
       }
 
-
-      
       // Compute the force at every step
       if( isCalculateForceEachSCF_ ){
         // Compute force
         GetTime( timeSta );
         
         hamDG.CalculateForce( *distfftPtr_ );
-        
-        
-        
         
         GetTime( timeEnd );
         statusOFS << "Time for computing the force is " <<
@@ -3054,9 +3094,6 @@ SCFDG::InnerIterate	( Int outerIter )
 			numAndersonIter = innerIter;
 		}
 
-
-		
-
     if( mixVariable_ == "density" ){
 			if( mixType_ == "anderson" ||
 					mixType_ == "kerker+anderson"	){
@@ -3154,16 +3191,10 @@ SCFDG::InnerIterate	( Int outerIter )
 
 			// No external potential
 
-
-
-
       // Compute the new total potential
 
       hamDG.CalculateVtot( hamDG.Vtot() );
     }
-
-
-
 
 		// Print out the state variables of the current iteration
 

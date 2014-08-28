@@ -89,8 +89,8 @@ int main(int argc, char **argv)
     // Initialize BLACS
 
     Int nprow, npcol;
-    Int contxt, contxt_C;
-    Cblacs_get(0, 0, &contxt);
+    Int contxt;
+    //Cblacs_get(0, 0, &contxt);
     
     Print( statusOFS, "mpisize = ", mpisize );
     Print( statusOFS, "mpirank = ", mpirank );
@@ -253,7 +253,7 @@ int main(int argc, char **argv)
     
     // FIXME IMPORTANT: RandomSeed cannot be the same.
     // SetRandomSeed(1);
-    SetRandomSeed(mpirank+10);
+    SetRandomSeed(mpirank);
 
     GetTime( timeSta );
 
@@ -295,7 +295,7 @@ int main(int argc, char **argv)
       int dmCol = numElem[0] * numElem[1] * numElem[2];
       int dmRow = mpisize / dmCol;
 
-      Cblacs_gridinit(&contxt, "C", dmRow, dmCol);
+      // Cblacs_gridinit(&contxt, "C", dmRow, dmCol);
       Int numProcScaLAPACK = esdfParam.numProcScaLAPACK;
       
       // Here nprow, npcol is for the usage of ScaLAPACK in
@@ -318,8 +318,9 @@ int main(int argc, char **argv)
         pmap[i] = i;
       }
 
-      Cblacs_get( contxt, 0, &contxt_C );
-      Cblacs_gridmap(&contxt_C, &pmap[0], nprow, nprow, npcol);
+      contxt = -1; 
+      Cblacs_get( 0, 0, &contxt );
+      Cblacs_gridmap(&contxt, &pmap[0], nprow, nprow, npcol);
 
       if( (mpisize % dmCol) != 0 ){
         std::ostringstream msg;
@@ -569,7 +570,7 @@ int main(int argc, char **argv)
     GetTime( timeSta );
 
     SCFDG  scfDG;
-    scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt_C );
+    scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt );
 
     GetTime( timeEnd );
     statusOFS << "Time for setting up SCFDG is " <<
@@ -651,12 +652,10 @@ int main(int argc, char **argv)
     // *********************************************************************
 
     // Finish Cblacs
-    if(contxt_C >= 0) {
-      Cblacs_gridexit( contxt_C );
+    if(contxt >= 0) {
+      Cblacs_gridexit( contxt );
     }
     
-    Cblacs_gridexit( contxt );
-
     // Finish fftw
     fftw_mpi_cleanup();
 

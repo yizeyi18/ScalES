@@ -1790,8 +1790,6 @@ EigenSolver::LOBPCGSolveReal2	(
   // AlltoallBackward since they are repetitively used in the
   // eigensolver.
   //
-  
-  
   DblNumVec sendbuf(height*widthLocal); 
   DblNumVec recvbuf(heightLocal*width);
   IntNumVec sendcounts(mpisize);
@@ -1824,7 +1822,7 @@ EigenSolver::LOBPCGSolveReal2	(
     recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
   }
 
-  if((height % heightBlocksize) == 0){
+  if((height % mpisize) == 0){
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
         sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
@@ -1838,8 +1836,8 @@ EigenSolver::LOBPCGSolveReal2	(
           sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
         }
         else {
-          sendk(i, j) = senddispls[mpisize -1] + j * (heightBlocksize + height % heightBlocksize) 
-            + (i - (mpisize - 1) * heightBlocksize) % (heightBlocksize + height % heightBlocksize);
+          sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
+            + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
         }
       }
     }
