@@ -575,12 +575,12 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
     heightLocal = heightBlocksize + height % mpisize;
   }
 
-  double sendbuf[height*widthLocal]; 
-  double recvbuf[heightLocal*width];
-  int sendcounts[mpisize];
-  int recvcounts[mpisize];
-  int senddispls[mpisize];
-  int recvdispls[mpisize];
+  DblNumVec sendbuf(height*widthLocal); 
+  DblNumVec recvbuf(heightLocal*width);
+  IntNumVec sendcounts(mpisize);
+  IntNumVec recvcounts(mpisize);
+  IntNumVec senddispls(mpisize);
+  IntNumVec recvdispls(mpisize);
   IntNumMat  sendk( height, widthLocal );
   IntNumMat  recvk( heightLocal, width );
 
@@ -683,12 +683,12 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
     heightLocal = heightBlocksize + height % mpisize;
   }
 
-  double sendbuf[height*widthLocal]; 
-  double recvbuf[heightLocal*width];
-  int sendcounts[mpisize];
-  int recvcounts[mpisize];
-  int senddispls[mpisize];
-  int recvdispls[mpisize];
+  DblNumVec sendbuf(height*widthLocal); 
+  DblNumVec recvbuf(heightLocal*width);
+  IntNumVec sendcounts(mpisize);
+  IntNumVec recvcounts(mpisize);
+  IntNumVec senddispls(mpisize);
+  IntNumVec recvdispls(mpisize);
   IntNumMat  sendk( height, widthLocal );
   IntNumMat  recvk( heightLocal, width );
 

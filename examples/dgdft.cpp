@@ -253,7 +253,7 @@ int main(int argc, char **argv)
     
     // FIXME IMPORTANT: RandomSeed cannot be the same.
     // SetRandomSeed(1);
-    SetRandomSeed(mpirank);
+    SetRandomSeed(mpirank+10);
 
     GetTime( timeSta );
 

@@ -1721,7 +1721,6 @@ EigenSolver::LOBPCGSolveReal2	(
 #ifndef _RELEASE_
   PushCallStack("EigenSolver::LOBPCGSolveReal2");
 #endif
-  statusOFS << "OK1" << std::endl;
 
   // *********************************************************************
   // Initialization
@@ -1764,9 +1763,6 @@ EigenSolver::LOBPCGSolveReal2	(
   // Spinor: Applying the Hamiltonian matrix 
   // Mpirank0: Serial calculation part
 
-  statusOFS << "OK3" << std::endl;
-
-
   Real timeSta, timeEnd;
   Real timeGemmT = 0.0;
   Real timeGemmN = 0.0;
@@ -1796,19 +1792,11 @@ EigenSolver::LOBPCGSolveReal2	(
   //
   
   
-  statusOFS << "height = " << height << ", width= " << width<< std::endl;
-  statusOFS << "heightLocal = " << heightLocal << ", widthLocal = " << widthLocal << std::endl;
-  statusOFS << "mpisize = " << mpisize << std::endl;
-
-  DblNumVec recvbuf(heightLocal*width);
-  statusOFS << "OK4" << std::endl;
-
   DblNumVec sendbuf(height*widthLocal); 
-  statusOFS << "OK31" << std::endl;
+  DblNumVec recvbuf(heightLocal*width);
   IntNumVec sendcounts(mpisize);
   IntNumVec recvcounts(mpisize);
   IntNumVec senddispls(mpisize);
-  statusOFS << "OK5" << std::endl;
   IntNumVec recvdispls(mpisize);
   IntNumMat  sendk( height, widthLocal );
   IntNumMat  recvk( heightLocal, width );
