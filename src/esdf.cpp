@@ -2215,11 +2215,16 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
 
     // Split MPI communicators into row and column communicators
-  
+
     Domain& dm = esdfParam.domain;
-    
+
     int dmCol = numElem[0] * numElem[1] * numElem[2];
     int dmRow = mpisize / dmCol;
+
+    if(mpisize == 1){
+      dmCol = 1;
+      dmRow = 1;
+    }
 
     if( (mpisize % dmCol) != 0 ){
       std::ostringstream msg;
@@ -2232,8 +2237,8 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     MPI_Comm_split( dm.comm, mpirank / dmRow, mpirank, &dm.rowComm );
     MPI_Comm_split( dm.comm, mpirank % dmRow, mpirank, &dm.colComm );
 
-	} // DG
-	
+  } // DG
+
 
 	// Choose the number of grid points
 	// NOTE: This part of the code only applies to DGDFT, since the
