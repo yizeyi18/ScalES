@@ -2070,7 +2070,7 @@ SCFDG::InnerIterate	( Int outerIter )
         
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for diagonalizing the DG matrix using ScaLAPACK in total is " <<
+        statusOFS << "Time for diag DG matrix via ScaLAPACK is " <<
           timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
