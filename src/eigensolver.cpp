@@ -48,7 +48,7 @@
 #include  "blas.hpp"
 #include  "lapack.hpp"
 
-#define _DEBUGlevel_ 1
+#define _DEBUGlevel_ 0
 
 namespace dgdft{
 
@@ -1142,7 +1142,7 @@ EigenSolver::LOBPCGSolveReal2	(
 
       Int numKeep = 0;
       for( Int i = numCol-1; i>=0; i-- ){
-        if( sigma2(i) / sigma2(numCol-1) >  1e-12 )
+        if( sigma2(i) / sigma2(numCol-1) >  1e-8 )
           numKeep++;
         else
           break;
@@ -1152,7 +1152,7 @@ EigenSolver::LOBPCGSolveReal2	(
       statusOFS << "sigma2 = " << sigma2 << std::endl;
 #endif
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
       statusOFS << "sigma2(0)        = " << sigma2(0) << std::endl;
       statusOFS << "sigma2(numCol-1) = " << sigma2(numCol-1) << std::endl;
       statusOFS << "numKeep          = " << numKeep << std::endl;

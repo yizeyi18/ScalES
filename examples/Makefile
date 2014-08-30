@@ -3,14 +3,20 @@
 
 include ../make.inc
 
-SRCS = mdpwdft_grid.cpp dgdft.cpp diagonalize.cpp
+SRCS = dgdftNVE.cpp dgdftNH1.cpp dgdftNH2.cpp dgdft.cpp diagonalize.cpp
 
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 EXES = ${SRCS:.cpp=}	
 
-mdpwdft_grid: mdpwdft_grid.o ${mdpwdft_grid_LIB} 
-	($(LOADER) -o $@ mdpwdft_grid.o $(LOADOPTS) )
+dgdftNVE: dgdftNVE.o ${dgdftNVE_LIB} 
+	($(LOADER) -o $@ dgdftNVE.o $(LOADOPTS) )
+
+dgdftNH1: dgdftNH1.o ${dgdftNH1_LIB} 
+	($(LOADER) -o $@ dgdftNH1.o $(LOADOPTS) )
+
+dgdftNH2: dgdftNH2.o ${dgdftNH2_LIB} 
+	($(LOADER) -o $@ dgdftNH2.o $(LOADOPTS) )
 
 dgdft: dgdft.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ dgdft.o $(LOADOPTS) )

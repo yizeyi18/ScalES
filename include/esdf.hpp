@@ -110,9 +110,9 @@ namespace esdf{
   /// @brief Main structure containing input parameters for the
   /// electronic structure calculation.
   struct ESDFInputParam{
-		Int									nsw; //ZG: MD
-		Int									dt; //ZG: MD
-		Real								qmass; //ZG: MD								
+		Int									nsw; 
+		Int									dt; 
+		Real								qmass;								
     bool                isRestartPosition;
     bool                isRestartThermostate;
     bool                isOutputPosition;

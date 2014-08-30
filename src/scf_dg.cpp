@@ -154,12 +154,10 @@ SCFDG::Setup	(
 		SVDBasisTolerance_  = esdfParam.SVDBasisTolerance;
 		isRestartDensity_ = esdfParam.isRestartDensity;
 		isRestartWfn_     = esdfParam.isRestartWfn;
-//    isRestartPosition_ = esdfParam.isRestartPosition;//ZG
 		isOutputDensity_  = esdfParam.isOutputDensity;
 		isOutputWfnElem_     = esdfParam.isOutputWfnElem;
 		isOutputWfnExtElem_  = esdfParam.isOutputWfnExtElem;
 		isOutputPotExtElem_  = esdfParam.isOutputPotExtElem;
-//    isOutputPosition_    = esdfParam.isOutputPosition;//ZG
 		isCalculateAPosterioriEachSCF_ = esdfParam.isCalculateAPosterioriEachSCF;
 		isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
 		isOutputHMatrix_  = esdfParam.isOutputHMatrix;
@@ -576,60 +574,7 @@ SCFDG::Update	(
 	MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
 	
-	// esdf parameters
-/*	{
-		domain_        = esdfParam.domain;
-    mixMaxDim_     = esdfParam.mixMaxDim;
-		mixVariable_   = esdfParam.mixVariable;
-    mixType_       = esdfParam.mixType;
-		mixStepLength_ = esdfParam.mixStepLength;
-		scfInnerTolerance_  = esdfParam.scfInnerTolerance;
-		scfInnerMaxIter_    = esdfParam.scfInnerMaxIter;
-		scfOuterTolerance_  = esdfParam.scfOuterTolerance;
-		scfOuterMaxIter_    = esdfParam.scfOuterMaxIter;
-		SVDBasisTolerance_  = esdfParam.SVDBasisTolerance;
-		isRestartDensity_ = esdfParam.isRestartDensity;
-		isRestartWfn_     = esdfParam.isRestartWfn;
-		isOutputDensity_  = esdfParam.isOutputDensity;
-		isOutputWfnElem_     = esdfParam.isOutputWfnElem;
-		isOutputWfnExtElem_  = esdfParam.isOutputWfnExtElem;
-		isOutputPotExtElem_  = esdfParam.isOutputPotExtElem;
-		isCalculateAPosterioriEachSCF_ = esdfParam.isCalculateAPosterioriEachSCF;
-		isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
-		isOutputHMatrix_  = esdfParam.isOutputHMatrix;
-    Tbeta_            = esdfParam.Tbeta;
-		scaBlockSize_     = esdfParam.scaBlockSize;
-		numElem_          = esdfParam.numElem;
-		ecutWavefunction_ = esdfParam.ecutWavefunction;
-		densityGridFactor_= esdfParam.densityGridFactor;
-		LGLGridFactor_    = esdfParam.LGLGridFactor;
-		isPeriodizePotential_ = esdfParam.isPeriodizePotential;
-		distancePeriodize_= esdfParam.distancePeriodize;
-	}
-*/
-	// other SCFDG parameters
 	{
-/*		hamDGPtr_      = &hamDG;
-		distEigSolPtr_ = &distEigSol;
-		distfftPtr_    = &distfft;
-    ptablePtr_     = &ptable;
-		elemPrtn_      = distEigSol.Prtn();
-		contxt_        = contxt;
-		
-		mixOuterSave_.Prtn()  = elemPrtn_;
-		mixInnerSave_.Prtn()  = elemPrtn_;
-		dfOuterMat_.Prtn()    = elemPrtn_;
-		dvOuterMat_.Prtn()    = elemPrtn_;
-		dfInnerMat_.Prtn()    = elemPrtn_;
-		dvInnerMat_.Prtn()    = elemPrtn_;
-		vtotLGLSave_.Prtn()   = elemPrtn_;
-*/
-		// FIXME fixed ratio between the size of the extended element and
-		// the element
-/*		for( Int d = 0; d < DIM; d++ ){
-			extElemRatio_[d] = ( numElem_[d]>1 ) ? 3 : 1;
-		}
-*/
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
@@ -653,335 +598,7 @@ SCFDG::Update	(
 				}  // for (i)
 		
 	
-/*		restartDensityFileName_ = "DEN";*/
-//		restartWfnFileName_     = "WFN";
 	}
-/*
-	// Density
-	{
-		DistDblNumVec&  density = hamDGPtr_->Density();
-		if( isRestartDensity_ ) {
-			std::istringstream rhoStream;      
-			SeparateRead( restartDensityFileName_, rhoStream );
-			
-			Real sumDensityLocal = 0.0, sumDensity = 0.0;
-
-			for( Int k = 0; k < numElem_[2]; k++ )
-				for( Int j = 0; j < numElem_[1]; j++ )
-					for( Int i = 0; i < numElem_[0]; i++ ){
-						Index3 key( i, j, k );
-						if( elemPrtn_.Owner( key ) == mpirank ){
-							DblNumVec   denVecRead;
-							DblNumVec&  denVec = density.LocalMap()[key];
-							deserialize( denVecRead, rhoStream, NO_MASK );
-							if( denVecRead.Size() != denVec.Size() ){
-								std::ostringstream msg;
-								msg 
-									<< "The size of restarting density does not match with the current setup."  
-									<< std::endl
-									<< "input density size   ~ " << denVecRead.Size() << std::endl
-									<< "current density size ~ " << denVec.Size()     << std::endl;
-								throw std::logic_error( msg.str().c_str() );
-							}
-							denVec = denVecRead;
-							for( Int p = 0; p < denVec.Size(); p++ ){
-								sumDensityLocal += denVec(p);
-							}
-						}
-					} // for (i)
-
-			// Rescale the density
-			mpi::Allreduce( &sumDensityLocal, &sumDensity, 1, MPI_SUM,
-					domain_.comm );
-
-			Print( statusOFS, "Restart density. Sum of density      = ", 
-					sumDensity * domain_.Volume() / domain_.NumGridTotalFine() );
-  // *********************************************************************
-  // Initialization
-  // *********************************************************************
-
-	// Density
-  DistDblNumVec&  density = hamDGPtr_->Density();
-  if( isRestartDensity_ ) {
-    std::istringstream rhoStream;      
-    SeparateRead( restartDensityFileName_, rhoStream );
-
-    Real sumDensityLocal = 0.0, sumDensity = 0.0;
-
-    for( Int k = 0; k < numElem_[2]; k++ )
-      for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner( key ) == mpirank ){
-
-            std::vector<DblNumVec> grid(DIM);
-            for( Int d = 0; d < DIM; d++ ){
-              deserialize( grid[d], rhoStream, NO_MASK );
-            }
-
-            DblNumVec   denVecRead;
-            DblNumVec&  denVec = density.LocalMap()[key];
-            deserialize( denVecRead, rhoStream, NO_MASK );
-            if( denVecRead.Size() != denVec.Size() ){
-              std::ostringstream msg;
-              msg 
-                << "The size of restarting density does not match with the current setup."  
-                << std::endl
-                << "input density size   ~ " << denVecRead.Size() << std::endl
-                << "current density size ~ " << denVec.Size()     << std::endl;
-              throw std::runtime_error( msg.str().c_str() );
-            }
-            denVec = denVecRead;
-            for( Int p = 0; p < denVec.Size(); p++ ){
-              sumDensityLocal += denVec(p);
-            }
-          }
-        } // for (i)
-
-    // Rescale the density
-    mpi::Allreduce( &sumDensityLocal, &sumDensity, 1, MPI_SUM,
-        domain_.comm );
-
-    Print( statusOFS, "Restart density. Sum of density      = ", 
-        sumDensity * domain_.Volume() / domain_.NumGridTotalFine() );
-
-  } // else using the zero initial guess
-  else {
-    // Initialize the electron density using the pseudocharge
-    // make sure the pseudocharge is initialized
-    DistDblNumVec& pseudoCharge = hamDGPtr_->PseudoCharge();
-
-    Real sumDensityLocal = 0.0, sumPseudoChargeLocal = 0.0;
-    Real sumDensity, sumPseudoCharge;
-    Real EPS = 1e-6;
-
-    // make sure that the electron density is positive
-    for( Int k = 0; k < numElem_[2]; k++ )
-      for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner( key ) == mpirank ){
-            DblNumVec&  denVec = density.LocalMap()[key];
-            DblNumVec&  ppVec  = pseudoCharge.LocalMap()[key];
-            for( Int p = 0; p < denVec.Size(); p++ ){
-              denVec(p) = ( ppVec(p) > EPS ) ? ppVec(p) : EPS;
-              sumDensityLocal += denVec(p);
-              sumPseudoChargeLocal += ppVec(p);
-            }
-          }
-        } // for (i)
-
-    // Rescale the density
-    mpi::Allreduce( &sumDensityLocal, &sumDensity, 1, MPI_SUM,
-        domain_.comm );
-    mpi::Allreduce( &sumPseudoChargeLocal, &sumPseudoCharge, 
-        1, MPI_SUM, domain_.comm );
-
-    Print( statusOFS, "Initial density. Sum of density      = ", 
-        sumDensity * domain_.Volume() / domain_.NumGridTotalFine() );
-#if ( _DEBUGlevel_ >= 1 )
-    Print( statusOFS, "Sum of pseudo charge        = ", 
-        sumPseudoCharge * domain_.Volume() / domain_.NumGridTotalFine() );
-#endif
-
-			for( Int k = 0; k < numElem_[2]; k++ )
-				for( Int j = 0; j < numElem_[1]; j++ )
-					for( Int i = 0; i < numElem_[0]; i++ ){
-						Index3 key( i, j, k );
-						if( elemPrtn_.Owner( key ) == mpirank ){
-							DblNumVec&  denVec = density.LocalMap()[key];
-							blas::Scal( denVec.Size(), sumPseudoCharge / sumDensity, 
-									denVec.Data(), 1 );
-						}
-					} // for (i)
-		} // Restart the density
-	}
-*/
-/*
-    for( Int k = 0; k < numElem_[2]; k++ )
-      for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner( key ) == mpirank ){
-            DblNumVec&  denVec = density.LocalMap()[key];
-            blas::Scal( denVec.Size(), sumPseudoCharge / sumDensity, 
-                denVec.Data(), 1 );
-          }
-        } // for (i)
-  } // Restart the density
-
-  // Wavefunctions in the extended element
-  if( isRestartWfn_ ){
-    std::istringstream wfnStream;      
-    SeparateRead( restartWfnFileName_, wfnStream );
-
-    for( Int k = 0; k < numElem_[2]; k++ )
-      for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner( key ) == mpirank ){
-            EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
-            Spinor& psi = eigSol.Psi();
-
-            DblNumTns& wavefun = psi.Wavefun();
-            DblNumTns  wavefunRead;
-
-            std::vector<DblNumVec> gridpos(DIM);
-            for( Int d = 0; d < DIM; d++ ){
-              deserialize( gridpos[d], wfnStream, NO_MASK );
-            }
-            deserialize( wavefunRead, wfnStream, NO_MASK );
-
-            if( wavefunRead.Size() != wavefun.Size() ){
-              std::ostringstream msg;
-              msg 
-                << "The size of restarting basis function does not match with the current setup."  
-                << std::endl
-                << "input basis size   ~ " << wavefunRead.Size() << std::endl
-                << "current basis size ~ " << wavefun.Size()     << std::endl;
-              throw std::runtime_error( msg.str().c_str() );
-            }
-
-            wavefun = wavefunRead;
-          }
-        } // for (i)
-
-    Print( statusOFS, "Restart basis functions." );
-  } 
-  else{ 
-    // Use random initial guess for basis functions in the extended element.
-    for( Int k = 0; k < numElem_[2]; k++ )
-      for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner( key ) == mpirank ){
-            EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
-            Spinor& psi = eigSol.Psi();
-
-            UniformRandom( psi.Wavefun() );
-          }
-        } // for (i)
-    Print( statusOFS, "Initial basis functions with random guess." );
-  } // if (isRestartWfn_)
-
-
-	// Generate the transfer matrix from the periodic uniform grid on each
-	// extended element to LGL grid.  
-	{
-		PeriodicUniformToLGLMat_.resize(DIM);
-    PeriodicUniformFineToLGLMat_.resize(DIM);
-		// FIXME
-		EigenSolver& eigSol = (*distEigSol.LocalMap().begin()).second;
-		Domain dmExtElem = eigSol.FFT().domain;
-		Domain dmElem;
-		for( Int d = 0; d < DIM; d++ ){
-			dmElem.length[d]   = domain_.length[d] / numElem_[d];
-			dmElem.numGrid[d]  = domain_.numGrid[d] / numElem_[d];
-      dmElem.numGridFine[d]  = domain_.numGridFine[d] / numElem_[d];
-			// PosStart relative to the extended element FIXME
-			dmExtElem.posStart[d] = 0.0;
-			dmElem.posStart[d] = ( numElem_[d] > 1 ) ? dmElem.length[d] : 0;
-		}
-
-		Index3 numLGL        = hamDG.NumLGLGridElem();
-		Index3 numUniform    = dmExtElem.numGrid;
-    Index3 numUniformFine    = dmExtElem.numGridFine;
-		Point3 lengthUniform = dmExtElem.length;
-
-		std::vector<DblNumVec>  LGLGrid(DIM);
-		LGLMesh( dmElem, numLGL, LGLGrid ); 
-		std::vector<DblNumVec>  UniformGrid(DIM);
-    UniformMesh( dmExtElem, UniformGrid );
-    std::vector<DblNumVec>  UniformGridFine(DIM);
-    UniformMeshFine( dmExtElem, UniformGridFine );
-
-//		for( Int d = 0; d < DIM; d++ ){
-//			DblNumMat&  localMat = PeriodicUniformToLGLMat_[d];
-//			localMat.Resize( numLGL[d], numUniform[d] );
-//			SetValue( localMat, 0.0 );
-//			Int maxK;
-//			if (numUniform[d] % 2 == 0)
-//				maxK = numUniform[d] / 2 - 1;
-//			else
-//				maxK = ( numUniform[d] - 1 ) / 2;
-//			for( Int j = 0; j < numUniform[d]; j++ )
-//				for( Int i = 0; i < numLGL[d]; i++ ){
-//					// 1.0 accounts for the k=0 mode
-//					localMat(i,j) = 1.0;
-//					for( Int k = 1; k < maxK; k++ ){
-//						localMat(i,j) += 2.0 * std::cos( 
-//								2 * PI * k / lengthUniform[d] * 
-//								( LGLGrid[d](i) - j * lengthUniform[d] / numUniform[d] ) );
-//					} // for (k)
-//					localMat(i,j) /= numUniform[d];
-//				} // for (i)
-//		} // for (d)
-
-		for( Int d = 0; d < DIM; d++ ){
-			DblNumMat&  localMat = PeriodicUniformToLGLMat_[d];
-			localMat.Resize( numLGL[d], numUniform[d] );
-			SetValue( localMat, 0.0 );
-			DblNumVec KGrid( numUniform[d] );
-			for( Int i = 0; i <= numUniform[d] / 2; i++ ){
-				KGrid(i) = i * 2.0 * PI / lengthUniform[d];
-			}
-			for( Int i = numUniform[d] / 2 + 1; i < numUniform[d]; i++ ){
-				KGrid(i) = ( i - numUniform[d] ) * 2.0 * PI / lengthUniform[d];
-			}
-
-			for( Int j = 0; j < numUniform[d]; j++ )
-				for( Int i = 0; i < numLGL[d]; i++ ){
-					localMat(i, j) = 0.0;
-					for( Int k = 0; k < numUniform[d]; k++ ){
-						localMat(i,j) += std::cos( KGrid(k) * ( LGLGrid[d](i) -
-									UniformGrid[d](j) ) ) / numUniform[d];
-					} // for (k)
-				} // for (i)
-		} // for (d)
-
-
-		for( Int d = 0; d < DIM; d++ ){
-			DblNumMat&  localMatFine = PeriodicUniformFineToLGLMat_[d];
-			localMatFine.Resize( numLGL[d], numUniformFine[d] );
-			SetValue( localMatFine, 0.0 );
-			DblNumVec KGridFine( numUniformFine[d] );
-			for( Int i = 0; i <= numUniformFine[d] / 2; i++ ){
-				KGridFine(i) = i * 2.0 * PI / lengthUniform[d];
-			}
-			for( Int i = numUniformFine[d] / 2 + 1; i < numUniformFine[d]; i++ ){
-				KGridFine(i) = ( i - numUniformFine[d] ) * 2.0 * PI / lengthUniform[d];
-			}
-
-			for( Int j = 0; j < numUniformFine[d]; j++ )
-				for( Int i = 0; i < numLGL[d]; i++ ){
-					localMatFine(i, j) = 0.0;
-					for( Int k = 0; k < numUniformFine[d]; k++ ){
-						localMatFine(i,j) += std::cos( KGridFine(k) * ( LGLGrid[d](i) -
-									UniformGridFine[d](j) ) ) / numUniformFine[d];
-					} // for (k)
-				} // for (i)
-		} // for (d)
-
-    // Assume the initial error is O(1)
-    scfOuterNorm_ = 1.0;
-    scfInnerNorm_ = 1.0;
-
-#if ( _DEBUGlevel_ >= 1 )
-		statusOFS << "PeriodicUniformToLGLMat[0] = "
-			<< PeriodicUniformToLGLMat_[0] << std::endl;
-		statusOFS << "PeriodicUniformToLGLMat[1] = " 
-			<< PeriodicUniformToLGLMat_[1] << std::endl;
-		statusOFS << "PeriodicUniformToLGLMat[2] = "
-			<< PeriodicUniformToLGLMat_[2] << std::endl;
-		statusOFS << "PeriodicUniformFineToLGLMat[0] = "
-			<< PeriodicUniformFineToLGLMat_[0] << std::endl;
-		statusOFS << "PeriodicUniformFineToLGLMat[1] = " 
-			<< PeriodicUniformFineToLGLMat_[1] << std::endl;
-		statusOFS << "PeriodicUniformFineToLGLMat[2] = "
-			<< PeriodicUniformFineToLGLMat_[2] << std::endl;
-#endif
-	}
-*/
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -1913,10 +1530,6 @@ SCFDG::Iterate	(  )
       statusOFS << std::endl 
         << "Output the electron density on the global grid" << std::endl;
 
-      //ZG
-//      MPI_Barrier( domain_.comm );
-//      GetTime( timeSta );
-      // Output the electron density on the uniform grid in each element
       std::ostringstream rhoStream;      
 
       NumTns<std::vector<DblNumVec> >& uniformGridElem =
@@ -1945,12 +1558,6 @@ SCFDG::Iterate	(  )
           } // for (i)
       SeparateWrite( restartDensityFileName_, rhoStream );
 
-      //ZG
-//      GetTime( timeEnd );
-//      #if ( _DEBUGlevel_ >= 0 )
-//        statusOFS << "Time for write WFNEXT is " <<
-//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//      #endif
     }
 
     if(0)
@@ -2011,9 +1618,6 @@ SCFDG::Iterate	(  )
                 << "Output the wavefunctions in the extended element."
                 << std::endl;
 
-              //ZG
-//              MPI_Barrier( domain_.comm );
-//              GetTime( timeSta );
 
               EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
               std::ostringstream wavefunStream;      
@@ -2027,12 +1631,6 @@ SCFDG::Iterate	(  )
               serialize( eigSol.Psi().Wavefun(), wavefunStream, NO_MASK );
               SeparateWrite( "WFNEXT", wavefunStream);
 
-              //ZG
-//              GetTime( timeEnd );
-//              #if ( _DEBUGlevel_ >= 0 )
-//                statusOFS << "Time for write WFNEXT is " <<
-//                timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//              #endif
             }
 
             if( isOutputWfnElem_ )

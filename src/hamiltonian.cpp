@@ -230,20 +230,6 @@ KohnSham::Update	(
 #endif	
 	atomList_      = atomList;
 
-	// Initialize the XC functional.  
-	// Spin-unpolarized functional is used here
-//	if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-//    throw std::runtime_error( "XC functional initialization error." );
-//	} 
-
-//	if( numDensityComponent != 1 ){
-//		throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
-//	}
-
-	// Since the number of density components is always 1 here, set numSpin = 2.
-//	numSpin_ = 2;
-  	
-
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -352,25 +338,6 @@ KohnSham::UpdatePseudoPotential	( PeriodTable &ptable ){
 	std::vector<DblNumVec> gridpos;
   UniformMeshFine ( domain_, gridpos );
 
-/*
-  // calculate the number of occupied states
-  Int nelec = 0;
-  for (Int a=0; a<numAtom; a++) {
-    Int atype  = atomList_[a].type;
-		if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
-			throw std::logic_error( "Cannot find the atom type." );
-		}
-    nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
-  }
-	// FIXME Deal with the case when this is a buffer calculation and the
-	// number of electrons is not a even number.
-	//
-//	if( nelec % 2 != 0 ){
-//		throw std::runtime_error( "This is spin-restricted calculation. nelec should be even." );
-//	}
-	numOccupiedState_ = nelec / numSpin_;
-*/
-
 	// Compute pseudocharge
 	SetValue( pseudoCharge_, 0.0 );
   for (Int a=0; a<numAtom; a++) {
@@ -409,17 +376,11 @@ KohnSham::UpdatePseudoPotential	( PeriodTable &ptable ){
 
   Int cnt = 0; // the total number of PS used
   for ( Int a=0; a < atomList_.size(); a++ ) {
-    // FIXME
-//    statusOFS << "Processing the pseudopotential for atom " << a << std::endl;
 
 		ptable.CalculateNonlocalPP( atomList_[a], domain_, gridposCoarse,
 				pseudo_[a].vnlList ); 
 
-//    statusOFS << "checkpoint1 " << a << std::endl;
-
 		cnt = cnt + pseudo_[a].vnlList.size();
-
-//    statusOFS << "checkpoint2 " << a << std::endl;
   }
 
 	Print( statusOFS, "Total number of nonlocal pseudopotential = ",  cnt );

@@ -505,14 +505,7 @@ HamiltonianDG::UpdateHamiltonianDG	( const std::vector<Atom>& atomList )
   MPI_Comm_rank( domain_.comm, &mpirank );
 	MPI_Comm_size( domain_.comm, &mpisize );
 
-//  domain_            = esdfParam.domain;
   atomList_          = atomList;
-//  pseudoType_        = esdfParam.pseudoType;
-//  XCId_              = esdfParam.XCId;
-//  numExtraState_     = esdfParam.numExtraState;
-//  numElem_           = esdfParam.numElem;
-//  penaltyAlpha_      = esdfParam.penaltyAlpha;
-//  numLGLGridElem_    = esdfParam.numGridLGL;
   
 	Int ntot = domain_.NumGridTotal();
   Int ntotFine = domain_.NumGridTotalFine();
@@ -524,163 +517,7 @@ HamiltonianDG::UpdateHamiltonianDG	( const std::vector<Atom>& atomList )
 	// Atomic information
 	// *********************************************************************
 
-	// Only consider numSpin == 2 in the DG calculation.
 	numSpin_ = 2;
-
-/*	for( Int d = 0; d < DIM; d++ ){
-		if( domain_.numGrid[d] % numElem_[d] != 0 ){
-			throw std::runtime_error( 
-					"The number of global wfc grid points is not divisible by the number of elements" );
-		}
-    if( domain_.numGridFine[d] % numElem_[d] != 0 ){
-      throw std::runtime_error(
-          "The number of global rho grid points is not divisible by the number of elements" );
-    }
-		numUniformGridElem_[d] = domain_.numGrid[d] / numElem_[d];
-    numUniformGridElemFine_[d] = domain_.numGridFine[d] / numElem_[d];
-	}
-*/
-	// Setup the element domains
-/*	domainElem_.Resize( numElem_[0], numElem_[1], numElem_[2] );
-	for( Int k=0; k< numElem_[2]; k++ )
-		for( Int j=0; j< numElem_[1]; j++ )
-			for( Int i=0; i< numElem_[0]; i++ ) {
-				Index3 key( i, j, k );
-				Domain& dm = domainElem_(i, j, k);
-				for( Int d = 0; d < DIM; d++ ){
-					dm.length[d]     = domain_.length[d] / numElem_[d];
-					dm.numGrid[d]    = numUniformGridElem_[d];
-          dm.numGridFine[d]    = numUniformGridElemFine_[d];
-					dm.posStart[d]   = dm.length[d] * key[d];
-				}
-				dm.comm = domain_.comm;
-			}
-*/	
-	// Partition by element
-
-/*	IntNumTns& elemPrtnInfo = elemPrtn_.ownerInfo;
-	elemPrtnInfo.Resize( numElem_[0], numElem_[1], numElem_[2] );
-*/
-	// FIXME Assign one element to one processor. (Hopefully) this is the
-	// only place where such assumption is made explicitly, and the rest
-	// of the code should be adapted to the general partition plan: 
-	// both the case of one processor owns more than one element, and also
-	// several processors own the same element.
-
-/*	if( mpisize != numElem_.prod() ){
-			std::ostringstream msg;
-			msg << "The number of processors is not equal to the total number of elements." << std::endl;
-			throw std::runtime_error( msg.str().c_str() );
-	}
-*/
-/*	Int cnt = 0;
-	for( Int k=0; k< numElem_[2]; k++ )
-		for( Int j=0; j< numElem_[1]; j++ )
-			for( Int i=0; i< numElem_[0]; i++ ) {
-				elemPrtnInfo(i,j,k) = cnt++;
-			}
-=======
-  // *********************************************************************
-	// Generate the atomic pseudopotentials
-  // *********************************************************************
-
-  // Check that the cutoff radius of the pseudopotential is smaller than
-  // the length of the element.
-  {
-    Real minLength = std::min( domainElem_(0,0,0).length[0],
-        std::min( domainElem_(0,0,0).length[1], domainElem_(0,0,0).length[2] ) );
-    Real Rzero;
-    for( Int a = 0; a < numAtom; a++ ){
-      Int type = atomList_[a].type;
-      // For the case where there is no nonlocal pseudopotential
-      if(ptable.ptemap()[type].cutoffs.m()>PTSample::NONLOCAL)      
-        Rzero = ptable.ptemap()[type].cutoffs(PTSample::NONLOCAL);
-      else
-        Rzero = 0.0;
-
-      if( Rzero >= minLength ){
-        std::ostringstream msg;
-        msg << "In order for the current DG partition to work, " 
-          << "the support of the nonlocal pseudopotential must be smaller than "
-          << "the length of the element along each dimension.  " << std::endl
-          << "It is now found for atom " << a << ", which is of type " << type 
-          << ", Rzero = " << Rzero << std::endl
-          << "while the length of the element is " 
-          << domainElem_(0,0,0).length[0] << " x " 
-          << domainElem_(0,0,0).length[1] << " x " 
-          << domainElem_(0,0,0).length[2] << std::endl;
-        throw std::runtime_error( msg.str().c_str() );
-      }
-    }
-  }
-
-
-#if ( _DEBUGlevel_ >= 1 )
-	for( Int k=0; k< numElem_[2]; k++ )
-		for( Int j=0; j< numElem_[1]; j++ )
-			for( Int i=0; i< numElem_[0]; i++ ) {
-				statusOFS << "Element # " << Index3(i,j,k) << " belongs to proc " << 
-					elemPrtn_.Owner(Index3(i,j,k)) << std::endl;
-			}
-#endif
-*/
-	// Initialize the DistNumVecs.
-/*	pseudoCharge_.Prtn()  = elemPrtn_;
-	density_.Prtn()       = elemPrtn_;
-	densityLGL_.Prtn()    = elemPrtn_;
-	vext_.Prtn()          = elemPrtn_;
-	vhart_.Prtn()         = elemPrtn_;
-	vxc_.Prtn()           = elemPrtn_;
-	epsxc_.Prtn()         = elemPrtn_;
-	vtot_.Prtn()          = elemPrtn_;
-
-	for( Int k=0; k< numElem_[2]; k++ )
-		for( Int j=0; j< numElem_[1]; j++ )
-			for( Int i=0; i< numElem_[0]; i++ ) {
-				Index3 key = Index3(i,j,k);
-				if( elemPrtn_.Owner(key) == mpirank ){
-					DblNumVec  empty( numUniformGridElemFine_.prod() );
-					SetValue( empty, 0.0 );
-					DblNumVec emptyLGL( numLGLGridElem_.prod() );
-					density_.LocalMap()[key]     = empty;
-					densityLGL_.LocalMap()[key]  = emptyLGL;
-					vext_.LocalMap()[key]        = empty;
-					vhart_.LocalMap()[key]       = empty;
-					vxc_.LocalMap()[key]         = empty;
-					epsxc_.LocalMap()[key]       = empty;
-					vtot_.LocalMap()[key]        = empty;
-				} // own this element
-			}  // for (i)
-  
-	vtotLGL_.Prtn()       = elemPrtn_;
-	basisLGL_.Prtn()      = elemPrtn_;
-
-	for( Int k=0; k< numElem_[2]; k++ )
-		for( Int j=0; j< numElem_[1]; j++ )
-			for( Int i=0; i< numElem_[0]; i++ ) {
-				Index3 key = Index3(i,j,k);
-				if( elemPrtn_.Owner(key) == mpirank ){
-					DblNumVec  empty( numLGLGridElem_.prod() );
-					SetValue( empty, 0.0 );
-					vtotLGL_.LocalMap()[key]        = empty;
-				}
-			}
-*/
-
-	// Pseudopotential
-/*	pseudo_.Prtn()      = elemPrtn_;
-	vnlCoef_.Prtn()       = elemPrtn_;
-	vnlDrvCoef_.resize(DIM);
-	for( Int d = 0; d < DIM; d++ ){
-		vnlDrvCoef_[d].Prtn() = elemPrtn_;
-	}
-
-	// Partition of the DG matrix
-	elemMatPrtn_.ownerInfo = elemPrtn_.ownerInfo;
-	// Initialize HMat_
-	HMat_.LocalMap().clear();
-	HMat_.Prtn() = elemMatPrtn_;
-*/
 
 	// Partition by atom
 	// The ownership of an atom is determined by whether the element
@@ -721,158 +558,6 @@ HamiltonianDG::UpdateHamiltonianDG	( const std::vector<Atom>& atomList )
 			atomPrtn_.Owner(a) << std::endl;
 	}
 #endif
-
-	// Generate the grids
-/*
-	UniformMesh( domain_, uniformGrid_ );
-  UniformMeshFine( domain_, uniformGridFine_ );
-
-	uniformGridElem_.Resize( numElem_[0], numElem_[1], numElem_[2] );
-  uniformGridElemFine_.Resize( numElem_[0], numElem_[1], numElem_[2] );
-
-	LGLGridElem_.Resize( numElem_[0], numElem_[1], numElem_[2] );
-
-	for( Int k = 0; k < numElem_[2]; k++ ){
-		for( Int j = 0; j < numElem_[1]; j++ ){
-			for( Int i = 0; i < numElem_[0]; i++ ){
-				UniformMesh( domainElem_(i, j, k), 
-						uniformGridElem_(i, j, k) );
-        UniformMeshFine( domainElem_(i, j, k),
-            uniformGridElemFine_(i, j, k) );
-				LGLMesh( domainElem_(i, j, k),
-						numLGLGridElem_,
-						LGLGridElem_(i, j, k) );
-			}
-		}
-	}
-
-#if ( _DEBUGlevel_ >= 1 )
-	for( Int k = 0; k < numElem_[2]; k++ ){
-		for( Int j = 0; j < numElem_[1]; j++ ){
-			for( Int i = 0; i < numElem_[0]; i++ ){
-				statusOFS << "Uniform grid for element " << Index3(i,j,k) << std::endl;
-				for( Int d = 0; d < DIM; d++ ){
-					statusOFS << uniformGridElem_(i,j,k)[d] << std::endl;
-				}
-        statusOFS << "Uniform Fine grid for element " << Index3(i,j,k) << std::endl;
-        for( Int d = 0; d < DIM; d++ ){
-          statusOFS << uniformGridElemFine_(i,j,k)[d] << std::endl;
-        }
-				statusOFS << "LGL grid for element " << Index3(i,j,k) << std::endl;
-				for( Int d = 0; d < DIM; d++ ){
-					statusOFS << LGLGridElem_(i,j,k)[d] << std::endl;
-				}
-			}
-		}
-	} // for (k)
-#endif
-*/
-	// Generate the differentiation matrix on the LGL grid
-	// NOTE: This assumes uniform mesh used for each element.
-/*	DMat_.resize( DIM );
-	for( Int d = 0; d < DIM; d++ ){
-		DblNumVec  dummyX, dummyW;
-		DblNumMat  dummyP;
-		GenerateLGL( dummyX, dummyW, dummyP, DMat_[d], 
-				numLGLGridElem_[d] );
-
-		// Scale the differentiation matrix
-		blas::Scal( numLGLGridElem_[d] * numLGLGridElem_[d],
-				2.0 / (domain_.length[d] / numElem_[d]), 
-				DMat_[d].Data(), 1 );
-	}
-
-#if ( _DEBUGlevel_ >= 1 )
-	statusOFS << "Sanity check " << std::endl;
-
-	for( Int d = 0; d < DIM; d++ ){
-		DblNumVec t( numLGLGridElem_[d] );
-		DblNumVec s( numLGLGridElem_[d] );
-		SetValue(t, 1.0);
-		blas::Gemm( 'N', 'N', numLGLGridElem_[d], 1, numLGLGridElem_[d],
-				1.0, DMat_[d].Data(), numLGLGridElem_[d],
-				t.Data(), numLGLGridElem_[d], 0.0,
-				s.Data(), numLGLGridElem_[d] );
-		statusOFS << "Derivative of constant along dimension " << d 
-			<< " gives  " << s << std::endl;
-	}
-#endif
-*/
-	// Generate the transfer matrix from LGL grid to uniform grid on each
-	// element. The Lagrange polynomials involved in the transfer matrix
-	// is computed using the Barycentric method.  For more information see
-	//
-	// [J.P. Berrut and L.N. Trefethen, Barycentric Lagrange Interpolation,
-	// SIAM Rev. 2004]
-	//
-	// NOTE: This assumes uniform mesh used for each element.
-/*	{
-		LGLToUniformMat_.resize(DIM);
-    LGLToUniformMatFine_.resize(DIM);
-		Index3& numLGL                      = numLGLGridElem_;
-		Index3& numUniform                  = numUniformGridElem_;
-		Index3& numUniformFine              = numUniformGridElemFine_;
-    // Small stablization parameter 
-		const Real EPS                      = 1e-13; 
-		for( Int d = 0; d < DIM; d++ ){
-			DblNumVec& LGLGrid     = LGLGridElem_(0,0,0)[d];
-			DblNumVec& uniformGrid = uniformGridElem_(0,0,0)[d];
-      DblNumVec& uniformGridFine = uniformGridElemFine_(0,0,0)[d];
-			// Stablization constant factor, according to Berrut and Trefethen
-			Real    stableFac = 0.25 * domainElem_(0,0,0).length[d];
-			DblNumMat& localMat = LGLToUniformMat_[d];
-      DblNumMat& localMatFine = LGLToUniformMatFine_[d];
-			localMat.Resize( numUniform[d], numLGL[d] );
-      localMatFine.Resize( numUniformFine[d], numLGL[d] );
-			DblNumVec lambda( numLGL[d] );
-			DblNumVec denom( numUniform[d] );
-      DblNumVec denomFine( numUniformFine[d] );
-			SetValue( lambda, 0.0 );
-			SetValue( denom, 0.0 );
-      SetValue( denomFine, 0.0 );
-			for( Int i = 0; i < numLGL[d]; i++ ){
-				lambda[i] = 1.0;
-				for( Int j = 0; j < numLGL[d]; j++ ){
-					if( j != i ) 
-						lambda[i] *= (LGLGrid[i] - LGLGrid[j]) / stableFac; 
-				} // for (j)
-				lambda[i] = 1.0 / lambda[i];
-				for( Int j = 0; j < numUniform[d]; j++ ){
-					denom[j] += lambda[i] / ( uniformGrid[j] - LGLGrid[i] + EPS );
-				}
-        for( Int j = 0; j < numUniformFine[d]; j++ ){
-          denomFine[j] += lambda[i] / ( uniformGridFine[j] - LGLGrid[i] + EPS );
-        }
-			} // for (i)
-
-			for( Int i = 0; i < numLGL[d]; i++ ){
-				for( Int j = 0; j < numUniform[d]; j++ ){
-					localMat( j, i ) = (lambda[i] / ( uniformGrid[j] - LGLGrid[i]
-								+ EPS )) / denom[j]; 
-				} // for (j)
-        for( Int j = 0; j < numUniformFine[d]; j++ ){
-          localMatFine( j, i ) = (lambda[i] / ( uniformGridFine[j] - LGLGrid[i]
-                + EPS )) / denomFine[j];
-        } // for (j)
-			} // for (i)
-		} // for (d)
-	}
-
-#if ( _DEBUGlevel_ >= 1 )
-	statusOFS << "LGLToUniformMat[0] = " << LGLToUniformMat_[0] << std::endl;
-	statusOFS << "LGLToUniformMat[1] = " << LGLToUniformMat_[1] << std::endl; 
-	statusOFS << "LGLToUniformMat[2] = " << LGLToUniformMat_[2] << std::endl; 
-	statusOFS << "LGLToUniformMatFine[0] = " << LGLToUniformMatFine_[0] << std::endl;
-	statusOFS << "LGLToUniformMatFine[1] = " << LGLToUniformMatFine_[1] << std::endl; 
-	statusOFS << "LGLToUniformMatFine[2] = " << LGLToUniformMatFine_[2] << std::endl; 
-#endif
-*/
-	// Initialize the XC functional.  
-	// Spin-unpolarized functional is used here
-/*	if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-    throw std::runtime_error( "XC functional initialization error." );
-	} 
-*/
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -1070,11 +755,6 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
     }
   }
 
-
-//debug ZG
-#if ( _DEBUGlevel_ >= 0 )
-	statusOFS <<"chkpoint1"<<std::endl;
-#endif
 	// Also prepare the integration weights for constructing the DG matrix later.
 
 	vnlWeightMap_.clear();
@@ -1219,38 +899,6 @@ HamiltonianDG::UpdatePseudoPotential	( PeriodTable &ptable ){
 
 	Real vol = domain_.Volume();
 
-//	statusOFS << "UpdatePP 1" << std::endl;
-
-	// *********************************************************************
-	// Atomic information
-	// *********************************************************************
-/*
-  // Calculate the number of occupied states
-  Int nelec = 0;
-  for (Int a=0; a<numAtom; a++) {
-		Int atype  = atomList_[a].type;
-		if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
-			std::ostringstream msg;
-			msg << "Cannot find the atom type for atom #" << a << std::endl;
-			throw std::runtime_error( msg.str().c_str() );
-		}
-		nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
-  }
-
-	if( nelec % 2 != 0 ){
-		throw std::runtime_error( "This is a spin-restricted calculation. nelec should be even." );
-	}
-	
-	numOccupiedState_ = nelec / numSpin_;
-
-#if ( _DEBUGlevel_ >= 0 )
-	Print( statusOFS, "Number of Occupied States                    = ", numOccupiedState_ );
-#endif
-*/
-	// Generate the atomic pseudopotentials
-
-	// Also prepare the integration weights for constructing the DG matrix later.
-
   pseudo_.LocalMap().clear();
 	vnlWeightMap_.clear();
 	for( Int k = 0; k < numElem_[2]; k++ )
@@ -1261,18 +909,14 @@ HamiltonianDG::UpdatePseudoPotential	( PeriodTable &ptable ){
 					std::map<Int, PseudoPot>   ppMap;
 					std::vector<DblNumVec>&    gridpos = uniformGridElemFine_( i, j, k );
 
-//        	statusOFS << "UpdatePP 2" << std::endl;
-
           for( Int a = 0; a < numAtom; a++ ){
 						PTEntry& ptentry = ptable.ptemap()[atomList_[a].type];
 
-//        	  statusOFS << "UpdatePP 3" << std::endl;
-						// Cutoff radius: Take the largest one
+            // Cutoff radius: Take the largest one
 						Real Rzero = ptentry.cutoffs( PTSample::PSEUDO_CHARGE );
 						if(ptentry.cutoffs.m()>PTSample::NONLOCAL)      
 							Rzero = std::max( Rzero, ptentry.cutoffs(PTSample::NONLOCAL) );
 
-//        	    statusOFS << "UpdatePP 4" << std::endl;
 						// Compute the minimum distance of this atom to all grid points
 						Point3 minDist;
 						Point3& length = domain_.length;
@@ -1284,11 +928,9 @@ HamiltonianDG::UpdatePseudoPotential	( PeriodTable &ptable ){
 								dist = gridpos[d](i) - pos[d];
 								dist = dist - IRound( dist / length[d] ) * length[d];
 
-//        	      statusOFS << "UpdatePP 5" << std::endl;
 								if( std::abs( dist ) < minDist[d] )
 									minDist[d] = std::abs( dist );
 
-//        	        statusOFS << "UpdatePP 6" << std::endl;
 							}
 						}
 						// If this atom overlaps with this element, compute the pseudopotential
@@ -1297,24 +939,20 @@ HamiltonianDG::UpdatePseudoPotential	( PeriodTable &ptable ){
 							ptable.CalculatePseudoCharge( atomList_[a], 
 									domain_, uniformGridElemFine_(i, j, k), pp.pseudoCharge );
 
-//        	    statusOFS << "UpdatePP 7" << std::endl;
 							ptable.CalculateNonlocalPP( atomList_[a], 
 									domain_, LGLGridElem_(i, j, k), pp.vnlList );
 
-//        	    statusOFS << "UpdatePP 8" << std::endl;
 							ppMap[a] = pp;
 							DblNumVec   weight( pp.vnlList.size() );
 							for( Int l = 0; l < weight.Size(); l++ ){
 								weight(l) = pp.vnlList[l].second;
 							}
 
-//        	    statusOFS << "UpdatePP 9" << std::endl;
 							vnlWeightMap_[a] = weight;
 						}
 					} // for (a)
 					pseudo_.LocalMap()[key] = ppMap;
 
-//        	statusOFS << "UpdatePP 10" << std::endl;
 				} // own this element
 			} // for (i)
 
@@ -1348,16 +986,13 @@ HamiltonianDG::UpdatePseudoPotential	( PeriodTable &ptable ){
 							IntNumVec& idx = sp.first;
 							DblNumMat& val = sp.second;
 
-//        	    statusOFS << "UpdatePP 11" << std::endl;
 							for( Int l = 0; l < idx.m(); l++ ){
 								localVec[idx(l)] += val(l, VAL);
 
-//        	    statusOFS << "UpdatePP 12" << std::endl;
 							}
 						} // for (mi)
 						pseudoCharge_.LocalMap()[key] = localVec;
 
-//        	  statusOFS << "UpdatePP 13" << std::endl;
 					} // own this element
 				} // for (i)
 
@@ -1367,17 +1002,14 @@ HamiltonianDG::UpdatePseudoPotential	( PeriodTable &ptable ){
 				mi != pseudoCharge_.LocalMap().end(); mi++ ){
 			DblNumVec& vec = (*mi).second;
 
-//      statusOFS << "UpdatePP 14" << std::endl;
 			for( Int i = 0; i < vec.m(); i++ ){
 				localSum += vec[i];
 			}
 
-//      statusOFS << "UpdatePP 15" << std::endl;
 		}
 
 		localSum *= domain_.Volume() / domain_.NumGridTotalFine();
 
-//    statusOFS << "UpdatePP 16" << std::endl;
 		mpi::Allreduce( &localSum, &sumRho, 1, MPI_SUM, domain_.comm );
 
 #if ( _DEBUGlevel_ >= 0 )
