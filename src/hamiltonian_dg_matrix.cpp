@@ -1350,7 +1350,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
                       *(ptr22++) = (*(ptr2++)) * (*ptr);
                       *(ptr33++) = (*(ptr3++)) * (*ptr);
                       *(ptr44++) = (*(ptr4++)) * (*ptr);
-                      ptr = ptr++;
+                      ptr++;
                     }
                   }
 
@@ -1551,7 +1551,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
                       *(ptr22++) = (*(ptr2++)) * (*ptr);
                       *(ptr33++) = (*(ptr3++)) * (*ptr);
                       *(ptr44++) = (*(ptr4++)) * (*ptr);
-                      ptr = ptr++;
+                      ptr++;
                     }
                   }
 
@@ -1933,7 +1933,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   for( Int l = 0; l < numGridFace; l++ ){
                     *(ptr11++) = (*(ptr1++)) * (*ptr);
                     *(ptr22++) = (*(ptr2++)) * (*ptr);
-                    ptr = ptr++;
+                    ptr++;
                   }
                 }
 
@@ -1946,7 +1946,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   for( Int l = 0; l < numGridFace; l++ ){
                     *(ptr11++) = (*(ptr1++)) * (*ptr);
                     *(ptr22++) = (*(ptr2++)) * (*ptr);
-                    ptr = ptr++;
+                    ptr++;
                   }
                 }
                 
@@ -2151,7 +2151,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   for( Int l = 0; l < numGridFace; l++ ){
                     *(ptr11++) = (*(ptr1++)) * (*ptr);
                     *(ptr22++) = (*(ptr2++)) * (*ptr);
-                    ptr = ptr++;
+                    ptr++;
                   }
                 }
 
@@ -2164,7 +2164,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   for( Int l = 0; l < numGridFace; l++ ){
                     *(ptr11++) = (*(ptr1++)) * (*ptr);
                     *(ptr22++) = (*(ptr2++)) * (*ptr);
-                    ptr = ptr++;
+                    ptr++;
                   }
                 }
                 
@@ -2367,7 +2367,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   for( Int l = 0; l < numGridFace; l++ ){
                     *(ptr11++) = (*(ptr1++)) * (*ptr);
                     *(ptr22++) = (*(ptr2++)) * (*ptr);
-                    ptr = ptr++;
+                    ptr++;
                   }
                 }
 
@@ -2380,7 +2380,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
                   for( Int l = 0; l < numGridFace; l++ ){
                     *(ptr11++) = (*(ptr1++)) * (*ptr);
                     *(ptr22++) = (*(ptr2++)) * (*ptr);
-                    ptr = ptr++;
+                    ptr++;
                   }
                 }
                 
