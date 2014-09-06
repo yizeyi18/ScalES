@@ -1204,24 +1204,53 @@ HamiltonianDG::CalculateDensity	(
 
                 AlltoallForward (localBasis, localBasisRow, domain_.rowComm);
          
-							  DblNumVec  localPsiLGLRow( numGridLocal );
 							  DblNumVec  localRhoLGLRow( numGridLocal ); 
                 SetValue( localRhoLGLRow, 0.0 );
 
-                for( Int g = 0; g < numEig; g++ ){
-                  // Compute local wavefunction on the LGL grid
-                  blas::Gemv( 'N', numGridLocal, numBasisTotal, 1.0, 
-                      localBasisRow.Data(), numGridLocal, 
-                      localCoef.VecData(g), 1, 0.0,
-                      localPsiLGLRow.Data(), 1 );
-                  
-                  // Update the local density
-                  Real  occ    = occrate[g];
-                 
-                  for( Int p = 0; p < numGridLocal; p++ ){
-                    localRhoLGLRow(p) += localPsiLGLRow(p) * localPsiLGLRow(p) * occ * numSpin_;
+#ifdef _USE_OPENMP_
+#pragma omp parallel 
+                {
+#endif
+                  DblNumVec  localPsiLGLRow( numGridLocal );
+                  SetValue( localPsiLGLRow, 0.0 );
+
+                  // For thread safety, declare as private variable
+
+                  DblNumVec localRhoLGLRowTmp( numGridLocal );
+                  SetValue( localRhoLGLRowTmp, 0.0 );
+
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+                  for( Int g = 0; g < numEig; g++ ){
+                    // Compute local wavefunction on the LGL grid
+                    blas::Gemv( 'N', numGridLocal, numBasisTotal, 1.0, 
+                        localBasisRow.Data(), numGridLocal, 
+                        localCoef.VecData(g), 1, 0.0,
+                        localPsiLGLRow.Data(), 1 );
+
+                    // Update the local density
+                    Real  occ    = occrate[g];
+
+                    for( Int p = 0; p < numGridLocal; p++ ){
+                      localRhoLGLRowTmp(p) += localPsiLGLRow(p) * localPsiLGLRow(p) * occ * numSpin_;
+                    }
                   }
+
+#ifdef _USE_OPENMP_
+#pragma omp critical
+                  {
+#endif
+                    // This is a reduce operation for an array, and should be
+                    // done in the OMP critical syntax
+                    blas::Axpy( numGridLocal, 1.0, localRhoLGLRowTmp.Data(), 1, localRhoLGLRow.Data(), 1 );
+#ifdef _USE_OPENMP_
+                  }
+#endif
+
+#ifdef _USE_OPENMP_
                 }
+#endif
 
                 DblNumVec  localRhoLGLTemp1( numGridTotal );
                 SetValue( localRhoLGLTemp1, 0.0 );
@@ -1237,22 +1266,8 @@ HamiltonianDG::CalculateDensity	(
 
               } 
 
-
-
-//#ifdef _USE_OPENMP_
-//#pragma omp critical
-							{
-//#endif
-							// This is a reduce operation for an array, and should be
-							// done in the OMP critical syntax
-								blas::Axpy( numGrid, 1.0, localRhoLGLTmp.Data(), 1, localRhoLGL.Data(), 1 );
-//#ifdef _USE_OPENMP_
-							}
-//#endif
-
-//#ifdef _USE_OPENMP_
+              blas::Axpy( numGrid, 1.0, localRhoLGLTmp.Data(), 1, localRhoLGL.Data(), 1 );
 						}
-//#endif
 
 						statusOFS << "Before interpolation" << std::endl;
 

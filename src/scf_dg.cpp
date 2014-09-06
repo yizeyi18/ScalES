@@ -1014,13 +1014,13 @@ SCFDG::Iterate	(  )
 
 						SetValue( localBasis, 0.0 );
 
-//#ifdef _USE_OPENMP_
-//#pragma omp parallel
+#ifdef _USE_OPENMP_
+#pragma omp parallel
             {
-//#endif
-//#ifdef _USE_OPENMP_
-//#pragma omp for schedule (dynamic,1) nowait
-//#endif
+#endif
+#ifdef _USE_OPENMP_
+#pragma omp for schedule (dynamic,1) nowait
+#endif
               for( Int l = 0; l < psi.NumState(); l++ ){
                 InterpPeriodicUniformToLGL( 
                     numGridExtElem,
@@ -1050,9 +1050,9 @@ SCFDG::Iterate	(  )
 //                localBasis(p,psi.NumState()) = 1.0 / std::sqrt( domain_.Volume() / numElem_.prod() );
 //              }
 
-//#ifdef _USE_OPENMP_
-            }
-//#endif
+#ifdef _USE_OPENMP_
+          }
+#endif
 						GetTime( timeEnd );
 						statusOFS << "Time for interpolating basis = " 	<< timeEnd - timeSta
 							<< " [s]" << std::endl;
