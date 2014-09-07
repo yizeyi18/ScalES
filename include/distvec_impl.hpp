@@ -206,7 +206,12 @@ Int DistVec<Key,Data,Partition>::GetBegin(std::vector<Key>& keyvec, const std::v
 	for(Int k=0; k<mpisize; k++) {
 		for(Int g=0; g<rkeyvec[k].size(); g++) {
 			Key curkey = rkeyvec[k][g];
-			typename std::map<Key,Data>::iterator mi = lclmap_.find(curkey);	  iA( mi!=lclmap_.end() );
+			typename std::map<Key,Data>::iterator mi = lclmap_.find(curkey);	  
+      // FIXME. Temporary debugging
+      if( mi!=lclmap_.end() ){
+        std::cerr << "mpirank = " << mpirank << std::endl;
+        iA( mi!=lclmap_.end() );
+      }
 			iA( prtn_.Owner(curkey)==mpirank );
 			Key key = (*mi).first;
 			const Data& dat = (*mi).second;

@@ -1637,6 +1637,17 @@ SCFDG::InnerIterate	( Int outerIter )
 
 		} // if ( innerIter == 1 )
 
+#if ( _DEBUGlevel_ >= 1 )
+    {
+      statusOFS << "Owned H matrix blocks on this processor" << std::endl;
+      for( std::map<ElemMatKey, DblNumMat>::iterator 
+          mi  = hamDG.HMat().LocalMap().begin();
+          mi != hamDG.HMat().LocalMap().end(); mi++ ){
+        ElemMatKey key = (*mi).first;
+        statusOFS << key.first << " -- " << key.second << std::endl;
+      }
+    }
+#endif
 
 
     // *********************************************************************

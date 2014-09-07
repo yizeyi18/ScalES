@@ -2486,7 +2486,14 @@ HamiltonianDG::CalculateForceDM	(
 
           // vnlCoef finds the pseudopotential for atomIdx in the element
           // iKey
-          if( (*ei).second.find( atomIdx ) == (*ei).second.end() )
+          std::map<Int, DblNumMat>::iterator mi = 
+            (*ei).second.find( atomIdx );
+          if( mi == (*ei).second.end() )
+            continue;
+
+          // It is important that the matrix is nonzero
+          DblNumMat& coef1 = (*mi).second;
+          if( coef1.m() == 0 )
             continue;
 
           // Loop over the elements (column indices in the density
@@ -2498,9 +2505,19 @@ HamiltonianDG::CalculateForceDM	(
 
             // vnlCoef finds the pseudopotential for atomIdx in the
             // element jKey 
-            if( (*ej).second.find( atomIdx ) == (*ej).second.end() )
+            std::map<Int, DblNumMat>::iterator ni = 
+              (*ej).second.find( atomIdx );
+
+            if( ni == (*ej).second.end() )
               continue;
 
+            // It is important that the matrix is nonzero
+            DblNumMat& coef2 = (*ni).second;
+            if( coef2.m() == 0 )
+              continue;
+
+            // Only add the (iKey, jKey) if it does not correspond to a
+            // zero matrix.
             pseudoSet.insert( ElemMatKey( iKey, jKey ) );
           }
         }
@@ -2528,8 +2545,8 @@ HamiltonianDG::CalculateForceDM	(
     statusOFS << "Ownerinfo for ElemMatPrtn " <<
       distDMMat.Prtn().ownerInfo << std::endl; 
 #endif
-		distDMMat.GetBegin( pseudoIdx, NO_MASK );
-		distDMMat.GetEnd( NO_MASK );
+    distDMMat.GetBegin( pseudoIdx, NO_MASK );
+    distDMMat.GetEnd( NO_MASK );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
 		statusOFS << "Time for getting the density matrix blocks is " <<
@@ -2555,7 +2572,14 @@ HamiltonianDG::CalculateForceDM	(
 
           // vnlCoef finds the pseudopotential for atomIdx in the element
           // iKey
-          if( (*ei).second.find( atomIdx ) == (*ei).second.end() )
+          std::map<Int, DblNumMat>::iterator mi = 
+            (*ei).second.find( atomIdx );
+          if( mi == (*ei).second.end() )
+            continue;
+
+          // It is important that the matrix is nonzero
+          DblNumMat& coef1 = (*mi).second;
+          if( coef1.m() == 0 )
             continue;
 
           std::map<Int, DblNumMat>& coefMap = (*ei).second; 
@@ -2569,7 +2593,15 @@ HamiltonianDG::CalculateForceDM	(
 
             // vnlCoef finds the pseudopotential for atomIdx in the
             // element jKey 
-            if( (*ej).second.find( atomIdx ) == (*ej).second.end() )
+            std::map<Int, DblNumMat>::iterator ni = 
+              (*ej).second.find( atomIdx );
+
+            if( ni == (*ej).second.end() )
+              continue;
+
+            // It is important that the matrix is nonzero
+            DblNumMat& coef2 = (*ni).second;
+            if( coef2.m() == 0 )
               continue;
 
             std::map<Int, DblNumMat>& coefDrvXMap = vnlDrvCoef_[0].LocalMap()[jKey];
@@ -2596,11 +2628,6 @@ HamiltonianDG::CalculateForceDM	(
             DblNumMat&  coefDrvY  = coefDrvYMap[atomIdx];
             DblNumMat&  coefDrvZ  = coefDrvZMap[atomIdx];
 
-            // Skip the calculation if there is no adaptive local
-            // basis function.  
-            if( coef.m() == 0 ){
-              continue;
-            }
 
             // Add to the force.
             // The minus sign comes from integration by parts Spin = 2.0
