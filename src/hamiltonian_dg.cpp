@@ -754,18 +754,22 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
   }
 
 	// Also prepare the integration weights for constructing the DG matrix later.
+#if ( _DEBUGlevel_ >= 0 )
+	statusOFS << std::endl << "Prepare the integration weights for constructing the DG matrix." << std::endl;
+#endif
 
 	vnlWeightMap_.clear();
 	for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
 			for( Int i = 0; i < numElem_[0]; i++ ){
 				Index3 key( i, j, k );
-				if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-					std::map<Int, PseudoPot>   ppMap;
-					std::vector<DblNumVec>&    gridpos = uniformGridElemFine_( i, j, k );
-					for( Int a = 0; a < numAtom; a++ ){
-						PTEntry& ptentry = ptable.ptemap()[atomList_[a].type];
-						// Cutoff radius: Take the largest one
+        if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+          // std::map<Int, PseudoPot>  ppMap;
+          std::map<Int, PseudoPot>&  ppMap = pseudo_.LocalMap()[key];
+          std::vector<DblNumVec>&    gridpos = uniformGridElemFine_( i, j, k );
+          for( Int a = 0; a < numAtom; a++ ){
+            PTEntry& ptentry = ptable.ptemap()[atomList_[a].type];
+            // Cutoff radius: Take the largest one
 						Real Rzero = ptentry.cutoffs( PTSample::PSEUDO_CHARGE );
 						if(ptentry.cutoffs.m()>PTSample::NONLOCAL)      
 							Rzero = std::max( Rzero, ptentry.cutoffs(PTSample::NONLOCAL) );
@@ -799,11 +803,11 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 							vnlWeightMap_[a] = weight;
 						}
 					} // for (a)
-					pseudo_.LocalMap()[key] = ppMap;
+					//pseudo_.LocalMap()[key] = ppMap;
 				} // own this element
 			} // for (i)
 
-#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 0 )
 	statusOFS << std::endl << "Atomic pseudocharge computed." << std::endl;
 #endif
 
