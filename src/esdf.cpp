@@ -2149,7 +2149,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 			esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );
 
 			// Periodization of the external potential
-			esdfParam.isPeriodizePotential = esdf_integer( "Periodize_Potential", 1 );
+			esdfParam.isPeriodizePotential = esdf_integer( "Periodize_Potential", 0 );
 
 			esdfParam.distancePeriodize[0] = 0.0;
 			esdfParam.distancePeriodize[1] = 0.0;
