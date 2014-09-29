@@ -311,11 +311,6 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Which atom to move(all,some,first n) !*");
 
 	i++;
-	strcpy(kw_label[i],"lattice_vector_scale");
-	strcpy(kw_typ[i],"P:D");
-	strcpy(kw_dscrpt[i],"*! Unit for lattice vectors !*");
-
-	i++;
 	strcpy(kw_label[i],"correlation_type");
 	strcpy(kw_typ[i],"T:D");
 	strcpy(kw_dscrpt[i],"*! Correlation type !*");
@@ -622,9 +617,15 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Radius of nonlocal adaptive local basis functions !*");
 
 	i++;
-	strcpy(kw_label[i],"atom_cart");
+	strcpy(kw_label[i],"atom_bohr");
 	strcpy(kw_typ[i],"B:E");
-	strcpy(kw_dscrpt[i],"*! Coordinates of atom in Cartesian unit (Bohr)!*");
+	strcpy(kw_dscrpt[i],"*! Coordinates of atom in Cartesian coordinate (Bohr)!*");
+
+	i++;
+	strcpy(kw_label[i],"atom_ang");
+	strcpy(kw_typ[i],"B:E");
+	strcpy(kw_dscrpt[i],"*! Coordinates of atom in Cartesian coordinate (angstrom)!*");
+
 
 	i++;
 	strcpy(kw_label[i],"atom_red");
@@ -1983,7 +1984,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
 			Int  numAtom;
 
-			if( esdf_block("Atom_Cart", &numAtom ) ){
+			if( esdf_block("Atom_Bohr", &numAtom ) ){
 				// Cartesian coordinate (in the unit of Bohr) 
 				Point3 pos;
 				for( Int j = 0; j < numAtom; j++ ){
@@ -1991,6 +1992,17 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 							&pos[0], &pos[1], &pos[2]);
 					atomList.push_back( 
 							Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
+				}
+			}
+			if( esdf_block("Atom_Ang", &numAtom ) ){
+				// Cartesian coordinate (in the unit of angstrom) 
+				Point3 pos;
+        const Real ANG2AU = 1.8897261;
+				for( Int j = 0; j < numAtom; j++ ){
+					sscanf(block_data[j],"%lf %lf %lf", 
+							&pos[0], &pos[1], &pos[2]);
+					atomList.push_back( 
+							Atom( type, ANG2AU*pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
 				}
 			}
 			else if ( esdf_block("Atom_Red", &numAtom) ){
