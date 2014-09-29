@@ -1748,6 +1748,7 @@ void DistElemMatToDistSparseMat2(
 	MPI_Comm_rank( comm, &mpirank );
 	MPI_Comm_size( comm, &mpisize );
 
+  Real timeSta, timeEnd;
 
   bool isInElem, isInSparse;
   isInElem = ( find( mpirankElemVec.begin(), 
@@ -1813,6 +1814,7 @@ void DistElemMatToDistSparseMat2(
 	std::set<Int>  ownerSet;
 
 	// Convert DistElemMat to intermediate data structure
+  GetTime( timeSta );
   if( isInElem ){
     for( typename std::map<ElemMatKey, NumMat<F> >::const_iterator 
         mi  = distMat.LocalMap().begin();
@@ -1842,22 +1844,39 @@ void DistElemMatToDistSparseMat2(
         // Distribute the matrix element and row indices to intermediate
         // data structure in an element by element fashion.
 
+        std::vector<Int> rowTmp(localMat.n());
+        // NOTE the +1 is used here since DistSparseMat uses 1-based
+        // index for legacy reason.
+        for( Int b = 0; b < localMat.n(); b++ ){
+          rowTmp[b] = idx2[b]+1;
+        }
+        std::vector<F>   valTmp(localMat.n());
+
         for( Int a = 0; a < localMat.m(); a++ ){
+          // NOTE that the row here is only for the intermediate data
+          // structure and therefore do not need the 1-based index.
           Int row = idx1[a];
           ownerSet.insert( row );
           std::vector<Int>& vecRow = distRow.LocalMap()[row];
+          vecRow.insert(vecRow.end(), rowTmp.begin(), rowTmp.end());
+          
           std::vector<F>& vecVal = distVal.LocalMap()[row];
-          for( Int b = 0; b < localMat.n(); b++ ){
-            vecRow.push_back( idx2[b] + 1 );
-            vecVal.push_back( localMat( a, b ) );
-          }
+          lapack::Lacpy( 'A', 1, localMat.n(), &localMat(a,0), localMat.m(),
+              &valTmp[0], 1 );
+          vecVal.insert( vecVal.end(), valTmp.begin(), valTmp.end() );
         } // for (a)
       } // own this matrix block
     } // for (mi)
   }
+  GetTime(timeEnd);
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for compressing the information in DistElemMat is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 
 	// Communication of the matrix in the global communicator
+  GetTime(timeSta);
 	{
 
 		std::vector<Int>  keyIdx;
@@ -1886,9 +1905,15 @@ void DistElemMatToDistSparseMat2(
 			distVal.LocalMap().erase( *vi );
 		}	
 	}
+  GetTime(timeEnd);
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for communication of the information of DistElemMat is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 
 	// Copy the values from intermediate data structure to distSparseMat
+  GetTime(timeSta);
   if( isInSparse )
 	{
 		// Global information
@@ -1946,6 +1971,11 @@ void DistElemMatToDistSparseMat2(
 		distSparseMat.nnzLocal = nnzLocal;
 		distSparseMat.nnz      = nnz;
 	} // if (isInSparse)
+  GetTime(timeEnd);
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for writing the matrix to distSparseMat is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 
 #ifndef _RELEASE_
