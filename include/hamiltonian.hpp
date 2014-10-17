@@ -204,6 +204,7 @@ public:
 		Int                        numExtraState = 0,
     Int                        numDensityComponent = 1 );
 
+	void Update ( std::vector<Atom>&  atomList );
 
 	// *********************************************************************
 	// Operations

@@ -241,6 +241,11 @@ public:
 			PeriodTable&   ptable,
 		  Int            contxt ); 
 
+  /// @brief Update the basic parameters for SCF interation for MD and
+  /// geometry optimization.
+  void  Update( ); 
+
+
 	/// @brief Main self consistent iteration subroutine.
 	void  Iterate();
 

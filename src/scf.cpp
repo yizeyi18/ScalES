@@ -179,6 +179,26 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 	return ;
 } 		// -----  end of method SCF::Setup  ----- 
 
+void
+SCF::Update	( )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCF::Update");
+#endif
+	{
+    Int ntotFine  = eigSolPtr_->FFT().domain.NumGridTotalFine();
+
+    vtotNew_.Resize(ntotFine); SetValue(vtotNew_, 0.0);
+		dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
+		dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
+	}
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCF::Update  ----- 
+
 
 void
 SCF::Iterate	(  )

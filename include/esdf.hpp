@@ -561,6 +561,10 @@ namespace esdf{
     /// re-invoked.
     Real                muPEXSISafeGuard;
 
+    /// @brief Maximum number of steps for geometry optimization
+    ///
+    /// Default: 10 
+    Int                 geoOptMaxStep;
 
   };
 

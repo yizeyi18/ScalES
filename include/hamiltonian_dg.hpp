@@ -340,6 +340,9 @@ public:
   /// @brief Setup the Hamiltonian DG class from the input parameter.
 	void Setup ( const esdf::ESDFInputParam& esdfParam );
 
+  /// @brief Update hamiltonianDG for Geometry optimization and MD  
+	void UpdateHamiltonianDG( const std::vector<Atom>& atomList );
+
 	// *********************************************************************
 	// Operations
 	// *********************************************************************

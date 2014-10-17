@@ -676,6 +676,50 @@ SCFDG::Setup	(
 	return ;
 } 		// -----  end of method SCFDG::Setup  ----- 
 
+void
+SCFDG::Update	( )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::Update");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+
+  HamiltonianDG& hamDG = *hamDGPtr_;
+	
+	{
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+						DblNumVec  emptyVec( hamDG.NumUniformGridElemFine().prod() );
+						SetValue( emptyVec, 0.0 );
+						mixOuterSave_.LocalMap()[key] = emptyVec;
+						mixInnerSave_.LocalMap()[key] = emptyVec;
+						DblNumMat  emptyMat( hamDG.NumUniformGridElemFine().prod(), mixMaxDim_ );
+						SetValue( emptyMat, 0.0 );
+						dfOuterMat_.LocalMap()[key]   = emptyMat;
+						dvOuterMat_.LocalMap()[key]   = emptyMat;
+						dfInnerMat_.LocalMap()[key]   = emptyMat;
+						dvInnerMat_.LocalMap()[key]   = emptyMat;
+
+						DblNumVec  emptyLGLVec( hamDG.NumLGLGridElem().prod() );
+						SetValue( emptyLGLVec, 0.0 );
+						vtotLGLSave_.LocalMap()[key] = emptyLGLVec;
+					} // own this element
+				}  // for (i)
+		
+	
+	}
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::Update  ----- 
+
 
 void
 SCFDG::Iterate	(  )

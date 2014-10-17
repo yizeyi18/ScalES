@@ -815,6 +815,11 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Whether to control the eigenvalue solver tolerance dynamically!*");
 
+	i++;
+	strcpy(kw_label[i],"geo_opt_max_step");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Maximum number of geometric optimization !*");
+
 }
 
 void esdf() {
@@ -2310,6 +2315,11 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
 	}
 	
+  // Geometry optimization
+  {
+		esdfParam.geoOptMaxStep = esdf_integer( "Geo_Opt_Max_Step", 10 );
+  }
+
 
 #ifndef _RELEASE_
 	PopCallStack();

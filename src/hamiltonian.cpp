@@ -221,6 +221,22 @@ KohnSham::Setup	(
 } 		// -----  end of method KohnSham::Setup  ----- 
 
 void
+KohnSham::Update	( std::vector<Atom>&   atomList )
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::Update");
+#endif	
+  atomList_ = atomList;
+  
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method KohnSham::Update  ----- 
+
+
+void
 KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::CalculatePseudoPotential");
@@ -229,7 +245,8 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 	Int numAtom = atomList_.size();
 	Real vol = domain_.Volume();
 
-	pseudo_.resize( numAtom );
+  pseudo_.clear();
+  pseudo_.resize( numAtom );
 
 	std::vector<DblNumVec> gridpos;
   UniformMeshFine ( domain_, gridpos );
