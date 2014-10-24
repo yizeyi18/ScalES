@@ -809,23 +809,29 @@ int main(int argc, char **argv)
 				  PrintBlock( statusOFS, "Atomic Force" );
 				  {
 				    Point3 forceCM(0.0, 0.0, 0.0);
+            Real maxForce = 0.0;
+            Real avgForce = 0.0;
 				    std::vector<Atom>& atomList = hamDG.AtomList();
 				    Int numAtom = atomList.size();
 				    for( Int a = 0; a < numAtom; a++ ){
           		atomforce[a]=atomList[a].force;
 				      Print( statusOFS, "atom", a, "force", atomList[a].force );
 				      forceCM += atomList[a].force;
+              Real forceMag = atomforce[a].l2();
+              maxForce = ( maxForce < forceMag ) ? forceMag : maxForce;
+              avgForce = avgForce + forceMag;
 				    }
+            avgForce = avgForce / double(numAtom);
+
 				    statusOFS << std::endl;
-				    Print( statusOFS, "force for centroid: ", forceCM );
+				    Print( statusOFS, "Max force magnitude: ", maxForce );
+				    Print( statusOFS, "Avg force magnitude: ", avgForce );
+				    Print( statusOFS, "force for centroid:  ", forceCM );
 				    statusOFS << std::endl;
 				  }
         }
 
-        // Update the force
-        for( Int i = 0; i < numAtom; i++ ){
-          atomforce[i]=atomList[i].force;
-        }
+
 
       } // for ( iterOpt )
     }

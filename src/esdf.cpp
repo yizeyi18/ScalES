@@ -1999,7 +1999,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 							Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
 				}
 			}
-			if( esdf_block("Atom_Ang", &numAtom ) ){
+      else if( esdf_block("Atom_Ang", &numAtom ) ){
 				// Cartesian coordinate (in the unit of angstrom) 
 				Point3 pos;
         const Real ANG2AU = 1.8897261;

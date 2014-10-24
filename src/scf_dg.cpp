@@ -2792,6 +2792,7 @@ SCFDG::InnerIterate	( Int outerIter )
         }
 
 
+        GetTime( timeSta );
         PPEXSIDFTDriver(
             pexsiPlan_,
             pexsiOptions_,
@@ -2803,6 +2804,11 @@ SCFDG::InnerIterate	( Int outerIter )
             &numTotalInertiaIter,
             &numTotalPEXSIIter,
             &info );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for the main PEXSI Driver is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
         if( info != 0 ){
           std::ostringstream msg;
@@ -2855,52 +2861,64 @@ SCFDG::InnerIterate	( Int outerIter )
       // Broadcast the Fermi level
       MPI_Bcast( &fermi_, 1, MPI_DOUBLE, 0, domain_.comm );
 
-      // Convert the density matrix from DistSparseMatrix format to the
-      // DistElemMat format
-      DistSparseMatToDistElemMat2(
-          DMSparseMat,
-          hamDG.NumBasisTotal(),
-          hamDG.HMat().Prtn(),
-          distDMMat_,
-					hamDG.ElemBasisIdx(),
-          domain_.comm,
-          domain_.colComm,
-          HCSCComm,
-          mpirankElemVec,
-          mpirankSparseVec );
+      GetTime(timeSta);
+      {
+        // Convert the density matrix from DistSparseMatrix format to the
+        // DistElemMat format
+        DistSparseMatToDistElemMat2(
+            DMSparseMat,
+            hamDG.NumBasisTotal(),
+            hamDG.HMat().Prtn(),
+            distDMMat_,
+            hamDG.ElemBasisIdx(),
+            domain_.comm,
+            domain_.colComm,
+            HCSCComm,
+            mpirankElemVec,
+            mpirankSparseVec );
 
 
-      // Convert the energy density matrix from DistSparseMatrix
-      // format to the DistElemMat format
-      DistSparseMatToDistElemMat2(
-          EDMSparseMat,
-          hamDG.NumBasisTotal(),
-          hamDG.HMat().Prtn(),
-          distEDMMat_,
-					hamDG.ElemBasisIdx(),
-          domain_.comm,
-          domain_.colComm,
-          HCSCComm,
-          mpirankElemVec,
-          mpirankSparseVec );
+        // Convert the energy density matrix from DistSparseMatrix
+        // format to the DistElemMat format
+        DistSparseMatToDistElemMat2(
+            EDMSparseMat,
+            hamDG.NumBasisTotal(),
+            hamDG.HMat().Prtn(),
+            distEDMMat_,
+            hamDG.ElemBasisIdx(),
+            domain_.comm,
+            domain_.colComm,
+            HCSCComm,
+            mpirankElemVec,
+            mpirankSparseVec );
 
 
-      // Convert the free energy density matrix from DistSparseMatrix
-      // format to the DistElemMat format
-      DistSparseMatToDistElemMat2(
-          FDMSparseMat,
-          hamDG.NumBasisTotal(),
-          hamDG.HMat().Prtn(),
-          distFDMMat_,
-					hamDG.ElemBasisIdx(),
-          domain_.comm,
-          domain_.colComm,
-          HCSCComm,
-          mpirankElemVec,
-          mpirankSparseVec );
+        // Convert the free energy density matrix from DistSparseMatrix
+        // format to the DistElemMat format
+        DistSparseMatToDistElemMat2(
+            FDMSparseMat,
+            hamDG.NumBasisTotal(),
+            hamDG.HMat().Prtn(),
+            distFDMMat_,
+            hamDG.ElemBasisIdx(),
+            domain_.comm,
+            domain_.colComm,
+            HCSCComm,
+            mpirankElemVec,
+            mpirankSparseVec );
+      }
+
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for converting the DistSparseMatrices to DistElemMat " << 
+        "for post-processing is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
 
       // Broadcast the distElemMat matrices
       // FIXME this is not a memory efficient implementation
+      GetTime(timeSta);
       {
         Int sstrSize;
         std::vector<char> sstr;
@@ -2951,6 +2969,11 @@ SCFDG::InnerIterate	( Int outerIter )
           } // for (mi)
         }
       }
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for broadcasting the density matrix for post-processing is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 
 
@@ -2959,7 +2982,13 @@ SCFDG::InnerIterate	( Int outerIter )
       // NOTE: In computing the Harris energy, the density and the
       // potential must be the INPUT density and potential without ANY
       // update.
+      GetTime( timeSta );
       CalculateHarrisEnergyDM( distFDMMat_ );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for calculating the Harris energy is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
       // Evaluate the electron density
 
@@ -2995,6 +3024,7 @@ SCFDG::InnerIterate	( Int outerIter )
 
       // Update the output potential, and the KS and second order accurate
       // energy
+      GetTime(timeSta);
       {
         // Update the Hartree energy and the exchange correlation energy and
         // potential for computing the KS energy and the second order
@@ -3024,6 +3054,11 @@ SCFDG::InnerIterate	( Int outerIter )
         hamDG.CalculateVtot( hamDG.Vtot() );
 
       }
+      GetTime(timeEnd);
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing the potential is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
       // Compute the force at every step
       if( isCalculateForceEachSCF_ ){
@@ -4657,7 +4692,5 @@ SCFDG::PrintState	( )
 
 	return ;
 } 		// -----  end of method SCFDG::PrintState  ----- 
-
-
 
 } // namespace dgdft
