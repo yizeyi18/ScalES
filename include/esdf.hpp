@@ -594,6 +594,11 @@ namespace esdf{
     ///
     /// Default: 1
     bool                isOutputThermostat;
+    /// @brief Output the atomic position in XYZ format. Used in MD
+    /// simulation and geometry optimization
+    ///
+    /// Default: 1
+    bool                isOutputXYZ;
   };
 
   void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );

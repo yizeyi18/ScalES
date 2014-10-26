@@ -156,6 +156,7 @@ int main(int argc, char **argv)
       Print(statusOFS, "RestartThermostat = ",  esdfParam.isRestartThermostat);
       Print(statusOFS, "OutputPosition    = ",  esdfParam.isOutputPosition );
       Print(statusOFS, "OutputThermostat  = ",  esdfParam.isOutputThermostat );
+      Print(statusOFS, "Output XYZ format = ",  esdfParam.isOutputXYZ );
 
 			Print(statusOFS, "Max steps for geometry opt (not used here) = ",  esdfParam.geoOptMaxStep );
 
@@ -241,29 +242,38 @@ int main(int argc, char **argv)
 
 
       // Read position from lastPos.out into esdfParam.atomList[i].pos if isRestartPosition=1
-      // Only master processor output information containing all atoms
-      // FIXME One processor read and then distribute
       if(esdfParam.isRestartPosition){
-         Point3 pos;
-         std::vector<Atom>&  atomList0 = esdfParam.atomList;
-         fstream fin;
-         fin.open("lastPos.out",ios::in);
-         for(Int i=0; i<atomList0.size(); i++){
-           fin>> pos[0];
-           fin>> pos[1];
-           fin>> pos[2];
-           atomList0[i].pos = pos;
-         }
+        std::vector<Atom>&  atomList = esdfParam.atomList;
+        Int numAtom = atomList.size();
+        DblNumVec atomposRead(3*numAtom);
+        // Only master processor read and then distribute
+        if( mpirank == 0 ){
+          fstream fin;
+          fin.open("lastPos.out",ios::in);
+          for(Int a=0; a<numAtom; a++){
+            fin>> atomposRead[3*a];
+            fin>> atomposRead[3*a+1];
+            fin>> atomposRead[3*a+2];
+          }
+          fin.close();
+        }
+        // Broadcast the atomic position
+        MPI_Bcast( atomposRead.Data(), 3*numAtom, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+        Point3 pos;
+        for(Int a=0; a<numAtom; a++){
+          pos = Point3( atomposRead[3*a], atomposRead[3*a+1], atomposRead[3*a+2] );
+          atomList[a].pos = pos;
+        }
 
-         if( mpirank == 0 ){
-           PrintBlock( statusOFS, "Read in Atomic Position" );
-           {
-             for( Int a = 0; a < atomList0.size(); a++ ){
-               Print( statusOFS, "atom", a, "Position   ", atomList0[a].pos );
-             }
-           }
-         }
-       }//position read in for restart
+        if(mpirank == 0){
+          PrintBlock( statusOFS, "Read in Atomic Position" );
+          {
+            for( Int a = 0; a < numAtom; a++ ){
+              Print( statusOFS, "atom", a, "Position   ", atomList[a].pos );
+            }
+          }
+        }
+      } //position read in for restart
       else{
         if( mpirank == 0 ){
           PrintBlock(statusOFS, "Atom Type and Coordinates");
@@ -730,18 +740,36 @@ int main(int argc, char **argv)
         // Degree of freedom
         L=3*numAtom;
 
-        // FIXME One processor read and then distribute
+        // One processor read and then distribute
         if(esdfParam.isRestartThermostat){
-          fstream fin_v;
-          fin_v.open("lastthermo.out",ios::in);
-          for(Int i=0; i<numAtom; i++){
-            fin_v>> atomvel[i][0];
-            fin_v>> atomvel[i][1];
-            fin_v>> atomvel[i][2];
+          std::vector<Atom>&  atomList = esdfParam.atomList;
+          DblNumVec atomvelRead(3*numAtom);
+          Int numAtom = atomList.size();
+          if( mpirank == 0 ){
+            fstream fin;
+            fin.open("lastthermo.out",ios::in);
+            for(Int a=0; a<numAtom; a++){
+              fin>> atomvelRead[3*a+0];
+              fin>> atomvelRead[3*a+1];
+              fin>> atomvelRead[3*a+2];
+            }
+            fin >> vxi1;
+            fin >> K;
+            fin >> xi1;
+
+            fin.close();
           }
-          fin_v>> vxi1;
-          fin_v>> K;
-          fin_v>>xi1;
+          // Broadcast thermostat information
+          MPI_Bcast( atomvelRead.Data(), 3*numAtom, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+          MPI_Bcast( &vxi1, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+          MPI_Bcast( &K, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+          MPI_Bcast( &xi1, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+
+          Point3 vel;
+          for(Int a=0; a<numAtom; a++){
+            vel = Point3( atomvelRead[3*a], atomvelRead[3*a+1], atomvelRead[3*a+2] );
+            atomvel[a] = vel;
+          }
 
           if( mpirank == 0 ){
             PrintBlock( statusOFS, "Read in Atomic Velocity" );
@@ -925,12 +953,34 @@ int main(int argc, char **argv)
             }
           }
 
-          PrintBlock( statusOFS, "Updated Atomic Position" );
-          {
-            for( Int a = 0; a < numAtom; a++ ){
-              Print( statusOFS, "atom", a, "Position   ", atompos[a] );
+          if( mpirank == 0 ){
+            PrintBlock( statusOFS, "Updated Atomic Position" );
+            {
+              for( Int a = 0; a < numAtom; a++ ){
+                Print( statusOFS, "atom", a, "Position   ", atompos[a] );
+              }
             }
           }
+
+          // Output the XYZ format for movie
+          if( esdfParam.isOutputXYZ & mpirank == 0 ){
+            fstream fout;
+            fout.open("MD.xyz",ios::out | ios::app) ;
+            if( !fout.good() ){
+              throw std::logic_error( "Cannot open MD.xyz!" );
+            }
+            fout << numAtom << std::endl;
+            fout << "MD step # "<< iStep << std::endl;
+            for(Int a=0; a<numAtom; a++){
+              fout<< setw(6)<< atomList[a].type
+                << setw(16)<< atompos[a][0]*au2ang
+                << setw(16)<< atompos[a][1]*au2ang
+                << setw(16)<< atompos[a][2]*au2ang
+                << std::endl;
+            }
+            fout.close();
+          }
+
 
           if( mpirank == 0 ){
             if(esdfParam.isOutputPosition){

@@ -855,6 +855,11 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether the last position is outputed !*");
 
+	i++;
+	strcpy(kw_label[i],"output_xyz");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether to output the atomic position in XYZ format !*");
+
 }
 
 void esdf() {
@@ -1996,7 +2001,6 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 //			throw std::logic_error("Grid_Size cannot be found."); }
 
 		dm.posStart = Point3( 0.0, 0.0, 0.0 );
-
 	}
 
 	// Atoms
@@ -2360,10 +2364,14 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.MDMaxStep   = esdf_integer("MD_Max_Step", 10);
 		esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 50.0);
 		esdfParam.qMass       = esdf_double("Thermostat_Mass", 10.0);
-    esdfParam.isRestartPosition      = esdf_integer( "Restart_Position", 0 );
+    esdfParam.isRestartPosition     = esdf_integer( "Restart_Position", 0 );
 		esdfParam.isRestartThermostat   = esdf_integer( "Restart_Thermostat", 0 );
-		esdfParam.isOutputPosition       = esdf_integer( "Output_Position", 0 );
+		esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 0 );
 		esdfParam.isOutputThermostat    = esdf_integer( "Output_Thermostat", 0 );
+		esdfParam.isOutputXYZ           = esdf_integer( "Output_XYZ", 1 );
+
+    // Restart position / thermostat
+
   }
 
 #ifndef _RELEASE_
