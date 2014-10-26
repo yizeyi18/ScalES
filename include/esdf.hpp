@@ -566,6 +566,34 @@ namespace esdf{
     /// Default: 10 
     Int                 geoOptMaxStep;
 
+    /// @brief Maximum number of steps for MD simulation 
+    ///
+    /// Default: 10 
+		Int									MDMaxStep; 
+    /// @brief Time step for MD simulation.
+    ///
+    /// Default: 50.0
+		Int									MDTimeStep; 
+    /// @brief Mass for Nose-Hoover thermostat
+    ///
+    /// Default: 10.0
+		Real								qMass;								
+    /// @brief Whether to use the previous position
+    ///
+    /// Default: 0
+    bool                isRestartPosition;
+    /// @brief Whether to use the previous thermostat state
+    ///
+    /// Default: 0
+    bool                isRestartThermostat;
+    /// @brief Whether to output position information
+    ///
+    /// Default: 1
+    bool                isOutputPosition;
+    /// @brief Whether to output thermostat information
+    ///
+    /// Default: 1
+    bool                isOutputThermostat;
   };
 
   void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );

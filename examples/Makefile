@@ -3,25 +3,28 @@
 
 include ../make.inc
 
-SRCS = dgdft_bb.cpp pwdft_bb.cpp pwdft.cpp dgdft.cpp diagonalize.cpp
+SRCS = dgdft_NH1.cpp dgdft_bb.cpp pwdft_bb.cpp pwdft.cpp dgdft.cpp diagonalize.cpp
 
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 EXES = ${SRCS:.cpp=}	
 
-pwdft_bb: pwdft_bb.o ${DGdft_bb_LIB} 
+pwdft_bb: pwdft_bb.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ pwdft_bb.o $(LOADOPTS) )
 
 pwdft: pwdft.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ pwdft.o $(LOADOPTS) )
 
-dgdft_bb: dgdft_bb.o ${dgdft_bb_LIB} 
+dgdft_NH1: dgdft_NH1.o ${DGDFT_LIB} 
+	($(LOADER) -o $@ dgdft_NH1.o $(LOADOPTS) )
+
+dgdft_bb: dgdft_bb.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ dgdft_bb.o $(LOADOPTS) )
 
 dgdft: dgdft.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ dgdft.o $(LOADOPTS) )
 
-diagonalize: diagonalize.o ${diagonalize_LIB} 
+diagonalize: diagonalize.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ diagonalize.o $(LOADOPTS) )
 
 

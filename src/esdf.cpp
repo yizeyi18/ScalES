@@ -820,6 +820,41 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Maximum number of geometric optimization !*");
 
+	i++;
+	strcpy(kw_label[i],"md_max_step");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of Molecular Dynamics !*");
+
+	i++;
+	strcpy(kw_label[i],"md_time_step");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Time step of Molecular Dynamics !*");
+
+	i++;
+	strcpy(kw_label[i],"thermostat_mass");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Thermostat mass !*");
+
+	i++;
+	strcpy(kw_label[i],"restart_position");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether the last position is restarted!*");
+
+	i++;
+	strcpy(kw_label[i],"restart_thermostat");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether the last thermostat is restarted!*");
+
+  i++;
+	strcpy(kw_label[i],"output_thermostat");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether thermostat is outputed !*");
+
+	i++;
+	strcpy(kw_label[i],"output_position");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether the last position is outputed !*");
+
 }
 
 void esdf() {
@@ -2320,6 +2355,16 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.geoOptMaxStep = esdf_integer( "Geo_Opt_Max_Step", 10 );
   }
 
+  // Molecualr dynamics
+  {
+		esdfParam.MDMaxStep   = esdf_integer("MD_Max_Step", 10);
+		esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 50.0);
+		esdfParam.qMass       = esdf_double("Thermostat_Mass", 10.0);
+    esdfParam.isRestartPosition      = esdf_integer( "Restart_Position", 0 );
+		esdfParam.isRestartThermostat   = esdf_integer( "Restart_Thermostat", 0 );
+		esdfParam.isOutputPosition       = esdf_integer( "Output_Position", 0 );
+		esdfParam.isOutputThermostat    = esdf_integer( "Output_Thermostat", 0 );
+  }
 
 #ifndef _RELEASE_
 	PopCallStack();

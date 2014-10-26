@@ -337,6 +337,7 @@ public:
 	// Inquiry
 	// *********************************************************************
 	// Energy etc.
+  Real Efree() const {return Efree_;};	
 	
 
 }; // -----  end of class  SCFDG ----- 
