@@ -797,7 +797,27 @@ int main(int argc, char **argv)
           atomforce[i] = atomList[i].force;
         }
 
-        for (Int iStep=0; iStep<MDMaxStep ; iStep++){
+        // Output the XYZ format for movie
+        if( esdfParam.isOutputXYZ & mpirank == 0 ){
+          fstream fout;
+          fout.open("MD.xyz",ios::out | ios::app) ;
+          if( !fout.good() ){
+            throw std::logic_error( "Cannot open MD.xyz!" );
+          }
+          fout << numAtom << std::endl;
+          fout << "MD step # "<< 0 << std::endl;
+          for(Int a=0; a<numAtom; a++){
+            fout<< setw(6)<< atomList[a].type
+              << setw(16)<< atompos[a][0]*au2ang
+              << setw(16)<< atompos[a][1]*au2ang
+              << setw(16)<< atompos[a][2]*au2ang
+              << std::endl;
+          }
+          fout.close();
+        }
+
+
+        for (Int iStep=1; iStep <= MDMaxStep; iStep++){
           {
             std::ostringstream msg;
             msg << "MD step # " << iStep;
@@ -1045,7 +1065,7 @@ int main(int argc, char **argv)
           Print(statusOFS, "MD_K     =  ",K);
 
           Ktot =K+Efree+Q1*vxi1*vxi1/2.+L*T*xi1;
-          if(iStep == 0)
+          if(iStep == 1)
             KtotInitial = Ktot;
 
           Edrift= (Ktot-KtotInitial)/KtotInitial;
