@@ -630,8 +630,8 @@ int main(int argc, char **argv)
     GetTime( timeSta );
     scfDG.Iterate();
     GetTime( timeEnd );
-    statusOFS << "Time for SCF iteration is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//    statusOFS << "Time for SCF iteration is " <<
+//      timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
     // Compute force
     if( esdfParam.solutionMethod == "diag" ){
@@ -736,6 +736,28 @@ int main(int argc, char **argv)
         std::vector<Point3>  atompos(numAtom);
         std::vector<Point3>  atomvel(numAtom);
         std::vector<Point3>  atomforce(numAtom);
+
+        // History of density for extrapolation
+        Int maxHist = 1; // Linear extrapolation
+        std::vector<DistDblNumVec>    densityHist(maxHist);
+        // Initialize the history
+        for( Int l = 0; l < maxHist; l++ ){
+          DistDblNumVec& den = densityHist[l];
+          DistDblNumVec& denCur = hamDG.Density();
+          Index3& numElem = esdfParam.numElem;
+          // FIXME the communicator and partitioning of densityHist is
+          // not set since only the localmap is used.
+          int dmCol = numElem[0] * numElem[1] * numElem[2];
+          int dmRow = mpisize / dmCol;
+          for( Int k=0; k< numElem[2]; k++ )
+            for( Int j=0; j< numElem[1]; j++ )
+              for( Int i=0; i< numElem[0]; i++ ) {
+                Index3 key = Index3(i,j,k);
+                if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                  den.LocalMap()[key]     = denCur.LocalMap()[key];
+                } // own this element
+              }  // for (i)
+        }
 
         // Degree of freedom
         L=3*numAtom;
@@ -933,6 +955,32 @@ int main(int argc, char **argv)
           statusOFS << "Finish UpdatePseudoPotential DG." << std::endl;
 
           scfDG.Update( );
+
+          // Update the density through linear extrapolation
+          if(1)
+          {
+            Index3  numElem = esdfParam.numElem;
+            Int dmCol = numElem[0] * numElem[1] * numElem[2];
+            Int dmRow = mpisize / dmCol;
+            DistDblNumVec& denCur = hamDG.Density();
+            for( Int k=0; k< numElem[2]; k++ )
+              for( Int j=0; j< numElem[1]; j++ )
+                for( Int i=0; i< numElem[0]; i++ ) {
+                  Index3 key = Index3(i,j,k);
+                  if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                    DblNumVec& denCurVec = denCur.LocalMap()[key];
+                    DblNumVec& denHist0Vec = densityHist[0].LocalMap()[key];
+                    DblNumVec denSaveVec = denCurVec;
+                    for( Int a = 0; a < denCurVec.m(); a++ ){
+                      denCurVec(a) = 2.0 * denCurVec(a) - denHist0Vec(a);
+                      denHist0Vec(a) = denSaveVec(a);
+                    }
+                  } // own this element
+                }  // for (i)
+          }
+
+
+
 
           statusOFS << "Finish Update scfDG" << std::endl;
 

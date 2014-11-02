@@ -784,12 +784,16 @@ SCFDG::Iterate	(  )
 #endif
 
   Real timeIterStart(0), timeIterEnd(0);
+  Real timeTotalStart(0), timeTotalEnd(0);
   
 	bool isSCFConverged = false;
 
 	scfTotalInnerIter_  = 0;
 
-  for (Int iter=1; iter <= scfOuterMaxIter_; iter++) {
+  GetTime( timeTotalStart );
+
+  Int iter;
+  for (iter=1; iter <= scfOuterMaxIter_; iter++) {
     if ( isSCFConverged ) break;
 		
 		
@@ -1014,14 +1018,22 @@ SCFDG::Iterate	(  )
 						// Print out the information
 						statusOFS << std::endl 
 							<< "ALB calculation in extended element " << key << std::endl;
+            Real maxRes = 0.0, avgRes = 0.0;
 						for(Int ii = 0; ii < eigSol.EigVal().m(); ii++){
+              if( maxRes < eigSol.ResVal()(ii) ){
+                maxRes = eigSol.ResVal()(ii);
+              }
+              avgRes = avgRes + eigSol.ResVal()(ii);
 							Print(statusOFS, 
 									"basis#   = ", ii, 
 									"eigval   = ", eigSol.EigVal()(ii),
 									"resval   = ", eigSol.ResVal()(ii));
 						}
+            avgRes = avgRes / eigSol.EigVal().m();
 						statusOFS << std::endl;
-
+            Print(statusOFS, "Max residual of basis = ", maxRes );
+            Print(statusOFS, "Avg residual of basis = ", avgRes );
+						statusOFS << std::endl;
 
 						GetTime( timeSta );
 						Spinor& psi = eigSol.Psi();
@@ -1272,8 +1284,10 @@ SCFDG::Iterate	(  )
 
 
 
+#if ( _DEBUGlevel_ >= 0 )
                 statusOFS << "Singular values of the basis = " 
 									<< S << std::endl;
+#endif
 
 								statusOFS << "Number of significant SVD basis = " 
                   << numSVDBasisTotal << std::endl;
@@ -1312,8 +1326,6 @@ SCFDG::Iterate	(  )
     
     GetTime( timeBasisEnd );
 
-
-
 		statusOFS << "Time for generating ALB function is " <<
 			timeBasisEnd - timeBasisSta << " [s]" << std::endl << std::endl;
 
@@ -1350,7 +1362,7 @@ SCFDG::Iterate	(  )
     MPI_Barrier( domain_.comm );
 		GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-		statusOFS << "Time for outer SCF iteration is " <<
+		statusOFS << "Time for all inner SCF iterations is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -1423,10 +1435,23 @@ SCFDG::Iterate	(  )
 		// It seems that no mixing is the best.
 	
 		GetTime( timeIterEnd );
-		statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
+		statusOFS << "Time for this SCF iteration = " << timeIterEnd - timeIterStart
 			<< " [s]" << std::endl;
-  }
+  } // for( iter )
 
+  GetTime( timeTotalEnd );
+
+  statusOFS << std::endl;
+  statusOFS << "Total time for all SCF iterations = " << 
+    timeTotalEnd - timeTotalStart << " [s]" << std::endl;
+  if( isSCFConverged == true ){
+    statusOFS << "Total number of outer SCF steps = " <<
+      iter << std::endl;
+  }
+  else{
+    statusOFS << "Total number of outer SCF steps = " <<
+      scfOuterMaxIter_ << std::endl;
+  }
 
   // Output the electron density
   if( isOutputDensity_ ){
