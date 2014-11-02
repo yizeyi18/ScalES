@@ -73,6 +73,9 @@ private:
   Int                 eigMaxIter_;
   Real                scfInnerTolerance_;
 	Int                 scfInnerMaxIter_;
+  /// @brief Criterion for convergence using Efree rather than the
+  /// potential difference.
+	Real                scfOuterEnergyTolerance_;
 	Real                scfOuterTolerance_;
 	Int                 scfOuterMaxIter_;
 	Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
@@ -144,6 +147,7 @@ private:
 	Real                Tbeta_;                    // Inverse of temperature in atomic unit
 	Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional
 	Real                EfreeSecondOrder_;         // Second order accurate Helmholtz free energy 
+	Real                EfreeSave_;                    // Helmholtz free energy (KS energy functional) in the previous step
 	Real                Efree_;                    // Helmholtz free energy (KS energy functional)
 	Real                Etot_;                     // Total energy (KSenergy functional)
 	Real                Ekin_;                     // Kinetic energy

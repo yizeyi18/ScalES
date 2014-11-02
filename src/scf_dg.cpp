@@ -155,6 +155,7 @@ SCFDG::Setup	(
 		scfInnerMaxIter_    = esdfParam.scfInnerMaxIter;
 		scfOuterTolerance_  = esdfParam.scfOuterTolerance;
 		scfOuterMaxIter_    = esdfParam.scfOuterMaxIter;
+		scfOuterEnergyTolerance_ = esdfParam.scfOuterEnergyTolerance;
     numUnusedState_ = esdfParam.numUnusedState;
 		SVDBasisTolerance_  = esdfParam.SVDBasisTolerance;
     isEigToleranceDynamic_ = esdfParam.isEigToleranceDynamic;
@@ -669,6 +670,10 @@ SCFDG::Setup	(
 #endif
 	}
 
+
+  // Clear up the initial energy
+  EfreeSave_ = -999.0;
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -713,6 +718,7 @@ SCFDG::Update	( )
 		
 	
 	}
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -785,7 +791,7 @@ SCFDG::Iterate	(  )
 
   Real timeIterStart(0), timeIterEnd(0);
   Real timeTotalStart(0), timeTotalEnd(0);
-  
+
 	bool isSCFConverged = false;
 
 	scfTotalInnerIter_  = 0;
@@ -1356,6 +1362,9 @@ SCFDG::Iterate	(  )
 					} // own this element
 				} // for (i)
 
+    // Save the free energy
+    EfreeSave_ = Efree_;
+
     // Main function here
     InnerIterate( iter );
 
@@ -1370,6 +1379,8 @@ SCFDG::Iterate	(  )
 		// Post processing 
 		// *********************************************************************
 		
+    Int numAtom = hamDG.AtomList().size();
+    Real EfreeDifPerAtom = std::abs(Efree_ - EfreeSave_) / numAtom;
 
 		// Compute the error of the mixing variable 
 		{
@@ -1412,19 +1423,23 @@ SCFDG::Iterate	(  )
 
 			scfOuterNorm_    = normMixDif / normMixOld;
 
+
 			Print(statusOFS, "OUTERSCF: EfreeHarris                 = ", EfreeHarris_ ); 
 //			FIXME
 //			Print(statusOFS, "OUTERSCF: EfreeSecondOrder            = ", EfreeSecondOrder_ ); 
 			Print(statusOFS, "OUTERSCF: Efree                       = ", Efree_ ); 
-			Print(statusOFS, "OUTERSCF: inner norm(out-in)/norm(in) = ", scfInnerNorm_ ); 
-			Print(statusOFS, "OUTERSCF: outer norm(out-in)/norm(in) = ", scfOuterNorm_ ); 
-			statusOFS << std::endl;
+			Print(statusOFS, "OUTERSCF: norm(out-in)/norm(in) = ", scfOuterNorm_ ); 
+			Print(statusOFS, "OUTERSCF: Efree diff per atom   = ", EfreeDifPerAtom ); 
+      statusOFS << std::endl;
 		}
 
 //		// Print out the state variables of the current iteration
 //    PrintState( );
 
-    if( scfOuterNorm_ < scfOuterTolerance_ ){
+
+    if( iter >= 2 & 
+        ( scfOuterNorm_ < scfOuterTolerance_ | 
+          EfreeDifPerAtom < scfOuterEnergyTolerance_ ) ){
       /* converged */
       Print( statusOFS, "Outer SCF is converged!\n" );
 			statusOFS << std::endl;

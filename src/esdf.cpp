@@ -414,6 +414,12 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Outer SCF loop tolerance!*");
 
 	i++;
+	strcpy(kw_label[i],"scf_outer_energy_tolerance");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Outer SCF loop tolerance using free energy per atom!*");
+
+
+	i++;
 	strcpy(kw_label[i],"svd_basis_tolerance");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! Threshold for adaptive local basis in the SVD procedure!*");
@@ -2092,6 +2098,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
 		esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
 		esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-6 );
+		esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
 		esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
 		esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-6 );
 		esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  10 );

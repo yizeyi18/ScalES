@@ -169,6 +169,7 @@ int main(int argc, char **argv)
       Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
       Print(statusOFS, "SCF Outer Tol     = ",  esdfParam.scfOuterTolerance);
       Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
+      Print(statusOFS, "SCF Free Energy Per Atom Tol = ",  esdfParam.scfOuterEnergyTolerance);
       Print(statusOFS, "SCF Inner Tol     = ",  esdfParam.scfInnerTolerance);
       Print(statusOFS, "SCF Inner MaxIter = ",  esdfParam.scfInnerMaxIter);
       Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
