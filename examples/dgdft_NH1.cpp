@@ -78,9 +78,23 @@ int main(int argc, char **argv)
     // *********************************************************************
 
     // Initialize log file
-    stringstream  ss;
-    ss << "statfile." << mpirank;
-    statusOFS.open( ss.str().c_str() );
+#ifdef _RELEASE_
+    // In the release mode, only the master processor outputs information
+    if( mpirank == 0 ){
+      stringstream  ss;
+      ss << "statfile." << mpirank;
+      statusOFS.open( ss.str().c_str() );
+    }
+#else
+    // Every processor outputs information
+    {
+      stringstream  ss;
+      ss << "statfile." << mpirank;
+      statusOFS.open( ss.str().c_str() );
+    }
+#endif
+    
+
 
     // Initialize FFTW
     fftw_mpi_init();
@@ -839,6 +853,22 @@ int main(int argc, char **argv)
           fout.close();
         }
 
+        if( mpirank == 0 ){
+          if(esdfParam.isOutputPosition){
+            fstream fout;
+            fout.open("lastPos.out",ios::out);
+            if( !fout.good() ){
+              throw std::logic_error( "File cannot be open!" );
+            }
+            for(Int i=0; i<numAtom; i++){
+              fout<< setw(16)<< atompos[i][0];
+              fout<< setw(16)<< atompos[i][1];
+              fout<< setw(16)<< atompos[i][2];
+              fout<< std::endl;
+            }
+            fout.close();
+          }
+        }
 
         for (Int iStep=1; iStep <= MDMaxStep; iStep++){
           {
@@ -864,12 +894,14 @@ int main(int argc, char **argv)
             atompos[i] = atompos[i] + atomvel[i] * dt/2.;
           }
 
+#if ( _DEBUGlevel_ >= 1 )
           PrintBlock( statusOFS, "Atomic Position before SCF" );
           {
             for( Int a = 0; a < numAtom; a++ ){
               Print( statusOFS, "atom", a, "Position   ", atompos[a] );
             }
           }
+#endif
 
           // Update atomic position in the extended element
           // FIXME This part should be modulated
@@ -979,7 +1011,6 @@ int main(int argc, char **argv)
                   } // own this element
                 }  // for (i)
           }
-
 
 
 

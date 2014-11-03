@@ -49,8 +49,6 @@
 #include	"lapack.hpp"
 #include  "utility.hpp"
 
-#define _DEBUGlevel_ 0
-
 namespace  dgdft{
 
 using namespace dgdft::DensityComponent;
@@ -654,7 +652,7 @@ SCFDG::Setup	(
     scfOuterNorm_ = 1.0;
     scfInnerNorm_ = 1.0;
 
-#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 2 )
 		statusOFS << "PeriodicUniformToLGLMat[0] = "
 			<< PeriodicUniformToLGLMat_[0] << std::endl;
 		statusOFS << "PeriodicUniformToLGLMat[1] = " 
@@ -893,7 +891,7 @@ SCFDG::Iterate	(  )
 								}
 							} // for (d)
 
-#if ( _DEBUGlevel_ >= 1  )
+#if ( _DEBUGlevel_ >= 2  )
 							statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
 							statusOFS << "vBubble[0] = " << std::endl << vBubble[0] << std::endl;
 							statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
@@ -1000,12 +998,13 @@ SCFDG::Iterate	(  )
               eigTolNow = eigTolerance_;
             }
 
+#if ( _DEBUGlevel_ >= 0 ) 
             Int numEig = (eigSol.Psi().NumStateTotal())-numUnusedState_;
             statusOFS << "The current tolerance used by the eigensolver is " 
               << eigTolNow << std::endl;
             statusOFS << "The target number of converged eigenvectors is " 
               << numEig << std::endl;
-   
+#endif
            
             GetTime( timeSta );
             // FIXME multiple choices of solvers for the extended
@@ -1017,8 +1016,10 @@ SCFDG::Iterate	(  )
               eigSol.LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
             }
             GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
 						statusOFS << "Eigensolver time = " 	<< timeEnd - timeSta
 							<< " [s]" << std::endl;
+#endif
 
 
 						// Print out the information
@@ -1030,16 +1031,20 @@ SCFDG::Iterate	(  )
                 maxRes = eigSol.ResVal()(ii);
               }
               avgRes = avgRes + eigSol.ResVal()(ii);
+#if ( _DEBUGlevel_ >= 0 )
 							Print(statusOFS, 
 									"basis#   = ", ii, 
 									"eigval   = ", eigSol.EigVal()(ii),
 									"resval   = ", eigSol.ResVal()(ii));
+#endif
 						}
             avgRes = avgRes / eigSol.EigVal().m();
+#if ( _DEBUGlevel_ >= 0 )
 						statusOFS << std::endl;
             Print(statusOFS, "Max residual of basis = ", maxRes );
             Print(statusOFS, "Avg residual of basis = ", avgRes );
 						statusOFS << std::endl;
+#endif
 
 						GetTime( timeSta );
 						Spinor& psi = eigSol.Psi();
@@ -1116,8 +1121,11 @@ SCFDG::Iterate	(  )
           }
 #endif
 						GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
 						statusOFS << "Time for interpolating basis = " 	<< timeEnd - timeSta
 							<< " [s]" << std::endl;
+#endif
+
 
 						
             // Post processing for the basis functions on the LGL grid.
@@ -1290,13 +1298,15 @@ SCFDG::Iterate	(  )
 
 
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
                 statusOFS << "Singular values of the basis = " 
 									<< S << std::endl;
 #endif
 
+#if ( _DEBUGlevel_ >= 0 )
 								statusOFS << "Number of significant SVD basis = " 
                   << numSVDBasisTotal << std::endl;
+#endif
 
            
                 MPI_Barrier( domain_.rowComm );
@@ -1332,7 +1342,7 @@ SCFDG::Iterate	(  )
     
     GetTime( timeBasisEnd );
 
-		statusOFS << "Time for generating ALB function is " <<
+		statusOFS << std::endl << "Time for generating ALB function is " <<
 			timeBasisEnd - timeBasisSta << " [s]" << std::endl << std::endl;
 
 		
@@ -1721,7 +1731,7 @@ SCFDG::InnerIterate	( Int outerIter )
 
 		} // if ( innerIter == 1 )
 
-#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 2 )
     {
       statusOFS << "Owned H matrix blocks on this processor" << std::endl;
       for( std::map<ElemMatKey, DblNumMat>::iterator 
@@ -2089,7 +2099,7 @@ SCFDG::InnerIterate	( Int outerIter )
           mpirankScaVec[i] = i;
         }
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 2 )
         statusOFS << "mpirankElemVec = " << mpirankElemVec << std::endl;
         statusOFS << "mpirankScaVec = " << mpirankScaVec << std::endl;
 #endif
@@ -2102,7 +2112,7 @@ SCFDG::InnerIterate	( Int outerIter )
             domain_.colComm, mpirankElemVec,
             mpirankScaVec );
         GetTime( timeConversionEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
         statusOFS << "Time for converting from DistElemMat to ScaMat is " <<
           timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
@@ -2121,7 +2131,7 @@ SCFDG::InnerIterate	( Int outerIter )
           GetTime( timeConversionSta );
           scalapack::Syevd('U', scaH, eigs, scaZ);
           GetTime( timeConversionEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
           statusOFS << "Time for scalapack::Syevd is " <<
             timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
@@ -2137,7 +2147,7 @@ SCFDG::InnerIterate	( Int outerIter )
             domain_.colComm, mpirankElemVec, mpirankScaVec, 
             hamDG.NumStateTotal() );
         GetTime( timeConversionEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
         statusOFS << "Time for converting from ScaMat to DistNumMat is " <<
           timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
@@ -2154,7 +2164,7 @@ SCFDG::InnerIterate	( Int outerIter )
               }
             } 
         GetTime( timeConversionEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
         statusOFS << "Time for MPI_Bcast eigval and localCoef is " <<
           timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
@@ -2395,7 +2405,7 @@ SCFDG::InnerIterate	( Int outerIter )
 #endif
 
 
-#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 2 )
       if( mpirank < npPerPole_ ){
         statusOFS << "H.size = " << HSparseMat.size << std::endl;
         statusOFS << "H.nnz  = " << HSparseMat.nnz << std::endl;
@@ -2408,7 +2418,7 @@ SCFDG::InnerIterate	( Int outerIter )
  
 
 
-#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 2 )
       // Convert matrix back and forth to test the correctness of the
       // conversion routines.
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      HMat1;
@@ -2721,7 +2731,7 @@ SCFDG::InnerIterate	( Int outerIter )
         mpirankSparseVec[i] = i;
       }
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 2 )
         statusOFS << "mpirankElemVec = " << mpirankElemVec << std::endl;
         statusOFS << "mpirankSparseVec = " << mpirankSparseVec << std::endl;
 #endif
@@ -2771,7 +2781,7 @@ SCFDG::InnerIterate	( Int outerIter )
 #endif
 
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
       if( mpirank < npPerPole_ ){
         statusOFS << "H.size = " << HSparseMat.size << std::endl;
         statusOFS << "H.nnz  = " << HSparseMat.nnz << std::endl;
@@ -3186,9 +3196,11 @@ SCFDG::InnerIterate	( Int outerIter )
 			normMixOld = std::sqrt( normMixOld );
 
 			scfInnerNorm_    = normMixDif / normMixOld;
+#if ( _DEBUGlevel_ >= 1 )
 			Print(statusOFS, "norm(MixDif)          = ", normMixDif );
 			Print(statusOFS, "norm(MixOld)          = ", normMixOld );
 			Print(statusOFS, "norm(out-in)/norm(in) = ", scfInnerNorm_ );
+#endif
 		}
 
     if( scfInnerNorm_ < scfInnerTolerance_ ){
@@ -3291,7 +3303,7 @@ SCFDG::InnerIterate	( Int outerIter )
 
 			Real rhofac = hamDG.NumSpin() * hamDG.NumOccupiedState() / sumRho;
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 			statusOFS << std::endl;
 			Print( statusOFS, "Sum Rho after mixing (raw data) = ", sumRho );
 			statusOFS << std::endl;

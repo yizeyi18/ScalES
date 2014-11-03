@@ -49,7 +49,6 @@
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 
-#define _DEBUGlevel_ 0
 
 // FIXME Whether to include the non-local part
 #define _NON_LOCAL_  1
@@ -215,7 +214,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		}
 
 		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "Time for initial setup is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
@@ -333,7 +332,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 					} // own this element
 				} // for (i)
 		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "Time for the local gradient calculation is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
@@ -485,7 +484,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 				} // for (i)
 
 		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "Time for constructing the boundary terms is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
@@ -541,7 +540,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		basisJump[YR].GetBegin( boundaryYIdx, NO_MASK );
 		basisJump[ZR].GetBegin( boundaryZIdx, NO_MASK );
 		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "After the GetBegin part of communication." << std::endl;
 		statusOFS << "Time for GetBegin is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -729,7 +728,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 
 
     GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << 
 			"Time for computing the coefficient for nonlocal projector is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -792,7 +791,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 			vnlDrvCoef_[d].GetBegin( pseudoIdx, NO_MASK );
 
     GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << 
 			"Time for starting the communication of pseudopotential coefficent is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -1684,7 +1683,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 				} // for (i)
 
 		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "Time for the diagonal part of the DG matrix is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
@@ -1709,7 +1708,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 			vnlDrvCoef_[d].GetEnd( NO_MASK );
 
 		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << 
 			"Time for the communication of pseudopotential coefficent is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -1803,7 +1802,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		}
 
 		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << 
 			"Time for updating the nonlocal potential part of the matrix is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -1834,7 +1833,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		MPI_Barrier( domain_.rowComm );
 		MPI_Barrier( domain_.colComm );
 		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "Time for the remaining communication cost is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
@@ -2502,7 +2501,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 				} // for (i)
 
 		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "Time for the inter-element boundary calculation is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
@@ -2549,7 +2548,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 				 
 
 		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "Time for combining the matrix is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif

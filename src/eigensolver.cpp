@@ -53,7 +53,6 @@
 #include  "scalapack.hpp"
 #include  "mpi_interf.hpp"
 
-#define _DEBUGlevel_ 0
 
 namespace dgdft{
 
@@ -1696,11 +1695,14 @@ EigenSolver::LOBPCGSolveReal	(
       << resMax << std::endl << std::endl;
   }
 
+#if ( _DEBUGlevel_ >= 0 ) 
   statusOFS << "Time for iterGemmT = " << iterGemmT << "  timeGemmT = " << timeGemmT << std::endl;
   statusOFS << "Time for iterGemmN = " << iterGemmN << "  timeGemmN = " << timeGemmN << std::endl;
   statusOFS << "Time for iterTrsm = " << iterTrsm << "  timeTrsm = " << timeTrsm << std::endl;
   statusOFS << "Time for iterSpinor = " << iterSpinor << "  timeSpinor = " << timeSpinor << std::endl;
   statusOFS << "Time for iterMpirank0 = " << iterMpirank0 << "  timeMpirank0 = " << timeMpirank0 << std::endl;
+#endif
+
 
 #ifndef _RELEASE_
 	PopCallStack();

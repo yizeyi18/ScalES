@@ -49,7 +49,6 @@
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 
-#define _DEBUGlevel_ 0
 
 namespace dgdft{
 
@@ -1329,7 +1328,6 @@ HamiltonianDG::CalculateDensity	(
               blas::Axpy( numGrid, 1.0, localRhoLGLTmp.Data(), 1, localRhoLGL.Data(), 1 );
 						}
 
-						statusOFS << "Before interpolation" << std::endl;
 
 						// Interpolate the local density from LGL grid to uniform
 						// grid
@@ -1338,12 +1336,6 @@ HamiltonianDG::CalculateDensity	(
 								numUniformGridElemFine_, 
 								localRhoLGL.Data(), 
 								localRho.Data() );
-//						InterpLGLToUniform( 
-//								numLGLGridElem_, 
-//								numUniformGridElem_, 
-//								localRhoLGL.Data(), 
-//								localRho.Data() );
-						statusOFS << "After interpolation" << std::endl;
 
 						sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
 								localRhoLGL.Data(), 1, 
@@ -1363,7 +1355,7 @@ HamiltonianDG::CalculateDensity	(
 		mpi::Allreduce( &sumRhoLGLLocal, &sumRhoLGL, 1, MPI_SUM, domain_.colComm );
 		mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << std::endl;
 		Print( statusOFS, "Sum Rho on LGL grid (raw data) = ", sumRhoLGL );
 		Print( statusOFS, "Sum Rho on uniform grid (interpolated) = ", sumRho );
