@@ -280,26 +280,17 @@ int main(int argc, char **argv)
           atomList[a].pos = pos;
         }
 
-        if(mpirank == 0){
-          PrintBlock( statusOFS, "Read in Atomic Position" );
-          {
-            for( Int a = 0; a < numAtom; a++ ){
-              Print( statusOFS, "atom", a, "Position   ", atomList[a].pos );
-            }
-          }
-        }
       } //position read in for restart
-      else{
-        if( mpirank == 0 ){
-          PrintBlock(statusOFS, "Atom Type and Coordinates");
-  
-          const std::vector<Atom>&  atomList = esdfParam.atomList;
-          for(Int i=0; i < atomList.size(); i++) {
-            Print(statusOFS, "Type = ", atomList[i].type, "Position  = ", atomList[i].pos);
+      if(mpirank == 0){
+        const std::vector<Atom>&  atomList = esdfParam.atomList;
+        Int numAtom = atomList.size();
+        PrintBlock( statusOFS, "Initial Atomic Position" );
+        {
+          for( Int a = 0; a < numAtom; a++ ){
+            Print(statusOFS, "Type = ", atomList[a].type, "Position  = ", atomList[a].pos);
           }
         }
       }
-
 
       statusOFS << std::endl;
     }
@@ -637,78 +628,18 @@ int main(int argc, char **argv)
     statusOFS << "Time for setting up SCFDG is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-    // *********************************************************************
-    // Solve
-    // *********************************************************************
-
-    // Main SCF iteration
-    GetTime( timeSta );
+    // FIXME
+    // This SCF iteration is NOT NECESSARY, but can be more stable
+    // especially for the initial step
+    // In the future this should be substituted either by a more complete restart scheme,
+    // or by an option to do more SCF steps initially, or both
     scfDG.Iterate();
-    GetTime( timeEnd );
-//    statusOFS << "Time for SCF iteration is " <<
-//      timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-    // Compute force
-    if( esdfParam.solutionMethod == "diag" ){
-      GetTime( timeSta );
-
-      hamDG.CalculateForce( distfft );
-      // Print out the force. 
-      // Only master processor output information containing all atoms
-      if( mpirank == 0 ){
-        PrintBlock( statusOFS, "Atomic Force" );
-        {
-          Point3 forceCM(0.0, 0.0, 0.0);
-          std::vector<Atom>& atomList = hamDG.AtomList();
-          Int numAtom = atomList.size();
-          for( Int a = 0; a < numAtom; a++ ){
-            Print( statusOFS, "atom", a, "force", atomList[a].force );
-            forceCM += atomList[a].force;
-          }
-          statusOFS << std::endl;
-          Print( statusOFS, "force for centroid: ", forceCM );
-          statusOFS << std::endl;
-        }
-      }
-
-      GetTime( timeEnd );
-      statusOFS << "Time for computing the force is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-      // Compute the a posteriori error estimator
-//      GetTime( timeSta );
-//      DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-//      hamDG.CalculateAPosterioriError( 
-//          eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-//      GetTime( timeEnd );
-//      statusOFS << "Time for computing the a posteriori error is " <<
-//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//
-//      // Only master processor output information containing all atoms
-//      if( mpirank == 0 ){
-//        PrintBlock( statusOFS, "A Posteriori error" );
-//        {
-//          statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-//          statusOFS << eta2Total << std::endl;
-//          statusOFS << std::endl << "Residual term:" << std::endl;
-//          statusOFS << eta2Residual << std::endl;
-//          statusOFS << std::endl << "Face term:" << std::endl;
-//          statusOFS << eta2GradJump << std::endl;
-//          statusOFS << std::endl << "Jump term:" << std::endl;
-//          statusOFS << eta2Jump << std::endl;
-//        }
-//      }
-    }
-#ifdef _USE_PEXSI_
-    if( esdfParam.solutionMethod == "pexsi" ){
-      // FIXME Introduce distDMMat to hamDG
-      //      hamDG.CalculateForceDM( *distfftPtr_, distDMMat );
-    }
-#endif
-
-
+    // LLIN: 11/3/2014. NO SCF calculation here, postpone to MD stpes
+    
 		// *********************************************************************
 		// Nose-Hoover Thermostat: Level 1
+    // Algorithm: Frenkel-Smit, pp 540-542
 		// *********************************************************************
     if(1){
       Int L;
@@ -729,7 +660,6 @@ int main(int argc, char **argv)
 
 
       Real T = 1. / esdfParam.Tbeta;
-      Print(statusOFS, "debug: Temperature ",T);
 
       //*********MD starts***********
       //NHC-MD propagate if NSW!=0
@@ -745,8 +675,12 @@ int main(int argc, char **argv)
             throw std::logic_error( "Cannot find the atom type." );
           }
           atomMass[a]=amu2au*ptable.ptemap()[atype].params(PTParam::MASS); 
-          Print(statusOFS, "atom Mass  = ", atomMass[a]);
         }
+#if ( _DEBUGlevel_ >= 0 )
+        for(Int a=0; a < numAtom; a++) {
+          Print( statusOFS, "atom", a, "Type  ", atomList[a].type, "Mass  ", atomMass[a] );
+        }
+#endif
 
         std::vector<Point3>  atompos(numAtom);
         std::vector<Point3>  atomvel(numAtom);
@@ -779,9 +713,7 @@ int main(int argc, char **argv)
 
         // One processor read and then distribute
         if(esdfParam.isRestartThermostat){
-          std::vector<Atom>&  atomList = esdfParam.atomList;
           DblNumVec atomvelRead(3*numAtom);
-          Int numAtom = atomList.size();
           if( mpirank == 0 ){
             fstream fin;
             fin.open("lastthermo.out",ios::in);
@@ -831,43 +763,6 @@ int main(int argc, char **argv)
 
         for( Int i = 0; i < numAtom; i++ ){
           atompos[i]   = atomList[i].pos;
-          atomforce[i] = atomList[i].force;
-        }
-
-        // Output the XYZ format for movie
-        if( esdfParam.isOutputXYZ & mpirank == 0 ){
-          fstream fout;
-          fout.open("MD.xyz",ios::out | ios::app) ;
-          if( !fout.good() ){
-            throw std::logic_error( "Cannot open MD.xyz!" );
-          }
-          fout << numAtom << std::endl;
-          fout << "MD step # "<< 0 << std::endl;
-          for(Int a=0; a<numAtom; a++){
-            fout<< setw(6)<< atomList[a].type
-              << setw(16)<< atompos[a][0]*au2ang
-              << setw(16)<< atompos[a][1]*au2ang
-              << setw(16)<< atompos[a][2]*au2ang
-              << std::endl;
-          }
-          fout.close();
-        }
-
-        if( mpirank == 0 ){
-          if(esdfParam.isOutputPosition){
-            fstream fout;
-            fout.open("lastPos.out",ios::out);
-            if( !fout.good() ){
-              throw std::logic_error( "File cannot be open!" );
-            }
-            for(Int i=0; i<numAtom; i++){
-              fout<< setw(16)<< atompos[i][0];
-              fout<< setw(16)<< atompos[i][1];
-              fout<< setw(16)<< atompos[i][2];
-              fout<< std::endl;
-            }
-            fout.close();
-          }
         }
 
         for (Int iStep=1; iStep <= MDMaxStep; iStep++){
@@ -877,6 +772,7 @@ int main(int argc, char **argv)
             PrintBlock( statusOFS, msg.str() );
           }
 
+          // Propagate the chain
           //numchain=1 start//
           vxi1 = vxi1+(K*2-L*T)/Q1*dt/4.;
           xi1 = xi1+vxi1*dt/2.;
@@ -893,15 +789,6 @@ int main(int argc, char **argv)
           for(Int i=0; i<numAtom; i++) {
             atompos[i] = atompos[i] + atomvel[i] * dt/2.;
           }
-
-#if ( _DEBUGlevel_ >= 1 )
-          PrintBlock( statusOFS, "Atomic Position before SCF" );
-          {
-            for( Int a = 0; a < numAtom; a++ ){
-              Print( statusOFS, "atom", a, "Position   ", atompos[a] );
-            }
-          }
-#endif
 
           // Update atomic position in the extended element
           // FIXME This part should be modulated
@@ -968,7 +855,6 @@ int main(int argc, char **argv)
 
                   }//own this element
                 }//(i)
-
           }
 
           statusOFS << "Finish hamKS UpdatePseudoPotential" << std::endl;
@@ -1020,30 +906,45 @@ int main(int argc, char **argv)
 
           statusOFS << "Finish scfDG Iterate" << std::endl;
 
-          if( esdfParam.solutionMethod == "diag" ){
-            hamDG.CalculateForce( distfft );
+          {
+            if( esdfParam.solutionMethod == "diag" ){
+              hamDG.CalculateForce( distfft );
+            }
+            else if( esdfParam.solutionMethod == "pexsi" ){
+              // FIXME Introduce distDMMat to hamDG
+              //      hamDG.CalculateForceDM( *distfftPtr_, distDMMat );
+            }
 
-            PrintBlock( statusOFS, "Atomic Force" );
-            {
-              Point3 forceCM(0.0, 0.0, 0.0);
-              std::vector<Atom>& atomList = hamDG.AtomList();
-              Int numAtom = atomList.size();
-              for( Int a = 0; a < numAtom; a++ ){
-                atomforce[a]=atomList[a].force;
-                Print( statusOFS, "atom", a, "force", atomList[a].force );
-                forceCM += atomList[a].force;
-              }
-              statusOFS << std::endl;
-              Print( statusOFS, "force for centroid: ", forceCM );
-              statusOFS << std::endl;
+            for( Int a = 0; a < numAtom; a++ ){
+              atomforce[a]=atomList[a].force;
             }
           }
 
-          if( esdfParam.solutionMethod == "pexsi" ){
-            // FIXME Introduce distDMMat to hamDG
-            //      hamDG.CalculateForceDM( *distfftPtr_, distDMMat );
-          }
+          // Output intermediate information
+#if ( _DEBUGlevel_ >= 0 )
+          if( mpirank == 0 ){
+            PrintBlock( statusOFS, "Atomic Position, Velocity, Force at the same time step" ); 
+            for( Int a = 0; a < numAtom; a++ ){
+              Print( statusOFS, "atom", a, "Position   ", atompos[a] );
+            }
+            statusOFS << std::endl;
+            for( Int a = 0; a < numAtom; a++ ){
+              Print( statusOFS, "atom", a, "Velocity   ", atomvel[a] );
+            }
+            statusOFS << std::endl;
 
+            Point3 forceCM(0.0, 0.0, 0.0);
+            for( Int a = 0; a < numAtom; a++ ){
+              forceCM += atomList[a].force;
+              Print( statusOFS, "atom", a, "Force      ", atomforce[a] );
+            }
+            statusOFS << std::endl;
+            Print( statusOFS, "force for centroid: ", forceCM );
+            statusOFS << std::endl;
+          }
+#endif
+
+          // Update kinetic energy, position and velocity
           K=0.;
           for(Int i=0; i<numAtom; i++){
             atomvel[i] = atomvel[i] + atomforce[i]*dt/atomMass[i]; 
@@ -1053,14 +954,18 @@ int main(int argc, char **argv)
             }
           }
 
-          if( mpirank == 0 ){
-            PrintBlock( statusOFS, "Updated Atomic Position" );
-            {
-              for( Int a = 0; a < numAtom; a++ ){
-                Print( statusOFS, "atom", a, "Position   ", atompos[a] );
-              }
-            }
+
+          //nuchain=1//
+          vxi1 = vxi1+(K*2.-L*T)/Q1*dt/4.;
+          xi1  = xi1+vxi1*dt/2.;
+          s    = std::exp(-vxi1*dt/2.);
+          for(Int i=0;i<numAtom;i++){
+            atomvel[i]=s*atomvel[i];
           }
+          K=K*s*s;
+
+          vxi1=vxi1+(2*K-L*T)/Q1*dt/4.;
+          //numchain=1 end//
 
           // Output the XYZ format for movie
           if( esdfParam.isOutputXYZ & mpirank == 0 ){
@@ -1081,7 +986,7 @@ int main(int argc, char **argv)
             fout.close();
           }
 
-
+          // Output position and thermostat
           if( mpirank == 0 ){
             if(esdfParam.isOutputPosition){
               fstream fout;
@@ -1099,25 +1004,6 @@ int main(int argc, char **argv)
             }
           }
 
-          //nuchain=1//
-          vxi1 = vxi1+(K*2.-L*T)/Q1*dt/4.;
-          xi1  = xi1+vxi1*dt/2.;
-          s    = std::exp(-vxi1*dt/2.);
-          for(Int i=0;i<numAtom;i++){
-            atomvel[i]=s*atomvel[i];
-          }
-          K=K*s*s;
-
-          vxi1=vxi1+(2*K-L*T)/Q1*dt/4.;
-
-          if( mpirank == 0 ){
-            PrintBlock( statusOFS, "Scaled Atomic Velocity" );
-            {
-              for( Int a = 0; a < numAtom; a++ ){
-                Print( statusOFS, "atom", a, "Velocity   ", atomvel[a] );
-              }
-            }
-          }
 
           if( mpirank == 0 ){
             if(esdfParam.isOutputThermostat){
@@ -1138,8 +1024,8 @@ int main(int argc, char **argv)
               fout_v.close();
             }
           }
-          //numchain=1 end//
 
+          // Output conserved quantities
           Efree = scfDG.Efree();
           Print(statusOFS, "MD_Efree =  ",Efree);
           Print(statusOFS, "MD_K     =  ",K);
