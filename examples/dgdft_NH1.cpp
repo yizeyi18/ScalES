@@ -172,7 +172,6 @@ int main(int argc, char **argv)
       Print(statusOFS, "OutputThermostat  = ",  esdfParam.isOutputThermostat );
       Print(statusOFS, "Output XYZ format = ",  esdfParam.isOutputXYZ );
 
-			Print(statusOFS, "Max steps for geometry opt (not used here) = ",  esdfParam.geoOptMaxStep );
 
       Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
       Print(statusOFS, "Grid wfc size     = ",  esdfParam.domain.numGrid ); 
@@ -906,18 +905,22 @@ int main(int argc, char **argv)
 
           statusOFS << "Finish scfDG Iterate" << std::endl;
 
+          // Force calculation
           {
+            GetTime( timeSta );
             if( esdfParam.solutionMethod == "diag" ){
               hamDG.CalculateForce( distfft );
             }
             else if( esdfParam.solutionMethod == "pexsi" ){
-              // FIXME Introduce distDMMat to hamDG
-              //      hamDG.CalculateForceDM( *distfftPtr_, distDMMat );
+              hamDG.CalculateForceDM( distfft, scfDG.DMMat() );
             }
 
             for( Int a = 0; a < numAtom; a++ ){
               atomforce[a]=atomList[a].force;
             }
+            GetTime( timeEnd );
+            statusOFS << "Time for computing the force is " <<
+              timeEnd - timeSta << " [s]" << std::endl << std::endl;
           }
 
           // Output intermediate information
@@ -1027,8 +1030,10 @@ int main(int argc, char **argv)
 
           // Output conserved quantities
           Efree = scfDG.Efree();
+
           Print(statusOFS, "MD_Efree =  ",Efree);
           Print(statusOFS, "MD_K     =  ",K);
+          Print(statusOFS, "MD_Fermi =  ",scfDG.Fermi());
 
           Ktot =K+Efree+Q1*vxi1*vxi1/2.+L*T*xi1;
           if(iStep == 1)

@@ -77,9 +77,21 @@ int main(int argc, char **argv)
     // *********************************************************************
 
     // Initialize log file
-    stringstream  ss;
-    ss << "statfile." << mpirank;
-    statusOFS.open( ss.str().c_str() );
+#ifdef _RELEASE_
+    // In the release mode, only the master processor outputs information
+    if( mpirank == 0 ){
+      stringstream  ss;
+      ss << "statfile." << mpirank;
+      statusOFS.open( ss.str().c_str() );
+    }
+#else
+    // Every processor outputs information
+    {
+      stringstream  ss;
+      ss << "statfile." << mpirank;
+      statusOFS.open( ss.str().c_str() );
+    }
+#endif
 
     // Initialize FFTW
     fftw_mpi_init();
@@ -149,6 +161,9 @@ int main(int argc, char **argv)
 
 
 			Print(statusOFS, "Max steps for geometry opt = ",  esdfParam.geoOptMaxStep );
+      Print(statusOFS, "RestartPosition   = ",  esdfParam.isRestartPosition); 
+      Print(statusOFS, "OutputPosition    = ",  esdfParam.isOutputPosition );
+      Print(statusOFS, "Output XYZ format = ",  esdfParam.isOutputXYZ );
 
       Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
       Print(statusOFS, "Grid wfc size     = ",  esdfParam.domain.numGrid ); 
@@ -159,6 +174,7 @@ int main(int argc, char **argv)
       Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
       Print(statusOFS, "SCF Outer Tol     = ",  esdfParam.scfOuterTolerance);
       Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
+      Print(statusOFS, "SCF Free Energy Per Atom Tol = ",  esdfParam.scfOuterEnergyTolerance);
       Print(statusOFS, "SCF Inner Tol     = ",  esdfParam.scfInnerTolerance);
       Print(statusOFS, "SCF Inner MaxIter = ",  esdfParam.scfInnerMaxIter);
       Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
@@ -231,13 +247,39 @@ int main(int argc, char **argv)
           esdfParam.isCalculateAPosterioriEachSCF);
 
 
-      // Only master processor output information containing all atoms
-      if( mpirank == 0 ){
-        PrintBlock(statusOFS, "Atom Type and Coordinates");
+      // Read position from lastPos.out into esdfParam.atomList[i].pos if isRestartPosition=1
+      if(esdfParam.isRestartPosition){
+        std::vector<Atom>&  atomList = esdfParam.atomList;
+        Int numAtom = atomList.size();
+        DblNumVec atomposRead(3*numAtom);
+        // Only master processor read and then distribute
+        if( mpirank == 0 ){
+          fstream fin;
+          fin.open("lastPos.out",ios::in);
+          for(Int a=0; a<numAtom; a++){
+            fin>> atomposRead[3*a];
+            fin>> atomposRead[3*a+1];
+            fin>> atomposRead[3*a+2];
+          }
+          fin.close();
+        }
+        // Broadcast the atomic position
+        MPI_Bcast( atomposRead.Data(), 3*numAtom, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+        Point3 pos;
+        for(Int a=0; a<numAtom; a++){
+          pos = Point3( atomposRead[3*a], atomposRead[3*a+1], atomposRead[3*a+2] );
+          atomList[a].pos = pos;
+        }
 
+      } //position read in for restart
+      if(mpirank == 0){
         const std::vector<Atom>&  atomList = esdfParam.atomList;
-        for(Int i=0; i < atomList.size(); i++) {
-          Print(statusOFS, "Type = ", atomList[i].type, "Position  = ", atomList[i].pos);
+        Int numAtom = atomList.size();
+        PrintBlock( statusOFS, "Initial Atomic Position" );
+        {
+          for( Int a = 0; a < numAtom; a++ ){
+            Print(statusOFS, "Type = ", atomList[a].type, "Position  = ", atomList[a].pos);
+          }
         }
       }
 
@@ -252,8 +294,6 @@ int main(int argc, char **argv)
     // Preparation
     // *********************************************************************
 
-    Int geoOptMaxStep = esdfParam.geoOptMaxStep;
-    
     // FIXME IMPORTANT: RandomSeed cannot be the same.
     // SetRandomSeed(1);
     SetRandomSeed(mpirank);
@@ -591,67 +631,39 @@ int main(int argc, char **argv)
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
     // Compute force
-    if( esdfParam.solutionMethod == "diag" ){
+    {
       GetTime( timeSta );
-
-      hamDG.CalculateForce( distfft );
-      // Print out the force. 
-      // Only master processor output information containing all atoms
-      if( mpirank == 0 ){
-        PrintBlock( statusOFS, "Atomic Force" );
-        {
-          Point3 forceCM(0.0, 0.0, 0.0);
-          std::vector<Atom>& atomList = hamDG.AtomList();
-          Int numAtom = atomList.size();
-          for( Int a = 0; a < numAtom; a++ ){
-            Print( statusOFS, "atom", a, "force", atomList[a].force );
-            forceCM += atomList[a].force;
-          }
-          statusOFS << std::endl;
-          Print( statusOFS, "force for centroid: ", forceCM );
-          statusOFS << std::endl;
-        }
+      if( esdfParam.solutionMethod == "diag" ){
+        hamDG.CalculateForce( distfft );
+      }
+      else if( esdfParam.solutionMethod == "pexsi" ){
+        hamDG.CalculateForceDM( distfft, scfDG.DMMat() );
       }
 
       GetTime( timeEnd );
       statusOFS << "Time for computing the force is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-      // Compute the a posteriori error estimator
-//      GetTime( timeSta );
-//      DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-//      hamDG.CalculateAPosterioriError( 
-//          eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-//      GetTime( timeEnd );
-//      statusOFS << "Time for computing the a posteriori error is " <<
-//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//
-//      // Only master processor output information containing all atoms
-//      if( mpirank == 0 ){
-//        PrintBlock( statusOFS, "A Posteriori error" );
-//        {
-//          statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-//          statusOFS << eta2Total << std::endl;
-//          statusOFS << std::endl << "Residual term:" << std::endl;
-//          statusOFS << eta2Residual << std::endl;
-//          statusOFS << std::endl << "Face term:" << std::endl;
-//          statusOFS << eta2GradJump << std::endl;
-//          statusOFS << std::endl << "Jump term:" << std::endl;
-//          statusOFS << eta2Jump << std::endl;
-//        }
-//      }
     }
-#ifdef _USE_PEXSI_
-    if( esdfParam.solutionMethod == "pexsi" ){
-      // FIXME Introduce distDMMat to hamDG
-      //      hamDG.CalculateForceDM( *distfftPtr_, distDMMat );
+    if( mpirank == 0 ){
+      Point3 forceCM(0.0, 0.0, 0.0);
+      std::vector<Atom>& atomList = hamDG.AtomList(); 
+      Int numAtom = atomList.size(); 
+      for( Int a = 0; a < numAtom; a++ ){
+        forceCM += atomList[a].force;
+        Print( statusOFS, "atom", a, "Force      ", atomList[a].force );
+      }
+      statusOFS << std::endl;
+      Print( statusOFS, "force for centroid: ", forceCM );
+      statusOFS << std::endl;
     }
-#endif
 
 
 		// *********************************************************************
 		// Geometry optimization with BB method
 		// *********************************************************************
+    
+    Int geoOptMaxStep = esdfParam.geoOptMaxStep;
+    
 
     if(1){
       std::vector<Atom>& atomList = hamDG.AtomList();
@@ -673,8 +685,7 @@ int main(int argc, char **argv)
         atomforceOld[i] = atomforce[i];
       }
 
-      for( Int iterOpt = 0; iterOpt < geoOptMaxStep; iterOpt++ ){
-
+      for( Int iterOpt = 1; iterOpt <= geoOptMaxStep; iterOpt++ ){
         {
           std::ostringstream msg;
           msg << "Geometry optimization step # " << iterOpt;
@@ -682,7 +693,7 @@ int main(int argc, char **argv)
         }
 
 
-        if( iterOpt == 0 ){
+        if( iterOpt == 1 ){
           for( Int i = 0; i < numAtom; i++ ){
             atompos[i]   = atompos[i] + 0.1 * atomforce[i];
           }
@@ -705,6 +716,9 @@ int main(int argc, char **argv)
             atomforceOld[i] = atomforce[i];
             // Update the atomic position
             atompos[i]   = atompos[i] + step * atomforce[i];
+          }
+          if( mpirank == 0 ){
+            statusOFS << "Current relative step size for BB method: " << step << std::endl;
           }
         }
 
@@ -775,11 +789,6 @@ int main(int argc, char **argv)
 
         }
 
-          // Update the atomic position in the Hamiltonian
-          for(Int i = 0; i < numAtom; i++){
-          Print(statusOFS, "Current Position    = ",  atompos[i]);
-        }
-
 			  statusOFS << "Finish hamKS UpdatePseudoPotential" << std::endl;
 
         std::vector<Atom> atomListTmp;
@@ -802,35 +811,87 @@ int main(int argc, char **argv)
 
     		scfDG.Iterate();
 
-        // FIXME: Only diagonalization first
+        // Compute the force
         if( esdfParam.solutionMethod == "diag" ){
     		  hamDG.CalculateForce( distfft );
-
-				  PrintBlock( statusOFS, "Atomic Force" );
-				  {
-				    Point3 forceCM(0.0, 0.0, 0.0);
-            Real maxForce = 0.0;
-            Real avgForce = 0.0;
-				    std::vector<Atom>& atomList = hamDG.AtomList();
-				    Int numAtom = atomList.size();
-				    for( Int a = 0; a < numAtom; a++ ){
-          		atomforce[a]=atomList[a].force;
-				      Print( statusOFS, "atom", a, "force", atomList[a].force );
-				      forceCM += atomList[a].force;
-              Real forceMag = atomforce[a].l2();
-              maxForce = ( maxForce < forceMag ) ? forceMag : maxForce;
-              avgForce = avgForce + forceMag;
-				    }
-            avgForce = avgForce / double(numAtom);
-
-				    statusOFS << std::endl;
-				    Print( statusOFS, "Max force magnitude: ", maxForce );
-				    Print( statusOFS, "Avg force magnitude: ", avgForce );
-				    Print( statusOFS, "force for centroid:  ", forceCM );
-				    statusOFS << std::endl;
-				  }
+        }
+        else if( esdfParam.solutionMethod == "pexsi" ){
+          hamDG.CalculateForceDM( distfft, scfDG.DMMat() );
         }
 
+        {
+          Point3 forceCM(0.0, 0.0, 0.0);
+          Real maxForce = 0.0;
+          Real avgForce = 0.0;
+          std::vector<Atom>& atomList = hamDG.AtomList();
+          Int numAtom = atomList.size();
+          for( Int a = 0; a < numAtom; a++ ){
+            atomforce[a]=atomList[a].force;
+            forceCM += atomList[a].force;
+            Real forceMag = atomforce[a].l2();
+            maxForce = ( maxForce < forceMag ) ? forceMag : maxForce;
+            avgForce = avgForce + forceMag;
+          }
+          avgForce = avgForce / double(numAtom);
+
+#if ( _DEBUGlevel_ >= 0 )
+          if( mpirank == 0 ){
+            PrintBlock( statusOFS, "Atomic Position and Force" ); 
+            for( Int a = 0; a < numAtom; a++ ){
+              Print( statusOFS, "atom", a, "Position   ", atompos[a] );
+            }
+            statusOFS << std::endl;
+
+            for( Int a = 0; a < numAtom; a++ ){
+              Print( statusOFS, "atom", a, "Force      ", atomforce[a] );
+            }
+
+            statusOFS << std::endl;
+            Print( statusOFS, "Max force magnitude: ", maxForce );
+            Print( statusOFS, "Avg force magnitude: ", avgForce );
+            Print( statusOFS, "force for centroid:  ", forceCM );
+            statusOFS << std::endl;
+          }
+#endif
+        }
+
+
+        // Output position 
+        if( mpirank == 0 ){
+          if(esdfParam.isOutputPosition){
+            fstream fout;
+            fout.open("lastPos.out",ios::out);
+            if( !fout.good() ){
+              throw std::logic_error( "File cannot be open!" );
+            }
+            for(Int i=0; i<numAtom; i++){
+              fout<< setw(16)<< atompos[i][0];
+              fout<< setw(16)<< atompos[i][1];
+              fout<< setw(16)<< atompos[i][2];
+              fout<< std::endl;
+            }
+            fout.close();
+          }
+        }
+
+        // Output the XYZ format for movie
+        if( esdfParam.isOutputXYZ & mpirank == 0 ){
+          fstream fout;
+          fout.open("GEO.xyz",ios::out | ios::app) ;
+          if( !fout.good() ){
+            throw std::logic_error( "Cannot open GEO.xyz!" );
+          }
+          fout << numAtom << std::endl;
+          fout << "GEO step # "<< iterOpt << std::endl;
+          for(Int a=0; a<numAtom; a++){
+            fout<< setw(6)<< atomList[a].type
+              << setw(16)<< atompos[a][0]*au2ang
+              << setw(16)<< atompos[a][1]*au2ang
+              << setw(16)<< atompos[a][2]*au2ang
+              << std::endl;
+          }
+          fout.close();
+        }
 
 
       } // for ( iterOpt )

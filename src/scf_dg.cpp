@@ -669,9 +669,6 @@ SCFDG::Setup	(
 	}
 
 
-  // Clear up the initial energy
-  EfreeSave_ = -999.0;
-
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -1372,9 +1369,6 @@ SCFDG::Iterate	(  )
 					} // own this element
 				} // for (i)
 
-    // Save the free energy
-    EfreeSave_ = Efree_;
-
     // Main function here
     InnerIterate( iter );
 
@@ -1390,7 +1384,7 @@ SCFDG::Iterate	(  )
 		// *********************************************************************
 		
     Int numAtom = hamDG.AtomList().size();
-    Real EfreeDifPerAtom = std::abs(Efree_ - EfreeSave_) / numAtom;
+    Real EfreeDifPerAtom = std::abs(Efree_ - EfreeHarris_) / numAtom;
 
 		// Compute the error of the mixing variable 
 		{
@@ -2353,363 +2347,8 @@ SCFDG::InnerIterate	( Int outerIter )
     // Method 2: Using the pole expansion and selected inversion (PEXSI) method
     // FIXME Currently it is assumed that all processors used by DG will be used by PEXSI.
 #ifdef _USE_PEXSI_
-    // The following version is without intra-element parallelization
-    if( solutionMethod_ == "pexsi" & 0 ){
-      Real timePEXSISta, timePEXSIEnd;
-      GetTime( timePEXSISta );
-
-      Real numElectronExact = hamDG.NumOccupiedState() * hamDG.NumSpin();
-      Real muMinInertia, muMaxInertia;
-      Real muPEXSI, numElectronPEXSI;
-      Int numTotalInertiaIter, numTotalPEXSIIter;
-
-      // Temporary matrices 
-      DistSparseMatrix<Real>  HSparseMat;
-      DistSparseMatrix<Real>  DMSparseMat;
-      DistSparseMatrix<Real>  EDMSparseMat;
-      DistSparseMatrix<Real>  FDMSparseMat;
-
-
-      Int info;
-      
-      // Create an MPI communicator for saving the H matrix in a
-      // subgroup of processors
-      Int npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_;
-      MPI_Comm HCSCComm;
-      Int isProcHCSC = ( mpirank < npPerPole_ ) ? 1 : 0;
-      
-      MPI_Comm_split( MPI_COMM_WORLD, isProcHCSC, mpirank, &HCSCComm );
-      
-      // Convert the DG matrix into the distributed CSC format
-
-			GetTime(timeSta);
-			DistElemMatToDistSparseMat( 
-					hamDG.HMat(),
-					hamDG.NumBasisTotal(),
-					HSparseMat,
-					hamDG.ElemBasisIdx(),
-					domain_.comm, 
-          npPerPole_ );
-			GetTime(timeEnd);
-
-      // FIXME The following line is NECESSARY, and is because of the
-      // unmature implementation of DistElemMatToDistSparseMat
-      if( isProcHCSC ){
-        HSparseMat.comm = HCSCComm;
-        mpi::Allreduce( &HSparseMat.nnzLocal, 
-            &HSparseMat.nnz, 1, MPI_SUM, HSparseMat.comm );
-      }
-#if ( _DEBUGlevel_ >= 0 )
-			statusOFS << "Time for converting the DG matrix to DistSparseMatrix format is " <<
-				timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-
-#if ( _DEBUGlevel_ >= 2 )
-      if( mpirank < npPerPole_ ){
-        statusOFS << "H.size = " << HSparseMat.size << std::endl;
-        statusOFS << "H.nnz  = " << HSparseMat.nnz << std::endl;
-        statusOFS << "H.nnzLocal  = " << HSparseMat.nnzLocal << std::endl;
-        statusOFS << "H.colptrLocal.m() = " << HSparseMat.colptrLocal.m() << std::endl;
-        statusOFS << "H.rowindLocal.m() = " << HSparseMat.rowindLocal.m() << std::endl;
-        statusOFS << "H.nzvalLocal.m() = " << HSparseMat.nzvalLocal.m() << std::endl;
-      }
-#endif
- 
-
-
-#if ( _DEBUGlevel_ >= 2 )
-      // Convert matrix back and forth to test the correctness of the
-      // conversion routines.
-      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      HMat1;
-      DistSparseMatrix<Real>      HSparseMat1;
-      DistSparseMatToDistElemMat( 
-          HSparseMat,
-          hamDG.NumBasisTotal(),
-          hamDG.HMat().Prtn(),
-          HMat1,
-					hamDG.ElemBasisIdx(),
-          domain_.comm,
-          npPerPole_ );
-
-			DistElemMatToDistSparseMat( 
-					HMat1,
-					hamDG.NumBasisTotal(),
-					HSparseMat1,
-					hamDG.ElemBasisIdx(),
-					domain_.comm, 
-          npPerPole_ );
-
-      // FIXME The following line is NECESSARY, and is because of the
-      // unmature implementation of DistElemMatToDistSparseMat
-      if( mpirank < npPerPole_ ){
-        HSparseMat1.comm = HCSCComm;
-        mpi::Allreduce( &HSparseMat1.nnzLocal, 
-            &HSparseMat1.nnz, 1, MPI_SUM, HSparseMat1.comm );
-
-        // Check the agreement between HSparseMat and HSparseMat1
-        statusOFS << "H1.size = " << HSparseMat1.size << std::endl;
-        statusOFS << "H1.nnz  = " << HSparseMat1.nnz << std::endl;
-        statusOFS << "H1.nnzLocal  = " << HSparseMat1.nnzLocal << std::endl;
-        statusOFS << "H1.colptrLocal.m() = " << HSparseMat1.colptrLocal.m() << std::endl;
-        statusOFS << "H1.rowindLocal.m() = " << HSparseMat1.rowindLocal.m() << std::endl;
-        statusOFS << "H1.nzvalLocal.m() = " << HSparseMat1.nzvalLocal.m() << std::endl;
-
-        Real nzvalErr = 0.0;
-        for( Int i = 0; i < HSparseMat.nnzLocal; i++ ){
-          nzvalErr += pow( std::abs( 
-                HSparseMat.nzvalLocal(i) - HSparseMat1.nzvalLocal(i) ), 2.0 );
-        }
-        nzvalErr = std::sqrt( nzvalErr );
-        statusOFS << "||H.nzvalLocal - H1.nzvalLocal||_2 = " << nzvalErr << std::endl;
-      }
-#endif
-
-      if( isProcHCSC ){
-        CopyPattern( HSparseMat, DMSparseMat );
-        CopyPattern( HSparseMat, EDMSparseMat );
-        CopyPattern( HSparseMat, FDMSparseMat );
-      }
-
-
-      // Load the matrices into PEXSI.  
-      // Only the processors with isProcHCSC == 1 need to carry the
-      // nonzero values of HSparseMat
-      PPEXSILoadRealSymmetricHSMatrix(
-          pexsiPlan_,
-          pexsiOptions_,
-          HSparseMat.size,
-          HSparseMat.nnz,
-          HSparseMat.nnzLocal,
-          HSparseMat.colptrLocal.m() - 1,
-          HSparseMat.colptrLocal.Data(),
-          HSparseMat.rowindLocal.Data(),
-          HSparseMat.nzvalLocal.Data(),
-          1,  // isSIdentity
-          NULL,
-          &info );
-      if( info != 0 ){
-        std::ostringstream msg;
-        msg 
-          << "PEXSI loading H matrix returns info " << info << std::endl;
-        throw std::runtime_error( msg.str().c_str() );
-      }
-
-      // PEXSI solver
-
-      {
-        if( outerIter >= inertiaCountSteps_ ){
-          pexsiOptions_.isInertiaCount = 0;
-        }
-        // Note: Heuristics strategy for dynamically adjusting the
-        // tolerance
-        pexsiOptions_.muInertiaTolerance = 
-          std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.05 );
-        pexsiOptions_.numElectronPEXSITolerance = 
-          std::min( std::max( numElectronPEXSIToleranceTarget_, 1.0 * scfOuterNorm_ ), 0.5 );
-        pexsiOptions_.isSymbolicFactorize = (innerIter == 1) ? 1 : 0;
-        statusOFS << std::endl 
-          << "muInertiaTolerance        = " << pexsiOptions_.muInertiaTolerance << std::endl
-          << "numElectronPEXSITolerance = " << pexsiOptions_.numElectronPEXSITolerance << std::endl
-          << "Symbolic factorization    =  " << pexsiOptions_.isSymbolicFactorize << std::endl;
-      }
-
-
-//      PPEXSIDFTDriver(
-//          pexsiPlan_,
-//          pexsiOptions_,
-//          numElectronExact,
-//          &muPEXSI,
-//          &numElectronPEXSI,         
-//          &muMinInertia,              
-//          &muMaxInertia,             
-//          &numTotalInertiaIter,
-//          &numTotalPEXSIIter,
-//          &info );
-
-      if( info != 0 ){
-        std::ostringstream msg;
-        msg 
-          << "PEXSI main driver returns info " << info << std::endl;
-        throw std::runtime_error( msg.str().c_str() );
-      }
-
-      // Update the fermi level 
-      fermi_ = muPEXSI;
-
-      // Heuristics for the next step
-      pexsiOptions_.muMin0 = muMinInertia - 5.0 * pexsiOptions_.temperature;
-      pexsiOptions_.muMax0 = muMaxInertia + 5.0 * pexsiOptions_.temperature;
-
-      // Retrieve the PEXSI data
-
-      if( isProcHCSC ){
-        Real totalEnergyH, totalEnergyS, totalFreeEnergy;
-        PPEXSIRetrieveRealSymmetricDFTMatrix(
-            pexsiPlan_,
-            DMSparseMat.nzvalLocal.Data(),
-            EDMSparseMat.nzvalLocal.Data(),
-            FDMSparseMat.nzvalLocal.Data(),
-            &totalEnergyH,
-            &totalEnergyS,
-            &totalFreeEnergy,
-            &info );
-
-        statusOFS << std::endl
-          << "Results obtained from PEXSI:" << std::endl
-          << "Total energy (H*DM)         = " << totalEnergyH << std::endl
-          << "Total energy (S*EDM)        = " << totalEnergyS << std::endl
-          << "Total free energy           = " << totalFreeEnergy << std::endl 
-          << "InertiaIter                 = " << numTotalInertiaIter << std::endl
-          << "PEXSIIter                   = " <<  numTotalPEXSIIter << std::endl
-          << "mu                          = " << muPEXSI << std::endl
-          << "numElectron                 = " << numElectronPEXSI << std::endl 
-          << std::endl;
-
-        if( info != 0 ){
-          std::ostringstream msg;
-          msg 
-            << "PEXSI data retrieval returns info " << info << std::endl;
-          throw std::runtime_error( msg.str().c_str() );
-        }
-      }
-
-      // Convert the density matrix from DistSparseMatrix format to the
-      // DistElemMat format
-      DistSparseMatToDistElemMat(
-          DMSparseMat,
-          hamDG.NumBasisTotal(),
-          hamDG.HMat().Prtn(),
-          distDMMat_,
-					hamDG.ElemBasisIdx(),
-          domain_.comm,
-          npPerPole_ );
-
-      // Convert the energy density matrix from DistSparseMatrix
-      // format to the DistElemMat format
-      DistSparseMatToDistElemMat( 
-          EDMSparseMat,
-          hamDG.NumBasisTotal(),
-          hamDG.HMat().Prtn(),
-          distEDMMat_,
-					hamDG.ElemBasisIdx(),
-          domain_.comm,
-          npPerPole_ );
-
-
-      // Convert the free energy density matrix from DistSparseMatrix
-      // format to the DistElemMat format
-      DistSparseMatToDistElemMat( 
-          FDMSparseMat,
-          hamDG.NumBasisTotal(),
-          hamDG.HMat().Prtn(),
-          distFDMMat_,
-					hamDG.ElemBasisIdx(),
-          domain_.comm,
-          npPerPole_ );
-
-      for( Int k = 0; k < numElem_[2]; k++ )
-        for( Int j = 0; j < numElem_[1]; j++ )
-          for( Int i = 0; i < numElem_[0]; i++ ){
-            Index3 key( i, j, k );
-            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-              DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
-              MPI_Bcast(localCoef.Data(), localCoef.m() * localCoef.n(), MPI_DOUBLE, 0, domain_.rowComm);
-            }
-          } 
-
-
-      // Compute the Harris energy functional.  
-      // NOTE: In computing the Harris energy, the density and the
-      // potential must be the INPUT density and potential without ANY
-      // update.
-      CalculateHarrisEnergyDM( distFDMMat_ );
-
-      // Evaluate the electron density
-
-      GetTime( timeSta );
-      hamDG.CalculateDensityDM( 
-          hamDG.Density(), hamDG.DensityLGL(), distDMMat_ );
-      MPI_Barrier( domain_.comm );
-      GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for computing density in the global domain is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-
-      // Update the output potential, and the KS and second order accurate
-      // energy
-      {
-        // Update the Hartree energy and the exchange correlation energy and
-        // potential for computing the KS energy and the second order
-        // energy.
-        // NOTE Vtot should not be updated until finishing the computation
-        // of the energies.
-
-        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
-        hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
-
-        // Compute the second order accurate energy functional.
-        // NOTE: In computing the second order energy, the density and the
-        // potential must be the OUTPUT density and potential without ANY
-        // MIXING.
-//        CalculateSecondOrderEnergy();
-
-        // Compute the KS energy 
-        CalculateKSEnergyDM( 
-            distEDMMat_, distFDMMat_ );
-
-        // Update the total potential AFTER updating the energy
-
-        // No external potential
-
-        // Compute the new total potential
-
-        hamDG.CalculateVtot( hamDG.Vtot() );
-
-      }
-
-      // Compute the force at every step
-      if( isCalculateForceEachSCF_ ){
-        // Compute force
-        GetTime( timeSta );
-        hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the force is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Print out the force
-        // Only master processor output information containing all atoms
-        if( mpirank == 0 ){
-          PrintBlock( statusOFS, "Atomic Force" );
-          {
-            Point3 forceCM(0.0, 0.0, 0.0);
-            std::vector<Atom>& atomList = hamDG.AtomList();
-            Int numAtom = atomList.size();
-            for( Int a = 0; a < numAtom; a++ ){
-              Print( statusOFS, "atom", a, "force", atomList[a].force );
-              forceCM += atomList[a].force;
-            }
-            statusOFS << std::endl;
-            Print( statusOFS, "force for centroid: ", forceCM );
-            statusOFS << std::endl;
-          }
-        }
-      }
-
-      // TODO Evaluate the a posteriori error estimator
-
-      MPI_Comm_free( &HCSCComm );
-      GetTime( timePEXSIEnd );
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for PEXSI evaluation is " <<
-        timePEXSIEnd - timePEXSISta << " [s]" << std::endl << std::endl;
-#endif
-    } //if( solutionMethod_ == "pexsi" )
-
     // The following version is with intra-element parallelization
-    if( solutionMethod_ == "pexsi" & 1 ){
+    if( solutionMethod_ == "pexsi" ){
       Real timePEXSISta, timePEXSIEnd;
       GetTime( timePEXSISta );
 
@@ -2993,13 +2632,9 @@ SCFDG::InnerIterate	( Int outerIter )
           sstrSize = sstr.size();
         }
         
-        statusOFS << "Before communication. " << std::endl;
-
         MPI_Bcast( &sstrSize, 1, MPI_INT, 0, domain_.rowComm );
         sstr.resize( sstrSize );
         MPI_Bcast( &sstr[0], sstrSize, MPI_BYTE, 0, domain_.rowComm );
-
-        statusOFS << "Finish communication. sstrSize =" <<  sstrSize << std::endl;
 
         if( mpirank % dmRow_ != 0 ){
           std::stringstream distElemMatStream;

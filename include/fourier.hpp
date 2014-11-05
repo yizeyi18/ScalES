@@ -174,6 +174,10 @@ struct DistFourier {
 	/// @param[in] numProc The number of processors actually participate
 	/// in the FFTW calculation.  A processor participates in the FFTW
 	/// calculation if mpirank(dm.comm) < numProc.
+  ///
+  /// FIXME: The initialization routine ASSUMES that a fine grid is
+  /// generated from the domain. This can be confusing and need to be
+  /// fixed later.
 	void Initialize( const Domain& dm, Int numProc );
 };
 

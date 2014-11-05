@@ -147,7 +147,6 @@ private:
 	Real                Tbeta_;                    // Inverse of temperature in atomic unit
 	Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional
 	Real                EfreeSecondOrder_;         // Second order accurate Helmholtz free energy 
-	Real                EfreeSave_;                    // Helmholtz free energy (KS energy functional) in the previous step
 	Real                Efree_;                    // Helmholtz free energy (KS energy functional)
 	Real                Etot_;                     // Total energy (KSenergy functional)
 	Real                Ekin_;                     // Kinetic energy
@@ -340,9 +339,11 @@ public:
 	// *********************************************************************
 	// Inquiry
 	// *********************************************************************
-	// Energy etc.
   Real Efree() const {return Efree_;};	
+  
+  Real Fermi() const {return fermi_;};	
 	
+  DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& DMMat() {return distDMMat_;};
 
 }; // -----  end of class  SCFDG ----- 
 

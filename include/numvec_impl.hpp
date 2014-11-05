@@ -163,36 +163,37 @@ inline NumVec<F>& NumVec<F>::operator =	( const NumVec& C  )
 	PushCallStack("NumVec<F>::operator=");
 #endif  
 	// Do not copy if it is the same matrix.
-	if(C.data_ == data_) return *this;
-	if( owndata_ ){
-		if( m_ > 0 ){
-			delete[]  data_;
-			data_ = NULL;
-		}
-	}
-	m_ = C.m_;
-	owndata_ = C.owndata_;
+	if(C.data_ != data_){
+    if( owndata_ ){
+      if( m_ > 0 ){
+        delete[]  data_;
+        data_ = NULL;
+      }
+    }
+    m_ = C.m_;
+    owndata_ = C.owndata_;
 
-	if( owndata_ ) {
-		if( m_ > 0 ){
-			data_ = new F[m_];
-			if( data_ == NULL ){
-				throw std::runtime_error("Cannot allocate memory.");
-			}
-		}
-		else{
-			data_ = NULL;
-		}
+    if( owndata_ ) {
+      if( m_ > 0 ){
+        data_ = new F[m_];
+        if( data_ == NULL ){
+          throw std::runtime_error("Cannot allocate memory.");
+        }
+      }
+      else{
+        data_ = NULL;
+      }
 
-		if( m_ > 0 ){
-			for( Int i = 0; i < m_; i++ ){
-				data_[i] = C.data_[i];
-			}
-		}
-	}
-	else{
-		data_ = C.data_;
-	}
+      if( m_ > 0 ){
+        for( Int i = 0; i < m_; i++ ){
+          data_[i] = C.data_[i];
+        }
+      }
+    }
+    else{
+      data_ = C.data_;
+    }
+  }
 
 #ifndef _RELEASE_
 	PopCallStack();

@@ -175,8 +175,8 @@ namespace esdf{
     /// (mixVariable = "density") or potential 
     /// (mixVariable = "potential").
     Real                scfOuterTolerance;
-    /// @brief The DG calculation stops when the difference of free
-    /// energy per atom is less than scfOuterEnergyTolerance.
+    /// @brief The DG calculation stops when the difference between free
+    /// energy and Harris energy per atom is less than scfOuterEnergyTolerance.
     ///
     /// Default: 1e-4
     Real                scfOuterEnergyTolerance;

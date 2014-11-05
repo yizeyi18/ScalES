@@ -79,9 +79,23 @@ int main(int argc, char **argv)
     // *********************************************************************
 
     // Initialize log file
-    stringstream  ss;
-    ss << "statfile." << mpirank;
-    statusOFS.open( ss.str().c_str() );
+#ifdef _RELEASE_
+    // In the release mode, only the master processor outputs information
+    if( mpirank == 0 ){
+      stringstream  ss;
+      ss << "statfile." << mpirank;
+      statusOFS.open( ss.str().c_str() );
+    }
+#else
+    // Every processor outputs information
+    {
+      stringstream  ss;
+      ss << "statfile." << mpirank;
+      statusOFS.open( ss.str().c_str() );
+    }
+#endif
+    
+
 
     // Initialize FFTW
     fftw_mpi_init();
@@ -158,6 +172,7 @@ int main(int argc, char **argv)
       Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
       Print(statusOFS, "SCF Outer Tol     = ",  esdfParam.scfOuterTolerance);
       Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
+      Print(statusOFS, "SCF Free Energy Per Atom Tol = ",  esdfParam.scfOuterEnergyTolerance);
       Print(statusOFS, "SCF Inner Tol     = ",  esdfParam.scfInnerTolerance);
       Print(statusOFS, "SCF Inner MaxIter = ",  esdfParam.scfInnerMaxIter);
       Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
@@ -588,63 +603,27 @@ int main(int argc, char **argv)
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
     // Compute force
-    if( esdfParam.solutionMethod == "diag" ){
-      GetTime( timeSta );
-
-      hamDG.CalculateForce( distfft );
-      // Print out the force. 
-      // Only master processor output information containing all atoms
-      if( mpirank == 0 ){
-        PrintBlock( statusOFS, "Atomic Force" );
-        {
-          Point3 forceCM(0.0, 0.0, 0.0);
-          std::vector<Atom>& atomList = hamDG.AtomList();
-          Int numAtom = atomList.size();
-          for( Int a = 0; a < numAtom; a++ ){
-            Print( statusOFS, "atom", a, "force", atomList[a].force );
-            forceCM += atomList[a].force;
-          }
-          statusOFS << std::endl;
-          Print( statusOFS, "force for centroid: ", forceCM );
-          statusOFS << std::endl;
-        }
+    {
+      if( esdfParam.solutionMethod == "diag" ){
+        hamDG.CalculateForce( distfft );
       }
-
-      GetTime( timeEnd );
-      statusOFS << "Time for computing the force is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-      // Compute the a posteriori error estimator
-//      GetTime( timeSta );
-//      DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-//      hamDG.CalculateAPosterioriError( 
-//          eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-//      GetTime( timeEnd );
-//      statusOFS << "Time for computing the a posteriori error is " <<
-//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//
-//      // Only master processor output information containing all atoms
-//      if( mpirank == 0 ){
-//        PrintBlock( statusOFS, "A Posteriori error" );
-//        {
-//          statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-//          statusOFS << eta2Total << std::endl;
-//          statusOFS << std::endl << "Residual term:" << std::endl;
-//          statusOFS << eta2Residual << std::endl;
-//          statusOFS << std::endl << "Face term:" << std::endl;
-//          statusOFS << eta2GradJump << std::endl;
-//          statusOFS << std::endl << "Jump term:" << std::endl;
-//          statusOFS << eta2Jump << std::endl;
-//        }
-//      }
+      else if( esdfParam.solutionMethod == "pexsi" ){
+        hamDG.CalculateForceDM( distfft, scfDG.DMMat() );
+      }
     }
-#ifdef _USE_PEXSI_
-    if( esdfParam.solutionMethod == "pexsi" ){
-      // FIXME Introduce distDMMat to hamDG
-      //      hamDG.CalculateForceDM( *distfftPtr_, distDMMat );
-    }
-#endif
 
+    if( mpirank == 0 ){
+      Point3 forceCM(0.0, 0.0, 0.0);
+      std::vector<Atom>& atomList = hamDG.AtomList(); 
+      Int numAtom = atomList.size(); 
+      for( Int a = 0; a < numAtom; a++ ){
+        forceCM += atomList[a].force;
+        Print( statusOFS, "atom", a, "Force      ", atomList[a].force );
+      }
+      statusOFS << std::endl;
+      Print( statusOFS, "force for centroid: ", forceCM );
+      statusOFS << std::endl;
+    }
 
 
     // *********************************************************************

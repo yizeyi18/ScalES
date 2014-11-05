@@ -49,7 +49,7 @@
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 
-
+#define  _DEBUGlevel_ 0
 namespace dgdft{
 
 using namespace PseudoComponent;
@@ -2332,6 +2332,12 @@ HamiltonianDG::CalculateForceDM	(
 	// Compute the derivative of the Hartree potential for computing the 
 	// local pseudopotential contribution to the Hellmann-Feynman force
 	// *********************************************************************
+
+#if ( _DEBUGlevel_ >= 1 )
+  statusOFS << "Starting the computation of local derivatives "
+    << std::endl;
+#endif
+ 
 	DistDblNumVec&              vhart = vhart_;
   vhart.SetComm( domain_.colComm );
 	
@@ -2359,13 +2365,15 @@ HamiltonianDG::CalculateForceDM	(
 				}
 			}
 
+
+
 	// Convert tempVec to tempVecLocal in distributed row vector format
 	DblNumVec  tempVecLocal;
 
   DistNumVecToDistRowVec(
 			tempVec,
 			tempVecLocal,
-			domain_.numGrid,
+			domain_.numGridFine,
 			numElem_,
 			fft.localNzStart,
 			fft.localNz,
@@ -2375,6 +2383,7 @@ HamiltonianDG::CalculateForceDM	(
 	// The contribution of the pseudoCharge is subtracted. So the Poisson
 	// equation is well defined for neutral system.
 	// Only part of the processors participate in the FFTW calculation
+    
 
 	if( fft.isInGrid ){
 
@@ -2386,6 +2395,7 @@ HamiltonianDG::CalculateForceDM	(
 			fft.inputComplexVecLocal(i) = Complex( 
 					tempVecLocal(i), 0.0 );
 		}
+
 
 		fftw_execute( fft.forwardPlan );
 
@@ -2428,7 +2438,7 @@ HamiltonianDG::CalculateForceDM	(
 		DistRowVecToDistNumVec( 
 				vhartDrvLocal[d],
 				vhartDrv[d],
-				domain_.numGrid,
+				domain_.numGridFine,
 				numElem_,
 				fft.localNzStart,
 				fft.localNz,
@@ -2442,6 +2452,12 @@ HamiltonianDG::CalculateForceDM	(
 	// *********************************************************************
 	// Compute the force from local pseudopotential
 	// *********************************************************************
+
+#if ( _DEBUGlevel_ >= 1 )
+  statusOFS << "Starting the local part of the force calculation "
+    << std::endl;
+#endif
+
 	// Method 1: Using the derivative of the pseudopotential
 	if(1){
 		for( Int k = 0; k < numElem_[2]; k++ )
@@ -2516,7 +2532,7 @@ HamiltonianDG::CalculateForceDM	(
   // Use the density matrix instead of the eigenfunctions. 
   if(1)
 	{
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
     statusOFS << "Starting the nonlocal part of the force calculation "
       << std::endl;
 #endif
@@ -2600,7 +2616,7 @@ HamiltonianDG::CalculateForceDM	(
     distDMMat.GetBegin( pseudoIdx, NO_MASK );
     distDMMat.GetEnd( NO_MASK );
 		GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
 		statusOFS << "Time for getting the density matrix blocks is " <<
 			timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
