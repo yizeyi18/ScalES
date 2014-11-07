@@ -75,8 +75,12 @@ protected:
 	std::string                 pseudoType_;
 	// Id of the exchange-correlation potential
 	Int                         XCId_;
+	Int                         XId_;
+	Int                         CId_;
 	// Exchange-correlation potential using libxc package.
 	xc_func_type                XCFuncType_; 
+	xc_func_type                XFuncType_; 
+	xc_func_type                CFuncType_; 
 	bool                        XCInitialized_;
 
 	// Pseudocharge to represent the local pseudopotential
@@ -84,6 +88,7 @@ protected:
 	// density_(:,1)    electron density
 	// density_(:,2-4)  magnetization along x,y,z directions
 	DblNumMat                   density_;         
+	std::vector<DblNumMat>      gradDensity_;
 	// External potential. TODO not implemented
 	DblNumVec                   vext_;            
 	// Hartree potential
@@ -135,7 +140,9 @@ public:
 
 	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft ) = 0;
 
-	virtual void CalculateXC (Real &val) = 0;
+	virtual void CalculateGradDensity( Fourier &fft ) = 0;
+
+	virtual void CalculateXC (Real &val, Fourier& fft) = 0;
 
 	virtual void CalculateHartree( Fourier& fft ) = 0;
 
@@ -161,6 +168,7 @@ public:
 	DblNumVec&  Vhart() { return vhart_; }
 
 	DblNumMat&  Density() { return density_; }
+  std::vector<DblNumMat>  GradDensity() { return gradDensity_; }
 	DblNumVec&  PseudoCharge() { return pseudoCharge_; }
 	std::vector<PseudoPot>& Pseudo() {return pseudo_; };
   DblNumVec&  EigVal() { return eigVal_; }
@@ -214,7 +222,9 @@ public:
 
 	virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft );
 
-	virtual void CalculateXC ( Real &val );
+  virtual void CalculateGradDensity( Fourier& fft );
+
+  virtual void CalculateXC ( Real &val, Fourier& fft );
 
 	virtual void CalculateHartree( Fourier& fft );
 	

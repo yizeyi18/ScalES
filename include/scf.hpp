@@ -99,10 +99,12 @@ private:
 
 	Real                totalCharge_;              // Total number of computed electron charge
 	
-	EigenSolver*        eigSolPtr_;
-	PeriodTable*        ptablePtr_;
+  EigenSolver*        eigSolPtr_;
+  PeriodTable*        ptablePtr_;
 
-	// SCF variables
+  std::string         XCType_;
+  
+  // SCF variables
   DblNumVec           vtotNew_;
 	Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
 	// for Anderson iteration

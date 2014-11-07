@@ -93,30 +93,46 @@ Hamiltonian::Setup (
 	numExtraState_ = numExtraState;
 
 	// Obtain the exchange-correlation id
-	{
-		if( XCType == "XC_LDA_XC_TETER93" )
-			XCId_ = XC_LDA_XC_TETER93;
-		else
+  {
+    if( XCType == "XC_LDA_XC_TETER93" )
+    { XCId_ = XC_LDA_XC_TETER93;
+      // Teter 93
+      // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
+    }    
+    else if( XCType == "XC_GGA_XC_PBE" )
+    {
+      XId_ = XC_GGA_X_PBE;
+      CId_ = XC_GGA_C_PBE;
+      // Perdew, Burke & Ernzerhof correlation
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
+    }
+    else
       throw std::logic_error("Unrecognized exchange-correlation type");
-	}
-
+  }
 
 	// NOTE: NumSpin variable will be determined in derivative classes.
 
   Int ntotCoarse = domain_.NumGridTotal();
   Int ntotFine = domain_.NumGridTotalFine();
 
-	density_.Resize( ntotFine, numDensityComponent );   
-	SetValue( density_, 0.0 );
+  density_.Resize( ntotFine, numDensityComponent );   
+  SetValue( density_, 0.0 );
 
-	pseudoCharge_.Resize( ntotFine );
-	SetValue( pseudoCharge_, 0.0 );
-	
-	vext_.Resize( ntotFine );
-	SetValue( vext_, 0.0 );
+  gradDensity_.resize( DIM );
+  for( Int d = 0; d < DIM; d++ ){
+    gradDensity_[d].Resize( ntotFine, numDensityComponent );
+    SetValue (gradDensity_[d], 0.0);
+  }
 
-	vhart_.Resize( ntotFine );
-	SetValue( vhart_, 0.0 );
+  pseudoCharge_.Resize( ntotFine );
+  SetValue( pseudoCharge_, 0.0 );
+
+  vext_.Resize( ntotFine );
+  SetValue( vext_, 0.0 );
+
+  vhart_.Resize( ntotFine );
+  SetValue( vhart_, 0.0 );
 
 	vtot_.Resize( ntotFine );
 	SetValue( vtot_, 0.0 );
@@ -146,12 +162,23 @@ KohnSham::KohnSham() {
 }
 
 KohnSham::~KohnSham() {
-	if( XCInitialized_ )
-		xc_func_end(&XCFuncType_);
+  if( XCInitialized_ ){
+    if( XCId_ == 20 )
+    {
+      xc_func_end(&XCFuncType_);
+    }    
+    else if( ( XId_ == 101 ) && ( CId_ == 130 )  )
+    {
+      xc_func_end(&XFuncType_);
+      xc_func_end(&CFuncType_);
+    }
+    else
+      throw std::logic_error("Unrecognized exchange-correlation type");
+  }
 }
 
 KohnSham::
-	KohnSham( 
+KohnSham( 
 			const esdf::ESDFInputParam& esdfParam,
       const Int                   numDensityComponent ) : 
 		Hamiltonian( esdfParam , numDensityComponent ) 
@@ -161,11 +188,24 @@ KohnSham::
 #endif
 	// Initialize the XC functional.  
 	// Spin-unpolarized functional is used here
-	if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-    throw std::runtime_error( "XC functional initialization error." );
-	} 
+ 
+  if( XCId_ == 20 )
+  {
+    if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+      throw std::runtime_error( "XC functional initialization error." );
+    } 
+  }    
+  else if( ( XId_ == 101 ) && ( CId_ == 130 )  )
+  {
+    if( ( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 )
+        && ( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ) ){
+      throw std::runtime_error( "XC functional initialization error." );
+    }
+  }
+  else
+    throw std::logic_error("Unrecognized exchange-correlation type");
 
-	XCInitialized_ = true;
+  XCInitialized_ = true;
 
 	if( numDensityComponent != 1 ){
 		throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
@@ -199,17 +239,34 @@ KohnSham::Setup	(
 		numExtraState,
     numDensityComponent);
 
-	// Initialize the XC functional.  
-	// Spin-unpolarized functional is used here
-	if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-    throw std::runtime_error( "XC functional initialization error." );
-	} 
+  // Initialize the XC functional.  
+  // Spin-unpolarized functional is used here
+ 
+  xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED);
+  xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED);
+  xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED);
+  
+  if( XCType == "XC_LDA_XC_TETER93" )
+  {
+    if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+      throw std::runtime_error( "XC functional initialization error." );
+    } 
+  }    
+  else if( XCType == "XC_GGA_XC_PBE" )
+  {
+    if( ( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 )
+        && ( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ) ){
+      throw std::runtime_error( "XC functional initialization error." );
+    }
+  }
+  else
+    throw std::logic_error("Unrecognized exchange-correlation type");
 
-	if( numDensityComponent != 1 ){
-		throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
-	}
+  if( numDensityComponent != 1 ){
+    throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
+  }
 
-	// Since the number of density components is always 1 here, set numSpin = 2.
+  // Since the number of density components is always 1 here, set numSpin = 2.
 	numSpin_ = 2;
   	
 
@@ -332,8 +389,6 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 	Int nocc  = psi.NumState();
 	Real vol  = domain_.Volume();
 
-  // huwei
-
   Int ntotFine  = fft.domain.NumGridTotalFine();
 
   MPI_Barrier(domain_.comm);
@@ -406,8 +461,6 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 		}
 	}
 
-  // huwei
-
 //	SetValue( density_, 0.0 );
 //	for (Int k=0; k<nocc; k++) {
 //		for (Int j=0; j<ncom; j++) {
@@ -425,7 +478,6 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 //    val  += density_(i, RHO) * vol / ntotFine;
 //  }
 
-  // FIXME huwei RHO = 0 ?? 
 	mpi::Allreduce( densityLocal.Data(), density_.Data(), ntotFine, MPI_SUM, domain_.comm );
 
   val = 0.0; // sum of density
@@ -452,23 +504,148 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 
 
 void
-KohnSham::CalculateXC	( Real &val )
+KohnSham::CalculateGradDensity ( Fourier& fft )
 {
 #ifndef _RELEASE_
-	PushCallStack("KohnSham::CalculateXC");
+  PushCallStack("KohnSham::CalculateGradDensity");
 #endif
-	Int ntot = domain_.NumGridTotalFine();
-	Real vol = domain_.Volume();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Real vol  = domain_.Volume();
 
-  switch( XCFuncType_.info->family ){
-    case XC_FAMILY_LDA:
-       xc_lda_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
-		      epsxc_.Data(), vxc_.Data() );
-      break;
-    default:
-			throw std::logic_error( "Unsupported XC family!" );
-      break;
+  for( Int i = 0; i < ntotFine; i++ ){
+    fft.inputComplexVecFine(i) = Complex( density_(i,RHO), 0.0 ); 
   }
+  fftw_execute( fft.forwardPlanFine );
+
+  CpxNumVec  cpxVec( ntotFine );
+  blas::Copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
+      cpxVec.Data(), 1 );
+
+  // Compute the derivative of the Density via Fourier
+  for( Int d = 0; d < DIM; d++ ){
+    CpxNumVec& ik = fft.ikFine[d];
+
+    for( Int i = 0; i < ntotFine; i++ ){
+      if( fft.gkkFine(i) == 0 ){
+        fft.outputComplexVecFine(i) = Z_ZERO;
+      }
+      else{
+        fft.outputComplexVecFine(i) = cpxVec(i) * ik(i); 
+      }
+    }
+
+    fftw_execute( fft.backwardPlanFine );
+
+    DblNumMat& GradDensity = gradDensity_[d];
+    for( Int i = 0; i < ntotFine; i++ ){
+      GradDensity(i, RHO) = fft.inputComplexVecFine(i).real() / ntotFine;
+    }
+  } // for d
+
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+
+  return ;
+} 		// -----  end of method KohnSham::CalculateGradDensity  ----- 
+
+
+void
+KohnSham::CalculateXC	( Real &val, Fourier& fft )
+{
+#ifndef _RELEASE_
+  PushCallStack("KohnSham::CalculateXC");
+#endif
+  Int ntot = domain_.NumGridTotalFine();
+  Int numDensityComponent = vxc_.n();
+  Real vol = domain_.Volume();
+
+  if( XCId_ == 20 ) //XC_FAMILY_LDA
+  {
+    xc_lda_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
+        epsxc_.Data(), vxc_.Data() );
+  }
+  else if( ( XId_ == 101 ) && ( CId_ == 130 ) ) //XC_FAMILY_GGA
+  {
+    DblNumMat     vxc1;             
+    DblNumMat     vxc2;             
+    vxc1.Resize( ntot, numDensityComponent );
+    vxc2.Resize( ntot, numDensityComponent );
+
+    DblNumMat     vxc1temp;             
+    DblNumMat     vxc2temp;             
+    vxc1temp.Resize( ntot, numDensityComponent );
+    vxc2temp.Resize( ntot, numDensityComponent );
+
+    DblNumVec     epsx; 
+    DblNumVec     epsc; 
+    epsx.Resize( ntot );
+    epsc.Resize( ntot );
+
+    DblNumMat GradDensity;
+    GradDensity.Resize( ntot, numDensityComponent );
+    SetValue( GradDensity, 0.0 );
+    DblNumMat& GradDensity0 = gradDensity_[0];
+    DblNumMat& GradDensity1 = gradDensity_[1];
+    DblNumMat& GradDensity2 = gradDensity_[2];
+
+    for(Int i = 0; i < ntot; i++){
+      GradDensity(i, RHO) = GradDensity0(i, RHO) * GradDensity0(i, RHO)
+        + GradDensity1(i, RHO) * GradDensity1(i, RHO)
+        + GradDensity2(i, RHO) * GradDensity2(i, RHO);
+    }
+
+    SetValue( epsx, 0.0 );
+    SetValue( vxc1, 0.0 );
+    SetValue( vxc2, 0.0 );
+    xc_gga_exc_vxc( &XFuncType_, ntot, density_.VecData(RHO), 
+        GradDensity.VecData(RHO), epsx.Data(), vxc1.Data(), vxc2.Data() );
+
+    SetValue( epsc, 0.0 );
+    SetValue( vxc1temp, 0.0 );
+    SetValue( vxc2temp, 0.0 );
+    xc_gga_exc_vxc( &CFuncType_, ntot, density_.VecData(RHO), 
+        GradDensity.VecData(RHO), epsc.Data(), vxc1temp.Data(), vxc2temp.Data() );
+
+    for( Int i = 0; i < ntot; i++ ){
+      epsxc_(i) = epsx(i) + epsc(i) ;
+      vxc1( i, RHO ) += vxc1temp( i, RHO );
+      vxc2( i, RHO ) += vxc2temp( i, RHO );
+      vxc_( i, RHO ) = vxc1( i, RHO );
+    }
+
+    for( Int d = 0; d < DIM; d++ ){
+
+      DblNumMat& GradDensity = gradDensity_[d];
+
+      for(Int i = 0; i < ntot; i++){
+        fft.inputComplexVecFine(i) = Complex( GradDensity( i, RHO ) * 2.0 * vxc2( i, RHO ), 0.0 ); 
+      }
+
+      fftw_execute( fft.forwardPlanFine );
+
+      CpxNumVec& ik = fft.ikFine[d];
+
+      for( Int i = 0; i < ntot; i++ ){
+        if( fft.gkkFine(i) == 0 ){
+          fft.outputComplexVecFine(i) = Z_ZERO;
+        }
+        else{
+          fft.outputComplexVecFine(i) *= ik(i);
+        }
+      }
+
+      fftw_execute( fft.backwardPlanFine );
+
+      for( Int i = 0; i < ntot; i++ ){
+        vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real() / ntot;
+      }
+
+    } // for d
+
+  } // XC_FAMILY_GGA
+  else
+    throw std::logic_error( "Unsupported XC family!" );
 
   // Compute the total exchange-correlation energy
   val = 0.0;
@@ -476,12 +653,11 @@ KohnSham::CalculateXC	( Real &val )
     val += density_(i, RHO) * epsxc_(i) * vol / (Real) ntot;
   }
 
-
 #ifndef _RELEASE_
-	PopCallStack();
+  PopCallStack();
 #endif
 
-	return ;
+  return ;
 } 		// -----  end of method KohnSham::CalculateXC  ----- 
 
 

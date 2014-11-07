@@ -108,6 +108,8 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 
     numGridWavefunctionElem_ = esdfParam.numGridWavefunctionElem;
     numGridDensityElem_      = esdfParam.numGridDensityElem;  
+  
+    XCType_                  = esdfParam.XCType;
   }
 
 	// other SCF parameters
@@ -212,8 +214,11 @@ SCF::Iterate	(  )
 	PushCallStack("SCF::Iterate::Initialize");
 #endif
 
-	// Compute the exchange-correlation potential and energy
-	eigSolPtr_->Ham().CalculateXC( Exc_ ); 
+  // Compute the exchange-correlation potential and energy
+	if( XCType_ == "XC_GGA_XC_PBE"){
+		eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
+	}
+	eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
 
 	// Compute the Hartree energy
 	eigSolPtr_->Ham().CalculateHartree( eigSolPtr_->FFT() );
@@ -366,7 +371,10 @@ SCF::Iterate	(  )
         eigSolPtr_->FFT() );
 
 		// Compute the exchange-correlation potential and energy
-		eigSolPtr_->Ham().CalculateXC( Exc_ ); 
+    if( XCType_ == "XC_GGA_XC_PBE"){
+      eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
+    }
+    eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
 		
 		// Compute the Hartree energy
 		eigSolPtr_->Ham().CalculateHartree( eigSolPtr_->FFT() );
