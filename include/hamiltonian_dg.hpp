@@ -213,14 +213,18 @@ private:
 	Int                         numExtraState_;
 	/// @brief Number of occupied states.
 	Int                         numOccupiedState_;
-	/// @brief Type of pseudopotential, default is HGH
-	std::string                 pseudoType_;
-	/// @brief Id of the exchange-correlation potential
-	Int                         XCId_;
-	/// @brief Exchange-correlation potential using libxc package.
-	xc_func_type                XCFuncType_; 
-	/// @brief Whether libXC has been initialized.
-	bool                        XCInitialized_;
+  /// @brief Type of pseudopotential, default is HGH
+  std::string                 pseudoType_;
+  /// @brief Id of the exchange-correlation potential
+  Int                         XCId_;
+  Int                         XId_;
+  Int                         CId_;
+  /// @brief Exchange-correlation potential using libxc package.
+  xc_func_type                XCFuncType_; 
+  xc_func_type                XFuncType_; 
+  xc_func_type                CFuncType_; 
+  /// @brief Whether libXC has been initialized.
+  bool                        XCInitialized_;
 
 
 
@@ -254,12 +258,14 @@ private:
 
 	/// @brief Electron density in the global domain. No magnitization for
 	/// DG calculation.
-	DistDblNumVec    density_;
+  DistDblNumVec    density_;
 
-	/// @brief Electron density in the global domain defined on the LGL
-	/// grid. No magnitization for DG calculation.  
-	/// FIXME This is only a temporary variable and MAY NOT BE the same as
-	/// the density_ variable.
+  std::vector<DistDblNumVec>      gradDensity_;
+
+  /// @brief Electron density in the global domain defined on the LGL
+  /// grid. No magnitization for DG calculation.  
+  /// FIXME This is only a temporary variable and MAY NOT BE the same as
+  /// the density_ variable.
 	DistDblNumVec    densityLGL_;
 
 
@@ -381,97 +387,100 @@ public:
       DistDblNumVec& rhoLGL, 
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
 
+  void CalculateGradDensity( DistFourier&   fft );
 
-	/// @brief Compute the exchange-correlation potential and energy.
-	void CalculateXC ( 
-			Real &Exc, 
-			DistDblNumVec&   epsxc,
-			DistDblNumVec&   vxc );
+  /// @brief Compute the exchange-correlation potential and energy.
+  void CalculateXC ( 
+      Real &Exc, 
+      DistDblNumVec&   epsxc,
+      DistDblNumVec&   vxc,
+      DistFourier&   fft );
+  /// @brief Compute the Hartree potential.
+  void CalculateHartree( 
+      DistDblNumVec& vhart, 
+      DistFourier&   fft );
 
-	/// @brief Compute the Hartree potential.
-	void CalculateHartree( 
-			DistDblNumVec& vhart, 
-			DistFourier&   fft );
-	
-	/// @brief Compute the total potential
-	void CalculateVtot( DistDblNumVec& vtot );
+  /// @brief Compute the total potential
+  void CalculateVtot( DistDblNumVec& vtot );
 
-	/// @brief Assemble the DG Hamiltonian matrix. The mass matrix is
-	/// identity in the framework of adaptive local basis functions.
-	void CalculateDGMatrix( ); 
+  /// @brief Assemble the DG Hamiltonian matrix. The mass matrix is
+  /// identity in the framework of adaptive local basis functions.
+  void CalculateDGMatrix( ); 
 
-	/// @brief Update the DG Hamiltonian matrix with the same set of
-	/// adaptive local basis functions, but different local potential. 
-	///
-	/// This subroutine is used in the inner SCF loop when only the local
-	/// pseudopotential is updated.
-	///
-	/// @param vtotLGLDiff Difference of vtot defined on each LGL grid.
-	/// The contribution of this difference is to be added to the
-	/// Hamiltonian matrix HMat_.
-	void UpdateDGMatrix( DistDblNumVec&  vtotLGLDiff );
+  /// @brief Update the DG Hamiltonian matrix with the same set of
+  /// adaptive local basis functions, but different local potential. 
+  ///
+  /// This subroutine is used in the inner SCF loop when only the local
+  /// pseudopotential is updated.
+  ///
+  /// @param vtotLGLDiff Difference of vtot defined on each LGL grid.
+  /// The contribution of this difference is to be added to the
+  /// Hamiltonian matrix HMat_.
+  void UpdateDGMatrix( DistDblNumVec&  vtotLGLDiff );
 
-	/// @brief Calculate the Hellmann-Feynman force for each atom.
-	void CalculateForce ( DistFourier& fft );
+  /// @brief Calculate the Hellmann-Feynman force for each atom.
+  void CalculateForce ( DistFourier& fft );
 
-	/// @brief Calculate the Hellmann-Feynman force for each atom using
+  /// @brief Calculate the Hellmann-Feynman force for each atom using
   /// the density matrix formulation.
-	void CalculateForceDM ( DistFourier& fft, 
+  void CalculateForceDM ( DistFourier& fft, 
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
 
 
-	/// @brief Calculate the residual type a posteriori error estimator
-	/// for the solution. 
-	///
-	/// Currently only the residual term is computed, and it is assumed
-	/// that the eigenvalues and eigenfunctions have been computed and
-	/// saved in eigVal_ and eigvecCoef_.
-	///
-	/// Currently the nonlocal pseudopotential is not implemented in this
-	/// subroutine.
-	///
-	/// @param[out] eta2Total Total residual-based error estimator.
-	/// Reduced among all processors.
-	/// @param[out] eta2Residual Residual term.
-	/// @param[out] eta2GradJump Jump of the gradient of the
-	/// eigenfunction, or "face" term.  
-	/// @param[out] eta2Jump Jump of the value of the eigenfunction, or
-	/// "jump" term.
-	void CalculateAPosterioriError( 
-		DblNumTns&       eta2Total,
-		DblNumTns&       eta2Residual,
-		DblNumTns&       eta2GradJump,
-		DblNumTns&       eta2Jump	);
+  /// @brief Calculate the residual type a posteriori error estimator
+  /// for the solution. 
+  ///
+  /// Currently only the residual term is computed, and it is assumed
+  /// that the eigenvalues and eigenfunctions have been computed and
+  /// saved in eigVal_ and eigvecCoef_.
+  ///
+  /// Currently the nonlocal pseudopotential is not implemented in this
+  /// subroutine.
+  ///
+  /// @param[out] eta2Total Total residual-based error estimator.
+  /// Reduced among all processors.
+  /// @param[out] eta2Residual Residual term.
+  /// @param[out] eta2GradJump Jump of the gradient of the
+  /// eigenfunction, or "face" term.  
+  /// @param[out] eta2Jump Jump of the value of the eigenfunction, or
+  /// "jump" term.
+  void CalculateAPosterioriError( 
+      DblNumTns&       eta2Total,
+      DblNumTns&       eta2Residual,
+      DblNumTns&       eta2GradJump,
+      DblNumTns&       eta2Jump	);
 
-	// *********************************************************************
-	// Access
-	// *********************************************************************
+  // *********************************************************************
+  // Access
+  // *********************************************************************
 
-	/// @brief Total potential in the global domain.
-	DistDblNumVec&  Vtot( ) { return vtot_; }
+  /// @brief Total potential in the global domain.
+  DistDblNumVec&  Vtot( ) { return vtot_; }
 
-	/// @brief External potential in the global domain.
-	DistDblNumVec&  Vext( ) { return vext_; }
+  /// @brief External potential in the global domain.
+  DistDblNumVec&  Vext( ) { return vext_; }
 
-	/// @brief Exchange-correlation potential in the global domain. No
-	/// magnization calculation in the DG code.
-	DistDblNumVec&  Vxc()  { return vxc_; }
+  /// @brief Exchange-correlation potential in the global domain. No
+  /// magnization calculation in the DG code.
+  DistDblNumVec&  Vxc()  { return vxc_; }
 
-	/// @brief Exchange-correlation energy density in the global domain.
-	DistDblNumVec&  Epsxc()  { return epsxc_; }
+  /// @brief Exchange-correlation energy density in the global domain.
+  DistDblNumVec&  Epsxc()  { return epsxc_; }
 
-	/// @brief Hartree potential in the global domain.
+  /// @brief Hartree potential in the global domain.
 	DistDblNumVec&  Vhart() { return vhart_; }
 
 	/// @brief Electron density in the global domain. No magnitization for
-	/// DG calculation.
-	DistDblNumVec&  Density() { return density_; }
+  /// DG calculation.
+  DistDblNumVec&  Density() { return density_; }
 
-	DistDblNumVec&  DensityLGL() { return densityLGL_; }
+  std::vector<DistDblNumVec>  GradDensity() { return gradDensity_; }
 
-	DistDblNumVec&  PseudoCharge() { return pseudoCharge_; }
-	
-	std::vector<Atom>&  AtomList() { return atomList_; }
+  DistDblNumVec&  DensityLGL() { return densityLGL_; }
+
+  DistDblNumVec&  PseudoCharge() { return pseudoCharge_; }
+
+  std::vector<Atom>&  AtomList() { return atomList_; }
 
 	Int NumSpin () { return numSpin_; }
 

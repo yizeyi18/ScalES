@@ -2115,14 +2115,14 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
 
 		
-		esdfParam.ecutWavefunction     = esdf_double( "Ecut_Wavefunction", 10.0 );
+		esdfParam.ecutWavefunction     = esdf_double( "Ecut_Wavefunction", 40.0 );
 		esdfParam.densityGridFactor    = esdf_double( "Density_Grid_Factor", 2.0 );
 
 		// The density grid factor must be an integer
 		// esdfParam.densityGridFactor    = std::ceil( esdfParam.densityGridFactor );
 
 		Real temperature;
-		temperature               = esdf_double( "Temperature", 100.0 );
+		temperature               = esdf_double( "Temperature", 300.0 );
     esdfParam.Tbeta           = au2K / temperature;
 
 		esdfParam.numExtraState   = esdf_integer( "Extra_States",  0 );
@@ -2157,7 +2157,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		// Instead of grid size, use ecut to determine the number of grid
 		// points in the local LGL domain.
 		// The LGL grid factor does not need to be an integer.
-		esdfParam.LGLGridFactor = esdf_double( "LGL_Grid_Factor", 1.0 );
+		esdfParam.LGLGridFactor = esdf_double( "LGL_Grid_Factor", 2.0 );
 
 //		Index3& numGridLGL = esdfParam.numGridLGL;
 //		if (esdf_block("Element_Grid_Size", &nlines)) {
@@ -2165,10 +2165,10 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 //					&numGridLGL[0],&numGridLGL[1],&numGridLGL[2] );
 //		}
 
-		esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 100.0 );
+		esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 20.0 );
 
 
-		esdfParam.scaBlockSize  = esdf_integer( "ScaLAPACK_Block_Size", 16 );
+		esdfParam.scaBlockSize  = esdf_integer( "ScaLAPACK_Block_Size", 32 );
 
 		// Get the number of basis functions per element
 		// NOTE: ALB_Num_Element overwrites the parameter numALB later		

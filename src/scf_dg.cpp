@@ -172,11 +172,12 @@ SCFDG::Setup	(
 		scaBlockSize_     = esdfParam.scaBlockSize;
 		numElem_          = esdfParam.numElem;
 		ecutWavefunction_ = esdfParam.ecutWavefunction;
-		densityGridFactor_= esdfParam.densityGridFactor;
-		LGLGridFactor_    = esdfParam.LGLGridFactor;
-		isPeriodizePotential_ = esdfParam.isPeriodizePotential;
-		distancePeriodize_= esdfParam.distancePeriodize;
-	}
+    densityGridFactor_= esdfParam.densityGridFactor;
+    LGLGridFactor_    = esdfParam.LGLGridFactor;
+    isPeriodizePotential_ = esdfParam.isPeriodizePotential;
+    distancePeriodize_= esdfParam.distancePeriodize;
+    XCType_           = esdfParam.XCType;
+  }
 
   MPI_Barrier(domain_.comm);
   MPI_Barrier(domain_.colComm);
@@ -189,7 +190,7 @@ SCFDG::Setup	(
   Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
 
   numProcScaLAPACK_ = esdfParam.numProcScaLAPACK;
-  
+
   // Initialize PEXSI
 #ifdef _USE_PEXSI_
   if( solutionMethod_ == "pexsi" )
@@ -256,51 +257,51 @@ SCFDG::Setup	(
     }
   }
 #endif
-    
 
 
 
-	// other SCFDG parameters
-	{
-		hamDGPtr_      = &hamDG;
-		distEigSolPtr_ = &distEigSol;
-		distfftPtr_    = &distfft;
+
+  // other SCFDG parameters
+  {
+    hamDGPtr_      = &hamDG;
+    distEigSolPtr_ = &distEigSol;
+    distfftPtr_    = &distfft;
     ptablePtr_     = &ptable;
-		elemPrtn_      = distEigSol.Prtn();
-		contxt_        = contxt;
-	
+    elemPrtn_      = distEigSol.Prtn();
+    contxt_        = contxt;
 
-		distDMMat_.SetComm(domain_.colComm);
-		distEDMMat_.SetComm(domain_.colComm);
-		distFDMMat_.SetComm(domain_.colComm);
-		
+
+    distDMMat_.SetComm(domain_.colComm);
+    distEDMMat_.SetComm(domain_.colComm);
+    distFDMMat_.SetComm(domain_.colComm);
+
     //distEigSolPtr_.SetComm(domain_.colComm);
     //distfftPtr_.SetComm(domain_.colComm);
-		
-   
+
+
     mixOuterSave_.SetComm(domain_.colComm);
-		mixInnerSave_.SetComm(domain_.colComm);
-		dfOuterMat_.SetComm(domain_.colComm);
-		dvOuterMat_.SetComm(domain_.colComm);
-		dfInnerMat_.SetComm(domain_.colComm);
-		dvInnerMat_.SetComm(domain_.colComm);
-		vtotLGLSave_.SetComm(domain_.colComm);
-		
-   
+    mixInnerSave_.SetComm(domain_.colComm);
+    dfOuterMat_.SetComm(domain_.colComm);
+    dvOuterMat_.SetComm(domain_.colComm);
+    dfInnerMat_.SetComm(domain_.colComm);
+    dvInnerMat_.SetComm(domain_.colComm);
+    vtotLGLSave_.SetComm(domain_.colComm);
+
+
     mixOuterSave_.Prtn()  = elemPrtn_;
-		mixInnerSave_.Prtn()  = elemPrtn_;
-		dfOuterMat_.Prtn()    = elemPrtn_;
-		dvOuterMat_.Prtn()    = elemPrtn_;
-		dfInnerMat_.Prtn()    = elemPrtn_;
-		dvInnerMat_.Prtn()    = elemPrtn_;
-		vtotLGLSave_.Prtn()   = elemPrtn_;
+    mixInnerSave_.Prtn()  = elemPrtn_;
+    dfOuterMat_.Prtn()    = elemPrtn_;
+    dvOuterMat_.Prtn()    = elemPrtn_;
+    dfInnerMat_.Prtn()    = elemPrtn_;
+    dvInnerMat_.Prtn()    = elemPrtn_;
+    vtotLGLSave_.Prtn()   = elemPrtn_;
 
 #ifdef _USE_PEXSI_
     distDMMat_.Prtn()     = hamDG.HMat().Prtn();
     distEDMMat_.Prtn()     = hamDG.HMat().Prtn();
     distFDMMat_.Prtn()     = hamDG.HMat().Prtn(); 
 #endif
-    
+
 
     // The number of processors in the column communicator must be the
     // number of elements, and mpisize should be a multiple of the
@@ -314,52 +315,52 @@ SCFDG::Setup	(
       msg << "Total number of processors do not fit to the number processors per element." << std::endl;
       throw std::runtime_error( msg.str().c_str() );
     }
-    
 
-		// FIXME fixed ratio between the size of the extended element and
-		// the element
-		for( Int d = 0; d < DIM; d++ ){
-			extElemRatio_[d] = ( numElem_[d]>1 ) ? 3 : 1;
-		}
 
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					Index3 key( i, j, k );
-					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-						DblNumVec  emptyVec( hamDG.NumUniformGridElemFine().prod() );
-						SetValue( emptyVec, 0.0 );
-						mixOuterSave_.LocalMap()[key] = emptyVec;
-						mixInnerSave_.LocalMap()[key] = emptyVec;
-						DblNumMat  emptyMat( hamDG.NumUniformGridElemFine().prod(), mixMaxDim_ );
-						SetValue( emptyMat, 0.0 );
-						dfOuterMat_.LocalMap()[key]   = emptyMat;
-						dvOuterMat_.LocalMap()[key]   = emptyMat;
-						dfInnerMat_.LocalMap()[key]   = emptyMat;
-						dvInnerMat_.LocalMap()[key]   = emptyMat;
+    // FIXME fixed ratio between the size of the extended element and
+    // the element
+    for( Int d = 0; d < DIM; d++ ){
+      extElemRatio_[d] = ( numElem_[d]>1 ) ? 3 : 1;
+    }
 
-						DblNumVec  emptyLGLVec( hamDG.NumLGLGridElem().prod() );
-						SetValue( emptyLGLVec, 0.0 );
-						vtotLGLSave_.LocalMap()[key] = emptyLGLVec;
-					} // own this element
-				}  // for (i)
-		
-	
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            DblNumVec  emptyVec( hamDG.NumUniformGridElemFine().prod() );
+            SetValue( emptyVec, 0.0 );
+            mixOuterSave_.LocalMap()[key] = emptyVec;
+            mixInnerSave_.LocalMap()[key] = emptyVec;
+            DblNumMat  emptyMat( hamDG.NumUniformGridElemFine().prod(), mixMaxDim_ );
+            SetValue( emptyMat, 0.0 );
+            dfOuterMat_.LocalMap()[key]   = emptyMat;
+            dvOuterMat_.LocalMap()[key]   = emptyMat;
+            dfInnerMat_.LocalMap()[key]   = emptyMat;
+            dvInnerMat_.LocalMap()[key]   = emptyMat;
+
+            DblNumVec  emptyLGLVec( hamDG.NumLGLGridElem().prod() );
+            SetValue( emptyLGLVec, 0.0 );
+            vtotLGLSave_.LocalMap()[key] = emptyLGLVec;
+          } // own this element
+        }  // for (i)
+
+
     // Restart the density in the global domain
-		restartDensityFileName_ = "DEN";
+    restartDensityFileName_ = "DEN";
     // Restart the wavefunctions in the extended element
-		restartWfnFileName_     = "WFNEXT";
-	}
+    restartWfnFileName_     = "WFNEXT";
+  }
 
   // *********************************************************************
   // Initialization
   // *********************************************************************
 
-	// Density
+  // Density
   DistDblNumVec&  density = hamDGPtr_->Density();
- 
+
   density.SetComm(domain_.colComm);
- 
+
   if( isRestartDensity_ ) {
     std::istringstream rhoStream;      
     SeparateRead( restartDensityFileName_, rhoStream );
@@ -408,7 +409,7 @@ SCFDG::Setup	(
     // Initialize the electron density using the pseudocharge
     // make sure the pseudocharge is initialized
     DistDblNumVec& pseudoCharge = hamDGPtr_->PseudoCharge();
-    
+
     pseudoCharge.SetComm(domain_.colComm);
 
     Real sumDensityLocal = 0.0, sumPseudoChargeLocal = 0.0;
@@ -461,7 +462,7 @@ SCFDG::Setup	(
   if( isRestartWfn_ ){
     std::istringstream wfnStream;      
     SeparateRead( restartWfnFileName_, wfnStream );
-   
+
     for( Int k = 0; k < numElem_[2]; k++ )
       for( Int j = 0; j < numElem_[1]; j++ )
         for( Int i = 0; i < numElem_[0]; i++ ){
@@ -496,7 +497,7 @@ SCFDG::Setup	(
     Print( statusOFS, "Restart basis functions." );
   } 
   else{ 
- 
+
     // Use random initial guess for basis functions in the extended element.
     for( Int k = 0; k < numElem_[2]; k++ )
       for( Int j = 0; j < numElem_[1]; j++ )
@@ -554,171 +555,171 @@ SCFDG::Setup	(
   // Generate the transfer matrix from the periodic uniform grid on each
   // extended element to LGL grid.  
   {
-		PeriodicUniformToLGLMat_.resize(DIM);
+    PeriodicUniformToLGLMat_.resize(DIM);
     PeriodicUniformFineToLGLMat_.resize(DIM);
 
-		EigenSolver& eigSol = (*distEigSol.LocalMap().begin()).second;
-		Domain dmExtElem = eigSol.FFT().domain;
-		Domain dmElem;
-		for( Int d = 0; d < DIM; d++ ){
-			dmElem.length[d]   = domain_.length[d] / numElem_[d];
-			dmElem.numGrid[d]  = domain_.numGrid[d] / numElem_[d];
+    EigenSolver& eigSol = (*distEigSol.LocalMap().begin()).second;
+    Domain dmExtElem = eigSol.FFT().domain;
+    Domain dmElem;
+    for( Int d = 0; d < DIM; d++ ){
+      dmElem.length[d]   = domain_.length[d] / numElem_[d];
+      dmElem.numGrid[d]  = domain_.numGrid[d] / numElem_[d];
       dmElem.numGridFine[d]  = domain_.numGridFine[d] / numElem_[d];
-			// PosStart relative to the extended element 
-			dmExtElem.posStart[d] = 0.0;
-			dmElem.posStart[d] = ( numElem_[d] > 1 ) ? dmElem.length[d] : 0;
-		}
+      // PosStart relative to the extended element 
+      dmExtElem.posStart[d] = 0.0;
+      dmElem.posStart[d] = ( numElem_[d] > 1 ) ? dmElem.length[d] : 0;
+    }
 
-		Index3 numLGL        = hamDG.NumLGLGridElem();
-		Index3 numUniform    = dmExtElem.numGrid;
+    Index3 numLGL        = hamDG.NumLGLGridElem();
+    Index3 numUniform    = dmExtElem.numGrid;
     Index3 numUniformFine    = dmExtElem.numGridFine;
-		Point3 lengthUniform = dmExtElem.length;
+    Point3 lengthUniform = dmExtElem.length;
 
-		std::vector<DblNumVec>  LGLGrid(DIM);
-		LGLMesh( dmElem, numLGL, LGLGrid ); 
-		std::vector<DblNumVec>  UniformGrid(DIM);
+    std::vector<DblNumVec>  LGLGrid(DIM);
+    LGLMesh( dmElem, numLGL, LGLGrid ); 
+    std::vector<DblNumVec>  UniformGrid(DIM);
     UniformMesh( dmExtElem, UniformGrid );
     std::vector<DblNumVec>  UniformGridFine(DIM);
     UniformMeshFine( dmExtElem, UniformGridFine );
 
-//		for( Int d = 0; d < DIM; d++ ){
-//			DblNumMat&  localMat = PeriodicUniformToLGLMat_[d];
-//			localMat.Resize( numLGL[d], numUniform[d] );
-//			SetValue( localMat, 0.0 );
-//			Int maxK;
-//			if (numUniform[d] % 2 == 0)
-//				maxK = numUniform[d] / 2 - 1;
-//			else
-//				maxK = ( numUniform[d] - 1 ) / 2;
-//			for( Int j = 0; j < numUniform[d]; j++ )
-//				for( Int i = 0; i < numLGL[d]; i++ ){
-//					// 1.0 accounts for the k=0 mode
-//					localMat(i,j) = 1.0;
-//					for( Int k = 1; k < maxK; k++ ){
-//						localMat(i,j) += 2.0 * std::cos( 
-//								2 * PI * k / lengthUniform[d] * 
-//								( LGLGrid[d](i) - j * lengthUniform[d] / numUniform[d] ) );
-//					} // for (k)
-//					localMat(i,j) /= numUniform[d];
-//				} // for (i)
-//		} // for (d)
+    //		for( Int d = 0; d < DIM; d++ ){
+    //			DblNumMat&  localMat = PeriodicUniformToLGLMat_[d];
+    //			localMat.Resize( numLGL[d], numUniform[d] );
+    //			SetValue( localMat, 0.0 );
+    //			Int maxK;
+    //			if (numUniform[d] % 2 == 0)
+    //				maxK = numUniform[d] / 2 - 1;
+    //			else
+    //				maxK = ( numUniform[d] - 1 ) / 2;
+    //			for( Int j = 0; j < numUniform[d]; j++ )
+    //				for( Int i = 0; i < numLGL[d]; i++ ){
+    //					// 1.0 accounts for the k=0 mode
+    //					localMat(i,j) = 1.0;
+    //					for( Int k = 1; k < maxK; k++ ){
+    //						localMat(i,j) += 2.0 * std::cos( 
+    //								2 * PI * k / lengthUniform[d] * 
+    //								( LGLGrid[d](i) - j * lengthUniform[d] / numUniform[d] ) );
+    //					} // for (k)
+    //					localMat(i,j) /= numUniform[d];
+    //				} // for (i)
+    //		} // for (d)
 
-		for( Int d = 0; d < DIM; d++ ){
-			DblNumMat&  localMat = PeriodicUniformToLGLMat_[d];
-			localMat.Resize( numLGL[d], numUniform[d] );
-			SetValue( localMat, 0.0 );
-			DblNumVec KGrid( numUniform[d] );
-			for( Int i = 0; i <= numUniform[d] / 2; i++ ){
-				KGrid(i) = i * 2.0 * PI / lengthUniform[d];
-			}
-			for( Int i = numUniform[d] / 2 + 1; i < numUniform[d]; i++ ){
-				KGrid(i) = ( i - numUniform[d] ) * 2.0 * PI / lengthUniform[d];
-			}
+    for( Int d = 0; d < DIM; d++ ){
+      DblNumMat&  localMat = PeriodicUniformToLGLMat_[d];
+      localMat.Resize( numLGL[d], numUniform[d] );
+      SetValue( localMat, 0.0 );
+      DblNumVec KGrid( numUniform[d] );
+      for( Int i = 0; i <= numUniform[d] / 2; i++ ){
+        KGrid(i) = i * 2.0 * PI / lengthUniform[d];
+      }
+      for( Int i = numUniform[d] / 2 + 1; i < numUniform[d]; i++ ){
+        KGrid(i) = ( i - numUniform[d] ) * 2.0 * PI / lengthUniform[d];
+      }
 
-			for( Int j = 0; j < numUniform[d]; j++ )
-				for( Int i = 0; i < numLGL[d]; i++ ){
-					localMat(i, j) = 0.0;
-					for( Int k = 0; k < numUniform[d]; k++ ){
-						localMat(i,j) += std::cos( KGrid(k) * ( LGLGrid[d](i) -
-									UniformGrid[d](j) ) ) / numUniform[d];
-					} // for (k)
-				} // for (i)
-		} // for (d)
+      for( Int j = 0; j < numUniform[d]; j++ )
+        for( Int i = 0; i < numLGL[d]; i++ ){
+          localMat(i, j) = 0.0;
+          for( Int k = 0; k < numUniform[d]; k++ ){
+            localMat(i,j) += std::cos( KGrid(k) * ( LGLGrid[d](i) -
+                  UniformGrid[d](j) ) ) / numUniform[d];
+          } // for (k)
+        } // for (i)
+    } // for (d)
 
 
-		for( Int d = 0; d < DIM; d++ ){
-			DblNumMat&  localMatFine = PeriodicUniformFineToLGLMat_[d];
-			localMatFine.Resize( numLGL[d], numUniformFine[d] );
-			SetValue( localMatFine, 0.0 );
-			DblNumVec KGridFine( numUniformFine[d] );
-			for( Int i = 0; i <= numUniformFine[d] / 2; i++ ){
-				KGridFine(i) = i * 2.0 * PI / lengthUniform[d];
-			}
-			for( Int i = numUniformFine[d] / 2 + 1; i < numUniformFine[d]; i++ ){
-				KGridFine(i) = ( i - numUniformFine[d] ) * 2.0 * PI / lengthUniform[d];
-			}
+    for( Int d = 0; d < DIM; d++ ){
+      DblNumMat&  localMatFine = PeriodicUniformFineToLGLMat_[d];
+      localMatFine.Resize( numLGL[d], numUniformFine[d] );
+      SetValue( localMatFine, 0.0 );
+      DblNumVec KGridFine( numUniformFine[d] );
+      for( Int i = 0; i <= numUniformFine[d] / 2; i++ ){
+        KGridFine(i) = i * 2.0 * PI / lengthUniform[d];
+      }
+      for( Int i = numUniformFine[d] / 2 + 1; i < numUniformFine[d]; i++ ){
+        KGridFine(i) = ( i - numUniformFine[d] ) * 2.0 * PI / lengthUniform[d];
+      }
 
-			for( Int j = 0; j < numUniformFine[d]; j++ )
-				for( Int i = 0; i < numLGL[d]; i++ ){
-					localMatFine(i, j) = 0.0;
-					for( Int k = 0; k < numUniformFine[d]; k++ ){
-						localMatFine(i,j) += std::cos( KGridFine(k) * ( LGLGrid[d](i) -
-									UniformGridFine[d](j) ) ) / numUniformFine[d];
-					} // for (k)
-				} // for (i)
-		} // for (d)
+      for( Int j = 0; j < numUniformFine[d]; j++ )
+        for( Int i = 0; i < numLGL[d]; i++ ){
+          localMatFine(i, j) = 0.0;
+          for( Int k = 0; k < numUniformFine[d]; k++ ){
+            localMatFine(i,j) += std::cos( KGridFine(k) * ( LGLGrid[d](i) -
+                  UniformGridFine[d](j) ) ) / numUniformFine[d];
+          } // for (k)
+        } // for (i)
+    } // for (d)
 
     // Assume the initial error is O(1)
     scfOuterNorm_ = 1.0;
     scfInnerNorm_ = 1.0;
 
 #if ( _DEBUGlevel_ >= 2 )
-		statusOFS << "PeriodicUniformToLGLMat[0] = "
-			<< PeriodicUniformToLGLMat_[0] << std::endl;
-		statusOFS << "PeriodicUniformToLGLMat[1] = " 
-			<< PeriodicUniformToLGLMat_[1] << std::endl;
-		statusOFS << "PeriodicUniformToLGLMat[2] = "
-			<< PeriodicUniformToLGLMat_[2] << std::endl;
-		statusOFS << "PeriodicUniformFineToLGLMat[0] = "
-			<< PeriodicUniformFineToLGLMat_[0] << std::endl;
-		statusOFS << "PeriodicUniformFineToLGLMat[1] = " 
-			<< PeriodicUniformFineToLGLMat_[1] << std::endl;
-		statusOFS << "PeriodicUniformFineToLGLMat[2] = "
-			<< PeriodicUniformFineToLGLMat_[2] << std::endl;
+    statusOFS << "PeriodicUniformToLGLMat[0] = "
+      << PeriodicUniformToLGLMat_[0] << std::endl;
+    statusOFS << "PeriodicUniformToLGLMat[1] = " 
+      << PeriodicUniformToLGLMat_[1] << std::endl;
+    statusOFS << "PeriodicUniformToLGLMat[2] = "
+      << PeriodicUniformToLGLMat_[2] << std::endl;
+    statusOFS << "PeriodicUniformFineToLGLMat[0] = "
+      << PeriodicUniformFineToLGLMat_[0] << std::endl;
+    statusOFS << "PeriodicUniformFineToLGLMat[1] = " 
+      << PeriodicUniformFineToLGLMat_[1] << std::endl;
+    statusOFS << "PeriodicUniformFineToLGLMat[2] = "
+      << PeriodicUniformFineToLGLMat_[2] << std::endl;
 #endif
-	}
+  }
 
 
 #ifndef _RELEASE_
-	PopCallStack();
+  PopCallStack();
 #endif
 
-	return ;
+  return ;
 } 		// -----  end of method SCFDG::Setup  ----- 
 
 void
 SCFDG::Update	( )
 {
 #ifndef _RELEASE_
-	PushCallStack("SCFDG::Update");
+  PushCallStack("SCFDG::Update");
 #endif
-	Int mpirank, mpisize;
-	MPI_Comm_rank( domain_.comm, &mpirank );
-	MPI_Comm_size( domain_.comm, &mpisize );
+  Int mpirank, mpisize;
+  MPI_Comm_rank( domain_.comm, &mpirank );
+  MPI_Comm_size( domain_.comm, &mpisize );
 
   HamiltonianDG& hamDG = *hamDGPtr_;
-	
-	{
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					Index3 key( i, j, k );
-					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-						DblNumVec  emptyVec( hamDG.NumUniformGridElemFine().prod() );
-						SetValue( emptyVec, 0.0 );
-						mixOuterSave_.LocalMap()[key] = emptyVec;
-						mixInnerSave_.LocalMap()[key] = emptyVec;
-						DblNumMat  emptyMat( hamDG.NumUniformGridElemFine().prod(), mixMaxDim_ );
-						SetValue( emptyMat, 0.0 );
-						dfOuterMat_.LocalMap()[key]   = emptyMat;
-						dvOuterMat_.LocalMap()[key]   = emptyMat;
-						dfInnerMat_.LocalMap()[key]   = emptyMat;
-						dvInnerMat_.LocalMap()[key]   = emptyMat;
 
-						DblNumVec  emptyLGLVec( hamDG.NumLGLGridElem().prod() );
-						SetValue( emptyLGLVec, 0.0 );
-						vtotLGLSave_.LocalMap()[key] = emptyLGLVec;
-					} // own this element
-				}  // for (i)
-		
-	
-	}
+  {
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            DblNumVec  emptyVec( hamDG.NumUniformGridElemFine().prod() );
+            SetValue( emptyVec, 0.0 );
+            mixOuterSave_.LocalMap()[key] = emptyVec;
+            mixInnerSave_.LocalMap()[key] = emptyVec;
+            DblNumMat  emptyMat( hamDG.NumUniformGridElemFine().prod(), mixMaxDim_ );
+            SetValue( emptyMat, 0.0 );
+            dfOuterMat_.LocalMap()[key]   = emptyMat;
+            dvOuterMat_.LocalMap()[key]   = emptyMat;
+            dfInnerMat_.LocalMap()[key]   = emptyMat;
+            dvInnerMat_.LocalMap()[key]   = emptyMat;
+
+            DblNumVec  emptyLGLVec( hamDG.NumLGLGridElem().prod() );
+            SetValue( emptyLGLVec, 0.0 );
+            vtotLGLSave_.LocalMap()[key] = emptyLGLVec;
+          } // own this element
+        }  // for (i)
+
+
+  }
 
 #ifndef _RELEASE_
-	PopCallStack();
+  PopCallStack();
 #endif
 
-	return ;
+  return ;
 } 		// -----  end of method SCFDG::Update  ----- 
 
 
@@ -726,7 +727,7 @@ void
 SCFDG::Iterate	(  )
 {
 #ifndef _RELEASE_
-	PushCallStack("SCFDG::Iterate");
+  PushCallStack("SCFDG::Iterate");
 #endif
 
 
@@ -735,14 +736,14 @@ SCFDG::Iterate	(  )
   MPI_Barrier(domain_.comm);
   MPI_Barrier(domain_.colComm);
   MPI_Barrier(domain_.rowComm);
- 
 
- 
+
+
 
   Int mpirank; MPI_Comm_rank( domain_.comm, &mpirank );
   Int mpisize; MPI_Comm_size( domain_.comm, &mpisize );
-  
- 
+
+
   Int mpirankRow;  MPI_Comm_rank(domain_.rowComm, &mpirankRow);
   Int mpisizeRow;  MPI_Comm_size(domain_.rowComm, &mpisizeRow);
 
@@ -750,14 +751,17 @@ SCFDG::Iterate	(  )
   Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
   Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
 
-	Real timeSta, timeEnd;
+  Real timeSta, timeEnd;
 
   HamiltonianDG&  hamDG = *hamDGPtr_;
 
+  if( XCType_ == "XC_GGA_XC_PBE" ){
+    hamDG.CalculateGradDensity(  *distfftPtr_ );
+  }
 
   // Compute the exchange-correlation potential and energy
   GetTime( timeSta );
-	hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
+  hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
   statusOFS << "Time for calculating XC is " <<
@@ -1935,10 +1939,12 @@ SCFDG::InnerIterate	( Int outerIter )
         // NOTE Vtot should not be updated until finishing the computation
         // of the energies.
 
+        if( XCType_ == "XC_GGA_XC_PBE" ){
+          hamDG.CalculateGradDensity(  *distfftPtr_ );
+        }
+
         GetTime( timeSta );
-        
-        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
-       
+        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
         statusOFS << "Time for computing Exc in the global domain is " <<
@@ -2226,10 +2232,12 @@ SCFDG::InnerIterate	( Int outerIter )
         // NOTE Vtot should not be updated until finishing the computation
         // of the energies.
 
+        if( XCType_ == "XC_GGA_XC_PBE" ){
+          hamDG.CalculateGradDensity(  *distfftPtr_ );
+        }
+
         GetTime( timeSta );
-
-        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
-
+        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
         statusOFS << "Time for computing Exc in the global domain is " <<
@@ -2717,7 +2725,12 @@ SCFDG::InnerIterate	( Int outerIter )
         // NOTE Vtot should not be updated until finishing the computation
         // of the energies.
 
-        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
+        if( XCType_ == "XC_GGA_XC_PBE" ){
+          hamDG.CalculateGradDensity(  *distfftPtr_ );
+        }
+
+        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
+
         hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
 
         // Compute the second order accurate energy functional.
@@ -2961,12 +2974,17 @@ SCFDG::InnerIterate	( Int outerIter )
 			// This is only used for potential mixing
 
 			// Compute the exchange-correlation potential and energy from the
-			// new density
-			hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc() );
+      // new density
 
-			hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+      if( XCType_ == "XC_GGA_XC_PBE" ){
+        hamDG.CalculateGradDensity(  *distfftPtr_ );
+      }
 
-			// No external potential
+      hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
+
+      hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+
+      // No external potential
 
       // Compute the new total potential
 

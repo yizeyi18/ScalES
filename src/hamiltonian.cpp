@@ -536,9 +536,9 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
 
     fftw_execute( fft.backwardPlanFine );
 
-    DblNumMat& GradDensity = gradDensity_[d];
+    DblNumMat& gradDensity = gradDensity_[d];
     for( Int i = 0; i < ntotFine; i++ ){
-      GradDensity(i, RHO) = fft.inputComplexVecFine(i).real() / ntotFine;
+      gradDensity(i, RHO) = fft.inputComplexVecFine(i).real() / ntotFine;
     }
   } // for d
 
@@ -582,30 +582,30 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
     epsx.Resize( ntot );
     epsc.Resize( ntot );
 
-    DblNumMat GradDensity;
-    GradDensity.Resize( ntot, numDensityComponent );
-    SetValue( GradDensity, 0.0 );
-    DblNumMat& GradDensity0 = gradDensity_[0];
-    DblNumMat& GradDensity1 = gradDensity_[1];
-    DblNumMat& GradDensity2 = gradDensity_[2];
+    DblNumMat gradDensity;
+    gradDensity.Resize( ntot, numDensityComponent );
+    SetValue( gradDensity, 0.0 );
+    DblNumMat& gradDensity0 = gradDensity_[0];
+    DblNumMat& gradDensity1 = gradDensity_[1];
+    DblNumMat& gradDensity2 = gradDensity_[2];
 
     for(Int i = 0; i < ntot; i++){
-      GradDensity(i, RHO) = GradDensity0(i, RHO) * GradDensity0(i, RHO)
-        + GradDensity1(i, RHO) * GradDensity1(i, RHO)
-        + GradDensity2(i, RHO) * GradDensity2(i, RHO);
+      gradDensity(i, RHO) = gradDensity0(i, RHO) * gradDensity0(i, RHO)
+        + gradDensity1(i, RHO) * gradDensity1(i, RHO)
+        + gradDensity2(i, RHO) * gradDensity2(i, RHO);
     }
 
     SetValue( epsx, 0.0 );
     SetValue( vxc1, 0.0 );
     SetValue( vxc2, 0.0 );
     xc_gga_exc_vxc( &XFuncType_, ntot, density_.VecData(RHO), 
-        GradDensity.VecData(RHO), epsx.Data(), vxc1.Data(), vxc2.Data() );
+        gradDensity.VecData(RHO), epsx.Data(), vxc1.Data(), vxc2.Data() );
 
     SetValue( epsc, 0.0 );
     SetValue( vxc1temp, 0.0 );
     SetValue( vxc2temp, 0.0 );
     xc_gga_exc_vxc( &CFuncType_, ntot, density_.VecData(RHO), 
-        GradDensity.VecData(RHO), epsc.Data(), vxc1temp.Data(), vxc2temp.Data() );
+        gradDensity.VecData(RHO), epsc.Data(), vxc1temp.Data(), vxc2temp.Data() );
 
     for( Int i = 0; i < ntot; i++ ){
       epsxc_(i) = epsx(i) + epsc(i) ;
@@ -616,10 +616,10 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
 
     for( Int d = 0; d < DIM; d++ ){
 
-      DblNumMat& GradDensity = gradDensity_[d];
+      DblNumMat& gradDensityd = gradDensity_[d];
 
       for(Int i = 0; i < ntot; i++){
-        fft.inputComplexVecFine(i) = Complex( GradDensity( i, RHO ) * 2.0 * vxc2( i, RHO ), 0.0 ); 
+        fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2( i, RHO ), 0.0 ); 
       }
 
       fftw_execute( fft.forwardPlanFine );

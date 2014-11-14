@@ -96,11 +96,11 @@ private:
 	Real                LGLGridFactor_;
 
 	bool                isPeriodizePotential_;
-	Point3              distancePeriodize_;
-  
-	std::string         restartDensityFileName_;
-  std::string         restartWfnFileName_;
+  Point3              distancePeriodize_;
 
+  std::string         restartDensityFileName_;
+  std::string         restartWfnFileName_;
+  std::string         XCType_;
   /// @brief Same as @ref esdf::ESDFInputParam::solutionMethod
   std::string         solutionMethod_;
 

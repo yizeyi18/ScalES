@@ -101,16 +101,22 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
   Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
   Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
 
+  if( esdfParam.XCType == "XC_LDA_XC_TETER93" )
+  { XCId_ = XC_LDA_XC_TETER93;
+    // Teter 93
+    // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
+  }    
+  else if( esdfParam.XCType == "XC_GGA_XC_PBE" )
+  {
+    XId_ = XC_GGA_X_PBE;
+    CId_ = XC_GGA_C_PBE;
+    // Perdew, Burke & Ernzerhof correlation
+    // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
+    // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
+  }
+  else
+    throw std::logic_error("Unrecognized exchange-correlation type");
 
-	{
-		if( esdfParam.XCType == "XC_LDA_XC_TETER93" )
-			XCId_ = XC_LDA_XC_TETER93;
-		else
-      throw std::logic_error("Unrecognized exchange-correlation type");
-	}
-
-
-	
   Int ntot = domain_.NumGridTotal();
   Int ntotFine = domain_.NumGridTotalFine();
 
@@ -205,6 +211,12 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
   vtot_.SetComm( domain_.colComm );
   vtotLGL_.SetComm( domain_.colComm );
 
+  gradDensity_.resize( DIM );
+  for( Int d = 0; d < DIM; d++ ){
+    gradDensity_[d].SetComm( domain_.colComm );
+    gradDensity_[d].Prtn() = elemPrtn_;
+  }
+
   eigvecCoef_.SetComm( domain_.colComm );
   pseudo_.SetComm( domain_.colComm );
   vnlCoef_.SetComm( domain_.colComm );
@@ -242,13 +254,16 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 					vext_.LocalMap()[key]        = empty;
 					vhart_.LocalMap()[key]       = empty;
 					vxc_.LocalMap()[key]         = empty;
-					epsxc_.LocalMap()[key]       = empty;
-					vtot_.LocalMap()[key]        = empty;
-				} // own this element
-			}  // for (i)
-  
-	vtotLGL_.Prtn()       = elemPrtn_;
-	basisLGL_.Prtn()      = elemPrtn_;
+          epsxc_.LocalMap()[key]       = empty;
+          vtot_.LocalMap()[key]        = empty;
+          for( Int d = 0; d < DIM; d++ ){
+            gradDensity_[d].LocalMap()[key] = empty;
+          }
+        } // own this element
+      }  // for (i)
+
+  vtotLGL_.Prtn()       = elemPrtn_;
+  basisLGL_.Prtn()      = elemPrtn_;
 
 	for( Int k=0; k< numElem_[2]; k++ )
 		for( Int j=0; j< numElem_[1]; j++ )
@@ -528,14 +543,32 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 
   }
 
-
-	// Initialize the XC functional.  
+  // Initialize the XC functional.  
   // Spin-unpolarized functional is used here
-  if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-    throw std::runtime_error( "XC functional initialization error." );
-  } 
+  //if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+  //  throw std::runtime_error( "XC functional initialization error." );
+  //} 
 
-  
+  xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED);
+  xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED);
+  xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED);
+
+  if( XCId_ == 20 )
+  {
+    if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+      throw std::runtime_error( "XC functional initialization error." );
+    } 
+  }    
+  else if( ( XId_ == 101 ) && ( CId_ == 130 )  )
+  {
+    if( ( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 )
+        && ( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ) ){
+      throw std::runtime_error( "XC functional initialization error." );
+    }
+  }
+  else
+    throw std::logic_error("Unrecognized exchange-correlation type");
+
   for( Int k = 0; k < numElem_[2]; k++ )
     for( Int j = 0; j < numElem_[1]; j++ )
       for( Int i = 0; i < numElem_[0]; i++ ){
@@ -548,20 +581,20 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
           if(mpirankRow < (numBasisLGLTotal % mpisizeRow)){
             numBasisLGLLocal = numBasisLGLBlocksize + 1;
           }
-            basisLGLIdx_.Resize( numBasisLGLLocal );
-            SetValue( basisLGLIdx_, 0 );
-            for (Int i = 0; i < numBasisLGLLocal; i++){
-              basisLGLIdx_[i] = i * mpisizeRow + mpirankRow ;
+          basisLGLIdx_.Resize( numBasisLGLLocal );
+          SetValue( basisLGLIdx_, 0 );
+          for (Int i = 0; i < numBasisLGLLocal; i++){
+            basisLGLIdx_[i] = i * mpisizeRow + mpirankRow ;
           }
         }
       }
 
 
 #ifndef _RELEASE_
-	PopCallStack();
+  PopCallStack();
 #endif
 
-	return ;
+  return ;
 } 		// -----  end of method HamiltonianDG::Setup  ----- 
 
 void
@@ -621,14 +654,26 @@ HamiltonianDG::UpdateHamiltonianDG	( const std::vector<Atom>& atomList )
 HamiltonianDG::~HamiltonianDG	( )
 {
 #ifndef _RELEASE_
-	PushCallStack("HamiltonianDG::~HamiltonianDG");
+  PushCallStack("HamiltonianDG::~HamiltonianDG");
 #endif
 
-	if( XCInitialized_ )
-		xc_func_end(&XCFuncType_);
+  if( XCInitialized_ )
+  {
+    if( XCId_ == 20 )
+    {
+      xc_func_end(&XCFuncType_);
+    }    
+    else if( ( XId_ == 101 ) && ( CId_ == 130 )  )
+    {
+      xc_func_end(&XFuncType_);
+      xc_func_end(&CFuncType_);
+    }
+    else
+      throw std::logic_error("Unrecognized exchange-correlation type");
+  }
 
 #ifndef _RELEASE_
-	PopCallStack();
+  PopCallStack();
 #endif
 } 		// -----  end of method HamiltonianDG::HamiltonianDG  ----- 
 
@@ -1714,95 +1759,350 @@ HamiltonianDG::CalculateDensityDM2	(
 } 		// -----  end of method HamiltonianDG::CalculateDensityDM2  ----- 
 
 
+void HamiltonianDG::CalculateGradDensity( DistFourier&  fft ) {
+#ifndef _RELEASE_ 
+  PushCallStack("HamiltonianDG::CalculateGradDensity");
+#endif
+  if( !fft.isInitialized ){
+    throw std::runtime_error("Fourier is not prepared.");
+  }
+  Int mpirank, mpisize;
+  MPI_Comm_rank( domain_.comm, &mpirank );
+  MPI_Comm_size( domain_.comm, &mpisize );
+
+  Int ntot      = fft.numGridTotal;
+  Int ntotLocal = fft.numGridLocal;
+
+  DblNumVec  tempVecLocal;
+
+  std::vector<DblNumVec>      gradDensityLocal(DIM);
+
+  // Convert tempVec to tempVecLocal in distributed row vector format
+  DistNumVecToDistRowVec(
+      density_,
+      tempVecLocal,
+      domain_.numGridFine,
+      numElem_,
+      fft.localNzStart,
+      fft.localNz,
+      fft.isInGrid,
+      domain_.colComm );
+
+  if( fft.isInGrid ){
+
+    for( Int i = 0; i < ntotLocal; i++ ){
+      fft.inputComplexVecLocal(i) = Complex( 
+          tempVecLocal(i), 0.0 );
+    }
+
+    fftw_execute( fft.forwardPlan );
+
+    CpxNumVec  cpxVecLocal( tempVecLocal.Size() );
+    blas::Copy( ntotLocal, fft.outputComplexVecLocal.Data(), 1,
+        cpxVecLocal.Data(), 1 );
+
+    for( Int d = 0; d < DIM; d++ ){
+      CpxNumVec& ikLocal  = fft.ikLocal[d];
+      for( Int i = 0; i < ntotLocal; i++ ){
+        if( fft.gkkLocal(i) == 0 ){
+          fft.outputComplexVecLocal(i) = Z_ZERO;
+        }
+        else{
+          fft.outputComplexVecLocal(i) = cpxVecLocal(i) * ikLocal(i);
+        }
+      }
+
+      fftw_execute( fft.backwardPlan );
+
+      gradDensityLocal[d].Resize( tempVecLocal.Size() );
+
+      for( Int i = 0; i < ntotLocal; i++ ){
+        gradDensityLocal[d](i) = fft.inputComplexVecLocal(i).real() / ntot;
+      }
+
+    } // for (d)
+
+  } // if (fft.isInGrid)
+
+  for( Int d = 0; d < DIM; d++ ){
+    DistRowVecToDistNumVec( 
+        gradDensityLocal[d],
+        gradDensity_[d],
+        domain_.numGridFine,
+        numElem_,
+        fft.localNzStart,
+        fft.localNz,
+        fft.isInGrid,
+        domain_.colComm );
+  }
+
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+  return; 
+}  // -----  end of method HamiltonianDG::CalculateGradDensity ----- 
+
 
 void
 HamiltonianDG::CalculateXC	( 
-		Real &Exc, 
-		DistDblNumVec&   epsxc,
-		DistDblNumVec&   vxc )
+    Real &Exc, 
+    DistDblNumVec&   epsxc,
+    DistDblNumVec&   vxc,
+    DistFourier&    fft )
 {
 #ifndef _RELEASE_
-	PushCallStack("HamiltonianDG::CalculateXC");
+  PushCallStack("HamiltonianDG::CalculateXC");
 #endif
-	Int mpirank, mpisize;
-	MPI_Comm_rank( domain_.comm, &mpirank );
-	MPI_Comm_size( domain_.comm, &mpisize );
-	
-	Real ExcLocal = 0.0;
+  Int mpirank, mpisize;
+  MPI_Comm_rank( domain_.comm, &mpirank );
+  MPI_Comm_size( domain_.comm, &mpisize );
 
-	for( Int k = 0; k < numElem_[2]; k++ )
-		for( Int j = 0; j < numElem_[1]; j++ )
-			for( Int i = 0; i < numElem_[0]; i++ ){
-				Index3 key( i, j, k );
-				if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-					DblNumVec& localRho   = density_.LocalMap()[key];
-					DblNumVec& localEpsxc = epsxc.LocalMap()[key];
-					DblNumVec& localVxc   = vxc.LocalMap()[key];
-
-					switch( XCFuncType_.info->family ){
-						case XC_FAMILY_LDA:
-							xc_lda_exc_vxc( &XCFuncType_, localRho.Size(), 
-									localRho.Data(),
-									localEpsxc.Data(), 
-									localVxc.Data() );
-							break;
-						default:
-							throw std::logic_error( "Unsupported XC family!" );
-							break;
-					}
-					ExcLocal += blas::Dot( localRho.Size(), 
-							localRho.Data(), 1, localEpsxc.Data(), 1 );
-				} // own this element
-			} // for (i)
-
-	ExcLocal *= domain_.Volume() / domain_.NumGridTotalFine();
-
-	mpi::Allreduce( &ExcLocal, &Exc, 1, MPI_SUM, domain_.colComm );
-
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-
-	return ;
-} 		// -----  end of method HamiltonianDG::CalculateXC  ----- 
-
-void HamiltonianDG::CalculateHartree( 
-		DistDblNumVec&  vhart,
-		DistFourier&    fft ) {
-#ifndef _RELEASE_ 
-	PushCallStack("HamiltonianDG::CalculateHartree");
-#endif
-	if( !fft.isInitialized ){
-		throw std::runtime_error("Fourier is not prepared.");
-	}
-	Int mpirank, mpisize;
-	MPI_Comm_rank( domain_.comm, &mpirank );
-	MPI_Comm_size( domain_.comm, &mpisize );
+  Real ExcLocal = 0.0;
 
   Int ntot      = fft.numGridTotal;
-	Int ntotLocal = fft.numGridLocal;
+  Int ntotLocal = fft.numGridLocal;
 
-	vhart.SetComm(domain_.colComm);
-	
+  if( XCId_ == 20 ) // XC_FAMILY_LDA
+  {
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            DblNumVec& localRho   = density_.LocalMap()[key];
+            DblNumVec& localEpsxc = epsxc.LocalMap()[key];
+            DblNumVec& localVxc   = vxc.LocalMap()[key];
+
+            xc_lda_exc_vxc( &XCFuncType_, localRho.Size(), 
+                localRho.Data(),
+                localEpsxc.Data(), 
+                localVxc.Data() );
+
+            ExcLocal += blas::Dot( localRho.Size(), 
+                localRho.Data(), 1, localEpsxc.Data(), 1 );
+
+          } // own this element
+        } // for (i)
+  } // XC_FAMILY_LDA
+  else if( ( XId_ == 101 ) && ( CId_ == 130 ) ) //XC_FAMILY_GGA
+  {
+    DistDblNumVec vxc22;
+    vxc22.SetComm( domain_.colComm );
+    vxc22.Prtn() = elemPrtn_;
+
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            DblNumVec& localRho   = density_.LocalMap()[key];
+            DblNumVec& localEpsxc = epsxc.LocalMap()[key];
+            DblNumVec& localVxc   = vxc.LocalMap()[key];
+
+            DblNumVec& vxc2 = vxc22.LocalMap()[key];
+
+            DblNumVec     vxc1;             
+            vxc1.Resize( localRho.Size() );
+            vxc2.Resize( localRho.Size() );
+
+            DblNumVec     vxc1temp;             
+            DblNumVec     vxc2temp;             
+            vxc1temp.Resize( localRho.Size() );
+            vxc2temp.Resize( localRho.Size() );
+
+            DblNumVec     epsx; 
+            DblNumVec     epsc; 
+            epsx.Resize( localRho.Size() );
+            epsc.Resize( localRho.Size() );
+
+            DblNumVec gradDensity;
+            gradDensity.Resize( localRho.Size() );
+            SetValue( gradDensity, 0.0 );
+            DblNumVec& gradDensity0 = gradDensity_[0].LocalMap()[key];
+            DblNumVec& gradDensity1 = gradDensity_[1].LocalMap()[key];
+            DblNumVec& gradDensity2 = gradDensity_[2].LocalMap()[key];
+
+            for(Int i = 0; i < localRho.Size(); i++){
+              gradDensity(i) = gradDensity0(i) * gradDensity0(i)
+                + gradDensity1(i) * gradDensity1(i)
+                + gradDensity2(i) * gradDensity2(i);
+            }
+
+            SetValue( epsx, 0.0 );
+            SetValue( vxc1, 0.0 );
+            SetValue( vxc2, 0.0 );
+            xc_gga_exc_vxc( &XFuncType_, localRho.Size(), localRho.Data(), 
+                gradDensity.Data(), epsx.Data(), vxc1.Data(), vxc2.Data() );
+
+            SetValue( epsc, 0.0 );
+            SetValue( vxc1temp, 0.0 );
+            SetValue( vxc2temp, 0.0 );
+            xc_gga_exc_vxc( &CFuncType_, localRho.Size(), localRho.Data(), 
+                gradDensity.Data(), epsc.Data(), vxc1temp.Data(), vxc2temp.Data() );
+
+            for( Int i = 0; i < localRho.Size(); i++ ){
+              localEpsxc(i) = epsx(i) + epsc(i) ;
+              vxc1( i ) += vxc1temp( i );
+              vxc2( i ) += vxc2temp( i );
+              localVxc( i ) = vxc1( i );
+            }
+
+            ExcLocal += blas::Dot( localRho.Size(), 
+                localRho.Data(), 1, localEpsxc.Data(), 1 );
+
+          } // own this element
+        } // for (i)
+
+    for( Int d = 0; d < DIM; d++ ){
+
+      DistDblNumVec gradDensityVxc22;
+      gradDensityVxc22.SetComm( domain_.colComm );
+      gradDensityVxc22.Prtn() = elemPrtn_;
+
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key = Index3( i, j, k );
+            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+              DblNumVec& vxc2 = vxc22.LocalMap()[key];
+              DblNumVec& gradDensityd     = gradDensity_[d].LocalMap()[key];
+              DblNumVec& gradDensityVxc2  = gradDensityVxc22.LocalMap()[key];
+
+              gradDensityVxc2.Resize( gradDensityd.Size() );
+              for(Int i = 0; i < gradDensityd.Size(); i++){
+                gradDensityVxc2(i) = gradDensityd( i ) * 2.0 * vxc2( i ); 
+              }
+
+            } // own this element
+          } // for (i)
+
+      DistDblNumVec gradGradDensityVxc22;
+      gradGradDensityVxc22.SetComm( domain_.colComm );
+      gradGradDensityVxc22.Prtn() = elemPrtn_;
+
+      DblNumVec  tempVecLocal1;
+      DblNumVec  tempVecLocal2;
+
+      DistNumVecToDistRowVec(
+          gradDensityVxc22,
+          tempVecLocal1,
+          domain_.numGridFine,
+          numElem_,
+          fft.localNzStart,
+          fft.localNz,
+          fft.isInGrid,
+          domain_.colComm );
+
+      tempVecLocal2.Resize( tempVecLocal1.Size() );
+      SetValue( tempVecLocal2, 0.0 );
+
+      if( fft.isInGrid ){
+
+        for( Int i = 0; i < ntotLocal; i++ ){
+          fft.inputComplexVecLocal(i) = Complex( 
+              tempVecLocal1(i), 0.0 );
+        }
+
+        fftw_execute( fft.forwardPlan );
+
+        CpxNumVec& ikLocal  = fft.ikLocal[d];
+        for( Int i = 0; i < ntotLocal; i++ ){
+          if( fft.gkkLocal(i) == 0 ){
+            fft.outputComplexVecLocal(i) = Z_ZERO;
+          }
+          else{
+            fft.outputComplexVecLocal(i) *= ikLocal(i);
+          }
+        }
+
+        fftw_execute( fft.backwardPlan );
+
+        for( Int i = 0; i < ntotLocal; i++ ){
+          tempVecLocal2(i) = fft.inputComplexVecLocal(i).real() / ntot;
+        }
+
+      } // if (fft.isInGrid)
+
+      DistRowVecToDistNumVec( 
+          tempVecLocal2,
+          gradGradDensityVxc22,
+          domain_.numGridFine,
+          numElem_,
+          fft.localNzStart,
+          fft.localNz,
+          fft.isInGrid,
+          domain_.colComm );
+
+
+
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key = Index3( i, j, k );
+            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+              DblNumVec& localVxc   = vxc.LocalMap()[key];
+              DblNumVec& gradGradDensityVxc2 = gradGradDensityVxc22.LocalMap()[key];
+              for( Int i = 0; i < localVxc.Size(); i++ ){
+                localVxc( i ) -= gradGradDensityVxc2(i);
+              }
+            }
+          }
+
+    } // for (d)
+
+  } //XC_FAMILY_GGA
+  else
+    throw std::logic_error( "Unsupported XC family!" );
+
+  ExcLocal *= domain_.Volume() / domain_.NumGridTotalFine();
+
+  mpi::Allreduce( &ExcLocal, &Exc, 1, MPI_SUM, domain_.colComm );
+
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+
+  return ;
+} 		// -----  end of method HamiltonianDG::CalculateXC  ----- 
+
+
+void HamiltonianDG::CalculateHartree( 
+    DistDblNumVec&  vhart,
+    DistFourier&    fft ) {
+#ifndef _RELEASE_ 
+  PushCallStack("HamiltonianDG::CalculateHartree");
+#endif
+  if( !fft.isInitialized ){
+    throw std::runtime_error("Fourier is not prepared.");
+  }
+  Int mpirank, mpisize;
+  MPI_Comm_rank( domain_.comm, &mpirank );
+  MPI_Comm_size( domain_.comm, &mpisize );
+
+  Int ntot      = fft.numGridTotal;
+  Int ntotLocal = fft.numGridLocal;
+
+  vhart.SetComm(domain_.colComm);
+
   DistDblNumVec   tempVec;
-	tempVec.SetComm(domain_.colComm);
+  tempVec.SetComm(domain_.colComm);
   tempVec.Prtn() = elemPrtn_;
 
   // tempVec = density_ - pseudoCharge_
-	for( Int k = 0; k < numElem_[2]; k++ )
-		for( Int j = 0; j < numElem_[1]; j++ )
-			for( Int i = 0; i < numElem_[0]; i++ ){
-				Index3 key = Index3( i, j, k );
-				if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-					tempVec.LocalMap()[key] = density_.LocalMap()[key];
-					blas::Axpy( numUniformGridElemFine_.prod(), -1.0, 
-							pseudoCharge_.LocalMap()[key].Data(), 1,
-							tempVec.LocalMap()[key].Data(), 1 );
-				}
-			}
+  for( Int k = 0; k < numElem_[2]; k++ )
+    for( Int j = 0; j < numElem_[1]; j++ )
+      for( Int i = 0; i < numElem_[0]; i++ ){
+        Index3 key = Index3( i, j, k );
+        if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+          tempVec.LocalMap()[key] = density_.LocalMap()[key];
+          blas::Axpy( numUniformGridElemFine_.prod(), -1.0, 
+              pseudoCharge_.LocalMap()[key].Data(), 1,
+              tempVec.LocalMap()[key].Data(), 1 );
+        }
+      }
 
   // Convert tempVec to tempVecLocal in distributed row vector format
-	DblNumVec  tempVecLocal;
+  DblNumVec  tempVecLocal;
 
   DistNumVecToDistRowVec(
 			tempVec,
@@ -1862,6 +2162,9 @@ void HamiltonianDG::CalculateHartree(
 #endif
 	return; 
 }  // -----  end of method HamiltonianDG::CalculateHartree ----- 
+
+
+
 
 void
 HamiltonianDG::CalculateVtot	( DistDblNumVec& vtot  )
