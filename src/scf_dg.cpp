@@ -148,10 +148,13 @@ SCFDG::Setup	(
     mixType_       = esdfParam.mixType;
 		mixStepLength_ = esdfParam.mixStepLength;
     eigTolerance_  = esdfParam.eigTolerance;
+    eigMinIter_    = esdfParam.eigMinIter;
     eigMaxIter_    = esdfParam.eigMaxIter;
 		scfInnerTolerance_  = esdfParam.scfInnerTolerance;
+		scfInnerMinIter_    = esdfParam.scfInnerMinIter;
 		scfInnerMaxIter_    = esdfParam.scfInnerMaxIter;
 		scfOuterTolerance_  = esdfParam.scfOuterTolerance;
+		scfOuterMinIter_    = esdfParam.scfOuterMinIter;
 		scfOuterMaxIter_    = esdfParam.scfOuterMaxIter;
 		scfOuterEnergyTolerance_ = esdfParam.scfOuterEnergyTolerance;
     numUnusedState_ = esdfParam.numUnusedState;
@@ -799,7 +802,7 @@ SCFDG::Iterate	(  )
 
   Int iter;
   for (iter=1; iter <= scfOuterMaxIter_; iter++) {
-    if ( isSCFConverged ) break;
+    if ( isSCFConverged && (iter >= scfOuterMinIter_ ) ) break;
 		
 		
 		// Performing each iteartion
@@ -1446,8 +1449,8 @@ SCFDG::Iterate	(  )
 
 
     if( iter >= 2 & 
-        ( scfOuterNorm_ < scfOuterTolerance_ | 
-          EfreeDifPerAtom < scfOuterEnergyTolerance_ ) ){
+        ( (scfOuterNorm_ < scfOuterTolerance_) & 
+          (EfreeDifPerAtom < scfOuterEnergyTolerance_) ) ){
       /* converged */
       Print( statusOFS, "Outer SCF is converged!\n" );
 			statusOFS << std::endl;

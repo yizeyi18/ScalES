@@ -70,13 +70,16 @@ private:
 	std::string         mixType_;
 	Real                mixStepLength_;            
   Real                eigTolerance_;
+  Int                 eigMinIter_;
   Int                 eigMaxIter_;
   Real                scfInnerTolerance_;
+	Int                 scfInnerMinIter_;
 	Int                 scfInnerMaxIter_;
   /// @brief Criterion for convergence using Efree rather than the
   /// potential difference.
 	Real                scfOuterEnergyTolerance_;
 	Real                scfOuterTolerance_;
+	Int                 scfOuterMinIter_;
 	Int                 scfOuterMaxIter_;
 	Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
   Int                 numUnusedState_;

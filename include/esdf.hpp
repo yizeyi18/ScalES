@@ -180,10 +180,18 @@ namespace esdf{
     ///
     /// Default: 1e-4
     Real                scfOuterEnergyTolerance;
+    /// @brief Minimum number of inner %SCF iterations
+    ///
+    /// Default: 1
+    Int                 scfInnerMinIter;
     /// @brief Maximum number of inner %SCF iterations
     ///
     /// Default: 1
     Int                 scfInnerMaxIter;
+    /// @brief Minimum number of outer %SCF iterations
+    ///
+    /// Default: 3
+    Int                 scfOuterMinIter;
     /// @brief Maximum number of outer %SCF iterations
     ///
     /// Default: 30
@@ -202,6 +210,10 @@ namespace esdf{
     /// the eigensolver is controlled dynamically and can be larger than
     /// eigTolerance.
     Real                eigTolerance;
+    /// @brief Minimum number of iterations for the eigensolver.
+    ///
+    /// Default: 1
+    Int                 eigMinIter;
     /// @brief Maximum number of iterations for the eigensolver.
     ///
     /// Default: 10

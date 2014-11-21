@@ -2096,11 +2096,14 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
 		esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
 		esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
-		esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
+		esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 );
+		esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   10 );
 		esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-6 );
 		esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
+		esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
 		esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
 		esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-6 );
+		esdfParam.eigMinIter           = esdf_integer( "Eig_MinIter",  2 );
 		esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  10 );
 		esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
 		esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
