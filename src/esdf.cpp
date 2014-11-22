@@ -340,8 +340,12 @@ void esdf_key() {
 	strcpy(kw_typ[i],"P:E");
 	strcpy(kw_dscrpt[i],"*! Grid spacing (h) !*");
 
-
 	i++;
+	strcpy(kw_label[i],"miniter");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Minimum iterations !*");
+	
+  i++;
 	strcpy(kw_label[i],"maxiter");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Maximum iterations !*");
@@ -397,6 +401,11 @@ void esdf_key() {
 	strcpy(kw_label[i],"eig_tolerance");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! eigenvalue solver tolerance!*");
+	
+  i++;
+	strcpy(kw_label[i],"eig_miniter");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Minimum iteration number for eigenvalue solver!*");
 
 	i++;
 	strcpy(kw_label[i],"eig_maxiter");
@@ -429,6 +438,10 @@ void esdf_key() {
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! temperature (in Kelvin)!*");
 
+	i++;
+	strcpy(kw_label[i],"scf_inner_miniter");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Minimum iteration number for inner SCF loop !*");
 
 	i++;
 	strcpy(kw_label[i],"scf_inner_maxiter");
@@ -436,6 +449,11 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Maximum iteration number for inner SCF loop !*");
 
 	i++;
+	strcpy(kw_label[i],"scf_outer_miniter");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Minimum iteration number for outer SCF loop !*");
+	
+  i++;
 	strcpy(kw_label[i],"scf_outer_maxiter");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Maximum iteration number for outer SCF loop !*");
