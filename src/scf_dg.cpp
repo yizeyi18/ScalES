@@ -49,6 +49,8 @@
 #include	"lapack.hpp"
 #include  "utility.hpp"
 
+#define _DEBUGlevel_ 0
+
 namespace  dgdft{
 
 using namespace dgdft::DensityComponent;
@@ -103,7 +105,12 @@ SCFDG::~SCFDG	(  )
 #ifdef _USE_PEXSI_
 
   if( isPEXSIInitialized_ == true ){
-    if( mpirank < numProcTotalPEXSI_ ){
+    Int mpirankRow;  MPI_Comm_rank(domain_.rowComm, &mpirankRow);
+    Int mpisizeRow;  MPI_Comm_size(domain_.rowComm, &mpisizeRow);
+    Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
+    Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
+
+    if( mpirankRow < numProcPEXSICommRow_ & mpirankCol < numProcPEXSICommCol_ ){
       Int info;
       PPEXSIPlanFinalize(
           pexsiPlan_,
@@ -230,26 +237,51 @@ SCFDG::Setup	(
     numProcColPEXSI_     = esdfParam.numProcColPEXSI;
     inertiaCountSteps_   = esdfParam.inertiaCountSteps;
 
+    dmCol_ = numElem_[0] * numElem_[1] * numElem_[2];
+    dmRow_ = mpisize / dmCol_;
+
     // Provide a communicator for PEXSI
-    Int npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_;
+    numProcPEXSICommCol_ = numProcRowPEXSI_ * numProcColPEXSI_;
 
-    if( npPerPole_ > mpisize )
-      throw std::logic_error("The number of processors is not enough for one pole.");
+    if( numProcPEXSICommCol_ > dmCol_ ){
+      std::ostringstream msg;
+      msg 
+        << "In the current implementation, "
+        << "the number of processors per pole = " << numProcPEXSICommCol_ 
+        << ", and cannot exceed the number of elements = " << dmCol_ 
+        << std::endl;
+      throw std::runtime_error( msg.str().c_str() );
+    }
+    
+    numProcPEXSICommRow_ = std::min( esdfParam.numPole, dmRow_ );
 
-    numProcTotalPEXSI_   = std::min( 
-        ( mpisize / npPerPole_ ) * npPerPole_,
-        npPerPole_ * esdfParam.numPole );
-    Int isProcPEXSI = (mpirank < numProcTotalPEXSI_) ? 1 : 0;
+    numProcTotalPEXSI_   = numProcPEXSICommRow_ * numProcPEXSICommCol_;
 
-    MPI_Comm_split( domain_.comm, isProcPEXSI, mpirank, &pexsiComm_ );
+    Int isProcPEXSI = 0;
+    if( (mpirankRow < numProcPEXSICommRow_) && (mpirankCol < numProcPEXSICommCol_) )
+      isProcPEXSI = 1;
+
+    // Transpose way of ranking MPI processors to be consistent with PEXSI.
+    Int mpirankPEXSI = mpirankCol + mpirankRow * ( numProcPEXSICommCol_ );
+      
+    MPI_Comm_split( domain_.comm, isProcPEXSI, mpirankPEXSI, &pexsiComm_ );
+
 
     // Initialize PEXSI
-    if( mpirank < numProcTotalPEXSI_ ){
+    if( isProcPEXSI ){
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "mpirank = " << mpirank << ", mpirankPEXSI = " << mpirankPEXSI << std::endl;
+#endif
+
+      // FIXME More versatile control of the output of the PEXSI module
+      Int outputFileIndex = mpirank;
+
       pexsiPlan_        = PPEXSIPlanInitialize(
           pexsiComm_,
           numProcRowPEXSI_,
           numProcColPEXSI_,
-          mpirank,
+          outputFileIndex,
           &info );
       if( info != 0 ){
         std::ostringstream msg;
@@ -260,8 +292,6 @@ SCFDG::Setup	(
     }
   }
 #endif
-
-
 
 
   // other SCFDG parameters
@@ -309,8 +339,6 @@ SCFDG::Setup	(
     // The number of processors in the column communicator must be the
     // number of elements, and mpisize should be a multiple of the
     // number of elements.
-    dmCol_ = numElem_[0] * numElem_[1] * numElem_[2];
-    dmRow_ = mpisize / dmCol_;
     if( (mpisize % dmCol_) != 0 ){
       statusOFS << "mpisize = " << mpisize << " mpirank = " << mpirank << std::endl;
       statusOFS << "dmCol_ = " << dmCol_ << " dmRow_ = " << dmRow_ << std::endl;
@@ -2367,91 +2395,79 @@ SCFDG::InnerIterate	( Int outerIter )
       Real muMinInertia, muMaxInertia;
       Real muPEXSI, numElectronPEXSI;
       Int numTotalInertiaIter, numTotalPEXSIIter;
-      Int npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_;
 
-      std::vector<Int> mpirankElemVec( dmCol_ );
-      std::vector<Int> mpirankSparseVec( npPerPole_ );
+      std::vector<Int> mpirankSparseVec( numProcPEXSICommCol_ );
 
-      // The processors in the first column are the source
-      for( Int i = 0; i < dmCol_; i++ ){
-        mpirankElemVec[i] = i * dmRow_;
-      }
-      // The first numPerPole_ processors are the target
-      for( Int i = 0; i < npPerPole_; i++ ){
+      // FIXME 
+      // Currently, only the first processor column participate in the
+      // communication between PEXSI and DGDFT For the first processor
+      // column involved in PEXSI, the first numProcPEXSICommCol_
+      // processors are involved in the data communication between PEXSI
+      // and DGDFT
+      
+      for( Int i = 0; i < numProcPEXSICommCol_; i++ ){
         mpirankSparseVec[i] = i;
       }
 
-#if ( _DEBUGlevel_ >= 2 )
-        statusOFS << "mpirankElemVec = " << mpirankElemVec << std::endl;
-        statusOFS << "mpirankSparseVec = " << mpirankSparseVec << std::endl;
+#if ( _DEBUGlevel_ >= 1 )
+      statusOFS << "mpirankSparseVec = " << mpirankSparseVec << std::endl;
 #endif
 
+      Int info;
 
       // Temporary matrices 
       DistSparseMatrix<Real>  HSparseMat;
       DistSparseMatrix<Real>  DMSparseMat;
       DistSparseMatrix<Real>  EDMSparseMat;
       DistSparseMatrix<Real>  FDMSparseMat;
+          
+      if( mpirankRow == 0 ){
 
-      Int info;
-      
-      // Create an MPI communicator for saving the H matrix in a
-      // subgroup of processors
-      MPI_Comm HCSCComm;
-      Int isProcHCSC = ( mpirank < npPerPole_ ) ? 1 : 0;
-      
-      MPI_Comm_split( domain_.comm, isProcHCSC, mpirank, &HCSCComm );
-      
-      // Convert the DG matrix into the distributed CSC format
-      // All processors participate in this step
+        // Convert the DG matrix into the distributed CSC format
 
-			GetTime(timeSta);
-			DistElemMatToDistSparseMat2( 
-					hamDG.HMat(),
-					hamDG.NumBasisTotal(),
-					HSparseMat,
-					hamDG.ElemBasisIdx(),
-					domain_.comm, 
-          domain_.colComm,
-          HCSCComm,
-          mpirankElemVec,
-          mpirankSparseVec );
-			GetTime(timeEnd);
+        GetTime(timeSta);
+        DistElemMatToDistSparseMat3( 
+            hamDG.HMat(),
+            hamDG.NumBasisTotal(),
+            HSparseMat,
+            hamDG.ElemBasisIdx(),
+            domain_.colComm,
+            mpirankSparseVec );
+        GetTime(timeEnd);
 
-      // FIXME The following line is NECESSARY, and is because of the
-      // immature implementation of DistElemMatToDistSparseMat
-      if( isProcHCSC ){
-        HSparseMat.comm = HCSCComm;
-        mpi::Allreduce( &HSparseMat.nnzLocal, 
-            &HSparseMat.nnz, 1, MPI_SUM, HSparseMat.comm );
-      }
 #if ( _DEBUGlevel_ >= 0 )
-			statusOFS << "Time for converting the DG matrix to DistSparseMatrix format is " <<
-				timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        statusOFS << "Time for converting the DG matrix to DistSparseMatrix format is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
 
-#if ( _DEBUGlevel_ >= 1 )
-      if( mpirank < npPerPole_ ){
-        statusOFS << "H.size = " << HSparseMat.size << std::endl;
-        statusOFS << "H.nnz  = " << HSparseMat.nnz << std::endl;
-        statusOFS << "H.nnzLocal  = " << HSparseMat.nnzLocal << std::endl;
-        statusOFS << "H.colptrLocal.m() = " << HSparseMat.colptrLocal.m() << std::endl;
-        statusOFS << "H.rowindLocal.m() = " << HSparseMat.rowindLocal.m() << std::endl;
-        statusOFS << "H.nzvalLocal.m() = " << HSparseMat.nzvalLocal.m() << std::endl;
-      }
+#if ( _DEBUGlevel_ >= 0 )
+        if( mpirankCol < numProcPEXSICommCol_ ){
+          statusOFS << "H.size = " << HSparseMat.size << std::endl;
+          statusOFS << "H.nnz  = " << HSparseMat.nnz << std::endl;
+          statusOFS << "H.nnzLocal  = " << HSparseMat.nnzLocal << std::endl;
+          statusOFS << "H.colptrLocal.m() = " << HSparseMat.colptrLocal.m() << std::endl;
+          statusOFS << "H.rowindLocal.m() = " << HSparseMat.rowindLocal.m() << std::endl;
+          statusOFS << "H.nzvalLocal.m() = " << HSparseMat.nzvalLocal.m() << std::endl;
+        }
 #endif
- 
-      if( isProcHCSC ){
-        CopyPattern( HSparseMat, DMSparseMat );
-        CopyPattern( HSparseMat, EDMSparseMat );
-        CopyPattern( HSparseMat, FDMSparseMat );
       }
 
-      if( mpirank < numProcTotalPEXSI_ ){
+
+      if( (mpirankRow < numProcPEXSICommRow_) && (mpirankCol < numProcPEXSICommCol_) ){
         // Load the matrices into PEXSI.  
-        // Only the processors with isProcHCSC == 1 need to carry the
+        // Only the processors with mpirankCol == 0 need to carry the
         // nonzero values of HSparseMat
+
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "numProcPEXSICommRow_ = " << numProcPEXSICommRow_ << std::endl;
+        statusOFS << "numProcPEXSICommCol_ = " << numProcPEXSICommCol_ << std::endl;
+        statusOFS << "mpirankRow = " << mpirankRow << std::endl;
+        statusOFS << "mpirankCol = " << mpirankCol << std::endl;
+#endif
+
+
+        GetTime( timeSta );
         PPEXSILoadRealSymmetricHSMatrix(
             pexsiPlan_,
             pexsiOptions_,
@@ -2465,6 +2481,12 @@ SCFDG::InnerIterate	( Int outerIter )
             1,  // isSIdentity
             NULL,
             &info );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for loading the matrix into PEXSI is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
         if( info != 0 ){
           std::ostringstream msg;
           msg 
@@ -2526,8 +2548,15 @@ SCFDG::InnerIterate	( Int outerIter )
 
         // Retrieve the PEXSI data
 
-        if( isProcHCSC ){
+        if( mpirankRow == 0 ){
           Real totalEnergyH, totalEnergyS, totalFreeEnergy;
+
+          GetTime( timeSta );
+          
+          CopyPattern( HSparseMat, DMSparseMat );
+          CopyPattern( HSparseMat, EDMSparseMat );
+          CopyPattern( HSparseMat, FDMSparseMat );
+
           PPEXSIRetrieveRealSymmetricDFTMatrix(
               pexsiPlan_,
               DMSparseMat.nzvalLocal.Data(),
@@ -2537,6 +2566,11 @@ SCFDG::InnerIterate	( Int outerIter )
               &totalEnergyS,
               &totalFreeEnergy,
               &info );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for retrieving PEXSI data is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
           statusOFS << std::endl
             << "Results obtained from PEXSI:" << std::endl
@@ -2561,60 +2595,50 @@ SCFDG::InnerIterate	( Int outerIter )
       // Broadcast the Fermi level
       MPI_Bcast( &fermi_, 1, MPI_DOUBLE, 0, domain_.comm );
 
-      GetTime(timeSta);
+      if( mpirankRow == 0 )
       {
+        GetTime(timeSta);
         // Convert the density matrix from DistSparseMatrix format to the
         // DistElemMat format
-        DistSparseMatToDistElemMat2(
+        DistSparseMatToDistElemMat3(
             DMSparseMat,
             hamDG.NumBasisTotal(),
             hamDG.HMat().Prtn(),
             distDMMat_,
             hamDG.ElemBasisIdx(),
-            domain_.comm,
             domain_.colComm,
-            HCSCComm,
-            mpirankElemVec,
             mpirankSparseVec );
 
 
         // Convert the energy density matrix from DistSparseMatrix
         // format to the DistElemMat format
-        DistSparseMatToDistElemMat2(
+        DistSparseMatToDistElemMat3(
             EDMSparseMat,
             hamDG.NumBasisTotal(),
             hamDG.HMat().Prtn(),
             distEDMMat_,
             hamDG.ElemBasisIdx(),
-            domain_.comm,
             domain_.colComm,
-            HCSCComm,
-            mpirankElemVec,
             mpirankSparseVec );
 
 
         // Convert the free energy density matrix from DistSparseMatrix
         // format to the DistElemMat format
-        DistSparseMatToDistElemMat2(
+        DistSparseMatToDistElemMat3(
             FDMSparseMat,
             hamDG.NumBasisTotal(),
             hamDG.HMat().Prtn(),
             distFDMMat_,
             hamDG.ElemBasisIdx(),
-            domain_.comm,
             domain_.colComm,
-            HCSCComm,
-            mpirankElemVec,
             mpirankSparseVec );
-      }
-
-      GetTime( timeEnd );
+        GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for converting the DistSparseMatrices to DistElemMat " << 
-        "for post-processing is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        statusOFS << "Time for converting the DistSparseMatrices to DistElemMat " << 
+          "for post-processing is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-
+      }
 
       // Broadcast the distElemMat matrices
       // FIXME this is not a memory efficient implementation
@@ -2622,7 +2646,7 @@ SCFDG::InnerIterate	( Int outerIter )
       {
         Int sstrSize;
         std::vector<char> sstr;
-        if( mpirank % dmRow_ == 0 ){
+        if( mpirankRow == 0 ){
           std::stringstream distElemMatStream;
           Int cnt = 0;
           for( typename std::map<ElemMatKey, DblNumMat >::iterator mi  = distDMMat_.LocalMap().begin();
@@ -2647,7 +2671,7 @@ SCFDG::InnerIterate	( Int outerIter )
         sstr.resize( sstrSize );
         MPI_Bcast( &sstr[0], sstrSize, MPI_BYTE, 0, domain_.rowComm );
 
-        if( mpirank % dmRow_ != 0 ){
+        if( mpirankRow != 0 ){
           std::stringstream distElemMatStream;
           distElemMatStream.write( &sstr[0], sstrSize );
           Int cnt;
@@ -2670,8 +2694,6 @@ SCFDG::InnerIterate	( Int outerIter )
       statusOFS << "Time for broadcasting the density matrix for post-processing is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-
-
 
 
       // Compute the Harris energy functional.  
@@ -2791,7 +2813,6 @@ SCFDG::InnerIterate	( Int outerIter )
 
       // TODO Evaluate the a posteriori error estimator
 
-      MPI_Comm_free( &HCSCComm );
       GetTime( timePEXSIEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for PEXSI evaluation is " <<

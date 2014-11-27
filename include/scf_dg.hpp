@@ -117,17 +117,39 @@ private:
   /// @brief The total number of processors used by PEXSI.
   /// 
   /// Let npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_, then
-  /// The size of pexsiComm_ is 
   ///
-  /// min( int(mpisize/npPerPole_)*npPerPole_, 
-  /// npPerPole_ * numPole ),
+  /// LL 11/26/2014: In the new version of DGDFT-PEXSI with the
+  /// intra-element parallelization, the pexsi communicator is given as
+  /// follows:
   ///
-  /// which is the maximum number of processors that can be used by
-  /// PEXSI.
+  /// If the DG communicator is partitioned into a 2D rectangular grid
+  /// as
   ///
-  /// This assumes that the number of processors used by PEXSI is
-  /// smaller than the number of processors used by DG.
+  /// numElem * numProcPerElem 
+  ///
+  /// Then PEXSI uses a subset of this grid with size
+  ///
+  /// numProcPerPole * min(numPole, numProcPerElem)
+  ///
+  /// i.e. a upper-left rectangular block of the total number of
+  /// processors.
+  ///
+  /// This greatly simplfies the procedure and the cost for data
+  /// communication when the number of processors is large.
+  ///
+  /// This number is equal to numProcPEXSICommRow_ *
+  /// numProcPEXSICommCol_
   Int                 numProcTotalPEXSI_;
+  /// @brief The number of processors for each pole.
+  ///
+  /// This number is equal to numProcRowPEXSI_ * numProcColPEXSI_, and
+  /// should be less than or equal to the number of elements.
+  Int                 numProcPEXSICommCol_;
+  /// @brief The number of processors for pole parallelization.
+  ///
+  /// This number should be set as the minimum of the number of poles,
+  /// and the number of processors for each element in DG.
+  Int                 numProcPEXSICommRow_;
   /// @brief Communicator used only by PEXSI.  
   ///
   MPI_Comm            pexsiComm_;
@@ -137,6 +159,7 @@ private:
   Int                 numProcRowPEXSI_;
   /// @brief The number of column processors used by PEXSI for each pole.
   Int                 numProcColPEXSI_;
+
 
   Int                 inertiaCountSteps_;
   // Minimum of the tolerance for the inertia counting in the
