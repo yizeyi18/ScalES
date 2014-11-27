@@ -481,6 +481,9 @@ namespace esdf{
     /// extended element or element.
     Real                LGLGridFactor;
 
+    /// @brief Number of processors for distributed FFT.
+    ///
+    Int                 numProcDistFFT;
 
     /// @brief Number of processors used by ScaLAPACK.
     ///

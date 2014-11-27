@@ -55,9 +55,8 @@ using namespace dgdft::scalapack;
 
 void Usage(){
   std::cout 
-    << "dgdft -in [inFile] -fftsize [fftsize]" << std::endl
-    << "in:             Input file (default: dgdft.in)" << std::endl
-    << "fftsize:        Number of procs used for distributed memory fft (default:mpisize)" << std::endl;
+    << "dgdft -in [inFile]" << std::endl
+    << "in:             Input file (default: dgdft.in)" << std::endl;
 }
 
 
@@ -81,11 +80,11 @@ int main(int argc, char **argv)
     // Initialize log file
 #ifdef _RELEASE_
     // In the release mode, only the master processor outputs information
-//    if( mpirank == 0 ){
+    if( mpirank == 0 ){
       stringstream  ss;
       ss << "statfile." << mpirank;
       statusOFS.open( ss.str().c_str() );
-//    }
+    }
 #else
     // Every processor outputs information
     {
@@ -112,14 +111,6 @@ int main(int argc, char **argv)
     // Initialize input parameters
     std::map<std::string,std::string> options;
     OptionsCreate(argc, argv, options);
-
-    Int distfftSize;
-    if( options.find("-fftsize") != options.end() ){
-      distfftSize = std::atoi(options["-fftsize"].c_str());
-    }
-    else{
-      distfftSize = mpisize;
-    }
 
     std::string inFile;                   
     if( options.find("-in") != options.end() ){ 
@@ -214,6 +205,7 @@ int main(int argc, char **argv)
       Print(statusOFS, "ScaLAPACK block   = ",  esdfParam.scaBlockSize); 
       statusOFS << "Number of ALB for each element: " << std::endl 
         << esdfParam.numALBElem << std::endl;
+      Print(statusOFS, "Number of procs for DistFFT  = ",  esdfParam.numProcDistFFT ); 
 
       Print(statusOFS, "Solution Method   = ",  esdfParam.solutionMethod );
       if( esdfParam.solutionMethod == "diag" ){
@@ -565,7 +557,7 @@ int main(int argc, char **argv)
     GetTime( timeSta );
 
     DistFourier distfft;
-    distfft.Initialize( dm, distfftSize );
+    distfft.Initialize( dm, esdfParam.numProcDistFFT );
 
     GetTime( timeEnd );
     statusOFS << "Time for setting up Distributed Fourier is " <<

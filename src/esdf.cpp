@@ -745,7 +745,13 @@ void esdf_key() {
 	strcpy(kw_label[i],"num_pole");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Number of poles for the pole expansion !*");
-	
+
+  i++;
+	strcpy(kw_label[i],"num_proc_distfft");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of processors used by distributed FFT!*");
+
+
   i++;
 	strcpy(kw_label[i],"num_proc_scalapack");
 	strcpy(kw_typ[i],"I:E");
@@ -2272,6 +2278,9 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 			throw std::runtime_error("Usage of PEXSI requires -DPEXSI to be defined in make.inc.");
 #endif
     }
+
+    // FFT
+    esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisize );
 
     // ScaLAPACK parameter
     esdfParam.numProcScaLAPACK  = esdf_integer( "Num_Proc_ScaLAPACK", mpisize );
