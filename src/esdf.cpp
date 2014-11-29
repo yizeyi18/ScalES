@@ -2398,9 +2398,9 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
   // Molecualr dynamics
   {
-		esdfParam.MDMaxStep   = esdf_integer("MD_Max_Step", 10);
-		esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 50.0);
-		esdfParam.qMass       = esdf_double("Thermostat_Mass", 10.0);
+		esdfParam.MDMaxStep   = esdf_integer("MD_Max_Step", 1000);
+		esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 80.0);
+		esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);
     esdfParam.isRestartPosition     = esdf_integer( "Restart_Position", 0 );
 		esdfParam.isRestartThermostat   = esdf_integer( "Restart_Thermostat", 0 );
 		esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 0 );

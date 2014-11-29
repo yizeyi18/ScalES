@@ -199,6 +199,9 @@ SCFDG::Setup	(
   Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
   Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
 
+  dmCol_ = numElem_[0] * numElem_[1] * numElem_[2];
+  dmRow_ = mpisize / dmCol_;
+  
   numProcScaLAPACK_ = esdfParam.numProcScaLAPACK;
 
   // Initialize PEXSI
@@ -237,8 +240,8 @@ SCFDG::Setup	(
     numProcColPEXSI_     = esdfParam.numProcColPEXSI;
     inertiaCountSteps_   = esdfParam.inertiaCountSteps;
 
-    dmCol_ = numElem_[0] * numElem_[1] * numElem_[2];
-    dmRow_ = mpisize / dmCol_;
+    //dmCol_ = numElem_[0] * numElem_[1] * numElem_[2];
+    //dmRow_ = mpisize / dmCol_;
 
     // Provide a communicator for PEXSI
     numProcPEXSICommCol_ = numProcRowPEXSI_ * numProcColPEXSI_;
