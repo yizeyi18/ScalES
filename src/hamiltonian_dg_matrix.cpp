@@ -40,7 +40,7 @@
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file hamiltonian_dg.cpp
+/// @file hamiltonian_dg_matrix.cpp
 /// @brief Implementation of the Hamiltonian class for DG calculation.
 /// @date 2013-01-09
 /// @date 2014-08-07 Add intra-element paralelization.  NOTE: the OpenMP

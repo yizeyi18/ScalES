@@ -2776,7 +2776,7 @@ HamiltonianDG::CalculateForceDM	(
 							SparseVec& sp = pp.pseudoCharge;
 							IntNumVec& idx = sp.first;
 							DblNumMat& val = sp.second;
-							Real    wgt = domain_.Volume() / domain_.NumGridTotal();
+							Real    wgt = domain_.Volume() / domain_.NumGridTotalFine();
 							DblNumVec&  vhartVal = vhart.LocalMap()[key];
 							Real resX = 0.0;
 							Real resY = 0.0;
@@ -2812,7 +2812,7 @@ HamiltonianDG::CalculateForceDM	(
 							SparseVec& sp = pp.pseudoCharge;
 							IntNumVec& idx = sp.first;
 							DblNumMat& val = sp.second;
-							Real    wgt = domain_.Volume() / domain_.NumGridTotal();
+							Real    wgt = domain_.Volume() / domain_.NumGridTotalFine();
 							for( Int d = 0; d < DIM; d++ ){
 								DblNumVec&  drv = vhartDrv[d].LocalMap()[key];
 								Real res = 0.0;
