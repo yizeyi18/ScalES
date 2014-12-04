@@ -396,50 +396,74 @@ SCFDG::Setup	(
   density.SetComm(domain_.colComm);
 
   if( isRestartDensity_ ) {
-    std::istringstream rhoStream;      
-    SeparateRead( restartDensityFileName_, rhoStream );
+    // Only the first processor column reads the matrix
 
-    Real sumDensityLocal = 0.0, sumDensity = 0.0;
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Restarting density from DEN_ files." << std::endl;
+#endif
 
+    if( mpirankRow == 0 ){
+      std::istringstream rhoStream;      
+      SeparateRead( restartDensityFileName_, rhoStream, mpirankCol );
+
+      Real sumDensityLocal = 0.0, sumDensity = 0.0;
+
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key( i, j, k );
+            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+
+              std::vector<DblNumVec> grid(DIM);
+              for( Int d = 0; d < DIM; d++ ){
+                deserialize( grid[d], rhoStream, NO_MASK );
+              }
+
+              DblNumVec   denVecRead;
+              DblNumVec&  denVec = density.LocalMap()[key];
+              deserialize( denVecRead, rhoStream, NO_MASK );
+              if( denVecRead.Size() != denVec.Size() ){
+                std::ostringstream msg;
+                msg 
+                  << "The size of restarting density does not match with the current setup."  
+                  << std::endl
+                  << "input density size   ~ " << denVecRead.Size() << std::endl
+                  << "current density size ~ " << denVec.Size()     << std::endl;
+                throw std::runtime_error( msg.str().c_str() );
+              }
+              denVec = denVecRead;
+              for( Int p = 0; p < denVec.Size(); p++ ){
+                sumDensityLocal += denVec(p);
+              }
+            }
+          } // for (i)
+
+      // Rescale the density
+      mpi::Allreduce( &sumDensityLocal, &sumDensity, 1, MPI_SUM,
+          domain_.colComm );
+
+      Print( statusOFS, "Restart density. Sum of density      = ", 
+          sumDensity * domain_.Volume() / domain_.NumGridTotalFine() );
+    }
+
+    // Broadcast the density to the column
     for( Int k = 0; k < numElem_[2]; k++ )
       for( Int j = 0; j < numElem_[1]; j++ )
         for( Int i = 0; i < numElem_[0]; i++ ){
           Index3 key( i, j, k );
           if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-
-            std::vector<DblNumVec> grid(DIM);
-            for( Int d = 0; d < DIM; d++ ){
-              deserialize( grid[d], rhoStream, NO_MASK );
-            }
-
-            DblNumVec   denVecRead;
             DblNumVec&  denVec = density.LocalMap()[key];
-            deserialize( denVecRead, rhoStream, NO_MASK );
-            if( denVecRead.Size() != denVec.Size() ){
-              std::ostringstream msg;
-              msg 
-                << "The size of restarting density does not match with the current setup."  
-                << std::endl
-                << "input density size   ~ " << denVecRead.Size() << std::endl
-                << "current density size ~ " << denVec.Size()     << std::endl;
-              throw std::runtime_error( msg.str().c_str() );
-            }
-            denVec = denVecRead;
-            for( Int p = 0; p < denVec.Size(); p++ ){
-              sumDensityLocal += denVec(p);
-            }
+            MPI_Bcast( denVec.Data(), denVec.Size(), MPI_DOUBLE, 0, domain_.rowComm );
           }
-        } // for (i)
-
-    // Rescale the density
-    mpi::Allreduce( &sumDensityLocal, &sumDensity, 1, MPI_SUM,
-        domain_.colComm );
-
-    Print( statusOFS, "Restart density. Sum of density      = ", 
-        sumDensity * domain_.Volume() / domain_.NumGridTotalFine() );
+        }
 
   } // else using the zero initial guess
   else {
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Generating initial density through linear combination of pseudocharges." 
+      << std::endl;
+#endif
+
     // Initialize the electron density using the pseudocharge
     // make sure the pseudocharge is initialized
     DistDblNumVec& pseudoCharge = hamDGPtr_->PseudoCharge();
@@ -494,8 +518,12 @@ SCFDG::Setup	(
 
   // Wavefunctions in the extended element
   if( isRestartWfn_ ){
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Restarting basis functions from WFNEXT_ files"
+      << std::endl;
+#endif
     std::istringstream wfnStream;      
-    SeparateRead( restartWfnFileName_, wfnStream );
+    SeparateRead( restartWfnFileName_, wfnStream, mpirank );
 
     for( Int k = 0; k < numElem_[2]; k++ )
       for( Int j = 0; j < numElem_[1]; j++ )
@@ -528,9 +556,12 @@ SCFDG::Setup	(
           }
         } // for (i)
 
-    Print( statusOFS, "Restart basis functions." );
   } 
   else{ 
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Initial random basis functions in the extended element."
+      << std::endl;
+#endif
 
     // Use random initial guess for basis functions in the extended element.
     for( Int k = 0; k < numElem_[2]; k++ )
@@ -1510,93 +1541,96 @@ SCFDG::Iterate	(  )
       scfOuterMaxIter_ << std::endl;
   }
 
-  // Output the electron density
-  if( isOutputDensity_ ){
-    if(1)
-    {
-      statusOFS << std::endl 
-        << "Output the electron density on the global grid" << std::endl;
-
-
-      // Output the electron density on the uniform grid in each element
-      std::ostringstream rhoStream;      
-
-      NumTns<std::vector<DblNumVec> >& uniformGridElem =
-        hamDG.UniformGridElem();
-
-      for( Int k = 0; k < numElem_[2]; k++ )
-        for( Int j = 0; j < numElem_[1]; j++ )
-          for( Int i = 0; i < numElem_[0]; i++ ){
-            Index3 key( i, j, k );
-            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-              DblNumVec&  denVec = hamDG.Density().LocalMap()[key];
-              std::vector<DblNumVec>& grid = uniformGridElem(i, j, k);
-              for( Int d = 0; d < DIM; d++ ){
-                serialize( grid[d], rhoStream, NO_MASK );
-              }
-              serialize( denVec, rhoStream, NO_MASK );
-            }
-          } // for (i)
-      SeparateWrite( restartDensityFileName_, rhoStream );
-    }
-
-    if(0)
-    {
-      // Output the electron density on the LGL grid in each element
-      std::ostringstream rhoStream;      
-
-      NumTns<std::vector<DblNumVec> >& LGLGridElem =
-        hamDG.LGLGridElem();
-
-      for( Int k = 0; k < numElem_[2]; k++ )
-        for( Int j = 0; j < numElem_[1]; j++ )
-          for( Int i = 0; i < numElem_[0]; i++ ){
-            Index3 key( i, j, k );
-            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-              DblNumVec&  denVec = hamDG.DensityLGL().LocalMap()[key];
-              std::vector<DblNumVec>& grid = LGLGridElem(i, j, k);
-              for( Int d = 0; d < DIM; d++ ){
-                serialize( grid[d], rhoStream, NO_MASK );
-              }
-              serialize( denVec, rhoStream, NO_MASK );
-            }
-          } // for (i)
-      SeparateWrite( "DENLGL", rhoStream );
-    }
-  } // if ( output density )
+//    if(0)
+//    {
+//      // Output the electron density on the LGL grid in each element
+//      std::ostringstream rhoStream;      
+//
+//      NumTns<std::vector<DblNumVec> >& LGLGridElem =
+//        hamDG.LGLGridElem();
+//
+//      for( Int k = 0; k < numElem_[2]; k++ )
+//        for( Int j = 0; j < numElem_[1]; j++ )
+//          for( Int i = 0; i < numElem_[0]; i++ ){
+//            Index3 key( i, j, k );
+//            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+//              DblNumVec&  denVec = hamDG.DensityLGL().LocalMap()[key];
+//              std::vector<DblNumVec>& grid = LGLGridElem(i, j, k);
+//              for( Int d = 0; d < DIM; d++ ){
+//                serialize( grid[d], rhoStream, NO_MASK );
+//              }
+//              serialize( denVec, rhoStream, NO_MASK );
+//            }
+//          } // for (i)
+//      SeparateWrite( "DENLGL", rhoStream );
+//    }
 
   for( Int k = 0; k < numElem_[2]; k++ )
     for( Int j = 0; j < numElem_[1]; j++ )
       for( Int i = 0; i < numElem_[0]; i++ ){
         Index3 key( i, j, k );
         if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-          if( isOutputPotExtElem_ )
-          {
-            statusOFS 
-              << std::endl 
-              << "Output the total potential in the extended element."
-              << std::endl;
-            std::ostringstream potStream;      
-            EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
+          // Output density, and only mpirankRow == 0 does the job of
+          // for each element.
+          if( isOutputDensity_ ){
+            if( mpirankRow == 0 ){
+#if ( _DEBUGlevel_ >= 0 )
+              statusOFS << std::endl 
+                << "Output the electron density on the global grid" 
+                << std::endl;
+#endif
 
-            // Generate the uniform mesh on the extended element.
-            std::vector<DblNumVec> gridpos;
-            //UniformMesh ( eigSol.FFT().domain, gridpos );
-            UniformMeshFine ( eigSol.FFT().domain, gridpos );
-            for( Int d = 0; d < DIM; d++ ){
-              serialize( gridpos[d], potStream, NO_MASK );
-            }
-            serialize( eigSol.Ham().Vtot(), potStream, NO_MASK );
-            serialize( eigSol.Ham().Vext(), potStream, NO_MASK );
-            SeparateWrite( "POTEXT", potStream);
+              std::ostringstream rhoStream;      
+
+              NumTns<std::vector<DblNumVec> >& uniformGridElem =
+                hamDG.UniformGridElem();
+
+              DblNumVec&  denVec = hamDG.Density().LocalMap()[key];
+              std::vector<DblNumVec>& grid = uniformGridElem(i, j, k);
+              for( Int d = 0; d < DIM; d++ ){
+                serialize( grid[d], rhoStream, NO_MASK );
+              }
+              serialize( denVec, rhoStream, NO_MASK );
+
+              SeparateWrite( restartDensityFileName_, rhoStream, mpirankCol );
+            } // if( mpirankRow == 0 )
           }
 
+          // Output potential in extended element, and only mpirankRow
+          // == 0 does the job of for each element.
+          if( isOutputPotExtElem_ ) {
+            if( mpirankRow == 0 ){
+#if ( _DEBUGlevel_ >= 0 )
+              statusOFS 
+                << std::endl 
+                << "Output the total potential in the extended element."
+                << std::endl;
+#endif
+              std::ostringstream potStream;      
+              EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
+
+              // Generate the uniform mesh on the extended element.
+              std::vector<DblNumVec> gridpos;
+              //UniformMesh ( eigSol.FFT().domain, gridpos );
+              UniformMeshFine ( eigSol.FFT().domain, gridpos );
+              for( Int d = 0; d < DIM; d++ ){
+                serialize( gridpos[d], potStream, NO_MASK );
+              }
+              serialize( eigSol.Ham().Vtot(), potStream, NO_MASK );
+              serialize( eigSol.Ham().Vext(), potStream, NO_MASK );
+              SeparateWrite( "POTEXT", potStream, mpirankCol );
+            } // if( mpirankRow == 0 )
+          }
+
+          // Output wavefunction in the extended element.  All processors participate
           if( isOutputWfnExtElem_ )
           {
+#if ( _DEBUGlevel_ >= 0 )
             statusOFS 
               << std::endl 
               << "Output the wavefunctions in the extended element."
               << std::endl;
+#endif
 
             EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
             std::ostringstream wavefunStream;      
@@ -1608,11 +1642,18 @@ SCFDG::Iterate	(  )
               serialize( gridpos[d], wavefunStream, NO_MASK );
             }
             serialize( eigSol.Psi().Wavefun(), wavefunStream, NO_MASK );
-            SeparateWrite( "WFNEXT", wavefunStream);
+            SeparateWrite( restartWfnFileName_, wavefunStream, mpirank);
           }
 
+          // Output wavefunction in the element on LGL grid. All processors participate.
           if( isOutputWfnElem_ )
           {
+#if ( _DEBUGlevel_ >= 0 )
+            statusOFS 
+              << std::endl 
+              << "Output the wavefunctions in the element on a LGL grid."
+              << std::endl;
+#endif
             // Output the wavefunctions in the extended element.
             std::ostringstream wavefunStream;      
 
@@ -1622,9 +1663,8 @@ SCFDG::Iterate	(  )
               serialize( gridpos[d], wavefunStream, NO_MASK );
             }
             serialize( hamDG.BasisLGL().LocalMap()[key], wavefunStream, NO_MASK );
-            SeparateWrite( "WFNELEM", wavefunStream);
+            SeparateWrite( "WFNELEM", wavefunStream, mpirank );
           }
-
         } // (own this element)
       } // for (i)
 

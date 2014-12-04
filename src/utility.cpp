@@ -408,7 +408,6 @@ Int SeparateRead(std::string name, std::istringstream& is)
 #ifndef _RELEASE_
 	PushCallStack("SeparateRead");
 #endif
-  MPI_Barrier(MPI_COMM_WORLD);
   int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
   int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
   //
@@ -421,8 +420,6 @@ Int SeparateRead(std::string name, std::istringstream& is)
  
  	is.str( std::string(std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>()) );
   fin.close();
-  //
-  MPI_Barrier(MPI_COMM_WORLD);
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -430,12 +427,33 @@ Int SeparateRead(std::string name, std::istringstream& is)
 }
 
 //---------------------------------------------------------
+Int SeparateRead(std::string name, std::istringstream& is, Int outputIndex)
+{
+#ifndef _RELEASE_
+	PushCallStack("SeparateRead");
+#endif
+  char filename[100];
+  sprintf(filename, "%s_%d", name.c_str(), outputIndex);
+  std::ifstream fin(filename);
+	if( !fin.good() ){
+		throw std::logic_error( "File cannot be open!" );
+	}
+ 
+ 	is.str( std::string(std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>()) );
+  fin.close();
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+  return 0;
+}
+
+
+//---------------------------------------------------------
 Int SeparateWrite(std::string name, std::ostringstream& os)
 {
 #ifndef _RELEASE_
 	PushCallStack("SeparateWrite");
 #endif
-   MPI_Barrier(MPI_COMM_WORLD);
   int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
   int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
   //
@@ -447,8 +465,27 @@ Int SeparateWrite(std::string name, std::ostringstream& os)
 	}
   fout<<os.str();
   fout.close();
-  //
-  MPI_Barrier(MPI_COMM_WORLD);
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+  return 0;
+}
+
+
+//---------------------------------------------------------
+Int SeparateWrite(std::string name, std::ostringstream& os, Int outputIndex)
+{
+#ifndef _RELEASE_
+	PushCallStack("SeparateWrite");
+#endif
+  char filename[100];
+  sprintf(filename, "%s_%d", name.c_str(), outputIndex);
+  std::ofstream fout(filename);
+	if( !fout.good() ){
+		throw std::logic_error( "File cannot be open!" );
+	}
+  fout<<os.str();
+  fout.close();
 #ifndef _RELEASE_
 	PopCallStack();
 #endif

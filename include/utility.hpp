@@ -1479,7 +1479,11 @@ Int inline combine(DistSparseMatrix<T>& val, DistSparseMatrix<T>& ext)
 
 Int SeparateRead(std::string name, std::istringstream& is);
 
+Int SeparateRead(std::string name, std::istringstream& is, Int outputIndex);
+
 Int SeparateWrite(std::string name, std::ostringstream& os);
+
+Int SeparateWrite(std::string name, std::ostringstream& os, Int outputIndex);
 
 Int SeparateWriteAscii(std::string name, std::ostringstream& os);
 
