@@ -898,6 +898,13 @@ SCFDG::Iterate	(  )
 		// *********************************************************************
 
     Real timeBasisSta, timeBasisEnd;
+
+
+    // Total number of SVD basis functions. Determined at the first
+    // outer SCF and is not changed later. This facilitates the reuse of
+    // symbolic factorization
+    Int numSVDBasisTotal;	
+
 		GetTime(timeBasisSta);
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
@@ -1295,13 +1302,21 @@ SCFDG::Iterate	(  )
 
                 // Broadcast U and S
 
-                Int  numSVDBasisTotal = 0;	
-                for( Int g = 0; g < numBasisTotal; g++ ){
-                  S[g] = std::sqrt( S[g] );
-                  if( S[g] / S[0] > SVDBasisTolerance_ )
-                    numSVDBasisTotal++;
+                // Total number of SVD basis functions. NOTE: Determined at the first
+                // outer SCF and is not changed later. This facilitates the reuse of
+                // symbolic factorization
+                if( iter == 1 ){
+                  numSVDBasisTotal = 0;	
+                  for( Int g = 0; g < numBasisTotal; g++ ){
+                    S[g] = std::sqrt( S[g] );
+                    if( S[g] / S[0] > SVDBasisTolerance_ )
+                      numSVDBasisTotal++;
+                  }
                 }
-  
+ 
+                statusOFS << "numSVDBasisTotal = " << numSVDBasisTotal << std::endl;
+
+
                 Int numSVDBasisBlocksize = numSVDBasisTotal / mpisizeRow;
                 
                 Int numSVDBasisLocal = numSVDBasisBlocksize;	
@@ -2549,7 +2564,18 @@ SCFDG::InnerIterate	( Int outerIter )
             std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.05 );
           pexsiOptions_.numElectronPEXSITolerance = 
             std::min( std::max( numElectronPEXSIToleranceTarget_, 1.0 * scfOuterNorm_ ), 0.5 );
-          pexsiOptions_.isSymbolicFactorize = (innerIter == 1) ? 1 : 0;
+
+          // Only perform symbolic factorization for the first outer SCF. 
+          // Reuse the previous Fermi energy as the initial guess for mu.
+          if( outerIter == 1 ){
+            pexsiOptions_.isSymbolicFactorize = 1;
+            pexsiOptions_.mu0 = 0.5 * (pexsiOptions_.muMin0 + pexsiOptions_.muMax0);
+          }
+          else{
+            pexsiOptions_.isSymbolicFactorize = 0;
+            pexsiOptions_.mu0 = fermi_;
+          }
+
           statusOFS << std::endl 
             << "muInertiaTolerance        = " << pexsiOptions_.muInertiaTolerance << std::endl
             << "numElectronPEXSITolerance = " << pexsiOptions_.numElectronPEXSITolerance << std::endl
@@ -2558,6 +2584,8 @@ SCFDG::InnerIterate	( Int outerIter )
 
 
         GetTime( timeSta );
+
+
         PPEXSIDFTDriver(
             pexsiPlan_,
             pexsiOptions_,
