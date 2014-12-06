@@ -863,6 +863,12 @@ SCFDG::Iterate	(  )
   GetTime( timeTotalStart );
 
   Int iter;
+
+  // Total number of SVD basis functions. Determined at the first
+  // outer SCF and is not changed later. This facilitates the reuse of
+  // symbolic factorization
+  Int numSVDBasisTotal;	
+
   for (iter=1; iter <= scfOuterMaxIter_; iter++) {
     if ( isSCFConverged && (iter >= scfOuterMinIter_ ) ) break;
 		
@@ -898,13 +904,6 @@ SCFDG::Iterate	(  )
 		// *********************************************************************
 
     Real timeBasisSta, timeBasisEnd;
-
-
-    // Total number of SVD basis functions. Determined at the first
-    // outer SCF and is not changed later. This facilitates the reuse of
-    // symbolic factorization
-    Int numSVDBasisTotal;	
-
 		GetTime(timeBasisSta);
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
@@ -1294,13 +1293,16 @@ SCFDG::Iterate	(  )
                       S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
                 } 
 
+                // Broadcast U and S
                 MPI_Bcast(S.Data(), numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
                 MPI_Bcast(U.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
                 MPI_Bcast(VT.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
                
                 MPI_Barrier( domain_.rowComm );
 
-                // Broadcast U and S
+                for( Int g = 0; g < numBasisTotal; g++ ){
+                  S[g] = std::sqrt( S[g] );
+                }
 
                 // Total number of SVD basis functions. NOTE: Determined at the first
                 // outer SCF and is not changed later. This facilitates the reuse of
@@ -1308,15 +1310,19 @@ SCFDG::Iterate	(  )
                 if( iter == 1 ){
                   numSVDBasisTotal = 0;	
                   for( Int g = 0; g < numBasisTotal; g++ ){
-                    S[g] = std::sqrt( S[g] );
                     if( S[g] / S[0] > SVDBasisTolerance_ )
                       numSVDBasisTotal++;
                   }
                 }
+                else{
+                  // Reuse the value saved in numSVDBasisTotal
+                  statusOFS 
+                    << "NOTE: The number of basis functions (after SVD) " 
+                    << "is the same as the number in the first SCF iteration." << std::endl
+                    << "This facilitates the reuse of symbolic factorization in PEXSI." 
+                    << std::endl;
+                }
  
-                statusOFS << "numSVDBasisTotal = " << numSVDBasisTotal << std::endl;
-
-
                 Int numSVDBasisBlocksize = numSVDBasisTotal / mpisizeRow;
                 
                 Int numSVDBasisLocal = numSVDBasisBlocksize;	
@@ -2584,8 +2590,6 @@ SCFDG::InnerIterate	( Int outerIter )
 
 
         GetTime( timeSta );
-
-
         PPEXSIDFTDriver(
             pexsiPlan_,
             pexsiOptions_,
