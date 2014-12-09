@@ -851,6 +851,11 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Maximum number of geometric optimization !*");
 
 	i++;
+	strcpy(kw_label[i],"geo_opt_max_force");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Maximum force of geometric optimization !*");
+	
+  i++;
 	strcpy(kw_label[i],"md_max_step");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! Number of Molecular Dynamics !*");
@@ -2394,6 +2399,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
   // Geometry optimization
   {
 		esdfParam.geoOptMaxStep = esdf_integer( "Geo_Opt_Max_Step", 10 );
+		esdfParam.geoOptMaxForce = esdf_double( "Geo_Opt_Max_Force", 0.001 );
   }
 
   // Molecualr dynamics

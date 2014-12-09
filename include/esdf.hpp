@@ -585,6 +585,10 @@ namespace esdf{
     ///
     /// Default: 10 
     Int                 geoOptMaxStep;
+    /// @brief Maximum force for geometry optimization
+    ///
+    /// Default: 0.001 
+    Real                geoOptMaxForce;
 
     /// @brief Maximum number of steps for MD simulation 
     ///

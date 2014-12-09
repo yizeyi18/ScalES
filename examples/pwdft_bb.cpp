@@ -108,6 +108,7 @@ int main(int argc, char **argv)
 			PrintBlock(statusOFS, "Basic information");
 
 			Print(statusOFS, "Max steps for geometry opt = ",  esdfParam.geoOptMaxStep );
+			Print(statusOFS, "Max steps for geometry opt = ",  esdfParam.geoOptMaxForce );
 
 			Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
 			Print(statusOFS, "Grid Wavefunction = ",  esdfParam.domain.numGrid );
@@ -163,6 +164,7 @@ int main(int argc, char **argv)
 		SCF  scf;
 
     Int geoOptMaxStep = esdfParam.geoOptMaxStep;
+    Real geoOptMaxForce = esdfParam.geoOptMaxForce;
 
 		ptable.Setup( esdfParam.periodTableFile );
 
@@ -360,20 +362,30 @@ int main(int argc, char **argv)
         hamKS.CalculateForce( spn, fft ); 
 
         // Update the force
+        Real maxForce = 0.0;
+        Real avgForce = 0.0;
         for( Int i = 0; i < numAtom; i++ ){
           atomforce[i]=atomList[i].force;
+          Real forceMag = atomforce[i].l2();
+          maxForce = ( maxForce < forceMag ) ? forceMag : maxForce;
+          avgForce = avgForce + forceMag;
         }
+        avgForce = avgForce / double(numAtom);
 
         for( Int i = 0; i < numAtom; i++ ){
+          Print( statusOFS, "Max force magnitude: ", maxForce );
+          Print( statusOFS, "Avg force magnitude: ", avgForce );
           Print( statusOFS, "Atom", i, "Force", atomList[i].force );
         }
 
-      }
+        if( std::abs(maxForce) < geoOptMaxForce ) break;
+
+      } // for ( iterOpt )
     }
-	}
-	catch( std::exception& e )
-	{
-		std::cerr << " caught exception with message: "
+  }
+  catch( std::exception& e )
+  {
+    std::cerr << " caught exception with message: "
 			<< e.what() << std::endl;
 #ifndef _RELEASE_
 		DumpCallStack();

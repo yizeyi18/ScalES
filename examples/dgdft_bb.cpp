@@ -152,6 +152,7 @@ int main(int argc, char **argv)
 
 
 			Print(statusOFS, "Max steps for geometry opt = ",  esdfParam.geoOptMaxStep );
+			Print(statusOFS, "Max force for geometry opt = ",  esdfParam.geoOptMaxForce );
       Print(statusOFS, "RestartPosition   = ",  esdfParam.isRestartPosition); 
       Print(statusOFS, "OutputPosition    = ",  esdfParam.isOutputPosition );
       Print(statusOFS, "Output XYZ format = ",  esdfParam.isOutputXYZ );
@@ -655,7 +656,7 @@ int main(int argc, char **argv)
 		// *********************************************************************
     
     Int geoOptMaxStep = esdfParam.geoOptMaxStep;
-    
+    Real geoOptMaxForce = esdfParam.geoOptMaxForce;
 
     if(1){
       std::vector<Atom>& atomList = hamDG.AtomList();
@@ -845,8 +846,6 @@ int main(int argc, char **argv)
             statusOFS << std::endl;
           }
 #endif
-        }
-
 
         // Output position 
         if( mpirank == 0 ){
@@ -885,6 +884,9 @@ int main(int argc, char **argv)
           fout.close();
         }
 
+        if( std::abs(maxForce) < geoOptMaxForce ) break;
+      
+      }
 
       } // for ( iterOpt )
     }
