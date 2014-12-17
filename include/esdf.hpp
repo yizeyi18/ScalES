@@ -247,13 +247,22 @@ namespace esdf{
     /// This option is needed to restart the electron density using 
     /// @ref dgdft::esdf::ESDFInputParam::isRestartDensity "isRestartDensity".
     bool                isOutputDensity;
-    /// @brief Whether to output the wavefunctions in the element.
+    /// @brief Whether to output the wavefunctions in the element on LGL
+    /// grid.
     ///
     /// Default: 0
     ///
     /// This is mainly for debugging and visualization purpose and is
     /// not commonly used.
-    bool                isOutputWfnElem;
+    bool                isOutputALBElemLGL;
+    /// @brief Whether to output the wavefunctions in the element on
+    /// uniform grid.
+    ///
+    /// Default: 0
+    ///
+    /// This is mainly for debugging and visualization purpose and is
+    /// not commonly used.
+    bool                isOutputALBElemUniform;
     /// @brief Whether to output the wavefunctions in the extended
     /// element.
     ///

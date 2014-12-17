@@ -170,7 +170,8 @@ SCFDG::Setup	(
 		isRestartDensity_ = esdfParam.isRestartDensity;
 		isRestartWfn_     = esdfParam.isRestartWfn;
 		isOutputDensity_  = esdfParam.isOutputDensity;
-		isOutputWfnElem_     = esdfParam.isOutputWfnElem;
+		isOutputALBElemLGL_     = esdfParam.isOutputALBElemLGL;
+		isOutputALBElemUniform_ = esdfParam.isOutputALBElemUniform;
 		isOutputWfnExtElem_  = esdfParam.isOutputWfnExtElem;
 		isOutputPotExtElem_  = esdfParam.isOutputPotExtElem;
 		isCalculateAPosterioriEachSCF_ = esdfParam.isCalculateAPosterioriEachSCF;
@@ -545,9 +546,23 @@ SCFDG::Setup	(
             DblNumTns& wavefun = psi.Wavefun();
             DblNumTns  wavefunRead;
 
-            std::vector<DblNumVec> gridpos(DIM);
-            for( Int d = 0; d < DIM; d++ ){
-              deserialize( gridpos[d], wfnStream, NO_MASK );
+//            std::vector<DblNumVec> gridpos(DIM);
+//            for( Int d = 0; d < DIM; d++ ){
+//              deserialize( gridpos[d], wfnStream, NO_MASK );
+//            }
+
+            Index3 keyRead;
+            deserialize( keyRead, wfnStream, NO_MASK );
+            if( keyRead[0] != key[0] ||
+                keyRead[1] != key[1] ||
+                keyRead[2] != key[2] ){
+              std::ostringstream msg;
+              msg 
+                << "Mpirank " << mpirank << " is reading the wrong file."
+                << std::endl
+                << "key     ~ " << key << std::endl
+                << "keyRead ~ " << keyRead << std::endl;
+              throw std::runtime_error( msg.str().c_str() );
             }
             deserialize( wavefunRead, wfnStream, NO_MASK );
 
@@ -1674,29 +1689,29 @@ SCFDG::Iterate	(  )
 
           // Output potential in extended element, and only mpirankRow
           // == 0 does the job of for each element.
-          if( isOutputPotExtElem_ ) {
-            if( mpirankRow == 0 ){
-#if ( _DEBUGlevel_ >= 0 )
-              statusOFS 
-                << std::endl 
-                << "Output the total potential in the extended element."
-                << std::endl;
-#endif
-              std::ostringstream potStream;      
-              EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
-
-              // Generate the uniform mesh on the extended element.
-              std::vector<DblNumVec> gridpos;
-              //UniformMesh ( eigSol.FFT().domain, gridpos );
-              UniformMeshFine ( eigSol.FFT().domain, gridpos );
-              for( Int d = 0; d < DIM; d++ ){
-                serialize( gridpos[d], potStream, NO_MASK );
-              }
-              serialize( eigSol.Ham().Vtot(), potStream, NO_MASK );
-              serialize( eigSol.Ham().Vext(), potStream, NO_MASK );
-              SeparateWrite( "POTEXT", potStream, mpirankCol );
-            } // if( mpirankRow == 0 )
-          }
+//          if( isOutputPotExtElem_ ) {
+//            if( mpirankRow == 0 ){
+//#if ( _DEBUGlevel_ >= 0 )
+//              statusOFS 
+//                << std::endl 
+//                << "Output the total potential in the extended element."
+//                << std::endl;
+//#endif
+//              std::ostringstream potStream;      
+//              EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
+//
+//              // Generate the uniform mesh on the extended element.
+//              std::vector<DblNumVec> gridpos;
+//              //UniformMesh ( eigSol.FFT().domain, gridpos );
+//              UniformMeshFine ( eigSol.FFT().domain, gridpos );
+//              for( Int d = 0; d < DIM; d++ ){
+//                serialize( gridpos[d], potStream, NO_MASK );
+//              }
+//              serialize( eigSol.Ham().Vtot(), potStream, NO_MASK );
+//              serialize( eigSol.Ham().Vext(), potStream, NO_MASK );
+//              SeparateWrite( "POTEXT", potStream, mpirankCol );
+//            } // if( mpirankRow == 0 )
+//          }
 
           // Output wavefunction in the extended element.  All processors participate
           if( isOutputWfnExtElem_ )
@@ -1712,17 +1727,18 @@ SCFDG::Iterate	(  )
             std::ostringstream wavefunStream;      
 
             // Generate the uniform mesh on the extended element.
-            std::vector<DblNumVec> gridpos;
-            UniformMesh ( eigSol.FFT().domain, gridpos );
-            for( Int d = 0; d < DIM; d++ ){
-              serialize( gridpos[d], wavefunStream, NO_MASK );
-            }
+//            std::vector<DblNumVec> gridpos;
+//            UniformMesh ( eigSol.FFT().domain, gridpos );
+//            for( Int d = 0; d < DIM; d++ ){
+//              serialize( gridpos[d], wavefunStream, NO_MASK );
+//            }
+            serialize( key, wavefunStream, NO_MASK );
             serialize( eigSol.Psi().Wavefun(), wavefunStream, NO_MASK );
             SeparateWrite( restartWfnFileName_, wavefunStream, mpirank);
           }
 
           // Output wavefunction in the element on LGL grid. All processors participate.
-          if( isOutputWfnElem_ )
+          if( isOutputALBElemLGL_ )
           {
 #if ( _DEBUGlevel_ >= 0 )
             statusOFS 
@@ -1734,13 +1750,50 @@ SCFDG::Iterate	(  )
             std::ostringstream wavefunStream;      
 
             // Generate the uniform mesh on the extended element.
+            serialize( key, wavefunStream, NO_MASK );
             std::vector<DblNumVec>& gridpos = hamDG.LGLGridElem()(i,j,k);
             for( Int d = 0; d < DIM; d++ ){
               serialize( gridpos[d], wavefunStream, NO_MASK );
             }
             serialize( hamDG.BasisLGL().LocalMap()[key], wavefunStream, NO_MASK );
-            SeparateWrite( "WFNELEM", wavefunStream, mpirank );
+            SeparateWrite( "ALBLGL", wavefunStream, mpirank );
           }
+
+          // Output wavefunction in the element on uniform fine grid.
+          // All processors participate
+          // NOTE: 
+          // Since interpolation needs to be performed, this functionality can be slow.
+          if( isOutputALBElemUniform_ )
+          {
+#if ( _DEBUGlevel_ >= 0 )
+            statusOFS 
+              << std::endl 
+              << "Output the wavefunctions in the element on a fine LGL grid."
+              << std::endl;
+#endif
+            // Output the wavefunctions in the extended element.
+            std::ostringstream wavefunStream;      
+
+            // Generate the uniform mesh on the extended element.
+            serialize( key, wavefunStream, NO_MASK );
+            DblNumMat& basisLGL = hamDG.BasisLGL().LocalMap()[key];
+            DblNumMat basisUniformFine( 
+                hamDG.NumUniformGridElemFine().prod(), 
+                basisLGL.n() );
+            SetValue( basisUniformFine, 0.0 );
+            
+            for( Int g = 0; g < basisLGL.n(); g++ ){
+              hamDG.InterpLGLToUniform(
+                  hamDG.NumLGLGridElem(),
+                  hamDG.NumUniformGridElemFine(),
+                  basisLGL.VecData(g),
+                  basisUniformFine.VecData(g) );
+            }
+
+            serialize( basisUniformFine, wavefunStream, NO_MASK );
+            SeparateWrite( "ALBUNIFORM", wavefunStream, mpirank );
+          }
+
         } // (own this element)
       } // for (i)
 

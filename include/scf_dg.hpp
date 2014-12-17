@@ -88,7 +88,8 @@ private:
 	bool                isRestartDensity_;
 	bool                isRestartWfn_;
 	bool                isOutputDensity_;
-	bool                isOutputWfnElem_;
+	bool                isOutputALBElemLGL_;
+	bool                isOutputALBElemUniform_;
 	bool                isOutputWfnExtElem_;
 	bool                isOutputPotExtElem_; 
 	bool                isCalculateAPosterioriEachSCF_;

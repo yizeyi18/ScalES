@@ -185,7 +185,8 @@ int main(int argc, char **argv)
       Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
       Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
       Print(statusOFS, "OutputDensity     = ",  esdfParam.isOutputDensity);
-      Print(statusOFS, "OutputWfnElem     = ",  esdfParam.isOutputWfnElem);
+      Print(statusOFS, "OutputALBElemLGL  = ",  esdfParam.isOutputALBElemLGL);
+      Print(statusOFS, "OutputALBElemUniform  = ",  esdfParam.isOutputALBElemUniform);
       Print(statusOFS, "OutputWfnExtElem  = ",  esdfParam.isOutputWfnExtElem);
       Print(statusOFS, "OutputPotExtElem  = ",  esdfParam.isOutputPotExtElem);
       Print(statusOFS, "OutputHMatrix     = ",  esdfParam.isOutputHMatrix );

@@ -50,8 +50,7 @@
 /// The input takes the format of DEN_xxx, where xxx is consecutive
 /// integers starting from 0.
 ///
-/// This file is based on ConvALBCube file previously used in the
-/// element orbital code.
+/// NOTE: all units are atomic units (Bohr) here.  
 ///
 ///            Example of Gaussian cube format
 ///            from http://paulbourke.net/dataformats/cube/ 
