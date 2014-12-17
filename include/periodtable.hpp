@@ -72,9 +72,10 @@ struct Atom
 	/// @brief Force.
   Point3       force; 
 
+  Atom() {;}
+  ~Atom() {;}
 	Atom( const Int t, const Point3 p, const Point3 v, const Point3 f): 
 		type(t), pos(p), vel(v), force(f) {}
-  ~Atom() {;}
 };
 
 /// @namespace PTParam
@@ -214,6 +215,26 @@ public:
 	// TODO: DG pseudopotential from DGDFT
 
 };
+
+// Serialization / Deserialization
+inline Int serialize(const Atom& val, std::ostream& os, const std::vector<Int>& mask)
+{
+  serialize(val.type, os, mask);
+  serialize(val.pos,  os, mask);
+  serialize(val.vel,  os, mask);
+  serialize(val.force,  os, mask);
+  return 0;
+}
+
+inline Int deserialize(Atom& val, std::istream& is, const std::vector<Int>& mask)
+{
+  deserialize(val.type, is, mask);
+  deserialize(val.pos,  is, mask);
+  deserialize(val.vel,  is, mask);
+  deserialize(val.force,  is, mask);
+  return 0;
+}
+
 
 } // namespace dgdft
 

@@ -414,9 +414,18 @@ SCFDG::Setup	(
             Index3 key( i, j, k );
             if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
 
-              std::vector<DblNumVec> grid(DIM);
-              for( Int d = 0; d < DIM; d++ ){
-                deserialize( grid[d], rhoStream, NO_MASK );
+              Index3 keyRead;
+              deserialize( keyRead, rhoStream, NO_MASK );
+              if( keyRead[0] != key[0] ||
+                  keyRead[1] != key[1] ||
+                  keyRead[2] != key[2] ){
+                std::ostringstream msg;
+                msg 
+                  << "Mpirank " << mpirank << " is reading the wrong file."
+                  << std::endl
+                  << "key     ~ " << key << std::endl
+                  << "keyRead ~ " << keyRead << std::endl;
+                throw std::runtime_error( msg.str().c_str() );
               }
 
               DblNumVec   denVecRead;
@@ -1586,6 +1595,52 @@ SCFDG::Iterate	(  )
 //      SeparateWrite( "DENLGL", rhoStream );
 //    }
 
+
+  // *********************************************************************
+  // Output information
+  // *********************************************************************
+
+  // Output the atomic structure, and other information for describing
+  // density, basis functions etc.
+  // 
+  // Only mpirank == 0 works on this
+
+  Real timeOutputSta, timeOutputEnd;
+  GetTime( timeOutputSta );
+
+  if(1){
+    if( mpirank == 0 ){
+      std::ostringstream structStream;
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << std::endl 
+        << "Output the structure information" 
+        << std::endl;
+#endif
+      // Domain
+      serialize( domain_.length, structStream, NO_MASK );
+      serialize( domain_.numGrid, structStream, NO_MASK );
+      serialize( domain_.numGridFine, structStream, NO_MASK );
+      serialize( domain_.posStart, structStream, NO_MASK );
+      serialize( numElem_, structStream, NO_MASK );
+
+      // Atomic information
+      serialize( hamDG.AtomList(), structStream, NO_MASK );
+      std::string structFileName = "STRUCTURE";
+
+      std::ofstream fout(structFileName.c_str());
+      if( !fout.good() ){
+        std::ostringstream msg;
+        msg 
+          << "File " << structFileName.c_str() << " cannot be open." 
+          << std::endl;
+        throw std::runtime_error( msg.str().c_str() );
+      }
+      fout << structStream.str();
+      fout.close();
+    }
+  }
+
+
   for( Int k = 0; k < numElem_[2]; k++ )
     for( Int j = 0; j < numElem_[1]; j++ )
       for( Int i = 0; i < numElem_[0]; i++ ){
@@ -1600,17 +1655,17 @@ SCFDG::Iterate	(  )
                 << "Output the electron density on the global grid" 
                 << std::endl;
 #endif
-
               std::ostringstream rhoStream;      
 
-              NumTns<std::vector<DblNumVec> >& uniformGridElem =
-                hamDG.UniformGridElem();
+//              NumTns<std::vector<DblNumVec> >& uniformGridElem =
+//                hamDG.UniformGridElem();
+//              std::vector<DblNumVec>& grid = uniformGridElem(i, j, k);
+//              for( Int d = 0; d < DIM; d++ ){
+//                serialize( grid[d], rhoStream, NO_MASK );
+//              }
 
+              serialize( key, rhoStream, NO_MASK );
               DblNumVec&  denVec = hamDG.Density().LocalMap()[key];
-              std::vector<DblNumVec>& grid = uniformGridElem(i, j, k);
-              for( Int d = 0; d < DIM; d++ ){
-                serialize( grid[d], rhoStream, NO_MASK );
-              }
               serialize( denVec, rhoStream, NO_MASK );
 
               SeparateWrite( restartDensityFileName_, rhoStream, mpirankCol );
@@ -1688,6 +1743,13 @@ SCFDG::Iterate	(  )
           }
         } // (own this element)
       } // for (i)
+
+  GetTime( timeOutputEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << std::endl 
+    << "Time for outputing data is = " << timeOutputEnd - timeOutputSta
+    << " [s]" << std::endl;
+#endif
 
 #ifndef _RELEASE_
 	PopCallStack();
