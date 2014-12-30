@@ -188,21 +188,41 @@ HamiltonianDG::CalculateDGMatrix	(  )
 		mpi::Allreduce( numBasisLocal.Data(), numBasis.Data(),
 				numElem_.prod(), MPI_SUM, domain_.colComm );
 		
-    // Every processor computes all index sets
+    // Every processor computes all index sets and its inverse mapping
 		elemBasisIdx_.Resize(numElem_[0], numElem_[1], numElem_[2]);
 
-		Int cnt = 0;
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					std::vector<Int> idxVec;
-					for(Int g = 0; g < numBasis(i, j, k); g++){
-						idxVec.push_back( cnt++ );
-					}
-					elemBasisIdx_(i, j, k) = idxVec;
-				} // for (i)
+    {
+      Int cnt = 0;
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            std::vector<Int> idxVec;
+            for(Int g = 0; g < numBasis(i, j, k); g++){
+              idxVec.push_back( cnt++ );
+            }
+            elemBasisIdx_(i, j, k) = idxVec;
+          } // for (i)
 
-		sizeHMat_ = cnt;
+      sizeHMat_ = cnt;
+    }
+
+    elemBasisInvIdx_.resize(sizeHMat_);
+		
+    {
+      Int cnt = 0;
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key = Index3(i,j,k);
+            for(Int g = 0; g < numBasis(i, j, k); g++){
+              elemBasisInvIdx_[cnt++] = key;
+            }
+          } // for (i)
+    }
+
+
+
+
 
 		for( Int i = 0; i < NUM_FACE; i++ ){
 			basisJump[i].Prtn()     = elemPrtn_;

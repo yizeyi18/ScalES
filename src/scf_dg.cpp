@@ -2796,6 +2796,7 @@ SCFDG::InnerIterate	( Int outerIter )
             hamDG.HMat().Prtn(),
             distDMMat_,
             hamDG.ElemBasisIdx(),
+            hamDG.ElemBasisInvIdx(),
             domain_.colComm,
             mpirankSparseVec );
 
@@ -2808,6 +2809,7 @@ SCFDG::InnerIterate	( Int outerIter )
             hamDG.HMat().Prtn(),
             distEDMMat_,
             hamDG.ElemBasisIdx(),
+            hamDG.ElemBasisInvIdx(),
             domain_.colComm,
             mpirankSparseVec );
 
@@ -2820,6 +2822,7 @@ SCFDG::InnerIterate	( Int outerIter )
             hamDG.HMat().Prtn(),
             distFDMMat_,
             hamDG.ElemBasisIdx(),
+            hamDG.ElemBasisInvIdx(),
             domain_.colComm,
             mpirankSparseVec );
         GetTime( timeEnd );

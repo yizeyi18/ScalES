@@ -2919,6 +2919,7 @@ void DistSparseMatToDistElemMat3(
     const ElemMatPrtn&                                   elemMatPrtn,
 		DistVec<ElemMatKey, NumMat<F>, ElemMatPrtn>&         distMat,
 		const NumTns<std::vector<Int> >&                     basisIdx,
+		const std::vector<Index3>&                           basisInvIdx,
     MPI_Comm                                             commElem,
     const std::vector<Int>&                              mpirankSparseVec){
 #ifndef _RELEASE_
@@ -2960,40 +2961,12 @@ void DistSparseMatToDistElemMat3(
   distMat.Prtn() = elemMatPrtn;
   distMat.SetComm( commElem );
 
-  // Convert the inverse map of basisIdx 
-  std::vector<Index3> invBasisIdx( sizeMat );
-  for( Int g = 0; g < sizeMat; g++ ){
-    bool flag = false;
-    for( Int k = 0; k < numElem[2]; k++ )
-      for( Int j = 0; j < numElem[1]; j++ )
-        for( Int i = 0; i < numElem[0]; i++ ){
-          if( flag == true ) 
-            break;
-          const std::vector<Int>& idx = basisIdx( i, j, k );
-          if( g >= idx[0] & g <= idx[idx.size()-1] ){
-            invBasisIdx[g] = Index3( i, j, k );
-            flag = true;
-          }
-        }
-    if( flag == false ){
-      std::ostringstream msg;
-      msg << std::endl
-        << "The element index for the row " << g << " was not found!" << std::endl;
-      throw std::runtime_error( msg.str().c_str() );
-    }
-  }
-
-#if ( _DEBUGlevel_ >= 2 )
-  statusOFS << "The inverse map of basisIdx: " << std::endl;
-  for( Int g = 0; g < sizeMat; g++ ){
-    statusOFS << g << " : " << invBasisIdx[g] << std::endl;
-  }
-#endif
-
   // Convert nonzero values in DistSparseMat. Only processors with rank
   // smaller than mpisizeSparse participate
 
   std::set<ElemMatKey> ownerSet;
+  
+  GetTime(timeSta);
 
   if( isInSparse )
 	{
@@ -3011,11 +2984,11 @@ void DistSparseMatToDistElemMat3(
 
     for( Int j = 0; j < numColLocal; j++ ){
       Int jcol = firstCol + j;
-      Index3 jkey = invBasisIdx[jcol];
+      Index3 jkey = basisInvIdx[jcol];
       for( Int i = colptrLocal(j) - 1;
            i < colptrLocal(j+1) - 1; i++ ){
         Int irow = rowindLocal(i) - 1;
-        Index3 ikey = invBasisIdx[irow];
+        Index3 ikey = basisInvIdx[irow];
         ElemMatKey matKey( std::pair<Index3,Index3>(ikey, jkey) );
         typename std::map<ElemMatKey, NumMat<F> >::iterator 
           mi = distMat.LocalMap().find( matKey );
@@ -3036,8 +3009,14 @@ void DistSparseMatToDistElemMat3(
     }
   } // if ( isInSparse ) 
 
+  GetTime(timeEnd);
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for converting the matrix locally is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 	// Communication of the matrix
+  GetTime(timeSta);
 	{
 
 		std::vector<ElemMatKey>  keyIdx;
@@ -3062,6 +3041,11 @@ void DistSparseMatToDistElemMat3(
 			distMat.LocalMap().erase( *vi );
 		}	
 	}
+  GetTime(timeEnd);
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for actual communication is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 #ifndef _RELEASE_
 	PopCallStack();

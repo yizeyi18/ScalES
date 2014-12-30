@@ -332,6 +332,9 @@ private:
 	/// @brief Indices of all the basis functions.
   NumTns< std::vector<Int> >  elemBasisIdx_;
 
+  /// @brief Inverse mapping of elemBasisIdx_
+  std::vector<Index3>         elemBasisInvIdx_;
+
 public:
 
 	// *********************************************************************
@@ -507,7 +510,9 @@ public:
 	Int NumBasisTotal() const { return sizeHMat_; }
 
   NumTns< std::vector<Int> >&  ElemBasisIdx() { return elemBasisIdx_; }
-	
+
+  std::vector<Index3>&  ElemBasisInvIdx() { return elemBasisInvIdx_; }
+
 	/// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
 	Index3 NumUniformGridElem() const { return numUniformGridElem_; }
   Index3 NumUniformGridElemFine() const { return numUniformGridElemFine_; }
