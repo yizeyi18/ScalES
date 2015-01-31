@@ -2292,7 +2292,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     }
 
     // FFT
-    esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisize );
+    // esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisize );
 
     // ScaLAPACK parameter
     esdfParam.numProcScaLAPACK  = esdf_integer( "Num_Proc_ScaLAPACK", mpisize );
@@ -2341,6 +2341,17 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     dm.comm    = MPI_COMM_WORLD;
     MPI_Comm_split( dm.comm, mpirank / dmRow, mpirank, &dm.rowComm );
     MPI_Comm_split( dm.comm, mpirank % dmRow, mpirank, &dm.colComm );
+    
+    MPI_Barrier(dm.rowComm);
+    Int mpirankRow;  MPI_Comm_rank(dm.rowComm, &mpirankRow);
+    Int mpisizeRow;  MPI_Comm_size(dm.rowComm, &mpisizeRow);
+
+    MPI_Barrier(dm.colComm);
+    Int mpirankCol;  MPI_Comm_rank(dm.colComm, &mpirankCol);
+    Int mpisizeCol;  MPI_Comm_size(dm.colComm, &mpisizeCol);
+
+    // FFT
+    esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisizeCol );
 
   } // DG
 

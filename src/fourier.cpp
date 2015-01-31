@@ -434,7 +434,7 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
     Int mpirankCol;  MPI_Comm_rank(dm.colComm, &mpirankCol);
     Int mpisizeCol;  MPI_Comm_size(dm.colComm, &mpisizeCol);
 
-    numProc = mpisizeCol;
+    //numProc = mpisizeCol;
 
     if( numProc > mpisizeDomain ){
 			std::ostringstream msg;
@@ -454,15 +454,15 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
 	if( isInGrid ){
 	
 		// Rank and size of the processor group participating in FFT calculation.
-		Int mpirank, mpisize;
-		MPI_Comm_rank( comm, &mpirank );
-		MPI_Comm_size( comm, &mpisize );
+		Int mpirankFFT, mpisizeFFT;
+		MPI_Comm_rank( comm, &mpirankFFT );
+		MPI_Comm_size( comm, &mpisizeFFT );
 
-		if( numGrid[2] < mpisize ){
+		if( numGrid[2] < mpisizeFFT ){
 			std::ostringstream msg;
-			msg << "numGrid[2] > mpisize. FFTW initialization failed. "  << std::endl
-				<< "numGrid ~ " << numGrid << std::endl
-				<< "mpisize = " << mpisize << std::endl;
+			msg << "numGrid[2] > mpisizeFFT. FFTW initialization failed. "  << std::endl
+				<< "numGrid    = " << numGrid << std::endl
+				<< "mpisizeFFT = " << mpisizeFFT << std::endl;
 			throw std::runtime_error( msg.str().c_str() );
 		}
 
