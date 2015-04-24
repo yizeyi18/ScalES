@@ -230,6 +230,82 @@ void seval(double* v, int m, double* u, int n, double* x,
 // Generating grids in a domain
 // *********************************************************************
 
+void GenerateLGLMeshWeightOnly(double* x, double* w, int Nm1)
+{
+#ifndef _RELEASE_
+	PushCallStack("GenerateLGLMeshWeightOnly");
+#endif
+  int i, j;
+  double pi = 4.0 * atan(1.0);
+  double err, tol = 1e-15;
+  std::vector<double> xold;
+	int N = Nm1;
+  int N1 = N + 1;
+  // Only for the three-term recursion
+  DblNumMat P(N1, 3);
+  SetValue( P, 0.0 );
+
+  xold.resize(N1);
+
+  for (i=0; i<N1; i++){
+    x[i] = cos(pi*(N1-i-1)/(double)N);
+  }
+   
+  do{
+    for (i=0; i<N1; i++){
+      xold[i] = x[i];
+      P(i,0) = 1.0;
+      P(i,1) = x[i];
+    }
+    for (j=2; j<N1; j++){
+      for (i=0; i<N1; i++){
+        P(i,2) = ((2.0*j-1.0)*x[i]*P(i,1) - (j-1)*P(i,0))/j;
+        P(i,0) = P(i,1);
+        P(i,1) = P(i,2);
+      }
+    }
+
+    for (i=0; i<N1; i++){
+      x[i] = xold[i] - (x[i]*P(i,1) - P(i,0))/(N1*P(i,1));
+    }
+
+    err = 0.0;
+    for (i=0; i<N1; i++){
+      if (err < fabs(xold[i] - x[i])){
+        err = fabs(xold[i] - x[i]);
+      }
+    }
+  } while(err>tol);
+
+  for (i=0; i<N1; i++){
+    w[i] = 2.0/(N*N1*P(i,1)*P(i,1));
+  }
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return;
+}
+
+void GenerateLGLMeshWeightOnly(
+		DblNumVec&         x, 
+		DblNumVec&         w, 
+		Int                N)
+{
+#ifndef _RELEASE_
+	PushCallStack("GenerateLGLMeshWeightOnly");
+#endif
+	x.Resize( N );
+	w.Resize( N );
+	GenerateLGLMeshWeightOnly( x.Data(), w.Data(), N-1 );
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+	return;
+}
+
+
 void GenerateLGL(double* x, double* w, double* P, double* D, int Nm1)
 {
 #ifndef _RELEASE_

@@ -265,7 +265,7 @@ int main(int argc, char **argv)
     }
     else{
       GetTime( timeSta );
-      ParaReadDistSparseMatrix( Hfile.c_str(), HMat, MPI_COMM_WORLD); 
+      ParaReadDistSparseMatrix( Hfile.c_str(), HMat, MPI_COMM_WORLD ); 
       GetTime( timeEnd );
 
       statusOFS << "Time for reading H is " << timeEnd - timeSta << endl;

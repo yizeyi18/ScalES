@@ -186,6 +186,34 @@ inline Int Index3To1( const Index3& idx3, const Index3& numGrid ){
 	return idx1;
 }
 
+
+/// @brief Interface for generating the unscaled LGL grid points and
+/// integration weights.
+///
+/// Compared to GenerateLGL, the Legendre polynomials are only
+/// recursively computed and not stored, and the differentiation matrix
+/// is neither computed nor stored.  This allows the evaluation of a
+/// very large number of LGL grids.
+///
+/// Note: size(x) = size(w) = size(P,1|2) = size(D,1|2) = N
+void GenerateLGLMeshWeightOnly(
+		DblNumVec&         x, 
+		DblNumVec&         w, 
+		Int                N);
+
+/// @brief Actual subroutine for generating the unscaled LGL grid points and
+/// integration weights.
+///
+/// Compared to GenerateLGL, the Legendre polynomials are only
+/// recursively computed and not stored, and the differentiation matrix
+/// is neither computed nor stored.  This allows the evaluation of a
+/// very large number of LGL grids.
+
+/// Note: for legacy reason,  
+/// size(x) = size(w) = N-1
+void GenerateLGLMeshWeightOnly(double* x, double* w, int Nm1);
+
+
 /// @brief Interface for generating the unscaled LGL grid points, integration weights, polynomials and differentiation matrix.
 ///
 /// Note: size(x) = size(w) = size(P,1|2) = size(D,1|2) = N
@@ -198,7 +226,7 @@ void GenerateLGL(
 
 /// @brief Actual subroutine for generating the unscaled LGL grid points, integration weights, polynomials and differentiation matrix.
 ///
-/// Note: for historical reason,  
+/// Note: for legacy reason,  
 /// size(x) = size(w) = size(P,1|2) = size(D,1|2) = N-1
 void GenerateLGL(double* x, double* w, double* P, double* D, int Nm1);
 

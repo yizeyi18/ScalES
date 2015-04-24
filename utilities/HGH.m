@@ -177,8 +177,7 @@ for g=1:length(Znucs)
 		wavcut = 2.5;
 	end
 
-
-	% O
+	% O. New
 	if(Znuc==8)
 		Zion = 6;
 		mass = 15.9994;
