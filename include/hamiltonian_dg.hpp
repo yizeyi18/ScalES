@@ -185,6 +185,9 @@ private:
 	/// @brief Number of LGL grids in each element.
 	Index3                      numLGLGridElem_;
 
+	/// @brief Number of element in externd element.
+  Index3 numExtElem_;
+
 	/// @brief Uniform grid in the elements, each has size 
 	/// numUniformGridElem_
 	NumTns<std::vector<DblNumVec> >   uniformGridElem_;
@@ -319,12 +322,15 @@ private:
 
 	/// @brief Interpolation matrix from LGL to uniform grid in each
 	/// element (assuming all the elements are the same).
-	std::vector<DblNumMat>    LGLToUniformMat_;
+  std::vector<DblNumMat>    LGLToUniformMat_;
   std::vector<DblNumMat>    LGLToUniformMatFine_;
 
-	/// @brief DG Hamiltonian matrix.
-	DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>  HMat_;
+  /// @brief Gaussian convolution interpolation matrix from LGL to 
+  /// uniform grid in each element.
+  NumTns< std::vector<DblNumMat> >    LGLToUniformGaussMatFine_;
 
+  /// @brief DG Hamiltonian matrix.
+	DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>  HMat_;
 
 	/// @brief The size of the H matrix.
 	Int    sizeHMat_;
@@ -358,18 +364,22 @@ public:
 
 	/// @brief Differentiate the basis functions on a certain element
 	/// along the dimension d.
-	void DiffPsi(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d);
+  void DiffPsi(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d);
 
-	/// @brief Differentiate the basis functions on a certain element
-	/// along the dimension d.
-	void InterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniformGridFine, 
-			const Real* rhoLGL, Real* rhoUniform );
+  /// @brief Interpolation matrix from LGL to uniform grid in each element.
+  void InterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniformGridFine, 
+      const Real* rhoLGL, Real* rhoUniform );
+
+  /// @brief Gaussian convolution interpolation matrix from LGL to 
+  /// uniform grid in each element.
+  void GaussConvInterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniform, 
+      const Real* rhoLGL, Real* rhoUniform, std::vector<DblNumMat> LGLToUniformGaussMatFine );
 
   /// @brief Initialize the pseudopotential used on the LGL grid for
   /// each element.
-	void CalculatePseudoPotential( PeriodTable &ptable );
-	
-	/// @brief Compute the electron density after the diagonalization
+  void CalculatePseudoPotential( PeriodTable &ptable );
+
+  /// @brief Compute the electron density after the diagonalization
 	/// of the DG Hamiltonian matrix.
 	void CalculateDensity( 
       DistDblNumVec& rho, 

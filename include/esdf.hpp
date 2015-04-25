@@ -489,6 +489,13 @@ namespace esdf{
     /// along the direction i. The domain can be the global domain,
     /// extended element or element.
     Real                LGLGridFactor;
+    
+    /// @brief The sigma value for Gaussian function for generating 
+    /// the transfer matrix from LGL grid to uniform grid on each
+    /// element with the Gaussian convolution interpolation method. 
+    /// 
+    /// Default: 0.001
+    Real                GaussSigma;
 
     /// @brief Number of processors for distributed FFT.
     ///

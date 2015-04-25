@@ -484,6 +484,265 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 #endif
 
 
+  // Generate the transfer matrix from LGL grid to uniform grid on each
+  // element with the Gaussian convolution interpolation method. 
+  //
+  // NOTE: This assumes uniform mesh used for each element.
+
+  if(1){
+
+    Real timeSta, timeEnd;
+
+    Index3& numLGL                      = numLGLGridElem_;
+    Index3& numUniform                  = numUniformGridElem_;
+    Index3& numUniformFine              = numUniformGridElemFine_;
+    // Small stablization parameter 
+    const Real EPS                      = 1e-13;
+
+    Real sigma = esdfParam.GaussSigma;
+    //Index3 NInterp(6,6,6) ;
+    Index3 NInterp;
+
+    for( Int d = 0; d < DIM; d++ ){
+      NInterp[d] = int(ceil(domain_.length[d] / numElem_[d] * 4.0 / sigma)); 
+    }
+
+//    NumTns<std::vector<DblNumVec> >   LGLInterpGridElem;
+//    LGLInterpGridElem.Resize( numElem_[0], numElem_[1], numElem_[2] );
+
+    GetTime( timeSta );
+
+//    for( Int k = 0; k < numElem_[2]; k++ ){
+//      for( Int j = 0; j < numElem_[1]; j++ ){
+//        for( Int i = 0; i < numElem_[0]; i++ ){
+//          Index3 key( i, j, k );
+//          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+//            LGLMesh( domainElem_(i, j, k),
+//                NInterp,
+//                LGLInterpGridElem(i, j, k) );
+//          }
+//        }
+//      }
+//    }
+
+    std::vector<DblNumVec>   LGLInterpGridElem;
+    std::vector<DblNumVec> LGLInterpWeight1D;
+    LGLInterpGridElem.resize(DIM);
+    LGLInterpWeight1D.resize(DIM);
+
+    Point3 length       = domainElem_(0,0,0).length;
+
+    GetTime( timeSta );
+
+    for( Int d = 0; d < DIM; d++ ){
+      DblNumVec&  dummyX = LGLInterpGridElem[d];
+      Domain& dm =  domainElem_(0, 0, 0);
+      //GenerateLGLMeshWeightOnly( dummyX, LGLInterpWeight1D[d], NInterp[d] );
+      DblNumMat  dummyP, dummpD;
+      GenerateLGL( dummyX, LGLInterpWeight1D[d], dummyP, dummpD, NInterp[d] );
+      blas::Scal( NInterp[d], 0.5 * length[d], LGLInterpWeight1D[d].Data(), 1 );
+
+      for( Int i = 0; i < NInterp[d]; i++ ){
+        dummyX[i] = dm.posStart[d] + ( dummyX[i] + 1.0 ) * dm.length[d] * 0.5;
+      }
+    }
+
+    GetTime( timeEnd );
+    statusOFS << "Time for GenerateLGL = " << timeEnd - timeSta << std::endl;
+
+    //Domain dmExtElem;
+    Index3& numExtElem = numExtElem_; // The number of element in externd element
+
+    // Setup the domain in the extended element
+    for( Int k=0; k< numElem_[2]; k++ )
+      for( Int j=0; j< numElem_[1]; j++ )
+        for( Int i=0; i< numElem_[0]; i++ ) {
+          Index3 key = Index3(i,j,k);
+          if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
+            for( Int d = 0; d < DIM; d++ ){
+              if( numElem_[d] == 1 ){
+                numExtElem[d] = 1;
+              }
+              else if ( numElem_[d] >= 3 ){
+                numExtElem[d] = 3;
+              }
+              else{
+                throw std::runtime_error( "numElem[d] is either 1 or >=3." );
+              }
+            } // for d
+          }
+        }
+
+    //LGLToUniformGaussMat_.Resize( numExtElem[0], numExtElem[1], numExtElem[2] );
+    LGLToUniformGaussMatFine_.Resize( numExtElem[0], numExtElem[1], numExtElem[2] );
+
+    Point3 posStartElem;
+
+    for( Int kk = 0; kk < numExtElem[2]; kk++ ){
+      for( Int jj = 0; jj < numExtElem[1]; jj++ ){
+        for( Int ii = 0; ii < numExtElem[0]; ii++ ){
+
+         // std::vector<DblNumMat>& LGLToUniformGaussMat     = LGLToUniformGaussMat_ (ii,jj,kk);
+          std::vector<DblNumMat>& LGLToUniformGaussMatFine = LGLToUniformGaussMatFine_ (ii,jj,kk);
+
+          //LGLToUniformGaussMat.resize(DIM);
+          LGLToUniformGaussMatFine.resize(DIM);
+
+          posStartElem[0] = length[0] * (ii-1);
+          posStartElem[1] = length[1] * (jj-1);
+          posStartElem[2] = length[2] * (kk-1);
+
+          for( Int d = 0; d < DIM; d++ ){
+            if (numExtElem[d] == 1){
+              posStartElem[d] = 0;
+            }
+          }
+
+          for( Int d = 0; d < DIM; d++ ){
+
+            DblNumVec& LGLGrid             = LGLGridElem_(0,0,0)[d];
+            DblNumVec& uniformGridTemp     = uniformGridElem_(0,0,0)[d];
+            DblNumVec& uniformGridFineTemp = uniformGridElemFine_(0,0,0)[d];
+            DblNumVec& LGLInterpGrid       = LGLInterpGridElem[d];
+
+            // DblNumVec  uniformGrid(numUniform[d]);
+            DblNumVec  uniformGridFine(numUniformFine[d]);
+
+            //for( Int i = 0; i < numUniform[d]; i++ ){
+            //  uniformGrid[i] = uniformGridTemp[i] + posStartElem[d];
+            //}
+
+            for( Int i = 0; i < numUniformFine[d]; i++ ){
+              uniformGridFine[i] = uniformGridFineTemp[i] + posStartElem[d];
+            }
+
+            // Stablization constant factor, according to Berrut and Trefethen
+            Real    stableFac = 0.25 * domainElem_(0,0,0).length[d];
+            //DblNumMat& localMat = LGLToUniformGaussMat[d];
+            DblNumMat& localMatFine = LGLToUniformGaussMatFine[d];
+            //localMat.Resize( numUniform[d], numLGL[d] );
+            localMatFine.Resize( numUniformFine[d], numLGL[d] );
+            DblNumVec lambda( numLGL[d] );
+            DblNumVec denom( NInterp[d] );
+            SetValue( lambda, 0.0 );
+            SetValue( denom, 0.0 );
+
+            DblNumMat LGLMat;
+            LGLMat.Resize ( NInterp[d], numLGL[d] ); 
+            SetValue( LGLMat, 0.0 );
+
+            GetTime( timeSta );
+
+            for( Int i = 0; i < numLGL[d]; i++ ){
+              lambda[i] = 1.0;
+              for( Int j = 0; j < numLGL[d]; j++ ){
+                if( j != i ) 
+                  lambda[i] *= (LGLGrid[i] - LGLGrid[j]) / stableFac; 
+              } // for (j)
+              lambda[i] = 1.0 / lambda[i];
+              for( Int k = 0; k < NInterp[d]; k++ ){
+                denom[k] += lambda[i] / ( LGLInterpGrid[k] - LGLGrid[i] + EPS );
+              }
+            } // for (i)
+
+            for( Int j = 0; j < numLGL[d]; j++ ){
+              for( Int i = 0; i < NInterp[d]; i++ ){
+                LGLMat( i, j )  = ( lambda[j] / ( LGLInterpGrid[i] - LGLGrid[j] + EPS ) ) / denom[i];
+
+              }
+            }
+
+            GetTime( timeEnd );
+            statusOFS << "Time for LGLMat = " << timeEnd - timeSta << std::endl;
+
+            DblNumVec& LGLInterpWeight = LGLInterpWeight1D[d];
+
+            // Generate the Gaussian matrix by numerical integration
+            Real guassFac = 1.0/sqrt(2.0*PI*sigma*sigma);
+
+            //            for( Int i = 0; i < numUniform[d]; i++ ){
+            //              for( Int l = 0; l < numExtElem[d]; l++ ){
+//                for( Int j = 0; j < numLGL[d]; j++ ){
+//                  Real sum=0.0;
+//                  for( Int k = 0; k < NInterp[d]; k++ ){
+//                    Real dist=0.0; 
+//                    dist = uniformGrid[i] - LGLInterpGrid[k];
+//                    dist = dist - round(dist/domain_.length[d])*domain_.length[d];
+//                    sum += exp(-dist*dist/(2*sigma*sigma)) * LGLMat(k,j) * LGLInterpWeight(k);
+//                  } // for (k)
+//                  localMat( i, j ) = guassFac * sum;
+//                } // for (j)
+//              } // for (l)
+//            } // for (i)
+
+//            for( Int i = 0; i < numUniformFine[d]; i++ ){
+//              for( Int l = 0; l < numExtElem[d]; l++ ){
+//                for( Int j = 0; j < numLGL[d]; j++ ){
+//                  Real sum=0.0;
+//                  for( Int k = 0; k < NInterp[d]; k++ ){
+//                    Real dist=0.0; 
+//                    dist = uniformGridFine[i] - LGLInterpGrid[k];
+//                    dist = dist - round(dist/domain_.length[d])*domain_.length[d];
+//                    sum += exp(-dist*dist/(2*sigma*sigma)) * LGLMat(k,j) * LGLInterpWeight(k);
+//                  } // for (k)
+//                  localMatFine( i, j ) = guassFac * sum;
+//                } // for (j)
+//              } // for (l)
+//            } // for (i)
+
+            GetTime( timeSta );
+
+            if (0) {
+              
+              for( Int i = 0; i < numUniformFine[d]; i++ ){
+                for( Int j = 0; j < numLGL[d]; j++ ){
+                  Real sum=0.0;
+                  for( Int k = 0; k < NInterp[d]; k++ ){
+                    Real dist=0.0; 
+                    dist = uniformGridFine[i] - LGLInterpGrid[k];
+                    dist = dist - round(dist/domain_.length[d])*domain_.length[d];
+                    sum += exp(-dist*dist/(2*sigma*sigma)) * LGLMat(k,j) * LGLInterpWeight(k);
+                  } // for (k)
+                  localMatFine( i, j ) = guassFac * sum;
+                } // for (j)
+              } // for (i)
+            
+            } // if (0)
+
+            if (1) {
+
+              DblNumMat guassTemp;
+              guassTemp.Resize ( numUniformFine[d], NInterp[d]); 
+              SetValue( guassTemp, 0.0 );
+
+              for( Int k = 0; k < NInterp[d]; k++ ){
+                for( Int i = 0; i < numUniformFine[d]; i++ ){
+                  Real dist=0.0; 
+                  dist = uniformGridFine[i] - LGLInterpGrid[k];
+                  dist = dist - round(dist/domain_.length[d])*domain_.length[d];
+                  guassTemp(i, k) = exp(-dist*dist/(2*sigma*sigma)) * LGLInterpWeight(k) * guassFac;
+                }
+              } 
+
+              // Use Gemm
+              Int m = numUniformFine[d], n = numLGL[d], k = NInterp[d];
+              blas::Gemm( 'N', 'N', m, n, k, 1.0, guassTemp.Data(),
+                  m, LGLMat.Data(), k, 0.0, localMatFine.Data(), m );
+
+            } // if (1)
+
+            GetTime( timeEnd );
+            statusOFS << "Time for LGLToUniformGaussMat = " << timeEnd - timeSta << std::endl;
+
+          } // for (d)
+
+        } // for ii
+      } // for jj
+    } // for kk
+
+  } // for Gaussian convolution interpolation
+
+
   // Compute the LGL weights at 1D, 2D, 3D
   {
     Point3 length       = domainElem_(0,0,0).length;
@@ -503,26 +762,26 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
           LGLWeight1D_[d].Data(), 1 );
     }
 
-		// 2D: faces labeled by normal vectors, i.e. 
-		// yz face : 0
-		// xz face : 1
-		// xy face : 2
+    // 2D: faces labeled by normal vectors, i.e. 
+    // yz face : 0
+    // xz face : 1
+    // xy face : 2
 
     LGLWeight2D_.resize(DIM);
 
-		// yz face
-		LGLWeight2D_[0].Resize( numGrid[1], numGrid[2] );
-		for( Int k = 0; k < numGrid[2]; k++ )
-			for( Int j = 0; j < numGrid[1]; j++ ){
-				LGLWeight2D_[0](j, k) = LGLWeight1D_[1](j) * LGLWeight1D_[2](k);
-			} // for (j)
+    // yz face
+    LGLWeight2D_[0].Resize( numGrid[1], numGrid[2] );
+    for( Int k = 0; k < numGrid[2]; k++ )
+      for( Int j = 0; j < numGrid[1]; j++ ){
+        LGLWeight2D_[0](j, k) = LGLWeight1D_[1](j) * LGLWeight1D_[2](k);
+      } // for (j)
 
-		// xz face
-		LGLWeight2D_[1].Resize( numGrid[0], numGrid[2] );
-		for( Int k = 0; k < numGrid[2]; k++ )
-			for( Int i = 0; i < numGrid[0]; i++ ){
-				LGLWeight2D_[1](i, k) = LGLWeight1D_[0](i) * LGLWeight1D_[2](k);
-			} // for (i)
+    // xz face
+    LGLWeight2D_[1].Resize( numGrid[0], numGrid[2] );
+    for( Int k = 0; k < numGrid[2]; k++ )
+      for( Int i = 0; i < numGrid[0]; i++ ){
+        LGLWeight2D_[1](i, k) = LGLWeight1D_[0](i) * LGLWeight1D_[2](k);
+      } // for (i)
 
 		// xy face
 		LGLWeight2D_[2].Resize( numGrid[0], numGrid[1] );
@@ -775,6 +1034,64 @@ HamiltonianDG::InterpLGLToUniform	( const Index3& numLGLGrid, const
 
 	return ;
 } 		// -----  end of method HamiltonianDG::InterpLGLToUniform  ----- 
+
+
+void
+HamiltonianDG::GaussConvInterpLGLToUniform	( const Index3& numLGLGrid, const
+    Index3& numUniformGridFine, const Real* rhoLGL, Real* rhoUniform, 
+    std::vector<DblNumMat> LGLToUniformGaussMatFine )
+{
+#ifndef _RELEASE_
+	PushCallStack("HamiltonianDG::GaussConvInterpLGLToUniform");
+#endif
+	Index3 Ns1 = numLGLGrid;
+	Index3 Ns2 = numUniformGridFine;
+
+	DblNumVec  tmp1( Ns2[0] * Ns1[1] * Ns1[2] );
+	DblNumVec  tmp2( Ns2[0] * Ns2[1] * Ns1[2] );
+	SetValue( tmp1, 0.0 );
+	SetValue( tmp2, 0.0 );
+
+	// x-direction, use Gemm
+	{
+		Int m = Ns2[0], n = Ns1[1] * Ns1[2], k = Ns1[0];
+		blas::Gemm( 'N', 'N', m, n, k, 1.0, LGLToUniformGaussMatFine[0].Data(),
+				m, rhoLGL, k, 0.0, tmp1.Data(), m );
+	}
+
+	// y-direction, use Gemv
+	{
+		Int   m = Ns2[1], n = Ns1[1];
+		Int   rhoShift1, rhoShift2;
+		Int   inc = Ns2[0];
+		for( Int k = 0; k < Ns1[2]; k++ ){
+			for( Int i = 0; i < Ns2[0]; i++ ){
+				rhoShift1 = i + k * Ns2[0] * Ns1[1];
+				rhoShift2 = i + k * Ns2[0] * Ns2[1];
+				blas::Gemv( 'N', m, n, 1.0, 
+						LGLToUniformGaussMatFine[1].Data(), m, 
+						tmp1.Data() + rhoShift1, inc, 0.0, 
+						tmp2.Data() + rhoShift2, inc );
+			} // for (i)
+		} // for (k)
+	}
+
+
+	// z-direction, use Gemm
+	{
+		Int m = Ns2[0] * Ns2[1], n = Ns2[2], k = Ns1[2]; 
+		blas::Gemm( 'N', 'T', m, n, k, 1.0, 
+				tmp2.Data(), m, 
+				LGLToUniformGaussMatFine[2].Data(), n, 0.0, rhoUniform, m );
+	}
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method HamiltonianDG::GaussConvInterpLGLToUniform  ----- 
 
 
 void
@@ -1100,178 +1417,178 @@ HamiltonianDG::CalculateDensity	(
 		} // for (g)
 		// Check the sum of the electron density
 #if ( _DEBUGlevel_ >= 0 )
-		Real sumRhoLocal = 0.0;
-		Real sumRho      = 0.0;
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					Index3 key( i, j, k );
-					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-						DblNumVec& localRho = rho.LocalMap()[key];
-						for( Int p = 0; p < localRho.Size(); p++ ){
-							sumRhoLocal += localRho[p];
-						}	
-					} // own this element
-				} // for (i)
-		mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
+    Real sumRhoLocal = 0.0;
+    Real sumRho      = 0.0;
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            DblNumVec& localRho = rho.LocalMap()[key];
+            for( Int p = 0; p < localRho.Size(); p++ ){
+              sumRhoLocal += localRho[p];
+            }	
+          } // own this element
+        } // for (i)
+    mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
 
-		sumRho *= domain_.Volume() / domain_.NumGridTotal();
+    sumRho *= domain_.Volume() / domain_.NumGridTotal();
 
-		Print( statusOFS, "Sum rho = ", sumRho );
+    Print( statusOFS, "Sum rho = ", sumRho );
 #endif
-	} // Method 1
+  } // Method 1
 
 
-	// Method 2: Compute the electron density locally, and then normalize
-	// only in the global domain. The result should be almost the same as
-	// that in Method 1, but should be much faster.
-	if(0)
-	{
-		Real sumRhoLocal = 0.0, sumRho = 0.0;
-		// Compute the local density in each element
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					Index3 key( i, j, k );
-					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-						DblNumMat& localBasis = basisLGL_.LocalMap()[key];
-						Int numGrid  = localBasis.m();
-						Int numBasis = localBasis.n();
+  // Method 2: Compute the electron density locally, and then normalize
+  // only in the global domain. The result should be almost the same as
+  // that in Method 1, but should be much faster.
+  if(0)
+  {
+    Real sumRhoLocal = 0.0, sumRho = 0.0;
+    // Compute the local density in each element
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            DblNumMat& localBasis = basisLGL_.LocalMap()[key];
+            Int numGrid  = localBasis.m();
+            Int numBasis = localBasis.n();
 
-						// Skip the element if there is no basis functions.
-						if( numBasis == 0 )
-							continue;
+            // Skip the element if there is no basis functions.
+            if( numBasis == 0 )
+              continue;
 
-						DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
-						if( localCoef.n() != numEig ){
-							throw std::runtime_error( 
-									"Numbers of eigenfunction coefficients do not match.");
-						}
-						if( localCoef.m() != numBasis ){
-							throw std::runtime_error(
-									"Number of LGL grids do not match.");
-						}
-						
-						DblNumVec& localRho = rho.LocalMap()[key];
+            DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
+            if( localCoef.n() != numEig ){
+              throw std::runtime_error( 
+                  "Numbers of eigenfunction coefficients do not match.");
+            }
+            if( localCoef.m() != numBasis ){
+              throw std::runtime_error(
+                  "Number of LGL grids do not match.");
+            }
 
-						DblNumVec  localRhoLGL( numGrid );
-						DblNumVec  localPsiLGL( numGrid );
-						SetValue( localRhoLGL, 0.0 );
-						SetValue( localPsiLGL, 0.0 );
+            DblNumVec& localRho = rho.LocalMap()[key];
 
-						// Loop over all the eigenfunctions
-						// 
-						// NOTE: Gemm is not a feasible choice when a large number of
-						// eigenfunctions are there.
-						for( Int g = 0; g < numEig; g++ ){
-							// Compute local wavefunction on the LGL grid
-							blas::Gemv( 'N', numGrid, numBasis, 1.0, 
-									localBasis.Data(), numGrid, 
-									localCoef.VecData(g), 1, 0.0,
-									localPsiLGL.Data(), 1 );
-							// Update the local density
-							Real  occ    = occrate[g];
-							for( Int p = 0; p < numGrid; p++ ){
-								localRhoLGL(p) += pow( localPsiLGL(p), 2.0 ) * occ;
-							}
-						}
+            DblNumVec  localRhoLGL( numGrid );
+            DblNumVec  localPsiLGL( numGrid );
+            SetValue( localRhoLGL, 0.0 );
+            SetValue( localPsiLGL, 0.0 );
 
-						// Interpolate the local density from LGL grid to uniform
-						// grid
-						InterpLGLToUniform( 
-								numLGLGridElem_, 
-								numUniformGridElem_, 
-								localRhoLGL.Data(), 
-								localRho.Data() );
+            // Loop over all the eigenfunctions
+            // 
+            // NOTE: Gemm is not a feasible choice when a large number of
+            // eigenfunctions are there.
+            for( Int g = 0; g < numEig; g++ ){
+              // Compute local wavefunction on the LGL grid
+              blas::Gemv( 'N', numGrid, numBasis, 1.0, 
+                  localBasis.Data(), numGrid, 
+                  localCoef.VecData(g), 1, 0.0,
+                  localPsiLGL.Data(), 1 );
+              // Update the local density
+              Real  occ    = occrate[g];
+              for( Int p = 0; p < numGrid; p++ ){
+                localRhoLGL(p) += pow( localPsiLGL(p), 2.0 ) * occ;
+              }
+            }
 
-						Real* ptrRho = localRho.Data();
-						for( Int p = 0; p < localRho.Size(); p++ ){
-							sumRhoLocal += (*ptrRho);
-							ptrRho++;
-						}
+            // Interpolate the local density from LGL grid to uniform
+            // grid
+            InterpLGLToUniform( 
+                numLGLGridElem_, 
+                numUniformGridElem_, 
+                localRhoLGL.Data(), 
+                localRho.Data() );
 
-					} // own this element
-				} // for (i)
+            Real* ptrRho = localRho.Data();
+            for( Int p = 0; p < localRho.Size(); p++ ){
+              sumRhoLocal += (*ptrRho);
+              ptrRho++;
+            }
 
-		// All processors get the normalization factor
-		mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
+          } // own this element
+        } // for (i)
 
-		Real rhofac = numSpin_ * numOccupiedState_ 
-			* (domain_.NumGridTotal() / domain_.Volume()) / sumRho;
+    // All processors get the normalization factor
+    mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
 
-		// Normalize the electron density in the global domain
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					Index3 key( i, j, k );
-					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-						DblNumVec& localRho = rho.LocalMap()[key];
-						blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
-					} // own this element
-				} // for (i)
+    Real rhofac = numSpin_ * numOccupiedState_ 
+      * (domain_.NumGridTotal() / domain_.Volume()) / sumRho;
+
+    // Normalize the electron density in the global domain
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            DblNumVec& localRho = rho.LocalMap()[key];
+            blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
+          } // own this element
+        } // for (i)
   } // Method 2
 
   // Method 3: Method 3 is the same as the Method 2, but to output the
-	// eigenfunctions locally. 
-	if(1)
-	{
-		Real sumRhoLocal = 0.0, sumRho = 0.0;
-		Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
-		// Clear the density 
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					Index3 key( i, j, k );
-					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-						DblNumVec& localRho    = rho.LocalMap()[key];
-						DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+  // eigenfunctions locally. 
+  if(0) // FIXME
+  {
+    Real sumRhoLocal = 0.0, sumRho = 0.0;
+    Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
+    // Clear the density 
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            DblNumVec& localRho    = rho.LocalMap()[key];
+            DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
 
-						SetValue( localRho, 0.0 );
-						SetValue( localRhoLGL, 0.0 );
-						
-					}
-				} // for (i)
+            SetValue( localRho, 0.0 );
+            SetValue( localRhoLGL, 0.0 );
 
-		// Compute the local density in each element
-		for( Int k = 0; k < numElem_[2]; k++ )
-			for( Int j = 0; j < numElem_[1]; j++ )
-				for( Int i = 0; i < numElem_[0]; i++ ){
-					Index3 key( i, j, k );
-					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-						DblNumMat& localBasis = basisLGL_.LocalMap()[key];
-						Int numGrid  = localBasis.m();
-						Int numBasis = localBasis.n();
+          }
+        } // for (i)
 
-						Int numBasisTotal = 0;
+    // Compute the local density in each element
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            DblNumMat& localBasis = basisLGL_.LocalMap()[key];
+            Int numGrid  = localBasis.m();
+            Int numBasis = localBasis.n();
+
+            Int numBasisTotal = 0;
             MPI_Allreduce( &numBasis, &numBasisTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
-            
+
             // Compute the density by matrix vector multiplication
             // This is done by going from column partition to row 
             // parition, perform Gemv locally, and transform the output
             // from row partition to column partition.
 
-						// Skip the element if there is no basis functions.
-						if( numBasisTotal == 0 )
-							continue;
+            // Skip the element if there is no basis functions.
+            if( numBasisTotal == 0 )
+              continue;
 
             DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
-						
+
             DblNumVec& localRho    = rho.LocalMap()[key];
             DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
             SetValue( localRhoLGL, 0.0 );
 
-           
+
             // Loop over all the eigenfunctions
             // 
             // NOTE: Gemm is not a feasible choice when a large number of
-						// eigenfunctions are there.
-						{
-							DblNumVec  localPsiLGL( numGrid );
-							SetValue( localPsiLGL, 0.0 );
+            // eigenfunctions are there.
+            {
+              DblNumVec  localPsiLGL( numGrid );
+              SetValue( localPsiLGL, 0.0 );
 
-							// For thread safety, declare as private variable
-							DblNumVec  localRhoLGLTmp( numGrid );
-							SetValue( localRhoLGLTmp, 0.0 );
+              // For thread safety, declare as private variable
+              DblNumVec  localRhoLGLTmp( numGrid );
+              SetValue( localRhoLGLTmp, 0.0 );
 
 
               // Compute the density by converting the basis function
@@ -1283,7 +1600,7 @@ HamiltonianDG::CalculateDensity	(
               // the same row processor communicator to obtain the
               // electron density in each element.  
               if(1){
-            
+
                 Int height = numGrid;
                 Int width = numBasisTotal;
 
@@ -1307,8 +1624,8 @@ HamiltonianDG::CalculateDensity	(
                 DblNumMat localBasisRow( heightLocal, width );
 
                 AlltoallForward (localBasis, localBasisRow, domain_.rowComm);
-         
-							  DblNumVec  localRhoLGLRow( numGridLocal ); 
+
+                DblNumVec  localRhoLGLRow( numGridLocal ); 
                 SetValue( localRhoLGLRow, 0.0 );
 
 #ifdef _USE_OPENMP_
@@ -1371,70 +1688,338 @@ HamiltonianDG::CalculateDensity	(
               } 
 
               blas::Axpy( numGrid, 1.0, localRhoLGLTmp.Data(), 1, localRhoLGL.Data(), 1 );
-						}
+            }
 
 
-						// Interpolate the local density from LGL grid to uniform
-						// grid
-						InterpLGLToUniform( 
-								numLGLGridElem_, 
-								numUniformGridElemFine_, 
-								localRhoLGL.Data(), 
-								localRho.Data() );
+            // Interpolate the local density from LGL grid to uniform
+            // grid
+            InterpLGLToUniform( 
+                numLGLGridElem_, 
+                numUniformGridElemFine_, 
+                localRhoLGL.Data(), 
+                localRho.Data() );
 
-						sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
-								localRhoLGL.Data(), 1, 
-								LGLWeight3D_.Data(), 1 );
+            sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
+                localRhoLGL.Data(), 1, 
+                LGLWeight3D_.Data(), 1 );
 
-						Real* ptrRho = localRho.Data();
-						for( Int p = 0; p < localRho.Size(); p++ ){
-							sumRhoLocal += (*ptrRho);
-							ptrRho++;
+            Real* ptrRho = localRho.Data();
+            for( Int p = 0; p < localRho.Size(); p++ ){
+              sumRhoLocal += (*ptrRho);
+              ptrRho++;
             }
           } // own this element
-				} // for (i)
+        } // for (i)
 
-		sumRhoLocal *= domain_.Volume() / domain_.NumGridTotalFine(); 
+    sumRhoLocal *= domain_.Volume() / domain_.NumGridTotalFine(); 
 
     // All processors get the normalization factor
-		mpi::Allreduce( &sumRhoLGLLocal, &sumRhoLGL, 1, MPI_SUM, domain_.colComm );
-		mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
+    mpi::Allreduce( &sumRhoLGLLocal, &sumRhoLGL, 1, MPI_SUM, domain_.colComm );
+    mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
 
 #if ( _DEBUGlevel_ >= 1 )
-		statusOFS << std::endl;
-		Print( statusOFS, "Sum Rho on LGL grid (raw data) = ", sumRhoLGL );
-		Print( statusOFS, "Sum Rho on uniform grid (interpolated) = ", sumRho );
-		statusOFS << std::endl;
+    statusOFS << std::endl;
+    Print( statusOFS, "Sum Rho on LGL grid (raw data) = ", sumRhoLGL );
+    Print( statusOFS, "Sum Rho on uniform grid (interpolated) = ", sumRho );
+    statusOFS << std::endl;
 #endif
-		
 
-    Real rhofac = numSpin_ * numOccupiedState_ / sumRho;
+  } // for Method 3
 
-    // FIXME No normalizatoin of the electron density!
 
-//		// Normalize the electron density in the global domain
-//		for( Int k = 0; k < numElem_[2]; k++ )
-//			for( Int j = 0; j < numElem_[1]; j++ )
-//				for( Int i = 0; i < numElem_[0]; i++ ){
-//					Index3 key( i, j, k );
-//					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-//						DblNumVec& localRho = rho.LocalMap()[key];
-//						blas::Scal( localRho.Size(), rhofac, localRho.Data(), 1 );
-//					} // own this element
-//				} // for (i)
-	}
+  // Method 4:
+
+  if(1) // FIXME
+  {
+    Real sumRhoLocal = 0.0, sumRho = 0.0;
+    Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
+    // Clear the density 
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+
+            DblNumVec& localRho    = rho.LocalMap()[key];
+            DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+
+            SetValue( localRho, 0.0 );
+            SetValue( localRhoLGL, 0.0 );
+
+          }
+        } // for (i)
+
+    // Compute the local density in each element
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            DblNumMat& localBasis = basisLGL_.LocalMap()[key];
+            Int numGrid  = localBasis.m();
+            Int numBasis = localBasis.n();
+
+            Int numBasisTotal = 0;
+            MPI_Allreduce( &numBasis, &numBasisTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
+
+            // Compute the density by matrix vector multiplication
+            // This is done by going from column partition to row 
+            // parition, perform Gemv locally, and transform the output
+            // from row partition to column partition.
+
+            // Skip the element if there is no basis functions.
+            if( numBasisTotal == 0 )
+              continue;
+
+            DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
+
+            DblNumVec& localRho    = rho.LocalMap()[key];
+            DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+            SetValue( localRhoLGL, 0.0 );
+
+            // Loop over all the eigenfunctions
+            // 
+            // NOTE: Gemm is not a feasible choice when a large number of
+            // eigenfunctions are there.
+            {
+              DblNumVec  localPsiLGL( numGrid );
+              SetValue( localPsiLGL, 0.0 );
+
+              // For thread safety, declare as private variable
+              DblNumVec  localRhoLGLTmp( numGrid );
+              SetValue( localRhoLGLTmp, 0.0 );
+
+
+              // Compute the density by converting the basis function
+              // from column partition to row partition, and then
+              // compute the Kohn-Sham wavefunction on each local
+              // processor, which contributes to the electron density.
+              //
+              // The electron density is reduced among all processors in
+              // the same row processor communicator to obtain the
+              // electron density in each element.  
+              if(1){
+
+                Int height = numGrid;
+                Int width = numBasisTotal;
+
+                Int widthBlocksize = width / mpisizeRow;
+                Int heightBlocksize = height / mpisizeRow;
+
+                Int widthLocal = widthBlocksize;
+                Int heightLocal = heightBlocksize;
+
+                if(mpirankRow < (width % mpisizeRow)){
+                  widthLocal = widthBlocksize + 1;
+                }
+
+                if(mpirankRow == (mpisizeRow - 1)){
+                  heightLocal = heightBlocksize + height % mpisizeRow;
+                }
+
+                Int numGridTotal = height;  
+                Int numGridLocal = heightLocal;  
+
+                DblNumMat localBasisRow( heightLocal, width );
+
+                AlltoallForward (localBasis, localBasisRow, domain_.rowComm);
+
+                DblNumVec  localRhoLGLRow( numGridLocal ); 
+                SetValue( localRhoLGLRow, 0.0 );
+
+#ifdef _USE_OPENMP_
+#pragma omp parallel 
+                {
+#endif
+                  DblNumVec  localPsiLGLRow( numGridLocal );
+                  SetValue( localPsiLGLRow, 0.0 );
+
+                  // For thread safety, declare as private variable
+
+                  DblNumVec localRhoLGLRowTmp( numGridLocal );
+                  SetValue( localRhoLGLRowTmp, 0.0 );
+
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+                  for( Int g = 0; g < numEig; g++ ){
+                    // Compute local wavefunction on the LGL grid
+                    blas::Gemv( 'N', numGridLocal, numBasisTotal, 1.0, 
+                        localBasisRow.Data(), numGridLocal, 
+                        localCoef.VecData(g), 1, 0.0,
+                        localPsiLGLRow.Data(), 1 );
+
+                    // Update the local density
+                    Real  occ    = occrate[g];
+
+                    for( Int p = 0; p < numGridLocal; p++ ){
+                      localRhoLGLRowTmp(p) += localPsiLGLRow(p) * localPsiLGLRow(p) * occ * numSpin_;
+                    }
+                  }
+
+#ifdef _USE_OPENMP_
+#pragma omp critical
+                  {
+#endif
+                    // This is a reduce operation for an array, and should be
+                    // done in the OMP critical syntax
+                    blas::Axpy( numGridLocal, 1.0, localRhoLGLRowTmp.Data(), 1, localRhoLGLRow.Data(), 1 );
+#ifdef _USE_OPENMP_
+                  }
+#endif
+
+#ifdef _USE_OPENMP_
+                }
+#endif
+
+                DblNumVec  localRhoLGLTemp1( numGridTotal );
+                SetValue( localRhoLGLTemp1, 0.0 );
+                for( Int p = 0; p < numGridLocal; p++ ){
+                  localRhoLGLTemp1( p + heightBlocksize * mpirankRow ) = localRhoLGLRow(p);
+                }
+
+                SetValue( localRhoLGLTmp, 0.0 );
+                MPI_Allreduce( localRhoLGLTemp1.Data(),
+                    localRhoLGLTmp.Data(), numGridTotal, MPI_DOUBLE,
+                    MPI_SUM, domain_.rowComm );
+
+
+              } 
+
+              blas::Axpy( numGrid, 1.0, localRhoLGLTmp.Data(), 1, localRhoLGL.Data(), 1 );
+            }
+
+            if(1) 
+            {
+
+              for( Int kk = 0; kk < numExtElem_[2]; kk++ ){
+                for( Int jj = 0; jj < numExtElem_[1]; jj++ ){
+                  for( Int ii = 0; ii < numExtElem_[0]; ii++ ){
+                    std::vector<DblNumMat>& LGLToUniformGaussMatFine = LGLToUniformGaussMatFine_ (ii,jj,kk);
+                    Index3 keyTemp(ii,jj,kk);
+
+                    for( Int d = 0; d < DIM; d++ ){
+                      if (numExtElem_[d] == 1){
+                        keyTemp[d] = key[d]; 
+                      }
+
+                      if (numExtElem_[d] == 3){
+                        if ( (key[d] == 0) && (keyTemp[d] == 0) ){
+                          keyTemp[d] = numElem_[d] - 1; 
+                        }
+                        else if ( (key[d] == (numElem_[d]-1) ) && (keyTemp[d] == 2) ){
+                          keyTemp[d] = 0; 
+                        }
+                        else {
+                          keyTemp[d] = key[d] + keyTemp[d] - 1;
+                        } 
+                      }
+
+                    } // for (d)
+
+                    DblNumVec& localRhoTemp = rho.LocalMap()[keyTemp];
+                    localRhoTemp.Resize( numUniformGridElemFine_.prod() );
+                    SetValue( localRhoTemp, 0.0 );
+
+                    GaussConvInterpLGLToUniform( 
+                        numLGLGridElem_, 
+                        numUniformGridElemFine_, 
+                        localRhoLGL.Data(), 
+                        localRhoTemp.Data(),
+                        LGLToUniformGaussMatFine );
+
+                  }
+                }
+              }
+
+            } // for if(1) 
+
+          } // own this element
+        } // for (i)
+
+    if(1) 
+    {
+      std::vector<Index3>  keyIdx;
+      for( std::map<Index3, DblNumVec>::iterator 
+          mi  = rho.LocalMap().begin();
+          mi != rho.LocalMap().end(); mi++ ){
+        Index3 key = (*mi).first;
+        if( rho.Prtn().Owner(key) != (mpirank / dmRow_) ){
+          keyIdx.push_back( key );
+        }
+      }
+
+      // Communication
+      rho.PutBegin( keyIdx, NO_MASK );
+      rho.PutEnd( NO_MASK, PutMode::COMBINE );
+
+      // Clean up
+      std::vector<Index3>  eraseKey;
+      for( std::map<Index3, DblNumVec>::iterator 
+          mi  = rho.LocalMap().begin();
+          mi != rho.LocalMap().end(); mi++ ){
+        Index3 key = (*mi).first;
+        if( rho.Prtn().Owner(key) != (mpirank / dmRow_) ){
+          eraseKey.push_back( key );
+        }
+      }
+
+      for( std::vector<Index3>::iterator vi = eraseKey.begin();
+          vi != eraseKey.end(); vi++ ){
+        rho.LocalMap().erase( *vi );
+      }
+
+    }  // for if(1)
+
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+
+            DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+            DblNumVec& localRho    = rho.LocalMap()[key];
+
+            sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
+                localRhoLGL.Data(), 1, 
+                LGLWeight3D_.Data(), 1 );
+
+            Real* ptrRho = localRho.Data();
+            for( Int p = 0; p < localRho.Size(); p++ ){
+              sumRhoLocal += (*ptrRho);
+              ptrRho++;
+            }
+          } // own this element
+        } // for (i)
+
+    sumRhoLocal *= domain_.Volume() / domain_.NumGridTotalFine(); 
+
+    // All processors get the normalization factor
+    mpi::Allreduce( &sumRhoLGLLocal, &sumRhoLGL, 1, MPI_SUM, domain_.colComm );
+    mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << std::endl;
+    Print( statusOFS, "Sum Rho on LGL grid (raw data) = ", sumRhoLGL );
+    Print( statusOFS, "Sum Rho on uniform grid (interpolated) = ", sumRho );
+    statusOFS << std::endl;
+#endif
+
+  } // for Method 4 
+
+
 #ifndef _RELEASE_
-	PopCallStack();
+  PopCallStack();
 #endif
 
-	return ;
+  return ;
 } 		// -----  end of method HamiltonianDG::CalculateDensity  ----- 
 
 
 void
 HamiltonianDG::CalculateDensityDM	(
-		DistDblNumVec& rho,
-		DistDblNumVec& rhoLGL,
+    DistDblNumVec& rho,
+    DistDblNumVec& rhoLGL,
     DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat )
 {
 #ifndef _RELEASE_
@@ -1609,8 +2194,6 @@ HamiltonianDG::CalculateDensityDM2	(
   Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
   Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
 
-
-
 	if(1)
 	{
 		Real sumRhoLocal = 0.0, sumRho = 0.0;
@@ -1735,10 +2318,8 @@ HamiltonianDG::CalculateDensityDM2	(
 		Print( statusOFS, "Sum Rho on uniform grid (interpolated) = ", sumRho );
 		statusOFS << std::endl;
 #endif
-		
 
 		Real rhofac = numSpin_ * numOccupiedState_ / sumRho;
-	  
 
 		// Normalize the electron density in the global domain
 		for( Int k = 0; k < numElem_[2]; k++ )
