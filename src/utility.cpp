@@ -242,10 +242,14 @@ void GenerateLGLMeshWeightOnly(double* x, double* w, int Nm1)
 	int N = Nm1;
   int N1 = N + 1;
   // Only for the three-term recursion
-  DblNumMat P(N1, 3);
-  SetValue( P, 0.0 );
+  DblNumMat PMat(N1, 3);
+  SetValue( PMat, 0.0 );
 
   xold.resize(N1);
+
+  double *P0 = PMat.VecData(0);
+  double *P1 = PMat.VecData(1);
+  double *P2 = PMat.VecData(2);
 
   for (i=0; i<N1; i++){
     x[i] = cos(pi*(N1-i-1)/(double)N);
@@ -254,19 +258,19 @@ void GenerateLGLMeshWeightOnly(double* x, double* w, int Nm1)
   do{
     for (i=0; i<N1; i++){
       xold[i] = x[i];
-      P(i,0) = 1.0;
-      P(i,1) = x[i];
+      P0[i] = 1.0;
+      P1[i] = x[i];
     }
     for (j=2; j<N1; j++){
       for (i=0; i<N1; i++){
-        P(i,2) = ((2.0*j-1.0)*x[i]*P(i,1) - (j-1)*P(i,0))/j;
-        P(i,0) = P(i,1);
-        P(i,1) = P(i,2);
+        P2[i] = ((2.0*j-1.0)*x[i]*P1[i] - (j-1)*P0[i])/j;
+        P0[i] = P1[i];
+        P1[i] = P2[i];
       }
     }
 
     for (i=0; i<N1; i++){
-      x[i] = xold[i] - (x[i]*P(i,1) - P(i,0))/(N1*P(i,1));
+      x[i] = xold[i] - (x[i]*P1[i] - P0[i])/(N1*P1[i]);
     }
 
     err = 0.0;
@@ -278,7 +282,7 @@ void GenerateLGLMeshWeightOnly(double* x, double* w, int Nm1)
   } while(err>tol);
 
   for (i=0; i<N1; i++){
-    w[i] = 2.0/(N*N1*P(i,1)*P(i,1));
+    w[i] = 2.0/(N*N1*P1[i]*P1[i]);
   }
 
 #ifndef _RELEASE_
