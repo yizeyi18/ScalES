@@ -499,31 +499,15 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
     // Small stablization parameter 
     const Real EPS                      = 1e-13;
 
+    Real interpFactor = esdfParam.GaussInterpFactor;
     Real sigma = esdfParam.GaussSigma;
-    //Index3 NInterp(6,6,6) ;
     Index3 NInterp;
 
     for( Int d = 0; d < DIM; d++ ){
-      NInterp[d] = int(ceil(domain_.length[d] / numElem_[d] * 4.0 / sigma)); 
+      NInterp[d] = int(ceil(domain_.length[d] / numElem_[d] * interpFactor / sigma)); 
     }
 
-//    NumTns<std::vector<DblNumVec> >   LGLInterpGridElem;
-//    LGLInterpGridElem.Resize( numElem_[0], numElem_[1], numElem_[2] );
-
     GetTime( timeSta );
-
-//    for( Int k = 0; k < numElem_[2]; k++ ){
-//      for( Int j = 0; j < numElem_[1]; j++ ){
-//        for( Int i = 0; i < numElem_[0]; i++ ){
-//          Index3 key( i, j, k );
-//          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-//            LGLMesh( domainElem_(i, j, k),
-//                NInterp,
-//                LGLInterpGridElem(i, j, k) );
-//          }
-//        }
-//      }
-//    }
 
     std::vector<DblNumVec>   LGLInterpGridElem;
     std::vector<DblNumVec> LGLInterpWeight1D;
@@ -537,9 +521,9 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
     for( Int d = 0; d < DIM; d++ ){
       DblNumVec&  dummyX = LGLInterpGridElem[d];
       Domain& dm =  domainElem_(0, 0, 0);
-      //GenerateLGLMeshWeightOnly( dummyX, LGLInterpWeight1D[d], NInterp[d] );
-      DblNumMat  dummyP, dummpD;
-      GenerateLGL( dummyX, LGLInterpWeight1D[d], dummyP, dummpD, NInterp[d] );
+      GenerateLGLMeshWeightOnly( dummyX, LGLInterpWeight1D[d], NInterp[d] );
+      //DblNumMat  dummyP, dummpD;
+      //GenerateLGL( dummyX, LGLInterpWeight1D[d], dummyP, dummpD, NInterp[d] );
       blas::Scal( NInterp[d], 0.5 * length[d], LGLInterpWeight1D[d].Data(), 1 );
 
       for( Int i = 0; i < NInterp[d]; i++ ){
@@ -548,6 +532,7 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
     }
 
     GetTime( timeEnd );
+    
     statusOFS << "Time for GenerateLGL = " << timeEnd - timeSta << std::endl;
 
     //Domain dmExtElem;
@@ -631,8 +616,6 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
             LGLMat.Resize ( NInterp[d], numLGL[d] ); 
             SetValue( LGLMat, 0.0 );
 
-            GetTime( timeSta );
-
             for( Int i = 0; i < numLGL[d]; i++ ){
               lambda[i] = 1.0;
               for( Int j = 0; j < numLGL[d]; j++ ){
@@ -652,45 +635,10 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
               }
             }
 
-            GetTime( timeEnd );
-            statusOFS << "Time for LGLMat = " << timeEnd - timeSta << std::endl;
-
             DblNumVec& LGLInterpWeight = LGLInterpWeight1D[d];
 
             // Generate the Gaussian matrix by numerical integration
             Real guassFac = 1.0/sqrt(2.0*PI*sigma*sigma);
-
-            //            for( Int i = 0; i < numUniform[d]; i++ ){
-            //              for( Int l = 0; l < numExtElem[d]; l++ ){
-//                for( Int j = 0; j < numLGL[d]; j++ ){
-//                  Real sum=0.0;
-//                  for( Int k = 0; k < NInterp[d]; k++ ){
-//                    Real dist=0.0; 
-//                    dist = uniformGrid[i] - LGLInterpGrid[k];
-//                    dist = dist - round(dist/domain_.length[d])*domain_.length[d];
-//                    sum += exp(-dist*dist/(2*sigma*sigma)) * LGLMat(k,j) * LGLInterpWeight(k);
-//                  } // for (k)
-//                  localMat( i, j ) = guassFac * sum;
-//                } // for (j)
-//              } // for (l)
-//            } // for (i)
-
-//            for( Int i = 0; i < numUniformFine[d]; i++ ){
-//              for( Int l = 0; l < numExtElem[d]; l++ ){
-//                for( Int j = 0; j < numLGL[d]; j++ ){
-//                  Real sum=0.0;
-//                  for( Int k = 0; k < NInterp[d]; k++ ){
-//                    Real dist=0.0; 
-//                    dist = uniformGridFine[i] - LGLInterpGrid[k];
-//                    dist = dist - round(dist/domain_.length[d])*domain_.length[d];
-//                    sum += exp(-dist*dist/(2*sigma*sigma)) * LGLMat(k,j) * LGLInterpWeight(k);
-//                  } // for (k)
-//                  localMatFine( i, j ) = guassFac * sum;
-//                } // for (j)
-//              } // for (l)
-//            } // for (i)
-
-            GetTime( timeSta );
 
             if (0) {
               
@@ -730,9 +678,6 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
                   m, LGLMat.Data(), k, 0.0, localMatFine.Data(), m );
 
             } // if (1)
-
-            GetTime( timeEnd );
-            statusOFS << "Time for LGLToUniformGaussMat = " << timeEnd - timeSta << std::endl;
 
           } // for (d)
 

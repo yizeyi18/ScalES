@@ -490,13 +490,20 @@ namespace esdf{
     /// extended element or element.
     Real                LGLGridFactor;
     
+    /// @brief The interp factor for Gaussian function for generating 
+    /// the transfer matrix from LGL grid to uniform grid on each
+    /// element with the Gaussian convolution interpolation method. 
+    /// 
+    /// Default: 4.0
+    Real                GaussInterpFactor;
+
     /// @brief The sigma value for Gaussian function for generating 
     /// the transfer matrix from LGL grid to uniform grid on each
     /// element with the Gaussian convolution interpolation method. 
     /// 
     /// Default: 0.001
     Real                GaussSigma;
-
+    
     /// @brief Number of processors for distributed FFT.
     ///
     Int                 numProcDistFFT;

@@ -733,6 +733,11 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! The number of LGL grid points over the number of grid points over wavefunction along each dimension !*");
 	
   i++;
+	strcpy(kw_label[i],"gauss_interp_factor");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! The interp factor for Gaussian function !*");
+  
+  i++;
 	strcpy(kw_label[i],"gauss_sigma");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! The sigma value for Gaussian function !*");
@@ -2210,7 +2215,9 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 //		}
 
 
-		esdfParam.GaussSigma = esdf_double( "Gauss_Sigma", 0.001 );
+		esdfParam.GaussInterpFactor = esdf_double( "Gauss_Interp_Factor", 4.0 );
+		
+    esdfParam.GaussSigma = esdf_double( "Gauss_Sigma", 0.001 );
 
     esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 20.0 );
 
