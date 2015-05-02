@@ -779,42 +779,60 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
 		throw std::logic_error("Domain size does not match.");
 	}
 
-#ifndef _USE_COMPLEX_ // Real case
-
   // Temporary variable for saving wavefunction on a fine grid
-  DblNumVec wfnFine(ntotFine);
-  DblNumVec wfnUpdateFine(ntotFine);
+  DblNumVec psiFine(ntotFine);
+  DblNumVec psiUpdateFine(ntotFine);
 
   for (Int k=0; k<numStateLocal; k++) {
     for (Int j=0; j<ncom; j++) {
 
-      SetValue( wfnFine, 0.0 );
-      SetValue( wfnUpdateFine, 0.0 );
+      SetValue( psiFine, 0.0 );
+      SetValue( psiUpdateFine, 0.0 );
 
-      Scalar    *ptr0 = wavefun_.VecData(j,k);
       // Fourier transform
-      for( Int i = 0; i < ntot; i++ ){
-        fft.inputComplexVec(i) = Complex( ptr0[i], 0.0 ); 
-      }
+
+//      for( Int i = 0; i < ntot; i++ ){
+//        fft.inputComplexVec(i) = Complex( wavefun_(i,j,k), 0.0 ); 
+//      }
+      SetValue( fft.inputComplexVec, Z_ZERO );
+      blas::Copy( ntot, wavefun_.VecData(j,k), 1,
+          reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2 );
 
       // Fourier transform of wavefunction saved in fft.outputComplexVec
       fftw_execute( fft.forwardPlan );
 
       // Interpolate wavefunction from coarse to fine grid
-      SetValue( fft.outputComplexVecFine, Z_ZERO );
-      for( Int i = 0; i < ntot; i++ ){
-        fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i);
+      {
+        SetValue( fft.outputComplexVecFine, Z_ZERO ); 
+        Int *idxPtr = fft.idxFineGrid.Data();
+        Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
+        Complex *fftOutPtr = fft.outputComplexVec.Data();
+        for( Int i = 0; i < ntot; i++ ){
+//          fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i);
+          fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
+        }
       }
       fftw_execute( fft.backwardPlanFine );
       Real fac = 1.0 / std::sqrt( double(domain_.NumGridTotal())  *
           double(domain_.NumGridTotalFine()) ); 
-      for( Int i = 0; i < ntotFine; i++ ){
-        wfnFine(i) = fft.inputComplexVecFine(i).real() * fac; 
-      }
+//      for( Int i = 0; i < ntotFine; i++ ){
+//        psiFine(i) = fft.inputComplexVecFine(i).real() * fac; 
+//      }
+      blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+          2, psiFine.Data(), 1 );
+      blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
 
       // Add the contribution from local pseudopotential
-      for( Int i = 0; i < ntotFine; i++ ){
-        wfnUpdateFine(i) += wfnFine(i) * vtot(i);
+//      for( Int i = 0; i < ntotFine; i++ ){
+//        psiUpdateFine(i) += psiFine(i) * vtot(i);
+//      }
+      {
+        Real *psiUpdateFinePtr = psiUpdateFine.Data();
+        Real *psiFinePtr = psiFine.Data();
+        Real *vtotPtr = vtot.Data();
+        for( Int i = 0; i < ntotFine; i++ ){
+          *(psiUpdateFinePtr++) += *(psiFinePtr++) * *(vtotPtr++);
+        }
       }
 
       // Add the contribution from nonlocal pseudopotential
@@ -832,14 +850,14 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
             const Int    *ivFineptr = ivFine.Data();
             const Real   *dvFineptr = dvFine.VecData(VAL);
             for (Int i=0; i<ivFine.m(); i++) {
-              weight += (*(dvFineptr++)) * wfnFine[*(ivFineptr++)];
+              weight += (*(dvFineptr++)) * psiFine[*(ivFineptr++)];
             }
             weight *= vol/Real(ntotFine)*vnlwgt;
 
             ivFineptr = ivFine.Data();
             dvFineptr = dvFine.VecData(VAL);
             for (Int i=0; i<ivFine.m(); i++) {
-              wfnUpdateFine[*(ivFineptr++)] += (*(dvFineptr++)) * weight;
+              psiUpdateFine[*(ivFineptr++)] += (*(dvFineptr++)) * weight;
             }
           } // for (iobt)
         } // for (iatm)
@@ -852,31 +870,43 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
           fft.outputComplexVec(i) *= fft.gkk(i);
       }
 
-      // Restrict wfnUpdateFine from fine grid in the real space to
+      // Restrict psiUpdateFine from fine grid in the real space to
       // coarse grid in the Fourier space. Combine with the Laplacian contribution
-      for( Int i = 0; i < ntotFine; i++ ){
-        fft.inputComplexVecFine(i) = Complex( wfnUpdateFine(i), 0.0 ); 
-      }
+//      for( Int i = 0; i < ntotFine; i++ ){
+//        fft.inputComplexVecFine(i) = Complex( psiUpdateFine(i), 0.0 ); 
+//      }
+      SetValue( fft.inputComplexVecFine, Z_ZERO );
+      blas::Copy( ntotFine, psiUpdateFine.Data(), 1,
+          reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()), 2 );
 
       // Fine to coarse grid
       // Note the update is important since the Laplacian contribution is already taken into account.
       // The computation order is also important
       fftw_execute( fft.forwardPlanFine );
-      for( Int i = 0; i < ntot; i++ ){
-        fft.outputComplexVec(i) += fft.outputComplexVecFine(fft.idxFineGrid(i)) * 
-          std::sqrt(Real(ntot) / (Real(ntotFine)));
+      {
+        Real fac = std::sqrt(Real(ntot) / (Real(ntotFine)));
+        Int* idxPtr = fft.idxFineGrid.Data();
+        Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
+        Complex *fftOutPtr = fft.outputComplexVec.Data();
+
+        for( Int i = 0; i < ntot; i++ ){
+//          fft.outputComplexVec(i) += fft.outputComplexVecFine(fft.idxFineGrid(i)) * fac;
+          *(fftOutPtr++) += fftOutFinePtr[*(idxPtr++)] * fac;
+        }
       }
 
       // Inverse Fourier transform to save back to the output vector
       fftw_execute( fft.backwardPlan );
 
-      Scalar    *ptr1 = a3.VecData(j,k);
-      for( Int i = 0; i < ntot; i++ ){
-        ptr1[i] += fft.inputComplexVec(i).real() / Real(ntot);
-      }
+//      Scalar    *ptr1 = a3.VecData(j,k);
+//      for( Int i = 0; i < ntot; i++ ){
+//        ptr1[i] += fft.inputComplexVec(i).real() / Real(ntot);
+//      }
+      blas::Axpy( ntot, 1.0 / Real(ntot), 
+          reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2,
+          a3.VecData(j,k), 1 );
     }
   }
-#endif
   
 
 #ifndef _RELEASE_

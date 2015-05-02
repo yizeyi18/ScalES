@@ -1370,15 +1370,21 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
       
       Real fac = 1.0 / sqrt( double(domain_.NumGridTotal())  *
           double(domain_.NumGridTotalFine()) ); 
-      for( Int i = 0; i < domain_.NumGridTotalFine(); i++ ){
-        psiFine(i) = fft.inputComplexVecFine(i).real() * fac;
-      }
+//      for( Int i = 0; i < domain_.NumGridTotalFine(); i++ ){
+//        psiFine(i) = fft.inputComplexVecFine(i).real() * fac;
+//      }
+      blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+          2, psiFine.Data(), 1 );
+      blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
 
       // derivative of psi on a fine grid
       for( Int d = 0; d < DIM; d++ ){
-        CpxNumVec& ikFine = fft.ikFine[d];
+        Complex* ikFinePtr = fft.ikFine[d].Data();
+        Complex* psiFourierPtr    = psiFourier.Data();
+        Complex* fftOutFinePtr = fft.outputComplexVecFine.Data();
         for( Int i = 0; i < ntotFine; i++ ){
-          fft.outputComplexVecFine(i) = psiFourier(i) * ikFine(i);
+//          fft.outputComplexVecFine(i) = psiFourier(i) * ikFine(i);
+          *(fftOutFinePtr++) = *(psiFourierPtr++) * *(ikFinePtr++);
         }
 
         GetTime( timeFFTSta );
@@ -1386,9 +1392,13 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
         GetTime( timeFFTEnd );
         timeFFTTotal += timeFFTEnd - timeFFTSta;
 
-        for( Int i = 0; i < domain_.NumGridTotalFine(); i++ ){
-          psiDrvFine[d](i) = fft.inputComplexVecFine(i).real() * fac;
-        }
+//        for( Int i = 0; i < domain_.NumGridTotalFine(); i++ ){
+//          psiDrvFine[d](i) = fft.inputComplexVecFine(i).real() * fac;
+//        }
+        blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+            2, psiDrvFine[d].Data(), 1 );
+        blas::Scal( ntotFine, fac, psiDrvFine[d].Data(), 1 );
+
       } // for (d)
 
       // Evaluate the contribution to the atomic force
@@ -1407,11 +1417,15 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
           Real* DpsiXPtr = psiDrvFine[0].Data();
           Real* DpsiYPtr = psiDrvFine[1].Data();
           Real* DpsiZPtr = psiDrvFine[2].Data();
+          Real* valPtr   = val.VecData(VAL);
+          Int*  idxPtr = idx.Data();
           for( Int i = 0; i < idx.Size(); i++ ){
-            res(VAL) += val(i, VAL ) * psiPtr[ idx(i) ] * sqrt(wgt);
-            res(DX)  += val(i, VAL ) * DpsiXPtr[ idx(i) ] * sqrt(wgt);
-            res(DY)  += val(i, VAL ) * DpsiYPtr[ idx(i) ] * sqrt(wgt);
-            res(DZ)  += val(i, VAL ) * DpsiZPtr[ idx(i) ] * sqrt(wgt);
+            res(VAL) += *valPtr * psiPtr[ *idxPtr ] * sqrt(wgt);
+            res(DX)  += *valPtr * DpsiXPtr[ *idxPtr ] * sqrt(wgt);
+            res(DY)  += *valPtr * DpsiYPtr[ *idxPtr ] * sqrt(wgt);
+            res(DZ)  += *valPtr * DpsiZPtr[ *idxPtr ] * sqrt(wgt);
+            valPtr++;
+            idxPtr++;
           }
 
           forceLocal( a, 0 ) += -4.0 * occupationRate_(psi.WavefunIdx(g)) * gamma * res[VAL] * res[DX];
