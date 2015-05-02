@@ -124,7 +124,7 @@ enum{
 };
 
 /// @brief The start of the radial grid.
-const Real MIN_RADIAL = 1e-8;
+const Real MIN_RADIAL = 1e-3;
 
 /// @struct PTEntry
 /// @brief Each entry for the periodic table structure.

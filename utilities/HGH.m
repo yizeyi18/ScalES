@@ -17,7 +17,7 @@
 % Znucs = [8 70];
 % Znucs = [1 8 22];
 % Znucs = [5 6 7];
-Znucs = [1];
+Znucs = [9];
 res = cell(length(Znucs),2);
 
 for g=1:length(Znucs)

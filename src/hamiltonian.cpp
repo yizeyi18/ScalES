@@ -138,7 +138,7 @@ Hamiltonian::Setup (
 	SetValue( vtot_, 0.0 );
 
   vtotCoarse_.Resize( ntotCoarse );
-  SetValue( vtot_, 0.0 );
+  SetValue( vtotCoarse_, 0.0 );
 
 	epsxc_.Resize( ntotFine );
 	SetValue( epsxc_, 0.0 );
@@ -326,6 +326,8 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 	numOccupiedState_ = nelec / numSpin_;
 
 	// Compute pseudocharge
+
+  Print( statusOFS, "Computing the local pseudopotential" );
 	SetValue( pseudoCharge_, 0.0 );
   for (Int a=0; a<numAtom; a++) {
     ptable.CalculatePseudoCharge( atomList_[a], domain_, 
@@ -335,6 +337,20 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
     DblNumMat &val = pseudo_[a].pseudoCharge.second;
     for (Int k=0; k<idx.m(); k++) 
 			pseudoCharge_[idx(k)] += val(k, VAL);
+    // For debug purpose, check the summation of the derivative
+    Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
+    for (Int k=0; k<idx.m(); k++) {
+      sumVDX += val(k, DX);
+      sumVDY += val(k, DY);
+      sumVDZ += val(k, DZ);
+    }
+    sumVDX *= vol / Real(ntotFine);
+    sumVDY *= vol / Real(ntotFine);
+    sumVDZ *= vol / Real(ntotFine);
+    Print( statusOFS, "For Atom ", a );
+    Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
+    Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
+    Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
   }
 
   Real sumrho = 0.0;
@@ -356,15 +372,42 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 
 
 	// Nonlocal projectors
-	
-	std::vector<DblNumVec> gridposCoarse;
+  std::vector<DblNumVec> gridposCoarse;
   UniformMesh ( domain_, gridposCoarse );
+  
+  Print( statusOFS, "Computing the non-local pseudopotential" );
 
   Int cnt = 0; // the total number of PS used
   for ( Int a=0; a < atomList_.size(); a++ ) {
 		ptable.CalculateNonlocalPP( atomList_[a], domain_, gridposCoarse,
 				pseudo_[a].vnlList ); 
+    // Introduce the nonlocal pseudopotential on the fine grid.
+		ptable.CalculateNonlocalPP( atomList_[a], domain_, gridpos,
+				pseudo_[a].vnlListFine ); 
 		cnt = cnt + pseudo_[a].vnlList.size();
+
+    // For debug purpose, check the summation of the derivative
+    Print( statusOFS, "Summation of derivative of pseudopotential on the fine grid " );
+    std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlListFine;
+    for( Int l = 0; l < vnlList.size(); l++ ){
+      SparseVec& bl = vnlList[l].first;
+      IntNumVec& idx = bl.first;
+      DblNumMat& val = bl.second;
+      Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
+      for (Int k=0; k<idx.m(); k++) {
+        sumVDX += val(k, DX);
+        sumVDY += val(k, DY);
+        sumVDZ += val(k, DZ);
+      }
+      sumVDX *= vol / Real(ntotFine);
+      sumVDY *= vol / Real(ntotFine);
+      sumVDZ *= vol / Real(ntotFine);
+      statusOFS << "For atom " << a << ", projector " << l << std::endl;
+      Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
+      Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
+      Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
+    }
+
   }
 
 	Print( statusOFS, "Total number of nonlocal pseudopotential = ",  cnt );
@@ -455,8 +498,10 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 //     	}
       fftw_execute( fft.backwardPlanFine );
 
+      Real fac = numSpin_ * occrate(psi.WavefunIdx(k)) / (double(ntot) * double(ntotFine));
       for( Int i = 0; i < ntotFine; i++ ){
-				densityLocal(i,RHO) += numSpin_ * occrate(psi.WavefunIdx(k)) * pow( std::abs(fft.inputComplexVecFine(i).real() / ntot), 2.0 );
+//				densityLocal(i,RHO) += numSpin_ * occrate(psi.WavefunIdx(k)) * pow( std::abs(fft.inputComplexVecFine(i).real()), 2.0 ) / (ntot * ntotFine);
+				densityLocal(i,RHO) +=  pow( std::abs(fft.inputComplexVecFine(i).real()), 2.0 ) * fac;
       }
 		}
 	}
@@ -485,6 +530,9 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
     val  += density_(i, RHO);
   }
 
+	Print( statusOFS, "Raw data, sum of density = ",  val );
+	Print( statusOFS, "Expected sum of density  = ",  (numSpin_ * numOccupiedState_ ) );
+
   // Scale the density
   blas::Scal( ntotFine, (numSpin_ * numOccupiedState_ * ntotFine) / ( vol * val ), density_.VecData(RHO), 1 );
 
@@ -493,6 +541,7 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
   for (Int i=0; i<ntotFine; i++) {
     val  += density_(i, RHO) * vol / ntotFine;
   }
+	Print( statusOFS, "Raw data, sum of adjusted density = ",  val );
   
 
 #ifndef _RELEASE_
@@ -821,7 +870,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 	// Compute the force from local pseudopotential
 	// *********************************************************************
 	// Method 1: Using the derivative of the pseudopotential
-	if(1){
+	if(0){
 		for (Int a=0; a<numAtom; a++) {
 			PseudoPot& pp = pseudo_[a];
 			SparseVec& sp = pp.pseudoCharge;
@@ -844,12 +893,111 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 		} // for (a)
 	}
 
+  // Method 2: Using integration by parts
+	if(1)
+	{
+		for (Int a=0; a<numAtom; a++) {
+			PseudoPot& pp = pseudo_[a];
+			SparseVec& sp = pp.pseudoCharge;
+			IntNumVec& idx = sp.first;
+			DblNumMat& val = sp.second;
+
+			Real wgt = domain_.Volume() / domain_.NumGridTotalFine();
+			Real resX = 0.0;
+			Real resY = 0.0;
+			Real resZ = 0.0;
+			for( Int l = 0; l < idx.m(); l++ ){
+				resX += val(l, VAL) * vhartDrv[0][idx(l)] * wgt;
+				resY += val(l, VAL) * vhartDrv[1][idx(l)] * wgt;
+				resZ += val(l, VAL) * vhartDrv[2][idx(l)] * wgt;
+			}
+			force( a, 0 ) += resX;
+			force( a, 1 ) += resY;
+			force( a, 2 ) += resZ;
+
+		} // for (a)
+	}
+
+  // Method 3: Evaluating the derivative by expliciting computing the
+  // derivative of the local pseudopotential
+	if(0){
+    Int ntotFine = domain_.NumGridTotalFine();
+
+    DblNumVec totalCharge(ntotFine);
+    blas::Copy( ntot, density_.VecData(0), 1, totalCharge.Data(), 1 );
+    blas::Axpy( ntot, -1.0, pseudoCharge_.Data(),1,
+        totalCharge.Data(), 1 );
+
+    std::vector<DblNumVec> vlocDrv(DIM);
+    for( Int d = 0; d < DIM; d++ ){
+      vlocDrv[d].Resize(ntotFine);
+    }
+    CpxNumVec cpxTempVec(ntotFine);
+
+		for (Int a=0; a<numAtom; a++) {
+			PseudoPot& pp = pseudo_[a];
+			SparseVec& sp = pp.pseudoCharge;
+			IntNumVec& idx = sp.first;
+			DblNumMat& val = sp.second;
+
+      // Solve the Poisson equation for the pseudo-charge of atom a
+      SetValue( fft.inputComplexVecFine, Z_ZERO );
+
+      for( Int k = 0; k < idx.m(); k++ ){
+        fft.inputComplexVecFine(idx(k)) = Complex( val(k,VAL), 0.0 );
+      }
+
+      fftw_execute( fft.forwardPlanFine );
+
+      // Save the vector for multiple differentiation
+      blas::Copy( ntot, fft.outputComplexVecFine.Data(), 1,
+          cpxTempVec.Data(), 1 );
+
+      for( Int d = 0; d < DIM; d++ ){
+        CpxNumVec& ik = fft.ikFine[d];
+
+        for( Int i = 0; i < ntot; i++ ){
+          if( fft.gkkFine(i) == 0 ){
+            fft.outputComplexVecFine(i) = Z_ZERO;
+          }
+          else{
+            // NOTE: gkk already contains the factor 1/2.
+            fft.outputComplexVecFine(i) = cpxVec(i) *
+              2.0 * PI / fft.gkkFine(i) * ik(i);
+          }
+        }
+
+        fftw_execute( fft.backwardPlanFine );
+
+        for( Int i = 0; i < ntotFine; i++ ){
+          vlocDrv[d](i) = fft.inputComplexVecFine(i).real() / ntotFine;
+        }
+      } // for (d)
+
+
+			Real wgt = domain_.Volume() / domain_.NumGridTotalFine();
+			Real resX = 0.0;
+			Real resY = 0.0;
+			Real resZ = 0.0;
+      for( Int i = 0; i < ntotFine; i++ ){
+        resX -= vlocDrv[0](i) * totalCharge(i) * wgt;
+        resY -= vlocDrv[1](i) * totalCharge(i) * wgt;
+        resZ -= vlocDrv[2](i) * totalCharge(i) * wgt;
+      }
+			
+      force( a, 0 ) += resX;
+			force( a, 1 ) += resY;
+			force( a, 2 ) += resZ;
+
+		} // for (a)
+	}
+
 
 	// *********************************************************************
 	// Compute the force from nonlocal pseudopotential
 	// *********************************************************************
 	// Method 1: Using the derivative of the pseudopotential
-	if(1)
+	if(0)
 	{
 		// Loop over atoms and pseudopotentials
 		Int numEig = occupationRate_.m();
@@ -869,7 +1017,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 			for( Int l = 0; l < vnlList.size(); l++ ){
 				SparseVec& bl = vnlList[l].first;
 				Real  gamma   = vnlList[l].second;
-        // FIXME Change to caorse
+        // FIXME Change to coarse
 				Real wgt = domain_.Volume() / domain_.NumGridTotal();
 				IntNumVec& idx = bl.first;
 				DblNumMat& val = bl.second;
@@ -898,16 +1046,6 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 		} // for (a)
 	}
 
-  DblNumMat  forceTmp( numAtom, DIM );
-	SetValue( forceTmp, 0.0 );
-      
-  mpi::Allreduce( forceLocal.Data(), forceTmp.Data(), numAtom * DIM, MPI_SUM, domain_.comm );
-
-  for( Int a = 0; a < numAtom; a++ ){
-    force( a, 0 ) = force( a, 0 ) + forceTmp( a, 0 );
-    force( a, 1 ) = force( a, 1 ) + forceTmp( a, 1 );
-    force( a, 2 ) = force( a, 2 ) + forceTmp( a, 2 );
-  }
 
 
 	// Method 2: Using integration by parts, and throw the derivative to the wavefunctions
@@ -921,7 +1059,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
     Int ntothalf = fftPtr->numGridTotalR2C;
     Int ntot  = psi.NumGridTotal();
     Int ncom  = psi.NumComponent();
-    Int nocc  = psi.NumState();
+    Int nocc  = psi.NumState(); // Local number of states
 
     DblNumVec realInVec(ntot);
 		CpxNumVec cpxSaveVec(ntothalf);
@@ -977,7 +1115,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
         IntNumVec& idx = bl.first;
         DblNumMat& val = bl.second;
 
-        for( Int g = 0; g < numEig; g++ ){
+        for( Int g = 0; g < nocc; g++ ){
           DblNumVec res(4);
           SetValue( res, 0.0 );
           Real* psiPtr = psi.Wavefun().VecData(0, g);
@@ -991,17 +1129,133 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
             res(DZ)  += val(i, VAL ) * DpsiZPtr[ idx(i) ] * sqrt(wgt);
           }
 
-          force( a, 0 ) += -4.0 * occupationRate_(g) * gamma * res[VAL] * res[DX];
-          force( a, 1 ) += -4.0 * occupationRate_(g) * gamma * res[VAL] * res[DY];
-          force( a, 2 ) += -4.0 * occupationRate_(g) * gamma * res[VAL] * res[DZ];
+          forceLocal( a, 0 ) += -4.0 * occupationRate_(psi.WavefunIdx(g)) * gamma * res[VAL] * res[DX];
+          forceLocal( a, 1 ) += -4.0 * occupationRate_(psi.WavefunIdx(g)) * gamma * res[VAL] * res[DY];
+          forceLocal( a, 2 ) += -4.0 * occupationRate_(psi.WavefunIdx(g)) * gamma * res[VAL] * res[DZ];
         } // for (g)
       } // for (l)
     } // for (a)
 	}
 
+
+	// Method 3: Using the derivative of the pseudopotential, but evaluated on a fine grid
+	if(1)
+	{
+		// Loop over atoms and pseudopotentials
+		Int numEig = occupationRate_.m();
+    Int numStateTotal = psi.NumStateTotal();
+    Int numStateLocal = psi.NumState();
+
+    MPI_Barrier(domain_.comm);
+    int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+    int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+    if( numEig != numStateTotal ){
+      throw std::runtime_error( "numEig != numStateTotal in CalculateForce" );
+    }
+
+    DblNumVec wfnFine(domain_.NumGridTotalFine());
+
+		for( Int a = 0; a < numAtom; a++ ){
+      // Use nonlocal pseudopotential on the fine grid 
+			std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlListFine;
+			for( Int l = 0; l < vnlList.size(); l++ ){
+				SparseVec& bl = vnlList[l].first;
+				Real  gamma   = vnlList[l].second;
+				Real wgt = domain_.Volume() / domain_.NumGridTotalFine();
+				IntNumVec& idx = bl.first;
+				DblNumMat& val = bl.second;
+
+				for( Int g = 0; g < numStateLocal; g++ ){
+					DblNumVec res(4);
+					SetValue( res, 0.0 );
+					Real* psiPtr = psi.Wavefun().VecData(0, g);
+
+          // Interpolate the wavefunction from coarse to fine grid
+
+          for( Int i = 0; i < domain_.NumGridTotal(); i++ ){
+            fft.inputComplexVec(i) = Complex( psiPtr[i], 0.0 ); 
+          }
+          fftw_execute( fft.forwardPlan );
+
+          // fft Coarse to Fine 
+
+          Int PtrC = 0;
+          Int PtrF = 0;
+
+          Int iF = 0;
+          Int jF = 0;
+          Int kF = 0;
+
+          SetValue( fft.outputComplexVecFine, Z_ZERO );
+
+          for( Int kk = 0; kk < fft.domain.numGrid[2]; kk++ ){
+            for( Int jj = 0; jj < fft.domain.numGrid[1]; jj++ ){
+              for( Int ii = 0; ii < fft.domain.numGrid[0]; ii++ ){
+
+                PtrC = ii + jj * fft.domain.numGrid[0] + kk * fft.domain.numGrid[0] * fft.domain.numGrid[1];
+
+                if ( (0 <= ii) && (ii <= fft.domain.numGrid[0] / 2) ) { iF = ii; } 
+                else { iF = fft.domain.numGridFine[0] - fft.domain.numGrid[0] + ii; } 
+
+                if ( (0 <= jj) && (jj <= fft.domain.numGrid[1] / 2) ) { jF = jj; } 
+                else { jF = fft.domain.numGridFine[1] - fft.domain.numGrid[1] + jj; } 
+
+                if ( (0 <= kk) && (kk <= fft.domain.numGrid[2] / 2) ) { kF = kk; } 
+                else { kF = fft.domain.numGridFine[2] - fft.domain.numGrid[2] + kk; } 
+
+                PtrF = iF + jF * fft.domain.numGridFine[0] + kF * fft.domain.numGridFine[0] * fft.domain.numGridFine[1];
+
+                fft.outputComplexVecFine(PtrF) = fft.outputComplexVec(PtrC);
+
+              } 
+            }
+          }
+
+          // end fft Coarse to Fine
+
+          fftw_execute( fft.backwardPlanFine );
+
+          Real fac = 1.0 / sqrt( double(domain_.NumGridTotal())  *
+             double(domain_.NumGridTotalFine()) ); 
+          for( Int i = 0; i < domain_.NumGridTotalFine(); i++ ){
+            wfnFine(i) = fft.inputComplexVecFine(i).real() * fac;
+          }
+
+					for( Int i = 0; i < idx.Size(); i++ ){
+						res(VAL) += val(i, VAL ) * wfnFine[ idx(i) ] * sqrt(wgt);
+						res(DX) += val(i, DX ) * wfnFine[ idx(i) ] * sqrt(wgt);
+						res(DY) += val(i, DY ) * wfnFine[ idx(i) ] * sqrt(wgt);
+						res(DZ) += val(i, DZ ) * wfnFine[ idx(i) ] * sqrt(wgt);
+					}
+
+					forceLocal( a, 0 ) += 4.0 * occupationRate_( psi.WavefunIdx(g) ) * gamma * res[VAL] * res[DX];
+					forceLocal( a, 1 ) += 4.0 * occupationRate_( psi.WavefunIdx(g) ) * gamma * res[VAL] * res[DY];
+					forceLocal( a, 2 ) += 4.0 * occupationRate_( psi.WavefunIdx(g) ) * gamma * res[VAL] * res[DZ];
+       
+        } // for (g)
+			} // for (l)
+		} // for (a)
+	}
+
 	// *********************************************************************
 	// Compute the total force and give the value to atomList
 	// *********************************************************************
+
+  // Sum over the force
+  DblNumMat  forceTmp( numAtom, DIM );
+	SetValue( forceTmp, 0.0 );
+      
+  mpi::Allreduce( forceLocal.Data(), forceTmp.Data(), numAtom * DIM, MPI_SUM, domain_.comm );
+
+  for( Int a = 0; a < numAtom; a++ ){
+    force( a, 0 ) = force( a, 0 ) + forceTmp( a, 0 );
+    force( a, 1 ) = force( a, 1 ) + forceTmp( a, 1 );
+    force( a, 2 ) = force( a, 2 ) + forceTmp( a, 2 );
+  }
+
+
+
 
 	for( Int a = 0; a < numAtom; a++ ){
 		atomList_[a].force = Point3( force(a,0), force(a,1), force(a,2) );
@@ -1028,9 +1282,12 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
   {
 #endif
     // FIXME
-    psi.AddScalarDiag( vtotCoarse_, a3 );
-    psi.AddLaplacian( &fft, a3 );
-    psi.AddNonlocalPP( pseudo_, a3 );
+//    psi.AddScalarDiag( vtotCoarse_, a3 );
+//    psi.AddLaplacian( &fft, a3 );
+//    psi.AddNonlocalPP( pseudo_, a3 );
+    // Apply the pseudopotential on the fine grid for integration
+//    psi.AddNonlocalPPFine( &fft, pseudo_, a3 );
+    psi.AddMultSpinorFine( fft, vtot_, pseudo_, a3 );
 #ifdef _USE_OPENMP_
   }
 #endif

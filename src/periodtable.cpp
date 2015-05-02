@@ -183,7 +183,7 @@ PeriodTable::CalculatePseudoCharge	(
 							dist[1](j) * dist[1](j) +
 							dist[2](k) * dist[2](k) );
 
-					if( dtmp < Rzero ) {
+					if( dtmp <= Rzero ) {
 						idx.push_back(irad);
 						rad.push_back(dtmp);
 						xx.push_back(dist[0](i));	    

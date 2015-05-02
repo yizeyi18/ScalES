@@ -113,6 +113,10 @@ public:
 	// *********************************************************************
 	void Normalize();
 
+  // Perform all operations of matrix vector multiplication on a fine grid.
+  void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
+      const std::vector<PseudoPot>& pseudo, NumTns<Scalar>& a3 );
+
   void AddScalarDiag (Int iocc, const DblNumVec &val, NumMat<Scalar>& y);
   void AddScalarDiag (const DblNumVec &val, NumTns<Scalar> &a3);
 
@@ -121,6 +125,9 @@ public:
 
 	void AddNonlocalPP (Int iocc, const std::vector<PseudoPot>& pseudo, NumMat<Scalar>& y);
 	void AddNonlocalPP (const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3);
+
+	void AddNonlocalPPFine (Fourier* fftPtr, const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3);
+
 
   void AddTeterPrecond( Int iocc, Fourier* fftPtr, NumTns<Scalar>& a3 );
   void AddTeterPrecond( Fourier* fftPtr, NumTns<Scalar>& a3 );

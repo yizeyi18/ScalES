@@ -125,10 +125,14 @@ typedef std::pair<SparseVec, Real> NonlocalPP;
 /// Each vector is on the global grid in the format of SparseVec.
 struct PseudoPot
 {
-	/// @brief Pseudocharge of an atom, defined on the uniform grid.
+	/// @brief Pseudocharge of an atom, defined on the uniform fine grid.
   SparseVec                         pseudoCharge; 
-	/// @brief Nonlocal projectors of an atom, defined on the LGL grid.
-	std::vector<NonlocalPP>           vnlList;
+	/// @brief Nonlocal projectors of an atom, defined on the uniform coarse grid.
+  std::vector<NonlocalPP>           vnlList;
+  /// @brief Nonlocal projectors of an atom, defined on the uniform fine
+  /// grid. FIXME This is experimental stage and in the end only one
+  /// vnlList should be used, on the coarse or fine grid.
+	std::vector<NonlocalPP>           vnlListFine;
 };
 
 
