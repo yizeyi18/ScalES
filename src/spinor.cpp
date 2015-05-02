@@ -512,122 +512,96 @@ Spinor::AddNonlocalPP	(const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
 } 		// -----  end of method Spinor::AddNonlocalPP  ----- 
 
 
-// Apply the nonlocal pseudopotential on a fine domain
-void
-Spinor::AddNonlocalPPFine	(Fourier* fftPtr, const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
-{
-#ifndef _RELEASE_
-	PushCallStack("Spinor::AddNonlocalPP");
-#endif
-	Int ntot = wavefun_.m(); 
-	Int ncom = wavefun_.n();
-	Int nocc = wavefun_.p();
-	Real vol = domain_.Volume();
-
-  Fourier& fft = *fftPtr;
-
-	if( !fft.isInitialized ){
-		throw std::runtime_error("Fourier is not prepared.");
-	}
-
-  Int ntotFine = domain_.NumGridTotalFine();
-
-  DblNumVec wfnFine(ntotFine);
-
-#ifdef _USE_OPENMP_
-#pragma omp for schedule (dynamic,1) nowait
-#endif
-	for (Int k=0; k<nocc; k++) {
-		for (Int j=0; j<ncom; j++) {
-			Scalar    *ptr0 = wavefun_.VecData(j,k);
-      // Interpolate the wavefunction from coarse to fine grid via FFT
-      // in order to compute the inner product.
-      // This is NOT an efficient implementation. 
-      for( Int i = 0; i < ntot; i++ ){
-        fft.inputComplexVec(i) = Complex( ptr0[i], 0.0 ); 
-      }
-
-      fftw_execute( fft.forwardPlan );
-
-      // fft Coarse to Fine 
-
-      Int PtrC = 0;
-      Int PtrF = 0;
-
-      Int iF = 0;
-      Int jF = 0;
-      Int kF = 0;
-
-      SetValue( fft.outputComplexVecFine, Z_ZERO );
-
-      for( Int kk = 0; kk < fft.domain.numGrid[2]; kk++ ){
-        for( Int jj = 0; jj < fft.domain.numGrid[1]; jj++ ){
-          for( Int ii = 0; ii < fft.domain.numGrid[0]; ii++ ){
-
-            PtrC = ii + jj * fft.domain.numGrid[0] + kk * fft.domain.numGrid[0] * fft.domain.numGrid[1];
-
-            if ( (0 <= ii) && (ii <= fft.domain.numGrid[0] / 2) ) { iF = ii; } 
-            else { iF = fft.domain.numGridFine[0] - fft.domain.numGrid[0] + ii; } 
-
-            if ( (0 <= jj) && (jj <= fft.domain.numGrid[1] / 2) ) { jF = jj; } 
-            else { jF = fft.domain.numGridFine[1] - fft.domain.numGrid[1] + jj; } 
-
-            if ( (0 <= kk) && (kk <= fft.domain.numGrid[2] / 2) ) { kF = kk; } 
-            else { kF = fft.domain.numGridFine[2] - fft.domain.numGrid[2] + kk; } 
-
-            PtrF = iF + jF * fft.domain.numGridFine[0] + kF * fft.domain.numGridFine[0] * fft.domain.numGridFine[1];
-
-            fft.outputComplexVecFine(PtrF) = fft.outputComplexVec(PtrC);
-
-          } 
-        }
-      }
-
-      fftw_execute( fft.backwardPlanFine );
-
-      Real fac = 1.0 / sqrt( double(domain_.NumGridTotal())  *
-          double(domain_.NumGridTotalFine()) ); 
-      for( Int i = 0; i < ntotFine; i++ ){
-        wfnFine(i) = fft.inputComplexVecFine(i).real() * fac; 
-      }
-
-      Scalar    *ptr1 = a3.VecData(j,k);
-			Int natm = pseudo.size();
-			for (Int iatm=0; iatm<natm; iatm++) {
-				Int nobt = pseudo[iatm].vnlList.size();
-				for (Int iobt=0; iobt<nobt; iobt++) {
-					const SparseVec &vnlvec = pseudo[iatm].vnlList[iobt].first;
-					const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
-					const IntNumVec &iv = vnlvec.first;
-					const DblNumMat &dv = vnlvec.second;
-					const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
-					const IntNumVec &ivFine = vnlvecFine.first;
-					const DblNumMat &dvFine = vnlvecFine.second;
-
-					Scalar    weight = SCALAR_ZERO; 
-					const Int    *ivFineptr = ivFine.Data();
-					const Real   *dvFineptr = dvFine.VecData(VAL);
-					for (Int i=0; i<ivFine.m(); i++) {
-						weight += (*(dvFineptr++)) * wfnFine[*(ivFineptr++)];
-					}
-					weight *= vol/std::sqrt(Real(ntotFine)*Real(ntot))*vnlwgt;
-
-					const Int    *ivptr = iv.Data();
-					const Real   *dvptr = dv.VecData(VAL);
-					for (Int i=0; i<iv.m(); i++) {
-						ptr1[*(ivptr++)] += (*(dvptr++)) * weight;
-					}
-				}
-			}
-
-		}
-	}
-
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-	return ;
-} 		// -----  end of method Spinor::AddNonlocalPP  ----- 
+//// Apply the nonlocal pseudopotential on a fine domain
+//void
+//Spinor::AddNonlocalPPFine	(Fourier* fftPtr, const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
+//{
+//#ifndef _RELEASE_
+//	PushCallStack("Spinor::AddNonlocalPP");
+//#endif
+//	Int ntot = wavefun_.m(); 
+//	Int ncom = wavefun_.n();
+//	Int nocc = wavefun_.p();
+//	Real vol = domain_.Volume();
+//
+//  Fourier& fft = *fftPtr;
+//
+//	if( !fft.isInitialized ){
+//		throw std::runtime_error("Fourier is not prepared.");
+//	}
+//
+//  Int ntotFine = domain_.NumGridTotalFine();
+//
+//  DblNumVec wfnFine(ntotFine);
+//
+//#ifdef _USE_OPENMP_
+//#pragma omp for schedule (dynamic,1) nowait
+//#endif
+//	for (Int k=0; k<nocc; k++) {
+//		for (Int j=0; j<ncom; j++) {
+//			Scalar    *ptr0 = wavefun_.VecData(j,k);
+//      // Interpolate the wavefunction from coarse to fine grid via FFT
+//      // in order to compute the inner product.
+//      // This is NOT an efficient implementation. 
+//      for( Int i = 0; i < ntot; i++ ){
+//        fft.inputComplexVec(i) = Complex( ptr0[i], 0.0 ); 
+//      }
+//
+//      fftw_execute( fft.forwardPlan );
+//
+//      // fft Coarse to Fine 
+//
+//      SetValue( fft.outputComplexVecFine, Z_ZERO );
+//      
+//      for( Int i = 0; i < ntot; i++ ){
+//        fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i);
+//      }
+//
+//      fftw_execute( fft.backwardPlanFine );
+//
+//      Real fac = 1.0 / sqrt( double(domain_.NumGridTotal())  *
+//          double(domain_.NumGridTotalFine()) ); 
+//      for( Int i = 0; i < ntotFine; i++ ){
+//        wfnFine(i) = fft.inputComplexVecFine(i).real() * fac; 
+//      }
+//
+//      Scalar    *ptr1 = a3.VecData(j,k);
+//			Int natm = pseudo.size();
+//			for (Int iatm=0; iatm<natm; iatm++) {
+//				Int nobt = pseudo[iatm].vnlList.size();
+//				for (Int iobt=0; iobt<nobt; iobt++) {
+//					const SparseVec &vnlvec = pseudo[iatm].vnlList[iobt].first;
+//					const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
+//					const IntNumVec &iv = vnlvec.first;
+//					const DblNumMat &dv = vnlvec.second;
+//					const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
+//					const IntNumVec &ivFine = vnlvecFine.first;
+//					const DblNumMat &dvFine = vnlvecFine.second;
+//
+//					Scalar    weight = SCALAR_ZERO; 
+//					const Int    *ivFineptr = ivFine.Data();
+//					const Real   *dvFineptr = dvFine.VecData(VAL);
+//					for (Int i=0; i<ivFine.m(); i++) {
+//						weight += (*(dvFineptr++)) * wfnFine[*(ivFineptr++)];
+//					}
+//					weight *= vol/std::sqrt(Real(ntotFine)*Real(ntot))*vnlwgt;
+//
+//					const Int    *ivptr = iv.Data();
+//					const Real   *dvptr = dv.VecData(VAL);
+//					for (Int i=0; i<iv.m(); i++) {
+//						ptr1[*(ivptr++)] += (*(dvptr++)) * weight;
+//					}
+//				}
+//			}
+//
+//		}
+//	}
+//
+//#ifndef _RELEASE_
+//	PopCallStack();
+//#endif
+//	return ;
+//} 		// -----  end of method Spinor::AddNonlocalPP  ----- 
 
 
 void
@@ -827,49 +801,16 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
       fftw_execute( fft.forwardPlan );
 
       // Interpolate wavefunction from coarse to fine grid
-      {
-        Int PtrC = 0;
-        Int PtrF = 0;
-
-        Int iF = 0;
-        Int jF = 0;
-        Int kF = 0;
-
-        SetValue( fft.outputComplexVecFine, Z_ZERO );
-
-        // FIXME The mapping indices should be done in a more efficient way
-        for( Int kk = 0; kk < fft.domain.numGrid[2]; kk++ ){
-          for( Int jj = 0; jj < fft.domain.numGrid[1]; jj++ ){
-            for( Int ii = 0; ii < fft.domain.numGrid[0]; ii++ ){
-
-              PtrC = ii + jj * fft.domain.numGrid[0] + kk * fft.domain.numGrid[0] * fft.domain.numGrid[1];
-
-              if ( (0 <= ii) && (ii <= fft.domain.numGrid[0] / 2) ) { iF = ii; } 
-              else { iF = fft.domain.numGridFine[0] - fft.domain.numGrid[0] + ii; } 
-
-              if ( (0 <= jj) && (jj <= fft.domain.numGrid[1] / 2) ) { jF = jj; } 
-              else { jF = fft.domain.numGridFine[1] - fft.domain.numGrid[1] + jj; } 
-
-              if ( (0 <= kk) && (kk <= fft.domain.numGrid[2] / 2) ) { kF = kk; } 
-              else { kF = fft.domain.numGridFine[2] - fft.domain.numGrid[2] + kk; } 
-
-              PtrF = iF + jF * fft.domain.numGridFine[0] + kF * fft.domain.numGridFine[0] * fft.domain.numGridFine[1];
-
-              fft.outputComplexVecFine(PtrF) = fft.outputComplexVec(PtrC);
-
-            } 
-          }
-        }
-
-        fftw_execute( fft.backwardPlanFine );
-        Real fac = 1.0 / std::sqrt( double(domain_.NumGridTotal())  *
-            double(domain_.NumGridTotalFine()) ); 
-        for( Int i = 0; i < ntotFine; i++ ){
-          wfnFine(i) = fft.inputComplexVecFine(i).real() * fac; 
-        }
+      SetValue( fft.outputComplexVecFine, Z_ZERO );
+      for( Int i = 0; i < ntot; i++ ){
+        fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i);
       }
-
-
+      fftw_execute( fft.backwardPlanFine );
+      Real fac = 1.0 / std::sqrt( double(domain_.NumGridTotal())  *
+          double(domain_.NumGridTotalFine()) ); 
+      for( Int i = 0; i < ntotFine; i++ ){
+        wfnFine(i) = fft.inputComplexVecFine(i).real() * fac; 
+      }
 
       // Add the contribution from local pseudopotential
       for( Int i = 0; i < ntotFine; i++ ){
@@ -913,46 +854,17 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
 
       // Restrict wfnUpdateFine from fine grid in the real space to
       // coarse grid in the Fourier space. Combine with the Laplacian contribution
-      {
-      
-        for( Int i = 0; i < ntotFine; i++ ){
-          fft.inputComplexVecFine(i) = Complex( wfnUpdateFine(i), 0.0 ); 
-        }
+      for( Int i = 0; i < ntotFine; i++ ){
+        fft.inputComplexVecFine(i) = Complex( wfnUpdateFine(i), 0.0 ); 
+      }
 
-        SetValue( fft.outputComplexVecFine, Z_ZERO );
-
-        fftw_execute( fft.forwardPlanFine );
-
-        Int PtrC = 0;
-        Int PtrF = 0;
-
-        Int iF = 0;
-        Int jF = 0;
-        Int kF = 0;
-
-        for( Int kk = 0; kk < fft.domain.numGrid[2]; kk++ ){
-          for( Int jj = 0; jj <  fft.domain.numGrid[1]; jj++ ){
-            for( Int ii = 0; ii <  fft.domain.numGrid[0]; ii++ ){
-
-              PtrC = ii + jj * fft.domain.numGrid[0] + kk * fft.domain.numGrid[0] * fft.domain.numGrid[1];
-
-              if ( (0 <= ii) && (ii <=  fft.domain.numGrid[0] / 2) ) { iF = ii; } 
-              else {iF =  fft.domain.numGridFine[0] - fft.domain.numGrid[0] + ii; } 
-
-              if ( (0 <= jj) && (jj <=  fft.domain.numGrid[1] / 2) ) { jF = jj; }
-              else { jF =  fft.domain.numGridFine[1] - fft.domain.numGrid[1] + jj; }
-
-              if ( (0 <= kk) && (kk <=  fft.domain.numGrid[2] / 2) ) { kF = kk; }
-              else { kF =  fft.domain.numGridFine[2] - fft.domain.numGrid[2] + kk; }
-
-              PtrF = iF + jF *  fft.domain.numGridFine[0] + kF *  fft.domain.numGridFine[0] *  fft.domain.numGridFine[1];
-
-              // Note the update is important since the Laplacian contribution is already taken into account.
-              // The computation order is also important
-              fft.outputComplexVec(PtrC) += fft.outputComplexVecFine(PtrF) * std::sqrt(Real(ntot) / (Real(ntotFine)));
-            }
-          }
-        } // for (kk)
+      // Fine to coarse grid
+      // Note the update is important since the Laplacian contribution is already taken into account.
+      // The computation order is also important
+      fftw_execute( fft.forwardPlanFine );
+      for( Int i = 0; i < ntot; i++ ){
+        fft.outputComplexVec(i) += fft.outputComplexVecFine(fft.idxFineGrid(i)) * 
+          std::sqrt(Real(ntot) / (Real(ntotFine)));
       }
 
       // Inverse Fourier transform to save back to the output vector

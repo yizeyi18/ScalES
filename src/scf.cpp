@@ -400,7 +400,7 @@ SCF::Iterate	(  )
 
     if( isCalculateForceEachSCF_ ){
       GetTime( timeSta );
-      eigSolPtr_->Ham().CalculateForce( eigSolPtr_->Psi(), eigSolPtr_->FFT() );
+      eigSolPtr_->Ham().CalculateForce2( eigSolPtr_->Psi(), eigSolPtr_->FFT() );
       GetTime( timeEnd );
       statusOFS << "Time for computing the force is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;

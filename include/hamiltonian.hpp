@@ -151,6 +151,10 @@ public:
 	/// @brief Calculate the Hellmann-Feynman force for each atom.
 	virtual void CalculateForce ( Spinor& psi, Fourier& fft ) = 0;
 
+	/// @brief Calculate the Hellmann-Feynman force for each atom.
+  /// LL 2015/05/02:
+  /// This is a clean version for computing the force
+	virtual void CalculateForce2 ( Spinor& psi, Fourier& fft ) = 0;
 
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft) = 0;
@@ -233,6 +237,10 @@ public:
 	/// @brief Calculate the Hellmann-Feynman force for each atom.
 	virtual void CalculateForce ( Spinor& psi, Fourier& fft );
 
+	/// @brief Calculate the Hellmann-Feynman force for each atom.
+  /// LL 2015/05/02:
+  /// This is a clean version for computing the force
+	virtual void CalculateForce2 ( Spinor& psi, Fourier& fft );
 
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft);

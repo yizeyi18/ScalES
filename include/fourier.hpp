@@ -43,6 +43,7 @@
 /// @file fourier.cpp
 /// @brief Sequential and Distributed Fourier wrapper.
 /// @date 2011-11-01
+/// @date 2015-05-02 Add some dual grid functions
 #ifndef _FOURIER_HPP_
 #define _FOURIER_HPP_
 
@@ -101,6 +102,9 @@ struct Fourier {
 	DblNumVec                inputVecR2C;     
 	CpxNumVec                outputVecR2C;     
 
+  
+  /// @brief index array for mapping a coarse grid to a fine grid
+  IntNumVec                idxFineGrid;
 
 	// Real data Fourier transform
 	Int       numGridTotalR2CFine;

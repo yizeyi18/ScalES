@@ -261,7 +261,7 @@ int main(int argc, char **argv)
 		// Print out the force
 		PrintBlock( statusOFS, "Atomic Force" );
 		{
-      hamKS.CalculateForce( spn, fft );
+      hamKS.CalculateForce2( spn, fft );
 			Point3 forceCM(0.0, 0.0, 0.0);
 			std::vector<Atom>& atomList = hamKS.AtomList();
 			Int numAtom = atomList.size();

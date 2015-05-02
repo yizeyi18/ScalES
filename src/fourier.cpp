@@ -358,6 +358,36 @@ void Fourier::InitializeFine ( const Domain& dm )
 		TeterPrecondR2CFine[i] = b / ( b + 16.0 * pow(a, 4.0) );
 	}
 
+  // Compute the index for mapping coarse to find grid
+  idxFineGrid.Resize(domain.NumGridTotal());
+  SetValue( idxFineGrid, 0 );
+  {
+    Int PtrC, PtrF, iF, jF, kF;
+    for( Int kk = 0; kk < domain.numGrid[2]; kk++ ){
+      for( Int jj = 0; jj < domain.numGrid[1]; jj++ ){
+        for( Int ii = 0; ii < domain.numGrid[0]; ii++ ){
+
+          PtrC = ii + jj * domain.numGrid[0] + kk * domain.numGrid[0] * domain.numGrid[1];
+
+          if ( (0 <= ii) && (ii <= domain.numGrid[0] / 2) ) { iF = ii; } 
+          else { iF = domain.numGridFine[0] - domain.numGrid[0] + ii; } 
+
+          if ( (0 <= jj) && (jj <= domain.numGrid[1] / 2) ) { jF = jj; } 
+          else { jF = domain.numGridFine[1] - domain.numGrid[1] + jj; } 
+
+          if ( (0 <= kk) && (kk <= domain.numGrid[2] / 2) ) { kF = kk; } 
+          else { kF = domain.numGridFine[2] - domain.numGrid[2] + kk; } 
+
+          PtrF = iF + jF * domain.numGridFine[0] + kF * domain.numGridFine[0] * domain.numGridFine[1];
+
+          idxFineGrid[PtrC] = PtrF;
+        } 
+      }
+    }
+  }
+
+
+
 	// Mark Fourier to be initialized
 //	isInitialized = true;
 
