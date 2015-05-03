@@ -1475,7 +1475,7 @@ HamiltonianDG::CalculateDensity	(
 
   // Method 3: Method 3 is the same as the Method 2, but to output the
   // eigenfunctions locally. 
-  if(0) // FIXME
+  if(1) // FIXME
   {
     Real sumRhoLocal = 0.0, sumRho = 0.0;
     Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
@@ -1662,7 +1662,7 @@ HamiltonianDG::CalculateDensity	(
     mpi::Allreduce( &sumRhoLGLLocal, &sumRhoLGL, 1, MPI_SUM, domain_.colComm );
     mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
 
-#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 0 )
     statusOFS << std::endl;
     Print( statusOFS, "Sum Rho on LGL grid (raw data) = ", sumRhoLGL );
     Print( statusOFS, "Sum Rho on uniform grid (interpolated) = ", sumRho );
@@ -1674,7 +1674,7 @@ HamiltonianDG::CalculateDensity	(
 
   // Method 4:
 
-  if(1) // FIXME
+  if(0) // FIXME
   {
     Real sumRhoLocal = 0.0, sumRho = 0.0;
     Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
@@ -2857,8 +2857,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 			}
 
 		} // for (d)
-
-
 	} // if (fft.isInGrid)
 
   // Convert vhartDrvLocal to vhartDrv in the DistNumVec format
@@ -2917,7 +2915,11 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 
 
   // Method 2: Using integration by parts
-	if(0)
+  // This method only uses the value of the local pseudopotential and
+  // does not use the derivative of the pseudopotential. This is done
+  // through integration by parts, and the derivative is applied to the
+  // Coulomb potential evaluated on a uniform grid. 
+  if(0)
 	{
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
@@ -2950,6 +2952,11 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 	// *********************************************************************
 	// Compute the force from nonlocal pseudopotential
 	// *********************************************************************
+  // This method only uses the value of the pseudopotential and does not
+  // use the derivative of the pseudopotential. This is done through
+  // integration by parts, and the derivative is applied to the basis functions
+  // evaluated on a LGL grid. This is illustrated in 
+  // hamiltonian_dg_matrix.cpp
 	{
 		// Step 1. Collect the eigenvectors from the neighboring elements
 		// according to the support of the pseudopotential

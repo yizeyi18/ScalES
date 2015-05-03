@@ -1028,55 +1028,57 @@ SCFDG::Iterate	(  )
             Int ntotCoarse  = eigSol.FFT().domain.NumGridTotal();
             Int ntotFine  = eigSol.FFT().domain.NumGridTotalFine();
 
-            DblNumVec& vtotFine = eigSol.Ham().Vtot();
-            DblNumVec& vtotCoarse = eigSol.Ham().VtotCoarse();
+            // vtotCoarse is no longer needed. To be removed in the next version.
 
-         
-            Fourier& fft = eigSol.FFT();
-
-            for( Int ii = 0; ii < ntotFine; ii++ ){
-              fft.inputComplexVecFine(ii) = Complex( vtotFine(ii), 0.0 );
-            }
-
-            fftw_execute( fft.forwardPlanFine );
-
-            Int PtrC = 0;
-            Int PtrF = 0;
-
-            Int iF = 0;
-            Int jF = 0;
-            Int kF = 0;
-
-            SetValue( fft.outputComplexVec, Z_ZERO );
-
-            for( Int kk = 0; kk < fft.domain.numGrid[2]; kk++ ){
-              for( Int jj = 0; jj <  fft.domain.numGrid[1]; jj++ ){
-                for( Int ii = 0; ii <  fft.domain.numGrid[0]; ii++ ){
-   
-                  PtrC = ii + jj * fft.domain.numGrid[0] + kk * fft.domain.numGrid[0] * fft.domain.numGrid[1];
-
-                  if ( (0 <= ii) && (ii <=  fft.domain.numGrid[0] / 2) ) { iF = ii; }
-                  else { iF =  fft.domain.numGridFine[0] - fft.domain.numGrid[0] + ii; }
-
-                  if ( (0 <= jj) && (jj <=  fft.domain.numGrid[1] / 2) ) { jF = jj; }
-                  else { jF =  fft.domain.numGridFine[1] - fft.domain.numGrid[1] + jj; }
-
-                  if ( (0 <= kk) && (kk <=  fft.domain.numGrid[2] / 2) ) { kF = kk; }
-                  else { kF =  fft.domain.numGridFine[2] - fft.domain.numGrid[2] + kk; }
-
-                  PtrF = iF + jF * fft.domain.numGridFine[0] + kF * fft.domain.numGridFine[0] * fft.domain.numGridFine[1];
-
-                  fft.outputComplexVec(PtrC) = fft.outputComplexVecFine(PtrF);
-
-                }
-              }
-            }
-
-            fftw_execute( fft.backwardPlan );
-
-            for( Int ii = 0; ii < ntotCoarse; ii++ ){
-              vtotCoarse(ii) = fft.inputComplexVec(ii).real() / ntotFine;
-            }
+//            DblNumVec& vtotFine = eigSol.Ham().Vtot();
+//            DblNumVec& vtotCoarse = eigSol.Ham().VtotCoarse();
+//
+//         
+//            Fourier& fft = eigSol.FFT();
+//
+//            for( Int ii = 0; ii < ntotFine; ii++ ){
+//              fft.inputComplexVecFine(ii) = Complex( vtotFine(ii), 0.0 );
+//            }
+//
+//            fftw_execute( fft.forwardPlanFine );
+//
+//            Int PtrC = 0;
+//            Int PtrF = 0;
+//
+//            Int iF = 0;
+//            Int jF = 0;
+//            Int kF = 0;
+//
+//            SetValue( fft.outputComplexVec, Z_ZERO );
+//
+//            for( Int kk = 0; kk < fft.domain.numGrid[2]; kk++ ){
+//              for( Int jj = 0; jj <  fft.domain.numGrid[1]; jj++ ){
+//                for( Int ii = 0; ii <  fft.domain.numGrid[0]; ii++ ){
+//   
+//                  PtrC = ii + jj * fft.domain.numGrid[0] + kk * fft.domain.numGrid[0] * fft.domain.numGrid[1];
+//
+//                  if ( (0 <= ii) && (ii <=  fft.domain.numGrid[0] / 2) ) { iF = ii; }
+//                  else { iF =  fft.domain.numGridFine[0] - fft.domain.numGrid[0] + ii; }
+//
+//                  if ( (0 <= jj) && (jj <=  fft.domain.numGrid[1] / 2) ) { jF = jj; }
+//                  else { jF =  fft.domain.numGridFine[1] - fft.domain.numGrid[1] + jj; }
+//
+//                  if ( (0 <= kk) && (kk <=  fft.domain.numGrid[2] / 2) ) { kF = kk; }
+//                  else { kF =  fft.domain.numGridFine[2] - fft.domain.numGrid[2] + kk; }
+//
+//                  PtrF = iF + jF * fft.domain.numGridFine[0] + kF * fft.domain.numGridFine[0] * fft.domain.numGridFine[1];
+//
+//                  fft.outputComplexVec(PtrC) = fft.outputComplexVecFine(PtrF);
+//
+//                }
+//              }
+//            }
+//
+//            fftw_execute( fft.backwardPlan );
+//
+//            for( Int ii = 0; ii < ntotCoarse; ii++ ){
+//              vtotCoarse(ii) = fft.inputComplexVec(ii).real() / ntotFine;
+//            }
 
 						// Solve the basis functions in the extended element
   

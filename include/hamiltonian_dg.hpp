@@ -306,7 +306,7 @@ private:
 	DistDblNumMat    eigvecCoef_;
 
 	/// @brief Pseudopotential and nonlocal projectors in each element for
-	/// each atom.
+	/// each atom. The value is given on a dense LGL grid.
 	DistVec<Index3, std::map<Int, PseudoPot>, ElemPrtn>  pseudo_;
 
 	// FIXME
