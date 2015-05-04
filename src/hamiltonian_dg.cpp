@@ -1673,7 +1673,6 @@ HamiltonianDG::CalculateDensity	(
 
 
   // Method 4:
-
   if(0) // FIXME
   {
     Real sumRhoLocal = 0.0, sumRho = 0.0;
@@ -2792,7 +2791,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 				Index3 key = Index3( i, j, k );
 				if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
 					tempVec.LocalMap()[key] = density_.LocalMap()[key];
-					blas::Axpy( numUniformGridElem_.prod(), -1.0, 
+					blas::Axpy( numUniformGridElemFine_.prod(), -1.0, 
 							pseudoCharge_.LocalMap()[key].Data(), 1,
 							tempVec.LocalMap()[key].Data(), 1 );
 				}
@@ -2880,7 +2879,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 	// Compute the force from local pseudopotential
 	// *********************************************************************
 	// Method 1: Using the derivative of the pseudopotential
-	if(1){
+	if(0){
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
 				for( Int i = 0; i < numElem_[0]; i++ ){
@@ -2919,7 +2918,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
   // does not use the derivative of the pseudopotential. This is done
   // through integration by parts, and the derivative is applied to the
   // Coulomb potential evaluated on a uniform grid. 
-  if(0)
+  if(1)
 	{
 		for( Int k = 0; k < numElem_[2]; k++ )
 			for( Int j = 0; j < numElem_[1]; j++ )
