@@ -347,10 +347,10 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
     sumVDX *= vol / Real(ntotFine);
     sumVDY *= vol / Real(ntotFine);
     sumVDZ *= vol / Real(ntotFine);
-    Print( statusOFS, "For Atom ", a );
-    Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
-    Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
-    Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
+    //Print( statusOFS, "For Atom ", a );
+    //Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
+    //Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
+    //Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
   }
 
   Real sumrho = 0.0;

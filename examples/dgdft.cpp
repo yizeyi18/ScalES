@@ -519,7 +519,7 @@ int main(int argc, char **argv)
               } // for (d)
 
               // Add barrier
-#if 1
+#if 0
               statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
               statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
               statusOFS << "gridpos[2] = " << std::endl << gridpos[2] << std::endl;
