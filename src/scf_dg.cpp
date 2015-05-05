@@ -1021,6 +1021,11 @@ SCFDG::Iterate	(  )
 						} // if ( isPeriodizePotential_ ) 
 
 
+            // FIXME 05/04/2015 Add potential barrier in DGDFT and directly modify
+            // here
+            blas::Axpy( numGridExtElemFine.prod(), 1.0, eigSol.Ham().Vext().Data(), 1,
+                eigSol.Ham().Vtot().Data(), 1 );
+
             // VtotFine to VtotCoarse: Restricting vtot on a fine grid
             // to a coarse grid for computing the basis functions on a
             // coarse grid.

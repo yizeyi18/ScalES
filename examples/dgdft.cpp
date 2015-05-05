@@ -184,9 +184,12 @@ int main(int argc, char **argv)
       Print(statusOFS, "PeriodizePotential= ",  esdfParam.isPeriodizePotential);
       Print(statusOFS, "DistancePeriodize = ",  esdfParam.distancePeriodize);
 
-      //			Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
-      //			Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
-      //			Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
+
+      // FIXME Potentially obsolete potential barriers
+      Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
+      Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
+      Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
+
       Print(statusOFS, "EcutWavefunction  = ",  esdfParam.ecutWavefunction);
       Print(statusOFS, "Density GridFactor= ",  esdfParam.densityGridFactor);
       Print(statusOFS, "LGL GridFactor    = ",  esdfParam.LGLGridFactor);
@@ -491,21 +494,21 @@ int main(int argc, char **argv)
               Real barrierW = esdfParam.potentialBarrierW;
               Real barrierS = esdfParam.potentialBarrierS;
               std::vector<DblNumVec> gridpos(DIM);
-              UniformMesh ( dmExtElem, gridpos );
+              UniformMeshFine ( dmExtElem, gridpos );
               // Barrier potential along each dimension
               std::vector<DblNumVec> vBarrier(DIM);
 
               for( Int d = 0; d < DIM; d++ ){
                 Real length   = dmExtElem.length[d];
-                Int numGrid   = dmExtElem.numGrid[d];
+                Int numGridFine   = dmExtElem.numGridFine[d];
                 Real posStart = dmExtElem.posStart[d]; 
                 Real center   = posStart + length / 2.0;
                 Real EPS      = 1.0;           // For stability reason
                 Real dist;
                 statusOFS << "center = " << center << std::endl;
-                vBarrier[d].Resize( numGrid );
+                vBarrier[d].Resize( numGridFine );
                 SetValue( vBarrier[d], 0.0 );
-                for( Int p = 0; p < numGrid; p++ ){
+                for( Int p = 0; p < numGridFine; p++ ){
                   dist = std::abs( gridpos[d][p] - center );
                   // Only apply the barrier for region outside barrierR
                   if( dist > barrierR ){
@@ -515,7 +518,8 @@ int main(int argc, char **argv)
                 }
               } // for (d)
 
-#if 0
+              // Add barrier
+#if 1
               statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
               statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
               statusOFS << "gridpos[2] = " << std::endl << gridpos[2] << std::endl;
@@ -526,12 +530,12 @@ int main(int argc, char **argv)
 
               DblNumVec& vext = hamKS.Vext();
               SetValue( vext, 0.0 );
-#if 0
-              for( Int gk = 0; gk < dmExtElem.numGrid[2]; gk++)
-                for( Int gj = 0; gj < dmExtElem.numGrid[1]; gj++ )
-                  for( Int gi = 0; gi < dmExtElem.numGrid[0]; gi++ ){
-                    Int idx = gi + gj * dmExtElem.numGrid[0] + 
-                      gk * dmExtElem.numGrid[0] * dmExtElem.numGrid[1];
+#if 1
+              for( Int gk = 0; gk < dmExtElem.numGridFine[2]; gk++)
+                for( Int gj = 0; gj < dmExtElem.numGridFine[1]; gj++ )
+                  for( Int gi = 0; gi < dmExtElem.numGridFine[0]; gi++ ){
+                    Int idx = gi + gj * dmExtElem.numGridFine[0] + 
+                      gk * dmExtElem.numGridFine[0] * dmExtElem.numGridFine[1];
                     vext[idx] = vBarrier[0][gi] + vBarrier[1][gj] + vBarrier[2][gk];
                   } // for (gi)
 #endif
