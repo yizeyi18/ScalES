@@ -987,7 +987,7 @@ SCFDG::Iterate	(  )
 								}
 							} // for (d)
 
-#if ( _DEBUGlevel_ >= 2  )
+#if ( _DEBUGlevel_ >= 0  )
 							statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
 							statusOFS << "vBubble[0] = " << std::endl << vBubble[0] << std::endl;
 							statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
@@ -1012,15 +1012,12 @@ SCFDG::Iterate	(  )
 										vext[idx] = ( vtot[idx] - vtotMax ) * 
 											( vBubble[0][gi] * vBubble[1][gj] * vBubble[2][gk] - 1.0 );
 									} // for (gi)
-
-							// NOTE:
-							// Directly modify the vtot.  vext is not used in the
-							// matrix-vector multiplication in the eigensolver.
-							blas::Axpy( numGridExtElemFine.prod(), 1.0, eigSol.Ham().Vext().Data(), 1,
-									eigSol.Ham().Vtot().Data(), 1 );
 						} // if ( isPeriodizePotential_ ) 
 
 
+            // NOTE:
+            // Directly modify the vtot.  vext is not used in the
+            // matrix-vector multiplication in the eigensolver.
             // FIXME 05/04/2015 Add potential barrier in DGDFT and directly modify
             // here
             blas::Axpy( numGridExtElemFine.prod(), 1.0, eigSol.Ham().Vext().Data(), 1,
