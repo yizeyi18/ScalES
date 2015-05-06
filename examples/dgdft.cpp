@@ -186,6 +186,7 @@ int main(int argc, char **argv)
 
 
       // FIXME Potentially obsolete potential barriers
+      Print(statusOFS, "Potential Barrier = ",  esdfParam.isPotentialBarrier);
       Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
       Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
       Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
