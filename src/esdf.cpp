@@ -703,6 +703,11 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! whether to compute the force at each SCF step !*");
 
 	i++;
+	strcpy(kw_label[i],"potential_barrier");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Whether to use potential barrier in the extended element!*");
+
+	i++;
 	strcpy(kw_label[i],"potential_barrier_w");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! Width parameter of potential barrier to the extended element!*");
@@ -2260,6 +2265,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		{
 
 			// FIXME The potential barrier is now obsolete.
+      esdfParam.isPotentialBarrier   = esdf_integer( "Potential_Barrier",  0 );
 			esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
 			esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 0.0 );
 			esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );

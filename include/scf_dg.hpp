@@ -101,6 +101,15 @@ private:
 
 	bool                isPeriodizePotential_;
   Point3              distancePeriodize_;
+  // Bubble function along each dimension
+  std::vector<DblNumVec>   vBubble_;
+
+	bool                isPotentialBarrier_;
+	Real                potentialBarrierW_;
+	Real                potentialBarrierS_;
+	Real                potentialBarrierR_;
+  std::vector<DblNumVec>   vBarrier_;
+
 
   std::string         restartDensityFileName_;
   std::string         restartWfnFileName_;

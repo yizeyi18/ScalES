@@ -489,7 +489,7 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
   //
   // NOTE: This assumes uniform mesh used for each element.
 
-  if(0){
+  if(1){
 
     Real timeSta, timeEnd;
 
@@ -1475,7 +1475,7 @@ HamiltonianDG::CalculateDensity	(
 
   // Method 3: Method 3 is the same as the Method 2, but to output the
   // eigenfunctions locally. 
-  if(1) // FIXME
+  if(0) // FIXME
   {
     Real sumRhoLocal = 0.0, sumRho = 0.0;
     Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
@@ -1673,7 +1673,7 @@ HamiltonianDG::CalculateDensity	(
 
 
   // Method 4:
-  if(0) // FIXME ME
+  if(1) // FIXME ME
   {
     Real sumRhoLocal = 0.0, sumRho = 0.0;
     Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;

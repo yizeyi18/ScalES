@@ -489,56 +489,6 @@ int main(int argc, char **argv)
 #if ( _DEBUGlevel_ >= 1 )
               statusOFS << "Time for hamKS.Setup = " << timeEnd - timeSta << std::endl;
 #endif
-              // Setup the external barrier potential in the extended element
-              Real barrierR = esdfParam.potentialBarrierR;
-              Real barrierW = esdfParam.potentialBarrierW;
-              Real barrierS = esdfParam.potentialBarrierS;
-              std::vector<DblNumVec> gridpos(DIM);
-              UniformMeshFine ( dmExtElem, gridpos );
-              // Barrier potential along each dimension
-              std::vector<DblNumVec> vBarrier(DIM);
-
-              for( Int d = 0; d < DIM; d++ ){
-                Real length   = dmExtElem.length[d];
-                Int numGridFine   = dmExtElem.numGridFine[d];
-                Real posStart = dmExtElem.posStart[d]; 
-                Real center   = posStart + length / 2.0;
-                Real EPS      = 1.0;           // For stability reason
-                Real dist;
-                statusOFS << "center = " << center << std::endl;
-                vBarrier[d].Resize( numGridFine );
-                SetValue( vBarrier[d], 0.0 );
-                for( Int p = 0; p < numGridFine; p++ ){
-                  dist = std::abs( gridpos[d][p] - center );
-                  // Only apply the barrier for region outside barrierR
-                  if( dist > barrierR ){
-                    vBarrier[d][p] = barrierS * std::exp( - barrierW / 
-                        ( dist - barrierR ) ) / std::pow( dist - length / 2.0 - EPS, 2.0 );
-                  }
-                }
-              } // for (d)
-
-              // Add barrier
-#if 0
-              statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
-              statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
-              statusOFS << "gridpos[2] = " << std::endl << gridpos[2] << std::endl;
-              statusOFS << "vBarrier[0] = " << std::endl << vBarrier[0] << std::endl;
-              statusOFS << "vBarrier[1] = " << std::endl << vBarrier[1] << std::endl;
-              statusOFS << "vBarrier[2] = " << std::endl << vBarrier[2] << std::endl;
-#endif
-
-              DblNumVec& vext = hamKS.Vext();
-              SetValue( vext, 0.0 );
-#if 1
-              for( Int gk = 0; gk < dmExtElem.numGridFine[2]; gk++)
-                for( Int gj = 0; gj < dmExtElem.numGridFine[1]; gj++ )
-                  for( Int gi = 0; gi < dmExtElem.numGridFine[0]; gi++ ){
-                    Int idx = gi + gj * dmExtElem.numGridFine[0] + 
-                      gk * dmExtElem.numGridFine[0] * dmExtElem.numGridFine[1];
-                    vext[idx] = vBarrier[0][gi] + vBarrier[1][gj] + vBarrier[2][gk];
-                  } // for (gi)
-#endif
 
               hamKS.CalculatePseudoPotential( ptable );
 

@@ -187,6 +187,13 @@ SCFDG::Setup	(
     LGLGridFactor_    = esdfParam.LGLGridFactor;
     isPeriodizePotential_ = esdfParam.isPeriodizePotential;
     distancePeriodize_= esdfParam.distancePeriodize;
+
+    isPotentialBarrier_ = esdfParam.isPotentialBarrier;
+    potentialBarrierW_  = esdfParam.potentialBarrierW;
+    potentialBarrierS_  = esdfParam.potentialBarrierS;
+    potentialBarrierR_  = esdfParam.potentialBarrierR;
+
+
     XCType_           = esdfParam.XCType;
   }
 
@@ -757,6 +764,107 @@ SCFDG::Setup	(
       << PeriodicUniformFineToLGLMat_[2] << std::endl;
 #endif
   }
+  
+  // Whether to apply potential barrier in the extended element. CANNOT
+  // be used together with periodization option
+  if( isPotentialBarrier_ ) {
+    vBarrier_.resize(DIM);
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            Domain& dmExtElem = distEigSolPtr_->LocalMap()[key].FFT().domain;
+            std::vector<DblNumVec> gridpos(DIM);
+            UniformMeshFine ( dmExtElem, gridpos );
+
+            for( Int d = 0; d < DIM; d++ ){
+              Real length   = dmExtElem.length[d];
+              Int numGridFine   = dmExtElem.numGridFine[d];
+              Real posStart = dmExtElem.posStart[d]; 
+              Real center   = posStart + length / 2.0;
+              
+              // FIXME
+              Real EPS      = 1.0;           // For stability reason
+              Real dist;
+
+              vBarrier_[d].Resize( numGridFine );
+              SetValue( vBarrier_[d], 0.0 );
+              for( Int p = 0; p < numGridFine; p++ ){
+                dist = std::abs( gridpos[d][p] - center );
+                // Only apply the barrier for region outside barrierR
+                if( dist > potentialBarrierR_){
+                  vBarrier_[d][p] = potentialBarrierS_* std::exp( - potentialBarrierW_ / 
+                      ( dist - potentialBarrierR_ ) ) / std::pow( dist - length / 2.0 - EPS, 2.0 );
+                }
+              }
+            } // for (d)
+
+#if ( _DEBUGlevel_ >= 0  )
+            statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
+            statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
+            statusOFS << "gridpos[2] = " << std::endl << gridpos[2] << std::endl;
+            statusOFS << "vBarrier[0] = " << std::endl << vBarrier_[0] << std::endl;
+            statusOFS << "vBarrier[1] = " << std::endl << vBarrier_[1] << std::endl;
+            statusOFS << "vBarrier[2] = " << std::endl << vBarrier_[2] << std::endl;
+#endif
+            
+          } // own this element
+        } // for (k)
+  }
+
+
+  // Whether to periodize the potential in the extended element. CANNOT
+  // be used together with barrier option.
+  if( isPeriodizePotential_ ){
+    vBubble_.resize(DIM);
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            Domain& dmExtElem = distEigSolPtr_->LocalMap()[key].FFT().domain;
+            std::vector<DblNumVec> gridpos(DIM);
+            UniformMeshFine ( dmExtElem, gridpos );
+
+            for( Int d = 0; d < DIM; d++ ){
+              Real length   = dmExtElem.length[d];
+              Int numGridFine   = dmExtElem.numGridFine[d];
+              Real posStart = dmExtElem.posStart[d]; 
+              // FIXME
+              Real EPS = 1.0; // Criterion for distancePeriodize_
+              vBubble_[d].Resize( numGridFine );
+              SetValue( vBubble_[d], 1.0 );
+
+              if( distancePeriodize_[d] > EPS ){
+                Real lb = posStart + distancePeriodize_[d];
+                Real rb = posStart + length - distancePeriodize_[d];
+                for( Int p = 0; p < numGridFine; p++ ){
+                  if( gridpos[d][p] > rb ){
+                    vBubble_[d][p] = Smoother( (gridpos[d][p] - rb ) / 
+                        (distancePeriodize_[d] - EPS) );
+                  }
+
+                  if( gridpos[d][p] < lb ){
+                    vBubble_[d][p] = Smoother( (lb - gridpos[d][p] ) / 
+                        (distancePeriodize_[d] - EPS) );
+                  }
+                }
+              }
+            } // for (d)
+
+#if ( _DEBUGlevel_ >= 0  )
+            statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
+            statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
+            statusOFS << "gridpos[2] = " << std::endl << gridpos[2] << std::endl;
+            statusOFS << "vBubble[0] = " << std::endl << vBubble_[0] << std::endl;
+            statusOFS << "vBubble[1] = " << std::endl << vBubble_[1] << std::endl;
+            statusOFS << "vBubble[2] = " << std::endl << vBubble_[2] << std::endl;
+#endif
+          } // own this element
+        } // for (k)
+  }
+
 
 
 #ifndef _RELEASE_
@@ -947,61 +1055,43 @@ SCFDG::Iterate	(  )
 							continue;
 						}
 
-						// Add the external barrier potential
-						// In the periodized version, the external potential depends
-						// on the potential V in order to result in a C^{inf}
-						// potential.
+            // Add the external barrier potential. CANNOT be used
+            // together with periodization option
+            if( isPotentialBarrier_ ){
+              Domain& dmExtElem = eigSol.FFT().domain;
+							DblNumVec& vext = eigSol.Ham().Vext();
+              SetValue( vext, 0.0 );
+              for( Int gk = 0; gk < dmExtElem.numGridFine[2]; gk++)
+                for( Int gj = 0; gj < dmExtElem.numGridFine[1]; gj++ )
+                  for( Int gi = 0; gi < dmExtElem.numGridFine[0]; gi++ ){
+                    Int idx = gi + gj * dmExtElem.numGridFine[0] + 
+                      gk * dmExtElem.numGridFine[0] * dmExtElem.numGridFine[1];
+                    vext[idx] = vBarrier_[0][gi] + vBarrier_[1][gj] + vBarrier_[2][gk];
+                  } // for (gi)
+            }
+
+            // Periodize the external potential. CANNOT be used together
+            // with the barrier potential option
 						if( isPeriodizePotential_ ){
-
-							// Compute the bubble function in the extended element.
-
-							Domain& dmExtElem = eigSol.FFT().domain;
-							std::vector<DblNumVec> gridpos(DIM);
-							//UniformMesh ( dmExtElem, gridpos );
-              UniformMeshFine ( dmExtElem, gridpos );
-							// Bubble function along each dimension
-							std::vector<DblNumVec> vBubble(DIM);
-
-							for( Int d = 0; d < DIM; d++ ){
-								Real length   = dmExtElem.length[d];
-								Int numGrid   = dmExtElem.numGridFine[d];
-								Real posStart = dmExtElem.posStart[d]; 
-								Real EPS = 1e-10; // Criterion for distancePeriodize_
-								vBubble[d].Resize( numGrid );
-								SetValue( vBubble[d], 1.0 );
-
-								if( distancePeriodize_[d] > EPS ){
-									Real lb = posStart + distancePeriodize_[d];
-									Real rb = posStart + length - distancePeriodize_[d];
-									for( Int p = 0; p < numGrid; p++ ){
-										if( gridpos[d][p] > rb ){
-											vBubble[d][p] = Smoother( (gridpos[d][p] - rb ) / 
-													distancePeriodize_[d]);
-										}
-
-										if( gridpos[d][p] < lb ){
-											vBubble[d][p] = Smoother( (lb - gridpos[d][p] ) / 
-													distancePeriodize_[d]);
-										}
-									}
-								}
-							} // for (d)
-
-#if ( _DEBUGlevel_ >= 0  )
-							statusOFS << "gridpos[0] = " << std::endl << gridpos[0] << std::endl;
-							statusOFS << "vBubble[0] = " << std::endl << vBubble[0] << std::endl;
-							statusOFS << "gridpos[1] = " << std::endl << gridpos[1] << std::endl;
-							statusOFS << "vBubble[1] = " << std::endl << vBubble[1] << std::endl;
-							statusOFS << "gridpos[2] = " << std::endl << gridpos[2] << std::endl;
-							statusOFS << "vBubble[2] = " << std::endl << vBubble[2] << std::endl;
-#endif
-
+              Domain& dmExtElem = eigSol.FFT().domain;
 							// Get the potential
 							DblNumVec& vext = eigSol.Ham().Vext();
 							DblNumVec& vtot = eigSol.Ham().Vtot();
 
 							// Find the max of the potential in the extended element
 							Real vtotMax = *std::max_element( &vtot[0], &vtot[0] + vtot.Size() );
+							Real vtotAvg = 0.0;
+              for(Int i = 0; i < vtot.Size(); i++){
+                vtotAvg += vtot[i];
+              }
+              vtotAvg /= Real(vtot.Size());
+							Real vtotMin = *std::min_element( &vtot[0], &vtot[0] + vtot.Size() );
+
+#if ( _DEBUGlevel_ >= 0 ) 
+              Print( statusOFS, "vtotMax  = ", vtotMax );
+              Print( statusOFS, "vtotAvg  = ", vtotAvg );
+              Print( statusOFS, "vtotMin  = ", vtotMin );
+#endif
 
 							SetValue( vext, 0.0 );
 							for( Int gk = 0; gk < dmExtElem.numGridFine[2]; gk++)
@@ -1009,8 +1099,9 @@ SCFDG::Iterate	(  )
 									for( Int gi = 0; gi < dmExtElem.numGridFine[0]; gi++ ){
 										Int idx = gi + gj * dmExtElem.numGridFine[0] + 
 											gk * dmExtElem.numGridFine[0] * dmExtElem.numGridFine[1];
-										vext[idx] = ( vtot[idx] - vtotMax ) * 
-											( vBubble[0][gi] * vBubble[1][gj] * vBubble[2][gk] - 1.0 );
+                    // Bring the potential to the vacuum level
+										vext[idx] = ( vtot[idx] - 0.0 ) * 
+											( vBubble_[0][gi] * vBubble_[1][gj] * vBubble_[2][gk] - 1.0 );
 									} // for (gi)
 						} // if ( isPeriodizePotential_ ) 
 
@@ -1018,17 +1109,15 @@ SCFDG::Iterate	(  )
             // NOTE:
             // Directly modify the vtot.  vext is not used in the
             // matrix-vector multiplication in the eigensolver.
-            // FIXME 05/04/2015 Add potential barrier in DGDFT and directly modify
-            // here
             blas::Axpy( numGridExtElemFine.prod(), 1.0, eigSol.Ham().Vext().Data(), 1,
                 eigSol.Ham().Vtot().Data(), 1 );
 
             // VtotFine to VtotCoarse: Restricting vtot on a fine grid
             // to a coarse grid for computing the basis functions on a
-            // coarse grid.
+            // coarse grid. This is OBSOLETE.
 
-            Int ntotCoarse  = eigSol.FFT().domain.NumGridTotal();
-            Int ntotFine  = eigSol.FFT().domain.NumGridTotalFine();
+//            Int ntotCoarse  = eigSol.FFT().domain.NumGridTotal();
+//            Int ntotFine  = eigSol.FFT().domain.NumGridTotalFine();
 
             // vtotCoarse is no longer needed. To be removed in the next version.
 

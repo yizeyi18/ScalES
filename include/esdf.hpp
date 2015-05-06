@@ -438,13 +438,14 @@ namespace esdf{
     /// Only used when ScaLAPACK is invoked.
     Int                 scaBlockSize;
 
-    // The parameters related to potential barrier is now obsolete.
+    // Add a potential barrier in the extended element
+    bool                isPotentialBarrier;
     Real                potentialBarrierW;
     Real                potentialBarrierS;
     Real                potentialBarrierR;
 
     // Periodization of the potential in the extended element
-    Real                isPeriodizePotential;
+    bool                isPeriodizePotential;
     Point3              distancePeriodize;	
 
     /// @brief Kinetic energy cutoff for the wavefunction on the uniform
