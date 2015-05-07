@@ -29,7 +29,7 @@ for d = 1 : 3
     numGridFineExtElem(d) = numGridFineExtElem(d)*3;
   end
 end
-idxElem = 5;
+idxElem = 2;
 fname = sprintf('POTEXT_%d', idxElem);
 fid = fopen(fname, 'r');
 key = deserialize( fid, {'Index3'} );
@@ -40,10 +40,10 @@ fclose(fid);
 vtot3D = reshape( vtot, numGridFineExtElem' );
 vext3D = reshape( vext, numGridFineExtElem' );
 
-d = 3;
+d = 1;
 xi = numGridFineExtElem(1)/2;
 yi = numGridFineExtElem(2)/2;
-zi = numGridFineExtElem(3)/3*2;
+zi = numGridFineExtElem(3)/3;
 
 figure
 hold on

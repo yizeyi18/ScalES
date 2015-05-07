@@ -480,7 +480,8 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 	Print( statusOFS, "Expected sum of density  = ",  (numSpin_ * numOccupiedState_ ) );
 
   // Scale the density
-  blas::Scal( ntotFine, (numSpin_ * numOccupiedState_ * ntotFine) / ( vol * val ), density_.VecData(RHO), 1 );
+  blas::Scal( ntotFine, (numSpin_ * Real(numOccupiedState_) * Real(ntotFine)) / ( vol * val ), 
+      density_.VecData(RHO), 1 );
 
   // Double check (can be neglected)
   val = 0.0; // sum of density
