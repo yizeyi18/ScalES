@@ -814,7 +814,7 @@ SCFDG::Setup	(
               Int numGridFine   = dmExtElem.numGridFine[d];
               Real posStart = dmExtElem.posStart[d]; 
               // FIXME
-              Real EPS = 1.0; // Criterion for distancePeriodize_
+              Real EPS = 0.2; // Criterion for distancePeriodize_
               vBubble_[d].Resize( numGridFine );
               SetValue( vBubble_[d], 1.0 );
 
@@ -1651,29 +1651,31 @@ SCFDG::Iterate	(  )
 
           // Output potential in extended element, and only mpirankRow
           // == 0 does the job of for each element.
-//          if( isOutputPotExtElem_ ) {
-//            if( mpirankRow == 0 ){
-//#if ( _DEBUGlevel_ >= 0 )
-//              statusOFS 
-//                << std::endl 
-//                << "Output the total potential in the extended element."
-//                << std::endl;
-//#endif
-//              std::ostringstream potStream;      
-//              EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
-//
-//              // Generate the uniform mesh on the extended element.
+          if( isOutputPotExtElem_ ) {
+            if( mpirankRow == 0 ){
+#if ( _DEBUGlevel_ >= 0 )
+              statusOFS 
+                << std::endl 
+                << "Output the total potential and external potential in the extended element."
+                << std::endl;
+#endif
+              std::ostringstream potStream;      
+              EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
+
+              // Generate the uniform mesh on the extended element.
 //              std::vector<DblNumVec> gridpos;
-//              //UniformMesh ( eigSol.FFT().domain, gridpos );
 //              UniformMeshFine ( eigSol.FFT().domain, gridpos );
 //              for( Int d = 0; d < DIM; d++ ){
 //                serialize( gridpos[d], potStream, NO_MASK );
 //              }
-//              serialize( eigSol.Ham().Vtot(), potStream, NO_MASK );
-//              serialize( eigSol.Ham().Vext(), potStream, NO_MASK );
-//              SeparateWrite( "POTEXT", potStream, mpirankCol );
-//            } // if( mpirankRow == 0 )
-//          }
+
+
+              serialize( key, potStream, NO_MASK );
+              serialize( eigSol.Ham().Vtot(), potStream, NO_MASK );
+              serialize( eigSol.Ham().Vext(), potStream, NO_MASK );
+              SeparateWrite( "POTEXT", potStream, mpirankCol );
+            } // if( mpirankRow == 0 )
+          }
 
           // Output wavefunction in the extended element.  All processors participate
           if( isOutputWfnExtElem_ )
