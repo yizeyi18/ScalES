@@ -650,8 +650,13 @@ SCFDG::Setup	(
 
   // Generate the transfer matrix from the periodic uniform grid on each
   // extended element to LGL grid.  
+  // 05/06/2015:
+  // Based on the new understanding of the dual grid treatment, the
+  // interpolation must be performed through a fine Fourier grid
+  // (uniform grid) and then interpolate to the LGL grid.
   {
     PeriodicUniformToLGLMat_.resize(DIM);
+    // Not used.
     PeriodicUniformFineToLGLMat_.resize(DIM);
 
     EigenSolver& eigSol = (*distEigSol.LocalMap().begin()).second;
@@ -677,28 +682,6 @@ SCFDG::Setup	(
     UniformMesh( dmExtElem, UniformGrid );
     std::vector<DblNumVec>  UniformGridFine(DIM);
     UniformMeshFine( dmExtElem, UniformGridFine );
-
-    //		for( Int d = 0; d < DIM; d++ ){
-    //			DblNumMat&  localMat = PeriodicUniformToLGLMat_[d];
-    //			localMat.Resize( numLGL[d], numUniform[d] );
-    //			SetValue( localMat, 0.0 );
-    //			Int maxK;
-    //			if (numUniform[d] % 2 == 0)
-    //				maxK = numUniform[d] / 2 - 1;
-    //			else
-    //				maxK = ( numUniform[d] - 1 ) / 2;
-    //			for( Int j = 0; j < numUniform[d]; j++ )
-    //				for( Int i = 0; i < numLGL[d]; i++ ){
-    //					// 1.0 accounts for the k=0 mode
-    //					localMat(i,j) = 1.0;
-    //					for( Int k = 1; k < maxK; k++ ){
-    //						localMat(i,j) += 2.0 * std::cos( 
-    //								2 * PI * k / lengthUniform[d] * 
-    //								( LGLGrid[d](i) - j * lengthUniform[d] / numUniform[d] ) );
-    //					} // for (k)
-    //					localMat(i,j) /= numUniform[d];
-    //				} // for (i)
-    //		} // for (d)
 
     for( Int d = 0; d < DIM; d++ ){
       DblNumMat&  localMat = PeriodicUniformToLGLMat_[d];

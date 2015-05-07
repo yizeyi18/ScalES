@@ -17,7 +17,7 @@
 % Znucs = [8 70];
 % Znucs = [1 8 22];
 % Znucs = [5 6 7];
-Znucs = [9];
+Znucs = [1 9];
 res = cell(length(Znucs),2);
 
 for g=1:length(Znucs)
@@ -858,7 +858,7 @@ for g=1:length(Znucs)
 
 
 	%sample
-	stp = 0.002;
+	stp = 0.0005;
 	r = [-10+stp/2:stp:10];
 
 	Vloc = Vlocfn(r);

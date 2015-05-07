@@ -649,6 +649,17 @@ HamiltonianDG::CalculateDGMatrix	(  )
 											for( Int l = 0; l < idx.Size(); l++ ){
 												coef(a, g) += basis( idx(l), a ) * val(l, VAL) * 
 													ptrWeight[idx(l)];
+                        // Change the integration by parts to evaluate
+                        // the integration of the derivative of
+                        // pseudopotential w.r.t. the basis
+                        // NOTE: Not really used since this gives
+                        // EXACTLY the same result as the other formulation.
+//												coefDrvX(a,g) -= basis( idx(l), a ) * val(l, DX) *
+//													ptrWeight[idx(l)];
+//												coefDrvY(a,g) -= basis( idx(l), a ) * val(l, DY) *
+//													ptrWeight[idx(l)];
+//												coefDrvZ(a,g) -= basis( idx(l), a ) * val(l, DZ) *
+//													ptrWeight[idx(l)];
 												coefDrvX(a,g) += DbasisX( idx(l), a ) * val(l, VAL) *
 													ptrWeight[idx(l)];
 												coefDrvY(a,g) += DbasisY( idx(l), a ) * val(l, VAL) *
