@@ -347,10 +347,10 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
     sumVDX *= vol / Real(ntotFine);
     sumVDY *= vol / Real(ntotFine);
     sumVDZ *= vol / Real(ntotFine);
-    //Print( statusOFS, "For Atom ", a );
-    //Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
-    //Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
-    //Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
+    Print( statusOFS, "For Atom ", a );
+    Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
+    Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
+    Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
   }
 
   Real sumrho = 0.0;
@@ -816,7 +816,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 	// Compute the force from local pseudopotential
 	// *********************************************************************
 	// Method 1: Using the derivative of the pseudopotential
-	if(0){
+	if(1){
 		for (Int a=0; a<numAtom; a++) {
 			PseudoPot& pp = pseudo_[a];
 			SparseVec& sp = pp.pseudoCharge;
@@ -840,7 +840,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 	}
 
   // Method 2: Using integration by parts
-	if(1)
+	if(0)
 	{
 		for (Int a=0; a<numAtom; a++) {
 			PseudoPot& pp = pseudo_[a];

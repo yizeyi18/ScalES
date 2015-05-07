@@ -1,4 +1,3 @@
-
 /*
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
@@ -248,73 +247,6 @@ SCF::Iterate	(  )
 		}
 
     GetTime( timeIterStart );
-
-
-
-    Int ntotCoarse  = eigSolPtr_->FFT().domain.NumGridTotal();
-    Int ntotFine  = eigSolPtr_->FFT().domain.NumGridTotalFine();
-
-    DblNumVec& vtotFine = eigSolPtr_->Ham().Vtot();
-    DblNumVec& vtotCoarse = eigSolPtr_->Ham().VtotCoarse();
-
-    Fourier& fft =  eigSolPtr_->FFT();
-
-    for( Int i = 0; i < ntotFine; i++ ){
-      fft.inputComplexVecFine(i) = Complex( vtotFine(i), 0.0 ); 
-    }
-
-    fftw_execute( fft.forwardPlanFine );
-
-
-    // vtotCoarse is no longer needed. To be removed in the next version.
-
-    // fft Fine to Coarse 
-
-//    Int PtrC = 0;
-//    Int PtrF = 0;
-//
-//    Int iF = 0;
-//    Int jF = 0;
-//    Int kF = 0;
-//
-//    SetValue( fft.outputComplexVec, Z_ZERO );
-//
-//    for( Int kk = 0; kk < fft.domain.numGrid[2]; kk++ ){
-//      for( Int jj = 0; jj <  fft.domain.numGrid[1]; jj++ ){
-//        for( Int ii = 0; ii <  fft.domain.numGrid[0]; ii++ ){
-//
-//          PtrC = ii + jj * fft.domain.numGrid[0] + kk * fft.domain.numGrid[0] * fft.domain.numGrid[1];
-//
-//          if ( (0 <= ii) && (ii <=  fft.domain.numGrid[0] / 2) ) { iF = ii; } 
-//          else {iF =  fft.domain.numGridFine[0] - fft.domain.numGrid[0] + ii; } 
-//
-//          if ( (0 <= jj) && (jj <=  fft.domain.numGrid[1] / 2) ) { jF = jj; }
-//          else { jF =  fft.domain.numGridFine[1] - fft.domain.numGrid[1] + jj; }
-//
-//          if ( (0 <= kk) && (kk <=  fft.domain.numGrid[2] / 2) ) { kF = kk; }
-//          else { kF =  fft.domain.numGridFine[2] - fft.domain.numGrid[2] + kk; }
-//
-//          PtrF = iF + jF *  fft.domain.numGridFine[0] + kF *  fft.domain.numGridFine[0] *  fft.domain.numGridFine[1];
-//
-//          fft.outputComplexVec(PtrC) = fft.outputComplexVecFine(PtrF);
-//
-//        }
-//      }
-//    }
-//
-////    for( Int i = 0; i < ntotCoarse; i++ ){
-////      if( fft.gkk(i) == 0 ){
-////        fft.outputComplexVec(i) = Z_ZERO; 
-////      }
-////      else{
-////       fft.outputComplexVec(i) *= 2.0 * PI / fft.gkk(i);
-////       }
-////    }
-//    fftw_execute( fft.backwardPlan );
-//
-//    for( Int i = 0; i < ntotCoarse; i++ ){
-//      vtotCoarse(i) = fft.inputComplexVec(i).real() / ntotFine;
-//    }
 
     // Solve the eigenvalue problem
 
