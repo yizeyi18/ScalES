@@ -656,7 +656,6 @@ SCFDG::Setup	(
   // (uniform grid) and then interpolate to the LGL grid.
   {
     PeriodicUniformToLGLMat_.resize(DIM);
-    // Not used.
     PeriodicUniformFineToLGLMat_.resize(DIM);
 
     EigenSolver& eigSol = (*distEigSol.LocalMap().begin()).second;
@@ -999,6 +998,9 @@ SCFDG::Iterate	(  )
 		
 		// *********************************************************************
 		// Update the local potential in the extended element and the element.
+    //
+    // NOTE: The modification of the potential on the extended element
+    // to reduce the Gibbs phenomena is now in UpdateElemLocalPotential
 		// *********************************************************************
     {
 			GetTime(timeSta);
@@ -1037,122 +1039,6 @@ SCFDG::Iterate	(  )
 							hamDG.BasisLGL().LocalMap()[key].Resize( numLGLGrid.prod(), 0 );  
 							continue;
 						}
-
-            // Add the external barrier potential. CANNOT be used
-            // together with periodization option
-            if( isPotentialBarrier_ ){
-              Domain& dmExtElem = eigSol.FFT().domain;
-							DblNumVec& vext = eigSol.Ham().Vext();
-              SetValue( vext, 0.0 );
-              for( Int gk = 0; gk < dmExtElem.numGridFine[2]; gk++)
-                for( Int gj = 0; gj < dmExtElem.numGridFine[1]; gj++ )
-                  for( Int gi = 0; gi < dmExtElem.numGridFine[0]; gi++ ){
-                    Int idx = gi + gj * dmExtElem.numGridFine[0] + 
-                      gk * dmExtElem.numGridFine[0] * dmExtElem.numGridFine[1];
-                    vext[idx] = vBarrier_[0][gi] + vBarrier_[1][gj] + vBarrier_[2][gk];
-                  } // for (gi)
-            }
-
-            // Periodize the external potential. CANNOT be used together
-            // with the barrier potential option
-						if( isPeriodizePotential_ ){
-              Domain& dmExtElem = eigSol.FFT().domain;
-							// Get the potential
-							DblNumVec& vext = eigSol.Ham().Vext();
-							DblNumVec& vtot = eigSol.Ham().Vtot();
-
-							// Find the max of the potential in the extended element
-							Real vtotMax = *std::max_element( &vtot[0], &vtot[0] + vtot.Size() );
-							Real vtotAvg = 0.0;
-              for(Int i = 0; i < vtot.Size(); i++){
-                vtotAvg += vtot[i];
-              }
-              vtotAvg /= Real(vtot.Size());
-							Real vtotMin = *std::min_element( &vtot[0], &vtot[0] + vtot.Size() );
-
-#if ( _DEBUGlevel_ >= 0 ) 
-              Print( statusOFS, "vtotMax  = ", vtotMax );
-              Print( statusOFS, "vtotAvg  = ", vtotAvg );
-              Print( statusOFS, "vtotMin  = ", vtotMin );
-#endif
-
-							SetValue( vext, 0.0 );
-							for( Int gk = 0; gk < dmExtElem.numGridFine[2]; gk++)
-								for( Int gj = 0; gj < dmExtElem.numGridFine[1]; gj++ )
-									for( Int gi = 0; gi < dmExtElem.numGridFine[0]; gi++ ){
-										Int idx = gi + gj * dmExtElem.numGridFine[0] + 
-											gk * dmExtElem.numGridFine[0] * dmExtElem.numGridFine[1];
-                    // Bring the potential to the vacuum level
-										vext[idx] = ( vtot[idx] - 0.0 ) * 
-											( vBubble_[0][gi] * vBubble_[1][gj] * vBubble_[2][gk] - 1.0 );
-									} // for (gi)
-						} // if ( isPeriodizePotential_ ) 
-
-
-            // NOTE:
-            // Directly modify the vtot.  vext is not used in the
-            // matrix-vector multiplication in the eigensolver.
-            blas::Axpy( numGridExtElemFine.prod(), 1.0, eigSol.Ham().Vext().Data(), 1,
-                eigSol.Ham().Vtot().Data(), 1 );
-
-            // VtotFine to VtotCoarse: Restricting vtot on a fine grid
-            // to a coarse grid for computing the basis functions on a
-            // coarse grid. This is OBSOLETE.
-
-//            Int ntotCoarse  = eigSol.FFT().domain.NumGridTotal();
-//            Int ntotFine  = eigSol.FFT().domain.NumGridTotalFine();
-
-            // vtotCoarse is no longer needed. To be removed in the next version.
-
-//            DblNumVec& vtotFine = eigSol.Ham().Vtot();
-//            DblNumVec& vtotCoarse = eigSol.Ham().VtotCoarse();
-//
-//         
-//            Fourier& fft = eigSol.FFT();
-//
-//            for( Int ii = 0; ii < ntotFine; ii++ ){
-//              fft.inputComplexVecFine(ii) = Complex( vtotFine(ii), 0.0 );
-//            }
-//
-//            fftw_execute( fft.forwardPlanFine );
-//
-//            Int PtrC = 0;
-//            Int PtrF = 0;
-//
-//            Int iF = 0;
-//            Int jF = 0;
-//            Int kF = 0;
-//
-//            SetValue( fft.outputComplexVec, Z_ZERO );
-//
-//            for( Int kk = 0; kk < fft.domain.numGrid[2]; kk++ ){
-//              for( Int jj = 0; jj <  fft.domain.numGrid[1]; jj++ ){
-//                for( Int ii = 0; ii <  fft.domain.numGrid[0]; ii++ ){
-//   
-//                  PtrC = ii + jj * fft.domain.numGrid[0] + kk * fft.domain.numGrid[0] * fft.domain.numGrid[1];
-//
-//                  if ( (0 <= ii) && (ii <=  fft.domain.numGrid[0] / 2) ) { iF = ii; }
-//                  else { iF =  fft.domain.numGridFine[0] - fft.domain.numGrid[0] + ii; }
-//
-//                  if ( (0 <= jj) && (jj <=  fft.domain.numGrid[1] / 2) ) { jF = jj; }
-//                  else { jF =  fft.domain.numGridFine[1] - fft.domain.numGrid[1] + jj; }
-//
-//                  if ( (0 <= kk) && (kk <=  fft.domain.numGrid[2] / 2) ) { kF = kk; }
-//                  else { kF =  fft.domain.numGridFine[2] - fft.domain.numGrid[2] + kk; }
-//
-//                  PtrF = iF + jF * fft.domain.numGridFine[0] + kF * fft.domain.numGridFine[0] * fft.domain.numGridFine[1];
-//
-//                  fft.outputComplexVec(PtrC) = fft.outputComplexVecFine(PtrF);
-//
-//                }
-//              }
-//            }
-//
-//            fftw_execute( fft.backwardPlan );
-//
-//            for( Int ii = 0; ii < ntotCoarse; ii++ ){
-//              vtotCoarse(ii) = fft.inputComplexVec(ii).real() / ntotFine;
-//            }
 
 						// Solve the basis functions in the extended element
   
@@ -3384,13 +3270,6 @@ SCFDG::UpdateElemLocalPotential	(  )
 	//
 	// 1. It is hard coded that the extended element is 1 or 3
 	// times the size of the element
-	//
-	// 2. The local potential on the LGL grid is done by using Fourier
-	// interpolation from the extended element to the element. Gibbs
-	// phenomena MAY be there but at least this is better than
-	// Lagrange interpolation on a uniform grid.
-	//  
-	//
 	for( Int k = 0; k < numElem_[2]; k++ )
 		for( Int j = 0; j < numElem_[1]; j++ )
 			for( Int i = 0; i < numElem_[0]; i++ ){
@@ -3452,16 +3331,6 @@ SCFDG::UpdateElemLocalPotential	(  )
 
 					} // for (mi)
 
-          // Update the potential in the element on LGL grid
-					DblNumVec&  vtotLGLElem = hamDG.VtotLGL().LocalMap()[key];
-					Index3 numLGLGrid       = hamDG.NumLGLGridElem();
-
-          InterpPeriodicUniformFineToLGL( 
-							numGridExtElem,
-							numLGLGrid,
-							vtotExtElem.Data(),
-							vtotLGLElem.Data() );
-
 					// Loop over the neighborhood
 
 				} // own this element
@@ -3482,6 +3351,119 @@ SCFDG::UpdateElemLocalPotential	(  )
 			vi != eraseKey.end(); vi++ ){
 		vtot.LocalMap().erase( *vi );
 	}
+
+  // Modify the potential in the extended element.  Current options are
+  //
+  // 1. Add barrier
+  // 2. Periodize the potential
+  //
+  // Numerical results indicate that option 2 seems to be better.
+  for( Int k = 0; k < numElem_[2]; k++ )
+    for( Int j = 0; j < numElem_[1]; j++ )
+      for( Int i = 0; i < numElem_[0]; i++ ){
+        Index3 key( i, j, k );
+        if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+					EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
+          Index3 numGridExtElemFine = eigSol.FFT().domain.numGridFine;
+
+          // Add the external barrier potential. CANNOT be used
+          // together with periodization option
+          if( isPotentialBarrier_ ){
+            Domain& dmExtElem = eigSol.FFT().domain;
+            DblNumVec& vext = eigSol.Ham().Vext();
+            SetValue( vext, 0.0 );
+            for( Int gk = 0; gk < dmExtElem.numGridFine[2]; gk++)
+              for( Int gj = 0; gj < dmExtElem.numGridFine[1]; gj++ )
+                for( Int gi = 0; gi < dmExtElem.numGridFine[0]; gi++ ){
+                  Int idx = gi + gj * dmExtElem.numGridFine[0] + 
+                    gk * dmExtElem.numGridFine[0] * dmExtElem.numGridFine[1];
+                  vext[idx] = vBarrier_[0][gi] + vBarrier_[1][gj] + vBarrier_[2][gk];
+                } // for (gi)
+            // NOTE:
+            // Directly modify the vtot.  vext is not used in the
+            // matrix-vector multiplication in the eigensolver.
+            blas::Axpy( numGridExtElemFine.prod(), 1.0, eigSol.Ham().Vext().Data(), 1,
+                eigSol.Ham().Vtot().Data(), 1 );
+
+          }
+
+          // Periodize the external potential. CANNOT be used together
+          // with the barrier potential option
+          if( isPeriodizePotential_ ){
+            Domain& dmExtElem = eigSol.FFT().domain;
+            // Get the potential
+            DblNumVec& vext = eigSol.Ham().Vext();
+            DblNumVec& vtot = eigSol.Ham().Vtot();
+
+            // Find the max of the potential in the extended element
+            Real vtotMax = *std::max_element( &vtot[0], &vtot[0] + vtot.Size() );
+            Real vtotAvg = 0.0;
+            for(Int i = 0; i < vtot.Size(); i++){
+              vtotAvg += vtot[i];
+            }
+            vtotAvg /= Real(vtot.Size());
+            Real vtotMin = *std::min_element( &vtot[0], &vtot[0] + vtot.Size() );
+
+#if ( _DEBUGlevel_ >= 0 ) 
+            Print( statusOFS, "vtotMax  = ", vtotMax );
+            Print( statusOFS, "vtotAvg  = ", vtotAvg );
+            Print( statusOFS, "vtotMin  = ", vtotMin );
+#endif
+
+            SetValue( vext, 0.0 );
+            for( Int gk = 0; gk < dmExtElem.numGridFine[2]; gk++)
+              for( Int gj = 0; gj < dmExtElem.numGridFine[1]; gj++ )
+                for( Int gi = 0; gi < dmExtElem.numGridFine[0]; gi++ ){
+                  Int idx = gi + gj * dmExtElem.numGridFine[0] + 
+                    gk * dmExtElem.numGridFine[0] * dmExtElem.numGridFine[1];
+                  // Bring the potential to the vacuum level
+                  vext[idx] = ( vtot[idx] - 0.0 ) * 
+                    ( vBubble_[0][gi] * vBubble_[1][gj] * vBubble_[2][gk] - 1.0 );
+                } // for (gi)
+            // NOTE:
+            // Directly modify the vtot.  vext is not used in the
+            // matrix-vector multiplication in the eigensolver.
+            blas::Axpy( numGridExtElemFine.prod(), 1.0, eigSol.Ham().Vext().Data(), 1,
+                eigSol.Ham().Vtot().Data(), 1 );
+
+          } // if ( isPeriodizePotential_ ) 
+        } // own this element
+			} // for (i)
+
+
+  // Update the potential in element on LGL grid
+	//
+	// The local potential on the LGL grid is done by using Fourier
+	// interpolation from the extended element to the element. Gibbs
+	// phenomena MAY be there but at least this is better than
+	// Lagrange interpolation on a uniform grid.
+  //
+  // NOTE: The interpolated potential on the LGL grid is taken to be the
+  // MODIFIED potential with vext on the extended element. Therefore it
+  // is important that the artificial vext vanishes inside the element.
+  // When periodization option is used, it can potentially reduce the
+  // effect of Gibbs phenomena.
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+          EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
+          Index3 numGridExtElemFine = eigSol.FFT().domain.numGridFine;
+
+					DblNumVec&  vtotLGLElem = hamDG.VtotLGL().LocalMap()[key];
+					Index3 numLGLGrid       = hamDG.NumLGLGridElem();
+
+					DblNumVec&    vtotExtElem = eigSol.Ham().Vtot();
+
+          InterpPeriodicUniformFineToLGL( 
+							numGridExtElemFine,
+							numLGLGrid,
+							vtotExtElem.Data(),
+							vtotLGLElem.Data() );
+				} // own this element
+			} // for (i)
+
 
 #ifndef _RELEASE_
 	PopCallStack();
