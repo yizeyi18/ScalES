@@ -1691,11 +1691,13 @@ SCFDG::Iterate	(  )
             std::ostringstream wavefunStream;      
 
             // Generate the uniform mesh on the extended element.
-//            std::vector<DblNumVec> gridpos;
-//            UniformMesh ( eigSol.FFT().domain, gridpos );
-//            for( Int d = 0; d < DIM; d++ ){
-//              serialize( gridpos[d], wavefunStream, NO_MASK );
-//            }
+            // NOTE 05/06/2015: THIS IS NOT COMPATIBLE WITH THAT OF THE ALB2DEN!!
+            std::vector<DblNumVec> gridpos;
+            UniformMesh ( eigSol.FFT().domain, gridpos );
+            for( Int d = 0; d < DIM; d++ ){
+              serialize( gridpos[d], wavefunStream, NO_MASK );
+            }
+
             serialize( key, wavefunStream, NO_MASK );
             serialize( eigSol.Psi().Wavefun(), wavefunStream, NO_MASK );
             SeparateWrite( restartWfnFileName_, wavefunStream, mpirank);
@@ -1714,11 +1716,11 @@ SCFDG::Iterate	(  )
             std::ostringstream wavefunStream;      
 
             // Generate the uniform mesh on the extended element.
-            serialize( key, wavefunStream, NO_MASK );
             std::vector<DblNumVec>& gridpos = hamDG.LGLGridElem()(i,j,k);
             for( Int d = 0; d < DIM; d++ ){
               serialize( gridpos[d], wavefunStream, NO_MASK );
             }
+            serialize( key, wavefunStream, NO_MASK );
             serialize( hamDG.BasisLGL().LocalMap()[key], wavefunStream, NO_MASK );
             SeparateWrite( "ALBLGL", wavefunStream, mpirank );
           }
@@ -1753,7 +1755,16 @@ SCFDG::Iterate	(  )
                   basisLGL.VecData(g),
                   basisUniformFine.VecData(g) );
             }
+            // Generate the uniform mesh on the extended element.
+            // NOTE 05/06/2015: THIS IS NOT COMPATIBLE WITH THAT OF THE ALB2DEN!!
+            std::vector<DblNumVec> gridpos;
+            EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
+            // UniformMeshFine ( eigSol.FFT().domain, gridpos );
+            // for( Int d = 0; d < DIM; d++ ){
+            //   serialize( gridpos[d], wavefunStream, NO_MASK );
+            // }
 
+            serialize( key, wavefunStream, NO_MASK );
             serialize( basisUniformFine, wavefunStream, NO_MASK );
             SeparateWrite( "ALBUNIFORM", wavefunStream, mpirank );
           }

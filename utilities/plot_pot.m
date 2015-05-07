@@ -29,7 +29,7 @@ for d = 1 : 3
     numGridFineExtElem(d) = numGridFineExtElem(d)*3;
   end
 end
-idxElem = 2;
+idxElem = 5;
 fname = sprintf('POTEXT_%d', idxElem);
 fid = fopen(fname, 'r');
 key = deserialize( fid, {'Index3'} );
@@ -40,10 +40,10 @@ fclose(fid);
 vtot3D = reshape( vtot, numGridFineExtElem' );
 vext3D = reshape( vext, numGridFineExtElem' );
 
-d = 1;
-xi = 44;
-yi = 44;
-zi = 120;
+d = 3;
+xi = numGridFineExtElem(1)/2;
+yi = numGridFineExtElem(2)/2;
+zi = numGridFineExtElem(3)/3*2;
 
 figure
 hold on
@@ -52,19 +52,23 @@ if( d == 1 )
   plot(squeeze(vext3D(:,yi,zi)), 'r-^');
   plot(squeeze(vtot3D(:,yi,zi)) - ...
     squeeze(vext3D(:,yi,zi)), 'k-d');
+  title('x direction')
 end
 if( d == 2 )
   plot(squeeze(vtot3D(xi,:,zi)), 'b-o');
   plot(squeeze(vext3D(xi,:,zi)), 'r-^');
   plot(squeeze(vtot3D(xi,:,zi)) - ...
     squeeze(vext3D(xi,:,zi)), 'k-d');
+  title('y direction')
 end
 if( d == 3 )
   plot(squeeze(vtot3D(xi,yi,:)), 'b-o');
   plot(squeeze(vext3D(xi,yi,:)), 'r-^');
   plot(squeeze(vtot3D(xi,yi,:)) - ...
     squeeze(vext3D(xi,yi,:)), 'k-d');
+  title('z direction')
 end
+box on
 
 hold off
 legend('Vtot','Vext','Vorig');
