@@ -1289,7 +1289,7 @@ HamiltonianDG::CalculateDensity	(
 
   // Method 1: Normalize each eigenfunctions.  This may take many
 	// interpolation steps, and the communication cost may be large
-	if(0)
+	if(1)
 	{
 		// Loop over all the eigenfunctions
 		for( Int g = 0; g < numEig; g++ ){
@@ -1315,7 +1315,7 @@ HamiltonianDG::CalculateDensity	(
 										"Number of LGL grids do not match.");
 							}
 							DblNumVec  localPsiLGL( numGrid );
-							DblNumVec  localPsiUniform( numUniformGridElem_.prod() );
+							DblNumVec  localPsiUniformFine( numUniformGridElemFine_.prod() );
 							SetValue( localPsiLGL, 0.0 );
 
 							// Compute local wavefunction on the LGL grid
@@ -1324,17 +1324,17 @@ HamiltonianDG::CalculateDensity	(
 									localCoef.VecData(g), 1, 0.0,
 									localPsiLGL.Data(), 1 );
 
-							// Interpolate local wavefunction from LGL grid to uniform grid
+							// Interpolate local wavefunction from LGL grid to uniform fine grid
 							InterpLGLToUniform( 
 									numLGLGridElem_, 
-									numUniformGridElem_, 
+									numUniformGridElemFine_, 
 									localPsiLGL.Data(), 
-									localPsiUniform.Data() );
+									localPsiUniformFine.Data() );
 
 							// Compute the local norm
-							normPsiLocal += Energy( localPsiUniform );
+							normPsiLocal += Energy( localPsiUniformFine );
 
-							psiUniform.LocalMap()[key] = localPsiUniform;
+							psiUniform.LocalMap()[key] = localPsiUniformFine;
 
 						} // own this element
 					} // for (i)
@@ -1343,7 +1343,7 @@ HamiltonianDG::CalculateDensity	(
 			mpi::Allreduce( &normPsiLocal, &normPsi, 1, MPI_SUM, domain_.comm );
 
 			// pre-constant in front of psi^2 for density
-			Real rhofac = (numSpin_ * domain_.NumGridTotal() / domain_.Volume() ) 
+			Real rhofac = (numSpin_ * domain_.NumGridTotalFine() / domain_.Volume() ) 
 				* occrate[g] / normPsi;
 
 			// Add the normalized wavefunction to density
@@ -1475,7 +1475,7 @@ HamiltonianDG::CalculateDensity	(
 
   // Method 3: Method 3 is the same as the Method 2, but to output the
   // eigenfunctions locally. 
-  if(1) // FIXME
+  if(0) // FIXME
   {
     Real sumRhoLocal = 0.0, sumRho = 0.0;
     Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
