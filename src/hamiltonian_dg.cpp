@@ -1377,7 +1377,7 @@ HamiltonianDG::CalculateDensity	(
         } // for (i)
     mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
 
-    sumRho *= domain_.Volume() / domain_.NumGridTotal();
+    sumRho *= domain_.Volume() / domain_.NumGridTotalFine();
 
     Print( statusOFS, "Sum rho = ", sumRho );
 #endif
