@@ -227,6 +227,8 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
   // (GetBegin/GetEnd/PutBegin/PutEnd) are not directly used for
   // basisLGL_.
   basisLGL_.SetComm( domain_.comm );
+
+  basisUniformFine_.SetComm( domain_.comm );
  
   // All quantities follow elemPrtn_, but the communication are only
   // performed in the column communicator.
@@ -264,6 +266,7 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 
   vtotLGL_.Prtn()       = elemPrtn_;
   basisLGL_.Prtn()      = elemPrtn_;
+  basisUniformFine_.Prtn()      = elemPrtn_;
 
 	for( Int k=0; k< numElem_[2]; k++ )
 		for( Int j=0; j< numElem_[1]; j++ )
@@ -1289,7 +1292,7 @@ HamiltonianDG::CalculateDensity	(
 
   // Method 1: Normalize each eigenfunctions.  This may take many
 	// interpolation steps, and the communication cost may be large
-	if(1)
+	if(0)
 	{
 		// Loop over all the eigenfunctions
 		for( Int g = 0; g < numEig; g++ ){
@@ -1324,7 +1327,7 @@ HamiltonianDG::CalculateDensity	(
 									localCoef.VecData(g), 1, 0.0,
 									localPsiLGL.Data(), 1 );
 
-							// Interpolate local wavefunction from LGL grid to uniform fine grid
+                // Interpolate local wavefunction from LGL grid to uniform fine grid
 							InterpLGLToUniform( 
 									numLGLGridElem_, 
 									numUniformGridElemFine_, 
@@ -1950,6 +1953,165 @@ HamiltonianDG::CalculateDensity	(
 #endif
 
   } // for Method 4 
+
+
+  // Method 5: 
+  if(1) // FIXME ME
+  {
+    Real sumRhoLocal = 0.0, sumRho = 0.0;
+    // Compute the local density in each element
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            DblNumMat& localBasis = basisUniformFine_.LocalMap()[key];
+            Int numGrid  = localBasis.m();
+            Int numBasis = localBasis.n();
+
+
+            Int numBasisTotal = 0;
+            MPI_Allreduce( &numBasis, &numBasisTotal, 1, MPI_INT, MPI_SUM, domain_.rowComm );
+
+            // Compute the density by matrix vector multiplication
+            // This is done by going from column partition to row 
+            // parition, perform Gemv locally, and transform the output
+            // from row partition to column partition.
+
+            // Skip the element if there is no basis functions.
+            if( numBasisTotal == 0 )
+              continue;
+
+            DblNumMat& localCoef = eigvecCoef_.LocalMap()[key];
+            DblNumVec& localRho  = rho.LocalMap()[key];
+
+            // Loop over all the eigenfunctions
+            // 
+            // NOTE: Gemm is not a feasible choice when a large number of
+            // eigenfunctions are there.
+            if(1){
+              // Compute the density by converting the basis function
+              // from column partition to row partition, and then
+              // compute the Kohn-Sham wavefunction on each local
+              // processor, which contributes to the electron density.
+              //
+              // The electron density is reduced among all processors in
+              // the same row processor communicator to obtain the
+              // electron density in each element.  
+
+              Int height = numGrid;
+              Int width = numBasisTotal;
+
+              Int widthBlocksize = width / mpisizeRow;
+              Int heightBlocksize = height / mpisizeRow;
+
+              Int widthLocal = widthBlocksize;
+              Int heightLocal = heightBlocksize;
+
+              if(mpirankRow < (width % mpisizeRow)){
+                widthLocal = widthBlocksize + 1;
+              }
+
+              if(mpirankRow == (mpisizeRow - 1)){
+                heightLocal = heightBlocksize + height % mpisizeRow;
+              }
+
+              Int numGridTotal = height;  
+              Int numGridLocal = heightLocal;  
+
+              DblNumMat localBasisRow( heightLocal, width );
+
+              AlltoallForward (localBasis, localBasisRow, domain_.rowComm);
+
+              DblNumVec  localRhoRow( numGridLocal ); 
+              SetValue( localRhoRow, 0.0 );
+
+#ifdef _USE_OPENMP_
+#pragma omp parallel 
+              {
+#endif
+                DblNumVec  localPsiRow( numGridLocal );
+                SetValue( localPsiRow, 0.0 );
+
+                // For thread safety, declare as private variable
+
+                DblNumVec localRhoRowTmp( numGridLocal );
+                SetValue( localRhoRowTmp, 0.0 );
+
+#ifdef _USE_OPENMP_
+#pragma omp for schedule(dynamic,1)
+#endif
+
+                for( Int g = 0; g < numEig; g++ ){
+                  blas::Gemv( 'N', numGridLocal, numBasisTotal, 1.0, 
+                      localBasisRow.Data(), numGridLocal, 
+                      localCoef.VecData(g), 1, 0.0,
+                      localPsiRow.Data(), 1 );
+
+                  // Update the local density
+                  Real  occ    = occrate[g];
+
+                  for( Int p = 0; p < numGridLocal; p++ ){
+                    localRhoRowTmp(p) += localPsiRow(p) * localPsiRow(p) * occ * numSpin_;
+                  }
+                } // for g
+
+
+#ifdef _USE_OPENMP_
+#pragma omp critical
+                {
+#endif
+                  // This is a reduce operation for an array, and should be
+                  // done in the OMP critical syntax
+                  blas::Axpy( numGridLocal, 1.0, localRhoRowTmp.Data(), 1, localRhoRow.Data(), 1 );
+#ifdef _USE_OPENMP_
+                }
+#endif
+
+#ifdef _USE_OPENMP_
+              }
+#endif
+
+
+              DblNumVec  localRhoTemp1( numGridTotal );
+              SetValue( localRhoTemp1, 0.0 );
+              for( Int p = 0; p < numGridLocal; p++ ){
+                localRhoTemp1( p + heightBlocksize * mpirankRow ) = localRhoRow(p);
+              }
+
+
+              DblNumVec  localRhoTemp2( numGridTotal );
+              SetValue( localRhoTemp2, 0.0 );
+              MPI_Allreduce( localRhoTemp1.Data(),
+                  localRhoTemp2.Data(), numGridTotal, MPI_DOUBLE,
+                  MPI_SUM, domain_.rowComm );
+
+              blas::Axpy( numGrid, 1.0, localRhoTemp2.Data(), 1, localRho.Data(), 1 );
+
+            } //if(1) 
+
+
+            Real* ptrRho = localRho.Data();
+            for( Int p = 0; p < localRho.Size(); p++ ){
+              sumRhoLocal += (*ptrRho);
+              ptrRho++;
+            }
+
+          } // own this element
+        } // for (i)
+
+    sumRhoLocal *= domain_.Volume() / domain_.NumGridTotalFine(); 
+
+    // All processors get the normalization factor
+    mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << std::endl;
+    Print( statusOFS, "Sum Rho on uniform grid method 5 = ", sumRho );
+    statusOFS << std::endl;
+#endif
+
+  } // for Method 5
 
 
 #ifndef _RELEASE_

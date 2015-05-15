@@ -292,7 +292,11 @@ private:
 	/// @brief Total potential on the local LGL grid.
 	DistDblNumVec    vtotLGL_;
 
-	/// @brief Basis functions on the local LGL grid.
+	/// @brief Basis functions on the local uniform fine grid.
+  IntNumVec        basisUniformFineIdx_;
+	DistDblNumMat    basisUniformFine_;
+	
+  /// @brief Basis functions on the local LGL grid.
   IntNumVec        basisLGLIdx_;
 	DistDblNumMat    basisLGL_;
 
@@ -501,6 +505,12 @@ public:
 	
 	DblNumVec&  OccupationRate() { return occupationRate_; }
 
+  IntNumVec&  BasisUniformFineIdx() { return basisUniformFineIdx_; }
+  const IntNumVec&  BasisUniformFineIdx() const { return basisUniformFineIdx_; }
+  Int&  BasisUniformFineIdx(const Int k) { return basisUniformFineIdx_(k); }
+  const Int&  BasisUniformFineIdx(const Int k) const { return basisUniformFineIdx_(k); }
+
+  DistDblNumMat&  BasisUniformFine() { return basisUniformFine_; }
 
 	DistDblNumVec&  VtotLGL() { return vtotLGL_; }
 

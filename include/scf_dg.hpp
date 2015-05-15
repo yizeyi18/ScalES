@@ -249,13 +249,18 @@ private:
 
 	Int                 scaBlockSize_;
 
-	/// @brief Interpolation matrix from uniform grid in the extended
+  /// @brief Interpolation matrix from uniform grid in the extended
 	/// element with periodic boundary condition to LGL grid in each
 	/// element (assuming all the elements are the same).
 	std::vector<DblNumMat>    PeriodicUniformToLGLMat_;
   std::vector<DblNumMat>    PeriodicUniformFineToLGLMat_;
 
-	/// @brief Context for BLACS.
+	/// @brief Interpolation matrix from uniform fine grid in the extended
+	/// element with periodic boundary condition to fine grid in each
+	/// element (assuming all the elements are the same).
+	std::vector<DblNumMat>    PeriodicGridExtElemToGridElemMat_;
+	
+  /// @brief Context for BLACS.
 	Int                 contxt_;
 
 public:
@@ -308,7 +313,12 @@ public:
 	void InterpPeriodicUniformFineToLGL( const Index3& numUniformGridFine,
 			const Index3& numLGLGrid, const Real* rhoUniform, Real* rhoLGL );
 
-	/// @brief Calculate the Kohn-Sham energy and other related energies.
+  /// @brief Interpolate the uniform fine grid in the periodic extended
+  /// element domain to fine grid in each element.
+  void InterpPeriodicGridExtElemToGridElem( const Index3& numUniformGridFineExtElem,
+      const Index3& numUniformGridFineElem, const Real* rhoUniformExtElem, Real* rhoUniformElem );
+
+  /// @brief Calculate the Kohn-Sham energy and other related energies.
 	void  CalculateKSEnergy();
 
 	/// @brief Calculate the Kohn-Sham energy and other related energies
