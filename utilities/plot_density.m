@@ -4,38 +4,54 @@
 %  shall be addressed by cut3d like code.
 %
 %  Lin Lin
-%  2013/08/15
+%  Original: 2013/08/15
+%  Revise:   2015/05/06
 
-% Density must start with "DEN_"
-numProc = 4;
-rho = cell(numProc, 1);
-gridPos = cell(numProc, 3);
-numGrid = cell(numProc, 1);
+% First read the structural information
+fname = sprintf('STRUCTURE');
+fid = fopen(fname, 'r');
+domainSizeGlobal  = deserialize( fid, {'Point3'} );
+numGridGlobal     = deserialize( fid, {'Index3'} );
+numGridFineGlobal = deserialize( fid, {'Index3'} );
+posStartGlobal    = deserialize( fid, {'Point3'} );
+numElem           = deserialize( fid, {'Index3'} );
+% Neglect the part for deserializing the atomList
+fclose( fid );
 
-for l = 1 : numProc
-	fname = sprintf('DENLGL_%d_%d',l-1,numProc);
-	fid = fopen(fname, 'r');
-	gridPos{l, 1} = deserialize( fid, {'DblNumVec'} );
-	gridPos{l, 2} = deserialize( fid, {'DblNumVec'} );
-	gridPos{l, 3} = deserialize( fid, {'DblNumVec'} );
-	numGrid{l} = [numel(gridPos{l,1}) numel(gridPos{l,2}) numel(gridPos{l,3})];
-	rho{l} = deserialize( fid, {'DblNumVec'} );
-	assert( numel( rho{l} ) == prod( numGrid{l} ) );
-	rho{l} = reshape( rho{l}, numGrid{l} );
-	fclose( fid );
+% Look at the potential for a given element
+idxElem = 2;
+fname = sprintf('DEN_%d', idxElem);
+fid = fopen(fname, 'r');
+for d = 1 : 3
+  gridPos{d} = deserialize( fid, {'DblNumVec'} );
+  numGridFine(d) = length(gridPos{d});
 end
+key = deserialize( fid, {'Index3'} );
+rho = deserialize( fid, {'DblNumVec'});
+fclose(fid);
 
-d = 3;
-xi = 16;
-yi = 1;
-grid1D = zeros( numGrid{1}(d), numProc );
-rho1D  = zeros( numGrid{1}(d), numProc );
-for l = 1 : numProc
-	grid1D(:, l) = gridPos{l,d};
-	rho1D(:,l)   = squeeze(rho{l}(xi,yi,:));
+rho3D = reshape( rho, numGridFineExtElem' );
+
+d = 1;
+xi = numGridFine(1)/2;
+yi = numGridFine(2)/2;
+zi = 1;
+
+figure
+hold on
+if( d == 1 )
+  plot(gridPos{1},squeeze(rho3D(:,yi,zi)), 'b-o');
+  title('x direction')
 end
-% Reflecting the periodic boundary condition
-grid1D = [grid1D gridPos{1,d}+max(gridPos{numProc,d})];
-rho1D  = [rho1D  squeeze(rho{1}(xi,yi,:))];
+if( d == 2 )
+  plot(gridPos{2},squeeze(rho3D(xi,:,zi)), 'b-o');
+  title('y direction')
+end
+if( d == 3 )
+  plot(gridPos{3},squeeze(rho3D(xi,yi,:)), 'b-o');
+  title('z direction')
+end
+box on
 
-plot(grid1D, rho1D,'-o');
+hold off
+legend('rho');

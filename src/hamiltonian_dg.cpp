@@ -1286,7 +1286,9 @@ HamiltonianDG::CalculateDensity	(
 				Index3 key( i, j, k );
 				if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
 					DblNumVec& localRho = rho.LocalMap()[key];
+					DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
 					SetValue( localRho, 0.0 );
+					SetValue( localRhoLGL, 0.0 );
 				} // own this element
 			} // for (i)
 
@@ -1956,7 +1958,7 @@ HamiltonianDG::CalculateDensity	(
 
 
   // Method 5: 
-  if(1) // FIXME ME
+  if(0) // FIXME ME
   {
     Real sumRhoLocal = 0.0, sumRho = 0.0;
     // Compute the local density in each element
@@ -2113,6 +2115,142 @@ HamiltonianDG::CalculateDensity	(
 
   } // for Method 5
 
+  // Method 6: Normalize each eigenfunctions.  This may take many
+	// interpolation steps, and the communication cost may be large.
+  // This routine generates both density on the LGL grid and on the
+  // uniform grid
+  // FIXME: Only works now WITHOUT intra-element parallelization
+	if(1)
+	{ 
+
+    DistDblNumVec  psiLGL;
+    psiLGL.Prtn() = elemPrtn_;
+
+		// Loop over all the eigenfunctions
+		for( Int g = 0; g < numEig; g++ ){
+			// Normalization constants
+			Real normPsiLocal  = 0.0;
+			Real normPsi       = 0.0;
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+							DblNumMat& localBasis = basisLGL_.LocalMap()[key];
+							Int numGrid  = localBasis.m();
+							Int numBasis = localBasis.n();
+
+							DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
+							if( localCoef.n() != numEig ){
+								throw std::runtime_error( 
+										"Numbers of eigenfunction coefficients do not match.");
+							}
+							if( localCoef.m() != numBasis ){
+								throw std::runtime_error(
+										"Number of LGL grids do not match.");
+							}
+							DblNumVec  localPsiLGL( numGrid );
+							DblNumVec  localPsiUniformFine( numUniformGridElemFine_.prod() );
+							SetValue( localPsiLGL, 0.0 );
+
+							// Compute local wavefunction on the LGL grid
+							blas::Gemv( 'N', numGrid, numBasis, 1.0, 
+									localBasis.Data(), numGrid, 
+									localCoef.VecData(g), 1, 0.0,
+									localPsiLGL.Data(), 1 );
+
+                // Interpolate local wavefunction from LGL grid to uniform fine grid
+							InterpLGLToUniform( 
+									numLGLGridElem_, 
+									numUniformGridElemFine_, 
+									localPsiLGL.Data(), 
+									localPsiUniformFine.Data() );
+
+							// Compute the local norm
+							normPsiLocal += Energy( localPsiUniformFine );
+
+							psiUniform.LocalMap()[key] = localPsiUniformFine;
+              psiLGL.LocalMap()[key] = localPsiLGL;
+
+						} // own this element
+					} // for (i)
+
+			// All processors get the normalization factor
+			mpi::Allreduce( &normPsiLocal, &normPsi, 1, MPI_SUM, domain_.comm );
+
+			// pre-constant in front of psi^2 for density
+			Real rhofac = (numSpin_ * domain_.NumGridTotalFine() / domain_.Volume() ) 
+				* occrate[g] / normPsi;
+      
+
+			// Add the normalized wavefunction to density
+			for( Int k = 0; k < numElem_[2]; k++ )
+				for( Int j = 0; j < numElem_[1]; j++ )
+					for( Int i = 0; i < numElem_[0]; i++ ){
+						Index3 key( i, j, k );
+						if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+							DblNumVec& localRho = rho.LocalMap()[key];
+							DblNumVec& localPsiUniformFine = psiUniform.LocalMap()[key];
+							for( Int p = 0; p < localRho.Size(); p++ ){
+								localRho[p] += localPsiUniformFine[p] * localPsiUniformFine[p] * rhofac;
+							}	
+
+							DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+							DblNumVec& localPsiLGL = psiLGL.LocalMap()[key];
+							for( Int p = 0; p < localPsiLGL.Size(); p++ ){
+								localRhoLGL[p] += localPsiLGL[p] * localPsiLGL[p] * occrate[g] * numSpin_;
+							}	
+						} // own this element
+					} // for (i)
+		} // for (g)
+		// Check the sum of the electron density
+#if ( _DEBUGlevel_ >= 0 )
+    {
+      Real sumRhoLocal = 0.0;
+      Real sumRho      = 0.0;
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key( i, j, k );
+            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+              DblNumVec& localRho = rho.LocalMap()[key];
+              for( Int p = 0; p < localRho.Size(); p++ ){
+                sumRhoLocal += localRho[p];
+              }	
+            } // own this element
+          } // for (i)
+      mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
+
+      sumRho *= domain_.Volume() / domain_.NumGridTotalFine();
+
+      Print( statusOFS, "Sum rho on uniform fine = ", sumRho );
+    }
+#endif
+
+#if ( _DEBUGlevel_ >= 0 )
+    {
+      Real sumRhoLGLLocal = 0.0;
+      Real sumRhoLGL      = 0.0;
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key( i, j, k );
+            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+              DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
+
+              sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
+                  localRhoLGL.Data(), 1, 
+                  LGLWeight3D_.Data(), 1 );
+
+            } // own this element
+          } // for (i)
+      mpi::Allreduce( &sumRhoLGLLocal, &sumRhoLGL, 1, MPI_SUM, domain_.colComm );
+
+      Print( statusOFS, "Sum rho on LGL = ", sumRhoLGL );
+    }
+#endif
+
+  } // Method 6
 
 #ifndef _RELEASE_
   PopCallStack();

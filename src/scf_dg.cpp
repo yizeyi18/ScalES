@@ -1759,20 +1759,37 @@ SCFDG::Iterate	(  )
                 << "Output the electron density on the global grid" 
                 << std::endl;
 #endif
-              std::ostringstream rhoStream;      
+              // Output the wavefunctions on the uniform grid
+              {
+                std::ostringstream rhoStream;      
 
-//              NumTns<std::vector<DblNumVec> >& uniformGridElem =
-//                hamDG.UniformGridElem();
-//              std::vector<DblNumVec>& grid = uniformGridElem(i, j, k);
-//              for( Int d = 0; d < DIM; d++ ){
-//                serialize( grid[d], rhoStream, NO_MASK );
-//              }
+                NumTns<std::vector<DblNumVec> >& uniformGridElem =
+                  hamDG.UniformGridElemFine();
+                std::vector<DblNumVec>& grid = hamDG.UniformGridElemFine()(i, j, k);
+                for( Int d = 0; d < DIM; d++ ){
+                  serialize( grid[d], rhoStream, NO_MASK );
+                }
 
-              serialize( key, rhoStream, NO_MASK );
-              DblNumVec&  denVec = hamDG.Density().LocalMap()[key];
-              serialize( denVec, rhoStream, NO_MASK );
+                serialize( key, rhoStream, NO_MASK );
+                serialize( hamDG.Density().LocalMap()[key], rhoStream, NO_MASK );
 
-              SeparateWrite( restartDensityFileName_, rhoStream, mpirankCol );
+                SeparateWrite( restartDensityFileName_, rhoStream, mpirankCol );
+              }
+
+              // Output the wavefunctions on the LGL grid
+              {
+                std::ostringstream rhoStream;      
+
+                // Generate the uniform mesh on the extended element.
+                std::vector<DblNumVec>& gridpos = hamDG.LGLGridElem()(i,j,k);
+                for( Int d = 0; d < DIM; d++ ){
+                  serialize( gridpos[d], rhoStream, NO_MASK );
+                }
+                serialize( key, rhoStream, NO_MASK );
+                serialize( hamDG.DensityLGL().LocalMap()[key], rhoStream, NO_MASK );
+                SeparateWrite( "DENLGL", rhoStream, mpirankCol );
+              }
+
             } // if( mpirankRow == 0 )
           }
 
