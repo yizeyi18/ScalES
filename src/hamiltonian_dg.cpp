@@ -1480,7 +1480,7 @@ HamiltonianDG::CalculateDensity	(
 
   // Method 3: Method 3 is the same as the Method 2, but to output the
   // eigenfunctions locally. 
-  if(0) // FIXME
+  if(1) // FIXME
   {
     Real sumRhoLocal = 0.0, sumRho = 0.0;
     Real sumRhoLGLLocal = 0.0, sumRhoLGL = 0.0;
@@ -2120,7 +2120,7 @@ HamiltonianDG::CalculateDensity	(
   // This routine generates both density on the LGL grid and on the
   // uniform grid
   // FIXME: Only works now WITHOUT intra-element parallelization
-	if(1)
+	if(0)
 	{ 
 
     DistDblNumVec  psiLGL;

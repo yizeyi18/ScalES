@@ -2136,7 +2136,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 			throw std::runtime_error("Invalid mixing type.");
 		}
 
-		esdf_string("Mixing_Variable", "density", strtmp); 
+		esdf_string("Mixing_Variable", "potential", strtmp); 
 		esdfParam.mixVariable     = strtmp;
 		if( esdfParam.mixVariable != "density" &&
 				esdfParam.mixVariable != "potential" ){
@@ -2147,14 +2147,14 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
 		esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
 		esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 );
-		esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   10 );
+		esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
 		esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-6 );
 		esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
 		esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
 		esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
 		esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-6 );
 		esdfParam.eigMinIter           = esdf_integer( "Eig_MinIter",  2 );
-		esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  10 );
+		esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
 		esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
 		esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
 		esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
@@ -2164,7 +2164,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 0 );
 		esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 0 );
 		esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
-		esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 0 );
+		esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 1 );
 		esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
 
 
@@ -2188,7 +2188,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.periodTableFile = strtmp;
 		esdf_string("Pseudo_Type", "HGH", strtmp); 
 		esdfParam.pseudoType      = strtmp;
-		esdf_string("PW_Solver", "modified_blopex", strtmp); 
+		esdf_string("PW_Solver", "LOBPCG", strtmp); 
 		esdfParam.PWSolver        = strtmp;
 		esdf_string("XC_Type", "XC_LDA_XC_TETER93", strtmp); 
 		esdfParam.XCType          = strtmp;
@@ -2447,7 +2447,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);
     esdfParam.isRestartPosition     = esdf_integer( "Restart_Position", 0 );
 		esdfParam.isRestartThermostat   = esdf_integer( "Restart_Thermostat", 0 );
-		esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 0 );
+		esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 1 );
 		esdfParam.isOutputThermostat    = esdf_integer( "Output_Thermostat", 0 );
 		esdfParam.isOutputXYZ           = esdf_integer( "Output_XYZ", 1 );
 
