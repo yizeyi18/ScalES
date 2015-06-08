@@ -2152,7 +2152,9 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
 		esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
 		esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
-		esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-6 );
+
+    // Default is no locking
+		esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-20 );
 		esdfParam.eigMinIter           = esdf_integer( "Eig_MinIter",  2 );
 		esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
 		esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
