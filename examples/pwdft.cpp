@@ -265,7 +265,19 @@ int main(int argc, char **argv)
       hamKS.CalculateForce( spn, fft );
 			Point3 forceCM(0.0, 0.0, 0.0);
 			std::vector<Atom>& atomList = hamKS.AtomList();
-			Int numAtom = atomList.size();
+      Int numAtom = atomList.size();
+
+      if( esdfParam.VDWType == "DFT-D2"){
+        Real VDWEnergy = 0.0;
+        DblNumMat VDWForce;
+        VDWForce.Resize( atomList.size(), DIM );
+        SetValue( VDWForce, 0.0 );
+        scf.CalculateVDW ( VDWEnergy, VDWForce );
+        for( Int a = 0; a < atomList.size(); a++ ){
+          atomList[a].force += Point3( VDWForce(a,0), VDWForce(a,1), VDWForce(a,2) );
+        }
+      } 
+
 			for( Int a = 0; a < numAtom; a++ ){
 				Print( statusOFS, "atom", a, "force", atomList[a].force );
 				forceCM += atomList[a].force;
@@ -280,6 +292,18 @@ int main(int argc, char **argv)
 			Point3 forceCM(0.0, 0.0, 0.0);
 			std::vector<Atom>& atomList = hamKS.AtomList();
 			Int numAtom = atomList.size();
+      
+      if( esdfParam.VDWType == "DFT-D2"){
+        Real VDWEnergy = 0.0;
+        DblNumMat VDWForce;
+        VDWForce.Resize( atomList.size(), DIM );
+        SetValue( VDWForce, 0.0 );
+        scf.CalculateVDW ( VDWEnergy, VDWForce );
+        for( Int a = 0; a < atomList.size(); a++ ){
+          atomList[a].force += Point3( VDWForce(a,0), VDWForce(a,1), VDWForce(a,2) );
+        }
+      } 
+
 			for( Int a = 0; a < numAtom; a++ ){
 				Print( statusOFS, "atom", a, "force", atomList[a].force );
 				forceCM += atomList[a].force;
