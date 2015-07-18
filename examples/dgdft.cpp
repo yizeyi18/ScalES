@@ -589,12 +589,12 @@ int main(int argc, char **argv)
     Print(statusOFS, "Eself                 = ",  eself, "[au]");
     Print(statusOFS, "Ecor                  = ",  ecor, "[au]");
     Print(statusOFS, "Fermi                 = ",  fermi, "[au]");
-	  Print(statusOFS, "norm(out-in)/norm(in) = ", scfOuterNorm ); 
-		Print(statusOFS, "Efree diff per atom   = ", efreeDifPerAtom, "[au]"); 
+	  Print(statusOFS, "norm(out-in)/norm(in) = ",  scfOuterNorm ); 
+		Print(statusOFS, "Efree diff per atom   = ",  efreeDifPerAtom, "[au]"); 
 
     // Print out the force
 
-
+    PrintBlock( statusOFS, "Atomic Force" );
     // Compute force
     {
       if( esdfParam.solutionMethod == "diag" ){
