@@ -142,6 +142,9 @@ public:
 	void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
 	void  PrintState( const Int iter );
 	void  OutputState();
+	void  LastSCF( Real& etot, Real& efree, Real& ekin, Real& ehart,
+    Real& eVxc, Real& exc, Real& evdw, Real& eself, Real& ecor,
+    Real& fermi, Real& totalCharge, Real& scfNorm );
 
 	// Mixing
 	void  AndersonMix( const Int iter );

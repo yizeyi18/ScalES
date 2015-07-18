@@ -331,20 +331,7 @@ SCF::Iterate	(  )
     scfNorm_    = normVtotDif / normVtotOld;
 
     Evdw_ = 0.0;
-
-    if( VDWType_ == "DFT-D2"){
-
-      Real VDWEnergy = 0.0;
-      DblNumMat VDWForce;
-      
-      std::vector<Atom>&  atomList = eigSolPtr_->Ham().AtomList();
-      VDWForce.Resize( atomList.size(), DIM );
-      SetValue( forceVdw_, 0.0 );
-
-      CalculateVDW ( VDWEnergy, VDWForce );
-
-    } 
-
+    
     CalculateEnergy();
 
     PrintState( iter );
@@ -352,14 +339,6 @@ SCF::Iterate	(  )
     if( isCalculateForceEachSCF_ ){
       GetTime( timeSta );
       eigSolPtr_->Ham().CalculateForce2( eigSolPtr_->Psi(), eigSolPtr_->FFT() );
-
-      if( VDWType_ == "DFT-D2"){
-        std::vector<Atom>& atomList = eigSolPtr_->Ham().AtomList();
-        for( Int a = 0; a < atomList.size(); a++ ){
-          atomList[a].force += Point3( forceVdw_(a,0), forceVdw_(a,1), forceVdw_(a,2) );
-        }
-      } 
-
       GetTime( timeEnd );
       statusOFS << "Time for computing the force is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -568,11 +547,6 @@ SCF::CalculateEnergy	(  )
 
   // Correction energy
   Ecor_ = (Exc_ - EVxc_) - Ehart_ - Eself_;
-
-  // Van der Waals energy
-  if( VDWType_ == "DFT-D2"){
-    Ecor_ += Evdw_;
-  } 
 
   // Total energy
 	Etot_ = Ekin_ + Ecor_;
@@ -984,7 +958,7 @@ SCF::PrintState	( const Int iter  )
 	}
 	statusOFS << std::endl;
 	statusOFS 
-		<< "NOTE:  Ecor  = Exc + Evdw - EVxc - Ehart - Eself" << std::endl
+		<< "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + Evdw" << std::endl
 	  << "       Etot  = Ekin + Ecor" << std::endl
 	  << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
 	Print(statusOFS, "Etot              = ",  Etot_, "[au]");
@@ -1006,6 +980,44 @@ SCF::PrintState	( const Int iter  )
 
 	return ;
 } 		// -----  end of method SCF::PrintState  ----- 
+
+void  
+SCF::LastSCF( Real& etot, Real& efree, Real& ekin, Real& ehart,
+    Real& eVxc, Real& exc, Real& evdw, Real& eself, Real& ecor,
+    Real& fermi, Real& totalCharge, Real& scfNorm )
+{
+#ifndef _RELEASE_
+  PushCallStack("SCF::LastSCF");
+#endif
+  
+//  for(Int i = 0; i < eigSolPtr_->EigVal().m(); i++){
+//    Print(statusOFS, 
+//        "band#    = ", i, 
+//        "eigval   = ", eigSolPtr_->EigVal()(i),
+//        "resval   = ", eigSolPtr_->ResVal()(i),
+//        "occrate  = ", eigSolPtr_->Ham().OccupationRate()(i));
+//  }
+//  statusOFS << std::endl;
+
+  etot              = Etot_;
+  efree             = Efree_;
+  ekin              = Ekin_;
+  ehart             = Ehart_;
+  eVxc              = EVxc_;
+  exc               = Exc_; 
+  evdw              = Evdw_; 
+  eself             = Eself_;
+  ecor              = Ecor_;
+  fermi             = fermi_;
+  totalCharge       = totalCharge_;
+  scfNorm           = scfNorm_;
+
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCF::LastSCF  ----- 
 
 
 void SCF::OutputState	(  )

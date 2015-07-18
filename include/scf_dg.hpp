@@ -114,6 +114,7 @@ private:
   std::string         restartDensityFileName_;
   std::string         restartWfnFileName_;
   std::string         XCType_;
+  std::string         VDWType_;
   /// @brief Same as @ref esdf::ESDFInputParam::solutionMethod
   std::string         solutionMethod_;
 
@@ -189,6 +190,7 @@ private:
 	Real                Ehart_;                    // Hartree energy
 	Real                Ecor_;                     // Nonlinear correction energy
 	Real                Exc_;                      // Exchange-correlation energy
+	Real                Evdw_;                     // Van der Waals energy
 	Real                EVxc_;                     // Exchange-correlation potential energy
 	Real                Eself_;                    // Self energy due to the pseudopotential
 	Real                fermi_;                    // Fermi energy
@@ -233,9 +235,12 @@ private:
 	/// grid.
 	DistDblNumVec       vtotLGLSave_;
 	
-	Int                 scfTotalInnerIter_;       // For the purpose of Anderson mixing
+  DblNumMat           forceVdw_;
+	
+  Int                 scfTotalInnerIter_;       // For the purpose of Anderson mixing
 	Real                scfInnerNorm_;            // ||V_{new} - V_{old}|| / ||V_{old}||
 	Real                scfOuterNorm_;            // ||V_{new} - V_{old}|| / ||V_{old}||
+	Real                efreeDifPerAtom_;            
 
 	/// @brief Global domain.
 	Domain              domain_;
@@ -359,16 +364,27 @@ public:
 	/// energy functional", 08/26/2013.
 	void  CalculateSecondOrderEnergy();
 
-	/// @brief Print out the state variables at each SCF iteration.
-	void  PrintState(  );
 
-	/// @brief Parallel preconditioned Anderson mixing. Can be used for
-	/// potential mixing or density mixing.
-	void  AndersonMix( 
-			Int             iter, 
-			Real            mixStepLength,
-			std::string     mixType,
-			DistDblNumVec&  distvMix,
+	/// @brief Calculate Van der Waals energy and force 
+	///
+	void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
+
+
+  /// @brief Print out the state variables at each SCF iteration.
+  void  PrintState(  );
+
+  /// @brief Collect the state variables at last SCF iteration.
+  void  LastSCF( Real& efreeHarris, Real& etot, Real& efree, Real& ekin, 
+      Real& ehart, Real& eVxc, Real& exc, Real& evdw, Real& eself, 
+      Real& ecor, Real& fermi, Real& scfOuterNorm, Real& efreeDifPerAtom );
+
+  /// @brief Parallel preconditioned Anderson mixing. Can be used for
+  /// potential mixing or density mixing.
+  void  AndersonMix( 
+      Int             iter, 
+      Real            mixStepLength,
+      std::string     mixType,
+      DistDblNumVec&  distvMix,
 			DistDblNumVec&  distvOld,
 			DistDblNumVec&  distvNew,
 			DistDblNumMat&  dfMat,
