@@ -556,7 +556,6 @@ int main(int argc, char **argv)
     scfDG.LastSCF(efreeHarris, etot, efree, ekin, ehart, eVxc, exc, evdw,
         eself, ecor, fermi, scfOuterNorm, efreeDifPerAtom );
 
-
     std::vector<Atom>& atomList = hamDG.AtomList(); 
     Real VDWEnergy = 0.0;
     DblNumMat VDWForce;

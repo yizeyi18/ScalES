@@ -898,6 +898,16 @@ int main(int argc, char **argv)
 
           statusOFS << "Finish scfDG Iterate" << std::endl;
 
+          std::vector<Atom>& atomList = hamDG.AtomList(); 
+          Real VDWEnergy = 0.0;
+          DblNumMat VDWForce;
+          VDWForce.Resize( atomList.size(), DIM );
+          SetValue( VDWForce, 0.0 );
+
+          if( esdfParam.VDWType == "DFT-D2"){
+            scfDG.CalculateVDW ( VDWEnergy, VDWForce );
+          } 
+
           // Force calculation
           {
             GetTime( timeSta );
@@ -907,6 +917,12 @@ int main(int argc, char **argv)
             else if( esdfParam.solutionMethod == "pexsi" ){
               hamDG.CalculateForceDM( distfft, scfDG.DMMat() );
             }
+
+            if( esdfParam.VDWType == "DFT-D2"){
+              for( Int a = 0; a < atomList.size(); a++ ){
+                atomList[a].force += Point3( VDWForce(a,0), VDWForce(a,1), VDWForce(a,2) );
+              }
+            } 
 
             for( Int a = 0; a < numAtom; a++ ){
               atomforce[a]=atomList[a].force;
