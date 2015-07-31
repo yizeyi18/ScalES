@@ -379,6 +379,7 @@ SCF::Iterate	(  )
    
 		statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
 			<< " [s]" << std::endl;
+ 
   }
 
 #ifndef _RELEASE_
@@ -602,10 +603,10 @@ SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
 
   Domain& dm = eigSolPtr_->FFT().domain;
 
- // std::vector<Point3>  atompos(numAtom);
- // for( Int i = 0; i < numAtom; i++ ){
- //   atompos[i]   = atomList[i].pos;
- // }
+  // std::vector<Point3>  atompos(numAtom);
+  // for( Int i = 0; i < numAtom; i++ ){
+  //   atompos[i]   = atomList[i].pos;
+  // }
 
   if( VDWType_ == "DFT-D2"){
 
@@ -625,7 +626,7 @@ SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
     //DblNumVec vdw_c6_dftd2(vdw_nspecies);
 
     double vdw_c6_dftd2[vdw_nspecies] = 
-    {  0.14, 0.08, 1.61, 1.61, 3.13, 1.75, 1.23, 0.70, 0.75, 0.63,
+    { 0.14, 0.08, 1.61, 1.61, 3.13, 1.75, 1.23, 0.70, 0.75, 0.63,
       5.71, 5.71,10.79, 9.23, 7.84, 5.57, 5.07, 4.61,10.80,10.80,
       10.80,10.80,10.80,10.80,10.80,10.80,10.80,10.80,10.80,10.80,
       16.99,17.10,16.37,12.64,12.47,12.01,24.67,24.67,24.67,24.67,
@@ -641,26 +642,27 @@ SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
       1.639,1.639,1.639,1.639,1.639,1.639,1.639,1.639,1.672,1.804,
       1.881,1.892,1.892,1.881,1.000 };
 
-    for(Int i=0; i<atomList.size(); i++) {
+    for(Int i=0; i<vdw_nspecies; i++) {
       vdw_c6_dftd2[i] = vdw_c6_dftd2[i] / 2625499.62 * pow(10/0.52917706, 6);
       vdw_r0_dftd2[i] = vdw_r0_dftd2[i] / 0.52917706;
     }
 
-    DblNumMat vdw_c6 (vdw_nspecies, vdw_nspecies);
-    DblNumMat vdw_r0 (vdw_nspecies, vdw_nspecies);
+    DblNumMat vdw_c6(vdw_nspecies, vdw_nspecies);
+    DblNumMat vdw_r0(vdw_nspecies, vdw_nspecies);
     SetValue( vdw_c6, 0.0 );
     SetValue( vdw_r0, 0.0 );
 
     for(Int i=0; i<vdw_nspecies; i++) {
-        for(Int j=0; j<vdw_nspecies; j++) {
-         vdw_c6 (i,j) = std::sqrt( vdw_c6_dftd2[i] * vdw_c6_dftd2[j] );
-         vdw_r0 (i,j) = vdw_r0_dftd2[i] + vdw_r0_dftd2[j];
-        }
+      for(Int j=0; j<vdw_nspecies; j++) {
+        vdw_c6(i, j) = std::sqrt( vdw_c6_dftd2[i] * vdw_c6_dftd2[j] );
+        vdw_r0(i, j) = vdw_r0_dftd2[i] + vdw_r0_dftd2[j];
+      }
     }
 
     Real vdw_s;
+
     if (XCType_ == "XC_GGA_XC_PBE") {
-      vdw_s=vdw_s_pbe;
+      vdw_s = vdw_s_pbe;
     }
     else {
       throw std::logic_error( "Van der Waals DFT-D2 correction in only compatible with GGA-PBE!" );
@@ -687,109 +689,108 @@ SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
     }
 
 
-//    IntNumVec  atomType ( numAtomType );
-//    SetValue( atomType, 0 );
+    //    IntNumVec  atomType ( numAtomType );
+    //    SetValue( atomType, 0 );
 
-//    Real numAtomType1 = 0;
-//    atomType(0) = atomList[0].type;
-
-
-//    for(Int a=0; a< atomList.size() ; a++) {
-//      Int type1 = atomList[a].type;
-//      Int a1 = 0;
-//      Int a2 = 0;
-//      for(Int b=0; b<a ; b++) {
-//        a1 = a1 + 1;
-//        Int type2 = atomList[b].type;
-//        if ( type1 != type2 ) {
-//          a2 = a2 + 1;
-//        }
-//      }
-//      if ( a1 == a2 ) {
-//        numAtomType1 = numAtomType1 + 1;
-//        atomType(numAtomType1-1) = atomList[a].type;
-//      }
-//    }
+    //    Real numAtomType1 = 0;
+    //    atomType(0) = atomList[0].type;
 
 
-//    DblNumMat  vdw_c6 ( numAtomType, numAtomType );
-//    DblNumMat  vdw_r0 ( numAtomType, numAtomType );
-//    SetValue( vdw_c6, 0.0 );
-//    SetValue( vdw_r0, 0.0 );
-//
-//    for(Int i=0; i< numAtomType; i++) {
-//      for(Int j=0; j< numAtomType; j++) {
-//        vdw_c6(i,j)=std::sqrt(vdw_c6_dftd2[atomType(i)-1]*vdw_c6_dftd2[atomType(j)-1]);
-//        //vdw_r0(i,j)=(vdw_r0_dftd2(atomType(i))+vdw_r0_dftd2(atomType(j)))/Bohr_Ang;
-//        vdw_r0(i,j)=(vdw_r0_dftd2[atomType(i)-1]+vdw_r0_dftd2[atomType(j)-1]);
-//      }
-//    }
+    //    for(Int a=0; a< atomList.size() ; a++) {
+    //      Int type1 = atomList[a].type;
+    //      Int a1 = 0;
+    //      Int a2 = 0;
+    //      for(Int b=0; b<a ; b++) {
+    //        a1 = a1 + 1;
+    //        Int type2 = atomList[b].type;
+    //        if ( type1 != type2 ) {
+    //          a2 = a2 + 1;
+    //        }
+    //      }
+    //      if ( a1 == a2 ) {
+    //        numAtomType1 = numAtomType1 + 1;
+    //        atomType(numAtomType1-1) = atomList[a].type;
+    //      }
+    //    }
 
-//    statusOFS << "vdw_c6 = " << vdw_c6 << std::endl;
-//    statusOFS << "vdw_r0 = " << vdw_r0 << std::endl;
 
+    //    DblNumMat  vdw_c6 ( numAtomType, numAtomType );
+    //    DblNumMat  vdw_r0 ( numAtomType, numAtomType );
+    //    SetValue( vdw_c6, 0.0 );
+    //    SetValue( vdw_r0, 0.0 );
+    //
+    //    for(Int i=0; i< numAtomType; i++) {
+    //      for(Int j=0; j< numAtomType; j++) {
+    //        vdw_c6(i,j)=std::sqrt(vdw_c6_dftd2[atomType(i)-1]*vdw_c6_dftd2[atomType(j)-1]);
+    //        //vdw_r0(i,j)=(vdw_r0_dftd2(atomType(i))+vdw_r0_dftd2(atomType(j)))/Bohr_Ang;
+    //        vdw_r0(i,j)=(vdw_r0_dftd2[atomType(i)-1]+vdw_r0_dftd2[atomType(j)-1]);
+    //      }
+    //    }
+
+    //    statusOFS << "vdw_c6 = " << vdw_c6 << std::endl;
+    //    statusOFS << "vdw_r0 = " << vdw_r0 << std::endl;
 
     for(Int ii=-1; ii<2; ii++) {
-    for(Int jj=-1; jj<2; jj++) {
-    for(Int kk=-1; kk<2; kk++) {
+      for(Int jj=-1; jj<2; jj++) {
+        for(Int kk=-1; kk<2; kk++) {
 
-    for(Int i=0; i<atomList.size(); i++) {
-      Int iType = atomList[i].type;
-        for(Int j=0; j<(i+1); j++) {
-        Int jType = atomList[j].type;
-       
-        Real rx = atomList[i].pos[0] - atomList[j].pos[0] + ii * dm.length[0];
-        Real ry = atomList[i].pos[1] - atomList[j].pos[1] + jj * dm.length[1];
-        Real rz = atomList[i].pos[2] - atomList[j].pos[2] + kk * dm.length[2];
-        Real rr = std::sqrt( rx * rx + ry * ry + rz * rz );
+          for(Int i=0; i<atomList.size(); i++) {
+            Int iType = atomList[i].type;
+            for(Int j=0; j<(i+1); j++) {
+              Int jType = atomList[j].type;
 
-        if ( ( rr > 0.0001 ) && ( rr < 75.0 ) ) {
+              Real rx = atomList[i].pos[0] - atomList[j].pos[0] + ii * dm.length[0];
+              Real ry = atomList[i].pos[1] - atomList[j].pos[1] + jj * dm.length[1];
+              Real rz = atomList[i].pos[2] - atomList[j].pos[2] + kk * dm.length[2];
+              Real rr = std::sqrt( rx * rx + ry * ry + rz * rz );
 
-          Real sfact = vdw_s;
-          if ( i == j ) sfact = sfact * 0.5;
+              if ( ( rr > 0.0001 ) && ( rr < 75.0 ) ) {
 
-          Real c6 = vdw_c6(iType-1, jType-1);
-          Real r0 = vdw_r0(iType-1, jType-1);
-          //Real c6 = std::sqrt( vdw_c6_dftd2[iType-1] * vdw_c6_dftd2[jType-1] );
-          //Real r0 = vdw_r0_dftd2[iType-1] + vdw_r0_dftd2[jType-1];
+                Real sfact = vdw_s;
+                if ( i == j ) sfact = sfact * 0.5;
 
-          Real ex = exp( -vdw_d * ( rr / r0 - 1 ));
-          Real fr = 1.0 / ( 1.0 + ex );
-          Real c6r6 = c6 / pow(rr, 6.0);
+                Real c6 = vdw_c6(iType-1, jType-1);
+                Real r0 = vdw_r0(iType-1, jType-1);
+                //Real c6 = std::sqrt( vdw_c6_dftd2[iType-1] * vdw_c6_dftd2[jType-1] );
+                //Real r0 = vdw_r0_dftd2[iType-1] + vdw_r0_dftd2[jType-1];
 
-          // Contribution to energy
-          Evdw_ = Evdw_ - sfact * fr * c6r6;
+                Real ex = exp( -vdw_d * ( rr / r0 - 1 ));
+                Real fr = 1.0 / ( 1.0 + ex );
+                Real c6r6 = c6 / pow(rr, 6.0);
 
-          // Contribution to force
-          if( i != j ) {
+                // Contribution to energy
+                Evdw_ = Evdw_ - sfact * fr * c6r6;
 
-            Real gr = ( vdw_d / r0 ) * ( fr * fr ) * ex;
-            Real grad = sfact * ( gr - 6.0 * fr / rr ) * c6r6 / rr; 
+                // Contribution to force
+                if( i != j ) {
 
-            //Real fx = grad * rx * dm.length[0];
-            //Real fy = grad * ry * dm.length[1];
-            //Real fz = grad * rz * dm.length[2];
-            Real fx = grad * rx;
-            Real fy = grad * ry;
-            Real fz = grad * rz;
+                  Real gr = ( vdw_d / r0 ) * ( fr * fr ) * ex;
+                  Real grad = sfact * ( gr - 6.0 * fr / rr ) * c6r6 / rr; 
 
-            forceVdw_( i, 0 ) = forceVdw_( i, 0 ) + fx; 
-            forceVdw_( i, 1 ) = forceVdw_( i, 1 ) + fy; 
-            forceVdw_( i, 2 ) = forceVdw_( i, 2 ) + fz; 
-            forceVdw_( j, 0 ) = forceVdw_( j, 0 ) - fx; 
-            forceVdw_( j, 1 ) = forceVdw_( j, 1 ) - fy; 
-            forceVdw_( j, 2 ) = forceVdw_( j, 2 ) - fz; 
+                  //Real fx = grad * rx * dm.length[0];
+                  //Real fy = grad * ry * dm.length[1];
+                  //Real fz = grad * rz * dm.length[2];
+                  Real fx = grad * rx;
+                  Real fy = grad * ry;
+                  Real fz = grad * rz;
 
-          } // end for i != j
+                  forceVdw_( i, 0 ) = forceVdw_( i, 0 ) + fx; 
+                  forceVdw_( i, 1 ) = forceVdw_( i, 1 ) + fy; 
+                  forceVdw_( i, 2 ) = forceVdw_( i, 2 ) + fz; 
+                  forceVdw_( j, 0 ) = forceVdw_( j, 0 ) - fx; 
+                  forceVdw_( j, 1 ) = forceVdw_( j, 1 ) - fy; 
+                  forceVdw_( j, 2 ) = forceVdw_( j, 2 ) - fz; 
 
-        } // end if
+                } // end for i != j
+
+              } // end if
 
 
-      } // end for j
-    } // end for i
+            } // end for j
+          } // end for i
 
-    } // end for ii
-    } // end for jj
+        } // end for ii
+      } // end for jj
     } // end for kk
 
 
@@ -797,9 +798,8 @@ SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
 
   } // If DFT-D2
 
-
-    VDWEnergy = Evdw_;
-    VDWForce = forceVdw_;
+  VDWEnergy = Evdw_;
+  VDWForce = forceVdw_;
 
 
 #ifndef _RELEASE_
@@ -818,83 +818,83 @@ SCF::AndersonMix	( const Int iter )
 #endif
   DblNumVec vin, vout, vinsave, voutsave;
 
-	Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
+  Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
 
-	vin.Resize(ntot);
-	vout.Resize(ntot);
-	vinsave.Resize(ntot);
-	voutsave.Resize(ntot);
+  vin.Resize(ntot);
+  vout.Resize(ntot);
+  vinsave.Resize(ntot);
+  voutsave.Resize(ntot);
 
-	DblNumVec& vtot = eigSolPtr_->Ham().Vtot();
+  DblNumVec& vtot = eigSolPtr_->Ham().Vtot();
 
-	for (Int i=0; i<ntot; i++) {
-		vin(i) = vtot(i);
-		vout(i) = vtotNew_(i) - vtot(i);
-	}
+  for (Int i=0; i<ntot; i++) {
+    vin(i) = vtot(i);
+    vout(i) = vtotNew_(i) - vtot(i);
+  }
 
-	for(Int i = 0; i < ntot; i++){
-	  vinsave(i) = vin(i);
-	  voutsave(i) = vout(i);
-	}
+  for(Int i = 0; i < ntot; i++){
+    vinsave(i) = vin(i);
+    voutsave(i) = vout(i);
+  }
 
-	Int iterused = std::min( iter-1, mixMaxDim_ ); // iter should start from 1
-	Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
+  Int iterused = std::min( iter-1, mixMaxDim_ ); // iter should start from 1
+  Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
 
-	// TODO Set verbose level 
-	Print( statusOFS, "Anderson mixing" );
-	Print( statusOFS, "  iterused = ", iterused );
-	Print( statusOFS, "  ipos     = ", ipos );
+  // TODO Set verbose level 
+  Print( statusOFS, "Anderson mixing" );
+  Print( statusOFS, "  iterused = ", iterused );
+  Print( statusOFS, "  ipos     = ", ipos );
 
 
-	if( iter > 1 ){
-		for(Int i = 0; i < ntot; i++){
-			dfMat_(i, ipos-1) -= vout(i);
-			dvMat_(i, ipos-1) -= vin(i);
-		}
+  if( iter > 1 ){
+    for(Int i = 0; i < ntot; i++){
+      dfMat_(i, ipos-1) -= vout(i);
+      dvMat_(i, ipos-1) -= vin(i);
+    }
 
-		// Calculating pseudoinverse
+    // Calculating pseudoinverse
 
-		DblNumVec gammas, S;
-		DblNumMat dftemp;
-		Int rank;
-		// FIXME Magic number
-		Real rcond = 1e-6;
+    DblNumVec gammas, S;
+    DblNumMat dftemp;
+    Int rank;
+    // FIXME Magic number
+    Real rcond = 1e-6;
 
-		S.Resize(iterused);
+    S.Resize(iterused);
 
-		gammas = vout;
-		dftemp = dfMat_;
+    gammas = vout;
+    dftemp = dfMat_;
 
-		lapack::SVDLeastSquare( ntot, iterused, 1, 
-				dftemp.Data(), ntot, gammas.Data(), ntot,
+    lapack::SVDLeastSquare( ntot, iterused, 1, 
+        dftemp.Data(), ntot, gammas.Data(), ntot,
         S.Data(), rcond, &rank );
 
-		Print( statusOFS, "  Rank of dfmat = ", rank );
-			
-		// Update vin, vout
+    Print( statusOFS, "  Rank of dfmat = ", rank );
 
-		blas::Gemv('N', ntot, iterused, -1.0, dvMat_.Data(),
-				ntot, gammas.Data(), 1, 1.0, vin.Data(), 1 );
+    // Update vin, vout
+
+    blas::Gemv('N', ntot, iterused, -1.0, dvMat_.Data(),
+        ntot, gammas.Data(), 1, 1.0, vin.Data(), 1 );
 
     blas::Gemv('N', ntot, iterused, -1.0, dfMat_.Data(),
-				ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
-	}
+        ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
+  }
 
-	Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
-	for (Int i=0; i<ntot; i++) {
-		dfMat_(i, inext-1) = voutsave(i);
-		dvMat_(i, inext-1) = vinsave(i);
-	}
+  Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
+  for (Int i=0; i<ntot; i++) {
+    dfMat_(i, inext-1) = voutsave(i);
+    dvMat_(i, inext-1) = vinsave(i);
+  }
 
-	for (Int i=0; i<ntot; i++) {
-		vtot(i) = vin(i) + mixStepLength_ * vout(i);
-	}
+  for (Int i=0; i<ntot; i++) {
+    vtot(i) = vin(i) + mixStepLength_ * vout(i);
+  }
 
 #ifndef _RELEASE_
-	PopCallStack();
+  PopCallStack();
 #endif
 
-	return ;
+  return ;
 
 } 		// -----  end of method SCF::AndersonMix  ----- 
 
@@ -903,37 +903,37 @@ void
 SCF::KerkerMix	(  )
 {
 #ifndef _RELEASE_
-	PushCallStack("SCF::KerkerMix");
+  PushCallStack("SCF::KerkerMix");
 #endif
-	// FIXME Magic number here
-	Real mixStepLengthKerker = 0.8; 
-	Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
-	DblNumVec& vtot = eigSolPtr_->Ham().Vtot();
+  // FIXME Magic number here
+  Real mixStepLengthKerker = 0.8; 
+  Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
+  DblNumVec& vtot = eigSolPtr_->Ham().Vtot();
 
   for (Int i=0; i<ntot; i++) {
-		eigSolPtr_->FFT().inputComplexVec(i) = 
-			Complex(vtotNew_(i) - vtot(i), 0.0);
-		// Why?
-		vtot(i) += mixStepLengthKerker * (vtotNew_(i) - vtot(i));
+    eigSolPtr_->FFT().inputComplexVec(i) = 
+      Complex(vtotNew_(i) - vtot(i), 0.0);
+    // Why?
+    vtot(i) += mixStepLengthKerker * (vtotNew_(i) - vtot(i));
   }
   fftw_execute( eigSolPtr_->FFT().forwardPlan );
-	
-	DblNumVec&  gkk = eigSolPtr_->FFT().gkk;
+
+  DblNumVec&  gkk = eigSolPtr_->FFT().gkk;
 
   for(Int i=0; i<ntot; i++) {
-		if( gkk(i) == 0 ){
-			eigSolPtr_->FFT().outputComplexVec(i) = Z_ZERO;
-		}
-		else{
-			// FIXME Magic number
-			eigSolPtr_->FFT().outputComplexVec(i) *= 
-				mixStepLengthKerker * ( gkk(i) / (gkk(i)+0.5) - 1.0 );
-		}
+    if( gkk(i) == 0 ){
+      eigSolPtr_->FFT().outputComplexVec(i) = Z_ZERO;
+    }
+    else{
+      // FIXME Magic number
+      eigSolPtr_->FFT().outputComplexVec(i) *= 
+        mixStepLengthKerker * ( gkk(i) / (gkk(i)+0.5) - 1.0 );
+    }
   }
   fftw_execute( eigSolPtr_->FFT().backwardPlan );
-  
-	// Update vtot
-	for (Int i=0; i<ntot; i++)
+
+  // Update vtot
+  for (Int i=0; i<ntot; i++)
 	  vtot(i) += eigSolPtr_->FFT().inputComplexVec(i).real() / ntot;	
 
 #ifndef _RELEASE_
@@ -1011,7 +1011,7 @@ SCF::LastSCF( Real& etot, Real& efree, Real& ekin, Real& ehart,
   fermi             = fermi_;
   totalCharge       = totalCharge_;
   scfNorm           = scfNorm_;
-
+  
 #ifndef _RELEASE_
   PopCallStack();
 #endif

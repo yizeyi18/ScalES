@@ -4527,20 +4527,20 @@ SCFDG::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
       1.639,1.639,1.639,1.639,1.639,1.639,1.639,1.639,1.672,1.804,
       1.881,1.892,1.892,1.881,1.000 };
 
-    for(Int i=0; i<atomList.size(); i++) {
+    for(Int i=0; i<vdw_nspecies; i++) {
       vdw_c6_dftd2[i] = vdw_c6_dftd2[i] / 2625499.62 * pow(10/0.52917706, 6);
       vdw_r0_dftd2[i] = vdw_r0_dftd2[i] / 0.52917706;
     }
 
-    DblNumMat vdw_c6 (vdw_nspecies, vdw_nspecies);
-    DblNumMat vdw_r0 (vdw_nspecies, vdw_nspecies);
+    DblNumMat vdw_c6(vdw_nspecies, vdw_nspecies);
+    DblNumMat vdw_r0(vdw_nspecies, vdw_nspecies);
     SetValue( vdw_c6, 0.0 );
     SetValue( vdw_r0, 0.0 );
 
     for(Int i=0; i<vdw_nspecies; i++) {
         for(Int j=0; j<vdw_nspecies; j++) {
-         vdw_c6 (i,j) = std::sqrt( vdw_c6_dftd2[i] * vdw_c6_dftd2[j] );
-         vdw_r0 (i,j) = vdw_r0_dftd2[i] + vdw_r0_dftd2[j];
+         vdw_c6(i,j) = std::sqrt( vdw_c6_dftd2[i] * vdw_c6_dftd2[j] );
+         vdw_r0(i,j) = vdw_r0_dftd2[i] + vdw_r0_dftd2[j];
         }
     }
 
