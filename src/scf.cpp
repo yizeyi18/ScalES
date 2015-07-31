@@ -669,24 +669,24 @@ SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
     }
 
     // Calculate the number of atom types.
-    Real numAtomType = 0;   
-    for(Int a=0; a< atomList.size() ; a++) {
-      Int type1 = atomList[a].type;
-      Int a1 = 0;
-      Int a2 = 0;
-      for(Int b=0; b<a ; b++) {
-        a1 = a1 + 1;
-        Int type2 = atomList[b].type;
-        if ( type1 != type2 ) {
-          a2 = a2 + 1;
-        }
-      }
-
-      if ( a1 == a2 ) {
-        numAtomType = numAtomType + 1;
-      }
-
-    }
+//    Real numAtomType = 0;   
+//    for(Int a=0; a< atomList.size() ; a++) {
+//      Int type1 = atomList[a].type;
+//      Int a1 = 0;
+//      Int a2 = 0;
+//      for(Int b=0; b<a ; b++) {
+//        a1 = a1 + 1;
+//        Int type2 = atomList[b].type;
+//        if ( type1 != type2 ) {
+//          a2 = a2 + 1;
+//        }
+//      }
+//
+//      if ( a1 == a2 ) {
+//        numAtomType = numAtomType + 1;
+//      }
+//
+//    }
 
 
     //    IntNumVec  atomType ( numAtomType );
@@ -751,8 +751,6 @@ SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
 
                 Real c6 = vdw_c6(iType-1, jType-1);
                 Real r0 = vdw_r0(iType-1, jType-1);
-                //Real c6 = std::sqrt( vdw_c6_dftd2[iType-1] * vdw_c6_dftd2[jType-1] );
-                //Real r0 = vdw_r0_dftd2[iType-1] + vdw_r0_dftd2[jType-1];
 
                 Real ex = exp( -vdw_d * ( rr / r0 - 1 ));
                 Real fr = 1.0 / ( 1.0 + ex );
@@ -767,9 +765,6 @@ SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
                   Real gr = ( vdw_d / r0 ) * ( fr * fr ) * ex;
                   Real grad = sfact * ( gr - 6.0 * fr / rr ) * c6r6 / rr; 
 
-                  //Real fx = grad * rx * dm.length[0];
-                  //Real fy = grad * ry * dm.length[1];
-                  //Real fz = grad * rz * dm.length[2];
                   Real fx = grad * rx;
                   Real fy = grad * ry;
                   Real fz = grad * rz;

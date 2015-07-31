@@ -1588,7 +1588,7 @@ SCFDG::Iterate	(  )
     // *********************************************************************
 
     Int numAtom = hamDG.AtomList().size();
-    Real efreeDifPerAtom_ = std::abs(Efree_ - EfreeHarris_) / numAtom;
+    efreeDifPerAtom_ = std::abs(Efree_ - EfreeHarris_) / numAtom;
 
     // Compute the error of the mixing variable 
     {
@@ -4553,25 +4553,25 @@ SCFDG::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
     }
 
     // Calculate the number of atom types.
-    Real numAtomType = 0;   
-    for(Int a=0; a< atomList.size() ; a++) {
-      Int type1 = atomList[a].type;
-      Int a1 = 0;
-      Int a2 = 0;
-      for(Int b=0; b<a ; b++) {
-        a1 = a1 + 1;
-        Int type2 = atomList[b].type;
-        if ( type1 != type2 ) {
-          a2 = a2 + 1;
-        }
-      }
-
-      if ( a1 == a2 ) {
-        numAtomType = numAtomType + 1;
-      }
-
-    }
-
+//    Real numAtomType = 0;   
+//    for(Int a=0; a< atomList.size() ; a++) {
+//      Int type1 = atomList[a].type;
+//      Int a1 = 0;
+//      Int a2 = 0;
+//      for(Int b=0; b<a ; b++) {
+//        a1 = a1 + 1;
+//        Int type2 = atomList[b].type;
+//        if ( type1 != type2 ) {
+//          a2 = a2 + 1;
+//        }
+//      }
+//
+//      if ( a1 == a2 ) {
+//        numAtomType = numAtomType + 1;
+//      }
+//
+//    }
+//
 
 //    IntNumVec  atomType ( numAtomType );
 //    SetValue( atomType, 0 );
