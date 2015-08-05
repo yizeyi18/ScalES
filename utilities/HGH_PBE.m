@@ -18,7 +18,7 @@
 % Znucs = [8 13 22 38 57];
 % Znucs = [8 70];
 % Znucs = [1 8 22];
-Znucs = [1 8 14 15];
+Znucs = [1 6 8 9 14 15];
 res = cell(length(Znucs),2);
 
 for g=1:length(Znucs)
@@ -101,6 +101,21 @@ for g=1:length(Znucs)
 		wavcut  = 2.0;
 	end 
 
+
+	% C
+	if(Znuc==6)
+		Zion = 4;
+		mass = 12.011;
+		rloc = .338471240;
+		C1 = -8.803673976;
+		C2 = 1.339210855;
+		r0 = .302575747;
+		h011 = 9.622486655;
+		r1 = .291506936;
+		rhocut = 3.0;
+		wavcut = 3.0;
+	end
+
 	% O
 	if(Znuc==8)
 		Zion = 6;
@@ -114,6 +129,21 @@ for g=1:length(Znucs)
 		%
 		rhocut  = 2.0;
 		wavcut  = 2.0;
+	end 
+
+	% F
+	if(Znuc==9)
+		Zion = 7;
+		mass = 18.9984032;
+		rloc    = .214929587;
+		C1      = -21.573028360;
+		C2      = 3.199776151;
+		r0      = .194684020;
+		h011    = 23.743540450;
+		r1      = .186156084;
+
+		rhocut = 2.0;
+		wavcut = 2.0;
 	end 
 
 	%Si
