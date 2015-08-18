@@ -109,10 +109,19 @@ extern "C"{
 
   void SCALAPACK(pdtrsm)( const char* side, const char* uplo, 
       const char* trans, const char* diag,
-      const int* m, const int* n, const double* alpha,
-      const double* a, const int* ia, const int* ja, const int* desca, 
-      double* b, const int* ib, const int* jb, const int* descb );
+      const Int* m, const Int* n, const double* alpha,
+      const double* a, const Int* ia, const Int* ja, const Int* desca, 
+      double* b, const Int* ib, const Int* jb, const Int* descb );
 
+  // Factorization and triangular solve
+  void SCALAPACK(pzgetrf)( const Int* m, const Int* n, dcomplex* A,
+      const Int* ia, const Int* ja, const Int* desca, Int* ipiv,
+      Int* info );
+
+  void SCALAPACK(pzgetri)( const Int* n, dcomplex* A, const Int* ia,
+      const Int* ja, const Int* desca, const Int* ipiv, 
+      dcomplex *work, const Int* lwork, Int *iwork, const Int *liwork, 
+      Int* info );
 }
 
 // *********************************************************************
