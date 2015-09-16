@@ -853,8 +853,6 @@ int main(int argc, char **argv)
 
     		scfDG.Iterate();
 
-
-
         std::vector<Atom>& atomList = hamDG.AtomList(); 
         Real VDWEnergy = 0.0;
         DblNumMat VDWForce;

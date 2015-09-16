@@ -422,6 +422,12 @@ SCFDG::Setup	(
           for( Int i = 0; i < numElem_[0]; i++ ){
             Index3 key( i, j, k );
             if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+              std::vector<DblNumVec> gridpos(DIM);
+              
+              // Dummy variables and not used
+              for( Int d = 0; d < DIM; d++ ){
+                deserialize( gridpos[d], rhoStream, NO_MASK );
+              }
 
               Index3 keyRead;
               deserialize( keyRead, rhoStream, NO_MASK );
@@ -554,10 +560,10 @@ SCFDG::Setup	(
             DblNumTns& wavefun = psi.Wavefun();
             DblNumTns  wavefunRead;
 
-//            std::vector<DblNumVec> gridpos(DIM);
-//            for( Int d = 0; d < DIM; d++ ){
-//              deserialize( gridpos[d], wfnStream, NO_MASK );
-//            }
+            std::vector<DblNumVec> gridpos(DIM);
+            for( Int d = 0; d < DIM; d++ ){
+              deserialize( gridpos[d], wfnStream, NO_MASK );
+            }
 
             Index3 keyRead;
             deserialize( keyRead, wfnStream, NO_MASK );

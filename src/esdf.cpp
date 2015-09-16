@@ -2445,7 +2445,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 	
   // Geometry optimization
   {
-		esdfParam.geoOptMaxStep = esdf_integer( "Geo_Opt_Max_Step", 10 );
+		esdfParam.geoOptMaxStep = esdf_integer( "Geo_Opt_Max_Step", 100 );
 		esdfParam.geoOptMaxForce = esdf_double( "Geo_Opt_Max_Force", 0.001 );
   }
 
