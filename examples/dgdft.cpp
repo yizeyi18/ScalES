@@ -160,6 +160,7 @@ int main(int argc, char **argv)
       Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
       Print(statusOFS, "Mixing variable   = ",  esdfParam.mixVariable );
       Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
+      Print(statusOFS, "Mixing fix mu     = ",  esdfParam.isFixMu );
       Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
       Print(statusOFS, "SCF Outer Tol     = ",  esdfParam.scfOuterTolerance);
       Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);

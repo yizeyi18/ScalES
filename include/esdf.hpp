@@ -153,6 +153,28 @@ namespace esdf{
     /// case, a better preconditioner such as Kerker preconditioner can
     /// be helpful.
     Real                mixStepLength;            
+
+   
+    /// @brief Whether chemical potential is fixed during each SCF
+    /// iteration.
+    /// 
+    /// Default: 1
+    ///
+    /// This is mainly for method such as PEXSI where the chemical
+    /// potential is not known a priori.
+    ///
+    /// - = 1           : Chemical potential is either computed using
+    ///                   the occupation number following Fermi-Dirac
+    ///                   distribution with eigenvalues (diag), or using
+    ///                   inertial counting + Newton's iteration for
+    ///                   finding mu (pexsi).
+    /// - = 0           : Do not fix mu in each SCF iteration. Will be
+    ///                   updated together with potential / density in
+    ///                   the SCF iteration. This should be more
+    ///                   efficient for PEXSI.
+    bool                isFixMu;
+
+
     /// @brief Tolerance for inner %SCF iteration in DG calculation.
     ///
     /// Default: 1e-4
@@ -372,6 +394,9 @@ namespace esdf{
     ///                   This option needs to turn on the macro -DPEXSI
     ///                   to support the libraries.
     std::string         solutionMethod; 
+
+
+
     /// @brief Type of the exchange-correlation functional.
     ///
     /// Default: "XC_LDA_XC_TETER93"

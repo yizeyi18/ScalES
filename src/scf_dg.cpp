@@ -44,6 +44,7 @@
 /// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
 /// @date 2014-08-06 Add intra-element parallelization.
+/// @date 2015-09-29 Iterating the chemical potential in SCF.
 #include  "scf_dg.hpp"
 #include	"blas.hpp"
 #include	"lapack.hpp"
@@ -154,6 +155,7 @@ SCFDG::Setup	(
 		mixVariable_   = esdfParam.mixVariable;
     mixType_       = esdfParam.mixType;
 		mixStepLength_ = esdfParam.mixStepLength;
+    isFixMu_       = esdfParam.isFixMu;
     eigTolerance_  = esdfParam.eigTolerance;
     eigMinIter_    = esdfParam.eigMinIter;
     eigMaxIter_    = esdfParam.eigMaxIter;
@@ -332,6 +334,12 @@ SCFDG::Setup	(
     dvInnerMat_.SetComm(domain_.colComm);
     vtotLGLSave_.SetComm(domain_.colComm);
 
+    if( isFixMu_ == false ){
+      dfMuVec_.Resize( mixMaxDim_ );
+      dvMuVec_.Resize( mixMaxDim_ );
+      SetValue( dfMuVec_, 0.0 );
+      SetValue( dvMuVec_, 0.0 );
+    }
 
     mixOuterSave_.Prtn()  = elemPrtn_;
     mixInnerSave_.Prtn()  = elemPrtn_;
@@ -2155,231 +2163,231 @@ SCFDG::InnerIterate	( Int outerIter )
     //
     // 3) Convert the eigenfunction matrices to the format that is
     // distributed among all processors.
-    if( solutionMethod_ == "diag" && 0 ){
-      {
-        GetTime(timeSta);
-        Int sizeH = hamDG.NumBasisTotal();
-        
-        DblNumVec& eigval = hamDG.EigVal(); 
-        eigval.Resize( hamDG.NumStateTotal() );		
-
-        for( Int k = 0; k < numElem_[2]; k++ )
-          for( Int j = 0; j < numElem_[1]; j++ )
-            for( Int i = 0; i < numElem_[0]; i++ ){
-              Index3 key( i, j, k );
-              if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-                const std::vector<Int>&  idx = hamDG.ElemBasisIdx()(i, j, k); 
-                DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
-                localCoef.Resize( idx.size(), hamDG.NumStateTotal() );		
-              }
-            } 
-        
-
-        if(contxt_ >= 0){
-
-          scalapack::Descriptor descH( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
-              0, 0, contxt_ );
-
-          scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
-
-          std::vector<Real> eigs;
-
-          DistElemMatToScaMat( hamDG.HMat(), 	descH,
-              scaH, hamDG.ElemBasisIdx(), domain_.colComm );
-
-          scalapack::Syevd('U', scaH, eigs, scaZ);
-
-          //DblNumVec& eigval = hamDG.EigVal(); 
-          //eigval.Resize( hamDG.NumStateTotal() );		
-          for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
-            eigval[i] = eigs[i];
-
-
-
-          ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
-              hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.colComm, 
-              hamDG.NumStateTotal() );
-
-        } //if(contxt_ >= 0)
-
-        MPI_Bcast(eigval.Data(), hamDG.NumStateTotal(), MPI_DOUBLE, 0, domain_.rowComm);
-        
-        for( Int k = 0; k < numElem_[2]; k++ )
-          for( Int j = 0; j < numElem_[1]; j++ )
-            for( Int i = 0; i < numElem_[0]; i++ ){
-              Index3 key( i, j, k );
-              if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-                DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
-                MPI_Bcast(localCoef.Data(), localCoef.m() * localCoef.n(), MPI_DOUBLE, 0, domain_.rowComm);
-              }
-            } 
-        
-       
-        MPI_Barrier( domain_.comm );
-        MPI_Barrier( domain_.rowComm );
-        MPI_Barrier( domain_.colComm );
-        
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for diagonalizing the DG matrix using ScaLAPACK is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-      }
-
-      // Post processing
-
-      Evdw_ = 0.0;
-
-      // Compute the occupation rate
-      CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
-
-      // Compute the Harris energy functional.  
-      // NOTE: In computing the Harris energy, the density and the
-      // potential must be the INPUT density and potential without ANY
-      // update.
-      CalculateHarrisEnergy();
-
-      MPI_Barrier( domain_.comm );
-      MPI_Barrier( domain_.rowComm );
-      MPI_Barrier( domain_.colComm );
-
-      // Compute the output electron density
-      GetTime( timeSta );
-
-      // Calculate the new electron density
-      // FIXME 
-      // Do not need the conversion from column to row partition as well
-      hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
-
-      MPI_Barrier( domain_.comm );
-      MPI_Barrier( domain_.rowComm );
-      MPI_Barrier( domain_.colComm );
-      
-      GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for computing density in the global domain is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-      // Update the output potential, and the KS and second order accurate
-      // energy
-      {
-        // Update the Hartree energy and the exchange correlation energy and
-        // potential for computing the KS energy and the second order
-        // energy.
-        // NOTE Vtot should not be updated until finishing the computation
-        // of the energies.
-
-        if( XCType_ == "XC_GGA_XC_PBE" ){
-          hamDG.CalculateGradDensity(  *distfftPtr_ );
-        }
-
-        GetTime( timeSta );
-        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing Exc in the global domain is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-     
-        GetTime( timeSta );
-
-        hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
-
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing Vhart in the global domain is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-        
-       
-        // Compute the second order accurate energy functional.
-        // NOTE: In computing the second order energy, the density and the
-        // potential must be the OUTPUT density and potential without ANY
-        // MIXING.
-        CalculateSecondOrderEnergy();
-   
-        // Compute the KS energy 
-        CalculateKSEnergy();
-
-        // Update the total potential AFTER updating the energy
-
-        // No external potential
-
-        // Compute the new total potential
-
-        GetTime( timeSta );
-        
-        hamDG.CalculateVtot( hamDG.Vtot() );
-      
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing Vtot in the global domain is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-     
-      }
-
-      
-      // Compute the force at every step
-      if( isCalculateForceEachSCF_ ){
-        // Compute force
-        GetTime( timeSta );
-        
-        hamDG.CalculateForce( *distfftPtr_ );
-        
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the force is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Print out the force
-        // Only master processor output information containing all atoms
-        if( mpirank == 0 ){
-          PrintBlock( statusOFS, "Atomic Force" );
-          {
-            Point3 forceCM(0.0, 0.0, 0.0);
-            std::vector<Atom>& atomList = hamDG.AtomList();
-            Int numAtom = atomList.size();
-            for( Int a = 0; a < numAtom; a++ ){
-              Print( statusOFS, "atom", a, "force", atomList[a].force );
-              forceCM += atomList[a].force;
-            }
-            statusOFS << std::endl;
-            Print( statusOFS, "force for centroid: ", forceCM );
-            statusOFS << std::endl;
-          }
-        }
-      }
-
-      // Compute the a posteriori error estimator at every step
-      // FIXME This is not used when intra-element parallelization is
-      // used.
-      if( isCalculateAPosterioriEachSCF_ && 0 )
-      {
-        GetTime( timeSta );
-        DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-        hamDG.CalculateAPosterioriError( 
-            eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the a posteriori error is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Only master processor output information containing all atoms
-        if( mpirank == 0 ){
-          PrintBlock( statusOFS, "A Posteriori error" );
-          {
-            statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-            statusOFS << eta2Total << std::endl;
-            statusOFS << std::endl << "Residual term:" << std::endl;
-            statusOFS << eta2Residual << std::endl;
-            statusOFS << std::endl << "Jump of gradient term:" << std::endl;
-            statusOFS << eta2GradJump << std::endl;
-            statusOFS << std::endl << "Jump of function value term:" << std::endl;
-            statusOFS << eta2Jump << std::endl;
-          }
-        }
-      }
-    }
+//    if( solutionMethod_ == "diag" && 0 ){
+//      {
+//        GetTime(timeSta);
+//        Int sizeH = hamDG.NumBasisTotal();
+//        
+//        DblNumVec& eigval = hamDG.EigVal(); 
+//        eigval.Resize( hamDG.NumStateTotal() );		
+//
+//        for( Int k = 0; k < numElem_[2]; k++ )
+//          for( Int j = 0; j < numElem_[1]; j++ )
+//            for( Int i = 0; i < numElem_[0]; i++ ){
+//              Index3 key( i, j, k );
+//              if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+//                const std::vector<Int>&  idx = hamDG.ElemBasisIdx()(i, j, k); 
+//                DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
+//                localCoef.Resize( idx.size(), hamDG.NumStateTotal() );		
+//              }
+//            } 
+//        
+//
+//        if(contxt_ >= 0){
+//
+//          scalapack::Descriptor descH( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
+//              0, 0, contxt_ );
+//
+//          scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
+//
+//          std::vector<Real> eigs;
+//
+//          DistElemMatToScaMat( hamDG.HMat(), 	descH,
+//              scaH, hamDG.ElemBasisIdx(), domain_.colComm );
+//
+//          scalapack::Syevd('U', scaH, eigs, scaZ);
+//
+//          //DblNumVec& eigval = hamDG.EigVal(); 
+//          //eigval.Resize( hamDG.NumStateTotal() );		
+//          for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
+//            eigval[i] = eigs[i];
+//
+//
+//
+//          ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
+//              hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.colComm, 
+//              hamDG.NumStateTotal() );
+//
+//        } //if(contxt_ >= 0)
+//
+//        MPI_Bcast(eigval.Data(), hamDG.NumStateTotal(), MPI_DOUBLE, 0, domain_.rowComm);
+//        
+//        for( Int k = 0; k < numElem_[2]; k++ )
+//          for( Int j = 0; j < numElem_[1]; j++ )
+//            for( Int i = 0; i < numElem_[0]; i++ ){
+//              Index3 key( i, j, k );
+//              if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+//                DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
+//                MPI_Bcast(localCoef.Data(), localCoef.m() * localCoef.n(), MPI_DOUBLE, 0, domain_.rowComm);
+//              }
+//            } 
+//        
+//       
+//        MPI_Barrier( domain_.comm );
+//        MPI_Barrier( domain_.rowComm );
+//        MPI_Barrier( domain_.colComm );
+//        
+//        GetTime( timeEnd );
+//#if ( _DEBUGlevel_ >= 0 )
+//        statusOFS << "Time for diagonalizing the DG matrix using ScaLAPACK is " <<
+//          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//#endif
+//      }
+//
+//      // Post processing
+//
+//      Evdw_ = 0.0;
+//
+//      // Compute the occupation rate
+//      CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
+//
+//      // Compute the Harris energy functional.  
+//      // NOTE: In computing the Harris energy, the density and the
+//      // potential must be the INPUT density and potential without ANY
+//      // update.
+//      CalculateHarrisEnergy();
+//
+//      MPI_Barrier( domain_.comm );
+//      MPI_Barrier( domain_.rowComm );
+//      MPI_Barrier( domain_.colComm );
+//
+//      // Compute the output electron density
+//      GetTime( timeSta );
+//
+//      // Calculate the new electron density
+//      // FIXME 
+//      // Do not need the conversion from column to row partition as well
+//      hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
+//
+//      MPI_Barrier( domain_.comm );
+//      MPI_Barrier( domain_.rowComm );
+//      MPI_Barrier( domain_.colComm );
+//      
+//      GetTime( timeEnd );
+//#if ( _DEBUGlevel_ >= 0 )
+//      statusOFS << "Time for computing density in the global domain is " <<
+//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//#endif
+//
+//      // Update the output potential, and the KS and second order accurate
+//      // energy
+//      {
+//        // Update the Hartree energy and the exchange correlation energy and
+//        // potential for computing the KS energy and the second order
+//        // energy.
+//        // NOTE Vtot should not be updated until finishing the computation
+//        // of the energies.
+//
+//        if( XCType_ == "XC_GGA_XC_PBE" ){
+//          hamDG.CalculateGradDensity(  *distfftPtr_ );
+//        }
+//
+//        GetTime( timeSta );
+//        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
+//        GetTime( timeEnd );
+//#if ( _DEBUGlevel_ >= 0 )
+//        statusOFS << "Time for computing Exc in the global domain is " <<
+//          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//#endif
+//     
+//        GetTime( timeSta );
+//
+//        hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+//
+//        GetTime( timeEnd );
+//#if ( _DEBUGlevel_ >= 0 )
+//        statusOFS << "Time for computing Vhart in the global domain is " <<
+//          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//#endif
+//        
+//       
+//        // Compute the second order accurate energy functional.
+//        // NOTE: In computing the second order energy, the density and the
+//        // potential must be the OUTPUT density and potential without ANY
+//        // MIXING.
+//        CalculateSecondOrderEnergy();
+//   
+//        // Compute the KS energy 
+//        CalculateKSEnergy();
+//
+//        // Update the total potential AFTER updating the energy
+//
+//        // No external potential
+//
+//        // Compute the new total potential
+//
+//        GetTime( timeSta );
+//        
+//        hamDG.CalculateVtot( hamDG.Vtot() );
+//      
+//        GetTime( timeEnd );
+//#if ( _DEBUGlevel_ >= 0 )
+//        statusOFS << "Time for computing Vtot in the global domain is " <<
+//          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//#endif
+//     
+//      }
+//
+//      
+//      // Compute the force at every step
+//      if( isCalculateForceEachSCF_ ){
+//        // Compute force
+//        GetTime( timeSta );
+//        
+//        hamDG.CalculateForce( *distfftPtr_ );
+//        
+//        GetTime( timeEnd );
+//        statusOFS << "Time for computing the force is " <<
+//          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//
+//        // Print out the force
+//        // Only master processor output information containing all atoms
+//        if( mpirank == 0 ){
+//          PrintBlock( statusOFS, "Atomic Force" );
+//          {
+//            Point3 forceCM(0.0, 0.0, 0.0);
+//            std::vector<Atom>& atomList = hamDG.AtomList();
+//            Int numAtom = atomList.size();
+//            for( Int a = 0; a < numAtom; a++ ){
+//              Print( statusOFS, "atom", a, "force", atomList[a].force );
+//              forceCM += atomList[a].force;
+//            }
+//            statusOFS << std::endl;
+//            Print( statusOFS, "force for centroid: ", forceCM );
+//            statusOFS << std::endl;
+//          }
+//        }
+//      }
+//
+//      // Compute the a posteriori error estimator at every step
+//      // FIXME This is not used when intra-element parallelization is
+//      // used.
+//      if( isCalculateAPosterioriEachSCF_ && 0 )
+//      {
+//        GetTime( timeSta );
+//        DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
+//        hamDG.CalculateAPosterioriError( 
+//            eta2Total, eta2Residual, eta2GradJump, eta2Jump );
+//        GetTime( timeEnd );
+//        statusOFS << "Time for computing the a posteriori error is " <<
+//          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//
+//        // Only master processor output information containing all atoms
+//        if( mpirank == 0 ){
+//          PrintBlock( statusOFS, "A Posteriori error" );
+//          {
+//            statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+//            statusOFS << eta2Total << std::endl;
+//            statusOFS << std::endl << "Residual term:" << std::endl;
+//            statusOFS << eta2Residual << std::endl;
+//            statusOFS << std::endl << "Jump of gradient term:" << std::endl;
+//            statusOFS << eta2GradJump << std::endl;
+//            statusOFS << std::endl << "Jump of function value term:" << std::endl;
+//            statusOFS << eta2Jump << std::endl;
+//          }
+//        }
+//      }
+//    }
 
 
     // Method 1_1: Using diagonalization method, but with a more
@@ -2518,8 +2526,34 @@ SCFDG::InnerIterate	( Int outerIter )
 
       Evdw_ = 0.0;
 
-      // Compute the occupation rate
-      CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
+      if( isFixMu_ == true || outerIter == 1 ){
+        // Compute the occupation rate using bisection
+        CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
+      }
+      else{
+        // Compute the occupation rate directly using fermi_ and the
+        // Fermi-Dirac distribution
+        // numElectronDrv = sum(f'(eigval)) * numSpin / NeExact
+        DblNumVec& eigVal = hamDG.EigVal();
+        DblNumVec& occupationRate = hamDG.OccupationRate();
+        Real occsum = 0.0;
+        numElectronRelDrv_ = 0.0;
+        for(Int j = 0; j < hamDGPtr_->NumStateTotal(); j++) {
+          occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
+          occsum += occupationRate(j);
+          numElectronRelDrv_ += Tbeta_ / (1.0 + exp(-Tbeta_*(eigVal(j) - fermi_))) *
+            occupationRate(j);
+        }
+        numElectronRelError_ = ( (occsum * hamDG.NumSpin()) / 
+          (hamDG.NumOccupiedState() * hamDG.NumSpin()) ) - 1.0;
+        numElectronRelDrv_ = (numElectronRelDrv_ * hamDG.NumSpin()) / 
+          (hamDG.NumOccupiedState() * hamDG.NumSpin());
+#if ( _DEBUGlevel_ >= 0 )
+        Print( statusOFS, "sum(occ) = ", occsum );
+        Print( statusOFS, "NeRelRes = ", numElectronRelError_ );
+        Print( statusOFS, "NeRelDrv = ", numElectronRelDrv_ );
+#endif
+      }
 
       // Compute the Harris energy functional.  
       // NOTE: In computing the Harris energy, the density and the
@@ -3217,38 +3251,70 @@ SCFDG::InnerIterate	( Int outerIter )
 			numAndersonIter = innerIter;
 		}
 
-    if( mixVariable_ == "density" ){
-			if( mixType_ == "anderson" ||
-					mixType_ == "kerker+anderson"	){
-				AndersonMix(
-						numAndersonIter, 
-						mixStepLength_,
-						mixType_,
-						hamDG.Density(),
-						mixInnerSave_,
-						hamDG.Density(),
-						dfInnerMat_,
-						dvInnerMat_);
-			} else{
-				throw std::runtime_error("Invalid mixing type.");
-			}
-		}
-    else if( mixVariable_ == "potential" ){
-			if( mixType_ == "anderson" ||
-					mixType_ == "kerker+anderson"	){
-				AndersonMix(
-						numAndersonIter, 
-						mixStepLength_,
-						mixType_,
-						hamDG.Vtot(),
-						mixInnerSave_,
-						hamDG.Vtot(),
-						dfInnerMat_,
-						dvInnerMat_);
-			} else{
-				throw std::runtime_error("Invalid mixing type.");
-			}
-		}
+    if( isFixMu_ == true ) {
+      if( mixVariable_ == "density" ){
+        if( mixType_ == "anderson" ||
+            mixType_ == "kerker+anderson"	){
+          AndersonMix(
+              numAndersonIter, 
+              mixStepLength_,
+              mixType_,
+              hamDG.Density(),
+              mixInnerSave_,
+              hamDG.Density(),
+              dfInnerMat_,
+              dvInnerMat_);
+        } else{
+          throw std::runtime_error("Invalid mixing type.");
+        }
+      }
+      else if( mixVariable_ == "potential" ){
+        if( mixType_ == "anderson" ||
+            mixType_ == "kerker+anderson"	){
+          AndersonMix(
+              numAndersonIter, 
+              mixStepLength_,
+              mixType_,
+              hamDG.Vtot(),
+              mixInnerSave_,
+              hamDG.Vtot(),
+              dfInnerMat_,
+              dvInnerMat_);
+        } else{
+          throw std::runtime_error("Invalid mixing type.");
+        }
+      }
+    }
+    else{
+      Real muMix;
+      if( mixVariable_ == "potential" ){
+        if( mixType_ == "anderson" ||
+            mixType_ == "kerker+anderson"	){
+          AndersonMixMu(
+              numAndersonIter, 
+              mixStepLength_,
+              mixType_,
+              hamDG.Vtot(),
+              mixInnerSave_,
+              hamDG.Vtot(),
+              dfInnerMat_,
+              dvInnerMat_,
+              muMix,
+              fermi_,
+              numElectronRelError_,
+              dfMuVec_,
+              dvMuVec_,
+              numElectronRelDrv_);
+        } else{
+          throw std::runtime_error("Invalid mixing type.");
+        }
+      }
+      else {
+        throw std::runtime_error("For fixmu == 0, only for potential mixing now.");
+      }
+      // Use the new muMix to be the Fermi energy
+      fermi_ = muMix;
+    }
 
 
 
@@ -4948,6 +5014,296 @@ SCFDG::AndersonMix	(
 
 	return ;
 } 		// -----  end of method SCFDG::AndersonMix  ----- 
+
+void
+SCFDG::AndersonMixMu ( 
+    Int             iter, 
+    Real            mixStepLength,
+    std::string     mixType,
+    DistDblNumVec&  distvMix,
+    DistDblNumVec&  distvOld,
+    DistDblNumVec&  distvNew,
+    DistDblNumMat&  dfMat,
+    DistDblNumMat&  dvMat,
+    Real&           muMix,
+    Real&           muOld,
+    Real&           numElectronRelError,
+    DblNumVec&      dfMuVec,
+    DblNumVec&      dvMuVec,
+    Real&           numElectronRelDrv)
+{
+#ifndef _RELEASE_
+	PushCallStack("SCFDG::AndersonMixMu");
+#endif
+	Int mpirank, mpisize;
+	MPI_Comm_rank( domain_.comm, &mpirank );
+	MPI_Comm_size( domain_.comm, &mpisize );
+  
+  Int mpirankRow;  MPI_Comm_rank(domain_.rowComm, &mpirankRow);
+  Int mpisizeRow;  MPI_Comm_size(domain_.rowComm, &mpisizeRow);
+  Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
+  Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
+	
+  distvMix.SetComm(domain_.colComm);
+  distvOld.SetComm(domain_.colComm);
+  distvNew.SetComm(domain_.colComm);
+  dfMat.SetComm(domain_.colComm);
+  dvMat.SetComm(domain_.colComm);
+	
+  // Residual 
+	DistDblNumVec distRes;
+	// Optimal input potential in Anderon mixing.
+	DistDblNumVec distvOpt; 
+	// Optimal residual in Anderson mixing
+  DistDblNumVec distResOpt; 
+	// Preconditioned optimal residual in Anderson mixing
+	DistDblNumVec distPrecResOpt;
+
+  distRes.SetComm(domain_.colComm);
+  distvOpt.SetComm(domain_.colComm);
+  distResOpt.SetComm(domain_.colComm);
+  distPrecResOpt.SetComm(domain_.colComm);
+
+  // Optimial mu and NeRes in the Anderson sense.
+  Real muOpt, NeResOpt;
+
+	
+	// *********************************************************************
+	// Initialize
+	// *********************************************************************
+	Int ntot  = hamDGPtr_->NumUniformGridElemFine().prod();
+	
+	// Number of iterations used, iter should start from 1
+	Int iterused = std::min( iter-1, mixMaxDim_ ); 
+	// The current position of dfMat, dvMat
+	Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
+	// The next position of dfMat, dvMat
+	Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
+
+	distRes.Prtn()          = elemPrtn_;
+	distvOpt.Prtn()         = elemPrtn_;
+	distResOpt.Prtn()       = elemPrtn_;
+	distPrecResOpt.Prtn()   = elemPrtn_;
+
+  muOpt = 0.0;
+  NeResOpt = 0.0;
+
+  for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+					DblNumVec  emptyVec( ntot );
+					SetValue( emptyVec, 0.0 );
+					distRes.LocalMap()[key]        = emptyVec;
+					distvOpt.LocalMap()[key]       = emptyVec;
+					distResOpt.LocalMap()[key]     = emptyVec;
+					distPrecResOpt.LocalMap()[key] = emptyVec;
+				} // if ( own this element )
+			} // for (i)
+
+
+	
+  // *********************************************************************
+	// Anderson mixing
+	// *********************************************************************
+	
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+					// res(:) = vOld(:) - vNew(:) is the residual
+					distRes.LocalMap()[key] = distvOld.LocalMap()[key];
+					blas::Axpy( ntot, -1.0, distvNew.LocalMap()[key].Data(), 1, 
+							distRes.LocalMap()[key].Data(), 1 );
+
+					distvOpt.LocalMap()[key]   = distvOld.LocalMap()[key];
+					distResOpt.LocalMap()[key] = distRes.LocalMap()[key];
+
+
+				  // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
+				  // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
+					if( iter > 1 ){
+						blas::Scal( ntot, -1.0, dfMat.LocalMap()[key].VecData(ipos-1), 1 );
+						blas::Axpy( ntot, 1.0,  distRes.LocalMap()[key].Data(), 1, 
+								dfMat.LocalMap()[key].VecData(ipos-1), 1 );
+						blas::Scal( ntot, -1.0, dvMat.LocalMap()[key].VecData(ipos-1), 1 );
+						blas::Axpy( ntot, 1.0,  distvOld.LocalMap()[key].Data(),  1, 
+								dvMat.LocalMap()[key].VecData(ipos-1), 1 );
+					}
+				} // own this element
+			} // for (i)
+
+
+  if( iter > 1 ){
+    dfMuVec[ipos-1] = numElectronRelError - dfMuVec[ipos-1];
+    dvMuVec[ipos-1] = muOld - dvMuVec[ipos-1];
+  }
+  muOpt = muOld;
+  NeResOpt = numElectronRelError;
+
+	// For iter == 1, Anderson mixing is the same as simple mixing.
+	if( iter > 1 ){
+
+		Int nrow = iterused;
+
+		// Normal matrix FTF = F^T * F. Include the mu part.
+		DblNumMat FTFLocal( nrow, nrow ), FTF( nrow, nrow );
+		SetValue( FTFLocal, 0.0 );
+		SetValue( FTF, 0.0 );
+
+		// Right hand side FTv = F^T * vout. Include the mu part.
+		DblNumVec FTvLocal( nrow ), FTv( nrow );
+		SetValue( FTvLocal, 0.0 );
+		SetValue( FTv, 0.0 );
+
+		// Local construction of FTF and FTv. Exclude the mu part.
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+						DblNumMat& df     = dfMat.LocalMap()[key];
+						DblNumVec& res    = distRes.LocalMap()[key];
+						for( Int q = 0; q < nrow; q++ ){
+							FTvLocal(q) += blas::Dot( ntot, df.VecData(q), 1,
+									res.Data(), 1 );
+
+							for( Int p = q; p < nrow; p++ ){
+								FTFLocal(p, q) += blas::Dot( ntot, df.VecData(p), 1, 
+										df.VecData(q), 1 );
+								if( p > q )
+									FTFLocal(q,p) = FTFLocal(p,q);
+							} // for (p)
+						} // for (q)
+
+					} // own this element
+				} // for (i)
+		
+		// Reduce the data
+		mpi::Allreduce( FTFLocal.Data(), FTF.Data(), nrow * nrow, 
+				MPI_SUM, domain_.colComm );
+		mpi::Allreduce( FTvLocal.Data(), FTv.Data(), nrow, 
+				MPI_SUM, domain_.colComm );
+
+    // Include the mu part
+    // FTF = FTF + fMu*fMu'
+    blas::Gemm('N','T', nrow, nrow, 1, 1.0, dfMuVec.Data(), nrow,
+        dfMuVec.Data(), nrow, 1.0, FTF.Data(), nrow );
+    // FTv = FTv + fMu*NeRes
+    blas::Axpy(nrow, numElectronRelError, dfMuVec.Data(), 1, 
+        FTv.Data(), 1);
+
+		// All processors solve the least square problem
+
+		// FIXME Magic number for pseudo-inverse
+		Real rcond = 1e-6;
+		Int rank;
+
+		DblNumVec  S( nrow );
+
+		// FTv = pinv( FTF ) * res
+		lapack::SVDLeastSquare( nrow, nrow, 1, 
+				FTF.Data(), nrow, FTv.Data(), nrow,
+        S.Data(), rcond, &rank );
+
+		statusOFS << "Rank of dfmat = " << rank <<
+			", rcond = " << rcond << std::endl;
+
+		// Update vOpt, resOpt. 
+		// FTv = Y^{\dagger} r as in the usual notation.
+		// 
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+						// vOpt   -= dv * FTv
+						blas::Gemv('N', ntot, nrow, -1.0, dvMat.LocalMap()[key].Data(),
+								ntot, FTv.Data(), 1, 1.0, 
+								distvOpt.LocalMap()[key].Data(), 1 );
+
+						// resOpt -= df * FTv
+						blas::Gemv('N', ntot, nrow, -1.0, dfMat.LocalMap()[key].Data(),
+								ntot, FTv.Data(), 1, 1.0, 
+								distResOpt.LocalMap()[key].Data(), 1 );
+					} // own this element
+				} // for (i)
+
+    // NeResOpt = NeRes - fMu'*FTv
+    NeResOpt = numElectronRelError - 
+      blas::Dot( nrow, dfMuVec.Data(), 1, FTv.Data(), 1 );
+    // MuOpt = MuOld - vMu'*FTv
+    muOpt = muOld - blas::Dot( nrow, dvMuVec.Data(), 1, FTv.Data(), 1 );
+	} // (iter > 1)
+
+ 
+  if( mixType == "kerker+anderson" ){
+		KerkerPrecond( distPrecResOpt, distResOpt );
+	}
+	else if( mixType == "anderson" ){
+		for( Int k = 0; k < numElem_[2]; k++ )
+			for( Int j = 0; j < numElem_[1]; j++ )
+				for( Int i = 0; i < numElem_[0]; i++ ){
+					Index3 key( i, j, k );
+					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+						distPrecResOpt.LocalMap()[key] = 
+							distResOpt.LocalMap()[key];
+					} // own this element
+				} // for (i)
+	}
+	else{
+		throw std::runtime_error("Invalid mixing type.");
+	}
+	
+	
+	// Update dfMat, dvMat, vMix 
+	for( Int k = 0; k < numElem_[2]; k++ )
+		for( Int j = 0; j < numElem_[1]; j++ )
+			for( Int i = 0; i < numElem_[0]; i++ ){
+				Index3 key( i, j, k );
+				if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+					// dfMat(:, inext-1) = res(:)
+					// dvMat(:, inext-1) = vOld(:)
+					blas::Copy( ntot, distRes.LocalMap()[key].Data(), 1, 
+							dfMat.LocalMap()[key].VecData(inext-1), 1 );
+					blas::Copy( ntot, distvOld.LocalMap()[key].Data(),  1, 
+							dvMat.LocalMap()[key].VecData(inext-1), 1 );
+
+					// vMix(:) = vOpt(:) - mixStepLength * precRes(:)
+					distvMix.LocalMap()[key] = distvOpt.LocalMap()[key];
+					blas::Axpy( ntot, -mixStepLength, 
+							distPrecResOpt.LocalMap()[key].Data(), 1, 
+							distvMix.LocalMap()[key].Data(), 1 );
+				} // own this element
+			} // for (i)
+
+  // Update mu. The derivative information numElectronRelDrv is used as
+  // a preconditioner.
+  dfMuVec[inext-1] = numElectronRelError;
+  dvMuVec[inext-1] = muOld;
+  if( numElectronRelDrv >= 1.0 / mixStepLength ){
+    muMix = muOpt - (1.0 / numElectronRelDrv) * NeResOpt;
+  }
+  else{
+    muMix = muOpt - mixStepLength * NeResOpt;
+  }
+
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "muOld = " << muOld << ", NeRes = " << numElectronRelError << ", muMix = " 
+    << muMix << std::endl;
+#endif
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::AndersonMixMu  ----- 
+
+
 
 void
 SCFDG::KerkerPrecond ( 

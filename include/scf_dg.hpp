@@ -44,6 +44,7 @@
 /// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
 /// @date 2014-08-06 Intra-element parallelization
+/// @date 2015-09-29 Iterating the chemical potential in SCF.
 #ifndef _SCF_DG_HPP_ 
 #define _SCF_DG_HPP_
 
@@ -69,6 +70,16 @@ private:
 	Int                 mixMaxDim_;
 	std::string         mixType_;
 	Real                mixStepLength_;            
+
+  bool                isFixMu_;
+  /// @brief Relative error of the number of electrons.
+  /// Useful when isFixMu_ == 0
+  Real                numElectronRelError_;
+  /// @brief Derivative of the relative error of the number of electrons
+  /// with respect to mu.
+  /// Useful when isFixMu_ == 0
+  Real                numElectronRelDrv_;
+
   Real                eigTolerance_;
   Int                 eigMinIter_;
   Int                 eigMaxIter_;
@@ -234,6 +245,14 @@ private:
 	/// @brief Work array for updating the local potential on the LGL
 	/// grid.
 	DistDblNumVec       vtotLGLSave_;
+
+  /// @brief Work array for the Anderson mixing of mu. Only used when
+  /// isFixMu_ == false
+  DblNumVec           dfMuVec_;
+  /// @brief Work array for the Anderson mixing of mu. Only used when
+  /// isFixMu_ == false
+  DblNumVec           dvMuVec_;
+
 	
   DblNumMat           forceVdw_;
 	
@@ -396,6 +415,51 @@ public:
 		DistDblNumVec&  distPrecResidual,
 		const DistDblNumVec&  distResidual );
 
+  /// @brief Parallel preconditioned Anderson mixing. Can be used for
+  /// potential mixing or density mixing, together with the mixing of
+  /// the chemical potential (mu). 
+  /// @param[in] iter Current iteration number. Mainly used for
+  /// labelling the ending position of dfMat, dvMat etc.
+  /// @param[in] mixStepLength Mixing parameter for Anderson.
+  /// @param[in] mixType Whether preconditioner is used. Currently
+  /// supported are "anderson" and "kerker+anderson"
+  /// @param[out] distvMix Distributed vector for the mixed
+  /// density/potential.
+  /// @param[in] distvOld Distributed vector for the input
+  /// density/potential. CANNOT be the same as distvMix.
+  /// @param[in] distvNew Distributed vector for the output
+  /// density/potential. Can be the same as distvMix.
+  /// @param[in,out] dfMat History for difference of residual.
+  /// @param[in,out] dvMat History for difference of input density/potential.
+  /// @param[out] muMix Mixed chemical potential.
+  /// @param[in] muOld Input chemical potential.
+  /// @param[in] numElectronRelError Relative error of the number of
+  /// electrons. Defined as (Ne[muOld] / NeExact - 1.0).
+  ///
+  /// @param[in,out] dfMuVec History for difference of relative error of the
+  /// number of electrons.
+  /// @param[in,out] dvMuVec History for difference of input chemical
+  /// potential.
+  /// @param[in] numElectronRelDrv Derivative of the relative number of
+  /// electrons, defined as Ne'[muOld] / NeExact. This is used as a
+  /// preconditioner to adjust the step to be min( 1.0 / numElectronRelDrv, mixStepLength).
+  /// If this number is less or equal to 0.0, it is not used and
+  /// mixStepLength is used to mix the chemical potential. 
+  void  AndersonMixMu( 
+      Int             iter, 
+      Real            mixStepLength,
+      std::string     mixType,
+      DistDblNumVec&  distvMix,
+			DistDblNumVec&  distvOld,
+			DistDblNumVec&  distvNew,
+			DistDblNumMat&  dfMat,
+			DistDblNumMat&  dvMat,
+      Real&           muMix,
+      Real&           muOld,
+      Real&           numElectronRelError,
+      DblNumVec&      dfMuVec,
+      DblNumVec&      dvMuVec,
+      Real&           numElectronRelDrv);
 
 
 	// *********************************************************************

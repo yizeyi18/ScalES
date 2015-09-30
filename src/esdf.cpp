@@ -921,6 +921,10 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether to output the atomic position in XYZ format !*");
 
+	i++;
+	strcpy(kw_label[i],"mixing_fix_mu");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Whether to fix the chemical potential during the iteration!*");
 }
 
 void esdf() {
@@ -2148,8 +2152,10 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 			throw std::runtime_error("Invalid mixing variable.");
 		}
 
-
 		esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
+		esdfParam.isFixMu  = esdf_integer( "Mixing_Fix_Mu",   1 );
+
+
 		esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
 		esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 );
 		esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );

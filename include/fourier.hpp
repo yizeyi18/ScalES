@@ -40,7 +40,7 @@
 	 works, incorporate into other computer software, distribute, and sublicense
 	 such enhancements or derivative works thereof, in binary and source code form.
 */
-/// @file fourier.cpp
+/// @file fourier.hpp
 /// @brief Sequential and Distributed Fourier wrapper.
 /// @date 2011-11-01
 /// @date 2015-05-02 Add some dual grid functions
