@@ -1490,12 +1490,22 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
   {
 #endif
     // FIXME
-//    psi.AddScalarDiag( vtotCoarse_, a3 );
-//    psi.AddLaplacian( &fft, a3 );
-//    psi.AddNonlocalPP( pseudo_, a3 );
+    //    psi.AddScalarDiag( vtotCoarse_, a3 );
+    //    psi.AddLaplacian( &fft, a3 );
+    //    psi.AddNonlocalPP( pseudo_, a3 );
     // Apply the pseudopotential on the fine grid for integration
-//    psi.AddNonlocalPPFine( &fft, pseudo_, a3 );
-    psi.AddMultSpinorFine( fft, vtot_, pseudo_, a3 );
+    //    psi.AddNonlocalPPFine( &fft, pseudo_, a3 );
+//    Real timeSta1, timeEnd1;
+//    Real timeSta2, timeEnd2;
+//    GetTime( timeSta1 );
+//    psi.AddMultSpinorFine( fft, vtot_, pseudo_, a3 );
+//    GetTime( timeEnd1 );
+//    GetTime( timeSta2 );
+    psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
+//    GetTime( timeEnd2 );
+//    statusOFS << "Total time AddMultSpinor is " << 
+//      "R2R" << timeEnd1 - timeSta1 <<  
+//      "R2C" << timeEnd2 - timeSta2  << std::endl;
 #ifdef _USE_OPENMP_
   }
 #endif

@@ -93,6 +93,7 @@ private:
 	Real                Ehart_;                    // Hartree energy
 	Real                Ecor_;                     // Nonlinear correction energy
 	Real                Exc_;                      // Exchange-correlation energy
+	Real                Evdw_;                     // Van der Waals energy
 	Real                EVxc_;                     // Exchange-correlation potential energy
 	Real                Eself_;                    // Self energy due to the pseudopotential
 	Real                fermi_;                    // Fermi energy
@@ -103,6 +104,7 @@ private:
   PeriodTable*        ptablePtr_;
 
   std::string         XCType_;
+  std::string         VDWType_;
   
   // SCF variables
   DblNumVec           vtotNew_;
@@ -115,6 +117,8 @@ private:
 
   Index3  numGridWavefunctionElem_;
   Index3  numGridDensityElem_;
+	
+  DblNumMat           forceVdw_;
 
 public:
 	
@@ -135,8 +139,12 @@ public:
 
 	void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
 	void  CalculateEnergy();
+	void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
 	void  PrintState( const Int iter );
 	void  OutputState();
+	void  LastSCF( Real& etot, Real& efree, Real& ekin, Real& ehart,
+    Real& eVxc, Real& exc, Real& evdw, Real& eself, Real& ecor,
+    Real& fermi, Real& totalCharge, Real& scfNorm );
 
 	// Mixing
 	void  AndersonMix( const Int iter );

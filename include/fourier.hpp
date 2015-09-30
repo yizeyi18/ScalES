@@ -91,34 +91,32 @@ struct Fourier {
 
 	// Real data Fourier transform
 	Int       numGridTotalR2C;
+	Int       numGridTotalR2CFine;
+
   fftw_plan backwardPlanR2C;
   fftw_plan forwardPlanR2C;
+  
+  fftw_plan backwardPlanR2CFine;
+  fftw_plan forwardPlanR2CFine;
 
   DblNumVec                gkkR2C;
 	std::vector<CpxNumVec>   ikR2C;
   DblNumVec                TeterPrecondR2C;
+  
+  DblNumVec                gkkR2CFine;
+	std::vector<CpxNumVec>   ikR2CFine;
+  DblNumVec                TeterPrecondR2CFine;
 
 	// Temporary vectors that can also be used globally
 	DblNumVec                inputVecR2C;     
 	CpxNumVec                outputVecR2C;     
 
+	DblNumVec                inputVecR2CFine;     
+	CpxNumVec                outputVecR2CFine;     
   
   /// @brief index array for mapping a coarse grid to a fine grid
   IntNumVec                idxFineGrid;
-
-	// Real data Fourier transform
-	Int       numGridTotalR2CFine;
-  fftw_plan backwardPlanR2CFine;
-  fftw_plan forwardPlanR2CFine;
-
-  DblNumVec                gkkR2CFine;
-  DblNumVec                TeterPrecondR2CFine;
-
-	// Temporary vectors that can also be used globally
-	DblNumVec                inputVecR2CFine;     
-	CpxNumVec                outputVecR2CFine;     
-
-
+  IntNumVec                idxFineGridR2C;
 
 	Fourier();
 	~Fourier();

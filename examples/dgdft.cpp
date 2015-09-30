@@ -550,6 +550,50 @@ int main(int argc, char **argv)
     statusOFS << "Time for SCF iteration is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
+    Real efreeHarris, etot, efree, ekin, ehart, eVxc, exc, evdw,
+         eself, ecor, fermi, scfOuterNorm, efreeDifPerAtom;
+
+    scfDG.LastSCF(efreeHarris, etot, efree, ekin, ehart, eVxc, exc, evdw,
+        eself, ecor, fermi, scfOuterNorm, efreeDifPerAtom );
+
+    std::vector<Atom>& atomList = hamDG.AtomList(); 
+    Real VDWEnergy = 0.0;
+    DblNumMat VDWForce;
+    VDWForce.Resize( atomList.size(), DIM );
+    SetValue( VDWForce, 0.0 );
+
+    if( esdfParam.VDWType == "DFT-D2"){
+      scfDG.CalculateVDW ( VDWEnergy, VDWForce );
+    } 
+   
+    efreeHarris += VDWEnergy;
+    etot        += VDWEnergy;
+    efree       += VDWEnergy;
+    ecor        += VDWEnergy;
+
+    // Print out the energy
+    PrintBlock( statusOFS, "Energy" );
+    statusOFS 
+      << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + Evdw" << std::endl
+      << "       Etot  = Ekin + Ecor" << std::endl
+      << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
+    Print(statusOFS, "EfreeHarris           = ",  efreeHarris, "[au]");
+    Print(statusOFS, "Etot                  = ",  etot, "[au]");
+    Print(statusOFS, "Efree                 = ",  efree, "[au]");
+    Print(statusOFS, "Ekin                  = ",  ekin, "[au]");
+    Print(statusOFS, "Ehart                 = ",  ehart, "[au]");
+    Print(statusOFS, "EVxc                  = ",  eVxc, "[au]");
+    Print(statusOFS, "Exc                   = ",  exc, "[au]"); 
+    Print(statusOFS, "Evdw                  = ",  VDWEnergy, "[au]"); 
+    Print(statusOFS, "Eself                 = ",  eself, "[au]");
+    Print(statusOFS, "Ecor                  = ",  ecor, "[au]");
+    Print(statusOFS, "Fermi                 = ",  fermi, "[au]");
+	  Print(statusOFS, "norm(out-in)/norm(in) = ",  scfOuterNorm ); 
+		Print(statusOFS, "Efree diff per atom   = ",  efreeDifPerAtom, "[au]"); 
+
+    // Print out the force
+
+    PrintBlock( statusOFS, "Atomic Force" );
     // Compute force
     {
       if( esdfParam.solutionMethod == "diag" ){
@@ -558,6 +602,13 @@ int main(int argc, char **argv)
       else if( esdfParam.solutionMethod == "pexsi" ){
         hamDG.CalculateForceDM( distfft, scfDG.DMMat() );
       }
+      
+      if( esdfParam.VDWType == "DFT-D2"){
+        for( Int a = 0; a < atomList.size(); a++ ){
+          atomList[a].force += Point3( VDWForce(a,0), VDWForce(a,1), VDWForce(a,2) );
+        }
+      } 
+   
     }
 
     if( mpirank == 0 ){

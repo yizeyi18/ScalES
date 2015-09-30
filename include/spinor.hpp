@@ -116,6 +116,8 @@ public:
   // Perform all operations of matrix vector multiplication on a fine grid.
   void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Scalar>& a3 );
+  void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
+      const std::vector<PseudoPot>& pseudo, NumTns<Scalar>& a3 );
 
   void AddScalarDiag (Int iocc, const DblNumVec &val, NumMat<Scalar>& y);
   void AddScalarDiag (const DblNumVec &val, NumTns<Scalar> &a3);

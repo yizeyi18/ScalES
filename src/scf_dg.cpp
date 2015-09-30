@@ -194,7 +194,8 @@ SCFDG::Setup	(
     potentialBarrierR_  = esdfParam.potentialBarrierR;
 
 
-    XCType_           = esdfParam.XCType;
+    XCType_             = esdfParam.XCType;
+    VDWType_            = esdfParam.VDWType;
   }
 
   MPI_Barrier(domain_.comm);
@@ -1593,7 +1594,7 @@ SCFDG::Iterate	(  )
     // *********************************************************************
 
     Int numAtom = hamDG.AtomList().size();
-    Real EfreeDifPerAtom = std::abs(Efree_ - EfreeHarris_) / numAtom;
+    efreeDifPerAtom_ = std::abs(Efree_ - EfreeHarris_) / numAtom;
 
     // Compute the error of the mixing variable 
     {
@@ -1642,7 +1643,7 @@ SCFDG::Iterate	(  )
 //			Print(statusOFS, "OUTERSCF: EfreeSecondOrder            = ", EfreeSecondOrder_ ); 
 			Print(statusOFS, "OUTERSCF: Efree                       = ", Efree_ ); 
 			Print(statusOFS, "OUTERSCF: norm(out-in)/norm(in) = ", scfOuterNorm_ ); 
-			Print(statusOFS, "OUTERSCF: Efree diff per atom   = ", EfreeDifPerAtom ); 
+			Print(statusOFS, "OUTERSCF: Efree diff per atom   = ", efreeDifPerAtom_ ); 
       statusOFS << std::endl;
 		}
 
@@ -1652,7 +1653,7 @@ SCFDG::Iterate	(  )
 
     if( iter >= 2 & 
         ( (scfOuterNorm_ < scfOuterTolerance_) & 
-          (EfreeDifPerAtom < scfOuterEnergyTolerance_) ) ){
+          (efreeDifPerAtom_ < scfOuterEnergyTolerance_) ) ){
       /* converged */
       Print( statusOFS, "Outer SCF is converged!\n" );
 			statusOFS << std::endl;
@@ -1954,9 +1955,7 @@ SCFDG::InnerIterate	( Int outerIter )
 	Real timeSta, timeEnd;
 	Real timeIterStart, timeIterEnd;
 
-  
   HamiltonianDG&  hamDG = *hamDGPtr_;
-
 
   bool isInnerSCFConverged = false;
 
@@ -1985,8 +1984,6 @@ SCFDG::InnerIterate	( Int outerIter )
       MPI_Barrier( domain_.colComm );
 
       hamDG.CalculateDGMatrix( );
-      
-     
    
       MPI_Barrier( domain_.comm );
       MPI_Barrier( domain_.rowComm );
@@ -2231,16 +2228,16 @@ SCFDG::InnerIterate	( Int outerIter )
 
       // Post processing
 
+      Evdw_ = 0.0;
+
       // Compute the occupation rate
       CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
-
 
       // Compute the Harris energy functional.  
       // NOTE: In computing the Harris energy, the density and the
       // potential must be the INPUT density and potential without ANY
       // update.
       CalculateHarrisEnergy();
-
 
       MPI_Barrier( domain_.comm );
       MPI_Barrier( domain_.rowComm );
@@ -2253,7 +2250,6 @@ SCFDG::InnerIterate	( Int outerIter )
       // FIXME 
       // Do not need the conversion from column to row partition as well
       hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
-      
 
       MPI_Barrier( domain_.comm );
       MPI_Barrier( domain_.rowComm );
@@ -2302,12 +2298,10 @@ SCFDG::InnerIterate	( Int outerIter )
         // potential must be the OUTPUT density and potential without ANY
         // MIXING.
         CalculateSecondOrderEnergy();
-
    
         // Compute the KS energy 
         CalculateKSEnergy();
 
-      
         // Update the total potential AFTER updating the energy
 
         // No external potential
@@ -2520,20 +2514,18 @@ SCFDG::InnerIterate	( Int outerIter )
             mpirankScaVec[0], domain_.comm);
       }
 
-
-
       // Post processing
+
+      Evdw_ = 0.0;
 
       // Compute the occupation rate
       CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
-
 
       // Compute the Harris energy functional.  
       // NOTE: In computing the Harris energy, the density and the
       // potential must be the INPUT density and potential without ANY
       // update.
       CalculateHarrisEnergy();
-
 
       MPI_Barrier( domain_.comm );
       MPI_Barrier( domain_.rowComm );
@@ -2630,9 +2622,7 @@ SCFDG::InnerIterate	( Int outerIter )
       if( isCalculateForceEachSCF_ ){
         // Compute force
         GetTime( timeSta );
-        
         hamDG.CalculateForce( *distfftPtr_ );
-        
         GetTime( timeEnd );
         statusOFS << "Time for computing the force is " <<
           timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -3013,6 +3003,7 @@ SCFDG::InnerIterate	( Int outerIter )
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
+      Evdw_ = 0.0;
 
       // Compute the Harris energy functional.  
       // NOTE: In computing the Harris energy, the density and the
@@ -3996,7 +3987,7 @@ SCFDG::CalculateKSEnergy	(  )
 
 	// Correction energy
 	Ecor_   = (Exc_ - EVxc_) - Ehart_ - Eself_;
-
+  
 	// Total energy
 	Etot_ = Ekin_ + Ecor_;
 
@@ -4060,7 +4051,6 @@ SCFDG::CalculateKSEnergyDM (
 		Eself_ +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
 	}
 
-
 	// Hartree and XC part
 	Ehart_ = 0.0;
 	EVxc_  = 0.0;
@@ -4093,7 +4083,7 @@ SCFDG::CalculateKSEnergyDM (
 
 	// Correction energy
 	Ecor_   = (Exc_ - EVxc_) - Ehart_ - Eself_;
-
+  
   // Kinetic energy and helmholtz free energy, calculated from the
   // energy and free energy density matrices.
   // Here 
@@ -4137,8 +4127,6 @@ SCFDG::CalculateKSEnergyDM (
     Ehelm += fermi_ * hamDG.NumOccupiedState() * numSpin;
 
   }
-
-
 
 	// Total energy
 	Etot_ = Ekin_ + Ecor_;
@@ -4194,7 +4182,6 @@ SCFDG::CalculateHarrisEnergy	(  )
 		Eself +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
 	}
 
-
 	// Nonlinear correction part.  This part uses the Hartree energy and
 	// XC correlation energy from the old electron density.
 
@@ -4226,10 +4213,9 @@ SCFDG::CalculateHarrisEnergy	(  )
 	// Use the previous exchange-correlation energy
 	Exc    = Exc_;
 
-
 	// Correction energy.  
 	Ecor   = (Exc - EVxc) - Ehart - Eself;
-
+  
 	// Harris free energy functional
 	if( hamDG.NumOccupiedState() == 
 			hamDG.NumStateTotal() ){
@@ -4252,11 +4238,6 @@ SCFDG::CalculateHarrisEnergy	(  )
 		}
 		EfreeHarris_ += Ecor + fermi * hamDG.NumOccupiedState() * numSpin; 
 	}
-
-
-
-
-
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -4507,6 +4488,218 @@ SCFDG::CalculateSecondOrderEnergy  (  )
 
 	return ;
 } 		// -----  end of method SCFDG::CalculateSecondOrderEnergy  ----- 
+
+
+void
+SCFDG::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
+{
+#ifndef _RELEASE_
+  PushCallStack("SCFDG::CalculateVDW");
+#endif
+
+  HamiltonianDG&  hamDG = *hamDGPtr_;
+  std::vector<Atom>& atomList = hamDG.AtomList();
+  Evdw_ = 0.0;
+  forceVdw_.Resize( atomList.size(), DIM );
+  SetValue( forceVdw_, 0.0 );
+
+  Int numAtom = atomList.size();
+
+  Domain& dm = domain_;
+
+  if( VDWType_ == "DFT-D2"){
+
+    const Int vdw_nspecies = 55;
+    Int ia,is1,is2,is3,itypat,ja,jtypat,npairs,nshell;
+    bool need_gradient,newshell;
+    const Real vdw_d = 20.0;
+    const Real vdw_tol_default = 1e-10;
+    const Real vdw_s_pbe = 0.75;
+    Real c6,c6r6,ex,fr,fred1,fred2,fred3,gr,grad,r0,r1,r2,r3,rcart1,rcart2,rcart3;
+
+    double vdw_c6_dftd2[vdw_nspecies] = 
+    {  0.14, 0.08, 1.61, 1.61, 3.13, 1.75, 1.23, 0.70, 0.75, 0.63,
+      5.71, 5.71,10.79, 9.23, 7.84, 5.57, 5.07, 4.61,10.80,10.80,
+      10.80,10.80,10.80,10.80,10.80,10.80,10.80,10.80,10.80,10.80,
+      16.99,17.10,16.37,12.64,12.47,12.01,24.67,24.67,24.67,24.67,
+      24.67,24.67,24.67,24.67,24.67,24.67,24.67,24.67,37.32,38.71,
+      38.44,31.74,31.50,29.99, 0.00 };
+
+    double vdw_r0_dftd2[vdw_nspecies] =
+    { 1.001,1.012,0.825,1.408,1.485,1.452,1.397,1.342,1.287,1.243,
+      1.144,1.364,1.639,1.716,1.705,1.683,1.639,1.595,1.485,1.474,
+      1.562,1.562,1.562,1.562,1.562,1.562,1.562,1.562,1.562,1.562,
+      1.650,1.727,1.760,1.771,1.749,1.727,1.628,1.606,1.639,1.639,
+      1.639,1.639,1.639,1.639,1.639,1.639,1.639,1.639,1.672,1.804,
+      1.881,1.892,1.892,1.881,1.000 };
+
+    for(Int i=0; i<vdw_nspecies; i++) {
+      vdw_c6_dftd2[i] = vdw_c6_dftd2[i] / 2625499.62 * pow(10/0.52917706, 6);
+      vdw_r0_dftd2[i] = vdw_r0_dftd2[i] / 0.52917706;
+    }
+
+    DblNumMat vdw_c6(vdw_nspecies, vdw_nspecies);
+    DblNumMat vdw_r0(vdw_nspecies, vdw_nspecies);
+    SetValue( vdw_c6, 0.0 );
+    SetValue( vdw_r0, 0.0 );
+
+    for(Int i=0; i<vdw_nspecies; i++) {
+        for(Int j=0; j<vdw_nspecies; j++) {
+         vdw_c6(i,j) = std::sqrt( vdw_c6_dftd2[i] * vdw_c6_dftd2[j] );
+         vdw_r0(i,j) = vdw_r0_dftd2[i] + vdw_r0_dftd2[j];
+        }
+    }
+
+    Real vdw_s;
+    if (XCType_ == "XC_GGA_XC_PBE") {
+      vdw_s=vdw_s_pbe;
+    }
+    else {
+      throw std::logic_error( "Van der Waals DFT-D2 correction in only compatible with GGA-PBE!" );
+    }
+
+    // Calculate the number of atom types.
+//    Real numAtomType = 0;   
+//    for(Int a=0; a< atomList.size() ; a++) {
+//      Int type1 = atomList[a].type;
+//      Int a1 = 0;
+//      Int a2 = 0;
+//      for(Int b=0; b<a ; b++) {
+//        a1 = a1 + 1;
+//        Int type2 = atomList[b].type;
+//        if ( type1 != type2 ) {
+//          a2 = a2 + 1;
+//        }
+//      }
+//
+//      if ( a1 == a2 ) {
+//        numAtomType = numAtomType + 1;
+//      }
+//
+//    }
+//
+
+//    IntNumVec  atomType ( numAtomType );
+//    SetValue( atomType, 0 );
+
+//    Real numAtomType1 = 0;
+//    atomType(0) = atomList[0].type;
+
+
+//    for(Int a=0; a< atomList.size() ; a++) {
+//      Int type1 = atomList[a].type;
+//      Int a1 = 0;
+//      Int a2 = 0;
+//      for(Int b=0; b<a ; b++) {
+//        a1 = a1 + 1;
+//        Int type2 = atomList[b].type;
+//        if ( type1 != type2 ) {
+//          a2 = a2 + 1;
+//        }
+//      }
+//      if ( a1 == a2 ) {
+//        numAtomType1 = numAtomType1 + 1;
+//        atomType(numAtomType1-1) = atomList[a].type;
+//      }
+//    }
+
+
+//    DblNumMat  vdw_c6 ( numAtomType, numAtomType );
+//    DblNumMat  vdw_r0 ( numAtomType, numAtomType );
+//    SetValue( vdw_c6, 0.0 );
+//    SetValue( vdw_r0, 0.0 );
+//
+//    for(Int i=0; i< numAtomType; i++) {
+//      for(Int j=0; j< numAtomType; j++) {
+//        vdw_c6(i,j)=std::sqrt(vdw_c6_dftd2[atomType(i)-1]*vdw_c6_dftd2[atomType(j)-1]);
+//        //vdw_r0(i,j)=(vdw_r0_dftd2(atomType(i))+vdw_r0_dftd2(atomType(j)))/Bohr_Ang;
+//        vdw_r0(i,j)=(vdw_r0_dftd2[atomType(i)-1]+vdw_r0_dftd2[atomType(j)-1]);
+//      }
+//    }
+
+//    statusOFS << "vdw_c6 = " << vdw_c6 << std::endl;
+//    statusOFS << "vdw_r0 = " << vdw_r0 << std::endl;
+
+
+    for(Int ii=-1; ii<2; ii++) {
+    for(Int jj=-1; jj<2; jj++) {
+    for(Int kk=-1; kk<2; kk++) {
+
+    for(Int i=0; i<atomList.size(); i++) {
+      Int iType = atomList[i].type;
+        for(Int j=0; j<(i+1); j++) {
+        Int jType = atomList[j].type;
+       
+        Real rx = atomList[i].pos[0] - atomList[j].pos[0] + ii * dm.length[0];
+        Real ry = atomList[i].pos[1] - atomList[j].pos[1] + jj * dm.length[1];
+        Real rz = atomList[i].pos[2] - atomList[j].pos[2] + kk * dm.length[2];
+        Real rr = std::sqrt( rx * rx + ry * ry + rz * rz );
+
+        if ( ( rr > 0.0001 ) && ( rr < 75.0 ) ) {
+
+          Real sfact = vdw_s;
+          if ( i == j ) sfact = sfact * 0.5;
+
+          Real c6 = vdw_c6(iType-1, jType-1);
+          Real r0 = vdw_r0(iType-1, jType-1);
+          //Real c6 = std::sqrt( vdw_c6_dftd2[iType-1] * vdw_c6_dftd2[jType-1] );
+          //Real r0 = vdw_r0_dftd2[iType-1] + vdw_r0_dftd2[jType-1];
+
+          Real ex = exp( -vdw_d * ( rr / r0 - 1 ));
+          Real fr = 1.0 / ( 1.0 + ex );
+          Real c6r6 = c6 / pow(rr, 6.0);
+
+          // Contribution to energy
+          Evdw_ = Evdw_ - sfact * fr * c6r6;
+
+          // Contribution to force
+          if( i != j ) {
+
+            Real gr = ( vdw_d / r0 ) * ( fr * fr ) * ex;
+            Real grad = sfact * ( gr - 6.0 * fr / rr ) * c6r6 / rr; 
+
+            //Real fx = grad * rx * dm.length[0];
+            //Real fy = grad * ry * dm.length[1];
+            //Real fz = grad * rz * dm.length[2];
+            Real fx = grad * rx;
+            Real fy = grad * ry;
+            Real fz = grad * rz;
+
+            forceVdw_( i, 0 ) = forceVdw_( i, 0 ) + fx; 
+            forceVdw_( i, 1 ) = forceVdw_( i, 1 ) + fy; 
+            forceVdw_( i, 2 ) = forceVdw_( i, 2 ) + fz; 
+            forceVdw_( j, 0 ) = forceVdw_( j, 0 ) - fx; 
+            forceVdw_( j, 1 ) = forceVdw_( j, 1 ) - fy; 
+            forceVdw_( j, 2 ) = forceVdw_( j, 2 ) - fz; 
+
+          } // end for i != j
+
+        } // end if
+
+
+      } // end for j
+    } // end for i
+
+    } // end for ii
+    } // end for jj
+    } // end for kk
+
+
+    //#endif 
+
+  } // If DFT-D2
+
+
+    VDWEnergy = Evdw_;
+    VDWForce = forceVdw_;
+
+
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+
+  return ;
+} 		// -----  end of method SCFDG::CalculateVDW  ----- 
 
 
 
@@ -4885,6 +5078,7 @@ SCFDG::PrintState	( )
 	Print(statusOFS, "Ehart             = ",  Ehart_, "[au]");
 	Print(statusOFS, "EVxc              = ",  EVxc_, "[au]");
 	Print(statusOFS, "Exc               = ",  Exc_, "[au]"); 
+	Print(statusOFS, "Evdw              = ",  Evdw_, "[au]"); 
 	Print(statusOFS, "Eself             = ",  Eself_, "[au]");
 	Print(statusOFS, "Ecor              = ",  Ecor_, "[au]");
 	Print(statusOFS, "Fermi             = ",  fermi_, "[au]");
@@ -4895,5 +5089,36 @@ SCFDG::PrintState	( )
 
 	return ;
 } 		// -----  end of method SCFDG::PrintState  ----- 
+
+
+void  
+SCFDG::LastSCF( Real& efreeHarris, Real& etot, Real& efree, Real& ekin, 
+    Real& ehart, Real& eVxc, Real& exc, Real& evdw, Real& eself, 
+    Real& ecor, Real& fermi, Real& scfOuterNorm, Real& efreeDifPerAtom )
+{
+#ifndef _RELEASE_
+  PushCallStack("SCFDG::LastSCF");
+#endif
+  
+  efreeHarris       = EfreeHarris_;
+  etot              = Etot_;
+  efree             = Efree_;
+  ekin              = Ekin_;
+  ehart             = Ehart_;
+  eVxc              = EVxc_;
+  exc               = Exc_; 
+  evdw              = Evdw_; 
+  eself             = Eself_;
+  ecor              = Ecor_;
+  fermi             = fermi_;
+  scfOuterNorm      = scfOuterNorm_;
+  efreeDifPerAtom   = efreeDifPerAtom_;
+
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCFDG::LastSCF  ----- 
 
 } // namespace dgdft

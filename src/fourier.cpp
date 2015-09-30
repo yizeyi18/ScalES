@@ -230,13 +230,6 @@ void Fourier::Initialize ( const Domain& dm )
 }		// -----  end of function Fourier::Initialize  ----- 
 
 
-
-
-
-
-
-
-
 void Fourier::InitializeFine ( const Domain& dm )
 {
 #ifndef _RELEASE_
@@ -313,13 +306,48 @@ void Fourier::InitializeFine ( const Domain& dm )
 	for( Int i = 0; i < domain.NumGridTotalFine(); i++ ){
 		a = gkkFine[i] * 2.0;
 		b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
-		TeterPrecondFine[i] = b / ( b + 16.0 * pow(a, 4.0) );
-	}
+    TeterPrecondFine[i] = b / ( b + 16.0 * pow(a, 4.0) );
+  }
 
-	// R2C transform
-	numGridTotalR2CFine = (numGrid[0]/2+1) * numGrid[1] * numGrid[2];
 
-	inputVecR2CFine.Resize( numGridTotalFine );
+  // Compute the index for mapping coarse to find grid
+  idxFineGrid.Resize(domain.NumGridTotal());
+  SetValue( idxFineGrid, 0 );
+  {
+    Int PtrC, PtrF, iF, jF, kF;
+    for( Int kk = 0; kk < domain.numGrid[2]; kk++ ){
+      for( Int jj = 0; jj < domain.numGrid[1]; jj++ ){
+        for( Int ii = 0; ii < domain.numGrid[0]; ii++ ){
+
+          PtrC = ii + jj * domain.numGrid[0] + kk * domain.numGrid[0] * domain.numGrid[1];
+
+          if ( (0 <= ii) && (ii < domain.numGrid[0] / 2) ) { iF = ii; } 
+          else if ( (ii == domain.numGrid[0] / 2) ) { iF = domain.numGridFine[0] / 2; } 
+          else { iF = domain.numGridFine[0] - domain.numGrid[0] + ii; } 
+
+          if ( (0 <= jj) && (jj < domain.numGrid[1] / 2) ) { jF = jj; } 
+          else if ( (jj == domain.numGrid[1] / 2) ) { jF = domain.numGridFine[1] / 2; } 
+          else { jF = domain.numGridFine[1] - domain.numGrid[1] + jj; } 
+
+          if ( (0 <= kk) && (kk < domain.numGrid[2] / 2) ) { kF = kk; } 
+          else if ( (kk == domain.numGrid[2] / 2) ) { kF = domain.numGridFine[2] / 2; } 
+          else { kF = domain.numGridFine[2] - domain.numGrid[2] + kk; } 
+
+          PtrF = iF + jF * domain.numGridFine[0] + kF * domain.numGridFine[0] * domain.numGridFine[1];
+
+          idxFineGrid[PtrC] = PtrF;
+        } 
+      }
+    }
+  }
+
+
+  // R2C transform
+  
+  Int numGridTotalR2C = (domain.numGrid[0]/2+1) * domain.numGrid[1] * domain.numGrid[2];
+  Int numGridTotalR2CFine = (domain.numGridFine[0]/2+1) * domain.numGridFine[1] * domain.numGridFine[2];
+	
+  inputVecR2CFine.Resize( numGridTotalFine );
 	outputVecR2CFine.Resize( numGridTotalR2CFine );
 
 	forwardPlanR2CFine = fftw_plan_dft_r2c_3d( 
@@ -348,48 +376,49 @@ void Fourier::InitializeFine ( const Domain& dm )
 						KGrid[1](j) * KGrid[1](j) +
 						KGrid[2](k) * KGrid[2](k) ) / 2.0;
 			}
-		}
-	}
+    }
+  }
 
-	// TeterPreconditioner
-	for( Int i = 0; i < numGridTotalR2CFine; i++ ){
-		a = gkkR2CFine[i] * 2.0;
-		b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
-		TeterPrecondR2CFine[i] = b / ( b + 16.0 * pow(a, 4.0) );
-	}
+  // TeterPreconditioner
+  for( Int i = 0; i < numGridTotalR2CFine; i++ ){
+    a = gkkR2CFine[i] * 2.0;
+    b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
+    TeterPrecondR2CFine[i] = b / ( b + 16.0 * pow(a, 4.0) );
+  }
 
   // Compute the index for mapping coarse to find grid
-  idxFineGrid.Resize(domain.NumGridTotal());
-  SetValue( idxFineGrid, 0 );
+  idxFineGridR2C.Resize(numGridTotalR2C);
+  SetValue( idxFineGridR2C, 0 );
   {
     Int PtrC, PtrF, iF, jF, kF;
     for( Int kk = 0; kk < domain.numGrid[2]; kk++ ){
       for( Int jj = 0; jj < domain.numGrid[1]; jj++ ){
-        for( Int ii = 0; ii < domain.numGrid[0]; ii++ ){
+        for( Int ii = 0; ii < (domain.numGrid[0]/2+1); ii++ ){
 
-          PtrC = ii + jj * domain.numGrid[0] + kk * domain.numGrid[0] * domain.numGrid[1];
+          PtrC = ii + jj * (domain.numGrid[0]/2+1) + kk * (domain.numGrid[0]/2+1) * domain.numGrid[1];
 
-          if ( (0 <= ii) && (ii <= domain.numGrid[0] / 2) ) { iF = ii; } 
-          else { iF = domain.numGridFine[0] - domain.numGrid[0] + ii; } 
+          if ( (0 <= ii) && (ii < domain.numGrid[0] / 2) ) { iF = ii; } 
+          else if ( (ii == domain.numGrid[0] / 2) ) { iF = domain.numGridFine[0] / 2; } 
+          else { iF = (domain.numGridFine[0]/2+1) - (domain.numGrid[0]/2+1) + ii; } 
 
-          if ( (0 <= jj) && (jj <= domain.numGrid[1] / 2) ) { jF = jj; } 
+          if ( (0 <= jj) && (jj < domain.numGrid[1] / 2) ) { jF = jj; } 
+          else if ( (jj == domain.numGrid[1] / 2) ) { jF = domain.numGridFine[1] / 2; } 
           else { jF = domain.numGridFine[1] - domain.numGrid[1] + jj; } 
 
-          if ( (0 <= kk) && (kk <= domain.numGrid[2] / 2) ) { kF = kk; } 
+          if ( (0 <= kk) && (kk < domain.numGrid[2] / 2) ) { kF = kk; } 
+          else if ( (kk == domain.numGrid[2] / 2) ) { kF = domain.numGridFine[2] / 2; } 
           else { kF = domain.numGridFine[2] - domain.numGrid[2] + kk; } 
 
-          PtrF = iF + jF * domain.numGridFine[0] + kF * domain.numGridFine[0] * domain.numGridFine[1];
+          PtrF = iF + jF * (domain.numGridFine[0]/2+1) + kF * (domain.numGridFine[0]/2+1) * domain.numGridFine[1];
 
-          idxFineGrid[PtrC] = PtrF;
+          idxFineGridR2C[PtrC] = PtrF;
         } 
       }
     }
   }
 
-
-
-	// Mark Fourier to be initialized
-//	isInitialized = true;
+  // Mark Fourier to be initialized
+  //	isInitialized = true;
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -397,12 +426,6 @@ void Fourier::InitializeFine ( const Domain& dm )
 
 	return ;
 }		// -----  end of function Fourier::InitializeFine  ----- 
-
-
-
-
-
-
 
 
 // *********************************************************************

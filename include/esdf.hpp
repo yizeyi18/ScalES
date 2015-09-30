@@ -377,9 +377,15 @@ namespace esdf{
     /// Default: "XC_LDA_XC_TETER93"
     ///
     /// The exchange-correlation functional is implemented using the
-    /// libxc package.  Currently only the LDA xc functional is
+    /// libxc package. Currently only the LDA and GGA xc functionals is
     /// supported.
     std::string         XCType;
+    /// @brief Type of the van der Waals correction.
+    ///
+    /// Default: "DFT-D2"
+    ///
+    /// Currently only the DFT-D2 correction is supported.
+    std::string         VDWType;
 
     // DG related
     /// @brief Number of elements along x,y,z directions.

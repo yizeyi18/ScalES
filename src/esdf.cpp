@@ -693,6 +693,11 @@ void esdf_key() {
 	strcpy(kw_dscrpt[i],"*! Type of exchange correlation functional !*");
 
 	i++;
+	strcpy(kw_label[i],"vdw_type");
+	strcpy(kw_typ[i],"T:E");
+	strcpy(kw_dscrpt[i],"*! Type of van der Waals correction !*");
+	
+  i++;
 	strcpy(kw_label[i],"calculate_aposteriori_each_scf");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether to compute the a posteriori estimator at each SCF step !*");
@@ -2194,6 +2199,8 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.PWSolver        = strtmp;
 		esdf_string("XC_Type", "XC_LDA_XC_TETER93", strtmp); 
 		esdfParam.XCType          = strtmp;
+		esdf_string("VDW_Type", "None", strtmp); 
+		esdfParam.VDWType          = strtmp;
 	}
 
 
@@ -2438,7 +2445,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 	
   // Geometry optimization
   {
-		esdfParam.geoOptMaxStep = esdf_integer( "Geo_Opt_Max_Step", 10 );
+		esdfParam.geoOptMaxStep = esdf_integer( "Geo_Opt_Max_Step", 100 );
 		esdfParam.geoOptMaxForce = esdf_double( "Geo_Opt_Max_Force", 0.001 );
   }
 
