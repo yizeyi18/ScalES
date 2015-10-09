@@ -340,7 +340,9 @@ int main(int argc, char **argv)
 
     // Compute the resolvent
     {
-      GetTime( timeSta );
+      Real timeTotSta, timeTotEnd;
+      GetTime( timeTotSta );
+
       Int N = scaA.Height();
 
       Int  liwork = -1, lwork = -1, info;
@@ -348,8 +350,16 @@ int main(int argc, char **argv)
       std::vector<Int>    iwork(1);
       std::vector<Int>    ipiv(N);
 
+      GetTime( timeSta );
+
       SCALAPACK(pzgetrf)( &N, &N, scaA.Data(), &I_ONE, &I_ONE, 
           scaA.Desc().Values(), &ipiv[0], &info );
+
+      GetTime( timeEnd );
+
+      statusOFS << "Time for factorization is " << timeEnd - timeSta << endl;
+
+      GetTime( timeSta );
 
       SCALAPACK(pzgetri)( &N, scaA.Data(), &I_ONE, &I_ONE, 
           scaA.Desc().Values(), &ipiv[0], &work[0], &lwork, 
@@ -366,8 +376,12 @@ int main(int argc, char **argv)
 
       GetTime( timeEnd );
 
-      statusOFS << "Time for computing the resolvent is "
-        << timeEnd - timeSta << endl;
+      statusOFS << "Time for inversion is " << timeEnd - timeSta << endl;
+
+      GetTime( timeTotEnd );
+
+      statusOFS << "Total time for computing the resolvent is "
+        << timeTotEnd - timeTotSta << endl;
 
     }
 

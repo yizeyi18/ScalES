@@ -2553,6 +2553,14 @@ SCFDG::InnerIterate	( Int outerIter )
         Print( statusOFS, "NeRelRes = ", numElectronRelError_ );
         Print( statusOFS, "NeRelDrv = ", numElectronRelDrv_ );
 #endif
+        // FIXME A better strategy
+        if( numElectronRelError_ > 0.01 ){
+          // This also resets the Fermi energy
+          CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
+          Print( statusOFS, "NeRes > 0.01, resetting the Fermi energy to mu =", fermi_ );
+          numElectronRelError_ = 0.0;
+          numElectronRelDrv_ = 1.0;
+        }
       }
 
       // Compute the Harris energy functional.  
@@ -5283,11 +5291,15 @@ SCFDG::AndersonMixMu (
   // a preconditioner.
   dfMuVec[inext-1] = numElectronRelError;
   dvMuVec[inext-1] = muOld;
-  if( numElectronRelDrv >= 1.0 / mixStepLength ){
+//  if( numElectronRelDrv >= 1.0 / mixStepLength ){
+//    muMix = muOpt - (1.0 / numElectronRelDrv) * NeResOpt;
+//  }
+  // Assume the mu step length is 1.0
+  if( numElectronRelDrv >= 1.0){
     muMix = muOpt - (1.0 / numElectronRelDrv) * NeResOpt;
   }
   else{
-    muMix = muOpt - mixStepLength * NeResOpt;
+    muMix = muOpt - NeResOpt;
   }
 
 #if ( _DEBUGlevel_ >= 0 )

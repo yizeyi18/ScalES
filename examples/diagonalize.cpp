@@ -393,8 +393,19 @@ int main(int argc, char **argv)
     // Post-processing
     // *********************************************************************
 
-    if( outputNE )
+    if( outputNE ){
       statusOFS << "Eigenvalues = " << eigs << endl;
+      // Also output in binary file
+      std::ofstream fout("eig");
+      if( !fout.good() ){
+        throw std::logic_error( "eig file cannot be open!" );
+      }
+      std::ostringstream foStream;
+      serialize( eigs, foStream, NO_MASK );
+
+      fout << foStream.str();
+      fout.close();
+    }
 
     if( outputOptions == 1 || mpirank == 0 ){
       statusOFS.close();
