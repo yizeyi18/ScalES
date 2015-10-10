@@ -50,7 +50,9 @@
 #include	"lapack.hpp"
 #include  "utility.hpp"
 
+#ifndef _DEBUGlevel_
 #define _DEBUGlevel_ 0
+#endif
 
 namespace  dgdft{
 

@@ -58,7 +58,8 @@ namespace dgdft{
 /// @brief Thin interface to ScaLAPACK.
 namespace scalapack{
 
-typedef  int                    Int;
+// LLIN: The following line conflicts with the definition of Int in environment.hpp
+// typedef  int                    Int;
 typedef  std::complex<float>    scomplex;
 typedef  std::complex<double>   dcomplex;
 

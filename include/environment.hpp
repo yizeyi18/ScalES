@@ -117,9 +117,15 @@ namespace dgdft{
 
 // Basic data types
 
+#ifdef Add_
 #define BLAS(name)      name##_
 #define LAPACK(name)    name##_
 #define SCALAPACK(name) name##_
+#else
+#define BLAS(name)      name
+#define LAPACK(name)    name
+#define SCALAPACK(name) name
+#endif
 
 typedef    int                   Int;
 typedef    double                Real;

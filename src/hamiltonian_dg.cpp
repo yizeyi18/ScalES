@@ -49,7 +49,10 @@
 #include  "mpi_interf.hpp"
 #include  "blas.hpp"
 
-#define  _DEBUGlevel_ 0
+#ifndef _DEBUGlevel_
+#define _DEBUGlevel_ 0
+#endif
+
 namespace dgdft{
 
 using namespace PseudoComponent;
