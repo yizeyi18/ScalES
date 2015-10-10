@@ -437,6 +437,11 @@ void esdf_key() {
 	strcpy(kw_label[i],"temperature");
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! temperature (in Kelvin)!*");
+	
+  i++;
+	strcpy(kw_label[i],"ion_temperature");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! temperature for ion (in Kelvin)!*");
 
 	i++;
 	strcpy(kw_label[i],"scf_inner_miniter");
@@ -2451,6 +2456,10 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
   // Molecualr dynamics
   {
+		Real ionTemperature;
+		ionTemperature            = esdf_double( "Ion_Temperature", 300.0 );
+    esdfParam.ionTemperature  = ionTemperature;
+
 		esdfParam.MDMaxStep   = esdf_integer("MD_Max_Step", 1000);
 		esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 80.0);
 		esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);

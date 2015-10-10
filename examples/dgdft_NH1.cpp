@@ -202,6 +202,7 @@ int main(int argc, char **argv)
       Print(statusOFS, "LGL GridFactor    = ",  esdfParam.LGLGridFactor);
 
       Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
+      Print(statusOFS, "Ion Temperature   = ",  esdfParam.ionTemperature, "[K]");
       Print(statusOFS, "Extra states      = ",  esdfParam.numExtraState );
       Print(statusOFS, "PeriodTable File  = ",  esdfParam.periodTableFile );
       Print(statusOFS, "Pseudo Type       = ",  esdfParam.pseudoType );
@@ -651,7 +652,7 @@ int main(int argc, char **argv)
     
 
 
-      Real T = 1. / esdfParam.Tbeta;
+      Real T = esdfParam.ionTemperature;
 
       //*********MD starts***********
       //NHC-MD propagate if NSW!=0

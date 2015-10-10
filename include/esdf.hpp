@@ -628,6 +628,10 @@ namespace esdf{
     ///
     /// Default: 50.0
 		Int									MDTimeStep; 
+    /// @brief Temperature for ion.
+    ///
+    /// Default: K
+    Real                ionTemperature;       
     /// @brief Mass for Nose-Hoover thermostat
     ///
     /// Default: 10.0
