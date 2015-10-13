@@ -657,6 +657,23 @@ namespace esdf{
     ///
     /// Default: 1
     bool                isOutputXYZ;
+    
+    
+    // Inputs related to Chebyshev Filtered SCF iterations for DG
+    // ~~**~~
+    bool Diag_SCFDG_by_Cheby; // Default: 0
+    bool SCFDG_Cheby_use_ScaLAPACK; // Default: 0
+    
+    Int First_SCFDG_ChebyFilterOrder; // Default 60
+    Int First_SCFDG_ChebyCycleNum; // Default 5
+    
+    Int Second_SCFDG_ChebyOuterIter; // How many SCF steps for 2nd phase, default = 3
+    Int Second_SCFDG_ChebyFilterOrder; // Filter Order for 2nd phase, default = 60
+    Int Second_SCFDG_ChebyCycleNum; // Default 3 
+    
+    Int General_SCFDG_ChebyFilterOrder; // Filter Order for general phase, default = 60
+    Int General_SCFDG_ChebyCycleNum; // Default 1
+    
   };
 
   void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );

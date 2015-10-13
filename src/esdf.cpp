@@ -925,6 +925,57 @@ void esdf_key() {
 	strcpy(kw_label[i],"output_xyz");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether to output the atomic position in XYZ format !*");
+	
+	
+	// Inputs related to Chebyshev Filtered SCF iterations for DG
+	// ~~**~~
+	i++;
+	strcpy(kw_label[i],"Diag_SCFDG_by_Cheby");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether to use Chebyshev Filtering based SCF (replaces diagonalization by ScaLAPACK) !*");
+	
+	i++;
+	strcpy(kw_label[i],"SCFDG_Cheby_use_ScaLAPACK");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether to use ScaLAPACK for Chebyshev filtering inner routines !*");
+
+	
+	
+	i++;
+	strcpy(kw_label[i],"First_SCFDG_ChebyFilterOrder");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for first SCF step !*");
+	
+	i++;
+	strcpy(kw_label[i],"First_SCFDG_ChebyCycleNum");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of Chebyshev Filtering Cycles for first SCF step !*");
+
+	i++;
+	strcpy(kw_label[i],"Second_SCFDG_ChebyOuterIter");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Use second stage for outeriter between 1 and Second_SCFDG_ChebyOuterIter !*");
+
+	
+	i++;
+	strcpy(kw_label[i],"Second_SCFDG_ChebyFilterOrder");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for second stage !*");
+
+ 	i++;
+	strcpy(kw_label[i],"Second_SCFDG_ChebyCycleNum");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of Chebyshev Filtering Cycles for second stage !*");
+	
+	i++;
+	strcpy(kw_label[i],"General_SCFDG_ChebyFilterOrder");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for general stage !*");
+
+	i++;
+	strcpy(kw_label[i],"General_SCFDG_ChebyCycleNum");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Number of Chebyshev Filtering Cycles for general stage !*");
 
 }
 
@@ -2472,6 +2523,31 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     // Restart position / thermostat
 
   }
+  
+  // Inputs related to Chebyshev Filtered SCF iterations for DG
+  // ~~**~~
+  {
+    // Basic parameters
+    esdfParam.Diag_SCFDG_by_Cheby = esdf_integer( "Diag_SCFDG_by_Cheby", 0 );
+    esdfParam.SCFDG_Cheby_use_ScaLAPACK = esdf_integer( "SCFDG_Cheby_use_ScaLAPACK", 0 );
+    
+    // First SCF step parameters
+    esdfParam.First_SCFDG_ChebyFilterOrder = esdf_integer( "First_SCFDG_ChebyFilterOrder", 60 );
+    esdfParam.First_SCFDG_ChebyCycleNum = esdf_integer( "First_SCFDG_ChebyCycleNum", 5 );
+    
+    // Second statge parameters
+    esdfParam.Second_SCFDG_ChebyOuterIter = esdf_integer( "Second_SCFDG_ChebyOuterIter", 3 );
+    esdfParam.Second_SCFDG_ChebyFilterOrder = esdf_integer( "Second_SCFDG_ChebyFilterOrder", 60 );
+    esdfParam.Second_SCFDG_ChebyCycleNum = esdf_integer( "Second_SCFDG_ChebyCycleNum", 3);
+    
+    // General SCF step parameters
+    esdfParam.General_SCFDG_ChebyFilterOrder = esdf_integer( "General_SCFDG_ChebyFilterOrder", 60);
+    esdfParam.General_SCFDG_ChebyCycleNum = esdf_integer( "General_SCFDG_ChebyCycleNum", 1);
+    
+   
+    
+  }
+  
 
 #ifndef _RELEASE_
 	PopCallStack();
