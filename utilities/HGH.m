@@ -8,6 +8,8 @@
 % 5/1/2012:  Add support for l=0,1,2. Add Bi 
 %
 % 5/4/2012:  Add support for spin-orbit coupling. Add Se.
+%
+% 10/10/2015: Add the endian support
 
 % Znucs = [1 3 6 8 9 11 13 14 34 58 71 78 79 80 81 83];
 % Znucs = [1 3 6 8 9 15];
@@ -17,7 +19,7 @@
 % Znucs = [8 70];
 % Znucs = [1 8 22];
 % Znucs = [5 6 7];
-Znucs = [1 9];
+Znucs = [11];
 res = cell(length(Znucs),2);
 
 for g=1:length(Znucs)
@@ -1213,7 +1215,7 @@ for g=1:length(Znucs)
 
 end
 
-if(1)
+if(0)
 	binstr = sprintf('HGH.bin');
 	fid = fopen(binstr, 'w');
 	string = {'map', ...
@@ -1228,10 +1230,29 @@ if(1)
 		};
 	serialize(fid,res,string);
 	fclose(fid);
-end
-
-if(1)
 	fid = fopen(binstr,'r');
 	restst = deserialize(fid, string);
+	fclose(fid);
+end
+
+% Add big endian support for compatibility, especially on Vulcan where
+% big endian is used.
+if(1)
+	binstr = sprintf('HGH.bin');
+	fid = fopen(binstr, 'w');
+	string = {'map', ...
+		{'int'}, ...
+		{'tuple', ...
+		{'DblNumVec'}, ...
+		{'DblNumMat'}, ...
+		{'DblNumVec'}, ...
+		{'IntNumVec'}, ...
+		{'DblNumVec'}, ...
+		}...
+		};
+	serializeendian(fid,res,string,'ieee-be.l64');
+	fclose(fid);
+	fid = fopen(binstr,'r');
+	restst = deserializeendian(fid, string,'ieee-be.l64');
 	fclose(fid);
 end

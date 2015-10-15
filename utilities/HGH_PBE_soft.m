@@ -1,7 +1,10 @@
 % Generation of the soft HGH pseudopotential WITHOUT the nonlocal core
 % correction.
 %
-% Obtained from Santanu Saha, 2014/2/16
+% Revision: 2014/2/16 Obtained from Santanu Saha. Did not work.
+% Revision: 2015/9/17 Updated soft HGH pseudopotential. Works.
+% Revision: 2015/10/12 Fix the big endian issue for Vulcan.
+%
 % 
 % LLIN: 
 %
@@ -776,11 +779,10 @@ for g=1:length(Znucs)
 
 	res{g,1} = Znuc;
 	res{g,2} = ess;
-
 end
 
 if(1)
-	binstr = sprintf('HGH.bin');
+	binstr = sprintf('HGH_le.bin');
 	fid = fopen(binstr, 'w');
 	string = {'map', ...
 		{'int'}, ...
@@ -794,10 +796,30 @@ if(1)
 		};
 	serialize(fid,res,string);
 	fclose(fid);
-end
-
-if(1)
 	fid = fopen(binstr,'r');
 	restst = deserialize(fid, string);
+	fclose(fid);
+end
+
+
+% Add big endian support for compatibility, especially on Vulcan where
+% big endian is used.
+if(1)
+	binstr = sprintf('HGH_be.bin');
+	fid = fopen(binstr, 'w');
+	string = {'map', ...
+		{'int'}, ...
+		{'tuple', ...
+		{'DblNumVec'}, ...
+		{'DblNumMat'}, ...
+		{'DblNumVec'}, ...
+		{'IntNumVec'}, ...
+		{'DblNumVec'}, ...
+		}...
+		};
+	serializeendian(fid,res,string,'ieee-be.l64');
+	fclose(fid);
+	fid = fopen(binstr,'r');
+	restst = deserializeendian(fid, string,'ieee-be.l64');
 	fclose(fid);
 end
