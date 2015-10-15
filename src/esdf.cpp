@@ -2459,6 +2459,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		Real ionTemperature;
 		ionTemperature            = esdf_double( "Ion_Temperature", 300.0 );
     esdfParam.ionTemperature  = ionTemperature;
+    esdfParam.TbetaIonTemperature   = au2K / ionTemperature;
 
 		esdfParam.MDMaxStep   = esdf_integer("MD_Max_Step", 1000);
 		esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 80.0);

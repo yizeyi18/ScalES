@@ -652,7 +652,7 @@ int main(int argc, char **argv)
     
 
 
-      Real T = esdfParam.ionTemperature;
+      Real T = 1.0 / esdfParam.TbetaIonTemperature;
 
       //*********MD starts***********
       //NHC-MD propagate if NSW!=0

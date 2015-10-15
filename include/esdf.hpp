@@ -632,6 +632,13 @@ namespace esdf{
     ///
     /// Default: K
     Real                ionTemperature;       
+    /// @brief Inverse of ionTemperature.
+    ///
+    /// Default: 1.0 / (100 K * k_b)
+    ///
+    /// This parameter is not controlled directly, but through 
+    /// "ionTemperature" in the input file, in the unit of Kelvin.
+    Real                TbetaIonTemperature;       
     /// @brief Mass for Nose-Hoover thermostat
     ///
     /// Default: 10.0
