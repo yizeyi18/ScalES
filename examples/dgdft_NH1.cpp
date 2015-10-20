@@ -295,7 +295,7 @@ int main(int argc, char **argv)
     // *********************************************************************
     // Preparation
     // *********************************************************************
-
+    
     // FIXME IMPORTANT: RandomSeed cannot be the same.
     // SetRandomSeed(1);
     SetRandomSeed(mpirank);
@@ -337,9 +337,17 @@ int main(int argc, char **argv)
       // denoted by number of column processors
       // dmCol is the number of processors per column, which normally is
       // denoted by number of row processors
-      int dmCol = numElem[0] * numElem[1] * numElem[2];
-      int dmRow = mpisize / dmCol;
+      Int dmCol = numElem[0] * numElem[1] * numElem[2];
+      Int dmRow = mpisize / dmCol;
+      Int numALBElement = esdfParam.numALBElem(0,0,0);
 
+      if( mpisize > (dmCol * numALBElement) ){
+        std::ostringstream msg;
+        msg << "Total number of processors is too large! " << std::endl;
+        msg << "The maximum number of processors is " << dmCol * numALBElement << std::endl;
+        throw std::runtime_error( msg.str().c_str() );
+      }
+    
       // Cblacs_gridinit(&contxt, "C", dmRow, dmCol);
       Int numProcScaLAPACK = esdfParam.numProcScaLAPACK;
       
