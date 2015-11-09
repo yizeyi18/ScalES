@@ -2,7 +2,7 @@
   Copyright (c) 2012 The Regents of the University of California,
   through Lawrence Berkeley National Laboratory.  
 
-  Author: Lin Lin, Wei Hu and Amartya Banerjee
+  Authors: Lin Lin, Wei Hu and Amartya Banerjee
 
   This file is part of DGDFT. All rights reserved.
 
@@ -2781,6 +2781,135 @@ namespace  dgdft{
   } // End of scfdg_Hamiltonian_times_eigenvectors
   
  
+  // Given a block of eigenvectors (size:  hamDG.NumBasisTotal() * hamDG.NumStateTotal()),
+  // convert this to ScaLAPACK format for subsequent use with ScaLAPACK routines
+  void 
+  SCFDG::scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
+							 std::vector<int> &my_cheby_scala_info,
+							 dgdft::scalapack::Descriptor &my_scala_descriptor,
+							 dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec)
+  {
+#ifndef _RELEASE_
+    PushCallStack("SCFDG::scfdg_Cheby_distmat_to_ScaLAPACK_conversion");
+#endif
+   
+    HamiltonianDG&  hamDG = *hamDGPtr_;
+    
+    // Load up the important ScaLAPACK info
+    int cheby_scala_num_rows = my_cheby_scala_info[0];
+    int cheby_scala_num_cols = my_cheby_scala_info[1];
+    int my_cheby_scala_proc_row = my_cheby_scala_info[2];
+    int my_cheby_scala_proc_col = my_cheby_scala_info[3];
+
+    // Set the descriptor for the ScaLAPACK matrix
+    my_scala_vec.SetDescriptor( my_scala_descriptor );
+    
+    // Get the original key for the distributed vector
+    Index3 my_original_key = (my_dist_vec.LocalMap().begin())->first;
+	    
+    // Form the list of unique keys that we will be requiring
+    // Use the usual map trick for this
+    std::map<Index3, int> unique_keys_list;
+	    
+    // Use the row index for figuring out the key 	    
+    for(int iter = 0; iter < hamDG.ElemBasisInvIdx().size(); iter ++)
+      {
+	int pr = 0 + int(iter / scaBlockSize_) % cheby_scala_num_rows;
+	if(pr == my_cheby_scala_proc_row)
+	  unique_keys_list[hamDG.ElemBasisInvIdx()[iter]] = 0;
+	      
+      }
+	    
+    
+    std::vector<Index3>  getKeys_list;
+	    
+    // Form the list for Get-Begin and Get-End
+    for(typename std::map<Index3, int >::iterator 
+	  it = unique_keys_list.begin(); 
+	it != unique_keys_list.end(); 
+	it ++)
+      { 
+	getKeys_list.push_back(it->first);
+      }    
+	    
+    // Communication
+    my_dist_vec.GetBegin( getKeys_list, NO_MASK ); 
+    my_dist_vec.GetEnd( NO_MASK ); 
+	    
+	    
+    // Get the offset value for each of the matrices pointed to by the keys
+    std::map<Index3, int> offset_map;
+    for(typename std::map<Index3, DblNumMat >::iterator 
+	  test_iterator = my_dist_vec.LocalMap().begin();
+        test_iterator != my_dist_vec.LocalMap().end();
+	test_iterator ++)
+      {	      
+	Index3 key = test_iterator->first;
+	const std::vector<Int>&  my_idx = hamDG.ElemBasisIdx()(key[0],key[1],key[2]); 
+	offset_map[key] = my_idx[0];
+      }
+     
+    // All the data is now available: simply use this to fill up the local
+    // part of the ScaLAPACK matrix. We do this by looping over global indices
+    // and computing local indices from the globals	  
+            
+    double *local_scala_mat_ptr = my_scala_vec.Data();
+    int local_scala_mat_height = my_scala_vec.LocalHeight();
+	    
+    for(int global_col_iter = 0; global_col_iter < hamDG.NumStateTotal(); global_col_iter ++)
+      {
+	int m = int(global_col_iter / (cheby_scala_num_cols * scaBlockSize_));
+	int y = global_col_iter  % scaBlockSize_;
+	int pc = int(global_col_iter / scaBlockSize_) % cheby_scala_num_cols;
+		
+	int local_col_iter = m * scaBlockSize_ + y;
+	      
+	for(int global_row_iter = 0; global_row_iter <  hamDG.NumBasisTotal(); global_row_iter ++)
+	  {
+	    int l = int(global_row_iter / (cheby_scala_num_rows * scaBlockSize_));
+	    int x = global_row_iter % scaBlockSize_;
+	    int pr = int(global_row_iter / scaBlockSize_) % cheby_scala_num_rows;
+						
+	    int local_row_iter = l * scaBlockSize_ + x;
+		
+	    // Check if this entry resides on the current process
+	    if((pr == my_cheby_scala_proc_row) && (pc == my_cheby_scala_proc_col))
+	      {  
+		  
+		// Figure out where to read entry from
+		Index3 key = hamDG.ElemBasisInvIdx()[global_row_iter];
+		DblNumMat &mat_chunk = my_dist_vec.LocalMap()[key]; 
+		  
+		// Assignment to local part of ScaLAPACK matrix
+		local_scala_mat_ptr[local_col_iter * local_scala_mat_height + local_row_iter] 
+		  = mat_chunk(global_row_iter - offset_map[key], global_col_iter);		  
+	      }
+	  }
+      }
+	    
+	    
+
+    // Clean up extra entries from Get-Begin / Get-End
+    typename std::map<Index3, DblNumMat >::iterator delete_it;
+    for(Int delete_iter = 0; delete_iter <  getKeys_list.size(); delete_iter ++)
+      {
+	if(getKeys_list[delete_iter] != my_original_key) // Be careful about original key
+	  {  
+	    delete_it = my_dist_vec.LocalMap().find(getKeys_list[delete_iter]);
+	    (my_dist_vec.LocalMap()).erase(delete_it);
+	  }
+      }
+      
+      
+      
+  
+    
+#ifndef _RELEASE_
+    PopCallStack();
+#endif  
+  }
+ 
+ 
   void 
   SCFDG::scfdg_FirstChebyStep(Int MaxIter,
 			      Int filter_order )
@@ -2873,106 +3002,440 @@ namespace  dgdft{
 	GetTime( timeEnd );
 	statusOFS << std::endl << " Filtering completed. ( " << (timeEnd - timeSta ) << " s.)";
       
-	// Orthonormalize using Cholesky factorization: This part is non-scalable and needs to be fixed
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	statusOFS << std::endl << std::endl << " Orthonormalizing filtered vectors ... ";
-	GetTime( timeSta );
-      
-	DblNumMat &local_eigvec_mat = (hamDG.EigvecCoef().LocalMap().begin())->second;
-	DblNumMat square_mat;
-	DblNumMat temp_square_mat;
-      
-	Int width = local_eigvec_mat.n();
-	Int height_local = local_eigvec_mat.m();
-      
-	square_mat.Resize(width, width);
-	temp_square_mat.Resize(width, width);
-      
-	SetValue(temp_square_mat, 0.0);
-      
-	// Compute square_mat = X^T * X for Cholesky	
-	blas::Gemm( 'T', 'N', width, width, height_local, 
-		    1.0, local_eigvec_mat.Data(), height_local,
-		    local_eigvec_mat.Data(), height_local, 
-		    0.0, temp_square_mat.Data(), width );
-      
-	SetValue( square_mat, 0.0 );
-	MPI_Allreduce( temp_square_mat.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, domain_.colComm );
-      
-	// In the following, reduction happens on colComm but the result is broadcast to everyone
-	// This can probably be band-parallelized
-      
-	// Make the Cholesky factorization call on proc 0
-	if ( mpirank == 0) {
-	  lapack::Potrf( 'U', width, square_mat.Data(), width );
-	}
-	// Send the Cholesky factor to every process
-	MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, domain_.comm);
-      
-	// Do a solve with the Cholesky factor : Band parallelization ??
-	// X = X * U^{-1} is orthogonal, where U is the Cholesky factor
-	blas::Trsm( 'R', 'U', 'N', 'N', height_local, width, 1.0, square_mat.Data(), width, 
-		    local_eigvec_mat.Data(), height_local );
+	// Subspace projected problems: Orthonormalization, Raleigh-Ritz and subspace rotation steps
+        // This can be done serially or using ScaLAPACK	
+	if(SCFDG_Cheby_use_ScaLAPACK_ == 0)
+	  {
+	    // Do the subspace problem serially 
+	    statusOFS << std::endl << std::endl << " Solving subspace problems serially ...";
 	
-	GetTime( timeEnd );
-	statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)";
+	    // Orthonormalize using Cholesky factorization  
+	    statusOFS << std::endl << " Orthonormalizing filtered vectors ... ";
+	    GetTime( timeSta );
       
-	// Raleigh-Ritz step: This part is non-scalable and needs to be fixed
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	statusOFS << std::endl << std::endl << " Raleigh-Ritz step ... ";
-	GetTime( timeSta );
+	  
+	  
+	    DblNumMat &local_eigvec_mat = (hamDG.EigvecCoef().LocalMap().begin())->second;
+	    DblNumMat square_mat;
+	    DblNumMat temp_square_mat;
       
-	// Compute H * X
-	DistVec<Index3, DblNumMat, ElemPrtn>  result_mat;
-	scfdg_Hamiltonian_times_eigenvectors(result_mat);
-	DblNumMat &local_result_mat = (result_mat.LocalMap().begin())->second;
+	    Int width = local_eigvec_mat.n();
+	    Int height_local = local_eigvec_mat.m();
       
-	SetValue(temp_square_mat, 0.0);
+	    square_mat.Resize(width, width);
+	    temp_square_mat.Resize(width, width);
       
-	// Compute square_mat = X^T * HX 
-	blas::Gemm( 'T', 'N', width, width, height_local, 
-		    1.0, local_eigvec_mat.Data(), height_local,
-		    local_result_mat.Data(), height_local, 
-		    0.0, temp_square_mat.Data(), width );
+	    SetValue(temp_square_mat, 0.0);
       
-	SetValue( square_mat, 0.0 );
-	MPI_Allreduce( temp_square_mat.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, domain_.colComm );
+	    // Compute square_mat = X^T * X for Cholesky	
+	    blas::Gemm( 'T', 'N', width, width, height_local, 
+			1.0, local_eigvec_mat.Data(), height_local,
+			local_eigvec_mat.Data(), height_local, 
+			0.0, temp_square_mat.Data(), width );
+      
+	    SetValue( square_mat, 0.0 );
+	    MPI_Allreduce( temp_square_mat.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, domain_.colComm );
+      
+	    // In the following, reduction happens on colComm but the result is broadcast to everyone
+	    // This can probably be band-parallelized
+      
+	    // Make the Cholesky factorization call on proc 0
+	    if ( mpirank == 0) {
+	      lapack::Potrf( 'U', width, square_mat.Data(), width );
+	    }
+	    // Send the Cholesky factor to every process
+	    MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, domain_.comm);
+      
+	    // Do a solve with the Cholesky factor : Band parallelization ??
+	    // X = X * U^{-1} is orthogonal, where U is the Cholesky factor
+	    blas::Trsm( 'R', 'U', 'N', 'N', height_local, width, 1.0, square_mat.Data(), width, 
+			local_eigvec_mat.Data(), height_local );
+	
+	
+	    GetTime( timeEnd );
+	    statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)";
+      
+	    // Raleigh-Ritz step: This part is non-scalable and needs to be fixed
+	    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	    statusOFS << std::endl << std::endl << " Raleigh-Ritz step ... ";
+	    GetTime( timeSta );
+      
+	    // Compute H * X
+	    DistVec<Index3, DblNumMat, ElemPrtn>  result_mat;
+	    scfdg_Hamiltonian_times_eigenvectors(result_mat);
+	    DblNumMat &local_result_mat = (result_mat.LocalMap().begin())->second;
+      
+	    SetValue(temp_square_mat, 0.0);
+      
+	    // Compute square_mat = X^T * HX 
+	    blas::Gemm( 'T', 'N', width, width, height_local, 
+			1.0, local_eigvec_mat.Data(), height_local,
+			local_result_mat.Data(), height_local, 
+			0.0, temp_square_mat.Data(), width );
+      
+	    SetValue( square_mat, 0.0 );
+	    MPI_Allreduce( temp_square_mat.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, domain_.colComm );
           
       
-	eig_vals_Raleigh_Ritz.Resize(width);
-	SetValue(eig_vals_Raleigh_Ritz, 0.0);
+	    eig_vals_Raleigh_Ritz.Resize(width);
+	    SetValue(eig_vals_Raleigh_Ritz, 0.0);
       
-	if ( mpirank == 0 ) {
-	  lapack::Syevd( 'V', 'U', width, square_mat.Data(), width, eig_vals_Raleigh_Ritz.Data() );
+	    if ( mpirank == 0 ) {
+	      lapack::Syevd( 'V', 'U', width, square_mat.Data(), width, eig_vals_Raleigh_Ritz.Data() );
 	   
-	}
+	    }
 	
-	// ~~ Send the results to every process
-	MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, domain_.comm); // Eigen-vectors
-        MPI_Bcast(eig_vals_Raleigh_Ritz.Data(), width, MPI_DOUBLE, 0,  domain_.comm); // Eigen-values
+	    // ~~ Send the results to every process
+	    MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, domain_.comm); // Eigen-vectors
+	    MPI_Bcast(eig_vals_Raleigh_Ritz.Data(), width, MPI_DOUBLE, 0,  domain_.comm); // Eigen-values
 	
       
-	GetTime( timeEnd );
-	statusOFS << std::endl << " Raleigh-Ritz step completed ( " << (timeEnd - timeSta ) << " s.)";
+	    GetTime( timeEnd );
+	    statusOFS << std::endl << " Raleigh-Ritz step completed ( " << (timeEnd - timeSta ) << " s.)";
       
-	// Subspace rotation step: This part is non-scalable and needs to be fixed
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	statusOFS << std::endl << std::endl << " Subspace rotation step ... ";
-	GetTime( timeSta );
+	    // Subspace rotation step X <- X * Q: This part is non-scalable and needs to be fixed
+	    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	    statusOFS << std::endl << std::endl << " Subspace rotation step ... ";
+	    GetTime( timeSta );
       
-      	// ~~ So copy X to HX 
-	lapack::Lacpy( 'A', height_local, width, local_eigvec_mat.Data(),  height_local, local_result_mat.Data(), height_local );
+	    // ~~ So copy X to HX 
+	    lapack::Lacpy( 'A', height_local, width, local_eigvec_mat.Data(),  height_local, local_result_mat.Data(), height_local );
 	
-	// ~~ Gemm: X <-- HX (= X) * Q
-	blas::Gemm( 'N', 'N', height_local, width, width, 1.0, local_result_mat.Data(),
-		    height_local, square_mat.Data(), width, 0.0, local_eigvec_mat.Data(), height_local );	
+	    // ~~ Gemm: X <-- HX (= X) * Q
+	    blas::Gemm( 'N', 'N', height_local, width, width, 1.0, local_result_mat.Data(),
+			height_local, square_mat.Data(), width, 0.0, local_eigvec_mat.Data(), height_local );	
       
-	GetTime( timeEnd );
-	statusOFS << std::endl << " Subspace rotation step completed ( " << (timeEnd - timeSta ) << " s.)";
+	    GetTime( timeEnd );
+	    statusOFS << std::endl << " Subspace rotation step completed ( " << (timeEnd - timeSta ) << " s.)";
       
-	// Reset the filtering bounds using results of the Raleigh-Ritz step
-	b_low = eig_vals_Raleigh_Ritz(width - 1);
-	a_L = eig_vals_Raleigh_Ritz(0);
+	    // Reset the filtering bounds using results of the Raleigh-Ritz step
+	    b_low = eig_vals_Raleigh_Ritz(width - 1);
+	    a_L = eig_vals_Raleigh_Ritz(0);
+	    
+	    // Fill up the eigen-values
+	    DblNumVec& eigval = hamDG.EigVal(); 
+	    eigval.Resize( hamDG.NumStateTotal() );	
+	    
+	    for(Int i = 0; i < hamDG.NumStateTotal(); i ++)
+	      eigval[i] =  eig_vals_Raleigh_Ritz[i];
+
+	    
+	
+	  } // End of if(SCFDG_Cheby_use_ScaLAPACK_ == 0)
+	else
+	  {
+	    // Do the subspace problems using ScaLAPACK
+	    statusOFS << std::endl << std::endl << " Solving subspace problems using ScaLAPACK ...";
+	    
+	    statusOFS << std::endl << " Setting up BLACS and ScaLAPACK Process Grid ...";
+	    GetTime( timeSta );
+	     
+	    // Basic ScaLAPACK setup steps
+	    //Number of ScaLAPACK processors equal to number of DG elements
+	    const int num_cheby_scala_procs = mpisizeCol; 
+	  
+	    // Figure out the process grid dimensions
+	    int temp_factor = int(sqrt(double(num_cheby_scala_procs)));
+	    while(num_cheby_scala_procs % temp_factor != 0 )
+	      ++temp_factor;
+    
+	    // temp_factor now contains the process grid height
+	    const int cheby_scala_num_rows = temp_factor;	  
+	    const int cheby_scala_num_cols = num_cheby_scala_procs / temp_factor;
+     
+         	  
+	    
+	    // Set up the ScaLAPACK context
+	    IntNumVec cheby_scala_pmap(num_cheby_scala_procs);
+	  
+	    // Use the first processor from every DG-element 
+	    for ( Int pmap_iter = 0; pmap_iter < num_cheby_scala_procs; pmap_iter++ )
+	      cheby_scala_pmap[pmap_iter] = pmap_iter * mpisizeRow; 
+	  
+	    // Set up BLACS for subsequent ScaLAPACK operations
+	    Int cheby_scala_context = -2;
+	    dgdft::scalapack::Cblacs_get( 0, 0, &cheby_scala_context );
+	    dgdft::scalapack::Cblacs_gridmap(&cheby_scala_context, &cheby_scala_pmap[0], cheby_scala_num_rows, cheby_scala_num_rows, cheby_scala_num_cols);
+	  
+	    // Figure out my ScaLAPACK information
+	    int dummy_np_row, dummy_np_col;
+	    int my_cheby_scala_proc_row, my_cheby_scala_proc_col;
+	  
+	    dgdft::scalapack::Cblacs_gridinfo(cheby_scala_context, &dummy_np_row, &dummy_np_col, &my_cheby_scala_proc_row, &my_cheby_scala_proc_col);
+	  
+	    // Store the important ScaLAPACK information
+	    std::vector<int> my_cheby_scala_info;
+	    my_cheby_scala_info.resize(4,0);
+	    my_cheby_scala_info[0] = cheby_scala_num_rows;
+	    my_cheby_scala_info[1] = cheby_scala_num_cols;
+	    my_cheby_scala_info[2] = my_cheby_scala_proc_row;
+	    my_cheby_scala_info[3] = my_cheby_scala_proc_col;
+	  
+	  
+	    GetTime( timeEnd );
+	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	    
+	    statusOFS << std::endl << " ScaLAPACK will use " << num_cheby_scala_procs << " processes.";
+	    statusOFS << std::endl << " ScaLAPACK process grid = " << cheby_scala_num_rows << " * " << cheby_scala_num_cols << " ."  << std::endl;
+	  
+	    // Eigenvcetors in ScaLAPACK format : this will be used multiple times
+	    dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_eigvecs_X; // Declared here for scope, empty constructor invoked
+	        
+	    if(cheby_scala_context >= 0)
+	      { 
+		// Now setup the ScaLAPACK matrix
+		statusOFS << std::endl << " Orthonormalization step:";
+		statusOFS << std::endl << " Distributed vector to ScaLAPACK format conversion ... ";
+		GetTime( timeSta );
+		
+		// The dimensions should be  hamDG.NumBasisTotal() * hamDG.NumStateTotal()
+		// But this is not verified here as far as the distributed vector is concerned
+		dgdft::scalapack::Descriptor cheby_eigvec_desc( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
+								scaBlockSize_, scaBlockSize_, 
+								0, 0, 
+								cheby_scala_context);
+	    
+		
+
+		// Make the conversion call 
+		scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(hamDG.EigvecCoef(),
+								my_cheby_scala_info,
+								cheby_eigvec_desc,
+								cheby_scala_eigvecs_X);
+		
+		
+		
+		GetTime( timeEnd );
+	        statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+		
+		
+		statusOFS << std::endl << " Orthonormalizing filtered vectors ... ";
+		GetTime( timeSta );
+      
+	  
+		// Compute C = X^T * X
+		dgdft::scalapack::Descriptor cheby_chol_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
+							      scaBlockSize_, scaBlockSize_, 
+							      0, 0, 
+							      cheby_scala_context);
+		
+		dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_chol_mat;
+		cheby_scala_chol_mat.SetDescriptor(cheby_chol_desc);
+		
+		dgdft::scalapack::Gemm( 'T', 'N',
+					hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
+					1.0,
+					cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(), 
+					cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(),
+					0.0,
+					cheby_scala_chol_mat.Data(), I_ONE, I_ONE, cheby_scala_chol_mat.Desc().Values(),
+					cheby_scala_context);
+	    
+		
+
+		
+		// Compute V = Chol(C)
+		dgdft::scalapack::Potrf( 'U', cheby_scala_chol_mat);
+
+		// Compute  X = X * V^{-1}
+		dgdft::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
+					cheby_scala_chol_mat, 
+					cheby_scala_eigvecs_X );
+		
+		GetTime( timeEnd );
+	        statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)";
+      
+		statusOFS << std::endl << " ScaLAPACK to Distributed vector format conversion ... ";
+		GetTime( timeSta );
+		
+		// Now convert this back to DG-distributed matrix format
+		ScaMatToDistNumMat(cheby_scala_eigvecs_X ,
+				   elemPrtn_,
+				   hamDG.EigvecCoef(),
+				   hamDG.ElemBasisIdx(), 
+				   domain_.colComm, 
+				   hamDG.NumStateTotal() );
+		
+		GetTime( timeEnd );
+	        statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+		
+				
+	      } // End of  if(cheby_scala_context >= 0)
+	      else
+	      {
+		statusOFS << std::endl << " Waiting for ScaLAPACK solution of subspace problems ...";
+	      }		
+		
+	    // Communicate the orthonormalized eigenvectors (to other intra-element processors)
+	    statusOFS << std::endl << " Communicating orthonormalized filtered vectors ... ";
+	    GetTime( timeSta );
+	   
+	    DblNumMat &ref_mat_1 =  (hamDG.EigvecCoef().LocalMap().begin())->second;
+	    MPI_Bcast(ref_mat_1.Data(), (ref_mat_1.m() * ref_mat_1.n()), MPI_DOUBLE, 0, domain_.rowComm);
+	    
+	    GetTime( timeEnd );
+	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	    
+	    // Set up space for eigenvalues in the Hamiltonian object for results of Raleigh-Ritz step
+	    DblNumVec& eigval = hamDG.EigVal(); 
+	    eigval.Resize( hamDG.NumStateTotal() );	
+	    
+	    
+	    // Compute H * X
+	    statusOFS << std::endl << " Computing H * X for filtered orthonormal vectors: ";
+	    GetTime( timeSta );
+	    
+	    DistVec<Index3, DblNumMat, ElemPrtn>  result_mat;
+	    scfdg_Hamiltonian_times_eigenvectors(result_mat);
+	    
+	    GetTime( timeEnd );
+	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	  
+	    // Raleigh-Ritz step
+	    if(cheby_scala_context >= 0)
+	      { 
+		statusOFS << std::endl << std::endl << " Raleigh - Ritz step:";
+	      
+
+		// Convert HX to ScaLAPACK format
+		dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_HX;
+		dgdft::scalapack::Descriptor cheby_HX_desc( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
+							    scaBlockSize_, scaBlockSize_, 
+							    0, 0, 
+							    cheby_scala_context);
+	    
+		
+		statusOFS << std::endl << " Distributed vector to ScaLAPACK format conversion ... ";
+		GetTime( timeSta );
+	      
+		// Make the conversion call 
+		scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(result_mat,
+								my_cheby_scala_info,
+								cheby_HX_desc,
+								cheby_scala_HX);
+	      
+	      
+		GetTime( timeEnd );
+		statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+		
+		statusOFS << std::endl << " Solving the subspace problem ... ";
+		GetTime( timeSta );
+       
+		dgdft::scalapack::Descriptor cheby_XTHX_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
+							      scaBlockSize_, scaBlockSize_, 
+							      0, 0, 
+							      cheby_scala_context);
+		
+		dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_XTHX_mat;
+		cheby_scala_XTHX_mat.SetDescriptor(cheby_XTHX_desc);
+		
+		dgdft::scalapack::Gemm( 'T', 'N',
+					hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
+					1.0,
+					cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(), 
+					cheby_scala_HX.Data(), I_ONE, I_ONE, cheby_scala_HX.Desc().Values(),
+					0.0,
+					cheby_scala_XTHX_mat.Data(), I_ONE, I_ONE, cheby_scala_XTHX_mat.Desc().Values(),
+					cheby_scala_context);
+	    
+	
+		scalapack::ScaLAPACKMatrix<Real>  scaZ;
+
+		std::vector<Real> eigen_values;
+	      
+		// Eigenvalue probem solution call
+		scalapack::Syevd('U', cheby_scala_XTHX_mat, eigen_values, scaZ);
+	     	      
+		// Copy the eigenvalues to the Hamiltonian object	      
+		for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
+		  eigval[i] = eigen_values[i];
+
+
+		GetTime( timeEnd );
+		statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	      
+		// Subspace rotation step : X <- X * Q
+		statusOFS << std::endl << " Subspace rotation step ... ";
+		GetTime( timeSta );
+	      
+		// To save memory, copy X to HX
+		blas::Copy((cheby_scala_eigvecs_X.LocalHeight() * cheby_scala_eigvecs_X.LocalWidth()), 
+			   cheby_scala_eigvecs_X.Data(),
+			   1,
+			   cheby_scala_HX.Data(),
+			   1);
+	      
+		// Now perform X <- HX (=X) * Q (=scaZ)
+		dgdft::scalapack::Gemm( 'N', 'N',
+					hamDG.NumBasisTotal(), hamDG.NumStateTotal(), hamDG.NumStateTotal(),
+					1.0,
+					cheby_scala_HX.Data(), I_ONE, I_ONE, cheby_scala_HX.Desc().Values(), 
+					scaZ.Data(), I_ONE, I_ONE, scaZ.Desc().Values(),
+					0.0,
+					cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(),
+					cheby_scala_context);
+	    
+	      
+	      
+	      
+		GetTime( timeEnd );
+		statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+		
+	      
+		// Convert the eigenvectors back to distributed vector format
+		statusOFS << std::endl << " ScaLAPACK to Distributed vector format conversion ... ";
+		GetTime( timeSta );
+		
+		// Now convert this back to DG-distributed matrix format
+		ScaMatToDistNumMat(cheby_scala_eigvecs_X ,
+				   elemPrtn_,
+				   hamDG.EigvecCoef(),
+				   hamDG.ElemBasisIdx(), 
+				   domain_.colComm, 
+				   hamDG.NumStateTotal() );
+		
+		GetTime( timeEnd );
+		statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	      
+    
+	      }  // End of if(cheby_scala_context >= 0)
+	   
+	    // Communicate the final eigenvectors (to other intra-element processors)
+	    statusOFS << std::endl << " Communicating eigenvalues and eigenvectors ... ";
+	    GetTime( timeSta );
+	   
+	    DblNumMat &ref_mat_2 =  (hamDG.EigvecCoef().LocalMap().begin())->second;
+	    MPI_Bcast(ref_mat_2.Data(), (ref_mat_2.m() * ref_mat_2.n()), MPI_DOUBLE, 0, domain_.rowComm);
+	    
+	    // Communicate the final eigenvalues (to other intra-element processors)
+	    MPI_Bcast(eigval.Data(), ref_mat_2.n(), MPI_DOUBLE, 0,  domain_.rowComm); // Eigen-values
+	  
+	  
+	    GetTime( timeEnd );
+	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+
+	  
+	  
+	  
+	    // Reset the filtering bounds using results of the Raleigh-Ritz step	
+	    b_low = eigval(ref_mat_2.n() - 1);
+	    a_L = eigval(0);
+
+	    MPI_Barrier(domain_.rowComm);
+	    MPI_Barrier(domain_.colComm);
+	    MPI_Barrier(domain_.comm);
+	    
+	    // Clean up BLACS
+	    if(cheby_scala_context >= 0) {
+	      dgdft::scalapack::Cblacs_gridexit( cheby_scala_context );
+	    }
+    
+
+	    
+	  
+	  } // End of if(SCFDG_Cheby_use_ScaLAPACK_ == 0) ... else 
+	
+	
       
 	statusOFS << std::endl << " ------------------------------- ";
 	GetTime( cheby_timeEnd );
@@ -2986,12 +3449,6 @@ namespace  dgdft{
       } // End of loop over inner iteration repeats
  
     
-    // Fill up the eigen-values
-    DblNumVec& eigval = hamDG.EigVal(); 
-    eigval.Resize( hamDG.NumStateTotal() );	
-	    
-    for(Int i = 0; i < hamDG.NumStateTotal(); i ++)
-      eigval[i] =  eig_vals_Raleigh_Ritz[i];
     
 #ifndef _RELEASE_
     PopCallStack();
@@ -3059,106 +3516,444 @@ namespace  dgdft{
 	GetTime( timeEnd );
 	statusOFS << std::endl << " Filtering completed. ( " << (timeEnd - timeSta ) << " s.)";
       
-	// Orthonormalize using Cholesky factorization: This part is non-scalable and needs to be fixed
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	statusOFS << std::endl << std::endl << " Orthonormalizing filtered vectors ... ";
-	GetTime( timeSta );
-      
-	DblNumMat &local_eigvec_mat = (hamDG.EigvecCoef().LocalMap().begin())->second;
-	DblNumMat square_mat;
-	DblNumMat temp_square_mat;
-      
-	Int width = local_eigvec_mat.n();
-	Int height_local = local_eigvec_mat.m();
-      
-	square_mat.Resize(width, width);
-	temp_square_mat.Resize(width, width);
-      
-	SetValue(temp_square_mat, 0.0);
-      
-	// Compute square_mat = X^T * X for Cholesky	
-	blas::Gemm( 'T', 'N', width, width, height_local, 
-		    1.0, local_eigvec_mat.Data(), height_local,
-		    local_eigvec_mat.Data(), height_local, 
-		    0.0, temp_square_mat.Data(), width );
-      
-	SetValue( square_mat, 0.0 );
-	MPI_Allreduce( temp_square_mat.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, domain_.colComm );
-      
-	// In the following, reduction happens on colComm but the result is broadcast to everyone
-	// This can probably be band-parallelized
-      
-	// Make the Cholesky factorization call on proc 0
-	if ( mpirank == 0) {
-	  lapack::Potrf( 'U', width, square_mat.Data(), width );
-	}
-	// Send the Cholesky factor to every process
-	MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, domain_.comm);
-      
-	// Do a solve with the Cholesky factor : Band parallelization ??
-	// X = X * U^{-1} is orthogonal, where U is the Cholesky factor
-	blas::Trsm( 'R', 'U', 'N', 'N', height_local, width, 1.0, square_mat.Data(), width, 
-		    local_eigvec_mat.Data(), height_local );
+
 	
-	GetTime( timeEnd );
-	statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)";
+	     
+	  
+	  
+	
+	// Subspace projected problems: Orthonormalization, Raleigh-Ritz and subspace rotation steps
+        // This can be done serially or using ScaLAPACK	
+	if(SCFDG_Cheby_use_ScaLAPACK_ == 0)
+	  {
+	    // Do the subspace problem serially 
+	    statusOFS << std::endl << std::endl << " Solving subspace problems serially ...";
+	
+	    // Orthonormalize using Cholesky factorization  
+	    statusOFS << std::endl << " Orthonormalizing filtered vectors ... ";
+	    GetTime( timeSta );
       
-	// Raleigh-Ritz step: This part is non-scalable and needs to be fixed
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	statusOFS << std::endl << std::endl << " Raleigh-Ritz step ... ";
-	GetTime( timeSta );
+	  
+	  
+	    DblNumMat &local_eigvec_mat = (hamDG.EigvecCoef().LocalMap().begin())->second;
+	    DblNumMat square_mat;
+	    DblNumMat temp_square_mat;
       
-	// Compute H * X
-	DistVec<Index3, DblNumMat, ElemPrtn>  result_mat;
-	scfdg_Hamiltonian_times_eigenvectors(result_mat);
-	DblNumMat &local_result_mat = (result_mat.LocalMap().begin())->second;
+	    Int width = local_eigvec_mat.n();
+	    Int height_local = local_eigvec_mat.m();
       
-	SetValue(temp_square_mat, 0.0);
+	    square_mat.Resize(width, width);
+	    temp_square_mat.Resize(width, width);
       
-	// Compute square_mat = X^T * HX 
-	blas::Gemm( 'T', 'N', width, width, height_local, 
-		    1.0, local_eigvec_mat.Data(), height_local,
-		    local_result_mat.Data(), height_local, 
-		    0.0, temp_square_mat.Data(), width );
+	    SetValue(temp_square_mat, 0.0);
       
-	SetValue( square_mat, 0.0 );
-	MPI_Allreduce( temp_square_mat.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, domain_.colComm );
+	    // Compute square_mat = X^T * X for Cholesky	
+	    blas::Gemm( 'T', 'N', width, width, height_local, 
+			1.0, local_eigvec_mat.Data(), height_local,
+			local_eigvec_mat.Data(), height_local, 
+			0.0, temp_square_mat.Data(), width );
+      
+	    SetValue( square_mat, 0.0 );
+	    MPI_Allreduce( temp_square_mat.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, domain_.colComm );
+      
+	    // In the following, reduction happens on colComm but the result is broadcast to everyone
+	    // This can probably be band-parallelized
+      
+	    // Make the Cholesky factorization call on proc 0
+	    if ( mpirank == 0) {
+	      lapack::Potrf( 'U', width, square_mat.Data(), width );
+	    }
+	    // Send the Cholesky factor to every process
+	    MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, domain_.comm);
+      
+	    // Do a solve with the Cholesky factor : Band parallelization ??
+	    // X = X * U^{-1} is orthogonal, where U is the Cholesky factor
+	    blas::Trsm( 'R', 'U', 'N', 'N', height_local, width, 1.0, square_mat.Data(), width, 
+			local_eigvec_mat.Data(), height_local );
+	
+	
+	    GetTime( timeEnd );
+	    statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)";
+      
+	    // Raleigh-Ritz step: This part is non-scalable and needs to be fixed
+	    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	    statusOFS << std::endl << std::endl << " Raleigh-Ritz step ... ";
+	    GetTime( timeSta );
+      
+	    // Compute H * X
+	    DistVec<Index3, DblNumMat, ElemPrtn>  result_mat;
+	    scfdg_Hamiltonian_times_eigenvectors(result_mat);
+	    DblNumMat &local_result_mat = (result_mat.LocalMap().begin())->second;
+      
+	    SetValue(temp_square_mat, 0.0);
+      
+	    // Compute square_mat = X^T * HX 
+	    blas::Gemm( 'T', 'N', width, width, height_local, 
+			1.0, local_eigvec_mat.Data(), height_local,
+			local_result_mat.Data(), height_local, 
+			0.0, temp_square_mat.Data(), width );
+      
+	    SetValue( square_mat, 0.0 );
+	    MPI_Allreduce( temp_square_mat.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, domain_.colComm );
           
       
-	eig_vals_Raleigh_Ritz.Resize(width);
-	SetValue(eig_vals_Raleigh_Ritz, 0.0);
+	    eig_vals_Raleigh_Ritz.Resize(width);
+	    SetValue(eig_vals_Raleigh_Ritz, 0.0);
       
-	if ( mpirank == 0 ) {
-	  lapack::Syevd( 'V', 'U', width, square_mat.Data(), width, eig_vals_Raleigh_Ritz.Data() );
+	    if ( mpirank == 0 ) {
+	      lapack::Syevd( 'V', 'U', width, square_mat.Data(), width, eig_vals_Raleigh_Ritz.Data() );
 	   
-	}
+	    }
 	
-	// ~~ Send the results to every process
-	MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, domain_.comm); // Eigen-vectors
-        MPI_Bcast(eig_vals_Raleigh_Ritz.Data(), width, MPI_DOUBLE, 0,  domain_.comm); // Eigen-values
+	    // ~~ Send the results to every process
+	    MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, domain_.comm); // Eigen-vectors
+	    MPI_Bcast(eig_vals_Raleigh_Ritz.Data(), width, MPI_DOUBLE, 0,  domain_.comm); // Eigen-values
 	
       
-	GetTime( timeEnd );
-	statusOFS << std::endl << " Raleigh-Ritz step completed ( " << (timeEnd - timeSta ) << " s.)";
+	    GetTime( timeEnd );
+	    statusOFS << std::endl << " Raleigh-Ritz step completed ( " << (timeEnd - timeSta ) << " s.)";
       
-	// Subspace rotation step: This part is non-scalable and needs to be fixed
-	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	statusOFS << std::endl << std::endl << " Subspace rotation step ... ";
-	GetTime( timeSta );
+	    // Subspace rotation step X <- X * Q: This part is non-scalable and needs to be fixed
+	    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	    statusOFS << std::endl << std::endl << " Subspace rotation step ... ";
+	    GetTime( timeSta );
       
-      	// ~~ So copy X to HX 
-	lapack::Lacpy( 'A', height_local, width, local_eigvec_mat.Data(),  height_local, local_result_mat.Data(), height_local );
+	    // ~~ So copy X to HX 
+	    lapack::Lacpy( 'A', height_local, width, local_eigvec_mat.Data(),  height_local, local_result_mat.Data(), height_local );
 	
-	// ~~ Gemm: X <-- HX (= X) * Q
-	blas::Gemm( 'N', 'N', height_local, width, width, 1.0, local_result_mat.Data(),
-		    height_local, square_mat.Data(), width, 0.0, local_eigvec_mat.Data(), height_local );	
+	    // ~~ Gemm: X <-- HX (= X) * Q
+	    blas::Gemm( 'N', 'N', height_local, width, width, 1.0, local_result_mat.Data(),
+			height_local, square_mat.Data(), width, 0.0, local_eigvec_mat.Data(), height_local );	
       
-	GetTime( timeEnd );
-	statusOFS << std::endl << " Subspace rotation step completed ( " << (timeEnd - timeSta ) << " s.)";
+	    GetTime( timeEnd );
+	    statusOFS << std::endl << " Subspace rotation step completed ( " << (timeEnd - timeSta ) << " s.)";
       
-	// Reset the filtering bounds using results of the Raleigh-Ritz step
-	b_low = eig_vals_Raleigh_Ritz(width - 1);
-	a_L = eig_vals_Raleigh_Ritz(0);
+	    // Reset the filtering bounds using results of the Raleigh-Ritz step
+	    b_low = eig_vals_Raleigh_Ritz(width - 1);
+	    a_L = eig_vals_Raleigh_Ritz(0);
+	    
+	    // Fill up the eigen-values
+	    DblNumVec& eigval = hamDG.EigVal(); 
+	    eigval.Resize( hamDG.NumStateTotal() );	
+	    
+	    for(Int i = 0; i < hamDG.NumStateTotal(); i ++)
+	      eigval[i] =  eig_vals_Raleigh_Ritz[i];
+
+	    
+	
+	  } // End of if(SCFDG_Cheby_use_ScaLAPACK_ == 0)
+	else
+	  {
+	    // Do the subspace problems using ScaLAPACK
+	    statusOFS << std::endl << std::endl << " Solving subspace problems using ScaLAPACK ...";
+	    
+	    statusOFS << std::endl << " Setting up BLACS and ScaLAPACK Process Grid ...";
+	    GetTime( timeSta );
+	     
+	    // Basic ScaLAPACK setup steps
+	    //Number of ScaLAPACK processors equal to number of DG elements
+	    const int num_cheby_scala_procs = mpisizeCol; 
+	  
+	    // Figure out the process grid dimensions
+	    int temp_factor = int(sqrt(double(num_cheby_scala_procs)));
+	    while(num_cheby_scala_procs % temp_factor != 0 )
+	      ++temp_factor;
+    
+	    // temp_factor now contains the process grid height
+	    const int cheby_scala_num_rows = temp_factor;	  
+	    const int cheby_scala_num_cols = num_cheby_scala_procs / temp_factor;
+     
+         	  
+	    
+	    // Set up the ScaLAPACK context
+	    IntNumVec cheby_scala_pmap(num_cheby_scala_procs);
+	  
+	    // Use the first processor from every DG-element 
+	    for ( Int pmap_iter = 0; pmap_iter < num_cheby_scala_procs; pmap_iter++ )
+	      cheby_scala_pmap[pmap_iter] = pmap_iter * mpisizeRow; 
+	  
+	    // Set up BLACS for subsequent ScaLAPACK operations
+	    Int cheby_scala_context = -2;
+	    dgdft::scalapack::Cblacs_get( 0, 0, &cheby_scala_context );
+	    dgdft::scalapack::Cblacs_gridmap(&cheby_scala_context, &cheby_scala_pmap[0], cheby_scala_num_rows, cheby_scala_num_rows, cheby_scala_num_cols);
+	  
+	    // Figure out my ScaLAPACK information
+	    int dummy_np_row, dummy_np_col;
+	    int my_cheby_scala_proc_row, my_cheby_scala_proc_col;
+	  
+	    dgdft::scalapack::Cblacs_gridinfo(cheby_scala_context, &dummy_np_row, &dummy_np_col, &my_cheby_scala_proc_row, &my_cheby_scala_proc_col);
+	  
+	    // Store the important ScaLAPACK information
+	    std::vector<int> my_cheby_scala_info;
+	    my_cheby_scala_info.resize(4,0);
+	    my_cheby_scala_info[0] = cheby_scala_num_rows;
+	    my_cheby_scala_info[1] = cheby_scala_num_cols;
+	    my_cheby_scala_info[2] = my_cheby_scala_proc_row;
+	    my_cheby_scala_info[3] = my_cheby_scala_proc_col;
+	  
+	  
+	    GetTime( timeEnd );
+	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	    
+	    statusOFS << std::endl << " ScaLAPACK will use " << num_cheby_scala_procs << " processes.";
+	    statusOFS << std::endl << " ScaLAPACK process grid = " << cheby_scala_num_rows << " * " << cheby_scala_num_cols << " ."  << std::endl;
+	  
+	    // Eigenvcetors in ScaLAPACK format : this will be used multiple times
+	    dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_eigvecs_X; // Declared here for scope, empty constructor invoked
+	        
+	    if(cheby_scala_context >= 0)
+	      { 
+		// Now setup the ScaLAPACK matrix
+		statusOFS << std::endl << " Orthonormalization step:";
+		statusOFS << std::endl << " Distributed vector to ScaLAPACK format conversion ... ";
+		GetTime( timeSta );
+		
+		// The dimensions should be  hamDG.NumBasisTotal() * hamDG.NumStateTotal()
+		// But this is not verified here as far as the distributed vector is concerned
+		dgdft::scalapack::Descriptor cheby_eigvec_desc( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
+								scaBlockSize_, scaBlockSize_, 
+								0, 0, 
+								cheby_scala_context);
+	    
+		
+
+		// Make the conversion call 
+		scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(hamDG.EigvecCoef(),
+								my_cheby_scala_info,
+								cheby_eigvec_desc,
+								cheby_scala_eigvecs_X);
+		
+		
+		
+		GetTime( timeEnd );
+	        statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+		
+		
+		statusOFS << std::endl << " Orthonormalizing filtered vectors ... ";
+		GetTime( timeSta );
+      
+	  
+		// Compute C = X^T * X
+		dgdft::scalapack::Descriptor cheby_chol_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
+							      scaBlockSize_, scaBlockSize_, 
+							      0, 0, 
+							      cheby_scala_context);
+		
+		dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_chol_mat;
+		cheby_scala_chol_mat.SetDescriptor(cheby_chol_desc);
+		
+		dgdft::scalapack::Gemm( 'T', 'N',
+					hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
+					1.0,
+					cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(), 
+					cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(),
+					0.0,
+					cheby_scala_chol_mat.Data(), I_ONE, I_ONE, cheby_scala_chol_mat.Desc().Values(),
+					cheby_scala_context);
+	    
+		
+
+		
+		// Compute V = Chol(C)
+		dgdft::scalapack::Potrf( 'U', cheby_scala_chol_mat);
+
+		// Compute  X = X * V^{-1}
+		dgdft::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
+					cheby_scala_chol_mat, 
+					cheby_scala_eigvecs_X );
+		
+		GetTime( timeEnd );
+	        statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)";
+      
+		statusOFS << std::endl << " ScaLAPACK to Distributed vector format conversion ... ";
+		GetTime( timeSta );
+		
+		// Now convert this back to DG-distributed matrix format
+		ScaMatToDistNumMat(cheby_scala_eigvecs_X ,
+				   elemPrtn_,
+				   hamDG.EigvecCoef(),
+				   hamDG.ElemBasisIdx(), 
+				   domain_.colComm, 
+				   hamDG.NumStateTotal() );
+		
+		GetTime( timeEnd );
+	        statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+		
+				
+	      } // End of  if(cheby_scala_context >= 0)
+	      else
+	      {
+		statusOFS << std::endl << " Waiting for ScaLAPACK solution of subspace problems ...";
+	      }	
+		
+	    // Communicate the orthonormalized eigenvectors (to other intra-element processors)
+	    statusOFS << std::endl << " Communicating orthonormalized filtered vectors ... ";
+	    GetTime( timeSta );
+	   
+	    DblNumMat &ref_mat_1 =  (hamDG.EigvecCoef().LocalMap().begin())->second;
+	    MPI_Bcast(ref_mat_1.Data(), (ref_mat_1.m() * ref_mat_1.n()), MPI_DOUBLE, 0, domain_.rowComm);
+	    
+	    GetTime( timeEnd );
+	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	    
+	    // Set up space for eigenvalues in the Hamiltonian object for results of Raleigh-Ritz step
+	    DblNumVec& eigval = hamDG.EigVal(); 
+	    eigval.Resize( hamDG.NumStateTotal() );	
+	  
+	    // Compute H * X
+	    statusOFS << std::endl << " Computing H * X for filtered orthonormal vectors:";
+	    GetTime( timeSta );
+	    
+	    DistVec<Index3, DblNumMat, ElemPrtn>  result_mat;
+	    scfdg_Hamiltonian_times_eigenvectors(result_mat);
+	    
+	    GetTime( timeEnd );
+	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	    
+	    
+	    // Raleigh-Ritz step
+	    if(cheby_scala_context >= 0)
+	      { 
+		statusOFS << std::endl << std::endl << " Raleigh - Ritz step:";
+	      
+		// Convert HX to ScaLAPACK format
+		dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_HX;
+		dgdft::scalapack::Descriptor cheby_HX_desc( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
+							    scaBlockSize_, scaBlockSize_, 
+							    0, 0, 
+							    cheby_scala_context);
+	    
+		
+		statusOFS << std::endl << " Distributed vector to ScaLAPACK format conversion ... ";
+		GetTime( timeSta );
+	      
+		// Make the conversion call 
+		scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(result_mat,
+								my_cheby_scala_info,
+								cheby_HX_desc,
+								cheby_scala_HX);
+	      
+	      
+		GetTime( timeEnd );
+		statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+		
+		statusOFS << std::endl << " Solving the subspace problem ... ";
+		GetTime( timeSta );
+       
+		dgdft::scalapack::Descriptor cheby_XTHX_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
+							      scaBlockSize_, scaBlockSize_, 
+							      0, 0, 
+							      cheby_scala_context);
+		
+		dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_XTHX_mat;
+		cheby_scala_XTHX_mat.SetDescriptor(cheby_XTHX_desc);
+		
+		dgdft::scalapack::Gemm( 'T', 'N',
+					hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
+					1.0,
+					cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(), 
+					cheby_scala_HX.Data(), I_ONE, I_ONE, cheby_scala_HX.Desc().Values(),
+					0.0,
+					cheby_scala_XTHX_mat.Data(), I_ONE, I_ONE, cheby_scala_XTHX_mat.Desc().Values(),
+					cheby_scala_context);
+	    
+	
+		scalapack::ScaLAPACKMatrix<Real>  scaZ;
+
+		std::vector<Real> eigen_values;
+	      
+		// Eigenvalue probem solution call
+		scalapack::Syevd('U', cheby_scala_XTHX_mat, eigen_values, scaZ);
+	     	      
+		// Copy the eigenvalues to the Hamiltonian object	      
+		for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
+		  eigval[i] = eigen_values[i];
+
+
+		GetTime( timeEnd );
+		statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	      
+		// Subspace rotation step : X <- X * Q
+		statusOFS << std::endl << " Subspace rotation step ... ";
+		GetTime( timeSta );
+	      
+		// To save memory, copy X to HX
+		blas::Copy((cheby_scala_eigvecs_X.LocalHeight() * cheby_scala_eigvecs_X.LocalWidth()), 
+			   cheby_scala_eigvecs_X.Data(),
+			   1,
+			   cheby_scala_HX.Data(),
+			   1);
+	      
+		// Now perform X <- HX (=X) * Q (=scaZ)
+		dgdft::scalapack::Gemm( 'N', 'N',
+					hamDG.NumBasisTotal(), hamDG.NumStateTotal(), hamDG.NumStateTotal(),
+					1.0,
+					cheby_scala_HX.Data(), I_ONE, I_ONE, cheby_scala_HX.Desc().Values(), 
+					scaZ.Data(), I_ONE, I_ONE, scaZ.Desc().Values(),
+					0.0,
+					cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(),
+					cheby_scala_context);
+	    
+	      
+	      
+	      
+		GetTime( timeEnd );
+		statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+		
+	      
+		// Convert the eigenvectors back to distributed vector format
+		statusOFS << std::endl << " ScaLAPACK to Distributed vector format conversion ... ";
+		GetTime( timeSta );
+		
+		// Now convert this back to DG-distributed matrix format
+		ScaMatToDistNumMat(cheby_scala_eigvecs_X ,
+				   elemPrtn_,
+				   hamDG.EigvecCoef(),
+				   hamDG.ElemBasisIdx(), 
+				   domain_.colComm, 
+				   hamDG.NumStateTotal() );
+		
+		GetTime( timeEnd );
+		statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	      
+    
+	      } // End of if(cheby_scala_context >= 0)
+	      	
+
+	   
+	    // Communicate the final eigenvectors (to other intra-element processors)
+	    statusOFS << std::endl << " Communicating eigenvalues and eigenvectors ... ";
+	    GetTime( timeSta );
+	   
+	    DblNumMat &ref_mat_2 =  (hamDG.EigvecCoef().LocalMap().begin())->second;
+	    MPI_Bcast(ref_mat_2.Data(), (ref_mat_2.m() * ref_mat_2.n()), MPI_DOUBLE, 0, domain_.rowComm);
+	    
+	    // Communicate the final eigenvalues (to other intra-element processors)
+	    MPI_Bcast(eigval.Data(), ref_mat_2.n(), MPI_DOUBLE, 0,  domain_.rowComm); // Eigen-values
+	  
+	  
+	    GetTime( timeEnd );
+	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+
+	  
+	  
+	  
+	    // Reset the filtering bounds using results of the Raleigh-Ritz step	
+	    b_low = eigval(ref_mat_2.n() - 1);
+	    a_L = eigval(0);
+
+	    MPI_Barrier(domain_.rowComm);
+	    MPI_Barrier(domain_.colComm);
+	    MPI_Barrier(domain_.comm);
+	    
+	    // Clean up BLACS
+	    if(cheby_scala_context >= 0) {
+	      dgdft::scalapack::Cblacs_gridexit( cheby_scala_context );
+	    }
+    
+
+	  
+	  } // End of if(SCFDG_Cheby_use_ScaLAPACK_ == 0) ... else 
 	
 	// Display the eigenvalues 
 	statusOFS << std::endl << " ------------------------------- ";
@@ -3172,14 +3967,6 @@ namespace  dgdft{
             
       } // End of loop over inner iteration repeats
     
-    
-    
-    // Fill up the eigen-values
-    for(Int i = 0; i < hamDG.NumStateTotal(); i ++)
-      eigval[i] =  eig_vals_Raleigh_Ritz[i];
-    
-    
-   
 #ifndef _RELEASE_
     PopCallStack();
 #endif  
@@ -3636,13 +4423,11 @@ namespace  dgdft{
       // -----------------------------------------------
       // Method 1_1: Using diagonalization method, but with a more
       // versatile choice of processors for using ScaLAPACK.
-      // Method 1_1: Using diagonalization method, but with a more
-      // versatile choice of processors for using ScaLAPACK.
-      // or using Chebyshev filtering
+      // Or using Chebyshev filtering
       
       if( solutionMethod_ == "diag" ){
 	{
-	  // 
+	  // ~~**~~
 	  if(Diag_SCFDG_by_Cheby_ == 1 )
 	    {
 	      // Chebyshev filtering based diagonalization
@@ -3655,7 +4440,7 @@ namespace  dgdft{
 		}
 	      else if(outerIter > 1 && 	outerIter <= Second_SCFDG_ChebyOuterIter_)
 		{
-		  statusOFS << std::endl << " Calling General Chebyshev Iter  " << std::endl;
+		  statusOFS << std::endl << " Calling Second Stage Chebyshev Iter  " << std::endl;
 		  scfdg_GeneralChebyStep(Second_SCFDG_ChebyCycleNum_, Second_SCFDG_ChebyFilterOrder_);
 		}
 	      else
