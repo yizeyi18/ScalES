@@ -1665,7 +1665,12 @@ namespace  dgdft{
 		      DblNumMat row_distrib_local_basis(heightLGLLocal, width);;
 		      SetValue(row_distrib_local_basis, 0.0);  
 		
+		      
+		      statusOFS << std::endl << " AlltoallForward: Changing distribution of local basis functions ... ";
+		      GetTime(extra_timeSta);
 		      AlltoallForward(band_distrib_local_basis, row_distrib_local_basis, domain_.rowComm);
+		      GetTime(extra_timeEnd);
+		      statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta) << " s)";
 		
 		      // Push the row-distributed matrix into the deque
 		      ALB_LGL_deque.push_back( row_distrib_local_basis );
@@ -1706,6 +1711,10 @@ namespace  dgdft{
 		    
 			  // Rotate the current eigenvectors : This can also be done in parallel
 			  // at the expense of an AllReduce along rowComm
+			  
+			  statusOFS << std::endl << " Rotating the eigenvectors using overlap matrix ... ";
+		          GetTime(extra_timeSta);
+			  
 			  DblNumMat &eigvecs_local = (hamDG.EigvecCoef().LocalMap().begin())->second;               
 		    
 			  DblNumMat temp_loc_eigvecs_buffer;
@@ -1720,7 +1729,9 @@ namespace  dgdft{
 				      temp_loc_eigvecs_buffer.Data(), temp_loc_eigvecs_buffer.m(), 
 				      0.0, eigvecs_local.Data(), eigvecs_local.m());
 		    
-		    
+		          GetTime(extra_timeEnd);
+		          statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta) << " s)";
+		
 		    
 			  ALB_LGL_deque.pop_front();
 			}		
@@ -2390,6 +2401,8 @@ namespace  dgdft{
     // Step 1 : Generate a random vector v
     // Fill up the vector v using random entries
     // Also, initialize the vectors f and v0 to 0
+    
+    // We use this loop for setting up the keys. 
     for( Int k = 0; k < numElem_[2]; k++ )
       for( Int j = 0; j < numElem_[1]; j++ )
 	for( Int i = 0; i < numElem_[0]; i++ ){
@@ -2783,6 +2796,7 @@ namespace  dgdft{
  
   // Given a block of eigenvectors (size:  hamDG.NumBasisTotal() * hamDG.NumStateTotal()),
   // convert this to ScaLAPACK format for subsequent use with ScaLAPACK routines
+  // Should only be called by processors for which context > 0
   void 
   SCFDG::scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
 							 std::vector<int> &my_cheby_scala_info,
@@ -2957,6 +2971,11 @@ namespace  dgdft{
     hamDG.EigvecCoef().SetComm(domain_.colComm);
     
     GetTime( extra_timeSta );
+    
+    // This is one of the very few places where we use this loop 
+    // for setting up the keys. In other cases, we can simply access
+    // the first and second elements of the LocalMap of the distributed vector
+    // once it has been set up.
     for( Int k = 0; k < numElem_[2]; k++ )
       for( Int j = 0; j < numElem_[1]; j++ )
 	for( Int i = 0; i < numElem_[0]; i++ ){
@@ -2990,7 +3009,7 @@ namespace  dgdft{
     
     DblNumVec eig_vals_Raleigh_Ritz;
     
-    for(Int i = 1; i < Iter_Max; i ++)
+    for(Int i = 1; i <= Iter_Max; i ++)
       {
 	GetTime( cheby_timeSta );
 	statusOFS << std::endl << std::endl << " ------------------------------- ";
@@ -3243,7 +3262,7 @@ namespace  dgdft{
 					cheby_scala_eigvecs_X );
 		
 		GetTime( timeEnd );
-	        statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)";
+	        statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)" << std::endl;
       
 		statusOFS << std::endl << " ScaLAPACK to Distributed vector format conversion ... ";
 		GetTime( timeSta );
@@ -3274,7 +3293,7 @@ namespace  dgdft{
 	    MPI_Bcast(ref_mat_1.Data(), (ref_mat_1.m() * ref_mat_1.n()), MPI_DOUBLE, 0, domain_.rowComm);
 	    
 	    GetTime( timeEnd );
-	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)" << std::endl;
 	    
 	    // Set up space for eigenvalues in the Hamiltonian object for results of Raleigh-Ritz step
 	    DblNumVec& eigval = hamDG.EigVal(); 
@@ -3763,7 +3782,7 @@ namespace  dgdft{
 					cheby_scala_eigvecs_X );
 		
 		GetTime( timeEnd );
-	        statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)";
+	        statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)" << std::endl;
       
 		statusOFS << std::endl << " ScaLAPACK to Distributed vector format conversion ... ";
 		GetTime( timeSta );
@@ -3794,7 +3813,7 @@ namespace  dgdft{
 	    MPI_Bcast(ref_mat_1.Data(), (ref_mat_1.m() * ref_mat_1.n()), MPI_DOUBLE, 0, domain_.rowComm);
 	    
 	    GetTime( timeEnd );
-	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)" << std::endl;
 	    
 	    // Set up space for eigenvalues in the Hamiltonian object for results of Raleigh-Ritz step
 	    DblNumVec& eigval = hamDG.EigVal(); 
