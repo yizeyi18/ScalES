@@ -324,10 +324,19 @@ namespace dgdft{
     // ~~**~~
     /// @brief Internal routine used by Chebyshev Filtering for ScaLAPACK based
     /// solution of the subspace problem : converts a distributed eigenvector block to ScaLAPACK format   
-    void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
-							 std::vector<int> &my_cheby_scala_info,
+    void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
+							 MPI_Comm comm,
 							 dgdft::scalapack::Descriptor &my_scala_descriptor,
-							 dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec);
+							 dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat);
+    
+    
+    //     // Older version of the above routine : uses a more naive implementation and has a larger communication load (=slower)
+    //     void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK_old(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
+    // 							     std::vector<int> &my_cheby_scala_info,
+    // 							     dgdft::scalapack::Descriptor &my_scala_descriptor,
+    // 							     dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec);
+    
+	
 	
 	
 

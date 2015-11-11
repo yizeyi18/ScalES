@@ -2794,14 +2794,147 @@ namespace  dgdft{
   } // End of scfdg_Hamiltonian_times_eigenvectors
   
  
+  //   // Given a block of eigenvectors (size:  hamDG.NumBasisTotal() * hamDG.NumStateTotal()),
+  //   // convert this to ScaLAPACK format for subsequent use with ScaLAPACK routines
+  //   // Should only be called by processors for which context > 0
+  //   // This is the older version which has a higher communcation load.
+  //   void 
+  //   SCFDG::scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK_old(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
+  // 							 std::vector<int> &my_cheby_scala_info,
+  // 							 dgdft::scalapack::Descriptor &my_scala_descriptor,
+  // 							 dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec)
+  //   {
+  // #ifndef _RELEASE_
+  //     PushCallStack("SCFDG::scfdg_Cheby_distmat_to_ScaLAPACK_conversion_old");
+  // #endif
+  //    
+  //     HamiltonianDG&  hamDG = *hamDGPtr_;
+  //     
+  //     // Load up the important ScaLAPACK info
+  //     int cheby_scala_num_rows = my_cheby_scala_info[0];
+  //     int cheby_scala_num_cols = my_cheby_scala_info[1];
+  //     int my_cheby_scala_proc_row = my_cheby_scala_info[2];
+  //     int my_cheby_scala_proc_col = my_cheby_scala_info[3];
+  // 
+  //     // Set the descriptor for the ScaLAPACK matrix
+  //     my_scala_vec.SetDescriptor( my_scala_descriptor );
+  //     
+  //     // Get the original key for the distributed vector
+  //     Index3 my_original_key = (my_dist_vec.LocalMap().begin())->first;
+  // 	    
+  //     // Form the list of unique keys that we will be requiring
+  //     // Use the usual map trick for this
+  //     std::map<Index3, int> unique_keys_list;
+  // 	    
+  //     // Use the row index for figuring out the key 	    
+  //     for(int iter = 0; iter < hamDG.ElemBasisInvIdx().size(); iter ++)
+  //       {
+  // 	int pr = 0 + int(iter / scaBlockSize_) % cheby_scala_num_rows;
+  // 	if(pr == my_cheby_scala_proc_row)
+  // 	  unique_keys_list[hamDG.ElemBasisInvIdx()[iter]] = 0;
+  // 	      
+  //       }
+  // 	    
+  //     
+  //     std::vector<Index3>  getKeys_list;
+  // 	    
+  //     // Form the list for Get-Begin and Get-End
+  //     for(typename std::map<Index3, int >::iterator 
+  // 	  it = unique_keys_list.begin(); 
+  // 	it != unique_keys_list.end(); 
+  // 	it ++)
+  //       { 
+  // 	getKeys_list.push_back(it->first);
+  //       }    
+  // 	    
+  //     // Communication
+  //     my_dist_vec.GetBegin( getKeys_list, NO_MASK ); 
+  //     my_dist_vec.GetEnd( NO_MASK ); 
+  // 	    
+  // 	    
+  //     // Get the offset value for each of the matrices pointed to by the keys
+  //     std::map<Index3, int> offset_map;
+  //     for(typename std::map<Index3, DblNumMat >::iterator 
+  // 	  test_iterator = my_dist_vec.LocalMap().begin();
+  //         test_iterator != my_dist_vec.LocalMap().end();
+  // 	test_iterator ++)
+  //       {	      
+  // 	Index3 key = test_iterator->first;
+  // 	const std::vector<Int>&  my_idx = hamDG.ElemBasisIdx()(key[0],key[1],key[2]); 
+  // 	offset_map[key] = my_idx[0];
+  //       }
+  //      
+  //     // All the data is now available: simply use this to fill up the local
+  //     // part of the ScaLAPACK matrix. We do this by looping over global indices
+  //     // and computing local indices from the globals	  
+  //             
+  //     double *local_scala_mat_ptr = my_scala_vec.Data();
+  //     int local_scala_mat_height = my_scala_vec.LocalHeight();
+  // 	    
+  //     for(int global_col_iter = 0; global_col_iter < hamDG.NumStateTotal(); global_col_iter ++)
+  //       {
+  // 	int m = int(global_col_iter / (cheby_scala_num_cols * scaBlockSize_));
+  // 	int y = global_col_iter  % scaBlockSize_;
+  // 	int pc = int(global_col_iter / scaBlockSize_) % cheby_scala_num_cols;
+  // 		
+  // 	int local_col_iter = m * scaBlockSize_ + y;
+  // 	      
+  // 	for(int global_row_iter = 0; global_row_iter <  hamDG.NumBasisTotal(); global_row_iter ++)
+  // 	  {
+  // 	    int l = int(global_row_iter / (cheby_scala_num_rows * scaBlockSize_));
+  // 	    int x = global_row_iter % scaBlockSize_;
+  // 	    int pr = int(global_row_iter / scaBlockSize_) % cheby_scala_num_rows;
+  // 						
+  // 	    int local_row_iter = l * scaBlockSize_ + x;
+  // 		
+  // 	    // Check if this entry resides on the current process
+  // 	    if((pr == my_cheby_scala_proc_row) && (pc == my_cheby_scala_proc_col))
+  // 	      {  
+  // 		  
+  // 		// Figure out where to read entry from
+  // 		Index3 key = hamDG.ElemBasisInvIdx()[global_row_iter];
+  // 		DblNumMat &mat_chunk = my_dist_vec.LocalMap()[key]; 
+  // 		  
+  // 		// Assignment to local part of ScaLAPACK matrix
+  // 		local_scala_mat_ptr[local_col_iter * local_scala_mat_height + local_row_iter] 
+  // 		  = mat_chunk(global_row_iter - offset_map[key], global_col_iter);		  
+  // 	      }
+  // 	  }
+  //       }
+  // 	    
+  // 	    
+  // 
+  //     // Clean up extra entries from Get-Begin / Get-End
+  //     typename std::map<Index3, DblNumMat >::iterator delete_it;
+  //     for(Int delete_iter = 0; delete_iter <  getKeys_list.size(); delete_iter ++)
+  //       {
+  // 	if(getKeys_list[delete_iter] != my_original_key) // Be careful about original key
+  // 	  {  
+  // 	    delete_it = my_dist_vec.LocalMap().find(getKeys_list[delete_iter]);
+  // 	    (my_dist_vec.LocalMap()).erase(delete_it);
+  // 	  }
+  //       }
+  //       
+  //       
+  //       
+  //   
+  //     
+  // #ifndef _RELEASE_
+  //     PopCallStack();
+  // #endif  
+  //   } // End of scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK_old
+  //   
+  
+  
   // Given a block of eigenvectors (size:  hamDG.NumBasisTotal() * hamDG.NumStateTotal()),
   // convert this to ScaLAPACK format for subsequent use with ScaLAPACK routines
   // Should only be called by processors for which context > 0
+  // This routine is largely based on the Hamiltonian to ScaLAPACK conversion routine which is similar
   void 
-  SCFDG::scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
-							 std::vector<int> &my_cheby_scala_info,
+  SCFDG::scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
+							 MPI_Comm comm,
 							 dgdft::scalapack::Descriptor &my_scala_descriptor,
-							 dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec)
+							 dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat)
   {
 #ifndef _RELEASE_
     PushCallStack("SCFDG::scfdg_Cheby_distmat_to_ScaLAPACK_conversion");
@@ -2810,118 +2943,184 @@ namespace  dgdft{
     HamiltonianDG&  hamDG = *hamDGPtr_;
     
     // Load up the important ScaLAPACK info
-    int cheby_scala_num_rows = my_cheby_scala_info[0];
-    int cheby_scala_num_cols = my_cheby_scala_info[1];
-    int my_cheby_scala_proc_row = my_cheby_scala_info[2];
-    int my_cheby_scala_proc_col = my_cheby_scala_info[3];
+    int nprow = my_scala_descriptor.NpRow();
+    int npcol = my_scala_descriptor.NpCol();
+    int myprow = my_scala_descriptor.MypRow();
+    int mypcol = my_scala_descriptor.MypCol();
 
     // Set the descriptor for the ScaLAPACK matrix
-    my_scala_vec.SetDescriptor( my_scala_descriptor );
+    my_scala_mat.SetDescriptor( my_scala_descriptor );
     
-    // Get the original key for the distributed vector
-    Index3 my_original_key = (my_dist_vec.LocalMap().begin())->first;
-	    
-    // Form the list of unique keys that we will be requiring
-    // Use the usual map trick for this
-    std::map<Index3, int> unique_keys_list;
-	    
-    // Use the row index for figuring out the key 	    
-    for(int iter = 0; iter < hamDG.ElemBasisInvIdx().size(); iter ++)
-      {
-	int pr = 0 + int(iter / scaBlockSize_) % cheby_scala_num_rows;
-	if(pr == my_cheby_scala_proc_row)
-	  unique_keys_list[hamDG.ElemBasisInvIdx()[iter]] = 0;
-	      
-      }
-	    
+    // Save the original key for the distributed vector
+    const Index3 my_original_key = (my_dist_mat.LocalMap().begin())->first;
     
-    std::vector<Index3>  getKeys_list;
-	    
-    // Form the list for Get-Begin and Get-End
-    for(typename std::map<Index3, int >::iterator 
-	  it = unique_keys_list.begin(); 
-	it != unique_keys_list.end(); 
-	it ++)
-      { 
-	getKeys_list.push_back(it->first);
-      }    
-	    
-    // Communication
-    my_dist_vec.GetBegin( getKeys_list, NO_MASK ); 
-    my_dist_vec.GetEnd( NO_MASK ); 
-	    
-	    
-    // Get the offset value for each of the matrices pointed to by the keys
-    std::map<Index3, int> offset_map;
-    for(typename std::map<Index3, DblNumMat >::iterator 
-	  test_iterator = my_dist_vec.LocalMap().begin();
-        test_iterator != my_dist_vec.LocalMap().end();
-	test_iterator ++)
-      {	      
-	Index3 key = test_iterator->first;
-	const std::vector<Int>&  my_idx = hamDG.ElemBasisIdx()(key[0],key[1],key[2]); 
-	offset_map[key] = my_idx[0];
-      }
-     
-    // All the data is now available: simply use this to fill up the local
-    // part of the ScaLAPACK matrix. We do this by looping over global indices
-    // and computing local indices from the globals	  
-            
-    double *local_scala_mat_ptr = my_scala_vec.Data();
-    int local_scala_mat_height = my_scala_vec.LocalHeight();
-	    
-    for(int global_col_iter = 0; global_col_iter < hamDG.NumStateTotal(); global_col_iter ++)
+    // Get some basic information set up
+    Int mpirank, mpisize;
+    MPI_Comm_rank( comm, &mpirank );
+    MPI_Comm_size( comm, &mpisize );
+    
+    Int MB = my_scala_mat.MB(); 
+    Int NB = my_scala_mat.NB();
+    
+    
+    if( MB != NB )
       {
-	int m = int(global_col_iter / (cheby_scala_num_cols * scaBlockSize_));
-	int y = global_col_iter  % scaBlockSize_;
-	int pc = int(global_col_iter / scaBlockSize_) % cheby_scala_num_cols;
-		
-	int local_col_iter = m * scaBlockSize_ + y;
-	      
-	for(int global_row_iter = 0; global_row_iter <  hamDG.NumBasisTotal(); global_row_iter ++)
-	  {
-	    int l = int(global_row_iter / (cheby_scala_num_rows * scaBlockSize_));
-	    int x = global_row_iter % scaBlockSize_;
-	    int pr = int(global_row_iter / scaBlockSize_) % cheby_scala_num_rows;
-						
-	    int local_row_iter = l * scaBlockSize_ + x;
-		
-	    // Check if this entry resides on the current process
-	    if((pr == my_cheby_scala_proc_row) && (pc == my_cheby_scala_proc_col))
-	      {  
-		  
-		// Figure out where to read entry from
-		Index3 key = hamDG.ElemBasisInvIdx()[global_row_iter];
-		DblNumMat &mat_chunk = my_dist_vec.LocalMap()[key]; 
-		  
-		// Assignment to local part of ScaLAPACK matrix
-		local_scala_mat_ptr[local_col_iter * local_scala_mat_height + local_row_iter] 
-		  = mat_chunk(global_row_iter - offset_map[key], global_col_iter);		  
-	      }
-	  }
+	throw std::runtime_error("MB must be equal to NB.");
       }
-	    
-	    
 
-    // Clean up extra entries from Get-Begin / Get-End
-    typename std::map<Index3, DblNumMat >::iterator delete_it;
-    for(Int delete_iter = 0; delete_iter <  getKeys_list.size(); delete_iter ++)
-      {
-	if(getKeys_list[delete_iter] != my_original_key) // Be careful about original key
-	  {  
-	    delete_it = my_dist_vec.LocalMap().find(getKeys_list[delete_iter]);
-	    (my_dist_vec.LocalMap()).erase(delete_it);
-	  }
-      }
-      
-      
-      
-  
+    // ScaLAPACK block information
+    Int numRowBlock = my_scala_mat.NumRowBlocks();
+    Int numColBlock = my_scala_mat.NumColBlocks();
+
+    // Get the processor map
+    IntNumMat  procGrid( nprow, npcol );
+    SetValue( procGrid, 0 );
+    {
+      IntNumMat  procTmp( nprow, npcol );
+      SetValue( procTmp, 0 );
+      procTmp( myprow, mypcol ) = mpirank;
+      mpi::Allreduce( procTmp.Data(), procGrid.Data(), nprow * npcol,
+		      MPI_SUM, comm );
+    }
+
+
+    // ScaLAPACK block partition 
+    BlockMatPrtn  blockPrtn;
     
+    // Fill up the owner information
+    IntNumMat&    blockOwner = blockPrtn.ownerInfo;
+    blockOwner.Resize( numRowBlock, numColBlock );   
+    for( Int jb = 0; jb < numColBlock; jb++ ){
+      for( Int ib = 0; ib < numRowBlock; ib++ ){
+	blockOwner( ib, jb ) = procGrid( ib % nprow, jb % npcol );
+      }
+    }
+
+    // Distributed matrix in ScaLAPACK format
+    DistVec<Index2, DblNumMat, BlockMatPrtn> distScaMat;
+    distScaMat.Prtn() = blockPrtn;
+    distScaMat.SetComm(comm);
+	    
+ 
+    // Zero out and initialize
+    DblNumMat empty_mat( MB, MB ); // As MB = NB
+    SetValue( empty_mat, 0.0 );
+    // We need this loop here since we are initializing the distributed 
+    // ScaLAPACK matrix. Subsequently, the LocalMap().begin()->first technique can be used
+    for( Int jb = 0; jb < numColBlock; jb++ )
+      for( Int ib = 0; ib < numRowBlock; ib++ )
+	{
+	  Index2 key( ib, jb );
+	  if( distScaMat.Prtn().Owner( key ) == mpirank )
+	    {
+	      distScaMat.LocalMap()[key] = empty_mat;
+	    }
+	}
+ 
+ 
+ 
+    // Copy data from DG distributed matrix to ScaLAPACK distributed matrix
+    DblNumMat& localMat = (my_dist_mat.LocalMap().begin())->second;
+    const std::vector<Int>& my_idx = hamDG.ElemBasisIdx()( my_original_key(0), my_original_key(1), my_original_key(2) );
+   
+    {
+      Int ib, jb, io, jo;
+      for( Int b = 0; b < localMat.n(); b++ )
+	{
+	  for( Int a = 0; a < localMat.m(); a++ )
+	    {
+	      ib = my_idx[a] / MB;
+	      io = my_idx[a] % MB;
+	    
+	      jb = b / MB;            
+	      jo = b % MB;
+	    
+	      typename std::map<Index2, DblNumMat >::iterator 
+		ni = distScaMat.LocalMap().find( Index2(ib, jb) );
+	      if( ni == distScaMat.LocalMap().end() )
+		{
+		  distScaMat.LocalMap()[Index2(ib, jb)] = empty_mat;
+		  ni = distScaMat.LocalMap().find( Index2(ib, jb) );
+		}
+            
+	      DblNumMat&  localScaMat = ni->second;
+	      localScaMat(io, jo) += localMat(a, b);
+	    } // for (a)
+        } // for (b)
+
+    }     
+        
+    // Communication step
+    {
+      // Prepare
+      std::vector<Index2>  keyIdx;
+      for( typename std::map<Index2, DblNumMat >::iterator 
+	     mi  = distScaMat.LocalMap().begin();
+	   mi != distScaMat.LocalMap().end(); mi++ )
+	{
+	  Index2 key = mi->first;
+			
+	  // Include all keys which do not reside on current processor
+	  if( distScaMat.Prtn().Owner( key ) != mpirank )
+	    {
+	      keyIdx.push_back( key );
+	    }
+	} // for (mi)
+
+      // Communication
+      distScaMat.PutBegin( keyIdx, NO_MASK );
+      distScaMat.PutEnd( NO_MASK, PutMode::COMBINE );
+	    
+      // Clean up
+      std::vector<Index2>  eraseKey;
+      for( typename std::map<Index2, DblNumMat >::iterator 
+	     mi  = distScaMat.LocalMap().begin();
+	   mi != distScaMat.LocalMap().end(); mi++)
+	{
+	  Index2 key = mi->first;
+	  if( distScaMat.Prtn().Owner( key ) != mpirank )
+	    {
+	      eraseKey.push_back( key );
+	    }
+	} // for (mi)
+
+      for( std::vector<Index2>::iterator vi = eraseKey.begin();
+	   vi != eraseKey.end(); vi++ )
+	{
+	  distScaMat.LocalMap().erase( *vi );
+	}	
+
+
+    } // End of communication step
+	
+	
+    // Final step: Copy from distributed ScaLAPACK matrix to local part of actual
+    // ScaLAPACK matrix
+    {
+      for( typename std::map<Index2, DblNumMat>::iterator 
+	     mi  = distScaMat.LocalMap().begin();
+	   mi != distScaMat.LocalMap().end(); mi++ )
+	{
+	  Index2 key = mi->first;
+	  if( distScaMat.Prtn().Owner( key ) == mpirank )
+	    {
+	      Int ib = key(0), jb = key(1);
+	      Int offset = ( jb / npcol ) * MB * my_scala_mat.LocalLDim() + 
+		( ib / nprow ) * MB;
+	      lapack::Lacpy( 'A', MB, MB, mi->second.Data(),
+			     MB, my_scala_mat.Data() + offset, my_scala_mat.LocalLDim() );
+	    } // own this block
+	} // for (mi)
+
+    }
+	
+
 #ifndef _RELEASE_
     PopCallStack();
 #endif  
-  }
+  } // End of scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK
+  
+  
  
  
   void 
@@ -3015,7 +3214,7 @@ namespace  dgdft{
 	statusOFS << std::endl << std::endl << " ------------------------------- ";
 	statusOFS << std::endl << " First Chebyshev step iteration " << i << " of " << Iter_Max << " . ";
 	// Filter the eigenvectors
-	statusOFS << std::endl << std::endl << " Filtering the eigenvectors ... ";
+	statusOFS << std::endl << std::endl << " Filtering the eigenvectors ... (Filter order = " << Filter_Order << ")";
 	GetTime( timeSta );
 	scfdg_Chebyshev_filter_scaled(Filter_Order, b_low, b_up, a_L);
 	GetTime( timeEnd );
@@ -3182,14 +3381,6 @@ namespace  dgdft{
 	  
 	    dgdft::scalapack::Cblacs_gridinfo(cheby_scala_context, &dummy_np_row, &dummy_np_col, &my_cheby_scala_proc_row, &my_cheby_scala_proc_col);
 	  
-	    // Store the important ScaLAPACK information
-	    std::vector<int> my_cheby_scala_info;
-	    my_cheby_scala_info.resize(4,0);
-	    my_cheby_scala_info[0] = cheby_scala_num_rows;
-	    my_cheby_scala_info[1] = cheby_scala_num_cols;
-	    my_cheby_scala_info[2] = my_cheby_scala_proc_row;
-	    my_cheby_scala_info[3] = my_cheby_scala_proc_col;
-	  
 	  
 	    GetTime( timeEnd );
 	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
@@ -3216,13 +3407,32 @@ namespace  dgdft{
 	    
 		
 
-		// Make the conversion call 
+		// Make the conversion call 		
 		scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(hamDG.EigvecCoef(),
-								my_cheby_scala_info,
+								domain_.colComm,
 								cheby_eigvec_desc,
 								cheby_scala_eigvecs_X);
 		
 		
+		// 		//Older version of conversion call
+		// 		// Store the important ScaLAPACK information
+		// 		std::vector<int> my_cheby_scala_info;
+		// 		my_cheby_scala_info.resize(4,0);
+		// 		my_cheby_scala_info[0] = cheby_scala_num_rows;
+		// 		my_cheby_scala_info[1] = cheby_scala_num_cols;
+		// 		my_cheby_scala_info[2] = my_cheby_scala_proc_row;
+		// 		my_cheby_scala_info[3] = my_cheby_scala_proc_col;
+		// 	  
+
+		// 		scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK_old(hamDG.EigvecCoef(),
+		// 								    my_cheby_scala_info,
+		// 								    cheby_eigvec_desc,
+		// 								    cheby_scala_eigvecs_X);
+		// 		
+
+		
+		
+
 		
 		GetTime( timeEnd );
 	        statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
@@ -3280,7 +3490,7 @@ namespace  dgdft{
 		
 				
 	      } // End of  if(cheby_scala_context >= 0)
-	      else
+	    else
 	      {
 		statusOFS << std::endl << " Waiting for ScaLAPACK solution of subspace problems ...";
 	      }		
@@ -3327,11 +3537,13 @@ namespace  dgdft{
 		statusOFS << std::endl << " Distributed vector to ScaLAPACK format conversion ... ";
 		GetTime( timeSta );
 	      
-		// Make the conversion call 
+		
 		scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(result_mat,
-								my_cheby_scala_info,
+								domain_.colComm,
 								cheby_HX_desc,
 								cheby_scala_HX);
+		
+		
 	      
 	      
 		GetTime( timeEnd );
@@ -3529,18 +3741,13 @@ namespace  dgdft{
 	statusOFS << std::endl << " General Chebyshev step iteration " << i << " of " << Iter_Max << " . ";
       
 	// Filter the eigenvectors
-	statusOFS << std::endl << std::endl << " Filtering the eigenvectors ... ";
+	statusOFS << std::endl << std::endl << " Filtering the eigenvectors ... (Filter order = " << Filter_Order << ")";
 	GetTime( timeSta );
 	scfdg_Chebyshev_filter_scaled(Filter_Order, b_low, b_up, a_L);
 	GetTime( timeEnd );
 	statusOFS << std::endl << " Filtering completed. ( " << (timeEnd - timeSta ) << " s.)";
       
 
-	
-	     
-	  
-	  
-	
 	// Subspace projected problems: Orthonormalization, Raleigh-Ritz and subspace rotation steps
         // This can be done serially or using ScaLAPACK	
 	if(SCFDG_Cheby_use_ScaLAPACK_ == 0)
@@ -3702,14 +3909,6 @@ namespace  dgdft{
 	  
 	    dgdft::scalapack::Cblacs_gridinfo(cheby_scala_context, &dummy_np_row, &dummy_np_col, &my_cheby_scala_proc_row, &my_cheby_scala_proc_col);
 	  
-	    // Store the important ScaLAPACK information
-	    std::vector<int> my_cheby_scala_info;
-	    my_cheby_scala_info.resize(4,0);
-	    my_cheby_scala_info[0] = cheby_scala_num_rows;
-	    my_cheby_scala_info[1] = cheby_scala_num_cols;
-	    my_cheby_scala_info[2] = my_cheby_scala_proc_row;
-	    my_cheby_scala_info[3] = my_cheby_scala_proc_col;
-	  
 	  
 	    GetTime( timeEnd );
 	    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
@@ -3736,13 +3935,29 @@ namespace  dgdft{
 	    
 		
 
-		// Make the conversion call 
+		// Make the conversion call 		
 		scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(hamDG.EigvecCoef(),
-								my_cheby_scala_info,
+								domain_.colComm,
 								cheby_eigvec_desc,
 								cheby_scala_eigvecs_X);
 		
 		
+		// 		//Older version of conversion call
+		// 		// Store the important ScaLAPACK information
+		// 		std::vector<int> my_cheby_scala_info;
+		// 		my_cheby_scala_info.resize(4,0);
+		// 		my_cheby_scala_info[0] = cheby_scala_num_rows;
+		// 		my_cheby_scala_info[1] = cheby_scala_num_cols;
+		// 		my_cheby_scala_info[2] = my_cheby_scala_proc_row;
+		// 		my_cheby_scala_info[3] = my_cheby_scala_proc_col;
+		// 	  
+
+		// 		scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK_old(hamDG.EigvecCoef(),
+		// 								    my_cheby_scala_info,
+		// 								    cheby_eigvec_desc,
+		// 								    cheby_scala_eigvecs_X);
+		// 		
+
 		
 		GetTime( timeEnd );
 	        statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
@@ -3800,7 +4015,7 @@ namespace  dgdft{
 		
 				
 	      } // End of  if(cheby_scala_context >= 0)
-	      else
+	    else
 	      {
 		statusOFS << std::endl << " Waiting for ScaLAPACK solution of subspace problems ...";
 	      }	
@@ -3846,12 +4061,12 @@ namespace  dgdft{
 		statusOFS << std::endl << " Distributed vector to ScaLAPACK format conversion ... ";
 		GetTime( timeSta );
 	      
-		// Make the conversion call 
+		// Make the conversion call 				
 		scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(result_mat,
-								my_cheby_scala_info,
+								domain_.colComm,
 								cheby_HX_desc,
 								cheby_scala_HX);
-	      
+		
 	      
 		GetTime( timeEnd );
 		statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
