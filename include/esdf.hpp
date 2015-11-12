@@ -628,6 +628,13 @@ namespace esdf{
     ///
     /// Default: 50.0
 		Int									MDTimeStep; 
+    /// @brief Extrapolation type for updating the density
+    ///
+    /// Default: "linear"
+    ///
+    /// Currently three extrapolation  types (linear, quadratic and
+    /// Dario) are supported.
+    std::string         MDExtrapolationType;
     /// @brief Temperature for ion.
     ///
     /// Default: K

@@ -688,26 +688,60 @@ int main(int argc, char **argv)
         std::vector<Point3>  atomforce(numAtom);
 
         // History of density for extrapolation
-        Int maxHist = 1; // Linear extrapolation
+        Int maxHist = 3; // Linear, Quadratic and Dario extrapolation 
         std::vector<DistDblNumVec>    densityHist(maxHist);
+        std::vector<Point3>  atomposHist0(numAtom);
+        std::vector<Point3>  atomposHist1(numAtom);
+        std::vector<Point3>  atomposHist2(numAtom);
+
         // Initialize the history
-        for( Int l = 0; l < maxHist; l++ ){
-          DistDblNumVec& den = densityHist[l];
-          DistDblNumVec& denCur = hamDG.Density();
-          Index3& numElem = esdfParam.numElem;
-          // FIXME the communicator and partitioning of densityHist is
-          // not set since only the localmap is used.
-          int dmCol = numElem[0] * numElem[1] * numElem[2];
-          int dmRow = mpisize / dmCol;
-          for( Int k=0; k< numElem[2]; k++ )
-            for( Int j=0; j< numElem[1]; j++ )
-              for( Int i=0; i< numElem[0]; i++ ) {
-                Index3 key = Index3(i,j,k);
-                if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
-                  den.LocalMap()[key]     = denCur.LocalMap()[key];
-                } // own this element
-              }  // for (i)
-        }
+        if(0)
+        {
+          // Initialize the history
+          for( Int l = 0; l < maxHist; l++ ){
+            DistDblNumVec& den = densityHist[l];
+            DistDblNumVec& denCur = hamDG.Density();
+            Index3& numElem = esdfParam.numElem;
+            // FIXME the communicator and partitioning of densityHist is
+            // not set since only the localmap is used.
+            int dmCol = numElem[0] * numElem[1] * numElem[2];
+            int dmRow = mpisize / dmCol;
+            for( Int k=0; k< numElem[2]; k++ )
+              for( Int j=0; j< numElem[1]; j++ )
+                for( Int i=0; i< numElem[0]; i++ ) {
+                  Index3 key = Index3(i,j,k);
+                  if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                    den.LocalMap()[key]     = denCur.LocalMap()[key];
+                  } // own this element
+                }  // for (i)
+          }
+
+        } // if (0)
+
+        if (1) {
+
+          // Initialize the history
+          for( Int i = 0; i < numAtom; i++ ){
+            atomposHist0[i]   = atomList[i].pos;
+            atomposHist1[i]   = atomList[i].pos;
+            atomposHist2[i]   = atomList[i].pos;
+          }
+          for( Int l = 0; l < maxHist; l++ ){
+            DistDblNumVec& den = densityHist[l];
+            DistDblNumVec& denCur = hamDG.Density();
+            Index3& numElem = esdfParam.numElem;
+            int dmCol = numElem[0] * numElem[1] * numElem[2];
+            int dmRow = mpisize / dmCol;
+            for( Int k=0; k< numElem[2]; k++ )
+              for( Int j=0; j< numElem[1]; j++ )
+                for( Int i=0; i< numElem[0]; i++ ) {
+                  Index3 key = Index3(i,j,k);
+                  if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                    den.LocalMap()[key]     = denCur.LocalMap()[key];
+                  } // own this element
+                }  // for (i)
+          }
+        } // if(1)
 
         // Degree of freedom
         L=3*numAtom;
@@ -785,6 +819,12 @@ int main(int argc, char **argv)
           K=K*s*s;
           vxi1=vxi1+(2*K-L*T)/Q1*dt/4.;
           //numchain=1 end//
+
+          for( Int i = 0; i < numAtom; i++ ){
+            atomposHist0[i]   = atomposHist1[i];
+            atomposHist1[i]   = atomposHist2[i];
+            atomposHist2[i]   = atomList[i].pos;
+          }
 
           //posvel//
           for(Int i=0; i<numAtom; i++) {
@@ -877,7 +917,7 @@ int main(int argc, char **argv)
           scfDG.Update( );
 
           // Update the density through linear extrapolation
-          if(1)
+          if( esdfParam.MDExtrapolationType == "linear" )
           {
             Index3  numElem = esdfParam.numElem;
             Int dmCol = numElem[0] * numElem[1] * numElem[2];
@@ -889,7 +929,7 @@ int main(int argc, char **argv)
                   Index3 key = Index3(i,j,k);
                   if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
                     DblNumVec& denCurVec = denCur.LocalMap()[key];
-                    DblNumVec& denHist0Vec = densityHist[0].LocalMap()[key];
+                    DblNumVec& denHist0Vec = densityHist[2].LocalMap()[key];
                     DblNumVec denSaveVec = denCurVec;
                     for( Int a = 0; a < denCurVec.m(); a++ ){
                       denCurVec(a) = 2.0 * denCurVec(a) - denHist0Vec(a);
@@ -898,7 +938,158 @@ int main(int argc, char **argv)
                   } // own this element
                 }  // for (i)
           }
+          // Update the density through quadratic extrapolation
+          else if (esdfParam.MDExtrapolationType == "quadratic") 
+          {
+            if(iStep < 4)
+            {
+              Index3  numElem = esdfParam.numElem;
+              Int dmCol = numElem[0] * numElem[1] * numElem[2];
+              Int dmRow = mpisize / dmCol;
+              DistDblNumVec& denCur = hamDG.Density();
+              for( Int k=0; k< numElem[2]; k++ )
+                for( Int j=0; j< numElem[1]; j++ )
+                  for( Int i=0; i< numElem[0]; i++ ) {
+                    Index3 key = Index3(i,j,k);
+                    if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                      DblNumVec& denCurVec = denCur.LocalMap()[key];
+                      DblNumVec& denHist0Vec = densityHist[2].LocalMap()[key];
+                      DblNumVec denSaveVec = denCurVec;
+                      DblNumVec& den0 = densityHist[0].LocalMap()[key];
+                      DblNumVec& den1 = densityHist[1].LocalMap()[key];
+                      DblNumVec& den2 = densityHist[2].LocalMap()[key];
+                      for( Int a = 0; a < denCurVec.m(); a++ ){
+                        denCurVec(a) = 2.0 * denCurVec(a) - denHist0Vec(a);
+                        den0(a) = den1(a);
+                        den1(a) = den2(a);
+                        denHist0Vec(a) = denSaveVec(a);
+                      }
+                    } // own this element
+                  }  // for (i)
+            }
+            else 
+            { 
+              Index3  numElem = esdfParam.numElem;
+              Int dmCol = numElem[0] * numElem[1] * numElem[2];
+              Int dmRow = mpisize / dmCol;
+              DistDblNumVec& denCur = hamDG.Density();
+              for( Int k=0; k< numElem[2]; k++ )
+                for( Int j=0; j< numElem[1]; j++ )
+                  for( Int i=0; i< numElem[0]; i++ ) {
+                    Index3 key = Index3(i,j,k);
+                    if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                      DblNumVec& den0 = densityHist[0].LocalMap()[key];
+                      DblNumVec& den1 = densityHist[1].LocalMap()[key];
+                      DblNumVec& den2 = densityHist[2].LocalMap()[key];
+                      DblNumVec& denCurVec = denCur.LocalMap()[key];
+                      for( Int ii = 0; ii < denCurVec.m(); ii++ ){
+                        den0(ii) = den1(ii);
+                        den1(ii) = den2(ii);
+                        den2(ii) = denCurVec(ii);
+                        denCurVec(ii) = 3.0 * ( den2(ii) - den1(ii) ) + den0(ii);
+                      }
+                    } // own this element
+                  }  // for (i)
 
+            }
+          } 
+          // Update the density through Dario extrapolation
+          else if (esdfParam.MDExtrapolationType == "Dario") 
+          {
+            if(iStep < 4)
+            {
+              Index3  numElem = esdfParam.numElem;
+              Int dmCol = numElem[0] * numElem[1] * numElem[2];
+              Int dmRow = mpisize / dmCol;
+              DistDblNumVec& denCur = hamDG.Density();
+              for( Int k=0; k< numElem[2]; k++ )
+                for( Int j=0; j< numElem[1]; j++ )
+                  for( Int i=0; i< numElem[0]; i++ ) {
+                    Index3 key = Index3(i,j,k);
+                    if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                      DblNumVec& denCurVec = denCur.LocalMap()[key];
+                      DblNumVec& denHist0Vec = densityHist[2].LocalMap()[key];
+                      DblNumVec denSaveVec = denCurVec;
+                      DblNumVec& den0 = densityHist[0].LocalMap()[key];
+                      DblNumVec& den1 = densityHist[1].LocalMap()[key];
+                      DblNumVec& den2 = densityHist[2].LocalMap()[key];
+                      for( Int a = 0; a < denCurVec.m(); a++ ){
+                        denCurVec(a) = 2.0 * denCurVec(a) - denHist0Vec(a);
+                        den0(a) = den1(a);
+                        den1(a) = den2(a);
+                        denHist0Vec(a) = denSaveVec(a);
+                      }
+                    } // own this element
+                  }  // for (i)
+            }
+            else 
+            { 
+              // Update the density through quadratic extrapolation
+              // Dario CPC 118, 31 (1999)
+              // huwei 20150923 
+              // Compute the coefficient a and b
+              Real a11 = 0.0;
+              Real a22 = 0.0;
+              Real a12 = 0.0;
+              Real a21 = 0.0;
+              Real b1 = 0.0;
+              Real b2 = 0.0;
+
+              std::vector<Point3>  atemp1(numAtom);
+              std::vector<Point3>  atemp2(numAtom);
+              std::vector<Point3>  atemp3(numAtom);
+
+              for( Int i = 0; i < numAtom; i++ ){
+                atemp1[i] = atomposHist2[i] - atomposHist1[i];
+                atemp2[i] = atomposHist1[i] - atomposHist0[i];
+                atemp3[i] = atomposHist2[i] - atompos[i];
+              }
+
+              for( Int i = 0; i < numAtom; i++ ){
+
+                a11 += atemp1[i][0]*atemp1[i][0]+atemp1[i][1]*atemp1[i][1]+atemp1[i][2]*atemp1[i][2];
+                a12 += atemp1[i][0]*atemp2[i][0]+atemp1[i][1]*atemp2[i][1]+atemp1[i][2]*atemp2[i][2];
+                a22 += atemp2[i][0]*atemp2[i][0]+atemp2[i][1]*atemp2[i][1]+atemp2[i][2]*atemp2[i][2];
+                a21 = a12;
+                b1 += 0.0-atemp3[i][0]*atemp1[i][0]-atemp3[i][1]*atemp1[i][1]-atemp3[i][2]*atemp1[i][2];
+                b2 += 0.0-atemp3[i][0]*atemp2[i][0]-atemp3[i][1]*atemp2[i][1]-atemp3[i][2]*atemp2[i][2];
+
+              }
+
+              Real detA = a11*a22 - a12*a21;
+              Real aA = (b1*a22-b2*a12)/detA;
+              Real bA = (b2*a11-b2*a21)/detA;
+
+              Index3  numElem = esdfParam.numElem;
+              Int dmCol = numElem[0] * numElem[1] * numElem[2];
+              Int dmRow = mpisize / dmCol;
+              DistDblNumVec& denCur = hamDG.Density();
+              for( Int k=0; k< numElem[2]; k++ )
+                for( Int j=0; j< numElem[1]; j++ )
+                  for( Int i=0; i< numElem[0]; i++ ) {
+                    Index3 key = Index3(i,j,k);
+                    if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                      DblNumVec& den0 = densityHist[0].LocalMap()[key];
+                      DblNumVec& den1 = densityHist[1].LocalMap()[key];
+                      DblNumVec& den2 = densityHist[2].LocalMap()[key];
+                      DblNumVec& denCurVec = denCur.LocalMap()[key];
+                      for( Int ii = 0; ii < denCurVec.m(); ii++ ){
+                        den0(ii) = den1(ii);
+                        den1(ii) = den2(ii);
+                        den2(ii) = denCurVec(ii);
+                        denCurVec(ii) = den2(ii) + aA * ( den2(ii) - den1(ii) ) + 
+                          bA * ( den1(ii) - den0(ii) );
+                      }
+                    } // own this element
+                  }  // for (i)
+
+            } 
+
+          }
+          else
+          {
+            throw std::logic_error( "Currently three extrapolation types are supported!" );
+          }
 
 
           statusOFS << "Finish Update scfDG" << std::endl;
