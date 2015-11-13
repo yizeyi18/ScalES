@@ -4660,343 +4660,343 @@ namespace  dgdft{
       // Or using Chebyshev filtering
       
       if( solutionMethod_ == "diag" ){
-	{
-	  // ~~**~~
-	  if(Diag_SCFDG_by_Cheby_ == 1 )
-	    {
-	      // Chebyshev filtering based diagonalization
-	      GetTime(timeSta);
-          
-	      if(outerIter == 1)
-		{
-		  statusOFS << std::endl << " Calling First Chebyshev Iter  " << std::endl;
-		  scfdg_FirstChebyStep(First_SCFDG_ChebyCycleNum_, First_SCFDG_ChebyFilterOrder_);
-		}
-	      else if(outerIter > 1 && 	outerIter <= Second_SCFDG_ChebyOuterIter_)
-		{
-		  statusOFS << std::endl << " Calling Second Stage Chebyshev Iter  " << std::endl;
-		  scfdg_GeneralChebyStep(Second_SCFDG_ChebyCycleNum_, Second_SCFDG_ChebyFilterOrder_);
-		}
-	      else
-		{  
-		  statusOFS << std::endl << " Calling General Chebyshev Iter  " << std::endl;
-		  scfdg_GeneralChebyStep(General_SCFDG_ChebyCycleNum_, General_SCFDG_ChebyFilterOrder_); 
-	    
-		}
-	  
-	 
-	  
-	      MPI_Barrier( domain_.comm );
-	      MPI_Barrier( domain_.rowComm );
-	      MPI_Barrier( domain_.colComm );
-	  
-	      GetTime( timeEnd );
+        {
+          // ~~**~~
+          if(Diag_SCFDG_by_Cheby_ == 1 )
+          {
+            // Chebyshev filtering based diagonalization
+            GetTime(timeSta);
+
+            if(outerIter == 1)
+            {
+              statusOFS << std::endl << " Calling First Chebyshev Iter  " << std::endl;
+              scfdg_FirstChebyStep(First_SCFDG_ChebyCycleNum_, First_SCFDG_ChebyFilterOrder_);
+            }
+            else if(outerIter > 1 && 	outerIter <= Second_SCFDG_ChebyOuterIter_)
+            {
+              statusOFS << std::endl << " Calling Second Stage Chebyshev Iter  " << std::endl;
+              scfdg_GeneralChebyStep(Second_SCFDG_ChebyCycleNum_, Second_SCFDG_ChebyFilterOrder_);
+            }
+            else
+            {  
+              statusOFS << std::endl << " Calling General Chebyshev Iter  " << std::endl;
+              scfdg_GeneralChebyStep(General_SCFDG_ChebyCycleNum_, General_SCFDG_ChebyFilterOrder_); 
+
+            }
+
+
+
+            MPI_Barrier( domain_.comm );
+            MPI_Barrier( domain_.rowComm );
+            MPI_Barrier( domain_.colComm );
+
+            GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-	      statusOFS << std::endl << " Time for diag DG matrix via Chebyshev filtering is " <<
-		timeEnd - timeSta << " [s]" << std::endl << std::endl;
-	    
+            statusOFS << std::endl << " Time for diag DG matrix via Chebyshev filtering is " <<
+              timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
 #endif	    
-	      
-	     
-	      DblNumVec& eigval = hamDG.EigVal(); 	     
-	      //for(Int i = 0; i < hamDG.NumStateTotal(); i ++)
-	      //  statusOFS << setw(8) << i << setw(20) << '\t' << eigval[i] << std::endl;
-	  
-	    }
-	  else
-	    {
 
-	      // ScaLAPACK based diagonalization
-	      GetTime(timeSta);
-	      Int sizeH = hamDG.NumBasisTotal();
-        
-	      DblNumVec& eigval = hamDG.EigVal(); 
-	      eigval.Resize( hamDG.NumStateTotal() );		
 
-	      for( Int k = 0; k < numElem_[2]; k++ )
-		for( Int j = 0; j < numElem_[1]; j++ )
-		  for( Int i = 0; i < numElem_[0]; i++ ){
-		    Index3 key( i, j, k );
-		    if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-		      const std::vector<Int>&  idx = hamDG.ElemBasisIdx()(i, j, k); 
-		      DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
-		      localCoef.Resize( idx.size(), hamDG.NumStateTotal() );		
-		    }
-		  } 
-        
-	      // All processors participate in the data conversion procedure
-        
-        
-	      scalapack::Descriptor descH;
+            DblNumVec& eigval = hamDG.EigVal(); 	     
+            //for(Int i = 0; i < hamDG.NumStateTotal(); i ++)
+            //  statusOFS << setw(8) << i << setw(20) << '\t' << eigval[i] << std::endl;
 
-	      if( contxt_ >= 0 ){
-		descH.Init( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
-			    0, 0, contxt_ );
-	      }
+          }
+          else
+          {
 
-	      scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
+            // ScaLAPACK based diagonalization
+            GetTime(timeSta);
+            Int sizeH = hamDG.NumBasisTotal();
 
-	      std::vector<Int> mpirankElemVec(dmCol_);
-	      std::vector<Int> mpirankScaVec( numProcScaLAPACK_ );
+            DblNumVec& eigval = hamDG.EigVal(); 
+            eigval.Resize( hamDG.NumStateTotal() );		
 
-	      // The processors in the first column are the source
-	      for( Int i = 0; i < dmCol_; i++ ){
-		mpirankElemVec[i] = i * dmRow_;
-	      }
-	      // The first numProcScaLAPACK processors are the target
-	      for( Int i = 0; i < numProcScaLAPACK_; i++ ){
-		mpirankScaVec[i] = i;
-	      }
+            for( Int k = 0; k < numElem_[2]; k++ )
+              for( Int j = 0; j < numElem_[1]; j++ )
+                for( Int i = 0; i < numElem_[0]; i++ ){
+                  Index3 key( i, j, k );
+                  if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                    const std::vector<Int>&  idx = hamDG.ElemBasisIdx()(i, j, k); 
+                    DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
+                    localCoef.Resize( idx.size(), hamDG.NumStateTotal() );		
+                  }
+                } 
+
+            // All processors participate in the data conversion procedure
+
+
+            scalapack::Descriptor descH;
+
+            if( contxt_ >= 0 ){
+              descH.Init( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
+                  0, 0, contxt_ );
+            }
+
+            scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
+
+            std::vector<Int> mpirankElemVec(dmCol_);
+            std::vector<Int> mpirankScaVec( numProcScaLAPACK_ );
+
+            // The processors in the first column are the source
+            for( Int i = 0; i < dmCol_; i++ ){
+              mpirankElemVec[i] = i * dmRow_;
+            }
+            // The first numProcScaLAPACK processors are the target
+            for( Int i = 0; i < numProcScaLAPACK_; i++ ){
+              mpirankScaVec[i] = i;
+            }
 
 #if ( _DEBUGlevel_ >= 2 )
-	      statusOFS << "mpirankElemVec = " << mpirankElemVec << std::endl;
-	      statusOFS << "mpirankScaVec = " << mpirankScaVec << std::endl;
+            statusOFS << "mpirankElemVec = " << mpirankElemVec << std::endl;
+            statusOFS << "mpirankScaVec = " << mpirankScaVec << std::endl;
 #endif
 
-	      Real timeConversionSta, timeConversionEnd;
+            Real timeConversionSta, timeConversionEnd;
 
-	      GetTime( timeConversionSta );
-	      DistElemMatToScaMat2( hamDG.HMat(), 	descH,
-				    scaH, hamDG.ElemBasisIdx(), domain_.comm,
-				    domain_.colComm, mpirankElemVec,
-				    mpirankScaVec );
-	      GetTime( timeConversionEnd );
+            GetTime( timeConversionSta );
+            DistElemMatToScaMat2( hamDG.HMat(), 	descH,
+                scaH, hamDG.ElemBasisIdx(), domain_.comm,
+                domain_.colComm, mpirankElemVec,
+                mpirankScaVec );
+            GetTime( timeConversionEnd );
 #if ( _DEBUGlevel_ >= 1 )
-	      statusOFS << "Time for converting from DistElemMat to ScaMat is " <<
-		timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
+            statusOFS << "Time for converting from DistElemMat to ScaMat is " <<
+              timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
 
-	      if(contxt_ >= 0){
+            if(contxt_ >= 0){
 
-		//          statusOFS << "LocalMatrix = " << scaH.LocalMatrix() << std::endl;
-		//
-		//          DistElemMatToScaMat( hamDG.HMat(), 	descH,
-		//              scaH, hamDG.ElemBasisIdx(), domain_.colComm );
-		//
-		//          statusOFS << "LocalMatrixOri = " << scaH.LocalMatrix() << std::endl;
+              //          statusOFS << "LocalMatrix = " << scaH.LocalMatrix() << std::endl;
+              //
+              //          DistElemMatToScaMat( hamDG.HMat(), 	descH,
+              //              scaH, hamDG.ElemBasisIdx(), domain_.colComm );
+              //
+              //          statusOFS << "LocalMatrixOri = " << scaH.LocalMatrix() << std::endl;
 
-		std::vector<Real> eigs;
+              std::vector<Real> eigs;
 
-		GetTime( timeConversionSta );
-		scalapack::Syevd('U', scaH, eigs, scaZ);
-		GetTime( timeConversionEnd );
+              GetTime( timeConversionSta );
+              scalapack::Syevd('U', scaH, eigs, scaZ);
+              GetTime( timeConversionEnd );
 #if ( _DEBUGlevel_ >= 1 )
-		statusOFS << "Time for scalapack::Syevd is " <<
-		  timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
+              statusOFS << "Time for scalapack::Syevd is " <<
+                timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
 
-		for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
-		  eigval[i] = eigs[i];
+              for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
+                eigval[i] = eigs[i];
 
-	      } //if(contxt_ >= 0)
+            } //if(contxt_ >= 0)
 
-	      GetTime( timeConversionSta );
-	      ScaMatToDistNumMat2( scaZ, hamDG.Density().Prtn(), 
-				   hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.comm,
-				   domain_.colComm, mpirankElemVec, mpirankScaVec, 
-				   hamDG.NumStateTotal() );
-	      GetTime( timeConversionEnd );
+            GetTime( timeConversionSta );
+            ScaMatToDistNumMat2( scaZ, hamDG.Density().Prtn(), 
+                hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.comm,
+                domain_.colComm, mpirankElemVec, mpirankScaVec, 
+                hamDG.NumStateTotal() );
+            GetTime( timeConversionEnd );
 #if ( _DEBUGlevel_ >= 1 )
-	      statusOFS << "Time for converting from ScaMat to DistNumMat is " <<
-		timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
+            statusOFS << "Time for converting from ScaMat to DistNumMat is " <<
+              timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
 
-	      GetTime( timeConversionSta );
-        
-	      for( Int k = 0; k < numElem_[2]; k++ )
-		for( Int j = 0; j < numElem_[1]; j++ )
-		  for( Int i = 0; i < numElem_[0]; i++ ){
-		    Index3 key( i, j, k );
-		    if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-		      DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
-		      MPI_Bcast(localCoef.Data(), localCoef.m() * localCoef.n(), MPI_DOUBLE, 0, domain_.rowComm);
-		    }
-		  } 
-	      GetTime( timeConversionEnd );
+            GetTime( timeConversionSta );
+
+            for( Int k = 0; k < numElem_[2]; k++ )
+              for( Int j = 0; j < numElem_[1]; j++ )
+                for( Int i = 0; i < numElem_[0]; i++ ){
+                  Index3 key( i, j, k );
+                  if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                    DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
+                    MPI_Bcast(localCoef.Data(), localCoef.m() * localCoef.n(), MPI_DOUBLE, 0, domain_.rowComm);
+                  }
+                } 
+            GetTime( timeConversionEnd );
 #if ( _DEBUGlevel_ >= 1 )
-	      statusOFS << "Time for MPI_Bcast eigval and localCoef is " <<
-		timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
+            statusOFS << "Time for MPI_Bcast eigval and localCoef is " <<
+              timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
-       
-	      MPI_Barrier( domain_.comm );
-	      MPI_Barrier( domain_.rowComm );
-	      MPI_Barrier( domain_.colComm );
-        
-	      GetTime( timeEnd );
+
+            MPI_Barrier( domain_.comm );
+            MPI_Barrier( domain_.rowComm );
+            MPI_Barrier( domain_.colComm );
+
+            GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-	      statusOFS << "Time for diag DG matrix via ScaLAPACK is " <<
-		timeEnd - timeSta << " [s]" << std::endl << std::endl;
+            statusOFS << "Time for diag DG matrix via ScaLAPACK is " <<
+              timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-	      // Communicate the eigenvalues
-	      Int mpirankScaSta = mpirankScaVec[0];
-	      MPI_Bcast(eigval.Data(), hamDG.NumStateTotal(), MPI_DOUBLE, 
-			mpirankScaVec[0], domain_.comm);
-      
-	      
-	    } // End of ScaLAPACK based diagonalization
-	} // End of diagonalization routines
+            // Communicate the eigenvalues
+            Int mpirankScaSta = mpirankScaVec[0];
+            MPI_Bcast(eigval.Data(), hamDG.NumStateTotal(), MPI_DOUBLE, 
+                mpirankScaVec[0], domain_.comm);
 
-	// Post processing
 
-	Evdw_ = 0.0;
+          } // End of ScaLAPACK based diagonalization
+        } // End of diagonalization routines
 
-	// Compute the occupation rate
-	CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
+        // Post processing
 
-	// Compute the Harris energy functional.  
-	// NOTE: In computing the Harris energy, the density and the
-	// potential must be the INPUT density and potential without ANY
-	// update.
-	CalculateHarrisEnergy();
+        Evdw_ = 0.0;
 
-	MPI_Barrier( domain_.comm );
-	MPI_Barrier( domain_.rowComm );
-	MPI_Barrier( domain_.colComm );
+        // Compute the occupation rate
+        CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
 
-	// Compute the output electron density
-	GetTime( timeSta );
+        // Compute the Harris energy functional.  
+        // NOTE: In computing the Harris energy, the density and the
+        // potential must be the INPUT density and potential without ANY
+        // update.
+        CalculateHarrisEnergy();
 
-	// Calculate the new electron density
-	// FIXME 
-	// Do not need the conversion from column to row partition as well
-	hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
-      
+        MPI_Barrier( domain_.comm );
+        MPI_Barrier( domain_.rowComm );
+        MPI_Barrier( domain_.colComm );
 
-	MPI_Barrier( domain_.comm );
-	MPI_Barrier( domain_.rowComm );
-	MPI_Barrier( domain_.colComm );
-      
-	GetTime( timeEnd );
+        // Compute the output electron density
+        GetTime( timeSta );
+
+        // Calculate the new electron density
+        // FIXME 
+        // Do not need the conversion from column to row partition as well
+        hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
+
+
+        MPI_Barrier( domain_.comm );
+        MPI_Barrier( domain_.rowComm );
+        MPI_Barrier( domain_.colComm );
+
+        GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-	statusOFS << "Time for computing density in the global domain is " <<
-	  timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        statusOFS << "Time for computing density in the global domain is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-	// Update the output potential, and the KS and second order accurate
-	// energy
-	{
-	  // Update the Hartree energy and the exchange correlation energy and
-	  // potential for computing the KS energy and the second order
-	  // energy.
-	  // NOTE Vtot should not be updated until finishing the computation
-	  // of the energies.
+        // Update the output potential, and the KS and second order accurate
+        // energy
+        {
+          // Update the Hartree energy and the exchange correlation energy and
+          // potential for computing the KS energy and the second order
+          // energy.
+          // NOTE Vtot should not be updated until finishing the computation
+          // of the energies.
 
-	  if( XCType_ == "XC_GGA_XC_PBE" ){
-	    hamDG.CalculateGradDensity(  *distfftPtr_ );
-	  }
+          if( XCType_ == "XC_GGA_XC_PBE" ){
+            hamDG.CalculateGradDensity(  *distfftPtr_ );
+          }
 
-	  GetTime( timeSta );
-	  hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
-	  GetTime( timeEnd );
+          GetTime( timeSta );
+          hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
+          GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-	  statusOFS << "Time for computing Exc in the global domain is " <<
-	    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+          statusOFS << "Time for computing Exc in the global domain is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-	  GetTime( timeSta );
-        
-	  hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+          GetTime( timeSta );
 
-	  GetTime( timeEnd );
+          hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+
+          GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-	  statusOFS << "Time for computing Vhart in the global domain is " <<
-	    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+          statusOFS << "Time for computing Vhart in the global domain is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-        
-	  // Compute the second order accurate energy functional.
 
-	  // Compute the second order accurate energy functional.
-	  // NOTE: In computing the second order energy, the density and the
-	  // potential must be the OUTPUT density and potential without ANY
-	  // MIXING.
-	  CalculateSecondOrderEnergy();
+          // Compute the second order accurate energy functional.
 
-	  // Compute the KS energy 
-        
-	  GetTime( timeSta );
-        
-	  CalculateKSEnergy();
+          // Compute the second order accurate energy functional.
+          // NOTE: In computing the second order energy, the density and the
+          // potential must be the OUTPUT density and potential without ANY
+          // MIXING.
+          CalculateSecondOrderEnergy();
 
-	  GetTime( timeEnd );
+          // Compute the KS energy 
+
+          GetTime( timeSta );
+
+          CalculateKSEnergy();
+
+          GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-	  statusOFS << "Time for computing KSEnergy in the global domain is " <<
-	    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+          statusOFS << "Time for computing KSEnergy in the global domain is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-        
-	  // Update the total potential AFTER updating the energy
 
-	  // No external potential
+          // Update the total potential AFTER updating the energy
 
-	  // Compute the new total potential
+          // No external potential
 
-	  GetTime( timeSta );
-        
-	  hamDG.CalculateVtot( hamDG.Vtot() );
-        
-	  GetTime( timeEnd );
+          // Compute the new total potential
+
+          GetTime( timeSta );
+
+          hamDG.CalculateVtot( hamDG.Vtot() );
+
+          GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-	  statusOFS << "Time for computing Vtot in the global domain is " <<
-	    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+          statusOFS << "Time for computing Vtot in the global domain is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-	}
+        }
 
-	// Compute the force at every step
-	if( isCalculateForceEachSCF_ ){
-	  // Compute force
-	  GetTime( timeSta );
-	  hamDG.CalculateForce( *distfftPtr_ );
-	  GetTime( timeEnd );
-	  statusOFS << "Time for computing the force is " <<
-	    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        // Compute the force at every step
+        if( isCalculateForceEachSCF_ ){
+          // Compute force
+          GetTime( timeSta );
+          hamDG.CalculateForce( *distfftPtr_ );
+          GetTime( timeEnd );
+          statusOFS << "Time for computing the force is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-	  // Print out the force
-	  // Only master processor output information containing all atoms
-	  if( mpirank == 0 ){
-	    PrintBlock( statusOFS, "Atomic Force" );
-	    {
-	      Point3 forceCM(0.0, 0.0, 0.0);
-	      std::vector<Atom>& atomList = hamDG.AtomList();
-	      Int numAtom = atomList.size();
-	      for( Int a = 0; a < numAtom; a++ ){
-		Print( statusOFS, "atom", a, "force", atomList[a].force );
-		forceCM += atomList[a].force;
-	      }
-	      statusOFS << std::endl;
-	      Print( statusOFS, "force for centroid: ", forceCM );
-	      statusOFS << std::endl;
-	    }
-	  }
-	}
+          // Print out the force
+          // Only master processor output information containing all atoms
+          if( mpirank == 0 ){
+            PrintBlock( statusOFS, "Atomic Force" );
+            {
+              Point3 forceCM(0.0, 0.0, 0.0);
+              std::vector<Atom>& atomList = hamDG.AtomList();
+              Int numAtom = atomList.size();
+              for( Int a = 0; a < numAtom; a++ ){
+                Print( statusOFS, "atom", a, "force", atomList[a].force );
+                forceCM += atomList[a].force;
+              }
+              statusOFS << std::endl;
+              Print( statusOFS, "force for centroid: ", forceCM );
+              statusOFS << std::endl;
+            }
+          }
+        }
 
-	// Compute the a posteriori error estimator at every step
-	// FIXME This is not used when intra-element parallelization is
-	// used.
-	if( isCalculateAPosterioriEachSCF_ && 0 )
-	  {
-	    GetTime( timeSta );
-	    DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-	    hamDG.CalculateAPosterioriError( 
-					    eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-	    GetTime( timeEnd );
-	    statusOFS << "Time for computing the a posteriori error is " <<
-	      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        // Compute the a posteriori error estimator at every step
+        // FIXME This is not used when intra-element parallelization is
+        // used.
+        if( isCalculateAPosterioriEachSCF_ && 0 )
+        {
+          GetTime( timeSta );
+          DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
+          hamDG.CalculateAPosterioriError( 
+              eta2Total, eta2Residual, eta2GradJump, eta2Jump );
+          GetTime( timeEnd );
+          statusOFS << "Time for computing the a posteriori error is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-	    // Only master processor output information containing all atoms
-	    if( mpirank == 0 ){
-	      PrintBlock( statusOFS, "A Posteriori error" );
-	      {
-		statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-		statusOFS << eta2Total << std::endl;
-		statusOFS << std::endl << "Residual term:" << std::endl;
-		statusOFS << eta2Residual << std::endl;
-		statusOFS << std::endl << "Jump of gradient term:" << std::endl;
-		statusOFS << eta2GradJump << std::endl;
-		statusOFS << std::endl << "Jump of function value term:" << std::endl;
-		statusOFS << eta2Jump << std::endl;
-	      }
-	    }
-	  }
+          // Only master processor output information containing all atoms
+          if( mpirank == 0 ){
+            PrintBlock( statusOFS, "A Posteriori error" );
+            {
+              statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+              statusOFS << eta2Total << std::endl;
+              statusOFS << std::endl << "Residual term:" << std::endl;
+              statusOFS << eta2Residual << std::endl;
+              statusOFS << std::endl << "Jump of gradient term:" << std::endl;
+              statusOFS << eta2GradJump << std::endl;
+              statusOFS << std::endl << "Jump of function value term:" << std::endl;
+              statusOFS << eta2Jump << std::endl;
+            }
+          }
+        }
       }
 
 

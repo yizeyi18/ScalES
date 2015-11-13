@@ -3410,6 +3410,22 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 
 	}
 
+  // Clean the eigenvecs after the computation of the force
+  {
+    std::vector<Index3>  eraseKey;
+    for( std::map<Index3, DblNumMat>::iterator 
+        mi  = eigvecCoef_.LocalMap().begin();
+        mi != eigvecCoef_.LocalMap().end(); mi++ ){
+      Index3 key = (*mi).first;
+      if( eigvecCoef_.Prtn().Owner(key) != (mpirank / dmRow_) ){
+        eraseKey.push_back( key );
+      }
+    }
+    for( std::vector<Index3>::iterator vi = eraseKey.begin();
+        vi != eraseKey.end(); vi++ ){
+      eigvecCoef_.LocalMap().erase( *vi );
+    }
+  }
 
   // *********************************************************************
 	// Compute the total force and give the value to atomList
