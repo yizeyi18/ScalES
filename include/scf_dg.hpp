@@ -138,6 +138,7 @@ namespace dgdft{
     
     Int General_SCFDG_ChebyFilterOrder_; // Filter Order for general phase, default = 60
     Int General_SCFDG_ChebyCycleNum_; // Default 1
+    Index3 my_cheby_eig_vec_key;
 
   
 

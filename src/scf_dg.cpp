@@ -3183,6 +3183,9 @@ namespace  dgdft{
 	  // If the current processor owns this element
 	  if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){ 
 	    
+	    // Save the key 
+	    my_cheby_eig_vec_key = key;
+	    
 	    // Associate the current key with a vector that contains the stuff 
 	    // that should reside on this process.
 	    const std::vector<Int>&  idx = hamDG.ElemBasisIdx()(i, j, k); 
@@ -3710,6 +3713,24 @@ namespace  dgdft{
     HamiltonianDG&  hamDG = *hamDGPtr_;
     
     DblNumVec& eigval = hamDG.EigVal(); 
+    
+    // Step 0: Safeguard against the eigenvector containing extra keys
+    {
+      std::map<Index3, DblNumMat>::iterator cleaner_itr = hamDG.EigvecCoef().LocalMap().begin();
+      while (cleaner_itr != hamDG.EigvecCoef().LocalMap().end()) 
+	{
+	  if (cleaner_itr->first != my_cheby_eig_vec_key) 
+	    {
+	      std::map<Index3, DblNumMat>::iterator toErase = cleaner_itr;
+	      ++ cleaner_itr;
+	      hamDG.EigvecCoef().LocalMap().erase(toErase);
+	    } 
+	  else 
+	    {
+	      ++ cleaner_itr;
+	    }
+	}
+    }
     
     
     // Step 1: Obtain the upper bound and the Ritz values (for the lower bound)
@@ -4858,10 +4879,53 @@ namespace  dgdft{
 	GetTime( timeSta );
 
 	// Calculate the new electron density
+	
+	// ~~**~~
+	GetTime( timeSta );
+	int temp_m = hamDG.NumBasisTotal() / (numElem_[0] * numElem_[1] * numElem_[2]); // Average no. of ALBs per element
+	int temp_n = hamDG.NumStateTotal();
+	if((Diag_SCFDG_by_Cheby_ == 1) && (temp_m < temp_n))
+	{  
+	 statusOFS << std::endl << " Using alternate routine for electron density ... " << std::endl;
+         // Compute the diagonal blocks of the density matrix
+	 DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn> cheby_diag_dmat;  
+	 cheby_diag_dmat.Prtn()     = hamDG.HMat().Prtn();
+	 cheby_diag_dmat.SetComm(domain_.colComm);
+	 
+	 // Copy eigenvectors to temp bufer
+	 DblNumMat &eigvecs_local = (hamDG.EigvecCoef().LocalMap().begin())->second;
+	 
+	 DblNumMat scal_local_eig_vec;
+	 scal_local_eig_vec.Resize(eigvecs_local.m(), eigvecs_local.n());
+	 blas::Copy((eigvecs_local.m() * eigvecs_local.n()), eigvecs_local.Data(), 1, scal_local_eig_vec.Data(), 1);
+	 
+	 // Scale temp buffer by occupation square root
+	 for(int iter_scale = 0; iter_scale < eigvecs_local.n(); iter_scale ++)
+	 {
+	   blas::Scal(  scal_local_eig_vec.m(),  sqrt(hamDG.OccupationRate()[iter_scale]), scal_local_eig_vec.Data() + iter_scale * scal_local_eig_vec.m(), 1 );
+	 }
+	   
+	 // Multiply out to obtain diagonal block of density matrix
+	 ElemMatKey diag_block_key = std::make_pair(my_cheby_eig_vec_key, my_cheby_eig_vec_key);
+	 cheby_diag_dmat.LocalMap()[diag_block_key].Resize( scal_local_eig_vec.m(),  scal_local_eig_vec.m());
+	 
+	 blas::Gemm( 'N', 'T', scal_local_eig_vec.m(), scal_local_eig_vec.m(), scal_local_eig_vec.n(),
+		      1.0, 
+		      scal_local_eig_vec.Data(), scal_local_eig_vec.m(), 
+		      scal_local_eig_vec.Data(), scal_local_eig_vec.m(),
+		      0.0, 
+		      cheby_diag_dmat.LocalMap()[diag_block_key].Data(),  scal_local_eig_vec.m());
+	 
+	 // Make the call evaluate this on the real space grid 
+	 hamDG.CalculateDensityDM2(hamDG.Density(), hamDG.DensityLGL(), cheby_diag_dmat );
+	}
+	else
+	{  
+	
 	// FIXME 
 	// Do not need the conversion from column to row partition as well
 	hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
-      
+	}
 
 	MPI_Barrier( domain_.comm );
 	MPI_Barrier( domain_.rowComm );
