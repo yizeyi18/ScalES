@@ -2688,7 +2688,7 @@ SCFDG::InnerIterate	( Int outerIter )
       Real numElectronExact = hamDG.NumOccupiedState() * hamDG.NumSpin();
       Real muMinInertia, muMaxInertia;
       Real muPEXSI, numElectronPEXSI;
-      Int numTotalInertiaIter, numTotalPEXSIIter;
+      Int numTotalInertiaIter = 0, numTotalPEXSIIter = 0;
 
       std::vector<Int> mpirankSparseVec( numProcPEXSICommCol_ );
 
@@ -2820,17 +2820,35 @@ SCFDG::InnerIterate	( Int outerIter )
 
 
         GetTime( timeSta );
-        PPEXSIDFTDriver(
-            pexsiPlan_,
-            pexsiOptions_,
-            numElectronExact,
-            &muPEXSI,
-            &numElectronPEXSI,         
-            &muMinInertia,              
-            &muMaxInertia,             
-            &numTotalInertiaIter,
-            &numTotalPEXSIIter,
-            &info );
+        // Old version of PEXSI driver, uses inertia counting + Newton's iteration
+        if(0){
+          PPEXSIDFTDriver(
+              pexsiPlan_,
+              pexsiOptions_,
+              numElectronExact,
+              &muPEXSI,
+              &numElectronPEXSI,         
+              &muMinInertia,              
+              &muMaxInertia,             
+              &numTotalInertiaIter,
+              &numTotalPEXSIIter,
+              &info );
+        }
+
+        // New version of PEXSI driver, uses inertia count + pole update
+        // strategy. No Newton's iteration
+        if(1){
+          PPEXSIDFTDriver2(
+              pexsiPlan_,
+              pexsiOptions_,
+              numElectronExact,
+              &muPEXSI,
+              &numElectronPEXSI,         
+              &muMinInertia,              
+              &muMaxInertia,             
+              &numTotalInertiaIter,
+              &info );
+        }
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
         statusOFS << "Time for the main PEXSI Driver is " <<
