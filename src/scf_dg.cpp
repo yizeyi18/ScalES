@@ -286,8 +286,13 @@ SCFDG::Setup	(
       statusOFS << "mpirank = " << mpirank << ", mpirankPEXSI = " << mpirankPEXSI << std::endl;
 #endif
 
-      // FIXME More versatile control of the output of the PEXSI module
-      Int outputFileIndex = mpirank;
+      Int outputFileIndex;
+
+      // Only logPEXSI0 is provided.
+      if( mpirank == 0 )
+        outputFileIndex = mpirank;
+      else
+        outputFileIndex = -1;
 
       pexsiPlan_        = PPEXSIPlanInitialize(
           pexsiComm_,
@@ -2797,7 +2802,7 @@ SCFDG::InnerIterate	( Int outerIter )
           // Note: Heuristics strategy for dynamically adjusting the
           // tolerance
           pexsiOptions_.muInertiaTolerance = 
-            std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.05 );
+            std::min( std::max( muInertiaToleranceTarget_, 0.001 * scfOuterNorm_ ), 0.05 );
           pexsiOptions_.numElectronPEXSITolerance = 
             std::min( std::max( numElectronPEXSIToleranceTarget_, 1.0 * scfOuterNorm_ ), 0.5 );
 
