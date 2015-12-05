@@ -627,6 +627,7 @@ int main(int argc, char **argv)
     // In the future this should be substituted either by a more complete restart scheme,
     // or by an option to do more SCF steps initially, or both
     scfDG.Iterate();
+    scfDG.set_Cheby_MD_schedule_flag();
 
     // LLIN: 11/3/2014. NO SCF calculation here, postpone to MD stpes
     
@@ -896,6 +897,8 @@ int main(int argc, char **argv)
           statusOFS << "Finish Update scfDG" << std::endl;
 
           scfDG.Iterate();
+	  
+	  
 
           statusOFS << "Finish scfDG Iterate" << std::endl;
 

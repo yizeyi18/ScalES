@@ -126,6 +126,8 @@ namespace dgdft{
 
     // Variables related to Chebyshev Filtered SCF iterations for DG
     // ~~**~~
+    
+    // User option variables
     bool Diag_SCFDG_by_Cheby_; // Default: 0
     bool SCFDG_Cheby_use_ScaLAPACK_; // Default: 0
     
@@ -138,9 +140,17 @@ namespace dgdft{
     
     Int General_SCFDG_ChebyFilterOrder_; // Filter Order for general phase, default = 60
     Int General_SCFDG_ChebyCycleNum_; // Default 1
+    
+    // Internal use variables
+    // Key for the eigenvector on the current processor
     Index3 my_cheby_eig_vec_key;
+    
+    // Do the usual Chebyshev filtering schedule or work in MD mode
+    Int Cheby_MD_schedule_flag;
 
-  
+    // Deque for ALBs expressed on the LGL grid
+    std::deque<DblNumMat> ALB_LGL_deque;
+
 
     /// @brief The total number of processors used by PEXSI.
     /// 
@@ -383,6 +393,8 @@ namespace dgdft{
   
     void scfdg_GeneralChebyStep(Int eigMaxIter, 
 				Int filter_order );	
+    
+    void set_Cheby_MD_schedule_flag(){Cheby_MD_schedule_flag = 1;}
 
 
     /// @brief Update the local potential in the extended element and the element.
