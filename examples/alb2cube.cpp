@@ -173,6 +173,13 @@ int main(int argc, char **argv){
     ifstream inputFileStream(ALBFileName);
     iA( inputFileStream.good() );
 
+    // Read the grid
+    std::vector<DblNumVec> grid(DIM);
+    for( Int d = 0; d < DIM; d++ ){
+      deserialize( grid[d], inputFileStream, NO_MASK );
+    }
+
+    // Read the local index and the dimension.
     DblNumMat ALBUniformFineAll;
     Index3     key;
     deserialize(key, inputFileStream, NO_MASK);

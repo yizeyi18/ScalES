@@ -186,6 +186,12 @@ int main(int argc, char **argv){
       ifstream inputFileStream(densityFileName);
       iA( inputFileStream.good() );
 
+      // Read the grid
+      std::vector<DblNumVec> grid(DIM);
+      for( Int d = 0; d < DIM; d++ ){
+        deserialize( grid[d], inputFileStream, NO_MASK );
+      }
+
       // Read the local index and the dimension.
       deserialize(key, inputFileStream, NO_MASK);
       deserialize(densityVec, inputFileStream, NO_MASK);
