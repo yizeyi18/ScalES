@@ -225,13 +225,13 @@ int main(int argc, char **argv)
         Print(statusOFS, "Spectral radius   = ",  esdfParam.spectralRadius); 
         Print(statusOFS, "Matrix ordering   = ",  esdfParam.matrixOrdering); 
         Print(statusOFS, "Inertia before SCF= ",  esdfParam.inertiaCountSteps);
-        Print(statusOFS, "Max PEXSI iter    = ",  esdfParam.maxPEXSIIter); 
+        Print(statusOFS, "Max PEXSI iter (deprecated)   = ",  esdfParam.maxPEXSIIter); 
         Print(statusOFS, "MuMin0            = ",  esdfParam.muMin); 
         Print(statusOFS, "MuMax0            = ",  esdfParam.muMax); 
         Print(statusOFS, "NumElectron tol   = ",  esdfParam.numElectronPEXSITolerance); 
         Print(statusOFS, "mu Inertia tol    = ",  esdfParam.muInertiaTolerance); 
         Print(statusOFS, "mu Inertia expand = ",  esdfParam.muInertiaExpansion); 
-        Print(statusOFS, "mu PEXSI safeguard= ",  esdfParam.muPEXSISafeGuard); 
+        Print(statusOFS, "mu PEXSI safeguard (deprecated)= ",  esdfParam.muPEXSISafeGuard); 
       }
 
 

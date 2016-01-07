@@ -31,13 +31,14 @@ mpirank = 1;
 fname = sprintf('ALBLGL_%d', mpirank);
 fid = fopen(fname, 'r');
 % FIXME order is wrong here
-key = deserialize( fid, {'Index3'} );
 gridPos = cell(3,1);
 for d = 1 : 3
   gridPos{d} = deserialize( fid, {'DblNumVec'} );
   numGridLGL(d) = length(gridPos{d});
 end
+key = deserialize( fid, {'Index3'} );
 wavefun = deserialize( fid, {'DblNumMat'} );
+lglwgt3d =  deserialize( fid, {'DblNumTns'} );
 numWavefun = size(wavefun,2);
 wavefun =  reshape( wavefun, [numGridLGL' numWavefun] );
 fclose(fid);

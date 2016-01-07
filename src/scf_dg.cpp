@@ -1878,6 +1878,7 @@ SCFDG::Iterate	(  )
             }
             serialize( key, wavefunStream, NO_MASK );
             serialize( hamDG.BasisLGL().LocalMap()[key], wavefunStream, NO_MASK );
+            serialize( hamDG.LGLWeight3D(), wavefunStream, NO_MASK );
             SeparateWrite( "ALBLGL", wavefunStream, mpirank );
           }
 
