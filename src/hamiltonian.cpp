@@ -156,11 +156,22 @@ Hamiltonian::Setup (
 	vxc_.Resize( ntotFine, numDensityComponent );
 	SetValue( vxc_, 0.0 );
 
+  {
+    isHybrid_ = false;
+    if( XCId_ == XC_HYB_GGA_XC_HSE06 ){
+      isHybrid_ = true;
+      // FIXME Not considering restarting yet
+      isEXXActive_ = false;
+    }
+  }
+
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
 	return ;
 } 		// -----  end of method Hamiltonian::Setup  ----- 
+
 
 
 // *********************************************************************
@@ -1546,10 +1557,15 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
   SetValue( a3, SCALAR_ZERO );
 
 #ifdef _USE_OPENMP_
-#pragma omp parallel
+  // DO not use OpenMP for now.
+//#pragma omp parallel
   {
 #endif
     psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
+
+    if( isHybrid_ && isEXXActive_ ){
+      psi.AddMultSpinorEXX( fft, phiEXX_, a3 );
+    }
 #ifdef _USE_OPENMP_
   }
 #endif
@@ -1560,6 +1576,9 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 
 	return ;
 } 		// -----  end of method KohnSham::MultSpinor  ----- 
+
+
+
 
 void
 KohnSham::MultSpinor	( Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft )

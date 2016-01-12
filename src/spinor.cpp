@@ -855,6 +855,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   DblNumVec psiFine(ntotFine);
   DblNumVec psiUpdateFine(ntotFine);
 
+  // FIXME OpenMP does not work since all variables are shared
   for (Int k=0; k<numStateLocal; k++) {
     for (Int j=0; j<ncom; j++) {
 
@@ -899,7 +900,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       // R2C version
       if(1)
       {
-        // These two are private variables in the OpenMP context
         SetValue( fft.inputVecR2C, 0.0 ); 
         SetValue( fft.inputVecR2CFine, 0.0 ); 
         SetValue( fft.outputVecR2C, Z_ZERO ); 
@@ -1058,18 +1058,17 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 // EXX: Spinor with exact exchange. Will be merged later.
 // However, keeping the names separate is good for now, since the new
 // algorithm requires a different set of input parameters for AddMultSpinor
+// 
+// NOTE 
+// Currently there is no parallelization over the phi tensor
 void
-Spinor::AddMultSpinorEXX ( Fourier& fft, const DblNumVec& vtot, 
-    const std::vector<PseudoPot>& pseudo, 
+Spinor::AddMultSpinorEXX ( Fourier& fft, 
     const NumTns<Scalar>& phi,
-    const bool isEXXActive,
     NumTns<Scalar>& a3 )
 {
 #ifndef _RELEASE_
-  PushCallStack("Spinor::AddMultSpinorFineR2C");
+  PushCallStack("Spinor::AddMultSpinorEXX");
 #endif
-  // TODO Complex case
-
   if( !fft.isInitialized ){
     throw std::runtime_error("Fourier is not prepared.");
   }
@@ -1080,6 +1079,11 @@ Spinor::AddMultSpinorEXX ( Fourier& fft, const DblNumVec& vtot,
   Int numStateLocal = wavefun_.p();
   Int ntotFine = domain_.NumGridTotalFine();
   Real vol = domain_.Volume();
+  Int ncomPhi = phi.n();
+  if( ncomPhi != 1 || ncom != 1 ){
+    throw std::logic_error("Spin polarized case not implemented.");
+  }
+  Int numStateTotalPhi = phi.p();
 
   Int ntotR2C = (numGrid[0]/2+1) * numGrid[1] * numGrid[2];
   Int ntotR2CFine = (numGridFine[0]/2+1) * numGridFine[1] * numGridFine[2];
@@ -1090,24 +1094,24 @@ Spinor::AddMultSpinorEXX ( Fourier& fft, const DblNumVec& vtot,
 
   // Temporary variable for saving wavefunction on a fine grid
   DblNumVec psiFine(ntotFine);
-  DblNumVec psiUpdateFine(ntotFine);
+  DblNumVec hpsiFine(ntotFine);
+  
 
+  // FIXME OpenMP does not work since all variables are shared
   for (Int k=0; k<numStateLocal; k++) {
     for (Int j=0; j<ncom; j++) {
 
       SetValue( psiFine, 0.0 );
-      SetValue( psiUpdateFine, 0.0 );
+      SetValue( hpsiFine, 0.0 );
 
-
+      // FIXME Maybe make this a more standard routine
       // R2C version
       if(1)
       {
-        // These two are private variables in the OpenMP context
         SetValue( fft.inputVecR2C, 0.0 ); 
         SetValue( fft.inputVecR2CFine, 0.0 ); 
         SetValue( fft.outputVecR2C, Z_ZERO ); 
         SetValue( fft.outputVecR2CFine, Z_ZERO ); 
-
 
         // For c2r and r2c transforms, the default is to DESTROY the
         // input, therefore a copy of the original matrix is necessary. 
@@ -1139,126 +1143,72 @@ Spinor::AddMultSpinorEXX ( Fourier& fft, const DblNumVec& vtot,
         blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
         blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
 
-      }  // if (0)
+      }  // if (1)
 
+      // Add the contribution from exchange. 
+      // NOTE: No parallelization over the phi tensor.
+      // All processors have access to all phi. This means that this version of exact
+      // exchange cannot be performed over many processors
+      for( Int kphi = 0; kphi < numStateTotalPhi; kphi++ ){
+        for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
+          Real* phiPtr = phi.VecData(jphi, kphi);
+          // rhoc = phi*psi in the real space
+          for( Int ir = 0; ir < ntotFine; ir++ ){
+            fft.inputVecR2CFine(ir) = psiFine(ir) * phiPtr[ir];
+          }
 
-      //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-      //  abort();
+          fftw_execute_dft_r2c(
+              fft.forwardPlanR2C, 
+              fft.inputVecR2CFine.Data(),
+              reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
 
-      // Add the contribution from local pseudopotential
-      //      for( Int i = 0; i < ntotFine; i++ ){
-      //        psiUpdateFine(i) += psiFine(i) * vtot(i);
-      //      }
-      {
-        Real *psiUpdateFinePtr = psiUpdateFine.Data();
-        Real *psiFinePtr = psiFine.Data();
-        Real *vtotPtr = vtot.Data();
-        for( Int i = 0; i < ntotFine; i++ ){
-          *(psiUpdateFinePtr++) += *(psiFinePtr++) * *(vtotPtr++);
-        }
-      }
+          // Solve the Poisson-like problem for exchange
+          for( Int ig = 0; ig < ntotR2CFine; ig++ ){
+            fft.outputVecR2CFine(ig) *= fft.exxgkkR2CFine(ig);
+          }
 
-      // Add the contribution from nonlocal pseudopotential
-      if(1){
-        Int natm = pseudo.size();
-        for (Int iatm=0; iatm<natm; iatm++) {
-          Int nobt = pseudo[iatm].vnlListFine.size();
-          for (Int iobt=0; iobt<nobt; iobt++) {
-            const Real       vnlwgt = pseudo[iatm].vnlListFine[iobt].second;
-            const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
-            const IntNumVec &ivFine = vnlvecFine.first;
-            const DblNumMat &dvFine = vnlvecFine.second;
+          fftw_execute_dft_c2r(
+              fft.backwardPlanR2CFine, 
+              reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
+              fft.inputVecR2CFine.Data() );
 
-            Scalar    weight = SCALAR_ZERO; 
-            const Int    *ivFineptr = ivFine.Data();
-            const Real   *dvFineptr = dvFine.VecData(VAL);
-            for (Int i=0; i<ivFine.m(); i++) {
-              weight += (*(dvFineptr++)) * psiFine[*(ivFineptr++)];
-            }
-            weight *= vol/Real(ntotFine)*vnlwgt;
-
-            ivFineptr = ivFine.Data();
-            dvFineptr = dvFine.VecData(VAL);
-            for (Int i=0; i<ivFine.m(); i++) {
-              psiUpdateFine[*(ivFineptr++)] += (*(dvFineptr++)) * weight;
-            }
-          } // for (iobt)
-        } // for (iatm)
-      }
-
-
-      // Laplacian operator. Perform inverse Fourier transform in the end
-      {
-        for (Int i=0; i<ntotR2C; i++) 
-          fft.outputVecR2C(i) *= fft.gkkR2C(i);
-      }
-
-      // Restrict psiUpdateFine from fine grid in the real space to
-      // coarse grid in the Fourier space. Combine with the Laplacian contribution
-      //      for( Int i = 0; i < ntotFine; i++ ){
-      //        fft.inputComplexVecFine(i) = Complex( psiUpdateFine(i), 0.0 ); 
-      //      }
-      //SetValue( fft.inputComplexVecFine, Z_ZERO );
-      SetValue( fft.inputVecR2CFine, 0.0 );
-      blas::Copy( ntotFine, psiUpdateFine.Data(), 1, fft.inputVecR2CFine.Data(), 1 );
+          Real fac = 1.0 / double(ntotFine); 
+          for( Int ir = 0; ir < ntotFine; ir++ ){
+            hpsiFine(ir) += fft.inputVecR2CFine(ir) * phiPtr[ir] * fac;
+          }
+        } // for (jphi)
+      } // for (kphi)
 
       // Fine to coarse grid
-      // Note the update is important since the Laplacian contribution is already taken into account.
-      // The computation order is also important
-      // fftw_execute( fft.forwardPlanFine );
-      fftw_execute_dft_r2c(
-          fft.forwardPlanR2CFine, 
-          fft.inputVecR2CFine.Data(),
-          reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
-      //      {
-      //        Real fac = std::sqrt(Real(ntot) / (Real(ntotFine)));
-      //        Int* idxPtr = fft.idxFineGrid.Data();
-      //        Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
-      //        Complex *fftOutPtr = fft.outputComplexVec.Data();
-      //
-      //        for( Int i = 0; i < ntot; i++ ){
-      //          //          fft.outputComplexVec(i) += fft.outputComplexVecFine(fft.idxFineGrid(i)) * fac;
-      //          *(fftOutPtr++) += fftOutFinePtr[*(idxPtr++)] * fac;
-      //        }
-      //      }
-
-
       {
+        SetValue( fft.inputVecR2CFine, 0.0 );
+        blas::Copy( ntotFine, hpsiFine.Data(), 1, fft.inputVecR2CFine.Data(), 1 );
+
+        fftw_execute_dft_r2c(
+            fft.forwardPlanR2CFine, 
+            fft.inputVecR2CFine.Data(),
+            reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
+
         Real fac = std::sqrt(Real(ntot) / (Real(ntotFine)));
         Int *idxPtr = fft.idxFineGridR2C.Data();
         Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
         Complex *fftOutPtr = fft.outputVecR2C.Data();
         for( Int i = 0; i < ntotR2C; i++ ){
-          *(fftOutPtr++) += fftOutFinePtr[*(idxPtr++)] * fac;
+          *(fftOutPtr++) = fftOutFinePtr[*(idxPtr++)] * fac;
         }
+
+        fftw_execute_dft_c2r(
+            fft.backwardPlanR2C, 
+            reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ),
+            fft.inputVecR2C.Data() );
+
+        blas::Axpy( ntot, 1.0 / Real(ntot), fft.inputVecR2C.Data(), 1,
+            a3.VecData(j,k), 1 );
       }
-
-      fftw_execute_dft_c2r(
-          fft.backwardPlanR2C, 
-          reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ),
-          fft.inputVecR2C.Data() );
-
-
-      // Inverse Fourier transform to save back to the output vector
-      //fftw_execute( fft.backwardPlan );
-
-      //      Scalar    *ptr1 = a3.VecData(j,k);
-      //      for( Int i = 0; i < ntot; i++ ){
-      //        ptr1[i] += fft.inputComplexVec(i).real() / Real(ntot);
-      //      }
-      blas::Axpy( ntot, 1.0 / Real(ntot), fft.inputVecR2C.Data(), 1,
-          a3.VecData(j,k), 1 );
     } // j++
   } // k++
 
-  // Vxx
-  if( isEXXActive ){
-    // Compute rhoc = phi .* psi, stored in some buffer array
-    // Perform FFT one by one (r2c)
-    // Multiply by Coulomb operator, to be added in Fourier
-    // Perform invFFT to G-space (c2r)
-    // Accumulate to a3
-  }
+
 
 #ifndef _RELEASE_
   PopCallStack();

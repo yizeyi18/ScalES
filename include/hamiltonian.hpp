@@ -82,8 +82,6 @@ protected:
 	xc_func_type                XFuncType_; 
 	xc_func_type                CFuncType_; 
 	bool                        XCInitialized_;
-  // EXX
-  bool                        isEXXActive_;
 
 	// Pseudocharge to represent the local pseudopotential
   DblNumVec                   pseudoCharge_;
@@ -113,6 +111,16 @@ protected:
 	DblNumVec                   eigVal_;
 	// Occupation rate
 	DblNumVec                   occupationRate_;
+
+  // EXX variables
+  /// @brief Whether to perform Hybrid calculations
+  bool                        isHybrid_;
+  /// @brief Determine which mode
+  bool                        isEXXActive_;
+  /// @brief Store all the orbitals for exact exchange calculation
+  /// NOTE: This might impose serious memory constraint for relatively
+  /// large systems.
+  NumTns<Scalar>              phiEXX_; 
 
 public:
 
@@ -160,9 +168,10 @@ public:
 
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft) = 0;
-
+	
+  
+  // FIXME Clean
 	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft) = 0;
-
 
 	// *********************************************************************
 	// Access
@@ -184,7 +193,10 @@ public:
 
   //EXX
   bool        IsEXXActive() { return isEXXActive_; }
+  bool        IsHybrid() { return isHybrid_; }
 
+  void        SetEXXActive(bool flag) { isEXXActive_ = flag; }
+  NumTns<Scalar>&  PhiEXX() { return phiEXX_; }
 	// *********************************************************************
 	// Inquiry
 	// *********************************************************************
@@ -249,7 +261,8 @@ public:
 
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft);
-
+	
+  // FIXME Clean
 	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft);
 
 };

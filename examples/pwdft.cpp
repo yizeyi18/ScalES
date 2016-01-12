@@ -216,7 +216,17 @@ int main(int argc, char **argv)
     }
      
     spn.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
+    
+    statusOFS << "Spinor setup finished." << std::endl;
+
     UniformRandom( spn.Wavefun() );
+
+    if( hamKS.IsHybrid() ){
+      // FIXME Screen parameters
+      fft.InitializeEXX( 0.0 );
+      statusOFS << "Exact exchange fft setup finished." << std::endl;
+    }
+
 
 		// Eigensolver class
 		eigSol.Setup( esdfParam, hamKS, spn, fft );
@@ -233,7 +243,7 @@ int main(int argc, char **argv)
 		// Solve
 		// *********************************************************************
 
-    if( scf.isHybrid() ){
+    if( hamKS.IsHybrid() ){
       scf.IterateHybrid();
     }
     else{

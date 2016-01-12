@@ -119,25 +119,25 @@ public:
   void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Scalar>& a3 );
 
+  // Clean
   void AddScalarDiag (Int iocc, const DblNumVec &val, NumMat<Scalar>& y);
   void AddScalarDiag (const DblNumVec &val, NumTns<Scalar> &a3);
 
+  // Clean
 	void AddLaplacian (Int iocc, Fourier* fftPtr, NumMat<Scalar>& y);
 	void AddLaplacian (Fourier* fftPtr, NumTns<Scalar>& a3);
 
+  // Clean
 	void AddNonlocalPP (Int iocc, const std::vector<PseudoPot>& pseudo, NumMat<Scalar>& y);
 	void AddNonlocalPP (const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3);
 
-//	void AddNonlocalPPFine (Fourier* fftPtr, const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3);
-
-
+  // Clean
   void AddTeterPrecond( Int iocc, Fourier* fftPtr, NumTns<Scalar>& a3 );
+
+
   void AddTeterPrecond( Fourier* fftPtr, NumTns<Scalar>& a3 );
 
-  void AddMultSpinorEXX ( Fourier& fft, const DblNumVec& vtot, 
-    const std::vector<PseudoPot>& pseudo, 
-    const NumTns<Scalar>& phi,
-    const bool isEXXActive,
+  void AddMultSpinorEXX ( Fourier& fft, const NumTns<Scalar>& phi,
     NumTns<Scalar>& a3 );
 
 

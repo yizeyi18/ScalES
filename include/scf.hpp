@@ -128,8 +128,6 @@ private:
   Real                Efock_; 
   /// @brief Maximum number of iterations for exchange
   Int                 scfPhiMaxIter_;
-  /// @brief Whether to perform Hybrid calculations
-  bool                isHybrid_;
 
 
 public:
@@ -176,7 +174,6 @@ public:
 	// Inquiry
 	// *********************************************************************
 	// Energy etc.
-  bool  isHybrid() { return isHybrid_; }
 	
 
 }; // -----  end of class  SCF ----- 

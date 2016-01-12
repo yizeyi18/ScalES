@@ -182,10 +182,14 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
       isCalculateGradRho_ = true;
     }
     
-    isHybrid_ = false;
-    if( XCType_ == "XC_HYB_GGA_XC_HSE06" ){
-      isHybrid_ = true;
-    }
+  }
+
+  if( eigSolPtr_->Ham().IsHybrid() ){
+    // Allocate memory for PhiEXX
+    Int ntotFine = esdfParam.domain.NumGridTotalFine();
+    NumTns<Scalar>& phiEXX = eigSolPtr_->Ham().PhiEXX();
+    phiEXX.Resize( ntotFine, 1, eigSolPtr_->Ham().NumOccupiedState() );
+    SetValue( phiEXX, SCALAR_ZERO );
   }
 
 #ifndef _RELEASE_
@@ -448,6 +452,9 @@ SCF::IterateHybrid (  )
       PrintBlock( statusOFS, msg.str() );
     }
 
+    // FIXME Just for debug reason
+    eigSolPtr_->Ham().SetEXXActive(true);
+
     // Regular SCF iter
     for (Int iter=1; iter <= scfMaxIter_; iter++) {
       if ( isSCFConverged ) break;
@@ -591,14 +598,20 @@ SCF::IterateHybrid (  )
 
 
     // EXX
-//    if( firstPhiIter ){
-//      // Mainly FFT stuff, not sure if needed
-//      EXXInit();
-//    }
+    if( phiIter == 1 ){
+      eigSolPtr_->Ham().SetEXXActive(true);
+    }
 
     CalculateEXXEnergy( fock1 ); 
 
     // Update Phi <- Psi
+    {
+      // FIXME collect Psi into a globally shared array in the MPI context.
+      NumTns<Scalar>& phiEXX = eigSolPtr_->Ham().PhiEXX();
+      Int ntotFine  = eigSolPtr_->FFT().domain.NumGridTotalFine();
+      lapack::Lacpy( 'A', ntotFine, eigSolPtr_->Ham().NumOccupiedState(),
+          eigSolPtr_->Psi().Wavefun().Data(), ntotFine, phiEXX.Data(), ntotFine );
+    }
 
     // EXX: Exchange energy computation 
 
@@ -1292,6 +1305,7 @@ SCF::CalculateEXXEnergy	( Real& fockEnergy )
   // The divergence terms and the Q-terms should be paid with special attention
 
   // At first not compute this part
+  fockEnergy = 0.0;
 
 #ifndef _RELEASE_
 	PopCallStack();

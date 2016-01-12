@@ -344,8 +344,9 @@ void Fourier::InitializeFine ( const Domain& dm )
 
   // R2C transform
   
-  Int numGridTotalR2C = (domain.numGrid[0]/2+1) * domain.numGrid[1] * domain.numGrid[2];
-  Int numGridTotalR2CFine = (domain.numGridFine[0]/2+1) * domain.numGridFine[1] * domain.numGridFine[2];
+  // LL: 1/6/2016 IMPORTANT: fix a bug
+  numGridTotalR2C = (domain.numGrid[0]/2+1) * domain.numGrid[1] * domain.numGrid[2];
+  numGridTotalR2CFine = (domain.numGridFine[0]/2+1) * domain.numGridFine[1] * domain.numGridFine[2];
 	
   inputVecR2CFine.Resize( numGridTotalFine );
 	outputVecR2CFine.Resize( numGridTotalR2CFine );
@@ -433,6 +434,10 @@ void Fourier::InitializeEXX ( Real screenLength )
 	PushCallStack("Fourier::InitializeEXX");
 #endif  // ifndef _RELEASE_
 
+  statusOFS << "numGridTotalR2CFine = " << numGridTotalR2CFine << std::endl;
+  exxgkkR2CFine.Resize(numGridTotalR2CFine);
+  SetValue( exxgkkR2CFine, 0.0 );
+  
   // Cover the exx_divergence function
 
   // Add the screening parameter
