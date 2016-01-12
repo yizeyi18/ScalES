@@ -82,6 +82,8 @@ protected:
 	xc_func_type                XFuncType_; 
 	xc_func_type                CFuncType_; 
 	bool                        XCInitialized_;
+  // EXX
+  bool                        isEXXActive_;
 
 	// Pseudocharge to represent the local pseudopotential
   DblNumVec                   pseudoCharge_;
@@ -179,6 +181,9 @@ public:
 	DblNumVec&  OccupationRate() { return occupationRate_; }
 
 	std::vector<Atom>&  AtomList() { return atomList_; }
+
+  //EXX
+  bool        IsEXXActive() { return isEXXActive_; }
 
 	// *********************************************************************
 	// Inquiry

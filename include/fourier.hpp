@@ -118,11 +118,17 @@ struct Fourier {
   IntNumVec                idxFineGrid;
   IntNumVec                idxFineGridR2C;
 
+  // EXX
+  DblNumVec                exxgkkR2CFine;
+
 	Fourier();
 	~Fourier();
 
 	void Initialize( const Domain& dm );
   void InitializeFine( const Domain& dm );
+
+  // Should follow InitializeFine
+  void InitializeEXX( Real screenLength );
 };
 
 

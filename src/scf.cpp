@@ -174,6 +174,20 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 		deserialize( eigSolPtr_->Psi().Wavefun(), iss, NO_MASK );
 	}
 
+  // XC functional
+  {
+    isCalculateGradRho_ = false;
+    if( XCType_ == "XC_GGA_XC_PBE" || 
+        XCType_ == "XC_HYB_GGA_XC_HSE06" ) {
+      isCalculateGradRho_ = true;
+    }
+    
+    isHybrid_ = false;
+    if( XCType_ == "XC_HYB_GGA_XC_HSE06" ){
+      isHybrid_ = true;
+    }
+  }
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -215,7 +229,7 @@ SCF::Iterate	(  )
 #endif
 
   // Compute the exchange-correlation potential and energy
-	if( XCType_ == "XC_GGA_XC_PBE"){
+	if( isCalculateGradRho_ ){
 		eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
 	}
 	eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
@@ -388,6 +402,226 @@ SCF::Iterate	(  )
 
 	return ;
 } 		// -----  end of method SCF::Iterate  ----- 
+
+
+// FIXME This function will be like electrons.f90 in QE. Some
+// repetitiveness with SCF::Iterate
+void
+SCF::IterateHybrid (  )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCF::IterateHybrid");
+#endif
+	Real timeSta, timeEnd;
+
+  // EXX: Only allow hybrid functional here
+
+  // Compute the exchange-correlation potential and energy
+	if( isCalculateGradRho_ ){
+		eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
+	}
+	eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
+
+	// Compute the Hartree energy
+	eigSolPtr_->Ham().CalculateHartree( eigSolPtr_->FFT() );
+	// No external potential
+
+	// Compute the total potential
+	eigSolPtr_->Ham().CalculateVtot( eigSolPtr_->Ham().Vtot() );
+
+  Real timeIterStart(0), timeIterEnd(0);
+  
+  // EXX: Run SCF::Iterate here
+	bool isSCFConverged = false;
+  bool isPhiIterConverged = false;
+
+  // Fock energies
+  Real fock0, fock1, fock2;
+
+  // FIXME 
+  scfPhiMaxIter_ = 1;
+
+  for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
+    {
+      std::ostringstream msg;
+      msg << "Phi iteration # " << phiIter;
+      PrintBlock( statusOFS, msg.str() );
+    }
+
+    // Regular SCF iter
+    for (Int iter=1; iter <= scfMaxIter_; iter++) {
+      if ( isSCFConverged ) break;
+
+      // *********************************************************************
+      // Performing each iteartion
+      // *********************************************************************
+      {
+        std::ostringstream msg;
+        msg << "SCF iteration # " << iter;
+        PrintBlock( statusOFS, msg.str() );
+      }
+
+      GetTime( timeIterStart );
+
+      // Solve the eigenvalue problem
+
+      Real eigTolNow;
+      if( isEigToleranceDynamic_ ){
+        // Dynamic strategy to control the tolerance
+        if( iter == 1 )
+          eigTolNow = 1e-2;
+        else
+          eigTolNow = std::max( std::min( scfNorm_*1e-2, 1e-2 ) , eigTolerance_);
+      }
+      else{
+        // Static strategy to control the tolerance
+        eigTolNow = eigTolerance_;
+      }
+
+      Int numEig = (eigSolPtr_->Psi().NumStateTotal())-numUnusedState_;
+
+      statusOFS << "The current tolerance used by the eigensolver is " 
+        << eigTolNow << std::endl;
+      statusOFS << "The target number of converged eigenvectors is " 
+        << numEig << std::endl;
+
+
+      GetTime( timeSta );
+      if(1){
+        eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
+      }
+      GetTime( timeEnd );
+
+      eigSolPtr_->Ham().EigVal() = eigSolPtr_->EigVal();
+
+      statusOFS << "Time for the eigensolver is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+
+      // No need for normalization using LOBPCG
+
+      // Compute the occupation rate
+      CalculateOccupationRate( eigSolPtr_->Ham().EigVal(), 
+          eigSolPtr_->Ham().OccupationRate() );
+
+      // Compute the electron density
+      eigSolPtr_->Ham().CalculateDensity(
+          eigSolPtr_->Psi(),
+          eigSolPtr_->Ham().OccupationRate(),
+          totalCharge_, 
+          eigSolPtr_->FFT() );
+
+      // Compute the exchange-correlation potential and energy
+      if( XCType_ == "XC_GGA_XC_PBE"){
+        eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
+      }
+      eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
+
+      // Compute the Hartree energy
+      eigSolPtr_->Ham().CalculateHartree( eigSolPtr_->FFT() );
+      // No external potential
+
+      // Compute the total potential
+      eigSolPtr_->Ham().CalculateVtot( vtotNew_ );
+
+      Real normVtotDif = 0.0, normVtotOld;
+      DblNumVec& vtotOld_ = eigSolPtr_->Ham().Vtot();
+      Int ntot = vtotOld_.m();
+      for( Int i = 0; i < ntot; i++ ){
+        normVtotDif += pow( vtotOld_(i) - vtotNew_(i), 2.0 );
+        normVtotOld += pow( vtotOld_(i), 2.0 );
+      }
+      normVtotDif = sqrt( normVtotDif );
+      normVtotOld = sqrt( normVtotOld );
+      scfNorm_    = normVtotDif / normVtotOld;
+
+      Evdw_ = 0.0;
+
+      CalculateEnergy();
+
+      PrintState( iter );
+
+      // Not really needed
+      if( isCalculateForceEachSCF_ ){
+        GetTime( timeSta );
+        eigSolPtr_->Ham().CalculateForce2( eigSolPtr_->Psi(), eigSolPtr_->FFT() );
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the force is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // Print out the force
+        PrintBlock( statusOFS, "Atomic Force" );
+        {
+          Point3 forceCM(0.0, 0.0, 0.0);
+          std::vector<Atom>& atomList = eigSolPtr_->Ham().AtomList();
+          Int numAtom = atomList.size();
+          for( Int a = 0; a < numAtom; a++ ){
+            Print( statusOFS, "atom", a, "force", atomList[a].force );
+            forceCM += atomList[a].force;
+          }
+          statusOFS << std::endl;
+          Print( statusOFS, "force for centroid: ", forceCM );
+          statusOFS << std::endl;
+        }
+      }
+
+
+      if( scfNorm_ < scfTolerance_ ){
+        /* converged */
+        Print( statusOFS, "SCF is converged!\n" );
+        isSCFConverged = true;
+      }
+
+      // Potential mixing
+      if( mixType_ == "anderson" ){
+        AndersonMix(iter);
+      }
+
+      if( mixType_ == "kerker" ){
+        KerkerMix();  
+        AndersonMix(iter);
+      }
+
+      GetTime( timeIterEnd );
+
+      statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
+        << " [s]" << std::endl;
+
+    }
+
+
+    // EXX
+//    if( firstPhiIter ){
+//      // Mainly FFT stuff, not sure if needed
+//      EXXInit();
+//    }
+
+    CalculateEXXEnergy( fock1 ); 
+
+    // Update Phi <- Psi
+
+    // EXX: Exchange energy computation 
+
+    fock0 = fock2;
+    CalculateEXXEnergy( fock2 ); 
+
+    Real dExx = fock1 - 0.5 * (fock0 + fock2);
+    
+    // Update the energy
+//    etot = etot + 0.5D0*fock2 - fock1;
+//    hwf_energy = hwf_energy + 0.5D0*fock2 - fock1;
+
+    // EXX: Check exchange convergence
+
+  } // for(phiIter)
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCF::IterateHybrid  ----- 
+
 
 void
 SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
@@ -1044,5 +1278,26 @@ void SCF::OutputState	(  )
 
 	return ;
 } 		// -----  end of method SCF::OutputState  ----- 
+
+void
+SCF::CalculateEXXEnergy	( Real& fockEnergy )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCF::CalculateEXXEnergy");
+#endif
+  // Repeat the calculation of Vexx
+  // FIXME Will be replaced by the stored VPhi matrix in the new
+  // algorithm to reduce the cost, but this should be a new function
+  
+  // The divergence terms and the Q-terms should be paid with special attention
+
+  // At first not compute this part
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCF::CalculateEXXEnergy  ----- 
 
 } // namespace dgdft

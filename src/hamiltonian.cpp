@@ -107,8 +107,18 @@ Hamiltonian::Setup (
       // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
       // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
     }
-    else
+    else if( XCType == "XC_HYB_GGA_XC_HSE06" )
+    {
+      XCId_ = XC_HYB_GGA_XC_HSE06;
+      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
+      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
+      // A. V. Krukau, O. A. Vydrov, A. F. Izmaylov, and G. E. Scuseria, J. Chem. Phys. 125, 224106 (2006) (doi: 10.1063/1.2404663)
+      //
+      // This is the same as the "hse" functional in QE 5.1
+    }
+    else {
       throw std::logic_error("Unrecognized exchange-correlation type");
+    }
   }
 
 	// NOTE: NumSpin variable will be determined in derivative classes.
@@ -172,6 +182,9 @@ KohnSham::~KohnSham() {
       xc_func_end(&XFuncType_);
       xc_func_end(&CFuncType_);
     }
+    else if( XCId_ == XC_HYB_GGA_XC_HSE06 ){
+      xc_func_end(&XCFuncType_);
+    }
     else
       throw std::logic_error("Unrecognized exchange-correlation type");
   }
@@ -186,33 +199,15 @@ KohnSham(
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::KohnSham");
 #endif
-	// Initialize the XC functional.  
-	// Spin-unpolarized functional is used here
- 
-  if( XCId_ == 20 )
-  {
-    if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-      throw std::runtime_error( "XC functional initialization error." );
-    } 
-  }    
-  else if( ( XId_ == 101 ) && ( CId_ == 130 )  )
-  {
-    if( ( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 )
-        && ( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ) ){
-      throw std::runtime_error( "XC functional initialization error." );
-    }
-  }
-  else
-    throw std::logic_error("Unrecognized exchange-correlation type");
 
-  XCInitialized_ = true;
+	this->Setup( 
+			esdfParam.domain,
+			esdfParam.atomList,
+			esdfParam.pseudoType,
+			esdfParam.XCType,
+			esdfParam.numExtraState,
+			numDensityComponent );
 
-	if( numDensityComponent != 1 ){
-		throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
-	}
-
-	// Since the number of density components is always 1 here, set numSpin = 2.
-	numSpin_ = 2;
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -259,6 +254,12 @@ KohnSham::Setup	(
       throw std::runtime_error( "XC functional initialization error." );
     }
   }
+  else if( XCType == "XC_HYB_GGA_XC_HSE06" )
+  {
+    if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+      throw std::runtime_error( "XC functional initialization error." );
+    } 
+  }    
   else
     throw std::logic_error("Unrecognized exchange-correlation type");
 
@@ -556,13 +557,12 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
   Int numDensityComponent = vxc_.n();
   Real vol = domain_.Volume();
 
-  if( XCId_ == 20 ) //XC_FAMILY_LDA
+  if( XCId_ == 20 ) 
   {
     xc_lda_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
         epsxc_.Data(), vxc_.Data() );
-  }
-  else if( ( XId_ == 101 ) && ( CId_ == 130 ) ) //XC_FAMILY_GGA
-  {
+  }//XC_FAMILY_LDA
+  else if( ( XId_ == 101 ) && ( CId_ == 130 ) ) {
     DblNumMat     vxc1;             
     DblNumMat     vxc2;             
     vxc1.Resize( ntot, numDensityComponent );
@@ -638,8 +638,68 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
       }
 
     } // for d
-
   } // XC_FAMILY_GGA
+  else if( XCId_ == XC_HYB_GGA_XC_HSE06 ){
+    // FIXME Condensify with the previous
+    DblNumMat     vxc1;             
+    DblNumMat     vxc2;             
+    vxc1.Resize( ntot, numDensityComponent );
+    vxc2.Resize( ntot, numDensityComponent );
+
+
+    DblNumMat gradDensity;
+    gradDensity.Resize( ntot, numDensityComponent );
+    SetValue( gradDensity, 0.0 );
+    DblNumMat& gradDensity0 = gradDensity_[0];
+    DblNumMat& gradDensity1 = gradDensity_[1];
+    DblNumMat& gradDensity2 = gradDensity_[2];
+
+    for(Int i = 0; i < ntot; i++){
+      gradDensity(i, RHO) = gradDensity0(i, RHO) * gradDensity0(i, RHO)
+        + gradDensity1(i, RHO) * gradDensity1(i, RHO)
+        + gradDensity2(i, RHO) * gradDensity2(i, RHO);
+    }
+
+    SetValue( epsxc_, 0.0 );
+    SetValue( vxc1, 0.0 );
+    SetValue( vxc2, 0.0 );
+    xc_gga_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
+        gradDensity.VecData(RHO), epsxc_.Data(), vxc1.Data(), vxc2.Data() );
+
+
+    for( Int i = 0; i < ntot; i++ ){
+      vxc_( i, RHO ) = vxc1( i, RHO );
+    }
+
+    for( Int d = 0; d < DIM; d++ ){
+
+      DblNumMat& gradDensityd = gradDensity_[d];
+
+      for(Int i = 0; i < ntot; i++){
+        fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2( i, RHO ), 0.0 ); 
+      }
+
+      fftw_execute( fft.forwardPlanFine );
+
+      CpxNumVec& ik = fft.ikFine[d];
+
+      for( Int i = 0; i < ntot; i++ ){
+        if( fft.gkkFine(i) == 0 ){
+          fft.outputComplexVecFine(i) = Z_ZERO;
+        }
+        else{
+          fft.outputComplexVecFine(i) *= ik(i);
+        }
+      }
+
+      fftw_execute( fft.backwardPlanFine );
+
+      for( Int i = 0; i < ntot; i++ ){
+        vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real() / ntot;
+      }
+
+    } // for d
+  } // XC_FAMILY Hybrid
   else
     throw std::logic_error( "Unsupported XC family!" );
 
@@ -1489,23 +1549,7 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 #pragma omp parallel
   {
 #endif
-    // FIXME
-    //    psi.AddScalarDiag( vtotCoarse_, a3 );
-    //    psi.AddLaplacian( &fft, a3 );
-    //    psi.AddNonlocalPP( pseudo_, a3 );
-    // Apply the pseudopotential on the fine grid for integration
-    //    psi.AddNonlocalPPFine( &fft, pseudo_, a3 );
-//    Real timeSta1, timeEnd1;
-//    Real timeSta2, timeEnd2;
-//    GetTime( timeSta1 );
-//    psi.AddMultSpinorFine( fft, vtot_, pseudo_, a3 );
-//    GetTime( timeEnd1 );
-//    GetTime( timeSta2 );
     psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
-//    GetTime( timeEnd2 );
-//    statusOFS << "Total time AddMultSpinor is " << 
-//      "R2R" << timeEnd1 - timeSta1 <<  
-//      "R2C" << timeEnd2 - timeSta2  << std::endl;
 #ifdef _USE_OPENMP_
   }
 #endif

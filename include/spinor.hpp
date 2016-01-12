@@ -134,6 +134,13 @@ public:
   void AddTeterPrecond( Int iocc, Fourier* fftPtr, NumTns<Scalar>& a3 );
   void AddTeterPrecond( Fourier* fftPtr, NumTns<Scalar>& a3 );
 
+  void AddMultSpinorEXX ( Fourier& fft, const DblNumVec& vtot, 
+    const std::vector<PseudoPot>& pseudo, 
+    const NumTns<Scalar>& phi,
+    const bool isEXXActive,
+    NumTns<Scalar>& a3 );
+
+
   // Spin related operations
 //  int add_sigma_x    (DblNumVec &a1, CpxNumTns &a3);
 //  int add_sigma_y    (DblNumVec &a1, CpxNumTns &a3);

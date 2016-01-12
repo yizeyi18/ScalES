@@ -66,6 +66,8 @@ private:
 	Hamiltonian*        hamPtr_;
 	Fourier*            fftPtr_;
 	Spinor*             psiPtr_;
+  // EXX
+  Spinor*             phiPtr_;
 
   // FIXME all the varaibles below to be removd.
 	Int                 eigMaxIter_;

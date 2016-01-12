@@ -106,6 +106,9 @@ private:
   std::string         XCType_;
   std::string         VDWType_;
   
+  /// @brief Needed for GGA, meta-GGA and hybrid functional calculations
+  bool                isCalculateGradRho_; 
+
   // SCF variables
   DblNumVec           vtotNew_;
 	Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
@@ -119,6 +122,15 @@ private:
   Index3  numGridDensityElem_;
 	
   DblNumMat           forceVdw_;
+
+  // Exchange calculations
+  /// @brief Hartree-Fock energy
+  Real                Efock_; 
+  /// @brief Maximum number of iterations for exchange
+  Int                 scfPhiMaxIter_;
+  /// @brief Whether to perform Hybrid calculations
+  bool                isHybrid_;
+
 
 public:
 	
@@ -140,6 +152,12 @@ public:
 	void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
 	void  CalculateEnergy();
 	void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
+  // EXX
+	void  IterateHybrid();
+  void  CalculateEXXEnergy( Real& fockEnergy );
+
+
+
 	void  PrintState( const Int iter );
 	void  OutputState();
 	void  LastSCF( Real& etot, Real& efree, Real& ekin, Real& ehart,
@@ -149,13 +167,16 @@ public:
 	// Mixing
 	void  AndersonMix( const Int iter );
 	void  KerkerMix();
-	// TODO
+
+  // 
+
 //	void  EllipticMix();
 
 	// *********************************************************************
 	// Inquiry
 	// *********************************************************************
 	// Energy etc.
+  bool  isHybrid() { return isHybrid_; }
 	
 
 }; // -----  end of class  SCF ----- 

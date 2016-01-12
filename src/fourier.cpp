@@ -427,6 +427,28 @@ void Fourier::InitializeFine ( const Domain& dm )
 	return ;
 }		// -----  end of function Fourier::InitializeFine  ----- 
 
+void Fourier::InitializeEXX ( Real screenLength )
+{
+#ifndef _RELEASE_
+	PushCallStack("Fourier::InitializeEXX");
+#endif  // ifndef _RELEASE_
+
+  // Cover the exx_divergence function
+
+  // Add the screening parameter
+
+
+  // Mark Fourier to be initialized
+  //	isInitialized = true;
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif  // ifndef _RELEASE_
+
+	return ;
+}		// -----  end of function Fourier::InitializeEXX  ----- 
+
+
 
 // *********************************************************************
 // Parallel FFTW
