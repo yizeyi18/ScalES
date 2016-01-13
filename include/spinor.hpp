@@ -137,7 +137,11 @@ public:
 
   void AddTeterPrecond( Fourier* fftPtr, NumTns<Scalar>& a3 );
 
-  void AddMultSpinorEXX ( Fourier& fft, const NumTns<Scalar>& phi,
+  void AddMultSpinorEXX ( Fourier& fft,
+    const NumTns<Scalar>& phi,
+    Real  exxFraction,
+    Real  numSpin,
+    const DblNumVec& occupationRate,
     NumTns<Scalar>& a3 );
 
 

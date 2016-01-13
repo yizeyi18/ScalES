@@ -92,10 +92,25 @@ Hamiltonian::Setup (
 	pseudoType_    = pseudoType;
 	numExtraState_ = numExtraState;
 
+  // Initialize the XC functional.  
+  // Spin-unpolarized functional is used here
+ 
+
+  // Since the number of density components is always 1 here, set numSpin = 2.
+	numSpin_ = 2;
+
+
 	// Obtain the exchange-correlation id
+  // FIXME Move to KohnSham
   {
+    isHybrid_ = false;
+
     if( XCType == "XC_LDA_XC_TETER93" )
-    { XCId_ = XC_LDA_XC_TETER93;
+    { 
+      XCId_ = XC_LDA_XC_TETER93;
+      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+        throw std::runtime_error( "XC functional initialization error." );
+      } 
       // Teter 93
       // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
     }    
@@ -106,10 +121,27 @@ Hamiltonian::Setup (
       // Perdew, Burke & Ernzerhof correlation
       // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
       // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
+      if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
+        throw std::runtime_error( "X functional initialization error." );
+      }
+      if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
+        throw std::runtime_error( "C functional initialization error." );
+      }
     }
     else if( XCType == "XC_HYB_GGA_XC_HSE06" )
     {
       XCId_ = XC_HYB_GGA_XC_HSE06;
+      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+        throw std::runtime_error( "XC functional initialization error." );
+      } 
+
+      isHybrid_ = true;
+      // FIXME Not considering restarting yet
+      isEXXActive_ = false;
+      // FIXME Hard coded
+      exxFraction_ = 0.25;
+      screeningLength_ = 0.106;
+
       // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
       // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
       // A. V. Krukau, O. A. Vydrov, A. F. Izmaylov, and G. E. Scuseria, J. Chem. Phys. 125, 224106 (2006) (doi: 10.1063/1.2404663)
@@ -120,6 +152,12 @@ Hamiltonian::Setup (
       throw std::logic_error("Unrecognized exchange-correlation type");
     }
   }
+
+
+  if( numDensityComponent != 1 ){
+    throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
+  }
+
 
 	// NOTE: NumSpin variable will be determined in derivative classes.
 
@@ -156,16 +194,6 @@ Hamiltonian::Setup (
 	vxc_.Resize( ntotFine, numDensityComponent );
 	SetValue( vxc_, 0.0 );
 
-  {
-    isHybrid_ = false;
-    if( XCId_ == XC_HYB_GGA_XC_HSE06 ){
-      isHybrid_ = true;
-      // FIXME Not considering restarting yet
-      isEXXActive_ = false;
-    }
-  }
-
-
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -184,11 +212,11 @@ KohnSham::KohnSham() {
 
 KohnSham::~KohnSham() {
   if( XCInitialized_ ){
-    if( XCId_ == 20 )
+    if( XCId_ == XC_LDA_XC_TETER93 )
     {
       xc_func_end(&XCFuncType_);
     }    
-    else if( ( XId_ == 101 ) && ( CId_ == 130 )  )
+    else if( ( XId_ == XC_GGA_X_PBE ) && ( CId_ == XC_GGA_C_PBE ) )
     {
       xc_func_end(&XFuncType_);
       xc_func_end(&CFuncType_);
@@ -245,41 +273,6 @@ KohnSham::Setup	(
 		numExtraState,
     numDensityComponent);
 
-  // Initialize the XC functional.  
-  // Spin-unpolarized functional is used here
- 
-  xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED);
-  xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED);
-  xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED);
-  
-  if( XCType == "XC_LDA_XC_TETER93" )
-  {
-    if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-      throw std::runtime_error( "XC functional initialization error." );
-    } 
-  }    
-  else if( XCType == "XC_GGA_XC_PBE" )
-  {
-    if( ( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 )
-        && ( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ) ){
-      throw std::runtime_error( "XC functional initialization error." );
-    }
-  }
-  else if( XCType == "XC_HYB_GGA_XC_HSE06" )
-  {
-    if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-      throw std::runtime_error( "XC functional initialization error." );
-    } 
-  }    
-  else
-    throw std::logic_error("Unrecognized exchange-correlation type");
-
-  if( numDensityComponent != 1 ){
-    throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
-  }
-
-  // Since the number of density components is always 1 here, set numSpin = 2.
-	numSpin_ = 2;
   	
 
 #ifndef _RELEASE_
@@ -474,6 +467,7 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 
       fftw_execute( fft.backwardPlanFine );
 
+      // FIXME Factor to be simplified
       Real fac = numSpin_ * occrate(psi.WavefunIdx(k)) / (double(ntot) * double(ntotFine));
       for( Int i = 0; i < ntotFine; i++ ){
 				densityLocal(i,RHO) +=  pow( std::abs(fft.inputComplexVecFine(i).real()), 2.0 ) * fac;
@@ -568,12 +562,12 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
   Int numDensityComponent = vxc_.n();
   Real vol = domain_.Volume();
 
-  if( XCId_ == 20 ) 
+  if( XCId_ == XC_LDA_XC_TETER93 ) 
   {
     xc_lda_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
         epsxc_.Data(), vxc_.Data() );
   }//XC_FAMILY_LDA
-  else if( ( XId_ == 101 ) && ( CId_ == 130 ) ) {
+  else if( ( XId_ == XC_GGA_X_PBE ) && ( CId_ == XC_GGA_C_PBE ) ) {
     DblNumMat     vxc1;             
     DblNumMat     vxc2;             
     vxc1.Resize( ntot, numDensityComponent );
@@ -605,14 +599,17 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
     SetValue( epsx, 0.0 );
     SetValue( vxc1, 0.0 );
     SetValue( vxc2, 0.0 );
+    statusOFS << "1" << std::endl;
     xc_gga_exc_vxc( &XFuncType_, ntot, density_.VecData(RHO), 
         gradDensity.VecData(RHO), epsx.Data(), vxc1.Data(), vxc2.Data() );
 
     SetValue( epsc, 0.0 );
     SetValue( vxc1temp, 0.0 );
     SetValue( vxc2temp, 0.0 );
+    statusOFS << "2" << std::endl;
     xc_gga_exc_vxc( &CFuncType_, ntot, density_.VecData(RHO), 
         gradDensity.VecData(RHO), epsc.Data(), vxc1temp.Data(), vxc2temp.Data() );
+    statusOFS << "3" << std::endl;
 
     for( Int i = 0; i < ntot; i++ ){
       epsxc_(i) = epsx(i) + epsc(i) ;
@@ -1564,7 +1561,7 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
     psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
 
     if( isHybrid_ && isEXXActive_ ){
-      psi.AddMultSpinorEXX( fft, phiEXX_, a3 );
+      psi.AddMultSpinorEXX( fft, phiEXX_, exxFraction_,  numSpin_, occupationRate_, a3 );
     }
 #ifdef _USE_OPENMP_
   }

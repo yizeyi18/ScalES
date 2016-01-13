@@ -241,6 +241,7 @@ void Fourier::InitializeFine ( const Domain& dm )
 //	}
 
 	domain = dm;
+  // FIXME Problematic definition
 	Index3& numGrid = domain.numGridFine;
 	Point3& length  = domain.length;
 
@@ -433,18 +434,43 @@ void Fourier::InitializeEXX ( Real screenLength )
 #ifndef _RELEASE_
 	PushCallStack("Fourier::InitializeEXX");
 #endif  // ifndef _RELEASE_
+  const Real epsDiv = 1e-8;
 
-  statusOFS << "numGridTotalR2CFine = " << numGridTotalR2CFine << std::endl;
+  Real gkk;
   exxgkkR2CFine.Resize(numGridTotalR2CFine);
   SetValue( exxgkkR2CFine, 0.0 );
-  
-  // Cover the exx_divergence function
 
-  // Add the screening parameter
+  // Compute the divergent term for G=0
+  Real exxDiv = 0.0;
 
 
-  // Mark Fourier to be initialized
-  //	isInitialized = true;
+  // Gygi-Baldereschi regularization. Currently set to zero and compare
+  // with QE without the regularization 
+  // Set exxdiv_treatment to "none"
+  {
+    exxDiv = 0.0;
+  }
+
+  for( Int ig = 0; ig < numGridTotalR2CFine; ig++ ){
+    gkk = gkkR2CFine(ig);
+    if( gkk > epsDiv ){
+      if( screenLength > 0 ){
+        // 2.0*pi instead 4.0*pi due to gkk includes a factor of 2
+        exxgkkR2CFine[ig] = 2.0 * PI / gkk * (1.0 - 
+            std::exp( -gkk / (2.0*screenLength*screenLength) ));
+      }
+      else{
+        exxgkkR2CFine[ig] = 2.0 * PI / gkk;
+      }
+    }
+    else{
+      exxgkkR2CFine[ig] = -exxDiv;
+      if( screenLength > 0 ){
+        exxgkkR2CFine[ig] += PI / (screenLength*screenLength);
+      }
+    }
+  } // for (ig)
+
 
 #ifndef _RELEASE_
 	PopCallStack();

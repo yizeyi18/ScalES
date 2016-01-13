@@ -128,6 +128,7 @@ struct Fourier {
   void InitializeFine( const Domain& dm );
 
   // Should follow InitializeFine
+  // FIXME Put to Hamiltonian
   void InitializeEXX( Real screenLength );
 };
 

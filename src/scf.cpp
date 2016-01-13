@@ -188,7 +188,7 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
     // Allocate memory for PhiEXX
     Int ntotFine = esdfParam.domain.NumGridTotalFine();
     NumTns<Scalar>& phiEXX = eigSolPtr_->Ham().PhiEXX();
-    phiEXX.Resize( ntotFine, 1, eigSolPtr_->Ham().NumOccupiedState() );
+    phiEXX.Resize( ntotFine, 1, eigSolPtr_->Ham().NumStateTotal() );
     SetValue( phiEXX, SCALAR_ZERO );
   }
 
@@ -325,7 +325,7 @@ SCF::Iterate	(  )
         eigSolPtr_->FFT() );
 
 		// Compute the exchange-correlation potential and energy
-    if( XCType_ == "XC_GGA_XC_PBE"){
+    if( isCalculateGradRho_ ){
       eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
     }
     eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
@@ -436,14 +436,13 @@ SCF::IterateHybrid (  )
   Real timeIterStart(0), timeIterEnd(0);
   
   // EXX: Run SCF::Iterate here
-	bool isSCFConverged = false;
   bool isPhiIterConverged = false;
 
   // Fock energies
   Real fock0, fock1, fock2;
 
   // FIXME 
-  scfPhiMaxIter_ = 1;
+  scfPhiMaxIter_ = 10;
 
   for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
     {
@@ -451,9 +450,8 @@ SCF::IterateHybrid (  )
       msg << "Phi iteration # " << phiIter;
       PrintBlock( statusOFS, msg.str() );
     }
+    bool isSCFConverged = false;
 
-    // FIXME Just for debug reason
-    eigSolPtr_->Ham().SetEXXActive(true);
 
     // Regular SCF iter
     for (Int iter=1; iter <= scfMaxIter_; iter++) {
@@ -518,8 +516,9 @@ SCF::IterateHybrid (  )
           totalCharge_, 
           eigSolPtr_->FFT() );
 
+
       // Compute the exchange-correlation potential and energy
-      if( XCType_ == "XC_GGA_XC_PBE"){
+      if( isCalculateGradRho_ ){
         eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
       }
       eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
@@ -607,10 +606,65 @@ SCF::IterateHybrid (  )
     // Update Phi <- Psi
     {
       // FIXME collect Psi into a globally shared array in the MPI context.
+      Fourier& fft = eigSolPtr_->FFT();
       NumTns<Scalar>& phiEXX = eigSolPtr_->Ham().PhiEXX();
-      Int ntotFine  = eigSolPtr_->FFT().domain.NumGridTotalFine();
-      lapack::Lacpy( 'A', ntotFine, eigSolPtr_->Ham().NumOccupiedState(),
-          eigSolPtr_->Psi().Wavefun().Data(), ntotFine, phiEXX.Data(), ntotFine );
+      NumTns<Scalar>& wavefun = eigSolPtr_->Psi().Wavefun();
+      Int ntot = wavefun.m();
+      Int ncom = wavefun.n();
+      Int numStateLocal = wavefun.p();
+      Int ntotFine  = fft.domain.NumGridTotalFine();
+      DblNumVec psiFine(ntotFine);
+      Real vol = fft.domain.Volume();
+
+      // From coarse to fine grid
+      // FIXME Put in a more proper place
+      for (Int k=0; k<eigSolPtr_->Ham().NumStateTotal(); k++) {
+        for (Int j=0; j<ncom; j++) {
+
+          SetValue( psiFine, 0.0 );
+
+          SetValue( fft.inputVecR2C, 0.0 ); 
+          SetValue( fft.inputVecR2CFine, 0.0 ); 
+          SetValue( fft.outputVecR2C, Z_ZERO ); 
+          SetValue( fft.outputVecR2CFine, Z_ZERO ); 
+
+          // For c2r and r2c transforms, the default is to DESTROY the
+          // input, therefore a copy of the original matrix is necessary. 
+          blas::Copy( ntot, wavefun.VecData(j,k), 1, 
+              fft.inputVecR2C.Data(), 1 );
+
+
+          fftw_execute_dft_r2c(
+              fft.forwardPlanR2C, 
+              fft.inputVecR2C.Data(),
+              reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ));
+
+          // Interpolate wavefunction from coarse to fine grid
+          {
+            Int *idxPtr = fft.idxFineGridR2C.Data();
+            Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
+            Complex *fftOutPtr = fft.outputVecR2C.Data();
+            for( Int ig = 0; ig < fft.numGridTotalR2C; ig++ ){
+              fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
+            }
+          }
+
+          fftw_execute_dft_c2r(
+              fft.backwardPlanR2CFine, 
+              reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
+              fft.inputVecR2CFine.Data() );
+          
+
+          // Factor normalize so that integration in the real space is 1
+          Real fac = 1.0 / std::sqrt( double(ntot) * double(ntotFine) );
+          fac *= std::sqrt( double(ntotFine) / vol );
+          blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
+          blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
+          statusOFS << "int (psiFine^2) dx = " << Energy(psiFine)*vol / double(ntotFine) << std::endl;
+          blas::Copy( ntotFine, psiFine.Data(), 1, phiEXX.VecData(j,k), 1);
+
+        } // for (j)
+      } // for (k)
     }
 
     // EXX: Exchange energy computation 

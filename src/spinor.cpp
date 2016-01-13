@@ -1061,9 +1061,12 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 // 
 // NOTE 
 // Currently there is no parallelization over the phi tensor
-void
-Spinor::AddMultSpinorEXX ( Fourier& fft, 
+//
+void Spinor::AddMultSpinorEXX ( Fourier& fft, 
     const NumTns<Scalar>& phi,
+    Real  exxFraction,
+    Real  numSpin,
+    const DblNumVec& occupationRate,
     NumTns<Scalar>& a3 )
 {
 #ifndef _RELEASE_
@@ -1084,9 +1087,10 @@ Spinor::AddMultSpinorEXX ( Fourier& fft,
     throw std::logic_error("Spin polarized case not implemented.");
   }
   Int numStateTotalPhi = phi.p();
+//  statusOFS << "numStateTotalPhi = " << numStateTotalPhi << std::endl;
 
-  Int ntotR2C = (numGrid[0]/2+1) * numGrid[1] * numGrid[2];
-  Int ntotR2CFine = (numGridFine[0]/2+1) * numGridFine[1] * numGridFine[2];
+  Int ntotR2C = fft.numGridTotalR2C;
+  Int ntotR2CFine = fft.numGridTotalR2CFine;
 
   if( fft.domain.NumGridTotal() != ntot ){
     throw std::logic_error("Domain size does not match.");
@@ -1128,7 +1132,7 @@ Spinor::AddMultSpinorEXX ( Fourier& fft,
           Int *idxPtr = fft.idxFineGridR2C.Data();
           Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
           Complex *fftOutPtr = fft.outputVecR2C.Data();
-          for( Int i = 0; i < ntotR2C; i++ ){
+          for( Int ig = 0; ig < ntotR2C; ig++ ){
             fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
           }
         }
@@ -1151,6 +1155,10 @@ Spinor::AddMultSpinorEXX ( Fourier& fft,
       // exchange cannot be performed over many processors
       for( Int kphi = 0; kphi < numStateTotalPhi; kphi++ ){
         for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
+          // Skip the unoccupied bands
+          if( occupationRate[kphi] < 1e-8 )
+            continue;
+
           Real* phiPtr = phi.VecData(jphi, kphi);
           // rhoc = phi*psi in the real space
           for( Int ir = 0; ir < ntotFine; ir++ ){
@@ -1158,7 +1166,7 @@ Spinor::AddMultSpinorEXX ( Fourier& fft,
           }
 
           fftw_execute_dft_r2c(
-              fft.forwardPlanR2C, 
+              fft.forwardPlanR2CFine, 
               fft.inputVecR2CFine.Data(),
               reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
 
@@ -1172,7 +1180,8 @@ Spinor::AddMultSpinorEXX ( Fourier& fft,
               reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
               fft.inputVecR2CFine.Data() );
 
-          Real fac = 1.0 / double(ntotFine); 
+          // NOTE: No multiplication with spin
+          Real fac = -exxFraction * occupationRate[kphi] / double(ntotFine);  
           for( Int ir = 0; ir < ntotFine; ir++ ){
             hpsiFine(ir) += fft.inputVecR2CFine(ir) * phiPtr[ir] * fac;
           }
@@ -1189,12 +1198,11 @@ Spinor::AddMultSpinorEXX ( Fourier& fft,
             fft.inputVecR2CFine.Data(),
             reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
 
-        Real fac = std::sqrt(Real(ntot) / (Real(ntotFine)));
         Int *idxPtr = fft.idxFineGridR2C.Data();
         Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
         Complex *fftOutPtr = fft.outputVecR2C.Data();
         for( Int i = 0; i < ntotR2C; i++ ){
-          *(fftOutPtr++) = fftOutFinePtr[*(idxPtr++)] * fac;
+          *(fftOutPtr++) = fftOutFinePtr[*(idxPtr++)];
         }
 
         fftw_execute_dft_c2r(
@@ -1202,11 +1210,13 @@ Spinor::AddMultSpinorEXX ( Fourier& fft,
             reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ),
             fft.inputVecR2C.Data() );
 
-        blas::Axpy( ntot, 1.0 / Real(ntot), fft.inputVecR2C.Data(), 1,
+        Real fac = 1.0 / std::sqrt( double(domain_.NumGridTotal())  *
+            double(domain_.NumGridTotalFine()) ); 
+        blas::Axpy( ntot, fac, fft.inputVecR2C.Data(), 1,
             a3.VecData(j,k), 1 );
       }
-    } // j++
-  } // k++
+    } // for (j)
+  } // for (k)
 
 
 

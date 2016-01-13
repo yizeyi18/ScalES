@@ -16,4 +16,10 @@ TODO List   {#pageTODO}
   But if core dump is available, why callstacks? No matter what, an
   handling function taking a message as input is a more versatile way
   for handling error messaging.
-
+- Simplify the input parameters, make Spinor a struct instead of a
+  class. Move the matrix-vector multiplication to the Hamiltonian class.
+- The new design should be combined with the design of spin
+  polarization. This design instead should leave room for k-point
+  implementation.
+- Refine Fourier to clean the normalization factors. Encapsulate the
+  forward and backward Fourier transforms?

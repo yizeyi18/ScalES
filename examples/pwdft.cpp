@@ -223,7 +223,9 @@ int main(int argc, char **argv)
 
     if( hamKS.IsHybrid() ){
       // FIXME Screen parameters
-      fft.InitializeEXX( 0.0 );
+      statusOFS << "Hybrid mixing parametr  = " << hamKS.EXXFraction() << std::endl; 
+      statusOFS << "Hybrid screening length = " << hamKS.ScreeningLength() << std::endl;
+      fft.InitializeEXX( hamKS.ScreeningLength() );
       statusOFS << "Exact exchange fft setup finished." << std::endl;
     }
 
@@ -278,8 +280,8 @@ int main(int argc, char **argv)
       << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + Evdw" << std::endl
       << "       Etot  = Ekin + Ecor" << std::endl
       << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
-    Print(statusOFS, "Etot              = ",  etot, "[au]");
-    Print(statusOFS, "Efree             = ",  efree, "[au]");
+    Print(statusOFS, "! Etot            = ",  etot, "[au]");
+    Print(statusOFS, "! Efree           = ",  efree, "[au]");
     Print(statusOFS, "Ekin              = ",  ekin, "[au]");
     Print(statusOFS, "Ehart             = ",  ehart, "[au]");
     Print(statusOFS, "EVxc              = ",  eVxc, "[au]");
@@ -287,9 +289,9 @@ int main(int argc, char **argv)
     Print(statusOFS, "Evdw              = ",  VDWEnergy, "[au]"); 
     Print(statusOFS, "Eself             = ",  eself, "[au]");
     Print(statusOFS, "Ecor              = ",  ecor, "[au]");
-    Print(statusOFS, "Fermi             = ",  fermi, "[au]");
+    Print(statusOFS, "! Fermi           = ",  fermi, "[au]");
     Print(statusOFS, "Total charge      = ",  totalCharge, "[au]");
-    Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm );
+    Print(statusOFS, "! norm(vout-vin)/norm(vin) = ", scfNorm );
 
     // Print out the force
     PrintBlock( statusOFS, "Atomic Force" );

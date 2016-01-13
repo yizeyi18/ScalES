@@ -117,10 +117,17 @@ protected:
   bool                        isHybrid_;
   /// @brief Determine which mode
   bool                        isEXXActive_;
+  
   /// @brief Store all the orbitals for exact exchange calculation
   /// NOTE: This might impose serious memory constraint for relatively
   /// large systems.
   NumTns<Scalar>              phiEXX_; 
+ 
+  /// @brief Screening length for hybrid functional
+  Real                        screeningLength_;
+  
+  /// @brief Mixing parameter for hybrid functional calculation
+  Real                        exxFraction_;
 
 public:
 
@@ -191,12 +198,17 @@ public:
 
 	std::vector<Atom>&  AtomList() { return atomList_; }
 
-  //EXX
+  //EXX. FIXME Put to KohnSham
   bool        IsEXXActive() { return isEXXActive_; }
   bool        IsHybrid() { return isHybrid_; }
 
   void        SetEXXActive(bool flag) { isEXXActive_ = flag; }
+  
   NumTns<Scalar>&  PhiEXX() { return phiEXX_; }
+  
+  Real        ScreeningLength() { return screeningLength_;}
+  Real        EXXFraction() { return exxFraction_;}
+
 	// *********************************************************************
 	// Inquiry
 	// *********************************************************************
