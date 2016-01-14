@@ -16,8 +16,12 @@ TODO List   {#pageTODO}
   But if core dump is available, why callstacks? No matter what, an
   handling function taking a message as input is a more versatile way
   for handling error messaging.
-- Simplify the input parameters, make Spinor a struct instead of a
-  class. Move the matrix-vector multiplication to the Hamiltonian class.
+- Simplify the input parameters. Spinor class should be removed and
+  moved to the Hamiltonian class. In the future different types of
+  spinors should be treated with different classes of "Hamiltonian". The
+  functions in spinor, such as preconditioners should also be moved to
+  the Hamiltonian class (or KohnSham).
+
 - The new design should be combined with the design of spin
   polarization. This design instead should leave room for k-point
   implementation.

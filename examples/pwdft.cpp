@@ -225,7 +225,7 @@ int main(int argc, char **argv)
       // FIXME Screen parameters
       statusOFS << "Hybrid mixing parametr  = " << hamKS.EXXFraction() << std::endl; 
       statusOFS << "Hybrid screening length = " << hamKS.ScreeningLength() << std::endl;
-      fft.InitializeEXX( hamKS.ScreeningLength() );
+      fft.InitializeEXX( hamKS.ScreeningLength(), esdfParam.ecutWavefunction );
       statusOFS << "Exact exchange fft setup finished." << std::endl;
     }
 

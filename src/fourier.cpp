@@ -429,38 +429,85 @@ void Fourier::InitializeFine ( const Domain& dm )
 	return ;
 }		// -----  end of function Fourier::InitializeFine  ----- 
 
-void Fourier::InitializeEXX ( Real screenLength )
+// FIXME. Move this to Kohn Sham class
+void Fourier::InitializeEXX ( Real screenLength, Real ecutWavefunction )
 {
 #ifndef _RELEASE_
 	PushCallStack("Fourier::InitializeEXX");
 #endif  // ifndef _RELEASE_
   const Real epsDiv = 1e-8;
 
-  Real gkk;
+  Real gkk2;
   exxgkkR2CFine.Resize(numGridTotalR2CFine);
   SetValue( exxgkkR2CFine, 0.0 );
 
   // Compute the divergent term for G=0
   Real exxDiv = 0.0;
+  // extra 2.0 factor for ecutWavefunction compared to QE due to unit difference
+  Real exxAlpha = 10.0 * std::pow(2.0*PI, 2.0) / (ecutWavefunction * 2.0);
 
 
   // Gygi-Baldereschi regularization. Currently set to zero and compare
   // with QE without the regularization 
   // Set exxdiv_treatment to "none"
+  // NOTE: I do not quite understand the detailed derivation
+  // FIXME Add exxdiv_treatment option 
+  if(0)
   {
-    exxDiv = 0.0;
+    // no q-point
+    for( Int ig = 0; ig < numGridTotalR2CFine; ig++ ){
+      gkk2 = gkkR2CFine(ig) * 2.0;
+      if( gkk2 > epsDiv ){
+        if( screenLength > 0.0 ){
+          exxDiv += exp(-exxAlpha * gkk2) / gkk2 * 
+            (1.0 - std::exp(-gkk2 / (4.0*screenLength*screenLength)));
+        }
+        else{
+          exxDiv += exp(-exxAlpha * gkk2) / gkk2;
+        }
+      }
+    } // for (ig)
+
+    // Factor only for gamma point
+    exxDiv *= 2.0;
+    if( screenLength > 0.0 ){
+      exxDiv += std::pow(2.0*PI, 2.0) / (4.0*screenLength*screenLength);
+    }
+    else{
+      exxDiv -= exxAlpha;
+    }
+    exxDiv *= 1.0 / PI;
+    exxAlpha /= std::pow(2.0*PI, 2.0);
+
+    Int nqq = 100000;
+    Real dq = 5.0 / std::sqrt(exxAlpha) / nqq;
+    Real aa = 0.0;
+    Real qt = 0.0, qt2;
+    for( Int iq = 0; iq < nqq; iq++ ){
+      qt = dq * (iq+0.5);
+      qt2 = qt*qt;
+      if( screenLength > 0.0 ){
+        aa -= std::exp(-exxAlpha *qt2) * 
+          std::exp(-qt2 / (4.0*screenLength*screenLength)) * dq;
+      }
+    }
+    aa *= 2.0 / PI;
+    aa += 1.0 / std::sqrt(exxAlpha*PI);
+    exxDiv -= domain.Volume()*aa;
   }
 
+  statusOFS << "exxDiv = " << exxDiv << std::endl;
+
   for( Int ig = 0; ig < numGridTotalR2CFine; ig++ ){
-    gkk = gkkR2CFine(ig);
-    if( gkk > epsDiv ){
+    gkk2 = gkkR2CFine(ig) * 2.0;
+    if( gkk2 > epsDiv ){
       if( screenLength > 0 ){
         // 2.0*pi instead 4.0*pi due to gkk includes a factor of 2
-        exxgkkR2CFine[ig] = 2.0 * PI / gkk * (1.0 - 
-            std::exp( -gkk / (2.0*screenLength*screenLength) ));
+        exxgkkR2CFine[ig] = 4.0 * PI / gkk2 * (1.0 - 
+            std::exp( -gkk2 / (4.0*screenLength*screenLength) ));
       }
       else{
-        exxgkkR2CFine[ig] = 2.0 * PI / gkk;
+        exxgkkR2CFine[ig] = 4.0 * PI / gkk2;
       }
     }
     else{
