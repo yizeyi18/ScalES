@@ -125,9 +125,7 @@ private:
   Index3  numGridDensityElem_;
 	
   DblNumMat           forceVdw_;
-
-
-
+	
 public:
 	
 	

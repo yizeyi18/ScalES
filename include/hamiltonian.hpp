@@ -176,7 +176,6 @@ public:
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft) = 0;
 	
-  
   // FIXME Clean
 	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft) = 0;
 
@@ -198,7 +197,6 @@ public:
 
 	std::vector<Atom>&  AtomList() { return atomList_; }
 
-  //EXX. FIXME Put to KohnSham
   bool        IsEXXActive() { return isEXXActive_; }
   bool        IsHybrid() { return isHybrid_; }
 

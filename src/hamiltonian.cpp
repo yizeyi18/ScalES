@@ -92,105 +92,6 @@ Hamiltonian::Setup (
 	pseudoType_    = pseudoType;
 	numExtraState_ = numExtraState;
 
-  // Initialize the XC functional.  
-  // Spin-unpolarized functional is used here
- 
-
-  // Since the number of density components is always 1 here, set numSpin = 2.
-	numSpin_ = 2;
-
-
-	// Obtain the exchange-correlation id
-  // FIXME Move to KohnSham
-  {
-    isHybrid_ = false;
-
-    if( XCType == "XC_LDA_XC_TETER93" )
-    { 
-      XCId_ = XC_LDA_XC_TETER93;
-      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-        throw std::runtime_error( "XC functional initialization error." );
-      } 
-      // Teter 93
-      // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
-    }    
-    else if( XCType == "XC_GGA_XC_PBE" )
-    {
-      XId_ = XC_GGA_X_PBE;
-      CId_ = XC_GGA_C_PBE;
-      // Perdew, Burke & Ernzerhof correlation
-      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
-      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
-      if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
-        throw std::runtime_error( "X functional initialization error." );
-      }
-      if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
-        throw std::runtime_error( "C functional initialization error." );
-      }
-    }
-    else if( XCType == "XC_HYB_GGA_XC_HSE06" )
-    {
-      XCId_ = XC_HYB_GGA_XC_HSE06;
-      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-        throw std::runtime_error( "XC functional initialization error." );
-      } 
-
-      isHybrid_ = true;
-      // FIXME Not considering restarting yet
-      isEXXActive_ = false;
-
-      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
-      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
-      // A. V. Krukau, O. A. Vydrov, A. F. Izmaylov, and G. E. Scuseria, J. Chem. Phys. 125, 224106 (2006) (doi: 10.1063/1.2404663)
-      //
-      // This is the same as the "hse" functional in QE 5.1
-    }
-    else {
-      throw std::logic_error("Unrecognized exchange-correlation type");
-    }
-  }
-
-
-  if( numDensityComponent != 1 ){
-    throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
-  }
-
-
-	// NOTE: NumSpin variable will be determined in derivative classes.
-
-  Int ntotCoarse = domain_.NumGridTotal();
-  Int ntotFine = domain_.NumGridTotalFine();
-
-  density_.Resize( ntotFine, numDensityComponent );   
-  SetValue( density_, 0.0 );
-
-  gradDensity_.resize( DIM );
-  for( Int d = 0; d < DIM; d++ ){
-    gradDensity_[d].Resize( ntotFine, numDensityComponent );
-    SetValue (gradDensity_[d], 0.0);
-  }
-
-  pseudoCharge_.Resize( ntotFine );
-  SetValue( pseudoCharge_, 0.0 );
-
-  vext_.Resize( ntotFine );
-  SetValue( vext_, 0.0 );
-
-  vhart_.Resize( ntotFine );
-  SetValue( vhart_, 0.0 );
-
-	vtot_.Resize( ntotFine );
-	SetValue( vtot_, 0.0 );
-
-  vtotCoarse_.Resize( ntotCoarse );
-  SetValue( vtotCoarse_, 0.0 );
-
-	epsxc_.Resize( ntotFine );
-	SetValue( epsxc_, 0.0 );
-
-	vxc_.Resize( ntotFine, numDensityComponent );
-	SetValue( vxc_, 0.0 );
-
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -270,6 +171,99 @@ KohnSham::Setup	(
 		numExtraState,
     numDensityComponent);
 
+  if( numDensityComponent != 1 ){
+    throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
+  }
+
+  // Since the number of density components is always 1 here, set numSpin = 2.
+	numSpin_ = 2;
+
+	// NOTE: NumSpin variable will be determined in derivative classes.
+
+  Int ntotCoarse = domain_.NumGridTotal();
+  Int ntotFine = domain_.NumGridTotalFine();
+
+  density_.Resize( ntotFine, numDensityComponent );   
+  SetValue( density_, 0.0 );
+
+  gradDensity_.resize( DIM );
+  for( Int d = 0; d < DIM; d++ ){
+    gradDensity_[d].Resize( ntotFine, numDensityComponent );
+    SetValue (gradDensity_[d], 0.0);
+  }
+
+  pseudoCharge_.Resize( ntotFine );
+  SetValue( pseudoCharge_, 0.0 );
+
+  vext_.Resize( ntotFine );
+  SetValue( vext_, 0.0 );
+
+  vhart_.Resize( ntotFine );
+  SetValue( vhart_, 0.0 );
+
+	vtot_.Resize( ntotFine );
+	SetValue( vtot_, 0.0 );
+
+  vtotCoarse_.Resize( ntotCoarse );
+  SetValue( vtotCoarse_, 0.0 );
+
+	epsxc_.Resize( ntotFine );
+	SetValue( epsxc_, 0.0 );
+
+	vxc_.Resize( ntotFine, numDensityComponent );
+	SetValue( vxc_, 0.0 );
+
+
+
+  // Initialize the XC functionals, only spin-unpolarized case
+	// Obtain the exchange-correlation id
+  {
+    isHybrid_ = false;
+
+    if( XCType == "XC_LDA_XC_TETER93" )
+    { 
+      XCId_ = XC_LDA_XC_TETER93;
+      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+        throw std::runtime_error( "XC functional initialization error." );
+      } 
+      // Teter 93
+      // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
+    }    
+    else if( XCType == "XC_GGA_XC_PBE" )
+    {
+      XId_ = XC_GGA_X_PBE;
+      CId_ = XC_GGA_C_PBE;
+      // Perdew, Burke & Ernzerhof correlation
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
+      if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
+        throw std::runtime_error( "X functional initialization error." );
+      }
+      if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
+        throw std::runtime_error( "C functional initialization error." );
+      }
+    }
+    else if( XCType == "XC_HYB_GGA_XC_HSE06" )
+    {
+      XCId_ = XC_HYB_GGA_XC_HSE06;
+      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+        throw std::runtime_error( "XC functional initialization error." );
+      } 
+
+      isHybrid_ = true;
+      // FIXME Not considering restarting yet
+      isEXXActive_ = false;
+
+      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
+      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
+      // A. V. Krukau, O. A. Vydrov, A. F. Izmaylov, and G. E. Scuseria, J. Chem. Phys. 125, 224106 (2006) (doi: 10.1063/1.2404663)
+      //
+      // This is the same as the "hse" functional in QE 5.1
+    }
+    else {
+      throw std::logic_error("Unrecognized exchange-correlation type");
+    }
+  }
   	
 
 #ifndef _RELEASE_

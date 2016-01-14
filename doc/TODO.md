@@ -11,17 +11,16 @@ TODO List   {#pageTODO}
   document this a bit more properly. It is even possible to revamp the
   implementation by storing the wavefunction coefficients in the complex
   arithmetic
-- Better way to handle error: dumpcallstack should be used. Output the
-  error message via cerr, and then abort for being captured by coredump.
-  But if core dump is available, why callstacks? No matter what, an
-  handling function taking a message as input is a more versatile way
-  for handling error messaging.
+- Better way to handle error: handling function taking a message as
+  input is a more versatile way for handling error messaging. callstack
+  procedure is slow and does not work for openmp
 - Simplify the input parameters. Spinor class should be removed and
   moved to the Hamiltonian class. In the future different types of
   spinors should be treated with different classes of "Hamiltonian". The
   functions in spinor, such as preconditioners should also be moved to
   the Hamiltonian class (or KohnSham).
-
+- SCF, eigensolver supports multiple types of classes. Details in
+  different realization of the Hamiltonian class.
 - The new design should be combined with the design of spin
   polarization. This design instead should leave room for k-point
   implementation.

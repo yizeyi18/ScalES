@@ -118,8 +118,6 @@ struct Fourier {
   IntNumVec                idxFineGrid;
   IntNumVec                idxFineGridR2C;
 
-  // EXX
-  DblNumVec                exxgkkR2CFine;
 
 	Fourier();
 	~Fourier();
@@ -128,7 +126,8 @@ struct Fourier {
   void InitializeFine( const Domain& dm );
 
   // Should follow InitializeFine
-  // FIXME Put to Hamiltonian
+  // FIXME These two variables should belong to Hamiltonian
+  DblNumVec                exxgkkR2CFine;
   void InitializeEXX( Real screenMu, Real ecutWavefunction );
 };
 
