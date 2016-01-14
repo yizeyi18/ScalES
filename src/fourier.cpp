@@ -443,8 +443,10 @@ void Fourier::InitializeEXX ( Real screenLength, Real ecutWavefunction )
 
   // Compute the divergent term for G=0
   Real exxDiv = 0.0;
+
   // extra 2.0 factor for ecutWavefunction compared to QE due to unit difference
-  Real exxAlpha = 10.0 * std::pow(2.0*PI, 2.0) / (ecutWavefunction * 2.0);
+  // tpiba2 in QE is just a unit for G^2. Do not include it here
+  Real exxAlpha = 10.0 / (ecutWavefunction * 2.0);
 
 
   // Gygi-Baldereschi regularization. Currently set to zero and compare
@@ -452,11 +454,15 @@ void Fourier::InitializeEXX ( Real screenLength, Real ecutWavefunction )
   // Set exxdiv_treatment to "none"
   // NOTE: I do not quite understand the detailed derivation
   // FIXME Add exxdiv_treatment option 
-  if(0)
+  if(1)
   {
     // no q-point
-    for( Int ig = 0; ig < numGridTotalR2CFine; ig++ ){
-      gkk2 = gkkR2CFine(ig) * 2.0;
+    // NOTE: Compared to the QE implementation, it is easier to do below.
+    // Do the integration over the entire G-space rather than just the
+    // R2C grid. This is because it is an integration in the G-space.
+    // This implementation fully agrees with the QE result.
+    for( Int ig = 0; ig < numGridTotalFine; ig++ ){
+      gkk2 = gkkFine(ig) * 2.0;
       if( gkk2 > epsDiv ){
         if( screenLength > 0.0 ){
           exxDiv += exp(-exxAlpha * gkk2) / gkk2 * 
@@ -468,21 +474,19 @@ void Fourier::InitializeEXX ( Real screenLength, Real ecutWavefunction )
       }
     } // for (ig)
 
-    // Factor only for gamma point
-    exxDiv *= 2.0;
     if( screenLength > 0.0 ){
-      exxDiv += std::pow(2.0*PI, 2.0) / (4.0*screenLength*screenLength);
+      exxDiv += 1.0 / (4.0*screenLength*screenLength);
     }
     else{
       exxDiv -= exxAlpha;
     }
-    exxDiv *= 1.0 / PI;
-    exxAlpha /= std::pow(2.0*PI, 2.0);
+    exxDiv *= 4.0 * PI;
+
 
     Int nqq = 100000;
     Real dq = 5.0 / std::sqrt(exxAlpha) / nqq;
     Real aa = 0.0;
-    Real qt = 0.0, qt2;
+    Real qt, qt2;
     for( Int iq = 0; iq < nqq; iq++ ){
       qt = dq * (iq+0.5);
       qt2 = qt*qt;
@@ -491,12 +495,14 @@ void Fourier::InitializeEXX ( Real screenLength, Real ecutWavefunction )
           std::exp(-qt2 / (4.0*screenLength*screenLength)) * dq;
       }
     }
-    aa *= 2.0 / PI;
-    aa += 1.0 / std::sqrt(exxAlpha*PI);
+    aa = aa * 2.0 / PI + 1.0 / std::sqrt(exxAlpha*PI);
     exxDiv -= domain.Volume()*aa;
   }
 
-  statusOFS << "exxDiv = " << exxDiv << std::endl;
+  if(0){
+    statusOFS << "computed exxDiv = " << exxDiv << std::endl;
+  }
+
 
   for( Int ig = 0; ig < numGridTotalR2CFine; ig++ ){
     gkk2 = gkkR2CFine(ig) * 2.0;

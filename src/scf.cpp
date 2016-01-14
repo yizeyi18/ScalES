@@ -730,7 +730,9 @@ SCF::IterateHybrid (  )
             fac *= std::sqrt( double(ntotFine) / vol );
             blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
             blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
-            statusOFS << "int (psiFine^2) dx = " << Energy(psiFine)*vol / double(ntotFine) << std::endl;
+            if(0){
+              statusOFS << "int (psiFine^2) dx = " << Energy(psiFine)*vol / double(ntotFine) << std::endl;
+            }
             blas::Copy( ntotFine, psiFine.Data(), 1, phiEXX.VecData(j,k), 1);
 
           } // for (j)
