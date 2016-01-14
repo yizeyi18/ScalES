@@ -430,7 +430,7 @@ void Fourier::InitializeFine ( const Domain& dm )
 }		// -----  end of function Fourier::InitializeFine  ----- 
 
 // FIXME. Move this to Kohn Sham class
-void Fourier::InitializeEXX ( Real screenLength, Real ecutWavefunction )
+void Fourier::InitializeEXX ( Real screenMu, Real ecutWavefunction )
 {
 #ifndef _RELEASE_
 	PushCallStack("Fourier::InitializeEXX");
@@ -464,9 +464,9 @@ void Fourier::InitializeEXX ( Real screenLength, Real ecutWavefunction )
     for( Int ig = 0; ig < numGridTotalFine; ig++ ){
       gkk2 = gkkFine(ig) * 2.0;
       if( gkk2 > epsDiv ){
-        if( screenLength > 0.0 ){
+        if( screenMu > 0.0 ){
           exxDiv += exp(-exxAlpha * gkk2) / gkk2 * 
-            (1.0 - std::exp(-gkk2 / (4.0*screenLength*screenLength)));
+            (1.0 - std::exp(-gkk2 / (4.0*screenMu*screenMu)));
         }
         else{
           exxDiv += exp(-exxAlpha * gkk2) / gkk2;
@@ -474,8 +474,8 @@ void Fourier::InitializeEXX ( Real screenLength, Real ecutWavefunction )
       }
     } // for (ig)
 
-    if( screenLength > 0.0 ){
-      exxDiv += 1.0 / (4.0*screenLength*screenLength);
+    if( screenMu > 0.0 ){
+      exxDiv += 1.0 / (4.0*screenMu*screenMu);
     }
     else{
       exxDiv -= exxAlpha;
@@ -490,9 +490,9 @@ void Fourier::InitializeEXX ( Real screenLength, Real ecutWavefunction )
     for( Int iq = 0; iq < nqq; iq++ ){
       qt = dq * (iq+0.5);
       qt2 = qt*qt;
-      if( screenLength > 0.0 ){
+      if( screenMu > 0.0 ){
         aa -= std::exp(-exxAlpha *qt2) * 
-          std::exp(-qt2 / (4.0*screenLength*screenLength)) * dq;
+          std::exp(-qt2 / (4.0*screenMu*screenMu)) * dq;
       }
     }
     aa = aa * 2.0 / PI + 1.0 / std::sqrt(exxAlpha*PI);
@@ -507,10 +507,10 @@ void Fourier::InitializeEXX ( Real screenLength, Real ecutWavefunction )
   for( Int ig = 0; ig < numGridTotalR2CFine; ig++ ){
     gkk2 = gkkR2CFine(ig) * 2.0;
     if( gkk2 > epsDiv ){
-      if( screenLength > 0 ){
+      if( screenMu > 0 ){
         // 2.0*pi instead 4.0*pi due to gkk includes a factor of 2
         exxgkkR2CFine[ig] = 4.0 * PI / gkk2 * (1.0 - 
-            std::exp( -gkk2 / (4.0*screenLength*screenLength) ));
+            std::exp( -gkk2 / (4.0*screenMu*screenMu) ));
       }
       else{
         exxgkkR2CFine[ig] = 4.0 * PI / gkk2;
@@ -518,8 +518,8 @@ void Fourier::InitializeEXX ( Real screenLength, Real ecutWavefunction )
     }
     else{
       exxgkkR2CFine[ig] = -exxDiv;
-      if( screenLength > 0 ){
-        exxgkkR2CFine[ig] += PI / (screenLength*screenLength);
+      if( screenMu > 0 ){
+        exxgkkR2CFine[ig] += PI / (screenMu*screenMu);
       }
     }
   } // for (ig)

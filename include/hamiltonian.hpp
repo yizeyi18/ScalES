@@ -123,11 +123,11 @@ protected:
   /// large systems.
   NumTns<Scalar>              phiEXX_; 
  
-  /// @brief Screening length for hybrid functional
-  Real                        screeningLength_;
+  /// @brief Screening parameter mu for range separated hybrid functional. Currently hard coded
+  const Real                  screenMu_ = 0.106;
   
-  /// @brief Mixing parameter for hybrid functional calculation
-  Real                        exxFraction_;
+  /// @brief Mixing parameter for hybrid functional calculation. Currently hard coded
+  const Real                  exxFraction_ = 0.25;
 
 public:
 
@@ -206,7 +206,7 @@ public:
   
   NumTns<Scalar>&  PhiEXX() { return phiEXX_; }
   
-  Real        ScreeningLength() { return screeningLength_;}
+  Real        ScreenMu() { return screenMu_;}
   Real        EXXFraction() { return exxFraction_;}
 
 	// *********************************************************************

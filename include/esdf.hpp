@@ -196,6 +196,16 @@ namespace esdf{
     ///
     /// Default: 30
     Int                 scfOuterMaxIter;
+    /// @brief Maximum number of iterations for hybrid functional
+    /// iterations.
+    /// 
+    /// Default: 10
+    Int                 scfPhiMaxIter;
+    /// @brief Tolerance for hybrid functional iterations using Fock
+    /// energy
+    ///
+    /// Default: 1e-6
+    Real                scfPhiTolerance;
     /// @brief Tolerance for the eigenvalue solver
     ///
     /// Default: 1e-6

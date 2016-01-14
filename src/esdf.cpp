@@ -931,6 +931,16 @@ void esdf_key() {
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether to output the atomic position in XYZ format !*");
 
+  i++;
+	strcpy(kw_label[i],"scf_phi_maxiter");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! Maximum iteration number for hybrid functional!*");
+
+  i++;
+	strcpy(kw_label[i],"scf_phi_tolerance");
+	strcpy(kw_typ[i],"D:E");
+	strcpy(kw_dscrpt[i],"*! Tolerance for hybrid functional iteration!*");
+
 }
 
 void esdf() {
@@ -2167,6 +2177,8 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
 		esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
 		esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
+		esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
+		esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
 
     // Default is no locking
 		esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-20 );

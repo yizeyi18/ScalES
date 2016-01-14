@@ -73,6 +73,8 @@ private:
   Int                 eigMaxIter_;
 	Real                scfTolerance_;
 	Int                 scfMaxIter_;
+	Int                 scfPhiMaxIter_;
+	Real                scfPhiTolerance_;
   Int                 numUnusedState_;
   bool                isEigToleranceDynamic_;
 	bool                isRestartDensity_;
@@ -97,6 +99,7 @@ private:
 	Real                EVxc_;                     // Exchange-correlation potential energy
 	Real                Eself_;                    // Self energy due to the pseudopotential
 	Real                fermi_;                    // Fermi energy
+  Real                Efock_;                    // Hartree-Fock energy
 
 	Real                totalCharge_;              // Total number of computed electron charge
 	
@@ -123,11 +126,6 @@ private:
 	
   DblNumMat           forceVdw_;
 
-  // Exchange calculations
-  /// @brief Hartree-Fock energy
-  Real                Efock_; 
-  /// @brief Maximum number of iterations for exchange
-  Int                 scfPhiMaxIter_;
 
 
 public:

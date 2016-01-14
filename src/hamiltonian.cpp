@@ -138,9 +138,6 @@ Hamiltonian::Setup (
       isHybrid_ = true;
       // FIXME Not considering restarting yet
       isEXXActive_ = false;
-      // FIXME Hard coded
-      exxFraction_ = 0.25;
-      screeningLength_ = 0.106;
 
       // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
       // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)

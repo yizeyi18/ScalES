@@ -129,7 +129,7 @@ struct Fourier {
 
   // Should follow InitializeFine
   // FIXME Put to Hamiltonian
-  void InitializeEXX( Real screenLength, Real ecutWavefunction );
+  void InitializeEXX( Real screenMu, Real ecutWavefunction );
 };
 
 

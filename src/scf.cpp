@@ -97,6 +97,8 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
     eigMaxIter_    = esdfParam.eigMaxIter;
 		scfTolerance_  = esdfParam.scfOuterTolerance;
 		scfMaxIter_    = esdfParam.scfOuterMaxIter;
+    scfPhiMaxIter_ = esdfParam.scfPhiMaxIter;
+    scfPhiTolerance_ = esdfParam.scfPhiTolerance;
     numUnusedState_ = esdfParam.numUnusedState;
     isEigToleranceDynamic_ = esdfParam.isEigToleranceDynamic;
 		isRestartDensity_ = esdfParam.isRestartDensity;
@@ -441,10 +443,10 @@ SCF::IterateHybrid (  )
   // Fock energies
   Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
 
-  // FIXME 
-  scfPhiMaxIter_ = 10;
 
   for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
+    if ( isPhiIterConverged ) break;
+
     {
       std::ostringstream msg;
       msg << "Phi iteration # " << phiIter;
@@ -669,6 +671,9 @@ SCF::IterateHybrid (  )
       Efock_ = fock2;
       Etot_ = Etot_ - Efock_;
       Efree_ = Efree_ - Efock_;
+      Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
+      Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
+      Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
     }
     else{
       CalculateEXXEnergy( fock1 ); 
@@ -748,21 +753,15 @@ SCF::IterateHybrid (  )
       Etot_ = Etot_ - Efock_;
       Efree_ = Efree_ - Efock_;
       Print(statusOFS, "dExx              = ",  dExx, "[au]");
+      Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
+      Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
+      Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
+
+      if( dExx < scfPhiTolerance_ ){
+        Print( statusOFS, "SCF for hybrid functional is converged!\n" );
+        isPhiIterConverged = true;
+      }
     }
-
-
-    // EXX: Exchange energy computation 
-
-
-    Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-    Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-    Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
-
-//    etot = etot + 0.5D0*fock2 - fock1;
-//    hwf_energy = hwf_energy + 0.5D0*fock2 - fock1;
-
-    // EXX: Check exchange convergence
-
   } // for(phiIter)
 
 #ifndef _RELEASE_
