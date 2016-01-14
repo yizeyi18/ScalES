@@ -80,6 +80,7 @@ struct Fourier {
 
   DblNumVec                gkkFine;
 	std::vector<CpxNumVec>   ikFine;
+  // FIXME Teter should be moved to Hamiltonian
   DblNumVec                TeterPrecondFine;
 
 	// Temporary vectors that can also be used globally
@@ -129,6 +130,9 @@ struct Fourier {
   // FIXME These two variables should belong to Hamiltonian
   DblNumVec                exxgkkR2CFine;
   void InitializeEXX( Real screenMu, Real ecutWavefunction );
+
+  // FIXME Should have forward/backward Fourier transform routine with
+  // proper normalization constant
 };
 
 

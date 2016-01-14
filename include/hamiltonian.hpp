@@ -118,11 +118,6 @@ protected:
   /// @brief Determine which mode
   bool                        isEXXActive_;
   
-  /// @brief Store all the orbitals for exact exchange calculation
-  /// NOTE: This might impose serious memory constraint for relatively
-  /// large systems.
-  NumTns<Scalar>              phiEXX_; 
- 
   /// @brief Screening parameter mu for range separated hybrid functional. Currently hard coded
   const Real                  screenMu_ = 0.106;
   
@@ -178,6 +173,11 @@ public:
 	
   // FIXME Clean
 	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft) = 0;
+  
+  virtual NumTns<Scalar>& PhiEXX() = 0;
+  
+  virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
+
 
 	// *********************************************************************
 	// Access
@@ -202,8 +202,6 @@ public:
 
   void        SetEXXActive(bool flag) { isEXXActive_ = flag; }
   
-  NumTns<Scalar>&  PhiEXX() { return phiEXX_; }
-  
   Real        ScreenMu() { return screenMu_;}
   Real        EXXFraction() { return exxFraction_;}
 
@@ -223,6 +221,13 @@ public:
 // One-component Kohn-Sham class
 // *********************************************************************
 class KohnSham: public Hamiltonian {
+private: 
+
+  /// @brief Store all the orbitals for exact exchange calculation
+  /// NOTE: This might impose serious memory constraint for relatively
+  /// large systems.
+  NumTns<Scalar>              phiEXX_; 
+ 
 public:
 
 	// *********************************************************************
@@ -275,6 +280,18 @@ public:
   // FIXME Clean
 	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft);
 
+  
+  /// @brief Update phiEXX by the spinor psi. The Phi are normalized in
+  /// the real space as
+  ///
+  /// \int |\phi(x)|^2 dx = 1
+  ///
+  /// while the wavefunction satisfies the normalization
+  ///
+  /// \sum |\psi(x)|^2 = 1, differing by a normalization constant. FIXME
+  virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
+
+  virtual NumTns<Scalar>& PhiEXX() {return phiEXX_;}
 };
 
 

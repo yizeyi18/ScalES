@@ -419,21 +419,25 @@ SCF::IterateHybrid (  )
 	PushCallStack("SCF::IterateHybrid");
 #endif
 	Real timeSta, timeEnd;
+  // Only works for KohnSham class
+  Hamiltonian& ham = eigSolPtr_->Ham();
+  Fourier&     fft = eigSolPtr_->FFT();
+  Spinor&      psi = eigSolPtr_->Psi();
 
   // EXX: Only allow hybrid functional here
 
   // Compute the exchange-correlation potential and energy
 	if( isCalculateGradRho_ ){
-		eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
+		ham.CalculateGradDensity( fft );
 	}
-	eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
+	ham.CalculateXC( Exc_, fft ); 
 
 	// Compute the Hartree energy
-	eigSolPtr_->Ham().CalculateHartree( eigSolPtr_->FFT() );
+	ham.CalculateHartree( fft );
 	// No external potential
 
 	// Compute the total potential
-	eigSolPtr_->Ham().CalculateVtot( eigSolPtr_->Ham().Vtot() );
+	ham.CalculateVtot( ham.Vtot() );
 
   Real timeIterStart(0), timeIterEnd(0);
   
@@ -485,7 +489,7 @@ SCF::IterateHybrid (  )
         eigTolNow = eigTolerance_;
       }
 
-      Int numEig = (eigSolPtr_->Psi().NumStateTotal())-numUnusedState_;
+      Int numEig = (psi.NumStateTotal())-numUnusedState_;
 
       statusOFS << "The current tolerance used by the eigensolver is " 
         << eigTolNow << std::endl;
@@ -499,7 +503,7 @@ SCF::IterateHybrid (  )
       }
       GetTime( timeEnd );
 
-      eigSolPtr_->Ham().EigVal() = eigSolPtr_->EigVal();
+      ham.EigVal() = eigSolPtr_->EigVal();
 
       statusOFS << "Time for the eigensolver is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -508,32 +512,32 @@ SCF::IterateHybrid (  )
       // No need for normalization using LOBPCG
 
       // Compute the occupation rate
-      CalculateOccupationRate( eigSolPtr_->Ham().EigVal(), 
-          eigSolPtr_->Ham().OccupationRate() );
+      CalculateOccupationRate( ham.EigVal(), 
+          ham.OccupationRate() );
 
       // Compute the electron density
-      eigSolPtr_->Ham().CalculateDensity(
-          eigSolPtr_->Psi(),
-          eigSolPtr_->Ham().OccupationRate(),
+      ham.CalculateDensity(
+          psi,
+          ham.OccupationRate(),
           totalCharge_, 
-          eigSolPtr_->FFT() );
+          fft );
 
 
       // Compute the exchange-correlation potential and energy
       if( isCalculateGradRho_ ){
-        eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
+        ham.CalculateGradDensity( fft );
       }
-      eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
+      ham.CalculateXC( Exc_, fft ); 
 
       // Compute the Hartree energy
-      eigSolPtr_->Ham().CalculateHartree( eigSolPtr_->FFT() );
+      ham.CalculateHartree( fft );
       // No external potential
 
       // Compute the total potential
-      eigSolPtr_->Ham().CalculateVtot( vtotNew_ );
+      ham.CalculateVtot( vtotNew_ );
 
       Real normVtotDif = 0.0, normVtotOld;
-      DblNumVec& vtotOld_ = eigSolPtr_->Ham().Vtot();
+      DblNumVec& vtotOld_ = ham.Vtot();
       Int ntot = vtotOld_.m();
       for( Int i = 0; i < ntot; i++ ){
         normVtotDif += pow( vtotOld_(i) - vtotNew_(i), 2.0 );
@@ -552,7 +556,7 @@ SCF::IterateHybrid (  )
       // Not really needed
       if( isCalculateForceEachSCF_ ){
         GetTime( timeSta );
-        eigSolPtr_->Ham().CalculateForce2( eigSolPtr_->Psi(), eigSolPtr_->FFT() );
+        ham.CalculateForce2( psi, fft );
         GetTime( timeEnd );
         statusOFS << "Time for computing the force is " <<
           timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -561,7 +565,7 @@ SCF::IterateHybrid (  )
         PrintBlock( statusOFS, "Atomic Force" );
         {
           Point3 forceCM(0.0, 0.0, 0.0);
-          std::vector<Atom>& atomList = eigSolPtr_->Ham().AtomList();
+          std::vector<Atom>& atomList = ham.AtomList();
           Int numAtom = atomList.size();
           for( Int a = 0; a < numAtom; a++ ){
             Print( statusOFS, "atom", a, "force", atomList[a].force );
@@ -601,70 +605,10 @@ SCF::IterateHybrid (  )
     // EXX
     Real dExx;
     if( phiIter == 1 ){
-      eigSolPtr_->Ham().SetEXXActive(true);
+      ham.SetEXXActive(true);
       // Update Phi <- Psi
-      {
-        // FIXME collect Psi into a globally shared array in the MPI context.
-        Fourier& fft = eigSolPtr_->FFT();
-        NumTns<Scalar>& phiEXX = eigSolPtr_->Ham().PhiEXX();
-        NumTns<Scalar>& wavefun = eigSolPtr_->Psi().Wavefun();
-        Int ntot = wavefun.m();
-        Int ncom = wavefun.n();
-        Int numStateLocal = wavefun.p();
-        Int ntotFine  = fft.domain.NumGridTotalFine();
-        DblNumVec psiFine(ntotFine);
-        Real vol = fft.domain.Volume();
+      ham.SetPhiEXX( eigSolPtr_->Psi(), eigSolPtr_->FFT() ); 
 
-        // From coarse to fine grid
-        // FIXME Put in a more proper place
-        for (Int k=0; k<eigSolPtr_->Ham().NumStateTotal(); k++) {
-          for (Int j=0; j<ncom; j++) {
-
-            SetValue( psiFine, 0.0 );
-
-            SetValue( fft.inputVecR2C, 0.0 ); 
-            SetValue( fft.inputVecR2CFine, 0.0 ); 
-            SetValue( fft.outputVecR2C, Z_ZERO ); 
-            SetValue( fft.outputVecR2CFine, Z_ZERO ); 
-
-            // For c2r and r2c transforms, the default is to DESTROY the
-            // input, therefore a copy of the original matrix is necessary. 
-            blas::Copy( ntot, wavefun.VecData(j,k), 1, 
-                fft.inputVecR2C.Data(), 1 );
-
-
-            fftw_execute_dft_r2c(
-                fft.forwardPlanR2C, 
-                fft.inputVecR2C.Data(),
-                reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ));
-
-            // Interpolate wavefunction from coarse to fine grid
-            {
-              Int *idxPtr = fft.idxFineGridR2C.Data();
-              Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
-              Complex *fftOutPtr = fft.outputVecR2C.Data();
-              for( Int ig = 0; ig < fft.numGridTotalR2C; ig++ ){
-                fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
-              }
-            }
-
-            fftw_execute_dft_c2r(
-                fft.backwardPlanR2CFine, 
-                reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
-                fft.inputVecR2CFine.Data() );
-
-
-            // Factor normalize so that integration in the real space is 1
-            Real fac = 1.0 / std::sqrt( double(ntot) * double(ntotFine) );
-            fac *= std::sqrt( double(ntotFine) / vol );
-            blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
-            blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
-            statusOFS << "int (psiFine^2) dx = " << Energy(psiFine)*vol / double(ntotFine) << std::endl;
-            blas::Copy( ntotFine, psiFine.Data(), 1, phiEXX.VecData(j,k), 1);
-
-          } // for (j)
-        } // for (k)
-      }
       CalculateEXXEnergy( fock2 ); 
 
       // Update the energy
@@ -676,76 +620,14 @@ SCF::IterateHybrid (  )
       Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
     }
     else{
+      // Calculate first
       CalculateEXXEnergy( fock1 ); 
 
       // Update Phi <- Psi
-      {
-        // FIXME collect Psi into a globally shared array in the MPI context.
-        Fourier& fft = eigSolPtr_->FFT();
-        NumTns<Scalar>& phiEXX = eigSolPtr_->Ham().PhiEXX();
-        NumTns<Scalar>& wavefun = eigSolPtr_->Psi().Wavefun();
-        Int ntot = wavefun.m();
-        Int ncom = wavefun.n();
-        Int numStateLocal = wavefun.p();
-        Int ntotFine  = fft.domain.NumGridTotalFine();
-        DblNumVec psiFine(ntotFine);
-        Real vol = fft.domain.Volume();
-
-        // From coarse to fine grid
-        // FIXME Put in a more proper place
-        for (Int k=0; k<eigSolPtr_->Ham().NumStateTotal(); k++) {
-          for (Int j=0; j<ncom; j++) {
-
-            SetValue( psiFine, 0.0 );
-
-            SetValue( fft.inputVecR2C, 0.0 ); 
-            SetValue( fft.inputVecR2CFine, 0.0 ); 
-            SetValue( fft.outputVecR2C, Z_ZERO ); 
-            SetValue( fft.outputVecR2CFine, Z_ZERO ); 
-
-            // For c2r and r2c transforms, the default is to DESTROY the
-            // input, therefore a copy of the original matrix is necessary. 
-            blas::Copy( ntot, wavefun.VecData(j,k), 1, 
-                fft.inputVecR2C.Data(), 1 );
-
-
-            fftw_execute_dft_r2c(
-                fft.forwardPlanR2C, 
-                fft.inputVecR2C.Data(),
-                reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ));
-
-            // Interpolate wavefunction from coarse to fine grid
-            {
-              Int *idxPtr = fft.idxFineGridR2C.Data();
-              Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
-              Complex *fftOutPtr = fft.outputVecR2C.Data();
-              for( Int ig = 0; ig < fft.numGridTotalR2C; ig++ ){
-                fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
-              }
-            }
-
-            fftw_execute_dft_c2r(
-                fft.backwardPlanR2CFine, 
-                reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
-                fft.inputVecR2CFine.Data() );
-
-
-            // Factor normalize so that integration in the real space is 1
-            Real fac = 1.0 / std::sqrt( double(ntot) * double(ntotFine) );
-            fac *= std::sqrt( double(ntotFine) / vol );
-            blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
-            blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
-            if(0){
-              statusOFS << "int (psiFine^2) dx = " << Energy(psiFine)*vol / double(ntotFine) << std::endl;
-            }
-            blas::Copy( ntotFine, psiFine.Data(), 1, phiEXX.VecData(j,k), 1);
-
-          } // for (j)
-        } // for (k)
-      }
-      
+      ham.SetPhiEXX( psi, fft ); 
       
       fock0 = fock2;
+      // Calculate again
       CalculateEXXEnergy( fock2 ); 
       dExx = fock1 - 0.5 * (fock0 + fock2);
       
@@ -1435,16 +1317,20 @@ SCF::CalculateEXXEnergy	( Real& fockEnergy )
 #ifndef _RELEASE_
 	PushCallStack("SCF::CalculateEXXEnergy");
 #endif
+  
+  Hamiltonian& ham = eigSolPtr_->Ham();
+  Fourier&     fft = eigSolPtr_->FFT();
+  Spinor&      psi = eigSolPtr_->Psi();
+
+
   // Repeat the calculation of Vexx
   // FIXME Will be replaced by the stored VPhi matrix in the new
   // algorithm to reduce the cost, but this should be a new function
   
   // FIXME Should be combined better with the addition of exchange part in spinor
-  Fourier& fft = eigSolPtr_->FFT();
-  Spinor&  psi = eigSolPtr_->Psi();
   NumTns<Scalar>& wavefun = psi.Wavefun();
   DblNumVec& occupationRate = eigSolPtr_->Ham().OccupationRate();
-  Real exxFraction = eigSolPtr_->Ham().EXXFraction();
+  Real exxFraction = ham.EXXFraction();
 
   if( !fft.isInitialized ){
     throw std::runtime_error("Fourier is not prepared.");

@@ -1590,5 +1590,77 @@ KohnSham::MultSpinor	( Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft )
 } 		// -----  end of method KohnSham::MultSpinor  ----- 
 
 
+void
+KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::SetPhiEXX");
+#endif
+  // FIXME collect Psi into a globally shared array in the MPI context.
+  const NumTns<Scalar>& wavefun = psi.Wavefun();
+  Int ntot = wavefun.m();
+  Int ncom = wavefun.n();
+  Int numStateLocal = wavefun.p();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Real vol = fft.domain.Volume();
+
+  // Buffer
+  DblNumVec psiFine(ntotFine);
+
+  // From coarse to fine grid
+  // FIXME Put in a more proper place
+  for (Int k=0; k<this->NumStateTotal(); k++) {
+    for (Int j=0; j<ncom; j++) {
+
+      SetValue( psiFine, 0.0 );
+
+      SetValue( fft.inputVecR2C, 0.0 ); 
+      SetValue( fft.inputVecR2CFine, 0.0 ); 
+      SetValue( fft.outputVecR2C, Z_ZERO ); 
+      SetValue( fft.outputVecR2CFine, Z_ZERO ); 
+
+      // For c2r and r2c transforms, the default is to DESTROY the
+      // input, therefore a copy of the original matrix is necessary. 
+      blas::Copy( ntot, wavefun.VecData(j,k), 1, 
+          fft.inputVecR2C.Data(), 1 );
+
+      fftw_execute_dft_r2c(
+          fft.forwardPlanR2C, 
+          fft.inputVecR2C.Data(),
+          reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ));
+
+      // Interpolate wavefunction from coarse to fine grid
+      {
+        Int *idxPtr = fft.idxFineGridR2C.Data();
+        Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
+        Complex *fftOutPtr = fft.outputVecR2C.Data();
+        for( Int ig = 0; ig < fft.numGridTotalR2C; ig++ ){
+          fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
+        }
+      }
+
+      fftw_execute_dft_c2r(
+          fft.backwardPlanR2CFine, 
+          reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
+          fft.inputVecR2CFine.Data() );
+
+
+      // Factor normalize so that integration in the real space is 1
+      Real fac = 1.0 / std::sqrt( double(ntot) * double(ntotFine) );
+      fac *= std::sqrt( double(ntotFine) / vol );
+      blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
+      blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
+      statusOFS << "int (psiFine^2) dx = " << Energy(psiFine)*vol / double(ntotFine) << std::endl;
+      blas::Copy( ntotFine, psiFine.Data(), 1, phiEXX_.VecData(j,k), 1);
+
+    } // for (j)
+  } // for (k)
+
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+
+  return ;
+} 		// -----  end of method KohnSham::SetPhiEXX  ----- 
 
 } // namespace dgdft
