@@ -45,6 +45,7 @@
 /// @date 2012-09-16
 #include  "hamiltonian.hpp"
 #include  "blas.hpp"
+#include  "lapack.hpp"
 
 namespace dgdft{
 
@@ -253,6 +254,9 @@ KohnSham::Setup	(
       isHybrid_ = true;
       // FIXME Not considering restarting yet
       isEXXActive_ = false;
+
+      // FIXME
+      isHybridVexxProj_ = true;
 
       // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
       // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
@@ -1552,7 +1556,29 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
     psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
 
     if( isHybrid_ && isEXXActive_ ){
-      psi.AddMultSpinorEXX( fft, phiEXX_, exxFraction_,  numSpin_, occupationRate_, a3 );
+      if( this->IsHybridVexxProj() ){
+        // temporarily just implement here
+        // Directly use projector
+        Int numProj = vexxProj_.n();
+        Int numStateTotal = this->NumStateTotal();
+        Int ntot = psi.NumGridTotal();
+
+//        statusOFS << "numProj = " << numProj << std::endl;
+//        statusOFS << "numSTate= " << numStateTotal << std::endl;
+        DblNumMat M(numProj, numStateTotal);
+
+        // 
+        blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+            vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+            0.0, M.Data(), M.m() );
+        // Minus sign comes from that all eigenvalues are negative
+        blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+            vexxProj_.Data(), ntot, M.Data(), numProj,
+            1.0, a3.Data(), ntot );
+      }
+      else{
+        psi.AddMultSpinorEXX( fft, phiEXX_, exxFraction_,  numSpin_, occupationRate_, a3 );
+      }
     }
 #ifdef _USE_OPENMP_
   }
@@ -1662,5 +1688,102 @@ KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
 
   return ;
 } 		// -----  end of method KohnSham::SetPhiEXX  ----- 
+
+
+void
+KohnSham::CalculateVexxPsi ( Spinor& psi, Fourier& fft )
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::CalculateVexxPsi");
+#endif
+  // FIXME
+  Real SVDTolerance = 1e-4;
+  // This assumes SetPhiEXX has been called so that phiEXX and psi
+  // contain the same information. 
+  
+  // Since this is a projector, it should be done on the COARSE grid,
+  // i.e. to the wavefunction directly
+
+  // Only works for single processor
+  Int ntot      = fft.domain.NumGridTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int numStateTotal = phiEXX_.p();
+  NumTns<Scalar>  vexxPsi( ntot, 1, numStateTotal );
+
+  // VexxPsi = V_{exx}*Phi.
+  SetValue( vexxPsi, SCALAR_ZERO );
+  psi.AddMultSpinorEXX( fft, phiEXX_, exxFraction_,  numSpin_, 
+      occupationRate_, vexxPsi );
+
+  // Compute M = Phi'*vexxPsi
+  DblNumMat  M(numStateTotal, numStateTotal);
+  blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+      1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
+      0.0, M.Data(), numStateTotal );
+
+  DblNumMat  U( numStateTotal, numStateTotal );
+  DblNumMat VT( numStateTotal, numStateTotal );
+  DblNumVec  S( numStateTotal );
+  SetValue( S, 0.0 );
+  
+  lapack::QRSVD( numStateTotal, numStateTotal, M.Data(), numStateTotal,
+      S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
+
+
+  for( Int g = 0; g < numStateTotal; g++ ){
+    S[g] = std::sqrt( S[g] );
+  }
+
+  Int rankM = 0;
+  for( Int g = 0; g < numStateTotal; g++ ){
+    if( S[g] / S[0] > SVDTolerance ){
+      rankM++;
+    }
+  }
+  statusOFS << "rank of Phi'*VPhi matrix = " << rankM << std::endl;
+  for( Int g = 0; g < rankM; g++ ){
+    blas::Scal( numStateTotal, 1.0 / S[g], U.VecData(g), 1 );
+  }
+
+  vexxProj_.Resize( ntot, rankM );
+  blas::Gemm( 'N', 'N', ntot, rankM, numStateTotal, 1.0, 
+      vexxPsi.Data(), ntot, U.Data(), numStateTotal, 0.0,
+      vexxProj_.Data(), ntot );
+
+  // Sanity check. For debugging only
+  if(0){
+  // Make sure U and VT are the same. Should be an identity matrix
+    blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, numStateTotal, 1.0, 
+        VT.Data(), numStateTotal, U.Data(), numStateTotal, 0.0,
+        M.Data(), numStateTotal );
+    statusOFS << "M = " << M << std::endl;
+
+    NumTns<Scalar> vpsit = psi.Wavefun();
+    Int numProj = rankM;
+    DblNumMat Mt(numProj, numStateTotal);
+    
+    blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+        vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+        0.0, Mt.Data(), Mt.m() );
+    // Minus sign comes from that all eigenvalues are negative
+    blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+        vexxProj_.Data(), ntot, Mt.Data(), numProj,
+        0.0, vpsit.Data(), ntot );
+
+    for( Int k = 0; k < numStateTotal; k++ ){
+      Real norm = 0.0;
+      for( Int ir = 0; ir < ntot; ir++ ){
+        norm = norm + std::pow(vexxPsi(ir,0,k) - vpsit(ir,0,k), 2.0);
+      }
+      statusOFS << "Diff of vexxPsi " << std::sqrt(norm) << std::endl;
+    }
+  }
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method KohnSham::CalculateVexxPsi  ----- 
 
 } // namespace dgdft

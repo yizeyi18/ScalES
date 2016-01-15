@@ -124,6 +124,10 @@ protected:
   /// @brief Mixing parameter for hybrid functional calculation. Currently hard coded
   const Real                  exxFraction_ = 0.25;
 
+  /// @brief Whether to use projector form of implementation for hybrid
+  /// functional.
+  bool                        isHybridVexxProj_;
+
 public:
 
 	// *********************************************************************
@@ -178,6 +182,7 @@ public:
   
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
 
+  virtual void CalculateVexxPsi( Spinor& psi, Fourier& fft ) = 0;
 
 	// *********************************************************************
 	// Access
@@ -204,6 +209,7 @@ public:
   
   Real        ScreenMu() { return screenMu_;}
   Real        EXXFraction() { return exxFraction_;}
+  bool        IsHybridVexxProj() { return isHybridVexxProj_; }
 
 	// *********************************************************************
 	// Inquiry
@@ -227,6 +233,7 @@ private:
   /// NOTE: This might impose serious memory constraint for relatively
   /// large systems.
   NumTns<Scalar>              phiEXX_; 
+  DblNumMat                   vexxProj_; 
  
 public:
 
@@ -292,6 +299,8 @@ public:
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
 
   virtual NumTns<Scalar>& PhiEXX() {return phiEXX_;}
+
+  virtual void CalculateVexxPsi( Spinor& psi, Fourier& fft );
 };
 
 

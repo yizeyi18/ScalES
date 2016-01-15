@@ -447,6 +447,8 @@ SCF::IterateHybrid (  )
   // Fock energies
   Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
 
+  // FIXME Use the projector form of the hybrid functional
+  bool isHybridVexxProj_ = true;
 
   for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
     if ( isPhiIterConverged ) break;
@@ -608,6 +610,9 @@ SCF::IterateHybrid (  )
       ham.SetEXXActive(true);
       // Update Phi <- Psi
       ham.SetPhiEXX( eigSolPtr_->Psi(), eigSolPtr_->FFT() ); 
+      if( ham.IsHybridVexxProj() ){
+        ham.CalculateVexxPsi( psi, fft );
+      }
 
       CalculateEXXEnergy( fock2 ); 
 
@@ -625,6 +630,9 @@ SCF::IterateHybrid (  )
 
       // Update Phi <- Psi
       ham.SetPhiEXX( psi, fft ); 
+      if( ham.IsHybridVexxProj() ){
+        ham.CalculateVexxPsi( psi, fft );
+      }
       
       fock0 = fock2;
       // Calculate again

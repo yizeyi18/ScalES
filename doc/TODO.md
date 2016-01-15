@@ -13,7 +13,8 @@ TODO List   {#pageTODO}
   arithmetic
 - Better way to handle error: handling function taking a message as
   input is a more versatile way for handling error messaging. callstack
-  procedure is slow and does not work for openmp
+  procedure is slow and does not work for openmp. The DEBUG mode is too
+  slow due to push/popstacks
 - Simplify the input parameters. Spinor class should be removed and
   moved to the Hamiltonian class. In the future different types of
   spinors should be treated with different classes of "Hamiltonian". The
@@ -26,3 +27,4 @@ TODO List   {#pageTODO}
   implementation.
 - Refine Fourier to clean the normalization factors. Encapsulate the
   forward and backward Fourier transforms?
+- The "SCALAR" design should be kept?
