@@ -52,54 +52,6 @@ namespace dgdft{
 using namespace dgdft::PseudoComponent;
 using namespace dgdft::DensityComponent;
 
-// *********************************************************************
-// Hamiltonian class (base class)
-// *********************************************************************
-
-Hamiltonian::Hamiltonian	( 
-			const esdf::ESDFInputParam& esdfParam,
-      const Int                   numDensityComponent )
-{
-#ifndef _RELEASE_
-	PushCallStack("Hamiltonian::Hamiltonian");
-#endif
-	this->Setup( 
-			esdfParam.domain,
-			esdfParam.atomList,
-			esdfParam.pseudoType,
-			esdfParam.XCType,
-			esdfParam.numExtraState,
-			numDensityComponent );
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-	return ;
-} 		// -----  end of method Hamiltonian::Hamiltonian  ----- 
-
-void
-Hamiltonian::Setup ( 
-		const Domain&              dm,
-		const std::vector<Atom>&   atomList,
-		std::string                pseudoType,
-		std::string                XCType,
-		Int                        numExtraState,
-    Int                        numDensityComponent )
-{
-#ifndef _RELEASE_
-	PushCallStack("Hamiltonian::Setup");
-#endif
-	domain_        = dm;
-	atomList_      = atomList;
-	pseudoType_    = pseudoType;
-	numExtraState_ = numExtraState;
-
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-	return ;
-} 		// -----  end of method Hamiltonian::Setup  ----- 
-
-
 
 // *********************************************************************
 // KohnSham class
@@ -128,53 +80,26 @@ KohnSham::~KohnSham() {
   }
 }
 
-KohnSham::
-KohnSham( 
-			const esdf::ESDFInputParam& esdfParam,
-      const Int                   numDensityComponent ) : 
-		Hamiltonian( esdfParam , numDensityComponent ) 
-{
-#ifndef _RELEASE_
-	PushCallStack("KohnSham::KohnSham");
-#endif
-
-	this->Setup( 
-			esdfParam.domain,
-			esdfParam.atomList,
-			esdfParam.pseudoType,
-			esdfParam.XCType,
-			esdfParam.numExtraState,
-			numDensityComponent );
-
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-}
 
 
 void
 KohnSham::Setup	(
-		const Domain&              dm,
-		const std::vector<Atom>&   atomList,
-		std::string                pseudoType,
-		std::string                XCType,
-		Int                        numExtraState,
-    Int                        numDensityComponent )
+    const esdf::ESDFInputParam& esdfParam,
+    const Domain&              dm,
+    const std::vector<Atom>&   atomList )
 {
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::Setup");
 #endif
-	Hamiltonian::Setup(
-		dm,
-		atomList,
-		pseudoType,
-		XCType,
-		numExtraState,
-    numDensityComponent);
+	domain_              = dm;
+	atomList_            = atomList;
+	pseudoType_          = esdfParam.pseudoType;
+	numExtraState_       = esdfParam.numExtraState;
+  XCType_              = esdfParam.XCType;
+  isHybridVexxProj_    = esdfParam.isHybridVexxProj;
 
-  if( numDensityComponent != 1 ){
-    throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
-  }
+  // FIXME Hard coded
+  numDensityComponent_ = 1;
 
   // Since the number of density components is always 1 here, set numSpin = 2.
 	numSpin_ = 2;
@@ -184,12 +109,12 @@ KohnSham::Setup	(
   Int ntotCoarse = domain_.NumGridTotal();
   Int ntotFine = domain_.NumGridTotalFine();
 
-  density_.Resize( ntotFine, numDensityComponent );   
+  density_.Resize( ntotFine, numDensityComponent_ );   
   SetValue( density_, 0.0 );
 
   gradDensity_.resize( DIM );
   for( Int d = 0; d < DIM; d++ ){
-    gradDensity_[d].Resize( ntotFine, numDensityComponent );
+    gradDensity_[d].Resize( ntotFine, numDensityComponent_ );
     SetValue (gradDensity_[d], 0.0);
   }
 
@@ -211,7 +136,7 @@ KohnSham::Setup	(
 	epsxc_.Resize( ntotFine );
 	SetValue( epsxc_, 0.0 );
 
-	vxc_.Resize( ntotFine, numDensityComponent );
+	vxc_.Resize( ntotFine, numDensityComponent_ );
 	SetValue( vxc_, 0.0 );
 
 
@@ -221,7 +146,7 @@ KohnSham::Setup	(
   {
     isHybrid_ = false;
 
-    if( XCType == "XC_LDA_XC_TETER93" )
+    if( XCType_ == "XC_LDA_XC_TETER93" )
     { 
       XCId_ = XC_LDA_XC_TETER93;
       if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
@@ -230,7 +155,7 @@ KohnSham::Setup	(
       // Teter 93
       // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
     }    
-    else if( XCType == "XC_GGA_XC_PBE" )
+    else if( XCType_ == "XC_GGA_XC_PBE" )
     {
       XId_ = XC_GGA_X_PBE;
       CId_ = XC_GGA_C_PBE;
@@ -244,7 +169,7 @@ KohnSham::Setup	(
         throw std::runtime_error( "C functional initialization error." );
       }
     }
-    else if( XCType == "XC_HYB_GGA_XC_HSE06" )
+    else if( XCType_ == "XC_HYB_GGA_XC_HSE06" )
     {
       XCId_ = XC_HYB_GGA_XC_HSE06;
       if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
@@ -254,9 +179,6 @@ KohnSham::Setup	(
       isHybrid_ = true;
       // FIXME Not considering restarting yet
       isEXXActive_ = false;
-
-      // FIXME
-      isHybridVexxProj_ = true;
 
       // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
       // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
@@ -554,7 +476,6 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
   PushCallStack("KohnSham::CalculateXC");
 #endif
   Int ntot = domain_.NumGridTotalFine();
-  Int numDensityComponent = vxc_.n();
   Real vol = domain_.Volume();
 
   if( XCId_ == XC_LDA_XC_TETER93 ) 
@@ -565,13 +486,13 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
   else if( ( XId_ == XC_GGA_X_PBE ) && ( CId_ == XC_GGA_C_PBE ) ) {
     DblNumMat     vxc1;             
     DblNumMat     vxc2;             
-    vxc1.Resize( ntot, numDensityComponent );
-    vxc2.Resize( ntot, numDensityComponent );
+    vxc1.Resize( ntot, numDensityComponent_ );
+    vxc2.Resize( ntot, numDensityComponent_ );
 
     DblNumMat     vxc1temp;             
     DblNumMat     vxc2temp;             
-    vxc1temp.Resize( ntot, numDensityComponent );
-    vxc2temp.Resize( ntot, numDensityComponent );
+    vxc1temp.Resize( ntot, numDensityComponent_ );
+    vxc2temp.Resize( ntot, numDensityComponent_ );
 
     DblNumVec     epsx; 
     DblNumVec     epsc; 
@@ -579,7 +500,7 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
     epsc.Resize( ntot );
 
     DblNumMat gradDensity;
-    gradDensity.Resize( ntot, numDensityComponent );
+    gradDensity.Resize( ntot, numDensityComponent_ );
     SetValue( gradDensity, 0.0 );
     DblNumMat& gradDensity0 = gradDensity_[0];
     DblNumMat& gradDensity1 = gradDensity_[1];
@@ -646,12 +567,12 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
     // FIXME Condensify with the previous
     DblNumMat     vxc1;             
     DblNumMat     vxc2;             
-    vxc1.Resize( ntot, numDensityComponent );
-    vxc2.Resize( ntot, numDensityComponent );
+    vxc1.Resize( ntot, numDensityComponent_ );
+    vxc2.Resize( ntot, numDensityComponent_ );
 
 
     DblNumMat gradDensity;
-    gradDensity.Resize( ntot, numDensityComponent );
+    gradDensity.Resize( ntot, numDensityComponent_ );
     SetValue( gradDensity, 0.0 );
     DblNumMat& gradDensity0 = gradDensity_[0];
     DblNumMat& gradDensity1 = gradDensity_[1];

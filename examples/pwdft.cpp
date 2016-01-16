@@ -122,6 +122,7 @@ int main(int argc, char **argv)
 			Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
 			Print(statusOFS, "SCF Phi MaxIter   = ",  esdfParam.scfPhiMaxIter);
 			Print(statusOFS, "SCF Phi Tol       = ",  esdfParam.scfPhiTolerance);
+			Print(statusOFS, "Hybrid Vexx Proj  = ",  esdfParam.isHybridVexxProj);
 			Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
 			Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
 			Print(statusOFS, "Eig Tolerance Dyn = ",  esdfParam.isEigToleranceDynamic);
@@ -173,8 +174,7 @@ int main(int argc, char **argv)
 
 		// Hamiltonian
 
-		hamKS.Setup( dm, esdfParam.atomList, esdfParam.pseudoType, 
-				esdfParam.XCType, esdfParam.numExtraState );
+		hamKS.Setup( esdfParam, dm, esdfParam.atomList );
 
 		DblNumVec& vext = hamKS.Vext();
 		SetValue( vext, 0.0 );

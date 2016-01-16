@@ -941,6 +941,10 @@ void esdf_key() {
 	strcpy(kw_typ[i],"D:E");
 	strcpy(kw_dscrpt[i],"*! Tolerance for hybrid functional iteration!*");
 
+	i++;
+	strcpy(kw_label[i],"hybrid_vexx_proj");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! whether use the projection formulation for hybrid functional!*");
 }
 
 void esdf() {
@@ -2179,6 +2183,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
 		esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
 		esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
+		esdfParam.isHybridVexxProj     = esdf_integer( "Hybrid_Vexx_Proj", 0 );
 
     // Default is no locking
 		esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-20 );

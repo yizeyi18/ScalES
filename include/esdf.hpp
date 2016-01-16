@@ -206,6 +206,11 @@ namespace esdf{
     ///
     /// Default: 1e-6
     Real                scfPhiTolerance;
+    /// @brief Whether to use the projection formulation for hybrid
+    /// functional
+    ///
+    /// Default: 0
+    bool                isHybridVexxProj;
     /// @brief Tolerance for the eigenvalue solver
     ///
     /// Default: 1e-6

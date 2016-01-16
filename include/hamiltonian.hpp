@@ -63,6 +63,9 @@ namespace dgdft{
 
 
 
+
+/// @brief Pure virtual class for handling different types of
+/// Hamiltonian.
 class Hamiltonian {
 protected:
 	Domain                      domain_;
@@ -71,9 +74,11 @@ protected:
 	Int                         numSpin_;
 	Int                         numExtraState_;
 	Int                         numOccupiedState_;
+  Int                         numDensityComponent_;
 	// Type of pseudopotential, default HGH
 	std::string                 pseudoType_;
 	// Id of the exchange-correlation potential
+  std::string                 XCType_;
 	Int                         XCId_;
 	Int                         XId_;
 	Int                         CId_;
@@ -135,17 +140,11 @@ public:
 	// *********************************************************************
 	Hamiltonian() {}
 	virtual ~Hamiltonian() {}
-	Hamiltonian( 
-			const esdf::ESDFInputParam& esdfParam,
-			const Int                   numDensityComponent );
 
 	virtual void Setup (
-		const Domain&              dm,
-		const std::vector<Atom>&   atomList,
-		std::string                pseudoType,
-		std::string                XCType,
-		Int                        numExtraState,
-    Int                        numDensityComponent );
+		const esdf::ESDFInputParam& esdfParam,
+    const Domain&              dm,
+		const std::vector<Atom>&   atomList ) = 0;
  
 
 	// *********************************************************************
@@ -228,6 +227,8 @@ public:
 // *********************************************************************
 // One-component Kohn-Sham class
 // *********************************************************************
+/// @brief Detailed implementation of one-component (spin-restricted)
+/// Kohn-Sham calculations.
 class KohnSham: public Hamiltonian {
 private: 
 
@@ -245,17 +246,10 @@ public:
   KohnSham();
   ~KohnSham();
 
-	KohnSham( 
-			const esdf::ESDFInputParam& esdfParam,
-      const Int                   numDensityComponent );
-
-	void Setup (
-		const Domain&              dm,
-		const std::vector<Atom>&   atomList,
-		std::string                pseudoType,
-		std::string                XCType,
-		Int                        numExtraState = 0,
-    Int                        numDensityComponent = 1 );
+	virtual void Setup (
+		const esdf::ESDFInputParam& esdfParam,
+    const Domain&              dm,
+		const std::vector<Atom>&   atomList );
 
 	void Update ( std::vector<Atom>&  atomList );
 
