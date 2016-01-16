@@ -126,13 +126,6 @@ struct Fourier {
 	void Initialize( const Domain& dm );
   void InitializeFine( const Domain& dm );
 
-  // Should follow InitializeFine
-  // FIXME These two variables should belong to Hamiltonian
-  DblNumVec                exxgkkR2CFine;
-  void InitializeEXX( Real screenMu, Real ecutWavefunction );
-
-  // FIXME Should have forward/backward Fourier transform routine with
-  // proper normalization constant
 };
 
 

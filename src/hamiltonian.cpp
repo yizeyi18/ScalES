@@ -85,8 +85,8 @@ KohnSham::~KohnSham() {
 void
 KohnSham::Setup	(
     const esdf::ESDFInputParam& esdfParam,
-    const Domain&              dm,
-    const std::vector<Atom>&   atomList )
+    const Domain&               dm,
+    const std::vector<Atom>&    atomList )
 {
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::Setup");
@@ -97,6 +97,7 @@ KohnSham::Setup	(
 	numExtraState_       = esdfParam.numExtraState;
   XCType_              = esdfParam.XCType;
   isHybridVexxProj_    = esdfParam.isHybridVexxProj;
+  exxDivergenceType_   = esdfParam.exxDivergenceType;
 
   // FIXME Hard coded
   numDensityComponent_ = 1;
@@ -177,8 +178,6 @@ KohnSham::Setup	(
       } 
 
       isHybrid_ = true;
-      // FIXME Not considering restarting yet
-      isEXXActive_ = false;
 
       // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
       // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
@@ -191,7 +190,6 @@ KohnSham::Setup	(
     }
   }
   	
-
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -1501,7 +1499,8 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
           1.0, a3.Data(), ntot );
     }
     else{
-      psi.AddMultSpinorEXX( fft, phiEXX_, exxFraction_,  numSpin_, occupationRate_, a3 );
+      psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2CFine_,
+          exxFraction_,  numSpin_, occupationRate_, a3 );
     }
   }
 
@@ -1536,6 +1535,112 @@ KohnSham::MultSpinor	( Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft )
 	return ;
 } 		// -----  end of method KohnSham::MultSpinor  ----- 
 
+
+void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::InitializeEXX");
+#endif  // ifndef _RELEASE_
+  const Real epsDiv = 1e-8;
+
+  // FIXME Not considering restarting yet
+  isEXXActive_ = false;
+
+  Int numGridTotalR2CFine = fft.numGridTotalR2CFine;
+  exxgkkR2CFine_.Resize(numGridTotalR2CFine);
+  SetValue( exxgkkR2CFine_, 0.0 );
+
+
+  // extra 2.0 factor for ecutWavefunction compared to QE due to unit difference
+  // tpiba2 in QE is just a unit for G^2. Do not include it here
+  Real exxAlpha = 10.0 / (ecutWavefunction * 2.0);
+
+  // Gygi-Baldereschi regularization. Currently set to zero and compare
+  // with QE without the regularization 
+  // Set exxdiv_treatment to "none"
+  // NOTE: I do not quite understand the detailed derivation
+  // Compute the divergent term for G=0
+  Real gkk2;
+  if(exxDivergenceType_ == 0){
+    exxDiv_ = 0.0;
+  }
+  else if (exxDivergenceType_ == 1){
+    exxDiv_ = 0.0;
+    // no q-point
+    // NOTE: Compared to the QE implementation, it is easier to do below.
+    // Do the integration over the entire G-space rather than just the
+    // R2C grid. This is because it is an integration in the G-space.
+    // This implementation fully agrees with the QE result.
+    for( Int ig = 0; ig < fft.numGridTotalFine; ig++ ){
+      gkk2 = fft.gkkFine(ig) * 2.0;
+      if( gkk2 > epsDiv ){
+        if( screenMu_ > 0.0 ){
+          exxDiv_ += std::exp(-exxAlpha * gkk2) / gkk2 * 
+            (1.0 - std::exp(-gkk2 / (4.0*screenMu_*screenMu_)));
+        }
+        else{
+          exxDiv_ += std::exp(-exxAlpha * gkk2) / gkk2;
+        }
+      }
+    } // for (ig)
+
+    if( screenMu_ > 0.0 ){
+      exxDiv_ += 1.0 / (4.0*screenMu_*screenMu_);
+    }
+    else{
+      exxDiv_ -= exxAlpha;
+    }
+    exxDiv_ *= 4.0 * PI;
+
+
+    Int nqq = 100000;
+    Real dq = 5.0 / std::sqrt(exxAlpha) / nqq;
+    Real aa = 0.0;
+    Real qt, qt2;
+    for( Int iq = 0; iq < nqq; iq++ ){
+      qt = dq * (iq+0.5);
+      qt2 = qt*qt;
+      if( screenMu_ > 0.0 ){
+        aa -= std::exp(-exxAlpha *qt2) * 
+          std::exp(-qt2 / (4.0*screenMu_*screenMu_)) * dq;
+      }
+    }
+    aa = aa * 2.0 / PI + 1.0 / std::sqrt(exxAlpha*PI);
+    exxDiv_ -= domain_.Volume()*aa;
+  }
+
+  if(0){
+    statusOFS << "computed exxDiv_ = " << exxDiv_ << std::endl;
+  }
+
+
+  for( Int ig = 0; ig < numGridTotalR2CFine; ig++ ){
+    gkk2 = fft.gkkR2CFine(ig) * 2.0;
+    if( gkk2 > epsDiv ){
+      if( screenMu_ > 0 ){
+        // 2.0*pi instead 4.0*pi due to gkk includes a factor of 2
+        exxgkkR2CFine_[ig] = 4.0 * PI / gkk2 * (1.0 - 
+            std::exp( -gkk2 / (4.0*screenMu_*screenMu_) ));
+      }
+      else{
+        exxgkkR2CFine_[ig] = 4.0 * PI / gkk2;
+      }
+    }
+    else{
+      exxgkkR2CFine_[ig] = -exxDiv_;
+      if( screenMu_ > 0 ){
+        exxgkkR2CFine_[ig] += PI / (screenMu_*screenMu_);
+      }
+    }
+  } // for (ig)
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif  // ifndef _RELEASE_
+
+	return ;
+}		// -----  end of function KohnSham::InitializeEXX  ----- 
 
 void
 KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
@@ -1645,8 +1750,8 @@ KohnSham::CalculateVexxPsi ( Spinor& psi, Fourier& fft )
 
   // VexxPsi = V_{exx}*Phi.
   SetValue( vexxPsi, SCALAR_ZERO );
-  psi.AddMultSpinorEXX( fft, phiEXX_, exxFraction_,  numSpin_, 
-      occupationRate_, vexxPsi );
+  psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2CFine_,
+      exxFraction_,  numSpin_, occupationRate_, vexxPsi );
 
   // Compute M = Phi'*vexxPsi
   DblNumMat  M(numStateTotal, numStateTotal);
@@ -1790,7 +1895,8 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
   else{
     NumTns<Scalar>  vexxPsi( ntot, 1, numStateTotalPhi );
     SetValue( vexxPsi, SCALAR_ZERO );
-    psi.AddMultSpinorEXX( fft, phiEXX_, exxFraction_,  numSpin_, occupationRate_, 
+    psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2CFine_, 
+        exxFraction_,  numSpin_, occupationRate_, 
        vexxPsi );
     // Compute the exchange energy:
     // Note: no additional normalization factor due to the

@@ -211,6 +211,15 @@ namespace esdf{
     ///
     /// Default: 0
     bool                isHybridVexxProj;
+    /// @brief Treatment of the divergence term in hybrid functional
+    /// calculation.
+    ///
+    /// Default: 1
+    ///
+    /// - 0    : No regularization
+    /// - 1    : Gygi-Baldereschi regularization
+    Int                 exxDivergenceType;
+
     /// @brief Tolerance for the eigenvalue solver
     ///
     /// Default: 1e-6

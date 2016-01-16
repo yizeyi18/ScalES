@@ -123,6 +123,7 @@ int main(int argc, char **argv)
 			Print(statusOFS, "SCF Phi MaxIter   = ",  esdfParam.scfPhiMaxIter);
 			Print(statusOFS, "SCF Phi Tol       = ",  esdfParam.scfPhiTolerance);
 			Print(statusOFS, "Hybrid Vexx Proj  = ",  esdfParam.isHybridVexxProj);
+			Print(statusOFS, "EXX div type      = ",  esdfParam.exxDivergenceType);
 			Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
 			Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
 			Print(statusOFS, "Eig Tolerance Dyn = ",  esdfParam.isEigToleranceDynamic);
@@ -225,9 +226,9 @@ int main(int argc, char **argv)
 
     if( hamKS.IsHybrid() ){
       // FIXME Screen parameters
-      statusOFS << "Hybrid mixing parametr  = " << hamKS.EXXFraction() << std::endl; 
+      statusOFS << "Hybrid mixing parameter  = " << hamKS.EXXFraction() << std::endl; 
       statusOFS << "Hybrid screening length = " << hamKS.ScreenMu() << std::endl;
-      fft.InitializeEXX( hamKS.ScreenMu(), esdfParam.ecutWavefunction );
+      hamKS.InitializeEXX( esdfParam.ecutWavefunction, fft );
       statusOFS << "Exact exchange fft setup finished." << std::endl;
     }
 

@@ -1064,6 +1064,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 //
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
     const NumTns<Scalar>& phi,
+    const DblNumVec& exxgkkR2CFine,
     Real  exxFraction,
     Real  numSpin,
     const DblNumVec& occupationRate,
@@ -1173,7 +1174,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
           // Solve the Poisson-like problem for exchange
           for( Int ig = 0; ig < ntotR2CFine; ig++ ){
-            fft.outputVecR2CFine(ig) *= fft.exxgkkR2CFine(ig);
+            fft.outputVecR2CFine(ig) *= exxgkkR2CFine(ig);
           }
 
           fftw_execute_dft_c2r(

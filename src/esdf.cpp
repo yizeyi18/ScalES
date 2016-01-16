@@ -945,6 +945,11 @@ void esdf_key() {
 	strcpy(kw_label[i],"hybrid_vexx_proj");
 	strcpy(kw_typ[i],"I:E");
 	strcpy(kw_dscrpt[i],"*! whether use the projection formulation for hybrid functional!*");
+	
+  i++;
+	strcpy(kw_label[i],"exx_divergence_type");
+	strcpy(kw_typ[i],"I:E");
+	strcpy(kw_dscrpt[i],"*! treatment of the divergence term in hybrid functional!*");
 }
 
 void esdf() {
@@ -2184,6 +2189,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 		esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
 		esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
 		esdfParam.isHybridVexxProj     = esdf_integer( "Hybrid_Vexx_Proj", 0 );
+		esdfParam.exxDivergenceType    = esdf_integer( "EXX_Divergence_Type", 1 );
 
     // Default is no locking
 		esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-20 );

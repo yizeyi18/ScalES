@@ -133,6 +133,10 @@ protected:
   /// functional.
   bool                        isHybridVexxProj_;
 
+  Int                         exxDivergenceType_;
+
+  Real                        exxDiv_;
+
 public:
 
 	// *********************************************************************
@@ -178,6 +182,8 @@ public:
 	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft) = 0;
   
   virtual NumTns<Scalar>& PhiEXX() = 0;
+  
+  virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
   
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
 
@@ -237,6 +243,7 @@ private:
   /// large systems.
   NumTns<Scalar>              phiEXX_; 
   DblNumMat                   vexxProj_; 
+  DblNumVec                   exxgkkR2CFine_;
  
 public:
 
@@ -300,63 +307,10 @@ public:
 
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
 
+  virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft );
 };
 
 
-
-// Two-component Kohn-Sham with spin orbit coupling.
-//class KohnSham2C: public Hamiltonian {
-//  public:
-//    // Total number of projectors for spin-orbit coupling
-//    int _ntotalPSSpinOrbit;
-//    // nonlocal potential for spin-orbit coupling
-//    vector< vector< pair<SparseVec,double> > > _vnlSO;
-//
-//  public:
-//    KohnSham2C();
-//    ~KohnSham2C();
-//    KohnSham2C(Domain &dm, Index2 &val);
-//    KohnSham2C(Domain &dm, int val);
-//    KohnSham2C(Domain &dm, vector<Atom> &atvec, int nexstate, string PStype, int n);
-//    KohnSham2C(Domain &dm, vector<Atom> &atvec, int nexstate, int n);
-//
-//    int get_density(Spinor &psi, DblNumVec &occrate, double &val); 
-//    int set_XC(xc_func_type& XCFunc, double &val);
-//    int set_total();
-//    int set_total(DblNumVec &vtot);
-//    int set_nonlocalPS(PeriodTable &ptable, int &cnt);
-//    int set_nonlocalPSSpinOrbit(PeriodTable &ptable, int &cnt);
-//    int set_atomPSden(PeriodTable &ptable);
-//    int set_PS(PeriodTable &ptable);
-//    int act_spinor(Spinor &psi0, CpxNumTns &a3, FFTPrepare &fp);
-//};
-
-// Four-component Dirac-Kohn-Sham
-//class DiracKohnSham: public Hamiltonian {
-//  public:
-//    // Total number of projectors for spin-orbit coupling
-//    int _ntotalPSSpinOrbit;
-//    // nonlocal potential for spin-orbit coupling
-//    vector< vector< pair<SparseVec,double> > > _vnlSO;
-//
-//  public:
-//    DiracKohnSham();
-//    ~DiracKohnSham();
-//    DiracKohnSham(Domain &dm, Index2 &val);
-//    DiracKohnSham(Domain &dm, int val);
-//    DiracKohnSham(Domain &dm, vector<Atom> &atvec, int nexstate, string PStype, int n);
-//    DiracKohnSham(Domain &dm, vector<Atom> &atvec, int nexstate, int n);
-//
-//    int get_density(Spinor &psi, DblNumVec &occrate, double &val); 
-//    int set_XC(xc_func_type& XCFunc, double &val);
-//    int set_total();
-//    int set_total(DblNumVec &vtot);
-//    int set_nonlocalPS(PeriodTable &ptable, int &cnt);
-//    int set_nonlocalPSSpinOrbit(PeriodTable &ptable, int &cnt);
-//    int set_atomPSden(PeriodTable &ptable);
-//    int set_PS(PeriodTable &ptable);
-//    int act_spinor(Spinor &psi0, CpxNumTns &a3, FFTPrepare &fp);
-//};
 
 } // namespace dgdft
 
