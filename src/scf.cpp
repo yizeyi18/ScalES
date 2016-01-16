@@ -183,15 +183,6 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
         XCType_ == "XC_HYB_GGA_XC_HSE06" ) {
       isCalculateGradRho_ = true;
     }
-    
-  }
-
-  if( eigSolPtr_->Ham().IsHybrid() ){
-    // Allocate memory for PhiEXX
-    Int ntotFine = esdfParam.domain.NumGridTotalFine();
-    NumTns<Scalar>& phiEXX = eigSolPtr_->Ham().PhiEXX();
-    phiEXX.Resize( ntotFine, 1, eigSolPtr_->Ham().NumStateTotal() );
-    SetValue( phiEXX, SCALAR_ZERO );
   }
 
 #ifndef _RELEASE_

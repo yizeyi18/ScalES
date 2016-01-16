@@ -1086,8 +1086,9 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
   if( ncomPhi != 1 || ncom != 1 ){
     throw std::logic_error("Spin polarized case not implemented.");
   }
-  Int numStateTotalPhi = phi.p();
-//  statusOFS << "numStateTotalPhi = " << numStateTotalPhi << std::endl;
+  // This assumes phi is stored on ALL processors, and could be memory consuming
+  Int numStateTotal = phi.p();
+//  statusOFS << "numStateTotal = " << numStateTotal << std::endl;
 
   Int ntotR2C = fft.numGridTotalR2C;
   Int ntotR2CFine = fft.numGridTotalR2CFine;
@@ -1153,7 +1154,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
       // NOTE: No parallelization over the phi tensor.
       // All processors have access to all phi. This means that this version of exact
       // exchange cannot be performed over many processors
-      for( Int kphi = 0; kphi < numStateTotalPhi; kphi++ ){
+      for( Int kphi = 0; kphi < numStateTotal; kphi++ ){
         for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
           // Skip the unoccupied bands
           if( occupationRate[kphi] < 1e-8 )

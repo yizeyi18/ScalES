@@ -1469,41 +1469,41 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 #endif
   SetValue( a3, SCALAR_ZERO );
 
-#ifdef _USE_OPENMP_
   // DO not use OpenMP for now.
+#ifdef _USE_OPENMP_
 //#pragma omp parallel
   {
 #endif
     psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
-
-    if( isHybrid_ && isEXXActive_ ){
-      if( this->IsHybridVexxProj() ){
-        // temporarily just implement here
-        // Directly use projector
-        Int numProj = vexxProj_.n();
-        Int numStateTotal = this->NumStateTotal();
-        Int ntot = psi.NumGridTotal();
-
-//        statusOFS << "numProj = " << numProj << std::endl;
-//        statusOFS << "numSTate= " << numStateTotal << std::endl;
-        DblNumMat M(numProj, numStateTotal);
-
-        // 
-        blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
-            vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
-            0.0, M.Data(), M.m() );
-        // Minus sign comes from that all eigenvalues are negative
-        blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
-            vexxProj_.Data(), ntot, M.Data(), numProj,
-            1.0, a3.Data(), ntot );
-      }
-      else{
-        psi.AddMultSpinorEXX( fft, phiEXX_, exxFraction_,  numSpin_, occupationRate_, a3 );
-      }
-    }
 #ifdef _USE_OPENMP_
   }
 #endif
+
+  if( isHybrid_ && isEXXActive_ ){
+    if( this->IsHybridVexxProj() ){
+      // temporarily just implement here
+      // Directly use projector
+      Int numProj = vexxProj_.n();
+      Int numStateTotal = this->NumStateTotal();
+      Int ntot = psi.NumGridTotal();
+
+      //        statusOFS << "numProj = " << numProj << std::endl;
+      //        statusOFS << "numSTate= " << numStateTotal << std::endl;
+      DblNumMat M(numProj, numStateTotal);
+
+      // 
+      blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+          vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+          0.0, M.Data(), M.m() );
+      // Minus sign comes from that all eigenvalues are negative
+      blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+          vexxProj_.Data(), ntot, M.Data(), numProj,
+          1.0, a3.Data(), ntot );
+    }
+    else{
+      psi.AddMultSpinorEXX( fft, phiEXX_, exxFraction_,  numSpin_, occupationRate_, a3 );
+    }
+  }
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -1548,15 +1548,23 @@ KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
   Int ntot = wavefun.m();
   Int ncom = wavefun.n();
   Int numStateLocal = wavefun.p();
+  Int numStateTotal = this->NumStateTotal();
   Int ntotFine  = fft.domain.NumGridTotalFine();
   Real vol = fft.domain.Volume();
+
+  phiEXX_.Resize( ntotFine, ncom, numStateTotal );
+  SetValue( phiEXX_, SCALAR_ZERO );
+
+  // Temporary buffer for collecting contribution from different MPI procs.
+//  NumTns<Scalar> phiEXXTmp = phiEXX_;
+//  SetValue(phiEXXTmp, SCALAR_ZERO);
 
   // Buffer
   DblNumVec psiFine(ntotFine);
 
   // From coarse to fine grid
   // FIXME Put in a more proper place
-  for (Int k=0; k<this->NumStateTotal(); k++) {
+  for (Int k=0; k<numStateLocal; k++) {
     for (Int j=0; j<ncom; j++) {
 
       SetValue( psiFine, 0.0 );
@@ -1598,11 +1606,15 @@ KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
       blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
       blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
       statusOFS << "int (psiFine^2) dx = " << Energy(psiFine)*vol / double(ntotFine) << std::endl;
-      blas::Copy( ntotFine, psiFine.Data(), 1, phiEXX_.VecData(j,k), 1);
+      
+      blas::Copy( ntotFine, psiFine.Data(), 1, phiEXX_.VecData(j,psi.WavefunIdx(k)), 1);
 
     } // for (j)
   } // for (k)
 
+//  mpi::Allreduce( phiEXXTmp.Data(), phiEXX_.Data(), ntotFine * ncom * numStateTotal, MPI_SUM, 
+//     domain_.comm );
+  
 #ifndef _RELEASE_
   PopCallStack();
 #endif
