@@ -148,7 +148,6 @@ public:
 	void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
   // EXX
 	void  IterateHybrid();
-  void  CalculateEXXEnergy( Real& fockEnergy );
 
 
 

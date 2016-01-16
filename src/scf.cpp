@@ -614,7 +614,7 @@ SCF::IterateHybrid (  )
         ham.CalculateVexxPsi( psi, fft );
       }
 
-      CalculateEXXEnergy( fock2 ); 
+      fock2 = ham.CalculateEXXEnergy( psi, fft ); 
 
       // Update the energy
       Efock_ = fock2;
@@ -626,7 +626,7 @@ SCF::IterateHybrid (  )
     }
     else{
       // Calculate first
-      CalculateEXXEnergy( fock1 ); 
+      fock1 = ham.CalculateEXXEnergy( psi, fft ); 
 
       // Update Phi <- Psi
       ham.SetPhiEXX( psi, fft ); 
@@ -636,7 +636,7 @@ SCF::IterateHybrid (  )
       
       fock0 = fock2;
       // Calculate again
-      CalculateEXXEnergy( fock2 ); 
+      fock2 = ham.CalculateEXXEnergy( psi, fft ); 
       dExx = fock1 - 0.5 * (fock0 + fock2);
       
       Efock_ = fock2;
@@ -1318,161 +1318,5 @@ void SCF::OutputState	(  )
 	return ;
 } 		// -----  end of method SCF::OutputState  ----- 
 
-// This comes from exxenergy2() function in exx.f90 in QE.
-void
-SCF::CalculateEXXEnergy	( Real& fockEnergy )
-{
-#ifndef _RELEASE_
-	PushCallStack("SCF::CalculateEXXEnergy");
-#endif
-  
-  Hamiltonian& ham = eigSolPtr_->Ham();
-  Fourier&     fft = eigSolPtr_->FFT();
-  Spinor&      psi = eigSolPtr_->Psi();
-
-
-  // Repeat the calculation of Vexx
-  // FIXME Will be replaced by the stored VPhi matrix in the new
-  // algorithm to reduce the cost, but this should be a new function
-  
-  // FIXME Should be combined better with the addition of exchange part in spinor
-  NumTns<Scalar>& wavefun = psi.Wavefun();
-  DblNumVec& occupationRate = eigSolPtr_->Ham().OccupationRate();
-  Real exxFraction = ham.EXXFraction();
-
-  if( !fft.isInitialized ){
-    throw std::runtime_error("Fourier is not prepared.");
-  }
-  Index3& numGrid = fft.domain.numGrid;
-  Index3& numGridFine = fft.domain.numGridFine;
-  Int ntot = wavefun.m();
-  Int ncom = wavefun.n();
-  Int numStateLocal = wavefun.p();
-  Int ntotFine = fft.domain.NumGridTotalFine();
-  Real vol = fft.domain.Volume();
-  NumTns<Scalar>& phi = eigSolPtr_->Ham().PhiEXX();
-  Int ncomPhi = phi.n();
-  if( ncomPhi != 1 || ncom != 1 ){
-    throw std::logic_error("Spin polarized case not implemented.");
-  }
-  Int numStateTotalPhi = phi.p();
-
-  Int ntotR2C = fft.numGridTotalR2C;
-  Int ntotR2CFine = fft.numGridTotalR2CFine;
-
-  if( fft.domain.NumGridTotal() != ntot ){
-    throw std::logic_error("Domain size does not match.");
-  }
-
-  // Temporary variable for saving wavefunction on a fine grid
-  DblNumVec psiFine(ntotFine);
-  DblNumVec hpsiFine(ntotFine);
-  
-
-  // FIXME OpenMP does not work since all variables are shared
-  fockEnergy = 0.0;
-  for (Int k=0; k<numStateLocal; k++) {
-    for (Int j=0; j<ncom; j++) {
-      // Skip the unoccupied bands
-      if( occupationRate[k] < 1e-8 )
-        continue;
-
-      SetValue( psiFine, 0.0 );
-      SetValue( hpsiFine, 0.0 );
-
-      // FIXME Maybe make this a more standard routine
-      // R2C version
-      if(1)
-      {
-        SetValue( fft.inputVecR2C, 0.0 ); 
-        SetValue( fft.inputVecR2CFine, 0.0 ); 
-        SetValue( fft.outputVecR2C, Z_ZERO ); 
-        SetValue( fft.outputVecR2CFine, Z_ZERO ); 
-
-        // For c2r and r2c transforms, the default is to DESTROY the
-        // input, therefore a copy of the original matrix is necessary. 
-        blas::Copy( ntot, wavefun.VecData(j,k), 1, 
-            fft.inputVecR2C.Data(), 1 );
-
-        fftw_execute_dft_r2c(
-            fft.forwardPlanR2C, 
-            fft.inputVecR2C.Data(),
-            reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ));
-
-        // Interpolate wavefunction from coarse to fine grid
-        {
-          Int *idxPtr = fft.idxFineGridR2C.Data();
-          Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
-          Complex *fftOutPtr = fft.outputVecR2C.Data();
-          for( Int ig = 0; ig < ntotR2C; ig++ ){
-            fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
-          }
-        }
-
-        fftw_execute_dft_c2r(
-            fft.backwardPlanR2CFine, 
-            reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
-            fft.inputVecR2CFine.Data() );
-
-        Real fac = 1.0 / std::sqrt( double(fft.numGridTotal) * double(fft.numGridTotalFine)); 
-        blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
-        blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
-
-      }  // if (1)
-
-      // Add the contribution from exchange. 
-      // NOTE: No parallelization over the phi tensor.
-      // All processors have access to all phi. This means that this version of exact
-      // exchange cannot be performed over many processors
-      for( Int kphi = 0; kphi < numStateTotalPhi; kphi++ ){
-        for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
-          // Skip the unoccupied bands
-          if( occupationRate[kphi] < 1e-8 )
-            continue;
-
-          Real* phiPtr = phi.VecData(jphi, kphi);
-          // rhoc = phi*psi in the real space
-          for( Int ir = 0; ir < ntotFine; ir++ ){
-            fft.inputVecR2CFine(ir) = psiFine(ir) * phiPtr[ir];
-          }
-
-          fftw_execute_dft_r2c(
-              fft.forwardPlanR2CFine, 
-              fft.inputVecR2CFine.Data(),
-              reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
-
-          // Solve the Poisson-like problem for exchange
-          for( Int ig = 0; ig < ntotR2CFine; ig++ ){
-            fft.outputVecR2CFine(ig) *= fft.exxgkkR2CFine(ig);
-          }
-
-          fftw_execute_dft_c2r(
-              fft.backwardPlanR2CFine, 
-              reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
-              fft.inputVecR2CFine.Data() );
-
-          // NOTE: No multiplication with spin
-          Real fac = -exxFraction * occupationRate[kphi] / double(ntotFine);  
-          for( Int ir = 0; ir < ntotFine; ir++ ){
-            hpsiFine(ir) += fft.inputVecR2CFine(ir) * phiPtr[ir] * fac;
-          }
-        } // for (jphi)
-      } // for (kphi)
-
-      // Compute the exchange energy:
-      // Note: no additional normalization factor due to the
-      // normalization rule of psi, NOT phi!!
-      for( Int ir = 0; ir < ntotFine; ir++ ){
-        fockEnergy += hpsiFine(ir) * psiFine(ir) * occupationRate[k];
-      }
-    } // for (j)
-  } // for (k)
-  
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-
-	return ;
-} 		// -----  end of method SCF::CalculateEXXEnergy  ----- 
 
 } // namespace dgdft

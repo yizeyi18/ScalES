@@ -184,6 +184,8 @@ public:
 
   virtual void CalculateVexxPsi( Spinor& psi, Fourier& fft ) = 0;
 
+  virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
+
 	// *********************************************************************
 	// Access
 	// *********************************************************************
@@ -301,6 +303,9 @@ public:
   virtual NumTns<Scalar>& PhiEXX() {return phiEXX_;}
 
   virtual void CalculateVexxPsi( Spinor& psi, Fourier& fft );
+
+  virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
+
 };
 
 

@@ -1786,4 +1786,97 @@ KohnSham::CalculateVexxPsi ( Spinor& psi, Fourier& fft )
 	return ;
 } 		// -----  end of method KohnSham::CalculateVexxPsi  ----- 
 
+
+// This comes from exxenergy2() function in exx.f90 in QE.
+Real
+KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::CalculateEXXEnergy");
+#endif
+  Real fockEnergy = 0.0;
+  
+  // Repeat the calculation of Vexx
+  // FIXME Will be replaced by the stored VPhi matrix in the new
+  // algorithm to reduce the cost, but this should be a new function
+  
+  // FIXME Should be combined better with the addition of exchange part in spinor
+  NumTns<Scalar>& wavefun = psi.Wavefun();
+
+  if( !fft.isInitialized ){
+    throw std::runtime_error("Fourier is not prepared.");
+  }
+  Index3& numGrid = fft.domain.numGrid;
+  Index3& numGridFine = fft.domain.numGridFine;
+  Int ntot = wavefun.m();
+  Int ncom = wavefun.n();
+  Int numStateLocal = wavefun.p();
+  Int ntotFine = fft.domain.NumGridTotalFine();
+  Real vol = fft.domain.Volume();
+  NumTns<Scalar>& phi = phiEXX_;
+  Int ncomPhi = phi.n();
+  if( ncomPhi != 1 || ncom != 1 ){
+    throw std::logic_error("Spin polarized case not implemented.");
+  }
+  Int numStateTotalPhi = phi.p();
+
+  if( fft.domain.NumGridTotal() != ntot ){
+    throw std::logic_error("Domain size does not match.");
+  }
+
+  // Directly use the phiEXX_ and vexxProj_ to calculate the exchange energy
+  if( isHybridVexxProj_ ){
+    // temporarily just implement here
+    // Directly use projector
+    Int numProj = vexxProj_.n();
+    Int numStateTotal = this->NumStateTotal();
+    Int ntot = psi.NumGridTotal();
+
+    DblNumMat M(numProj, numStateTotal);
+
+    // 
+    NumTns<Scalar>  vexxPsi( ntot, 1, numStateTotalPhi );
+    SetValue( vexxPsi, SCALAR_ZERO );
+
+    blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+        vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+        0.0, M.Data(), M.m() );
+    // Minus sign comes from that all eigenvalues are negative
+    blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+        vexxProj_.Data(), ntot, M.Data(), numProj,
+        0.0, vexxPsi.Data(), ntot );
+
+    for( Int k = 0; k < numStateTotalPhi; k++ ){
+      for( Int j = 0; j < ncom; j++ ){
+        for( Int ir = 0; ir < ntot; ir++ ){
+          fockEnergy += vexxPsi(ir,j,k) * wavefun(ir,j,k) * occupationRate_[k];
+        }
+      }
+    }
+  }
+  else{
+    NumTns<Scalar>  vexxPsi( ntot, 1, numStateTotalPhi );
+    SetValue( vexxPsi, SCALAR_ZERO );
+    psi.AddMultSpinorEXX( fft, phiEXX_, exxFraction_,  numSpin_, occupationRate_, 
+       vexxPsi );
+    // Compute the exchange energy:
+    // Note: no additional normalization factor due to the
+    // normalization rule of psi, NOT phi!!
+    for( Int k = 0; k < numStateTotalPhi; k++ ){
+      for( Int j = 0; j < ncom; j++ ){
+        for( Int ir = 0; ir < ntot; ir++ ){
+          fockEnergy += vexxPsi(ir,j,k) * wavefun(ir,j,k) * occupationRate_[k];
+        }
+      }
+    }
+  }
+  
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return fockEnergy;
+} 		// -----  end of method KohnSham::CalculateEXXEnergy  ----- 
+
+
 } // namespace dgdft
