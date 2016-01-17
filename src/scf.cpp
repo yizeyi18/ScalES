@@ -431,7 +431,6 @@ SCF::IterateHybrid (  )
 	ham.CalculateVtot( ham.Vtot() );
 
   Real timeIterStart(0), timeIterEnd(0);
-  
   Real timePhiIterStart(0), timePhiIterEnd(0);
   
   // EXX: Run SCF::Iterate here
@@ -603,12 +602,20 @@ SCF::IterateHybrid (  )
     if( phiIter == 1 ){
       ham.SetEXXActive(true);
       // Update Phi <- Psi
+      GetTime( timeSta );
       ham.SetPhiEXX( eigSolPtr_->Psi(), eigSolPtr_->FFT() ); 
       if( ham.IsHybridVexxProj() ){
         ham.CalculateVexxPsi( psi, fft );
       }
+      GetTime( timeEnd );
+      statusOFS << "Time for updating Phi related variable is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
+      GetTime( timeSta );
       fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+      GetTime( timeEnd );
+      statusOFS << "Time for computing the EXX energy is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
       // Update the energy
       Efock_ = fock2;
@@ -623,14 +630,23 @@ SCF::IterateHybrid (  )
       fock1 = ham.CalculateEXXEnergy( psi, fft ); 
 
       // Update Phi <- Psi
+      GetTime( timeSta );
       ham.SetPhiEXX( psi, fft ); 
       if( ham.IsHybridVexxProj() ){
         ham.CalculateVexxPsi( psi, fft );
       }
+      GetTime( timeEnd );
+      statusOFS << "Time for updating Phi related variable is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
       
       fock0 = fock2;
       // Calculate again
+      GetTime( timeSta );
       fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+      GetTime( timeEnd );
+      statusOFS << "Time for computing the EXX energy is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
       dExx = fock1 - 0.5 * (fock0 + fock2);
       
       Efock_ = fock2;
