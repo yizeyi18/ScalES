@@ -28,3 +28,5 @@ TODO List   {#pageTODO}
 - Refine Fourier to clean the normalization factors. Encapsulate the
   forward and backward Fourier transforms?
 - The "SCALAR" design should be kept?
+- Add moveions() function to consolidate geometry optimization and
+  molecular dynamics. There should be only a pwdft.cpp and dgdft.cpp

@@ -432,6 +432,8 @@ SCF::IterateHybrid (  )
 
   Real timeIterStart(0), timeIterEnd(0);
   
+  Real timePhiIterStart(0), timePhiIterEnd(0);
+  
   // EXX: Run SCF::Iterate here
   bool isPhiIterConverged = false;
 
@@ -442,6 +444,7 @@ SCF::IterateHybrid (  )
   bool isHybridVexxProj_ = true;
 
   for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
+    GetTime( timePhiIterStart );
     if ( isPhiIterConverged ) break;
 
     {
@@ -643,6 +646,10 @@ SCF::IterateHybrid (  )
         isPhiIterConverged = true;
       }
     }
+    GetTime( timePhiIterEnd );
+
+    statusOFS << "Total wall clock time for this Phi iteration = " << 
+      timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
   } // for(phiIter)
 
 #ifndef _RELEASE_
@@ -1208,6 +1215,10 @@ SCF::PrintState	( const Int iter  )
 #ifndef _RELEASE_
 	PushCallStack("SCF::PrintState");
 #endif
+  Real HOMO, LUMO;
+  HOMO = eigSolPtr_->EigVal()(eigSolPtr_->Ham().NumOccupiedState()-1);
+  if( eigSolPtr_->Ham().NumExtraState() > 0 )
+    LUMO = eigSolPtr_->EigVal()(eigSolPtr_->Ham().NumOccupiedState());
 	for(Int i = 0; i < eigSolPtr_->EigVal().m(); i++){
     Print(statusOFS, 
 				"band#    = ", i, 
@@ -1231,6 +1242,10 @@ SCF::PrintState	( const Int iter  )
 	Print(statusOFS, "Ecor              = ",  Ecor_, "[au]");
 	Print(statusOFS, "Fermi             = ",  fermi_, "[au]");
 	Print(statusOFS, "Total charge      = ",  totalCharge_, "[au]");
+	Print(statusOFS, "HOMO              = ",  HOMO*au2ev, "[eV]");
+  if( eigSolPtr_->Ham().NumExtraState() > 0 ){
+    Print(statusOFS, "LUMO              = ",  LUMO*au2ev, "[eV]");
+  }
 	Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm_ );
 
 #ifndef _RELEASE_

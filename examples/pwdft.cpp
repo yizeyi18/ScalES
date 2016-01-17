@@ -242,21 +242,26 @@ int main(int argc, char **argv)
 
 		statusOFS << "SCF setup finished ." << std::endl;
 
-		GetTime( timeSta );
 
 		// *********************************************************************
 		// Solve
 		// *********************************************************************
 
+		GetTime( timeSta );
     if( hamKS.IsHybrid() ){
       scf.IterateHybrid();
     }
     else{
       scf.Iterate();
     }
+		GetTime( timeEnd );
+
+    statusOFS << "! Total time for all iterations = " << timeEnd - timeSta
+      << " [s]" << std::endl;
 
     // FIXME. Merge this in the hybrid functional calculation part after
     // the SCF converges.
+    // FIXME Put the computation and output of VdW into SCF
     Real etot, efree, ekin, ehart, eVxc, exc, evdw,
          eself, ecor, fermi, totalCharge, scfNorm;
 
@@ -277,6 +282,11 @@ int main(int argc, char **argv)
     efree += VDWEnergy;
     ecor  += VDWEnergy;
 
+    Real HOMO, LUMO;
+    HOMO = eigSol.EigVal()(hamKS.NumOccupiedState()-1);
+    if( hamKS.NumExtraState() > 0 )
+      LUMO = eigSol.EigVal()(hamKS.NumOccupiedState());
+
     // Print out the energy
     PrintBlock( statusOFS, "Energy" );
     statusOFS 
@@ -293,6 +303,10 @@ int main(int argc, char **argv)
     Print(statusOFS, "Eself             = ",  eself, "[au]");
     Print(statusOFS, "Ecor              = ",  ecor, "[au]");
     Print(statusOFS, "! Fermi           = ",  fermi, "[au]");
+    Print(statusOFS, "! HOMO            = ",  HOMO*au2ev, "[ev]");
+    if( hamKS.NumExtraState() > 0 ){
+      Print(statusOFS, "! LUMO            = ",  LUMO*au2ev, "[eV]");
+    }
     Print(statusOFS, "Total charge      = ",  totalCharge, "[au]");
     Print(statusOFS, "! norm(vout-vin)/norm(vin) = ", scfNorm );
 

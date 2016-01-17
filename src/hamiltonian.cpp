@@ -513,17 +513,14 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
     SetValue( epsx, 0.0 );
     SetValue( vxc1, 0.0 );
     SetValue( vxc2, 0.0 );
-    statusOFS << "1" << std::endl;
     xc_gga_exc_vxc( &XFuncType_, ntot, density_.VecData(RHO), 
         gradDensity.VecData(RHO), epsx.Data(), vxc1.Data(), vxc2.Data() );
 
     SetValue( epsc, 0.0 );
     SetValue( vxc1temp, 0.0 );
     SetValue( vxc2temp, 0.0 );
-    statusOFS << "2" << std::endl;
     xc_gga_exc_vxc( &CFuncType_, ntot, density_.VecData(RHO), 
         gradDensity.VecData(RHO), epsc.Data(), vxc1temp.Data(), vxc2temp.Data() );
-    statusOFS << "3" << std::endl;
 
     for( Int i = 0; i < ntot; i++ ){
       epsxc_(i) = epsx(i) + epsc(i) ;
@@ -1710,7 +1707,9 @@ KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
       fac *= std::sqrt( double(ntotFine) / vol );
       blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
       blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
-      statusOFS << "int (psiFine^2) dx = " << Energy(psiFine)*vol / double(ntotFine) << std::endl;
+      if(0){
+        statusOFS << "int (psiFine^2) dx = " << Energy(psiFine)*vol / double(ntotFine) << std::endl;
+      }
       
       blas::Copy( ntotFine, psiFine.Data(), 1, phiEXX_.VecData(j,psi.WavefunIdx(k)), 1);
 
