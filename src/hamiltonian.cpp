@@ -96,7 +96,7 @@ KohnSham::Setup	(
 	pseudoType_          = esdfParam.pseudoType;
 	numExtraState_       = esdfParam.numExtraState;
   XCType_              = esdfParam.XCType;
-  isHybridVexxProj_    = esdfParam.isHybridVexxProj;
+  isHybridACE_         = esdfParam.isHybridACE;
   exxDivergenceType_   = esdfParam.exxDivergenceType;
 
   // FIXME Hard coded
@@ -1475,7 +1475,7 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 #endif
 
   if( isHybrid_ && isEXXActive_ ){
-    if( this->IsHybridVexxProj() ){
+    if( this->IsHybridACE() ){
       // temporarily just implement here
       // Directly use projector
       Int numProj = vexxProj_.n();
@@ -1606,7 +1606,7 @@ void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
     exxDiv_ -= domain_.Volume()*aa;
   }
 
-  if(0){
+  if(1){
     statusOFS << "computed exxDiv_ = " << exxDiv_ << std::endl;
   }
 
@@ -1728,10 +1728,10 @@ KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
 
 
 void
-KohnSham::CalculateVexxPsi ( Spinor& psi, Fourier& fft )
+KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 {
 #ifndef _RELEASE_
-	PushCallStack("KohnSham::CalculateVexxPsi");
+	PushCallStack("KohnSham::CalculateVexxACE");
 #endif
   // FIXME
   Real SVDTolerance = 1e-4;
@@ -1821,7 +1821,7 @@ KohnSham::CalculateVexxPsi ( Spinor& psi, Fourier& fft )
 #endif
 
 	return ;
-} 		// -----  end of method KohnSham::CalculateVexxPsi  ----- 
+} 		// -----  end of method KohnSham::CalculateVexxACE  ----- 
 
 
 // This comes from exxenergy2() function in exx.f90 in QE.
@@ -1862,7 +1862,7 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
   }
 
   // Directly use the phiEXX_ and vexxProj_ to calculate the exchange energy
-  if( isHybridVexxProj_ ){
+  if( isHybridACE_ ){
     // temporarily just implement here
     // Directly use projector
     Int numProj = vexxProj_.n();

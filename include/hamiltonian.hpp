@@ -129,9 +129,9 @@ protected:
   /// @brief Mixing parameter for hybrid functional calculation. Currently hard coded
   const Real                  exxFraction_ = 0.25;
 
-  /// @brief Whether to use projector form of implementation for hybrid
-  /// functional.
-  bool                        isHybridVexxProj_;
+  /// @brief Whether to use adaptively compressed exchange formulation
+  /// for hybrid functional.
+  bool                        isHybridACE_;
 
   Int                         exxDivergenceType_;
 
@@ -187,7 +187,7 @@ public:
   
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
 
-  virtual void CalculateVexxPsi( Spinor& psi, Fourier& fft ) = 0;
+  virtual void CalculateVexxACE( Spinor& psi, Fourier& fft ) = 0;
 
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
 
@@ -216,7 +216,7 @@ public:
   
   Real        ScreenMu() { return screenMu_;}
   Real        EXXFraction() { return exxFraction_;}
-  bool        IsHybridVexxProj() { return isHybridVexxProj_; }
+  bool        IsHybridACE() { return isHybridACE_; }
 
 	// *********************************************************************
 	// Inquiry
@@ -303,7 +303,7 @@ public:
 
   virtual NumTns<Scalar>& PhiEXX() {return phiEXX_;}
 
-  virtual void CalculateVexxPsi( Spinor& psi, Fourier& fft );
+  virtual void CalculateVexxACE( Spinor& psi, Fourier& fft );
 
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
 

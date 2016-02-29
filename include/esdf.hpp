@@ -206,11 +206,11 @@ namespace esdf{
     ///
     /// Default: 1e-6
     Real                scfPhiTolerance;
-    /// @brief Whether to use the projection formulation for hybrid
-    /// functional
+    /// @brief Whether to use the adaptively compressed exchange (ACE)
+    /// formulation for hybrid functional.
     ///
     /// Default: 0
-    bool                isHybridVexxProj;
+    bool                isHybridACE;
     /// @brief Treatment of the divergence term in hybrid functional
     /// calculation.
     ///

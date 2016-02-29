@@ -122,7 +122,7 @@ int main(int argc, char **argv)
 			Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
 			Print(statusOFS, "SCF Phi MaxIter   = ",  esdfParam.scfPhiMaxIter);
 			Print(statusOFS, "SCF Phi Tol       = ",  esdfParam.scfPhiTolerance);
-			Print(statusOFS, "Hybrid Vexx Proj  = ",  esdfParam.isHybridVexxProj);
+			Print(statusOFS, "Hybrid ACE        = ",  esdfParam.isHybridACE);
 			Print(statusOFS, "EXX div type      = ",  esdfParam.exxDivergenceType);
 			Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
 			Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);

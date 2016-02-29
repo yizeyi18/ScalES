@@ -4,6 +4,8 @@ TODO List   {#pageTODO}
 - A better way to handle various exchange correlation functionals
 - Merge the treatment of XC functionals in Hamiltonian and in KohnSham
 - Remove the BLOPEX dependence
+- Add support for libdbscr and then for linear scaling? Or implement the
+  native version?
 - Combine PWDFT_bb etc into something called move_ions and move_ions_dg
 - OpenMP does not work for the new spinor multiplication due to the
   common dependence on the Fourier structure
@@ -30,3 +32,5 @@ TODO List   {#pageTODO}
 - The "SCALAR" design should be kept?
 - Add moveions() function to consolidate geometry optimization and
   molecular dynamics. There should be only a pwdft.cpp and dgdft.cpp
+- Special function for XC.
+
