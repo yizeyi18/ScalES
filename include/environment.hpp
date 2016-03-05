@@ -98,10 +98,6 @@
 #define _DEBUGlevel -1
 #endif
 
-// Real arithmetic
-#ifdef COMPLEXSCALAR
-#define _USE_COMPLEX_
-#endif
 
 // Usage of the PEXSI package
 #ifdef PEXSI
@@ -124,11 +120,6 @@ namespace dgdft{
 typedef    int                   Int;
 typedef    double                Real;
 typedef    std::complex<double>  Complex; 
-#ifdef _USE_COMPLEX_
-typedef    std::complex<double>  Scalar;  
-#else
-typedef    double                Scalar;
-#endif
 
 // IO
 extern  std::ofstream  statusOFS;
@@ -145,8 +136,6 @@ const Real D_ZERO = 0.0;
 const Real D_ONE  = 1.0;
 const Complex Z_ZERO = Complex(0.0, 0.0);
 const Complex Z_ONE  = Complex(1.0, 0.0);
-const Scalar SCALAR_ZERO    = static_cast<Scalar>(0.0);
-const Scalar SCALAR_ONE     = static_cast<Scalar>(1.0);
 const char UPPER = 'U';
 const char LOWER = 'L';
 

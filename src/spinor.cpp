@@ -58,7 +58,7 @@ Spinor::Spinor (
 		const Int     numComponent,
 		const Int     numStateTotal,
           Int     numStateLocal,
-		const Scalar  val ) {
+		const Real  val ) {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Spinor");
 #endif  // ifndef _RELEASE_
@@ -74,7 +74,7 @@ Spinor::Spinor ( const Domain &dm,
 		const Int numStateTotal,
           Int numStateLocal,
 		const bool owndata, 
-		Scalar* data )
+		Real* data )
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Spinor");
@@ -93,7 +93,7 @@ void Spinor::Setup (
 		const Int     numComponent,
 		const Int     numStateTotal,
           Int     numStateLocal,
-		const Scalar  val ) {
+		const Real  val ) {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Setup ");
 #endif  // ifndef _RELEASE_
@@ -156,14 +156,14 @@ void Spinor::Setup ( const Domain &dm,
 		const Int numStateTotal,
           Int numStateLocal,
 		const bool owndata, 
-		Scalar* data )
+		Real* data )
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Setup");
 #endif  // ifndef _RELEASE_
 	domain_       = dm;
   // FIXME Partition the spinor here
-	wavefun_      = NumTns<Scalar>( dm.NumGridTotal(), numComponent, numStateLocal,
+	wavefun_      = NumTns<Real>( dm.NumGridTotal(), numComponent, numStateLocal,
       owndata, data );
 
 #ifndef _RELEASE_
@@ -181,7 +181,7 @@ Spinor::Normalize	( )
 	Int nocc = wavefun_.p();
 
 	for (Int k=0; k<nocc; k++) {
-		Scalar *ptr = wavefun_.MatData(k);
+		Real *ptr = wavefun_.MatData(k);
 		Real   sum = 0.0;
 		for (Int i=0; i<size; i++) {
 			sum += pow(abs(*ptr++), 2.0);
@@ -199,10 +199,10 @@ Spinor::Normalize	( )
 } 		// -----  end of method Spinor::Normalize  ----- 
 
 void
-Spinor::AddScalarDiag	(Int iocc, const DblNumVec &val, NumMat<Scalar>& y)
+Spinor::AddRealDiag	(Int iocc, const DblNumVec &val, NumMat<Real>& y)
 {
 #ifndef _RELEASE_
-	PushCallStack("Spinor::AddScalarDiag");
+	PushCallStack("Spinor::AddRealDiag");
 #endif
 	if( val.m() == 0 || val.m() != wavefun_.m() ){
 		throw std::logic_error("Vector dimension does not match.");
@@ -219,9 +219,9 @@ Spinor::AddScalarDiag	(Int iocc, const DblNumVec &val, NumMat<Scalar>& y)
 
 	Int k = iocc;
 	for (Int j=0; j<ncom; j++) {
-		Scalar *p1 = wavefun_.VecData(j, k);
+		Real *p1 = wavefun_.VecData(j, k);
 		Real   *p2 = val.Data();
-		Scalar *p3 = y.VecData(j);
+		Real *p3 = y.VecData(j);
     for (Int i=0; i<ntot; i++) { 
       *(p3) += (*p1) * (*p2); p3++; p1++; p2++; 
     }
@@ -232,12 +232,12 @@ Spinor::AddScalarDiag	(Int iocc, const DblNumVec &val, NumMat<Scalar>& y)
 #endif
 
 	return ;
-} 		// -----  end of method Spinor::AddScalarDiag  ----- 
+} 		// -----  end of method Spinor::AddRealDiag  ----- 
 
-void Spinor::AddScalarDiag	(const DblNumVec &val, NumTns<Scalar> &a3)
+void Spinor::AddRealDiag	(const DblNumVec &val, NumTns<Real> &a3)
 {
 #ifndef _RELEASE_
-	PushCallStack("Spinor::AddScalarDiag");
+	PushCallStack("Spinor::AddRealDiag");
 #endif
 	if( val.m() == 0 || val.m() != wavefun_.m() ){
 		throw std::logic_error("Vector dimension does not match.");
@@ -252,9 +252,9 @@ void Spinor::AddScalarDiag	(const DblNumVec &val, NumTns<Scalar> &a3)
 #endif
   for (Int k=0; k<nocc; k++) {
     for (Int j=0; j<ncom; j++) {
-      Scalar *p1 = wavefun_.VecData(j, k);
+      Real *p1 = wavefun_.VecData(j, k);
       Real   *p2 = val.Data();
-      Scalar *p3 = a3.VecData(j, k);
+      Real *p3 = a3.VecData(j, k);
       for (Int i=0; i<ntot; i++) { 
         *(p3++) += (*p1++) * (*p2++); 
       }
@@ -266,10 +266,10 @@ void Spinor::AddScalarDiag	(const DblNumVec &val, NumTns<Scalar> &a3)
 #endif
 
 	return ;
-} 		// -----  end of method Spinor::AddScalarDiag  ----- 
+} 		// -----  end of method Spinor::AddRealDiag  ----- 
 
 void
-Spinor::AddLaplacian (Int iocc, Fourier* fftPtr, NumMat<Scalar>& y)
+Spinor::AddLaplacian (Int iocc, Fourier* fftPtr, NumMat<Real>& y)
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddLaplacian");
@@ -294,7 +294,7 @@ Spinor::AddLaplacian (Int iocc, Fourier* fftPtr, NumMat<Scalar>& y)
 
     Int k = iocc;
     for (Int j=0; j<ncom; j++) {
-      Scalar* p3 = y.VecData(j);
+      Real* p3 = y.VecData(j);
       // For c2r and r2c transforms, the default is to DESTROY the
       // input, therefore a copy of the original matrix is necessary. 
       blas::Copy( ntot, wavefun_.VecData(j, k), 1, 
@@ -329,7 +329,7 @@ Spinor::AddLaplacian (Int iocc, Fourier* fftPtr, NumMat<Scalar>& y)
 
 
 void
-Spinor::AddLaplacian (Fourier* fftPtr, NumTns<Scalar>& a3)
+Spinor::AddLaplacian (Fourier* fftPtr, NumTns<Real>& a3)
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddLaplacian");
@@ -413,7 +413,7 @@ Spinor::AddLaplacian (Fourier* fftPtr, NumTns<Scalar>& a3)
 
 void
 Spinor::AddNonlocalPP	(Int iocc, const std::vector<PseudoPot>& pseudo, 
-    NumMat<Scalar>& y)
+    NumMat<Real>& y)
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddNonlocalPP");
@@ -425,8 +425,8 @@ Spinor::AddNonlocalPP	(Int iocc, const std::vector<PseudoPot>& pseudo,
 
   Int k = iocc;
   for (Int j=0; j<ncom; j++) {
-    Scalar    *ptr0 = wavefun_.VecData(j,k);
-    Scalar    *ptr1 = y.VecData(j);
+    Real    *ptr0 = wavefun_.VecData(j,k);
+    Real    *ptr1 = y.VecData(j);
     Int natm = pseudo.size();
     for (Int iatm=0; iatm<natm; iatm++) {
       Int nobt = pseudo[iatm].vnlList.size();
@@ -436,7 +436,7 @@ Spinor::AddNonlocalPP	(Int iocc, const std::vector<PseudoPot>& pseudo,
         const IntNumVec &iv = vnlvec.first;
         const DblNumMat &dv = vnlvec.second;
 
-        Scalar    weight = SCALAR_ZERO; 
+        Real    weight = 0.0; 
         const Int    *ivptr = iv.Data();
         const Real   *dvptr = dv.VecData(VAL);
         for (Int i=0; i<iv.m(); i++) {
@@ -461,7 +461,7 @@ Spinor::AddNonlocalPP	(Int iocc, const std::vector<PseudoPot>& pseudo,
 
 
 void
-Spinor::AddNonlocalPP	(const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
+Spinor::AddNonlocalPP	(const std::vector<PseudoPot>& pseudo, NumTns<Real> &a3)
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddNonlocalPP");
@@ -476,8 +476,8 @@ Spinor::AddNonlocalPP	(const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
 #endif
 	for (Int k=0; k<nocc; k++) {
 		for (Int j=0; j<ncom; j++) {
-			Scalar    *ptr0 = wavefun_.VecData(j,k);
-			Scalar    *ptr1 = a3.VecData(j,k);
+			Real    *ptr0 = wavefun_.VecData(j,k);
+			Real    *ptr1 = a3.VecData(j,k);
 			Int natm = pseudo.size();
 			for (Int iatm=0; iatm<natm; iatm++) {
 				Int nobt = pseudo[iatm].vnlList.size();
@@ -487,7 +487,7 @@ Spinor::AddNonlocalPP	(const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
 					const IntNumVec &iv = vnlvec.first;
 					const DblNumMat &dv = vnlvec.second;
 
-					Scalar    weight = SCALAR_ZERO; 
+					Real    weight = 0.0; 
 					const Int    *ivptr = iv.Data();
 					const Real   *dvptr = dv.VecData(VAL);
 					for (Int i=0; i<iv.m(); i++) {
@@ -513,7 +513,7 @@ Spinor::AddNonlocalPP	(const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3)
 
 
 void
-Spinor::AddTeterPrecond ( Int iocc, Fourier* fftPtr, NumTns<Scalar>& a3)
+Spinor::AddTeterPrecond ( Int iocc, Fourier* fftPtr, NumTns<Real>& a3)
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddTeterPrecond");
@@ -530,8 +530,8 @@ Spinor::AddTeterPrecond ( Int iocc, Fourier* fftPtr, NumTns<Scalar>& a3)
 	}
 
   // For convenience
-  NumTns<Scalar>& a3i = wavefun_; 
-  NumTns<Scalar>& a3o = a3;
+  NumTns<Real>& a3i = wavefun_; 
+  NumTns<Real>& a3o = a3;
 
 //#ifndef _USE_COMPLEX_ // Real case
     Int ntothalf = fftPtr->numGridTotalR2C;
@@ -573,7 +573,7 @@ Spinor::AddTeterPrecond ( Int iocc, Fourier* fftPtr, NumTns<Scalar>& a3)
 } 		// -----  end of method Spinor::AddTeterPrecond ----- 
 
 void
-Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Scalar>& a3)
+Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddTeterPrecond");
@@ -590,8 +590,8 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Scalar>& a3)
 	}
 
   // For convenience
-  NumTns<Scalar>& a3i = wavefun_; 
-  NumTns<Scalar>& a3o = a3;
+  NumTns<Real>& a3i = wavefun_; 
+  NumTns<Real>& a3o = a3;
 
 #ifdef _USE_OPENMP_
 #pragma omp parallel
@@ -667,7 +667,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Scalar>& a3)
 
 void
 Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot, 
-    const std::vector<PseudoPot>& pseudo, NumTns<Scalar>& a3 )
+    const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
 {
 #ifndef _RELEASE_
 	PushCallStack("Spinor::AddMultSpinorFine");
@@ -754,7 +754,7 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
             const IntNumVec &ivFine = vnlvecFine.first;
             const DblNumMat &dvFine = vnlvecFine.second;
 
-            Scalar    weight = SCALAR_ZERO; 
+            Real    weight = 0.0; 
             const Int    *ivFineptr = ivFine.Data();
             const Real   *dvFineptr = dvFine.VecData(VAL);
             for (Int i=0; i<ivFine.m(); i++) {
@@ -806,7 +806,7 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
       // Inverse Fourier transform to save back to the output vector
       fftw_execute( fft.backwardPlan );
 
-//      Scalar    *ptr1 = a3.VecData(j,k);
+//      Real    *ptr1 = a3.VecData(j,k);
 //      for( Int i = 0; i < ntot; i++ ){
 //        ptr1[i] += fft.inputComplexVec(i).real() / Real(ntot);
 //      }
@@ -826,7 +826,7 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
 
 void
 Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
-    const std::vector<PseudoPot>& pseudo, NumTns<Scalar>& a3 )
+    const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
 {
 #ifndef _RELEASE_
   PushCallStack("Spinor::AddMultSpinorFineR2C");
@@ -966,7 +966,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
             const IntNumVec &ivFine = vnlvecFine.first;
             const DblNumMat &dvFine = vnlvecFine.second;
 
-            Scalar    weight = SCALAR_ZERO; 
+            Real    weight = 0.0; 
             const Int    *ivFineptr = ivFine.Data();
             const Real   *dvFineptr = dvFine.VecData(VAL);
             for (Int i=0; i<ivFine.m(); i++) {
@@ -1039,7 +1039,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       // Inverse Fourier transform to save back to the output vector
       //fftw_execute( fft.backwardPlan );
 
-      //      Scalar    *ptr1 = a3.VecData(j,k);
+      //      Real    *ptr1 = a3.VecData(j,k);
       //      for( Int i = 0; i < ntot; i++ ){
       //        ptr1[i] += fft.inputComplexVec(i).real() / Real(ntot);
       //      }
@@ -1063,12 +1063,12 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 // Currently there is no parallelization over the phi tensor
 //
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
-    const NumTns<Scalar>& phi,
+    const NumTns<Real>& phi,
     const DblNumVec& exxgkkR2CFine,
     Real  exxFraction,
     Real  numSpin,
     const DblNumVec& occupationRate,
-    NumTns<Scalar>& a3 )
+    NumTns<Real>& a3 )
 {
 #ifndef _RELEASE_
   PushCallStack("Spinor::AddMultSpinorEXX");

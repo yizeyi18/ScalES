@@ -176,12 +176,12 @@ public:
 	virtual void CalculateForce2 ( Spinor& psi, Fourier& fft ) = 0;
 
 	// Matrix vector multiplication
-	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft) = 0;
+	virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft) = 0;
 	
   // FIXME Clean
-	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft) = 0;
+	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Real>& y, Fourier& fft) = 0;
   
-  virtual NumTns<Scalar>& PhiEXX() = 0;
+  virtual NumTns<Real>& PhiEXX() = 0;
   
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
   
@@ -241,7 +241,7 @@ private:
   /// @brief Store all the orbitals for exact exchange calculation
   /// NOTE: This might impose serious memory constraint for relatively
   /// large systems.
-  NumTns<Scalar>              phiEXX_; 
+  NumTns<Real>              phiEXX_; 
   DblNumMat                   vexxProj_; 
   DblNumVec                   exxgkkR2CFine_;
  
@@ -285,10 +285,10 @@ public:
 	virtual void CalculateForce2 ( Spinor& psi, Fourier& fft );
 
 	// Matrix vector multiplication
-	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft);
+	virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft);
 	
   // FIXME Clean
-	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft);
+	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Real>& y, Fourier& fft);
 
   
   /// @brief Update phiEXX by the spinor psi. The Phi are normalized in
@@ -301,7 +301,7 @@ public:
   /// \sum |\psi(x)|^2 = 1, differing by a normalization constant. FIXME
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
 
-  virtual NumTns<Scalar>& PhiEXX() {return phiEXX_;}
+  virtual NumTns<Real>& PhiEXX() {return phiEXX_;}
 
   virtual void CalculateVexxACE( Spinor& psi, Fourier& fft );
 

@@ -1457,12 +1457,12 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
 } 		// -----  end of method KohnSham::CalculateForce2  ----- 
 
 void
-KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
+KohnSham::MultSpinor	( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 {
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::MultSpinor");
 #endif
-  SetValue( a3, SCALAR_ZERO );
+  SetValue( a3, 0.0 );
 
   // DO not use OpenMP for now.
 #ifdef _USE_OPENMP_
@@ -1512,16 +1512,16 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 
 
 void
-KohnSham::MultSpinor	( Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft )
+KohnSham::MultSpinor	( Int iocc, Spinor& psi, NumMat<Real>& y, Fourier& fft )
 {
 #ifndef _RELEASE_
 	PushCallStack("KohnSham::MultSpinor");
 #endif
   // Make sure that the address corresponding to the pointer y has been
   // allocated.
-  SetValue( y, SCALAR_ZERO );
+  SetValue( y, 0.0 );
 
-	psi.AddScalarDiag( iocc, vtotCoarse_, y );
+	psi.AddRealDiag( iocc, vtotCoarse_, y );
 	psi.AddLaplacian( iocc, &fft, y );
   psi.AddNonlocalPP( iocc, pseudo_, y );
 
@@ -1646,7 +1646,7 @@ KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
 	PushCallStack("KohnSham::SetPhiEXX");
 #endif
   // FIXME collect Psi into a globally shared array in the MPI context.
-  const NumTns<Scalar>& wavefun = psi.Wavefun();
+  const NumTns<Real>& wavefun = psi.Wavefun();
   Int ntot = wavefun.m();
   Int ncom = wavefun.n();
   Int numStateLocal = wavefun.p();
@@ -1655,11 +1655,11 @@ KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
   Real vol = fft.domain.Volume();
 
   phiEXX_.Resize( ntotFine, ncom, numStateTotal );
-  SetValue( phiEXX_, SCALAR_ZERO );
+  SetValue( phiEXX_, 0.0 );
 
   // Temporary buffer for collecting contribution from different MPI procs.
-//  NumTns<Scalar> phiEXXTmp = phiEXX_;
-//  SetValue(phiEXXTmp, SCALAR_ZERO);
+//  NumTns<Real> phiEXXTmp = phiEXX_;
+//  SetValue(phiEXXTmp, 0.0);
 
   // Buffer
   DblNumVec psiFine(ntotFine);
@@ -1745,10 +1745,10 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
   Int ntot      = fft.domain.NumGridTotal();
   Int ntotFine  = fft.domain.NumGridTotalFine();
   Int numStateTotal = phiEXX_.p();
-  NumTns<Scalar>  vexxPsi( ntot, 1, numStateTotal );
+  NumTns<Real>  vexxPsi( ntot, 1, numStateTotal );
 
   // VexxPsi = V_{exx}*Phi.
-  SetValue( vexxPsi, SCALAR_ZERO );
+  SetValue( vexxPsi, 0.0 );
   psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2CFine_,
       exxFraction_,  numSpin_, occupationRate_, vexxPsi );
 
@@ -1818,7 +1818,7 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 //        M.Data(), numStateTotal );
 //    statusOFS << "M = " << M << std::endl;
 //
-//    NumTns<Scalar> vpsit = psi.Wavefun();
+//    NumTns<Real> vpsit = psi.Wavefun();
 //    Int numProj = rankM;
 //    DblNumMat Mt(numProj, numStateTotal);
 //    
@@ -1861,7 +1861,7 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
   // algorithm to reduce the cost, but this should be a new function
   
   // FIXME Should be combined better with the addition of exchange part in spinor
-  NumTns<Scalar>& wavefun = psi.Wavefun();
+  NumTns<Real>& wavefun = psi.Wavefun();
 
   if( !fft.isInitialized ){
     throw std::runtime_error("Fourier is not prepared.");
@@ -1873,7 +1873,7 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
   Int numStateLocal = wavefun.p();
   Int ntotFine = fft.domain.NumGridTotalFine();
   Real vol = fft.domain.Volume();
-  NumTns<Scalar>& phi = phiEXX_;
+  NumTns<Real>& phi = phiEXX_;
   Int ncomPhi = phi.n();
   if( ncomPhi != 1 || ncom != 1 ){
     throw std::logic_error("Spin polarized case not implemented.");
@@ -1895,8 +1895,8 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
     DblNumMat M(numProj, numStateTotal);
 
     // 
-    NumTns<Scalar>  vexxPsi( ntot, 1, numStateTotalPhi );
-    SetValue( vexxPsi, SCALAR_ZERO );
+    NumTns<Real>  vexxPsi( ntot, 1, numStateTotalPhi );
+    SetValue( vexxPsi, 0.0 );
 
     blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
         vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
@@ -1915,8 +1915,8 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
     }
   }
   else{
-    NumTns<Scalar>  vexxPsi( ntot, 1, numStateTotalPhi );
-    SetValue( vexxPsi, SCALAR_ZERO );
+    NumTns<Real>  vexxPsi( ntot, 1, numStateTotalPhi );
+    SetValue( vexxPsi, 0.0 );
     psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2CFine_, 
         exxFraction_,  numSpin_, occupationRate_, 
        vexxPsi );

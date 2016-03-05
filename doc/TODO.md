@@ -6,8 +6,6 @@ TODO List   {#pageTODO}
   - Category: (LDA, GGA, Hybrid, Meta, VdW) + (XCId / XId+CId). Or just
     always use XId + CId separate form (ABINIT might use this)
   - Need to make the same thing for DG
-- Remove the BLOPEX dependence
-  - Remove BLOPEX things in lobpcg+.cpp and eigensoler.cpp
 - Add support for libdbcsr and then for linear scaling? Or implement the
   native version?
   - Subspace problem in Chebyshev filtering. Use SCALAPACK with

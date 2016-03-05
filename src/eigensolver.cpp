@@ -377,7 +377,7 @@ EigenSolver::LOBPCGSolveReal	(
   {
   GetTime( timeSta );
     Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, X.Data());
-    NumTns<Scalar> tnsTemp(ntot, ncom, noccLocal, false, AX.Data());
+    NumTns<Real> tnsTemp(ntot, ncom, noccLocal, false, AX.Data());
 
     hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
   GetTime( timeEnd );
@@ -507,7 +507,7 @@ EigenSolver::LOBPCGSolveReal	(
     {
   GetTime( timeSta );
       Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xtemp.VecData(numLockedLocal));
-      NumTns<Scalar> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, W.VecData(numLockedLocal));
+      NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, W.VecData(numLockedLocal));
 
       SetValue( tnsTemp, 0.0 );
       spnTemp.AddTeterPrecond( fftPtr_, tnsTemp );
@@ -544,7 +544,7 @@ EigenSolver::LOBPCGSolveReal	(
     {
   GetTime( timeSta );
       Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, W.VecData(numLockedLocal));
-      NumTns<Scalar> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, AW.VecData(numLockedLocal));
+      NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, AW.VecData(numLockedLocal));
 
       hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
   GetTime( timeEnd );
@@ -1764,7 +1764,7 @@ EigenSolver::LOBPCGSolveReal2	(
   {
     GetTime( timeSta );
     Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
-    NumTns<Scalar> tnsTemp(ntot, ncom, noccLocal, false, AXcol.Data());
+    NumTns<Real> tnsTemp(ntot, ncom, noccLocal, false, AXcol.Data());
 
     hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
     GetTime( timeEnd );
@@ -1916,7 +1916,7 @@ EigenSolver::LOBPCGSolveReal2	(
     {
       GetTime( timeSta );
       Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xcol.VecData(numLockedLocal));
-      NumTns<Scalar> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
+      NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
 
       SetValue( tnsTemp, 0.0 );
       spnTemp.AddTeterPrecond( fftPtr_, tnsTemp );
@@ -1967,7 +1967,7 @@ EigenSolver::LOBPCGSolveReal2	(
     {
       GetTime( timeSta );
       Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
-      NumTns<Scalar> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, AWcol.VecData(numLockedLocal));
+      NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, AWcol.VecData(numLockedLocal));
 
       hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
       GetTime( timeEnd );

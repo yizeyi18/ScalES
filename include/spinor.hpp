@@ -59,7 +59,7 @@ namespace dgdft{
 class Spinor {
 private:
 	Domain            domain_;                // mesh should be used here for general cases 
-	NumTns<Scalar>    wavefun_;               // Local data of the wavefunction 
+	NumTns<Real>    wavefun_;               // Local data of the wavefunction 
   IntNumVec         wavefunIdx_;
   Int               numStateTotal_;
   Int               blocksize_;
@@ -71,18 +71,18 @@ public:
 	Spinor(); 
 	
 	Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
-      const Scalar val = static_cast<Scalar>(0) );
+      const Real val = static_cast<Real>(0) );
 
 	Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
-      const bool owndata, Scalar* data );
+      const bool owndata, Real* data );
 
 	~Spinor();
 
 	void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
-      const Scalar val = static_cast<Scalar>(0) ); 
+      const Real val = static_cast<Real>(0) ); 
 
 	void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
-      const bool owndata, Scalar* data );
+      const bool owndata, Real* data );
 
 	// *********************************************************************
 	// Inquiries
@@ -98,10 +98,10 @@ public:
   Int&  WavefunIdx(const Int k) { return wavefunIdx_(k); }
   const Int&  WavefunIdx(const Int k) const { return wavefunIdx_(k); }
 
-	NumTns<Scalar>& Wavefun() { return wavefun_; } 
-	const NumTns<Scalar>& Wavefun() const { return wavefun_; } 
-	Scalar& Wavefun(const Int i, const Int j, const Int k) {return wavefun_(i,j,k); }
-	const Scalar& Wavefun(const Int i, const Int j, const Int k) const {return wavefun_(i,j,k); }
+	NumTns<Real>& Wavefun() { return wavefun_; } 
+	const NumTns<Real>& Wavefun() const { return wavefun_; } 
+	Real& Wavefun(const Int i, const Int j, const Int k) {return wavefun_(i,j,k); }
+	const Real& Wavefun(const Int i, const Int j, const Int k) const {return wavefun_(i,j,k); }
 
 
 	// *********************************************************************
@@ -115,35 +115,35 @@ public:
 
   // Perform all operations of matrix vector multiplication on a fine grid.
   void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
-      const std::vector<PseudoPot>& pseudo, NumTns<Scalar>& a3 );
+      const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );
   void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
-      const std::vector<PseudoPot>& pseudo, NumTns<Scalar>& a3 );
+      const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );
 
   // Clean
-  void AddScalarDiag (Int iocc, const DblNumVec &val, NumMat<Scalar>& y);
-  void AddScalarDiag (const DblNumVec &val, NumTns<Scalar> &a3);
+  void AddRealDiag (Int iocc, const DblNumVec &val, NumMat<Real>& y);
+  void AddRealDiag (const DblNumVec &val, NumTns<Real> &a3);
 
   // Clean
-	void AddLaplacian (Int iocc, Fourier* fftPtr, NumMat<Scalar>& y);
-	void AddLaplacian (Fourier* fftPtr, NumTns<Scalar>& a3);
+	void AddLaplacian (Int iocc, Fourier* fftPtr, NumMat<Real>& y);
+	void AddLaplacian (Fourier* fftPtr, NumTns<Real>& a3);
 
   // Clean
-	void AddNonlocalPP (Int iocc, const std::vector<PseudoPot>& pseudo, NumMat<Scalar>& y);
-	void AddNonlocalPP (const std::vector<PseudoPot>& pseudo, NumTns<Scalar> &a3);
+	void AddNonlocalPP (Int iocc, const std::vector<PseudoPot>& pseudo, NumMat<Real>& y);
+	void AddNonlocalPP (const std::vector<PseudoPot>& pseudo, NumTns<Real> &a3);
 
   // Clean
-  void AddTeterPrecond( Int iocc, Fourier* fftPtr, NumTns<Scalar>& a3 );
+  void AddTeterPrecond( Int iocc, Fourier* fftPtr, NumTns<Real>& a3 );
 
 
-  void AddTeterPrecond( Fourier* fftPtr, NumTns<Scalar>& a3 );
+  void AddTeterPrecond( Fourier* fftPtr, NumTns<Real>& a3 );
 
   void AddMultSpinorEXX ( Fourier& fft,
-    const NumTns<Scalar>& phi,
+    const NumTns<Real>& phi,
     const DblNumVec& exxgkkR2CFine,
     Real  exxFraction,
     Real  numSpin,
     const DblNumVec& occupationRate,
-    NumTns<Scalar>& a3 );
+    NumTns<Real>& a3 );
 
 
 };  // Spinor

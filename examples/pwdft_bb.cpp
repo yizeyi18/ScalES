@@ -235,11 +235,11 @@ int main(int argc, char **argv)
 //	Int nocc = spn.Wavefun().p();
  
 //  IntNumVec& wavefunIdx = spn.WavefunIdx();
-//  NumTns<Scalar>& wavefun = spn.Wavefun();
+//  NumTns<Real>& wavefun = spn.Wavefun();
 
 //	for (Int k=0; k<nocc; k++) {
-//		Scalar *ptr = spn.Wavefun().MatData(k);
-//		Scalar *ptr1 = spnTemp.Wavefun().MatData(wavefunIdx(k));
+//		Real *ptr = spn.Wavefun().MatData(k);
+//		Real *ptr1 = spnTemp.Wavefun().MatData(wavefunIdx(k));
 //		for (Int i=0; i<size; i++) {
 //      *ptr = *ptr1;
 //		  ptr = ptr + 1;

@@ -658,11 +658,11 @@ SCFDG::Setup	(
               Int nocc = psi.Wavefun().p();
 
               IntNumVec& wavefunIdx = psi.WavefunIdx();
-              NumTns<Scalar>& wavefun = psi.Wavefun();
+              NumTns<Real>& wavefun = psi.Wavefun();
 
               for (Int k=0; k<nocc; k++) {
-                Scalar *ptr = psi.Wavefun().MatData(k);
-                Scalar *ptr1 = psiTemp.Wavefun().MatData(wavefunIdx(k));
+                Real *ptr = psi.Wavefun().MatData(k);
+                Real *ptr1 = psiTemp.Wavefun().MatData(wavefunIdx(k));
                 for (Int i=0; i<size; i++) {
                   *ptr = *ptr1;
                   ptr = ptr + 1;
