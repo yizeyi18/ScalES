@@ -385,9 +385,9 @@ Trsm( char side, char uplo, char trans, char diag, double alpha,
     const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B )
 {
 #ifndef _RELEASE_
-	PushCallStack("Trsm");
+	PushCallStack("scalapack::Trsm");
 #endif
-  const Int M = A.Height();
+  const Int M = B.Height(); // const Int M = A.Height();
   const Int N = A.Width();
 
   SCALAPACK(pdtrsm)(&side, &uplo, &trans, &diag, &M, &N, &alpha,
