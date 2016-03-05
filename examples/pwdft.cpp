@@ -120,6 +120,10 @@ int main(int argc, char **argv)
 			Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
 			Print(statusOFS, "SCF Outer Tol     = ",  esdfParam.scfOuterTolerance);
 			Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
+			Print(statusOFS, "SCF Phi MaxIter   = ",  esdfParam.scfPhiMaxIter);
+			Print(statusOFS, "SCF Phi Tol       = ",  esdfParam.scfPhiTolerance);
+			Print(statusOFS, "Hybrid ACE        = ",  esdfParam.isHybridACE);
+			Print(statusOFS, "EXX div type      = ",  esdfParam.exxDivergenceType);
 			Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
 			Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
 			Print(statusOFS, "Eig Tolerance Dyn = ",  esdfParam.isEigToleranceDynamic);
@@ -158,7 +162,6 @@ int main(int argc, char **argv)
 		Domain&  dm = esdfParam.domain;
 		PeriodTable ptable;
 		Fourier fft;
-    Fourier fftFine;
 		Spinor  spn;
 		KohnSham hamKS;
 		EigenSolver eigSol;
@@ -172,8 +175,7 @@ int main(int argc, char **argv)
 
 		// Hamiltonian
 
-		hamKS.Setup( dm, esdfParam.atomList, esdfParam.pseudoType, 
-				esdfParam.XCType, esdfParam.numExtraState );
+		hamKS.Setup( esdfParam, dm, esdfParam.atomList );
 
 		DblNumVec& vext = hamKS.Vext();
 		SetValue( vext, 0.0 );
@@ -217,47 +219,49 @@ int main(int argc, char **argv)
     }
      
     spn.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
+    
+    statusOFS << "Spinor setup finished." << std::endl;
+
     UniformRandom( spn.Wavefun() );
 
-//    MPI_Comm mpi_comm = dm.comm;
-    
-//		Spinor  spnTemp;
-//    spnTemp.Setup( dm, 1, hamKS.NumStateTotal(), hamKS.NumStateTotal(), 0.0 );
-   
-//    if (mpirank == 0){
-//      UniformRandom( spnTemp.Wavefun() );
-//    }
-//    MPI_Bcast(spnTemp.Wavefun().Data(), spnTemp.Wavefun().m()*spnTemp.Wavefun().n()*spnTemp.Wavefun().p(), MPI_DOUBLE, 0, mpi_comm);
+    if( hamKS.IsHybrid() ){
+      // FIXME Screen parameters
+      statusOFS << "Hybrid mixing parameter  = " << hamKS.EXXFraction() << std::endl; 
+      statusOFS << "Hybrid screening length = " << hamKS.ScreenMu() << std::endl;
+      hamKS.InitializeEXX( esdfParam.ecutWavefunction, fft );
+      statusOFS << "Exact exchange fft setup finished." << std::endl;
+    }
 
-//	Int size = spn.Wavefun().m() * spn.Wavefun().n();
-//	Int nocc = spn.Wavefun().p();
- 
-//  IntNumVec& wavefunIdx = spn.WavefunIdx();
-//  NumTns<Scalar>& wavefun = spn.Wavefun();
-
-//	for (Int k=0; k<nocc; k++) {
-//		Scalar *ptr = spn.Wavefun().MatData(k);
-//		Scalar *ptr1 = spnTemp.Wavefun().MatData(wavefunIdx(k));
-//		for (Int i=0; i<size; i++) {
-//      *ptr = *ptr1;
-//		  ptr = ptr + 1;
-//		  ptr1 = ptr1 + 1;
-//    }
-//	}
 
 		// Eigensolver class
 		eigSol.Setup( esdfParam, hamKS, spn, fft );
 
+		statusOFS << "Eigensolver setup finished ." << std::endl;
+
 		scf.Setup( esdfParam, eigSol, ptable );
 
-		GetTime( timeSta );
+		statusOFS << "SCF setup finished ." << std::endl;
+
 
 		// *********************************************************************
 		// Solve
 		// *********************************************************************
 
-		scf.Iterate();
+		GetTime( timeSta );
+    if( hamKS.IsHybrid() ){
+      scf.IterateHybrid();
+    }
+    else{
+      scf.Iterate();
+    }
+		GetTime( timeEnd );
 
+    statusOFS << "! Total time for all iterations = " << timeEnd - timeSta
+      << " [s]" << std::endl;
+
+    // FIXME. Merge this in the hybrid functional calculation part after
+    // the SCF converges.
+    // FIXME Put the computation and output of VdW into SCF
     Real etot, efree, ekin, ehart, eVxc, exc, evdw,
          eself, ecor, fermi, totalCharge, scfNorm;
 
@@ -278,14 +282,19 @@ int main(int argc, char **argv)
     efree += VDWEnergy;
     ecor  += VDWEnergy;
 
+    Real HOMO, LUMO;
+    HOMO = eigSol.EigVal()(hamKS.NumOccupiedState()-1);
+    if( hamKS.NumExtraState() > 0 )
+      LUMO = eigSol.EigVal()(hamKS.NumOccupiedState());
+
     // Print out the energy
     PrintBlock( statusOFS, "Energy" );
     statusOFS 
       << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + Evdw" << std::endl
       << "       Etot  = Ekin + Ecor" << std::endl
       << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
-    Print(statusOFS, "Etot              = ",  etot, "[au]");
-    Print(statusOFS, "Efree             = ",  efree, "[au]");
+    Print(statusOFS, "! Etot            = ",  etot, "[au]");
+    Print(statusOFS, "! Efree           = ",  efree, "[au]");
     Print(statusOFS, "Ekin              = ",  ekin, "[au]");
     Print(statusOFS, "Ehart             = ",  ehart, "[au]");
     Print(statusOFS, "EVxc              = ",  eVxc, "[au]");
@@ -293,9 +302,13 @@ int main(int argc, char **argv)
     Print(statusOFS, "Evdw              = ",  VDWEnergy, "[au]"); 
     Print(statusOFS, "Eself             = ",  eself, "[au]");
     Print(statusOFS, "Ecor              = ",  ecor, "[au]");
-    Print(statusOFS, "Fermi             = ",  fermi, "[au]");
+    Print(statusOFS, "! Fermi           = ",  fermi, "[au]");
+    Print(statusOFS, "! HOMO            = ",  HOMO*au2ev, "[ev]");
+    if( hamKS.NumExtraState() > 0 ){
+      Print(statusOFS, "! LUMO            = ",  LUMO*au2ev, "[eV]");
+    }
     Print(statusOFS, "Total charge      = ",  totalCharge, "[au]");
-    Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm );
+    Print(statusOFS, "! norm(vout-vin)/norm(vin) = ", scfNorm );
 
     // Print out the force
     PrintBlock( statusOFS, "Atomic Force" );

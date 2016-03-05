@@ -855,6 +855,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   DblNumVec psiFine(ntotFine);
   DblNumVec psiUpdateFine(ntotFine);
 
+  // FIXME OpenMP does not work since all variables are shared
   for (Int k=0; k<numStateLocal; k++) {
     for (Int j=0; j<ncom; j++) {
 
@@ -862,6 +863,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       SetValue( psiUpdateFine, 0.0 );
 
 
+      // Complex version
       if(0) 
       {
         SetValue( fft.inputComplexVec, Z_ZERO );
@@ -895,9 +897,9 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
       } // if(0)
 
+      // R2C version
       if(1)
       {
-        // These two are private variables in the OpenMP context
         SetValue( fft.inputVecR2C, 0.0 ); 
         SetValue( fft.inputVecR2CFine, 0.0 ); 
         SetValue( fft.outputVecR2C, Z_ZERO ); 
@@ -934,7 +936,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
         blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
         blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
 
-      }  // if (0)
+      }  // if (1)
 
 
       //    statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
@@ -1053,642 +1055,178 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   return ;
 }		// -----  end of method Spinor::AddMultSpinorFineR2C  ----- 
 
+// EXX: Spinor with exact exchange. Will be merged later.
+// However, keeping the names separate is good for now, since the new
+// algorithm requires a different set of input parameters for AddMultSpinor
+// 
+// NOTE 
+// Currently there is no parallelization over the phi tensor
+//
+void Spinor::AddMultSpinorEXX ( Fourier& fft, 
+    const NumTns<Scalar>& phi,
+    const DblNumVec& exxgkkR2CFine,
+    Real  exxFraction,
+    Real  numSpin,
+    const DblNumVec& occupationRate,
+    NumTns<Scalar>& a3 )
+{
+#ifndef _RELEASE_
+  PushCallStack("Spinor::AddMultSpinorEXX");
+#endif
+  if( !fft.isInitialized ){
+    throw std::runtime_error("Fourier is not prepared.");
+  }
+  Index3& numGrid = domain_.numGrid;
+  Index3& numGridFine = domain_.numGridFine;
+  Int ntot = wavefun_.m();
+  Int ncom = wavefun_.n();
+  Int numStateLocal = wavefun_.p();
+  Int ntotFine = domain_.NumGridTotalFine();
+  Real vol = domain_.Volume();
+  Int ncomPhi = phi.n();
+  if( ncomPhi != 1 || ncom != 1 ){
+    throw std::logic_error("Spin polarized case not implemented.");
+  }
+  // This assumes phi is stored on ALL processors, and could be memory consuming
+  Int numStateTotal = phi.p();
+//  statusOFS << "numStateTotal = " << numStateTotal << std::endl;
+
+  Int ntotR2C = fft.numGridTotalR2C;
+  Int ntotR2CFine = fft.numGridTotalR2CFine;
+
+  if( fft.domain.NumGridTotal() != ntot ){
+    throw std::logic_error("Domain size does not match.");
+  }
+
+  // Temporary variable for saving wavefunction on a fine grid
+  DblNumVec psiFine(ntotFine);
+  DblNumVec hpsiFine(ntotFine);
+  
+
+  // FIXME OpenMP does not work since all variables are shared
+  for (Int k=0; k<numStateLocal; k++) {
+    for (Int j=0; j<ncom; j++) {
+
+      SetValue( psiFine, 0.0 );
+      SetValue( hpsiFine, 0.0 );
+
+      // FIXME Maybe make this a more standard routine
+      // R2C version
+      if(1)
+      {
+        SetValue( fft.inputVecR2C, 0.0 ); 
+        SetValue( fft.inputVecR2CFine, 0.0 ); 
+        SetValue( fft.outputVecR2C, Z_ZERO ); 
+        SetValue( fft.outputVecR2CFine, Z_ZERO ); 
+
+        // For c2r and r2c transforms, the default is to DESTROY the
+        // input, therefore a copy of the original matrix is necessary. 
+        blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
+            fft.inputVecR2C.Data(), 1 );
+
+        fftw_execute_dft_r2c(
+            fft.forwardPlanR2C, 
+            fft.inputVecR2C.Data(),
+            reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ));
+
+        // Interpolate wavefunction from coarse to fine grid
+        {
+          Int *idxPtr = fft.idxFineGridR2C.Data();
+          Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
+          Complex *fftOutPtr = fft.outputVecR2C.Data();
+          for( Int ig = 0; ig < ntotR2C; ig++ ){
+            fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
+          }
+        }
+
+        fftw_execute_dft_c2r(
+            fft.backwardPlanR2CFine, 
+            reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
+            fft.inputVecR2CFine.Data() );
+
+        Real fac = 1.0 / std::sqrt( double(domain_.NumGridTotal())  *
+            double(domain_.NumGridTotalFine()) ); 
+        blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
+        blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
+
+      }  // if (1)
+
+      // Add the contribution from exchange. 
+      // NOTE: No parallelization over the phi tensor.
+      // All processors have access to all phi. This means that this version of exact
+      // exchange cannot be performed over many processors
+      for( Int kphi = 0; kphi < numStateTotal; kphi++ ){
+        for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
+          // Skip the unoccupied bands
+          if( occupationRate[kphi] < 1e-8 )
+            continue;
+
+          Real* phiPtr = phi.VecData(jphi, kphi);
+          // rhoc = phi*psi in the real space
+          for( Int ir = 0; ir < ntotFine; ir++ ){
+            fft.inputVecR2CFine(ir) = psiFine(ir) * phiPtr[ir];
+          }
+
+          fftw_execute_dft_r2c(
+              fft.forwardPlanR2CFine, 
+              fft.inputVecR2CFine.Data(),
+              reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
+
+          // Solve the Poisson-like problem for exchange
+          for( Int ig = 0; ig < ntotR2CFine; ig++ ){
+            fft.outputVecR2CFine(ig) *= exxgkkR2CFine(ig);
+          }
+
+          fftw_execute_dft_c2r(
+              fft.backwardPlanR2CFine, 
+              reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
+              fft.inputVecR2CFine.Data() );
+
+          // NOTE: No multiplication with spin
+          Real fac = -exxFraction * occupationRate[kphi] / double(ntotFine);  
+          for( Int ir = 0; ir < ntotFine; ir++ ){
+            hpsiFine(ir) += fft.inputVecR2CFine(ir) * phiPtr[ir] * fac;
+          }
+        } // for (jphi)
+      } // for (kphi)
+
+      // Fine to coarse grid
+      {
+        SetValue( fft.inputVecR2CFine, 0.0 );
+        blas::Copy( ntotFine, hpsiFine.Data(), 1, fft.inputVecR2CFine.Data(), 1 );
+
+        fftw_execute_dft_r2c(
+            fft.forwardPlanR2CFine, 
+            fft.inputVecR2CFine.Data(),
+            reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
+
+        Int *idxPtr = fft.idxFineGridR2C.Data();
+        Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
+        Complex *fftOutPtr = fft.outputVecR2C.Data();
+        for( Int i = 0; i < ntotR2C; i++ ){
+          *(fftOutPtr++) = fftOutFinePtr[*(idxPtr++)];
+        }
+
+        fftw_execute_dft_c2r(
+            fft.backwardPlanR2C, 
+            reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ),
+            fft.inputVecR2C.Data() );
+
+        Real fac = 1.0 / std::sqrt( double(domain_.NumGridTotal())  *
+            double(domain_.NumGridTotalFine()) ); 
+        blas::Axpy( ntot, fac, fft.inputVecR2C.Data(), 1,
+            a3.VecData(j,k), 1 );
+      }
+    } // for (j)
+  } // for (k)
 
 
-//int Spinor::add_nonlocalPS 
-//(vector< vector< pair<SparseVec,double> > > &val, CpxNumTns &a3) {
-//	int ntot = _wavefun._m;
-//	int ncom = _wavefun._n;
-//	int nocc = _wavefun._p;
-//	double vol = _domain._Ls[0] * _domain._Ls[1] * _domain._Ls[2];
-//
-//	for (int k=0; k<nocc; k++) {
-//		for (int j=0; j<ncom; j++) {
-//			cpx    *ptr0 = _wavefun.clmdata(j,k);
-//			cpx    *ptr1 = a3.clmdata(j,k);
-//			int natm = val.size();
-//			for (int iatm=0; iatm<natm; iatm++) {
-//				int nobt = val[iatm].size();
-//				for (int iobt=0; iobt<nobt; iobt++) {
-//					SparseVec &vnlvec = val[iatm][iobt].first;
-//					double vnlwgt = val[iatm][iobt].second;
-//					IntNumVec &iv = vnlvec.first;
-//					DblNumMat &dv = vnlvec.second;
-//
-//
-//					cpx    weight = cpx(0.0, 0.0); 
-//					int dvm = dv.m(); 
-//					// dvm = 4 here to represent the function value, 
-//					// and its derivatives along x,y,z directions.
-//					int *ivptr = iv.Data();
-//					double *dvptr = dv.Data();
-//					for (int i=0; i<iv.m(); i++) {
-//						weight += (*dvptr) * ptr0[*ivptr];
-//						ivptr++; dvptr += dvm;
-//					}
-//					weight *= vol/double(ntot)*vnlwgt;
-//
-//					ivptr = iv.Data();
-//					dvptr = dv.Data();
-//					for (int i=0; i<iv.m(); i++) {
-//						ptr1[*ivptr] += (*dvptr) * weight;
-//						ivptr++; dvptr +=dvm;
-//					}
-//				}
-//			}
-//		}
-//	}
-//	return 0;
-//};
-//
-//
-//int Spinor::add_D2_c2c (CpxNumTns &a3, FFTPrepare &fp) {
-//	// should be noted here D2 == \nabla^2/2.
-//	// make sure the FFTW is ready
-//	if (!fp._is_prepared) {
-//		fp.setup_xyz(_domain._Ns[0], _domain._Ns[1], _domain._Ns[2], 
-//				_domain._Ls[0], _domain._Ls[1], _domain._Ls[2]);
-//	}
-//
-//	int ntot     = fp._size;
-//	int nocc     = _wavefun._p;
-//	int ncom     = _wavefun._n;
-//
-//	iA (ntot == _wavefun._m);
-//
-//	for (int k=0; k<nocc; k++) {
-//		for (int j=0; j<ncom; j++) {
-//			cpx    *ptr0 = _wavefun.clmdata(j,k);
-//			fftw_execute_dft(fp._forward, reinterpret_cast<fftw_complex*>(ptr0), 
-//					reinterpret_cast<fftw_complex*>(fp._out_cpx));
-//
-//			double *ptr1d = fp._gkk.Data();
-//			ptr0 = fp._out_cpx;
-//			for (int i=0; i<ntot; i++) *(ptr0++) *= *(ptr1d++);
-//
-//			//      ptr0 = fp._out_cpx;
-//			//      fftw_execute_dft(fp._backward, reinterpret_cast<fftw_complex*>(ptr0), 
-//			//	reinterpret_cast<fftw_complex*>(fp._in_cpx));
-//
-//			fftw_execute(fp._backward);
-//			cpx   *ptr1 = a3.clmdata(j,k);
-//			ptr0 = fp._in_cpx;
-//			for (int i=0; i<ntot; i++) *(ptr1++) += *(ptr0++) / double(ntot);
-//
-//		}
-//	}
-//	return 0;
-//};
-//
-//int Spinor::get_D2_c2c (CpxNumTns &a3, FFTPrepare &fp) {
-//	// should be noted here D2 == \nabla^2/2.
-//	// make sure the FFTW is ready
-//	if (!fp._is_prepared) {
-//		fp.setup_xyz(_domain._Ns[0], _domain._Ns[1], _domain._Ns[2], 
-//				_domain._Ls[0], _domain._Ls[1], _domain._Ls[2]);
-//	}
-//
-//	int ntot     = fp._size;
-//	int nocc     = _wavefun._p;
-//	int ncom     = _wavefun._n;
-//
-//	iA (ntot == _wavefun._m);
-//
-//	for (int k=0; k<nocc; k++) {
-//		for (int j=0; j<ncom; j++) {
-//			cpx    *ptr0 = _wavefun.clmdata(j,k);
-//			fftw_execute_dft(fp._forward, reinterpret_cast<fftw_complex*>(ptr0), 
-//					reinterpret_cast<fftw_complex*>(fp._out_cpx));
-//
-//			double *ptr1d = fp._gkk.Data();
-//			ptr0 = fp._out_cpx;
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) *= *(ptr1d++) / ntot; //divide by ntot
-//			}
-//
-//			ptr0 = a3.clmdata(j,k);
-//			fftw_execute_dft(fp._backward, 
-//					reinterpret_cast<fftw_complex*>(fp._out_cpx), 
-//					reinterpret_cast<fftw_complex*>(ptr0));
-//
-//		}
-//	}
-//
-//	//  int size = ntot * ncom * nocc;
-//	//  cpx *ptr0 = a3.Data();
-//	//  for (int i=0; i<size; i++) *(ptr0++) /= ntot;
-//
-//	return 0;
-//};
-//
-//int Spinor::add_sigma_x (DblNumVec &a1, CpxNumTns &a3) {
-//	int ntot = _wavefun._m;
-//	int ncom = _wavefun._n;
-//	int nocc = _wavefun._p;
-//	for (int k=0; k<nocc; k++) {
-//		for (int j=0; j<ncom; j+=2) {
-//			double tsig = - 1.0;
-//			if (j<2) tsig = 1.0;
-//
-//			cpx    *ptr0 = a3.clmdata(j,k);
-//			double *ptrd = a1.Data();
-//			cpx    *ptr1 = _wavefun.clmdata(j+1,k);
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) += (*(ptr1++)) * (*(ptrd++)) * tsig;
-//			}
-//		}
-//		for (int j=1; j<ncom; j+=2) {
-//			double tsig = - 1.0;
-//			if (j<2) tsig = 1.0;
-//			cpx    *ptr0 = a3.clmdata(j,k);
-//
-//			double *ptrd = a1.Data();
-//			cpx    *ptr1 = _wavefun.clmdata(j-1,k);
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) += (*(ptr1++)) * (*(ptrd++)) * tsig;
-//			}
-//		}
-//	}
-//	return 0;
-//};
-//
-//int Spinor::add_sigma_y (DblNumVec &a1, CpxNumTns &a3) {
-//	int ntot = _wavefun._m;
-//	int ncom = _wavefun._n;
-//	int nocc = _wavefun._p;
-//	for (int k=0; k<nocc; k++) {
-//		for (int j=0; j<ncom; j+=2) {
-//			double tsig = - 1.0;
-//			if (j<2) tsig = 1.0;
-//
-//			cpx    *ptr0 = a3.clmdata(j,k);
-//			double *ptrd = a1.Data();
-//			cpx    *ptr1 = _wavefun.clmdata(j+1,k);
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) -= cpx(0.0, 1.0) * (*(ptr1++)) * (*(ptrd++)) * tsig;
-//			}
-//		}
-//		for (int j=1; j<ncom; j+=2) {
-//			double tsig = - 1.0;
-//			if (j<2) tsig = 1.0;
-//
-//			cpx    *ptr0 = a3.clmdata(j,k);
-//			double *ptrd = a1.Data();
-//			cpx    *ptr1 = _wavefun.clmdata(j-1,k);
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) += cpx(0.0, 1.0) * (*(ptr1++)) * (*(ptrd++)) * tsig;
-//			}
-//		}
-//	}
-//	return 0;
-//};
-//
-//int Spinor::add_sigma_z (DblNumVec &a1, CpxNumTns &a3) {
-//	int ntot = _wavefun._m;
-//	int ncom = _wavefun._n;
-//	int nocc = _wavefun._p;
-//	for (int k=0; k<nocc; k++) {
-//		for (int j=0; j<ncom; j+=2) {
-//			double tsig = - 1.0;
-//			if (j<2) tsig = 1.0;
-//
-//			cpx    *ptr0 = a3.clmdata(j,k);
-//			double *ptrd = a1.Data();
-//			cpx    *ptr1 = _wavefun.clmdata(j,k);
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) += (*(ptr1++)) * (*(ptrd++)) * tsig;
-//			}
-//		}
-//		for (int j=1; j<ncom; j+=2) {
-//			double tsig = - 1.0;
-//			if (j<2) tsig = 1.0;
-//
-//			cpx    *ptr0 = a3.clmdata(j,k);
-//			double *ptrd = a1.Data();
-//			cpx    *ptr1 = _wavefun.clmdata(j,k);
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) -= (*(ptr1++)) * (*(ptrd++)) * tsig;
-//			}
-//		}
-//	}
-//	return 0;
-//};
-//
-//int Spinor::add_nonlocalPS_SOC 
-//(vector< vector< pair< SparseVec,double> > > &val, 
-// vector<Atom> &atomvec, vector<DblNumVec> &grid, 
-// CpxNumTns &a3, FFTPrepare &fp) {
-//	int ntot = _wavefun._m;
-//	int ncom = _wavefun._n;
-//	int nocc = _wavefun._p;
-//	double vol = _domain._Ls[0] * _domain._Ls[1] * _domain._Ls[2];
-//
-//	int nx = _domain._Ns(0);
-//	int ny = _domain._Ns(1);
-//	int nz = _domain._Ns(2);
-//
-//	CpxNumVec psix, psiy, psiz;
-//	psix.resize(ntot);
-//	psiy.resize(ntot);
-//	psiz.resize(ntot);
-//	cpx *ptr0, *ptr1, *ptr2;
-//
-//	CpxNumVec lx, ly, lz;
-//	lx.resize(ntot); 
-//	ly.resize(ntot); 
-//	lz.resize(ntot); 
-//	cpx *ptr_lx, *ptr_ly, *ptr_lz;
-//
-//	for (int k=0; k<nocc; k++) {
-//		for (int j=0; j<ncom; j++) {
-//
-//			// get the moment
-//			ptr0 = _wavefun.clmdata(j,k);
-//			fftw_execute_dft(fp._forward, 
-//					reinterpret_cast<fftw_complex*>(ptr0), 
-//					reinterpret_cast<fftw_complex*>(fp._out_cpx));
-//			// px
-//			ptr0 = fp._out_cpx;
-//			ptr1 = fp._ik.clmdata(0);
-//			ptr2 = fp._in_cpx;
-//			for (int i=0; i<ntot; i++) { // divide by ntot
-//				*(ptr2++) = *(ptr0++) * (*(ptr1++)/double(ntot)) * cpx(0.0, -1.0);
-//			}
-//			ptr0 = psix.Data();
-//			fftw_execute_dft(fp._backward, 
-//					reinterpret_cast<fftw_complex*>(fp._in_cpx), 
-//					reinterpret_cast<fftw_complex*>(ptr0));
-//			// py
-//			ptr0 = fp._out_cpx;
-//			ptr1 = fp._ik.clmdata(1);
-//			ptr2 = fp._in_cpx;
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr2++) = *(ptr0++) * (*(ptr1++)/double(ntot)) * cpx(0.0, -1.0);
-//			}
-//			ptr0 = psiy.Data();
-//			fftw_execute_dft(fp._backward, 
-//					reinterpret_cast<fftw_complex*>(fp._in_cpx), 
-//					reinterpret_cast<fftw_complex*>(ptr0));
-//			// pz
-//			ptr0 = fp._out_cpx;
-//			ptr1 = fp._ik.clmdata(2);
-//			ptr2 = fp._in_cpx;
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr2++) = *(ptr0++) * (*(ptr1++)/double(ntot)) * cpx(0.0, -1.0);
-//			}
-//			ptr0 = psiz.Data();
-//			fftw_execute_dft(fp._backward, 
-//					reinterpret_cast<fftw_complex*>(fp._in_cpx), 
-//					reinterpret_cast<fftw_complex*>(ptr0));
-//			// end of geting the moment
-//
-//			ptr0 = psix.Data();
-//			ptr1 = psiy.Data();
-//			ptr2 = psiz.Data();
-//
-//			setvalue(lx, cpx(0.0, 0.0));
-//			setvalue(ly, cpx(0.0, 0.0));
-//			setvalue(lz, cpx(0.0, 0.0));
-//			ptr_lx = lx.Data();
-//			ptr_ly = ly.Data();
-//			ptr_lz = lz.Data();
-//
-//			int natm = val.size();
-//			for (int iatm=0; iatm<natm; iatm++) {
-//				Point3 coord = atomvec[iatm].coord();
-//				int nobt = val[iatm].size();
-//				for (int iobt=0; iobt<nobt; iobt++) {
-//					SparseVec &vnlvec = val[iatm][iobt].first;
-//					double vnlwgt = val[iatm][iobt].second;
-//					IntNumVec &iv = vnlvec.first;
-//					DblNumMat &dv = vnlvec.second;
-//					cpx weight0 = cpx(0.0, 0.0);
-//					cpx weight1 = cpx(0.0, 0.0);
-//					cpx weight2 = cpx(0.0, 0.0);
-//					int dvm = dv.m(); 
-//					int *ivptr = iv.Data();
-//					double *dvptr = dv.Data();
-//					//	  for (int i=0; i<iv.m(); i++) {
-//					//	    weight0 += (*dvptr) * ptr0[*ivptr];
-//					//	    weight1 += (*dvptr) * ptr1[*ivptr];
-//					//	    weight2 += (*dvptr) * ptr2[*ivptr];
-//					//	    ivptr++; dvptr += dvm;
-//					//	  }
-//					for (int i=0; i<iv.m(); i++) {
-//						int itmp = *ivptr;
-//						Index3 icoord;
-//						icoord(2) = itmp/(nx*ny);
-//						icoord(1) = (itmp - icoord(2)*nx*ny)/nx;
-//						icoord(0) = (itmp - icoord(2)*nx*ny - icoord(1)*nx);
-//						double dtmp = *dvptr;
-//						double rel0 = grid[0](icoord(0))-coord(0);
-//						double rel1 = grid[1](icoord(1))-coord(1);
-//						double rel2 = grid[2](icoord(2))-coord(2);
-//						// Shifting: VERY IMPORTANT
-//						rel0 = rel0 - IRound(rel0 / _domain._Ls[0]) * _domain._Ls[0];
-//						rel1 = rel1 - IRound(rel1 / _domain._Ls[1]) * _domain._Ls[1];
-//						rel2 = rel2 - IRound(rel2 / _domain._Ls[2]) * _domain._Ls[2];
-//
-//						weight0 += dtmp * (rel1*ptr2[itmp]-rel2*ptr1[itmp]);
-//						weight1 += dtmp * (rel2*ptr0[itmp]-rel0*ptr2[itmp]);
-//						weight2 += dtmp * (rel0*ptr1[itmp]-rel1*ptr0[itmp]);
-//						ivptr++; dvptr += dvm;
-//					}
-//					weight0 *= vol/double(ntot)*vnlwgt;
-//					weight1 *= vol/double(ntot)*vnlwgt;
-//					weight2 *= vol/double(ntot)*vnlwgt;
-//
-//					ivptr = iv.Data();
-//					dvptr = dv.Data();
-//					for (int i=0; i<iv.m(); i++) {
-//						int itmp = *ivptr;
-//						double dtmp = *dvptr;
-//						ptr_lx[itmp] += dtmp * weight0;
-//						ptr_ly[itmp] += dtmp * weight1;
-//						ptr_lz[itmp] += dtmp * weight2;
-//						ivptr++; dvptr +=dvm;
-//					}
-//				}
-//			}
-//
-//			ptr_lx = lx.Data();
-//			ptr_ly = ly.Data();
-//			cpx sign0;
-//			double sign1;
-//			if (j%2 == 0) { 
-//				ptr0 = a3.clmdata(j+1,k); 
-//				sign0 = cpx(0.0, +1.0); 
-//				sign1 = +1.0; 
-//			}
-//			else          { 
-//				ptr0 = a3.clmdata(j-1,k); 
-//				sign0 = cpx(0.0, -1.0); 
-//				sign1 = -1.0; 
-//			}
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) += 0.5 * ( *(ptr_lx++) + sign0 * (*(ptr_ly++)) );
-//			}
-//
-//			ptr_lz = lz.Data();
-//			ptr0   = a3.clmdata(j,k);
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) += 0.5 * ( *(ptr_lz++) * sign1 );
-//			}
-//		}
-//	}
-//
-//	return 0;
-//};
-//
-//int Spinor::add_matrix_ij(int ir, int jc, DblNumVec &a1, CpxNumTns &a3) {
-//
-//	int ntot = _wavefun._m;
-//	// int ncom = _wavefun._n;
-//	int nocc = _wavefun._p;
-//
-//	for (int k=0; k<nocc; k++) {
-//		cpx    *ptr0 = a3.clmdata(ir,k);
-//		double *ptr1 = a1.Data();
-//		cpx    *ptr2 = _wavefun.clmdata(jc,k);
-//		for (int i=0; i<ntot; i++) {
-//			*(ptr0++) += *(ptr1++) * (*(ptr2++));
-//		}
-//	}
-//	return 0;
-//};
-//int Spinor::add_matrix_ij(int ir, int jc, double  *ptr1, CpxNumTns &a3) {
-//
-//	int ntot = _wavefun._m;
-//	int nocc = _wavefun._p;
-//
-//	for (int k=0; k<nocc; k++) {
-//		cpx    *ptr0 = a3.clmdata(ir,k);
-//		// double *ptr1 = a1.Data();
-//		cpx    *ptr2 = _wavefun.clmdata(jc,k);
-//		for (int i=0; i<ntot; i++) {
-//			*(ptr0++) += *(ptr1++) * (*(ptr2++));
-//		}
-//	}
-//	return 0;
-//};
-//
-//int Spinor::get_DKS (DblNumVec &vtot, DblNumMat &vxc,
-//		vector< vector< pair<SparseVec,double> > > &vnlss,
-//		vector< vector< pair<SparseVec,double> > > &vnlso,
-//		vector<Atom> &atomvec, CpxNumTns &a3, FFTPrepare &fp,  
-//		vector<DblNumVec> &grid) {
-//
-//	int ntot = _wavefun._m;
-//	int ncom = _wavefun._n;
-//	int nocc = _wavefun._p;
-//	double vol = _domain._Ls[0] * _domain._Ls[1] * _domain._Ls[2];
-//
-//	int nx = _domain._Ns(0);
-//	int ny = _domain._Ns(1);
-//	int nz = _domain._Ns(2);
-//
-//	// get vtot only for four component
-//	double energyShift = 2.0 * pow(SPEED_OF_LIGHT, 2.0);
-//	for (int k=0; k<nocc; k++) {
-//		for (int j=0; j<2; j++) {
-//			cpx    *p1 = _wavefun.clmdata(j,k);
-//			cpx    *p3 =      a3.clmdata(j,k);
-//			double *p2 =    vtot.Data();
-//			for (int i=0; i<ntot; i++) { 
-//				*(p3) = (*p1) * (*p2); 
-//				p3++; p1++; p2++; 
-//			}
-//		}
-//		for (int j=2; j<ncom; j++) {
-//			cpx    *p1 = _wavefun.clmdata(j,k);
-//			cpx    *p3 =      a3.clmdata(j,k);
-//			double *p2 =    vtot.Data();
-//			for (int i=0; i<ntot; i++) { 
-//				*(p3) = (*p1) * (*p2 - energyShift); 
-//				p3++; p1++; p2++; 
-//			}
-//		}
-//	} // end of vtot multiplication
-//
-//	CpxNumVec psix, psiy, psiz;
-//	psix.resize(ntot);
-//	psiy.resize(ntot);
-//	psiz.resize(ntot);
-//	cpx *ptr0, *ptr1, *ptr2;
-//
-//	CpxNumVec lx, ly, lz;
-//	lx.resize(ntot); 
-//	ly.resize(ntot); 
-//	lz.resize(ntot); 
-//	cpx *ptr_lx, *ptr_ly, *ptr_lz;
-//
-//	for (int k=0; k<nocc; k++) {
-//		for (int j=0; j<ncom; j++) {
-//
-//			// get the moment
-//			ptr0 = _wavefun.clmdata(j,k);
-//			fftw_execute_dft(fp._forward, 
-//					reinterpret_cast<fftw_complex*>(ptr0), 
-//					reinterpret_cast<fftw_complex*>(fp._out_cpx));
-//			// px
-//			ptr0 = fp._out_cpx;
-//			ptr1 = fp._ik.clmdata(0);
-//			ptr2 = fp._in_cpx;
-//			for (int i=0; i<ntot; i++) { // divide by ntot
-//				*(ptr2++) = *(ptr0++) * (*(ptr1++)/double(ntot)) * cpx(0.0, -1.0);
-//			}
-//			ptr0 = psix.Data();
-//			fftw_execute_dft(fp._backward, 
-//					reinterpret_cast<fftw_complex*>(fp._in_cpx), 
-//					reinterpret_cast<fftw_complex*>(ptr0));
-//			// py
-//			ptr0 = fp._out_cpx;
-//			ptr1 = fp._ik.clmdata(1);
-//			ptr2 = fp._in_cpx;
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr2++) = *(ptr0++) * (*(ptr1++)/double(ntot)) * cpx(0.0, -1.0);
-//			}
-//			ptr0 = psiy.Data();
-//			fftw_execute_dft(fp._backward, 
-//					reinterpret_cast<fftw_complex*>(fp._in_cpx), 
-//					reinterpret_cast<fftw_complex*>(ptr0));
-//			// pz
-//			ptr0 = fp._out_cpx;
-//			ptr1 = fp._ik.clmdata(2);
-//			ptr2 = fp._in_cpx;
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr2++) = *(ptr0++) * (*(ptr1++)/double(ntot)) * cpx(0.0, -1.0);
-//			}
-//			ptr0 = psiz.Data();
-//			fftw_execute_dft(fp._backward, 
-//					reinterpret_cast<fftw_complex*>(fp._in_cpx), 
-//					reinterpret_cast<fftw_complex*>(ptr0));
-//			// end of geting the moment
-//
-//			cpx sign0;
-//			double sign1;
-//			int ito;
-//
-//			if (j%2 == 0) {
-//				sign0 = cpx(0.0, +1.0); 
-//				sign1 = +1.0; 
-//			}
-//			else          { 
-//				sign0 = cpx(0.0, -1.0); 
-//				sign1 = -1.0; 
-//			}
-//
-//			// start $c \vec{\sigma}\cdot\vec{p}$ 
-//			ptr_lx = psix.Data();
-//			ptr_ly = psiy.Data();
-//			ito = ncom-1-j;
-//			ptr0 = a3.clmdata(ito,k);
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) += SPEED_OF_LIGHT * ( *(ptr_lx++) + sign0 * (*(ptr_ly++)) );
-//			}
-//
-//			ptr_lz = psiz.Data();
-//			if (j<2) { ito = (j+2); } // %ncom for two component
-//			else     { ito = (j-2); }
-//			ptr0   = a3.clmdata(ito,k);
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) += SPEED_OF_LIGHT * ( *(ptr_lz++) * sign1 );
-//			}// end of $c \vec{\sigma} \cdot \vec{p}$
-//
-//			// start PS-SOC
-//			ptr0 = psix.Data();
-//			ptr1 = psiy.Data();
-//			ptr2 = psiz.Data();
-//
-//			setvalue(lx, cpx(0.0, 0.0));
-//			setvalue(ly, cpx(0.0, 0.0));
-//			setvalue(lz, cpx(0.0, 0.0));
-//			ptr_lx = lx.Data();
-//			ptr_ly = ly.Data();
-//			ptr_lz = lz.Data();
-//
-//			// get the angular momentum $L_{x,y,z}$
-//			int natm = vnlso.size();
-//			for (int iatm=0; iatm<natm; iatm++) {
-//				Point3 coord = atomvec[iatm].coord();
-//				int nobt = vnlso[iatm].size();
-//				for (int iobt=0; iobt<nobt; iobt++) {
-//					SparseVec &vnlvec = vnlso[iatm][iobt].first;
-//					double vnlwgt = vnlso[iatm][iobt].second;
-//					IntNumVec &iv = vnlvec.first;
-//					DblNumMat &dv = vnlvec.second;
-//					cpx weight0 = cpx(0.0, 0.0);
-//					cpx weight1 = cpx(0.0, 0.0);
-//					cpx weight2 = cpx(0.0, 0.0);
-//					int dvm = dv.m(); 
-//					int *ivptr = iv.Data();
-//					double *dvptr = dv.Data();
-//					for (int i=0; i<iv.m(); i++) {
-//						int itmp = *ivptr;
-//						Index3 icoord;
-//						icoord(2) = itmp/(nx*ny);
-//						icoord(1) = (itmp - icoord(2)*nx*ny)/nx;
-//						icoord(0) = (itmp - icoord(2)*nx*ny - icoord(1)*nx);
-//						double dtmp = *dvptr;
-//						double rel0 = grid[0](icoord(0))-coord(0);
-//						double rel1 = grid[1](icoord(1))-coord(1);
-//						double rel2 = grid[2](icoord(2))-coord(2);
-//						// Shifting: VERY IMPORTANT
-//						rel0 = rel0 - IRound(rel0 / _domain._Ls[0]) * _domain._Ls[0];
-//						rel1 = rel1 - IRound(rel1 / _domain._Ls[1]) * _domain._Ls[1];
-//						rel2 = rel2 - IRound(rel2 / _domain._Ls[2]) * _domain._Ls[2];
-//
-//						weight0 += dtmp * (rel1*ptr2[itmp]-rel2*ptr1[itmp]);
-//						weight1 += dtmp * (rel2*ptr0[itmp]-rel0*ptr2[itmp]);
-//						weight2 += dtmp * (rel0*ptr1[itmp]-rel1*ptr0[itmp]);
-//						ivptr++; dvptr += dvm;
-//					}
-//					weight0 *= vol/double(ntot)*vnlwgt;
-//					weight1 *= vol/double(ntot)*vnlwgt;
-//					weight2 *= vol/double(ntot)*vnlwgt;
-//
-//					ivptr = iv.Data();
-//					dvptr = dv.Data();
-//					for (int i=0; i<iv.m(); i++) {
-//						int itmp = *ivptr;
-//						double dtmp = *dvptr;
-//						ptr_lx[itmp] += dtmp * weight0;
-//						ptr_ly[itmp] += dtmp * weight1;
-//						ptr_lz[itmp] += dtmp * weight2;
-//						ivptr++; dvptr +=dvm;
-//					}
-//				}
-//			}// end of $L_{x,y,z}$
-//
-//			ptr_lx = lx.Data();
-//			ptr_ly = ly.Data();
-//			if (j<2) { ito = 1-j; } // %ncom for two component
-//			else     { ito = 5-j; }
-//			ptr0 = a3.clmdata(ito,k); 
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) += 0.5 * ( *(ptr_lx++) + sign0 * (*(ptr_ly++)) );
-//			}
-//
-//			ptr_lz = lz.Data();
-//			ito = j;
-//			ptr0   = a3.clmdata(ito,k);
-//			for (int i=0; i<ntot; i++) {
-//				*(ptr0++) += 0.5 * ( *(ptr_lz++) * sign1 );
-//			}//end of the PS-SOC part
-//		}
-//	}
-//
-//	// add nonlocal PS
-//	add_nonlocalPS(vnlss, a3);
-//
-//	// Magnetic part of Vxc
-//	DblNumVec BxcX = DblNumVec(ntot, false, vxc.clmdata(MAGX));
-//	DblNumVec BxcY = DblNumVec(ntot, false, vxc.clmdata(MAGY));
-//	DblNumVec BxcZ = DblNumVec(ntot, false, vxc.clmdata(MAGZ));
-//	add_sigma_x(BxcX, a3);
-//	add_sigma_y(BxcY, a3);
-//	add_sigma_z(BxcZ, a3);
-//
-//	return 0;
-//};
+
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+
+  return ;
+}
+
 }  // namespace dgdft

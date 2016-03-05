@@ -63,6 +63,9 @@ namespace dgdft{
 
 
 
+
+/// @brief Pure virtual class for handling different types of
+/// Hamiltonian.
 class Hamiltonian {
 protected:
 	Domain                      domain_;
@@ -71,9 +74,11 @@ protected:
 	Int                         numSpin_;
 	Int                         numExtraState_;
 	Int                         numOccupiedState_;
+  Int                         numDensityComponent_;
 	// Type of pseudopotential, default HGH
 	std::string                 pseudoType_;
 	// Id of the exchange-correlation potential
+  std::string                 XCType_;
 	Int                         XCId_;
 	Int                         XId_;
 	Int                         CId_;
@@ -112,6 +117,26 @@ protected:
 	// Occupation rate
 	DblNumVec                   occupationRate_;
 
+  // EXX variables
+  /// @brief Whether to perform Hybrid calculations
+  bool                        isHybrid_;
+  /// @brief Determine which mode
+  bool                        isEXXActive_;
+  
+  /// @brief Screening parameter mu for range separated hybrid functional. Currently hard coded
+  const Real                  screenMu_ = 0.106;
+  
+  /// @brief Mixing parameter for hybrid functional calculation. Currently hard coded
+  const Real                  exxFraction_ = 0.25;
+
+  /// @brief Whether to use adaptively compressed exchange formulation
+  /// for hybrid functional.
+  bool                        isHybridACE_;
+
+  Int                         exxDivergenceType_;
+
+  Real                        exxDiv_;
+
 public:
 
 	// *********************************************************************
@@ -119,17 +144,11 @@ public:
 	// *********************************************************************
 	Hamiltonian() {}
 	virtual ~Hamiltonian() {}
-	Hamiltonian( 
-			const esdf::ESDFInputParam& esdfParam,
-			const Int                   numDensityComponent );
 
 	virtual void Setup (
-		const Domain&              dm,
-		const std::vector<Atom>&   atomList,
-		std::string                pseudoType,
-		std::string                XCType,
-		Int                        numExtraState,
-    Int                        numDensityComponent );
+		const esdf::ESDFInputParam& esdfParam,
+    const Domain&              dm,
+		const std::vector<Atom>&   atomList ) = 0;
  
 
 	// *********************************************************************
@@ -158,9 +177,19 @@ public:
 
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft) = 0;
-
+	
+  // FIXME Clean
 	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft) = 0;
+  
+  virtual NumTns<Scalar>& PhiEXX() = 0;
+  
+  virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
+  
+  virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
 
+  virtual void CalculateVexxACE( Spinor& psi, Fourier& fft ) = 0;
+
+  virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
 
 	// *********************************************************************
 	// Access
@@ -180,6 +209,15 @@ public:
 
 	std::vector<Atom>&  AtomList() { return atomList_; }
 
+  bool        IsEXXActive() { return isEXXActive_; }
+  bool        IsHybrid() { return isHybrid_; }
+
+  void        SetEXXActive(bool flag) { isEXXActive_ = flag; }
+  
+  Real        ScreenMu() { return screenMu_;}
+  Real        EXXFraction() { return exxFraction_;}
+  bool        IsHybridACE() { return isHybridACE_; }
+
 	// *********************************************************************
 	// Inquiry
 	// *********************************************************************
@@ -195,7 +233,18 @@ public:
 // *********************************************************************
 // One-component Kohn-Sham class
 // *********************************************************************
+/// @brief Detailed implementation of one-component (spin-restricted)
+/// Kohn-Sham calculations.
 class KohnSham: public Hamiltonian {
+private: 
+
+  /// @brief Store all the orbitals for exact exchange calculation
+  /// NOTE: This might impose serious memory constraint for relatively
+  /// large systems.
+  NumTns<Scalar>              phiEXX_; 
+  DblNumMat                   vexxProj_; 
+  DblNumVec                   exxgkkR2CFine_;
+ 
 public:
 
 	// *********************************************************************
@@ -204,17 +253,10 @@ public:
   KohnSham();
   ~KohnSham();
 
-	KohnSham( 
-			const esdf::ESDFInputParam& esdfParam,
-      const Int                   numDensityComponent );
-
-	void Setup (
-		const Domain&              dm,
-		const std::vector<Atom>&   atomList,
-		std::string                pseudoType,
-		std::string                XCType,
-		Int                        numExtraState = 0,
-    Int                        numDensityComponent = 1 );
+	virtual void Setup (
+		const esdf::ESDFInputParam& esdfParam,
+    const Domain&              dm,
+		const std::vector<Atom>&   atomList );
 
 	void Update ( std::vector<Atom>&  atomList );
 
@@ -244,66 +286,31 @@ public:
 
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Scalar>& a3, Fourier& fft);
-
+	
+  // FIXME Clean
 	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft);
 
+  
+  /// @brief Update phiEXX by the spinor psi. The Phi are normalized in
+  /// the real space as
+  ///
+  /// \int |\phi(x)|^2 dx = 1
+  ///
+  /// while the wavefunction satisfies the normalization
+  ///
+  /// \sum |\psi(x)|^2 = 1, differing by a normalization constant. FIXME
+  virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
+
+  virtual NumTns<Scalar>& PhiEXX() {return phiEXX_;}
+
+  virtual void CalculateVexxACE( Spinor& psi, Fourier& fft );
+
+  virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
+
+  virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft );
 };
 
 
-
-// Two-component Kohn-Sham with spin orbit coupling.
-//class KohnSham2C: public Hamiltonian {
-//  public:
-//    // Total number of projectors for spin-orbit coupling
-//    int _ntotalPSSpinOrbit;
-//    // nonlocal potential for spin-orbit coupling
-//    vector< vector< pair<SparseVec,double> > > _vnlSO;
-//
-//  public:
-//    KohnSham2C();
-//    ~KohnSham2C();
-//    KohnSham2C(Domain &dm, Index2 &val);
-//    KohnSham2C(Domain &dm, int val);
-//    KohnSham2C(Domain &dm, vector<Atom> &atvec, int nexstate, string PStype, int n);
-//    KohnSham2C(Domain &dm, vector<Atom> &atvec, int nexstate, int n);
-//
-//    int get_density(Spinor &psi, DblNumVec &occrate, double &val); 
-//    int set_XC(xc_func_type& XCFunc, double &val);
-//    int set_total();
-//    int set_total(DblNumVec &vtot);
-//    int set_nonlocalPS(PeriodTable &ptable, int &cnt);
-//    int set_nonlocalPSSpinOrbit(PeriodTable &ptable, int &cnt);
-//    int set_atomPSden(PeriodTable &ptable);
-//    int set_PS(PeriodTable &ptable);
-//    int act_spinor(Spinor &psi0, CpxNumTns &a3, FFTPrepare &fp);
-//};
-
-// Four-component Dirac-Kohn-Sham
-//class DiracKohnSham: public Hamiltonian {
-//  public:
-//    // Total number of projectors for spin-orbit coupling
-//    int _ntotalPSSpinOrbit;
-//    // nonlocal potential for spin-orbit coupling
-//    vector< vector< pair<SparseVec,double> > > _vnlSO;
-//
-//  public:
-//    DiracKohnSham();
-//    ~DiracKohnSham();
-//    DiracKohnSham(Domain &dm, Index2 &val);
-//    DiracKohnSham(Domain &dm, int val);
-//    DiracKohnSham(Domain &dm, vector<Atom> &atvec, int nexstate, string PStype, int n);
-//    DiracKohnSham(Domain &dm, vector<Atom> &atvec, int nexstate, int n);
-//
-//    int get_density(Spinor &psi, DblNumVec &occrate, double &val); 
-//    int set_XC(xc_func_type& XCFunc, double &val);
-//    int set_total();
-//    int set_total(DblNumVec &vtot);
-//    int set_nonlocalPS(PeriodTable &ptable, int &cnt);
-//    int set_nonlocalPSSpinOrbit(PeriodTable &ptable, int &cnt);
-//    int set_atomPSden(PeriodTable &ptable);
-//    int set_PS(PeriodTable &ptable);
-//    int act_spinor(Spinor &psi0, CpxNumTns &a3, FFTPrepare &fp);
-//};
 
 } // namespace dgdft
 

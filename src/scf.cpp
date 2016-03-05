@@ -97,6 +97,8 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
     eigMaxIter_    = esdfParam.eigMaxIter;
 		scfTolerance_  = esdfParam.scfOuterTolerance;
 		scfMaxIter_    = esdfParam.scfOuterMaxIter;
+    scfPhiMaxIter_ = esdfParam.scfPhiMaxIter;
+    scfPhiTolerance_ = esdfParam.scfPhiTolerance;
     numUnusedState_ = esdfParam.numUnusedState;
     isEigToleranceDynamic_ = esdfParam.isEigToleranceDynamic;
 		isRestartDensity_ = esdfParam.isRestartDensity;
@@ -174,6 +176,15 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 		deserialize( eigSolPtr_->Psi().Wavefun(), iss, NO_MASK );
 	}
 
+  // XC functional
+  {
+    isCalculateGradRho_ = false;
+    if( XCType_ == "XC_GGA_XC_PBE" || 
+        XCType_ == "XC_HYB_GGA_XC_HSE06" ) {
+      isCalculateGradRho_ = true;
+    }
+  }
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -215,7 +226,7 @@ SCF::Iterate	(  )
 #endif
 
   // Compute the exchange-correlation potential and energy
-	if( XCType_ == "XC_GGA_XC_PBE"){
+	if( isCalculateGradRho_ ){
 		eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
 	}
 	eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
@@ -307,7 +318,7 @@ SCF::Iterate	(  )
         eigSolPtr_->FFT() );
 
 		// Compute the exchange-correlation potential and energy
-    if( XCType_ == "XC_GGA_XC_PBE"){
+    if( isCalculateGradRho_ ){
       eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
     }
     eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
@@ -388,6 +399,279 @@ SCF::Iterate	(  )
 
 	return ;
 } 		// -----  end of method SCF::Iterate  ----- 
+
+
+// FIXME This function will be like electrons.f90 in QE. Some
+// repetitiveness with SCF::Iterate
+void
+SCF::IterateHybrid (  )
+{
+#ifndef _RELEASE_
+	PushCallStack("SCF::IterateHybrid");
+#endif
+	Real timeSta, timeEnd;
+  // Only works for KohnSham class
+  Hamiltonian& ham = eigSolPtr_->Ham();
+  Fourier&     fft = eigSolPtr_->FFT();
+  Spinor&      psi = eigSolPtr_->Psi();
+
+  // EXX: Only allow hybrid functional here
+
+  // Compute the exchange-correlation potential and energy
+	if( isCalculateGradRho_ ){
+		ham.CalculateGradDensity( fft );
+	}
+	ham.CalculateXC( Exc_, fft ); 
+
+	// Compute the Hartree energy
+	ham.CalculateHartree( fft );
+	// No external potential
+
+	// Compute the total potential
+	ham.CalculateVtot( ham.Vtot() );
+
+  Real timeIterStart(0), timeIterEnd(0);
+  Real timePhiIterStart(0), timePhiIterEnd(0);
+  
+  // EXX: Run SCF::Iterate here
+  bool isPhiIterConverged = false;
+
+  // Fock energies
+  Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
+
+  for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
+    GetTime( timePhiIterStart );
+    if ( isPhiIterConverged ) break;
+
+    {
+      std::ostringstream msg;
+      msg << "Phi iteration # " << phiIter;
+      PrintBlock( statusOFS, msg.str() );
+    }
+    bool isSCFConverged = false;
+
+
+    // Regular SCF iter
+    for (Int iter=1; iter <= scfMaxIter_; iter++) {
+      if ( isSCFConverged ) break;
+
+      // *********************************************************************
+      // Performing each iteartion
+      // *********************************************************************
+      {
+        std::ostringstream msg;
+        msg << "SCF iteration # " << iter;
+        PrintBlock( statusOFS, msg.str() );
+      }
+
+      GetTime( timeIterStart );
+
+      // Solve the eigenvalue problem
+
+      Real eigTolNow;
+      if( isEigToleranceDynamic_ ){
+        // Dynamic strategy to control the tolerance
+        if( iter == 1 )
+          eigTolNow = 1e-2;
+        else
+          eigTolNow = std::max( std::min( scfNorm_*1e-2, 1e-2 ) , eigTolerance_);
+      }
+      else{
+        // Static strategy to control the tolerance
+        eigTolNow = eigTolerance_;
+      }
+
+      Int numEig = (psi.NumStateTotal())-numUnusedState_;
+
+      statusOFS << "The current tolerance used by the eigensolver is " 
+        << eigTolNow << std::endl;
+      statusOFS << "The target number of converged eigenvectors is " 
+        << numEig << std::endl;
+
+
+      GetTime( timeSta );
+      if(1){
+        eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
+      }
+      GetTime( timeEnd );
+
+      ham.EigVal() = eigSolPtr_->EigVal();
+
+      statusOFS << "Time for the eigensolver is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+
+      // No need for normalization using LOBPCG
+
+      // Compute the occupation rate
+      CalculateOccupationRate( ham.EigVal(), 
+          ham.OccupationRate() );
+
+      // Compute the electron density
+      ham.CalculateDensity(
+          psi,
+          ham.OccupationRate(),
+          totalCharge_, 
+          fft );
+
+
+      // Compute the exchange-correlation potential and energy
+      if( isCalculateGradRho_ ){
+        ham.CalculateGradDensity( fft );
+      }
+      ham.CalculateXC( Exc_, fft ); 
+
+      // Compute the Hartree energy
+      ham.CalculateHartree( fft );
+      // No external potential
+
+      // Compute the total potential
+      ham.CalculateVtot( vtotNew_ );
+
+      Real normVtotDif = 0.0, normVtotOld;
+      DblNumVec& vtotOld_ = ham.Vtot();
+      Int ntot = vtotOld_.m();
+      for( Int i = 0; i < ntot; i++ ){
+        normVtotDif += pow( vtotOld_(i) - vtotNew_(i), 2.0 );
+        normVtotOld += pow( vtotOld_(i), 2.0 );
+      }
+      normVtotDif = sqrt( normVtotDif );
+      normVtotOld = sqrt( normVtotOld );
+      scfNorm_    = normVtotDif / normVtotOld;
+
+      Evdw_ = 0.0;
+
+      CalculateEnergy();
+
+      PrintState( iter );
+
+      // Not really needed
+      if( isCalculateForceEachSCF_ ){
+        GetTime( timeSta );
+        ham.CalculateForce2( psi, fft );
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the force is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // Print out the force
+        PrintBlock( statusOFS, "Atomic Force" );
+        {
+          Point3 forceCM(0.0, 0.0, 0.0);
+          std::vector<Atom>& atomList = ham.AtomList();
+          Int numAtom = atomList.size();
+          for( Int a = 0; a < numAtom; a++ ){
+            Print( statusOFS, "atom", a, "force", atomList[a].force );
+            forceCM += atomList[a].force;
+          }
+          statusOFS << std::endl;
+          Print( statusOFS, "force for centroid: ", forceCM );
+          statusOFS << std::endl;
+        }
+      }
+
+
+      if( scfNorm_ < scfTolerance_ ){
+        /* converged */
+        Print( statusOFS, "SCF is converged!\n" );
+        isSCFConverged = true;
+      }
+
+      // Potential mixing
+      if( mixType_ == "anderson" ){
+        AndersonMix(iter);
+      }
+
+      if( mixType_ == "kerker" ){
+        KerkerMix();  
+        AndersonMix(iter);
+      }
+
+      GetTime( timeIterEnd );
+
+      statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
+        << " [s]" << std::endl;
+
+    }
+
+
+    // EXX
+    Real dExx;
+    if( phiIter == 1 ){
+      ham.SetEXXActive(true);
+      // Update Phi <- Psi
+      GetTime( timeSta );
+      ham.SetPhiEXX( eigSolPtr_->Psi(), eigSolPtr_->FFT() ); 
+      if( ham.IsHybridACE() ){
+        ham.CalculateVexxACE ( psi, fft );
+      }
+      GetTime( timeEnd );
+      statusOFS << "Time for updating Phi related variable is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      GetTime( timeSta );
+      fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+      GetTime( timeEnd );
+      statusOFS << "Time for computing the EXX energy is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      // Update the energy
+      Efock_ = fock2;
+      Etot_ = Etot_ - Efock_;
+      Efree_ = Efree_ - Efock_;
+      Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
+      Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
+      Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
+    }
+    else{
+      // Calculate first
+      fock1 = ham.CalculateEXXEnergy( psi, fft ); 
+
+      // Update Phi <- Psi
+      GetTime( timeSta );
+      ham.SetPhiEXX( psi, fft ); 
+      if( ham.IsHybridACE() ){
+        ham.CalculateVexxACE ( psi, fft );
+      }
+      GetTime( timeEnd );
+      statusOFS << "Time for updating Phi related variable is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      
+      fock0 = fock2;
+      // Calculate again
+      GetTime( timeSta );
+      fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+      GetTime( timeEnd );
+      statusOFS << "Time for computing the EXX energy is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+      dExx = fock1 - 0.5 * (fock0 + fock2);
+      
+      Efock_ = fock2;
+      Etot_ = Etot_ - Efock_;
+      Efree_ = Efree_ - Efock_;
+      Print(statusOFS, "dExx              = ",  dExx, "[au]");
+      Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
+      Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
+      Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
+
+      if( dExx < scfPhiTolerance_ ){
+        Print( statusOFS, "SCF for hybrid functional is converged!\n" );
+        isPhiIterConverged = true;
+      }
+    }
+    GetTime( timePhiIterEnd );
+
+    statusOFS << "Total wall clock time for this Phi iteration = " << 
+      timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
+  } // for(phiIter)
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method SCF::IterateHybrid  ----- 
+
 
 void
 SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
@@ -944,6 +1228,10 @@ SCF::PrintState	( const Int iter  )
 #ifndef _RELEASE_
 	PushCallStack("SCF::PrintState");
 #endif
+  Real HOMO, LUMO;
+  HOMO = eigSolPtr_->EigVal()(eigSolPtr_->Ham().NumOccupiedState()-1);
+  if( eigSolPtr_->Ham().NumExtraState() > 0 )
+    LUMO = eigSolPtr_->EigVal()(eigSolPtr_->Ham().NumOccupiedState());
 	for(Int i = 0; i < eigSolPtr_->EigVal().m(); i++){
     Print(statusOFS, 
 				"band#    = ", i, 
@@ -967,6 +1255,10 @@ SCF::PrintState	( const Int iter  )
 	Print(statusOFS, "Ecor              = ",  Ecor_, "[au]");
 	Print(statusOFS, "Fermi             = ",  fermi_, "[au]");
 	Print(statusOFS, "Total charge      = ",  totalCharge_, "[au]");
+	Print(statusOFS, "HOMO              = ",  HOMO*au2ev, "[eV]");
+  if( eigSolPtr_->Ham().NumExtraState() > 0 ){
+    Print(statusOFS, "LUMO              = ",  LUMO*au2ev, "[eV]");
+  }
 	Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm_ );
 
 #ifndef _RELEASE_
@@ -1044,5 +1336,6 @@ void SCF::OutputState	(  )
 
 	return ;
 } 		// -----  end of method SCF::OutputState  ----- 
+
 
 } // namespace dgdft

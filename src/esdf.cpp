@@ -344,7 +344,7 @@ namespace dgdft{
       strcpy(kw_label[i],"miniter");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! Minimum iterations !*");
-	
+
       i++;
       strcpy(kw_label[i],"maxiter");
       strcpy(kw_typ[i],"I:E");
@@ -401,7 +401,7 @@ namespace dgdft{
       strcpy(kw_label[i],"eig_tolerance");
       strcpy(kw_typ[i],"D:E");
       strcpy(kw_dscrpt[i],"*! eigenvalue solver tolerance!*");
-	
+
       i++;
       strcpy(kw_label[i],"eig_miniter");
       strcpy(kw_typ[i],"I:E");
@@ -437,7 +437,7 @@ namespace dgdft{
       strcpy(kw_label[i],"temperature");
       strcpy(kw_typ[i],"D:E");
       strcpy(kw_dscrpt[i],"*! temperature (in Kelvin)!*");
-	
+
       i++;
       strcpy(kw_label[i],"ion_temperature");
       strcpy(kw_typ[i],"D:E");
@@ -457,7 +457,7 @@ namespace dgdft{
       strcpy(kw_label[i],"scf_outer_miniter");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! Minimum iteration number for outer SCF loop !*");
-	
+
       i++;
       strcpy(kw_label[i],"scf_outer_maxiter");
       strcpy(kw_typ[i],"I:E");
@@ -538,7 +538,7 @@ namespace dgdft{
       strcpy(kw_label[i],"output_wfn");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! whether wavefunctions and occupations numbers are outputed !*");
-	
+
       i++;
       strcpy(kw_label[i],"output_alb_elem_lgl");
       strcpy(kw_typ[i],"I:E");
@@ -701,7 +701,7 @@ namespace dgdft{
       strcpy(kw_label[i],"vdw_type");
       strcpy(kw_typ[i],"T:E");
       strcpy(kw_dscrpt[i],"*! Type of van der Waals correction !*");
-	
+
       i++;
       strcpy(kw_label[i],"calculate_aposteriori_each_scf");
       strcpy(kw_typ[i],"I:E");
@@ -746,12 +746,12 @@ namespace dgdft{
       strcpy(kw_label[i],"lgl_grid_factor");
       strcpy(kw_typ[i],"D:E");
       strcpy(kw_dscrpt[i],"*! The number of LGL grid points over the number of grid points over wavefunction along each dimension !*");
-	
+
       i++;
       strcpy(kw_label[i],"gauss_interp_factor");
       strcpy(kw_typ[i],"D:E");
       strcpy(kw_dscrpt[i],"*! The interp factor for Gaussian function !*");
-  
+
       i++;
       strcpy(kw_label[i],"gauss_sigma");
       strcpy(kw_typ[i],"D:E");
@@ -885,7 +885,7 @@ namespace dgdft{
       strcpy(kw_label[i],"geo_opt_max_force");
       strcpy(kw_typ[i],"D:E");
       strcpy(kw_dscrpt[i],"*! Maximum force of geometric optimization !*");
-	
+
       i++;
       strcpy(kw_label[i],"md_max_step");
       strcpy(kw_typ[i],"I:E");
@@ -896,15 +896,15 @@ namespace dgdft{
       strcpy(kw_typ[i],"D:E");
       strcpy(kw_dscrpt[i],"*! Time step of Molecular Dynamics !*");
 
-	i++;
-	strcpy(kw_label[i],"md_extrapolation_type");
-	strcpy(kw_typ[i],"T:E");
-	strcpy(kw_dscrpt[i],"*! Extrapolation type for updating the density !*");
-	
-  i++;
-	strcpy(kw_label[i],"thermostat_mass");
-	strcpy(kw_typ[i],"D:E");
-	strcpy(kw_dscrpt[i],"*! Thermostat mass !*");
+      i++;
+      strcpy(kw_label[i],"md_extrapolation_type");
+      strcpy(kw_typ[i],"T:E");
+      strcpy(kw_dscrpt[i],"*! Extrapolation type for updating the density !*");
+
+      i++;
+      strcpy(kw_label[i],"thermostat_mass");
+      strcpy(kw_typ[i],"D:E");
+      strcpy(kw_dscrpt[i],"*! Thermostat mass !*");
 
       i++;
       strcpy(kw_label[i],"restart_position");
@@ -930,39 +930,58 @@ namespace dgdft{
       strcpy(kw_label[i],"output_xyz");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! whether to output the atomic position in XYZ format !*");
-	
-	
+
+
+      i++;
+      strcpy(kw_label[i],"scf_phi_maxiter");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! Maximum iteration number for hybrid functional!*");
+
+      i++;
+      strcpy(kw_label[i],"scf_phi_tolerance");
+      strcpy(kw_typ[i],"D:E");
+      strcpy(kw_dscrpt[i],"*! Tolerance for hybrid functional iteration!*");
+
+      i++;
+      strcpy(kw_label[i],"hybrid_ace");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! whether use the ACE formulation for hybrid functional!*");
+
+      i++;
+      strcpy(kw_label[i],"exx_divergence_type");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! treatment of the divergence term in hybrid functional!*");
+
       // Inputs related to Chebyshev Filtered SCF iterations for DG
       // ~~**~~
       i++;
       strcpy(kw_label[i],"diag_scfdg_by_cheby");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! whether to use Chebyshev Filtering based SCF (replaces diagonalization by ScaLAPACK) !*");
-	
+
       i++;
       strcpy(kw_label[i],"scfdg_cheby_use_scalapack");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! whether to use ScaLAPACK for Chebyshev filtering inner routines !*");
 
-	
-	
+
       i++;
       strcpy(kw_label[i],"first_scfdg_chebyfilterorder");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for first SCF step !*");
-	
+
       i++;
       strcpy(kw_label[i],"first_scfdg_chebycyclenum");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! Number of Chebyshev Filtering Cycles for first SCF step !*");
 
-	
-	
+
+
       i++;
       strcpy(kw_label[i],"second_scfdg_chebyouteriter");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! Use second stage for outeriter between 1 and Second_SCFDG_ChebyOuterIter !*");
-	
+
       i++;
       strcpy(kw_label[i],"second_scfdg_chebyfilterorder");
       strcpy(kw_typ[i],"I:E");
@@ -972,9 +991,9 @@ namespace dgdft{
       strcpy(kw_label[i],"second_scfdg_chebycyclenum");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! Number of Chebyshev Filtering Cycles for second stage !*");
-	
-	
-	
+
+
+
       i++;
       strcpy(kw_label[i],"general_scfdg_chebyfilterorder");
       strcpy(kw_typ[i],"I:E");
@@ -995,74 +1014,74 @@ namespace dgdft{
        *  c - charge d - dipole mom - mom inert ef - efield
        */
       struct {
-	char d[11];
-	char n[11];
-	double u;
+        char d[11];
+        char n[11];
+        double u;
       } phy[nphys]={
-	{"m",   "kg",           1.0},
-	{"m",   "g",            1.0e-3},
-	{"m",   "amu",          1.66054e-27},
-	{"l",   "m",            1.0},
-	{"l",   "nm",           1.0e-9},
-	{"l",   "ang",          1.0e-10},
-	{"l",   "bohr",         0.529177e-10},
-	{"t",   "s",            1.0},
-	{"t",   "ns",           1.0e-9},
-	{"t",   "ps",           1.0e-12},
-	{"t",   "fs",           1.0e-15},
-	{"e",   "j",            1.0},
-	{"e",   "erg",          1.0e-7},
-	{"e",   "ev",           1.60219e-19},
-	{"e",   "mev",          1.60219e-22},
-	{"e",   "ry",           2.17991e-18},
-	{"e",   "mry",          2.17991e-21},
-	{"e",   "hartree",      4.35982e-18},
-	{"e",   "kcal/mol",     6.94780e-21},
-	{"e",   "mhartree",     4.35982e-21},
-	{"e",   "kj/mol",       1.6606e-21},
-	{"e",   "hz",           6.6262e-34},
-	{"e",   "thz",          6.6262e-22},
-	{"e",   "cm-1",         1.986e-23},
-	{"e",   "cm^-1",        1.986e-23},
-	{"e",   "cm**-1",       1.986e-23},
-	{"f",   "N",            1.0},
-	{"f",   "ev/ang",       1.60219e-9},
-	{"f",   "ry/bohr",      4.11943e-8},
-	{"l",   "cm",           1.0e-2},
-	{"p",   "pa",           1.0},
-	{"p",   "mpa",          1.0e6},
-	{"p",   "gpa",          1.0e9},
-	{"p",   "atm",          1.01325e5},
-	{"p",   "bar",          1.0e5},
-	{"p",   "mbar",         1.0e11},
-	{"p",   "ry/bohr**3",   1.47108e13},
-	{"p",   "ev/ang**3",    1.60219e11},
-	{"c",   "c",            1.0},
-	{"c",   "e",            1.602177e-19},
-	{"d",   "C*m",          1.0},
-	{"d",   "D",            3.33564e-30},
-	{"d",   "debye",        3.33564e-30},
-	{"d",   "e*bohr",       8.47835e-30},
-	{"d",   "e*ang",        1.602177e-29},
-	{"mom", "kg*m**2",      1.0},
-	{"mom", "ry*fs**2",     2.1799e-48},
-	{"ef",  "v/m",          1.0},
-	{"ef",  "v/nm",         1.0e9},
-	{"ef",  "v/ang",        1.0e10},
-	{"ef",  "v/bohr",       1.8897268e10},
-	{"ef",  "ry/bohr/e",    2.5711273e11},
-	{"ef",  "har/bohr/e",   5.1422546e11},
-	{"e",   "k",            1.38066e-23},
-	{"b",   "t",            1.0},
-	{"b",   "ry/mu_bohr",   2.350499e5},
-	{"b",   "g",            1.0e4}
+        {"m",   "kg",           1.0},
+        {"m",   "g",            1.0e-3},
+        {"m",   "amu",          1.66054e-27},
+        {"l",   "m",            1.0},
+        {"l",   "nm",           1.0e-9},
+        {"l",   "ang",          1.0e-10},
+        {"l",   "bohr",         0.529177e-10},
+        {"t",   "s",            1.0},
+        {"t",   "ns",           1.0e-9},
+        {"t",   "ps",           1.0e-12},
+        {"t",   "fs",           1.0e-15},
+        {"e",   "j",            1.0},
+        {"e",   "erg",          1.0e-7},
+        {"e",   "ev",           1.60219e-19},
+        {"e",   "mev",          1.60219e-22},
+        {"e",   "ry",           2.17991e-18},
+        {"e",   "mry",          2.17991e-21},
+        {"e",   "hartree",      4.35982e-18},
+        {"e",   "kcal/mol",     6.94780e-21},
+        {"e",   "mhartree",     4.35982e-21},
+        {"e",   "kj/mol",       1.6606e-21},
+        {"e",   "hz",           6.6262e-34},
+        {"e",   "thz",          6.6262e-22},
+        {"e",   "cm-1",         1.986e-23},
+        {"e",   "cm^-1",        1.986e-23},
+        {"e",   "cm**-1",       1.986e-23},
+        {"f",   "N",            1.0},
+        {"f",   "ev/ang",       1.60219e-9},
+        {"f",   "ry/bohr",      4.11943e-8},
+        {"l",   "cm",           1.0e-2},
+        {"p",   "pa",           1.0},
+        {"p",   "mpa",          1.0e6},
+        {"p",   "gpa",          1.0e9},
+        {"p",   "atm",          1.01325e5},
+        {"p",   "bar",          1.0e5},
+        {"p",   "mbar",         1.0e11},
+        {"p",   "ry/bohr**3",   1.47108e13},
+        {"p",   "ev/ang**3",    1.60219e11},
+        {"c",   "c",            1.0},
+        {"c",   "e",            1.602177e-19},
+        {"d",   "C*m",          1.0},
+        {"d",   "D",            3.33564e-30},
+        {"d",   "debye",        3.33564e-30},
+        {"d",   "e*bohr",       8.47835e-30},
+        {"d",   "e*ang",        1.602177e-29},
+        {"mom", "kg*m**2",      1.0},
+        {"mom", "ry*fs**2",     2.1799e-48},
+        {"ef",  "v/m",          1.0},
+        {"ef",  "v/nm",         1.0e9},
+        {"ef",  "v/ang",        1.0e10},
+        {"ef",  "v/bohr",       1.8897268e10},
+        {"ef",  "ry/bohr/e",    2.5711273e11},
+        {"ef",  "har/bohr/e",   5.1422546e11},
+        {"e",   "k",            1.38066e-23},
+        {"b",   "t",            1.0},
+        {"b",   "ry/mu_bohr",   2.350499e5},
+        {"b",   "g",            1.0e4}
       };
       int i;
 
       for (i=0;i<nphys;i++) {
-	strcpy(phy_d[i],phy[i].d);
-	strcpy(phy_n[i],phy[i].n);
-	phy_u[i]=phy[i].u;
+        strcpy(phy_d[i],phy[i].d);
+        strcpy(phy_n[i],phy[i].n);
+        phy_u[i]=phy[i].u;
       }
     }
 
@@ -1077,27 +1096,27 @@ namespace dgdft{
       MPI_Bcast(&nrecords, 1, MPI_INT, MASTER, MPI_COMM_WORLD);
       MPI_Bcast(&nwarns,   1, MPI_INT, MASTER, MPI_COMM_WORLD);
       if( mpirank != MASTER ){
-	esdf();
-	esdf_key();
-	block_data=(char **)malloc(sizeof(char*)*nrecords);
-	llist=(char **)malloc(sizeof(char*)*nrecords);
-	warns=(char **)malloc(sizeof(char*)*nrecords);
-	tlist=(char ***)malloc(sizeof(char**)*nrecords);
-	for (i=0;i<nrecords;i++) {
-	  block_data[i]=(char *)malloc(sizeof(char)*llength);
-	  llist[i]=(char *)malloc(sizeof(char)*llength);
-	  warns[i]=(char *)malloc(sizeof(char)*(llength+1));
-	  tlist[i]=(char **)malloc(sizeof(char*)*llength);
-	  for (j=0;j<llength;j++)
-	    tlist[i][j]=(char *)malloc(sizeof(char)*llength);
-	}
+        esdf();
+        esdf_key();
+        block_data=(char **)malloc(sizeof(char*)*nrecords);
+        llist=(char **)malloc(sizeof(char*)*nrecords);
+        warns=(char **)malloc(sizeof(char*)*nrecords);
+        tlist=(char ***)malloc(sizeof(char**)*nrecords);
+        for (i=0;i<nrecords;i++) {
+          block_data[i]=(char *)malloc(sizeof(char)*llength);
+          llist[i]=(char *)malloc(sizeof(char)*llength);
+          warns[i]=(char *)malloc(sizeof(char)*(llength+1));
+          tlist[i]=(char **)malloc(sizeof(char*)*llength);
+          for (j=0;j<llength;j++)
+            tlist[i][j]=(char *)malloc(sizeof(char)*llength);
+        }
       }
       for (i=0;i<nrecords;i++) {
-	MPI_Bcast(block_data[i], llength, MPI_CHAR, MASTER, MPI_COMM_WORLD);
-	MPI_Bcast(llist[i],      llength, MPI_CHAR, MASTER, MPI_COMM_WORLD);
-	MPI_Bcast(warns[i],    llength+1, MPI_CHAR, MASTER, MPI_COMM_WORLD);
-	for (j=0;j<llength;j++)
-	  MPI_Bcast(tlist[i][j],    llength, MPI_CHAR, MASTER, MPI_COMM_WORLD);
+        MPI_Bcast(block_data[i], llength, MPI_CHAR, MASTER, MPI_COMM_WORLD);
+        MPI_Bcast(llist[i],      llength, MPI_CHAR, MASTER, MPI_COMM_WORLD);
+        MPI_Bcast(warns[i],    llength+1, MPI_CHAR, MASTER, MPI_COMM_WORLD);
+        for (j=0;j<llength;j++)
+          MPI_Bcast(tlist[i][j],    llength, MPI_CHAR, MASTER, MPI_COMM_WORLD);
       }
     }
 
@@ -1125,8 +1144,8 @@ namespace dgdft{
 
       /* "Reduce" the keyword list for comparison */
       for (i=0;i<numkw;i++) {
-	strcpy(ctemp,kw_label[i]);
-	strcpy(kw_label[i],esdf_reduce(strlwr(ctemp)));
+        strcpy(ctemp,kw_label[i]);
+        strcpy(kw_label[i],esdf_reduce(strlwr(ctemp)));
       }
 
       /* initializing the array kw_index */
@@ -1139,26 +1158,26 @@ namespace dgdft{
       strcat(cjunk,"\"");
 
       if (ierr==1) {
-	printf("ESDF WARNING: %s - using defaults",trim(cjunk));
-	nread=0;
+        printf("ESDF WARNING: %s - using defaults",trim(cjunk));
+        nread=0;
       } 
       else
-	nread=INT_MAX;
+        nread=INT_MAX;
 
       /* Count the number of records (excluding blank and commented lines) */
       nrecords=0;
 
       for (i=0;i<nread;i++) {
-	getaline(fileunit,cjunk);
-	for (j=0;j<ncomm;j++) {
-	  ic=indexch(cjunk,comment[j]);
-	  if (ic>0) {
-	    for (k=ic-1;k<llength;k++) cjunk[k]=' ';
-	    cjunk[llength-1]='\0';
-	  }
-	}
-	if (len_trim(cjunk)>0) nrecords++;
-	if (feof(fileunit)) break;
+        getaline(fileunit,cjunk);
+        for (j=0;j<ncomm;j++) {
+          ic=indexch(cjunk,comment[j]);
+          if (ic>0) {
+            for (k=ic-1;k<llength;k++) cjunk[k]=' ';
+            cjunk[llength-1]='\0';
+          }
+        }
+        if (len_trim(cjunk)>0) nrecords++;
+        if (feof(fileunit)) break;
       }
       rewind(fileunit);
 
@@ -1168,125 +1187,125 @@ namespace dgdft{
       warns=(char **)malloc(sizeof(char*)*nrecords);
       tlist=(char ***)malloc(sizeof(char**)*nrecords);
       for (i=0;i<nrecords;i++) {
-	block_data[i]=(char *)malloc(sizeof(char)*llength);
-	llist[i]=(char *)malloc(sizeof(char)*llength);
-	warns[i]=(char *)malloc(sizeof(char)*(llength+1));
-	tlist[i]=(char **)malloc(sizeof(char*)*llength);
-	for (j=0;j<llength;j++)
-	  tlist[i][j]=(char *)malloc(sizeof(char)*llength);
+        block_data[i]=(char *)malloc(sizeof(char)*llength);
+        llist[i]=(char *)malloc(sizeof(char)*llength);
+        warns[i]=(char *)malloc(sizeof(char)*(llength+1));
+        tlist[i]=(char **)malloc(sizeof(char*)*llength);
+        for (j=0;j<llength;j++)
+          tlist[i][j]=(char *)malloc(sizeof(char)*llength);
       }
 
       /* Set the number of warnings to zero */
       nwarns=0;
       for (i=0;i<nrecords;i++) {
-	for (j=0;j<llength;j++)
-	  warns[i][j]=' ';
-	warns[i][llength] ='\0';
+        for (j=0;j<llength;j++)
+          warns[i][j]=' ';
+        warns[i][llength] ='\0';
       }
 
       /* Read in the records */
       nrecords=0;
 
       for (i=0;i<nread;i++) {
-	getaline(fileunit,cjunk);
-	for (j=0;j<ncomm;j++) {
-	  ic=indexch(cjunk,comment[j]);
-	  if (ic>0) {
-	    for (k=ic-1;k<llength;k++) cjunk[k]=' ';
-	    cjunk[llength-1]='\0';
-	  }
-	}
-	if (len_trim(cjunk)>0) {
-	  adjustl(cjunk,llist[nrecords]);
-	  nrecords++;
-	}
-	if (feof(fileunit)) break;
+        getaline(fileunit,cjunk);
+        for (j=0;j<ncomm;j++) {
+          ic=indexch(cjunk,comment[j]);
+          if (ic>0) {
+            for (k=ic-1;k<llength;k++) cjunk[k]=' ';
+            cjunk[llength-1]='\0';
+          }
+        }
+        if (len_trim(cjunk)>0) {
+          adjustl(cjunk,llist[nrecords]);
+          nrecords++;
+        }
+        if (feof(fileunit)) break;
       }
 
       /* Now read in the tokens from llist */
       for (i=0;i<nrecords;i++)
-	for (j=0;j<llength;j++) {
-	  for (k=0;k<llength-1;k++)
-	    tlist[i][j][k]=' ';
-	  tlist[i][j][llength-1]='\0';
-	}
+        for (j=0;j<llength;j++) {
+          for (k=0;k<llength-1;k++)
+            tlist[i][j][k]=' ';
+          tlist[i][j][llength-1]='\0';
+        }
 
       for (i=0;i<nrecords;i++) {
-	strcpy(ctemp,llist[i]);
-	nt=0;
-	while (len_trim(ctemp)>0) {
-	  ic=len_trim(ctemp)+1;
-	  for (itemp=0;itemp<ndiv;itemp++) {
-	    itemp2=indexch(ctemp,divide[itemp]);
-	    if (itemp2==0) itemp2=len_trim(ctemp)+1;
-	    if (itemp2<ic) ic=itemp2;
-	  }
-	  if (ic>1) {
-	    for (itemp=0;itemp<ic-1;itemp++)
-	      cjunk[itemp]=ctemp[itemp];
-	    cjunk[ic-1]='\0';
-	    adjustl(cjunk,tlist[i][nt]);        
-	    nt++;
-	  }
-	  for (itemp=ic;itemp<strlen(ctemp)+1;itemp++)
-	    cjunk[itemp-ic]=ctemp[itemp];
-	  cjunk[strlen(ctemp)-ic+1]='\0';
-	  adjustl(cjunk,ctemp);        
-	}
+        strcpy(ctemp,llist[i]);
+        nt=0;
+        while (len_trim(ctemp)>0) {
+          ic=len_trim(ctemp)+1;
+          for (itemp=0;itemp<ndiv;itemp++) {
+            itemp2=indexch(ctemp,divide[itemp]);
+            if (itemp2==0) itemp2=len_trim(ctemp)+1;
+            if (itemp2<ic) ic=itemp2;
+          }
+          if (ic>1) {
+            for (itemp=0;itemp<ic-1;itemp++)
+              cjunk[itemp]=ctemp[itemp];
+            cjunk[ic-1]='\0';
+            adjustl(cjunk,tlist[i][nt]);        
+            nt++;
+          }
+          for (itemp=ic;itemp<strlen(ctemp)+1;itemp++)
+            cjunk[itemp-ic]=ctemp[itemp];
+          cjunk[strlen(ctemp)-ic+1]='\0';
+          adjustl(cjunk,ctemp);        
+        }
       }
 
       /* Check if any of the "labels" in the input file are unrecognized */
       inblock=0; /* false */
 
       for (i=0;i<nrecords;i++) {
-	/* Check if we are in a block */
-	strcpy(ctemp,tlist[i][0]);
-	if (strcmp(esdf_reduce(strlwr(ctemp)),"begin")==0) {
-	  inblock=1; /* true */
+        /* Check if we are in a block */
+        strcpy(ctemp,tlist[i][0]);
+        if (strcmp(esdf_reduce(strlwr(ctemp)),"begin")==0) {
+          inblock=1; /* true */
 
-	  /* Check if block label is recognized */
-	  strcpy(ctemp,tlist[i][1]); esdf_reduce(strlwr(ctemp));
-	  k=0; for (j=0;j<numkw;j++) if (strcmp(ctemp,kw_label[j])==0) k++;
-	  if (k==0) {
-	    strcpy(ctemp,"Label \"");
-	    strcat(ctemp,esdf_reduce(tlist[i][1]));
-	    strcat(ctemp,"\" not in keyword list");
-	    if (countw(ctemp,warns,nwarns)==0) esdf_warn(ctemp);
-	  }
+          /* Check if block label is recognized */
+          strcpy(ctemp,tlist[i][1]); esdf_reduce(strlwr(ctemp));
+          k=0; for (j=0;j<numkw;j++) if (strcmp(ctemp,kw_label[j])==0) k++;
+          if (k==0) {
+            strcpy(ctemp,"Label \"");
+            strcat(ctemp,esdf_reduce(tlist[i][1]));
+            strcat(ctemp,"\" not in keyword list");
+            if (countw(ctemp,warns,nwarns)==0) esdf_warn(ctemp);
+          }
 
-	  /* Check if "label" is multiply defined in the input file */
-	  ndef=0;
-	  for (j=0;j<nrecords;j++)
-	    if (strcmp(esdf_reduce(tlist[i][1]),
-		       esdf_reduce(tlist[j][1]))==0) ndef++;
-	  strcpy(ctemp,"Label \"");
-	  strcat(ctemp,esdf_reduce(tlist[i][1]));
-	  strcat(ctemp,"\" is multiply defined in the input file. ");
+          /* Check if "label" is multiply defined in the input file */
+          ndef=0;
+          for (j=0;j<nrecords;j++)
+            if (strcmp(esdf_reduce(tlist[i][1]),
+                  esdf_reduce(tlist[j][1]))==0) ndef++;
+          strcpy(ctemp,"Label \"");
+          strcat(ctemp,esdf_reduce(tlist[i][1]));
+          strcat(ctemp,"\" is multiply defined in the input file. ");
 
-	  if ((ndef>2)&&(countw(ctemp,warns,nwarns)==0)) esdf_warn(ctemp);
-	}
+          if ((ndef>2)&&(countw(ctemp,warns,nwarns)==0)) esdf_warn(ctemp);
+        }
 
-	/* Check it is in the list of keywords */
-	strcpy(ctemp,tlist[i][0]); esdf_reduce(strlwr(ctemp));
-	k=0; for (j=0;j<numkw;j++) if (strcmp(ctemp,kw_label[j])==0) k++;
-	if ((k==0)&&(!inblock)) {
-	  strcpy(ctemp,"Label \"");
-	  strcat(ctemp,esdf_reduce(tlist[i][0]));
-	  strcat(ctemp,"\" not in keyword list");
-	  if (countw(ctemp,warns,nwarns)==0) esdf_warn(ctemp);
-	}
+        /* Check it is in the list of keywords */
+        strcpy(ctemp,tlist[i][0]); esdf_reduce(strlwr(ctemp));
+        k=0; for (j=0;j<numkw;j++) if (strcmp(ctemp,kw_label[j])==0) k++;
+        if ((k==0)&&(!inblock)) {
+          strcpy(ctemp,"Label \"");
+          strcat(ctemp,esdf_reduce(tlist[i][0]));
+          strcat(ctemp,"\" not in keyword list");
+          if (countw(ctemp,warns,nwarns)==0) esdf_warn(ctemp);
+        }
 
-	/* Check if "label" is multiply defined in the input file */
-	if (!inblock) {
-	  ndef=0;
-	  for (j=0;j<nrecords;j++)
-	    if (strcmp(esdf_reduce(tlist[i][0]),
-		       esdf_reduce(tlist[j][0]))==0) ndef++;
-	  strcpy(ctemp,"Label \"");
-	  strcat(ctemp,esdf_reduce(tlist[i][0]));
-	  strcat(ctemp,"\" is multiply defined in the input file. ");
-	  if ((ndef>1)&&(countw(ctemp,warns,nwarns)==0)) esdf_warn(ctemp);
-	}
+        /* Check if "label" is multiply defined in the input file */
+        if (!inblock) {
+          ndef=0;
+          for (j=0;j<nrecords;j++)
+            if (strcmp(esdf_reduce(tlist[i][0]),
+                  esdf_reduce(tlist[j][0]))==0) ndef++;
+          strcpy(ctemp,"Label \"");
+          strcat(ctemp,esdf_reduce(tlist[i][0]));
+          strcat(ctemp,"\" is multiply defined in the input file. ");
+          if ((ndef>1)&&(countw(ctemp,warns,nwarns)==0)) esdf_warn(ctemp);
+        }
       }
     }
 
@@ -1308,17 +1327,17 @@ namespace dgdft{
       pout=out;
 
       for (i=kw_index[kw_number];i<nrecords;i++) {
-	/* Search in the first token for "label"
-	   the first instance is returned */
-	if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
-	  ind=indexstr(llist[i],trim(tlist[i][1]))-1;
-	  while (llist[i][ind]!='\0') {
-	    *pout=llist[i][ind];
-	    pout++; ind++;
-	  }
-	  kw_index[kw_number]=i+1;
-	  break;
-	}
+        /* Search in the first token for "label"
+           the first instance is returned */
+        if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
+          ind=indexstr(llist[i],trim(tlist[i][1]))-1;
+          while (llist[i][ind]!='\0') {
+            *pout=llist[i][ind];
+            pout++; ind++;
+          }
+          kw_index[kw_number]=i+1;
+          break;
+        }
       }
       if (pout!=out) *pout='\0';
     }
@@ -1341,20 +1360,20 @@ namespace dgdft{
       out=def;
 
       for (i=kw_index[kw_number];i<nrecords;i++) {
-	/* Search in the first token for "label"
-	   the first instance is returned */
-	if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
-	  out=atoi(tlist[i][1]);
-	  if ((out==0)&&(atoi(strcat(strcpy(ctemp,"1"),tlist[i][1])))!=10) {
-	    strcpy(ctemp,"Unable to parse \"");
-	    strcat(ctemp,esdf_reduce(label));
-	    strcat(ctemp,"\" in esdf_integer");
-	    esdf_die(ctemp);
-	    continue;
-	  }
-	  kw_index[kw_number]=i+2;
-	  break;
-	}
+        /* Search in the first token for "label"
+           the first instance is returned */
+        if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
+          out=atoi(tlist[i][1]);
+          if ((out==0)&&(atoi(strcat(strcpy(ctemp,"1"),tlist[i][1])))!=10) {
+            strcpy(ctemp,"Unable to parse \"");
+            strcat(ctemp,esdf_reduce(label));
+            strcat(ctemp,"\" in esdf_integer");
+            esdf_die(ctemp);
+            continue;
+          }
+          kw_index[kw_number]=i+2;
+          break;
+        }
       }
 
       return out;
@@ -1377,20 +1396,20 @@ namespace dgdft{
       /* Set to default */
       out=def;
       for (i=kw_index[kw_number];i<nrecords;i++) {
-	/* Search in the first token for "label"
-	   the first instance is returned */
-	if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
-	  out=atof(tlist[i][1]);
-	  if ((out==0)&&(atof(strcat(strcpy(ctemp,"1"),tlist[i][1])))!=10) {
-	    strcpy(ctemp,"Unable to parse \"");
-	    strcat(ctemp,esdf_reduce(label));
-	    strcat(ctemp,"\" in esdf_single");
-	    esdf_die(ctemp);
-	    continue;
-	  }
-	  kw_index[kw_number]=i + 1;
-	  break;
-	}
+        /* Search in the first token for "label"
+           the first instance is returned */
+        if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
+          out=atof(tlist[i][1]);
+          if ((out==0)&&(atof(strcat(strcpy(ctemp,"1"),tlist[i][1])))!=10) {
+            strcpy(ctemp,"Unable to parse \"");
+            strcat(ctemp,esdf_reduce(label));
+            strcat(ctemp,"\" in esdf_single");
+            esdf_die(ctemp);
+            continue;
+          }
+          kw_index[kw_number]=i + 1;
+          break;
+        }
       }
 
       return out;
@@ -1413,20 +1432,20 @@ namespace dgdft{
       /* Set to default */
       out=def;
       for (i=kw_index[kw_number];i<nrecords;i++) {
-	/* Search in the first token for "label"
-	   the first instance is returned */
-	if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
-	  out=atof(tlist[i][1]);
-	  if ((out==0)&&(atof(strcat(strcpy(ctemp,"1"),tlist[i][1])))!=10) {
-	    strcpy(ctemp,"Unable to parse \"");
-	    strcat(ctemp,esdf_reduce(label));
-	    strcat(ctemp,"\" in esdf_double");
-	    esdf_die(ctemp);
-	    continue;
-	  }
-	  kw_index[kw_number]=i+1;
-	  break;
-	}
+        /* Search in the first token for "label"
+           the first instance is returned */
+        if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
+          out=atof(tlist[i][1]);
+          if ((out==0)&&(atof(strcat(strcpy(ctemp,"1"),tlist[i][1])))!=10) {
+            strcpy(ctemp,"Unable to parse \"");
+            strcat(ctemp,esdf_reduce(label));
+            strcat(ctemp,"\" in esdf_double");
+            esdf_die(ctemp);
+            continue;
+          }
+          kw_index[kw_number]=i+1;
+          break;
+        }
       }
 
       return out;
@@ -1435,8 +1454,8 @@ namespace dgdft{
     /*   --------------  esdf_physical  ----------------------  */
     double esdf_physical(const char *labl,double def,char *dunit) {
       /* Return the double precisioned physical value attached to the "label"
-	 units converted to "dunit"
-      */
+         units converted to "dunit"
+       */
       int i,j;
       char ctemp[llength],iunit[llength];
       int kw_number;
@@ -1452,24 +1471,24 @@ namespace dgdft{
       out=def;
 
       for (i=0;i<nrecords;i++) {
-	/* Search in the first token for "label"
-	   the first instance is returned */
-	if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
-	  out=atof(tlist[i][1]);
-	  if ((out==0)&&(atof(strcat(strcpy(ctemp,"1"),tlist[i][1])))!=10) {
-	    strcpy(ctemp,"Unable to parse \"");
-	    strcat(ctemp,esdf_reduce(label));
-	    strcat(ctemp,"\" in esdf_physical");
-	    esdf_die(ctemp);
-	    continue;
-	  }
-	  strcpy(iunit,dunit);
-	  for (j=0;j<llength-strlen(dunit)-1;j++) strcat(iunit," ");
-	  if (len_trim(tlist[i][2])!=0)
-	    strcat(iunit,tlist[i][2]);
-	  out=esdf_convfac(iunit,dunit) * out;
-	  kw_index[kw_number]=i + 1;
-	}
+        /* Search in the first token for "label"
+           the first instance is returned */
+        if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
+          out=atof(tlist[i][1]);
+          if ((out==0)&&(atof(strcat(strcpy(ctemp,"1"),tlist[i][1])))!=10) {
+            strcpy(ctemp,"Unable to parse \"");
+            strcat(ctemp,esdf_reduce(label));
+            strcat(ctemp,"\" in esdf_physical");
+            esdf_die(ctemp);
+            continue;
+          }
+          strcpy(iunit,dunit);
+          for (j=0;j<llength-strlen(dunit)-1;j++) strcat(iunit," ");
+          if (len_trim(tlist[i][2])!=0)
+            strcat(iunit,tlist[i][2]);
+          out=esdf_convfac(iunit,dunit) * out;
+          kw_index[kw_number]=i + 1;
+        }
       }
       return out;
     }
@@ -1491,13 +1510,13 @@ namespace dgdft{
       out=0; /* false */
 
       for (i=kw_index[kw_number];i<nrecords;i++) {
-	/* Search in the first token for "label"
-	   the first instance is returned */
-	if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
-	  out=1; /* true */
-	  kw_index[kw_number]=i+1;
-	  break;
-	}
+        /* Search in the first token for "label"
+           the first instance is returned */
+        if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
+          out=1; /* true */
+          kw_index[kw_number]=i+1;
+          break;
+        }
       }
 
       return out;
@@ -1529,30 +1548,30 @@ namespace dgdft{
       out=def;
 
       for (i=kw_index[kw_number];i<nrecords;i++) {
-	/* Search in the first token for "label"
-	   the first instance is returned */
-	if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
-	  out=1; /* true */
-	  kw_index[kw_number]=i+2;
-	  if (len_trim(tlist[i][1])==0) {
-	    out=1; /* true */
-	    break;
-	  }
-	  if ((indexstr(positive[0],esdf_reduce(tlist[i][1]))>0) ||
-	      (indexstr(positive[1],esdf_reduce(tlist[i][1]))>0) ||
-	      (indexstr(positive[2],esdf_reduce(tlist[i][1]))>0)) {
-	    out=1; /* true */
-	    break;
-	  }
-	  if ((indexstr(negative[0],esdf_reduce(tlist[i][1]))>0) ||
-	      (indexstr(negative[1],esdf_reduce(tlist[i][1]))>0) ||
-	      (indexstr(negative[2],esdf_reduce(tlist[i][1]))>0)) {
-	    out=0; /* false */
-	    break;
-	  }
-	  strcpy(ctemp, "Unable to parse boolean value");
-	  esdf_die(ctemp);
-	}
+        /* Search in the first token for "label"
+           the first instance is returned */
+        if (strcmp(esdf_reduce(tlist[i][0]),esdf_reduce(label))==0) {
+          out=1; /* true */
+          kw_index[kw_number]=i+2;
+          if (len_trim(tlist[i][1])==0) {
+            out=1; /* true */
+            break;
+          }
+          if ((indexstr(positive[0],esdf_reduce(tlist[i][1]))>0) ||
+              (indexstr(positive[1],esdf_reduce(tlist[i][1]))>0) ||
+              (indexstr(positive[2],esdf_reduce(tlist[i][1]))>0)) {
+            out=1; /* true */
+            break;
+          }
+          if ((indexstr(negative[0],esdf_reduce(tlist[i][1]))>0) ||
+              (indexstr(negative[1],esdf_reduce(tlist[i][1]))>0) ||
+              (indexstr(negative[2],esdf_reduce(tlist[i][1]))>0)) {
+            out=0; /* false */
+            break;
+          }
+          strcpy(ctemp, "Unable to parse boolean value");
+          esdf_die(ctemp);
+        }
       }
 
       return out;
@@ -1578,22 +1597,22 @@ namespace dgdft{
       (*nlines)=0;
 
       for (i=kw_index[kw_number];i<nrecords;i++) {
-	/* Search in the first token for "label"
-	   the first instance is returned */
-	if ((strcmp(esdf_reduce(tlist[i][0]),"begin")==0) &&
-	    (strcmp(esdf_reduce(tlist[i][1]),esdf_reduce(label))==0)) {
-	  out=1; /* true */
-	  kw_index[kw_number]=i+1;
-	  while (strcmp(esdf_reduce(tlist[i+(*nlines)+1][0]),"end")!=0) {
-	    (*nlines)++;
-	    if ((*nlines)+i>nrecords) esdf_die(ctemp);
-	    strcpy(block_data[(*nlines)-1],llist[i+(*nlines)]);
-	  }
-	  if (strcmp(esdf_reduce(tlist[i+(*nlines)+1][1]),
-		     esdf_reduce(label))!=0)
-	    esdf_die(ctemp);
-	  break;
-	}
+        /* Search in the first token for "label"
+           the first instance is returned */
+        if ((strcmp(esdf_reduce(tlist[i][0]),"begin")==0) &&
+            (strcmp(esdf_reduce(tlist[i][1]),esdf_reduce(label))==0)) {
+          out=1; /* true */
+          kw_index[kw_number]=i+1;
+          while (strcmp(esdf_reduce(tlist[i+(*nlines)+1][0]),"end")!=0) {
+            (*nlines)++;
+            if ((*nlines)+i>nrecords) esdf_die(ctemp);
+            strcpy(block_data[(*nlines)-1],llist[i+(*nlines)]);
+          }
+          if (strcmp(esdf_reduce(tlist[i+(*nlines)+1][1]),
+                esdf_reduce(label))!=0)
+            esdf_die(ctemp);
+          break;
+        }
       }
 
       return out;
@@ -1610,14 +1629,14 @@ namespace dgdft{
 
       punct[0]='.'; punct[1]='-';
       if (in) {
-	while (((*in)==' ')||((*in)=='\t')||
-	       ((*in)==punct[0])||((*in)==punct[1])) in++;
-	if (*in) {
-	  end=in+strlen(in);
-	  while ((end[-1]==' ')||(end[-1]=='\t')||
-		 (end[-1]==punct[0])||(end[-1]==punct[1])) end--;
-	  if (end<in+strlen(in)) (*end)='\0';
-	}
+        while (((*in)==' ')||((*in)=='\t')||
+            ((*in)==punct[0])||((*in)==punct[1])) in++;
+        if (*in) {
+          end=in+strlen(in);
+          while ((end[-1]==' ')||(end[-1]=='\t')||
+              (end[-1]==punct[0])||(end[-1]==punct[1])) end--;
+          if (end<in+strlen(in)) (*end)='\0';
+        }
       }
 
       return in;
@@ -1633,30 +1652,30 @@ namespace dgdft{
       /* Find the index numbers of the from and to units */
       ifrom=-1; ito=-1;
       for (i=0;i<nphys;i++) {
-	if (strcmp(esdf_reduce(from),esdf_reduce(phy_n[i]))==0) ifrom=i;
-	if (strcmp(esdf_reduce(to),esdf_reduce(phy_n[i]))==0) ito=i;
+        if (strcmp(esdf_reduce(from),esdf_reduce(phy_n[i]))==0) ifrom=i;
+        if (strcmp(esdf_reduce(to),esdf_reduce(phy_n[i]))==0) ito=i;
       }
 
       /* Check that the units were recognized */
       if (ifrom==-1) {
-	strcpy(ctemp,"Units not recognized in input file :");
-	strcat(ctemp,esdf_reduce(from));
-	esdf_die(ctemp);
+        strcpy(ctemp,"Units not recognized in input file :");
+        strcat(ctemp,esdf_reduce(from));
+        esdf_die(ctemp);
       }
 
       if (ito==-1) {
-	strcpy(ctemp,"Units not recognized in Program :");
-	strcat(ctemp,esdf_reduce(to));
-	esdf_die(ctemp);
+        strcpy(ctemp,"Units not recognized in Program :");
+        strcat(ctemp,esdf_reduce(to));
+        esdf_die(ctemp);
       }
 
       /* Check that from and to are of the same dimensions */
       if (phy_d[ifrom]!=phy_d[ito]) {
-	strcpy(ctemp,"Dimensions do not match :");
-	strcat(ctemp,esdf_reduce(from));
-	strcat(ctemp," vs ");
-	strcat(ctemp,esdf_reduce(to));
-	esdf_die(ctemp);
+        strcpy(ctemp,"Dimensions do not match :");
+        strcat(ctemp,esdf_reduce(from));
+        strcat(ctemp," vs ");
+        strcat(ctemp,esdf_reduce(to));
+        esdf_die(ctemp);
       }
 
       /* Set the conversion factor */
@@ -1671,8 +1690,8 @@ namespace dgdft{
       (*ierr)=0;
 
       if ((fileunit=fopen(trim(filename),"r"))==NULL){
-	throw std::logic_error( "Input file cannot be open" );
-	(*ierr)=1;
+        throw std::logic_error( "Input file cannot be open" );
+        (*ierr)=1;
       }
     }
 
@@ -1700,10 +1719,10 @@ namespace dgdft{
       strcpy(tp," ");
       i=0;
       while (strcmp(tp," ")==0) {
-	strcpy(ctemp,str);
-	if (strcmp(esdf_reduce(strlwr(ctemp)),kw_label[i])==0)
-	  strncpy(tp,kw_typ[i],1);
-	i++;
+        strcpy(ctemp,str);
+        if (strcmp(esdf_reduce(strlwr(ctemp)),kw_label[i])==0)
+          strncpy(tp,kw_typ[i],1);
+        i++;
       }
 
       (*index)=i-1;
@@ -1735,12 +1754,12 @@ namespace dgdft{
       int i,j;
 
       for (i=0;i<nrecords;i++) {
-	for (j=0;j<llength;j++)
-	  free(tlist[i][j]);
-	free(tlist[i]);
-	free(warns[i]);
-	free(llist[i]);
-	free(block_data[i]);
+        for (j=0;j<llength;j++)
+          free(tlist[i][j]);
+        free(tlist[i]);
+        free(warns[i]);
+        free(llist[i]);
+        free(block_data[i]);
       }
       free(tlist);
       free(warns);
@@ -1775,10 +1794,10 @@ namespace dgdft{
       int i=0;
 
       while (!feof(fp)) {
-	ch=fgetc(fp);
-	if ((ch=='\n')||(ch=='\r'))
-	  break;
-	aline[i++]=ch;
+        ch=fgetc(fp);
+        if ((ch=='\n')||(ch=='\r'))
+          break;
+        aline[i++]=ch;
       }
 
       if (aline[i-1]==(char)EOF) aline[i-1]='\0';
@@ -1806,7 +1825,7 @@ namespace dgdft{
       int i=0;
 
       while (!feof(fp))
-	getaline(fp,buffer[i++]);
+        getaline(fp,buffer[i++]);
     }
 
     /* ------------ TRIM --------------- */
@@ -1835,12 +1854,12 @@ namespace dgdft{
       char *end;
 
       if (in) {
-	while (*in==' '||*in=='\t') in++;
-	if (*in) {
-	  end=in+strlen(in);
-	  while (end[-1]==' '||end[-1]=='\t') end--;
-	  (*end)='\0';
-	}
+        while (*in==' '||*in=='\t') in++;
+        if (*in) {
+          end=in+strlen(in);
+          while (end[-1]==' '||end[-1]=='\t') end--;
+          (*end)='\0';
+        }
       }
 
       return in;
@@ -1870,7 +1889,7 @@ namespace dgdft{
       for (i=0;in[i]==' '||in[i]=='\t';i++);
       for (pin=in+i,pout=out;(*pout=*pin);pin++,pout++);
       for (;i>0;i--,pout++)
-	*pout=' ';
+        *pout=' ';
       *pout='\0';
     }
 
@@ -1965,9 +1984,9 @@ namespace dgdft{
       q=strchr(str,ch);
 
       if (q-p+1>0)
-	return q-p+1;
+        return q-p+1;
       else
-	return 0;
+        return 0;
     }
 
     /* ------------ COUNTW -------------- */
@@ -1999,8 +2018,8 @@ namespace dgdft{
       int i,n=0;
 
       for (i=0;i<nrecords;i++)
-	if (strcmp(str,pool[i])==0)
-	  n++;
+        if (strcmp(str,pool[i])==0)
+          n++;
 
       return n;
     }
@@ -2031,8 +2050,8 @@ namespace dgdft{
       char *p;
 
       for (p=str;*p;p++)
-	if (isupper(*p))
-	  *p=tolower(*p);
+        if (isupper(*p))
+          *p=tolower(*p);
 
       return str;
     }
@@ -2067,8 +2086,8 @@ namespace dgdft{
       if (islower(*p)) *p=toupper(*p);
       p++;
       for (;*p;p++)
-	if (isupper(*p))
-	  *p=tolower(*p);
+        if (isupper(*p))
+          *p=tolower(*p);
 
       return str;
     }
@@ -2083,487 +2102,491 @@ namespace dgdft{
     }
 
     void
-    ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
-    {
+      ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
+      {
 #ifndef _RELEASE_
-      PushCallStack("ESDFReadInput");
+        PushCallStack("ESDFReadInput");
 #endif
-      Int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-      Int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
-      Int  nlines;
-      const Int MAX_CHAR = 128;
-      char  strtmp[MAX_CHAR];
+        Int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+        Int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+        Int  nlines;
+        const Int MAX_CHAR = 128;
+        char  strtmp[MAX_CHAR];
 
-      // Read and distribute the input file
-      if( mpirank == 0 )  
-        esdf_init( filename );
-      esdf_bcast( );
+        // Read and distribute the input file
+        if( mpirank == 0 )  
+          esdf_init( filename );
+        esdf_bcast( );
 
-      // Now each processor can read parameters independently
+        // Now each processor can read parameters independently
 
-      // Domain
-      {
-        Domain& dm = esdfParam.domain;
-        if( esdf_block("Super_Cell", &nlines) ){
-          sscanf(block_data[0],"%lf %lf %lf",
-              &dm.length[0],&dm.length[1],&dm.length[2]);
-        }
-
-        else{
-          throw std::logic_error("Super_Cell cannot be found.");
-        }
-
-        // 07/24/2013: Instead of grid size, use ecut to determine the grid
-        // size in the global domain for wavefunctions, density, and also
-        // other quantities in the local LGL domain.
-        //
-        // So dm.numGrid is not specified here.
-        //		if( esdf_block("Grid_Size", &nlines) ){
-        //			sscanf(block_data[0],"%d %d %d",
-        //					&dm.numGrid[0],&dm.numGrid[1],&dm.numGrid[2]);
-        //		}
-        //		else{
-        //			throw std::logic_error("Grid_Size cannot be found."); }
-
-        dm.posStart = Point3( 0.0, 0.0, 0.0 );
-      }
-
-      // Atoms
-      {
-        std::vector<Atom>&  atomList = esdfParam.atomList;
-        atomList.clear();
-
-        Int numAtomType = esdf_integer("Atom_Types_Num", 0);
-        if( numAtomType == 0 ){
-          throw std::logic_error("Atom_Types_Num cannot be found.");
-        }
-
-        for( Int ityp = 0; ityp < numAtomType; ityp++ ){
-          Int type = esdf_integer( "Atom_Type", 0 );
-          // TODO Add supported type list
-          if( type == 0 ){
-            throw  std::logic_error( "Atom_Type cannot be found.");
-
-          }
-          // FIXME IMPORTANT. The "mass" parameter is removed from the
-          // reading list.  Mass can be obtained later with periodtable
-          // structure and the atom type.  NOTE that the mass in PeriodTable 
-          // is in atomic mass unit (amu), but the mass in
-          // atomvec is in atomic unit (au).
-
-          Int  numAtom;
-
-          if( esdf_block("Atom_Bohr", &numAtom ) ){
-            // Cartesian coordinate (in the unit of Bohr) 
-            Point3 pos;
-            for( Int j = 0; j < numAtom; j++ ){
-              sscanf(block_data[j],"%lf %lf %lf", 
-                  &pos[0], &pos[1], &pos[2]);
-              atomList.push_back( 
-                  Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
-            }
-          }
-          else if( esdf_block("Atom_Ang", &numAtom ) ){
-            // Cartesian coordinate (in the unit of angstrom) 
-            Point3 pos;
-            const Real ANG2AU = 1.8897261;
-            for( Int j = 0; j < numAtom; j++ ){
-              sscanf(block_data[j],"%lf %lf %lf", 
-                  &pos[0], &pos[1], &pos[2]);
-              atomList.push_back( 
-                  Atom( type, ANG2AU*pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
-            }
-          }
-          else if ( esdf_block("Atom_Red", &numAtom) ){
-            // Reduce coordinate (in the unit of Super_Cell)
-            Point3 pos;
-            Point3 length = esdfParam.domain.length;
-            for( Int j = 0; j < numAtom; j++ ){
-              sscanf(block_data[j],"%lf %lf %lf", 
-                  &pos[0], &pos[1], &pos[2]);
-              atomList.push_back( 
-                  Atom( type, Point3( pos[0]*length[0], pos[1]*length[1], pos[2]*length[2] ),
-                    Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
-            }
-          }
-          else{
-            std::ostringstream msg;
-            msg << "Atomic coordinates cannot found for atom type "  << type;
-            throw std::logic_error( msg.str().c_str() );
-          } // Read atomic coordinates
-        } // for(ityp)
-      }
-
-      // System parameters
-      {
-        esdfParam.mixMaxDim       = esdf_integer("Mixing_MaxDim", 9);
-
-        esdf_string("Mixing_Type", "anderson", strtmp); 
-        esdfParam.mixType         = strtmp;
-        if( esdfParam.mixType != "anderson" &&
-            esdfParam.mixType != "kerker+anderson" ){
-          throw std::runtime_error("Invalid mixing type.");
-        }
-
-        esdf_string("Mixing_Variable", "potential", strtmp); 
-        esdfParam.mixVariable     = strtmp;
-        if( esdfParam.mixVariable != "density" &&
-            esdfParam.mixVariable != "potential" ){
-          throw std::runtime_error("Invalid mixing variable.");
-        }
-
-
-        esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
-        esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
-        esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 );
-        esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
-        esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-6 );
-        esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
-        esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
-        esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
-
-        // Default is no locking
-        esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-20 );
-        esdfParam.eigMinIter           = esdf_integer( "Eig_MinIter",  2 );
-        esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
-        esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
-        esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
-        esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
-        esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
-        esdfParam.isOutputALBElemLGL      = esdf_integer( "Output_ALB_Elem_LGL", 0 );
-        esdfParam.isOutputALBElemUniform  = esdf_integer( "Output_ALB_Elem_Uniform", 0 );
-        esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 0 );
-        esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 0 );
-        esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
-        esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 1 );
-        esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
-
-
-
-        esdfParam.ecutWavefunction     = esdf_double( "Ecut_Wavefunction", 40.0 );
-        esdfParam.densityGridFactor    = esdf_double( "Density_Grid_Factor", 2.0 );
-
-        // The density grid factor must be an integer
-        // esdfParam.densityGridFactor    = std::ceil( esdfParam.densityGridFactor );
-
-        Real temperature;
-        temperature               = esdf_double( "Temperature", 300.0 );
-        esdfParam.Tbeta           = au2K / temperature;
-
-        esdfParam.numExtraState   = esdf_integer( "Extra_States",  0 );
-        esdfParam.numUnusedState  = esdf_integer( "Unused_States",  0 );
-        esdfParam.isEigToleranceDynamic = esdf_integer( "Eig_Tolerance_Dynamic", 1 );
-
-
-        esdf_string("PeriodTable", "HGH.bin", strtmp);
-        esdfParam.periodTableFile = strtmp;
-        esdf_string("Pseudo_Type", "HGH", strtmp); 
-        esdfParam.pseudoType      = strtmp;
-        esdf_string("PW_Solver", "LOBPCG", strtmp); 
-        esdfParam.PWSolver        = strtmp;
-        esdf_string("XC_Type", "XC_LDA_XC_TETER93", strtmp); 
-        esdfParam.XCType          = strtmp;
-        esdf_string("VDW_Type", "None", strtmp); 
-        esdfParam.VDWType          = strtmp;
-      }
-
-
-      // DG
-      {
-        Index3& numElem = esdfParam.numElem;
-        if (esdf_block("Element_Size",&nlines)) {
-          sscanf(block_data[0],"%d %d %d", 
-              &numElem[0],&numElem[1],&numElem[2]);
-        }
-        else{
-          numElem(0) = 1;
-          numElem(1) = 1;
-          numElem(2) = 1;
-        }
-
-        // Instead of grid size, use ecut to determine the number of grid
-        // points in the local LGL domain.
-        // The LGL grid factor does not need to be an integer.
-        esdfParam.LGLGridFactor = esdf_double( "LGL_Grid_Factor", 2.0 );
-
-        //		Index3& numGridLGL = esdfParam.numGridLGL;
-        //		if (esdf_block("Element_Grid_Size", &nlines)) {
-        //			sscanf(block_data[0],"%d %d %d", 
-        //					&numGridLGL[0],&numGridLGL[1],&numGridLGL[2] );
-        //		}
-
-
-        esdfParam.GaussInterpFactor = esdf_double( "Gauss_Interp_Factor", 4.0 );
-
-        esdfParam.GaussSigma = esdf_double( "Gauss_Sigma", 0.001 );
-
-        esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 20.0 );
-
-        esdfParam.scaBlockSize  = esdf_integer( "ScaLAPACK_Block_Size", 32 );
-
-        // Get the number of basis functions per element
-        // NOTE: ALB_Num_Element overwrites the parameter numALB later		
+        // Domain
         {
-          esdfParam.numALBElem.Resize( numElem[0], numElem[1], numElem[2] );
-
-          Int sizeALBElem;
-
-          Int numALB        = esdf_integer( "ALB_Num", 4 );
-
-          if (esdf_block((char*)("ALB_Num_Element"),&sizeALBElem)) {
-            // Use different number of ALB functions for each element.
-            if( sizeALBElem != numElem.prod() ){
-              throw std::logic_error(
-                  "The size of the number of ALB does not match the number of elements.");
-            }
-            for( Int k = 0; k < numElem[2]; k++ )
-              for( Int j = 0; j < numElem[1]; j++ )
-                for( Int i = 0; i < numElem[0]; i++ ){
-                  sscanf( block_data[i+j*numElem[0]+k*numElem[0]*numElem[1]],
-                      "%d", &esdfParam.numALBElem(i,j,k) );
-                }
+          Domain& dm = esdfParam.domain;
+          if( esdf_block("Super_Cell", &nlines) ){
+            sscanf(block_data[0],"%lf %lf %lf",
+                &dm.length[0],&dm.length[1],&dm.length[2]);
           }
+
           else{
-            // Use the same number of ALB functions for each element.
-            for( Int k = 0; k < numElem[2]; k++ )
-              for( Int j = 0; j < numElem[1]; j++ )
-                for( Int i = 0; i < numElem[0]; i++ ){
-                  esdfParam.numALBElem(i,j,k) = numALB;
-                }
+            throw std::logic_error("Super_Cell cannot be found.");
           }
+
+          // 07/24/2013: Instead of grid size, use ecut to determine the grid
+          // size in the global domain for wavefunctions, density, and also
+          // other quantities in the local LGL domain.
+          //
+          // So dm.numGrid is not specified here.
+          //		if( esdf_block("Grid_Size", &nlines) ){
+          //			sscanf(block_data[0],"%d %d %d",
+          //					&dm.numGrid[0],&dm.numGrid[1],&dm.numGrid[2]);
+          //		}
+          //		else{
+          //			throw std::logic_error("Grid_Size cannot be found."); }
+
+          dm.posStart = Point3( 0.0, 0.0, 0.0 );
         }
 
-
-        // Modification of the potential in the extended element
+        // Atoms
         {
+          std::vector<Atom>&  atomList = esdfParam.atomList;
+          atomList.clear();
 
-          // FIXME The potential barrier is now obsolete.
-          esdfParam.isPotentialBarrier   = esdf_integer( "Potential_Barrier",  0 );
-          esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
-          esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 0.0 );
-          esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );
+          Int numAtomType = esdf_integer("Atom_Types_Num", 0);
+          if( numAtomType == 0 ){
+            throw std::logic_error("Atom_Types_Num cannot be found.");
+          }
 
-          // Periodization of the external potential
-          esdfParam.isPeriodizePotential = esdf_integer( "Periodize_Potential", 0 );
+          for( Int ityp = 0; ityp < numAtomType; ityp++ ){
+            Int type = esdf_integer( "Atom_Type", 0 );
+            // TODO Add supported type list
+            if( type == 0 ){
+              throw  std::logic_error( "Atom_Type cannot be found.");
 
-          esdfParam.distancePeriodize[0] = 0.0;
-          esdfParam.distancePeriodize[1] = 0.0;
-          esdfParam.distancePeriodize[2] = 0.0;
+            }
+            // FIXME IMPORTANT. The "mass" parameter is removed from the
+            // reading list.  Mass can be obtained later with periodtable
+            // structure and the atom type.  NOTE that the mass in PeriodTable 
+            // is in atomic mass unit (amu), but the mass in
+            // atomvec is in atomic unit (au).
 
-          if( esdfParam.isPeriodizePotential ){
-            if( esdf_block("Distance_Periodize", &nlines) ){
-              sscanf(block_data[0],"%lf %lf %lf",
-                  &esdfParam.distancePeriodize[0],
-                  &esdfParam.distancePeriodize[1],
-                  &esdfParam.distancePeriodize[2]);
+            Int  numAtom;
+
+            if( esdf_block("Atom_Bohr", &numAtom ) ){
+              // Cartesian coordinate (in the unit of Bohr) 
+              Point3 pos;
+              for( Int j = 0; j < numAtom; j++ ){
+                sscanf(block_data[j],"%lf %lf %lf", 
+                    &pos[0], &pos[1], &pos[2]);
+                atomList.push_back( 
+                    Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
+              }
+            }
+            else if( esdf_block("Atom_Ang", &numAtom ) ){
+              // Cartesian coordinate (in the unit of angstrom) 
+              Point3 pos;
+              const Real ANG2AU = 1.8897261;
+              for( Int j = 0; j < numAtom; j++ ){
+                sscanf(block_data[j],"%lf %lf %lf", 
+                    &pos[0], &pos[1], &pos[2]);
+                atomList.push_back( 
+                    Atom( type, ANG2AU*pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
+              }
+            }
+            else if ( esdf_block("Atom_Red", &numAtom) ){
+              // Reduce coordinate (in the unit of Super_Cell)
+              Point3 pos;
+              Point3 length = esdfParam.domain.length;
+              for( Int j = 0; j < numAtom; j++ ){
+                sscanf(block_data[j],"%lf %lf %lf", 
+                    &pos[0], &pos[1], &pos[2]);
+                atomList.push_back( 
+                    Atom( type, Point3( pos[0]*length[0], pos[1]*length[1], pos[2]*length[2] ),
+                      Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
+              }
             }
             else{
-              // Default value for DistancePeriodize
-              for( Int d = 0; d < DIM; d++ ){
-                if( esdfParam.numElem[d] == 1 ){
-                  esdfParam.distancePeriodize[d] = 0.0;
-                }
-                else{
-                  esdfParam.distancePeriodize[d] = 
-                    esdfParam.domain.length[d] / esdfParam.numElem[d] * 0.5;
+              std::ostringstream msg;
+              msg << "Atomic coordinates cannot found for atom type "  << type;
+              throw std::logic_error( msg.str().c_str() );
+            } // Read atomic coordinates
+          } // for(ityp)
+        }
+
+        // System parameters
+        {
+          esdfParam.mixMaxDim       = esdf_integer("Mixing_MaxDim", 9);
+
+          esdf_string("Mixing_Type", "anderson", strtmp); 
+          esdfParam.mixType         = strtmp;
+          if( esdfParam.mixType != "anderson" &&
+              esdfParam.mixType != "kerker+anderson" ){
+            throw std::runtime_error("Invalid mixing type.");
+          }
+
+          esdf_string("Mixing_Variable", "potential", strtmp); 
+          esdfParam.mixVariable     = strtmp;
+          if( esdfParam.mixVariable != "density" &&
+              esdfParam.mixVariable != "potential" ){
+            throw std::runtime_error("Invalid mixing variable.");
+          }
+
+
+          esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
+          esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
+          esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 );
+          esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
+          esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-6 );
+          esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
+          esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
+          esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
+          esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
+          esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
+          esdfParam.isHybridACE          = esdf_integer( "Hybrid_ACE", 0 );
+          esdfParam.exxDivergenceType    = esdf_integer( "EXX_Divergence_Type", 1 );
+
+          // Default is no locking
+          esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-20 );
+          esdfParam.eigMinIter           = esdf_integer( "Eig_MinIter",  2 );
+          esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
+          esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
+          esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
+          esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
+          esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
+          esdfParam.isOutputALBElemLGL      = esdf_integer( "Output_ALB_Elem_LGL", 0 );
+          esdfParam.isOutputALBElemUniform  = esdf_integer( "Output_ALB_Elem_Uniform", 0 );
+          esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 0 );
+          esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 0 );
+          esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
+          esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 1 );
+          esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
+
+
+
+          esdfParam.ecutWavefunction     = esdf_double( "Ecut_Wavefunction", 40.0 );
+          esdfParam.densityGridFactor    = esdf_double( "Density_Grid_Factor", 2.0 );
+
+          // The density grid factor must be an integer
+          // esdfParam.densityGridFactor    = std::ceil( esdfParam.densityGridFactor );
+
+          Real temperature;
+          temperature               = esdf_double( "Temperature", 300.0 );
+          esdfParam.Tbeta           = au2K / temperature;
+
+          esdfParam.numExtraState   = esdf_integer( "Extra_States",  0 );
+          esdfParam.numUnusedState  = esdf_integer( "Unused_States",  0 );
+          esdfParam.isEigToleranceDynamic = esdf_integer( "Eig_Tolerance_Dynamic", 1 );
+
+
+          esdf_string("PeriodTable", "HGH.bin", strtmp);
+          esdfParam.periodTableFile = strtmp;
+          esdf_string("Pseudo_Type", "HGH", strtmp); 
+          esdfParam.pseudoType      = strtmp;
+          esdf_string("PW_Solver", "LOBPCG", strtmp); 
+          esdfParam.PWSolver        = strtmp;
+          esdf_string("XC_Type", "XC_LDA_XC_TETER93", strtmp); 
+          esdfParam.XCType          = strtmp;
+          esdf_string("VDW_Type", "None", strtmp); 
+          esdfParam.VDWType          = strtmp;
+        }
+
+
+        // DG
+        {
+          Index3& numElem = esdfParam.numElem;
+          if (esdf_block("Element_Size",&nlines)) {
+            sscanf(block_data[0],"%d %d %d", 
+                &numElem[0],&numElem[1],&numElem[2]);
+          }
+          else{
+            numElem(0) = 1;
+            numElem(1) = 1;
+            numElem(2) = 1;
+          }
+
+          // Instead of grid size, use ecut to determine the number of grid
+          // points in the local LGL domain.
+          // The LGL grid factor does not need to be an integer.
+          esdfParam.LGLGridFactor = esdf_double( "LGL_Grid_Factor", 2.0 );
+
+          //		Index3& numGridLGL = esdfParam.numGridLGL;
+          //		if (esdf_block("Element_Grid_Size", &nlines)) {
+          //			sscanf(block_data[0],"%d %d %d", 
+          //					&numGridLGL[0],&numGridLGL[1],&numGridLGL[2] );
+          //		}
+
+
+          esdfParam.GaussInterpFactor = esdf_double( "Gauss_Interp_Factor", 4.0 );
+
+          esdfParam.GaussSigma = esdf_double( "Gauss_Sigma", 0.001 );
+
+          esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 20.0 );
+
+          esdfParam.scaBlockSize  = esdf_integer( "ScaLAPACK_Block_Size", 32 );
+
+          // Get the number of basis functions per element
+          // NOTE: ALB_Num_Element overwrites the parameter numALB later		
+          {
+            esdfParam.numALBElem.Resize( numElem[0], numElem[1], numElem[2] );
+
+            Int sizeALBElem;
+
+            Int numALB        = esdf_integer( "ALB_Num", 4 );
+
+            if (esdf_block((char*)("ALB_Num_Element"),&sizeALBElem)) {
+              // Use different number of ALB functions for each element.
+              if( sizeALBElem != numElem.prod() ){
+                throw std::logic_error(
+                    "The size of the number of ALB does not match the number of elements.");
+              }
+              for( Int k = 0; k < numElem[2]; k++ )
+                for( Int j = 0; j < numElem[1]; j++ )
+                  for( Int i = 0; i < numElem[0]; i++ ){
+                    sscanf( block_data[i+j*numElem[0]+k*numElem[0]*numElem[1]],
+                        "%d", &esdfParam.numALBElem(i,j,k) );
+                  }
+            }
+            else{
+              // Use the same number of ALB functions for each element.
+              for( Int k = 0; k < numElem[2]; k++ )
+                for( Int j = 0; j < numElem[1]; j++ )
+                  for( Int i = 0; i < numElem[0]; i++ ){
+                    esdfParam.numALBElem(i,j,k) = numALB;
+                  }
+            }
+          }
+
+
+          // Modification of the potential in the extended element
+          {
+
+            // FIXME The potential barrier is now obsolete.
+            esdfParam.isPotentialBarrier   = esdf_integer( "Potential_Barrier",  0 );
+            esdfParam.potentialBarrierW    = esdf_double( "Potential_Barrier_W", 2.0 );
+            esdfParam.potentialBarrierS    = esdf_double( "Potential_Barrier_S", 0.0 );
+            esdfParam.potentialBarrierR    = esdf_double( "Potential_Barrier_R", 5.0 );
+
+            // Periodization of the external potential
+            esdfParam.isPeriodizePotential = esdf_integer( "Periodize_Potential", 0 );
+
+            esdfParam.distancePeriodize[0] = 0.0;
+            esdfParam.distancePeriodize[1] = 0.0;
+            esdfParam.distancePeriodize[2] = 0.0;
+
+            if( esdfParam.isPeriodizePotential ){
+              if( esdf_block("Distance_Periodize", &nlines) ){
+                sscanf(block_data[0],"%lf %lf %lf",
+                    &esdfParam.distancePeriodize[0],
+                    &esdfParam.distancePeriodize[1],
+                    &esdfParam.distancePeriodize[2]);
+              }
+              else{
+                // Default value for DistancePeriodize
+                for( Int d = 0; d < DIM; d++ ){
+                  if( esdfParam.numElem[d] == 1 ){
+                    esdfParam.distancePeriodize[d] = 0.0;
+                  }
+                  else{
+                    esdfParam.distancePeriodize[d] = 
+                      esdfParam.domain.length[d] / esdfParam.numElem[d] * 0.5;
+                  }
                 }
               }
             }
+          } // Modify the potential
+
+          esdf_string("Solution_Method", "diag", strtmp); 
+          esdfParam.solutionMethod  = strtmp;
+          if( esdfParam.solutionMethod != "diag" &&
+              esdfParam.solutionMethod != "pexsi" ){
+            throw std::runtime_error("Invalid solution method for the projected problem.");
           }
-        } // Modify the potential
-
-        esdf_string("Solution_Method", "diag", strtmp); 
-        esdfParam.solutionMethod  = strtmp;
-        if( esdfParam.solutionMethod != "diag" &&
-            esdfParam.solutionMethod != "pexsi" ){
-          throw std::runtime_error("Invalid solution method for the projected problem.");
-        }
-        if( esdfParam.solutionMethod == "pexsi" ){
+          if( esdfParam.solutionMethod == "pexsi" ){
 #ifndef _USE_PEXSI_
-          throw std::runtime_error("Usage of PEXSI requires -DPEXSI to be defined in make.inc.");
+            throw std::runtime_error("Usage of PEXSI requires -DPEXSI to be defined in make.inc.");
 #endif
+          }
+
+          // FFT
+          // esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisize );
+
+          // ScaLAPACK parameter
+          esdfParam.numProcScaLAPACK  = esdf_integer( "Num_Proc_ScaLAPACK", mpisize );
+
+          // PEXSI parameters
+          esdfParam.numPole           = esdf_integer( "Num_Pole", 60 );
+          esdfParam.numProcRowPEXSI   = esdf_integer( "Num_Proc_Row_PEXSI", 1 );
+          esdfParam.numProcColPEXSI   = esdf_integer( "Num_Proc_Col_PEXSI", 1 );
+          esdfParam.npSymbFact        = esdf_integer( "Num_Proc_Symb_Fact", 
+              std::min( 4, esdfParam.numProcRowPEXSI * esdfParam.numProcColPEXSI ) );
+          esdfParam.energyGap         = esdf_double( "Energy_Gap", 0.0 );
+          esdfParam.spectralRadius    = esdf_double( "Spectral_Radius", 100.0 );
+          esdfParam.matrixOrdering    = esdf_integer( "Matrix_Ordering", 0 );
+          esdfParam.inertiaCountSteps = esdf_integer( "Inertia_Count_Steps", 10 );
+          esdfParam.maxPEXSIIter         = esdf_integer( "Max_PEXSI_Iter", 5 );
+          esdfParam.numElectronPEXSITolerance =
+            esdf_double( "Num_Electron_PEXSI_Tolerance", 1e-3 );
+          esdfParam.muInertiaTolerance =
+            esdf_double( "Mu_Inertia_Tolerance", 0.05 );
+          esdfParam.muInertiaExpansion =
+            esdf_double( "Mu_Inertia_Expansion", 0.3 );
+          esdfParam.muPEXSISafeGuard =
+            esdf_double( "Mu_PEXSI_SafeGuard", 0.05 );
+          esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
+          esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
+
+          // Split MPI communicators into row and column communicators
+
+          Domain& dm = esdfParam.domain;
+
+          int dmCol = numElem[0] * numElem[1] * numElem[2];
+          int dmRow = mpisize / dmCol;
+
+          if(mpisize == 1){
+            dmCol = 1;
+            dmRow = 1;
+          }
+
+          if( (mpisize % dmCol) != 0 ){
+            std::ostringstream msg;
+            msg
+              << "(mpisize % dmCol) != 0" << std::endl;
+            throw std::runtime_error( msg.str().c_str() );
+          }
+
+          dm.comm    = MPI_COMM_WORLD;
+          MPI_Comm_split( dm.comm, mpirank / dmRow, mpirank, &dm.rowComm );
+          MPI_Comm_split( dm.comm, mpirank % dmRow, mpirank, &dm.colComm );
+
+          MPI_Barrier(dm.rowComm);
+          Int mpirankRow;  MPI_Comm_rank(dm.rowComm, &mpirankRow);
+          Int mpisizeRow;  MPI_Comm_size(dm.rowComm, &mpisizeRow);
+
+          MPI_Barrier(dm.colComm);
+          Int mpirankCol;  MPI_Comm_rank(dm.colComm, &mpirankCol);
+          Int mpisizeCol;  MPI_Comm_size(dm.colComm, &mpisizeCol);
+
+          // FFT
+          esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisizeCol );
+
+        } // DG
+
+
+        // Choose the number of grid points
+        // NOTE: This part of the code only applies to DGDFT, since the
+        // wavefunction grid and the density grid size is assumed to be a
+        // multiple of the number of elements along each dimension.
+        //
+        // The formula for the number of grid points along each dimension with
+        // length L is
+        //
+        // 1/2 K_max^2 = Ecut,   with K_max = pi N_max / L, 
+        //
+        // i.e.
+        //
+        // N_max = \frac{\sqrt{2 E_cut} * L}{pi}.
+        //
+        // The number of grid point along this dimension is chosen to be the
+        // largest even number bigger than N_max.  The number of global grid
+        // points is also required to be divisible by the number of elements
+        // along that dimension.
+        //
+        // TODO Later the number of grid points can be improved to only
+        // contain the factor of 2, 3 and 5.
+        //
+        // TODO Current ecutDensity is only used for global grid quantities
+        // such as density and potential.  When solving the local problem, the
+        // number of grid points for density is still the same as that for the
+        // wavefunction.  This constraint can be improved later by saving the
+        // wavefunction in the extended element really in the Fourier domain.
+        // This real dual grid approach will be done in the next step.
+        {
+          Domain&  dm       = esdfParam.domain;
+          Index3&  numGridWavefunctionElem = esdfParam.numGridWavefunctionElem;
+          Index3&  numGridDensityElem = esdfParam.numGridDensityElem;
+          Index3&  numGridLGL = esdfParam.numGridLGL;
+          Index3   numElem = esdfParam.numElem;
+
+          Point3  elemLength;
+
+          for( Int d = 0; d < DIM; d++ ){
+            elemLength[d] = dm.length[d] / numElem[d];
+            // the number of grid is assumed to be at least an even number
+
+            numGridWavefunctionElem[d] = 
+              std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
+                  elemLength[d] / PI / 2.0) * 2;
+
+            numGridDensityElem[d] = std::ceil(numGridWavefunctionElem[d] * esdfParam.densityGridFactor / 2.0) * 2;
+
+            dm.numGrid[d] = numGridWavefunctionElem[d] * numElem[d];  // Coarse Grid
+
+            dm.numGridFine[d] = numGridDensityElem[d] * numElem[d]; // Fine Frid
+
+            numGridLGL[d] = std::ceil( numGridWavefunctionElem[d] * esdfParam.LGLGridFactor );
+
+          } // for (d)
+
+
         }
 
-        // FFT
-        // esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisize );
-
-        // ScaLAPACK parameter
-        esdfParam.numProcScaLAPACK  = esdf_integer( "Num_Proc_ScaLAPACK", mpisize );
-
-        // PEXSI parameters
-        esdfParam.numPole           = esdf_integer( "Num_Pole", 60 );
-        esdfParam.numProcRowPEXSI   = esdf_integer( "Num_Proc_Row_PEXSI", 1 );
-        esdfParam.numProcColPEXSI   = esdf_integer( "Num_Proc_Col_PEXSI", 1 );
-        esdfParam.npSymbFact        = esdf_integer( "Num_Proc_Symb_Fact", 
-            std::min( 4, esdfParam.numProcRowPEXSI * esdfParam.numProcColPEXSI ) );
-        esdfParam.energyGap         = esdf_double( "Energy_Gap", 0.0 );
-        esdfParam.spectralRadius    = esdf_double( "Spectral_Radius", 100.0 );
-        esdfParam.matrixOrdering    = esdf_integer( "Matrix_Ordering", 0 );
-        esdfParam.inertiaCountSteps = esdf_integer( "Inertia_Count_Steps", 10 );
-        esdfParam.maxPEXSIIter         = esdf_integer( "Max_PEXSI_Iter", 5 );
-        esdfParam.numElectronPEXSITolerance =
-          esdf_double( "Num_Electron_PEXSI_Tolerance", 1e-3 );
-        esdfParam.muInertiaTolerance =
-          esdf_double( "Mu_Inertia_Tolerance", 0.05 );
-        esdfParam.muInertiaExpansion =
-          esdf_double( "Mu_Inertia_Expansion", 0.3 );
-        esdfParam.muPEXSISafeGuard =
-          esdf_double( "Mu_PEXSI_SafeGuard", 0.05 );
-        esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
-        esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
-
-        // Split MPI communicators into row and column communicators
-
-        Domain& dm = esdfParam.domain;
-
-        int dmCol = numElem[0] * numElem[1] * numElem[2];
-        int dmRow = mpisize / dmCol;
-
-        if(mpisize == 1){
-          dmCol = 1;
-          dmRow = 1;
+        // Geometry optimization
+        {
+          esdfParam.geoOptMaxStep = esdf_integer( "Geo_Opt_Max_Step", 100 );
+          esdfParam.geoOptMaxForce = esdf_double( "Geo_Opt_Max_Force", 0.001 );
         }
 
-        if( (mpisize % dmCol) != 0 ){
-          std::ostringstream msg;
-          msg
-            << "(mpisize % dmCol) != 0" << std::endl;
-          throw std::runtime_error( msg.str().c_str() );
+        // Molecualr dynamics
+        {
+          Real ionTemperature;
+          ionTemperature            = esdf_double( "Ion_Temperature", 300.0 );
+          esdfParam.ionTemperature  = ionTemperature;
+          esdfParam.TbetaIonTemperature   = au2K / ionTemperature;
+
+          esdfParam.MDMaxStep   = esdf_integer("MD_Max_Step", 1000);
+          esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 80.0);
+          esdf_string("MD_Extrapolation_Type", "linear", strtmp); 
+          esdfParam.MDExtrapolationType          = strtmp;
+          esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);
+          esdfParam.isRestartPosition     = esdf_integer( "Restart_Position", 0 );
+          esdfParam.isRestartThermostat   = esdf_integer( "Restart_Thermostat", 0 );
+          esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 1 );
+          esdfParam.isOutputThermostat    = esdf_integer( "Output_Thermostat", 0 );
+          esdfParam.isOutputXYZ           = esdf_integer( "Output_XYZ", 1 );
+
+          // Restart position / thermostat
+
         }
 
-        dm.comm    = MPI_COMM_WORLD;
-        MPI_Comm_split( dm.comm, mpirank / dmRow, mpirank, &dm.rowComm );
-        MPI_Comm_split( dm.comm, mpirank % dmRow, mpirank, &dm.colComm );
+        // Inputs related to Chebyshev Filtered SCF iterations for DG
+        // ~~**~~
+        {
+          // Basic parameters
+          esdfParam.Diag_SCFDG_by_Cheby = esdf_integer( "Diag_SCFDG_by_Cheby", 0 );
+          esdfParam.SCFDG_Cheby_use_ScaLAPACK = esdf_integer( "SCFDG_Cheby_use_ScaLAPACK", 0 );
 
-        MPI_Barrier(dm.rowComm);
-        Int mpirankRow;  MPI_Comm_rank(dm.rowComm, &mpirankRow);
-        Int mpisizeRow;  MPI_Comm_size(dm.rowComm, &mpisizeRow);
+          // First SCF step parameters
+          esdfParam.First_SCFDG_ChebyFilterOrder = esdf_integer( "First_SCFDG_ChebyFilterOrder", 60 );
+          esdfParam.First_SCFDG_ChebyCycleNum = esdf_integer( "First_SCFDG_ChebyCycleNum", 5 );
 
-        MPI_Barrier(dm.colComm);
-        Int mpirankCol;  MPI_Comm_rank(dm.colComm, &mpirankCol);
-        Int mpisizeCol;  MPI_Comm_size(dm.colComm, &mpisizeCol);
+          // Second stage parameters
+          esdfParam.Second_SCFDG_ChebyOuterIter = esdf_integer( "Second_SCFDG_ChebyOuterIter", 3 );
+          esdfParam.Second_SCFDG_ChebyFilterOrder = esdf_integer( "Second_SCFDG_ChebyFilterOrder", 60 );
+          esdfParam.Second_SCFDG_ChebyCycleNum = esdf_integer( "Second_SCFDG_ChebyCycleNum", 3);
 
-        // FFT
-        esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisizeCol );
+          // General SCF step parameters
+          esdfParam.General_SCFDG_ChebyFilterOrder = esdf_integer( "General_SCFDG_ChebyFilterOrder", 60);
+          esdfParam.General_SCFDG_ChebyCycleNum = esdf_integer( "General_SCFDG_ChebyCycleNum", 1);
 
-      } // DG
-
-
-      // Choose the number of grid points
-      // NOTE: This part of the code only applies to DGDFT, since the
-      // wavefunction grid and the density grid size is assumed to be a
-      // multiple of the number of elements along each dimension.
-      //
-      // The formula for the number of grid points along each dimension with
-      // length L is
-      //
-      // 1/2 K_max^2 = Ecut,   with K_max = pi N_max / L, 
-      //
-      // i.e.
-      //
-      // N_max = \frac{\sqrt{2 E_cut} * L}{pi}.
-      //
-      // The number of grid point along this dimension is chosen to be the
-      // largest even number bigger than N_max.  The number of global grid
-      // points is also required to be divisible by the number of elements
-      // along that dimension.
-      //
-      // TODO Later the number of grid points can be improved to only
-      // contain the factor of 2, 3 and 5.
-      //
-      // TODO Current ecutDensity is only used for global grid quantities
-      // such as density and potential.  When solving the local problem, the
-      // number of grid points for density is still the same as that for the
-      // wavefunction.  This constraint can be improved later by saving the
-      // wavefunction in the extended element really in the Fourier domain.
-      // This real dual grid approach will be done in the next step.
-      {
-        Domain&  dm       = esdfParam.domain;
-        Index3&  numGridWavefunctionElem = esdfParam.numGridWavefunctionElem;
-        Index3&  numGridDensityElem = esdfParam.numGridDensityElem;
-        Index3&  numGridLGL = esdfParam.numGridLGL;
-        Index3   numElem = esdfParam.numElem;
-
-        Point3  elemLength;
-
-        for( Int d = 0; d < DIM; d++ ){
-          elemLength[d] = dm.length[d] / numElem[d];
-          // the number of grid is assumed to be at least an even number
-
-          numGridWavefunctionElem[d] = 
-            std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
-                elemLength[d] / PI / 2.0) * 2;
-
-          numGridDensityElem[d] = std::ceil(numGridWavefunctionElem[d] * esdfParam.densityGridFactor / 2.0) * 2;
-
-          dm.numGrid[d] = numGridWavefunctionElem[d] * numElem[d];  // Coarse Grid
-
-          dm.numGridFine[d] = numGridDensityElem[d] * numElem[d]; // Fine Frid
-
-          numGridLGL[d] = std::ceil( numGridWavefunctionElem[d] * esdfParam.LGLGridFactor );
-
-        } // for (d)
-
-
-      }
-
-      // Geometry optimization
-      {
-        esdfParam.geoOptMaxStep = esdf_integer( "Geo_Opt_Max_Step", 100 );
-        esdfParam.geoOptMaxForce = esdf_double( "Geo_Opt_Max_Force", 0.001 );
-      }
-
-      // Molecualr dynamics
-      {
-        Real ionTemperature;
-        ionTemperature            = esdf_double( "Ion_Temperature", 300.0 );
-        esdfParam.ionTemperature  = ionTemperature;
-        esdfParam.TbetaIonTemperature   = au2K / ionTemperature;
-
-        esdfParam.MDMaxStep   = esdf_integer("MD_Max_Step", 1000);
-        esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 80.0);
-        esdf_string("MD_Extrapolation_Type", "linear", strtmp); 
-        esdfParam.MDExtrapolationType          = strtmp;
-        esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);
-        esdfParam.isRestartPosition     = esdf_integer( "Restart_Position", 0 );
-        esdfParam.isRestartThermostat   = esdf_integer( "Restart_Thermostat", 0 );
-        esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 1 );
-        esdfParam.isOutputThermostat    = esdf_integer( "Output_Thermostat", 0 );
-        esdfParam.isOutputXYZ           = esdf_integer( "Output_XYZ", 1 );
-
-        // Restart position / thermostat
-
-      }
-
-      // Inputs related to Chebyshev Filtered SCF iterations for DG
-      // ~~**~~
-      {
-        // Basic parameters
-        esdfParam.Diag_SCFDG_by_Cheby = esdf_integer( "Diag_SCFDG_by_Cheby", 0 );
-        esdfParam.SCFDG_Cheby_use_ScaLAPACK = esdf_integer( "SCFDG_Cheby_use_ScaLAPACK", 0 );
-
-        // First SCF step parameters
-        esdfParam.First_SCFDG_ChebyFilterOrder = esdf_integer( "First_SCFDG_ChebyFilterOrder", 60 );
-        esdfParam.First_SCFDG_ChebyCycleNum = esdf_integer( "First_SCFDG_ChebyCycleNum", 5 );
-
-        // Second stage parameters
-        esdfParam.Second_SCFDG_ChebyOuterIter = esdf_integer( "Second_SCFDG_ChebyOuterIter", 3 );
-        esdfParam.Second_SCFDG_ChebyFilterOrder = esdf_integer( "Second_SCFDG_ChebyFilterOrder", 60 );
-        esdfParam.Second_SCFDG_ChebyCycleNum = esdf_integer( "Second_SCFDG_ChebyCycleNum", 3);
-
-        // General SCF step parameters
-        esdfParam.General_SCFDG_ChebyFilterOrder = esdf_integer( "General_SCFDG_ChebyFilterOrder", 60);
-        esdfParam.General_SCFDG_ChebyCycleNum = esdf_integer( "General_SCFDG_ChebyCycleNum", 1);
-
-      }
+        }
 
 
 #ifndef _RELEASE_
-      PopCallStack();
+        PopCallStack();
 #endif
 
-      return ;
-    }		// -----  end of function ESDFReadInput  ----- 
+        return ;
+      }		// -----  end of function ESDFReadInput  ----- 
 
 
   } // namespace esdf

@@ -80,6 +80,7 @@ struct Fourier {
 
   DblNumVec                gkkFine;
 	std::vector<CpxNumVec>   ikFine;
+  // FIXME Teter should be moved to Hamiltonian
   DblNumVec                TeterPrecondFine;
 
 	// Temporary vectors that can also be used globally
@@ -118,11 +119,13 @@ struct Fourier {
   IntNumVec                idxFineGrid;
   IntNumVec                idxFineGridR2C;
 
+
 	Fourier();
 	~Fourier();
 
 	void Initialize( const Domain& dm );
   void InitializeFine( const Domain& dm );
+
 };
 
 

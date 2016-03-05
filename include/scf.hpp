@@ -73,6 +73,8 @@ private:
   Int                 eigMaxIter_;
 	Real                scfTolerance_;
 	Int                 scfMaxIter_;
+	Int                 scfPhiMaxIter_;
+	Real                scfPhiTolerance_;
   Int                 numUnusedState_;
   bool                isEigToleranceDynamic_;
 	bool                isRestartDensity_;
@@ -97,6 +99,7 @@ private:
 	Real                EVxc_;                     // Exchange-correlation potential energy
 	Real                Eself_;                    // Self energy due to the pseudopotential
 	Real                fermi_;                    // Fermi energy
+  Real                Efock_;                    // Hartree-Fock energy
 
 	Real                totalCharge_;              // Total number of computed electron charge
 	
@@ -106,6 +109,9 @@ private:
   std::string         XCType_;
   std::string         VDWType_;
   
+  /// @brief Needed for GGA, meta-GGA and hybrid functional calculations
+  bool                isCalculateGradRho_; 
+
   // SCF variables
   DblNumVec           vtotNew_;
 	Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
@@ -119,7 +125,7 @@ private:
   Index3  numGridDensityElem_;
 	
   DblNumMat           forceVdw_;
-
+	
 public:
 	
 	
@@ -140,6 +146,11 @@ public:
 	void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
 	void  CalculateEnergy();
 	void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
+  // EXX
+	void  IterateHybrid();
+
+
+
 	void  PrintState( const Int iter );
 	void  OutputState();
 	void  LastSCF( Real& etot, Real& efree, Real& ekin, Real& ehart,
@@ -149,7 +160,9 @@ public:
 	// Mixing
 	void  AndersonMix( const Int iter );
 	void  KerkerMix();
-	// TODO
+
+  // 
+
 //	void  EllipticMix();
 
 	// *********************************************************************

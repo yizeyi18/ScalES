@@ -241,6 +241,7 @@ void Fourier::InitializeFine ( const Domain& dm )
 //	}
 
 	domain = dm;
+  // FIXME Problematic definition
 	Index3& numGrid = domain.numGridFine;
 	Point3& length  = domain.length;
 
@@ -344,8 +345,9 @@ void Fourier::InitializeFine ( const Domain& dm )
 
   // R2C transform
   
-  Int numGridTotalR2C = (domain.numGrid[0]/2+1) * domain.numGrid[1] * domain.numGrid[2];
-  Int numGridTotalR2CFine = (domain.numGridFine[0]/2+1) * domain.numGridFine[1] * domain.numGridFine[2];
+  // LL: 1/6/2016 IMPORTANT: fix a bug
+  numGridTotalR2C = (domain.numGrid[0]/2+1) * domain.numGrid[1] * domain.numGrid[2];
+  numGridTotalR2CFine = (domain.numGridFine[0]/2+1) * domain.numGridFine[1] * domain.numGridFine[2];
 	
   inputVecR2CFine.Resize( numGridTotalFine );
 	outputVecR2CFine.Resize( numGridTotalR2CFine );
@@ -426,6 +428,8 @@ void Fourier::InitializeFine ( const Domain& dm )
 
 	return ;
 }		// -----  end of function Fourier::InitializeFine  ----- 
+
+
 
 
 // *********************************************************************

@@ -134,20 +134,6 @@ public:
       Real         eigTolerance );
 
 
-	// ********************  ACCESS      *******************************
-	DblNumVec& EigVal() { return eigVal_; }
-	DblNumVec& ResVal() { return resVal_; }
-
-  // FIXME following 2 subroutines to be removed
-  Real&      Tolerance() { return eigTolerance_; }
-  Real&      ToleranceSave() { return eigToleranceSave_; }
-
-	Hamiltonian& Ham()  {return *hamPtr_;}
-	Spinor&      Psi()  {return *psiPtr_;}
-	Fourier&     FFT()  {return *fftPtr_;}
-
-	// ********************  INQUIRY     *******************************
-
   /// @brief Parallel LOBPCG solver with intra-element
   /// parallelization.
   ///
@@ -160,6 +146,19 @@ public:
       Int          numEig,
       Int          eigMaxIter,
       Real         eigTolerance );
+
+
+	// ********************  ACCESS      *******************************
+	DblNumVec& EigVal() { return eigVal_; }
+	DblNumVec& ResVal() { return resVal_; }
+
+  // FIXME following 2 subroutines to be removed
+  Real&      Tolerance() { return eigTolerance_; }
+  Real&      ToleranceSave() { return eigToleranceSave_; }
+
+	Hamiltonian& Ham()  {return *hamPtr_;}
+	Spinor&      Psi()  {return *psiPtr_;}
+	Fourier&     FFT()  {return *fftPtr_;}
 
 }; // -----  end of class  EigenSolver  ----- 
 

@@ -120,189 +120,213 @@ namespace dgdft{
       /// Not an input parameter by the user.
       std::vector<Atom>   atomList;
 
-      /// @brief Mixing maximum dimension.
-      ///
-      /// Default: 9
-      ///
-      /// This parameter is relevant for Anderson mixing.
-      Int                 mixMaxDim;
-      /// @brief Mixing type for self-consistent field iteration.
-      ///
-      /// Default: anderson
-      ///
-      /// - = "anderson"           : Anderson mixing
-      /// - = "kerker+anderson"    : Anderson mixing with Kerker
-      /// preconditioner
-      ///
-      /// @todo Preconditioner better than Kerker mixing.
-      std::string         mixType;
-      /// @brief Which variable to mix
-      ///
-      /// Default: density
-      ///
-      /// - = "density"            : Density mixing
-      /// - = "potential"          : Potential mixing
-      std::string         mixVariable;
-      /// @brief Coefficient in front of the preconditioned residual to be
-      /// mixed with the mixing variable in the previous step.
-      ///
-      /// Default: 0.8
-      ///
-      /// For metallic systems or small gapped semiconductors,
-      /// mixStepLength is often needed to be smaller than 0.1.  In such
-      /// case, a better preconditioner such as Kerker preconditioner can
-      /// be helpful.
-      Real                mixStepLength;            
-      /// @brief Tolerance for inner %SCF iteration in DG calculation.
-      ///
-      /// Default: 1e-4
-      ///
-      /// @note When scfInnerMaxIter = 1 (which is used most of the cases
-      /// in the current version), this parameter is not useful.
-      Real                scfInnerTolerance;
-      /// @brief Tolerance for outer %SCF iteration in DG calculation.
-      ///
-      /// Default: 1e-6
-      ///
-      /// The DG calculation stops when
-      ///
-      /// \f[
-      /// \frac{\Vert v^{(k)} - v^{(k-1)} \Vert}{\Vert{v^{(k-1)}}\Vert} <
-      /// scfOuterTolerance
-      /// \f]
-      ///
-      /// where the variable \f$v\f$ can be the density 
-      /// (mixVariable = "density") or potential 
-      /// (mixVariable = "potential").
-      Real                scfOuterTolerance;
-      /// @brief The DG calculation stops when the difference between free
-      /// energy and Harris energy per atom is less than scfOuterEnergyTolerance.
-      ///
-      /// Default: 1e-4
-      Real                scfOuterEnergyTolerance;
-      /// @brief Minimum number of inner %SCF iterations
-      ///
-      /// Default: 1
-      Int                 scfInnerMinIter;
-      /// @brief Maximum number of inner %SCF iterations
-      ///
-      /// Default: 1
-      Int                 scfInnerMaxIter;
-      /// @brief Minimum number of outer %SCF iterations
-      ///
-      /// Default: 3
-      Int                 scfOuterMinIter;
-      /// @brief Maximum number of outer %SCF iterations
-      ///
-      /// Default: 30
-      Int                 scfOuterMaxIter;
-      /// @brief Tolerance for the eigenvalue solver
-      ///
-      /// Default: 1e-6
-      ///
-      /// Currently the LOBPCG method is used as the eigenvalue solver for
-      /// obtaining the adaptive local basis functions, and eigTolerance
-      /// controls the tolerance for the LOBPCG solver.  
-      ///
-      /// In the case when the eigensolver tolerance is tunned dynamically
-      /// (see 
-      /// @ref dgdft::esdf::ESDFInputParam::isEigToleranceDynamic "isEigToleranceDynamic"), the tolerance for
-      /// the eigensolver is controlled dynamically and can be larger than
-      /// eigTolerance.
-      Real                eigTolerance;
-      /// @brief Minimum number of iterations for the eigensolver.
-      ///
-      /// Default: 1
-      Int                 eigMinIter;
-      /// @brief Maximum number of iterations for the eigensolver.
-      ///
-      /// Default: 10
-      Int                 eigMaxIter;
-      /// @brief Tolerance for thresholding the adaptive local basis functions.
-      ///
-      /// Default: 1e-6
-      ///
-      /// The adaptive local basis functions restricted to the element are
-      /// not orthogonal and may be linearly dependent.  An local SVD
-      /// decomposition is performed to eliminate the linearly dependent
-      /// modes with tolerance SVDBasisTolerance.
-      Real                SVDBasisTolerance;
-      /// @brief Whether to use the saved electron density as the start.
-      ///
-      /// Default: 0
-      bool                isRestartDensity;
-      /// @brief Whether to use the saved basis functions in extended
-      /// element as the start.
-      ///
-      /// Default: 0
-      bool                isRestartWfn;
-      /// @brief Whether to output the electron density.
-      ///
-      /// Default: 1
-      ///
-      /// When isOutputDensity = 1, files DEN_xxx_yyy will be generated,
-      /// where by default xxx is the mpirank (starting from 0), and yyy
-      /// is mpisize.
-      ///
-      /// This option is needed to restart the electron density using 
-      /// @ref dgdft::esdf::ESDFInputParam::isRestartDensity "isRestartDensity".
-      bool                isOutputDensity;
-      /// @brief Whether to output the wavefunctions in the element on LGL
-      /// grid.
-      ///
-      /// Default: 0
-      ///
-      /// This is mainly for debugging and visualization purpose and is
-      /// not commonly used.
-      bool                isOutputALBElemLGL;
-      /// @brief Whether to output the wavefunctions in the element on
-      /// uniform grid.
-      ///
-      /// Default: 0
-      ///
-      /// This is mainly for debugging and visualization purpose and is
-      /// not commonly used.
-      bool                isOutputALBElemUniform;
-      /// @brief Whether to output the wavefunctions in the extended
-      /// element.
-      ///
-      /// Default: 1
-      ///
-      /// When isOutputWfnExtElem = 1, the approximate eigenvectors in the
-      /// extended element are given in the output, in the form
-      /// WFNEXT_xxx_yyy, where by default xxx is the mpirank (starting
-      /// from 0), and yyy is mpisize.
-      bool                isOutputWfnExtElem;
-      /// @brief Whether to output the potential in the extended
-      /// element.
-      ///
-      /// Default: 0
-      ///
-      /// This is mainly for debugging and visualization purpose and is
-      /// not commonly used.
-      bool                isOutputPotExtElem;
-      /// @brief Whether to calculate a posteriori error estimator for
-      /// each %SCF iteration.
-      ///
-      /// Default: 0
-      ///
-      /// If this is 0, then the a posteriori error estimator is given in
-      /// the output after the %SCF iteration is finished.
-      ///
-      /// @todo Sharp a posteriori error estimate than the current version.
-      bool                isCalculateAPosterioriEachSCF; 
-      /// @brief Whether to calculate the force each %SCF iteration.
-      ///
-      /// Default: 1
-      bool                isCalculateForceEachSCF; 
-      /// @brief Whether to output the DG Hamiltonian matrix in each %SCF
-      /// iteration.
-      ///
-      /// Default: 0
-      ///
-      /// If isOutputHMatrix = 1, the H matrix is output in the file
-      /// `H.csc` using the compressed sparse column (CSC) binary format.
-      bool                isOutputHMatrix;
+    /// @brief Mixing maximum dimension.
+    ///
+    /// Default: 9
+    ///
+    /// This parameter is relevant for Anderson mixing.
+    Int                 mixMaxDim;
+    /// @brief Mixing type for self-consistent field iteration.
+    ///
+    /// Default: anderson
+    ///
+    /// - = "anderson"           : Anderson mixing
+    /// - = "kerker+anderson"    : Anderson mixing with Kerker
+    /// preconditioner
+    ///
+    /// @todo Preconditioner better than Kerker mixing.
+    std::string         mixType;
+    /// @brief Which variable to mix
+    ///
+    /// Default: density
+    ///
+    /// - = "density"            : Density mixing
+    /// - = "potential"          : Potential mixing
+    std::string         mixVariable;
+    /// @brief Coefficient in front of the preconditioned residual to be
+    /// mixed with the mixing variable in the previous step.
+    ///
+    /// Default: 0.8
+    ///
+    /// For metallic systems or small gapped semiconductors,
+    /// mixStepLength is often needed to be smaller than 0.1.  In such
+    /// case, a better preconditioner such as Kerker preconditioner can
+    /// be helpful.
+    Real                mixStepLength;            
+    /// @brief Tolerance for inner %SCF iteration in DG calculation.
+    ///
+    /// Default: 1e-4
+    ///
+    /// @note When scfInnerMaxIter = 1 (which is used most of the cases
+    /// in the current version), this parameter is not useful.
+    Real                scfInnerTolerance;
+    /// @brief Tolerance for outer %SCF iteration in DG calculation.
+    ///
+    /// Default: 1e-6
+    ///
+    /// The DG calculation stops when
+    ///
+    /// \f[
+    /// \frac{\Vert v^{(k)} - v^{(k-1)} \Vert}{\Vert{v^{(k-1)}}\Vert} <
+    /// scfOuterTolerance
+    /// \f]
+    ///
+    /// where the variable \f$v\f$ can be the density 
+    /// (mixVariable = "density") or potential 
+    /// (mixVariable = "potential").
+    Real                scfOuterTolerance;
+    /// @brief The DG calculation stops when the difference between free
+    /// energy and Harris energy per atom is less than scfOuterEnergyTolerance.
+    ///
+    /// Default: 1e-4
+    Real                scfOuterEnergyTolerance;
+    /// @brief Minimum number of inner %SCF iterations
+    ///
+    /// Default: 1
+    Int                 scfInnerMinIter;
+    /// @brief Maximum number of inner %SCF iterations
+    ///
+    /// Default: 1
+    Int                 scfInnerMaxIter;
+    /// @brief Minimum number of outer %SCF iterations
+    ///
+    /// Default: 3
+    Int                 scfOuterMinIter;
+    /// @brief Maximum number of outer %SCF iterations
+    ///
+    /// Default: 30
+    Int                 scfOuterMaxIter;
+    /// @brief Maximum number of iterations for hybrid functional
+    /// iterations.
+    /// 
+    /// Default: 10
+    Int                 scfPhiMaxIter;
+    /// @brief Tolerance for hybrid functional iterations using Fock
+    /// energy
+    ///
+    /// Default: 1e-6
+    Real                scfPhiTolerance;
+    /// @brief Whether to use the adaptively compressed exchange (ACE)
+    /// formulation for hybrid functional.
+    ///
+    /// Default: 0
+    bool                isHybridACE;
+    /// @brief Treatment of the divergence term in hybrid functional
+    /// calculation.
+    ///
+    /// Default: 1
+    ///
+    /// - 0    : No regularization
+    /// - 1    : Gygi-Baldereschi regularization
+    Int                 exxDivergenceType;
+
+    /// @brief Tolerance for the eigenvalue solver
+    ///
+    /// Default: 1e-6
+    ///
+    /// Currently the LOBPCG method is used as the eigenvalue solver for
+    /// obtaining the adaptive local basis functions, and eigTolerance
+    /// controls the tolerance for the LOBPCG solver.  
+    ///
+    /// In the case when the eigensolver tolerance is tunned dynamically
+    /// (see 
+    /// @ref dgdft::esdf::ESDFInputParam::isEigToleranceDynamic "isEigToleranceDynamic"), the tolerance for
+    /// the eigensolver is controlled dynamically and can be larger than
+    /// eigTolerance.
+    Real                eigTolerance;
+    /// @brief Minimum number of iterations for the eigensolver.
+    ///
+    /// Default: 1
+    Int                 eigMinIter;
+    /// @brief Maximum number of iterations for the eigensolver.
+    ///
+    /// Default: 10
+    Int                 eigMaxIter;
+    /// @brief Tolerance for thresholding the adaptive local basis functions.
+    ///
+    /// Default: 1e-6
+    ///
+    /// The adaptive local basis functions restricted to the element are
+    /// not orthogonal and may be linearly dependent.  An local SVD
+    /// decomposition is performed to eliminate the linearly dependent
+    /// modes with tolerance SVDBasisTolerance.
+    Real                SVDBasisTolerance;
+    /// @brief Whether to use the saved electron density as the start.
+    ///
+    /// Default: 0
+    bool                isRestartDensity;
+    /// @brief Whether to use the saved basis functions in extended
+    /// element as the start.
+    ///
+    /// Default: 0
+    bool                isRestartWfn;
+    /// @brief Whether to output the electron density.
+    ///
+    /// Default: 1
+    ///
+    /// When isOutputDensity = 1, files DEN_xxx_yyy will be generated,
+    /// where by default xxx is the mpirank (starting from 0), and yyy
+    /// is mpisize.
+    ///
+    /// This option is needed to restart the electron density using 
+    /// @ref dgdft::esdf::ESDFInputParam::isRestartDensity "isRestartDensity".
+    bool                isOutputDensity;
+    /// @brief Whether to output the wavefunctions in the element on LGL
+    /// grid.
+    ///
+    /// Default: 0
+    ///
+    /// This is mainly for debugging and visualization purpose and is
+    /// not commonly used.
+    bool                isOutputALBElemLGL;
+    /// @brief Whether to output the wavefunctions in the element on
+    /// uniform grid.
+    ///
+    /// Default: 0
+    ///
+    /// This is mainly for debugging and visualization purpose and is
+    /// not commonly used.
+    bool                isOutputALBElemUniform;
+    /// @brief Whether to output the wavefunctions in the extended
+    /// element.
+    ///
+    /// Default: 1
+    ///
+    /// When isOutputWfnExtElem = 1, the approximate eigenvectors in the
+    /// extended element are given in the output, in the form
+    /// WFNEXT_xxx_yyy, where by default xxx is the mpirank (starting
+    /// from 0), and yyy is mpisize.
+    bool                isOutputWfnExtElem;
+    /// @brief Whether to output the potential in the extended
+    /// element.
+    ///
+    /// Default: 0
+    ///
+    /// This is mainly for debugging and visualization purpose and is
+    /// not commonly used.
+    bool                isOutputPotExtElem;
+    /// @brief Whether to calculate a posteriori error estimator for
+    /// each %SCF iteration.
+    ///
+    /// Default: 0
+    ///
+    /// If this is 0, then the a posteriori error estimator is given in
+    /// the output after the %SCF iteration is finished.
+    ///
+    /// @todo Sharp a posteriori error estimate than the current version.
+    bool                isCalculateAPosterioriEachSCF; 
+    /// @brief Whether to calculate the force each %SCF iteration.
+    ///
+    /// Default: 1
+    bool                isCalculateForceEachSCF; 
+    /// @brief Whether to output the DG Hamiltonian matrix in each %SCF
+    /// iteration.
+    ///
+    /// Default: 0
+    ///
+    /// If isOutputHMatrix = 1, the H matrix is output in the file
+    /// `H.csc` using the compressed sparse column (CSC) binary format.
+    bool                isOutputHMatrix;
 
 
       /// @brief Inverse of temperature.

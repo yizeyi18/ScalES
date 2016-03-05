@@ -45,83 +45,77 @@
 /// @date 2012-09-16
 #include  "hamiltonian.hpp"
 #include  "blas.hpp"
+#include  "lapack.hpp"
 
 namespace dgdft{
 
 using namespace dgdft::PseudoComponent;
 using namespace dgdft::DensityComponent;
 
+
 // *********************************************************************
-// Hamiltonian class (base class)
+// KohnSham class
 // *********************************************************************
 
-Hamiltonian::Hamiltonian	( 
-			const esdf::ESDFInputParam& esdfParam,
-      const Int                   numDensityComponent )
-{
-#ifndef _RELEASE_
-	PushCallStack("Hamiltonian::Hamiltonian");
-#endif
-	this->Setup( 
-			esdfParam.domain,
-			esdfParam.atomList,
-			esdfParam.pseudoType,
-			esdfParam.XCType,
-			esdfParam.numExtraState,
-			numDensityComponent );
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-	return ;
-} 		// -----  end of method Hamiltonian::Hamiltonian  ----- 
+KohnSham::KohnSham() {
+	XCInitialized_ = false;
+}
 
-void
-Hamiltonian::Setup ( 
-		const Domain&              dm,
-		const std::vector<Atom>&   atomList,
-		std::string                pseudoType,
-		std::string                XCType,
-		Int                        numExtraState,
-    Int                        numDensityComponent )
-{
-#ifndef _RELEASE_
-	PushCallStack("Hamiltonian::Setup");
-#endif
-	domain_        = dm;
-	atomList_      = atomList;
-	pseudoType_    = pseudoType;
-	numExtraState_ = numExtraState;
-
-	// Obtain the exchange-correlation id
-  {
-    if( XCType == "XC_LDA_XC_TETER93" )
-    { XCId_ = XC_LDA_XC_TETER93;
-      // Teter 93
-      // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
-    }    
-    else if( XCType == "XC_GGA_XC_PBE" )
+KohnSham::~KohnSham() {
+  if( XCInitialized_ ){
+    if( XCId_ == XC_LDA_XC_TETER93 )
     {
-      XId_ = XC_GGA_X_PBE;
-      CId_ = XC_GGA_C_PBE;
-      // Perdew, Burke & Ernzerhof correlation
-      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
-      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
+      xc_func_end(&XCFuncType_);
+    }    
+    else if( ( XId_ == XC_GGA_X_PBE ) && ( CId_ == XC_GGA_C_PBE ) )
+    {
+      xc_func_end(&XFuncType_);
+      xc_func_end(&CFuncType_);
+    }
+    else if( XCId_ == XC_HYB_GGA_XC_HSE06 ){
+      xc_func_end(&XCFuncType_);
     }
     else
       throw std::logic_error("Unrecognized exchange-correlation type");
   }
+}
+
+
+
+void
+KohnSham::Setup	(
+    const esdf::ESDFInputParam& esdfParam,
+    const Domain&               dm,
+    const std::vector<Atom>&    atomList )
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::Setup");
+#endif
+	domain_              = dm;
+	atomList_            = atomList;
+	pseudoType_          = esdfParam.pseudoType;
+	numExtraState_       = esdfParam.numExtraState;
+  XCType_              = esdfParam.XCType;
+  isHybridACE_         = esdfParam.isHybridACE;
+  exxDivergenceType_   = esdfParam.exxDivergenceType;
+
+  // FIXME Hard coded
+  numDensityComponent_ = 1;
+
+  // Since the number of density components is always 1 here, set numSpin = 2.
+	numSpin_ = 2;
 
 	// NOTE: NumSpin variable will be determined in derivative classes.
 
   Int ntotCoarse = domain_.NumGridTotal();
   Int ntotFine = domain_.NumGridTotalFine();
 
-  density_.Resize( ntotFine, numDensityComponent );   
+  density_.Resize( ntotFine, numDensityComponent_ );   
   SetValue( density_, 0.0 );
 
   gradDensity_.resize( DIM );
   for( Int d = 0; d < DIM; d++ ){
-    gradDensity_[d].Resize( ntotFine, numDensityComponent );
+    gradDensity_[d].Resize( ntotFine, numDensityComponent_ );
     SetValue (gradDensity_[d], 0.0);
   }
 
@@ -143,133 +137,59 @@ Hamiltonian::Setup (
 	epsxc_.Resize( ntotFine );
 	SetValue( epsxc_, 0.0 );
 
-	vxc_.Resize( ntotFine, numDensityComponent );
+	vxc_.Resize( ntotFine, numDensityComponent_ );
 	SetValue( vxc_, 0.0 );
 
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-	return ;
-} 		// -----  end of method Hamiltonian::Setup  ----- 
 
 
-// *********************************************************************
-// KohnSham class
-// *********************************************************************
+  // Initialize the XC functionals, only spin-unpolarized case
+	// Obtain the exchange-correlation id
+  {
+    isHybrid_ = false;
 
-KohnSham::KohnSham() {
-	XCInitialized_ = false;
-}
-
-KohnSham::~KohnSham() {
-  if( XCInitialized_ ){
-    if( XCId_ == 20 )
-    {
-      xc_func_end(&XCFuncType_);
+    if( XCType_ == "XC_LDA_XC_TETER93" )
+    { 
+      XCId_ = XC_LDA_XC_TETER93;
+      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+        throw std::runtime_error( "XC functional initialization error." );
+      } 
+      // Teter 93
+      // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
     }    
-    else if( ( XId_ == 101 ) && ( CId_ == 130 )  )
+    else if( XCType_ == "XC_GGA_XC_PBE" )
     {
-      xc_func_end(&XFuncType_);
-      xc_func_end(&CFuncType_);
+      XId_ = XC_GGA_X_PBE;
+      CId_ = XC_GGA_C_PBE;
+      // Perdew, Burke & Ernzerhof correlation
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
+      if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
+        throw std::runtime_error( "X functional initialization error." );
+      }
+      if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
+        throw std::runtime_error( "C functional initialization error." );
+      }
     }
-    else
+    else if( XCType_ == "XC_HYB_GGA_XC_HSE06" )
+    {
+      XCId_ = XC_HYB_GGA_XC_HSE06;
+      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+        throw std::runtime_error( "XC functional initialization error." );
+      } 
+
+      isHybrid_ = true;
+
+      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
+      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
+      // A. V. Krukau, O. A. Vydrov, A. F. Izmaylov, and G. E. Scuseria, J. Chem. Phys. 125, 224106 (2006) (doi: 10.1063/1.2404663)
+      //
+      // This is the same as the "hse" functional in QE 5.1
+    }
+    else {
       throw std::logic_error("Unrecognized exchange-correlation type");
-  }
-}
-
-KohnSham::
-KohnSham( 
-			const esdf::ESDFInputParam& esdfParam,
-      const Int                   numDensityComponent ) : 
-		Hamiltonian( esdfParam , numDensityComponent ) 
-{
-#ifndef _RELEASE_
-	PushCallStack("KohnSham::KohnSham");
-#endif
-	// Initialize the XC functional.  
-	// Spin-unpolarized functional is used here
- 
-  if( XCId_ == 20 )
-  {
-    if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-      throw std::runtime_error( "XC functional initialization error." );
-    } 
-  }    
-  else if( ( XId_ == 101 ) && ( CId_ == 130 )  )
-  {
-    if( ( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 )
-        && ( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ) ){
-      throw std::runtime_error( "XC functional initialization error." );
     }
   }
-  else
-    throw std::logic_error("Unrecognized exchange-correlation type");
-
-  XCInitialized_ = true;
-
-	if( numDensityComponent != 1 ){
-		throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
-	}
-
-	// Since the number of density components is always 1 here, set numSpin = 2.
-	numSpin_ = 2;
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-}
-
-
-void
-KohnSham::Setup	(
-		const Domain&              dm,
-		const std::vector<Atom>&   atomList,
-		std::string                pseudoType,
-		std::string                XCType,
-		Int                        numExtraState,
-    Int                        numDensityComponent )
-{
-#ifndef _RELEASE_
-	PushCallStack("KohnSham::Setup");
-#endif
-	Hamiltonian::Setup(
-		dm,
-		atomList,
-		pseudoType,
-		XCType,
-		numExtraState,
-    numDensityComponent);
-
-  // Initialize the XC functional.  
-  // Spin-unpolarized functional is used here
- 
-  xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED);
-  xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED);
-  xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED);
-  
-  if( XCType == "XC_LDA_XC_TETER93" )
-  {
-    if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-      throw std::runtime_error( "XC functional initialization error." );
-    } 
-  }    
-  else if( XCType == "XC_GGA_XC_PBE" )
-  {
-    if( ( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 )
-        && ( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ) ){
-      throw std::runtime_error( "XC functional initialization error." );
-    }
-  }
-  else
-    throw std::logic_error("Unrecognized exchange-correlation type");
-
-  if( numDensityComponent != 1 ){
-    throw std::runtime_error( "KohnSham currently only supports numDensityComponent == 1." );
-  }
-
-  // Since the number of density components is always 1 here, set numSpin = 2.
-	numSpin_ = 2;
   	
-
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -462,6 +382,7 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 
       fftw_execute( fft.backwardPlanFine );
 
+      // FIXME Factor to be simplified
       Real fac = numSpin_ * occrate(psi.WavefunIdx(k)) / (double(ntot) * double(ntotFine));
       for( Int i = 0; i < ntotFine; i++ ){
 				densityLocal(i,RHO) +=  pow( std::abs(fft.inputComplexVecFine(i).real()), 2.0 ) * fac;
@@ -553,25 +474,23 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
   PushCallStack("KohnSham::CalculateXC");
 #endif
   Int ntot = domain_.NumGridTotalFine();
-  Int numDensityComponent = vxc_.n();
   Real vol = domain_.Volume();
 
-  if( XCId_ == 20 ) //XC_FAMILY_LDA
+  if( XCId_ == XC_LDA_XC_TETER93 ) 
   {
     xc_lda_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
         epsxc_.Data(), vxc_.Data() );
-  }
-  else if( ( XId_ == 101 ) && ( CId_ == 130 ) ) //XC_FAMILY_GGA
-  {
+  }//XC_FAMILY_LDA
+  else if( ( XId_ == XC_GGA_X_PBE ) && ( CId_ == XC_GGA_C_PBE ) ) {
     DblNumMat     vxc1;             
     DblNumMat     vxc2;             
-    vxc1.Resize( ntot, numDensityComponent );
-    vxc2.Resize( ntot, numDensityComponent );
+    vxc1.Resize( ntot, numDensityComponent_ );
+    vxc2.Resize( ntot, numDensityComponent_ );
 
     DblNumMat     vxc1temp;             
     DblNumMat     vxc2temp;             
-    vxc1temp.Resize( ntot, numDensityComponent );
-    vxc2temp.Resize( ntot, numDensityComponent );
+    vxc1temp.Resize( ntot, numDensityComponent_ );
+    vxc2temp.Resize( ntot, numDensityComponent_ );
 
     DblNumVec     epsx; 
     DblNumVec     epsc; 
@@ -579,7 +498,7 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
     epsc.Resize( ntot );
 
     DblNumMat gradDensity;
-    gradDensity.Resize( ntot, numDensityComponent );
+    gradDensity.Resize( ntot, numDensityComponent_ );
     SetValue( gradDensity, 0.0 );
     DblNumMat& gradDensity0 = gradDensity_[0];
     DblNumMat& gradDensity1 = gradDensity_[1];
@@ -638,8 +557,68 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
       }
 
     } // for d
-
   } // XC_FAMILY_GGA
+  else if( XCId_ == XC_HYB_GGA_XC_HSE06 ){
+    // FIXME Condensify with the previous
+    DblNumMat     vxc1;             
+    DblNumMat     vxc2;             
+    vxc1.Resize( ntot, numDensityComponent_ );
+    vxc2.Resize( ntot, numDensityComponent_ );
+
+
+    DblNumMat gradDensity;
+    gradDensity.Resize( ntot, numDensityComponent_ );
+    SetValue( gradDensity, 0.0 );
+    DblNumMat& gradDensity0 = gradDensity_[0];
+    DblNumMat& gradDensity1 = gradDensity_[1];
+    DblNumMat& gradDensity2 = gradDensity_[2];
+
+    for(Int i = 0; i < ntot; i++){
+      gradDensity(i, RHO) = gradDensity0(i, RHO) * gradDensity0(i, RHO)
+        + gradDensity1(i, RHO) * gradDensity1(i, RHO)
+        + gradDensity2(i, RHO) * gradDensity2(i, RHO);
+    }
+
+    SetValue( epsxc_, 0.0 );
+    SetValue( vxc1, 0.0 );
+    SetValue( vxc2, 0.0 );
+    xc_gga_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
+        gradDensity.VecData(RHO), epsxc_.Data(), vxc1.Data(), vxc2.Data() );
+
+
+    for( Int i = 0; i < ntot; i++ ){
+      vxc_( i, RHO ) = vxc1( i, RHO );
+    }
+
+    for( Int d = 0; d < DIM; d++ ){
+
+      DblNumMat& gradDensityd = gradDensity_[d];
+
+      for(Int i = 0; i < ntot; i++){
+        fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2( i, RHO ), 0.0 ); 
+      }
+
+      fftw_execute( fft.forwardPlanFine );
+
+      CpxNumVec& ik = fft.ikFine[d];
+
+      for( Int i = 0; i < ntot; i++ ){
+        if( fft.gkkFine(i) == 0 ){
+          fft.outputComplexVecFine(i) = Z_ZERO;
+        }
+        else{
+          fft.outputComplexVecFine(i) *= ik(i);
+        }
+      }
+
+      fftw_execute( fft.backwardPlanFine );
+
+      for( Int i = 0; i < ntot; i++ ){
+        vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real() / ntot;
+      }
+
+    } // for d
+  } // XC_FAMILY Hybrid
   else
     throw std::logic_error( "Unsupported XC family!" );
 
@@ -1485,30 +1464,42 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 #endif
   SetValue( a3, SCALAR_ZERO );
 
+  // DO not use OpenMP for now.
 #ifdef _USE_OPENMP_
-#pragma omp parallel
+//#pragma omp parallel
   {
 #endif
-    // FIXME
-    //    psi.AddScalarDiag( vtotCoarse_, a3 );
-    //    psi.AddLaplacian( &fft, a3 );
-    //    psi.AddNonlocalPP( pseudo_, a3 );
-    // Apply the pseudopotential on the fine grid for integration
-    //    psi.AddNonlocalPPFine( &fft, pseudo_, a3 );
-//    Real timeSta1, timeEnd1;
-//    Real timeSta2, timeEnd2;
-//    GetTime( timeSta1 );
-//    psi.AddMultSpinorFine( fft, vtot_, pseudo_, a3 );
-//    GetTime( timeEnd1 );
-//    GetTime( timeSta2 );
     psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
-//    GetTime( timeEnd2 );
-//    statusOFS << "Total time AddMultSpinor is " << 
-//      "R2R" << timeEnd1 - timeSta1 <<  
-//      "R2C" << timeEnd2 - timeSta2  << std::endl;
 #ifdef _USE_OPENMP_
   }
 #endif
+
+  if( isHybrid_ && isEXXActive_ ){
+    if( this->IsHybridACE() ){
+      // temporarily just implement here
+      // Directly use projector
+      Int numProj = vexxProj_.n();
+      Int numStateTotal = this->NumStateTotal();
+      Int ntot = psi.NumGridTotal();
+
+      //        statusOFS << "numProj = " << numProj << std::endl;
+      //        statusOFS << "numSTate= " << numStateTotal << std::endl;
+      DblNumMat M(numProj, numStateTotal);
+
+      // 
+      blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+          vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+          0.0, M.Data(), M.m() );
+      // Minus sign comes from that all eigenvalues are negative
+      blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+          vexxProj_.Data(), ntot, M.Data(), numProj,
+          1.0, a3.Data(), ntot );
+    }
+    else{
+      psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2CFine_,
+          exxFraction_,  numSpin_, occupationRate_, a3 );
+    }
+  }
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -1516,6 +1507,9 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Scalar>& a3, Fourier& fft )
 
 	return ;
 } 		// -----  end of method KohnSham::MultSpinor  ----- 
+
+
+
 
 void
 KohnSham::MultSpinor	( Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft )
@@ -1538,6 +1532,412 @@ KohnSham::MultSpinor	( Int iocc, Spinor& psi, NumMat<Scalar>& y, Fourier& fft )
 	return ;
 } 		// -----  end of method KohnSham::MultSpinor  ----- 
 
+
+void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::InitializeEXX");
+#endif  // ifndef _RELEASE_
+  const Real epsDiv = 1e-8;
+
+  // FIXME Not considering restarting yet
+  isEXXActive_ = false;
+
+  Int numGridTotalR2CFine = fft.numGridTotalR2CFine;
+  exxgkkR2CFine_.Resize(numGridTotalR2CFine);
+  SetValue( exxgkkR2CFine_, 0.0 );
+
+
+  // extra 2.0 factor for ecutWavefunction compared to QE due to unit difference
+  // tpiba2 in QE is just a unit for G^2. Do not include it here
+  Real exxAlpha = 10.0 / (ecutWavefunction * 2.0);
+
+  // Gygi-Baldereschi regularization. Currently set to zero and compare
+  // with QE without the regularization 
+  // Set exxdiv_treatment to "none"
+  // NOTE: I do not quite understand the detailed derivation
+  // Compute the divergent term for G=0
+  Real gkk2;
+  if(exxDivergenceType_ == 0){
+    exxDiv_ = 0.0;
+  }
+  else if (exxDivergenceType_ == 1){
+    exxDiv_ = 0.0;
+    // no q-point
+    // NOTE: Compared to the QE implementation, it is easier to do below.
+    // Do the integration over the entire G-space rather than just the
+    // R2C grid. This is because it is an integration in the G-space.
+    // This implementation fully agrees with the QE result.
+    for( Int ig = 0; ig < fft.numGridTotalFine; ig++ ){
+      gkk2 = fft.gkkFine(ig) * 2.0;
+      if( gkk2 > epsDiv ){
+        if( screenMu_ > 0.0 ){
+          exxDiv_ += std::exp(-exxAlpha * gkk2) / gkk2 * 
+            (1.0 - std::exp(-gkk2 / (4.0*screenMu_*screenMu_)));
+        }
+        else{
+          exxDiv_ += std::exp(-exxAlpha * gkk2) / gkk2;
+        }
+      }
+    } // for (ig)
+
+    if( screenMu_ > 0.0 ){
+      exxDiv_ += 1.0 / (4.0*screenMu_*screenMu_);
+    }
+    else{
+      exxDiv_ -= exxAlpha;
+    }
+    exxDiv_ *= 4.0 * PI;
+
+
+    Int nqq = 100000;
+    Real dq = 5.0 / std::sqrt(exxAlpha) / nqq;
+    Real aa = 0.0;
+    Real qt, qt2;
+    for( Int iq = 0; iq < nqq; iq++ ){
+      qt = dq * (iq+0.5);
+      qt2 = qt*qt;
+      if( screenMu_ > 0.0 ){
+        aa -= std::exp(-exxAlpha *qt2) * 
+          std::exp(-qt2 / (4.0*screenMu_*screenMu_)) * dq;
+      }
+    }
+    aa = aa * 2.0 / PI + 1.0 / std::sqrt(exxAlpha*PI);
+    exxDiv_ -= domain_.Volume()*aa;
+  }
+
+  if(1){
+    statusOFS << "computed exxDiv_ = " << exxDiv_ << std::endl;
+  }
+
+
+  for( Int ig = 0; ig < numGridTotalR2CFine; ig++ ){
+    gkk2 = fft.gkkR2CFine(ig) * 2.0;
+    if( gkk2 > epsDiv ){
+      if( screenMu_ > 0 ){
+        // 2.0*pi instead 4.0*pi due to gkk includes a factor of 2
+        exxgkkR2CFine_[ig] = 4.0 * PI / gkk2 * (1.0 - 
+            std::exp( -gkk2 / (4.0*screenMu_*screenMu_) ));
+      }
+      else{
+        exxgkkR2CFine_[ig] = 4.0 * PI / gkk2;
+      }
+    }
+    else{
+      exxgkkR2CFine_[ig] = -exxDiv_;
+      if( screenMu_ > 0 ){
+        exxgkkR2CFine_[ig] += PI / (screenMu_*screenMu_);
+      }
+    }
+  } // for (ig)
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif  // ifndef _RELEASE_
+
+	return ;
+}		// -----  end of function KohnSham::InitializeEXX  ----- 
+
+void
+KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::SetPhiEXX");
+#endif
+  // FIXME collect Psi into a globally shared array in the MPI context.
+  const NumTns<Scalar>& wavefun = psi.Wavefun();
+  Int ntot = wavefun.m();
+  Int ncom = wavefun.n();
+  Int numStateLocal = wavefun.p();
+  Int numStateTotal = this->NumStateTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Real vol = fft.domain.Volume();
+
+  phiEXX_.Resize( ntotFine, ncom, numStateTotal );
+  SetValue( phiEXX_, SCALAR_ZERO );
+
+  // Temporary buffer for collecting contribution from different MPI procs.
+//  NumTns<Scalar> phiEXXTmp = phiEXX_;
+//  SetValue(phiEXXTmp, SCALAR_ZERO);
+
+  // Buffer
+  DblNumVec psiFine(ntotFine);
+
+  // From coarse to fine grid
+  // FIXME Put in a more proper place
+  for (Int k=0; k<numStateLocal; k++) {
+    for (Int j=0; j<ncom; j++) {
+
+      SetValue( psiFine, 0.0 );
+
+      SetValue( fft.inputVecR2C, 0.0 ); 
+      SetValue( fft.inputVecR2CFine, 0.0 ); 
+      SetValue( fft.outputVecR2C, Z_ZERO ); 
+      SetValue( fft.outputVecR2CFine, Z_ZERO ); 
+
+      // For c2r and r2c transforms, the default is to DESTROY the
+      // input, therefore a copy of the original matrix is necessary. 
+      blas::Copy( ntot, wavefun.VecData(j,k), 1, 
+          fft.inputVecR2C.Data(), 1 );
+
+      fftw_execute_dft_r2c(
+          fft.forwardPlanR2C, 
+          fft.inputVecR2C.Data(),
+          reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ));
+
+      // Interpolate wavefunction from coarse to fine grid
+      {
+        Int *idxPtr = fft.idxFineGridR2C.Data();
+        Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
+        Complex *fftOutPtr = fft.outputVecR2C.Data();
+        for( Int ig = 0; ig < fft.numGridTotalR2C; ig++ ){
+          fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
+        }
+      }
+
+      fftw_execute_dft_c2r(
+          fft.backwardPlanR2CFine, 
+          reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
+          fft.inputVecR2CFine.Data() );
+
+
+      // Factor normalize so that integration in the real space is 1
+      Real fac = 1.0 / std::sqrt( double(ntot) * double(ntotFine) );
+      fac *= std::sqrt( double(ntotFine) / vol );
+      blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
+      blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
+      if(0){
+        statusOFS << "int (psiFine^2) dx = " << Energy(psiFine)*vol / double(ntotFine) << std::endl;
+      }
+      
+      blas::Copy( ntotFine, psiFine.Data(), 1, phiEXX_.VecData(j,psi.WavefunIdx(k)), 1);
+
+    } // for (j)
+  } // for (k)
+
+//  mpi::Allreduce( phiEXXTmp.Data(), phiEXX_.Data(), ntotFine * ncom * numStateTotal, MPI_SUM, 
+//     domain_.comm );
+  
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+
+  return ;
+} 		// -----  end of method KohnSham::SetPhiEXX  ----- 
+
+
+void
+KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::CalculateVexxACE");
+#endif
+  // FIXME
+  Real SVDTolerance = 1e-4;
+  // This assumes SetPhiEXX has been called so that phiEXX and psi
+  // contain the same information. 
+  
+  // Since this is a projector, it should be done on the COARSE grid,
+  // i.e. to the wavefunction directly
+
+  // Only works for single processor
+  Int ntot      = fft.domain.NumGridTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int numStateTotal = phiEXX_.p();
+  NumTns<Scalar>  vexxPsi( ntot, 1, numStateTotal );
+
+  // VexxPsi = V_{exx}*Phi.
+  SetValue( vexxPsi, SCALAR_ZERO );
+  psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2CFine_,
+      exxFraction_,  numSpin_, occupationRate_, vexxPsi );
+
+  
+  // Implementation based on SVD
+  DblNumMat  M(numStateTotal, numStateTotal);
+
+  if(0){
+    // M = Phi'*vexxPsi
+    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+        1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
+        0.0, M.Data(), numStateTotal );
+
+    DblNumMat  U( numStateTotal, numStateTotal );
+    DblNumMat VT( numStateTotal, numStateTotal );
+    DblNumVec  S( numStateTotal );
+    SetValue( S, 0.0 );
+
+    lapack::QRSVD( numStateTotal, numStateTotal, M.Data(), numStateTotal,
+        S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
+
+
+    for( Int g = 0; g < numStateTotal; g++ ){
+      S[g] = std::sqrt( S[g] );
+    }
+
+    Int rankM = 0;
+    for( Int g = 0; g < numStateTotal; g++ ){
+      if( S[g] / S[0] > SVDTolerance ){
+        rankM++;
+      }
+    }
+    statusOFS << "rank of Phi'*VPhi matrix = " << rankM << std::endl;
+    for( Int g = 0; g < rankM; g++ ){
+      blas::Scal( numStateTotal, 1.0 / S[g], U.VecData(g), 1 );
+    }
+
+    vexxProj_.Resize( ntot, rankM );
+    blas::Gemm( 'N', 'N', ntot, rankM, numStateTotal, 1.0, 
+        vexxPsi.Data(), ntot, U.Data(), numStateTotal, 0.0,
+        vexxProj_.Data(), ntot );
+  }
+
+  // Implementation based on Cholesky
+  if(1){
+    // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
+    // semi-definite matrix.
+    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+        -1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
+        0.0, M.Data(), numStateTotal );
+
+    lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+
+    blas::Trsm( 'R', 'L', 'T', 'N', ntot, numStateTotal, 1.0, 
+        M.Data(), numStateTotal, vexxPsi.Data(), ntot );
+    
+    vexxProj_.Resize( ntot, numStateTotal );
+    blas::Copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
+  }
+
+
+  // Sanity check. For debugging only
+//  if(0){
+//  // Make sure U and VT are the same. Should be an identity matrix
+//    blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, numStateTotal, 1.0, 
+//        VT.Data(), numStateTotal, U.Data(), numStateTotal, 0.0,
+//        M.Data(), numStateTotal );
+//    statusOFS << "M = " << M << std::endl;
+//
+//    NumTns<Scalar> vpsit = psi.Wavefun();
+//    Int numProj = rankM;
+//    DblNumMat Mt(numProj, numStateTotal);
+//    
+//    blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+//        vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+//        0.0, Mt.Data(), Mt.m() );
+//    // Minus sign comes from that all eigenvalues are negative
+//    blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+//        vexxProj_.Data(), ntot, Mt.Data(), numProj,
+//        0.0, vpsit.Data(), ntot );
+//
+//    for( Int k = 0; k < numStateTotal; k++ ){
+//      Real norm = 0.0;
+//      for( Int ir = 0; ir < ntot; ir++ ){
+//        norm = norm + std::pow(vexxPsi(ir,0,k) - vpsit(ir,0,k), 2.0);
+//      }
+//      statusOFS << "Diff of vexxPsi " << std::sqrt(norm) << std::endl;
+//    }
+//  }
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method KohnSham::CalculateVexxACE  ----- 
+
+
+// This comes from exxenergy2() function in exx.f90 in QE.
+Real
+KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
+{
+#ifndef _RELEASE_
+	PushCallStack("KohnSham::CalculateEXXEnergy");
+#endif
+  Real fockEnergy = 0.0;
+  
+  // Repeat the calculation of Vexx
+  // FIXME Will be replaced by the stored VPhi matrix in the new
+  // algorithm to reduce the cost, but this should be a new function
+  
+  // FIXME Should be combined better with the addition of exchange part in spinor
+  NumTns<Scalar>& wavefun = psi.Wavefun();
+
+  if( !fft.isInitialized ){
+    throw std::runtime_error("Fourier is not prepared.");
+  }
+  Index3& numGrid = fft.domain.numGrid;
+  Index3& numGridFine = fft.domain.numGridFine;
+  Int ntot = wavefun.m();
+  Int ncom = wavefun.n();
+  Int numStateLocal = wavefun.p();
+  Int ntotFine = fft.domain.NumGridTotalFine();
+  Real vol = fft.domain.Volume();
+  NumTns<Scalar>& phi = phiEXX_;
+  Int ncomPhi = phi.n();
+  if( ncomPhi != 1 || ncom != 1 ){
+    throw std::logic_error("Spin polarized case not implemented.");
+  }
+  Int numStateTotalPhi = phi.p();
+
+  if( fft.domain.NumGridTotal() != ntot ){
+    throw std::logic_error("Domain size does not match.");
+  }
+
+  // Directly use the phiEXX_ and vexxProj_ to calculate the exchange energy
+  if( isHybridACE_ ){
+    // temporarily just implement here
+    // Directly use projector
+    Int numProj = vexxProj_.n();
+    Int numStateTotal = this->NumStateTotal();
+    Int ntot = psi.NumGridTotal();
+
+    DblNumMat M(numProj, numStateTotal);
+
+    // 
+    NumTns<Scalar>  vexxPsi( ntot, 1, numStateTotalPhi );
+    SetValue( vexxPsi, SCALAR_ZERO );
+
+    blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+        vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+        0.0, M.Data(), M.m() );
+    // Minus sign comes from that all eigenvalues are negative
+    blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+        vexxProj_.Data(), ntot, M.Data(), numProj,
+        0.0, vexxPsi.Data(), ntot );
+
+    for( Int k = 0; k < numStateTotalPhi; k++ ){
+      for( Int j = 0; j < ncom; j++ ){
+        for( Int ir = 0; ir < ntot; ir++ ){
+          fockEnergy += vexxPsi(ir,j,k) * wavefun(ir,j,k) * occupationRate_[k];
+        }
+      }
+    }
+  }
+  else{
+    NumTns<Scalar>  vexxPsi( ntot, 1, numStateTotalPhi );
+    SetValue( vexxPsi, SCALAR_ZERO );
+    psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2CFine_, 
+        exxFraction_,  numSpin_, occupationRate_, 
+       vexxPsi );
+    // Compute the exchange energy:
+    // Note: no additional normalization factor due to the
+    // normalization rule of psi, NOT phi!!
+    for( Int k = 0; k < numStateTotalPhi; k++ ){
+      for( Int j = 0; j < ncom; j++ ){
+        for( Int ir = 0; ir < ntot; ir++ ){
+          fockEnergy += vexxPsi(ir,j,k) * wavefun(ir,j,k) * occupationRate_[k];
+        }
+      }
+    }
+  }
+  
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return fockEnergy;
+} 		// -----  end of method KohnSham::CalculateEXXEnergy  ----- 
 
 
 } // namespace dgdft

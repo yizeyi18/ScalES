@@ -154,6 +154,7 @@ const char LOWER = 'L';
 
 const Int DIM = 3;                            // Always in 3D
 const Real au2K = 315774.67;
+const Real au2ev = 27.211385;
 const Real au2ang = 0.52917721;
 const Real amu2au = 1822.8885;
 const Real SPEED_OF_LIGHT = 137.0359895; 
