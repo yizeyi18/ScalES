@@ -285,9 +285,6 @@ SCF::Iterate	(  )
    
     
     GetTime( timeSta );
-    if(0){
-      eigSolPtr_->Solve();
-    }
   
     if(0){
       eigSolPtr_->LOBPCGSolveReal(numEig, eigMaxIter_, eigTolNow );

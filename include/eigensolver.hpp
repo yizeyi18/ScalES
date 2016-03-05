@@ -52,12 +52,9 @@
 #include  "fourier.hpp"
 #include  "hamiltonian.hpp"
 #include  "spinor.hpp"
-#include  "lobpcg++.hpp"
 #include  "esdf.hpp"
 
 namespace dgdft{
-
-using namespace dgdft::LOBPCG;
 
 class EigenSolver
 {
@@ -94,17 +91,7 @@ public:
 			Spinor& psi,
 			Fourier& fft );
 
-  // FIXME the four subroutine below together with BLOPEX to be removed
-	static void LOBPCGHamiltonianMult(void *A, void *X, void *AX);
-	static void LOBPCGPrecondMult    (void *A, void *X, void *AX);
-
-	BlopexInt HamiltonianMult (serial_Multi_Vector *x, serial_Multi_Vector *y);
-	BlopexInt PrecondMult     (serial_Multi_Vector *x, serial_Multi_Vector *y);
-
 	// ********************  OPERATIONS  *******************************
-	// Solve the eigenvalue problem using BLOPEX.
-  // FIXME to be removed
-	void Solve();
 
   /// @brief Sequential LOBPCG solver.
   ///
