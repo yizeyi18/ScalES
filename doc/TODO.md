@@ -23,7 +23,7 @@ TODO List   {#pageTODO}
   - into something called move_ions for geometry optimization and MD.
     o BFGS or preconditioned version (e.g. QE uses BFGS)
     o For 2000-10000 atoms, perhaps BFGS is too expensive. Maybe CG or
-      FIRE alternative.
+      FIRE alternative. PETOT uses CG?
     o MD: NVE, NH1, Langevin
 - OpenMP does not work for the new spinor multiplication due to the
   common dependence on the Fourier structure
@@ -49,6 +49,8 @@ TODO List   {#pageTODO}
     well. This will eliminate the additional array which is Spinor in
     the real space with a coarse grid, and also requires eliminating the
     "coarse" in the code.
+  - "coarse real space grid" might be useful for exchange calculation
+    given experience from PEtot and VASP.
 - Better way to handle error: handling function taking a message as
   input is a more versatile way for handling error messaging. callstack
   procedure is slow and does not work for openmp. The DEBUG mode is too
@@ -62,6 +64,7 @@ TODO List   {#pageTODO}
   about massively parallel case.
   - try/catch and C++ exceptions not particularly useful for debugging.
   - coredumper
+  - Encapsulate the error handling function
 - Spinor class should be removed and moved to the Hamiltonian class. In
   the future different types of spinors should be treated with different
   classes of "Hamiltonian". The functions in spinor, such as
@@ -89,16 +92,20 @@ TODO List   {#pageTODO}
     spin-polarization or k-point is needed.
   - In SCF, some "if statement" to detect the type of Hamiltonian should
     be needed. 
+  - SCF, eigensolver supports multiple types of classes. Details in
+    different realization of the Hamiltonian class.
   - Should be compatible with DGDFT. Currently DGDFT only supports
-    KohnSham class essentially?
-- SCF, eigensolver supports multiple types of classes. Details in
-  different realization of the Hamiltonian class.
-- The new design should be combined with the design of spin
-  polarization. This design instead should leave room for k-point
-  implementation.
+    KohnSham class essentially. It might be too difficult to support
+    DGDFT for any class other than KohnSham at this point. Perhaps focus
+    on hybrid functionals.
+  - The new design should be combined with the design of spin
+    polarization. This design instead should leave room for k-point
+    implementation.
 - Refine Fourier to clean the normalization factors. Encapsulate the
-  forward and backward Fourier transforms?
+  forward and backward Fourier transforms? In what convention?
+  - Convention similar to QE can be considered.
 - The "SCALAR" design should be kept?
-- Add moveions() function to consolidate geometry optimization and
-  molecular dynamics. There should be only a pwdft.cpp and dgdft.cpp
-- Special function for XC.
+  - Might be obsolete.
+- Hybrid is in the KohnSham class with sequential implementation. 
+  - Parallel implementation for PWDFT
+  - Hybrid for DG
