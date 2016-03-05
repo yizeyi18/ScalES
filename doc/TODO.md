@@ -53,13 +53,13 @@ TODO List   {#pageTODO}
   input is a more versatile way for handling error messaging. callstack
   procedure is slow and does not work for openmp. The DEBUG mode is too
   slow due to push/popstacks
-  - Discuss with Mathias tomorrow. Push/Popstack too expensive for simple
-  operations. Throw error allows the error to be caught by the catch
-  phrase, which gives the output of the callstack, but there is no way to
-  use tools like gdb to look into the problem. Another simple way is to
-  use `abort` but this implementation might be platform dependent and
-  less informative. The third way is to rely on core dump, but not sure
-  about massively parallel case.
+  - Push/Popstack too expensive for simple operations. Throw error
+    allows the error to be caught by the catch phrase, which gives the
+    output of the callstack, but there is no way to use tools like gdb to
+    look into the problem. Another simple way is to use `abort` but this
+    implementation might be platform dependent and less informative. The
+    third way is to rely on core dump, but not sure about massively parallel
+    case.
   - try/catch and C++ exceptions not particularly useful for debugging.
   - coredumper
   - Encapsulate the error handling function
@@ -99,11 +99,14 @@ TODO List   {#pageTODO}
   - The new design should be combined with the design of spin
     polarization. This design instead should leave room for k-point
     implementation.
+  - Super Hamiltonian class to handle spin?
+  - 3/5/2016 Not sure Spinor class should be removed if we really only
+    are going implement the spin case. Any extension to complex
+    arithmetic (noncolinear spin and k-point seems to lead to very
+    different code?)
 - Refine Fourier to clean the normalization factors. Encapsulate the
   forward and backward Fourier transforms? In what convention?
   - Convention similar to QE can be considered.
-- The "SCALAR" design should be kept?
-  - Might be obsolete.
 - Hybrid is in the KohnSham class with sequential implementation. 
   - Parallel implementation for PWDFT
   - Hybrid for DG

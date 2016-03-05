@@ -108,50 +108,7 @@ int main(int argc, char **argv)
 		ESDFReadInput( esdfParam, inFile.c_str() );
 
 		// Print the initial state
-		{
-			PrintBlock(statusOFS, "Basic information");
-
-			Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
-			Print(statusOFS, "Grid Wavefunction = ",  esdfParam.domain.numGrid );
-      Print(statusOFS, "Grid Density      = ",  esdfParam.domain.numGridFine ); 
-			Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
-			Print(statusOFS, "Mixing variable   = ",  esdfParam.mixVariable );
-			Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
-			Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
-			Print(statusOFS, "SCF Outer Tol     = ",  esdfParam.scfOuterTolerance);
-			Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
-			Print(statusOFS, "SCF Phi MaxIter   = ",  esdfParam.scfPhiMaxIter);
-			Print(statusOFS, "SCF Phi Tol       = ",  esdfParam.scfPhiTolerance);
-			Print(statusOFS, "Hybrid ACE        = ",  esdfParam.isHybridACE);
-			Print(statusOFS, "EXX div type      = ",  esdfParam.exxDivergenceType);
-			Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
-			Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
-			Print(statusOFS, "Eig Tolerance Dyn = ",  esdfParam.isEigToleranceDynamic);
-			Print(statusOFS, "Num unused state  = ",  esdfParam.numUnusedState);
-
-			Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
-			Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
-			Print(statusOFS, "OutputDensity     = ",  esdfParam.isOutputDensity);
-
-			Print(statusOFS, "EcutWavefunction  = ",  esdfParam.ecutWavefunction);
-			Print(statusOFS, "Density GridFactor= ",  esdfParam.densityGridFactor);
-
-			Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
-			Print(statusOFS, "Extra states      = ",  esdfParam.numExtraState );
-			Print(statusOFS, "PeriodTable File  = ",  esdfParam.periodTableFile );
-			Print(statusOFS, "Pseudo Type       = ",  esdfParam.pseudoType );
-			Print(statusOFS, "PW Solver         = ",  esdfParam.PWSolver );
-			Print(statusOFS, "XC Type           = ",  esdfParam.XCType );
-
-			PrintBlock(statusOFS, "Atom Type and Coordinates");
-
-			const std::vector<Atom>&  atomList = esdfParam.atomList;
-			for(Int i=0; i < atomList.size(); i++) {
-				Print(statusOFS, "Type = ", atomList[i].type, "Position  = ", atomList[i].pos);
-			}
-
-			statusOFS << std::endl;
-		}
+    ESDFPrintInput( esdfParam );
 
 
 		// *********************************************************************

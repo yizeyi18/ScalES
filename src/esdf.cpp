@@ -2588,6 +2588,157 @@ namespace dgdft{
         return ;
       }		// -----  end of function ESDFReadInput  ----- 
 
+    void ESDFPrintInput( const ESDFInputParam& esdfParam ){
+#ifndef _RELEASE_
+      PushCallStack("ESDFPrintInput");
+#endif
+      int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank ); 
+      int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+
+      // If the product of the number of elements is 1, recognize this as a PWDFT calculation
+      bool isDG = (esdfParam.numElem.prod() > 1);
+
+      PrintBlock(statusOFS, "Common information");
+
+      Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
+      Print(statusOFS, "Grid Wavefunction = ",  esdfParam.domain.numGrid ); 
+      Print(statusOFS, "Grid Density      = ",  esdfParam.domain.numGridFine );
+      Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
+      Print(statusOFS, "Mixing variable   = ",  esdfParam.mixVariable );
+      Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
+      Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
+
+      Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
+      Print(statusOFS, "Extra states      = ",  esdfParam.numExtraState );
+      Print(statusOFS, "PeriodTable File  = ",  esdfParam.periodTableFile );
+      Print(statusOFS, "Pseudo Type       = ",  esdfParam.pseudoType );
+      Print(statusOFS, "PW Solver         = ",  esdfParam.PWSolver );
+      Print(statusOFS, "XC Type           = ",  esdfParam.XCType );
+
+
+      Print(statusOFS, "SCF Outer Tol     = ",  esdfParam.scfOuterTolerance);
+      Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
+      Print(statusOFS, "SCF Free Energy Per Atom Tol = ",  esdfParam.scfOuterEnergyTolerance);
+      Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
+      Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
+      Print(statusOFS, "Eig Tolerance Dyn = ",  esdfParam.isEigToleranceDynamic);
+      Print(statusOFS, "Num unused state  = ",  esdfParam.numUnusedState);
+      Print(statusOFS, "EcutWavefunction  = ",  esdfParam.ecutWavefunction);
+      Print(statusOFS, "Density GridFactor= ",  esdfParam.densityGridFactor);
+
+      Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
+      Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
+      Print(statusOFS, "OutputDensity     = ",  esdfParam.isOutputDensity);
+
+
+      // Only master processor output information containing all atoms
+      if( mpirank == 0 ){
+        Print(statusOFS, ""); 
+        Print(statusOFS, "Atom Type and Coordinates");
+        Print(statusOFS, ""); 
+
+        const std::vector<Atom>&  atomList = esdfParam.atomList;
+        for(Int i=0; i < atomList.size(); i++) {
+          Print(statusOFS, "Type = ", atomList[i].type, "Position  = ", atomList[i].pos);
+        }
+      }
+
+
+
+      if( isDG ){
+        PrintBlock(statusOFS, "DGDFT information");
+        // FIXME Potentially obsolete potential barriers
+        Print(statusOFS, "Penalty Alpha     = ",  esdfParam.penaltyAlpha );
+        Print(statusOFS, "Element size      = ",  esdfParam.numElem ); 
+        Print(statusOFS, "Wfn Elem GridSize = ",  esdfParam.numGridWavefunctionElem );
+        Print(statusOFS, "Rho Elem GridSize = ",  esdfParam.numGridDensityElem ); 
+        Print(statusOFS, "LGL Grid size     = ",  esdfParam.numGridLGL ); 
+        Print(statusOFS, "LGL GridFactor    = ",  esdfParam.LGLGridFactor);
+
+        Print(statusOFS, "SVD Basis Tol     = ",  esdfParam.SVDBasisTolerance);
+        Print(statusOFS, "SCF Inner Tol     = ",  esdfParam.scfInnerTolerance);
+        Print(statusOFS, "SCF Inner MaxIter = ",  esdfParam.scfInnerMaxIter);
+
+
+
+        statusOFS << "Number of ALB for each element: " << std::endl 
+          << esdfParam.numALBElem << std::endl;
+        Print(statusOFS, "Number of procs for DistFFT  = ",  esdfParam.numProcDistFFT ); 
+
+        Print(statusOFS, "Solution Method   = ",  esdfParam.solutionMethod );
+        if( esdfParam.solutionMethod == "diag" ){
+          Print(statusOFS, "Number of procs for ScaLAPACK  = ",  esdfParam.numProcScaLAPACK); 
+          Print(statusOFS, "ScaLAPACK block   = ",  esdfParam.scaBlockSize); 
+        }
+        if( esdfParam.solutionMethod == "pexsi" ){
+          Print(statusOFS, "Number of poles   = ",  esdfParam.numPole); 
+          Print(statusOFS, "Nproc row PEXSI   = ",  esdfParam.numProcRowPEXSI); 
+          Print(statusOFS, "Nproc col PEXSI   = ",  esdfParam.numProcColPEXSI); 
+          Print(statusOFS, "Nproc for symbfact= ",  esdfParam.npSymbFact); 
+          Print(statusOFS, "Energy gap        = ",  esdfParam.energyGap); 
+          Print(statusOFS, "Spectral radius   = ",  esdfParam.spectralRadius); 
+          Print(statusOFS, "Matrix ordering   = ",  esdfParam.matrixOrdering); 
+          Print(statusOFS, "Inertia before SCF= ",  esdfParam.inertiaCountSteps);
+          Print(statusOFS, "Max PEXSI iter (deprecated)   = ",  esdfParam.maxPEXSIIter); 
+          Print(statusOFS, "MuMin0            = ",  esdfParam.muMin); 
+          Print(statusOFS, "MuMax0            = ",  esdfParam.muMax); 
+          Print(statusOFS, "NumElectron tol   = ",  esdfParam.numElectronPEXSITolerance); 
+          Print(statusOFS, "mu Inertia tol    = ",  esdfParam.muInertiaTolerance); 
+          Print(statusOFS, "mu Inertia expand = ",  esdfParam.muInertiaExpansion); 
+          Print(statusOFS, "mu PEXSI safeguard (deprecated)= ",  esdfParam.muPEXSISafeGuard); 
+        }
+        // TODO Chebyshev
+
+
+        Print(statusOFS, "Calculate force at each step                        = ",  
+            esdfParam.isCalculateForceEachSCF );
+
+        // FIXME A posteriori
+        Print(statusOFS, "Calculate A Posteriori error estimator at each step = ",  
+            esdfParam.isCalculateAPosterioriEachSCF);
+
+
+        if( esdfParam.isPeriodizePotential ){
+          Print(statusOFS, "PeriodizePotential= ",  esdfParam.isPeriodizePotential);
+          Print(statusOFS, "DistancePeriodize = ",  esdfParam.distancePeriodize);
+        }
+
+        if( esdfParam.isPotentialBarrier ){
+          Print(statusOFS, "Potential Barrier = ",  esdfParam.isPotentialBarrier);
+          Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
+          Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
+          Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
+        }
+
+
+        Print(statusOFS, "OutputALBElemLGL  = ",  esdfParam.isOutputALBElemLGL);
+        Print(statusOFS, "OutputALBElemUniform  = ",  esdfParam.isOutputALBElemUniform);
+        Print(statusOFS, "OutputWfnExtElem  = ",  esdfParam.isOutputWfnExtElem);
+        Print(statusOFS, "OutputPotExtElem  = ",  esdfParam.isOutputPotExtElem);
+        Print(statusOFS, "OutputHMatrix     = ",  esdfParam.isOutputHMatrix );
+
+      } // DG
+      else{
+        PrintBlock(statusOFS, "PWDFT information");
+
+        // FIXME For DG as well later
+        Print(statusOFS, "SCF Phi MaxIter   = ",  esdfParam.scfPhiMaxIter);
+        Print(statusOFS, "SCF Phi Tol       = ",  esdfParam.scfPhiTolerance);
+        Print(statusOFS, "Hybrid ACE        = ",  esdfParam.isHybridACE);
+        Print(statusOFS, "EXX div type      = ",  esdfParam.exxDivergenceType);
+
+      } // PW
+
+      Print(statusOFS, ""); 
+
+
+#ifndef _RELEASE_
+      PopCallStack();
+#endif
+
+      return ;
+    }		// -----  end of function ESDFPrintInput  ----- 
+
 
   } // namespace esdf
 } // namespace dgdft

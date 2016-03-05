@@ -717,6 +717,8 @@ namespace dgdft{
     void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );
 
     void ESDFReadInput( ESDFInputParam& esdfParam, const char* filename );
+    
+    void ESDFPrintInput( const ESDFInputParam& esdfParam );
 
   } // namespace esdf
 } // namespace dgdft

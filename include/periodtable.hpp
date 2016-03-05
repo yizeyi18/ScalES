@@ -216,6 +216,8 @@ public:
 
 };
 
+// Periodic table structures
+
 // Serialization / Deserialization
 inline Int serialize(const Atom& val, std::ostream& os, const std::vector<Int>& mask)
 {
