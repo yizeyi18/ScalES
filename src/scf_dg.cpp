@@ -1903,6 +1903,71 @@ SCFDG::Iterate	(  )
   //    }
 
 
+
+  // *********************************************************************
+  // Calculate the VDW contribution and the force
+  // *********************************************************************
+  if( solutionMethod_ == "diag" ){
+    hamDG.CalculateForce( *distfftPtr_ );
+  }
+  else if( solutionMethod_ == "pexsi" ){
+    hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );
+  }
+
+  // Calculate the VDW energy
+  if( VDWType_ == "DFT-D2"){
+    CalculateVDW ( Evdw_, forceVdw_ );
+    // Update energy
+    Etot_  += Evdw_;
+    Efree_ += Evdw_;
+    EfreeHarris_ += Evdw_;
+    Ecor_  += Evdw_;
+
+    // Update force
+    std::vector<Atom>& atomList = hamDG.AtomList();
+    for( Int a = 0; a < atomList.size(); a++ ){
+      atomList[a].force += Point3( forceVdw_(a,0), forceVdw_(a,1), forceVdw_(a,2) );
+    }
+  } 
+
+
+  // Output the information after SCF
+  {
+
+    // Print out the energy
+    PrintBlock( statusOFS, "Energy" );
+    statusOFS 
+      << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + Evdw" << std::endl
+      << "       Etot  = Ekin + Ecor" << std::endl
+      << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
+    Print(statusOFS, "! EfreeHarris     = ",  EfreeHarris_, "[au]");
+    Print(statusOFS, "! Etot            = ",  Etot_, "[au]");
+    Print(statusOFS, "! Efree           = ",  Efree_, "[au]");
+    Print(statusOFS, "! Evdw            = ",  Evdw_, "[au]"); 
+    Print(statusOFS, "! Fermi           = ",  fermi_, "[au]");
+    Print(statusOFS, "! norm(out-in)/norm(in) = ",  scfOuterNorm_ ); 
+    Print(statusOFS, "! Efree diff per atom   = ",  efreeDifPerAtom_, "[au]"); 
+  }
+  
+  {
+    // Print out the force
+    PrintBlock( statusOFS, "Atomic Force" );
+    
+    Point3 forceCM(0.0, 0.0, 0.0);
+    std::vector<Atom>& atomList = hamDG.AtomList();
+    Int numAtom = atomList.size();
+
+    for( Int a = 0; a < numAtom; a++ ){
+      Print( statusOFS, "atom", a, "force", atomList[a].force );
+      forceCM += atomList[a].force;
+    }
+    statusOFS << std::endl;
+    Print( statusOFS, "force for centroid: ", forceCM );
+    Print( statusOFS, "Max force magnitude:", MaxForce(atomList) );
+    statusOFS << std::endl;
+  }
+
+
   // *********************************************************************
   // Output information
   // *********************************************************************
@@ -4615,63 +4680,63 @@ SCFDG::InnerIterate	( Int outerIter )
 
 
       // Compute the force at every step
-      if( isCalculateForceEachSCF_ ){
-        // Compute force
-        GetTime( timeSta );
-
-        hamDG.CalculateForce( *distfftPtr_ );
-
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the force is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Print out the force
-        // Only master processor output information containing all atoms
-        if( mpirank == 0 ){
-          PrintBlock( statusOFS, "Atomic Force" );
-          {
-            Point3 forceCM(0.0, 0.0, 0.0);
-            std::vector<Atom>& atomList = hamDG.AtomList();
-            Int numAtom = atomList.size();
-            for( Int a = 0; a < numAtom; a++ ){
-              Print( statusOFS, "atom", a, "force", atomList[a].force );
-              forceCM += atomList[a].force;
-            }
-            statusOFS << std::endl;
-            Print( statusOFS, "force for centroid: ", forceCM );
-            statusOFS << std::endl;
-          }
-        }
-      }
+      //      if( isCalculateForceEachSCF_ ){
+      //        // Compute force
+      //        GetTime( timeSta );
+      //
+      //        hamDG.CalculateForce( *distfftPtr_ );
+      //
+      //        GetTime( timeEnd );
+      //        statusOFS << "Time for computing the force is " <<
+      //          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+      //
+      //        // Print out the force
+      //        // Only master processor output information containing all atoms
+      //        if( mpirank == 0 ){
+      //          PrintBlock( statusOFS, "Atomic Force" );
+      //          {
+      //            Point3 forceCM(0.0, 0.0, 0.0);
+      //            std::vector<Atom>& atomList = hamDG.AtomList();
+      //            Int numAtom = atomList.size();
+      //            for( Int a = 0; a < numAtom; a++ ){
+      //              Print( statusOFS, "atom", a, "force", atomList[a].force );
+      //              forceCM += atomList[a].force;
+      //            }
+      //            statusOFS << std::endl;
+      //            Print( statusOFS, "force for centroid: ", forceCM );
+      //            statusOFS << std::endl;
+      //          }
+      //        }
+      //      }
 
       // Compute the a posteriori error estimator at every step
       // FIXME This is not used when intra-element parallelization is
       // used.
-      if( isCalculateAPosterioriEachSCF_ && 0 )
-      {
-        GetTime( timeSta );
-        DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-        hamDG.CalculateAPosterioriError( 
-            eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the a posteriori error is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Only master processor output information containing all atoms
-        if( mpirank == 0 ){
-          PrintBlock( statusOFS, "A Posteriori error" );
-          {
-            statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-            statusOFS << eta2Total << std::endl;
-            statusOFS << std::endl << "Residual term:" << std::endl;
-            statusOFS << eta2Residual << std::endl;
-            statusOFS << std::endl << "Jump of gradient term:" << std::endl;
-            statusOFS << eta2GradJump << std::endl;
-            statusOFS << std::endl << "Jump of function value term:" << std::endl;
-            statusOFS << eta2Jump << std::endl;
-          }
-        }
-      }
+      //      if( isCalculateAPosterioriEachSCF_ && 0 )
+      //      {
+      //        GetTime( timeSta );
+      //        DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
+      //        hamDG.CalculateAPosterioriError( 
+      //            eta2Total, eta2Residual, eta2GradJump, eta2Jump );
+      //        GetTime( timeEnd );
+      //        statusOFS << "Time for computing the a posteriori error is " <<
+      //          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+      //
+      //        // Only master processor output information containing all atoms
+      //        if( mpirank == 0 ){
+      //          PrintBlock( statusOFS, "A Posteriori error" );
+      //          {
+      //            statusOFS << std::endl << "Total a posteriori error:" << std::endl;
+      //            statusOFS << eta2Total << std::endl;
+      //            statusOFS << std::endl << "Residual term:" << std::endl;
+      //            statusOFS << eta2Residual << std::endl;
+      //            statusOFS << std::endl << "Jump of gradient term:" << std::endl;
+      //            statusOFS << eta2GradJump << std::endl;
+      //            statusOFS << std::endl << "Jump of function value term:" << std::endl;
+      //            statusOFS << eta2Jump << std::endl;
+      //          }
+      //        }
+      //      }
     }
 
     // -----------------------------------------------
@@ -7503,35 +7568,5 @@ SCFDG::PrintState	( )
   return ;
 } 		// -----  end of method SCFDG::PrintState  ----- 
 
-
-void  
-SCFDG::LastSCF( Real& efreeHarris, Real& etot, Real& efree, Real& ekin, 
-    Real& ehart, Real& eVxc, Real& exc, Real& evdw, Real& eself, 
-    Real& ecor, Real& fermi, Real& scfOuterNorm, Real& efreeDifPerAtom )
-{
-#ifndef _RELEASE_
-  PushCallStack("SCFDG::LastSCF");
-#endif
-
-  efreeHarris       = EfreeHarris_;
-  etot              = Etot_;
-  efree             = Efree_;
-  ekin              = Ekin_;
-  ehart             = Ehart_;
-  eVxc              = EVxc_;
-  exc               = Exc_; 
-  evdw              = Evdw_; 
-  eself             = Eself_;
-  ecor              = Ecor_;
-  fermi             = fermi_;
-  scfOuterNorm      = scfOuterNorm_;
-  efreeDifPerAtom   = efreeDifPerAtom_;
-
-#ifndef _RELEASE_
-  PopCallStack();
-#endif
-
-  return ;
-} 		// -----  end of method SCFDG::LastSCF  ----- 
 
 } // namespace dgdft

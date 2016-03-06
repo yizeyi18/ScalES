@@ -137,20 +137,17 @@ int main(int argc, char **argv)
     // Setup BLACS
     Int nprow, npcol;
     Int contxt;
+    Int dmCol, dmRow;
     {
-      // Element partition information
       Index3  numElem = esdfParam.numElem;
-
-      IntNumTns& elemPrtnInfo = distEigSol.Prtn().ownerInfo;
-      elemPrtnInfo.Resize( numElem[0], numElem[1], numElem[2] );
 
       // Note the usage of notation can be a bit misleading here:
       // dmRow is the number of processors per row, which normally is
       // denoted by number of column processors
       // dmCol is the number of processors per column, which normally is
       // denoted by number of row processors
-      Int dmCol = numElem[0] * numElem[1] * numElem[2];
-      Int dmRow = mpisize / dmCol;
+      dmCol = numElem[0] * numElem[1] * numElem[2];
+      dmRow = mpisize / dmCol;
       Int numALBElement = esdfParam.numALBElem(0,0,0);
 
       if( mpisize > (dmCol * numALBElement) ){
@@ -212,26 +209,28 @@ int main(int argc, char **argv)
     DistVec<Index3, KohnSham, ElemPrtn>     distHamKS;
     DistVec<Index3, Spinor, ElemPrtn>       distPsi;
 
-
-    // FIXME no use?
-    distEigSol.SetComm( dm.comm );
-    distHamKS.SetComm( dm.comm );
-    distPsi.SetComm( dm.comm );
-
     // All extended elements share the same Fourier structure.
     Fourier fftExtElem;
 
+    // Element partition 
+    {
       GetTime( timeSta );
-      
+
+      distEigSol.SetComm( dm.comm );
+      distHamKS.SetComm( dm.comm );
+      distPsi.SetComm( dm.comm );
+
+      Index3  numElem = esdfParam.numElem;
+      IntNumTns& elemPrtnInfo = distEigSol.Prtn().ownerInfo;
+      elemPrtnInfo.Resize( numElem[0], numElem[1], numElem[2] );
+
       Int cnt = 0;
       for( Int k=0; k< numElem[2]; k++ )
         for( Int j=0; j< numElem[1]; j++ )
           for( Int i=0; i< numElem[0]; i++ ) {
             elemPrtnInfo(i,j,k) = cnt++;
           }
-    }
 
-    {
       distHamKS.Prtn() = distEigSol.Prtn();
       distPsi.Prtn()   = distEigSol.Prtn(); 
 
@@ -243,11 +242,11 @@ int main(int argc, char **argv)
               // Setup the domain in the extended element
               Domain dmExtElem;
               for( Int d = 0; d < DIM; d++ ){
-               
+
                 dmExtElem.comm    = dm.rowComm;
                 dmExtElem.rowComm = dm.rowComm;
                 dmExtElem.colComm = dm.rowComm;
-              
+
                 // Assume the global domain starts from 0.0
                 if( numElem[d] == 1 ){
                   dmExtElem.length[d]      = dm.length[d];
@@ -288,31 +287,13 @@ int main(int argc, char **argv)
                 } // Atom is in the extended element
               }
 
-              GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 1 )
-              statusOFS << "Time for Initialize ExtElem = " << timeEnd - timeSta << std::endl;
-#endif
 
               // Fourier
-              GetTime( timeSta );
               fftExtElem.Initialize( dmExtElem );
-              GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for fftExtElem.Initialize = " << timeEnd - timeSta << std::endl;
-#endif
-              
-              GetTime( timeSta );
               fftExtElem.InitializeFine( dmExtElem );
-              GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for fftExtElem.InitializeFine = " << timeEnd - timeSta << std::endl;
-#endif
-              // Wavefunction
-              //Spinor& spn = distPsi.LocalMap()[key];
-              //spn.Setup( dmExtElem, 1, esdfParam.numALBElem(i,j,k), 0.0 );
 
-              GetTime( timeSta );
-              
+              // Wavefunction
+
               int dmExtElemMpirank, dmExtElemMpisize;
               MPI_Comm_rank( dmExtElem.comm, &dmExtElemMpirank );
               MPI_Comm_size( dmExtElem.comm, &dmExtElemMpisize );
@@ -329,11 +310,8 @@ int main(int argc, char **argv)
                   // FIXME Throw an error here
                   numStateLocal = 0;
                 }
-  
               } 
-    
               else {  // numStateTotal >  mpisize
-      
                 if ( numStateTotal % dmExtElemMpisize == 0 ){
                   blocksize = numStateTotal / dmExtElemMpisize;
                   numStateLocal = blocksize ;
@@ -346,36 +324,22 @@ int main(int argc, char **argv)
                     numStateLocal = numStateLocal + 1 ;
                   }
                 }    
-
               }
 
               Spinor& spn = distPsi.LocalMap()[key];
-              
+
               spn.Setup( dmExtElem, 1, numStateTotal, numStateLocal, 0.0 );
 
               UniformRandom( spn.Wavefun() );
-              
-              GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 1 )
-              statusOFS << "Time for Initialize Spinor = " << timeEnd - timeSta << std::endl;
-#endif
+
               // Hamiltonian
               // The exchange-correlation type and numExtraState is not
               // used in the extended element calculation
-              statusOFS << "Hamiltonian begin." << std::endl;
               KohnSham& hamKS = distHamKS.LocalMap()[key];
 
-              GetTime( timeSta );
               hamKS.Setup( esdfParam, dmExtElem, atomListExtElem );
-              GetTime( timeEnd );
-
-#if ( _DEBUGlevel_ >= 1 )
-              statusOFS << "Time for hamKS.Setup = " << timeEnd - timeSta << std::endl;
-#endif
 
               hamKS.CalculatePseudoPotential( ptable );
-
-              statusOFS << "Hamiltonian constructed." << std::endl;
 
               // Eigensolver class
               EigenSolver& eigSol = distEigSol.LocalMap()[key];
@@ -386,12 +350,12 @@ int main(int argc, char **argv)
 
             } // own this element
           } // for(i)
+      GetTime( timeEnd );
+      statusOFS << "Time for setting up extended element is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
     }
-    GetTime( timeEnd );
-    statusOFS << "Time for setting up extended element is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-    // Setup Fourier
+    // Setup distributed Fourier
     GetTime( timeSta );
 
     DistFourier distfft;
@@ -429,83 +393,8 @@ int main(int argc, char **argv)
     GetTime( timeSta );
     scfDG.Iterate();
     GetTime( timeEnd );
-    statusOFS << "Time for SCF iteration is " <<
+    statusOFS << "! Total time for the SCF iteration = " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-    Real efreeHarris, etot, efree, ekin, ehart, eVxc, exc, evdw,
-         eself, ecor, fermi, scfOuterNorm, efreeDifPerAtom;
-
-    scfDG.LastSCF(efreeHarris, etot, efree, ekin, ehart, eVxc, exc, evdw,
-        eself, ecor, fermi, scfOuterNorm, efreeDifPerAtom );
-
-    std::vector<Atom>& atomList = hamDG.AtomList(); 
-    Real VDWEnergy = 0.0;
-    DblNumMat VDWForce;
-    VDWForce.Resize( atomList.size(), DIM );
-    SetValue( VDWForce, 0.0 );
-
-    if( esdfParam.VDWType == "DFT-D2"){
-      scfDG.CalculateVDW ( VDWEnergy, VDWForce );
-    } 
-   
-    efreeHarris += VDWEnergy;
-    etot        += VDWEnergy;
-    efree       += VDWEnergy;
-    ecor        += VDWEnergy;
-
-    // Print out the energy
-    PrintBlock( statusOFS, "Energy" );
-    statusOFS 
-      << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + Evdw" << std::endl
-      << "       Etot  = Ekin + Ecor" << std::endl
-      << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
-    Print(statusOFS, "EfreeHarris           = ",  efreeHarris, "[au]");
-    Print(statusOFS, "Etot                  = ",  etot, "[au]");
-    Print(statusOFS, "Efree                 = ",  efree, "[au]");
-    Print(statusOFS, "Ekin                  = ",  ekin, "[au]");
-    Print(statusOFS, "Ehart                 = ",  ehart, "[au]");
-    Print(statusOFS, "EVxc                  = ",  eVxc, "[au]");
-    Print(statusOFS, "Exc                   = ",  exc, "[au]"); 
-    Print(statusOFS, "Evdw                  = ",  VDWEnergy, "[au]"); 
-    Print(statusOFS, "Eself                 = ",  eself, "[au]");
-    Print(statusOFS, "Ecor                  = ",  ecor, "[au]");
-    Print(statusOFS, "Fermi                 = ",  fermi, "[au]");
-	  Print(statusOFS, "norm(out-in)/norm(in) = ",  scfOuterNorm ); 
-		Print(statusOFS, "Efree diff per atom   = ",  efreeDifPerAtom, "[au]"); 
-
-    // Print out the force
-
-    PrintBlock( statusOFS, "Atomic Force" );
-    // Compute force
-    {
-      if( esdfParam.solutionMethod == "diag" ){
-        hamDG.CalculateForce( distfft );
-      }
-      else if( esdfParam.solutionMethod == "pexsi" ){
-        hamDG.CalculateForceDM( distfft, scfDG.DMMat() );
-      }
-      
-      if( esdfParam.VDWType == "DFT-D2"){
-        for( Int a = 0; a < atomList.size(); a++ ){
-          atomList[a].force += Point3( VDWForce(a,0), VDWForce(a,1), VDWForce(a,2) );
-        }
-      } 
-   
-    }
-
-    if( mpirank == 0 ){
-      Point3 forceCM(0.0, 0.0, 0.0);
-      std::vector<Atom>& atomList = hamDG.AtomList(); 
-      Int numAtom = atomList.size(); 
-      for( Int a = 0; a < numAtom; a++ ){
-        forceCM += atomList[a].force;
-        Print( statusOFS, "atom", a, "Force      ", atomList[a].force );
-      }
-      statusOFS << std::endl;
-      Print( statusOFS, "force for centroid: ", forceCM );
-      statusOFS << std::endl;
-    }
-
 
     // *********************************************************************
     // Clean up

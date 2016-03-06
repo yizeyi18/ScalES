@@ -468,11 +468,6 @@ namespace dgdft{
     /// @brief Print out the state variables at each SCF iteration.
     void  PrintState(  );
 
-    /// @brief Collect the state variables at last SCF iteration.
-    void  LastSCF( Real& efreeHarris, Real& etot, Real& efree, Real& ekin, 
-		   Real& ehart, Real& eVxc, Real& exc, Real& evdw, Real& eself, 
-		   Real& ecor, Real& fermi, Real& scfOuterNorm, Real& efreeDifPerAtom );
-
     /// @brief Parallel preconditioned Anderson mixing. Can be used for
     /// potential mixing or density mixing.
     void  AndersonMix( 

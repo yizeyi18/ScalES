@@ -505,7 +505,7 @@ SCF::Iterate (  )
     if( ham.NumExtraState() > 0 ){
       Print(statusOFS, "! LUMO            = ",  LUMO*au2ev, "[eV]");
     }
-    Print(statusOFS, "! Total charge    = ",  totalCharge_, "[au]");
+    Print(statusOFS, "! norm(out-in)/norm(in) = ",  scfNorm_ ); 
   }
   
   {

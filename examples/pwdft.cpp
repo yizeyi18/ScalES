@@ -208,8 +208,6 @@ int main(int argc, char **argv)
       << " [s]" << std::endl;
 
 
-    // Main loop for geometry optimization or molecular dynamics
-    // If ionMaxIter == 1, it is equivalent to single shot calculation
 		
     // *********************************************************************
 		// Geometry optimization or Molecular dynamics
@@ -219,6 +217,8 @@ int main(int argc, char **argv)
 
     ionDyn.Setup( esdfParam, hamKS.AtomList() ); 
 
+    // Main loop for geometry optimization or molecular dynamics
+    // If ionMaxIter == 1, it is equivalent to single shot calculation
     Int ionMaxIter = esdfParam.ionMaxIter;
     for( Int ionIter = 1; ionIter < ionMaxIter; ionIter++ ){
       {
