@@ -317,6 +317,8 @@ namespace dgdft{
     bool                isCalculateAPosterioriEachSCF; 
     /// @brief Whether to calculate the force each %SCF iteration.
     ///
+    /// @todo This is obsolete and should be removed.
+    ///
     /// Default: 1
     bool                isCalculateForceEachSCF; 
     /// @brief Whether to output the DG Hamiltonian matrix in each %SCF
@@ -635,19 +637,37 @@ namespace dgdft{
       /// re-invoked.
       Real                muPEXSISafeGuard;
 
-      /// @brief Maximum number of steps for geometry optimization
+      /// @brief Maximum number of steps for geometry optimization /
+      /// molecular dynamics
       ///
-      /// Default: 10 
-      Int                 geoOptMaxStep;
+      /// Default: 1 
+      Int                 ionMaxIter;
+
+      /// @brief Mode for geometry optimization and molecular dynamics
+      ///
+      /// Default: NONE
+      ///
+      /// Geometry optimization routine:
+      ///
+      /// ionMove = bb               : BarzilaiBorwein 
+      ///           cg               : conjugate gradient
+      ///           bfgs             : BFGS
+      ///           fire             : FIRE optimization method
+      ///
+      /// Molecular dynamics routine:
+      ///
+      /// ionMove = verlet           : Velocity-Verlet (NVE)
+      ///           nosehoover1      : Nose-Hoover method with chain
+      ///                              level 1
+      ///           langevin         : Langevin dynamics
+      std::string         ionMove;
+
+
       /// @brief Maximum force for geometry optimization
       ///
       /// Default: 0.001 
       Real                geoOptMaxForce;
 
-      /// @brief Maximum number of steps for MD simulation 
-      ///
-      /// Default: 10 
-      Int									MDMaxStep; 
       /// @brief Time step for MD simulation.
       ///
       /// Default: 50.0
@@ -698,6 +718,7 @@ namespace dgdft{
 
 
       // Inputs related to Chebyshev Filtered SCF iterations for DG
+      // FIXME To be combined with other input parameters
       // ~~**~~
       bool Diag_SCFDG_by_Cheby; // Default: 0
       bool SCFDG_Cheby_use_ScaLAPACK; // Default: 0
@@ -712,7 +733,12 @@ namespace dgdft{
       Int General_SCFDG_ChebyFilterOrder; // Filter Order for general phase, default = 60
       Int General_SCFDG_ChebyCycleNum; // Default 1
 
+
+      /// @brief This is NOT an input parameter, but records whether
+      /// DGDFT is performed.
+      bool isDGDFT; 
     };
+    
 
     void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );
 

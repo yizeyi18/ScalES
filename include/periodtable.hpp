@@ -237,6 +237,16 @@ inline Int deserialize(Atom& val, std::istream& is, const std::vector<Int>& mask
   return 0;
 }
 
+inline Real MaxForce( const std::vector<Atom>& atomList ){
+  Int numAtom = atomList.size();
+  Real maxForce = 0.0;
+  for( Int i = 0; i < numAtom; i++ ){
+    Real forceMag = atomList[i].force.l2();
+    maxForce = ( maxForce < forceMag ) ? forceMag : maxForce;
+  }
+  return maxForce;
+} 
+
 
 } // namespace dgdft
 

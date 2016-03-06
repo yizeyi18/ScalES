@@ -51,25 +51,52 @@
 #include  "numvec_impl.hpp"
 #include  "periodtable.hpp"
 #include  "esdf.hpp"
+#include  "blas.hpp"
+#include  "lapack.hpp"
 
 namespace dgdft{
 class IonDynamics
 {
 private:
-  std::vector<Atom>    atomList_;
+  /// @brief Syncec with atomic position (and velocity and force) from
+  /// input. Currently atomList info is stored in the Hamiltonian
+  /// classes (Hamiltonian or HamiltonianDG).
+  std::vector<Atom>*   atomListPtr_;
+
+  std::vector<Atom>    atomListSave_;
+
+  std::string          ionMove_;
+
+  /// @brief BarzilaiBorwein method for geometry optimization
+  ///
+  void BarzilaiBorweinOpt( Int ionIter );
+
+//  void FireOpt( Int ionIter );
+
+  void VelocityVerlet( Int ionIter );
+
+  void NoseHoover1( Int ionIter );
+
+  void Langevin( Int ionIter );
+
+
+
 public:
 
   /// @brief Initial setup from the input parameters
-  void Setup( const esdf::ESDFInputParam& esdfParam );
-
-  /// @brief Pass the atomic force
-//  void SetForce( const std::vector<Point3>& atomForce );
+  void Setup( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& atomList );
 
   /// @brief Main program to move the ions.
   ///
   /// Will determine both geometry optimization and molecular dynamics
-//  void MoveIons( Int ionIter );
-  
+  void MoveIons( Int ionIter );
+ 
+
+  // *********************************************************************
+  // Access functions
+  // *********************************************************************
+  std::vector<Atom>& AtomList() { return *atomListPtr_; }
+
 };
 
 

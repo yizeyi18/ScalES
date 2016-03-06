@@ -217,118 +217,45 @@ int main(int argc, char **argv)
 
     IonDynamics ionDyn;
 
-    ionDyn.Setup( esdfParam ); 
+    ionDyn.Setup( esdfParam, hamKS.AtomList() ); 
 
-    // FIXME
-    Int ionMaxIter = 1;
-    for( Int iterIon = 1; iterIon < ionMaxIter; iterIon++ ){
+    Int ionMaxIter = esdfParam.ionMaxIter;
+    for( Int ionIter = 1; ionIter < ionMaxIter; ionIter++ ){
       {
         std::ostringstream msg;
-        msg << "Ion move step # " << iterIon;
+        msg << "Ion move step # " << ionIter;
         PrintBlock( statusOFS, msg.str() );
       }
-    }
+    
+      // Get the new atomic coordinates
+      // NOTE: ionDyn directly updates the coordinates in Hamiltonian
+      ionDyn.MoveIons(ionIter);
+  
+      GetTime( timeSta );
+      hamKS.CalculatePseudoPotential( ptable );
+      scf.Update( ); 
+      GetTime( timeEnd );
+      statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
+        << " [s]" << std::endl;
 
+      GetTime( timeSta );
+      scf.Iterate( );
+      GetTime( timeEnd );
+      statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
+        << " [s]" << std::endl;
 
-    ErrorHandling("Test");
-
-
-
-    // FIXME. Merge this in the hybrid functional calculation part after
-    // the SCF converges.
-    // FIXME Put the computation and output of VdW into SCF
-    Real etot, efree, ekin, ehart, eVxc, exc, evdw,
-         eself, ecor, fermi, totalCharge, scfNorm;
-
-    scf.LastSCF( etot, efree, ekin, ehart, eVxc, exc, evdw,
-        eself, ecor, fermi, totalCharge, scfNorm );
-
-    std::vector<Atom>& atomList = hamKS.AtomList();
-    Real VDWEnergy = 0.0;
-    DblNumMat VDWForce;
-    VDWForce.Resize( atomList.size(), DIM );
-    SetValue( VDWForce, 0.0 );
-
-    if( esdfParam.VDWType == "DFT-D2"){
-      scf.CalculateVDW ( VDWEnergy, VDWForce );
-    } 
-
-    etot  += VDWEnergy;
-    efree += VDWEnergy;
-    ecor  += VDWEnergy;
-
-    Real HOMO, LUMO;
-    HOMO = eigSol.EigVal()(hamKS.NumOccupiedState()-1);
-    if( hamKS.NumExtraState() > 0 )
-      LUMO = eigSol.EigVal()(hamKS.NumOccupiedState());
-
-    // Print out the energy
-    PrintBlock( statusOFS, "Energy" );
-    statusOFS 
-      << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + Evdw" << std::endl
-      << "       Etot  = Ekin + Ecor" << std::endl
-      << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
-    Print(statusOFS, "! Etot            = ",  etot, "[au]");
-    Print(statusOFS, "! Efree           = ",  efree, "[au]");
-    Print(statusOFS, "Ekin              = ",  ekin, "[au]");
-    Print(statusOFS, "Ehart             = ",  ehart, "[au]");
-    Print(statusOFS, "EVxc              = ",  eVxc, "[au]");
-    Print(statusOFS, "Exc               = ",  exc, "[au]"); 
-    Print(statusOFS, "Evdw              = ",  VDWEnergy, "[au]"); 
-    Print(statusOFS, "Eself             = ",  eself, "[au]");
-    Print(statusOFS, "Ecor              = ",  ecor, "[au]");
-    Print(statusOFS, "! Fermi           = ",  fermi, "[au]");
-    Print(statusOFS, "! HOMO            = ",  HOMO*au2ev, "[ev]");
-    if( hamKS.NumExtraState() > 0 ){
-      Print(statusOFS, "! LUMO            = ",  LUMO*au2ev, "[eV]");
-    }
-    Print(statusOFS, "Total charge      = ",  totalCharge, "[au]");
-    Print(statusOFS, "! norm(vout-vin)/norm(vin) = ", scfNorm );
-
-    // Print out the force
-    PrintBlock( statusOFS, "Atomic Force" );
-		PrintBlock( statusOFS, "Method 1" ); 
-    {
-      hamKS.CalculateForce( spn, fft );
-			Point3 forceCM(0.0, 0.0, 0.0);
-			std::vector<Atom>& atomList = hamKS.AtomList();
-      Int numAtom = atomList.size();
-
-      if( esdfParam.VDWType == "DFT-D2"){
-        for( Int a = 0; a < atomList.size(); a++ ){
-          atomList[a].force += Point3( VDWForce(a,0), VDWForce(a,1), VDWForce(a,2) );
+      // Geometry optimization
+      if( esdfParam.ionMove == "bb" ){
+        if( MaxForce( hamKS.AtomList() ) < esdfParam.geoOptMaxForce ){
+          statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
+            << "Exit the loops for ions." << std::endl;
+          break;
         }
-      } 
+      }
+    } // ionIter
 
-			for( Int a = 0; a < numAtom; a++ ){
-				Print( statusOFS, "atom", a, "force", atomList[a].force );
-				forceCM += atomList[a].force;
-			}
-			statusOFS << std::endl;
-			Print( statusOFS, "force for centroid: ", forceCM );
-			statusOFS << std::endl;
-		}
-		PrintBlock( statusOFS, "Method 2" ); 
-		{
-      hamKS.CalculateForce2( spn, fft );
-			Point3 forceCM(0.0, 0.0, 0.0);
-			std::vector<Atom>& atomList = hamKS.AtomList();
-			Int numAtom = atomList.size();
-      
-      if( esdfParam.VDWType == "DFT-D2"){
-        for( Int a = 0; a < atomList.size(); a++ ){
-          atomList[a].force += Point3( VDWForce(a,0), VDWForce(a,1), VDWForce(a,2) );
-        }
-      } 
+//    ErrorHandling("Test");
 
-			for( Int a = 0; a < numAtom; a++ ){
-				Print( statusOFS, "atom", a, "force", atomList[a].force );
-				forceCM += atomList[a].force;
-			}
-			statusOFS << std::endl;
-			Print( statusOFS, "force for centroid: ", forceCM );
-			statusOFS << std::endl;
-		}
 
 	}
 	catch( std::exception& e )

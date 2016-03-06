@@ -877,9 +877,15 @@ namespace dgdft{
       strcpy(kw_dscrpt[i],"*! Whether to control the eigenvalue solver tolerance dynamically!*");
 
       i++;
-      strcpy(kw_label[i],"geo_opt_max_step");
+      strcpy(kw_label[i],"ion_max_iter");
       strcpy(kw_typ[i],"I:E");
-      strcpy(kw_dscrpt[i],"*! Maximum number of geometric optimization !*");
+      strcpy(kw_dscrpt[i],"*! Maximum number of steps for ionic motion!*");
+
+      i++;
+      strcpy(kw_label[i],"ion_move");
+      strcpy(kw_typ[i],"T:E");
+      strcpy(kw_dscrpt[i],"*! Mode for ionic motion !*");
+
 
       i++;
       strcpy(kw_label[i],"geo_opt_max_force");
@@ -2294,11 +2300,14 @@ namespace dgdft{
         // DG
         {
           Index3& numElem = esdfParam.numElem;
+          
           if (esdf_block("Element_Size",&nlines)) {
             sscanf(block_data[0],"%d %d %d", 
                 &numElem[0],&numElem[1],&numElem[2]);
+            esdfParam.isDGDFT = true;
           }
           else{
+            esdfParam.isDGDFT = false;
             numElem(0) = 1;
             numElem(1) = 1;
             numElem(2) = 1;
@@ -2530,20 +2539,22 @@ namespace dgdft{
 
         }
 
-        // Geometry optimization
+        // Ionic motion
         {
-          esdfParam.geoOptMaxStep = esdf_integer( "Geo_Opt_Max_Step", 100 );
-          esdfParam.geoOptMaxForce = esdf_double( "Geo_Opt_Max_Force", 0.001 );
-        }
+          // Both for geometry optimization and molecular dynamics
+          esdfParam.ionMaxIter     = esdf_integer("Ion_Max_Iter", 1);
+          esdf_string("Ion_Move", "", strtmp); 
+          esdfParam.ionMove        = strtmp;
 
-        // Molecualr dynamics
-        {
+          // Geometry optimization
+          esdfParam.geoOptMaxForce = esdf_double( "Geo_Opt_Max_Force", 0.001 );
+
+          // Molecualr dynamics
           Real ionTemperature;
           ionTemperature            = esdf_double( "Ion_Temperature", 300.0 );
           esdfParam.ionTemperature  = ionTemperature;
           esdfParam.TbetaIonTemperature   = au2K / ionTemperature;
 
-          esdfParam.MDMaxStep   = esdf_integer("MD_Max_Step", 1000);
           esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 80.0);
           esdf_string("MD_Extrapolation_Type", "linear", strtmp); 
           esdfParam.MDExtrapolationType          = strtmp;
@@ -2555,7 +2566,6 @@ namespace dgdft{
           esdfParam.isOutputXYZ           = esdf_integer( "Output_XYZ", 1 );
 
           // Restart position / thermostat
-
         }
 
         // Inputs related to Chebyshev Filtered SCF iterations for DG
@@ -2596,7 +2606,6 @@ namespace dgdft{
       int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
       // If the product of the number of elements is 1, recognize this as a PWDFT calculation
-      bool isDG = (esdfParam.numElem.prod() > 1);
 
       PrintBlock(statusOFS, "Common information");
 
@@ -2630,6 +2639,13 @@ namespace dgdft{
       Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
       Print(statusOFS, "OutputDensity     = ",  esdfParam.isOutputDensity);
 
+      // Ionic motion
+      if( esdfParam.ionMove != "" ){
+        Print(statusOFS, "Ion move mode     = ",  esdfParam.ionMove);
+        Print(statusOFS, "Max steps for ion = ",  esdfParam.ionMaxIter);
+        Print(statusOFS, "Force stopping criterion for geometry opt = ",  esdfParam.geoOptMaxForce );
+        // TODO for MD
+      }
 
       // Only master processor output information containing all atoms
       if( mpirank == 0 ){
@@ -2645,7 +2661,7 @@ namespace dgdft{
 
 
 
-      if( isDG ){
+      if( esdfParam.isDGDFT ){
         PrintBlock(statusOFS, "DGDFT information");
         // FIXME Potentially obsolete potential barriers
         Print(statusOFS, "Penalty Alpha     = ",  esdfParam.penaltyAlpha );

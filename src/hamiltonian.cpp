@@ -197,21 +197,6 @@ KohnSham::Setup	(
 	return ;
 } 		// -----  end of method KohnSham::Setup  ----- 
 
-void
-KohnSham::Update	( std::vector<Atom>&   atomList )
-{
-#ifndef _RELEASE_
-	PushCallStack("KohnSham::Update");
-#endif	
-  atomList_ = atomList;
-  
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-
-	return ;
-} 		// -----  end of method KohnSham::Update  ----- 
-
 
 void
 KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){

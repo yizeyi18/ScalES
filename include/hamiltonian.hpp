@@ -258,8 +258,6 @@ public:
     const Domain&              dm,
 		const std::vector<Atom>&   atomList );
 
-	void Update ( std::vector<Atom>&  atomList );
-
 	// *********************************************************************
 	// Operations
 	// *********************************************************************

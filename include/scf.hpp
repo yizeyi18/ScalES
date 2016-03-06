@@ -125,9 +125,8 @@ private:
   Index3  numGridDensityElem_;
 	
   DblNumMat           forceVdw_;
-	
+
 public:
-	
 	
 	// *********************************************************************
 	// Life-cycle
@@ -151,9 +150,6 @@ public:
 
 	void  PrintState( const Int iter );
 	void  OutputState();
-	void  LastSCF( Real& etot, Real& efree, Real& ekin, Real& ehart,
-    Real& eVxc, Real& exc, Real& evdw, Real& eself, Real& ecor,
-    Real& fermi, Real& totalCharge, Real& scfNorm );
 
 	// Mixing
 	void  AndersonMix( const Int iter );

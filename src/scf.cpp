@@ -460,6 +460,73 @@ SCF::Iterate (  )
     }
   } // for(phiIter)
 
+  // Calculate the Force
+  if(1){
+    ham.CalculateForce( psi, fft );
+  }
+  if(0){
+    ham.CalculateForce2( psi, fft );
+  }
+  
+  // Calculate the VDW energy
+  if( VDWType_ == "DFT-D2"){
+    CalculateVDW ( Evdw_, forceVdw_ );
+    // Update energy
+    Etot_  += Evdw_;
+    Efree_ += Evdw_;
+    Ecor_  += Evdw_;
+
+    // Update force
+    std::vector<Atom>& atomList = ham.AtomList();
+    for( Int a = 0; a < atomList.size(); a++ ){
+      atomList[a].force += Point3( forceVdw_(a,0), forceVdw_(a,1), forceVdw_(a,2) );
+    }
+  } 
+
+  // Output the information after SCF
+  {
+    // Energy
+    Real HOMO, LUMO;
+    HOMO = eigSolPtr_->EigVal()(eigSolPtr_->Ham().NumOccupiedState()-1);
+    if( eigSolPtr_->Ham().NumExtraState() > 0 )
+      LUMO = eigSolPtr_->EigVal()(eigSolPtr_->Ham().NumOccupiedState());
+
+    // Print out the energy
+    PrintBlock( statusOFS, "Energy" );
+    statusOFS 
+      << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + Evdw" << std::endl
+      << "       Etot  = Ekin + Ecor" << std::endl
+      << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
+    Print(statusOFS, "! Etot            = ",  Etot_, "[au]");
+    Print(statusOFS, "! Efree           = ",  Efree_, "[au]");
+    Print(statusOFS, "! Evdw            = ",  Evdw_, "[au]"); 
+    Print(statusOFS, "! Fermi           = ",  fermi_, "[au]");
+    Print(statusOFS, "! HOMO            = ",  HOMO*au2ev, "[ev]");
+    if( ham.NumExtraState() > 0 ){
+      Print(statusOFS, "! LUMO            = ",  LUMO*au2ev, "[eV]");
+    }
+    Print(statusOFS, "! Total charge    = ",  totalCharge_, "[au]");
+  }
+  
+  {
+    // Print out the force
+    PrintBlock( statusOFS, "Atomic Force" );
+    
+    Point3 forceCM(0.0, 0.0, 0.0);
+    std::vector<Atom>& atomList = ham.AtomList();
+    Int numAtom = atomList.size();
+
+    for( Int a = 0; a < numAtom; a++ ){
+      Print( statusOFS, "atom", a, "force", atomList[a].force );
+      forceCM += atomList[a].force;
+    }
+    statusOFS << std::endl;
+    Print( statusOFS, "force for centroid: ", forceCM );
+    Print( statusOFS, "Max force magnitude:", MaxForce(atomList) );
+    statusOFS << std::endl;
+  }
+
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -1063,44 +1130,6 @@ SCF::PrintState	( const Int iter  )
 
 	return ;
 } 		// -----  end of method SCF::PrintState  ----- 
-
-void  
-SCF::LastSCF( Real& etot, Real& efree, Real& ekin, Real& ehart,
-    Real& eVxc, Real& exc, Real& evdw, Real& eself, Real& ecor,
-    Real& fermi, Real& totalCharge, Real& scfNorm )
-{
-#ifndef _RELEASE_
-  PushCallStack("SCF::LastSCF");
-#endif
-  
-//  for(Int i = 0; i < eigSolPtr_->EigVal().m(); i++){
-//    Print(statusOFS, 
-//        "band#    = ", i, 
-//        "eigval   = ", eigSolPtr_->EigVal()(i),
-//        "resval   = ", eigSolPtr_->ResVal()(i),
-//        "occrate  = ", eigSolPtr_->Ham().OccupationRate()(i));
-//  }
-//  statusOFS << std::endl;
-
-  etot              = Etot_;
-  efree             = Efree_;
-  ekin              = Ekin_;
-  ehart             = Ehart_;
-  eVxc              = EVxc_;
-  exc               = Exc_; 
-  evdw              = Evdw_; 
-  eself             = Eself_;
-  ecor              = Ecor_;
-  fermi             = fermi_;
-  totalCharge       = totalCharge_;
-  scfNorm           = scfNorm_;
-  
-#ifndef _RELEASE_
-  PopCallStack();
-#endif
-
-	return ;
-} 		// -----  end of method SCF::LastSCF  ----- 
 
 
 void SCF::OutputState	(  )
