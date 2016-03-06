@@ -524,8 +524,7 @@ int main(int argc, char **argv)
               KohnSham& hamKS = distHamKS.LocalMap()[key];
 
               GetTime( timeSta );
-              hamKS.Setup( dmExtElem, atomListExtElem, 
-                  esdfParam.pseudoType, esdfParam.XCType );
+              hamKS.Setup( esdfParam, dmExtElem, atomListExtElem );
               GetTime( timeEnd );
 
 #if ( _DEBUGlevel_ >= 1 )
