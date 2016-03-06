@@ -213,198 +213,12 @@ SCF::Update	( )
 } 		// -----  end of method SCF::Update  ----- 
 
 
+
 void
-SCF::Iterate	(  )
+SCF::Iterate (  )
 {
 #ifndef _RELEASE_
 	PushCallStack("SCF::Iterate");
-#endif
-	Real timeSta, timeEnd;
-
-#ifndef _RELEASE_
-	PushCallStack("SCF::Iterate::Initialize");
-#endif
-
-  // Compute the exchange-correlation potential and energy
-	if( isCalculateGradRho_ ){
-		eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
-	}
-	eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
-
-	// Compute the Hartree energy
-	eigSolPtr_->Ham().CalculateHartree( eigSolPtr_->FFT() );
-	// No external potential
-
-	// Compute the total potential
-	eigSolPtr_->Ham().CalculateVtot( eigSolPtr_->Ham().Vtot() );
-
-  Real timeIterStart(0), timeIterEnd(0);
-  
-	bool isSCFConverged = false;
-
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-
-  for (Int iter=1; iter <= scfMaxIter_; iter++) {
-    if ( isSCFConverged ) break;
-		
-		// *********************************************************************
-		// Performing each iteartion
-		// *********************************************************************
-		{
-			std::ostringstream msg;
-			msg << "SCF iteration # " << iter;
-			PrintBlock( statusOFS, msg.str() );
-		}
-
-    GetTime( timeIterStart );
-
-    // Solve the eigenvalue problem
-
-    Real eigTolNow;
-    if( isEigToleranceDynamic_ ){
-      // Dynamic strategy to control the tolerance
-      if( iter == 1 )
-        eigTolNow = 1e-2;
-      else
-        
-        eigTolNow = std::max( std::min( scfNorm_*1e-2, 1e-2 ) , eigTolerance_);
-    }
-    else{
-      // Static strategy to control the tolerance
-      eigTolNow = eigTolerance_;
-    }
-
-    Int numEig = (eigSolPtr_->Psi().NumStateTotal())-numUnusedState_;
-
-    statusOFS << "The current tolerance used by the eigensolver is " 
-      << eigTolNow << std::endl;
-    statusOFS << "The target number of converged eigenvectors is " 
-      << numEig << std::endl;
-   
-    
-    GetTime( timeSta );
-  
-    if(0){
-      eigSolPtr_->LOBPCGSolveReal(numEig, eigMaxIter_, eigTolNow );
-    }
-
-    if(1){
-      eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
-    }
-    GetTime( timeEnd );
-
-    eigSolPtr_->Ham().EigVal() = eigSolPtr_->EigVal();
-
-    statusOFS << "Time for the eigensolver is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-
-		// No need for normalization using LOBPCG
-
-		// Compute the occupation rate
-		CalculateOccupationRate( eigSolPtr_->Ham().EigVal(), 
-				eigSolPtr_->Ham().OccupationRate() );
-
-		// Compute the electron density
-		eigSolPtr_->Ham().CalculateDensity(
-				eigSolPtr_->Psi(),
-				eigSolPtr_->Ham().OccupationRate(),
-        totalCharge_, 
-        eigSolPtr_->FFT() );
-
-		// Compute the exchange-correlation potential and energy
-    if( isCalculateGradRho_ ){
-      eigSolPtr_->Ham().CalculateGradDensity( eigSolPtr_->FFT() );
-    }
-    eigSolPtr_->Ham().CalculateXC( Exc_, eigSolPtr_->FFT() ); 
-		
-		// Compute the Hartree energy
-		eigSolPtr_->Ham().CalculateHartree( eigSolPtr_->FFT() );
-		// No external potential
-		
-		// Compute the total potential
-		eigSolPtr_->Ham().CalculateVtot( vtotNew_ );
-
-		Real normVtotDif = 0.0, normVtotOld;
-		DblNumVec& vtotOld_ = eigSolPtr_->Ham().Vtot();
-		Int ntot = vtotOld_.m();
-		for( Int i = 0; i < ntot; i++ ){
-			normVtotDif += pow( vtotOld_(i) - vtotNew_(i), 2.0 );
-			normVtotOld += pow( vtotOld_(i), 2.0 );
-		}
-    normVtotDif = sqrt( normVtotDif );
-    normVtotOld = sqrt( normVtotOld );
-    scfNorm_    = normVtotDif / normVtotOld;
-
-    Evdw_ = 0.0;
-    
-    CalculateEnergy();
-
-    PrintState( iter );
-
-    if( isCalculateForceEachSCF_ ){
-      GetTime( timeSta );
-      eigSolPtr_->Ham().CalculateForce2( eigSolPtr_->Psi(), eigSolPtr_->FFT() );
-      GetTime( timeEnd );
-      statusOFS << "Time for computing the force is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-      // Print out the force
-      PrintBlock( statusOFS, "Atomic Force" );
-      {
-        Point3 forceCM(0.0, 0.0, 0.0);
-        std::vector<Atom>& atomList = eigSolPtr_->Ham().AtomList();
-        Int numAtom = atomList.size();
-        for( Int a = 0; a < numAtom; a++ ){
-          Print( statusOFS, "atom", a, "force", atomList[a].force );
-          forceCM += atomList[a].force;
-        }
-        statusOFS << std::endl;
-        Print( statusOFS, "force for centroid: ", forceCM );
-        statusOFS << std::endl;
-      }
-    }
-
-    if( scfNorm_ < scfTolerance_ ){
-      /* converged */
-      Print( statusOFS, "SCF is converged!\n" );
-      isSCFConverged = true;
-    }
-
-		// Potential mixing
-    if( mixType_ == "anderson" ){
-      AndersonMix(iter);
-    }
-
-    if( mixType_ == "kerker" ){
-      KerkerMix();  
-      AndersonMix(iter);
-    }
-
-		GetTime( timeIterEnd );
-   
-		statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
-			<< " [s]" << std::endl;
- 
-  }
-
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-
-	return ;
-} 		// -----  end of method SCF::Iterate  ----- 
-
-
-// FIXME This function will be like electrons.f90 in QE. Some
-// repetitiveness with SCF::Iterate
-void
-SCF::IterateHybrid (  )
-{
-#ifndef _RELEASE_
-	PushCallStack("SCF::IterateHybrid");
 #endif
 	Real timeSta, timeEnd;
   // Only works for KohnSham class
@@ -436,10 +250,15 @@ SCF::IterateHybrid (  )
   // Fock energies
   Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
 
+  if( ham.IsHybrid() == false ){
+    scfPhiMaxIter_ = 1;
+  }
+
   for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
     GetTime( timePhiIterStart );
     if ( isPhiIterConverged ) break;
 
+    if( ham.IsHybrid() )
     {
       std::ostringstream msg;
       msg << "Phi iteration # " << phiIter;
@@ -542,31 +361,6 @@ SCF::IterateHybrid (  )
 
       PrintState( iter );
 
-      // Not really needed
-      if( isCalculateForceEachSCF_ ){
-        GetTime( timeSta );
-        ham.CalculateForce2( psi, fft );
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the force is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Print out the force
-        PrintBlock( statusOFS, "Atomic Force" );
-        {
-          Point3 forceCM(0.0, 0.0, 0.0);
-          std::vector<Atom>& atomList = ham.AtomList();
-          Int numAtom = atomList.size();
-          for( Int a = 0; a < numAtom; a++ ){
-            Print( statusOFS, "atom", a, "force", atomList[a].force );
-            forceCM += atomList[a].force;
-          }
-          statusOFS << std::endl;
-          Print( statusOFS, "force for centroid: ", forceCM );
-          statusOFS << std::endl;
-        }
-      }
-
-
       if( scfNorm_ < scfTolerance_ ){
         /* converged */
         Print( statusOFS, "SCF is converged!\n" );
@@ -593,73 +387,77 @@ SCF::IterateHybrid (  )
 
     // EXX
     Real dExx;
-    if( phiIter == 1 ){
-      ham.SetEXXActive(true);
-      // Update Phi <- Psi
-      GetTime( timeSta );
-      ham.SetPhiEXX( eigSolPtr_->Psi(), eigSolPtr_->FFT() ); 
-      if( ham.IsHybridACE() ){
-        ham.CalculateVexxACE ( psi, fft );
+    if( ham.IsHybrid() ){
+      if( phiIter == 1 ){
+        ham.SetEXXActive(true);
+        // Update Phi <- Psi
+        GetTime( timeSta );
+        ham.SetPhiEXX( eigSolPtr_->Psi(), eigSolPtr_->FFT() ); 
+        if( ham.IsHybridACE() ){
+          ham.CalculateVexxACE ( psi, fft );
+        }
+        GetTime( timeEnd );
+        statusOFS << "Time for updating Phi related variable is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        GetTime( timeSta );
+        fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the EXX energy is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // Update the energy
+        Efock_ = fock2;
+        Etot_ = Etot_ - Efock_;
+        Efree_ = Efree_ - Efock_;
+        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
+        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
+        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
       }
-      GetTime( timeEnd );
-      statusOFS << "Time for updating Phi related variable is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+      else{
+        // Calculate first
+        fock1 = ham.CalculateEXXEnergy( psi, fft ); 
 
-      GetTime( timeSta );
-      fock2 = ham.CalculateEXXEnergy( psi, fft ); 
-      GetTime( timeEnd );
-      statusOFS << "Time for computing the EXX energy is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        // Update Phi <- Psi
+        GetTime( timeSta );
+        ham.SetPhiEXX( psi, fft ); 
+        if( ham.IsHybridACE() ){
+          ham.CalculateVexxACE ( psi, fft );
+        }
+        GetTime( timeEnd );
+        statusOFS << "Time for updating Phi related variable is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-      // Update the energy
-      Efock_ = fock2;
-      Etot_ = Etot_ - Efock_;
-      Efree_ = Efree_ - Efock_;
-      Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-      Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-      Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
-    }
-    else{
-      // Calculate first
-      fock1 = ham.CalculateEXXEnergy( psi, fft ); 
 
-      // Update Phi <- Psi
-      GetTime( timeSta );
-      ham.SetPhiEXX( psi, fft ); 
-      if( ham.IsHybridACE() ){
-        ham.CalculateVexxACE ( psi, fft );
-      }
-      GetTime( timeEnd );
-      statusOFS << "Time for updating Phi related variable is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        fock0 = fock2;
+        // Calculate again
+        GetTime( timeSta );
+        fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the EXX energy is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        dExx = fock1 - 0.5 * (fock0 + fock2);
 
-      
-      fock0 = fock2;
-      // Calculate again
-      GetTime( timeSta );
-      fock2 = ham.CalculateEXXEnergy( psi, fft ); 
-      GetTime( timeEnd );
-      statusOFS << "Time for computing the EXX energy is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-      dExx = fock1 - 0.5 * (fock0 + fock2);
-      
-      Efock_ = fock2;
-      Etot_ = Etot_ - Efock_;
-      Efree_ = Efree_ - Efock_;
-      Print(statusOFS, "dExx              = ",  dExx, "[au]");
-      Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-      Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-      Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
+        Efock_ = fock2;
+        Etot_ = Etot_ - Efock_;
+        Efree_ = Efree_ - Efock_;
+        Print(statusOFS, "dExx              = ",  dExx, "[au]");
+        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
+        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
+        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
 
-      if( dExx < scfPhiTolerance_ ){
-        Print( statusOFS, "SCF for hybrid functional is converged!\n" );
-        isPhiIterConverged = true;
+        if( dExx < scfPhiTolerance_ ){
+          Print( statusOFS, "SCF for hybrid functional is converged!\n" );
+          isPhiIterConverged = true;
+        }
       }
     }
     GetTime( timePhiIterEnd );
 
-    statusOFS << "Total wall clock time for this Phi iteration = " << 
-      timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
+    if( ham.IsHybrid() ){
+      statusOFS << "Total wall clock time for this Phi iteration = " << 
+        timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
+    }
   } // for(phiIter)
 
 #ifndef _RELEASE_
@@ -667,7 +465,8 @@ SCF::IterateHybrid (  )
 #endif
 
 	return ;
-} 		// -----  end of method SCF::IterateHybrid  ----- 
+} 		// -----  end of method SCF::Iterate  ----- 
+
 
 
 void

@@ -69,6 +69,7 @@
 #include  "hamiltonian_dg.hpp"
 #include  "scf.hpp"
 #include  "scf_dg.hpp"
+#include  "iondynamics.hpp"
 
 
 #endif // _DGDFT_HPP_

@@ -67,7 +67,9 @@ namespace dgdft{
     MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
     char filename[100];
     sprintf(filename, "core_%d_%d", mpirank, mpisize);
-    WriteCoreDump( filename );
+    int res = WriteCoreDump( filename );
+
+    // replace this call to std::cerr with a call to your logging system.
     statusOFS << "file = " << filename << std::endl;
 #endif // #ifdef _COREDUMPER_
     throw std::runtime_error( msg );

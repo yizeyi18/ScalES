@@ -146,8 +146,6 @@ public:
 	void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
 	void  CalculateEnergy();
 	void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
-  // EXX
-	void  IterateHybrid();
 
 
 

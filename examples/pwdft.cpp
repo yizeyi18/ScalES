@@ -155,9 +155,7 @@ int main(int argc, char **argv)
         // FIXME Throw an error here.
         numStateLocal = 0;
       }
-  
     }
-  
     else {  // numStateTotal >  mpisize
   
       if ( numStateTotal % mpisize == 0 ){
@@ -172,7 +170,6 @@ int main(int argc, char **argv)
           numStateLocal = numStateLocal + 1 ;
         }
       }    
-
     }
      
     spn.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
@@ -182,11 +179,11 @@ int main(int argc, char **argv)
     UniformRandom( spn.Wavefun() );
 
     if( hamKS.IsHybrid() ){
-      // FIXME Screen parameters
-      statusOFS << "Hybrid mixing parameter  = " << hamKS.EXXFraction() << std::endl; 
-      statusOFS << "Hybrid screening length = " << hamKS.ScreenMu() << std::endl;
+      GetTime( timeSta );
       hamKS.InitializeEXX( esdfParam.ecutWavefunction, fft );
-      statusOFS << "Exact exchange fft setup finished." << std::endl;
+      GetTime( timeEnd );
+      statusOFS << "Time for setting up the exchange for the Hamiltonian part = " 
+        << timeEnd - timeSta << " [s]" << std::endl;
     }
 
 
@@ -201,22 +198,41 @@ int main(int argc, char **argv)
 
 
 		// *********************************************************************
-		// Solve
+		// Single shot calculation first
 		// *********************************************************************
+
+		GetTime( timeSta );
+    scf.Iterate();
+		GetTime( timeEnd );
+    statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
+      << " [s]" << std::endl;
+
+
+    // Main loop for geometry optimization or molecular dynamics
+    // If ionMaxIter == 1, it is equivalent to single shot calculation
+		
+    // *********************************************************************
+		// Geometry optimization or Molecular dynamics
+		// *********************************************************************
+
+    IonDynamics ionDyn;
+
+    ionDyn.Setup( esdfParam ); 
+
+    // FIXME
+    Int ionMaxIter = 1;
+    for( Int iterIon = 1; iterIon < ionMaxIter; iterIon++ ){
+      {
+        std::ostringstream msg;
+        msg << "Ion move step # " << iterIon;
+        PrintBlock( statusOFS, msg.str() );
+      }
+    }
+
 
     ErrorHandling("Test");
 
-		GetTime( timeSta );
-    if( hamKS.IsHybrid() ){
-      scf.IterateHybrid();
-    }
-    else{
-      scf.Iterate();
-    }
-		GetTime( timeEnd );
 
-    statusOFS << "! Total time for all iterations = " << timeEnd - timeSta
-      << " [s]" << std::endl;
 
     // FIXME. Merge this in the hybrid functional calculation part after
     // the SCF converges.

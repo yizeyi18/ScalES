@@ -1631,6 +1631,11 @@ void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
     }
   } // for (ig)
 
+  
+  if(1){
+    statusOFS << "Hybrid mixing parameter  = " << exxFraction_ << std::endl; 
+    statusOFS << "Hybrid screening length = " << screenMu_ << std::endl;
+  }
 
 #ifndef _RELEASE_
 	PopCallStack();

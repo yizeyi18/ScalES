@@ -94,17 +94,9 @@ int main(int argc, char **argv)
     }
 #endif
     
-
-
     // Initialize FFTW
     fftw_mpi_init();
 
-    // Initialize BLACS
-
-    Int nprow, npcol;
-    Int contxt;
-    //Cblacs_get(0, 0, &contxt);
-    
     Print( statusOFS, "mpisize = ", mpisize );
     Print( statusOFS, "mpirank = ", mpirank );
 
@@ -139,35 +131,12 @@ int main(int argc, char **argv)
     // Preparation
     // *********************************************************************
     
-    // FIXME IMPORTANT: RandomSeed cannot be the same.
-    // SetRandomSeed(1);
+    // IMPORTANT: RandomSeed cannot be the same due to initialization of wavefunction
     SetRandomSeed(mpirank);
-
-    GetTime( timeSta );
-
-    Domain&  dm = esdfParam.domain;
-    PeriodTable ptable;
-    ptable.Setup( esdfParam.periodTableFile );
-
-    GetTime( timeEnd );
-    statusOFS << "Time for setting up the periodic table is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-    GetTime( timeSta );
-
-    // Setup the element and extended element information
-    DistVec<Index3, EigenSolver, ElemPrtn>  distEigSol; 
-    DistVec<Index3, KohnSham, ElemPrtn>     distHamKS;
-    DistVec<Index3, Spinor, ElemPrtn>       distPsi;
-    // FIXME no use?
-    distEigSol.SetComm( dm.comm );
-    distHamKS.SetComm( dm.comm );
-    distPsi.SetComm( dm.comm );
-
-    // All extended elements share the same Fourier structure.
-    Fourier fftExtElem;
-
-    // Setup the eigenvalue solvers in each extended element
+    
+    // Setup BLACS
+    Int nprow, npcol;
+    Int contxt;
     {
       // Element partition information
       Index3  numElem = esdfParam.numElem;
@@ -196,6 +165,7 @@ int main(int argc, char **argv)
       
       // Here nprow, npcol is for the usage of ScaLAPACK in
       // diagonalization
+
       for( Int i = IRound(sqrt(double(numProcScaLAPACK))); 
           i <= numProcScaLAPACK; i++){
         nprow = i; npcol = numProcScaLAPACK / nprow;
@@ -223,6 +193,33 @@ int main(int argc, char **argv)
         msg << "Total number of processors do not fit to the number processors per element." << std::endl;
         throw std::runtime_error( msg.str().c_str() );
       }
+    } // BLACS
+
+
+    GetTime( timeSta );
+
+    Domain&  dm = esdfParam.domain;
+    PeriodTable ptable;
+    ptable.Setup( esdfParam.periodTableFile );
+
+    GetTime( timeEnd );
+    statusOFS << "Time for setting up the periodic table is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+
+    // Setup the element and extended element information
+    DistVec<Index3, EigenSolver, ElemPrtn>  distEigSol; 
+    DistVec<Index3, KohnSham, ElemPrtn>     distHamKS;
+    DistVec<Index3, Spinor, ElemPrtn>       distPsi;
+
+
+    // FIXME no use?
+    distEigSol.SetComm( dm.comm );
+    distHamKS.SetComm( dm.comm );
+    distPsi.SetComm( dm.comm );
+
+    // All extended elements share the same Fourier structure.
+    Fourier fftExtElem;
 
       GetTime( timeSta );
       
@@ -232,7 +229,9 @@ int main(int argc, char **argv)
           for( Int i=0; i< numElem[0]; i++ ) {
             elemPrtnInfo(i,j,k) = cnt++;
           }
+    }
 
+    {
       distHamKS.Prtn() = distEigSol.Prtn();
       distPsi.Prtn()   = distEigSol.Prtn(); 
 
