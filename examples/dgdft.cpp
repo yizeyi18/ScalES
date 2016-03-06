@@ -396,6 +396,89 @@ int main(int argc, char **argv)
     statusOFS << "! Total time for the SCF iteration = " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
+
+    // *********************************************************************
+		// Geometry optimization or Molecular dynamics
+		// *********************************************************************
+    
+    IonDynamics ionDyn;
+
+    ionDyn.Setup( esdfParam, hamDG.AtomList() ); 
+
+    // Main loop for geometry optimization or molecular dynamics
+    // If ionMaxIter == 1, it is equivalent to single shot calculation
+    Int ionMaxIter = esdfParam.ionMaxIter;
+    for( Int ionIter = 1; ionIter < ionMaxIter; ionIter++ ){
+      {
+        std::ostringstream msg;
+        msg << "Ion move step # " << ionIter;
+        PrintBlock( statusOFS, msg.str() );
+      }
+    
+      // Get the new atomic coordinates
+      // NOTE: ionDyn directly updates the coordinates in Hamiltonian
+      ionDyn.MoveIons(ionIter);
+
+      // Update atomic position in the extended element
+      {
+        GetTime(timeSta);
+        Index3  numElem = esdfParam.numElem;
+        std::vector<Atom>&  atomList = hamDG.AtomList();
+
+        for( Int k=0; k< numElem[2]; k++ )
+          for( Int j=0; j< numElem[1]; j++ )
+            for( Int i=0; i< numElem[0]; i++ ) {
+              Index3 key (i,j,k);
+              if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                // Setup the domain in the extended element
+                KohnSham& hamKS = distHamKS.LocalMap()[key];
+                Domain& dmExtElem = distEigSol.LocalMap()[key].FFT().domain;
+                std::vector<Atom> atomListExtElem;
+
+                Int numAtom = atomList.size();
+
+                for( Int a = 0; a < numAtom; a++ ){
+                  Point3 pos = atomList[a].pos;
+                  if( IsInSubdomain( pos, dmExtElem, dm.length ) ){
+                    // Update the coordinate relative to the extended
+                    // element
+                    for( Int d = 0; d < DIM; d++ ){
+                      pos[d] -= floor( ( pos[d] - dmExtElem.posStart[d] ) / 
+                          dm.length[d] )* dm.length[d];
+                    }
+                    atomListExtElem.push_back( Atom( atomList[a].type, 
+                          pos, atomList[a].vel, atomList[a].force ) );
+                  } // Atom is in the extended element
+                }
+
+                // Make a copy and update the atomList in the extended element
+                hamKS.AtomList() = atomListExtElem;
+
+                hamKS.CalculatePseudoPotential( ptable );
+
+              }//own this element
+            }//(i)
+        GetTime( timeEnd );
+        statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
+          << " [s]" << std::endl;
+      }
+  
+      GetTime( timeSta );
+      scfDG.Iterate( );
+      GetTime( timeEnd );
+      statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
+        << " [s]" << std::endl;
+
+      // Geometry optimization
+      if( esdfParam.ionMove == "bb" ){
+        if( MaxForce( hamDG.AtomList() ) < esdfParam.geoOptMaxForce ){
+          statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
+            << "Exit the loops for ions." << std::endl;
+          break;
+        }
+      }
+    } // ionIter
+
     // *********************************************************************
     // Clean up
     // *********************************************************************
