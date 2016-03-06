@@ -82,6 +82,11 @@
 #include <omp.h>
 #endif
 
+// Google coredumper for debugging
+#ifdef COREDUMPER
+#define _COREDUMPER_
+#endif
+
 // *********************************************************************
 // Redefine the global macros
 // *********************************************************************
@@ -207,6 +212,8 @@ void PopCallStack();
 void DumpCallStack();
 void DumpElemCallStack();                 // Overload the elemental's DumpCallStack
 #endif // ifndef _RELEASE_
+
+void ErrorHandling( const char * msg );
 
 // We define an output stream that does nothing. This is done so that the 
 // root process can be used to print data to a file's ostream while all other 

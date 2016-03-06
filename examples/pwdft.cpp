@@ -204,6 +204,8 @@ int main(int argc, char **argv)
 		// Solve
 		// *********************************************************************
 
+    ErrorHandling("Test");
+
 		GetTime( timeSta );
     if( hamKS.IsHybrid() ){
       scf.IterateHybrid();

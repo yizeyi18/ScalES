@@ -44,6 +44,9 @@
 /// @brief Global structure.
 /// @date 2012-08-01
 #include	"environment.hpp"
+#ifdef _COREDUMPER_
+#include <google/coredumper.h>
+#endif
 
 namespace dgdft{
 
@@ -57,6 +60,20 @@ namespace dgdft{
 // *********************************************************************
 	// If we are not in RELEASE mode, then implement wrappers for a
 	// CallStack
+  void ErrorHandling( const char * msg ){
+#ifdef _COREDUMPER_
+    int mpirank, mpisize;
+    MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+    MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+    char filename[100];
+    sprintf(filename, "core_%d_%d", mpirank, mpisize);
+    WriteCoreDump( filename );
+    statusOFS << "file = " << filename << std::endl;
+#endif // #ifdef _COREDUMPER_
+    throw std::runtime_error( msg );
+  }
+
+
 #ifndef _RELEASE_
 	std::stack<std::string> callStack;	
 
