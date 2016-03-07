@@ -249,47 +249,6 @@ int main(int argc, char **argv)
           esdfParam.isCalculateAPosterioriEachSCF);
 
 
-      // Read position from lastPos.out into esdfParam.atomList[i].pos if isRestartPosition=1
-      if(esdfParam.isRestartPosition){
-        std::vector<Atom>&  atomList = esdfParam.atomList;
-        Int numAtom = atomList.size();
-        DblNumVec atomposRead(3*numAtom);
-        // Only master processor read and then distribute
-        if( mpirank == 0 ){
-          fstream fin;
-          fin.open("lastPos.out",ios::in);
-          for(Int a=0; a<numAtom; a++){
-            fin>> atomposRead[3*a];
-            fin>> atomposRead[3*a+1];
-            fin>> atomposRead[3*a+2];
-          }
-          fin.close();
-        }
-        // Broadcast the atomic position
-        MPI_Bcast( atomposRead.Data(), 3*numAtom, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-        Point3 pos;
-        for(Int a=0; a<numAtom; a++){
-          pos = Point3( atomposRead[3*a], atomposRead[3*a+1], atomposRead[3*a+2] );
-          atomList[a].pos = pos;
-        }
-
-      } //position read in for restart
-      if(mpirank == 0){
-        const std::vector<Atom>&  atomList = esdfParam.atomList;
-        Int numAtom = atomList.size();
-        PrintBlock( statusOFS, "Initial Atomic Position" );
-        {
-          for( Int a = 0; a < numAtom; a++ ){
-            Print(statusOFS, "Type = ", atomList[a].type, "Position  = ", atomList[a].pos);
-          }
-        }
-      }
-
-      statusOFS << std::endl;
-    }
-    GetTime( timeEnd );
-    statusOFS << "Time for outputing the initial state variable is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
 
     // *********************************************************************
@@ -644,24 +603,7 @@ int main(int argc, char **argv)
     // Algorithm: Frenkel-Smit, pp 540-542
 		// *********************************************************************
     if(1){
-      Int L;
-      Real K=0.; //Kinetic Energy
-      Real Efree=0.; 
-      Real KtotInitial=0.; //Conserve Quantity of the first step
-      Real Ktot=0.; //Conserve Quantity at current step
-      Real Edrift=0.0;
-      Real xi1=0.;
-      Real vxi1 = 0.0;
-      Real G1;
-      Real s; //scale factor
 
-      Int MDMaxStep = esdfParam.MDMaxStep;
-      Real dt = esdfParam.MDTimeStep;
-      Real Q1 = esdfParam.qMass;
-    
-
-
-      Real T = 1.0 / esdfParam.TbetaIonTemperature;
 
       //*********MD starts***********
       //NHC-MD propagate if NSW!=0
@@ -670,19 +612,6 @@ int main(int argc, char **argv)
         std::vector<Atom>& atomList = hamDG.AtomList(); 
         Int numAtom = atomList.size();
 
-        DblNumVec atomMass( numAtom );
-        for(Int a=0; a < numAtom; a++) {
-          Int atype = atomList[a].type;
-          if (ptable.ptemap().find(atype)==ptable.ptemap().end() ){
-            throw std::logic_error( "Cannot find the atom type." );
-          }
-          atomMass[a]=amu2au*ptable.ptemap()[atype].params(PTParam::MASS); 
-        }
-#if ( _DEBUGlevel_ >= 0 )
-        for(Int a=0; a < numAtom; a++) {
-          Print( statusOFS, "atom", a, "Type  ", atomList[a].type, "Mass  ", atomMass[a] );
-        }
-#endif
 
         std::vector<Point3>  atompos(numAtom);
         std::vector<Point3>  atomvel(numAtom);
@@ -695,29 +624,6 @@ int main(int argc, char **argv)
         std::vector<Point3>  atomposHist1(numAtom);
         std::vector<Point3>  atomposHist2(numAtom);
 
-        // Initialize the history
-        if(0)
-        {
-          // Initialize the history
-          for( Int l = 0; l < maxHist; l++ ){
-            DistDblNumVec& den = densityHist[l];
-            DistDblNumVec& denCur = hamDG.Density();
-            Index3& numElem = esdfParam.numElem;
-            // FIXME the communicator and partitioning of densityHist is
-            // not set since only the localmap is used.
-            int dmCol = numElem[0] * numElem[1] * numElem[2];
-            int dmRow = mpisize / dmCol;
-            for( Int k=0; k< numElem[2]; k++ )
-              for( Int j=0; j< numElem[1]; j++ )
-                for( Int i=0; i< numElem[0]; i++ ) {
-                  Index3 key = Index3(i,j,k);
-                  if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
-                    den.LocalMap()[key]     = denCur.LocalMap()[key];
-                  } // own this element
-                }  // for (i)
-          }
-
-        } // if (0)
 
         if (1) {
 
@@ -747,59 +653,6 @@ int main(int argc, char **argv)
         // Degree of freedom
         L=3*numAtom;
 
-        // One processor read and then distribute
-        if(esdfParam.isRestartThermostat){
-          DblNumVec atomvelRead(3*numAtom);
-          if( mpirank == 0 ){
-            fstream fin;
-            fin.open("lastthermo.out",ios::in);
-            for(Int a=0; a<numAtom; a++){
-              fin>> atomvelRead[3*a+0];
-              fin>> atomvelRead[3*a+1];
-              fin>> atomvelRead[3*a+2];
-            }
-            fin >> vxi1;
-            fin >> K;
-            fin >> xi1;
-
-            fin.close();
-          }
-          // Broadcast thermostat information
-          MPI_Bcast( atomvelRead.Data(), 3*numAtom, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-          MPI_Bcast( &vxi1, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-          MPI_Bcast( &K, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-          MPI_Bcast( &xi1, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
-
-          Point3 vel;
-          for(Int a=0; a<numAtom; a++){
-            vel = Point3( atomvelRead[3*a], atomvelRead[3*a+1], atomvelRead[3*a+2] );
-            atomvel[a] = vel;
-          }
-
-          if( mpirank == 0 ){
-            PrintBlock( statusOFS, "Read in Atomic Velocity" );
-            {
-              for( Int a = 0; a < numAtom; a++ ){
-                Print( statusOFS, "atom", a, "Velocity   ", atomvel[a] );
-              }
-            }
-          }
-
-          Print( statusOFS, "vxi1= ", vxi1);
-          Print( statusOFS, "K= ", K );
-          Print( statusOFS, "xi1= ", xi1 );
-
-        }//restart read in last velocities of atoms
-        else{
-          for(Int i=0; i<numAtom; i++) {
-            for(Int j = 0; j< DIM; j++)
-              atomvel[i][j]=0.;
-          }
-        }
-
-        for( Int i = 0; i < numAtom; i++ ){
-          atompos[i]   = atomList[i].pos;
-        }
 
         for (Int iStep=1; iStep <= MDMaxStep; iStep++){
           {
@@ -808,14 +661,6 @@ int main(int argc, char **argv)
             PrintBlock( statusOFS, msg.str() );
           }
 
-          // Propagate the chain
-          //numchain=1 start//
-          vxi1 = vxi1+(K*2-L*T)/Q1*dt/4.;
-          xi1 = xi1+vxi1*dt/2.;
-          s=std::exp(-vxi1*dt/2.);
-          for(Int i=0;i<numAtom;i++){
-            atomvel[i] = s * atomvel[i];
-          }
 
           K=K*s*s;
           vxi1=vxi1+(2*K-L*T)/Q1*dt/4.;
@@ -1135,125 +980,7 @@ int main(int argc, char **argv)
               timeEnd - timeSta << " [s]" << std::endl << std::endl;
           }
 
-          // Output intermediate information
-#if ( _DEBUGlevel_ >= 0 )
-          if( mpirank == 0 ){
-            PrintBlock( statusOFS, "Atomic Position, Velocity, Force at the same time step" ); 
-            for( Int a = 0; a < numAtom; a++ ){
-              Print( statusOFS, "atom", a, "Position   ", atompos[a] );
-            }
-            statusOFS << std::endl;
-            for( Int a = 0; a < numAtom; a++ ){
-              Print( statusOFS, "atom", a, "Velocity   ", atomvel[a] );
-            }
-            statusOFS << std::endl;
 
-            Point3 forceCM(0.0, 0.0, 0.0);
-            for( Int a = 0; a < numAtom; a++ ){
-              forceCM += atomList[a].force;
-              Print( statusOFS, "atom", a, "Force      ", atomforce[a] );
-            }
-            statusOFS << std::endl;
-            Print( statusOFS, "force for centroid: ", forceCM );
-            statusOFS << std::endl;
-          }
-#endif
-
-          // Update kinetic energy, position and velocity
-          K=0.;
-          for(Int i=0; i<numAtom; i++){
-            atomvel[i] = atomvel[i] + atomforce[i]*dt/atomMass[i]; 
-            atompos[i] = atompos[i] + atomvel[i]*dt/2.; 
-            for(Int j=0; j<3; j++){
-              K += atomMass[i]*atomvel[i][j]*atomvel[i][j]/2.;
-            }
-          }
-
-
-          //nuchain=1//
-          vxi1 = vxi1+(K*2.-L*T)/Q1*dt/4.;
-          xi1  = xi1+vxi1*dt/2.;
-          s    = std::exp(-vxi1*dt/2.);
-          for(Int i=0;i<numAtom;i++){
-            atomvel[i]=s*atomvel[i];
-          }
-          K=K*s*s;
-
-          vxi1=vxi1+(2*K-L*T)/Q1*dt/4.;
-          //numchain=1 end//
-
-          // Output the XYZ format for movie
-          if( esdfParam.isOutputXYZ & mpirank == 0 ){
-            fstream fout;
-            fout.open("MD.xyz",ios::out | ios::app) ;
-            if( !fout.good() ){
-              throw std::logic_error( "Cannot open MD.xyz!" );
-            }
-            fout << numAtom << std::endl;
-            fout << "MD step # "<< iStep << std::endl;
-            for(Int a=0; a<numAtom; a++){
-              fout<< setw(6)<< atomList[a].type
-                << setw(16)<< atompos[a][0]*au2ang
-                << setw(16)<< atompos[a][1]*au2ang
-                << setw(16)<< atompos[a][2]*au2ang
-                << std::endl;
-            }
-            fout.close();
-          }
-
-          // Output position and thermostat
-          if( mpirank == 0 ){
-            if(esdfParam.isOutputPosition){
-              fstream fout;
-              fout.open("lastPos.out",ios::out);
-              if( !fout.good() ){
-                throw std::logic_error( "File cannot be open!" );
-              }
-              for(Int i=0; i<numAtom; i++){
-                fout<< setw(16)<< atompos[i][0];
-                fout<< setw(16)<< atompos[i][1];
-                fout<< setw(16)<< atompos[i][2];
-                fout<< std::endl;
-              }
-              fout.close();
-            }
-          }
-
-
-          if( mpirank == 0 ){
-            if(esdfParam.isOutputThermostat){
-              fstream fout_v;
-              fout_v.open("lastthermo.out",ios::out);
-              if( !fout_v.good() ){
-                throw std::logic_error( "File cannot be open!" );
-              }
-              for(Int i=0; i<numAtom; i++){
-                fout_v<< setw(16)<< atomvel[i][0];
-                fout_v<< setw(16)<< atomvel[i][1];
-                fout_v<< setw(16)<< atomvel[i][2];
-                fout_v<< std::endl;
-              }
-              fout_v<<setw(16)<< vxi1<<std::endl;
-              fout_v<<setw(16)<< K<<std::endl;
-              fout_v<<setw(16)<<xi1<<std::endl;
-              fout_v.close();
-            }
-          }
-
-          // Output conserved quantities
-          Efree = scfDG.Efree();
-
-          Print(statusOFS, "MD_Efree =  ",Efree);
-          Print(statusOFS, "MD_K     =  ",K);
-          Print(statusOFS, "MD_Fermi =  ",scfDG.Fermi());
-
-          Ktot =K+Efree+Q1*vxi1*vxi1/2.+L*T*xi1;
-          if(iStep == 1)
-            KtotInitial = Ktot;
-
-          Edrift= (Ktot-KtotInitial)/KtotInitial;
-          Print(statusOFS, "Conserved Energy: Ktot =  ",Ktot);
-          Print(statusOFS, "Drift of Conserved Energy: Edrift =  ",Edrift);
 
         }//for(iStep<MDMaxStep) loop ends here
       }//if(MDMaxStep>0)

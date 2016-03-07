@@ -163,6 +163,9 @@ public:
 	// Inquiry
 	// *********************************************************************
 	// Energy etc.
+  Real Efree() const {return Efree_;};	
+
+  Real Fermi() const {return fermi_;};	
 	
 
 }; // -----  end of class  SCF ----- 

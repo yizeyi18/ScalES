@@ -243,19 +243,25 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
     for (Int k=0; k<idx.m(); k++) 
 			pseudoCharge_[idx(k)] += val(k, VAL);
     // For debug purpose, check the summation of the derivative
-    Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
-    for (Int k=0; k<idx.m(); k++) {
-      sumVDX += val(k, DX);
-      sumVDY += val(k, DY);
-      sumVDZ += val(k, DZ);
+    if(0){
+      Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
+      for (Int k=0; k<idx.m(); k++) {
+        sumVDX += val(k, DX);
+        sumVDY += val(k, DY);
+        sumVDZ += val(k, DZ);
+      }
+      sumVDX *= vol / Real(ntotFine);
+      sumVDY *= vol / Real(ntotFine);
+      sumVDZ *= vol / Real(ntotFine);
+      if( std::sqrt(sumVDX * sumVDX + sumVDY * sumVDY + sumVDZ * sumVDZ) 
+          > 1e-8 ){
+        Print( statusOFS, "Local pseudopotential may not be constructed correctly" );
+        Print( statusOFS, "For Atom ", a );
+        Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
+        Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
+        Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
+      }
     }
-    sumVDX *= vol / Real(ntotFine);
-    sumVDY *= vol / Real(ntotFine);
-    sumVDZ *= vol / Real(ntotFine);
-    Print( statusOFS, "For Atom ", a );
-    Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
-    Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
-    Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
   }
 
   Real sumrho = 0.0;
@@ -281,7 +287,6 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
   UniformMesh ( domain_, gridposCoarse );
   
   Print( statusOFS, "Computing the non-local pseudopotential" );
-  Print( statusOFS, "Print out the summation of derivative of pseudopotential on the fine grid " );
 
   Int cnt = 0; // the total number of PS used
   for ( Int a=0; a < atomList_.size(); a++ ) {
@@ -293,24 +298,30 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 		cnt = cnt + pseudo_[a].vnlList.size();
 
     // For debug purpose, check the summation of the derivative
-    std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlListFine;
-    for( Int l = 0; l < vnlList.size(); l++ ){
-      SparseVec& bl = vnlList[l].first;
-      IntNumVec& idx = bl.first;
-      DblNumMat& val = bl.second;
-      Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
-      for (Int k=0; k<idx.m(); k++) {
-        sumVDX += val(k, DX);
-        sumVDY += val(k, DY);
-        sumVDZ += val(k, DZ);
+    if(0){
+      std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlListFine;
+      for( Int l = 0; l < vnlList.size(); l++ ){
+        SparseVec& bl = vnlList[l].first;
+        IntNumVec& idx = bl.first;
+        DblNumMat& val = bl.second;
+        Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
+        for (Int k=0; k<idx.m(); k++) {
+          sumVDX += val(k, DX);
+          sumVDY += val(k, DY);
+          sumVDZ += val(k, DZ);
+        }
+        sumVDX *= vol / Real(ntotFine);
+        sumVDY *= vol / Real(ntotFine);
+        sumVDZ *= vol / Real(ntotFine);
+        if( std::sqrt(sumVDX * sumVDX + sumVDY * sumVDY + sumVDZ * sumVDZ) 
+            > 1e-8 ){
+          Print( statusOFS, "Local pseudopotential may not be constructed correctly" );
+          statusOFS << "For atom " << a << ", projector " << l << std::endl;
+          Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
+          Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
+          Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
+        }
       }
-      sumVDX *= vol / Real(ntotFine);
-      sumVDY *= vol / Real(ntotFine);
-      sumVDZ *= vol / Real(ntotFine);
-      statusOFS << "For atom " << a << ", projector " << l << std::endl;
-      Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
-      Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
-      Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
     }
 
   }

@@ -401,9 +401,12 @@ int main(int argc, char **argv)
 		// Geometry optimization or Molecular dynamics
 		// *********************************************************************
     
+    // FIXME Find a better place for this function
+    scfDG.set_Cheby_MD_schedule_flag();
+    
     IonDynamics ionDyn;
 
-    ionDyn.Setup( esdfParam, hamDG.AtomList() ); 
+    ionDyn.Setup( esdfParam, hamDG.AtomList(), ptable ); 
 
     // Main loop for geometry optimization or molecular dynamics
     // If ionMaxIter == 1, it is equivalent to single shot calculation
@@ -417,7 +420,8 @@ int main(int argc, char **argv)
     
       // Get the new atomic coordinates
       // NOTE: ionDyn directly updates the coordinates in Hamiltonian
-      ionDyn.MoveIons(ionIter);
+      ionDyn.SetEpot( scfDG.Efree() );
+      ionDyn.MoveIons( ionIter );
 
       // Update atomic position in the extended element
       {
@@ -452,17 +456,25 @@ int main(int argc, char **argv)
                 }
 
                 // Make a copy and update the atomList in the extended element
-                hamKS.AtomList() = atomListExtElem;
-
+                hamKS.UpdateHamiltonian( atomListExtElem );
                 hamKS.CalculatePseudoPotential( ptable );
 
               }//own this element
             }//(i)
         GetTime( timeEnd );
-        statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
-          << " [s]" << std::endl;
+        statusOFS << "Time for updating the Hamiltonian in the extended elements = " 
+          << timeEnd - timeSta << " [s]" << std::endl;
       }
-  
+ 
+      GetTime( timeSta );
+      hamDG.UpdateHamiltonianDG( hamDG.AtomList() );
+      hamDG.CalculatePseudoPotential( ptable );
+      scfDG.Update( );
+      GetTime( timeEnd );
+      statusOFS << "Time for updating the Hamiltonian in DG = " 
+        << timeEnd - timeSta << " [s]" << std::endl;
+
+
       GetTime( timeSta );
       scfDG.Iterate( );
       GetTime( timeEnd );

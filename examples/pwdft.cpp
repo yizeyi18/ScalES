@@ -206,8 +206,6 @@ int main(int argc, char **argv)
 		GetTime( timeEnd );
     statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
       << " [s]" << std::endl;
-
-
 		
     // *********************************************************************
 		// Geometry optimization or Molecular dynamics
@@ -215,7 +213,7 @@ int main(int argc, char **argv)
 
     IonDynamics ionDyn;
 
-    ionDyn.Setup( esdfParam, hamKS.AtomList() ); 
+    ionDyn.Setup( esdfParam, hamKS.AtomList(), ptable ); 
 
     // Main loop for geometry optimization or molecular dynamics
     // If ionMaxIter == 1, it is equivalent to single shot calculation
@@ -229,9 +227,11 @@ int main(int argc, char **argv)
     
       // Get the new atomic coordinates
       // NOTE: ionDyn directly updates the coordinates in Hamiltonian
+      ionDyn.SetEpot( scf.Efree() );
       ionDyn.MoveIons(ionIter);
   
       GetTime( timeSta );
+      hamKS.UpdateHamiltonian( hamKS.AtomList() );
       hamKS.CalculatePseudoPotential( ptable );
       scf.Update( ); 
       GetTime( timeEnd );

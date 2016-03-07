@@ -63,9 +63,36 @@ private:
   /// classes (Hamiltonian or HamiltonianDG).
   std::vector<Atom>*   atomListPtr_;
 
-  std::vector<Atom>    atomListSave_;
+  Int maxHist_;
+  std::vector<std::vector<Atom> >   atomListSave_;
+//  std::vector<DistDblNumVec>        densityHist_[MAXHIST_];
 
   std::string          ionMove_;
+
+  DblNumVec            atomMass_;
+
+  bool                 isOutputPosition_;
+  bool                 isOutputThermostat_;
+  bool                 isOutputXYZ_;
+
+  // Molecular dynamics variables
+  Real                 Ekinetic_; // kinetic energy for ions
+  Real                 Epot_;  // potential energy for ions
+  Real                 EconserveInit_;
+  Real                 Econserve_;
+  Real                 Edrift_;
+  Real                 dt_;
+  Real                 ionTemperature_; // unit: au
+
+  // Nose-Hoover variables
+  Real                 Q1_;
+  Real                 xi1_;
+  Real                 vxi1_;
+  Real                 G1_;
+  Real                 scalefac_;
+  Int                  phase_; // NH1 has two phases
+
+
 
   /// @brief BarzilaiBorwein method for geometry optimization
   ///
@@ -75,6 +102,49 @@ private:
 
   void VelocityVerlet( Int ionIter );
 
+
+  /// @brief NoseHoover thermostat with chain level 1. The
+  /// implementation is consistent with the CORRECT version of
+  ///
+  /// Frenkel and Smit, Understanding Molecular Simulation, 
+  /// Alg. 30 (pp 540)
+  ///
+  /// The correction is due to the inconsistency between (E.2.4) and the
+  /// pos_vel algorithm (Alg. 32). The algorithm in the book is correct,
+  /// however, it does not allow one to obtain position and velocity at
+  /// the same snapshot.
+  /// 
+  /// Normally one NH step is (3.2.4)
+  ///
+  ///   *Time t
+  ///   chain (dt/2)
+  ///   velocity (dt/2)
+  ///   position (dt)
+  ///   evaluate force
+  ///   velocity (dt/2)
+  ///   chain (dt/2)
+  ///   *Time t+dt
+  ///
+  /// Since we do not want to call MoveIons twice, the order is switched
+  /// to the following
+  ///
+  ///   evaluate force
+  ///   velocity (dt/2)
+  ///   chain (dt/2)
+  ///   *Time t+dt
+  ///   chain (dt/2)
+  ///   velocity (dt/2)
+  ///   position (dt)
+  ///
+  /// This means that after updating the chain variables for the first
+  /// time, the position, velocity, energy and forces are synced at time
+  /// t+dt, and then chain, velocity and position variables are updated
+  /// in preparation for evaluation of the force.  
+  ///
+  /// If the job is stopped in the middle of the evaluation of the
+  /// force, the calculation can be restarted from the stored variables
+  /// without repeating the work. (3/6/2016)
+  /// 
   void NoseHoover1( Int ionIter );
 
   void Langevin( Int ionIter );
@@ -84,7 +154,8 @@ private:
 public:
 
   /// @brief Initial setup from the input parameters
-  void Setup( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& atomList );
+  void Setup( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& atomList,
+     PeriodTable& ptable );
 
   /// @brief Main program to move the ions.
   ///
@@ -96,6 +167,7 @@ public:
   // Access functions
   // *********************************************************************
   std::vector<Atom>& AtomList() { return *atomListPtr_; }
+  void SetEpot(Real Epot) { Epot_ = Epot; }
 
 };
 

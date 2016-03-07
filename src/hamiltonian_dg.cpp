@@ -805,40 +805,40 @@ namespace dgdft{
   } 		// -----  end of method HamiltonianDG::Setup  ----- 
 
   void
-  HamiltonianDG::UpdateHamiltonianDG	( const std::vector<Atom>& atomList )
+  HamiltonianDG::UpdateHamiltonianDG	( std::vector<Atom>& atomList )
   {
 #ifndef _RELEASE_
     PushCallStack("HamiltonianDG::HamiltonianDG");
 #endif
 
     atomList_          = atomList;
-  
+
     // Repartitioning the atoms according to the new coordinate
-	
+
     Int numAtom = atomList_.size();
 
     std::vector<Int>& atomPrtnInfo = atomPrtn_.ownerInfo;
     atomPrtnInfo.resize( numAtom );
-	
+
     for( Int a = 0; a < numAtom; a++ ){
       Point3 pos = atomList_[a].pos;
       bool isAtomIn = false;
       Index3 idx(-1, -1, -1);
       for( Int k = 0; k < numElem_[2]; k++ ){
-	for( Int j = 0; j < numElem_[1]; j++ ){
-	  for( Int i = 0; i < numElem_[0]; i++ ){
-	    isAtomIn = IsInSubdomain( pos, domainElem_(i, j, k), domain_.length );
-	    if( isAtomIn == true ){
-	      idx = Index3(i, j, k);
-	      break;
-	    }
-	  }
-	}
+        for( Int j = 0; j < numElem_[1]; j++ ){
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            isAtomIn = IsInSubdomain( pos, domainElem_(i, j, k), domain_.length );
+            if( isAtomIn == true ){
+              idx = Index3(i, j, k);
+              break;
+            }
+          }
+        }
       }
       if( idx[0] < 0 || idx[1] < 0 || idx[2] < 0 ){
-	std::ostringstream msg;
-	msg << "Cannot find element for atom #" << a << std::endl;
-	throw std::runtime_error( msg.str().c_str() );
+        std::ostringstream msg;
+        msg << "Cannot find element for atom #" << a << std::endl;
+        throw std::runtime_error( msg.str().c_str() );
       }
       // Determine the ownership by the ownership of the corresponding element
       atomPrtnInfo[a] = elemPrtn_.Owner( idx );
@@ -847,7 +847,7 @@ namespace dgdft{
 #if ( _DEBUGlevel_ >= 1 )
     for( Int a = 0; a < numAtom; a++ ){
       statusOFS << "Atom # " << a << " belongs to proc " << 
-	atomPrtn_.Owner(a) << std::endl;
+        atomPrtn_.Owner(a) << std::endl;
     }
 #endif
 

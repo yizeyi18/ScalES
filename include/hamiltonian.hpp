@@ -218,6 +218,9 @@ public:
   Real        EXXFraction() { return exxFraction_;}
   bool        IsHybridACE() { return isHybridACE_; }
 
+
+  void UpdateHamiltonian ( std::vector<Atom>&  atomList ) { atomList_ = atomList; }
+
 	// *********************************************************************
 	// Inquiry
 	// *********************************************************************
