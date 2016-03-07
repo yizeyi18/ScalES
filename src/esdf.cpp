@@ -2606,6 +2606,9 @@ namespace dgdft{
           if( mpirank == 0 ){
             std::fstream fin;
             fin.open("lastPos.out", std::ios::in);
+            if( !fin.good() ){
+              throw std::logic_error( "Cannot open lastPos.out!" );
+            }
             for(Int a=0; a<numAtom; a++){
               fin>> atomposRead[3*a];
               fin>> atomposRead[3*a+1];
@@ -2675,6 +2678,7 @@ namespace dgdft{
         Print(statusOFS, "");
         Print(statusOFS, "Ion move mode                        = ",  esdfParam.ionMove);
         Print(statusOFS, "Max steps for ion                    = ",  esdfParam.ionMaxIter);
+        Print(statusOFS, "MD time step                         = ",  esdfParam.MDTimeStep);
         Print(statusOFS, "Ion Temperature                      = ",  esdfParam.ionTemperature, "[K]");
         Print(statusOFS, "Thermostat mass                      = ",  esdfParam.qMass);
         Print(statusOFS, "RestartPosition                      = ",  esdfParam.isRestartPosition);
@@ -2771,11 +2775,13 @@ namespace dgdft{
 
       // Only master processor output information containing all atoms
       if( mpirank == 0 ){
+        const std::vector<Atom>&  atomList = esdfParam.atomList;
+        
         Print(statusOFS, ""); 
+        Print(statusOFS, "NumAtom = ", (int)atomList.size()); 
         Print(statusOFS, "Atom Type and Coordinates");
         Print(statusOFS, ""); 
-
-        const std::vector<Atom>&  atomList = esdfParam.atomList;
+        
         for(Int i=0; i < atomList.size(); i++) {
           Print(statusOFS, "Type = ", atomList[i].type, "Position  = ", atomList[i].pos);
         }

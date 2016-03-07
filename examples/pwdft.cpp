@@ -236,7 +236,7 @@ int main(int argc, char **argv)
     // Main loop for geometry optimization or molecular dynamics
     // If ionMaxIter == 1, it is equivalent to single shot calculation
     Int ionMaxIter = esdfParam.ionMaxIter;
-    for( Int ionIter = 1; ionIter < ionMaxIter; ionIter++ ){
+    for( Int ionIter = 1; ionIter <= ionMaxIter; ionIter++ ){
       {
         std::ostringstream msg;
         msg << "Ion move step # " << ionIter;
