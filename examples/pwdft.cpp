@@ -215,6 +215,12 @@ int main(int argc, char **argv)
 
     ionDyn.Setup( esdfParam, hamKS.AtomList(), ptable ); 
 
+    Int maxHist = ionDyn.MaxHist();
+    std::vector<DblNumMat>    densityHist(maxHist);
+    for( Int l = 0; l < maxHist; l++ ){
+      densityHist[l] = hamKS.Density();
+    } // for (l)
+
     // Main loop for geometry optimization or molecular dynamics
     // If ionMaxIter == 1, it is equivalent to single shot calculation
     Int ionMaxIter = esdfParam.ionMaxIter;
@@ -237,6 +243,29 @@ int main(int argc, char **argv)
       GetTime( timeEnd );
       statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
         << " [s]" << std::endl;
+
+
+      // Update the density history through extrapolation
+      {
+        for( Int l = maxHist-1; l > 0; l-- ){
+          densityHist[l]     = densityHist[l-1];
+        } // for (l)
+        densityHist[0] = hamKS.Density();
+        
+        // Compute the extrapolation coefficient
+        DblNumVec denCoef;
+        ionDyn.DensityExtrapolateCoefficient( ionIter, denCoef );
+        statusOFS << "Extrapolation density coefficient = " << denCoef << std::endl;
+
+        // Update the electron density
+        DblNumMat& denCurVec  = hamKS.Density();
+        SetValue( denCurVec, 0.0 );
+        for( Int l = 0; l < maxHist-1; l++ ){
+          blas::Axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
+              1, denCurVec.Data(), 1 );
+        } // for (l)
+      } // density extrapolation
+
 
       GetTime( timeSta );
       scf.Iterate( );

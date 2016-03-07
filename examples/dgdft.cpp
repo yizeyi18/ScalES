@@ -413,18 +413,18 @@ int main(int argc, char **argv)
     // densityHist[0] is the most recent density
     std::vector<DistDblNumVec>    densityHist(maxHist);
     // Initialize the history of density
-    for( Int l = 0; l < maxHist; l++ ){
-      DistDblNumVec& den    = densityHist[l];
-      DistDblNumVec& denCur = hamDG.Density();
-      for( Int k=0; k< numElem[2]; k++ )
-        for( Int j=0; j< numElem[1]; j++ )
-          for( Int i=0; i< numElem[0]; i++ ) {
-            Index3 key = Index3(i,j,k);
-            if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+    for( Int k=0; k< numElem[2]; k++ )
+      for( Int j=0; j< numElem[1]; j++ )
+        for( Int i=0; i< numElem[0]; i++ ) {
+          Index3 key = Index3(i,j,k);
+          if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+            for( Int l = 0; l < maxHist; l++ ){
+              DistDblNumVec& den    = densityHist[l];
+              DistDblNumVec& denCur = hamDG.Density();
               den.LocalMap()[key]     = denCur.LocalMap()[key];
-            } // own this element
-          }  // for (i)
-    } // for (l)
+            } // for (l)
+          } // own this element
+        }  // for (i)
 
 
     // Main loop for geometry optimization or molecular dynamics
@@ -518,9 +518,9 @@ int main(int argc, char **argv)
                 SetValue( denCurVec, 0.0 );
                 for( Int l = 0; l < maxHist-1; l++ ){
                   DblNumVec& denHistVec = densityHist[l].LocalMap()[key];
-                  for( Int ii = 0; ii < denCurVec.m(); ii++ ){
-                    denCurVec(ii) += denCoef[l] * denHistVec(ii);
-                  }
+
+                  blas::Axpy( denCurVec.m(), denCoef[l], denHistVec.Data(),
+                      1, denCurVec.Data(), 1 );
                 } // for (l)
               } // own this element
             }  // for (i)
