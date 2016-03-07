@@ -137,6 +137,12 @@ IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& a
         }
       }
     }//restart read in last velocities of atoms
+//    else{
+//      // Random velocity given by ion temperature
+//      if( mpirank == 0 ){
+//
+//      }
+//    }
   }
 
   if( ionMove_ == "nosehoover1" ){
@@ -283,7 +289,12 @@ IonDynamics::MoveIons	( Int ionIter )
 #ifndef _RELEASE_
 	PushCallStack("IonDynamics::MoveIons");
 #endif
+  Int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+  
   std::vector<Atom>&   atomList = *atomListPtr_;
+  Int numAtom = atomList.size();
 
   // Update saved atomList. 0 is the latest one
   for( Int l = maxHist_-1; l > 0; l-- ){
@@ -335,6 +346,29 @@ IonDynamics::MoveIons	( Int ionIter )
     }
   }
 
+  // Output the position. Common to all routines
+  if( mpirank == 0 ){
+    if(isOutputPosition_){
+      std::fstream fout;
+      fout.open("lastPos.out",std::ios::out);
+      if( !fout.good() ){
+        throw std::logic_error( "File cannot be open!" );
+      }
+      for(Int i=0; i<numAtom; i++){
+        fout << std::setiosflags(std::ios::scientific)
+          << std::setiosflags(std::ios::showpos)
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[0]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[1]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[2]
+          << std::resetiosflags(std::ios::scientific)
+          << std::resetiosflags(std::ios::showpos)
+          << std::endl;
+      }
+      fout.close();
+    }
+  }
+
+
 #ifndef _RELEASE_
 	PopCallStack();
 #endif
@@ -349,9 +383,13 @@ IonDynamics::BarzilaiBorweinOpt	( Int ionIter )
 #ifndef _RELEASE_
 	PushCallStack("IonDynamics::BarzilaiBorweinOpt");
 #endif
+  Int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
-  std::vector<Atom>&   atomList = *atomListPtr_;
-  std::vector<Atom>&   atomListOld = atomListHist_[0];
+  std::vector<Atom>&   atomList    = *atomListPtr_;
+  // Note: atomListHist_[0] stores the same info as atomList
+  std::vector<Atom>&   atomListOld = atomListHist_[1];
 
   Int numAtom = atomList.size();
 
@@ -364,6 +402,30 @@ IonDynamics::BarzilaiBorweinOpt	( Int ionIter )
     atompos[a]   = atomList[a].pos;
     atomforce[a] = atomList[a].force;
   }
+
+  // Output the XYZ format for movie
+  // Once this is written, all work associated with the current atomic
+  // position is DONE.
+  if( mpirank == 0 ){
+    if( isOutputXYZ_ ){
+      std::fstream fout;
+      fout.open("MD.xyz",std::ios::out | std::ios::app) ;
+      if( !fout.good() ){
+        throw std::logic_error( "Cannot open MD.xyz!" );
+      }
+      fout << numAtom << std::endl;
+      fout << "MD step # "<< ionIter << std::endl;
+      for(Int a=0; a<numAtom; a++){
+        fout<< std::setw(6)<< atomList[a].type
+          << std::setw(16)<< atompos[a][0]*au2ang
+          << std::setw(16)<< atompos[a][1]*au2ang
+          << std::setw(16)<< atompos[a][2]*au2ang
+          << std::endl;
+      }
+      fout.close();
+    }
+  } // if( mpirank == 0 )
+
 
   if( ionIter == 1 ){
     // FIXME 0.1 is a magic number
@@ -505,24 +567,6 @@ IonDynamics::VelocityVerlet	( Int ionIter )
   // Hence if the job is stopped in the middle of SCF (which is most
   // likely), the MD job should continue from this configuration
   if( mpirank == 0 ){
-    if(isOutputPosition_){
-      std::fstream fout;
-      fout.open("lastPos.out",std::ios::out);
-      if( !fout.good() ){
-        throw std::logic_error( "File cannot be open!" );
-      }
-      for(Int i=0; i<numAtom; i++){
-        fout << std::setiosflags(std::ios::scientific)
-          << std::setiosflags(std::ios::showpos)
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atompos[i][0]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atompos[i][1]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atompos[i][2]
-          << std::resetiosflags(std::ios::scientific)
-          << std::resetiosflags(std::ios::showpos)
-          << std::endl;
-      }
-      fout.close();
-    }
 
     if(isOutputVelocity_){
       std::fstream fout_v;
@@ -676,30 +720,11 @@ IonDynamics::NoseHoover1	( Int ionIter )
     atompos[a] = atompos[a] + atomvel[a] * dt;
   }
 
-  // Output the position and thermostat variable. 
+  // Output the velocity and thermostat variable. 
   // These are the configuration that SCF will work on next. 
   // Hence if the job is stopped in the middle of SCF (which is most
   // likely), the MD job should continue from this configuration
   if( mpirank == 0 ){
-    statusOFS << "isOutputPosition_ = " << isOutputPosition_ << std::endl;
-    if(isOutputPosition_){
-      std::fstream fout;
-      fout.open("lastPos.out",std::ios::out);
-      if( !fout.good() ){
-        throw std::logic_error( "File cannot be open!" );
-      }
-      for(Int i=0; i<numAtom; i++){
-        fout << std::setiosflags(std::ios::scientific)
-          << std::setiosflags(std::ios::showpos)
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atompos[i][0]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atompos[i][1]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atompos[i][2]
-          << std::resetiosflags(std::ios::scientific)
-          << std::resetiosflags(std::ios::showpos)
-          << std::endl;
-      }
-      fout.close();
-    }
     
     if(isOutputVelocity_){
       std::fstream fout_v;

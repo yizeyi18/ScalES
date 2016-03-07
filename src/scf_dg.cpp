@@ -1962,8 +1962,8 @@ SCFDG::Iterate	(  )
       forceCM += atomList[a].force;
     }
     statusOFS << std::endl;
-    Print( statusOFS, "force for centroid: ", forceCM );
-    Print( statusOFS, "Max force magnitude:", MaxForce(atomList) );
+    Print( statusOFS, "force for centroid  : ", forceCM );
+    Print( statusOFS, "Max force magnitude : ", MaxForce(atomList) );
     statusOFS << std::endl;
   }
 
