@@ -1851,8 +1851,7 @@ SCFDG::Iterate	(  )
         ( (scfOuterNorm_ < scfOuterTolerance_) & 
           (efreeDifPerAtom_ < scfOuterEnergyTolerance_) ) ){
       /* converged */
-      Print( statusOFS, "Outer SCF is converged!\n" );
-      statusOFS << std::endl;
+      statusOFS << "Outer SCF is converged in " << iter << " steps !" << std::endl;
       isSCFConverged = true;
     }
 
@@ -1871,7 +1870,7 @@ SCFDG::Iterate	(  )
     timeTotalEnd - timeTotalStart << " [s]" << std::endl;
   if( isSCFConverged == true ){
     statusOFS << "Total number of outer SCF steps = " <<
-      iter << std::endl;
+      iter - 1 << std::endl;
   }
   else{
     statusOFS << "Total number of outer SCF steps = " <<
@@ -5079,32 +5078,32 @@ SCFDG::InnerIterate	( Int outerIter )
       }
 
       // Compute the force at every step
-      if( isCalculateForceEachSCF_ ){
-        // Compute force
-        GetTime( timeSta );
-        hamDG.CalculateForce( *distfftPtr_ );
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the force is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Print out the force
-        // Only master processor output information containing all atoms
-        if( mpirank == 0 ){
-          PrintBlock( statusOFS, "Atomic Force" );
-          {
-            Point3 forceCM(0.0, 0.0, 0.0);
-            std::vector<Atom>& atomList = hamDG.AtomList();
-            Int numAtom = atomList.size();
-            for( Int a = 0; a < numAtom; a++ ){
-              Print( statusOFS, "atom", a, "force", atomList[a].force );
-              forceCM += atomList[a].force;
-            }
-            statusOFS << std::endl;
-            Print( statusOFS, "force for centroid: ", forceCM );
-            statusOFS << std::endl;
-          }
-        }
-      }
+//      if( isCalculateForceEachSCF_ ){
+//        // Compute force
+//        GetTime( timeSta );
+//        hamDG.CalculateForce( *distfftPtr_ );
+//        GetTime( timeEnd );
+//        statusOFS << "Time for computing the force is " <<
+//          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//
+//        // Print out the force
+//        // Only master processor output information containing all atoms
+//        if( mpirank == 0 ){
+//          PrintBlock( statusOFS, "Atomic Force" );
+//          {
+//            Point3 forceCM(0.0, 0.0, 0.0);
+//            std::vector<Atom>& atomList = hamDG.AtomList();
+//            Int numAtom = atomList.size();
+//            for( Int a = 0; a < numAtom; a++ ){
+//              Print( statusOFS, "atom", a, "force", atomList[a].force );
+//              forceCM += atomList[a].force;
+//            }
+//            statusOFS << std::endl;
+//            Print( statusOFS, "force for centroid: ", forceCM );
+//            statusOFS << std::endl;
+//          }
+//        }
+//      }
 
       // Compute the a posteriori error estimator at every step
       // FIXME This is not used when intra-element parallelization is
@@ -5571,32 +5570,32 @@ SCFDG::InnerIterate	( Int outerIter )
 #endif
 
       // Compute the force at every step
-      if( isCalculateForceEachSCF_ ){
-        // Compute force
-        GetTime( timeSta );
-        hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the force is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Print out the force
-        // Only master processor output information containing all atoms
-        if( mpirank == 0 ){
-          PrintBlock( statusOFS, "Atomic Force" );
-          {
-            Point3 forceCM(0.0, 0.0, 0.0);
-            std::vector<Atom>& atomList = hamDG.AtomList();
-            Int numAtom = atomList.size();
-            for( Int a = 0; a < numAtom; a++ ){
-              Print( statusOFS, "atom", a, "force", atomList[a].force );
-              forceCM += atomList[a].force;
-            }
-            statusOFS << std::endl;
-            Print( statusOFS, "force for centroid: ", forceCM );
-            statusOFS << std::endl;
-          }
-        }
-      }
+//      if( isCalculateForceEachSCF_ ){
+//        // Compute force
+//        GetTime( timeSta );
+//        hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );
+//        GetTime( timeEnd );
+//        statusOFS << "Time for computing the force is " <<
+//          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//
+//        // Print out the force
+//        // Only master processor output information containing all atoms
+//        if( mpirank == 0 ){
+//          PrintBlock( statusOFS, "Atomic Force" );
+//          {
+//            Point3 forceCM(0.0, 0.0, 0.0);
+//            std::vector<Atom>& atomList = hamDG.AtomList();
+//            Int numAtom = atomList.size();
+//            for( Int a = 0; a < numAtom; a++ ){
+//              Print( statusOFS, "atom", a, "force", atomList[a].force );
+//              forceCM += atomList[a].force;
+//            }
+//            statusOFS << std::endl;
+//            Print( statusOFS, "force for centroid: ", forceCM );
+//            statusOFS << std::endl;
+//          }
+//        }
+//      }
 
       // TODO Evaluate the a posteriori error estimator
 

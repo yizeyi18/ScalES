@@ -175,7 +175,6 @@ IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& a
       // Broadcast thermostat information
       MPI_Bcast( atomvelRead.Data(), 3*numAtom, MPI_DOUBLE, 0, MPI_COMM_WORLD );
       MPI_Bcast( &vxi1_, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-      MPI_Bcast( &Ekinetic_, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
       MPI_Bcast( &xi1_, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
 
       for(Int a=0; a<numAtom; a++){
@@ -192,7 +191,6 @@ IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& a
         }
       }
 
-      Print( statusOFS, "Ekinetic     = ", Ekinetic_ );
       Print( statusOFS, "vxi1         = ", vxi1_ );
       Print( statusOFS, "xi1          = ", xi1_ );
 
@@ -205,65 +203,6 @@ IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& a
   } // nosehoover 1
 
 
-  if( ionMove_ == "nosehoover1" ){
-    xi1_ = 0.0;
-    vxi1_ = 0.0;
-    G1_ = 0.0;
-    scalefac_ = 0.0;
-    Q1_ = esdfParam.qMass;
- 
-    if(esdfParam.isRestartVelocity){
-      statusOFS << std::endl 
-        << "Read velocity and thermostat information from lastVel.out, " << std::endl 
-        << "overwrite the atomic position read from the input file." 
-        << std::endl;
-
-      DblNumVec atomvelRead(3*numAtom);
-      if( mpirank == 0 ){
-        std::fstream fin;
-        fin.open("lastVel.out",std::ios::in);
-        for(Int a=0; a<numAtom; a++){
-          fin>> atomvelRead[3*a+0];
-          fin>> atomvelRead[3*a+1];
-          fin>> atomvelRead[3*a+2];
-        }
-        fin >> vxi1_;
-        fin >> Ekinetic_;
-        fin >> xi1_;
-
-        fin.close();
-      }
-      // Broadcast thermostat information
-      MPI_Bcast( atomvelRead.Data(), 3*numAtom, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-      MPI_Bcast( &vxi1_, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-      MPI_Bcast( &Ekinetic_, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-      MPI_Bcast( &xi1_, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
-
-      for(Int a=0; a<numAtom; a++){
-        atomList[a].vel = 
-          Point3( atomvelRead[3*a], atomvelRead[3*a+1], atomvelRead[3*a+2] );
-      }
-
-      if( mpirank == 0 ){
-        PrintBlock( statusOFS, "Read in Atomic Velocity" );
-        {
-          for( Int a = 0; a < numAtom; a++ ){
-            Print( statusOFS, "atom", a, "Velocity   ", atomList[a].vel );
-          }
-        }
-      }
-
-      Print( statusOFS, "Ekinetic     = ", Ekinetic_ );
-      Print( statusOFS, "vxi1         = ", vxi1_ );
-      Print( statusOFS, "xi1          = ", xi1_ );
-
-    }//restart read in last velocities of atoms
-    else{
-      for(Int a=0; a<numAtom; a++) 
-        atomList[a].vel = Point3( 0.0, 0.0, 0.0 );
-    }
- 
-  } // nosehoover 1
 
   // Print out the force
 //  PrintBlock( statusOFS, "Atomic Force" );
@@ -748,8 +687,7 @@ IonDynamics::NoseHoover1	( Int ionIter )
         << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< vxi1 << std::endl
         << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< xi1 << std::endl
         << std::resetiosflags(std::ios::scientific)
-        << std::resetiosflags(std::ios::showpos)
-        << std::endl;
+        << std::resetiosflags(std::ios::showpos);
       
       fout_v.close();
     }
