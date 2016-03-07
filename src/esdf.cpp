@@ -918,19 +918,21 @@ namespace dgdft{
       strcpy(kw_dscrpt[i],"*! whether the last position is restarted!*");
 
       i++;
-      strcpy(kw_label[i],"restart_thermostat");
+      strcpy(kw_label[i],"restart_velocity");
       strcpy(kw_typ[i],"I:E");
-      strcpy(kw_dscrpt[i],"*! whether the last thermostat is restarted!*");
-
-      i++;
-      strcpy(kw_label[i],"output_thermostat");
-      strcpy(kw_typ[i],"I:E");
-      strcpy(kw_dscrpt[i],"*! whether thermostat is outputed !*");
+      strcpy(kw_dscrpt[i],"*! whether the last velocity (and thermostat) is restarted!*");
 
       i++;
       strcpy(kw_label[i],"output_position");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! whether the last position is outputed !*");
+
+      i++;
+      strcpy(kw_label[i],"output_velocity");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! whether the last velocity (and thermostat) is outputed !*");
+
+
 
       i++;
       strcpy(kw_label[i],"output_xyz");
@@ -2560,9 +2562,9 @@ namespace dgdft{
           esdfParam.MDExtrapolationType          = strtmp;
           esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);
           esdfParam.isRestartPosition     = esdf_integer( "Restart_Position", 0 );
-          esdfParam.isRestartThermostat   = esdf_integer( "Restart_Thermostat", 0 );
+          esdfParam.isRestartVelocity     = esdf_integer( "Restart_Velocity", 0 );
           esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 1 );
-          esdfParam.isOutputThermostat    = esdf_integer( "Output_Thermostat", 1 );
+          esdfParam.isOutputVelocity      = esdf_integer( "Output_Velocity", 1 );
           esdfParam.isOutputXYZ           = esdf_integer( "Output_XYZ", 1 );
 
           // Restart position / thermostat
@@ -2676,9 +2678,9 @@ namespace dgdft{
         Print(statusOFS, "Ion Temperature                      = ",  esdfParam.ionTemperature, "[K]");
         Print(statusOFS, "Thermostat mass                      = ",  esdfParam.qMass);
         Print(statusOFS, "RestartPosition                      = ",  esdfParam.isRestartPosition);
-        Print(statusOFS, "RestartThermostat                    = ",  esdfParam.isRestartThermostat);
+        Print(statusOFS, "RestartVelocity                      = ",  esdfParam.isRestartVelocity);
         Print(statusOFS, "OutputPosition                       = ",  esdfParam.isOutputPosition );
-        Print(statusOFS, "OutputThermostat                     = ",  esdfParam.isOutputThermostat );
+        Print(statusOFS, "OutputVelocity                       = ",  esdfParam.isOutputVelocity   );
         Print(statusOFS, "Output XYZ format                    = ",  esdfParam.isOutputXYZ );
         Print(statusOFS, "Force tol for geoopt                 = ",  esdfParam.geoOptMaxForce );
         Print(statusOFS, "MD extrapolation type                = ",  esdfParam.MDExtrapolationType);

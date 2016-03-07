@@ -14,15 +14,6 @@ TODO List   {#pageTODO}
       the performance of ScaLAPACK diagonalization and purification
       first for a fixed matrix.
   - LIBDBCSR format similar to PEXSI. Worth trying first. 
-- Combine PWDFT_bb and MD (partially done)
-  - Should only have pwdft.cpp and dgdft.cpp
-  - Standardize the output of initial and final results into subroutines
-    that are shared between pwdft and dgdft. 
-  - into something called move_ions for geometry optimization and MD.
-    o BFGS or preconditioned version (e.g. QE uses BFGS)
-    o For 2000-10000 atoms, perhaps BFGS is too expensive. Maybe CG or
-      FIRE alternative. PETOT uses CG?
-    o MD: NVE, NH1, Langevin
 - OpenMP does not work for the new spinor multiplication due to the
   common dependence on the Fourier structure
   - The latest version is AddMultSpinorFineR2C, fft.inputVecR2C etc are
@@ -110,3 +101,14 @@ TODO List   {#pageTODO}
 - Hybrid is in the KohnSham class with sequential implementation. 
   - Parallel implementation for PWDFT
   - Hybrid for DG
+
+DONE recently
+- Combine PWDFT_bb and MD (partially done)
+  - Should only have pwdft.cpp and dgdft.cpp
+  - Standardize the output of initial and final results into subroutines
+    that are shared between pwdft and dgdft. 
+  - into something called move_ions for geometry optimization and MD.
+    o BFGS or preconditioned version (e.g. QE uses BFGS)
+    o For 2000-10000 atoms, perhaps BFGS is too expensive. Maybe CG or
+      FIRE alternative. PETOT uses CG?
+    o MD: NVE, NH1, Langevin

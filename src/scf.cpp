@@ -363,7 +363,7 @@ SCF::Iterate (  )
 
       if( scfNorm_ < scfTolerance_ ){
         /* converged */
-        Print( statusOFS, "SCF is converged!\n" );
+        statusOFS << "SCF is converged in " << iter << " steps !" << std::endl;
         isSCFConverged = true;
       }
 
@@ -447,7 +447,8 @@ SCF::Iterate (  )
         Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
 
         if( dExx < scfPhiTolerance_ ){
-          Print( statusOFS, "SCF for hybrid functional is converged!\n" );
+          statusOFS << "SCF for hybrid functional is converged in " 
+            << phiIter << " steps !" << std::endl;
           isPhiIterConverged = true;
         }
       }

@@ -698,18 +698,18 @@ namespace dgdft{
       ///
       /// Default: 0
       bool                isRestartPosition;
-      /// @brief Whether to use the previous thermostat state
+      /// @brief Whether to use the previous velocity and thermostat
       ///
       /// Default: 0
-      bool                isRestartThermostat;
+      bool                isRestartVelocity;
       /// @brief Whether to output position information
       ///
       /// Default: 1
       bool                isOutputPosition;
-      /// @brief Whether to output thermostat information
+      /// @brief Whether to output velocity and thermostat information
       ///
       /// Default: 1
-      bool                isOutputThermostat;
+      bool                isOutputVelocity;
       /// @brief Output the atomic position in XYZ format. Used in MD
       /// simulation and geometry optimization
       ///

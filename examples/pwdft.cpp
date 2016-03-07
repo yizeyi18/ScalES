@@ -82,9 +82,21 @@ int main(int argc, char **argv)
 		// *********************************************************************
 		
 		// Initialize log file
-		stringstream  ss;
-		ss << "statfile." << mpirank;
-		statusOFS.open( ss.str().c_str() );
+#ifdef _RELEASE_
+     // In the release mode, only the master processor outputs information
+     if( mpirank == 0 ){
+       stringstream  ss;
+       ss << "statfile." << mpirank;
+       statusOFS.open( ss.str().c_str() );
+     }
+#else
+    // Every processor outputs information
+    {
+      stringstream  ss;
+      ss << "statfile." << mpirank;
+      statusOFS.open( ss.str().c_str() );
+    }
+#endif
 
     Print( statusOFS, "mpirank = ", mpirank );
     Print( statusOFS, "mpisize = ", mpisize );
@@ -260,7 +272,7 @@ int main(int argc, char **argv)
         // Update the electron density
         DblNumMat& denCurVec  = hamKS.Density();
         SetValue( denCurVec, 0.0 );
-        for( Int l = 0; l < maxHist-1; l++ ){
+        for( Int l = 0; l < maxHist; l++ ){
           blas::Axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
               1, denCurVec.Data(), 1 );
         } // for (l)

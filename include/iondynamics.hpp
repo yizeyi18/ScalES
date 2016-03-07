@@ -72,7 +72,7 @@ private:
   DblNumVec            atomMass_;
 
   bool                 isOutputPosition_;
-  bool                 isOutputThermostat_;
+  bool                 isOutputVelocity_;
   bool                 isOutputXYZ_;
   std::string          MDExtrapolationType_;
 
@@ -101,6 +101,8 @@ private:
 
 //  void FireOpt( Int ionIter );
 
+  /// @brief VelocityVerlet for NVE simulation
+  ///
   void VelocityVerlet( Int ionIter );
 
   /// @brief NoseHoover thermostat with chain level 1. The

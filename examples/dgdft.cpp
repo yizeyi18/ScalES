@@ -516,7 +516,7 @@ int main(int argc, char **argv)
               if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
                 DblNumVec& denCurVec  = hamDG.Density().LocalMap()[key];
                 SetValue( denCurVec, 0.0 );
-                for( Int l = 0; l < maxHist-1; l++ ){
+                for( Int l = 0; l < maxHist; l++ ){
                   DblNumVec& denHistVec = densityHist[l].LocalMap()[key];
 
                   blas::Axpy( denCurVec.m(), denCoef[l], denHistVec.Data(),

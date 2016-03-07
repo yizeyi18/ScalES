@@ -61,16 +61,19 @@ IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& a
   MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
   MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
-  atomListPtr_    = &atomList;
-  ionMove_        = esdfParam.ionMove;
-  ionTemperature_ = 1.0 / esdfParam.TbetaIonTemperature;
-  isOutputPosition_   = esdfParam.isOutputPosition;
-  isOutputThermostat_ = esdfParam.isOutputThermostat;
-  isOutputXYZ_        = esdfParam.isOutputXYZ;
-  MDExtrapolationType_= esdfParam.MDExtrapolationType;
+  // Read in input parameters
+  atomListPtr_            = &atomList;
+  ionMove_                = esdfParam.ionMove;
+  ionTemperature_         = 1.0 / esdfParam.TbetaIonTemperature;
+  isOutputPosition_       = esdfParam.isOutputPosition;
+  isOutputVelocity_       = esdfParam.isOutputVelocity;
+  isOutputXYZ_            = esdfParam.isOutputXYZ;
+  MDExtrapolationType_    = esdfParam.MDExtrapolationType;
+  dt_                     = esdfParam.MDTimeStep;
+  Q1_                     = esdfParam.qMass;
  
-  // History
-  maxHist_ = 3; 
+  // History of atomic position
+  maxHist_ = 3;  // hard coded
   atomListHist_.resize(maxHist_);
   for( Int l = 0; l < maxHist_; l++ ){
     atomListHist_[l] = atomList;
@@ -98,7 +101,103 @@ IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& a
   Econserve_ = 0.0;
   Edrift_   = 0.0;
 
-  dt_ = esdfParam.MDTimeStep;
+  if( ionMove_ == "verlet" ){
+    if(esdfParam.isRestartVelocity){
+      statusOFS << std::endl 
+        << "Read velocity information from lastVel.out. " << std::endl;
+
+      DblNumVec atomvelRead(3*numAtom);
+      if( mpirank == 0 ){
+        std::fstream fin;
+        fin.open("lastVel.out",std::ios::in);
+        if( !fin.good() ){
+          throw std::logic_error( "Cannot open lastVel.out!" );
+        }
+        for(Int a=0; a<numAtom; a++){
+          fin>> atomvelRead[3*a+0];
+          fin>> atomvelRead[3*a+1];
+          fin>> atomvelRead[3*a+2];
+        }
+        fin.close();
+      }
+      // Broadcast thermostat information
+      MPI_Bcast( atomvelRead.Data(), 3*numAtom, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+
+      for(Int a=0; a<numAtom; a++){
+        atomList[a].vel = 
+          Point3( atomvelRead[3*a], atomvelRead[3*a+1], atomvelRead[3*a+2] );
+      }
+
+      if( mpirank == 0 ){
+        PrintBlock( statusOFS, "Read in Atomic Velocity" );
+        {
+          for( Int a = 0; a < numAtom; a++ ){
+            Print( statusOFS, "atom", a, "Velocity   ", atomList[a].vel );
+          }
+        }
+      }
+    }//restart read in last velocities of atoms
+  }
+
+  if( ionMove_ == "nosehoover1" ){
+    xi1_ = 0.0;
+    vxi1_ = 0.0;
+    G1_ = 0.0;
+    scalefac_ = 0.0;
+ 
+    if(esdfParam.isRestartVelocity){
+      statusOFS << std::endl 
+        << "Read velocity and thermostat information from lastVel.out. " << std::endl;
+
+      DblNumVec atomvelRead(3*numAtom);
+      if( mpirank == 0 ){
+        std::fstream fin;
+        fin.open("lastVel.out",std::ios::in);
+        if( !fin.good() ){
+          throw std::logic_error( "Cannot open lastVel.out!" );
+        }
+        for(Int a=0; a<numAtom; a++){
+          fin>> atomvelRead[3*a+0];
+          fin>> atomvelRead[3*a+1];
+          fin>> atomvelRead[3*a+2];
+        }
+        fin >> vxi1_;
+        fin >> xi1_;
+
+        fin.close();
+      }
+      // Broadcast thermostat information
+      MPI_Bcast( atomvelRead.Data(), 3*numAtom, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+      MPI_Bcast( &vxi1_, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+      MPI_Bcast( &Ekinetic_, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+      MPI_Bcast( &xi1_, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+
+      for(Int a=0; a<numAtom; a++){
+        atomList[a].vel = 
+          Point3( atomvelRead[3*a], atomvelRead[3*a+1], atomvelRead[3*a+2] );
+      }
+
+      if( mpirank == 0 ){
+        PrintBlock( statusOFS, "Read in Atomic Velocity" );
+        {
+          for( Int a = 0; a < numAtom; a++ ){
+            Print( statusOFS, "atom", a, "Velocity   ", atomList[a].vel );
+          }
+        }
+      }
+
+      Print( statusOFS, "Ekinetic     = ", Ekinetic_ );
+      Print( statusOFS, "vxi1         = ", vxi1_ );
+      Print( statusOFS, "xi1          = ", xi1_ );
+
+    }//restart read in last velocities of atoms
+    else{
+      for(Int a=0; a<numAtom; a++) 
+        atomList[a].vel = Point3( 0.0, 0.0, 0.0 );
+    }
+ 
+  } // nosehoover 1
+
 
   if( ionMove_ == "nosehoover1" ){
     xi1_ = 0.0;
@@ -107,16 +206,16 @@ IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& a
     scalefac_ = 0.0;
     Q1_ = esdfParam.qMass;
  
-    if(esdfParam.isRestartThermostat){
+    if(esdfParam.isRestartVelocity){
       statusOFS << std::endl 
-        << "Read velocity and thermostat information from lastthermo.out, " << std::endl 
+        << "Read velocity and thermostat information from lastVel.out, " << std::endl 
         << "overwrite the atomic position read from the input file." 
         << std::endl;
 
       DblNumVec atomvelRead(3*numAtom);
       if( mpirank == 0 ){
         std::fstream fin;
-        fin.open("lastthermo.out",std::ios::in);
+        fin.open("lastVel.out",std::ios::in);
         for(Int a=0; a<numAtom; a++){
           fin>> atomvelRead[3*a+0];
           fin>> atomvelRead[3*a+1];
@@ -203,10 +302,10 @@ IonDynamics::MoveIons	( Int ionIter )
   // *********************************************************************
   // Molecular dynamics methods
   // *********************************************************************
-//  if( ionMove_ == "verlet" ){
-//    VelocityVerlet( ionIter );
-//  }
-//
+  if( ionMove_ == "verlet" ){
+    VelocityVerlet( ionIter );
+  }
+
   if( ionMove_ == "nosehoover1" ){
     NoseHoover1( ionIter );
   }
@@ -217,10 +316,24 @@ IonDynamics::MoveIons	( Int ionIter )
     Print(statusOFS, "Atom Type and Coordinates");
     Print(statusOFS, ""); 
     for(Int i=0; i < atomList.size(); i++) {
-      Print(statusOFS, "Type = ", atomList[i].type, "Position  = ", atomList[i].pos);
+      statusOFS << std::setiosflags(std::ios::left) 
+        << std::setw(LENGTH_VAR_NAME) << "Type = "
+        << std::setw(6) << atomList[i].type
+        << std::setiosflags(std::ios::scientific)
+        << std::setiosflags(std::ios::showpos)
+        << std::setw(LENGTH_VAR_NAME) << "Pos  = "
+        << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[0]
+        << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[1]
+        << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[2]
+        << std::setw(LENGTH_VAR_NAME) << "Vel  = "
+        << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[0]
+        << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[1]
+        << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[2]
+        << std::resetiosflags(std::ios::scientific)
+        << std::resetiosflags(std::ios::showpos)
+        << std::endl;
     }
   }
-
 
 #ifndef _RELEASE_
 	PopCallStack();
@@ -297,6 +410,155 @@ IonDynamics::BarzilaiBorweinOpt	( Int ionIter )
 	return ;
 } 		// -----  end of method IonDynamics::BarzilaiBorweinOpt  ----- 
 
+
+void
+IonDynamics::VelocityVerlet	( Int ionIter )
+{
+#ifndef _RELEASE_
+	PushCallStack("IonDynamics::VelocityVerlet");
+#endif
+  Int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+  
+  std::vector<Atom>&   atomList = *atomListPtr_;
+
+  Int numAtom = atomList.size();
+
+
+  std::vector<Point3>  atompos(numAtom);
+  std::vector<Point3>  atomvel(numAtom);
+  std::vector<Point3>  atomforce(numAtom);
+
+  // some aliasing to be compatible with implementation before
+  Real& dt = dt_;
+  DblNumVec& atomMass = atomMass_;
+  Real  K;
+
+  for( Int a = 0; a < numAtom; a++ ){
+    atompos[a]   = atomList[a].pos;
+    atomvel[a]   = atomList[a].vel;
+    atomforce[a] = atomList[a].force;
+  }
+
+  
+  // Propagate velocity. This is the second part of Verlet step
+
+  for( Int a = 0; a < numAtom; a++ ){
+    atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
+  }
+
+  // Propagate the chain. This is due to the remaining update of the
+  // chain variables.
+  K=0.;
+  for(Int a=0; a<numAtom; a++){
+    for(Int j=0; j<3; j++){
+      K += atomMass[a]*atomvel[a][j]*atomvel[a][j]/2.;
+    }
+  }
+
+  // At this point, the position, velocity and thermostat variables are
+  // synced at the same time step
+
+  Ekinetic_  = K;
+  Econserve_ = Ekinetic_ + Epot_;
+  if(ionIter == 1)
+    EconserveInit_ = Econserve_;
+  Edrift_ = (Econserve_-EconserveInit_)/EconserveInit_;
+  
+  Print(statusOFS, "MD_Ekin    =  ", Ekinetic_);
+  Print(statusOFS, "MD_Epot    =  ", Epot_);
+  Print(statusOFS, "MD_Econ    =  ", Econserve_);
+  Print(statusOFS, "MD_Edrift  =  ", Edrift_);
+
+  // Output the XYZ format for movie
+  // Once this is written, all work associated with the current atomic
+  // position is DONE.
+  if( mpirank == 0 ){
+    if( isOutputXYZ_ ){
+      std::fstream fout;
+      fout.open("MD.xyz",std::ios::out | std::ios::app) ;
+      if( !fout.good() ){
+        throw std::logic_error( "Cannot open MD.xyz!" );
+      }
+      fout << numAtom << std::endl;
+      fout << "MD step # "<< ionIter << std::endl;
+      for(Int a=0; a<numAtom; a++){
+        fout<< std::setw(6)<< atomList[a].type
+          << std::setw(16)<< atompos[a][0]*au2ang
+          << std::setw(16)<< atompos[a][1]*au2ang
+          << std::setw(16)<< atompos[a][2]*au2ang
+          << std::endl;
+      }
+      fout.close();
+    }
+  } // if( mpirank == 0 )
+ 
+  // Update velocity and position
+  for(Int a=0; a<numAtom; a++) {
+    atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
+    atompos[a] = atompos[a] + atomvel[a] * dt;
+  }
+
+  // Output the position and thermostat variable. 
+  // These are the configuration that SCF will work on next. 
+  // Hence if the job is stopped in the middle of SCF (which is most
+  // likely), the MD job should continue from this configuration
+  if( mpirank == 0 ){
+    if(isOutputPosition_){
+      std::fstream fout;
+      fout.open("lastPos.out",std::ios::out);
+      if( !fout.good() ){
+        throw std::logic_error( "File cannot be open!" );
+      }
+      for(Int i=0; i<numAtom; i++){
+        fout << std::setiosflags(std::ios::scientific)
+          << std::setiosflags(std::ios::showpos)
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atompos[i][0]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atompos[i][1]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atompos[i][2]
+          << std::resetiosflags(std::ios::scientific)
+          << std::resetiosflags(std::ios::showpos)
+          << std::endl;
+      }
+      fout.close();
+    }
+
+    if(isOutputVelocity_){
+      std::fstream fout_v;
+      fout_v.open("lastVel.out",std::ios::out);
+      if( !fout_v.good() ){
+        throw std::logic_error( "File cannot be open!" );
+      }
+      for(Int i=0; i<numAtom; i++){
+        fout_v << std::setiosflags(std::ios::scientific)
+          << std::setiosflags(std::ios::showpos)
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2]
+          << std::resetiosflags(std::ios::scientific)
+          << std::resetiosflags(std::ios::showpos)
+          << std::endl;
+      }
+      fout_v.close();
+    }
+    
+  } // if( mpirank == 0 )
+
+
+  // Update atomic position and velocity to store in atomListPtr_
+  // NOTE: Force is NOT consistent with the position yet.
+  for(Int a = 0; a < numAtom; a++){
+    atomList[a].pos = atompos[a];
+    atomList[a].vel = atomvel[a];
+  }
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method IonDynamics::VelocityVerlet  ----- 
 
 void
 IonDynamics::NoseHoover1	( Int ionIter )
@@ -427,29 +689,43 @@ IonDynamics::NoseHoover1	( Int ionIter )
         throw std::logic_error( "File cannot be open!" );
       }
       for(Int i=0; i<numAtom; i++){
-        fout<< std::setw(16)<< atompos[i][0];
-        fout<< std::setw(16)<< atompos[i][1];
-        fout<< std::setw(16)<< atompos[i][2];
-        fout<< std::endl;
+        fout << std::setiosflags(std::ios::scientific)
+          << std::setiosflags(std::ios::showpos)
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atompos[i][0]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atompos[i][1]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atompos[i][2]
+          << std::resetiosflags(std::ios::scientific)
+          << std::resetiosflags(std::ios::showpos)
+          << std::endl;
       }
       fout.close();
     }
     
-    if(isOutputThermostat_){
+    if(isOutputVelocity_){
       std::fstream fout_v;
-      fout_v.open("lastthermo.out",std::ios::out);
+      fout_v.open("lastVel.out",std::ios::out);
       if( !fout_v.good() ){
         throw std::logic_error( "File cannot be open!" );
       }
       for(Int i=0; i<numAtom; i++){
-        fout_v<< std::setw(16)<< atomvel[i][0];
-        fout_v<< std::setw(16)<< atomvel[i][1];
-        fout_v<< std::setw(16)<< atomvel[i][2];
-        fout_v<< std::endl;
+        fout_v << std::setiosflags(std::ios::scientific)
+          << std::setiosflags(std::ios::showpos)
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2]
+          << std::resetiosflags(std::ios::scientific)
+          << std::resetiosflags(std::ios::showpos)
+          << std::endl;
       }
-      fout_v<<std::setw(16)<< vxi1<<std::endl;
-      fout_v<<std::setw(16)<< K<<std::endl;
-      fout_v<<std::setw(16)<< xi1<<std::endl;
+
+      fout_v << std::setiosflags(std::ios::scientific)
+        << std::setiosflags(std::ios::showpos)
+        << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< vxi1 << std::endl
+        << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< xi1 << std::endl
+        << std::resetiosflags(std::ios::scientific)
+        << std::resetiosflags(std::ios::showpos)
+        << std::endl;
+      
       fout_v.close();
     }
   } // if( mpirank == 0 )
@@ -486,7 +762,8 @@ IonDynamics::DensityExtrapolateCoefficient	( Int ionIter, DblNumVec& coef )
     coef[1] = -1.0;
   }
   else if( MDExtrapolationType_ == "quadratic" ){
-    if( ionIter < 4 ){
+    // WHY 4 rather than 2?
+    if( ionIter < 3 ){
       coef[0] = 2.0;
       coef[1] = -1.0;
     }
@@ -497,11 +774,15 @@ IonDynamics::DensityExtrapolateCoefficient	( Int ionIter, DblNumVec& coef )
     }
   }
   else if( MDExtrapolationType_ == "dario" ){
-    if( ionIter < 4 ){
+    if( ionIter < 3 ){
       coef[0] = 2.0;
       coef[1] = -1.0;
     }
     else{
+      // FIXME
+      // Dario extrapolation not working yet
+
+
       // Update the density through quadratic extrapolation
       // Dario CPC 118, 31 (1999)
       // huwei 20150923 
@@ -520,7 +801,7 @@ IonDynamics::DensityExtrapolateCoefficient	( Int ionIter, DblNumVec& coef )
       for( Int i = 0; i < numAtom; i++ ){
         atemp1[i] = atomListHist_[0][i].pos - atomListHist_[1][i].pos;
         atemp2[i] = atomListHist_[1][i].pos - atomListHist_[2][i].pos;
-        atemp3[i] = atomListHist_[2][i].pos - atomList[i].pos;
+        atemp3[i] = atomListHist_[0][i].pos - atomList[i].pos;
       }
 
       for( Int i = 0; i < numAtom; i++ ){
