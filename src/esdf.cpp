@@ -2681,6 +2681,7 @@ namespace dgdft{
         Print(statusOFS, "OutputThermostat                     = ",  esdfParam.isOutputThermostat );
         Print(statusOFS, "Output XYZ format                    = ",  esdfParam.isOutputXYZ );
         Print(statusOFS, "Force tol for geoopt                 = ",  esdfParam.geoOptMaxForce );
+        Print(statusOFS, "MD extrapolation type                = ",  esdfParam.MDExtrapolationType);
         Print(statusOFS, "");
       }
 

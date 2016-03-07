@@ -3,7 +3,7 @@
 
 include ../make.inc
 
-SRCS = dgdft_NH1.cpp pwdft.cpp dgdft.cpp \
+SRCS = pwdft.cpp dgdft.cpp \
 			 diagonalize.cpp den2cube.cpp alb2cube.cpp lufact.cpp
 
 OBJS = ${SRCS:.cpp=.o}
@@ -12,9 +12,6 @@ EXES = ${SRCS:.cpp=}
 
 pwdft: pwdft.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ pwdft.o $(LOADOPTS) )
-
-dgdft_NH1: dgdft_NH1.o ${DGDFT_LIB} 
-	($(LOADER) -o $@ dgdft_NH1.o $(LOADOPTS) )
 
 dgdft: dgdft.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ dgdft.o $(LOADOPTS) )

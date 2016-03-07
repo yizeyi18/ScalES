@@ -14,7 +14,7 @@ TODO List   {#pageTODO}
       the performance of ScaLAPACK diagonalization and purification
       first for a fixed matrix.
   - LIBDBCSR format similar to PEXSI. Worth trying first. 
-- Combine PWDFT_bb and MD
+- Combine PWDFT_bb and MD (partially done)
   - Should only have pwdft.cpp and dgdft.cpp
   - Standardize the output of initial and final results into subroutines
     that are shared between pwdft and dgdft. 
@@ -62,12 +62,12 @@ TODO List   {#pageTODO}
     case.
   - try/catch and C++ exceptions not particularly useful for debugging.
   - coredumper
-  - Encapsulate the error handling function
-- Spinor class should be removed and moved to the Hamiltonian class. In
+  - Encapsulate the error handling function (partially done)
+- Spinor class may be removed and moved to the Hamiltonian class. In
   the future different types of spinors should be treated with different
   classes of "Hamiltonian". The functions in spinor, such as
   preconditioners should also be moved to the Hamiltonian class (or
-  KohnSham).
+  KohnSham). (not sure still needed)
   - Hamitlonian should be a pure virtual class (does not implement
     anything actually)
   - Spin polarization should be kept in mind start from the beginning.

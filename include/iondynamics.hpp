@@ -64,8 +64,8 @@ private:
   std::vector<Atom>*   atomListPtr_;
 
   Int maxHist_;
-  std::vector<std::vector<Atom> >   atomListSave_;
-//  std::vector<DistDblNumVec>        densityHist_[MAXHIST_];
+
+  std::vector<std::vector<Atom> >   atomListHist_;
 
   std::string          ionMove_;
 
@@ -74,6 +74,7 @@ private:
   bool                 isOutputPosition_;
   bool                 isOutputThermostat_;
   bool                 isOutputXYZ_;
+  std::string          MDExtrapolationType_;
 
   // Molecular dynamics variables
   Real                 Ekinetic_; // kinetic energy for ions
@@ -101,7 +102,6 @@ private:
 //  void FireOpt( Int ionIter );
 
   void VelocityVerlet( Int ionIter );
-
 
   /// @brief NoseHoover thermostat with chain level 1. The
   /// implementation is consistent with the CORRECT version of
@@ -162,12 +162,16 @@ public:
   /// Will determine both geometry optimization and molecular dynamics
   void MoveIons( Int ionIter );
  
+  /// @brief Extrapolating coefficient for density
+  ///
+  void DensityExtrapolateCoefficient( Int ionIter, DblNumVec& coef );
 
   // *********************************************************************
   // Access functions
   // *********************************************************************
   std::vector<Atom>& AtomList() { return *atomListPtr_; }
   void SetEpot(Real Epot) { Epot_ = Epot; }
+  Int  MaxHist() { return maxHist_; }
 
 };
 

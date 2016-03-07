@@ -67,9 +67,14 @@ IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& a
   isOutputPosition_   = esdfParam.isOutputPosition;
   isOutputThermostat_ = esdfParam.isOutputThermostat;
   isOutputXYZ_        = esdfParam.isOutputXYZ;
+  MDExtrapolationType_= esdfParam.MDExtrapolationType;
  
-  maxHist_ = 3; // fixed
-  atomListSave_.resize(maxHist_);
+  // History
+  maxHist_ = 3; 
+  atomListHist_.resize(maxHist_);
+  for( Int l = 0; l < maxHist_; l++ ){
+    atomListHist_[l] = atomList;
+  }
  
   Int numAtom = atomList.size();
   atomMass_.Resize( numAtom );
@@ -179,6 +184,13 @@ IonDynamics::MoveIons	( Int ionIter )
 #ifndef _RELEASE_
 	PushCallStack("IonDynamics::MoveIons");
 #endif
+  std::vector<Atom>&   atomList = *atomListPtr_;
+
+  // Update saved atomList. 0 is the latest one
+  for( Int l = maxHist_-1; l > 0; l-- ){
+    atomListHist_[l] = atomListHist_[l-1];
+  }
+  atomListHist_[0] = atomList;
 
   // *********************************************************************
   // Geometry optimization methods
@@ -201,7 +213,6 @@ IonDynamics::MoveIons	( Int ionIter )
 
   // Output the new coordinates
   {
-    std::vector<Atom>&   atomList = *atomListPtr_;
     Print(statusOFS, ""); 
     Print(statusOFS, "Atom Type and Coordinates");
     Print(statusOFS, ""); 
@@ -227,7 +238,7 @@ IonDynamics::BarzilaiBorweinOpt	( Int ionIter )
 #endif
 
   std::vector<Atom>&   atomList = *atomListPtr_;
-  std::vector<Atom>&   atomListOld = atomListSave_[0];
+  std::vector<Atom>&   atomListOld = atomListHist_[0];
 
   Int numAtom = atomList.size();
 
@@ -274,9 +285,6 @@ IonDynamics::BarzilaiBorweinOpt	( Int ionIter )
     }
   }
 
-  // Overwrite the stored atom list
-  atomListSave_[0] = atomList;   // make a copy
-
   // Update atomic position to store in atomListPtr_
   for(Int a = 0; a < numAtom; a++){
     atomList[a].pos = atompos[a];
@@ -301,7 +309,6 @@ IonDynamics::NoseHoover1	( Int ionIter )
   MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
   
   std::vector<Atom>&   atomList = *atomListPtr_;
-  std::vector<Atom>&   atomListOld = atomListSave_[0];
 
   Int numAtom = atomList.size();
 
@@ -448,9 +455,6 @@ IonDynamics::NoseHoover1	( Int ionIter )
   } // if( mpirank == 0 )
 
 
-  // Store the information at the current step
-  atomListSave_[0] = atomList;
-
   // Update atomic position and velocity to store in atomListPtr_
   // NOTE: Force is NOT consistent with the position yet.
   for(Int a = 0; a < numAtom; a++){
@@ -465,6 +469,97 @@ IonDynamics::NoseHoover1	( Int ionIter )
 	return ;
 } 		// -----  end of method IonDynamics::NoseHoover1  ----- 
 
+
+void
+IonDynamics::DensityExtrapolateCoefficient	( Int ionIter, DblNumVec& coef )
+{
+#ifndef _RELEASE_
+	PushCallStack("IonDynamics::DensityExtrapolateCoefficient");
+#endif
+  std::vector<Atom>&   atomList = *atomListPtr_;
+  Int numAtom = atomList.size();
+
+  coef.Resize( maxHist_ );
+  SetValue(coef, 0.0);
+  if( MDExtrapolationType_ == "linear" ){
+    coef[0] = 2.0;
+    coef[1] = -1.0;
+  }
+  else if( MDExtrapolationType_ == "quadratic" ){
+    if( ionIter < 4 ){
+      coef[0] = 2.0;
+      coef[1] = -1.0;
+    }
+    else{
+      coef[0] = 3.0;
+      coef[1] = -3.0;
+      coef[2] = 1.0;
+    }
+  }
+  else if( MDExtrapolationType_ == "dario" ){
+    if( ionIter < 4 ){
+      coef[0] = 2.0;
+      coef[1] = -1.0;
+    }
+    else{
+      // Update the density through quadratic extrapolation
+      // Dario CPC 118, 31 (1999)
+      // huwei 20150923 
+      // Compute the coefficient a and b
+      Real a11 = 0.0;
+      Real a22 = 0.0;
+      Real a12 = 0.0;
+      Real a21 = 0.0;
+      Real b1 = 0.0;
+      Real b2 = 0.0;
+
+      std::vector<Point3>  atemp1(numAtom);
+      std::vector<Point3>  atemp2(numAtom);
+      std::vector<Point3>  atemp3(numAtom);
+
+      for( Int i = 0; i < numAtom; i++ ){
+        atemp1[i] = atomListHist_[0][i].pos - atomListHist_[1][i].pos;
+        atemp2[i] = atomListHist_[1][i].pos - atomListHist_[2][i].pos;
+        atemp3[i] = atomListHist_[2][i].pos - atomList[i].pos;
+      }
+
+      for( Int i = 0; i < numAtom; i++ ){
+
+        a11 += atemp1[i][0]*atemp1[i][0]+atemp1[i][1]*atemp1[i][1]+atemp1[i][2]*atemp1[i][2];
+        a12 += atemp1[i][0]*atemp2[i][0]+atemp1[i][1]*atemp2[i][1]+atemp1[i][2]*atemp2[i][2];
+        a22 += atemp2[i][0]*atemp2[i][0]+atemp2[i][1]*atemp2[i][1]+atemp2[i][2]*atemp2[i][2];
+        a21 = a12;
+        b1 += 0.0-atemp3[i][0]*atemp1[i][0]-atemp3[i][1]*atemp1[i][1]-atemp3[i][2]*atemp1[i][2];
+        b2 += 0.0-atemp3[i][0]*atemp2[i][0]-atemp3[i][1]*atemp2[i][1]-atemp3[i][2]*atemp2[i][2];
+      }
+
+
+      Real detA = a11*a22 - a12*a21;
+      Real aA = (b1*a22-b2*a12)/detA;
+      Real bA = (b2*a11-b2*a21)/detA;
+
+
+//      statusOFS << "info"<< std::endl;
+//      statusOFS << a11 << ", " << a12 << ", " << a21 << ", " << a22 << ", " << detA << ", " << b1 
+//        << ", " << b2 << std::endl;
+
+//      denCurVec(ii) = den0(ii) + aA * ( den0(ii) - den1(ii) ) + bA * ( den1(ii) - den2(ii) );
+      coef[0] = 1.0 + aA;
+      coef[1] = -aA + bA;
+      coef[2] = -bA;
+    }
+  }
+  else{
+    throw std::logic_error( "Currently three extrapolation types are supported!" );
+  }
+
+
+#ifndef _RELEASE_
+	PopCallStack();
+#endif
+
+	return ;
+} 		// -----  end of method IonDynamics::DensityExtrapolateCoefficient  ----- 
 
 } // namespace dgdft
 

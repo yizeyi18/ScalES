@@ -138,8 +138,8 @@ int main(int argc, char **argv)
     Int nprow, npcol;
     Int contxt;
     Int dmCol, dmRow;
+    Index3  numElem = esdfParam.numElem;
     {
-      Index3  numElem = esdfParam.numElem;
 
       // Note the usage of notation can be a bit misleading here:
       // dmRow is the number of processors per row, which normally is
@@ -220,7 +220,6 @@ int main(int argc, char **argv)
       distHamKS.SetComm( dm.comm );
       distPsi.SetComm( dm.comm );
 
-      Index3  numElem = esdfParam.numElem;
       IntNumTns& elemPrtnInfo = distEigSol.Prtn().ownerInfo;
       elemPrtnInfo.Resize( numElem[0], numElem[1], numElem[2] );
 
@@ -408,6 +407,26 @@ int main(int argc, char **argv)
 
     ionDyn.Setup( esdfParam, hamDG.AtomList(), ptable ); 
 
+    // For density extrapolation
+    
+    Int maxHist = ionDyn.MaxHist();
+    // densityHist[0] is the most recent density
+    std::vector<DistDblNumVec>    densityHist(maxHist);
+    // Initialize the history of density
+    for( Int l = 0; l < maxHist; l++ ){
+      DistDblNumVec& den    = densityHist[l];
+      DistDblNumVec& denCur = hamDG.Density();
+      for( Int k=0; k< numElem[2]; k++ )
+        for( Int j=0; j< numElem[1]; j++ )
+          for( Int i=0; i< numElem[0]; i++ ) {
+            Index3 key = Index3(i,j,k);
+            if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+              den.LocalMap()[key]     = denCur.LocalMap()[key];
+            } // own this element
+          }  // for (i)
+    } // for (l)
+
+
     // Main loop for geometry optimization or molecular dynamics
     // If ionMaxIter == 1, it is equivalent to single shot calculation
     Int ionMaxIter = esdfParam.ionMaxIter;
@@ -426,7 +445,6 @@ int main(int argc, char **argv)
       // Update atomic position in the extended element
       {
         GetTime(timeSta);
-        Index3  numElem = esdfParam.numElem;
         std::vector<Atom>&  atomList = hamDG.AtomList();
 
         for( Int k=0; k< numElem[2]; k++ )
@@ -470,6 +488,44 @@ int main(int argc, char **argv)
       hamDG.UpdateHamiltonianDG( hamDG.AtomList() );
       hamDG.CalculatePseudoPotential( ptable );
       scfDG.Update( );
+      
+      // Update the density history through extrapolation
+      {
+        for( Int k=0; k< numElem[2]; k++ )
+          for( Int j=0; j< numElem[1]; j++ )
+            for( Int i=0; i< numElem[0]; i++ ) {
+              Index3 key = Index3(i,j,k);
+              if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                for( Int l = maxHist-1; l > 0; l-- ){
+                  densityHist[l].LocalMap()[key]     = densityHist[l-1].LocalMap()[key];
+                } // for (l)
+                densityHist[0].LocalMap()[key] = hamDG.Density().LocalMap()[key];
+              } // own this element
+            }  // for (i)
+
+        // Compute the extrapolation coefficient
+        DblNumVec denCoef;
+        ionDyn.DensityExtrapolateCoefficient( ionIter, denCoef );
+        statusOFS << "Extrapolation density coefficient = " << denCoef << std::endl;
+
+        // Update the electron density
+        for( Int k=0; k< numElem[2]; k++ )
+          for( Int j=0; j< numElem[1]; j++ )
+            for( Int i=0; i< numElem[0]; i++ ) {
+              Index3 key = Index3(i,j,k);
+              if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                DblNumVec& denCurVec  = hamDG.Density().LocalMap()[key];
+                SetValue( denCurVec, 0.0 );
+                for( Int l = 0; l < maxHist-1; l++ ){
+                  DblNumVec& denHistVec = densityHist[l].LocalMap()[key];
+                  for( Int ii = 0; ii < denCurVec.m(); ii++ ){
+                    denCurVec(ii) += denCoef[l] * denHistVec(ii);
+                  }
+                } // for (l)
+              } // own this element
+            }  // for (i)
+      } // density extrapolation
+
       GetTime( timeEnd );
       statusOFS << "Time for updating the Hamiltonian in DG = " 
         << timeEnd - timeSta << " [s]" << std::endl;

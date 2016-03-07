@@ -625,14 +625,7 @@ int main(int argc, char **argv)
         std::vector<Point3>  atomposHist2(numAtom);
 
 
-        if (1) {
-
-          // Initialize the history
-          for( Int i = 0; i < numAtom; i++ ){
-            atomposHist0[i]   = atomList[i].pos;
-            atomposHist1[i]   = atomList[i].pos;
-            atomposHist2[i]   = atomList[i].pos;
-          }
+        if (1) { // Initialize the history
           for( Int l = 0; l < maxHist; l++ ){
             DistDblNumVec& den = densityHist[l];
             DistDblNumVec& denCur = hamDG.Density();
@@ -685,82 +678,7 @@ int main(int argc, char **argv)
 
             Int dmCol = numElem[0] * numElem[1] * numElem[2];
             Int dmRow = mpisize / dmCol;
-            for( Int k=0; k< numElem[2]; k++ )
-              for( Int j=0; j< numElem[1]; j++ )
-                for( Int i=0; i< numElem[0]; i++ ) {
-                  Index3 key (i,j,k);
-                  if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
-                    // Setup the domain in the extended element
-                    Domain dmExtElem;
-                    dmExtElem.comm    = dm.rowComm;
-                    dmExtElem.rowComm = dm.rowComm;
-                    dmExtElem.colComm = dm.rowComm;
-                    for( Int d = 0; d < DIM; d++ ){
-                      // Assume the global domain starts from 0.0
-                      if( numElem[d] == 1 ){
-                        dmExtElem.length[d]     = dm.length[d];
-                        dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d];
-                        dmExtElem.numGridFine[d] = esdfParam.numGridDensityElem[d];
-                        dmExtElem.posStart[d]   = 0.0;
-                      }
-                      else if ( numElem[d] >= 3 ){
-                        dmExtElem.length[d]     = dm.length[d]  / numElem[d] * 3;
-                        dmExtElem.numGrid[d]    = esdfParam.numGridWavefunctionElem[d] * 3;
-                        dmExtElem.numGridFine[d] = esdfParam.numGridDensityElem[d] * 3;
-                        dmExtElem.posStart[d]   = dm.length[d]  / numElem[d] * ( key[d] - 1 );
-                      }
-                      else{
-                        throw std::runtime_error( "numElem[d] is either 1 or >=3." );
-                      }
-
-                      // Do not specify the communicator for the domain yet
-                      // since it is not used for parallelization
-                    } //(d)
-
-
-                    for( Int a = 0; a < numAtom; a++ ){
-                      Point3 pos = atompos[a];
-                      if( IsInSubdomain( pos, dmExtElem, dm.length ) ){
-                        // Update the coordinate relative to the extended
-                        // element
-                        for( Int d = 0; d < DIM; d++ ){
-                          pos[d] -= floor( ( pos[d] - dmExtElem.posStart[d] ) / 
-                              dm.length[d] )* dm.length[d];
-                        }
-                        atomListExtElem.push_back( Atom( atomList[a].type, 
-                              pos, atomList[a].vel, atomList[a].force ) );
-                      } // Atom is in the extended element
-                    }
-
-                    KohnSham& hamKS = distHamKS.LocalMap()[key];
-
-                    hamKS.Update( atomListExtElem );
-
-                    hamKS.CalculatePseudoPotential( ptable );
-
-                    statusOFS << "Hamiltonian updated." << std::endl;
-
-                  }//own this element
-                }//(i)
           }
-
-          statusOFS << "Finish hamKS UpdatePseudoPotential" << std::endl;
-
-          std::vector<Atom> atomListTmp;
-          for( Int a = 0; a < numAtom; a++ ){
-            atomListTmp.push_back( Atom( atomList[a].type, 
-                  atompos[a], atomList[a].vel, atomforce[a] ) );
-          }
-
-          hamDG.UpdateHamiltonianDG( atomListTmp );
-
-          statusOFS << "Finish HamiltonianDG Update" << std::endl;
-
-          hamDG.CalculatePseudoPotential( ptable );
-
-          statusOFS << "Finish UpdatePseudoPotential DG." << std::endl;
-
-          scfDG.Update( );
 
           // Update the density through linear extrapolation
           if( esdfParam.MDExtrapolationType == "linear" )
