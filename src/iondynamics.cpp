@@ -690,6 +690,19 @@ IonDynamics::NoseHoover1	( Int ionIter )
         << std::resetiosflags(std::ios::showpos);
       
       fout_v.close();
+
+
+      // Also output into the statfile
+      statusOFS << std::endl 
+        << std::setiosflags(std::ios::left) 
+        << std::setw(LENGTH_VAR_NAME) << "vxi1 = "
+        << std::setiosflags(std::ios::scientific)
+        << std::setiosflags(std::ios::showpos)
+        << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< vxi1 << std::endl
+        << std::setw(LENGTH_VAR_NAME) << "xi1 = "
+        << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< xi1 << std::endl
+        << std::resetiosflags(std::ios::scientific)
+        << std::resetiosflags(std::ios::showpos);
     }
   } // if( mpirank == 0 )
 
