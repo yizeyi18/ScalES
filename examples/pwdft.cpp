@@ -228,6 +228,7 @@ int main(int argc, char **argv)
     ionDyn.Setup( esdfParam, hamKS.AtomList(), ptable ); 
 
     Int maxHist = ionDyn.MaxHist();
+    // densityHist[0] is the lastest density
     std::vector<DblNumMat>    densityHist(maxHist);
     for( Int l = 0; l < maxHist; l++ ){
       densityHist[l] = hamKS.Density();

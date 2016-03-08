@@ -6,6 +6,7 @@ TODO List   {#pageTODO}
   - Category: (LDA, GGA, Hybrid, Meta, VdW) + (XCId / XId+CId). Or just
     always use XId + CId separate form (ABINIT might use this)
   - Need to make the same thing for DG
+  - Design of XC class or something? (need discussion)
 - Add support for libdbcsr and then for linear scaling? Or implement the
   native version?
   - Subspace problem in Chebyshev filtering. Use SCALAPACK with
@@ -22,10 +23,15 @@ TODO List   {#pageTODO}
     spinor, which allows the usage of FFTW_MANY or GURU interface in the
     future. In the case when number of threads equal to the number of
     local bands on the node, this implementation might be more advantageous.
-- Remove the unnecessary part of distinguishing coarse / fine grid, and
+  - Check with Weile on options
+    1) OpenMP paralelization, multiple threads for a band
+    2) add more buffer space for using thread parallelization for each
+       band
+- Remove the unnecessary part of distinguishing coarse / fine grid
+  (done), and
   document this a bit more properly. It is even possible to revamp the
   implementation by storing the wavefunction coefficients in the complex
-  arithmetic
+  arithmetic (not sure)
   - When referring to the real space grid, there is no coarse grid,
     but only the fine real space grid. In the Fourier space, there are
     two grids. One is the same size as the real space grid, which is
@@ -40,20 +46,6 @@ TODO List   {#pageTODO}
     "coarse" in the code.
   - "coarse real space grid" might be useful for exchange calculation
     given experience from PEtot and VASP.
-- Better way to handle error: handling function taking a message as
-  input is a more versatile way for handling error messaging. callstack
-  procedure is slow and does not work for openmp. The DEBUG mode is too
-  slow due to push/popstacks
-  - Push/Popstack too expensive for simple operations. Throw error
-    allows the error to be caught by the catch phrase, which gives the
-    output of the callstack, but there is no way to use tools like gdb to
-    look into the problem. Another simple way is to use `abort` but this
-    implementation might be platform dependent and less informative. The
-    third way is to rely on core dump, but not sure about massively parallel
-    case.
-  - try/catch and C++ exceptions not particularly useful for debugging.
-  - coredumper
-  - Encapsulate the error handling function (partially done)
 - Spinor class may be removed and moved to the Hamiltonian class. In
   the future different types of spinors should be treated with different
   classes of "Hamiltonian". The functions in spinor, such as
@@ -103,12 +95,31 @@ TODO List   {#pageTODO}
   - Hybrid for DG
 
 DONE recently
+c Remove BLOPEX
+c Remove SCALAR design
+c tentatively add core dumper (not working yet)
+  Better way to handle error: handling function taking a message as
+  input is a more versatile way for handling error messaging. callstack
+  procedure is slow and does not work for openmp. The DEBUG mode is too
+  slow due to push/popstacks
+  - Push/Popstack too expensive for simple operations. Throw error
+    allows the error to be caught by the catch phrase, which gives the
+    output of the callstack, but there is no way to use tools like gdb to
+    look into the problem. Another simple way is to use `abort` but this
+    implementation might be platform dependent and less informative. The
+    third way is to rely on core dump, but not sure about massively parallel
+    case.
+  - try/catch and C++ exceptions not particularly useful for debugging.
+  - coredumper
+  - Encapsulate the error handling function (partially done)
 - Combine PWDFT_bb and MD (partially done)
-  - Should only have pwdft.cpp and dgdft.cpp
-  - Standardize the output of initial and final results into subroutines
+  c Should only have pwdft.cpp and dgdft.cpp
+  c Standardize the output of initial and final results into subroutines
     that are shared between pwdft and dgdft. 
+  c NVE, Nose-Hoover, BB, density extrapolation
   - into something called move_ions for geometry optimization and MD.
     o BFGS or preconditioned version (e.g. QE uses BFGS)
     o For 2000-10000 atoms, perhaps BFGS is too expensive. Maybe CG or
       FIRE alternative. PETOT uses CG?
     o MD: NVE, NH1, Langevin
+

@@ -105,7 +105,6 @@ protected:
 	DblNumMat                   vxc_;             
 	// Total potential
 	DblNumVec                   vtot_;        
-  DblNumVec                   vtotCoarse_;  // Coarse 
 	// the exchange-correlation energy density
 	DblNumVec                   epsxc_; 
 
@@ -178,9 +177,6 @@ public:
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft) = 0;
 	
-  // FIXME Clean
-	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Real>& y, Fourier& fft) = 0;
-  
   virtual NumTns<Real>& PhiEXX() = 0;
   
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
@@ -195,7 +191,6 @@ public:
 	// Access
 	// *********************************************************************
   DblNumVec&  Vtot() { return vtot_; }
-  DblNumVec&  VtotCoarse() { return vtotCoarse_; }
   DblNumVec&  Vext() { return vext_; }
 	DblNumMat&  Vxc()  { return vxc_; }
 	DblNumVec&  Vhart() { return vhart_; }
@@ -244,7 +239,7 @@ private:
   /// @brief Store all the orbitals for exact exchange calculation
   /// NOTE: This might impose serious memory constraint for relatively
   /// large systems.
-  NumTns<Real>              phiEXX_; 
+  NumTns<Real>                phiEXX_; 
   DblNumMat                   vexxProj_; 
   DblNumVec                   exxgkkR2CFine_;
  
@@ -288,9 +283,6 @@ public:
 	// Matrix vector multiplication
 	virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft);
 	
-  // FIXME Clean
-	virtual void MultSpinor(Int iocc, Spinor& psi, NumMat<Real>& y, Fourier& fft);
-
   
   /// @brief Update phiEXX by the spinor psi. The Phi are normalized in
   /// the real space as

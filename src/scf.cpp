@@ -462,10 +462,10 @@ SCF::Iterate (  )
   } // for(phiIter)
 
   // Calculate the Force
-  if(1){
+  if(0){
     ham.CalculateForce( psi, fft );
   }
-  if(0){
+  if(1){
     ham.CalculateForce2( psi, fft );
   }
   

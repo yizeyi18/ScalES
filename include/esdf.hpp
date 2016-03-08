@@ -702,16 +702,19 @@ namespace dgdft{
       ///
       /// Default: 0
       bool                isRestartVelocity;
-      /// @brief Whether to output position information
+      /// @brief Whether to output position information stored in
+      /// lastPos.out
       ///
       /// Default: 1
       bool                isOutputPosition;
       /// @brief Whether to output velocity and thermostat information
+      /// stored in lastVel.out
       ///
       /// Default: 1
       bool                isOutputVelocity;
       /// @brief Output the atomic position in XYZ format. Used in MD
-      /// simulation and geometry optimization
+      /// simulation and geometry optimization. Outputs MD.xyz. This
+      /// only stores the finished configuration.
       ///
       /// Default: 1
       bool                isOutputXYZ;

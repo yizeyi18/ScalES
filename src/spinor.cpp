@@ -862,41 +862,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       SetValue( psiFine, 0.0 );
       SetValue( psiUpdateFine, 0.0 );
 
-
-      // Complex version
-      if(0) 
-      {
-        SetValue( fft.inputComplexVec, Z_ZERO );
-        blas::Copy( ntot, wavefun_.VecData(j,k), 1,
-            reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2 );
-
-        // Fourier transform of wavefunction saved in fft.outputComplexVec
-        fftw_execute( fft.forwardPlan );
-
-        // Interpolate wavefunction from coarse to fine grid
-        {
-          SetValue( fft.outputComplexVecFine, Z_ZERO ); 
-          Int *idxPtr = fft.idxFineGrid.Data();
-          Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
-          Complex *fftOutPtr = fft.outputComplexVec.Data();
-          for( Int i = 0; i < ntot; i++ ){
-            fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
-          }
-        }
-
-        fftw_execute( fft.backwardPlanFine );
-
-        Real fac = 1.0 / std::sqrt( double(domain_.NumGridTotal())  *
-            double(domain_.NumGridTotalFine()) ); 
-        //      for( Int i = 0; i < ntotFine; i++ ){
-        //        psiFine(i) = fft.inputComplexVecFine(i).real() * fac; 
-        //      }
-        blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
-            2, psiFine.Data(), 1 );
-        blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
-
-      } // if(0)
-
       // R2C version
       if(1)
       {
@@ -938,9 +903,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
       }  // if (1)
 
-
-      //    statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-      //  abort();
 
       // Add the contribution from local pseudopotential
       //      for( Int i = 0; i < ntotFine; i++ ){

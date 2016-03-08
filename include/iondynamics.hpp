@@ -65,13 +65,14 @@ private:
 
   Int maxHist_;
 
+  /// @brief atomListHist_[0] stores the lastest atomic configuration
   std::vector<std::vector<Atom> >   atomListHist_;
 
   std::string          ionMove_;
 
   DblNumVec            atomMass_;
 
-  bool                 isOutputPosition_;
+  bool                 isOutputPosition_; 
   bool                 isOutputVelocity_;
   bool                 isOutputXYZ_;
   std::string          MDExtrapolationType_;

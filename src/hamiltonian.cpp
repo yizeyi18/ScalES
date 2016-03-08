@@ -131,9 +131,6 @@ KohnSham::Setup	(
 	vtot_.Resize( ntotFine );
 	SetValue( vtot_, 0.0 );
 
-  vtotCoarse_.Resize( ntotCoarse );
-  SetValue( vtotCoarse_, 0.0 );
-
 	epsxc_.Resize( ntotFine );
 	SetValue( epsxc_, 0.0 );
 
@@ -1507,26 +1504,26 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 
 
 
-void
-KohnSham::MultSpinor	( Int iocc, Spinor& psi, NumMat<Real>& y, Fourier& fft )
-{
-#ifndef _RELEASE_
-	PushCallStack("KohnSham::MultSpinor");
-#endif
-  // Make sure that the address corresponding to the pointer y has been
-  // allocated.
-  SetValue( y, 0.0 );
-
-	psi.AddRealDiag( iocc, vtotCoarse_, y );
-	psi.AddLaplacian( iocc, &fft, y );
-  psi.AddNonlocalPP( iocc, pseudo_, y );
-
-#ifndef _RELEASE_
-	PopCallStack();
-#endif
-
-	return ;
-} 		// -----  end of method KohnSham::MultSpinor  ----- 
+//void
+//KohnSham::MultSpinor	( Int iocc, Spinor& psi, NumMat<Real>& y, Fourier& fft )
+//{
+//#ifndef _RELEASE_
+//	PushCallStack("KohnSham::MultSpinor");
+//#endif
+//  // Make sure that the address corresponding to the pointer y has been
+//  // allocated.
+//  SetValue( y, 0.0 );
+//
+//	psi.AddRealDiag( iocc, vtotCoarse_, y );
+//	psi.AddLaplacian( iocc, &fft, y );
+//  psi.AddNonlocalPP( iocc, pseudo_, y );
+//
+//#ifndef _RELEASE_
+//	PopCallStack();
+//#endif
+//
+//	return ;
+//} 		// -----  end of method KohnSham::MultSpinor  ----- 
 
 
 void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )

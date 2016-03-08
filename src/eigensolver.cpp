@@ -166,7 +166,7 @@ EigenSolver::LOBPCGSolveReal	(
       Real         eigTolerance)
 {
 #ifndef _RELEASE_
-	PushCallStack("EigenSolver::LOBPCGSolveReal");
+  PushCallStack("EigenSolver::LOBPCGSolveReal");
 #endif
 
   // *********************************************************************
@@ -195,9 +195,9 @@ EigenSolver::LOBPCGSolveReal	(
   Int  iterSpinor = 0;
   Int  iterMpirank0 = 0;
 
-//  GetTime( timeSta );
-//  GetTime( timeEnd );
-//  statusOFS << "Time for Gemm is " << timeEnd - timeSta << << std::endl;
+  //  GetTime( timeSta );
+  //  GetTime( timeEnd );
+  //  statusOFS << "Time for Gemm is " << timeEnd - timeSta << << std::endl;
 
 
   if( numEig > width ){
@@ -292,7 +292,7 @@ EigenSolver::LOBPCGSolveReal	(
   Int numActiveTotal = 0;
 
   // Real lockTolerance = std::min( eigTolerance_, 1e-2 );
-  
+
   const Int numLocked = 0;  // Never perform locking in this version
   const Int numActive = width;
 
@@ -312,7 +312,7 @@ EigenSolver::LOBPCGSolveReal	(
   // Initialize X by the data in psi
   // lapack::Lacpy( 'A', height, width, psiPtr_->Wavefun().Data(), height, 
   //    X.Data(), height );
- 
+
   char AA = 'A';
   SCALAPACK(pdlacpy)(&AA, &height, &width, 
       psiPtr_->Wavefun().Data(), &I_ONE, &I_ONE, &desc[0],
@@ -345,16 +345,16 @@ EigenSolver::LOBPCGSolveReal	(
   // X'*X=U'*U
   // lapack::Potrf( 'U', width, XTX.Data(), width );
   char UU = 'U';
-  
+
   // SCALAPACK(pdpotrf)(&UU, &width, XTX.Data(), &I_ONE,
   //    &I_ONE, &desc_width[0], &info);
 
   if ( mpirank == 0) {
-  GetTime( timeSta );
+    GetTime( timeSta );
     lapack::Potrf( 'U', width, XTX.Data(), width );
-  GetTime( timeEnd );
-  iterMpirank0 = iterMpirank0 + 1;
-  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+    GetTime( timeEnd );
+    iterMpirank0 = iterMpirank0 + 1;
+    timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
   }
   MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
 
@@ -375,14 +375,14 @@ EigenSolver::LOBPCGSolveReal	(
 
   // Applying the Hamiltonian matrix
   {
-  GetTime( timeSta );
+    GetTime( timeSta );
     Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, X.Data());
     NumTns<Real> tnsTemp(ntot, ncom, noccLocal, false, AX.Data());
 
     hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
-  GetTime( timeEnd );
-  iterSpinor = iterSpinor + 1;
-  timeSpinor = timeSpinor + ( timeEnd - timeSta );
+    GetTime( timeEnd );
+    iterSpinor = iterSpinor + 1;
+    timeSpinor = timeSpinor + ( timeEnd - timeSta );
   }
 
   // Start the main loop
@@ -405,8 +405,8 @@ EigenSolver::LOBPCGSolveReal	(
     // XTX <- X' * (AX)
     // blas::Gemm( 'T', 'N', width, width, height, 1.0, X.Data(),
     //    height, AX.Data(), height, 0.0, XTX.Data(), width );
-   
-  GetTime( timeSta );
+
+    GetTime( timeSta );
     SCALAPACK(pdgemm)(&TT, &NN, &width, &width, &height, 
         &D_ONE,
         X.Data(), &I_ONE, &I_ONE, &desc[0],
@@ -414,9 +414,9 @@ EigenSolver::LOBPCGSolveReal	(
         &D_ZERO,
         XTX.Data(), &I_ONE, &I_ONE, &desc_width[0], 
         &contxt );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
+    GetTime( timeEnd );
+    iterGemmT = iterGemmT + 1;
+    timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
 
     // lapack::Lacpy( 'A', width, width, XTX.Data(), width, AMat.Data(), lda );
@@ -434,7 +434,7 @@ EigenSolver::LOBPCGSolveReal	(
     // blas::Gemm( 'N', 'N', height, width, width, -1.0, 
     //    X.Data(), height, AMat.Data(), lda, 1.0, Xtemp.Data(), height );
     double D_MinusONE = -1.0;
-  GetTime( timeSta );
+    GetTime( timeSta );
     SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &width, 
         &D_MinusONE,
         X.Data(), &I_ONE, &I_ONE, &desc[0],
@@ -442,9 +442,9 @@ EigenSolver::LOBPCGSolveReal	(
         &D_ONE,
         Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
         &contxt );
-  GetTime( timeEnd );
-  iterGemmN = iterGemmN + 1;
-  timeGemmN = timeGemmN + ( timeEnd - timeSta );
+    GetTime( timeEnd );
+    iterGemmN = iterGemmN + 1;
+    timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
     // Compute the norm of the residual
     SetValue( resNorm, 0.0 );
@@ -459,22 +459,22 @@ EigenSolver::LOBPCGSolveReal	(
     }
 
     SetValue( resNorm, 0.0 );
-    
+
     MPI_Barrier( mpi_comm );
 
     MPI_Allreduce( resNormTemp.Data(), resNorm.Data(), width, MPI_DOUBLE, 
         MPI_SUM, mpi_comm );
-    
+
 
 
     if ( mpirank == 0 ){
-  GetTime( timeSta );
+      GetTime( timeSta );
       for( Int k = 0; k < width; k++ ){
         resNorm(k) = std::sqrt( resNorm(k) ) / std::max( 1.0, std::abs( XTX(k,k) ) );
       }
-  GetTime( timeEnd );
-  iterMpirank0 = iterMpirank0 + 1;
-  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+      GetTime( timeEnd );
+      iterMpirank0 = iterMpirank0 + 1;
+      timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
     }
     MPI_Bcast(resNorm.Data(), width, MPI_DOUBLE, 0, mpi_comm);
 
@@ -505,20 +505,20 @@ EigenSolver::LOBPCGSolveReal	(
     // Compute the preconditioned residual W = T*R.
     // The residual is saved in Xtemp
     {
-  GetTime( timeSta );
+      GetTime( timeSta );
       Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xtemp.VecData(numLockedLocal));
       NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, W.VecData(numLockedLocal));
 
       SetValue( tnsTemp, 0.0 );
       spnTemp.AddTeterPrecond( fftPtr_, tnsTemp );
-  GetTime( timeEnd );
-  iterSpinor = iterSpinor + 1;
-  timeSpinor = timeSpinor + ( timeEnd - timeSta );
+      GetTime( timeEnd );
+      iterSpinor = iterSpinor + 1;
+      timeSpinor = timeSpinor + ( timeEnd - timeSta );
     }
 
-//    Real normLocal; 
+    //    Real normLocal; 
     Real norm; 
-   
+
     norm = 0.0; 
     // Normalize the preconditioned residual
     for( Int k = numLockedLocal; k < widthLocal; k++ ){
@@ -526,7 +526,7 @@ EigenSolver::LOBPCGSolveReal	(
       norm = std::sqrt( norm );
       blas::Scal( height, 1.0 / norm, W.VecData(k), 1 );
     }
-   
+
     norm = 0.0; 
     // Normalize the conjugate direction
     if( numSet == 3 ){
@@ -542,14 +542,14 @@ EigenSolver::LOBPCGSolveReal	(
 
     // Compute AW = A*W
     {
-  GetTime( timeSta );
+      GetTime( timeSta );
       Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, W.VecData(numLockedLocal));
       NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, AW.VecData(numLockedLocal));
 
       hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
-  GetTime( timeEnd );
-  iterSpinor = iterSpinor + 1;
-  timeSpinor = timeSpinor + ( timeEnd - timeSta );
+      GetTime( timeEnd );
+      iterSpinor = iterSpinor + 1;
+      timeSpinor = timeSpinor + ( timeEnd - timeSta );
     }
 
     // Compute X' * (AW)
@@ -566,7 +566,7 @@ EigenSolver::LOBPCGSolveReal	(
     int jb = numLockedTotal + 1;
     int ic = 1;
     int jc = width + 1;
-  GetTime( timeSta );
+    GetTime( timeSta );
     SCALAPACK(pdgemm)(&TT, &NN, &width, &numActiveTotal, &height, 
         &D_ONE,
         X.Data(), &I_ONE, &I_ONE, &desc[0],
@@ -574,22 +574,22 @@ EigenSolver::LOBPCGSolveReal	(
         &D_ZERO,
         AMat.Data(), &I_ONE, &jc, &desc_width3[0], 
         &contxt );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
+    GetTime( timeEnd );
+    iterGemmT = iterGemmT + 1;
+    timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
     // Compute W' * (AW)
     // blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
     //    W.VecData(numLocked), height, AW.VecData(numLocked), height, 
     //    0.0, &AMat(width, width), lda );
-    
+
     ia = 1;
     ja = numLockedTotal + 1;
     ib = 1;
     jb = numLockedTotal + 1;
     ic = width + 1;
     jc = width + 1;
-  GetTime( timeSta );
+    GetTime( timeSta );
     SCALAPACK(pdgemm)(&TT, &NN, &numActiveTotal, &numActiveTotal, &height, 
         &D_ONE,
         W.Data(), &I_ONE, &ja, &desc[0],
@@ -597,9 +597,9 @@ EigenSolver::LOBPCGSolveReal	(
         &D_ZERO,
         AMat.Data(), &ic, &jc, &desc_width3[0], 
         &contxt );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
+    GetTime( timeEnd );
+    iterGemmT = iterGemmT + 1;
+    timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
     if( numSet == 3 ){
       // Compute X' * (AP)
@@ -607,70 +607,70 @@ EigenSolver::LOBPCGSolveReal	(
       //    X.Data(), height, AP.VecData(numLocked), height, 
       //    0.0, &AMat(0, width+numActive), lda );
 
-    ia = 1;
-    ja = 1;
-    ib = 1;
-    jb = numLockedTotal + 1;
-    ic = 1;
-    jc = width + numActiveTotal + 1;
-  GetTime( timeSta );
-    SCALAPACK(pdgemm)(&TT, &NN, &width, &numActiveTotal, &height, 
-        &D_ONE,
-        X.Data(), &I_ONE, &I_ONE, &desc[0],
-        AP.Data(), &I_ONE, &jb, &desc[0], 
-        &D_ZERO,
-        AMat.Data(), &I_ONE, &jc, &desc_width3[0], 
-        &contxt );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      ia = 1;
+      ja = 1;
+      ib = 1;
+      jb = numLockedTotal + 1;
+      ic = 1;
+      jc = width + numActiveTotal + 1;
+      GetTime( timeSta );
+      SCALAPACK(pdgemm)(&TT, &NN, &width, &numActiveTotal, &height, 
+          &D_ONE,
+          X.Data(), &I_ONE, &I_ONE, &desc[0],
+          AP.Data(), &I_ONE, &jb, &desc[0], 
+          &D_ZERO,
+          AMat.Data(), &I_ONE, &jc, &desc_width3[0], 
+          &contxt );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       // Compute W' * (AP)
       // blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
       //    W.VecData(numLocked), height, AP.VecData(numLocked), height, 
       //    0.0, &AMat(width, width+numActive), lda );
 
-    ia = 1;
-    ja = numLockedTotal + 1;
-    ib = 1;
-    jb = numLockedTotal + 1;
-    ic = width + 1 ;
-    jc = width + numActiveTotal + 1;
-  GetTime( timeSta );
-    SCALAPACK(pdgemm)(&TT, &NN, &numActiveTotal, &numActiveTotal, &height, 
-        &D_ONE,
-        W.Data(), &I_ONE, &ja, &desc[0],
-        AP.Data(), &I_ONE, &jb, &desc[0], 
-        &D_ZERO,
-        AMat.Data(), &ic, &jc, &desc_width3[0], 
-        &contxt );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      ia = 1;
+      ja = numLockedTotal + 1;
+      ib = 1;
+      jb = numLockedTotal + 1;
+      ic = width + 1 ;
+      jc = width + numActiveTotal + 1;
+      GetTime( timeSta );
+      SCALAPACK(pdgemm)(&TT, &NN, &numActiveTotal, &numActiveTotal, &height, 
+          &D_ONE,
+          W.Data(), &I_ONE, &ja, &desc[0],
+          AP.Data(), &I_ONE, &jb, &desc[0], 
+          &D_ZERO,
+          AMat.Data(), &ic, &jc, &desc_width3[0], 
+          &contxt );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       // Compute P' * (AP)
       // blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
       //    P.VecData(numLocked), height, AP.VecData(numLocked), height, 
       //    0.0, &AMat(width+numActive, width+numActive), lda );
-    
-    ia = 1;
-    ja = numLockedTotal + 1;
-    ib = 1;
-    jb = numLockedTotal + 1;
-    ic = width + numActiveTotal + 1;
-    jc = width + numActiveTotal + 1;
-  GetTime( timeSta );
-    SCALAPACK(pdgemm)(&TT, &NN, &numActiveTotal, &numActiveTotal, &height, 
-        &D_ONE,
-        P.Data(), &I_ONE, &ja, &desc[0],
-        AP.Data(), &I_ONE, &jb, &desc[0], 
-        &D_ZERO,
-        AMat.Data(), &ic, &jc, &desc_width3[0], 
-        &contxt );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    
+
+      ia = 1;
+      ja = numLockedTotal + 1;
+      ib = 1;
+      jb = numLockedTotal + 1;
+      ic = width + numActiveTotal + 1;
+      jc = width + numActiveTotal + 1;
+      GetTime( timeSta );
+      SCALAPACK(pdgemm)(&TT, &NN, &numActiveTotal, &numActiveTotal, &height, 
+          &D_ONE,
+          P.Data(), &I_ONE, &ja, &desc[0],
+          AP.Data(), &I_ONE, &jb, &desc[0], 
+          &D_ZERO,
+          AMat.Data(), &ic, &jc, &desc_width3[0], 
+          &contxt );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
+
     }
 
     // Compute BMat (overlap matrix)
@@ -681,7 +681,7 @@ EigenSolver::LOBPCGSolveReal	(
     //     0.0, &BMat(0,0), lda );
 
 
-  GetTime( timeSta );
+    GetTime( timeSta );
     SCALAPACK(pdgemm)(&TT, &NN, &width, &width, &height, 
         &D_ONE,
         X.Data(), &I_ONE, &I_ONE, &desc[0],
@@ -689,10 +689,10 @@ EigenSolver::LOBPCGSolveReal	(
         &D_ZERO,
         BMat.Data(), &I_ONE, &I_ONE, &desc_width3[0], 
         &contxt );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    
+    GetTime( timeEnd );
+    iterGemmT = iterGemmT + 1;
+    timeGemmT = timeGemmT + ( timeEnd - timeSta );
+
 
     // Compute X'*W
     // blas::Gemm( 'T', 'N', width, numActive, height, 1.0,
@@ -706,7 +706,7 @@ EigenSolver::LOBPCGSolveReal	(
     jb = numLockedTotal + 1;
     ic = 1;
     jc = width + 1;
-  GetTime( timeSta );
+    GetTime( timeSta );
     SCALAPACK(pdgemm)(&TT, &NN, &width, &numActiveTotal, &height, 
         &D_ONE,
         X.Data(), &I_ONE, &I_ONE, &desc[0],
@@ -714,10 +714,10 @@ EigenSolver::LOBPCGSolveReal	(
         &D_ZERO,
         BMat.Data(), &I_ONE, &jc, &desc_width3[0], 
         &contxt );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    
+    GetTime( timeEnd );
+    iterGemmT = iterGemmT + 1;
+    timeGemmT = timeGemmT + ( timeEnd - timeSta );
+
 
     // Compute W'*W
     // blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
@@ -731,7 +731,7 @@ EigenSolver::LOBPCGSolveReal	(
     jb = numLockedTotal + 1;
     ic = width + 1;
     jc = width + 1;
-  GetTime( timeSta );
+    GetTime( timeSta );
     SCALAPACK(pdgemm)(&TT, &NN, &numActiveTotal, &numActiveTotal, &height, 
         &D_ONE,
         W.Data(), &I_ONE, &ja, &desc[0],
@@ -739,36 +739,36 @@ EigenSolver::LOBPCGSolveReal	(
         &D_ZERO,
         BMat.Data(), &ic, &jc, &desc_width3[0], 
         &contxt );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    
+    GetTime( timeEnd );
+    iterGemmT = iterGemmT + 1;
+    timeGemmT = timeGemmT + ( timeEnd - timeSta );
+
 
     if( numSet == 3 ){
       // Compute X'*P
-     //  blas::Gemm( 'T', 'N', width, numActive, height, 1.0,
-     //     X.Data(), height, P.VecData(numLocked), height, 
-     //     0.0, &BMat(0, width+numActive), lda );
-    
+      //  blas::Gemm( 'T', 'N', width, numActive, height, 1.0,
+      //     X.Data(), height, P.VecData(numLocked), height, 
+      //     0.0, &BMat(0, width+numActive), lda );
 
-    ia = 1;
-    ja = 1;
-    ib = 1;
-    jb = numLockedTotal + 1;
-    ic = 1;
-    jc = width + numActiveTotal + 1;
-  GetTime( timeSta );
-    SCALAPACK(pdgemm)(&TT, &NN, &width, &numActiveTotal, &height, 
-        &D_ONE,
-        X.Data(), &I_ONE, &I_ONE, &desc[0],
-        P.Data(), &I_ONE, &jb, &desc[0], 
-        &D_ZERO,
-        BMat.Data(), &I_ONE, &jc, &desc_width3[0], 
-        &contxt );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    
+
+      ia = 1;
+      ja = 1;
+      ib = 1;
+      jb = numLockedTotal + 1;
+      ic = 1;
+      jc = width + numActiveTotal + 1;
+      GetTime( timeSta );
+      SCALAPACK(pdgemm)(&TT, &NN, &width, &numActiveTotal, &height, 
+          &D_ONE,
+          X.Data(), &I_ONE, &I_ONE, &desc[0],
+          P.Data(), &I_ONE, &jb, &desc[0], 
+          &D_ZERO,
+          BMat.Data(), &I_ONE, &jc, &desc_width3[0], 
+          &contxt );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
+
 
       // Compute W'*P
       // blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
@@ -776,49 +776,49 @@ EigenSolver::LOBPCGSolveReal	(
       //    0.0, &BMat(width, width+numActive), lda );
 
 
-    ia = 1;
-    ja = numLockedTotal + 1;
-    ib = 1;
-    jb = numLockedTotal + 1;
-    ic = width + 1;
-    jc = width + numActiveTotal + 1;
-  GetTime( timeSta );
-    SCALAPACK(pdgemm)(&TT, &NN, &numActiveTotal, &numActiveTotal, &height, 
-        &D_ONE,
-        W.Data(), &I_ONE, &ja, &desc[0],
-        P.Data(), &I_ONE, &jb, &desc[0], 
-        &D_ZERO,
-        BMat.Data(), &ic, &jc, &desc_width3[0], 
-        &contxt );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    
+      ia = 1;
+      ja = numLockedTotal + 1;
+      ib = 1;
+      jb = numLockedTotal + 1;
+      ic = width + 1;
+      jc = width + numActiveTotal + 1;
+      GetTime( timeSta );
+      SCALAPACK(pdgemm)(&TT, &NN, &numActiveTotal, &numActiveTotal, &height, 
+          &D_ONE,
+          W.Data(), &I_ONE, &ja, &desc[0],
+          P.Data(), &I_ONE, &jb, &desc[0], 
+          &D_ZERO,
+          BMat.Data(), &ic, &jc, &desc_width3[0], 
+          &contxt );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
+
 
       // Compute P'*P
       // blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
       //    P.VecData(numLocked), height, P.VecData(numLocked), height,
       //    0.0, &BMat(width+numActive, width+numActive), lda );
-    
-   
-    ia = 1;
-    ja = numLockedTotal + 1;
-    ib = 1;
-    jb = numLockedTotal + 1;
-    ic = width + numActiveTotal + 1;
-    jc = width + numActiveTotal + 1;
-  GetTime( timeSta );
-    SCALAPACK(pdgemm)(&TT, &NN, &numActiveTotal, &numActiveTotal, &height, 
-        &D_ONE,
-        P.Data(), &I_ONE, &ja, &desc[0],
-        P.Data(), &I_ONE, &jb, &desc[0], 
-        &D_ZERO,
-        BMat.Data(), &ic, &jc, &desc_width3[0], 
-        &contxt );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
-  
+
+
+      ia = 1;
+      ja = numLockedTotal + 1;
+      ib = 1;
+      jb = numLockedTotal + 1;
+      ic = width + numActiveTotal + 1;
+      jc = width + numActiveTotal + 1;
+      GetTime( timeSta );
+      SCALAPACK(pdgemm)(&TT, &NN, &numActiveTotal, &numActiveTotal, &height, 
+          &D_ONE,
+          P.Data(), &I_ONE, &ja, &desc[0],
+          P.Data(), &I_ONE, &jb, &desc[0], 
+          &D_ZERO,
+          BMat.Data(), &ic, &jc, &desc_width3[0], 
+          &contxt );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
+
     }
 
 #if ( _DEBUGlevel_ >= 2 )
@@ -832,8 +832,8 @@ EigenSolver::LOBPCGSolveReal	(
       ib = 1;
       jb = 1;
       SCALAPACK(pdlacpy)(&AA, &width, &width, 
-        BMat.Data(), &ia, &ib, &desc_width3[0],
-        WTW.Data(), &I_ONE, &I_ONE, &desc_width[0]);
+          BMat.Data(), &ia, &ib, &desc_width3[0],
+          WTW.Data(), &I_ONE, &I_ONE, &desc_width[0]);
 
       statusOFS << "W'*W = " << WTW << std::endl;
       if( numSet == 3 )
@@ -841,22 +841,22 @@ EigenSolver::LOBPCGSolveReal	(
         DblNumMat PTP( width, width );
         // lapack::Lacpy( 'A', width, width, &BMat(width+numActive, width+numActive), 
         //    lda, PTP.Data(), width );
-        
+
         ia = width + numActiveTotal + 1;
         ja = wdith + numActiveTotal + 1;
         ib = 1;
         jb = 1;
         SCALAPACK(pdlacpy)(&AA, &width, &width, 
-          BMat.Data(), &ia, &ib, &desc_width3[0],
-          PTP.Data(), &I_ONE, &I_ONE, &desc_width[0]);
-        
+            BMat.Data(), &ia, &ib, &desc_width3[0],
+            PTP.Data(), &I_ONE, &I_ONE, &desc_width[0]);
+
         statusOFS << "P'*P = " << PTP << std::endl;
       }
     }
 #endif
 
 
-   
+
     // Rayleigh-Ritz procedure
     // AMat * C = BMat * C * Lambda
     // Assuming the dimension (needed) for C is width * width, then
@@ -879,116 +879,116 @@ EigenSolver::LOBPCGSolveReal	(
     if(1){
 
       if ( mpirank == 0 ) {
-       
-      // Symmetrize A and B first.  This is important.
-      for( Int j = 0; j < numCol; j++ ){
-        for( Int i = j+1; i < numCol; i++ ){
-          AMat(i,j) = AMat(j,i);
-          BMat(i,j) = BMat(j,i);
-        }
-      }
 
-  GetTime( timeSta );
-      lapack::Syevd( 'V', 'U', numCol, BMat.Data(), lda, sigma2.Data() );
-  GetTime( timeEnd );
-  iterMpirank0 = iterMpirank0 + 1;
-  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
-      
-      Int numKeep = 0;
-      for( Int i = numCol-1; i>=0; i-- ){
-        if( sigma2(i) / sigma2(numCol-1) >  1e-12 )
-          numKeep++;
-        else
-          break;
-      }
+        // Symmetrize A and B first.  This is important.
+        for( Int j = 0; j < numCol; j++ ){
+          for( Int i = j+1; i < numCol; i++ ){
+            AMat(i,j) = AMat(j,i);
+            BMat(i,j) = BMat(j,i);
+          }
+        }
+
+        GetTime( timeSta );
+        lapack::Syevd( 'V', 'U', numCol, BMat.Data(), lda, sigma2.Data() );
+        GetTime( timeEnd );
+        iterMpirank0 = iterMpirank0 + 1;
+        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+
+        Int numKeep = 0;
+        for( Int i = numCol-1; i>=0; i-- ){
+          if( sigma2(i) / sigma2(numCol-1) >  1e-12 )
+            numKeep++;
+          else
+            break;
+        }
 
 #if ( _DEBUGlevel_ >= 1 )
-      statusOFS << "sigma2 = " << sigma2 << std::endl;
+        statusOFS << "sigma2 = " << sigma2 << std::endl;
 #endif
 
 #if ( _DEBUGlevel_ >= 1 )
-      statusOFS << "sigma2(0)        = " << sigma2(0) << std::endl;
-      statusOFS << "sigma2(numCol-1) = " << sigma2(numCol-1) << std::endl;
-      statusOFS << "numKeep          = " << numKeep << std::endl;
+        statusOFS << "sigma2(0)        = " << sigma2(0) << std::endl;
+        statusOFS << "sigma2(numCol-1) = " << sigma2(numCol-1) << std::endl;
+        statusOFS << "numKeep          = " << numKeep << std::endl;
 #endif
 
-      for( Int i = 0; i < numKeep; i++ ){
-        invsigma(i) = 1.0 / std::sqrt( sigma2(i+numCol-numKeep) );
-      }
-
-      if( numKeep < width ){
-        std::ostringstream msg;
-        msg 
-          << "width   = " << width << std::endl
-          << "numKeep =  " << numKeep << std::endl
-          << "there are not enough number of columns." << std::endl;
-        throw std::runtime_error( msg.str().c_str() );
-      }
-
-      SetValue( AMatT1, 0.0 );
-      // Evaluate S^{-1/2} (U^T A U) S^{-1/2}
-  GetTime( timeSta );
-      blas::Gemm( 'N', 'N', numCol, numKeep, numCol, 1.0,
-          AMat.Data(), lda, BMat.VecData(numCol-numKeep), lda,
-          0.0, AMatT1.Data(), lda );
-  GetTime( timeEnd );
-  iterMpirank0 = iterMpirank0 + 1;
-  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
-
-  GetTime( timeSta );
-      blas::Gemm( 'T', 'N', numKeep, numKeep, numCol, 1.0,
-          BMat.VecData(numCol-numKeep), lda, AMatT1.Data(), lda, 
-          0.0, AMat.Data(), lda );
-  GetTime( timeEnd );
-  iterMpirank0 = iterMpirank0 + 1;
-  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
-
-  GetTime( timeSta );
-      for( Int j = 0; j < numKeep; j++ ){
         for( Int i = 0; i < numKeep; i++ ){
-          AMat(i,j) *= invsigma(i)*invsigma(j);
+          invsigma(i) = 1.0 / std::sqrt( sigma2(i+numCol-numKeep) );
         }
-      }
-  GetTime( timeEnd );
-  iterMpirank0 = iterMpirank0 + 1;
-  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
 
-      // Solve the standard eigenvalue problem
-  GetTime( timeSta );
-      lapack::Syevd( 'V', 'U', numKeep, AMat.Data(), lda,
-          eigValS.Data() );
-  GetTime( timeEnd );
-  iterMpirank0 = iterMpirank0 + 1;
-  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
-
-      // Compute the correct eigenvectors and save them in AMat
-      for( Int j = 0; j < numKeep; j++ ){
-        for( Int i = 0; i < numKeep; i++ ){
-          AMat(i,j) *= invsigma(i);
+        if( numKeep < width ){
+          std::ostringstream msg;
+          msg 
+            << "width   = " << width << std::endl
+            << "numKeep =  " << numKeep << std::endl
+            << "there are not enough number of columns." << std::endl;
+          throw std::runtime_error( msg.str().c_str() );
         }
-      }
 
-  GetTime( timeSta );
-      blas::Gemm( 'N', 'N', numCol, numKeep, numKeep, 1.0,
-          BMat.VecData(numCol-numKeep), lda, AMat.Data(), lda,
-          0.0, AMatT1.Data(), lda );
-  GetTime( timeEnd );
-  iterMpirank0 = iterMpirank0 + 1;
-  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+        SetValue( AMatT1, 0.0 );
+        // Evaluate S^{-1/2} (U^T A U) S^{-1/2}
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', numCol, numKeep, numCol, 1.0,
+            AMat.Data(), lda, BMat.VecData(numCol-numKeep), lda,
+            0.0, AMatT1.Data(), lda );
+        GetTime( timeEnd );
+        iterMpirank0 = iterMpirank0 + 1;
+        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
 
-      lapack::Lacpy( 'A', numCol, numKeep, AMatT1.Data(), lda, 
-          AMat.Data(), lda );
-      
+        GetTime( timeSta );
+        blas::Gemm( 'T', 'N', numKeep, numKeep, numCol, 1.0,
+            BMat.VecData(numCol-numKeep), lda, AMatT1.Data(), lda, 
+            0.0, AMat.Data(), lda );
+        GetTime( timeEnd );
+        iterMpirank0 = iterMpirank0 + 1;
+        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+
+        GetTime( timeSta );
+        for( Int j = 0; j < numKeep; j++ ){
+          for( Int i = 0; i < numKeep; i++ ){
+            AMat(i,j) *= invsigma(i)*invsigma(j);
+          }
+        }
+        GetTime( timeEnd );
+        iterMpirank0 = iterMpirank0 + 1;
+        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+
+        // Solve the standard eigenvalue problem
+        GetTime( timeSta );
+        lapack::Syevd( 'V', 'U', numKeep, AMat.Data(), lda,
+            eigValS.Data() );
+        GetTime( timeEnd );
+        iterMpirank0 = iterMpirank0 + 1;
+        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+
+        // Compute the correct eigenvectors and save them in AMat
+        for( Int j = 0; j < numKeep; j++ ){
+          for( Int i = 0; i < numKeep; i++ ){
+            AMat(i,j) *= invsigma(i);
+          }
+        }
+
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', numCol, numKeep, numKeep, 1.0,
+            BMat.VecData(numCol-numKeep), lda, AMat.Data(), lda,
+            0.0, AMatT1.Data(), lda );
+        GetTime( timeEnd );
+        iterMpirank0 = iterMpirank0 + 1;
+        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+
+        lapack::Lacpy( 'A', numCol, numKeep, AMatT1.Data(), lda, 
+            AMat.Data(), lda );
+
       } // mpirank ==0
 
 
-        MPI_Bcast(AMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
-        MPI_Bcast(eigValS.Data(), lda, MPI_DOUBLE, 0, mpi_comm);
+      MPI_Bcast(AMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
+      MPI_Bcast(eigValS.Data(), lda, MPI_DOUBLE, 0, mpi_comm);
 
 
     } // if(1)
-   
-  
+
+
     else{
 
       // BMat = U' * U
@@ -997,217 +997,217 @@ EigenSolver::LOBPCGSolveReal	(
       // SCALAPACK(pdpotrf)(&UU, &numCol, BMat.Data(), &I_ONE, &I_ONE, &desc_width3[0], &info);
 
       if ( mpirank == 0 ) {
-  GetTime( timeSta );
+        GetTime( timeSta );
         lapack::Potrf( 'U', numCol, BMat.Data(), lda );
-  GetTime( timeEnd );
-  iterMpirank0 = iterMpirank0 + 1;
-  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+        GetTime( timeEnd );
+        iterMpirank0 = iterMpirank0 + 1;
+        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
       }
-        MPI_Bcast(BMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
-      
+      MPI_Bcast(BMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
+
       // TODO Add Pocon and restart strategy
       // AMat <- U^{-T} * AMat * U^{-1}
       // lapack::Hegst( 1, 'U', numCol, AMat.Data(), lda,
       //    BMat.Data(), lda );
 
-  GetTime( timeSta );
+      GetTime( timeSta );
       SCALAPACK(pdsygst)( &I_ONE, &UU, &numCol,
-         AMat.Data(), &I_ONE, &I_ONE, &desc_width3[0],
-         BMat.Data(), &I_ONE, &I_ONE, &desc_width3[0],
-         &D_ONE, &info); 
-  GetTime( timeEnd );
-  iterTrsm = iterTrsm + 1;
-  timeTrsm = timeTrsm + ( timeEnd - timeSta );
-  
-  // Eigenvalue problem, the eigenvectors are saved in AMat
+          AMat.Data(), &I_ONE, &I_ONE, &desc_width3[0],
+          BMat.Data(), &I_ONE, &I_ONE, &desc_width3[0],
+          &D_ONE, &info); 
+      GetTime( timeEnd );
+      iterTrsm = iterTrsm + 1;
+      timeTrsm = timeTrsm + ( timeEnd - timeSta );
+
+      // Eigenvalue problem, the eigenvectors are saved in AMat
       // lapack::Syevd( 'V', 'U', numCol, AMat.Data(), lda, 
       //    eigValS.Data() );
-       
-      if ( mpirank == 0 ){
-  GetTime( timeSta );
-        lapack::Syevd( 'V', 'U', numCol, AMat.Data(), lda, eigValS.Data() );
-  GetTime( timeEnd );
-  iterMpirank0 = iterMpirank0 + 1;
-  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
-      }
-        MPI_Bcast(AMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
-        MPI_Bcast(eigValS.Data(), numCol, MPI_DOUBLE, 0, mpi_comm);
 
-  // Compute the correct eigenvectors C (but saved in AMat)
+      if ( mpirank == 0 ){
+        GetTime( timeSta );
+        lapack::Syevd( 'V', 'U', numCol, AMat.Data(), lda, eigValS.Data() );
+        GetTime( timeEnd );
+        iterMpirank0 = iterMpirank0 + 1;
+        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+      }
+      MPI_Bcast(AMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
+      MPI_Bcast(eigValS.Data(), numCol, MPI_DOUBLE, 0, mpi_comm);
+
+      // Compute the correct eigenvectors C (but saved in AMat)
       // blas::Trsm( 'L', 'U', 'N', 'N', numCol, numCol, 1.0, 
       //    BMat.Data(), lda, AMat.Data(), lda );
 
       char LL = 'L';
-  GetTime( timeSta );
+      GetTime( timeSta );
       SCALAPACK(pdtrsm)( &LL, &UU, &NN, &NN,
           &numCol, &numCol, 
           &D_ONE,
           BMat.Data(), &I_ONE, &I_ONE, &desc_width3[0],
           AMat.Data(), &I_ONE, &I_ONE, &desc_width3[0]);
-  GetTime( timeEnd );
-  iterTrsm = iterTrsm + 1;
-  timeTrsm = timeTrsm + ( timeEnd - timeSta );
+      GetTime( timeEnd );
+      iterTrsm = iterTrsm + 1;
+      timeTrsm = timeTrsm + ( timeEnd - timeSta );
 
       // TODO Add Pocon and restart strategy, and try steepest descent first
     }
 
 
-      if( numSet == 2 ){
-        // Update the eigenvectors 
-        // X <- X * C_X + W * C_W
-        // blas::Gemm( 'N', 'N', height, width, width, 1.0,
-        //    X.Data(), height, &AMat(0,0), lda,
-        //    0.0, Xtemp.Data(), height );
+    if( numSet == 2 ){
+      // Update the eigenvectors 
+      // X <- X * C_X + W * C_W
+      // blas::Gemm( 'N', 'N', height, width, width, 1.0,
+      //    X.Data(), height, &AMat(0,0), lda,
+      //    0.0, Xtemp.Data(), height );
 
-  GetTime( timeSta );
-        SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &width, 
-            &D_ONE,
-            X.Data(), &I_ONE, &I_ONE, &desc[0],
-            AMat.Data(), &I_ONE, &I_ONE, &desc_width3[0], 
-            &D_ZERO,
-            Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
-            &contxt );
-  GetTime( timeEnd );
-  iterGemmN = iterGemmN + 1;
-  timeGemmN = timeGemmN + ( timeEnd - timeSta );
-       
-
-
-        // blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
-        //    W.VecData(numLocked), height, &AMat(width,0), lda,
-        //    1.0, Xtemp.Data(), height );
-
-        ia = 1;
-        ja = numLockedTotal + 1;
-        ib = width + 1;
-        jb = 1;
-        ic = 1;
-        jc = 1;
-  GetTime( timeSta );
-        SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &numActiveTotal, 
-            &D_ONE,
-            W.Data(), &I_ONE, &ja, &desc[0],
-            AMat.Data(), &ib, &I_ONE, &desc_width3[0], 
-            &D_ONE,
-            Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
-            &contxt );
-  GetTime( timeEnd );
-  iterGemmN = iterGemmN + 1;
-  timeGemmN = timeGemmN + ( timeEnd - timeSta );
-
-        // Save the result into X
-        // lapack::Lacpy( 'A', height, width, Xtemp.Data(), height, 
-        //    X.Data(), height );
-
-        SCALAPACK(pdlacpy)(&AA, &height, &width, 
-            Xtemp.Data(), &I_ONE, &I_ONE, &desc[0],
-            X.Data(), &I_ONE, &I_ONE, &desc[0]);
-
-        // P <- W
-        // lapack::Lacpy( 'A', height, numActive, W.VecData(numLocked), 
-        //    height, P.VecData(numLocked), height );
-      
-        ia = 1;
-        ja = numLockedTotal + 1;
-        ib = 1;
-        jb = numLockedTotal + 1;
-        SCALAPACK(pdlacpy)(&AA, &height, &numActiveTotal, 
-            W.Data(), &I_ONE, &ja, &desc[0],
-            P.Data(), &I_ONE, &jb, &desc[0]);
-     
-      }
-      else{ //numSet == 3
-        // Compute the conjugate direction
-        // P <- W * C_W + P * C_P
-        // blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
-        //    W.VecData(numLocked), height, &AMat(width, 0), lda, 
-        //    0.0, Xtemp.Data(), height );
-
-        ia = 1;
-        ja = numLockedTotal + 1;
-        ib = width + 1;
-        jb = 1;
-        ic = 1;
-        jc = 1;
-  GetTime( timeSta );
-        SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &numActiveTotal, 
-            &D_ONE,
-            W.Data(), &I_ONE, &ja, &desc[0],
-            AMat.Data(), &ib, &I_ONE, &desc_width3[0], 
-            &D_ZERO,
-            Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
-            &contxt );
-  GetTime( timeEnd );
-  iterGemmN = iterGemmN + 1;
-  timeGemmN = timeGemmN + ( timeEnd - timeSta );
-        
-       
-        // blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
-        //    P.VecData(numLocked), height, &AMat(width+numActive,0), lda,
-        //    1.0, Xtemp.Data(), height );
-
-        ia = 1;
-        ja = numLockedTotal + 1;
-        ib = width + numActiveTotal + 1;
-        jb = 1;
-        ic = 1;
-        jc = 1;
-  GetTime( timeSta );
-        SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &numActiveTotal, 
-            &D_ONE,
-            P.Data(), &I_ONE, &ja, &desc[0],
-            AMat.Data(), &ib, &I_ONE, &desc_width3[0], 
-            &D_ONE,
-            Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
-            &contxt );
-  GetTime( timeEnd );
-  iterGemmN = iterGemmN + 1;
-  timeGemmN = timeGemmN + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &width, 
+          &D_ONE,
+          X.Data(), &I_ONE, &I_ONE, &desc[0],
+          AMat.Data(), &I_ONE, &I_ONE, &desc_width3[0], 
+          &D_ZERO,
+          Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
+          &contxt );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
 
 
-        // lapack::Lacpy( 'A', height, numActive, Xtemp.VecData(numLocked), 
-        //    height, P.VecData(numLocked), height );
+      // blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
+      //    W.VecData(numLocked), height, &AMat(width,0), lda,
+      //    1.0, Xtemp.Data(), height );
 
-        ia = 1;
-        ja = numLockedTotal + 1;
-        ib = 1;
-        jb = numLockedTotal + 1;
-        SCALAPACK(pdlacpy)(&AA, &height, &numActiveTotal, 
-            Xtemp.Data(), &I_ONE, &ja, &desc[0],
-            P.Data(), &I_ONE, &jb, &desc[0]);
-        
-        // Update the eigenvectors
-        // X <- X * C_X + P
-        // blas::Gemm( 'N', 'N', height, width, width, 1.0, 
-        //    X.Data(), height, &AMat(0,0), lda, 
-        //    1.0, Xtemp.Data(), height );
+      ia = 1;
+      ja = numLockedTotal + 1;
+      ib = width + 1;
+      jb = 1;
+      ic = 1;
+      jc = 1;
+      GetTime( timeSta );
+      SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &numActiveTotal, 
+          &D_ONE,
+          W.Data(), &I_ONE, &ja, &desc[0],
+          AMat.Data(), &ib, &I_ONE, &desc_width3[0], 
+          &D_ONE,
+          Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
+          &contxt );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
+
+      // Save the result into X
+      // lapack::Lacpy( 'A', height, width, Xtemp.Data(), height, 
+      //    X.Data(), height );
+
+      SCALAPACK(pdlacpy)(&AA, &height, &width, 
+          Xtemp.Data(), &I_ONE, &I_ONE, &desc[0],
+          X.Data(), &I_ONE, &I_ONE, &desc[0]);
+
+      // P <- W
+      // lapack::Lacpy( 'A', height, numActive, W.VecData(numLocked), 
+      //    height, P.VecData(numLocked), height );
+
+      ia = 1;
+      ja = numLockedTotal + 1;
+      ib = 1;
+      jb = numLockedTotal + 1;
+      SCALAPACK(pdlacpy)(&AA, &height, &numActiveTotal, 
+          W.Data(), &I_ONE, &ja, &desc[0],
+          P.Data(), &I_ONE, &jb, &desc[0]);
+
+    }
+    else{ //numSet == 3
+      // Compute the conjugate direction
+      // P <- W * C_W + P * C_P
+      // blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
+      //    W.VecData(numLocked), height, &AMat(width, 0), lda, 
+      //    0.0, Xtemp.Data(), height );
+
+      ia = 1;
+      ja = numLockedTotal + 1;
+      ib = width + 1;
+      jb = 1;
+      ic = 1;
+      jc = 1;
+      GetTime( timeSta );
+      SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &numActiveTotal, 
+          &D_ONE,
+          W.Data(), &I_ONE, &ja, &desc[0],
+          AMat.Data(), &ib, &I_ONE, &desc_width3[0], 
+          &D_ZERO,
+          Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
+          &contxt );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
 
-  GetTime( timeSta );
-        SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &width, 
-            &D_ONE,
-            X.Data(), &I_ONE, &I_ONE, &desc[0],
-            AMat.Data(), &I_ONE, &I_ONE, &desc_width3[0], 
-            &D_ONE,
-            Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
-            &contxt );
-  GetTime( timeEnd );
-  iterGemmN = iterGemmN + 1;
-  timeGemmN = timeGemmN + ( timeEnd - timeSta );
+      // blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
+      //    P.VecData(numLocked), height, &AMat(width+numActive,0), lda,
+      //    1.0, Xtemp.Data(), height );
 
-        // lapack::Lacpy( 'A', height, width, Xtemp.Data(), height,
-        //    X.Data(), height );
-      
+      ia = 1;
+      ja = numLockedTotal + 1;
+      ib = width + numActiveTotal + 1;
+      jb = 1;
+      ic = 1;
+      jc = 1;
+      GetTime( timeSta );
+      SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &numActiveTotal, 
+          &D_ONE,
+          P.Data(), &I_ONE, &ja, &desc[0],
+          AMat.Data(), &ib, &I_ONE, &desc_width3[0], 
+          &D_ONE,
+          Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
+          &contxt );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
 
-        SCALAPACK(pdlacpy)(&AA, &height, &width, 
-            Xtemp.Data(), &I_ONE, &I_ONE, &desc[0],
-            X.Data(), &I_ONE, &I_ONE, &desc[0] );
-        
-        } // if ( numSet == 2 )
 
-    
+      // lapack::Lacpy( 'A', height, numActive, Xtemp.VecData(numLocked), 
+      //    height, P.VecData(numLocked), height );
+
+      ia = 1;
+      ja = numLockedTotal + 1;
+      ib = 1;
+      jb = numLockedTotal + 1;
+      SCALAPACK(pdlacpy)(&AA, &height, &numActiveTotal, 
+          Xtemp.Data(), &I_ONE, &ja, &desc[0],
+          P.Data(), &I_ONE, &jb, &desc[0]);
+
+      // Update the eigenvectors
+      // X <- X * C_X + P
+      // blas::Gemm( 'N', 'N', height, width, width, 1.0, 
+      //    X.Data(), height, &AMat(0,0), lda, 
+      //    1.0, Xtemp.Data(), height );
+
+
+      GetTime( timeSta );
+      SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &width, 
+          &D_ONE,
+          X.Data(), &I_ONE, &I_ONE, &desc[0],
+          AMat.Data(), &I_ONE, &I_ONE, &desc_width3[0], 
+          &D_ONE,
+          Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
+          &contxt );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
+
+      // lapack::Lacpy( 'A', height, width, Xtemp.Data(), height,
+      //    X.Data(), height );
+
+
+
+      SCALAPACK(pdlacpy)(&AA, &height, &width, 
+          Xtemp.Data(), &I_ONE, &I_ONE, &desc[0],
+          X.Data(), &I_ONE, &I_ONE, &desc[0] );
+
+    } // if ( numSet == 2 )
+
+
     // Update AX and AP
     if( numSet == 2 ){
       // AX <- AX * C_X + AW * C_W
@@ -1215,7 +1215,7 @@ EigenSolver::LOBPCGSolveReal	(
       //    AX.Data(), height, &AMat(0,0), lda,
       //     0.0, Xtemp.Data(), height );
 
-  GetTime( timeSta );
+      GetTime( timeSta );
       SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &width, 
           &D_ONE,
           AX.Data(), &I_ONE, &I_ONE, &desc[0],
@@ -1223,9 +1223,9 @@ EigenSolver::LOBPCGSolveReal	(
           &D_ZERO,
           Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
           &contxt );
-  GetTime( timeEnd );
-  iterGemmN = iterGemmN + 1;
-  timeGemmN = timeGemmN + ( timeEnd - timeSta );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
 
       // blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
@@ -1238,7 +1238,7 @@ EigenSolver::LOBPCGSolveReal	(
       jb = 1;
       ic = 1;
       jc = 1;
-  GetTime( timeSta );
+      GetTime( timeSta );
       SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &numActiveTotal, 
           &D_ONE,
           AW.Data(), &I_ONE, &ja, &desc[0],
@@ -1246,9 +1246,9 @@ EigenSolver::LOBPCGSolveReal	(
           &D_ONE,
           Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
           &contxt );
-  GetTime( timeEnd );
-  iterGemmN = iterGemmN + 1;
-  timeGemmN = timeGemmN + ( timeEnd - timeSta );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
       // lapack::Lacpy( 'A', height, width, Xtemp.Data(), height,
       //    AX.Data(), height );
@@ -1256,11 +1256,11 @@ EigenSolver::LOBPCGSolveReal	(
       SCALAPACK(pdlacpy)(&AA, &height, &width, 
           Xtemp.Data(), &I_ONE, &I_ONE, &desc[0],
           AX.Data(), &I_ONE, &I_ONE, &desc[0]);
-      
+
       // AP <- AW
       // lapack::Lacpy( 'A', height, numActive, AW.VecData(numLocked), height,
       //    AP.VecData(numLocked), height );
-    
+
       ia = 1;
       ja = numLockedTotal + 1;
       ib = 1;
@@ -1268,21 +1268,21 @@ EigenSolver::LOBPCGSolveReal	(
       SCALAPACK(pdlacpy)(&AA, &height, &numActiveTotal, 
           AW.Data(), &I_ONE, &ja, &desc[0],
           AP.Data(), &I_ONE, &jb, &desc[0]);
-  
+
     }
     else{
       // AP <- AW * C_W + A_P * C_P
       // blas::Gemm( 'N', 'N', height, width, numActive, 1.0, 
       //    AW.VecData(numLocked), height, &AMat(width,0), lda,
       //    0.0, Xtemp.Data(), height );
-    
+
       ia = 1;
       ja = numLockedTotal + 1;
       ib = width + 1;
       jb = 1;
       ic = 1;
       jc = 1;
-  GetTime( timeSta );
+      GetTime( timeSta );
       SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &numActiveTotal, 
           &D_ONE,
           AW.Data(), &I_ONE, &ja, &desc[0],
@@ -1290,9 +1290,9 @@ EigenSolver::LOBPCGSolveReal	(
           &D_ZERO,
           Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
           &contxt );
-  GetTime( timeEnd );
-  iterGemmN = iterGemmN + 1;
-  timeGemmN = timeGemmN + ( timeEnd - timeSta );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
       // blas::Gemm( 'N', 'N', height, width, numActive, 1.0,
       //    AP.VecData(numLocked), height, &AMat(width+numActive, 0), lda,
@@ -1304,7 +1304,7 @@ EigenSolver::LOBPCGSolveReal	(
       jb = 1;
       ic = 1;
       jc = 1;
-  GetTime( timeSta );
+      GetTime( timeSta );
       SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &numActiveTotal, 
           &D_ONE,
           AP.Data(), &I_ONE, &ja, &desc[0],
@@ -1312,9 +1312,9 @@ EigenSolver::LOBPCGSolveReal	(
           &D_ONE,
           Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
           &contxt );
-  GetTime( timeEnd );
-  iterGemmN = iterGemmN + 1;
-  timeGemmN = timeGemmN + ( timeEnd - timeSta );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
 
       // lapack::Lacpy( 'A', height, numActive, Xtemp.VecData(numLocked), 
@@ -1333,7 +1333,7 @@ EigenSolver::LOBPCGSolveReal	(
       //    AX.Data(), height, &AMat(0,0), lda,
       //    1.0, Xtemp.Data(), height );
 
-  GetTime( timeSta );
+      GetTime( timeSta );
       SCALAPACK(pdgemm)(&NN, &NN, &height, &width, &width, 
           &D_ONE,
           AX.Data(), &I_ONE, &I_ONE, &desc[0],
@@ -1341,17 +1341,17 @@ EigenSolver::LOBPCGSolveReal	(
           &D_ONE,
           Xtemp.Data(), &I_ONE, &I_ONE, &desc[0], 
           &contxt );
-  GetTime( timeEnd );
-  iterGemmN = iterGemmN + 1;
-  timeGemmN = timeGemmN + ( timeEnd - timeSta );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
       // lapack::Lacpy( 'A', height, width, Xtemp.Data(), height, 
       //    AX.Data(), height );
-   
+
       SCALAPACK(pdlacpy)(&AA, &height, &width, 
           Xtemp.Data(), &I_ONE, &I_ONE, &desc[0],
           AX.Data(), &I_ONE, &I_ONE, &desc[0]);
-  
+
     } // if ( numSet == 2 )
 
 
@@ -1378,18 +1378,18 @@ EigenSolver::LOBPCGSolveReal	(
   // lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
 
   char VV = 'V';
-  
+
   if ( mpirank == 0 ){
-  GetTime( timeSta );
+    GetTime( timeSta );
     lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
-  GetTime( timeEnd );
-  iterMpirank0 = iterMpirank0 + 1;
-  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+    GetTime( timeEnd );
+    iterMpirank0 = iterMpirank0 + 1;
+    timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
   }
 
-    MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
-    MPI_Bcast(eigValS.Data(), width, MPI_DOUBLE, 0, mpi_comm);
-  
+  MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
+  MPI_Bcast(eigValS.Data(), width, MPI_DOUBLE, 0, mpi_comm);
+
   // X <- X*C
   // blas::Gemm( 'N', 'N', height, width, width, 1.0, X.Data(),
   //    height, XTX.Data(), width, 0.0, Xtemp.Data(), height );
@@ -1445,7 +1445,7 @@ EigenSolver::LOBPCGSolveReal	(
   SCALAPACK(pdlacpy)(&AA, &height, &width, 
       X.Data(), &I_ONE, &I_ONE, &desc[0],
       psiPtr_->Wavefun().Data(), &I_ONE, &I_ONE, &desc[0]);
-  
+
   if( isConverged ){
     statusOFS << std::endl << "After " << iter 
       << " iterations, LOBPCG has converged."  << std::endl
@@ -1469,10 +1469,10 @@ EigenSolver::LOBPCGSolveReal	(
 
 
 #ifndef _RELEASE_
-	PopCallStack();
+  PopCallStack();
 #endif
 
-	return ;
+  return ;
 } 		// -----  end of method EigenSolver::LOBPCGSolveReal  ----- 
 
 

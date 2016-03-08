@@ -738,7 +738,6 @@ IonDynamics::DensityExtrapolateCoefficient	( Int ionIter, DblNumVec& coef )
     coef[1] = -1.0;
   }
   else if( MDExtrapolationType_ == "quadratic" ){
-    // WHY 4 rather than 2?
     if( ionIter < 3 ){
       coef[0] = 2.0;
       coef[1] = -1.0;
