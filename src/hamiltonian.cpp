@@ -357,6 +357,8 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 	densityLocal.Resize( ntotFine, ncom );   
 	SetValue( densityLocal, 0.0 );
 
+  Real fac;
+
 	SetValue( density_, 0.0 );
   for (Int k=0; k<nocc; k++) {
 		for (Int j=0; j<ncom; j++) {
@@ -364,19 +366,21 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
       for( Int i = 0; i < ntot; i++ ){
         fft.inputComplexVec(i) = Complex( psi.Wavefun(i,j,k), 0.0 ); 
       }
-      fftw_execute( fft.forwardPlan );
- 
+     
+      FftwExecute (fft, fft.forwardPlan);
+
       // fft Coarse to Fine 
 
       SetValue( fft.outputComplexVecFine, Z_ZERO );
       for( Int i = 0; i < ntot; i++ ){
-        fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i);
-      }
+        fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i) * 
+          sqrt( double(ntot) / double(ntotFine) );
+      } 
 
-      fftw_execute( fft.backwardPlanFine );
+      FftwExecute (fft, fft.backwardPlanFine);
 
       // FIXME Factor to be simplified
-      Real fac = numSpin_ * occrate(psi.WavefunIdx(k)) / (double(ntot) * double(ntotFine));
+      fac = numSpin_ * occrate(psi.WavefunIdx(k));
       for( Int i = 0; i < ntotFine; i++ ){
 				densityLocal(i,RHO) +=  pow( std::abs(fft.inputComplexVecFine(i).real()), 2.0 ) * fac;
       }
@@ -421,12 +425,14 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
 #endif
   Int ntotFine  = fft.domain.NumGridTotalFine();
   Real vol  = domain_.Volume();
+  Real fac;
 
   for( Int i = 0; i < ntotFine; i++ ){
     fft.inputComplexVecFine(i) = Complex( density_(i,RHO), 0.0 ); 
   }
-  fftw_execute( fft.forwardPlanFine );
-
+  
+  FftwExecute (fft, fft.forwardPlan);
+  
   CpxNumVec  cpxVec( ntotFine );
   blas::Copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
       cpxVec.Data(), 1 );
@@ -444,11 +450,11 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
       }
     }
 
-    fftw_execute( fft.backwardPlanFine );
+    FftwExecute (fft, fft.backwardPlanFine);
 
     DblNumMat& gradDensity = gradDensity_[d];
     for( Int i = 0; i < ntotFine; i++ ){
-      gradDensity(i, RHO) = fft.inputComplexVecFine(i).real() / ntotFine;
+      gradDensity(i, RHO) = fft.inputComplexVecFine(i).real();
     }
   } // for d
 
@@ -468,6 +474,7 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
 #endif
   Int ntot = domain_.NumGridTotalFine();
   Real vol = domain_.Volume();
+  Real fac;
 
   if( XCId_ == XC_LDA_XC_TETER93 ) 
   {
@@ -530,7 +537,7 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
         fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2( i, RHO ), 0.0 ); 
       }
 
-      fftw_execute( fft.forwardPlanFine );
+      FftwExecute ( fft, fft.forwardPlanFine );
 
       CpxNumVec& ik = fft.ikFine[d];
 
@@ -543,10 +550,10 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
         }
       }
 
-      fftw_execute( fft.backwardPlanFine );
+      FftwExecute ( fft, fft.backwardPlanFine );
 
       for( Int i = 0; i < ntot; i++ ){
-        vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real() / ntot;
+        vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real();
       }
 
     } // for d
@@ -591,7 +598,7 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
         fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2( i, RHO ), 0.0 ); 
       }
 
-      fftw_execute( fft.forwardPlanFine );
+      FftwExecute ( fft, fft.forwardPlanFine );
 
       CpxNumVec& ik = fft.ikFine[d];
 
@@ -604,10 +611,10 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
         }
       }
 
-      fftw_execute( fft.backwardPlanFine );
+      FftwExecute ( fft, fft.backwardPlanFine );
 
       for( Int i = 0; i < ntot; i++ ){
-        vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real() / ntot;
+        vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real();
       }
 
     } // for d
@@ -638,37 +645,39 @@ void KohnSham::CalculateHartree( Fourier& fft ) {
 	}
  	
   Int ntot = domain_.NumGridTotalFine();
-	if( fft.domain.NumGridTotalFine() != ntot ){
-		throw std::logic_error( "Grid size does not match!" );
-	}
+  if( fft.domain.NumGridTotalFine() != ntot ){
+    throw std::logic_error( "Grid size does not match!" );
+  }
 
-	// The contribution of the pseudoCharge is subtracted. So the Poisson
-	// equation is well defined for neutral system.
-	for( Int i = 0; i < ntot; i++ ){
-		fft.inputComplexVecFine(i) = Complex( 
-				density_(i,RHO) - pseudoCharge_(i), 0.0 );
-	}
-	fftw_execute( fft.forwardPlanFine );
+  // The contribution of the pseudoCharge is subtracted. So the Poisson
+  // equation is well defined for neutral system.
+  for( Int i = 0; i < ntot; i++ ){
+    fft.inputComplexVecFine(i) = Complex( 
+        density_(i,RHO) - pseudoCharge_(i), 0.0 );
+  }
 
-	for( Int i = 0; i < ntot; i++ ){
-		if( fft.gkkFine(i) == 0 ){
-			fft.outputComplexVecFine(i) = Z_ZERO;
-		}
-		else{
-			// NOTE: gkk already contains the factor 1/2.
-			fft.outputComplexVecFine(i) *= 2.0 * PI / fft.gkkFine(i);
-		}
-	}
-	fftw_execute( fft.backwardPlanFine );
+  FftwExecute ( fft, fft.forwardPlanFine );
 
-	for( Int i = 0; i < ntot; i++ ){
-		vhart_(i) = fft.inputComplexVecFine(i).real() / ntot;
-	}
+  for( Int i = 0; i < ntot; i++ ){
+    if( fft.gkkFine(i) == 0 ){
+      fft.outputComplexVecFine(i) = Z_ZERO;
+    }
+    else{
+      // NOTE: gkk already contains the factor 1/2.
+      fft.outputComplexVecFine(i) *= 2.0 * PI / fft.gkkFine(i);
+    }
+  }
+
+  FftwExecute ( fft, fft.backwardPlanFine );
+
+  for( Int i = 0; i < ntot; i++ ){
+    vhart_(i) = fft.inputComplexVecFine(i).real();
+  }
 
 #ifndef _RELEASE_
-	PopCallStack();
+  PopCallStack();
 #endif
-	return; 
+  return; 
 }  // -----  end of method KohnSham::CalculateHartree ----- 
 
 
@@ -732,7 +741,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 				tempVec(i), 0.0 );
 	}
 
-	fftw_execute( fft.forwardPlanFine );
+  FftwExecute ( fft, fft.forwardPlanFine );
 
 	blas::Copy( ntot, fft.outputComplexVecFine.Data(), 1,
 			cpxVec.Data(), 1 );
@@ -749,14 +758,14 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 				fft.outputComplexVecFine(i) = cpxVec(i) *
 					2.0 * PI / fft.gkkFine(i);
 			}
-		}
+    }
 
-		fftw_execute( fft.backwardPlanFine );
+    FftwExecute ( fft, fft.backwardPlanFine );
 
 		vhart.Resize( ntot );
 
 		for( Int i = 0; i < ntot; i++ ){
-			vhart(i) = fft.inputComplexVecFine(i).real() / ntot;
+			vhart(i) = fft.inputComplexVecFine(i).real();
 		}
 	}
 	
@@ -771,15 +780,15 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 				fft.outputComplexVecFine(i) = cpxVec(i) *
 					2.0 * PI / fft.gkkFine(i) * ik(i);
 			}
-		}
+    }
 
-		fftw_execute( fft.backwardPlanFine );
+    FftwExecute ( fft, fft.backwardPlanFine );
 
 		// vhartDrv saves the derivative of the Hartree potential
 		vhartDrv[d].Resize( ntot );
 
 		for( Int i = 0; i < ntot; i++ ){
-			vhartDrv[d](i) = fft.inputComplexVecFine(i).real() / ntot;
+			vhartDrv[d](i) = fft.inputComplexVecFine(i).real();
 		}
 
 	} // for (d)
@@ -866,7 +875,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
         fft.inputComplexVecFine(idx(k)) = Complex( val(k,VAL), 0.0 );
       }
 
-      fftw_execute( fft.forwardPlanFine );
+      FftwExecute ( fft, fft.forwardPlanFine );
 
       // Save the vector for multiple differentiation
       blas::Copy( ntot, fft.outputComplexVecFine.Data(), 1,
@@ -886,10 +895,10 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
           }
         }
 
-        fftw_execute( fft.backwardPlanFine );
+        FftwExecute ( fft, fft.backwardPlanFine );
 
         for( Int i = 0; i < ntotFine; i++ ){
-          vlocDrv[d](i) = fft.inputComplexVecFine(i).real() / ntotFine;
+          vlocDrv[d](i) = fft.inputComplexVecFine(i).real();
         }
       } // for (d)
 
@@ -1095,21 +1104,21 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
           for( Int i = 0; i < domain_.NumGridTotal(); i++ ){
             fft.inputComplexVec(i) = Complex( psiPtr[i], 0.0 ); 
           }
-          fftw_execute( fft.forwardPlan );
+          
+          FftwExecute ( fft, fft.forwardPlan );
 
           // fft Coarse to Fine 
 
           SetValue( fft.outputComplexVecFine, Z_ZERO );
           for( Int i = 0; i < domain_.NumGridTotal(); i++ ){
-            fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i);
+            fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i) *
+              sqrt( double(domain_.NumGridTotal()) / double(domain_.NumGridTotalFine()) );
           }
 
-          fftw_execute( fft.backwardPlanFine );
+          FftwExecute ( fft, fft.backwardPlanFine );
 
-          Real fac = 1.0 / sqrt( double(domain_.NumGridTotal())  *
-             double(domain_.NumGridTotalFine()) ); 
           for( Int i = 0; i < domain_.NumGridTotalFine(); i++ ){
-            wfnFine(i) = fft.inputComplexVecFine(i).real() * fac;
+            wfnFine(i) = fft.inputComplexVecFine(i).real();
           }
 
 					for( Int i = 0; i < idx.Size(); i++ ){
@@ -1143,9 +1152,6 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
     force( a, 1 ) = force( a, 1 ) + forceTmp( a, 1 );
     force( a, 2 ) = force( a, 2 ) + forceTmp( a, 2 );
   }
-
-
-
 
 	for( Int a = 0; a < numAtom; a++ ){
 		atomList_[a].force = Point3( force(a,0), force(a,1), force(a,2) );
@@ -1208,7 +1214,7 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
 	}
 
   GetTime( timeFFTSta );
-	fftw_execute( fft.forwardPlanFine );
+  FftwExecute ( fft, fft.forwardPlanFine );
   GetTime( timeFFTEnd );
   timeFFTTotal += timeFFTEnd - timeFFTSta;
 
@@ -1232,7 +1238,7 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
 		}
 
     GetTime( timeFFTSta );
-		fftw_execute( fft.backwardPlanFine );
+    FftwExecute ( fft, fft.backwardPlanFine );
     GetTime( timeFFTEnd );
     timeFFTTotal += timeFFTEnd - timeFFTSta;
 
@@ -1240,7 +1246,7 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
 		vhartDrv[d].Resize( ntotFine );
 
 		for( Int i = 0; i < ntotFine; i++ ){
-			vhartDrv[d](i) = fft.inputComplexVecFine(i).real() / ntotFine;
+			vhartDrv[d](i) = fft.inputComplexVecFine(i).real();
 		}
 
 	} // for (d)
@@ -1321,7 +1327,7 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
       }
 
       GetTime( timeFFTSta );
-      fftw_execute( fft.forwardPlan );
+      FftwExecute ( fft, fft.forwardPlan );
       GetTime( timeFFTEnd );
       timeFFTTotal += timeFFTEnd - timeFFTSta;
       // fft Coarse to Fine 
@@ -1337,7 +1343,7 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
       }
 
       GetTime( timeFFTSta );
-      fftw_execute( fft.backwardPlanFine );
+      FftwExecute ( fft, fft.backwardPlanFine );
       GetTime( timeFFTEnd );
       timeFFTTotal += timeFFTEnd - timeFFTSta;
       
@@ -1361,7 +1367,7 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
         }
 
         GetTime( timeFFTSta );
-        fftw_execute( fft.backwardPlanFine );
+        FftwExecute ( fft, fft.backwardPlanFine );
         GetTime( timeFFTEnd );
         timeFFTTotal += timeFFTEnd - timeFFTSta;
 

@@ -429,7 +429,91 @@ void Fourier::InitializeFine ( const Domain& dm )
 	return ;
 }		// -----  end of function Fourier::InitializeFine  ----- 
 
+void FftwExecute ( Fourier& fft, fftw_plan& plan )
+{
+#ifndef _RELEASE_
+	PushCallStack("Fourier::FftwExecute");
+#endif  // ifndef _RELEASE_
 
+  Int ntot      = fft.domain.NumGridTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Real vol      = fft.domain.Volume();
+  Real fac;
+
+  if ( plan == fft.backwardPlan )
+  {
+    fftw_execute( fft.backwardPlan );
+    fac = 1.0 / vol;
+    for( Int i = 0; i < ntot; i++ ){
+      fft.inputComplexVec(i) *=  fac;
+    }
+  }
+  
+  if ( plan == fft.forwardPlan )
+  {
+    fftw_execute( fft.forwardPlan );
+    fac = vol / double(ntot);
+    for( Int i = 0; i < ntot; i++ ){
+      fft.outputComplexVec(i) *=  fac;
+    }
+  }
+
+  if ( plan == fft.backwardPlanR2C )
+  {
+    fftw_execute( fft.backwardPlanR2C );
+    fac = 1.0 / vol;
+    for( Int i = 0; i < ntot; i++ ){
+      fft.inputVecR2C(i) *=  fac;
+    }
+  }
+  
+  if ( plan == fft.forwardPlanR2C )
+  {
+    fftw_execute( fft.forwardPlanR2C );
+    fac = vol / double(ntot);
+    for( Int i = 0; i < ntot; i++ ){
+      fft.outputVecR2C(i) *=  fac;
+    }
+  }
+
+  if ( plan == fft.backwardPlanFine )
+  {
+    fftw_execute( fft.backwardPlanFine );
+    fac = 1.0 / vol;
+    for( Int i = 0; i < ntotFine; i++ ){
+      fft.inputComplexVecFine(i) *=  fac;
+    }
+  }
+  
+  if ( plan == fft.forwardPlanFine )
+  {
+    fftw_execute( fft.forwardPlanFine );
+    fac = vol / double(ntotFine);
+    for( Int i = 0; i < ntotFine; i++ ){
+      fft.outputComplexVecFine(i) *=  fac;
+    }
+  }
+
+  if ( plan == fft.backwardPlanR2CFine )
+  {
+    fftw_execute( fft.backwardPlanR2CFine );
+    fac = 1.0 / vol;
+    for( Int i = 0; i < ntotFine; i++ ){
+      fft.inputVecR2CFine(i) *=  fac;
+    }
+  }
+  
+  if ( plan == fft.forwardPlanR2CFine )
+  {
+    fftw_execute( fft.forwardPlanR2CFine );
+    fac = vol / double(ntotFine);
+    for( Int i = 0; i < ntotFine; i++ ){
+      fft.outputVecR2CFine(i) *=  fac;
+    }
+  }
+
+  return ;
+}		// -----  end of function Fourier::FftwExecute  ----- 
 
 
 // *********************************************************************
