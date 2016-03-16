@@ -876,33 +876,24 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
         blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
             fft.inputVecR2C.Data(), 1 );
 
-        fftw_execute_dft_r2c(
-            fft.forwardPlanR2C, 
-            fft.inputVecR2C.Data(),
-            reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ));
+        FftwExecute (fft, fft.forwardPlanR2C);
 
         // Interpolate wavefunction from coarse to fine grid
         {
+          Real fac = sqrt( double(ntot) / double(ntotFine) );
           Int *idxPtr = fft.idxFineGridR2C.Data();
           Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
           Complex *fftOutPtr = fft.outputVecR2C.Data();
           for( Int i = 0; i < ntotR2C; i++ ){
-            fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
+            fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++) * fac;
           }
         }
 
-        fftw_execute_dft_c2r(
-            fft.backwardPlanR2CFine, 
-            reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
-            fft.inputVecR2CFine.Data() );
+        FftwExecute (fft, fft.backwardPlanR2CFine);
 
-        Real fac = 1.0 / std::sqrt( double(domain_.NumGridTotal())  *
-            double(domain_.NumGridTotalFine()) ); 
         blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
-        blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
 
       }  // if (1)
-
 
       // Add the contribution from local pseudopotential
       //      for( Int i = 0; i < ntotFine; i++ ){
@@ -965,10 +956,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       // Note the update is important since the Laplacian contribution is already taken into account.
       // The computation order is also important
       // fftw_execute( fft.forwardPlanFine );
-      fftw_execute_dft_r2c(
-          fft.forwardPlanR2CFine, 
-          fft.inputVecR2CFine.Data(),
-          reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
+      FftwExecute (fft, fft.forwardPlanR2CFine);
       //      {
       //        Real fac = std::sqrt(Real(ntot) / (Real(ntotFine)));
       //        Int* idxPtr = fft.idxFineGrid.Data();
@@ -983,7 +971,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
 
       {
-        Real fac = std::sqrt(Real(ntot) / (Real(ntotFine)));
+        Real fac = sqrt( double(ntotFine) / double(ntot) );
         Int *idxPtr = fft.idxFineGridR2C.Data();
         Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
         Complex *fftOutPtr = fft.outputVecR2C.Data();
@@ -992,21 +980,13 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
         }
       }
 
-      fftw_execute_dft_c2r(
-          fft.backwardPlanR2C, 
-          reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ),
-          fft.inputVecR2C.Data() );
-
+      FftwExecute (fft, fft.backwardPlanR2C);
 
       // Inverse Fourier transform to save back to the output vector
       //fftw_execute( fft.backwardPlan );
 
-      //      Real    *ptr1 = a3.VecData(j,k);
-      //      for( Int i = 0; i < ntot; i++ ){
-      //        ptr1[i] += fft.inputComplexVec(i).real() / Real(ntot);
-      //      }
-      blas::Axpy( ntot, 1.0 / Real(ntot), fft.inputVecR2C.Data(), 1,
-          a3.VecData(j,k), 1 );
+      blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
+
     } // j++
   } // k++
 

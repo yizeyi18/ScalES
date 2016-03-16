@@ -1347,14 +1347,14 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
       GetTime( timeFFTEnd );
       timeFFTTotal += timeFFTEnd - timeFFTSta;
       
-      Real fac = 1.0 / sqrt( double(domain_.NumGridTotal())  *
-          double(domain_.NumGridTotalFine()) ); 
+      //Real fac = 1.0 / sqrt( double(domain_.NumGridTotal())  *
+      //    double(domain_.NumGridTotalFine()) ); 
 //      for( Int i = 0; i < domain_.NumGridTotalFine(); i++ ){
 //        psiFine(i) = fft.inputComplexVecFine(i).real() * fac;
 //      }
       blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
           2, psiFine.Data(), 1 );
-      blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
+      //blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
 
       // derivative of psi on a fine grid
       for( Int d = 0; d < DIM; d++ ){
@@ -1376,7 +1376,7 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
 //        }
         blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
             2, psiDrvFine[d].Data(), 1 );
-        blas::Scal( ntotFine, fac, psiDrvFine[d].Data(), 1 );
+        // blas::Scal( ntotFine, fac, psiDrvFine[d].Data(), 1 );
 
       } // for (d)
 
