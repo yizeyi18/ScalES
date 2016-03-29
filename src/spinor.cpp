@@ -1,45 +1,3 @@
-/*
-	 Copyright (c) 2012 The Regents of the University of California,
-	 through Lawrence Berkeley National Laboratory.  
-
-   Author: Lin Lin and Wei Hu
-	 
-   This file is part of DGDFT. All rights reserved.
-
-	 Redistribution and use in source and binary forms, with or without
-	 modification, are permitted provided that the following conditions are met:
-
-	 (1) Redistributions of source code must retain the above copyright notice, this
-	 list of conditions and the following disclaimer.
-	 (2) Redistributions in binary form must reproduce the above copyright notice,
-	 this list of conditions and the following disclaimer in the documentation
-	 and/or other materials provided with the distribution.
-	 (3) Neither the name of the University of California, Lawrence Berkeley
-	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-	 be used to endorse or promote products derived from this software without
-	 specific prior written permission.
-
-	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-	 You are under no obligation whatsoever to provide any bug fixes, patches, or
-	 upgrades to the features, functionality or performance of the source code
-	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
-	 available either publicly, or directly to Lawrence Berkeley National
-	 Laboratory, without imposing a separate written license agreement for such
-	 Enhancements, then you hereby grant the following license: a non-exclusive,
-	 royalty-free perpetual license to install, use, modify, prepare derivative
-	 works, incorporate into other computer software, distribute, and sublicense
-	 such enhancements or derivative works thereof, in binary and source code form.
-*/
 /// @file spinor.cpp
 /// @brief Spinor (wavefunction) for the global domain or extended
 /// element.
@@ -99,7 +57,6 @@ void Spinor::Setup (
 #endif  // ifndef _RELEASE_
 	domain_       = dm;
 
-  
   MPI_Barrier(domain_.comm);
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
@@ -127,25 +84,9 @@ void Spinor::Setup (
     wavefunIdx_[i] = i * mpisize + mpirank ;
   }
 
-  // Check Sum{numStateLocal} = numStateTotal
-  //Int numStateTotalTest = 0; 
-  //Int numState = numStateLocal;
-
-  //mpi::Allreduce( &numState, &numStateTotalTest, 1, MPI_SUM, domain_.comm );
-
-  //if( numStateTotalTest != numStateTotal ){
-  //  statusOFS << "mpisize = " << mpisize << std::endl;
-  //  statusOFS << "mpirank = " << mpirank << std::endl;
-  //  statusOFS << "numStateLocal = " << numStateLocal << std::endl;
-  //  statusOFS << "Sum{numStateLocal} = " << numStateTotalTest << std::endl;
-  //  statusOFS << "numStateTotal = " << numStateTotal << std::endl; 
-  //  throw std::logic_error("Sum{numStateLocal} = numStateTotal does not match.");
-  //}
- 
-
   wavefun_.Resize( dm.NumGridTotal(), numComponent, numStateLocal );
 	SetValue( wavefun_, val );
-
+  
 #ifndef _RELEASE_
 	PopCallStack();
 #endif  // ifndef _RELEASE_
@@ -159,15 +100,26 @@ void Spinor::Setup ( const Domain &dm,
 		Real* data )
 {
 #ifndef _RELEASE_
-	PushCallStack("Spinor::Setup");
+  PushCallStack("Spinor::Setup");
 #endif  // ifndef _RELEASE_
-	domain_       = dm;
-  // FIXME Partition the spinor here
-	wavefun_      = NumTns<Real>( dm.NumGridTotal(), numComponent, numStateLocal,
+
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  domain_       = dm;
+
+  wavefun_      = NumTns<Real>( dm.NumGridTotal(), numComponent, numStateLocal,
       owndata, data );
 
+  wavefunIdx_.Resize( numStateLocal );
+  SetValue( wavefunIdx_, 0 );
+  for (Int i = 0; i < numStateLocal; i++){
+    wavefunIdx_[i] = i * mpisize + mpirank ;
+  }
+
 #ifndef _RELEASE_
-	PopCallStack();
+  PopCallStack();
 #endif  // ifndef _RELEASE_
 } 		// -----  end of method Spinor::Setup  ----- 
 
@@ -175,10 +127,10 @@ void
 Spinor::Normalize	( )
 {
 #ifndef _RELEASE_
-	PushCallStack("Spinor::Normalize");
+  PushCallStack("Spinor::Normalize");
 #endif
-	Int size = wavefun_.m() * wavefun_.n();
-	Int nocc = wavefun_.p();
+  Int size = wavefun_.m() * wavefun_.n();
+  Int nocc = wavefun_.p();
 
 	for (Int k=0; k<nocc; k++) {
 		Real *ptr = wavefun_.MatData(k);
@@ -844,8 +796,8 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   Int ntotFine = domain_.NumGridTotalFine();
   Real vol = domain_.Volume();
 
-  Int ntotR2C = (numGrid[0]/2+1) * numGrid[1] * numGrid[2];
-  Int ntotR2CFine = (numGridFine[0]/2+1) * numGridFine[1] * numGridFine[2];
+  Int ntotR2C = fft.numGridTotalR2C;
+  Int ntotR2CFine = fft.numGridTotalR2CFine;
 
   if( fft.domain.NumGridTotal() != ntot ){
     throw std::logic_error("Domain size does not match.");
@@ -876,7 +828,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
         blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
             fft.inputVecR2C.Data(), 1 );
 
-        FftwExecute (fft, fft.forwardPlanR2C);
+        FFTWExecute ( fft, fft.forwardPlanR2C );
 
         // Interpolate wavefunction from coarse to fine grid
         {
@@ -889,7 +841,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
           }
         }
 
-        FftwExecute (fft, fft.backwardPlanR2CFine);
+        FFTWExecute ( fft, fft.backwardPlanR2CFine );
 
         blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
 
@@ -956,7 +908,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       // Note the update is important since the Laplacian contribution is already taken into account.
       // The computation order is also important
       // fftw_execute( fft.forwardPlanFine );
-      FftwExecute (fft, fft.forwardPlanR2CFine);
+      FFTWExecute ( fft, fft.forwardPlanR2CFine );
       //      {
       //        Real fac = std::sqrt(Real(ntot) / (Real(ntotFine)));
       //        Int* idxPtr = fft.idxFineGrid.Data();
@@ -980,7 +932,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
         }
       }
 
-      FftwExecute (fft, fft.backwardPlanR2C);
+      FFTWExecute ( fft, fft.backwardPlanR2C );
 
       // Inverse Fourier transform to save back to the output vector
       //fftw_execute( fft.backwardPlan );
@@ -1006,7 +958,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 //
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
     const NumTns<Real>& phi,
-    const DblNumVec& exxgkkR2CFine,
+    const DblNumVec& exxgkkR2C,
     Real  exxFraction,
     Real  numSpin,
     const DblNumVec& occupationRate,
@@ -1018,157 +970,112 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
   if( !fft.isInitialized ){
     throw std::runtime_error("Fourier is not prepared.");
   }
+  
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+ 
   Index3& numGrid = domain_.numGrid;
   Index3& numGridFine = domain_.numGridFine;
-  Int ntot = wavefun_.m();
+  
+  Int ntot     = domain_.NumGridTotal();
+  Int ntotFine = domain_.NumGridTotalFine();
+  Int ntotR2C = fft.numGridTotalR2C;
+  Int ntotR2CFine = fft.numGridTotalR2CFine;
   Int ncom = wavefun_.n();
   Int numStateLocal = wavefun_.p();
-  Int ntotFine = domain_.NumGridTotalFine();
-  Real vol = domain_.Volume();
+  Int numStateTotal = numStateTotal_;
+
   Int ncomPhi = phi.n();
+  
+  Real vol = domain_.Volume();
+  
   if( ncomPhi != 1 || ncom != 1 ){
     throw std::logic_error("Spin polarized case not implemented.");
   }
-  // This assumes phi is stored on ALL processors, and could be memory consuming
-  Int numStateTotal = phi.p();
-//  statusOFS << "numStateTotal = " << numStateTotal << std::endl;
-
-  Int ntotR2C = fft.numGridTotalR2C;
-  Int ntotR2CFine = fft.numGridTotalR2CFine;
 
   if( fft.domain.NumGridTotal() != ntot ){
     throw std::logic_error("Domain size does not match.");
   }
 
   // Temporary variable for saving wavefunction on a fine grid
-  DblNumVec psiFine(ntotFine);
-  DblNumVec hpsiFine(ntotFine);
+  DblNumVec phiTemp(ntot);
   
+  Int numStateLocalTemp;
 
-  // FIXME OpenMP does not work since all variables are shared
-  for (Int k=0; k<numStateLocal; k++) {
-    for (Int j=0; j<ncom; j++) {
+  MPI_Barrier(domain_.comm);
+ 
+  for( Int iproc = 0; iproc < mpisize; iproc++ ){
 
-      SetValue( psiFine, 0.0 );
-      SetValue( hpsiFine, 0.0 );
+    if( iproc == mpirank )
+      numStateLocalTemp = numStateLocal;
 
-      // FIXME Maybe make this a more standard routine
-      // R2C version
-      if(1)
-      {
-        SetValue( fft.inputVecR2C, 0.0 ); 
-        SetValue( fft.inputVecR2CFine, 0.0 ); 
-        SetValue( fft.outputVecR2C, Z_ZERO ); 
-        SetValue( fft.outputVecR2CFine, Z_ZERO ); 
+    MPI_Bcast( &numStateLocalTemp, 1, MPI_INT, iproc, domain_.comm );
 
-        // For c2r and r2c transforms, the default is to DESTROY the
-        // input, therefore a copy of the original matrix is necessary. 
-        blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
-            fft.inputVecR2C.Data(), 1 );
+    IntNumVec wavefunIdxTemp(numStateLocalTemp);
+    if( iproc == mpirank ){
+      wavefunIdxTemp = wavefunIdx_;
+    }
 
-        fftw_execute_dft_r2c(
-            fft.forwardPlanR2C, 
-            fft.inputVecR2C.Data(),
-            reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ));
+    MPI_Bcast( wavefunIdxTemp.Data(), numStateLocalTemp, MPI_INT, iproc, domain_.comm );
 
-        // Interpolate wavefunction from coarse to fine grid
-        {
-          Int *idxPtr = fft.idxFineGridR2C.Data();
-          Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
-          Complex *fftOutPtr = fft.outputVecR2C.Data();
-          for( Int ig = 0; ig < ntotR2C; ig++ ){
-            fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
-          }
-        }
+    // FIXME OpenMP does not work since all variables are shared
+    for( Int kphi = 0; kphi < numStateLocalTemp; kphi++ ){
+      for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
 
-        fftw_execute_dft_c2r(
-            fft.backwardPlanR2CFine, 
-            reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
-            fft.inputVecR2CFine.Data() );
+        SetValue( phiTemp, 0.0 );
 
-        Real fac = 1.0 / std::sqrt( double(domain_.NumGridTotal())  *
-            double(domain_.NumGridTotalFine()) ); 
-        blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
-        blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
-
-      }  // if (1)
-
-      // Add the contribution from exchange. 
-      // NOTE: No parallelization over the phi tensor.
-      // All processors have access to all phi. This means that this version of exact
-      // exchange cannot be performed over many processors
-      for( Int kphi = 0; kphi < numStateTotal; kphi++ ){
-        for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
-          // Skip the unoccupied bands
-          if( occupationRate[kphi] < 1e-8 )
-            continue;
-
+        if( iproc == mpirank )
+        { 
           Real* phiPtr = phi.VecData(jphi, kphi);
-          // rhoc = phi*psi in the real space
-          for( Int ir = 0; ir < ntotFine; ir++ ){
-            fft.inputVecR2CFine(ir) = psiFine(ir) * phiPtr[ir];
+          for( Int ir = 0; ir < ntot; ir++ ){
+            phiTemp(ir) = phiPtr[ir];
           }
-
-          fftw_execute_dft_r2c(
-              fft.forwardPlanR2CFine, 
-              fft.inputVecR2CFine.Data(),
-              reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
-
-          // Solve the Poisson-like problem for exchange
-          for( Int ig = 0; ig < ntotR2CFine; ig++ ){
-            fft.outputVecR2CFine(ig) *= exxgkkR2CFine(ig);
-          }
-
-          fftw_execute_dft_c2r(
-              fft.backwardPlanR2CFine, 
-              reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
-              fft.inputVecR2CFine.Data() );
-
-          // NOTE: No multiplication with spin
-          Real fac = -exxFraction * occupationRate[kphi] / double(ntotFine);  
-          for( Int ir = 0; ir < ntotFine; ir++ ){
-            hpsiFine(ir) += fft.inputVecR2CFine(ir) * phiPtr[ir] * fac;
-          }
-        } // for (jphi)
-      } // for (kphi)
-
-      // Fine to coarse grid
-      {
-        SetValue( fft.inputVecR2CFine, 0.0 );
-        blas::Copy( ntotFine, hpsiFine.Data(), 1, fft.inputVecR2CFine.Data(), 1 );
-
-        fftw_execute_dft_r2c(
-            fft.forwardPlanR2CFine, 
-            fft.inputVecR2CFine.Data(),
-            reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
-
-        Int *idxPtr = fft.idxFineGridR2C.Data();
-        Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
-        Complex *fftOutPtr = fft.outputVecR2C.Data();
-        for( Int i = 0; i < ntotR2C; i++ ){
-          *(fftOutPtr++) = fftOutFinePtr[*(idxPtr++)];
         }
 
-        fftw_execute_dft_c2r(
-            fft.backwardPlanR2C, 
-            reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ),
-            fft.inputVecR2C.Data() );
+        MPI_Bcast( phiTemp.Data(), ntot, MPI_DOUBLE, iproc, domain_.comm );
 
-        Real fac = 1.0 / std::sqrt( double(domain_.NumGridTotal())  *
-            double(domain_.NumGridTotalFine()) ); 
-        blas::Axpy( ntot, fac, fft.inputVecR2C.Data(), 1,
-            a3.VecData(j,k), 1 );
-      }
-    } // for (j)
-  } // for (k)
+        for (Int k=0; k<numStateLocal; k++) {
+          for (Int j=0; j<ncom; j++) {
+
+            Real* psiPtr = wavefun_.VecData(j,k);
+            for( Int ir = 0; ir < ntot; ir++ ){
+              fft.inputVecR2C(ir) = psiPtr[ir] * phiTemp(ir);
+            }
+
+            FFTWExecute ( fft, fft.forwardPlanR2C );
+
+            // Solve the Poisson-like problem for exchange
+            for( Int ig = 0; ig < ntotR2C; ig++ ){
+              fft.outputVecR2C(ig) *= exxgkkR2C(ig);
+            }
+
+            FFTWExecute ( fft, fft.backwardPlanR2C );
+
+            Real* a3Ptr = a3.VecData(j,k);
+            Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
+            for( Int ir = 0; ir < ntot; ir++ ){
+              a3Ptr[ir] += fft.inputVecR2C(ir) * phiTemp(ir) * fac;
+            }
+
+          } // for (j)
+        } // for (k)
+
+        MPI_Barrier(domain_.comm);
 
 
+      } // for (jphi)
+    } // for (kphi)
+
+  } //iproc
+
+  MPI_Barrier(domain_.comm);
 
 #ifndef _RELEASE_
   PopCallStack();
 #endif
 
   return ;
-}
+}		// -----  end of method Spinor::AddMultSpinorEXX  ----- 
 
 }  // namespace dgdft

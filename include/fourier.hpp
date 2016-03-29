@@ -125,7 +125,7 @@ struct Fourier {
   
 };
 
-  void FftwExecute( Fourier& fft, fftw_plan& plan );
+  void FFTWExecute( Fourier& fft, fftw_plan& plan );
 
 // *********************************************************************
 // Parallel FFTW interface

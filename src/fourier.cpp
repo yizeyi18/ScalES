@@ -429,10 +429,10 @@ void Fourier::InitializeFine ( const Domain& dm )
 	return ;
 }		// -----  end of function Fourier::InitializeFine  ----- 
 
-void FftwExecute ( Fourier& fft, fftw_plan& plan )
+void FFTWExecute ( Fourier& fft, fftw_plan& plan )
 {
 #ifndef _RELEASE_
-	PushCallStack("Fourier::FftwExecute");
+	PushCallStack("Fourier::FFTWExecute");
 #endif  // ifndef _RELEASE_
 
   Index3& numGrid = fft.domain.numGrid;
@@ -530,7 +530,7 @@ void FftwExecute ( Fourier& fft, fftw_plan& plan )
   }
 
   return ;
-}		// -----  end of function Fourier::FftwExecute  ----- 
+}		// -----  end of function Fourier::FFTWExecute  ----- 
 
 
 // *********************************************************************

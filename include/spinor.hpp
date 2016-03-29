@@ -59,7 +59,7 @@ namespace dgdft{
 class Spinor {
 private:
 	Domain            domain_;                // mesh should be used here for general cases 
-	NumTns<Real>    wavefun_;               // Local data of the wavefunction 
+	NumTns<Real>      wavefun_;               // Local data of the wavefunction 
   IntNumVec         wavefunIdx_;
   Int               numStateTotal_;
   Int               blocksize_;
