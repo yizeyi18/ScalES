@@ -63,6 +63,7 @@ private:
   /// classes (Hamiltonian or HamiltonianDG).
   std::vector<Atom>*   atomListPtr_;
 
+  /// @brief Max number of history for density extrapolation etc
   Int maxHist_;
 
   /// @brief atomListHist_[0] stores the lastest atomic configuration
@@ -72,6 +73,7 @@ private:
 
   DblNumVec            atomMass_;
 
+  // Taken from input
   bool                 isOutputPosition_; 
   bool                 isOutputVelocity_;
   bool                 isOutputXYZ_;
@@ -94,7 +96,8 @@ private:
   Real                 scalefac_;
   Int                  phase_; // NH1 has two phases
 
-
+  bool                 isGeoOpt_;
+  bool                 isMD_;
 
   /// @brief BarzilaiBorwein method for geometry optimization
   ///
@@ -175,6 +178,10 @@ public:
   std::vector<Atom>& AtomList() { return *atomListPtr_; }
   void SetEpot(Real Epot) { Epot_ = Epot; }
   Int  MaxHist() { return maxHist_; }
+
+  bool IsGeoOpt() { return isGeoOpt_; }
+  bool IsMD()     { return isMD_; }
+
 
 };
 

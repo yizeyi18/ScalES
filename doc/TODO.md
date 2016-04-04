@@ -27,6 +27,8 @@ TODO List   {#pageTODO}
     1) OpenMP paralelization, multiple threads for a band
     2) add more buffer space for using thread parallelization for each
        band
+   - Threaded FFTW can be tried with the new interface namely
+     FFTWExecute
 - Remove the unnecessary part of distinguishing coarse / fine grid
   (done), and
   document this a bit more properly. It is even possible to revamp the
@@ -87,9 +89,7 @@ TODO List   {#pageTODO}
     are going implement the spin case. Any extension to complex
     arithmetic (noncolinear spin and k-point seems to lead to very
     different code?)
-- Refine Fourier to clean the normalization factors. Encapsulate the
-  forward and backward Fourier transforms? In what convention?
-  - Convention similar to QE can be considered.
+
 - Hybrid is in the KohnSham class with sequential implementation. 
   - Parallel implementation for PWDFT
   - Hybrid for DG
@@ -97,7 +97,7 @@ TODO List   {#pageTODO}
 DONE recently
 c Remove BLOPEX
 c Remove SCALAR design
-c tentatively add core dumper (not working yet)
+c tentatively add core dumper 
   Better way to handle error: handling function taking a message as
   input is a more versatile way for handling error messaging. callstack
   procedure is slow and does not work for openmp. The DEBUG mode is too
@@ -112,7 +112,7 @@ c tentatively add core dumper (not working yet)
   - try/catch and C++ exceptions not particularly useful for debugging.
   - coredumper
   - Encapsulate the error handling function (partially done)
-- Combine PWDFT_bb and MD (partially done)
+c Combine PWDFT_bb and MD 
   c Should only have pwdft.cpp and dgdft.cpp
   c Standardize the output of initial and final results into subroutines
     that are shared between pwdft and dgdft. 
@@ -122,4 +122,6 @@ c tentatively add core dumper (not working yet)
     o For 2000-10000 atoms, perhaps BFGS is too expensive. Maybe CG or
       FIRE alternative. PETOT uses CG?
     o MD: NVE, NH1, Langevin
-
+c Refine Fourier to clean the normalization factors. Encapsulate the
+  forward and backward Fourier transforms? In what convention?
+  c Convention similar to QE can be considered.

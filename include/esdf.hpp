@@ -211,6 +211,13 @@ namespace dgdft{
     ///
     /// Default: 0
     bool                isHybridACE;
+
+    /// @brief Whether the ACE formulation is performed outside the SCF
+    /// loop. This can be used when performing geometry optimization.
+    ///
+    /// Default: 0
+    bool                isHybridACEOutside;
+
     /// @brief Treatment of the divergence term in hybrid functional
     /// calculation.
     ///
@@ -640,7 +647,7 @@ namespace dgdft{
       /// @brief Maximum number of steps for geometry optimization /
       /// molecular dynamics
       ///
-      /// Default: 1 
+      /// Default: 0 
       Int                 ionMaxIter;
 
       /// @brief Mode for geometry optimization and molecular dynamics

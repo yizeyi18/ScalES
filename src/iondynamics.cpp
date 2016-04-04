@@ -89,6 +89,22 @@ IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& a
     atomMass_[a]=amu2au*ptable.ptemap()[atype].params(PTParam::MASS); 
   }
 
+  // Determine the mode of the ionDynamics
+  isGeoOpt_ = false;
+  isMD_     = false;
+
+  if( ionMove_ == "bb" ||
+      ionMove_ == "cg" ||
+      ionMove_ == "bfgs" ){
+    isGeoOpt_ = true;
+  }
+
+  if( ionMove_ == "verlet" ||
+      ionMove_ == "nosehoover1" ||
+      ionMove_ == "langevin" ){
+    isMD_ = true;
+  }
+
   // Geometry optimization
 
   if( ionMove_ == "bb" ){

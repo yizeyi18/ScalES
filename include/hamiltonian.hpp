@@ -187,6 +187,11 @@ public:
 
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
 
+//  virtual void UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock ) = 0;
+
+  void UpdateHamiltonian ( std::vector<Atom>&  atomList ) { atomList_ = atomList; }
+  
+
 	// *********************************************************************
 	// Access
 	// *********************************************************************
@@ -214,7 +219,6 @@ public:
   bool        IsHybridACE() { return isHybridACE_; }
 
 
-  void UpdateHamiltonian ( std::vector<Atom>&  atomList ) { atomList_ = atomList; }
 
 	// *********************************************************************
 	// Inquiry
@@ -301,6 +305,10 @@ public:
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
 
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft );
+
+  // Not implemented yet
+//  virtual void UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock );
+
 };
 
 

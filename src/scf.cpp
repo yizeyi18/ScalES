@@ -112,6 +112,8 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
   
     XCType_                  = esdfParam.XCType;
     VDWType_                 = esdfParam.VDWType;
+
+    isHybridACEOutside_      = esdfParam.isHybridACEOutside;
   }
 
 	// other SCF parameters
@@ -250,21 +252,22 @@ SCF::Iterate (  )
   // Fock energies
   Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
 
-  if( ham.IsHybrid() == false ){
+  if( ham.IsHybrid() == false || isHybridACEOutside_ == true ){
+    // Let the hybrid functional be handledo outside the SCF loop
     scfPhiMaxIter_ = 1;
   }
 
   for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
-    GetTime( timePhiIterStart );
-    if ( isPhiIterConverged ) break;
+    bool isSCFConverged = false;
 
-    if( ham.IsHybrid() )
+    if( ham.IsHybrid() && isHybridACEOutside_ == false )
     {
+      if ( isPhiIterConverged ) break;
+      GetTime( timePhiIterStart );
       std::ostringstream msg;
       msg << "Phi iteration # " << phiIter;
       PrintBlock( statusOFS, msg.str() );
     }
-    bool isSCFConverged = false;
 
 
     // Regular SCF iter
@@ -384,15 +387,14 @@ SCF::Iterate (  )
 
     }
 
-
     // EXX
-    Real dExx;
-    if( ham.IsHybrid() ){
+    if( ham.IsHybrid() && isHybridACEOutside_ == false ){
+      Real dExx;
       if( phiIter == 1 ){
         ham.SetEXXActive(true);
         // Update Phi <- Psi
         GetTime( timeSta );
-        ham.SetPhiEXX( eigSolPtr_->Psi(), eigSolPtr_->FFT() ); 
+        ham.SetPhiEXX( psi, fft ); 
         if( ham.IsHybridACE() ){
           ham.CalculateVexxACE ( psi, fft );
         }
@@ -452,13 +454,12 @@ SCF::Iterate (  )
           isPhiIterConverged = true;
         }
       }
-    }
-    GetTime( timePhiIterEnd );
 
-    if( ham.IsHybrid() ){
+      GetTime( timePhiIterEnd );
+
       statusOFS << "Total wall clock time for this Phi iteration = " << 
         timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
-    }
+    } // if (hybrid)
   } // for(phiIter)
 
   // Calculate the Force

@@ -45,6 +45,8 @@
 /// @date 2012-09-16 Original version
 /// @date 2014-02-11 Dual grid implementation
 /// @date 2014-08-06 Intra-element parallelization
+/// @date 2016-03-07 Refactoring DGDFT to include geometry optimization
+/// and molecular dynamics.
 #include "dgdft.hpp"
 
 using namespace dgdft;
@@ -538,7 +540,7 @@ int main(int argc, char **argv)
         << " [s]" << std::endl;
 
       // Geometry optimization
-      if( esdfParam.ionMove == "bb" ){
+      if( ionDyn.IsGeoOpt() ){
         if( MaxForce( hamDG.AtomList() ) < esdfParam.geoOptMaxForce ){
           statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
             << "Exit the loops for ions." << std::endl;

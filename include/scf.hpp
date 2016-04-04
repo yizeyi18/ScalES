@@ -83,6 +83,7 @@ private:
 	bool                isOutputWfn_;
 
   bool                isCalculateForceEachSCF_;
+  bool                isHybridACEOutside_;
   
 	std::string         restartDensityFileName_;
   std::string         restartWfnFileName_;
@@ -163,9 +164,13 @@ public:
 	// Inquiry
 	// *********************************************************************
 	// Energy etc.
+  Real Etot() const  {return Etot_;};	
   Real Efree() const {return Efree_;};	
+  Real Efock() const {return Efock_;};	
 
   Real Fermi() const {return fermi_;};	
+
+  void UpdateEfock( Real Efock ) {Efock_ = Efock; Etot_ -= Efock; Efree_ -= Efock;}
 	
 
 }; // -----  end of class  SCF ----- 

@@ -1938,4 +1938,19 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
 } 		// -----  end of method KohnSham::CalculateEXXEnergy  ----- 
 
 
+
+//void
+//KohnSham::UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock )
+//{
+//#ifndef _RELEASE_
+//	PushCallStack("KohnSham::UpdateHybrid");
+//#endif
+//
+//#ifndef _RELEASE_
+//	PopCallStack();
+//#endif
+//
+//	return ;
+//}		// -----  end of function KohnSham::UpdateHybrid  ----- 
+//
 } // namespace dgdft

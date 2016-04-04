@@ -49,6 +49,8 @@
 /// @date 2013-10-16 Original implementation
 /// @date 2014-02-01 Dual grid implementation
 /// @date 2014-07-15 Parallelization of PWDFT.
+/// @date 2016-03-07 Refactoring PWDFT to include geometry optimization
+/// and molecular dynamics.
 #include "dgdft.hpp"
 
 using namespace dgdft;
@@ -131,7 +133,7 @@ int main(int argc, char **argv)
 		Domain&  dm = esdfParam.domain;
 		PeriodTable ptable;
 		Fourier fft;
-		Spinor  spn;
+		Spinor  psi;
 		KohnSham hamKS;
 		EigenSolver eigSol;
 		SCF  scf;
@@ -184,11 +186,11 @@ int main(int argc, char **argv)
       }    
     }
      
-    spn.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
+    psi.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
     
     statusOFS << "Spinor setup finished." << std::endl;
 
-    UniformRandom( spn.Wavefun() );
+    UniformRandom( psi.Wavefun() );
 
     if( hamKS.IsHybrid() ){
       GetTime( timeSta );
@@ -200,7 +202,7 @@ int main(int argc, char **argv)
 
 
 		// Eigensolver class
-		eigSol.Setup( esdfParam, hamKS, spn, fft );
+		eigSol.Setup( esdfParam, hamKS, psi, fft );
 
 		statusOFS << "Eigensolver setup finished ." << std::endl;
 
@@ -237,64 +239,157 @@ int main(int argc, char **argv)
     // Main loop for geometry optimization or molecular dynamics
     // If ionMaxIter == 1, it is equivalent to single shot calculation
     Int ionMaxIter = esdfParam.ionMaxIter;
-    for( Int ionIter = 1; ionIter <= ionMaxIter; ionIter++ ){
+
+    Int scfPhiMaxIter = 1;
+    if( esdfParam.isHybridACEOutside == true ){
+      scfPhiMaxIter = esdfParam.scfPhiMaxIter;
+    }
+
+    bool isPhiIterConverged = false;
+    Real timePhiIterStart(0), timePhiIterEnd(0);
+
+    for( Int phiIter = 1; phiIter <= scfPhiMaxIter; phiIter++ ){
+      if( hamKS.IsHybrid() && esdfParam.isHybridACEOutside == true )
       {
+        if ( isPhiIterConverged ) break;
+        GetTime( timePhiIterStart );
         std::ostringstream msg;
-        msg << "Ion move step # " << ionIter;
+        msg << "Phi iteration #" << phiIter << "  (Outside SCF)";
         PrintBlock( statusOFS, msg.str() );
       }
-    
-      // Get the new atomic coordinates
-      // NOTE: ionDyn directly updates the coordinates in Hamiltonian
-      ionDyn.SetEpot( scf.Efree() );
-      ionDyn.MoveIons(ionIter);
-  
-      GetTime( timeSta );
-      hamKS.UpdateHamiltonian( hamKS.AtomList() );
-      hamKS.CalculatePseudoPotential( ptable );
-      scf.Update( ); 
-      GetTime( timeEnd );
-      statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
-        << " [s]" << std::endl;
 
-
-      // Update the density history through extrapolation
-      {
-        for( Int l = maxHist-1; l > 0; l-- ){
-          densityHist[l]     = densityHist[l-1];
-        } // for (l)
-        densityHist[0] = hamKS.Density();
-        
-        // Compute the extrapolation coefficient
-        DblNumVec denCoef;
-        ionDyn.DensityExtrapolateCoefficient( ionIter, denCoef );
-        statusOFS << "Extrapolation density coefficient = " << denCoef << std::endl;
-
-        // Update the electron density
-        DblNumMat& denCurVec  = hamKS.Density();
-        SetValue( denCurVec, 0.0 );
-        for( Int l = 0; l < maxHist; l++ ){
-          blas::Axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
-              1, denCurVec.Data(), 1 );
-        } // for (l)
-      } // density extrapolation
-
-
-      GetTime( timeSta );
-      scf.Iterate( );
-      GetTime( timeEnd );
-      statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
-        << " [s]" << std::endl;
-
-      // Geometry optimization
-      if( esdfParam.ionMove == "bb" ){
-        if( MaxForce( hamKS.AtomList() ) < esdfParam.geoOptMaxForce ){
-          statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
-            << "Exit the loops for ions." << std::endl;
-          break;
+      for( Int ionIter = 1; ionIter <= ionMaxIter; ionIter++ ){
+        {
+          std::ostringstream msg;
+          msg << "Ion move step # " << ionIter;
+          PrintBlock( statusOFS, msg.str() );
         }
-      }
-    } // ionIter
+
+        // Get the new atomic coordinates
+        // NOTE: ionDyn directly updates the coordinates in Hamiltonian
+        ionDyn.SetEpot( scf.Efree() );
+        ionDyn.MoveIons(ionIter);
+
+        GetTime( timeSta );
+        hamKS.UpdateHamiltonian( hamKS.AtomList() );
+        hamKS.CalculatePseudoPotential( ptable );
+        scf.Update( ); 
+        GetTime( timeEnd );
+        statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
+          << " [s]" << std::endl;
+
+
+        // Update the density history through extrapolation
+        {
+          for( Int l = maxHist-1; l > 0; l-- ){
+            densityHist[l]     = densityHist[l-1];
+          } // for (l)
+          densityHist[0] = hamKS.Density();
+
+          // Compute the extrapolation coefficient
+          DblNumVec denCoef;
+          ionDyn.DensityExtrapolateCoefficient( ionIter, denCoef );
+          statusOFS << "Extrapolation density coefficient = " << denCoef << std::endl;
+
+          // Update the electron density
+          DblNumMat& denCurVec  = hamKS.Density();
+          SetValue( denCurVec, 0.0 );
+          for( Int l = 0; l < maxHist; l++ ){
+            blas::Axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
+                1, denCurVec.Data(), 1 );
+          } // for (l)
+        } // density extrapolation
+
+
+        GetTime( timeSta );
+        scf.Iterate( );
+        GetTime( timeEnd );
+        statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
+          << " [s]" << std::endl;
+
+        // Geometry optimization
+        if( ionDyn.IsGeoOpt() ){
+          if( MaxForce( hamKS.AtomList() ) < esdfParam.geoOptMaxForce ){
+            statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
+              << "Exit the loops for ions." << std::endl;
+            break;
+          }
+        }
+      } // ionIter
+
+
+      // EXX
+      if( hamKS.IsHybrid() && esdfParam.isHybridACEOutside == true ){
+        Real dExx;
+        Real fock0, fock1, fock2;
+        if( phiIter == 1 ){
+          hamKS.SetEXXActive(true);
+          // Update Phi <- Psi
+          GetTime( timeSta );
+          hamKS.SetPhiEXX( psi, fft ); 
+          if( hamKS.IsHybridACE() ){
+            hamKS.CalculateVexxACE ( psi, fft );
+          }
+          GetTime( timeEnd );
+          statusOFS << "Time for updating Phi related variable is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+          GetTime( timeSta );
+          fock2 = hamKS.CalculateEXXEnergy( psi, fft ); 
+          GetTime( timeEnd );
+          statusOFS << "Time for computing the EXX energy is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+          // Update the energy
+          scf.UpdateEfock(fock2);
+          Print(statusOFS, "Fock energy       = ",  scf.Efock(), "[au]");
+          Print(statusOFS, "Etot(with fock)   = ",  scf.Etot(), "[au]");
+          Print(statusOFS, "Efree(with fock)  = ",  scf.Efree(), "[au]");
+        }
+        else{
+          // Calculate first
+          fock1 = hamKS.CalculateEXXEnergy( psi, fft ); 
+
+          // Update Phi <- Psi
+          GetTime( timeSta );
+          hamKS.SetPhiEXX( psi, fft ); 
+          if( hamKS.IsHybridACE() ){
+            hamKS.CalculateVexxACE ( psi, fft );
+          }
+          GetTime( timeEnd );
+          statusOFS << "Time for updating Phi related variable is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+
+          fock0 = fock2;
+          // Calculate again
+          GetTime( timeSta );
+          fock2 = hamKS.CalculateEXXEnergy( psi, fft ); 
+          GetTime( timeEnd );
+          statusOFS << "Time for computing the EXX energy is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+          dExx = fock1 - 0.5 * (fock0 + fock2);
+
+          scf.UpdateEfock(fock2);
+          Print(statusOFS, "dExx              = ",  dExx, "[au]");
+          Print(statusOFS, "Fock energy       = ",  scf.Efock(), "[au]");
+          Print(statusOFS, "Etot(with fock)   = ",  scf.Etot(), "[au]");
+          Print(statusOFS, "Efree(with fock)  = ",  scf.Efree(), "[au]");
+
+          if( dExx < esdfParam.scfPhiTolerance ){
+            statusOFS << "SCF for hybrid functional is converged in " 
+              << phiIter << " steps !" << std::endl;
+            isPhiIterConverged = true;
+          }
+        }
+
+        GetTime( timePhiIterEnd );
+
+        statusOFS << "Total wall clock time for this Phi iteration = " << 
+          timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
+      } // if (hybrid)
+
+    } // for(phiIter)
 
 //    ErrorHandling("Test");
 

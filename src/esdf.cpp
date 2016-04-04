@@ -954,6 +954,11 @@ namespace dgdft{
       strcpy(kw_label[i],"hybrid_ace");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! whether use the ACE formulation for hybrid functional!*");
+      
+      i++;
+      strcpy(kw_label[i],"hybrid_ace_outside");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! whether use the ACE formulation outside the SCF loop !*");
 
       i++;
       strcpy(kw_label[i],"exx_divergence_type");
@@ -2251,6 +2256,12 @@ namespace dgdft{
           esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
           esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
           esdfParam.isHybridACE          = esdf_integer( "Hybrid_ACE", 0 );
+          esdfParam.isHybridACEOutside   = esdf_integer( "Hybrid_ACE_Outside", 0 );
+
+          if( esdfParam.isHybridACE == false &&
+              esdfParam.isHybridACEOutside == true ){
+            ErrorHandling("Cannot set Hybrid_ACE_Outside to be 1 but Hybrid_ACE to be 0.");
+          }
           esdfParam.exxDivergenceType    = esdf_integer( "EXX_Divergence_Type", 1 );
 
           // Default is no locking
@@ -2544,7 +2555,8 @@ namespace dgdft{
         // Ionic motion
         {
           // Both for geometry optimization and molecular dynamics
-          esdfParam.ionMaxIter     = esdf_integer("Ion_Max_Iter", 1);
+          // The default is 0, which means that only static calculation.
+          esdfParam.ionMaxIter     = esdf_integer("Ion_Max_Iter", 0);
           esdf_string("Ion_Move", "", strtmp); 
           esdfParam.ionMove        = strtmp;
 
@@ -2769,6 +2781,7 @@ namespace dgdft{
         Print(statusOFS, "SCF Phi MaxIter                      = ",  esdfParam.scfPhiMaxIter);
         Print(statusOFS, "SCF Phi Tol                          = ",  esdfParam.scfPhiTolerance);
         Print(statusOFS, "Hybrid ACE                           = ",  esdfParam.isHybridACE);
+        Print(statusOFS, "Hybrid ACE Outside SCF               = ",  esdfParam.isHybridACEOutside);
         Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);
 
       } // PW

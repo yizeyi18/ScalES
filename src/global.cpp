@@ -61,16 +61,20 @@ namespace dgdft{
 	// If we are not in RELEASE mode, then implement wrappers for a
 	// CallStack
   void ErrorHandling( const char * msg ){
+    statusOFS << std::endl << "ERROR!" << std::endl 
+      << msg << std::endl << std::endl;
 #ifdef _COREDUMPER_
     int mpirank, mpisize;
     MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
     MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
     char filename[100];
     sprintf(filename, "core_%d_%d", mpirank, mpisize);
-    int res = WriteCoreDump( filename );
 
-    // replace this call to std::cerr with a call to your logging system.
-    statusOFS << "file = " << filename << std::endl;
+    if( WriteCoreDump(filename) ==0 ) {   
+      statusOFS << "success: WriteCoreDump to " << filename << std::endl;
+    } else {  
+      statusOFS << "failed:  WriteCoreDump to " << filename << std::endl;
+    }     
 #endif // #ifdef _COREDUMPER_
     throw std::runtime_error( msg );
   }
