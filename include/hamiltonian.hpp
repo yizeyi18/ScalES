@@ -245,7 +245,7 @@ private:
   /// large systems.
   NumTns<Real>                phiEXX_; 
   DblNumMat                   vexxProj_; 
-  DblNumVec                   exxgkkR2CFine_;
+  DblNumVec                   exxgkkR2C_;
  
 public:
 

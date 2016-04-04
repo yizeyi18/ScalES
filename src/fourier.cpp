@@ -429,7 +429,108 @@ void Fourier::InitializeFine ( const Domain& dm )
 	return ;
 }		// -----  end of function Fourier::InitializeFine  ----- 
 
+void FFTWExecute ( Fourier& fft, fftw_plan& plan )
+{
+#ifndef _RELEASE_
+	PushCallStack("Fourier::FFTWExecute");
+#endif  // ifndef _RELEASE_
 
+  Index3& numGrid = fft.domain.numGrid;
+  Index3& numGridFine = fft.domain.numGridFine;
+  Int ntot      = fft.domain.NumGridTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Real vol      = fft.domain.Volume();
+  Real fac;
+  
+  Int ntotR2C = (numGrid[0]/2+1) * numGrid[1] * numGrid[2];
+  Int ntotR2CFine = (numGridFine[0]/2+1) * numGridFine[1] * numGridFine[2];
+
+  if ( plan == fft.backwardPlan )
+  {
+    fftw_execute( fft.backwardPlan );
+    fac = 1.0 / vol;
+    for( Int i = 0; i < ntot; i++ ){
+      fft.inputComplexVec(i) *=  fac;
+    }
+  }
+  
+  if ( plan == fft.forwardPlan )
+  {
+    fftw_execute( fft.forwardPlan );
+    fac = vol / double(ntot);
+    for( Int i = 0; i < ntot; i++ ){
+      fft.outputComplexVec(i) *=  fac;
+    }
+  }
+
+  if ( plan == fft.backwardPlanR2C )
+  {
+    fftw_execute_dft_c2r(
+        fft.backwardPlanR2C, 
+        reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ),
+        fft.inputVecR2C.Data() );
+    fac = 1.0 / vol;
+    for( Int i = 0; i < ntot; i++ ){
+      fft.inputVecR2C(i) *=  fac;
+    }
+  }
+
+  if ( plan == fft.forwardPlanR2C )
+  {
+    fftw_execute_dft_r2c(
+        fft.forwardPlanR2C, 
+        fft.inputVecR2C.Data(),
+        reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ));
+    fac = vol / double(ntot);
+    for( Int i = 0; i < ntotR2C; i++ ){
+      fft.outputVecR2C(i) *=  fac;
+    }
+  }
+
+  if ( plan == fft.backwardPlanFine )
+  {
+    fftw_execute( fft.backwardPlanFine );
+    fac = 1.0 / vol;
+    for( Int i = 0; i < ntotFine; i++ ){
+      fft.inputComplexVecFine(i) *=  fac;
+    }
+  }
+
+  if ( plan == fft.forwardPlanFine )
+  {
+    fftw_execute( fft.forwardPlanFine );
+    fac = vol / double(ntotFine);
+    for( Int i = 0; i < ntotFine; i++ ){
+      fft.outputComplexVecFine(i) *=  fac;
+    }
+  }
+
+  if ( plan == fft.backwardPlanR2CFine )
+  {
+    fftw_execute_dft_c2r(
+        fft.backwardPlanR2CFine, 
+        reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
+        fft.inputVecR2CFine.Data() );
+    fac = 1.0 / vol;
+    for( Int i = 0; i < ntotFine; i++ ){
+      fft.inputVecR2CFine(i) *=  fac;
+    }
+  }
+
+  if ( plan == fft.forwardPlanR2CFine )
+  {
+    fftw_execute_dft_r2c(
+        fft.forwardPlanR2CFine, 
+        fft.inputVecR2CFine.Data(),
+        reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
+    fac = vol / double(ntotFine);
+    for( Int i = 0; i < ntotR2CFine; i++ ){
+      fft.outputVecR2CFine(i) *=  fac;
+    }
+  }
+
+  return ;
+}		// -----  end of function Fourier::FFTWExecute  ----- 
 
 
 // *********************************************************************

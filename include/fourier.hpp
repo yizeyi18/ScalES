@@ -67,9 +67,12 @@ struct Fourier {
   // plans
   fftw_plan backwardPlan;
   fftw_plan forwardPlan;
-  
   fftw_plan backwardPlanFine;
   fftw_plan forwardPlanFine;
+  fftw_plan backwardPlanR2C;
+  fftw_plan forwardPlanR2C;
+  fftw_plan backwardPlanR2CFine;
+  fftw_plan forwardPlanR2CFine;
 
   unsigned  plannerFlag;
 
@@ -93,12 +96,6 @@ struct Fourier {
 	// Real data Fourier transform
 	Int       numGridTotalR2C;
 	Int       numGridTotalR2CFine;
-
-  fftw_plan backwardPlanR2C;
-  fftw_plan forwardPlanR2C;
-  
-  fftw_plan backwardPlanR2CFine;
-  fftw_plan forwardPlanR2CFine;
 
   DblNumVec                gkkR2C;
 	std::vector<CpxNumVec>   ikR2C;
@@ -125,9 +122,10 @@ struct Fourier {
 
 	void Initialize( const Domain& dm );
   void InitializeFine( const Domain& dm );
-
+  
 };
 
+  void FFTWExecute( Fourier& fft, fftw_plan& plan );
 
 // *********************************************************************
 // Parallel FFTW interface
