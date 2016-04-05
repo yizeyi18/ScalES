@@ -1,44 +1,44 @@
 /*
-  Copyright (c) 2012 The Regents of the University of California,
-  through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
-  Author: Lin Lin, Wei Hu and Amartya Banerjee
-	 
-  This file is part of DGDFT. All rights reserved.
+   Author: Lin Lin, Wei Hu and Amartya Banerjee
 
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are met:
+   This file is part of DGDFT. All rights reserved.
 
-  (1) Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-  (2) Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-  (3) Neither the name of the University of California, Lawrence Berkeley
-  National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-  be used to endorse or promote products derived from this software without
-  specific prior written permission.
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
 
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   (1) Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+   (2) Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+   (3) Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
 
-  You are under no obligation whatsoever to provide any bug fixes, patches, or
-  upgrades to the features, functionality or performance of the source code
-  ("Enhancements") to anyone; however, if you choose to make your Enhancements
-  available either publicly, or directly to Lawrence Berkeley National
-  Laboratory, without imposing a separate written license agreement for such
-  Enhancements, then you hereby grant the following license: a non-exclusive,
-  royalty-free perpetual license to install, use, modify, prepare derivative
-  works, incorporate into other computer software, distribute, and sublicense
-  such enhancements or derivative works thereof, in binary and source code form.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+   You are under no obligation whatsoever to provide any bug fixes, patches, or
+   upgrades to the features, functionality or performance of the source code
+   ("Enhancements") to anyone; however, if you choose to make your Enhancements
+   available either publicly, or directly to Lawrence Berkeley National
+   Laboratory, without imposing a separate written license agreement for such
+   Enhancements, then you hereby grant the following license: a non-exclusive,
+   royalty-free perpetual license to install, use, modify, prepare derivative
+   works, incorporate into other computer software, distribute, and sublicense
+   such enhancements or derivative works thereof, in binary and source code form.
 */
 /// @file scf_dg.hpp
 /// @brief Self consistent iteration using the DG method.
@@ -65,437 +65,438 @@ namespace dgdft{
   class SCFDG
   {
   private:
-    // Control parameters
-    Int                 mixMaxDim_;
-    std::string         mixType_;
-    Real                mixStepLength_;            
-    Real                eigTolerance_;
-    Int                 eigMinIter_;
-    Int                 eigMaxIter_;
-    Real                scfInnerTolerance_;
-    Int                 scfInnerMinIter_;
-    Int                 scfInnerMaxIter_;
-    /// @brief Criterion for convergence using Efree rather than the
-    /// potential difference.
-    Real                scfOuterEnergyTolerance_;
-    Real                scfOuterTolerance_;
-    Int                 scfOuterMinIter_;
-    Int                 scfOuterMaxIter_;
-    Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
-    Int                 numUnusedState_;
-    Real                SVDBasisTolerance_;
-    bool                isEigToleranceDynamic_;
-    bool                isRestartDensity_;
-    bool                isRestartWfn_;
-    bool                isOutputDensity_;
-    bool                isOutputALBElemLGL_;
-    bool                isOutputALBElemUniform_;
-    bool                isOutputWfnExtElem_;
-    bool                isOutputPotExtElem_; 
-    bool                isCalculateAPosterioriEachSCF_;
-    bool                isCalculateForceEachSCF_;
-    bool                isOutputHMatrix_;
-    Real                ecutWavefunction_;
-    Real                densityGridFactor_;        
-    Real                LGLGridFactor_;
+      // Control parameters
+      Int                 mixMaxDim_;
+      std::string         mixType_;
+      Real                mixStepLength_;            
+      Real                eigMinTolerance_;
+      Real                eigTolerance_;
+      Int                 eigMinIter_;
+      Int                 eigMaxIter_;
+      Real                scfInnerTolerance_;
+      Int                 scfInnerMinIter_;
+      Int                 scfInnerMaxIter_;
+      /// @brief Criterion for convergence using Efree rather than the
+      /// potential difference.
+      Real                scfOuterEnergyTolerance_;
+      Real                scfOuterTolerance_;
+      Int                 scfOuterMinIter_;
+      Int                 scfOuterMaxIter_;
+      Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
+      Int                 numUnusedState_;
+      Real                SVDBasisTolerance_;
+      bool                isEigToleranceDynamic_;
+      bool                isRestartDensity_;
+      bool                isRestartWfn_;
+      bool                isOutputDensity_;
+      bool                isOutputALBElemLGL_;
+      bool                isOutputALBElemUniform_;
+      bool                isOutputWfnExtElem_;
+      bool                isOutputPotExtElem_; 
+      bool                isCalculateAPosterioriEachSCF_;
+      bool                isCalculateForceEachSCF_;
+      bool                isOutputHMatrix_;
+      Real                ecutWavefunction_;
+      Real                densityGridFactor_;        
+      Real                LGLGridFactor_;
 
-    bool                isPeriodizePotential_;
-    Point3              distancePeriodize_;
-    // Bubble function along each dimension
-    std::vector<DblNumVec>   vBubble_;
+      bool                isPeriodizePotential_;
+      Point3              distancePeriodize_;
+      // Bubble function along each dimension
+      std::vector<DblNumVec>   vBubble_;
 
-    bool                isPotentialBarrier_;
-    Real                potentialBarrierW_;
-    Real                potentialBarrierS_;
-    Real                potentialBarrierR_;
-    std::vector<DblNumVec>   vBarrier_;
+      bool                isPotentialBarrier_;
+      Real                potentialBarrierW_;
+      Real                potentialBarrierS_;
+      Real                potentialBarrierR_;
+      std::vector<DblNumVec>   vBarrier_;
 
 
-    std::string         restartDensityFileName_;
-    std::string         restartWfnFileName_;
-    std::string         XCType_;
-    std::string         VDWType_;
-    /// @brief Same as @ref esdf::ESDFInputParam::solutionMethod
-    std::string         solutionMethod_;
+      std::string         restartDensityFileName_;
+      std::string         restartWfnFileName_;
+      std::string         XCType_;
+      std::string         VDWType_;
+      /// @brief Same as @ref esdf::ESDFInputParam::solutionMethod
+      std::string         solutionMethod_;
 
-    // PEXSI parameters
+      // PEXSI parameters
 #ifdef _USE_PEXSI_
-    PPEXSIPlan          pexsiPlan_;
-    PPEXSIOptions       pexsiOptions_;
+      PPEXSIPlan          pexsiPlan_;
+      PPEXSIOptions       pexsiOptions_;
 #endif
 
-    // Variables related to Chebyshev Filtered SCF iterations for DG
-    // ~~**~~
-    
-    // User option variables
-    bool Diag_SCFDG_by_Cheby_; // Default: 0
-    bool SCFDG_Cheby_use_ScaLAPACK_; // Default: 0
-    
-    Int First_SCFDG_ChebyFilterOrder_; // Default 60
-    Int First_SCFDG_ChebyCycleNum_; // Default 5
-    
-    Int Second_SCFDG_ChebyOuterIter_; // How many SCF steps for 2nd phase, default = 3
-    Int Second_SCFDG_ChebyFilterOrder_; // Filter Order for 2nd phase, default = 60
-    Int Second_SCFDG_ChebyCycleNum_; // Default 3 
-    
-    Int General_SCFDG_ChebyFilterOrder_; // Filter Order for general phase, default = 60
-    Int General_SCFDG_ChebyCycleNum_; // Default 1
-    
-    // Internal use variables
-    // Key for the eigenvector on the current processor
-    Index3 my_cheby_eig_vec_key;
-    
-    // Do the usual Chebyshev filtering schedule or work in MD mode
-    Int Cheby_MD_schedule_flag;
+      // Variables related to Chebyshev Filtered SCF iterations for DG
+      // ~~**~~
 
-    // Deque for ALBs expressed on the LGL grid
-    std::deque<DblNumMat> ALB_LGL_deque;
+      // User option variables
+      bool Diag_SCFDG_by_Cheby_; // Default: 0
+      bool SCFDG_Cheby_use_ScaLAPACK_; // Default: 0
 
+      Int First_SCFDG_ChebyFilterOrder_; // Default 60
+      Int First_SCFDG_ChebyCycleNum_; // Default 5
 
-    /// @brief The total number of processors used by PEXSI.
-    /// 
-    /// Let npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_, then
-    ///
-    /// LL 11/26/2014: In the new version of DGDFT-PEXSI with the
-    /// intra-element parallelization, the pexsi communicator is given as
-    /// follows:
-    ///
-    /// If the DG communicator is partitioned into a 2D rectangular grid
-    /// as
-    ///
-    /// numElem * numProcPerElem 
-    ///
-    /// Then PEXSI uses a subset of this grid with size
-    ///
-    /// numProcPerPole * min(numPole, numProcPerElem)
-    ///
-    /// i.e. a upper-left rectangular block of the total number of
-    /// processors.
-    ///
-    /// This greatly simplfies the procedure and the cost for data
-    /// communication when the number of processors is large.
-    ///
-    /// This number is equal to numProcPEXSICommRow_ *
-    /// numProcPEXSICommCol_
-    Int                 numProcTotalPEXSI_;
-    /// @brief The number of processors for each pole.
-    ///
-    /// This number is equal to numProcRowPEXSI_ * numProcColPEXSI_, and
-    /// should be less than or equal to the number of elements.
-    Int                 numProcPEXSICommCol_;
-    /// @brief The number of processors for pole parallelization.
-    ///
-    /// This number should be set as the minimum of the number of poles,
-    /// and the number of processors for each element in DG.
-    Int                 numProcPEXSICommRow_;
-    /// @brief Communicator used only by PEXSI.  
-    ///
-    MPI_Comm            pexsiComm_;
-    /// @brief Whether PEXSI has been initialized.
-    bool                isPEXSIInitialized_;
-    /// @brief The number of row processors used by PEXSI for each pole.
-    Int                 numProcRowPEXSI_;
-    /// @brief The number of column processors used by PEXSI for each pole.
-    Int                 numProcColPEXSI_;
+      Int Second_SCFDG_ChebyOuterIter_; // How many SCF steps for 2nd phase, default = 3
+      Int Second_SCFDG_ChebyFilterOrder_; // Filter Order for 2nd phase, default = 60
+      Int Second_SCFDG_ChebyCycleNum_; // Default 3 
+
+      Int General_SCFDG_ChebyFilterOrder_; // Filter Order for general phase, default = 60
+      Int General_SCFDG_ChebyCycleNum_; // Default 1
+
+      // Internal use variables
+      // Key for the eigenvector on the current processor
+      Index3 my_cheby_eig_vec_key;
+
+      // Do the usual Chebyshev filtering schedule or work in MD mode
+      Int Cheby_MD_schedule_flag;
+
+      // Deque for ALBs expressed on the LGL grid
+      std::deque<DblNumMat> ALB_LGL_deque;
 
 
-    Int                 inertiaCountSteps_;
-    // Minimum of the tolerance for the inertia counting in the
-    // dynamically adjustment strategy
-    Real                muInertiaToleranceTarget_; 
-    // Minimum of the tolerance for the PEXSI solve in the
-    // dynamically adjustment strategy
-    Real                numElectronPEXSIToleranceTarget_;
+      /// @brief The total number of processors used by PEXSI.
+      /// 
+      /// Let npPerPole_ = numProcRowPEXSI_ * numProcColPEXSI_, then
+      ///
+      /// LL 11/26/2014: In the new version of DGDFT-PEXSI with the
+      /// intra-element parallelization, the pexsi communicator is given as
+      /// follows:
+      ///
+      /// If the DG communicator is partitioned into a 2D rectangular grid
+      /// as
+      ///
+      /// numElem * numProcPerElem 
+      ///
+      /// Then PEXSI uses a subset of this grid with size
+      ///
+      /// numProcPerPole * min(numPole, numProcPerElem)
+      ///
+      /// i.e. a upper-left rectangular block of the total number of
+      /// processors.
+      ///
+      /// This greatly simplfies the procedure and the cost for data
+      /// communication when the number of processors is large.
+      ///
+      /// This number is equal to numProcPEXSICommRow_ *
+      /// numProcPEXSICommCol_
+      Int                 numProcTotalPEXSI_;
+      /// @brief The number of processors for each pole.
+      ///
+      /// This number is equal to numProcRowPEXSI_ * numProcColPEXSI_, and
+      /// should be less than or equal to the number of elements.
+      Int                 numProcPEXSICommCol_;
+      /// @brief The number of processors for pole parallelization.
+      ///
+      /// This number should be set as the minimum of the number of poles,
+      /// and the number of processors for each element in DG.
+      Int                 numProcPEXSICommRow_;
+      /// @brief Communicator used only by PEXSI.  
+      ///
+      MPI_Comm            pexsiComm_;
+      /// @brief Whether PEXSI has been initialized.
+      bool                isPEXSIInitialized_;
+      /// @brief The number of row processors used by PEXSI for each pole.
+      Int                 numProcRowPEXSI_;
+      /// @brief The number of column processors used by PEXSI for each pole.
+      Int                 numProcColPEXSI_;
 
-    // Physical parameters
-    Real                Tbeta_;                    // Inverse of temperature in atomic unit
-    Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional
-    Real                EfreeSecondOrder_;         // Second order accurate Helmholtz free energy 
-    Real                Efree_;                    // Helmholtz free energy (KS energy functional)
-    Real                Etot_;                     // Total energy (KSenergy functional)
-    Real                Ekin_;                     // Kinetic energy
-    Real                Ehart_;                    // Hartree energy
-    Real                Ecor_;                     // Nonlinear correction energy
-    Real                Exc_;                      // Exchange-correlation energy
-    Real                Evdw_;                     // Van der Waals energy
-    Real                EVxc_;                     // Exchange-correlation potential energy
-    Real                Eself_;                    // Self energy due to the pseudopotential
-    Real                fermi_;                    // Fermi energy
 
-    /// @brief Number of processor rows and columns for ScaLAPACK
-    Int                 dmRow_;
-    Int                 dmCol_;
+      Int                 inertiaCountSteps_;
+      // Minimum of the tolerance for the inertia counting in the
+      // dynamically adjustment strategy
+      Real                muInertiaToleranceTarget_; 
+      // Minimum of the tolerance for the PEXSI solve in the
+      // dynamically adjustment strategy
+      Real                numElectronPEXSIToleranceTarget_;
 
-    Int                 numProcScaLAPACK_;
+      // Physical parameters
+      Real                Tbeta_;                    // Inverse of temperature in atomic unit
+      Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional
+      Real                EfreeSecondOrder_;         // Second order accurate Helmholtz free energy 
+      Real                Efree_;                    // Helmholtz free energy (KS energy functional)
+      Real                Etot_;                     // Total energy (KSenergy functional)
+      Real                Ekin_;                     // Kinetic energy
+      Real                Ehart_;                    // Hartree energy
+      Real                Ecor_;                     // Nonlinear correction energy
+      Real                Exc_;                      // Exchange-correlation energy
+      Real                Evdw_;                     // Van der Waals energy
+      Real                EVxc_;                     // Exchange-correlation potential energy
+      Real                Eself_;                    // Self energy due to the pseudopotential
+      Real                fermi_;                    // Fermi energy
 
-    // Density matrices
+      /// @brief Number of processor rows and columns for ScaLAPACK
+      Int                 dmRow_;
+      Int                 dmCol_;
 
-    DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distDMMat_;
-    DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distEDMMat_;
-    DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distFDMMat_;
+      Int                 numProcScaLAPACK_;
 
-    PeriodTable*        ptablePtr_;
+      // Density matrices
 
-    HamiltonianDG*      hamDGPtr_;
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distDMMat_;
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distEDMMat_;
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>      distFDMMat_;
 
-    DistVec<Index3, EigenSolver, ElemPrtn>*   distEigSolPtr_;
+      PeriodTable*        ptablePtr_;
 
-    DistFourier*        distfftPtr_;
+      HamiltonianDG*      hamDGPtr_;
 
-    // SCF variables
-    std::string         mixVariable_;
+      DistVec<Index3, EigenSolver, ElemPrtn>*   distEigSolPtr_;
 
-    /// @brief Work array for the old mixing variable in the outer iteration.
-    DistDblNumVec       mixOuterSave_;
-    /// @brief Work array for the old mixing variable in the inner iteration.
-    DistDblNumVec       mixInnerSave_;
-    // TODO Remove dfOuterMat_, dvOuterMat_
-    /// @brief Work array for the Anderson mixing in the outer iteration.
-    DistDblNumMat       dfOuterMat_;
-    /// @brief Work array for the Anderson mixing in the outer iteration.
-    DistDblNumMat       dvOuterMat_;
-    /// @brief Work array for the Anderson mixing in the inner iteration.
-    DistDblNumMat       dfInnerMat_;
-    /// @brief Work array for the Anderson mixing in the inner iteration.
-    DistDblNumMat       dvInnerMat_;
-    /// @brief Work array for updating the local potential on the LGL
-    /// grid.
-    DistDblNumVec       vtotLGLSave_;
-	
-    DblNumMat           forceVdw_;
-	
-    Int                 scfTotalInnerIter_;       // For the purpose of Anderson mixing
-    Real                scfInnerNorm_;            // ||V_{new} - V_{old}|| / ||V_{old}||
-    Real                scfOuterNorm_;            // ||V_{new} - V_{old}|| / ||V_{old}||
-    Real                efreeDifPerAtom_;            
+      DistFourier*        distfftPtr_;
 
-    /// @brief Global domain.
-    Domain              domain_;
+      // SCF variables
+      std::string         mixVariable_;
 
-    Index3              numElem_;
+      /// @brief Work array for the old mixing variable in the outer iteration.
+      DistDblNumVec       mixOuterSave_;
+      /// @brief Work array for the old mixing variable in the inner iteration.
+      DistDblNumVec       mixInnerSave_;
+      // TODO Remove dfOuterMat_, dvOuterMat_
+      /// @brief Work array for the Anderson mixing in the outer iteration.
+      DistDblNumMat       dfOuterMat_;
+      /// @brief Work array for the Anderson mixing in the outer iteration.
+      DistDblNumMat       dvOuterMat_;
+      /// @brief Work array for the Anderson mixing in the inner iteration.
+      DistDblNumMat       dfInnerMat_;
+      /// @brief Work array for the Anderson mixing in the inner iteration.
+      DistDblNumMat       dvInnerMat_;
+      /// @brief Work array for updating the local potential on the LGL
+      /// grid.
+      DistDblNumVec       vtotLGLSave_;
 
-    Index3              extElemRatio_;
+      DblNumMat           forceVdw_;
 
-    /// @brief Partition of element.
-    ElemPrtn            elemPrtn_;
+      Int                 scfTotalInnerIter_;       // For the purpose of Anderson mixing
+      Real                scfInnerNorm_;            // ||V_{new} - V_{old}|| / ||V_{old}||
+      Real                scfOuterNorm_;            // ||V_{new} - V_{old}|| / ||V_{old}||
+      Real                efreeDifPerAtom_;            
 
-    Int                 scaBlockSize_;
+      /// @brief Global domain.
+      Domain              domain_;
 
-    /// @brief Interpolation matrix from uniform grid in the extended
-    /// element with periodic boundary condition to LGL grid in each
-    /// element (assuming all the elements are the same).
-    std::vector<DblNumMat>    PeriodicUniformToLGLMat_;
-    std::vector<DblNumMat>    PeriodicUniformFineToLGLMat_;
+      Index3              numElem_;
 
-    /// @brief Interpolation matrix from uniform fine grid in the extended
-    /// element with periodic boundary condition to fine grid in each
-    /// element (assuming all the elements are the same).
-    std::vector<DblNumMat>    PeriodicGridExtElemToGridElemMat_;
-	
-    /// @brief Context for BLACS.
-    Int                 contxt_;
-	
-	
-	
-    // ~~**~~
-    /// @brief Internal routines used by Chebyshev filtering
-    void scfdg_hamiltonian_times_distvec(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
-					 DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_vec);
-  
-    void scfdg_hamiltonian_times_distmat(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
-					 DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_mat);
-  
-    void scfdg_Hamiltonian_times_eigenvectors(DistVec<Index3, DblNumMat, ElemPrtn>  &result_mat);
-   
-    double scfdg_Cheby_Upper_bound_estimator(DblNumVec& ritz_values, 
-					     int Num_Lanczos_Steps);
-  
-    void scfdg_Chebyshev_filter_scaled(int m, 
-				       double a, 
-				       double b, 
-				       double a_L);
-  
-    // These following routines are useful, for the Lanczos procedure
-  
-    // Dot product for conforming distributed vectors
-    double scfdg_distvec_dot(DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_a,
-			     DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_b);
-  
-    // L2 norm
-    double scfdg_distvec_nrm2(DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_a);
-  
-    // Computes b = scal_a * a + scal_b * b for conforming distributed vectors / matrices
-    // Set scal_a = 0.0 and use any vector / matrix a to obtain blas::scal on b
-    // Set scal_b = 1.0 for blas::axpy with b denoting y, i.e., b = scal_a * a + b;
-    void scfdg_distmat_update(DistVec<Index3, DblNumMat, ElemPrtn>  &dist_mat_a, 
-			      double scal_a,
-			      DistVec<Index3, DblNumMat, ElemPrtn>  &dist_mat_b,
-			      double scal_b);
-  
-    // ~~**~~
-    /// @brief Internal routine used by Chebyshev Filtering for ScaLAPACK based
-    /// solution of the subspace problem : converts a distributed eigenvector block to ScaLAPACK format   
-    void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
-							 MPI_Comm comm,
-							 dgdft::scalapack::Descriptor &my_scala_descriptor,
-							 dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat);
-    
-    
-    //     // Older version of the above routine : uses a more naive implementation and has a larger communication load (=slower)
-    //     void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK_old(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
-    // 							     std::vector<int> &my_cheby_scala_info,
-    // 							     dgdft::scalapack::Descriptor &my_scala_descriptor,
-    // 							     dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec);
-    
-	
-	
-	
+      Index3              extElemRatio_;
+
+      /// @brief Partition of element.
+      ElemPrtn            elemPrtn_;
+
+      Int                 scaBlockSize_;
+
+      /// @brief Interpolation matrix from uniform grid in the extended
+      /// element with periodic boundary condition to LGL grid in each
+      /// element (assuming all the elements are the same).
+      std::vector<DblNumMat>    PeriodicUniformToLGLMat_;
+      std::vector<DblNumMat>    PeriodicUniformFineToLGLMat_;
+
+      /// @brief Interpolation matrix from uniform fine grid in the extended
+      /// element with periodic boundary condition to fine grid in each
+      /// element (assuming all the elements are the same).
+      std::vector<DblNumMat>    PeriodicGridExtElemToGridElemMat_;
+
+      /// @brief Context for BLACS.
+      Int                 contxt_;
+
+
+
+      // ~~**~~
+      /// @brief Internal routines used by Chebyshev filtering
+      void scfdg_hamiltonian_times_distvec(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
+              DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_vec);
+
+      void scfdg_hamiltonian_times_distmat(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
+              DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_mat);
+
+      void scfdg_Hamiltonian_times_eigenvectors(DistVec<Index3, DblNumMat, ElemPrtn>  &result_mat);
+
+      double scfdg_Cheby_Upper_bound_estimator(DblNumVec& ritz_values, 
+              int Num_Lanczos_Steps);
+
+      void scfdg_Chebyshev_filter_scaled(int m, 
+              double a, 
+              double b, 
+              double a_L);
+
+      // These following routines are useful, for the Lanczos procedure
+
+      // Dot product for conforming distributed vectors
+      double scfdg_distvec_dot(DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_a,
+              DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_b);
+
+      // L2 norm
+      double scfdg_distvec_nrm2(DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_a);
+
+      // Computes b = scal_a * a + scal_b * b for conforming distributed vectors / matrices
+      // Set scal_a = 0.0 and use any vector / matrix a to obtain blas::scal on b
+      // Set scal_b = 1.0 for blas::axpy with b denoting y, i.e., b = scal_a * a + b;
+      void scfdg_distmat_update(DistVec<Index3, DblNumMat, ElemPrtn>  &dist_mat_a, 
+              double scal_a,
+              DistVec<Index3, DblNumMat, ElemPrtn>  &dist_mat_b,
+              double scal_b);
+
+      // ~~**~~
+      /// @brief Internal routine used by Chebyshev Filtering for ScaLAPACK based
+      /// solution of the subspace problem : converts a distributed eigenvector block to ScaLAPACK format   
+      void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
+              MPI_Comm comm,
+              dgdft::scalapack::Descriptor &my_scala_descriptor,
+              dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat);
+
+
+      //     // Older version of the above routine : uses a more naive implementation and has a larger communication load (=slower)
+      //     void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK_old(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
+      // 							     std::vector<int> &my_cheby_scala_info,
+      // 							     dgdft::scalapack::Descriptor &my_scala_descriptor,
+      // 							     dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec);
+
+
+
+
 
   public:
-	
-	
-    // *********************************************************************
-    // Life-cycle
-    // *********************************************************************
-    SCFDG();
-    ~SCFDG();
-  
-    // *********************************************************************
-    // Operations
-    // *********************************************************************
-	
-    /// @brief Setup the basic parameters for initial SCF iteration.
-    void  Setup( 
-		const esdf::ESDFInputParam& esdfParam, 
-		HamiltonianDG& hamDG,
-		DistVec<Index3, EigenSolver, ElemPrtn>&  distEigSol,
-		DistFourier&   distfft,
-		PeriodTable&   ptable,
-		Int            contxt ); 
-
-    /// @brief Update the basic parameters for SCF interation for MD and
-    /// geometry optimization.
-    void  Update( ); 
 
 
-    /// @brief Main self consistent iteration subroutine.
-    void  Iterate();
+      // *********************************************************************
+      // Life-cycle
+      // *********************************************************************
+      SCFDG();
+      ~SCFDG();
 
-    /// @brief Inner self consistent iteration subroutine without
-    /// correcting the basis functions.
-    void  InnerIterate( Int outerIter );
-	
-	
-    // ~~**~~
-    /// @brief Main routines for Chebyshev filtering based SCF
-    void scfdg_FirstChebyStep(Int eigMaxIter,
-			      Int filter_order );
-  
-    void scfdg_GeneralChebyStep(Int eigMaxIter, 
-				Int filter_order );	
-    
-    void set_Cheby_MD_schedule_flag(){Cheby_MD_schedule_flag = 1;}
+      // *********************************************************************
+      // Operations
+      // *********************************************************************
 
+      /// @brief Setup the basic parameters for initial SCF iteration.
+      void  Setup( 
+              const esdf::ESDFInputParam& esdfParam, 
+              HamiltonianDG& hamDG,
+              DistVec<Index3, EigenSolver, ElemPrtn>&  distEigSol,
+              DistFourier&   distfft,
+              PeriodTable&   ptable,
+              Int            contxt ); 
 
-    /// @brief Update the local potential in the extended element and the element.
-    void  UpdateElemLocalPotential();
-
-    /// @brief Calculate the occupation rate and the Fermi energy given
-    /// the eigenvalues
-    void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec&
-				    occupationRate );
-
-    /// @brief Interpolate the uniform grid in the periodic extended
-    /// element domain to LGL grid in each element.
-    void InterpPeriodicUniformToLGL( const Index3& numUniformGrid,
-				     const Index3& numLGLGrid, const Real* psiUniform, Real* psiLGL );
-  
-    void InterpPeriodicUniformFineToLGL( const Index3& numUniformGridFine,
-					 const Index3& numLGLGrid, const Real* rhoUniform, Real* rhoLGL );
-
-    /// @brief Interpolate the uniform fine grid in the periodic extended
-    /// element domain to fine grid in each element.
-    void InterpPeriodicGridExtElemToGridElem( const Index3& numUniformGridFineExtElem,
-					      const Index3& numUniformGridFineElem, const Real* rhoUniformExtElem, Real* rhoUniformElem );
-
-    /// @brief Calculate the Kohn-Sham energy and other related energies.
-    void  CalculateKSEnergy();
-
-    /// @brief Calculate the Kohn-Sham energy and other related energies
-    /// using the energy density matrix and the free energy density matrix.
-    void  CalculateKSEnergyDM(
-			      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distEDMMat,
-			      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
+      /// @brief Update the basic parameters for SCF interation for MD and
+      /// geometry optimization.
+      void  Update( ); 
 
 
-    /// @brief Calculate the Harris (free) energy.  
-    ///
-    /// The difference between the Kohn-Sham energy and the Harris energy
-    /// is that the nonlinear correction term in the Harris energy
-    /// functional must be computed via the input electron density, rather
-    /// than the output electron density or the mixed electron density.
-    ///
-    /// Reference:
-    ///
-    /// [Soler et al. "The SIESTA method for ab initio order-N
-    /// materials", J. Phys. Condens. Matter. 14, 2745 (2002) pp 18]
-    void  CalculateHarrisEnergy();
+      /// @brief Main self consistent iteration subroutine.
+      void  Iterate();
+
+      /// @brief Inner self consistent iteration subroutine without
+      /// correcting the basis functions.
+      void  InnerIterate( Int outerIter );
 
 
-    /// @brief Calculate the Harris (free) energy using density matrix and
-    /// free energy density matrix.  
-    ///
-    /// @see CalculateHarrisEnergy
-    void  CalculateHarrisEnergyDM(
-				  DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
+      // ~~**~~
+      /// @brief Main routines for Chebyshev filtering based SCF
+      void scfdg_FirstChebyStep(Int eigMaxIter,
+              Int filter_order );
+
+      void scfdg_GeneralChebyStep(Int eigMaxIter, 
+              Int filter_order );	
+
+      void set_Cheby_MD_schedule_flag(){Cheby_MD_schedule_flag = 1;}
 
 
-    /// @brief Calculate the second order accurate energy that is
-    /// applicable to both density and potential mixing.
-    ///
-    /// Reference:
-    ///
-    /// Research note, "On the understanding and generalization of Harris
-    /// energy functional", 08/26/2013.
-    void  CalculateSecondOrderEnergy();
+      /// @brief Update the local potential in the extended element and the element.
+      void  UpdateElemLocalPotential();
+
+      /// @brief Calculate the occupation rate and the Fermi energy given
+      /// the eigenvalues
+      void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec&
+              occupationRate );
+
+      /// @brief Interpolate the uniform grid in the periodic extended
+      /// element domain to LGL grid in each element.
+      void InterpPeriodicUniformToLGL( const Index3& numUniformGrid,
+              const Index3& numLGLGrid, const Real* psiUniform, Real* psiLGL );
+
+      void InterpPeriodicUniformFineToLGL( const Index3& numUniformGridFine,
+              const Index3& numLGLGrid, const Real* rhoUniform, Real* rhoLGL );
+
+      /// @brief Interpolate the uniform fine grid in the periodic extended
+      /// element domain to fine grid in each element.
+      void InterpPeriodicGridExtElemToGridElem( const Index3& numUniformGridFineExtElem,
+              const Index3& numUniformGridFineElem, const Real* rhoUniformExtElem, Real* rhoUniformElem );
+
+      /// @brief Calculate the Kohn-Sham energy and other related energies.
+      void  CalculateKSEnergy();
+
+      /// @brief Calculate the Kohn-Sham energy and other related energies
+      /// using the energy density matrix and the free energy density matrix.
+      void  CalculateKSEnergyDM(
+              DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distEDMMat,
+              DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
 
 
-    /// @brief Calculate Van der Waals energy and force 
-    ///
-    void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
+      /// @brief Calculate the Harris (free) energy.  
+      ///
+      /// The difference between the Kohn-Sham energy and the Harris energy
+      /// is that the nonlinear correction term in the Harris energy
+      /// functional must be computed via the input electron density, rather
+      /// than the output electron density or the mixed electron density.
+      ///
+      /// Reference:
+      ///
+      /// [Soler et al. "The SIESTA method for ab initio order-N
+      /// materials", J. Phys. Condens. Matter. 14, 2745 (2002) pp 18]
+      void  CalculateHarrisEnergy();
 
 
-    /// @brief Print out the state variables at each SCF iteration.
-    void  PrintState(  );
-
-    /// @brief Parallel preconditioned Anderson mixing. Can be used for
-    /// potential mixing or density mixing.
-    void  AndersonMix( 
-		      Int             iter, 
-		      Real            mixStepLength,
-		      std::string     mixType,
-		      DistDblNumVec&  distvMix,
-		      DistDblNumVec&  distvOld,
-		      DistDblNumVec&  distvNew,
-		      DistDblNumMat&  dfMat,
-		      DistDblNumMat&  dvMat);
-	
-    /// @brief Parallel Kerker preconditioner. Can be used for
-    /// potential mixing or density mixing.
-    void  KerkerPrecond(
-			DistDblNumVec&  distPrecResidual,
-			const DistDblNumVec&  distResidual );
+      /// @brief Calculate the Harris (free) energy using density matrix and
+      /// free energy density matrix.  
+      ///
+      /// @see CalculateHarrisEnergy
+      void  CalculateHarrisEnergyDM(
+              DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
 
 
+      /// @brief Calculate the second order accurate energy that is
+      /// applicable to both density and potential mixing.
+      ///
+      /// Reference:
+      ///
+      /// Research note, "On the understanding and generalization of Harris
+      /// energy functional", 08/26/2013.
+      void  CalculateSecondOrderEnergy();
 
-    // *********************************************************************
-    // Inquiry
-    // *********************************************************************
-    Real Efree() const {return Efree_;};	
-  
-    Real Fermi() const {return fermi_;};	
-	
-    DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& DMMat() {return distDMMat_;};
+
+      /// @brief Calculate Van der Waals energy and force 
+      ///
+      void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
+
+
+      /// @brief Print out the state variables at each SCF iteration.
+      void  PrintState(  );
+
+      /// @brief Parallel preconditioned Anderson mixing. Can be used for
+      /// potential mixing or density mixing.
+      void  AndersonMix( 
+              Int             iter, 
+              Real            mixStepLength,
+              std::string     mixType,
+              DistDblNumVec&  distvMix,
+              DistDblNumVec&  distvOld,
+              DistDblNumVec&  distvNew,
+              DistDblNumMat&  dfMat,
+              DistDblNumMat&  dvMat);
+
+      /// @brief Parallel Kerker preconditioner. Can be used for
+      /// potential mixing or density mixing.
+      void  KerkerPrecond(
+              DistDblNumVec&  distPrecResidual,
+              const DistDblNumVec&  distResidual );
+
+
+
+      // *********************************************************************
+      // Inquiry
+      // *********************************************************************
+      Real Efree() const {return Efree_;};	
+
+      Real Fermi() const {return fermi_;};	
+
+      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& DMMat() {return distDMMat_;};
 
   }; // -----  end of class  SCFDG ----- 
 

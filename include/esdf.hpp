@@ -227,6 +227,16 @@ namespace dgdft{
     /// - 1    : Gygi-Baldereschi regularization
     Int                 exxDivergenceType;
 
+
+    /// @brief Tolerance for minimum of the residual that should be
+    /// reached by the eigensolver
+    ///
+    /// Default: 1e-3
+    /// 
+    /// Currently if eigMinTolerance is not reached, the LOBPCG
+    /// iterations continue regardless of whether eigMaxIter is reached
+    Real                eigMinTolerance;
+
     /// @brief Tolerance for the eigenvalue solver
     ///
     /// Default: 1e-6

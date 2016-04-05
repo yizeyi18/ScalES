@@ -83,115 +83,116 @@ void
 SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable )
 {
 #ifndef _RELEASE_
-	PushCallStack("SCF::Setup");
+    PushCallStack("SCF::Setup");
 #endif
-	
-	// esdf parameters
-	{
-    mixMaxDim_     = esdfParam.mixMaxDim;
-    mixType_       = esdfParam.mixType;
-		mixStepLength_ = esdfParam.mixStepLength;
-		// Note: for PW SCF there is no inner loop. Use the parameter value
-		// for the outer SCF loop only.
-    eigTolerance_  = esdfParam.eigTolerance;
-    eigMaxIter_    = esdfParam.eigMaxIter;
-		scfTolerance_  = esdfParam.scfOuterTolerance;
-		scfMaxIter_    = esdfParam.scfOuterMaxIter;
-    scfPhiMaxIter_ = esdfParam.scfPhiMaxIter;
-    scfPhiTolerance_ = esdfParam.scfPhiTolerance;
-    numUnusedState_ = esdfParam.numUnusedState;
-    isEigToleranceDynamic_ = esdfParam.isEigToleranceDynamic;
-		isRestartDensity_ = esdfParam.isRestartDensity;
-		isRestartWfn_     = esdfParam.isRestartWfn;
-		isOutputDensity_  = esdfParam.isOutputDensity;
-		isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
-    Tbeta_         = esdfParam.Tbeta;
 
-    numGridWavefunctionElem_ = esdfParam.numGridWavefunctionElem;
-    numGridDensityElem_      = esdfParam.numGridDensityElem;  
-  
-    XCType_                  = esdfParam.XCType;
-    VDWType_                 = esdfParam.VDWType;
+    // esdf parameters
+    {
+        mixMaxDim_     = esdfParam.mixMaxDim;
+        mixType_       = esdfParam.mixType;
+        mixStepLength_ = esdfParam.mixStepLength;
+        // Note: for PW SCF there is no inner loop. Use the parameter value
+        // for the outer SCF loop only.
+        eigTolerance_  = esdfParam.eigTolerance;
+        eigMinTolerance_  = esdfParam.eigMinTolerance;
+        eigMaxIter_    = esdfParam.eigMaxIter;
+        scfTolerance_  = esdfParam.scfOuterTolerance;
+        scfMaxIter_    = esdfParam.scfOuterMaxIter;
+        scfPhiMaxIter_ = esdfParam.scfPhiMaxIter;
+        scfPhiTolerance_ = esdfParam.scfPhiTolerance;
+        numUnusedState_ = esdfParam.numUnusedState;
+        isEigToleranceDynamic_ = esdfParam.isEigToleranceDynamic;
+        isRestartDensity_ = esdfParam.isRestartDensity;
+        isRestartWfn_     = esdfParam.isRestartWfn;
+        isOutputDensity_  = esdfParam.isOutputDensity;
+        isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
+        Tbeta_         = esdfParam.Tbeta;
 
-    isHybridACEOutside_      = esdfParam.isHybridACEOutside;
-  }
+        numGridWavefunctionElem_ = esdfParam.numGridWavefunctionElem;
+        numGridDensityElem_      = esdfParam.numGridDensityElem;  
 
-	// other SCF parameters
-	{
-		eigSolPtr_ = &eigSol;
-    ptablePtr_ = &ptable;
+        XCType_                  = esdfParam.XCType;
+        VDWType_                 = esdfParam.VDWType;
 
-//		Int ntot = eigSolPtr_->Psi().NumGridTotal();
-    Int ntot = esdfParam.domain.NumGridTotal();
-    Int ntotFine = esdfParam.domain.NumGridTotalFine();
-
-		vtotNew_.Resize(ntotFine); SetValue(vtotNew_, 0.0);
-		dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
-		dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
-	
-    restartDensityFileName_ = "DEN";
-		restartWfnFileName_     = "WFN";
-	}
-
-	// Density
-	{
-    DblNumMat&  density = eigSolPtr_->Ham().Density();
-
-    if( isRestartDensity_ ) {
-			std::istringstream rhoStream;      
-			SharedRead( restartDensityFileName_, rhoStream);
-			// TODO Error checking
-			deserialize( density, rhoStream, NO_MASK );    
-		} // else using the zero initial guess
-		else {
-			// make sure the pseudocharge is initialized
-			DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
-			
-			SetValue( density, 0.0 );
-      
-			Int ntot = esdfParam.domain.NumGridTotal();
-      Int ntotFine = esdfParam.domain.NumGridTotalFine();
-
-      Real sum0 = 0.0, sum1 = 0.0;
-			Real EPS = 1e-6;
-
-			// make sure that the electron density is positive
-			for (Int i=0; i<ntotFine; i++){
-				density(i, RHO) = ( pseudoCharge(i) > EPS ) ? pseudoCharge(i) : EPS;
-				sum0 += density(i, RHO);
-				sum1 += pseudoCharge(i);
-			}
-
-      // Rescale the density
-			for (int i=0; i <ntotFine; i++){
-				density(i, RHO) *= sum1 / sum0;
-			} 
-		}
-	}
-
-	if( !isRestartWfn_ ) {
-    //		UniformRandom( eigSolPtr_->Psi().Wavefun() );
-	}
-	else {
-		std::istringstream iss;
-		SharedRead( restartWfnFileName_, iss );
-		deserialize( eigSolPtr_->Psi().Wavefun(), iss, NO_MASK );
-	}
-
-  // XC functional
-  {
-    isCalculateGradRho_ = false;
-    if( XCType_ == "XC_GGA_XC_PBE" || 
-        XCType_ == "XC_HYB_GGA_XC_HSE06" ) {
-      isCalculateGradRho_ = true;
+        isHybridACEOutside_      = esdfParam.isHybridACEOutside;
     }
-  }
+
+    // other SCF parameters
+    {
+        eigSolPtr_ = &eigSol;
+        ptablePtr_ = &ptable;
+
+        //		Int ntot = eigSolPtr_->Psi().NumGridTotal();
+        Int ntot = esdfParam.domain.NumGridTotal();
+        Int ntotFine = esdfParam.domain.NumGridTotalFine();
+
+        vtotNew_.Resize(ntotFine); SetValue(vtotNew_, 0.0);
+        dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
+        dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
+
+        restartDensityFileName_ = "DEN";
+        restartWfnFileName_     = "WFN";
+    }
+
+    // Density
+    {
+        DblNumMat&  density = eigSolPtr_->Ham().Density();
+
+        if( isRestartDensity_ ) {
+            std::istringstream rhoStream;      
+            SharedRead( restartDensityFileName_, rhoStream);
+            // TODO Error checking
+            deserialize( density, rhoStream, NO_MASK );    
+        } // else using the zero initial guess
+        else {
+            // make sure the pseudocharge is initialized
+            DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
+
+            SetValue( density, 0.0 );
+
+            Int ntot = esdfParam.domain.NumGridTotal();
+            Int ntotFine = esdfParam.domain.NumGridTotalFine();
+
+            Real sum0 = 0.0, sum1 = 0.0;
+            Real EPS = 1e-6;
+
+            // make sure that the electron density is positive
+            for (Int i=0; i<ntotFine; i++){
+                density(i, RHO) = ( pseudoCharge(i) > EPS ) ? pseudoCharge(i) : EPS;
+                sum0 += density(i, RHO);
+                sum1 += pseudoCharge(i);
+            }
+
+            // Rescale the density
+            for (int i=0; i <ntotFine; i++){
+                density(i, RHO) *= sum1 / sum0;
+            } 
+        }
+    }
+
+    if( !isRestartWfn_ ) {
+        //		UniformRandom( eigSolPtr_->Psi().Wavefun() );
+    }
+    else {
+        std::istringstream iss;
+        SharedRead( restartWfnFileName_, iss );
+        deserialize( eigSolPtr_->Psi().Wavefun(), iss, NO_MASK );
+    }
+
+    // XC functional
+    {
+        isCalculateGradRho_ = false;
+        if( XCType_ == "XC_GGA_XC_PBE" || 
+                XCType_ == "XC_HYB_GGA_XC_HSE06" ) {
+            isCalculateGradRho_ = true;
+        }
+    }
 
 #ifndef _RELEASE_
-	PopCallStack();
+    PopCallStack();
 #endif
 
-	return ;
+    return ;
 } 		// -----  end of method SCF::Setup  ----- 
 
 void
@@ -310,7 +311,7 @@ SCF::Iterate (  )
 
       GetTime( timeSta );
       if(1){
-        eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
+        eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );
       }
       GetTime( timeEnd );
 

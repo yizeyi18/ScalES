@@ -80,14 +80,20 @@ namespace dgdft{
   }
 
 
+// If we are not in RELEASE mode, then implement wrappers for a
+	// CallStack
 #ifndef _RELEASE_
 	std::stack<std::string> callStack;	
 
 	void PushCallStack( std::string s )
-	{ callStack.push(s); }
+	{ 
+//    callStack.push(s); 
+    }
 
 	void PopCallStack()
-	{ callStack.pop(); }
+	{ 
+//    callStack.pop(); 
+    }
 
 	void DumpCallStack()
 	{

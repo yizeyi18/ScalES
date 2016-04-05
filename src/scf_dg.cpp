@@ -49,8 +49,6 @@
 #include	"lapack.hpp"
 #include  "utility.hpp"
 
-#define _DEBUGlevel_ 0
-
 namespace  dgdft{
 
 using namespace dgdft::DensityComponent;
@@ -154,6 +152,7 @@ SCFDG::Setup	(
     mixVariable_   = esdfParam.mixVariable;
     mixType_       = esdfParam.mixType;
     mixStepLength_ = esdfParam.mixStepLength;
+    eigMinTolerance_  = esdfParam.eigMinTolerance;
     eigTolerance_  = esdfParam.eigTolerance;
     eigMinIter_    = esdfParam.eigMinIter;
     eigMaxIter_    = esdfParam.eigMaxIter;
@@ -1137,7 +1136,15 @@ SCFDG::Iterate	(  )
             // FIXME multiple choices of solvers for the extended
             // element should be given in the input file
             if(1){
-              eigSol.LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
+                Int eigDynMaxIter = eigMaxIter_;
+//                if( iter <= 2 ){
+//                    eigDynMaxIter = 15;
+//                }
+//                else{
+//                    eigDynMaxIter = eigMaxIter_;
+//                }
+                statusOFS << "eigDynMaxIter = " << eigDynMaxIter << std::endl;
+                eigSol.LOBPCGSolveReal2(numEig, eigDynMaxIter, eigMinTolerance_, eigTolNow );
             }
             GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1578,7 +1585,9 @@ SCFDG::Iterate	(  )
 
     statusOFS << std::endl << "Time for generating ALB function is " <<
       timeBasisEnd - timeBasisSta << " [s]" << std::endl << std::endl;
+    
 
+    MPI_Barrier( domain_.comm );
 
     // ~~**~~
     // ~~~~~~~~~~~~~~~~~~~~~~~~	
@@ -1760,20 +1769,20 @@ SCFDG::Iterate	(  )
 
     // Save the mixing variable in the outer SCF iteration 
     for( Int k = 0; k < numElem_[2]; k++ )
-      for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-            if( mixVariable_ == "density" ){
-              DblNumVec& oldVec = hamDG.Density().LocalMap()[key];
-              mixOuterSave_.LocalMap()[key] = oldVec;
-            }
-            else if( mixVariable_ == "potential" ){
-              DblNumVec& oldVec = hamDG.Vtot().LocalMap()[key];
-              mixOuterSave_.LocalMap()[key] = oldVec;
-            }
-          } // own this element
-        } // for (i)
+        for( Int j = 0; j < numElem_[1]; j++ )
+            for( Int i = 0; i < numElem_[0]; i++ ){
+                Index3 key( i, j, k );
+                if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                    if( mixVariable_ == "density" ){
+                        DblNumVec& oldVec = hamDG.Density().LocalMap()[key];
+                        mixOuterSave_.LocalMap()[key] = oldVec;
+                    }
+                    else if( mixVariable_ == "potential" ){
+                        DblNumVec& oldVec = hamDG.Vtot().LocalMap()[key];
+                        mixOuterSave_.LocalMap()[key] = oldVec;
+                    }
+                } // own this element
+            } // for (i)
 
     // Main function here
     InnerIterate( iter );
@@ -7192,238 +7201,238 @@ SCFDG::AndersonMix	(
     DistDblNumMat&  dvMat )
 {
 #ifndef _RELEASE_
-  PushCallStack("SCFDG::AndersonMix");
+    PushCallStack("SCFDG::AndersonMix");
 #endif
-  Int mpirank, mpisize;
-  MPI_Comm_rank( domain_.comm, &mpirank );
-  MPI_Comm_size( domain_.comm, &mpisize );
+    Int mpirank, mpisize;
+    MPI_Comm_rank( domain_.comm, &mpirank );
+    MPI_Comm_size( domain_.comm, &mpisize );
 
-  Int mpirankRow;  MPI_Comm_rank(domain_.rowComm, &mpirankRow);
-  Int mpisizeRow;  MPI_Comm_size(domain_.rowComm, &mpisizeRow);
-  Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
-  Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
+    Int mpirankRow;  MPI_Comm_rank(domain_.rowComm, &mpirankRow);
+    Int mpisizeRow;  MPI_Comm_size(domain_.rowComm, &mpisizeRow);
+    Int mpirankCol;  MPI_Comm_rank(domain_.colComm, &mpirankCol);
+    Int mpisizeCol;  MPI_Comm_size(domain_.colComm, &mpisizeCol);
 
-  distvMix.SetComm(domain_.colComm);
-  distvOld.SetComm(domain_.colComm);
-  distvNew.SetComm(domain_.colComm);
-  dfMat.SetComm(domain_.colComm);
-  dvMat.SetComm(domain_.colComm);
+    distvMix.SetComm(domain_.colComm);
+    distvOld.SetComm(domain_.colComm);
+    distvNew.SetComm(domain_.colComm);
+    dfMat.SetComm(domain_.colComm);
+    dvMat.SetComm(domain_.colComm);
 
-  // Residual 
-  DistDblNumVec distRes;
-  // Optimal input potential in Anderon mixing.
-  DistDblNumVec distvOpt; 
-  // Optimal residual in Anderson mixing
-  DistDblNumVec distResOpt; 
-  // Preconditioned optimal residual in Anderson mixing
-  DistDblNumVec distPrecResOpt;
+    // Residual 
+    DistDblNumVec distRes;
+    // Optimal input potential in Anderon mixing.
+    DistDblNumVec distvOpt; 
+    // Optimal residual in Anderson mixing
+    DistDblNumVec distResOpt; 
+    // Preconditioned optimal residual in Anderson mixing
+    DistDblNumVec distPrecResOpt;
 
-  distRes.SetComm(domain_.colComm);
-  distvOpt.SetComm(domain_.colComm);
-  distResOpt.SetComm(domain_.colComm);
-  distPrecResOpt.SetComm(domain_.colComm);
+    distRes.SetComm(domain_.colComm);
+    distvOpt.SetComm(domain_.colComm);
+    distResOpt.SetComm(domain_.colComm);
+    distPrecResOpt.SetComm(domain_.colComm);
 
-  // *********************************************************************
-  // Initialize
-  // *********************************************************************
-  Int ntot  = hamDGPtr_->NumUniformGridElemFine().prod();
+    // *********************************************************************
+    // Initialize
+    // *********************************************************************
+    Int ntot  = hamDGPtr_->NumUniformGridElemFine().prod();
 
-  // Number of iterations used, iter should start from 1
-  Int iterused = std::min( iter-1, mixMaxDim_ ); 
-  // The current position of dfMat, dvMat
-  Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
-  // The next position of dfMat, dvMat
-  Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
+    // Number of iterations used, iter should start from 1
+    Int iterused = std::min( iter-1, mixMaxDim_ ); 
+    // The current position of dfMat, dvMat
+    Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
+    // The next position of dfMat, dvMat
+    Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
 
-  distRes.Prtn()          = elemPrtn_;
-  distvOpt.Prtn()         = elemPrtn_;
-  distResOpt.Prtn()       = elemPrtn_;
-  distPrecResOpt.Prtn()   = elemPrtn_;
-
-
-
-  for( Int k = 0; k < numElem_[2]; k++ )
-    for( Int j = 0; j < numElem_[1]; j++ )
-      for( Int i = 0; i < numElem_[0]; i++ ){
-        Index3 key( i, j, k );
-        if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-          DblNumVec  emptyVec( ntot );
-          SetValue( emptyVec, 0.0 );
-          distRes.LocalMap()[key]        = emptyVec;
-          distvOpt.LocalMap()[key]       = emptyVec;
-          distResOpt.LocalMap()[key]     = emptyVec;
-          distPrecResOpt.LocalMap()[key] = emptyVec;
-        } // if ( own this element )
-      } // for (i)
+    distRes.Prtn()          = elemPrtn_;
+    distvOpt.Prtn()         = elemPrtn_;
+    distResOpt.Prtn()       = elemPrtn_;
+    distPrecResOpt.Prtn()   = elemPrtn_;
 
 
 
-  // *********************************************************************
-  // Anderson mixing
-  // *********************************************************************
-
-  for( Int k = 0; k < numElem_[2]; k++ )
-    for( Int j = 0; j < numElem_[1]; j++ )
-      for( Int i = 0; i < numElem_[0]; i++ ){
-        Index3 key( i, j, k );
-        if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-          // res(:) = vOld(:) - vNew(:) is the residual
-          distRes.LocalMap()[key] = distvOld.LocalMap()[key];
-          blas::Axpy( ntot, -1.0, distvNew.LocalMap()[key].Data(), 1, 
-              distRes.LocalMap()[key].Data(), 1 );
-
-          distvOpt.LocalMap()[key]   = distvOld.LocalMap()[key];
-          distResOpt.LocalMap()[key] = distRes.LocalMap()[key];
-
-
-          // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
-          // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
-          if( iter > 1 ){
-            blas::Scal( ntot, -1.0, dfMat.LocalMap()[key].VecData(ipos-1), 1 );
-            blas::Axpy( ntot, 1.0,  distRes.LocalMap()[key].Data(), 1, 
-                dfMat.LocalMap()[key].VecData(ipos-1), 1 );
-            blas::Scal( ntot, -1.0, dvMat.LocalMap()[key].VecData(ipos-1), 1 );
-            blas::Axpy( ntot, 1.0,  distvOld.LocalMap()[key].Data(),  1, 
-                dvMat.LocalMap()[key].VecData(ipos-1), 1 );
-          }
-        } // own this element
-      } // for (i)
-
-
-
-  // For iter == 1, Anderson mixing is the same as simple mixing. 
-  if( iter > 1){
-
-    Int nrow = iterused;
-
-    // Normal matrix FTF = F^T * F
-    DblNumMat FTFLocal( nrow, nrow ), FTF( nrow, nrow );
-    SetValue( FTFLocal, 0.0 );
-    SetValue( FTF, 0.0 );
-
-    // Right hand side FTv = F^T * vout
-    DblNumVec FTvLocal( nrow ), FTv( nrow );
-    SetValue( FTvLocal, 0.0 );
-    SetValue( FTv, 0.0 );
-
-    // Local construction of FTF and FTv
     for( Int k = 0; k < numElem_[2]; k++ )
-      for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-            DblNumMat& df     = dfMat.LocalMap()[key];
-            DblNumVec& res    = distRes.LocalMap()[key];
-            for( Int q = 0; q < nrow; q++ ){
-              FTvLocal(q) += blas::Dot( ntot, df.VecData(q), 1,
-                  res.Data(), 1 );
+        for( Int j = 0; j < numElem_[1]; j++ )
+            for( Int i = 0; i < numElem_[0]; i++ ){
+                Index3 key( i, j, k );
+                if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                    DblNumVec  emptyVec( ntot );
+                    SetValue( emptyVec, 0.0 );
+                    distRes.LocalMap()[key]        = emptyVec;
+                    distvOpt.LocalMap()[key]       = emptyVec;
+                    distResOpt.LocalMap()[key]     = emptyVec;
+                    distPrecResOpt.LocalMap()[key] = emptyVec;
+                } // if ( own this element )
+            } // for (i)
 
-              for( Int p = q; p < nrow; p++ ){
-                FTFLocal(p, q) += blas::Dot( ntot, df.VecData(p), 1, 
-                    df.VecData(q), 1 );
-                if( p > q )
-                  FTFLocal(q,p) = FTFLocal(p,q);
-              } // for (p)
-            } // for (q)
 
-          } // own this element
-        } // for (i)
 
-    // Reduce the data
-    mpi::Allreduce( FTFLocal.Data(), FTF.Data(), nrow * nrow, 
-        MPI_SUM, domain_.colComm );
-    mpi::Allreduce( FTvLocal.Data(), FTv.Data(), nrow, 
-        MPI_SUM, domain_.colComm );
+    // *********************************************************************
+    // Anderson mixing
+    // *********************************************************************
 
-    // All processors solve the least square problem
-
-    // FIXME Magic number for pseudo-inverse
-    Real rcond = 1e-6;
-    Int rank;
-
-    DblNumVec  S( nrow );
-
-    // FTv = pinv( FTF ) * res
-    lapack::SVDLeastSquare( nrow, nrow, 1, 
-        FTF.Data(), nrow, FTv.Data(), nrow,
-        S.Data(), rcond, &rank );
-
-    statusOFS << "Rank of dfmat = " << rank <<
-      ", rcond = " << rcond << std::endl;
-
-    // Update vOpt, resOpt. 
-    // FTv = Y^{\dagger} r as in the usual notation.
-    // 
     for( Int k = 0; k < numElem_[2]; k++ )
-      for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-            // vOpt   -= dv * FTv
-            blas::Gemv('N', ntot, nrow, -1.0, dvMat.LocalMap()[key].Data(),
-                ntot, FTv.Data(), 1, 1.0, 
-                distvOpt.LocalMap()[key].Data(), 1 );
+        for( Int j = 0; j < numElem_[1]; j++ )
+            for( Int i = 0; i < numElem_[0]; i++ ){
+                Index3 key( i, j, k );
+                if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                    // res(:) = vOld(:) - vNew(:) is the residual
+                    distRes.LocalMap()[key] = distvOld.LocalMap()[key];
+                    blas::Axpy( ntot, -1.0, distvNew.LocalMap()[key].Data(), 1, 
+                            distRes.LocalMap()[key].Data(), 1 );
 
-            // resOpt -= df * FTv
-            blas::Gemv('N', ntot, nrow, -1.0, dfMat.LocalMap()[key].Data(),
-                ntot, FTv.Data(), 1, 1.0, 
-                distResOpt.LocalMap()[key].Data(), 1 );
-          } // own this element
-        } // for (i)
-  } // (iter > 1)
+                    distvOpt.LocalMap()[key]   = distvOld.LocalMap()[key];
+                    distResOpt.LocalMap()[key] = distRes.LocalMap()[key];
 
 
+                    // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
+                    // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
+                    if( iter > 1 ){
+                        blas::Scal( ntot, -1.0, dfMat.LocalMap()[key].VecData(ipos-1), 1 );
+                        blas::Axpy( ntot, 1.0,  distRes.LocalMap()[key].Data(), 1, 
+                                dfMat.LocalMap()[key].VecData(ipos-1), 1 );
+                        blas::Scal( ntot, -1.0, dvMat.LocalMap()[key].VecData(ipos-1), 1 );
+                        blas::Axpy( ntot, 1.0,  distvOld.LocalMap()[key].Data(),  1, 
+                                dvMat.LocalMap()[key].VecData(ipos-1), 1 );
+                    }
+                } // own this element
+            } // for (i)
 
 
-  if( mixType == "kerker+anderson" ){
-    KerkerPrecond( distPrecResOpt, distResOpt );
-  }
-  else if( mixType == "anderson" ){
+
+    // For iter == 1, Anderson mixing is the same as simple mixing. 
+    if( iter > 1){
+
+        Int nrow = iterused;
+
+        // Normal matrix FTF = F^T * F
+        DblNumMat FTFLocal( nrow, nrow ), FTF( nrow, nrow );
+        SetValue( FTFLocal, 0.0 );
+        SetValue( FTF, 0.0 );
+
+        // Right hand side FTv = F^T * vout
+        DblNumVec FTvLocal( nrow ), FTv( nrow );
+        SetValue( FTvLocal, 0.0 );
+        SetValue( FTv, 0.0 );
+
+        // Local construction of FTF and FTv
+        for( Int k = 0; k < numElem_[2]; k++ )
+            for( Int j = 0; j < numElem_[1]; j++ )
+                for( Int i = 0; i < numElem_[0]; i++ ){
+                    Index3 key( i, j, k );
+                    if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                        DblNumMat& df     = dfMat.LocalMap()[key];
+                        DblNumVec& res    = distRes.LocalMap()[key];
+                        for( Int q = 0; q < nrow; q++ ){
+                            FTvLocal(q) += blas::Dot( ntot, df.VecData(q), 1,
+                                    res.Data(), 1 );
+
+                            for( Int p = q; p < nrow; p++ ){
+                                FTFLocal(p, q) += blas::Dot( ntot, df.VecData(p), 1, 
+                                        df.VecData(q), 1 );
+                                if( p > q )
+                                    FTFLocal(q,p) = FTFLocal(p,q);
+                            } // for (p)
+                        } // for (q)
+
+                    } // own this element
+                } // for (i)
+
+        // Reduce the data
+        mpi::Allreduce( FTFLocal.Data(), FTF.Data(), nrow * nrow, 
+                MPI_SUM, domain_.colComm );
+        mpi::Allreduce( FTvLocal.Data(), FTv.Data(), nrow, 
+                MPI_SUM, domain_.colComm );
+
+        // All processors solve the least square problem
+
+        // FIXME Magic number for pseudo-inverse
+        Real rcond = 1e-6;
+        Int rank;
+
+        DblNumVec  S( nrow );
+
+        // FTv = pinv( FTF ) * res
+        lapack::SVDLeastSquare( nrow, nrow, 1, 
+                FTF.Data(), nrow, FTv.Data(), nrow,
+                S.Data(), rcond, &rank );
+
+        statusOFS << "Rank of dfmat = " << rank <<
+            ", rcond = " << rcond << std::endl;
+
+        // Update vOpt, resOpt. 
+        // FTv = Y^{\dagger} r as in the usual notation.
+        // 
+        for( Int k = 0; k < numElem_[2]; k++ )
+            for( Int j = 0; j < numElem_[1]; j++ )
+                for( Int i = 0; i < numElem_[0]; i++ ){
+                    Index3 key( i, j, k );
+                    if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                        // vOpt   -= dv * FTv
+                        blas::Gemv('N', ntot, nrow, -1.0, dvMat.LocalMap()[key].Data(),
+                                ntot, FTv.Data(), 1, 1.0, 
+                                distvOpt.LocalMap()[key].Data(), 1 );
+
+                        // resOpt -= df * FTv
+                        blas::Gemv('N', ntot, nrow, -1.0, dfMat.LocalMap()[key].Data(),
+                                ntot, FTv.Data(), 1, 1.0, 
+                                distResOpt.LocalMap()[key].Data(), 1 );
+                    } // own this element
+                } // for (i)
+    } // (iter > 1)
+
+
+
+
+    if( mixType == "kerker+anderson" ){
+        KerkerPrecond( distPrecResOpt, distResOpt );
+    }
+    else if( mixType == "anderson" ){
+        for( Int k = 0; k < numElem_[2]; k++ )
+            for( Int j = 0; j < numElem_[1]; j++ )
+                for( Int i = 0; i < numElem_[0]; i++ ){
+                    Index3 key( i, j, k );
+                    if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                        distPrecResOpt.LocalMap()[key] = 
+                            distResOpt.LocalMap()[key];
+                    } // own this element
+                } // for (i)
+    }
+    else{
+        throw std::runtime_error("Invalid mixing type.");
+    }
+
+
+
+
+    // Update dfMat, dvMat, vMix 
     for( Int k = 0; k < numElem_[2]; k++ )
-      for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-            distPrecResOpt.LocalMap()[key] = 
-              distResOpt.LocalMap()[key];
-          } // own this element
-        } // for (i)
-  }
-  else{
-    throw std::runtime_error("Invalid mixing type.");
-  }
+        for( Int j = 0; j < numElem_[1]; j++ )
+            for( Int i = 0; i < numElem_[0]; i++ ){
+                Index3 key( i, j, k );
+                if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                    // dfMat(:, inext-1) = res(:)
+                    // dvMat(:, inext-1) = vOld(:)
+                    blas::Copy( ntot, distRes.LocalMap()[key].Data(), 1, 
+                            dfMat.LocalMap()[key].VecData(inext-1), 1 );
+                    blas::Copy( ntot, distvOld.LocalMap()[key].Data(),  1, 
+                            dvMat.LocalMap()[key].VecData(inext-1), 1 );
 
-
-
-
-  // Update dfMat, dvMat, vMix 
-  for( Int k = 0; k < numElem_[2]; k++ )
-    for( Int j = 0; j < numElem_[1]; j++ )
-      for( Int i = 0; i < numElem_[0]; i++ ){
-        Index3 key( i, j, k );
-        if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-          // dfMat(:, inext-1) = res(:)
-          // dvMat(:, inext-1) = vOld(:)
-          blas::Copy( ntot, distRes.LocalMap()[key].Data(), 1, 
-              dfMat.LocalMap()[key].VecData(inext-1), 1 );
-          blas::Copy( ntot, distvOld.LocalMap()[key].Data(),  1, 
-              dvMat.LocalMap()[key].VecData(inext-1), 1 );
-
-          // vMix(:) = vOpt(:) - mixStepLength * precRes(:)
-          distvMix.LocalMap()[key] = distvOpt.LocalMap()[key];
-          blas::Axpy( ntot, -mixStepLength, 
-              distPrecResOpt.LocalMap()[key].Data(), 1, 
-              distvMix.LocalMap()[key].Data(), 1 );
-        } // own this element
-      } // for (i)
+                    // vMix(:) = vOpt(:) - mixStepLength * precRes(:)
+                    distvMix.LocalMap()[key] = distvOpt.LocalMap()[key];
+                    blas::Axpy( ntot, -mixStepLength, 
+                            distPrecResOpt.LocalMap()[key].Data(), 1, 
+                            distvMix.LocalMap()[key].Data(), 1 );
+                } // own this element
+            } // for (i)
 
 
 
 #ifndef _RELEASE_
-  PopCallStack();
+    PopCallStack();
 #endif
 
-  return ;
+    return ;
 } 		// -----  end of method SCFDG::AndersonMix  ----- 
 
 void
@@ -7479,7 +7488,10 @@ SCFDG::KerkerPrecond (
   // gkk / ( gkk + 2 * pi * b )
   //
   // Here we choose KerkerB to be a fixed number.
-  Real KerkerB = 0.1; 
+
+  // FIXME hard coded
+  Real KerkerB = 0.08; 
+  Real Amin = 10000.0;
 
   if( fft.isInGrid ){
 
@@ -7490,11 +7502,12 @@ SCFDG::KerkerPrecond (
     fftw_execute( fft.forwardPlan );
 
     for( Int i = 0; i < ntotLocal; i++ ){
-      // Do not touch the zero frequency
-      if( fft.gkkLocal(i) != 0 ){
-        fft.outputComplexVecLocal(i) *= fft.gkkLocal(i) / 
-          ( fft.gkkLocal(i) + 2.0 * PI * KerkerB );
-      }
+        // Do not touch the zero frequency
+        // Procedure taken from VASP
+        if( fft.gkkLocal(i) != 0 ){
+            fft.outputComplexVecLocal(i) *= std::min(fft.gkkLocal(i) / 
+                    ( fft.gkkLocal(i) + 2.0 * PI * KerkerB ), Amin);
+        }
     }
     fftw_execute( fft.backwardPlan );
 

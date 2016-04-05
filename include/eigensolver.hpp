@@ -64,12 +64,6 @@ private:
 	Fourier*            fftPtr_;
 	Spinor*             psiPtr_;
 
-  // FIXME all the varaibles below to be removd.
-	Int                 eigMaxIter_;
-  // Dynamic tolerance
-	Real                eigTolerance_; 
-  // Input tolerance
-	Real                eigToleranceSave_;
 
 	DblNumVec           eigVal_;
 	DblNumVec           resVal_;
@@ -128,10 +122,13 @@ public:
   /// convergence criterion.  numEig must be less than or equal to
   /// width.
   /// @param[in] eigMaxIter    Maximum number of iterations
+  /// @param[in] eigMinTolerance Minimum tolerance must be reached
+  /// during the LOBPCG iteration
   /// @param[in] eigTolerance  Residual tolerance.
   void LOBPCGSolveReal2(
       Int          numEig,
       Int          eigMaxIter,
+      Real         eigMinTolerance,
       Real         eigTolerance );
 
 
@@ -139,9 +136,6 @@ public:
 	DblNumVec& EigVal() { return eigVal_; }
 	DblNumVec& ResVal() { return resVal_; }
 
-  // FIXME following 2 subroutines to be removed
-  Real&      Tolerance() { return eigTolerance_; }
-  Real&      ToleranceSave() { return eigToleranceSave_; }
 
 	Hamiltonian& Ham()  {return *hamPtr_;}
 	Spinor&      Psi()  {return *psiPtr_;}

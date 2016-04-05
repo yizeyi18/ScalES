@@ -69,6 +69,7 @@ private:
 	Int                 mixMaxDim_;
 	std::string         mixType_;
 	Real                mixStepLength_;            
+  Real                eigMinTolerance_;
   Real                eigTolerance_;
   Int                 eigMaxIter_;
 	Real                scfTolerance_;

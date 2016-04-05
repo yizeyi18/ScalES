@@ -1,44 +1,44 @@
 /*
-  Copyright (c) 2012 The Regents of the University of California,
-  through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
-  Authors: Chris J. Pickard and Lin Lin
-	 
-  This file is part of DGDFT. All rights reserved.
+   Authors: Chris J. Pickard and Lin Lin
 
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are met:
+   This file is part of DGDFT. All rights reserved.
 
-  (1) Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-  (2) Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-  (3) Neither the name of the University of California, Lawrence Berkeley
-  National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-  be used to endorse or promote products derived from this software without
-  specific prior written permission.
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
 
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   (1) Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+   (2) Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+   (3) Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
 
-  You are under no obligation whatsoever to provide any bug fixes, patches, or
-  upgrades to the features, functionality or performance of the source code
-  ("Enhancements") to anyone; however, if you choose to make your Enhancements
-  available either publicly, or directly to Lawrence Berkeley National
-  Laboratory, without imposing a separate written license agreement for such
-  Enhancements, then you hereby grant the following license: a non-exclusive,
-  royalty-free perpetual license to install, use, modify, prepare derivative
-  works, incorporate into other computer software, distribute, and sublicense
-  such enhancements or derivative works thereof, in binary and source code form.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+   You are under no obligation whatsoever to provide any bug fixes, patches, or
+   upgrades to the features, functionality or performance of the source code
+   ("Enhancements") to anyone; however, if you choose to make your Enhancements
+   available either publicly, or directly to Lawrence Berkeley National
+   Laboratory, without imposing a separate written license agreement for such
+   Enhancements, then you hereby grant the following license: a non-exclusive,
+   royalty-free perpetual license to install, use, modify, prepare derivative
+   works, incorporate into other computer software, distribute, and sublicense
+   such enhancements or derivative works thereof, in binary and source code form.
 */
 /// @file esdf.cpp
 /// @brief Electronic structure data format for reading the input data.
@@ -401,6 +401,11 @@ namespace dgdft{
       strcpy(kw_label[i],"eig_tolerance");
       strcpy(kw_typ[i],"D:E");
       strcpy(kw_dscrpt[i],"*! eigenvalue solver tolerance!*");
+
+      i++;
+      strcpy(kw_label[i],"eig_min_tolerance");
+      strcpy(kw_typ[i],"D:E");
+      strcpy(kw_dscrpt[i],"*! minimum tolerance for eigenvalue solver!*");
 
       i++;
       strcpy(kw_label[i],"eig_miniter");
@@ -2266,6 +2271,7 @@ namespace dgdft{
 
           // Default is no locking
           esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-20 );
+          esdfParam.eigMinTolerance      = esdf_double( "Eig_Min_Tolerance", 1e-3 );
           esdfParam.eigMinIter           = esdf_integer( "Eig_MinIter",  2 );
           esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
           esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
@@ -2674,6 +2680,7 @@ namespace dgdft{
       Print(statusOFS, "SCF Outer Tol                        = ",  esdfParam.scfOuterTolerance);
       Print(statusOFS, "SCF Outer MaxIter                    = ",  esdfParam.scfOuterMaxIter);
       Print(statusOFS, "SCF Free Energy Per Atom Tol         = ",  esdfParam.scfOuterEnergyTolerance);
+      Print(statusOFS, "Eig Min Tolerence                    = ",  esdfParam.eigMinTolerance);
       Print(statusOFS, "Eig Tolerence                        = ",  esdfParam.eigTolerance);
       Print(statusOFS, "Eig MaxIter                          = ",  esdfParam.eigMaxIter);
       Print(statusOFS, "Eig Tolerance Dyn                    = ",  esdfParam.isEigToleranceDynamic);
