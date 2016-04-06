@@ -55,8 +55,8 @@ void Spinor::Setup (
 #ifndef _RELEASE_
 	PushCallStack("Spinor::Setup ");
 #endif  // ifndef _RELEASE_
-	domain_       = dm;
-
+	
+  domain_       = dm;
   MPI_Barrier(domain_.comm);
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
@@ -108,11 +108,26 @@ void Spinor::Setup ( const Domain &dm,
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
 
-  domain_       = dm;
-
   wavefun_      = NumTns<Real>( dm.NumGridTotal(), numComponent, numStateLocal,
       owndata, data );
+  
+  Int blocksize;
 
+  if ( numStateTotal <=  mpisize ) {
+    blocksize = 1;
+  }
+  else {  // numStateTotal >  mpisize
+    if ( numStateTotal % mpisize == 0 ){
+      blocksize = numStateTotal / mpisize;
+    }
+    else {
+      blocksize = ((numStateTotal - 1) / mpisize) + 1;
+    }    
+  }
+
+  numStateTotal_ = numStateTotal;
+  blocksize_ = blocksize;
+  
   wavefunIdx_.Resize( numStateLocal );
   SetValue( wavefunIdx_, 0 );
   for (Int i = 0; i < numStateLocal; i++){
