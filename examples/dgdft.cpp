@@ -249,6 +249,7 @@ int main(int argc, char **argv)
                 dmExtElem.rowComm = dm.rowComm;
                 dmExtElem.colComm = dm.rowComm;
 
+
                 // Assume the global domain starts from 0.0
                 if( numElem[d] == 1 ){
                   dmExtElem.length[d]      = dm.length[d];

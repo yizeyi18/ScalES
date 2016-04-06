@@ -89,109 +89,109 @@ KohnSham::Setup	(
     const std::vector<Atom>&    atomList )
 {
 #ifndef _RELEASE_
-	PushCallStack("KohnSham::Setup");
+    PushCallStack("KohnSham::Setup");
 #endif
-	domain_              = dm;
-	atomList_            = atomList;
-	pseudoType_          = esdfParam.pseudoType;
-	numExtraState_       = esdfParam.numExtraState;
-  XCType_              = esdfParam.XCType;
-  isHybridACE_         = esdfParam.isHybridACE;
-  exxDivergenceType_   = esdfParam.exxDivergenceType;
+    domain_              = dm;
+    atomList_            = atomList;
+    pseudoType_          = esdfParam.pseudoType;
+    numExtraState_       = esdfParam.numExtraState;
+    XCType_              = esdfParam.XCType;
+    isHybridACE_         = esdfParam.isHybridACE;
+    exxDivergenceType_   = esdfParam.exxDivergenceType;
 
-  // FIXME Hard coded
-  numDensityComponent_ = 1;
+    // FIXME Hard coded
+    numDensityComponent_ = 1;
 
-  // Since the number of density components is always 1 here, set numSpin = 2.
-	numSpin_ = 2;
+    // Since the number of density components is always 1 here, set numSpin = 2.
+    numSpin_ = 2;
 
-	// NOTE: NumSpin variable will be determined in derivative classes.
+    // NOTE: NumSpin variable will be determined in derivative classes.
 
-  Int ntotCoarse = domain_.NumGridTotal();
-  Int ntotFine = domain_.NumGridTotalFine();
+    Int ntotCoarse = domain_.NumGridTotal();
+    Int ntotFine = domain_.NumGridTotalFine();
 
-  density_.Resize( ntotFine, numDensityComponent_ );   
-  SetValue( density_, 0.0 );
+    density_.Resize( ntotFine, numDensityComponent_ );   
+    SetValue( density_, 0.0 );
 
-  gradDensity_.resize( DIM );
-  for( Int d = 0; d < DIM; d++ ){
-    gradDensity_[d].Resize( ntotFine, numDensityComponent_ );
-    SetValue (gradDensity_[d], 0.0);
-  }
+    gradDensity_.resize( DIM );
+    for( Int d = 0; d < DIM; d++ ){
+        gradDensity_[d].Resize( ntotFine, numDensityComponent_ );
+        SetValue (gradDensity_[d], 0.0);
+    }
 
-  pseudoCharge_.Resize( ntotFine );
-  SetValue( pseudoCharge_, 0.0 );
+    pseudoCharge_.Resize( ntotFine );
+    SetValue( pseudoCharge_, 0.0 );
 
-  vext_.Resize( ntotFine );
-  SetValue( vext_, 0.0 );
+    vext_.Resize( ntotFine );
+    SetValue( vext_, 0.0 );
 
-  vhart_.Resize( ntotFine );
-  SetValue( vhart_, 0.0 );
+    vhart_.Resize( ntotFine );
+    SetValue( vhart_, 0.0 );
 
-	vtot_.Resize( ntotFine );
-	SetValue( vtot_, 0.0 );
+    vtot_.Resize( ntotFine );
+    SetValue( vtot_, 0.0 );
 
-	epsxc_.Resize( ntotFine );
-	SetValue( epsxc_, 0.0 );
+    epsxc_.Resize( ntotFine );
+    SetValue( epsxc_, 0.0 );
 
-	vxc_.Resize( ntotFine, numDensityComponent_ );
-	SetValue( vxc_, 0.0 );
+    vxc_.Resize( ntotFine, numDensityComponent_ );
+    SetValue( vxc_, 0.0 );
 
 
 
-  // Initialize the XC functionals, only spin-unpolarized case
-	// Obtain the exchange-correlation id
-  {
-    isHybrid_ = false;
-
-    if( XCType_ == "XC_LDA_XC_TETER93" )
-    { 
-      XCId_ = XC_LDA_XC_TETER93;
-      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-        throw std::runtime_error( "XC functional initialization error." );
-      } 
-      // Teter 93
-      // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
-    }    
-    else if( XCType_ == "XC_GGA_XC_PBE" )
+    // Initialize the XC functionals, only spin-unpolarized case
+    // Obtain the exchange-correlation id
     {
-      XId_ = XC_GGA_X_PBE;
-      CId_ = XC_GGA_C_PBE;
-      // Perdew, Burke & Ernzerhof correlation
-      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
-      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
-      if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
-        throw std::runtime_error( "X functional initialization error." );
-      }
-      if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
-        throw std::runtime_error( "C functional initialization error." );
-      }
-    }
-    else if( XCType_ == "XC_HYB_GGA_XC_HSE06" )
-    {
-      XCId_ = XC_HYB_GGA_XC_HSE06;
-      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-        throw std::runtime_error( "XC functional initialization error." );
-      } 
+        isHybrid_ = false;
 
-      isHybrid_ = true;
+        if( XCType_ == "XC_LDA_XC_TETER93" )
+        { 
+            XCId_ = XC_LDA_XC_TETER93;
+            if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+                throw std::runtime_error( "XC functional initialization error." );
+            } 
+            // Teter 93
+            // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
+        }    
+        else if( XCType_ == "XC_GGA_XC_PBE" )
+        {
+            XId_ = XC_GGA_X_PBE;
+            CId_ = XC_GGA_C_PBE;
+            // Perdew, Burke & Ernzerhof correlation
+            // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
+            // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
+            if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
+                throw std::runtime_error( "X functional initialization error." );
+            }
+            if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
+                throw std::runtime_error( "C functional initialization error." );
+            }
+        }
+        else if( XCType_ == "XC_HYB_GGA_XC_HSE06" )
+        {
+            XCId_ = XC_HYB_GGA_XC_HSE06;
+            if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+                throw std::runtime_error( "XC functional initialization error." );
+            } 
 
-      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
-      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
-      // A. V. Krukau, O. A. Vydrov, A. F. Izmaylov, and G. E. Scuseria, J. Chem. Phys. 125, 224106 (2006) (doi: 10.1063/1.2404663)
-      //
-      // This is the same as the "hse" functional in QE 5.1
+            isHybrid_ = true;
+
+            // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
+            // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
+            // A. V. Krukau, O. A. Vydrov, A. F. Izmaylov, and G. E. Scuseria, J. Chem. Phys. 125, 224106 (2006) (doi: 10.1063/1.2404663)
+            //
+            // This is the same as the "hse" functional in QE 5.1
+        }
+        else {
+            throw std::logic_error("Unrecognized exchange-correlation type");
+        }
     }
-    else {
-      throw std::logic_error("Unrecognized exchange-correlation type");
-    }
-  }
-  	
+
 #ifndef _RELEASE_
-	PopCallStack();
+    PopCallStack();
 #endif
 
-	return ;
+    return ;
 } 		// -----  end of method KohnSham::Setup  ----- 
 
 
@@ -338,82 +338,82 @@ void
 KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft)
 {
 #ifndef _RELEASE_
-	PushCallStack("KohnSham::CalculateDensity");
+    PushCallStack("KohnSham::CalculateDensity");
 #endif
-	Int ntot  = psi.NumGridTotal();
-	Int ncom  = psi.NumComponent();
-	Int nocc  = psi.NumState();
-	Real vol  = domain_.Volume();
+    Int ntot  = psi.NumGridTotal();
+    Int ncom  = psi.NumComponent();
+    Int nocc  = psi.NumState();
+    Real vol  = domain_.Volume();
 
-  Int ntotFine  = fft.domain.NumGridTotalFine();
+    Int ntotFine  = fft.domain.NumGridTotalFine();
 
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+    MPI_Barrier(domain_.comm);
+    int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+    int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
 
-//  IntNumVec& wavefunIdx = psi.WavefunIdx();
+    //  IntNumVec& wavefunIdx = psi.WavefunIdx();
 
-  DblNumMat   densityLocal;
-	densityLocal.Resize( ntotFine, ncom );   
-	SetValue( densityLocal, 0.0 );
+    DblNumMat   densityLocal;
+    densityLocal.Resize( ntotFine, ncom );   
+    SetValue( densityLocal, 0.0 );
 
-  Real fac;
+    Real fac;
 
-	SetValue( density_, 0.0 );
-  for (Int k=0; k<nocc; k++) {
-		for (Int j=0; j<ncom; j++) {
+    SetValue( density_, 0.0 );
+    for (Int k=0; k<nocc; k++) {
+        for (Int j=0; j<ncom; j++) {
 
-      for( Int i = 0; i < ntot; i++ ){
-        fft.inputComplexVec(i) = Complex( psi.Wavefun(i,j,k), 0.0 ); 
-      }
-     
-      FFTWExecute ( fft, fft.forwardPlan );
+            for( Int i = 0; i < ntot; i++ ){
+                fft.inputComplexVec(i) = Complex( psi.Wavefun(i,j,k), 0.0 ); 
+            }
 
-      // fft Coarse to Fine 
+            FFTWExecute ( fft, fft.forwardPlan );
 
-      SetValue( fft.outputComplexVecFine, Z_ZERO );
-      for( Int i = 0; i < ntot; i++ ){
-        fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i) * 
-          sqrt( double(ntot) / double(ntotFine) );
-      } 
+            // fft Coarse to Fine 
 
-      FFTWExecute ( fft, fft.backwardPlanFine );
+            SetValue( fft.outputComplexVecFine, Z_ZERO );
+            for( Int i = 0; i < ntot; i++ ){
+                fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i) * 
+                    sqrt( double(ntot) / double(ntotFine) );
+            } 
 
-      // FIXME Factor to be simplified
-      fac = numSpin_ * occrate(psi.WavefunIdx(k));
-      for( Int i = 0; i < ntotFine; i++ ){
-				densityLocal(i,RHO) +=  pow( std::abs(fft.inputComplexVecFine(i).real()), 2.0 ) * fac;
-      }
-		}
-	}
-	
-  mpi::Allreduce( densityLocal.Data(), density_.Data(), ntotFine, MPI_SUM, domain_.comm );
+            FFTWExecute ( fft, fft.backwardPlanFine );
 
-  val = 0.0; // sum of density
-  for (Int i=0; i<ntotFine; i++) {
-    val  += density_(i, RHO);
-  }
+            // FIXME Factor to be simplified
+            fac = numSpin_ * occrate(psi.WavefunIdx(k));
+            for( Int i = 0; i < ntotFine; i++ ){
+                densityLocal(i,RHO) +=  pow( std::abs(fft.inputComplexVecFine(i).real()), 2.0 ) * fac;
+            }
+        }
+    }
 
-	Print( statusOFS, "Raw data, sum of density = ",  val );
-	Print( statusOFS, "Expected sum of density  = ",  (numSpin_ * numOccupiedState_ ) );
+    mpi::Allreduce( densityLocal.Data(), density_.Data(), ntotFine, MPI_SUM, domain_.comm );
 
-  // Scale the density
-  blas::Scal( ntotFine, (numSpin_ * Real(numOccupiedState_) * Real(ntotFine)) / ( vol * val ), 
-      density_.VecData(RHO), 1 );
+    val = 0.0; // sum of density
+    for (Int i=0; i<ntotFine; i++) {
+        val  += density_(i, RHO);
+    }
 
-  // Double check (can be neglected)
-  val = 0.0; // sum of density
-  for (Int i=0; i<ntotFine; i++) {
-    val  += density_(i, RHO) * vol / ntotFine;
-  }
-	Print( statusOFS, "Raw data, sum of adjusted density = ",  val );
-  
+    Print( statusOFS, "Raw data, sum of density = ",  val );
+    Print( statusOFS, "Expected sum of density  = ",  (numSpin_ * numOccupiedState_ ) );
+
+    // Scale the density
+    blas::Scal( ntotFine, (numSpin_ * Real(numOccupiedState_) * Real(ntotFine)) / ( vol * val ), 
+            density_.VecData(RHO), 1 );
+
+    // Double check (can be neglected)
+    val = 0.0; // sum of density
+    for (Int i=0; i<ntotFine; i++) {
+        val  += density_(i, RHO) * vol / ntotFine;
+    }
+    Print( statusOFS, "Raw data, sum of adjusted density = ",  val );
+
 
 #ifndef _RELEASE_
-	PopCallStack();
+    PopCallStack();
 #endif
 
-	return ;
+    return ;
 } 		// -----  end of method KohnSham::CalculateDensity  ----- 
 
 

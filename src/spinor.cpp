@@ -103,6 +103,7 @@ void Spinor::Setup ( const Domain &dm,
   PushCallStack("Spinor::Setup");
 #endif  // ifndef _RELEASE_
 
+  domain_       = dm;
   MPI_Barrier(domain_.comm);
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);

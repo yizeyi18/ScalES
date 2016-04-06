@@ -575,39 +575,39 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
 	numGridTotal = domain.NumGridTotalFine();
 
 	// Create the new communicator
-	{
-		Int mpirankDomain, mpisizeDomain;
-		MPI_Comm_rank( dm.colComm, &mpirankDomain );
-		MPI_Comm_size( dm.colComm, &mpisizeDomain );
-    
-    Int mpirank, mpisize;
-    MPI_Comm_rank( dm.comm, &mpirank );
-    MPI_Comm_size( dm.comm, &mpisize );
-    
-    MPI_Barrier(dm.rowComm);
-    Int mpirankRow;  MPI_Comm_rank(dm.rowComm, &mpirankRow);
-    Int mpisizeRow;  MPI_Comm_size(dm.rowComm, &mpisizeRow);
+    {
+        Int mpirankDomain, mpisizeDomain;
+        MPI_Comm_rank( dm.colComm, &mpirankDomain );
+        MPI_Comm_size( dm.colComm, &mpisizeDomain );
 
-    MPI_Barrier(dm.colComm);
-    Int mpirankCol;  MPI_Comm_rank(dm.colComm, &mpirankCol);
-    Int mpisizeCol;  MPI_Comm_size(dm.colComm, &mpisizeCol);
+        Int mpirank, mpisize;
+        MPI_Comm_rank( dm.comm, &mpirank );
+        MPI_Comm_size( dm.comm, &mpisize );
 
-    //numProc = mpisizeCol;
+        MPI_Barrier(dm.rowComm);
+        Int mpirankRow;  MPI_Comm_rank(dm.rowComm, &mpirankRow);
+        Int mpisizeRow;  MPI_Comm_size(dm.rowComm, &mpisizeRow);
 
-    if( numProc > mpisizeDomain ){
-			std::ostringstream msg;
-			msg << "numProc cannot exceed mpisize."  << std::endl
-				<< "numProc ~ " << numProc << std::endl
-				<< "mpisize = " << mpisizeDomain << std::endl;
-			throw std::runtime_error( msg.str().c_str() );
-		}
-		if( mpirankDomain < numProc )
-			isInGrid = true;
-		else
-			isInGrid = false;
+        MPI_Barrier(dm.colComm);
+        Int mpirankCol;  MPI_Comm_rank(dm.colComm, &mpirankCol);
+        Int mpisizeCol;  MPI_Comm_size(dm.colComm, &mpisizeCol);
 
-		MPI_Comm_split( dm.colComm, isInGrid, mpirankDomain, &comm );
-	}
+        //numProc = mpisizeCol;
+
+        if( numProc > mpisizeDomain ){
+            std::ostringstream msg;
+            msg << "numProc cannot exceed mpisize."  << std::endl
+                << "numProc ~ " << numProc << std::endl
+                << "mpisize = " << mpisizeDomain << std::endl;
+            throw std::runtime_error( msg.str().c_str() );
+        }
+        if( mpirankDomain < numProc )
+            isInGrid = true;
+        else
+            isInGrid = false;
+
+        MPI_Comm_split( dm.colComm, isInGrid, mpirankDomain, &comm );
+    }
 
 	if( isInGrid ){
 	
