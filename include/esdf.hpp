@@ -752,8 +752,15 @@ namespace dgdft{
 
       Int General_SCFDG_ChebyFilterOrder; // Filter Order for general phase, default = 60
       Int General_SCFDG_ChebyCycleNum; // Default 1
+      
+      // Inputs related to Chebyshev Filtered SCF iterations for PWDFT
+      bool Diag_SCF_PWDFT_by_Cheby; // Default: 0
+      Int First_SCF_PWDFT_ChebyFilterOrder; // Default 40
+      Int First_SCF_PWDFT_ChebyCycleNum; // Default 4
+      Int General_SCF_PWDFT_ChebyFilterOrder; // Filter Order for general phase, default = 60
 
-
+      
+     
       /// @brief This is NOT an input parameter, but records whether
       /// DGDFT is performed.
       bool isDGDFT; 

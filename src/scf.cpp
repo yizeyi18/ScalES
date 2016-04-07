@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin and Wei Hu
+   Author: Lin Lin, Wei Hu and Amartya Banerjee
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -309,10 +309,29 @@ SCF::Iterate (  )
         << numEig << std::endl;
 
 
+	statusOFS << std::endl << " variables are : " << std::endl;
+	statusOFS << " esdfParam.Diag_SCF_PWDFT_by_Cheby = " <<  esdfParam.Diag_SCF_PWDFT_by_Cheby;
+	statusOFS << " esdfParam.First_SCF_PWDFT_ChebyFilterOrder = " << esdfParam.First_SCF_PWDFT_ChebyFilterOrder;
+	statusOFS << " esdfParam.First_SCF_PWDFT_ChebyCycleNum = " << esdfParam.First_SCF_PWDFT_ChebyCycleNum;
+	statusOFS << " esdfParam.General_SCF_PWDFT_ChebyFilterOrder = " << esdfParam.General_SCF_PWDFT_ChebyFilterOrder << std::endl << std::endl;
+	
       GetTime( timeSta );
-      if(1){
+      if(0){
         eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );
       }
+      else
+     {  
+     
+      if(iter <= 1){
+	//eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
+	eigSolPtr_->FirstChebyStep(numEig, eigMaxIter_, 50);
+      }
+      else{
+	//eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
+	eigSolPtr_->GeneralChebyStep(numEig, 25);
+      }
+     }
+      
       GetTime( timeEnd );
 
       ham.EigVal() = eigSolPtr_->EigVal();

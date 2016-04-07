@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin and Wei Hu
+   Author: Lin Lin, Wei Hu and Amartya Banerjee
 
    This file is part of DGDFT. All rights reserved.
 
@@ -2583,5 +2583,1235 @@ EigenSolver::LOBPCGSolveReal2	(
 
   return ;
 } 		// -----  end of method EigenSolver::LOBPCGSolveReal2  ----- 
+
+
+ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_Lanczos_Steps)
+  {
+#ifndef _RELEASE_
+    PushCallStack("EigenSolver:: Cheby_Upper_bound_estimator");
+#endif
+      
+    // *********************************************************************
+    // Initialization
+    // *********************************************************************
+    MPI_Comm mpi_comm = fftPtr_->domain.comm;
+    MPI_Barrier(mpi_comm);
+    Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
+    Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
+      
+    Int ntot = psiPtr_->NumGridTotal();
+    Int ncom = psiPtr_->NumComponent();
+    Int noccLocal = psiPtr_->NumState();
+    Int noccTotal = psiPtr_->NumStateTotal();
+      
+    Int height = ntot * ncom;
+    Int width = noccTotal;
+      
+    // Timestamping ...
+    Real timeSta, timeEnd;
+    Real timeSpinor = 0.0;
+    Int  iterSpinor = 0;
+      
+      
+      
+    // a) Setup a temporary spinor with random numbers
+    // One band on each process
+    Spinor  temp_spinor_v; 
+    temp_spinor_v.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
+    UniformRandom( temp_spinor_v.Wavefun() );
+      
+    // b) Normalize this vector : Current data distribution is height * widthLocal ( = 1)
+    double temp_spinor_v_norm = 0.0, *v_access_ptr =  temp_spinor_v.Wavefun().Data();
+      
+    temp_spinor_v_norm = blas::Nrm2(height, temp_spinor_v.Wavefun().Data(), 1);
+    blas::Scal( height , ( 1.0 /  temp_spinor_v_norm), temp_spinor_v.Wavefun().Data(), 1);
+      
+    // c) Compute the Hamiltonian * vector product
+    // Applying the Hamiltonian matrix
+    GetTime( timeSta );
+      
+    Spinor  temp_spinor_f; 
+    temp_spinor_f.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
+      
+    Spinor  temp_spinor_v0; 
+    temp_spinor_v0.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
+      
+    // This is required for the  Hamiltonian * vector product
+    NumTns<double> tnsTemp_spinor_f(ntot, ncom, 1, false, temp_spinor_f.Wavefun().Data());
+      
+    SetValue( temp_spinor_f.Wavefun(), 0.0);
+    hamPtr_->MultSpinor( temp_spinor_v, tnsTemp_spinor_f, *fftPtr_ ); // f = H * v
+    GetTime( timeEnd );
+    iterSpinor = iterSpinor + 1;
+    timeSpinor = timeSpinor + ( timeEnd - timeSta );
+      
+    double alpha, beta;
+      
+    alpha = blas::Dot( height, temp_spinor_f.Wavefun().Data(), 1, temp_spinor_v.Wavefun().Data(), 1 );
+    blas::Axpy(height, (-alpha), temp_spinor_v.Wavefun().Data(), 1, temp_spinor_f.Wavefun().Data(), 1);
+      
+    DblNumMat matT( Num_Lanczos_Steps, Num_Lanczos_Steps );
+    SetValue(matT, 0.0);
+      
+    matT(0,0) = alpha;
+      
+    for(Int j = 1; j < Num_Lanczos_Steps; j ++)
+      {
+	beta = blas::Nrm2(height, temp_spinor_f.Wavefun().Data(), 1);
+	
+	// v0 = v
+	blas::Copy( height, temp_spinor_v.Wavefun().Data(), 1, temp_spinor_v0.Wavefun().Data(), 1 );
+	
+	// v = f / beta
+	blas::Copy( height, temp_spinor_f.Wavefun().Data(), 1, temp_spinor_v.Wavefun().Data(), 1 );
+	blas::Scal( height , ( 1.0 /  beta), temp_spinor_v.Wavefun().Data(), 1);
+	
+	// f = H * v
+	SetValue( temp_spinor_f.Wavefun(), 0.0);
+	hamPtr_->MultSpinor( temp_spinor_v, tnsTemp_spinor_f, *fftPtr_ );
+	
+	// f = f - beta * v0
+	blas::Axpy(height, (-beta), temp_spinor_v0.Wavefun().Data(), 1, temp_spinor_f.Wavefun().Data(), 1);
+	
+	// alpha = f' * v
+	alpha = blas::Dot( height, temp_spinor_f.Wavefun().Data(), 1, temp_spinor_v.Wavefun().Data(), 1 );
+	
+	// f = f - alpha * v
+	blas::Axpy(height, (-alpha), temp_spinor_v.Wavefun().Data(), 1, temp_spinor_f.Wavefun().Data(), 1);
+	
+	matT(j, j - 1) = beta;
+	matT(j - 1, j) = beta;
+	matT(j, j) = alpha;
+      } // End of loop over Lanczos steps 
+      
+    ritz_values.Resize(Num_Lanczos_Steps);
+    SetValue( ritz_values, 0.0 );
+      
+      
+    // Solve the eigenvalue problem for the Ritz values
+    lapack::Syevd( 'N', 'U', Num_Lanczos_Steps, matT.Data(), Num_Lanczos_Steps, ritz_values.Data() );
+      
+    // Compute the upper bound on each process
+    double b_up= ritz_values(Num_Lanczos_Steps - 1) + blas::Nrm2(height, temp_spinor_f.Wavefun().Data(), 1);
+      
+      
+    //statusOFS << std::endl << std::endl << " In estimator here : " << ritz_values(Num_Lanczos_Steps - 1) << '\t' << blas::Nrm2(height, //temp_spinor_f.Wavefun().Data(), 1) << std::endl;
+    //statusOFS << std::endl << " Ritz values in estimator here : " << ritz_values ;
+      
+    // Need to synchronize the Ritz values and the upper bound across the processes
+    MPI_Bcast(&b_up, 1, MPI_DOUBLE, 0, mpi_comm);
+    MPI_Bcast(ritz_values.Data(), Num_Lanczos_Steps, MPI_DOUBLE, 0, mpi_comm);
+      
+      
+#ifndef _RELEASE_
+    PopCallStack();
+#endif
+      
+    return b_up;
+  } // -----  end of method EigenSolver::Cheby_Upper_bound_estimator -----
+    
+    
+  void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
+  {
+#ifndef _RELEASE_
+    PushCallStack("EigenSolver::Chebyshev_filter_scaled");
+#endif
+      
+      
+    // *********************************************************************
+    // Initialization
+    // *********************************************************************
+    MPI_Comm mpi_comm = fftPtr_->domain.comm;
+    MPI_Barrier(mpi_comm);
+    Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
+    Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
+      
+    Int ntot = psiPtr_->NumGridTotal();
+    Int ncom = psiPtr_->NumComponent();
+    Int noccLocal = psiPtr_->NumState();
+    Int noccTotal = psiPtr_->NumStateTotal();
+      
+    Int height = ntot * ncom;
+    Int width = noccTotal;
+    Int lda = 3 * width;
+      
+    Int widthBlocksize = width / mpisize;
+    Int heightBlocksize = height / mpisize;
+    Int widthLocal = widthBlocksize;
+    Int heightLocal = heightBlocksize;
+      
+    if(mpirank < (width % mpisize)){
+      widthLocal = widthBlocksize + 1;
+    }
+      
+    if(mpirank == (mpisize - 1)){
+      heightLocal = heightBlocksize + height % mpisize;
+    }
+      
+    if( widthLocal != noccLocal ){
+      throw std::logic_error("widthLocal != noccLocal.");
+    }
+      
+    double e, c, sigma, tau, sigma_new;
+      
+    // Declare some storage space
+    // We will do the filtering band by band on each process.
+    // So very little extra space is required
+    Spinor spinor_X;
+    spinor_X.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
+      
+    Spinor  spinor_Y; 
+    spinor_Y.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
+      
+    Spinor  spinor_Yt; 
+    spinor_Yt.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );   
+      
+    NumTns<double> tns_spinor_X(ntot, ncom, 1, false, spinor_X.Wavefun().Data());
+    NumTns<double> tns_spinor_Y(ntot, ncom, 1, false, spinor_Y.Wavefun().Data());
+    NumTns<double> tns_spinor_Yt(ntot, ncom, 1, false, spinor_Yt.Wavefun().Data());
+      
+    statusOFS << std::endl << std::endl << " Applying the scaled Chebyshev Filter ... "; 
+    // Begin iteration over local bands
+    for (Int local_band_iter = 0; local_band_iter < widthLocal; local_band_iter ++)
+      {
+	statusOFS << std::endl << " Band " << local_band_iter << " of " << widthLocal;
+	statusOFS << std::endl << " Filter step: 1";
+	// Step 1: Set up a few scalars
+	e = (b - a) / 2.0; 
+	c = (a + b) / 2.0;
+	sigma = e / (c - a_L);
+	tau = 2.0 / sigma;
+	
+	// Step 2: Copy the required band into X
+	blas::Copy( height, psiPtr_->Wavefun().Data() + local_band_iter * height, 1, spinor_X.Wavefun().Data(), 1 );
+	
+	// Step 3: Compute Y = (H * X - c * X) * (sigma / e)
+	SetValue( spinor_Y.Wavefun(), 0.0); // Y = 0
+	hamPtr_->MultSpinor( spinor_X, tns_spinor_Y, *fftPtr_ ); // Y = H * X
+	
+	blas::Axpy(height, (-c), spinor_X.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1); // Y = Y - c * X
+	
+	blas::Scal( height , ( sigma / e), spinor_Y.Wavefun().Data(), 1); // Y = Y * (sigma/e)
+	
+	// Begin filtering
+	for(Int filter_iter = 2; filter_iter <= m; filter_iter ++)
+	  {
+	    statusOFS << " " << filter_iter;
+	    sigma_new = 1.0 / (tau - sigma);
+	  
+	    // Step 4: Compute Yt = (H * Y - c* Y) * (2.0 * sigma_new / e) - (sigma * sigma_new) * X
+	    SetValue( spinor_Yt.Wavefun(), 0.0); // Yt = 0
+	    hamPtr_->MultSpinor( spinor_Y, tns_spinor_Yt, *fftPtr_ ); // Yt = H * Y
+	  
+	    blas::Axpy(height, (-c), spinor_Y.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); // Yt = Yt - c * Y
+	  
+	    blas::Scal(height , ( 2.0 * sigma_new / e), spinor_Yt.Wavefun().Data(), 1); // Yt = Yt * (2.0 * sigma_new / e)
+	  
+	    // Yt = Yt - (sigma * sigma_new) * X
+	    blas::Axpy(height, (-sigma * sigma_new), spinor_X.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); 
+	  
+	    // Step 5: Re-assignments
+	    blas::Copy( height, spinor_Y.Wavefun().Data(), 1, spinor_X.Wavefun().Data(), 1 ); // X = Y
+	    blas::Copy( height, spinor_Yt.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1 );// Y = Yt
+	    sigma = sigma_new;
+	  
+	  }
+	
+	
+	// Step : Copy back the processed band into X
+	blas::Copy( height, spinor_X.Wavefun().Data(), 1, psiPtr_->Wavefun().Data() + local_band_iter * height, 1 );
+	statusOFS << std::endl << " Band " << local_band_iter << " completed.";
+      }
+      
+   statusOFS << std::endl << " Filtering Completed !" << std::endl ; 
+      
+#ifndef _RELEASE_
+    PopCallStack();
+#endif
+      
+  } // -----  end of method EigenSolver::Chebyshev_filter_scaled -----
+    
+
+  // Unscaled filter  
+  void EigenSolver::Chebyshev_filter(int m, double a, double b)
+  {
+#ifndef _RELEASE_
+    PushCallStack("EigenSolver::Chebyshev_filter");
+#endif
+      
+      
+    // *********************************************************************
+    // Initialization
+    // *********************************************************************
+    MPI_Comm mpi_comm = fftPtr_->domain.comm;
+    MPI_Barrier(mpi_comm);
+    Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
+    Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
+      
+    Int ntot = psiPtr_->NumGridTotal();
+    Int ncom = psiPtr_->NumComponent();
+    Int noccLocal = psiPtr_->NumState();
+    Int noccTotal = psiPtr_->NumStateTotal();
+      
+    Int height = ntot * ncom;
+    Int width = noccTotal;
+    Int lda = 3 * width;
+      
+    Int widthBlocksize = width / mpisize;
+    Int heightBlocksize = height / mpisize;
+    Int widthLocal = widthBlocksize;
+    Int heightLocal = heightBlocksize;
+      
+    if(mpirank < (width % mpisize)){
+      widthLocal = widthBlocksize + 1;
+    }
+      
+    if(mpirank == (mpisize - 1)){
+      heightLocal = heightBlocksize + height % mpisize;
+    }
+      
+    if( widthLocal != noccLocal ){
+      throw std::logic_error("widthLocal != noccLocal.");
+    }
+      
+    double e, c;
+      
+    // Declare some storage space
+    // We will do the filtering band by band on each process.
+    // So very little extra space is required
+    Spinor spinor_X;
+    spinor_X.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
+      
+    Spinor  spinor_Y; 
+    spinor_Y.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
+      
+    Spinor  spinor_Yt; 
+    spinor_Yt.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );   
+      
+    NumTns<double> tns_spinor_X(ntot, ncom, 1, false, spinor_X.Wavefun().Data());
+    NumTns<double> tns_spinor_Y(ntot, ncom, 1, false, spinor_Y.Wavefun().Data());
+    NumTns<double> tns_spinor_Yt(ntot, ncom, 1, false, spinor_Yt.Wavefun().Data());
+      
+    statusOFS << std::endl << std::endl << " Applying the scaled Chebyshev Filter ... "; 
+    // Begin iteration over local bands
+    for (Int local_band_iter = 0; local_band_iter < widthLocal; local_band_iter ++)
+      {
+	statusOFS << std::endl << " Band " << local_band_iter << " of " << widthLocal;
+	statusOFS << std::endl << " Filter step: 1";
+	// Step 1: Set up a few doubles
+	e = (b - a) / 2.0; 
+	c = (a + b) / 2.0;
+
+	// Step 2: Copy the required band into X
+	blas::Copy( height, psiPtr_->Wavefun().Data() + local_band_iter * height, 1, spinor_X.Wavefun().Data(), 1 );
+	
+	// Step 3: Compute Y = (H * X - c * X) * (1.0 / e)
+	SetValue( spinor_Y.Wavefun(), 0.0); // Y = 0
+	hamPtr_->MultSpinor( spinor_X, tns_spinor_Y, *fftPtr_ ); // Y = H * X
+	
+	blas::Axpy(height, (-c), spinor_X.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1); // Y = Y - c * X
+	
+	blas::Scal( height , ( 1.0 / e), spinor_Y.Wavefun().Data(), 1); // Y = Y * (sigma/e)
+	
+	// Begin filtering
+	for(Int filter_iter = 2; filter_iter <= m; filter_iter ++)
+	  {
+	    statusOFS << " " << filter_iter;
+	    
+	    // Step 4: Compute Yt = (H * Y - c* Y) * (2.0  / e) -  X
+	    SetValue( spinor_Yt.Wavefun(), 0.0); // Yt = 0
+	    hamPtr_->MultSpinor( spinor_Y, tns_spinor_Yt, *fftPtr_ ); // Yt = H * Y
+	  
+	    blas::Axpy(height, (-c), spinor_Y.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); // Yt = Yt - c * Y
+	  
+	    blas::Scal(height , ( 2.0  / e), spinor_Yt.Wavefun().Data(), 1); // Yt = Yt * (2.0 * sigma_new / e)
+	  
+	    // Yt = Yt -  X
+	    blas::Axpy(height, (-1.0), spinor_X.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); 
+	  
+	    // Step 5: Re-assignments
+	    blas::Copy( height, spinor_Y.Wavefun().Data(), 1, spinor_X.Wavefun().Data(), 1 ); // X = Y
+	    blas::Copy( height, spinor_Yt.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1 );// Y = Yt
+	    	  
+	  }
+	
+	
+	// Step : Copy back the processed band into X
+	blas::Copy( height, spinor_X.Wavefun().Data(), 1, psiPtr_->Wavefun().Data() + local_band_iter * height, 1 );
+	statusOFS << std::endl << " Band " << local_band_iter << " completed.";
+      }
+      
+   statusOFS << std::endl << " Filtering Completed !" << std::endl ; 
+      
+#ifndef _RELEASE_
+    PopCallStack();
+#endif
+      
+  } // -----  end of method EigenSolver::Chebyshev_filter -----
+        
+    
+    
+  void
+  EigenSolver::FirstChebyStep	(
+				 Int          numEig,
+				 Int          eigMaxIter,
+				 Int 	      filter_order)
+  {
+#ifndef _RELEASE_
+    PushCallStack("EigenSolver::FirstChebyStep");
+#endif
+      
+    // *********************************************************************
+    // Initialization
+    // *********************************************************************
+    MPI_Comm mpi_comm = fftPtr_->domain.comm;
+    MPI_Barrier(mpi_comm);
+    Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
+    Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
+      
+    Int ntot = psiPtr_->NumGridTotal();
+    Int ncom = psiPtr_->NumComponent();
+    Int noccLocal = psiPtr_->NumState();
+    Int noccTotal = psiPtr_->NumStateTotal();
+      
+    Int height = ntot * ncom;
+    Int width = noccTotal;
+      
+    Int widthBlocksize = width / mpisize;
+    Int heightBlocksize = height / mpisize;
+    Int widthLocal = widthBlocksize;
+    Int heightLocal = heightBlocksize;
+      
+    if(mpirank < (width % mpisize)){
+      widthLocal = widthBlocksize + 1;
+    }
+      
+    if(mpirank == (mpisize - 1)){
+      heightLocal = heightBlocksize + height % mpisize;
+    }
+      
+    if( widthLocal != noccLocal ){
+      throw std::logic_error("widthLocal != noccLocal.");
+    }
+      
+    // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
+    // GemmT: blas::Gemm( 'T', 'N')
+    // GemmN: blas::Gemm( 'N', 'N')
+    // Alltoallv: row-partition to column partition via MPI_Alltoallv 
+    // Spinor: Applying the Hamiltonian matrix 
+    // Mpirank0: Serial calculation part
+      
+    Real timeSta, timeEnd;
+    Real extra_timeSta, extra_timeEnd;
+    Real timeGemmT = 0.0;
+    Real timeGemmN = 0.0;
+    Real timeAlltoallv = 0.0;
+    Real timeSpinor = 0.0;
+    Real timeTrsm = 0.0;
+    Real timeMpirank0 = 0.0;
+    Int  iterGemmT = 0;
+    Int  iterGemmN = 0;
+    Int  iterAlltoallv = 0;
+    Int  iterSpinor = 0;
+    Int  iterTrsm = 0;
+    Int  iterMpirank0 = 0;
+      
+    if( numEig > width ){
+      std::ostringstream msg;
+      msg 
+	<< "Number of eigenvalues requested  = " << numEig << std::endl
+	<< "which is larger than the number of columns in psi = " << width << std::endl;
+      throw std::runtime_error( msg.str().c_str() );
+    }
+      
+    // The following codes are not replaced by AlltoallForward /
+    // AlltoallBackward since they are repetitively used in the
+    // eigensolver.
+    //
+    DblNumVec sendbuf(height*widthLocal); 
+    DblNumVec recvbuf(heightLocal*width);
+    IntNumVec sendcounts(mpisize);
+    IntNumVec recvcounts(mpisize);
+    IntNumVec senddispls(mpisize);
+    IntNumVec recvdispls(mpisize);
+    IntNumMat  sendk( height, widthLocal );
+    IntNumMat  recvk( heightLocal, width );
+      
+    for( Int k = 0; k < mpisize; k++ ){ 
+      if( k < (mpisize - 1)){
+	sendcounts[k] = heightBlocksize * widthLocal;
+      }
+      else {
+	sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
+      }
+    }
+      
+    for( Int k = 0; k < mpisize; k++ ){ 
+      recvcounts[k] = heightLocal * widthBlocksize;
+      if( k < (width % mpisize)){
+	recvcounts[k] = recvcounts[k] + heightLocal;  
+      }
+    }
+      
+    senddispls[0] = 0;
+    recvdispls[0] = 0;
+    for( Int k = 1; k < mpisize; k++ ){ 
+      senddispls[k] = senddispls[k-1] + sendcounts[k-1];
+      recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
+    }
+      
+    if((height % mpisize) == 0){
+      for( Int j = 0; j < widthLocal; j++ ){ 
+	for( Int i = 0; i < height; i++ ){
+	  sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+	} 
+      }
+    }
+    else{
+      for( Int j = 0; j < widthLocal; j++ ){ 
+	for( Int i = 0; i < height; i++ ){
+	  if((i / heightBlocksize) < (mpisize - 1)){
+	    sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+	  }
+	  else {
+	    sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
+	      + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
+	  }
+	}
+      }
+    }
+      
+    for( Int j = 0; j < width; j++ ){ 
+      for( Int i = 0; i < heightLocal; i++ ){
+	recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
+      }
+    }
+    // end For Alltoall
+      
+      
+      
+    // TODO: In what follows, we do not care about multiple spinor components
+    // For now, just a spin unpolarized setup is considered, so ntot = height
+    // TODO: In what follows, we assume real valued wavefunctions
+      
+    // Step 1: Obtain the upper bound and the Ritz values (for the lower bound)
+    // using the Lanczos estimator
+    DblNumVec Lanczos_Ritz_values;
+     
+    statusOFS << std::endl << " Estimating the spectral bounds ... "; 
+    GetTime( extra_timeSta );
+    const int Num_Lanczos_Steps = 6;
+    double b_up = Cheby_Upper_bound_estimator(Lanczos_Ritz_values, Num_Lanczos_Steps);  
+    GetTime( extra_timeEnd );
+    statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
+    
+    
+    // Step 2: Set up the lower bound and the filter scale
+    double a_L = Lanczos_Ritz_values(0);
+    double beta = 0.5; // 0.5 <= beta < 1.0
+    double b_low = beta * Lanczos_Ritz_values(0) + (1.0 - beta) * Lanczos_Ritz_values(Num_Lanczos_Steps - 1);
+      
+      
+    // Step 3: Main loop
+    const Int Iter_Max = eigMaxIter;
+    const Int Filter_Order = filter_order ;
+      
+    // Space for linear algebra operations
+    DblNumMat  X( heightLocal, width);
+    DblNumMat  HX( heightLocal, width);
+      
+    DblNumMat  Xcol( height, widthLocal );
+    DblNumMat  HXcol( height, widthLocal );
+      
+    DblNumMat  square_mat( width, width);
+    DblNumMat  square_mat_temp( width, width);
+    
+    DblNumVec eig_vals_Raleigh_Ritz;
+    eig_vals_Raleigh_Ritz.Resize(width);
+      
+      
+    for(Int iter = 1; iter <= Iter_Max; iter ++){
+      
+      statusOFS << std::endl << " Chebyshev Filtered First SCF cycle " << iter << " of " << Iter_Max << " .";
+	
+	// Step 3a : Compute the filtered block of vectors
+        // This always works on the vectors in psiPtr_
+      GetTime( extra_timeSta );
+      Chebyshev_filter_scaled(Filter_Order, b_low, b_up, a_L);
+      GetTime( extra_timeEnd );
+      statusOFS << std::endl << " Chebyshev filter applied in " << (extra_timeEnd - extra_timeSta ) << " s."; 
+	
+	
+	// Step 3b : Orthonormalize
+	// ~~ First copy psi (now filtered) to Xcol --- can do away with this to save memory
+	
+	GetTime( extra_timeSta );
+	statusOFS << std::endl << " Orthonormalizing  ... "; 
+	lapack::Lacpy( 'A', height, widthLocal, psiPtr_->Wavefun().Data(), height, 
+		       Xcol.Data(), height );
+	
+	GetTime( timeSta );
+	
+	// ~~ Flip into the alternate distribution in prep for Orthogonalization
+	// So data goes from Xcol to X
+	for( Int j = 0; j < widthLocal; j++ ){ 
+	  for( Int i = 0; i < height; i++ ){
+	    sendbuf[sendk(i, j)] = Xcol(i, j); 
+	  }
+	}
+	MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+		       &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+	
+	for( Int j = 0; j < width; j++ ){ 
+	  for( Int i = 0; i < heightLocal; i++ ){
+	    X(i, j) = recvbuf[recvk(i, j)];
+	  }
+	}
+	GetTime( timeEnd );
+	iterAlltoallv = iterAlltoallv + 1;
+	timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+	
+	// ~~ Orthogonalization through Cholesky factorization
+	// Compute square_mat = X^T * X for Cholesky
+	GetTime( timeSta );
+	blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
+		    heightLocal, X.Data(), heightLocal, 0.0, square_mat_temp.Data(), width );
+	SetValue( square_mat, 0.0 );
+	MPI_Allreduce( square_mat_temp.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+	GetTime( timeEnd );
+	iterGemmT = iterGemmT + 1;
+	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      
+	// Make the Cholesky factorization call on proc 0
+	// This is the non-scalable part and should be fixed later
+	if ( mpirank == 0) {
+	  GetTime( timeSta );
+	  lapack::Potrf( 'U', width, square_mat.Data(), width );
+	  GetTime( timeEnd );
+	  iterMpirank0 = iterMpirank0 + 1;
+	  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+	}
+	// Send the Cholesky factor to every process
+	MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
+      
+	// Do a solve with the Cholesky factor
+	// X = X * U^{-1} is orthogonal, where U is the Cholesky factor
+	GetTime( timeSta );
+	blas::Trsm( 'R', 'U', 'N', 'N', heightLocal, width, 1.0, square_mat.Data(), width, 
+		    X.Data(), heightLocal );
+	GetTime( timeEnd );
+	iterTrsm = iterTrsm + 1;
+	timeTrsm = timeTrsm + ( timeEnd - timeSta );
+      
+	// ~~ So X is now orthonormalized AND in row-distributed format
+	// ~~ Switch back to column-distributed format in preparation 
+	// for applying Hamiltonian (Raleigh-Ritz step)
+	GetTime( timeSta );
+	for( Int j = 0; j < width; j++ ){ 
+	  for( Int i = 0; i < heightLocal; i++ ){
+	    recvbuf[recvk(i, j)] = X(i, j);
+	  }
+	}
+	MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
+		       &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+	for( Int j = 0; j < widthLocal; j++ ){ 
+	  for( Int i = 0; i < height; i++ ){
+	    Xcol(i, j) = sendbuf[sendk(i, j)]; 
+	  }
+	}
+	GetTime( timeEnd );
+	iterAlltoallv = iterAlltoallv + 1;
+	timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+	
+	GetTime( extra_timeEnd );
+        statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
+    
+	
+	// Step 3c : Raleigh-Ritz step
+	GetTime( extra_timeSta );
+	statusOFS << std::endl << " Raleigh-Ritz step  ... "; 
+      
+	// ~~ Applying the Hamiltonian matrix
+	// HXcol = H * Xcol : Both are in height * local_width dimensioned format
+	{
+	  GetTime( timeSta );
+	  Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
+	  NumTns<double> tnsTemp(ntot, ncom, noccLocal, false, HXcol.Data());
+	
+	  hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+	  GetTime( timeEnd );
+	  iterSpinor = iterSpinor + 1;
+	  timeSpinor = timeSpinor + ( timeEnd - timeSta );
+	}
+      
+	// ~~ Flip into the alternate distribution for linear algebra
+	// So data goes from Xcol to X
+	GetTime( timeSta );
+	for( Int j = 0; j < widthLocal; j++ ){ 
+	  for( Int i = 0; i < height; i++ ){
+	    sendbuf[sendk(i, j)] = Xcol(i, j); 
+	  }
+	}
+	MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+		       &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+	for( Int j = 0; j < width; j++ ){ 
+	  for( Int i = 0; i < heightLocal; i++ ){
+	    X(i, j) = recvbuf[recvk(i, j)];
+	  }
+	}
+	GetTime( timeEnd );
+	iterAlltoallv = iterAlltoallv + 1;
+	timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+      
+	// As well as HXcol to HX
+	GetTime( timeSta );
+	for( Int j = 0; j < widthLocal; j++ ){ 
+	  for( Int i = 0; i < height; i++ ){
+	    sendbuf[sendk(i, j)] = HXcol(i, j); 
+	  }
+	}
+	MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+		       &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+	for( Int j = 0; j < width; j++ ){ 
+	  for( Int i = 0; i < heightLocal; i++ ){
+	    HX(i, j) = recvbuf[recvk(i, j)];
+	  }
+	}
+	GetTime( timeEnd );
+	iterAlltoallv = iterAlltoallv + 1;
+	timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+      
+	// ~~ Now compute the matrix for the projected problem
+	//square_mat = X' * (HX)
+	GetTime( timeSta );
+	blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
+		    heightLocal, HX.Data(), heightLocal, 0.0, square_mat_temp.Data(), width );
+	SetValue(square_mat , 0.0 );
+	MPI_Allreduce( square_mat_temp.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+	GetTime( timeEnd );
+	iterGemmT = iterGemmT + 1;
+	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+	
+	// ~~ Now solve the eigenvalue problem
+	SetValue(eig_vals_Raleigh_Ritz, 0.0);
+	
+	// Make the eigen decomposition call on proc 0
+	// This is the non-scalable part and should be fixed later
+	if ( mpirank == 0 ) {
+	    
+	    GetTime( timeSta );
+	    lapack::Syevd( 'V', 'U', width, square_mat.Data(), width, eig_vals_Raleigh_Ritz.Data() );
+	    GetTime( timeEnd );
+	    
+	    iterMpirank0 = iterMpirank0 + 1;
+	    timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+	    	    
+	}
+	// ~~ Send the results to every process
+	MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, mpi_comm); // Eigen-vectors
+        MPI_Bcast(eig_vals_Raleigh_Ritz.Data(), width, MPI_DOUBLE, 0, mpi_comm); // Eigen-values
+	
+	// Step 3d : Subspace rotation step : psi <-- psi * Q, where Q are the eigen-vectors
+	// from the Raleigh-Ritz step.
+	// Do this on the X matrix :  X is heightLocal * width and Q is width * width, 
+	// So, this can be done independently on each process
+	
+	
+	// We copy X to HX for saving space before multiplying
+	// Results are finally stored in X
+	
+	// ~~ So copy X to HX 
+	lapack::Lacpy( 'A', heightLocal, width, X.Data(),  heightLocal, HX.Data(), heightLocal );
+	
+	// ~~ Gemm: X <-- HX (= X) * Q
+	GetTime( timeSta );
+	blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, HX.Data(),
+		    heightLocal, square_mat.Data(), width, 0.0, X.Data(), heightLocal );	
+	GetTime( timeEnd );
+	iterGemmT = iterGemmT + 1;
+	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+	
+	// ~~ Flip X to Xcol, i.e. switch back to column-distributed format 
+	GetTime( timeSta );
+	for( Int j = 0; j < width; j++ ){ 
+	  for( Int i = 0; i < heightLocal; i++ ){
+	    recvbuf[recvk(i, j)] = X(i, j);
+	  }
+	}
+	MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
+		       &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+	for( Int j = 0; j < widthLocal; j++ ){ 
+	  for( Int i = 0; i < height; i++ ){
+	    Xcol(i, j) = sendbuf[sendk(i, j)]; 
+	  }
+	}
+	GetTime( timeEnd );
+	iterAlltoallv = iterAlltoallv + 1;
+	timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+	
+	// ~~ Copy Xcol to psiPtr_
+	lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
+		     psiPtr_->Wavefun().Data(), height );
+	
+	// Step 3e : Reset the upper and lower bounds using the results of
+	// the Raleigh-Ritz step
+	b_low = eig_vals_Raleigh_Ritz(width - 1);
+	a_L = eig_vals_Raleigh_Ritz(0);
+	
+	GetTime( extra_timeEnd );
+        statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
+    
+	//statusOFS << std::endl << " Intermediate eig vals " << std::endl<< eig_vals_Raleigh_Ritz;
+	
+      }
+      
+      
+      
+      // Save the eigenvalues to the eigensolver data structure  
+      eigVal_ = DblNumVec( width, true, eig_vals_Raleigh_Ritz.Data() );
+
+      
+      
+      // Compute the residuals here  ?
+      
+      
+#ifndef _RELEASE_
+    PopCallStack();
+#endif
+      
+    return;
+  } // -----  end of method EigenSolver::FirstChebyStep -----
+    
+  void
+  EigenSolver::GeneralChebyStep	(
+				 Int          numEig,
+				 Int 	   filter_order )
+  {
+#ifndef _RELEASE_
+    PushCallStack("EigenSolver::GeneralChebyStep");
+#endif
+      
+    statusOFS << std::endl << std::endl << " In subsequent Chebyshev steps ... " << std::endl;
+    
+    // *********************************************************************
+    // Initialization
+    // *********************************************************************
+    MPI_Comm mpi_comm = fftPtr_->domain.comm;
+    MPI_Barrier(mpi_comm);
+    Int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
+    Int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
+      
+    Int ntot = psiPtr_->NumGridTotal();
+    Int ncom = psiPtr_->NumComponent();
+    Int noccLocal = psiPtr_->NumState();
+    Int noccTotal = psiPtr_->NumStateTotal();
+      
+    Int height = ntot * ncom;
+    Int width = noccTotal;
+      
+    Int widthBlocksize = width / mpisize;
+    Int heightBlocksize = height / mpisize;
+    Int widthLocal = widthBlocksize;
+    Int heightLocal = heightBlocksize;
+      
+    if(mpirank < (width % mpisize)){
+      widthLocal = widthBlocksize + 1;
+    }
+      
+    if(mpirank == (mpisize - 1)){
+      heightLocal = heightBlocksize + height % mpisize;
+    }
+      
+    if( widthLocal != noccLocal ){
+      throw std::logic_error("widthLocal != noccLocal.");
+    }
+      
+    // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
+    // GemmT: blas::Gemm( 'T', 'N')
+    // GemmN: blas::Gemm( 'N', 'N')
+    // Alltoallv: row-partition to column partition via MPI_Alltoallv 
+    // Spinor: Applying the Hamiltonian matrix 
+    // Mpirank0: Serial calculation part
+      
+    Real timeSta, timeEnd;
+    Real extra_timeSta, extra_timeEnd;
+    Real timeGemmT = 0.0;
+    Real timeGemmN = 0.0;
+    Real timeAlltoallv = 0.0;
+    Real timeSpinor = 0.0;
+    Real timeTrsm = 0.0;
+    Real timeMpirank0 = 0.0;
+    Int  iterGemmT = 0;
+    Int  iterGemmN = 0;
+    Int  iterAlltoallv = 0;
+    Int  iterSpinor = 0;
+    Int  iterTrsm = 0;
+    Int  iterMpirank0 = 0;
+      
+    if( numEig > width ){
+      std::ostringstream msg;
+      msg 
+	<< "Number of eigenvalues requested  = " << numEig << std::endl
+	<< "which is larger than the number of columns in psi = " << width << std::endl;
+      throw std::runtime_error( msg.str().c_str() );
+    }
+      
+    // The following codes are not replaced by AlltoallForward /
+    // AlltoallBackward since they are repetitively used in the
+    // eigensolver.
+    //
+    DblNumVec sendbuf(height*widthLocal); 
+    DblNumVec recvbuf(heightLocal*width);
+    IntNumVec sendcounts(mpisize);
+    IntNumVec recvcounts(mpisize);
+    IntNumVec senddispls(mpisize);
+    IntNumVec recvdispls(mpisize);
+    IntNumMat  sendk( height, widthLocal );
+    IntNumMat  recvk( heightLocal, width );
+      
+    for( Int k = 0; k < mpisize; k++ ){ 
+      if( k < (mpisize - 1)){
+	sendcounts[k] = heightBlocksize * widthLocal;
+      }
+      else {
+	sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
+      }
+    }
+      
+    for( Int k = 0; k < mpisize; k++ ){ 
+      recvcounts[k] = heightLocal * widthBlocksize;
+      if( k < (width % mpisize)){
+	recvcounts[k] = recvcounts[k] + heightLocal;  
+      }
+    }
+      
+    senddispls[0] = 0;
+    recvdispls[0] = 0;
+    for( Int k = 1; k < mpisize; k++ ){ 
+      senddispls[k] = senddispls[k-1] + sendcounts[k-1];
+      recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
+    }
+      
+    if((height % mpisize) == 0){
+      for( Int j = 0; j < widthLocal; j++ ){ 
+	for( Int i = 0; i < height; i++ ){
+	  sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+	} 
+      }
+    }
+    else{
+      for( Int j = 0; j < widthLocal; j++ ){ 
+	for( Int i = 0; i < height; i++ ){
+	  if((i / heightBlocksize) < (mpisize - 1)){
+	    sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+	  }
+	  else {
+	    sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
+	      + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
+	  }
+	}
+      }
+    }
+      
+    for( Int j = 0; j < width; j++ ){ 
+      for( Int i = 0; i < heightLocal; i++ ){
+	recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
+      }
+    }
+    // end For Alltoall
+      
+      
+      
+    // TODO: In what follows, we do not care about multiple spinor components
+    // For now, just a spin unpolarized setup is considered, so ntot = height
+    // TODO: In what follows, we assume real valued wavefunctions
+      
+    // Step 1: Obtain the upper bound and the Ritz values (for the lower bound)
+    // using the Lanczos estimator
+    DblNumVec Lanczos_Ritz_values;
+     
+    statusOFS << std::endl << " Estimating the upper bound ... "; 
+    GetTime( extra_timeSta );
+    const int Num_Lanczos_Steps = 5;
+    double b_up = Cheby_Upper_bound_estimator(Lanczos_Ritz_values, Num_Lanczos_Steps);  
+    GetTime( extra_timeEnd );
+    statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
+    
+    
+    // Step 2: Set up the lower bound from previous Raleigh-Ritz / Eigensolver values
+    double a_L = eigVal_(0);
+    double b_low = eigVal_(width - 1);
+      
+    statusOFS << std::endl << " Upper bound = (to be mapped to +1) " << b_up;
+    statusOFS << std::endl << " Lower bound (to be mapped to -1) = " << b_low;
+    statusOFS << std::endl << " Lowest eigenvalue = " << a_L;
+    
+    
+    
+    // Step 3: Main loop
+    const Int Filter_Order = filter_order ;
+      
+    // Space for linear algebra operations
+    DblNumMat  X( heightLocal, width);
+    DblNumMat  HX( heightLocal, width);
+      
+    DblNumMat  Xcol( height, widthLocal );
+    DblNumMat  HXcol( height, widthLocal );
+      
+    DblNumMat  square_mat( width, width);
+    DblNumMat  square_mat_temp( width, width);
+    
+    DblNumVec eig_vals_Raleigh_Ritz;
+    eig_vals_Raleigh_Ritz.Resize(width);
+      
+      
+	
+	// Step 3a : Compute the filtered block of vectors
+        // This always works on the vectors in psiPtr_
+      GetTime( extra_timeSta );
+      Chebyshev_filter_scaled(Filter_Order, b_low, b_up, a_L);
+      GetTime( extra_timeEnd );
+      
+//       GetTime( extra_timeSta );
+//       Chebyshev_filter(Filter_Order, b_low, b_up);
+//       GetTime( extra_timeEnd );
+      
+      statusOFS << std::endl << " Chebyshev filter applied in " << (extra_timeEnd - extra_timeSta ) << " s."; 
+
+      
+      
+	
+	// Step 3b : Orthonormalize
+	// ~~ First copy psi (now filtered) to Xcol --- can do away with this to save memory
+	
+	GetTime( extra_timeSta );
+	statusOFS << std::endl << " Orthonormalizing  ... "; 
+	lapack::Lacpy( 'A', height, widthLocal, psiPtr_->Wavefun().Data(), height, 
+		       Xcol.Data(), height );
+	
+	GetTime( timeSta );
+	
+	// ~~ Flip into the alternate distribution in prep for Orthogonalization
+	// So data goes from Xcol to X
+	for( Int j = 0; j < widthLocal; j++ ){ 
+	  for( Int i = 0; i < height; i++ ){
+	    sendbuf[sendk(i, j)] = Xcol(i, j); 
+	  }
+	}
+	MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+		       &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+	
+	for( Int j = 0; j < width; j++ ){ 
+	  for( Int i = 0; i < heightLocal; i++ ){
+	    X(i, j) = recvbuf[recvk(i, j)];
+	  }
+	}
+	GetTime( timeEnd );
+	iterAlltoallv = iterAlltoallv + 1;
+	timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+	
+	// ~~ Orthogonalization through Cholesky factorization
+	// Compute square_mat = X^T * X for Cholesky
+	GetTime( timeSta );
+	blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
+		    heightLocal, X.Data(), heightLocal, 0.0, square_mat_temp.Data(), width );
+	SetValue( square_mat, 0.0 );
+	MPI_Allreduce( square_mat_temp.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+	GetTime( timeEnd );
+	iterGemmT = iterGemmT + 1;
+	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      
+	// Make the Cholesky factorization call on proc 0
+	// This is the non-scalable part and should be fixed later
+	if ( mpirank == 0) {
+	  GetTime( timeSta );
+	  lapack::Potrf( 'U', width, square_mat.Data(), width );
+	  GetTime( timeEnd );
+	  iterMpirank0 = iterMpirank0 + 1;
+	  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+	}
+	// Send the Cholesky factor to every process
+	MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
+      
+	// Do a solve with the Cholesky factor
+	// X = X * U^{-1} is orthogonal, where U is the Cholesky factor
+	GetTime( timeSta );
+	blas::Trsm( 'R', 'U', 'N', 'N', heightLocal, width, 1.0, square_mat.Data(), width, 
+		    X.Data(), heightLocal );
+	GetTime( timeEnd );
+	iterTrsm = iterTrsm + 1;
+	timeTrsm = timeTrsm + ( timeEnd - timeSta );
+      
+	// ~~ So X is now orthonormalized AND in row-distributed format
+	// ~~ Switch back to column-distributed format in preparation 
+	// for applying Hamiltonian (Raleigh-Ritz step)
+	GetTime( timeSta );
+	for( Int j = 0; j < width; j++ ){ 
+	  for( Int i = 0; i < heightLocal; i++ ){
+	    recvbuf[recvk(i, j)] = X(i, j);
+	  }
+	}
+	MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
+		       &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+	for( Int j = 0; j < widthLocal; j++ ){ 
+	  for( Int i = 0; i < height; i++ ){
+	    Xcol(i, j) = sendbuf[sendk(i, j)]; 
+	  }
+	}
+	GetTime( timeEnd );
+	iterAlltoallv = iterAlltoallv + 1;
+	timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+	
+	GetTime( extra_timeEnd );
+        statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
+    
+	
+	// Step 3c : Raleigh-Ritz step
+	GetTime( extra_timeSta );
+	statusOFS << std::endl << " Raleigh-Ritz step  ... "; 
+      
+	// ~~ Applying the Hamiltonian matrix
+	// HXcol = H * Xcol : Both are in height * local_width dimensioned format
+	{
+	  GetTime( timeSta );
+	  Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
+	  NumTns<double> tnsTemp(ntot, ncom, noccLocal, false, HXcol.Data());
+	
+	  hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+	  GetTime( timeEnd );
+	  iterSpinor = iterSpinor + 1;
+	  timeSpinor = timeSpinor + ( timeEnd - timeSta );
+	}
+      
+	// ~~ Flip into the alternate distribution for linear algebra
+	// So data goes from Xcol to X
+	GetTime( timeSta );
+	for( Int j = 0; j < widthLocal; j++ ){ 
+	  for( Int i = 0; i < height; i++ ){
+	    sendbuf[sendk(i, j)] = Xcol(i, j); 
+	  }
+	}
+	MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+		       &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+	for( Int j = 0; j < width; j++ ){ 
+	  for( Int i = 0; i < heightLocal; i++ ){
+	    X(i, j) = recvbuf[recvk(i, j)];
+	  }
+	}
+	GetTime( timeEnd );
+	iterAlltoallv = iterAlltoallv + 1;
+	timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+      
+	// As well as HXcol to HX
+	GetTime( timeSta );
+	for( Int j = 0; j < widthLocal; j++ ){ 
+	  for( Int i = 0; i < height; i++ ){
+	    sendbuf[sendk(i, j)] = HXcol(i, j); 
+	  }
+	}
+	MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+		       &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+	for( Int j = 0; j < width; j++ ){ 
+	  for( Int i = 0; i < heightLocal; i++ ){
+	    HX(i, j) = recvbuf[recvk(i, j)];
+	  }
+	}
+	GetTime( timeEnd );
+	iterAlltoallv = iterAlltoallv + 1;
+	timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+      
+	// ~~ Now compute the matrix for the projected problem
+	//square_mat = X' * (HX)
+	GetTime( timeSta );
+	blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
+		    heightLocal, HX.Data(), heightLocal, 0.0, square_mat_temp.Data(), width );
+	SetValue(square_mat , 0.0 );
+	MPI_Allreduce( square_mat_temp.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+	GetTime( timeEnd );
+	iterGemmT = iterGemmT + 1;
+	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+	
+	// ~~ Now solve the eigenvalue problem
+	SetValue(eig_vals_Raleigh_Ritz, 0.0);
+	
+	// Make the eigen decomposition call on proc 0
+	// This is the non-scalable part and should be fixed later
+	if ( mpirank == 0 ) {
+	    
+	    GetTime( timeSta );
+	    lapack::Syevd( 'V', 'U', width, square_mat.Data(), width, eig_vals_Raleigh_Ritz.Data() );
+	    GetTime( timeEnd );
+	    
+	    iterMpirank0 = iterMpirank0 + 1;
+	    timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+	    	    
+	}
+	// ~~ Send the results to every process
+	MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, mpi_comm); // Eigen-vectors
+        MPI_Bcast(eig_vals_Raleigh_Ritz.Data(), width, MPI_DOUBLE, 0, mpi_comm); // Eigen-values
+	
+	// Step 3d : Subspace rotation step : psi <-- psi * Q, where Q are the eigen-vectors
+	// from the Raleigh-Ritz step.
+	// Do this on the X matrix :  X is heightLocal * width and Q is width * width, 
+	// So, this can be done independently on each process
+	
+	
+	// We copy X to HX for saving space before multiplying
+	// Results are finally stored in X
+	
+	// ~~ So copy X to HX 
+	lapack::Lacpy( 'A', heightLocal, width, X.Data(),  heightLocal, HX.Data(), heightLocal );
+	
+	// ~~ Gemm: X <-- HX (= X) * Q
+	GetTime( timeSta );
+	blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, HX.Data(),
+		    heightLocal, square_mat.Data(), width, 0.0, X.Data(), heightLocal );	
+	GetTime( timeEnd );
+	iterGemmT = iterGemmT + 1;
+	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+	
+	// ~~ Flip X to Xcol, i.e. switch back to column-distributed format 
+	GetTime( timeSta );
+	for( Int j = 0; j < width; j++ ){ 
+	  for( Int i = 0; i < heightLocal; i++ ){
+	    recvbuf[recvk(i, j)] = X(i, j);
+	  }
+	}
+	MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
+		       &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+	for( Int j = 0; j < widthLocal; j++ ){ 
+	  for( Int i = 0; i < height; i++ ){
+	    Xcol(i, j) = sendbuf[sendk(i, j)]; 
+	  }
+	}
+	GetTime( timeEnd );
+	iterAlltoallv = iterAlltoallv + 1;
+	timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+	
+	// ~~ Copy Xcol to psiPtr_ to save the eigenvectors
+	lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
+		     psiPtr_->Wavefun().Data(), height );
+	
+	GetTime( extra_timeEnd );
+        statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
+    
+	//statusOFS << std::endl << " Intermediate eig vals " << std::endl<< eig_vals_Raleigh_Ritz;
+	
+     
+      // Save the eigenvalues to the eigensolver data structure     
+      eigVal_ = DblNumVec( width, true, eig_vals_Raleigh_Ritz.Data() );
+      
+      // Compute the residuals here  ?
+    
+      
+#ifndef _RELEASE_
+    PopCallStack();
+#endif
+      
+    return;
+  } // -----  end of method EigenSolver::GeneralChebyStep -----
+    
+    
+    
 
 } // namespace dgdft

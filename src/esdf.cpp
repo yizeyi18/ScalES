@@ -969,6 +969,31 @@ namespace dgdft{
       strcpy(kw_label[i],"exx_divergence_type");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! treatment of the divergence term in hybrid functional!*");
+      
+      
+      // Inputs related to Chebyshev Filtered SCF iterations for PWDFT
+      i++;
+      strcpy(kw_label[i],"diag_scf_pwdft_by_cheby");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! whether to use Chebyshev Filtering based SCF for PWDFT (in lieu of LOBPCG) !*");
+      
+      i++;
+      strcpy(kw_label[i],"first_scf_pwdft_chebyfilterorder");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for first SCF step in PWDFT !*");
+      
+      i++;
+      strcpy(kw_label[i],"first_scf_pwdft_chebycyclenum");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! Number of Chebyshev Filtering Cycles for first SCF step in PWDFT !*");
+
+      i++;
+      strcpy(kw_label[i],"general_scf_pwdft_chebyfilterorder");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for general step in PWDFT !*");
+
+
+
 
       // Inputs related to Chebyshev Filtered SCF iterations for DG
       // ~~**~~
@@ -2285,6 +2310,13 @@ namespace dgdft{
           esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
           esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 0 );
           esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
+	  
+	  // Parameters related to Chebyshev Filtering in PWDFT
+	  esdfParam.Diag_SCF_PWDFT_by_Cheby = esdf_integer("Diag_SCF_PWDFT_by_Cheby", 0 );
+	  esdfParam.First_SCF_PWDFT_ChebyFilterOrder = esdf_integer("First_SCF_PWDFT_ChebyFilterOrder", 40 );
+	  esdfParam.First_SCF_PWDFT_ChebyCycleNum =  esdf_integer("First_SCF_PWDFT_ChebyCycleNum", 5);
+	  esdfParam.General_SCF_PWDFT_ChebyFilterOrder = esdf__integer("General_SCF_PWDFT_ChebyFilterOrder", 35);
+
 
 
 

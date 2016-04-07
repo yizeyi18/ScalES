@@ -2,7 +2,7 @@
 	 Copyright (c) 2012 The Regents of the University of California,
 	 through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin and Wei Hu
+   Author: Lin Lin, Wei Hu and Amartya Banerjee
 	 
    This file is part of DGDFT. All rights reserved.
 
@@ -67,6 +67,14 @@ private:
 
 	DblNumVec           eigVal_;
 	DblNumVec           resVal_;
+	
+	
+	// Routines for Chebyshev Filtering
+	double Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_Lanczos_Steps);
+	void Chebyshev_filter(int m, double a, double b);
+	void Chebyshev_filter_scaled(int m, double a, double b, double a_L);
+	
+
 
 
 public:
@@ -130,6 +138,21 @@ public:
       Int          eigMaxIter,
       Real         eigMinTolerance,
       Real         eigTolerance );
+  
+  
+  
+   /// @brief Routines for Chebyshev filtering
+    void FirstChebyStep(
+      Int          numEig,
+      Int          eigMaxIter,
+      Int 	   filter_order );
+  
+  void GeneralChebyStep(
+	Int          numEig,
+        Int 	   filter_order );
+  
+  
+ 
 
 
 	// ********************  ACCESS      *******************************
