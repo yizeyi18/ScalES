@@ -2770,12 +2770,12 @@ EigenSolver::LOBPCGSolveReal2	(
     NumTns<double> tns_spinor_Y(ntot, ncom, 1, false, spinor_Y.Wavefun().Data());
     NumTns<double> tns_spinor_Yt(ntot, ncom, 1, false, spinor_Yt.Wavefun().Data());
       
-    statusOFS << std::endl << std::endl << " Applying the scaled Chebyshev Filter ... "; 
+    statusOFS << std::endl << std::endl << " Applying the scaled Chebyshev Filter: Order = " << m << " , " << widthLocal << " local bands."; 
     // Begin iteration over local bands
     for (Int local_band_iter = 0; local_band_iter < widthLocal; local_band_iter ++)
       {
-	statusOFS << std::endl << " Band " << local_band_iter << " of " << widthLocal;
-	statusOFS << std::endl << " Filter step: 1";
+	//statusOFS << std::endl << " Band " << local_band_iter << " of " << widthLocal;
+	//statusOFS << std::endl << " Filter step: 1";
 	// Step 1: Set up a few scalars
 	e = (b - a) / 2.0; 
 	c = (a + b) / 2.0;
@@ -2796,7 +2796,7 @@ EigenSolver::LOBPCGSolveReal2	(
 	// Begin filtering
 	for(Int filter_iter = 2; filter_iter <= m; filter_iter ++)
 	  {
-	    statusOFS << " " << filter_iter;
+	    //statusOFS << " " << filter_iter;
 	    sigma_new = 1.0 / (tau - sigma);
 	  
 	    // Step 4: Compute Yt = (H * Y - c* Y) * (2.0 * sigma_new / e) - (sigma * sigma_new) * X
@@ -2820,10 +2820,10 @@ EigenSolver::LOBPCGSolveReal2	(
 	
 	// Step : Copy back the processed band into X
 	blas::Copy( height, spinor_X.Wavefun().Data(), 1, psiPtr_->Wavefun().Data() + local_band_iter * height, 1 );
-	statusOFS << std::endl << " Band " << local_band_iter << " completed.";
+	//statusOFS << std::endl << " Band " << local_band_iter << " completed.";
       }
       
-   statusOFS << std::endl << " Filtering Completed !" << std::endl ; 
+   statusOFS << std::endl << " Filtering Completed !"; 
       
 #ifndef _RELEASE_
     PopCallStack();
@@ -2892,12 +2892,12 @@ EigenSolver::LOBPCGSolveReal2	(
     NumTns<double> tns_spinor_Y(ntot, ncom, 1, false, spinor_Y.Wavefun().Data());
     NumTns<double> tns_spinor_Yt(ntot, ncom, 1, false, spinor_Yt.Wavefun().Data());
       
-    statusOFS << std::endl << std::endl << " Applying the scaled Chebyshev Filter ... "; 
+    statusOFS << std::endl << std::endl << " Applying the Chebyshev Filter of order " << m << " ... "; 
     // Begin iteration over local bands
     for (Int local_band_iter = 0; local_band_iter < widthLocal; local_band_iter ++)
       {
-	statusOFS << std::endl << " Band " << local_band_iter << " of " << widthLocal;
-	statusOFS << std::endl << " Filter step: 1";
+	//statusOFS << std::endl << " Band " << local_band_iter << " of " << widthLocal;
+	//statusOFS << std::endl << " Filter step: 1";
 	// Step 1: Set up a few doubles
 	e = (b - a) / 2.0; 
 	c = (a + b) / 2.0;
@@ -2916,7 +2916,7 @@ EigenSolver::LOBPCGSolveReal2	(
 	// Begin filtering
 	for(Int filter_iter = 2; filter_iter <= m; filter_iter ++)
 	  {
-	    statusOFS << " " << filter_iter;
+	   // statusOFS << " " << filter_iter;
 	    
 	    // Step 4: Compute Yt = (H * Y - c* Y) * (2.0  / e) -  X
 	    SetValue( spinor_Yt.Wavefun(), 0.0); // Yt = 0
@@ -2938,10 +2938,10 @@ EigenSolver::LOBPCGSolveReal2	(
 	
 	// Step : Copy back the processed band into X
 	blas::Copy( height, spinor_X.Wavefun().Data(), 1, psiPtr_->Wavefun().Data() + local_band_iter * height, 1 );
-	statusOFS << std::endl << " Band " << local_band_iter << " completed.";
+	//statusOFS << std::endl << " Band " << local_band_iter << " completed.";
       }
       
-   statusOFS << std::endl << " Filtering Completed !" << std::endl ; 
+   statusOFS << std::endl << " Filtering Completed !"; 
       
 #ifndef _RELEASE_
     PopCallStack();

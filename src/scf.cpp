@@ -115,6 +115,14 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
         VDWType_                 = esdfParam.VDWType;
 
         isHybridACEOutside_      = esdfParam.isHybridACEOutside;
+	
+	// Chebyshev Filtering related parameters
+	Diag_SCF_PWDFT_by_Cheby_ = esdfParam.Diag_SCF_PWDFT_by_Cheby;
+        First_SCF_PWDFT_ChebyFilterOrder_ = esdfParam.First_SCF_PWDFT_ChebyFilterOrder;
+        First_SCF_PWDFT_ChebyCycleNum_ = esdfParam.First_SCF_PWDFT_ChebyCycleNum;
+        General_SCF_PWDFT_ChebyFilterOrder_ = esdfParam.General_SCF_PWDFT_ChebyFilterOrder;
+	
+	
     }
 
     // other SCF parameters
@@ -308,35 +316,32 @@ SCF::Iterate (  )
       statusOFS << "The target number of converged eigenvectors is " 
         << numEig << std::endl;
 
-
-	statusOFS << std::endl << " variables are : " << std::endl;
-	statusOFS << " esdfParam.Diag_SCF_PWDFT_by_Cheby = " <<  esdfParam.Diag_SCF_PWDFT_by_Cheby;
-	statusOFS << " esdfParam.First_SCF_PWDFT_ChebyFilterOrder = " << esdfParam.First_SCF_PWDFT_ChebyFilterOrder;
-	statusOFS << " esdfParam.First_SCF_PWDFT_ChebyCycleNum = " << esdfParam.First_SCF_PWDFT_ChebyCycleNum;
-	statusOFS << " esdfParam.General_SCF_PWDFT_ChebyFilterOrder = " << esdfParam.General_SCF_PWDFT_ChebyFilterOrder << std::endl << std::endl;
-	
       GetTime( timeSta );
-      if(0){
-        eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );
-      }
-      else
-     {  
-     
-      if(iter <= 1){
+      
+      if(Diag_SCF_PWDFT_by_Cheby_ == 1)
+      {
+	// Use CheFSI
+	if(iter <= 1){
 	//eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
-	eigSolPtr_->FirstChebyStep(numEig, eigMaxIter_, 50);
+	eigSolPtr_->FirstChebyStep(numEig, First_SCF_PWDFT_ChebyCycleNum_, First_SCF_PWDFT_ChebyFilterOrder_);
       }
       else{
 	//eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
-	eigSolPtr_->GeneralChebyStep(numEig, 25);
+	eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
+	}
       }
-     }
+      else
+      {
+	// Use LOBPCG
+	eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );	
+      }
+
       
       GetTime( timeEnd );
 
       ham.EigVal() = eigSolPtr_->EigVal();
 
-      statusOFS << "Time for the eigensolver is " <<
+      statusOFS << std::endl << " Time for the eigensolver is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
 

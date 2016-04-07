@@ -127,6 +127,15 @@ private:
   Index3  numGridDensityElem_;
 	
   DblNumMat           forceVdw_;
+  
+  
+  // Chebyshev Filtering variables
+  bool Diag_SCF_PWDFT_by_Cheby_;
+  Int First_SCF_PWDFT_ChebyFilterOrder_;
+  Int First_SCF_PWDFT_ChebyCycleNum_;
+  Int General_SCF_PWDFT_ChebyFilterOrder_;
+  
+  
 
 public:
 	

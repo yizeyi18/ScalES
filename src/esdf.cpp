@@ -2315,7 +2315,7 @@ namespace dgdft{
 	  esdfParam.Diag_SCF_PWDFT_by_Cheby = esdf_integer("Diag_SCF_PWDFT_by_Cheby", 0 );
 	  esdfParam.First_SCF_PWDFT_ChebyFilterOrder = esdf_integer("First_SCF_PWDFT_ChebyFilterOrder", 40 );
 	  esdfParam.First_SCF_PWDFT_ChebyCycleNum =  esdf_integer("First_SCF_PWDFT_ChebyCycleNum", 5);
-	  esdfParam.General_SCF_PWDFT_ChebyFilterOrder = esdf__integer("General_SCF_PWDFT_ChebyFilterOrder", 35);
+	  esdfParam.General_SCF_PWDFT_ChebyFilterOrder = esdf_integer("General_SCF_PWDFT_ChebyFilterOrder", 35);
 
 
 
