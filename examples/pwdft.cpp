@@ -159,6 +159,18 @@ int main(int argc, char **argv)
     int numStateTotal = hamKS.NumStateTotal();
     int numStateLocal, blocksize;
 
+    // Safeguard for Chebyshev Filtering
+    if(esdfParam.Diag_SCF_PWDFT_by_Cheby == 1)
+    { 
+     if(numStateTotal % mpirank != 0)
+     {
+      statusOFS << std::endl << std::endl 
+                <<" Input Error ! Chebyshev Filtering within PWDFT requires total number of bands to be divisble by mpisize. " << std::endl << " Aborting ..." << std::endl << std::endl;
+       exit(-1);         
+     }	
+    }
+      
+
     if ( numStateTotal <=  mpisize ) {
       blocksize = 1;
 

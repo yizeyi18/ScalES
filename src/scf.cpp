@@ -320,10 +320,12 @@ SCF::Iterate (  )
       
       if(Diag_SCF_PWDFT_by_Cheby_ == 1)
       {
-	// Use CheFSI
+	// Use CheFSI or LOBPCG on first step 
 	if(iter <= 1){
-	//eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
-	eigSolPtr_->FirstChebyStep(numEig, First_SCF_PWDFT_ChebyCycleNum_, First_SCF_PWDFT_ChebyFilterOrder_);
+         if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
+	  eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );	
+         else
+	  eigSolPtr_->FirstChebyStep(numEig, First_SCF_PWDFT_ChebyCycleNum_, First_SCF_PWDFT_ChebyFilterOrder_);
       }
       else{
 	//eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );

@@ -2774,8 +2774,8 @@ EigenSolver::LOBPCGSolveReal2	(
     // Begin iteration over local bands
     for (Int local_band_iter = 0; local_band_iter < widthLocal; local_band_iter ++)
       {
-	//statusOFS << std::endl << " Band " << local_band_iter << " of " << widthLocal;
-	//statusOFS << std::endl << " Filter step: 1";
+	statusOFS << std::endl << " Band " << local_band_iter << " of " << widthLocal;
+	statusOFS << std::endl << " Filter step: 1";
 	// Step 1: Set up a few scalars
 	e = (b - a) / 2.0; 
 	c = (a + b) / 2.0;
@@ -2796,7 +2796,7 @@ EigenSolver::LOBPCGSolveReal2	(
 	// Begin filtering
 	for(Int filter_iter = 2; filter_iter <= m; filter_iter ++)
 	  {
-	    //statusOFS << " " << filter_iter;
+	    statusOFS << " " << filter_iter;
 	    sigma_new = 1.0 / (tau - sigma);
 	  
 	    // Step 4: Compute Yt = (H * Y - c* Y) * (2.0 * sigma_new / e) - (sigma * sigma_new) * X
@@ -2820,7 +2820,7 @@ EigenSolver::LOBPCGSolveReal2	(
 	
 	// Step : Copy back the processed band into X
 	blas::Copy( height, spinor_X.Wavefun().Data(), 1, psiPtr_->Wavefun().Data() + local_band_iter * height, 1 );
-	//statusOFS << std::endl << " Band " << local_band_iter << " completed.";
+	statusOFS << std::endl << " Band " << local_band_iter << " completed.";
       }
       
    statusOFS << std::endl << " Filtering Completed !"; 
@@ -3104,7 +3104,7 @@ EigenSolver::LOBPCGSolveReal2	(
     double b_up = Cheby_Upper_bound_estimator(Lanczos_Ritz_values, Num_Lanczos_Steps);  
     GetTime( extra_timeEnd );
     statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
-    
+    statusOFS << std::endl << " Lanczos Ritz values = " << Lanczos_Ritz_values; 
     
     // Step 2: Set up the lower bound and the filter scale
     double a_L = Lanczos_Ritz_values(0);
