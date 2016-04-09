@@ -165,7 +165,6 @@ public:
 
 
     void  PrintState( const Int iter );
-    void  OutputState();
 
     // Mixing
     void  AndersonMix( 
