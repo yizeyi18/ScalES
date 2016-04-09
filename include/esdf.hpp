@@ -322,6 +322,12 @@ namespace dgdft{
     /// This is mainly for debugging and visualization purpose and is
     /// not commonly used.
     bool                isOutputPotExtElem;
+    /// @brief Whether to output the coefficient for eigenvectors
+    /// 
+    /// Default: 0
+    ///
+    /// This is only valid for diagonalization based methods.
+    bool                isOutputEigvecCoef;
     /// @brief Whether to calculate a posteriori error estimator for
     /// each %SCF iteration.
     ///

@@ -566,6 +566,12 @@ namespace dgdft{
       strcpy(kw_dscrpt[i],"*! whether potential in the extended element is outputed !*");
 
       i++;
+      strcpy(kw_label[i],"output_eigvec_coef");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! whether to output the eigenvector coefficients. !*");
+
+
+      i++;
       strcpy(kw_label[i],"output_hmatrix");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! whether the DG Hamiltonian matrix is outputed !*");
@@ -2307,6 +2313,7 @@ namespace dgdft{
           esdfParam.isOutputALBElemUniform  = esdf_integer( "Output_ALB_Elem_Uniform", 0 );
           esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 0 );
           esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 0 );
+          esdfParam.isOutputEigvecCoef      = esdf_integer( "Output_Eigvec_Coef", 0 );
           esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
           esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 0 );
           esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );

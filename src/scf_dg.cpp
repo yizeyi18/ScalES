@@ -172,6 +172,7 @@ SCFDG::Setup	(
         isOutputALBElemUniform_ = esdfParam.isOutputALBElemUniform;
         isOutputWfnExtElem_  = esdfParam.isOutputWfnExtElem;
         isOutputPotExtElem_  = esdfParam.isOutputPotExtElem;
+        isOutputEigvecCoef_  = esdfParam.isOutputEigvecCoef;
         isCalculateAPosterioriEachSCF_ = esdfParam.isCalculateAPosterioriEachSCF;
         isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
         isOutputHMatrix_  = esdfParam.isOutputHMatrix;
@@ -904,6 +905,8 @@ SCFDG::Setup	(
                 } // for (k)
     }
 
+    // Initial value
+    efreeDifPerAtom_ = 100.0;
 
 
 #ifndef _RELEASE_
@@ -1086,495 +1089,498 @@ SCFDG::Iterate	(  )
 
         Real timeBasisSta, timeBasisEnd;
         GetTime(timeBasisSta);
-        for( Int k = 0; k < numElem_[2]; k++ )
-            for( Int j = 0; j < numElem_[1]; j++ )
-                for( Int i = 0; i < numElem_[0]; i++ ){
-                    Index3 key( i, j, k );
-                    if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-                        EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
-                        DblNumVec&    vtotExtElem = eigSol.Ham().Vtot();
-                        Index3 numGridExtElem = eigSol.FFT().domain.numGrid;
-                        Index3 numGridExtElemFine = eigSol.FFT().domain.numGridFine;
-                        Index3 numLGLGrid     = hamDG.NumLGLGridElem();
+        // FIXME  magic numbers to fixe the basis
+        if( (iter <= 5) || (efreeDifPerAtom_ >= 1e-3) ){
+            for( Int k = 0; k < numElem_[2]; k++ )
+                for( Int j = 0; j < numElem_[1]; j++ )
+                    for( Int i = 0; i < numElem_[0]; i++ ){
+                        Index3 key( i, j, k );
+                        if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                            EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
+                            DblNumVec&    vtotExtElem = eigSol.Ham().Vtot();
+                            Index3 numGridExtElem = eigSol.FFT().domain.numGrid;
+                            Index3 numGridExtElemFine = eigSol.FFT().domain.numGridFine;
+                            Index3 numLGLGrid     = hamDG.NumLGLGridElem();
 
-                        Index3 numGridElemFine    = dmElem.numGridFine;
+                            Index3 numGridElemFine    = dmElem.numGridFine;
 
-                        // Skip the interpoation if there is no adaptive local
-                        // basis function.  
-                        if( eigSol.Psi().NumState() == 0 ){
-                            hamDG.BasisLGL().LocalMap()[key].Resize( numLGLGrid.prod(), 0 );  
-                            hamDG.BasisUniformFine().LocalMap()[key].Resize( numGridElemFine.prod(), 0 );  
-                            continue;
-                        }
+                            // Skip the interpoation if there is no adaptive local
+                            // basis function.  
+                            if( eigSol.Psi().NumState() == 0 ){
+                                hamDG.BasisLGL().LocalMap()[key].Resize( numLGLGrid.prod(), 0 );  
+                                hamDG.BasisUniformFine().LocalMap()[key].Resize( numGridElemFine.prod(), 0 );  
+                                continue;
+                            }
 
-                        // Solve the basis functions in the extended element
+                            // Solve the basis functions in the extended element
 
-                        Real eigTolNow;
-                        if( isEigToleranceDynamic_ ){
-                            // Dynamic strategy to control the tolerance
-                            if( iter == 1 )
-                                // FIXME magic number
-                                eigTolNow = 1e-2;
-                            else
+                            Real eigTolNow;
+                            if( isEigToleranceDynamic_ ){
+                                // Dynamic strategy to control the tolerance
+                                if( iter == 1 )
+                                    // FIXME magic number
+                                    eigTolNow = 1e-2;
+                                else
+                                    eigTolNow = eigTolerance_;
+                            }
+                            else{
+                                // Static strategy to control the tolerance
                                 eigTolNow = eigTolerance_;
-                        }
-                        else{
-                            // Static strategy to control the tolerance
-                            eigTolNow = eigTolerance_;
-                        }
+                            }
 
 #if ( _DEBUGlevel_ >= 0 ) 
-                        Int numEig = (eigSol.Psi().NumStateTotal())-numUnusedState_;
-                        statusOFS << "The current tolerance used by the eigensolver is " 
-                            << eigTolNow << std::endl;
-                        statusOFS << "The target number of converged eigenvectors is " 
-                            << numEig << std::endl;
+                            Int numEig = (eigSol.Psi().NumStateTotal())-numUnusedState_;
+                            statusOFS << "The current tolerance used by the eigensolver is " 
+                                << eigTolNow << std::endl;
+                            statusOFS << "The target number of converged eigenvectors is " 
+                                << numEig << std::endl;
 #endif
 
-                        GetTime( timeSta );
-                        // FIXME multiple choices of solvers for the extended
-                        // element should be given in the input file
-                        if(1){
-                            Int eigDynMaxIter = eigMaxIter_;
-                            //                if( iter <= 2 ){
-                            //                    eigDynMaxIter = 15;
-                            //                }
-                            //                else{
-                            //                    eigDynMaxIter = eigMaxIter_;
-                            //                }
-                            eigSol.LOBPCGSolveReal2(numEig, eigDynMaxIter, eigMinTolerance_, eigTolNow );
-                        }
-                        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-                        statusOFS << "Eigensolver time = " 	<< timeEnd - timeSta
-                            << " [s]" << std::endl;
-#endif
-
-
-                        // Print out the information
-                        statusOFS << std::endl 
-                            << "ALB calculation in extended element " << key << std::endl;
-                        Real maxRes = 0.0, avgRes = 0.0;
-                        for(Int ii = 0; ii < eigSol.EigVal().m(); ii++){
-                            if( maxRes < eigSol.ResVal()(ii) ){
-                                maxRes = eigSol.ResVal()(ii);
+                            GetTime( timeSta );
+                            // FIXME multiple choices of solvers for the extended
+                            // element should be given in the input file
+                            if(1){
+                                Int eigDynMaxIter = eigMaxIter_;
+                                //                if( iter <= 2 ){
+                                //                    eigDynMaxIter = 15;
+                                //                }
+                                //                else{
+                                //                    eigDynMaxIter = eigMaxIter_;
+                                //                }
+                                eigSol.LOBPCGSolveReal2(numEig, eigDynMaxIter, eigMinTolerance_, eigTolNow );
                             }
-                            avgRes = avgRes + eigSol.ResVal()(ii);
+                            GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                            Print(statusOFS, 
-                                    "basis#   = ", ii, 
-                                    "eigval   = ", eigSol.EigVal()(ii),
-                                    "resval   = ", eigSol.ResVal()(ii));
-#endif
-                        }
-                        avgRes = avgRes / eigSol.EigVal().m();
-#if ( _DEBUGlevel_ >= 0 )
-                        statusOFS << std::endl;
-                        Print(statusOFS, "Max residual of basis = ", maxRes );
-                        Print(statusOFS, "Avg residual of basis = ", avgRes );
-                        statusOFS << std::endl;
+                            statusOFS << "Eigensolver time = " 	<< timeEnd - timeSta
+                                << " [s]" << std::endl;
 #endif
 
-                        GetTime( timeSta );
-                        Spinor& psi = eigSol.Psi();
 
-                        // Assuming that wavefun has only 1 component.  This should
-                        // be changed when spin-polarization is added.
-                        DblNumTns& wavefun = psi.Wavefun();
+                            // Print out the information
+                            statusOFS << std::endl 
+                                << "ALB calculation in extended element " << key << std::endl;
+                            Real maxRes = 0.0, avgRes = 0.0;
+                            for(Int ii = 0; ii < eigSol.EigVal().m(); ii++){
+                                if( maxRes < eigSol.ResVal()(ii) ){
+                                    maxRes = eigSol.ResVal()(ii);
+                                }
+                                avgRes = avgRes + eigSol.ResVal()(ii);
+#if ( _DEBUGlevel_ >= 0 )
+                                Print(statusOFS, 
+                                        "basis#   = ", ii, 
+                                        "eigval   = ", eigSol.EigVal()(ii),
+                                        "resval   = ", eigSol.ResVal()(ii));
+#endif
+                            }
+                            avgRes = avgRes / eigSol.EigVal().m();
+#if ( _DEBUGlevel_ >= 0 )
+                            statusOFS << std::endl;
+                            Print(statusOFS, "Max residual of basis = ", maxRes );
+                            Print(statusOFS, "Avg residual of basis = ", avgRes );
+                            statusOFS << std::endl;
+#endif
 
-                        DblNumTns&   LGLWeight3D = hamDG.LGLWeight3D();
-                        DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
+                            GetTime( timeSta );
+                            Spinor& psi = eigSol.Psi();
 
-                        Real *ptr1 = LGLWeight3D.Data(), *ptr2 = sqrtLGLWeight3D.Data();
-                        for( Int i = 0; i < numLGLGrid.prod(); i++ ){
-                            *(ptr2++) = std::sqrt( *(ptr1++) );
-                        }
+                            // Assuming that wavefun has only 1 component.  This should
+                            // be changed when spin-polarization is added.
+                            DblNumTns& wavefun = psi.Wavefun();
 
-                        // Int numBasis = psi.NumState() + 1;
-                        Int numBasis = psi.NumState();
-                        Int numBasisTotal = psi.NumStateTotal();
-                        Int numBasisLocal = numBasis;
-                        Int numBasisTotalTest = 0;
+                            DblNumTns&   LGLWeight3D = hamDG.LGLWeight3D();
+                            DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
 
-                        mpi::Allreduce( &numBasis, &numBasisTotalTest, 1, MPI_SUM, domain_.rowComm );
-                        if( numBasisTotalTest != numBasisTotal ){
-                            statusOFS << "numBasisTotal = " << numBasisTotal << std::endl;
-                            statusOFS << "numBasisTotalTest = " << numBasisTotalTest << std::endl;
-                            throw std::logic_error("Sum{numBasis} = numBasisTotal does not match.");
-                        }
+                            Real *ptr1 = LGLWeight3D.Data(), *ptr2 = sqrtLGLWeight3D.Data();
+                            for( Int i = 0; i < numLGLGrid.prod(); i++ ){
+                                *(ptr2++) = std::sqrt( *(ptr1++) );
+                            }
 
-                        // FIXME The constant mode is now not used.
-                        DblNumMat localBasis( 
-                                numLGLGrid.prod(), 
-                                numBasis );
+                            // Int numBasis = psi.NumState() + 1;
+                            Int numBasis = psi.NumState();
+                            Int numBasisTotal = psi.NumStateTotal();
+                            Int numBasisLocal = numBasis;
+                            Int numBasisTotalTest = 0;
 
-                        SetValue( localBasis, 0.0 );
+                            mpi::Allreduce( &numBasis, &numBasisTotalTest, 1, MPI_SUM, domain_.rowComm );
+                            if( numBasisTotalTest != numBasisTotal ){
+                                statusOFS << "numBasisTotal = " << numBasisTotal << std::endl;
+                                statusOFS << "numBasisTotalTest = " << numBasisTotalTest << std::endl;
+                                throw std::logic_error("Sum{numBasis} = numBasisTotal does not match.");
+                            }
+
+                            // FIXME The constant mode is now not used.
+                            DblNumMat localBasis( 
+                                    numLGLGrid.prod(), 
+                                    numBasis );
+
+                            SetValue( localBasis, 0.0 );
 
 #ifdef _USE_OPENMP_
 #pragma omp parallel
-                        {
+                            {
 #endif
 #ifdef _USE_OPENMP_
 #pragma omp for schedule (dynamic,1) nowait
 #endif
-                            for( Int l = 0; l < psi.NumState(); l++ ){
-                                InterpPeriodicUniformToLGL( 
-                                        numGridExtElem,
-                                        numLGLGrid,
-                                        wavefun.VecData(0, l), 
-                                        localBasis.VecData(l) );
-                            }
+                                for( Int l = 0; l < psi.NumState(); l++ ){
+                                    InterpPeriodicUniformToLGL( 
+                                            numGridExtElem,
+                                            numLGLGrid,
+                                            wavefun.VecData(0, l), 
+                                            localBasis.VecData(l) );
+                                }
 
 
 
-                            //#ifdef _USE_OPENMP_
-                            //#pragma omp for schedule (dynamic,1) nowait
-                            //#endif
-                            //              for( Int l = 0; l < psi.NumState(); l++ ){
-                            //                // FIXME Temporarily removing the mean value from each
-                            //                // basis function and add the constant mode later
-                            //                Real avg = blas::Dot( numLGLGrid.prod(),
-                            //                    localBasis.VecData(l), 1,
-                            //                    LGLWeight3D.Data(), 1 );
-                            //                avg /= ( domain_.Volume() / numElem_.prod() );
-                            //                for( Int p = 0; p < numLGLGrid.prod(); p++ ){
-                            //                  localBasis(p, l) -= avg;
-                            //                }
-                            //              }
-                            //
-                            //              // FIXME Temporary adding the constant mode. Should be done more systematically later.
-                            //              for( Int p = 0; p < numLGLGrid.prod(); p++ ){
-                            //                localBasis(p,psi.NumState()) = 1.0 / std::sqrt( domain_.Volume() / numElem_.prod() );
-                            //              }
+                                //#ifdef _USE_OPENMP_
+                                //#pragma omp for schedule (dynamic,1) nowait
+                                //#endif
+                                //              for( Int l = 0; l < psi.NumState(); l++ ){
+                                //                // FIXME Temporarily removing the mean value from each
+                                //                // basis function and add the constant mode later
+                                //                Real avg = blas::Dot( numLGLGrid.prod(),
+                                //                    localBasis.VecData(l), 1,
+                                //                    LGLWeight3D.Data(), 1 );
+                                //                avg /= ( domain_.Volume() / numElem_.prod() );
+                                //                for( Int p = 0; p < numLGLGrid.prod(); p++ ){
+                                //                  localBasis(p, l) -= avg;
+                                //                }
+                                //              }
+                                //
+                                //              // FIXME Temporary adding the constant mode. Should be done more systematically later.
+                                //              for( Int p = 0; p < numLGLGrid.prod(); p++ ){
+                                //                localBasis(p,psi.NumState()) = 1.0 / std::sqrt( domain_.Volume() / numElem_.prod() );
+                                //              }
 
 #ifdef _USE_OPENMP_
-                        }
+                            }
 #endif
-                        GetTime( timeEnd );
+                            GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                        statusOFS << "Time for interpolating basis = " 	<< timeEnd - timeSta
-                            << " [s]" << std::endl;
+                            statusOFS << "Time for interpolating basis = " 	<< timeEnd - timeSta
+                                << " [s]" << std::endl;
 #endif
 
 
-                        // Post processing for the basis functions on the LGL grid.
-                        // Perform GEMM and threshold the basis functions for the
-                        // small matrix.
-                        //
-                        // This method might have lower numerical accuracy, but is
-                        // much more scalable than other known options.
-                        if(1){
-
-                            GetTime( timeSta );
-
-                            // Scale the basis functions by sqrt(weight).  This
-                            // allows the consequent SVD decomposition of the form
+                            // Post processing for the basis functions on the LGL grid.
+                            // Perform GEMM and threshold the basis functions for the
+                            // small matrix.
                             //
-                            // X' * W * X
-                            for( Int g = 0; g < localBasis.n(); g++ ){
-                                Real *ptr1 = localBasis.VecData(g);
-                                Real *ptr2 = sqrtLGLWeight3D.Data();
-                                for( Int l = 0; l < localBasis.m(); l++ ){
-                                    *(ptr1++)  *= *(ptr2++);
+                            // This method might have lower numerical accuracy, but is
+                            // much more scalable than other known options.
+                            if(1){
+
+                                GetTime( timeSta );
+
+                                // Scale the basis functions by sqrt(weight).  This
+                                // allows the consequent SVD decomposition of the form
+                                //
+                                // X' * W * X
+                                for( Int g = 0; g < localBasis.n(); g++ ){
+                                    Real *ptr1 = localBasis.VecData(g);
+                                    Real *ptr2 = sqrtLGLWeight3D.Data();
+                                    for( Int l = 0; l < localBasis.m(); l++ ){
+                                        *(ptr1++)  *= *(ptr2++);
+                                    }
                                 }
-                            }
 
-                            // Convert the column partition to row partition
+                                // Convert the column partition to row partition
 
-                            Int height = psi.NumGridTotal() * psi.NumComponent();
-                            Int heightLGL = numLGLGrid.prod();
-                            Int heightElem = numGridElemFine.prod();
-                            Int width = psi.NumStateTotal();
+                                Int height = psi.NumGridTotal() * psi.NumComponent();
+                                Int heightLGL = numLGLGrid.prod();
+                                Int heightElem = numGridElemFine.prod();
+                                Int width = psi.NumStateTotal();
 
-                            Int widthBlocksize = width / mpisizeRow;
-                            Int heightBlocksize = height / mpisizeRow;
-                            Int heightLGLBlocksize = heightLGL / mpisizeRow;
-                            Int heightElemBlocksize = heightElem / mpisizeRow;
+                                Int widthBlocksize = width / mpisizeRow;
+                                Int heightBlocksize = height / mpisizeRow;
+                                Int heightLGLBlocksize = heightLGL / mpisizeRow;
+                                Int heightElemBlocksize = heightElem / mpisizeRow;
 
-                            Int widthLocal = widthBlocksize;
-                            Int heightLocal = heightBlocksize;
-                            Int heightLGLLocal = heightLGLBlocksize;
-                            Int heightElemLocal = heightElemBlocksize;
+                                Int widthLocal = widthBlocksize;
+                                Int heightLocal = heightBlocksize;
+                                Int heightLGLLocal = heightLGLBlocksize;
+                                Int heightElemLocal = heightElemBlocksize;
 
-                            if(mpirankRow < (width % mpisizeRow)){
-                                widthLocal = widthBlocksize + 1;
-                            }
+                                if(mpirankRow < (width % mpisizeRow)){
+                                    widthLocal = widthBlocksize + 1;
+                                }
 
-                            if(mpirankRow == (mpisizeRow - 1)){
-                                heightLocal = heightBlocksize + height % mpisizeRow;
-                            }
+                                if(mpirankRow == (mpisizeRow - 1)){
+                                    heightLocal = heightBlocksize + height % mpisizeRow;
+                                }
 
-                            if(mpirankRow == (mpisizeRow - 1)){
-                                heightLGLLocal = heightLGLBlocksize + heightLGL % mpisizeRow;
-                            }
+                                if(mpirankRow == (mpisizeRow - 1)){
+                                    heightLGLLocal = heightLGLBlocksize + heightLGL % mpisizeRow;
+                                }
 
-                            if(mpirankRow == (mpisizeRow - 1)){
-                                heightElemLocal = heightElemBlocksize + heightElem % mpisizeRow;
-                            }
+                                if(mpirankRow == (mpisizeRow - 1)){
+                                    heightElemLocal = heightElemBlocksize + heightElem % mpisizeRow;
+                                }
 
-                            // FIXME Use AlltoallForward and AlltoallBackward
-                            // functions to replace below
+                                // FIXME Use AlltoallForward and AlltoallBackward
+                                // functions to replace below
 
-                            DblNumMat MMat( numBasisTotal, numBasisTotal );
-                            DblNumMat MMatTemp( numBasisTotal, numBasisTotal );
-                            SetValue( MMat, 0.0 );
-                            SetValue( MMatTemp, 0.0 );
-                            Int numLGLGridTotal = numLGLGrid.prod();
-                            Int numLGLGridLocal = heightLGLLocal;
+                                DblNumMat MMat( numBasisTotal, numBasisTotal );
+                                DblNumMat MMatTemp( numBasisTotal, numBasisTotal );
+                                SetValue( MMat, 0.0 );
+                                SetValue( MMatTemp, 0.0 );
+                                Int numLGLGridTotal = numLGLGrid.prod();
+                                Int numLGLGridLocal = heightLGLLocal;
 
-                            DblNumMat localBasisRow(heightLGLLocal, numBasisTotal );
-                            SetValue( localBasisRow, 0.0 );
+                                DblNumMat localBasisRow(heightLGLLocal, numBasisTotal );
+                                SetValue( localBasisRow, 0.0 );
 
-                            //DblNumMat localBasisElemRow(heightElemLocal, numBasisTotal );
-                            //SetValue( localBasisElemRow, 0.0 );
+                                //DblNumMat localBasisElemRow(heightElemLocal, numBasisTotal );
+                                //SetValue( localBasisElemRow, 0.0 );
 
-                            AlltoallForward (localBasis, localBasisRow, domain_.rowComm);
+                                AlltoallForward (localBasis, localBasisRow, domain_.rowComm);
 
-                            //DblNumMat& localBasisUniformGrid = hamDG.BasisUniformFine().LocalMap()[key];
+                                //DblNumMat& localBasisUniformGrid = hamDG.BasisUniformFine().LocalMap()[key];
 
-                            //AlltoallForward (localBasisUniformGrid, localBasisElemRow, domain_.rowComm);
+                                //AlltoallForward (localBasisUniformGrid, localBasisElemRow, domain_.rowComm);
 
-                            SetValue( MMatTemp, 0.0 );
-                            blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
-                                    1.0, localBasisRow.Data(), numLGLGridLocal, 
-                                    localBasisRow.Data(), numLGLGridLocal, 0.0,
-                                    MMatTemp.Data(), numBasisTotal );
-
-
-                            SetValue( MMat, 0.0 );
-                            MPI_Allreduce( MMatTemp.Data(), MMat.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
+                                SetValue( MMatTemp, 0.0 );
+                                blas::Gemm( 'T', 'N', numBasisTotal, numBasisTotal, numLGLGridLocal,
+                                        1.0, localBasisRow.Data(), numLGLGridLocal, 
+                                        localBasisRow.Data(), numLGLGridLocal, 0.0,
+                                        MMatTemp.Data(), numBasisTotal );
 
 
-                            // The following operation is only performed on the
-                            // master processor in the row communicator
+                                SetValue( MMat, 0.0 );
+                                MPI_Allreduce( MMatTemp.Data(), MMat.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
 
-                            DblNumMat    U( numBasisTotal, numBasisTotal );
-                            DblNumMat   VT( numBasisTotal, numBasisTotal );
-                            DblNumVec    S( numBasisTotal );
-                            SetValue(U, 0.0);
-                            SetValue(VT, 0.0);
-                            SetValue(S, 0.0);
 
-                            MPI_Barrier( domain_.rowComm );
+                                // The following operation is only performed on the
+                                // master processor in the row communicator
 
-                            if ( mpirankRow == 0) {
-                                lapack::QRSVD( numBasisTotal, numBasisTotal, 
-                                        MMat.Data(), numBasisTotal,
-                                        S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
-                            } 
+                                DblNumMat    U( numBasisTotal, numBasisTotal );
+                                DblNumMat   VT( numBasisTotal, numBasisTotal );
+                                DblNumVec    S( numBasisTotal );
+                                SetValue(U, 0.0);
+                                SetValue(VT, 0.0);
+                                SetValue(S, 0.0);
 
-                            // Broadcast U and S
-                            MPI_Bcast(S.Data(), numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
-                            MPI_Bcast(U.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
-                            MPI_Bcast(VT.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
+                                MPI_Barrier( domain_.rowComm );
 
-                            MPI_Barrier( domain_.rowComm );
+                                if ( mpirankRow == 0) {
+                                    lapack::QRSVD( numBasisTotal, numBasisTotal, 
+                                            MMat.Data(), numBasisTotal,
+                                            S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
+                                } 
 
-                            for( Int g = 0; g < numBasisTotal; g++ ){
-                                S[g] = std::sqrt( S[g] );
-                            }
+                                // Broadcast U and S
+                                MPI_Bcast(S.Data(), numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
+                                MPI_Bcast(U.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
+                                MPI_Bcast(VT.Data(), numBasisTotal * numBasisTotal, MPI_DOUBLE, 0, domain_.rowComm);
 
-                            // Total number of SVD basis functions. NOTE: Determined at the first
-                            // outer SCF and is not changed later. This facilitates the reuse of
-                            // symbolic factorization
-                            if( iter == 1 ){
-                                numSVDBasisTotal = 0;	
+                                MPI_Barrier( domain_.rowComm );
+
                                 for( Int g = 0; g < numBasisTotal; g++ ){
-                                    if( S[g] / S[0] > SVDBasisTolerance_ )
-                                        numSVDBasisTotal++;
+                                    S[g] = std::sqrt( S[g] );
                                 }
-                            }
-                            else{
-                                // Reuse the value saved in numSVDBasisTotal
-                                statusOFS 
-                                    << "NOTE: The number of basis functions (after SVD) " 
-                                    << "is the same as the number in the first SCF iteration." << std::endl
-                                    << "This facilitates the reuse of symbolic factorization in PEXSI." 
-                                    << std::endl;
-                            }
 
-                            Int numSVDBasisBlocksize = numSVDBasisTotal / mpisizeRow;
-
-                            Int numSVDBasisLocal = numSVDBasisBlocksize;	
-
-                            if(mpirankRow < (numSVDBasisTotal % mpisizeRow)){
-                                numSVDBasisLocal = numSVDBasisBlocksize + 1;
-                            }
-
-                            Int numSVDBasisTotalTest = 0;
-
-                            mpi::Allreduce( &numSVDBasisLocal, &numSVDBasisTotalTest, 1, MPI_SUM, domain_.rowComm );
-
-                            if( numSVDBasisTotal != numSVDBasisTotalTest ){
-                                statusOFS << "numSVDBasisLocal = " << numSVDBasisLocal << std::endl;
-                                statusOFS << "numSVDBasisTotal = " << numSVDBasisTotal << std::endl;
-                                statusOFS << "numSVDBasisTotalTest = " << numSVDBasisTotalTest << std::endl;
-                                throw std::logic_error("numSVDBasisTotal != numSVDBasisTotalTest");
-                            }
-
-                            // Multiply X <- X*U in the row-partitioned format
-                            // Get the first numSVDBasis which are significant.
-
-                            DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
-
-                            basis.Resize( numLGLGridTotal, numSVDBasisLocal );
-                            DblNumMat basisRow( numLGLGridLocal, numSVDBasisTotal );
-
-                            SetValue( basis, 0.0 );
-                            SetValue( basisRow, 0.0 );
-
-
-                            for( Int g = 0; g < numSVDBasisTotal; g++ ){
-                                blas::Scal( numBasisTotal, 1.0 / S[g], U.VecData(g), 1 );
-                            }
-
-
-                            // FIXME
-                            blas::Gemm( 'N', 'N', numLGLGridLocal, numSVDBasisTotal,
-                                    numBasisTotal, 1.0, localBasisRow.Data(), numLGLGridLocal,
-                                    U.Data(), numBasisTotal, 0.0, basisRow.Data(), numLGLGridLocal );
-
-                            AlltoallBackward (basisRow, basis, domain_.rowComm);
-
-                            // FIXME
-                            // row-partition to column partition via MPI_Alltoallv
-
-                            // Unscale the orthogonal basis functions by sqrt of
-                            // integration weight
-                            // FIXME
-
-
-                            for( Int g = 0; g < basis.n(); g++ ){
-                                Real *ptr1 = basis.VecData(g);
-                                Real *ptr2 = sqrtLGLWeight3D.Data();
-                                for( Int l = 0; l < basis.m(); l++ ){
-                                    *(ptr1++)  /= *(ptr2++);
+                                // Total number of SVD basis functions. NOTE: Determined at the first
+                                // outer SCF and is not changed later. This facilitates the reuse of
+                                // symbolic factorization
+                                if( iter == 1 ){
+                                    numSVDBasisTotal = 0;	
+                                    for( Int g = 0; g < numBasisTotal; g++ ){
+                                        if( S[g] / S[0] > SVDBasisTolerance_ )
+                                            numSVDBasisTotal++;
+                                    }
                                 }
-                            }
+                                else{
+                                    // Reuse the value saved in numSVDBasisTotal
+                                    statusOFS 
+                                        << "NOTE: The number of basis functions (after SVD) " 
+                                        << "is the same as the number in the first SCF iteration." << std::endl
+                                        << "This facilitates the reuse of symbolic factorization in PEXSI." 
+                                        << std::endl;
+                                }
 
-                            // FIXME
-                            //blas::Gemm( 'N', 'N', heightElemLocal, numSVDBasisTotal,
-                            //   numBasisTotal, 1.0, localBasisElemRow.Data(), heightElemLocal,
-                            //   U.Data(), numBasisTotal, 0.0, localBasisElemRow.Data(), heightElemLocal );
+                                Int numSVDBasisBlocksize = numSVDBasisTotal / mpisizeRow;
 
-                            //AlltoallBackward (localBasisElemRow, localBasisUniformGrid, domain_.rowComm);
+                                Int numSVDBasisLocal = numSVDBasisBlocksize;	
+
+                                if(mpirankRow < (numSVDBasisTotal % mpisizeRow)){
+                                    numSVDBasisLocal = numSVDBasisBlocksize + 1;
+                                }
+
+                                Int numSVDBasisTotalTest = 0;
+
+                                mpi::Allreduce( &numSVDBasisLocal, &numSVDBasisTotalTest, 1, MPI_SUM, domain_.rowComm );
+
+                                if( numSVDBasisTotal != numSVDBasisTotalTest ){
+                                    statusOFS << "numSVDBasisLocal = " << numSVDBasisLocal << std::endl;
+                                    statusOFS << "numSVDBasisTotal = " << numSVDBasisTotal << std::endl;
+                                    statusOFS << "numSVDBasisTotalTest = " << numSVDBasisTotalTest << std::endl;
+                                    throw std::logic_error("numSVDBasisTotal != numSVDBasisTotalTest");
+                                }
+
+                                // Multiply X <- X*U in the row-partitioned format
+                                // Get the first numSVDBasis which are significant.
+
+                                DblNumMat& basis = hamDG.BasisLGL().LocalMap()[key];
+
+                                basis.Resize( numLGLGridTotal, numSVDBasisLocal );
+                                DblNumMat basisRow( numLGLGridLocal, numSVDBasisTotal );
+
+                                SetValue( basis, 0.0 );
+                                SetValue( basisRow, 0.0 );
+
+
+                                for( Int g = 0; g < numSVDBasisTotal; g++ ){
+                                    blas::Scal( numBasisTotal, 1.0 / S[g], U.VecData(g), 1 );
+                                }
+
+
+                                // FIXME
+                                blas::Gemm( 'N', 'N', numLGLGridLocal, numSVDBasisTotal,
+                                        numBasisTotal, 1.0, localBasisRow.Data(), numLGLGridLocal,
+                                        U.Data(), numBasisTotal, 0.0, basisRow.Data(), numLGLGridLocal );
+
+                                AlltoallBackward (basisRow, basis, domain_.rowComm);
+
+                                // FIXME
+                                // row-partition to column partition via MPI_Alltoallv
+
+                                // Unscale the orthogonal basis functions by sqrt of
+                                // integration weight
+                                // FIXME
+
+
+                                for( Int g = 0; g < basis.n(); g++ ){
+                                    Real *ptr1 = basis.VecData(g);
+                                    Real *ptr2 = sqrtLGLWeight3D.Data();
+                                    for( Int l = 0; l < basis.m(); l++ ){
+                                        *(ptr1++)  /= *(ptr2++);
+                                    }
+                                }
+
+                                // FIXME
+                                //blas::Gemm( 'N', 'N', heightElemLocal, numSVDBasisTotal,
+                                //   numBasisTotal, 1.0, localBasisElemRow.Data(), heightElemLocal,
+                                //   U.Data(), numBasisTotal, 0.0, localBasisElemRow.Data(), heightElemLocal );
+
+                                //AlltoallBackward (localBasisElemRow, localBasisUniformGrid, domain_.rowComm);
 
 
 #if ( _DEBUGlevel_ >= 1 )
-                            statusOFS << "Singular values of the basis = " 
-                                << S << std::endl;
+                                statusOFS << "Singular values of the basis = " 
+                                    << S << std::endl;
 #endif
 
 #if ( _DEBUGlevel_ >= 0 )
-                            statusOFS << "Number of significant SVD basis = " 
-                                << numSVDBasisTotal << std::endl;
+                                statusOFS << "Number of significant SVD basis = " 
+                                    << numSVDBasisTotal << std::endl;
 #endif
 
 
-                            MPI_Barrier( domain_.rowComm );
+                                MPI_Barrier( domain_.rowComm );
 
 
 
 
-                            GetTime( timeEnd );
-                            statusOFS << "Time for SVD of basis = " 	<< timeEnd - timeSta
-                                << " [s]" << std::endl;
+                                GetTime( timeEnd );
+                                statusOFS << "Time for SVD of basis = " 	<< timeEnd - timeSta
+                                    << " [s]" << std::endl;
 
 
-                            MPI_Barrier( domain_.rowComm );
+                                MPI_Barrier( domain_.rowComm );
 
-                            //if(1){
-                            //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
-                            //  abort();
-                            // }
-
-
-                            // Transfer psi from coarse grid to fine grid with FFT
-                            if(1){ 
-
-                                Int ntot  = psi.NumGridTotal();
-                                Int ntotFine  = numGridExtElemFine.prod ();
-                                Int ncom  = psi.NumComponent();
-                                Int nocc  = psi.NumState();
-
-                                //DblNumMat psiUniformGridFine( 
-                                //ntotFine, 
-                                //numBasis );
-
-                                DblNumMat localBasisUniformGrid;
-
-                                localBasisUniformGrid.Resize( numGridElemFine.prod(), numBasis );
-
-                                SetValue( localBasisUniformGrid, 0.0 );
-
-                                //Fourier& fft = eigSol.FFT();
-
-                                for (Int k=0; k<nocc; k++) {
-
-                                    //                    for( Int i = 0; i < ntot; i++ ){
-                                    //                      fft.inputComplexVec(i) = Complex( psi.Wavefun(i,0,k), 0.0 );
-                                    //                    }
-                                    //
-                                    //                    fftw_execute( fft.forwardPlan );
-                                    //
-                                    //                    // fft Coarse to Fine 
-                                    //
-                                    //                    SetValue( fft.outputComplexVecFine, Z_ZERO );
-                                    //                    for( Int i = 0; i < ntot; i++ ){
-                                    //                      fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i);
-                                    //                    }
-                                    //
-                                    //                    fftw_execute( fft.backwardPlanFine );
-                                    //
-                                    //                    DblNumVec psiTemp (ntotFine);
-                                    //                    SetValue( psiTemp, 0.0 ); 
-                                    //
-                                    //                    for( Int i = 0; i < ntotFine; i++ ){
-                                    //
-                                    //                      psiTemp(i) = fft.inputComplexVecFine(i).real() / (double(ntot) * double(ntotFine));
-                                    //
-                                    //                    }
-                                    //
-
-                                    InterpPeriodicGridExtElemToGridElem( 
-                                            numGridExtElem,
-                                            numGridElemFine,
-                                            wavefun.VecData(0, k), 
-                                            localBasisUniformGrid.VecData(k) );
+                                //if(1){
+                                //  statusOFS << std::endl<< "All processors exit with abort in scf_dg.cpp." << std::endl;
+                                //  abort();
+                                // }
 
 
-                                } // for k
+                                // Transfer psi from coarse grid to fine grid with FFT
+                                if(1){ 
+
+                                    Int ntot  = psi.NumGridTotal();
+                                    Int ntotFine  = numGridExtElemFine.prod ();
+                                    Int ncom  = psi.NumComponent();
+                                    Int nocc  = psi.NumState();
+
+                                    //DblNumMat psiUniformGridFine( 
+                                    //ntotFine, 
+                                    //numBasis );
+
+                                    DblNumMat localBasisUniformGrid;
+
+                                    localBasisUniformGrid.Resize( numGridElemFine.prod(), numBasis );
+
+                                    SetValue( localBasisUniformGrid, 0.0 );
+
+                                    //Fourier& fft = eigSol.FFT();
+
+                                    for (Int k=0; k<nocc; k++) {
+
+                                        //                    for( Int i = 0; i < ntot; i++ ){
+                                        //                      fft.inputComplexVec(i) = Complex( psi.Wavefun(i,0,k), 0.0 );
+                                        //                    }
+                                        //
+                                        //                    fftw_execute( fft.forwardPlan );
+                                        //
+                                        //                    // fft Coarse to Fine 
+                                        //
+                                        //                    SetValue( fft.outputComplexVecFine, Z_ZERO );
+                                        //                    for( Int i = 0; i < ntot; i++ ){
+                                        //                      fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i);
+                                        //                    }
+                                        //
+                                        //                    fftw_execute( fft.backwardPlanFine );
+                                        //
+                                        //                    DblNumVec psiTemp (ntotFine);
+                                        //                    SetValue( psiTemp, 0.0 ); 
+                                        //
+                                        //                    for( Int i = 0; i < ntotFine; i++ ){
+                                        //
+                                        //                      psiTemp(i) = fft.inputComplexVecFine(i).real() / (double(ntot) * double(ntotFine));
+                                        //
+                                        //                    }
+                                        //
+
+                                        InterpPeriodicGridExtElemToGridElem( 
+                                                numGridExtElem,
+                                                numGridElemFine,
+                                                wavefun.VecData(0, k), 
+                                                localBasisUniformGrid.VecData(k) );
 
 
-                                DblNumMat localBasisElemRow( heightElemLocal, numBasisTotal );
-                                SetValue( localBasisElemRow, 0.0 );
-
-                                DblNumMat  basisUniformGridRow( heightElemLocal, numSVDBasisTotal );
-                                SetValue( basisUniformGridRow, 0.0 );
-
-                                DblNumMat& basisUniformGrid = hamDG.BasisUniformFine().LocalMap()[key];
-                                basisUniformGrid.Resize( numGridElemFine.prod(), numSVDBasisLocal );
-                                SetValue( basisUniformGrid, 0.0 );
-
-                                AlltoallForward (localBasisUniformGrid, localBasisElemRow, domain_.rowComm);
-
-                                // FIXME
-                                blas::Gemm( 'N', 'N', heightElemLocal, numSVDBasisTotal,
-                                        numBasisTotal, 1.0, localBasisElemRow.Data(), heightElemLocal,
-                                        U.Data(), numBasisTotal, 0.0, basisUniformGridRow.Data(), heightElemLocal );
-
-                                AlltoallBackward (  basisUniformGridRow, basisUniformGrid, domain_.rowComm);
-
-                            } // if (1)
+                                    } // for k
 
 
-                            MPI_Barrier( domain_.rowComm );
+                                    DblNumMat localBasisElemRow( heightElemLocal, numBasisTotal );
+                                    SetValue( localBasisElemRow, 0.0 );
 
-                        } // if(1)
+                                    DblNumMat  basisUniformGridRow( heightElemLocal, numSVDBasisTotal );
+                                    SetValue( basisUniformGridRow, 0.0 );
+
+                                    DblNumMat& basisUniformGrid = hamDG.BasisUniformFine().LocalMap()[key];
+                                    basisUniformGrid.Resize( numGridElemFine.prod(), numSVDBasisLocal );
+                                    SetValue( basisUniformGrid, 0.0 );
+
+                                    AlltoallForward (localBasisUniformGrid, localBasisElemRow, domain_.rowComm);
+
+                                    // FIXME
+                                    blas::Gemm( 'N', 'N', heightElemLocal, numSVDBasisTotal,
+                                            numBasisTotal, 1.0, localBasisElemRow.Data(), heightElemLocal,
+                                            U.Data(), numBasisTotal, 0.0, basisUniformGridRow.Data(), heightElemLocal );
+
+                                    AlltoallBackward (  basisUniformGridRow, basisUniformGrid, domain_.rowComm);
+
+                                } // if (1)
 
 
-                    } // own this element
-                } // for (i)
+                                MPI_Barrier( domain_.rowComm );
+
+                            } // if(1)
+
+
+                        } // own this element
+                    } // for (i)
+        } // if( perform ALB calculation )
 
 
         GetTime( timeBasisEnd );
@@ -2184,6 +2190,27 @@ SCFDG::Iterate	(  )
                         serialize( key, wavefunStream, NO_MASK );
                         serialize( basisUniformFine, wavefunStream, NO_MASK );
                         SeparateWrite( "ALBUNIFORM", wavefunStream, mpirank );
+                    }
+
+                    // Output the eigenvector coefficients and only
+                    // mpirankRow == 0 does the job of for each element.
+                    // This option is only valid for diagonalization
+                    // methods
+                    if( isOutputEigvecCoef_ && solutionMethod_ == "diag" ) {
+                        if( mpirankRow == 0 ){
+#if ( _DEBUGlevel_ >= 0 )
+                            statusOFS << std::endl 
+                                << "Output the eigenvector coefficients after diagonalization."
+                                << std::endl;
+#endif
+                            std::ostringstream eigvecStream;      
+                            DblNumMat& eigvecCoef = hamDG.EigvecCoef().LocalMap()[key];
+
+
+                            serialize( key, eigvecStream, NO_MASK );
+                            serialize( eigvecCoef, eigvecStream, NO_MASK );
+                            SeparateWrite( "EIGVEC", eigvecStream, mpirankCol );
+                        } // if( mpirankRow == 0 )
                     }
 
                 } // (own this element)
@@ -4507,246 +4534,7 @@ SCFDG::InnerIterate	( Int outerIter )
 
 
         // Method 1: Using diagonalization method
-        //
-        // FIXME The diagonalization procedure is now only performed on each
-        // processor column.  A better implementation should 
-        //
-        // 1) Convert the HMat_ to a distributed ScaLAPACK matrix involving
-        // all (or a given number of) processors
-        //
-        // 2) Diagonalize using all (or a given number of) processors.
-        //
-        // 3) Convert the eigenfunction matrices to the format that is
-        // distributed among all processors.
-        if( solutionMethod_ == "diag" && 0 ){
-            {
-                GetTime(timeSta);
-                Int sizeH = hamDG.NumBasisTotal();
-
-                DblNumVec& eigval = hamDG.EigVal(); 
-                eigval.Resize( hamDG.NumStateTotal() );		
-
-                for( Int k = 0; k < numElem_[2]; k++ )
-                    for( Int j = 0; j < numElem_[1]; j++ )
-                        for( Int i = 0; i < numElem_[0]; i++ ){
-                            Index3 key( i, j, k );
-                            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-                                const std::vector<Int>&  idx = hamDG.ElemBasisIdx()(i, j, k); 
-                                DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
-                                localCoef.Resize( idx.size(), hamDG.NumStateTotal() );		
-                            }
-                        } 
-
-
-                if(contxt_ >= 0){
-
-                    scalapack::Descriptor descH( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
-                            0, 0, contxt_ );
-
-                    scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
-
-                    std::vector<Real> eigs;
-
-                    DistElemMatToScaMat( hamDG.HMat(), 	descH,
-                            scaH, hamDG.ElemBasisIdx(), domain_.colComm );
-
-                    scalapack::Syevd('U', scaH, eigs, scaZ);
-
-                    //DblNumVec& eigval = hamDG.EigVal(); 
-                    //eigval.Resize( hamDG.NumStateTotal() );		
-                    for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
-                        eigval[i] = eigs[i];
-
-
-
-                    ScaMatToDistNumMat( scaZ, hamDG.Density().Prtn(), 
-                            hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.colComm, 
-                            hamDG.NumStateTotal() );
-
-                } //if(contxt_ >= 0)
-
-                MPI_Bcast(eigval.Data(), hamDG.NumStateTotal(), MPI_DOUBLE, 0, domain_.rowComm);
-
-                for( Int k = 0; k < numElem_[2]; k++ )
-                    for( Int j = 0; j < numElem_[1]; j++ )
-                        for( Int i = 0; i < numElem_[0]; i++ ){
-                            Index3 key( i, j, k );
-                            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-                                DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
-                                MPI_Bcast(localCoef.Data(), localCoef.m() * localCoef.n(), MPI_DOUBLE, 0, domain_.rowComm);
-                            }
-                        } 
-
-
-                MPI_Barrier( domain_.comm );
-                MPI_Barrier( domain_.rowComm );
-                MPI_Barrier( domain_.colComm );
-
-                GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for diagonalizing the DG matrix using ScaLAPACK is " <<
-                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-            }
-
-            // Post processing
-
-            Evdw_ = 0.0;
-
-            // Compute the occupation rate
-            CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
-
-            // Compute the Harris energy functional.  
-            // NOTE: In computing the Harris energy, the density and the
-            // potential must be the INPUT density and potential without ANY
-            // update.
-            CalculateHarrisEnergy();
-
-            MPI_Barrier( domain_.comm );
-            MPI_Barrier( domain_.rowComm );
-            MPI_Barrier( domain_.colComm );
-
-            // Compute the output electron density
-            GetTime( timeSta );
-
-            // Calculate the new electron density
-            // FIXME 
-            // Do not need the conversion from column to row partition as well
-            hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
-
-            MPI_Barrier( domain_.comm );
-            MPI_Barrier( domain_.rowComm );
-            MPI_Barrier( domain_.colComm );
-
-            GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-            statusOFS << "Time for computing density in the global domain is " <<
-                timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-            // Update the output potential, and the KS and second order accurate
-            // energy
-            {
-                // Update the Hartree energy and the exchange correlation energy and
-                // potential for computing the KS energy and the second order
-                // energy.
-                // NOTE Vtot should not be updated until finishing the computation
-                // of the energies.
-
-                if( XCType_ == "XC_GGA_XC_PBE" ){
-                    hamDG.CalculateGradDensity(  *distfftPtr_ );
-                }
-
-                GetTime( timeSta );
-                hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
-                GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for computing Exc in the global domain is " <<
-                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-                GetTime( timeSta );
-
-                hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
-
-                GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for computing Vhart in the global domain is " <<
-                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-
-                // Compute the second order accurate energy functional.
-                // NOTE: In computing the second order energy, the density and the
-                // potential must be the OUTPUT density and potential without ANY
-                // MIXING.
-                CalculateSecondOrderEnergy();
-
-                // Compute the KS energy 
-                CalculateKSEnergy();
-
-                // Update the total potential AFTER updating the energy
-
-                // No external potential
-
-                // Compute the new total potential
-
-                GetTime( timeSta );
-
-                hamDG.CalculateVtot( hamDG.Vtot() );
-
-                GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for computing Vtot in the global domain is " <<
-                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-            }
-
-
-            // Compute the force at every step
-            //      if( isCalculateForceEachSCF_ ){
-            //        // Compute force
-            //        GetTime( timeSta );
-            //
-            //        hamDG.CalculateForce( *distfftPtr_ );
-            //
-            //        GetTime( timeEnd );
-            //        statusOFS << "Time for computing the force is " <<
-            //          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-            //
-            //        // Print out the force
-            //        // Only master processor output information containing all atoms
-            //        if( mpirank == 0 ){
-            //          PrintBlock( statusOFS, "Atomic Force" );
-            //          {
-            //            Point3 forceCM(0.0, 0.0, 0.0);
-            //            std::vector<Atom>& atomList = hamDG.AtomList();
-            //            Int numAtom = atomList.size();
-            //            for( Int a = 0; a < numAtom; a++ ){
-            //              Print( statusOFS, "atom", a, "force", atomList[a].force );
-            //              forceCM += atomList[a].force;
-            //            }
-            //            statusOFS << std::endl;
-            //            Print( statusOFS, "force for centroid: ", forceCM );
-            //            statusOFS << std::endl;
-            //          }
-            //        }
-            //      }
-
-            // Compute the a posteriori error estimator at every step
-            // FIXME This is not used when intra-element parallelization is
-            // used.
-            //      if( isCalculateAPosterioriEachSCF_ && 0 )
-            //      {
-            //        GetTime( timeSta );
-            //        DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
-            //        hamDG.CalculateAPosterioriError( 
-            //            eta2Total, eta2Residual, eta2GradJump, eta2Jump );
-            //        GetTime( timeEnd );
-            //        statusOFS << "Time for computing the a posteriori error is " <<
-            //          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-            //
-            //        // Only master processor output information containing all atoms
-            //        if( mpirank == 0 ){
-            //          PrintBlock( statusOFS, "A Posteriori error" );
-            //          {
-            //            statusOFS << std::endl << "Total a posteriori error:" << std::endl;
-            //            statusOFS << eta2Total << std::endl;
-            //            statusOFS << std::endl << "Residual term:" << std::endl;
-            //            statusOFS << eta2Residual << std::endl;
-            //            statusOFS << std::endl << "Jump of gradient term:" << std::endl;
-            //            statusOFS << eta2GradJump << std::endl;
-            //            statusOFS << std::endl << "Jump of function value term:" << std::endl;
-            //            statusOFS << eta2Jump << std::endl;
-            //          }
-            //        }
-            //      }
-        }
-
-        // -----------------------------------------------
-        // Method 1_1: Using diagonalization method, but with a more
-        // versatile choice of processors for using ScaLAPACK.
+        // With a versatile choice of processors for using ScaLAPACK.
         // Or using Chebyshev filtering
 
         if( solutionMethod_ == "diag" ){
@@ -7488,7 +7276,7 @@ SCFDG::KerkerPrecond (
 
     // FIXME hard coded
     Real KerkerB = 0.08; 
-    Real Amin = 10000.0;
+    Real Amin = 0.4;
 
     if( fft.isInGrid ){
 

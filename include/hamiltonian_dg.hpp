@@ -160,412 +160,412 @@ typedef DistVec<Index3, CpxNumTns, ElemPrtn>   DistCpxNumTns;
 /// @brief Main class of DG for storing and assembling the DG matrix.
 class HamiltonianDG {
 private:
-	
-	// *********************************************************************
-	// Physical variables
-	// *********************************************************************
-	/// @brief Global domain.
-	Domain                      domain_;
 
-	/// @brief Element subdomains.
-	NumTns<Domain>              domainElem_;
-  
-  /// @brief Uniform grid in the global domain
-	std::vector<DblNumVec>      uniformGrid_;
-  std::vector<DblNumVec>      uniformGridFine_;
+    // *********************************************************************
+    // Physical variables
+    // *********************************************************************
+    /// @brief Global domain.
+    Domain                      domain_;
 
-	/// @brief Number of uniform grids in each element.  
-	///
-	/// Note: It must be satisifed that
-	///
-	/// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
-	Index3                      numUniformGridElem_;
-  Index3                      numUniformGridElemFine_;
+    /// @brief Element subdomains.
+    NumTns<Domain>              domainElem_;
 
-	/// @brief Number of LGL grids in each element.
-	Index3                      numLGLGridElem_;
+    /// @brief Uniform grid in the global domain
+    std::vector<DblNumVec>      uniformGrid_;
+    std::vector<DblNumVec>      uniformGridFine_;
 
-	/// @brief Number of element in externd element.
-  Index3 numExtElem_;
+    /// @brief Number of uniform grids in each element.  
+    ///
+    /// Note: It must be satisifed that
+    ///
+    /// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
+    Index3                      numUniformGridElem_;
+    Index3                      numUniformGridElemFine_;
 
-	/// @brief Uniform grid in the elements, each has size 
-	/// numUniformGridElem_
-	NumTns<std::vector<DblNumVec> >   uniformGridElem_;
-  NumTns<std::vector<DblNumVec> >   uniformGridElemFine_;
+    /// @brief Number of LGL grids in each element.
+    Index3                      numLGLGridElem_;
 
-	/// @brief Legendre-Gauss-Lobatto grid in the elements, each has size
-	/// numLGLGridElem_
-	NumTns<std::vector<DblNumVec> >   LGLGridElem_;
+    /// @brief Number of element in externd element.
+    Index3 numExtElem_;
 
-  /// @brief The 1D LGL weight along the x,y,z dimensions of each element.
-  std::vector<DblNumVec>            LGLWeight1D_;
+    /// @brief Uniform grid in the elements, each has size 
+    /// numUniformGridElem_
+    NumTns<std::vector<DblNumVec> >   uniformGridElem_;
+    NumTns<std::vector<DblNumVec> >   uniformGridElemFine_;
 
-  /// @brief The 2D LGL weight for the surface perpendicular to the x,y,z
-  /// axis of each element.
-  std::vector<DblNumMat>            LGLWeight2D_;
+    /// @brief Legendre-Gauss-Lobatto grid in the elements, each has size
+    /// numLGLGridElem_
+    NumTns<std::vector<DblNumVec> >   LGLGridElem_;
 
-  /// @brief The 3D LGL weight for each element.
-  DblNumTns                         LGLWeight3D_;
+    /// @brief The 1D LGL weight along the x,y,z dimensions of each element.
+    std::vector<DblNumVec>            LGLWeight1D_;
 
+    /// @brief The 2D LGL weight for the surface perpendicular to the x,y,z
+    /// axis of each element.
+    std::vector<DblNumMat>            LGLWeight2D_;
 
-	/// @brief List of atoms.
-	std::vector<Atom>           atomList_;
-	/// @brief Number of spin-degeneracy, can be 1 or 2.
-	Int                         numSpin_;
-	/// @brief Number of extra states for fractional occupation number.
-	Int                         numExtraState_;
-	/// @brief Number of occupied states.
-	Int                         numOccupiedState_;
-  /// @brief Type of pseudopotential, default is HGH
-  std::string                 pseudoType_;
-  /// @brief Id of the exchange-correlation potential
-  Int                         XCId_;
-  Int                         XId_;
-  Int                         CId_;
-  /// @brief Exchange-correlation potential using libxc package.
-  xc_func_type                XCFuncType_; 
-  xc_func_type                XFuncType_; 
-  xc_func_type                CFuncType_; 
-  /// @brief Whether libXC has been initialized.
-  bool                        XCInitialized_;
+    /// @brief The 3D LGL weight for each element.
+    DblNumTns                         LGLWeight3D_;
 
 
+    /// @brief List of atoms.
+    std::vector<Atom>           atomList_;
+    /// @brief Number of spin-degeneracy, can be 1 or 2.
+    Int                         numSpin_;
+    /// @brief Number of extra states for fractional occupation number.
+    Int                         numExtraState_;
+    /// @brief Number of occupied states.
+    Int                         numOccupiedState_;
+    /// @brief Type of pseudopotential, default is HGH
+    std::string                 pseudoType_;
+    /// @brief Id of the exchange-correlation potential
+    Int                         XCId_;
+    Int                         XId_;
+    Int                         CId_;
+    /// @brief Exchange-correlation potential using libxc package.
+    xc_func_type                XCFuncType_; 
+    xc_func_type                XFuncType_; 
+    xc_func_type                CFuncType_; 
+    /// @brief Whether libXC has been initialized.
+    bool                        XCInitialized_;
 
 
-	// *********************************************************************
-	// Computational variables
-	// *********************************************************************
-
-	/// @brief The number of elements.
-	Index3                      numElem_;
-
-	/// @brief Partition of element.
-	ElemPrtn                    elemPrtn_;
-
-  /// @brief Number of processor rows and columns
-  Int                         dmRow_;
-  Int                         dmCol_;
-  //IntNumVec                   groupRank_;
-
-  /// @brief Partition of a matrix defined through elements.
-	ElemMatPrtn                 elemMatPrtn_;
-
-	/// @brief Partition of atom.
-	AtomPrtn                    atomPrtn_;
-
-	/// @brief Interior penalty parameter.
-	Real                        penaltyAlpha_;
-
-	/// @brief Pseudocharge in the global domain. 
-	DistDblNumVec    pseudoCharge_;
-
-	/// @brief Electron density in the global domain. No magnitization for
-	/// DG calculation.
-  DistDblNumVec    density_;
-
-  std::vector<DistDblNumVec>      gradDensity_;
-
-  /// @brief Electron density in the global domain defined on the LGL
-  /// grid. No magnitization for DG calculation.  
-  /// FIXME This is only a temporary variable and MAY NOT BE the same as
-  /// the density_ variable.
-	DistDblNumVec    densityLGL_;
 
 
-	/// @brief External potential in the global domain. This is usually
-	/// not used.
-	DistDblNumVec    vext_;
+    // *********************************************************************
+    // Computational variables
+    // *********************************************************************
 
-	/// @brief Hartree potential in the global domain.
-	DistDblNumVec    vhart_;
+    /// @brief The number of elements.
+    Index3                      numElem_;
 
-	/// @brief Exchange-correlation potential in the global domain. No
-	/// magnization calculation in the DG code.
-	DistDblNumVec    vxc_;
+    /// @brief Partition of element.
+    ElemPrtn                    elemPrtn_;
 
-	/// @brief Exchange-correlation energy density in the global domain.
-	DistDblNumVec    epsxc_;
+    /// @brief Number of processor rows and columns
+    Int                         dmRow_;
+    Int                         dmCol_;
+    //IntNumVec                   groupRank_;
 
-	/// @brief Total potential in the global domain.
-	DistDblNumVec    vtot_;
+    /// @brief Partition of a matrix defined through elements.
+    ElemMatPrtn                 elemMatPrtn_;
 
-	/// @brief Total potential on the local LGL grid.
-	DistDblNumVec    vtotLGL_;
+    /// @brief Partition of atom.
+    AtomPrtn                    atomPrtn_;
 
-	/// @brief Basis functions on the local uniform fine grid.
-  IntNumVec        basisUniformFineIdx_;
-	DistDblNumMat    basisUniformFine_;
-	
-  /// @brief Basis functions on the local LGL grid.
-  IntNumVec        basisLGLIdx_;
-	DistDblNumMat    basisLGL_;
+    /// @brief Interior penalty parameter.
+    Real                        penaltyAlpha_;
 
-	/// @brief Eigenvalues
-	DblNumVec        eigVal_;
+    /// @brief Pseudocharge in the global domain. 
+    DistDblNumVec    pseudoCharge_;
 
-	/// @brief Occupation number
-	DblNumVec        occupationRate_;
+    /// @brief Electron density in the global domain. No magnitization for
+    /// DG calculation.
+    DistDblNumVec    density_;
 
-	/// @brief Coefficients of the eigenfunctions
-	DistDblNumMat    eigvecCoef_;
+    std::vector<DistDblNumVec>      gradDensity_;
 
-	/// @brief Pseudopotential and nonlocal projectors in each element for
-	/// each atom. The value is given on a dense LGL grid.
-	DistVec<Index3, std::map<Int, PseudoPot>, ElemPrtn>  pseudo_;
+    /// @brief Electron density in the global domain defined on the LGL
+    /// grid. No magnitization for DG calculation.  
+    /// FIXME This is only a temporary variable and MAY NOT BE the same as
+    /// the density_ variable.
+    DistDblNumVec    densityLGL_;
 
-	// FIXME
-	DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn>  vnlCoef_;
-	
-	// FIXME
-	std::vector<DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn> >  vnlDrvCoef_;
 
-	std::map<Int, DblNumVec>  vnlWeightMap_;
+    /// @brief External potential in the global domain. This is usually
+    /// not used.
+    DistDblNumVec    vext_;
 
-	/// @brief Differentiation matrix on the LGL grid.
-	std::vector<DblNumMat>    DMat_;
+    /// @brief Hartree potential in the global domain.
+    DistDblNumVec    vhart_;
 
-	/// @brief Interpolation matrix from LGL to uniform grid in each
-	/// element (assuming all the elements are the same).
-  std::vector<DblNumMat>    LGLToUniformMat_;
-  std::vector<DblNumMat>    LGLToUniformMatFine_;
+    /// @brief Exchange-correlation potential in the global domain. No
+    /// magnization calculation in the DG code.
+    DistDblNumVec    vxc_;
 
-  /// @brief Gaussian convolution interpolation matrix from LGL to 
-  /// uniform grid in each element.
-  NumTns< std::vector<DblNumMat> >    LGLToUniformGaussMatFine_;
+    /// @brief Exchange-correlation energy density in the global domain.
+    DistDblNumVec    epsxc_;
 
-  /// @brief DG Hamiltonian matrix.
-	DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>  HMat_;
+    /// @brief Total potential in the global domain.
+    DistDblNumVec    vtot_;
 
-	/// @brief The size of the H matrix.
-	Int    sizeHMat_;
+    /// @brief Total potential on the local LGL grid.
+    DistDblNumVec    vtotLGL_;
 
-	/// @brief Indices of all the basis functions.
-  NumTns< std::vector<Int> >  elemBasisIdx_;
+    /// @brief Basis functions on the local uniform fine grid.
+    IntNumVec        basisUniformFineIdx_;
+    DistDblNumMat    basisUniformFine_;
 
-  /// @brief Inverse mapping of elemBasisIdx_
-  std::vector<Index3>         elemBasisInvIdx_;
+    /// @brief Basis functions on the local LGL grid.
+    IntNumVec        basisLGLIdx_;
+    DistDblNumMat    basisLGL_;
+
+    /// @brief Eigenvalues
+    DblNumVec        eigVal_;
+
+    /// @brief Occupation number
+    DblNumVec        occupationRate_;
+
+    /// @brief Coefficients of the eigenfunctions
+    DistDblNumMat    eigvecCoef_;
+
+    /// @brief Pseudopotential and nonlocal projectors in each element for
+    /// each atom. The value is given on a dense LGL grid.
+    DistVec<Index3, std::map<Int, PseudoPot>, ElemPrtn>  pseudo_;
+
+    // FIXME
+    DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn>  vnlCoef_;
+
+    // FIXME
+    std::vector<DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn> >  vnlDrvCoef_;
+
+    std::map<Int, DblNumVec>  vnlWeightMap_;
+
+    /// @brief Differentiation matrix on the LGL grid.
+    std::vector<DblNumMat>    DMat_;
+
+    /// @brief Interpolation matrix from LGL to uniform grid in each
+    /// element (assuming all the elements are the same).
+    std::vector<DblNumMat>    LGLToUniformMat_;
+    std::vector<DblNumMat>    LGLToUniformMatFine_;
+
+    /// @brief Gaussian convolution interpolation matrix from LGL to 
+    /// uniform grid in each element.
+    NumTns< std::vector<DblNumMat> >    LGLToUniformGaussMatFine_;
+
+    /// @brief DG Hamiltonian matrix.
+    DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>  HMat_;
+
+    /// @brief The size of the H matrix.
+    Int    sizeHMat_;
+
+    /// @brief Indices of all the basis functions.
+    NumTns< std::vector<Int> >  elemBasisIdx_;
+
+    /// @brief Inverse mapping of elemBasisIdx_
+    std::vector<Index3>         elemBasisInvIdx_;
 
 public:
 
-	// *********************************************************************
-	// Lifecycle
-	// *********************************************************************
-	HamiltonianDG();
+    // *********************************************************************
+    // Lifecycle
+    // *********************************************************************
+    HamiltonianDG();
 
-	~HamiltonianDG();
+    ~HamiltonianDG();
 
-	HamiltonianDG( const esdf::ESDFInputParam& esdfParam );
+    HamiltonianDG( const esdf::ESDFInputParam& esdfParam );
 
-  /// @brief Setup the Hamiltonian DG class from the input parameter.
-	void Setup ( const esdf::ESDFInputParam& esdfParam );
+    /// @brief Setup the Hamiltonian DG class from the input parameter.
+    void Setup ( const esdf::ESDFInputParam& esdfParam );
 
-  void UpdateHamiltonianDG	( std::vector<Atom>& atomList );
-	// *********************************************************************
-	// Operations
-	// *********************************************************************
+    void UpdateHamiltonianDG	( std::vector<Atom>& atomList );
+    // *********************************************************************
+    // Operations
+    // *********************************************************************
 
-	/// @brief Differentiate the basis functions on a certain element
-	/// along the dimension d.
-  void DiffPsi(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d);
+    /// @brief Differentiate the basis functions on a certain element
+    /// along the dimension d.
+    void DiffPsi(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d);
 
-  /// @brief Interpolation matrix from LGL to uniform grid in each element.
-  void InterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniformGridFine, 
-      const Real* rhoLGL, Real* rhoUniform );
+    /// @brief Interpolation matrix from LGL to uniform grid in each element.
+    void InterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniformGridFine, 
+            const Real* rhoLGL, Real* rhoUniform );
 
-  /// @brief Gaussian convolution interpolation matrix from LGL to 
-  /// uniform grid in each element.
-  void GaussConvInterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniform, 
-      const Real* rhoLGL, Real* rhoUniform, std::vector<DblNumMat> LGLToUniformGaussMatFine );
+    /// @brief Gaussian convolution interpolation matrix from LGL to 
+    /// uniform grid in each element.
+    void GaussConvInterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniform, 
+            const Real* rhoLGL, Real* rhoUniform, std::vector<DblNumMat> LGLToUniformGaussMatFine );
 
-  /// @brief Initialize the pseudopotential used on the LGL grid for
-  /// each element.
-  void CalculatePseudoPotential( PeriodTable &ptable );
+    /// @brief Initialize the pseudopotential used on the LGL grid for
+    /// each element.
+    void CalculatePseudoPotential( PeriodTable &ptable );
 
-  /// @brief Compute the electron density after the diagonalization
-	/// of the DG Hamiltonian matrix.
-	void CalculateDensity( 
-      DistDblNumVec& rho, 
-      DistDblNumVec& rhoLGL );
-	
-	/// @brief Compute the electron density using the density matrix. This
-  /// is used after obtaining the density matrix using PEXSI.
-	void CalculateDensityDM( 
-      DistDblNumVec& rho, 
-      DistDblNumVec& rhoLGL, 
-      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
+    /// @brief Compute the electron density after the diagonalization
+    /// of the DG Hamiltonian matrix.
+    void CalculateDensity( 
+            DistDblNumVec& rho, 
+            DistDblNumVec& rhoLGL );
 
-	/// @brief Compute the electron density using the density matrix and
-  /// with intra-element parallelization. This is used after obtaining
-  /// the density matrix using PEXSI.
-	void CalculateDensityDM2( 
-      DistDblNumVec& rho, 
-      DistDblNumVec& rhoLGL, 
-      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
+    /// @brief Compute the electron density using the density matrix. This
+    /// is used after obtaining the density matrix using PEXSI.
+    void CalculateDensityDM( 
+            DistDblNumVec& rho, 
+            DistDblNumVec& rhoLGL, 
+            DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
 
-  void CalculateGradDensity( DistFourier&   fft );
+    /// @brief Compute the electron density using the density matrix and
+    /// with intra-element parallelization. This is used after obtaining
+    /// the density matrix using PEXSI.
+    void CalculateDensityDM2( 
+            DistDblNumVec& rho, 
+            DistDblNumVec& rhoLGL, 
+            DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
 
-  /// @brief Compute the exchange-correlation potential and energy.
-  void CalculateXC ( 
-      Real &Exc, 
-      DistDblNumVec&   epsxc,
-      DistDblNumVec&   vxc,
-      DistFourier&   fft );
-  /// @brief Compute the Hartree potential.
-  void CalculateHartree( 
-      DistDblNumVec& vhart, 
-      DistFourier&   fft );
+    void CalculateGradDensity( DistFourier&   fft );
 
-  /// @brief Compute the total potential
-  void CalculateVtot( DistDblNumVec& vtot );
+    /// @brief Compute the exchange-correlation potential and energy.
+    void CalculateXC ( 
+            Real &Exc, 
+            DistDblNumVec&   epsxc,
+            DistDblNumVec&   vxc,
+            DistFourier&   fft );
+    /// @brief Compute the Hartree potential.
+    void CalculateHartree( 
+            DistDblNumVec& vhart, 
+            DistFourier&   fft );
 
-  /// @brief Assemble the DG Hamiltonian matrix. The mass matrix is
-  /// identity in the framework of adaptive local basis functions.
-  void CalculateDGMatrix( ); 
+    /// @brief Compute the total potential
+    void CalculateVtot( DistDblNumVec& vtot );
 
-  /// @brief Update the DG Hamiltonian matrix with the same set of
-  /// adaptive local basis functions, but different local potential. 
-  ///
-  /// This subroutine is used in the inner SCF loop when only the local
-  /// pseudopotential is updated.
-  ///
-  /// @param vtotLGLDiff Difference of vtot defined on each LGL grid.
-  /// The contribution of this difference is to be added to the
-  /// Hamiltonian matrix HMat_.
-  void UpdateDGMatrix( DistDblNumVec&  vtotLGLDiff );
+    /// @brief Assemble the DG Hamiltonian matrix. The mass matrix is
+    /// identity in the framework of adaptive local basis functions.
+    void CalculateDGMatrix( ); 
 
-  /// @brief Calculate the Hellmann-Feynman force for each atom.
-  void CalculateForce ( DistFourier& fft );
+    /// @brief Update the DG Hamiltonian matrix with the same set of
+    /// adaptive local basis functions, but different local potential. 
+    ///
+    /// This subroutine is used in the inner SCF loop when only the local
+    /// pseudopotential is updated.
+    ///
+    /// @param vtotLGLDiff Difference of vtot defined on each LGL grid.
+    /// The contribution of this difference is to be added to the
+    /// Hamiltonian matrix HMat_.
+    void UpdateDGMatrix( DistDblNumVec&  vtotLGLDiff );
 
-  /// @brief Calculate the Hellmann-Feynman force for each atom using
-  /// the density matrix formulation.
-  void CalculateForceDM ( DistFourier& fft, 
-      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
+    /// @brief Calculate the Hellmann-Feynman force for each atom.
+    void CalculateForce ( DistFourier& fft );
+
+    /// @brief Calculate the Hellmann-Feynman force for each atom using
+    /// the density matrix formulation.
+    void CalculateForceDM ( DistFourier& fft, 
+            DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
 
 
-  /// @brief Calculate the residual type a posteriori error estimator
-  /// for the solution. 
-  ///
-  /// Currently only the residual term is computed, and it is assumed
-  /// that the eigenvalues and eigenfunctions have been computed and
-  /// saved in eigVal_ and eigvecCoef_.
-  ///
-  /// Currently the nonlocal pseudopotential is not implemented in this
-  /// subroutine.
-  ///
-  /// @param[out] eta2Total Total residual-based error estimator.
-  /// Reduced among all processors.
-  /// @param[out] eta2Residual Residual term.
-  /// @param[out] eta2GradJump Jump of the gradient of the
-  /// eigenfunction, or "face" term.  
-  /// @param[out] eta2Jump Jump of the value of the eigenfunction, or
-  /// "jump" term.
-  void CalculateAPosterioriError( 
-      DblNumTns&       eta2Total,
-      DblNumTns&       eta2Residual,
-      DblNumTns&       eta2GradJump,
-      DblNumTns&       eta2Jump	);
+    /// @brief Calculate the residual type a posteriori error estimator
+    /// for the solution. 
+    ///
+    /// Currently only the residual term is computed, and it is assumed
+    /// that the eigenvalues and eigenfunctions have been computed and
+    /// saved in eigVal_ and eigvecCoef_.
+    ///
+    /// Currently the nonlocal pseudopotential is not implemented in this
+    /// subroutine.
+    ///
+    /// @param[out] eta2Total Total residual-based error estimator.
+    /// Reduced among all processors.
+    /// @param[out] eta2Residual Residual term.
+    /// @param[out] eta2GradJump Jump of the gradient of the
+    /// eigenfunction, or "face" term.  
+    /// @param[out] eta2Jump Jump of the value of the eigenfunction, or
+    /// "jump" term.
+    void CalculateAPosterioriError( 
+            DblNumTns&       eta2Total,
+            DblNumTns&       eta2Residual,
+            DblNumTns&       eta2GradJump,
+            DblNumTns&       eta2Jump	);
 
-  // *********************************************************************
-  // Access
-  // *********************************************************************
+    // *********************************************************************
+    // Access
+    // *********************************************************************
 
-  /// @brief Total potential in the global domain.
-  DistDblNumVec&  Vtot( ) { return vtot_; }
+    /// @brief Total potential in the global domain.
+    DistDblNumVec&  Vtot( ) { return vtot_; }
 
-  /// @brief External potential in the global domain.
-  DistDblNumVec&  Vext( ) { return vext_; }
+    /// @brief External potential in the global domain.
+    DistDblNumVec&  Vext( ) { return vext_; }
 
-  /// @brief Exchange-correlation potential in the global domain. No
-  /// magnization calculation in the DG code.
-  DistDblNumVec&  Vxc()  { return vxc_; }
+    /// @brief Exchange-correlation potential in the global domain. No
+    /// magnization calculation in the DG code.
+    DistDblNumVec&  Vxc()  { return vxc_; }
 
-  /// @brief Exchange-correlation energy density in the global domain.
-  DistDblNumVec&  Epsxc()  { return epsxc_; }
+    /// @brief Exchange-correlation energy density in the global domain.
+    DistDblNumVec&  Epsxc()  { return epsxc_; }
 
-  /// @brief Hartree potential in the global domain.
-	DistDblNumVec&  Vhart() { return vhart_; }
+    /// @brief Hartree potential in the global domain.
+    DistDblNumVec&  Vhart() { return vhart_; }
 
-	/// @brief Electron density in the global domain. No magnitization for
-  /// DG calculation.
-  DistDblNumVec&  Density() { return density_; }
+    /// @brief Electron density in the global domain. No magnitization for
+    /// DG calculation.
+    DistDblNumVec&  Density() { return density_; }
 
-  std::vector<DistDblNumVec>  GradDensity() { return gradDensity_; }
+    std::vector<DistDblNumVec>  GradDensity() { return gradDensity_; }
 
-  DistDblNumVec&  DensityLGL() { return densityLGL_; }
+    DistDblNumVec&  DensityLGL() { return densityLGL_; }
 
-  DistDblNumVec&  PseudoCharge() { return pseudoCharge_; }
+    DistDblNumVec&  PseudoCharge() { return pseudoCharge_; }
 
-  std::vector<Atom>&  AtomList() { return atomList_; }
+    std::vector<Atom>&  AtomList() { return atomList_; }
 
-	Int NumSpin () { return numSpin_; }
+    Int NumSpin () { return numSpin_; }
 
-	DblNumVec&  EigVal() { return eigVal_; }
-	
-	DblNumVec&  OccupationRate() { return occupationRate_; }
+    DblNumVec&  EigVal() { return eigVal_; }
 
-  IntNumVec&  BasisUniformFineIdx() { return basisUniformFineIdx_; }
-  const IntNumVec&  BasisUniformFineIdx() const { return basisUniformFineIdx_; }
-  Int&  BasisUniformFineIdx(const Int k) { return basisUniformFineIdx_(k); }
-  const Int&  BasisUniformFineIdx(const Int k) const { return basisUniformFineIdx_(k); }
+    DblNumVec&  OccupationRate() { return occupationRate_; }
 
-  DistDblNumMat&  BasisUniformFine() { return basisUniformFine_; }
+    IntNumVec&  BasisUniformFineIdx() { return basisUniformFineIdx_; }
+    const IntNumVec&  BasisUniformFineIdx() const { return basisUniformFineIdx_; }
+    Int&  BasisUniformFineIdx(const Int k) { return basisUniformFineIdx_(k); }
+    const Int&  BasisUniformFineIdx(const Int k) const { return basisUniformFineIdx_(k); }
 
-	DistDblNumVec&  VtotLGL() { return vtotLGL_; }
+    DistDblNumMat&  BasisUniformFine() { return basisUniformFine_; }
 
-  IntNumVec&  BasisLGLIdx() { return basisLGLIdx_; }
-  const IntNumVec&  BasisLGLIdx() const { return basisLGLIdx_; }
-  Int&  BasisLGLIdx(const Int k) { return basisLGLIdx_(k); }
-  const Int&  BasisLGLIdx(const Int k) const { return basisLGLIdx_(k); }
+    DistDblNumVec&  VtotLGL() { return vtotLGL_; }
 
-  DistDblNumMat&  BasisLGL() { return basisLGL_; }
+    IntNumVec&  BasisLGLIdx() { return basisLGLIdx_; }
+    const IntNumVec&  BasisLGLIdx() const { return basisLGLIdx_; }
+    Int&  BasisLGLIdx(const Int k) { return basisLGLIdx_(k); }
+    const Int&  BasisLGLIdx(const Int k) const { return basisLGLIdx_(k); }
 
-	DistDblNumMat&  EigvecCoef() { return eigvecCoef_; }
+    DistDblNumMat&  BasisLGL() { return basisLGL_; }
 
-	/// @brief DG Hamiltonian matrix.
-	DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>&  
-		HMat() { return HMat_; } 
+    DistDblNumMat&  EigvecCoef() { return eigvecCoef_; }
 
-	Int NumBasisTotal() const { return sizeHMat_; }
+    /// @brief DG Hamiltonian matrix.
+    DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>&  
+        HMat() { return HMat_; } 
 
-  NumTns< std::vector<Int> >&  ElemBasisIdx() { return elemBasisIdx_; }
+    Int NumBasisTotal() const { return sizeHMat_; }
 
-  std::vector<Index3>&  ElemBasisInvIdx() { return elemBasisInvIdx_; }
+    NumTns< std::vector<Int> >&  ElemBasisIdx() { return elemBasisIdx_; }
 
-	/// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
-	Index3 NumUniformGridElem() const { return numUniformGridElem_; }
-  Index3 NumUniformGridElemFine() const { return numUniformGridElemFine_; }
+    std::vector<Index3>&  ElemBasisInvIdx() { return elemBasisInvIdx_; }
 
-	/// @brief Number of LGL grids in each element.
-	Index3 NumLGLGridElem() const { return numLGLGridElem_; }
+    /// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
+    Index3 NumUniformGridElem() const { return numUniformGridElem_; }
+    Index3 NumUniformGridElemFine() const { return numUniformGridElemFine_; }
 
-	/// @brief Return the uniform grid on each element
-	NumTns<std::vector<DblNumVec> >& UniformGridElem(){ return  uniformGridElem_; }
-  NumTns<std::vector<DblNumVec> >& UniformGridElemFine(){ return  uniformGridElemFine_; }
+    /// @brief Number of LGL grids in each element.
+    Index3 NumLGLGridElem() const { return numLGLGridElem_; }
 
-	/// @brief Return the LGL grid on each element
-	NumTns<std::vector<DblNumVec> >& LGLGridElem(){ return  LGLGridElem_; }
+    /// @brief Return the uniform grid on each element
+    NumTns<std::vector<DblNumVec> >& UniformGridElem(){ return  uniformGridElem_; }
+    NumTns<std::vector<DblNumVec> >& UniformGridElemFine(){ return  uniformGridElemFine_; }
 
-	/// @brief Return the element domain information
-	NumTns<Domain>&  DomainElem(){ return domainElem_; }
+    /// @brief Return the LGL grid on each element
+    NumTns<std::vector<DblNumVec> >& LGLGridElem(){ return  LGLGridElem_; }
 
-	/// @brief Return the 1D LGL weights
-	std::vector<DblNumVec>&  LGLWeight1D(){ return LGLWeight1D_; }
+    /// @brief Return the element domain information
+    NumTns<Domain>&  DomainElem(){ return domainElem_; }
 
-	/// @brief Return the 2D LGL weights
-	std::vector<DblNumMat>&  LGLWeight2D(){ return LGLWeight2D_; }
+    /// @brief Return the 1D LGL weights
+    std::vector<DblNumVec>&  LGLWeight1D(){ return LGLWeight1D_; }
 
-	/// @brief Return the 3D LGL weights
-	DblNumTns&  LGLWeight3D(){ return LGLWeight3D_; }
+    /// @brief Return the 2D LGL weights
+    std::vector<DblNumMat>&  LGLWeight2D(){ return LGLWeight2D_; }
 
-	// *********************************************************************
-	// Inquiry
-	// *********************************************************************
+    /// @brief Return the 3D LGL weights
+    DblNumTns&  LGLWeight3D(){ return LGLWeight3D_; }
 
-	Int NumStateTotal() const { return numExtraState_ + numOccupiedState_; }
+    // *********************************************************************
+    // Inquiry
+    // *********************************************************************
 
-	Int NumOccupiedState() const { return numOccupiedState_; }
+    Int NumStateTotal() const { return numExtraState_ + numOccupiedState_; }
 
-	Int NumExtraState() const { return numExtraState_; }
+    Int NumOccupiedState() const { return numOccupiedState_; }
+
+    Int NumExtraState() const { return numExtraState_; }
 
 };
 

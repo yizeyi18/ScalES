@@ -93,6 +93,7 @@ namespace dgdft{
       bool                isOutputALBElemUniform_;
       bool                isOutputWfnExtElem_;
       bool                isOutputPotExtElem_; 
+      bool                isOutputEigvecCoef_;
       bool                isCalculateAPosterioriEachSCF_;
       bool                isCalculateForceEachSCF_;
       bool                isOutputHMatrix_;
