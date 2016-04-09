@@ -42,9 +42,11 @@
 */
 /// @file scf.cpp
 /// @brief SCF class for the global domain or extended element.
-/// @date 2012-10-25
+/// @date 2012-10-25 Initial version
 /// @date 2014-02-01 Dual grid implementation
 /// @date 2014-08-07 Parallelization for PWDFT
+/// @date 2016-01-19 Add hybrid functional
+/// @date 2016-04-08 Update mixing
 #include  "scf.hpp"
 #include	"blas.hpp"
 #include	"lapack.hpp"
@@ -398,13 +400,19 @@ SCF::Iterate (  )
       }
 
       // Potential mixing
-      if( mixType_ == "anderson" ){
-        AndersonMix(iter);
+      if( mixType_ == "anderson" || mixType_ == "kerker+anderson" ){
+          AndersonMix(
+                  iter,
+                  mixStepLength_,
+                  mixType_,
+                  ham.Vtot(),
+                  vtotOld_,
+                  vtotNew_,
+                  dfMat_,
+                  dvMat_);
       }
-
-      if( mixType_ == "kerker" ){
-        KerkerMix();  
-        AndersonMix(iter);
+      else{
+          ErrorHandling("Invalid mixing type.");
       }
 
       GetTime( timeIterEnd );
@@ -980,86 +988,106 @@ SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
   return ;
 } 		// -----  end of method SCF::CalculateVDW  ----- 
 
-
 void
-SCF::AndersonMix	( const Int iter )
-{
+SCF::AndersonMix	( 
+        Int iter,
+        Real            mixStepLength,
+        std::string     mixType,
+        DblNumVec&      vMix,
+        DblNumVec&      vOld,
+        DblNumVec&      vNew,
+        DblNumMat&      dfMat,
+        DblNumMat&      dvMat ) {
 #ifndef _RELEASE_
   PushCallStack("SCF::AndersonMix");
 #endif
-  DblNumVec vin, vout, vinsave, voutsave;
-
   Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
 
-  vin.Resize(ntot);
-  vout.Resize(ntot);
-  vinsave.Resize(ntot);
-  voutsave.Resize(ntot);
+  // Residual 
+  DblNumVec res;
+  // Optimal input potential in Anderon mixing.
+  DblNumVec vOpt; 
+  // Optimal residual in Anderson mixing
+  DblNumVec resOpt; 
+  // Preconditioned optimal residual in Anderson mixing
+  DblNumVec precResOpt;
 
-  DblNumVec& vtot = eigSolPtr_->Ham().Vtot();
+  res.Resize(ntot);
+  vOpt.Resize(ntot);
+  resOpt.Resize(ntot);
+  precResOpt.Resize(ntot);
 
-  for (Int i=0; i<ntot; i++) {
-    vin(i) = vtot(i);
-    vout(i) = vtotNew_(i) - vtot(i);
-  }
-
-  for(Int i = 0; i < ntot; i++){
-    vinsave(i) = vin(i);
-    voutsave(i) = vout(i);
-  }
-
-  Int iterused = std::min( iter-1, mixMaxDim_ ); // iter should start from 1
+  // Number of iterations used, iter should start from 1
+  Int iterused = std::min( iter-1, mixMaxDim_ ); 
+  // The current position of dfMat, dvMat
   Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
+  // The next position of dfMat, dvMat
+  Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
 
-  // TODO Set verbose level 
-  Print( statusOFS, "Anderson mixing" );
-  Print( statusOFS, "  iterused = ", iterused );
-  Print( statusOFS, "  ipos     = ", ipos );
+  res = vOld;
+  // res(:) = vOld(:) - vNew(:) is the residual
+  blas::Axpy( ntot, -1.0, vNew.Data(), 1, res.Data(), 1 );
 
+  vOpt = vOld;
+  resOpt = res;
 
   if( iter > 1 ){
-    for(Int i = 0; i < ntot; i++){
-      dfMat_(i, ipos-1) -= vout(i);
-      dvMat_(i, ipos-1) -= vin(i);
-    }
+      // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
+      // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
+      blas::Scal( ntot, -1.0, dfMat.VecData(ipos-1), 1 );
+      blas::Axpy( ntot, 1.0, res.Data(), 1, dfMat.VecData(ipos-1), 1 );
+      blas::Scal( ntot, -1.0, dvMat.VecData(ipos-1), 1 );
+      blas::Axpy( ntot, 1.0, vOld.Data(), 1, dvMat.VecData(ipos-1), 1 );
 
-    // Calculating pseudoinverse
 
-    DblNumVec gammas, S;
-    DblNumMat dftemp;
-    Int rank;
-    // FIXME Magic number
-    Real rcond = 1e-6;
+      // Calculating pseudoinverse
+      Int nrow = iterused;
+      DblNumMat dfMatTemp;
+      DblNumVec gammas, S;
 
-    S.Resize(iterused);
+      Int rank;
+      // FIXME Magic number
+      Real rcond = 1e-6;
 
-    gammas = vout;
-    dftemp = dfMat_;
+      S.Resize(nrow);
 
-    lapack::SVDLeastSquare( ntot, iterused, 1, 
-        dftemp.Data(), ntot, gammas.Data(), ntot,
-        S.Data(), rcond, &rank );
+      gammas    = res;
+      dfMatTemp = dfMat;
 
-    Print( statusOFS, "  Rank of dfmat = ", rank );
+      lapack::SVDLeastSquare( ntot, iterused, 1, 
+              dfMatTemp.Data(), ntot, gammas.Data(), ntot,
+              S.Data(), rcond, &rank );
 
-    // Update vin, vout
+      Print( statusOFS, "  Rank of dfmat = ", rank );
 
-    blas::Gemv('N', ntot, iterused, -1.0, dvMat_.Data(),
-        ntot, gammas.Data(), 1, 1.0, vin.Data(), 1 );
+        // Update vOpt, resOpt. 
 
-    blas::Gemv('N', ntot, iterused, -1.0, dfMat_.Data(),
-        ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
+      blas::Gemv('N', ntot, nrow, -1.0, dvMat.Data(),
+              ntot, gammas.Data(), 1, 1.0, vOpt.Data(), 1 );
+
+      blas::Gemv('N', ntot, iterused, -1.0, dfMat.Data(),
+              ntot, gammas.Data(), 1, 1.0, resOpt.Data(), 1 );
   }
 
-  Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
-  for (Int i=0; i<ntot; i++) {
-    dfMat_(i, inext-1) = voutsave(i);
-    dvMat_(i, inext-1) = vinsave(i);
+  if( mixType == "kerker+anderson" ){
+      KerkerPrecond( precResOpt, resOpt );
+  }
+  else if( mixType == "anderson" ){
+      precResOpt = resOpt;
   }
 
-  for (Int i=0; i<ntot; i++) {
-    vtot(i) = vin(i) + mixStepLength_ * vout(i);
-  }
+
+  // Update dfMat, dvMat, vMix 
+  // dfMat(:, inext-1) = res(:)
+  // dvMat(:, inext-1) = vOld(:)
+  blas::Copy( ntot, res.Data(), 1, 
+          dfMat.VecData(inext-1), 1 );
+  blas::Copy( ntot, vOld.Data(),  1, 
+          dvMat.VecData(inext-1), 1 );
+
+  // vMix(:) = vOpt(:) - mixStepLength * precRes(:)
+  vMix = vOpt;
+  blas::Axpy( ntot, -mixStepLength, precResOpt.Data(), 1, vMix.Data(), 1 );
 
 #ifndef _RELEASE_
   PopCallStack();
@@ -1069,50 +1097,200 @@ SCF::AndersonMix	( const Int iter )
 
 } 		// -----  end of method SCF::AndersonMix  ----- 
 
-
 void
-SCF::KerkerMix	(  )
+SCF::KerkerPrecond (
+            DblNumVec&  precResidual,
+            const DblNumVec&  residual )
 {
 #ifndef _RELEASE_
-  PushCallStack("SCF::KerkerMix");
+    PushCallStack("SCF::KerkerPrecond");
 #endif
-  // FIXME Magic number here
-  Real mixStepLengthKerker = 0.8; 
-  Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
-  DblNumVec& vtot = eigSolPtr_->Ham().Vtot();
+    Fourier& fft = eigSolPtr_->FFT();
+    Int ntot  = fft.domain.NumGridTotalFine();
+   
+    // NOTE Fixed KerkerB parameter
+    //
+    // From the point of view of the elliptic preconditioner
+    //
+    // (-\Delta + 4 * pi * b) r_p = -Delta r
+    //
+    // The Kerker preconditioner in the Fourier space is
+    //
+    // k^2 / (k^2 + 4 * pi * b)
+    //
+    // or using gkk = k^2 /2 
+    //
+    // gkk / ( gkk + 2 * pi * b )
+    //
+    // Here we choose KerkerB to be a fixed number.
+    
+    // FIXME hard coded
+    Real KerkerB = 0.08; 
+    Real Amin = 0.4;
 
-  for (Int i=0; i<ntot; i++) {
-    eigSolPtr_->FFT().inputComplexVec(i) = 
-      Complex(vtotNew_(i) - vtot(i), 0.0);
-    // Why?
-    vtot(i) += mixStepLengthKerker * (vtotNew_(i) - vtot(i));
-  }
-  fftw_execute( eigSolPtr_->FFT().forwardPlan );
-
-  DblNumVec&  gkk = eigSolPtr_->FFT().gkk;
-
-  for(Int i=0; i<ntot; i++) {
-    if( gkk(i) == 0 ){
-      eigSolPtr_->FFT().outputComplexVec(i) = Z_ZERO;
+    for (Int i=0; i<ntot; i++) {
+        fft.inputComplexVecFine(i) = Complex(residual(i), 0.0);
     }
-    else{
-      // FIXME Magic number
-      eigSolPtr_->FFT().outputComplexVec(i) *= 
-        mixStepLengthKerker * ( gkk(i) / (gkk(i)+0.5) - 1.0 );
-    }
-  }
-  fftw_execute( eigSolPtr_->FFT().backwardPlan );
 
-  // Update vtot
-  for (Int i=0; i<ntot; i++)
-	  vtot(i) += eigSolPtr_->FFT().inputComplexVec(i).real() / ntot;	
+    FFTWExecute( fft, fft.forwardPlanFine );
+
+    DblNumVec&  gkkFine = fft.gkkFine;
+
+    for(Int i=0; i<ntot; i++) {
+        // Procedure taken from VASP
+        if( gkkFine(i) != 0 ){
+            fft.outputComplexVecFine(i) *= gkkFine(i) / 
+                    ( gkkFine(i) + 2.0 * PI * KerkerB );
+//            fft.outputComplexVecFine(i) *= std::min(gkkFine(i) / 
+//                    ( gkkFine(i) + 2.0 * PI * KerkerB ), Amin);
+        }
+    }
+    FFTWExecute ( fft, fft.backwardPlanFine );
+
+    for (Int i=0; i<ntot; i++){
+        precResidual(i) = fft.inputComplexVecFine(i).real();	
+    }
 
 #ifndef _RELEASE_
-	PopCallStack();
+    PopCallStack();
 #endif
 
-	return ;
-} 		// -----  end of method SCF::KerkerMix  ----- 
+    return ;
+} 		// -----  end of method SCF::KerkerPrecond  ----- 
+
+
+//void
+//SCF::AndersonMix	( const Int iter )
+//{
+//#ifndef _RELEASE_
+//  PushCallStack("SCF::AndersonMix");
+//#endif
+//  DblNumVec vin, vout, vinsave, voutsave;
+//
+//  Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
+//
+//  vin.Resize(ntot);
+//  vout.Resize(ntot);
+//  vinsave.Resize(ntot);
+//  voutsave.Resize(ntot);
+//
+//  DblNumVec& vtot = eigSolPtr_->Ham().Vtot();
+//
+//  for (Int i=0; i<ntot; i++) {
+//    vin(i) = vtot(i);
+//    vout(i) = vtotNew_(i) - vtot(i);
+//  }
+//
+//  for(Int i = 0; i < ntot; i++){
+//    vinsave(i) = vin(i);
+//    voutsave(i) = vout(i);
+//  }
+//
+//  Int iterused = std::min( iter-1, mixMaxDim_ ); // iter should start from 1
+//  Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
+//
+//  // TODO Set verbose level 
+//  Print( statusOFS, "Anderson mixing" );
+//  Print( statusOFS, "  iterused = ", iterused );
+//  Print( statusOFS, "  ipos     = ", ipos );
+//
+//
+//  if( iter > 1 ){
+//    for(Int i = 0; i < ntot; i++){
+//      dfMat_(i, ipos-1) -= vout(i);
+//      dvMat_(i, ipos-1) -= vin(i);
+//    }
+//
+//    // Calculating pseudoinverse
+//
+//    DblNumVec gammas, S;
+//    DblNumMat dftemp;
+//    Int rank;
+//    // FIXME Magic number
+//    Real rcond = 1e-6;
+//
+//    S.Resize(iterused);
+//
+//    gammas = vout;
+//    dftemp = dfMat_;
+//
+//    lapack::SVDLeastSquare( ntot, iterused, 1, 
+//        dftemp.Data(), ntot, gammas.Data(), ntot,
+//        S.Data(), rcond, &rank );
+//
+//    Print( statusOFS, "  Rank of dfmat = ", rank );
+//
+//    // Update vin, vout
+//
+//    blas::Gemv('N', ntot, iterused, -1.0, dvMat_.Data(),
+//        ntot, gammas.Data(), 1, 1.0, vin.Data(), 1 );
+//
+//    blas::Gemv('N', ntot, iterused, -1.0, dfMat_.Data(),
+//        ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
+//  }
+//
+//  Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
+//  for (Int i=0; i<ntot; i++) {
+//    dfMat_(i, inext-1) = voutsave(i);
+//    dvMat_(i, inext-1) = vinsave(i);
+//  }
+//
+//  for (Int i=0; i<ntot; i++) {
+//    vtot(i) = vin(i) + mixStepLength_ * vout(i);
+//  }
+//
+//#ifndef _RELEASE_
+//  PopCallStack();
+//#endif
+//
+//  return ;
+//
+//} 		// -----  end of method SCF::AndersonMix  ----- 
+
+
+//void
+//SCF::KerkerMix	(  )
+//{
+//#ifndef _RELEASE_
+//  PushCallStack("SCF::KerkerMix");
+//#endif
+//  // FIXME Magic number here
+//  Real mixStepLengthKerker = 0.8; 
+//  Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
+//  DblNumVec& vtot = eigSolPtr_->Ham().Vtot();
+//
+//  for (Int i=0; i<ntot; i++) {
+//    eigSolPtr_->FFT().inputComplexVec(i) = 
+//      Complex(vtotNew_(i) - vtot(i), 0.0);
+//    // Why?
+//    vtot(i) += mixStepLengthKerker * (vtotNew_(i) - vtot(i));
+//  }
+//  fftw_execute( eigSolPtr_->FFT().forwardPlan );
+//
+//  DblNumVec&  gkk = eigSolPtr_->FFT().gkk;
+//
+//  for(Int i=0; i<ntot; i++) {
+//    if( gkk(i) == 0 ){
+//      eigSolPtr_->FFT().outputComplexVec(i) = Z_ZERO;
+//    }
+//    else{
+//      // FIXME Magic number
+//      eigSolPtr_->FFT().outputComplexVec(i) *= 
+//        mixStepLengthKerker * ( gkk(i) / (gkk(i)+0.5) - 1.0 );
+//    }
+//  }
+//  fftw_execute( eigSolPtr_->FFT().backwardPlan );
+//
+//  // Update vtot
+//  for (Int i=0; i<ntot; i++)
+//	  vtot(i) += eigSolPtr_->FFT().inputComplexVec(i).real() / ntot;	
+//
+//#ifndef _RELEASE_
+//	PopCallStack();
+//#endif
+//
+//	return ;
+//} 		// -----  end of method SCF::KerkerMix  ----- 
 
 void
 SCF::PrintState	( const Int iter  )

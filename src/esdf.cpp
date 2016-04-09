@@ -2270,7 +2270,7 @@ namespace dgdft{
           esdfParam.mixType         = strtmp;
           if( esdfParam.mixType != "anderson" &&
               esdfParam.mixType != "kerker+anderson" ){
-            throw std::runtime_error("Invalid mixing type.");
+            ErrorHandling("Invalid mixing type.");
           }
 
           esdf_string("Mixing_Variable", "potential", strtmp); 

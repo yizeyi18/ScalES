@@ -68,357 +68,357 @@ void Usage(){
 
 int main(int argc, char **argv) 
 {
-	MPI_Init(&argc, &argv);
-	int mpirank, mpisize;
-	MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-	MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
-	Real timeSta, timeEnd;
+    MPI_Init(&argc, &argv);
+    int mpirank, mpisize;
+    MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+    MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+    Real timeSta, timeEnd;
 
-	if( mpirank == 0 )
-		Usage();
+    if( mpirank == 0 )
+        Usage();
 
-	try
-	{
-		// *********************************************************************
-		// Input parameter
-		// *********************************************************************
-		
-		// Initialize log file
-#ifdef _RELEASE_
-     // In the release mode, only the master processor outputs information
-     if( mpirank == 0 ){
-       stringstream  ss;
-       ss << "statfile." << mpirank;
-       statusOFS.open( ss.str().c_str() );
-     }
-#else
-    // Every processor outputs information
+    try
     {
-      stringstream  ss;
-      ss << "statfile." << mpirank;
-      statusOFS.open( ss.str().c_str() );
-    }
+        // *********************************************************************
+        // Input parameter
+        // *********************************************************************
+
+        // Initialize log file
+#ifdef _RELEASE_
+        // In the release mode, only the master processor outputs information
+        if( mpirank == 0 ){
+            stringstream  ss;
+            ss << "statfile." << mpirank;
+            statusOFS.open( ss.str().c_str() );
+        }
+#else
+        // Every processor outputs information
+        {
+            stringstream  ss;
+            ss << "statfile." << mpirank;
+            statusOFS.open( ss.str().c_str() );
+        }
 #endif
 
-    Print( statusOFS, "mpirank = ", mpirank );
-    Print( statusOFS, "mpisize = ", mpisize );
-		
-    // Initialize input parameters
-		std::map<std::string,std::string> options;
-		OptionsCreate(argc, argv, options);
+        Print( statusOFS, "mpirank = ", mpirank );
+        Print( statusOFS, "mpisize = ", mpisize );
 
-		std::string inFile;                   
-		if( options.find("-in") != options.end() ){ 
-			inFile = options["-in"];
-		}
-		else{
-			inFile = "pwdft.in";
-		}
+        // Initialize input parameters
+        std::map<std::string,std::string> options;
+        OptionsCreate(argc, argv, options);
 
-
-		// Read ESDF input file
-		ESDFInputParam  esdfParam;
-
-		ESDFReadInput( esdfParam, inFile.c_str() );
-
-		// Print the initial state
-    ESDFPrintInput( esdfParam );
-
-
-		// *********************************************************************
-		// Preparation
-		// *********************************************************************
-		SetRandomSeed(mpirank);
-
-		Domain&  dm = esdfParam.domain;
-		PeriodTable ptable;
-		Fourier fft;
-		Spinor  psi;
-		KohnSham hamKS;
-		EigenSolver eigSol;
-		SCF  scf;
-
-		ptable.Setup( esdfParam.periodTableFile );
-
-    fft.Initialize( dm );
-
-    fft.InitializeFine( dm );
-
-		// Hamiltonian
-
-		hamKS.Setup( esdfParam, dm, esdfParam.atomList );
-
-		DblNumVec& vext = hamKS.Vext();
-		SetValue( vext, 0.0 );
-
-		hamKS.CalculatePseudoPotential( ptable );
-
-		statusOFS << "Hamiltonian constructed." << std::endl;
-
-		// Wavefunctions
-    int numStateTotal = hamKS.NumStateTotal();
-    int numStateLocal, blocksize;
-
-    // Safeguard for Chebyshev Filtering
-    if(esdfParam.Diag_SCF_PWDFT_by_Cheby == 1)
-    { 
-     if(numStateTotal % mpisize != 0)
-     {
-      MPI_Barrier(MPI_COMM_WORLD);  
-      statusOFS << std::endl << std::endl 
-                <<" Input Error ! Chebyshev Filtering within PWDFT requires total number of bands to be divisble by mpisize. " << std::endl << " Total No. of states = " << numStateTotal << " , mpisize = " << mpisize << " ." << std::endl <<  " Use a different value of extrastates." << endl << " Aborting ..." << std::endl << std::endl;
-      MPI_Barrier(MPI_COMM_WORLD);
-      exit(-1);  
-     }	
-    }
-      
-
-    if ( numStateTotal <=  mpisize ) {
-      blocksize = 1;
-
-      if ( mpirank < numStateTotal ){
-        numStateLocal = 1; // blocksize == 1;
-      }
-      else { 
-        // FIXME Throw an error here.
-        numStateLocal = 0;
-      }
-    }
-    else {  // numStateTotal >  mpisize
-  
-      if ( numStateTotal % mpisize == 0 ){
-        blocksize = numStateTotal / mpisize;
-        numStateLocal = blocksize ;
-      }
-      else {
-        // blocksize = ((numStateTotal - 1) / mpisize) + 1;
-        blocksize = numStateTotal / mpisize;
-        numStateLocal = blocksize ;
-        if ( mpirank < ( numStateTotal % mpisize ) ) {
-          numStateLocal = numStateLocal + 1 ;
-        }
-      }    
-    }
-     
-    psi.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
-    
-    statusOFS << "Spinor setup finished." << std::endl;
-
-    UniformRandom( psi.Wavefun() );
-
-    if( hamKS.IsHybrid() ){
-      GetTime( timeSta );
-      hamKS.InitializeEXX( esdfParam.ecutWavefunction, fft );
-      GetTime( timeEnd );
-      statusOFS << "Time for setting up the exchange for the Hamiltonian part = " 
-        << timeEnd - timeSta << " [s]" << std::endl;
-    }
-
-
-		// Eigensolver class
-		eigSol.Setup( esdfParam, hamKS, psi, fft );
-
-		statusOFS << "Eigensolver setup finished ." << std::endl;
-
-		scf.Setup( esdfParam, eigSol, ptable );
-
-		statusOFS << "SCF setup finished ." << std::endl;
-
-
-		// *********************************************************************
-		// Single shot calculation first
-		// *********************************************************************
-
-		GetTime( timeSta );
-    scf.Iterate();
-		GetTime( timeEnd );
-    statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
-      << " [s]" << std::endl;
-		
-    // *********************************************************************
-		// Geometry optimization or Molecular dynamics
-		// *********************************************************************
-
-    IonDynamics ionDyn;
-
-    ionDyn.Setup( esdfParam, hamKS.AtomList(), ptable ); 
-
-    Int maxHist = ionDyn.MaxHist();
-    // densityHist[0] is the lastest density
-    std::vector<DblNumMat>    densityHist(maxHist);
-    for( Int l = 0; l < maxHist; l++ ){
-      densityHist[l] = hamKS.Density();
-    } // for (l)
-
-    // Main loop for geometry optimization or molecular dynamics
-    // If ionMaxIter == 1, it is equivalent to single shot calculation
-    Int ionMaxIter = esdfParam.ionMaxIter;
-
-    Int scfPhiMaxIter = 1;
-    if( esdfParam.isHybridACEOutside == true ){
-      scfPhiMaxIter = esdfParam.scfPhiMaxIter;
-    }
-
-    bool isPhiIterConverged = false;
-    Real timePhiIterStart(0), timePhiIterEnd(0);
-
-    for( Int phiIter = 1; phiIter <= scfPhiMaxIter; phiIter++ ){
-      if( hamKS.IsHybrid() && esdfParam.isHybridACEOutside == true )
-      {
-        if ( isPhiIterConverged ) break;
-        GetTime( timePhiIterStart );
-        std::ostringstream msg;
-        msg << "Phi iteration #" << phiIter << "  (Outside SCF)";
-        PrintBlock( statusOFS, msg.str() );
-      }
-
-      for( Int ionIter = 1; ionIter <= ionMaxIter; ionIter++ ){
-        {
-          std::ostringstream msg;
-          msg << "Ion move step # " << ionIter;
-          PrintBlock( statusOFS, msg.str() );
-        }
-
-        // Get the new atomic coordinates
-        // NOTE: ionDyn directly updates the coordinates in Hamiltonian
-        ionDyn.SetEpot( scf.Efree() );
-        ionDyn.MoveIons(ionIter);
-
-        GetTime( timeSta );
-        hamKS.UpdateHamiltonian( hamKS.AtomList() );
-        hamKS.CalculatePseudoPotential( ptable );
-        scf.Update( ); 
-        GetTime( timeEnd );
-        statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
-          << " [s]" << std::endl;
-
-
-        // Update the density history through extrapolation
-        {
-          for( Int l = maxHist-1; l > 0; l-- ){
-            densityHist[l]     = densityHist[l-1];
-          } // for (l)
-          densityHist[0] = hamKS.Density();
-
-          // Compute the extrapolation coefficient
-          DblNumVec denCoef;
-          ionDyn.DensityExtrapolateCoefficient( ionIter, denCoef );
-          statusOFS << "Extrapolation density coefficient = " << denCoef << std::endl;
-
-          // Update the electron density
-          DblNumMat& denCurVec  = hamKS.Density();
-          SetValue( denCurVec, 0.0 );
-          for( Int l = 0; l < maxHist; l++ ){
-            blas::Axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
-                1, denCurVec.Data(), 1 );
-          } // for (l)
-        } // density extrapolation
-
-
-        GetTime( timeSta );
-        scf.Iterate( );
-        GetTime( timeEnd );
-        statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
-          << " [s]" << std::endl;
-
-        // Geometry optimization
-        if( ionDyn.IsGeoOpt() ){
-          if( MaxForce( hamKS.AtomList() ) < esdfParam.geoOptMaxForce ){
-            statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
-              << "Exit the loops for ions." << std::endl;
-            break;
-          }
-        }
-      } // ionIter
-
-
-      // EXX
-      if( hamKS.IsHybrid() && esdfParam.isHybridACEOutside == true ){
-        Real dExx;
-        Real fock0, fock1, fock2;
-        if( phiIter == 1 ){
-          hamKS.SetEXXActive(true);
-          // Update Phi <- Psi
-          GetTime( timeSta );
-          hamKS.SetPhiEXX( psi, fft ); 
-          if( hamKS.IsHybridACE() ){
-            hamKS.CalculateVexxACE ( psi, fft );
-          }
-          GetTime( timeEnd );
-          statusOFS << "Time for updating Phi related variable is " <<
-            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-          GetTime( timeSta );
-          fock2 = hamKS.CalculateEXXEnergy( psi, fft ); 
-          GetTime( timeEnd );
-          statusOFS << "Time for computing the EXX energy is " <<
-            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-          // Update the energy
-          scf.UpdateEfock(fock2);
-          Print(statusOFS, "Fock energy       = ",  scf.Efock(), "[au]");
-          Print(statusOFS, "Etot(with fock)   = ",  scf.Etot(), "[au]");
-          Print(statusOFS, "Efree(with fock)  = ",  scf.Efree(), "[au]");
+        std::string inFile;                   
+        if( options.find("-in") != options.end() ){ 
+            inFile = options["-in"];
         }
         else{
-          // Calculate first
-          fock1 = hamKS.CalculateEXXEnergy( psi, fft ); 
-
-          // Update Phi <- Psi
-          GetTime( timeSta );
-          hamKS.SetPhiEXX( psi, fft ); 
-          if( hamKS.IsHybridACE() ){
-            hamKS.CalculateVexxACE ( psi, fft );
-          }
-          GetTime( timeEnd );
-          statusOFS << "Time for updating Phi related variable is " <<
-            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-
-          fock0 = fock2;
-          // Calculate again
-          GetTime( timeSta );
-          fock2 = hamKS.CalculateEXXEnergy( psi, fft ); 
-          GetTime( timeEnd );
-          statusOFS << "Time for computing the EXX energy is " <<
-            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-          dExx = fock1 - 0.5 * (fock0 + fock2);
-
-          scf.UpdateEfock(fock2);
-          Print(statusOFS, "dExx              = ",  dExx, "[au]");
-          Print(statusOFS, "Fock energy       = ",  scf.Efock(), "[au]");
-          Print(statusOFS, "Etot(with fock)   = ",  scf.Etot(), "[au]");
-          Print(statusOFS, "Efree(with fock)  = ",  scf.Efree(), "[au]");
-
-          if( dExx < esdfParam.scfPhiTolerance ){
-            statusOFS << "SCF for hybrid functional is converged in " 
-              << phiIter << " steps !" << std::endl;
-            isPhiIterConverged = true;
-          }
+            inFile = "pwdft.in";
         }
 
-        GetTime( timePhiIterEnd );
 
-        statusOFS << "Total wall clock time for this Phi iteration = " << 
-          timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
-      } // if (hybrid)
+        // Read ESDF input file
+        ESDFInputParam  esdfParam;
 
-    } // for(phiIter)
+        ESDFReadInput( esdfParam, inFile.c_str() );
 
-//    ErrorHandling("Test");
+        // Print the initial state
+        ESDFPrintInput( esdfParam );
 
 
-	}
-	catch( std::exception& e )
-	{
-		std::cerr << " caught exception with message: "
-			<< e.what() << std::endl;
+        // *********************************************************************
+        // Preparation
+        // *********************************************************************
+        SetRandomSeed(mpirank);
+
+        Domain&  dm = esdfParam.domain;
+        PeriodTable ptable;
+        Fourier fft;
+        Spinor  psi;
+        KohnSham hamKS;
+        EigenSolver eigSol;
+        SCF  scf;
+
+        ptable.Setup( esdfParam.periodTableFile );
+
+        fft.Initialize( dm );
+
+        fft.InitializeFine( dm );
+
+        // Hamiltonian
+
+        hamKS.Setup( esdfParam, dm, esdfParam.atomList );
+
+        DblNumVec& vext = hamKS.Vext();
+        SetValue( vext, 0.0 );
+
+        hamKS.CalculatePseudoPotential( ptable );
+
+        statusOFS << "Hamiltonian constructed." << std::endl;
+
+        // Wavefunctions
+        int numStateTotal = hamKS.NumStateTotal();
+        int numStateLocal, blocksize;
+
+        // Safeguard for Chebyshev Filtering
+        if(esdfParam.Diag_SCF_PWDFT_by_Cheby == 1)
+        { 
+            if(numStateTotal % mpisize != 0)
+            {
+                MPI_Barrier(MPI_COMM_WORLD);  
+                statusOFS << std::endl << std::endl 
+                    <<" Input Error ! Chebyshev Filtering within PWDFT requires total number of bands to be divisble by mpisize. " << std::endl << " Total No. of states = " << numStateTotal << " , mpisize = " << mpisize << " ." << std::endl <<  " Use a different value of extrastates." << endl << " Aborting ..." << std::endl << std::endl;
+                MPI_Barrier(MPI_COMM_WORLD);
+                exit(-1);  
+            }	
+        }
+
+
+        if ( numStateTotal <=  mpisize ) {
+            blocksize = 1;
+
+            if ( mpirank < numStateTotal ){
+                numStateLocal = 1; // blocksize == 1;
+            }
+            else { 
+                // FIXME Throw an error here.
+                numStateLocal = 0;
+            }
+        }
+        else {  // numStateTotal >  mpisize
+
+            if ( numStateTotal % mpisize == 0 ){
+                blocksize = numStateTotal / mpisize;
+                numStateLocal = blocksize ;
+            }
+            else {
+                // blocksize = ((numStateTotal - 1) / mpisize) + 1;
+                blocksize = numStateTotal / mpisize;
+                numStateLocal = blocksize ;
+                if ( mpirank < ( numStateTotal % mpisize ) ) {
+                    numStateLocal = numStateLocal + 1 ;
+                }
+            }    
+        }
+
+        psi.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
+
+        statusOFS << "Spinor setup finished." << std::endl;
+
+        UniformRandom( psi.Wavefun() );
+
+        if( hamKS.IsHybrid() ){
+            GetTime( timeSta );
+            hamKS.InitializeEXX( esdfParam.ecutWavefunction, fft );
+            GetTime( timeEnd );
+            statusOFS << "Time for setting up the exchange for the Hamiltonian part = " 
+                << timeEnd - timeSta << " [s]" << std::endl;
+        }
+
+
+        // Eigensolver class
+        eigSol.Setup( esdfParam, hamKS, psi, fft );
+
+        statusOFS << "Eigensolver setup finished ." << std::endl;
+
+        scf.Setup( esdfParam, eigSol, ptable );
+
+        statusOFS << "SCF setup finished ." << std::endl;
+
+
+        // *********************************************************************
+        // Single shot calculation first
+        // *********************************************************************
+
+        GetTime( timeSta );
+        scf.Iterate();
+        GetTime( timeEnd );
+        statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
+            << " [s]" << std::endl;
+
+        // *********************************************************************
+        // Geometry optimization or Molecular dynamics
+        // *********************************************************************
+
+        IonDynamics ionDyn;
+
+        ionDyn.Setup( esdfParam, hamKS.AtomList(), ptable ); 
+
+        Int maxHist = ionDyn.MaxHist();
+        // densityHist[0] is the lastest density
+        std::vector<DblNumMat>    densityHist(maxHist);
+        for( Int l = 0; l < maxHist; l++ ){
+            densityHist[l] = hamKS.Density();
+        } // for (l)
+
+        // Main loop for geometry optimization or molecular dynamics
+        // If ionMaxIter == 1, it is equivalent to single shot calculation
+        Int ionMaxIter = esdfParam.ionMaxIter;
+
+        Int scfPhiMaxIter = 1;
+        if( esdfParam.isHybridACEOutside == true ){
+            scfPhiMaxIter = esdfParam.scfPhiMaxIter;
+        }
+
+        bool isPhiIterConverged = false;
+        Real timePhiIterStart(0), timePhiIterEnd(0);
+
+        for( Int phiIter = 1; phiIter <= scfPhiMaxIter; phiIter++ ){
+            if( hamKS.IsHybrid() && esdfParam.isHybridACEOutside == true )
+            {
+                if ( isPhiIterConverged ) break;
+                GetTime( timePhiIterStart );
+                std::ostringstream msg;
+                msg << "Phi iteration #" << phiIter << "  (Outside SCF)";
+                PrintBlock( statusOFS, msg.str() );
+            }
+
+            for( Int ionIter = 1; ionIter <= ionMaxIter; ionIter++ ){
+                {
+                    std::ostringstream msg;
+                    msg << "Ion move step # " << ionIter;
+                    PrintBlock( statusOFS, msg.str() );
+                }
+
+                // Get the new atomic coordinates
+                // NOTE: ionDyn directly updates the coordinates in Hamiltonian
+                ionDyn.SetEpot( scf.Efree() );
+                ionDyn.MoveIons(ionIter);
+
+                GetTime( timeSta );
+                hamKS.UpdateHamiltonian( hamKS.AtomList() );
+                hamKS.CalculatePseudoPotential( ptable );
+                scf.Update( ); 
+                GetTime( timeEnd );
+                statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
+                    << " [s]" << std::endl;
+
+
+                // Update the density history through extrapolation
+                {
+                    for( Int l = maxHist-1; l > 0; l-- ){
+                        densityHist[l]     = densityHist[l-1];
+                    } // for (l)
+                    densityHist[0] = hamKS.Density();
+
+                    // Compute the extrapolation coefficient
+                    DblNumVec denCoef;
+                    ionDyn.DensityExtrapolateCoefficient( ionIter, denCoef );
+                    statusOFS << "Extrapolation density coefficient = " << denCoef << std::endl;
+
+                    // Update the electron density
+                    DblNumMat& denCurVec  = hamKS.Density();
+                    SetValue( denCurVec, 0.0 );
+                    for( Int l = 0; l < maxHist; l++ ){
+                        blas::Axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
+                                1, denCurVec.Data(), 1 );
+                    } // for (l)
+                } // density extrapolation
+
+
+                GetTime( timeSta );
+                scf.Iterate( );
+                GetTime( timeEnd );
+                statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
+                    << " [s]" << std::endl;
+
+                // Geometry optimization
+                if( ionDyn.IsGeoOpt() ){
+                    if( MaxForce( hamKS.AtomList() ) < esdfParam.geoOptMaxForce ){
+                        statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
+                            << "Exit the loops for ions." << std::endl;
+                        break;
+                    }
+                }
+            } // ionIter
+
+
+            // EXX
+            if( hamKS.IsHybrid() && esdfParam.isHybridACEOutside == true ){
+                Real dExx;
+                Real fock0, fock1, fock2;
+                if( phiIter == 1 ){
+                    hamKS.SetEXXActive(true);
+                    // Update Phi <- Psi
+                    GetTime( timeSta );
+                    hamKS.SetPhiEXX( psi, fft ); 
+                    if( hamKS.IsHybridACE() ){
+                        hamKS.CalculateVexxACE ( psi, fft );
+                    }
+                    GetTime( timeEnd );
+                    statusOFS << "Time for updating Phi related variable is " <<
+                        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+                    GetTime( timeSta );
+                    fock2 = hamKS.CalculateEXXEnergy( psi, fft ); 
+                    GetTime( timeEnd );
+                    statusOFS << "Time for computing the EXX energy is " <<
+                        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+                    // Update the energy
+                    scf.UpdateEfock(fock2);
+                    Print(statusOFS, "Fock energy       = ",  scf.Efock(), "[au]");
+                    Print(statusOFS, "Etot(with fock)   = ",  scf.Etot(), "[au]");
+                    Print(statusOFS, "Efree(with fock)  = ",  scf.Efree(), "[au]");
+                }
+                else{
+                    // Calculate first
+                    fock1 = hamKS.CalculateEXXEnergy( psi, fft ); 
+
+                    // Update Phi <- Psi
+                    GetTime( timeSta );
+                    hamKS.SetPhiEXX( psi, fft ); 
+                    if( hamKS.IsHybridACE() ){
+                        hamKS.CalculateVexxACE ( psi, fft );
+                    }
+                    GetTime( timeEnd );
+                    statusOFS << "Time for updating Phi related variable is " <<
+                        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+
+                    fock0 = fock2;
+                    // Calculate again
+                    GetTime( timeSta );
+                    fock2 = hamKS.CalculateEXXEnergy( psi, fft ); 
+                    GetTime( timeEnd );
+                    statusOFS << "Time for computing the EXX energy is " <<
+                        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+                    dExx = fock1 - 0.5 * (fock0 + fock2);
+
+                    scf.UpdateEfock(fock2);
+                    Print(statusOFS, "dExx              = ",  dExx, "[au]");
+                    Print(statusOFS, "Fock energy       = ",  scf.Efock(), "[au]");
+                    Print(statusOFS, "Etot(with fock)   = ",  scf.Etot(), "[au]");
+                    Print(statusOFS, "Efree(with fock)  = ",  scf.Efree(), "[au]");
+
+                    if( dExx < esdfParam.scfPhiTolerance ){
+                        statusOFS << "SCF for hybrid functional is converged in " 
+                            << phiIter << " steps !" << std::endl;
+                        isPhiIterConverged = true;
+                    }
+                }
+
+                GetTime( timePhiIterEnd );
+
+                statusOFS << "Total wall clock time for this Phi iteration = " << 
+                    timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
+            } // if (hybrid)
+
+        } // for(phiIter)
+
+        //    ErrorHandling("Test");
+
+
+    }
+    catch( std::exception& e )
+    {
+        std::cerr << " caught exception with message: "
+            << e.what() << std::endl;
 #ifndef _RELEASE_
-		DumpCallStack();
+        DumpCallStack();
 #endif
-	}
+    }
 
-	MPI_Finalize();
+    MPI_Finalize();
 
-	return 0;
+    return 0;
 }

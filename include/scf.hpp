@@ -42,7 +42,12 @@
 */
 /// @file scf.hpp
 /// @brief SCF class for the global domain or extended element.
-/// @date 2012-10-25
+/// @date 2012-10-25 Initial version
+/// @date 2014-02-01 Dual grid implementation
+/// @date 2014-08-07 Parallelization for PWDFT
+/// @date 2016-01-19 Add hybrid functional
+/// @date 2016-04-08 Update mixing
+
 #ifndef _SCF_HPP_ 
 #define _SCF_HPP_
 
@@ -65,123 +70,134 @@ namespace dgdft{
 class SCF
 {
 private:
-	// Control parameters
-	Int                 mixMaxDim_;
-	std::string         mixType_;
-	Real                mixStepLength_;            
-  Real                eigMinTolerance_;
-  Real                eigTolerance_;
-  Int                 eigMaxIter_;
-	Real                scfTolerance_;
-	Int                 scfMaxIter_;
-	Int                 scfPhiMaxIter_;
-	Real                scfPhiTolerance_;
-  Int                 numUnusedState_;
-  bool                isEigToleranceDynamic_;
-	bool                isRestartDensity_;
-	bool                isRestartWfn_;
-	bool                isOutputDensity_;
-	bool                isOutputWfn_;
+    // Control parameters
+    Int                 mixMaxDim_;
+    std::string         mixType_;
+    Real                mixStepLength_;            
+    Real                eigMinTolerance_;
+    Real                eigTolerance_;
+    Int                 eigMaxIter_;
+    Real                scfTolerance_;
+    Int                 scfMaxIter_;
+    Int                 scfPhiMaxIter_;
+    Real                scfPhiTolerance_;
+    Int                 numUnusedState_;
+    bool                isEigToleranceDynamic_;
+    bool                isRestartDensity_;
+    bool                isRestartWfn_;
+    bool                isOutputDensity_;
+    bool                isOutputWfn_;
 
-  bool                isCalculateForceEachSCF_;
-  bool                isHybridACEOutside_;
-  
-	std::string         restartDensityFileName_;
-  std::string         restartWfnFileName_;
+    bool                isCalculateForceEachSCF_;
+    bool                isHybridACEOutside_;
 
-	// Physical parameters
-	Real                Tbeta_;                    // Inverse of temperature in atomic unit
-	Real                Efree_;                    // Helmholtz free energy
-	Real                Etot_;                     // Total energy
-	Real                Ekin_;                     // Kinetic energy
-	Real                Ehart_;                    // Hartree energy
-	Real                Ecor_;                     // Nonlinear correction energy
-	Real                Exc_;                      // Exchange-correlation energy
-	Real                Evdw_;                     // Van der Waals energy
-	Real                EVxc_;                     // Exchange-correlation potential energy
-	Real                Eself_;                    // Self energy due to the pseudopotential
-	Real                fermi_;                    // Fermi energy
-  Real                Efock_;                    // Hartree-Fock energy
+    std::string         restartDensityFileName_;
+    std::string         restartWfnFileName_;
 
-	Real                totalCharge_;              // Total number of computed electron charge
-	
-  EigenSolver*        eigSolPtr_;
-  PeriodTable*        ptablePtr_;
+    // Physical parameters
+    Real                Tbeta_;                    // Inverse of temperature in atomic unit
+    Real                Efree_;                    // Helmholtz free energy
+    Real                Etot_;                     // Total energy
+    Real                Ekin_;                     // Kinetic energy
+    Real                Ehart_;                    // Hartree energy
+    Real                Ecor_;                     // Nonlinear correction energy
+    Real                Exc_;                      // Exchange-correlation energy
+    Real                Evdw_;                     // Van der Waals energy
+    Real                EVxc_;                     // Exchange-correlation potential energy
+    Real                Eself_;                    // Self energy due to the pseudopotential
+    Real                fermi_;                    // Fermi energy
+    Real                Efock_;                    // Hartree-Fock energy
 
-  std::string         XCType_;
-  std::string         VDWType_;
-  
-  /// @brief Needed for GGA, meta-GGA and hybrid functional calculations
-  bool                isCalculateGradRho_; 
+    Real                totalCharge_;              // Total number of computed electron charge
 
-  // SCF variables
-  DblNumVec           vtotNew_;
-	Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
-	// for Anderson iteration
-	DblNumMat           dfMat_;
-	DblNumMat           dvMat_;
-	// TODO Elliptic preconditioner
+    EigenSolver*        eigSolPtr_;
+    PeriodTable*        ptablePtr_;
+
+    std::string         XCType_;
+    std::string         VDWType_;
+
+    /// @brief Needed for GGA, meta-GGA and hybrid functional calculations
+    bool                isCalculateGradRho_; 
+
+    // SCF variables
+    DblNumVec           vtotNew_;
+    Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
+    // for Anderson iteration
+    DblNumMat           dfMat_;
+    DblNumMat           dvMat_;
+    // TODO Elliptic preconditioner
 
 
-  Index3  numGridWavefunctionElem_;
-  Index3  numGridDensityElem_;
-	
-  DblNumMat           forceVdw_;
-  
-  
-  // Chebyshev Filtering variables
-  bool Diag_SCF_PWDFT_by_Cheby_;
-  Int First_SCF_PWDFT_ChebyFilterOrder_;
-  Int First_SCF_PWDFT_ChebyCycleNum_;
-  Int General_SCF_PWDFT_ChebyFilterOrder_;
-  
-  
+    Index3  numGridWavefunctionElem_;
+    Index3  numGridDensityElem_;
+
+    DblNumMat           forceVdw_;
+
+
+    // Chebyshev Filtering variables
+    bool Diag_SCF_PWDFT_by_Cheby_;
+    Int First_SCF_PWDFT_ChebyFilterOrder_;
+    Int First_SCF_PWDFT_ChebyCycleNum_;
+    Int General_SCF_PWDFT_ChebyFilterOrder_;
+
+
 
 public:
-	
-	// *********************************************************************
-	// Life-cycle
-	// *********************************************************************
-	SCF();
-	~SCF();
-  
-	// *********************************************************************
-	// Operations
-	// *********************************************************************
-	// Basic parameters. Density and wavefunction
-	void  Setup( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable ); 
-	void  Iterate();
-	void  Update();
 
-	void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
-	void  CalculateEnergy();
-	void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
+    // *********************************************************************
+    // Life-cycle
+    // *********************************************************************
+    SCF();
+    ~SCF();
+
+    // *********************************************************************
+    // Operations
+    // *********************************************************************
+    // Basic parameters. Density and wavefunction
+    void  Setup( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable ); 
+    void  Iterate();
+    void  Update();
+
+    void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
+    void  CalculateEnergy();
+    void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
 
 
 
-	void  PrintState( const Int iter );
-	void  OutputState();
+    void  PrintState( const Int iter );
+    void  OutputState();
 
-	// Mixing
-	void  AndersonMix( const Int iter );
-	void  KerkerMix();
+    // Mixing
+    void  AndersonMix( 
+            Int iter,
+            Real            mixStepLength,
+            std::string     mixType,
+            DblNumVec&      vMix,
+            DblNumVec&      vOld,
+            DblNumVec&      vNew,
+            DblNumMat&      dfMat,
+            DblNumMat&      dvMat );
 
-  // 
+    void  KerkerPrecond(
+            DblNumVec&  precResidual,
+            const DblNumVec&  residual );
 
-//	void  EllipticMix();
+    // 
 
-	// *********************************************************************
-	// Inquiry
-	// *********************************************************************
-	// Energy etc.
-  Real Etot() const  {return Etot_;};	
-  Real Efree() const {return Efree_;};	
-  Real Efock() const {return Efock_;};	
+    //	void  EllipticMix();
 
-  Real Fermi() const {return fermi_;};	
+    // *********************************************************************
+    // Inquiry
+    // *********************************************************************
+    // Energy etc.
+    Real Etot() const  {return Etot_;};	
+    Real Efree() const {return Efree_;};	
+    Real Efock() const {return Efock_;};	
 
-  void UpdateEfock( Real Efock ) {Efock_ = Efock; Etot_ -= Efock; Efree_ -= Efock;}
-	
+    Real Fermi() const {return fermi_;};	
+
+    void UpdateEfock( Real Efock ) {Efock_ = Efock; Etot_ -= Efock; Efree_ -= Efock;}
+
 
 }; // -----  end of class  SCF ----- 
 

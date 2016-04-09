@@ -7290,8 +7290,10 @@ SCFDG::KerkerPrecond (
             // Do not touch the zero frequency
             // Procedure taken from VASP
             if( fft.gkkLocal(i) != 0 ){
-                fft.outputComplexVecLocal(i) *= std::min(fft.gkkLocal(i) / 
-                        ( fft.gkkLocal(i) + 2.0 * PI * KerkerB ), Amin);
+                fft.outputComplexVecLocal(i) *= fft.gkkLocal(i) / 
+                        ( fft.gkkLocal(i) + 2.0 * PI * KerkerB );
+//                fft.outputComplexVecLocal(i) *= std::min(fft.gkkLocal(i) / 
+//                        ( fft.gkkLocal(i) + 2.0 * PI * KerkerB ), Amin);
             }
         }
         fftw_execute( fft.backwardPlan );

@@ -245,7 +245,7 @@ inline F& NumVec<F>::operator()	( Int i )
 			<< "Index is out of bound."  << std::endl
 			<< "Index bound    ~ (" << m_ << ")" << std::endl
 			<< "This index     ~ (" << i << ")" << std::endl;
-		throw std::logic_error( msg.str().c_str() );
+        ErrorHandling(msg.str().c_str());
 	}
 #ifndef _RELEASE_
 	PopCallStack();
@@ -267,7 +267,7 @@ inline const F& NumVec<F>::operator()	( Int i ) const
 			<< "Index is out of bound."  << std::endl
 			<< "Index bound    ~ (" << m_ << ")" << std::endl
 			<< "This index     ~ (" << i << ")" << std::endl;
-		throw std::logic_error( msg.str().c_str() );
+        ErrorHandling(msg.str().c_str());
 	}
 #ifndef _RELEASE_
 	PopCallStack();
@@ -289,7 +289,7 @@ inline F& NumVec<F>::operator[]	( Int i )
 			<< "Index is out of bound."  << std::endl
 			<< "Index bound    ~ (" << m_ << ")" << std::endl
 			<< "This index     ~ (" << i << ")" << std::endl;
-		throw std::logic_error( msg.str().c_str() );
+        ErrorHandling(msg.str().c_str());
 	}
 #ifndef _RELEASE_
 	PopCallStack();
@@ -311,7 +311,7 @@ inline const F& NumVec<F>::operator[]	( Int i ) const
 			<< "Index is out of bound."  << std::endl
 			<< "Index bound    ~ (" << m_ << ")" << std::endl
 			<< "This index     ~ (" << i << ")" << std::endl;
-		throw std::logic_error( msg.str().c_str() );
+        ErrorHandling(msg.str().c_str());
 	}
 #ifndef _RELEASE_
 	PopCallStack();
