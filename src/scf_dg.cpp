@@ -1098,7 +1098,8 @@ SCFDG::Iterate	(  )
         Real timeBasisSta, timeBasisEnd;
         GetTime(timeBasisSta);
         // FIXME  magic numbers to fixe the basis
-        if( (iter <= 5) || (efreeDifPerAtom_ >= 1e-3) ){
+//        if( (iter <= 5) || (efreeDifPerAtom_ >= 1e-3) ){
+        if(1){
             for( Int k = 0; k < numElem_[2]; k++ )
                 for( Int j = 0; j < numElem_[1]; j++ )
                     for( Int i = 0; i < numElem_[0]; i++ ){
