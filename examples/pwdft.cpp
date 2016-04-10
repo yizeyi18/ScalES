@@ -151,9 +151,12 @@ int main(int argc, char **argv)
         DblNumVec& vext = hamKS.Vext();
         SetValue( vext, 0.0 );
 
+        GetTime( timeSta );
         hamKS.CalculatePseudoPotential( ptable );
+        GetTime( timeEnd );
+        statusOFS << "Time for calculating the pseudopotential for the Hamiltonian = " 
+            << timeEnd - timeSta << " [s]" << std::endl;
 
-        statusOFS << "Hamiltonian constructed." << std::endl;
 
         // Wavefunctions
         int numStateTotal = hamKS.NumStateTotal();

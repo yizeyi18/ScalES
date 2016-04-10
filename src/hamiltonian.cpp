@@ -198,138 +198,138 @@ KohnSham::Setup	(
 void
 KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 #ifndef _RELEASE_
-	PushCallStack("KohnSham::CalculatePseudoPotential");
+    PushCallStack("KohnSham::CalculatePseudoPotential");
 #endif
-	Int ntotFine = domain_.NumGridTotalFine();
-	Int numAtom = atomList_.size();
-	Real vol = domain_.Volume();
+    Int ntotFine = domain_.NumGridTotalFine();
+    Int numAtom = atomList_.size();
+    Real vol = domain_.Volume();
 
-  pseudo_.clear();
-  pseudo_.resize( numAtom );
+    pseudo_.clear();
+    pseudo_.resize( numAtom );
 
-	std::vector<DblNumVec> gridpos;
-  UniformMeshFine ( domain_, gridpos );
+    std::vector<DblNumVec> gridpos;
+    UniformMeshFine ( domain_, gridpos );
 
-  // calculate the number of occupied states
-  Int nelec = 0;
-  for (Int a=0; a<numAtom; a++) {
-    Int atype  = atomList_[a].type;
-		if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
-			throw std::logic_error( "Cannot find the atom type." );
-		}
-    nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
-  }
-	// FIXME Deal with the case when this is a buffer calculation and the
-	// number of electrons is not a even number.
-	//
-//	if( nelec % 2 != 0 ){
-//		throw std::runtime_error( "This is spin-restricted calculation. nelec should be even." );
-//	}
-	numOccupiedState_ = nelec / numSpin_;
-
-	// Compute pseudocharge
-
-  Print( statusOFS, "Computing the local pseudopotential" );
-	SetValue( pseudoCharge_, 0.0 );
-  for (Int a=0; a<numAtom; a++) {
-    ptable.CalculatePseudoCharge( atomList_[a], domain_, 
-				gridpos, pseudo_[a].pseudoCharge );
-    //accumulate to the global vector
-    IntNumVec &idx = pseudo_[a].pseudoCharge.first;
-    DblNumMat &val = pseudo_[a].pseudoCharge.second;
-    for (Int k=0; k<idx.m(); k++) 
-			pseudoCharge_[idx(k)] += val(k, VAL);
-    // For debug purpose, check the summation of the derivative
-    if(0){
-      Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
-      for (Int k=0; k<idx.m(); k++) {
-        sumVDX += val(k, DX);
-        sumVDY += val(k, DY);
-        sumVDZ += val(k, DZ);
-      }
-      sumVDX *= vol / Real(ntotFine);
-      sumVDY *= vol / Real(ntotFine);
-      sumVDZ *= vol / Real(ntotFine);
-      if( std::sqrt(sumVDX * sumVDX + sumVDY * sumVDY + sumVDZ * sumVDZ) 
-          > 1e-8 ){
-        Print( statusOFS, "Local pseudopotential may not be constructed correctly" );
-        Print( statusOFS, "For Atom ", a );
-        Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
-        Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
-        Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
-      }
+    // calculate the number of occupied states
+    Int nelec = 0;
+    for (Int a=0; a<numAtom; a++) {
+        Int atype  = atomList_[a].type;
+        if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
+            throw std::logic_error( "Cannot find the atom type." );
+        }
+        nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
     }
-  }
+    // FIXME Deal with the case when this is a buffer calculation and the
+    // number of electrons is not a even number.
+    //
+    //	if( nelec % 2 != 0 ){
+    //		throw std::runtime_error( "This is spin-restricted calculation. nelec should be even." );
+    //	}
+    numOccupiedState_ = nelec / numSpin_;
 
-  Real sumrho = 0.0;
-  for (Int i=0; i<ntotFine; i++) 
-		sumrho += pseudoCharge_[i]; 
-  sumrho *= vol / Real(ntotFine);
+    // Compute pseudocharge
 
-	Print( statusOFS, "Sum of Pseudocharge                          = ", 
-			sumrho );
-	Print( statusOFS, "Number of Occupied States                    = ", 
-			numOccupiedState_ );
-  
-  Real diff = ( numSpin_ * numOccupiedState_ - sumrho ) / vol;
-  for (Int i=0; i<ntotFine; i++) 
-		pseudoCharge_(i) += diff; 
-
-	Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
-			numSpin_ * numOccupiedState_ );
-
-
-	// Nonlocal projectors
-  std::vector<DblNumVec> gridposCoarse;
-  UniformMesh ( domain_, gridposCoarse );
-  
-  Print( statusOFS, "Computing the non-local pseudopotential" );
-
-  Int cnt = 0; // the total number of PS used
-  for ( Int a=0; a < atomList_.size(); a++ ) {
-		ptable.CalculateNonlocalPP( atomList_[a], domain_, gridposCoarse,
-				pseudo_[a].vnlList ); 
-    // Introduce the nonlocal pseudopotential on the fine grid.
-		ptable.CalculateNonlocalPP( atomList_[a], domain_, gridpos,
-				pseudo_[a].vnlListFine ); 
-		cnt = cnt + pseudo_[a].vnlList.size();
-
-    // For debug purpose, check the summation of the derivative
-    if(0){
-      std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlListFine;
-      for( Int l = 0; l < vnlList.size(); l++ ){
-        SparseVec& bl = vnlList[l].first;
-        IntNumVec& idx = bl.first;
-        DblNumMat& val = bl.second;
-        Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
-        for (Int k=0; k<idx.m(); k++) {
-          sumVDX += val(k, DX);
-          sumVDY += val(k, DY);
-          sumVDZ += val(k, DZ);
+    Print( statusOFS, "Computing the local pseudopotential" );
+    SetValue( pseudoCharge_, 0.0 );
+    for (Int a=0; a<numAtom; a++) {
+        ptable.CalculatePseudoCharge( atomList_[a], domain_, 
+                gridpos, pseudo_[a].pseudoCharge );
+        //accumulate to the global vector
+        IntNumVec &idx = pseudo_[a].pseudoCharge.first;
+        DblNumMat &val = pseudo_[a].pseudoCharge.second;
+        for (Int k=0; k<idx.m(); k++) 
+            pseudoCharge_[idx(k)] += val(k, VAL);
+        // For debug purpose, check the summation of the derivative
+        if(0){
+            Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
+            for (Int k=0; k<idx.m(); k++) {
+                sumVDX += val(k, DX);
+                sumVDY += val(k, DY);
+                sumVDZ += val(k, DZ);
+            }
+            sumVDX *= vol / Real(ntotFine);
+            sumVDY *= vol / Real(ntotFine);
+            sumVDZ *= vol / Real(ntotFine);
+            if( std::sqrt(sumVDX * sumVDX + sumVDY * sumVDY + sumVDZ * sumVDZ) 
+                    > 1e-8 ){
+                Print( statusOFS, "Local pseudopotential may not be constructed correctly" );
+                Print( statusOFS, "For Atom ", a );
+                Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
+                Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
+                Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
+            }
         }
-        sumVDX *= vol / Real(ntotFine);
-        sumVDY *= vol / Real(ntotFine);
-        sumVDZ *= vol / Real(ntotFine);
-        if( std::sqrt(sumVDX * sumVDX + sumVDY * sumVDY + sumVDZ * sumVDZ) 
-            > 1e-8 ){
-          Print( statusOFS, "Local pseudopotential may not be constructed correctly" );
-          statusOFS << "For atom " << a << ", projector " << l << std::endl;
-          Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
-          Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
-          Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
-        }
-      }
     }
 
-  }
+    Real sumrho = 0.0;
+    for (Int i=0; i<ntotFine; i++) 
+        sumrho += pseudoCharge_[i]; 
+    sumrho *= vol / Real(ntotFine);
 
-	Print( statusOFS, "Total number of nonlocal pseudopotential = ",  cnt );
+    Print( statusOFS, "Sum of Pseudocharge                          = ", 
+            sumrho );
+    Print( statusOFS, "Number of Occupied States                    = ", 
+            numOccupiedState_ );
+
+    Real diff = ( numSpin_ * numOccupiedState_ - sumrho ) / vol;
+    for (Int i=0; i<ntotFine; i++) 
+        pseudoCharge_(i) += diff; 
+
+    Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
+            numSpin_ * numOccupiedState_ );
+
+
+    // Nonlocal projectors
+    std::vector<DblNumVec> gridposCoarse;
+    UniformMesh ( domain_, gridposCoarse );
+
+    Print( statusOFS, "Computing the non-local pseudopotential" );
+
+    Int cnt = 0; // the total number of PS used
+    for ( Int a=0; a < atomList_.size(); a++ ) {
+        ptable.CalculateNonlocalPP( atomList_[a], domain_, gridposCoarse,
+                pseudo_[a].vnlList ); 
+        // Introduce the nonlocal pseudopotential on the fine grid.
+        ptable.CalculateNonlocalPP( atomList_[a], domain_, gridpos,
+                pseudo_[a].vnlListFine ); 
+        cnt = cnt + pseudo_[a].vnlList.size();
+
+        // For debug purpose, check the summation of the derivative
+        if(0){
+            std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlListFine;
+            for( Int l = 0; l < vnlList.size(); l++ ){
+                SparseVec& bl = vnlList[l].first;
+                IntNumVec& idx = bl.first;
+                DblNumMat& val = bl.second;
+                Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
+                for (Int k=0; k<idx.m(); k++) {
+                    sumVDX += val(k, DX);
+                    sumVDY += val(k, DY);
+                    sumVDZ += val(k, DZ);
+                }
+                sumVDX *= vol / Real(ntotFine);
+                sumVDY *= vol / Real(ntotFine);
+                sumVDZ *= vol / Real(ntotFine);
+                if( std::sqrt(sumVDX * sumVDX + sumVDY * sumVDY + sumVDZ * sumVDZ) 
+                        > 1e-8 ){
+                    Print( statusOFS, "Local pseudopotential may not be constructed correctly" );
+                    statusOFS << "For atom " << a << ", projector " << l << std::endl;
+                    Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
+                    Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
+                    Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
+                }
+            }
+        }
+
+    }
+
+    Print( statusOFS, "Total number of nonlocal pseudopotential = ",  cnt );
 
 #ifndef _RELEASE_
-	PopCallStack();
+    PopCallStack();
 #endif
 
-	return ;
+    return ;
 } 		// -----  end of method KohnSham::CalculatePseudoPotential ----- 
 
 
