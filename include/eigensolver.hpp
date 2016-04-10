@@ -75,7 +75,14 @@ private:
 	void Chebyshev_filter_scaled(int m, double a, double b, double a_L);
 	
 
+    // ScaLAPACK parameters
+    Int           scaBlockSize_;
+    Int           numProcScaLAPACK_;
+    Int           contxt_;
+    Int           nprow_, npcol_;
 
+
+    std::string   PWSolver_;
 
 public:
 
@@ -95,32 +102,32 @@ public:
 
 	// ********************  OPERATIONS  *******************************
 
-  /// @brief Sequential LOBPCG solver.
-  ///
-  /// Comapred to LOBPCGSolveReal, the main difference is that this
-  /// version does not use deflation, but use orthogonalization instead
-  /// to provide (better) stability.  To enhance stability, LDLT
-  /// factorization is used for orthogonalization, rather than using the
-  /// Cholesky factorization which assumes that the overlap matrix is
-  /// positive definite.
-  ///
-  /// @note The input vectors is saved in the spinor (psiPtr_), and the
-  /// number of input vectors is denoted by `width`.
-  /// The output is saved in eigVal_ and resVal_.
-  /// In a converged calculation, only the first numEig eigenvalues are required to
-  /// meet the convergence criterion.
-  ///
-  /// @todo: The restart mechanism has not been implemented.
-  ///
-  /// @param[in] numEig  Number of eigenvalues to be counted in the
-  /// convergence criterion.  numEig must be less than or equal to
-  /// width.
-  /// @param[in] eigMaxIter    Maximum number of iterations
-  /// @param[in] eigTolerance  Residual tolerance.
-  void LOBPCGSolveReal(
-      Int          numEig,
-      Int          eigMaxIter,
-      Real         eigTolerance );
+//  /// @brief Sequential LOBPCG solver.
+//  ///
+//  /// Comapred to LOBPCGSolveReal, the main difference is that this
+//  /// version does not use deflation, but use orthogonalization instead
+//  /// to provide (better) stability.  To enhance stability, LDLT
+//  /// factorization is used for orthogonalization, rather than using the
+//  /// Cholesky factorization which assumes that the overlap matrix is
+//  /// positive definite.
+//  ///
+//  /// @note The input vectors is saved in the spinor (psiPtr_), and the
+//  /// number of input vectors is denoted by `width`.
+//  /// The output is saved in eigVal_ and resVal_.
+//  /// In a converged calculation, only the first numEig eigenvalues are required to
+//  /// meet the convergence criterion.
+//  ///
+//  /// @todo: The restart mechanism has not been implemented.
+//  ///
+//  /// @param[in] numEig  Number of eigenvalues to be counted in the
+//  /// convergence criterion.  numEig must be less than or equal to
+//  /// width.
+//  /// @param[in] eigMaxIter    Maximum number of iterations
+//  /// @param[in] eigTolerance  Residual tolerance.
+//  void LOBPCGSolveReal(
+//      Int          numEig,
+//      Int          eigMaxIter,
+//      Real         eigTolerance );
 
 
   /// @brief Parallel LOBPCG solver with intra-element
@@ -140,19 +147,24 @@ public:
       Real         eigTolerance );
   
   
-  
-   /// @brief Routines for Chebyshev filtering
-    void FirstChebyStep(
+  /// @brief Parallel LOBPCG solver with dense eigenvalue problem solved
+  /// by ScaLAPACK.
+  void LOBPCGSolveReal3(
       Int          numEig,
       Int          eigMaxIter,
-      Int 	   filter_order );
+      Real         eigMinTolerance,
+      Real         eigTolerance );
+  
+  /// @brief Routines for Chebyshev filtering
+  void FirstChebyStep(
+          Int      numEig,
+          Int      eigMaxIter,
+          Int 	   filter_order );
   
   void GeneralChebyStep(
-	Int          numEig,
-        Int 	   filter_order );
+          Int      numEig,
+          Int 	   filter_order );
   
-  
- 
 
 
 	// ********************  ACCESS      *******************************

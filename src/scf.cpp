@@ -113,6 +113,7 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
         numGridWavefunctionElem_ = esdfParam.numGridWavefunctionElem;
         numGridDensityElem_      = esdfParam.numGridDensityElem;  
 
+        PWSolver_                = esdfParam.PWSolver;
         XCType_                  = esdfParam.XCType;
         VDWType_                 = esdfParam.VDWType;
 
@@ -253,20 +254,29 @@ SCF::Iterate (  )
     if( isCalculateGradRho_ ){
         ham.CalculateGradDensity( fft );
     }
+
     if( isRestartDensity_ ){ 
         ham.CalculateXC( Exc_, fft ); 
+        // Compute the Hartree energy
+        ham.CalculateHartree( fft );
+        // No external potential
+
+        // Compute the total potential
+        ham.CalculateVtot( ham.Vtot() );
     }
     else{
+        // Technically needed, otherwise the initial Vtot will be zero 
+        // (density = sum of pseudocharge). 
+        // Note that the treatment will be different if the initial
+        // density is taken from linear superposition of atomic orbitals
+        // 
+        // In the future this might need to be changed to something else
+        // (see more from QE, VASP and QBox)?
+        SetValue(ham.Vtot(), 1.0 );
         statusOFS << "Density may be negative, " << 
             "Skip the calculation of XC for the initial setup. " << std::endl;
     }
 
-    // Compute the Hartree energy
-    ham.CalculateHartree( fft );
-    // No external potential
-
-    // Compute the total potential
-    ham.CalculateVtot( ham.Vtot() );
 
     Real timeIterStart(0), timeIterEnd(0);
     Real timePhiIterStart(0), timePhiIterEnd(0);
@@ -351,7 +361,16 @@ SCF::Iterate (  )
             else
             {
                 // Use LOBPCG
-                eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );	
+                if( PWSolver_ == "LOBPCG" ){
+                    eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );	
+                }
+                else if ( PWSolver_ == "LOBPCGScaLAPACK" ){
+                    eigSolPtr_->LOBPCGSolveReal3(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );	
+                }
+                else{
+                    // FIXME Merge the Chebyshev into an option of PWSolver
+                    ErrorHandling("Not supported PWSolver type.");
+                }
             }
 
 
@@ -735,8 +754,8 @@ SCF::CalculateEnergy	(  )
 	Int  ntot = eigSolPtr_->FFT().domain.NumGridTotalFine();
 	Real vol  = eigSolPtr_->FFT().domain.Volume();
 	DblNumMat&  density      = eigSolPtr_->Ham().Density();
-  DblNumMat&  vxc          = eigSolPtr_->Ham().Vxc();
-  DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
+    DblNumMat&  vxc          = eigSolPtr_->Ham().Vxc();
+    DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
 	DblNumVec&  vhart        = eigSolPtr_->Ham().Vhart();
 	Ehart_ = 0.0;
 	EVxc_  = 0.0;
@@ -1183,139 +1202,6 @@ SCF::KerkerPrecond (
     return ;
 } 		// -----  end of method SCF::KerkerPrecond  ----- 
 
-
-//void
-//SCF::AndersonMix	( const Int iter )
-//{
-//#ifndef _RELEASE_
-//  PushCallStack("SCF::AndersonMix");
-//#endif
-//  DblNumVec vin, vout, vinsave, voutsave;
-//
-//  Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
-//
-//  vin.Resize(ntot);
-//  vout.Resize(ntot);
-//  vinsave.Resize(ntot);
-//  voutsave.Resize(ntot);
-//
-//  DblNumVec& vtot = eigSolPtr_->Ham().Vtot();
-//
-//  for (Int i=0; i<ntot; i++) {
-//    vin(i) = vtot(i);
-//    vout(i) = vtotNew_(i) - vtot(i);
-//  }
-//
-//  for(Int i = 0; i < ntot; i++){
-//    vinsave(i) = vin(i);
-//    voutsave(i) = vout(i);
-//  }
-//
-//  Int iterused = std::min( iter-1, mixMaxDim_ ); // iter should start from 1
-//  Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
-//
-//  // TODO Set verbose level 
-//  Print( statusOFS, "Anderson mixing" );
-//  Print( statusOFS, "  iterused = ", iterused );
-//  Print( statusOFS, "  ipos     = ", ipos );
-//
-//
-//  if( iter > 1 ){
-//    for(Int i = 0; i < ntot; i++){
-//      dfMat_(i, ipos-1) -= vout(i);
-//      dvMat_(i, ipos-1) -= vin(i);
-//    }
-//
-//    // Calculating pseudoinverse
-//
-//    DblNumVec gammas, S;
-//    DblNumMat dftemp;
-//    Int rank;
-//    // FIXME Magic number
-//    Real rcond = 1e-6;
-//
-//    S.Resize(iterused);
-//
-//    gammas = vout;
-//    dftemp = dfMat_;
-//
-//    lapack::SVDLeastSquare( ntot, iterused, 1, 
-//        dftemp.Data(), ntot, gammas.Data(), ntot,
-//        S.Data(), rcond, &rank );
-//
-//    Print( statusOFS, "  Rank of dfmat = ", rank );
-//
-//    // Update vin, vout
-//
-//    blas::Gemv('N', ntot, iterused, -1.0, dvMat_.Data(),
-//        ntot, gammas.Data(), 1, 1.0, vin.Data(), 1 );
-//
-//    blas::Gemv('N', ntot, iterused, -1.0, dfMat_.Data(),
-//        ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
-//  }
-//
-//  Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
-//  for (Int i=0; i<ntot; i++) {
-//    dfMat_(i, inext-1) = voutsave(i);
-//    dvMat_(i, inext-1) = vinsave(i);
-//  }
-//
-//  for (Int i=0; i<ntot; i++) {
-//    vtot(i) = vin(i) + mixStepLength_ * vout(i);
-//  }
-//
-//#ifndef _RELEASE_
-//  PopCallStack();
-//#endif
-//
-//  return ;
-//
-//} 		// -----  end of method SCF::AndersonMix  ----- 
-
-
-//void
-//SCF::KerkerMix	(  )
-//{
-//#ifndef _RELEASE_
-//  PushCallStack("SCF::KerkerMix");
-//#endif
-//  // FIXME Magic number here
-//  Real mixStepLengthKerker = 0.8; 
-//  Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
-//  DblNumVec& vtot = eigSolPtr_->Ham().Vtot();
-//
-//  for (Int i=0; i<ntot; i++) {
-//    eigSolPtr_->FFT().inputComplexVec(i) = 
-//      Complex(vtotNew_(i) - vtot(i), 0.0);
-//    // Why?
-//    vtot(i) += mixStepLengthKerker * (vtotNew_(i) - vtot(i));
-//  }
-//  fftw_execute( eigSolPtr_->FFT().forwardPlan );
-//
-//  DblNumVec&  gkk = eigSolPtr_->FFT().gkk;
-//
-//  for(Int i=0; i<ntot; i++) {
-//    if( gkk(i) == 0 ){
-//      eigSolPtr_->FFT().outputComplexVec(i) = Z_ZERO;
-//    }
-//    else{
-//      // FIXME Magic number
-//      eigSolPtr_->FFT().outputComplexVec(i) *= 
-//        mixStepLengthKerker * ( gkk(i) / (gkk(i)+0.5) - 1.0 );
-//    }
-//  }
-//  fftw_execute( eigSolPtr_->FFT().backwardPlan );
-//
-//  // Update vtot
-//  for (Int i=0; i<ntot; i++)
-//	  vtot(i) += eigSolPtr_->FFT().inputComplexVec(i).real() / ntot;	
-//
-//#ifndef _RELEASE_
-//	PopCallStack();
-//#endif
-//
-//	return ;
-//} 		// -----  end of method SCF::KerkerMix  ----- 
 
 void
 SCF::PrintState	( const Int iter  )

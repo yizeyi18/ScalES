@@ -637,46 +637,46 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
 
 void KohnSham::CalculateHartree( Fourier& fft ) {
 #ifndef _RELEASE_ 
-	PushCallStack("KohnSham::CalculateHartree");
+    PushCallStack("KohnSham::CalculateHartree");
 #endif
-	if( !fft.isInitialized ){
-		throw std::runtime_error("Fourier is not prepared.");
-	}
- 	
-  Int ntot = domain_.NumGridTotalFine();
-  if( fft.domain.NumGridTotalFine() != ntot ){
-    throw std::logic_error( "Grid size does not match!" );
-  }
-
-  // The contribution of the pseudoCharge is subtracted. So the Poisson
-  // equation is well defined for neutral system.
-  for( Int i = 0; i < ntot; i++ ){
-    fft.inputComplexVecFine(i) = Complex( 
-        density_(i,RHO) - pseudoCharge_(i), 0.0 );
-  }
-
-  FFTWExecute ( fft, fft.forwardPlanFine );
-
-  for( Int i = 0; i < ntot; i++ ){
-    if( fft.gkkFine(i) == 0 ){
-      fft.outputComplexVecFine(i) = Z_ZERO;
+    if( !fft.isInitialized ){
+        throw std::runtime_error("Fourier is not prepared.");
     }
-    else{
-      // NOTE: gkk already contains the factor 1/2.
-      fft.outputComplexVecFine(i) *= 2.0 * PI / fft.gkkFine(i);
+
+    Int ntot = domain_.NumGridTotalFine();
+    if( fft.domain.NumGridTotalFine() != ntot ){
+        throw std::logic_error( "Grid size does not match!" );
     }
-  }
 
-  FFTWExecute ( fft, fft.backwardPlanFine );
+    // The contribution of the pseudoCharge is subtracted. So the Poisson
+    // equation is well defined for neutral system.
+    for( Int i = 0; i < ntot; i++ ){
+        fft.inputComplexVecFine(i) = Complex( 
+                density_(i,RHO) - pseudoCharge_(i), 0.0 );
+    }
 
-  for( Int i = 0; i < ntot; i++ ){
-    vhart_(i) = fft.inputComplexVecFine(i).real();
-  }
+    FFTWExecute ( fft, fft.forwardPlanFine );
+
+    for( Int i = 0; i < ntot; i++ ){
+        if( fft.gkkFine(i) == 0 ){
+            fft.outputComplexVecFine(i) = Z_ZERO;
+        }
+        else{
+            // NOTE: gkk already contains the factor 1/2.
+            fft.outputComplexVecFine(i) *= 2.0 * PI / fft.gkkFine(i);
+        }
+    }
+
+    FFTWExecute ( fft, fft.backwardPlanFine );
+
+    for( Int i = 0; i < ntot; i++ ){
+        vhart_(i) = fft.inputComplexVecFine(i).real();
+    }
 
 #ifndef _RELEASE_
-  PopCallStack();
+    PopCallStack();
 #endif
-  return; 
+    return; 
 }  // -----  end of method KohnSham::CalculateHartree ----- 
 
 
@@ -684,18 +684,18 @@ void
 KohnSham::CalculateVtot	( DblNumVec& vtot )
 {
 #ifndef _RELEASE_
-	PushCallStack("KohnSham::CalculateVtot");
+    PushCallStack("KohnSham::CalculateVtot");
 #endif
-	Int ntot = domain_.NumGridTotalFine();
-  for (int i=0; i<ntot; i++) {
-		vtot(i) = vext_(i) + vhart_(i) + vxc_(i, RHO);
-  }
+    Int ntot = domain_.NumGridTotalFine();
+    for (int i=0; i<ntot; i++) {
+        vtot(i) = vext_(i) + vhart_(i) + vxc_(i, RHO);
+    }
 
 #ifndef _RELEASE_
-	PopCallStack();
+    PopCallStack();
 #endif
 
-	return ;
+    return ;
 } 		// -----  end of method KohnSham::CalculateVtot  ----- 
 
 

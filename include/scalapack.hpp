@@ -118,13 +118,29 @@ public:
 			Int contxt) 
 	{Init(m, n, mb, nb, irsrc, icsrc, contxt);}
 
+
+    /// @brief Descriptor. Directly provide leading dimension
+	Descriptor(Int m, Int n, Int mb,
+			Int nb, Int irsrc, Int icsrc,
+			Int contxt, Int lld) 
+	{Init(m, n, mb, nb, irsrc, icsrc, contxt, lld);}
+
+
 	~Descriptor(){}
 
 	/// @brief Initialize the descriptor. 
+    /// NOTE: Currently ScaLAPACKMatrix requires the descriptor to be
+    /// initialized only with this version.
 	void Init(Int m, Int n, Int mb,
 			Int nb, Int irsrc, Int icsrc,
 			Int contxt);
-	
+
+	/// @brief Initialize the descriptor.  Directly provide lld
+	void Init(Int m, Int n, Int mb,
+			Int nb, Int irsrc, Int icsrc,
+			Int contxt, Int lld);
+
+
 	Int* Values() {return &values_[0];} 
 	
 	const Int* Values() const {return &values_[0];}

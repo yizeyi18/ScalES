@@ -1010,30 +1010,45 @@ SCFDG::Iterate	(  )
         statusOFS << "Time for calculating XC is " <<
             timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+        // Compute the Hartree potential
+        GetTime( timeSta );
+        hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for calculating Hartree is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+        // No external potential
+
+        // Compute the total potential
+        GetTime( timeSta );
+        hamDG.CalculateVtot( hamDG.Vtot() );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for calculating Vtot is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
     }else {
+        // Technically needed, otherwise the initial Vtot will be zero 
+        // (density = sum of pseudocharge). 
+        // Note that the treatment will be different if the initial
+        // density is taken from linear superposition of atomic orbitals
+        // 
+        // In the future this might need to be changed to something else
+        // (see more from QE, VASP and QBox)?
+        for( Int k = 0; k < numElem_[2]; k++ )
+            for( Int j = 0; j < numElem_[1]; j++ )
+                for( Int i = 0; i < numElem_[0]; i++ ){
+                    Index3 key = Index3( i, j, k );
+                    if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                        SetValue( hamDG.Vtot().LocalMap()[key], 1.0 );
+                    }
+                } // for (i)
         statusOFS << "Density may be negative, " << 
             "Skip the calculation of XC for the initial setup. " << std::endl;
     }
 
-    // Compute the Hartree potential
-    GetTime( timeSta );
-    hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for calculating Hartree is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
 
-    // No external potential
-
-    // Compute the total potential
-    GetTime( timeSta );
-    hamDG.CalculateVtot( hamDG.Vtot() );
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for calculating Vtot is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
 
     Real timeIterStart(0), timeIterEnd(0);
     Real timeTotalStart(0), timeTotalEnd(0);

@@ -2771,8 +2771,8 @@ namespace dgdft{
 
         Print(statusOFS, "Solution Method   = ",  esdfParam.solutionMethod );
         if( esdfParam.solutionMethod == "diag" ){
-          Print(statusOFS, "Number of procs for ScaLAPACK      = ",  esdfParam.numProcScaLAPACK); 
-          Print(statusOFS, "ScaLAPACK block   = ",  esdfParam.scaBlockSize); 
+          Print(statusOFS, "Number of procs for ScaLAPACK        = ",  esdfParam.numProcScaLAPACK); 
+          Print(statusOFS, "ScaLAPACK block                      = ",  esdfParam.scaBlockSize); 
         }
         if( esdfParam.solutionMethod == "pexsi" ){
           Print(statusOFS, "Number of poles                    = ",  esdfParam.numPole); 
@@ -2830,6 +2830,10 @@ namespace dgdft{
         Print(statusOFS, "Hybrid ACE Outside SCF               = ",  esdfParam.isHybridACEOutside);
         Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);
 
+        if( esdfParam.PWSolver == "LOBPCGScaLAPACK" ){
+            Print(statusOFS, "Number of procs for ScaLAPACK      = ",  esdfParam.numProcScaLAPACK); 
+            Print(statusOFS, "ScaLAPACK block   = ",  esdfParam.scaBlockSize); 
+        }
       } // PW
 
       // Only master processor output information containing all atoms

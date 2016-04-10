@@ -161,6 +161,35 @@ Descriptor::Init(Int m, Int n, Int mb,
 } 		// -----  end of method Descriptor::Init  ----- 
 
 
+void
+Descriptor::Init(Int m, Int n, Int mb,
+    Int nb, Int irsrc, Int icsrc,
+    Int contxt, Int lld )
+{
+#ifndef _RELEASE_
+  PushCallStack("Descriptor::Init");
+#endif
+  values_.resize(DLEN);
+  Cblacs_gridinfo(contxt, &nprow_, &npcol_, &myprow_, &mypcol_);
+
+  Int info;
+  SCALAPACK(descinit)(&values_[0], &m, &n, &mb, &nb, &irsrc, &icsrc,
+      &contxt, &lld, &info);
+  if( info )
+  {
+    std::ostringstream msg;
+    msg << "Descriptor:: descinit returned with info = " << info;
+    throw std::logic_error( msg.str().c_str() );
+  }
+
+#ifndef _RELEASE_
+  PopCallStack();
+#endif
+
+  return ;
+} 		// -----  end of method Descriptor::Init  ----- 
+
+
 Descriptor& Descriptor::operator =	( const Descriptor& desc  )
 {
 #ifndef _RELEASE_
@@ -540,8 +569,12 @@ Syevd(char uplo, ScaLAPACKMatrix<double>& A,
       &I_ONE, &I_ONE, Z.Desc().Values(), 
       &work[0], &lwork,&iwork[0], &liwork, &info);
   lwork = (Int)work[0];
+  // NOTE: Buggy memory allocation in pdsyevd?
+  lwork = lwork+500;
   work.resize(lwork);
   liwork = iwork[0];
+  // NOTE: Buggy memory allocation in pdsyevd?
+  liwork = liwork+500;
   iwork.resize(liwork);
 
   SCALAPACK(pdsyevd)(&jobz, &uplo, &N, A.Data(), &I_ONE, &I_ONE,
