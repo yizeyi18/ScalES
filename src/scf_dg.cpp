@@ -529,7 +529,8 @@ SCFDG::Setup	(
                         DblNumVec&  denVec = density.LocalMap()[key];
                         DblNumVec&  ppVec  = pseudoCharge.LocalMap()[key];
                         for( Int p = 0; p < denVec.Size(); p++ ){
-                            denVec(p) = ( ppVec(p) > EPS ) ? ppVec(p) : EPS;
+                            denVec(p) = ppVec(p);
+//                            denVec(p) = ( ppVec(p) > EPS ) ? ppVec(p) : EPS;
                             sumDensityLocal += denVec(p);
                             sumPseudoChargeLocal += ppVec(p);
                         }
@@ -999,13 +1000,20 @@ SCFDG::Iterate	(  )
     }
 
     // Compute the exchange-correlation potential and energy
-    GetTime( timeSta );
-    hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
-    GetTime( timeEnd );
+    // Only compute the XC if restarting the density, since the initial
+    // density can contain some negative contribution
+    if( isRestartDensity_ ){ 
+        GetTime( timeSta );
+        hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
+        GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for calculating XC is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        statusOFS << "Time for calculating XC is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+    }else {
+        statusOFS << "Density may be negative, " << 
+            "Skip the calculation of XC for the initial setup. " << std::endl;
+    }
 
     // Compute the Hartree potential
     GetTime( timeSta );

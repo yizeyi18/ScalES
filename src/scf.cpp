@@ -157,26 +157,31 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
         else {
             // make sure the pseudocharge is initialized
             DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
+            const Domain& dm = esdfParam.domain;
 
             SetValue( density, 0.0 );
 
-            Int ntot = esdfParam.domain.NumGridTotal();
-            Int ntotFine = esdfParam.domain.NumGridTotalFine();
+            Int ntotFine = dm.NumGridTotalFine();
 
             Real sum0 = 0.0, sum1 = 0.0;
             Real EPS = 1e-6;
 
             // make sure that the electron density is positive
             for (Int i=0; i<ntotFine; i++){
-                density(i, RHO) = ( pseudoCharge(i) > EPS ) ? pseudoCharge(i) : EPS;
+//                density(i, RHO) = ( pseudoCharge(i) > EPS ) ? pseudoCharge(i) : EPS;
+                density(i, RHO) = pseudoCharge(i);
                 sum0 += density(i, RHO);
-                sum1 += pseudoCharge(i);
+//                sum1 += pseudoCharge(i);
             }
+            
+            Print( statusOFS, "Initial density. Sum of density      = ", 
+                    sum0 * dm.Volume() / dm.NumGridTotalFine() );
 
             // Rescale the density
-            for (int i=0; i <ntotFine; i++){
-                density(i, RHO) *= sum1 / sum0;
-            } 
+            // No need now
+//            for (int i=0; i <ntotFine; i++){
+//                density(i, RHO) *= sum1 / sum0;
+//            } 
         }
     }
 
@@ -248,7 +253,13 @@ SCF::Iterate (  )
     if( isCalculateGradRho_ ){
         ham.CalculateGradDensity( fft );
     }
-    ham.CalculateXC( Exc_, fft ); 
+    if( isRestartDensity_ ){ 
+        ham.CalculateXC( Exc_, fft ); 
+    }
+    else{
+        statusOFS << "Density may be negative, " << 
+            "Skip the calculation of XC for the initial setup. " << std::endl;
+    }
 
     // Compute the Hartree energy
     ham.CalculateHartree( fft );
