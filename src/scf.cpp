@@ -337,11 +337,14 @@ SCF::Iterate (  )
 
             Int numEig = (psi.NumStateTotal())-numUnusedState_;
 
+	    if(Diag_SCF_PWDFT_by_Cheby_ == 0)
+	    {  
             statusOFS << "The current tolerance used by the eigensolver is " 
                 << eigTolNow << std::endl;
             statusOFS << "The target number of converged eigenvectors is " 
                 << numEig << std::endl;
-
+	    }
+	    
             GetTime( timeSta );
 
             if(Diag_SCF_PWDFT_by_Cheby_ == 1)

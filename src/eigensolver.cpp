@@ -3842,7 +3842,7 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
     NumTns<double> tns_spinor_Y(ntot, ncom, 1, false, spinor_Y.Wavefun().Data());
     NumTns<double> tns_spinor_Yt(ntot, ncom, 1, false, spinor_Yt.Wavefun().Data());
 
-    statusOFS << std::endl << std::endl << " Applying the scaled Chebyshev Filter: Order = " << m << " , " << widthLocal << " local bands."; 
+    statusOFS << std::endl << std::endl << " Applying the scaled Chebyshev Filter: Order = " << m << " , on " << widthLocal << " local bands."; 
     // Begin iteration over local bands
     for (Int local_band_iter = 0; local_band_iter < widthLocal; local_band_iter ++)
     {
@@ -4433,8 +4433,133 @@ EigenSolver::FirstChebyStep	(
         statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
 
         //statusOFS << std::endl << " Intermediate eig vals " << std::endl<< eig_vals_Raleigh_Ritz;
+	
+	
+    // ----------------------------------------------------------
+    // As a postprocessing step, compute the residual of the eigenvectors
+    // Do this by R = HX - X * (X^T * H * X)
+    {
+      // First compute HX
+      // ~~ Applying the Hamiltonian matrix
+      // HXcol = H * Xcol : Both are in height * local_width dimensioned format
+     {
+        GetTime( timeSta );
+        Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
+        NumTns<double> tnsTemp(ntot, ncom, noccLocal, false, HXcol.Data());
 
+        hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+        GetTime( timeEnd );
+        iterSpinor = iterSpinor + 1;
+        timeSpinor = timeSpinor + ( timeEnd - timeSta );
     }
+
+    // ~~ Flip into the alternate distribution for linear algebra
+    // So data goes from Xcol to X
+    GetTime( timeSta );
+    for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+            sendbuf[sendk(i, j)] = Xcol(i, j); 
+        }
+    }
+    MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+            &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+    for( Int j = 0; j < width; j++ ){ 
+        for( Int i = 0; i < heightLocal; i++ ){
+            X(i, j) = recvbuf[recvk(i, j)];
+        }
+    }
+    GetTime( timeEnd );
+    iterAlltoallv = iterAlltoallv + 1;
+    timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+
+    // As well as HXcol to HX
+    GetTime( timeSta );
+    for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+            sendbuf[sendk(i, j)] = HXcol(i, j); 
+        }
+    }
+    MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+            &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+    for( Int j = 0; j < width; j++ ){ 
+        for( Int i = 0; i < heightLocal; i++ ){
+            HX(i, j) = recvbuf[recvk(i, j)];
+        }
+    }
+    GetTime( timeEnd );
+    iterAlltoallv = iterAlltoallv + 1;
+    timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+
+    //square_mat = X' * (HX)
+    GetTime( timeSta );
+    blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
+            heightLocal, HX.Data(), heightLocal, 0.0, square_mat_temp.Data(), width );
+    SetValue(square_mat , 0.0 );
+    MPI_Allreduce( square_mat_temp.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    GetTime( timeEnd );
+    iterGemmT = iterGemmT + 1;
+    timeGemmT = timeGemmT + ( timeEnd - timeSta );
+    
+    // So square_mat = X^T * (H * X)
+    // Now compute HX - X* square_mat (i.e., the second part is like a subspace rotation)
+    
+    // Storage for residuals
+    DblNumMat  Res( heightLocal, width);
+    
+    // Set Res <-- X
+    lapack::Lacpy( 'A', heightLocal, width, HX.Data(),  heightLocal, Res.Data(), heightLocal );
+
+    
+    // ~~ Gemm: Res <-- X * Q - Res (= X)
+    GetTime( timeSta );
+    blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
+            heightLocal, square_mat.Data(), width, -1.0, Res.Data(), heightLocal );	
+    GetTime( timeEnd );
+    iterGemmT = iterGemmT + 1;
+    timeGemmT = timeGemmT + ( timeEnd - timeSta );
+
+    
+    // Compute the norm of the residuals
+    DblNumVec  resNorm( width );
+    SetValue( resNorm, 0.0 );
+    DblNumVec  resNormLocal ( width ); 
+    SetValue( resNormLocal, 0.0 );
+    
+     for( Int k = 0; k < width; k++ ){
+            resNormLocal(k) = Energy(DblNumVec(heightLocal, false, Res.VecData(k)));
+      }
+
+     MPI_Allreduce( resNormLocal.Data(), resNorm.Data(), width, MPI_DOUBLE, 
+                MPI_SUM, mpi_comm );
+
+        if ( mpirank == 0 ){
+            GetTime( timeSta );
+            for( Int k = 0; k < width; k++ ){
+	        resNorm(k) = std::sqrt( resNorm(k) );
+            }
+            GetTime( timeEnd );
+            timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+        }
+        MPI_Bcast(resNorm.Data(), width, MPI_DOUBLE, 0, mpi_comm);
+
+        double resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
+        double resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
+
+	statusOFS << std::endl << " Maximum residual = " << resMax;
+        statusOFS << std::endl << " Minimum residual = " << resMin;
+	statusOFS << std::endl;
+
+#if ( _DEBUGlevel_ >= 1 )
+        statusOFS << "resNorm = " << resNorm << std::endl;
+      #endif
+	
+    resVal_ = resNorm;
+
+    
+    }
+
+
+    } // Loop for(Int iter = 1; iter <= Iter_Max; iter ++)
 
 
 
@@ -4865,16 +4990,139 @@ EigenSolver::GeneralChebyStep	(
 
     GetTime( extra_timeEnd );
     statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
-
-    //statusOFS << std::endl << " Intermediate eig vals " << std::endl<< eig_vals_Raleigh_Ritz;
-
-
+    
     // Save the eigenvalues to the eigensolver data structure     
     eigVal_ = DblNumVec( width, true, eig_vals_Raleigh_Ritz.Data() );
 
-    // Compute the residuals here  ?
+    //statusOFS << std::endl << " Intermediate eig vals " << std::endl<< eig_vals_Raleigh_Ritz;
+    // ----------------------------------------------------------
+    // Finally, as a postprocessing step, compute the residual of the eigenvectors
+    // Do this by R = HX - X * (X^T * H * X)
+    {
+      // First compute HX
+      // ~~ Applying the Hamiltonian matrix
+      // HXcol = H * Xcol : Both are in height * local_width dimensioned format
+     {
+        GetTime( timeSta );
+        Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
+        NumTns<double> tnsTemp(ntot, ncom, noccLocal, false, HXcol.Data());
 
+        hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+        GetTime( timeEnd );
+        iterSpinor = iterSpinor + 1;
+        timeSpinor = timeSpinor + ( timeEnd - timeSta );
+    }
 
+    // ~~ Flip into the alternate distribution for linear algebra
+    // So data goes from Xcol to X
+    GetTime( timeSta );
+    for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+            sendbuf[sendk(i, j)] = Xcol(i, j); 
+        }
+    }
+    MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+            &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+    for( Int j = 0; j < width; j++ ){ 
+        for( Int i = 0; i < heightLocal; i++ ){
+            X(i, j) = recvbuf[recvk(i, j)];
+        }
+    }
+    GetTime( timeEnd );
+    iterAlltoallv = iterAlltoallv + 1;
+    timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+
+    // As well as HXcol to HX
+    GetTime( timeSta );
+    for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+            sendbuf[sendk(i, j)] = HXcol(i, j); 
+        }
+    }
+    MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+            &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+    for( Int j = 0; j < width; j++ ){ 
+        for( Int i = 0; i < heightLocal; i++ ){
+            HX(i, j) = recvbuf[recvk(i, j)];
+        }
+    }
+    GetTime( timeEnd );
+    iterAlltoallv = iterAlltoallv + 1;
+    timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+
+    //square_mat = X' * (HX)
+    GetTime( timeSta );
+    blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
+            heightLocal, HX.Data(), heightLocal, 0.0, square_mat_temp.Data(), width );
+    SetValue(square_mat , 0.0 );
+    MPI_Allreduce( square_mat_temp.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    GetTime( timeEnd );
+    iterGemmT = iterGemmT + 1;
+    timeGemmT = timeGemmT + ( timeEnd - timeSta );
+    
+    // So square_mat = X^T * (H * X)
+    // Now compute HX - X* square_mat (i.e., the second part is like a subspace rotation)
+    
+    // Storage for residuals
+    DblNumMat  Res( heightLocal, width);
+    
+    // Set Res <-- X
+    lapack::Lacpy( 'A', heightLocal, width, HX.Data(),  heightLocal, Res.Data(), heightLocal );
+
+    
+    // ~~ Gemm: Res <-- X * Q - Res (= X)
+    GetTime( timeSta );
+    blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
+            heightLocal, square_mat.Data(), width, -1.0, Res.Data(), heightLocal );	
+    GetTime( timeEnd );
+    iterGemmT = iterGemmT + 1;
+    timeGemmT = timeGemmT + ( timeEnd - timeSta );
+
+    
+    // Compute the norm of the residuals
+    DblNumVec  resNorm( width );
+    SetValue( resNorm, 0.0 );
+    DblNumVec  resNormLocal ( width ); 
+    SetValue( resNormLocal, 0.0 );
+    
+     for( Int k = 0; k < width; k++ ){
+            resNormLocal(k) = Energy(DblNumVec(heightLocal, false, Res.VecData(k)));
+      }
+
+     MPI_Allreduce( resNormLocal.Data(), resNorm.Data(), width, MPI_DOUBLE, 
+                MPI_SUM, mpi_comm );
+
+        if ( mpirank == 0 ){
+            GetTime( timeSta );
+            for( Int k = 0; k < width; k++ ){
+	        resNorm(k) = std::sqrt( resNorm(k) );
+            }
+            GetTime( timeEnd );
+            timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+        }
+        MPI_Bcast(resNorm.Data(), width, MPI_DOUBLE, 0, mpi_comm);
+
+        double resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
+        double resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
+
+	statusOFS << std::endl << " Maximum residual = " << resMax;
+        statusOFS << std::endl << " Minimum residual = " << resMin;
+	statusOFS << std::endl;
+
+	resVal_ = resNorm;
+	
+#if ( _DEBUGlevel_ >= 1 )
+        statusOFS << "resNorm = " << resNorm << std::endl;
+      #endif
+    
+    }
+      
+    
+    
+    
+    
+
+    
 #ifndef _RELEASE_
     PopCallStack();
 #endif
