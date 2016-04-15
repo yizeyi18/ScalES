@@ -569,6 +569,11 @@ namespace dgdft{
       /// Default: mpisize
       Int                 numProcScaLAPACK;
 
+      /// @brief Number of processors used by ScaLAPACK in the PW part
+      ///
+      /// Default: mpisize for PWDFT. mpisizeRow for DGDFT.
+      Int                 numProcScaLAPACKPW;
+
       // PEXSI
       /// @brief Number of processors in the row communication group for
       /// each pole.

@@ -49,87 +49,17 @@
 /// @date 2016-04-04 Adjust some parameters for controlling the number
 /// of iterations dynamically.
 /// @date 2016-04-07 Add Chebyshev filtering.
-#include	"eigensolver.hpp"
+#include  "eigensolver.hpp"
 #include  "utility.hpp"
 #include  "blas.hpp"
 #include  "lapack.hpp"
 #include  "scalapack.hpp"
 #include  "mpi_interf.hpp"
 
+using namespace dgdft::scalapack;
+
 
 namespace dgdft{
-
-extern "C"{
-
-void Cblacs_get(const Int contxt, const Int what, Int* val);
-
-void Cblacs_gridinit(Int* contxt, const char* order, const Int nprow, const Int npcol);
-
-void Cblacs_gridmap(Int* contxt, Int* pmap, const Int ldpmap, const Int nprow, const Int npcol);
-
-void Cblacs_gridinfo(const Int contxt,  Int* nprow, Int* npcol, 
-        Int* myprow, Int* mypcol);
-
-void Cblacs_gridexit	(	int contxt );	
-
-void SCALAPACK(descinit)(Int* desc, const Int* m, const Int * n, const Int* mb,
-        const Int* nb, const Int* irsrc, const Int* icsrc,
-        const Int* contxt, const Int* lld, Int* info);
-
-void SCALAPACK(pdsyev)(const char *jobz, const char *uplo, const Int *n, double *a, 
-        const Int *ia, const Int *ja, const Int *desca, double *w, 
-        double *z, const Int *iz, const Int *jz, const Int *descz, 
-        double *work, const Int *lwork, Int *info);
-
-void SCALAPACK(pdsyevd)(const char *jobz, const char *uplo, const Int *n, double *a, 
-        const Int *ia, const Int *ja, const Int *desca, double *w, 
-        const double *z, const Int *iz, const Int *jz, const Int *descz, 
-        double *work, const Int *lwork, Int* iwork, const Int* liwork, 
-        Int *info);
-
-void SCALAPACK(pdsyevr)(const char *jobz, const char *range, const char *uplo,
-        const Int *n, double* a, const Int *ia, const Int *ja,
-        const Int *desca, const double* vl, const double *vu,
-        const Int *il, const Int* iu, Int *m, Int *nz, 
-        double *w, double *z, const Int *iz, const Int *jz, 
-        const Int *descz, double *work, const Int *lwork, 
-        Int *iwork, const Int *liwork, Int *info);
-
-void SCALAPACK(pdlacpy)(const char* uplo,
-        const Int* m, const Int* n,
-        const double* A, const Int* ia, const Int* ja, const Int* desca, 
-        const double* B, const Int* ib, const Int* jb, const Int* descb );
-
-void SCALAPACK(pdgemm)(const char* transA, const char* transB,
-        const Int* m, const Int* n, const Int* k,
-        const double* alpha,
-        const double* A, const Int* ia, const Int* ja, const Int* desca, 
-        const double* B, const Int* ib, const Int* jb, const Int* descb,
-        const double* beta,
-        double* C, const Int* ic, const Int* jc, const Int* descc,
-        const Int* contxt);
-
-void SCALAPACK(pdgemr2d)(const Int* m, const Int* n, const double* A, const Int* ia, 
-        const Int* ja, const Int* desca, double* B,
-        const Int* ib, const Int* jb, const Int* descb,
-        const Int* contxt);
-
-void SCALAPACK(pdpotrf)( const char* uplo, const Int* n, 
-        double* A, const Int* ia, const Int* ja, const Int* desca, 
-        Int* info );
-
-void SCALAPACK(pdsygst)( const Int* ibtype, const char* uplo, 
-        const Int* n, double* A, const Int* ia, const Int* ja, 
-        const Int* desca, const double* b, const Int* ib, const Int* jb,
-        const Int* descb, double* scale, Int* info );
-
-void SCALAPACK(pdtrsm)( const char* side, const char* uplo, 
-        const char* trans, const char* diag,
-        const int* m, const int* n, const double* alpha,
-        const double* a, const int* ia, const int* ja, const int* desca, 
-        double* b, const int* ib, const int* jb, const int* descb );
-
-}
 
 EigenSolver::EigenSolver() {}
 
@@ -158,7 +88,7 @@ void EigenSolver::Setup(
 
     PWSolver_          = esdfParam.PWSolver;
     scaBlockSize_      = esdfParam.scaBlockSize;
-    numProcScaLAPACK_  = esdfParam.numProcScaLAPACK; 
+    numProcScaLAPACK_  = esdfParam.numProcScaLAPACKPW; 
 
     // Setup BLACS
     if( PWSolver_ == "LOBPCGScaLAPACK" ){
@@ -167,10 +97,17 @@ void EigenSolver::Setup(
             nprow_ = i; npcol_ = numProcScaLAPACK_ / nprow_;
             if( nprow_ * npcol_ == numProcScaLAPACK_ ) break;
         }
+        
+        IntNumVec pmap(numProcScaLAPACK_);
+        // Take the first numProcScaLAPACK processors for diagonalization
+        for ( Int i = 0; i < numProcScaLAPACK_; i++ ){
+            pmap[i] = i;
+        }
 
+        contxt_ = -1;
         Cblacs_get(0, 0, &contxt_);
-        Cblacs_gridinit(&contxt_, "C", nprow_, npcol_);
-//        Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
+
+        Cblacs_gridmap(&contxt_, &pmap[0], nprow_, nprow_, npcol_);
     }
 
 #ifndef _RELEASE_
@@ -2665,6 +2602,7 @@ EigenSolver::LOBPCGSolveReal3	(
     Real timeSpinor = 0.0;
     Real timeTrsm = 0.0;
     Real timeMpirank0 = 0.0;
+    Real timeScaLAPACKFactor = 0.0;
     Real timeScaLAPACK = 0.0;
     Int  iterGemmT = 0;
     Int  iterGemmN = 0;
@@ -2672,6 +2610,7 @@ EigenSolver::LOBPCGSolveReal3	(
     Int  iterSpinor = 0;
     Int  iterTrsm = 0;
     Int  iterMpirank0 = 0;
+    Int  iterScaLAPACKFactor = 0;
     Int  iterScaLAPACK = 0;
 
     if( numEig > width ){
@@ -3360,59 +3299,119 @@ EigenSolver::LOBPCGSolveReal3	(
         // Solve the generalized eigenvalue problem using ScaLAPACK
         // NOTE: This uses a simplified implementation with Sygst / Syevd / Trsm. 
         // For ill-conditioned matrices this might be unstable. So BE CAREFUL
-        {
-
+        if( contxt_ >= 0 ){
             GetTime( timeSta );
             // Note: No need for symmetrization of A, B matrices due to
             // the usage of symmetric version of the algorithm
 
-            // Provided LDA
-            scalapack::Descriptor descReduceSeq( numCol, numCol, numCol, numCol, I_ZERO, I_ZERO, contxt_, lda );
-            // Automatically comptued LDA
-            scalapack::Descriptor descReducePar( numCol, numCol, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, contxt_ );
-            scalapack::ScaLAPACKMatrix<Real> AMatSca, BMatSca, ZMatSca;
+            // For stability reason, need to find a well conditioned
+            // submatrix of B to solve the generalized eigenvalue problem. 
+            // This is done by possibly repeatedly doing potrf until
+            // info == 0 (no error)
+            bool factorizeB = true;
+            Int numKeep = numCol;
+            scalapack::ScaLAPACKMatrix<Real> BMatSca;
+            scalapack::Descriptor descReduceSeq, descReducePar;
+            Real timeFactorSta, timeFactorEnd;
+            GetTime( timeFactorSta );
+            while( factorizeB ){
+                // Redistributed the B matrix
+
+                // Provided LDA
+                descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt_, lda );
+                // Automatically comptued LDA
+                descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, contxt_ );
+                BMatSca.SetDescriptor( descReducePar );
+                // Redistribute the matrix due to the changed size. 
+                SCALAPACK(pdgemr2d)(&numKeep, &numKeep, BMat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
+                        &BMatSca.LocalMatrix()[0], &I_ONE, &I_ONE, BMatSca.Desc().Values(), &contxt_ );
+
+                // Factorize
+                Int info;
+                char uplo = 'U';
+                SCALAPACK(pdpotrf)(&uplo, &numKeep, BMatSca.Data(), &I_ONE,
+                        &I_ONE, BMatSca.Desc().Values(), &info);
+                if( info == 0 ){
+                    // Finish
+                    factorizeB = false;
+                }
+                else if( info > width + 1 ){
+                    // Reduce numKeep and solve again
+                    // NOTE: (int) is in fact redundant due to integer operation
+                    numKeep = (int)((info + width)/2);
+                    // Need to modify the descriptor
+                    statusOFS << "pdpotrf returns info = " << info << std::endl;
+                    statusOFS << "retry with size = " << numKeep << std::endl;
+                }
+                else if (info > 0 && info <=width + 1){
+                    std::ostringstream msg;
+                    msg << "pdpotrf: returns info = " << info << std::endl
+                        << "Not enough columns. The matrix is very ill conditioned." << std::endl;
+                    ErrorHandling( msg );
+                }
+                else if( info < 0 ){
+                    std::ostringstream msg;
+                    msg << "pdpotrf: runtime error. Info = " << info << std::endl;
+                    ErrorHandling( msg );
+                }
+
+                iterScaLAPACKFactor ++;
+            } // while (factorizeB)
+
+            GetTime( timeFactorEnd );
+            timeScaLAPACKFactor += timeFactorEnd - timeFactorSta;
+//            statusOFS << "Factorization has finished in " << timeFactorEnd - timeFactorSta << " [s]" << std::endl;
+
+            scalapack::ScaLAPACKMatrix<Real> AMatSca, ZMatSca;
             AMatSca.SetDescriptor( descReducePar );
-            BMatSca.SetDescriptor( descReducePar );
             ZMatSca.SetDescriptor( descReducePar );
-            
 
-            SCALAPACK(pdgemr2d)(&numCol, &numCol, AMat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
+            SCALAPACK(pdgemr2d)(&numKeep, &numKeep, AMat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
                     &AMatSca.LocalMatrix()[0], &I_ONE, &I_ONE, AMatSca.Desc().Values(), &contxt_ );
-            SCALAPACK(pdgemr2d)(&numCol, &numCol, BMat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
-                    &BMatSca.LocalMatrix()[0], &I_ONE, &I_ONE, BMatSca.Desc().Values(), &contxt_ );
 
+#if ( _DEBUGlevel_ >= 1 )
             statusOFS << "pass pdgemr2d" << std::endl;
+#endif
 
             // Solve the generalized eigenvalue problem
             std::vector<Real> eigs(lda);
-            scalapack::Potrf( 'U', BMatSca );
-            statusOFS << "pass Potrf" << std::endl;
+            // Keep track of whether Potrf is stable or not.
             scalapack::Sygst( 1, 'U', AMatSca, BMatSca );
+#if ( _DEBUGlevel_ >= 1 )
             statusOFS << "pass Sygst" << std::endl;
+#endif
             scalapack::Syevd('U', AMatSca, eigs, ZMatSca );
+#if ( _DEBUGlevel_ >= 1 )
             statusOFS << "pass Syevd" << std::endl;
+#endif
             scalapack::Trsm('L', 'U', 'N', 'N', 1.0, BMatSca, ZMatSca);
+#if ( _DEBUGlevel_ >= 1 )
             statusOFS << "pass Trsm" << std::endl;
+#endif
 
             // Copy the eigenvalues
-            for( Int i = 0; i < numCol; i++ ){
+            SetValue( eigValS, 0.0 );
+            for( Int i = 0; i < numKeep; i++ ){
                 eigValS[i] = eigs[i];
             }
 
             // Copy the eigenvectors back to the 0-th processor
-            SCALAPACK(pdgemr2d)( &numCol, &numCol, ZMatSca.Data(), &I_ONE, &I_ONE, ZMatSca.Desc().Values(),
+            SetValue( AMat, 0.0 );
+            SCALAPACK(pdgemr2d)( &numKeep, &numKeep, ZMatSca.Data(), &I_ONE, &I_ONE, ZMatSca.Desc().Values(),
                     AMat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt_ );
+#if ( _DEBUGlevel_ >= 1 )
             statusOFS << "pass pdgemr2d" << std::endl;
+#endif
 
-            // All processors synchronize the information
-            MPI_Bcast(AMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
-            MPI_Bcast(eigValS.Data(), lda, MPI_DOUBLE, 0, mpi_comm);
 
             GetTime( timeEnd );
             timeScaLAPACK += timeEnd - timeSta;
             iterScaLAPACK += 1;
-        } 
-
+        } // solve generalized eigenvalue problem
+        
+        // All processors synchronize the information
+        MPI_Bcast(AMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
+        MPI_Bcast(eigValS.Data(), lda, MPI_DOUBLE, 0, mpi_comm);
 
 
         if( numSet == 2 ){
@@ -3650,6 +3649,7 @@ EigenSolver::LOBPCGSolveReal3	(
     statusOFS << "Time for iterTrsm      = " << iterTrsm          << "  timeTrsm      = " << timeTrsm << std::endl;
     statusOFS << "Time for iterMpirank0  = " << iterMpirank0      << "  timeMpirank0  = " << timeMpirank0 << std::endl;
     statusOFS << "Time for ScaLAPACK     = " << iterScaLAPACK     << "  timeScaLAPACK = " << timeScaLAPACK << std::endl;
+    statusOFS << "Time for pdpotrf       = " << iterScaLAPACKFactor     << "  timepdpotrf   = " << timeScaLAPACKFactor << std::endl;
 #endif
 
     return ;

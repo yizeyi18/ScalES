@@ -801,6 +801,11 @@ namespace dgdft{
 
 
       i++;
+      strcpy(kw_label[i],"num_proc_scalapack_pw");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! Number of processors used by ScaLAPACK in the PW part!*");
+
+      i++;
       strcpy(kw_label[i],"num_proc_row_pexsi");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! Number of processors per row used by pexsi !*");
@@ -2264,112 +2269,114 @@ namespace dgdft{
 
         // System parameters
         {
-          esdfParam.mixMaxDim       = esdf_integer("Mixing_MaxDim", 9);
+            esdfParam.mixMaxDim       = esdf_integer("Mixing_MaxDim", 9);
 
-          esdf_string("Mixing_Type", "anderson", strtmp); 
-          esdfParam.mixType         = strtmp;
-          if( esdfParam.mixType != "anderson" &&
-              esdfParam.mixType != "kerker+anderson" ){
-            ErrorHandling("Invalid mixing type.");
-          }
+            esdf_string("Mixing_Type", "anderson", strtmp); 
+            esdfParam.mixType         = strtmp;
+            if( esdfParam.mixType != "anderson" &&
+                    esdfParam.mixType != "kerker+anderson" ){
+                ErrorHandling("Invalid mixing type.");
+            }
 
-          esdf_string("Mixing_Variable", "potential", strtmp); 
-          esdfParam.mixVariable     = strtmp;
-          if( esdfParam.mixVariable != "density" &&
-              esdfParam.mixVariable != "potential" ){
-            throw std::runtime_error("Invalid mixing variable.");
-          }
-
-
-          esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
-          esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
-          esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 );
-          esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
-          esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-6 );
-          esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
-          esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
-          esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
-          esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
-          esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
-          esdfParam.isHybridACE          = esdf_integer( "Hybrid_ACE", 0 );
-          esdfParam.isHybridACEOutside   = esdf_integer( "Hybrid_ACE_Outside", 0 );
-
-          if( esdfParam.isHybridACE == false &&
-              esdfParam.isHybridACEOutside == true ){
-            ErrorHandling("Cannot set Hybrid_ACE_Outside to be 1 but Hybrid_ACE to be 0.");
-          }
-          esdfParam.exxDivergenceType    = esdf_integer( "EXX_Divergence_Type", 1 );
-
-          // Default is no locking
-          esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-20 );
-          esdfParam.eigMinTolerance      = esdf_double( "Eig_Min_Tolerance", 1e-3 );
-          esdfParam.eigMinIter           = esdf_integer( "Eig_MinIter",  2 );
-          esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
-          esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
-          esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
-          esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
-          esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
-          esdfParam.isOutputALBElemLGL      = esdf_integer( "Output_ALB_Elem_LGL", 0 );
-          esdfParam.isOutputALBElemUniform  = esdf_integer( "Output_ALB_Elem_Uniform", 0 );
-          esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 0 );
-          esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 0 );
-          esdfParam.isOutputEigvecCoef      = esdf_integer( "Output_Eigvec_Coef", 0 );
-          esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
-          esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 0 );
-          esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
-	  
-	  // Parameters related to Chebyshev Filtering in PWDFT
-	  esdfParam.Diag_SCF_PWDFT_by_Cheby = esdf_integer("Diag_SCF_PWDFT_by_Cheby", 0 );
-	  esdfParam.First_SCF_PWDFT_ChebyFilterOrder = esdf_integer("First_SCF_PWDFT_ChebyFilterOrder", 40 );
-	  esdfParam.First_SCF_PWDFT_ChebyCycleNum =  esdf_integer("First_SCF_PWDFT_ChebyCycleNum", 5);
-	  esdfParam.General_SCF_PWDFT_ChebyFilterOrder = esdf_integer("General_SCF_PWDFT_ChebyFilterOrder", 35);
+            esdf_string("Mixing_Variable", "potential", strtmp); 
+            esdfParam.mixVariable     = strtmp;
+            if( esdfParam.mixVariable != "density" &&
+                    esdfParam.mixVariable != "potential" ){
+                throw std::runtime_error("Invalid mixing variable.");
+            }
 
 
+            esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
+            esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
+            esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 );
+            esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
+            esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-6 );
+            esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
+            esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
+            esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
+            esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
+            esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
+            esdfParam.isHybridACE          = esdf_integer( "Hybrid_ACE", 0 );
+            esdfParam.isHybridACEOutside   = esdf_integer( "Hybrid_ACE_Outside", 0 );
+
+            if( esdfParam.isHybridACE == false &&
+                    esdfParam.isHybridACEOutside == true ){
+                ErrorHandling("Cannot set Hybrid_ACE_Outside to be 1 but Hybrid_ACE to be 0.");
+            }
+            esdfParam.exxDivergenceType    = esdf_integer( "EXX_Divergence_Type", 1 );
+
+            // Default is no locking
+            esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-20 );
+            esdfParam.eigMinTolerance      = esdf_double( "Eig_Min_Tolerance", 1e-3 );
+            esdfParam.eigMinIter           = esdf_integer( "Eig_MinIter",  2 );
+            esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
+            esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
+            esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
+            esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
+            esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
+            esdfParam.isOutputALBElemLGL      = esdf_integer( "Output_ALB_Elem_LGL", 0 );
+            esdfParam.isOutputALBElemUniform  = esdf_integer( "Output_ALB_Elem_Uniform", 0 );
+            esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 0 );
+            esdfParam.isOutputPotExtElem      = esdf_integer( "Output_Pot_ExtElem", 0 );
+            esdfParam.isOutputEigvecCoef      = esdf_integer( "Output_Eigvec_Coef", 0 );
+            esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
+            esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 0 );
+            esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
+
+            // Parameters related to Chebyshev Filtering in PWDFT
+            esdfParam.Diag_SCF_PWDFT_by_Cheby = esdf_integer("Diag_SCF_PWDFT_by_Cheby", 0 );
+            esdfParam.First_SCF_PWDFT_ChebyFilterOrder = esdf_integer("First_SCF_PWDFT_ChebyFilterOrder", 40 );
+            esdfParam.First_SCF_PWDFT_ChebyCycleNum =  esdf_integer("First_SCF_PWDFT_ChebyCycleNum", 5);
+            esdfParam.General_SCF_PWDFT_ChebyFilterOrder = esdf_integer("General_SCF_PWDFT_ChebyFilterOrder", 35);
 
 
-          esdfParam.ecutWavefunction     = esdf_double( "Ecut_Wavefunction", 40.0 );
-          esdfParam.densityGridFactor    = esdf_double( "Density_Grid_Factor", 2.0 );
-
-          // The density grid factor must be an integer
-          // esdfParam.densityGridFactor    = std::ceil( esdfParam.densityGridFactor );
-
-          Real temperature;
-          temperature               = esdf_double( "Temperature", 300.0 );
-          esdfParam.Tbeta           = au2K / temperature;
-
-          esdfParam.numExtraState   = esdf_integer( "Extra_States",  0 );
-          esdfParam.numUnusedState  = esdf_integer( "Unused_States",  0 );
-          esdfParam.isEigToleranceDynamic = esdf_integer( "Eig_Tolerance_Dynamic", 1 );
 
 
-          esdf_string("PeriodTable", "HGH.bin", strtmp);
-          esdfParam.periodTableFile = strtmp;
-          esdf_string("Pseudo_Type", "HGH", strtmp); 
-          esdfParam.pseudoType      = strtmp;
-          esdf_string("PW_Solver", "LOBPCG", strtmp); 
-          esdfParam.PWSolver        = strtmp;
-          esdf_string("XC_Type", "XC_LDA_XC_TETER93", strtmp); 
-          esdfParam.XCType          = strtmp;
-          esdf_string("VDW_Type", "None", strtmp); 
-          esdfParam.VDWType          = strtmp;
+            esdfParam.ecutWavefunction     = esdf_double( "Ecut_Wavefunction", 40.0 );
+            esdfParam.densityGridFactor    = esdf_double( "Density_Grid_Factor", 2.0 );
+
+            // The density grid factor must be an integer
+            // esdfParam.densityGridFactor    = std::ceil( esdfParam.densityGridFactor );
+
+            Real temperature;
+            temperature               = esdf_double( "Temperature", 300.0 );
+            esdfParam.Tbeta           = au2K / temperature;
+
+            esdfParam.numExtraState   = esdf_integer( "Extra_States",  0 );
+            esdfParam.numUnusedState  = esdf_integer( "Unused_States",  0 );
+            esdfParam.isEigToleranceDynamic = esdf_integer( "Eig_Tolerance_Dynamic", 1 );
+
+
+            esdf_string("PeriodTable", "HGH.bin", strtmp);
+            esdfParam.periodTableFile = strtmp;
+            esdf_string("Pseudo_Type", "HGH", strtmp); 
+            esdfParam.pseudoType      = strtmp;
+            esdf_string("PW_Solver", "LOBPCG", strtmp); 
+            esdfParam.PWSolver        = strtmp;
+            esdf_string("XC_Type", "XC_LDA_XC_TETER93", strtmp); 
+            esdfParam.XCType          = strtmp;
+            esdf_string("VDW_Type", "None", strtmp); 
+            esdfParam.VDWType          = strtmp;
+            esdfParam.numProcScaLAPACKPW  = esdf_integer( "Num_Proc_ScaLAPACK_PW", mpisize );
+            esdfParam.scaBlockSize  = esdf_integer( "ScaLAPACK_Block_Size", 32 );
         }
 
 
         // DG
-        {
-          Index3& numElem = esdfParam.numElem;
-          
-          if (esdf_block("Element_Size",&nlines)) {
+        Index3& numElem = esdfParam.numElem;
+        if (esdf_block("Element_Size",&nlines)) {
             sscanf(block_data[0],"%d %d %d", 
-                &numElem[0],&numElem[1],&numElem[2]);
+                    &numElem[0],&numElem[1],&numElem[2]);
             esdfParam.isDGDFT = true;
-          }
-          else{
+        }
+        else{
             esdfParam.isDGDFT = false;
             numElem(0) = 1;
             numElem(1) = 1;
             numElem(2) = 1;
-          }
+        }
+
+        if( esdfParam.isDGDFT ){
 
           // Instead of grid size, use ecut to determine the number of grid
           // points in the local LGL domain.
@@ -2388,8 +2395,6 @@ namespace dgdft{
           esdfParam.GaussSigma = esdf_double( "Gauss_Sigma", 0.001 );
 
           esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 20.0 );
-
-          esdfParam.scaBlockSize  = esdf_integer( "ScaLAPACK_Block_Size", 32 );
 
           // Get the number of basis functions per element
           // NOTE: ALB_Num_Element overwrites the parameter numALB later		
@@ -2477,8 +2482,6 @@ namespace dgdft{
           // FFT
           // esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisize );
 
-          // ScaLAPACK parameter
-          esdfParam.numProcScaLAPACK  = esdf_integer( "Num_Proc_ScaLAPACK", mpisize );
 
           // PEXSI parameters
           esdfParam.numPole           = esdf_integer( "Num_Pole", 60 );
@@ -2536,6 +2539,10 @@ namespace dgdft{
           // FFT
           esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisizeCol );
 
+          // ScaLAPACK parameter
+          esdfParam.numProcScaLAPACK    = esdf_integer( "Num_Proc_ScaLAPACK", mpisize );
+          if( esdfParam.numProcScaLAPACKPW > mpisizeRow )
+              esdfParam.numProcScaLAPACKPW = mpisizeRow;
         } // DG
 
 
@@ -2772,6 +2779,7 @@ namespace dgdft{
         Print(statusOFS, "Solution Method   = ",  esdfParam.solutionMethod );
         if( esdfParam.solutionMethod == "diag" ){
           Print(statusOFS, "Number of procs for ScaLAPACK        = ",  esdfParam.numProcScaLAPACK); 
+          Print(statusOFS, "Number of procs for ScaLAPACK (PW)   = ",  esdfParam.numProcScaLAPACKPW); 
           Print(statusOFS, "ScaLAPACK block                      = ",  esdfParam.scaBlockSize); 
         }
         if( esdfParam.solutionMethod == "pexsi" ){
@@ -2831,8 +2839,8 @@ namespace dgdft{
         Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);
 
         if( esdfParam.PWSolver == "LOBPCGScaLAPACK" ){
-            Print(statusOFS, "Number of procs for ScaLAPACK      = ",  esdfParam.numProcScaLAPACK); 
-            Print(statusOFS, "ScaLAPACK block   = ",  esdfParam.scaBlockSize); 
+          Print(statusOFS, "Number of procs for ScaLAPACK (PW)   = ",  esdfParam.numProcScaLAPACKPW); 
+          Print(statusOFS, "ScaLAPACK block                      = ",  esdfParam.scaBlockSize); 
         }
       } // PW
 

@@ -50,81 +50,6 @@ namespace scalapack {
 
 
 // *********************************************************************
-// ScaLAPACK routines in C interface
-// *********************************************************************
-extern "C"{
-
-  void SCALAPACK(descinit)(Int* desc, const Int* m, const Int * n, const Int* mb, 
-      const Int* nb, const Int* irsrc, const Int* icsrc, 
-      const Int* contxt, const Int* lld, Int* info);
-
-  void SCALAPACK(pdsyev)(const char *jobz, const char *uplo, const Int *n, double *a, 
-      const Int *ia, const Int *ja, const Int *desca, double *w, 
-      double *z, const Int *iz, const Int *jz, const Int *descz, 
-      double *work, const Int *lwork, Int *info);
-
-  void SCALAPACK(pdsyevd)(const char *jobz, const char *uplo, const Int *n, double *a, 
-      const Int *ia, const Int *ja, const Int *desca, double *w, 
-      const double *z, const Int *iz, const Int *jz, const Int *descz, 
-      double *work, const Int *lwork, Int* iwork, const Int* liwork, 
-      Int *info);
-
-  void SCALAPACK(pdsyevr)(const char *jobz, const char *range, const char *uplo,
-      const Int *n, double* a, const Int *ia, const Int *ja,
-      const Int *desca, const double* vl, const double *vu,
-      const Int *il, const Int* iu, Int *m, Int *nz, 
-      double *w, double *z, const Int *iz, const Int *jz, 
-      const Int *descz, double *work, const Int *lwork, 
-      Int *iwork, const Int *liwork, Int *info);
-
-// huwei
-  void SCALAPACK(pdlacpy)(const char* uplo,
-      const Int* m, const Int* n,
-      const double* A, const Int* ia, const Int* ja, const Int* desca, 
-      const double* B, const Int* ib, const Int* jb, const Int* descb );
-
-  // FIXME huwei
-  void SCALAPACK(pdgemm)(const char* transA, const char* transB,
-      const Int* m, const Int* n, const Int* k,
-      const double* alpha,
-      const double* A, const Int* ia, const Int* ja, const Int* desca, 
-      const double* B, const Int* ib, const Int* jb, const Int* descb,
-      const double* beta,
-      double* C, const Int* ic, const Int* jc, const Int* descc,
-      const Int* contxt);
-
-  void SCALAPACK(pdgemr2d)(const Int* m, const Int* n, const double* A, const Int* ia, 
-      const Int* ja, const Int* desca, double* B,
-      const Int* ib, const Int* jb, const Int* descb,
-      const Int* contxt);
-
-  void SCALAPACK(pdpotrf)( const char* uplo, const Int* n, 
-      double* A, const Int* ia, const Int* ja, const Int* desca, 
-      Int* info );
-
-  void SCALAPACK(pdsygst)( const Int* ibtype, const char* uplo, 
-      const Int* n, double* A, const Int* ia, const Int* ja, 
-      const Int* desca, const double* b, const Int* ib, const Int* jb,
-      const Int* descb, double* scale, Int* info );
-
-  void SCALAPACK(pdtrsm)( const char* side, const char* uplo, 
-      const char* trans, const char* diag,
-      const Int* m, const Int* n, const double* alpha,
-      const double* a, const Int* ia, const Int* ja, const Int* desca, 
-      double* b, const Int* ib, const Int* jb, const Int* descb );
-
-  // Factorization and triangular solve
-  void SCALAPACK(pzgetrf)( const Int* m, const Int* n, dcomplex* A,
-      const Int* ia, const Int* ja, const Int* desca, Int* ipiv,
-      Int* info );
-
-  void SCALAPACK(pzgetri)( const Int* n, dcomplex* A, const Int* ia,
-      const Int* ja, const Int* desca, const Int* ipiv, 
-      dcomplex *work, const Int* lwork, Int *iwork, const Int *liwork, 
-      Int* info );
-}
-
-// *********************************************************************
 // Descriptor
 // *********************************************************************
 
@@ -150,7 +75,7 @@ Descriptor::Init(Int m, Int n, Int mb,
   {
     std::ostringstream msg;
     msg << "Descriptor:: descinit returned with info = " << info;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
 #ifndef _RELEASE_
@@ -179,7 +104,7 @@ Descriptor::Init(Int m, Int n, Int mb,
   {
     std::ostringstream msg;
     msg << "Descriptor:: descinit returned with info = " << info;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
 #ifndef _RELEASE_
@@ -204,7 +129,7 @@ Descriptor& Descriptor::operator =	( const Descriptor& desc  )
       mypcol_ != desc.mypcol_ ){
     std::ostringstream msg;
     msg << "Descriptor:: the context information does not match" << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 #ifndef _RELEASE_
   PopCallStack();
@@ -228,7 +153,7 @@ inline F ScaLAPACKMatrix<F>::GetLocal	( Int iLocal, Int jLocal ) const
       jLocal < 0 || jLocal > this->LocalWidth() ){
     std::ostringstream msg;
     msg << "ScaLAPACK::GetLocal index is out of range" << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 #ifndef _RELEASE_
   PopCallStack();
@@ -248,7 +173,7 @@ inline void ScaLAPACKMatrix<F>::SetLocal	( Int iLocal, Int jLocal, F val )
       jLocal < 0 || jLocal > this->LocalWidth() ){
     std::ostringstream msg;
     msg << "ScaLAPACK::SetLocal index is out of range" << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
   localMatrix_[iLocal+jLocal*this->LocalHeight()] = val;
 #ifndef _RELEASE_
@@ -290,13 +215,13 @@ ScaLAPACKMatrix<F>::operator=	( const ScaLAPACKMatrix<F>& A )
 //      << "Gemm:: Global matrix dimension does not match\n" 
 //      << "The dimension of A is " << A.Height() << " x " << A.Width() << std::endl
 //      << "The dimension of B is " << B.Height() << " x " << B.Width() << std::endl;
-//    throw std::logic_error( msg.str().c_str() );
+//    ErrorHandling( msg.str().c_str() );
 //  }
 
 //  if( A.Context() != B.Context() ){
 //    std::ostringstream msg;
 //    msg << "Gemm:: A and B are not sharing the same context." << std::endl; 
-//    throw std::logic_error( msg.str().c_str() );
+//    ErrorHandling( msg.str().c_str() );
 //  }
 
 //  const Int M = A.Height();
@@ -384,13 +309,13 @@ Gemr2d(const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B){
       << "Gemr2d:: Global matrix dimension does not match\n" 
       << "The dimension of A is " << A.Height() << " x " << A.Width() << std::endl
       << "The dimension of B is " << B.Height() << " x " << B.Width() << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
   if( A.Context() != B.Context() ){
     std::ostringstream msg;
     msg << "Gemr2d:: A and B are not sharing the same context." << std::endl; 
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
   const Int M = A.Height();
@@ -443,7 +368,7 @@ Syev(char uplo, ScaLAPACKMatrix<double>& A,
     msg 
       << "Syev: A must be a square matrix. \n" 
       << "The dimension of A is " << A.Height() << " x " << A.Width() << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
   char jobz = 'N';
@@ -470,13 +395,13 @@ Syev(char uplo, ScaLAPACKMatrix<double>& A,
   {
     std::ostringstream msg;
     msg << "pdsyev: logic error. Info = " << info << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
   else if( info > 0 )
   {
     std::ostringstream msg;
     msg << "pdsyev: runtime error. Info = " << info << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 #ifndef _RELEASE_
   PopCallStack();
@@ -498,7 +423,7 @@ Syev(char uplo, ScaLAPACKMatrix<double>& A,
     msg 
       << "Syev: A must be a square matrix. \n" 
       << "The dimension of A is " << A.Height() << " x " << A.Width() << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
   char jobz = 'V';
@@ -525,13 +450,13 @@ Syev(char uplo, ScaLAPACKMatrix<double>& A,
   {
     std::ostringstream msg;
     msg << "pdsyev: logic error. Info = " << info << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
   else if( info > 0 )
   {
     std::ostringstream msg;
     msg << "pdsyev: runtime error. Info = " << info << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 #ifndef _RELEASE_
   PopCallStack();
@@ -552,7 +477,7 @@ Syevd(char uplo, ScaLAPACKMatrix<double>& A,
     msg 
       << "Syevd: A must be a square matrix. \n" 
       << "The dimension of A is " << A.Height() << " x " << A.Width() << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
   char jobz = 'V';
@@ -586,13 +511,13 @@ Syevd(char uplo, ScaLAPACKMatrix<double>& A,
   {
     std::ostringstream msg;
     msg << "pdsyevd: logic error. Info = " << info << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
   else if( info > 0 )
   {
     std::ostringstream msg;
     msg << "pdsyevd: runtime error. Info = " << info << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 #ifndef _RELEASE_
   PopCallStack();
@@ -614,7 +539,7 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
     msg 
       << "Syevr: A must be a square matrix. \n" 
       << "The dimension of A is " << A.Height() << " x " << A.Width() << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
   char jobz = 'V';
@@ -652,13 +577,13 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
   {
     std::ostringstream msg;
     msg << "pdsyevr: logic error. Info = " << info << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
   else if( info > 0 )
   {
     std::ostringstream msg;
     msg << "pdsyevr: runtime error. Info = " << info << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
   if( numEigValueFound != N ){
@@ -667,7 +592,7 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
       << "pdsyevr: Not all eigenvalues are found.\n " 
       << "Found " << numEigValueFound << " eigenvalues, " << 
       N << " eigenvalues in total." << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
   if( numEigVectorFound != N ){
     std::ostringstream msg;
@@ -675,7 +600,7 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
       << "pdsyevr: Not all eigenvectors are found.\n " 
       << "Found " << numEigVectorFound << " eigenvectors, " << 
       N << " eigenvectors in total." << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 #ifndef _RELEASE_
   PopCallStack();
@@ -698,7 +623,7 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
     msg 
       << "Syevr: A must be a square matrix. \n" 
       << "The dimension of A is " << A.Height() << " x " << A.Width() << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
   char jobz = 'V';
@@ -737,13 +662,13 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
   {
     std::ostringstream msg;
     msg << "pdsyevr: logic error. Info = " << info << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
   else if( info > 0 )
   {
     std::ostringstream msg;
     msg << "pdsyevr: runtime error. Info = " << info << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
   if( numEigValueFound != numEigValue ){
@@ -752,7 +677,7 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
       << "pdsyevr: Not all eigenvalues are found.\n " 
       << "Found " << numEigValueFound << " eigenvalues, " << 
       N << " eigenvalues in total." << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
   if( numEigVectorFound != numEigValue ){
     std::ostringstream msg;
@@ -760,7 +685,7 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
       << "pdsyevr: Not all eigenvectors are found.\n " 
       << "Found " << numEigVectorFound << " eigenvectors, " << 
       N << " eigenvectors in total." << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
   // Post processing of eigs by resize (not destroying the computed
@@ -792,13 +717,13 @@ Potrf( char uplo, ScaLAPACKMatrix<double>& A )
   {
     std::ostringstream msg;
     msg << "pdpotrf: logic error. Info = " << info << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
   else if( info > 0 )
   {
     std::ostringstream msg;
     msg << "pdpotrf: runtime error. Info = " << info << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
 #ifndef _RELEASE_
@@ -822,7 +747,7 @@ Sygst( Int ibtype, char uplo, ScaLAPACKMatrix<double>& A,
   Int N = A.Height();
 
   if( A.Height() != B.Height() ){
-    throw std::logic_error("A and B are not of the same size.");
+    ErrorHandling("A and B are not of the same size.");
   }
 
   SCALAPACK(pdsygst)(&ibtype, &uplo, &N, A.Data(), 
@@ -833,7 +758,7 @@ Sygst( Int ibtype, char uplo, ScaLAPACKMatrix<double>& A,
   {
     std::ostringstream msg;
     msg << "pdsygst: logic error. Info = " << info << std::endl;
-    throw std::logic_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
 #ifndef _RELEASE_

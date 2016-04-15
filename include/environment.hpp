@@ -215,6 +215,10 @@ void DumpElemCallStack();                 // Overload the elemental's DumpCallSt
 
 void ErrorHandling( const char * msg );
 
+void ErrorHandling( const std::string& msg ){ ErrorHandling( msg.c_str() ); }
+
+void ErrorHandling( const std::ostringstream& msg ) {ErrorHandling( msg.str().c_str() );}
+
 // We define an output stream that does nothing. This is done so that the 
 // root process can be used to print data to a file's ostream while all other 
 // processes use a null ostream. 

@@ -63,11 +63,11 @@ typedef  std::complex<float>    scomplex;
 typedef  std::complex<double>   dcomplex;
 
 
+extern "C"{
+
 // *********************************************************************
 // Cblas  routines
 // *********************************************************************
-extern "C"{
-
 void Cblacs_get(const Int contxt, const Int what, Int* val);
 
 void Cblacs_gridinit(Int* contxt, const char* order, const Int nprow, const Int npcol);
@@ -78,6 +78,78 @@ void Cblacs_gridinfo(const Int contxt,  Int* nprow, Int* npcol,
 		Int* myprow, Int* mypcol);
 
 void Cblacs_gridexit	(	int contxt );	
+
+// *********************************************************************
+// ScaLAPACK routines
+// *********************************************************************
+
+void SCALAPACK(descinit)(Int* desc, const Int* m, const Int * n, const Int* mb,
+        const Int* nb, const Int* irsrc, const Int* icsrc,
+        const Int* contxt, const Int* lld, Int* info);
+
+void SCALAPACK(pdsyev)(const char *jobz, const char *uplo, const Int *n, double *a, 
+        const Int *ia, const Int *ja, const Int *desca, double *w, 
+        double *z, const Int *iz, const Int *jz, const Int *descz, 
+        double *work, const Int *lwork, Int *info);
+
+void SCALAPACK(pdsyevd)(const char *jobz, const char *uplo, const Int *n, double *a, 
+        const Int *ia, const Int *ja, const Int *desca, double *w, 
+        const double *z, const Int *iz, const Int *jz, const Int *descz, 
+        double *work, const Int *lwork, Int* iwork, const Int* liwork, 
+        Int *info);
+
+void SCALAPACK(pdsyevr)(const char *jobz, const char *range, const char *uplo,
+        const Int *n, double* a, const Int *ia, const Int *ja,
+        const Int *desca, const double* vl, const double *vu,
+        const Int *il, const Int* iu, Int *m, Int *nz, 
+        double *w, double *z, const Int *iz, const Int *jz, 
+        const Int *descz, double *work, const Int *lwork, 
+        Int *iwork, const Int *liwork, Int *info);
+
+void SCALAPACK(pdlacpy)(const char* uplo,
+        const Int* m, const Int* n,
+        const double* A, const Int* ia, const Int* ja, const Int* desca, 
+        const double* B, const Int* ib, const Int* jb, const Int* descb );
+
+void SCALAPACK(pdgemm)(const char* transA, const char* transB,
+        const Int* m, const Int* n, const Int* k,
+        const double* alpha,
+        const double* A, const Int* ia, const Int* ja, const Int* desca, 
+        const double* B, const Int* ib, const Int* jb, const Int* descb,
+        const double* beta,
+        double* C, const Int* ic, const Int* jc, const Int* descc,
+        const Int* contxt);
+
+void SCALAPACK(pdgemr2d)(const Int* m, const Int* n, const double* A, const Int* ia, 
+        const Int* ja, const Int* desca, double* B,
+        const Int* ib, const Int* jb, const Int* descb,
+        const Int* contxt);
+
+void SCALAPACK(pdpotrf)( const char* uplo, const Int* n, 
+        double* A, const Int* ia, const Int* ja, const Int* desca, 
+        Int* info );
+
+void SCALAPACK(pdsygst)( const Int* ibtype, const char* uplo, 
+        const Int* n, double* A, const Int* ia, const Int* ja, 
+        const Int* desca, const double* b, const Int* ib, const Int* jb,
+        const Int* descb, double* scale, Int* info );
+
+void SCALAPACK(pdtrsm)( const char* side, const char* uplo, 
+        const char* trans, const char* diag,
+        const int* m, const int* n, const double* alpha,
+        const double* a, const int* ia, const int* ja, const int* desca, 
+        double* b, const int* ib, const int* jb, const int* descb );
+
+// Factorization and triangular solve
+void SCALAPACK(pzgetrf)( const Int* m, const Int* n, dcomplex* A,
+        const Int* ia, const Int* ja, const Int* desca, Int* ipiv,
+        Int* info );
+
+void SCALAPACK(pzgetri)( const Int* n, dcomplex* A, const Int* ia,
+        const Int* ja, const Int* desca, const Int* ipiv, 
+        dcomplex *work, const Int* lwork, Int *iwork, const Int *liwork, 
+        Int* info );
+
 
 }
 
