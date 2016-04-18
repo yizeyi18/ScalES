@@ -61,7 +61,12 @@ using namespace dgdft::scalapack;
 
 namespace dgdft{
 
-EigenSolver::EigenSolver() {}
+EigenSolver::EigenSolver() {
+    // IMPORTANT: 
+    // Set contxt_ here. Otherwise if an empty Eigensolver realization
+    // is used, there could be error in the exit
+    contxt_ = -1;
+}
 
 EigenSolver::~EigenSolver() {
     // Finish Cblacs
@@ -91,7 +96,6 @@ void EigenSolver::Setup(
     numProcScaLAPACK_  = esdfParam.numProcScaLAPACKPW; 
 
     // Setup BLACS
-    contxt_ = -1;
     if( PWSolver_ == "LOBPCGScaLAPACK" ){
         for( Int i = IRound(sqrt(double(numProcScaLAPACK_))); 
                 i <= numProcScaLAPACK_; i++){
