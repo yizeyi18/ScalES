@@ -1488,7 +1488,7 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
     if( this->IsHybridACE() ){
       
       // FIXME This sentence is strange
-      numStateTotal = this->NumStateTotal();
+//      numStateTotal = this->NumStateTotal();
 
       if(0)
       {

@@ -91,6 +91,7 @@ void EigenSolver::Setup(
     numProcScaLAPACK_  = esdfParam.numProcScaLAPACKPW; 
 
     // Setup BLACS
+    contxt_ = -1;
     if( PWSolver_ == "LOBPCGScaLAPACK" ){
         for( Int i = IRound(sqrt(double(numProcScaLAPACK_))); 
                 i <= numProcScaLAPACK_; i++){
@@ -104,7 +105,6 @@ void EigenSolver::Setup(
             pmap[i] = i;
         }
 
-        contxt_ = -1;
         Cblacs_get(0, 0, &contxt_);
 
         Cblacs_gridmap(&contxt_, &pmap[0], nprow_, nprow_, npcol_);
