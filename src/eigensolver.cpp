@@ -168,7 +168,7 @@ void EigenSolver::Setup(
 //    msg 
 //      << "Number of eigenvalues requested  = " << numEig << std::endl
 //      << "which is larger than the number of columns in psi = " << width << std::endl;
-//    throw std::runtime_error( msg.str().c_str() );
+//    ErrorHandling( msg.str().c_str() );
 //  }
 //
 //
@@ -884,7 +884,7 @@ void EigenSolver::Setup(
 //            << "width   = " << width << std::endl
 //            << "numKeep =  " << numKeep << std::endl
 //            << "there are not enough number of columns." << std::endl;
-//          throw std::runtime_error( msg.str().c_str() );
+//          ErrorHandling( msg.str().c_str() );
 //        }
 //
 //        SetValue( AMatT1, 0.0 );
@@ -1482,7 +1482,7 @@ EigenSolver::LOBPCGSolveReal2	(
   }
 
   if( widthLocal != noccLocal ){
-    throw std::logic_error("widthLocal != noccLocal.");
+    ErrorHandling("widthLocal != noccLocal.");
   }
 
   // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
@@ -1511,7 +1511,7 @@ EigenSolver::LOBPCGSolveReal2	(
     msg 
       << "Number of eigenvalues requested  = " << numEig << std::endl
       << "which is larger than the number of columns in psi = " << width << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
 
@@ -2239,7 +2239,7 @@ EigenSolver::LOBPCGSolveReal2	(
                       << "width   = " << width << std::endl
                       << "numKeep =  " << numKeep << std::endl
                       << "there are not enough number of columns." << std::endl;
-                  throw std::runtime_error( msg.str().c_str() );
+                  ErrorHandling( msg.str().c_str() );
               }
 
               SetValue( AMatT1, 0.0 );
@@ -2589,7 +2589,7 @@ EigenSolver::LOBPCGSolveReal3	(
     }
 
     if( widthLocal != noccLocal ){
-        throw std::logic_error("widthLocal != noccLocal.");
+        ErrorHandling("widthLocal != noccLocal.");
     }
 
     // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
@@ -2622,7 +2622,7 @@ EigenSolver::LOBPCGSolveReal3	(
         msg 
             << "Number of eigenvalues requested  = " << numEig << std::endl
             << "which is larger than the number of columns in psi = " << width << std::endl;
-        throw std::runtime_error( msg.str().c_str() );
+        ErrorHandling( msg.str().c_str() );
     }
 
 
@@ -3825,7 +3825,7 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
     }
 
     if( widthLocal != noccLocal ){
-        throw std::logic_error("widthLocal != noccLocal.");
+        ErrorHandling("widthLocal != noccLocal.");
     }
 
     double e, c, sigma, tau, sigma_new;
@@ -3947,7 +3947,7 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
     }
 
     if( widthLocal != noccLocal ){
-        throw std::logic_error("widthLocal != noccLocal.");
+        ErrorHandling("widthLocal != noccLocal.");
     }
 
     double e, c;
@@ -4066,7 +4066,7 @@ EigenSolver::FirstChebyStep	(
     }
 
     if( widthLocal != noccLocal ){
-        throw std::logic_error("widthLocal != noccLocal.");
+        ErrorHandling("widthLocal != noccLocal.");
     }
 
     // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
@@ -4096,7 +4096,7 @@ EigenSolver::FirstChebyStep	(
         msg 
             << "Number of eigenvalues requested  = " << numEig << std::endl
             << "which is larger than the number of columns in psi = " << width << std::endl;
-        throw std::runtime_error( msg.str().c_str() );
+        ErrorHandling( msg.str().c_str() );
     }
 
     // The following codes are not replaced by AlltoallForward /
@@ -4623,7 +4623,7 @@ EigenSolver::GeneralChebyStep	(
     }
 
     if( widthLocal != noccLocal ){
-        throw std::logic_error("widthLocal != noccLocal.");
+        ErrorHandling("widthLocal != noccLocal.");
     }
 
     // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
@@ -4653,7 +4653,7 @@ EigenSolver::GeneralChebyStep	(
         msg 
             << "Number of eigenvalues requested  = " << numEig << std::endl
             << "which is larger than the number of columns in psi = " << width << std::endl;
-        throw std::runtime_error( msg.str().c_str() );
+        ErrorHandling( msg.str().c_str() );
     }
 
     // The following codes are not replaced by AlltoallForward /

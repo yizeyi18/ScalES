@@ -131,7 +131,7 @@ void ReadDistSparseMatrix ( const char* filename, DistSparseMatrix<F>& pspmat, M
 	if( mpirank == 0 ){
 		fin.open(filename);
 		if( !fin.good() ){
-			throw std::logic_error( "File cannot be openeded!" );
+			ErrorHandling( "File cannot be openeded!" );
 		}
 		Int dummy;
 		fin.read((char*)&pspmat.size, sizeof(Int));
@@ -151,7 +151,7 @@ void ReadDistSparseMatrix ( const char* filename, DistSparseMatrix<F>& pspmat, M
 		Int tmp;
 		fin.read((char*)&tmp, sizeof(Int));  
 		if( tmp != pspmat.size+1 ){
-			throw std::logic_error( "colptr is not of the right size." );
+			ErrorHandling( "colptr is not of the right size." );
 		}
 		fin.read((char*)colptr.Data(), sizeof(Int)*tmp);
 	}
@@ -188,7 +188,7 @@ void ReadDistSparseMatrix ( const char* filename, DistSparseMatrix<F>& pspmat, M
 				<< "The number of nonzeros in row indices do not match." << std::endl
 				<< "nnz = " << pspmat.nnz << std::endl
 				<< "size of row indices = " << tmp << std::endl;
-			throw std::logic_error( msg.str().c_str() );
+			ErrorHandling( msg.str().c_str() );
 		}
 		IntNumVec buf;
 		Int numRead;
@@ -214,7 +214,7 @@ void ReadDistSparseMatrix ( const char* filename, DistSparseMatrix<F>& pspmat, M
 			msg << "The number of columns in row indices do not match." << std::endl
 				<< "numRead  = " << numRead << std::endl
 				<< "nnzLocal = " << pspmat.nnzLocal << std::endl;
-			throw std::logic_error( msg.str().c_str() );
+			ErrorHandling( msg.str().c_str() );
 		}
 
     pspmat.rowindLocal.Resize( numRead );
@@ -235,7 +235,7 @@ void ReadDistSparseMatrix ( const char* filename, DistSparseMatrix<F>& pspmat, M
 				<< "The number of nonzeros in values do not match." << std::endl
 				<< "nnz = " << pspmat.nnz << std::endl
 				<< "size of values = " << tmp << std::endl;
-			throw std::logic_error( msg.str().c_str() );
+			ErrorHandling( msg.str().c_str() );
 		}
 		NumVec<F> buf;
 		Int numRead;
@@ -263,7 +263,7 @@ void ReadDistSparseMatrix ( const char* filename, DistSparseMatrix<F>& pspmat, M
 			msg << "The number of columns in values do not match." << std::endl
 				<< "numRead  = " << pspmat.nzvalLocal.m() << std::endl
 				<< "nnzLocal = " << pspmat.nnzLocal << std::endl;
-			throw std::logic_error( msg.str().c_str() );
+			ErrorHandling( msg.str().c_str() );
 		}
 	}
 
@@ -302,7 +302,7 @@ void ReadDistSparseMatrixFormatted ( const char* filename, DistSparseMatrix<F>& 
 	if( mpirank == 0 ){
 		fin.open(filename);
 		if( !fin.good() ){
-			throw std::logic_error( "File cannot be openeded!" );
+			ErrorHandling( "File cannot be openeded!" );
 		}
 		Int dummy;
 		fin >> pspmat.size >> dummy;
@@ -377,7 +377,7 @@ void ReadDistSparseMatrixFormatted ( const char* filename, DistSparseMatrix<F>& 
 			msg << "The number of columns in row indices do not match." << std::endl
 				<< "numRead  = " << numRead << std::endl
 				<< "nnzLocal = " << pspmat.nnzLocal << std::endl;
-			throw std::logic_error( msg.str().c_str() );
+			ErrorHandling( msg.str().c_str() );
 		}
 
     pspmat.rowindLocal.Resize( numRead );
@@ -422,7 +422,7 @@ void ReadDistSparseMatrixFormatted ( const char* filename, DistSparseMatrix<F>& 
 			msg << "The number of columns in values do not match." << std::endl
 				<< "numRead  = " << pspmat.nzvalLocal.m() << std::endl
 				<< "nnzLocal = " << pspmat.nnzLocal << std::endl;
-			throw std::logic_error( msg.str().c_str() );
+			ErrorHandling( msg.str().c_str() );
 		}
 	}
 
@@ -461,7 +461,7 @@ void WriteDistSparseMatrixFormatted (
 	if( mpirank == 0 ){
 		ofs.open(filename, std::ios_base::out);
 		if( !ofs.good() ){
-			throw std::logic_error( "File cannot be openeded!" );
+			ErrorHandling( "File cannot be openeded!" );
 		}
 		ofs << std::setiosflags(std::ios::left) 
 			<< std::setw(LENGTH_VAR_DATA) << pspmat.size
@@ -487,7 +487,7 @@ void WriteDistSparseMatrixFormatted (
 		if( mpirank == p ){
 			ofs.open(filename, std::ios_base::out | std::ios_base::app );
 			if( !ofs.good() ){
-				throw std::logic_error( "File cannot be openeded!" );
+				ErrorHandling( "File cannot be openeded!" );
 			}
 			IntNumVec& colptrLocal = pspmat.colptrLocal;
 			for( Int i = 0; i < colptrLocal.Size() - 1; i++ ){
@@ -509,7 +509,7 @@ void WriteDistSparseMatrixFormatted (
 		if( mpirank == p ){
 			ofs.open(filename, std::ios_base::out | std::ios_base::app );
 			if( !ofs.good() ){
-				throw std::logic_error( "File cannot be openeded!" );
+				ErrorHandling( "File cannot be openeded!" );
 			}
 			IntNumVec& rowindLocal = pspmat.rowindLocal;
 			for( Int i = 0; i < rowindLocal.Size(); i++ ){
@@ -530,7 +530,7 @@ void WriteDistSparseMatrixFormatted (
 		if( mpirank == p ){
 			ofs.open(filename, std::ios_base::out | std::ios_base::app );
 			if( !ofs.good() ){
-				throw std::logic_error( "File cannot be openeded!" );
+				ErrorHandling( "File cannot be openeded!" );
 			}
 			NumVec<F>& nzvalLocal = pspmat.nzvalLocal;
 			for( Int i = 0; i < nzvalLocal.Size(); i++ ){
@@ -589,7 +589,7 @@ void ParaReadDistSparseMatrix (
   err = MPI_File_open(comm,(char*) filename, filemode, MPI_INFO_NULL,  &fin);
 
   if (err != MPI_SUCCESS) {
-    throw std::logic_error( "File cannot be opened!" );
+    ErrorHandling( "File cannot be opened!" );
   }
 
   // Read header
@@ -640,7 +640,7 @@ void ParaReadDistSparseMatrix (
   err= MPI_File_read_at_all(fin, myColPtrOffset, MPI_BOTTOM, 1, type, &status);
 
   if (err != MPI_SUCCESS) {
-    throw std::logic_error( "error reading colptr" );
+    ErrorHandling( "error reading colptr" );
   }
   MPI_Type_free(&type);
 
@@ -666,7 +666,7 @@ void ParaReadDistSparseMatrix (
   err= MPI_File_read_at_all(fin, myRowIdxOffset, MPI_BOTTOM, 1, type,&status);
 
   if (err != MPI_SUCCESS) {
-    throw std::logic_error( "error reading rowind" );
+    ErrorHandling( "error reading rowind" );
   }
   MPI_Type_free(&type);
 
@@ -683,7 +683,7 @@ void ParaReadDistSparseMatrix (
   types[0] = MPI_INT;
 	// FIXME Currently only support double format
 	if( sizeof(F) != sizeof(double) ){
-		throw std::logic_error("ParaReadDistSparseMatrix only supports double format");
+		ErrorHandling("ParaReadDistSparseMatrix only supports double format");
 	}
 
   types[1] = MPI_DOUBLE;
@@ -694,7 +694,7 @@ void ParaReadDistSparseMatrix (
   err = MPI_File_read_at_all(fin, myNzValOffset, MPI_BOTTOM, 1, type,&status);
 
   if (err != MPI_SUCCESS) {
-    throw std::logic_error( "error reading nzval" );
+    ErrorHandling( "error reading nzval" );
   }
 
   MPI_Type_free(&type);
@@ -745,7 +745,7 @@ ParaWriteDistSparseMatrix (
   err = MPI_File_open(comm,(char*) filename, filemode, MPI_INFO_NULL,  &fout);
 
   if (err != MPI_SUCCESS) {
-    throw std::logic_error( "File cannot be opened!" );
+    ErrorHandling( "File cannot be opened!" );
   }
 
   // Write header
@@ -773,7 +773,7 @@ ParaWriteDistSparseMatrix (
   int blklens[6];
 	// FIXME Currently only support double format
 	if( sizeof(F) != sizeof(double) ){
-		throw std::logic_error("ParaReadDistSparseMatrix only supports double format");
+		ErrorHandling("ParaReadDistSparseMatrix only supports double format");
 	}
 
   MPI_Datatype types[6] = {MPI_INT,MPI_INT, MPI_INT,MPI_INT, MPI_INT,MPI_DOUBLE};

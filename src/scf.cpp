@@ -643,7 +643,7 @@ SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
 			<< "The number of eigenstates do not match."  << std::endl
 			<< "eigVal         ~ " << eigVal.m() << std::endl
 			<< "numStateTotal  ~ " << npsi << std::endl;
-		throw std::logic_error( msg.str().c_str() );
+		ErrorHandling( msg.str().c_str() );
 	}
 
 
@@ -679,7 +679,7 @@ SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
 					for(Int j = 0; j < npsi; j++) flb += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-lb)));
 				}
 				else {
-					throw std::logic_error( "Cannot find a lower bound for efermi" );
+					ErrorHandling( "Cannot find a lower bound for efermi" );
 				}
 			}
 
@@ -691,7 +691,7 @@ SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
 					for(Int j = 0; j < npsi; j++) fub += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-ub)));
 				}
 				else {
-					throw std::logic_error( "Cannot find a lower bound for efermi, try to increase the number of wavefunctions" );
+					ErrorHandling( "Cannot find a lower bound for efermi, try to increase the number of wavefunctions" );
 				}
 			}
 		}  /* end while */
@@ -725,7 +725,7 @@ SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
 			fermi_ = eigVal(npsi-1);
 		}
 		else {
-			throw std::logic_error( "The number of eigenvalues in ev should be larger than nocc" );
+			ErrorHandling( "The number of eigenvalues in ev should be larger than nocc" );
 		}
 	}
 
@@ -896,7 +896,7 @@ SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
       vdw_s = vdw_s_pbe;
     }
     else {
-      throw std::logic_error( "Van der Waals DFT-D2 correction in only compatible with GGA-PBE!" );
+      ErrorHandling( "Van der Waals DFT-D2 correction in only compatible with GGA-PBE!" );
     }
 
     // Calculate the number of atom types.

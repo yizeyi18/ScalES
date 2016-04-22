@@ -173,7 +173,7 @@ Spinor::AddRealDiag	(Int iocc, const DblNumVec &val, NumMat<Real>& y)
 	PushCallStack("Spinor::AddRealDiag");
 #endif
 	if( val.m() == 0 || val.m() != wavefun_.m() ){
-		throw std::logic_error("Vector dimension does not match.");
+		ErrorHandling("Vector dimension does not match.");
 	}
 
 	Int ntot = wavefun_.m();
@@ -181,7 +181,7 @@ Spinor::AddRealDiag	(Int iocc, const DblNumVec &val, NumMat<Real>& y)
 	Int nocc = wavefun_.p();
 
 	if( iocc < 0 || iocc >= nocc ){
-		throw std::logic_error("iocc is out of bound.");
+		ErrorHandling("iocc is out of bound.");
 	}	
 
 
@@ -208,7 +208,7 @@ void Spinor::AddRealDiag	(const DblNumVec &val, NumTns<Real> &a3)
 	PushCallStack("Spinor::AddRealDiag");
 #endif
 	if( val.m() == 0 || val.m() != wavefun_.m() ){
-		throw std::logic_error("Vector dimension does not match.");
+		ErrorHandling("Vector dimension does not match.");
 	}
 
 	Int ntot = wavefun_.m();
@@ -243,14 +243,14 @@ Spinor::AddLaplacian (Int iocc, Fourier* fftPtr, NumMat<Real>& y)
 	PushCallStack("Spinor::AddLaplacian");
 #endif
 	if( !fftPtr->isInitialized ){
-		throw std::runtime_error("Fourier is not prepared.");
+		ErrorHandling("Fourier is not prepared.");
 	}
 	Int ntot = wavefun_.m();
 	Int ncom = wavefun_.n();
 	Int nocc = wavefun_.p();
 
 	if( fftPtr->domain.NumGridTotal() != ntot ){
-		throw std::logic_error("Domain size does not match.");
+		ErrorHandling("Domain size does not match.");
 	}
 
 #ifndef _USE_COMPLEX_ // Real case
@@ -303,14 +303,14 @@ Spinor::AddLaplacian (Fourier* fftPtr, NumTns<Real>& a3)
 	PushCallStack("Spinor::AddLaplacian");
 #endif
 	if( !fftPtr->isInitialized ){
-		throw std::runtime_error("Fourier is not prepared.");
+		ErrorHandling("Fourier is not prepared.");
 	}
 	Int ntot = wavefun_.m();
 	Int ncom = wavefun_.n();
 	Int nocc = wavefun_.p();
 
 	if( fftPtr->domain.NumGridTotal() != ntot ){
-		throw std::logic_error("Domain size does not match.");
+		ErrorHandling("Domain size does not match.");
 	}
 
 #ifndef _USE_COMPLEX_ // Real case
@@ -487,14 +487,14 @@ Spinor::AddTeterPrecond ( Int iocc, Fourier* fftPtr, NumTns<Real>& a3)
 	PushCallStack("Spinor::AddTeterPrecond");
 #endif
 	if( !fftPtr->isInitialized ){
-		throw std::runtime_error("Fourier is not prepared.");
+		ErrorHandling("Fourier is not prepared.");
 	}
 	Int ntot = wavefun_.m();
 	Int ncom = wavefun_.n();
 	Int nocc = wavefun_.p();
 
 	if( fftPtr->domain.NumGridTotal() != ntot ){
-		throw std::logic_error("Domain size does not match.");
+		ErrorHandling("Domain size does not match.");
 	}
 
   // For convenience
@@ -547,14 +547,14 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
 	PushCallStack("Spinor::AddTeterPrecond");
 #endif
 	if( !fftPtr->isInitialized ){
-		throw std::runtime_error("Fourier is not prepared.");
+		ErrorHandling("Fourier is not prepared.");
 	}
 	Int ntot = wavefun_.m();
 	Int ncom = wavefun_.n();
 	Int nocc = wavefun_.p();
 
 	if( fftPtr->domain.NumGridTotal() != ntot ){
-		throw std::logic_error("Domain size does not match.");
+		ErrorHandling("Domain size does not match.");
 	}
 
   // For convenience
@@ -643,7 +643,7 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
   // TODO Complex case
 
 	if( !fft.isInitialized ){
-		throw std::runtime_error("Fourier is not prepared.");
+		ErrorHandling("Fourier is not prepared.");
 	}
 	Int ntot = wavefun_.m();
 	Int ncom = wavefun_.n();
@@ -652,7 +652,7 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
 	Real vol = domain_.Volume();
 
 	if( fft.domain.NumGridTotal() != ntot ){
-		throw std::logic_error("Domain size does not match.");
+		ErrorHandling("Domain size does not match.");
 	}
 
   // Temporary variable for saving wavefunction on a fine grid
@@ -802,7 +802,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   // TODO Complex case
 
   if( !fft.isInitialized ){
-    throw std::runtime_error("Fourier is not prepared.");
+    ErrorHandling("Fourier is not prepared.");
   }
   Index3& numGrid = domain_.numGrid;
   Index3& numGridFine = domain_.numGridFine;
@@ -816,7 +816,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   Int ntotR2CFine = fft.numGridTotalR2CFine;
 
   if( fft.domain.NumGridTotal() != ntot ){
-    throw std::logic_error("Domain size does not match.");
+    ErrorHandling("Domain size does not match.");
   }
 
   // Temporary variable for saving wavefunction on a fine grid
@@ -984,7 +984,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
   PushCallStack("Spinor::AddMultSpinorEXX");
 #endif
   if( !fft.isInitialized ){
-    throw std::runtime_error("Fourier is not prepared.");
+    ErrorHandling("Fourier is not prepared.");
   }
   
   MPI_Barrier(domain_.comm);
@@ -1007,11 +1007,11 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
   Real vol = domain_.Volume();
   
   if( ncomPhi != 1 || ncom != 1 ){
-    throw std::logic_error("Spin polarized case not implemented.");
+    ErrorHandling("Spin polarized case not implemented.");
   }
 
   if( fft.domain.NumGridTotal() != ntot ){
-    throw std::logic_error("Domain size does not match.");
+    ErrorHandling("Domain size does not match.");
   }
 
   // Temporary variable for saving wavefunction on a fine grid

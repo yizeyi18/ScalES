@@ -1744,7 +1744,7 @@ namespace dgdft{
       (*ierr)=0;
 
       if ((fileunit=fopen(trim(filename),"r"))==NULL){
-        throw std::logic_error( "Input file cannot be open" );
+        ErrorHandling( "Input file cannot be open" );
         (*ierr)=1;
       }
     }
@@ -2183,7 +2183,7 @@ namespace dgdft{
           }
 
           else{
-            throw std::logic_error("Super_Cell cannot be found.");
+            ErrorHandling("Super_Cell cannot be found.");
           }
 
           // 07/24/2013: Instead of grid size, use ecut to determine the grid
@@ -2196,7 +2196,7 @@ namespace dgdft{
           //					&dm.numGrid[0],&dm.numGrid[1],&dm.numGrid[2]);
           //		}
           //		else{
-          //			throw std::logic_error("Grid_Size cannot be found."); }
+          //			ErrorHandling("Grid_Size cannot be found."); }
 
           dm.posStart = Point3( 0.0, 0.0, 0.0 );
         }
@@ -2208,14 +2208,14 @@ namespace dgdft{
 
           Int numAtomType = esdf_integer("Atom_Types_Num", 0);
           if( numAtomType == 0 ){
-            throw std::logic_error("Atom_Types_Num cannot be found.");
+            ErrorHandling("Atom_Types_Num cannot be found.");
           }
 
           for( Int ityp = 0; ityp < numAtomType; ityp++ ){
             Int type = esdf_integer( "Atom_Type", 0 );
             // TODO Add supported type list
             if( type == 0 ){
-              throw  std::logic_error( "Atom_Type cannot be found.");
+              ErrorHandling( "Atom_Type cannot be found.");
 
             }
             // FIXME IMPORTANT. The "mass" parameter is removed from the
@@ -2262,7 +2262,7 @@ namespace dgdft{
             else{
               std::ostringstream msg;
               msg << "Atomic coordinates cannot found for atom type "  << type;
-              throw std::logic_error( msg.str().c_str() );
+              ErrorHandling( msg.str().c_str() );
             } // Read atomic coordinates
           } // for(ityp)
         }
@@ -2282,7 +2282,7 @@ namespace dgdft{
             esdfParam.mixVariable     = strtmp;
             if( esdfParam.mixVariable != "density" &&
                     esdfParam.mixVariable != "potential" ){
-                throw std::runtime_error("Invalid mixing variable.");
+                ErrorHandling("Invalid mixing variable.");
             }
 
 
@@ -2408,7 +2408,7 @@ namespace dgdft{
             if (esdf_block((char*)("ALB_Num_Element"),&sizeALBElem)) {
               // Use different number of ALB functions for each element.
               if( sizeALBElem != numElem.prod() ){
-                throw std::logic_error(
+                ErrorHandling(
                     "The size of the number of ALB does not match the number of elements.");
               }
               for( Int k = 0; k < numElem[2]; k++ )
@@ -2471,11 +2471,11 @@ namespace dgdft{
           esdfParam.solutionMethod  = strtmp;
           if( esdfParam.solutionMethod != "diag" &&
               esdfParam.solutionMethod != "pexsi" ){
-            throw std::runtime_error("Invalid solution method for the projected problem.");
+            ErrorHandling("Invalid solution method for the projected problem.");
           }
           if( esdfParam.solutionMethod == "pexsi" ){
 #ifndef _USE_PEXSI_
-            throw std::runtime_error("Usage of PEXSI requires -DPEXSI to be defined in make.inc.");
+            ErrorHandling("Usage of PEXSI requires -DPEXSI to be defined in make.inc.");
 #endif
           }
 
@@ -2521,7 +2521,7 @@ namespace dgdft{
             std::ostringstream msg;
             msg
               << "(mpisize % dmCol) != 0" << std::endl;
-            throw std::runtime_error( msg.str().c_str() );
+            ErrorHandling( msg.str().c_str() );
           }
 
           dm.comm    = MPI_COMM_WORLD;
@@ -2671,7 +2671,7 @@ namespace dgdft{
             std::fstream fin;
             fin.open("lastPos.out", std::ios::in);
             if( !fin.good() ){
-              throw std::logic_error( "Cannot open lastPos.out!" );
+              ErrorHandling( "Cannot open lastPos.out!" );
             }
             for(Int a=0; a<numAtom; a++){
               fin>> atomposRead[3*a];

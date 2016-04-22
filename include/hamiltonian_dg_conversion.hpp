@@ -94,7 +94,7 @@ void DistNumVecToDistRowVec(
 			mi != distVec.LocalMap().end(); mi++ ){
 		Index3 key = (*mi).first;  
 		if( distVec.Prtn().Owner( key ) != mpirank ){
-			throw std::runtime_error( "DistNumVec owns a wrong key." );
+			ErrorHandling( "DistNumVec owns a wrong key." );
 		}
 		distVecRecv.LocalMap()[key] = (*mi).second;
 	}
@@ -306,7 +306,7 @@ void DistElemMatToScaMat(
 	Int NB = scaMat.NB();
 
 	if( MB != NB ){
-		throw std::runtime_error("MB must be equal to NB.");
+		ErrorHandling("MB must be equal to NB.");
 	}
 
 	Int numRowBlock = scaMat.NumRowBlocks();
@@ -378,7 +378,7 @@ void DistElemMatToScaMat(
 					<< "localMat   size : " << localMat.m() << " x " << localMat.n() << std::endl
 					<< "idx1       size : " << idx1.size() << std::endl
 					<< "idx2       size : " << idx2.size() << std::endl;
-				throw std::runtime_error( msg.str().c_str() );
+				ErrorHandling( msg.str().c_str() );
 			}
 
 			// Reshape the matrix element by element
@@ -527,7 +527,7 @@ void DistElemMatToScaMat(
 //  MPI_Comm_size( colComm, &npcolElem );
 //
 //  if( mpisizeSca > mpisizeElem ){
-//    throw std::logic_error("mpisizeSca should be <= mpisizeElem.");
+//    ErrorHandling("mpisizeSca should be <= mpisizeElem.");
 //  }
 //
 //  // Initialize the ScaLAPACK matrix
@@ -549,7 +549,7 @@ void DistElemMatToScaMat(
 //    mypcolSca = desc.MypCol();
 //
 //    if( nprowSca * npcolSca != mpisizeSca ){
-//      throw std::logic_error("nprowSca * npcolSca != mpisizeSca.");
+//      ErrorHandling("nprowSca * npcolSca != mpisizeSca.");
 //    }
 //
 //    scaMat.SetDescriptor( desc );
@@ -565,7 +565,7 @@ void DistElemMatToScaMat(
 //    NB = scaMat.NB();
 //
 //    if( MB != NB ){
-//      throw std::runtime_error("MB must be equal to NB.");
+//      ErrorHandling("MB must be equal to NB.");
 //    }
 //
 //
@@ -642,7 +642,7 @@ void DistElemMatToScaMat(
 //					<< "localMat   size : " << localMat.m() << " x " << localMat.n() << std::endl
 //					<< "idx1       size : " << idx1.size() << std::endl
 //					<< "idx2       size : " << idx2.size() << std::endl;
-//				throw std::runtime_error( msg.str().c_str() );
+//				ErrorHandling( msg.str().c_str() );
 //			}
 //
 //			// Reshape the matrix element by element
@@ -807,12 +807,12 @@ void DistElemMatToScaMat2(
     MPI_Comm_size( commElem, &tmp );
     
     if( mpisizeElem != tmp ){
-      throw std::logic_error("mpisizeElem read from input does not agree with commElem.");
+      ErrorHandling("mpisizeElem read from input does not agree with commElem.");
     }
   }
 
   if( mpisizeElem > mpisize ){
-    throw std::logic_error("mpisizeElem cannot be larger than mpisize.");
+    ErrorHandling("mpisizeElem cannot be larger than mpisize.");
   }
 
   // commSca size and other information
@@ -830,7 +830,7 @@ void DistElemMatToScaMat2(
     npcolSca  = desc.NpCol();
 
     if( nprowSca * npcolSca != mpisizeSca ){
-      throw std::logic_error("nprowSca * npcolSca != mpisizeSca.");
+      ErrorHandling("nprowSca * npcolSca != mpisizeSca.");
     }
 
     scaMat.SetDescriptor( desc );
@@ -846,7 +846,7 @@ void DistElemMatToScaMat2(
     NB = scaMat.NB();
 
     if( MB != NB ){
-      throw std::runtime_error("MB must be equal to NB.");
+      ErrorHandling("MB must be equal to NB.");
     }
     
     numRowBlock = scaMat.NumRowBlocks();
@@ -855,7 +855,7 @@ void DistElemMatToScaMat2(
   }
 
   if( mpisizeSca > mpisize ){
-    throw std::logic_error("mpisizeSca cannot be larger than mpisize.");
+    ErrorHandling("mpisizeSca cannot be larger than mpisize.");
   }
 
   // Make sure ALL processors in comm have some basic information
@@ -948,7 +948,7 @@ void DistElemMatToScaMat2(
             << "localMat   size : " << localMat.m() << " x " << localMat.n() << std::endl
             << "idx1       size : " << idx1.size() << std::endl
             << "idx2       size : " << idx2.size() << std::endl;
-          throw std::runtime_error( msg.str().c_str() );
+          ErrorHandling( msg.str().c_str() );
         }
 
         // Reshape the matrix element by element
@@ -1078,7 +1078,7 @@ void ScaMatToDistNumMat(
 		numColKeep = scaMat.Width();
 
 	if( numColKeep > scaMat.Width() )
-		throw std::runtime_error("NumColKeep cannot be bigger than the matrix width.");
+		ErrorHandling("NumColKeep cannot be bigger than the matrix width.");
 
 	Int nprow  = desc.NpRow();
 	Int npcol  = desc.NpCol();
@@ -1089,7 +1089,7 @@ void ScaMatToDistNumMat(
 	Int NB = scaMat.NB();
 
 	if( MB != NB ){
-		throw std::runtime_error("MB must be equal to NB.");
+		ErrorHandling("MB must be equal to NB.");
 	}
 
 	Int numRowBlock = scaMat.NumRowBlocks();
@@ -1272,12 +1272,12 @@ void ScaMatToDistNumMat2(
     MPI_Comm_size( commElem, &tmp );
     
     if( mpisizeElem != tmp ){
-      throw std::logic_error("mpisizeElem read from input does not agree with commElem.");
+      ErrorHandling("mpisizeElem read from input does not agree with commElem.");
     }
   }
 
   if( mpisizeElem > mpisize ){
-    throw std::logic_error("mpisizeElem cannot be larger than mpisize.");
+    ErrorHandling("mpisizeElem cannot be larger than mpisize.");
   }
 
   // commSca size and other information
@@ -1296,14 +1296,14 @@ void ScaMatToDistNumMat2(
     npcolSca  = desc.NpCol();
 
     if( nprowSca * npcolSca != mpisizeSca ){
-      throw std::logic_error("nprowSca * npcolSca != mpisizeSca.");
+      ErrorHandling("nprowSca * npcolSca != mpisizeSca.");
     }
 
     MB = scaMat.MB(); 
     NB = scaMat.NB();
 
     if( MB != NB ){
-      throw std::runtime_error("MB must be equal to NB.");
+      ErrorHandling("MB must be equal to NB.");
     }
     
     numRowBlock = scaMat.NumRowBlocks();
@@ -1311,7 +1311,7 @@ void ScaMatToDistNumMat2(
   }
 
   if( mpisizeSca > mpisize ){
-    throw std::logic_error("mpisizeSca cannot be larger than mpisize.");
+    ErrorHandling("mpisizeSca cannot be larger than mpisize.");
   }
 
   // Make sure ALL processors in comm have some basic information
@@ -1350,7 +1350,7 @@ void ScaMatToDistNumMat2(
       numColKeep = scaMat.Width();
 
     if( numColKeep > scaMat.Width() )
-      throw std::runtime_error("NumColKeep cannot be bigger than the matrix width.");
+      ErrorHandling("NumColKeep cannot be bigger than the matrix width.");
   }
   // Communicate and make sure that numColKeep is globally shared
   MPI_Bcast( &numColKeep, 1, MPI_INT, mpirankScaSta, comm );
@@ -1571,7 +1571,7 @@ void DistElemMatToDistSparseMat(
 					<< "localMat   size : " << localMat.m() << " x " << localMat.n() << std::endl
 					<< "idx1       size : " << idx1.size() << std::endl
 					<< "idx2       size : " << idx2.size() << std::endl;
-				throw std::runtime_error( msg.str().c_str() );
+				ErrorHandling( msg.str().c_str() );
 			}
 
 			// Distribute the matrix element and row indices to intermediate
@@ -1658,7 +1658,7 @@ void DistElemMatToDistSparseMat(
 
 		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
 			if( distRow.Prtn().Owner( row ) != mpirank ){
-				throw std::runtime_error( "The owner information in distRow is incorrect.");
+				ErrorHandling( "The owner information in distRow is incorrect.");
 			}
 			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
 			nnzLocal += rowVec.size();
@@ -1673,7 +1673,7 @@ void DistElemMatToDistSparseMat(
 
 		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
 			if( distRow.Prtn().Owner( row ) != mpirank ){
-				throw std::runtime_error( "The owner information in distRow is incorrect.");
+				ErrorHandling( "The owner information in distRow is incorrect.");
 			}
 			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
 			std::vector<F>&    valVec = distVal.LocalMap()[row];
@@ -1771,12 +1771,12 @@ void DistElemMatToDistSparseMat2(
     MPI_Comm_size( commElem, &tmp );
     
     if( mpisizeElem != tmp ){
-      throw std::logic_error("mpisizeElem read from input does not agree with commElem.");
+      ErrorHandling("mpisizeElem read from input does not agree with commElem.");
     }
   }
 
   if( mpisizeElem > mpisize ){
-    throw std::logic_error("mpisizeElem cannot be larger than mpisize.");
+    ErrorHandling("mpisizeElem cannot be larger than mpisize.");
   }
 
   // commSparse size and other information
@@ -1789,12 +1789,12 @@ void DistElemMatToDistSparseMat2(
     MPI_Comm_size( commSparse, &tmp );
     
     if( mpisizeSparse != tmp ){
-      throw std::logic_error("mpisizeSparse read from input does not agree with commSparse.");
+      ErrorHandling("mpisizeSparse read from input does not agree with commSparse.");
     }
   }
 
   if( mpisizeSparse > mpisize ){
-    throw std::logic_error("mpisizeSparse cannot be larger than mpisize.");
+    ErrorHandling("mpisizeSparse cannot be larger than mpisize.");
   }
 
 	// Compute the local column partition in DistSparseMatrix
@@ -1844,7 +1844,7 @@ void DistElemMatToDistSparseMat2(
             << "localMat   size : " << localMat.m() << " x " << localMat.n() << std::endl
             << "idx1       size : " << idx1.size() << std::endl
             << "idx2       size : " << idx2.size() << std::endl;
-          throw std::runtime_error( msg.str().c_str() );
+          ErrorHandling( msg.str().c_str() );
         }
 
         // Distribute the matrix element and row indices to intermediate
@@ -1948,7 +1948,7 @@ void DistElemMatToDistSparseMat2(
 
 		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
 			if( distRow.Prtn().Owner( row ) != mpirank ){
-				throw std::runtime_error( "The owner information in distRow is incorrect.");
+				ErrorHandling( "The owner information in distRow is incorrect.");
 			}
 			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
 			nnzLocal += rowVec.size();
@@ -1963,7 +1963,7 @@ void DistElemMatToDistSparseMat2(
 
 		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
 			if( distRow.Prtn().Owner( row ) != mpirank ){
-				throw std::runtime_error( "The owner information in distRow is incorrect.");
+				ErrorHandling( "The owner information in distRow is incorrect.");
 			}
 			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
 			std::vector<F>&    valVec = distVal.LocalMap()[row];
@@ -2048,7 +2048,7 @@ void DistElemMatToDistSparseMat3(
   Int mpisizeSparse = mpirankSparseVec.size();
 
   if( mpisizeSparse > mpisizeElem ){
-    throw std::logic_error("The number of processors for DistSparseMatrix cannot exceed that of DistElemMat.");
+    ErrorHandling("The number of processors for DistSparseMatrix cannot exceed that of DistElemMat.");
   }
 
   Int mpirankSparse = -1;
@@ -2104,7 +2104,7 @@ void DistElemMatToDistSparseMat3(
           << "localMat   size : " << localMat.m() << " x " << localMat.n() << std::endl
           << "idx1       size : " << idx1.size() << std::endl
           << "idx2       size : " << idx2.size() << std::endl;
-        throw std::runtime_error( msg.str().c_str() );
+        ErrorHandling( msg.str().c_str() );
       }
 
       // Distribute the matrix element and row indices to intermediate
@@ -2209,7 +2209,7 @@ void DistElemMatToDistSparseMat3(
 
 		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
 			if( distRow.Prtn().Owner( row ) != mpirankElem ){
-				throw std::runtime_error( "The owner information in distRow is incorrect.");
+				ErrorHandling( "The owner information in distRow is incorrect.");
 			}
 			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
 			nnzLocal += rowVec.size();
@@ -2222,7 +2222,7 @@ void DistElemMatToDistSparseMat3(
 
 		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
 			if( distRow.Prtn().Owner( row ) != mpirankElem ){
-				throw std::runtime_error( "The owner information in distRow is incorrect.");
+				ErrorHandling( "The owner information in distRow is incorrect.");
 			}
 			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
 			std::vector<F>&    valVec = distVal.LocalMap()[row];
@@ -2292,7 +2292,7 @@ void DistElemMatToDistSparseMat(
       << "mpisize = " << mpisize << std::endl
       << "mpisizeDistSparse = " << mpisizeDistSparse << std::endl
       << "This is an illegal value." << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
 	// Compute the local column partition in DistSparseMatrix
@@ -2338,7 +2338,7 @@ void DistElemMatToDistSparseMat(
 					<< "localMat   size : " << localMat.m() << " x " << localMat.n() << std::endl
 					<< "idx1       size : " << idx1.size() << std::endl
 					<< "idx2       size : " << idx2.size() << std::endl;
-				throw std::runtime_error( msg.str().c_str() );
+				ErrorHandling( msg.str().c_str() );
 			}
 
 			// Distribute the matrix element and row indices to intermediate
@@ -2433,7 +2433,7 @@ void DistElemMatToDistSparseMat(
 
 		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
 			if( distRow.Prtn().Owner( row ) != mpirank ){
-				throw std::runtime_error( "The owner information in distRow is incorrect.");
+				ErrorHandling( "The owner information in distRow is incorrect.");
 			}
 			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
 			nnzLocal += rowVec.size();
@@ -2448,7 +2448,7 @@ void DistElemMatToDistSparseMat(
 
 		for( Int row = firstCol; row < firstCol + numColLocal; row++ ){
 			if( distRow.Prtn().Owner( row ) != mpirank ){
-				throw std::runtime_error( "The owner information in distRow is incorrect.");
+				ErrorHandling( "The owner information in distRow is incorrect.");
 			}
 			std::vector<Int>&  rowVec = distRow.LocalMap()[row];
 			std::vector<F>&    valVec = distVal.LocalMap()[row];
@@ -2506,7 +2506,7 @@ void DistSparseMatToDistElemMat(
       << "mpisize = " << mpisize << std::endl
       << "mpisizeDistSparse = " << mpisizeDistSparse << std::endl
       << "This is an illegal value." << std::endl;
-    throw std::runtime_error( msg.str().c_str() );
+    ErrorHandling( msg.str().c_str() );
   }
 
 
@@ -2534,7 +2534,7 @@ void DistSparseMatToDistElemMat(
       std::ostringstream msg;
       msg << std::endl
         << "The element index for the row " << g << " was not found!" << std::endl;
-      throw std::runtime_error( msg.str().c_str() );
+      ErrorHandling( msg.str().c_str() );
     }
   }
 
@@ -2703,12 +2703,12 @@ void DistSparseMatToDistElemMat2(
     MPI_Comm_size( commElem, &tmp );
     
     if( mpisizeElem != tmp ){
-      throw std::logic_error("mpisizeElem read from input does not agree with commElem.");
+      ErrorHandling("mpisizeElem read from input does not agree with commElem.");
     }
   }
 
   if( mpisizeElem > mpisize ){
-    throw std::logic_error("mpisizeElem cannot be larger than mpisize.");
+    ErrorHandling("mpisizeElem cannot be larger than mpisize.");
   }
 
   // commSparse size and other information
@@ -2721,12 +2721,12 @@ void DistSparseMatToDistElemMat2(
     MPI_Comm_size( commSparse, &tmp );
     
     if( mpisizeSparse != tmp ){
-      throw std::logic_error("mpisizeSparse read from input does not agree with commSparse.");
+      ErrorHandling("mpisizeSparse read from input does not agree with commSparse.");
     }
   }
 
   if( mpisizeSparse > mpisize ){
-    throw std::logic_error("mpisizeSparse cannot be larger than mpisize.");
+    ErrorHandling("mpisizeSparse cannot be larger than mpisize.");
   }
 
 	// Compute the local column partition in DistSparseMatrix
@@ -2770,7 +2770,7 @@ void DistSparseMatToDistElemMat2(
       std::ostringstream msg;
       msg << std::endl
         << "The element index for the row " << g << " was not found!" << std::endl;
-      throw std::runtime_error( msg.str().c_str() );
+      ErrorHandling( msg.str().c_str() );
     }
   }
 
@@ -2867,7 +2867,7 @@ void DistSparseMatToDistElemMat2(
         mi != distGlbMat.LocalMap().end(); mi++ ){
       ElemMatKey key = (*mi).first;
       if( distGlbMat.Prtn().Owner( key ) != mpirank ){
-        throw std::runtime_error( "The owner information in distGlbMat is incorrect.");
+        ErrorHandling( "The owner information in distGlbMat is incorrect.");
       }
       distMat.LocalMap()[key] = (*mi).second;
     }
@@ -2942,7 +2942,7 @@ void DistSparseMatToDistElemMat3(
   Int mpisizeSparse = mpirankSparseVec.size();
 
   if( mpisizeSparse > mpisizeElem ){
-    throw std::logic_error("The number of processors for DistSparseMatrix cannot exceed that of DistElemMat.");
+    ErrorHandling("The number of processors for DistSparseMatrix cannot exceed that of DistElemMat.");
   }
 
   Int mpirankSparse = -1;
@@ -3101,7 +3101,7 @@ void DistSparseMatToScaMat(
 	Int NB = scaMat.NB();
 
 	if( MB != NB ){
-		throw std::runtime_error("MB must be equal to NB.");
+		ErrorHandling("MB must be equal to NB.");
 	}
 
 	Int numRowBlock = scaMat.NumRowBlocks();

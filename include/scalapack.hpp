@@ -230,7 +230,7 @@ public:
 		if( i < 0 || i > DLEN ){
 			std::ostringstream msg;
 			msg << "Descriptor::Get takes value in [0,8]" << std::endl;
-			throw std::logic_error( msg.str().c_str() );
+			ErrorHandling( msg.str().c_str() );
 		}
 		return values_[i];
 	}
@@ -305,7 +305,7 @@ public:
 				<< "ScaLAPACK: the leading dimension does not match" << std::endl
 				<< "LLD from descriptor = " << desc_.Get(Descriptor::LLD) << std::endl
 				<< "LocalHeight         = " << this->LocalHeight() << std::endl;
-			throw std::logic_error( msg.str().c_str() );
+			ErrorHandling( msg.str().c_str() );
 		}
 		return desc_.Get(Descriptor::LLD);
 	}

@@ -90,7 +90,7 @@ void spline(int n, double* x, double* y, double* b, double* c, double* d){
 	}
 	nm1 = n-1;
 	if ( n < 2 ) {
-		throw  std::logic_error(" SPLINE REQUIRES N >= 2!" );
+		ErrorHandling(" SPLINE REQUIRES N >= 2!" );
 	}
 	if ( n < 3 ){
 		b[0] = (y[1]-y[0])/(x[1]-x[0]);
@@ -194,7 +194,7 @@ void seval(double* v, int m, double* u, int n, double* x,
 	int i, j, k, l;
 	double dx;
 	if( n < 2 ){
-		throw  std::logic_error(" SPLINE REQUIRES N >= 2!" );
+		ErrorHandling(" SPLINE REQUIRES N >= 2!" );
 	}
 
 	for(l = 0; l < m; l++){
@@ -495,7 +495,7 @@ Int SeparateRead(std::string name, std::istringstream& is)
   sprintf(filename, "%s_%d_%d", name.c_str(), mpirank, mpisize);  
   std::ifstream fin(filename);
 	if( !fin.good() ){
-		throw std::logic_error( "File cannot be open!" );
+		ErrorHandling( "File cannot be open!" );
 	}
  
  	is.str( std::string(std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>()) );
@@ -516,7 +516,7 @@ Int SeparateRead(std::string name, std::istringstream& is, Int outputIndex)
   sprintf(filename, "%s_%d", name.c_str(), outputIndex);
   std::ifstream fin(filename);
 	if( !fin.good() ){
-		throw std::logic_error( "File cannot be open!" );
+		ErrorHandling( "File cannot be open!" );
 	}
  
  	is.str( std::string(std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>()) );
@@ -541,7 +541,7 @@ Int SeparateWrite(std::string name, std::ostringstream& os)
   sprintf(filename, "%s_%d_%d", name.c_str(), mpirank, mpisize);
   std::ofstream fout(filename);
 	if( !fout.good() ){
-		throw std::logic_error( "File cannot be open!" );
+		ErrorHandling( "File cannot be open!" );
 	}
   fout<<os.str();
   fout.close();
@@ -562,7 +562,7 @@ Int SeparateWrite(std::string name, std::ostringstream& os, Int outputIndex)
   sprintf(filename, "%s_%d", name.c_str(), outputIndex);
   std::ofstream fout(filename);
 	if( !fout.good() ){
-		throw std::logic_error( "File cannot be open!" );
+		ErrorHandling( "File cannot be open!" );
 	}
   fout<<os.str();
   fout.close();
@@ -586,7 +586,7 @@ Int SharedRead(std::string name, std::istringstream& is)
   if(mpirank==0) {
     std::ifstream fin(name.c_str());
 		if( !fin.good() ){
-			throw std::logic_error( "File cannot be open!" );
+			ErrorHandling( "File cannot be open!" );
 		}
     //std::string str(std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>());
     //tmpstr.insert(tmpstr.end(), str.begin(), str.end());
@@ -623,7 +623,7 @@ Int SharedWrite(std::string name, std::ostringstream& os)
   if(mpirank==0) {
     std::ofstream fout(name.c_str());
 		if( !fout.good() ){
-			throw std::logic_error( "File cannot be open!" );
+			ErrorHandling( "File cannot be open!" );
 		}
     fout<<os.str();
     fout.close();
@@ -650,7 +650,7 @@ Int SeparateWriteAscii(std::string name, std::ostringstream& os)
   sprintf(filename, "%s_%d_%d", name.c_str(), mpirank, mpisize);
   std::ofstream fout(filename, std::ios::trunc);
 	if( !fout.good() ){
-		throw std::logic_error( "File cannot be open!" );
+		ErrorHandling( "File cannot be open!" );
 	}
   fout<<os;
   fout.close();

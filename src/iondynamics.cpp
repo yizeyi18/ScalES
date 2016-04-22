@@ -84,7 +84,7 @@ IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& a
   for(Int a=0; a < numAtom; a++) {
     Int atype = atomList[a].type;
     if (ptable.ptemap().find(atype)==ptable.ptemap().end() ){
-      throw std::logic_error( "Cannot find the atom type." );
+      ErrorHandling( "Cannot find the atom type." );
     }
     atomMass_[a]=amu2au*ptable.ptemap()[atype].params(PTParam::MASS); 
   }
@@ -127,7 +127,7 @@ IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& a
         std::fstream fin;
         fin.open("lastVel.out",std::ios::in);
         if( !fin.good() ){
-          throw std::logic_error( "Cannot open lastVel.out!" );
+          ErrorHandling( "Cannot open lastVel.out!" );
         }
         for(Int a=0; a<numAtom; a++){
           fin>> atomvelRead[3*a+0];
@@ -176,7 +176,7 @@ IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& a
         std::fstream fin;
         fin.open("lastVel.out",std::ios::in);
         if( !fin.good() ){
-          throw std::logic_error( "Cannot open lastVel.out!" );
+          ErrorHandling( "Cannot open lastVel.out!" );
         }
         for(Int a=0; a<numAtom; a++){
           fin>> atomvelRead[3*a+0];
@@ -307,7 +307,7 @@ IonDynamics::MoveIons	( Int ionIter )
       std::fstream fout;
       fout.open("lastPos.out",std::ios::out);
       if( !fout.good() ){
-        throw std::logic_error( "File cannot be open!" );
+        ErrorHandling( "File cannot be open!" );
       }
       for(Int i=0; i<numAtom; i++){
         fout << std::setiosflags(std::ios::scientific)
@@ -366,7 +366,7 @@ IonDynamics::BarzilaiBorweinOpt	( Int ionIter )
       std::fstream fout;
       fout.open("MD.xyz",std::ios::out | std::ios::app) ;
       if( !fout.good() ){
-        throw std::logic_error( "Cannot open MD.xyz!" );
+        ErrorHandling( "Cannot open MD.xyz!" );
       }
       fout << numAtom << std::endl;
       fout << "MD step # "<< ionIter << std::endl;
@@ -496,7 +496,7 @@ IonDynamics::VelocityVerlet	( Int ionIter )
       std::fstream fout;
       fout.open("MD.xyz",std::ios::out | std::ios::app) ;
       if( !fout.good() ){
-        throw std::logic_error( "Cannot open MD.xyz!" );
+        ErrorHandling( "Cannot open MD.xyz!" );
       }
       fout << numAtom << std::endl;
       fout << "MD step # "<< ionIter << std::endl;
@@ -527,7 +527,7 @@ IonDynamics::VelocityVerlet	( Int ionIter )
       std::fstream fout_v;
       fout_v.open("lastVel.out",std::ios::out);
       if( !fout_v.good() ){
-        throw std::logic_error( "File cannot be open!" );
+        ErrorHandling( "File cannot be open!" );
       }
       for(Int i=0; i<numAtom; i++){
         fout_v << std::setiosflags(std::ios::scientific)
@@ -642,7 +642,7 @@ IonDynamics::NoseHoover1	( Int ionIter )
       std::fstream fout;
       fout.open("MD.xyz",std::ios::out | std::ios::app) ;
       if( !fout.good() ){
-        throw std::logic_error( "Cannot open MD.xyz!" );
+        ErrorHandling( "Cannot open MD.xyz!" );
       }
       fout << numAtom << std::endl;
       fout << "MD step # "<< ionIter << std::endl;
@@ -685,7 +685,7 @@ IonDynamics::NoseHoover1	( Int ionIter )
       std::fstream fout_v;
       fout_v.open("lastVel.out",std::ios::out);
       if( !fout_v.good() ){
-        throw std::logic_error( "File cannot be open!" );
+        ErrorHandling( "File cannot be open!" );
       }
       for(Int i=0; i<numAtom; i++){
         fout_v << std::setiosflags(std::ios::scientific)
@@ -822,7 +822,7 @@ IonDynamics::DensityExtrapolateCoefficient	( Int ionIter, DblNumVec& coef )
     }
   }
   else{
-    throw std::logic_error( "Currently three extrapolation types are supported!" );
+    ErrorHandling( "Currently three extrapolation types are supported!" );
   }
 
 

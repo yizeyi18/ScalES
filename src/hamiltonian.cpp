@@ -76,7 +76,7 @@ KohnSham::~KohnSham() {
       xc_func_end(&XCFuncType_);
     }
     else
-      throw std::logic_error("Unrecognized exchange-correlation type");
+      ErrorHandling("Unrecognized exchange-correlation type");
   }
 }
 
@@ -148,7 +148,7 @@ KohnSham::Setup	(
         { 
             XCId_ = XC_LDA_XC_TETER93;
             if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-                throw std::runtime_error( "XC functional initialization error." );
+                ErrorHandling( "XC functional initialization error." );
             } 
             // Teter 93
             // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
@@ -161,17 +161,17 @@ KohnSham::Setup	(
             // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
             // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
             if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
-                throw std::runtime_error( "X functional initialization error." );
+                ErrorHandling( "X functional initialization error." );
             }
             if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
-                throw std::runtime_error( "C functional initialization error." );
+                ErrorHandling( "C functional initialization error." );
             }
         }
         else if( XCType_ == "XC_HYB_GGA_XC_HSE06" )
         {
             XCId_ = XC_HYB_GGA_XC_HSE06;
             if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-                throw std::runtime_error( "XC functional initialization error." );
+                ErrorHandling( "XC functional initialization error." );
             } 
 
             isHybrid_ = true;
@@ -183,7 +183,7 @@ KohnSham::Setup	(
             // This is the same as the "hse" functional in QE 5.1
         }
         else {
-            throw std::logic_error("Unrecognized exchange-correlation type");
+            ErrorHandling("Unrecognized exchange-correlation type");
         }
     }
 
@@ -215,7 +215,7 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
     for (Int a=0; a<numAtom; a++) {
         Int atype  = atomList_[a].type;
         if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
-            throw std::logic_error( "Cannot find the atom type." );
+            ErrorHandling( "Cannot find the atom type." );
         }
         nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
     }
@@ -223,7 +223,7 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
     // number of electrons is not a even number.
     //
     //	if( nelec % 2 != 0 ){
-    //		throw std::runtime_error( "This is spin-restricted calculation. nelec should be even." );
+    //		ErrorHandling( "This is spin-restricted calculation. nelec should be even." );
     //	}
     numOccupiedState_ = nelec / numSpin_;
 
@@ -619,7 +619,7 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
     } // for d
   } // XC_FAMILY Hybrid
   else
-    throw std::logic_error( "Unsupported XC family!" );
+    ErrorHandling( "Unsupported XC family!" );
 
   // Compute the total exchange-correlation energy
   val = 0.0;
@@ -640,12 +640,12 @@ void KohnSham::CalculateHartree( Fourier& fft ) {
     PushCallStack("KohnSham::CalculateHartree");
 #endif
     if( !fft.isInitialized ){
-        throw std::runtime_error("Fourier is not prepared.");
+        ErrorHandling("Fourier is not prepared.");
     }
 
     Int ntot = domain_.NumGridTotalFine();
     if( fft.domain.NumGridTotalFine() != ntot ){
-        throw std::logic_error( "Grid size does not match!" );
+        ErrorHandling( "Grid size does not match!" );
     }
 
     // The contribution of the pseudoCharge is subtracted. So the Poisson
@@ -936,7 +936,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
     int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
 
     if( numEig != numStateTotal ){
-      throw std::runtime_error( "numEig != numStateTotal in CalculateForce" );
+      ErrorHandling( "numEig != numStateTotal in CalculateForce" );
     }
 
 		for( Int a = 0; a < numAtom; a++ ){
@@ -1078,7 +1078,7 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
     int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
 
     if( numEig != numStateTotal ){
-      throw std::runtime_error( "numEig != numStateTotal in CalculateForce" );
+      ErrorHandling( "numEig != numStateTotal in CalculateForce" );
     }
 
     DblNumVec wfnFine(domain_.NumGridTotalFine());
@@ -1979,7 +1979,7 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
   NumTns<Real>& wavefun = psi.Wavefun();
 
   if( !fft.isInitialized ){
-    throw std::runtime_error("Fourier is not prepared.");
+    ErrorHandling("Fourier is not prepared.");
   }
   Index3& numGrid = fft.domain.numGrid;
   Index3& numGridFine = fft.domain.numGridFine;
@@ -1992,12 +1992,12 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
   NumTns<Real>& phi = phiEXX_;
   Int ncomPhi = phi.n();
   if( ncomPhi != 1 || ncom != 1 ){
-    throw std::logic_error("Spin polarized case not implemented.");
+    ErrorHandling("Spin polarized case not implemented.");
   }
   Int numStateLocalPhi = phi.p();
 
   if( fft.domain.NumGridTotal() != ntot ){
-    throw std::logic_error("Domain size does not match.");
+    ErrorHandling("Domain size does not match.");
   }
 
   // Directly use the phiEXX_ and vexxProj_ to calculate the exchange energy

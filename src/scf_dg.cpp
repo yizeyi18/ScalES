@@ -116,7 +116,7 @@ SCFDG::~SCFDG	(  )
                 std::ostringstream msg;
                 msg 
                     << "PEXSI finalization returns info " << info << std::endl;
-                throw std::runtime_error( msg.str().c_str() );
+                ErrorHandling( msg.str().c_str() );
             }
         }
 
@@ -282,7 +282,7 @@ SCFDG::Setup	(
                 << "the number of processors per pole = " << numProcPEXSICommCol_ 
                 << ", and cannot exceed the number of elements = " << dmCol_ 
                 << std::endl;
-            throw std::runtime_error( msg.str().c_str() );
+            ErrorHandling( msg.str().c_str() );
         }
 
         numProcPEXSICommRow_ = std::min( esdfParam.numPole, dmRow_ );
@@ -321,7 +321,7 @@ SCFDG::Setup	(
                 std::ostringstream msg;
                 msg 
                     << "PEXSI initialization returns info " << info << std::endl;
-                throw std::runtime_error( msg.str().c_str() );
+                ErrorHandling( msg.str().c_str() );
             }
         }
     }
@@ -378,7 +378,7 @@ SCFDG::Setup	(
             statusOFS << "dmCol_ = " << dmCol_ << " dmRow_ = " << dmRow_ << std::endl;
             std::ostringstream msg;
             msg << "Total number of processors do not fit to the number processors per element." << std::endl;
-            throw std::runtime_error( msg.str().c_str() );
+            ErrorHandling( msg.str().c_str() );
         }
 
 
@@ -462,7 +462,7 @@ SCFDG::Setup	(
                                     << std::endl
                                     << "key     ~ " << key << std::endl
                                     << "keyRead ~ " << keyRead << std::endl;
-                                throw std::runtime_error( msg.str().c_str() );
+                                ErrorHandling( msg.str().c_str() );
                             }
 
                             DblNumVec   denVecRead;
@@ -475,7 +475,7 @@ SCFDG::Setup	(
                                     << std::endl
                                     << "input density size   ~ " << denVecRead.Size() << std::endl
                                     << "current density size ~ " << denVec.Size()     << std::endl;
-                                throw std::runtime_error( msg.str().c_str() );
+                                ErrorHandling( msg.str().c_str() );
                             }
                             denVec = denVecRead;
                             for( Int p = 0; p < denVec.Size(); p++ ){
@@ -599,7 +599,7 @@ SCFDG::Setup	(
                                 << std::endl
                                 << "key     ~ " << key << std::endl
                                 << "keyRead ~ " << keyRead << std::endl;
-                            throw std::runtime_error( msg.str().c_str() );
+                            ErrorHandling( msg.str().c_str() );
                         }
                         deserialize( wavefunRead, wfnStream, NO_MASK );
 
@@ -610,7 +610,7 @@ SCFDG::Setup	(
                                 << std::endl
                                 << "input basis size   ~ " << wavefunRead.Size() << std::endl
                                 << "current basis size ~ " << wavefun.Size()     << std::endl;
-                            throw std::runtime_error( msg.str().c_str() );
+                            ErrorHandling( msg.str().c_str() );
                         }
 
                         wavefun = wavefunRead;
@@ -1229,7 +1229,7 @@ SCFDG::Iterate	(  )
                             if( numBasisTotalTest != numBasisTotal ){
                                 statusOFS << "numBasisTotal = " << numBasisTotal << std::endl;
                                 statusOFS << "numBasisTotalTest = " << numBasisTotalTest << std::endl;
-                                throw std::logic_error("Sum{numBasis} = numBasisTotal does not match.");
+                                ErrorHandling("Sum{numBasis} = numBasisTotal does not match.");
                             }
 
                             // FIXME The constant mode is now not used.
@@ -1438,7 +1438,7 @@ SCFDG::Iterate	(  )
                                     statusOFS << "numSVDBasisLocal = " << numSVDBasisLocal << std::endl;
                                     statusOFS << "numSVDBasisTotal = " << numSVDBasisTotal << std::endl;
                                     statusOFS << "numSVDBasisTotalTest = " << numSVDBasisTotalTest << std::endl;
-                                    throw std::logic_error("numSVDBasisTotal != numSVDBasisTotalTest");
+                                    ErrorHandling("numSVDBasisTotal != numSVDBasisTotalTest");
                                 }
 
                                 // Multiply X <- X*U in the row-partitioned format
@@ -2039,7 +2039,7 @@ SCFDG::Iterate	(  )
                 msg 
                     << "File " << structFileName.c_str() << " cannot be open." 
                     << std::endl;
-                throw std::runtime_error( msg.str().c_str() );
+                ErrorHandling( msg.str().c_str() );
             }
             fout << structStream.str();
             fout.close();
@@ -3084,7 +3084,7 @@ SCFDG::scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat
 
     if( MB != NB )
     {
-        throw std::runtime_error("MB must be equal to NB.");
+        ErrorHandling("MB must be equal to NB.");
     }
 
     // ScaLAPACK block information
@@ -5062,7 +5062,7 @@ SCFDG::InnerIterate	( Int outerIter )
                     std::ostringstream msg;
                     msg 
                         << "PEXSI loading H matrix returns info " << info << std::endl;
-                    throw std::runtime_error( msg.str().c_str() );
+                    ErrorHandling( msg.str().c_str() );
                 }
 
                 // PEXSI solver
@@ -5136,7 +5136,7 @@ SCFDG::InnerIterate	( Int outerIter )
                     std::ostringstream msg;
                     msg 
                         << "PEXSI main driver returns info " << info << std::endl;
-                    throw std::runtime_error( msg.str().c_str() );
+                    ErrorHandling( msg.str().c_str() );
                 }
 
                 // Update the fermi level 
@@ -5187,7 +5187,7 @@ SCFDG::InnerIterate	( Int outerIter )
                         std::ostringstream msg;
                         msg 
                             << "PEXSI data retrieval returns info " << info << std::endl;
-                        throw std::runtime_error( msg.str().c_str() );
+                        ErrorHandling( msg.str().c_str() );
                     }
                 }
             } // if( mpirank < numProcTotalPEXSI_ )
@@ -5525,7 +5525,7 @@ SCFDG::InnerIterate	( Int outerIter )
                         dfInnerMat_,
                         dvInnerMat_);
             } else{
-                throw std::runtime_error("Invalid mixing type.");
+                ErrorHandling("Invalid mixing type.");
             }
         }
         else if( mixVariable_ == "potential" ){
@@ -5541,7 +5541,7 @@ SCFDG::InnerIterate	( Int outerIter )
                         dfInnerMat_,
                         dvInnerMat_);
             } else{
-                throw std::runtime_error("Invalid mixing type.");
+                ErrorHandling("Invalid mixing type.");
             }
         }
 
@@ -5944,7 +5944,7 @@ SCFDG::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
             << "The number of eigenstates do not match."  << std::endl
             << "eigVal         ~ " << eigVal.m() << std::endl
             << "numStateTotal  ~ " << npsi << std::endl;
-        throw std::logic_error( msg.str().c_str() );
+        ErrorHandling( msg.str().c_str() );
     }
 
 
@@ -5980,7 +5980,7 @@ SCFDG::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
                     for(Int j = 0; j < npsi; j++) flb += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-lb)));
                 }
                 else {
-                    throw std::logic_error( "Cannot find a lower bound for efermi" );
+                    ErrorHandling( "Cannot find a lower bound for efermi" );
                 }
             }
 
@@ -5992,7 +5992,7 @@ SCFDG::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
                     for(Int j = 0; j < npsi; j++) fub += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-ub)));
                 }
                 else {
-                    throw std::logic_error( "Cannot find a lower bound for efermi, try to increase the number of wavefunctions" );
+                    ErrorHandling( "Cannot find a lower bound for efermi, try to increase the number of wavefunctions" );
                 }
             }
         }  /* end while */
@@ -6026,7 +6026,7 @@ SCFDG::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
             fermi_ = eigVal(npsi-1);
         }
         else {
-            throw std::logic_error( "The number of eigenvalues in ev should be larger than nocc" );
+            ErrorHandling( "The number of eigenvalues in ev should be larger than nocc" );
         }
     }
 
@@ -6850,7 +6850,7 @@ SCFDG::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
             vdw_s=vdw_s_pbe;
         }
         else {
-            throw std::logic_error( "Van der Waals DFT-D2 correction in only compatible with GGA-PBE!" );
+            ErrorHandling( "Van der Waals DFT-D2 correction in only compatible with GGA-PBE!" );
         }
 
         // Calculate the number of atom types.
@@ -7208,7 +7208,7 @@ SCFDG::AndersonMix	(
                 } // for (i)
     }
     else{
-        throw std::runtime_error("Invalid mixing type.");
+        ErrorHandling("Invalid mixing type.");
     }
 
 

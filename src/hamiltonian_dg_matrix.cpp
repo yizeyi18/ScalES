@@ -1801,7 +1801,7 @@ HamiltonianDG::CalculateDGMatrix	(  )
 										<< "Coef matrix 2 size : " << coef2.m() << " x " << coef2.n() << std::endl
 										<< "vnlWeight     size : " << vnlWeight.Size() << std::endl;
 
-									throw std::runtime_error( msg.str().c_str() );
+									ErrorHandling( msg.str().c_str() );
 								}
 								// Outer product with the weight of the nonlocal
 								// pseudopotential to form local matrix

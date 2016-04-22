@@ -62,7 +62,7 @@ template <class F>
 		PushCallStack("Vec3T::operator()");
 #endif  // ifndef _RELEASE_
 		if( i < 0 || i > 2 ){
-			throw std::logic_error( "Index is out of bound." );
+			ErrorHandling( "Index is out of bound." );
 		}
 #ifndef _RELEASE_
 		PopCallStack();
@@ -78,7 +78,7 @@ template <class F>
 		PushCallStack("Vec3T::operator()");
 #endif  // ifndef _RELEASE_
 		if( i < 0 || i > 2 ){
-			throw std::logic_error( "Index is out of bound." );
+			ErrorHandling( "Index is out of bound." );
 		}
 #ifndef _RELEASE_
 		PopCallStack();
@@ -94,7 +94,7 @@ template <class F>
 		PushCallStack("Vec3T::operator[]");
 #endif  // ifndef _RELEASE_
 		if( i < 0 || i > 2 ){
-			throw std::logic_error( "Index is out of bound." );
+			ErrorHandling( "Index is out of bound." );
 		}
 #ifndef _RELEASE_
 		PopCallStack();
@@ -110,7 +110,7 @@ template <class F>
 		PushCallStack("Vec3T::operator[]");
 #endif  // ifndef _RELEASE_
 		if( i < 0 || i > 2 ){
-			throw std::logic_error( "Index is out of bound." );
+			ErrorHandling( "Index is out of bound." );
 		}
 #ifndef _RELEASE_
 		PopCallStack();

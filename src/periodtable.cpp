@@ -75,7 +75,7 @@ Int deserialize(PTEntry& val, std::istream& is, const std::vector<Int>& mask)
 
 Int combine(PTEntry& val, PTEntry& ext)
 {
-	throw  std::logic_error( "Combine operation is not implemented" );
+	ErrorHandling( "Combine operation is not implemented" );
 	return 0;
 }
 
@@ -102,7 +102,7 @@ void PeriodTable::Setup( const std::string strptable )
 		DblNumVec& params = ptcur.params;
 		DblNumMat& samples = ptcur.samples;
 		if( samples.n() % 2 == 0 ){
-			throw std::logic_error( "Wrong number of samples" );
+			ErrorHandling( "Wrong number of samples" );
 		}
 		std::map< Int, std::vector<DblNumVec> > spltmp;
 		for(Int g=1; g<samples.n(); g++) {
@@ -829,7 +829,7 @@ PeriodTable::CalculateNonlocalPP	(
 
 		// Check the number of pseudopotentials
 		if( cntpp != numpp ){
-			throw std::runtime_error("cntpp != numpp.  Seriously wrong with nonlocal pseudopotentials.");
+			ErrorHandling("cntpp != numpp.  Seriously wrong with nonlocal pseudopotentials.");
 		}
 	} // if (norm(minDist) <= Rzero )
 #endif // #ifndef _NO_NONLOCAL_
@@ -901,7 +901,7 @@ PeriodTable::CalculateNonlocalPP	(
 				if( vnlList.size() != vnlpp.size() ){
 					std::ostringstream msg;
 					msg << "The number of pseudopotentials do not match." << std::endl;
-					throw std::runtime_error( msg.str().c_str() );
+					ErrorHandling( msg.str().c_str() );
 				}
 				for( Int p = 0; p < numpp; p++ ){
 					NumTns<SparseVec>& res = vnlList[p].first;

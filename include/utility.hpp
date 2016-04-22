@@ -725,7 +725,7 @@ namespace dgdft{
 
   inline Int combine(char& val, char& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
   }
 
   //-------------------
@@ -804,7 +804,7 @@ namespace dgdft{
 
   inline Int combine(Index2& val, Index2& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
     return 0;
   }
 
@@ -824,7 +824,7 @@ namespace dgdft{
 
   inline Int combine(Point2& val, Point2& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
     return 0;
   }
 
@@ -844,7 +844,7 @@ namespace dgdft{
 
   inline Int combine(Index3& val, Index3& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
   }
 
   //-------------------
@@ -863,7 +863,7 @@ namespace dgdft{
 
   inline Int combine(Point3& val, Point3& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
   }
 
   //-------------------
@@ -892,7 +892,7 @@ namespace dgdft{
   template<class T>
   Int combine(std::vector<T>& val, std::vector<T>& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
     return 0;
   }
 
@@ -924,7 +924,7 @@ namespace dgdft{
   template<class T>
   Int combine(std::set<T>& val, std::set<T>& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
     return 0;
   }
 
@@ -959,7 +959,7 @@ namespace dgdft{
   template<class T, class S>
   Int combine(std::map<T,S>& val, std::map<T,S>& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
     return 0;
   }
 
@@ -984,7 +984,7 @@ namespace dgdft{
   template<class T, class S>
   Int combine(std::pair<T,S>& val, std::pair<T,S>& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
     return 0;
   }
 
@@ -1365,7 +1365,7 @@ namespace dgdft{
   template<class T>
   Int inline combine(NumVec<T>& val, NumVec<T>& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
     return 0;
   }
 
@@ -1400,7 +1400,7 @@ namespace dgdft{
   template<class T>
   Int inline combine(NumMat<T>& val, NumMat<T>& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
     return 0;
   }
 
@@ -1443,7 +1443,7 @@ namespace dgdft{
   template<class T>
   Int inline combine(NumTns<T>& val, NumTns<T>& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
     return 0;
   }
 
@@ -1464,7 +1464,7 @@ namespace dgdft{
   }
 
   Int inline combine(Domain& dm1, Domain& dm2){
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
     return 0;
   }
 
@@ -1501,7 +1501,7 @@ namespace dgdft{
   template<class T>
   Int inline combine(DistSparseMatrix<T>& val, DistSparseMatrix<T>& ext)
   {
-    throw  std::logic_error( "Combine operation not implemented." );
+    ErrorHandling( "Combine operation not implemented." );
     return 0;
   }
 

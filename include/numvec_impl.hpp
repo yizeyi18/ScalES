@@ -66,7 +66,7 @@ inline NumVec<F>::NumVec	( Int m ) : m_(m), owndata_(true)
 	if(m_>0) { 
 		data_ = new F[m_]; 
 		if( data_ == NULL ){
-			throw std::runtime_error("Cannot allocate memory.");
+			ErrorHandling("Cannot allocate memory.");
 		}
 	} 
 	else 
@@ -86,7 +86,7 @@ inline NumVec<F>::NumVec	( Int m, bool owndata, F* data ) : m_(m), owndata_(ownd
 		if( m_ > 0 ) { 
 			data_ = new F[m_]; 
 			if( data_ == NULL ){
-				throw std::runtime_error("Cannot allocate memory.");
+				ErrorHandling("Cannot allocate memory.");
 			}
 		}
 		else
@@ -116,7 +116,7 @@ inline NumVec<F>::NumVec	( const NumVec<F>& C ) : m_(C.m_), owndata_(C.owndata_)
 		if( m_ > 0 ) { 
 			data_ = new F[m_]; 
 			if( data_ == NULL ){
-				throw std::runtime_error("Cannot allocate memory.");
+				ErrorHandling("Cannot allocate memory.");
 			}
 		}
 		else
@@ -177,7 +177,7 @@ inline NumVec<F>& NumVec<F>::operator =	( const NumVec& C  )
       if( m_ > 0 ){
         data_ = new F[m_];
         if( data_ == NULL ){
-          throw std::runtime_error("Cannot allocate memory.");
+          ErrorHandling("Cannot allocate memory.");
         }
       }
       else{
@@ -210,7 +210,7 @@ inline void NumVec<F>::Resize	( const Int m )
 	PushCallStack("NumVec<F>::Resize");
 #endif  
 	if( owndata_ == false ){
-		throw std::logic_error("Vector being resized must own data.");
+		ErrorHandling("Vector being resized must own data.");
 	}
 	if( m != m_ ){
 		if( m_ > 0 ){
@@ -221,7 +221,7 @@ inline void NumVec<F>::Resize	( const Int m )
 		if( m_ > 0 ){
 			data_ = new F[m_];
 			if( data_ == NULL ){
-				throw std::runtime_error("Cannot allocate memory.");
+				ErrorHandling("Cannot allocate memory.");
 			}
 		}
 	}

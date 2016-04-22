@@ -51,12 +51,12 @@
 namespace  dgdft{
 
 template <class F> inline NumMat<F>::NumMat(Int m, Int n): m_(m), n_(n), owndata_(true) {
-	if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) throw std::runtime_error("Cannot allocate memory."); } else data_=NULL;
+	if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
 }
 
 template <class F> inline NumMat<F>::NumMat(Int m, Int n, bool owndata, F* data): m_(m), n_(n), owndata_(owndata) {
 	if(owndata_) {
-		if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) throw std::runtime_error("Cannot allocate memory."); } else data_=NULL;
+		if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
 		if(m_>0 && n_>0) { for(Int i=0; i<m_*n_; i++) data_[i] = data[i]; }
 	} else {
 		data_ = data;
@@ -65,7 +65,7 @@ template <class F> inline NumMat<F>::NumMat(Int m, Int n, bool owndata, F* data)
 
 template <class F> inline NumMat<F>::NumMat(const NumMat& C): m_(C.m_), n_(C.n_), owndata_(C.owndata_) {
 	if(owndata_) {
-		if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) throw std::runtime_error("Cannot allocate memory."); } else data_=NULL;
+		if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
 		if(m_>0 && n_>0) { for(Int i=0; i<m_*n_; i++) data_[i] = C.data_[i]; }
 	} else {
 		data_ = C.data_;
@@ -86,7 +86,7 @@ template <class F> inline NumMat<F>& NumMat<F>::operator=(const NumMat& C) {
 	}
 	m_ = C.m_; n_=C.n_; owndata_=C.owndata_;
 	if(owndata_) {
-		if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) throw std::runtime_error("Cannot allocate memory."); } else data_=NULL;
+		if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
 		if(m_>0 && n_>0) { for(Int i=0; i<m_*n_; i++) data_[i] = C.data_[i]; }
 	} else {
 		data_ = C.data_;
@@ -96,12 +96,12 @@ template <class F> inline NumMat<F>& NumMat<F>::operator=(const NumMat& C) {
 
 template <class F> inline void NumMat<F>::Resize(Int m, Int n)  {
 	if( owndata_ == false ){
-		throw std::logic_error("Matrix being resized must own data.");
+		ErrorHandling("Matrix being resized must own data.");
 	}
 	if(m_!=m || n_!=n) {
 		if(m_>0 && n_>0) { delete[] data_; data_ = NULL; }
 		m_ = m; n_ = n;
-		if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) throw std::runtime_error("Cannot allocate memory."); } else data_=NULL;
+		if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
 	}
 }
 
@@ -117,7 +117,7 @@ inline const F& NumMat<F>::operator()(Int i, Int j) const  {
 			<< "Index is out of bound."  << std::endl
 			<< "Index bound    ~ (" << m_ << ", " << n_ << ")" << std::endl
 			<< "This index     ~ (" << i  << ", " << j  << ")" << std::endl;
-		throw std::logic_error( msg.str().c_str() ); 
+		ErrorHandling( msg.str().c_str() ); 
 	}
 #ifndef _RELEASE_
 	PopCallStack();
@@ -137,7 +137,7 @@ inline F& NumMat<F>::operator()(Int i, Int j)  {
 			<< "Index is out of bound."  << std::endl
 			<< "Index bound    ~ (" << m_ << ", " << n_ << ")" << std::endl
 			<< "This index     ~ (" << i  << ", " << j  << ")" << std::endl;
-		throw std::logic_error( msg.str().c_str() ); 
+		ErrorHandling( msg.str().c_str() ); 
 	}
 #ifndef _RELEASE_
 	PopCallStack();
@@ -157,7 +157,7 @@ inline F* NumMat<F>::VecData(Int j)  const
 			<< "Index is out of bound."  << std::endl
 			<< "Index bound    ~ (" << n_ << ")" << std::endl
 			<< "This index     ~ (" << j  << ")" << std::endl;
-		throw std::logic_error( msg.str().c_str() ); 
+		ErrorHandling( msg.str().c_str() ); 
 	}
 #ifndef _RELEASE_
 	PopCallStack();
@@ -220,7 +220,7 @@ Symmetrize( NumMat<F>& A )
 	PushCallStack("Symmetrize");
 #endif
 	if( A.m() != A.n() ){
-		throw std::logic_error( "The matrix to be symmetrized should be a square matrix." );
+		ErrorHandling( "The matrix to be symmetrized should be a square matrix." );
 	}
 
 	NumMat<F> B;

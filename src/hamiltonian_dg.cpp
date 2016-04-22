@@ -114,7 +114,7 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
         // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
     }
     else
-        throw std::logic_error("Unrecognized exchange-correlation type");
+        ErrorHandling("Unrecognized exchange-correlation type");
 
     Int ntot = domain_.NumGridTotal();
     Int ntotFine = domain_.NumGridTotalFine();
@@ -126,11 +126,11 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 
     for( Int d = 0; d < DIM; d++ ){
         if( domain_.numGrid[d] % numElem_[d] != 0 ){
-            throw std::runtime_error( 
+            ErrorHandling( 
                     "The number of global wfc grid points is not divisible by the number of elements" );
         }
         if( domain_.numGridFine[d] % numElem_[d] != 0 ){
-            throw std::runtime_error(
+            ErrorHandling(
                     "The number of global rho grid points is not divisible by the number of elements" );
         }
         numUniformGridElem_[d] = domain_.numGrid[d] / numElem_[d];
@@ -142,7 +142,7 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
     if( (mpisize % dmCol_) != 0 ){
         std::ostringstream msg;
         msg << "Total number of processors do not fit to the number processors per element." << std::endl;
-        throw std::runtime_error( msg.str().c_str() );
+        ErrorHandling( msg.str().c_str() );
     }
 
     // Setup the element domains
@@ -177,7 +177,7 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
     if( mpisize != dmRow_ * dmCol_ ){
         std::ostringstream msg;
         msg << "The number of processors is not equal to the total number of elements." << std::endl;
-        throw std::runtime_error( msg.str().c_str() );
+        ErrorHandling( msg.str().c_str() );
     }
 
     Int cnt = 0;
@@ -323,7 +323,7 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
         if( idx[0] < 0 || idx[1] < 0 || idx[2] < 0 ){
             std::ostringstream msg;
             msg << "Cannot find element for atom #" << a << std::endl;
-            throw std::runtime_error( msg.str().c_str() );
+            ErrorHandling( msg.str().c_str() );
         }
         // Determine the ownership by the ownership of the corresponding element
         atomPrtnInfo[a] = elemPrtn_.Owner( idx );
@@ -554,7 +554,7 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
                                 numExtElem[d] = 3;
                             }
                             else{
-                                throw std::runtime_error( "numElem[d] is either 1 or >=3." );
+                                ErrorHandling( "numElem[d] is either 1 or >=3." );
                             }
                         } // for d
                     }
@@ -752,7 +752,7 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
     // Initialize the XC functional.  
     // Spin-unpolarized functional is used here
     //if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-    //  throw std::runtime_error( "XC functional initialization error." );
+    //  ErrorHandling( "XC functional initialization error." );
     //} 
 
     xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED);
@@ -762,18 +762,18 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
     if( XCId_ == 20 )
     {
         if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-            throw std::runtime_error( "XC functional initialization error." );
+            ErrorHandling( "XC functional initialization error." );
         } 
     }    
     else if( ( XId_ == 101 ) && ( CId_ == 130 )  )
     {
         if( ( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 )
                 && ( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ) ){
-            throw std::runtime_error( "XC functional initialization error." );
+            ErrorHandling( "XC functional initialization error." );
         }
     }
     else
-        throw std::logic_error("Unrecognized exchange-correlation type");
+        ErrorHandling("Unrecognized exchange-correlation type");
 
     for( Int k = 0; k < numElem_[2]; k++ )
         for( Int j = 0; j < numElem_[1]; j++ )
@@ -837,7 +837,7 @@ HamiltonianDG::UpdateHamiltonianDG	( std::vector<Atom>& atomList )
         if( idx[0] < 0 || idx[1] < 0 || idx[2] < 0 ){
             std::ostringstream msg;
             msg << "Cannot find element for atom #" << a << std::endl;
-            throw std::runtime_error( msg.str().c_str() );
+            ErrorHandling( msg.str().c_str() );
         }
         // Determine the ownership by the ownership of the corresponding element
         atomPrtnInfo[a] = elemPrtn_.Owner( idx );
@@ -875,7 +875,7 @@ HamiltonianDG::~HamiltonianDG	( )
             xc_func_end(&CFuncType_);
         }
         else
-            throw std::logic_error("Unrecognized exchange-correlation type");
+            ErrorHandling("Unrecognized exchange-correlation type");
     }
 
 #ifndef _RELEASE_
@@ -915,7 +915,7 @@ HamiltonianDG::DiffPsi	(const Index3& numGrid, const Real* psi, Real* Dpsi, Int 
                 DMat_[2].Data(), n, 0.0, Dpsi, m );
     }
     else{
-        throw std::logic_error("Wrong dimension.");
+        ErrorHandling("Wrong dimension.");
     }
 
 #ifndef _RELEASE_
@@ -1068,13 +1068,13 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
         if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
             std::ostringstream msg;
             msg << "Cannot find the atom type for atom #" << a << std::endl;
-            throw std::runtime_error( msg.str().c_str() );
+            ErrorHandling( msg.str().c_str() );
         }
         nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
     }
 
     if( nelec % 2 != 0 ){
-        throw std::runtime_error( "This is a spin-restricted calculation. nelec should be even." );
+        ErrorHandling( "This is a spin-restricted calculation. nelec should be even." );
     }
 
     numOccupiedState_ = nelec / numSpin_;
@@ -1112,7 +1112,7 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
                     << domainElem_(0,0,0).length[0] << " x " 
                     << domainElem_(0,0,0).length[1] << " x " 
                     << domainElem_(0,0,0).length[2] << std::endl;
-                throw std::runtime_error( msg.str().c_str() );
+                ErrorHandling( msg.str().c_str() );
             }
         }
     }
@@ -1311,11 +1311,11 @@ HamiltonianDG::CalculateDensity	(
 
                             DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
                             if( localCoef.n() != numEig ){
-                                throw std::runtime_error( 
+                                ErrorHandling( 
                                         "Numbers of eigenfunction coefficients do not match.");
                             }
                             if( localCoef.m() != numBasis ){
-                                throw std::runtime_error(
+                                ErrorHandling(
                                         "Number of LGL grids do not match.");
                             }
                             DblNumVec  localPsiLGL( numGrid );
@@ -1410,11 +1410,11 @@ HamiltonianDG::CalculateDensity	(
 
                         DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
                         if( localCoef.n() != numEig ){
-                            throw std::runtime_error( 
+                            ErrorHandling( 
                                     "Numbers of eigenfunction coefficients do not match.");
                         }
                         if( localCoef.m() != numBasis ){
-                            throw std::runtime_error(
+                            ErrorHandling(
                                     "Number of LGL grids do not match.");
                         }
 
@@ -2141,11 +2141,11 @@ HamiltonianDG::CalculateDensity	(
 
                             DblNumMat& localCoef  = eigvecCoef_.LocalMap()[key];
                             if( localCoef.n() != numEig ){
-                                throw std::runtime_error( 
+                                ErrorHandling( 
                                         "Numbers of eigenfunction coefficients do not match.");
                             }
                             if( localCoef.m() != numBasis ){
-                                throw std::runtime_error(
+                                ErrorHandling(
                                         "Number of LGL grids do not match.");
                             }
                             DblNumVec  localPsiLGL( numGrid );
@@ -2317,7 +2317,7 @@ HamiltonianDG::CalculateDensityDM	(
                                 << "The number of basis functions is " << numBasis << std::endl
                                 << "The size of the local density matrix is " 
                                 << localDM.m() << " x " << localDM.n() << std::endl;
-                            throw std::runtime_error( msg.str().c_str() );
+                            ErrorHandling( msg.str().c_str() );
                         }
 
                         DblNumVec& localRho    = rho.LocalMap()[key];
@@ -2588,7 +2588,7 @@ void HamiltonianDG::CalculateGradDensity( DistFourier&  fft ) {
     PushCallStack("HamiltonianDG::CalculateGradDensity");
 #endif
     if( !fft.isInitialized ){
-        throw std::runtime_error("Fourier is not prepared.");
+        ErrorHandling("Fourier is not prepared.");
     }
     Int mpirank, mpisize;
     MPI_Comm_rank( domain_.comm, &mpirank );
@@ -2876,7 +2876,7 @@ HamiltonianDG::CalculateXC	(
 
     } //XC_FAMILY_GGA
     else
-        throw std::logic_error( "Unsupported XC family!" );
+        ErrorHandling( "Unsupported XC family!" );
 
     ExcLocal *= domain_.Volume() / domain_.NumGridTotalFine();
 
@@ -2897,7 +2897,7 @@ void HamiltonianDG::CalculateHartree(
     PushCallStack("HamiltonianDG::CalculateHartree");
 #endif
     if( !fft.isInitialized ){
-        throw std::runtime_error("Fourier is not prepared.");
+        ErrorHandling("Fourier is not prepared.");
     }
     Int mpirank, mpisize;
     MPI_Comm_rank( domain_.comm, &mpirank );
@@ -3035,7 +3035,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
     PushCallStack("HamiltonianDG::CalculateForce");
 #endif
     if( !fft.isInitialized ){
-        throw std::runtime_error("Fourier is not prepared.");
+        ErrorHandling("Fourier is not prepared.");
     }
 
     Int mpirank, mpisize;
@@ -3346,7 +3346,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
                     std::map<Int, DblNumMat>& coefDrvZMap = vnlDrvCoef_[2].LocalMap()[key];
 
                     if( eigvecCoef_.LocalMap().find( key ) == eigvecCoef_.LocalMap().end() ){
-                        throw std::runtime_error( "Eigenfunction coefficient matrix cannot be located." );
+                        ErrorHandling( "Eigenfunction coefficient matrix cannot be located." );
                     }
 
                     DblNumMat&  localCoef = eigvecCoef_.LocalMap()[key];
@@ -3454,7 +3454,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 //	PushCallStack("HamiltonianDG::CalculateForceDM");
 //#endif
 //	if( !fft.isInitialized ){
-//		throw std::runtime_error("Fourier is not prepared.");
+//		ErrorHandling("Fourier is not prepared.");
 //	}
 // 
 //	Int mpirank, mpisize;
@@ -3837,7 +3837,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 //                << "AtomIdx: " << atomIdx << std::endl
 //                << "Row index3: " << iKey << std::endl
 //                << "Col index3: " << jKey << std::endl;
-//              throw std::runtime_error( msg.str().c_str() );
+//              ErrorHandling( msg.str().c_str() );
 //            }
 //
 //            DblNumMat&  localDM   = distDMMat.LocalMap()[matKey];
@@ -3905,7 +3905,7 @@ HamiltonianDG::CalculateForceDM	(
     PushCallStack("HamiltonianDG::CalculateForceDM");
 #endif
     if( !fft.isInitialized ){
-        throw std::runtime_error("Fourier is not prepared.");
+        ErrorHandling("Fourier is not prepared.");
     }
 
     Int mpirank, mpisize;
@@ -4185,7 +4185,7 @@ HamiltonianDG::CalculateForceDM	(
                                 << "AtomIdx: " << atomIdx << std::endl
                                 << "Row index3: " << iKey << std::endl
                                 << "Col index3: " << jKey << std::endl;
-                            throw std::runtime_error( msg.str().c_str() );
+                            ErrorHandling( msg.str().c_str() );
                         }
 
                         DblNumMat&  localDM   = distDMMat.LocalMap()[matKey];
@@ -4930,7 +4930,7 @@ HamiltonianDG::CalculateAPosterioriError	(
                                 Real facJ  = 0.5 * 0.5 * penaltyAlpha_ * penaltyAlpha_ * hF / pF;
 
                                 if( localCoefL.n() != localCoefR.n() ){
-                                    throw std::runtime_error( 
+                                    ErrorHandling( 
                                             "The number of eigenfunctions do not match." );
                                 }
 
@@ -5041,7 +5041,7 @@ HamiltonianDG::CalculateAPosterioriError	(
                                 Real facJ  = 0.5 * 0.5 * penaltyAlpha_ * penaltyAlpha_ * hF / pF;
 
                                 if( localCoefL.n() != localCoefR.n() ){
-                                    throw std::runtime_error( 
+                                    ErrorHandling( 
                                             "The number of eigenfunctions do not match." );
                                 }
 
@@ -5153,7 +5153,7 @@ HamiltonianDG::CalculateAPosterioriError	(
                                 Real facJ  = 0.5 * 0.5 * penaltyAlpha_ * penaltyAlpha_ * hF / pF;
 
                                 if( localCoefL.n() != localCoefR.n() ){
-                                    throw std::runtime_error( 
+                                    ErrorHandling( 
                                             "The number of eigenfunctions do not match." );
                                 }
 

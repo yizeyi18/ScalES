@@ -90,7 +90,7 @@ void Fourier::Initialize ( const Domain& dm )
 #endif  // ifndef _RELEASE_
 
 	if( isInitialized ) {
-		throw std::logic_error("Fourier has been initialized.");
+		ErrorHandling("Fourier has been initialized.");
 	}
 
 	domain = dm;
@@ -237,7 +237,7 @@ void Fourier::InitializeFine ( const Domain& dm )
 #endif  // ifndef _RELEASE_
 
 //  if( isInitialized ) {
-//		throw std::logic_error("Fourier has been prepared.");
+//		ErrorHandling("Fourier has been prepared.");
 //	}
 
 	domain = dm;
@@ -565,7 +565,7 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
 	PushCallStack("DistFourier::Initialize");
 #endif  // ifndef _RELEASE_
 	if( isInitialized ) {
-		throw std::logic_error("Fourier has been prepared.");
+		ErrorHandling("Fourier has been prepared.");
 	}
 
 	domain = dm;
@@ -599,7 +599,7 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
             msg << "numProc cannot exceed mpisize."  << std::endl
                 << "numProc ~ " << numProc << std::endl
                 << "mpisize = " << mpisizeDomain << std::endl;
-            throw std::runtime_error( msg.str().c_str() );
+            ErrorHandling( msg.str().c_str() );
         }
         if( mpirankDomain < numProc )
             isInGrid = true;
@@ -621,7 +621,7 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
 			msg << "numGrid[2] > mpisizeFFT. FFTW initialization failed. "  << std::endl
 				<< "numGrid    = " << numGrid << std::endl
 				<< "mpisizeFFT = " << mpisizeFFT << std::endl;
-			throw std::runtime_error( msg.str().c_str() );
+			ErrorHandling( msg.str().c_str() );
 		}
 
 		// IMPORTANT: the order of numGrid. This is because the FFTW arrays
