@@ -82,6 +82,11 @@
 #include <omp.h>
 #endif
 
+#ifdef FFTWOPENMP
+#define _USE_FFTW_OPENMP_
+#endif
+
+
 // Google coredumper for debugging
 #ifdef COREDUMPER
 #define _COREDUMPER_

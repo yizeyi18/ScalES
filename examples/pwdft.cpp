@@ -124,6 +124,16 @@ int main(int argc, char **argv)
         // Print the initial state
         ESDFPrintInput( esdfParam );
 
+        // Initialize multithreaded version of FFTW
+#ifdef _USE_FFTW_OPENMP_
+#ifndef _USE_OPENMP_
+        ErrorHandling("Threaded FFTW must use OpenMP.");
+#endif
+        statusOFS << "FFTW uses " << omp_get_max_threads() << " threads." << std::endl;
+        fftw_init_threads();
+        fftw_plan_with_nthreads(omp_get_max_threads());
+#endif
+
 
         // *********************************************************************
         // Preparation
@@ -421,6 +431,10 @@ int main(int argc, char **argv)
 #endif
     }
 
+    // Finalize 
+#ifdef _USE_FFTW_OPENMP
+    fftw_cleanup_threads();
+#endif
     MPI_Finalize();
 
     return 0;

@@ -54,22 +54,21 @@ namespace dgdft{
 // *********************************************************************
 
 Fourier::Fourier () : 
-	isInitialized(false),
-	numGridTotal(0),
-  numGridTotalFine(0),
-	// plannerFlag(FFTW_MEASURE)
-	plannerFlag(FFTW_ESTIMATE)
-	{
-		backwardPlan  = NULL;
-		forwardPlan   = NULL;
-		backwardPlanR2C  = NULL;
-		forwardPlanR2C   = NULL;
-		backwardPlanFine  = NULL;
-		forwardPlanFine   = NULL;
-		backwardPlanR2CFine  = NULL;
-		forwardPlanR2CFine   = NULL;
-    
-	}
+    isInitialized(false),
+    numGridTotal(0),
+    numGridTotalFine(0),
+    // plannerFlag(FFTW_MEASURE)
+    plannerFlag(FFTW_ESTIMATE)
+{
+    backwardPlan  = NULL;
+    forwardPlan   = NULL;
+    backwardPlanR2C  = NULL;
+    forwardPlanR2C   = NULL;
+    backwardPlanFine  = NULL;
+    forwardPlanFine   = NULL;
+    backwardPlanR2CFine  = NULL;
+    forwardPlanR2CFine   = NULL;
+}
 
 Fourier::~Fourier () 
 {
@@ -88,6 +87,8 @@ void Fourier::Initialize ( const Domain& dm )
 #ifndef _RELEASE_
 	PushCallStack("Fourier::Initialize");
 #endif  // ifndef _RELEASE_
+    
+//    fftw_plan_with_nthreads(omp_get_max_threads());
 
 	if( isInitialized ) {
 		ErrorHandling("Fourier has been initialized.");
@@ -239,6 +240,8 @@ void Fourier::InitializeFine ( const Domain& dm )
 //  if( isInitialized ) {
 //		ErrorHandling("Fourier has been prepared.");
 //	}
+
+//    fftw_plan_with_nthreads(omp_get_max_threads());
 
 	domain = dm;
   // FIXME Problematic definition
