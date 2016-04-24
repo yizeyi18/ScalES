@@ -119,22 +119,6 @@ public:
   void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );
 
-  // Clean
-  void AddRealDiag (Int iocc, const DblNumVec &val, NumMat<Real>& y);
-  void AddRealDiag (const DblNumVec &val, NumTns<Real> &a3);
-
-  // Clean
-	void AddLaplacian (Int iocc, Fourier* fftPtr, NumMat<Real>& y);
-	void AddLaplacian (Fourier* fftPtr, NumTns<Real>& a3);
-
-  // Clean
-	void AddNonlocalPP (Int iocc, const std::vector<PseudoPot>& pseudo, NumMat<Real>& y);
-	void AddNonlocalPP (const std::vector<PseudoPot>& pseudo, NumTns<Real> &a3);
-
-  // Clean
-  void AddTeterPrecond( Int iocc, Fourier* fftPtr, NumTns<Real>& a3 );
-
-
   void AddTeterPrecond( Fourier* fftPtr, NumTns<Real>& a3 );
 
   void AddMultSpinorEXX ( Fourier& fft,

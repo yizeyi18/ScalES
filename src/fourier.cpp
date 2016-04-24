@@ -88,7 +88,6 @@ void Fourier::Initialize ( const Domain& dm )
 	PushCallStack("Fourier::Initialize");
 #endif  // ifndef _RELEASE_
     
-//    fftw_plan_with_nthreads(omp_get_max_threads());
 
 	if( isInitialized ) {
 		ErrorHandling("Fourier has been initialized.");
@@ -241,7 +240,6 @@ void Fourier::InitializeFine ( const Domain& dm )
 //		ErrorHandling("Fourier has been prepared.");
 //	}
 
-//    fftw_plan_with_nthreads(omp_get_max_threads());
 
 	domain = dm;
   // FIXME Problematic definition
@@ -510,10 +508,11 @@ void FFTWExecute ( Fourier& fft, fftw_plan& plan )
 
   if ( plan == fft.backwardPlanR2CFine )
   {
-    fftw_execute_dft_c2r(
-        fft.backwardPlanR2CFine, 
-        reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
-        fft.inputVecR2CFine.Data() );
+    fftw_execute( fft.backwardPlanR2CFine );
+//    fftw_execute_dft_c2r(
+//        fft.backwardPlanR2CFine, 
+//        reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ),
+//        fft.inputVecR2CFine.Data() );
     fac = 1.0 / vol;
     for( Int i = 0; i < ntotFine; i++ ){
       fft.inputVecR2CFine(i) *=  fac;
@@ -522,10 +521,11 @@ void FFTWExecute ( Fourier& fft, fftw_plan& plan )
 
   if ( plan == fft.forwardPlanR2CFine )
   {
-    fftw_execute_dft_r2c(
-        fft.forwardPlanR2CFine, 
-        fft.inputVecR2CFine.Data(),
-        reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
+    fftw_execute( fft.forwardPlanR2CFine );
+//    fftw_execute_dft_r2c(
+//        fft.forwardPlanR2CFine, 
+//        fft.inputVecR2CFine.Data(),
+//        reinterpret_cast<fftw_complex*>(fft.outputVecR2CFine.Data() ));
     fac = vol / double(ntotFine);
     for( Int i = 0; i < ntotR2CFine; i++ ){
       fft.outputVecR2CFine(i) *=  fac;

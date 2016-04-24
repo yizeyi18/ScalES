@@ -1474,33 +1474,22 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
  
   SetValue( a3, 0.0 );
 
-  // DO not use OpenMP for now.
-#ifdef _USE_OPENMP_
-//#pragma omp parallel
-  {
-#endif
-    psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
-#ifdef _USE_OPENMP_
-  }
-#endif
+  psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
 
   if( isHybrid_ && isEXXActive_ ){
     if( this->IsHybridACE() ){
       
-      // FIXME This sentence is strange
-//      numStateTotal = this->NumStateTotal();
-
-      if(0)
-      {
-        DblNumMat M(numStateTotal, numStateTotal);
-        blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 1.0,
-            vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
-            0.0, M.Data(), M.m() );
-        // Minus sign comes from that all eigenvalues are negative
-        blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, -1.0,
-            vexxProj_.Data(), ntot, M.Data(), numStateTotal,
-            1.0, a3.Data(), ntot );
-      }
+//      if(0)
+//      {
+//        DblNumMat M(numStateTotal, numStateTotal);
+//        blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 1.0,
+//            vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+//            0.0, M.Data(), M.m() );
+//        // Minus sign comes from that all eigenvalues are negative
+//        blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, -1.0,
+//            vexxProj_.Data(), ntot, M.Data(), numStateTotal,
+//            1.0, a3.Data(), ntot );
+//      }
      
       if(1){ // for MPI
         // Convert the column partition to row partition
