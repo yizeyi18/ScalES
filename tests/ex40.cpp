@@ -43,44 +43,81 @@
 /// @file ex40.cpp
 /// @brief Testing the multi-threaded version of FFTW
 /// @date 2016-04-24
-#include "dgdft.hpp"
-
-using namespace dgdft;
-using namespace std;
-using namespace dgdft::esdf;
-
-void Usage(){
-  std::cout 
-		<< "ex40 tests multi-threaded FFT" << std::endl;
-}
-
+#include<iostream>
+#include<complex>
+#include<vector>
+#include<stdio.h>
+#include<stdlib.h>
+// FFTW libraries
+#include <fftw3.h>
+#include <fftw3-mpi.h>
+#include "mpi.h"
+#include <omp.h>
 
 int main(int argc, char **argv) 
 {
-	MPI_Init(&argc, &argv);
-	int mpirank, mpisize;
-	MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-	MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
-	Real timeSta, timeEnd;
+    MPI_Init(&argc, &argv);
+    // FIXME
+    //    int provided, threads_ok;
+    //    MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+    //    threads_ok = (provided >= MPI_THREAD_FUNNELED);
+    //    std::cout << "threads_ok = " << threads_ok << std::endl;
 
-	if( mpirank == 0 )
-		Usage();
+    int mpirank, mpisize;
+    MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+    MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+    double timeSta, timeEnd;
 
 
-	try
-    {
-        ErrorHandling("here");
+    int N = 100;
+    int NtotR = N*N*N;
+    int NtotC = (N/2+1)*N*N;
+    std::vector<double> a1(NtotR);
+    std::vector<std::complex<double> > a2(NtotC);
+    for( int i = 0; i < NtotR; i++ ){
+        a1[i] = drand48();
     }
-	catch( std::exception& e )
-	{
-		std::cerr << " caught exception with message: "
-			<< e.what() << std::endl;
-#ifndef _RELEASE_
-		DumpCallStack();
-#endif
-	}
+    
+    unsigned plannerFlag = FFTW_MEASURE | FFTW_UNALIGNED;
 
-	MPI_Finalize();
+    std::cout << "FFTW uses " << omp_get_max_threads() << " threads." << std::endl;
+    fftw_init_threads();
+    fftw_mpi_init();
+    fftw_plan_with_nthreads(omp_get_max_threads());
 
-	return 0;
+    fftw_plan forwardPlanR2C = fftw_plan_dft_r2c_3d( 
+            N, N, N, ( &a1[0] ), 
+            reinterpret_cast<fftw_complex*>( &a2[0] ),
+            plannerFlag );
+    fftw_plan backwardPlanR2C = fftw_plan_dft_c2r_3d(
+            N, N, N,
+            reinterpret_cast<fftw_complex*>( &a2[0] ),
+            &a1[0],
+            plannerFlag);
+
+
+    timeSta = MPI_Wtime();
+    for( int i = 0; i < 100; i++ ){
+        fftw_execute( forwardPlanR2C );
+        fftw_execute( backwardPlanR2C );
+        //            fftw_execute_dft_r2c( forwardPlanR2C,
+        //                    a1.Data(),
+        //                    reinterpret_cast<fftw_complex*>( &a2[0] ) );
+        //            fftw_execute_dft_c2r( backwardPlanR2C,
+        //                    reinterpret_cast<fftw_complex*>( &a2[0] ),
+        //                    a1.Data() );
+    }
+    timeEnd = MPI_Wtime();
+    std::cout << "Time for FFT is " << timeEnd - timeSta << std::endl;
+
+
+    fftw_destroy_plan( backwardPlanR2C );
+    fftw_destroy_plan( forwardPlanR2C );
+
+    // Finalize 
+    fftw_cleanup_threads();
+    fftw_mpi_cleanup();
+    MPI_Finalize();
+
+    return 0;
 }
