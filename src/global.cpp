@@ -76,7 +76,7 @@ namespace dgdft{
       statusOFS << "failed:  WriteCoreDump to " << filename << std::endl;
     }     
 #endif // #ifdef _COREDUMPER_
-    ErrorHandling( msg );
+    throw std::runtime_error( msg );
   }
 
 

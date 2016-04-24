@@ -13,6 +13,9 @@ OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 EXES = ${SRCS:.cpp=}	
 
+ex40: ex40.o ${DGDFT_LIB} 
+	($(LOADER) -o $@ ex40.o $(LOADOPTS) )
+
 ex39: ex39.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ ex39.o $(LOADOPTS) )
 
