@@ -83,14 +83,13 @@ int main(int argc, char **argv)
     int NtotR = N*N*N;
     int NtotC = (N/2+1)*N*N;
     int howmany = 100;
-    std::vector<double> a1(NtotR);
-    std::vector<std::complex<double> > a2(NtotC);
-    for( int i = 0; i < NtotR; i++ ){
+    std::vector<double> a1(NtotR*howmany);
+    std::vector<std::complex<double> > a2(NtotC*howmany);
+    for( int i = 0; i < NtotR*howmany; i++ ){
         a1[i] = drand48();
     }
 
     FFTWInit();
-    //unsigned plannerFlag = FFTW_MEASURE | FFTW_UNALIGNED;
     unsigned plannerFlag = FFTW_ESTIMATE;
     
     fftw_plan forwardPlanR2C = fftw_plan_dft_r2c_3d( 
@@ -106,14 +105,14 @@ int main(int argc, char **argv)
 
     timeSta = MPI_Wtime();
     for( int i = 0; i < howmany; i++ ){
-        fftw_execute( forwardPlanR2C );
-        fftw_execute( backwardPlanR2C );
-        //            fftw_execute_dft_r2c( forwardPlanR2C,
-        //                    a1.Data(),
-        //                    reinterpret_cast<fftw_complex*>( &a2[0] ) );
-        //            fftw_execute_dft_c2r( backwardPlanR2C,
-        //                    reinterpret_cast<fftw_complex*>( &a2[0] ),
-        //                    a1.Data() );
+//        fftw_execute( forwardPlanR2C );
+//        fftw_execute( backwardPlanR2C );
+        fftw_execute_dft_r2c( forwardPlanR2C,
+                &a1[0]+i*NtotR,
+                reinterpret_cast<fftw_complex*>( &a2[0]+i*NtotC ) );
+        fftw_execute_dft_c2r( backwardPlanR2C,
+                reinterpret_cast<fftw_complex*>( &a2[0]+i*NtotC ),
+                &a1[0]+i*NtotR );
     }
     timeEnd = MPI_Wtime();
     std::cout << "Time for FFT is " << timeEnd - timeSta << std::endl;

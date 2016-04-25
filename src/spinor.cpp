@@ -425,7 +425,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
     DblNumVec psiUpdateFine(ntotFine);
 
 
-#ifdef _USE_OPENMP_
+//#ifdef _USE_OPENMP_
 //#pragma omp parallel
 //    {
 //#endif

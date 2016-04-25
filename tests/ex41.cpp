@@ -90,7 +90,6 @@ int main(int argc, char **argv)
     }
 
     FFTWInit();
-    // unsigned plannerFlag = FFTW_MEASURE;
     unsigned plannerFlag = FFTW_ESTIMATE;
     std::vector<int> nR2C(3);
     nR2C[0] = N;
