@@ -40,8 +40,8 @@
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file ex40.cpp
-/// @brief Testing the multi-threaded version of FFTW
+/// @file ex42.cpp
+/// @brief Testing the multi-threaded version of many fftws using OpenMP
 /// @date 2016-04-24
 #include<iostream>
 #include<complex>
@@ -56,10 +56,7 @@
 
 int FFTWInit(){
 
-    std::cout << "FFTW uses " << omp_get_max_threads() << " threads." << std::endl;
-    fftw_init_threads();
-    fftw_mpi_init();
-    fftw_plan_with_nthreads(omp_get_max_threads());
+    std::cout << "FFTW uses 1 thread only." << std::endl;
 
     return 0;
 }
@@ -83,15 +80,20 @@ int main(int argc, char **argv)
     int NtotR = N*N*N;
     int NtotC = (N/2+1)*N*N;
     int howmany = 100;
-    std::vector<double> a1(NtotR);
-    std::vector<std::complex<double> > a2(NtotC);
-    for( int i = 0; i < NtotR; i++ ){
+    std::vector<double> a1(NtotR*howmany);
+    std::vector<std::complex<double> > a2(NtotC*howmany);
+    for( int i = 0; i < NtotR*howmany; i++ ){
         a1[i] = drand48();
     }
 
     FFTWInit();
-    //unsigned plannerFlag = FFTW_MEASURE | FFTW_UNALIGNED;
+    //unsigned plannerFlag = FFTW_MEASURE;
     unsigned plannerFlag = FFTW_ESTIMATE;
+    std::vector<int> nR2C(3);
+    nR2C[0] = N;
+    nR2C[1] = N;
+    nR2C[2] = N;
+
     
     fftw_plan forwardPlanR2C = fftw_plan_dft_r2c_3d( 
             N, N, N, ( &a1[0] ), 
@@ -103,18 +105,28 @@ int main(int argc, char **argv)
             &a1[0],
             plannerFlag);
 
-
     timeSta = MPI_Wtime();
-    for( int i = 0; i < howmany; i++ ){
-        fftw_execute( forwardPlanR2C );
-        fftw_execute( backwardPlanR2C );
-        //            fftw_execute_dft_r2c( forwardPlanR2C,
-        //                    a1.Data(),
-        //                    reinterpret_cast<fftw_complex*>( &a2[0] ) );
-        //            fftw_execute_dft_c2r( backwardPlanR2C,
-        //                    reinterpret_cast<fftw_complex*>( &a2[0] ),
-        //                    a1.Data() );
-    }
+#pragma omp parallel
+    {
+        // Private arrays
+        std::vector<double> b1(NtotR);
+        std::vector<std::complex<double> > b2(NtotC);
+#pragma omp for schedule (dynamic,1) nowait
+        for( int i = 0; i < howmany; i++ ){
+            for( int j = 0; j < NtotR; j++ ){
+                b1[j] = a1[j+i*NtotR];
+            }
+            fftw_execute_dft_r2c( forwardPlanR2C,
+                    &b1[0],
+                    reinterpret_cast<fftw_complex*>( &b2[0] ) );
+            fftw_execute_dft_c2r( backwardPlanR2C,
+                    reinterpret_cast<fftw_complex*>( &b2[0] ),
+                    &b1[0] );
+            for( int j = 0; j < NtotR; j++ ){
+                a1[j+i*NtotR] = b1[j];
+            }
+        }
+    } // end omp
     timeEnd = MPI_Wtime();
     std::cout << "Time for FFT is " << timeEnd - timeSta << std::endl;
 
@@ -123,8 +135,6 @@ int main(int argc, char **argv)
     fftw_destroy_plan( forwardPlanR2C );
 
     // Finalize 
-    fftw_cleanup_threads();
-    fftw_mpi_cleanup();
     MPI_Finalize();
 
     return 0;
