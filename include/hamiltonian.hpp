@@ -135,7 +135,13 @@ protected:
   Int                         exxDivergenceType_;
 
   Real                        exxDiv_;
-
+  
+  // ~~~ * ~~~
+  // Internal variables related to wavefunction filter in CheFSI for PWDFT 
+  bool apply_filter_;
+  bool apply_first_;                           
+  Real wfn_cutoff_;
+   
 public:
 
 	// *********************************************************************
@@ -219,6 +225,14 @@ public:
   bool        IsHybridACE() { return isHybridACE_; }
 
 
+  // Function to toggle state of filter application
+  void set_wfn_filter(int apply_filter, int apply_first, Real wfn_cutoff)
+  {
+    apply_filter_ = apply_filter;
+    apply_first_ = apply_first;
+    wfn_cutoff_ = wfn_cutoff;
+  }
+  
 
 	// *********************************************************************
 	// Inquiry

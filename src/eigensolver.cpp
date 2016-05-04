@@ -4208,6 +4208,13 @@ EigenSolver::FirstChebyStep	(
     for(Int iter = 1; iter <= Iter_Max; iter ++){
 
         statusOFS << std::endl << " Chebyshev Filtered First SCF cycle " << iter << " of " << Iter_Max << " .";
+	
+	 statusOFS << std::endl << " Upper bound = (to be mapped to +1) " << b_up;
+         statusOFS << std::endl << " Lower bound (to be mapped to -1) = " << b_low;
+         statusOFS << std::endl << " Lowest eigenvalue = " << a_L;
+
+
+
 
         // Step 3a : Compute the filtered block of vectors
         // This always works on the vectors in psiPtr_
