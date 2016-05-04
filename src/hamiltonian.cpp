@@ -1492,7 +1492,7 @@ namespace dgdft{
       {
       
 	// statusOFS << std::endl << " In here in 1st filter ... " << std::endl; 
-	// apply_first_ = 0;
+	apply_first_ = 0;
     
         for (Int k=0; k<numStateLocal; k++) {
 	  for (Int j=0; j<ncom; j++) {

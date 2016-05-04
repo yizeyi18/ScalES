@@ -225,12 +225,16 @@ public:
   bool        IsHybridACE() { return isHybridACE_; }
 
 
-  // Function to toggle state of filter application
+  // Functions to set and toggle state of filter application
   void set_wfn_filter(int apply_filter, int apply_first, Real wfn_cutoff)
   {
     apply_filter_ = apply_filter;
     apply_first_ = apply_first;
     wfn_cutoff_ = wfn_cutoff;
+  }
+  void set_wfn_filter(int apply_first)
+  {
+   apply_first_ = apply_first;
   }
   
 

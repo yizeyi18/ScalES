@@ -3714,6 +3714,10 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
 
     // This is required for the  Hamiltonian * vector product
     NumTns<double> tnsTemp_spinor_f(ntot, ncom, 1, false, temp_spinor_f.Wavefun().Data());
+    
+    // Set the first wavefunction filter since we are starting from a random guess
+    hamPtr_->set_wfn_filter(1);
+    
 
     SetValue( temp_spinor_f.Wavefun(), 0.0);
     hamPtr_->MultSpinor( temp_spinor_v, tnsTemp_spinor_f, *fftPtr_ ); // f = H * v
@@ -3731,6 +3735,7 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
 
     matT(0,0) = alpha;
 
+    
     for(Int j = 1; j < Num_Lanczos_Steps; j ++)
     {
         beta = blas::Nrm2(height, temp_spinor_f.Wavefun().Data(), 1);
@@ -3862,6 +3867,10 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
         blas::Copy( height, psiPtr_->Wavefun().Data() + local_band_iter * height, 1, spinor_X.Wavefun().Data(), 1 );
 
         // Step 3: Compute Y = (H * X - c * X) * (sigma / e)
+	
+	// Set the first wavefunction filter since we are starting from a random guess
+        hamPtr_->set_wfn_filter(1);
+    
         SetValue( spinor_Y.Wavefun(), 0.0); // Y = 0
         hamPtr_->MultSpinor( spinor_X, tns_spinor_Y, *fftPtr_ ); // Y = H * X
 
@@ -3982,6 +3991,9 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
         blas::Copy( height, psiPtr_->Wavefun().Data() + local_band_iter * height, 1, spinor_X.Wavefun().Data(), 1 );
 
         // Step 3: Compute Y = (H * X - c * X) * (1.0 / e)
+	// Set the first wavefunction filter since we are starting from a random guess
+        hamPtr_->set_wfn_filter(1);
+    
         SetValue( spinor_Y.Wavefun(), 0.0); // Y = 0
         hamPtr_->MultSpinor( spinor_X, tns_spinor_Y, *fftPtr_ ); // Y = H * X
 
@@ -4012,7 +4024,7 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
         }
 
 
-        // Ste : Copy back the processed band into X
+        // Step 6 : Copy back the processed band into X
         blas::Copy( height, spinor_X.Wavefun().Data(), 1, psiPtr_->Wavefun().Data() + local_band_iter * height, 1 );
         //statusOFS << std::endl << " Band " << local_band_iter << " completed.";
     }
