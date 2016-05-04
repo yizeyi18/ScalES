@@ -140,6 +140,8 @@ private:
     Int First_SCF_PWDFT_ChebyFilterOrder_;
     Int First_SCF_PWDFT_ChebyCycleNum_;
     Int General_SCF_PWDFT_ChebyFilterOrder_;
+    bool PWDFT_Cheby_use_scala_;
+    bool PWDFT_Cheby_apply_wfn_ecut_filt_;
 
 
 

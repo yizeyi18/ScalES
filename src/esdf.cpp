@@ -982,12 +982,7 @@ namespace dgdft{
       strcpy(kw_dscrpt[i],"*! treatment of the divergence term in hybrid functional!*");
       
       
-      // Inputs related to Chebyshev Filtered SCF iterations for PWDFT
-      i++;
-      strcpy(kw_label[i],"diag_scf_pwdft_by_cheby");
-      strcpy(kw_typ[i],"I:E");
-      strcpy(kw_dscrpt[i],"*! whether to use Chebyshev Filtering based SCF for PWDFT (in lieu of LOBPCG) !*");
-      
+      // Inputs related to Chebyshev Filtered SCF iterations for PWDFT    
       i++;
       strcpy(kw_label[i],"first_scf_pwdft_chebyfilterorder");
       strcpy(kw_typ[i],"I:E");
@@ -1003,8 +998,18 @@ namespace dgdft{
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for general step in PWDFT !*");
 
+      i++;
+      strcpy(kw_label[i],"pwdft_cheby_use_scala");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! whether to use ScaLAPACK for CheFSI in PWDFT !*");
+      
+      i++;
+      strcpy(kw_label[i],"pwdft_cheby_use_wfn_ecut_filt");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! whether to apply an adhoc FFT based filter for wavefunctions in CheFSI for PWDFT !*");
 
 
+      
 
       // Inputs related to Chebyshev Filtered SCF iterations for DG
       // ~~**~~
@@ -2324,13 +2329,14 @@ namespace dgdft{
             esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
 
             // Parameters related to Chebyshev Filtering in PWDFT
-            esdfParam.Diag_SCF_PWDFT_by_Cheby = esdf_integer("Diag_SCF_PWDFT_by_Cheby", 0 );
+	    // ~~**~~
+	   {
             esdfParam.First_SCF_PWDFT_ChebyFilterOrder = esdf_integer("First_SCF_PWDFT_ChebyFilterOrder", 40 );
             esdfParam.First_SCF_PWDFT_ChebyCycleNum =  esdf_integer("First_SCF_PWDFT_ChebyCycleNum", 5);
             esdfParam.General_SCF_PWDFT_ChebyFilterOrder = esdf_integer("General_SCF_PWDFT_ChebyFilterOrder", 35);
-
-
-
+	    esdfParam.PWDFT_Cheby_use_scala = esdf_integer("PWDFT_Cheby_use_scala", 1);
+	    esdfParam.PWDFT_Cheby_apply_wfn_ecut_filt = esdf_integer("PWDFT_Cheby_use_wfn_ecut_filt",1);
+	   }
 
             esdfParam.ecutWavefunction     = esdf_double( "Ecut_Wavefunction", 40.0 );
             esdfParam.densityGridFactor    = esdf_double( "Density_Grid_Factor", 2.0 );

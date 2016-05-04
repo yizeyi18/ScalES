@@ -765,10 +765,11 @@ namespace dgdft{
       Int General_SCFDG_ChebyCycleNum; // Default 1
       
       // Inputs related to Chebyshev Filtered SCF iterations for PWDFT
-      bool Diag_SCF_PWDFT_by_Cheby; // Default: 0
       Int First_SCF_PWDFT_ChebyFilterOrder; // Default 40
       Int First_SCF_PWDFT_ChebyCycleNum; // Default 4
       Int General_SCF_PWDFT_ChebyFilterOrder; // Filter Order for general phase, default = 60
+      bool PWDFT_Cheby_use_scala; // Default 1
+      bool PWDFT_Cheby_apply_wfn_ecut_filt; // Default 1
 
       
      

@@ -173,13 +173,13 @@ int main(int argc, char **argv)
         int numStateLocal, blocksize;
 
         // Safeguard for Chebyshev Filtering
-        if(esdfParam.Diag_SCF_PWDFT_by_Cheby == 1)
+        if(esdfParam.PWSolver == "CheFSI")
         { 
             if(numStateTotal % mpisize != 0)
             {
                 MPI_Barrier(MPI_COMM_WORLD);  
                 statusOFS << std::endl << std::endl 
-                    <<" Input Error ! Chebyshev Filtering within PWDFT requires total number of bands to be divisble by mpisize. " << std::endl << " Total No. of states = " << numStateTotal << " , mpisize = " << mpisize << " ." << std::endl <<  " Use a different value of extrastates." << endl << " Aborting ..." << std::endl << std::endl;
+                    <<" Input Error ! Currently CheFSI within PWDFT requires total number of bands to be divisble by mpisize. " << std::endl << " Total No. of states = " << numStateTotal << " , mpisize = " << mpisize << " ." << std::endl <<  " Use a different value of extrastates." << endl << " Aborting ..." << std::endl << std::endl;
                 MPI_Barrier(MPI_COMM_WORLD);
                 exit(-1);  
             }	

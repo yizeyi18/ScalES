@@ -4443,6 +4443,10 @@ EigenSolver::FirstChebyStep	(
     // As a postprocessing step, compute the residual of the eigenvectors
     // Do this by R = HX - X * (X^T * H * X)
     {
+      double res_time_sta, res_time_end;
+      
+      GetTime( res_time_sta );
+      
       // First compute HX
       // ~~ Applying the Hamiltonian matrix
       // HXcol = H * Xcol : Both are in height * local_width dimensioned format
@@ -4558,9 +4562,14 @@ EigenSolver::FirstChebyStep	(
       #endif
 	
     resVal_ = resNorm;
+    
+    
+       GetTime( res_time_end );
+       statusOFS << std::endl << " Time for computing residual = " << (res_time_end - res_time_sta) << " s.";
+       statusOFS << std::endl;
 
     
-    }
+    } // End of residual computation
 
 
     } // Loop for(Int iter = 1; iter <= Iter_Max; iter ++)
@@ -4568,13 +4577,8 @@ EigenSolver::FirstChebyStep	(
 
 
     // Save the eigenvalues to the eigensolver data structure  
-    eigVal_ = DblNumVec( width, true, eig_vals_Raleigh_Ritz.Data() );
-
-
-
-    // Compute the residuals here  ?
-
-
+    eigVal_ = DblNumVec( width, true, eig_vals_Raleigh_Ritz.Data() );	
+    
 #ifndef _RELEASE_
     PopCallStack();
 #endif
@@ -5003,6 +5007,9 @@ EigenSolver::GeneralChebyStep	(
     // Finally, as a postprocessing step, compute the residual of the eigenvectors
     // Do this by R = HX - X * (X^T * H * X)
     {
+      double res_time_sta, res_time_end;
+      
+      GetTime( res_time_sta );
       // First compute HX
       // ~~ Applying the Hamiltonian matrix
       // HXcol = H * Xcol : Both are in height * local_width dimensioned format
@@ -5119,6 +5126,11 @@ EigenSolver::GeneralChebyStep	(
         statusOFS << "resNorm = " << resNorm << std::endl;
       #endif
     
+       GetTime( res_time_end );
+       statusOFS << std::endl << " Time for computing residual = " << (res_time_end - res_time_sta) << " s.";
+       statusOFS << std::endl;
+	
+	
     }
       
     

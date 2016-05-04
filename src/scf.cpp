@@ -120,11 +120,17 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
         isHybridACEOutside_      = esdfParam.isHybridACEOutside;
 	
 	// Chebyshev Filtering related parameters
-	Diag_SCF_PWDFT_by_Cheby_ = esdfParam.Diag_SCF_PWDFT_by_Cheby;
+	if(PWSolver_ == "CheFSI")
+	  Diag_SCF_PWDFT_by_Cheby_ = 1;
+	else
+	  Diag_SCF_PWDFT_by_Cheby_ = 0;
+	
         First_SCF_PWDFT_ChebyFilterOrder_ = esdfParam.First_SCF_PWDFT_ChebyFilterOrder;
         First_SCF_PWDFT_ChebyCycleNum_ = esdfParam.First_SCF_PWDFT_ChebyCycleNum;
         General_SCF_PWDFT_ChebyFilterOrder_ = esdfParam.General_SCF_PWDFT_ChebyFilterOrder;
-	
+	PWDFT_Cheby_use_scala_ = esdfParam.PWDFT_Cheby_use_scala;
+        PWDFT_Cheby_apply_wfn_ecut_filt_ =  esdfParam.PWDFT_Cheby_apply_wfn_ecut_filt;
+
 	
     }
 
