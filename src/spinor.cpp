@@ -423,6 +423,35 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
     // Temporary variable for saving wavefunction on a fine grid
     DblNumVec psiFine(ntotFine);
     DblNumVec psiUpdateFine(ntotFine);
+    
+    
+    if(0)
+  {
+        for (Int k=0; k<numStateLocal; k++) {
+    for (Int j=0; j<ncom; j++) {
+
+       SetValue( fft.inputVecR2C, 0.0 );
+       SetValue( fft.outputVecR2C, Z_ZERO );
+
+       blas::Copy( ntot, wavefun_.VecData(j,k), 1,
+            fft.inputVecR2C.Data(), 1 );
+       FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
+
+
+       for (Int i=0; i<ntotR2C; i++)
+       {
+          if(fft.gkkR2C(i) > 5.0)
+          fft.outputVecR2C(i) = Z_ZERO;
+       }
+
+       FFTWExecute ( fft, fft.backwardPlanR2C );
+       blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
+                   wavefun_.VecData(j,k), 1 );
+
+    }
+   }
+  }
+
 
 
 //#ifdef _USE_OPENMP_
@@ -450,6 +479,10 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
                             fft.inputVecR2C.Data(), 1 );
 
                     FFTWExecute ( fft, fft.forwardPlanR2C );
+		    
+		   // statusOFS << std::endl << " Input vec = " << fft.inputVecR2C << std::endl;
+		   // statusOFS << std::endl << " Output vec = " << fft.outputVecR2C << std::endl;
+
 
                     // Interpolate wavefunction from coarse to fine grid
                     {
@@ -482,7 +515,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
                 }
 
                 // Add the contribution from nonlocal pseudopotential
-                if(0){
+                if(1){
                     Int natm = pseudo.size();
                     for (Int iatm=0; iatm<natm; iatm++) {
                         Int nobt = pseudo[iatm].vnlListFine.size();
@@ -565,6 +598,34 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 //#ifdef _USE_OPENMP_
 //    }
 //#endif
+
+       if(0)
+  {
+   for (Int k=0; k<numStateLocal; k++) {
+    for (Int j=0; j<ncom; j++) {
+
+       SetValue( fft.inputVecR2C, 0.0 );
+       SetValue( fft.outputVecR2C, Z_ZERO );
+
+       blas::Copy( ntot, a3.VecData(j,k), 1,
+            fft.inputVecR2C.Data(), 1 );
+       FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
+
+
+       for (Int i=0; i<ntotR2C; i++)
+       {
+          if(fft.gkkR2C(i) > 5.0)
+          fft.outputVecR2C(i) = Z_ZERO;
+       }
+
+       FFTWExecute ( fft, fft.backwardPlanR2C );
+       blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
+                   a3.VecData(j,k), 1 );
+
+    }
+   }
+  }
+
 
 #ifndef _RELEASE_
     PopCallStack();

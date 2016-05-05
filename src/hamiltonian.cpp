@@ -1480,7 +1480,7 @@ namespace dgdft{
     Int ntotFine  = fft.domain.NumGridTotalFine();
     Int numStateTotal = psi.NumStateTotal();
     Int numStateLocal = psi.NumState();
-    const NumTns<Real>& wavefun = psi.Wavefun();
+    NumTns<Real>& wavefun = psi.Wavefun();
     Int ncom = wavefun.n();
   
     Int ntotR2C = fft.numGridTotalR2C;
@@ -1488,10 +1488,10 @@ namespace dgdft{
     SetValue( a3, 0.0 );
   
     // Apply an initial filter on the wavefunctions, if required
-    if(apply_filter_ == 1 && apply_first_ == 1)
+    if((apply_filter_ == 1 && apply_first_ == 1))
       {
       
-	// statusOFS << std::endl << " In here in 1st filter ... " << std::endl; 
+	//statusOFS << std::endl << " In here in 1st filter : " << wfn_cutoff_ << std::endl; 
 	apply_first_ = 0;
     
         for (Int k=0; k<numStateLocal; k++) {
@@ -1520,9 +1520,16 @@ namespace dgdft{
       }
 
 
-  
-
+    
+    
     psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
+    //statusOFS << std::endl << " Psi = " << psi.Wavefun() << std::endl;
+    //statusOFS << std::endl << " a3 = " << a3 << std::endl;
+    //statusOFS << std::endl;
+    //std::cin.ignore();
+    
+    //exit(1);
+    
 
     if( isHybrid_ && isEXXActive_ ){
       if( this->IsHybridACE() ){
@@ -1624,9 +1631,9 @@ namespace dgdft{
     }
   
     // Apply filter on the wavefunctions before exit, if required
-    if(apply_filter_ == 1)
+    if((apply_filter_ == 1))
       {
-	// statusOFS << std::endl << " In here in 2nd filter ... " << std::endl; 
+	//statusOFS << std::endl << " In here in 2nd filter : "  << wfn_cutoff_<< std::endl; 
 	for (Int k=0; k<numStateLocal; k++) {
 	  for (Int j=0; j<ncom; j++) {
 

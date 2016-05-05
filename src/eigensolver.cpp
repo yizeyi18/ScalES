@@ -3695,7 +3695,7 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
     Spinor  temp_spinor_v; 
     temp_spinor_v.Setup( fftPtr_->domain, 1, mpisize, 1, 0.0 );
     UniformRandom( temp_spinor_v.Wavefun() );
-
+    
     // b) Normalize this vector : Current data distribution is height * widthLocal ( = 1)
     double temp_spinor_v_norm = 0.0, *v_access_ptr =  temp_spinor_v.Wavefun().Data();
 
@@ -3724,7 +3724,8 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
     GetTime( timeEnd );
     iterSpinor = iterSpinor + 1;
     timeSpinor = timeSpinor + ( timeEnd - timeSta );
-
+    
+    
     double alpha, beta;
 
     alpha = blas::Dot( height, temp_spinor_f.Wavefun().Data(), 1, temp_spinor_v.Wavefun().Data(), 1 );
