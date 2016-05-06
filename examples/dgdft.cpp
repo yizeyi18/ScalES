@@ -382,7 +382,7 @@ int main(int argc, char **argv)
     GetTime( timeSta );
 
     SCFDG  scfDG;
-    scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt );
+    scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt ); // This also sets Cheby_iondynamics_schedule_flag_ = 0
 
     GetTime( timeEnd );
     statusOFS << "Time for setting up SCFDG is " <<
@@ -404,8 +404,7 @@ int main(int argc, char **argv)
 		// Geometry optimization or Molecular dynamics
 		// *********************************************************************
     
-    // FIXME Find a better place for this function
-    scfDG.set_Cheby_MD_schedule_flag();
+   
     
     IonDynamics ionDyn;
 
@@ -441,6 +440,10 @@ int main(int argc, char **argv)
         PrintBlock( statusOFS, msg.str() );
       }
     
+      // Make CheFSI work in iondynamics mode  
+      if(ionIter >= 1)
+       scfDG.set_Cheby_iondynamics_schedule_flag(1);
+      
       // Get the new atomic coordinates
       // NOTE: ionDyn directly updates the coordinates in Hamiltonian
       ionDyn.SetEpot( scfDG.Efree() );

@@ -214,7 +214,7 @@ SCFDG::Setup	(
         General_SCFDG_ChebyFilterOrder_ = esdfParam.General_SCFDG_ChebyFilterOrder; // Default = 60
         General_SCFDG_ChebyCycleNum_ = esdfParam.General_SCFDG_ChebyCycleNum; // Default 1
 
-        Cheby_MD_schedule_flag = 0;
+        Cheby_iondynamics_schedule_flag_ = 0;
     }
 
 
@@ -4569,15 +4569,24 @@ SCFDG::InnerIterate	( Int outerIter )
                     // Chebyshev filtering based diagonalization
                     GetTime(timeSta);
 
-                    if(Cheby_MD_schedule_flag == 1)
+                    if(Cheby_iondynamics_schedule_flag_ == 1)
                     {
+		       if(outerIter <= Second_SCFDG_ChebyOuterIter_ / 2) // Just some adhoc criterion used here
+		       {
+			 // Need to re-use current guess, so do not call the first Cheby step
+			 statusOFS << std::endl << " Calling Second stage Chebyshev Iter in iondynamics step " << std::endl;		 
+			 scfdg_GeneralChebyStep(Second_SCFDG_ChebyCycleNum_, Second_SCFDG_ChebyFilterOrder_);
+		       }
+		       else
+		       {	 
                         // Subsequent MD Steps
-                        statusOFS << std::endl << " Calling General Chebyshev Iter in MD Step " << std::endl;
+                        statusOFS << std::endl << " Calling General Chebyshev Iter in iondynamics step " << std::endl;
                         scfdg_GeneralChebyStep(General_SCFDG_ChebyCycleNum_, General_SCFDG_ChebyFilterOrder_); 
+		       }
                     }
                     else
                     {	
-                        // First MD step		
+                        // First MD step (or static calculation)		
                         if(outerIter == 1)
                         {
                             statusOFS << std::endl << " Calling First Chebyshev Iter  " << std::endl;
