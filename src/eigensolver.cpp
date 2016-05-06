@@ -4220,7 +4220,7 @@ EigenSolver::FirstChebyStep	(
 
     for(Int iter = 1; iter <= Iter_Max; iter ++){
 
-        statusOFS << std::endl << " Chebyshev Filtered First SCF cycle " << iter << " of " << Iter_Max << " .";
+        statusOFS << std::endl << " First CheFSI for PWDFT cycle " << iter << " of " << Iter_Max << " .";
 	
 	 statusOFS << std::endl << " Upper bound = (to be mapped to +1) " << b_up;
          statusOFS << std::endl << " Lower bound (to be mapped to -1) = " << b_low;
@@ -4615,7 +4615,7 @@ EigenSolver::GeneralChebyStep	(
     PushCallStack("EigenSolver::GeneralChebyStep");
 #endif
 
-    statusOFS << std::endl << std::endl << " In subsequent Chebyshev steps ... " << std::endl;
+    statusOFS << std::endl << std::endl << " Subsequent CheFSI for PWDFT ... " << std::endl;
 
     // *********************************************************************
     // Initialization

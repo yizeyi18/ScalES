@@ -119,6 +119,18 @@ namespace dgdft{
       std::string         VDWType_;
       /// @brief Same as @ref esdf::ESDFInputParam::solutionMethod
       std::string         solutionMethod_;
+      
+      // PWDFT solver on extended element
+      std::string         PWSolver_;
+      
+      
+      // Chebyshev Filtering variables for PWDFT on extended element
+      bool Diag_SCF_PWDFT_by_Cheby_;
+      Int First_SCF_PWDFT_ChebyFilterOrder_;
+      Int First_SCF_PWDFT_ChebyCycleNum_;
+      Int General_SCF_PWDFT_ChebyFilterOrder_;
+      bool PWDFT_Cheby_use_scala_;
+      bool PWDFT_Cheby_apply_wfn_ecut_filt_;
 
       // PEXSI parameters
 #ifdef _USE_PEXSI_
