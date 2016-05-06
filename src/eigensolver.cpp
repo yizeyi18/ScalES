@@ -4082,6 +4082,19 @@ EigenSolver::FirstChebyStep	(
         ErrorHandling("widthLocal != noccLocal.");
     }
 
+    
+     // Temporary safeguard 
+    if(noccTotal % mpisize != 0)
+    {
+     MPI_Barrier(mpi_comm);  
+     statusOFS << std::endl << std::endl 
+               <<" Input Error ! Currently CheFSI within PWDFT requires total number of bands to be divisble by mpisize. " << std::endl << " Total No. of states = " 
+	        << noccTotal << " , mpisize = " << mpisize << " ." 
+		<< std::endl <<  " Use different parameters." << std::endl << " Aborting ..." << std::endl << std::endl;
+                MPI_Barrier(mpi_comm);
+                exit(-1);  
+     }	
+    
     // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
     // GemmT: blas::Gemm( 'T', 'N')
     // GemmN: blas::Gemm( 'N', 'N')
@@ -4650,6 +4663,18 @@ EigenSolver::GeneralChebyStep	(
         ErrorHandling("widthLocal != noccLocal.");
     }
 
+    // Temporary safeguard 
+    if(noccTotal % mpisize != 0)
+    {
+     MPI_Barrier(mpi_comm);  
+     statusOFS << std::endl << std::endl 
+               <<" Input Error ! Currently CheFSI within PWDFT requires total number of bands to be divisble by mpisize. " << std::endl << " Total No. of states = " 
+	        << noccTotal << " , mpisize = " << mpisize << " ." 
+		<< std::endl <<  " Use different parameters." << std::endl << " Aborting ..." << std::endl << std::endl;
+                MPI_Barrier(mpi_comm);
+                exit(-1);  
+     }	
+    
     // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
     // GemmT: blas::Gemm( 'T', 'N')
     // GemmN: blas::Gemm( 'N', 'N')
