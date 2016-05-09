@@ -372,9 +372,12 @@ SCF::Iterate (  )
                 // Use LOBPCG
                 if( PWSolver_ == "LOBPCG" ){
                     eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );	
-                }
+                } // Use LOBPCG with ScaLAPACK
                 else if ( PWSolver_ == "LOBPCGScaLAPACK" ){
                     eigSolPtr_->LOBPCGSolveReal3(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );	
+                } // Use PPCG
+                else if( PWSolver_ == "PPCG" ){
+                    eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );	
                 }
                 else{
                     // FIXME Merge the Chebyshev into an option of PWSolver

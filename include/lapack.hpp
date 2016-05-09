@@ -104,6 +104,16 @@ void Hegst
 void Syevd
 ( char jobz, char uplo, Int n, double* A, Int lda, double* eigs );
 
+
+// *********************************************************************
+// For solving the generalized eigenvalue problem using the divide and
+// conquer algorithm  --- added by Eugene
+// *********************************************************************
+
+void Sygvd
+( Int itype, char jobz, char uplo, Int n, double* A, Int lda, double* B, Int ldb, double* eigs );
+
+
 // *********************************************************************
 // For computing the inverse of a triangular matrix
 // *********************************************************************

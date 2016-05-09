@@ -168,6 +168,14 @@ public:
           Int 	   filter_order );
   
 
+  /// @brief Parallel PPCG solver
+  /// by ScaLAPACK.
+  void PPCGSolveReal(
+      Int          numEig,
+      Int          eigMaxIter,
+      Real         eigMinTolerance,
+      Real         eigTolerance );
+
 
 	// ********************  ACCESS      *******************************
 	DblNumVec& EigVal() { return eigVal_; }

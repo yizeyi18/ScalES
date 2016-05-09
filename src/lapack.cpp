@@ -117,6 +117,12 @@ void LAPACK(dsyevd)
 	double *A, const Int *lda, double *W, double *work, 
 	const int *lwork, Int *iwork, const int *liwork, int *info );
 
+// For solving the generalized eigenvalue problem using the divide and
+// conquer algorithm  --- added by Eugene
+void LAPACK(dsygvd)
+( const Int *itype, const char *jobz, const char *uplo, const Int *n, 
+	double *A, const Int *lda, double* B, const Int *ldb, double *W, double *work, 
+	const int *lwork, Int *iwork, const int *liwork, int *info );
 
 // Triangular inversion
 void LAPACK(strtri)
@@ -544,6 +550,45 @@ void Syevd
 #endif
 }
 
+
+// *********************************************************************
+// For solving the generalized eigenvalue problem using the divide and
+// conquer algorithm  --- added by Eugene
+// *********************************************************************
+
+void Sygvd
+( Int itype, char jobz, char uplo, Int n, double* A, Int lda, double* B, Int ldb, double* eigs ){
+#ifndef _RELEASE_
+	PushCallStack("lapack::Sygvd");
+#endif
+	Int lwork = -1, info;
+	Int liwork = -1;
+	std::vector<double> work(1);
+	std::vector<int>    iwork(1);
+
+	LAPACK(dsygvd)( &itype, &jobz, &uplo, &n, A, &lda, B, &ldb, eigs, &work[0],
+		 &lwork, &iwork[0], &liwork, &info );
+	lwork = (Int)work[0];
+	work.resize(lwork);
+	liwork = iwork[0];
+	iwork.resize(liwork);
+	
+	LAPACK(dsygvd)( &itype, &jobz, &uplo, &n, A, &lda, B, &ldb, eigs, &work[0],
+		 &lwork, &iwork[0], &liwork, &info );
+
+	if( info != 0 )
+	{
+		std::ostringstream msg;
+		msg << "sygvd returned with info = " << info;
+		ErrorHandling( msg.str().c_str() );
+	}
+#ifndef _RELEASE_
+    PopCallStack();
+#endif
+}
+
+
+
 // *********************************************************************
 // For computing the inverse of a triangular matrix
 // *********************************************************************
@@ -559,10 +604,10 @@ void Trtri( char uplo, char diag, Int n, const float* A, Int lda )
     {
         std::ostringstream msg;
         msg << "strtri returned with info = " << info;
-        ErrorHandling( msg.str().c_str() );
+        throw std::logic_error( msg.str().c_str() );
     }
     else if( info > 0 )
-        ErrorHandling("Matrix is singular.");
+        throw std::runtime_error("Matrix is singular.");
 #ifndef _RELEASE_
     PopCallStack();
 #endif
@@ -579,10 +624,10 @@ void Trtri( char uplo, char diag, Int n, const double* A, Int lda )
     {
         std::ostringstream msg;
         msg << "dtrtri returned with info = " << info;
-        ErrorHandling( msg.str().c_str() );
+        throw std::logic_error( msg.str().c_str() );
     }
     else if( info > 0 )
-        ErrorHandling("Matrix is singular.");
+        throw std::runtime_error("Matrix is singular.");
 #ifndef _RELEASE_
     PopCallStack();
 #endif
