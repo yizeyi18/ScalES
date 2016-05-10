@@ -76,10 +76,10 @@ namespace dgdft{
   }
 
   void EigenSolver::Setup(
-			  const esdf::ESDFInputParam& esdfParam,
-			  Hamiltonian& ham,
-			  Spinor& psi,
-			  Fourier& fft ) {
+      const esdf::ESDFInputParam& esdfParam,
+      Hamiltonian& ham,
+      Spinor& psi,
+      Fourier& fft ) {
 #ifndef _RELEASE_
     PushCallStack("EigenSolver::Setup");
 #endif  // ifndef _RELEASE_
@@ -94,21 +94,21 @@ namespace dgdft{
     PWSolver_          = esdfParam.PWSolver;
     scaBlockSize_      = esdfParam.scaBlockSize;
     numProcScaLAPACK_  = esdfParam.numProcScaLAPACKPW; 
-    
+
     PWDFT_Cheby_use_scala_ = esdfParam.PWDFT_Cheby_use_scala;
 
     // Setup BLACS
     if( PWSolver_ == "LOBPCGScaLAPACK" || (PWSolver_ == "CheFSI" && PWDFT_Cheby_use_scala_) ){
       for( Int i = IRound(sqrt(double(numProcScaLAPACK_))); 
-	   i <= numProcScaLAPACK_; i++){
-	nprow_ = i; npcol_ = numProcScaLAPACK_ / nprow_;
-	if( nprow_ * npcol_ == numProcScaLAPACK_ ) break;
+          i <= numProcScaLAPACK_; i++){
+        nprow_ = i; npcol_ = numProcScaLAPACK_ / nprow_;
+        if( nprow_ * npcol_ == numProcScaLAPACK_ ) break;
       }
-        
+
       IntNumVec pmap(numProcScaLAPACK_);
       // Take the first numProcScaLAPACK processors for diagonalization
       for ( Int i = 0; i < numProcScaLAPACK_; i++ ){
-	pmap[i] = i;
+        pmap[i] = i;
       }
 
       Cblacs_get(0, 0, &contxt_);
@@ -1497,12 +1497,14 @@ namespace dgdft{
     Real timeSta, timeEnd;
     Real timeGemmT = 0.0;
     Real timeGemmN = 0.0;
+    Real timeAllreduce = 0.0;
     Real timeAlltoallv = 0.0;
     Real timeSpinor = 0.0;
     Real timeTrsm = 0.0;
     Real timeMpirank0 = 0.0;
     Int  iterGemmT = 0;
     Int  iterGemmN = 0;
+    Int  iterAllreduce = 0;
     Int  iterAlltoallv = 0;
     Int  iterSpinor = 0;
     Int  iterTrsm = 0;
@@ -1684,11 +1686,15 @@ namespace dgdft{
     GetTime( timeSta );
     blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
 		heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-    SetValue( XTX, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
     GetTime( timeEnd );
     iterGemmT = iterGemmT + 1;
     timeGemmT = timeGemmT + ( timeEnd - timeSta );
+    GetTime( timeSta );
+    SetValue( XTX, 0.0 );
+    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    GetTime( timeEnd );
+    iterAllreduce = iterAllreduce + 1;
+    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
     if ( mpirank == 0) {
       GetTime( timeSta );
@@ -1793,11 +1799,15 @@ namespace dgdft{
       GetTime( timeSta );
       blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
 		  heightLocal, AX.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-      SetValue( XTX, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTX, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
       lapack::Lacpy( 'A', width, width, XTX.Data(), width, AMat.Data(), lda );
 
@@ -1992,12 +2002,16 @@ namespace dgdft{
       blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0, X.Data(),
 		  heightLocal, AW.VecData(numLocked), heightLocal, 
 		  0.0, XTXtemp1.Data(), width );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0,width), lda );
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTXtemp, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
       // Compute W' * (AW)
       GetTime( timeSta );
@@ -2007,59 +2021,75 @@ namespace dgdft{
       blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
 		  W.VecData(numLocked), heightLocal, AW.VecData(numLocked), heightLocal, 
 		  0.0, XTXtemp1.Data(), width );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width,width), lda );
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTXtemp, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width,width), lda );
 
       if( numSet == 3 ){
 
-	// Compute X' * (AP)
-	GetTime( timeSta );
-	//blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-	//    X.Data(), heightLocal, AP.VecData(numLocked), heightLocal, 
-	//   0.0, &AMat(0, width+numActive), lda );
-	blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-		    X.Data(), heightLocal, AP.VecData(numLocked), heightLocal, 
-		    0.0, XTXtemp1.Data(), width );
-	SetValue( XTXtemp, 0.0 );
-	MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0, width+numActive), lda );
-	GetTime( timeEnd );
-	iterGemmT = iterGemmT + 1;
-	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        // Compute X' * (AP)
+        GetTime( timeSta );
+        //blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
+        //    X.Data(), heightLocal, AP.VecData(numLocked), heightLocal, 
+        //   0.0, &AMat(0, width+numActive), lda );
+        blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
+            X.Data(), heightLocal, AP.VecData(numLocked), heightLocal, 
+            0.0, XTXtemp1.Data(), width );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        SetValue( XTXtemp, 0.0 );
+        MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        GetTime( timeEnd );
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+        lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0, width+numActive), lda );
 
-	// Compute W' * (AP)
-	GetTime( timeSta );
-	//blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-	//    W.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
-	//    0.0, &AMat(width, width+numActive), lda );
-	blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-		    W.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
-		    0.0, XTXtemp1.Data(), width );
-	SetValue( XTXtemp, 0.0 );
-	MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width, width+numActive), lda );
-	GetTime( timeEnd );
-	iterGemmT = iterGemmT + 1;
-	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        // Compute W' * (AP)
+        GetTime( timeSta );
+        //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+        //    W.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
+        //    0.0, &AMat(width, width+numActive), lda );
+        blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+            W.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
+            0.0, XTXtemp1.Data(), width );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        SetValue( XTXtemp, 0.0 );
+        MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        GetTime( timeEnd );
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+        lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width, width+numActive), lda );
 
-	// Compute P' * (AP)
-	GetTime( timeSta );
-	//blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-	//    P.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
-	//    0.0, &AMat(width+numActive, width+numActive), lda );
-	blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-		    P.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
-		    0.0, XTXtemp1.Data(), width );
-	SetValue( XTXtemp, 0.0 );
-	MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width+numActive, width+numActive), lda );
-	GetTime( timeEnd );
-	iterGemmT = iterGemmT + 1;
-	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        // Compute P' * (AP)
+        GetTime( timeSta );
+        //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+        //    P.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
+        //    0.0, &AMat(width+numActive, width+numActive), lda );
+        blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+            P.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
+            0.0, XTXtemp1.Data(), width );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        SetValue( XTXtemp, 0.0 );
+        MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        GetTime( timeEnd );
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+        lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width+numActive, width+numActive), lda );
 
       }
 
@@ -2072,14 +2102,18 @@ namespace dgdft{
       //    X.Data(), heightLocal, X.Data(), heightLocal, 
       //    0.0, &BMat(0,0), lda );
       blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, 
-		  X.Data(), heightLocal, X.Data(), heightLocal, 
-		  0.0, XTXtemp1.Data(), width );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,0), lda );
+          X.Data(), heightLocal, X.Data(), heightLocal, 
+          0.0, XTXtemp1.Data(), width );
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTXtemp, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,0), lda );
 
       // Compute X'*W
       GetTime( timeSta );
@@ -2087,14 +2121,18 @@ namespace dgdft{
       //    X.Data(), height, W.VecData(numLocked), height,
       //    0.0, &BMat(0,width), lda );
       blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-		  X.Data(), heightLocal, W.VecData(numLocked), heightLocal,
-		  0.0, XTXtemp1.Data(), width );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,width), lda );
+          X.Data(), heightLocal, W.VecData(numLocked), heightLocal,
+          0.0, XTXtemp1.Data(), width );
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTXtemp, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,width), lda );
 
       // Compute W'*W
       GetTime( timeSta );
@@ -2102,77 +2140,93 @@ namespace dgdft{
       //    W.VecData(numLocked), height, W.VecData(numLocked), height,
       //    0.0, &BMat(width, width), lda );
       blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-		  W.VecData(numLocked), heightLocal, W.VecData(numLocked), heightLocal,
-		  0.0, XTXtemp1.Data(), width );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width), lda );
+          W.VecData(numLocked), heightLocal, W.VecData(numLocked), heightLocal,
+          0.0, XTXtemp1.Data(), width );
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTXtemp, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width), lda );
 
 
       if( numSet == 3 ){
-	// Compute X'*P
-	GetTime( timeSta );
-	//blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-	//    X.Data(), heightLocal, P.VecData(numLocked), heightLocal, 
-	//    0.0, &BMat(0, width+numActive), lda );
-	blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-		    X.Data(), heightLocal, P.VecData(numLocked), heightLocal, 
-		    0.0, XTXtemp1.Data(), width );
-	SetValue( XTXtemp, 0.0 );
-	MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0, width+numActive), lda );
-	GetTime( timeEnd );
-	iterGemmT = iterGemmT + 1;
-	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        // Compute X'*P
+        GetTime( timeSta );
+        //blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
+        //    X.Data(), heightLocal, P.VecData(numLocked), heightLocal, 
+        //    0.0, &BMat(0, width+numActive), lda );
+        blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
+            X.Data(), heightLocal, P.VecData(numLocked), heightLocal, 
+            0.0, XTXtemp1.Data(), width );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        SetValue( XTXtemp, 0.0 );
+        MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        GetTime( timeEnd );
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+        lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0, width+numActive), lda );
 
-	// Compute W'*P
-	GetTime( timeSta );
-	//blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-	//    W.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
-	//    0.0, &BMat(width, width+numActive), lda );
-	blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-		    W.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
-		    0.0, XTXtemp1.Data(), width );
-	SetValue( XTXtemp, 0.0 );
-	MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width+numActive), lda );
-	GetTime( timeEnd );
-	iterGemmT = iterGemmT + 1;
-	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        // Compute W'*P
+        GetTime( timeSta );
+        //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+        //    W.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
+        //    0.0, &BMat(width, width+numActive), lda );
+        blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+            W.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
+            0.0, XTXtemp1.Data(), width );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        SetValue( XTXtemp, 0.0 );
+        MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        GetTime( timeEnd );
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+        lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width+numActive), lda );
 
-	// Compute P'*P
-	GetTime( timeSta );
-	//blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-	//    P.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
-	//    0.0, &BMat(width+numActive, width+numActive), lda );
-	blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-		    P.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
-		    0.0, XTXtemp1.Data(), width );
-	SetValue( XTXtemp, 0.0 );
-	MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width+numActive, width+numActive), lda );
-	GetTime( timeEnd );
-	iterGemmT = iterGemmT + 1;
-	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        // Compute P'*P
+        GetTime( timeSta );
+        //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+        //    P.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
+        //    0.0, &BMat(width+numActive, width+numActive), lda );
+        blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+            P.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
+            0.0, XTXtemp1.Data(), width );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        SetValue( XTXtemp, 0.0 );
+        MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        GetTime( timeEnd );
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+        lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width+numActive, width+numActive), lda );
 
       } // if( numSet == 3 )
 
 #if ( _DEBUGlevel_ >= 2 )
       {
-	DblNumMat WTW( width, width );
-	lapack::Lacpy( 'A', width, width, &BMat(width, width), lda,
-		       WTW.Data(), width );
-	statusOFS << "W'*W = " << WTW << std::endl;
-	if( numSet == 3 )
-          {
-	    DblNumMat PTP( width, width );
-	    lapack::Lacpy( 'A', width, width, &BMat(width+numActive, width+numActive), 
-			   lda, PTP.Data(), width );
-	    statusOFS << "P'*P = " << PTP << std::endl;
-          }
+        DblNumMat WTW( width, width );
+        lapack::Lacpy( 'A', width, width, &BMat(width, width), lda,
+            WTW.Data(), width );
+        statusOFS << "W'*W = " << WTW << std::endl;
+        if( numSet == 3 )
+        {
+          DblNumMat PTP( width, width );
+          lapack::Lacpy( 'A', width, width, &BMat(width+numActive, width+numActive), 
+              lda, PTP.Data(), width );
+          statusOFS << "P'*P = " << PTP << std::endl;
+        }
       }
 #endif
 
@@ -2187,251 +2241,251 @@ namespace dgdft{
       //
       Int numCol;
       if( numSet == 3 ){
-	// Conjugate gradient
-	numCol = width + 2 * numActiveTotal;
+        // Conjugate gradient
+        numCol = width + 2 * numActiveTotal;
       }
       else{
-	numCol = width + numActiveTotal;
+        numCol = width + numActiveTotal;
       }
 
       // Solve the generalized eigenvalue problem with thresholding
       if(1){
 
-	if ( mpirank == 0 ) {
+        if ( mpirank == 0 ) {
 
-	  // Symmetrize A and B first.  This is important.
-	  for( Int j = 0; j < numCol; j++ ){
-	    for( Int i = j+1; i < numCol; i++ ){
-	      AMat(i,j) = AMat(j,i);
-	      BMat(i,j) = BMat(j,i);
-	    }
-	  }
+          // Symmetrize A and B first.  This is important.
+          for( Int j = 0; j < numCol; j++ ){
+            for( Int i = j+1; i < numCol; i++ ){
+              AMat(i,j) = AMat(j,i);
+              BMat(i,j) = BMat(j,i);
+            }
+          }
 
-	  GetTime( timeSta );
-	  lapack::Syevd( 'V', 'U', numCol, BMat.Data(), lda, sigma2.Data() );
-	  GetTime( timeEnd );
-	  iterMpirank0 = iterMpirank0 + 1;
-	  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+          GetTime( timeSta );
+          lapack::Syevd( 'V', 'U', numCol, BMat.Data(), lda, sigma2.Data() );
+          GetTime( timeEnd );
+          iterMpirank0 = iterMpirank0 + 1;
+          timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
 
-	  Int numKeep = 0;
-	  for( Int i = numCol-1; i>=0; i-- ){
-	    if( sigma2(i) / sigma2(numCol-1) >  1e-8 )
-	      numKeep++;
-	    else
-	      break;
-	  }
+          Int numKeep = 0;
+          for( Int i = numCol-1; i>=0; i-- ){
+            if( sigma2(i) / sigma2(numCol-1) >  1e-8 )
+              numKeep++;
+            else
+              break;
+          }
 
 #if ( _DEBUGlevel_ >= 1 )
-	  statusOFS << "sigma2 = " << sigma2 << std::endl;
+          statusOFS << "sigma2 = " << sigma2 << std::endl;
 #endif
 
 #if ( _DEBUGlevel_ >= 1 )
-	  statusOFS << "sigma2(0)        = " << sigma2(0) << std::endl;
-	  statusOFS << "sigma2(numCol-1) = " << sigma2(numCol-1) << std::endl;
-	  statusOFS << "numKeep          = " << numKeep << std::endl;
+          statusOFS << "sigma2(0)        = " << sigma2(0) << std::endl;
+          statusOFS << "sigma2(numCol-1) = " << sigma2(numCol-1) << std::endl;
+          statusOFS << "numKeep          = " << numKeep << std::endl;
 #endif
 
-	  for( Int i = 0; i < numKeep; i++ ){
-	    invsigma(i) = 1.0 / std::sqrt( sigma2(i+numCol-numKeep) );
-	  }
+          for( Int i = 0; i < numKeep; i++ ){
+            invsigma(i) = 1.0 / std::sqrt( sigma2(i+numCol-numKeep) );
+          }
 
-	  if( numKeep < width ){
-	    std::ostringstream msg;
-	    msg 
-	      << "width   = " << width << std::endl
-	      << "numKeep =  " << numKeep << std::endl
-	      << "there are not enough number of columns." << std::endl;
-	    ErrorHandling( msg.str().c_str() );
-	  }
+          if( numKeep < width ){
+            std::ostringstream msg;
+            msg 
+              << "width   = " << width << std::endl
+              << "numKeep =  " << numKeep << std::endl
+              << "there are not enough number of columns." << std::endl;
+            ErrorHandling( msg.str().c_str() );
+          }
 
-	  SetValue( AMatT1, 0.0 );
-	  // Evaluate S^{-1/2} (U^T A U) S^{-1/2}
-	  GetTime( timeSta );
-	  blas::Gemm( 'N', 'N', numCol, numKeep, numCol, 1.0,
-                      AMat.Data(), lda, BMat.VecData(numCol-numKeep), lda,
-                      0.0, AMatT1.Data(), lda );
-	  GetTime( timeEnd );
-	  iterMpirank0 = iterMpirank0 + 1;
-	  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+          SetValue( AMatT1, 0.0 );
+          // Evaluate S^{-1/2} (U^T A U) S^{-1/2}
+          GetTime( timeSta );
+          blas::Gemm( 'N', 'N', numCol, numKeep, numCol, 1.0,
+              AMat.Data(), lda, BMat.VecData(numCol-numKeep), lda,
+              0.0, AMatT1.Data(), lda );
+          GetTime( timeEnd );
+          iterMpirank0 = iterMpirank0 + 1;
+          timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
 
-	  GetTime( timeSta );
-	  blas::Gemm( 'T', 'N', numKeep, numKeep, numCol, 1.0,
-                      BMat.VecData(numCol-numKeep), lda, AMatT1.Data(), lda, 
-                      0.0, AMat.Data(), lda );
-	  GetTime( timeEnd );
-	  iterMpirank0 = iterMpirank0 + 1;
-	  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+          GetTime( timeSta );
+          blas::Gemm( 'T', 'N', numKeep, numKeep, numCol, 1.0,
+              BMat.VecData(numCol-numKeep), lda, AMatT1.Data(), lda, 
+              0.0, AMat.Data(), lda );
+          GetTime( timeEnd );
+          iterMpirank0 = iterMpirank0 + 1;
+          timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
 
-	  GetTime( timeSta );
-	  for( Int j = 0; j < numKeep; j++ ){
-	    for( Int i = 0; i < numKeep; i++ ){
-	      AMat(i,j) *= invsigma(i)*invsigma(j);
-	    }
-	  }
-	  GetTime( timeEnd );
-	  iterMpirank0 = iterMpirank0 + 1;
-	  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+          GetTime( timeSta );
+          for( Int j = 0; j < numKeep; j++ ){
+            for( Int i = 0; i < numKeep; i++ ){
+              AMat(i,j) *= invsigma(i)*invsigma(j);
+            }
+          }
+          GetTime( timeEnd );
+          iterMpirank0 = iterMpirank0 + 1;
+          timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
 
-	  // Solve the standard eigenvalue problem
-	  GetTime( timeSta );
-	  lapack::Syevd( 'V', 'U', numKeep, AMat.Data(), lda,
-			 eigValS.Data() );
-	  GetTime( timeEnd );
-	  iterMpirank0 = iterMpirank0 + 1;
-	  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+          // Solve the standard eigenvalue problem
+          GetTime( timeSta );
+          lapack::Syevd( 'V', 'U', numKeep, AMat.Data(), lda,
+              eigValS.Data() );
+          GetTime( timeEnd );
+          iterMpirank0 = iterMpirank0 + 1;
+          timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
 
-	  // Compute the correct eigenvectors and save them in AMat
-	  for( Int j = 0; j < numKeep; j++ ){
-	    for( Int i = 0; i < numKeep; i++ ){
-	      AMat(i,j) *= invsigma(i);
-	    }
-	  }
+          // Compute the correct eigenvectors and save them in AMat
+          for( Int j = 0; j < numKeep; j++ ){
+            for( Int i = 0; i < numKeep; i++ ){
+              AMat(i,j) *= invsigma(i);
+            }
+          }
 
-	  GetTime( timeSta );
-	  blas::Gemm( 'N', 'N', numCol, numKeep, numKeep, 1.0,
-                      BMat.VecData(numCol-numKeep), lda, AMat.Data(), lda,
-                      0.0, AMatT1.Data(), lda );
-	  GetTime( timeEnd );
-	  iterMpirank0 = iterMpirank0 + 1;
-	  timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+          GetTime( timeSta );
+          blas::Gemm( 'N', 'N', numCol, numKeep, numKeep, 1.0,
+              BMat.VecData(numCol-numKeep), lda, AMat.Data(), lda,
+              0.0, AMatT1.Data(), lda );
+          GetTime( timeEnd );
+          iterMpirank0 = iterMpirank0 + 1;
+          timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
 
-	  lapack::Lacpy( 'A', numCol, numKeep, AMatT1.Data(), lda, 
-			 AMat.Data(), lda );
+          lapack::Lacpy( 'A', numCol, numKeep, AMatT1.Data(), lda, 
+              AMat.Data(), lda );
 
-	} // mpirank ==0
+        } // mpirank ==0
 
-	MPI_Bcast(AMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
-	MPI_Bcast(BMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
-	MPI_Bcast(eigValS.Data(), lda, MPI_DOUBLE, 0, mpi_comm);
+        MPI_Bcast(AMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
+        MPI_Bcast(BMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
+        MPI_Bcast(eigValS.Data(), lda, MPI_DOUBLE, 0, mpi_comm);
 
 
       } // if(1)
 
       if( numSet == 2 ){
 
-	// Update the eigenvectors 
-	// X <- X * C_X + W * C_W
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
-		    X.Data(), heightLocal, &AMat(0,0), lda,
-		    0.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        // Update the eigenvectors 
+        // X <- X * C_X + W * C_W
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
+            X.Data(), heightLocal, &AMat(0,0), lda,
+            0.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
-		    W.VecData(numLocked), heightLocal, &AMat(width,0), lda,
-		    1.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
+            W.VecData(numLocked), heightLocal, &AMat(width,0), lda,
+            1.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	// Save the result into X
-	lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
-		       X.Data(), heightLocal );
+        // Save the result into X
+        lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
+            X.Data(), heightLocal );
 
-	// P <- W
-	lapack::Lacpy( 'A', heightLocal, numActive, W.VecData(numLocked), 
-		       heightLocal, P.VecData(numLocked), heightLocal );
+        // P <- W
+        lapack::Lacpy( 'A', heightLocal, numActive, W.VecData(numLocked), 
+            heightLocal, P.VecData(numLocked), heightLocal );
       } 
       else{ //numSet == 3
-	// Compute the conjugate direction
-	// P <- W * C_W + P * C_P
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
-		    W.VecData(numLocked), heightLocal, &AMat(width, 0), lda, 
-		    0.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        // Compute the conjugate direction
+        // P <- W * C_W + P * C_P
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
+            W.VecData(numLocked), heightLocal, &AMat(width, 0), lda, 
+            0.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
-		    P.VecData(numLocked), heightLocal, &AMat(width+numActive,0), lda,
-		    1.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
+            P.VecData(numLocked), heightLocal, &AMat(width+numActive,0), lda,
+            1.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	lapack::Lacpy( 'A', heightLocal, numActive, Xtemp.VecData(numLocked), 
-		       heightLocal, P.VecData(numLocked), heightLocal );
+        lapack::Lacpy( 'A', heightLocal, numActive, Xtemp.VecData(numLocked), 
+            heightLocal, P.VecData(numLocked), heightLocal );
 
-	// Update the eigenvectors
-	// X <- X * C_X + P
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
-		    X.Data(), heightLocal, &AMat(0,0), lda, 
-		    1.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        // Update the eigenvectors
+        // X <- X * C_X + P
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
+            X.Data(), heightLocal, &AMat(0,0), lda, 
+            1.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
-		       X.Data(), heightLocal );
+        lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
+            X.Data(), heightLocal );
 
       } // if ( numSet == 2 )
 
 
       // Update AX and AP
       if( numSet == 2 ){
-	// AX <- AX * C_X + AW * C_W
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
-		    AX.Data(), heightLocal, &AMat(0,0), lda,
-		    0.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        // AX <- AX * C_X + AW * C_W
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
+            AX.Data(), heightLocal, &AMat(0,0), lda,
+            0.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
-		    AW.VecData(numLocked), heightLocal, &AMat(width,0), lda,
-		    1.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
+            AW.VecData(numLocked), heightLocal, &AMat(width,0), lda,
+            1.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
-		       AX.Data(), heightLocal );
+        lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
+            AX.Data(), heightLocal );
 
-	// AP <- AW
-	lapack::Lacpy( 'A', heightLocal, numActive, AW.VecData(numLocked), heightLocal,
-		       AP.VecData(numLocked), heightLocal );
+        // AP <- AW
+        lapack::Lacpy( 'A', heightLocal, numActive, AW.VecData(numLocked), heightLocal,
+            AP.VecData(numLocked), heightLocal );
 
       }
       else{
-	// AP <- AW * C_W + A_P * C_P
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0, 
-		    AW.VecData(numLocked), heightLocal, &AMat(width,0), lda,
-		    0.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        // AP <- AW * C_W + A_P * C_P
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0, 
+            AW.VecData(numLocked), heightLocal, &AMat(width,0), lda,
+            0.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
-		    AP.VecData(numLocked), heightLocal, &AMat(width+numActive, 0), lda,
-		    1.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
+            AP.VecData(numLocked), heightLocal, &AMat(width+numActive, 0), lda,
+            1.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	lapack::Lacpy( 'A', heightLocal, numActive, Xtemp.VecData(numLocked),
-		       heightLocal, AP.VecData(numLocked), heightLocal );
+        lapack::Lacpy( 'A', heightLocal, numActive, Xtemp.VecData(numLocked),
+            heightLocal, AP.VecData(numLocked), heightLocal );
 
-	// AX <- AX * C_X + AP
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
-		    AX.Data(), heightLocal, &AMat(0,0), lda,
-		    1.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        // AX <- AX * C_X + AP
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
+            AX.Data(), heightLocal, &AMat(0,0), lda,
+            1.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
-		       AX.Data(), heightLocal );
+        lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
+            AX.Data(), heightLocal );
 
       } // if ( numSet == 2 )
 
@@ -2468,24 +2522,28 @@ namespace dgdft{
     GetTime( timeSta );
     // X <- X*C
     blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
-		heightLocal, XTX.Data(), width, 0.0, Xtemp.Data(), heightLocal );
+        heightLocal, XTX.Data(), width, 0.0, Xtemp.Data(), heightLocal );
     GetTime( timeEnd );
     iterGemmN = iterGemmN + 1;
     timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
     lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
-		   X.Data(), heightLocal );
+        X.Data(), heightLocal );
 
 #if ( _DEBUGlevel_ >= 2 )
 
     GetTime( timeSta );
     blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
-		heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-    SetValue( XTX, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
     GetTime( timeEnd );
     iterGemmT = iterGemmT + 1;
     timeGemmT = timeGemmT + ( timeEnd - timeSta );
+    GetTime( timeSta );
+    SetValue( XTX, 0.0 );
+    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    GetTime( timeEnd );
+    iterAllreduce = iterAllreduce + 1;
+    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
     statusOFS << "After the LOBPCG, XTX = " << XTX << std::endl;
 
@@ -2500,14 +2558,14 @@ namespace dgdft{
     GetTime( timeSta );
     for( Int j = 0; j < width; j++ ){ 
       for( Int i = 0; i < heightLocal; i++ ){
-	recvbuf[recvk(i, j)] = X(i, j);
+        recvbuf[recvk(i, j)] = X(i, j);
       }
     }
     MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-		   &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+        &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-	Xcol(i, j) = sendbuf[sendk(i, j)]; 
+        Xcol(i, j) = sendbuf[sendk(i, j)]; 
       }
     }
     GetTime( timeEnd );
@@ -2515,32 +2573,33 @@ namespace dgdft{
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
     lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
-		   psiPtr_->Wavefun().Data(), height );
+        psiPtr_->Wavefun().Data(), height );
 
     if( isConverged ){
       statusOFS << std::endl << "After " << iter 
-		<< " iterations, LOBPCG has converged."  << std::endl
-		<< "The maximum norm of the residual is " 
-		<< resMax << std::endl << std::endl
-		<< "The minimum norm of the residual is " 
-		<< resMin << std::endl << std::endl;
+        << " iterations, LOBPCG has converged."  << std::endl
+        << "The maximum norm of the residual is " 
+        << resMax << std::endl << std::endl
+        << "The minimum norm of the residual is " 
+        << resMin << std::endl << std::endl;
     }
     else{
       statusOFS << std::endl << "After " << iter 
-		<< " iterations, LOBPCG did not converge. " << std::endl
-		<< "The maximum norm of the residual is " 
-		<< resMax << std::endl << std::endl
-		<< "The minimum norm of the residual is " 
-		<< resMin << std::endl << std::endl;
+        << " iterations, LOBPCG did not converge. " << std::endl
+        << "The maximum norm of the residual is " 
+        << resMax << std::endl << std::endl
+        << "The minimum norm of the residual is " 
+        << resMin << std::endl << std::endl;
     }
 
 #if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for iterGemmT = " << iterGemmT << "  timeGemmT = " << timeGemmT << std::endl;
-    statusOFS << "Time for iterGemmN = " << iterGemmN << "  timeGemmN = " << timeGemmN << std::endl;
-    statusOFS << "Time for iterAlltoallv = " << iterAlltoallv << "  timeAlltoallv = " << timeAlltoallv << std::endl;
-    statusOFS << "Time for iterSpinor = " << iterSpinor << "  timeSpinor = " << timeSpinor << std::endl;
-    statusOFS << "Time for iterTrsm = " << iterTrsm << "  timeTrsm = " << timeTrsm << std::endl;
-    statusOFS << "Time for iterMpirank0 = " << iterMpirank0 << "  timeMpirank0 = " << timeMpirank0 << std::endl;
+    statusOFS << "Time for iterGemmT     = " << iterGemmT           << "  timeGemmT     = " << timeGemmT << std::endl;
+    statusOFS << "Time for iterGemmN     = " << iterGemmN           << "  timeGemmN     = " << timeGemmN << std::endl;
+    statusOFS << "Time for iterAllreduce = " << iterAllreduce       << "  timeAllreduce = " << timeAllreduce << std::endl;
+    statusOFS << "Time for iterAlltoallv = " << iterAlltoallv       << "  timeAlltoallv = " << timeAlltoallv << std::endl;
+    statusOFS << "Time for iterSpinor    = " << iterSpinor          << "  timeSpinor    = " << timeSpinor << std::endl;
+    statusOFS << "Time for iterTrsm      = " << iterTrsm            << "  timeTrsm      = " << timeTrsm << std::endl;
+    statusOFS << "Time for iterMpirank0  = " << iterMpirank0        << "  timeMpirank0  = " << timeMpirank0 << std::endl;
 #endif
 
 #ifndef _RELEASE_
@@ -2557,7 +2616,7 @@ namespace dgdft{
 				 Int          numEig,
 				 Int          eigMaxIter,
 				 Real         eigMinTolerance,
-				 Real         eigTolerance)
+         Real         eigTolerance)
   {
     // *********************************************************************
     // Initialization
@@ -2604,6 +2663,7 @@ namespace dgdft{
     Real timeSta, timeEnd;
     Real timeGemmT = 0.0;
     Real timeGemmN = 0.0;
+    Real timeAllreduce = 0.0;
     Real timeAlltoallv = 0.0;
     Real timeSpinor = 0.0;
     Real timeTrsm = 0.0;
@@ -2612,6 +2672,7 @@ namespace dgdft{
     Real timeScaLAPACK = 0.0;
     Int  iterGemmT = 0;
     Int  iterGemmN = 0;
+    Int  iterAllreduce = 0;
     Int  iterAlltoallv = 0;
     Int  iterSpinor = 0;
     Int  iterTrsm = 0;
@@ -2622,8 +2683,8 @@ namespace dgdft{
     if( numEig > width ){
       std::ostringstream msg;
       msg 
-	<< "Number of eigenvalues requested  = " << numEig << std::endl
-	<< "which is larger than the number of columns in psi = " << width << std::endl;
+        << "Number of eigenvalues requested  = " << numEig << std::endl
+        << "which is larger than the number of columns in psi = " << width << std::endl;
       ErrorHandling( msg.str().c_str() );
     }
 
@@ -2643,17 +2704,17 @@ namespace dgdft{
 
     for( Int k = 0; k < mpisize; k++ ){ 
       if( k < (mpisize - 1)){
-	sendcounts[k] = heightBlocksize * widthLocal;
+        sendcounts[k] = heightBlocksize * widthLocal;
       }
       else {
-	sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
+        sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
       }
     }
 
     for( Int k = 0; k < mpisize; k++ ){ 
       recvcounts[k] = heightLocal * widthBlocksize;
       if( k < (width % mpisize)){
-	recvcounts[k] = recvcounts[k] + heightLocal;  
+        recvcounts[k] = recvcounts[k] + heightLocal;  
       }
     }
 
@@ -2666,28 +2727,28 @@ namespace dgdft{
 
     if((height % mpisize) == 0){
       for( Int j = 0; j < widthLocal; j++ ){ 
-	for( Int i = 0; i < height; i++ ){
-	  sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
-	} 
+        for( Int i = 0; i < height; i++ ){
+          sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+        } 
       }
     }
     else{
       for( Int j = 0; j < widthLocal; j++ ){ 
-	for( Int i = 0; i < height; i++ ){
-	  if((i / heightBlocksize) < (mpisize - 1)){
-	    sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
-	  }
-	  else {
-	    sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
-	      + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
-	  }
-	}
+        for( Int i = 0; i < height; i++ ){
+          if((i / heightBlocksize) < (mpisize - 1)){
+            sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+          }
+          else {
+            sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
+              + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
+          }
+        }
       }
     }
 
     for( Int j = 0; j < width; j++ ){ 
       for( Int i = 0; i < heightLocal; i++ ){
-	recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
+        recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
       }
     }
     // end For Alltoall
@@ -2766,19 +2827,19 @@ namespace dgdft{
 
     // Initialize X by the data in psi
     lapack::Lacpy( 'A', height, widthLocal, psiPtr_->Wavefun().Data(), height, 
-		   Xcol.Data(), height );
+        Xcol.Data(), height );
 
     GetTime( timeSta );
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-	sendbuf[sendk(i, j)] = Xcol(i, j); 
+        sendbuf[sendk(i, j)] = Xcol(i, j); 
       }
     }
     MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-		   &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
     for( Int j = 0; j < width; j++ ){ 
       for( Int i = 0; i < heightLocal; i++ ){
-	X(i, j) = recvbuf[recvk(i, j)];
+        X(i, j) = recvbuf[recvk(i, j)];
       }
     }
     GetTime( timeEnd );
@@ -2792,12 +2853,16 @@ namespace dgdft{
     // Orthogonalization through Cholesky factorization
     GetTime( timeSta );
     blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
-		heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-    SetValue( XTX, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
     GetTime( timeEnd );
     iterGemmT = iterGemmT + 1;
     timeGemmT = timeGemmT + ( timeEnd - timeSta );
+    GetTime( timeSta );
+    SetValue( XTX, 0.0 );
+    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    GetTime( timeEnd );
+    iterAllreduce = iterAllreduce + 1;
+    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
     if ( mpirank == 0) {
       GetTime( timeSta );
@@ -2811,7 +2876,7 @@ namespace dgdft{
     // X <- X * U^{-1} is orthogonal
     GetTime( timeSta );
     blas::Trsm( 'R', 'U', 'N', 'N', heightLocal, width, 1.0, XTX.Data(), width, 
-		X.Data(), heightLocal );
+        X.Data(), heightLocal );
     GetTime( timeEnd );
     iterTrsm = iterTrsm + 1;
     timeTrsm = timeTrsm + ( timeEnd - timeSta );
@@ -2819,14 +2884,14 @@ namespace dgdft{
     GetTime( timeSta );
     for( Int j = 0; j < width; j++ ){ 
       for( Int i = 0; i < heightLocal; i++ ){
-	recvbuf[recvk(i, j)] = X(i, j);
+        recvbuf[recvk(i, j)] = X(i, j);
       }
     }
     MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-		   &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+        &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-	Xcol(i, j) = sendbuf[sendk(i, j)]; 
+        Xcol(i, j) = sendbuf[sendk(i, j)]; 
       }
     }
     GetTime( timeEnd );
@@ -2848,14 +2913,14 @@ namespace dgdft{
     GetTime( timeSta );
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-	sendbuf[sendk(i, j)] = Xcol(i, j); 
+        sendbuf[sendk(i, j)] = Xcol(i, j); 
       }
     }
     MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-		   &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
     for( Int j = 0; j < width; j++ ){ 
       for( Int i = 0; i < heightLocal; i++ ){
-	X(i, j) = recvbuf[recvk(i, j)];
+        X(i, j) = recvbuf[recvk(i, j)];
       }
     }
     GetTime( timeEnd );
@@ -2865,14 +2930,14 @@ namespace dgdft{
     GetTime( timeSta );
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-	sendbuf[sendk(i, j)] = AXcol(i, j); 
+        sendbuf[sendk(i, j)] = AXcol(i, j); 
       }
     }
     MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-		   &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
     for( Int j = 0; j < width; j++ ){ 
       for( Int i = 0; i < heightLocal; i++ ){
-	AX(i, j) = recvbuf[recvk(i, j)];
+        AX(i, j) = recvbuf[recvk(i, j)];
       }
     }
     GetTime( timeEnd );
@@ -2891,9 +2956,9 @@ namespace dgdft{
 #endif
 
       if( iter == 1 || isRestart == true )
-	numSet = 2;
+        numSet = 2;
       else
-	numSet = 3;
+        numSet = 3;
 
       SetValue( AMat, 0.0 );
       SetValue( BMat, 0.0 );
@@ -2901,12 +2966,16 @@ namespace dgdft{
       // XTX <- X' * (AX)
       GetTime( timeSta );
       blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
-		  heightLocal, AX.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-      SetValue( XTX, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+          heightLocal, AX.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTX, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
       lapack::Lacpy( 'A', width, width, XTX.Data(), width, AMat.Data(), lda );
 
@@ -2916,7 +2985,7 @@ namespace dgdft{
 
       GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
-		  X.Data(), heightLocal, AMat.Data(), lda, 1.0, Xtemp.Data(), heightLocal );
+          X.Data(), heightLocal, AMat.Data(), lda, 1.0, Xtemp.Data(), heightLocal );
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
@@ -2924,20 +2993,20 @@ namespace dgdft{
       // Compute the norm of the residual
       SetValue( resNormLocal, 0.0 );
       for( Int k = 0; k < width; k++ ){
-	resNormLocal(k) = Energy(DblNumVec(heightLocal, false, Xtemp.VecData(k)));
+        resNormLocal(k) = Energy(DblNumVec(heightLocal, false, Xtemp.VecData(k)));
       }
 
       SetValue( resNorm, 0.0 );
       MPI_Allreduce( resNormLocal.Data(), resNorm.Data(), width, MPI_DOUBLE, 
-		     MPI_SUM, mpi_comm );
+          MPI_SUM, mpi_comm );
 
       if ( mpirank == 0 ){
-	GetTime( timeSta );
-	for( Int k = 0; k < width; k++ ){
-	  resNorm(k) = std::sqrt( resNorm(k) ) / std::max( 1.0, std::abs( XTX(k,k) ) );
-	}
-	GetTime( timeEnd );
-	timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        for( Int k = 0; k < width; k++ ){
+          resNorm(k) = std::sqrt( resNorm(k) ) / std::max( 1.0, std::abs( XTX(k,k) ) );
+        }
+        GetTime( timeEnd );
+        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
       }
       MPI_Bcast(resNorm.Data(), width, MPI_DOUBLE, 0, mpi_comm);
 
@@ -2952,8 +3021,8 @@ namespace dgdft{
 #endif
 
       if( resMax < eigTolerance ){
-	isConverged = true;
-	break;
+        isConverged = true;
+        break;
       }
 
       numActiveTotal = width - numLockedTotal;
@@ -2973,39 +3042,39 @@ namespace dgdft{
 
       GetTime( timeSta );
       for( Int j = 0; j < width; j++ ){ 
-	for( Int i = 0; i < heightLocal; i++ ){
-	  recvbuf[recvk(i, j)] = Xtemp(i, j);
-	}
+        for( Int i = 0; i < heightLocal; i++ ){
+          recvbuf[recvk(i, j)] = Xtemp(i, j);
+        }
       }
       MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-		     &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+          &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
       for( Int j = 0; j < widthLocal; j++ ){ 
-	for( Int i = 0; i < height; i++ ){
-	  Xcol(i, j) = sendbuf[sendk(i, j)]; 
-	}
+        for( Int i = 0; i < height; i++ ){
+          Xcol(i, j) = sendbuf[sendk(i, j)]; 
+        }
       }
       GetTime( timeEnd );
       iterAlltoallv = iterAlltoallv + 1;
       timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
       {
-	GetTime( timeSta );
-	Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xcol.VecData(numLockedLocal));
-	NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
+        GetTime( timeSta );
+        Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xcol.VecData(numLockedLocal));
+        NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
 
-	SetValue( tnsTemp, 0.0 );
-	spnTemp.AddTeterPrecond( fftPtr_, tnsTemp );
-	GetTime( timeEnd );
-	iterSpinor = iterSpinor + 1;
-	timeSpinor = timeSpinor + ( timeEnd - timeSta );
+        SetValue( tnsTemp, 0.0 );
+        spnTemp.AddTeterPrecond( fftPtr_, tnsTemp );
+        GetTime( timeEnd );
+        iterSpinor = iterSpinor + 1;
+        timeSpinor = timeSpinor + ( timeEnd - timeSta );
       }
 
       Real norm = 0.0; 
       // Normalize the preconditioned residual
       for( Int k = numLockedLocal; k < widthLocal; k++ ){
-	norm = Energy(DblNumVec(height, false, Wcol.VecData(k)));
-	norm = std::sqrt( norm );
-	blas::Scal( height, 1.0 / norm, Wcol.VecData(k), 1 );
+        norm = Energy(DblNumVec(height, false, Wcol.VecData(k)));
+        norm = std::sqrt( norm );
+        blas::Scal( height, 1.0 / norm, Wcol.VecData(k), 1 );
       }
 
       // Normalize the conjugate direction
@@ -3025,29 +3094,29 @@ namespace dgdft{
       Real normPLocal[width]; 
       Real normP[width]; 
       if( numSet == 3 ){
-	for( Int k = numLockedLocal; k < width; k++ ){
-	  normPLocal[k] = Energy(DblNumVec(heightLocal, false, P.VecData(k)));
-	  normP[k] = 0.0;
-	}
-	MPI_Allreduce( &normPLocal[0], &normP[0], width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	for( Int k = numLockedLocal; k < width; k++ ){
-	  norm = std::sqrt( normP[k] );
-	  blas::Scal( heightLocal, 1.0 / norm, P.VecData(k), 1 );
-	  blas::Scal( heightLocal, 1.0 / norm, AP.VecData(k), 1 );
-	}
+        for( Int k = numLockedLocal; k < width; k++ ){
+          normPLocal[k] = Energy(DblNumVec(heightLocal, false, P.VecData(k)));
+          normP[k] = 0.0;
+        }
+        MPI_Allreduce( &normPLocal[0], &normP[0], width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        for( Int k = numLockedLocal; k < width; k++ ){
+          norm = std::sqrt( normP[k] );
+          blas::Scal( heightLocal, 1.0 / norm, P.VecData(k), 1 );
+          blas::Scal( heightLocal, 1.0 / norm, AP.VecData(k), 1 );
+        }
       } 
 
       // Compute AMat
       // Compute AW = A*W
       {
-	GetTime( timeSta );
-	Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
-	NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, AWcol.VecData(numLockedLocal));
+        GetTime( timeSta );
+        Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
+        NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, AWcol.VecData(numLockedLocal));
 
-	hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
-	GetTime( timeEnd );
-	iterSpinor = iterSpinor + 1;
-	timeSpinor = timeSpinor + ( timeEnd - timeSta );
+        hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+        GetTime( timeEnd );
+        iterSpinor = iterSpinor + 1;
+        timeSpinor = timeSpinor + ( timeEnd - timeSta );
       }
 
       // Convert from column format to row format
@@ -3056,16 +3125,16 @@ namespace dgdft{
 
       GetTime( timeSta );
       for( Int j = 0; j < widthLocal; j++ ){ 
-	for( Int i = 0; i < height; i++ ){
-	  sendbuf[sendk(i, j)] = Wcol(i, j); 
-	}
+        for( Int i = 0; i < height; i++ ){
+          sendbuf[sendk(i, j)] = Wcol(i, j); 
+        }
       }
       MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-		     &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+          &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
       for( Int j = 0; j < width; j++ ){ 
-	for( Int i = 0; i < heightLocal; i++ ){
-	  W(i, j) = recvbuf[recvk(i, j)];
-	}
+        for( Int i = 0; i < heightLocal; i++ ){
+          W(i, j) = recvbuf[recvk(i, j)];
+        }
       }
       GetTime( timeEnd );
       iterAlltoallv = iterAlltoallv + 1;
@@ -3073,16 +3142,16 @@ namespace dgdft{
 
       GetTime( timeSta );
       for( Int j = 0; j < widthLocal; j++ ){ 
-	for( Int i = 0; i < height; i++ ){
-	  sendbuf[sendk(i, j)] = AWcol(i, j); 
-	}
+        for( Int i = 0; i < height; i++ ){
+          sendbuf[sendk(i, j)] = AWcol(i, j); 
+        }
       }
       MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-		     &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+          &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
       for( Int j = 0; j < width; j++ ){ 
-	for( Int i = 0; i < heightLocal; i++ ){
-	  AW(i, j) = recvbuf[recvk(i, j)];
-	}
+        for( Int i = 0; i < heightLocal; i++ ){
+          AW(i, j) = recvbuf[recvk(i, j)];
+        }
       }
       GetTime( timeEnd );
       iterAlltoallv = iterAlltoallv + 1;
@@ -3098,14 +3167,18 @@ namespace dgdft{
       //    heightLocal, AW.VecData(numLocked), heightLocal, 
       //    0.0, &AMat(0,width), lda );
       blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0, X.Data(),
-		  heightLocal, AW.VecData(numLocked), heightLocal, 
-		  0.0, XTXtemp1.Data(), width );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0,width), lda );
+          heightLocal, AW.VecData(numLocked), heightLocal, 
+          0.0, XTXtemp1.Data(), width );
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTXtemp, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0,width), lda );
 
       // Compute W' * (AW)
       GetTime( timeSta );
@@ -3113,61 +3186,77 @@ namespace dgdft{
       //    W.VecData(numLocked), heightLocal, AW.VecData(numLocked), heightLocal, 
       //    0.0, &AMat(width, width), lda );
       blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-		  W.VecData(numLocked), heightLocal, AW.VecData(numLocked), heightLocal, 
-		  0.0, XTXtemp1.Data(), width );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width,width), lda );
+          W.VecData(numLocked), heightLocal, AW.VecData(numLocked), heightLocal, 
+          0.0, XTXtemp1.Data(), width );
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTXtemp, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width,width), lda );
 
       if( numSet == 3 ){
 
-	// Compute X' * (AP)
-	GetTime( timeSta );
-	//blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-	//    X.Data(), heightLocal, AP.VecData(numLocked), heightLocal, 
-	//   0.0, &AMat(0, width+numActive), lda );
-	blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-                    X.Data(), heightLocal, AP.VecData(numLocked), heightLocal, 
-                    0.0, XTXtemp1.Data(), width );
-	SetValue( XTXtemp, 0.0 );
-	MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0, width+numActive), lda );
-	GetTime( timeEnd );
-	iterGemmT = iterGemmT + 1;
-	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        // Compute X' * (AP)
+        GetTime( timeSta );
+        //blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
+        //    X.Data(), heightLocal, AP.VecData(numLocked), heightLocal, 
+        //   0.0, &AMat(0, width+numActive), lda );
+        blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
+            X.Data(), heightLocal, AP.VecData(numLocked), heightLocal, 
+            0.0, XTXtemp1.Data(), width );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        SetValue( XTXtemp, 0.0 );
+        MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        GetTime( timeEnd );
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+        lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0, width+numActive), lda );
 
-	// Compute W' * (AP)
-	GetTime( timeSta );
-	//blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-	//    W.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
-	//    0.0, &AMat(width, width+numActive), lda );
-	blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-                    W.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
-                    0.0, XTXtemp1.Data(), width );
-	SetValue( XTXtemp, 0.0 );
-	MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width, width+numActive), lda );
-	GetTime( timeEnd );
-	iterGemmT = iterGemmT + 1;
-	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        // Compute W' * (AP)
+        GetTime( timeSta );
+        //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+        //    W.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
+        //    0.0, &AMat(width, width+numActive), lda );
+        blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+            W.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
+            0.0, XTXtemp1.Data(), width );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        SetValue( XTXtemp, 0.0 );
+        MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        GetTime( timeEnd );
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+        lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width, width+numActive), lda );
 
-	// Compute P' * (AP)
-	GetTime( timeSta );
-	//blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-	//    P.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
-	//    0.0, &AMat(width+numActive, width+numActive), lda );
-	blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-                    P.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
-                    0.0, XTXtemp1.Data(), width );
-	SetValue( XTXtemp, 0.0 );
-	MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width+numActive, width+numActive), lda );
-	GetTime( timeEnd );
-	iterGemmT = iterGemmT + 1;
-	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        // Compute P' * (AP)
+        GetTime( timeSta );
+        //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+        //    P.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
+        //    0.0, &AMat(width+numActive, width+numActive), lda );
+        blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+            P.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
+            0.0, XTXtemp1.Data(), width );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        SetValue( XTXtemp, 0.0 );
+        MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        GetTime( timeEnd );
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+        lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width+numActive, width+numActive), lda );
 
       }
 
@@ -3180,14 +3269,18 @@ namespace dgdft{
       //    X.Data(), heightLocal, X.Data(), heightLocal, 
       //    0.0, &BMat(0,0), lda );
       blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, 
-		  X.Data(), heightLocal, X.Data(), heightLocal, 
-		  0.0, XTXtemp1.Data(), width );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,0), lda );
+          X.Data(), heightLocal, X.Data(), heightLocal, 
+          0.0, XTXtemp1.Data(), width );
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTXtemp, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,0), lda );
 
       // Compute X'*W
       GetTime( timeSta );
@@ -3195,14 +3288,18 @@ namespace dgdft{
       //    X.Data(), height, W.VecData(numLocked), height,
       //    0.0, &BMat(0,width), lda );
       blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-		  X.Data(), heightLocal, W.VecData(numLocked), heightLocal,
-		  0.0, XTXtemp1.Data(), width );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,width), lda );
+          X.Data(), heightLocal, W.VecData(numLocked), heightLocal,
+          0.0, XTXtemp1.Data(), width );
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTXtemp, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,width), lda );
 
       // Compute W'*W
       GetTime( timeSta );
@@ -3210,77 +3307,93 @@ namespace dgdft{
       //    W.VecData(numLocked), height, W.VecData(numLocked), height,
       //    0.0, &BMat(width, width), lda );
       blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-		  W.VecData(numLocked), heightLocal, W.VecData(numLocked), heightLocal,
-		  0.0, XTXtemp1.Data(), width );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width), lda );
+          W.VecData(numLocked), heightLocal, W.VecData(numLocked), heightLocal,
+          0.0, XTXtemp1.Data(), width );
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTXtemp, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width), lda );
 
 
       if( numSet == 3 ){
-	// Compute X'*P
-	GetTime( timeSta );
-	//blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-	//    X.Data(), heightLocal, P.VecData(numLocked), heightLocal, 
-	//    0.0, &BMat(0, width+numActive), lda );
-	blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-                    X.Data(), heightLocal, P.VecData(numLocked), heightLocal, 
-                    0.0, XTXtemp1.Data(), width );
-	SetValue( XTXtemp, 0.0 );
-	MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0, width+numActive), lda );
-	GetTime( timeEnd );
-	iterGemmT = iterGemmT + 1;
-	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        // Compute X'*P
+        GetTime( timeSta );
+        //blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
+        //    X.Data(), heightLocal, P.VecData(numLocked), heightLocal, 
+        //    0.0, &BMat(0, width+numActive), lda );
+        blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
+            X.Data(), heightLocal, P.VecData(numLocked), heightLocal, 
+            0.0, XTXtemp1.Data(), width );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        SetValue( XTXtemp, 0.0 );
+        MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        GetTime( timeEnd );
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+        lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0, width+numActive), lda );
 
-	// Compute W'*P
-	GetTime( timeSta );
-	//blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-	//    W.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
-	//    0.0, &BMat(width, width+numActive), lda );
-	blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-                    W.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
-                    0.0, XTXtemp1.Data(), width );
-	SetValue( XTXtemp, 0.0 );
-	MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width+numActive), lda );
-	GetTime( timeEnd );
-	iterGemmT = iterGemmT + 1;
-	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        // Compute W'*P
+        GetTime( timeSta );
+        //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+        //    W.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
+        //    0.0, &BMat(width, width+numActive), lda );
+        blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+            W.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
+            0.0, XTXtemp1.Data(), width );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        SetValue( XTXtemp, 0.0 );
+        MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        GetTime( timeEnd );
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+        lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width+numActive), lda );
 
-	// Compute P'*P
-	GetTime( timeSta );
-	//blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-	//    P.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
-	//    0.0, &BMat(width+numActive, width+numActive), lda );
-	blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-                    P.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
-                    0.0, XTXtemp1.Data(), width );
-	SetValue( XTXtemp, 0.0 );
-	MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-	lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width+numActive, width+numActive), lda );
-	GetTime( timeEnd );
-	iterGemmT = iterGemmT + 1;
-	timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        // Compute P'*P
+        GetTime( timeSta );
+        //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+        //    P.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
+        //    0.0, &BMat(width+numActive, width+numActive), lda );
+        blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
+            P.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
+            0.0, XTXtemp1.Data(), width );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        SetValue( XTXtemp, 0.0 );
+        MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        GetTime( timeEnd );
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+        lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width+numActive, width+numActive), lda );
 
       } // if( numSet == 3 )
 
 #if ( _DEBUGlevel_ >= 2 )
       {
-	DblNumMat WTW( width, width );
-	lapack::Lacpy( 'A', width, width, &BMat(width, width), lda,
-		       WTW.Data(), width );
-	statusOFS << "W'*W = " << WTW << std::endl;
-	if( numSet == 3 )
-	  {
-	    DblNumMat PTP( width, width );
-	    lapack::Lacpy( 'A', width, width, &BMat(width+numActive, width+numActive), 
-			   lda, PTP.Data(), width );
-	    statusOFS << "P'*P = " << PTP << std::endl;
-	  }
+        DblNumMat WTW( width, width );
+        lapack::Lacpy( 'A', width, width, &BMat(width, width), lda,
+            WTW.Data(), width );
+        statusOFS << "W'*W = " << WTW << std::endl;
+        if( numSet == 3 )
+        {
+          DblNumMat PTP( width, width );
+          lapack::Lacpy( 'A', width, width, &BMat(width+numActive, width+numActive), 
+              lda, PTP.Data(), width );
+          statusOFS << "P'*P = " << PTP << std::endl;
+        }
       }
 #endif
 
@@ -3295,256 +3408,256 @@ namespace dgdft{
       //
       Int numCol;
       if( numSet == 3 ){
-	// Conjugate gradient
-	numCol = width + 2 * numActiveTotal;
+        // Conjugate gradient
+        numCol = width + 2 * numActiveTotal;
       }
       else{
-	numCol = width + numActiveTotal;
+        numCol = width + numActiveTotal;
       }
 
       // Solve the generalized eigenvalue problem using ScaLAPACK
       // NOTE: This uses a simplified implementation with Sygst / Syevd / Trsm. 
       // For ill-conditioned matrices this might be unstable. So BE CAREFUL
       if( contxt_ >= 0 ){
-	GetTime( timeSta );
-	// Note: No need for symmetrization of A, B matrices due to
-	// the usage of symmetric version of the algorithm
+        GetTime( timeSta );
+        // Note: No need for symmetrization of A, B matrices due to
+        // the usage of symmetric version of the algorithm
 
-	// For stability reason, need to find a well conditioned
-	// submatrix of B to solve the generalized eigenvalue problem. 
-	// This is done by possibly repeatedly doing potrf until
-	// info == 0 (no error)
-	bool factorizeB = true;
-	Int numKeep = numCol;
-	scalapack::ScaLAPACKMatrix<Real> BMatSca;
-	scalapack::Descriptor descReduceSeq, descReducePar;
-	Real timeFactorSta, timeFactorEnd;
-	GetTime( timeFactorSta );
-	while( factorizeB ){
-	  // Redistributed the B matrix
+        // For stability reason, need to find a well conditioned
+        // submatrix of B to solve the generalized eigenvalue problem. 
+        // This is done by possibly repeatedly doing potrf until
+        // info == 0 (no error)
+        bool factorizeB = true;
+        Int numKeep = numCol;
+        scalapack::ScaLAPACKMatrix<Real> BMatSca;
+        scalapack::Descriptor descReduceSeq, descReducePar;
+        Real timeFactorSta, timeFactorEnd;
+        GetTime( timeFactorSta );
+        while( factorizeB ){
+          // Redistributed the B matrix
 
-	  // Provided LDA
-	  descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt_, lda );
-	  // Automatically comptued LDA
-	  descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, contxt_ );
-	  BMatSca.SetDescriptor( descReducePar );
-	  // Redistribute the matrix due to the changed size. 
-	  SCALAPACK(pdgemr2d)(&numKeep, &numKeep, BMat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
-			      &BMatSca.LocalMatrix()[0], &I_ONE, &I_ONE, BMatSca.Desc().Values(), &contxt_ );
+          // Provided LDA
+          descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt_, lda );
+          // Automatically comptued LDA
+          descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, contxt_ );
+          BMatSca.SetDescriptor( descReducePar );
+          // Redistribute the matrix due to the changed size. 
+          SCALAPACK(pdgemr2d)(&numKeep, &numKeep, BMat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
+              &BMatSca.LocalMatrix()[0], &I_ONE, &I_ONE, BMatSca.Desc().Values(), &contxt_ );
 
-	  // Factorize
-	  Int info;
-	  char uplo = 'U';
-	  SCALAPACK(pdpotrf)(&uplo, &numKeep, BMatSca.Data(), &I_ONE,
-			     &I_ONE, BMatSca.Desc().Values(), &info);
-	  if( info == 0 ){
-	    // Finish
-	    factorizeB = false;
-	  }
-	  else if( info > width + 1 ){
-	    // Reduce numKeep and solve again
-	    // NOTE: (int) is in fact redundant due to integer operation
-	    numKeep = (int)((info + width)/2);
-	    // Need to modify the descriptor
-	    statusOFS << "pdpotrf returns info = " << info << std::endl;
-	    statusOFS << "retry with size = " << numKeep << std::endl;
-	  }
-	  else if (info > 0 && info <=width + 1){
-	    std::ostringstream msg;
-	    msg << "pdpotrf: returns info = " << info << std::endl
-		<< "Not enough columns. The matrix is very ill conditioned." << std::endl;
-	    ErrorHandling( msg );
-	  }
-	  else if( info < 0 ){
-	    std::ostringstream msg;
-	    msg << "pdpotrf: runtime error. Info = " << info << std::endl;
-	    ErrorHandling( msg );
-	  }
+          // Factorize
+          Int info;
+          char uplo = 'U';
+          SCALAPACK(pdpotrf)(&uplo, &numKeep, BMatSca.Data(), &I_ONE,
+              &I_ONE, BMatSca.Desc().Values(), &info);
+          if( info == 0 ){
+            // Finish
+            factorizeB = false;
+          }
+          else if( info > width + 1 ){
+            // Reduce numKeep and solve again
+            // NOTE: (int) is in fact redundant due to integer operation
+            numKeep = (int)((info + width)/2);
+            // Need to modify the descriptor
+            statusOFS << "pdpotrf returns info = " << info << std::endl;
+            statusOFS << "retry with size = " << numKeep << std::endl;
+          }
+          else if (info > 0 && info <=width + 1){
+            std::ostringstream msg;
+            msg << "pdpotrf: returns info = " << info << std::endl
+              << "Not enough columns. The matrix is very ill conditioned." << std::endl;
+            ErrorHandling( msg );
+          }
+          else if( info < 0 ){
+            std::ostringstream msg;
+            msg << "pdpotrf: runtime error. Info = " << info << std::endl;
+            ErrorHandling( msg );
+          }
 
-	  iterScaLAPACKFactor ++;
-	} // while (factorizeB)
+          iterScaLAPACKFactor ++;
+        } // while (factorizeB)
 
-	GetTime( timeFactorEnd );
-	timeScaLAPACKFactor += timeFactorEnd - timeFactorSta;
-	//            statusOFS << "Factorization has finished in " << timeFactorEnd - timeFactorSta << " [s]" << std::endl;
+        GetTime( timeFactorEnd );
+        timeScaLAPACKFactor += timeFactorEnd - timeFactorSta;
+        //            statusOFS << "Factorization has finished in " << timeFactorEnd - timeFactorSta << " [s]" << std::endl;
 
-	scalapack::ScaLAPACKMatrix<Real> AMatSca, ZMatSca;
-	AMatSca.SetDescriptor( descReducePar );
-	ZMatSca.SetDescriptor( descReducePar );
+        scalapack::ScaLAPACKMatrix<Real> AMatSca, ZMatSca;
+        AMatSca.SetDescriptor( descReducePar );
+        ZMatSca.SetDescriptor( descReducePar );
 
-	SCALAPACK(pdgemr2d)(&numKeep, &numKeep, AMat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
-			    &AMatSca.LocalMatrix()[0], &I_ONE, &I_ONE, AMatSca.Desc().Values(), &contxt_ );
+        SCALAPACK(pdgemr2d)(&numKeep, &numKeep, AMat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
+            &AMatSca.LocalMatrix()[0], &I_ONE, &I_ONE, AMatSca.Desc().Values(), &contxt_ );
 
 #if ( _DEBUGlevel_ >= 1 )
-	statusOFS << "pass pdgemr2d" << std::endl;
+        statusOFS << "pass pdgemr2d" << std::endl;
 #endif
 
-	// Solve the generalized eigenvalue problem
-	std::vector<Real> eigs(lda);
-	// Keep track of whether Potrf is stable or not.
-	scalapack::Sygst( 1, 'U', AMatSca, BMatSca );
+        // Solve the generalized eigenvalue problem
+        std::vector<Real> eigs(lda);
+        // Keep track of whether Potrf is stable or not.
+        scalapack::Sygst( 1, 'U', AMatSca, BMatSca );
 #if ( _DEBUGlevel_ >= 1 )
-	statusOFS << "pass Sygst" << std::endl;
+        statusOFS << "pass Sygst" << std::endl;
 #endif
-	scalapack::Syevd('U', AMatSca, eigs, ZMatSca );
+        scalapack::Syevd('U', AMatSca, eigs, ZMatSca );
 #if ( _DEBUGlevel_ >= 1 )
-	statusOFS << "pass Syevd" << std::endl;
+        statusOFS << "pass Syevd" << std::endl;
 #endif
-	scalapack::Trsm('L', 'U', 'N', 'N', 1.0, BMatSca, ZMatSca);
+        scalapack::Trsm('L', 'U', 'N', 'N', 1.0, BMatSca, ZMatSca);
 #if ( _DEBUGlevel_ >= 1 )
-	statusOFS << "pass Trsm" << std::endl;
+        statusOFS << "pass Trsm" << std::endl;
 #endif
 
-	// Copy the eigenvalues
-	SetValue( eigValS, 0.0 );
-	for( Int i = 0; i < numKeep; i++ ){
-	  eigValS[i] = eigs[i];
-	}
+        // Copy the eigenvalues
+        SetValue( eigValS, 0.0 );
+        for( Int i = 0; i < numKeep; i++ ){
+          eigValS[i] = eigs[i];
+        }
 
-	// Copy the eigenvectors back to the 0-th processor
-	SetValue( AMat, 0.0 );
-	SCALAPACK(pdgemr2d)( &numKeep, &numKeep, ZMatSca.Data(), &I_ONE, &I_ONE, ZMatSca.Desc().Values(),
-			     AMat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt_ );
+        // Copy the eigenvectors back to the 0-th processor
+        SetValue( AMat, 0.0 );
+        SCALAPACK(pdgemr2d)( &numKeep, &numKeep, ZMatSca.Data(), &I_ONE, &I_ONE, ZMatSca.Desc().Values(),
+            AMat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt_ );
 #if ( _DEBUGlevel_ >= 1 )
-	statusOFS << "pass pdgemr2d" << std::endl;
+        statusOFS << "pass pdgemr2d" << std::endl;
 #endif
 
 
-	GetTime( timeEnd );
-	timeScaLAPACK += timeEnd - timeSta;
-	iterScaLAPACK += 1;
+        GetTime( timeEnd );
+        timeScaLAPACK += timeEnd - timeSta;
+        iterScaLAPACK += 1;
       } // solve generalized eigenvalue problem
-        
-        // All processors synchronize the information
+
+      // All processors synchronize the information
       MPI_Bcast(AMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
       MPI_Bcast(eigValS.Data(), lda, MPI_DOUBLE, 0, mpi_comm);
 
 
       if( numSet == 2 ){
 
-	// Update the eigenvectors 
-	// X <- X * C_X + W * C_W
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
-                    X.Data(), heightLocal, &AMat(0,0), lda,
-                    0.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        // Update the eigenvectors 
+        // X <- X * C_X + W * C_W
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
+            X.Data(), heightLocal, &AMat(0,0), lda,
+            0.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
-                    W.VecData(numLocked), heightLocal, &AMat(width,0), lda,
-                    1.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
+            W.VecData(numLocked), heightLocal, &AMat(width,0), lda,
+            1.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	// Save the result into X
-	lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
-		       X.Data(), heightLocal );
+        // Save the result into X
+        lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
+            X.Data(), heightLocal );
 
-	// P <- W
-	lapack::Lacpy( 'A', heightLocal, numActive, W.VecData(numLocked), 
-		       heightLocal, P.VecData(numLocked), heightLocal );
+        // P <- W
+        lapack::Lacpy( 'A', heightLocal, numActive, W.VecData(numLocked), 
+            heightLocal, P.VecData(numLocked), heightLocal );
       } 
       else{ //numSet == 3
-            // Compute the conjugate direction
-            // P <- W * C_W + P * C_P
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
-                    W.VecData(numLocked), heightLocal, &AMat(width, 0), lda, 
-                    0.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        // Compute the conjugate direction
+        // P <- W * C_W + P * C_P
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
+            W.VecData(numLocked), heightLocal, &AMat(width, 0), lda, 
+            0.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
-                    P.VecData(numLocked), heightLocal, &AMat(width+numActive,0), lda,
-                    1.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
+            P.VecData(numLocked), heightLocal, &AMat(width+numActive,0), lda,
+            1.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	lapack::Lacpy( 'A', heightLocal, numActive, Xtemp.VecData(numLocked), 
-		       heightLocal, P.VecData(numLocked), heightLocal );
+        lapack::Lacpy( 'A', heightLocal, numActive, Xtemp.VecData(numLocked), 
+            heightLocal, P.VecData(numLocked), heightLocal );
 
-	// Update the eigenvectors
-	// X <- X * C_X + P
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
-                    X.Data(), heightLocal, &AMat(0,0), lda, 
-                    1.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        // Update the eigenvectors
+        // X <- X * C_X + P
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
+            X.Data(), heightLocal, &AMat(0,0), lda, 
+            1.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
-		       X.Data(), heightLocal );
+        lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
+            X.Data(), heightLocal );
 
       } // if ( numSet == 2 )
 
 
-        // Update AX and AP
+      // Update AX and AP
       if( numSet == 2 ){
-	// AX <- AX * C_X + AW * C_W
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
-                    AX.Data(), heightLocal, &AMat(0,0), lda,
-                    0.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        // AX <- AX * C_X + AW * C_W
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
+            AX.Data(), heightLocal, &AMat(0,0), lda,
+            0.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
-                    AW.VecData(numLocked), heightLocal, &AMat(width,0), lda,
-                    1.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
+            AW.VecData(numLocked), heightLocal, &AMat(width,0), lda,
+            1.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
-		       AX.Data(), heightLocal );
+        lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
+            AX.Data(), heightLocal );
 
-	// AP <- AW
-	lapack::Lacpy( 'A', heightLocal, numActive, AW.VecData(numLocked), heightLocal,
-		       AP.VecData(numLocked), heightLocal );
+        // AP <- AW
+        lapack::Lacpy( 'A', heightLocal, numActive, AW.VecData(numLocked), heightLocal,
+            AP.VecData(numLocked), heightLocal );
 
       }
       else{
-	// AP <- AW * C_W + A_P * C_P
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0, 
-                    AW.VecData(numLocked), heightLocal, &AMat(width,0), lda,
-                    0.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        // AP <- AW * C_W + A_P * C_P
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0, 
+            AW.VecData(numLocked), heightLocal, &AMat(width,0), lda,
+            0.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
-                    AP.VecData(numLocked), heightLocal, &AMat(width+numActive, 0), lda,
-                    1.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
+            AP.VecData(numLocked), heightLocal, &AMat(width+numActive, 0), lda,
+            1.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	lapack::Lacpy( 'A', heightLocal, numActive, Xtemp.VecData(numLocked),
-		       heightLocal, AP.VecData(numLocked), heightLocal );
+        lapack::Lacpy( 'A', heightLocal, numActive, Xtemp.VecData(numLocked),
+            heightLocal, AP.VecData(numLocked), heightLocal );
 
-	// AX <- AX * C_X + AP
-	GetTime( timeSta );
-	blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
-                    AX.Data(), heightLocal, &AMat(0,0), lda,
-                    1.0, Xtemp.Data(), heightLocal );
-	GetTime( timeEnd );
-	iterGemmN = iterGemmN + 1;
-	timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        // AX <- AX * C_X + AP
+        GetTime( timeSta );
+        blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
+            AX.Data(), heightLocal, &AMat(0,0), lda,
+            1.0, Xtemp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-	lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
-		       AX.Data(), heightLocal );
+        lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
+            AX.Data(), heightLocal );
 
       } // if ( numSet == 2 )
 
@@ -3581,24 +3694,28 @@ namespace dgdft{
     GetTime( timeSta );
     // X <- X*C
     blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
-		heightLocal, XTX.Data(), width, 0.0, Xtemp.Data(), heightLocal );
+        heightLocal, XTX.Data(), width, 0.0, Xtemp.Data(), heightLocal );
     GetTime( timeEnd );
     iterGemmN = iterGemmN + 1;
     timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
     lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
-		   X.Data(), heightLocal );
+        X.Data(), heightLocal );
 
 #if ( _DEBUGlevel_ >= 2 )
 
     GetTime( timeSta );
     blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
-		heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-    SetValue( XTX, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
     GetTime( timeEnd );
     iterGemmT = iterGemmT + 1;
     timeGemmT = timeGemmT + ( timeEnd - timeSta );
+    GetTime( timeSta );
+    SetValue( XTX, 0.0 );
+    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    GetTime( timeEnd );
+    iterAllreduce = iterAllreduce + 1;
+    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
     statusOFS << "After the LOBPCG, XTX = " << XTX << std::endl;
 
@@ -3613,14 +3730,14 @@ namespace dgdft{
     GetTime( timeSta );
     for( Int j = 0; j < width; j++ ){ 
       for( Int i = 0; i < heightLocal; i++ ){
-	recvbuf[recvk(i, j)] = X(i, j);
+        recvbuf[recvk(i, j)] = X(i, j);
       }
     }
     MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-		   &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+        &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-	Xcol(i, j) = sendbuf[sendk(i, j)]; 
+        Xcol(i, j) = sendbuf[sendk(i, j)]; 
       }
     }
     GetTime( timeEnd );
@@ -3628,34 +3745,35 @@ namespace dgdft{
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
     lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
-		   psiPtr_->Wavefun().Data(), height );
+        psiPtr_->Wavefun().Data(), height );
 
     if( isConverged ){
       statusOFS << std::endl << "After " << iter 
-		<< " iterations, LOBPCG has converged."  << std::endl
-		<< "The maximum norm of the residual is " 
-		<< resMax << std::endl << std::endl
-		<< "The minimum norm of the residual is " 
-		<< resMin << std::endl << std::endl;
+        << " iterations, LOBPCG has converged."  << std::endl
+        << "The maximum norm of the residual is " 
+        << resMax << std::endl << std::endl
+        << "The minimum norm of the residual is " 
+        << resMin << std::endl << std::endl;
     }
     else{
       statusOFS << std::endl << "After " << iter 
-		<< " iterations, LOBPCG did not converge. " << std::endl
-		<< "The maximum norm of the residual is " 
-		<< resMax << std::endl << std::endl
-		<< "The minimum norm of the residual is " 
-		<< resMin << std::endl << std::endl;
+        << " iterations, LOBPCG did not converge. " << std::endl
+        << "The maximum norm of the residual is " 
+        << resMax << std::endl << std::endl
+        << "The minimum norm of the residual is " 
+        << resMin << std::endl << std::endl;
     }
 
 #if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for iterGemmT     = " << iterGemmT         << "  timeGemmT     = " << timeGemmT << std::endl;
-    statusOFS << "Time for iterGemmN     = " << iterGemmN         << "  timeGemmN     = " << timeGemmN << std::endl;
-    statusOFS << "Time for iterAlltoallv = " << iterAlltoallv     << "  timeAlltoallv = " << timeAlltoallv << std::endl;
-    statusOFS << "Time for iterSpinor    = " << iterSpinor        << "  timeSpinor    = " << timeSpinor << std::endl;
-    statusOFS << "Time for iterTrsm      = " << iterTrsm          << "  timeTrsm      = " << timeTrsm << std::endl;
-    statusOFS << "Time for iterMpirank0  = " << iterMpirank0      << "  timeMpirank0  = " << timeMpirank0 << std::endl;
-    statusOFS << "Time for ScaLAPACK     = " << iterScaLAPACK     << "  timeScaLAPACK = " << timeScaLAPACK << std::endl;
-    statusOFS << "Time for pdpotrf       = " << iterScaLAPACKFactor     << "  timepdpotrf   = " << timeScaLAPACKFactor << std::endl;
+    statusOFS << "Time for iterGemmT     = " << iterGemmT           << "  timeGemmT     = " << timeGemmT << std::endl;
+    statusOFS << "Time for iterGemmN     = " << iterGemmN           << "  timeGemmN     = " << timeGemmN << std::endl;
+    statusOFS << "Time for iterAllreduce = " << iterAllreduce       << "  timeAllreduce = " << timeAllreduce << std::endl;
+    statusOFS << "Time for iterAlltoallv = " << iterAlltoallv       << "  timeAlltoallv = " << timeAlltoallv << std::endl;
+    statusOFS << "Time for iterSpinor    = " << iterSpinor          << "  timeSpinor    = " << timeSpinor << std::endl;
+    statusOFS << "Time for iterTrsm      = " << iterTrsm            << "  timeTrsm      = " << timeTrsm << std::endl;
+    statusOFS << "Time for iterMpirank0  = " << iterMpirank0        << "  timeMpirank0  = " << timeMpirank0 << std::endl;
+    statusOFS << "Time for ScaLAPACK     = " << iterScaLAPACK       << "  timeScaLAPACK = " << timeScaLAPACK << std::endl;
+    statusOFS << "Time for pdpotrf       = " << iterScaLAPACKFactor << "  timepdpotrf   = " << timeScaLAPACKFactor << std::endl;
 #endif
 
     return ;
@@ -5441,15 +5559,18 @@ namespace dgdft{
     return;
   } // -----  end of method EigenSolver::GeneralChebyStep -----
     
-    
-// Basic version of PPCG with columnwise sweep  
-void
-EigenSolver::PPCGSolveReal	(
-      Int          numEig,
-      Int          eigMaxIter,
-      Real         eigMinTolerance,
-      Real         eigTolerance)
-{
+   
+
+
+
+  // Basic version of PPCG with columnwise sweep  
+  void
+  EigenSolver::PPCGSolveReal	(
+				 Int          numEig,
+				 Int          eigMaxIter,
+				 Real         eigMinTolerance,
+         Real         eigTolerance)
+  {
     // *********************************************************************
     // Initialization
     // *********************************************************************
@@ -5474,15 +5595,15 @@ EigenSolver::PPCGSolveReal	(
     Int heightLocal = heightBlocksize;
 
     if(mpirank < (width % mpisize)){
-        widthLocal = widthBlocksize + 1;
+      widthLocal = widthBlocksize + 1;
     }
 
     if(mpirank == (mpisize - 1)){
-        heightLocal = heightBlocksize + height % mpisize;
+      heightLocal = heightBlocksize + height % mpisize;
     }
 
     if( widthLocal != noccLocal ){
-        throw std::logic_error("widthLocal != noccLocal.");
+      throw std::logic_error("widthLocal != noccLocal.");
     }
 
     // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
@@ -5495,6 +5616,7 @@ EigenSolver::PPCGSolveReal	(
     Real timeSta, timeEnd;
     Real timeGemmT = 0.0;
     Real timeGemmN = 0.0;
+    Real timeAllreduce = 0.0;
     Real timeAlltoallv = 0.0;
     Real timeSpinor = 0.0;
     Real timeTrsm = 0.0;
@@ -5504,6 +5626,7 @@ EigenSolver::PPCGSolveReal	(
     Real timeSweepT = 0.0;
     Int  iterGemmT = 0;
     Int  iterGemmN = 0;
+    Int  iterAllreduce = 0;
     Int  iterAlltoallv = 0;
     Int  iterSpinor = 0;
     Int  iterTrsm = 0;
@@ -5513,11 +5636,11 @@ EigenSolver::PPCGSolveReal	(
     Int  iterSweepT = 0;
 
     if( numEig > width ){
-        std::ostringstream msg;
-        msg 
-            << "Number of eigenvalues requested  = " << numEig << std::endl
-            << "which is larger than the number of columns in psi = " << width << std::endl;
-        throw std::runtime_error( msg.str().c_str() );
+      std::ostringstream msg;
+      msg 
+        << "Number of eigenvalues requested  = " << numEig << std::endl
+        << "which is larger than the number of columns in psi = " << width << std::endl;
+      throw std::runtime_error( msg.str().c_str() );
     }
 
 
@@ -5535,53 +5658,53 @@ EigenSolver::PPCGSolveReal	(
     IntNumMat  recvk( heightLocal, width );
 
     for( Int k = 0; k < mpisize; k++ ){ 
-        if( k < (mpisize - 1)){
-            sendcounts[k] = heightBlocksize * widthLocal;
-        }
-        else {
-            sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
-        }
+      if( k < (mpisize - 1)){
+        sendcounts[k] = heightBlocksize * widthLocal;
+      }
+      else {
+        sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
+      }
     }
 
     for( Int k = 0; k < mpisize; k++ ){ 
-        recvcounts[k] = heightLocal * widthBlocksize;
-        if( k < (width % mpisize)){
-            recvcounts[k] = recvcounts[k] + heightLocal;  
-        }
+      recvcounts[k] = heightLocal * widthBlocksize;
+      if( k < (width % mpisize)){
+        recvcounts[k] = recvcounts[k] + heightLocal;  
+      }
     }
 
     senddispls[0] = 0;
     recvdispls[0] = 0;
     for( Int k = 1; k < mpisize; k++ ){ 
-        senddispls[k] = senddispls[k-1] + sendcounts[k-1];
-        recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
+      senddispls[k] = senddispls[k-1] + sendcounts[k-1];
+      recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
     }
 
     if((height % mpisize) == 0){
-        for( Int j = 0; j < widthLocal; j++ ){ 
-            for( Int i = 0; i < height; i++ ){
-                sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
-            } 
-        }
+      for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+          sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+        } 
+      }
     }
     else{
-        for( Int j = 0; j < widthLocal; j++ ){ 
-            for( Int i = 0; i < height; i++ ){
-                if((i / heightBlocksize) < (mpisize - 1)){
-                    sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
-                }
-                else {
-                    sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
-                        + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
-                }
-            }
+      for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+          if((i / heightBlocksize) < (mpisize - 1)){
+            sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+          }
+          else {
+            sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
+              + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
+          }
         }
+      }
     }
 
     for( Int j = 0; j < width; j++ ){ 
-        for( Int i = 0; i < heightLocal; i++ ){
-            recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
-        }
+      for( Int i = 0; i < heightLocal; i++ ){
+        recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
+      }
     }
     // end For Alltoall
 
@@ -5600,14 +5723,14 @@ EigenSolver::PPCGSolveReal	(
     //      = (  *      *    P'*P)
     //
 
-  
-//    DblNumMat  AMat( 3*width, 3*width ), BMat( 3*width, 3*width );
-//    DblNumMat  AMatT1( 3*width, 3*width );
-    
+
+    //    DblNumMat  AMat( 3*width, 3*width ), BMat( 3*width, 3*width );
+    //    DblNumMat  AMatT1( 3*width, 3*width );
+
     // Temporary buffer array.
     // The unpreconditioned residual will also be saved in Xtemp
     DblNumMat  XTX( width, width );
-//?    DblNumMat  XTXtemp( width, width );
+    //?    DblNumMat  XTXtemp( width, width );
     DblNumMat  XTXtemp1( width, width );
 
     DblNumMat  Xtemp( heightLocal, width );
@@ -5655,20 +5778,20 @@ EigenSolver::PPCGSolveReal	(
 
     // Initialize X by the data in psi
     lapack::Lacpy( 'A', height, widthLocal, psiPtr_->Wavefun().Data(), height, 
-            Xcol.Data(), height );
+        Xcol.Data(), height );
 
     GetTime( timeSta );
     for( Int j = 0; j < widthLocal; j++ ){ 
-        for( Int i = 0; i < height; i++ ){
-            sendbuf[sendk(i, j)] = Xcol(i, j); 
-        }
+      for( Int i = 0; i < height; i++ ){
+        sendbuf[sendk(i, j)] = Xcol(i, j); 
+      }
     }
     MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-            &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
     for( Int j = 0; j < width; j++ ){ 
-        for( Int i = 0; i < heightLocal; i++ ){
-            X(i, j) = recvbuf[recvk(i, j)];
-        }
+      for( Int i = 0; i < heightLocal; i++ ){
+        X(i, j) = recvbuf[recvk(i, j)];
+      }
     }
     GetTime( timeEnd );
     iterAlltoallv = iterAlltoallv + 1;
@@ -5681,42 +5804,46 @@ EigenSolver::PPCGSolveReal	(
     // Orthogonalization through Cholesky factorization
     GetTime( timeSta );
     blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
-            heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-    SetValue( XTX, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
     GetTime( timeEnd );
     iterGemmT = iterGemmT + 1;
     timeGemmT = timeGemmT + ( timeEnd - timeSta );
+    GetTime( timeSta );
+    SetValue( XTX, 0.0 );
+    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    GetTime( timeEnd );
+    iterAllreduce = iterAllreduce + 1;
+    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
     if ( mpirank == 0) {
-        GetTime( timeSta );
-        lapack::Potrf( 'U', width, XTX.Data(), width );
-        GetTime( timeEnd );
-        iterMpirank0 = iterMpirank0 + 1;
-        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      lapack::Potrf( 'U', width, XTX.Data(), width );
+      GetTime( timeEnd );
+      iterMpirank0 = iterMpirank0 + 1;
+      timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
     }
     MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
 
     // X <- X * U^{-1} is orthogonal
     GetTime( timeSta );
     blas::Trsm( 'R', 'U', 'N', 'N', heightLocal, width, 1.0, XTX.Data(), width, 
-            X.Data(), heightLocal );
+        X.Data(), heightLocal );
     GetTime( timeEnd );
     iterTrsm = iterTrsm + 1;
     timeTrsm = timeTrsm + ( timeEnd - timeSta );
 
     GetTime( timeSta );
     for( Int j = 0; j < width; j++ ){ 
-        for( Int i = 0; i < heightLocal; i++ ){
-            recvbuf[recvk(i, j)] = X(i, j);
-        }
+      for( Int i = 0; i < heightLocal; i++ ){
+        recvbuf[recvk(i, j)] = X(i, j);
+      }
     }
     MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-            &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+        &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
     for( Int j = 0; j < widthLocal; j++ ){ 
-        for( Int i = 0; i < height; i++ ){
-            Xcol(i, j) = sendbuf[sendk(i, j)]; 
-        }
+      for( Int i = 0; i < height; i++ ){
+        Xcol(i, j) = sendbuf[sendk(i, j)]; 
+      }
     }
     GetTime( timeEnd );
     iterAlltoallv = iterAlltoallv + 1;
@@ -5724,28 +5851,28 @@ EigenSolver::PPCGSolveReal	(
 
     // Applying the Hamiltonian matrix
     {
-        GetTime( timeSta );
-        Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
-        NumTns<Real> tnsTemp(ntot, ncom, noccLocal, false, AXcol.Data());
+      GetTime( timeSta );
+      Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
+      NumTns<Real> tnsTemp(ntot, ncom, noccLocal, false, AXcol.Data());
 
-        hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
-        GetTime( timeEnd );
-        iterSpinor = iterSpinor + 1;
-        timeSpinor = timeSpinor + ( timeEnd - timeSta );
+      hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+      GetTime( timeEnd );
+      iterSpinor = iterSpinor + 1;
+      timeSpinor = timeSpinor + ( timeEnd - timeSta );
     }
 
     GetTime( timeSta );
     for( Int j = 0; j < widthLocal; j++ ){ 
-        for( Int i = 0; i < height; i++ ){
-            sendbuf[sendk(i, j)] = Xcol(i, j); 
-        }
+      for( Int i = 0; i < height; i++ ){
+        sendbuf[sendk(i, j)] = Xcol(i, j); 
+      }
     }
     MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-            &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
     for( Int j = 0; j < width; j++ ){ 
-        for( Int i = 0; i < heightLocal; i++ ){
-            X(i, j) = recvbuf[recvk(i, j)];
-        }
+      for( Int i = 0; i < heightLocal; i++ ){
+        X(i, j) = recvbuf[recvk(i, j)];
+      }
     }
     GetTime( timeEnd );
     iterAlltoallv = iterAlltoallv + 1;
@@ -5753,16 +5880,16 @@ EigenSolver::PPCGSolveReal	(
 
     GetTime( timeSta );
     for( Int j = 0; j < widthLocal; j++ ){ 
-        for( Int i = 0; i < height; i++ ){
-            sendbuf[sendk(i, j)] = AXcol(i, j); 
-        }
+      for( Int i = 0; i < height; i++ ){
+        sendbuf[sendk(i, j)] = AXcol(i, j); 
+      }
     }
     MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-            &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
     for( Int j = 0; j < width; j++ ){ 
-        for( Int i = 0; i < heightLocal; i++ ){
-            AX(i, j) = recvbuf[recvk(i, j)];
-        }
+      for( Int i = 0; i < heightLocal; i++ ){
+        AX(i, j) = recvbuf[recvk(i, j)];
+      }
     }
     GetTime( timeEnd );
     iterAlltoallv = iterAlltoallv + 1;
@@ -5774,446 +5901,462 @@ EigenSolver::PPCGSolveReal	(
     statusOFS << "Minimum tolerance is " << eigMinTolerance << std::endl;
 
     do{
-        iter++;
+      iter++;
 #if ( _DEBUGlevel_ >= 1 )
-        statusOFS << "iter = " << iter << std::endl;
+      statusOFS << "iter = " << iter << std::endl;
 #endif
 
-        if( iter == 1 || isRestart == true )
-            numSet = 2;
-        else
-            numSet = 3;
+      if( iter == 1 || isRestart == true )
+        numSet = 2;
+      else
+        numSet = 3;
 
-        // XTX <- X' * (AX)
+      // XTX <- X' * (AX)
+      GetTime( timeSta );
+      blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
+          heightLocal, AX.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTX, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+
+      // Compute the residual.
+      // R <- AX - X*(X'*AX)
+      lapack::Lacpy( 'A', heightLocal, width, AX.Data(), heightLocal, Xtemp.Data(), heightLocal );
+
+      GetTime( timeSta );
+
+      blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
+          X.Data(), heightLocal, XTX.Data(), width, 1.0, Xtemp.Data(), heightLocal );
+
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
+
+
+      // Compute the Frobenius norm of the residual block
+      resBlockNormLocal = 0.0; resBlockNorm = 0.0; 
+      for (Int i=0; i < heightLocal; i++){
+        for (Int j=0; j < width; j++ ){
+          resBlockNormLocal += Xtemp(i,j)*Xtemp(i,j); 
+        }
+      }
+
+      MPI_Allreduce( &resBlockNormLocal, &resBlockNorm, 1, MPI_DOUBLE,
+          MPI_SUM, mpi_comm); 
+      resBlockNorm = std::sqrt(resBlockNorm);
+
+      /////////////// UNCOMMENT THIS #if ( _DEBUGlevel_ >= 1 )
+      statusOFS << "Frob. norm of the residual block = " << resBlockNorm << std::endl;
+      //////////////#endif
+
+      // THIS STOPPING CRITERION LIKELY IRRELEVANT
+      if( resBlockNorm < eigTolerance ){
+        isConverged = true;
+        break;
+      }
+
+      // LOCKING not supported, PPCG needs Rayleigh--Ritz to lock         
+      //        numActiveTotal = width - numLockedTotal;
+      //        numActiveLocal = widthLocal - numLockedLocal;
+
+      // Compute the preconditioned residual W = T*R.
+      // The residual is saved in Xtemp
+
+      // Convert from row format to column format.
+      // MPI_Alltoallv
+      // Only convert Xtemp here
+
+      GetTime( timeSta );
+      for( Int j = 0; j < width; j++ ){ 
+        for( Int i = 0; i < heightLocal; i++ ){
+          recvbuf[recvk(i, j)] = Xtemp(i, j);
+        }
+      }
+      MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
+          &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+      for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+          Xcol(i, j) = sendbuf[sendk(i, j)]; 
+        }
+      }
+      GetTime( timeEnd );
+      iterAlltoallv = iterAlltoallv + 1;
+      timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+
+      // Compute W = TW
+      {
+        GetTime( timeSta );
+        Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xcol.VecData(numLockedLocal));
+        NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
+
+        SetValue( tnsTemp, 0.0 );
+        spnTemp.AddTeterPrecond( fftPtr_, tnsTemp );
+        GetTime( timeEnd );
+        iterSpinor = iterSpinor + 1;
+        timeSpinor = timeSpinor + ( timeEnd - timeSta );
+      }
+
+
+      // Compute AW = A*W
+      {
+        GetTime( timeSta );
+        Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
+        NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, AWcol.VecData(numLockedLocal));
+
+        hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
+        GetTime( timeEnd );
+        iterSpinor = iterSpinor + 1;
+        timeSpinor = timeSpinor + ( timeEnd - timeSta );
+      }
+
+      // Convert from column format to row format
+      // MPI_Alltoallv
+      // Only convert W and AW
+
+      GetTime( timeSta );
+      for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+          sendbuf[sendk(i, j)] = Wcol(i, j); 
+        }
+      }
+      MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+          &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+      for( Int j = 0; j < width; j++ ){ 
+        for( Int i = 0; i < heightLocal; i++ ){
+          W(i, j) = recvbuf[recvk(i, j)];
+        }
+      }
+      GetTime( timeEnd );
+      iterAlltoallv = iterAlltoallv + 1;
+      timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+
+      GetTime( timeSta );
+      for( Int j = 0; j < widthLocal; j++ ){ 
+        for( Int i = 0; i < height; i++ ){
+          sendbuf[sendk(i, j)] = AWcol(i, j); 
+        }
+      }
+      MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+          &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+      for( Int j = 0; j < width; j++ ){ 
+        for( Int i = 0; i < heightLocal; i++ ){
+          AW(i, j) = recvbuf[recvk(i, j)];
+        }
+      }
+      GetTime( timeEnd );
+      iterAlltoallv = iterAlltoallv + 1;
+      timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+
+
+      // W = W - X(X'W), AW = AW - AX(X'W)
+      GetTime( timeSta );
+      blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
+          heightLocal, W.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTX, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+
+
+      GetTime( timeSta );
+      blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
+          X.Data(), heightLocal, XTX.Data(), width, 1.0, W.Data(), heightLocal );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
+
+
+      GetTime( timeSta );
+      blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
+          AX.Data(), heightLocal, XTX.Data(), width, 1.0, AW.Data(), heightLocal );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
+
+      // Normalize columns of W
+      Real normLocal[width]; 
+      Real normGlobal[width];
+
+      for( Int k = numLockedLocal; k < width; k++ ){
+        normLocal[k] = Energy(DblNumVec(heightLocal, false, W.VecData(k)));
+        normGlobal[k] = 0.0;
+      }
+      MPI_Allreduce( &normLocal[0], &normGlobal[0], width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      for( Int k = numLockedLocal; k < width; k++ ){
+        Real norm = std::sqrt( normGlobal[k] );
+        blas::Scal( heightLocal, 1.0 / norm, W.VecData(k), 1 );
+        blas::Scal( heightLocal, 1.0 / norm, AW.VecData(k), 1 );
+      }
+
+      // P = P - X(X'P), AP = AP - AX(X'P)
+      if( numSet == 3 ){
         GetTime( timeSta );
         blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
-                heightLocal, AX.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-        SetValue( XTX, 0.0 );
-        MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+            heightLocal, P.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
         GetTime( timeEnd );
         iterGemmT = iterGemmT + 1;
         timeGemmT = timeGemmT + ( timeEnd - timeSta );
-
-        // Compute the residual.
-        // R <- AX - X*(X'*AX)
-        lapack::Lacpy( 'A', heightLocal, width, AX.Data(), heightLocal, Xtemp.Data(), heightLocal );
-
         GetTime( timeSta );
-
-        blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
-                X.Data(), heightLocal, XTX.Data(), width, 1.0, Xtemp.Data(), heightLocal );
-
-        GetTime( timeEnd );
-        iterGemmN = iterGemmN + 1;
-        timeGemmN = timeGemmN + ( timeEnd - timeSta );
-
-
-        // Compute the Frobenius norm of the residual block
-        resBlockNormLocal = 0.0; resBlockNorm = 0.0; 
-        for (Int i=0; i < heightLocal; i++){
-           for (Int j=0; j < width; j++ ){
-              resBlockNormLocal += Xtemp(i,j)*Xtemp(i,j); 
-           }
-        }
- 
-        MPI_Allreduce( &resBlockNormLocal, &resBlockNorm, 1, MPI_DOUBLE,
-                MPI_SUM, mpi_comm); 
-        resBlockNorm = std::sqrt(resBlockNorm);
-
-/////////////// UNCOMMENT THIS #if ( _DEBUGlevel_ >= 1 )
-        statusOFS << "Frob. norm of the residual block = " << resBlockNorm << std::endl;
-//////////////#endif
-
-        // THIS STOPPING CRITERION LIKELY IRRELEVANT
-        if( resBlockNorm < eigTolerance ){
-            isConverged = true;
-            break;
-        }
-
-       // LOCKING not supported, PPCG needs Rayleigh--Ritz to lock         
-//        numActiveTotal = width - numLockedTotal;
-//        numActiveLocal = widthLocal - numLockedLocal;
-
-        // Compute the preconditioned residual W = T*R.
-        // The residual is saved in Xtemp
-
-        // Convert from row format to column format.
-        // MPI_Alltoallv
-        // Only convert Xtemp here
-
-        GetTime( timeSta );
-        for( Int j = 0; j < width; j++ ){ 
-            for( Int i = 0; i < heightLocal; i++ ){
-                recvbuf[recvk(i, j)] = Xtemp(i, j);
-            }
-        }
-        MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-                &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
-        for( Int j = 0; j < widthLocal; j++ ){ 
-            for( Int i = 0; i < height; i++ ){
-                Xcol(i, j) = sendbuf[sendk(i, j)]; 
-            }
-        }
-        GetTime( timeEnd );
-        iterAlltoallv = iterAlltoallv + 1;
-        timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
-
-        // Compute W = TW
-        {
-            GetTime( timeSta );
-            Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xcol.VecData(numLockedLocal));
-            NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
-
-            SetValue( tnsTemp, 0.0 );
-            spnTemp.AddTeterPrecond( fftPtr_, tnsTemp );
-            GetTime( timeEnd );
-            iterSpinor = iterSpinor + 1;
-            timeSpinor = timeSpinor + ( timeEnd - timeSta );
-        }
-
-
-        // Compute AW = A*W
-        {
-            GetTime( timeSta );
-            Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
-            NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, AWcol.VecData(numLockedLocal));
-
-            hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
-            GetTime( timeEnd );
-            iterSpinor = iterSpinor + 1;
-            timeSpinor = timeSpinor + ( timeEnd - timeSta );
-        }
-
-        // Convert from column format to row format
-        // MPI_Alltoallv
-        // Only convert W and AW
-
-        GetTime( timeSta );
-        for( Int j = 0; j < widthLocal; j++ ){ 
-            for( Int i = 0; i < height; i++ ){
-                sendbuf[sendk(i, j)] = Wcol(i, j); 
-            }
-        }
-        MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-                &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
-        for( Int j = 0; j < width; j++ ){ 
-            for( Int i = 0; i < heightLocal; i++ ){
-                W(i, j) = recvbuf[recvk(i, j)];
-            }
-        }
-        GetTime( timeEnd );
-        iterAlltoallv = iterAlltoallv + 1;
-        timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
-
-        GetTime( timeSta );
-        for( Int j = 0; j < widthLocal; j++ ){ 
-            for( Int i = 0; i < height; i++ ){
-                sendbuf[sendk(i, j)] = AWcol(i, j); 
-            }
-        }
-        MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-                &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
-        for( Int j = 0; j < width; j++ ){ 
-            for( Int i = 0; i < heightLocal; i++ ){
-                AW(i, j) = recvbuf[recvk(i, j)];
-            }
-        }
-        GetTime( timeEnd );
-        iterAlltoallv = iterAlltoallv + 1;
-        timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
-
-
-        // W = W - X(X'W), AW = AW - AX(X'W)
-        GetTime( timeSta );
-        blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
-                heightLocal, W.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
         SetValue( XTX, 0.0 );
         MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
         GetTime( timeEnd );
-        iterGemmT = iterGemmT + 1;
-        timeGemmT = timeGemmT + ( timeEnd - timeSta );
-
+        iterAllreduce = iterAllreduce + 1;
+        timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
         GetTime( timeSta );
         blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
-                X.Data(), heightLocal, XTX.Data(), width, 1.0, W.Data(), heightLocal );
+            X.Data(), heightLocal, XTX.Data(), width, 1.0, P.Data(), heightLocal );
         GetTime( timeEnd );
         iterGemmN = iterGemmN + 1;
         timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-
         GetTime( timeSta );
         blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
-                AX.Data(), heightLocal, XTX.Data(), width, 1.0, AW.Data(), heightLocal );
+            AX.Data(), heightLocal, XTX.Data(), width, 1.0, AP.Data(), heightLocal );
         GetTime( timeEnd );
         iterGemmN = iterGemmN + 1;
         timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
-        // Normalize columns of W
-        Real normLocal[width]; 
-        Real normGlobal[width];
- 
+        // Normalize the conjugate direction
         for( Int k = numLockedLocal; k < width; k++ ){
-            normLocal[k] = Energy(DblNumVec(heightLocal, false, W.VecData(k)));
-            normGlobal[k] = 0.0;
+          normLocal[k] = Energy(DblNumVec(heightLocal, false, P.VecData(k)));
+          normGlobal[k] = 0.0;
         }
         MPI_Allreduce( &normLocal[0], &normGlobal[0], width, MPI_DOUBLE, MPI_SUM, mpi_comm );
         for( Int k = numLockedLocal; k < width; k++ ){
-            Real norm = std::sqrt( normGlobal[k] );
-            blas::Scal( heightLocal, 1.0 / norm, W.VecData(k), 1 );
-            blas::Scal( heightLocal, 1.0 / norm, AW.VecData(k), 1 );
+          Real norm = std::sqrt( normGlobal[k] );
+          blas::Scal( heightLocal, 1.0 / norm, P.VecData(k), 1 );
+          blas::Scal( heightLocal, 1.0 / norm, AP.VecData(k), 1 );
         }
+      }
 
-        // P = P - X(X'P), AP = AP - AX(X'P)
+      // Perform the sweep
+      GetTime( timeSta );
+      Int sbSize = 1, nsb = width; // this should be generalized to subblocks 
+      DblNumMat  AMat( 3*sbSize, 3*sbSize ), BMat( 3*sbSize, 3*sbSize );
+      DblNumMat  AMatAll( 3*sbSize, 3*sbSize*nsb ), BMatAll( 3*sbSize, 3*sbSize*nsb ); // contains all nsb 3-by-3 matrices
+      DblNumMat  AMatAllLocal( 3*sbSize, 3*sbSize*nsb ), BMatAllLocal( 3*sbSize, 3*sbSize*nsb ); // contains local parts of all nsb 3-by-3 matrices
+
+      SetValue( AMat, 0.0 ); SetValue( BMat, 0.0 );
+      SetValue( AMatAll, 0.0 ); SetValue( BMatAll, 0.0 );
+      SetValue( AMatAllLocal, 0.0 ); SetValue( BMatAllLocal, 0.0 );
+
+      // LOCKING NOT SUPPORTED, loop over all columns 
+      for( Int k = 0; k < nsb; k++ ){
+
+        // fetch indiviual columns
+        DblNumMat  x( heightLocal, sbSize, false, X.VecData(k) );
+        DblNumMat  w( heightLocal, sbSize, false, W.VecData(k) );
+        DblNumMat ax( heightLocal, sbSize, false, AX.VecData(k) );
+        DblNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
+
+        // Compute AMatAllLoc and BMatAllLoc            
+        // AMatAllLoc
+        blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
+            heightLocal, ax.Data(), heightLocal, 
+            0.0, &AMatAllLocal(0,3*sbSize*k), 3*sbSize );
+
+        blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
+            heightLocal, aw.Data(), heightLocal, 
+            0.0, &AMatAllLocal(sbSize,3*sbSize*k+sbSize), 3*sbSize );
+
+        blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
+            heightLocal, aw.Data(), heightLocal, 
+            0.0, &AMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize );
+
+        // BMatAllLoc            
+        blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
+            heightLocal, x.Data(), heightLocal, 
+            0.0, &BMatAllLocal(0,3*sbSize*k), 3*sbSize );
+
+        blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
+            heightLocal, w.Data(), heightLocal, 
+            0.0, &BMatAllLocal(sbSize,3*sbSize*k+sbSize), 3*sbSize );
+
+        blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
+            heightLocal, w.Data(), heightLocal, 
+            0.0, &BMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize );
+
+        if ( numSet == 3 ){
+
+          DblNumMat  p( heightLocal, sbSize, false, P.VecData(k) );
+          DblNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
+
+          // AMatAllLoc
+          blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, p.Data(),
+              heightLocal, ap.Data(), heightLocal, 
+              0.0, &AMatAllLocal(2*sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
+
+          blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
+              heightLocal, ap.Data(), heightLocal, 
+              0.0, &AMatAllLocal(0, 3*sbSize*k+2*sbSize), 3*sbSize );
+
+          blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
+              heightLocal, ap.Data(), heightLocal, 
+              0.0, &AMatAllLocal(sbSize, 3*sbSize*k+2*sbSize), 3*sbSize );
+
+          // BMatAllLoc
+          blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, p.Data(),
+              heightLocal, p.Data(), heightLocal, 
+              0.0, &BMatAllLocal(2*sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
+
+          blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
+              heightLocal, p.Data(), heightLocal, 
+              0.0, &BMatAllLocal(0, 3*sbSize*k+2*sbSize), 3*sbSize );
+
+          blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
+              heightLocal, p.Data(), heightLocal, 
+              0.0, &BMatAllLocal(sbSize, 3*sbSize*k+2*sbSize), 3*sbSize );
+
+        }             
+
+      }
+
+      MPI_Allreduce( AMatAllLocal.Data(), AMatAll.Data(), 9*sbSize*sbSize*nsb, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      MPI_Allreduce( BMatAllLocal.Data(), BMatAll.Data(), 9*sbSize*sbSize*nsb, MPI_DOUBLE, MPI_SUM, mpi_comm );
+
+      // Solve nsb small eigenproblems and update columns of X 
+      for( Int k = 0; k < nsb; k++ ){
+
+        Real eigs[3*sbSize];
+        DblNumMat  cx( sbSize, sbSize ), cw( sbSize, sbSize ), cp( sbSize, sbSize);
+        DblNumMat tmp( heightLocal, sbSize );            
+
+        // small eigensolve
+        lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &AMatAll(0,3*sbSize*k), 3*sbSize, AMat.Data(), 3*sbSize );
+        lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &BMatAll(0,3*sbSize*k), 3*sbSize, BMat.Data(), 3*sbSize );
+
+
+
+        //if (mpirank==0){
+        //    statusOFS << "sweep num = " << k << std::endl;
+        //    statusOFS << "AMat = " << AMat << std::endl;
+        //    statusOFS << "BMat = " << BMat << std::endl<<std::endl;
+        //}
+
+        Int dim = (numSet == 3) ? 3*sbSize : 2*sbSize;
+        lapack::Sygvd(1, 'V', 'U', dim, AMat.Data(), 3*sbSize, BMat.Data(), 3*sbSize, eigs);
+
+        // fetch indiviual columns
+        DblNumMat  x( heightLocal, sbSize, false, X.VecData(k) );
+        DblNumMat  w( heightLocal, sbSize, false, W.VecData(k) );
+        DblNumMat  p( heightLocal, sbSize, false, P.VecData(k) );
+        DblNumMat ax( heightLocal, sbSize, false, AX.VecData(k) );
+        DblNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
+        DblNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
+
+        lapack::Lacpy( 'A', sbSize, sbSize, &AMat(0,0), 3*sbSize, cx.Data(), sbSize );
+        lapack::Lacpy( 'A', sbSize, sbSize, &AMat(sbSize,0), 3*sbSize, cw.Data(), sbSize );
+
+        //  p = w*cw + p*cp; x = x*cx + p; ap = aw*cw + ap*cp; ax = ax*cx + ap;
         if( numSet == 3 ){
-            GetTime( timeSta );
-            blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
-                    heightLocal, P.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-            SetValue( XTX, 0.0 );
-            MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-            GetTime( timeEnd );
-            iterGemmT = iterGemmT + 1;
-            timeGemmT = timeGemmT + ( timeEnd - timeSta );
+          lapack::Lacpy( 'A', sbSize, sbSize, &AMat(2*sbSize,0), 3*sbSize, cp.Data(), sbSize );
+          // tmp <- p*cp 
+          blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+              p.Data(), heightLocal, cp.Data(), sbSize,
+              0.0, tmp.Data(), heightLocal );
 
-            GetTime( timeSta );
-            blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
-                    X.Data(), heightLocal, XTX.Data(), width, 1.0, P.Data(), heightLocal );
-            GetTime( timeEnd );
-            iterGemmN = iterGemmN + 1;
-            timeGemmN = timeGemmN + ( timeEnd - timeSta );
+          // p <- w*cw + tmp
+          blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+              w.Data(), heightLocal, cw.Data(), sbSize,
+              1.0, tmp.Data(), heightLocal );
+          lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, p.Data(), heightLocal );
 
-            GetTime( timeSta );
-            blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
-                    AX.Data(), heightLocal, XTX.Data(), width, 1.0, AP.Data(), heightLocal );
-            GetTime( timeEnd );
-            iterGemmN = iterGemmN + 1;
-            timeGemmN = timeGemmN + ( timeEnd - timeSta );
-           
-            // Normalize the conjugate direction
-            for( Int k = numLockedLocal; k < width; k++ ){
-                normLocal[k] = Energy(DblNumVec(heightLocal, false, P.VecData(k)));
-                normGlobal[k] = 0.0;
-            }
-            MPI_Allreduce( &normLocal[0], &normGlobal[0], width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-            for( Int k = numLockedLocal; k < width; k++ ){
-                Real norm = std::sqrt( normGlobal[k] );
-                blas::Scal( heightLocal, 1.0 / norm, P.VecData(k), 1 );
-                blas::Scal( heightLocal, 1.0 / norm, AP.VecData(k), 1 );
-            }
+          // tmp <- ap*cp 
+          blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+              ap.Data(), heightLocal, cp.Data(), sbSize,
+              0.0, tmp.Data(), heightLocal );
+
+          // ap <- aw*cw + tmp
+          blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+              aw.Data(), heightLocal, cw.Data(), sbSize,
+              1.0, tmp.Data(), heightLocal );
+          lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ap.Data(), heightLocal );
+
+        }else{
+          // p <- w*cw
+          blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+              w.Data(), heightLocal, cw.Data(), sbSize,
+              0.0, p.Data(), heightLocal );
+          // ap <- aw*cw
+          blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+              aw.Data(), heightLocal, cw.Data(), sbSize,
+              0.0, ap.Data(), heightLocal );
         }
 
-        // Perform the sweep
+        // x <- x*cx + p
+        lapack::Lacpy( 'A', heightLocal, sbSize, p.Data(), heightLocal, tmp.Data(), heightLocal );
+        blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+            x.Data(), heightLocal, cx.Data(), sbSize,
+            1.0, tmp.Data(), heightLocal );
+        lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, x.Data(), heightLocal );
+
+        // ax <- ax*cx + ap
+        lapack::Lacpy( 'A', heightLocal, sbSize, ap.Data(), heightLocal, tmp.Data(), heightLocal );
+        blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+            ax.Data(), heightLocal, cx.Data(), sbSize,
+            1.0, tmp.Data(), heightLocal );
+        lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ax.Data(), heightLocal );
+
+      }
+      GetTime( timeEnd );
+      iterSweepT = iterSweepT + 1;
+      timeSweepT = timeSweepT + ( timeEnd - timeSta );
+
+      // CholeskyQR of the updated block X
+      GetTime( timeSta );
+      blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
+          heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTX, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+
+      if ( mpirank == 0) {
         GetTime( timeSta );
-        Int sbSize = 1, nsb = width; // this should be generalized to subblocks 
-        DblNumMat  AMat( 3*sbSize, 3*sbSize ), BMat( 3*sbSize, 3*sbSize );
-        DblNumMat  AMatAll( 3*sbSize, 3*sbSize*nsb ), BMatAll( 3*sbSize, 3*sbSize*nsb ); // contains all nsb 3-by-3 matrices
-        DblNumMat  AMatAllLocal( 3*sbSize, 3*sbSize*nsb ), BMatAllLocal( 3*sbSize, 3*sbSize*nsb ); // contains local parts of all nsb 3-by-3 matrices
-
-        SetValue( AMat, 0.0 ); SetValue( BMat, 0.0 );
-        SetValue( AMatAll, 0.0 ); SetValue( BMatAll, 0.0 );
-        SetValue( AMatAllLocal, 0.0 ); SetValue( BMatAllLocal, 0.0 );
-
-        // LOCKING NOT SUPPORTED, loop over all columns 
-        for( Int k = 0; k < nsb; k++ ){
-
-            // fetch indiviual columns
-            DblNumMat  x( heightLocal, sbSize, false, X.VecData(k) );
-            DblNumMat  w( heightLocal, sbSize, false, W.VecData(k) );
-            DblNumMat ax( heightLocal, sbSize, false, AX.VecData(k) );
-            DblNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
-
-            // Compute AMatAllLoc and BMatAllLoc            
-            // AMatAllLoc
-            blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
-                   heightLocal, ax.Data(), heightLocal, 
-                   0.0, &AMatAllLocal(0,3*sbSize*k), 3*sbSize );
-            
-            blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
-                   heightLocal, aw.Data(), heightLocal, 
-                   0.0, &AMatAllLocal(sbSize,3*sbSize*k+sbSize), 3*sbSize );
-
-            blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
-                   heightLocal, aw.Data(), heightLocal, 
-                   0.0, &AMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize );
-  
-           // BMatAllLoc            
-            blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
-                   heightLocal, x.Data(), heightLocal, 
-                   0.0, &BMatAllLocal(0,3*sbSize*k), 3*sbSize );
-            
-            blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
-                   heightLocal, w.Data(), heightLocal, 
-                   0.0, &BMatAllLocal(sbSize,3*sbSize*k+sbSize), 3*sbSize );
-
-            blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
-                   heightLocal, w.Data(), heightLocal, 
-                   0.0, &BMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize );
-
-            if ( numSet == 3 ){
-
-                DblNumMat  p( heightLocal, sbSize, false, P.VecData(k) );
-                DblNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
- 
-               // AMatAllLoc
-                blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, p.Data(),
-                       heightLocal, ap.Data(), heightLocal, 
-                       0.0, &AMatAllLocal(2*sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
-
-                blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
-                       heightLocal, ap.Data(), heightLocal, 
-                       0.0, &AMatAllLocal(0, 3*sbSize*k+2*sbSize), 3*sbSize );
-
-                blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
-                       heightLocal, ap.Data(), heightLocal, 
-                       0.0, &AMatAllLocal(sbSize, 3*sbSize*k+2*sbSize), 3*sbSize );
-           
-                // BMatAllLoc
-                blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, p.Data(),
-                       heightLocal, p.Data(), heightLocal, 
-                       0.0, &BMatAllLocal(2*sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
-
-                blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
-                       heightLocal, p.Data(), heightLocal, 
-                       0.0, &BMatAllLocal(0, 3*sbSize*k+2*sbSize), 3*sbSize );
-
-                blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
-                       heightLocal, p.Data(), heightLocal, 
-                       0.0, &BMatAllLocal(sbSize, 3*sbSize*k+2*sbSize), 3*sbSize );
-
-            }             
-
-        }
-
-        MPI_Allreduce( AMatAllLocal.Data(), AMatAll.Data(), 9*sbSize*sbSize*nsb, MPI_DOUBLE, MPI_SUM, mpi_comm );
-        MPI_Allreduce( BMatAllLocal.Data(), BMatAll.Data(), 9*sbSize*sbSize*nsb, MPI_DOUBLE, MPI_SUM, mpi_comm );
-
-        // Solve nsb small eigenproblems and update columns of X 
-        for( Int k = 0; k < nsb; k++ ){
-             
-            Real eigs[3*sbSize];
-            DblNumMat  cx( sbSize, sbSize ), cw( sbSize, sbSize ), cp( sbSize, sbSize);
-            DblNumMat tmp( heightLocal, sbSize );            
-
-            // small eigensolve
-            lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &AMatAll(0,3*sbSize*k), 3*sbSize, AMat.Data(), 3*sbSize );
-            lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &BMatAll(0,3*sbSize*k), 3*sbSize, BMat.Data(), 3*sbSize );
-
-
-
-//if (mpirank==0){
-//    statusOFS << "sweep num = " << k << std::endl;
-//    statusOFS << "AMat = " << AMat << std::endl;
-//    statusOFS << "BMat = " << BMat << std::endl<<std::endl;
-//}
-
-            Int dim = (numSet == 3) ? 3*sbSize : 2*sbSize;
-            lapack::Sygvd(1, 'V', 'U', dim, AMat.Data(), 3*sbSize, BMat.Data(), 3*sbSize, eigs);
-                
-            // fetch indiviual columns
-            DblNumMat  x( heightLocal, sbSize, false, X.VecData(k) );
-            DblNumMat  w( heightLocal, sbSize, false, W.VecData(k) );
-            DblNumMat  p( heightLocal, sbSize, false, P.VecData(k) );
-            DblNumMat ax( heightLocal, sbSize, false, AX.VecData(k) );
-            DblNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
-            DblNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
-
-            lapack::Lacpy( 'A', sbSize, sbSize, &AMat(0,0), 3*sbSize, cx.Data(), sbSize );
-            lapack::Lacpy( 'A', sbSize, sbSize, &AMat(sbSize,0), 3*sbSize, cw.Data(), sbSize );
-
-            //  p = w*cw + p*cp; x = x*cx + p; ap = aw*cw + ap*cp; ax = ax*cx + ap;
-            if( numSet == 3 ){
-                lapack::Lacpy( 'A', sbSize, sbSize, &AMat(2*sbSize,0), 3*sbSize, cp.Data(), sbSize );
-                // tmp <- p*cp 
-                blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
-                        p.Data(), heightLocal, cp.Data(), sbSize,
-                        0.0, tmp.Data(), heightLocal );
-
-                // p <- w*cw + tmp
-                blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
-                        w.Data(), heightLocal, cw.Data(), sbSize,
-                        1.0, tmp.Data(), heightLocal );
-                lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, p.Data(), heightLocal );
-
-                // tmp <- ap*cp 
-                blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
-                        ap.Data(), heightLocal, cp.Data(), sbSize,
-                        0.0, tmp.Data(), heightLocal );
-               
-                // ap <- aw*cw + tmp
-                blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
-                        aw.Data(), heightLocal, cw.Data(), sbSize,
-                        1.0, tmp.Data(), heightLocal );
-                lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ap.Data(), heightLocal );
-                 
-            }else{
-                // p <- w*cw
-                blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
-                        w.Data(), heightLocal, cw.Data(), sbSize,
-                        0.0, p.Data(), heightLocal );
-                // ap <- aw*cw
-                blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
-                        aw.Data(), heightLocal, cw.Data(), sbSize,
-                        0.0, ap.Data(), heightLocal );
-            }
-            
-            // x <- x*cx + p
-            lapack::Lacpy( 'A', heightLocal, sbSize, p.Data(), heightLocal, tmp.Data(), heightLocal );
-            blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
-                    x.Data(), heightLocal, cx.Data(), sbSize,
-                    1.0, tmp.Data(), heightLocal );
-            lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, x.Data(), heightLocal );
-
-            // ax <- ax*cx + ap
-            lapack::Lacpy( 'A', heightLocal, sbSize, ap.Data(), heightLocal, tmp.Data(), heightLocal );
-            blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
-                    ax.Data(), heightLocal, cx.Data(), sbSize,
-                    1.0, tmp.Data(), heightLocal );
-            lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ax.Data(), heightLocal );
-
-        }
+        lapack::Potrf( 'U', width, XTX.Data(), width );
         GetTime( timeEnd );
-        iterSweepT = iterSweepT + 1;
-        timeSweepT = timeSweepT + ( timeEnd - timeSta );
+        iterMpirank0 = iterMpirank0 + 1;
+        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+      }
+      MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
 
-       // CholeskyQR of the updated block X
-       GetTime( timeSta );
-       blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
-               heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-       SetValue( XTX, 0.0 );
-       MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-       GetTime( timeEnd );
-       iterGemmT = iterGemmT + 1;
-       timeGemmT = timeGemmT + ( timeEnd - timeSta );
-
-       if ( mpirank == 0) {
-           GetTime( timeSta );
-           lapack::Potrf( 'U', width, XTX.Data(), width );
-           GetTime( timeEnd );
-           iterMpirank0 = iterMpirank0 + 1;
-           timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
-       }
-       MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
-
-       // X <- X * U^{-1} is orthogonal
+      // X <- X * U^{-1} is orthogonal
       GetTime( timeSta );
       blas::Trsm( 'R', 'U', 'N', 'N', heightLocal, width, 1.0, XTX.Data(), width, 
-              X.Data(), heightLocal );
+          X.Data(), heightLocal );
       GetTime( timeEnd );
       iterTrsm = iterTrsm + 1;
       timeTrsm = timeTrsm + ( timeEnd - timeSta );
 
 
-//            // Copy the eigenvalues
-//            SetValue( eigValS, 0.0 );
-//            for( Int i = 0; i < numKeep; i++ ){
-//                eigValS[i] = eigs[i];
-//            }
+      //            // Copy the eigenvalues
+      //            SetValue( eigValS, 0.0 );
+      //            for( Int i = 0; i < numKeep; i++ ){
+      //                eigValS[i] = eigs[i];
+      //            }
 
 
-//#if ( _DEBUGlevel_ >= 1 )
-//        statusOFS << "numLocked = " << numLocked << std::endl;
-//        statusOFS << "eigValS   = " << eigValS << std::endl;
-//#endif
+      //#if ( _DEBUGlevel_ >= 1 )
+      //        statusOFS << "numLocked = " << numLocked << std::endl;
+      //        statusOFS << "eigValS   = " << eigValS << std::endl;
+      //#endif
 
     } while( (iter < eigMaxIter) || (resMin > eigMinTolerance) );
 
@@ -6227,24 +6370,28 @@ EigenSolver::PPCGSolveReal	(
     // if isConverged==true then XTX should contain the matrix X' * (AX); and X is an
     // orthonormal set
 
-   if (!isConverged){
-        GetTime( timeSta );
-        blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
-                heightLocal, AX.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-        SetValue( XTX, 0.0 );
-        MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-        GetTime( timeEnd );
-        iterGemmT = iterGemmT + 1;
-        timeGemmT = timeGemmT + ( timeEnd - timeSta );
-   }
+    if (!isConverged){
+      GetTime( timeSta );
+      blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
+          heightLocal, AX.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      SetValue( XTX, 0.0 );
+      MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      GetTime( timeEnd );
+      iterAllreduce = iterAllreduce + 1;
+      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+    }
 
 
     if ( mpirank == 0 ){
-        GetTime( timeSta );
-        lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
-        GetTime( timeEnd );
-        iterMpirank0 = iterMpirank0 + 1;
-        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
+      GetTime( timeEnd );
+      iterMpirank0 = iterMpirank0 + 1;
+      timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
     }
 
     MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
@@ -6255,53 +6402,53 @@ EigenSolver::PPCGSolveReal	(
     GetTime( timeSta );
     // X <- X*C
     blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
-            heightLocal, XTX.Data(), width, 0.0, Xtemp.Data(), heightLocal );
+        heightLocal, XTX.Data(), width, 0.0, Xtemp.Data(), heightLocal );
     GetTime( timeEnd );
     iterGemmN = iterGemmN + 1;
     timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
     lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
-            X.Data(), heightLocal );
+        X.Data(), heightLocal );
 
 
     GetTime( timeSta );
     // AX <- AX*C
     blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, AX.Data(),
-            heightLocal, XTX.Data(), width, 0.0, Xtemp.Data(), heightLocal );
+        heightLocal, XTX.Data(), width, 0.0, Xtemp.Data(), heightLocal );
     GetTime( timeEnd );
     iterGemmN = iterGemmN + 1;
     timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
     lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
-            AX.Data(), heightLocal );
+        AX.Data(), heightLocal );
 
     // Compute norms of individual eigenpairs 
     DblNumVec  resNormLocal ( width ); 
     DblNumVec  resNorm( width );
 
     for(Int j=0; j < width; j++){
-        for(Int i=0; i < heightLocal; i++){
-            Xtemp(i,j) = AX(i,j) - X(i,j)*eigValS(j);  
-        }
+      for(Int i=0; i < heightLocal; i++){
+        Xtemp(i,j) = AX(i,j) - X(i,j)*eigValS(j);  
+      }
     } 
-   
+
     SetValue( resNormLocal, 0.0 );
     for( Int k = 0; k < width; k++ ){
-        resNormLocal(k) = Energy(DblNumVec(heightLocal, false, Xtemp.VecData(k)));
+      resNormLocal(k) = Energy(DblNumVec(heightLocal, false, Xtemp.VecData(k)));
     }
 
     SetValue( resNorm, 0.0 );
     MPI_Allreduce( resNormLocal.Data(), resNorm.Data(), width, MPI_DOUBLE, 
-            MPI_SUM, mpi_comm );
+        MPI_SUM, mpi_comm );
 
     if ( mpirank == 0 ){
-        GetTime( timeSta );
-        for( Int k = 0; k < width; k++ ){
-//            resNorm(k) = std::sqrt( resNorm(k) ) / std::max( 1.0, std::abs( XTX(k,k) ) );
-            resNorm(k) = std::sqrt( resNorm(k) ) / std::max( 1.0, std::abs( eigValS(k) ) );
-        }
-        GetTime( timeEnd );
-        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+      GetTime( timeSta );
+      for( Int k = 0; k < width; k++ ){
+        //            resNorm(k) = std::sqrt( resNorm(k) ) / std::max( 1.0, std::abs( XTX(k,k) ) );
+        resNorm(k) = std::sqrt( resNorm(k) ) / std::max( 1.0, std::abs( eigValS(k) ) );
+      }
+      GetTime( timeEnd );
+      timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
     }
     MPI_Bcast(resNorm.Data(), width, MPI_DOUBLE, 0, mpi_comm);
 
@@ -6321,12 +6468,16 @@ EigenSolver::PPCGSolveReal	(
 
     GetTime( timeSta );
     blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
-            heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-    SetValue( XTX, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+        heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
     GetTime( timeEnd );
     iterGemmT = iterGemmT + 1;
     timeGemmT = timeGemmT + ( timeEnd - timeSta );
+    GetTime( timeSta );
+    SetValue( XTX, 0.0 );
+    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    GetTime( timeEnd );
+    iterAllreduce = iterAllreduce + 1;
+    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
     statusOFS << "After the PPCG, XTX = " << XTX << std::endl;
 
@@ -6340,55 +6491,56 @@ EigenSolver::PPCGSolveReal	(
 
     GetTime( timeSta );
     for( Int j = 0; j < width; j++ ){ 
-        for( Int i = 0; i < heightLocal; i++ ){
-            recvbuf[recvk(i, j)] = X(i, j);
-        }
+      for( Int i = 0; i < heightLocal; i++ ){
+        recvbuf[recvk(i, j)] = X(i, j);
+      }
     }
     MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-            &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+        &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
     for( Int j = 0; j < widthLocal; j++ ){ 
-        for( Int i = 0; i < height; i++ ){
-            Xcol(i, j) = sendbuf[sendk(i, j)]; 
-        }
+      for( Int i = 0; i < height; i++ ){
+        Xcol(i, j) = sendbuf[sendk(i, j)]; 
+      }
     }
     GetTime( timeEnd );
     iterAlltoallv = iterAlltoallv + 1;
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
     lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
-            psiPtr_->Wavefun().Data(), height );
+        psiPtr_->Wavefun().Data(), height );
 
-// REPORT ACTUAL EIGENRESIDUAL NORMS?
-        statusOFS << std::endl << "After " << iter 
-            << " PPCG iterations the min res norm is " 
-            << resMin << ". The max res norm is " << resMax << std::endl << std::endl;
+    // REPORT ACTUAL EIGENRESIDUAL NORMS?
+    statusOFS << std::endl << "After " << iter 
+      << " PPCG iterations the min res norm is " 
+      << resMin << ". The max res norm is " << resMax << std::endl << std::endl;
 
-//        statusOFS << std::endl << "After " << iter 
-//            << " iterations, PPCG has converged."  << std::endl
-//            << "The maximum norm of the residual is " 
-//            << resMax << std::endl << std::endl
-//            << "The minimum norm of the residual is " 
-//            << resMin << std::endl << std::endl;
-//    }
-//    else{
-//        statusOFS << std::endl << "After " << iter 
-//            << " iterations, PPCG did not converge. " << std::endl
-//            << "The maximum norm of the residual is " 
-//            << resMax << std::endl << std::endl
-//            << "The minimum norm of the residual is " 
-//            << resMin << std::endl << std::endl;
-//    }
+    //        statusOFS << std::endl << "After " << iter 
+    //            << " iterations, PPCG has converged."  << std::endl
+    //            << "The maximum norm of the residual is " 
+    //            << resMax << std::endl << std::endl
+    //            << "The minimum norm of the residual is " 
+    //            << resMin << std::endl << std::endl;
+    //    }
+    //    else{
+    //        statusOFS << std::endl << "After " << iter 
+    //            << " iterations, PPCG did not converge. " << std::endl
+    //            << "The maximum norm of the residual is " 
+    //            << resMax << std::endl << std::endl
+    //            << "The minimum norm of the residual is " 
+    //            << resMin << std::endl << std::endl;
+    //    }
 
 #if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for iterGemmT     = " << iterGemmT         << "  timeGemmT     = " << timeGemmT << std::endl;
-    statusOFS << "Time for iterGemmN     = " << iterGemmN         << "  timeGemmN     = " << timeGemmN << std::endl;
-    statusOFS << "Time for iterAlltoallv = " << iterAlltoallv     << "  timeAlltoallv = " << timeAlltoallv << std::endl;
-    statusOFS << "Time for iterSpinor    = " << iterSpinor        << "  timeSpinor    = " << timeSpinor << std::endl;
-    statusOFS << "Time for iterTrsm      = " << iterTrsm          << "  timeTrsm      = " << timeTrsm << std::endl;
-    statusOFS << "Time for iterMpirank0  = " << iterMpirank0      << "  timeMpirank0  = " << timeMpirank0 << std::endl;
-    statusOFS << "Time for ScaLAPACK     = " << iterScaLAPACK     << "  timeScaLAPACK = " << timeScaLAPACK << std::endl;
-    statusOFS << "Time for pdpotrf       = " << iterScaLAPACKFactor     << "  timepdpotrf   = " << timeScaLAPACKFactor << std::endl;
-    statusOFS << "Time for sweep       = " << iterSweepT     << "  timeSweepT   = " << timeSweepT << std::endl;
+    statusOFS << "Time for iterGemmT     = " << iterGemmT           << "  timeGemmT     = " << timeGemmT << std::endl;
+    statusOFS << "Time for iterGemmN     = " << iterGemmN           << "  timeGemmN     = " << timeGemmN << std::endl;
+    statusOFS << "Time for iterAllreduce = " << iterAllreduce       << "  timeAllreduce = " << timeAllreduce << std::endl;
+    statusOFS << "Time for iterAlltoallv = " << iterAlltoallv       << "  timeAlltoallv = " << timeAlltoallv << std::endl;
+    statusOFS << "Time for iterSpinor    = " << iterSpinor          << "  timeSpinor    = " << timeSpinor << std::endl;
+    statusOFS << "Time for iterTrsm      = " << iterTrsm            << "  timeTrsm      = " << timeTrsm << std::endl;
+    statusOFS << "Time for iterMpirank0  = " << iterMpirank0        << "  timeMpirank0  = " << timeMpirank0 << std::endl;
+    statusOFS << "Time for ScaLAPACK     = " << iterScaLAPACK       << "  timeScaLAPACK = " << timeScaLAPACK << std::endl;
+    statusOFS << "Time for pdpotrf       = " << iterScaLAPACKFactor << "  timepdpotrf   = " << timeScaLAPACKFactor << std::endl;
+    statusOFS << "Time for sweep         = " << iterSweepT          << "  timeSweepT    = " << timeSweepT << std::endl;
 #endif
 
     return ;
