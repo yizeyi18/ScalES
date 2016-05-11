@@ -999,6 +999,11 @@ namespace dgdft{
       strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for general step in PWDFT !*");
 
       i++;
+      strcpy(kw_label[i],"pwdft_ppcg_use_scala");
+      strcpy(kw_typ[i],"I:E");
+      strcpy(kw_dscrpt[i],"*! whether to use ScaLAPACK for PPCG in PWDFT !*");
+      
+      i++;
       strcpy(kw_label[i],"pwdft_cheby_use_scala");
       strcpy(kw_typ[i],"I:E");
       strcpy(kw_dscrpt[i],"*! whether to use ScaLAPACK for CheFSI in PWDFT !*");
@@ -2327,6 +2332,8 @@ namespace dgdft{
             esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
             esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 0 );
             esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
+	    
+            esdfParam.PWDFT_PPCG_use_scala = esdf_integer("PWDFT_PPCG_use_scala", 0);
 
             // Parameters related to Chebyshev Filtering in PWDFT
 	    // ~~**~~

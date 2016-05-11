@@ -95,10 +95,12 @@ namespace dgdft{
     scaBlockSize_      = esdfParam.scaBlockSize;
     numProcScaLAPACK_  = esdfParam.numProcScaLAPACKPW; 
 
+    PWDFT_PPCG_use_scala_ = esdfParam.PWDFT_PPCG_use_scala;
     PWDFT_Cheby_use_scala_ = esdfParam.PWDFT_Cheby_use_scala;
 
     // Setup BLACS
-    if( PWSolver_ == "LOBPCGScaLAPACK" || (PWSolver_ == "CheFSI" && PWDFT_Cheby_use_scala_) ){
+    if( PWSolver_ == "LOBPCGScaLAPACK" || (PWSolver_ == "PPCG" && PWDFT_PPCG_use_scala_) || 
+        (PWSolver_ == "CheFSI" && PWDFT_Cheby_use_scala_) ){
       for( Int i = IRound(sqrt(double(numProcScaLAPACK_))); 
           i <= numProcScaLAPACK_; i++){
         nprow_ = i; npcol_ = numProcScaLAPACK_ / nprow_;
@@ -6385,19 +6387,65 @@ namespace dgdft{
       timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
     }
 
+    if(PWDFT_PPCG_use_scala_ == 1)
+    { 
+      if( contxt_ >= 0 )
+      {
+        Int numKeep = width; 
+        Int lda = width;
 
-    if ( mpirank == 0 ){
-      GetTime( timeSta );
-      lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
-      GetTime( timeEnd );
-      iterMpirank0 = iterMpirank0 + 1;
-      timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+        scalapack::ScaLAPACKMatrix<Real> square_mat_scala;
+        scalapack::ScaLAPACKMatrix<Real> eigvecs_scala;
+
+        scalapack::Descriptor descReduceSeq, descReducePar;
+        Real timeEigScala_sta, timeEigScala_end;
+
+        // Leading dimension provided
+        descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt_, lda );
+
+        // Automatically comptued Leading Dimension
+        descReducePar.Init( numKeep, numKeep, scaBlockSize_, scaBlockSize_, I_ZERO, I_ZERO, contxt_ );
+
+        square_mat_scala.SetDescriptor( descReducePar );
+        eigvecs_scala.SetDescriptor( descReducePar );
+
+
+        DblNumMat&  square_mat = XTX;
+        // Redistribute the input matrix over the process grid
+        SCALAPACK(pdgemr2d)(&numKeep, &numKeep, square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
+            &square_mat_scala.LocalMatrix()[0], &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &contxt_ );
+
+
+        // Make the ScaLAPACK call
+        char uplo = 'U';
+        std::vector<Real> temp_eigs(lda);
+        
+        scalapack::Syevd(uplo, square_mat_scala, temp_eigs, eigvecs_scala );
+
+        // Copy the eigenvalues
+        for(Int copy_iter = 0; copy_iter < lda; copy_iter ++){
+          eigValS[copy_iter] = temp_eigs[copy_iter];
+        }
+
+        // Redistribute back eigenvectors
+        SetValue(square_mat, 0.0 );
+        SCALAPACK(pdgemr2d)( &numKeep, &numKeep, eigvecs_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(),
+            square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt_ );
+      }
+    }
+    else
+    {
+      if ( mpirank == 0 ){
+        GetTime( timeSta );
+        lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
+        GetTime( timeEnd );
+        iterMpirank0 = iterMpirank0 + 1;
+        timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+      }
     }
 
     MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
     MPI_Bcast(eigValS.Data(), width, MPI_DOUBLE, 0, mpi_comm);
-
-
 
     GetTime( timeSta );
     // X <- X*C

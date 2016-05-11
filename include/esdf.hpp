@@ -771,6 +771,7 @@ namespace dgdft{
       bool PWDFT_Cheby_use_scala; // Default 1
       bool PWDFT_Cheby_apply_wfn_ecut_filt; // Default 1
 
+      bool PWDFT_PPCG_use_scala; // Default 1
       
      
       /// @brief This is NOT an input parameter, but records whether

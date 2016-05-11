@@ -84,6 +84,7 @@ private:
 
     std::string   PWSolver_;
     
+    Int PWDFT_PPCG_use_scala_ ;
     Int PWDFT_Cheby_use_scala_ ;
 
 public:
