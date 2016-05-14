@@ -1147,6 +1147,7 @@ namespace  dgdft{
 		// basis function.  
 		if( eigSol.Psi().NumState() == 0 ){
 		  hamDG.BasisLGL().LocalMap()[key].Resize( numLGLGrid.prod(), 0 );  
+          // FIXME
 		  hamDG.BasisUniformFine().LocalMap()[key].Resize( numGridElemFine.prod(), 0 );  
 		  continue;
 		}
@@ -1167,8 +1168,8 @@ namespace  dgdft{
 		  eigTolNow = eigTolerance_;
 		}
 
-#if ( _DEBUGlevel_ >= 0 ) 
 		Int numEig = (eigSol.Psi().NumStateTotal())-numUnusedState_;
+#if ( _DEBUGlevel_ >= 0 ) 
 		statusOFS << "The current tolerance used by the eigensolver is " 
 			  << eigTolNow << std::endl;
 		statusOFS << "The target number of converged eigenvectors is " 
@@ -1268,16 +1269,21 @@ namespace  dgdft{
 		}
 
 		// Int numBasis = psi.NumState() + 1;
-		Int numBasis = psi.NumState();
-		Int numBasisTotal = psi.NumStateTotal();
-		Int numBasisLocal = numBasis;
-		Int numBasisTotalTest = 0;
+        // Compute numBasis in the presence of numUnusedState
+		Int numBasisTotal = psi.NumStateTotal() - numUnusedState_;
 
+		Int numBasis; // local number of basis functions
+        numBasis = numBasisTotal / mpisizeRow;
+        if( mpirankRow < (numBasisTotal % mpisizeRow) )
+            numBasis++;
+
+
+		Int numBasisTotalTest = 0;
 		mpi::Allreduce( &numBasis, &numBasisTotalTest, 1, MPI_SUM, domain_.rowComm );
 		if( numBasisTotalTest != numBasisTotal ){
 		  statusOFS << "numBasisTotal = " << numBasisTotal << std::endl;
 		  statusOFS << "numBasisTotalTest = " << numBasisTotalTest << std::endl;
-		  ErrorHandling("Sum{numBasis} = numBasisTotal does not match.");
+		  ErrorHandling("Sum{numBasis} = numBasisTotal does not match on local element.");
 		}
 
 		// FIXME The constant mode is now not used.
@@ -1294,7 +1300,7 @@ namespace  dgdft{
 #ifdef _USE_OPENMP_
 #pragma omp for schedule (dynamic,1) nowait
 #endif
-		  for( Int l = 0; l < psi.NumState(); l++ ){
+		  for( Int l = 0; l < numBasis; l++ ){
 		    InterpPeriodicUniformToLGL( 
 					       numGridExtElem,
 					       numLGLGrid,
@@ -1361,7 +1367,7 @@ namespace  dgdft{
 		  Int height = psi.NumGridTotal() * psi.NumComponent();
 		  Int heightLGL = numLGLGrid.prod();
 		  Int heightElem = numGridElemFine.prod();
-		  Int width = psi.NumStateTotal();
+		  Int width = numBasisTotal;
 
 		  Int widthBlocksize = width / mpisizeRow;
 		  Int heightBlocksize = height / mpisizeRow;
@@ -1567,7 +1573,8 @@ namespace  dgdft{
 
 
 		  // Transfer psi from coarse grid to fine grid with FFT
-		  if(1){ 
+          // FIXME Maybe remove this
+		  if(0){ 
 
 		    Int ntot  = psi.NumGridTotal();
 		    Int ntotFine  = numGridExtElemFine.prod ();
@@ -1658,7 +1665,7 @@ namespace  dgdft{
       GetTime( timeBasisEnd );
 
       statusOFS << std::endl << "Time for generating ALB function is " <<
-	timeBasisEnd - timeBasisSta << " [s]" << std::endl << std::endl;
+          timeBasisEnd - timeBasisSta << " [s]" << std::endl << std::endl;
 
 
       //    MPI_Barrier( domain_.comm );
@@ -1692,9 +1699,6 @@ namespace  dgdft{
 
 		      // Assuming that wavefun has only 1 component, i.e., spin-unpolarized
 		      // These are element specific quantities
-		      DblNumTns& wavefun = psi.Wavefun();		
-		      Int numBasis = psi.NumState();
-		      Int numBasisTotal = psi.NumStateTotal();
 
 		      // This is the band distributed local basis
 		      DblNumMat& ref_band_distrib_local_basis = hamDG.BasisLGL().LocalMap()[key];
@@ -1709,8 +1713,8 @@ namespace  dgdft{
 		      DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
 
 		      Real *ptr1 = LGLWeight3D.Data(), *ptr2 = sqrtLGLWeight3D.Data();
-		      for( Int i = 0; i < numLGLGrid.prod(); i++ ){
-			*(ptr2++) = std::sqrt( *(ptr1++) );
+              for( Int i = 0; i < numLGLGrid.prod(); i++ ){
+                  *(ptr2++) = std::sqrt( *(ptr1++) );
 		      }
 
 
@@ -1725,7 +1729,10 @@ namespace  dgdft{
 
 		      // Figure out a few dimensions for the row-distribution
 		      Int heightLGL = numLGLGrid.prod();
-		      Int width = psi.NumStateTotal();
+              // FIXME! This assumes that SVD does not get rid of basis
+              // In the future there should be a parameter to return the
+              // number of basis functions on the local DG element
+		      Int width = psi.NumStateTotal() - numUnusedState_;
 
 		      Int widthBlocksize = width / mpisizeRow;
 		      Int widthLocal = widthBlocksize;

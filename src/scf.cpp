@@ -102,7 +102,6 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
         scfMaxIter_    = esdfParam.scfOuterMaxIter;
         scfPhiMaxIter_ = esdfParam.scfPhiMaxIter;
         scfPhiTolerance_ = esdfParam.scfPhiTolerance;
-        numUnusedState_ = esdfParam.numUnusedState;
         isEigToleranceDynamic_ = esdfParam.isEigToleranceDynamic;
         isRestartDensity_ = esdfParam.isRestartDensity;
         isRestartWfn_     = esdfParam.isRestartWfn;
@@ -341,7 +340,7 @@ SCF::Iterate (  )
                 eigTolNow = eigTolerance_;
             }
 
-            Int numEig = (psi.NumStateTotal())-numUnusedState_;
+            Int numEig = (psi.NumStateTotal());
 
 	    if(Diag_SCF_PWDFT_by_Cheby_ == 0)
 	    {  

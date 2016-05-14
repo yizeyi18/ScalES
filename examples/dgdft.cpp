@@ -300,7 +300,8 @@ int main(int argc, char **argv)
               int dmExtElemMpirank, dmExtElemMpisize;
               MPI_Comm_rank( dmExtElem.comm, &dmExtElemMpirank );
               MPI_Comm_size( dmExtElem.comm, &dmExtElemMpisize );
-              int numStateTotal = esdfParam.numALBElem(i,j,k);
+              int numStateTotal = esdfParam.numALBElem(i,j,k) + 
+                  esdfParam.numUnusedState;
               int numStateLocal, blocksize;
 
               if ( numStateTotal <=  dmExtElemMpisize ) {
