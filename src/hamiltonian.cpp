@@ -1469,202 +1469,202 @@ namespace dgdft{
   KohnSham::MultSpinor	( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
   {
 #ifndef _RELEASE_
-    PushCallStack("KohnSham::MultSpinor");
+      PushCallStack("KohnSham::MultSpinor");
 #endif
-  
-    MPI_Barrier(domain_.comm);
-    int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-    int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
-  
-    Int ntot      = fft.domain.NumGridTotal();
-    Int ntotFine  = fft.domain.NumGridTotalFine();
-    Int numStateTotal = psi.NumStateTotal();
-    Int numStateLocal = psi.NumState();
-    NumTns<Real>& wavefun = psi.Wavefun();
-    Int ncom = wavefun.n();
-  
-    Int ntotR2C = fft.numGridTotalR2C;
- 
-    SetValue( a3, 0.0 );
-  
-    // Apply an initial filter on the wavefunctions, if required
-    if((apply_filter_ == 1 && apply_first_ == 1))
+
+      MPI_Barrier(domain_.comm);
+      int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+      int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+      Int ntot      = fft.domain.NumGridTotal();
+      Int ntotFine  = fft.domain.NumGridTotalFine();
+      Int numStateTotal = psi.NumStateTotal();
+      Int numStateLocal = psi.NumState();
+      NumTns<Real>& wavefun = psi.Wavefun();
+      Int ncom = wavefun.n();
+
+      Int ntotR2C = fft.numGridTotalR2C;
+
+      SetValue( a3, 0.0 );
+
+      // Apply an initial filter on the wavefunctions, if required
+      if((apply_filter_ == 1 && apply_first_ == 1))
       {
-      
-	//statusOFS << std::endl << " In here in 1st filter : " << wfn_cutoff_ << std::endl; 
-	apply_first_ = 0;
-    
-        for (Int k=0; k<numStateLocal; k++) {
-	  for (Int j=0; j<ncom; j++) {
 
-	    SetValue( fft.inputVecR2C, 0.0 );
-	    SetValue( fft.outputVecR2C, Z_ZERO );
+          //statusOFS << std::endl << " In here in 1st filter : " << wfn_cutoff_ << std::endl; 
+          apply_first_ = 0;
 
-	    blas::Copy( ntot, wavefun.VecData(j,k), 1,
-			fft.inputVecR2C.Data(), 1 );
-	    FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
+          for (Int k=0; k<numStateLocal; k++) {
+              for (Int j=0; j<ncom; j++) {
+
+                  SetValue( fft.inputVecR2C, 0.0 );
+                  SetValue( fft.outputVecR2C, Z_ZERO );
+
+                  blas::Copy( ntot, wavefun.VecData(j,k), 1,
+                          fft.inputVecR2C.Data(), 1 );
+                  FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
 
 
-	    for (Int i=0; i<ntotR2C; i++)
-	      {
-		if(fft.gkkR2C(i) > wfn_cutoff_)
-		  fft.outputVecR2C(i) = Z_ZERO;
-	      }
+                  for (Int i=0; i<ntotR2C; i++)
+                  {
+                      if(fft.gkkR2C(i) > wfn_cutoff_)
+                          fft.outputVecR2C(i) = Z_ZERO;
+                  }
 
-	    FFTWExecute ( fft, fft.backwardPlanR2C );
-	    blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
-			wavefun.VecData(j,k), 1 );
+                  FFTWExecute ( fft, fft.backwardPlanR2C );
+                  blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
+                          wavefun.VecData(j,k), 1 );
 
-	  }
-	}
+              }
+          }
       }
 
 
-    
-    
-    psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
-    //statusOFS << std::endl << " Psi = " << psi.Wavefun() << std::endl;
-    //statusOFS << std::endl << " a3 = " << a3 << std::endl;
-    //statusOFS << std::endl;
-    //std::cin.ignore();
-    
-    //exit(1);
-    
 
-    if( isHybrid_ && isEXXActive_ ){
-      if( this->IsHybridACE() ){
-      
-	//      if(0)
-	//      {
-	//        DblNumMat M(numStateTotal, numStateTotal);
-	//        blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 1.0,
-	//            vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
-	//            0.0, M.Data(), M.m() );
-	//        // Minus sign comes from that all eigenvalues are negative
-	//        blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, -1.0,
-	//            vexxProj_.Data(), ntot, M.Data(), numStateTotal,
-	//            1.0, a3.Data(), ntot );
-	//      }
-     
-	if(1){ // for MPI
-	  // Convert the column partition to row partition
 
-	  Int numStateBlocksize = numStateTotal / mpisize;
-	  Int ntotBlocksize = ntot / mpisize;
+      psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
+      //statusOFS << std::endl << " Psi = " << psi.Wavefun() << std::endl;
+      //statusOFS << std::endl << " a3 = " << a3 << std::endl;
+      //statusOFS << std::endl;
+      //std::cin.ignore();
 
-	  Int numStateLocal = numStateBlocksize;
-	  Int ntotLocal = ntotBlocksize;
+      //exit(1);
 
-	  if(mpirank < (numStateTotal % mpisize)){
-	    numStateLocal = numStateBlocksize + 1;
-	  }
 
-	  if(mpirank == (mpisize - 1)){
-	    ntotLocal = ntotBlocksize + ntot % mpisize;
-	  }
+      if( isHybrid_ && isEXXActive_ ){
+          if( this->IsHybridACE() ){
 
-	  DblNumMat psiCol( ntot, numStateLocal );
-	  SetValue( psiCol, 0.0 );
-        
-	  DblNumMat vexxProjCol( ntot, numStateLocal );
-	  SetValue( vexxProjCol, 0.0 );
+              //      if(0)
+              //      {
+              //        DblNumMat M(numStateTotal, numStateTotal);
+              //        blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 1.0,
+              //            vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+              //            0.0, M.Data(), M.m() );
+              //        // Minus sign comes from that all eigenvalues are negative
+              //        blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, -1.0,
+              //            vexxProj_.Data(), ntot, M.Data(), numStateTotal,
+              //            1.0, a3.Data(), ntot );
+              //      }
 
-	  DblNumMat psiRow( ntotLocal, numStateTotal );
-	  SetValue( psiRow, 0.0 );
+              if(1){ // for MPI
+                  // Convert the column partition to row partition
 
-	  DblNumMat vexxProjRow( ntotLocal, numStateTotal );
-	  SetValue( vexxProjRow, 0.0 );
+                  Int numStateBlocksize = numStateTotal / mpisize;
+                  Int ntotBlocksize = ntot / mpisize;
 
-	  lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
-	  lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
+                  Int numStateLocal = numStateBlocksize;
+                  Int ntotLocal = ntotBlocksize;
 
-	  AlltoallForward (psiCol, psiRow, domain_.comm);
-	  AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
+                  if(mpirank < (numStateTotal % mpisize)){
+                      numStateLocal = numStateBlocksize + 1;
+                  }
 
-	  DblNumMat MTemp( numStateTotal, numStateTotal );
-	  SetValue( MTemp, 0.0 );
+                  if(mpirank == (mpisize - 1)){
+                      ntotLocal = ntotBlocksize + ntot % mpisize;
+                  }
 
-	  blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
-		      1.0, vexxProjRow.Data(), ntotLocal, 
-		      psiRow.Data(), ntotLocal, 0.0,
-		      MTemp.Data(), numStateTotal );
+                  DblNumMat psiCol( ntot, numStateLocal );
+                  SetValue( psiCol, 0.0 );
 
-	  DblNumMat M(numStateTotal, numStateTotal);
-	  SetValue( M, 0.0 );
-	  MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+                  DblNumMat vexxProjCol( ntot, numStateLocal );
+                  SetValue( vexxProjCol, 0.0 );
 
-	  DblNumMat a3Col( ntot, numStateLocal );
-	  SetValue( a3Col, 0.0 );
+                  DblNumMat psiRow( ntotLocal, numStateTotal );
+                  SetValue( psiRow, 0.0 );
 
-	  DblNumMat a3Row( ntotLocal, numStateTotal );
-	  SetValue( a3Row, 0.0 );
+                  DblNumMat vexxProjRow( ntotLocal, numStateTotal );
+                  SetValue( vexxProjRow, 0.0 );
 
-	  blas::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, 
-		      -1.0, vexxProjRow.Data(), ntotLocal, 
-		      M.Data(), numStateTotal, 0.0, 
-		      a3Row.Data(), ntotLocal );
+                  lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+                  lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
 
-	  AlltoallBackward (a3Row, a3Col, domain_.comm);
+                  AlltoallForward (psiCol, psiRow, domain_.comm);
+                  AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
 
-	  for (Int k=0; k<numStateLocal; k++) {
-	    for (Int j=0; j<ncom; j++) {
-	      Real *p1 = a3Col.VecData(k);
-	      Real *p2 = a3.VecData(j, k);
-	      for (Int i=0; i<ntot; i++) { 
-		*(p2++) += *(p1++); 
-	      }
-	    }
-	  }
-      
-	} //if(1)
+                  DblNumMat MTemp( numStateTotal, numStateTotal );
+                  SetValue( MTemp, 0.0 );
 
-	//if(1){
-	//  statusOFS << std::endl<< "All processors exit with abort in hamiltonian." << std::endl;
-	//  abort();
-	//}
+                  blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
+                          1.0, vexxProjRow.Data(), ntotLocal, 
+                          psiRow.Data(), ntotLocal, 0.0,
+                          MTemp.Data(), numStateTotal );
 
+                  DblNumMat M(numStateTotal, numStateTotal);
+                  SetValue( M, 0.0 );
+                  MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+                  DblNumMat a3Col( ntot, numStateLocal );
+                  SetValue( a3Col, 0.0 );
+
+                  DblNumMat a3Row( ntotLocal, numStateTotal );
+                  SetValue( a3Row, 0.0 );
+
+                  blas::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, 
+                          -1.0, vexxProjRow.Data(), ntotLocal, 
+                          M.Data(), numStateTotal, 0.0, 
+                          a3Row.Data(), ntotLocal );
+
+                  AlltoallBackward (a3Row, a3Col, domain_.comm);
+
+                  for (Int k=0; k<numStateLocal; k++) {
+                      for (Int j=0; j<ncom; j++) {
+                          Real *p1 = a3Col.VecData(k);
+                          Real *p2 = a3.VecData(j, k);
+                          for (Int i=0; i<ntot; i++) { 
+                              *(p2++) += *(p1++); 
+                          }
+                      }
+                  }
+
+              } //if(1)
+
+              //if(1){
+              //  statusOFS << std::endl<< "All processors exit with abort in hamiltonian." << std::endl;
+              //  abort();
+              //}
+
+          }
+          else{
+              psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
+                      exxFraction_,  numSpin_, occupationRate_, a3 );
+          }
       }
-      else{
-	psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
-			      exxFraction_,  numSpin_, occupationRate_, a3 );
-      }
-    }
-  
-    // Apply filter on the wavefunctions before exit, if required
-    if((apply_filter_ == 1))
+
+      // Apply filter on the wavefunctions before exit, if required
+      if((apply_filter_ == 1))
       {
-	//statusOFS << std::endl << " In here in 2nd filter : "  << wfn_cutoff_<< std::endl; 
-	for (Int k=0; k<numStateLocal; k++) {
-	  for (Int j=0; j<ncom; j++) {
+          //statusOFS << std::endl << " In here in 2nd filter : "  << wfn_cutoff_<< std::endl; 
+          for (Int k=0; k<numStateLocal; k++) {
+              for (Int j=0; j<ncom; j++) {
 
-	    SetValue( fft.inputVecR2C, 0.0 );
-	    SetValue( fft.outputVecR2C, Z_ZERO );
+                  SetValue( fft.inputVecR2C, 0.0 );
+                  SetValue( fft.outputVecR2C, Z_ZERO );
 
-	    blas::Copy( ntot, a3.VecData(j,k), 1,
-			fft.inputVecR2C.Data(), 1 );
-	    FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
+                  blas::Copy( ntot, a3.VecData(j,k), 1,
+                          fft.inputVecR2C.Data(), 1 );
+                  FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
 
 
-	    for (Int i=0; i<ntotR2C; i++)
-	      {
-		if(fft.gkkR2C(i) > wfn_cutoff_)
-		  fft.outputVecR2C(i) = Z_ZERO;
-	      }
+                  for (Int i=0; i<ntotR2C; i++)
+                  {
+                      if(fft.gkkR2C(i) > wfn_cutoff_)
+                          fft.outputVecR2C(i) = Z_ZERO;
+                  }
 
-	    FFTWExecute ( fft, fft.backwardPlanR2C );
-	    blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
-			a3.VecData(j,k), 1 );
+                  FFTWExecute ( fft, fft.backwardPlanR2C );
+                  blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
+                          a3.VecData(j,k), 1 );
 
-	  }
-	}
+              }
+          }
       }
 
 
 #ifndef _RELEASE_
-    PopCallStack();
+      PopCallStack();
 #endif
 
-    return ;
+      return ;
   } 		// -----  end of method KohnSham::MultSpinor  ----- 
 
 
