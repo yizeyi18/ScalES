@@ -58,129 +58,139 @@ namespace dgdft{
 class IonDynamics
 {
 private:
-  /// @brief Syncec with atomic position (and velocity and force) from
-  /// input. Currently atomList info is stored in the Hamiltonian
-  /// classes (Hamiltonian or HamiltonianDG).
-  std::vector<Atom>*   atomListPtr_;
+    /// @brief Syncec with atomic position (and velocity and force) from
+    /// input. Currently atomList info is stored in the Hamiltonian
+    /// classes (Hamiltonian or HamiltonianDG).
+    std::vector<Atom>*   atomListPtr_;
 
-  /// @brief Max number of history for density extrapolation etc
-  Int maxHist_;
+    /// @brief Max number of history for density extrapolation etc
+    Int maxHist_;
 
-  /// @brief atomListHist_[0] stores the lastest atomic configuration
-  std::vector<std::vector<Atom> >   atomListHist_;
+    /// @brief atomListHist_[0] stores the lastest atomic configuration
+    std::vector<std::vector<Atom> >   atomListHist_;
 
-  std::string          ionMove_;
+    std::string          ionMove_;
 
-  DblNumVec            atomMass_;
+    DblNumVec            atomMass_;
 
-  // Taken from input
-  bool                 isOutputPosition_; 
-  bool                 isOutputVelocity_;
-  bool                 isOutputXYZ_;
-  std::string          MDExtrapolationType_;
+    // Taken from input
+    bool                 isOutputPosition_; 
+    bool                 isOutputVelocity_;
+    bool                 isOutputXYZ_;
+    std::string          MDExtrapolationType_;
 
-  // Molecular dynamics variables
-  Real                 Ekinetic_; // kinetic energy for ions
-  Real                 Epot_;  // potential energy for ions
-  Real                 EconserveInit_;
-  Real                 Econserve_;
-  Real                 Edrift_;
-  Real                 dt_;
-  Real                 ionTemperature_; // unit: au
+    // Molecular dynamics variables
+    Real                 Ekinetic_; // kinetic energy for ions
+    Real                 Epot_;  // potential energy for ions
+    Real                 EconserveInit_;
+    Real                 Econserve_;
+    Real                 Edrift_;
+    Real                 dt_;
+    Real                 ionTemperature_; // unit: au
 
-  // Nose-Hoover variables
-  Real                 Q1_;
-  Real                 xi1_;
-  Real                 vxi1_;
-  Real                 G1_;
-  Real                 scalefac_;
-  Int                  phase_; // NH1 has two phases
+    // Nose-Hoover variables
+    Real                 Q1_;
+    Real                 xi1_;
+    Real                 vxi1_;
+    Real                 G1_;
+    Real                 scalefac_;
+    Int                  phase_; // NH1 has two phases
+    // Langevin variables
+    Real                 langevinDamping_;
 
-  bool                 isGeoOpt_;
-  bool                 isMD_;
+    bool                 isGeoOpt_;
+    bool                 isMD_;
 
-  /// @brief BarzilaiBorwein method for geometry optimization
-  ///
-  void BarzilaiBorweinOpt( Int ionIter );
 
-//  void FireOpt( Int ionIter );
+    /// @brief BarzilaiBorwein method for geometry optimization
+    ///
+    void BarzilaiBorweinOpt( Int ionIter );
 
-  /// @brief VelocityVerlet for NVE simulation
-  ///
-  void VelocityVerlet( Int ionIter );
+    //  void FireOpt( Int ionIter );
 
-  /// @brief NoseHoover thermostat with chain level 1. The
-  /// implementation is consistent with the CORRECT version of
-  ///
-  /// Frenkel and Smit, Understanding Molecular Simulation, 
-  /// Alg. 30 (pp 540)
-  ///
-  /// The correction is due to the inconsistency between (E.2.4) and the
-  /// pos_vel algorithm (Alg. 32). The algorithm in the book is correct,
-  /// however, it does not allow one to obtain position and velocity at
-  /// the same snapshot.
-  /// 
-  /// Normally one NH step is (3.2.4)
-  ///
-  ///   *Time t
-  ///   chain (dt/2)
-  ///   velocity (dt/2)
-  ///   position (dt)
-  ///   evaluate force
-  ///   velocity (dt/2)
-  ///   chain (dt/2)
-  ///   *Time t+dt
-  ///
-  /// Since we do not want to call MoveIons twice, the order is switched
-  /// to the following
-  ///
-  ///   evaluate force
-  ///   velocity (dt/2)
-  ///   chain (dt/2)
-  ///   *Time t+dt
-  ///   chain (dt/2)
-  ///   velocity (dt/2)
-  ///   position (dt)
-  ///
-  /// This means that after updating the chain variables for the first
-  /// time, the position, velocity, energy and forces are synced at time
-  /// t+dt, and then chain, velocity and position variables are updated
-  /// in preparation for evaluation of the force.  
-  ///
-  /// If the job is stopped in the middle of the evaluation of the
-  /// force, the calculation can be restarted from the stored variables
-  /// without repeating the work. (3/6/2016)
-  /// 
-  void NoseHoover1( Int ionIter );
+    /// @brief VelocityVerlet for NVE simulation
+    ///
+    void VelocityVerlet( Int ionIter );
 
-  void Langevin( Int ionIter );
+    /// @brief NoseHoover thermostat with chain level 1. The
+    /// implementation is consistent with the CORRECT version of
+    ///
+    /// Frenkel and Smit, Understanding Molecular Simulation, 
+    /// Alg. 30 (pp 540)
+    ///
+    /// The correction is due to the inconsistency between (E.2.4) and the
+    /// pos_vel algorithm (Alg. 32). The algorithm in the book is correct,
+    /// however, it does not allow one to obtain position and velocity at
+    /// the same snapshot.
+    /// 
+    /// Normally one NH step is (3.2.4)
+    ///
+    ///   *Time t
+    ///   chain (dt/2)
+    ///   velocity (dt/2)
+    ///   position (dt)
+    ///   evaluate force
+    ///   velocity (dt/2)
+    ///   chain (dt/2)
+    ///   *Time t+dt
+    ///
+    /// Since we do not want to call MoveIons twice, the order is switched
+    /// to the following
+    ///
+    ///   evaluate force
+    ///   velocity (dt/2)
+    ///   chain (dt/2)
+    ///   *Time t+dt
+    ///   chain (dt/2)
+    ///   velocity (dt/2)
+    ///   position (dt)
+    ///
+    /// This means that after updating the chain variables for the first
+    /// time, the position, velocity, energy and forces are synced at time
+    /// t+dt, and then chain, velocity and position variables are updated
+    /// in preparation for evaluation of the force.  
+    ///
+    /// If the job is stopped in the middle of the evaluation of the
+    /// force, the calculation can be restarted from the stored variables
+    /// without repeating the work. (3/6/2016)
+    /// 
+    void NoseHoover1( Int ionIter );
+
+    // Integrator 
+    /// @brief Langevin integrator
+    /// Reference 
+    ///
+    /// N. Gronbech-Jensen, O. Farago, A simple and effective Verlet-type
+    /// algorithm for simulating Langevin dynamics, Mol.  Phys.  111
+    /// (2013) 983–991
+    void Langevin( Int ionIter );
 
 
 
 public:
 
-  /// @brief Initial setup from the input parameters
-  void Setup( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& atomList,
-     PeriodTable& ptable );
+    /// @brief Initial setup from the input parameters
+    void Setup( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& atomList,
+            PeriodTable& ptable );
 
-  /// @brief Main program to move the ions.
-  ///
-  /// Will determine both geometry optimization and molecular dynamics
-  void MoveIons( Int ionIter );
- 
-  /// @brief Extrapolating coefficient for density
-  ///
-  void DensityExtrapolateCoefficient( Int ionIter, DblNumVec& coef );
+    /// @brief Main program to move the ions.
+    ///
+    /// Will determine both geometry optimization and molecular dynamics
+    void MoveIons( Int ionIter );
 
-  // *********************************************************************
-  // Access functions
-  // *********************************************************************
-  std::vector<Atom>& AtomList() { return *atomListPtr_; }
-  void SetEpot(Real Epot) { Epot_ = Epot; }
-  Int  MaxHist() { return maxHist_; }
+    /// @brief Extrapolating coefficient for density
+    ///
+    void DensityExtrapolateCoefficient( Int ionIter, DblNumVec& coef );
 
-  bool IsGeoOpt() { return isGeoOpt_; }
-  bool IsMD()     { return isMD_; }
+    // *********************************************************************
+    // Access functions
+    // *********************************************************************
+    std::vector<Atom>& AtomList() { return *atomListPtr_; }
+    void SetEpot(Real Epot) { Epot_ = Epot; }
+    Int  MaxHist() { return maxHist_; }
+
+    bool IsGeoOpt() { return isGeoOpt_; }
+    bool IsMD()     { return isMD_; }
 
 
 };

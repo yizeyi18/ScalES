@@ -1577,6 +1577,12 @@ namespace dgdft{
       *(ptr++) = Complex(UniformRandom(), UniformRandom()); 
   }
 
+  inline Real GaussianRandom(){
+      // Box-Muller method for generating a random Gaussian number
+      Real a = UniformRandom(), b = UniformRandom();
+      return std::sqrt(-2.0*std::log(a))*std::cos(2.0*PI*b);
+  }
+
   // *********************************************************************
   // Timing
   // *********************************************************************

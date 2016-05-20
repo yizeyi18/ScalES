@@ -597,10 +597,6 @@ namespace dgdft{
       strcpy(kw_dscrpt[i],"*! Starting position of molecule !*");
 
 
-      i++;
-      strcpy(kw_label[i],"time_step");
-      strcpy(kw_typ[i],"D:E");
-      strcpy(kw_dscrpt[i],"*! Time step for MD simulation!*");
 
       i++;
       strcpy(kw_label[i],"max_step");
@@ -927,6 +923,11 @@ namespace dgdft{
       strcpy(kw_label[i],"thermostat_mass");
       strcpy(kw_typ[i],"D:E");
       strcpy(kw_dscrpt[i],"*! Thermostat mass !*");
+
+      i++;
+      strcpy(kw_label[i],"langevin_damping");
+      strcpy(kw_typ[i],"D:E");
+      strcpy(kw_dscrpt[i],"*! Dampling for the Langevin thermostat !*");
 
       i++;
       strcpy(kw_label[i],"restart_position");
@@ -2638,6 +2639,7 @@ namespace dgdft{
           esdf_string("MD_Extrapolation_Type", "linear", strtmp); 
           esdfParam.MDExtrapolationType          = strtmp;
           esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);
+          esdfParam.langevinDamping       = esdf_double("Langevin_Damping", 0.01);
           esdfParam.isRestartPosition     = esdf_integer( "Restart_Position", 0 );
           esdfParam.isRestartVelocity     = esdf_integer( "Restart_Velocity", 0 );
           esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 1 );
@@ -2759,6 +2761,7 @@ namespace dgdft{
         Print(statusOFS, "MD time step                         = ",  esdfParam.MDTimeStep);
         Print(statusOFS, "Ion Temperature                      = ",  esdfParam.ionTemperature, "[K]");
         Print(statusOFS, "Thermostat mass                      = ",  esdfParam.qMass);
+        Print(statusOFS, "Langevin damping                     = ",  esdfParam.langevinDamping);
         Print(statusOFS, "RestartPosition                      = ",  esdfParam.isRestartPosition);
         Print(statusOFS, "RestartVelocity                      = ",  esdfParam.isRestartVelocity);
         Print(statusOFS, "OutputPosition                       = ",  esdfParam.isOutputPosition );

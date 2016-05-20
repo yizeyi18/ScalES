@@ -722,6 +722,10 @@ namespace dgdft{
       ///
       /// Default: 10.0
       Real								qMass;								
+      /// @brief Dampling factor for Langevin theromostat
+      ///
+      /// Default: 0.01
+      Real								langevinDamping;								
       /// @brief Whether to use the previous position
       ///
       /// Default: 0
