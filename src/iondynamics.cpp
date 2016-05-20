@@ -154,12 +154,21 @@ void
                     }
                 }
             }//restart read in last velocities of atoms
-            //    else{
-            //      // Random velocity given by ion temperature
-            //      if( mpirank == 0 ){
-            //
-            //      }
-            //    }
+            else{
+                // Random velocity given by ion temperature
+                if( mpirank == 0 ){
+                    Point3 xi;
+                    for(Int a=0; a<numAtom; a++) {
+                        xi[0] = GaussianRandom() * std::sqrt(ionTemperature_/atomMass_[a]);
+                        xi[1] = GaussianRandom() * std::sqrt(ionTemperature_/atomMass_[a]);
+                        xi[2] = GaussianRandom() * std::sqrt(ionTemperature_/atomMass_[a]);
+                        atomList[a].vel = xi;
+                    }
+                }
+                for(Int a = 0; a < numAtom; a++){
+                    MPI_Bcast( &atomList[a].vel[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+                }
+            }
         }
 
         if( ionMove_ == "nosehoover1" ){
@@ -213,8 +222,21 @@ void
 
             }//restart read in last velocities of atoms
             else{
-                for(Int a=0; a<numAtom; a++) 
-                    atomList[a].vel = Point3( 0.0, 0.0, 0.0 );
+                // Random velocity given by ion temperature
+                if( mpirank == 0 ){
+                    Point3 xi;
+                    for(Int a=0; a<numAtom; a++) {
+                        xi[0] = GaussianRandom() * std::sqrt(ionTemperature_/atomMass_[a]);
+                        xi[1] = GaussianRandom() * std::sqrt(ionTemperature_/atomMass_[a]);
+                        xi[2] = GaussianRandom() * std::sqrt(ionTemperature_/atomMass_[a]);
+                        atomList[a].vel = xi;
+                    }
+                }
+                xi1_ = 0.0;
+                vxi1_ = 0.0;
+                for(Int a = 0; a < numAtom; a++){
+                    MPI_Bcast( &atomList[a].vel[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+                }
             }
 
         } // nosehoover 1
@@ -453,51 +475,52 @@ void
         std::vector<Point3>  atomvel(numAtom);
         std::vector<Point3>  atomforce(numAtom);
 
-        // some aliasing to be compatible with implementation before
-        Real& dt = dt_;
-        DblNumVec& atomMass = atomMass_;
-        Real  K;
-
-        for( Int a = 0; a < numAtom; a++ ){
-            atompos[a]   = atomList[a].pos;
-            atomvel[a]   = atomList[a].vel;
-            atomforce[a] = atomList[a].force;
-        }
-
-
-        // Propagate velocity. This is the second part of Verlet step
-
-        for( Int a = 0; a < numAtom; a++ ){
-            atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
-        }
-
-        // Propagate the chain. This is due to the remaining update of the
-        // chain variables.
-        K=0.;
-        for(Int a=0; a<numAtom; a++){
-            for(Int j=0; j<3; j++){
-                K += atomMass[a]*atomvel[a][j]*atomvel[a][j]/2.;
-            }
-        }
-
-        // At this point, the position, velocity and thermostat variables are
-        // synced at the same time step
-
-        Ekinetic_  = K;
-        Econserve_ = Ekinetic_ + Epot_;
-        if(ionIter == 1)
-            EconserveInit_ = Econserve_;
-        Edrift_ = (Econserve_-EconserveInit_)/EconserveInit_;
-
-        Print(statusOFS, "MD_Ekin    =  ", Ekinetic_);
-        Print(statusOFS, "MD_Epot    =  ", Epot_);
-        Print(statusOFS, "MD_Econ    =  ", Econserve_);
-        Print(statusOFS, "MD_Edrift  =  ", Edrift_);
-
-        // Output the XYZ format for movie
-        // Once this is written, all work associated with the current atomic
-        // position is DONE.
         if( mpirank == 0 ){
+
+            // some aliasing to be compatible with implementation before
+            Real& dt = dt_;
+            DblNumVec& atomMass = atomMass_;
+            Real  K;
+
+            for( Int a = 0; a < numAtom; a++ ){
+                atompos[a]   = atomList[a].pos;
+                atomvel[a]   = atomList[a].vel;
+                atomforce[a] = atomList[a].force;
+            }
+
+
+            // Propagate velocity. This is the second part of Verlet step
+
+            for( Int a = 0; a < numAtom; a++ ){
+                atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
+            }
+
+            // Propagate the chain. This is due to the remaining update of the
+            // chain variables.
+            K=0.;
+            for(Int a=0; a<numAtom; a++){
+                for(Int j=0; j<3; j++){
+                    K += atomMass[a]*atomvel[a][j]*atomvel[a][j]/2.;
+                }
+            }
+
+            // At this point, the position, velocity and thermostat variables are
+            // synced at the same time step
+
+            Ekinetic_  = K;
+            Econserve_ = Ekinetic_ + Epot_;
+            if(ionIter == 1)
+                EconserveInit_ = Econserve_;
+            Edrift_ = (Econserve_-EconserveInit_)/EconserveInit_;
+
+            Print(statusOFS, "MD_Ekin    =  ", Ekinetic_);
+            Print(statusOFS, "MD_Epot    =  ", Epot_);
+            Print(statusOFS, "MD_Econ    =  ", Econserve_);
+            Print(statusOFS, "MD_Edrift  =  ", Edrift_);
+
+            // Output the XYZ format for movie
+            // Once this is written, all work associated with the current atomic
+            // position is DONE.
             if( isOutputXYZ_ ){
                 std::fstream fout;
                 fout.open("MD.xyz",std::ios::out | std::ios::app) ;
@@ -515,20 +538,17 @@ void
                 }
                 fout.close();
             }
-        } // if( mpirank == 0 )
 
-        // Update velocity and position
-        for(Int a=0; a<numAtom; a++) {
-            atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
-            atompos[a] = atompos[a] + atomvel[a] * dt;
-        }
+            // Update velocity and position
+            for(Int a=0; a<numAtom; a++) {
+                atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
+                atompos[a] = atompos[a] + atomvel[a] * dt;
+            }
 
-        // Output the position and thermostat variable. 
-        // These are the configuration that SCF will work on next. 
-        // Hence if the job is stopped in the middle of SCF (which is most
-        // likely), the MD job should continue from this configuration
-        if( mpirank == 0 ){
-
+            // Output the position and thermostat variable. 
+            // These are the configuration that SCF will work on next. 
+            // Hence if the job is stopped in the middle of SCF (which is most
+            // likely), the MD job should continue from this configuration
             if(isOutputVelocity_){
                 std::fstream fout_v;
                 fout_v.open("lastVel.out",std::ios::out);
@@ -550,6 +570,11 @@ void
 
         } // if( mpirank == 0 )
 
+        // Sync the atomic position and velocity
+        for(Int a = 0; a < numAtom; a++){
+            MPI_Bcast( &atompos[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+            MPI_Bcast( &atomvel[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+        }
 
         // Update atomic position and velocity to store in atomListPtr_
         // NOTE: Force is NOT consistent with the position yet.
