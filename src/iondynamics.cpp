@@ -749,52 +749,54 @@ void
         Int mpirank, mpisize;
         MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
         MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
-
+        // IMPORTANT: ion dynamics should only be performed by one
+        // processor, and then the atomic position and velocity are
+        // broadcast to other processors. This is particularly important
+        // for stochastic methods
+        
         std::vector<Atom>&   atomList = *atomListPtr_;
-
         Int numAtom = atomList.size();
-
         std::vector<Point3>  atompos(numAtom);
         std::vector<Point3>  atomvel(numAtom);
         std::vector<Point3>  atomforce(numAtom);
 
-        // some aliasing to be compatible with implementation before
-        Real& damping = langevinDamping_;
-        Real& dt = dt_;
-        Real& T  = ionTemperature_;
-        DblNumVec& atomMass = atomMass_;
-        Real  K;
-
-        for( Int a = 0; a < numAtom; a++ ){
-            atompos[a]   = atomList[a].pos;
-            atomvel[a]   = atomList[a].vel;
-            atomforce[a] = atomList[a].force;
-        }
-
-        // Propagate velocity. This is the second part of the update
-
-        for( Int a = 0; a < numAtom; a++ ){
-            atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
-        }
-
-        // The position and velocity variables are synced at the same
-        // time step
-        K=0.;
-        for(Int a=0; a<numAtom; a++){
-            for(Int j=0; j<3; j++){
-                K += atomMass[a]*atomvel[a][j]*atomvel[a][j]/2.;
-            }
-        }
-
-        Ekinetic_  = K;
-
-        Print(statusOFS, "MD_Ekin    =  ", Ekinetic_);
-        Print(statusOFS, "MD_Epot    =  ", Epot_);
-
-        // Output the XYZ format for movie
-        // Once this is written, all work associated with the current atomic
-        // position is DONE.
         if( mpirank == 0 ){
+            // some aliasing to be compatible with implementation before
+            Real& damping = langevinDamping_;
+            Real& dt = dt_;
+            Real& T  = ionTemperature_;
+            DblNumVec& atomMass = atomMass_;
+            Real  K;
+
+            for( Int a = 0; a < numAtom; a++ ){
+                atompos[a]   = atomList[a].pos;
+                atomvel[a]   = atomList[a].vel;
+                atomforce[a] = atomList[a].force;
+            }
+
+            // Propagate velocity. This is the second part of the update
+
+            for( Int a = 0; a < numAtom; a++ ){
+                atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
+            }
+
+            // The position and velocity variables are synced at the same
+            // time step
+            K=0.;
+            for(Int a=0; a<numAtom; a++){
+                for(Int j=0; j<3; j++){
+                    K += atomMass[a]*atomvel[a][j]*atomvel[a][j]/2.;
+                }
+            }
+
+            Ekinetic_  = K;
+
+            Print(statusOFS, "MD_Ekin    =  ", Ekinetic_);
+            Print(statusOFS, "MD_Epot    =  ", Epot_);
+
+            // Output the XYZ format for movie
+            // Once this is written, all work associated with the current atomic
+            // position is DONE.
             if( isOutputXYZ_ ){
                 std::fstream fout;
                 fout.open("MD.xyz",std::ios::out | std::ios::app) ;
@@ -812,35 +814,32 @@ void
                 }
                 fout.close();
             }
-        } // if( mpirank == 0 )
 
-        // Now prepare the variable for the next evalation of the force
+            // Now prepare the variable for the next evalation of the force
 
-        // Update velocity and position
-        Point3 xi;
-        for(Int a=0; a<numAtom; a++) {
-            // Generate random variable
-            xi[0] = GaussianRandom() * std::sqrt(2.0*damping*T);
-            xi[1] = GaussianRandom() * std::sqrt(2.0*damping*T);
-            xi[2] = GaussianRandom() * std::sqrt(2.0*damping*T);
-            Real afac, bfac;
-            afac = (1.0 - damping*dt*0.5/atomMass[a]) / 
-                (1.0 + damping*dt*0.5/atomMass[a]);
-            bfac = 1.0 / (1.0 + damping*dt*0.5/atomMass[a]);
-            atompos[a] = atompos[a] + bfac * dt * ( atomvel[a] + 
-                dt * 0.5 / atomMass[a] * atomforce[a] +
-                0.5 / atomMass[a] * xi );
-            atomvel[a] = afac * atomvel[a] + 
-                afac * dt * 0.5 / atomMass[a] * atomforce[a] +
-                bfac / atomMass[a] * xi;
-        }
+            // Update velocity and position
+            Point3 xi;
+            for(Int a=0; a<numAtom; a++) {
+                // Generate random variable
+                xi[0] = GaussianRandom() * std::sqrt(2.0*damping*T);
+                xi[1] = GaussianRandom() * std::sqrt(2.0*damping*T);
+                xi[2] = GaussianRandom() * std::sqrt(2.0*damping*T);
+                Real afac, bfac;
+                afac = (1.0 - damping*dt*0.5/atomMass[a]) / 
+                    (1.0 + damping*dt*0.5/atomMass[a]);
+                bfac = 1.0 / (1.0 + damping*dt*0.5/atomMass[a]);
+                atompos[a] = atompos[a] + bfac * dt * ( atomvel[a] + 
+                        dt * 0.5 / atomMass[a] * atomforce[a] +
+                        0.5 / atomMass[a] * xi );
+                atomvel[a] = afac * atomvel[a] + 
+                    afac * dt * 0.5 / atomMass[a] * atomforce[a] +
+                    bfac / atomMass[a] * xi;
+            }
 
-        // Output the velocity variable. 
-        // These are the configuration that SCF will work on next. 
-        // Hence if the job is stopped in the middle of SCF (which is most
-        // likely), the MD job should continue from this configuration
-        if( mpirank == 0 ){
-
+            // Output the velocity variable. 
+            // These are the configuration that SCF will work on next. 
+            // Hence if the job is stopped in the middle of SCF (which is most
+            // likely), the MD job should continue from this configuration
             if(isOutputVelocity_){
                 std::fstream fout_v;
                 fout_v.open("lastVel.out",std::ios::out);
@@ -862,8 +861,13 @@ void
 
                 // Also output into the statfile
             }
-        } // if( mpirank == 0 )
+        } // if(mpirank == 0)
 
+        // Sync the atomic position and velocity
+        for(Int a = 0; a < numAtom; a++){
+            MPI_Bcast( &atompos[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+            MPI_Bcast( &atomvel[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+        }
 
         // Update atomic position and velocity to store in atomListPtr_
         // NOTE: Force is NOT consistent with the position yet.
