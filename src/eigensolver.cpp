@@ -4943,12 +4943,14 @@ EigenSolver::GeneralChebyStep	(
     Real timeAlltoallv = 0.0;
     Real timeSpinor = 0.0;
     Real timeTrsm = 0.0;
+    Real timeSyevd = 0.0;
     Real timeMpirank0 = 0.0;
     Int  iterGemmT = 0;
     Int  iterGemmN = 0;
     Int  iterAlltoallv = 0;
     Int  iterSpinor = 0;
     Int  iterTrsm = 0;
+    Int  iterSyevd = 0;
     Int  iterMpirank0 = 0;
 
     if( numEig > width ){
@@ -5618,12 +5620,15 @@ EigenSolver::PPCGSolveReal	(
     // Mpirank0: Serial calculation part
 
     Real timeSta, timeEnd;
+    Real timeSta1, timeEnd1;
     Real timeGemmT = 0.0;
     Real timeGemmN = 0.0;
     Real timeAllreduce = 0.0;
     Real timeAlltoallv = 0.0;
     Real timeSpinor = 0.0;
     Real timeTrsm = 0.0;
+    Real timePotrf = 0.0;
+    Real timeSyevd = 0.0;
     Real timeMpirank0 = 0.0;
     Real timeScaLAPACKFactor = 0.0;
     Real timeScaLAPACK = 0.0;
@@ -5634,6 +5639,8 @@ EigenSolver::PPCGSolveReal	(
     Int  iterAlltoallv = 0;
     Int  iterSpinor = 0;
     Int  iterTrsm = 0;
+    Int  iterPotrf = 0;
+    Int  iterSyevd = 0;
     Int  iterMpirank0 = 0;
     Int  iterScaLAPACKFactor = 0;
     Int  iterScaLAPACK = 0;
@@ -6334,7 +6341,11 @@ EigenSolver::PPCGSolveReal	(
 
         if ( mpirank == 0) {
             GetTime( timeSta );
+            GetTime( timeSta1 );
             lapack::Potrf( 'U', width, XTX.Data(), width );
+            GetTime( timeEnd1 );
+            iterPotrf = iterPotrf + 1;
+            timePotrf = timePotrf + ( timeEnd1 - timeSta1 );
             GetTime( timeEnd );
             iterMpirank0 = iterMpirank0 + 1;
             timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
@@ -6389,6 +6400,8 @@ EigenSolver::PPCGSolveReal	(
         timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
     }
 
+    GetTime( timeSta1 );
+    
     if(PWDFT_PPCG_use_scala_ == 1)
     { 
         if( contxt_ >= 0 )
@@ -6445,6 +6458,10 @@ EigenSolver::PPCGSolveReal	(
             timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
         }
     }
+
+    GetTime( timeEnd1 );
+    iterSyevd = iterSyevd + 1;
+    timeSyevd = timeSyevd + ( timeEnd1 - timeSta1 );
 
     MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
     MPI_Bcast(eigValS.Data(), width, MPI_DOUBLE, 0, mpi_comm);
@@ -6587,10 +6604,10 @@ EigenSolver::PPCGSolveReal	(
         statusOFS << "Time for iterAlltoallv = " << iterAlltoallv       << "  timeAlltoallv = " << timeAlltoallv << std::endl;
         statusOFS << "Time for iterSpinor    = " << iterSpinor          << "  timeSpinor    = " << timeSpinor << std::endl;
         statusOFS << "Time for iterTrsm      = " << iterTrsm            << "  timeTrsm      = " << timeTrsm << std::endl;
+        statusOFS << "Time for iterPotrf     = " << iterPotrf           << "  timePotrf     = " << timePotrf << std::endl;
+        statusOFS << "Time for iterSyevd     = " << iterSyevd           << "  timeSyevd     = " << timeSyevd << std::endl;
         statusOFS << "Time for iterMpirank0  = " << iterMpirank0        << "  timeMpirank0  = " << timeMpirank0 << std::endl;
-        statusOFS << "Time for ScaLAPACK     = " << iterScaLAPACK       << "  timeScaLAPACK = " << timeScaLAPACK << std::endl;
-        statusOFS << "Time for pdpotrf       = " << iterScaLAPACKFactor << "  timepdpotrf   = " << timeScaLAPACKFactor << std::endl;
-        statusOFS << "Time for sweep         = " << iterSweepT          << "  timeSweepT    = " << timeSweepT << std::endl;
+        statusOFS << "Time for iterSweepT    = " << iterSweepT          << "  timeSweepT    = " << timeSweepT << std::endl;
 #endif
 
         return ;
