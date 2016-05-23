@@ -529,7 +529,15 @@ SCF::Iterate (  )
                 GetTime( timeEnd );
                 statusOFS << "Time for computing the EXX energy is " <<
                     timeEnd - timeSta << " [s]" << std::endl << std::endl;
-                dExx = fock1 - 0.5 * (fock0 + fock2);
+
+                // Definition from ESPRESSO
+                if(1){
+                    dExx = fock1 - 0.5 * (fock0 + fock2);
+                }
+                else{
+                    // dExx may be larger for this definition
+                    dExx = std::abs(fock1 - fock2);
+                }
 
                 Efock_ = fock2;
                 Etot_ = Etot_ - Efock_;

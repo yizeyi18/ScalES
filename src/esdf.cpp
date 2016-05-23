@@ -2358,7 +2358,7 @@ namespace dgdft{
 
             esdfParam.numExtraState   = esdf_integer( "Extra_States",  0 );
             esdfParam.numUnusedState  = esdf_integer( "Unused_States",  0 );
-            esdfParam.isEigToleranceDynamic = esdf_integer( "Eig_Tolerance_Dynamic", 1 );
+            esdfParam.isEigToleranceDynamic = esdf_integer( "Eig_Tolerance_Dynamic", 0 );
 
 
             esdf_string("PeriodTable", "HGH.bin", strtmp);
