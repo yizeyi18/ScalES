@@ -846,13 +846,14 @@ void
             Point3 xi;
             for(Int a=0; a<numAtom; a++) {
                 // Generate random variable
-                xi[0] = GaussianRandom() * std::sqrt(2.0*damping*T);
-                xi[1] = GaussianRandom() * std::sqrt(2.0*damping*T);
-                xi[2] = GaussianRandom() * std::sqrt(2.0*damping*T);
+                Real fac = std::sqrt(2.0*damping*atomMass[a]*T*dt);
+                statusOFS << "fac = " << fac << std::endl;
+                xi[0] = GaussianRandom() * fac;
+                xi[1] = GaussianRandom() * fac;
+                xi[2] = GaussianRandom() * fac;
                 Real afac, bfac;
-                afac = (1.0 - damping*dt*0.5/atomMass[a]) / 
-                    (1.0 + damping*dt*0.5/atomMass[a]);
-                bfac = 1.0 / (1.0 + damping*dt*0.5/atomMass[a]);
+                afac = (1.0 - damping*dt*0.5) / (1.0 + damping*dt*0.5);
+                bfac = 1.0 / (1.0 + damping*dt*0.5);
                 atompos[a] = atompos[a] + bfac * dt * ( atomvel[a] + 
                         dt * 0.5 / atomMass[a] * atomforce[a] +
                         0.5 / atomMass[a] * xi );
@@ -992,6 +993,25 @@ void
                 coef[2] = -bA;
             }
         }
+//        else if ( MDExtrapolationType_ == "aspc4" ){
+//            /// Reference:
+//            /// J. Kolafa, Time‐reversible always stable
+//            /// predictor–corrector method for molecular dynamics of
+//            /// polarizable molecules, J. Comput. Chem. (2004).
+//            ///
+//            /// The choice of 4 ASPC step is used in
+//            ///
+//            /// T. Kühne, M. Krack, F. Mohamed, M. Parrinello, Efficient
+//            /// and Accurate Car-Parrinello-like Approach to
+//            /// Born-Oppenheimer Molecular Dynamics, Phys. Rev. Lett. 98
+//            /// (2007) 1–4
+//
+//            if( ionIter < 3 ){
+//                coef[0] = 2.0;
+//                coef[1] = -1.0;
+//            }
+//
+//        }
         else{
             ErrorHandling( "Currently three extrapolation types are supported!" );
         }
