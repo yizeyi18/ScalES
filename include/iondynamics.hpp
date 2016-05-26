@@ -178,9 +178,9 @@ public:
     /// Will determine both geometry optimization and molecular dynamics
     void MoveIons( Int ionIter );
 
-    /// @brief Extrapolating coefficient for density
+    /// @brief Extrapolating coefficient for density or wavefunction
     ///
-    void DensityExtrapolateCoefficient( Int ionIter, DblNumVec& coef );
+    void ExtrapolateCoefficient( Int ionIter, DblNumVec& coef );
 
     // *********************************************************************
     // Access functions

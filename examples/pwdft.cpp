@@ -257,11 +257,21 @@ int main(int argc, char **argv)
         ionDyn.Setup( esdfParam, hamKS.AtomList(), ptable ); 
 
         Int maxHist = ionDyn.MaxHist();
-        // densityHist[0] is the lastest density
+        // Need to define both but one of them may be empty
         std::vector<DblNumMat>    densityHist(maxHist);
-        for( Int l = 0; l < maxHist; l++ ){
-            densityHist[l] = hamKS.Density();
-        } // for (l)
+        std::vector<DblNumTns>    wavefunHist(maxHist);
+        if( esdfParam.MDExtrapolationVariable == "density" ){
+            // densityHist[0] is the lastest density
+            for( Int l = 0; l < maxHist; l++ ){
+                densityHist[l] = hamKS.Density();
+            } // for (l)
+        }
+        if( esdfParam.MDExtrapolationVariable == "wavefun" ){
+            // wavefunHist[0] is the lastest density
+            for( Int l = 0; l < maxHist; l++ ){
+                wavefunHist[l] = psi.Wavefun();
+            } // for (l)
+        }
 
         // Main loop for geometry optimization or molecular dynamics
         // If ionMaxIter == 1, it is equivalent to single shot calculation
@@ -307,7 +317,10 @@ int main(int argc, char **argv)
 
 
                 // Update the density history through extrapolation
+                if( esdfParam.MDExtrapolationVariable == "density" )
                 {
+                    statusOFS << "Extrapolating the density." << std::endl;
+
                     for( Int l = maxHist-1; l > 0; l-- ){
                         densityHist[l]     = densityHist[l-1];
                     } // for (l)
@@ -315,8 +328,8 @@ int main(int argc, char **argv)
 
                     // Compute the extrapolation coefficient
                     DblNumVec denCoef;
-                    ionDyn.DensityExtrapolateCoefficient( ionIter, denCoef );
-                    statusOFS << "Extrapolation density coefficient = " << denCoef << std::endl;
+                    ionDyn.ExtrapolateCoefficient( ionIter, denCoef );
+                    statusOFS << "Extrapolation coefficient = " << denCoef << std::endl;
 
                     // Update the electron density
                     DblNumMat& denCurVec  = hamKS.Density();
@@ -326,6 +339,105 @@ int main(int argc, char **argv)
                                 1, denCurVec.Data(), 1 );
                     } // for (l)
                 } // density extrapolation
+//                if( MDExtrapolationVariable == "wavefun" )
+//                {
+//                    statusOFS << "Extrapolating the Wavefunctions." << std::endl;
+//
+//                    // FIXME More efficient to move the pointer later.
+//                    // Out of core is another option that might
+//                    // necessarily need to be taken into account
+//                    for( Int l = maxHist-1; l > 0; l-- ){
+//                        wavefunHist[l]     = wavefunHist[l-1];
+//                    } // for (l)
+//                    wavefunHist[0] = psi.Wavefun();
+//
+//                    // Compute the extrapolation coefficient
+//                    DblNumVec denCoef;
+//                    ionDyn.ExtrapolateCoefficient( ionIter, denCoef );
+//                    statusOFS << "Extrapolation coefficient = " << denCoef << std::endl;
+//
+//                    // Update the wavefunction
+//                    // FIXME only works for linear mixing at this stage. 
+//                    // Alignment is take into account.
+//                    DblNumMat& denCurVec  = hamKS.Density();
+//                    SetValue( denCurVec, 0.0 );
+//                    for( Int l = 0; l < maxHist; l++ ){
+//                        // Alignment
+//                        if(1){ // for MPI
+//                            // Convert the column partition to row partition
+//
+//                            Int ntot          = fft.domain.NumGridTotal();
+//                            Int numStateTotal = psi.NumStateTotal();
+//                            Int numStateBlocksize = numStateTotal / mpisize;
+//                            Int ntotBlocksize = ntot / mpisize;
+//
+//                            Int numStateLocal = numStateBlocksize;
+//                            Int ntotLocal = ntotBlocksize;
+//
+//                            if(mpirank < (numStateTotal % mpisize)){
+//                                numStateLocal = numStateBlocksize + 1;
+//                            }
+//
+//                            if(mpirank == (mpisize - 1)){
+//                                ntotLocal = ntotBlocksize + ntot % mpisize;
+//                            }
+//
+//                            DblNumMat& psiHist = wavefunHist[l];
+//                            DblNumMat& psiRef  = wavefunHist[0];
+//
+//                            DblNumMat psiHistRow( ntotLocal, numStateTotal );
+//                            SetValue( psiHistRow, 0.0 );
+//
+//                            DblNumMat psiRefRow( ntotLocal, numStateTotal );
+//                            SetValue( psiRefRow, 0.0 );
+//
+//                            AlltoallForward (psiHist, psiHistRow, domain_.comm);
+//                            AlltoallForward (psiRef,  psiRefRow,  domain_.comm);
+//
+//                            DblNumMat MTemp( numStateTotal, numStateTotal );
+//                            SetValue( MTemp, 0.0 );
+//
+//                            blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
+//                                    1.0, psiHistRow.Data(), ntotLocal, 
+//                                    psiRefRow.Data(), ntotLocal, 0.0,
+//                                    MTemp.Data(), numStateTotal );
+//
+//                            DblNumMat M(numStateTotal, numStateTotal);
+//                            SetValue( M, 0.0 );
+//                            MPI_Allreduce( MTemp.Data(), M.Data(),
+//                                    numStateTotal * numStateTotal,
+//                                    MPI_DOUBLE, MPI_SUM, domain_.comm );
+//
+//                            DblNumMat a3Col( ntot, numStateLocal );
+//                            SetValue( a3Col, 0.0 );
+//
+//                            DblNumMat a3Row( ntotLocal, numStateTotal );
+//                            SetValue( a3Row, 0.0 );
+//
+//                            blas::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, 
+//                                    -1.0, vexxProjRow.Data(), ntotLocal, 
+//                                    M.Data(), numStateTotal, 0.0, 
+//                                    a3Row.Data(), ntotLocal );
+//
+//                            AlltoallBackward (a3Row, a3Col, domain_.comm);
+//
+//                            for (Int k=0; k<numStateLocal; k++) {
+//                                for (Int j=0; j<ncom; j++) {
+//                                    Real *p1 = a3Col.VecData(k);
+//                                    Real *p2 = a3.VecData(j, k);
+//                                    for (Int i=0; i<ntot; i++) { 
+//                                        *(p2++) += *(p1++); 
+//                                    }
+//                                }
+//                            }
+//
+//                        } //if(1)
+//                         
+//                        blas::Axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
+//                                1, denCurVec.Data(), 1 );
+//                    } // for (l)
+//                } // wavefun extrapolation
+
 
 
                 GetTime( timeSta );

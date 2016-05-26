@@ -911,11 +911,7 @@ void
 
 
 void
-    IonDynamics::DensityExtrapolateCoefficient	( Int ionIter, DblNumVec& coef )
-    {
-#ifndef _RELEASE_
-        PushCallStack("IonDynamics::DensityExtrapolateCoefficient");
-#endif
+    IonDynamics::ExtrapolateCoefficient	( Int ionIter, DblNumVec& coef ) {
         std::vector<Atom>&   atomList = *atomListPtr_;
         Int numAtom = atomList.size();
 
@@ -993,36 +989,31 @@ void
                 coef[2] = -bA;
             }
         }
-//        else if ( MDExtrapolationType_ == "aspc4" ){
-//            /// Reference:
-//            /// J. Kolafa, Time‐reversible always stable
-//            /// predictor–corrector method for molecular dynamics of
-//            /// polarizable molecules, J. Comput. Chem. (2004).
-//            ///
-//            /// The choice of 4 ASPC step is used in
-//            ///
-//            /// T. Kühne, M. Krack, F. Mohamed, M. Parrinello, Efficient
-//            /// and Accurate Car-Parrinello-like Approach to
-//            /// Born-Oppenheimer Molecular Dynamics, Phys. Rev. Lett. 98
-//            /// (2007) 1–4
-//
-//            if( ionIter < 3 ){
-//                coef[0] = 2.0;
-//                coef[1] = -1.0;
-//            }
-//
-//        }
+        //        else if ( MDExtrapolationType_ == "aspc4" ){
+        //            /// Reference:
+        //            /// J. Kolafa, Time‐reversible always stable
+        //            /// predictor–corrector method for molecular dynamics of
+        //            /// polarizable molecules, J. Comput. Chem. (2004).
+        //            ///
+        //            /// The choice of 4 ASPC step is used in
+        //            ///
+        //            /// T. Kühne, M. Krack, F. Mohamed, M. Parrinello, Efficient
+        //            /// and Accurate Car-Parrinello-like Approach to
+        //            /// Born-Oppenheimer Molecular Dynamics, Phys. Rev. Lett. 98
+        //            /// (2007) 1–4
+        //
+        //            if( ionIter < 3 ){
+        //                coef[0] = 2.0;
+        //                coef[1] = -1.0;
+        //            }
+        //
+        //        }
         else{
             ErrorHandling( "Currently three extrapolation types are supported!" );
         }
 
-
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
-
         return ;
-    } 		// -----  end of method IonDynamics::DensityExtrapolateCoefficient  ----- 
+    } 		// -----  end of method IonDynamics::ExtrapolateCoefficient  ----- 
 
 } // namespace dgdft
 

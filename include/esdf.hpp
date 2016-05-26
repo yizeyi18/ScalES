@@ -707,6 +707,16 @@ namespace dgdft{
       /// Currently three extrapolation  types (linear, quadratic and
       /// Dario) are supported.
       std::string         MDExtrapolationType;
+      /// @brief Extrapolation variable
+      ///
+      /// Default: "density"
+      ///
+      /// = "density"        : density extrapolation
+      /// = "wavefun"        : wavefunction extrapolation
+      ///                      currently only available in PWDFT. The
+      ///                      density is constructed from the
+      ///                      wavefunctions
+      std::string         MDExtrapolationVariable;
       /// @brief Temperature for ion.
       ///
       /// Default: K

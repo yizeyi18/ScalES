@@ -513,7 +513,7 @@ int main(int argc, char **argv)
 
         // Compute the extrapolation coefficient
         DblNumVec denCoef;
-        ionDyn.DensityExtrapolateCoefficient( ionIter, denCoef );
+        ionDyn.ExtrapolateCoefficient( ionIter, denCoef );
         statusOFS << "Extrapolation density coefficient = " << denCoef << std::endl;
 
         // Update the electron density

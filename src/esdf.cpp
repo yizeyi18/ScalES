@@ -920,6 +920,11 @@ namespace dgdft{
       strcpy(kw_dscrpt[i],"*! Extrapolation type for updating the density !*");
 
       i++;
+      strcpy(kw_label[i],"md_extrapolation_variable");
+      strcpy(kw_typ[i],"T:E");
+      strcpy(kw_dscrpt[i],"*! Extrapolation density or wavefunction !*");
+
+      i++;
       strcpy(kw_label[i],"thermostat_mass");
       strcpy(kw_typ[i],"D:E");
       strcpy(kw_dscrpt[i],"*! Thermostat mass !*");
@@ -2638,6 +2643,8 @@ namespace dgdft{
           esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 80.0);
           esdf_string("MD_Extrapolation_Type", "linear", strtmp); 
           esdfParam.MDExtrapolationType          = strtmp;
+          esdf_string("MD_Extrapolation_Variable", "density", strtmp); 
+          esdfParam.MDExtrapolationVariable      = strtmp;
           esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);
           esdfParam.langevinDamping       = esdf_double("Langevin_Damping", 0.01);
           esdfParam.isRestartPosition     = esdf_integer( "Restart_Position", 0 );
@@ -2769,6 +2776,7 @@ namespace dgdft{
         Print(statusOFS, "Output XYZ format                    = ",  esdfParam.isOutputXYZ );
         Print(statusOFS, "Force tol for geoopt                 = ",  esdfParam.geoOptMaxForce );
         Print(statusOFS, "MD extrapolation type                = ",  esdfParam.MDExtrapolationType);
+        Print(statusOFS, "MD extrapolation variable            = ",  esdfParam.MDExtrapolationVariable);
         Print(statusOFS, "");
       }
 
