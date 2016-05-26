@@ -278,6 +278,7 @@ int main(int argc, char **argv)
         Int ionMaxIter = esdfParam.ionMaxIter;
 
         Int scfPhiMaxIter = 1;
+        // FIXME Do not use this for now.
         if( esdfParam.isHybridACEOutside == true ){
             scfPhiMaxIter = esdfParam.scfPhiMaxIter;
         }

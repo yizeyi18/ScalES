@@ -267,6 +267,7 @@ SCF::Iterate (  )
     // Compute the total potential
     ham.CalculateVtot( ham.Vtot() );
 
+    
 
     // FIXME The following treatment of the initial density is not
     // compatible with the density extrapolation step in MD
@@ -304,23 +305,62 @@ SCF::Iterate (  )
     // Fock energies
     Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
 
+    // FIXME Do not use this for now
     if( ham.IsHybrid() == false || isHybridACEOutside_ == true ){
         // Let the hybrid functional be handledo outside the SCF loop
         scfPhiMaxIter_ = 1;
     }
 
+    if( ham.IsEXXActive() == false ){
+        Efock_ = 0.0;
+    }
+
+
     for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
         bool isSCFConverged = false;
 
-        if( ham.IsHybrid() && isHybridACEOutside_ == false )
-        {
+        // Update the ACE if needed
+        if( ham.IsHybrid() && isHybridACEOutside_ == false ){
+
+            if( ham.IsEXXActive() ){
+                Real dExx;
+                
+                if( ham.IsHybridACE()){
+                    // Update Phi <- Psi
+                    GetTime( timeSta );
+                    ham.SetPhiEXX( psi, fft ); 
+                    if( ham.IsHybridACE() ){
+                        ham.CalculateVexxACE ( psi, fft );
+                    }
+                    GetTime( timeEnd );
+                    statusOFS << "Time for updating Phi related variable is " <<
+                        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+                }
+           
+                GetTime( timeSta );
+                fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+                GetTime( timeEnd );
+                statusOFS << "Time for computing the EXX energy is " <<
+                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+                // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
+                dExx = std::abs(fock2 - fock1);
+                fock1 = fock2;
+                Efock_ = fock2;
+                
+                Print(statusOFS, "dExx              = ",  dExx, "[au]");
+                if( dExx < scfPhiTolerance_ ){
+                    statusOFS << "SCF for hybrid functional is converged in " 
+                        << phiIter << " steps !" << std::endl;
+                    isPhiIterConverged = true;
+                }
+            }
             if ( isPhiIterConverged ) break;
             GetTime( timePhiIterStart );
             std::ostringstream msg;
             msg << "Phi iteration # " << phiIter;
             PrintBlock( statusOFS, msg.str() );
         }
-
 
         // Regular SCF iter
         for (Int iter=1; iter <= scfMaxIter_; iter++) {
@@ -478,87 +518,20 @@ SCF::Iterate (  )
 
         }
 
-        // EXX
         if( ham.IsHybrid() && isHybridACEOutside_ == false ){
-            Real dExx;
-            if( phiIter == 1 ){
-                ham.SetEXXActive(true);
-                // Update Phi <- Psi
-                GetTime( timeSta );
-                ham.SetPhiEXX( psi, fft ); 
-                if( ham.IsHybridACE() ){
-                    ham.CalculateVexxACE ( psi, fft );
-                }
-                GetTime( timeEnd );
-                statusOFS << "Time for updating Phi related variable is " <<
-                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+            if( ham.IsEXXActive() == false ) ham.SetEXXActive(true);
 
-                GetTime( timeSta );
-                fock2 = ham.CalculateEXXEnergy( psi, fft ); 
-                GetTime( timeEnd );
-                statusOFS << "Time for computing the EXX energy is " <<
-                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-                // Update the energy
-                Efock_ = fock2;
-                Etot_ = Etot_ - Efock_;
-                Efree_ = Efree_ - Efock_;
-                Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-                Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-                Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
-            }
-            else{
-                // Calculate first
-                fock1 = ham.CalculateEXXEnergy( psi, fft ); 
-
-                // Update Phi <- Psi
-                GetTime( timeSta );
-                ham.SetPhiEXX( psi, fft ); 
-                if( ham.IsHybridACE() ){
-                    ham.CalculateVexxACE ( psi, fft );
-                }
-                GetTime( timeEnd );
-                statusOFS << "Time for updating Phi related variable is " <<
-                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-
-                fock0 = fock2;
-                // Calculate again
-                GetTime( timeSta );
-                fock2 = ham.CalculateEXXEnergy( psi, fft ); 
-                GetTime( timeEnd );
-                statusOFS << "Time for computing the EXX energy is " <<
-                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-                // Definition from ESPRESSO
-                if(1){
-                    dExx = fock1 - 0.5 * (fock0 + fock2);
-                }
-                else{
-                    // dExx may be larger for this definition
-                    dExx = std::abs(fock1 - fock2);
-                }
-
-                Efock_ = fock2;
-                Etot_ = Etot_ - Efock_;
-                Efree_ = Efree_ - Efock_;
-                Print(statusOFS, "dExx              = ",  dExx, "[au]");
-                Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-                Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-                Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
-
-                if( dExx < scfPhiTolerance_ ){
-                    statusOFS << "SCF for hybrid functional is converged in " 
-                        << phiIter << " steps !" << std::endl;
-                    isPhiIterConverged = true;
-                }
-            }
-
+            Etot_ = Etot_ - Efock_;
+            Efree_ = Efree_ - Efock_;
+            Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
+            Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
+            Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
             GetTime( timePhiIterEnd );
 
             statusOFS << "Total wall clock time for this Phi iteration = " << 
                 timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
         } // if (hybrid)
+
     } // for(phiIter)
 
     // Calculate the Force
