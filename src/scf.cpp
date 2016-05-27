@@ -267,6 +267,10 @@ SCF::Iterate (  )
     // Compute the total potential
     ham.CalculateVtot( ham.Vtot() );
 
+//    statusOFS << "Density = " << ham.Density() << std::endl;
+//    statusOFS << "Vxc     = " << ham.Vxc() << std::endl;
+//    statusOFS << "Vhart   = " << ham.Vhart() << std::endl;
+//    statusOFS << "Vtot    = " << ham.Vtot() << std::endl;
     
 
     // FIXME The following treatment of the initial density is not
@@ -472,7 +476,7 @@ SCF::Iterate (  )
             // Compute the total potential
             ham.CalculateVtot( vtotNew_ );
 
-            Real normVtotDif = 0.0, normVtotOld;
+            Real normVtotDif = 0.0, normVtotOld = 0.0;
             DblNumVec& vtotOld_ = ham.Vtot();
             Int ntot = vtotOld_.m();
             for( Int i = 0; i < ntot; i++ ){
