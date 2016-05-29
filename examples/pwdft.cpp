@@ -256,6 +256,9 @@ int main(int argc, char **argv)
 
         ionDyn.Setup( esdfParam, hamKS.AtomList(), ptable ); 
 
+        // Change the SCF parameters if necessary
+        scf.UpdateMDParameters( esdfParam );
+
         Int maxHist = ionDyn.MaxHist();
         // Need to define both but one of them may be empty
         std::vector<DblNumMat>    densityHist(maxHist);
@@ -326,6 +329,12 @@ int main(int argc, char **argv)
                         densityHist[l]     = densityHist[l-1];
                     } // for (l)
                     densityHist[0] = hamKS.Density();
+                    // FIXME add damping factor, currently for aspc2
+                    // densityHist[0] = omega*hamKS.Density()+(1.0-omega)*densityHist[0];
+//                    Real omega = 4.0/7.0;
+//                    blas::Scal( densityHist[0].Size(), 1.0-omega, densityHist[0].Data(), 1 );
+//                    blas::Axpy( densityHist[0].Size(), omega, hamKS.Density().Data(),
+//                            1, densityHist[0].Data(), 1 );
 
                     // Compute the extrapolation coefficient
                     DblNumVec denCoef;

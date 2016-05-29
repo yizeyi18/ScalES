@@ -196,11 +196,20 @@ namespace dgdft{
     ///
     /// Default: 30
     Int                 scfOuterMaxIter;
+    /// @brief Maximum number of outer %SCF iterations in MD
+    ///
+    /// Default: the same as scfOuterMaxIter
+    Int                 MDscfOuterMaxIter;
     /// @brief Maximum number of iterations for hybrid functional
     /// iterations.
     /// 
     /// Default: 10
     Int                 scfPhiMaxIter;
+    /// @brief Maximum number of iterations for hybrid functional
+    /// iterations in MD
+    /// 
+    /// Default: the same as scfPhiMaxIter
+    Int                 MDscfPhiMaxIter;
     /// @brief Tolerance for hybrid functional iterations using Fock
     /// energy
     ///

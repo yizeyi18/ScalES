@@ -184,7 +184,8 @@ public:
             DblNumVec&  precResidual,
             const DblNumVec&  residual );
 
-    // 
+    /// @brief Update the parameters for SCF during the MD simulation
+    void UpdateMDParameters( const esdf::ESDFInputParam& esdfParam );
 
     //	void  EllipticMix();
 

@@ -74,7 +74,7 @@ void
         langevinDamping_        = esdfParam.langevinDamping;
 
         // History of atomic position
-        maxHist_ = 3;  // hard coded
+        maxHist_ = 4;  // hard coded
         atomListHist_.resize(maxHist_);
         for( Int l = 0; l < maxHist_; l++ ){
             atomListHist_[l] = atomList;
@@ -932,82 +932,95 @@ void
                 coef[2] = 1.0;
             }
         }
-        else if( MDExtrapolationType_ == "dario" ){
+//        else if( MDExtrapolationType_ == "dario" ){
+//            if( ionIter < 3 ){
+//                coef[0] = 2.0;
+//                coef[1] = -1.0;
+//            }
+//            else{
+//                // FIXME
+//                // Dario extrapolation not working yet
+//
+//
+//                // Update the density through quadratic extrapolation
+//                // Dario CPC 118, 31 (1999)
+//                // huwei 20150923 
+//                // Compute the coefficient a and b
+//                Real a11 = 0.0;
+//                Real a22 = 0.0;
+//                Real a12 = 0.0;
+//                Real a21 = 0.0;
+//                Real b1 = 0.0;
+//                Real b2 = 0.0;
+//
+//                std::vector<Point3>  atemp1(numAtom);
+//                std::vector<Point3>  atemp2(numAtom);
+//                std::vector<Point3>  atemp3(numAtom);
+//
+//                for( Int i = 0; i < numAtom; i++ ){
+//                    atemp1[i] = atomListHist_[0][i].pos - atomListHist_[1][i].pos;
+//                    atemp2[i] = atomListHist_[1][i].pos - atomListHist_[2][i].pos;
+//                    atemp3[i] = atomListHist_[0][i].pos - atomList[i].pos;
+//                }
+//
+//                for( Int i = 0; i < numAtom; i++ ){
+//
+//                    a11 += atemp1[i][0]*atemp1[i][0]+atemp1[i][1]*atemp1[i][1]+atemp1[i][2]*atemp1[i][2];
+//                    a12 += atemp1[i][0]*atemp2[i][0]+atemp1[i][1]*atemp2[i][1]+atemp1[i][2]*atemp2[i][2];
+//                    a22 += atemp2[i][0]*atemp2[i][0]+atemp2[i][1]*atemp2[i][1]+atemp2[i][2]*atemp2[i][2];
+//                    a21 = a12;
+//                    b1 += 0.0-atemp3[i][0]*atemp1[i][0]-atemp3[i][1]*atemp1[i][1]-atemp3[i][2]*atemp1[i][2];
+//                    b2 += 0.0-atemp3[i][0]*atemp2[i][0]-atemp3[i][1]*atemp2[i][1]-atemp3[i][2]*atemp2[i][2];
+//                }
+//
+//
+//                Real detA = a11*a22 - a12*a21;
+//                Real aA = (b1*a22-b2*a12)/detA;
+//                Real bA = (b2*a11-b2*a21)/detA;
+//
+//
+//                //      statusOFS << "info"<< std::endl;
+//                //      statusOFS << a11 << ", " << a12 << ", " << a21 << ", " << a22 << ", " << detA << ", " << b1 
+//                //        << ", " << b2 << std::endl;
+//
+//                //      denCurVec(ii) = den0(ii) + aA * ( den0(ii) - den1(ii) ) + bA * ( den1(ii) - den2(ii) );
+//                coef[0] = 1.0 + aA;
+//                coef[1] = -aA + bA;
+//                coef[2] = -bA;
+//            }
+//        }
+        else if ( MDExtrapolationType_ == "aspc2" ){
+            /// Reference for ASPC schemes:
+            /// J. Kolafa, Time‐reversible always stable
+            /// predictor–corrector method for molecular dynamics of
+            /// polarizable molecules, J. Comput. Chem. (2004).
+            ///
+            /// The modification is that the damping is not used since
+            /// SCF is typically done relatively accurately
+            ///
+            /// aspc1 is the same as linear extrapolation
             if( ionIter < 3 ){
                 coef[0] = 2.0;
                 coef[1] = -1.0;
             }
             else{
-                // FIXME
-                // Dario extrapolation not working yet
-
-
-                // Update the density through quadratic extrapolation
-                // Dario CPC 118, 31 (1999)
-                // huwei 20150923 
-                // Compute the coefficient a and b
-                Real a11 = 0.0;
-                Real a22 = 0.0;
-                Real a12 = 0.0;
-                Real a21 = 0.0;
-                Real b1 = 0.0;
-                Real b2 = 0.0;
-
-                std::vector<Point3>  atemp1(numAtom);
-                std::vector<Point3>  atemp2(numAtom);
-                std::vector<Point3>  atemp3(numAtom);
-
-                for( Int i = 0; i < numAtom; i++ ){
-                    atemp1[i] = atomListHist_[0][i].pos - atomListHist_[1][i].pos;
-                    atemp2[i] = atomListHist_[1][i].pos - atomListHist_[2][i].pos;
-                    atemp3[i] = atomListHist_[0][i].pos - atomList[i].pos;
-                }
-
-                for( Int i = 0; i < numAtom; i++ ){
-
-                    a11 += atemp1[i][0]*atemp1[i][0]+atemp1[i][1]*atemp1[i][1]+atemp1[i][2]*atemp1[i][2];
-                    a12 += atemp1[i][0]*atemp2[i][0]+atemp1[i][1]*atemp2[i][1]+atemp1[i][2]*atemp2[i][2];
-                    a22 += atemp2[i][0]*atemp2[i][0]+atemp2[i][1]*atemp2[i][1]+atemp2[i][2]*atemp2[i][2];
-                    a21 = a12;
-                    b1 += 0.0-atemp3[i][0]*atemp1[i][0]-atemp3[i][1]*atemp1[i][1]-atemp3[i][2]*atemp1[i][2];
-                    b2 += 0.0-atemp3[i][0]*atemp2[i][0]-atemp3[i][1]*atemp2[i][1]-atemp3[i][2]*atemp2[i][2];
-                }
-
-
-                Real detA = a11*a22 - a12*a21;
-                Real aA = (b1*a22-b2*a12)/detA;
-                Real bA = (b2*a11-b2*a21)/detA;
-
-
-                //      statusOFS << "info"<< std::endl;
-                //      statusOFS << a11 << ", " << a12 << ", " << a21 << ", " << a22 << ", " << detA << ", " << b1 
-                //        << ", " << b2 << std::endl;
-
-                //      denCurVec(ii) = den0(ii) + aA * ( den0(ii) - den1(ii) ) + bA * ( den1(ii) - den2(ii) );
-                coef[0] = 1.0 + aA;
-                coef[1] = -aA + bA;
-                coef[2] = -bA;
+                coef[0] = 2.5;
+                coef[1] = -2.0;
+                coef[2] = 0.5;
             }
         }
-        //        else if ( MDExtrapolationType_ == "aspc4" ){
-        //            /// Reference:
-        //            /// J. Kolafa, Time‐reversible always stable
-        //            /// predictor–corrector method for molecular dynamics of
-        //            /// polarizable molecules, J. Comput. Chem. (2004).
-        //            ///
-        //            /// The choice of 4 ASPC step is used in
-        //            ///
-        //            /// T. Kühne, M. Krack, F. Mohamed, M. Parrinello, Efficient
-        //            /// and Accurate Car-Parrinello-like Approach to
-        //            /// Born-Oppenheimer Molecular Dynamics, Phys. Rev. Lett. 98
-        //            /// (2007) 1–4
-        //
-        //            if( ionIter < 3 ){
-        //                coef[0] = 2.0;
-        //                coef[1] = -1.0;
-        //            }
-        //
-        //        }
+        else if ( MDExtrapolationType_ == "aspc3" ){
+            if( ionIter < 4 ){
+                coef[0] = 2.0;
+                coef[1] = -1.0;
+            }
+            else{
+                coef[0] = 2.8;
+                coef[1] = -2.8;
+                coef[2] = 1.2;
+                coef[3] = -0.2;
+            }
+        }
         else{
             ErrorHandling( "Currently three extrapolation types are supported!" );
         }

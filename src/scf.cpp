@@ -321,7 +321,6 @@ SCF::Iterate (  )
 
 
     for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
-        bool isSCFConverged = false;
 
         // Update the ACE if needed
         if( ham.IsHybrid() && isHybridACEOutside_ == false ){
@@ -348,7 +347,7 @@ SCF::Iterate (  )
                     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
                 // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
-                dExx = std::abs(fock2 - fock1);
+                dExx = std::abs(fock2 - fock1) / std::abs(fock2);
                 fock1 = fock2;
                 Efock_ = fock2;
                 
@@ -366,7 +365,9 @@ SCF::Iterate (  )
             PrintBlock( statusOFS, msg.str() );
         }
 
+        
         // Regular SCF iter
+        bool isSCFConverged = false;
         for (Int iter=1; iter <= scfMaxIter_; iter++) {
             if ( isSCFConverged ) break;
 
@@ -1256,6 +1257,15 @@ SCF::PrintState	( const Int iter  )
 
     return ;
 } 		// -----  end of method SCF::PrintState  ----- 
+
+
+void
+SCF::UpdateMDParameters	( const esdf::ESDFInputParam& esdfParam )
+{
+    scfMaxIter_ = esdfParam.MDscfOuterMaxIter;
+    scfPhiMaxIter_ = esdfParam.MDscfPhiMaxIter;
+	return ;
+} 		// -----  end of method SCF::UpdateMDParameters  ----- 
 
 
 } // namespace dgdft
