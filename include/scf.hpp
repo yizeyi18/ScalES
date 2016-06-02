@@ -142,7 +142,10 @@ private:
     Int General_SCF_PWDFT_ChebyFilterOrder_;
     bool PWDFT_Cheby_use_scala_;
     bool PWDFT_Cheby_apply_wfn_ecut_filt_;
-
+    
+    
+    // Do the usual Chebyshev filtering schedule or work in ionic movement mode
+    Int Cheby_iondynamics_schedule_flag_;
 
 
 public:
@@ -200,6 +203,9 @@ public:
     Real Fermi() const {return fermi_;};	
 
     void UpdateEfock( Real Efock ) {Efock_ = Efock; Etot_ -= Efock; Efree_ -= Efock;}
+    
+    // Setup the Cheby-iondynamics flag
+    void set_Cheby_iondynamics_schedule_flag(int flag){Cheby_iondynamics_schedule_flag_ = flag;}
 
 
 }; // -----  end of class  SCF ----- 

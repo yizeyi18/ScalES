@@ -95,7 +95,7 @@ void
         isMD_     = false;
 
         if( ionMove_ == "bb" ||
-                ionMove_ == "cg" ||
+                ionMove_ == "nlcg" ||
                 ionMove_ == "bfgs" ){
             isGeoOpt_ = true;
         }
@@ -109,6 +109,25 @@ void
         // Geometry optimization
 
         if( ionMove_ == "bb" ){
+        }
+        
+        if( ionMove_ == "nlcg" )
+	{
+	  statusOFS << std::endl << " Setting up Non-linear CG based relaxation ...";
+	  // Set up the parameters and atom / force list for nlcg
+	  int i_max = 10;
+	  int j_max = 5;
+	  int n = 30;
+	  double epsilon_tol_outer = 1e-6;
+	  double epsilon_tol_inner = 1e-5;
+	  double sigma_0 = 0.5;
+	  
+	  NLCG_vars.setup(i_max, j_max, n, 
+			  epsilon_tol_outer, epsilon_tol_inner, sigma_0,
+			  *atomListPtr_);
+	  
+	  statusOFS << " Done ." << std::endl;
+	  
         }
 
         // Molecular dynamics
@@ -286,6 +305,9 @@ void
             BarzilaiBorweinOpt( ionIter );
         }
 
+        if( ionMove_ == "nlcg"){
+	   NLCG_Opt( ionIter );	  
+	}
 
         // *********************************************************************
         // Molecular dynamics methods
@@ -456,6 +478,205 @@ void
     } 		// -----  end of method IonDynamics::BarzilaiBorweinOpt  ----- 
 
 
+ // Non-Linear Conjugate Gradients with Secant and Polak-Ribiere
+ // Page 53 of the online.pdf : "An introduction to the conjugate gradient method without the agonizing pain." -- Jonathan Richard Shewchuk (1994).
+ // Implemented by Amartya S. Banerjee, May 2016
+void
+    IonDynamics::NLCG_Opt ( Int ionIter)
+{
+    #ifndef _RELEASE_
+        PushCallStack("IonDynamics::NLCG_Opt");
+    #endif
+
+  std::vector<Atom>&   atomList    = *atomListPtr_;
+  
+  statusOFS << std::endl << " Inside NLCG stepper routine : Call type = " << NLCG_vars.call_type << std::endl;
+  
+  if(NLCG_vars.call_type == NLCG_CALL_TYPE_1)
+  {  
+    if((NLCG_vars.i_ <= NLCG_vars.i_max_) && 
+       (NLCG_vars.delta_new_ > (NLCG_vars.epsilon_tol_outer_ * NLCG_vars.epsilon_tol_outer_ * NLCG_vars.delta_0_)))
+    {
+      // j = 0
+      NLCG_vars.j_ = 0;
+      
+      // delta_d = d^T d
+      NLCG_vars.delta_d_ = NLCG_vars.atom_ddot(NLCG_vars.atomforce_d_, NLCG_vars.atomforce_d_);
+      
+      // alpha = - sigma_0 
+      NLCG_vars.alpha_ = -NLCG_vars.sigma_0_;
+      
+      statusOFS << std::endl << " sigma_0 = " << NLCG_vars.sigma_0_ << std::endl ;
+      
+      // Use x and d to compute new position for force evalation
+      // pos = x + sigma_0 * d
+      for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+      {
+       for( Int d = 0; d < DIM; d++ )
+       {
+	  atomList[a].pos[d] = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.sigma_0_ * NLCG_vars.atomforce_d_[a][d]);	  
+       }
+      }
+      
+     // Go back to do new evaluations of energy and forces after changing call type.
+     statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
+     
+     NLCG_vars.call_type = NLCG_CALL_TYPE_2;
+     
+     
+    } // end of if NLCG_vars.i_ <= NLCG_vars.i_max_ etc..
+    else
+    {
+      // Do Nothing ! Ions are not moved at all !
+      
+    }
+    
+    
+  } // end of call_type 1	
+  else if(NLCG_vars.call_type == NLCG_CALL_TYPE_2)
+  {
+    statusOFS << std::endl << " Inside NLCG stepper routine : Call type = " << NLCG_vars.call_type << std::endl;
+    
+   // Compute eta_prev = [f'(x + sigma_0 * d)]^T d
+   std::vector<Point3>  atomforce_temp;
+   atomforce_temp.resize(NLCG_vars.numAtom);
+   for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+       atomforce_temp[a] = atomList[a].force;
+   
+   NLCG_vars.eta_prev_ = - NLCG_vars.atom_ddot(atomforce_temp, NLCG_vars.atomforce_d_); // Note the negative sign
+   
+   // Use x to update position for force evaluation
+   for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+      atomList[a].pos = NLCG_vars.atompos_x_[a];
+   
+   // Go back to do new evaluations of energy and forces after changing call type.
+   statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
+   
+   NLCG_vars.call_type = NLCG_CALL_TYPE_3;
+ 
+  } // end of call_type 2	
+  else if(NLCG_vars.call_type == NLCG_CALL_TYPE_3)
+  {
+    statusOFS << std::endl << " Inside NLCG stepper routine : Call type = " << NLCG_vars.call_type << std::endl;
+    
+    // Compute eta = [f'(x)]^T d
+    std::vector<Point3>  atomforce_temp;
+    atomforce_temp.resize(NLCG_vars.numAtom);
+    for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+       atomforce_temp[a] = atomList[a].force;
+    
+     NLCG_vars.eta_ = - NLCG_vars.atom_ddot(atomforce_temp, NLCG_vars.atomforce_d_); // Note the negative sign
+     
+     // alpha = alpha * (eta/(eta_prev-eta))
+     NLCG_vars.alpha_ =  NLCG_vars.alpha_ * (NLCG_vars.eta_ / (NLCG_vars.eta_prev_ - NLCG_vars.eta_));
+       
+     // Set x = x + alpha * d
+     for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+      {
+       for( Int d = 0; d < DIM; d++ )
+       {
+	 NLCG_vars.atompos_x_[a][d]  = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.alpha_ * NLCG_vars.atomforce_d_[a][d]);	  
+       }
+      }
+      
+     // Set eta_prev = eta
+     NLCG_vars.eta_prev_ = NLCG_vars.eta_;
+     
+     // Increment inner counter
+     NLCG_vars.j_ = NLCG_vars.j_ + 1;
+     
+     // Exit conditions
+     if((NLCG_vars.j_ < NLCG_vars.j_max_) && 
+        ((NLCG_vars.alpha_ * NLCG_vars.alpha_ * NLCG_vars.delta_d_) > (NLCG_vars.epsilon_tol_inner_ * NLCG_vars.epsilon_tol_inner_)))
+     {
+       // Stay for looping : do not change call type
+       // Use x to update position for force evaluation
+      for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+       atomList[a].pos = NLCG_vars.atompos_x_[a];  
+     }
+     else
+     {
+        // Exit to pass control to remaining portion of code
+        NLCG_vars.call_type = NLCG_CALL_TYPE_4;
+       
+	// Use x to update position for force evaluation
+        for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+         atomList[a].pos = NLCG_vars.atompos_x_[a];  
+       
+     }
+     
+      statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
+   
+    
+  } // end of call_type 3	
+  else
+  {
+    statusOFS << std::endl << " Inside NLCG stepper routine : Call type = " << NLCG_vars.call_type << std::endl;
+
+    // Set r = - f'(x) : Note that  atomList[a].force = - grad E already - so no extra negative required
+    for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+      NLCG_vars.atomforce_r_[a] = atomList[a].force;
+    
+    // Set delta_old = delta_new
+    NLCG_vars.delta_old_ = NLCG_vars.delta_new_ ;
+    
+    // Set delta_mid = r^T s  
+    NLCG_vars.delta_mid_ =  NLCG_vars.atom_ddot( NLCG_vars.atomforce_r_, NLCG_vars.atomforce_s_);
+    
+    // Set s = M^{-1} r : M = Identity used here
+    for( Int a = 0; a <  NLCG_vars.numAtom; a++ )
+       NLCG_vars.atomforce_s_[a] =  NLCG_vars.atomforce_r_[a];
+    
+    // Set delta_new = r^T s
+    NLCG_vars.delta_new_ =  NLCG_vars.atom_ddot( NLCG_vars.atomforce_r_, NLCG_vars.atomforce_s_);
+    
+    // Set beta = (delta_new - delta_mid) / delta_old
+    NLCG_vars.beta_ = (NLCG_vars.delta_new_ - NLCG_vars.delta_mid_) / NLCG_vars.delta_old_;
+    
+    // Increment counter
+    NLCG_vars.k_ = NLCG_vars.k_ + 1;
+     
+    if((NLCG_vars.k_ == NLCG_vars.n_) || (NLCG_vars.beta_ <= 0.0))
+    {
+      // Set d = s
+     for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+      NLCG_vars.atomforce_d_[a] = NLCG_vars.atomforce_s_[a];
+     
+      // set k = 0
+      NLCG_vars.k_ = 0;
+     
+    }
+    else
+    {
+      // Set d = s + beta * d
+      for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+      {
+       for( Int d = 0; d < DIM; d++ )
+       {
+	 NLCG_vars.atomforce_s_[a][d]  = (NLCG_vars.atomforce_s_[a][d] + NLCG_vars.beta_ * NLCG_vars.atomforce_d_[a][d]);	  
+       }
+      }
+      
+    }
+    
+    // Increment outer counter
+    NLCG_vars.i_ = NLCG_vars.i_ + 1;
+    
+    // Change the call type to run the outer loop again.
+    statusOFS << std::endl << " Calling back : Call type = " << NLCG_vars.call_type << std::endl;
+     
+    NLCG_vars.call_type = NLCG_CALL_TYPE_1;
+    
+  } // end of call_type 4	
+    		
+
+#ifndef _RELEASE_
+        PopCallStack();
+#endif
+  
+  return;
+}   // -----  end of method IonDynamics::NLCG_Opt  -----  
+    
 void
     IonDynamics::VelocityVerlet	( Int ionIter )
     {
@@ -931,7 +1152,11 @@ void
                 coef[1] = -3.0;
                 coef[2] = 1.0;
             }
-        }
+	}
+        else if( MDExtrapolationType_ == "none"){
+	  coef[0] = 1.0;
+	 }
+        
 //        else if( MDExtrapolationType_ == "dario" ){
 //            if( ionIter < 3 ){
 //                coef[0] = 2.0;

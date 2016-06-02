@@ -306,6 +306,10 @@ int main(int argc, char **argv)
                     PrintBlock( statusOFS, msg.str() );
                 }
 
+                
+		  if(ionIter >= 1)
+		   scf.set_Cheby_iondynamics_schedule_flag(1);
+                
                 // Get the new atomic coordinates
                 // NOTE: ionDyn directly updates the coordinates in Hamiltonian
                 ionDyn.SetEpot( scf.Efree() );

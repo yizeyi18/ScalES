@@ -129,6 +129,7 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
         General_SCF_PWDFT_ChebyFilterOrder_ = esdfParam.General_SCF_PWDFT_ChebyFilterOrder;
         PWDFT_Cheby_use_scala_ = esdfParam.PWDFT_Cheby_use_scala;
         PWDFT_Cheby_apply_wfn_ecut_filt_ =  esdfParam.PWDFT_Cheby_apply_wfn_ecut_filt;
+	Cheby_iondynamics_schedule_flag_ = 0;
 
 
     }
@@ -411,6 +412,10 @@ SCF::Iterate (  )
 
             if(Diag_SCF_PWDFT_by_Cheby_ == 1)
             {
+	      if(Cheby_iondynamics_schedule_flag_ == 0)
+	      {
+		// Use static schedule
+		statusOFS << std::endl << " CheFSI in PWDFT working on static schedule." << std::endl;
                 // Use CheFSI or LOBPCG on first step 
                 if(iter <= 1){
                     if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
@@ -419,9 +424,24 @@ SCF::Iterate (  )
                         eigSolPtr_->FirstChebyStep(numEig, First_SCF_PWDFT_ChebyCycleNum_, First_SCF_PWDFT_ChebyFilterOrder_);
                 }
                 else{
-                    //eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigTolNow );
                     eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
                 }
+	      }
+	      else
+	      {
+		// Use ion-dynamics schedule
+		statusOFS << std::endl << " CheFSI in PWDFT working on ion-dynamics schedule." << std::endl;
+		if( iter <= 1)
+		{
+		  for (int cheby_iter = 1; cheby_iter <= eigMaxIter_; cheby_iter ++)
+                   eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
+		}
+		else
+		{
+		  eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
+		}
+		
+	      }
             }
             else
             {
