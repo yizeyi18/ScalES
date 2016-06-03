@@ -115,11 +115,11 @@ void
 	{
 	  statusOFS << std::endl << " Setting up Non-linear CG based relaxation ...";
 	  // Set up the parameters and atom / force list for nlcg
-	  int i_max = 10;
-	  int j_max = 5;
+	  int i_max = 50;
+	  int j_max = 0;
 	  int n = 30;
 	  double epsilon_tol_outer = 1e-6;
-	  double epsilon_tol_inner = 1e-5;
+	  double epsilon_tol_inner = 1e-6;
 	  double sigma_0 = 0.5;
 	  
 	  NLCG_vars.setup(i_max, j_max, n, 
@@ -518,10 +518,11 @@ void
        }
       }
       
-     // Go back to do new evaluations of energy and forces after changing call type.
-     statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
      
      NLCG_vars.call_type = NLCG_CALL_TYPE_2;
+     
+     // Go back to do new evaluations of energy and forces after changing call type.
+     statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
      
      
     } // end of if NLCG_vars.i_ <= NLCG_vars.i_max_ etc..
@@ -535,7 +536,6 @@ void
   } // end of call_type 1	
   else if(NLCG_vars.call_type == NLCG_CALL_TYPE_2)
   {
-    statusOFS << std::endl << " Inside NLCG stepper routine : Call type = " << NLCG_vars.call_type << std::endl;
     
    // Compute eta_prev = [f'(x + sigma_0 * d)]^T d
    std::vector<Point3>  atomforce_temp;
@@ -549,15 +549,15 @@ void
    for( Int a = 0; a < NLCG_vars.numAtom; a++ )
       atomList[a].pos = NLCG_vars.atompos_x_[a];
    
+  
+   NLCG_vars.call_type = NLCG_CALL_TYPE_3;
+   
    // Go back to do new evaluations of energy and forces after changing call type.
    statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
-   
-   NLCG_vars.call_type = NLCG_CALL_TYPE_3;
  
   } // end of call_type 2	
   else if(NLCG_vars.call_type == NLCG_CALL_TYPE_3)
   {
-    statusOFS << std::endl << " Inside NLCG stepper routine : Call type = " << NLCG_vars.call_type << std::endl;
     
     // Compute eta = [f'(x)]^T d
     std::vector<Point3>  atomforce_temp;
@@ -611,7 +611,6 @@ void
   } // end of call_type 3	
   else
   {
-    statusOFS << std::endl << " Inside NLCG stepper routine : Call type = " << NLCG_vars.call_type << std::endl;
 
     // Set r = - f'(x) : Note that  atomList[a].force = - grad E already - so no extra negative required
     for( Int a = 0; a < NLCG_vars.numAtom; a++ )
@@ -662,10 +661,10 @@ void
     // Increment outer counter
     NLCG_vars.i_ = NLCG_vars.i_ + 1;
     
+    NLCG_vars.call_type = NLCG_CALL_TYPE_1;
+    
     // Change the call type to run the outer loop again.
     statusOFS << std::endl << " Calling back : Call type = " << NLCG_vars.call_type << std::endl;
-     
-    NLCG_vars.call_type = NLCG_CALL_TYPE_1;
     
   } // end of call_type 4	
     		

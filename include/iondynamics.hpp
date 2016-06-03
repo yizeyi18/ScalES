@@ -175,16 +175,19 @@ public:
     {
      for( Int d = 0; d < DIM; d++ )
      {
-         ans +=  (list_1[a][d] * list_1[a][d]);
+         ans +=  (list_1[a][d] * list_2[a][d]);
       }
     }
     
     
-    return ans;
+    
     
     #ifndef _RELEASE_
         PopCallStack();
     #endif
+	
+   return ans;	
+	
   }
   
  
