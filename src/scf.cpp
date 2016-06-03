@@ -682,6 +682,18 @@ SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
         ilb = nOccStates-1;
         iub = nOccStates+1;
 
+        if( ilb <= 0 ){
+          std::ostringstream msg;
+          msg 
+            << "The chemical potential is smaller than the lowest eigvalue."<< std::endl
+            << "The chemical potential is out of range of eigVal."<< std::endl
+            << "Please set Extra_States = 0 to avoid this bug."<< std::endl
+            << "NumOccupiedState  ~ " << nOccStates << std::endl
+            << "numStateTotal  ~ " << npsi << std::endl
+            << "eigVal         ~ " << eigVal.m() << std::endl;
+          ErrorHandling( msg.str().c_str() );
+        }
+
         lb = eigVal(ilb-1);
         ub = eigVal(iub-1);
 
