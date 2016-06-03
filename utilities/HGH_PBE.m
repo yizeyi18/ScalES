@@ -186,8 +186,8 @@ for g=1:length(Znucs)
 		h222    = 0.49159781;
 		k211    = -0.04679548;
 		k222    = -0.09845003;
-		rhocut = 4.0;
-		wavcut = 4.0;
+		rhocut = 4.5;
+		wavcut = 3.5;
   end
 
 	% Derived quantities
