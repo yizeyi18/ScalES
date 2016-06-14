@@ -1,44 +1,44 @@
 /*
-	 Copyright (c) 2012 The Regents of the University of California,
-	 through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
    Authors: Jack Poulson and Lin Lin
 	 
    This file is part of DGDFT. All rights reserved.
 
-	 Redistribution and use in source and binary forms, with or without
-	 modification, are permitted provided that the following conditions are met:
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
 
-	 (1) Redistributions of source code must retain the above copyright notice, this
-	 list of conditions and the following disclaimer.
-	 (2) Redistributions in binary form must reproduce the above copyright notice,
-	 this list of conditions and the following disclaimer in the documentation
-	 and/or other materials provided with the distribution.
-	 (3) Neither the name of the University of California, Lawrence Berkeley
-	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-	 be used to endorse or promote products derived from this software without
-	 specific prior written permission.
+   (1) Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+   (2) Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+   (3) Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
 
-	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	 You are under no obligation whatsoever to provide any bug fixes, patches, or
-	 upgrades to the features, functionality or performance of the source code
-	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
-	 available either publicly, or directly to Lawrence Berkeley National
-	 Laboratory, without imposing a separate written license agreement for such
-	 Enhancements, then you hereby grant the following license: a non-exclusive,
-	 royalty-free perpetual license to install, use, modify, prepare derivative
-	 works, incorporate into other computer software, distribute, and sublicense
-	 such enhancements or derivative works thereof, in binary and source code form.
+   You are under no obligation whatsoever to provide any bug fixes, patches, or
+   upgrades to the features, functionality or performance of the source code
+   ("Enhancements") to anyone; however, if you choose to make your Enhancements
+   available either publicly, or directly to Lawrence Berkeley National
+   Laboratory, without imposing a separate written license agreement for such
+   Enhancements, then you hereby grant the following license: a non-exclusive,
+   royalty-free perpetual license to install, use, modify, prepare derivative
+   works, incorporate into other computer software, distribute, and sublicense
+   such enhancements or derivative works thereof, in binary and source code form.
 */
 /// @file lapack.cpp
 /// @brief Thin interface to LAPACK
@@ -50,213 +50,217 @@ namespace lapack {
 
 extern "C" {
 
-// Safely compute a Givens rotation
-void LAPACK(slartg)
-( const float* phi, const float* gamma,
-  float* c, float* s, float* rho );
-void LAPACK(dlartg)
-( const double* phi, const double* gamma,
-  double* c, double* s, double* rho );
-void LAPACK(clartg)
-( const scomplex* phi, const scomplex* gamma,
-  float* c, scomplex* s, scomplex* rho );
-void LAPACK(zlartg)
-( const dcomplex* phi, const dcomplex* gamma,
-  double* c, dcomplex* s, dcomplex* rho );
+    // Safely compute a Givens rotation
+    void LAPACK(slartg)
+        ( const float* phi, const float* gamma,
+          float* c, float* s, float* rho );
+    void LAPACK(dlartg)
+        ( const double* phi, const double* gamma,
+          double* c, double* s, double* rho );
+    void LAPACK(clartg)
+        ( const scomplex* phi, const scomplex* gamma,
+          float* c, scomplex* s, scomplex* rho );
+    void LAPACK(zlartg)
+        ( const dcomplex* phi, const dcomplex* gamma,
+          double* c, dcomplex* s, dcomplex* rho );
 
-// Cholesky factorization
-void LAPACK(spotrf)
-( const char* uplo, const Int* n, const float* A, const Int* lda,
-  Int* info );
-void LAPACK(dpotrf)
-( const char* uplo, const Int* n, const double* A, const Int* lda,
-  Int* info );
-void LAPACK(cpotrf)
-( const char* uplo, const Int* n, const scomplex* A,
-  const Int* lda, Int* info );
-void LAPACK(zpotrf)
-( const char* uplo, const Int* n, const dcomplex* A,
-  const Int* lda, Int* info );
+    // Cholesky factorization
+    void LAPACK(spotrf)
+        ( const char* uplo, const Int* n, const float* A, const Int* lda,
+          Int* info );
+    void LAPACK(dpotrf)
+        ( const char* uplo, const Int* n, const double* A, const Int* lda,
+          Int* info );
+    void LAPACK(cpotrf)
+        ( const char* uplo, const Int* n, const scomplex* A,
+          const Int* lda, Int* info );
+    void LAPACK(zpotrf)
+        ( const char* uplo, const Int* n, const dcomplex* A,
+          const Int* lda, Int* info );
 
-// LU factorization (with partial pivoting)
-void LAPACK(sgetrf)
-( const Int* m, const Int* n,
-  float* A, const Int* lda, Int* p, Int* info );
-void LAPACK(dgetrf)
-( const Int* m, const Int* n,
-  double* A, const Int* lda, Int* p, Int* info );
-void LAPACK(cgetrf)
-( const Int* m, const Int* n,
-  scomplex* A, const Int* lda, Int* p, Int* info );
-void LAPACK(zgetrf)
-( const Int* m, const Int* n,
-  dcomplex* A, const Int* lda, Int* p, Int* info );
+    // LU factorization (with partial pivoting)
+    void LAPACK(sgetrf)
+        ( const Int* m, const Int* n,
+          float* A, const Int* lda, Int* p, Int* info );
+    void LAPACK(dgetrf)
+        ( const Int* m, const Int* n,
+          double* A, const Int* lda, Int* p, Int* info );
+    void LAPACK(cgetrf)
+        ( const Int* m, const Int* n,
+          scomplex* A, const Int* lda, Int* p, Int* info );
+    void LAPACK(zgetrf)
+        ( const Int* m, const Int* n,
+          dcomplex* A, const Int* lda, Int* p, Int* info );
 
-// For reducing well-conditioned Hermitian generalized EVP to Hermitian 
-// standard form
-void LAPACK(ssygst)
-( const Int* itype, const char* uplo, const Int* n,
-  float* A, Int* lda, const float* B, Int* ldb, Int* info );
-void LAPACK(dsygst)
-( const Int* itype, const char* uplo, const Int* n,
-  double* A, Int* lda, const double* B, Int* ldb, Int* info );
-void LAPACK(chegst)
-( const Int* itype, const char* uplo, const Int* n,
-        scomplex* A, const Int* lda,
-  const scomplex* B, const Int* ldb, Int* info );
-void LAPACK(zhegst)
-( const Int* itype, const char* uplo, const Int* n,
-        dcomplex* A, const Int* lda,
-  const dcomplex* B, const Int* ldb, Int* info );
+    // For reducing well-conditioned Hermitian generalized EVP to Hermitian 
+    // standard form
+    void LAPACK(ssygst)
+        ( const Int* itype, const char* uplo, const Int* n,
+          float* A, Int* lda, const float* B, Int* ldb, Int* info );
+    void LAPACK(dsygst)
+        ( const Int* itype, const char* uplo, const Int* n,
+          double* A, Int* lda, const double* B, Int* ldb, Int* info );
+    void LAPACK(chegst)
+        ( const Int* itype, const char* uplo, const Int* n,
+          scomplex* A, const Int* lda,
+          const scomplex* B, const Int* ldb, Int* info );
+    void LAPACK(zhegst)
+        ( const Int* itype, const char* uplo, const Int* n,
+          dcomplex* A, const Int* lda,
+          const dcomplex* B, const Int* ldb, Int* info );
 
-// For solving the standard eigenvalue problem using the divide and
-// conquer algorithm
-// TODO all versions
-void LAPACK(dsyevd)
-( const char *jobz, const char *uplo, const Int *n, 
-	double *A, const Int *lda, double *W, double *work, 
-	const int *lwork, Int *iwork, const int *liwork, int *info );
+    // For solving the standard eigenvalue problem using the divide and
+    // conquer algorithm
+    // TODO all versions
+    void LAPACK(dsyevd)
+        ( const char *jobz, const char *uplo, const Int *n, 
+          double *A, const Int *lda, double *W, double *work, 
+          const int *lwork, Int *iwork, const int *liwork, int *info );
 
-// For solving the generalized eigenvalue problem using the divide and
-// conquer algorithm  --- added by Eugene
-void LAPACK(dsygvd)
-( const Int *itype, const char *jobz, const char *uplo, const Int *n, 
-	double *A, const Int *lda, double* B, const Int *ldb, double *W, double *work, 
-	const int *lwork, Int *iwork, const int *liwork, int *info );
+    // For solving the generalized eigenvalue problem using the divide and
+    // conquer algorithm  --- added by Eugene
+    void LAPACK(dsygvd)
+        ( const Int *itype, const char *jobz, const char *uplo, const Int *n, 
+          double *A, const Int *lda, double* B, const Int *ldb, double *W, double *work, 
+          const int *lwork, Int *iwork, const int *liwork, int *info );
 
-// Triangular inversion
-void LAPACK(strtri)
-( const char* uplo, const char* diag,
-  const Int* n, const float* A, const Int* lda, Int* info );
-void LAPACK(dtrtri)
-( const char* uplo, const char* diag,
-  const Int* n, const double* A, const Int* lda, Int* info );
-void LAPACK(ctrtri)
-( const char* uplo, const char* diag,
-  const Int* n, const scomplex* A, const Int* lda, Int* info );
-void LAPACK(ztrtri)
-( const char* uplo, const char* diag,
-  const Int* n, const dcomplex* A, const Int* lda, Int* info );
+    // Triangular inversion
+    void LAPACK(strtri)
+        ( const char* uplo, const char* diag,
+          const Int* n, const float* A, const Int* lda, Int* info );
+    void LAPACK(dtrtri)
+        ( const char* uplo, const char* diag,
+          const Int* n, const double* A, const Int* lda, Int* info );
+    void LAPACK(ctrtri)
+        ( const char* uplo, const char* diag,
+          const Int* n, const scomplex* A, const Int* lda, Int* info );
+    void LAPACK(ztrtri)
+        ( const char* uplo, const char* diag,
+          const Int* n, const dcomplex* A, const Int* lda, Int* info );
 
-// Bidiagonal QR
-void LAPACK(sbdsqr)
-( const char* uplo, const Int* n, const Int* numColsVTrans, const Int* numRowsU,
-  const Int* numColsC, float* d, float* e, float* VTrans, const Int* ldVTrans,
-  float* U, const Int* ldU, float* C, const Int* ldC, float* work, Int* info );
-void LAPACK(dbdsqr)
-( const char* uplo, const Int* n, const Int* numColsVTrans, const Int* numRowsU,
-  const Int* numColsC, double* d, double* e,
-  double* VTrans, const Int* ldVTrans, double* U, const Int* ldU,
-  double* C, const Int* ldC, double* work, Int* info );
-void LAPACK(cbdsqr)
-( const char* uplo, const Int* n, const Int* numColsVAdj, const Int* numRowsU,
-  const Int* numColsC, float* d, float* e,
-  scomplex* VAdj, const Int* ldVAdj, scomplex* U, const Int* ldU,
-  scomplex* C, const Int* ldC, float* work, Int* info );
-void LAPACK(zbdsqr)
-( const char* uplo, const Int* n, const Int* numColsVAdj, const Int* numRowsU,
-  const Int* numColsC, double* d, double* e,
-  dcomplex* VAdj, const Int* ldVAdj, dcomplex* U, const Int* ldU,
-  dcomplex* C, const Int* ldC, double* work, Int* info );
+    // Bidiagonal QR
+    void LAPACK(sbdsqr)
+        ( const char* uplo, const Int* n, const Int* numColsVTrans, const Int* numRowsU,
+          const Int* numColsC, float* d, float* e, float* VTrans, const Int* ldVTrans,
+          float* U, const Int* ldU, float* C, const Int* ldC, float* work, Int* info );
+    void LAPACK(dbdsqr)
+        ( const char* uplo, const Int* n, const Int* numColsVTrans, const Int* numRowsU,
+          const Int* numColsC, double* d, double* e,
+          double* VTrans, const Int* ldVTrans, double* U, const Int* ldU,
+          double* C, const Int* ldC, double* work, Int* info );
+    void LAPACK(cbdsqr)
+        ( const char* uplo, const Int* n, const Int* numColsVAdj, const Int* numRowsU,
+          const Int* numColsC, float* d, float* e,
+          scomplex* VAdj, const Int* ldVAdj, scomplex* U, const Int* ldU,
+          scomplex* C, const Int* ldC, float* work, Int* info );
+    void LAPACK(zbdsqr)
+        ( const char* uplo, const Int* n, const Int* numColsVAdj, const Int* numRowsU,
+          const Int* numColsC, double* d, double* e,
+          dcomplex* VAdj, const Int* ldVAdj, dcomplex* U, const Int* ldU,
+          dcomplex* C, const Int* ldC, double* work, Int* info );
 
-// Divide and Conquer SVD
-void LAPACK(sgesdd)
-( const char* jobz, const Int* m, const Int* n, float* A, const Int* lda,
-  float* s, float* U, const Int* ldu, float* VTrans, const Int* ldvt,
-  float* work, const Int* lwork, Int* iwork, Int* info );
-void LAPACK(dgesdd)
-( const char* jobz, const Int* m, const Int* n, double* A, const Int* lda,
-  double* s, double* U, const Int* ldu, double* VTrans, const Int* ldvt,
-  double* work, const Int* lwork, Int* iwork, Int* info );
-void LAPACK(cgesdd)
-( const char* jobz, const Int* m, const Int* n,
-  scomplex* A, const Int* lda, float* s,
-  scomplex* U, const Int* ldu, scomplex* VTrans, const Int* ldvt,
-  scomplex* work, const Int* lwork, float* rwork,
-  Int* iwork, Int* info );
-void LAPACK(zgesdd)
-( const char* jobz, const Int* m, const Int* n,
-  dcomplex* A, const Int* lda, double* s,
-  dcomplex* U, const Int* ldu, dcomplex* VAdj, const Int* ldva,
-  dcomplex* work, const Int* lwork, double* rwork,
-  Int* iwork, Int* info );
+    // Divide and Conquer SVD
+    void LAPACK(sgesdd)
+        ( const char* jobz, const Int* m, const Int* n, float* A, const Int* lda,
+          float* s, float* U, const Int* ldu, float* VTrans, const Int* ldvt,
+          float* work, const Int* lwork, Int* iwork, Int* info );
+    void LAPACK(dgesdd)
+        ( const char* jobz, const Int* m, const Int* n, double* A, const Int* lda,
+          double* s, double* U, const Int* ldu, double* VTrans, const Int* ldvt,
+          double* work, const Int* lwork, Int* iwork, Int* info );
+    void LAPACK(cgesdd)
+        ( const char* jobz, const Int* m, const Int* n,
+          scomplex* A, const Int* lda, float* s,
+          scomplex* U, const Int* ldu, scomplex* VTrans, const Int* ldvt,
+          scomplex* work, const Int* lwork, float* rwork,
+          Int* iwork, Int* info );
+    void LAPACK(zgesdd)
+        ( const char* jobz, const Int* m, const Int* n,
+          dcomplex* A, const Int* lda, double* s,
+          dcomplex* U, const Int* ldu, dcomplex* VAdj, const Int* ldva,
+          dcomplex* work, const Int* lwork, double* rwork,
+          Int* iwork, Int* info );
 
-// QR-algorithm SVD
-void LAPACK(sgesvd)
-( const char* jobu, const char* jobvt, const Int* m, const Int* n,
-  float* A, const Int* lda,
-  float* s, float* U, const Int* ldu, float* VTrans, const Int* ldvt,
-  float* work, const Int* lwork, Int* info );
-void LAPACK(dgesvd)
-( const char* jobu, const char* jobvt, const Int* m, const Int* n,
-  double* A, const Int* lda,
-  double* s, double* U, const Int* ldu, double* VTrans, const Int* ldvt,
-  double* work, const Int* lwork, Int* info );
-void LAPACK(cgesvd)
-( const char* jobu, const char* jobva, const Int* m, const Int* n,
-  scomplex* A, const Int* lda, float* s,
-  scomplex* U, const Int* ldu, scomplex* VTrans, const Int* ldvt,
-  scomplex* work, const Int* lwork, float* rwork, Int* info );
-void LAPACK(zgesvd)
-( const char* jobu, const char* jobva, const Int* m, const Int* n,
-  dcomplex* A, const Int* lda, double* s,
-  dcomplex* U, const Int* ldu, dcomplex* VAdj, const Int* ldva,
-  dcomplex* work, const Int* lwork, double* rwork, Int* info );
-
-
-// SVD based least square
-void LAPACK(sgelss)
-( const Int *m, const Int *n, const Int *nrhs, float *A, const Int *lda,
-  float *B, const Int *ldb, float *S, const float *rcond, Int *rank,
-  float *work, const Int *lwork, Int *info );	
-void LAPACK(dgelss)
-( const Int *m, const Int *n, const Int *nrhs, double *A, const Int *lda,
-  double *B, const Int *ldb, double *S, const double *rcond, Int *rank,
-  double *work, const Int *lwork, Int *info );	
-void LAPACK(cgelss)
-( const Int *m, const Int *n, const Int *nrhs, scomplex *A, const Int *lda,
-  scomplex *B, const Int *ldb, float *S, const float *rcond, Int *rank,
-  scomplex *work, const Int *lwork, float *rwork, Int *info );	
-void LAPACK(zgelss)
-( const Int *m, const Int *n, const Int *nrhs, dcomplex *A, const Int *lda,
-  dcomplex *B, const Int *ldb, double *S, const double *rcond, Int *rank,
-  dcomplex *work, const Int *lwork, double *rwork, Int *info );	
-
-// Copy
-
-void LAPACK(dlacpy)
-	( const char* uplo, const Int* m, const Int* n, 
-		const double* A, const Int *lda, 
-		double* B, const Int *ldb );
-void LAPACK(zlacpy)
-	( const char* uplo, const Int* m, const Int* n, 
-		const dcomplex* A, const Int *lda, 
-		dcomplex* B, const Int *ldb );
-
-// Triangular solve : Trsm
-//void LAPACK(ztrsm)
-//	( const char* side, const char* uplo, const char* transa, const char * diag,
-//		const Int* m, const Int* n, const dcomplex* alpha, const dcomplex* A, const Int* lda,
-//		dcomplex* B, const Int* ldb );
-
-// Inverting a factorized matrix: Getri
-void LAPACK(dgetri)
-	( const Int* n, double* A, const Int* lda, const Int* ipiv, double* work,
-		const Int* lwork, Int* info );
-void LAPACK(zgetri)
-	( const Int* n, dcomplex* A, const Int* lda, const Int* ipiv, dcomplex* work,
-		const Int* lwork, Int* info );
-
-// Compute the factorization of a real symmetric matrix: Sytrf
-void LAPACK(dsytrf)
-  ( const char* uplo, const Int* N, double* A, const Int* lda,
-    Int* ipiv, double* work, const Int* lwork, Int* info );
+    // QR-algorithm SVD
+    void LAPACK(sgesvd)
+        ( const char* jobu, const char* jobvt, const Int* m, const Int* n,
+          float* A, const Int* lda,
+          float* s, float* U, const Int* ldu, float* VTrans, const Int* ldvt,
+          float* work, const Int* lwork, Int* info );
+    void LAPACK(dgesvd)
+        ( const char* jobu, const char* jobvt, const Int* m, const Int* n,
+          double* A, const Int* lda,
+          double* s, double* U, const Int* ldu, double* VTrans, const Int* ldvt,
+          double* work, const Int* lwork, Int* info );
+    void LAPACK(cgesvd)
+        ( const char* jobu, const char* jobva, const Int* m, const Int* n,
+          scomplex* A, const Int* lda, float* s,
+          scomplex* U, const Int* ldu, scomplex* VTrans, const Int* ldvt,
+          scomplex* work, const Int* lwork, float* rwork, Int* info );
+    void LAPACK(zgesvd)
+        ( const char* jobu, const char* jobva, const Int* m, const Int* n,
+          dcomplex* A, const Int* lda, double* s,
+          dcomplex* U, const Int* ldu, dcomplex* VAdj, const Int* ldva,
+          dcomplex* work, const Int* lwork, double* rwork, Int* info );
 
 
+    // SVD based least square
+    void LAPACK(sgelss)
+        ( const Int *m, const Int *n, const Int *nrhs, float *A, const Int *lda,
+          float *B, const Int *ldb, float *S, const float *rcond, Int *rank,
+          float *work, const Int *lwork, Int *info );	
+    void LAPACK(dgelss)
+        ( const Int *m, const Int *n, const Int *nrhs, double *A, const Int *lda,
+          double *B, const Int *ldb, double *S, const double *rcond, Int *rank,
+          double *work, const Int *lwork, Int *info );	
+    void LAPACK(cgelss)
+        ( const Int *m, const Int *n, const Int *nrhs, scomplex *A, const Int *lda,
+          scomplex *B, const Int *ldb, float *S, const float *rcond, Int *rank,
+          scomplex *work, const Int *lwork, float *rwork, Int *info );	
+    void LAPACK(zgelss)
+        ( const Int *m, const Int *n, const Int *nrhs, dcomplex *A, const Int *lda,
+          dcomplex *B, const Int *ldb, double *S, const double *rcond, Int *rank,
+          dcomplex *work, const Int *lwork, double *rwork, Int *info );	
 
-// Estimating the reciprocal of the condition number
-// TODO Add Pocon and Lansy
+    // Copy
 
+    void LAPACK(dlacpy)
+        ( const char* uplo, const Int* m, const Int* n, 
+          const double* A, const Int *lda, 
+          double* B, const Int *ldb );
+    void LAPACK(zlacpy)
+        ( const char* uplo, const Int* m, const Int* n, 
+          const dcomplex* A, const Int *lda, 
+          dcomplex* B, const Int *ldb );
+
+    // Triangular solve : Trsm
+    //void LAPACK(ztrsm)
+    //	( const char* side, const char* uplo, const char* transa, const char * diag,
+    //		const Int* m, const Int* n, const dcomplex* alpha, const dcomplex* A, const Int* lda,
+    //		dcomplex* B, const Int* ldb );
+
+    // Inverting a factorized matrix: Getri
+    void LAPACK(dgetri)
+        ( const Int* n, double* A, const Int* lda, const Int* ipiv, double* work,
+          const Int* lwork, Int* info );
+    void LAPACK(zgetri)
+        ( const Int* n, dcomplex* A, const Int* lda, const Int* ipiv, dcomplex* work,
+          const Int* lwork, Int* info );
+
+    // Compute the factorization of a real symmetric matrix: Sytrf
+    void LAPACK(dsytrf)
+        ( const char* uplo, const Int* N, double* A, const Int* lda,
+          Int* ipiv, double* work, const Int* lwork, Int* info );
+
+
+
+    // Estimating the reciprocal of the condition number
+    // TODO Add Pocon and Lansy
+
+    // QR decomposition with column pivoting
+    void LAPACK(dgeqp3) (const Int* m, const Int* n, double* A, 
+            const Int* lda, Int* jpvt, double* tau, double* work, 
+            const Int* lwork, Int* info);
 
 } // extern "C"
 
@@ -522,29 +526,29 @@ void Hegst
 void Syevd
 ( char jobz, char uplo, Int n, double* A, Int lda, double* eigs ){
 #ifndef _RELEASE_
-	PushCallStack("lapack::Syevd");
+    PushCallStack("lapack::Syevd");
 #endif
-	Int lwork = -1, info;
-	Int liwork = -1;
-	std::vector<double> work(1);
-	std::vector<int>    iwork(1);
+    Int lwork = -1, info;
+    Int liwork = -1;
+    std::vector<double> work(1);
+    std::vector<int>    iwork(1);
 
-	LAPACK(dsyevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
-		 &lwork, &iwork[0], &liwork, &info );
-	lwork = (Int)work[0];
-	work.resize(lwork);
-	liwork = iwork[0];
-	iwork.resize(liwork);
-	
-	LAPACK(dsyevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
-		 &lwork, &iwork[0], &liwork, &info );
+    LAPACK(dsyevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
+            &lwork, &iwork[0], &liwork, &info );
+    lwork = (Int)work[0];
+    work.resize(lwork);
+    liwork = iwork[0];
+    iwork.resize(liwork);
 
-	if( info != 0 )
-	{
-		std::ostringstream msg;
-		msg << "syevd returned with info = " << info;
-		ErrorHandling( msg.str().c_str() );
-	}
+    LAPACK(dsyevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
+            &lwork, &iwork[0], &liwork, &info );
+
+    if( info != 0 )
+    {
+        std::ostringstream msg;
+        msg << "syevd returned with info = " << info;
+        ErrorHandling( msg.str().c_str() );
+    }
 #ifndef _RELEASE_
     PopCallStack();
 #endif
@@ -559,29 +563,29 @@ void Syevd
 void Sygvd
 ( Int itype, char jobz, char uplo, Int n, double* A, Int lda, double* B, Int ldb, double* eigs ){
 #ifndef _RELEASE_
-	PushCallStack("lapack::Sygvd");
+    PushCallStack("lapack::Sygvd");
 #endif
-	Int lwork = -1, info;
-	Int liwork = -1;
-	std::vector<double> work(1);
-	std::vector<int>    iwork(1);
+    Int lwork = -1, info;
+    Int liwork = -1;
+    std::vector<double> work(1);
+    std::vector<int>    iwork(1);
 
-	LAPACK(dsygvd)( &itype, &jobz, &uplo, &n, A, &lda, B, &ldb, eigs, &work[0],
-		 &lwork, &iwork[0], &liwork, &info );
-	lwork = (Int)work[0];
-	work.resize(lwork);
-	liwork = iwork[0];
-	iwork.resize(liwork);
-	
-	LAPACK(dsygvd)( &itype, &jobz, &uplo, &n, A, &lda, B, &ldb, eigs, &work[0],
-		 &lwork, &iwork[0], &liwork, &info );
+    LAPACK(dsygvd)( &itype, &jobz, &uplo, &n, A, &lda, B, &ldb, eigs, &work[0],
+            &lwork, &iwork[0], &liwork, &info );
+    lwork = (Int)work[0];
+    work.resize(lwork);
+    liwork = iwork[0];
+    iwork.resize(liwork);
 
-	if( info != 0 )
-	{
-		std::ostringstream msg;
-		msg << "sygvd returned with info = " << info;
-		ErrorHandling( msg.str().c_str() );
-	}
+    LAPACK(dsygvd)( &itype, &jobz, &uplo, &n, A, &lda, B, &ldb, eigs, &work[0],
+            &lwork, &iwork[0], &liwork, &info );
+
+    if( info != 0 )
+    {
+        std::ostringstream msg;
+        msg << "sygvd returned with info = " << info;
+        ErrorHandling( msg.str().c_str() );
+    }
 #ifndef _RELEASE_
     PopCallStack();
 #endif
@@ -699,8 +703,8 @@ void BidiagQRAlg
     const Int numColsC=0, ldC=1;
     std::vector<float> work( 4*n );
     LAPACK(sbdsqr)
-    ( &uplo, &n, &numColsVTrans, &numRowsU, &numColsC, d, e, VTrans, &ldVTrans,
-      U, &ldU, C, &ldC, &work[0], &info );
+        ( &uplo, &n, &numColsVTrans, &numRowsU, &numColsC, d, e, VTrans, &ldVTrans,
+          U, &ldU, C, &ldC, &work[0], &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -738,8 +742,8 @@ void BidiagQRAlg
     const Int numColsC=0, ldC=1;
     std::vector<double> work( 4*n );
     LAPACK(dbdsqr)
-    ( &uplo, &n, &numColsVTrans, &numRowsU, &numColsC, d, e, VTrans, &ldVTrans,
-      U, &ldU, C, &ldC, &work[0], &info );
+        ( &uplo, &n, &numColsVTrans, &numRowsU, &numColsC, d, e, VTrans, &ldVTrans,
+          U, &ldU, C, &ldC, &work[0], &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -777,8 +781,8 @@ void BidiagQRAlg
     const Int numColsC=0, ldC=1;
     std::vector<float> work( 4*n );
     LAPACK(cbdsqr)
-    ( &uplo, &n, &numColsVAdj, &numRowsU, &numColsC, d, e, VAdj, &ldVAdj,
-      U, &ldU, C, &ldC, &work[0], &info );
+        ( &uplo, &n, &numColsVAdj, &numRowsU, &numColsC, d, e, VAdj, &ldVAdj,
+          U, &ldU, C, &ldC, &work[0], &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -816,8 +820,8 @@ void BidiagQRAlg
     const Int numColsC=0, ldC=1;
     std::vector<double> work( 4*n );
     LAPACK(zbdsqr)
-    ( &uplo, &n, &numColsVAdj, &numRowsU, &numColsC, d, e, VAdj, &ldVAdj,
-      U, &ldU, C, &ldC, &work[0], &info );
+        ( &uplo, &n, &numColsVAdj, &numRowsU, &numColsC, d, e, VAdj, &ldVAdj,
+          U, &ldU, C, &ldC, &work[0], &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -861,14 +865,14 @@ void DivideAndConquerSVD
     std::vector<Int> iwork(8*k);
 
     LAPACK(sgesdd)
-    ( &jobz, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, &dummyWork, &lwork,
-      &iwork[0], &info );
+        ( &jobz, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, &dummyWork, &lwork,
+          &iwork[0], &info );
 
     lwork = dummyWork;
     std::vector<float> work(lwork);
     LAPACK(sgesdd)
-    ( &jobz, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, &work[0], &lwork,
-      &iwork[0], &info );
+        ( &jobz, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, &work[0], &lwork,
+          &iwork[0], &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -906,14 +910,14 @@ void DivideAndConquerSVD
     std::vector<Int> iwork(8*k);
 
     LAPACK(dgesdd)
-    ( &jobz, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, &dummyWork, &lwork,
-      &iwork[0], &info );
+        ( &jobz, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, &dummyWork, &lwork,
+          &iwork[0], &info );
 
     lwork = dummyWork;
     std::vector<double> work(lwork);
     LAPACK(dgesdd)
-    ( &jobz, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, &work[0], &lwork,
-      &iwork[0], &info );
+        ( &jobz, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, &work[0], &lwork,
+          &iwork[0], &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -954,14 +958,14 @@ void DivideAndConquerSVD
 
     scomplex dummyWork;
     LAPACK(cgesdd)
-    ( &jobz, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, &dummyWork, &lwork,
-      &rwork[0], &iwork[0], &info );
+        ( &jobz, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, &dummyWork, &lwork,
+          &rwork[0], &iwork[0], &info );
 
     lwork = dummyWork.real();
     std::vector<scomplex> work(lwork);
     LAPACK(cgesdd)
-    ( &jobz, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, &work[0], &lwork,
-      &rwork[0], &iwork[0], &info );
+        ( &jobz, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, &work[0], &lwork,
+          &rwork[0], &iwork[0], &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -1002,14 +1006,14 @@ void DivideAndConquerSVD
     std::vector<Int> iwork(8*k);
 
     LAPACK(zgesdd)
-    ( &jobz, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, &dummyWork, &lwork,
-      &rwork[0], &iwork[0], &info );
+        ( &jobz, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, &dummyWork, &lwork,
+          &rwork[0], &iwork[0], &info );
 
     lwork = dummyWork.real();
     std::vector<dcomplex> work(lwork);
     LAPACK(zgesdd)
-    ( &jobz, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, &work[0], &lwork,
-      &rwork[0], &iwork[0], &info );
+        ( &jobz, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, &work[0], &lwork,
+          &rwork[0], &iwork[0], &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -1049,14 +1053,14 @@ void QRSVD
     float dummyWork;
 
     LAPACK(sgesvd)
-    ( &jobu, &jobvt, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, 
-      &dummyWork, &lwork, &info );
+        ( &jobu, &jobvt, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, 
+          &dummyWork, &lwork, &info );
 
     lwork = dummyWork;
     std::vector<float> work(lwork);
     LAPACK(sgesvd)
-    ( &jobu, &jobvt, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, 
-      &work[0], &lwork, &info );
+        ( &jobu, &jobvt, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, 
+          &work[0], &lwork, &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -1092,14 +1096,14 @@ void QRSVD
     double dummyWork;
 
     LAPACK(dgesvd)
-    ( &jobu, &jobvt, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, 
-      &dummyWork, &lwork, &info );
+        ( &jobu, &jobvt, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, 
+          &dummyWork, &lwork, &info );
 
     lwork = dummyWork;
     std::vector<double> work(lwork);
     LAPACK(dgesvd)
-    ( &jobu, &jobvt, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, 
-      &work[0], &lwork, &info );
+        ( &jobu, &jobvt, &m, &n, A, &lda, s, U, &ldu, VTrans, &ldvt, 
+          &work[0], &lwork, &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -1137,14 +1141,14 @@ void QRSVD
 
     scomplex dummyWork;
     LAPACK(cgesvd)
-    ( &jobu, &jobva, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, 
-      &dummyWork, &lwork, &rwork[0], &info );
+        ( &jobu, &jobva, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, 
+          &dummyWork, &lwork, &rwork[0], &info );
 
     lwork = dummyWork.real();
     std::vector<scomplex> work(lwork);
     LAPACK(cgesvd)
-    ( &jobu, &jobva, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, 
-      &work[0], &lwork, &rwork[0], &info );
+        ( &jobu, &jobva, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, 
+          &work[0], &lwork, &rwork[0], &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -1182,14 +1186,14 @@ void QRSVD
     std::vector<double> rwork(5*k);
 
     LAPACK(zgesvd)
-    ( &jobu, &jobva, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, 
-      &dummyWork, &lwork, &rwork[0], &info );
+        ( &jobu, &jobva, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, 
+          &dummyWork, &lwork, &rwork[0], &info );
 
     lwork = dummyWork.real();
     std::vector<dcomplex> work(lwork);
     LAPACK(zgesvd)
-    ( &jobu, &jobva, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, 
-      &work[0], &lwork, &rwork[0], &info );
+        ( &jobu, &jobva, &m, &n, A, &lda, s, U, &ldu, VAdj, &ldva, 
+          &work[0], &lwork, &rwork[0], &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -1227,14 +1231,14 @@ void SingularValues( Int m, Int n, float* A, Int lda, float* s )
     float dummyWork;
 
     LAPACK(sgesvd)
-    ( &jobu, &jobvt, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
-      &dummyWork, &lwork, &info );
+        ( &jobu, &jobvt, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
+          &dummyWork, &lwork, &info );
 
     lwork = dummyWork;
     std::vector<float> work(lwork);
     LAPACK(sgesvd)
-    ( &jobu, &jobvt, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
-      &work[0], &lwork, &info );
+        ( &jobu, &jobvt, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
+          &work[0], &lwork, &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -1268,14 +1272,14 @@ void SingularValues( Int m, Int n, double* A, Int lda, double* s )
     double dummyWork;
 
     LAPACK(dgesvd)
-    ( &jobu, &jobvt, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
-      &dummyWork, &lwork, &info );
+        ( &jobu, &jobvt, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
+          &dummyWork, &lwork, &info );
 
     lwork = dummyWork;
     std::vector<double> work(lwork);
     LAPACK(dgesvd)
-    ( &jobu, &jobvt, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
-      &work[0], &lwork, &info );
+        ( &jobu, &jobvt, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
+          &work[0], &lwork, &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -1311,14 +1315,14 @@ void SingularValues( Int m, Int n, scomplex* A, Int lda, float* s )
     std::vector<float> rwork(5*k);
 
     LAPACK(cgesvd)
-    ( &jobu, &jobva, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
-      &dummyWork, &lwork, &rwork[0], &info );
+        ( &jobu, &jobva, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
+          &dummyWork, &lwork, &rwork[0], &info );
 
     lwork = dummyWork.real();
     std::vector<scomplex> work(lwork);
     LAPACK(cgesvd)
-    ( &jobu, &jobva, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
-      &work[0], &lwork, &rwork[0], &info );
+        ( &jobu, &jobva, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
+          &work[0], &lwork, &rwork[0], &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -1354,14 +1358,14 @@ void SingularValues( Int m, Int n, dcomplex* A, Int lda, double* s )
     std::vector<double> rwork(5*k);
 
     LAPACK(zgesvd)
-    ( &jobu, &jobva, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
-      &dummyWork, &lwork, &rwork[0], &info );
+        ( &jobu, &jobva, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
+          &dummyWork, &lwork, &rwork[0], &info );
 
     lwork = dummyWork.real();
     std::vector<dcomplex> work(lwork);
     LAPACK(zgesvd)
-    ( &jobu, &jobva, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
-      &work[0], &lwork, &rwork[0], &info );
+        ( &jobu, &jobva, &m, &n, A, &lda, s, 0, &fakeLDim, 0, &fakeLDim, 
+          &work[0], &lwork, &rwork[0], &info );
     if( info < 0 )
     {
         std::ostringstream msg;
@@ -1382,182 +1386,182 @@ void SingularValues( Int m, Int n, dcomplex* A, Int lda, double* s )
 // Compute the linear least square problem using SVD
 // *********************************************************************
 void SVDLeastSquare( Int m, Int n, Int nrhs, float * A, Int lda,
-		float * B, Int ldb, float * S, float rcond,
-		Int* rank )
+        float * B, Int ldb, float * S, float rcond,
+        Int* rank )
 {
 #ifndef _RELEASE_
-	PushCallStack("lapack::SVDLeastSquare");
+    PushCallStack("lapack::SVDLeastSquare");
 #endif
-	if( m==0 || n==0 )
-	{
+    if( m==0 || n==0 )
+    {
 #ifndef _RELEASE_
-		PopCallStack();
+        PopCallStack();
 #endif
-		return;
-	}
+        return;
+    }
 
-	Int  lwork=-1, info;
-	float dummyWork;
+    Int  lwork=-1, info;
+    float dummyWork;
 
-	LAPACK(sgelss)
-		( &m, &n, &nrhs, A, &lda, B, &ldb, S,
-			&rcond, rank, &dummyWork, &lwork, &info );
+    LAPACK(sgelss)
+        ( &m, &n, &nrhs, A, &lda, B, &ldb, S,
+          &rcond, rank, &dummyWork, &lwork, &info );
 
-	lwork = dummyWork;
+    lwork = dummyWork;
 
-	std::vector<float> work(lwork);
-	LAPACK(sgelss)
-		( &m, &n, &nrhs, A, &lda, B, &ldb, S,
-			&rcond, rank, &work[0], &lwork, &info );
+    std::vector<float> work(lwork);
+    LAPACK(sgelss)
+        ( &m, &n, &nrhs, A, &lda, B, &ldb, S,
+          &rcond, rank, &work[0], &lwork, &info );
 
-	if( info < 0 )
-	{
-		std::ostringstream msg;
-		msg << "Argument " << -info << " had illegal value";
-		ErrorHandling( msg.str().c_str() );
-	}
-	else if( info > 0 )
-	{
-		ErrorHandling("sgelss's svd failed to converge.");
-	}
+    if( info < 0 )
+    {
+        std::ostringstream msg;
+        msg << "Argument " << -info << " had illegal value";
+        ErrorHandling( msg.str().c_str() );
+    }
+    else if( info > 0 )
+    {
+        ErrorHandling("sgelss's svd failed to converge.");
+    }
 #ifndef _RELEASE_
-	PopCallStack();
+    PopCallStack();
 #endif
 }
 
 void SVDLeastSquare( Int m, Int n, Int nrhs, double * A, Int lda,
-		double * B, Int ldb, double * S, double rcond,
-		Int* rank )
+        double * B, Int ldb, double * S, double rcond,
+        Int* rank )
 {
 #ifndef _RELEASE_
-	PushCallStack("lapack::SVDLeastSquare");
+    PushCallStack("lapack::SVDLeastSquare");
 #endif
-	if( m==0 || n==0 )
-	{
+    if( m==0 || n==0 )
+    {
 #ifndef _RELEASE_
-		PopCallStack();
+        PopCallStack();
 #endif
-		return;
-	}
+        return;
+    }
 
-	Int  lwork=-1, info;
-	double dummyWork;
+    Int  lwork=-1, info;
+    double dummyWork;
 
-	LAPACK(dgelss)
-		( &m, &n, &nrhs, A, &lda, B, &ldb, S,
-			&rcond, rank, &dummyWork, &lwork, &info );
+    LAPACK(dgelss)
+        ( &m, &n, &nrhs, A, &lda, B, &ldb, S,
+          &rcond, rank, &dummyWork, &lwork, &info );
 
-	lwork = (Int) (dummyWork * 2);
+    lwork = (Int) (dummyWork * 2);
 
-	std::vector<double> work(lwork);
-	LAPACK(dgelss)
-		( &m, &n, &nrhs, A, &lda, B, &ldb, S,
-			&rcond, rank, &work[0], &lwork, &info );
+    std::vector<double> work(lwork);
+    LAPACK(dgelss)
+        ( &m, &n, &nrhs, A, &lda, B, &ldb, S,
+          &rcond, rank, &work[0], &lwork, &info );
 
-	if( info < 0 )
-	{
-		std::ostringstream msg;
-		msg << "Argument " << -info << " had illegal value";
-		ErrorHandling( msg.str().c_str() );
-	}
-	else if( info > 0 )
-	{
-		ErrorHandling("dgelss's svd failed to converge.");
-	}
+    if( info < 0 )
+    {
+        std::ostringstream msg;
+        msg << "Argument " << -info << " had illegal value";
+        ErrorHandling( msg.str().c_str() );
+    }
+    else if( info > 0 )
+    {
+        ErrorHandling("dgelss's svd failed to converge.");
+    }
 #ifndef _RELEASE_
-	PopCallStack();
+    PopCallStack();
 #endif
 }
 
 void SVDLeastSquare( Int m, Int n, Int nrhs, scomplex * A, Int lda,
-		scomplex * B, Int ldb, float * S, float rcond,
-		Int* rank )
+        scomplex * B, Int ldb, float * S, float rcond,
+        Int* rank )
 {
 #ifndef _RELEASE_
-	PushCallStack("lapack::SVDLeastSquare");
+    PushCallStack("lapack::SVDLeastSquare");
 #endif
-	if( m==0 || n==0 )
-	{
+    if( m==0 || n==0 )
+    {
 #ifndef _RELEASE_
-		PopCallStack();
+        PopCallStack();
 #endif
-		return;
-	}
+        return;
+    }
 
-	Int  lwork=-1, info;
-	Int  lrwork = 5*m;
-	std::vector<float> rwork(lrwork);
-	scomplex dummyWork;
+    Int  lwork=-1, info;
+    Int  lrwork = 5*m;
+    std::vector<float> rwork(lrwork);
+    scomplex dummyWork;
 
-	LAPACK(cgelss)
-		( &m, &n, &nrhs, A, &lda, B, &ldb, S,
-			&rcond, rank, &dummyWork, &lwork, &rwork[0], &info );
+    LAPACK(cgelss)
+        ( &m, &n, &nrhs, A, &lda, B, &ldb, S,
+          &rcond, rank, &dummyWork, &lwork, &rwork[0], &info );
 
-	lwork = dummyWork.real();
+    lwork = dummyWork.real();
 
-	std::vector<scomplex> work(lwork);
-	LAPACK(cgelss)
-		( &m, &n, &nrhs, A, &lda, B, &ldb, S,
-			&rcond, rank, &work[0], &lwork, &rwork[0], &info );
+    std::vector<scomplex> work(lwork);
+    LAPACK(cgelss)
+        ( &m, &n, &nrhs, A, &lda, B, &ldb, S,
+          &rcond, rank, &work[0], &lwork, &rwork[0], &info );
 
-	if( info < 0 )
-	{
-		std::ostringstream msg;
-		msg << "Argument " << -info << " had illegal value";
-		ErrorHandling( msg.str().c_str() );
-	}
-	else if( info > 0 )
-	{
-		ErrorHandling("cgelss's svd failed to converge.");
-	}
+    if( info < 0 )
+    {
+        std::ostringstream msg;
+        msg << "Argument " << -info << " had illegal value";
+        ErrorHandling( msg.str().c_str() );
+    }
+    else if( info > 0 )
+    {
+        ErrorHandling("cgelss's svd failed to converge.");
+    }
 #ifndef _RELEASE_
-	PopCallStack();
+    PopCallStack();
 #endif
 }
 
 void SVDLeastSquare( Int m, Int n, Int nrhs, dcomplex * A, Int lda,
-		dcomplex * B, Int ldb, double * S, double rcond,
-		Int* rank )
+        dcomplex * B, Int ldb, double * S, double rcond,
+        Int* rank )
 {
 #ifndef _RELEASE_
-	PushCallStack("lapack::SVDLeastSquare");
+    PushCallStack("lapack::SVDLeastSquare");
 #endif
-	if( m==0 || n==0 )
-	{
+    if( m==0 || n==0 )
+    {
 #ifndef _RELEASE_
-		PopCallStack();
+        PopCallStack();
 #endif
-		return;
-	}
+        return;
+    }
 
-	Int  lwork=-1, info;
-	Int  lrwork = 5*m;
-	std::vector<double> rwork(lrwork);
-	dcomplex dummyWork;
+    Int  lwork=-1, info;
+    Int  lrwork = 5*m;
+    std::vector<double> rwork(lrwork);
+    dcomplex dummyWork;
 
-	LAPACK(zgelss)
-		( &m, &n, &nrhs, A, &lda, B, &ldb, S,
-			&rcond, rank, &dummyWork, &lwork, &rwork[0], &info );
+    LAPACK(zgelss)
+        ( &m, &n, &nrhs, A, &lda, B, &ldb, S,
+          &rcond, rank, &dummyWork, &lwork, &rwork[0], &info );
 
-	lwork = dummyWork.real();
+    lwork = dummyWork.real();
 
-	std::vector<dcomplex> work(lwork);
-	LAPACK(zgelss)
-		( &m, &n, &nrhs, A, &lda, B, &ldb, S,
-			&rcond, rank, &work[0], &lwork, &rwork[0], &info );
+    std::vector<dcomplex> work(lwork);
+    LAPACK(zgelss)
+        ( &m, &n, &nrhs, A, &lda, B, &ldb, S,
+          &rcond, rank, &work[0], &lwork, &rwork[0], &info );
 
-	if( info < 0 )
-	{
-		std::ostringstream msg;
-		msg << "Argument " << -info << " had illegal value";
-		ErrorHandling( msg.str().c_str() );
-	}
-	else if( info > 0 )
-	{
-		ErrorHandling("zgelss's svd failed to converge.");
-	}
+    if( info < 0 )
+    {
+        std::ostringstream msg;
+        msg << "Argument " << -info << " had illegal value";
+        ErrorHandling( msg.str().c_str() );
+    }
+    else if( info > 0 )
+    {
+        ErrorHandling("zgelss's svd failed to converge.");
+    }
 #ifndef _RELEASE_
-	PopCallStack();
+    PopCallStack();
 #endif
 }
 
@@ -1566,22 +1570,22 @@ void SVDLeastSquare( Int m, Int n, Int nrhs, dcomplex * A, Int lda,
 // *********************************************************************
 
 void Lacpy( char uplo, Int m, Int n, const double* A, Int lda,
-	double* B, Int ldb	){
+        double* B, Int ldb	){
 #ifndef _RELEASE_
     PushCallStack("lapack::Lacpy");
 #endif
-		LAPACK(dlacpy)( &uplo, &m, &n, A, &lda, B, &ldb );
+    LAPACK(dlacpy)( &uplo, &m, &n, A, &lda, B, &ldb );
 #ifndef _RELEASE_
     PopCallStack();
 #endif
 }
 
 void Lacpy( char uplo, Int m, Int n, const dcomplex* A, Int lda,
-	dcomplex* B, Int ldb	){
+        dcomplex* B, Int ldb	){
 #ifndef _RELEASE_
     PushCallStack("lapack::Lacpy");
 #endif
-  LAPACK(zlacpy)( &uplo, &m, &n, A, &lda, B, &ldb );
+    LAPACK(zlacpy)( &uplo, &m, &n, A, &lda, B, &ldb );
 #ifndef _RELEASE_
     PopCallStack();
 #endif
@@ -1594,36 +1598,36 @@ void
 Getri ( Int n, double* A, Int lda, const Int* ipiv )
 {
 #ifndef _RELEASE_
-	PushCallStack("lapack::Getri");
+    PushCallStack("lapack::Getri");
 #endif
-	Int lwork = -1, info;
-	double dummyWork;
+    Int lwork = -1, info;
+    double dummyWork;
 
-	LAPACK(dgetri)( &n, A, &lda, ipiv, &dummyWork, &lwork, &info );
+    LAPACK(dgetri)( &n, A, &lda, ipiv, &dummyWork, &lwork, &info );
 
-	lwork = dummyWork;
-	std::vector<double> work(lwork);
+    lwork = dummyWork;
+    std::vector<double> work(lwork);
 
-	LAPACK(dgetri)( &n, A, &lda, ipiv, &work[0], &lwork, &info );
+    LAPACK(dgetri)( &n, A, &lda, ipiv, &work[0], &lwork, &info );
 
-	if( info < 0 )
-	{
-		std::ostringstream msg;
-		msg << "Argument " << -info << " had illegal value";
-		ErrorHandling( msg.str().c_str() );
-	}
-	else if( info > 0 )
-	{
-		std::ostringstream msg;
-		msg << "U(" << info << ", " << info << ") = 0. The matrix is singular and cannot be inverted.";
-		ErrorHandling( msg.str().c_str() );
-	}
+    if( info < 0 )
+    {
+        std::ostringstream msg;
+        msg << "Argument " << -info << " had illegal value";
+        ErrorHandling( msg.str().c_str() );
+    }
+    else if( info > 0 )
+    {
+        std::ostringstream msg;
+        msg << "U(" << info << ", " << info << ") = 0. The matrix is singular and cannot be inverted.";
+        ErrorHandling( msg.str().c_str() );
+    }
 
 #ifndef _RELEASE_
-	PopCallStack();
+    PopCallStack();
 #endif
 
-	return ;
+    return ;
 }		// -----  end of function Getri  ----- 
 
 
@@ -1631,36 +1635,36 @@ void
 Getri ( Int n, dcomplex* A, Int lda, const Int* ipiv )
 {
 #ifndef _RELEASE_
-	PushCallStack("lapack::Getri");
+    PushCallStack("lapack::Getri");
 #endif
-	Int lwork = -1, info;
-	dcomplex dummyWork;
+    Int lwork = -1, info;
+    dcomplex dummyWork;
 
-	LAPACK(zgetri)( &n, A, &lda, ipiv, &dummyWork, &lwork, &info );
+    LAPACK(zgetri)( &n, A, &lda, ipiv, &dummyWork, &lwork, &info );
 
-	lwork = dummyWork.real();
-	std::vector<dcomplex> work(lwork);
+    lwork = dummyWork.real();
+    std::vector<dcomplex> work(lwork);
 
-	LAPACK(zgetri)( &n, A, &lda, ipiv, &work[0], &lwork, &info );
+    LAPACK(zgetri)( &n, A, &lda, ipiv, &work[0], &lwork, &info );
 
-	if( info < 0 )
-	{
-		std::ostringstream msg;
-		msg << "Argument " << -info << " had illegal value";
-		ErrorHandling( msg.str().c_str() );
-	}
-	else if( info > 0 )
-	{
-		std::ostringstream msg;
-		msg << "U(" << info << ", " << info << ") = 0. The matrix is singular and cannot be inverted.";
-		ErrorHandling( msg.str().c_str() );
-	}
+    if( info < 0 )
+    {
+        std::ostringstream msg;
+        msg << "Argument " << -info << " had illegal value";
+        ErrorHandling( msg.str().c_str() );
+    }
+    else if( info > 0 )
+    {
+        std::ostringstream msg;
+        msg << "U(" << info << ", " << info << ") = 0. The matrix is singular and cannot be inverted.";
+        ErrorHandling( msg.str().c_str() );
+    }
 
 #ifndef _RELEASE_
-	PopCallStack();
+    PopCallStack();
 #endif
 
-	return ;
+    return ;
 }		// -----  end of function Getri  ----- 
 
 
@@ -1670,41 +1674,111 @@ Getri ( Int n, dcomplex* A, Int lda, const Int* ipiv )
 void
 Sytrf ( char uplo, Int n, double* A, Int lda, Int* ipiv ){
 #ifndef _RELEASE_
-  PushCallStack("Sytrf");
+    PushCallStack("Sytrf");
 #endif
-  Int lwork = -1, info;
-  double dummyWork;
+    Int lwork = -1, info;
+    double dummyWork;
 
-  LAPACK(dsytrf) ( &uplo, &n, A, &lda,
-      ipiv, &dummyWork, &lwork, &info );
+    LAPACK(dsytrf) ( &uplo, &n, A, &lda,
+            ipiv, &dummyWork, &lwork, &info );
 
-  lwork = dummyWork;
-  std::vector<double> work(lwork);
+    lwork = dummyWork;
+    std::vector<double> work(lwork);
 
-  LAPACK(dsytrf) ( &uplo, &n, A, &lda,
-      ipiv, &work[0], &lwork, &info );
+    LAPACK(dsytrf) ( &uplo, &n, A, &lda,
+            ipiv, &work[0], &lwork, &info );
 
-  if( info < 0 )
-  {
-    std::ostringstream msg;
-    msg << "Argument " << -info << " had illegal value";
-    ErrorHandling( msg.str().c_str() );
-  }
-  else if( info > 0 )
-  {
-    std::ostringstream msg;
-    msg << "U(" << info << ", " << info << ") = 0. "
-      << "The matrix is singular and factorization cannot proceed.";
-    ErrorHandling( msg.str().c_str() );
-  }
+    if( info < 0 )
+    {
+        std::ostringstream msg;
+        msg << "Argument " << -info << " had illegal value";
+        ErrorHandling( msg.str().c_str() );
+    }
+    else if( info > 0 )
+    {
+        std::ostringstream msg;
+        msg << "U(" << info << ", " << info << ") = 0. "
+            << "The matrix is singular and factorization cannot proceed.";
+        ErrorHandling( msg.str().c_str() );
+    }
 
 #ifndef _RELEASE_
-  PopCallStack();
+    PopCallStack();
 #endif
 
-  return ;
+    return ;
 }		// -----  end of function Sytrf  ----- 
 
+// *********************************************************************
+// Orthogonalization (MATLAB's orth, using SVD)
+// *********************************************************************
+
+void Orth( Int m, Int n, double* A, Int lda ){
+    if( m==0 || n==0 )
+        return;
+
+    // Overwrite mode
+    const char jobu='O', jobvt='N';
+    std::vector<double> s(n);
+    Int lwork=-1, info;
+    double dummyWork;
+    double dummyReal;
+    Int dummyInt;
+
+    LAPACK(dgesvd)
+        ( &jobu, &jobvt, &m, &n, A, &lda, &s[0], &dummyReal, &dummyInt, 
+          &dummyReal, &dummyInt, &dummyWork, &lwork, &info );
+
+    lwork = dummyWork;
+    std::vector<double> work(lwork);
+    LAPACK(dgesvd)
+        ( &jobu, &jobvt, &m, &n, A, &lda, &s[0], &dummyReal, &dummyInt, 
+          &dummyReal, &dummyInt, &work[0], &lwork, &info );
+    if( info < 0 )
+    {
+        std::ostringstream msg;
+        msg << "Argument " << -info << " had illegal value";
+        ErrorHandling( msg.str().c_str() );
+    }
+    else if( info > 0 )
+    {
+        ErrorHandling("dgesvd's updating process failed");
+    }
+    return ;
+}
+
+
+// *********************************************************************
+// QR with column pivoting. Use dgeqp3 routine
+// *********************************************************************
+
+void QRCP( Int m, Int n, double* A, Int lda, Int * piv, 
+        double* tau )
+{
+    if( m==0 || n==0 )
+    {
+        return;
+    }
+
+    Int lwork=-1, info;
+    double dummyWork;
+
+    LAPACK(dgeqp3)
+        ( &m, &n, A, &lda, piv, tau, &dummyWork, &lwork, &info );
+
+    lwork = dummyWork;
+    std::vector<double> work(lwork);
+    LAPACK(dgeqp3)
+        ( &m, &n, A, &lda, piv, tau, &work[0], &lwork, &info );
+    if( info < 0 )
+    {
+        std::ostringstream msg;
+        msg << "Argument " << -info << " had illegal value";
+        ErrorHandling( msg.str().c_str() );
+    }
+
+    return;
+}
 
 } // namespace lapack
 } // namespace dgdft

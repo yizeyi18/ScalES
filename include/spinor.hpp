@@ -53,6 +53,7 @@
 #include  "numtns_impl.hpp"
 #include  "fourier.hpp"
 #include  "utility.hpp"
+#include  "lapack.hpp"
 
 namespace dgdft{
 
@@ -121,12 +122,34 @@ public:
 
     void AddTeterPrecond( Fourier* fftPtr, NumTns<Real>& a3 );
 
+    /// @brief Apply the exchange operator to the spinor by solving
+    /// Poisson like equations
+    /// EXX: Spinor with exact exchange. 
+    /// Keeping the names separate is good for now, since the new
+    /// algorithm requires a different set of input parameters for AddMultSpinor
     void AddMultSpinorEXX ( Fourier& fft,
             const NumTns<Real>& phi,
             const DblNumVec& exxgkkR2CFine,
             Real  exxFraction,
             Real  numSpin,
             const DblNumVec& occupationRate,
+            NumTns<Real>& a3 );
+
+    /// @brief Spinor with exact exchange, and the cost is reduced using density fitting schemes.
+    /// The density fitting uses the interpolative separable density fitting method
+    ///
+    /// J. Lu, L. Ying, Compression of the electron repulsion integral tensor
+    /// in tensor hypercontraction format with cubic scaling cost, J.
+    /// Comput. Phys. 302 (2015) 329–335. 
+    ///
+    /// Only sequential version is implemented
+    void AddMultSpinorEXXDF ( Fourier& fft, 
+            const NumTns<Real>& phi,
+            const DblNumVec& exxgkkR2C,
+            Real  exxFraction,
+            Real  numSpin,
+            const DblNumVec& occupationRate,
+            const Real numMuFac,
             NumTns<Real>& a3 );
 
 

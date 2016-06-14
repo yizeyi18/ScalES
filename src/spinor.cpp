@@ -634,13 +634,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
     return ;
 }		// -----  end of method Spinor::AddMultSpinorFineR2C  ----- 
 
-// EXX: Spinor with exact exchange. Will be merged later.
-// However, keeping the names separate is good for now, since the new
-// algorithm requires a different set of input parameters for AddMultSpinor
-// 
-// NOTE 
-// Currently there is no parallelization over the phi tensor
-//
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
         const NumTns<Real>& phi,
         const DblNumVec& exxgkkR2C,
@@ -762,5 +755,167 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
     return ;
 }		// -----  end of method Spinor::AddMultSpinorEXX  ----- 
+
+
+void Spinor::AddMultSpinorEXXDF ( Fourier& fft, 
+        const NumTns<Real>& phi,
+        const DblNumVec& exxgkkR2C,
+        Real  exxFraction,
+        Real  numSpin,
+        const DblNumVec& occupationRate,
+        const Real numMuFac,
+        NumTns<Real>& a3 )
+{
+    if( !fft.isInitialized ){
+        ErrorHandling("Fourier is not prepared.");
+    }
+
+    MPI_Barrier(domain_.comm);
+    int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+    int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+    Index3& numGrid = domain_.numGrid;
+    Index3& numGridFine = domain_.numGridFine;
+
+    Int ntot     = domain_.NumGridTotal();
+    Int ntotFine = domain_.NumGridTotalFine();
+    Int ntotR2C = fft.numGridTotalR2C;
+    Int ntotR2CFine = fft.numGridTotalR2CFine;
+    Int ncom = wavefun_.n();
+    Int numStateLocal = wavefun_.p();
+    Int numStateTotal = numStateTotal_;
+
+    Int ncomPhi = phi.n();
+
+    Real vol = domain_.Volume();
+
+    if( ncomPhi != 1 || ncom != 1 ){
+        ErrorHandling("Spin polarized case not implemented.");
+    }
+
+    if( fft.domain.NumGridTotal() != ntot ){
+        ErrorHandling("Domain size does not match.");
+    }
+
+
+    // *********************************************************************
+    // Perform interpolative separable density fitting
+    // *********************************************************************
+    Int numMu = std::min(IRound(numStateTotal*numMuFac), ntot);
+    // Step 1: Pre-compression of the wavefunctions. This uses
+    // multiplication with orthonormalized random Gaussian matrices
+    //
+    
+    /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
+    /// principle be a tensor, but only treated as matrix.
+    Int numPre = std::min(IRound(std::sqrt(numMu*2.0)), numStateTotal);
+    DblNumMat phiG(ntot, numPre), psiG(ntot, numPre);
+    {
+        DblNumMat G(numStateTotal, numPre);
+        // Generate orthonormal Gaussian random matrix 
+        GaussianRandom(G);
+        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+
+        blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
+                phi.Data(), ntot, G.Data(), numStateTotal, 0.0,
+                phiG.Data(), ntot );
+
+        GaussianRandom(G);
+        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+        blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
+                wavefun_.Data(), ntot, G.Data(), numStateTotal, 0.0,
+                psiG.Data(), ntot );
+    }
+
+    // Step 2: Pivoted QR decomposition  for the Hadamard product of
+    // the compressed matrix. Transpose format for QRCP
+    DblNumMat MG( numPre*numPre, ntot );
+    for( Int j = 0; j < numPre; j++ ){
+        for( Int i = 0; i < numPre; i++ ){
+            for( Int ir = 0; ir < ntot; ir++ ){
+                MG(i+j*numPre,ir) = phiG(ir,i) * psiG(ir,j);
+            }
+        }
+    }
+    IntNumVec piv(ntot);
+    DblNumVec tau(ntot);
+    SetValue( piv, 0 ); // Important. Otherwise QRCP uses piv as initial guess
+    // Q factor does not need to be used
+    lapack::QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
+            piv.Data(), tau.Data() );
+
+    // Step 3: Construct the interpolation matrix
+    IntNumVec pivMu(numMu);
+    for( Int mu = 0; mu < numMu; mu++ ){
+        pivMu(mu) = piv(mu);
+    }
+    Real tolR = std::abs(MG(numMu-1,numMu-1)/MG(0,0));
+    statusOFS << "|R(mu,mu)/R(0,0)| = " << tolR << std::endl;
+    // Solve R_1^{-1} [R_1 R_2]
+    DblNumMat R1(numMu, numMu);
+    lapack::Lacpy('U', numMu, numMu, MG.Data(), numPre*numPre,
+            R1.Data(), numMu);
+    blas::Trsm( 'L', 'U', 'N', 'N', numMu, ntot, 1.0, 
+            R1.Data(), numMu, MG.Data(), numPre*numPre );
+
+    // Store info from the first numMu rows into the MG into Xi
+    // after permutation
+    DblNumMat Xi(ntot, numMu);
+    for( Int mu = 0; mu < numMu; mu++ ){
+        for( Int ir = 0; ir < ntot; ir++ ){
+            Xi(piv(ir),mu) = MG(mu,ir);
+        }
+    }
+
+
+    // *********************************************************************
+    // Solve the Poisson equations 
+    // *********************************************************************
+    // Step 1: Solve the Poisson-like problem for exchange
+    DblNumMat XiPot(ntot, numMu);
+    for( Int mu = 0; mu < numMu; mu++ ){
+        blas::Copy( ntot,  Xi.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
+
+        FFTWExecute ( fft, fft.forwardPlanR2C );
+
+        for( Int ig = 0; ig < ntotR2C; ig++ ){
+            fft.outputVecR2C(ig) *= -exxFraction * exxgkkR2C(ig);
+        }
+
+        FFTWExecute ( fft, fft.backwardPlanR2C );
+
+        // accumulate \sum_j f_j \varphi_j (r) \varphi_j(r_mu) 
+        // can be done with gemv
+        DblNumVec phiMu(ntot);
+        SetValue( phiMu, 0.0 );
+        for( Int k = 0; k < numStateTotal; k++ ){
+            blas::Axpy(ntot, phi(pivMu(mu), 0, k) * occupationRate[k], 
+                    phi.VecData(0, k), 1, phiMu.Data(), 1 );
+        }
+
+        Real* xiPtr = XiPot.VecData(mu);
+        for( Int ir = 0; ir < ntot; ir++ ){
+            xiPtr[ir] = fft.inputVecR2C(ir) * phiMu(ir);
+        }
+    } // for (mu)
+
+    // Step 2: accumulate to the matrix vector multiplication
+    // can be done with gemv
+    for (Int k=0; k<numStateTotal; k++) {
+        for (Int j=0; j<ncom; j++) {
+            for( Int mu = 0; mu < numMu; mu++ ){
+                blas::Axpy( ntot, wavefun_(pivMu(mu),j,k), 
+                        XiPot.VecData(mu), 1, 
+                        a3.VecData(j,k), 1 );
+            }
+        }
+    } // for (k)
+
+    MPI_Barrier(domain_.comm);
+
+
+    return ;
+}		// -----  end of method Spinor::AddMultSpinorEXXDF  ----- 
+
 
 }  // namespace dgdft
