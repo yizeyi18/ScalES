@@ -302,8 +302,12 @@ void Potrf( char uplo, Int n, const double* A, Int lda )
         msg << "dpotrf returned with info = " << info;
         ErrorHandling( msg.str().c_str() );
     }
-    else if( info > 0 )
-        ErrorHandling("Matrix is not HPD.");
+    else if( info > 0 ){
+        std::ostringstream msg;
+        msg << "dpotrf returned with info = " << info << std::endl;
+        msg << "A(info,info) = " << A[info-1+(info-1)*lda] << std::endl;
+        ErrorHandling( msg.str().c_str() );
+    }
 #ifndef _RELEASE_
     PopCallStack();
 #endif
@@ -1723,7 +1727,7 @@ void Orth( Int m, Int n, double* A, Int lda ){
     Int lwork=-1, info;
     double dummyWork;
     double dummyReal;
-    Int dummyInt;
+    Int dummyInt = 1;
 
     LAPACK(dgesvd)
         ( &jobu, &jobvt, &m, &n, A, &lda, &s[0], &dummyReal, &dummyInt, 
@@ -1770,6 +1774,12 @@ void QRCP( Int m, Int n, double* A, Int lda, Int * piv,
     std::vector<double> work(lwork);
     LAPACK(dgeqp3)
         ( &m, &n, A, &lda, piv, tau, &work[0], &lwork, &info );
+
+    // Important: fortran index is 1-based. Change to 0-based
+    for( Int i = 0; i < n; i++ ){
+        piv[i]--;
+    }
+
     if( info < 0 )
     {
         std::ostringstream msg;

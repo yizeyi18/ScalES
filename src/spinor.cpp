@@ -808,8 +808,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     
     /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
     /// principle be a tensor, but only treated as matrix.
-    Int numPre = std::min(IRound(std::sqrt(numMu*2.0)), numStateTotal);
+//    Int numPre = std::min(IRound(std::sqrt(numMu*2.0)), numStateTotal);
+    Int numPre = numStateTotal;
     DblNumMat phiG(ntot, numPre), psiG(ntot, numPre);
+    if(1)
     {
         DblNumMat G(numStateTotal, numPre);
         // Generate orthonormal Gaussian random matrix 
@@ -822,10 +824,23 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
         GaussianRandom(G);
         lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+
+        if(0){
+            DblNumMat OverG(numPre,numPre);
+            blas::Gemm( 'T', 'N', numPre, numPre, numStateTotal, 1.0,
+                    G.Data(), numStateTotal, G.Data(), numStateTotal, 0.0,
+                    OverG.Data(), numPre );
+            statusOFS << "OverG = " << OverG << std::endl;
+        }
+
         blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
                 wavefun_.Data(), ntot, G.Data(), numStateTotal, 0.0,
                 psiG.Data(), ntot );
     }
+//    if(0){
+//        blas::Copy( ntot*numStateTotal, phi.Data(), 1, phiG.Data(), 1 );
+//        blas::Copy( ntot*numStateTotal, wavefun_.Data(), 1, psiG.Data(), 1 );
+//    }
 
     // Step 2: Pivoted QR decomposition  for the Hadamard product of
     // the compressed matrix. Transpose format for QRCP
@@ -843,6 +858,13 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     // Q factor does not need to be used
     lapack::QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
             piv.Data(), tau.Data() );
+    // Important: eliminate the Q part in MG
+    for( Int mu = 0; mu < numMu; mu++ ){
+        for( Int i = mu+1; i < numMu; i++ ){
+            MG(i,mu) = 0.0;
+        }
+    }
+
 
     // Step 3: Construct the interpolation matrix
     IntNumVec pivMu(numMu);
@@ -850,7 +872,18 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         pivMu(mu) = piv(mu);
     }
     Real tolR = std::abs(MG(numMu-1,numMu-1)/MG(0,0));
-    statusOFS << "|R(mu,mu)/R(0,0)| = " << tolR << std::endl;
+    statusOFS << "numMu = " << numMu << std::endl;
+    statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
+    if(0){
+        Int numDiag = std::min(numPre*numPre, ntot);
+        DblNumVec diagR(numDiag);
+        for( Int i = 0; i < numDiag; i++ ){
+            diagR(i) = MG(i,i);
+        }
+        statusOFS << "diagR = " << diagR << std::endl;
+        statusOFS << "piv = " << piv << std::endl;
+    }
+
     // Solve R_1^{-1} [R_1 R_2]
     DblNumMat R1(numMu, numMu);
     lapack::Lacpy('U', numMu, numMu, MG.Data(), numPre*numPre,
@@ -865,6 +898,13 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         for( Int ir = 0; ir < ntot; ir++ ){
             Xi(piv(ir),mu) = MG(mu,ir);
         }
+    }
+    if(0){
+        DblNumVec diagR(numMu);
+        for( Int i = 0; i < numMu; i++ ){
+            diagR(i) = MG(i,i);
+        }
+        statusOFS << "diagR (xi) = " << diagR << std::endl;
     }
 
 

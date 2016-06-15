@@ -241,7 +241,9 @@ void Orth( Int m, Int n, double* A, Int lda );
 /// @brief QRCP Wrapper for dgeqp3 routine.
 ///
 /// @todo Another interface for QRCP that directly returns the Q factor.
-/// This should use DORGQR routine to generate the Q matrix
+/// This should use DORGQR routine to generate the Q matrix.
+///
+/// The index piv is adjusted to be 0-based.
 void QRCP( Int m, Int n, double* A, Int lda, Int * piv, 
         double* tau );
 

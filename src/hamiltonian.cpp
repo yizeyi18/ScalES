@@ -1873,8 +1873,16 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 
     // VexxPsi = V_{exx}*Phi.
     SetValue( vexxPsi, 0.0 );
-    psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
-            exxFraction_,  numSpin_, occupationRate_, vexxPsi );
+    // FIXME Add an option to use the density fitting algorithm
+    if(0){
+        psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
+                exxFraction_,  numSpin_, occupationRate_, vexxPsi );
+    }
+    else{
+        Real numMuFac = 4;
+        psi.AddMultSpinorEXXDF( fft, phiEXX_, exxgkkR2C_,
+                exxFraction_,  numSpin_, occupationRate_, numMuFac, vexxPsi );
+    }
 
     // Implementation based on SVD
     DblNumMat  M(numStateTotal, numStateTotal);
