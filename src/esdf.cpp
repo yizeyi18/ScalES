@@ -239,7 +239,6 @@ double phy_u[nphys];            /* U - unit */
 char kw_label[numkw][100];
 int kw_index[numkw];
 char kw_typ[numkw][4];
-char kw_dscrpt[numkw][3000];
 
 FILE *fileunit;
 
@@ -283,751 +282,613 @@ void esdf_key() {
 
     strcpy(kw_label[i],"atom_types_num");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of atom types !*");
 
     i++;
     strcpy(kw_label[i],"atom_type");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Type of the atom (integer) !*");
 
     i++;
     strcpy(kw_label[i],"core_cutoff_radius");
     strcpy(kw_typ[i],"P:E");
-    strcpy(kw_dscrpt[i],"*! Pseudopotential core cutoff radius !");
 
     i++;
     strcpy(kw_label[i],"potential_num");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of potentials !*");
 
     i++;
     strcpy(kw_label[i],"local_component");
     strcpy(kw_typ[i],"T:B");
-    strcpy(kw_dscrpt[i],"*! The local component (s,p or d) !*");
 
     i++;
     strcpy(kw_label[i],"move_flag");
     strcpy(kw_typ[i],"I:I");
-    strcpy(kw_dscrpt[i],"*! Which atom to move(all,some,first n) !*");
 
     i++;
     strcpy(kw_label[i],"correlation_type");
     strcpy(kw_typ[i],"T:D");
-    strcpy(kw_dscrpt[i],"*! Correlation type !*");
 
     i++;
     strcpy(kw_label[i],"ion_energy_diff");
     strcpy(kw_typ[i],"P:I");
-    strcpy(kw_dscrpt[i],"*! Ion energy diff. (only for 'cc') !*");
 
     i++;
     strcpy(kw_label[i],"atom_coord");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! Coordinates of atom !*");
 
     i++;
     strcpy(kw_label[i],"grid_size");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! Number of grids on each direction !*");
 
     i++;
     strcpy(kw_label[i],"super_cell");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! Length of sides of periodic box !*");
 
     i++;
     strcpy(kw_label[i],"grid_spacing");
     strcpy(kw_typ[i],"P:E");
-    strcpy(kw_dscrpt[i],"*! Grid spacing (h) !*");
 
     i++;
     strcpy(kw_label[i],"miniter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Minimum iterations !*");
 
     i++;
     strcpy(kw_label[i],"maxiter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Maximum iterations !*");
 
     i++;
     strcpy(kw_label[i],"tolerance");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Tolerance !*");
 
     i++;
     strcpy(kw_label[i],"cheb_deg");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Degree of Chebyshev polynomial !*");
 
     i++;
     strcpy(kw_label[i],"mixing_type");
     strcpy(kw_typ[i],"T:B");
-    strcpy(kw_dscrpt[i],"*! Simple, Anderson, Broyden, Pulay !*");
 
     i++;
     strcpy(kw_label[i],"mixing_variable");
     strcpy(kw_typ[i],"T:B");
-    strcpy(kw_dscrpt[i],"*! density, potential !*");
 
     i++;
     strcpy(kw_label[i],"mixing_param");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Coefficients parameter (simple) !*");
 
 
     i++;
     strcpy(kw_label[i],"mixing_maxdim");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Maximum mixing number (Broyden, Pulay) !*");
 
     i++;
     strcpy(kw_label[i],"log_files");
     strcpy(kw_typ[i],"L:B");
-    strcpy(kw_dscrpt[i],"*! Output data in different files !*");
 
     /* LL: Keywords added below for DGDFT */
     i++;
     strcpy(kw_label[i],"mixing_steplength");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Mixing coefficients parameter !*");
 
     i++;
     strcpy(kw_label[i],"penalty_alpha");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! DG penalty parameter !*");
 
     i++;
     strcpy(kw_label[i],"eig_tolerance");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! eigenvalue solver tolerance!*");
 
     i++;
     strcpy(kw_label[i],"eig_min_tolerance");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! minimum tolerance for eigenvalue solver!*");
 
     i++;
     strcpy(kw_label[i],"eig_miniter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Minimum iteration number for eigenvalue solver!*");
 
     i++;
     strcpy(kw_label[i],"eig_maxiter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Maximum iteration number for eigenvalue solver!*");
 
     i++;
     strcpy(kw_label[i],"scf_inner_tolerance");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Inner SCF loop tolerance!*");
 
     i++;
     strcpy(kw_label[i],"scf_outer_tolerance");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Outer SCF loop tolerance!*");
 
     i++;
     strcpy(kw_label[i],"scf_outer_energy_tolerance");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Outer SCF loop tolerance using free energy per atom!*");
 
 
     i++;
     strcpy(kw_label[i],"svd_basis_tolerance");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Threshold for adaptive local basis in the SVD procedure!*");
 
     i++;
     strcpy(kw_label[i],"temperature");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! temperature (in Kelvin)!*");
 
     i++;
     strcpy(kw_label[i],"ion_temperature");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! temperature for ion (in Kelvin)!*");
 
     i++;
     strcpy(kw_label[i],"scf_inner_miniter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Minimum iteration number for inner SCF loop !*");
 
     i++;
     strcpy(kw_label[i],"scf_inner_maxiter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Maximum iteration number for inner SCF loop !*");
 
     i++;
     strcpy(kw_label[i],"scf_outer_miniter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Minimum iteration number for outer SCF loop !*");
 
     i++;
     strcpy(kw_label[i],"scf_outer_maxiter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Maximum iteration number for outer SCF loop !*");
 
     i++;
     strcpy(kw_label[i],"md_scf_outer_maxiter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Maximum iteration number for outer SCF loop !*");
 
     i++;
     strcpy(kw_label[i],"dg_degree");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Maximum polynomial degrees in DG solver !*");
 
     i++;
     strcpy(kw_label[i],"alb_num");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of adaptive local basis functions per element !*");
 
     i++;
     strcpy(kw_label[i],"alb_num_element");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! Number of adaptive local basis functions for each element !*");
 
     i++;
     strcpy(kw_label[i],"scalapack_block_size");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of block size used in scalapack!*");
 
     i++;
     strcpy(kw_label[i],"mapping_mode");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! Mapping Mode - self or uniform!*");
 
     i++;
     strcpy(kw_label[i],"element_size");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! number of elements per dimension !*");
 
     i++;
     strcpy(kw_label[i],"extra_states");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Extra number of states beyond occupied states !*");
 
     i++;
     strcpy(kw_label[i],"periodtable");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! file name for periodic table!*");
 
     i++;
     strcpy(kw_label[i],"pseudo_type");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! Type of pseudopotential!*");
 
     i++;
     strcpy(kw_label[i],"output_dir");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! Output Directory!*");
 
     i++;
     strcpy(kw_label[i],"restart_mode");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! Restart mode !*");
 
     i++;
     strcpy(kw_label[i],"restart_density");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether density is restarted!*");
 
     i++;
     strcpy(kw_label[i],"restart_wfn");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether the wavefunction in the global domain is restarted!*");
 
     i++;
     strcpy(kw_label[i],"output_density");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether density is outputed !*");
 
 
     i++;
     strcpy(kw_label[i],"output_wfn");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether wavefunctions and occupations numbers are outputed !*");
 
     i++;
     strcpy(kw_label[i],"output_alb_elem_lgl");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether ALBs in the element is outputed on LGL grid!*");
 
     i++;
     strcpy(kw_label[i],"output_alb_elem_uniform");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether ALBs in the element is outputed on uniform grid!*");
 
 
     i++;
     strcpy(kw_label[i],"output_wfn_extelem");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether wavefunctions in the extended element is outputed !*");
 
     i++;
     strcpy(kw_label[i],"output_pot_extelem");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether potential in the extended element is outputed !*");
 
     i++;
     strcpy(kw_label[i],"output_eigvec_coef");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether to output the eigenvector coefficients. !*");
 
 
     i++;
     strcpy(kw_label[i],"output_hmatrix");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether the DG Hamiltonian matrix is outputed !*");
 
     i++;
     strcpy(kw_label[i],"element_position_start");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! Starting position of each molecule element !*");
 
     i++;
     strcpy(kw_label[i],"element_grid_size");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! Starting position of each molecule element !*");
 
     i++;
     strcpy(kw_label[i],"element_cell");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! Starting position of each molecule element !*");
 
     i++;
     strcpy(kw_label[i],"position_start");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! Starting position of molecule !*");
 
 
 
     i++;
     strcpy(kw_label[i],"max_step");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Maximum steps for MD simulation!*");
 
     i++;
     strcpy(kw_label[i],"buff_update");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Basis functions are updated every buff_update steps !*");
 
     i++;
     strcpy(kw_label[i],"statfile");
     strcpy(kw_typ[i],"T:B");
-    strcpy(kw_dscrpt[i],"*! Filename of statfile!*");
 
     i++;
     strcpy(kw_label[i],"dg_solver");
     strcpy(kw_typ[i],"T:B");
-    strcpy(kw_dscrpt[i],"*! standard (std) or Nonorthogonal (nonorth) !*");
 
     i++;
     strcpy(kw_label[i],"wallwidth");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Wall width for the Frobenius penalty !*");
 
     i++;
     strcpy(kw_label[i],"weightratio");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Weight ratio between eigenvalue and penalty!*");
 
     i++;
     strcpy(kw_label[i],"eigperele");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of eigenvalues to be solved per element in the buffer!*");
 
     i++;
     strcpy(kw_label[i],"orbperele");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of nonorthogonal oritals in the element!*");
 
     i++;
     strcpy(kw_label[i],"input_format");
     strcpy(kw_typ[i],"T:B");
-    strcpy(kw_dscrpt[i],"*!Input format for md.in !*");
 
     i++;
     strcpy(kw_label[i],"extended_element_ratio");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*!Size of the extended element !*");
 
     i++;
     strcpy(kw_label[i],"output_bases");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether bases functions are outputed !*");
 
     i++;
     strcpy(kw_label[i],"basis_radius");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Radius of nonlocal adaptive local basis functions !*");
 
     i++;
     strcpy(kw_label[i],"atom_bohr");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! Coordinates of atom in Cartesian coordinate (Bohr)!*");
 
     i++;
     strcpy(kw_label[i],"atom_ang");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! Coordinates of atom in Cartesian coordinate (angstrom)!*");
 
 
     i++;
     strcpy(kw_label[i],"atom_red");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! Coordinates of atom in reduced unit!*");
 
     i++;
     strcpy(kw_label[i],"buf_dual");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Use dual grid for buffer solve !*");
 
     i++;
     strcpy(kw_label[i],"vext");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! file name for external potential!*");
 
     i++;
     strcpy(kw_label[i],"output_vtot");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether the total potential are outputed !*");
 
     i++;
     strcpy(kw_label[i],"deltafermi");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! increase of the Fermi energy to control the number of candidate functions!*"); 
 
     i++;
     strcpy(kw_label[i],"pw_solver");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! Type of planewave solver !*");
 
     i++;
     strcpy(kw_label[i],"xc_type");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! Type of exchange correlation functional !*");
 
     i++;
     strcpy(kw_label[i],"vdw_type");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! Type of van der Waals correction !*");
 
     i++;
     strcpy(kw_label[i],"calculate_aposteriori_each_scf");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether to compute the a posteriori estimator at each SCF step !*");
 
     i++;
     strcpy(kw_label[i],"calculate_force_each_scf");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether to compute the force at each SCF step !*");
 
     i++;
     strcpy(kw_label[i],"potential_barrier");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Whether to use potential barrier in the extended element!*");
 
     i++;
     strcpy(kw_label[i],"potential_barrier_w");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Width parameter of potential barrier to the extended element!*");
 
     i++;
     strcpy(kw_label[i],"potential_barrier_s");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Strength parameter of potential barrier to the extended element!*");
 
     i++;
     strcpy(kw_label[i],"potential_barrier_r");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Radius parameter of potential barrier to the extended element!*");
 
     i++;
     strcpy(kw_label[i],"ecut_wavefunction");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Equivalent kinetic energy cutoff (in the unit of Hartree) for wavefunctions or adaptive local basis functions in a uniform grid!*");
 
     i++;
     strcpy(kw_label[i],"density_grid_factor");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! The number of grid points for density over the number of grid points over wavefunction along each dimension !*");
 
     i++;
     strcpy(kw_label[i],"lgl_grid_factor");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! The number of LGL grid points over the number of grid points over wavefunction along each dimension !*");
 
     i++;
     strcpy(kw_label[i],"gauss_interp_factor");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! The interp factor for Gaussian function !*");
 
     i++;
     strcpy(kw_label[i],"gauss_sigma");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! The sigma value for Gaussian function !*");
 
     i++;
     strcpy(kw_label[i],"periodize_potential");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Whether to periodize the potential in the extended element!*");
 
     i++;
     strcpy(kw_label[i],"distance_periodize");
     strcpy(kw_typ[i],"B:E");
-    strcpy(kw_dscrpt[i],"*! Distance to the boundary of the extended element to be periodized !*");
 
     i++;
     strcpy(kw_label[i],"solution_method");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! Type of solver for the projected problem!*");
 
     i++;
     strcpy(kw_label[i],"num_pole");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of poles for the pole expansion !*");
 
     i++;
     strcpy(kw_label[i],"num_proc_distfft");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of processors used by distributed FFT!*");
 
 
     i++;
     strcpy(kw_label[i],"num_proc_scalapack");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of processors used by ScaLAPACK !*");
 
 
     i++;
     strcpy(kw_label[i],"num_proc_scalapack_pw");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of processors used by ScaLAPACK in the PW part!*");
 
     i++;
     strcpy(kw_label[i],"num_proc_row_pexsi");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of processors per row used by pexsi !*");
 
     i++;
     strcpy(kw_label[i],"num_proc_col_pexsi");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of processors per column used by pexsi !*");
 
 
     i++;
     strcpy(kw_label[i],"num_proc_symb_fact");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of processors used the parallel symbolic factorization !*");
 
     i++;
     strcpy(kw_label[i],"energy_gap");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Estimated energy gap !*");
 
     i++;
     strcpy(kw_label[i],"spectral_radius");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Estimated spectral radius !*");
 
     i++;
     strcpy(kw_label[i],"matrix_ordering");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Matrix reordering strategy !*");
 
     i++;
     strcpy(kw_label[i],"inertia_count");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Whether or not to use the inertia count !*");
 
 
     i++;
     strcpy(kw_label[i],"inertia_count_steps");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! After this number of SCF the inertia count is not used !*");
 
     i++;
     strcpy(kw_label[i],"max_pexsi_iter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Maximum number of iterations for PEXSI !*");
 
     i++;
     strcpy(kw_label[i],"mu_min");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Minimum for the chemical potential !*");
 
     i++;
     strcpy(kw_label[i],"mu_max");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Maximum for the chemical potential !*");
 
     i++;
     strcpy(kw_label[i],"num_electron_pexsi_tolerance");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Absolute tolerance for the number of electrons for PEXSI !*");
 
     i++;
     strcpy(kw_label[i],"mu_inertia_tolerance");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Tolerance for the chemical potential for inertia counting !*");
 
     i++;
     strcpy(kw_label[i],"mu_inertia_expansion");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! The length of expanding the chemical potential interval !*");
 
     i++;
     strcpy(kw_label[i],"mu_pexsi_safeguard");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Safeguard value for switching back to inertia counting !*");
 
     i++;
     strcpy(kw_label[i],"unused_states");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! States that are not used to accelerate the convergence of eigensolver !*");
 
     i++;
     strcpy(kw_label[i],"eig_tolerance_dynamic");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Whether to control the eigenvalue solver tolerance dynamically!*");
 
     i++;
     strcpy(kw_label[i],"ion_max_iter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Maximum number of steps for ionic motion!*");
 
     i++;
     strcpy(kw_label[i],"ion_move");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! Mode for ionic motion !*");
 
 
     i++;
     strcpy(kw_label[i],"geo_opt_max_force");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Maximum force of geometric optimization !*");
 
     i++;
     strcpy(kw_label[i],"md_max_step");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of Molecular Dynamics !*");
 
     i++;
     strcpy(kw_label[i],"md_time_step");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Time step of Molecular Dynamics !*");
 
     i++;
     strcpy(kw_label[i],"md_extrapolation_type");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! Extrapolation type for updating the density !*");
 
     i++;
     strcpy(kw_label[i],"md_extrapolation_variable");
     strcpy(kw_typ[i],"T:E");
-    strcpy(kw_dscrpt[i],"*! Extrapolation density or wavefunction !*");
 
     i++;
     strcpy(kw_label[i],"thermostat_mass");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Thermostat mass !*");
 
     i++;
     strcpy(kw_label[i],"langevin_damping");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Dampling for the Langevin thermostat !*");
 
     i++;
     strcpy(kw_label[i],"restart_position");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether the last position is restarted!*");
 
     i++;
     strcpy(kw_label[i],"restart_velocity");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether the last velocity (and thermostat) is restarted!*");
 
     i++;
     strcpy(kw_label[i],"output_position");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether the last position is outputed !*");
 
     i++;
     strcpy(kw_label[i],"output_velocity");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether the last velocity (and thermostat) is outputed !*");
 
 
 
     i++;
     strcpy(kw_label[i],"output_xyz");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether to output the atomic position in XYZ format !*");
 
 
     i++;
     strcpy(kw_label[i],"scf_phi_maxiter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Maximum iteration number for hybrid functional!*");
 
     i++;
     strcpy(kw_label[i],"md_scf_phi_maxiter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Maximum iteration number for hybrid functional!*");
 
     i++;
     strcpy(kw_label[i],"scf_phi_tolerance");
     strcpy(kw_typ[i],"D:E");
-    strcpy(kw_dscrpt[i],"*! Tolerance for hybrid functional iteration!*");
 
     i++;
     strcpy(kw_label[i],"hybrid_ace");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether use the ACE formulation for hybrid functional!*");
+
+    i++;
+    strcpy(kw_label[i],"hybrid_df");
+    strcpy(kw_typ[i],"I:E");
+
+    i++;
+    strcpy(kw_label[i],"num_mu_hybrid_df");
+    strcpy(kw_typ[i],"D:E");
 
     i++;
     strcpy(kw_label[i],"hybrid_ace_outside");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether use the ACE formulation outside the SCF loop !*");
 
     i++;
     strcpy(kw_label[i],"exx_divergence_type");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! treatment of the divergence term in hybrid functional!*");
 
 
     // Inputs related to Chebyshev Filtered SCF iterations for PWDFT    
     i++;
     strcpy(kw_label[i],"first_scf_pwdft_chebyfilterorder");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for first SCF step in PWDFT !*");
 
     i++;
     strcpy(kw_label[i],"first_scf_pwdft_chebycyclenum");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of Chebyshev Filtering Cycles for first SCF step in PWDFT !*");
 
     i++;
     strcpy(kw_label[i],"general_scf_pwdft_chebyfilterorder");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for general step in PWDFT !*");
 
     i++;
     strcpy(kw_label[i],"pwdft_ppcg_use_scala");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether to use ScaLAPACK for PPCG in PWDFT !*");
 
     i++;
     strcpy(kw_label[i],"pwdft_cheby_use_scala");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether to use ScaLAPACK for CheFSI in PWDFT !*");
 
     i++;
     strcpy(kw_label[i],"pwdft_cheby_use_wfn_ecut_filt");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether to apply an adhoc FFT based filter for wavefunctions in CheFSI for PWDFT !*");
 
 
 
@@ -1037,52 +898,43 @@ void esdf_key() {
     i++;
     strcpy(kw_label[i],"diag_scfdg_by_cheby");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether to use Chebyshev Filtering based SCF (replaces diagonalization by ScaLAPACK) !*");
 
     i++;
     strcpy(kw_label[i],"scfdg_cheby_use_scalapack");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! whether to use ScaLAPACK for Chebyshev filtering inner routines !*");
 
 
     i++;
     strcpy(kw_label[i],"first_scfdg_chebyfilterorder");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for first SCF step !*");
 
     i++;
     strcpy(kw_label[i],"first_scfdg_chebycyclenum");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of Chebyshev Filtering Cycles for first SCF step !*");
 
 
 
     i++;
     strcpy(kw_label[i],"second_scfdg_chebyouteriter");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Use second stage for outeriter between 1 and Second_SCFDG_ChebyOuterIter !*");
 
     i++;
     strcpy(kw_label[i],"second_scfdg_chebyfilterorder");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for second stage !*");
 
     i++;
     strcpy(kw_label[i],"second_scfdg_chebycyclenum");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of Chebyshev Filtering Cycles for second stage !*");
 
 
 
     i++;
     strcpy(kw_label[i],"general_scfdg_chebyfilterorder");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Chebyshev Filter Order for general stage !*");
 
     i++;
     strcpy(kw_label[i],"general_scfdg_chebycyclenum");
     strcpy(kw_typ[i],"I:E");
-    strcpy(kw_dscrpt[i],"*! Number of Chebyshev Filtering Cycles for general stage !*");
 
 }
 
@@ -2322,7 +2174,9 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
         esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
         esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
         esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
-        esdfParam.isHybridACE          = esdf_integer( "Hybrid_ACE", 0 );
+        esdfParam.isHybridACE          = esdf_integer( "Hybrid_ACE", 1 );
+        esdfParam.isHybridDF           = esdf_integer( "Hybrid_DF", 0 );
+        esdfParam.numMuHybridDF        = esdf_double( "Num_Mu_Hybrid_DF", 3.0 );
         esdfParam.isHybridACEOutside   = esdf_integer( "Hybrid_ACE_Outside", 0 );
         esdfParam.MDscfOuterMaxIter    = esdf_integer( "MD_SCF_Outer_MaxIter",  esdfParam.scfOuterMaxIter );
         esdfParam.MDscfPhiMaxIter      = esdf_integer( "MD_SCF_Phi_MaxIter", esdfParam.scfPhiMaxIter  );
@@ -2874,6 +2728,8 @@ void ESDFPrintInput( const ESDFInputParam& esdfParam ){
         Print(statusOFS, "SCF Phi MaxIter                      = ",  esdfParam.scfPhiMaxIter);
         Print(statusOFS, "SCF Phi Tol                          = ",  esdfParam.scfPhiTolerance);
         Print(statusOFS, "Hybrid ACE                           = ",  esdfParam.isHybridACE);
+        Print(statusOFS, "Hybrid DF                            = ",  esdfParam.isHybridDF);
+        Print(statusOFS, "Num mu hybrid DF                     = ",  esdfParam.numMuHybridDF);
         Print(statusOFS, "Hybrid ACE Outside SCF               = ",  esdfParam.isHybridACEOutside);
         Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);
 

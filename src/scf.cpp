@@ -334,7 +334,12 @@ SCF::Iterate (  )
                     GetTime( timeSta );
                     ham.SetPhiEXX( psi, fft ); 
                     if( ham.IsHybridACE() ){
-                        ham.CalculateVexxACE ( psi, fft );
+                        if( ham.IsHybridDF() ){
+                            ham.CalculateVexxACEDF( psi, fft );
+                        }
+                        else{
+                            ham.CalculateVexxACE ( psi, fft );
+                        }
                     }
                     GetTime( timeEnd );
                     statusOFS << "Time for updating Phi related variable is " <<

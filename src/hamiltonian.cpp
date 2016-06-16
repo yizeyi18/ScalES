@@ -1,44 +1,44 @@
 /*
-  Copyright (c) 2012 The Regents of the University of California,
-  through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
-  Author: Lin Lin
+   Author: Lin Lin
 	 
-  This file is part of DGDFT. All rights reserved.
+   This file is part of DGDFT. All rights reserved.
 
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are met:
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
 
-  (1) Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-  (2) Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-  (3) Neither the name of the University of California, Lawrence Berkeley
-  National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-  be used to endorse or promote products derived from this software without
-  specific prior written permission.
+   (1) Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+   (2) Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+   (3) Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
 
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-  You are under no obligation whatsoever to provide any bug fixes, patches, or
-  upgrades to the features, functionality or performance of the source code
-  ("Enhancements") to anyone; however, if you choose to make your Enhancements
-  available either publicly, or directly to Lawrence Berkeley National
-  Laboratory, without imposing a separate written license agreement for such
-  Enhancements, then you hereby grant the following license: a non-exclusive,
-  royalty-free perpetual license to install, use, modify, prepare derivative
-  works, incorporate into other computer software, distribute, and sublicense
-  such enhancements or derivative works thereof, in binary and source code form.
+   You are under no obligation whatsoever to provide any bug fixes, patches, or
+   upgrades to the features, functionality or performance of the source code
+   ("Enhancements") to anyone; however, if you choose to make your Enhancements
+   available either publicly, or directly to Lawrence Berkeley National
+   Laboratory, without imposing a separate written license agreement for such
+   Enhancements, then you hereby grant the following license: a non-exclusive,
+   royalty-free perpetual license to install, use, modify, prepare derivative
+   works, incorporate into other computer software, distribute, and sublicense
+   such enhancements or derivative works thereof, in binary and source code form.
 */
 /// @file hamiltonian.cpp
 /// @brief Hamiltonian class for planewave basis diagonalization method.
@@ -97,6 +97,8 @@ KohnSham::Setup	(
     numExtraState_       = esdfParam.numExtraState;
     XCType_              = esdfParam.XCType;
     isHybridACE_         = esdfParam.isHybridACE;
+    isHybridDF_          = esdfParam.isHybridDF;
+    numMuHybridDF_       = esdfParam.numMuHybridDF;
     exxDivergenceType_   = esdfParam.exxDivergenceType;
 
     // FIXME Hard coded
@@ -1852,8 +1854,6 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 #ifndef _RELEASE_
     PushCallStack("KohnSham::CalculateVexxACE");
 #endif
-    // FIXME
-    Real SVDTolerance = 1e-4;
     // This assumes SetPhiEXX has been called so that phiEXX and psi
     // contain the same information. 
 
@@ -1873,21 +1873,15 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 
     // VexxPsi = V_{exx}*Phi.
     SetValue( vexxPsi, 0.0 );
-    // FIXME Add an option to use the density fitting algorithm
-    if(0){
-        psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
-                exxFraction_,  numSpin_, occupationRate_, vexxPsi );
-    }
-    else{
-        Real numMuFac = 4;
-        psi.AddMultSpinorEXXDF( fft, phiEXX_, exxgkkR2C_,
-                exxFraction_,  numSpin_, occupationRate_, numMuFac, vexxPsi );
-    }
+    psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
+            exxFraction_,  numSpin_, occupationRate_, vexxPsi );
 
     // Implementation based on SVD
     DblNumMat  M(numStateTotal, numStateTotal);
 
     if(0){
+        // FIXME
+        Real SVDTolerance = 1e-4;
         // M = Phi'*vexxPsi
         blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
                 1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
@@ -2036,6 +2030,50 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 
     return ;
 } 		// -----  end of method KohnSham::CalculateVexxACE  ----- 
+
+
+void
+KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft )
+{
+    // This assumes SetPhiEXX has been called so that phiEXX and psi
+    // contain the same information. 
+
+    // Since this is a projector, it should be done on the COARSE grid,
+    // i.e. to the wavefunction directly
+
+    MPI_Barrier(domain_.comm);
+    int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+    int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+    // Only works for single processor
+    Int ntot      = fft.domain.NumGridTotal();
+    Int ntotFine  = fft.domain.NumGridTotalFine();
+    Int numStateTotal = psi.NumStateTotal();
+    Int numStateLocal = psi.NumState();
+    NumTns<Real>  vexxPsi( ntot, 1, numStateLocal );
+
+    // VexxPsi = V_{exx}*Phi.
+    DblNumMat  M(numStateTotal, numStateTotal);
+    SetValue( vexxPsi, 0.0 );
+    SetValue( M, 0.0 );
+    // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
+    // semi-definite matrix.
+    psi.AddMultSpinorEXXDF( fft, phiEXX_, exxgkkR2C_,
+            exxFraction_,  numSpin_, occupationRate_, numMuHybridDF_, vexxPsi, M );
+
+    // Implementation based on Cholesky
+    if(1){
+        lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+
+        blas::Trsm( 'R', 'L', 'T', 'N', ntot, numStateTotal, 1.0, 
+                M.Data(), numStateTotal, vexxPsi.Data(), ntot );
+
+        vexxProj_.Resize( ntot, numStateTotal );
+        blas::Copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
+    }
+
+    return ;
+} 		// -----  end of method KohnSham::CalculateVexxACEDF  ----- 
 
 
 // This comes from exxenergy2() function in exx.f90 in QE.

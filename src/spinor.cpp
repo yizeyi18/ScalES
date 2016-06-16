@@ -764,7 +764,8 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         Real  numSpin,
         const DblNumVec& occupationRate,
         const Real numMuFac,
-        NumTns<Real>& a3 )
+        NumTns<Real>& a3, 
+        NumMat<Real>& VxMat )
 {
     if( !fft.isInitialized ){
         ErrorHandling("Fourier is not prepared.");
@@ -808,8 +809,9 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     
     /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
     /// principle be a tensor, but only treated as matrix.
-//    Int numPre = std::min(IRound(std::sqrt(numMu*2.0)), numStateTotal);
-    Int numPre = numStateTotal;
+    Int numPre = std::min(IRound(std::sqrt(numMu*2.0)), numStateTotal);
+    // FIXME
+//    Int numPre = numStateTotal;
     DblNumMat phiG(ntot, numPre), psiG(ntot, numPre);
     if(1)
     {
@@ -858,7 +860,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     // Q factor does not need to be used
     lapack::QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
             piv.Data(), tau.Data() );
-    // Important: eliminate the Q part in MG
+    // Important: eliminate the Q part in MG for equation solving
     for( Int mu = 0; mu < numMu; mu++ ){
         for( Int i = mu+1; i < numMu; i++ ){
             MG(i,mu) = 0.0;
@@ -909,9 +911,28 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
 
     // *********************************************************************
-    // Solve the Poisson equations 
+    // Solve the Poisson equations
+    // Also accumulate the VxMat matrix
+    // VxMat = Psi'*Vx[Phi]*Psi
+    // This is performed using the symmetric format with density fitting
+    // being performed symmetrically
+    // 
+    // This is not a memory efficient implementation
     // *********************************************************************
+
     // Step 1: Solve the Poisson-like problem for exchange
+    DblNumMat phiMod(ntot, numMu);
+    SetValue( phiMod, 0.0 );
+    // accumulate \sum_j f_j \varphi_j (r) \varphi_j(r_mu) 
+    // can be done with gemv
+    for( Int mu = 0; mu < numMu; mu++ ){
+        for( Int k = 0; k < numStateTotal; k++ ){
+            blas::Axpy(ntot, phi(pivMu(mu), 0, k) * occupationRate[k], 
+                    phi.VecData(0, k), 1, phiMod.VecData(mu), 1 );
+        }
+    }
+
+
     DblNumMat XiPot(ntot, numMu);
     for( Int mu = 0; mu < numMu; mu++ ){
         blas::Copy( ntot,  Xi.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
@@ -924,32 +945,51 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
         FFTWExecute ( fft, fft.backwardPlanR2C );
 
-        // accumulate \sum_j f_j \varphi_j (r) \varphi_j(r_mu) 
-        // can be done with gemv
-        DblNumVec phiMu(ntot);
-        SetValue( phiMu, 0.0 );
-        for( Int k = 0; k < numStateTotal; k++ ){
-            blas::Axpy(ntot, phi(pivMu(mu), 0, k) * occupationRate[k], 
-                    phi.VecData(0, k), 1, phiMu.Data(), 1 );
-        }
-
-        Real* xiPtr = XiPot.VecData(mu);
-        for( Int ir = 0; ir < ntot; ir++ ){
-            xiPtr[ir] = fft.inputVecR2C(ir) * phiMu(ir);
-        }
+        blas::Copy( ntot, fft.inputVecR2C.Data(), 1, XiPot.VecData(mu), 1 );
     } // for (mu)
 
     // Step 2: accumulate to the matrix vector multiplication
-    // can be done with gemv
+    DblNumMat psiMu(numMu, numStateTotal);
     for (Int k=0; k<numStateTotal; k++) {
-        for (Int j=0; j<ncom; j++) {
-            for( Int mu = 0; mu < numMu; mu++ ){
-                blas::Axpy( ntot, wavefun_(pivMu(mu),j,k), 
-                        XiPot.VecData(mu), 1, 
-                        a3.VecData(j,k), 1 );
+        for( Int mu = 0; mu < numMu; mu++ ){
+            psiMu(mu,k) = wavefun_(pivMu(mu),0,k);
+            for( Int ir = 0; ir < ntot; ir++ ){
+                a3(ir, 0, k) += psiMu(mu,k) * XiPot(ir,mu) * phiMod(ir,mu);
             }
         }
     } // for (k)
+
+    // Step 3: Compute the matrix VxMat = -Psi'* Vx[Phi] * Psi in the
+    // density fitting format
+    VxMat.Resize( numStateTotal, numStateTotal );
+    {
+        DblNumMat OverMat( numMu, numMu ); 
+        // Minus sign so that VxMat is positive semidefinite
+        // NOTE: No measure factor vol / ntot due to the normalization
+        // factor of psi
+        blas::Gemm( 'T', 'N', numMu, numMu, ntot, -1.0,
+                Xi.Data(), ntot, XiPot.Data(), ntot, 0.0, 
+                OverMat.Data(), numMu );
+        for( Int mu = 0; mu < numMu; mu++ ){
+            for( Int nu = 0; nu < numMu; nu++ ){
+                OverMat(mu,nu) *= phiMod(piv(mu), nu);
+            }
+        }
+        
+        DblNumMat TempMat1(numStateTotal, numMu);
+        blas::Gemm( 'T', 'N', numStateTotal, numMu, numMu, 1.0,
+                psiMu.Data(), numMu, OverMat.Data(), numMu, 0.0,
+                TempMat1.Data(), numStateTotal );
+
+        blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, numMu, 1.0,
+                TempMat1.Data(), numStateTotal, psiMu.Data(), numMu,
+                0.0, VxMat.Data(), numStateTotal );
+    }
+
+    
+    // *********************************************************************
+    // Solve the Poisson equations 
+    // *********************************************************************
 
     MPI_Barrier(domain_.comm);
 

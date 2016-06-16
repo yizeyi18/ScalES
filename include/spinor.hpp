@@ -150,7 +150,8 @@ public:
             Real  numSpin,
             const DblNumVec& occupationRate,
             const Real numMuFac,
-            NumTns<Real>& a3 );
+            NumTns<Real>& a3,
+            NumMat<Real>& VxMat);
 
 
 };  // Spinor
