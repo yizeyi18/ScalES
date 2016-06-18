@@ -767,6 +767,8 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         NumTns<Real>& a3, 
         NumMat<Real>& VxMat )
 {
+    Real timeSta, timeEnd;
+
     if( !fft.isInitialized ){
         ErrorHandling("Fourier is not prepared.");
     }
@@ -802,6 +804,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     // *********************************************************************
     // Perform interpolative separable density fitting
     // *********************************************************************
+    GetTime( timeSta );
     Int numMu = std::min(IRound(numStateTotal*numMuFac), ntot);
     // Step 1: Pre-compression of the wavefunctions. This uses
     // multiplication with orthonormalized random Gaussian matrices
@@ -858,8 +861,16 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     DblNumVec tau(ntot);
     SetValue( piv, 0 ); // Important. Otherwise QRCP uses piv as initial guess
     // Q factor does not need to be used
+    Real timeQRCPSta, timeQRCPEnd;
+    GetTime( timeQRCPSta );
     lapack::QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
             piv.Data(), tau.Data() );
+    GetTime( timeQRCPEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for QRCP is " <<
+        timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
+#endif
+
     // Important: eliminate the Q part in MG for equation solving
     for( Int mu = 0; mu < numMu; mu++ ){
         for( Int i = mu+1; i < numMu; i++ ){
@@ -909,6 +920,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         statusOFS << "diagR (xi) = " << diagR << std::endl;
     }
 
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for density fitting is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
     // *********************************************************************
     // Solve the Poisson equations
@@ -921,18 +937,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     // *********************************************************************
 
     // Step 1: Solve the Poisson-like problem for exchange
-    DblNumMat phiMod(ntot, numMu);
-    SetValue( phiMod, 0.0 );
-    // accumulate \sum_j f_j \varphi_j (r) \varphi_j(r_mu) 
-    // can be done with gemv
-    for( Int mu = 0; mu < numMu; mu++ ){
-        for( Int k = 0; k < numStateTotal; k++ ){
-            blas::Axpy(ntot, phi(pivMu(mu), 0, k) * occupationRate[k], 
-                    phi.VecData(0, k), 1, phiMod.VecData(mu), 1 );
-        }
-    }
-
-
+    GetTime( timeSta );
     DblNumMat XiPot(ntot, numMu);
     for( Int mu = 0; mu < numMu; mu++ ){
         blas::Copy( ntot,  Xi.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
@@ -947,8 +952,33 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
         blas::Copy( ntot, fft.inputVecR2C.Data(), 1, XiPot.VecData(mu), 1 );
     } // for (mu)
+    
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for solving Poisson-like equations is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+    
 
     // Step 2: accumulate to the matrix vector multiplication
+    GetTime( timeSta );
+    DblNumMat phiMod(ntot, numMu);
+    SetValue( phiMod, 0.0 );
+    // accumulate \sum_j f_j \varphi_j (r) \varphi_j(r_mu) 
+    // can be done with gemv
+    for( Int mu = 0; mu < numMu; mu++ ){
+        for( Int k = 0; k < numStateTotal; k++ ){
+            blas::Axpy(ntot, phi(pivMu(mu), 0, k) * occupationRate[k], 
+                    phi.VecData(0, k), 1, phiMod.VecData(mu), 1 );
+        }
+    }
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing phiMod via Axpy is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    GetTime( timeSta );
     DblNumMat psiMu(numMu, numStateTotal);
     for (Int k=0; k<numStateTotal; k++) {
         for( Int mu = 0; mu < numMu; mu++ ){
@@ -958,9 +988,15 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
             }
         }
     } // for (k)
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing V_x[Phi] Psi is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
     // Step 3: Compute the matrix VxMat = -Psi'* Vx[Phi] * Psi in the
     // density fitting format
+    GetTime( timeSta );
     VxMat.Resize( numStateTotal, numStateTotal );
     {
         DblNumMat OverMat( numMu, numMu ); 
@@ -986,10 +1022,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
                 0.0, VxMat.Data(), numStateTotal );
     }
 
-    
-    // *********************************************************************
-    // Solve the Poisson equations 
-    // *********************************************************************
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing VxMat in the sym format is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
     MPI_Barrier(domain_.comm);
 
