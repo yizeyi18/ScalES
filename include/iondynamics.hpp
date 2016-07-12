@@ -39,7 +39,7 @@
    royalty-free perpetual license to install, use, modify, prepare derivative
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
-*/
+ */
 /// @file iondynamics.hpp
 /// @brief Geometry optimization and molecular dynamics for ions
 /// @date 2015-03-05 Organize previously implemented methods
@@ -55,142 +55,130 @@
 #include  "lapack.hpp"
 
 namespace dgdft{
-  
+
 enum NLCG_call_type{NLCG_INIT, NLCG_CALL_TYPE_1, NLCG_CALL_TYPE_2, NLCG_CALL_TYPE_3, NLCG_CALL_TYPE_4};   
 
 class NLCG_internal_vars_type
 {
 private:
-  
-  
-  
-public:
-  
-  // User defined variables : read from esdf or use defaults
-  int i_max_;
-  int j_max_;
-  int n_;
-  double epsilon_tol_outer_;
-  double epsilon_tol_inner_;
-  double sigma_0_;
-  
-  NLCG_call_type call_type;
-  int numAtom;
-  
-  int i_;
-  int j_;
-  int k_;
-  
-  std::vector<Point3>  atompos_x_;
-  std::vector<Point3>  atomforce_r_;
-  std::vector<Point3>  atomforce_s_;
-  std::vector<Point3>  atomforce_d_;
-  
-  double delta_new_;
-  double delta_mid_;
-  double delta_old_;
-  
-  double delta_0_;
-  double delta_d_;
-  
-  double eta_prev_;
-  double eta_;
-  double alpha_;
-  double beta_;
-  
-  // Initialization routine
-  void setup(int i_max, int j_max, int n, 
-	     double epsilon_tol_outer, double epsilon_tol_inner, double sigma_0,
-	     std::vector<Atom>&   atomList)
-  {
-    #ifndef _RELEASE_
-        PushCallStack("IonDynamics::NLCG_internal_vars_type::setup");
-    #endif
-    call_type = NLCG_INIT;
-    
-    i_max_ = i_max;
-    j_max_ = j_max;
-    n_ = n;
-    epsilon_tol_outer_ = epsilon_tol_outer;
-    epsilon_tol_inner_ = epsilon_tol_inner;
-    sigma_0_ = sigma_0;
-    
-    // Prepare the position and force lists
-    numAtom = atomList.size();
-    atompos_x_.resize(numAtom);
-    atomforce_r_.resize(numAtom);
-    atomforce_s_.resize(numAtom);
-    atomforce_d_.resize(numAtom);
-    
-    
-    
-    i_ = 0;
-    j_ = 0;
-    k_ = 0;
-    
-    // Set r = -f'(x) : Note that  atomList[a].force = - grad E already - so no extra negative required
-     for( Int a = 0; a < numAtom; a++ )
-       atomforce_r_[a] = atomList[a].force;
-     
-    // Also copy the atom positions
-     for( Int a = 0; a < numAtom; a++ )
-       atompos_x_[a] = atomList[a].pos;
-     
-     
-    // Set s = M^{-1} r : M = Identity used here
-    for( Int a = 0; a < numAtom; a++ )
-      atomforce_s_[a] = atomforce_r_[a];
-     
-   // Set d = s
-    for( Int a = 0; a < numAtom; a++ )
-      atomforce_d_[a] = atomforce_s_[a];
-     
-   // Set delta_new = r^T d  
-    delta_new_ = atom_ddot(atomforce_r_, atomforce_d_);
-    
-   // Set delta_0 = delta_new
-    delta_0_ = delta_new_;
 
-     
-    #ifndef _RELEASE_
-        PopCallStack();
-    #endif
-  
-   call_type = NLCG_CALL_TYPE_1;
-	
-   return;
-   
-  }
-  
-  // Computes the dot product 
-  double atom_ddot(std::vector<Point3>&  list_1, std::vector <Point3>&  list_2)
-  {
-    #ifndef _RELEASE_
-        PushCallStack("IonDynamics::NLCG_internal_vars_type::atom_ddot");
-    #endif
-    
-    double ans = 0.0;
-    
-    for( Int a = 0; a < numAtom; a++ )
+
+
+public:
+
+    // User defined variables : read from esdf or use defaults
+    int i_max_;
+    int j_max_;
+    int n_;
+    double epsilon_tol_outer_;
+    double epsilon_tol_inner_;
+    double sigma_0_;
+
+    NLCG_call_type call_type;
+    int numAtom;
+
+    int i_;
+    int j_;
+    int k_;
+
+    std::vector<Point3>  atompos_x_;
+    std::vector<Point3>  atomforce_r_;
+    std::vector<Point3>  atomforce_s_;
+    std::vector<Point3>  atomforce_d_;
+
+    double delta_new_;
+    double delta_mid_;
+    double delta_old_;
+
+    double delta_0_;
+    double delta_d_;
+
+    double eta_prev_;
+    double eta_;
+    double alpha_;
+    double beta_;
+
+    // Initialization routine
+    void setup(int i_max, int j_max, int n, 
+            double epsilon_tol_outer, double epsilon_tol_inner, double sigma_0,
+            std::vector<Atom>&   atomList)
     {
-     for( Int d = 0; d < DIM; d++ )
-     {
-         ans +=  (list_1[a][d] * list_2[a][d]);
-      }
+        call_type = NLCG_INIT;
+
+        i_max_ = i_max;
+        j_max_ = j_max;
+        n_ = n;
+        epsilon_tol_outer_ = epsilon_tol_outer;
+        epsilon_tol_inner_ = epsilon_tol_inner;
+        sigma_0_ = sigma_0;
+
+        // Prepare the position and force lists
+        numAtom = atomList.size();
+        atompos_x_.resize(numAtom);
+        atomforce_r_.resize(numAtom);
+        atomforce_s_.resize(numAtom);
+        atomforce_d_.resize(numAtom);
+
+
+
+        i_ = 0;
+        j_ = 0;
+        k_ = 0;
+
+        // Set r = -f'(x) : Note that  atomList[a].force = - grad E already - so no extra negative required
+        for( Int a = 0; a < numAtom; a++ )
+            atomforce_r_[a] = atomList[a].force;
+
+        // Also copy the atom positions
+        for( Int a = 0; a < numAtom; a++ )
+            atompos_x_[a] = atomList[a].pos;
+
+
+        // Set s = M^{-1} r : M = Identity used here
+        for( Int a = 0; a < numAtom; a++ )
+            atomforce_s_[a] = atomforce_r_[a];
+
+        // Set d = s
+        for( Int a = 0; a < numAtom; a++ )
+            atomforce_d_[a] = atomforce_s_[a];
+
+        // Set delta_new = r^T d  
+        delta_new_ = atom_ddot(atomforce_r_, atomforce_d_);
+
+        // Set delta_0 = delta_new
+        delta_0_ = delta_new_;
+
+
+
+        call_type = NLCG_CALL_TYPE_1;
+
+        return;
+
     }
-    
-    
-    
-    
-    #ifndef _RELEASE_
-        PopCallStack();
-    #endif
-	
-   return ans;	
-	
-  }
-  
- 
+
+    // Computes the dot product 
+    double atom_ddot(std::vector<Point3>&  list_1, std::vector <Point3>&  list_2)
+    {
+
+        double ans = 0.0;
+
+        for( Int a = 0; a < numAtom; a++ )
+        {
+            for( Int d = 0; d < DIM; d++ )
+            {
+                ans +=  (list_1[a][d] * list_2[a][d]);
+            }
+        }
+
+
+
+
+
+        return ans;	
+
+    }
+
+
 };
 
 
@@ -244,7 +232,7 @@ private:
     /// @brief BarzilaiBorwein method for geometry optimization
     ///
     void BarzilaiBorweinOpt( Int ionIter );
-    
+
     /// @brief Non-linear Conjugate Gradient with Secant and Polak-Ribiere
     NLCG_internal_vars_type NLCG_vars;
     void NLCG_Opt(Int ionIter );

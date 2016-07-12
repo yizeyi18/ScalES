@@ -58,35 +58,20 @@ using namespace dgdft::DensityComponent;
 
 SCF::SCF	(  )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCF::SCF");
-#endif
     eigSolPtr_ = NULL;
     ptablePtr_ = NULL;
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 } 		// -----  end of method SCF::SCF  ----- 
 
 SCF::~SCF	(  )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCF::~SCF");
-#endif
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 } 		// -----  end of method SCF::~SCF  ----- 
 
 
 void
 SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCF::Setup");
-#endif
 
     // esdf parameters
     {
@@ -209,9 +194,6 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
         }
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method SCF::Setup  ----- 
@@ -219,9 +201,6 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 void
 SCF::Update	( )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCF::Update");
-#endif
     {
         Int ntotFine  = eigSolPtr_->FFT().domain.NumGridTotalFine();
 
@@ -229,9 +208,6 @@ SCF::Update	( )
         dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
         dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method SCF::Update  ----- 
@@ -241,9 +217,6 @@ SCF::Update	( )
 void
 SCF::Iterate (  )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCF::Iterate");
-#endif
     int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain.comm, &mpirank);
     int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain.comm, &mpisize);
 
@@ -642,9 +615,6 @@ SCF::Iterate (  )
         }
     }	
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method SCF::Iterate  ----- 
@@ -654,9 +624,6 @@ SCF::Iterate (  )
 void
 SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCF::CalculateOccupationRate");
-#endif
     // For a given finite temperature, update the occupation number */
     // FIXME Magic number here
     Real tol = 1e-10; 
@@ -772,9 +739,6 @@ SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
         }
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method SCF::CalculateOccupationRate  ----- 
@@ -783,9 +747,6 @@ SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
 void
 SCF::CalculateEnergy	(  )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCF::CalculateEnergy");
-#endif
     Ekin_ = 0.0;
     DblNumVec&  eigVal         = eigSolPtr_->Ham().EigVal();
     DblNumVec&  occupationRate = eigSolPtr_->Ham().OccupationRate();
@@ -850,9 +811,6 @@ SCF::CalculateEnergy	(  )
     }
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method SCF::CalculateEnergy  ----- 
@@ -861,9 +819,6 @@ SCF::CalculateEnergy	(  )
 void
 SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCF::CalculateVDW");
-#endif
 
     //Real& VDWEnergy = Evdw_;
     //DblNumMat& VDWForce = forceVdw_;
@@ -1071,9 +1026,6 @@ SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
     VDWForce = forceVdw_;
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method SCF::CalculateVDW  ----- 
@@ -1088,9 +1040,6 @@ SCF::AndersonMix	(
         DblNumVec&      vNew,
         DblNumMat&      dfMat,
         DblNumMat&      dvMat ) {
-#ifndef _RELEASE_
-    PushCallStack("SCF::AndersonMix");
-#endif
     Int ntot  = eigSolPtr_->FFT().domain.NumGridTotalFine();
 
     // Residual 
@@ -1179,9 +1128,6 @@ SCF::AndersonMix	(
     vMix = vOpt;
     blas::Axpy( ntot, -mixStepLength, precResOpt.Data(), 1, vMix.Data(), 1 );
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 
@@ -1192,9 +1138,6 @@ SCF::KerkerPrecond (
         DblNumVec&  precResidual,
         const DblNumVec&  residual )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCF::KerkerPrecond");
-#endif
     Fourier& fft = eigSolPtr_->FFT();
     Int ntot  = fft.domain.NumGridTotalFine();
 
@@ -1241,9 +1184,6 @@ SCF::KerkerPrecond (
         precResidual(i) = fft.inputComplexVecFine(i).real();	
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method SCF::KerkerPrecond  ----- 
@@ -1252,9 +1192,6 @@ SCF::KerkerPrecond (
 void
 SCF::PrintState	( const Int iter  )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCF::PrintState");
-#endif
     Real HOMO, LUMO;
     HOMO = eigSolPtr_->EigVal()(eigSolPtr_->Ham().NumOccupiedState()-1);
     if( eigSolPtr_->Ham().NumExtraState() > 0 )
@@ -1288,9 +1225,6 @@ SCF::PrintState	( const Int iter  )
     }
     Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm_ );
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method SCF::PrintState  ----- 

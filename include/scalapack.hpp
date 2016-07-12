@@ -39,7 +39,7 @@
    royalty-free perpetual license to install, use, modify, prepare derivative
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
-*/
+ */
 /// @file scalapack.hpp
 /// @brief Thin interface to ScaLAPACK
 /// @date 2012-06-05
@@ -65,17 +65,17 @@ typedef  std::complex<double>   dcomplex;
 
 extern "C"{
 
-// *********************************************************************
-// Cblas  routines
-// *********************************************************************
-void Cblacs_get(const Int contxt, const Int what, Int* val);
+    // *********************************************************************
+    // Cblas  routines
+    // *********************************************************************
+    void Cblacs_get(const Int contxt, const Int what, Int* val);
 
 void Cblacs_gridinit(Int* contxt, const char* order, const Int nprow, const Int npcol);
 
 void Cblacs_gridmap(Int* contxt, Int* pmap, const Int ldpmap, const Int nprow, const Int npcol);
 
 void Cblacs_gridinfo(const Int contxt,  Int* nprow, Int* npcol, 
-		Int* myprow, Int* mypcol);
+        Int* myprow, Int* mypcol);
 
 void Cblacs_gridexit	(	int contxt );	
 
@@ -158,85 +158,85 @@ void SCALAPACK(pzgetri)( const Int* n, dcomplex* A, const Int* ia,
 // *********************************************************************
 class Descriptor{
 private:
-	std::vector<Int> values_;
-	Int nprow_;
-	Int npcol_;
-	Int myprow_;
-	Int mypcol_;
+    std::vector<Int> values_;
+    Int nprow_;
+    Int npcol_;
+    Int myprow_;
+    Int mypcol_;
 public:
-	//in total 9 elements in the descriptor
-	//NOTE: C convention is followed here!
-	enum{
-		DTYPE = 0,
-		CTXT  = 1,
-		M     = 2,
-		N     = 3,
-		MB    = 4,
-		NB    = 5,
-		RSRC  = 6,
-		CSRC  = 7,
-		LLD   = 8,
-		DLEN  = 9, 
-	};
+    //in total 9 elements in the descriptor
+    //NOTE: C convention is followed here!
+    enum{
+        DTYPE = 0,
+        CTXT  = 1,
+        M     = 2,
+        N     = 3,
+        MB    = 4,
+        NB    = 5,
+        RSRC  = 6,
+        CSRC  = 7,
+        LLD   = 8,
+        DLEN  = 9, 
+    };
 
-	Descriptor() {values_.resize(DLEN);}
+    Descriptor() {values_.resize(DLEN);}
 
-	/// @brief Constructor.
-	///
-	/// NOTE: The leading dimension is directly computed rather than
-	/// taking as an input.
-	Descriptor(Int m, Int n, Int mb,
-			Int nb, Int irsrc, Int icsrc,
-			Int contxt) 
-	{Init(m, n, mb, nb, irsrc, icsrc, contxt);}
+    /// @brief Constructor.
+    ///
+    /// NOTE: The leading dimension is directly computed rather than
+    /// taking as an input.
+    Descriptor(Int m, Int n, Int mb,
+            Int nb, Int irsrc, Int icsrc,
+            Int contxt) 
+    {Init(m, n, mb, nb, irsrc, icsrc, contxt);}
 
 
     /// @brief Descriptor. Directly provide leading dimension
-	Descriptor(Int m, Int n, Int mb,
-			Int nb, Int irsrc, Int icsrc,
-			Int contxt, Int lld) 
-	{Init(m, n, mb, nb, irsrc, icsrc, contxt, lld);}
+    Descriptor(Int m, Int n, Int mb,
+            Int nb, Int irsrc, Int icsrc,
+            Int contxt, Int lld) 
+    {Init(m, n, mb, nb, irsrc, icsrc, contxt, lld);}
 
 
-	~Descriptor(){}
+    ~Descriptor(){}
 
-	/// @brief Initialize the descriptor. 
+    /// @brief Initialize the descriptor. 
     /// NOTE: Currently ScaLAPACKMatrix requires the descriptor to be
     /// initialized only with this version.
-	void Init(Int m, Int n, Int mb,
-			Int nb, Int irsrc, Int icsrc,
-			Int contxt);
+    void Init(Int m, Int n, Int mb,
+            Int nb, Int irsrc, Int icsrc,
+            Int contxt);
 
-	/// @brief Initialize the descriptor.  Directly provide lld
-	void Init(Int m, Int n, Int mb,
-			Int nb, Int irsrc, Int icsrc,
-			Int contxt, Int lld);
-
-
-	Int* Values() {return &values_[0];} 
-	
-	const Int* Values() const {return &values_[0];}
-
-	Int NpRow() const {return nprow_;}
-
-	Int NpCol() const {return npcol_;}
-
-	Int MypRow() const {return myprow_;}
-
-	Int MypCol() const {return mypcol_;}
-
-	Int Get(Int i) const
-	{
-		if( i < 0 || i > DLEN ){
-			std::ostringstream msg;
-			msg << "Descriptor::Get takes value in [0,8]" << std::endl;
-			ErrorHandling( msg.str().c_str() );
-		}
-		return values_[i];
-	}
+    /// @brief Initialize the descriptor.  Directly provide lld
+    void Init(Int m, Int n, Int mb,
+            Int nb, Int irsrc, Int icsrc,
+            Int contxt, Int lld);
 
 
-	Descriptor& operator=(const Descriptor& desc);
+    Int* Values() {return &values_[0];} 
+
+    const Int* Values() const {return &values_[0];}
+
+    Int NpRow() const {return nprow_;}
+
+    Int NpCol() const {return npcol_;}
+
+    Int MypRow() const {return myprow_;}
+
+    Int MypCol() const {return mypcol_;}
+
+    Int Get(Int i) const
+    {
+        if( i < 0 || i > DLEN ){
+            std::ostringstream msg;
+            msg << "Descriptor::Get takes value in [0,8]" << std::endl;
+            ErrorHandling( msg.str().c_str() );
+        }
+        return values_[i];
+    }
+
+
+    Descriptor& operator=(const Descriptor& desc);
 };
 
 
@@ -247,95 +247,95 @@ public:
 template<typename F>
 class ScaLAPACKMatrix{
 private:
-	Descriptor       desc_;
-	std::vector<F>   localMatrix_;
+    Descriptor       desc_;
+    std::vector<F>   localMatrix_;
 public:
 
-	// *********************************************************************
-	// Lifecycle
-	// *********************************************************************
-	ScaLAPACKMatrix(){}
+    // *********************************************************************
+    // Lifecycle
+    // *********************************************************************
+    ScaLAPACKMatrix(){}
 
-	~ScaLAPACKMatrix(){}
+    ~ScaLAPACKMatrix(){}
 
-	ScaLAPACKMatrix<F>& operator=(const ScaLAPACKMatrix<F>& A);
+    ScaLAPACKMatrix<F>& operator=(const ScaLAPACKMatrix<F>& A);
 
 
-	/************************************************************
-	 * Basic information
-	 ************************************************************/
+    /************************************************************
+     * Basic information
+     ************************************************************/
 
-	Int Height() const {return desc_.Get(Descriptor::M);}
+    Int Height() const {return desc_.Get(Descriptor::M);}
 
-	Int Width() const {return desc_.Get(Descriptor::N);}
+    Int Width() const {return desc_.Get(Descriptor::N);}
 
-	Int MB()    const {return desc_.Get(Descriptor::MB);}
+    Int MB()    const {return desc_.Get(Descriptor::MB);}
 
-	Int NB()    const {return desc_.Get(Descriptor::NB);}
+    Int NB()    const {return desc_.Get(Descriptor::NB);}
 
-	Int Context() const {return desc_.Get(Descriptor::CTXT);}
+    Int Context() const {return desc_.Get(Descriptor::CTXT);}
 
-	Int NumRowBlocks() const 
-	{return (this->Height() + this->MB() - 1) / this->MB();}
+    Int NumRowBlocks() const 
+    {return (this->Height() + this->MB() - 1) / this->MB();}
 
-	Int NumColBlocks() const
-	{return (this->Width()  + this->NB() - 1) / this->NB();}
+    Int NumColBlocks() const
+    {return (this->Width()  + this->NB() - 1) / this->NB();}
 
-	// NOTE: LocalHeight is the same as LocalLDim here.
-	Int LocalNumRowBlocks() const
-	{ return (this->NumRowBlocks() + this->desc_.NpRow() - 1 ) /
-		this->desc_.NpRow(); }
+    // NOTE: LocalHeight is the same as LocalLDim here.
+    Int LocalNumRowBlocks() const
+    { return (this->NumRowBlocks() + this->desc_.NpRow() - 1 ) /
+        this->desc_.NpRow(); }
 
-	Int LocalNumColBlocks() const
-	{return (this->NumColBlocks() + this->desc_.NpCol() - 1 ) /
-		this->desc_.NpCol(); }
+    Int LocalNumColBlocks() const
+    {return (this->NumColBlocks() + this->desc_.NpCol() - 1 ) /
+        this->desc_.NpCol(); }
 
-	Int LocalHeight() const 
-	{return this->LocalNumRowBlocks() * this->MB(); }
+    Int LocalHeight() const 
+    {return this->LocalNumRowBlocks() * this->MB(); }
 
-	Int LocalWidth() const 
-	{return this->LocalNumColBlocks() * this->NB(); }
+    Int LocalWidth() const 
+    {return this->LocalNumColBlocks() * this->NB(); }
 
-	Int LocalLDim()  const 
-	{ 
-		if( desc_.Get(Descriptor::LLD) != this->LocalHeight() )
-		{
-			std::ostringstream msg;
-			msg 
-				<< "ScaLAPACK: the leading dimension does not match" << std::endl
-				<< "LLD from descriptor = " << desc_.Get(Descriptor::LLD) << std::endl
-				<< "LocalHeight         = " << this->LocalHeight() << std::endl;
-			ErrorHandling( msg.str().c_str() );
-		}
-		return desc_.Get(Descriptor::LLD);
-	}
+    Int LocalLDim()  const 
+    { 
+        if( desc_.Get(Descriptor::LLD) != this->LocalHeight() )
+        {
+            std::ostringstream msg;
+            msg 
+                << "ScaLAPACK: the leading dimension does not match" << std::endl
+                << "LLD from descriptor = " << desc_.Get(Descriptor::LLD) << std::endl
+                << "LocalHeight         = " << this->LocalHeight() << std::endl;
+            ErrorHandling( msg.str().c_str() );
+        }
+        return desc_.Get(Descriptor::LLD);
+    }
 
-	class Descriptor& Desc() {return desc_;}
+    class Descriptor& Desc() {return desc_;}
 
-	const class Descriptor&  Desc() const {return desc_;}
+    const class Descriptor&  Desc() const {return desc_;}
 
-	F*  Data() {return &localMatrix_[0];}
+    F*  Data() {return &localMatrix_[0];}
 
-	const F* Data() const {return &localMatrix_[0];}
+    const F* Data() const {return &localMatrix_[0];}
 
-	std::vector<F>&  LocalMatrix() {return localMatrix_;}
+    std::vector<F>&  LocalMatrix() {return localMatrix_;}
 
-	/// @brief Change the descriptor of the matrix.
-	///
-	/// NOTE: Changing the descriptor is the only way to resize the
-	/// localMatrix.
-	void SetDescriptor(const class Descriptor& desc)
-	{
-		desc_ = desc;
-		localMatrix_.resize(this->LocalHeight() * this->LocalWidth());
-	}
+    /// @brief Change the descriptor of the matrix.
+    ///
+    /// NOTE: Changing the descriptor is the only way to resize the
+    /// localMatrix.
+    void SetDescriptor(const class Descriptor& desc)
+    {
+        desc_ = desc;
+        localMatrix_.resize(this->LocalHeight() * this->LocalWidth());
+    }
 
-	/************************************************************
-	 * Entry manipulation
-	 ************************************************************/
-	F  GetLocal( Int iLocal, Int jLocal ) const;
+    /************************************************************
+     * Entry manipulation
+     ************************************************************/
+    F  GetLocal( Int iLocal, Int jLocal ) const;
 
-	void SetLocal( Int iLocal, Int jLocal, F val );
+    void SetLocal( Int iLocal, Int jLocal, F val );
 };
 
 
@@ -355,20 +355,20 @@ public:
 
 void
 Lacpy( char uplo,
-       Int m, Int n,
-       double* A, Int ia, Int ja, Int* desca,
-       double* B, Int ib, Int jb, Int* descb);
+        Int m, Int n,
+        double* A, Int ia, Int ja, Int* desca,
+        double* B, Int ib, Int jb, Int* descb);
 
 void
 Gemm( char transA, char transB,
-      Int m, Int n, Int k,
-      double alpha,
-      double* A, Int ia, Int ja, Int* desca, 
-      double* B, Int ib, Int jb, Int* descb,
-      double beta,
-      double* C, Int ic, Int jc, Int* descc,
-      Int contxt);
-  
+        Int m, Int n, Int k,
+        double alpha,
+        double* A, Int ia, Int ja, Int* desca, 
+        double* B, Int ib, Int jb, Int* descb,
+        double beta,
+        double* C, Int ic, Int jc, Int* descc,
+        Int contxt);
+
 void
 Gemr2d(const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B);
 
@@ -379,7 +379,7 @@ Gemr2d(const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B);
 /// On exit, the local entries are overwritten by the solution.
 void
 Trsm( char side, char uplo, char trans, char diag, double alpha,
-    const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B );
+        const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B );
 
 
 /// @brief Compute the eigenvalues only for symmetric matrices. 
@@ -387,7 +387,7 @@ Trsm( char side, char uplo, char trans, char diag, double alpha,
 /// Performs p_syev.  
 void
 Syev(char uplo, ScaLAPACKMatrix<double>& A, 
-		std::vector<double>& eigs);
+        std::vector<double>& eigs);
 
 /// @brief Compute the eigenvalues and the eigenvectors for symmetric
 /// matrices.  
@@ -397,8 +397,8 @@ Syev(char uplo, ScaLAPACKMatrix<double>& A,
 /// descriptor as A.
 void
 Syev(char uplo, ScaLAPACKMatrix<double>& A, 
-		std::vector<double>& eigs,
-		ScaLAPACKMatrix<double>& Z);
+        std::vector<double>& eigs,
+        ScaLAPACKMatrix<double>& Z);
 
 /// @brief Compute the eigenvalues and the eigenvectors for symmetric
 /// matrices using the divide-and-conquer algorithm.  
@@ -408,8 +408,8 @@ Syev(char uplo, ScaLAPACKMatrix<double>& A,
 /// descriptor as A.
 void
 Syevd(char uplo, ScaLAPACKMatrix<double>& A, 
-		std::vector<double>& eigs,
-		ScaLAPACKMatrix<double>& Z);
+        std::vector<double>& eigs,
+        ScaLAPACKMatrix<double>& Z);
 
 /// @brief Compute the eigenvalues and the eigenvectors for symmetric
 /// matrices using the MRRR algoritm for diagonalizing the tri-diagonal
@@ -420,8 +420,8 @@ Syevd(char uplo, ScaLAPACKMatrix<double>& A,
 /// descriptor as A.
 void 
 Syevr(char uplo, ScaLAPACKMatrix<double>& A,
-		std::vector<double>& eigs,
-		ScaLAPACKMatrix<double>& Z);
+        std::vector<double>& eigs,
+        ScaLAPACKMatrix<double>& Z);
 
 /// @brief Compute the selected range of eigenvalues and the
 /// eigenvectors for symmetric matrices using the MRRR algoritm for
@@ -442,10 +442,10 @@ Syevr(char uplo, ScaLAPACKMatrix<double>& A,
 /// notation.
 void 
 Syevr(char uplo, ScaLAPACKMatrix<double>& A,
-		std::vector<double>& eigs,
-		ScaLAPACKMatrix<double>& Z,
-		Int il,
-		Int iu);
+        std::vector<double>& eigs,
+        ScaLAPACKMatrix<double>& Z,
+        Int il,
+        Int iu);
 
 /// @brief Compute the Cholesky factorization of an N-by-N 
 /// real symmetric positive definite matrix.
@@ -478,7 +478,7 @@ Potrf( char uplo, ScaLAPACKMatrix<double>& A );
 ///
 void 
 Sygst( Int ibtype, char uplo, ScaLAPACKMatrix<double>& A,
-   ScaLAPACKMatrix<double>& B );
+        ScaLAPACKMatrix<double>& B );
 
 
 } // namespace scalapack

@@ -39,7 +39,7 @@
    royalty-free perpetual license to install, use, modify, prepare derivative
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
-*/
+ */
 /// @file utility.cpp
 /// @brief Utility subroutines
 /// @date 2012-08-12
@@ -232,9 +232,6 @@ void seval(double* v, int m, double* u, int n, double* x,
 
 void GenerateLGLMeshWeightOnly(double* x, double* w, int Nm1)
 {
-#ifndef _RELEASE_
-    PushCallStack("GenerateLGLMeshWeightOnly");
-#endif
     int i, j;
     double pi = 4.0 * atan(1.0);
     double err, tol = 1e-15;
@@ -285,9 +282,6 @@ void GenerateLGLMeshWeightOnly(double* x, double* w, int Nm1)
         w[i] = 2.0/(N*N1*P1[i]*P1[i]);
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return;
 }
 
@@ -296,25 +290,16 @@ void GenerateLGLMeshWeightOnly(
         DblNumVec&         w, 
         Int                N)
 {
-#ifndef _RELEASE_
-    PushCallStack("GenerateLGLMeshWeightOnly");
-#endif
     x.Resize( N );
     w.Resize( N );
     GenerateLGLMeshWeightOnly( x.Data(), w.Data(), N-1 );
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return;
 }
 
 
 void GenerateLGL(double* x, double* w, double* P, double* D, int Nm1)
 {
-#ifndef _RELEASE_
-    PushCallStack("GenerateLGL");
-#endif
     int i, j;
     double pi = 4.0 * atan(1.0);
     double err, tol = 1e-15;
@@ -379,9 +364,6 @@ void GenerateLGL(double* x, double* w, double* P, double* D, int Nm1)
         }
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return;
 }
 
@@ -392,18 +374,12 @@ void GenerateLGL(
         DblNumMat&         D,
         Int                N)
 {
-#ifndef _RELEASE_
-    PushCallStack("GenerateLGL");
-#endif
     x.Resize( N );
     w.Resize( N );
     P.Resize( N, N );
     D.Resize( N, N );
     GenerateLGL( x.Data(), w.Data(), P.Data(), D.Data(), N-1 );
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return;
 }
 
@@ -412,9 +388,6 @@ void GenerateLGL(
 void
 UniformMesh ( const Domain &dm, std::vector<DblNumVec> &gridpos )
 {
-#ifndef _RELEASE_
-    PushCallStack("UniformMesh");
-#endif
     gridpos.resize(DIM);
     for (Int d=0; d<DIM; d++) {
         gridpos[d].Resize(dm.numGrid[d]);
@@ -423,9 +396,6 @@ UniformMesh ( const Domain &dm, std::vector<DblNumVec> &gridpos )
             gridpos[d](i) = dm.posStart[d] + Real(i)*h;
         }
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of function UniformMesh  ----- 
@@ -434,9 +404,6 @@ UniformMesh ( const Domain &dm, std::vector<DblNumVec> &gridpos )
 void
 UniformMeshFine ( const Domain &dm, std::vector<DblNumVec> &gridpos )
 {
-#ifndef _RELEASE_
-    PushCallStack("UniformMesh");
-#endif
     gridpos.resize(DIM);
     for (Int d=0; d<DIM; d++) {
         gridpos[d].Resize(dm.numGridFine[d]);
@@ -445,9 +412,6 @@ UniformMeshFine ( const Domain &dm, std::vector<DblNumVec> &gridpos )
             gridpos[d](i) = dm.posStart[d] + Real(i)*h;
         }
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of function UniformMesh  ----- 
@@ -456,9 +420,6 @@ UniformMeshFine ( const Domain &dm, std::vector<DblNumVec> &gridpos )
 void
 LGLMesh ( const Domain &dm, const Index3& numGrid, std::vector<DblNumVec> &gridpos )
 {
-#ifndef _RELEASE_
-    PushCallStack("LGLMesh");
-#endif
     gridpos.resize(DIM);
     for (Int d=0; d<DIM; d++) {
         gridpos[d].Resize( numGrid[d] );
@@ -472,9 +433,6 @@ LGLMesh ( const Domain &dm, const Index3& numGrid, std::vector<DblNumVec> &gridp
                 ( mesh[i] + 1.0 ) * dm.length[d] * 0.5;
         }
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of function LGLMesh  ----- 
@@ -485,9 +443,6 @@ LGLMesh ( const Domain &dm, const Index3& numGrid, std::vector<DblNumVec> &gridp
 //---------------------------------------------------------
 Int SeparateRead(std::string name, std::istringstream& is)
 {
-#ifndef _RELEASE_
-    PushCallStack("SeparateRead");
-#endif
     int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
     int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
     //
@@ -500,18 +455,12 @@ Int SeparateRead(std::string name, std::istringstream& is)
 
     is.str( std::string(std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>()) );
     fin.close();
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return 0;
 }
 
 //---------------------------------------------------------
 Int SeparateRead(std::string name, std::istringstream& is, Int outputIndex)
 {
-#ifndef _RELEASE_
-    PushCallStack("SeparateRead");
-#endif
     char filename[100];
     sprintf(filename, "%s_%d", name.c_str(), outputIndex);
     std::ifstream fin(filename);
@@ -521,9 +470,6 @@ Int SeparateRead(std::string name, std::istringstream& is, Int outputIndex)
 
     is.str( std::string(std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>()) );
     fin.close();
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return 0;
 }
 
@@ -531,9 +477,6 @@ Int SeparateRead(std::string name, std::istringstream& is, Int outputIndex)
 //---------------------------------------------------------
 Int SeparateWrite(std::string name, std::ostringstream& os)
 {
-#ifndef _RELEASE_
-    PushCallStack("SeparateWrite");
-#endif
     int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
     int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
     //
@@ -545,9 +488,6 @@ Int SeparateWrite(std::string name, std::ostringstream& os)
     }
     fout<<os.str();
     fout.close();
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return 0;
 }
 
@@ -555,9 +495,6 @@ Int SeparateWrite(std::string name, std::ostringstream& os)
 //---------------------------------------------------------
 Int SeparateWrite(std::string name, std::ostringstream& os, Int outputIndex)
 {
-#ifndef _RELEASE_
-    PushCallStack("SeparateWrite");
-#endif
     char filename[100];
     sprintf(filename, "%s_%d", name.c_str(), outputIndex);
     std::ofstream fout(filename);
@@ -566,18 +503,12 @@ Int SeparateWrite(std::string name, std::ostringstream& os, Int outputIndex)
     }
     fout<<os.str();
     fout.close();
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return 0;
 }
 
 //---------------------------------------------------------
 Int SharedRead(std::string name, std::istringstream& is)
 {
-#ifndef _RELEASE_
-    PushCallStack("SharedRead");
-#endif
     MPI_Barrier(MPI_COMM_WORLD);
     int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
     int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
@@ -604,18 +535,12 @@ Int SharedRead(std::string name, std::istringstream& is)
     is.str( std::string(tmpstr.begin(), tmpstr.end()) );
     //
     MPI_Barrier(MPI_COMM_WORLD);
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return 0;
 }
 
 //---------------------------------------------------------
 Int SharedWrite(std::string name, std::ostringstream& os)
 {
-#ifndef _RELEASE_
-    PushCallStack("SharedWrite");
-#endif
     MPI_Barrier(MPI_COMM_WORLD);
     int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
     int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
@@ -629,9 +554,6 @@ Int SharedWrite(std::string name, std::ostringstream& os)
         fout.close();
     }
     MPI_Barrier(MPI_COMM_WORLD);
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return 0;
 }
 
@@ -639,9 +561,6 @@ Int SharedWrite(std::string name, std::ostringstream& os)
 //---------------------------------------------------------
 Int SeparateWriteAscii(std::string name, std::ostringstream& os)
 {
-#ifndef _RELEASE_
-    PushCallStack("SeparateWriteAscii");
-#endif
     MPI_Barrier(MPI_COMM_WORLD);
     int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
     int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
@@ -656,18 +575,12 @@ Int SeparateWriteAscii(std::string name, std::ostringstream& os)
     fout.close();
     //
     MPI_Barrier(MPI_COMM_WORLD);
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return 0;
 }
 
 
 void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 {
-#ifndef _RELEASE_
-    PushCallStack("AlltoallForward");
-#endif
 
     int mpirank, mpisize;
     MPI_Comm_rank( comm, &mpirank );
@@ -764,18 +677,12 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
         }
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of function AlltoallForward ----- 
 
 void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 {
-#ifndef _RELEASE_
-    PushCallStack("AlltoallBackward");
-#endif
 
     int mpirank, mpisize;
     MPI_Comm_rank( comm, &mpirank );
@@ -872,9 +779,6 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
         }
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of function AlltoallBackward ----- 

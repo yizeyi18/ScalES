@@ -1,45 +1,45 @@
 /*
-	 Copyright (c) 2012 The Regents of the University of California,
-	 through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin and Wei Hu
 	 
    This file is part of DGDFT. All rights reserved.
 
-	 Redistribution and use in source and binary forms, with or without
-	 modification, are permitted provided that the following conditions are met:
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
 
-	 (1) Redistributions of source code must retain the above copyright notice, this
-	 list of conditions and the following disclaimer.
-	 (2) Redistributions in binary form must reproduce the above copyright notice,
-	 this list of conditions and the following disclaimer in the documentation
-	 and/or other materials provided with the distribution.
-	 (3) Neither the name of the University of California, Lawrence Berkeley
-	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-	 be used to endorse or promote products derived from this software without
-	 specific prior written permission.
+   (1) Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+   (2) Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+   (3) Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
 
-	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	 You are under no obligation whatsoever to provide any bug fixes, patches, or
-	 upgrades to the features, functionality or performance of the source code
-	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
-	 available either publicly, or directly to Lawrence Berkeley National
-	 Laboratory, without imposing a separate written license agreement for such
-	 Enhancements, then you hereby grant the following license: a non-exclusive,
-	 royalty-free perpetual license to install, use, modify, prepare derivative
-	 works, incorporate into other computer software, distribute, and sublicense
-	 such enhancements or derivative works thereof, in binary and source code form.
-*/
+   You are under no obligation whatsoever to provide any bug fixes, patches, or
+   upgrades to the features, functionality or performance of the source code
+   ("Enhancements") to anyone; however, if you choose to make your Enhancements
+   available either publicly, or directly to Lawrence Berkeley National
+   Laboratory, without imposing a separate written license agreement for such
+   Enhancements, then you hereby grant the following license: a non-exclusive,
+   royalty-free perpetual license to install, use, modify, prepare derivative
+   works, incorporate into other computer software, distribute, and sublicense
+   such enhancements or derivative works thereof, in binary and source code form.
+ */
 /// @file pwdft.cpp
 /// @brief Main driver for self-consistent field iteration using plane
 /// wave basis set.  
@@ -60,9 +60,9 @@ using namespace dgdft::scalapack;
 
 
 void Usage(){
-  std::cout 
-		<< "pwdft -in [inFile]" << std::endl
-		<< "in:             Input file (default: pwdft.in)" << std::endl;
+    std::cout 
+        << "pwdft -in [inFile]" << std::endl
+        << "in:             Input file (default: pwdft.in)" << std::endl;
 }
 
 
@@ -306,10 +306,10 @@ int main(int argc, char **argv)
                     PrintBlock( statusOFS, msg.str() );
                 }
 
-                
-		  if(ionIter >= 1)
-		   scf.set_Cheby_iondynamics_schedule_flag(1);
-                
+
+                if(ionIter >= 1)
+                    scf.set_Cheby_iondynamics_schedule_flag(1);
+
                 // Get the new atomic coordinates
                 // NOTE: ionDyn directly updates the coordinates in Hamiltonian
                 ionDyn.SetEpot( scf.Efree() );
@@ -335,10 +335,10 @@ int main(int argc, char **argv)
                     densityHist[0] = hamKS.Density();
                     // FIXME add damping factor, currently for aspc2
                     // densityHist[0] = omega*hamKS.Density()+(1.0-omega)*densityHist[0];
-//                    Real omega = 4.0/7.0;
-//                    blas::Scal( densityHist[0].Size(), 1.0-omega, densityHist[0].Data(), 1 );
-//                    blas::Axpy( densityHist[0].Size(), omega, hamKS.Density().Data(),
-//                            1, densityHist[0].Data(), 1 );
+                    //                    Real omega = 4.0/7.0;
+                    //                    blas::Scal( densityHist[0].Size(), 1.0-omega, densityHist[0].Data(), 1 );
+                    //                    blas::Axpy( densityHist[0].Size(), omega, hamKS.Density().Data(),
+                    //                            1, densityHist[0].Data(), 1 );
 
                     // Compute the extrapolation coefficient
                     DblNumVec denCoef;
@@ -359,7 +359,7 @@ int main(int argc, char **argv)
                     // FIXME Parallelization
                     if( mpisize > 1 )
                         ErrorHandling("Wavefunction extrapolation only works for 1 proc.");
-                            
+
                     statusOFS << "Extrapolating the Wavefunctions." << std::endl;
 
                     // FIXME More efficient to move the pointer later.
@@ -368,7 +368,7 @@ int main(int argc, char **argv)
                     for( Int l = maxHist-1; l > 0; l-- ){
                         wavefunHist[l]     = wavefunHist[l-1];
                     } // for (l)
-                    
+
                     // Use the aligned version of wavefunction
                     // psi is orthonormal
                     if(1)
@@ -405,7 +405,7 @@ int main(int argc, char **argv)
                     // Update the wavefunction
                     // FIXME only works for linear mixing at this stage, which is time reversible
                     // Alignment is take into account.
-                    
+
                     DblNumTns  wavefunPre  = psi.Wavefun(); // a real copy
                     SetValue( wavefunPre, 0.0 );
                     // Assume alignment is already done
@@ -558,9 +558,6 @@ int main(int argc, char **argv)
     {
         std::cerr << " caught exception with message: "
             << e.what() << std::endl;
-#ifndef _RELEASE_
-        DumpCallStack();
-#endif
     }
 
     // Finalize 

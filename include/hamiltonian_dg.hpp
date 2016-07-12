@@ -39,7 +39,7 @@
    royalty-free perpetual license to install, use, modify, prepare derivative
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
-*/
+ */
 /// @file hamiltonian_dg.hpp
 /// @brief The Hamiltonian class for DG calculation.
 /// @date 2013-01-09
@@ -74,11 +74,11 @@ namespace dgdft{
 /// index.
 struct ElemPrtn
 {
-	IntNumTns                 ownerInfo;
+    IntNumTns                 ownerInfo;
 
-	Int Owner (const Index3& key) const {
-		return ownerInfo(key(0), key(1), key(2));
-	}
+    Int Owner (const Index3& key) const {
+        return ownerInfo(key(0), key(1), key(2));
+    }
 };
 
 typedef std::pair<Index3, Index3>  ElemMatKey;
@@ -89,12 +89,12 @@ typedef std::pair<Index3, Index3>  ElemMatKey;
 /// mass matrix.
 struct ElemMatPrtn
 {
-	IntNumTns                 ownerInfo;
+    IntNumTns                 ownerInfo;
 
-	Int Owner (const ElemMatKey& key) const {
-		Index3 keyRow = key.first;
-		return ownerInfo(keyRow(0), keyRow(1), keyRow(2));
-	}
+    Int Owner (const ElemMatKey& key) const {
+        Index3 keyRow = key.first;
+        return ownerInfo(keyRow(0), keyRow(1), keyRow(2));
+    }
 };
 
 /// @struct AtomPrtn
@@ -102,11 +102,11 @@ struct ElemMatPrtn
 /// index.
 struct AtomPrtn 
 {
-	std::vector<Int> ownerInfo; 
+    std::vector<Int> ownerInfo; 
 
-	Int Owner(Int key) const {
-		return ownerInfo[key];
-	}
+    Int Owner(Int key) const {
+        return ownerInfo[key];
+    }
 };
 
 /// @struct BlockMatPrtn
@@ -114,11 +114,11 @@ struct AtomPrtn
 /// distribution.  This is used for ScaLAPACK calculation.
 struct BlockMatPrtn
 {
-	IntNumMat                 ownerInfo;
+    IntNumMat                 ownerInfo;
 
-	Int Owner (const Index2& key) const {
-		return ownerInfo(key(0), key(1));
-	}
+    Int Owner (const Index2& key) const {
+        return ownerInfo(key(0), key(1));
+    }
 };
 
 /// @struct VecPrtn
@@ -127,11 +127,11 @@ struct BlockMatPrtn
 /// row (column) index of a matrix.
 struct VecPrtn
 {
-	IntNumVec                 ownerInfo;
+    IntNumVec                 ownerInfo;
 
-	Int Owner (const Int & key) const {
-		return ownerInfo(key);
-	}
+    Int Owner (const Int & key) const {
+        return ownerInfo(key);
+    }
 };
 
 
@@ -573,20 +573,20 @@ public:
 
 /// @brief Computes the inner product of three terms.
 inline Real ThreeDotProduct(Real* x, Real* y, Real* z, Int ntot) {
-  Real sum =0;
-  for(Int i=0; i<ntot; i++) {
-    sum += (*x++)*(*y++)*(*z++);
-  }
-  return sum;
+    Real sum =0;
+    for(Int i=0; i<ntot; i++) {
+        sum += (*x++)*(*y++)*(*z++);
+    }
+    return sum;
 }
 
 /// @brief Computes the inner product of four terms.
 inline Real FourDotProduct(Real* w, Real* x, Real* y, Real* z, Int ntot) {
-  Real sum =0;
-  for(Int i=0; i<ntot; i++) {
-    sum += (*w++)*(*x++)*(*y++)*(*z++);
-  }
-  return sum;
+    Real sum =0;
+    for(Int i=0; i<ntot; i++) {
+        sum += (*w++)*(*x++)*(*y++)*(*z++);
+    }
+    return sum;
 }
 
 } // namespace dgdft

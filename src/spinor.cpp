@@ -1,3 +1,45 @@
+/*
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
+
+   Author: Lin Lin and Wei Hu
+	 
+   This file is part of DGDFT. All rights reserved.
+
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
+
+   (1) Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+   (2) Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+   (3) Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+   You are under no obligation whatsoever to provide any bug fixes, patches, or
+   upgrades to the features, functionality or performance of the source code
+   ("Enhancements") to anyone; however, if you choose to make your Enhancements
+   available either publicly, or directly to Lawrence Berkeley National
+   Laboratory, without imposing a separate written license agreement for such
+   Enhancements, then you hereby grant the following license: a non-exclusive,
+   royalty-free perpetual license to install, use, modify, prepare derivative
+   works, incorporate into other computer software, distribute, and sublicense
+   such enhancements or derivative works thereof, in binary and source code form.
+ */
 /// @file spinor.cpp
 /// @brief Spinor (wavefunction) for the global domain or extended
 /// element.
@@ -17,14 +59,8 @@ Spinor::Spinor (
         const Int     numStateTotal,
         Int     numStateLocal,
         const Real  val ) {
-#ifndef _RELEASE_
-    PushCallStack("Spinor::Spinor");
-#endif  // ifndef _RELEASE_
     this->Setup( dm, numComponent, numStateTotal, numStateLocal, val );
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif  // ifndef _RELEASE_
 } 		// -----  end of method Spinor::Spinor  ----- 
 
 Spinor::Spinor ( const Domain &dm, 
@@ -34,13 +70,7 @@ Spinor::Spinor ( const Domain &dm,
         const bool owndata, 
         Real* data )
 {
-#ifndef _RELEASE_
-    PushCallStack("Spinor::Spinor");
-#endif  // ifndef _RELEASE_
     this->Setup( dm, numComponent, numStateTotal, numStateLocal, owndata, data );
-#ifndef _RELEASE_
-    PopCallStack();
-#endif  // ifndef _RELEASE_
 
 } 		// -----  end of method Spinor::Spinor  ----- 
 
@@ -52,9 +82,6 @@ void Spinor::Setup (
         const Int     numStateTotal,
         Int     numStateLocal,
         const Real  val ) {
-#ifndef _RELEASE_
-    PushCallStack("Spinor::Setup ");
-#endif  // ifndef _RELEASE_
 
     domain_       = dm;
     MPI_Barrier(domain_.comm);
@@ -87,9 +114,6 @@ void Spinor::Setup (
     wavefun_.Resize( dm.NumGridTotal(), numComponent, numStateLocal );
     SetValue( wavefun_, val );
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif  // ifndef _RELEASE_
 } 		// -----  end of method Spinor::Setup  ----- 
 
 void Spinor::Setup ( const Domain &dm, 
@@ -99,9 +123,6 @@ void Spinor::Setup ( const Domain &dm,
         const bool owndata, 
         Real* data )
 {
-#ifndef _RELEASE_
-    PushCallStack("Spinor::Setup");
-#endif  // ifndef _RELEASE_
 
     domain_       = dm;
     MPI_Barrier(domain_.comm);
@@ -134,17 +155,11 @@ void Spinor::Setup ( const Domain &dm,
         wavefunIdx_[i] = i * mpisize + mpirank ;
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif  // ifndef _RELEASE_
 } 		// -----  end of method Spinor::Setup  ----- 
 
 void
 Spinor::Normalize	( )
 {
-#ifndef _RELEASE_
-    PushCallStack("Spinor::Normalize");
-#endif
     Int size = wavefun_.m() * wavefun_.n();
     Int nocc = wavefun_.p();
 
@@ -160,9 +175,6 @@ Spinor::Normalize	( )
             for (Int i=0; i<size; i++) *(ptr++) /= sum;
         }
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return ;
 } 		// -----  end of method Spinor::Normalize  ----- 
 
@@ -170,9 +182,6 @@ Spinor::Normalize	( )
 void
 Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
 {
-#ifndef _RELEASE_
-    PushCallStack("Spinor::AddTeterPrecond");
-#endif
     Fourier& fft = *fftPtr;
     if( !fftPtr->isInitialized ){
         ErrorHandling("Fourier is not prepared.");
@@ -228,9 +237,6 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
     //  }
     //#endif
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method Spinor::AddTeterPrecond ----- 
@@ -239,9 +245,6 @@ void
 Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot, 
         const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
 {
-#ifndef _RELEASE_
-    PushCallStack("Spinor::AddMultSpinorFine");
-#endif
     // TODO Complex case
 
     if( !fft.isInitialized ){
@@ -387,9 +390,6 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
     }
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of method Spinor::AddMultSpinorFine  ----- 
@@ -398,9 +398,6 @@ void
 Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
         const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
 {
-#ifndef _RELEASE_
-    PushCallStack("Spinor::AddMultSpinorFineR2C");
-#endif
 
     if( !fft.isInitialized ){
         ErrorHandling("Fourier is not prepared.");
@@ -627,9 +624,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
     }
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of method Spinor::AddMultSpinorFineR2C  ----- 
@@ -642,9 +636,6 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
         const DblNumVec& occupationRate,
         NumTns<Real>& a3 )
 {
-#ifndef _RELEASE_
-    PushCallStack("Spinor::AddMultSpinorEXX");
-#endif
     if( !fft.isInitialized ){
         ErrorHandling("Fourier is not prepared.");
     }
@@ -749,9 +740,6 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
     MPI_Barrier(domain_.comm);
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of method Spinor::AddMultSpinorEXX  ----- 

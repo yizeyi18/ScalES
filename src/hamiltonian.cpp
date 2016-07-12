@@ -39,7 +39,7 @@
    royalty-free perpetual license to install, use, modify, prepare derivative
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
-*/
+ */
 /// @file hamiltonian.cpp
 /// @brief Hamiltonian class for planewave basis diagonalization method.
 /// @date 2012-09-16
@@ -88,9 +88,6 @@ KohnSham::Setup	(
         const Domain&               dm,
         const std::vector<Atom>&    atomList )
 {
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::Setup");
-#endif
     domain_              = dm;
     atomList_            = atomList;
     pseudoType_          = esdfParam.pseudoType;
@@ -200,9 +197,6 @@ KohnSham::Setup	(
 
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method KohnSham::Setup  ----- 
@@ -210,9 +204,6 @@ KohnSham::Setup	(
 
 void
 KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::CalculatePseudoPotential");
-#endif
     Int ntotFine = domain_.NumGridTotalFine();
     Int numAtom = atomList_.size();
     Real vol = domain_.Volume();
@@ -338,9 +329,6 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 
     Print( statusOFS, "Total number of nonlocal pseudopotential = ",  cnt );
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method KohnSham::CalculatePseudoPotential ----- 
@@ -350,9 +338,6 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 void
 KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft)
 {
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::CalculateDensity");
-#endif
     Int ntot  = psi.NumGridTotal();
     Int ncom  = psi.NumComponent();
     Int nocc  = psi.NumState();
@@ -422,9 +407,6 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
     Print( statusOFS, "Raw data, sum of adjusted density = ",  val );
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method KohnSham::CalculateDensity  ----- 
@@ -433,9 +415,6 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 void
 KohnSham::CalculateGradDensity ( Fourier& fft )
 {
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::CalculateGradDensity");
-#endif
     Int ntotFine  = fft.domain.NumGridTotalFine();
     Real vol  = domain_.Volume();
 
@@ -470,9 +449,6 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
         }
     } // for d
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method KohnSham::CalculateGradDensity  ----- 
@@ -481,9 +457,6 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
 void
 KohnSham::CalculateXC	( Real &val, Fourier& fft )
 {
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::CalculateXC");
-#endif
     Int ntot = domain_.NumGridTotalFine();
     Real vol = domain_.Volume();
     Real fac;
@@ -640,18 +613,12 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
         val += density_(i, RHO) * epsxc_(i) * vol / (Real) ntot;
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method KohnSham::CalculateXC  ----- 
 
 
 void KohnSham::CalculateHartree( Fourier& fft ) {
-#ifndef _RELEASE_ 
-    PushCallStack("KohnSham::CalculateHartree");
-#endif
     if( !fft.isInitialized ){
         ErrorHandling("Fourier is not prepared.");
     }
@@ -686,9 +653,6 @@ void KohnSham::CalculateHartree( Fourier& fft ) {
         vhart_(i) = fft.inputComplexVecFine(i).real();
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return; 
 }  // -----  end of method KohnSham::CalculateHartree ----- 
 
@@ -696,17 +660,11 @@ void KohnSham::CalculateHartree( Fourier& fft ) {
 void
 KohnSham::CalculateVtot	( DblNumVec& vtot )
 {
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::CalculateVtot");
-#endif
     Int ntot = domain_.NumGridTotalFine();
     for (int i=0; i<ntot; i++) {
         vtot(i) = vext_(i) + vhart_(i) + vxc_(i, RHO);
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method KohnSham::CalculateVtot  ----- 
@@ -715,9 +673,6 @@ KohnSham::CalculateVtot	( DblNumVec& vtot )
 void
 KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 {
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::CalculateForce");
-#endif
 
     //  Int ntot      = fft.numGridTotal;
     Int ntot      = fft.domain.NumGridTotalFine();
@@ -1170,9 +1125,6 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
     } 
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method KohnSham::CalculateForce  ----- 
@@ -1181,9 +1133,6 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 void
 KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
 {
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::CalculateForce2");
-#endif
 
     Real timeSta, timeEnd;
 
@@ -1460,9 +1409,6 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
     } 
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method KohnSham::CalculateForce2  ----- 
@@ -1470,9 +1416,6 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
 void
 KohnSham::MultSpinor	( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 {
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::MultSpinor");
-#endif
 
     MPI_Barrier(domain_.comm);
     int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
@@ -1662,9 +1605,6 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
     }
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method KohnSham::MultSpinor  ----- 
@@ -1675,9 +1615,6 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 //void
 //KohnSham::MultSpinor	( Int iocc, Spinor& psi, NumMat<Real>& y, Fourier& fft )
 //{
-//#ifndef _RELEASE_
-//	PushCallStack("KohnSham::MultSpinor");
-//#endif
 //  // Make sure that the address corresponding to the pointer y has been
 //  // allocated.
 //  SetValue( y, 0.0 );
@@ -1686,9 +1623,6 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 //	psi.AddLaplacian( iocc, &fft, y );
 //  psi.AddNonlocalPP( iocc, pseudo_, y );
 //
-//#ifndef _RELEASE_
-//	PopCallStack();
-//#endif
 //
 //	return ;
 //} 		// -----  end of method KohnSham::MultSpinor  ----- 
@@ -1696,9 +1630,6 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 
 void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
 {
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::InitializeEXX");
-#endif  // ifndef _RELEASE_
     const Real epsDiv = 1e-8;
 
     // FIXME Not considering restarting yet
@@ -1798,9 +1729,6 @@ void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
         statusOFS << "Hybrid screening length = " << screenMu_ << std::endl;
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif  // ifndef _RELEASE_
 
     return ;
 }		// -----  end of function KohnSham::InitializeEXX  ----- 
@@ -1808,9 +1736,6 @@ void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
 void
 KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
 {
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::SetPhiEXX");
-#endif
     // FIXME collect Psi into a globally shared array in the MPI context.
     const NumTns<Real>& wavefun = psi.Wavefun();
     Int ntot = wavefun.m();
@@ -1840,9 +1765,6 @@ KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
         } // for (j)
     } // for (k)
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method KohnSham::SetPhiEXX  ----- 
@@ -1851,9 +1773,6 @@ KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
 void
 KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 {
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::CalculateVexxACE");
-#endif
     // This assumes SetPhiEXX has been called so that phiEXX and psi
     // contain the same information. 
 
@@ -2024,9 +1943,6 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
     //    }
     //  }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method KohnSham::CalculateVexxACE  ----- 
@@ -2080,9 +1996,6 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft )
 Real
 KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
 {
-#ifndef _RELEASE_
-    PushCallStack("KohnSham::CalculateEXXEnergy");
-#endif
 
     MPI_Barrier(domain_.comm);
     int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
@@ -2246,9 +2159,6 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
         mpi::Allreduce( &fockEnergyLocal, &fockEnergy, 1, MPI_SUM, domain_.comm );
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return fockEnergy;
 } 		// -----  end of method KohnSham::CalculateEXXEnergy  ----- 
@@ -2258,13 +2168,7 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
 //void
 //KohnSham::UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock )
 //{
-//#ifndef _RELEASE_
-//	PushCallStack("KohnSham::UpdateHybrid");
-//#endif
 //
-//#ifndef _RELEASE_
-//	PopCallStack();
-//#endif
 //
 //	return ;
 //}		// -----  end of function KohnSham::UpdateHybrid  ----- 

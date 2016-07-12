@@ -1,45 +1,45 @@
 /*
-  Copyright (c) 2012 The Regents of the University of California,
-  through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
-  Author: Lin Lin, Wei Hu and Amartya Banerjee
+   Author: Lin Lin, Wei Hu and Amartya Banerjee
 
-  This file is part of DGDFT. All rights reserved.
+   This file is part of DGDFT. All rights reserved.
 
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are met:
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
 
-  (1) Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-  (2) Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-  (3) Neither the name of the University of California, Lawrence Berkeley
-  National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-  be used to endorse or promote products derived from this software without
-  specific prior written permission.
+   (1) Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+   (2) Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+   (3) Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
 
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-  You are under no obligation whatsoever to provide any bug fixes, patches, or
-  upgrades to the features, functionality or performance of the source code
-  ("Enhancements") to anyone; however, if you choose to make your Enhancements
-  available either publicly, or directly to Lawrence Berkeley National
-  Laboratory, without imposing a separate written license agreement for such
-  Enhancements, then you hereby grant the following license: a non-exclusive,
-  royalty-free perpetual license to install, use, modify, prepare derivative
-  works, incorporate into other computer software, distribute, and sublicense
-  such enhancements or derivative works thereof, in binary and source code form.
-*/
+   You are under no obligation whatsoever to provide any bug fixes, patches, or
+   upgrades to the features, functionality or performance of the source code
+   ("Enhancements") to anyone; however, if you choose to make your Enhancements
+   available either publicly, or directly to Lawrence Berkeley National
+   Laboratory, without imposing a separate written license agreement for such
+   Enhancements, then you hereby grant the following license: a non-exclusive,
+   royalty-free perpetual license to install, use, modify, prepare derivative
+   works, incorporate into other computer software, distribute, and sublicense
+   such enhancements or derivative works thereof, in binary and source code form.
+ */
 /// @file eigensolver.cpp
 /// @brief Eigensolver in the global domain or extended element.
 /// @date 2014-04-25 First version of parallelized version. This does
@@ -80,9 +80,6 @@ void EigenSolver::Setup(
         Hamiltonian& ham,
         Spinor& psi,
         Fourier& fft ) {
-#ifndef _RELEASE_
-    PushCallStack("EigenSolver::Setup");
-#endif  // ifndef _RELEASE_
     hamPtr_ = &ham;
     psiPtr_ = &psi;
     fftPtr_ = &fft;
@@ -118,9 +115,6 @@ void EigenSolver::Setup(
         Cblacs_gridmap(&contxt_, &pmap[0], nprow_, nprow_, npcol_);
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif  // ifndef _RELEASE_
     return;
 } 		// -----  end of method EigenSolver::Setup ----- 
 
@@ -132,9 +126,6 @@ void EigenSolver::Setup(
 //      Int          eigMaxIter,
 //      Real         eigTolerance)
 //{
-//#ifndef _RELEASE_
-//  PushCallStack("EigenSolver::LOBPCGSolveReal");
-//#endif
 //
 //  // *********************************************************************
 //  // Initialization
@@ -1434,9 +1425,6 @@ void EigenSolver::Setup(
 //#endif
 //
 //
-//#ifndef _RELEASE_
-//  PopCallStack();
-//#endif
 //
 //  return ;
 //} 		// -----  end of method EigenSolver::LOBPCGSolveReal  ----- 
@@ -1451,9 +1439,6 @@ EigenSolver::LOBPCGSolveReal2	(
         Real         eigMinTolerance,
         Real         eigTolerance)
 {
-#ifndef _RELEASE_
-    PushCallStack("EigenSolver::LOBPCGSolveReal2");
-#endif
 
     // *********************************************************************
     // Initialization
@@ -2496,8 +2481,8 @@ EigenSolver::LOBPCGSolveReal2	(
         statusOFS << "eigValS   = " << eigValS << std::endl;
 #endif
 
-//        statusOFS << iter << " " << eigMaxIter << std::endl;
-//        statusOFS << resMin << " " << eigMinTolerance << std::endl;
+        //        statusOFS << iter << " " << eigMaxIter << std::endl;
+        //        statusOFS << resMin << " " << eigMinTolerance << std::endl;
     } while( (iter < eigMaxIter) || (resMin > eigMinTolerance) );
 
 
@@ -2606,9 +2591,6 @@ EigenSolver::LOBPCGSolveReal2	(
     statusOFS << "Time for iterMpirank0  = " << iterMpirank0        << "  timeMpirank0  = " << timeMpirank0 << std::endl;
 #endif
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method EigenSolver::LOBPCGSolveReal2  ----- 
@@ -3787,9 +3769,6 @@ EigenSolver::LOBPCGSolveReal3	(
 
 double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_Lanczos_Steps)
 {
-#ifndef _RELEASE_
-    PushCallStack("EigenSolver:: Cheby_Upper_bound_estimator");
-#endif
 
     // *********************************************************************
     // Initialization
@@ -3909,9 +3888,6 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
     MPI_Bcast(ritz_values.Data(), Num_Lanczos_Steps, MPI_DOUBLE, 0, mpi_comm);
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return b_up;
 } // -----  end of method EigenSolver::Cheby_Upper_bound_estimator -----
@@ -3919,9 +3895,6 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
 
 void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
 {
-#ifndef _RELEASE_
-    PushCallStack("EigenSolver::Chebyshev_filter_scaled");
-#endif
 
 
     // *********************************************************************
@@ -4035,9 +4008,6 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
 
     statusOFS << std::endl << " Filtering Completed !"; 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
 } // -----  end of method EigenSolver::Chebyshev_filter_scaled -----
 
@@ -4045,9 +4015,6 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
 // Unscaled filter  
 void EigenSolver::Chebyshev_filter(int m, double a, double b)
 {
-#ifndef _RELEASE_
-    PushCallStack("EigenSolver::Chebyshev_filter");
-#endif
 
 
     // *********************************************************************
@@ -4156,9 +4123,6 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
 
     statusOFS << std::endl << " Filtering Completed !"; 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
 } // -----  end of method EigenSolver::Chebyshev_filter -----
 
@@ -4169,9 +4133,6 @@ EigenSolver::FirstChebyStep	(
         Int          numEig,
         Int          eigMaxIter,
         Int 	      filter_order) {
-#ifndef _RELEASE_
-    PushCallStack("EigenSolver::FirstChebyStep");
-#endif
 
     // *********************************************************************
     // Initialization
@@ -4861,9 +4822,6 @@ EigenSolver::FirstChebyStep	(
     // Save the eigenvalues to the eigensolver data structure  
     eigVal_ = DblNumVec( width, true, eig_vals_Raleigh_Ritz.Data() );	
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return;
 } // -----  end of method EigenSolver::FirstChebyStep -----
@@ -4873,9 +4831,6 @@ EigenSolver::GeneralChebyStep	(
         Int          numEig,
         Int 	   filter_order )
 {
-#ifndef _RELEASE_
-    PushCallStack("EigenSolver::GeneralChebyStep");
-#endif
 
     statusOFS << std::endl << std::endl << " Subsequent CheFSI for PWDFT ... " << std::endl;
     if(PWDFT_Cheby_use_scala_ == 1)
@@ -5558,9 +5513,6 @@ EigenSolver::GeneralChebyStep	(
 
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return;
 } // -----  end of method EigenSolver::GeneralChebyStep -----
@@ -6401,7 +6353,7 @@ EigenSolver::PPCGSolveReal	(
     }
 
     GetTime( timeSta1 );
-    
+
     if(PWDFT_PPCG_use_scala_ == 1)
     { 
         if( contxt_ >= 0 )

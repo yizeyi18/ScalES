@@ -39,7 +39,7 @@
    royalty-free perpetual license to install, use, modify, prepare derivative
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
-*/
+ */
 /// @file iondynamics.cpp
 /// @brief Geometry optimization and molecular dynamics for ions
 /// @date 2015-03-05 Organize previously implemented methods
@@ -54,9 +54,6 @@ void
     IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& atomList,
             PeriodTable& ptable )
     {
-#ifndef _RELEASE_
-        PushCallStack("IonDynamics::Setup");
-#endif
         Int mpirank, mpisize;
         MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
         MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
@@ -110,24 +107,24 @@ void
 
         if( ionMove_ == "bb" ){
         }
-        
+
         if( ionMove_ == "nlcg" )
-	{
-	  statusOFS << std::endl << " Setting up Non-linear CG based relaxation ...";
-	  // Set up the parameters and atom / force list for nlcg
-	  int i_max = 50;
-	  int j_max = 0;
-	  int n = 30;
-	  double epsilon_tol_outer = 1e-6;
-	  double epsilon_tol_inner = 1e-6;
-	  double sigma_0 = 0.5;
-	  
-	  NLCG_vars.setup(i_max, j_max, n, 
-			  epsilon_tol_outer, epsilon_tol_inner, sigma_0,
-			  *atomListPtr_);
-	  
-	  statusOFS << " Done ." << std::endl;
-	  
+        {
+            statusOFS << std::endl << " Setting up Non-linear CG based relaxation ...";
+            // Set up the parameters and atom / force list for nlcg
+            int i_max = 50;
+            int j_max = 0;
+            int n = 30;
+            double epsilon_tol_outer = 1e-6;
+            double epsilon_tol_inner = 1e-6;
+            double sigma_0 = 0.5;
+
+            NLCG_vars.setup(i_max, j_max, n, 
+                    epsilon_tol_outer, epsilon_tol_inner, sigma_0,
+                    *atomListPtr_);
+
+            statusOFS << " Done ." << std::endl;
+
         }
 
         // Molecular dynamics
@@ -271,9 +268,6 @@ void
         //  }
         //  statusOFS << std::endl;
 
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
 
         return ;
     } 		// -----  end of method IonDynamics::Setup  ----- 
@@ -282,9 +276,6 @@ void
 void
     IonDynamics::MoveIons	( Int ionIter )
     {
-#ifndef _RELEASE_
-        PushCallStack("IonDynamics::MoveIons");
-#endif
         Int mpirank, mpisize;
         MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
         MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
@@ -306,8 +297,8 @@ void
         }
 
         if( ionMove_ == "nlcg"){
-	   NLCG_Opt( ionIter );	  
-	}
+            NLCG_Opt( ionIter );	  
+        }
 
         // *********************************************************************
         // Molecular dynamics methods
@@ -374,9 +365,6 @@ void
         }
 
 
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
 
         return ;
     } 		// -----  end of method IonDynamics::MoveIons  ----- 
@@ -385,9 +373,6 @@ void
 void
     IonDynamics::BarzilaiBorweinOpt	( Int ionIter )
     {
-#ifndef _RELEASE_
-        PushCallStack("IonDynamics::BarzilaiBorweinOpt");
-#endif
         Int mpirank, mpisize;
         MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
         MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
@@ -470,218 +455,206 @@ void
             atomList[a].pos = atompos[a];
         }
 
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
 
         return ;
     } 		// -----  end of method IonDynamics::BarzilaiBorweinOpt  ----- 
 
 
- // Non-Linear Conjugate Gradients with Secant and Polak-Ribiere
- // Page 53 of the online.pdf : "An introduction to the conjugate gradient method without the agonizing pain." -- Jonathan Richard Shewchuk (1994).
- // Implemented by Amartya S. Banerjee, May 2016
+// Non-Linear Conjugate Gradients with Secant and Polak-Ribiere
+// Page 53 of the online.pdf : "An introduction to the conjugate gradient method without the agonizing pain." -- Jonathan Richard Shewchuk (1994).
+// Implemented by Amartya S. Banerjee, May 2016
 void
     IonDynamics::NLCG_Opt ( Int ionIter)
-{
-    #ifndef _RELEASE_
-        PushCallStack("IonDynamics::NLCG_Opt");
-    #endif
+    {
 
-  std::vector<Atom>&   atomList    = *atomListPtr_;
-  
-  statusOFS << std::endl << " Inside NLCG stepper routine : Call type = " << NLCG_vars.call_type << std::endl;
-  
-  if(NLCG_vars.call_type == NLCG_CALL_TYPE_1)
-  {  
-    if((NLCG_vars.i_ <= NLCG_vars.i_max_) && 
-       (NLCG_vars.delta_new_ > (NLCG_vars.epsilon_tol_outer_ * NLCG_vars.epsilon_tol_outer_ * NLCG_vars.delta_0_)))
-    {
-      // j = 0
-      NLCG_vars.j_ = 0;
-      
-      // delta_d = d^T d
-      NLCG_vars.delta_d_ = NLCG_vars.atom_ddot(NLCG_vars.atomforce_d_, NLCG_vars.atomforce_d_);
-      
-      // alpha = - sigma_0 
-      NLCG_vars.alpha_ = -NLCG_vars.sigma_0_;
-      
-      statusOFS << std::endl << " sigma_0 = " << NLCG_vars.sigma_0_ << std::endl ;
-      
-      // Use x and d to compute new position for force evalation
-      // pos = x + sigma_0 * d
-      for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-      {
-       for( Int d = 0; d < DIM; d++ )
-       {
-	  atomList[a].pos[d] = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.sigma_0_ * NLCG_vars.atomforce_d_[a][d]);	  
-       }
-      }
-      
-     
-     NLCG_vars.call_type = NLCG_CALL_TYPE_2;
-     
-     // Go back to do new evaluations of energy and forces after changing call type.
-     statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
-     
-     
-    } // end of if NLCG_vars.i_ <= NLCG_vars.i_max_ etc..
-    else
-    {
-      // Do Nothing ! Ions are not moved at all !
-      
-    }
-    
-    
-  } // end of call_type 1	
-  else if(NLCG_vars.call_type == NLCG_CALL_TYPE_2)
-  {
-    
-   // Compute eta_prev = [f'(x + sigma_0 * d)]^T d
-   std::vector<Point3>  atomforce_temp;
-   atomforce_temp.resize(NLCG_vars.numAtom);
-   for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-       atomforce_temp[a] = atomList[a].force;
-   
-   NLCG_vars.eta_prev_ = - NLCG_vars.atom_ddot(atomforce_temp, NLCG_vars.atomforce_d_); // Note the negative sign
-   
-   // Use x to update position for force evaluation
-   for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-      atomList[a].pos = NLCG_vars.atompos_x_[a];
-   
-  
-   NLCG_vars.call_type = NLCG_CALL_TYPE_3;
-   
-   // Go back to do new evaluations of energy and forces after changing call type.
-   statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
- 
-  } // end of call_type 2	
-  else if(NLCG_vars.call_type == NLCG_CALL_TYPE_3)
-  {
-    
-    // Compute eta = [f'(x)]^T d
-    std::vector<Point3>  atomforce_temp;
-    atomforce_temp.resize(NLCG_vars.numAtom);
-    for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-       atomforce_temp[a] = atomList[a].force;
-    
-     NLCG_vars.eta_ = - NLCG_vars.atom_ddot(atomforce_temp, NLCG_vars.atomforce_d_); // Note the negative sign
-     
-     // alpha = alpha * (eta/(eta_prev-eta))
-     NLCG_vars.alpha_ =  NLCG_vars.alpha_ * (NLCG_vars.eta_ / (NLCG_vars.eta_prev_ - NLCG_vars.eta_));
-       
-     // Set x = x + alpha * d
-     for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-      {
-       for( Int d = 0; d < DIM; d++ )
-       {
-	 NLCG_vars.atompos_x_[a][d]  = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.alpha_ * NLCG_vars.atomforce_d_[a][d]);	  
-       }
-      }
-      
-     // Set eta_prev = eta
-     NLCG_vars.eta_prev_ = NLCG_vars.eta_;
-     
-     // Increment inner counter
-     NLCG_vars.j_ = NLCG_vars.j_ + 1;
-     
-     // Exit conditions
-     if((NLCG_vars.j_ < NLCG_vars.j_max_) && 
-        ((NLCG_vars.alpha_ * NLCG_vars.alpha_ * NLCG_vars.delta_d_) > (NLCG_vars.epsilon_tol_inner_ * NLCG_vars.epsilon_tol_inner_)))
-     {
-       // Stay for looping : do not change call type
-       // Use x to update position for force evaluation
-      for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-       atomList[a].pos = NLCG_vars.atompos_x_[a];  
-     }
-     else
-     {
-        // Exit to pass control to remaining portion of code
-        NLCG_vars.call_type = NLCG_CALL_TYPE_4;
-       
-	// Use x to update position for force evaluation
-        for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-         atomList[a].pos = NLCG_vars.atompos_x_[a];  
-       
-     }
-     
-      statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
-   
-    
-  } // end of call_type 3	
-  else
-  {
+        std::vector<Atom>&   atomList    = *atomListPtr_;
 
-    // Set r = - f'(x) : Note that  atomList[a].force = - grad E already - so no extra negative required
-    for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-      NLCG_vars.atomforce_r_[a] = atomList[a].force;
-    
-    // Set delta_old = delta_new
-    NLCG_vars.delta_old_ = NLCG_vars.delta_new_ ;
-    
-    // Set delta_mid = r^T s  
-    NLCG_vars.delta_mid_ =  NLCG_vars.atom_ddot( NLCG_vars.atomforce_r_, NLCG_vars.atomforce_s_);
-    
-    // Set s = M^{-1} r : M = Identity used here
-    for( Int a = 0; a <  NLCG_vars.numAtom; a++ )
-       NLCG_vars.atomforce_s_[a] =  NLCG_vars.atomforce_r_[a];
-    
-    // Set delta_new = r^T s
-    NLCG_vars.delta_new_ =  NLCG_vars.atom_ddot( NLCG_vars.atomforce_r_, NLCG_vars.atomforce_s_);
-    
-    // Set beta = (delta_new - delta_mid) / delta_old
-    NLCG_vars.beta_ = (NLCG_vars.delta_new_ - NLCG_vars.delta_mid_) / NLCG_vars.delta_old_;
-    
-    // Increment counter
-    NLCG_vars.k_ = NLCG_vars.k_ + 1;
-     
-    if((NLCG_vars.k_ == NLCG_vars.n_) || (NLCG_vars.beta_ <= 0.0))
-    {
-      // Set d = s
-     for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-      NLCG_vars.atomforce_d_[a] = NLCG_vars.atomforce_s_[a];
-     
-      // set k = 0
-      NLCG_vars.k_ = 0;
-     
-    }
-    else
-    {
-      // Set d = s + beta * d
-      for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-      {
-       for( Int d = 0; d < DIM; d++ )
-       {
-	 NLCG_vars.atomforce_s_[a][d]  = (NLCG_vars.atomforce_s_[a][d] + NLCG_vars.beta_ * NLCG_vars.atomforce_d_[a][d]);	  
-       }
-      }
-      
-    }
-    
-    // Increment outer counter
-    NLCG_vars.i_ = NLCG_vars.i_ + 1;
-    
-    NLCG_vars.call_type = NLCG_CALL_TYPE_1;
-    
-    // Change the call type to run the outer loop again.
-    statusOFS << std::endl << " Calling back : Call type = " << NLCG_vars.call_type << std::endl;
-    
-  } // end of call_type 4	
-    		
+        statusOFS << std::endl << " Inside NLCG stepper routine : Call type = " << NLCG_vars.call_type << std::endl;
 
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
-  
-  return;
-}   // -----  end of method IonDynamics::NLCG_Opt  -----  
-    
+        if(NLCG_vars.call_type == NLCG_CALL_TYPE_1)
+        {  
+            if((NLCG_vars.i_ <= NLCG_vars.i_max_) && 
+                    (NLCG_vars.delta_new_ > (NLCG_vars.epsilon_tol_outer_ * NLCG_vars.epsilon_tol_outer_ * NLCG_vars.delta_0_)))
+            {
+                // j = 0
+                NLCG_vars.j_ = 0;
+
+                // delta_d = d^T d
+                NLCG_vars.delta_d_ = NLCG_vars.atom_ddot(NLCG_vars.atomforce_d_, NLCG_vars.atomforce_d_);
+
+                // alpha = - sigma_0 
+                NLCG_vars.alpha_ = -NLCG_vars.sigma_0_;
+
+                statusOFS << std::endl << " sigma_0 = " << NLCG_vars.sigma_0_ << std::endl ;
+
+                // Use x and d to compute new position for force evalation
+                // pos = x + sigma_0 * d
+                for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+                {
+                    for( Int d = 0; d < DIM; d++ )
+                    {
+                        atomList[a].pos[d] = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.sigma_0_ * NLCG_vars.atomforce_d_[a][d]);	  
+                    }
+                }
+
+
+                NLCG_vars.call_type = NLCG_CALL_TYPE_2;
+
+                // Go back to do new evaluations of energy and forces after changing call type.
+                statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
+
+
+            } // end of if NLCG_vars.i_ <= NLCG_vars.i_max_ etc..
+            else
+            {
+                // Do Nothing ! Ions are not moved at all !
+
+            }
+
+
+        } // end of call_type 1	
+        else if(NLCG_vars.call_type == NLCG_CALL_TYPE_2)
+        {
+
+            // Compute eta_prev = [f'(x + sigma_0 * d)]^T d
+            std::vector<Point3>  atomforce_temp;
+            atomforce_temp.resize(NLCG_vars.numAtom);
+            for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+                atomforce_temp[a] = atomList[a].force;
+
+            NLCG_vars.eta_prev_ = - NLCG_vars.atom_ddot(atomforce_temp, NLCG_vars.atomforce_d_); // Note the negative sign
+
+            // Use x to update position for force evaluation
+            for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+                atomList[a].pos = NLCG_vars.atompos_x_[a];
+
+
+            NLCG_vars.call_type = NLCG_CALL_TYPE_3;
+
+            // Go back to do new evaluations of energy and forces after changing call type.
+            statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
+
+        } // end of call_type 2	
+        else if(NLCG_vars.call_type == NLCG_CALL_TYPE_3)
+        {
+
+            // Compute eta = [f'(x)]^T d
+            std::vector<Point3>  atomforce_temp;
+            atomforce_temp.resize(NLCG_vars.numAtom);
+            for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+                atomforce_temp[a] = atomList[a].force;
+
+            NLCG_vars.eta_ = - NLCG_vars.atom_ddot(atomforce_temp, NLCG_vars.atomforce_d_); // Note the negative sign
+
+            // alpha = alpha * (eta/(eta_prev-eta))
+            NLCG_vars.alpha_ =  NLCG_vars.alpha_ * (NLCG_vars.eta_ / (NLCG_vars.eta_prev_ - NLCG_vars.eta_));
+
+            // Set x = x + alpha * d
+            for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+            {
+                for( Int d = 0; d < DIM; d++ )
+                {
+                    NLCG_vars.atompos_x_[a][d]  = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.alpha_ * NLCG_vars.atomforce_d_[a][d]);	  
+                }
+            }
+
+            // Set eta_prev = eta
+            NLCG_vars.eta_prev_ = NLCG_vars.eta_;
+
+            // Increment inner counter
+            NLCG_vars.j_ = NLCG_vars.j_ + 1;
+
+            // Exit conditions
+            if((NLCG_vars.j_ < NLCG_vars.j_max_) && 
+                    ((NLCG_vars.alpha_ * NLCG_vars.alpha_ * NLCG_vars.delta_d_) > (NLCG_vars.epsilon_tol_inner_ * NLCG_vars.epsilon_tol_inner_)))
+            {
+                // Stay for looping : do not change call type
+                // Use x to update position for force evaluation
+                for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+                    atomList[a].pos = NLCG_vars.atompos_x_[a];  
+            }
+            else
+            {
+                // Exit to pass control to remaining portion of code
+                NLCG_vars.call_type = NLCG_CALL_TYPE_4;
+
+                // Use x to update position for force evaluation
+                for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+                    atomList[a].pos = NLCG_vars.atompos_x_[a];  
+
+            }
+
+            statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
+
+
+        } // end of call_type 3	
+        else
+        {
+
+            // Set r = - f'(x) : Note that  atomList[a].force = - grad E already - so no extra negative required
+            for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+                NLCG_vars.atomforce_r_[a] = atomList[a].force;
+
+            // Set delta_old = delta_new
+            NLCG_vars.delta_old_ = NLCG_vars.delta_new_ ;
+
+            // Set delta_mid = r^T s  
+            NLCG_vars.delta_mid_ =  NLCG_vars.atom_ddot( NLCG_vars.atomforce_r_, NLCG_vars.atomforce_s_);
+
+            // Set s = M^{-1} r : M = Identity used here
+            for( Int a = 0; a <  NLCG_vars.numAtom; a++ )
+                NLCG_vars.atomforce_s_[a] =  NLCG_vars.atomforce_r_[a];
+
+            // Set delta_new = r^T s
+            NLCG_vars.delta_new_ =  NLCG_vars.atom_ddot( NLCG_vars.atomforce_r_, NLCG_vars.atomforce_s_);
+
+            // Set beta = (delta_new - delta_mid) / delta_old
+            NLCG_vars.beta_ = (NLCG_vars.delta_new_ - NLCG_vars.delta_mid_) / NLCG_vars.delta_old_;
+
+            // Increment counter
+            NLCG_vars.k_ = NLCG_vars.k_ + 1;
+
+            if((NLCG_vars.k_ == NLCG_vars.n_) || (NLCG_vars.beta_ <= 0.0))
+            {
+                // Set d = s
+                for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+                    NLCG_vars.atomforce_d_[a] = NLCG_vars.atomforce_s_[a];
+
+                // set k = 0
+                NLCG_vars.k_ = 0;
+
+            }
+            else
+            {
+                // Set d = s + beta * d
+                for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+                {
+                    for( Int d = 0; d < DIM; d++ )
+                    {
+                        NLCG_vars.atomforce_s_[a][d]  = (NLCG_vars.atomforce_s_[a][d] + NLCG_vars.beta_ * NLCG_vars.atomforce_d_[a][d]);	  
+                    }
+                }
+
+            }
+
+            // Increment outer counter
+            NLCG_vars.i_ = NLCG_vars.i_ + 1;
+
+            NLCG_vars.call_type = NLCG_CALL_TYPE_1;
+
+            // Change the call type to run the outer loop again.
+            statusOFS << std::endl << " Calling back : Call type = " << NLCG_vars.call_type << std::endl;
+
+        } // end of call_type 4	
+
+
+
+        return;
+    }   // -----  end of method IonDynamics::NLCG_Opt  -----  
+
 void
     IonDynamics::VelocityVerlet	( Int ionIter )
     {
-#ifndef _RELEASE_
-        PushCallStack("IonDynamics::VelocityVerlet");
-#endif
         Int mpirank, mpisize;
         MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
         MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
@@ -803,9 +776,6 @@ void
             atomList[a].vel = atomvel[a];
         }
 
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
 
         return ;
     } 		// -----  end of method IonDynamics::VelocityVerlet  ----- 
@@ -813,9 +783,6 @@ void
 void
     IonDynamics::NoseHoover1	( Int ionIter )
     {
-#ifndef _RELEASE_
-        PushCallStack("IonDynamics::NoseHoover1");
-#endif
         Int mpirank, mpisize;
         MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
         MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
@@ -981,9 +948,6 @@ void
             atomList[a].vel = atomvel[a];
         }
 
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
 
         return ;
     } 		// -----  end of method IonDynamics::NoseHoover1  ----- 
@@ -998,7 +962,7 @@ void
         // processor, and then the atomic position and velocity are
         // broadcast to other processors. This is particularly important
         // for stochastic methods
-        
+
         std::vector<Atom>&   atomList = *atomListPtr_;
         Int numAtom = atomList.size();
         std::vector<Point3>  atompos(numAtom);
@@ -1122,9 +1086,6 @@ void
             atomList[a].vel = atomvel[a];
         }
 
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
 
         return ;
     }
@@ -1151,68 +1112,68 @@ void
                 coef[1] = -3.0;
                 coef[2] = 1.0;
             }
-	}
+        }
         else if( MDExtrapolationType_ == "none"){
-	  coef[0] = 1.0;
-	 }
-        
-//        else if( MDExtrapolationType_ == "dario" ){
-//            if( ionIter < 3 ){
-//                coef[0] = 2.0;
-//                coef[1] = -1.0;
-//            }
-//            else{
-//                // FIXME
-//                // Dario extrapolation not working yet
-//
-//
-//                // Update the density through quadratic extrapolation
-//                // Dario CPC 118, 31 (1999)
-//                // huwei 20150923 
-//                // Compute the coefficient a and b
-//                Real a11 = 0.0;
-//                Real a22 = 0.0;
-//                Real a12 = 0.0;
-//                Real a21 = 0.0;
-//                Real b1 = 0.0;
-//                Real b2 = 0.0;
-//
-//                std::vector<Point3>  atemp1(numAtom);
-//                std::vector<Point3>  atemp2(numAtom);
-//                std::vector<Point3>  atemp3(numAtom);
-//
-//                for( Int i = 0; i < numAtom; i++ ){
-//                    atemp1[i] = atomListHist_[0][i].pos - atomListHist_[1][i].pos;
-//                    atemp2[i] = atomListHist_[1][i].pos - atomListHist_[2][i].pos;
-//                    atemp3[i] = atomListHist_[0][i].pos - atomList[i].pos;
-//                }
-//
-//                for( Int i = 0; i < numAtom; i++ ){
-//
-//                    a11 += atemp1[i][0]*atemp1[i][0]+atemp1[i][1]*atemp1[i][1]+atemp1[i][2]*atemp1[i][2];
-//                    a12 += atemp1[i][0]*atemp2[i][0]+atemp1[i][1]*atemp2[i][1]+atemp1[i][2]*atemp2[i][2];
-//                    a22 += atemp2[i][0]*atemp2[i][0]+atemp2[i][1]*atemp2[i][1]+atemp2[i][2]*atemp2[i][2];
-//                    a21 = a12;
-//                    b1 += 0.0-atemp3[i][0]*atemp1[i][0]-atemp3[i][1]*atemp1[i][1]-atemp3[i][2]*atemp1[i][2];
-//                    b2 += 0.0-atemp3[i][0]*atemp2[i][0]-atemp3[i][1]*atemp2[i][1]-atemp3[i][2]*atemp2[i][2];
-//                }
-//
-//
-//                Real detA = a11*a22 - a12*a21;
-//                Real aA = (b1*a22-b2*a12)/detA;
-//                Real bA = (b2*a11-b2*a21)/detA;
-//
-//
-//                //      statusOFS << "info"<< std::endl;
-//                //      statusOFS << a11 << ", " << a12 << ", " << a21 << ", " << a22 << ", " << detA << ", " << b1 
-//                //        << ", " << b2 << std::endl;
-//
-//                //      denCurVec(ii) = den0(ii) + aA * ( den0(ii) - den1(ii) ) + bA * ( den1(ii) - den2(ii) );
-//                coef[0] = 1.0 + aA;
-//                coef[1] = -aA + bA;
-//                coef[2] = -bA;
-//            }
-//        }
+            coef[0] = 1.0;
+        }
+
+        //        else if( MDExtrapolationType_ == "dario" ){
+        //            if( ionIter < 3 ){
+        //                coef[0] = 2.0;
+        //                coef[1] = -1.0;
+        //            }
+        //            else{
+        //                // FIXME
+        //                // Dario extrapolation not working yet
+        //
+        //
+        //                // Update the density through quadratic extrapolation
+        //                // Dario CPC 118, 31 (1999)
+        //                // huwei 20150923 
+        //                // Compute the coefficient a and b
+        //                Real a11 = 0.0;
+        //                Real a22 = 0.0;
+        //                Real a12 = 0.0;
+        //                Real a21 = 0.0;
+        //                Real b1 = 0.0;
+        //                Real b2 = 0.0;
+        //
+        //                std::vector<Point3>  atemp1(numAtom);
+        //                std::vector<Point3>  atemp2(numAtom);
+        //                std::vector<Point3>  atemp3(numAtom);
+        //
+        //                for( Int i = 0; i < numAtom; i++ ){
+        //                    atemp1[i] = atomListHist_[0][i].pos - atomListHist_[1][i].pos;
+        //                    atemp2[i] = atomListHist_[1][i].pos - atomListHist_[2][i].pos;
+        //                    atemp3[i] = atomListHist_[0][i].pos - atomList[i].pos;
+        //                }
+        //
+        //                for( Int i = 0; i < numAtom; i++ ){
+        //
+        //                    a11 += atemp1[i][0]*atemp1[i][0]+atemp1[i][1]*atemp1[i][1]+atemp1[i][2]*atemp1[i][2];
+        //                    a12 += atemp1[i][0]*atemp2[i][0]+atemp1[i][1]*atemp2[i][1]+atemp1[i][2]*atemp2[i][2];
+        //                    a22 += atemp2[i][0]*atemp2[i][0]+atemp2[i][1]*atemp2[i][1]+atemp2[i][2]*atemp2[i][2];
+        //                    a21 = a12;
+        //                    b1 += 0.0-atemp3[i][0]*atemp1[i][0]-atemp3[i][1]*atemp1[i][1]-atemp3[i][2]*atemp1[i][2];
+        //                    b2 += 0.0-atemp3[i][0]*atemp2[i][0]-atemp3[i][1]*atemp2[i][1]-atemp3[i][2]*atemp2[i][2];
+        //                }
+        //
+        //
+        //                Real detA = a11*a22 - a12*a21;
+        //                Real aA = (b1*a22-b2*a12)/detA;
+        //                Real bA = (b2*a11-b2*a21)/detA;
+        //
+        //
+        //                //      statusOFS << "info"<< std::endl;
+        //                //      statusOFS << a11 << ", " << a12 << ", " << a21 << ", " << a22 << ", " << detA << ", " << b1 
+        //                //        << ", " << b2 << std::endl;
+        //
+        //                //      denCurVec(ii) = den0(ii) + aA * ( den0(ii) - den1(ii) ) + bA * ( den1(ii) - den2(ii) );
+        //                coef[0] = 1.0 + aA;
+        //                coef[1] = -aA + bA;
+        //                coef[2] = -bA;
+        //            }
+        //        }
         else if ( MDExtrapolationType_ == "aspc2" ){
             /// Reference for ASPC schemes:
             /// J. Kolafa, Time‐reversible always stable

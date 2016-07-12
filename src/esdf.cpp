@@ -39,7 +39,7 @@
    royalty-free perpetual license to install, use, modify, prepare derivative
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
-*/
+ */
 /// @file esdf.cpp
 /// @brief Electronic structure data format for reading the input data.
 /// @date 2012-08-10
@@ -2036,9 +2036,6 @@ void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename ){
 void
 ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 {
-#ifndef _RELEASE_
-    PushCallStack("ESDFReadInput");
-#endif
     Int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
     Int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
     Int  nlines;
@@ -2578,17 +2575,11 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
         }
     } //position read in for restart
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of function ESDFReadInput  ----- 
 
 void ESDFPrintInput( const ESDFInputParam& esdfParam ){
-#ifndef _RELEASE_
-    PushCallStack("ESDFPrintInput");
-#endif
     int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank ); 
     int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
@@ -2757,9 +2748,6 @@ void ESDFPrintInput( const ESDFInputParam& esdfParam ){
     Print(statusOFS, ""); 
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of function ESDFPrintInput  ----- 

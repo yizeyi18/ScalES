@@ -1,45 +1,45 @@
 /*
-  Copyright (c) 2012 The Regents of the University of California,
-  through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
-  Authors: Lin Lin, Wei Hu and Lexing Ying
+   Authors: Lin Lin, Wei Hu and Lexing Ying
 	 
-  This file is part of DGDFT. All rights reserved.
+   This file is part of DGDFT. All rights reserved.
 
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are met:
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
 
-  (1) Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-  (2) Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-  (3) Neither the name of the University of California, Lawrence Berkeley
-  National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-  be used to endorse or promote products derived from this software without
-  specific prior written permission.
+   (1) Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+   (2) Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+   (3) Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
 
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-  You are under no obligation whatsoever to provide any bug fixes, patches, or
-  upgrades to the features, functionality or performance of the source code
-  ("Enhancements") to anyone; however, if you choose to make your Enhancements
-  available either publicly, or directly to Lawrence Berkeley National
-  Laboratory, without imposing a separate written license agreement for such
-  Enhancements, then you hereby grant the following license: a non-exclusive,
-  royalty-free perpetual license to install, use, modify, prepare derivative
-  works, incorporate into other computer software, distribute, and sublicense
-  such enhancements or derivative works thereof, in binary and source code form.
-*/
+   You are under no obligation whatsoever to provide any bug fixes, patches, or
+   upgrades to the features, functionality or performance of the source code
+   ("Enhancements") to anyone; however, if you choose to make your Enhancements
+   available either publicly, or directly to Lawrence Berkeley National
+   Laboratory, without imposing a separate written license agreement for such
+   Enhancements, then you hereby grant the following license: a non-exclusive,
+   royalty-free perpetual license to install, use, modify, prepare derivative
+   works, incorporate into other computer software, distribute, and sublicense
+   such enhancements or derivative works thereof, in binary and source code form.
+ */
 /// @file hamiltonian_dg.cpp
 /// @brief Implementation of the Hamiltonian class for DG calculation.
 /// @date 2013-01-09
@@ -63,15 +63,9 @@ HamiltonianDG::HamiltonianDG() {
 
 HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::HamiltonianDG");
-#endif
 
     Setup( esdfParam );
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::HamiltonianDG  ----- 
@@ -79,9 +73,6 @@ HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
 
 void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::Setup");
-#endif
     domain_            = esdfParam.domain;
     atomList_          = esdfParam.atomList;
     pseudoType_        = esdfParam.pseudoType;
@@ -796,9 +787,6 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
             }
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::Setup  ----- 
@@ -806,9 +794,6 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 void
 HamiltonianDG::UpdateHamiltonianDG	( std::vector<Atom>& atomList )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::HamiltonianDG");
-#endif
 
     atomList_          = atomList;
 
@@ -850,18 +835,12 @@ HamiltonianDG::UpdateHamiltonianDG	( std::vector<Atom>& atomList )
     }
 #endif
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::UpdateHamiltonianDG  ----- 
 
 HamiltonianDG::~HamiltonianDG	( )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::~HamiltonianDG");
-#endif
 
     if( XCInitialized_ )
     {
@@ -878,17 +857,11 @@ HamiltonianDG::~HamiltonianDG	( )
             ErrorHandling("Unrecognized exchange-correlation type");
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 } 		// -----  end of method HamiltonianDG::HamiltonianDG  ----- 
 
 void
 HamiltonianDG::DiffPsi	(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d)
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::DiffPsi");
-#endif
     if( d == 0 ){
         // Use Gemm
         Int m = numGrid[0], n = numGrid[1]*numGrid[2];
@@ -918,9 +891,6 @@ HamiltonianDG::DiffPsi	(const Index3& numGrid, const Real* psi, Real* Dpsi, Int 
         ErrorHandling("Wrong dimension.");
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::DiffPsi  ----- 
@@ -930,9 +900,6 @@ void
 HamiltonianDG::InterpLGLToUniform	( const Index3& numLGLGrid, const
         Index3& numUniformGridFine, const Real* rhoLGL, Real* rhoUniform )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::InterpLGLToUniform");
-#endif
     Index3 Ns1 = numLGLGrid;
     Index3 Ns2 = numUniformGridFine;
 
@@ -975,9 +942,6 @@ HamiltonianDG::InterpLGLToUniform	( const Index3& numLGLGrid, const
     }
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::InterpLGLToUniform  ----- 
@@ -988,9 +952,6 @@ HamiltonianDG::GaussConvInterpLGLToUniform	( const Index3& numLGLGrid, const
         Index3& numUniformGridFine, const Real* rhoLGL, Real* rhoUniform, 
         std::vector<DblNumMat> LGLToUniformGaussMatFine )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::GaussConvInterpLGLToUniform");
-#endif
     Index3 Ns1 = numLGLGrid;
     Index3 Ns2 = numUniformGridFine;
 
@@ -1033,9 +994,6 @@ HamiltonianDG::GaussConvInterpLGLToUniform	( const Index3& numLGLGrid, const
     }
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::GaussConvInterpLGLToUniform  ----- 
@@ -1043,9 +1001,6 @@ HamiltonianDG::GaussConvInterpLGLToUniform	( const Index3& numLGLGrid, const
 
 void
 HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::CalculatePseudoPotential");
-#endif
     Int ntotFine = domain_.NumGridTotalFine();
     Int numAtom = atomList_.size();
     Int mpirank, mpisize;
@@ -1245,9 +1200,6 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 #endif
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::CalculatePseudoPotential  ----- 
@@ -1257,9 +1209,6 @@ HamiltonianDG::CalculateDensity	(
         DistDblNumVec& rho,
         DistDblNumVec& rhoLGL )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::CalculateDensity");
-#endif
     Int mpirank, mpisize;
     MPI_Comm_rank( domain_.comm, &mpirank );
     MPI_Comm_size( domain_.comm, &mpisize );
@@ -2251,9 +2200,6 @@ HamiltonianDG::CalculateDensity	(
 
     } // Method 6
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::CalculateDensity  ----- 
@@ -2265,9 +2211,6 @@ HamiltonianDG::CalculateDensityDM	(
         DistDblNumVec& rhoLGL,
         DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::CalculateDensityDM");
-#endif
     Int mpirank, mpisize;
     MPI_Comm_rank( domain_.comm, &mpirank );
     MPI_Comm_size( domain_.comm, &mpisize );
@@ -2410,9 +2353,6 @@ HamiltonianDG::CalculateDensityDM	(
                     } // own this element
                 } // for (i)
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::CalculateDensityDM  ----- 
@@ -2424,9 +2364,6 @@ HamiltonianDG::CalculateDensityDM2	(
         DistDblNumVec& rhoLGL,
         DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::CalculateDensityDM2");
-#endif
     Int mpirank, mpisize;
     MPI_Comm_rank( domain_.comm, &mpirank );
     MPI_Comm_size( domain_.comm, &mpisize );
@@ -2575,18 +2512,12 @@ HamiltonianDG::CalculateDensityDM2	(
                     } // own this element
                 } // for (i)
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::CalculateDensityDM2  ----- 
 
 
 void HamiltonianDG::CalculateGradDensity( DistFourier&  fft ) {
-#ifndef _RELEASE_ 
-    PushCallStack("HamiltonianDG::CalculateGradDensity");
-#endif
     if( !fft.isInitialized ){
         ErrorHandling("Fourier is not prepared.");
     }
@@ -2660,9 +2591,6 @@ void HamiltonianDG::CalculateGradDensity( DistFourier&  fft ) {
                 domain_.colComm );
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return; 
 }  // -----  end of method HamiltonianDG::CalculateGradDensity ----- 
 
@@ -2674,9 +2602,6 @@ HamiltonianDG::CalculateXC	(
         DistDblNumVec&   vxc,
         DistFourier&    fft )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::CalculateXC");
-#endif
     Int mpirank, mpisize;
     MPI_Comm_rank( domain_.comm, &mpirank );
     MPI_Comm_size( domain_.comm, &mpisize );
@@ -2882,9 +2807,6 @@ HamiltonianDG::CalculateXC	(
 
     mpi::Allreduce( &ExcLocal, &Exc, 1, MPI_SUM, domain_.colComm );
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::CalculateXC  ----- 
@@ -2893,9 +2815,6 @@ HamiltonianDG::CalculateXC	(
 void HamiltonianDG::CalculateHartree( 
         DistDblNumVec&  vhart,
         DistFourier&    fft ) {
-#ifndef _RELEASE_ 
-    PushCallStack("HamiltonianDG::CalculateHartree");
-#endif
     if( !fft.isInitialized ){
         ErrorHandling("Fourier is not prepared.");
     }
@@ -2981,9 +2900,6 @@ void HamiltonianDG::CalculateHartree(
             domain_.colComm );
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return; 
 }  // -----  end of method HamiltonianDG::CalculateHartree ----- 
 
@@ -2993,9 +2909,6 @@ void HamiltonianDG::CalculateHartree(
 void
 HamiltonianDG::CalculateVtot	( DistDblNumVec& vtot  )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::CalculateVtot");
-#endif
     Int mpirank, mpisize;
     MPI_Comm_rank( domain_.comm, &mpirank );
     MPI_Comm_size( domain_.comm, &mpisize );
@@ -3020,9 +2933,6 @@ HamiltonianDG::CalculateVtot	( DistDblNumVec& vtot  )
                 }
             } // for (i)
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::CalculateVtot  ----- 
@@ -3031,9 +2941,6 @@ HamiltonianDG::CalculateVtot	( DistDblNumVec& vtot  )
 void
 HamiltonianDG::CalculateForce	( DistFourier& fft )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::CalculateForce");
-#endif
     if( !fft.isInitialized ){
         ErrorHandling("Fourier is not prepared.");
     }
@@ -3436,9 +3343,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
         atomList_[a].force = Point3( force(a,0), force(a,1), force(a,2) );
     } 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::CalculateForce  ----- 
@@ -3450,9 +3354,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 //    DistFourier& fft, 
 //    DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat )
 //{
-//#ifndef _RELEASE_
-//	PushCallStack("HamiltonianDG::CalculateForceDM");
-//#endif
 //	if( !fft.isInitialized ){
 //		ErrorHandling("Fourier is not prepared.");
 //	}
@@ -3884,9 +3785,6 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 //		atomList_[a].force = Point3( force(a,0), force(a,1), force(a,2) );
 //	} 
 //
-//#ifndef _RELEASE_
-//	PopCallStack();
-//#endif
 //
 //	return ;
 //} 		// -----  end of method HamiltonianDG::CalculateForceDM  ----- 
@@ -3901,9 +3799,6 @@ HamiltonianDG::CalculateForceDM	(
         DistFourier& fft, 
         DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat )
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::CalculateForceDM");
-#endif
     if( !fft.isInitialized ){
         ErrorHandling("Fourier is not prepared.");
     }
@@ -4232,9 +4127,6 @@ HamiltonianDG::CalculateForceDM	(
         atomList_[a].force = Point3( force(a,0), force(a,1), force(a,2) );
     } 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::CalculateForceDM  ----- 
@@ -4247,9 +4139,6 @@ HamiltonianDG::CalculateAPosterioriError	(
         DblNumTns&       eta2GradJump,
         DblNumTns&       eta2Jump	)
 {
-#ifndef _RELEASE_
-    PushCallStack("HamiltonianDG::CalculateAPosterioriError");
-#endif
 
     Int mpirank, mpisize;
     Int numAtom = atomList_.size();
@@ -5243,9 +5132,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method HamiltonianDG::CalculateAPosterioriError  ----- 

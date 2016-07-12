@@ -39,7 +39,7 @@
    royalty-free perpetual license to install, use, modify, prepare derivative
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
-*/
+ */
 /// @file utility.hpp
 /// @brief Utility subroutines.
 /// @date 2012-08-12
@@ -1678,17 +1678,11 @@ template <class F1, class F2>
 void
 CopyPattern	( const SparseMatrix<F1>& A, SparseMatrix<F2>& B )
 {
-#ifndef _RELEASE_
-    PushCallStack("CopyPattern");
-#endif
     B.size        = A.size;
     B.nnz         = A.nnz;
     B.colptr      = A.colptr;
     B.rowind      = A.rowind;
     B.nzval.Resize( A.nnz );
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return ;
 }		// -----  end of template function CopyPattern  ----- 
 
@@ -1699,9 +1693,6 @@ template <class F1, class F2>
 void
 CopyPattern	( const DistSparseMatrix<F1>& A, DistSparseMatrix<F2>& B )
 {
-#ifndef _RELEASE_
-    PushCallStack("CopyPattern");
-#endif
     B.size        = A.size;
     B.nnz         = A.nnz;
     B.nnzLocal    = A.nnzLocal;
@@ -1710,9 +1701,6 @@ CopyPattern	( const DistSparseMatrix<F1>& A, DistSparseMatrix<F2>& B )
     B.rowindLocal = A.rowindLocal;
     B.nzvalLocal.Resize( A.nnzLocal );
     B.comm        = A.comm;
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return ;
 }		// -----  end of template function CopyPattern  ----- 
 

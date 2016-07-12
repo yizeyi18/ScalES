@@ -39,7 +39,7 @@
    royalty-free perpetual license to install, use, modify, prepare derivative
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
-*/
+ */
 /// @file hamiltonian.hpp
 /// @brief Hamiltonian class for planewave basis diagonalization method.
 /// @date 2012-09-16

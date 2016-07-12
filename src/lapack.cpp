@@ -39,7 +39,7 @@
    royalty-free perpetual license to install, use, modify, prepare derivative
    works, incorporate into other computer software, distribute, and sublicense
    such enhancements or derivative works thereof, in binary and source code form.
-*/
+ */
 /// @file lapack.cpp
 /// @brief Thin interface to LAPACK
 /// @date 2012-09-12
@@ -271,9 +271,6 @@ extern "C" {
 
 void Potrf( char uplo, Int n, const float* A, Int lda )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Potrf");
-#endif
     Int info;
     LAPACK(spotrf)( &uplo, &n, A, &lda, &info );
     if( info < 0 )
@@ -284,16 +281,10 @@ void Potrf( char uplo, Int n, const float* A, Int lda )
     }
     else if( info > 0 )
         ErrorHandling("Matrix is not HPD.");
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Potrf( char uplo, Int n, const double* A, Int lda )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Potrf");
-#endif
     Int info;
     LAPACK(dpotrf)( &uplo, &n, A, &lda, &info );
     if( info < 0 )
@@ -308,16 +299,10 @@ void Potrf( char uplo, Int n, const double* A, Int lda )
         msg << "A(info,info) = " << A[info-1+(info-1)*lda] << std::endl;
         ErrorHandling( msg.str().c_str() );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Potrf( char uplo, Int n, const scomplex* A, Int lda )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Potrf");
-#endif
     Int info;
     LAPACK(cpotrf)( &uplo, &n, A, &lda, &info );
     if( info < 0 )
@@ -328,16 +313,10 @@ void Potrf( char uplo, Int n, const scomplex* A, Int lda )
     }
     else if( info > 0 )
         ErrorHandling("Matrix is not HPD.");
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Potrf( char uplo, Int n, const dcomplex* A, Int lda )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Potrf");
-#endif
     Int info;
     LAPACK(zpotrf)( &uplo, &n, A, &lda, &info );
     if( info < 0 )
@@ -348,9 +327,6 @@ void Potrf( char uplo, Int n, const dcomplex* A, Int lda )
     }
     else if( info > 0 )
         ErrorHandling("Matrix is not HPD.");
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 // *********************************************************************
@@ -359,9 +335,6 @@ void Potrf( char uplo, Int n, const dcomplex* A, Int lda )
 
 void Getrf( Int m, Int n, float* A, Int lda, Int* p )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Getrf");
-#endif
     Int info;
     LAPACK(sgetrf)( &m, &n, A, &lda, p, &info );
     if( info < 0 )
@@ -372,16 +345,10 @@ void Getrf( Int m, Int n, float* A, Int lda, Int* p )
     }
     else if( info > 0 )
         ErrorHandling("Matrix is singular.");
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Getrf( Int m, Int n, double* A, Int lda, Int* p )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Getrf");
-#endif
     Int info;
     LAPACK(dgetrf)( &m, &n, A, &lda, p, &info );
     if( info < 0 )
@@ -392,16 +359,10 @@ void Getrf( Int m, Int n, double* A, Int lda, Int* p )
     }
     else if( info > 0 )
         ErrorHandling("Matrix is singular.");
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Getrf( Int m, Int n, scomplex* A, Int lda, Int* p )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Getrf");
-#endif
     Int info;
     LAPACK(cgetrf)( &m, &n, A, &lda, p, &info );
     if( info < 0 )
@@ -412,16 +373,10 @@ void Getrf( Int m, Int n, scomplex* A, Int lda, Int* p )
     }
     else if( info > 0 )
         ErrorHandling("Matrix is singular.");
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Getrf( Int m, Int n, dcomplex* A, Int lda, Int* p )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Getrf");
-#endif
     Int info;
     LAPACK(zgetrf)( &m, &n, A, &lda, p, &info );
     if( info < 0 )
@@ -432,9 +387,6 @@ void Getrf( Int m, Int n, dcomplex* A, Int lda, Int* p )
     }
     else if( info > 0 )
         ErrorHandling("Matrix is singular.");
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 //
@@ -446,9 +398,6 @@ void Hegst
 ( Int itype, char uplo, Int n,
   float* A, Int lda, const float* B, Int ldb )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Hegst");
-#endif
     Int info;
     LAPACK(ssygst)( &itype, &uplo, &n, A, &lda, B, &ldb, &info );
     if( info != 0 )
@@ -457,18 +406,12 @@ void Hegst
         msg << "ssygst returned with info = " << info;
         ErrorHandling( msg.str().c_str() );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Hegst
 ( Int itype, char uplo, Int n,
   double* A, Int lda, const double* B, Int ldb )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Hegst");
-#endif
     Int info;
     LAPACK(dsygst)( &itype, &uplo, &n, A, &lda, B, &ldb, &info );
     if( info != 0 )
@@ -477,18 +420,12 @@ void Hegst
         msg << "dsygst returned with info = " << info;
         ErrorHandling( msg.str().c_str() );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Hegst
 ( Int itype, char uplo, Int n,
   scomplex* A, Int lda, const scomplex* B, Int ldb )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Hegst");
-#endif
     Int info;
     LAPACK(chegst)( &itype, &uplo, &n, A, &lda, B, &ldb, &info );
     if( info != 0 )
@@ -497,18 +434,12 @@ void Hegst
         msg << "chegst returned with info = " << info;
         ErrorHandling( msg.str().c_str() );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Hegst
 ( Int itype, char uplo, Int n,
   dcomplex* A, Int lda, const dcomplex* B, Int ldb )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Hegst");
-#endif
     Int info;
     LAPACK(zhegst)( &itype, &uplo, &n, A, &lda, B, &ldb, &info );
     if( info != 0 )
@@ -517,9 +448,6 @@ void Hegst
         msg << "zhegst returned with info = " << info;
         ErrorHandling( msg.str().c_str() );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 // *********************************************************************
@@ -529,9 +457,6 @@ void Hegst
 
 void Syevd
 ( char jobz, char uplo, Int n, double* A, Int lda, double* eigs ){
-#ifndef _RELEASE_
-    PushCallStack("lapack::Syevd");
-#endif
     Int lwork = -1, info;
     Int liwork = -1;
     std::vector<double> work(1);
@@ -553,9 +478,6 @@ void Syevd
         msg << "syevd returned with info = " << info;
         ErrorHandling( msg.str().c_str() );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 
@@ -566,9 +488,6 @@ void Syevd
 
 void Sygvd
 ( Int itype, char jobz, char uplo, Int n, double* A, Int lda, double* B, Int ldb, double* eigs ){
-#ifndef _RELEASE_
-    PushCallStack("lapack::Sygvd");
-#endif
     Int lwork = -1, info;
     Int liwork = -1;
     std::vector<double> work(1);
@@ -590,9 +509,6 @@ void Sygvd
         msg << "sygvd returned with info = " << info;
         ErrorHandling( msg.str().c_str() );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 
@@ -603,9 +519,6 @@ void Sygvd
 
 void Trtri( char uplo, char diag, Int n, const float* A, Int lda )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Trtri");
-#endif
     Int info;
     LAPACK(strtri)( &uplo, &diag, &n, A, &lda, &info );
     if( info < 0 )
@@ -616,16 +529,10 @@ void Trtri( char uplo, char diag, Int n, const float* A, Int lda )
     }
     else if( info > 0 )
         throw std::runtime_error("Matrix is singular.");
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Trtri( char uplo, char diag, Int n, const double* A, Int lda )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Trtri");
-#endif
     Int info;
     LAPACK(dtrtri)( &uplo, &diag, &n, A, &lda, &info );
     if( info < 0 )
@@ -636,17 +543,11 @@ void Trtri( char uplo, char diag, Int n, const double* A, Int lda )
     }
     else if( info > 0 )
         throw std::runtime_error("Matrix is singular.");
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Trtri
 ( char uplo, char diag, Int n, const scomplex* A, Int lda )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Trtri");
-#endif
     Int info;
     LAPACK(ctrtri)( &uplo, &diag, &n, A, &lda, &info );
     if( info < 0 )
@@ -657,17 +558,11 @@ void Trtri
     }
     else if( info > 0 )
         ErrorHandling("Matrix is singular.");
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Trtri
 ( char uplo, char diag, Int n, const dcomplex* A, Int lda )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Trtri");
-#endif
     Int info;
     LAPACK(ztrtri)( &uplo, &diag, &n, A, &lda, &info );
     if( info < 0 )
@@ -678,9 +573,6 @@ void Trtri
     }
     else if( info > 0 )
         ErrorHandling("Matrix is singular.");
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 //
@@ -691,14 +583,8 @@ void BidiagQRAlg
 ( char uplo, Int n, Int numColsVTrans, Int numRowsU,
   float* d, float* e, float* VTrans, Int ldVTrans, float* U, Int ldU )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::BidiagQRAlg");
-#endif
     if( n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -721,23 +607,14 @@ void BidiagQRAlg
         msg << "sbdsqr had " << info << " elements of e not converge";
         ErrorHandling( msg.str().c_str() );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void BidiagQRAlg
 ( char uplo, Int n, Int numColsVTrans, Int numRowsU, 
   double* d, double* e, double* VTrans, Int ldVTrans, double* U, Int ldU )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::BidiagQRAlg");
-#endif
     if( n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -760,23 +637,14 @@ void BidiagQRAlg
         msg << "dbdsqr had " << info << " elements of e not converge";
         ErrorHandling( msg.str().c_str() );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void BidiagQRAlg
 ( char uplo, Int n, Int numColsVAdj, Int numRowsU, 
   float* d, float* e, scomplex* VAdj, Int ldVAdj, scomplex* U, Int ldU )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::BidiagQRAlg");
-#endif
     if( n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -799,23 +667,14 @@ void BidiagQRAlg
         msg << "cbdsqr had " << info << " elements of e not converge";
         ErrorHandling( msg.str().c_str() );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void BidiagQRAlg
 ( char uplo, Int n, Int numColsVAdj, Int numRowsU, 
   double* d, double* e, dcomplex* VAdj, Int ldVAdj, dcomplex* U, Int ldU )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::BidiagQRAlg");
-#endif
     if( n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -838,9 +697,6 @@ void BidiagQRAlg
         msg << "zbdsqr had " << info << " elements of e not converge";
         ErrorHandling( msg.str().c_str() );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 // *********************************************************************
@@ -851,14 +707,8 @@ void DivideAndConquerSVD
 ( Int m, Int n, float* A, Int lda, 
   float* s, float* U, Int ldu, float* VTrans, Int ldvt )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::DivideAndConquerSVD");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -887,23 +737,14 @@ void DivideAndConquerSVD
     {
         ErrorHandling("sgesdd's updating process failed");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void DivideAndConquerSVD
 ( Int m, Int n, double* A, Int lda, 
   double* s, double* U, Int ldu, double* VTrans, Int ldvt )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::DivideAndConquerSVD");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -932,23 +773,14 @@ void DivideAndConquerSVD
     {
         ErrorHandling("dgesdd's updating process failed");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void DivideAndConquerSVD
 ( Int m, Int n, scomplex* A, Int lda, 
   float* s, scomplex* U, Int ldu, scomplex* VAdj, Int ldva )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::DivideAndConquerSVD");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -980,23 +812,14 @@ void DivideAndConquerSVD
     {
         ErrorHandling("cgesdd's updating process failed");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void DivideAndConquerSVD
 ( Int m, Int n, dcomplex* A, Int lda, 
   double* s, dcomplex* U, Int ldu, dcomplex* VAdj, Int ldva )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::DivideAndConquerSVD");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1028,9 +851,6 @@ void DivideAndConquerSVD
     {
         ErrorHandling("zgesdd's updating process failed");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 //
@@ -1041,14 +861,8 @@ void QRSVD
 ( Int m, Int n, float* A, Int lda, 
   float* s, float* U, Int ldu, float* VTrans, Int ldvt )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::QRSVD");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1075,23 +889,14 @@ void QRSVD
     {
         ErrorHandling("sgesvd's updating process failed");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void QRSVD
 ( Int m, Int n, double* A, Int lda, 
   double* s, double* U, Int ldu, double* VTrans, Int ldvt )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::QRSVD");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1118,23 +923,14 @@ void QRSVD
     {
         ErrorHandling("dgesvd's updating process failed");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void QRSVD
 ( Int m, Int n, scomplex* A, Int lda, 
   float* s, scomplex* U, Int ldu, scomplex* VAdj, Int ldva )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::QRSVD");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1163,23 +959,14 @@ void QRSVD
     {
         ErrorHandling("cgesvd's updating process failed");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void QRSVD
 ( Int m, Int n, dcomplex* A, Int lda, 
   double* s, dcomplex* U, Int ldu, dcomplex* VAdj, Int ldva )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::QRSVD");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1208,9 +995,6 @@ void QRSVD
     {
         ErrorHandling("zgesvd's updating process failed");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 //
@@ -1219,14 +1003,8 @@ void QRSVD
 
 void SingularValues( Int m, Int n, float* A, Int lda, float* s )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::SingularValues");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1253,21 +1031,12 @@ void SingularValues( Int m, Int n, float* A, Int lda, float* s )
     {
         ErrorHandling("sgesvd's updating process failed");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void SingularValues( Int m, Int n, double* A, Int lda, double* s )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::SingularValues");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1294,21 +1063,12 @@ void SingularValues( Int m, Int n, double* A, Int lda, double* s )
     {
         ErrorHandling("dgesvd's updating process failed");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void SingularValues( Int m, Int n, scomplex* A, Int lda, float* s )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::SingularValues");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1337,21 +1097,12 @@ void SingularValues( Int m, Int n, scomplex* A, Int lda, float* s )
     {
         ErrorHandling("cgesvd's updating process failed");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void SingularValues( Int m, Int n, dcomplex* A, Int lda, double* s )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::SingularValues");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1380,9 +1131,6 @@ void SingularValues( Int m, Int n, dcomplex* A, Int lda, double* s )
     {
         ErrorHandling("zgesvd's updating process failed");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 
@@ -1393,14 +1141,8 @@ void SVDLeastSquare( Int m, Int n, Int nrhs, float * A, Int lda,
         float * B, Int ldb, float * S, float rcond,
         Int* rank )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::SVDLeastSquare");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1428,23 +1170,14 @@ void SVDLeastSquare( Int m, Int n, Int nrhs, float * A, Int lda,
     {
         ErrorHandling("sgelss's svd failed to converge.");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void SVDLeastSquare( Int m, Int n, Int nrhs, double * A, Int lda,
         double * B, Int ldb, double * S, double rcond,
         Int* rank )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::SVDLeastSquare");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1472,23 +1205,14 @@ void SVDLeastSquare( Int m, Int n, Int nrhs, double * A, Int lda,
     {
         ErrorHandling("dgelss's svd failed to converge.");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void SVDLeastSquare( Int m, Int n, Int nrhs, scomplex * A, Int lda,
         scomplex * B, Int ldb, float * S, float rcond,
         Int* rank )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::SVDLeastSquare");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1518,23 +1242,14 @@ void SVDLeastSquare( Int m, Int n, Int nrhs, scomplex * A, Int lda,
     {
         ErrorHandling("cgelss's svd failed to converge.");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void SVDLeastSquare( Int m, Int n, Int nrhs, dcomplex * A, Int lda,
         dcomplex * B, Int ldb, double * S, double rcond,
         Int* rank )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::SVDLeastSquare");
-#endif
     if( m==0 || n==0 )
     {
-#ifndef _RELEASE_
-        PopCallStack();
-#endif
         return;
     }
 
@@ -1564,9 +1279,6 @@ void SVDLeastSquare( Int m, Int n, Int nrhs, dcomplex * A, Int lda,
     {
         ErrorHandling("zgelss's svd failed to converge.");
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 // *********************************************************************
@@ -1575,24 +1287,12 @@ void SVDLeastSquare( Int m, Int n, Int nrhs, dcomplex * A, Int lda,
 
 void Lacpy( char uplo, Int m, Int n, const double* A, Int lda,
         double* B, Int ldb	){
-#ifndef _RELEASE_
-    PushCallStack("lapack::Lacpy");
-#endif
     LAPACK(dlacpy)( &uplo, &m, &n, A, &lda, B, &ldb );
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 void Lacpy( char uplo, Int m, Int n, const dcomplex* A, Int lda,
         dcomplex* B, Int ldb	){
-#ifndef _RELEASE_
-    PushCallStack("lapack::Lacpy");
-#endif
     LAPACK(zlacpy)( &uplo, &m, &n, A, &lda, B, &ldb );
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 }
 
 // *********************************************************************
@@ -1601,9 +1301,6 @@ void Lacpy( char uplo, Int m, Int n, const dcomplex* A, Int lda,
 void
 Getri ( Int n, double* A, Int lda, const Int* ipiv )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Getri");
-#endif
     Int lwork = -1, info;
     double dummyWork;
 
@@ -1627,9 +1324,6 @@ Getri ( Int n, double* A, Int lda, const Int* ipiv )
         ErrorHandling( msg.str().c_str() );
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of function Getri  ----- 
@@ -1638,9 +1332,6 @@ Getri ( Int n, double* A, Int lda, const Int* ipiv )
 void
 Getri ( Int n, dcomplex* A, Int lda, const Int* ipiv )
 {
-#ifndef _RELEASE_
-    PushCallStack("lapack::Getri");
-#endif
     Int lwork = -1, info;
     dcomplex dummyWork;
 
@@ -1664,9 +1355,6 @@ Getri ( Int n, dcomplex* A, Int lda, const Int* ipiv )
         ErrorHandling( msg.str().c_str() );
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of function Getri  ----- 
@@ -1677,9 +1365,6 @@ Getri ( Int n, dcomplex* A, Int lda, const Int* ipiv )
 
 void
 Sytrf ( char uplo, Int n, double* A, Int lda, Int* ipiv ){
-#ifndef _RELEASE_
-    PushCallStack("Sytrf");
-#endif
     Int lwork = -1, info;
     double dummyWork;
 
@@ -1706,9 +1391,6 @@ Sytrf ( char uplo, Int n, double* A, Int lda, Int* ipiv ){
         ErrorHandling( msg.str().c_str() );
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 }		// -----  end of function Sytrf  ----- 

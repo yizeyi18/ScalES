@@ -1,45 +1,45 @@
 /*
-  Copyright (c) 2012 The Regents of the University of California,
-  through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
-  Authors: Lin Lin, Wei Hu and Amartya Banerjee
+   Authors: Lin Lin, Wei Hu and Amartya Banerjee
 
-  This file is part of DGDFT. All rights reserved.
+   This file is part of DGDFT. All rights reserved.
 
-  Redistribution and use in source and binary forms, with or without
-  modification, are permitted provided that the following conditions are met:
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions are met:
 
-  (1) Redistributions of source code must retain the above copyright notice, this
-  list of conditions and the following disclaimer.
-  (2) Redistributions in binary form must reproduce the above copyright notice,
-  this list of conditions and the following disclaimer in the documentation
-  and/or other materials provided with the distribution.
-  (3) Neither the name of the University of California, Lawrence Berkeley
-  National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-  be used to endorse or promote products derived from this software without
-  specific prior written permission.
+   (1) Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+   (2) Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+   (3) Neither the name of the University of California, Lawrence Berkeley
+   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
 
-  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-  You are under no obligation whatsoever to provide any bug fixes, patches, or
-  upgrades to the features, functionality or performance of the source code
-  ("Enhancements") to anyone; however, if you choose to make your Enhancements
-  available either publicly, or directly to Lawrence Berkeley National
-  Laboratory, without imposing a separate written license agreement for such
-  Enhancements, then you hereby grant the following license: a non-exclusive,
-  royalty-free perpetual license to install, use, modify, prepare derivative
-  works, incorporate into other computer software, distribute, and sublicense
-  such enhancements or derivative works thereof, in binary and source code form.
-*/
+   You are under no obligation whatsoever to provide any bug fixes, patches, or
+   upgrades to the features, functionality or performance of the source code
+   ("Enhancements") to anyone; however, if you choose to make your Enhancements
+   available either publicly, or directly to Lawrence Berkeley National
+   Laboratory, without imposing a separate written license agreement for such
+   Enhancements, then you hereby grant the following license: a non-exclusive,
+   royalty-free perpetual license to install, use, modify, prepare derivative
+   works, incorporate into other computer software, distribute, and sublicense
+   such enhancements or derivative works thereof, in binary and source code form.
+ */
 /// @file scf_dg.cpp
 /// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
@@ -57,9 +57,6 @@ using namespace dgdft::DensityComponent;
 // FIXME Leave the smoother function to somewhere more appropriate
 Real Smoother ( Real x )
 {
-#ifndef _RELEASE_
-    PushCallStack("Smoother");
-#endif
     Real t, z;
     if( x <= 0 )
         t = 1.0;
@@ -72,30 +69,18 @@ Real Smoother ( Real x )
         else
             t = std::exp(-z) / ( std::exp(-z) + 1.0 );
     }
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
     return t;
 }		// -----  end of function Smoother  ----- 
 
 
 SCFDG::SCFDG	(  )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCFDG::SCFDG");
-#endif
     isPEXSIInitialized_ = false;
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 } 		// -----  end of method SCFDG::SCFDG  ----- 
 
 
 SCFDG::~SCFDG	(  )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCFDG::~SCFDG");
-#endif
     Int mpirank, mpisize;
     MPI_Comm_rank( domain_.comm, &mpirank );
     MPI_Comm_size( domain_.comm, &mpisize );
@@ -123,9 +108,6 @@ SCFDG::~SCFDG	(  )
         MPI_Comm_free( &pexsiComm_ );
     }
 #endif
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 } 		// -----  end of method SCFDG::~SCFDG  ----- 
 
 void
@@ -137,9 +119,6 @@ SCFDG::Setup	(
         PeriodTable&                ptable,
         Int                         contxt	)
 {
-#ifndef _RELEASE_
-    PushCallStack("SCFDG::Setup");
-#endif
 
     // *********************************************************************
     // Read parameters from ESDFParam
@@ -544,7 +523,7 @@ SCFDG::Setup	(
                         DblNumVec&  denVec = density.LocalMap()[key];
                         DblNumVec&  ppVec  = pseudoCharge.LocalMap()[key];
                         for( Int p = 0; p < denVec.Size(); p++ ){
-//                            denVec(p) = ppVec(p);
+                            //                            denVec(p) = ppVec(p);
                             denVec(p) = ( ppVec(p) > EPS ) ? ppVec(p) : EPS;
                             sumDensityLocal += denVec(p);
                             sumPseudoChargeLocal += ppVec(p);
@@ -925,9 +904,6 @@ SCFDG::Setup	(
     efreeDifPerAtom_ = 100.0;
 
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method SCFDG::Setup  ----- 
@@ -935,9 +911,6 @@ SCFDG::Setup	(
 void
 SCFDG::Update	( )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCFDG::Update");
-#endif
     Int mpirank, mpisize;
     MPI_Comm_rank( domain_.comm, &mpirank );
     MPI_Comm_size( domain_.comm, &mpisize );
@@ -970,9 +943,6 @@ SCFDG::Update	( )
 
     }
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
 } 		// -----  end of method SCFDG::Update  ----- 
@@ -981,9 +951,6 @@ SCFDG::Update	( )
 void
 SCFDG::Iterate	(  )
 {
-#ifndef _RELEASE_
-    PushCallStack("SCFDG::Iterate");
-#endif
 
     MPI_Barrier(domain_.comm);
     MPI_Barrier(domain_.colComm);
@@ -2331,9 +2298,6 @@ SCFDG::Iterate	(  )
         << " [s]" << std::endl;
 #endif
 
-#ifndef _RELEASE_
-    PopCallStack();
-#endif
 
     return ;
     } 		// -----  end of method SCFDG::Iterate  ----- 
@@ -2350,9 +2314,6 @@ SCFDG::Iterate	(  )
         SCFDG::scfdg_distvec_dot(DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_a,
                 DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_b)
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::scfdg_distvec_dot");
-#endif
 
             double temp_result = 0.0, final_result = 0.0;
             DblNumMat& vec_a= (dist_vec_a.LocalMap().begin())->second;
@@ -2375,9 +2336,6 @@ SCFDG::Iterate	(  )
             mpi::Allreduce( &temp_result, &final_result, 1, MPI_SUM, domain_.colComm );
 
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif  
 
             return final_result;
         } // End of routine scfdg_distvec_dot
@@ -2386,9 +2344,6 @@ SCFDG::Iterate	(  )
     double 
         SCFDG::scfdg_distvec_nrm2(DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_a)
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::scfdg_distvec_nrm2");
-#endif
 
             double temp_result = 0.0, final_result = 0.0;
             DblNumMat& vec_a= (dist_vec_a.LocalMap().begin())->second;
@@ -2409,9 +2364,6 @@ SCFDG::Iterate	(  )
             mpi::Allreduce( &temp_result, &final_result, 1, MPI_SUM, domain_.colComm );
             final_result = sqrt(final_result);
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif  
             return  final_result;
 
         } // End of routine scfdg_distvec_nrm2
@@ -2425,9 +2377,6 @@ SCFDG::Iterate	(  )
                 DistVec<Index3, DblNumMat, ElemPrtn>  &dist_mat_b,
                 double scal_b)
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::scfdg_distmat_update");
-#endif
 
             DblNumMat& mat_a= (dist_mat_a.LocalMap().begin())->second;
             DblNumMat& mat_b= (dist_mat_b.LocalMap().begin())->second;  
@@ -2449,9 +2398,6 @@ SCFDG::Iterate	(  )
             for(Int iter = 0; iter < (mat_a.m() * mat_a.n()) ; iter ++)
                 ptr_b[iter] = scal_a * ptr_a[iter] + scal_b * ptr_b[iter];
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif  
 
 
         } // End of routine scfdg_distvec_update
@@ -2461,9 +2407,6 @@ SCFDG::Iterate	(  )
     void SCFDG::scfdg_hamiltonian_times_distmat(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
             DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_mat)
     {
-#ifndef _RELEASE_
-        PushCallStack("SCFDG::scfdg_hamiltonian_times_distmat");
-#endif
 
         Int mpirank, mpisize;
         MPI_Comm_rank( domain_.comm, &mpirank );
@@ -2554,9 +2497,6 @@ SCFDG::Iterate	(  )
             (my_dist_mat.LocalMap()).erase(it);
         }
 
-#ifndef _RELEASE_
-        PopCallStack();
-#endif  
 
     }
 
@@ -2568,9 +2508,6 @@ SCFDG::Iterate	(  )
                 int Num_Lanczos_Steps
                 )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::scfdg_Cheby_Upper_bound_estimator");
-#endif
 
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
@@ -2704,9 +2641,6 @@ SCFDG::Iterate	(  )
             MPI_Bcast(ritz_values.Data(), Num_Lanczos_Steps, MPI_DOUBLE, 0, domain_.comm);
 
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif  
 
             return b_up;
 
@@ -2721,9 +2655,6 @@ SCFDG::Iterate	(  )
                 double b, 
                 double a_L)
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::scfdg_Chebyshev_filter");
-#endif
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
             MPI_Comm_size( domain_.comm, &mpisize );
@@ -2875,9 +2806,6 @@ SCFDG::Iterate	(  )
 
 
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif  
 
         } // End of scfdg_Chebyshev_filter
 
@@ -2893,9 +2821,6 @@ SCFDG::Iterate	(  )
     void 
         SCFDG::scfdg_Hamiltonian_times_eigenvectors(DistVec<Index3, DblNumMat, ElemPrtn>  &result_mat)
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::scfdg_Hamiltonian_times_eigenvectors");
-#endif
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
             MPI_Comm_size( domain_.comm, &mpisize );
@@ -2990,9 +2915,6 @@ SCFDG::Iterate	(  )
             statusOFS << std::endl << " Eigenvector block rebuild time = " 
                 << (extra_timeEnd - extra_timeSta ) << " s.";
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif  
 
         } // End of scfdg_Hamiltonian_times_eigenvectors
 
@@ -3007,9 +2929,6 @@ SCFDG::Iterate	(  )
     // 							 dgdft::scalapack::Descriptor &my_scala_descriptor,
     // 							 dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec)
     //   {
-    // #ifndef _RELEASE_
-    //     PushCallStack("SCFDG::scfdg_Cheby_distmat_to_ScaLAPACK_conversion_old");
-    // #endif
     //    
     //     HamiltonianDG&  hamDG = *hamDGPtr_;
     //     
@@ -3122,9 +3041,6 @@ SCFDG::Iterate	(  )
     //       
     //   
     //     
-    // #ifndef _RELEASE_
-    //     PopCallStack();
-    // #endif  
     //   } // End of scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK_old
     //   
 
@@ -3139,9 +3055,6 @@ SCFDG::Iterate	(  )
                 dgdft::scalapack::Descriptor &my_scala_descriptor,
                 dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat)
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::scfdg_Cheby_distmat_to_ScaLAPACK_conversion");
-#endif
 
             HamiltonianDG&  hamDG = *hamDGPtr_;
 
@@ -3318,9 +3231,6 @@ SCFDG::Iterate	(  )
             }
 
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif  
         } // End of scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK
 
 
@@ -3330,9 +3240,6 @@ SCFDG::Iterate	(  )
         SCFDG::scfdg_FirstChebyStep(Int MaxIter,
                 Int filter_order )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::scfdg_FirstChebyStep");
-#endif
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
             MPI_Comm_size( domain_.comm, &mpisize );
@@ -3887,9 +3794,6 @@ SCFDG::Iterate	(  )
 
 
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif  
 
 
         }
@@ -3898,9 +3802,6 @@ SCFDG::Iterate	(  )
         SCFDG::scfdg_GeneralChebyStep(Int MaxIter, 
                 Int filter_order )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::scfdg_GeneralChebyStep");
-#endif
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
             MPI_Comm_size( domain_.comm, &mpisize );
@@ -4425,9 +4326,6 @@ SCFDG::Iterate	(  )
 
             } // End of loop over inner iteration repeats
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif  
 
         }
 
@@ -4438,9 +4336,6 @@ SCFDG::Iterate	(  )
     void
         SCFDG::InnerIterate	( Int outerIter )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::InnerIterate");
-#endif
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
             MPI_Comm_size( domain_.comm, &mpisize );
@@ -5726,9 +5621,6 @@ SCFDG::Iterate	(  )
 
             } // for (innerIter)
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::InnerIterate  ----- 
@@ -5736,9 +5628,6 @@ SCFDG::Iterate	(  )
     void
         SCFDG::UpdateElemLocalPotential	(  )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::UpdateElemLocalPotential");
-#endif
 
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
@@ -6007,9 +5896,6 @@ SCFDG::Iterate	(  )
                     } // for (i)
 
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::UpdateElemLocalPotential  ----- 
@@ -6017,9 +5903,6 @@ SCFDG::Iterate	(  )
     void
         SCFDG::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::CalculateOccupationRate");
-#endif
             // For a given finite temperature, update the occupation number */
             // FIXME Magic number here
             Real tol = 1e-10; 
@@ -6123,9 +6006,6 @@ SCFDG::Iterate	(  )
                 }
             }
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::CalculateOccupationRate  ----- 
@@ -6139,9 +6019,6 @@ SCFDG::Iterate	(  )
                 const Real*   psiUniform, 
                 Real*         psiLGL )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::InterpPeriodicUniformToLGL");
-#endif
 
             Index3 Ns1 = numUniformGrid;
             Index3 Ns2 = numLGLGrid;
@@ -6184,9 +6061,6 @@ SCFDG::Iterate	(  )
                         PeriodicUniformToLGLMat_[2].Data(), n, 0.0, psiLGL, m );
             }
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::InterpPeriodicUniformToLGL  ----- 
@@ -6199,9 +6073,6 @@ SCFDG::Iterate	(  )
                 const Real*   rhoUniform, 
                 Real*         rhoLGL )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::InterpPeriodicUniformFineToLGL");
-#endif
 
             Index3 Ns1 = numUniformGridFine;
             Index3 Ns2 = numLGLGrid;
@@ -6244,9 +6115,6 @@ SCFDG::Iterate	(  )
                         PeriodicUniformFineToLGLMat_[2].Data(), n, 0.0, rhoLGL, m );
             }
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::InterpPeriodicUniformFineToLGL  ----- 
@@ -6259,9 +6127,6 @@ SCFDG::Iterate	(  )
                 const Real*   rhoUniformExtElem, 
                 Real*         rhoUniformElem )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::InterpPeriodicGridExtElemToGridElem");
-#endif
 
             Index3 Ns1 = numUniformGridFineExtElem;
             Index3 Ns2 = numUniformGridFineElem;
@@ -6304,9 +6169,6 @@ SCFDG::Iterate	(  )
                         PeriodicGridExtElemToGridElemMat_[2].Data(), n, 0.0, rhoUniformElem, m );
             }
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::InterpPeriodicGridExtElemToGridElem  ----- 
@@ -6315,9 +6177,6 @@ SCFDG::Iterate	(  )
     void
         SCFDG::CalculateKSEnergy	(  )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::CalculateKSEnergy");
-#endif
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
             MPI_Comm_size( domain_.comm, &mpisize );
@@ -6403,9 +6262,6 @@ SCFDG::Iterate	(  )
             }
 
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::CalculateKSEnergy  ----- 
@@ -6416,9 +6272,6 @@ SCFDG::Iterate	(  )
                 DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distEDMMat,
                 DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::CalculateKSEnergyDM");
-#endif
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
             MPI_Comm_size( domain_.comm, &mpisize );
@@ -6523,9 +6376,6 @@ SCFDG::Iterate	(  )
             Efree_ = Ehelm + Ecor_;
 
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::CalculateKSEnergyDM  ----- 
@@ -6534,9 +6384,6 @@ SCFDG::Iterate	(  )
     void
         SCFDG::CalculateHarrisEnergy	(  )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::CalculateHarrisEnergy");
-#endif
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
             MPI_Comm_size( domain_.comm, &mpisize );
@@ -6627,9 +6474,6 @@ SCFDG::Iterate	(  )
                 EfreeHarris_ += Ecor + fermi * hamDG.NumOccupiedState() * numSpin; 
             }
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::CalculateHarrisEnergy  ----- 
@@ -6638,9 +6482,6 @@ SCFDG::Iterate	(  )
         SCFDG::CalculateHarrisEnergyDM(
                 DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::CalculateHarrisEnergyDM");
-#endif
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
             MPI_Comm_size( domain_.comm, &mpisize );
@@ -6741,9 +6582,6 @@ SCFDG::Iterate	(  )
 
             EfreeHarris_ = Ehelm + Ecor;
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::CalculateHarrisEnergyDM  ----- 
@@ -6751,9 +6589,6 @@ SCFDG::Iterate	(  )
     void
         SCFDG::CalculateSecondOrderEnergy  (  )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::CalculateSecondOrderEnergy");
-#endif
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
             MPI_Comm_size( domain_.comm, &mpisize );
@@ -6870,9 +6705,6 @@ SCFDG::Iterate	(  )
             }
 
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::CalculateSecondOrderEnergy  ----- 
@@ -6881,9 +6713,6 @@ SCFDG::Iterate	(  )
     void
         SCFDG::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::CalculateVDW");
-#endif
 
             HamiltonianDG&  hamDG = *hamDGPtr_;
             std::vector<Atom>& atomList = hamDG.AtomList();
@@ -7082,9 +6911,6 @@ SCFDG::Iterate	(  )
             VDWForce = forceVdw_;
 
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::CalculateVDW  ----- 
@@ -7102,9 +6928,6 @@ SCFDG::Iterate	(  )
                 DistDblNumMat&  dfMat,
                 DistDblNumMat&  dvMat )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::AndersonMix");
-#endif
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
             MPI_Comm_size( domain_.comm, &mpisize );
@@ -7330,9 +7153,6 @@ SCFDG::Iterate	(  )
 
 
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::AndersonMix  ----- 
@@ -7342,9 +7162,6 @@ SCFDG::Iterate	(  )
                 DistDblNumVec&  distPrecResidual,
                 const DistDblNumVec&  distResidual )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::KerkerPrecond");
-#endif
             Int mpirank, mpisize;
             MPI_Comm_rank( domain_.comm, &mpirank );
             MPI_Comm_size( domain_.comm, &mpisize );
@@ -7433,9 +7250,6 @@ SCFDG::Iterate	(  )
                     domain_.colComm );
 
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::KerkerPrecond  ----- 
@@ -7444,9 +7258,6 @@ SCFDG::Iterate	(  )
     void
         SCFDG::PrintState	( )
         {
-#ifndef _RELEASE_
-            PushCallStack("SCFDG::PrintState");
-#endif
 
             HamiltonianDG&  hamDG = *hamDGPtr_;
 
@@ -7477,9 +7288,6 @@ SCFDG::Iterate	(  )
             Print(statusOFS, "Ecor              = ",  Ecor_, "[au]");
             Print(statusOFS, "Fermi             = ",  fermi_, "[au]");
 
-#ifndef _RELEASE_
-            PopCallStack();
-#endif
 
             return ;
         } 		// -----  end of method SCFDG::PrintState  ----- 
