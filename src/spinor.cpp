@@ -813,8 +813,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
     /// principle be a tensor, but only treated as matrix.
     Int numPre = std::min(IRound(std::sqrt(numMu*2.0)), numStateTotal);
-    // FIXME
-//    Int numPre = numStateTotal;
+//    Int numPre = std::min(IRound(std::sqrt(numMu))+5, numStateTotal);
     DblNumMat phiG(ntot, numPre), psiG(ntot, numPre);
     if(1)
     {
@@ -961,38 +960,92 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     
 
     // Step 2: accumulate to the matrix vector multiplication
-    GetTime( timeSta );
     DblNumMat phiMod(ntot, numMu);
     SetValue( phiMod, 0.0 );
     // accumulate \sum_j f_j \varphi_j (r) \varphi_j(r_mu) 
     // can be done with gemv
-    for( Int mu = 0; mu < numMu; mu++ ){
-        for( Int k = 0; k < numStateTotal; k++ ){
-            blas::Axpy(ntot, phi(pivMu(mu), 0, k) * occupationRate[k], 
-                    phi.VecData(0, k), 1, phiMod.VecData(mu), 1 );
-        }
-    }
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing phiMod via Axpy is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-    GetTime( timeSta );
-    DblNumMat psiMu(numMu, numStateTotal);
-    for (Int k=0; k<numStateTotal; k++) {
+    if(0){
+        GetTime( timeSta );
         for( Int mu = 0; mu < numMu; mu++ ){
-            psiMu(mu,k) = wavefun_(pivMu(mu),0,k);
-            for( Int ir = 0; ir < ntot; ir++ ){
-                a3(ir, 0, k) += psiMu(mu,k) * XiPot(ir,mu) * phiMod(ir,mu);
+            for( Int k = 0; k < numStateTotal; k++ ){
+                blas::Axpy(ntot, phi(pivMu(mu), 0, k) * occupationRate[k], 
+                        phi.VecData(0, k), 1, phiMod.VecData(mu), 1 );
             }
         }
-    } // for (k)
-    GetTime( timeEnd );
+        GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing V_x[Phi] Psi is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+        statusOFS << "Time for computing phiMod via Axpy is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+    }
+    if(1){
+        DblNumMat phiWeight(numStateTotal, numMu);
+        for( Int mu = 0; mu < numMu; mu++ ){
+            Int muInd = pivMu(mu);
+            for( Int k = 0; k < numStateTotal; k++ ){
+                phiWeight(k,mu) = phi(muInd, 0, k) * occupationRate[k];
+            }
+        }
+        blas::Gemm( 'N', 'N', ntot, numMu, numStateTotal, 1.0,
+                phi.Data(), ntot, phiWeight.Data(), numStateTotal, 0.0,
+                phiMod.Data(), ntot );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing phiMod via Gemm is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+    }
+
+    DblNumMat psiMu(numMu, numStateTotal);
+    if(0){
+        GetTime( timeSta );
+        for (Int k=0; k<numStateTotal; k++) {
+            for( Int mu = 0; mu < numMu; mu++ ){
+                psiMu(mu,k) = wavefun_(pivMu(mu),0,k);
+                //            for( Int ir = 0; ir < ntot; ir++ ){
+                //                a3(ir, 0, k) += psiMu(mu,k) * XiPot(ir,mu) * phiMod(ir,mu);
+                //            }
+                // Very significant improvement of performance 
+                Real* a3Ptr = a3.VecData(0,k);
+                Real* xiPotPtr = XiPot.VecData(mu);
+                Real* phiModPtr = phiMod.VecData(mu);
+                Real fac = psiMu(mu,k);
+                for( Int ir = 0; ir < ntot; ir++ ){
+                    a3Ptr[ir] += fac * xiPotPtr[ir] * phiModPtr[ir];
+                }
+            }
+        } // for (k)
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing V_x[Phi] Psi via BLAS 1 is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+    }
+    if(1){
+        GetTime( timeSta );
+        for( Int mu = 0; mu < numMu; mu++ ){
+            Int muInd = pivMu(mu);
+            for (Int k=0; k<numStateTotal; k++) {
+                psiMu(mu,k) = wavefun_(muInd,0,k);
+            }
+        }
+        DblNumMat XiPhi( ntot, numMu );
+        Real* xiPotPtr = XiPot.Data();
+        Real* phiModPtr = phiMod.Data();
+        Real* xiPhiPtr = XiPhi.Data();
+        // XiPhi = XiPot .* phiMod  
+        for( Int g = 0; g < ntot * numMu; g++ ){
+            *(xiPhiPtr++) = (*(xiPotPtr++)) * (*(phiModPtr++)); 
+        }
+        blas::Gemm( 'N', 'N', ntot, numStateTotal, numMu, 1.0, 
+                XiPhi.Data(), ntot, psiMu.Data(), numMu, 1.0,
+                a3.Data(), ntot ); 
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing V_x[Phi] Psi via GEMM is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+    }
 
     // Step 3: Compute the matrix VxMat = -Psi'* Vx[Phi] * Psi in the
     // density fitting format
