@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -190,17 +190,17 @@ public:
     /// @brief Update the parameters for SCF during the MD simulation
     void UpdateMDParameters( const esdf::ESDFInputParam& esdfParam );
 
-    //	void  EllipticMix();
+    //    void  EllipticMix();
 
     // *********************************************************************
     // Inquiry
     // *********************************************************************
     // Energy etc.
-    Real Etot() const  {return Etot_;};	
-    Real Efree() const {return Efree_;};	
-    Real Efock() const {return Efock_;};	
+    Real Etot() const  {return Etot_;};    
+    Real Efree() const {return Efree_;};    
+    Real Efock() const {return Efock_;};    
 
-    Real Fermi() const {return fermi_;};	
+    Real Fermi() const {return fermi_;};    
 
     void UpdateEfock( Real Efock ) {Efock_ = Efock; Etot_ -= Efock; Efree_ -= Efock;}
 

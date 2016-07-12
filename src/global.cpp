@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,7 @@
 /// @brief Global structure.
 /// @date 2012-08-01
 /// @date 2016-07-12 Update to the coredumper model for debugging
-#include	"environment.hpp"
+#include    "environment.hpp"
 #ifdef _COREDUMPER_
 #include <google/coredumper.h>
 #endif

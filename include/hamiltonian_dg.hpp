@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin and Wei Hu
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -359,7 +359,7 @@ public:
     /// @brief Setup the Hamiltonian DG class from the input parameter.
     void Setup ( const esdf::ESDFInputParam& esdfParam );
 
-    void UpdateHamiltonianDG	( std::vector<Atom>& atomList );
+    void UpdateHamiltonianDG    ( std::vector<Atom>& atomList );
     // *********************************************************************
     // Operations
     // *********************************************************************
@@ -463,7 +463,7 @@ public:
             DblNumTns&       eta2Total,
             DblNumTns&       eta2Residual,
             DblNumTns&       eta2GradJump,
-            DblNumTns&       eta2Jump	);
+            DblNumTns&       eta2Jump    );
 
     // *********************************************************************
     // Access

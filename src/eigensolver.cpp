@@ -116,12 +116,12 @@ void EigenSolver::Setup(
     }
 
     return;
-} 		// -----  end of method EigenSolver::Setup ----- 
+}         // -----  end of method EigenSolver::Setup ----- 
 
 
 // NOTE: This version uses ScaLAPACK and is not used anymore
 //void
-//EigenSolver::LOBPCGSolveReal	( 
+//EigenSolver::LOBPCGSolveReal    ( 
 //      Int          numEig,
 //      Int          eigMaxIter,
 //      Real         eigTolerance)
@@ -1427,13 +1427,13 @@ void EigenSolver::Setup(
 //
 //
 //  return ;
-//} 		// -----  end of method EigenSolver::LOBPCGSolveReal  ----- 
+//}         // -----  end of method EigenSolver::LOBPCGSolveReal  ----- 
 
 
 
 // NOTE: This is the scalable version.
 void
-EigenSolver::LOBPCGSolveReal2	(
+EigenSolver::LOBPCGSolveReal2    (
         Int          numEig,
         Int          eigMaxIter,
         Real         eigMinTolerance,
@@ -2593,12 +2593,12 @@ EigenSolver::LOBPCGSolveReal2	(
 
 
     return ;
-} 		// -----  end of method EigenSolver::LOBPCGSolveReal2  ----- 
+}         // -----  end of method EigenSolver::LOBPCGSolveReal2  ----- 
 
 
 // Use SCALAPACK for solving the small problem
 void
-EigenSolver::LOBPCGSolveReal3	(
+EigenSolver::LOBPCGSolveReal3    (
         Int          numEig,
         Int          eigMaxIter,
         Real         eigMinTolerance,
@@ -3763,7 +3763,7 @@ EigenSolver::LOBPCGSolveReal3	(
 #endif
 
     return ;
-} 		// -----  end of method EigenSolver::LOBPCGSolveReal3  ----- 
+}         // -----  end of method EigenSolver::LOBPCGSolveReal3  ----- 
 
 
 
@@ -4129,10 +4129,10 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
 
 
 void
-EigenSolver::FirstChebyStep	(
+EigenSolver::FirstChebyStep    (
         Int          numEig,
         Int          eigMaxIter,
-        Int 	      filter_order) {
+        Int           filter_order) {
 
     // *********************************************************************
     // Initialization
@@ -4178,7 +4178,7 @@ EigenSolver::FirstChebyStep	(
             << std::endl <<  " Use different parameters." << std::endl << " Aborting ..." << std::endl << std::endl;
         MPI_Barrier(mpi_comm);
         exit(-1);  
-    }	
+    }    
 
     // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
     // GemmT: blas::Gemm( 'T', 'N')
@@ -4644,7 +4644,7 @@ EigenSolver::FirstChebyStep	(
         // ~~ Gemm: X <-- HX (= X) * Q
         GetTime( timeSta );
         blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, HX.Data(),
-                heightLocal, square_mat.Data(), width, 0.0, X.Data(), heightLocal );	
+                heightLocal, square_mat.Data(), width, 0.0, X.Data(), heightLocal );    
         GetTime( timeEnd );
         iterGemmT = iterGemmT + 1;
         timeGemmT = timeGemmT + ( timeEnd - timeSta );
@@ -4764,7 +4764,7 @@ EigenSolver::FirstChebyStep	(
             // ~~ Gemm: Res <-- X * Q - Res (= X)
             GetTime( timeSta );
             blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
-                    heightLocal, square_mat.Data(), width, -1.0, Res.Data(), heightLocal );	
+                    heightLocal, square_mat.Data(), width, -1.0, Res.Data(), heightLocal );    
             GetTime( timeEnd );
             iterGemmT = iterGemmT + 1;
             timeGemmT = timeGemmT + ( timeEnd - timeSta );
@@ -4820,16 +4820,16 @@ EigenSolver::FirstChebyStep	(
 
 
     // Save the eigenvalues to the eigensolver data structure  
-    eigVal_ = DblNumVec( width, true, eig_vals_Raleigh_Ritz.Data() );	
+    eigVal_ = DblNumVec( width, true, eig_vals_Raleigh_Ritz.Data() );    
 
 
     return;
 } // -----  end of method EigenSolver::FirstChebyStep -----
 
 void
-EigenSolver::GeneralChebyStep	(
+EigenSolver::GeneralChebyStep    (
         Int          numEig,
-        Int 	   filter_order )
+        Int        filter_order )
 {
 
     statusOFS << std::endl << std::endl << " Subsequent CheFSI for PWDFT ... " << std::endl;
@@ -4882,7 +4882,7 @@ EigenSolver::GeneralChebyStep	(
             << std::endl <<  " Use different parameters." << std::endl << " Aborting ..." << std::endl << std::endl;
         MPI_Barrier(mpi_comm);
         exit(-1);  
-    }	
+    }    
 
     // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
     // GemmT: blas::Gemm( 'T', 'N')
@@ -5343,7 +5343,7 @@ EigenSolver::GeneralChebyStep	(
     // ~~ Gemm: X <-- HX (= X) * Q
     GetTime( timeSta );
     blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, HX.Data(),
-            heightLocal, square_mat.Data(), width, 0.0, X.Data(), heightLocal );	
+            heightLocal, square_mat.Data(), width, 0.0, X.Data(), heightLocal );    
     GetTime( timeEnd );
     iterGemmT = iterGemmT + 1;
     timeGemmT = timeGemmT + ( timeEnd - timeSta );
@@ -5458,7 +5458,7 @@ EigenSolver::GeneralChebyStep	(
         // ~~ Gemm: Res <-- X * Q - Res (= X)
         GetTime( timeSta );
         blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
-                heightLocal, square_mat.Data(), width, -1.0, Res.Data(), heightLocal );	
+                heightLocal, square_mat.Data(), width, -1.0, Res.Data(), heightLocal );    
         GetTime( timeEnd );
         iterGemmT = iterGemmT + 1;
         timeGemmT = timeGemmT + ( timeEnd - timeSta );
@@ -5523,7 +5523,7 @@ EigenSolver::GeneralChebyStep	(
 
 // Basic version of PPCG with columnwise sweep  
 void
-EigenSolver::PPCGSolveReal	(
+EigenSolver::PPCGSolveReal    (
         Int          numEig,
         Int          eigMaxIter,
         Real         eigMinTolerance,
@@ -6563,6 +6563,6 @@ EigenSolver::PPCGSolveReal	(
 #endif
 
         return ;
-        } 		// -----  end of method EigenSolver::PPCGSolveReal  ----- 
+        }         // -----  end of method EigenSolver::PPCGSolveReal  ----- 
 
 } // namespace dgdft

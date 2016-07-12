@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
    
    Author: Lin Lin and Wei Hu
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -271,7 +271,7 @@ int main(int argc, char **argv)
                                 // since it is not used for parallelization
                             } // for d
 
-                            // Atoms	
+                            // Atoms    
                             std::vector<Atom>&  atomList = esdfParam.atomList;
                             std::vector<Atom>   atomListExtElem;
 

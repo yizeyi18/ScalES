@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Authors: Jack Poulson and Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -208,19 +208,19 @@ extern "C" {
     void LAPACK(sgelss)
         ( const Int *m, const Int *n, const Int *nrhs, float *A, const Int *lda,
           float *B, const Int *ldb, float *S, const float *rcond, Int *rank,
-          float *work, const Int *lwork, Int *info );	
+          float *work, const Int *lwork, Int *info );    
     void LAPACK(dgelss)
         ( const Int *m, const Int *n, const Int *nrhs, double *A, const Int *lda,
           double *B, const Int *ldb, double *S, const double *rcond, Int *rank,
-          double *work, const Int *lwork, Int *info );	
+          double *work, const Int *lwork, Int *info );    
     void LAPACK(cgelss)
         ( const Int *m, const Int *n, const Int *nrhs, scomplex *A, const Int *lda,
           scomplex *B, const Int *ldb, float *S, const float *rcond, Int *rank,
-          scomplex *work, const Int *lwork, float *rwork, Int *info );	
+          scomplex *work, const Int *lwork, float *rwork, Int *info );    
     void LAPACK(zgelss)
         ( const Int *m, const Int *n, const Int *nrhs, dcomplex *A, const Int *lda,
           dcomplex *B, const Int *ldb, double *S, const double *rcond, Int *rank,
-          dcomplex *work, const Int *lwork, double *rwork, Int *info );	
+          dcomplex *work, const Int *lwork, double *rwork, Int *info );    
 
     // Copy
 
@@ -235,9 +235,9 @@ extern "C" {
 
     // Triangular solve : Trsm
     //void LAPACK(ztrsm)
-    //	( const char* side, const char* uplo, const char* transa, const char * diag,
-    //		const Int* m, const Int* n, const dcomplex* alpha, const dcomplex* A, const Int* lda,
-    //		dcomplex* B, const Int* ldb );
+    //    ( const char* side, const char* uplo, const char* transa, const char * diag,
+    //        const Int* m, const Int* n, const dcomplex* alpha, const dcomplex* A, const Int* lda,
+    //        dcomplex* B, const Int* ldb );
 
     // Inverting a factorized matrix: Getri
     void LAPACK(dgetri)
@@ -1286,12 +1286,12 @@ void SVDLeastSquare( Int m, Int n, Int nrhs, dcomplex * A, Int lda,
 // *********************************************************************
 
 void Lacpy( char uplo, Int m, Int n, const double* A, Int lda,
-        double* B, Int ldb	){
+        double* B, Int ldb    ){
     LAPACK(dlacpy)( &uplo, &m, &n, A, &lda, B, &ldb );
 }
 
 void Lacpy( char uplo, Int m, Int n, const dcomplex* A, Int lda,
-        dcomplex* B, Int ldb	){
+        dcomplex* B, Int ldb    ){
     LAPACK(zlacpy)( &uplo, &m, &n, A, &lda, B, &ldb );
 }
 
@@ -1326,7 +1326,7 @@ Getri ( Int n, double* A, Int lda, const Int* ipiv )
 
 
     return ;
-}		// -----  end of function Getri  ----- 
+}        // -----  end of function Getri  ----- 
 
 
 void
@@ -1357,7 +1357,7 @@ Getri ( Int n, dcomplex* A, Int lda, const Int* ipiv )
 
 
     return ;
-}		// -----  end of function Getri  ----- 
+}        // -----  end of function Getri  ----- 
 
 
 
@@ -1393,7 +1393,7 @@ Sytrf ( char uplo, Int n, double* A, Int lda, Int* ipiv ){
 
 
     return ;
-}		// -----  end of function Sytrf  ----- 
+}        // -----  end of function Sytrf  ----- 
 
 // *********************************************************************
 // Orthogonalization (MATLAB's orth, using SVD)

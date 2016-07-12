@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Authors: Lin Lin, Wei Hu and Lexing Ying
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -61,14 +61,14 @@ HamiltonianDG::HamiltonianDG() {
     XCInitialized_ = false;
 }
 
-HamiltonianDG::HamiltonianDG	( const esdf::ESDFInputParam& esdfParam )
+HamiltonianDG::HamiltonianDG    ( const esdf::ESDFInputParam& esdfParam )
 {
 
     Setup( esdfParam );
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::HamiltonianDG  ----- 
+}         // -----  end of method HamiltonianDG::HamiltonianDG  ----- 
 
 
 void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
@@ -789,10 +789,10 @@ void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::Setup  ----- 
+}         // -----  end of method HamiltonianDG::Setup  ----- 
 
 void
-HamiltonianDG::UpdateHamiltonianDG	( std::vector<Atom>& atomList )
+HamiltonianDG::UpdateHamiltonianDG    ( std::vector<Atom>& atomList )
 {
 
     atomList_          = atomList;
@@ -837,9 +837,9 @@ HamiltonianDG::UpdateHamiltonianDG	( std::vector<Atom>& atomList )
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::UpdateHamiltonianDG  ----- 
+}         // -----  end of method HamiltonianDG::UpdateHamiltonianDG  ----- 
 
-HamiltonianDG::~HamiltonianDG	( )
+HamiltonianDG::~HamiltonianDG    ( )
 {
 
     if( XCInitialized_ )
@@ -857,10 +857,10 @@ HamiltonianDG::~HamiltonianDG	( )
             ErrorHandling("Unrecognized exchange-correlation type");
     }
 
-} 		// -----  end of method HamiltonianDG::HamiltonianDG  ----- 
+}         // -----  end of method HamiltonianDG::HamiltonianDG  ----- 
 
 void
-HamiltonianDG::DiffPsi	(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d)
+HamiltonianDG::DiffPsi    (const Index3& numGrid, const Real* psi, Real* Dpsi, Int d)
 {
     if( d == 0 ){
         // Use Gemm
@@ -893,11 +893,11 @@ HamiltonianDG::DiffPsi	(const Index3& numGrid, const Real* psi, Real* Dpsi, Int 
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::DiffPsi  ----- 
+}         // -----  end of method HamiltonianDG::DiffPsi  ----- 
 
 
 void
-HamiltonianDG::InterpLGLToUniform	( const Index3& numLGLGrid, const
+HamiltonianDG::InterpLGLToUniform    ( const Index3& numLGLGrid, const
         Index3& numUniformGridFine, const Real* rhoLGL, Real* rhoUniform )
 {
     Index3 Ns1 = numLGLGrid;
@@ -944,11 +944,11 @@ HamiltonianDG::InterpLGLToUniform	( const Index3& numLGLGrid, const
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::InterpLGLToUniform  ----- 
+}         // -----  end of method HamiltonianDG::InterpLGLToUniform  ----- 
 
 
 void
-HamiltonianDG::GaussConvInterpLGLToUniform	( const Index3& numLGLGrid, const
+HamiltonianDG::GaussConvInterpLGLToUniform    ( const Index3& numLGLGrid, const
         Index3& numUniformGridFine, const Real* rhoLGL, Real* rhoUniform, 
         std::vector<DblNumMat> LGLToUniformGaussMatFine )
 {
@@ -996,11 +996,11 @@ HamiltonianDG::GaussConvInterpLGLToUniform	( const Index3& numLGLGrid, const
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::GaussConvInterpLGLToUniform  ----- 
+}         // -----  end of method HamiltonianDG::GaussConvInterpLGLToUniform  ----- 
 
 
 void
-HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
+HamiltonianDG::CalculatePseudoPotential    ( PeriodTable &ptable ){
     Int ntotFine = domain_.NumGridTotalFine();
     Int numAtom = atomList_.size();
     Int mpirank, mpisize;
@@ -1202,10 +1202,10 @@ HamiltonianDG::CalculatePseudoPotential	( PeriodTable &ptable ){
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::CalculatePseudoPotential  ----- 
+}         // -----  end of method HamiltonianDG::CalculatePseudoPotential  ----- 
 
 void
-HamiltonianDG::CalculateDensity	( 
+HamiltonianDG::CalculateDensity    ( 
         DistDblNumVec& rho,
         DistDblNumVec& rhoLGL )
 {
@@ -1309,7 +1309,7 @@ HamiltonianDG::CalculateDensity	(
                             DblNumVec& localPsi = psiUniform.LocalMap()[key];
                             for( Int p = 0; p < localRho.Size(); p++ ){
                                 localRho[p] += localPsi[p] * localPsi[p] * rhofac;
-                            }	
+                            }    
                         } // own this element
                     } // for (i)
         } // for (g)
@@ -1325,7 +1325,7 @@ HamiltonianDG::CalculateDensity	(
                         DblNumVec& localRho = rho.LocalMap()[key];
                         for( Int p = 0; p < localRho.Size(); p++ ){
                             sumRhoLocal += localRho[p];
-                        }	
+                        }    
                     } // own this element
                 } // for (i)
         mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
@@ -2141,13 +2141,13 @@ HamiltonianDG::CalculateDensity	(
                             DblNumVec& localPsiUniformFine = psiUniform.LocalMap()[key];
                             for( Int p = 0; p < localRho.Size(); p++ ){
                                 localRho[p] += localPsiUniformFine[p] * localPsiUniformFine[p] * rhofac;
-                            }	
+                            }    
 
                             DblNumVec& localRhoLGL = rhoLGL.LocalMap()[key];
                             DblNumVec& localPsiLGL = psiLGL.LocalMap()[key];
                             for( Int p = 0; p < localPsiLGL.Size(); p++ ){
                                 localRhoLGL[p] += localPsiLGL[p] * localPsiLGL[p] * occrate[g] * numSpin_;
-                            }	
+                            }    
                         } // own this element
                     } // for (i)
         } // for (g)
@@ -2164,7 +2164,7 @@ HamiltonianDG::CalculateDensity	(
                             DblNumVec& localRho = rho.LocalMap()[key];
                             for( Int p = 0; p < localRho.Size(); p++ ){
                                 sumRhoLocal += localRho[p];
-                            }	
+                            }    
                         } // own this element
                     } // for (i)
             mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
@@ -2202,11 +2202,11 @@ HamiltonianDG::CalculateDensity	(
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::CalculateDensity  ----- 
+}         // -----  end of method HamiltonianDG::CalculateDensity  ----- 
 
 
 void
-HamiltonianDG::CalculateDensityDM	(
+HamiltonianDG::CalculateDensityDM    (
         DistDblNumVec& rho,
         DistDblNumVec& rhoLGL,
         DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat )
@@ -2355,11 +2355,11 @@ HamiltonianDG::CalculateDensityDM	(
     }
 
     return ;
-} 		// -----  end of method HamiltonianDG::CalculateDensityDM  ----- 
+}         // -----  end of method HamiltonianDG::CalculateDensityDM  ----- 
 
 
 void
-HamiltonianDG::CalculateDensityDM2	(
+HamiltonianDG::CalculateDensityDM2    (
         DistDblNumVec& rho,
         DistDblNumVec& rhoLGL,
         DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat )
@@ -2514,7 +2514,7 @@ HamiltonianDG::CalculateDensityDM2	(
     }
 
     return ;
-} 		// -----  end of method HamiltonianDG::CalculateDensityDM2  ----- 
+}         // -----  end of method HamiltonianDG::CalculateDensityDM2  ----- 
 
 
 void HamiltonianDG::CalculateGradDensity( DistFourier&  fft ) {
@@ -2596,7 +2596,7 @@ void HamiltonianDG::CalculateGradDensity( DistFourier&  fft ) {
 
 
 void
-HamiltonianDG::CalculateXC	( 
+HamiltonianDG::CalculateXC    ( 
         Real &Exc, 
         DistDblNumVec&   epsxc,
         DistDblNumVec&   vxc,
@@ -2809,7 +2809,7 @@ HamiltonianDG::CalculateXC	(
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::CalculateXC  ----- 
+}         // -----  end of method HamiltonianDG::CalculateXC  ----- 
 
 
 void HamiltonianDG::CalculateHartree( 
@@ -2907,7 +2907,7 @@ void HamiltonianDG::CalculateHartree(
 
 
 void
-HamiltonianDG::CalculateVtot	( DistDblNumVec& vtot  )
+HamiltonianDG::CalculateVtot    ( DistDblNumVec& vtot  )
 {
     Int mpirank, mpisize;
     MPI_Comm_rank( domain_.comm, &mpirank );
@@ -2935,11 +2935,11 @@ HamiltonianDG::CalculateVtot	( DistDblNumVec& vtot  )
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::CalculateVtot  ----- 
+}         // -----  end of method HamiltonianDG::CalculateVtot  ----- 
 
 
 void
-HamiltonianDG::CalculateForce	( DistFourier& fft )
+HamiltonianDG::CalculateForce    ( DistFourier& fft )
 {
     if( !fft.isInitialized ){
         ErrorHandling("Fourier is not prepared.");
@@ -3230,7 +3230,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
         Int numEig = occupationRate_.m();
         for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
             if( atomPrtn_.Owner(atomIdx) == (mpirank / dmRow_) ){
-                DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
+                DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];    
                 Int numVnl = vnlWeight.Size();
                 DblNumMat resVal ( numEig, numVnl );
                 DblNumMat resDrvX( numEig, numVnl );
@@ -3345,245 +3345,245 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::CalculateForce  ----- 
+}         // -----  end of method HamiltonianDG::CalculateForce  ----- 
 
 
 // Old version of the code.
 //void
-//HamiltonianDG::CalculateForceDM	( 
+//HamiltonianDG::CalculateForceDM    ( 
 //    DistFourier& fft, 
 //    DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat )
 //{
-//	if( !fft.isInitialized ){
-//		ErrorHandling("Fourier is not prepared.");
-//	}
+//    if( !fft.isInitialized ){
+//        ErrorHandling("Fourier is not prepared.");
+//    }
 // 
-//	Int mpirank, mpisize;
-//	MPI_Comm_rank( domain_.comm, &mpirank );
-//	MPI_Comm_size( domain_.comm, &mpisize );
+//    Int mpirank, mpisize;
+//    MPI_Comm_rank( domain_.comm, &mpirank );
+//    MPI_Comm_size( domain_.comm, &mpisize );
 //
 //  Real timeSta, timeEnd;
 //
-//	// *********************************************************************
-//	// Initialize the force computation
-//	// *********************************************************************
+//    // *********************************************************************
+//    // Initialize the force computation
+//    // *********************************************************************
 //  Int ntot      = fft.numGridTotal;
-//	Int ntotLocal = fft.numGridLocal;
-//	Int numAtom   = atomList_.size();
+//    Int ntotLocal = fft.numGridLocal;
+//    Int numAtom   = atomList_.size();
 //
 //
-//	DblNumMat   forceLocal( numAtom, DIM );
-//	DblNumMat   force( numAtom, DIM );
-//	SetValue( forceLocal, 0.0 );
-//	SetValue( force, 0.0 );
-//	
+//    DblNumMat   forceLocal( numAtom, DIM );
+//    DblNumMat   force( numAtom, DIM );
+//    SetValue( forceLocal, 0.0 );
+//    SetValue( force, 0.0 );
+//    
 //
 //  distDMMat.SetComm( domain_.colComm );
 //
-//	// *********************************************************************
-//	// Compute the derivative of the Hartree potential for computing the 
-//	// local pseudopotential contribution to the Hellmann-Feynman force
-//	// *********************************************************************
+//    // *********************************************************************
+//    // Compute the derivative of the Hartree potential for computing the 
+//    // local pseudopotential contribution to the Hellmann-Feynman force
+//    // *********************************************************************
 //
 //#if ( _DEBUGlevel_ >= 1 )
 //  statusOFS << "Starting the computation of local derivatives "
 //    << std::endl;
 //#endif
 // 
-//	DistDblNumVec&              vhart = vhart_;
+//    DistDblNumVec&              vhart = vhart_;
 //  vhart.SetComm( domain_.colComm );
-//	
+//    
 //  std::vector<DistDblNumVec>  vhartDrv(DIM);
-//	std::vector<DblNumVec>      vhartDrvLocal(DIM);
-//	DistDblNumVec   tempVec;
+//    std::vector<DblNumVec>      vhartDrvLocal(DIM);
+//    DistDblNumVec   tempVec;
 //  tempVec.SetComm( domain_.colComm );
 //
-//	tempVec.Prtn() = elemPrtn_;
-//	for( Int d = 0; d < DIM; d++ ){
-//		vhartDrv[d].Prtn() = elemPrtn_;
+//    tempVec.Prtn() = elemPrtn_;
+//    for( Int d = 0; d < DIM; d++ ){
+//        vhartDrv[d].Prtn() = elemPrtn_;
 //    vhartDrv[d].SetComm( domain_.colComm );
 //  }
 //
-//	// tempVec = density_ - pseudoCharge_
-//	for( Int k = 0; k < numElem_[2]; k++ )
-//		for( Int j = 0; j < numElem_[1]; j++ )
-//			for( Int i = 0; i < numElem_[0]; i++ ){
-//				Index3 key = Index3( i, j, k );
-//				if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-//					tempVec.LocalMap()[key] = density_.LocalMap()[key];
-//					blas::Axpy( numUniformGridElem_.prod(), -1.0, 
-//							pseudoCharge_.LocalMap()[key].Data(), 1,
-//							tempVec.LocalMap()[key].Data(), 1 );
-//				}
-//			}
+//    // tempVec = density_ - pseudoCharge_
+//    for( Int k = 0; k < numElem_[2]; k++ )
+//        for( Int j = 0; j < numElem_[1]; j++ )
+//            for( Int i = 0; i < numElem_[0]; i++ ){
+//                Index3 key = Index3( i, j, k );
+//                if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+//                    tempVec.LocalMap()[key] = density_.LocalMap()[key];
+//                    blas::Axpy( numUniformGridElem_.prod(), -1.0, 
+//                            pseudoCharge_.LocalMap()[key].Data(), 1,
+//                            tempVec.LocalMap()[key].Data(), 1 );
+//                }
+//            }
 //
 //
 //
-//	// Convert tempVec to tempVecLocal in distributed row vector format
-//	DblNumVec  tempVecLocal;
+//    // Convert tempVec to tempVecLocal in distributed row vector format
+//    DblNumVec  tempVecLocal;
 //
 //  DistNumVecToDistRowVec(
-//			tempVec,
-//			tempVecLocal,
-//			domain_.numGridFine,
-//			numElem_,
-//			fft.localNzStart,
-//			fft.localNz,
-//			fft.isInGrid,
-//			domain_.colComm );
+//            tempVec,
+//            tempVecLocal,
+//            domain_.numGridFine,
+//            numElem_,
+//            fft.localNzStart,
+//            fft.localNz,
+//            fft.isInGrid,
+//            domain_.colComm );
 //
-//	// The contribution of the pseudoCharge is subtracted. So the Poisson
-//	// equation is well defined for neutral system.
-//	// Only part of the processors participate in the FFTW calculation
+//    // The contribution of the pseudoCharge is subtracted. So the Poisson
+//    // equation is well defined for neutral system.
+//    // Only part of the processors participate in the FFTW calculation
 //    
 //
-//	if( fft.isInGrid ){
+//    if( fft.isInGrid ){
 //
-//		// cpxVecLocal saves the Fourier transform of 
-//		// density_ - pseudoCharge_ 
-//		CpxNumVec  cpxVecLocal( tempVecLocal.Size() );
+//        // cpxVecLocal saves the Fourier transform of 
+//        // density_ - pseudoCharge_ 
+//        CpxNumVec  cpxVecLocal( tempVecLocal.Size() );
 //
-//		for( Int i = 0; i < ntotLocal; i++ ){
-//			fft.inputComplexVecLocal(i) = Complex( 
-//					tempVecLocal(i), 0.0 );
-//		}
-//
-//
-//		fftw_execute( fft.forwardPlan );
-//
-//		blas::Copy( ntotLocal, fft.outputComplexVecLocal.Data(), 1,
-//				cpxVecLocal.Data(), 1 );
-//
-//		// Compute the derivative of the Hartree potential via Fourier
-//		// transform 
-//		for( Int d = 0; d < DIM; d++ ){
-//			CpxNumVec& ikLocal  = fft.ikLocal[d];
-//			for( Int i = 0; i < ntotLocal; i++ ){
-//				if( fft.gkkLocal(i) == 0 ){
-//					fft.outputComplexVecLocal(i) = Z_ZERO;
-//				}
-//				else{
-//					// NOTE: gkk already contains the factor 1/2.
-//					fft.outputComplexVecLocal(i) = cpxVecLocal(i) *
-//						2.0 * PI / fft.gkkLocal(i) * ikLocal(i);
-//				}
-//			}
-//
-//			fftw_execute( fft.backwardPlan );
-//
-//			// vhartDrvLocal saves the derivative of the Hartree potential in
-//			// the distributed row format
-//			vhartDrvLocal[d].Resize( tempVecLocal.Size() );
-//
-//			for( Int i = 0; i < ntotLocal; i++ ){
-//				vhartDrvLocal[d](i) = fft.inputComplexVecLocal(i).real() / ntot;
-//			}
-//
-//		} // for (d)
+//        for( Int i = 0; i < ntotLocal; i++ ){
+//            fft.inputComplexVecLocal(i) = Complex( 
+//                    tempVecLocal(i), 0.0 );
+//        }
 //
 //
-//	} // if (fft.isInGrid)
+//        fftw_execute( fft.forwardPlan );
 //
-//	// Convert vhartDrvLocal to vhartDrv in the DistNumVec format
+//        blas::Copy( ntotLocal, fft.outputComplexVecLocal.Data(), 1,
+//                cpxVecLocal.Data(), 1 );
 //
-//	for( Int d = 0; d < DIM; d++ ){
-//		DistRowVecToDistNumVec( 
-//				vhartDrvLocal[d],
-//				vhartDrv[d],
-//				domain_.numGridFine,
-//				numElem_,
-//				fft.localNzStart,
-//				fft.localNz,
-//				fft.isInGrid,
-//				domain_.colComm );
-//	}
+//        // Compute the derivative of the Hartree potential via Fourier
+//        // transform 
+//        for( Int d = 0; d < DIM; d++ ){
+//            CpxNumVec& ikLocal  = fft.ikLocal[d];
+//            for( Int i = 0; i < ntotLocal; i++ ){
+//                if( fft.gkkLocal(i) == 0 ){
+//                    fft.outputComplexVecLocal(i) = Z_ZERO;
+//                }
+//                else{
+//                    // NOTE: gkk already contains the factor 1/2.
+//                    fft.outputComplexVecLocal(i) = cpxVecLocal(i) *
+//                        2.0 * PI / fft.gkkLocal(i) * ikLocal(i);
+//                }
+//            }
+//
+//            fftw_execute( fft.backwardPlan );
+//
+//            // vhartDrvLocal saves the derivative of the Hartree potential in
+//            // the distributed row format
+//            vhartDrvLocal[d].Resize( tempVecLocal.Size() );
+//
+//            for( Int i = 0; i < ntotLocal; i++ ){
+//                vhartDrvLocal[d](i) = fft.inputComplexVecLocal(i).real() / ntot;
+//            }
+//
+//        } // for (d)
 //
 //
-//	
-//		
-//	// *********************************************************************
-//	// Compute the force from local pseudopotential
-//	// *********************************************************************
+//    } // if (fft.isInGrid)
+//
+//    // Convert vhartDrvLocal to vhartDrv in the DistNumVec format
+//
+//    for( Int d = 0; d < DIM; d++ ){
+//        DistRowVecToDistNumVec( 
+//                vhartDrvLocal[d],
+//                vhartDrv[d],
+//                domain_.numGridFine,
+//                numElem_,
+//                fft.localNzStart,
+//                fft.localNz,
+//                fft.isInGrid,
+//                domain_.colComm );
+//    }
+//
+//
+//    
+//        
+//    // *********************************************************************
+//    // Compute the force from local pseudopotential
+//    // *********************************************************************
 //
 //#if ( _DEBUGlevel_ >= 1 )
 //  statusOFS << "Starting the local part of the force calculation "
 //    << std::endl;
 //#endif
 //
-//	// Method 1: Using the derivative of the pseudopotential
-//	if(1){
-//		for( Int k = 0; k < numElem_[2]; k++ )
-//			for( Int j = 0; j < numElem_[1]; j++ )
-//				for( Int i = 0; i < numElem_[0]; i++ ){
-//					Index3 key( i, j, k );
-//					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-//						std::map<Int, PseudoPot>&  ppMap = pseudo_.LocalMap()[key];
-//						for( std::map<Int, PseudoPot>::iterator mi = ppMap.begin();
-//								 mi != ppMap.end(); mi++ ){
-//							Int atomIdx = (*mi).first;
-//							PseudoPot& pp = (*mi).second;
-//							SparseVec& sp = pp.pseudoCharge;
-//							IntNumVec& idx = sp.first;
-//							DblNumMat& val = sp.second;
-//							Real    wgt = domain_.Volume() / domain_.NumGridTotalFine();
-//							DblNumVec&  vhartVal = vhart.LocalMap()[key];
-//							Real resX = 0.0;
-//							Real resY = 0.0;
-//							Real resZ = 0.0;
-//							for( Int l = 0; l < idx.m(); l++ ){
-//								resX -= val(l, DX) * vhartVal[idx(l)] * wgt;
-//								resY -= val(l, DY) * vhartVal[idx(l)] * wgt;
-//								resZ -= val(l, DZ) * vhartVal[idx(l)] * wgt;
-//							}
-//							forceLocal( atomIdx, 0 ) += resX;
-//							forceLocal( atomIdx, 1 ) += resY;
-//							forceLocal( atomIdx, 2 ) += resZ;
+//    // Method 1: Using the derivative of the pseudopotential
+//    if(1){
+//        for( Int k = 0; k < numElem_[2]; k++ )
+//            for( Int j = 0; j < numElem_[1]; j++ )
+//                for( Int i = 0; i < numElem_[0]; i++ ){
+//                    Index3 key( i, j, k );
+//                    if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+//                        std::map<Int, PseudoPot>&  ppMap = pseudo_.LocalMap()[key];
+//                        for( std::map<Int, PseudoPot>::iterator mi = ppMap.begin();
+//                                 mi != ppMap.end(); mi++ ){
+//                            Int atomIdx = (*mi).first;
+//                            PseudoPot& pp = (*mi).second;
+//                            SparseVec& sp = pp.pseudoCharge;
+//                            IntNumVec& idx = sp.first;
+//                            DblNumMat& val = sp.second;
+//                            Real    wgt = domain_.Volume() / domain_.NumGridTotalFine();
+//                            DblNumVec&  vhartVal = vhart.LocalMap()[key];
+//                            Real resX = 0.0;
+//                            Real resY = 0.0;
+//                            Real resZ = 0.0;
+//                            for( Int l = 0; l < idx.m(); l++ ){
+//                                resX -= val(l, DX) * vhartVal[idx(l)] * wgt;
+//                                resY -= val(l, DY) * vhartVal[idx(l)] * wgt;
+//                                resZ -= val(l, DZ) * vhartVal[idx(l)] * wgt;
+//                            }
+//                            forceLocal( atomIdx, 0 ) += resX;
+//                            forceLocal( atomIdx, 1 ) += resY;
+//                            forceLocal( atomIdx, 2 ) += resZ;
 //
-//						} // for (mi)
-//					} // own this element
-//				} // for (i)
-//	}
-//
-//
-//	// Method 2: Using integration by parts
-//	if(0)
-//	{
-//		for( Int k = 0; k < numElem_[2]; k++ )
-//			for( Int j = 0; j < numElem_[1]; j++ )
-//				for( Int i = 0; i < numElem_[0]; i++ ){
-//					Index3 key( i, j, k );
-//					if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-//						std::map<Int, PseudoPot>&  ppMap = pseudo_.LocalMap()[key];
-//						for( std::map<Int, PseudoPot>::iterator mi = ppMap.begin();
-//								 mi != ppMap.end(); mi++ ){
-//							Int atomIdx = (*mi).first;
-//							PseudoPot& pp = (*mi).second;
-//							SparseVec& sp = pp.pseudoCharge;
-//							IntNumVec& idx = sp.first;
-//							DblNumMat& val = sp.second;
-//							Real    wgt = domain_.Volume() / domain_.NumGridTotalFine();
-//							for( Int d = 0; d < DIM; d++ ){
-//								DblNumVec&  drv = vhartDrv[d].LocalMap()[key];
-//								Real res = 0.0;
-//								for( Int l = 0; l < idx.m(); l++ ){
-//									res += val(l, VAL) * drv[idx(l)] * wgt;
-//								}
-//								forceLocal( atomIdx, d ) += res;
-//							}
-//						} // for (mi)
-//					} // own this element
-//				} // for (i)
-//	}
+//                        } // for (mi)
+//                    } // own this element
+//                } // for (i)
+//    }
 //
 //
-//	// *********************************************************************
-//	// Compute the force from nonlocal pseudopotential
-//	// *********************************************************************
+//    // Method 2: Using integration by parts
+//    if(0)
+//    {
+//        for( Int k = 0; k < numElem_[2]; k++ )
+//            for( Int j = 0; j < numElem_[1]; j++ )
+//                for( Int i = 0; i < numElem_[0]; i++ ){
+//                    Index3 key( i, j, k );
+//                    if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+//                        std::map<Int, PseudoPot>&  ppMap = pseudo_.LocalMap()[key];
+//                        for( std::map<Int, PseudoPot>::iterator mi = ppMap.begin();
+//                                 mi != ppMap.end(); mi++ ){
+//                            Int atomIdx = (*mi).first;
+//                            PseudoPot& pp = (*mi).second;
+//                            SparseVec& sp = pp.pseudoCharge;
+//                            IntNumVec& idx = sp.first;
+//                            DblNumMat& val = sp.second;
+//                            Real    wgt = domain_.Volume() / domain_.NumGridTotalFine();
+//                            for( Int d = 0; d < DIM; d++ ){
+//                                DblNumVec&  drv = vhartDrv[d].LocalMap()[key];
+//                                Real res = 0.0;
+//                                for( Int l = 0; l < idx.m(); l++ ){
+//                                    res += val(l, VAL) * drv[idx(l)] * wgt;
+//                                }
+//                                forceLocal( atomIdx, d ) += res;
+//                            }
+//                        } // for (mi)
+//                    } // own this element
+//                } // for (i)
+//    }
+//
+//
+//    // *********************************************************************
+//    // Compute the force from nonlocal pseudopotential
+//    // *********************************************************************
 //
 //
 //  // Use the density matrix instead of the eigenfunctions. 
 //  if(1)
-//	{
+//    {
 //#if ( _DEBUGlevel_ >= 1 )
 //    statusOFS << "Starting the nonlocal part of the force calculation "
 //      << std::endl;
@@ -3591,10 +3591,10 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 //
 //    // Step 1. Collect the blocks of density matrices according to the
 //    // support of the pseudopotential 
-//		//
-//		// Use std::set to avoid repetitive entries
+//        //
+//        // Use std::set to avoid repetitive entries
 //    GetTime( timeSta );
-//		std::set<ElemMatKey>  pseudoSet;
+//        std::set<ElemMatKey>  pseudoSet;
 //    for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
 //      if( atomPrtn_.Owner(atomIdx) == (mpirank / dmRow_) ){
 //        // Loop over the elements (row indices in the density matrix)
@@ -3644,18 +3644,18 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 //      }
 //    }
 //
-//		std::vector<ElemMatKey>  pseudoIdx;
-//		pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
+//        std::vector<ElemMatKey>  pseudoIdx;
+//        pseudoIdx.insert( pseudoIdx.begin(), pseudoSet.begin(), pseudoSet.end() );
 //
 //
 //
 //#if ( _DEBUGlevel_ >= 1 )
-//		statusOFS << "Required density matrix blocks " << std::endl;
+//        statusOFS << "Required density matrix blocks " << std::endl;
 //    for( std::vector<ElemMatKey>::iterator vi = pseudoIdx.begin();
 //         vi != pseudoIdx.end(); vi++ ){
 //      statusOFS << (*vi).first << " -- " << (*vi).second << std::endl;
 //    }
-//		statusOFS << "Owned density matrix blocks on this processor" << std::endl;
+//        statusOFS << "Owned density matrix blocks on this processor" << std::endl;
 //    for( std::map<ElemMatKey, DblNumMat>::iterator 
 //       mi  = distDMMat.LocalMap().begin();
 //       mi != distDMMat.LocalMap().end(); mi++ ){
@@ -3667,10 +3667,10 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 //#endif
 //    distDMMat.GetBegin( pseudoIdx, NO_MASK );
 //    distDMMat.GetEnd( NO_MASK );
-//		GetTime( timeEnd );
+//        GetTime( timeEnd );
 //#if ( _DEBUGlevel_ >= 1 )
-//		statusOFS << "Time for getting the density matrix blocks is " <<
-//			timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//        statusOFS << "Time for getting the density matrix blocks is " <<
+//            timeEnd - timeSta << " [s]" << std::endl << std::endl;
 //#endif
 //
 //
@@ -3680,7 +3680,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 //    // the force
 //    for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
 //      if( atomPrtn_.Owner(atomIdx) == (mpirank / dmRow_) ){
-//        DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
+//        DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];    
 //        Int numVnl = vnlWeight.Size();
 //
 //        // Loop over the elements (row indices in the density matrix)
@@ -3772,22 +3772,22 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 //      } // own this atom
 //    } // for (atomIdx)
 //
-//	}
+//    }
 //
 //
-//	// *********************************************************************
-//	// Compute the total force and give the value to atomList
-//	// *********************************************************************
-//	mpi::Allreduce( forceLocal.Data(), force.Data(), numAtom * DIM,
-//			MPI_SUM, domain_.colComm );
+//    // *********************************************************************
+//    // Compute the total force and give the value to atomList
+//    // *********************************************************************
+//    mpi::Allreduce( forceLocal.Data(), force.Data(), numAtom * DIM,
+//            MPI_SUM, domain_.colComm );
 //
-//	for( Int a = 0; a < numAtom; a++ ){
-//		atomList_[a].force = Point3( force(a,0), force(a,1), force(a,2) );
-//	} 
+//    for( Int a = 0; a < numAtom; a++ ){
+//        atomList_[a].force = Point3( force(a,0), force(a,1), force(a,2) );
+//    } 
 //
 //
-//	return ;
-//} 		// -----  end of method HamiltonianDG::CalculateForceDM  ----- 
+//    return ;
+//}         // -----  end of method HamiltonianDG::CalculateForceDM  ----- 
 
 
 
@@ -3795,7 +3795,7 @@ HamiltonianDG::CalculateForce	( DistFourier& fft )
 // This version does not use FFT anymore, and use LGL grid to compute
 // the local potential contribution of the force
 void
-HamiltonianDG::CalculateForceDM	( 
+HamiltonianDG::CalculateForceDM    ( 
         DistFourier& fft, 
         DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat )
 {
@@ -4022,7 +4022,7 @@ HamiltonianDG::CalculateForceDM	(
         // the force
         for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
             if( atomPrtn_.Owner(atomIdx) == (mpirank / dmRow_) ){
-                DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
+                DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];    
                 Int numVnl = vnlWeight.Size();
 
                 // Loop over the elements (row indices in the density matrix)
@@ -4129,15 +4129,15 @@ HamiltonianDG::CalculateForceDM	(
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::CalculateForceDM  ----- 
+}         // -----  end of method HamiltonianDG::CalculateForceDM  ----- 
 
 // FIXME This does not work when intra-element parallelization is used.
 void
-HamiltonianDG::CalculateAPosterioriError	( 
+HamiltonianDG::CalculateAPosterioriError    ( 
         DblNumTns&       eta2Total,
         DblNumTns&       eta2Residual,
         DblNumTns&       eta2GradJump,
-        DblNumTns&       eta2Jump	)
+        DblNumTns&       eta2Jump    )
 {
 
     Int mpirank, mpisize;
@@ -4486,7 +4486,7 @@ HamiltonianDG::CalculateAPosterioriError	(
                                     std::vector<NonlocalPP>&  vnlList = (*mi).second.vnlList;
                                     Int numVnl = vnlList.size();
                                     DblNumMat&  vnlPsiMat = vnlPsiMap[atomIdx];
-                                    DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
+                                    DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];    
 
                                     // Loop over projector
                                     for( Int l = 0; l < vnlList.size(); l++ ){
@@ -5134,6 +5134,6 @@ HamiltonianDG::CalculateAPosterioriError	(
 
 
     return ;
-} 		// -----  end of method HamiltonianDG::CalculateAPosterioriError  ----- 
+}         // -----  end of method HamiltonianDG::CalculateAPosterioriError  ----- 
 
 } // namespace dgdft

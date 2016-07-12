@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -117,7 +117,7 @@ enum{
     L1                = 1,
     L2                = 2,
     L3                = 3,
-    SPINORBIT_L1 	    = -1,
+    SPINORBIT_L1         = -1,
     SPINORBIT_L2      = -2,
     SPINORBIT_L3      = -3
 };
@@ -177,7 +177,7 @@ public:
     /// The data are saved in the sparse veector res
     ///   res[0]         : pseudo-charge values
     ///   res[1]--res[3] : x,y,z components of the derivatives of the
-    ///		     pseudo-charge
+    ///             pseudo-charge
     void CalculatePseudoCharge( const Atom& atom, const Domain& dm, 
             const std::vector<DblNumVec>& gridpos,
             SparseVec& res );
@@ -188,8 +188,8 @@ public:
     /// The data are saved in the sparse veector res
     ///   res[0]         : pseudo-charge values
     ///   res[1]--res[3] : x,y,z components of the derivatives of the
-    ///		     pseudo-charge
-    void CalculatePseudoCharge	(
+    ///             pseudo-charge
+    void CalculatePseudoCharge    (
             const Atom& atom, 
             const Domain& dm,
             const NumTns<std::vector<DblNumVec> >& gridposElem,

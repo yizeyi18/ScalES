@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin and Wei Hu
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -51,7 +51,7 @@ namespace dgdft{
 
 using namespace dgdft::PseudoComponent;
 
-Spinor::Spinor () { } 		
+Spinor::Spinor () { }         
 
 Spinor::Spinor ( 
         const Domain &dm, 
@@ -61,7 +61,7 @@ Spinor::Spinor (
         const Real  val ) {
     this->Setup( dm, numComponent, numStateTotal, numStateLocal, val );
 
-} 		// -----  end of method Spinor::Spinor  ----- 
+}         // -----  end of method Spinor::Spinor  ----- 
 
 Spinor::Spinor ( const Domain &dm, 
         const Int numComponent, 
@@ -72,9 +72,9 @@ Spinor::Spinor ( const Domain &dm,
 {
     this->Setup( dm, numComponent, numStateTotal, numStateLocal, owndata, data );
 
-} 		// -----  end of method Spinor::Spinor  ----- 
+}         // -----  end of method Spinor::Spinor  ----- 
 
-Spinor::~Spinor	() {}
+Spinor::~Spinor    () {}
 
 void Spinor::Setup ( 
         const Domain &dm, 
@@ -114,7 +114,7 @@ void Spinor::Setup (
     wavefun_.Resize( dm.NumGridTotal(), numComponent, numStateLocal );
     SetValue( wavefun_, val );
 
-} 		// -----  end of method Spinor::Setup  ----- 
+}         // -----  end of method Spinor::Setup  ----- 
 
 void Spinor::Setup ( const Domain &dm, 
         const Int numComponent, 
@@ -155,10 +155,10 @@ void Spinor::Setup ( const Domain &dm,
         wavefunIdx_[i] = i * mpisize + mpirank ;
     }
 
-} 		// -----  end of method Spinor::Setup  ----- 
+}         // -----  end of method Spinor::Setup  ----- 
 
 void
-Spinor::Normalize	( )
+Spinor::Normalize    ( )
 {
     Int size = wavefun_.m() * wavefun_.n();
     Int nocc = wavefun_.p();
@@ -176,7 +176,7 @@ Spinor::Normalize	( )
         }
     }
     return ;
-} 		// -----  end of method Spinor::Normalize  ----- 
+}         // -----  end of method Spinor::Normalize  ----- 
 
 
 void
@@ -239,7 +239,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
 
 
     return ;
-} 		// -----  end of method Spinor::AddTeterPrecond ----- 
+}         // -----  end of method Spinor::AddTeterPrecond ----- 
 
 void
 Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot, 
@@ -392,7 +392,7 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
 
 
     return ;
-}		// -----  end of method Spinor::AddMultSpinorFine  ----- 
+}        // -----  end of method Spinor::AddMultSpinorFine  ----- 
 
 void
 Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
@@ -626,7 +626,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
 
     return ;
-}		// -----  end of method Spinor::AddMultSpinorFineR2C  ----- 
+}        // -----  end of method Spinor::AddMultSpinorFineR2C  ----- 
 
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
         const NumTns<Real>& phi,
@@ -742,7 +742,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
 
     return ;
-}		// -----  end of method Spinor::AddMultSpinorEXX  ----- 
+}        // -----  end of method Spinor::AddMultSpinorEXX  ----- 
 
 
 void Spinor::AddMultSpinorEXXDF ( Fourier& fft, 
@@ -1073,7 +1073,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
 
     return ;
-}		// -----  end of method Spinor::AddMultSpinorEXXDF  ----- 
+}        // -----  end of method Spinor::AddMultSpinorEXXDF  ----- 
 
 
 }  // namespace dgdft

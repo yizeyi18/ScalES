@@ -522,7 +522,7 @@ namespace dgdft{
 
       // Periodization of the potential in the extended element
       bool                isPeriodizePotential;
-      Point3              distancePeriodize;	
+      Point3              distancePeriodize;    
 
       /// @brief Kinetic energy cutoff for the wavefunction on the uniform
       /// grid.
@@ -720,7 +720,7 @@ namespace dgdft{
       /// @brief Time step for MD simulation.
       ///
       /// Default: 50.0
-      Int									MDTimeStep; 
+      Int                                    MDTimeStep; 
       /// @brief Extrapolation type for updating the density
       ///
       /// Default: "linear"
@@ -752,11 +752,11 @@ namespace dgdft{
       /// @brief Mass for Nose-Hoover thermostat
       ///
       /// Default: 10.0
-      Real								qMass;								
+      Real                                qMass;                                
       /// @brief Dampling factor for Langevin theromostat
       ///
       /// Default: 0.01
-      Real								langevinDamping;								
+      Real                                langevinDamping;                                
       /// @brief Whether to use the previous position
       ///
       /// Default: 0

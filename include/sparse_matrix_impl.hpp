@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -70,11 +70,11 @@ template<typename F>
 
 
         return ;
-    }		// -----  end of function ReadSparseMatrix  ----- 
+    }        // -----  end of function ReadSparseMatrix  ----- 
 
 
 template <class F> void
-    ReadSparseMatrixFormatted	( const char* filename, SparseMatrix<F>& spmat )
+    ReadSparseMatrixFormatted    ( const char* filename, SparseMatrix<F>& spmat )
     {
         std::ifstream fin(filename);
         Int dummy;
@@ -99,7 +99,7 @@ template <class F> void
         fin.close();
 
         return ;
-    }		// -----  end of function ReadSparseMatrixFormatted  ----- 
+    }        // -----  end of function ReadSparseMatrixFormatted  ----- 
 
 //---------------------------------------------------------
 template<typename F>
@@ -142,14 +142,14 @@ template<typename F>
         }
 
         MPI_Bcast(colptr.Data(), pspmat.size+1, MPI_INT, 0, comm);
-        //	std::cout << "Proc " << mpirank << " outputs colptr[end]" << colptr[pspmat.size] << endl;
+        //    std::cout << "Proc " << mpirank << " outputs colptr[end]" << colptr[pspmat.size] << endl;
 
         // Compute the number of columns on each processor
         IntNumVec numColLocalVec(mpisize);
         Int numColLocal, numColFirst;
         numColFirst = pspmat.size / mpisize;
         SetValue( numColLocalVec, numColFirst );
-        numColLocalVec[mpisize-1] = pspmat.size - numColFirst * (mpisize-1);  // Modify the last entry	
+        numColLocalVec[mpisize-1] = pspmat.size - numColFirst * (mpisize-1);  // Modify the last entry    
         numColLocal = numColLocalVec[mpirank];
 
         pspmat.colptrLocal.Resize( numColLocal + 1 );
@@ -206,8 +206,8 @@ template<typename F>
             MPI_Recv( pspmat.rowindLocal.Data(), numRead, MPI_INT, 0, 1, comm, &mpistat );
         }
 
-        //	std::cout << "Proc " << mpirank << " outputs rowindLocal.size() = " 
-        //		<< pspmat.rowindLocal.m() << endl;
+        //    std::cout << "Proc " << mpirank << " outputs rowindLocal.size() = " 
+        //        << pspmat.rowindLocal.m() << endl;
 
 
         // Read and distribute the nonzero values
@@ -263,7 +263,7 @@ template<typename F>
 
 
         return ;
-    }		// -----  end of function ReadDistSparseMatrix  ----- 
+    }        // -----  end of function ReadDistSparseMatrix  ----- 
 
 
 
@@ -309,7 +309,7 @@ template<typename F>
         Int numColLocal, numColFirst;
         numColFirst = pspmat.size / mpisize;
         SetValue( numColLocalVec, numColFirst );
-        numColLocalVec[mpisize-1] = pspmat.size - numColFirst * (mpisize-1);  // Modify the last entry	
+        numColLocalVec[mpisize-1] = pspmat.size - numColFirst * (mpisize-1);  // Modify the last entry    
         numColLocal = numColLocalVec[mpirank];
 
         // The first column follows the 1-based (FORTRAN convention) index.
@@ -414,13 +414,13 @@ template<typename F>
 
 
         return ;
-    }		// -----  end of function ReadDistSparseMatrixFormatted  ----- 
+    }        // -----  end of function ReadDistSparseMatrixFormatted  ----- 
 
 
 template<typename F>
     void WriteDistSparseMatrixFormatted ( 
             const char* filename, 
-            DistSparseMatrix<F>& pspmat	)
+            DistSparseMatrix<F>& pspmat    )
     {
         // Get the processor information within the current communicator
         MPI_Comm comm = pspmat.comm;
@@ -475,7 +475,7 @@ template<typename F>
             }
 
             MPI_Barrier( comm );
-        }	
+        }    
 
         // Write rowind information, one processor after another
         for( Int p = 0; p < mpisize; p++ ){
@@ -496,7 +496,7 @@ template<typename F>
             }
 
             MPI_Barrier( comm );
-        }	
+        }    
 
         // Write nzval information, one processor after another
         for( Int p = 0; p < mpisize; p++ ){
@@ -520,19 +520,19 @@ template<typename F>
             }
 
             MPI_Barrier( comm );
-        }	
+        }    
 
         MPI_Barrier( comm );
 
 
         return ;
-    }		// -----  end of function WriteDistSparseMatrixFormatted  ----- 
+    }        // -----  end of function WriteDistSparseMatrixFormatted  ----- 
 
 template<typename F>
     void ParaReadDistSparseMatrix ( 
             const char* filename, 
             DistSparseMatrix<F>& pspmat,
-            MPI_Comm comm	)
+            MPI_Comm comm    )
     {
         // Get the processor information within the current communicator
         MPI_Barrier( comm );
@@ -586,7 +586,7 @@ template<typename F>
         Int numColLocal, numColFirst;
         numColFirst = pspmat.size / mpisize;
         SetValue( numColLocalVec, numColFirst );
-        numColLocalVec[mpisize-1] = pspmat.size - numColFirst * (mpisize-1);  // Modify the last entry	
+        numColLocalVec[mpisize-1] = pspmat.size - numColFirst * (mpisize-1);  // Modify the last entry    
         numColLocal = numColLocalVec[mpirank];
         pspmat.colptrLocal.Resize( numColLocal + 1 );
 
@@ -678,7 +678,7 @@ template<typename F>
         MPI_File_close(&fin);
 
         return ;
-    }		// -----  end of function ParaReadDistSparseMatrix  ----- 
+    }        // -----  end of function ParaReadDistSparseMatrix  ----- 
 
 template<typename F>
     void
@@ -820,7 +820,7 @@ template<typename F>
 
 
         return ;
-    }		// -----  end of function ParaWriteDistSparseMatrix  ----- 
+    }        // -----  end of function ParaWriteDistSparseMatrix  ----- 
 
 
 } // namespace dgdft

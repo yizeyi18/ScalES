@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -398,7 +398,7 @@ UniformMesh ( const Domain &dm, std::vector<DblNumVec> &gridpos )
     }
 
     return ;
-}		// -----  end of function UniformMesh  ----- 
+}        // -----  end of function UniformMesh  ----- 
 
 
 void
@@ -414,7 +414,7 @@ UniformMeshFine ( const Domain &dm, std::vector<DblNumVec> &gridpos )
     }
 
     return ;
-}		// -----  end of function UniformMesh  ----- 
+}        // -----  end of function UniformMesh  ----- 
 
 
 void
@@ -435,7 +435,7 @@ LGLMesh ( const Domain &dm, const Index3& numGrid, std::vector<DblNumVec> &gridp
     }
 
     return ;
-}		// -----  end of function LGLMesh  ----- 
+}        // -----  end of function LGLMesh  ----- 
 
 // *********************************************************************
 // IO functions
@@ -523,7 +523,7 @@ Int SharedRead(std::string name, std::istringstream& is)
         //tmpstr.insert(tmpstr.end(), str.begin(), str.end());
         tmpstr.insert(tmpstr.end(), std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>());
         fin.close();
-        int size = tmpstr.size();	
+        int size = tmpstr.size();    
         MPI_Bcast((void*)&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
         MPI_Bcast((void*)&(tmpstr[0]), size, MPI_BYTE, 0, MPI_COMM_WORLD);
     } else {
@@ -679,7 +679,7 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 
 
     return ;
-}		// -----  end of function AlltoallForward ----- 
+}        // -----  end of function AlltoallForward ----- 
 
 void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 {
@@ -781,7 +781,7 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 
 
     return ;
-}		// -----  end of function AlltoallBackward ----- 
+}        // -----  end of function AlltoallBackward ----- 
 
 
 

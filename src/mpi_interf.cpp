@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -82,11 +82,11 @@ void
         allVec.resize( totalSize );
 
         MPI_Allgatherv( &localVec[0], localSize, MPI_INT, &allVec[0], 
-                &localSizeVec[0], &localSizeDispls[0], MPI_INT, comm	);
+                &localSizeVec[0], &localSizeDispls[0], MPI_INT, comm    );
 
 
         return ;
-    }		// -----  end of function Allgatherv  ----- 
+    }        // -----  end of function Allgatherv  ----- 
 
 
 // *********************************************************************
@@ -117,7 +117,7 @@ void
         sstm.write( &sstr[0], sizeStm );
 
         return ;
-    }		// -----  end of function Recv  ----- 
+    }        // -----  end of function Recv  ----- 
 
 void
     Recv ( std::stringstream& sstm, Int src, Int tagSize, Int tagContent, 
@@ -131,7 +131,7 @@ void
         sstm.write( &str[0], sizeStm );
 
         return ;
-    }		// -----  end of function Recv  ----- 
+    }        // -----  end of function Recv  ----- 
 
 
 
@@ -141,12 +141,12 @@ void
 
 
 void
-    Wait	( MPI_Request& req  )
+    Wait    ( MPI_Request& req  )
     {
         MPI_Wait( &req, MPI_STATUS_IGNORE );
 
         return ;
-    } 		// -----  end of method Wait  ----- 
+    }         // -----  end of method Wait  ----- 
 
 void
     Waitall ( std::vector<MPI_Request>& reqs, std::vector<MPI_Status>& stats )
@@ -159,7 +159,7 @@ void
         }
 
         return ;
-    }		// -----  end of function Waitall  ----- 
+    }        // -----  end of function Waitall  ----- 
 
 void
     Waitall ( std::vector<MPI_Request>& reqs )
@@ -169,7 +169,7 @@ void
         }
 
         return ;
-    }		// -----  end of function Waitall  ----- 
+    }        // -----  end of function Waitall  ----- 
 
 
 // *********************************************************************
@@ -183,7 +183,7 @@ void
         MPI_Reduce( sendbuf,  recvbuf, count, MPI_DOUBLE, op, root, comm );
 
         return ;
-    }		// -----  end of function Reduce  ----- 
+    }        // -----  end of function Reduce  ----- 
 
 void
     Reduce ( Complex* sendbuf, Complex* recvbuf, Int count, MPI_Op op, Int root, MPI_Comm comm )
@@ -191,7 +191,7 @@ void
         MPI_Reduce( (Real*)sendbuf,  (Real*)recvbuf, 2 * count, MPI_DOUBLE, op, root, comm );
 
         return ;
-    }		// -----  end of function Reduce  ----- 
+    }        // -----  end of function Reduce  ----- 
 
 void
     Allreduce ( Int* sendbuf, Int* recvbuf, Int count, MPI_Op op, MPI_Comm comm )
@@ -200,7 +200,7 @@ void
                 op, comm );
 
         return ;
-    }		// -----  end of function Allreduce  ----- 
+    }        // -----  end of function Allreduce  ----- 
 
 
 void
@@ -210,7 +210,7 @@ void
                 op, comm );
 
         return ;
-    }		// -----  end of function Allreduce  ----- 
+    }        // -----  end of function Allreduce  ----- 
 
 
 void
@@ -220,7 +220,7 @@ void
                 op, comm );
 
         return ;
-    }		// -----  end of function Allreduce  ----- 
+    }        // -----  end of function Allreduce  ----- 
 
 
 // *********************************************************************
@@ -233,9 +233,9 @@ void
             Int *displsRecv, MPI_Comm comm )
     {
         MPI_Alltoallv( bufSend, sizeSend, displsSend, MPI_INT,
-                bufRecv, sizeRecv, displsRecv, MPI_INT, comm );	
+                bufRecv, sizeRecv, displsRecv, MPI_INT, comm );    
         return ;
-    }		// -----  end of function Alltoallv  ----- 
+    }        // -----  end of function Alltoallv  ----- 
 
 
 void
@@ -244,9 +244,9 @@ void
             Int *displsRecv, MPI_Comm comm )
     {
         MPI_Alltoallv( bufSend, sizeSend, displsSend, MPI_DOUBLE,
-                bufRecv, sizeRecv, displsRecv, MPI_DOUBLE, comm );	
+                bufRecv, sizeRecv, displsRecv, MPI_DOUBLE, comm );    
         return ;
-    }		// -----  end of function Alltoallv  ----- 
+    }        // -----  end of function Alltoallv  ----- 
 
 void
     Alltoallv ( Complex *bufSend, Int *sizeSend, Int *displsSend, 
@@ -269,10 +269,10 @@ void
 
         MPI_Alltoallv( 
                 (Real*)bufSend, &dblSizeSend[0], &dblDisplsSend[0], MPI_DOUBLE, 
-                (Real*)bufRecv, &dblSizeRecv[0], &dblDisplsRecv[0], MPI_DOUBLE, comm );	
+                (Real*)bufRecv, &dblSizeRecv[0], &dblDisplsRecv[0], MPI_DOUBLE, comm );    
 
         return ;
-    }		// -----  end of function Alltoallv  ----- 
+    }        // -----  end of function Alltoallv  ----- 
 
 
 } // namespace mpi

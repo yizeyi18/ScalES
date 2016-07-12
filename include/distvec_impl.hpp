@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Authors: Lexing Ying and Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -97,7 +97,7 @@ template <class Key, class Data, class Partition>
             const Data& dat = (*mi).second;
             if(prtn_.Owner(key)==mpirank) {
                 //ASK QUESTIONS
-                std::vector<Int> pids;	  Int res = (*e2ps)((*mi).first, (*mi).second, pids);
+                std::vector<Int> pids;      Int res = (*e2ps)((*mi).first, (*mi).second, pids);
                 for(Int i=0; i<pids.size(); i++) {
                     Int k = pids[i];
                     if(k!=mpirank) { //DO NOT SEND TO MYSELF
@@ -114,7 +114,7 @@ template <class Key, class Data, class Partition>
             sbufvec_[k].clear();
             sbufvec_[k].insert(sbufvec_[k].end(), tmp.begin(), tmp.end());
         }
-        for(Int k=0; k<mpisize; k++) {	delete ossvec[k];	ossvec[k] = NULL;  }
+        for(Int k=0; k<mpisize; k++) {    delete ossvec[k];    ossvec[k] = NULL;  }
         //2. all th sendsize of the message
         std::vector<Int> sszvec(mpisize,0);
         for(Int k=0; k<mpisize; k++)
@@ -193,11 +193,11 @@ template <class Key, class Data, class Partition>
         }
         skeyvec.clear(); //save space
         //4. prepare the streams
-        std::vector<std::ostringstream*> ossvec(mpisize);  for(Int k=0; k<mpisize; k++)	{ ossvec[k] = new std::ostringstream(); iA(ossvec[k]!=NULL); }
+        std::vector<std::ostringstream*> ossvec(mpisize);  for(Int k=0; k<mpisize; k++)    { ossvec[k] = new std::ostringstream(); iA(ossvec[k]!=NULL); }
         for(Int k=0; k<mpisize; k++) {
             for(Int g=0; g<rkeyvec[k].size(); g++) {
                 Key curkey = rkeyvec[k][g];
-                typename std::map<Key,Data>::iterator mi = lclmap_.find(curkey);	  
+                typename std::map<Key,Data>::iterator mi = lclmap_.find(curkey);      
                 iA( prtn_.Owner(curkey)==mpirank );
                 Key key = (*mi).first;
                 const Data& dat = (*mi).second;
@@ -212,7 +212,7 @@ template <class Key, class Data, class Partition>
             sbufvec_[k].clear();
             sbufvec_[k].insert(sbufvec_[k].end(), tmp.begin(), tmp.end());
         }
-        for(Int k=0; k<mpisize; k++) {	delete ossvec[k];	ossvec[k] = NULL;  }
+        for(Int k=0; k<mpisize; k++) {    delete ossvec[k];    ossvec[k] = NULL;  }
         //5. all th sendsize of the message
         for(Int k=0; k<mpisize; k++)
             sszvec[k] = sbufvec_[k].size();
@@ -253,7 +253,7 @@ template <class Key, class Data, class Partition>
 
         //4. write back
         //to stream
-        std::vector<std::istringstream*> issvec(mpisize);  for(Int k=0; k<mpisize; k++)	{ issvec[k] = new std::istringstream(); iA(issvec[k]!=NULL); }
+        std::vector<std::istringstream*> issvec(mpisize);  for(Int k=0; k<mpisize; k++)    { issvec[k] = new std::istringstream(); iA(issvec[k]!=NULL); }
         for(Int k=0; k<mpisize; k++) {
             std::string tmp(rbufvec_[k].begin(), rbufvec_[k].end());
             issvec[k]->str(tmp);
@@ -266,14 +266,14 @@ template <class Key, class Data, class Partition>
                 Key key;  deserialize(key, *(issvec[k]), mask);
                 typename std::map<Key,Data>::iterator mi=lclmap_.find(key);
                 if(mi==lclmap_.end()) { //do not exist
-                    Data dat;		deserialize(dat, *(issvec[k]), mask);
+                    Data dat;        deserialize(dat, *(issvec[k]), mask);
                     lclmap_[key] = dat;
                 } else { //exist already
                     deserialize((*mi).second, *(issvec[k]), mask);
                 }
             }
         }
-        for(Int k=0; k<mpisize; k++) {	delete issvec[k];	issvec[k] = NULL;  }
+        for(Int k=0; k<mpisize; k++) {    delete issvec[k];    issvec[k] = NULL;  }
         iC( MPI_Barrier(comm_) );
 
         iC( MPI_Barrier(comm_) );
@@ -296,14 +296,14 @@ template <class Key, class Data, class Partition>
         //reqs_.resize(2*mpisize);
         //stats_.resize(2*mpisize);
         //1.
-        std::vector<std::ostringstream*> ossvec(mpisize);  for(Int k=0; k<mpisize; k++)	{ ossvec[k] = new std::ostringstream(); iA(ossvec[k]!=NULL); }
+        std::vector<std::ostringstream*> ossvec(mpisize);  for(Int k=0; k<mpisize; k++)    { ossvec[k] = new std::ostringstream(); iA(ossvec[k]!=NULL); }
         //1. go thrw the keyvec to partition them among other procs
         for(Int i=0; i<keyvec.size(); i++) {
             Key key = keyvec[i];
             Int k = prtn_.Owner(key); //the owner
             if(k!=mpirank) {
                 typename std::map<Key,Data>::iterator mi = lclmap_.find(key);
-                iA( mi!=lclmap_.end() );	  iA( key==(*mi).first );
+                iA( mi!=lclmap_.end() );      iA( key==(*mi).first );
                 Data& dat = (*mi).second;
                 iC( serialize(key, *(ossvec[k]), mask) );
                 iC( serialize(dat, *(ossvec[k]), mask) );
@@ -316,7 +316,7 @@ template <class Key, class Data, class Partition>
             sbufvec_[k].clear();
             sbufvec_[k].insert(sbufvec_[k].end(), tmp.begin(), tmp.end());
         }
-        for(Int k=0; k<mpisize; k++) {	delete ossvec[k];	ossvec[k] = NULL;  }
+        for(Int k=0; k<mpisize; k++) {    delete ossvec[k];    ossvec[k] = NULL;  }
         //3. get size
         std::vector<Int> sszvec(mpisize);
         for(Int k=0; k<mpisize; k++)
@@ -356,7 +356,7 @@ template <class Key, class Data, class Partition>
         free(stats_); stats_=NULL;
         sbufvec_.clear(); //save space
         //5. go thrw the messages and write back
-        std::vector<std::istringstream*> issvec(mpisize);  for(Int k=0; k<mpisize; k++)	{ issvec[k] = new std::istringstream(); iA(issvec[k]!=NULL); }
+        std::vector<std::istringstream*> issvec(mpisize);  for(Int k=0; k<mpisize; k++)    { issvec[k] = new std::istringstream(); iA(issvec[k]!=NULL); }
         for(Int k=0; k<mpisize; k++) {
             std::string tmp(rbufvec_[k].begin(), rbufvec_[k].end());
             issvec[k]->str(tmp);
@@ -364,25 +364,25 @@ template <class Key, class Data, class Partition>
         rbufvec_.clear(); //save space
         for(Int k=0; k<mpisize; k++) {
             for(Int i=0; i<rnbvec_[k]; i++) {
-                Key key;	  deserialize(key, *(issvec[k]), mask);	  iA( prtn_.Owner(key)==mpirank );
+                Key key;      deserialize(key, *(issvec[k]), mask);      iA( prtn_.Owner(key)==mpirank );
 
                 typename std::map<Key,Data>::iterator mi=lclmap_.find(key);
                 if(mi==lclmap_.end() ) { //DO NOT EVEN EXIST
                     //----------------------------------
-                    Data tmp;	deserialize(tmp, *(issvec[k]), mask);
+                    Data tmp;    deserialize(tmp, *(issvec[k]), mask);
                     lclmap_[key] = tmp;
                 } else { //DO EXIST
                     //----------------------------------
                     if( putmode == PutMode::REPLACE) {
                         deserialize((*mi).second, *(issvec[k]), mask);
                     } else if( putmode == PutMode::COMBINE ) {
-                        Data tmp;	deserialize(tmp, *(issvec[k]), mask);
+                        Data tmp;    deserialize(tmp, *(issvec[k]), mask);
                         combine( (*mi).second, tmp); 
                     }
                 }
             }
         }
-        for(Int k=0; k<mpisize; k++) {	delete issvec[k];	issvec[k] = NULL;  }
+        for(Int k=0; k<mpisize; k++) {    delete issvec[k];    issvec[k] = NULL;  }
         iC( MPI_Barrier(comm_) );
         return 0;
     }

@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Authors: Lin Lin, Wei Hu and Lexing Ying
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -65,7 +65,7 @@ using namespace PseudoComponent;
 // *********************************************************************
 
 void
-    HamiltonianDG::CalculateDGMatrix	(  )
+    HamiltonianDG::CalculateDGMatrix    (  )
     {
         Int mpirank, mpisize;
         Int numAtom = atomList_.size();
@@ -295,12 +295,12 @@ void
 #pragma omp for schedule (dynamic,1) nowait
 #endif
                                     for( Int g = 0; g < numBasis; g++ ){
-                                        //								DiffPsi( numGrid, basis.VecData(g), DbasisX.VecData(g), 0 );
-                                        //								Int m = numGrid[0], n = numGrid[1]*numGrid[2];
-                                        //								Real  *psi  = basis.VecData(g);
-                                        //								Real  *Dpsi = DbasisX.VecData(g);
-                                        //								blas::Gemm( 'N', 'N', m, n, m, 1.0, DMat_[0].Data(),
-                                        //										m, psi, m, 0.0, Dpsi, m );
+                                        //                                DiffPsi( numGrid, basis.VecData(g), DbasisX.VecData(g), 0 );
+                                        //                                Int m = numGrid[0], n = numGrid[1]*numGrid[2];
+                                        //                                Real  *psi  = basis.VecData(g);
+                                        //                                Real  *Dpsi = DbasisX.VecData(g);
+                                        //                                blas::Gemm( 'N', 'N', m, n, m, 1.0, DMat_[0].Data(),
+                                        //                                        m, psi, m, 0.0, Dpsi, m );
                                     }
 #ifdef _USE_OPENMP_
                                     t2 = omp_get_wtime();
@@ -310,7 +310,7 @@ void
 #pragma omp for schedule (dynamic,1) nowait
 #endif
                                     for( Int g = 0; g < numBasis; g++ ){
-                                        //								DiffPsi( numGrid, basis.VecData(g), DbasisY.VecData(g), 1 );
+                                        //                                DiffPsi( numGrid, basis.VecData(g), DbasisY.VecData(g), 1 );
                                         Int   m = numGrid[1], n = numGrid[0]*numGrid[2];
                                         Int   ptrShift;
                                         Int   inc = numGrid[0];
@@ -332,7 +332,7 @@ void
 #pragma omp for schedule (dynamic,1) nowait
 #endif
                                     for( Int g = 0; g < numBasis; g++ ){
-                                        //								DiffPsi( numGrid, basis.VecData(g), DbasisZ.VecData(g), 2 );
+                                        //                                DiffPsi( numGrid, basis.VecData(g), DbasisZ.VecData(g), 2 );
                                         Int m = numGrid[0]*numGrid[1], n = numGrid[2];
                                         Real  *psi  = basis.VecData(g);
                                         Real  *Dpsi = DbasisZ.VecData(g);
@@ -651,12 +651,12 @@ void
                                                     // pseudopotential w.r.t. the basis
                                                     // NOTE: Not really used since this gives
                                                     // EXACTLY the same result as the other formulation.
-                                                    //												coefDrvX(a,g) -= basis( idx(l), a ) * val(l, DX) *
-                                                    //													ptrWeight[idx(l)];
-                                                    //												coefDrvY(a,g) -= basis( idx(l), a ) * val(l, DY) *
-                                                    //													ptrWeight[idx(l)];
-                                                    //												coefDrvZ(a,g) -= basis( idx(l), a ) * val(l, DZ) *
-                                                    //													ptrWeight[idx(l)];
+                                                    //                                                coefDrvX(a,g) -= basis( idx(l), a ) * val(l, DX) *
+                                                    //                                                    ptrWeight[idx(l)];
+                                                    //                                                coefDrvY(a,g) -= basis( idx(l), a ) * val(l, DY) *
+                                                    //                                                    ptrWeight[idx(l)];
+                                                    //                                                coefDrvZ(a,g) -= basis( idx(l), a ) * val(l, DZ) *
+                                                    //                                                    ptrWeight[idx(l)];
                                                     coefDrvX(a,g) += DbasisX( idx(l), a ) * val(l, VAL) *
                                                         ptrWeight[idx(l)];
                                                     coefDrvY(a,g) += DbasisY( idx(l), a ) * val(l, VAL) *
@@ -878,7 +878,7 @@ void
                                         for( Int a = 0; a < numBasis; a++ )
                                             for( Int b = a; b < numBasis; b++ ){
                                                 ptrLocalMat[a+numBasis*b] += 
-                                                    //										localMat(a,b) += 
+                                                    //                                        localMat(a,b) += 
                                                     + 0.5 * ThreeDotProduct( 
                                                             DbasisX.VecData(a), DbasisX.VecData(b), 
                                                             LGLWeight3D.Data(), numGridTotal )
@@ -1003,7 +1003,7 @@ void
                                         for( Int a = 0; a < numBasis; a++ )
                                             for( Int b = a; b < numBasis; b++ ){
                                                 ptrLocalMat[a+numBasis*b] += 
-                                                    //										localMat(a,b) += 
+                                                    //                                        localMat(a,b) += 
                                                     FourDotProduct( 
                                                             basis.VecData(a), basis.VecData(b), 
                                                             vtot.Data(), LGLWeight3D.Data(), numGridTotal );
@@ -1141,7 +1141,7 @@ void
                                                             numGridFace );
 
                                                 ptrLocalMat[a+numBasis*b] += 
-                                                    //										localMat(a,b) += 
+                                                    //                                        localMat(a,b) += 
                                                     intByPartTerm + penaltyTerm;
                                             } // for (b)
                                     } // if(0)
@@ -1337,7 +1337,7 @@ void
                                                             numGridFace );
 
                                                 ptrLocalMat[a+numBasis*b] += 
-                                                    //										localMat(a,b) += 
+                                                    //                                        localMat(a,b) += 
                                                     intByPartTerm + penaltyTerm;
                                             } // for (b)
 
@@ -1538,7 +1538,7 @@ void
                                                             numGridFace );
 
                                                 ptrLocalMat[a+numBasis*b] += 
-                                                    //										localMat(a,b) += 
+                                                    //                                        localMat(a,b) += 
                                                     intByPartTerm + penaltyTerm;
                                             } // for (b)
 
@@ -1748,7 +1748,7 @@ void
             // Loop over atoms
             for( Int atomIdx = 0; atomIdx < numAtom; atomIdx++ ){
                 if( atomPrtn_.Owner(atomIdx) == (mpirank / dmRow_) ){
-                    DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];	
+                    DblNumVec&  vnlWeight = vnlWeightMap_[atomIdx];    
                     // Loop over element 1
                     for( std::map<Index3, std::map<Int, DblNumMat> >::iterator 
                             ei  = vnlCoef_.LocalMap().begin();
@@ -2585,11 +2585,11 @@ void
 
 
         return ;
-    } 		// -----  end of method HamiltonianDG::CalculateDGMatrix  ----- 
+    }         // -----  end of method HamiltonianDG::CalculateDGMatrix  ----- 
 
 
 void
-    HamiltonianDG::UpdateDGMatrix	(
+    HamiltonianDG::UpdateDGMatrix    (
             DistDblNumVec&   vtotLGLDiff )
     {
         Int mpirank, mpisize;
@@ -2787,7 +2787,7 @@ void
 
 
         return ;
-    } 		// -----  end of method HamiltonianDG::UpdateDGMatrix  ----- 
+    }         // -----  end of method HamiltonianDG::UpdateDGMatrix  ----- 
 
 
 } // namespace dgdft

@@ -77,7 +77,7 @@ void
 
 
         return ;
-    } 		// -----  end of method Descriptor::Init  ----- 
+    }         // -----  end of method Descriptor::Init  ----- 
 
 
 void
@@ -100,10 +100,10 @@ void
 
 
         return ;
-    } 		// -----  end of method Descriptor::Init  ----- 
+    }         // -----  end of method Descriptor::Init  ----- 
 
 
-Descriptor& Descriptor::operator =	( const Descriptor& desc  )
+Descriptor& Descriptor::operator =    ( const Descriptor& desc  )
 {
     if( this == &desc ) return *this;
     values_ = desc.values_;
@@ -118,7 +118,7 @@ Descriptor& Descriptor::operator =	( const Descriptor& desc  )
     }
 
     return *this;
-} 		// -----  end of method Descriptor::operator=  ----- 
+}         // -----  end of method Descriptor::operator=  ----- 
 
 // *********************************************************************
 // ScaLAPACK routines
@@ -126,7 +126,7 @@ Descriptor& Descriptor::operator =	( const Descriptor& desc  )
 
 
 template<class F>
-inline F ScaLAPACKMatrix<F>::GetLocal	( Int iLocal, Int jLocal ) const
+inline F ScaLAPACKMatrix<F>::GetLocal    ( Int iLocal, Int jLocal ) const
 {
     if( iLocal < 0 || iLocal > this->LocalHeight() ||
             jLocal < 0 || jLocal > this->LocalWidth() ){
@@ -136,11 +136,11 @@ inline F ScaLAPACKMatrix<F>::GetLocal	( Int iLocal, Int jLocal ) const
     }
 
     return localMatrix_[iLocal + jLocal * (this->LocalHeight())];
-} 		// -----  end of method ScaLAPACKMatrix::GetLocal  ----- 
+}         // -----  end of method ScaLAPACKMatrix::GetLocal  ----- 
 
 
 template<class F>
-inline void ScaLAPACKMatrix<F>::SetLocal	( Int iLocal, Int jLocal, F val )
+inline void ScaLAPACKMatrix<F>::SetLocal    ( Int iLocal, Int jLocal, F val )
 {
     if( iLocal < 0 || iLocal > this->LocalHeight() ||
             jLocal < 0 || jLocal > this->LocalWidth() ){
@@ -151,18 +151,18 @@ inline void ScaLAPACKMatrix<F>::SetLocal	( Int iLocal, Int jLocal, F val )
     localMatrix_[iLocal+jLocal*this->LocalHeight()] = val;
 
     return ;
-} 		// -----  end of method ScaLAPACKMatrix::SetLocal  ----- 
+}         // -----  end of method ScaLAPACKMatrix::SetLocal  ----- 
 
 
 template<class F>
 inline ScaLAPACKMatrix<F>& 
-ScaLAPACKMatrix<F>::operator=	( const ScaLAPACKMatrix<F>& A )
+ScaLAPACKMatrix<F>::operator=    ( const ScaLAPACKMatrix<F>& A )
 {
     if( this == &A ) return *this;
     desc_ = A.desc_;
     localMatrix_ = A.localMatrix_;
     return *this;
-} 		// -----  end of method ScaLAPACKMatrix::operator=  ----- 
+}         // -----  end of method ScaLAPACKMatrix::operator=  ----- 
 
 
 // huwei
@@ -197,7 +197,7 @@ ScaLAPACKMatrix<F>::operator=	( const ScaLAPACKMatrix<F>& A )
 //      B.Data(), &I_ONE, &I_ONE, B.Desc().Values(), 
 //      &beta,
 //      C.Data(), &I_ONE, &I_ONE, C.Desc().Values(), 
-//      &contxt );	
+//      &contxt );    
 //  return;
 //}   // -----  end of function Gemm  ----- 
 
@@ -268,7 +268,7 @@ Gemr2d(const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B){
     SCALAPACK(pdgemr2d)(&M, &N, A.Data(), &I_ONE, &I_ONE,
             A.Desc().Values(), 
             B.Data(), &I_ONE, &I_ONE, 
-            B.Desc().Values(), &contxt );	
+            B.Desc().Values(), &contxt );    
     return;
 }   // -----  end of function Gemr2d  ----- 
 
@@ -287,7 +287,7 @@ Trsm( char side, char uplo, char trans, char diag, double alpha,
 
 
     return ;
-}		// -----  end of function Trsm  ----- 
+}        // -----  end of function Trsm  ----- 
 
 
 void
@@ -629,7 +629,7 @@ Potrf( char uplo, ScaLAPACKMatrix<double>& A )
 
 
     return ;
-} 	// -----  end of function Potrf  ----- 
+}     // -----  end of function Potrf  ----- 
 
 
 void 
@@ -658,7 +658,7 @@ Sygst( Int ibtype, char uplo, ScaLAPACKMatrix<double>& A,
 
 
     return ;
-}		// -----  end of function Sygst  ----- 
+}        // -----  end of function Sygst  ----- 
 
 
 

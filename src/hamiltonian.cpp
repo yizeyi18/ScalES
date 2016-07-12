@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -83,7 +83,7 @@ KohnSham::~KohnSham() {
 
 
 void
-KohnSham::Setup	(
+KohnSham::Setup    (
         const esdf::ESDFInputParam& esdfParam,
         const Domain&               dm,
         const std::vector<Atom>&    atomList )
@@ -199,11 +199,11 @@ KohnSham::Setup	(
 
 
     return ;
-} 		// -----  end of method KohnSham::Setup  ----- 
+}         // -----  end of method KohnSham::Setup  ----- 
 
 
 void
-KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
+KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
     Int ntotFine = domain_.NumGridTotalFine();
     Int numAtom = atomList_.size();
     Real vol = domain_.Volume();
@@ -226,9 +226,9 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
     // FIXME Deal with the case when this is a buffer calculation and the
     // number of electrons is not a even number.
     //
-    //	if( nelec % 2 != 0 ){
-    //		ErrorHandling( "This is spin-restricted calculation. nelec should be even." );
-    //	}
+    //    if( nelec % 2 != 0 ){
+    //        ErrorHandling( "This is spin-restricted calculation. nelec should be even." );
+    //    }
     numOccupiedState_ = nelec / numSpin_;
 
     // Compute pseudocharge
@@ -331,7 +331,7 @@ KohnSham::CalculatePseudoPotential	( PeriodTable &ptable ){
 
 
     return ;
-} 		// -----  end of method KohnSham::CalculatePseudoPotential ----- 
+}         // -----  end of method KohnSham::CalculatePseudoPotential ----- 
 
 
 
@@ -409,7 +409,7 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 
 
     return ;
-} 		// -----  end of method KohnSham::CalculateDensity  ----- 
+}         // -----  end of method KohnSham::CalculateDensity  ----- 
 
 
 void
@@ -451,11 +451,11 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
 
 
     return ;
-} 		// -----  end of method KohnSham::CalculateGradDensity  ----- 
+}         // -----  end of method KohnSham::CalculateGradDensity  ----- 
 
 
 void
-KohnSham::CalculateXC	( Real &val, Fourier& fft )
+KohnSham::CalculateXC    ( Real &val, Fourier& fft )
 {
     Int ntot = domain_.NumGridTotalFine();
     Real vol = domain_.Volume();
@@ -615,7 +615,7 @@ KohnSham::CalculateXC	( Real &val, Fourier& fft )
 
 
     return ;
-} 		// -----  end of method KohnSham::CalculateXC  ----- 
+}         // -----  end of method KohnSham::CalculateXC  ----- 
 
 
 void KohnSham::CalculateHartree( Fourier& fft ) {
@@ -658,7 +658,7 @@ void KohnSham::CalculateHartree( Fourier& fft ) {
 
 
 void
-KohnSham::CalculateVtot	( DblNumVec& vtot )
+KohnSham::CalculateVtot    ( DblNumVec& vtot )
 {
     Int ntot = domain_.NumGridTotalFine();
     for (int i=0; i<ntot; i++) {
@@ -667,11 +667,11 @@ KohnSham::CalculateVtot	( DblNumVec& vtot )
 
 
     return ;
-} 		// -----  end of method KohnSham::CalculateVtot  ----- 
+}         // -----  end of method KohnSham::CalculateVtot  ----- 
 
 
 void
-KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
+KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
 {
 
     //  Int ntot      = fft.numGridTotal;
@@ -1127,11 +1127,11 @@ KohnSham::CalculateForce	( Spinor& psi, Fourier& fft  )
 
 
     return ;
-} 		// -----  end of method KohnSham::CalculateForce  ----- 
+}         // -----  end of method KohnSham::CalculateForce  ----- 
 
 
 void
-KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
+KohnSham::CalculateForce2    ( Spinor& psi, Fourier& fft  )
 {
 
     Real timeSta, timeEnd;
@@ -1411,10 +1411,10 @@ KohnSham::CalculateForce2	( Spinor& psi, Fourier& fft  )
 
 
     return ;
-} 		// -----  end of method KohnSham::CalculateForce2  ----- 
+}         // -----  end of method KohnSham::CalculateForce2  ----- 
 
 void
-KohnSham::MultSpinor	( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
+KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 {
 
     MPI_Barrier(domain_.comm);
@@ -1607,25 +1607,25 @@ KohnSham::MultSpinor	( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 
 
     return ;
-} 		// -----  end of method KohnSham::MultSpinor  ----- 
+}         // -----  end of method KohnSham::MultSpinor  ----- 
 
 
 
 
 //void
-//KohnSham::MultSpinor	( Int iocc, Spinor& psi, NumMat<Real>& y, Fourier& fft )
+//KohnSham::MultSpinor    ( Int iocc, Spinor& psi, NumMat<Real>& y, Fourier& fft )
 //{
 //  // Make sure that the address corresponding to the pointer y has been
 //  // allocated.
 //  SetValue( y, 0.0 );
 //
-//	psi.AddRealDiag( iocc, vtotCoarse_, y );
-//	psi.AddLaplacian( iocc, &fft, y );
+//    psi.AddRealDiag( iocc, vtotCoarse_, y );
+//    psi.AddLaplacian( iocc, &fft, y );
 //  psi.AddNonlocalPP( iocc, pseudo_, y );
 //
 //
-//	return ;
-//} 		// -----  end of method KohnSham::MultSpinor  ----- 
+//    return ;
+//}         // -----  end of method KohnSham::MultSpinor  ----- 
 
 
 void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
@@ -1731,10 +1731,10 @@ void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
 
 
     return ;
-}		// -----  end of function KohnSham::InitializeEXX  ----- 
+}        // -----  end of function KohnSham::InitializeEXX  ----- 
 
 void
-KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
+KohnSham::SetPhiEXX    (const Spinor& psi, Fourier& fft)
 {
     // FIXME collect Psi into a globally shared array in the MPI context.
     const NumTns<Real>& wavefun = psi.Wavefun();
@@ -1767,7 +1767,7 @@ KohnSham::SetPhiEXX	(const Spinor& psi, Fourier& fft)
 
 
     return ;
-} 		// -----  end of method KohnSham::SetPhiEXX  ----- 
+}         // -----  end of method KohnSham::SetPhiEXX  ----- 
 
 
 void
@@ -1945,7 +1945,7 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 
 
     return ;
-} 		// -----  end of method KohnSham::CalculateVexxACE  ----- 
+}         // -----  end of method KohnSham::CalculateVexxACE  ----- 
 
 
 void
@@ -1989,12 +1989,12 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft )
     }
 
     return ;
-} 		// -----  end of method KohnSham::CalculateVexxACEDF  ----- 
+}         // -----  end of method KohnSham::CalculateVexxACEDF  ----- 
 
 
 // This comes from exxenergy2() function in exx.f90 in QE.
 Real
-KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
+KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
 {
 
     MPI_Barrier(domain_.comm);
@@ -2161,7 +2161,7 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
 
 
     return fockEnergy;
-} 		// -----  end of method KohnSham::CalculateEXXEnergy  ----- 
+}         // -----  end of method KohnSham::CalculateEXXEnergy  ----- 
 
 
 
@@ -2170,7 +2170,7 @@ KohnSham::CalculateEXXEnergy	( Spinor& psi, Fourier& fft )
 //{
 //
 //
-//	return ;
-//}		// -----  end of function KohnSham::UpdateHybrid  ----- 
+//    return ;
+//}        // -----  end of function KohnSham::UpdateHybrid  ----- 
 //
 } // namespace dgdft

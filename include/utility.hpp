@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Authors: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -636,7 +636,7 @@ template <class F> inline std::ostream& operator<<( std::ostream& os, const std:
 {
     os<<vec.size()<<std::endl;
     os.setf(std::ios_base::scientific, std::ios_base::floatfield);
-    for(Int i=0; i<vec.size(); i++)	 
+    for(Int i=0; i<vec.size(); i++)     
         os<<" "<<vec[i];
     os<<std::endl;
     return os;
@@ -647,7 +647,7 @@ template <class F> inline std::ostream& operator<<( std::ostream& os, const NumV
 {
     os<<vec.m()<<std::endl;
     os.setf(std::ios_base::scientific, std::ios_base::floatfield);
-    for(Int i=0; i<vec.m(); i++)	 
+    for(Int i=0; i<vec.m(); i++)     
         os<<" "<<vec(i);
     os<<std::endl;
     return os;
@@ -655,10 +655,10 @@ template <class F> inline std::ostream& operator<<( std::ostream& os, const NumV
 
 //template <class F> inline std::istream& operator>>( std::istream& is, NumVec<F>& vec)
 //{
-//	Int m;  is>>m;  vec.resize(m);
-//	for(Int i=0; i<vec.m(); i++)	 
-//		is >> vec(i);
-//	return is;
+//    Int m;  is>>m;  vec.resize(m);
+//    for(Int i=0; i<vec.m(); i++)     
+//        is >> vec(i);
+//    return is;
 //}
 
 // NumMat
@@ -949,8 +949,8 @@ Int deserialize(std::map<T,S>& val, std::istream& is, const std::vector<Int>& ma
     Int sz;
     is.read((char*)&sz, sizeof(Int));
     for(Int k=0; k<sz; k++) {
-        T t;	deserialize(t, is, mask);
-        S s;	deserialize(s, is, mask);
+        T t;    deserialize(t, is, mask);
+        S s;    deserialize(s, is, mask);
         val[t] = s;
     }
     return 0;
@@ -1676,7 +1676,7 @@ void WriteDistSparseMatrixFormatted( const char* filename, const DistSparseMatri
 
 template <class F1, class F2> 
 void
-CopyPattern	( const SparseMatrix<F1>& A, SparseMatrix<F2>& B )
+CopyPattern    ( const SparseMatrix<F1>& A, SparseMatrix<F2>& B )
 {
     B.size        = A.size;
     B.nnz         = A.nnz;
@@ -1684,14 +1684,14 @@ CopyPattern	( const SparseMatrix<F1>& A, SparseMatrix<F2>& B )
     B.rowind      = A.rowind;
     B.nzval.Resize( A.nnz );
     return ;
-}		// -----  end of template function CopyPattern  ----- 
+}        // -----  end of template function CopyPattern  ----- 
 
 
 // Functions for DistSparseMatrix
 
 template <class F1, class F2> 
 void
-CopyPattern	( const DistSparseMatrix<F1>& A, DistSparseMatrix<F2>& B )
+CopyPattern    ( const DistSparseMatrix<F1>& A, DistSparseMatrix<F2>& B )
 {
     B.size        = A.size;
     B.nnz         = A.nnz;
@@ -1702,7 +1702,7 @@ CopyPattern	( const DistSparseMatrix<F1>& A, DistSparseMatrix<F2>& B )
     B.nzvalLocal.Resize( A.nnzLocal );
     B.comm        = A.comm;
     return ;
-}		// -----  end of template function CopyPattern  ----- 
+}        // -----  end of template function CopyPattern  ----- 
 
 
 void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );

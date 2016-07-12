@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -227,7 +227,7 @@ int main(int argc, char **argv)
         Print( statusOFS, "Block size              = ", blockSize );
         if( numEig == 0 )
             Print( statusOFS, "Number of eigs          = ALL" );
-        else	
+        else    
             Print( statusOFS, "Number of eigs          = ", numEig );
 
         if( routine == 0 )

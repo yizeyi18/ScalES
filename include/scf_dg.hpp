@@ -357,9 +357,9 @@ private:
 
     //     // Older version of the above routine : uses a more naive implementation and has a larger communication load (=slower)
     //     void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK_old(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
-    // 							     std::vector<int> &my_cheby_scala_info,
-    // 							     dgdft::scalapack::Descriptor &my_scala_descriptor,
-    // 							     dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec);
+    //                                  std::vector<int> &my_cheby_scala_info,
+    //                                  dgdft::scalapack::Descriptor &my_scala_descriptor,
+    //                                  dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec);
 
 
 
@@ -406,7 +406,7 @@ public:
             Int filter_order );
 
     void scfdg_GeneralChebyStep(Int eigMaxIter, 
-            Int filter_order );	
+            Int filter_order );    
 
     void set_Cheby_iondynamics_schedule_flag(int flag){Cheby_iondynamics_schedule_flag_ = flag;}
 
@@ -499,15 +499,16 @@ public:
     void  KerkerPrecond(
             DistDblNumVec&  distPrecResidual,
             const DistDblNumVec&  distResidual );
-
-
+    
+    /// @brief Update the parameters for SCF during the MD simulation
+    void UpdateMDParameters( const esdf::ESDFInputParam& esdfParam );
 
     // *********************************************************************
     // Inquiry
     // *********************************************************************
-    Real Efree() const {return Efree_;};	
+    Real Efree() const {return Efree_;};    
 
-    Real Fermi() const {return fermi_;};	
+    Real Fermi() const {return fermi_;};    
 
     DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& DMMat() {return distDMMat_;};
 

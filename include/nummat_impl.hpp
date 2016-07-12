@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Authors: Lexing Ying and Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -187,7 +187,7 @@ Transpose ( const NumMat<F>& A, NumMat<F>& B )
 
 
     return ;
-}		// -----  end of function Transpose  ----- 
+}        // -----  end of function Transpose  ----- 
 
 template <class F> inline void
 Symmetrize( NumMat<F>& A )
@@ -211,7 +211,7 @@ Symmetrize( NumMat<F>& A )
 
 
     return ;
-}		// -----  end of function Symmetrize ----- 
+}        // -----  end of function Symmetrize ----- 
 
 } // namespace dgdft
 

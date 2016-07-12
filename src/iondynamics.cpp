@@ -51,7 +51,7 @@
 namespace dgdft{
 
 void
-    IonDynamics::Setup	( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& atomList,
+    IonDynamics::Setup    ( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& atomList,
             PeriodTable& ptable )
     {
         Int mpirank, mpisize;
@@ -270,11 +270,11 @@ void
 
 
         return ;
-    } 		// -----  end of method IonDynamics::Setup  ----- 
+    }         // -----  end of method IonDynamics::Setup  ----- 
 
 
 void
-    IonDynamics::MoveIons	( Int ionIter )
+    IonDynamics::MoveIons    ( Int ionIter )
     {
         Int mpirank, mpisize;
         MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
@@ -297,7 +297,7 @@ void
         }
 
         if( ionMove_ == "nlcg"){
-            NLCG_Opt( ionIter );	  
+            NLCG_Opt( ionIter );      
         }
 
         // *********************************************************************
@@ -367,11 +367,11 @@ void
 
 
         return ;
-    } 		// -----  end of method IonDynamics::MoveIons  ----- 
+    }         // -----  end of method IonDynamics::MoveIons  ----- 
 
 
 void
-    IonDynamics::BarzilaiBorweinOpt	( Int ionIter )
+    IonDynamics::BarzilaiBorweinOpt    ( Int ionIter )
     {
         Int mpirank, mpisize;
         MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
@@ -457,7 +457,7 @@ void
 
 
         return ;
-    } 		// -----  end of method IonDynamics::BarzilaiBorweinOpt  ----- 
+    }         // -----  end of method IonDynamics::BarzilaiBorweinOpt  ----- 
 
 
 // Non-Linear Conjugate Gradients with Secant and Polak-Ribiere
@@ -493,7 +493,7 @@ void
                 {
                     for( Int d = 0; d < DIM; d++ )
                     {
-                        atomList[a].pos[d] = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.sigma_0_ * NLCG_vars.atomforce_d_[a][d]);	  
+                        atomList[a].pos[d] = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.sigma_0_ * NLCG_vars.atomforce_d_[a][d]);      
                     }
                 }
 
@@ -512,7 +512,7 @@ void
             }
 
 
-        } // end of call_type 1	
+        } // end of call_type 1    
         else if(NLCG_vars.call_type == NLCG_CALL_TYPE_2)
         {
 
@@ -534,7 +534,7 @@ void
             // Go back to do new evaluations of energy and forces after changing call type.
             statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
 
-        } // end of call_type 2	
+        } // end of call_type 2    
         else if(NLCG_vars.call_type == NLCG_CALL_TYPE_3)
         {
 
@@ -554,7 +554,7 @@ void
             {
                 for( Int d = 0; d < DIM; d++ )
                 {
-                    NLCG_vars.atompos_x_[a][d]  = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.alpha_ * NLCG_vars.atomforce_d_[a][d]);	  
+                    NLCG_vars.atompos_x_[a][d]  = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.alpha_ * NLCG_vars.atomforce_d_[a][d]);      
                 }
             }
 
@@ -587,7 +587,7 @@ void
             statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
 
 
-        } // end of call_type 3	
+        } // end of call_type 3    
         else
         {
 
@@ -631,7 +631,7 @@ void
                 {
                     for( Int d = 0; d < DIM; d++ )
                     {
-                        NLCG_vars.atomforce_s_[a][d]  = (NLCG_vars.atomforce_s_[a][d] + NLCG_vars.beta_ * NLCG_vars.atomforce_d_[a][d]);	  
+                        NLCG_vars.atomforce_s_[a][d]  = (NLCG_vars.atomforce_s_[a][d] + NLCG_vars.beta_ * NLCG_vars.atomforce_d_[a][d]);      
                     }
                 }
 
@@ -645,7 +645,7 @@ void
             // Change the call type to run the outer loop again.
             statusOFS << std::endl << " Calling back : Call type = " << NLCG_vars.call_type << std::endl;
 
-        } // end of call_type 4	
+        } // end of call_type 4    
 
 
 
@@ -653,7 +653,7 @@ void
     }   // -----  end of method IonDynamics::NLCG_Opt  -----  
 
 void
-    IonDynamics::VelocityVerlet	( Int ionIter )
+    IonDynamics::VelocityVerlet    ( Int ionIter )
     {
         Int mpirank, mpisize;
         MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
@@ -778,10 +778,10 @@ void
 
 
         return ;
-    } 		// -----  end of method IonDynamics::VelocityVerlet  ----- 
+    }         // -----  end of method IonDynamics::VelocityVerlet  ----- 
 
 void
-    IonDynamics::NoseHoover1	( Int ionIter )
+    IonDynamics::NoseHoover1    ( Int ionIter )
     {
         Int mpirank, mpisize;
         MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
@@ -950,7 +950,7 @@ void
 
 
         return ;
-    } 		// -----  end of method IonDynamics::NoseHoover1  ----- 
+    }         // -----  end of method IonDynamics::NoseHoover1  ----- 
 
 void
     IonDynamics::Langevin ( Int ionIter )
@@ -1092,7 +1092,7 @@ void
 
 
 void
-    IonDynamics::ExtrapolateCoefficient	( Int ionIter, DblNumVec& coef ) {
+    IonDynamics::ExtrapolateCoefficient    ( Int ionIter, DblNumVec& coef ) {
         std::vector<Atom>&   atomList = *atomListPtr_;
         Int numAtom = atomList.size();
 
@@ -1211,7 +1211,7 @@ void
         }
 
         return ;
-    } 		// -----  end of method IonDynamics::ExtrapolateCoefficient  ----- 
+    }         // -----  end of method IonDynamics::ExtrapolateCoefficient  ----- 
 
 } // namespace dgdft
 

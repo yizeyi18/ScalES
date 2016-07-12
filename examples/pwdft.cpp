@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin and Wei Hu
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -182,7 +182,7 @@ int main(int argc, char **argv)
                     <<" Input Error ! Currently CheFSI within PWDFT requires total number of bands to be divisble by mpisize. " << std::endl << " Total No. of states = " << numStateTotal << " , mpisize = " << mpisize << " ." << std::endl <<  " Use a different value of extrastates." << endl << " Aborting ..." << std::endl << std::endl;
                 MPI_Barrier(MPI_COMM_WORLD);
                 exit(-1);  
-            }	
+            }    
         }
 
 

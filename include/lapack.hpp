@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Authors: Jack Poulson and Lin Lin 
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -214,10 +214,10 @@ void SVDLeastSquare( Int m, Int n, Int nrhs, dcomplex * A, Int lda,
 // *********************************************************************
 
 void Lacpy( char uplo, Int m, Int n, const double* A, Int lda,
-        double* B, Int ldb	);
+        double* B, Int ldb    );
 
 void Lacpy( char uplo, Int m, Int n, const dcomplex* A, Int lda,
-        dcomplex* B, Int ldb	);
+        dcomplex* B, Int ldb    );
 
 // *********************************************************************
 // Inverting a factorized matrix: Getri

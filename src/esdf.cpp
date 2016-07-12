@@ -2066,12 +2066,12 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
         // other quantities in the local LGL domain.
         //
         // So dm.numGrid is not specified here.
-        //		if( esdf_block("Grid_Size", &nlines) ){
-        //			sscanf(block_data[0],"%d %d %d",
-        //					&dm.numGrid[0],&dm.numGrid[1],&dm.numGrid[2]);
-        //		}
-        //		else{
-        //			ErrorHandling("Grid_Size cannot be found."); }
+        //        if( esdf_block("Grid_Size", &nlines) ){
+        //            sscanf(block_data[0],"%d %d %d",
+        //                    &dm.numGrid[0],&dm.numGrid[1],&dm.numGrid[2]);
+        //        }
+        //        else{
+        //            ErrorHandling("Grid_Size cannot be found."); }
 
         dm.posStart = Point3( 0.0, 0.0, 0.0 );
     }
@@ -2266,11 +2266,11 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
         // The LGL grid factor does not need to be an integer.
         esdfParam.LGLGridFactor = esdf_double( "LGL_Grid_Factor", 2.0 );
 
-        //		Index3& numGridLGL = esdfParam.numGridLGL;
-        //		if (esdf_block("Element_Grid_Size", &nlines)) {
-        //			sscanf(block_data[0],"%d %d %d", 
-        //					&numGridLGL[0],&numGridLGL[1],&numGridLGL[2] );
-        //		}
+        //        Index3& numGridLGL = esdfParam.numGridLGL;
+        //        if (esdf_block("Element_Grid_Size", &nlines)) {
+        //            sscanf(block_data[0],"%d %d %d", 
+        //                    &numGridLGL[0],&numGridLGL[1],&numGridLGL[2] );
+        //        }
 
 
         esdfParam.GaussInterpFactor = esdf_double( "Gauss_Interp_Factor", 4.0 );
@@ -2280,7 +2280,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
         esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 20.0 );
 
         // Get the number of basis functions per element
-        // NOTE: ALB_Num_Element overwrites the parameter numALB later		
+        // NOTE: ALB_Num_Element overwrites the parameter numALB later        
         {
             esdfParam.numALBElem.Resize( numElem[0], numElem[1], numElem[2] );
 
@@ -2577,7 +2577,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 
 
     return ;
-}		// -----  end of function ESDFReadInput  ----- 
+}        // -----  end of function ESDFReadInput  ----- 
 
 void ESDFPrintInput( const ESDFInputParam& esdfParam ){
     int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank ); 
@@ -2750,7 +2750,7 @@ void ESDFPrintInput( const ESDFInputParam& esdfParam ){
 
 
     return ;
-}		// -----  end of function ESDFPrintInput  ----- 
+}        // -----  end of function ESDFPrintInput  ----- 
 
 
 } // namespace esdf

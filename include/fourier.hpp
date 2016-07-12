@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -137,7 +137,7 @@ struct DistFourier {
     Domain           domain;                      
     bool             isInitialized;
     Int              numGridTotal;
-    Int              numGridLocal;	
+    Int              numGridLocal;    
     ptrdiff_t        localNz;
     ptrdiff_t        localNzStart;
     // numAllocLocal is the size for the FFTW vectors.

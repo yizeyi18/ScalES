@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin, Wei Hu and Amartya Banerjee
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -162,11 +162,11 @@ public:
     void FirstChebyStep(
             Int      numEig,
             Int      eigMaxIter,
-            Int 	   filter_order );
+            Int        filter_order );
 
     void GeneralChebyStep(
             Int      numEig,
-            Int 	   filter_order );
+            Int        filter_order );
 
 
     /// @brief Parallel PPCG solver

@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -266,7 +266,7 @@ template<typename F>
             const scalapack::Descriptor&                         desc, 
             scalapack::ScaLAPACKMatrix<F>&                       scaMat,
             const NumTns<std::vector<Int> >&                     basisIdx,
-            MPI_Comm  	                                         comm ){
+            MPI_Comm                                               comm ){
         using namespace dgdft::scalapack;
 
         Int mpirank, mpisize;
@@ -421,7 +421,7 @@ template<typename F>
             for( std::vector<Index2>::iterator vi = eraseKey.begin();
                     vi != eraseKey.end(); vi++ ){
                 distScaMat.LocalMap().erase( *vi );
-            }	
+            }    
         }
 
         // Copy the matrix values from distScaMat to scaMat
@@ -484,22 +484,22 @@ template<typename F>
 ///// @param[in] mpisizeSca Size of the communicator commSca.
 //template<typename F>
 //void DistElemMatToScaMat2(
-//		const DistVec<ElemMatKey, NumMat<F>, ElemMatPrtn>&   distMat,
-//		const scalapack::Descriptor&                         desc, 
-//		scalapack::ScaLAPACKMatrix<F>&                       scaMat,
-//		const NumTns<std::vector<Int> >&                     basisIdx,
-//	  MPI_Comm  	                                         comm,
+//        const DistVec<ElemMatKey, NumMat<F>, ElemMatPrtn>&   distMat,
+//        const scalapack::Descriptor&                         desc, 
+//        scalapack::ScaLAPACKMatrix<F>&                       scaMat,
+//        const NumTns<std::vector<Int> >&                     basisIdx,
+//      MPI_Comm                                               comm,
 //    MPI_Comm                                             rowComm,
 //    MPI_Comm                                             colComm,
 //    MPI_Comm                                             commSca,
 //    const Int                                            mpisizeSca ){
-//	using namespace dgdft::scalapack;
+//    using namespace dgdft::scalapack;
 //
 //
 //
-//	Int mpirankElem, mpisizeElem;
-//	MPI_Comm_rank( comm, &mpirankElem );
-//	MPI_Comm_size( comm, &mpisizeElem );
+//    Int mpirankElem, mpisizeElem;
+//    MPI_Comm_rank( comm, &mpirankElem );
+//    MPI_Comm_size( comm, &mpisizeElem );
 //
 //  Int nprowElem, npcolElem;
 //  MPI_Comm_size( rowComm, &nprowElem );
@@ -569,13 +569,13 @@ template<typename F>
 //    }
 //  } // if( mpirankElem < mpisizeSca )
 //
-//	// Intermediate variable for constructing the distributed matrix in
-//	// ScaLAPACK format.  
+//    // Intermediate variable for constructing the distributed matrix in
+//    // ScaLAPACK format.  
 //  //
 //  // All processors participate in this step, though processors with
 //  // mpirankElem >= mpisizeSca will not contain any data.
 //  DistVec<Index2, NumMat<F>, BlockMatPrtn> distScaMat;
-//	distScaMat.Prtn() = blockPrtn;
+//    distScaMat.Prtn() = blockPrtn;
 //  // Since all processors in the same processor row group have identical
 //  // information of the distElemMat, only communication in the same
 //  // column communicator is needed.
@@ -583,10 +583,10 @@ template<typename F>
 //
 //  // Make sure ALL processors know what MB and an empty matrix block is.
 //  MPI_Bcast( &MB, 1, MPI_INT, 0, comm );
-//	DblNumMat empty( MB, MB ); 
+//    DblNumMat empty( MB, MB ); 
 //  SetValue( empty, 0.0 );
 //
-//	// Initialize the distScaMat
+//    // Initialize the distScaMat
 //  if( mpirankElem < mpisizeSca ){
 //    for( Int jb = 0; jb < scaMat.NumColBlocks(); jb++ )
 //      for( Int ib = 0; ib < scaMat.NumRowBlocks(); ib++ ){
@@ -597,108 +597,108 @@ template<typename F>
 //      } // for (ib)
 //  }
 //
-//	// Convert matrix distributed according to elements to distScaMat
-//	for( typename std::map<ElemMatKey, NumMat<F> >::const_iterator 
-//			 mi  = distMat.LocalMap().begin();
-//			 mi != distMat.LocalMap().end(); mi++ ){
-//		ElemMatKey elemKey = (*mi).first;
+//    // Convert matrix distributed according to elements to distScaMat
+//    for( typename std::map<ElemMatKey, NumMat<F> >::const_iterator 
+//             mi  = distMat.LocalMap().begin();
+//             mi != distMat.LocalMap().end(); mi++ ){
+//        ElemMatKey elemKey = (*mi).first;
 //    // Processors in different column groups proceed simultaneously
-//		if( distMat.Prtn().Owner( elemKey ) == mpirank / nprowElem ){
-//			Index3 key1 = elemKey.first;
-//			Index3 key2 = elemKey.second;
-//			const std::vector<Int>& idx1 = basisIdx( key1(0), key1(1), key1(2) );
-//			const std::vector<Int>& idx2 = basisIdx( key2(0), key2(1), key2(2) );
-//			const NumMat<F>& localMat = (*mi).second;
-//			// Skip if there is no basis functions.
-//			if( localMat.Size() == 0 )
-//				continue;
+//        if( distMat.Prtn().Owner( elemKey ) == mpirank / nprowElem ){
+//            Index3 key1 = elemKey.first;
+//            Index3 key2 = elemKey.second;
+//            const std::vector<Int>& idx1 = basisIdx( key1(0), key1(1), key1(2) );
+//            const std::vector<Int>& idx2 = basisIdx( key2(0), key2(1), key2(2) );
+//            const NumMat<F>& localMat = (*mi).second;
+//            // Skip if there is no basis functions.
+//            if( localMat.Size() == 0 )
+//                continue;
 //
-//			if( localMat.m() != idx1.size() ||
-//					localMat.n() != idx2.size() ){
-//				std::ostringstream msg;
-//				msg 
-//					<< "Local matrix size is not consistent." << std::endl
-//					<< "localMat   size : " << localMat.m() << " x " << localMat.n() << std::endl
-//					<< "idx1       size : " << idx1.size() << std::endl
-//					<< "idx2       size : " << idx2.size() << std::endl;
-//				ErrorHandling( msg.str().c_str() );
-//			}
+//            if( localMat.m() != idx1.size() ||
+//                    localMat.n() != idx2.size() ){
+//                std::ostringstream msg;
+//                msg 
+//                    << "Local matrix size is not consistent." << std::endl
+//                    << "localMat   size : " << localMat.m() << " x " << localMat.n() << std::endl
+//                    << "idx1       size : " << idx1.size() << std::endl
+//                    << "idx2       size : " << idx2.size() << std::endl;
+//                ErrorHandling( msg.str().c_str() );
+//            }
 //
-//			// Reshape the matrix element by element
-//			Int ib, jb, io, jo;
-//			for( Int b = 0; b < localMat.n(); b++ ){
-//				for( Int a = 0; a < localMat.m(); a++ ){
-//					ib = idx1[a] / MB;
-//					jb = idx2[b] / MB;
-//					io = idx1[a] % MB;
-//					jo = idx2[b] % MB;
-//					typename std::map<Index2, NumMat<F> >::iterator 
-//						ni = distScaMat.LocalMap().find( Index2(ib, jb) );
-//					// Contributes to blocks not owned by the current processor
-//					if( ni == distScaMat.LocalMap().end() ){
-//						distScaMat.LocalMap()[Index2(ib, jb)] = empty;
-//						ni = distScaMat.LocalMap().find( Index2(ib, jb) );
-//					}
-//					DblNumMat&  scaMat = (*ni).second;
-//					scaMat(io, jo) += localMat(a, b);
-//				} // for (a)
-//			} // for (b)
+//            // Reshape the matrix element by element
+//            Int ib, jb, io, jo;
+//            for( Int b = 0; b < localMat.n(); b++ ){
+//                for( Int a = 0; a < localMat.m(); a++ ){
+//                    ib = idx1[a] / MB;
+//                    jb = idx2[b] / MB;
+//                    io = idx1[a] % MB;
+//                    jo = idx2[b] % MB;
+//                    typename std::map<Index2, NumMat<F> >::iterator 
+//                        ni = distScaMat.LocalMap().find( Index2(ib, jb) );
+//                    // Contributes to blocks not owned by the current processor
+//                    if( ni == distScaMat.LocalMap().end() ){
+//                        distScaMat.LocalMap()[Index2(ib, jb)] = empty;
+//                        ni = distScaMat.LocalMap().find( Index2(ib, jb) );
+//                    }
+//                    DblNumMat&  scaMat = (*ni).second;
+//                    scaMat(io, jo) += localMat(a, b);
+//                } // for (a)
+//            } // for (b)
 //
 //
-//		} // own this matrix block
-//	} // for (mi)
+//        } // own this matrix block
+//    } // for (mi)
 //
-//	// Communication of the matrix
-//	{
-//		// Prepare
-//		std::vector<Index2>  keyIdx;
-//		for( typename std::map<Index2, NumMat<F> >::iterator 
-//				 mi  = distScaMat.LocalMap().begin();
-//				 mi != distScaMat.LocalMap().end(); mi++ ){
-//			Index2 key = (*mi).first;
-//			if( distScaMat.Prtn().Owner( key ) != mpirank ){
-//				keyIdx.push_back( key );
-//			}
-//		} // for (mi)
+//    // Communication of the matrix
+//    {
+//        // Prepare
+//        std::vector<Index2>  keyIdx;
+//        for( typename std::map<Index2, NumMat<F> >::iterator 
+//                 mi  = distScaMat.LocalMap().begin();
+//                 mi != distScaMat.LocalMap().end(); mi++ ){
+//            Index2 key = (*mi).first;
+//            if( distScaMat.Prtn().Owner( key ) != mpirank ){
+//                keyIdx.push_back( key );
+//            }
+//        } // for (mi)
 //
-//		// Communication
-//		distScaMat.PutBegin( keyIdx, NO_MASK );
-//		distScaMat.PutEnd( NO_MASK, PutMode::COMBINE );
+//        // Communication
+//        distScaMat.PutBegin( keyIdx, NO_MASK );
+//        distScaMat.PutEnd( NO_MASK, PutMode::COMBINE );
 //
-//		// Clean to save space
-//		std::vector<Index2>  eraseKey;
-//		for( typename std::map<Index2, NumMat<F> >::iterator 
-//				 mi  = distScaMat.LocalMap().begin();
-//				 mi != distScaMat.LocalMap().end(); mi++ ){
-//			Index2 key = (*mi).first;
-//			if( distScaMat.Prtn().Owner( key ) != mpirank ){
-//				eraseKey.push_back( key );
-//			}
-//		} // for (mi)
+//        // Clean to save space
+//        std::vector<Index2>  eraseKey;
+//        for( typename std::map<Index2, NumMat<F> >::iterator 
+//                 mi  = distScaMat.LocalMap().begin();
+//                 mi != distScaMat.LocalMap().end(); mi++ ){
+//            Index2 key = (*mi).first;
+//            if( distScaMat.Prtn().Owner( key ) != mpirank ){
+//                eraseKey.push_back( key );
+//            }
+//        } // for (mi)
 //
-//		for( std::vector<Index2>::iterator vi = eraseKey.begin();
-//				 vi != eraseKey.end(); vi++ ){
-//			distScaMat.LocalMap().erase( *vi );
-//		}	
-//	}
+//        for( std::vector<Index2>::iterator vi = eraseKey.begin();
+//                 vi != eraseKey.end(); vi++ ){
+//            distScaMat.LocalMap().erase( *vi );
+//        }    
+//    }
 //
-//	// Copy the matrix values from distScaMat to scaMat
-//	{
-//		for( typename std::map<Index2, NumMat<F> >::iterator 
-//				 mi  = distScaMat.LocalMap().begin();
-//				 mi != distScaMat.LocalMap().end(); mi++ ){
-//			Index2 key = (*mi).first;
-//			if( distScaMat.Prtn().Owner( key ) == mpirank ){
-//				Int ib = key(0), jb = key(1);
-//				Int offset = ( jb / npcolSca ) * MB * scaMat.LocalLDim() + 
-//					( ib / nprowSca ) * MB;
-//				lapack::Lacpy( 'A', MB, MB, (*mi).second.Data(),
-//						MB, scaMat.Data() + offset, scaMat.LocalLDim() );
-//			} // own this block
-//		} // for (mi)
-//	}
+//    // Copy the matrix values from distScaMat to scaMat
+//    {
+//        for( typename std::map<Index2, NumMat<F> >::iterator 
+//                 mi  = distScaMat.LocalMap().begin();
+//                 mi != distScaMat.LocalMap().end(); mi++ ){
+//            Index2 key = (*mi).first;
+//            if( distScaMat.Prtn().Owner( key ) == mpirank ){
+//                Int ib = key(0), jb = key(1);
+//                Int offset = ( jb / npcolSca ) * MB * scaMat.LocalLDim() + 
+//                    ( ib / nprowSca ) * MB;
+//                lapack::Lacpy( 'A', MB, MB, (*mi).second.Data(),
+//                        MB, scaMat.Data() + offset, scaMat.LocalLDim() );
+//            } // own this block
+//        } // for (mi)
+//    }
 //
-//	return;
+//    return;
 //}  // -----  end of function DistElemMatToScaMat2  ----- 
 
 
@@ -754,8 +754,8 @@ template<typename F>
             const scalapack::Descriptor&                         desc, 
             scalapack::ScaLAPACKMatrix<F>&                       scaMat,
             const NumTns<std::vector<Int> >&                     basisIdx,
-            MPI_Comm  	                                         comm,
-            MPI_Comm  	                                         commElem,
+            MPI_Comm                                               comm,
+            MPI_Comm                                               commElem,
             const std::vector<Int>&                              mpirankElemVec,
             const std::vector<Int>&                              mpirankScaVec){
         using namespace dgdft::scalapack;
@@ -980,7 +980,7 @@ template<typename F>
             for( std::vector<Index2>::iterator vi = eraseKey.begin();
                     vi != eraseKey.end(); vi++ ){
                 distScaMat.LocalMap().erase( *vi );
-            }	
+            }    
         }
 
         // Copy the matrix values from distScaMat to scaMat. This is done for
@@ -1025,7 +1025,7 @@ template<typename F>
             const ElemPrtn&                                prtn,
             DistVec<Index3, NumMat<F>, ElemPrtn>&          distMat,
             const NumTns<std::vector<Int> >&               basisIdx,
-            MPI_Comm  	                                   comm,
+            MPI_Comm                                         comm,
             Int                                            numColKeep = -1 ){
         using namespace dgdft::scalapack;
 
@@ -1207,8 +1207,8 @@ template<typename F>
             const ElemPrtn&                                prtn,
             DistVec<Index3, NumMat<F>, ElemPrtn>&          distMat,
             const NumTns<std::vector<Int> >&               basisIdx,
-            MPI_Comm  	                                   comm,
-            MPI_Comm  	                                   commElem,
+            MPI_Comm                                         comm,
+            MPI_Comm                                         commElem,
             const std::vector<Int>&                        mpirankElemVec,
             const std::vector<Int>&                        mpirankScaVec,
             Int                                            numColKeep = -1 ){
@@ -1470,7 +1470,7 @@ template<typename F>
             const Int                                            sizeMat,
             DistSparseMatrix<F>&                                 distSparseMat,
             const NumTns<std::vector<Int> >&                     basisIdx,
-            MPI_Comm  	                                         comm ){
+            MPI_Comm                                               comm ){
         Int mpirank, mpisize;
         MPI_Comm_rank( comm, &mpirank );
         MPI_Comm_size( comm, &mpisize );
@@ -1566,8 +1566,8 @@ template<typename F>
 
             std::vector<Int>  keyIdx;
             keyIdx.insert( keyIdx.end(), ownerSet.begin(), ownerSet.end() );
-            //		std::cout << keyIdx << std::endl;
-            //		std::cout << vecOwner << std::endl;
+            //        std::cout << keyIdx << std::endl;
+            //        std::cout << vecOwner << std::endl;
 
             distRow.PutBegin( keyIdx, NO_MASK );
             distVal.PutBegin( keyIdx, NO_MASK );
@@ -1590,7 +1590,7 @@ template<typename F>
                     vi != eraseKey.end(); vi++ ){
                 distRow.LocalMap().erase( *vi );
                 distVal.LocalMap().erase( *vi );
-            }	
+            }    
         }
 
         // Copy the values from intermediate data structure to distSparseMat
@@ -1619,7 +1619,7 @@ template<typename F>
                 nnzLocal += rowVec.size();
                 Int cur = row - firstCol;
                 colptrLocal[cur+1] = colptrLocal[cur] + rowVec.size();
-            }	
+            }    
 
             mpi::Allreduce( &nnzLocal, &nnz, 1, MPI_SUM, comm );
 
@@ -1635,7 +1635,7 @@ template<typename F>
                 Int cur = row - firstCol;
                 std::copy( rowVec.begin(), rowVec.end(), &rowindLocal[colptrLocal[cur]-1] );
                 std::copy( valVec.begin(), valVec.end(), &nzvalLocal[colptrLocal[cur]-1] );
-            }	
+            }    
 
 
             // Other global and local information
@@ -1694,7 +1694,7 @@ template<typename F>
             const Int                                            sizeMat,
             DistSparseMatrix<F>&                                 distSparseMat,
             const NumTns<std::vector<Int> >&                     basisIdx,
-            MPI_Comm  	                                         comm,
+            MPI_Comm                                               comm,
             MPI_Comm                                             commElem,
             MPI_Comm                                             commSparse,
             const std::vector<Int>&                              mpirankElemVec,
@@ -1858,7 +1858,7 @@ template<typename F>
                     vi != eraseKey.end(); vi++ ){
                 distRow.LocalMap().erase( *vi );
                 distVal.LocalMap().erase( *vi );
-            }	
+            }    
         }
         GetTime(timeEnd);
 #if ( _DEBUGlevel_ >= 0 )
@@ -1903,7 +1903,7 @@ template<typename F>
                 nnzLocal += rowVec.size();
                 Int cur = row - firstCol;
                 colptrLocal[cur+1] = colptrLocal[cur] + rowVec.size();
-            }	
+            }    
 
             mpi::Allreduce( &nnzLocal, &nnz, 1, MPI_SUM, commSparse );
 
@@ -1919,7 +1919,7 @@ template<typename F>
                 Int cur = row - firstCol;
                 std::copy( rowVec.begin(), rowVec.end(), &rowindLocal[colptrLocal[cur]-1] );
                 std::copy( valVec.begin(), valVec.end(), &nzvalLocal[colptrLocal[cur]-1] );
-            }	
+            }    
 
 
             // Other global and local information
@@ -2111,7 +2111,7 @@ template<typename F>
                     vi != eraseKey.end(); vi++ ){
                 distRow.LocalMap().erase( *vi );
                 distVal.LocalMap().erase( *vi );
-            }	
+            }    
         }
         GetTime(timeEnd);
 #if ( _DEBUGlevel_ >= 0 )
@@ -2132,7 +2132,7 @@ template<typename F>
             Int firstCol = mpirankSparse * numColFirst;
             distSparseMat.firstCol    = firstCol + 1;
             // No communicator is set
-            //		distSparseMat.comm        = commSparse;
+            //        distSparseMat.comm        = commSparse;
 
             // Local information
             IntNumVec& colptrLocal = distSparseMat.colptrLocal;
@@ -2158,7 +2158,7 @@ template<typename F>
                 nnzLocal += rowVec.size();
                 Int cur = row - firstCol;
                 colptrLocal[cur+1] = colptrLocal[cur] + rowVec.size();
-            }	
+            }    
 
             rowindLocal.Resize( nnzLocal );
             nzvalLocal.Resize( nnzLocal );
@@ -2172,7 +2172,7 @@ template<typename F>
                 Int cur = row - firstCol;
                 std::copy( rowVec.begin(), rowVec.end(), &rowindLocal[colptrLocal[cur]-1] );
                 std::copy( valVec.begin(), valVec.end(), &nzvalLocal[colptrLocal[cur]-1] );
-            }	
+            }    
         } // if (isInSparse)
 
         // Global information
@@ -2217,7 +2217,7 @@ template<typename F>
             const Int                                            sizeMat,
             DistSparseMatrix<F>&                                 distSparseMat,
             const NumTns<std::vector<Int> >&                     basisIdx,
-            MPI_Comm  	                                         comm,
+            MPI_Comm                                               comm,
             Int                                                  mpisizeDistSparse ){
         Int mpirank, mpisize;
         MPI_Comm_rank( comm, &mpirank );
@@ -2315,8 +2315,8 @@ template<typename F>
 
             std::vector<Int>  keyIdx;
             keyIdx.insert( keyIdx.end(), ownerSet.begin(), ownerSet.end() );
-            //		std::cout << keyIdx << std::endl;
-            //		std::cout << vecOwner << std::endl;
+            //        std::cout << keyIdx << std::endl;
+            //        std::cout << vecOwner << std::endl;
 
             distRow.PutBegin( keyIdx, NO_MASK );
             distVal.PutBegin( keyIdx, NO_MASK );
@@ -2339,7 +2339,7 @@ template<typename F>
                     vi != eraseKey.end(); vi++ ){
                 distRow.LocalMap().erase( *vi );
                 distVal.LocalMap().erase( *vi );
-            }	
+            }    
         }
 
         // Copy the values from intermediate data structure to distSparseMat
@@ -2376,9 +2376,9 @@ template<typename F>
                 nnzLocal += rowVec.size();
                 Int cur = row - firstCol;
                 colptrLocal[cur+1] = colptrLocal[cur] + rowVec.size();
-            }	
+            }    
 
-            //		mpi::Allreduce( &nnzLocal, &nnz, 1, MPI_SUM, commDistSparse );
+            //        mpi::Allreduce( &nnzLocal, &nnz, 1, MPI_SUM, commDistSparse );
 
             rowindLocal.Resize( nnzLocal );
             nzvalLocal.Resize( nnzLocal );
@@ -2392,12 +2392,12 @@ template<typename F>
                 Int cur = row - firstCol;
                 std::copy( rowVec.begin(), rowVec.end(), &rowindLocal[colptrLocal[cur]-1] );
                 std::copy( valVec.begin(), valVec.end(), &nzvalLocal[colptrLocal[cur]-1] );
-            }	
+            }    
 
 
             // Other global and local information
             distSparseMat.nnzLocal = nnzLocal;
-            //		distSparseMat.nnz      = nnz;
+            //        distSparseMat.nnz      = nnz;
 
         }
 
@@ -2425,7 +2425,7 @@ template<typename F>
             const ElemMatPrtn&                                   elemMatPrtn,
             DistVec<ElemMatKey, NumMat<F>, ElemMatPrtn>&         distMat,
             const NumTns<std::vector<Int> >&                     basisIdx,
-            MPI_Comm  	                                         comm,
+            MPI_Comm                                               comm,
             Int                                                  mpisizeDistSparse ){
         Int mpirank, mpisize;
         MPI_Comm_rank( comm, &mpirank );
@@ -2549,7 +2549,7 @@ template<typename F>
             for( std::vector<ElemMatKey>::iterator vi = eraseKey.begin();
                     vi != eraseKey.end(); vi++ ){
                 distMat.LocalMap().erase( *vi );
-            }	
+            }    
         }
 
         return;
@@ -2603,7 +2603,7 @@ template<typename F>
             const ElemMatPrtn&                                   elemMatPrtn,
             DistVec<ElemMatKey, NumMat<F>, ElemMatPrtn>&         distMat,
             const NumTns<std::vector<Int> >&                     basisIdx,
-            MPI_Comm  	                                         comm,
+            MPI_Comm                                               comm,
             MPI_Comm                                             commElem,
             MPI_Comm                                             commSparse,
             const std::vector<Int>&                              mpirankElemVec,
@@ -2778,7 +2778,7 @@ template<typename F>
             for( std::vector<ElemMatKey>::iterator vi = eraseKey.begin();
                     vi != eraseKey.end(); vi++ ){
                 distGlbMat.LocalMap().erase( *vi );
-            }	
+            }    
         }
 
 
@@ -2958,7 +2958,7 @@ template<typename F>
             for( std::vector<ElemMatKey>::iterator vi = eraseKey.begin();
                     vi != eraseKey.end(); vi++ ){
                 distMat.LocalMap().erase( *vi );
-            }	
+            }    
         }
         GetTime(timeEnd);
 #if ( _DEBUGlevel_ >= 0 )
@@ -2989,7 +2989,7 @@ template<typename F>
             const DistSparseMatrix<F>&                           distMat,
             const scalapack::Descriptor&                         desc, 
             scalapack::ScaLAPACKMatrix<F>&                       scaMat,
-            MPI_Comm  	                                         comm ){
+            MPI_Comm                                               comm ){
         using namespace dgdft::scalapack;
 
         Int mpirank, mpisize;
@@ -3132,7 +3132,7 @@ template<typename F>
             for( std::vector<Index2>::iterator vi = eraseKey.begin();
                     vi != eraseKey.end(); vi++ ){
                 distScaMat.LocalMap().erase( *vi );
-            }	
+            }    
         }
 
         // Copy the matrix values from distScaMat to scaMat

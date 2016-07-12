@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -139,7 +139,7 @@ void ReadSparseMatrix ( const char* filename, SparseMatrix<F>& spmat );
 
 /// @brief Read a sparse matrix from a formatted file using one processor.
 template <class F> void
-ReadSparseMatrixFormatted	( const char* filename, SparseMatrix<F>& spmat );
+ReadSparseMatrixFormatted    ( const char* filename, SparseMatrix<F>& spmat );
 
 /// @brief Read a distributed sparse matrix from a binary file.
 template<typename F>
@@ -164,7 +164,7 @@ template<typename F>
 void ParaReadDistSparseMatrix( 
         const char* filename, 
         DistSparseMatrix<F>& pspmat,
-        MPI_Comm comm	);
+        MPI_Comm comm    );
 
 
 /// @brief Write distributed sparse matrix to an unformatted file using

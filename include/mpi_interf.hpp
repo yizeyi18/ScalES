@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -88,7 +88,7 @@ void Recv ( std::stringstream& sstm, Int src, Int tagSize, Int tagContent,
 // *********************************************************************
 
 void
-    Wait	( MPI_Request& req  );
+    Wait    ( MPI_Request& req  );
 
 void
     Waitall ( std::vector<MPI_Request>& reqs, std::vector<MPI_Status>& stats );

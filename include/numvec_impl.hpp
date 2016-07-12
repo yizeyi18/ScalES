@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Authors: Lexing Ying and Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,7 @@ namespace  dgdft{
 
 
 template <class F> 
-    inline NumVec<F>::NumVec	( Int m ) : m_(m), owndata_(true)
+    inline NumVec<F>::NumVec    ( Int m ) : m_(m), owndata_(true)
     {
         if(m_>0) { 
             data_ = new F[m_]; 
@@ -68,10 +68,10 @@ template <class F>
         } 
         else 
             data_=NULL;
-    } 		// -----  end of method NumVec<F>::NumVec  ----- 
+    }         // -----  end of method NumVec<F>::NumVec  ----- 
 
 template <class F> 
-    inline NumVec<F>::NumVec	( Int m, bool owndata, F* data ) : m_(m), owndata_(owndata)
+    inline NumVec<F>::NumVec    ( Int m, bool owndata, F* data ) : m_(m), owndata_(owndata)
     {
         if( owndata_ ){
             if( m_ > 0 ) { 
@@ -92,10 +92,10 @@ template <class F>
         else{
             data_ = data;
         }
-    } 		// -----  end of method NumVec<F>::NumVec  ----- 
+    }         // -----  end of method NumVec<F>::NumVec  ----- 
 
 template <class F> 
-    inline NumVec<F>::NumVec	( const NumVec<F>& C ) : m_(C.m_), owndata_(C.owndata_)
+    inline NumVec<F>::NumVec    ( const NumVec<F>& C ) : m_(C.m_), owndata_(C.owndata_)
     {
         if( owndata_ ){
             if( m_ > 0 ) { 
@@ -116,11 +116,11 @@ template <class F>
         else{
             data_ = C.data_;
         }
-    } 		// -----  end of method NumVec<F>::NumVec  ----- 
+    }         // -----  end of method NumVec<F>::NumVec  ----- 
 
 
 template < class F > 
-    inline NumVec<F>::~NumVec	(  )
+    inline NumVec<F>::~NumVec    (  )
     {
         if( owndata_ ){
             if( m_ > 0 ){
@@ -129,11 +129,11 @@ template < class F >
             }
         }
 
-    } 		// -----  end of method NumVec<F>::~NumVec  ----- 
+    }         // -----  end of method NumVec<F>::~NumVec  ----- 
 
 
 template < class F > 
-    inline NumVec<F>& NumVec<F>::operator =	( const NumVec& C  )
+    inline NumVec<F>& NumVec<F>::operator =    ( const NumVec& C  )
     {
         // Do not copy if it is the same matrix.
         if(C.data_ != data_){
@@ -170,11 +170,11 @@ template < class F >
 
 
         return *this;
-    } 		// -----  end of method NumVec<F>::operator=  ----- 
+    }         // -----  end of method NumVec<F>::operator=  ----- 
 
 
 template < class F > 
-    inline void NumVec<F>::Resize	( const Int m )
+    inline void NumVec<F>::Resize    ( const Int m )
     {
         if( owndata_ == false ){
             ErrorHandling("Vector being resized must own data.");
@@ -194,11 +194,11 @@ template < class F >
         }
 
         return ;
-    } 		// -----  end of method NumVec<F>::Resize  ----- 
+    }         // -----  end of method NumVec<F>::Resize  ----- 
 
 
 template <class F> 
-    inline F& NumVec<F>::operator()	( Int i )
+    inline F& NumVec<F>::operator()    ( Int i )
     {
         if( i < 0 || i >= m_ ){
             std::ostringstream msg;
@@ -210,11 +210,11 @@ template <class F>
         }
         return data_[i];
 
-    } 		// -----  end of method NumVec<F>::operator()  ----- 
+    }         // -----  end of method NumVec<F>::operator()  ----- 
 
 
 template <class F>
-    inline const F& NumVec<F>::operator()	( Int i ) const
+    inline const F& NumVec<F>::operator()    ( Int i ) const
     {
         if( i < 0 || i >= m_ ){
             std::ostringstream msg;
@@ -226,11 +226,11 @@ template <class F>
         }
         return data_[i];
 
-    } 		// -----  end of method NumVec<F>::operator()  ----- 
+    }         // -----  end of method NumVec<F>::operator()  ----- 
 
 
 template <class F> 
-    inline F& NumVec<F>::operator[]	( Int i )
+    inline F& NumVec<F>::operator[]    ( Int i )
     {
         if( i < 0 || i >= m_ ){
             std::ostringstream msg;
@@ -242,11 +242,11 @@ template <class F>
         }
         return data_[i];
 
-    } 		// -----  end of method NumVec<F>::operator[]  ----- 
+    }         // -----  end of method NumVec<F>::operator[]  ----- 
 
 
 template <class F> 
-    inline const F& NumVec<F>::operator[]	( Int i ) const
+    inline const F& NumVec<F>::operator[]    ( Int i ) const
     {
         if( i < 0 || i >= m_ ){
             std::ostringstream msg;
@@ -258,7 +258,7 @@ template <class F>
         }
         return data_[i];
 
-    } 		// -----  end of method NumVec<F>::operator[]  ----- 
+    }         // -----  end of method NumVec<F>::operator[]  ----- 
 
 // *********************************************************************
 // Utilities

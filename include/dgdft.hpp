@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -47,15 +47,15 @@
 #define _DGDFT_HPP_
 
 #include  "environment.hpp"
-#include	"blas.hpp"
-#include	"lapack.hpp"
-#include	"scalapack.hpp"
+#include    "blas.hpp"
+#include    "lapack.hpp"
+#include    "scalapack.hpp"
 #include  "mpi_interf.hpp"
 #include  "numvec_impl.hpp"
 #include  "nummat_impl.hpp"
 #include  "numtns_impl.hpp"
 #include  "tinyvec_impl.hpp"
-#include	"distvec_impl.hpp"
+#include    "distvec_impl.hpp"
 #include  "sparse_matrix_impl.hpp"
 
 #include  "domain.hpp"

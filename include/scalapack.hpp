@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
    
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -77,7 +77,7 @@ void Cblacs_gridmap(Int* contxt, Int* pmap, const Int ldpmap, const Int nprow, c
 void Cblacs_gridinfo(const Int contxt,  Int* nprow, Int* npcol, 
         Int* myprow, Int* mypcol);
 
-void Cblacs_gridexit	(	int contxt );	
+void Cblacs_gridexit    (    int contxt );    
 
 // *********************************************************************
 // ScaLAPACK routines

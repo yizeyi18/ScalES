@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin, Wei Hu and Amartya Banerjee
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -48,29 +48,29 @@
 /// @date 2016-01-19 Add hybrid functional
 /// @date 2016-04-08 Update mixing
 #include  "scf.hpp"
-#include	"blas.hpp"
-#include	"lapack.hpp"
+#include    "blas.hpp"
+#include    "lapack.hpp"
 #include  "utility.hpp"
 
 namespace  dgdft{
 
 using namespace dgdft::DensityComponent;
 
-SCF::SCF	(  )
+SCF::SCF    (  )
 {
     eigSolPtr_ = NULL;
     ptablePtr_ = NULL;
 
-} 		// -----  end of method SCF::SCF  ----- 
+}         // -----  end of method SCF::SCF  ----- 
 
-SCF::~SCF	(  )
+SCF::~SCF    (  )
 {
 
-} 		// -----  end of method SCF::~SCF  ----- 
+}         // -----  end of method SCF::~SCF  ----- 
 
 
 void
-SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable )
+SCF::Setup    ( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable )
 {
 
     // esdf parameters
@@ -114,7 +114,7 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
         General_SCF_PWDFT_ChebyFilterOrder_ = esdfParam.General_SCF_PWDFT_ChebyFilterOrder;
         PWDFT_Cheby_use_scala_ = esdfParam.PWDFT_Cheby_use_scala;
         PWDFT_Cheby_apply_wfn_ecut_filt_ =  esdfParam.PWDFT_Cheby_apply_wfn_ecut_filt;
-	Cheby_iondynamics_schedule_flag_ = 0;
+    Cheby_iondynamics_schedule_flag_ = 0;
 
 
     }
@@ -124,7 +124,7 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
         eigSolPtr_ = &eigSol;
         ptablePtr_ = &ptable;
 
-        //		Int ntot = eigSolPtr_->Psi().NumGridTotal();
+        //        Int ntot = eigSolPtr_->Psi().NumGridTotal();
         Int ntot = esdfParam.domain.NumGridTotal();
         Int ntotFine = esdfParam.domain.NumGridTotalFine();
 
@@ -177,7 +177,7 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
     }
 
     if( !isRestartWfn_ ) {
-        //		UniformRandom( eigSolPtr_->Psi().Wavefun() );
+        //        UniformRandom( eigSolPtr_->Psi().Wavefun() );
     }
     else {
         std::istringstream iss;
@@ -196,10 +196,10 @@ SCF::Setup	( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodT
 
 
     return ;
-} 		// -----  end of method SCF::Setup  ----- 
+}         // -----  end of method SCF::Setup  ----- 
 
 void
-SCF::Update	( )
+SCF::Update    ( )
 {
     {
         Int ntotFine  = eigSolPtr_->FFT().domain.NumGridTotalFine();
@@ -210,7 +210,7 @@ SCF::Update	( )
     }
 
     return ;
-} 		// -----  end of method SCF::Update  ----- 
+}         // -----  end of method SCF::Update  ----- 
 
 
 
@@ -390,48 +390,48 @@ SCF::Iterate (  )
 
             if(Diag_SCF_PWDFT_by_Cheby_ == 1)
             {
-	      if(Cheby_iondynamics_schedule_flag_ == 0)
-	      {
-		// Use static schedule
-		statusOFS << std::endl << " CheFSI in PWDFT working on static schedule." << std::endl;
+          if(Cheby_iondynamics_schedule_flag_ == 0)
+          {
+        // Use static schedule
+        statusOFS << std::endl << " CheFSI in PWDFT working on static schedule." << std::endl;
                 // Use CheFSI or LOBPCG on first step 
                 if(iter <= 1){
                     if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
-                        eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );	
+                        eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
                     else
                         eigSolPtr_->FirstChebyStep(numEig, First_SCF_PWDFT_ChebyCycleNum_, First_SCF_PWDFT_ChebyFilterOrder_);
                 }
                 else{
                     eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
                 }
-	      }
-	      else
-	      {
-		// Use ion-dynamics schedule
-		statusOFS << std::endl << " CheFSI in PWDFT working on ion-dynamics schedule." << std::endl;
-		if( iter <= 1)
-		{
-		  for (int cheby_iter = 1; cheby_iter <= eigMaxIter_; cheby_iter ++)
+          }
+          else
+          {
+        // Use ion-dynamics schedule
+        statusOFS << std::endl << " CheFSI in PWDFT working on ion-dynamics schedule." << std::endl;
+        if( iter <= 1)
+        {
+          for (int cheby_iter = 1; cheby_iter <= eigMaxIter_; cheby_iter ++)
                    eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
-		}
-		else
-		{
-		  eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
-		}
-		
-	      }
+        }
+        else
+        {
+          eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
+        }
+        
+          }
             }
             else
             {
                 // Use LOBPCG
                 if( PWSolver_ == "LOBPCG" ){
-                    eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );	
+                    eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
                 } // Use LOBPCG with ScaLAPACK
                 else if ( PWSolver_ == "LOBPCGScaLAPACK" ){
-                    eigSolPtr_->LOBPCGSolveReal3(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );	
+                    eigSolPtr_->LOBPCGSolveReal3(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
                 } // Use PPCG
                 else if( PWSolver_ == "PPCG" ){
-                    eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );	
+                    eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
                 }
                 else{
                     // FIXME Merge the Chebyshev into an option of PWSolver
@@ -573,7 +573,7 @@ SCF::Iterate (  )
         statusOFS 
             << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + Evdw" << std::endl
             << "       Etot  = Ekin + Ecor" << std::endl
-            << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
+            << "       Efree = Etot    + Entropy" << std::endl << std::endl;
         Print(statusOFS, "! Etot            = ",  Etot_, "[au]");
         Print(statusOFS, "! Efree           = ",  Efree_, "[au]");
         Print(statusOFS, "! Evdw            = ",  Evdw_, "[au]"); 
@@ -613,16 +613,16 @@ SCF::Iterate (  )
             serialize( eigSolPtr_->Ham().Density(), rhoStream, NO_MASK );
             rhoStream.close();
         }
-    }	
+    }    
 
 
     return ;
-} 		// -----  end of method SCF::Iterate  ----- 
+}         // -----  end of method SCF::Iterate  ----- 
 
 
 
 void
-SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
+SCF::CalculateOccupationRate    ( DblNumVec& eigVal, DblNumVec& occupationRate )
 {
     // For a given finite temperature, update the occupation number */
     // FIXME Magic number here
@@ -741,11 +741,11 @@ SCF::CalculateOccupationRate	( DblNumVec& eigVal, DblNumVec& occupationRate )
 
 
     return ;
-} 		// -----  end of method SCF::CalculateOccupationRate  ----- 
+}         // -----  end of method SCF::CalculateOccupationRate  ----- 
 
 
 void
-SCF::CalculateEnergy	(  )
+SCF::CalculateEnergy    (  )
 {
     Ekin_ = 0.0;
     DblNumVec&  eigVal         = eigSolPtr_->Ham().EigVal();
@@ -813,11 +813,11 @@ SCF::CalculateEnergy	(  )
 
 
     return ;
-} 		// -----  end of method SCF::CalculateEnergy  ----- 
+}         // -----  end of method SCF::CalculateEnergy  ----- 
 
 
 void
-SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
+SCF::CalculateVDW    ( Real& VDWEnergy, DblNumMat& VDWForce )
 {
 
     //Real& VDWEnergy = Evdw_;
@@ -1028,10 +1028,10 @@ SCF::CalculateVDW	( Real& VDWEnergy, DblNumMat& VDWForce )
 
 
     return ;
-} 		// -----  end of method SCF::CalculateVDW  ----- 
+}         // -----  end of method SCF::CalculateVDW  ----- 
 
 void
-SCF::AndersonMix	( 
+SCF::AndersonMix    ( 
         Int iter,
         Real            mixStepLength,
         std::string     mixType,
@@ -1131,7 +1131,7 @@ SCF::AndersonMix	(
 
     return ;
 
-} 		// -----  end of method SCF::AndersonMix  ----- 
+}         // -----  end of method SCF::AndersonMix  ----- 
 
 void
 SCF::KerkerPrecond (
@@ -1181,16 +1181,16 @@ SCF::KerkerPrecond (
     FFTWExecute ( fft, fft.backwardPlanFine );
 
     for (Int i=0; i<ntot; i++){
-        precResidual(i) = fft.inputComplexVecFine(i).real();	
+        precResidual(i) = fft.inputComplexVecFine(i).real();    
     }
 
 
     return ;
-} 		// -----  end of method SCF::KerkerPrecond  ----- 
+}         // -----  end of method SCF::KerkerPrecond  ----- 
 
 
 void
-SCF::PrintState	( const Int iter  )
+SCF::PrintState    ( const Int iter  )
 {
     Real HOMO, LUMO;
     HOMO = eigSolPtr_->EigVal()(eigSolPtr_->Ham().NumOccupiedState()-1);
@@ -1207,7 +1207,7 @@ SCF::PrintState	( const Int iter  )
     statusOFS 
         << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + Evdw" << std::endl
         << "       Etot  = Ekin + Ecor" << std::endl
-        << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
+        << "       Efree = Etot    + Entropy" << std::endl << std::endl;
     Print(statusOFS, "Etot              = ",  Etot_, "[au]");
     Print(statusOFS, "Efree             = ",  Efree_, "[au]");
     Print(statusOFS, "Ekin              = ",  Ekin_, "[au]");
@@ -1227,16 +1227,16 @@ SCF::PrintState	( const Int iter  )
 
 
     return ;
-} 		// -----  end of method SCF::PrintState  ----- 
+}         // -----  end of method SCF::PrintState  ----- 
 
 
 void
-SCF::UpdateMDParameters	( const esdf::ESDFInputParam& esdfParam )
+SCF::UpdateMDParameters    ( const esdf::ESDFInputParam& esdfParam )
 {
     scfMaxIter_ = esdfParam.MDscfOuterMaxIter;
     scfPhiMaxIter_ = esdfParam.MDscfPhiMaxIter;
-	return ;
-} 		// -----  end of method SCF::UpdateMDParameters  ----- 
+    return ;
+}         // -----  end of method SCF::UpdateMDParameters  ----- 
 
 
 } // namespace dgdft

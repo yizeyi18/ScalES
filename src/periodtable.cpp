@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -115,14 +115,14 @@ void PeriodTable::Setup( const std::string strptable )
         }
         splmap_[type] = spltmp;
     }
-} 		// -----  end of method PeriodTable::Setup  ----- 
+}         // -----  end of method PeriodTable::Setup  ----- 
 
 
 void
-PeriodTable::CalculatePseudoCharge	(
+PeriodTable::CalculatePseudoCharge    (
         const Atom& atom, 
         const Domain& dm,
-        const std::vector<DblNumVec>& gridpos,		
+        const std::vector<DblNumVec>& gridpos,        
         SparseVec& res )
 {
     Int type   = atom.type;
@@ -177,8 +177,8 @@ PeriodTable::CalculatePseudoCharge	(
                     if( dtmp <= Rzero ) {
                         idx.push_back(irad);
                         rad.push_back(dtmp);
-                        xx.push_back(dist[0](i));	    
-                        yy.push_back(dist[1](j));	    
+                        xx.push_back(dist[0](i));        
+                        yy.push_back(dist[1](j));        
                         zz.push_back(dist[2](k));
                     }
                     irad++;
@@ -218,11 +218,11 @@ PeriodTable::CalculatePseudoCharge	(
     } // if (norm(minDist) <= Rzero )
 
     return ;
-} 		// -----  end of method PeriodTable::CalculatePseudoCharge  ----- 
+}         // -----  end of method PeriodTable::CalculatePseudoCharge  ----- 
 
 
 void
-PeriodTable::CalculatePseudoCharge	(
+PeriodTable::CalculatePseudoCharge    (
         const Atom& atom, 
         const Domain& dm,
         const NumTns<std::vector<DblNumVec> >& gridposElem,
@@ -242,13 +242,13 @@ PeriodTable::CalculatePseudoCharge	(
 
 
     return ;
-} 		// -----  end of method PeriodTable::CalculatePseudoCharge  ----- 
+}         // -----  end of method PeriodTable::CalculatePseudoCharge  ----- 
 
 
 //---------------------------------------------
 
 void
-PeriodTable::CalculateNonlocalPP	( 
+PeriodTable::CalculateNonlocalPP    ( 
         const Atom& atom, 
         const Domain& dm, 
         const std::vector<DblNumVec>& gridpos,
@@ -331,8 +331,8 @@ PeriodTable::CalculateNonlocalPP	(
                     if( dtmp < Rzero ) {
                         idx.push_back(irad);
                         rad.push_back(dtmp);
-                        xx.push_back(dist[0](i));	    
-                        yy.push_back(dist[1](j));	    
+                        xx.push_back(dist[0](i));        
+                        yy.push_back(dist[1](j));        
                         zz.push_back(dist[2](k));
                     }
                     irad++;
@@ -814,10 +814,10 @@ PeriodTable::CalculateNonlocalPP	(
 #endif // #ifndef _NO_NONLOCAL_
 
     return ;
-} 		// -----  end of method PeriodTable::CalculateNonlocalPP  ----- 
+}         // -----  end of method PeriodTable::CalculateNonlocalPP  ----- 
 
 void
-PeriodTable::CalculateNonlocalPP	( 
+PeriodTable::CalculateNonlocalPP    ( 
         const Atom&    atom, 
         const Domain&  dm, 
         const NumTns<std::vector<DblNumVec> >&   gridposElem,
@@ -886,7 +886,7 @@ PeriodTable::CalculateNonlocalPP	(
 #endif // #ifndef _NO_NONLOCAL_
 
     return ;
-} 		// -----  end of method PeriodTable::CalculateNonlocalPP  ----- 
+}         // -----  end of method PeriodTable::CalculateNonlocalPP  ----- 
 
 //---------------------------------------------
 // TODO SpinOrbit from RelDFT

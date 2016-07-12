@@ -3,7 +3,7 @@
    through Lawrence Berkeley National Laboratory.  
 
    Author: Lin Lin and Wei Hu
-	 
+     
    This file is part of DGDFT. All rights reserved.
 
    Redistribution and use in source and binary forms, with or without
@@ -222,15 +222,15 @@ void Fourier::Initialize ( const Domain& dm )
 
 
     return ;
-}		// -----  end of function Fourier::Initialize  ----- 
+}        // -----  end of function Fourier::Initialize  ----- 
 
 
 void Fourier::InitializeFine ( const Domain& dm )
 {
 
     //  if( isInitialized ) {
-    //		ErrorHandling("Fourier has been prepared.");
-    //	}
+    //        ErrorHandling("Fourier has been prepared.");
+    //    }
 
 
     domain = dm;
@@ -413,11 +413,11 @@ void Fourier::InitializeFine ( const Domain& dm )
     }
 
     // Mark Fourier to be initialized
-    //	isInitialized = true;
+    //    isInitialized = true;
 
 
     return ;
-}		// -----  end of function Fourier::InitializeFine  ----- 
+}        // -----  end of function Fourier::InitializeFine  ----- 
 
 void FFTWExecute ( Fourier& fft, fftw_plan& plan ){
 
@@ -528,7 +528,7 @@ void FFTWExecute ( Fourier& fft, fftw_plan& plan ){
     }
 
     return ;
-}		// -----  end of function Fourier::FFTWExecute  ----- 
+}        // -----  end of function Fourier::FFTWExecute  ----- 
 
 
 // *********************************************************************
@@ -544,7 +544,7 @@ isInitialized(false),
     numAllocLocal(0),
     isInGrid(false),
     plannerFlag(FFTW_MEASURE | FFTW_UNALIGNED ),
-    //	plannerFlag(FFTW_ESTIMATE),
+    //    plannerFlag(FFTW_ESTIMATE),
     comm(MPI_COMM_NULL),
     forwardPlan(NULL),
     backwardPlan(NULL)
@@ -705,7 +705,7 @@ void DistFourier::Initialize ( const Domain& dm, Int numProc )
 
 
     return ;
-}		// -----  end of function DistFourier::Initialize  ----- 
+}        // -----  end of function DistFourier::Initialize  ----- 
 
 
 } // namespace dgdft
