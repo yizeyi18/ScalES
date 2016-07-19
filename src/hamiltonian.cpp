@@ -275,9 +275,10 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
     Print( statusOFS, "Number of Occupied States                    = ", 
             numOccupiedState_ );
 
-    Real diff = ( numSpin_ * numOccupiedState_ - sumrho ) / vol;
+    // adjustment should be multiplicative
+    Real fac = numSpin_ * numOccupiedState_ / sumrho;
     for (Int i=0; i<ntotFine; i++) 
-        pseudoCharge_(i) += diff; 
+        pseudoCharge_(i) *= fac; 
 
     Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
             numSpin_ * numOccupiedState_ );
@@ -460,11 +461,25 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
     Int ntot = domain_.NumGridTotalFine();
     Real vol = domain_.Volume();
     Real fac;
+    // Cutoff 
+    Real epsRho = 1e-8, epsGRho = 1e-8;
 
     if( XCId_ == XC_LDA_XC_TETER93 ) 
     {
         xc_lda_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
                 epsxc_.Data(), vxc_.Data() );
+        
+        // Modify "bad points"
+        if(1){
+            for( Int i = 0; i < ntot; i++ ){
+                if( density_(i,RHO) < epsRho ){
+                    epsxc_(i) = 0.0;
+                    vxc_( i, RHO ) = 0.0;
+                }
+            }
+        }
+
+
     }//XC_FAMILY_LDA
     else if( ( XId_ == XC_GGA_X_PBE ) && ( CId_ == XC_GGA_C_PBE ) ) {
         DblNumMat     vxc1;             
@@ -512,6 +527,18 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
             vxc1( i, RHO ) += vxc1temp( i, RHO );
             vxc2( i, RHO ) += vxc2temp( i, RHO );
             vxc_( i, RHO ) = vxc1( i, RHO );
+        }
+
+        // Modify "bad points"
+        if(1){
+            for( Int i = 0; i < ntot; i++ ){
+                if( density_(i,RHO) < epsRho || gradDensity(i,RHO) < epsGRho ){
+                    epsxc_(i) = 0.0;
+                    vxc1( i, RHO ) = 0.0;
+                    vxc2( i, RHO ) = 0.0;
+                    vxc_( i, RHO ) = 0.0;
+                }
+            }
         }
 
         for( Int d = 0; d < DIM; d++ ){
@@ -574,6 +601,19 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
         for( Int i = 0; i < ntot; i++ ){
             vxc_( i, RHO ) = vxc1( i, RHO );
         }
+
+        // Modify "bad points"
+        if(1){
+            for( Int i = 0; i < ntot; i++ ){
+                if( density_(i,RHO) < epsRho || gradDensity(i,RHO) < epsGRho ){
+                    epsxc_(i) = 0.0;
+                    vxc1( i, RHO ) = 0.0;
+                    vxc2( i, RHO ) = 0.0;
+                    vxc_( i, RHO ) = 0.0;
+                }
+            }
+        }
+
 
         for( Int d = 0; d < DIM; d++ ){
 

@@ -126,7 +126,10 @@ private:
     // for Anderson iteration
     DblNumMat           dfMat_;
     DblNumMat           dvMat_;
-    // TODO Elliptic preconditioner
+
+    std::string         mixVariable_;
+    /// @brief Work array for the mixing variable in the inner iteration.
+    DblNumVec           mixSave_;
 
 
     Index3  numGridWavefunctionElem_;

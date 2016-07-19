@@ -411,6 +411,8 @@ int main(int argc, char **argv)
 
         ionDyn.Setup( esdfParam, hamDG.AtomList(), ptable ); 
 
+
+
         // For density extrapolation
 
         Int maxHist = ionDyn.MaxHist();
@@ -435,6 +437,12 @@ int main(int argc, char **argv)
         // If ionMaxIter == 1, it is equivalent to single shot calculation
         Int ionMaxIter = esdfParam.ionMaxIter;
         for( Int ionIter = 1; ionIter <= ionMaxIter; ionIter++ ){
+
+            // Change the SCF parameters if necessary
+            // FIXME hard coding to change parameters after the 5th MD step.
+            if( ionIter >= 5 )
+                scfDG.UpdateMDParameters( esdfParam );
+
             {
                 std::ostringstream msg;
                 msg << "Ion move step # " << ionIter;

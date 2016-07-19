@@ -138,7 +138,7 @@ namespace dgdft{
     std::string         mixType;
     /// @brief Which variable to mix
     ///
-    /// Default: density
+    /// Default: potential
     ///
     /// - = "density"            : Density mixing
     /// - = "potential"          : Potential mixing
@@ -309,6 +309,16 @@ namespace dgdft{
     /// This option is needed to restart the electron density using 
     /// @ref dgdft::esdf::ESDFInputParam::isRestartDensity "isRestartDensity".
     bool                isOutputDensity;
+    /// @brief Whether to output the wavefunctions in the extended
+    /// element.
+    ///
+    /// Default: 0
+    ///
+    /// When isOutputWfn = 1, the approximate eigenvectors in the
+    /// extended element are given in the output, in the form
+    /// WFN_xxx_yyy, where by default xxx is the mpirank (starting
+    /// from 0), and yyy is mpisize.
+    bool                isOutputWfn;
     /// @brief Whether to output the wavefunctions in the element on LGL
     /// grid.
     ///

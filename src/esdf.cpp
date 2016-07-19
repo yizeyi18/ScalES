@@ -2194,6 +2194,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
         esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
         esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
         esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
+        esdfParam.isOutputWfn      = esdf_integer( "Output_Wfn", 0 );
         esdfParam.isOutputALBElemLGL      = esdf_integer( "Output_ALB_Elem_LGL", 0 );
         esdfParam.isOutputALBElemUniform  = esdf_integer( "Output_ALB_Elem_Uniform", 0 );
         esdfParam.isOutputWfnExtElem      = esdf_integer( "Output_Wfn_ExtElem", 0 );

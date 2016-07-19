@@ -72,6 +72,8 @@ SCF::~SCF    (  )
 void
 SCF::Setup    ( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable )
 {
+    int mpirank;  MPI_Comm_rank(esdfParam.domain.comm, &mpirank);
+    int mpisize;  MPI_Comm_size(esdfParam.domain.comm, &mpisize);
 
     // esdf parameters
     {
@@ -91,11 +93,13 @@ SCF::Setup    ( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, Peri
         isRestartDensity_ = esdfParam.isRestartDensity;
         isRestartWfn_     = esdfParam.isRestartWfn;
         isOutputDensity_  = esdfParam.isOutputDensity;
+        isOutputWfn_      = esdfParam.isOutputWfn; 
         isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
         Tbeta_         = esdfParam.Tbeta;
+        mixVariable_   = esdfParam.mixVariable;
 
-        numGridWavefunctionElem_ = esdfParam.numGridWavefunctionElem;
-        numGridDensityElem_      = esdfParam.numGridDensityElem;  
+//        numGridWavefunctionElem_ = esdfParam.numGridWavefunctionElem;
+//        numGridDensityElem_      = esdfParam.numGridDensityElem;  
 
         PWSolver_                = esdfParam.PWSolver;
         XCType_                  = esdfParam.XCType;
@@ -114,7 +118,7 @@ SCF::Setup    ( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, Peri
         General_SCF_PWDFT_ChebyFilterOrder_ = esdfParam.General_SCF_PWDFT_ChebyFilterOrder;
         PWDFT_Cheby_use_scala_ = esdfParam.PWDFT_Cheby_use_scala;
         PWDFT_Cheby_apply_wfn_ecut_filt_ =  esdfParam.PWDFT_Cheby_apply_wfn_ecut_filt;
-    Cheby_iondynamics_schedule_flag_ = 0;
+        Cheby_iondynamics_schedule_flag_ = 0;
 
 
     }
@@ -147,42 +151,121 @@ SCF::Setup    ( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, Peri
             deserialize( density, rhoStream, NO_MASK );    
         } // else using the zero initial guess
         else {
-            // make sure the pseudocharge is initialized
-            DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
-            const Domain& dm = esdfParam.domain;
+            // Start from pseudocharge, usually this is not a very good idea
+            if(1){
+                // make sure the pseudocharge is initialized
+                DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
+                const Domain& dm = esdfParam.domain;
 
-            SetValue( density, 0.0 );
+                SetValue( density, 0.0 );
 
-            Int ntotFine = dm.NumGridTotalFine();
+                Int ntotFine = dm.NumGridTotalFine();
 
-            Real sum0 = 0.0, sum1 = 0.0;
-            Real EPS = 1e-6;
+                Real sum0 = 0.0, sum1 = 0.0;
+                Real EPS = 1e-6;
 
-            // make sure that the electron density is positive
-            for (Int i=0; i<ntotFine; i++){
-                density(i, RHO) = ( pseudoCharge(i) > EPS ) ? pseudoCharge(i) : EPS;
-//                density(i, RHO) = pseudoCharge(i);
-                sum0 += density(i, RHO);
-                sum1 += pseudoCharge(i);
+                // make sure that the electron density is positive
+                for (Int i=0; i<ntotFine; i++){
+                    density(i, RHO) = ( pseudoCharge(i) > EPS ) ? pseudoCharge(i) : EPS;
+                    //                density(i, RHO) = pseudoCharge(i);
+                    sum0 += density(i, RHO);
+                    sum1 += pseudoCharge(i);
+                }
+
+                Print( statusOFS, "Initial density. Sum of density      = ", 
+                        sum0 * dm.Volume() / dm.NumGridTotalFine() );
+
+                // Rescale the density
+                for (int i=0; i <ntotFine; i++){
+                    density(i, RHO) *= sum1 / sum0;
+                } 
+
+                Print( statusOFS, "Rescaled density. Sum of density      = ", 
+                        sum1 * dm.Volume() / dm.NumGridTotalFine() );
             }
 
-            Print( statusOFS, "Initial density. Sum of density      = ", 
-                    sum0 * dm.Volume() / dm.NumGridTotalFine() );
+            // Start from superposition of Gaussians. FIXME Currently
+            // the Gaussian parameter is fixed
+            if(0){
+                Hamiltonian& ham = eigSolPtr_->Ham();
+                std::vector<Atom>& atomList = ham.AtomList();
+                Int numAtom = atomList.size();
+                std::vector<DblNumVec> gridpos;
+                const Domain& dm = esdfParam.domain;
+                UniformMeshFine ( dm, gridpos );
+                Point3 Ls = dm.length;
+                
+                Int ntotFine = dm.NumGridTotalFine();
+                SetValue( density, 0.0 );
 
-            // Rescale the density
-            for (int i=0; i <ntotFine; i++){
-                density(i, RHO) *= sum1 / sum0;
-            } 
+
+                for (Int a=0; a<numAtom; a++) {
+                    // FIXME Each atom's truncation radius and charge are the same.
+                    // This only works for hydrogen
+                    Real sigma2 = 1.0;
+                    Real Z = 1.0;
+                    Real coef = Z / std::pow(PI*sigma2, 1.5);
+                    Point3 pos = atomList[a].pos;
+
+                    std::vector<DblNumVec>  dist(DIM);
+
+                    Point3 minDist;
+                    for( Int d = 0; d < DIM; d++ ){
+                        dist[d].Resize( gridpos[d].m() );
+
+                        for( Int i = 0; i < gridpos[d].m(); i++ ){
+                            dist[d](i) = gridpos[d](i) - pos[d];
+                            dist[d](i) = dist[d](i) - IRound( dist[d](i) / Ls[d] ) * Ls[d];
+                        }
+                    }
+                    {
+                        Int irad = 0;
+                        for(Int k = 0; k < gridpos[2].m(); k++)
+                            for(Int j = 0; j < gridpos[1].m(); j++)
+                                for(Int i = 0; i < gridpos[0].m(); i++){
+                                    Real rad2 =  dist[0](i) * dist[0](i) +
+                                            dist[1](j) * dist[1](j) +
+                                            dist[2](k) * dist[2](k);
+
+                                    density(irad,RHO) += coef*std::exp(-rad2/sigma2);
+                                    irad++;
+                                } // for (i)
+                    } 
+                }
+
+                Real sum0 = 0.0;
+
+                // make sure that the electron density is positive
+                for (Int i=0; i<ntotFine; i++){
+                    sum0 += density(i, RHO);
+                }
+                sum0 *= dm.Volume() / dm.NumGridTotalFine();
+
+                Print( statusOFS, "Initial density. Sum of density      = ", 
+                        sum0 );
+
+                // Rescale the density
+                Real fac = ham.NumOccupiedState() * ham.NumSpin() / sum0;
+
+                Real sum1 = 0.0;
+                for (int i=0; i <ntotFine; i++){
+                    density(i, RHO) *= fac;
+                    sum1 += density(i, RHO);
+                } 
+
+                Print( statusOFS, "Rescaled density. Sum of density      = ", 
+                        sum1 * dm.Volume() / dm.NumGridTotalFine() );
+            }
         }
     }
 
     if( !isRestartWfn_ ) {
-        //        UniformRandom( eigSolPtr_->Psi().Wavefun() );
+        // Randomized input from outside
     }
     else {
-        std::istringstream iss;
-        SharedRead( restartWfnFileName_, iss );
-        deserialize( eigSolPtr_->Psi().Wavefun(), iss, NO_MASK );
+        std::istringstream wfnStream;
+        SeparateRead( restartWfnFileName_, wfnStream, mpirank );
+        deserialize( eigSolPtr_->Psi().Wavefun(), wfnStream, NO_MASK );
     }
 
     // XC functional
@@ -233,19 +316,24 @@ SCF::Iterate (  )
         ham.CalculateGradDensity( fft );
     }
 
-    ham.CalculateXC( Exc_, fft ); 
     // Compute the Hartree energy
-    ham.CalculateHartree( fft );
-    // No external potential
+    // FIXME
+    if(0)
+    {
+        DblNumMat rho = ham.Density();
+        SetValue(ham.Density(), 0.0);
+        ham.CalculateHartree( fft );
+        // No external potential
+        ham.Density() = rho;
+    }
+
+    if(1){
+        ham.CalculateXC( Exc_, fft ); 
+        ham.CalculateHartree( fft );
+    }
 
     // Compute the total potential
     ham.CalculateVtot( ham.Vtot() );
-
-//    statusOFS << "Density = " << ham.Density() << std::endl;
-//    statusOFS << "Vxc     = " << ham.Vxc() << std::endl;
-//    statusOFS << "Vhart   = " << ham.Vhart() << std::endl;
-//    statusOFS << "Vtot    = " << ham.Vtot() << std::endl;
-    
 
     // FIXME The following treatment of the initial density is not
     // compatible with the density extrapolation step in MD
@@ -390,36 +478,36 @@ SCF::Iterate (  )
 
             if(Diag_SCF_PWDFT_by_Cheby_ == 1)
             {
-          if(Cheby_iondynamics_schedule_flag_ == 0)
-          {
-        // Use static schedule
-        statusOFS << std::endl << " CheFSI in PWDFT working on static schedule." << std::endl;
-                // Use CheFSI or LOBPCG on first step 
-                if(iter <= 1){
-                    if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
-                        eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+                if(Cheby_iondynamics_schedule_flag_ == 0)
+                {
+                    // Use static schedule
+                    statusOFS << std::endl << " CheFSI in PWDFT working on static schedule." << std::endl;
+                    // Use CheFSI or LOBPCG on first step 
+                    if(iter <= 1){
+                        if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
+                            eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+                        else
+                            eigSolPtr_->FirstChebyStep(numEig, First_SCF_PWDFT_ChebyCycleNum_, First_SCF_PWDFT_ChebyFilterOrder_);
+                    }
+                    else{
+                        eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
+                    }
+                }
+                else
+                {
+                    // Use ion-dynamics schedule
+                    statusOFS << std::endl << " CheFSI in PWDFT working on ion-dynamics schedule." << std::endl;
+                    if( iter <= 1)
+                    {
+                        for (int cheby_iter = 1; cheby_iter <= eigMaxIter_; cheby_iter ++)
+                            eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
+                    }
                     else
-                        eigSolPtr_->FirstChebyStep(numEig, First_SCF_PWDFT_ChebyCycleNum_, First_SCF_PWDFT_ChebyFilterOrder_);
+                    {
+                        eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
+                    }
+
                 }
-                else{
-                    eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
-                }
-          }
-          else
-          {
-        // Use ion-dynamics schedule
-        statusOFS << std::endl << " CheFSI in PWDFT working on ion-dynamics schedule." << std::endl;
-        if( iter <= 1)
-        {
-          for (int cheby_iter = 1; cheby_iter <= eigMaxIter_; cheby_iter ++)
-                   eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
-        }
-        else
-        {
-          eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
-        }
-        
-          }
             }
             else
             {
@@ -485,6 +573,17 @@ SCF::Iterate (  )
             normVtotDif = sqrt( normVtotDif );
             normVtotOld = sqrt( normVtotOld );
             scfNorm_    = normVtotDif / normVtotOld;
+
+            // FIXME Dump out the difference of the potential to
+            // investigate source of slow SCF convergence
+            if(0)
+            {
+                std::ostringstream vStream;
+                serialize( vtotOld_, vStream, NO_MASK );
+                serialize( vtotNew_, vStream, NO_MASK ); 
+                SharedWrite( "VOLDNEW", vStream );
+            }
+            
 
             Evdw_ = 0.0;
 
@@ -614,6 +713,12 @@ SCF::Iterate (  )
             rhoStream.close();
         }
     }    
+
+    if( isOutputWfn_ ){
+        std::ostringstream wfnStream;
+        serialize( eigSolPtr_->Psi().Wavefun(), wfnStream, NO_MASK );
+        SeparateWrite( restartWfnFileName_, wfnStream, mpirank );
+    }   
 
 
     return ;
@@ -1086,7 +1191,7 @@ SCF::AndersonMix    (
 
         Int rank;
         // FIXME Magic number
-        Real rcond = 1e-6;
+        Real rcond = 1e-3;
 
         S.Resize(nrow);
 
@@ -1113,6 +1218,9 @@ SCF::AndersonMix    (
     }
     else if( mixType == "anderson" ){
         precResOpt = resOpt;
+    }
+    else{
+        ErrorHandling("Invalid mixing type.");
     }
 
 

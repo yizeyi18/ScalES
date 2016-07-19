@@ -2130,6 +2130,7 @@ SCFDG::Iterate    (  )
                             }
 
                             // Output the wavefunctions on the LGL grid
+                            if(0)
                             {
                                 std::ostringstream rhoStream;      
 

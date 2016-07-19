@@ -1184,13 +1184,13 @@ HamiltonianDG::CalculatePseudoPotential    ( PeriodTable &ptable ){
 #endif
 
         // Make adjustments to the pseudocharge
-        Real diff = ( numSpin_ * numOccupiedState_ - sumRho ) / domain_.Volume();
+        Real fac = numSpin_ * numOccupiedState_ / sumRho;
 
         for( std::map<Index3, DblNumVec>::iterator mi = pseudoCharge_.LocalMap().begin();
                 mi != pseudoCharge_.LocalMap().end(); mi++ ){
             DblNumVec& vec = (*mi).second;
             for( Int i = 0; i < vec.m(); i++ ){
-                vec[i] += diff;
+                vec[i] *= fac;
             }
         }
 
