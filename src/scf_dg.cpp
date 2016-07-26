@@ -3461,6 +3461,8 @@ SCFDG::scfdg_FirstChebyStep(Int MaxIter,
 
             statusOFS << std::endl << " Setting up BLACS and ScaLAPACK Process Grid ...";
             GetTime( timeSta );
+	    
+	    double detail_timeSta, detail_timeEnd;
 
             // Basic ScaLAPACK setup steps
             //Number of ScaLAPACK processors equal to number of DG elements
@@ -3508,7 +3510,7 @@ SCFDG::scfdg_FirstChebyStep(Int MaxIter,
             if(cheby_scala_context >= 0)
             { 
                 // Now setup the ScaLAPACK matrix
-                statusOFS << std::endl << " Orthonormalization step:";
+                statusOFS << std::endl << " Orthonormalization step : ";
                 statusOFS << std::endl << " Distributed vector to ScaLAPACK format conversion ... ";
                 GetTime( timeSta );
 
@@ -3555,7 +3557,8 @@ SCFDG::scfdg_FirstChebyStep(Int MaxIter,
                 statusOFS << std::endl << " Orthonormalizing filtered vectors ... ";
                 GetTime( timeSta );
 
-
+                GetTime( detail_timeSta);
+		
                 // Compute C = X^T * X
                 dgdft::scalapack::Descriptor cheby_chol_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
                         scaBlockSize_, scaBlockSize_, 
@@ -3574,19 +3577,29 @@ SCFDG::scfdg_FirstChebyStep(Int MaxIter,
                         cheby_scala_chol_mat.Data(), I_ONE, I_ONE, cheby_scala_chol_mat.Desc().Values(),
                         cheby_scala_context);
 
+                GetTime( detail_timeEnd);
+		statusOFS << std::endl << " Overlap matrix computed in : " << (detail_timeEnd - detail_timeSta) << " s.";
 
 
-
+	        GetTime( detail_timeSta);
                 // Compute V = Chol(C)
                 dgdft::scalapack::Potrf( 'U', cheby_scala_chol_mat);
+		
+		GetTime( detail_timeEnd);
+		statusOFS << std::endl << " Cholesky factorization computed in : " << (detail_timeEnd - detail_timeSta) << " s.";
 
+		
+		GetTime( detail_timeSta);
                 // Compute  X = X * V^{-1}
                 dgdft::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
                         cheby_scala_chol_mat, 
                         cheby_scala_eigvecs_X );
+		
+		GetTime( detail_timeEnd);
+		statusOFS << std::endl << " TRSM computed in : " << (detail_timeEnd - detail_timeSta) << " s.";
 
                 GetTime( timeEnd );
-                statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)" << std::endl;
+                statusOFS << std::endl << " Orthonormalization steps completed ( " << (timeEnd - timeSta ) << " s.)" << std::endl;
 
                 statusOFS << std::endl << " ScaLAPACK to Distributed vector format conversion ... ";
                 GetTime( timeSta );
@@ -3625,19 +3638,19 @@ SCFDG::scfdg_FirstChebyStep(Int MaxIter,
 
 
             // Compute H * X
-            statusOFS << std::endl << " Computing H * X for filtered orthonormal vectors: ";
+            statusOFS << std::endl << " Computing H * X for filtered orthonormal vectors : ";
             GetTime( timeSta );
 
             DistVec<Index3, DblNumMat, ElemPrtn>  result_mat;
             scfdg_Hamiltonian_times_eigenvectors(result_mat);
 
             GetTime( timeEnd );
-            statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+            statusOFS << std::endl << " H * X for filtered orthonormal vectors computed . ( " << (timeEnd - timeSta ) << " s.)";
 
             // Raleigh-Ritz step
             if(cheby_scala_context >= 0)
             { 
-                statusOFS << std::endl << std::endl << " Raleigh - Ritz step:";
+                statusOFS << std::endl << std::endl << " Raleigh - Ritz step : ";
 
 
                 // Convert HX to ScaLAPACK format
@@ -3674,6 +3687,8 @@ SCFDG::scfdg_FirstChebyStep(Int MaxIter,
                 dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_XTHX_mat;
                 cheby_scala_XTHX_mat.SetDescriptor(cheby_XTHX_desc);
 
+		GetTime( detail_timeSta);
+		
                 dgdft::scalapack::Gemm( 'T', 'N',
                         hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
                         1.0,
@@ -3684,10 +3699,16 @@ SCFDG::scfdg_FirstChebyStep(Int MaxIter,
                         cheby_scala_context);
 
 
+		GetTime( detail_timeEnd);
+		statusOFS << std::endl << " X^T(HX) computed in : " << (detail_timeEnd - detail_timeSta) << " s.";
+		
+		
                 scalapack::ScaLAPACKMatrix<Real>  scaZ;
 
                 std::vector<Real> eigen_values;
 
+	        GetTime( detail_timeSta);
+		
                 // Eigenvalue probem solution call
                 scalapack::Syevd('U', cheby_scala_XTHX_mat, eigen_values, scaZ);
 
@@ -3696,12 +3717,14 @@ SCFDG::scfdg_FirstChebyStep(Int MaxIter,
                     eigval[i] = eigen_values[i];
 
 
-                GetTime( timeEnd );
-                statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+		GetTime( detail_timeEnd);
+		statusOFS << std::endl << " Eigenvalue problem solved in : " << (detail_timeEnd - detail_timeSta) << " s.";
+		
+                
 
                 // Subspace rotation step : X <- X * Q
-                statusOFS << std::endl << " Subspace rotation step ... ";
-                GetTime( timeSta );
+	        GetTime( detail_timeSta);
+
 
                 // To save memory, copy X to HX
                 blas::Copy((cheby_scala_eigvecs_X.LocalHeight() * cheby_scala_eigvecs_X.LocalWidth()), 
@@ -3720,12 +3743,14 @@ SCFDG::scfdg_FirstChebyStep(Int MaxIter,
                         cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(),
                         cheby_scala_context);
 
+                GetTime( detail_timeEnd);
+		statusOFS << std::endl << " Subspace rotation step completed in : " << (detail_timeEnd - detail_timeSta) << " s.";
+		
+ 
 
-
-
-                GetTime( timeEnd );
-                statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
-
+		GetTime( timeEnd );
+                statusOFS << std::endl << " All subspace problem steps completed . ( " << (timeEnd - timeSta ) << " s.)" << std::endl ;
+		
 
                 // Convert the eigenvectors back to distributed vector format
                 statusOFS << std::endl << " ScaLAPACK to Distributed vector format conversion ... ";
@@ -4001,6 +4026,8 @@ SCFDG::scfdg_GeneralChebyStep(Int MaxIter,
 
             statusOFS << std::endl << " Setting up BLACS and ScaLAPACK Process Grid ...";
             GetTime( timeSta );
+	    
+	    double detail_timeSta, detail_timeEnd;
 
             // Basic ScaLAPACK setup steps
             //Number of ScaLAPACK processors equal to number of DG elements
@@ -4048,7 +4075,7 @@ SCFDG::scfdg_GeneralChebyStep(Int MaxIter,
             if(cheby_scala_context >= 0)
             { 
                 // Now setup the ScaLAPACK matrix
-                statusOFS << std::endl << " Orthonormalization step:";
+                statusOFS << std::endl << " Orthonormalization step : ";
                 statusOFS << std::endl << " Distributed vector to ScaLAPACK format conversion ... ";
                 GetTime( timeSta );
 
@@ -4092,6 +4119,7 @@ SCFDG::scfdg_GeneralChebyStep(Int MaxIter,
                 statusOFS << std::endl << " Orthonormalizing filtered vectors ... ";
                 GetTime( timeSta );
 
+		GetTime( detail_timeSta);
 
                 // Compute C = X^T * X
                 dgdft::scalapack::Descriptor cheby_chol_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
@@ -4111,19 +4139,30 @@ SCFDG::scfdg_GeneralChebyStep(Int MaxIter,
                         cheby_scala_chol_mat.Data(), I_ONE, I_ONE, cheby_scala_chol_mat.Desc().Values(),
                         cheby_scala_context);
 
+                GetTime( detail_timeEnd);
+		statusOFS << std::endl << " Overlap matrix computed in : " << (detail_timeEnd - detail_timeSta) << " s.";
 
 
-
+		GetTime( detail_timeSta);
                 // Compute V = Chol(C)
                 dgdft::scalapack::Potrf( 'U', cheby_scala_chol_mat);
+		
+		GetTime( detail_timeEnd);
+		statusOFS << std::endl << " Cholesky factorization computed in : " << (detail_timeEnd - detail_timeSta) << " s.";
 
+		
+		GetTime( detail_timeSta);
                 // Compute  X = X * V^{-1}
                 dgdft::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
                         cheby_scala_chol_mat, 
                         cheby_scala_eigvecs_X );
+		
+		GetTime( detail_timeEnd);
+		statusOFS << std::endl << " TRSM computed in : " << (detail_timeEnd - detail_timeSta) << " s.";
+
 
                 GetTime( timeEnd );
-                statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)" << std::endl;
+                statusOFS << std::endl << " Orthonormalization steps completed ( " << (timeEnd - timeSta ) << " s.)" << std::endl;
 
                 statusOFS << std::endl << " ScaLAPACK to Distributed vector format conversion ... ";
                 GetTime( timeSta );
@@ -4161,20 +4200,20 @@ SCFDG::scfdg_GeneralChebyStep(Int MaxIter,
             eigval.Resize( hamDG.NumStateTotal() );    
 
             // Compute H * X
-            statusOFS << std::endl << " Computing H * X for filtered orthonormal vectors:";
+            statusOFS << std::endl << " Computing H * X for filtered orthonormal vectors : ";
             GetTime( timeSta );
 
             DistVec<Index3, DblNumMat, ElemPrtn>  result_mat;
             scfdg_Hamiltonian_times_eigenvectors(result_mat);
 
             GetTime( timeEnd );
-            statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+            statusOFS << std::endl << " H * X for filtered orthonormal vectors computed . ( " << (timeEnd - timeSta ) << " s.)";
 
 
             // Raleigh-Ritz step
             if(cheby_scala_context >= 0)
             { 
-                statusOFS << std::endl << std::endl << " Raleigh - Ritz step:";
+                statusOFS << std::endl << std::endl << " Raleigh - Ritz step : ";
 
                 // Convert HX to ScaLAPACK format
                 dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_HX;
@@ -4208,6 +4247,9 @@ SCFDG::scfdg_GeneralChebyStep(Int MaxIter,
                 dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_XTHX_mat;
                 cheby_scala_XTHX_mat.SetDescriptor(cheby_XTHX_desc);
 
+		
+		GetTime( detail_timeSta);
+		
                 dgdft::scalapack::Gemm( 'T', 'N',
                         hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
                         1.0,
@@ -4218,10 +4260,15 @@ SCFDG::scfdg_GeneralChebyStep(Int MaxIter,
                         cheby_scala_context);
 
 
+		GetTime( detail_timeEnd);
+		statusOFS << std::endl << " X^T(HX) computed in : " << (detail_timeEnd - detail_timeSta) << " s.";
+		
                 scalapack::ScaLAPACKMatrix<Real>  scaZ;
 
                 std::vector<Real> eigen_values;
 
+		GetTime( detail_timeSta);
+		
                 // Eigenvalue probem solution call
                 scalapack::Syevd('U', cheby_scala_XTHX_mat, eigen_values, scaZ);
 
@@ -4229,13 +4276,14 @@ SCFDG::scfdg_GeneralChebyStep(Int MaxIter,
                 for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
                     eigval[i] = eigen_values[i];
 
+                GetTime( detail_timeEnd);
+		statusOFS << std::endl << " Eigenvalue problem solved in : " << (detail_timeEnd - detail_timeSta) << " s.";
+		
+		
+                
 
-                GetTime( timeEnd );
-                statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
-
-                // Subspace rotation step : X <- X * Q
-                statusOFS << std::endl << " Subspace rotation step ... ";
-                GetTime( timeSta );
+                // Subspace rotation step : X <- X * Q		
+	        GetTime( detail_timeSta);
 
                 // To save memory, copy X to HX
                 blas::Copy((cheby_scala_eigvecs_X.LocalHeight() * cheby_scala_eigvecs_X.LocalWidth()), 
@@ -4254,13 +4302,16 @@ SCFDG::scfdg_GeneralChebyStep(Int MaxIter,
                         cheby_scala_eigvecs_X.Data(), I_ONE, I_ONE, cheby_scala_eigvecs_X.Desc().Values(),
                         cheby_scala_context);
 
+                GetTime( detail_timeEnd);
+		statusOFS << std::endl << " Subspace rotation step completed in : " << (detail_timeEnd - detail_timeSta) << " s.";
+		
 
 
 
-                GetTime( timeEnd );
-                statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
 
-
+		GetTime( timeEnd );
+                statusOFS << std::endl << " All subspace problem steps completed . ( " << (timeEnd - timeSta ) << " s.)" << std::endl ;
+		
                 // Convert the eigenvectors back to distributed vector format
                 statusOFS << std::endl << " ScaLAPACK to Distributed vector format conversion ... ";
                 GetTime( timeSta );
