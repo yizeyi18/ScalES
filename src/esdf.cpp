@@ -490,6 +490,9 @@ namespace dgdft{
       strcpy(kw_label[i],"output_density");
       strcpy(kw_typ[i],"I:E");
 
+      i++;
+      strcpy(kw_label[i],"output_potential");
+      strcpy(kw_typ[i],"I:E");
 
       i++;
       strcpy(kw_label[i],"output_wfn");
@@ -2218,6 +2221,7 @@ namespace dgdft{
         esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
         esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
         esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
+        esdfParam.isOutputPotential  = esdf_integer( "Output_Potential", 0 );
         esdfParam.isOutputWfn      = esdf_integer( "Output_Wfn", 0 );
         esdfParam.isOutputALBElemLGL      = esdf_integer( "Output_ALB_Elem_LGL", 0 );
         esdfParam.isOutputALBElemUniform  = esdf_integer( "Output_ALB_Elem_Uniform", 0 );
@@ -2656,6 +2660,7 @@ namespace dgdft{
       Print(statusOFS, "RestartDensity                       = ",  esdfParam.isRestartDensity);
       Print(statusOFS, "RestartWfn                           = ",  esdfParam.isRestartWfn);
       Print(statusOFS, "OutputDensity                        = ",  esdfParam.isOutputDensity);
+      Print(statusOFS, "OutputPotential                      = ",  esdfParam.isOutputPotential);
 
       // Ionic motion
       if( esdfParam.ionMove != "" ){

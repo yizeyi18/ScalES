@@ -93,6 +93,7 @@ SCF::Setup    ( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, Peri
         isRestartDensity_ = esdfParam.isRestartDensity;
         isRestartWfn_     = esdfParam.isRestartWfn;
         isOutputDensity_  = esdfParam.isOutputDensity;
+        isOutputPotential_  = esdfParam.isOutputPotential;
         isOutputWfn_      = esdfParam.isOutputWfn; 
         isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
         Tbeta_         = esdfParam.Tbeta;
@@ -137,6 +138,7 @@ SCF::Setup    ( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, Peri
         dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
 
         restartDensityFileName_ = "DEN";
+        restartPotentialFileName_ = "POT";
         restartWfnFileName_     = "WFN";
     }
 
@@ -713,6 +715,18 @@ SCF::Iterate (  )
             rhoStream.close();
         }
     }    
+
+    // Output the total potential
+    if( isOutputPotential_ ){
+        if( mpirank == 0 ){
+            std::ofstream vtotStream(restartPotentialFileName_.c_str());
+            if( !vtotStream.good() ){
+                ErrorHandling( "Potential file cannot be opened." );
+            }
+            serialize( eigSolPtr_->Ham().Vtot(), vtotStream, NO_MASK );
+            vtotStream.close();
+        }
+    }
 
     if( isOutputWfn_ ){
         std::ostringstream wfnStream;

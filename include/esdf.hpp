@@ -293,6 +293,14 @@ namespace dgdft{
       ///
       /// Default: 0
       bool                isRestartDensity;
+      /// @brief Whether to output the total potential.
+      ///
+      /// Default: 0
+      ///
+      /// When isOutputPotential = 1, files POT_xxx_yyy will be generated,
+      /// where by default xxx is the mpirank (starting from 0), and yyy
+      /// is mpisize.
+      bool                isOutputPotential;
       /// @brief Whether to use the saved basis functions in extended
       /// element as the start.
       ///
