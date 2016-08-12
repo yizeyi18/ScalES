@@ -101,7 +101,7 @@ int main(int argc, char **argv){
     Index3 numGridFineGlobal;
     Point3 posStartGlobal;
     Int numAtom;
-    DblNumMat  densityMat;
+    DblNumVec  densityVec;
     std::vector<Atom> atomList;
 
 
@@ -162,9 +162,8 @@ int main(int argc, char **argv){
     // Construct the density in the global domain
     {
         // Only works for the case without magnetization
-        densityMat.Resize(
-                numGridFineGlobal[0]*numGridFineGlobal[1]*numGridFineGlobal[2], 1);
-        SetValue( densityMat, 0.0 );
+        densityVec.Resize(numGridFineGlobal[0]*numGridFineGlobal[1]*numGridFineGlobal[2]);
+        SetValue( densityVec, 0.0 );
 
 
         ifstream inputFileStream("DEN");
@@ -176,7 +175,7 @@ int main(int argc, char **argv){
             deserialize( gridpos[d], inputFileStream, NO_MASK );
         }
 
-        deserialize(densityMat, inputFileStream, NO_MASK);
+        deserialize(densityVec, inputFileStream, NO_MASK);
 
         if( inputFileStream.is_open() ) inputFileStream.close();
     }
@@ -219,7 +218,7 @@ int main(int argc, char **argv){
                 numGridFineGlobal[0],
                 numGridFineGlobal[1],
                 numGridFineGlobal[2], 
-                false, densityMat.Data() );
+                false, densityVec.Data() );
 
 
         //NOTE the special Z-Y-X order here in the Gaussian cube format.

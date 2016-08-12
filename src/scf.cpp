@@ -155,7 +155,11 @@ SCF::Setup    ( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, Peri
             for( Int d = 0; d < DIM; d++ ){
                 deserialize( gridpos[d], rhoStream, NO_MASK );
             }
-            deserialize( density, rhoStream, NO_MASK );    
+            DblNumVec densityVec;
+            // only for restricted spin case
+            deserialize( densityVec, rhoStream, NO_MASK );    
+            blas::Copy( densityVec.m(), densityVec.Data(), 1, 
+                    density.VecData(RHO), 1 );
         } // else using the zero initial guess
         else {
             // Start from pseudocharge, usually this is not a very good idea
@@ -759,7 +763,10 @@ SCF::Iterate (  )
                 serialize( gridpos[d], rhoStream, NO_MASK );
             }
 
-            serialize( eigSolPtr_->Ham().Density(), rhoStream, NO_MASK );
+            // Only work for the restricted spin case
+            DblNumMat& densityMat = eigSolPtr_->Ham().Density();
+            DblNumVec densityVec(densityMat.m(), false, densityMat.Data());
+            serialize( densityVec, rhoStream, NO_MASK );
             rhoStream.close();
         }
     }    
@@ -771,6 +778,14 @@ SCF::Iterate (  )
             if( !vtotStream.good() ){
                 ErrorHandling( "Potential file cannot be opened." );
             }
+            
+            const Domain& dm =  eigSolPtr_->FFT().domain;
+            std::vector<DblNumVec>   gridpos(DIM);
+            UniformMeshFine ( dm, gridpos );
+            for( Int d = 0; d < DIM; d++ ){
+                serialize( gridpos[d], vtotStream, NO_MASK );
+            }
+           
             serialize( eigSolPtr_->Ham().Vtot(), vtotStream, NO_MASK );
             vtotStream.close();
         }
