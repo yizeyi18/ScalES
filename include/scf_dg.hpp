@@ -1,45 +1,45 @@
 /*
-   Copyright (c) 2012 The Regents of the University of California,
-   through Lawrence Berkeley National Laboratory.  
+  Copyright (c) 2012 The Regents of the University of California,
+  through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin, Wei Hu and Amartya Banerjee
+  Author: Lin Lin, Wei Hu and Amartya Banerjee
 
-   This file is part of DGDFT. All rights reserved.
+  This file is part of DGDFT. All rights reserved.
 
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are met:
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are met:
 
-   (1) Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-   (2) Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-   (3) Neither the name of the University of California, Lawrence Berkeley
-   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-   be used to endorse or promote products derived from this software without
-   specific prior written permission.
+  (1) Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+  (2) Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+  (3) Neither the name of the University of California, Lawrence Berkeley
+  National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+  be used to endorse or promote products derived from this software without
+  specific prior written permission.
 
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-   You are under no obligation whatsoever to provide any bug fixes, patches, or
-   upgrades to the features, functionality or performance of the source code
-   ("Enhancements") to anyone; however, if you choose to make your Enhancements
-   available either publicly, or directly to Lawrence Berkeley National
-   Laboratory, without imposing a separate written license agreement for such
-   Enhancements, then you hereby grant the following license: a non-exclusive,
-   royalty-free perpetual license to install, use, modify, prepare derivative
-   works, incorporate into other computer software, distribute, and sublicense
-   such enhancements or derivative works thereof, in binary and source code form.
- */
+  You are under no obligation whatsoever to provide any bug fixes, patches, or
+  upgrades to the features, functionality or performance of the source code
+  ("Enhancements") to anyone; however, if you choose to make your Enhancements
+  available either publicly, or directly to Lawrence Berkeley National
+  Laboratory, without imposing a separate written license agreement for such
+  Enhancements, then you hereby grant the following license: a non-exclusive,
+  royalty-free perpetual license to install, use, modify, prepare derivative
+  works, incorporate into other computer software, distribute, and sublicense
+  such enhancements or derivative works thereof, in binary and source code form.
+*/
 /// @file scf_dg.hpp
 /// @brief Self consistent iteration using the DG method.
 /// @date 2013-02-05
@@ -60,11 +60,15 @@
 #include  "hamiltonian_dg.hpp"
 #include  "hamiltonian_dg_conversion.hpp"
 
+  
+  
+
 namespace dgdft{
 
-class SCFDG
-{
-private:
+
+  class SCFDG
+  {
+  private:
     // Control parameters
     Int                 mixMaxDim_;
     std::string         mixType_;
@@ -157,14 +161,35 @@ private:
 
     // Internal use variables
     // Key for the eigenvector on the current processor
-    Index3 my_cheby_eig_vec_key;
+    Index3 my_cheby_eig_vec_key_;
 
     // Do the usual Chebyshev filtering schedule or work in ionic movement mode
     Int Cheby_iondynamics_schedule_flag_;
 
     // Deque for ALBs expressed on the LGL grid
-    std::deque<DblNumMat> ALB_LGL_deque;
+    std::deque<DblNumMat> ALB_LGL_deque_;
+    
+    // **###**
+    // Variables related to Chebyshev polynomial filtered 
+    // complementary subspace iteration strategy in DGDFT
+    bool SCFDG_use_comp_subspace_;
+    bool SCFDG_comp_subspace_parallel_;
+    Int SCFDG_comp_subspace_nstates_;
+    Int SCFDG_comp_subspace_LOBPCG_iter_;
+    Real SCFDG_comp_subspace_LOBPCG_tol_;
+    
+    Int SCFDG_comp_subspace_N_solve_;
+    bool SCFDG_comp_subspace_engaged_;
 
+    
+    double SCFDG_comp_subspace_saved_a_L_;
+    double SCFDG_comp_subspace_trace_Hmat_;
+    
+    DblNumVec SCFDG_comp_subspace_top_eigvals_;
+    DblNumVec SCFDG_comp_subspace_top_occupations_;
+    
+    DblNumMat SCFDG_comp_subspace_start_guess_;
+    DblNumMat SCFDG_comp_subspace_matC_;
 
     /// @brief The total number of processors used by PEXSI.
     /// 
@@ -314,26 +339,26 @@ private:
     // ~~**~~
     /// @brief Internal routines used by Chebyshev filtering
     void scfdg_hamiltonian_times_distvec(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_vec, 
-            DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_vec);
+					 DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_vec);
 
     void scfdg_hamiltonian_times_distmat(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
-            DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_mat);
+					 DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_mat);
 
     void scfdg_Hamiltonian_times_eigenvectors(DistVec<Index3, DblNumMat, ElemPrtn>  &result_mat);
 
     double scfdg_Cheby_Upper_bound_estimator(DblNumVec& ritz_values, 
-            int Num_Lanczos_Steps);
+					     int Num_Lanczos_Steps);
 
     void scfdg_Chebyshev_filter_scaled(int m, 
-            double a, 
-            double b, 
-            double a_L);
+				       double a, 
+				       double b, 
+				       double a_L);
 
     // These following routines are useful, for the Lanczos procedure
 
     // Dot product for conforming distributed vectors
     double scfdg_distvec_dot(DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_a,
-            DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_b);
+			     DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_b);
 
     // L2 norm
     double scfdg_distvec_nrm2(DistVec<Index3, DblNumMat, ElemPrtn>  &dist_vec_a);
@@ -342,17 +367,17 @@ private:
     // Set scal_a = 0.0 and use any vector / matrix a to obtain blas::scal on b
     // Set scal_b = 1.0 for blas::axpy with b denoting y, i.e., b = scal_a * a + b;
     void scfdg_distmat_update(DistVec<Index3, DblNumMat, ElemPrtn>  &dist_mat_a, 
-            double scal_a,
-            DistVec<Index3, DblNumMat, ElemPrtn>  &dist_mat_b,
-            double scal_b);
+			      double scal_a,
+			      DistVec<Index3, DblNumMat, ElemPrtn>  &dist_mat_b,
+			      double scal_b);
 
     // ~~**~~
     /// @brief Internal routine used by Chebyshev Filtering for ScaLAPACK based
     /// solution of the subspace problem : converts a distributed eigenvector block to ScaLAPACK format   
     void scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
-            MPI_Comm comm,
-            dgdft::scalapack::Descriptor &my_scala_descriptor,
-            dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat);
+							 MPI_Comm comm,
+							 dgdft::scalapack::Descriptor &my_scala_descriptor,
+							 dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_mat);
 
 
     //     // Older version of the above routine : uses a more naive implementation and has a larger communication load (=slower)
@@ -361,11 +386,16 @@ private:
     //                                  dgdft::scalapack::Descriptor &my_scala_descriptor,
     //                                  dgdft::scalapack::ScaLAPACKMatrix<Real>  &my_scala_vec);
 
+    // **###**    
+    /// @brief Internal routines related to Chebyshev polynomial filtered 
+    /// complementary subspace iteration strategy in DGDFT
+    double scfdg_fermi_func_comp_subspc( DblNumVec& top_eigVals, DblNumVec& top_occ, Int num_solve, Real x);
+    void scfdg_calc_occ_rate_comp_subspc( DblNumVec& top_eigVals, DblNumVec& top_occ, Int num_solve);
+    
+    
 
 
-
-
-public:
+  public:
 
 
     // *********************************************************************
@@ -380,12 +410,12 @@ public:
 
     /// @brief Setup the basic parameters for initial SCF iteration.
     void  Setup( 
-            const esdf::ESDFInputParam& esdfParam, 
-            HamiltonianDG& hamDG,
-            DistVec<Index3, EigenSolver, ElemPrtn>&  distEigSol,
-            DistFourier&   distfft,
-            PeriodTable&   ptable,
-            Int            contxt ); 
+		const esdf::ESDFInputParam& esdfParam, 
+		HamiltonianDG& hamDG,
+		DistVec<Index3, EigenSolver, ElemPrtn>&  distEigSol,
+		DistFourier&   distfft,
+		PeriodTable&   ptable,
+		Int            contxt ); 
 
     /// @brief Update the basic parameters for SCF interation for MD and
     /// geometry optimization.
@@ -403,13 +433,19 @@ public:
     // ~~**~~
     /// @brief Main routines for Chebyshev filtering based SCF
     void scfdg_FirstChebyStep(Int eigMaxIter,
-            Int filter_order );
+			      Int filter_order );
 
     void scfdg_GeneralChebyStep(Int eigMaxIter, 
-            Int filter_order );    
+				Int filter_order );    
 
     void set_Cheby_iondynamics_schedule_flag(int flag){Cheby_iondynamics_schedule_flag_ = flag;}
-
+    
+    
+    // **###**    
+    /// @brief Routines related to Chebyshev polynomial filtered 
+    /// complementary subspace iteration strategy in DGDFT
+    void scfdg_complementary_subspace_serial(Int filter_order );
+ 
 
     /// @brief Update the local potential in the extended element and the element.
     void  UpdateElemLocalPotential();
@@ -417,20 +453,20 @@ public:
     /// @brief Calculate the occupation rate and the Fermi energy given
     /// the eigenvalues
     void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec&
-            occupationRate );
+				    occupationRate );
 
     /// @brief Interpolate the uniform grid in the periodic extended
     /// element domain to LGL grid in each element.
     void InterpPeriodicUniformToLGL( const Index3& numUniformGrid,
-            const Index3& numLGLGrid, const Real* psiUniform, Real* psiLGL );
+				     const Index3& numLGLGrid, const Real* psiUniform, Real* psiLGL );
 
     void InterpPeriodicUniformFineToLGL( const Index3& numUniformGridFine,
-            const Index3& numLGLGrid, const Real* rhoUniform, Real* rhoLGL );
+					 const Index3& numLGLGrid, const Real* rhoUniform, Real* rhoLGL );
 
     /// @brief Interpolate the uniform fine grid in the periodic extended
     /// element domain to fine grid in each element.
     void InterpPeriodicGridExtElemToGridElem( const Index3& numUniformGridFineExtElem,
-            const Index3& numUniformGridFineElem, const Real* rhoUniformExtElem, Real* rhoUniformElem );
+					      const Index3& numUniformGridFineElem, const Real* rhoUniformExtElem, Real* rhoUniformElem );
 
     /// @brief Calculate the Kohn-Sham energy and other related energies.
     void  CalculateKSEnergy();
@@ -438,8 +474,8 @@ public:
     /// @brief Calculate the Kohn-Sham energy and other related energies
     /// using the energy density matrix and the free energy density matrix.
     void  CalculateKSEnergyDM(
-            DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distEDMMat,
-            DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
+			      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distEDMMat,
+			      DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
 
 
     /// @brief Calculate the Harris (free) energy.  
@@ -461,7 +497,7 @@ public:
     ///
     /// @see CalculateHarrisEnergy
     void  CalculateHarrisEnergyDM(
-            DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
+				  DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
 
 
     /// @brief Calculate the second order accurate energy that is
@@ -485,20 +521,20 @@ public:
     /// @brief Parallel preconditioned Anderson mixing. Can be used for
     /// potential mixing or density mixing.
     void  AndersonMix( 
-            Int             iter, 
-            Real            mixStepLength,
-            std::string     mixType,
-            DistDblNumVec&  distvMix,
-            DistDblNumVec&  distvOld,
-            DistDblNumVec&  distvNew,
-            DistDblNumMat&  dfMat,
-            DistDblNumMat&  dvMat);
+		      Int             iter, 
+		      Real            mixStepLength,
+		      std::string     mixType,
+		      DistDblNumVec&  distvMix,
+		      DistDblNumVec&  distvOld,
+		      DistDblNumVec&  distvNew,
+		      DistDblNumMat&  dfMat,
+		      DistDblNumMat&  dvMat);
 
     /// @brief Parallel Kerker preconditioner. Can be used for
     /// potential mixing or density mixing.
     void  KerkerPrecond(
-            DistDblNumVec&  distPrecResidual,
-            const DistDblNumVec&  distResidual );
+			DistDblNumVec&  distPrecResidual,
+			const DistDblNumVec&  distResidual );
     
     /// @brief Update the parameters for SCF during the MD simulation
     void UpdateMDParameters( const esdf::ESDFInputParam& esdfParam );
@@ -512,7 +548,7 @@ public:
 
     DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& DMMat() {return distDMMat_;};
 
-}; // -----  end of class  SCFDG ----- 
+  }; // -----  end of class  SCFDG ----- 
 
 
 
