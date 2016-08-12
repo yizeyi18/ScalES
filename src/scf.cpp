@@ -148,6 +148,11 @@ SCF::Setup    ( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, Peri
             std::istringstream rhoStream;      
             SharedRead( restartDensityFileName_, rhoStream);
             // TODO Error checking
+            // Read the grid
+            std::vector<DblNumVec> gridpos(DIM);
+            for( Int d = 0; d < DIM; d++ ){
+                deserialize( gridpos[d], rhoStream, NO_MASK );
+            }
             deserialize( density, rhoStream, NO_MASK );    
         } // else using the zero initial guess
         else {
@@ -702,6 +707,41 @@ SCF::Iterate (  )
         statusOFS << std::endl;
     }
 
+
+    // Output the structure information
+    if(1){
+        if( mpirank == 0 ){
+            std::ostringstream structStream;
+#if ( _DEBUGlevel_ >= 0 )
+            statusOFS << std::endl 
+                << "Output the structure information" 
+                << std::endl;
+#endif
+            // Domain
+            const Domain& dm =  eigSolPtr_->FFT().domain;
+            serialize( dm.length, structStream, NO_MASK );
+            serialize( dm.numGrid, structStream, NO_MASK );
+            serialize( dm.numGridFine, structStream, NO_MASK );
+            serialize( dm.posStart, structStream, NO_MASK );
+
+            // Atomic information
+            serialize( ham.AtomList(), structStream, NO_MASK );
+            std::string structFileName = "STRUCTURE";
+
+            std::ofstream fout(structFileName.c_str());
+            if( !fout.good() ){
+                std::ostringstream msg;
+                msg 
+                    << "File " << structFileName.c_str() << " cannot be open." 
+                    << std::endl;
+                ErrorHandling( msg.str().c_str() );
+            }
+            fout << structStream.str();
+            fout.close();
+        }
+    }
+
+
     // Output restarting information
     if( isOutputDensity_ ){
         if( mpirank == 0 ){
@@ -709,6 +749,14 @@ SCF::Iterate (  )
             if( !rhoStream.good() ){
                 ErrorHandling( "Density file cannot be opened." );
             }
+
+            const Domain& dm =  eigSolPtr_->FFT().domain;
+            std::vector<DblNumVec>   gridpos(DIM);
+            UniformMeshFine ( dm, gridpos );
+            for( Int d = 0; d < DIM; d++ ){
+                serialize( gridpos[d], rhoStream, NO_MASK );
+            }
+
             serialize( eigSolPtr_->Ham().Density(), rhoStream, NO_MASK );
             rhoStream.close();
         }

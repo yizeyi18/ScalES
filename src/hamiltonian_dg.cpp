@@ -2610,6 +2610,8 @@ HamiltonianDG::CalculateXC    (
 
     Int ntot      = fft.numGridTotal;
     Int ntotLocal = fft.numGridLocal;
+    // Cutoff of the XC potential. Important for SCF convergence for GGA and above.
+    Real epsRho = 1e-8, epsGRho = 1e-8;
 
     if( XCId_ == 20 ) // XC_FAMILY_LDA
     {
@@ -2626,6 +2628,16 @@ HamiltonianDG::CalculateXC    (
                                 localRho.Data(),
                                 localEpsxc.Data(), 
                                 localVxc.Data() );
+
+                        // Modify "bad points"
+                        if(1){
+                            for( Int i = 0; i < localRho.Size(); i++ ){
+                                if( localRho(i) < epsRho ){
+                                    localEpsxc(i) = 0.0;
+                                    localVxc(i) = 0.0;
+                                }
+                            }
+                        }
 
                         ExcLocal += blas::Dot( localRho.Size(), 
                                 localRho.Data(), 1, localEpsxc.Data(), 1 );
@@ -2695,6 +2707,19 @@ HamiltonianDG::CalculateXC    (
                             vxc2( i ) += vxc2temp( i );
                             localVxc( i ) = vxc1( i );
                         }
+
+                        // Modify "bad points"
+                        if(1){
+                            for( Int i = 0; i < localRho.Size(); i++ ){
+                                if( localRho(i) < epsRho || gradDensity(i) < epsGRho ){
+                                    localEpsxc(i) = 0.0;
+                                    vxc1(i) = 0.0;
+                                    vxc2(i) = 0.0;
+                                    localVxc(i) = 0.0;
+                                }
+                            }
+                        }
+
 
                         ExcLocal += blas::Dot( localRho.Size(), 
                                 localRho.Data(), 1, localEpsxc.Data(), 1 );
