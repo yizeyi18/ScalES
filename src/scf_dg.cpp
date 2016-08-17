@@ -2028,18 +2028,20 @@ namespace  dgdft{
     if( solutionMethod_ == "diag" ){
       
       if(SCFDG_comp_subspace_engaged_ == false)
-	{	
+	{
+	  statusOFS << std::endl << " Computing forces using eigenvectors ..." << std::endl;
 	  hamDG.CalculateForce( *distfftPtr_ );
 	}
       else
 	{
 	  double extra_timeSta, extra_timeEnd;
-	
+	  
+	  statusOFS << std::endl << " Computing forces using Density Matrix ...";
 	  statusOFS << std::endl << " Computing full Density Matrix for Complementary Subspace method ...";
 	  GetTime(extra_timeSta);
 	
 	  // Compute the full DM in the complementary subspace method
-	  scfdg_complementary_subspace_comp_fullDM();
+	  scfdg_complementary_subspace_compute_fullDM();
 	
 	  GetTime(extra_timeEnd);
 	
@@ -4706,7 +4708,7 @@ namespace  dgdft{
    
        
 
-    
+    // // This is for debugging purposes 
     //     DblNumVec eig_vals_Raleigh_Ritz; 
     //     DblNumVec occup_Raleigh_Ritz; 
     //     
@@ -4732,7 +4734,7 @@ namespace  dgdft{
   }
 
   // **###**  
-  void SCFDG::scfdg_complementary_subspace_comp_fullDM()
+  void SCFDG::scfdg_complementary_subspace_compute_fullDM()
   {
     
     Int mpirank, mpisize;
@@ -4785,13 +4787,13 @@ namespace  dgdft{
       DblNumMat &mat_local = my_dist_mat.LocalMap()[key];
       ElemMatKey diag_block_key = std::make_pair(key, key);
       
-      statusOFS << std::endl << " Diag key = " << diag_block_key.first << "  " << diag_block_key.second << std::endl;
+      //statusOFS << std::endl << " Diag key = " << diag_block_key.first << "  " << diag_block_key.second << std::endl;
       
-      // First compute the X*X^T portion
+      // First compute the X*X^T portion : adjust for numspin
       distDMMat_.LocalMap()[diag_block_key].Resize( mat_local.m(),  mat_local.m());
       
       blas::Gemm( 'N', 'T', mat_local.m(), mat_local.m(), mat_local.n(),
-		  1.0, 
+		  hamDG.NumSpin(), 
 		  mat_local.Data(), mat_local.m(), 
 		  mat_local.Data(), mat_local.m(),
 		  0.0, 
@@ -4807,9 +4809,9 @@ namespace  dgdft{
 		  0.0, 
 		  XC_mat.Data(),  XC_mat.m());
 	
-      // Subtract XC*XC^T from DM
+      // Subtract XC*XC^T from DM : adjust for numspin
       blas::Gemm( 'N', 'T', XC_mat.m(), XC_mat.m(), XC_mat.n(),
-		  -1.0, 
+		  -hamDG.NumSpin(), 
 		  XC_mat.Data(), XC_mat.m(), 
 		  XC_mat.Data(), XC_mat.m(),
 		  1.0, 
@@ -4825,13 +4827,13 @@ namespace  dgdft{
 	  DblNumMat &mat_neighbor = my_dist_mat.LocalMap()[getKeys_list[off_diag_iter]];
 	  ElemMatKey off_diag_key = std::make_pair(key, getKeys_list[off_diag_iter]);
       
-	  statusOFS << std::endl << " Off Diag key = " << off_diag_key.first << "  " << off_diag_key.second << std::endl;
+	  //statusOFS << std::endl << " Off Diag key = " << off_diag_key.first << "  " << off_diag_key.second << std::endl;
 
-	  // First compute the Xi * Xj^T portion
+	  // First compute the Xi * Xj^T portion : adjust for numspin
 	  distDMMat_.LocalMap()[off_diag_key].Resize( mat_local.m(),  mat_neighbor.m());
       
 	  blas::Gemm( 'N', 'T', mat_local.m(), mat_neighbor.m(), mat_local.n(),
-		      1.0, 
+		      hamDG.NumSpin(), 
 		      mat_local.Data(), mat_local.m(), 
 		      mat_neighbor.Data(), mat_neighbor.m(),
 		      0.0, 
@@ -4850,9 +4852,9 @@ namespace  dgdft{
 		      XC_neighbor_mat.Data(),  XC_neighbor_mat.m());
       
       
-	  // Subtract (Xi C)* (Xj C)^T from off diagonal block
+	  // Subtract (Xi C)* (Xj C)^T from off diagonal block : adjust for numspin
 	  blas::Gemm( 'N', 'T', XC_mat.m(), XC_neighbor_mat.m(), XC_mat.n(),
-		      -1.0, 
+		      -hamDG.NumSpin(), 
 		      XC_mat.Data(), XC_mat.m(), 
 		      XC_neighbor_mat.Data(), XC_neighbor_mat.m(),
 		      1.0, 
@@ -4874,7 +4876,7 @@ namespace  dgdft{
   }
 
   
-  void SCFDG::scfdg_comp_fullDM()
+  void SCFDG::scfdg_compute_fullDM()
   {
     
     Int mpirank, mpisize;
@@ -4904,10 +4906,12 @@ namespace  dgdft{
      scal_local_eig_vec.Resize(eigvecs_local.m(), eigvecs_local.n());
      blas::Copy((eigvecs_local.m() * eigvecs_local.n()), eigvecs_local.Data(), 1, scal_local_eig_vec.Data(), 1);
 
-     // Scale temp buffer by occupation 
+     // Scale temp buffer by occupation * numspin
      for(int iter_scale = 0; iter_scale < eigvecs_local.n(); iter_scale ++)
       {
-	blas::Scal(  scal_local_eig_vec.m(),  (hamDG.OccupationRate()[iter_scale]), scal_local_eig_vec.Data() + iter_scale * scal_local_eig_vec.m(), 1 );
+	blas::Scal(  scal_local_eig_vec.m(),  
+		     (hamDG.NumSpin()* hamDG.OccupationRate()[iter_scale]), 
+		     scal_local_eig_vec.Data() + iter_scale * scal_local_eig_vec.m(), 1 );
       }
 
 		
@@ -4942,7 +4946,7 @@ namespace  dgdft{
       DblNumMat &mat_local = my_dist_mat.LocalMap()[key];
       ElemMatKey diag_block_key = std::make_pair(key, key);
       
-      statusOFS << std::endl << " Diag key = " << diag_block_key.first << "  " << diag_block_key.second << std::endl;
+      //statusOFS << std::endl << " Diag key = " << diag_block_key.first << "  " << diag_block_key.second << std::endl;
       
       // Compute the X*X^T portion
       distDMMat_.LocalMap()[diag_block_key].Resize( mat_local.m(),  mat_local.m());
@@ -4965,7 +4969,7 @@ namespace  dgdft{
 	  DblNumMat &mat_neighbor = my_dist_mat.LocalMap()[getKeys_list[off_diag_iter]];
 	  ElemMatKey off_diag_key = std::make_pair(key, getKeys_list[off_diag_iter]);
       
-	  statusOFS << std::endl << " Off Diag key = " << off_diag_key.first << "  " << off_diag_key.second << std::endl;
+	  //statusOFS << std::endl << " Off Diag key = " << off_diag_key.first << "  " << off_diag_key.second << std::endl;
 
 	  // First compute the Xi * Xj^T portion
 	  distDMMat_.LocalMap()[off_diag_key].Resize( scal_local_eig_vec.m(),  mat_neighbor.m());
@@ -5358,9 +5362,9 @@ namespace  dgdft{
 	      GetTime( timeEnd );
 
 	      if(SCFDG_comp_subspace_engaged_ == 1)
-		statusOFS << std::endl << " Time for Complementary Subspace Method is " << timeEnd - timeSta << " [s]" << std::endl << std::endl;
+		statusOFS << std::endl << " Total time for Complementary Subspace Method is " << timeEnd - timeSta << " [s]" << std::endl << std::endl;
 	      else
-		statusOFS << std::endl << " Time for diag DG matrix via Chebyshev filtering is " << timeEnd - timeSta << " [s]" << std::endl << std::endl;
+		statusOFS << std::endl << " Total time for diag DG matrix via Chebyshev filtering is " << timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
 
 
@@ -5746,6 +5750,7 @@ namespace  dgdft{
 	    {
 	      if(1)
 	      {
+		  statusOFS << std::endl << " Computing forces using eigenvectors ... " << std::endl;
 	          hamDG.CalculateForce( *distfftPtr_ );
 	      }
 	      else
@@ -5755,13 +5760,14 @@ namespace  dgdft{
 	      
 	       double extra_timeSta, extra_timeEnd;
 	
+	       statusOFS << std::endl << " Computing forces using Density Matrix ... ";
 	       statusOFS << std::endl << " Computing full Density Matrix from eigenvectors ...";
 	       GetTime(extra_timeSta);
 		
 	       distDMMat_.Prtn()     = hamDG.HMat().Prtn();
 	      
 	       // Compute the full DM 
-	       scfdg_comp_fullDM();
+	       scfdg_compute_fullDM();
 	
 	       GetTime(extra_timeEnd);
 	
@@ -5777,12 +5783,14 @@ namespace  dgdft{
 	  else
 	    {
 	      double extra_timeSta, extra_timeEnd;
-	
+		       
+	      statusOFS << std::endl << " Computing forces using Density Matrix ... ";
+	      
 	      statusOFS << std::endl << " Computing full Density Matrix for Complementary Subspace method ...";
 	      GetTime(extra_timeSta);
 	
 	      // Compute the full DM in the complementary subspace method
-	      scfdg_complementary_subspace_comp_fullDM();
+	      scfdg_complementary_subspace_compute_fullDM();
 	
 	      GetTime(extra_timeEnd);
 	

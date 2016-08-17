@@ -445,8 +445,8 @@ namespace dgdft{
     /// @brief Routines related to Chebyshev polynomial filtered 
     /// complementary subspace iteration strategy in DGDFT
     void scfdg_complementary_subspace_serial(Int filter_order );
-    void scfdg_complementary_subspace_comp_fullDM();
-    void scfdg_comp_fullDM();
+    void scfdg_complementary_subspace_compute_fullDM();
+    void scfdg_compute_fullDM();
  
 
     /// @brief Update the local potential in the extended element and the element.

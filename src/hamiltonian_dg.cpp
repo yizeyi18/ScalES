@@ -3110,7 +3110,7 @@ HamiltonianDG::CalculateForce    ( DistFourier& fft )
     // Compute the force from local pseudopotential
     // *********************************************************************
     // Method 1: Using the derivative of the pseudopotential
-    if(0){
+    if(1){
         for( Int k = 0; k < numElem_[2]; k++ )
             for( Int j = 0; j < numElem_[1]; j++ )
                 for( Int i = 0; i < numElem_[0]; i++ ){
@@ -3149,7 +3149,7 @@ HamiltonianDG::CalculateForce    ( DistFourier& fft )
     // does not use the derivative of the pseudopotential. This is done
     // through integration by parts, and the derivative is applied to the
     // Coulomb potential evaluated on a uniform grid. 
-    if(1)
+    if(0)
     {
         for( Int k = 0; k < numElem_[2]; k++ )
             for( Int j = 0; j < numElem_[1]; j++ )
@@ -3875,41 +3875,6 @@ HamiltonianDG::CalculateForceDM    (
 
     // Method 1: Using the derivative of the pseudopotential. Integrated
     // on a uniform grid
-    if(0){
-        for( Int k = 0; k < numElem_[2]; k++ )
-            for( Int j = 0; j < numElem_[1]; j++ )
-                for( Int i = 0; i < numElem_[0]; i++ ){
-                    Index3 key( i, j, k );
-                    if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-                        std::map<Int, PseudoPot>&  ppMap = pseudo_.LocalMap()[key];
-                        for( std::map<Int, PseudoPot>::iterator mi = ppMap.begin();
-                                mi != ppMap.end(); mi++ ){
-                            Int atomIdx = (*mi).first;
-                            PseudoPot& pp = (*mi).second;
-                            SparseVec& sp = pp.pseudoCharge;
-                            IntNumVec& idx = sp.first;
-                            DblNumMat& val = sp.second;
-                            Real    wgt = domain_.Volume() / domain_.NumGridTotalFine();
-                            DblNumVec&  vhartVal = vhart.LocalMap()[key];
-                            Real resX = 0.0;
-                            Real resY = 0.0;
-                            Real resZ = 0.0;
-                            for( Int l = 0; l < idx.m(); l++ ){
-                                resX -= val(l, DX) * vhartVal[idx(l)] * wgt;
-                                resY -= val(l, DY) * vhartVal[idx(l)] * wgt;
-                                resZ -= val(l, DZ) * vhartVal[idx(l)] * wgt;
-                            }
-                            forceLocal( atomIdx, 0 ) += resX;
-                            forceLocal( atomIdx, 1 ) += resY;
-                            forceLocal( atomIdx, 2 ) += resZ;
-
-                        } // for (mi)
-                    } // own this element
-                } // for (i)
-    }
-
-    // Method 2: Using the derivative of the pseudopotential. Integrated
-    // on a LGL grid
     if(1){
         for( Int k = 0; k < numElem_[2]; k++ )
             for( Int j = 0; j < numElem_[1]; j++ )
@@ -3942,6 +3907,7 @@ HamiltonianDG::CalculateForceDM    (
                     } // own this element
                 } // for (i)
     }
+
 
 
     // *********************************************************************
