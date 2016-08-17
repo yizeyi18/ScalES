@@ -219,6 +219,9 @@ namespace  dgdft{
     // **###**
     // Variables related to Chebyshev polynomial filtered 
     // complementary subspace iteration strategy in DGDFT
+    // Only accessed if CheFSI is in use 
+    
+    if(Diag_SCFDG_by_Cheby_ == 1)
     {
       SCFDG_use_comp_subspace_ = esdfParam.scfdg_use_chefsi_complementary_subspace;  // Default: 0
       
@@ -230,6 +233,11 @@ namespace  dgdft{
       SCFDG_comp_subspace_LOBPCG_tol_ = esdfParam.scfdg_complementary_subspace_lobpcg_tol; // Default = 1e-8
       
       SCFDG_comp_subspace_N_solve_ = hamDG.NumExtraState() + SCFDG_comp_subspace_nstates_;     
+      SCFDG_comp_subspace_engaged_ = false;
+    }
+    else
+    {
+      SCFDG_use_comp_subspace_ = false;
       SCFDG_comp_subspace_engaged_ = false;
     }
 
@@ -385,7 +393,10 @@ namespace  dgdft{
       distFDMMat_.Prtn()     = hamDG.HMat().Prtn(); 
 #endif
 
-
+       // **###**
+      if(SCFDG_use_comp_subspace_ == 1)
+	distDMMat_.Prtn()     = hamDG.HMat().Prtn();
+      
       // The number of processors in the column communicator must be the
       // number of elements, and mpisize should be a multiple of the
       // number of elements.
@@ -2015,7 +2026,28 @@ namespace  dgdft{
     // Calculate the VDW contribution and the force
     // *********************************************************************
     if( solutionMethod_ == "diag" ){
-      hamDG.CalculateForce( *distfftPtr_ );
+      
+      if(SCFDG_comp_subspace_engaged_ == false)
+	{	
+	  hamDG.CalculateForce( *distfftPtr_ );
+	}
+      else
+	{
+	  double extra_timeSta, extra_timeEnd;
+	
+	  statusOFS << std::endl << " Computing full Density Matrix for Complementary Subspace method ...";
+	  GetTime(extra_timeSta);
+	
+	  // Compute the full DM in the complementary subspace method
+	  scfdg_complementary_subspace_comp_fullDM();
+	
+	  GetTime(extra_timeEnd);
+	
+	  statusOFS << std::endl << " Computation took " << (extra_timeEnd - extra_timeSta) << " s.";
+	  
+	  // Call the PEXSI force evaluator
+	  hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );	
+	}
     }
     else if( solutionMethod_ == "pexsi" ){
       hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );
@@ -4430,7 +4462,10 @@ namespace  dgdft{
 
 
   }
-
+ 
+  // **###**    
+  /// @brief Routines related to Chebyshev polynomial filtered 
+  /// complementary subspace iteration strategy in DGDFT
   void 
   SCFDG::scfdg_complementary_subspace_serial(Int filter_order )
   {
@@ -4587,11 +4622,6 @@ namespace  dgdft{
 
     DblNumMat temp_Hmat(square_mat);
     
-    
-    
-    // **###**  
-    
-    
     // Space for top few eigenpairs of projected Hamiltonian
     // Note that SCFDG_comp_subspace_start_guess_ should contain the starting guess already
     // This is either from the earlier ScaLAPACK results (when SCFDG_comp_subspace_engaged_ = 0)
@@ -4699,25 +4729,269 @@ namespace  dgdft{
     
     //statusOFS << std::endl << " LOBPCG Eigenvectors = " << std::endl << temp_Xmat;
     //statusOFS << std::endl << " LAPACK Eigenvectors = " << std::endl << square_mat;
+  }
+
+  // **###**  
+  void SCFDG::scfdg_complementary_subspace_comp_fullDM()
+  {
     
+    Int mpirank, mpisize;
+    MPI_Comm_rank( domain_.comm, &mpirank );
+    MPI_Comm_size( domain_.comm, &mpisize );
+
+    HamiltonianDG&  hamDG = *hamDGPtr_;
+    std::vector<Index3>  getKeys_list;
     
-    // statusOFS << std::endl << " Aborting now ... " << std::endl;
-    
-    // if(mpirank == 0)
-    //  abort();
-	    
- 
-    
-    
-    
-    
+    DistDblNumMat& my_dist_mat = hamDG.EigvecCoef();
 
     
+    // Check that vectors provided only contain one entry in the local map
+    // This is a safeguard to ensure that we are really dealing with distributed matrices
+    if((my_dist_mat.LocalMap().size() != 1))
+      {
+        statusOFS << std::endl << " Eigenvector not formatted correctly !!"
+		  << std::endl << " Aborting ... " << std::endl;
+        exit(1);
+      }
+
+
+    // Obtain key based on my_dist_mat : This assumes that my_dist_mat is formatted correctly
+    // based on processor number, etc.
+    Index3 key = (my_dist_mat.LocalMap().begin())->first;
+
+    // Obtain keys of neighbors using the Hamiltonian matrix
+    for(typename std::map<ElemMatKey, DblNumMat >::iterator 
+	  get_neighbors_from_Ham_iterator = hamDG.HMat().LocalMap().begin();
+	get_neighbors_from_Ham_iterator != hamDG.HMat().LocalMap().end();
+	get_neighbors_from_Ham_iterator ++)
+      {
+        Index3 neighbor_key = (get_neighbors_from_Ham_iterator->first).second;
+
+        if(neighbor_key == key)
+	  continue;
+        else
+	  getKeys_list.push_back(neighbor_key);
+      }
+
+
+    // Do the communication necessary to get the information from
+    // procs holding the neighbors
+    my_dist_mat.GetBegin( getKeys_list, NO_MASK ); 
+    my_dist_mat.GetEnd( NO_MASK );
+
+    DblNumMat XC_mat;
+    // First compute the diagonal block
+    {
+      DblNumMat &mat_local = my_dist_mat.LocalMap()[key];
+      ElemMatKey diag_block_key = std::make_pair(key, key);
+      
+      statusOFS << std::endl << " Diag key = " << diag_block_key.first << "  " << diag_block_key.second << std::endl;
+      
+      // First compute the X*X^T portion
+      distDMMat_.LocalMap()[diag_block_key].Resize( mat_local.m(),  mat_local.m());
+      
+      blas::Gemm( 'N', 'T', mat_local.m(), mat_local.m(), mat_local.n(),
+		  1.0, 
+		  mat_local.Data(), mat_local.m(), 
+		  mat_local.Data(), mat_local.m(),
+		  0.0, 
+		  distDMMat_.LocalMap()[diag_block_key].Data(),  mat_local.m());
+      
+      
+      // Now compute the X * C portion
+      XC_mat.Resize(mat_local.m(), SCFDG_comp_subspace_N_solve_);	
+      blas::Gemm( 'N', 'N', mat_local.m(), SCFDG_comp_subspace_N_solve_, mat_local.n(),
+		  1.0, 
+		  mat_local.Data(), mat_local.m(), 
+		  SCFDG_comp_subspace_matC_.Data(), SCFDG_comp_subspace_matC_.m(),
+		  0.0, 
+		  XC_mat.Data(),  XC_mat.m());
+	
+      // Subtract XC*XC^T from DM
+      blas::Gemm( 'N', 'T', XC_mat.m(), XC_mat.m(), XC_mat.n(),
+		  -1.0, 
+		  XC_mat.Data(), XC_mat.m(), 
+		  XC_mat.Data(), XC_mat.m(),
+		  1.0, 
+		  distDMMat_.LocalMap()[diag_block_key].Data(),  mat_local.m());
+    }
+    
+    // Now handle the off-diagonal blocks
+    {
+     
+      DblNumMat &mat_local = my_dist_mat.LocalMap()[key];
+      for(Int off_diag_iter = 0; off_diag_iter < getKeys_list.size(); off_diag_iter ++)
+	{
+	  DblNumMat &mat_neighbor = my_dist_mat.LocalMap()[getKeys_list[off_diag_iter]];
+	  ElemMatKey off_diag_key = std::make_pair(key, getKeys_list[off_diag_iter]);
+      
+	  statusOFS << std::endl << " Off Diag key = " << off_diag_key.first << "  " << off_diag_key.second << std::endl;
+
+	  // First compute the Xi * Xj^T portion
+	  distDMMat_.LocalMap()[off_diag_key].Resize( mat_local.m(),  mat_neighbor.m());
+      
+	  blas::Gemm( 'N', 'T', mat_local.m(), mat_neighbor.m(), mat_local.n(),
+		      1.0, 
+		      mat_local.Data(), mat_local.m(), 
+		      mat_neighbor.Data(), mat_neighbor.m(),
+		      0.0, 
+		      distDMMat_.LocalMap()[off_diag_key].Data(),  mat_local.m());
+      
+      
+	  // Now compute the XC portion for the off-diagonal block
+	  DblNumMat XC_neighbor_mat;
+	  XC_neighbor_mat.Resize(mat_neighbor.m(), SCFDG_comp_subspace_N_solve_);
+      
+	  blas::Gemm( 'N', 'N', mat_neighbor.m(), SCFDG_comp_subspace_N_solve_, mat_neighbor.n(),
+		      1.0, 
+		      mat_neighbor.Data(), mat_neighbor.m(), 
+		      SCFDG_comp_subspace_matC_.Data(), SCFDG_comp_subspace_matC_.m(),
+		      0.0, 
+		      XC_neighbor_mat.Data(),  XC_neighbor_mat.m());
+      
+      
+	  // Subtract (Xi C)* (Xj C)^T from off diagonal block
+	  blas::Gemm( 'N', 'T', XC_mat.m(), XC_neighbor_mat.m(), XC_mat.n(),
+		      -1.0, 
+		      XC_mat.Data(), XC_mat.m(), 
+		      XC_neighbor_mat.Data(), XC_neighbor_mat.m(),
+		      1.0, 
+		      distDMMat_.LocalMap()[off_diag_key].Data(),  mat_local.m());
+	
+
+	}
+    
+    }
+    
+    // Need to clean up extra entries in my_dist_mat
+    typename std::map<Index3, DblNumMat >::iterator it;
+    for(Int delete_iter = 0; delete_iter <  getKeys_list.size(); delete_iter ++)
+      {
+        it = my_dist_mat.LocalMap().find(getKeys_list[delete_iter]);
+        (my_dist_mat.LocalMap()).erase(it);
+      }
 
   }
 
+  
+  void SCFDG::scfdg_comp_fullDM()
+  {
+    
+    Int mpirank, mpisize;
+    MPI_Comm_rank( domain_.comm, &mpirank );
+    MPI_Comm_size( domain_.comm, &mpisize );
 
-  // **###**  
+    HamiltonianDG&  hamDG = *hamDGPtr_;
+    std::vector<Index3>  getKeys_list;
+    
+    DistDblNumMat& my_dist_mat = hamDG.EigvecCoef();
+
+    
+    // Check that vectors provided only contain one entry in the local map
+    // This is a safeguard to ensure that we are really dealing with distributed matrices
+    if((my_dist_mat.LocalMap().size() != 1))
+      {
+        statusOFS << std::endl << " Eigenvector not formatted correctly !!"
+		  << std::endl << " Aborting ... " << std::endl;
+        exit(1);
+      }
+
+
+     // Copy eigenvectors to temp bufer
+     DblNumMat &eigvecs_local = (hamDG.EigvecCoef().LocalMap().begin())->second;
+
+     DblNumMat scal_local_eig_vec;
+     scal_local_eig_vec.Resize(eigvecs_local.m(), eigvecs_local.n());
+     blas::Copy((eigvecs_local.m() * eigvecs_local.n()), eigvecs_local.Data(), 1, scal_local_eig_vec.Data(), 1);
+
+     // Scale temp buffer by occupation 
+     for(int iter_scale = 0; iter_scale < eigvecs_local.n(); iter_scale ++)
+      {
+	blas::Scal(  scal_local_eig_vec.m(),  (hamDG.OccupationRate()[iter_scale]), scal_local_eig_vec.Data() + iter_scale * scal_local_eig_vec.m(), 1 );
+      }
+
+		
+		
+      
+    // Obtain key based on my_dist_mat : This assumes that my_dist_mat is formatted correctly
+    // based on processor number, etc.
+    Index3 key = (my_dist_mat.LocalMap().begin())->first;
+
+    // Obtain keys of neighbors using the Hamiltonian matrix
+    for(typename std::map<ElemMatKey, DblNumMat >::iterator 
+	  get_neighbors_from_Ham_iterator = hamDG.HMat().LocalMap().begin();
+	get_neighbors_from_Ham_iterator != hamDG.HMat().LocalMap().end();
+	get_neighbors_from_Ham_iterator ++)
+      {
+        Index3 neighbor_key = (get_neighbors_from_Ham_iterator->first).second;
+
+        if(neighbor_key == key)
+	  continue;
+        else
+	  getKeys_list.push_back(neighbor_key);
+      }
+
+
+    // Do the communication necessary to get the information from
+    // procs holding the neighbors
+    my_dist_mat.GetBegin( getKeys_list, NO_MASK ); 
+    my_dist_mat.GetEnd( NO_MASK );
+
+    // First compute the diagonal block
+    {
+      DblNumMat &mat_local = my_dist_mat.LocalMap()[key];
+      ElemMatKey diag_block_key = std::make_pair(key, key);
+      
+      statusOFS << std::endl << " Diag key = " << diag_block_key.first << "  " << diag_block_key.second << std::endl;
+      
+      // Compute the X*X^T portion
+      distDMMat_.LocalMap()[diag_block_key].Resize( mat_local.m(),  mat_local.m());
+      
+      blas::Gemm( 'N', 'T', mat_local.m(), mat_local.m(), mat_local.n(),
+		  1.0, 
+		  scal_local_eig_vec.Data(), scal_local_eig_vec.m(), 
+		  mat_local.Data(), mat_local.m(),
+		  0.0, 
+		  distDMMat_.LocalMap()[diag_block_key].Data(),  mat_local.m());
+      
+    }
+    
+    // Now handle the off-diagonal blocks
+    {
+     
+      DblNumMat &mat_local = my_dist_mat.LocalMap()[key];
+      for(Int off_diag_iter = 0; off_diag_iter < getKeys_list.size(); off_diag_iter ++)
+	{
+	  DblNumMat &mat_neighbor = my_dist_mat.LocalMap()[getKeys_list[off_diag_iter]];
+	  ElemMatKey off_diag_key = std::make_pair(key, getKeys_list[off_diag_iter]);
+      
+	  statusOFS << std::endl << " Off Diag key = " << off_diag_key.first << "  " << off_diag_key.second << std::endl;
+
+	  // First compute the Xi * Xj^T portion
+	  distDMMat_.LocalMap()[off_diag_key].Resize( scal_local_eig_vec.m(),  mat_neighbor.m());
+      
+	  blas::Gemm( 'N', 'T', scal_local_eig_vec.m(), mat_neighbor.m(), scal_local_eig_vec.n(),
+		      1.0, 
+		      scal_local_eig_vec.Data(), scal_local_eig_vec.m(), 
+		      mat_neighbor.Data(), mat_neighbor.m(),
+		      0.0, 
+		      distDMMat_.LocalMap()[off_diag_key].Data(),  mat_local.m());
+
+	}
+    
+    }
+    
+    // Need to clean up extra entries in my_dist_mat
+    typename std::map<Index3, DblNumMat >::iterator it;
+    for(Int delete_iter = 0; delete_iter <  getKeys_list.size(); delete_iter ++)
+      {
+        it = my_dist_mat.LocalMap().find(getKeys_list[delete_iter]);
+        (my_dist_mat.LocalMap()).erase(it);
+      }
+
+  }
+  
+  
   void 
   SCFDG::scfdg_calc_occ_rate_comp_subspc( DblNumVec& top_eigVals, DblNumVec& top_occ, Int num_solve)
   {
@@ -5267,6 +5541,10 @@ namespace  dgdft{
 	  {
 	    // Density calculation for complementary subspace method
 	    statusOFS << std::endl << " Using complementary subspace method for electron density ... " << std::endl;
+	    
+	    Real GetTime_extra_sta, GetTime_extra_end;		
+	    GetTime(GetTime_extra_sta);
+	    statusOFS << std::endl << " Forming diagonal blocks of density matrix ... ";
 	
 	    // Compute the diagonal blocks of the density matrix
 	    DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn> cheby_diag_dmat;  
@@ -5313,6 +5591,9 @@ namespace  dgdft{
 			1.0, 
 			cheby_diag_dmat.LocalMap()[diag_block_key].Data(),  temp_local_eig_vec.m());
 	
+	    GetTime(GetTime_extra_end);
+	    statusOFS << " Done. ( " << (GetTime_extra_end - GetTime_extra_sta)  << " s) " << std::endl ;
+
 
 	    // Make the call evaluate this on the real space grid 
 	    hamDG.CalculateDensityDM2(hamDG.Density(), hamDG.DensityLGL(), cheby_diag_dmat );
@@ -5326,7 +5607,12 @@ namespace  dgdft{
 	    int temp_n = hamDG.NumStateTotal();
 	    if((Diag_SCFDG_by_Cheby_ == 1) && (temp_m < temp_n))
 	      {  
-		statusOFS << std::endl << " Using alternate routine for electron density ... " << std::endl;
+		statusOFS << std::endl << " Using alternate routine for electron density: " << std::endl;
+		
+		Real GetTime_extra_sta, GetTime_extra_end;		
+		GetTime(GetTime_extra_sta);
+		statusOFS << std::endl << " Forming diagonal blocks of density matrix ... ";
+			
 		// Compute the diagonal blocks of the density matrix
 		DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn> cheby_diag_dmat;  
 		cheby_diag_dmat.Prtn()     = hamDG.HMat().Prtn();
@@ -5355,6 +5641,9 @@ namespace  dgdft{
 			    scal_local_eig_vec.Data(), scal_local_eig_vec.m(),
 			    0.0, 
 			    cheby_diag_dmat.LocalMap()[diag_block_key].Data(),  scal_local_eig_vec.m());
+		
+		GetTime(GetTime_extra_end);
+		statusOFS << " Done. ( " << (GetTime_extra_end - GetTime_extra_sta)  << " s) " << std::endl ;
 
 		// Make the call evaluate this on the real space grid 
 		hamDG.CalculateDensityDM2(hamDG.Density(), hamDG.DensityLGL(), cheby_diag_dmat );
@@ -5448,32 +5737,85 @@ namespace  dgdft{
 	}
 
 	// Compute the force at every step
-	//      if( isCalculateForceEachSCF_ ){
-	//        // Compute force
-	//        GetTime( timeSta );
-	//        hamDG.CalculateForce( *distfftPtr_ );
-	//        GetTime( timeEnd );
-	//        statusOFS << "Time for computing the force is " <<
-	//          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-	//
-	//        // Print out the force
-	//        // Only master processor output information containing all atoms
-	//        if( mpirank == 0 ){
-	//          PrintBlock( statusOFS, "Atomic Force" );
-	//          {
-	//            Point3 forceCM(0.0, 0.0, 0.0);
-	//            std::vector<Atom>& atomList = hamDG.AtomList();
-	//            Int numAtom = atomList.size();
-	//            for( Int a = 0; a < numAtom; a++ ){
-	//              Print( statusOFS, "atom", a, "force", atomList[a].force );
-	//              forceCM += atomList[a].force;
-	//            }
-	//            statusOFS << std::endl;
-	//            Print( statusOFS, "force for centroid: ", forceCM );
-	//            statusOFS << std::endl;
-	//          }
-	//        }
-	//      }
+	if( isCalculateForceEachSCF_ ){
+	        
+	  // Compute force
+	  GetTime( timeSta );
+	       
+	  if(SCFDG_comp_subspace_engaged_ == false)
+	    {
+	      if(1)
+	      {
+	          hamDG.CalculateForce( *distfftPtr_ );
+	      }
+	      else
+	      { 	
+	       // Alternate (highly unusual) routine for debugging purposes
+	       // Compute the Full DM (from eigenvectors) and call the PEXSI force evaluator
+	      
+	       double extra_timeSta, extra_timeEnd;
+	
+	       statusOFS << std::endl << " Computing full Density Matrix from eigenvectors ...";
+	       GetTime(extra_timeSta);
+		
+	       distDMMat_.Prtn()     = hamDG.HMat().Prtn();
+	      
+	       // Compute the full DM 
+	       scfdg_comp_fullDM();
+	
+	       GetTime(extra_timeEnd);
+	
+	       statusOFS << std::endl << " Computation took " << (extra_timeEnd - extra_timeSta) << " s." << std::endl;
+	  
+	       // Call the PEXSI force evaluator
+	      hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );	
+	      }
+	     
+	      
+	      
+	    }
+	  else
+	    {
+	      double extra_timeSta, extra_timeEnd;
+	
+	      statusOFS << std::endl << " Computing full Density Matrix for Complementary Subspace method ...";
+	      GetTime(extra_timeSta);
+	
+	      // Compute the full DM in the complementary subspace method
+	      scfdg_complementary_subspace_comp_fullDM();
+	
+	      GetTime(extra_timeEnd);
+	
+	      statusOFS << std::endl << " Computation took " << (extra_timeEnd - extra_timeSta) << " s." << std::endl;
+	  
+	      // Call the PEXSI force evaluator
+	     hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );	
+	    }
+	       
+	      
+	       
+	  GetTime( timeEnd );
+	  statusOFS << "Time for computing the force is " <<
+	    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+	
+	  // Print out the force
+	  // Only master processor output information containing all atoms
+	  if( mpirank == 0 ){
+	    PrintBlock( statusOFS, "Atomic Force" );
+	    {
+	      Point3 forceCM(0.0, 0.0, 0.0);
+	      std::vector<Atom>& atomList = hamDG.AtomList();
+	      Int numAtom = atomList.size();
+	      for( Int a = 0; a < numAtom; a++ ){
+		Print( statusOFS, "atom", a, "force", atomList[a].force );
+		forceCM += atomList[a].force;
+	      }
+	      statusOFS << std::endl;
+	      Print( statusOFS, "force for centroid: ", forceCM );
+	      statusOFS << std::endl;
+	    }
+	  }
+	}
 
 	// Compute the a posteriori error estimator at every step
 	// FIXME This is not used when intra-element parallelization is
@@ -7268,9 +7610,25 @@ namespace  dgdft{
     // Kinetic energy from the new density matrix.
     Int numSpin = hamDG.NumSpin();
     Ekin = 0.0;
-    for (Int i=0; i < eigVal.m(); i++) {
-      Ekin  += numSpin * eigVal(i) * occupationRate(i);
-    }
+    
+    if(SCFDG_comp_subspace_engaged_ == 1)
+      {
+    
+	double HC_part = 0.0;
+    
+	for(Int sum_iter = 0; sum_iter < SCFDG_comp_subspace_N_solve_; sum_iter ++)
+	  HC_part += (1.0 - SCFDG_comp_subspace_top_occupations_(sum_iter)) * SCFDG_comp_subspace_top_eigvals_(sum_iter);
+    
+	Ekin = numSpin * (SCFDG_comp_subspace_trace_Hmat_ - HC_part) ;
+      }
+    else
+      {  
+  
+	for (Int i=0; i < eigVal.m(); i++) {
+	  Ekin  += numSpin * eigVal(i) * occupationRate(i);
+	}
+
+      }
 
     // Self energy part
     Eself = 0.0;
@@ -7349,18 +7707,43 @@ namespace  dgdft{
       EfreeSecondOrder_ = 0.0;
       Real fermi = fermi_;
       Real Tbeta = Tbeta_;
-      for(Int l=0; l< eigVal.m(); l++) {
-	Real eig = eigVal(l);
-	if( eig - fermi >= 0){
-	  EfreeSecondOrder_ += -numSpin /Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
+      
+      if(SCFDG_comp_subspace_engaged_ == 1)
+	{
+      
+	  double occup_energy_part = 0.0;
+	  double occup_tol = 1e-12;
+	  double fl;
+	  for(Int l=0; l < SCFDG_comp_subspace_top_occupations_.m(); l++)
+	    {
+	      fl = SCFDG_comp_subspace_top_occupations_(l);
+	      if((fl > occup_tol) && ((1.0 - fl) > occup_tol))
+		occup_energy_part += fl * log(fl) + (1.0 - fl) * log(1 - fl);
+	    
+	    }
+	  
+	  EfreeSecondOrder_ = Ekin + Ecor + (numSpin / Tbeta) * occup_energy_part;
+	  
 	}
-	else{
-	  EfreeSecondOrder_ += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
+      else
+	{  
+	  for(Int l=0; l< eigVal.m(); l++) {
+	    Real eig = eigVal(l);
+	    if( eig - fermi >= 0){
+	      EfreeSecondOrder_ += -numSpin /Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
+	    }
+	    else{
+	      EfreeSecondOrder_ += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
+	    }
+	  }
+	  EfreeSecondOrder_ += Ecor + fermi * hamDG.NumOccupiedState() * numSpin; 
 	}
-      }
-      EfreeSecondOrder_ += Ecor + fermi * hamDG.NumOccupiedState() * numSpin; 
-    }
 
+    
+	  
+    }
+      
+      
 
 
     return ;
@@ -7916,13 +8299,16 @@ namespace  dgdft{
 
     HamiltonianDG&  hamDG = *hamDGPtr_;
 
-    statusOFS << std::endl << "Eigenvalues in the global domain." << std::endl;
-    for(Int i = 0; i < hamDG.EigVal().m(); i++){
-      Print(statusOFS, 
-	    "band#    = ", i, 
-	    "eigval   = ", hamDG.EigVal()(i),
-	    "occrate  = ", hamDG.OccupationRate()(i));
-    }
+    if(SCFDG_comp_subspace_engaged_ == false)
+      {  
+	statusOFS << std::endl << "Eigenvalues in the global domain." << std::endl;
+	for(Int i = 0; i < hamDG.EigVal().m(); i++){
+	  Print(statusOFS, 
+		"band#    = ", i, 
+		"eigval   = ", hamDG.EigVal()(i),
+		"occrate  = ", hamDG.OccupationRate()(i));
+	}
+      }
     statusOFS << std::endl;
     // FIXME
     //    statusOFS 

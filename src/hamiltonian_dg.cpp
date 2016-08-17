@@ -3855,6 +3855,7 @@ HamiltonianDG::CalculateForceDM    (
     // local pseudopotential contribution to the Hellmann-Feynman force
     // *********************************************************************
 
+    
 #if ( _DEBUGlevel_ >= 1 )
     statusOFS << "Starting the computation of local derivatives "
         << std::endl;
@@ -4032,8 +4033,11 @@ HamiltonianDG::CalculateForceDM    (
         statusOFS << "Ownerinfo for ElemMatPrtn " <<
             distDMMat.Prtn().ownerInfo << std::endl; 
 #endif
+	    
         distDMMat.GetBegin( pseudoIdx, NO_MASK );
         distDMMat.GetEnd( NO_MASK );
+	
+	
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 1 )
         statusOFS << "Time for getting the density matrix blocks is " <<
