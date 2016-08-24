@@ -262,6 +262,12 @@ extern "C" {
             const Int* lda, Int* jpvt, double* tau, double* work, 
             const Int* lwork, Int* info);
 
+    // QR factorization
+    void LAPACK(dgeqrf) (const Int* m, const Int* n, double* A, 
+            const Int* lda, double* tau, double* work, const Int* lwork,
+            Int* info);
+
+
 } // extern "C"
 
 
@@ -1461,6 +1467,39 @@ void QRCP( Int m, Int n, double* A, Int lda, Int * piv,
     for( Int i = 0; i < n; i++ ){
         piv[i]--;
     }
+
+    if( info < 0 )
+    {
+        std::ostringstream msg;
+        msg << "Argument " << -info << " had illegal value";
+        ErrorHandling( msg.str().c_str() );
+    }
+
+    return;
+}
+
+
+
+// *********************************************************************
+// QR without column pivoting. Use dgeqrf routine
+// *********************************************************************
+
+void QR( Int m, Int n, double* A, Int lda, double* tau )
+{
+    if( m==0 || n==0 )
+    {
+        return;
+    }
+
+    Int lwork=-1, info;
+    double dummyWork;
+
+    LAPACK(dgeqrf) ( &m, &n, A, &lda, tau, &dummyWork, &lwork, &info );
+
+    lwork = dummyWork;
+    std::vector<double> work(lwork);
+    LAPACK(dgeqrf) ( &m, &n, A, &lda, tau, &work[0], &lwork, &info );
+
 
     if( info < 0 )
     {

@@ -65,6 +65,10 @@ private:
     Int               numStateTotal_;
     Int               blocksize_;
 
+    // For density fitting
+    Int               numMu_;
+    IntNumVec         pivQR_;
+
 public:
     // *********************************************************************
     // Constructor and destructor
@@ -151,7 +155,8 @@ public:
             const DblNumVec& occupationRate,
             const Real numMuFac,
             NumTns<Real>& a3,
-            NumMat<Real>& VxMat);
+            NumMat<Real>& VxMat, 
+            bool isFixColumnDF );
 
 
 };  // Spinor

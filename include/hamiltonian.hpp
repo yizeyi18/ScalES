@@ -189,7 +189,7 @@ public:
 
     virtual void CalculateVexxACE( Spinor& psi, Fourier& fft ) = 0;
 
-    virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft ) = 0;
+    virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF ) = 0;
 
     virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
 
@@ -323,7 +323,7 @@ public:
     virtual void CalculateVexxACE( Spinor& psi, Fourier& fft );
 
     /// @brief onstruct the ACE operator in the density fitting format.
-    virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft );
+    virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF );
 
     virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
 

@@ -392,6 +392,8 @@ SCF::Iterate (  )
         Efock_ = 0.0;
     }
 
+    // FIXME
+    bool isFixColumnDF = false;
 
     for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
 
@@ -407,7 +409,9 @@ SCF::Iterate (  )
                     ham.SetPhiEXX( psi, fft ); 
                     if( ham.IsHybridACE() ){
                         if( ham.IsHybridDF() ){
-                            ham.CalculateVexxACEDF( psi, fft );
+                            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+                            // Fix the column after the first iteraiton
+                            isFixColumnDF = true;
                         }
                         else{
                             ham.CalculateVexxACE ( psi, fft );

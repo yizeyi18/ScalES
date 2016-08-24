@@ -1989,7 +1989,7 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 
 
 void
-KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft )
+KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
 {
     // This assumes SetPhiEXX has been called so that phiEXX and psi
     // contain the same information. 
@@ -2015,7 +2015,7 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft )
     // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
     // semi-definite matrix.
     psi.AddMultSpinorEXXDF( fft, phiEXX_, exxgkkR2C_,
-            exxFraction_,  numSpin_, occupationRate_, numMuHybridDF_, vexxPsi, M );
+            exxFraction_,  numSpin_, occupationRate_, numMuHybridDF_, vexxPsi, M, isFixColumnDF );
 
     // Implementation based on Cholesky
     if(1){

@@ -238,7 +238,7 @@ void Orth( Int m, Int n, double* A, Int lda );
 
 //void Orth( Int m, Int n, dcomplex* A, Int lda );
 
-/// @brief QRCP Wrapper for dgeqp3 routine.
+/// @brief QRCP Wrapper for xgeqp3 routine.
 ///
 /// @todo Another interface for QRCP that directly returns the Q factor.
 /// This should use DORGQR routine to generate the Q matrix.
@@ -246,6 +246,12 @@ void Orth( Int m, Int n, double* A, Int lda );
 /// The index piv is adjusted to be 0-based.
 void QRCP( Int m, Int n, double* A, Int lda, Int * piv, 
         double* tau );
+
+/// @brief QR wrapper for xgeqrf routine.
+///
+/// @todo Another interface for QRCP that directly returns the Q factor.
+/// This should use DORGQR routine to generate the Q matrix.
+void QR( Int m, Int n, double* A, Int lda, double* tau );
 
 } // namespace lapack
 } // namespace dgdft
