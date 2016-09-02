@@ -402,11 +402,12 @@ SCF::Iterate (  )
 
             if( ham.IsEXXActive() ){
                 Real dExx;
-                
+
+                // Update Phi <- Psi
+                GetTime( timeSta );
+                ham.SetPhiEXX( psi, fft ); 
+             
                 if( ham.IsHybridACE()){
-                    // Update Phi <- Psi
-                    GetTime( timeSta );
-                    ham.SetPhiEXX( psi, fft ); 
                     if( ham.IsHybridACE() ){
                         if( ham.IsHybridDF() ){
                             ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
@@ -417,11 +418,12 @@ SCF::Iterate (  )
                             ham.CalculateVexxACE ( psi, fft );
                         }
                     }
-                    GetTime( timeEnd );
-                    statusOFS << "Time for updating Phi related variable is " <<
-                        timeEnd - timeSta << " [s]" << std::endl << std::endl;
                 }
-           
+                
+                GetTime( timeEnd );
+                statusOFS << "Time for updating Phi related variable is " <<
+                  timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
                 GetTime( timeSta );
                 fock2 = ham.CalculateEXXEnergy( psi, fft ); 
                 GetTime( timeEnd );
