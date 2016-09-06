@@ -2025,6 +2025,8 @@ SCFDG::Iterate    (  )
     // *********************************************************************
     // Calculate the VDW contribution and the force
     // *********************************************************************
+    Real timeForceSta, timeForceEnd;
+    GetTime( timeForceSta );
     if( solutionMethod_ == "diag" ){
 
         if(SCFDG_comp_subspace_engaged_ == false)
@@ -2054,6 +2056,9 @@ SCFDG::Iterate    (  )
     else if( solutionMethod_ == "pexsi" ){
         hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );
     }
+    GetTime( timeForceEnd );
+    statusOFS << "Time for computing the force is " <<
+      timeForceEnd - timeForceSta << " [s]" << std::endl << std::endl;
 
     // Calculate the VDW energy
     if( VDWType_ == "DFT-D2"){
