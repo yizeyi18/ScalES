@@ -19,74 +19,74 @@ using namespace dgdft::esdf;
 using namespace dgdft::scalapack; 
 
 void Usage(){
-	cout << "Test for the ScaLAPACK" << endl;
+  cout << "Test for the ScaLAPACK" << endl;
 }
 
 int main(int argc, char **argv) 
 {
-	MPI_Init(&argc, &argv);
-	int mpirank, mpisize;
-	MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-	MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+  MPI_Init(&argc, &argv);
+  int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
-	if( mpirank == 0 )
-		Usage();
+  if( mpirank == 0 )
+    Usage();
 
-	try
-	{
-		// Initialize BLACS
+  try
+  {
+    // Initialize BLACS
 
-		if( mpisize != 2 ){
-			throw std::runtime_error("mpisize must be 2.");
-		}
+    if( mpisize != 2 ){
+      throw std::runtime_error("mpisize must be 2.");
+    }
 
-		int contxt;
-		Cblacs_get(0, 0, &contxt);
-		const int nprow = 1;
-		const int npcol = 2;
-		Cblacs_gridinit(&contxt, "C", nprow, npcol);
+    int contxt;
+    Cblacs_get(0, 0, &contxt);
+    const int nprow = 1;
+    const int npcol = 2;
+    Cblacs_gridinit(&contxt, "C", nprow, npcol);
 
-		ScaLAPACKMatrix<Real>  A, Z;
-		
-		Int m = 3, n = m;
-		int MB = 1;
-		A.SetDescriptor( Descriptor( m, n, MB, MB, 0, 0, contxt ) );
+    ScaLAPACKMatrix<Real>  A, Z;
 
-		DblNumMat  localMat( A.LocalHeight(), A.LocalWidth(), false, A.Data() );
+    Int m = 3, n = m;
+    int MB = 1;
+    A.SetDescriptor( Descriptor( m, n, MB, MB, 0, 0, contxt ) );
 
-		SetValue( localMat, 0.0 );
+    DblNumMat  localMat( A.LocalHeight(), A.LocalWidth(), false, A.Data() );
 
-		if( mpirank == 0 ){
-			localMat(0, 0) = 5.0;
-			localMat(2, 1) = 1.0;
-		}
-		if( mpirank == 1 ){
-			localMat(1, 0) = 2.0;
-		}
+    SetValue( localMat, 0.0 );
 
-		std::vector<double> eigs;
-		
-		scalapack::Syevd('U', A, eigs, Z);
+    if( mpirank == 0 ){
+      localMat(0, 0) = 5.0;
+      localMat(2, 1) = 1.0;
+    }
+    if( mpirank == 1 ){
+      localMat(1, 0) = 2.0;
+    }
 
-		if( mpirank == 0 ){
-			cout << "Eigs = " << eigs << endl;
-			cout << "Z.localMatrix = " << Z.LocalMatrix() << endl;
-		}
+    std::vector<double> eigs;
+
+    scalapack::Syevd('U', A, eigs, Z);
+
+    if( mpirank == 0 ){
+      cout << "Eigs = " << eigs << endl;
+      cout << "Z.localMatrix = " << Z.LocalMatrix() << endl;
+    }
 
 
-		Cblacs_gridexit( contxt );
+    Cblacs_gridexit( contxt );
 
-	}
-	catch( std::exception& e )
-	{
-		std::cerr << " caught exception with message: "
-			<< e.what() << std::endl;
+  }
+  catch( std::exception& e )
+  {
+    std::cerr << " caught exception with message: "
+      << e.what() << std::endl;
 #ifndef _RELEASE_
-		DumpCallStack();
+    DumpCallStack();
 #endif
-	}
+  }
 
-	MPI_Finalize();
+  MPI_Finalize();
 
-	return 0;
+  return 0;
 }

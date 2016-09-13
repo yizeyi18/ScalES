@@ -2,43 +2,43 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
-     
-   This file is part of DGDFT. All rights reserved.
+Author: Lin Lin
 
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are met:
+This file is part of DGDFT. All rights reserved.
 
-   (1) Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-   (2) Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-   (3) Neither the name of the University of California, Lawrence Berkeley
-   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-   be used to endorse or promote products derived from this software without
-   specific prior written permission.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+(1) Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+(2) Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+(3) Neither the name of the University of California, Lawrence Berkeley
+National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+be used to endorse or promote products derived from this software without
+specific prior written permission.
 
-   You are under no obligation whatsoever to provide any bug fixes, patches, or
-   upgrades to the features, functionality or performance of the source code
-   ("Enhancements") to anyone; however, if you choose to make your Enhancements
-   available either publicly, or directly to Lawrence Berkeley National
-   Laboratory, without imposing a separate written license agreement for such
-   Enhancements, then you hereby grant the following license: a non-exclusive,
-   royalty-free perpetual license to install, use, modify, prepare derivative
-   works, incorporate into other computer software, distribute, and sublicense
-   such enhancements or derivative works thereof, in binary and source code form.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+You are under no obligation whatsoever to provide any bug fixes, patches, or
+upgrades to the features, functionality or performance of the source code
+("Enhancements") to anyone; however, if you choose to make your Enhancements
+available either publicly, or directly to Lawrence Berkeley National
+Laboratory, without imposing a separate written license agreement for such
+Enhancements, then you hereby grant the following license: a non-exclusive,
+royalty-free perpetual license to install, use, modify, prepare derivative
+works, incorporate into other computer software, distribute, and sublicense
+such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file scf.hpp
 /// @brief SCF class for the global domain or extended element.
@@ -70,147 +70,147 @@ namespace dgdft{
 class SCF
 {
 private:
-    // Control parameters
-    Int                 mixMaxDim_;
-    std::string         mixType_;
-    Real                mixStepLength_;            
-    Real                eigMinTolerance_;
-    Real                eigTolerance_;
-    Int                 eigMaxIter_;
-    Real                scfTolerance_;
-    Int                 scfMaxIter_;
-    Int                 scfPhiMaxIter_;
-    Real                scfPhiTolerance_;
-    Int                 numUnusedState_;
-    bool                isEigToleranceDynamic_;
-    bool                isRestartDensity_;
-    bool                isRestartWfn_;
-    bool                isOutputDensity_;
-    bool                isOutputPotential_;
-    bool                isOutputWfn_;
+  // Control parameters
+  Int                 mixMaxDim_;
+  std::string         mixType_;
+  Real                mixStepLength_;            
+  Real                eigMinTolerance_;
+  Real                eigTolerance_;
+  Int                 eigMaxIter_;
+  Real                scfTolerance_;
+  Int                 scfMaxIter_;
+  Int                 scfPhiMaxIter_;
+  Real                scfPhiTolerance_;
+  Int                 numUnusedState_;
+  bool                isEigToleranceDynamic_;
+  bool                isRestartDensity_;
+  bool                isRestartWfn_;
+  bool                isOutputDensity_;
+  bool                isOutputPotential_;
+  bool                isOutputWfn_;
 
-    bool                isCalculateForceEachSCF_;
-    bool                isHybridACEOutside_;
+  bool                isCalculateForceEachSCF_;
+  bool                isHybridACEOutside_;
 
-    std::string         restartDensityFileName_;
-    std::string         restartPotentialFileName_;
-    std::string         restartWfnFileName_;
+  std::string         restartDensityFileName_;
+  std::string         restartPotentialFileName_;
+  std::string         restartWfnFileName_;
 
-    // Physical parameters
-    Real                Tbeta_;                    // Inverse of temperature in atomic unit
-    Real                Efree_;                    // Helmholtz free energy
-    Real                Etot_;                     // Total energy
-    Real                Ekin_;                     // Kinetic energy
-    Real                Ehart_;                    // Hartree energy
-    Real                Ecor_;                     // Nonlinear correction energy
-    Real                Exc_;                      // Exchange-correlation energy
-    Real                Evdw_;                     // Van der Waals energy
-    Real                EVxc_;                     // Exchange-correlation potential energy
-    Real                Eself_;                    // Self energy due to the pseudopotential
-    Real                fermi_;                    // Fermi energy
-    Real                Efock_;                    // Hartree-Fock energy
+  // Physical parameters
+  Real                Tbeta_;                    // Inverse of temperature in atomic unit
+  Real                Efree_;                    // Helmholtz free energy
+  Real                Etot_;                     // Total energy
+  Real                Ekin_;                     // Kinetic energy
+  Real                Ehart_;                    // Hartree energy
+  Real                Ecor_;                     // Nonlinear correction energy
+  Real                Exc_;                      // Exchange-correlation energy
+  Real                Evdw_;                     // Van der Waals energy
+  Real                EVxc_;                     // Exchange-correlation potential energy
+  Real                Eself_;                    // Self energy due to the pseudopotential
+  Real                fermi_;                    // Fermi energy
+  Real                Efock_;                    // Hartree-Fock energy
 
-    Real                totalCharge_;              // Total number of computed electron charge
+  Real                totalCharge_;              // Total number of computed electron charge
 
-    EigenSolver*        eigSolPtr_;
-    PeriodTable*        ptablePtr_;
+  EigenSolver*        eigSolPtr_;
+  PeriodTable*        ptablePtr_;
 
-    std::string         PWSolver_;
-    std::string         XCType_;
-    std::string         VDWType_;
+  std::string         PWSolver_;
+  std::string         XCType_;
+  std::string         VDWType_;
 
-    /// @brief Needed for GGA, meta-GGA and hybrid functional calculations
-    bool                isCalculateGradRho_; 
+  /// @brief Needed for GGA, meta-GGA and hybrid functional calculations
+  bool                isCalculateGradRho_; 
 
-    // SCF variables
-    DblNumVec           vtotNew_;
-    Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
-    // for Anderson iteration
-    DblNumMat           dfMat_;
-    DblNumMat           dvMat_;
+  // SCF variables
+  DblNumVec           vtotNew_;
+  Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
+  // for Anderson iteration
+  DblNumMat           dfMat_;
+  DblNumMat           dvMat_;
 
-    std::string         mixVariable_;
-    /// @brief Work array for the mixing variable in the inner iteration.
-    DblNumVec           mixSave_;
-
-
-    Index3  numGridWavefunctionElem_;
-    Index3  numGridDensityElem_;
-
-    DblNumMat           forceVdw_;
+  std::string         mixVariable_;
+  /// @brief Work array for the mixing variable in the inner iteration.
+  DblNumVec           mixSave_;
 
 
-    // Chebyshev Filtering variables
-    bool Diag_SCF_PWDFT_by_Cheby_;
-    Int First_SCF_PWDFT_ChebyFilterOrder_;
-    Int First_SCF_PWDFT_ChebyCycleNum_;
-    Int General_SCF_PWDFT_ChebyFilterOrder_;
-    bool PWDFT_Cheby_use_scala_;
-    bool PWDFT_Cheby_apply_wfn_ecut_filt_;
+  Index3  numGridWavefunctionElem_;
+  Index3  numGridDensityElem_;
+
+  DblNumMat           forceVdw_;
 
 
-    // Do the usual Chebyshev filtering schedule or work in ionic movement mode
-    Int Cheby_iondynamics_schedule_flag_;
+  // Chebyshev Filtering variables
+  bool Diag_SCF_PWDFT_by_Cheby_;
+  Int First_SCF_PWDFT_ChebyFilterOrder_;
+  Int First_SCF_PWDFT_ChebyCycleNum_;
+  Int General_SCF_PWDFT_ChebyFilterOrder_;
+  bool PWDFT_Cheby_use_scala_;
+  bool PWDFT_Cheby_apply_wfn_ecut_filt_;
+
+
+  // Do the usual Chebyshev filtering schedule or work in ionic movement mode
+  Int Cheby_iondynamics_schedule_flag_;
 
 
 public:
 
-    // *********************************************************************
-    // Life-cycle
-    // *********************************************************************
-    SCF();
-    ~SCF();
+  // *********************************************************************
+  // Life-cycle
+  // *********************************************************************
+  SCF();
+  ~SCF();
 
-    // *********************************************************************
-    // Operations
-    // *********************************************************************
-    // Basic parameters. Density and wavefunction
-    void  Setup( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable ); 
-    void  Iterate();
-    void  Update();
+  // *********************************************************************
+  // Operations
+  // *********************************************************************
+  // Basic parameters. Density and wavefunction
+  void  Setup( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable ); 
+  void  Iterate();
+  void  Update();
 
-    void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
-    void  CalculateEnergy();
-    void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
+  void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
+  void  CalculateEnergy();
+  void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
 
 
 
-    void  PrintState( const Int iter );
+  void  PrintState( const Int iter );
 
-    // Mixing
-    void  AndersonMix( 
-            Int iter,
-            Real            mixStepLength,
-            std::string     mixType,
-            DblNumVec&      vMix,
-            DblNumVec&      vOld,
-            DblNumVec&      vNew,
-            DblNumMat&      dfMat,
-            DblNumMat&      dvMat );
+  // Mixing
+  void  AndersonMix( 
+      Int iter,
+      Real            mixStepLength,
+      std::string     mixType,
+      DblNumVec&      vMix,
+      DblNumVec&      vOld,
+      DblNumVec&      vNew,
+      DblNumMat&      dfMat,
+      DblNumMat&      dvMat );
 
-    void  KerkerPrecond(
-            DblNumVec&  precResidual,
-            const DblNumVec&  residual );
+  void  KerkerPrecond(
+      DblNumVec&  precResidual,
+      const DblNumVec&  residual );
 
-    /// @brief Update the parameters for SCF during the MD simulation
-    void UpdateMDParameters( const esdf::ESDFInputParam& esdfParam );
+  /// @brief Update the parameters for SCF during the MD simulation
+  void UpdateMDParameters( const esdf::ESDFInputParam& esdfParam );
 
-    //    void  EllipticMix();
+  //    void  EllipticMix();
 
-    // *********************************************************************
-    // Inquiry
-    // *********************************************************************
-    // Energy etc.
-    Real Etot() const  {return Etot_;};    
-    Real Efree() const {return Efree_;};    
-    Real Efock() const {return Efock_;};    
+  // *********************************************************************
+  // Inquiry
+  // *********************************************************************
+  // Energy etc.
+  Real Etot() const  {return Etot_;};    
+  Real Efree() const {return Efree_;};    
+  Real Efock() const {return Efock_;};    
 
-    Real Fermi() const {return fermi_;};    
+  Real Fermi() const {return fermi_;};    
 
-    void UpdateEfock( Real Efock ) {Efock_ = Efock; Etot_ -= Efock; Efree_ -= Efock;}
+  void UpdateEfock( Real Efock ) {Efock_ = Efock; Etot_ -= Efock; Efree_ -= Efock;}
 
-    // Setup the Cheby-iondynamics flag
-    void set_Cheby_iondynamics_schedule_flag(int flag){Cheby_iondynamics_schedule_flag_ = flag;}
+  // Setup the Cheby-iondynamics flag
+  void set_Cheby_iondynamics_schedule_flag(int flag){Cheby_iondynamics_schedule_flag_ = flag;}
 
 
 }; // -----  end of class  SCF ----- 

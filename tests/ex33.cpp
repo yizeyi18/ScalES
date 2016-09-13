@@ -1,45 +1,45 @@
 /*
-	 Copyright (c) 2012 The Regents of the University of California,
-	 through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
-	 
-   This file is part of DGDFT. All rights reserved.
+Author: Lin Lin
 
-	 Redistribution and use in source and binary forms, with or without
-	 modification, are permitted provided that the following conditions are met:
+This file is part of DGDFT. All rights reserved.
 
-	 (1) Redistributions of source code must retain the above copyright notice, this
-	 list of conditions and the following disclaimer.
-	 (2) Redistributions in binary form must reproduce the above copyright notice,
-	 this list of conditions and the following disclaimer in the documentation
-	 and/or other materials provided with the distribution.
-	 (3) Neither the name of the University of California, Lawrence Berkeley
-	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-	 be used to endorse or promote products derived from this software without
-	 specific prior written permission.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
-	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+(1) Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+(2) Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+(3) Neither the name of the University of California, Lawrence Berkeley
+National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+be used to endorse or promote products derived from this software without
+specific prior written permission.
 
-	 You are under no obligation whatsoever to provide any bug fixes, patches, or
-	 upgrades to the features, functionality or performance of the source code
-	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
-	 available either publicly, or directly to Lawrence Berkeley National
-	 Laboratory, without imposing a separate written license agreement for such
-	 Enhancements, then you hereby grant the following license: a non-exclusive,
-	 royalty-free perpetual license to install, use, modify, prepare derivative
-	 works, incorporate into other computer software, distribute, and sublicense
-	 such enhancements or derivative works thereof, in binary and source code form.
-*/
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+You are under no obligation whatsoever to provide any bug fixes, patches, or
+upgrades to the features, functionality or performance of the source code
+("Enhancements") to anyone; however, if you choose to make your Enhancements
+available either publicly, or directly to Lawrence Berkeley National
+Laboratory, without imposing a separate written license agreement for such
+Enhancements, then you hereby grant the following license: a non-exclusive,
+royalty-free perpetual license to install, use, modify, prepare derivative
+works, incorporate into other computer software, distribute, and sublicense
+such enhancements or derivative works thereof, in binary and source code form.
+ */
 /// @file ex33.cpp
 /// @brief Simple test of the random number generator.
 /// @date 2014-06-10
@@ -53,54 +53,54 @@ using namespace dgdft::scalapack;
 
 void Usage(){
   std::cout 
-		<< "ex33 " << std::endl;
+    << "ex33 " << std::endl;
 }
 
 
 int main(int argc, char **argv) 
 {
-	MPI_Init(&argc, &argv);
-	int mpirank, mpisize;
-	MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-	MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
-	Real timeSta, timeEnd;
+  MPI_Init(&argc, &argv);
+  int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+  Real timeSta, timeEnd;
 
-	if( mpirank == 0 )
-		Usage();
+  if( mpirank == 0 )
+    Usage();
 
-	if( mpisize > 1 ){
-		std::cout 
-			<< "The current version of pwdft is a sequential code." << std::endl;
-		MPI_Finalize();
-		return -1;
-	}
+  if( mpisize > 1 ){
+    std::cout 
+      << "The current version of pwdft is a sequential code." << std::endl;
+    MPI_Finalize();
+    return -1;
+  }
 
-	try
-	{
-		SetRandomSeed(1);
+  try
+  {
+    SetRandomSeed(1);
     cout << "Random seed = 1 " << UniformRandom() << ", " << 
-     UniformRandom() << std::endl;
-		SetRandomSeed(1);
+      UniformRandom() << std::endl;
+    SetRandomSeed(1);
     cout << "Random seed = 1 " << UniformRandom() << ", " << 
-     UniformRandom() << std::endl;
-		SetRandomSeed(2);
+      UniformRandom() << std::endl;
+    SetRandomSeed(2);
     cout << "Random seed = 2 " << UniformRandom() << ", " << 
-     UniformRandom() << std::endl;
-		SetRandomSeed(2);
+      UniformRandom() << std::endl;
+    SetRandomSeed(2);
     cout << "Random seed = 2 " << UniformRandom() << ", " << 
-     UniformRandom() << std::endl;
+      UniformRandom() << std::endl;
 
-	}
-	catch( std::exception& e )
-	{
-		std::cerr << " caught exception with message: "
-			<< e.what() << std::endl;
+  }
+  catch( std::exception& e )
+  {
+    std::cerr << " caught exception with message: "
+      << e.what() << std::endl;
 #ifndef _RELEASE_
-		DumpCallStack();
+    DumpCallStack();
 #endif
-	}
+  }
 
-	MPI_Finalize();
+  MPI_Finalize();
 
-	return 0;
+  return 0;
 }

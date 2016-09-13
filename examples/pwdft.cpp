@@ -2,43 +2,43 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin and Wei Hu
-     
-   This file is part of DGDFT. All rights reserved.
+Author: Lin Lin and Wei Hu
 
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are met:
+This file is part of DGDFT. All rights reserved.
 
-   (1) Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-   (2) Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-   (3) Neither the name of the University of California, Lawrence Berkeley
-   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-   be used to endorse or promote products derived from this software without
-   specific prior written permission.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+(1) Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+(2) Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+(3) Neither the name of the University of California, Lawrence Berkeley
+National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+be used to endorse or promote products derived from this software without
+specific prior written permission.
 
-   You are under no obligation whatsoever to provide any bug fixes, patches, or
-   upgrades to the features, functionality or performance of the source code
-   ("Enhancements") to anyone; however, if you choose to make your Enhancements
-   available either publicly, or directly to Lawrence Berkeley National
-   Laboratory, without imposing a separate written license agreement for such
-   Enhancements, then you hereby grant the following license: a non-exclusive,
-   royalty-free perpetual license to install, use, modify, prepare derivative
-   works, incorporate into other computer software, distribute, and sublicense
-   such enhancements or derivative works thereof, in binary and source code form.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+You are under no obligation whatsoever to provide any bug fixes, patches, or
+upgrades to the features, functionality or performance of the source code
+("Enhancements") to anyone; however, if you choose to make your Enhancements
+available either publicly, or directly to Lawrence Berkeley National
+Laboratory, without imposing a separate written license agreement for such
+Enhancements, then you hereby grant the following license: a non-exclusive,
+royalty-free perpetual license to install, use, modify, prepare derivative
+works, incorporate into other computer software, distribute, and sublicense
+such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file pwdft.cpp
 /// @brief Main driver for self-consistent field iteration using plane
@@ -60,511 +60,511 @@ using namespace dgdft::scalapack;
 
 
 void Usage(){
-    std::cout 
-        << "pwdft -in [inFile]" << std::endl
-        << "in:             Input file (default: pwdft.in)" << std::endl;
+  std::cout 
+    << "pwdft -in [inFile]" << std::endl
+    << "in:             Input file (default: pwdft.in)" << std::endl;
 }
 
 
 int main(int argc, char **argv) 
 {
-    MPI_Init(&argc, &argv);
-    int mpirank, mpisize;
-    MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-    MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
-    Real timeSta, timeEnd;
+  MPI_Init(&argc, &argv);
+  int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+  Real timeSta, timeEnd;
 
-    if( mpirank == 0 )
-        Usage();
+  if( mpirank == 0 )
+    Usage();
 
-    try
-    {
-        // *********************************************************************
-        // Input parameter
-        // *********************************************************************
+  try
+  {
+    // *********************************************************************
+    // Input parameter
+    // *********************************************************************
 
-        // Initialize log file
+    // Initialize log file
 #ifdef _RELEASE_
-        // In the release mode, only the master processor outputs information
-        if( mpirank == 0 ){
-            stringstream  ss;
-            ss << "statfile." << mpirank;
-            statusOFS.open( ss.str().c_str() );
-        }
+    // In the release mode, only the master processor outputs information
+    if( mpirank == 0 ){
+      stringstream  ss;
+      ss << "statfile." << mpirank;
+      statusOFS.open( ss.str().c_str() );
+    }
 #else
-        // Every processor outputs information
-        {
-            stringstream  ss;
-            ss << "statfile." << mpirank;
-            statusOFS.open( ss.str().c_str() );
-        }
+    // Every processor outputs information
+    {
+      stringstream  ss;
+      ss << "statfile." << mpirank;
+      statusOFS.open( ss.str().c_str() );
+    }
 #endif
 
-        Print( statusOFS, "mpirank = ", mpirank );
-        Print( statusOFS, "mpisize = ", mpisize );
+    Print( statusOFS, "mpirank = ", mpirank );
+    Print( statusOFS, "mpisize = ", mpisize );
 
-        // Initialize input parameters
-        std::map<std::string,std::string> options;
-        OptionsCreate(argc, argv, options);
+    // Initialize input parameters
+    std::map<std::string,std::string> options;
+    OptionsCreate(argc, argv, options);
 
-        std::string inFile;                   
-        if( options.find("-in") != options.end() ){ 
-            inFile = options["-in"];
-        }
-        else{
-            inFile = "pwdft.in";
-        }
+    std::string inFile;                   
+    if( options.find("-in") != options.end() ){ 
+      inFile = options["-in"];
+    }
+    else{
+      inFile = "pwdft.in";
+    }
 
 
-        // Read ESDF input file
-        ESDFInputParam  esdfParam;
+    // Read ESDF input file
+    ESDFInputParam  esdfParam;
 
-        ESDFReadInput( esdfParam, inFile.c_str() );
+    ESDFReadInput( esdfParam, inFile.c_str() );
 
-        // Print the initial state
-        ESDFPrintInput( esdfParam );
+    // Print the initial state
+    ESDFPrintInput( esdfParam );
 
-        // Initialize multithreaded version of FFTW
+    // Initialize multithreaded version of FFTW
 #ifdef _USE_FFTW_OPENMP_
 #ifndef _USE_OPENMP_
-        ErrorHandling("Threaded FFTW must use OpenMP.");
+    ErrorHandling("Threaded FFTW must use OpenMP.");
 #endif
-        statusOFS << "FFTW uses " << omp_get_max_threads() << " threads." << std::endl;
-        fftw_init_threads();
-        fftw_plan_with_nthreads(omp_get_max_threads());
+    statusOFS << "FFTW uses " << omp_get_max_threads() << " threads." << std::endl;
+    fftw_init_threads();
+    fftw_plan_with_nthreads(omp_get_max_threads());
 #endif
 
 
-        // *********************************************************************
-        // Preparation
-        // *********************************************************************
-        SetRandomSeed(mpirank);
+    // *********************************************************************
+    // Preparation
+    // *********************************************************************
+    SetRandomSeed(mpirank);
 
-        Domain&  dm = esdfParam.domain;
-        PeriodTable ptable;
-        Fourier fft;
-        Spinor  psi;
-        KohnSham hamKS;
-        EigenSolver eigSol;
-        SCF  scf;
+    Domain&  dm = esdfParam.domain;
+    PeriodTable ptable;
+    Fourier fft;
+    Spinor  psi;
+    KohnSham hamKS;
+    EigenSolver eigSol;
+    SCF  scf;
 
-        ptable.Setup( esdfParam.periodTableFile );
+    ptable.Setup( esdfParam.periodTableFile );
 
-        fft.Initialize( dm );
+    fft.Initialize( dm );
 
-        fft.InitializeFine( dm );
+    fft.InitializeFine( dm );
 
-        // Hamiltonian
+    // Hamiltonian
 
-        hamKS.Setup( esdfParam, dm, esdfParam.atomList );
+    hamKS.Setup( esdfParam, dm, esdfParam.atomList );
 
-        DblNumVec& vext = hamKS.Vext();
-        SetValue( vext, 0.0 );
+    DblNumVec& vext = hamKS.Vext();
+    SetValue( vext, 0.0 );
+
+    GetTime( timeSta );
+    hamKS.CalculatePseudoPotential( ptable );
+    GetTime( timeEnd );
+    statusOFS << "Time for calculating the pseudopotential for the Hamiltonian = " 
+      << timeEnd - timeSta << " [s]" << std::endl;
+
+
+    // Wavefunctions
+    int numStateTotal = hamKS.NumStateTotal();
+    int numStateLocal, blocksize;
+
+    // Safeguard for Chebyshev Filtering
+    if(esdfParam.PWSolver == "CheFSI")
+    { 
+      if(numStateTotal % mpisize != 0)
+      {
+        MPI_Barrier(MPI_COMM_WORLD);  
+        statusOFS << std::endl << std::endl 
+          <<" Input Error ! Currently CheFSI within PWDFT requires total number of bands to be divisble by mpisize. " << std::endl << " Total No. of states = " << numStateTotal << " , mpisize = " << mpisize << " ." << std::endl <<  " Use a different value of extrastates." << endl << " Aborting ..." << std::endl << std::endl;
+        MPI_Barrier(MPI_COMM_WORLD);
+        exit(-1);  
+      }    
+    }
+
+
+    if ( numStateTotal <=  mpisize ) {
+      blocksize = 1;
+
+      if ( mpirank < numStateTotal ){
+        numStateLocal = 1; // blocksize == 1;
+      }
+      else { 
+        // FIXME Throw an error here.
+        numStateLocal = 0;
+      }
+    }
+    else {  // numStateTotal >  mpisize
+
+      if ( numStateTotal % mpisize == 0 ){
+        blocksize = numStateTotal / mpisize;
+        numStateLocal = blocksize ;
+      }
+      else {
+        // blocksize = ((numStateTotal - 1) / mpisize) + 1;
+        blocksize = numStateTotal / mpisize;
+        numStateLocal = blocksize ;
+        if ( mpirank < ( numStateTotal % mpisize ) ) {
+          numStateLocal = numStateLocal + 1 ;
+        }
+      }    
+    }
+
+    psi.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
+
+    statusOFS << "Spinor setup finished." << std::endl;
+
+    UniformRandom( psi.Wavefun() );
+
+    if( hamKS.IsHybrid() ){
+      GetTime( timeSta );
+      hamKS.InitializeEXX( esdfParam.ecutWavefunction, fft );
+      GetTime( timeEnd );
+      statusOFS << "Time for setting up the exchange for the Hamiltonian part = " 
+        << timeEnd - timeSta << " [s]" << std::endl;
+    }
+
+
+    // Eigensolver class
+    eigSol.Setup( esdfParam, hamKS, psi, fft );
+
+    statusOFS << "Eigensolver setup finished ." << std::endl;
+
+    scf.Setup( esdfParam, eigSol, ptable );
+
+    statusOFS << "SCF setup finished ." << std::endl;
+
+
+    // *********************************************************************
+    // Single shot calculation first
+    // *********************************************************************
+
+    GetTime( timeSta );
+    scf.Iterate();
+    GetTime( timeEnd );
+    statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
+      << " [s]" << std::endl;
+
+    // *********************************************************************
+    // Geometry optimization or Molecular dynamics
+    // *********************************************************************
+
+    IonDynamics ionDyn;
+
+    ionDyn.Setup( esdfParam, hamKS.AtomList(), ptable ); 
+
+    // Change the SCF parameters if necessary
+    scf.UpdateMDParameters( esdfParam );
+
+    Int maxHist = ionDyn.MaxHist();
+    // Need to define both but one of them may be empty
+    std::vector<DblNumMat>    densityHist(maxHist);
+    std::vector<DblNumTns>    wavefunHist(maxHist);
+    if( esdfParam.MDExtrapolationVariable == "density" ){
+      // densityHist[0] is the lastest density
+      for( Int l = 0; l < maxHist; l++ ){
+        densityHist[l] = hamKS.Density();
+      } // for (l)
+    }
+    if( esdfParam.MDExtrapolationVariable == "wavefun" ){
+      // wavefunHist[0] is the lastest density
+      for( Int l = 0; l < maxHist; l++ ){
+        wavefunHist[l] = psi.Wavefun();
+      } // for (l)
+    }
+
+    // Main loop for geometry optimization or molecular dynamics
+    // If ionMaxIter == 1, it is equivalent to single shot calculation
+    Int ionMaxIter = esdfParam.ionMaxIter;
+
+    Int scfPhiMaxIter = 1;
+    // FIXME Do not use this for now.
+    if( esdfParam.isHybridACEOutside == true ){
+      scfPhiMaxIter = esdfParam.scfPhiMaxIter;
+    }
+
+    bool isPhiIterConverged = false;
+    Real timePhiIterStart(0), timePhiIterEnd(0);
+
+    for( Int phiIter = 1; phiIter <= scfPhiMaxIter; phiIter++ ){
+      if( hamKS.IsHybrid() && esdfParam.isHybridACEOutside == true )
+      {
+        if ( isPhiIterConverged ) break;
+        GetTime( timePhiIterStart );
+        std::ostringstream msg;
+        msg << "Phi iteration #" << phiIter << "  (Outside SCF)";
+        PrintBlock( statusOFS, msg.str() );
+      }
+
+      for( Int ionIter = 1; ionIter <= ionMaxIter; ionIter++ ){
+        {
+          std::ostringstream msg;
+          msg << "Ion move step # " << ionIter;
+          PrintBlock( statusOFS, msg.str() );
+        }
+
+
+        if(ionIter >= 1)
+          scf.set_Cheby_iondynamics_schedule_flag(1);
+
+        // Get the new atomic coordinates
+        // NOTE: ionDyn directly updates the coordinates in Hamiltonian
+        ionDyn.SetEpot( scf.Efree() );
+        ionDyn.MoveIons(ionIter);
 
         GetTime( timeSta );
+        hamKS.UpdateHamiltonian( hamKS.AtomList() );
         hamKS.CalculatePseudoPotential( ptable );
+        scf.Update( ); 
         GetTime( timeEnd );
-        statusOFS << "Time for calculating the pseudopotential for the Hamiltonian = " 
-            << timeEnd - timeSta << " [s]" << std::endl;
+        statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
+          << " [s]" << std::endl;
 
 
-        // Wavefunctions
-        int numStateTotal = hamKS.NumStateTotal();
-        int numStateLocal, blocksize;
+        // Update the density history through extrapolation
+        if( esdfParam.MDExtrapolationVariable == "density" )
+        {
+          statusOFS << "Extrapolating the density." << std::endl;
 
-        // Safeguard for Chebyshev Filtering
-        if(esdfParam.PWSolver == "CheFSI")
-        { 
-            if(numStateTotal % mpisize != 0)
-            {
-                MPI_Barrier(MPI_COMM_WORLD);  
-                statusOFS << std::endl << std::endl 
-                    <<" Input Error ! Currently CheFSI within PWDFT requires total number of bands to be divisble by mpisize. " << std::endl << " Total No. of states = " << numStateTotal << " , mpisize = " << mpisize << " ." << std::endl <<  " Use a different value of extrastates." << endl << " Aborting ..." << std::endl << std::endl;
-                MPI_Barrier(MPI_COMM_WORLD);
-                exit(-1);  
-            }    
-        }
+          for( Int l = maxHist-1; l > 0; l-- ){
+            densityHist[l]     = densityHist[l-1];
+          } // for (l)
+          densityHist[0] = hamKS.Density();
+          // FIXME add damping factor, currently for aspc2
+          // densityHist[0] = omega*hamKS.Density()+(1.0-omega)*densityHist[0];
+          //                    Real omega = 4.0/7.0;
+          //                    blas::Scal( densityHist[0].Size(), 1.0-omega, densityHist[0].Data(), 1 );
+          //                    blas::Axpy( densityHist[0].Size(), omega, hamKS.Density().Data(),
+          //                            1, densityHist[0].Data(), 1 );
+
+          // Compute the extrapolation coefficient
+          DblNumVec denCoef;
+          ionDyn.ExtrapolateCoefficient( ionIter, denCoef );
+          statusOFS << "Extrapolation coefficient = " << denCoef << std::endl;
+
+          // Update the electron density
+          DblNumMat& denCurVec  = hamKS.Density();
+          SetValue( denCurVec, 0.0 );
+          for( Int l = 0; l < maxHist; l++ ){
+            blas::Axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
+                1, denCurVec.Data(), 1 );
+          } // for (l)
+        } // density extrapolation
+
+        if( esdfParam.MDExtrapolationVariable == "wavefun" )
+        {
+          // FIXME Parallelization
+          if( mpisize > 1 )
+            ErrorHandling("Wavefunction extrapolation only works for 1 proc.");
+
+          statusOFS << "Extrapolating the Wavefunctions." << std::endl;
+
+          // FIXME More efficient to move the pointer later.
+          // Out of core is another option that might
+          // necessarily need to be taken into account
+          for( Int l = maxHist-1; l > 0; l-- ){
+            wavefunHist[l]     = wavefunHist[l-1];
+          } // for (l)
+
+          // Use the aligned version of wavefunction
+          // psi is orthonormal
+          if(1)
+          {
+            Int ntot      = fft.domain.NumGridTotal();
+            Int numStateTotal = psi.NumStateTotal();
+            DblNumMat M(numStateTotal, numStateTotal);
+            // Lowdin transformation based on SVD
+            blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 1.0,
+                psi.Wavefun().Data(), ntot, wavefunHist[0].Data(), ntot, 
+                0.0, M.Data(), M.m() );
+            DblNumMat  U( numStateTotal, numStateTotal );
+            DblNumMat VT( numStateTotal, numStateTotal );
+            DblNumVec  S( numStateTotal );
+
+            lapack::QRSVD( numStateTotal, numStateTotal, M.Data(), numStateTotal,
+                S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
+
+            blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, 
+                numStateTotal, 1.0, U.Data(), numStateTotal, 
+                VT.Data(), numStateTotal, 0.0, M.Data(), numStateTotal );
+
+            blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, 1.0,
+                psi.Wavefun().Data(), ntot, M.Data(), numStateTotal,
+                0.0, wavefunHist[0].Data(), ntot );
+          }
+
+          // Compute the extrapolation coefficient
+          DblNumVec denCoef;
+          ionDyn.ExtrapolateCoefficient( ionIter, denCoef );
+          statusOFS << "Extrapolation coefficient = " << denCoef << std::endl;
 
 
-        if ( numStateTotal <=  mpisize ) {
-            blocksize = 1;
+          // Update the wavefunction
+          // FIXME only works for linear mixing at this stage, which is time reversible
+          // Alignment is take into account.
 
-            if ( mpirank < numStateTotal ){
-                numStateLocal = 1; // blocksize == 1;
-            }
-            else { 
-                // FIXME Throw an error here.
-                numStateLocal = 0;
-            }
-        }
-        else {  // numStateTotal >  mpisize
+          DblNumTns  wavefunPre  = psi.Wavefun(); // a real copy
+          SetValue( wavefunPre, 0.0 );
+          // Assume alignment is already done
+          for( Int l = 0; l < maxHist; l++ ){
+            blas::Axpy( wavefunPre.Size(), denCoef[l], wavefunHist[l].Data(),
+                1, wavefunPre.Data(), 1 );
+          } // for (l)
 
-            if ( numStateTotal % mpisize == 0 ){
-                blocksize = numStateTotal / mpisize;
-                numStateLocal = blocksize ;
-            }
-            else {
-                // blocksize = ((numStateTotal - 1) / mpisize) + 1;
-                blocksize = numStateTotal / mpisize;
-                numStateLocal = blocksize ;
-                if ( mpirank < ( numStateTotal % mpisize ) ) {
-                    numStateLocal = numStateLocal + 1 ;
-                }
-            }    
-        }
+          // Alignment. Note: wavefunPre is NOT orthonormal
+          if(1)
+          {
+            Int ntot      = fft.domain.NumGridTotal();
+            Int numStateTotal = psi.NumStateTotal();
+            // Orthonormalize with SVD. Not the most efficient way 
+            DblNumTns  wavefunTmp  = wavefunPre; // a real copy
+            DblNumMat  U( numStateTotal, numStateTotal );
+            DblNumMat VT( numStateTotal, numStateTotal );
+            DblNumVec  S( numStateTotal );
 
-        psi.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
-
-        statusOFS << "Spinor setup finished." << std::endl;
-
-        UniformRandom( psi.Wavefun() );
-
-        if( hamKS.IsHybrid() ){
-            GetTime( timeSta );
-            hamKS.InitializeEXX( esdfParam.ecutWavefunction, fft );
-            GetTime( timeEnd );
-            statusOFS << "Time for setting up the exchange for the Hamiltonian part = " 
-                << timeEnd - timeSta << " [s]" << std::endl;
-        }
+            lapack::QRSVD( ntot, numStateTotal, wavefunTmp.Data(), ntot,
+                S.Data(), wavefunPre.Data(), ntot, VT.Data(), numStateTotal );
 
 
-        // Eigensolver class
-        eigSol.Setup( esdfParam, hamKS, psi, fft );
+            DblNumMat M(numStateTotal, numStateTotal);
+            // Lowdin transformation based on SVD
+            blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 1.0,
+                wavefunPre.Data(), ntot, wavefunHist[0].Data(), ntot, 
+                0.0, M.Data(), M.m() );
 
-        statusOFS << "Eigensolver setup finished ." << std::endl;
+            lapack::QRSVD( numStateTotal, numStateTotal, M.Data(), numStateTotal,
+                S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
 
-        scf.Setup( esdfParam, eigSol, ptable );
+            blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, 
+                numStateTotal, 1.0, U.Data(), numStateTotal, 
+                VT.Data(), numStateTotal, 0.0, M.Data(), numStateTotal );
 
-        statusOFS << "SCF setup finished ." << std::endl;
+            blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, 1.0,
+                wavefunPre.Data(), ntot, M.Data(), numStateTotal,
+                0.0, psi.Wavefun().Data(), ntot );
+          }
+
+          // Compute the extrapolated density
+          Real totalCharge;
+          hamKS.CalculateDensity(
+              psi,
+              hamKS.OccupationRate(),
+              totalCharge, 
+              fft );
+
+        } // wavefun extrapolation
 
 
-        // *********************************************************************
-        // Single shot calculation first
-        // *********************************************************************
 
         GetTime( timeSta );
-        scf.Iterate();
+        scf.Iterate( );
         GetTime( timeEnd );
         statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
-            << " [s]" << std::endl;
+          << " [s]" << std::endl;
 
-        // *********************************************************************
-        // Geometry optimization or Molecular dynamics
-        // *********************************************************************
 
-        IonDynamics ionDyn;
-
-        ionDyn.Setup( esdfParam, hamKS.AtomList(), ptable ); 
-
-        // Change the SCF parameters if necessary
-        scf.UpdateMDParameters( esdfParam );
-
-        Int maxHist = ionDyn.MaxHist();
-        // Need to define both but one of them may be empty
-        std::vector<DblNumMat>    densityHist(maxHist);
-        std::vector<DblNumTns>    wavefunHist(maxHist);
-        if( esdfParam.MDExtrapolationVariable == "density" ){
-            // densityHist[0] is the lastest density
-            for( Int l = 0; l < maxHist; l++ ){
-                densityHist[l] = hamKS.Density();
-            } // for (l)
+        // Geometry optimization
+        if( ionDyn.IsGeoOpt() ){
+          if( MaxForce( hamKS.AtomList() ) < esdfParam.geoOptMaxForce ){
+            statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
+              << "Exit the loops for ions." << std::endl;
+            break;
+          }
         }
-        if( esdfParam.MDExtrapolationVariable == "wavefun" ){
-            // wavefunHist[0] is the lastest density
-            for( Int l = 0; l < maxHist; l++ ){
-                wavefunHist[l] = psi.Wavefun();
-            } // for (l)
+      } // ionIter
+
+
+      // EXX
+      if( hamKS.IsHybrid() && esdfParam.isHybridACEOutside == true ){
+        Real dExx;
+        Real fock0, fock1, fock2;
+        if( phiIter == 1 ){
+          hamKS.SetEXXActive(true);
+          // Update Phi <- Psi
+          GetTime( timeSta );
+          hamKS.SetPhiEXX( psi, fft ); 
+          if( hamKS.IsHybridACE() ){
+            hamKS.CalculateVexxACE ( psi, fft );
+          }
+          GetTime( timeEnd );
+          statusOFS << "Time for updating Phi related variable is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+          GetTime( timeSta );
+          fock2 = hamKS.CalculateEXXEnergy( psi, fft ); 
+          GetTime( timeEnd );
+          statusOFS << "Time for computing the EXX energy is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+          // Update the energy
+          scf.UpdateEfock(fock2);
+          Print(statusOFS, "Fock energy       = ",  scf.Efock(), "[au]");
+          Print(statusOFS, "Etot(with fock)   = ",  scf.Etot(), "[au]");
+          Print(statusOFS, "Efree(with fock)  = ",  scf.Efree(), "[au]");
+        }
+        else{
+          // Calculate first
+          fock1 = hamKS.CalculateEXXEnergy( psi, fft ); 
+
+          // Update Phi <- Psi
+          GetTime( timeSta );
+          hamKS.SetPhiEXX( psi, fft ); 
+          if( hamKS.IsHybridACE() ){
+            hamKS.CalculateVexxACE ( psi, fft );
+          }
+          GetTime( timeEnd );
+          statusOFS << "Time for updating Phi related variable is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+
+          fock0 = fock2;
+          // Calculate again
+          GetTime( timeSta );
+          fock2 = hamKS.CalculateEXXEnergy( psi, fft ); 
+          GetTime( timeEnd );
+          statusOFS << "Time for computing the EXX energy is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+          dExx = fock1 - 0.5 * (fock0 + fock2);
+
+          scf.UpdateEfock(fock2);
+          Print(statusOFS, "dExx              = ",  dExx, "[au]");
+          Print(statusOFS, "Fock energy       = ",  scf.Efock(), "[au]");
+          Print(statusOFS, "Etot(with fock)   = ",  scf.Etot(), "[au]");
+          Print(statusOFS, "Efree(with fock)  = ",  scf.Efree(), "[au]");
+
+          if( dExx < esdfParam.scfPhiTolerance ){
+            statusOFS << "SCF for hybrid functional is converged in " 
+              << phiIter << " steps !" << std::endl;
+            isPhiIterConverged = true;
+          }
         }
 
-        // Main loop for geometry optimization or molecular dynamics
-        // If ionMaxIter == 1, it is equivalent to single shot calculation
-        Int ionMaxIter = esdfParam.ionMaxIter;
+        GetTime( timePhiIterEnd );
 
-        Int scfPhiMaxIter = 1;
-        // FIXME Do not use this for now.
-        if( esdfParam.isHybridACEOutside == true ){
-            scfPhiMaxIter = esdfParam.scfPhiMaxIter;
-        }
+        statusOFS << "Total wall clock time for this Phi iteration = " << 
+          timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
+      } // if (hybrid)
 
-        bool isPhiIterConverged = false;
-        Real timePhiIterStart(0), timePhiIterEnd(0);
+    } // for(phiIter)
 
-        for( Int phiIter = 1; phiIter <= scfPhiMaxIter; phiIter++ ){
-            if( hamKS.IsHybrid() && esdfParam.isHybridACEOutside == true )
-            {
-                if ( isPhiIterConverged ) break;
-                GetTime( timePhiIterStart );
-                std::ostringstream msg;
-                msg << "Phi iteration #" << phiIter << "  (Outside SCF)";
-                PrintBlock( statusOFS, msg.str() );
-            }
-
-            for( Int ionIter = 1; ionIter <= ionMaxIter; ionIter++ ){
-                {
-                    std::ostringstream msg;
-                    msg << "Ion move step # " << ionIter;
-                    PrintBlock( statusOFS, msg.str() );
-                }
+    //    ErrorHandling("Test");
 
 
-                if(ionIter >= 1)
-                    scf.set_Cheby_iondynamics_schedule_flag(1);
+  }
+  catch( std::exception& e )
+  {
+    std::cerr << " caught exception with message: "
+      << e.what() << std::endl;
+  }
 
-                // Get the new atomic coordinates
-                // NOTE: ionDyn directly updates the coordinates in Hamiltonian
-                ionDyn.SetEpot( scf.Efree() );
-                ionDyn.MoveIons(ionIter);
-
-                GetTime( timeSta );
-                hamKS.UpdateHamiltonian( hamKS.AtomList() );
-                hamKS.CalculatePseudoPotential( ptable );
-                scf.Update( ); 
-                GetTime( timeEnd );
-                statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
-                    << " [s]" << std::endl;
-
-
-                // Update the density history through extrapolation
-                if( esdfParam.MDExtrapolationVariable == "density" )
-                {
-                    statusOFS << "Extrapolating the density." << std::endl;
-
-                    for( Int l = maxHist-1; l > 0; l-- ){
-                        densityHist[l]     = densityHist[l-1];
-                    } // for (l)
-                    densityHist[0] = hamKS.Density();
-                    // FIXME add damping factor, currently for aspc2
-                    // densityHist[0] = omega*hamKS.Density()+(1.0-omega)*densityHist[0];
-                    //                    Real omega = 4.0/7.0;
-                    //                    blas::Scal( densityHist[0].Size(), 1.0-omega, densityHist[0].Data(), 1 );
-                    //                    blas::Axpy( densityHist[0].Size(), omega, hamKS.Density().Data(),
-                    //                            1, densityHist[0].Data(), 1 );
-
-                    // Compute the extrapolation coefficient
-                    DblNumVec denCoef;
-                    ionDyn.ExtrapolateCoefficient( ionIter, denCoef );
-                    statusOFS << "Extrapolation coefficient = " << denCoef << std::endl;
-
-                    // Update the electron density
-                    DblNumMat& denCurVec  = hamKS.Density();
-                    SetValue( denCurVec, 0.0 );
-                    for( Int l = 0; l < maxHist; l++ ){
-                        blas::Axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
-                                1, denCurVec.Data(), 1 );
-                    } // for (l)
-                } // density extrapolation
-
-                if( esdfParam.MDExtrapolationVariable == "wavefun" )
-                {
-                    // FIXME Parallelization
-                    if( mpisize > 1 )
-                        ErrorHandling("Wavefunction extrapolation only works for 1 proc.");
-
-                    statusOFS << "Extrapolating the Wavefunctions." << std::endl;
-
-                    // FIXME More efficient to move the pointer later.
-                    // Out of core is another option that might
-                    // necessarily need to be taken into account
-                    for( Int l = maxHist-1; l > 0; l-- ){
-                        wavefunHist[l]     = wavefunHist[l-1];
-                    } // for (l)
-
-                    // Use the aligned version of wavefunction
-                    // psi is orthonormal
-                    if(1)
-                    {
-                        Int ntot      = fft.domain.NumGridTotal();
-                        Int numStateTotal = psi.NumStateTotal();
-                        DblNumMat M(numStateTotal, numStateTotal);
-                        // Lowdin transformation based on SVD
-                        blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 1.0,
-                                psi.Wavefun().Data(), ntot, wavefunHist[0].Data(), ntot, 
-                                0.0, M.Data(), M.m() );
-                        DblNumMat  U( numStateTotal, numStateTotal );
-                        DblNumMat VT( numStateTotal, numStateTotal );
-                        DblNumVec  S( numStateTotal );
-
-                        lapack::QRSVD( numStateTotal, numStateTotal, M.Data(), numStateTotal,
-                                S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
-
-                        blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, 
-                                numStateTotal, 1.0, U.Data(), numStateTotal, 
-                                VT.Data(), numStateTotal, 0.0, M.Data(), numStateTotal );
-
-                        blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, 1.0,
-                                psi.Wavefun().Data(), ntot, M.Data(), numStateTotal,
-                                0.0, wavefunHist[0].Data(), ntot );
-                    }
-
-                    // Compute the extrapolation coefficient
-                    DblNumVec denCoef;
-                    ionDyn.ExtrapolateCoefficient( ionIter, denCoef );
-                    statusOFS << "Extrapolation coefficient = " << denCoef << std::endl;
-
-
-                    // Update the wavefunction
-                    // FIXME only works for linear mixing at this stage, which is time reversible
-                    // Alignment is take into account.
-
-                    DblNumTns  wavefunPre  = psi.Wavefun(); // a real copy
-                    SetValue( wavefunPre, 0.0 );
-                    // Assume alignment is already done
-                    for( Int l = 0; l < maxHist; l++ ){
-                        blas::Axpy( wavefunPre.Size(), denCoef[l], wavefunHist[l].Data(),
-                                1, wavefunPre.Data(), 1 );
-                    } // for (l)
-
-                    // Alignment. Note: wavefunPre is NOT orthonormal
-                    if(1)
-                    {
-                        Int ntot      = fft.domain.NumGridTotal();
-                        Int numStateTotal = psi.NumStateTotal();
-                        // Orthonormalize with SVD. Not the most efficient way 
-                        DblNumTns  wavefunTmp  = wavefunPre; // a real copy
-                        DblNumMat  U( numStateTotal, numStateTotal );
-                        DblNumMat VT( numStateTotal, numStateTotal );
-                        DblNumVec  S( numStateTotal );
-
-                        lapack::QRSVD( ntot, numStateTotal, wavefunTmp.Data(), ntot,
-                                S.Data(), wavefunPre.Data(), ntot, VT.Data(), numStateTotal );
-
-
-                        DblNumMat M(numStateTotal, numStateTotal);
-                        // Lowdin transformation based on SVD
-                        blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 1.0,
-                                wavefunPre.Data(), ntot, wavefunHist[0].Data(), ntot, 
-                                0.0, M.Data(), M.m() );
-
-                        lapack::QRSVD( numStateTotal, numStateTotal, M.Data(), numStateTotal,
-                                S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
-
-                        blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, 
-                                numStateTotal, 1.0, U.Data(), numStateTotal, 
-                                VT.Data(), numStateTotal, 0.0, M.Data(), numStateTotal );
-
-                        blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, 1.0,
-                                wavefunPre.Data(), ntot, M.Data(), numStateTotal,
-                                0.0, psi.Wavefun().Data(), ntot );
-                    }
-
-                    // Compute the extrapolated density
-                    Real totalCharge;
-                    hamKS.CalculateDensity(
-                            psi,
-                            hamKS.OccupationRate(),
-                            totalCharge, 
-                            fft );
-
-                } // wavefun extrapolation
-
-
-
-                GetTime( timeSta );
-                scf.Iterate( );
-                GetTime( timeEnd );
-                statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
-                    << " [s]" << std::endl;
-
-
-                // Geometry optimization
-                if( ionDyn.IsGeoOpt() ){
-                    if( MaxForce( hamKS.AtomList() ) < esdfParam.geoOptMaxForce ){
-                        statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
-                            << "Exit the loops for ions." << std::endl;
-                        break;
-                    }
-                }
-            } // ionIter
-
-
-            // EXX
-            if( hamKS.IsHybrid() && esdfParam.isHybridACEOutside == true ){
-                Real dExx;
-                Real fock0, fock1, fock2;
-                if( phiIter == 1 ){
-                    hamKS.SetEXXActive(true);
-                    // Update Phi <- Psi
-                    GetTime( timeSta );
-                    hamKS.SetPhiEXX( psi, fft ); 
-                    if( hamKS.IsHybridACE() ){
-                        hamKS.CalculateVexxACE ( psi, fft );
-                    }
-                    GetTime( timeEnd );
-                    statusOFS << "Time for updating Phi related variable is " <<
-                        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-                    GetTime( timeSta );
-                    fock2 = hamKS.CalculateEXXEnergy( psi, fft ); 
-                    GetTime( timeEnd );
-                    statusOFS << "Time for computing the EXX energy is " <<
-                        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-                    // Update the energy
-                    scf.UpdateEfock(fock2);
-                    Print(statusOFS, "Fock energy       = ",  scf.Efock(), "[au]");
-                    Print(statusOFS, "Etot(with fock)   = ",  scf.Etot(), "[au]");
-                    Print(statusOFS, "Efree(with fock)  = ",  scf.Efree(), "[au]");
-                }
-                else{
-                    // Calculate first
-                    fock1 = hamKS.CalculateEXXEnergy( psi, fft ); 
-
-                    // Update Phi <- Psi
-                    GetTime( timeSta );
-                    hamKS.SetPhiEXX( psi, fft ); 
-                    if( hamKS.IsHybridACE() ){
-                        hamKS.CalculateVexxACE ( psi, fft );
-                    }
-                    GetTime( timeEnd );
-                    statusOFS << "Time for updating Phi related variable is " <<
-                        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-
-                    fock0 = fock2;
-                    // Calculate again
-                    GetTime( timeSta );
-                    fock2 = hamKS.CalculateEXXEnergy( psi, fft ); 
-                    GetTime( timeEnd );
-                    statusOFS << "Time for computing the EXX energy is " <<
-                        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-                    dExx = fock1 - 0.5 * (fock0 + fock2);
-
-                    scf.UpdateEfock(fock2);
-                    Print(statusOFS, "dExx              = ",  dExx, "[au]");
-                    Print(statusOFS, "Fock energy       = ",  scf.Efock(), "[au]");
-                    Print(statusOFS, "Etot(with fock)   = ",  scf.Etot(), "[au]");
-                    Print(statusOFS, "Efree(with fock)  = ",  scf.Efree(), "[au]");
-
-                    if( dExx < esdfParam.scfPhiTolerance ){
-                        statusOFS << "SCF for hybrid functional is converged in " 
-                            << phiIter << " steps !" << std::endl;
-                        isPhiIterConverged = true;
-                    }
-                }
-
-                GetTime( timePhiIterEnd );
-
-                statusOFS << "Total wall clock time for this Phi iteration = " << 
-                    timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
-            } // if (hybrid)
-
-        } // for(phiIter)
-
-        //    ErrorHandling("Test");
-
-
-    }
-    catch( std::exception& e )
-    {
-        std::cerr << " caught exception with message: "
-            << e.what() << std::endl;
-    }
-
-    // Finalize 
+  // Finalize 
 #ifdef _USE_FFTW_OPENMP
-    fftw_cleanup_threads();
+  fftw_cleanup_threads();
 #endif
-    MPI_Finalize();
+  MPI_Finalize();
 
-    return 0;
+  return 0;
 }

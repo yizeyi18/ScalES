@@ -1,45 +1,45 @@
 /*
-	 Copyright (c) 2012 The Regents of the University of California,
-	 through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
-	 
-   This file is part of DGDFT. All rights reserved.
+Author: Lin Lin
 
-	 Redistribution and use in source and binary forms, with or without
-	 modification, are permitted provided that the following conditions are met:
+This file is part of DGDFT. All rights reserved.
 
-	 (1) Redistributions of source code must retain the above copyright notice, this
-	 list of conditions and the following disclaimer.
-	 (2) Redistributions in binary form must reproduce the above copyright notice,
-	 this list of conditions and the following disclaimer in the documentation
-	 and/or other materials provided with the distribution.
-	 (3) Neither the name of the University of California, Lawrence Berkeley
-	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-	 be used to endorse or promote products derived from this software without
-	 specific prior written permission.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
-	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+(1) Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+(2) Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+(3) Neither the name of the University of California, Lawrence Berkeley
+National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+be used to endorse or promote products derived from this software without
+specific prior written permission.
 
-	 You are under no obligation whatsoever to provide any bug fixes, patches, or
-	 upgrades to the features, functionality or performance of the source code
-	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
-	 available either publicly, or directly to Lawrence Berkeley National
-	 Laboratory, without imposing a separate written license agreement for such
-	 Enhancements, then you hereby grant the following license: a non-exclusive,
-	 royalty-free perpetual license to install, use, modify, prepare derivative
-	 works, incorporate into other computer software, distribute, and sublicense
-	 such enhancements or derivative works thereof, in binary and source code form.
-*/
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+You are under no obligation whatsoever to provide any bug fixes, patches, or
+upgrades to the features, functionality or performance of the source code
+("Enhancements") to anyone; however, if you choose to make your Enhancements
+available either publicly, or directly to Lawrence Berkeley National
+Laboratory, without imposing a separate written license agreement for such
+Enhancements, then you hereby grant the following license: a non-exclusive,
+royalty-free perpetual license to install, use, modify, prepare derivative
+works, incorporate into other computer software, distribute, and sublicense
+such enhancements or derivative works thereof, in binary and source code form.
+ */
 /// @file ex36.cpp
 /// @brief Simple test of the matrix matrix multiplication routine.
 /// @date 2014-06-12
@@ -69,25 +69,25 @@ void SCALAPACK(pdgemm)(const char* transA, const char* transB,
 
 void Usage(){
   std::cout 
-		<< "ex36 " << std::endl;
+    << "ex36 " << std::endl;
 }
 
 
 int main(int argc, char **argv) 
 {
-	MPI_Init(&argc, &argv);
-	int mpirank, mpisize;
-	MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-	MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
-	Real timeSta, timeEnd;
+  MPI_Init(&argc, &argv);
+  int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+  Real timeSta, timeEnd;
 
-	if( mpirank == 0 )
-		Usage();
+  if( mpirank == 0 )
+    Usage();
 
 
-	try
-	{
-		SetRandomSeed(mpirank);
+  try
+  {
+    SetRandomSeed(mpirank);
 
     Int height = 1000000, width = 160;
 
@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     if(mpirank < (width % mpisize)){
       widthLocal = widthBlocksize + 1;
     }
-    
+
     if(mpirank == (mpisize - 1)){
       heightLocal = heightBlocksize + height % mpisize;
     }
@@ -114,10 +114,10 @@ int main(int argc, char **argv)
     DblNumMat X2(heightLocal, width), Y2(heightLocal, width);
     DblNumMat X2TY2(width, width);
     DblNumMat X2TX2(width, width);
-    
+
     UniformRandom( X2 );
     UniformRandom( Y2 );
-   
+
     Int descX1[9];
     Int desc_width[9];
 
@@ -138,7 +138,7 @@ int main(int argc, char **argv)
     SCALAPACK(descinit)(&descX1[0], &height, &width, &MBX1, &NBX1, &irsrc, &icsrc, &contxt, &height, &info);
     SCALAPACK(descinit)(&desc_width[0], &width, &width, &width, &width, &irsrc, &icsrc, &contxt, &width, &info);
 
-    
+
     Real timeSta, timeEnd;
     char TT = 'T';
     char NN = 'N';
@@ -146,7 +146,7 @@ int main(int argc, char **argv)
     double D_ZERO = 0.0;
     int I_ONE = 1;
 
-    
+
     MPI_Barrier( MPI_COMM_WORLD );
 
     GetTime( timeSta );
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
     SetValue( X2, 0.0 ); 
     int sendk = height*widthLocal;
     int recvk = heightLocal*width;
-   
+
     double sendbuf[sendk]; 
     double recvbuf[recvk];
     int sendcounts[mpisize];
@@ -184,7 +184,7 @@ int main(int argc, char **argv)
         sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
       }
     }
-      
+
     for( Int k = 0; k < mpisize; k++ ){ 
       recvcounts[k] = heightLocal * widthBlocksize;
       if( k < (width % mpisize)){
@@ -199,7 +199,7 @@ int main(int argc, char **argv)
       recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
     }
 
-   
+
     GetTime( timeSta );
     int kk;
 
@@ -225,10 +225,10 @@ int main(int argc, char **argv)
         }
       }
     }
-    
+
     GetTime( timeEnd );
     double t1 = timeEnd - timeSta;
-    
+
     GetTime( timeSta );
     MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
         &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, MPI_COMM_WORLD );
@@ -248,54 +248,54 @@ int main(int argc, char **argv)
     GetTime( timeEnd );
 
     if ( mpirank == 0) {
-    std::cout << "The time for X1 to X2 is " << t1 + timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for X1 to X2 is " << t1 + timeEnd - timeSta << " sec." << std::endl;
     }    
-   
+
     GetTime( timeSta );
     blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X2.Data(), heightLocal, X2.Data(), heightLocal, 0.0, X2TX2.Data(), width );
     GetTime( timeEnd );
-    
+
     if ( mpirank == 0) {
-    std::cout << "The time for Gemm X2'*X2 is " << timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for Gemm X2'*X2 is " << timeEnd - timeSta << " sec." << std::endl;
     }
 
     DblNumMat X2TX2Temp(width, width);
     SetValue( X2TX2Temp, 0.0 ); 
-   
+
     GetTime( timeSta );
     MPI_Allreduce( X2TX2.Data(), X2TX2Temp.Data(), width*width, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
     GetTime( timeEnd );
 
     if ( mpirank == 0) {
-    std::cout << "The time for Allreduce X2'X2 is " << timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for Allreduce X2'X2 is " << timeEnd - timeSta << " sec." << std::endl;
     }
 
     if ( mpirank == 0) {
-    
-    double sum;
-    for( Int j = 0; j < width; j++ ){ 
-      for( Int i = 0; i < width; i++ ){ 
-        sum = sum + std::abs( X2TX2Temp(i, j) - X1TX1(i, j)) ;
+
+      double sum;
+      for( Int j = 0; j < width; j++ ){ 
+        for( Int i = 0; i < width; i++ ){ 
+          sum = sum + std::abs( X2TX2Temp(i, j) - X1TX1(i, j)) ;
+        }
       }
-    }
-    
-    std::cout << "Sum of X2'X2 - X1'X1 is " << sum << std::endl;
-    
+
+      std::cout << "Sum of X2'X2 - X1'X1 is " << sum << std::endl;
+
     }
 
     Cblacs_gridexit	(	contxt );	
 
-	}
-	catch( std::exception& e )
-	{
-		std::cerr << " caught exception with message: "
-			<< e.what() << std::endl;
+  }
+  catch( std::exception& e )
+  {
+    std::cerr << " caught exception with message: "
+      << e.what() << std::endl;
 #ifndef _RELEASE_
-		DumpCallStack();
+    DumpCallStack();
 #endif
-	}
+  }
 
-	MPI_Finalize();
+  MPI_Finalize();
 
-	return 0;
+  return 0;
 }

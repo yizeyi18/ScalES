@@ -1,45 +1,45 @@
 /*
-	 Copyright (c) 2012 The Regents of the University of California,
-	 through Lawrence Berkeley National Laboratory.  
+   Copyright (c) 2012 The Regents of the University of California,
+   through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin
-	 
-   This file is part of DGDFT. All rights reserved.
+Author: Lin Lin
 
-	 Redistribution and use in source and binary forms, with or without
-	 modification, are permitted provided that the following conditions are met:
+This file is part of DGDFT. All rights reserved.
 
-	 (1) Redistributions of source code must retain the above copyright notice, this
-	 list of conditions and the following disclaimer.
-	 (2) Redistributions in binary form must reproduce the above copyright notice,
-	 this list of conditions and the following disclaimer in the documentation
-	 and/or other materials provided with the distribution.
-	 (3) Neither the name of the University of California, Lawrence Berkeley
-	 National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-	 be used to endorse or promote products derived from this software without
-	 specific prior written permission.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
-	 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-	 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-	 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-	 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-	 ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-	 (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-	 LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-	 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-	 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-	 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+(1) Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+(2) Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+(3) Neither the name of the University of California, Lawrence Berkeley
+National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+be used to endorse or promote products derived from this software without
+specific prior written permission.
 
-	 You are under no obligation whatsoever to provide any bug fixes, patches, or
-	 upgrades to the features, functionality or performance of the source code
-	 ("Enhancements") to anyone; however, if you choose to make your Enhancements
-	 available either publicly, or directly to Lawrence Berkeley National
-	 Laboratory, without imposing a separate written license agreement for such
-	 Enhancements, then you hereby grant the following license: a non-exclusive,
-	 royalty-free perpetual license to install, use, modify, prepare derivative
-	 works, incorporate into other computer software, distribute, and sublicense
-	 such enhancements or derivative works thereof, in binary and source code form.
-*/
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+You are under no obligation whatsoever to provide any bug fixes, patches, or
+upgrades to the features, functionality or performance of the source code
+("Enhancements") to anyone; however, if you choose to make your Enhancements
+available either publicly, or directly to Lawrence Berkeley National
+Laboratory, without imposing a separate written license agreement for such
+Enhancements, then you hereby grant the following license: a non-exclusive,
+royalty-free perpetual license to install, use, modify, prepare derivative
+works, incorporate into other computer software, distribute, and sublicense
+such enhancements or derivative works thereof, in binary and source code form.
+ */
 /// @file ex35.cpp
 /// @brief Simple test of the matrix matrix multiplication routine.
 /// @date 2014-06-12
@@ -69,25 +69,25 @@ void SCALAPACK(pdgemm)(const char* transA, const char* transB,
 
 void Usage(){
   std::cout 
-		<< "ex35 " << std::endl;
+    << "ex35 " << std::endl;
 }
 
 
 int main(int argc, char **argv) 
 {
-	MPI_Init(&argc, &argv);
-	int mpirank, mpisize;
-	MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-	MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
-	Real timeSta, timeEnd;
+  MPI_Init(&argc, &argv);
+  int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+  Real timeSta, timeEnd;
 
-	if( mpirank == 0 )
-		Usage();
+  if( mpirank == 0 )
+    Usage();
 
 
-	try
-	{
-		SetRandomSeed(mpirank);
+  try
+  {
+    SetRandomSeed(mpirank);
 
     Int height = 1000000, width = 160;
 
@@ -104,10 +104,10 @@ int main(int argc, char **argv)
     DblNumMat X2(heightLocal, width), Y2(heightLocal, width);
     DblNumMat X2TY2(width, width);
     DblNumMat X2TX2(width, width);
-    
+
     UniformRandom( X2 );
     UniformRandom( Y2 );
-    
+
     Int descX1[9];
     Int descX2[9];
     Int desc_width[9];
@@ -154,7 +154,7 @@ int main(int argc, char **argv)
     MPI_Barrier( MPI_COMM_WORLD );
 
     if ( mpirank == 0) {
-    std::cout << "The time for pdgemm X1'*Y1 is " << timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for pdgemm X1'*Y1 is " << timeEnd - timeSta << " sec." << std::endl;
     }
 
 
@@ -174,13 +174,13 @@ int main(int argc, char **argv)
     MPI_Barrier( MPI_COMM_WORLD );
 
     if ( mpirank == 0) {
-    std::cout << "The time for pdgemm X1'*X1 is " << timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for pdgemm X1'*X1 is " << timeEnd - timeSta << " sec." << std::endl;
     }
 
     SetValue( X2, 0.0 ); 
     int sendk = height*widthLocal;
     int recvk = heightLocal*width;
-   
+
     double sendbuf[sendk]; 
     double recvbuf[recvk];
     int sendcounts[mpisize];
@@ -188,7 +188,7 @@ int main(int argc, char **argv)
     int senddispls[mpisize];
     int recvdispls[mpisize];
 
-    
+
 
     GetTime( timeSta );
     int kk;
@@ -201,30 +201,30 @@ int main(int argc, char **argv)
     GetTime( timeEnd );
     double t1 = timeEnd - timeSta;
 
-//    IntNumMat addr(height, widthLocal);
-//    for( Int j = 0; j < widthLocal; j++ ){ 
-//      for( Int i = 0; i < height; i++ ){ 
-//        addr(i,j) = j * heightLocal + (i / heightLocal) * widthLocal * heightLocal + i % heightLocal;
-//      }
-//    }
+    //    IntNumMat addr(height, widthLocal);
+    //    for( Int j = 0; j < widthLocal; j++ ){ 
+    //      for( Int i = 0; i < height; i++ ){ 
+    //        addr(i,j) = j * heightLocal + (i / heightLocal) * widthLocal * heightLocal + i % heightLocal;
+    //      }
+    //    }
 
-//    if ( mpirank == 0) {
-//    std::cout << "The time for step 1 is " << timeEnd - timeSta  << " sec." << std::endl;
-//    }    
+    //    if ( mpirank == 0) {
+    //    std::cout << "The time for step 1 is " << timeEnd - timeSta  << " sec." << std::endl;
+    //    }    
 
-//    Int *a = addr.Data();;
-//    Real *ptrSendBuf = &sendbuf[0];
-//    Real *ptrX1 = X1.Data();
-//    for( Int l = 0; l < height * widthLocal; l++ ){
-//      ptrSendBuf[*(a++)] = *(ptrX1++);
-//    }
+    //    Int *a = addr.Data();;
+    //    Real *ptrSendBuf = &sendbuf[0];
+    //    Real *ptrX1 = X1.Data();
+    //    for( Int l = 0; l < height * widthLocal; l++ ){
+    //      ptrSendBuf[*(a++)] = *(ptrX1++);
+    //    }
 
 
     for( Int k = 0; k < mpisize; k++ ){ 
       sendcounts[k] = sendk / mpisize;
       recvcounts[k] = recvk / mpisize;
     }
-    
+
     senddispls[0] = 0;
     recvdispls[0] = 0;
     for( Int k = 1; k < mpisize; k++ ){ 
@@ -239,16 +239,16 @@ int main(int argc, char **argv)
     GetTime( timeEnd );
 
     if ( mpirank == 0) {
-    std::cout << "The time for Alltoallv X1 to X2 is " << timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for Alltoallv X1 to X2 is " << timeEnd - timeSta << " sec." << std::endl;
     }    
 
-//    for( Int j = 0; j < width; j++ ){ 
-//      for( Int i = 0; i < heightLocal; i++ ){ 
-//        kk = (j % widthLocal) * heightLocal + (j / widthLocal) * widthLocal * heightLocal + i;
-//        X2(i, j) = recvbuf[kk];
-//      }
-//    }
-    
+    //    for( Int j = 0; j < width; j++ ){ 
+    //      for( Int i = 0; i < heightLocal; i++ ){ 
+    //        kk = (j % widthLocal) * heightLocal + (j / widthLocal) * widthLocal * heightLocal + i;
+    //        X2(i, j) = recvbuf[kk];
+    //      }
+    //    }
+
     GetTime( timeSta );
     for( Int j = 0; j < width; j++ ){ 
       for( Int i = 0; i < heightLocal; i++ ){ 
@@ -259,48 +259,48 @@ int main(int argc, char **argv)
     GetTime( timeEnd );
 
     if ( mpirank == 0) {
-    std::cout << "The time for X1 to X2 is " << t1 + timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for X1 to X2 is " << t1 + timeEnd - timeSta << " sec." << std::endl;
     }    
-   
+
     GetTime( timeSta );
     blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X2.Data(), heightLocal, X2.Data(), heightLocal, 0.0, X2TX2.Data(), width );
     GetTime( timeEnd );
-    
+
     if ( mpirank == 0) {
-    std::cout << "The time for Gemm X2'*X2 is " << timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for Gemm X2'*X2 is " << timeEnd - timeSta << " sec." << std::endl;
     }
 
     DblNumMat X2TX2Temp(width, width);
     SetValue( X2TX2Temp, 0.0 ); 
-   
+
     GetTime( timeSta );
     MPI_Allreduce( X2TX2.Data(), X2TX2Temp.Data(), width*width, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
     GetTime( timeEnd );
 
     if ( mpirank == 0) {
-    std::cout << "The time for Allreduce X2'X2 is " << timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for Allreduce X2'X2 is " << timeEnd - timeSta << " sec." << std::endl;
     }
 
     DblNumVec  eigValS(width);
     SetValue( eigValS, 0.0 );
-    
+
     if ( mpirank == 0) {
-    
-    double sum;
-    for( Int j = 0; j < width; j++ ){ 
-      for( Int i = 0; i < width; i++ ){ 
-        sum = sum + std::abs( X2TX2Temp(i, j) - X1TX1(i, j)) ;
+
+      double sum;
+      for( Int j = 0; j < width; j++ ){ 
+        for( Int i = 0; i < width; i++ ){ 
+          sum = sum + std::abs( X2TX2Temp(i, j) - X1TX1(i, j)) ;
+        }
       }
-    }
-    
-    std::cout << "Sum of X2'X2 - X1'X1 is " << sum << std::endl;
-    
-    GetTime( timeSta );
-    lapack::Syevd( 'V', 'U', width, X2TX2.Data(), width, eigValS.Data() );
-    GetTime( timeEnd );
-    
-    std::cout << "The time for Syevd X2'X2 is " << timeEnd - timeSta << " sec." << std::endl;
-    
+
+      std::cout << "Sum of X2'X2 - X1'X1 is " << sum << std::endl;
+
+      GetTime( timeSta );
+      lapack::Syevd( 'V', 'U', width, X2TX2.Data(), width, eigValS.Data() );
+      GetTime( timeEnd );
+
+      std::cout << "The time for Syevd X2'X2 is " << timeEnd - timeSta << " sec." << std::endl;
+
     }
 
     GetTime( timeSta );
@@ -308,49 +308,49 @@ int main(int argc, char **argv)
     MPI_Bcast(eigValS.Data(), width, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     GetTime( timeEnd );
     if ( mpirank == 0) {
-    std::cout << "The time for Bcast X2'X2 is " << timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for Bcast X2'X2 is " << timeEnd - timeSta << " sec." << std::endl;
     }
 
     GetTime( timeSta );
     blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X2.Data(), heightLocal, Y2.Data(), heightLocal, 0.0, X2TY2.Data(), width );
     GetTime( timeEnd );
-    
+
     if ( mpirank == 0) {
-    std::cout << "The time for Gemm X2'*Y2 is " << timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for Gemm X2'*Y2 is " << timeEnd - timeSta << " sec." << std::endl;
     }
 
     DblNumMat X2TY2Temp(width, width);
     SetValue( X2TY2Temp, 0.0 ); 
-   
+
     GetTime( timeSta );
     MPI_Allreduce( X2TY2.Data(), X2TY2Temp.Data(), width*width, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD );
     GetTime( timeEnd );
 
     if ( mpirank == 0) {
-    std::cout << "The time for Allreduce X2'Y2 is " << timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for Allreduce X2'Y2 is " << timeEnd - timeSta << " sec." << std::endl;
     }
 
     GetTime( timeSta );
     blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X2.Data(), heightLocal, X2TY2Temp.Data(), width, 0.0, Y2.Data(), heightLocal );
     GetTime( timeEnd );
-    
+
     if ( mpirank == 0) {
-    std::cout << "The time for Gemm X2*(X2'Y2) is " << timeEnd - timeSta << " sec." << std::endl;
+      std::cout << "The time for Gemm X2*(X2'Y2) is " << timeEnd - timeSta << " sec." << std::endl;
     }
 
     Cblacs_gridexit	(	contxt );	
 
-	}
-	catch( std::exception& e )
-	{
-		std::cerr << " caught exception with message: "
-			<< e.what() << std::endl;
+  }
+  catch( std::exception& e )
+  {
+    std::cerr << " caught exception with message: "
+      << e.what() << std::endl;
 #ifndef _RELEASE_
-		DumpCallStack();
+    DumpCallStack();
 #endif
-	}
+  }
 
-	MPI_Finalize();
+  MPI_Finalize();
 
-	return 0;
+  return 0;
 }

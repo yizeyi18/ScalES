@@ -12,45 +12,45 @@ using namespace std;
 int main(int argc, char **argv) 
 {
 
-	MPI_Init(&argc, &argv);
-	int mpirank, mpisize;
-	MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-	MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+  MPI_Init(&argc, &argv);
+  int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
-	Int height;
+  Int height;
 
-	if( argc != 2 ){
-		cout << "Run the code with " << endl << "ex27 {height}" << endl <<
-			"height:      the size of the matrix" << endl;
-		MPI_Finalize();
-		return -1;
-	}
+  if( argc != 2 ){
+    cout << "Run the code with " << endl << "ex27 {height}" << endl <<
+      "height:      the size of the matrix" << endl;
+    MPI_Finalize();
+    return -1;
+  }
 
-	height = atoi(argv[1]);
+  height = atoi(argv[1]);
 
-	cout << "Height = " << height << endl;
+  cout << "Height = " << height << endl;
 
-	Real timeSta, timeEnd;
+  Real timeSta, timeEnd;
 
-	DblNumMat x0(height, height);
-	DblNumMat x1(height, height); 
-	DblNumMat x2(height, height); 
-	
-	SetRandomSeed( 1 );
-	UniformRandom( x0 );
-	UniformRandom( x1 ); 
+  DblNumMat x0(height, height);
+  DblNumMat x1(height, height); 
+  DblNumMat x2(height, height); 
 
-	GetTime( timeSta );
+  SetRandomSeed( 1 );
+  UniformRandom( x0 );
+  UniformRandom( x1 ); 
 
-	blas::Gemm( 'N', 'N', height, height, height, 1.0, 
-			x0.Data(), height, x1.Data(), height, 0.0, 
-			x2.Data(), height );
+  GetTime( timeSta );
 
-	GetTime( timeEnd );
+  blas::Gemm( 'N', 'N', height, height, height, 1.0, 
+      x0.Data(), height, x1.Data(), height, 0.0, 
+      x2.Data(), height );
 
-	cout << "Time elapsed = " << timeEnd - timeSta << endl; 
+  GetTime( timeEnd );
 
-	MPI_Finalize();
+  cout << "Time elapsed = " << timeEnd - timeSta << endl; 
 
-	return 0;
+  MPI_Finalize();
+
+  return 0;
 }
