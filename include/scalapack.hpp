@@ -487,7 +487,8 @@ Sygst( Int ibtype, char uplo, ScaLAPACKMatrix<double>& A,
     ScaLAPACKMatrix<double>& B );
 
 
-void QRCPP( Int m, Int n, double* A, Int* desca, Int* piv, double* tau); 
+/// @brief QRCP3 ScaLAPACK's verison of xGEQPF
+void QRCPF( Int m, Int n, double* A, Int* desca, Int* piv, double* tau); 
 
 } // namespace scalapack
 } // namespace dgdft

@@ -661,7 +661,7 @@ Sygst( Int ibtype, char uplo, ScaLAPACKMatrix<double>& A,
 }        // -----  end of function Sygst  ----- 
 
 
-void QRCPP( Int m, Int n, double* A, Int* desca, Int* piv, double* tau) 
+void QRCPF( Int m, Int n, double* A, Int* desca, Int* piv, double* tau) 
 {
   if( m==0 || n==0 )
   {
