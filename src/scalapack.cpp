@@ -661,6 +661,40 @@ Sygst( Int ibtype, char uplo, ScaLAPACKMatrix<double>& A,
 }        // -----  end of function Sygst  ----- 
 
 
+void QRCPP( Int m, Int n, double* A, Int* desca, Int* piv, double* tau) 
+{
+  if( m==0 || n==0 )
+  {
+    return;
+  }
+
+  Int lwork=-1, info;
+  double dummyWork;
+  int I_ONE = 1;
+
+  SCALAPACK(pdgeqpf)(&m, &n, A, &I_ONE, &I_ONE, &desca[0],
+      piv, tau, &dummyWork, &lwork, &info);
+
+  lwork = dummyWork;
+  std::vector<double> work(lwork);
+  SCALAPACK(pdgeqpf)(&m, &n, A, &I_ONE, &I_ONE, &desca[0],
+      piv, tau, &work[0], &lwork, &info);
+
+  // Important: fortran index is 1-based. Change to 0-based
+  for( Int i = 0; i < n; i++ ){
+    piv[i]--;
+  }
+
+  if( info < 0 )
+  {
+    std::ostringstream msg;
+    msg << "Argument " << -info << " had illegal value";
+    ErrorHandling( msg.str().c_str() );
+  }
+
+  return;
+}
+
 
 
 } // namespace scalapack

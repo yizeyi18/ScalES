@@ -45,9 +45,15 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// element.
 /// @date 2012-10-06
 #include  "spinor.hpp"
+#include  "utility.hpp"
 #include  "blas.hpp"
+#include  "lapack.hpp"
+#include  "scalapack.hpp"
+#include  "mpi_interf.hpp"
 
 namespace dgdft{
+
+using namespace dgdft::scalapack;
 
 using namespace dgdft::PseudoComponent;
 
@@ -791,682 +797,1080 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
   }
 
 
-  // *********************************************************************
-  // Perform interpolative separable density fitting
-  // *********************************************************************
+  if(0){
 
-  // Computing the indices is optional
-  if( isFixColumnDF == false ){
-    GetTime( timeSta );
-    numMu_ = std::min(IRound(numStateTotal*numMuFac), ntot);
+    // *********************************************************************
+    // Perform interpolative separable density fitting
+    // *********************************************************************
 
-    // Step 1: Pre-compression of the wavefunctions. This uses
-    // multiplication with orthonormalized random Gaussian matrices
-    //
-    /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
-    /// principle be a tensor, but only treated as matrix.
-    Int numPre = std::min(IRound(std::sqrt(numMu_*2.0)), numStateTotal);
-    //    Int numPre = std::min(IRound(std::sqrt(numMu_))+5, numStateTotal);
-    DblNumMat phiG(ntot, numPre), psiG(ntot, numPre);
-    {
-      DblNumMat G(numStateTotal, numPre);
-      // Generate orthonormal Gaussian random matrix 
-      GaussianRandom(G);
-      lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+    // Computing the indices is optional
+    if( isFixColumnDF == false ){
+      GetTime( timeSta );
+      numMu_ = std::min(IRound(numStateTotal*numMuFac), ntot);
 
-      blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
-          phi.Data(), ntot, G.Data(), numStateTotal, 0.0,
-          phiG.Data(), ntot );
+      // Step 1: Pre-compression of the wavefunctions. This uses
+      // multiplication with orthonormalized random Gaussian matrices
+      //
+      /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
+      /// principle be a tensor, but only treated as matrix.
+      Int numPre = std::min(IRound(std::sqrt(numMu_*2.0)), numStateTotal);
+      //    Int numPre = std::min(IRound(std::sqrt(numMu_))+5, numStateTotal);
+      DblNumMat phiG(ntot, numPre), psiG(ntot, numPre);
+      {
+        DblNumMat G(numStateTotal, numPre);
+        // Generate orthonormal Gaussian random matrix 
+        GaussianRandom(G);
+        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
 
-      GaussianRandom(G);
-      lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+        blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
+            phi.Data(), ntot, G.Data(), numStateTotal, 0.0,
+            phiG.Data(), ntot );
 
-      blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
-          wavefun_.Data(), ntot, G.Data(), numStateTotal, 0.0,
-          psiG.Data(), ntot );
-    }
+        GaussianRandom(G);
+        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
 
-    // Step 2: Pivoted QR decomposition  for the Hadamard product of
-    // the compressed matrix. Transpose format for QRCP
-    DblNumMat MG( numPre*numPre, ntot );
-    for( Int j = 0; j < numPre; j++ ){
-      for( Int i = 0; i < numPre; i++ ){
-        for( Int ir = 0; ir < ntot; ir++ ){
-          MG(i+j*numPre,ir) = phiG(ir,i) * psiG(ir,j);
+        blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
+            wavefun_.Data(), ntot, G.Data(), numStateTotal, 0.0,
+            psiG.Data(), ntot );
+      }
+
+      // Step 2: Pivoted QR decomposition  for the Hadamard product of
+      // the compressed matrix. Transpose format for QRCP
+      DblNumMat MG( numPre*numPre, ntot );
+      for( Int j = 0; j < numPre; j++ ){
+        for( Int i = 0; i < numPre; i++ ){
+          for( Int ir = 0; ir < ntot; ir++ ){
+            MG(i+j*numPre,ir) = phiG(ir,i) * psiG(ir,j);
+          }
         }
       }
-    }
 
-    // IntNumVec pivQR_(ntot);
+      // IntNumVec pivQR_(ntot);
 
-    DblNumVec tau(ntot);
-    pivQR_.Resize(ntot);
-    SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
-    // Q factor does not need to be used
-    Real timeQRCPSta, timeQRCPEnd;
-    GetTime( timeQRCPSta );
-    lapack::QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
-        pivQR_.Data(), tau.Data() );
-    GetTime( timeQRCPEnd );
+      DblNumVec tau(ntot);
+      pivQR_.Resize(ntot);
+      SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
+      // Q factor does not need to be used
+      Real timeQRCPSta, timeQRCPEnd;
+      GetTime( timeQRCPSta );
+      lapack::QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
+          pivQR_.Data(), tau.Data() );
+      GetTime( timeQRCPEnd );
 #if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for QRCP alone is " <<
-      timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
+      statusOFS << "Time for QRCP alone is " <<
+        timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
 #endif
 
 
-    if(1){
-      Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
-      statusOFS << "numMu_ = " << numMu_ << std::endl;
-      statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
-    }
-
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for density fitting with QRCP is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-  }
-
-  // *********************************************************************
-  // Compute the interpolation matrix via the density matrix formulation
-  // *********************************************************************
-
-  GetTime( timeSta );
-  DblNumMat Xi(ntot, numMu_);
-  DblNumMat psiMu(numStateTotal, numMu_);
-  // PhiMu is scaled by the occupation number to reflect the "true" density matrix
-  DblNumMat PcolPhiMu(ntot, numMu_);
-  IntNumVec pivMu(numMu_);
-
-  {
-    GetTime( timeSta );
-    for( Int mu = 0; mu < numMu_; mu++ ){
-      pivMu(mu) = pivQR_(mu);
-    }
-
-    // These three matrices are used only once
-    DblNumMat phiMu(numStateTotal, numMu_);
-    DblNumMat PcolMuNu(numMu_, numMu_);
-    DblNumMat PcolPsiMu(ntot, numMu_);
-
-    for( Int mu = 0; mu < numMu_; mu++ ){
-      Int muInd = pivMu(mu);
-      for (Int k=0; k<numStateTotal; k++) {
-        psiMu(k, mu) = wavefun_(muInd,0,k);
-        phiMu(k, mu) = phi(muInd,0,k) * occupationRate[k];
-      }
-    }
-
-    blas::Gemm( 'N', 'N', ntot, numMu_, numStateTotal, 1.0, 
-        wavefun_.Data(), ntot, psiMu.Data(), numStateTotal, 0.0,
-        PcolPsiMu.Data(), ntot );
-    blas::Gemm( 'N', 'N', ntot, numMu_, numStateTotal, 1.0, 
-        phi.Data(), ntot, phiMu.Data(), numStateTotal, 0.0,
-        PcolPhiMu.Data(), ntot );
-
-    Real* xiPtr = Xi.Data();
-    Real* PcolPsiMuPtr = PcolPsiMu.Data();
-    Real* PcolPhiMuPtr = PcolPhiMu.Data();
-
-    for( Int g = 0; g < ntot * numMu_; g++ ){
-      xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g];
-    }
-
-    for( Int mu = 0; mu < numMu_; mu++ ){
-      Int muInd = pivMu(mu);
-      for (Int nu=0; nu < numMu_; nu++) {
-        PcolMuNu( mu, nu ) = Xi( muInd, nu );
-      }
-    }
-
-    //        statusOFS << "PcolMuNu = " << PcolMuNu << std::endl;
-
-    // Inversion based on Cholesky factorization
-    // Xi <- Xi * L^{-T} L^{-1}
-    // If overflow / underflow, reduce numMu_
-    lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
-
-    blas::Trsm( 'R', 'L', 'T', 'N', ntot, numMu_, 1.0, 
-        PcolMuNu.Data(), numMu_, Xi.Data(), ntot );
-
-    blas::Trsm( 'R', 'L', 'N', 'N', ntot, numMu_, 1.0, 
-        PcolMuNu.Data(), numMu_, Xi.Data(), ntot );
-
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing the interpolation vectors is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-  }
-
-
-  // *********************************************************************
-  // Solve the Poisson equations
-  // Rewrite Xi by the potential of Xi
-  // *********************************************************************
-
-  {
-    GetTime( timeSta );
-    for( Int mu = 0; mu < numMu_; mu++ ){
-      blas::Copy( ntot,  Xi.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
-
-      FFTWExecute ( fft, fft.forwardPlanR2C );
-
-      for( Int ig = 0; ig < ntotR2C; ig++ ){
-        fft.outputVecR2C(ig) *= -exxFraction * exxgkkR2C(ig);
+      if(1){
+        Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
+        statusOFS << "numMu_ = " << numMu_ << std::endl;
+        statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
       }
 
-      FFTWExecute ( fft, fft.backwardPlanR2C );
-
-      blas::Copy( ntot, fft.inputVecR2C.Data(), 1, Xi.VecData(mu), 1 );
-    } // for (mu)
-
-    GetTime( timeEnd );
+      GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for solving Poisson-like equations is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+      statusOFS << "Time for density fitting with QRCP is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-  }
-
-  // *********************************************************************
-  // Compute the exchange potential and the symmetrized inner product
-  // *********************************************************************
-
-  {
-    GetTime( timeSta );
-    // Rewrite Xi by Xi.*PcolPhi
-    Real* xiPtr = Xi.Data();
-    Real* PcolPhiMuPtr = PcolPhiMu.Data();
-    for( Int g = 0; g < ntot * numMu_; g++ ){
-      xiPtr[g] *= PcolPhiMuPtr[g];
     }
 
-    // NOTE: a3 must be zero in order to compute the M matrix later
-    blas::Gemm( 'N', 'T', ntot, numStateTotal, numMu_, 1.0, 
-        Xi.Data(), ntot, psiMu.Data(), numStateTotal, 1.0,
-        a3.Data(), ntot ); 
+    // *********************************************************************
+    // Compute the interpolation matrix via the density matrix formulation
+    // *********************************************************************
 
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing the exchange potential is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-  }
-
-  // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-  // vexxPsi (a3) must be zero before entering this routine
-  VxMat.Resize( numStateTotal, numStateTotal );
-  {
-    // Minus sign so that VxMat is positive semidefinite
-    // NOTE: No measure factor vol / ntot due to the normalization
-    // factor of psi
     GetTime( timeSta );
-    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, -1.0,
-        wavefun_.Data(), ntot, a3.Data(), ntot, 0.0, 
-        VxMat.Data(), numStateTotal );
+    DblNumMat Xi(ntot, numMu_);
+    DblNumMat psiMu(numStateTotal, numMu_);
+    // PhiMu is scaled by the occupation number to reflect the "true" density matrix
+    DblNumMat PcolPhiMu(ntot, numMu_);
+    IntNumVec pivMu(numMu_);
 
-    //        statusOFS << "VxMat = " << VxMat << std::endl;
+    {
+      GetTime( timeSta );
+      for( Int mu = 0; mu < numMu_; mu++ ){
+        pivMu(mu) = pivQR_(mu);
+      }
 
-    Symmetrize( VxMat );
+      // These three matrices are used only once
+      DblNumMat phiMu(numStateTotal, numMu_);
+      DblNumMat PcolMuNu(numMu_, numMu_);
+      DblNumMat PcolPsiMu(ntot, numMu_);
 
-    GetTime( timeEnd );
+      for( Int mu = 0; mu < numMu_; mu++ ){
+        Int muInd = pivMu(mu);
+        for (Int k=0; k<numStateTotal; k++) {
+          psiMu(k, mu) = wavefun_(muInd,0,k);
+          phiMu(k, mu) = phi(muInd,0,k) * occupationRate[k];
+        }
+      }
+
+      blas::Gemm( 'N', 'N', ntot, numMu_, numStateTotal, 1.0, 
+          wavefun_.Data(), ntot, psiMu.Data(), numStateTotal, 0.0,
+          PcolPsiMu.Data(), ntot );
+      blas::Gemm( 'N', 'N', ntot, numMu_, numStateTotal, 1.0, 
+          phi.Data(), ntot, phiMu.Data(), numStateTotal, 0.0,
+          PcolPhiMu.Data(), ntot );
+
+      Real* xiPtr = Xi.Data();
+      Real* PcolPsiMuPtr = PcolPsiMu.Data();
+      Real* PcolPhiMuPtr = PcolPhiMu.Data();
+
+      for( Int g = 0; g < ntot * numMu_; g++ ){
+        xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g];
+      }
+
+      for( Int mu = 0; mu < numMu_; mu++ ){
+        Int muInd = pivMu(mu);
+        for (Int nu=0; nu < numMu_; nu++) {
+          PcolMuNu( mu, nu ) = Xi( muInd, nu );
+        }
+      }
+
+      //        statusOFS << "PcolMuNu = " << PcolMuNu << std::endl;
+
+      // Inversion based on Cholesky factorization
+      // Xi <- Xi * L^{-T} L^{-1}
+      // If overflow / underflow, reduce numMu_
+      lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
+
+      blas::Trsm( 'R', 'L', 'T', 'N', ntot, numMu_, 1.0, 
+          PcolMuNu.Data(), numMu_, Xi.Data(), ntot );
+
+      blas::Trsm( 'R', 'L', 'N', 'N', ntot, numMu_, 1.0, 
+          PcolMuNu.Data(), numMu_, Xi.Data(), ntot );
+
+      GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing VxMat in the sym format is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+      statusOFS << "Time for computing the interpolation vectors is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
-  }
+    }
 
 
-  MPI_Barrier(domain_.comm);
+    // *********************************************************************
+    // Solve the Poisson equations
+    // Rewrite Xi by the potential of Xi
+    // *********************************************************************
 
-  return ;
-}        // -----  end of method Spinor::AddMultSpinorEXXDF  ----- 
+    {
+      GetTime( timeSta );
+      for( Int mu = 0; mu < numMu_; mu++ ){
+        blas::Copy( ntot,  Xi.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
+
+        FFTWExecute ( fft, fft.forwardPlanR2C );
+
+        for( Int ig = 0; ig < ntotR2C; ig++ ){
+          fft.outputVecR2C(ig) *= -exxFraction * exxgkkR2C(ig);
+        }
+
+        FFTWExecute ( fft, fft.backwardPlanR2C );
+
+        blas::Copy( ntot, fft.inputVecR2C.Data(), 1, Xi.VecData(mu), 1 );
+      } // for (mu)
+
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for solving Poisson-like equations is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+    }
+
+    // *********************************************************************
+    // Compute the exchange potential and the symmetrized inner product
+    // *********************************************************************
+
+    {
+      GetTime( timeSta );
+      // Rewrite Xi by Xi.*PcolPhi
+      Real* xiPtr = Xi.Data();
+      Real* PcolPhiMuPtr = PcolPhiMu.Data();
+      for( Int g = 0; g < ntot * numMu_; g++ ){
+        xiPtr[g] *= PcolPhiMuPtr[g];
+      }
+
+      // NOTE: a3 must be zero in order to compute the M matrix later
+      blas::Gemm( 'N', 'T', ntot, numStateTotal, numMu_, 1.0, 
+          Xi.Data(), ntot, psiMu.Data(), numStateTotal, 1.0,
+          a3.Data(), ntot ); 
+
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing the exchange potential is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+    }
+
+    // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
+    // vexxPsi (a3) must be zero before entering this routine
+    VxMat.Resize( numStateTotal, numStateTotal );
+    {
+      // Minus sign so that VxMat is positive semidefinite
+      // NOTE: No measure factor vol / ntot due to the normalization
+      // factor of psi
+      GetTime( timeSta );
+      blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, -1.0,
+          wavefun_.Data(), ntot, a3.Data(), ntot, 0.0, 
+          VxMat.Data(), numStateTotal );
+
+      //        statusOFS << "VxMat = " << VxMat << std::endl;
+
+      Symmetrize( VxMat );
+
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing VxMat in the sym format is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+    }
+
+  }//if(0)
 
 
-// Old implementation always with QR. The saving of QR compared to QRCP
-// is not very large.
-// 
-//void Spinor::AddMultSpinorEXXDF ( Fourier& fft, 
-//        const NumTns<Real>& phi,
-//        const DblNumVec& exxgkkR2C,
-//        Real  exxFraction,
-//        Real  numSpin,
-//        const DblNumVec& occupationRate,
-//        const Real numMuFac,
-//        NumTns<Real>& a3, 
-//        NumMat<Real>& VxMat,
-//        bool isFixColumnDF )
-//{
-//    Real timeSta, timeEnd;
-//
-//    if( !fft.isInitialized ){
-//        ErrorHandling("Fourier is not prepared.");
-//    }
-//
-//    MPI_Barrier(domain_.comm);
-//    int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-//    int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
-//
-//    Index3& numGrid = domain_.numGrid;
-//    Index3& numGridFine = domain_.numGridFine;
-//
-//    Int ntot     = domain_.NumGridTotal();
-//    Int ntotFine = domain_.NumGridTotalFine();
-//    Int ntotR2C = fft.numGridTotalR2C;
-//    Int ntotR2CFine = fft.numGridTotalR2CFine;
-//    Int ncom = wavefun_.n();
-//    Int numStateLocal = wavefun_.p();
-//    Int numStateTotal = numStateTotal_;
-//
-//    Int ncomPhi = phi.n();
-//
-//    Real vol = domain_.Volume();
-//
-//    if( ncomPhi != 1 || ncom != 1 ){
-//        ErrorHandling("Spin polarized case not implemented.");
-//    }
-//
-//    if( fft.domain.NumGridTotal() != ntot ){
-//        ErrorHandling("Domain size does not match.");
-//    }
-//
-//
-//    // *********************************************************************
-//    // Perform interpolative separable density fitting
-//    // *********************************************************************
-//    GetTime( timeSta );
-//    // Perform QRCP 
-//    IntNumVec pivMu;
-//    DblNumMat Xi;
-//    if( isFixColumnDF == false ){
-//        numMu_ = std::min(IRound(numStateTotal*numMuFac), ntot);
-//        
-//        // Step 1: Pre-compression of the wavefunctions. This uses
-//        // multiplication with orthonormalized random Gaussian matrices
-//        //
-//
-//        /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
-//        /// principle be a tensor, but only treated as matrix.
-//        Int numPre = std::min(IRound(std::sqrt(numMu_*2.0)), numStateTotal);
-//        //    Int numPre = std::min(IRound(std::sqrt(numMu_))+5, numStateTotal);
-//        DblNumMat phiG(ntot, numPre), psiG(ntot, numPre);
-//        if(1)
-//        {
-//            DblNumMat G(numStateTotal, numPre);
-//            // Generate orthonormal Gaussian random matrix 
-//            GaussianRandom(G);
-//            lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
-//
-//            blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
-//                    phi.Data(), ntot, G.Data(), numStateTotal, 0.0,
-//                    phiG.Data(), ntot );
-//
-//            GaussianRandom(G);
-//            lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
-//
-//            if(0){
-//                DblNumMat OverG(numPre,numPre);
-//                blas::Gemm( 'T', 'N', numPre, numPre, numStateTotal, 1.0,
-//                        G.Data(), numStateTotal, G.Data(), numStateTotal, 0.0,
-//                        OverG.Data(), numPre );
-//                statusOFS << "OverG = " << OverG << std::endl;
-//            }
-//
-//            blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
-//                    wavefun_.Data(), ntot, G.Data(), numStateTotal, 0.0,
-//                    psiG.Data(), ntot );
-//        }
-//        //    if(0){
-//        //        blas::Copy( ntot*numStateTotal, phi.Data(), 1, phiG.Data(), 1 );
-//        //        blas::Copy( ntot*numStateTotal, wavefun_.Data(), 1, psiG.Data(), 1 );
-//        //    }
-//
-//        // Step 2: Pivoted QR decomposition  for the Hadamard product of
-//        // the compressed matrix. Transpose format for QRCP
-//        DblNumMat MG( numPre*numPre, ntot );
-//        for( Int j = 0; j < numPre; j++ ){
-//            for( Int i = 0; i < numPre; i++ ){
-//                for( Int ir = 0; ir < ntot; ir++ ){
-//                    MG(i+j*numPre,ir) = phiG(ir,i) * psiG(ir,j);
-//                }
-//            }
-//        }
-////        IntNumVec pivQR_(ntot);
-//
-//        DblNumVec tau(ntot);
-//        pivQR_.Resize(ntot);
-//        SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
-//        // Q factor does not need to be used
-//        Real timeQRCPSta, timeQRCPEnd;
-//        GetTime( timeQRCPSta );
-//        lapack::QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
-//                pivQR_.Data(), tau.Data() );
-//        GetTime( timeQRCPEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//        statusOFS << "Time for QRCP is " <<
-//            timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
-//#endif
-//
-//        // Important: eliminate the Q part in MG for equation solving
-//        for( Int mu = 0; mu < numMu_; mu++ ){
-//            for( Int i = mu+1; i < numMu_; i++ ){
-//                MG(i,mu) = 0.0;
-//            }
-//        }
-//
-//
-//        // Step 3: Construct the interpolation matrix
-//        pivMu.Resize(numMu_);
-//        for( Int mu = 0; mu < numMu_; mu++ ){
-//            pivMu(mu) = pivQR_(mu);
-//        }
-//        Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
-//        statusOFS << "numMu_ = " << numMu_ << std::endl;
-//        statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
-//        if(1){
-//            Int numDiag = std::min(numPre*numPre, ntot);
-//            DblNumVec diagR(numDiag);
-//            for( Int i = 0; i < numDiag; i++ ){
-//                diagR(i) = MG(i,i);
-//            }
-//            statusOFS << "diagR = " << diagR << std::endl;
-////            statusOFS << "piv = " << pivQR_ << std::endl;
-//        }
-//
-//        // Solve R_1^{-1} [R_1 R_2]
-//        DblNumMat R1(numMu_, numMu_);
-//        lapack::Lacpy('U', numMu_, numMu_, MG.Data(), numPre*numPre,
-//                R1.Data(), numMu_);
-//        blas::Trsm( 'L', 'U', 'N', 'N', numMu_, ntot, 1.0, 
-//                R1.Data(), numMu_, MG.Data(), numPre*numPre );
-//
-//        // Store info from the first numMu_ rows into the MG into Xi
-//        // after permutation
-//        Xi.Resize(ntot, numMu_);
-//        for( Int mu = 0; mu < numMu_; mu++ ){
-//            for( Int ir = 0; ir < ntot; ir++ ){
-//                Xi(pivQR_(ir),mu) = MG(mu,ir);
-//            }
-//        }
-//        if(0){
-//            DblNumVec diagR(numMu_);
-//            for( Int i = 0; i < numMu_; i++ ){
-//                diagR(i) = MG(i,i);
-//            }
-//            statusOFS << "diagR (xi) = " << diagR << std::endl;
-//        }
-//
-//        GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//        statusOFS << "Time for density fitting with QRCP is " <<
-//            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//    }
-//    else{
-//        // Reuse the information from pivQR_ and numMu_;
-//        pivMu.Resize(numMu_);
-//        for( Int mu = 0; mu < numMu_; mu++ ){
-//            pivMu(mu) = pivQR_(mu);
-//        }
-//
-//        // Step 1: Pre-compression of the wavefunctions. This uses
-//        // multiplication with orthonormalized random Gaussian matrices
-//
-//        /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
-//        /// principle be a tensor, but only treated as matrix.
-//        Int numPre = std::min(IRound(std::sqrt(numMu_*2.0)), numStateTotal);
-//        //    Int numPre = std::min(IRound(std::sqrt(numMu_))+5, numStateTotal);
-//        DblNumMat phiG(ntot, numPre), psiG(ntot, numPre);
-//        if(1)
-//        {
-//            DblNumMat G(numStateTotal, numPre);
-//            // Generate orthonormal Gaussian random matrix 
-//            GaussianRandom(G);
-//            lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
-//
-//            blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
-//                    phi.Data(), ntot, G.Data(), numStateTotal, 0.0,
-//                    phiG.Data(), ntot );
-//
-//            GaussianRandom(G);
-//            lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
-//
-//            blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
-//                    wavefun_.Data(), ntot, G.Data(), numStateTotal, 0.0,
-//                    psiG.Data(), ntot );
-//        }
-//
-//        // Step 2: QR decomposition for the pivoted matrix
-//        DblNumMat MG( numPre*numPre, ntot );
-//        for( Int j = 0; j < numPre; j++ ){
-//            for( Int i = 0; i < numPre; i++ ){
-//                for( Int ir = 0; ir < ntot; ir++ ){
-//                    MG(i+j*numPre,ir) = phiG(pivQR_(ir),i) * psiG(pivQR_(ir),j);
-//                }
-//            }
-//        }
-//        DblNumVec tau(ntot);
-//        // Q factor does not need to be used
-//        Real timeQRSta, timeQREnd;
-//        GetTime( timeQRSta );
-//        lapack::QR( numPre*numPre, ntot, MG.Data(), numPre*numPre, tau.Data() );
-//        GetTime( timeQREnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//        statusOFS << "Time for QR is " <<
-//            timeQREnd - timeQRSta << " [s]" << std::endl << std::endl;
-//#endif
-//
-//        // Important: eliminate the Q part in MG for equation solving
-//        for( Int mu = 0; mu < numMu_; mu++ ){
-//            for( Int i = mu+1; i < numMu_; i++ ){
-//                MG(i,mu) = 0.0;
-//            }
-//        }
-//
-//
-//        // Step 3: Construct the interpolation matrix
-//        Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
-//        statusOFS << "numMu_ = " << numMu_ << std::endl;
-//        statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
-//        if(1){
-//            Int numDiag = std::min(numPre*numPre, ntot);
-//            DblNumVec diagR(numDiag);
-//            for( Int i = 0; i < numDiag; i++ ){
-//                diagR(i) = MG(i,i);
-//            }
-//            statusOFS << "diagR = " << diagR << std::endl;
-////            statusOFS << "piv = " << pivQR_ << std::endl;
-//        }
-//
-//        // Solve R_1^{-1} [R_1 R_2]
-//        DblNumMat R1(numMu_, numMu_);
-//        lapack::Lacpy('U', numMu_, numMu_, MG.Data(), numPre*numPre,
-//                R1.Data(), numMu_);
-//        blas::Trsm( 'L', 'U', 'N', 'N', numMu_, ntot, 1.0, 
-//                R1.Data(), numMu_, MG.Data(), numPre*numPre );
-//
-//        // Store info from the first numMu_ rows into the MG into Xi
-//        // after permutation
-//        Xi.Resize(ntot, numMu_);
-//        for( Int mu = 0; mu < numMu_; mu++ ){
-//            for( Int ir = 0; ir < ntot; ir++ ){
-//                Xi(pivQR_(ir),mu) = MG(mu,ir);
-//            }
-//        }
-//        if(0){
-//            DblNumVec diagR(numMu_);
-//            for( Int i = 0; i < numMu_; i++ ){
-//                diagR(i) = MG(i,i);
-//            }
-//            statusOFS << "diagR (xi) = " << diagR << std::endl;
-//        }
-//
-//        GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//        statusOFS << "Time for density fitting with QR is " <<
-//            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//    }
-//    // *********************************************************************
-//    // Solve the Poisson equations
-//    // Also accumulate the VxMat matrix
-//    // VxMat = Psi'*Vx[Phi]*Psi
-//    // This is performed using the symmetric format with density fitting
-//    // being performed symmetrically
-//    // 
-//    // This is not a memory efficient implementation
-//    // *********************************************************************
-//
-//    // Step 1: Solve the Poisson-like problem for exchange
-//    GetTime( timeSta );
-//    DblNumMat XiPot(ntot, numMu_);
-//    for( Int mu = 0; mu < numMu_; mu++ ){
-//        blas::Copy( ntot,  Xi.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
-//
-//        FFTWExecute ( fft, fft.forwardPlanR2C );
-//
-//        for( Int ig = 0; ig < ntotR2C; ig++ ){
-//            fft.outputVecR2C(ig) *= -exxFraction * exxgkkR2C(ig);
-//        }
-//
-//        FFTWExecute ( fft, fft.backwardPlanR2C );
-//
-//        blas::Copy( ntot, fft.inputVecR2C.Data(), 1, XiPot.VecData(mu), 1 );
-//    } // for (mu)
-//    
-//    GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//    statusOFS << "Time for solving Poisson-like equations is " <<
-//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//    
-//
-//    // Step 2: accumulate to the matrix vector multiplication
-//    DblNumMat phiMod(ntot, numMu_);
-//    SetValue( phiMod, 0.0 );
-//    // accumulate \sum_j f_j \varphi_j (r) \varphi_j(r_mu) 
-//    // can be done with gemv
-//    if(0){
-//        GetTime( timeSta );
-//        for( Int mu = 0; mu < numMu_; mu++ ){
-//            for( Int k = 0; k < numStateTotal; k++ ){
-//                blas::Axpy(ntot, phi(pivMu(mu), 0, k) * occupationRate[k], 
-//                        phi.VecData(0, k), 1, phiMod.VecData(mu), 1 );
-//            }
-//        }
-//        GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//        statusOFS << "Time for computing phiMod via Axpy is " <<
-//            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//    }
-//    if(1){
-//        DblNumMat phiWeight(numStateTotal, numMu_);
-//        for( Int mu = 0; mu < numMu_; mu++ ){
-//            Int muInd = pivMu(mu);
-//            for( Int k = 0; k < numStateTotal; k++ ){
-//                phiWeight(k,mu) = phi(muInd, 0, k) * occupationRate[k];
-//            }
-//        }
-//        blas::Gemm( 'N', 'N', ntot, numMu_, numStateTotal, 1.0,
-//                phi.Data(), ntot, phiWeight.Data(), numStateTotal, 0.0,
-//                phiMod.Data(), ntot );
-//        GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//        statusOFS << "Time for computing phiMod via Gemm is " <<
-//            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//    }
-//
-//    DblNumMat psiMu(numMu_, numStateTotal);
-//    if(0){
-//        GetTime( timeSta );
-//        for (Int k=0; k<numStateTotal; k++) {
-//            for( Int mu = 0; mu < numMu_; mu++ ){
-//                psiMu(mu,k) = wavefun_(pivMu(mu),0,k);
-//                //            for( Int ir = 0; ir < ntot; ir++ ){
-//                //                a3(ir, 0, k) += psiMu(mu,k) * XiPot(ir,mu) * phiMod(ir,mu);
-//                //            }
-//                // Very significant improvement of performance 
-//                Real* a3Ptr = a3.VecData(0,k);
-//                Real* xiPotPtr = XiPot.VecData(mu);
-//                Real* phiModPtr = phiMod.VecData(mu);
-//                Real fac = psiMu(mu,k);
-//                for( Int ir = 0; ir < ntot; ir++ ){
-//                    a3Ptr[ir] += fac * xiPotPtr[ir] * phiModPtr[ir];
-//                }
-//            }
-//        } // for (k)
-//        GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//        statusOFS << "Time for computing V_x[Phi] Psi via BLAS 1 is " <<
-//            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//    }
-//    if(1){
-//        GetTime( timeSta );
-//        for( Int mu = 0; mu < numMu_; mu++ ){
-//            Int muInd = pivMu(mu);
-//            for (Int k=0; k<numStateTotal; k++) {
-//                psiMu(mu,k) = wavefun_(muInd,0,k);
-//            }
-//        }
-//        DblNumMat XiPhi( ntot, numMu_ );
-//        Real* xiPotPtr = XiPot.Data();
-//        Real* phiModPtr = phiMod.Data();
-//        Real* xiPhiPtr = XiPhi.Data();
-//        // XiPhi = XiPot .* phiMod  
-//        for( Int g = 0; g < ntot * numMu_; g++ ){
-//            *(xiPhiPtr++) = (*(xiPotPtr++)) * (*(phiModPtr++)); 
-//        }
-//        blas::Gemm( 'N', 'N', ntot, numStateTotal, numMu_, 1.0, 
-//                XiPhi.Data(), ntot, psiMu.Data(), numMu_, 1.0,
-//                a3.Data(), ntot ); 
-//        GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//        statusOFS << "Time for computing V_x[Phi] Psi via GEMM is " <<
-//            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//    }
-//
-//    // Step 3: Compute the matrix VxMat = -Psi'* Vx[Phi] * Psi in the
-//    // density fitting format
-//    GetTime( timeSta );
-//    VxMat.Resize( numStateTotal, numStateTotal );
-//    {
-//        DblNumMat OverMat( numMu_, numMu_ ); 
-//        // Minus sign so that VxMat is positive semidefinite
-//        // NOTE: No measure factor vol / ntot due to the normalization
-//        // factor of psi
-//        blas::Gemm( 'T', 'N', numMu_, numMu_, ntot, -1.0,
-//                Xi.Data(), ntot, XiPot.Data(), ntot, 0.0, 
-//                OverMat.Data(), numMu_ );
-//        for( Int mu = 0; mu < numMu_; mu++ ){
-//            for( Int nu = 0; nu < numMu_; nu++ ){
-//                OverMat(mu,nu) *= phiMod(pivQR_(mu), nu);
-//            }
-//        }
-//        
-//        DblNumMat TempMat1(numStateTotal, numMu_);
-//        blas::Gemm( 'T', 'N', numStateTotal, numMu_, numMu_, 1.0,
-//                psiMu.Data(), numMu_, OverMat.Data(), numMu_, 0.0,
-//                TempMat1.Data(), numStateTotal );
-//
-//        blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, numMu_, 1.0,
-//                TempMat1.Data(), numStateTotal, psiMu.Data(), numMu_,
-//                0.0, VxMat.Data(), numStateTotal );
-//    }
-//
-//    GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//    statusOFS << "Time for computing VxMat in the sym format is " <<
-//        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//
-//    MPI_Barrier(domain_.comm);
-//
-//
-//    return ;
-//}        // -----  end of method Spinor::AddMultSpinorEXXDF  ----- 
+
+  if(1){ //For MPI huwei
+
+    // *********************************************************************
+    // Perform interpolative separable density fitting
+    // *********************************************************************
+
+    //numMu_ = std::min(IRound(numStateTotal*numMuFac), ntot);
+    numMu_ = IRound(numStateTotal*numMuFac);
+
+    /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
+    /// principle be a tensor, but only treated as matrix.
+    //Int numPre = std::min(IRound(std::sqrt(numMu_*2.0)), numStateTotal);
+    //Int numPre = std::min(IRound(std::sqrt(numMu_))+5, numStateTotal);
+    Int numPre = IRound(std::sqrt(numMu_*1.2));
+    if( numPre > numStateTotal ){
+      ErrorHandling("numMu is too large for interpolative separable density fitting!");
+    }
+
+    // Convert the column partition to row partition
+    Int numStateBlocksize = numStateTotal / mpisize;
+    Int ntotBlocksize = ntot / mpisize;
+
+    Int numMuBlocksize = numMu_ / mpisize;
+
+    Int numStateLocal = numStateBlocksize;
+    Int ntotLocal = ntotBlocksize;
+
+    Int numMuLocal = numMuBlocksize;
+
+    if(mpirank < (numStateTotal % mpisize)){
+      numStateLocal = numStateBlocksize + 1;
+    }
+
+    if(mpirank < (numMu_ % mpisize)){
+      numMuLocal = numMuBlocksize + 1;
+    }
+
+    if(mpirank == (mpisize - 1)){
+      ntotLocal = ntotBlocksize + ntot % mpisize;
+    }
+
+    DblNumMat localVexxPsiCol( ntot, numStateLocal );
+    SetValue( localVexxPsiCol, 0.0 );
+
+    DblNumMat localVexxPsiRow( ntotLocal, numStateTotal );
+    SetValue( localVexxPsiRow, 0.0 );
+
+    DblNumMat localphiGRow( ntotLocal, numPre );
+    SetValue( localphiGRow, 0.0 );
+
+    DblNumMat localpsiGRow( ntotLocal, numPre );
+    SetValue( localpsiGRow, 0.0 );
+
+    DblNumMat G(numStateTotal, numPre);
+    SetValue( G, 0.0 );
+
+    DblNumMat phiCol( ntot, numStateLocal );
+    SetValue( phiCol, 0.0 );
+    DblNumMat phiRow( ntotLocal, numStateTotal );
+    SetValue( phiRow, 0.0 );
+
+    DblNumMat psiCol( ntot, numStateLocal );
+    SetValue( psiCol, 0.0 );
+    DblNumMat psiRow( ntotLocal, numStateTotal );
+    SetValue( psiRow, 0.0 );
+
+    lapack::Lacpy( 'A', ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
+    lapack::Lacpy( 'A', ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
+
+    AlltoallForward (phiCol, phiRow, domain_.comm);
+    AlltoallForward (psiCol, psiRow, domain_.comm);
+
+
+    // Computing the indices is optional
+    if( isFixColumnDF == false ){
+      GetTime( timeSta );
+
+      // Step 1: Pre-compression of the wavefunctions. This uses
+      // multiplication with orthonormalized random Gaussian matrices
+      if ( mpirank == 0) {
+        GaussianRandom(G);
+        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+      }
+
+      MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
+
+      blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
+          phiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
+          localphiGRow.Data(), ntotLocal );
+
+      blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
+          psiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
+          localpsiGRow.Data(), ntotLocal );
+
+      // Step 2: Pivoted QR decomposition  for the Hadamard product of
+      // the compressed matrix. Transpose format for QRCP
+      DblNumMat MG( numPre*numPre, ntotLocal );
+      for( Int j = 0; j < numPre; j++ ){
+        for( Int i = 0; i < numPre; i++ ){
+          for( Int ir = 0; ir < ntotLocal; ir++ ){
+            MG(i+j*numPre,ir) = localphiGRow(ir,i) * localpsiGRow(ir,j);
+          }
+        }
+      }
+
+      DblNumVec tau(ntot);
+      pivQR_.Resize(ntot);
+      SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
+      // Q factor does not need to be used
+
+      Int contxt;
+      Int nprow, npcol, myrow, mycol, info;
+      Cblacs_get(0, 0, &contxt);
+      nprow = 1;
+      npcol = mpisize;
+
+      Cblacs_gridinit(&contxt, "C", nprow, npcol);
+      Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
+      Int desc_MG[9];
+      Int desc_QR[9];
+
+      Int irsrc = 0;
+      Int icsrc = 0;
+
+      Int mb_MG = numPre*numPre;
+      Int nb_MG = ntotLocal;
+
+      Int mb_QR = ntot;
+      Int nb_QR = 1;
+
+      Int ntotBlocksizeMG = ntotBlocksize + ntot % mpisize;
+
+      SCALAPACK(descinit)(&desc_MG[0], &mb_MG, &ntot, &mb_MG, &ntotBlocksizeMG, &irsrc, &icsrc, &contxt, &mb_MG, &info);
+      SCALAPACK(descinit)(&desc_QR[0], &ntot, &nb_QR, &ntot, &nb_QR, &irsrc, &icsrc, &contxt, &ntot, &info);
+
+
+      Real timeQRCPSta, timeQRCPEnd;
+      GetTime( timeQRCPSta );
+
+      statusOFS << "huwei2 spinor.cpp" << std::endl;
+      statusOFS << " MG = " << MG << std::endl;
+
+      if(0){  
+        lapack::QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
+            pivQR_.Data(), tau.Data() );
+      }//if(0)
+
+      if(1){
+        //int I_ONE = 1;
+
+        //DblNumVec work(1);
+
+        // Workspace query
+        //lwork = -1;
+        //SCALAPACK(pdgeqpf)(&mb_MG, &ntot, 
+        //    MG.Data(), &I_ONE, &I_ONE, &desc_MG[0],
+        //   pivQR_.Data(), tau.Data(),  
+        //   &work[0], &lwork, &info);
+        // Check whether the workspace is indeed enough.
+
+        //statusOFS << "huwei22 spinor.cpp" << std::endl;
+
+        //if (...) {...}
+        //lwork = (Int)work[0];
+        //SCALAPACK(pdgeqpf)(&mb_MG, &ntot, 
+        //    MG.Data(), &I_ONE, &I_ONE, &desc_MG[0],
+        //    pivQR_.Data(), tau.Data(),  
+        //    &work[0], &lwork, &info);
+
+
+        //Int* pivQRPtr =  pivQR_.Data();
+        // Important: fortran index is 1-based. Change to 0-based
+        //for( Int i = 0; i < ntot; i++ ){
+        //  pivQRPtr[i]--;
+        //
+
+
+        scalapack::QRCPP( mb_MG, ntot, MG.Data(), &desc_MG[0], 
+            pivQR_.Data(), tau.Data() );
+
+      } //if(1)
+
+      GetTime( timeQRCPEnd );
+
+      statusOFS << "huwei3 spinor.cpp" << std::endl;
+      statusOFS << " MG = " << MG << std::endl;
+      statusOFS << " pivQR_ = " << pivQR_ << std::endl;
+      statusOFS << " tau = " << tau << std::endl;
+
+
+
+      statusOFS << "huwei4 spinor.cpp" << std::endl;
+
+      statusOFS << std::endl<< "All processors exit with abort in spinor.cpp." << std::endl;
+      abort();
+
+
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for QRCP alone is " <<
+        timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+      if(0){
+        Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
+        statusOFS << "numMu_ = " << numMu_ << std::endl;
+        statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
+      }
+
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for density fitting with QRCP is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+      }
+
+
+      // *********************************************************************
+      // Compute the interpolation matrix via the density matrix formulation
+      // *********************************************************************
+
+      GetTime( timeSta );
+      DblNumMat XiRow(ntotLocal, numMu_);
+      DblNumMat psiMu(numStateTotal, numMu_);
+      // PhiMu is scaled by the occupation number to reflect the "true" density matrix
+      DblNumMat PcolPhiMu(ntotLocal, numMu_);
+      IntNumVec pivMu(numMu_);
+
+      {
+        GetTime( timeSta );
+        for( Int mu = 0; mu < numMu_; mu++ ){
+          pivMu(mu) = pivQR_(mu);
+        }
+
+        // These three matrices are used only once
+        DblNumMat phiMu(numStateTotal, numMu_);
+        DblNumMat PcolMuNu(numMu_, numMu_);
+        DblNumMat PcolPsiMu(ntotLocal, numMu_);
+
+        for( Int mu = 0; mu < numMu_; mu++ ){
+          Int muInd = pivMu(mu);
+          for (Int k=0; k<numStateTotal; k++) {
+            psiMu(k, mu) = psiRow(muInd,k);
+            phiMu(k, mu) = phiRow(muInd,k) * occupationRate[k];
+          }
+        }
+
+        blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
+            psiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 0.0,
+            PcolPsiMu.Data(), ntotLocal );
+        blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
+            phiRow.Data(), ntotLocal, phiMu.Data(), numStateTotal, 0.0,
+            PcolPhiMu.Data(), ntotLocal );
+
+        Real* xiPtr = XiRow.Data();
+        Real* PcolPsiMuPtr = PcolPsiMu.Data();
+        Real* PcolPhiMuPtr = PcolPhiMu.Data();
+
+        for( Int g = 0; g < ntotLocal * numMu_; g++ ){
+          xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g];
+        }
+
+        for( Int mu = 0; mu < numMu_; mu++ ){
+          Int muInd = pivMu(mu);
+          for (Int nu=0; nu < numMu_; nu++) {
+            PcolMuNu( mu, nu ) = XiRow( muInd, nu );
+          }
+        }
+
+        //        statusOFS << "PcolMuNu = " << PcolMuNu << std::endl;
+
+        // Inversion based on Cholesky factorization
+        // Xi <- Xi * L^{-T} L^{-1}
+        // If overflow / underflow, reduce numMu_
+        if ( mpirank == 0) {
+          lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
+        }
+        MPI_Bcast(PcolMuNu.Data(), numMu_ * numMu_, MPI_DOUBLE, 0, domain_.comm);
+
+        blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numMu_, 1.0, 
+            PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
+
+        blas::Trsm( 'R', 'L', 'N', 'N', ntotLocal, numMu_, 1.0, 
+            PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
+
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing the interpolation vectors is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+      }
+
+
+      // *********************************************************************
+      // Solve the Poisson equations
+      // Rewrite Xi by the potential of Xi
+      // *********************************************************************
+
+      DblNumMat XiCol(ntot, numMuLocal);
+
+      AlltoallBackward (XiRow, XiCol, domain_.comm);
+
+      {
+        GetTime( timeSta );
+        for( Int mu = 0; mu < numMuLocal; mu++ ){
+          blas::Copy( ntot,  XiCol.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
+
+          FFTWExecute ( fft, fft.forwardPlanR2C );
+
+          for( Int ig = 0; ig < ntotR2C; ig++ ){
+            fft.outputVecR2C(ig) *= -exxFraction * exxgkkR2C(ig);
+          }
+
+          FFTWExecute ( fft, fft.backwardPlanR2C );
+
+          blas::Copy( ntot, fft.inputVecR2C.Data(), 1, XiCol.VecData(mu), 1 );
+
+          AlltoallForward (XiCol, XiRow, domain_.comm);
+
+        } // for (mu)
+
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for solving Poisson-like equations is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+      }
+
+      // *********************************************************************
+      // Compute the exchange potential and the symmetrized inner product
+      // *********************************************************************
+
+      GetTime( timeSta );
+      // Rewrite Xi by Xi.*PcolPhi
+      Real* xiPtr = XiRow.Data();
+      Real* PcolPhiMuPtr = PcolPhiMu.Data();
+      for( Int g = 0; g < ntotLocal * numMu_; g++ ){
+        xiPtr[g] *= PcolPhiMuPtr[g];
+      }
+
+      // NOTE: a3 must be zero in order to compute the M matrix later
+      DblNumMat a3Row( ntotLocal, numStateTotal );
+      SetValue( a3Row, 0.0 );
+      blas::Gemm( 'N', 'T', ntotLocal, numStateTotal, numMu_, 1.0, 
+          XiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 1.0,
+          a3Row.Data(), ntotLocal ); 
+
+      DblNumMat a3Col( ntot, numStateLocal );
+      AlltoallBackward (a3Row, a3Col, domain_.comm);
+
+      lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );
+
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing the exchange potential is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
+      // vexxPsi (a3) must be zero before entering this routine
+      VxMat.Resize( numStateTotal, numStateTotal );
+      {
+        // Minus sign so that VxMat is positive semidefinite
+        // NOTE: No measure factor vol / ntot due to the normalization
+        // factor of psi
+        DblNumMat VxMatTemp( numStateTotal, numStateTotal );
+        SetValue( VxMatTemp, 0.0 );
+        GetTime( timeSta );
+        blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal, -1.0,
+            psiRow.Data(), ntotLocal, a3Row.Data(), ntotLocal, 0.0, 
+            VxMatTemp.Data(), numStateTotal );
+
+        SetValue( VxMat, 0.0 );
+        MPI_Allreduce( VxMatTemp.Data(), VxMat.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+        //        statusOFS << "VxMat = " << VxMat << std::endl;
+
+        Symmetrize( VxMat );
+
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing VxMat in the sym format is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+      }
+
+    } //if(1)
+
+
+    statusOFS << "huwei0 spinor.cpp" << std::endl;
+
+
+    MPI_Barrier(domain_.comm);
+
+    return ;
+  }        // -----  end of method Spinor::AddMultSpinorEXXDF  ----- 
+
+
+  // Old implementation always with QR. The saving of QR compared to QRCP
+  // is not very large.
+  // 
+  //void Spinor::AddMultSpinorEXXDF ( Fourier& fft, 
+  //        const NumTns<Real>& phi,
+  //        const DblNumVec& exxgkkR2C,
+  //        Real  exxFraction,
+  //        Real  numSpin,
+  //        const DblNumVec& occupationRate,
+  //        const Real numMuFac,
+  //        NumTns<Real>& a3, 
+  //        NumMat<Real>& VxMat,
+  //        bool isFixColumnDF )
+  //{
+  //    Real timeSta, timeEnd;
+  //
+  //    if( !fft.isInitialized ){
+  //        ErrorHandling("Fourier is not prepared.");
+  //    }
+  //
+  //    MPI_Barrier(domain_.comm);
+  //    int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  //    int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  //
+  //    Index3& numGrid = domain_.numGrid;
+  //    Index3& numGridFine = domain_.numGridFine;
+  //
+  //    Int ntot     = domain_.NumGridTotal();
+  //    Int ntotFine = domain_.NumGridTotalFine();
+  //    Int ntotR2C = fft.numGridTotalR2C;
+  //    Int ntotR2CFine = fft.numGridTotalR2CFine;
+  //    Int ncom = wavefun_.n();
+  //    Int numStateLocal = wavefun_.p();
+  //    Int numStateTotal = numStateTotal_;
+  //
+  //    Int ncomPhi = phi.n();
+  //
+  //    Real vol = domain_.Volume();
+  //
+  //    if( ncomPhi != 1 || ncom != 1 ){
+  //        ErrorHandling("Spin polarized case not implemented.");
+  //    }
+  //
+  //    if( fft.domain.NumGridTotal() != ntot ){
+  //        ErrorHandling("Domain size does not match.");
+  //    }
+  //
+  //
+  //    // *********************************************************************
+  //    // Perform interpolative separable density fitting
+  //    // *********************************************************************
+  //    GetTime( timeSta );
+  //    // Perform QRCP 
+  //    IntNumVec pivMu;
+  //    DblNumMat Xi;
+  //    if( isFixColumnDF == false ){
+  //        numMu_ = std::min(IRound(numStateTotal*numMuFac), ntot);
+  //        
+  //        // Step 1: Pre-compression of the wavefunctions. This uses
+  //        // multiplication with orthonormalized random Gaussian matrices
+  //        //
+  //
+  //        /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
+  //        /// principle be a tensor, but only treated as matrix.
+  //        Int numPre = std::min(IRound(std::sqrt(numMu_*2.0)), numStateTotal);
+  //        //    Int numPre = std::min(IRound(std::sqrt(numMu_))+5, numStateTotal);
+  //        DblNumMat phiG(ntot, numPre), psiG(ntot, numPre);
+  //        if(1)
+  //        {
+  //            DblNumMat G(numStateTotal, numPre);
+  //            // Generate orthonormal Gaussian random matrix 
+  //            GaussianRandom(G);
+  //            lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+  //
+  //            blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
+  //                    phi.Data(), ntot, G.Data(), numStateTotal, 0.0,
+  //                    phiG.Data(), ntot );
+  //
+  //            GaussianRandom(G);
+  //            lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+  //
+  //            if(0){
+  //                DblNumMat OverG(numPre,numPre);
+  //                blas::Gemm( 'T', 'N', numPre, numPre, numStateTotal, 1.0,
+  //                        G.Data(), numStateTotal, G.Data(), numStateTotal, 0.0,
+  //                        OverG.Data(), numPre );
+  //                statusOFS << "OverG = " << OverG << std::endl;
+  //            }
+  //
+  //            blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
+  //                    wavefun_.Data(), ntot, G.Data(), numStateTotal, 0.0,
+  //                    psiG.Data(), ntot );
+  //        }
+  //        //    if(0){
+  //        //        blas::Copy( ntot*numStateTotal, phi.Data(), 1, phiG.Data(), 1 );
+  //        //        blas::Copy( ntot*numStateTotal, wavefun_.Data(), 1, psiG.Data(), 1 );
+  //        //    }
+  //
+  //        // Step 2: Pivoted QR decomposition  for the Hadamard product of
+  //        // the compressed matrix. Transpose format for QRCP
+  //        DblNumMat MG( numPre*numPre, ntot );
+  //        for( Int j = 0; j < numPre; j++ ){
+  //            for( Int i = 0; i < numPre; i++ ){
+  //                for( Int ir = 0; ir < ntot; ir++ ){
+  //                    MG(i+j*numPre,ir) = phiG(ir,i) * psiG(ir,j);
+  //                }
+  //            }
+  //        }
+  ////        IntNumVec pivQR_(ntot);
+  //
+  //        DblNumVec tau(ntot);
+  //        pivQR_.Resize(ntot);
+  //        SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
+  //        // Q factor does not need to be used
+  //        Real timeQRCPSta, timeQRCPEnd;
+  //        GetTime( timeQRCPSta );
+  //        lapack::QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
+  //                pivQR_.Data(), tau.Data() );
+  //        GetTime( timeQRCPEnd );
+  //#if ( _DEBUGlevel_ >= 0 )
+  //        statusOFS << "Time for QRCP is " <<
+  //            timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
+  //#endif
+  //
+  //        // Important: eliminate the Q part in MG for equation solving
+  //        for( Int mu = 0; mu < numMu_; mu++ ){
+  //            for( Int i = mu+1; i < numMu_; i++ ){
+  //                MG(i,mu) = 0.0;
+  //            }
+  //        }
+  //
+  //
+  //        // Step 3: Construct the interpolation matrix
+  //        pivMu.Resize(numMu_);
+  //        for( Int mu = 0; mu < numMu_; mu++ ){
+  //            pivMu(mu) = pivQR_(mu);
+  //        }
+  //        Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
+  //        statusOFS << "numMu_ = " << numMu_ << std::endl;
+  //        statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
+  //        if(1){
+  //            Int numDiag = std::min(numPre*numPre, ntot);
+  //            DblNumVec diagR(numDiag);
+  //            for( Int i = 0; i < numDiag; i++ ){
+  //                diagR(i) = MG(i,i);
+  //            }
+  //            statusOFS << "diagR = " << diagR << std::endl;
+  ////            statusOFS << "piv = " << pivQR_ << std::endl;
+  //        }
+  //
+  //        // Solve R_1^{-1} [R_1 R_2]
+  //        DblNumMat R1(numMu_, numMu_);
+  //        lapack::Lacpy('U', numMu_, numMu_, MG.Data(), numPre*numPre,
+  //                R1.Data(), numMu_);
+  //        blas::Trsm( 'L', 'U', 'N', 'N', numMu_, ntot, 1.0, 
+  //                R1.Data(), numMu_, MG.Data(), numPre*numPre );
+  //
+  //        // Store info from the first numMu_ rows into the MG into Xi
+  //        // after permutation
+  //        Xi.Resize(ntot, numMu_);
+  //        for( Int mu = 0; mu < numMu_; mu++ ){
+  //            for( Int ir = 0; ir < ntot; ir++ ){
+  //                Xi(pivQR_(ir),mu) = MG(mu,ir);
+  //            }
+  //        }
+  //        if(0){
+  //            DblNumVec diagR(numMu_);
+  //            for( Int i = 0; i < numMu_; i++ ){
+  //                diagR(i) = MG(i,i);
+  //            }
+  //            statusOFS << "diagR (xi) = " << diagR << std::endl;
+  //        }
+  //
+  //        GetTime( timeEnd );
+  //#if ( _DEBUGlevel_ >= 0 )
+  //        statusOFS << "Time for density fitting with QRCP is " <<
+  //            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+  //#endif
+  //    }
+  //    else{
+  //        // Reuse the information from pivQR_ and numMu_;
+  //        pivMu.Resize(numMu_);
+  //        for( Int mu = 0; mu < numMu_; mu++ ){
+  //            pivMu(mu) = pivQR_(mu);
+  //        }
+  //
+  //        // Step 1: Pre-compression of the wavefunctions. This uses
+  //        // multiplication with orthonormalized random Gaussian matrices
+  //
+  //        /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
+  //        /// principle be a tensor, but only treated as matrix.
+  //        Int numPre = std::min(IRound(std::sqrt(numMu_*2.0)), numStateTotal);
+  //        //    Int numPre = std::min(IRound(std::sqrt(numMu_))+5, numStateTotal);
+  //        DblNumMat phiG(ntot, numPre), psiG(ntot, numPre);
+  //        if(1)
+  //        {
+  //            DblNumMat G(numStateTotal, numPre);
+  //            // Generate orthonormal Gaussian random matrix 
+  //            GaussianRandom(G);
+  //            lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+  //
+  //            blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
+  //                    phi.Data(), ntot, G.Data(), numStateTotal, 0.0,
+  //                    phiG.Data(), ntot );
+  //
+  //            GaussianRandom(G);
+  //            lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+  //
+  //            blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
+  //                    wavefun_.Data(), ntot, G.Data(), numStateTotal, 0.0,
+  //                    psiG.Data(), ntot );
+  //        }
+  //
+  //        // Step 2: QR decomposition for the pivoted matrix
+  //        DblNumMat MG( numPre*numPre, ntot );
+  //        for( Int j = 0; j < numPre; j++ ){
+  //            for( Int i = 0; i < numPre; i++ ){
+  //                for( Int ir = 0; ir < ntot; ir++ ){
+  //                    MG(i+j*numPre,ir) = phiG(pivQR_(ir),i) * psiG(pivQR_(ir),j);
+  //                }
+  //            }
+  //        }
+  //        DblNumVec tau(ntot);
+  //        // Q factor does not need to be used
+  //        Real timeQRSta, timeQREnd;
+  //        GetTime( timeQRSta );
+  //        lapack::QR( numPre*numPre, ntot, MG.Data(), numPre*numPre, tau.Data() );
+  //        GetTime( timeQREnd );
+  //#if ( _DEBUGlevel_ >= 0 )
+  //        statusOFS << "Time for QR is " <<
+  //            timeQREnd - timeQRSta << " [s]" << std::endl << std::endl;
+  //#endif
+  //
+  //        // Important: eliminate the Q part in MG for equation solving
+  //        for( Int mu = 0; mu < numMu_; mu++ ){
+  //            for( Int i = mu+1; i < numMu_; i++ ){
+  //                MG(i,mu) = 0.0;
+  //            }
+  //        }
+  //
+  //
+  //        // Step 3: Construct the interpolation matrix
+  //        Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
+  //        statusOFS << "numMu_ = " << numMu_ << std::endl;
+  //        statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
+  //        if(1){
+  //            Int numDiag = std::min(numPre*numPre, ntot);
+  //            DblNumVec diagR(numDiag);
+  //            for( Int i = 0; i < numDiag; i++ ){
+  //                diagR(i) = MG(i,i);
+  //            }
+  //            statusOFS << "diagR = " << diagR << std::endl;
+  ////            statusOFS << "piv = " << pivQR_ << std::endl;
+  //        }
+  //
+  //        // Solve R_1^{-1} [R_1 R_2]
+  //        DblNumMat R1(numMu_, numMu_);
+  //        lapack::Lacpy('U', numMu_, numMu_, MG.Data(), numPre*numPre,
+  //                R1.Data(), numMu_);
+  //        blas::Trsm( 'L', 'U', 'N', 'N', numMu_, ntot, 1.0, 
+  //                R1.Data(), numMu_, MG.Data(), numPre*numPre );
+  //
+  //        // Store info from the first numMu_ rows into the MG into Xi
+  //        // after permutation
+  //        Xi.Resize(ntot, numMu_);
+  //        for( Int mu = 0; mu < numMu_; mu++ ){
+  //            for( Int ir = 0; ir < ntot; ir++ ){
+  //                Xi(pivQR_(ir),mu) = MG(mu,ir);
+  //            }
+  //        }
+  //        if(0){
+  //            DblNumVec diagR(numMu_);
+  //            for( Int i = 0; i < numMu_; i++ ){
+  //                diagR(i) = MG(i,i);
+  //            }
+  //            statusOFS << "diagR (xi) = " << diagR << std::endl;
+  //        }
+  //
+  //        GetTime( timeEnd );
+  //#if ( _DEBUGlevel_ >= 0 )
+  //        statusOFS << "Time for density fitting with QR is " <<
+  //            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+  //#endif
+  //    }
+  //    // *********************************************************************
+  //    // Solve the Poisson equations
+  //    // Also accumulate the VxMat matrix
+  //    // VxMat = Psi'*Vx[Phi]*Psi
+  //    // This is performed using the symmetric format with density fitting
+  //    // being performed symmetrically
+  //    // 
+  //    // This is not a memory efficient implementation
+  //    // *********************************************************************
+  //
+  //    // Step 1: Solve the Poisson-like problem for exchange
+  //    GetTime( timeSta );
+  //    DblNumMat XiPot(ntot, numMu_);
+  //    for( Int mu = 0; mu < numMu_; mu++ ){
+  //        blas::Copy( ntot,  Xi.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
+  //
+  //        FFTWExecute ( fft, fft.forwardPlanR2C );
+  //
+  //        for( Int ig = 0; ig < ntotR2C; ig++ ){
+  //            fft.outputVecR2C(ig) *= -exxFraction * exxgkkR2C(ig);
+  //        }
+  //
+  //        FFTWExecute ( fft, fft.backwardPlanR2C );
+  //
+  //        blas::Copy( ntot, fft.inputVecR2C.Data(), 1, XiPot.VecData(mu), 1 );
+  //    } // for (mu)
+  //    
+  //    GetTime( timeEnd );
+  //#if ( _DEBUGlevel_ >= 0 )
+  //    statusOFS << "Time for solving Poisson-like equations is " <<
+  //        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+  //#endif
+  //    
+  //
+  //    // Step 2: accumulate to the matrix vector multiplication
+  //    DblNumMat phiMod(ntot, numMu_);
+  //    SetValue( phiMod, 0.0 );
+  //    // accumulate \sum_j f_j \varphi_j (r) \varphi_j(r_mu) 
+  //    // can be done with gemv
+  //    if(0){
+  //        GetTime( timeSta );
+  //        for( Int mu = 0; mu < numMu_; mu++ ){
+  //            for( Int k = 0; k < numStateTotal; k++ ){
+  //                blas::Axpy(ntot, phi(pivMu(mu), 0, k) * occupationRate[k], 
+  //                        phi.VecData(0, k), 1, phiMod.VecData(mu), 1 );
+  //            }
+  //        }
+  //        GetTime( timeEnd );
+  //#if ( _DEBUGlevel_ >= 0 )
+  //        statusOFS << "Time for computing phiMod via Axpy is " <<
+  //            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+  //#endif
+  //    }
+  //    if(1){
+  //        DblNumMat phiWeight(numStateTotal, numMu_);
+  //        for( Int mu = 0; mu < numMu_; mu++ ){
+  //            Int muInd = pivMu(mu);
+  //            for( Int k = 0; k < numStateTotal; k++ ){
+  //                phiWeight(k,mu) = phi(muInd, 0, k) * occupationRate[k];
+  //            }
+  //        }
+  //        blas::Gemm( 'N', 'N', ntot, numMu_, numStateTotal, 1.0,
+  //                phi.Data(), ntot, phiWeight.Data(), numStateTotal, 0.0,
+  //                phiMod.Data(), ntot );
+  //        GetTime( timeEnd );
+  //#if ( _DEBUGlevel_ >= 0 )
+  //        statusOFS << "Time for computing phiMod via Gemm is " <<
+  //            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+  //#endif
+  //    }
+  //
+  //    DblNumMat psiMu(numMu_, numStateTotal);
+  //    if(0){
+  //        GetTime( timeSta );
+  //        for (Int k=0; k<numStateTotal; k++) {
+  //            for( Int mu = 0; mu < numMu_; mu++ ){
+  //                psiMu(mu,k) = wavefun_(pivMu(mu),0,k);
+  //                //            for( Int ir = 0; ir < ntot; ir++ ){
+  //                //                a3(ir, 0, k) += psiMu(mu,k) * XiPot(ir,mu) * phiMod(ir,mu);
+  //                //            }
+  //                // Very significant improvement of performance 
+  //                Real* a3Ptr = a3.VecData(0,k);
+  //                Real* xiPotPtr = XiPot.VecData(mu);
+  //                Real* phiModPtr = phiMod.VecData(mu);
+  //                Real fac = psiMu(mu,k);
+  //                for( Int ir = 0; ir < ntot; ir++ ){
+  //                    a3Ptr[ir] += fac * xiPotPtr[ir] * phiModPtr[ir];
+  //                }
+  //            }
+  //        } // for (k)
+  //        GetTime( timeEnd );
+  //#if ( _DEBUGlevel_ >= 0 )
+  //        statusOFS << "Time for computing V_x[Phi] Psi via BLAS 1 is " <<
+  //            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+  //#endif
+  //    }
+  //    if(1){
+  //        GetTime( timeSta );
+  //        for( Int mu = 0; mu < numMu_; mu++ ){
+  //            Int muInd = pivMu(mu);
+  //            for (Int k=0; k<numStateTotal; k++) {
+  //                psiMu(mu,k) = wavefun_(muInd,0,k);
+  //            }
+  //        }
+  //        DblNumMat XiPhi( ntot, numMu_ );
+  //        Real* xiPotPtr = XiPot.Data();
+  //        Real* phiModPtr = phiMod.Data();
+  //        Real* xiPhiPtr = XiPhi.Data();
+  //        // XiPhi = XiPot .* phiMod  
+  //        for( Int g = 0; g < ntot * numMu_; g++ ){
+  //            *(xiPhiPtr++) = (*(xiPotPtr++)) * (*(phiModPtr++)); 
+  //        }
+  //        blas::Gemm( 'N', 'N', ntot, numStateTotal, numMu_, 1.0, 
+  //                XiPhi.Data(), ntot, psiMu.Data(), numMu_, 1.0,
+  //                a3.Data(), ntot ); 
+  //        GetTime( timeEnd );
+  //#if ( _DEBUGlevel_ >= 0 )
+  //        statusOFS << "Time for computing V_x[Phi] Psi via GEMM is " <<
+  //            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+  //#endif
+  //    }
+  //
+  //    // Step 3: Compute the matrix VxMat = -Psi'* Vx[Phi] * Psi in the
+  //    // density fitting format
+  //    GetTime( timeSta );
+  //    VxMat.Resize( numStateTotal, numStateTotal );
+  //    {
+  //        DblNumMat OverMat( numMu_, numMu_ ); 
+  //        // Minus sign so that VxMat is positive semidefinite
+  //        // NOTE: No measure factor vol / ntot due to the normalization
+  //        // factor of psi
+  //        blas::Gemm( 'T', 'N', numMu_, numMu_, ntot, -1.0,
+  //                Xi.Data(), ntot, XiPot.Data(), ntot, 0.0, 
+  //                OverMat.Data(), numMu_ );
+  //        for( Int mu = 0; mu < numMu_; mu++ ){
+  //            for( Int nu = 0; nu < numMu_; nu++ ){
+  //                OverMat(mu,nu) *= phiMod(pivQR_(mu), nu);
+  //            }
+  //        }
+  //        
+  //        DblNumMat TempMat1(numStateTotal, numMu_);
+  //        blas::Gemm( 'T', 'N', numStateTotal, numMu_, numMu_, 1.0,
+  //                psiMu.Data(), numMu_, OverMat.Data(), numMu_, 0.0,
+  //                TempMat1.Data(), numStateTotal );
+  //
+  //        blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, numMu_, 1.0,
+  //                TempMat1.Data(), numStateTotal, psiMu.Data(), numMu_,
+  //                0.0, VxMat.Data(), numStateTotal );
+  //    }
+  //
+  //    GetTime( timeEnd );
+  //#if ( _DEBUGlevel_ >= 0 )
+  //    statusOFS << "Time for computing VxMat in the sym format is " <<
+  //        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+  //#endif
+  //
+  //    MPI_Barrier(domain_.comm);
+  //
+  //
+  //    return ;
+  //}        // -----  end of method Spinor::AddMultSpinorEXXDF  ----- 
 
 }  // namespace dgdft

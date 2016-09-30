@@ -150,8 +150,14 @@ void SCALAPACK(pzgetri)( const Int* n, dcomplex* A, const Int* ia,
     dcomplex *work, const Int* lwork, Int *iwork, const Int *liwork, 
     Int* info );
 
+//QRCP 
+void SCALAPACK(pdgeqpf)( Int* m, Int* n, double* A,
+    Int* ia, Int* ja, Int* desca, Int* ipiv, 
+    double* itau, double* work, Int* lwork,
+    Int* info ); 
 
-}
+
+} //extern "C"
 
 // *********************************************************************
 // Interface for Descriptor
@@ -480,6 +486,8 @@ void
 Sygst( Int ibtype, char uplo, ScaLAPACKMatrix<double>& A,
     ScaLAPACKMatrix<double>& B );
 
+
+void QRCPP( Int m, Int n, double* A, Int* desca, Int* piv, double* tau); 
 
 } // namespace scalapack
 } // namespace dgdft
