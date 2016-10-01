@@ -1147,9 +1147,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       Real timeQRCPSta, timeQRCPEnd;
       GetTime( timeQRCPSta );
 
-//      statusOFS << "huwei2 spinor.cpp" << std::endl;
-//      statusOFS << " MG = " << MG << std::endl;
-
       if(0){  
         lapack::QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
             pivQR_.Data(), tau.Data() );
@@ -1224,13 +1221,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       GetTime( timeQRCPEnd );
 
-      statusOFS << "huwei3 spinor.cpp" << std::endl;
-//      statusOFS << " pivQR_ = " << pivQR_ << std::endl;
-//      statusOFS << " tau = " << tau << std::endl;
-
-      statusOFS << "huwei4 spinor.cpp" << std::endl;
-
-      //      statusOFS << std::endl<< "All processors exit with abort in spinor.cpp." << std::endl;
+      //statusOFS << std::endl<< "All processors exit with abort in spinor.cpp." << std::endl;
 
 
 #if ( _DEBUGlevel_ >= 0 )
@@ -1487,10 +1478,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     }
 
   } //if(1)
-
-
-  statusOFS << "huwei0 spinor.cpp" << std::endl;
-
 
   MPI_Barrier(domain_.comm);
 
