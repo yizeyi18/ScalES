@@ -560,12 +560,17 @@ SCF::Iterate (  )
           ham.OccupationRate() );
 
       // Compute the electron density
+      GetTime( timeSta );
       ham.CalculateDensity(
           psi,
           ham.OccupationRate(),
           totalCharge_, 
           fft );
-
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing density in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
       // Compute the exchange-correlation potential and energy
       if( isCalculateGradRho_ ){
