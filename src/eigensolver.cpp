@@ -92,11 +92,10 @@ void EigenSolver::Setup(
   scaBlockSize_      = esdfParam.scaBlockSize;
   numProcScaLAPACK_  = esdfParam.numProcScaLAPACKPW; 
 
-  PWDFT_PPCG_use_scala_ = esdfParam.PWDFT_PPCG_use_scala;
   PWDFT_Cheby_use_scala_ = esdfParam.PWDFT_Cheby_use_scala;
 
   // Setup BLACS
-  if( PWSolver_ == "LOBPCGScaLAPACK" || (PWSolver_ == "PPCG" && PWDFT_PPCG_use_scala_) || 
+  if( PWSolver_ == "LOBPCGScaLAPACK" || PWSolver_ == "PPCGScaLAPACK" || 
       (PWSolver_ == "CheFSI" && PWDFT_Cheby_use_scala_) ){
     for( Int i = IRound(sqrt(double(numProcScaLAPACK_))); 
         i <= numProcScaLAPACK_; i++){
@@ -1466,8 +1465,8 @@ EigenSolver::LOBPCGSolveReal2    (
     widthLocal = widthBlocksize + 1;
   }
 
-  if(mpirank == (mpisize - 1)){
-    heightLocal = heightBlocksize + height % mpisize;
+  if(mpirank < (height % mpisize)){
+    heightLocal = heightBlocksize + 1;
   }
 
   if( widthLocal != noccLocal ){
@@ -1520,11 +1519,9 @@ EigenSolver::LOBPCGSolveReal2    (
   IntNumMat  recvk( heightLocal, width );
 
   for( Int k = 0; k < mpisize; k++ ){ 
-    if( k < (mpisize - 1)){
-      sendcounts[k] = heightBlocksize * widthLocal;
-    }
-    else {
-      sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
+    sendcounts[k] = heightBlocksize * widthLocal;
+    if( k < (height % mpisize)){
+      sendcounts[k] = sendcounts[k] + widthLocal;  
     }
   }
 
@@ -1552,12 +1549,12 @@ EigenSolver::LOBPCGSolveReal2    (
   else{
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-        if((i / heightBlocksize) < (mpisize - 1)){
-          sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+        if( i < ((height % mpisize) * (heightBlocksize+1)) ){
+          sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
         }
         else {
-          sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
-            + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
+          sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
+            + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
         }
       }
     }
@@ -2631,8 +2628,8 @@ EigenSolver::LOBPCGSolveReal3    (
     widthLocal = widthBlocksize + 1;
   }
 
-  if(mpirank == (mpisize - 1)){
-    heightLocal = heightBlocksize + height % mpisize;
+  if(mpirank < (height % mpisize)){
+    heightLocal = heightBlocksize + 1;
   }
 
   if( widthLocal != noccLocal ){
@@ -2689,11 +2686,9 @@ EigenSolver::LOBPCGSolveReal3    (
   IntNumMat  recvk( heightLocal, width );
 
   for( Int k = 0; k < mpisize; k++ ){ 
-    if( k < (mpisize - 1)){
-      sendcounts[k] = heightBlocksize * widthLocal;
-    }
-    else {
-      sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
+    sendcounts[k] = heightBlocksize * widthLocal;
+    if( k < (height % mpisize)){
+      sendcounts[k] = sendcounts[k] + widthLocal;  
     }
   }
 
@@ -2721,12 +2716,12 @@ EigenSolver::LOBPCGSolveReal3    (
   else{
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-        if((i / heightBlocksize) < (mpisize - 1)){
-          sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+        if( i < ((height % mpisize) * (heightBlocksize+1)) ){
+          sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
         }
         else {
-          sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
-            + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
+          sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
+            + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
         }
       }
     }
@@ -3923,8 +3918,8 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
     widthLocal = widthBlocksize + 1;
   }
 
-  if(mpirank == (mpisize - 1)){
-    heightLocal = heightBlocksize + height % mpisize;
+  if(mpirank < (height % mpisize)){
+    heightLocal = heightBlocksize + 1;
   }
 
   if( widthLocal != noccLocal ){
@@ -4043,8 +4038,8 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
     widthLocal = widthBlocksize + 1;
   }
 
-  if(mpirank == (mpisize - 1)){
-    heightLocal = heightBlocksize + height % mpisize;
+  if(mpirank < (height % mpisize)){
+    heightLocal = heightBlocksize + 1;
   }
 
   if( widthLocal != noccLocal ){
@@ -4159,8 +4154,8 @@ EigenSolver::FirstChebyStep    (
     widthLocal = widthBlocksize + 1;
   }
 
-  if(mpirank == (mpisize - 1)){
-    heightLocal = heightBlocksize + height % mpisize;
+  if(mpirank < (height % mpisize)){
+    heightLocal = heightBlocksize + 1;
   }
 
   if( widthLocal != noccLocal ){
@@ -4224,11 +4219,9 @@ EigenSolver::FirstChebyStep    (
   IntNumMat  recvk( heightLocal, width );
 
   for( Int k = 0; k < mpisize; k++ ){ 
-    if( k < (mpisize - 1)){
-      sendcounts[k] = heightBlocksize * widthLocal;
-    }
-    else {
-      sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
+    sendcounts[k] = heightBlocksize * widthLocal;
+    if( k < (height % mpisize)){
+      sendcounts[k] = sendcounts[k] + widthLocal;  
     }
   }
 
@@ -4256,12 +4249,12 @@ EigenSolver::FirstChebyStep    (
   else{
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-        if((i / heightBlocksize) < (mpisize - 1)){
-          sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+        if( i < ((height % mpisize) * (heightBlocksize+1)) ){
+          sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
         }
         else {
-          sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
-            + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
+          sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
+            + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
         }
       }
     }
@@ -4864,8 +4857,8 @@ EigenSolver::GeneralChebyStep    (
     widthLocal = widthBlocksize + 1;
   }
 
-  if(mpirank == (mpisize - 1)){
-    heightLocal = heightBlocksize + height % mpisize;
+  if(mpirank < (height % mpisize)){
+    heightLocal = heightBlocksize + 1;
   }
 
   if( widthLocal != noccLocal ){
@@ -4930,11 +4923,9 @@ EigenSolver::GeneralChebyStep    (
   IntNumMat  recvk( heightLocal, width );
 
   for( Int k = 0; k < mpisize; k++ ){ 
-    if( k < (mpisize - 1)){
-      sendcounts[k] = heightBlocksize * widthLocal;
-    }
-    else {
-      sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
+    sendcounts[k] = heightBlocksize * widthLocal;
+    if( k < (height % mpisize)){
+      sendcounts[k] = sendcounts[k] + widthLocal;  
     }
   }
 
@@ -4962,12 +4953,12 @@ EigenSolver::GeneralChebyStep    (
   else{
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-        if((i / heightBlocksize) < (mpisize - 1)){
-          sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+        if( i < ((height % mpisize) * (heightBlocksize+1)) ){
+          sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
         }
         else {
-          sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
-            + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
+          sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
+            + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
         }
       }
     }
@@ -5556,8 +5547,8 @@ EigenSolver::PPCGSolveReal    (
     widthLocal = widthBlocksize + 1;
   }
 
-  if(mpirank == (mpisize - 1)){
-    heightLocal = heightBlocksize + height % mpisize;
+  if(mpirank < (height % mpisize)){
+    heightLocal = heightBlocksize + 1;
   }
 
   if( widthLocal != noccLocal ){
@@ -5635,11 +5626,9 @@ EigenSolver::PPCGSolveReal    (
   GetTime( timeSta );
   
   for( Int k = 0; k < mpisize; k++ ){ 
-    if( k < (mpisize - 1)){
-      sendcounts[k] = heightBlocksize * widthLocal;
-    }
-    else {
-      sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
+    sendcounts[k] = heightBlocksize * widthLocal;
+    if( k < (height % mpisize)){
+      sendcounts[k] = sendcounts[k] + widthLocal;  
     }
   }
 
@@ -5667,12 +5656,12 @@ EigenSolver::PPCGSolveReal    (
   else{
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-        if((i / heightBlocksize) < (mpisize - 1)){
-          sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+        if( i < ((height % mpisize) * (heightBlocksize+1)) ){
+          sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
         }
         else {
-          sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
-            + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
+          sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
+            + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
         }
       }
     }
@@ -6546,7 +6535,7 @@ EigenSolver::PPCGSolveReal    (
 
   GetTime( timeSta1 );
 
-  if(PWDFT_PPCG_use_scala_ == 1)
+  if(PWSolver_ == "PPCGScaLAPACK")
   { 
     if( contxt_ >= 0 )
     {
@@ -6592,7 +6581,7 @@ EigenSolver::PPCGSolveReal    (
           square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt_ );
     }
   }
-  else
+  else //PWSolver_ == "PPCG"
   {
     if ( mpirank == 0 ){
       GetTime( timeSta );

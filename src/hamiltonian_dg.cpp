@@ -1512,8 +1512,8 @@ HamiltonianDG::CalculateDensity    (
                   widthLocal = widthBlocksize + 1;
                 }
 
-                if(mpirankRow == (mpisizeRow - 1)){
-                  heightLocal = heightBlocksize + height % mpisizeRow;
+                if(mpirankRow < (height % mpisizeRow)){
+                  heightLocal = heightBlocksize + 1;
                 }
 
                 Int numGridTotal = height;  
@@ -1571,10 +1571,25 @@ HamiltonianDG::CalculateDensity    (
                 }
 #endif
 
+                IntNumVec heightBlocksizeIdx( mpisizeRow );
+                for( Int i = 0; i < mpisizeRow; i++ ){
+                  if((height % mpisizeRow) == 0){
+                    heightBlocksizeIdx(i) = heightBlocksize  * i;
+                  }
+                  else{
+                    if(i < (height % mpisizeRow)){
+                      heightBlocksizeIdx(i) = (heightBlocksize + 1) * i;
+                    }
+                    else{
+                      heightBlocksizeIdx(i) = (heightBlocksize + 1) * (height % mpisizeRow) + heightBlocksize * (i - (height % mpisizeRow));
+                    }
+                  }
+                }
+                
                 DblNumVec  localRhoLGLTemp1( numGridTotal );
                 SetValue( localRhoLGLTemp1, 0.0 );
                 for( Int p = 0; p < numGridLocal; p++ ){
-                  localRhoLGLTemp1( p + heightBlocksize * mpirankRow ) = localRhoLGLRow(p);
+                  localRhoLGLTemp1( p + heightBlocksizeIdx(mpirankRow) ) = localRhoLGLRow(p);
                 }
 
                 SetValue( localRhoLGLTmp, 0.0 );
@@ -1710,8 +1725,8 @@ HamiltonianDG::CalculateDensity    (
                   widthLocal = widthBlocksize + 1;
                 }
 
-                if(mpirankRow == (mpisizeRow - 1)){
-                  heightLocal = heightBlocksize + height % mpisizeRow;
+                if(mpirankRow < (height % mpisizeRow)){
+                  heightLocal = heightBlocksize + 1;
                 }
 
                 Int numGridTotal = height;  
@@ -1769,10 +1784,25 @@ HamiltonianDG::CalculateDensity    (
                 }
 #endif
 
+                IntNumVec heightBlocksizeIdx( mpisizeRow );
+                for( Int i = 0; i < mpisizeRow; i++ ){
+                  if((height % mpisizeRow) == 0){
+                    heightBlocksizeIdx(i) = heightBlocksize  * i;
+                  }
+                  else{
+                    if(i < (height % mpisizeRow)){
+                      heightBlocksizeIdx(i) = (heightBlocksize + 1) * i;
+                    }
+                    else{
+                      heightBlocksizeIdx(i) = (heightBlocksize + 1) * (height % mpisizeRow) + heightBlocksize * (i - (height % mpisizeRow));
+                    }
+                  }
+                }
+                
                 DblNumVec  localRhoLGLTemp1( numGridTotal );
                 SetValue( localRhoLGLTemp1, 0.0 );
                 for( Int p = 0; p < numGridLocal; p++ ){
-                  localRhoLGLTemp1( p + heightBlocksize * mpirankRow ) = localRhoLGLRow(p);
+                  localRhoLGLTemp1( p + heightBlocksizeIdx(mpirankRow) ) = localRhoLGLRow(p);
                 }
 
                 SetValue( localRhoLGLTmp, 0.0 );
@@ -1962,8 +1992,8 @@ HamiltonianDG::CalculateDensity    (
                 widthLocal = widthBlocksize + 1;
               }
 
-              if(mpirankRow == (mpisizeRow - 1)){
-                heightLocal = heightBlocksize + height % mpisizeRow;
+              if(mpirankRow < (height % mpisizeRow)){
+                heightLocal = heightBlocksize + 1;
               }
 
               Int numGridTotal = height;  
@@ -2022,11 +2052,25 @@ HamiltonianDG::CalculateDensity    (
               }
 #endif
 
+              IntNumVec heightBlocksizeIdx( mpisizeRow );
+              for( Int i = 0; i < mpisizeRow; i++ ){
+                if((height % mpisizeRow) == 0){
+                  heightBlocksizeIdx(i) = heightBlocksize  * i;
+                }
+                else{
+                  if(i < (height % mpisizeRow)){
+                    heightBlocksizeIdx(i) = (heightBlocksize + 1) * i;
+                  }
+                  else{
+                    heightBlocksizeIdx(i) = (heightBlocksize + 1) * (height % mpisizeRow) + heightBlocksize * (i - (height % mpisizeRow));
+                  }
+                }
+              }
 
               DblNumVec  localRhoTemp1( numGridTotal );
               SetValue( localRhoTemp1, 0.0 );
               for( Int p = 0; p < numGridLocal; p++ ){
-                localRhoTemp1( p + heightBlocksize * mpirankRow ) = localRhoRow(p);
+                localRhoTemp1( p + heightBlocksizeIdx(mpirankRow) ) = localRhoRow(p);
               }
 
 
@@ -2426,8 +2470,8 @@ HamiltonianDG::CalculateDensityDM2    (
               widthLocal = widthBlocksize + 1;
             }
 
-            if(mpirankRow == (mpisizeRow - 1)){
-              heightLocal = heightBlocksize + height % mpisizeRow;
+            if(mpirankRow < (height % mpisizeRow)){
+              heightLocal = heightBlocksize + 1;
             }
 
             Int numLGLGridTotal = height;  
@@ -2447,13 +2491,28 @@ HamiltonianDG::CalculateDensityDM2    (
               DblNumVec  localRhoLGLTmp( numGrid );
               SetValue( localRhoLGLTmp, 0.0 );
               Real factor;
+              
+              IntNumVec heightBlocksizeIdx( mpisizeRow );
+              for( Int i = 0; i < mpisizeRow; i++ ){
+                if((height % mpisizeRow) == 0){
+                  heightBlocksizeIdx(i) = heightBlocksize  * i;
+                }
+                else{
+                  if(i < (height % mpisizeRow)){
+                    heightBlocksizeIdx(i) = (heightBlocksize + 1) * i;
+                  }
+                  else{
+                    heightBlocksizeIdx(i) = (heightBlocksize + 1) * (height % mpisizeRow) + heightBlocksize * (i - (height % mpisizeRow));
+                  }
+                }
+              }
 
               // Explicit take advantage of the symmetry
               for( Int a = 0; a < numBasisTotal; a++ )
                 for( Int b = a; b < numBasisTotal; b++ ){
                   factor = localDM(a,b);
                   if( b > a ) factor *= 2.0;
-                  Int idxSta = mpirankRow * heightBlocksize;
+                  Int idxSta = heightBlocksizeIdx(mpirankRow);
                   for( Int p = 0; p < heightLocal; p++ ){
                     localRhoLGLTmp(idxSta + p) += 
                       localBasisRow(p,a) * localBasisRow(p,b) * factor; 

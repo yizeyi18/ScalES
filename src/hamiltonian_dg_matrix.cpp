@@ -925,8 +925,8 @@ void
                       widthLocal = widthBlocksize + 1;
                     }
 
-                    if(mpirankRow == (mpisizeRow - 1)){
-                      heightLocal = heightBlocksize + height % mpisizeRow;
+                    if(mpirankRow == (height % mpisizeRow)){
+                      heightLocal = heightBlocksize + 1;
                     }
 
                     Int numLGLGridTotal = height;  
@@ -1048,8 +1048,8 @@ void
                       widthLocal = widthBlocksize + 1;
                     }
 
-                    if(mpirankRow == (mpisizeRow - 1)){
-                      heightLocal = heightBlocksize + height % mpisizeRow;
+                    if(mpirankRow == (height % mpisizeRow)){
+                      heightLocal = heightBlocksize + 1;
                     }
 
                     Int numLGLGridTotal = height;  
@@ -1196,8 +1196,8 @@ void
                       widthLocal = widthBlocksize + 1;
                     }
 
-                    if(mpirankRow == (mpisizeRow - 1)){
-                      heightLocal = heightBlocksize + height % mpisizeRow;
+                    if(mpirankRow == (height % mpisizeRow)){
+                      heightLocal = heightBlocksize + 1;
                     }
 
                     Int numLGLGridTotal = height;  
@@ -1397,8 +1397,8 @@ void
                       widthLocal = widthBlocksize + 1;
                     }
 
-                    if(mpirankRow == (mpisizeRow - 1)){
-                      heightLocal = heightBlocksize + height % mpisizeRow;
+                    if(mpirankRow == (height % mpisizeRow)){
+                      heightLocal = heightBlocksize + 1;
                     }
 
                     Int numLGLGridTotal = height;  
@@ -1598,8 +1598,8 @@ void
                       widthLocal = widthBlocksize + 1;
                     }
 
-                    if(mpirankRow == (mpisizeRow - 1)){
-                      heightLocal = heightBlocksize + height % mpisizeRow;
+                    if(mpirankRow == (height % mpisizeRow)){
+                      heightLocal = heightBlocksize + 1;
                     }
 
                     Int numLGLGridTotal = height;  
@@ -1997,8 +1997,8 @@ void
                     widthRLocal = widthRBlocksize + 1;
                   }
 
-                  if(mpirankRow == (mpisizeRow - 1)){
-                    heightLocal = heightBlocksize + height % mpisizeRow;
+                  if(mpirankRow == (height % mpisizeRow)){
+                    heightLocal = heightBlocksize + 1;
                   }
 
                   Int numLGLGridTotal = height;  
@@ -2215,8 +2215,8 @@ void
                     widthRLocal = widthRBlocksize + 1;
                   }
 
-                  if(mpirankRow == (mpisizeRow - 1)){
-                    heightLocal = heightBlocksize + height % mpisizeRow;
+                  if(mpirankRow == (height % mpisizeRow)){
+                    heightLocal = heightBlocksize + 1;
                   }
 
                   Int numLGLGridTotal = height;  
@@ -2431,8 +2431,8 @@ void
                     widthRLocal = widthRBlocksize + 1;
                   }
 
-                  if(mpirankRow == (mpisizeRow - 1)){
-                    heightLocal = heightBlocksize + height % mpisizeRow;
+                  if(mpirankRow == (height % mpisizeRow)){
+                    heightLocal = heightBlocksize + 1;
                   }
 
                   Int numLGLGridTotal = height;  
@@ -2740,8 +2740,8 @@ void
                     widthLocal = widthBlocksize + 1;
                   }
 
-                  if(mpirankRow == (mpisizeRow - 1)){
-                    heightLocal = heightBlocksize + height % mpisizeRow;
+                  if(mpirankRow == (height % mpisizeRow)){
+                    heightLocal = heightBlocksize + 1;
                   }
 
                   Int numLGLGridTotal = height;  

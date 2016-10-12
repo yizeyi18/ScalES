@@ -803,6 +803,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     Real  numSpin,
     const DblNumVec& occupationRate,
     const Real numMuFac,
+    const Real numGaussianRandomFac,
     NumTns<Real>& a3, 
     NumMat<Real>& VxMat,
     bool isFixColumnDF )
@@ -1081,16 +1082,17 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     //numMu_ = std::min(IRound(numStateTotal*numMuFac), ntot);
     numMu_ = IRound(numStateTotal*numMuFac);
 
-    statusOFS << "numMu = " << numMu_ << std::endl;
-
     /// @todo The factor 2.0 is hard coded.  The PhiG etc should in
     /// principle be a tensor, but only treated as matrix.
     //Int numPre = std::min(IRound(std::sqrt(numMu_*2.0)), numStateTotal);
     //Int numPre = std::min(IRound(std::sqrt(numMu_))+5, numStateTotal);
-    Int numPre = IRound(std::sqrt(numMu_*1.2));
+    Int numPre = IRound(std::sqrt(numMu_*numGaussianRandomFac));
     if( numPre > numStateTotal ){
       ErrorHandling("numMu is too large for interpolative separable density fitting!");
     }
+    
+    statusOFS << "numMu  = " << numMu_ << std::endl;
+    statusOFS << "numPre*numPre = " << numPre * numPre << std::endl;
 
     // Convert the column partition to row partition
     Int numStateBlocksize = numStateTotal / mpisize;
@@ -1111,12 +1113,8 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       numMuLocal = numMuBlocksize + 1;
     }
 
-//    if(mpirank == (mpisize - 1)){
-//      numMuLocal = numMuBlocksize + numMu_ % mpisize;
-//    }
-
-    if(mpirank == (mpisize - 1)){
-      ntotLocal = ntotBlocksize + ntot % mpisize;
+    if(mpirank < (ntot % mpisize)){
+      ntotLocal = ntotBlocksize + 1;
     }
 
     DblNumMat localVexxPsiCol( ntot, numStateLocal );
@@ -1152,7 +1150,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     // Computing the indices is optional
     if( isFixColumnDF == false ){
-//    if( 1 ){
       GetTime( timeSta );
 
       // Step 1: Pre-compression of the wavefunctions. This uses
@@ -1174,7 +1171,17 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       // Step 2: Pivoted QR decomposition  for the Hadamard product of
       // the compressed matrix. Transpose format for QRCP
-      DblNumMat MG( numPre*numPre, ntotLocal );
+   
+      Int ntotLocalMG;
+     
+      if( (ntot % mpisize) == 0 ){
+        ntotLocalMG = ntotBlocksize;
+      }
+      else{
+        ntotLocalMG = ntotBlocksize + 1;
+      }
+      DblNumMat MG( numPre*numPre, ntotLocalMG );
+      SetValue( MG, 0.0 );
       for( Int j = 0; j < numPre; j++ ){
         for( Int i = 0; i < numPre; i++ ){
           for( Int ir = 0; ir < ntotLocal; ir++ ){
@@ -1212,11 +1219,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         Int icsrc = 0;
 
         Int mb_MG = numPre*numPre;
-        Int nb_MG = ntotLocal;
+        Int nb_MG = ntotLocalMG;
 
         Int mb_QR = ntot;
 
-        Int ntotBlocksizeMG = ntotBlocksize + ntot % mpisize;
+        Int ntotBlocksizeMG = ntotLocalMG;
 
         // FIXME The current routine does not actually allow ntotLocal to be different on different processors.
         // This must be fixed.
@@ -1244,8 +1251,22 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
             pivQRTmp.Data(), tau.Data() );
 
         // Combine the local pivQRTmp to global pivQR_
-        for( Int j = 0; j < ntotBlocksize; j++ ){
-          pivQRLocal[j+mpirank*ntotBlocksize] = pivQRTmp[j];
+        if( (ntot % mpisize) == 0 ){
+          for( Int j = 0; j < ntotBlocksize; j++ ){
+            pivQRLocal[j + mpirank * ntotBlocksize] = pivQRTmp[j];
+          }
+        }
+        else{
+          if(mpirank < (ntot % mpisize)){
+            for( Int j = 0; j < (ntotBlocksize + 1); j++ ){
+              pivQRLocal[j + mpirank * (ntotBlocksize + 1)] = pivQRTmp[j];
+            }
+          }
+          else{
+            for( Int j = 0; j < ntotBlocksize; j++ ){
+              pivQRLocal[j + (ntot % mpisize) * (ntotBlocksize + 1) +  (mpirank - (ntot % mpisize)) * (ntotBlocksize - 1)] = pivQRTmp[j];
+            }
+          }
         }
 
         //        std::cout << "diag of MG = " << std::endl;
@@ -1354,7 +1375,20 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
             continue;
         }
         // Local muInd
-        Int muIndRow = muInd - mpirank * ntotBlocksize;
+        //Int muIndRow = muInd - mpirank * ntotBlocksize;
+        Int muIndRow;
+        if( (ntot % mpisize) == 0 ){
+          muIndRow = muInd - mpirank * ntotBlocksize;
+        }
+        else{
+          if(mpirank < (ntot % mpisize)){
+            muIndRow = muInd - mpirank * (ntotBlocksize + 1);
+          }
+          else{
+            muIndRow = muInd - (ntot % mpisize) * (ntotBlocksize + 1) - (mpirank - (ntot % mpisize)) * ntotBlocksize;
+          }
+        }
+
         for (Int k=0; k<numStateTotal; k++) {
           psiMuRow(k, mu) = psiRow(muIndRow,k);
           phiMuRow(k, mu) = phiRow(muIndRow,k) * occupationRate[k];
@@ -1381,6 +1415,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       }
 
       for( Int mu = 0; mu < numMu_; mu++ ){
+      
         Int muInd = pivMu(mu);
         // TODO Hard coded here with the row partition strategy
         if( mpirank < mpisize - 1 ){
@@ -1393,11 +1428,26 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
             continue;
         }
         // Local muInd
-        Int muIndRow = muInd - mpirank * ntotBlocksize;
+        //Int muIndRow = muInd - mpirank * ntotBlocksize;
+        Int muIndRow;
+        if( (ntot % mpisize) == 0 ){
+          muIndRow = muInd - mpirank * ntotBlocksize;
+        }
+        else{
+          if(mpirank < (ntot % mpisize)){
+            muIndRow = muInd - mpirank * (ntotBlocksize + 1);
+          }
+          else{
+            muIndRow = muInd - (ntot % mpisize) * (ntotBlocksize + 1) - (mpirank - (ntot % mpisize)) * ntotBlocksize;
+          }
+        }
+       
         for (Int nu=0; nu < numMu_; nu++) {
           PcolMuNuRow( mu, nu ) = XiRow( muIndRow, nu );
         }
-      }
+     
+      }//for
+      
       MPI_Allreduce( PcolMuNuRow.Data(), PcolMuNu.Data(), 
           numMu_* numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
 
@@ -1453,7 +1503,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       AlltoallForward (XiCol, XiRow, domain_.comm);
 
-
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for solving Poisson-like equations is " <<
@@ -1481,8 +1530,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         a3Row.Data(), ntotLocal ); 
 
     DblNumMat a3Col( ntot, numStateLocal );
-    statusOFS << "a3Row = " << std::endl;
-    statusOFS << "a3Col = " << std::endl;
+    
     AlltoallBackward (a3Row, a3Col, domain_.comm);
 
     lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );

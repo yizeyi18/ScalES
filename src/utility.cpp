@@ -600,11 +600,11 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
   if(mpirank < (width % mpisize)){
     widthLocal = widthBlocksize + 1;
   }
-
-  if(mpirank == (mpisize - 1)){
-    heightLocal = heightBlocksize + height % mpisize;
+  
+  if(mpirank < (height % mpisize)){
+    heightLocal = heightBlocksize + 1;
   }
-
+  
   DblNumVec sendbuf(height*widthLocal); 
   DblNumVec recvbuf(heightLocal*width);
   IntNumVec sendcounts(mpisize);
@@ -615,11 +615,9 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
   IntNumMat  recvk( heightLocal, width );
 
   for( Int k = 0; k < mpisize; k++ ){ 
-    if( k < (mpisize - 1)){
-      sendcounts[k] = heightBlocksize * widthLocal;
-    }
-    else {
-      sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
+    sendcounts[k] = heightBlocksize * widthLocal;
+    if( k < (height % mpisize)){
+      sendcounts[k] = sendcounts[k] + widthLocal;  
     }
   }
 
@@ -647,12 +645,12 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
   else{
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-        if((i / heightBlocksize) < (mpisize - 1)){
-          sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+        if( i < ((height % mpisize) * (heightBlocksize+1)) ){
+          sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
         }
         else {
-          sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
-            + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
+          sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
+            + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
         }
       }
     }
@@ -703,8 +701,8 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
     widthLocal = widthBlocksize + 1;
   }
 
-  if(mpirank == (mpisize - 1)){
-    heightLocal = heightBlocksize + height % mpisize;
+  if(mpirank < (height % mpisize)){
+    heightLocal = heightBlocksize + 1;
   }
 
   DblNumVec sendbuf(height*widthLocal); 
@@ -717,11 +715,9 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
   IntNumMat  recvk( heightLocal, width );
 
   for( Int k = 0; k < mpisize; k++ ){ 
-    if( k < (mpisize - 1)){
-      sendcounts[k] = heightBlocksize * widthLocal;
-    }
-    else {
-      sendcounts[mpisize - 1] = (heightBlocksize + (height % mpisize)) * widthLocal;  
+    sendcounts[k] = heightBlocksize * widthLocal;
+    if( k < (height % mpisize)){
+      sendcounts[k] = sendcounts[k] + widthLocal;  
     }
   }
 
@@ -749,12 +745,12 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
   else{
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
-        if((i / heightBlocksize) < (mpisize - 1)){
-          sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+        if( i < ((height % mpisize) * (heightBlocksize+1)) ){
+          sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
         }
         else {
-          sendk(i, j) = senddispls[mpisize - 1] + j * (height - (mpisize - 1) * heightBlocksize) 
-            + (i - (mpisize - 1) * heightBlocksize) % (height - (mpisize - 1) * heightBlocksize);
+          sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
+            + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
         }
       }
     }

@@ -129,6 +129,7 @@ protected:
   bool                        isHybridACE_;
   bool                        isHybridDF_;
   Real                        numMuHybridDF_;
+  Real                        numGaussianRandomHybridDF_;
 
   Int                         exxDivergenceType_;
 

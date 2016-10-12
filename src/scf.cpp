@@ -535,7 +535,7 @@ SCF::Iterate (  )
         else if ( PWSolver_ == "LOBPCGScaLAPACK" ){
           eigSolPtr_->LOBPCGSolveReal3(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
         } // Use PPCG
-        else if( PWSolver_ == "PPCG" ){
+        else if( PWSolver_ == "PPCG" || PWSolver_ == "PPCGScaLAPACK" ){
           eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
         }
         else{

@@ -860,6 +860,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"D:E");
 
   i++;
+  strcpy(kw_label[i],"num_gaussianrandom_hybrid_df");
+  strcpy(kw_typ[i],"D:E");
+  
+  i++;
   strcpy(kw_label[i],"hybrid_ace_outside");
   strcpy(kw_typ[i],"I:E");
 
@@ -2200,7 +2204,8 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
     esdfParam.isHybridACE          = esdf_integer( "Hybrid_ACE", 1 );
     esdfParam.isHybridDF           = esdf_integer( "Hybrid_DF", 0 );
-    esdfParam.numMuHybridDF        = esdf_double( "Num_Mu_Hybrid_DF", 3.0 );
+    esdfParam.numMuHybridDF        = esdf_double( "Num_Mu_Hybrid_DF", 6.0 );
+    esdfParam.numGaussianRandomHybridDF        = esdf_double( "Num_GaussianRandom_Hybrid_DF", 2.0 );
     esdfParam.isHybridACEOutside   = esdf_integer( "Hybrid_ACE_Outside", 0 );
     esdfParam.MDscfOuterMaxIter    = esdf_integer( "MD_SCF_Outer_MaxIter",  esdfParam.scfOuterMaxIter );
     esdfParam.MDscfPhiMaxIter      = esdf_integer( "MD_SCF_Phi_MaxIter", esdfParam.scfPhiMaxIter  );
@@ -2231,8 +2236,6 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.isCalculateAPosterioriEachSCF = esdf_integer( "Calculate_APosteriori_Each_SCF", 0 );
     esdfParam.isCalculateForceEachSCF       = esdf_integer( "Calculate_Force_Each_SCF", 0 );
     esdfParam.isOutputHMatrix  = esdf_integer( "Output_HMatrix", 0 );
-
-    esdfParam.PWDFT_PPCG_use_scala = esdf_integer("PWDFT_PPCG_use_scala", 0);
 
     // Parameters related to Chebyshev Filtering in PWDFT
     // ~~**~~
@@ -2765,6 +2768,7 @@ void ESDFPrintInput( const ESDFInputParam& esdfParam ){
     Print(statusOFS, "Hybrid ACE                           = ",  esdfParam.isHybridACE);
     Print(statusOFS, "Hybrid DF                            = ",  esdfParam.isHybridDF);
     Print(statusOFS, "Num mu hybrid DF                     = ",  esdfParam.numMuHybridDF);
+    Print(statusOFS, "Num GaussianRandom hybrid DF         = ",  esdfParam.numGaussianRandomHybridDF);
     Print(statusOFS, "Hybrid ACE Outside SCF               = ",  esdfParam.isHybridACEOutside);
     Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);
 

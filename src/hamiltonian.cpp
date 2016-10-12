@@ -96,6 +96,7 @@ KohnSham::Setup    (
   isHybridACE_         = esdfParam.isHybridACE;
   isHybridDF_          = esdfParam.isHybridDF;
   numMuHybridDF_       = esdfParam.numMuHybridDF;
+  numGaussianRandomHybridDF_       = esdfParam.numGaussianRandomHybridDF;
   exxDivergenceType_   = esdfParam.exxDivergenceType;
 
   // FIXME Hard coded
@@ -1602,8 +1603,8 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
           numStateLocal = numStateBlocksize + 1;
         }
 
-        if(mpirank == (mpisize - 1)){
-          ntotLocal = ntotBlocksize + ntot % mpisize;
+        if(mpirank < (ntot % mpisize)){
+          ntotLocal = ntotBlocksize + 1;
         }
 
         DblNumMat psiCol( ntot, numStateLocal );
@@ -1991,8 +1992,8 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
       numStateLocal = numStateBlocksize + 1;
     }
 
-    if(mpirank == (mpisize - 1)){
-      ntotLocal = ntotBlocksize + ntot % mpisize;
+    if(mpirank < (ntot % mpisize)){
+      ntotLocal = ntotBlocksize + 1;
     }
 
     DblNumMat localPsiCol( ntot, numStateLocal );
@@ -2099,8 +2100,9 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
   SetValue( M, 0.0 );
   // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
   // semi-definite matrix.
-  psi.AddMultSpinorEXXDF( fft, phiEXX_, exxgkkR2C_,
-      exxFraction_,  numSpin_, occupationRate_, numMuHybridDF_, vexxPsi, M, isFixColumnDF );
+  psi.AddMultSpinorEXXDF( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
+      occupationRate_, numMuHybridDF_, numGaussianRandomHybridDF_,
+      vexxPsi, M, isFixColumnDF );
 
   // Implementation based on Cholesky
   if(0){
@@ -2126,8 +2128,8 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
       numStateLocal = numStateBlocksize + 1;
     }
 
-    if(mpirank == (mpisize - 1)){
-      ntotLocal = ntotBlocksize + ntot % mpisize;
+    if(mpirank < (ntot % mpisize)){
+      ntotLocal = ntotBlocksize + 1;
     }
 
     DblNumMat localVexxPsiCol( ntot, numStateLocal );
@@ -2244,8 +2246,8 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
         numStateLocal = numStateBlocksize + 1;
       }
 
-      if(mpirank == (mpisize - 1)){
-        ntotLocal = ntotBlocksize + ntot % mpisize;
+      if(mpirank < (ntot % mpisize)){
+        ntotLocal = ntotBlocksize + 1;
       }
 
       DblNumMat psiCol( ntot, numStateLocal );

@@ -1412,16 +1412,16 @@ SCFDG::Iterate    (  )
                   widthLocal = widthBlocksize + 1;
                 }
 
-                if(mpirankRow == (mpisizeRow - 1)){
-                  heightLocal = heightBlocksize + height % mpisizeRow;
+                if(mpirankRow < (height % mpisizeRow)){
+                  heightLocal = heightBlocksize + 1;
                 }
 
-                if(mpirankRow == (mpisizeRow - 1)){
-                  heightLGLLocal = heightLGLBlocksize + heightLGL % mpisizeRow;
+                if(mpirankRow < (heightLGL % mpisizeRow)){
+                  heightLGLLocal = heightLGLBlocksize + 1;
                 }
 
-                if(mpirankRow == (mpisizeRow - 1)){
-                  heightElemLocal = heightElemBlocksize + heightElem % mpisizeRow;
+                if(mpirankRow == (heightElem % mpisizeRow)){
+                  heightElemLocal = heightElemBlocksize + 1;
                 }
 
                 // FIXME Use AlltoallForward and AlltoallBackward
@@ -1773,8 +1773,8 @@ SCFDG::Iterate    (  )
                 widthLocal = widthBlocksize + 1;
               }
 
-              if(mpirankRow == (mpisizeRow - 1)){
-                heightLGLLocal = heightLGLBlocksize + heightLGL % mpisizeRow;
+              if(mpirankRow < (heightLGL % mpisizeRow)){
+                heightLGLLocal = heightLGLBlocksize + 1;
               }
 
 

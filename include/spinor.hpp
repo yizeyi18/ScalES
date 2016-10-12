@@ -155,6 +155,7 @@ public:
       Real  numSpin,
       const DblNumVec& occupationRate,
       const Real numMuFac,
+      const Real numGaussianRandomFac,
       NumTns<Real>& a3,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );

@@ -230,8 +230,14 @@ struct ESDFInputParam{
   /// @brief Density fitting uses numMu * numStateTotal number of
   /// states for hybrid calculations with density fitting.
   ///
-  /// Default: 3.0
+  /// Default: 6.0
   Real                numMuHybridDF;
+  
+  /// @brief Density fitting uses numGaussianRandom * numMu * numStateTotal number of
+  /// states for GaussianRandom.
+  ///
+  /// Default: 6.0
+  Real                numGaussianRandomHybridDF;
 
   /// @brief Whether the ACE formulation is performed outside the SCF
   /// loop. This can be used when performing geometry optimization.
@@ -826,17 +832,12 @@ struct ESDFInputParam{
   Real scfdg_complementary_subspace_lobpcg_tol;
   Int scfdg_complementary_subspace_lobpcg_iter;
 
-
-
   // Inputs related to Chebyshev Filtered SCF iterations for PWDFT
   Int First_SCF_PWDFT_ChebyFilterOrder; // Default 40
   Int First_SCF_PWDFT_ChebyCycleNum; // Default 4
   Int General_SCF_PWDFT_ChebyFilterOrder; // Filter Order for general phase, default = 60
   bool PWDFT_Cheby_use_scala; // Default 1
   bool PWDFT_Cheby_apply_wfn_ecut_filt; // Default 1
-
-  bool PWDFT_PPCG_use_scala; // Default 1
-
 
   /// @brief This is NOT an input parameter, but records whether
   /// DGDFT is performed.
