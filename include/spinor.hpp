@@ -48,12 +48,13 @@ such enhancements or derivative works thereof, in binary and source code form.
 #define _SPINOR_HPP_
 
 #include  "environment.hpp"
-#include  "domain.hpp"
 #include  "numvec_impl.hpp"
 #include  "numtns_impl.hpp"
+#include  "domain.hpp"
 #include  "fourier.hpp"
 #include  "utility.hpp"
 #include  "lapack.hpp"
+#include  "esdf.hpp"
 
 namespace dgdft{
 

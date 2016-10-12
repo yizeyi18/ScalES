@@ -393,8 +393,7 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
     val  += density_(i, RHO);
   }
 
-  Print( statusOFS, "Raw data, sum of density = ",  val );
-  Print( statusOFS, "Expected sum of density  = ",  (numSpin_ * numOccupiedState_ ) );
+  Real val1 = val;
 
   // Scale the density
   blas::Scal( ntotFine, (numSpin_ * Real(numOccupiedState_) * Real(ntotFine)) / ( vol * val ), 
@@ -405,8 +404,14 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
   for (Int i=0; i<ntotFine; i++) {
     val  += density_(i, RHO) * vol / ntotFine;
   }
-  Print( statusOFS, "Raw data, sum of adjusted density = ",  val );
+  
+  Real val2 = val;
 
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Raw data, sum of density          = " << val1 << std::endl;
+  statusOFS << "Expected sum of density           = " << numSpin_ * numOccupiedState_ << std::endl;
+  statusOFS << "Raw data, sum of adjusted density = " << val2 << std::endl;
+#endif
 
 
   return ;
@@ -464,6 +469,11 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
   // Cutoff 
   Real epsRho = 1e-8, epsGRho = 1e-8;
 
+  Real timeSta, timeEnd;
+  
+  Real timeFFT = 0.00;
+  Real timeOther = 0.00;
+  
   if( XCId_ == XC_LDA_XC_TETER93 ) 
   {
     xc_lda_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
@@ -585,17 +595,31 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
     DblNumMat& gradDensity1 = gradDensity_[1];
     DblNumMat& gradDensity2 = gradDensity_[2];
 
+    GetTime( timeSta );
     for(Int i = 0; i < ntot; i++){
       gradDensity(i, RHO) = gradDensity0(i, RHO) * gradDensity0(i, RHO)
         + gradDensity1(i, RHO) * gradDensity1(i, RHO)
         + gradDensity2(i, RHO) * gradDensity2(i, RHO);
     }
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << " " << std::endl;
+      statusOFS << "Time for computing gradDensity in XC HSE06 is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
     SetValue( epsxc_, 0.0 );
     SetValue( vxc1, 0.0 );
     SetValue( vxc2, 0.0 );
+    
+    GetTime( timeSta );
     xc_gga_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
         gradDensity.VecData(RHO), epsxc_.Data(), vxc1.Data(), vxc2.Data() );
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing xc_gga_exc_vxc in XC HSE06 is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
 
     for( Int i = 0; i < ntot; i++ ){
@@ -619,14 +643,21 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
 
       DblNumMat& gradDensityd = gradDensity_[d];
 
+      GetTime( timeSta );
       for(Int i = 0; i < ntot; i++){
         fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2( i, RHO ), 0.0 ); 
       }
+      GetTime( timeEnd );
+      timeOther = timeOther + ( timeEnd - timeSta );
 
+      GetTime( timeSta );
       FFTWExecute ( fft, fft.forwardPlanFine );
+      GetTime( timeEnd );
+      timeFFT = timeFFT + ( timeEnd - timeSta );
 
       CpxNumVec& ik = fft.ikFine[d];
 
+      GetTime( timeSta );
       for( Int i = 0; i < ntot; i++ ){
         if( fft.gkkFine(i) == 0 ){
           fft.outputComplexVecFine(i) = Z_ZERO;
@@ -635,24 +666,44 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
           fft.outputComplexVecFine(i) *= ik(i);
         }
       }
+      GetTime( timeEnd );
+      timeOther = timeOther + ( timeEnd - timeSta );
 
+      GetTime( timeSta );
       FFTWExecute ( fft, fft.backwardPlanFine );
+      GetTime( timeEnd );
+      timeFFT = timeFFT + ( timeEnd - timeSta );
 
+      GetTime( timeSta );
       for( Int i = 0; i < ntot; i++ ){
         vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real();
       }
+      GetTime( timeEnd );
+      timeOther = timeOther + ( timeEnd - timeSta );
 
     } // for d
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for FFT is " << timeFFT << " [s]" << std::endl;
+      statusOFS << "Time for Other is " << timeOther << " [s]" << std::endl;
+#endif
+
   } // XC_FAMILY Hybrid
   else
     ErrorHandling( "Unsupported XC family!" );
 
   // Compute the total exchange-correlation energy
   val = 0.0;
+  GetTime( timeSta );
   for(Int i = 0; i < ntot; i++){
     val += density_(i, RHO) * epsxc_(i) * vol / (Real) ntot;
   }
-
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << " " << std::endl;
+      statusOFS << "Time for computing total xc energy in XC is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
   return ;
 }         // -----  end of method KohnSham::CalculateXC  ----- 
@@ -1469,6 +1520,13 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
   Int ncom = wavefun.n();
 
   Int ntotR2C = fft.numGridTotalR2C;
+  
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+  
+  Real timeGemm = 0.0;
+  Real timeAlltoallv = 0.0;
+  Real timeAllreduce = 0.0;
 
   SetValue( a3, 0.0 );
 
@@ -1505,18 +1563,18 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
   }
 
 
-
-
+  GetTime( timeSta );
   psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
-  //statusOFS << std::endl << " Psi = " << psi.Wavefun() << std::endl;
-  //statusOFS << std::endl << " a3 = " << a3 << std::endl;
-  //statusOFS << std::endl;
-  //std::cin.ignore();
-
-  //exit(1);
-
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for psi.AddMultSpinorFineR2C is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
   if( isHybrid_ && isEXXActive_ ){
+
+    GetTime( timeSta );
+  
     if( this->IsHybridACE() ){
 
       //      if(0)
@@ -1563,20 +1621,29 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
         lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
         lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
 
+        GetTime( timeSta1 );
         AlltoallForward (psiCol, psiRow, domain_.comm);
         AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
+        GetTime( timeEnd1 );
+        timeAlltoallv = timeAlltoallv + ( timeEnd1 - timeSta1 );
 
         DblNumMat MTemp( numStateTotal, numStateTotal );
         SetValue( MTemp, 0.0 );
 
+        GetTime( timeSta1 );
         blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
             1.0, vexxProjRow.Data(), ntotLocal, 
             psiRow.Data(), ntotLocal, 0.0,
             MTemp.Data(), numStateTotal );
+        GetTime( timeEnd1 );
+        timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
 
         DblNumMat M(numStateTotal, numStateTotal);
         SetValue( M, 0.0 );
+        GetTime( timeSta1 );
         MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+        GetTime( timeEnd1 );
+        timeAllreduce = timeAllreduce + ( timeEnd1 - timeSta1 );
 
         DblNumMat a3Col( ntot, numStateLocal );
         SetValue( a3Col, 0.0 );
@@ -1584,13 +1651,20 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
         DblNumMat a3Row( ntotLocal, numStateTotal );
         SetValue( a3Row, 0.0 );
 
+        GetTime( timeSta1 );
         blas::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, 
             -1.0, vexxProjRow.Data(), ntotLocal, 
             M.Data(), numStateTotal, 0.0, 
             a3Row.Data(), ntotLocal );
+        GetTime( timeEnd1 );
+        timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
 
+        GetTime( timeSta1 );
         AlltoallBackward (a3Row, a3Col, domain_.comm);
+        GetTime( timeEnd1 );
+        timeAlltoallv = timeAlltoallv + ( timeEnd1 - timeSta1 );
 
+        GetTime( timeSta1 );
         for (Int k=0; k<numStateLocal; k++) {
           for (Int j=0; j<ncom; j++) {
             Real *p1 = a3Col.VecData(k);
@@ -1600,19 +1674,30 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
             }
           }
         }
+        GetTime( timeEnd1 );
+        timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
 
       } //if(1)
-
-      //if(1){
-      //  statusOFS << std::endl<< "All processors exit with abort in hamiltonian." << std::endl;
-      //  abort();
-      //}
 
     }
     else{
       psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
           exxFraction_,  numSpin_, occupationRate_, a3 );
     }
+
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for updating hybrid Spinor is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    statusOFS << "Time for Gemm is " <<
+      timeGemm << " [s]" << std::endl << std::endl;
+    statusOFS << "Time for Alltoallv is " <<
+      timeAlltoallv << " [s]" << std::endl << std::endl;
+    statusOFS << "Time for Allreduce is " <<
+      timeAllreduce << " [s]" << std::endl << std::endl;
+#endif
+
+
   }
 
   // Apply filter on the wavefunctions before exit, if required
@@ -2018,7 +2103,7 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
       exxFraction_,  numSpin_, occupationRate_, numMuHybridDF_, vexxPsi, M, isFixColumnDF );
 
   // Implementation based on Cholesky
-  if(1){
+  if(0){
     lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
 
     blas::Trsm( 'R', 'L', 'T', 'N', ntot, numStateTotal, 1.0, 
@@ -2028,6 +2113,47 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
     blas::Copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
   }
 
+  if(1){ //For MPI
+
+    // Convert the column partition to row partition
+    Int numStateBlocksize = numStateTotal / mpisize;
+    Int ntotBlocksize = ntot / mpisize;
+
+    Int numStateLocal = numStateBlocksize;
+    Int ntotLocal = ntotBlocksize;
+
+    if(mpirank < (numStateTotal % mpisize)){
+      numStateLocal = numStateBlocksize + 1;
+    }
+
+    if(mpirank == (mpisize - 1)){
+      ntotLocal = ntotBlocksize + ntot % mpisize;
+    }
+
+    DblNumMat localVexxPsiCol( ntot, numStateLocal );
+    SetValue( localVexxPsiCol, 0.0 );
+
+    DblNumMat localVexxPsiRow( ntotLocal, numStateTotal );
+    SetValue( localVexxPsiRow, 0.0 );
+
+    // Initialize
+    lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
+
+    AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
+
+    if ( mpirank == 0) {
+      lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+    }
+
+    MPI_Bcast(M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_.comm);
+
+    blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numStateTotal, 1.0, 
+        M.Data(), numStateTotal, localVexxPsiRow.Data(), ntotLocal );
+
+    vexxProj_.Resize( ntot, numStateLocal );
+
+    AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
+  } //if(1)
   return ;
 }         // -----  end of method KohnSham::CalculateVexxACEDF  ----- 
 

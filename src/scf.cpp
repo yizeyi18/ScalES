@@ -544,41 +544,83 @@ SCF::Iterate (  )
         }
       }
 
-
       GetTime( timeEnd );
 
-      ham.EigVal() = eigSolPtr_->EigVal();
-
-      statusOFS << std::endl << " Time for the eigensolver is " <<
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << std::endl << "Time for the eigensolver is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
+#endif
+      
+      GetTime( timeSta );
+      ham.EigVal() = eigSolPtr_->EigVal();
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for ham.EigVal() in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
       // No need for normalization using LOBPCG
 
       // Compute the occupation rate
+      GetTime( timeSta );
       CalculateOccupationRate( ham.EigVal(), 
           ham.OccupationRate() );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing occupation rate in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
       // Compute the electron density
+      GetTime( timeSta );
       ham.CalculateDensity(
           psi,
           ham.OccupationRate(),
           totalCharge_, 
           fft );
-
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing density in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
       // Compute the exchange-correlation potential and energy
       if( isCalculateGradRho_ ){
+        GetTime( timeSta );
         ham.CalculateGradDensity( fft );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing gradient density in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
       }
+        
+      GetTime( timeSta );
       ham.CalculateXC( Exc_, fft ); 
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing XC potential in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
       // Compute the Hartree energy
+      GetTime( timeSta );
       ham.CalculateHartree( fft );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing Hartree potential in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
       // No external potential
 
       // Compute the total potential
+      GetTime( timeSta );
       ham.CalculateVtot( vtotNew_ );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing total potential in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
       Real normVtotDif = 0.0, normVtotOld = 0.0;
       DblNumVec& vtotOld_ = ham.Vtot();
@@ -604,7 +646,13 @@ SCF::Iterate (  )
 
       Evdw_ = 0.0;
 
+      GetTime( timeSta );
       CalculateEnergy();
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing energy in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
       PrintState( iter );
 
@@ -615,6 +663,7 @@ SCF::Iterate (  )
       }
 
       // Potential mixing
+      GetTime( timeSta );
       if( mixType_ == "anderson" || mixType_ == "kerker+anderson" ){
         AndersonMix(
             iter,
@@ -629,6 +678,11 @@ SCF::Iterate (  )
       else{
         ErrorHandling("Invalid mixing type.");
       }
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing potential mixing in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
       GetTime( timeIterEnd );
 
