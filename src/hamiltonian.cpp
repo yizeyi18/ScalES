@@ -603,6 +603,7 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
     }
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
+      statusOFS << " " << std::endl;
       statusOFS << "Time for computing gradDensity in XC HSE06 is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
@@ -699,6 +700,7 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
   }
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
+      statusOFS << " " << std::endl;
       statusOFS << "Time for computing total xc energy in XC is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
