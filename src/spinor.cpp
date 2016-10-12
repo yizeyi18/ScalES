@@ -427,7 +427,18 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   DblNumVec psiFine(ntotFine);
   DblNumVec psiUpdateFine(ntotFine);
 
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+  
+  Real timeFFTCoarse = 0.0;
+  Real timeFFTFine = 0.0;
+  Real timeOther = 0.0;
+  Int  iterFFTCoarse = 0;
+  Int  iterFFTFine = 0;
+  Int  iterOther = 0;
 
+  GetTime( timeSta1 );
+ 
   if(0)
   {
     for (Int k=0; k<numStateLocal; k++) {
@@ -481,7 +492,11 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
         blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
             fft.inputVecR2C.Data(), 1 );
 
+        GetTime( timeSta );
         FFTWExecute ( fft, fft.forwardPlanR2C );
+        GetTime( timeEnd );
+        iterFFTCoarse = iterFFTCoarse + 1;
+        timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
 
         // statusOFS << std::endl << " Input vec = " << fft.inputVecR2C << std::endl;
         // statusOFS << std::endl << " Output vec = " << fft.outputVecR2C << std::endl;
@@ -498,7 +513,11 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
           }
         }
 
+        GetTime( timeSta );
         FFTWExecute ( fft, fft.backwardPlanR2CFine );
+        GetTime( timeEnd );
+        iterFFTFine = iterFFTFine + 1;
+        timeFFTFine = timeFFTFine + ( timeEnd - timeSta );
 
         blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
 
@@ -565,7 +584,11 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       // Note the update is important since the Laplacian contribution is already taken into account.
       // The computation order is also important
       // fftw_execute( fft.forwardPlanFine );
+      GetTime( timeSta );
       FFTWExecute ( fft, fft.forwardPlanR2CFine );
+      GetTime( timeEnd );
+      iterFFTFine = iterFFTFine + 1;
+      timeFFTFine = timeFFTFine + ( timeEnd - timeSta );
       //      {
       //        Real fac = std::sqrt(Real(ntot) / (Real(ntotFine)));
       //        Int* idxPtr = fft.idxFineGrid.Data();
@@ -589,7 +612,11 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
         }
       }
 
+      GetTime( timeSta );
       FFTWExecute ( fft, fft.backwardPlanR2C );
+      GetTime( timeEnd );
+      iterFFTCoarse = iterFFTCoarse + 1;
+      timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
 
       // Inverse Fourier transform to save back to the output vector
       //fftw_execute( fft.backwardPlan );
@@ -612,8 +639,12 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
         blas::Copy( ntot, a3.VecData(j,k), 1,
             fft.inputVecR2C.Data(), 1 );
+      
+        GetTime( timeSta );
         FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
-
+        GetTime( timeEnd );
+        iterFFTCoarse = iterFFTCoarse + 1;
+        timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
 
         for (Int i=0; i<ntotR2C; i++)
         {
@@ -621,7 +652,12 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
             fft.outputVecR2C(i) = Z_ZERO;
         }
 
+        GetTime( timeSta );
         FFTWExecute ( fft, fft.backwardPlanR2C );
+        GetTime( timeEnd );
+        iterFFTCoarse = iterFFTCoarse + 1;
+        timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
+        
         blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
             a3.VecData(j,k), 1 );
 
@@ -629,7 +665,15 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
     }
   }
 
+  GetTime( timeEnd1 );
+  iterOther = iterOther + 1;
+  timeOther = timeOther + ( timeEnd1 - timeSta1 ) - timeFFTCoarse - timeFFTFine;
 
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for iterFFTCoarse    = " << iterFFTCoarse       << "  timeFFTCoarse    = " << timeFFTCoarse << std::endl;
+    statusOFS << "Time for iterFFTFine      = " << iterFFTFine         << "  timeFFTFine    = " << timeFFTFine << std::endl;
+    statusOFS << "Time for iterOther        = " << iterOther           << "  timeOther        = " << timeOther << std::endl;
+#endif
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorFineR2C  ----- 

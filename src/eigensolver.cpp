@@ -5573,30 +5573,41 @@ EigenSolver::PPCGSolveReal    (
 
   Real timeSta, timeEnd;
   Real timeSta1, timeEnd1;
+  Real timeSta2, timeEnd2;
   Real timeGemmT = 0.0;
   Real timeGemmN = 0.0;
+  Real timeBcast = 0.0;
   Real timeAllreduce = 0.0;
   Real timeAlltoallv = 0.0;
+  Real timeAlltoallvMap = 0.0;
   Real timeSpinor = 0.0;
   Real timeTrsm = 0.0;
   Real timePotrf = 0.0;
   Real timeSyevd = 0.0;
+  Real timeSygvd = 0.0;
   Real timeMpirank0 = 0.0;
   Real timeScaLAPACKFactor = 0.0;
   Real timeScaLAPACK = 0.0;
   Real timeSweepT = 0.0;
+  Real timeCopy = 0.0;
+  Real timeOther = 0.0;
   Int  iterGemmT = 0;
   Int  iterGemmN = 0;
+  Int  iterBcast = 0;
   Int  iterAllreduce = 0;
   Int  iterAlltoallv = 0;
+  Int  iterAlltoallvMap = 0;
   Int  iterSpinor = 0;
   Int  iterTrsm = 0;
   Int  iterPotrf = 0;
   Int  iterSyevd = 0;
+  Int  iterSygvd = 0;
   Int  iterMpirank0 = 0;
   Int  iterScaLAPACKFactor = 0;
   Int  iterScaLAPACK = 0;
   Int  iterSweepT = 0;
+  Int  iterCopy = 0;
+  Int  iterOther = 0;
 
   if( numEig > width ){
     std::ostringstream msg;
@@ -5606,6 +5617,7 @@ EigenSolver::PPCGSolveReal    (
     throw std::runtime_error( msg.str().c_str() );
   }
 
+  GetTime( timeSta2 );
 
   // The following codes are not replaced by AlltoallForward /
   // AlltoallBackward since they are repetitively used in the
@@ -5620,6 +5632,8 @@ EigenSolver::PPCGSolveReal    (
   IntNumMat  sendk( height, widthLocal );
   IntNumMat  recvk( heightLocal, width );
 
+  GetTime( timeSta );
+  
   for( Int k = 0; k < mpisize; k++ ){ 
     if( k < (mpisize - 1)){
       sendcounts[k] = heightBlocksize * widthLocal;
@@ -5670,6 +5684,10 @@ EigenSolver::PPCGSolveReal    (
     }
   }
   // end For Alltoall
+ 
+  GetTime( timeEnd );
+  iterAlltoallvMap = iterAlltoallvMap + 1;
+  timeAlltoallvMap = timeAlltoallvMap + ( timeEnd - timeSta );
 
   // S = ( X | W | P ) is a triplet used for LOBPCG.  
   // W is the preconditioned residual
@@ -5698,8 +5716,8 @@ EigenSolver::PPCGSolveReal    (
 
   DblNumMat  Xtemp( heightLocal, width );
 
-  Real resBlockNormLocal, resBlockNorm; // Frobenius norm of the residual block  
-  Real       resMax, resMin;
+  Real  resBlockNormLocal, resBlockNorm; // Frobenius norm of the residual block  
+  Real  resMax, resMin;
 
   // For convenience
   DblNumMat  X( heightLocal, width, false, S.VecData(0) );
@@ -5740,8 +5758,12 @@ EigenSolver::PPCGSolveReal    (
   SetValue( eigValS, 0.0 );
 
   // Initialize X by the data in psi
+  GetTime( timeSta );
   lapack::Lacpy( 'A', height, widthLocal, psiPtr_->Wavefun().Data(), height, 
       Xcol.Data(), height );
+  GetTime( timeEnd );
+  iterCopy = iterCopy + 1;
+  timeCopy = timeCopy + ( timeEnd - timeSta );
 
   GetTime( timeSta );
   for( Int j = 0; j < widthLocal; j++ ){ 
@@ -5785,7 +5807,11 @@ EigenSolver::PPCGSolveReal    (
     iterMpirank0 = iterMpirank0 + 1;
     timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
   }
+  GetTime( timeSta );
   MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
+  GetTime( timeEnd );
+  iterBcast = iterBcast + 1;
+  timeBcast = timeBcast + ( timeEnd - timeSta );
 
   // X <- X * U^{-1} is orthogonal
   GetTime( timeSta );
@@ -5890,39 +5916,56 @@ EigenSolver::PPCGSolveReal    (
 
     // Compute the residual.
     // R <- AX - X*(X'*AX)
+    GetTime( timeSta );
     lapack::Lacpy( 'A', heightLocal, width, AX.Data(), heightLocal, Xtemp.Data(), heightLocal );
+    GetTime( timeEnd );
+    iterCopy = iterCopy + 1;
+    timeCopy = timeCopy + ( timeEnd - timeSta );
 
     GetTime( timeSta );
-
     blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
         X.Data(), heightLocal, XTX.Data(), width, 1.0, Xtemp.Data(), heightLocal );
-
     GetTime( timeEnd );
     iterGemmN = iterGemmN + 1;
     timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
 
+
     // Compute the Frobenius norm of the residual block
-    resBlockNormLocal = 0.0; resBlockNorm = 0.0; 
-    for (Int i=0; i < heightLocal; i++){
-      for (Int j=0; j < width; j++ ){
-        resBlockNormLocal += Xtemp(i,j)*Xtemp(i,j); 
+
+    if(0){
+
+      GetTime( timeSta );
+
+      resBlockNormLocal = 0.0; resBlockNorm = 0.0; 
+      for (Int i=0; i < heightLocal; i++){
+        for (Int j=0; j < width; j++ ){
+          resBlockNormLocal += Xtemp(i,j)*Xtemp(i,j); 
+        }
       }
-    }
 
-    MPI_Allreduce( &resBlockNormLocal, &resBlockNorm, 1, MPI_DOUBLE,
-        MPI_SUM, mpi_comm); 
-    resBlockNorm = std::sqrt(resBlockNorm);
+      MPI_Allreduce( &resBlockNormLocal, &resBlockNorm, 1, MPI_DOUBLE,
+          MPI_SUM, mpi_comm); 
+      resBlockNorm = std::sqrt(resBlockNorm);
 
-    /////////////// UNCOMMENT THIS #if ( _DEBUGlevel_ >= 1 )
-    statusOFS << "Frob. norm of the residual block = " << resBlockNorm << std::endl;
-    //////////////#endif
+      GetTime( timeEnd );
+      iterOther = iterOther + 1;
+      timeOther = timeOther + ( timeEnd - timeSta );
 
-    // THIS STOPPING CRITERION LIKELY IRRELEVANT
-    if( resBlockNorm < eigTolerance ){
-      isConverged = true;
-      break;
-    }
+      statusOFS << "Time for resBlockNorm in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+
+
+      /////////////// UNCOMMENT THIS #if ( _DEBUGlevel_ >= 1 )
+      statusOFS << "Frob. norm of the residual block = " << resBlockNorm << std::endl;
+      //////////////#endif
+
+      // THIS STOPPING CRITERION LIKELY IRRELEVANT
+      if( resBlockNorm < eigTolerance ){
+        isConverged = true;
+        break;
+      }
+
+    } // if(0)
 
     // LOCKING not supported, PPCG needs Rayleigh--Ritz to lock         
     //        numActiveTotal = width - numLockedTotal;
@@ -6051,6 +6094,7 @@ EigenSolver::PPCGSolveReal    (
     Real normLocal[width]; 
     Real normGlobal[width];
 
+    GetTime( timeSta );
     for( Int k = numLockedLocal; k < width; k++ ){
       normLocal[k] = Energy(DblNumVec(heightLocal, false, W.VecData(k)));
       normGlobal[k] = 0.0;
@@ -6061,6 +6105,12 @@ EigenSolver::PPCGSolveReal    (
       blas::Scal( heightLocal, 1.0 / norm, W.VecData(k), 1 );
       blas::Scal( heightLocal, 1.0 / norm, AW.VecData(k), 1 );
     }
+    GetTime( timeEnd );
+    iterOther = iterOther + 2;
+    timeOther = timeOther + ( timeEnd - timeSta );
+
+    statusOFS << "Time for norm1 in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+
 
     // P = P - X(X'P), AP = AP - AX(X'P)
     if( numSet == 3 ){
@@ -6092,6 +6142,7 @@ EigenSolver::PPCGSolveReal    (
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
       // Normalize the conjugate direction
+      GetTime( timeSta );
       for( Int k = numLockedLocal; k < width; k++ ){
         normLocal[k] = Energy(DblNumVec(heightLocal, false, P.VecData(k)));
         normGlobal[k] = 0.0;
@@ -6102,6 +6153,12 @@ EigenSolver::PPCGSolveReal    (
         blas::Scal( heightLocal, 1.0 / norm, P.VecData(k), 1 );
         blas::Scal( heightLocal, 1.0 / norm, AP.VecData(k), 1 );
       }
+      GetTime( timeEnd );
+      iterOther = iterOther + 2;
+      timeOther = timeOther + ( timeEnd - timeSta );
+    
+      statusOFS << "Time for norm2 in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+   
     }
 
     // Perform the sweep
@@ -6126,30 +6183,54 @@ EigenSolver::PPCGSolveReal    (
 
       // Compute AMatAllLoc and BMatAllLoc            
       // AMatAllLoc
+      GetTime( timeSta );
       blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
           heightLocal, ax.Data(), heightLocal, 
           0.0, &AMatAllLocal(0,3*sbSize*k), 3*sbSize );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
+      GetTime( timeSta );
       blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
           heightLocal, aw.Data(), heightLocal, 
           0.0, &AMatAllLocal(sbSize,3*sbSize*k+sbSize), 3*sbSize );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
+      GetTime( timeSta );
       blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
           heightLocal, aw.Data(), heightLocal, 
           0.0, &AMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       // BMatAllLoc            
+      GetTime( timeSta );
       blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
           heightLocal, x.Data(), heightLocal, 
           0.0, &BMatAllLocal(0,3*sbSize*k), 3*sbSize );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
+      GetTime( timeSta );
       blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
           heightLocal, w.Data(), heightLocal, 
           0.0, &BMatAllLocal(sbSize,3*sbSize*k+sbSize), 3*sbSize );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
+      GetTime( timeSta );
       blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
           heightLocal, w.Data(), heightLocal, 
           0.0, &BMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize );
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 1;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       if ( numSet == 3 ){
 
@@ -6157,37 +6238,70 @@ EigenSolver::PPCGSolveReal    (
         DblNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
 
         // AMatAllLoc
+        GetTime( timeSta );
         blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, p.Data(),
             heightLocal, ap.Data(), heightLocal, 
             0.0, &AMatAllLocal(2*sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
+        GetTime( timeSta );
         blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
             heightLocal, ap.Data(), heightLocal, 
             0.0, &AMatAllLocal(0, 3*sbSize*k+2*sbSize), 3*sbSize );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
+        GetTime( timeSta );
         blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
             heightLocal, ap.Data(), heightLocal, 
             0.0, &AMatAllLocal(sbSize, 3*sbSize*k+2*sbSize), 3*sbSize );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
         // BMatAllLoc
+        GetTime( timeSta );
         blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, p.Data(),
             heightLocal, p.Data(), heightLocal, 
             0.0, &BMatAllLocal(2*sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
+        GetTime( timeSta );
         blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
             heightLocal, p.Data(), heightLocal, 
             0.0, &BMatAllLocal(0, 3*sbSize*k+2*sbSize), 3*sbSize );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
+        GetTime( timeSta );
         blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
             heightLocal, p.Data(), heightLocal, 
             0.0, &BMatAllLocal(sbSize, 3*sbSize*k+2*sbSize), 3*sbSize );
+        GetTime( timeEnd );
+        iterGemmT = iterGemmT + 1;
+        timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       }             
 
     }
 
+    GetTime( timeSta );
     MPI_Allreduce( AMatAllLocal.Data(), AMatAll.Data(), 9*sbSize*sbSize*nsb, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    GetTime( timeEnd );
+    iterAllreduce = iterAllreduce + 1;
+    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+    
+    GetTime( timeSta );
     MPI_Allreduce( BMatAllLocal.Data(), BMatAll.Data(), 9*sbSize*sbSize*nsb, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    GetTime( timeEnd );
+    iterAllreduce = iterAllreduce + 1;
+    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
     // Solve nsb small eigenproblems and update columns of X 
     for( Int k = 0; k < nsb; k++ ){
@@ -6197,10 +6311,12 @@ EigenSolver::PPCGSolveReal    (
       DblNumMat tmp( heightLocal, sbSize );            
 
       // small eigensolve
+      GetTime( timeSta );
       lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &AMatAll(0,3*sbSize*k), 3*sbSize, AMat.Data(), 3*sbSize );
       lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &BMatAll(0,3*sbSize*k), 3*sbSize, BMat.Data(), 3*sbSize );
-
-
+      GetTime( timeEnd );
+      iterCopy = iterCopy + 2;
+      timeCopy = timeCopy + ( timeEnd - timeSta );
 
       //if (mpirank==0){
       //    statusOFS << "sweep num = " << k << std::endl;
@@ -6209,7 +6325,11 @@ EigenSolver::PPCGSolveReal    (
       //}
 
       Int dim = (numSet == 3) ? 3*sbSize : 2*sbSize;
+      GetTime( timeSta );
       lapack::Sygvd(1, 'V', 'U', dim, AMat.Data(), 3*sbSize, BMat.Data(), 3*sbSize, eigs);
+      GetTime( timeEnd );
+      iterSygvd = iterSygvd + 1;
+      timeSygvd = timeSygvd + ( timeEnd - timeSta );
 
       // fetch indiviual columns
       DblNumMat  x( heightLocal, sbSize, false, X.VecData(k) );
@@ -6219,63 +6339,131 @@ EigenSolver::PPCGSolveReal    (
       DblNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
       DblNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
 
+      GetTime( timeSta );
       lapack::Lacpy( 'A', sbSize, sbSize, &AMat(0,0), 3*sbSize, cx.Data(), sbSize );
       lapack::Lacpy( 'A', sbSize, sbSize, &AMat(sbSize,0), 3*sbSize, cw.Data(), sbSize );
+      GetTime( timeEnd );
+      iterCopy = iterCopy + 2;
+      timeCopy = timeCopy + ( timeEnd - timeSta );
 
       //  p = w*cw + p*cp; x = x*cx + p; ap = aw*cw + ap*cp; ax = ax*cx + ap;
       if( numSet == 3 ){
+        
+        GetTime( timeSta );
         lapack::Lacpy( 'A', sbSize, sbSize, &AMat(2*sbSize,0), 3*sbSize, cp.Data(), sbSize );
+        GetTime( timeEnd );
+        iterCopy = iterCopy + 1;
+        timeCopy = timeCopy + ( timeEnd - timeSta );
+       
         // tmp <- p*cp 
+        GetTime( timeSta );
         blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
             p.Data(), heightLocal, cp.Data(), sbSize,
             0.0, tmp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
         // p <- w*cw + tmp
+        GetTime( timeSta );
         blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
             w.Data(), heightLocal, cw.Data(), sbSize,
             1.0, tmp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
+
+        GetTime( timeSta );
         lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, p.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterCopy = iterCopy + 1;
+        timeCopy = timeCopy + ( timeEnd - timeSta );
 
         // tmp <- ap*cp 
+        GetTime( timeSta );
         blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
             ap.Data(), heightLocal, cp.Data(), sbSize,
             0.0, tmp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
         // ap <- aw*cw + tmp
+        GetTime( timeSta );
         blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
             aw.Data(), heightLocal, cw.Data(), sbSize,
             1.0, tmp.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
+        GetTime( timeSta );
         lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ap.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterCopy = iterCopy + 1;
+        timeCopy = timeCopy + ( timeEnd - timeSta );
 
       }else{
         // p <- w*cw
+        GetTime( timeSta );
         blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
             w.Data(), heightLocal, cw.Data(), sbSize,
             0.0, p.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
         // ap <- aw*cw
+        GetTime( timeSta );
         blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
             aw.Data(), heightLocal, cw.Data(), sbSize,
             0.0, ap.Data(), heightLocal );
+        GetTime( timeEnd );
+        iterGemmN = iterGemmN + 1;
+        timeGemmN = timeGemmN + ( timeEnd - timeSta );
       }
 
       // x <- x*cx + p
+      GetTime( timeSta );
       lapack::Lacpy( 'A', heightLocal, sbSize, p.Data(), heightLocal, tmp.Data(), heightLocal );
+      GetTime( timeEnd );
+      iterCopy = iterCopy + 1;
+      timeCopy = timeCopy + ( timeEnd - timeSta );
+     
+      GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
           x.Data(), heightLocal, cx.Data(), sbSize,
           1.0, tmp.Data(), heightLocal );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
+      
+      GetTime( timeSta );
       lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, x.Data(), heightLocal );
+      GetTime( timeEnd );
+      iterCopy = iterCopy + 1;
+      timeCopy = timeCopy + ( timeEnd - timeSta );
 
       // ax <- ax*cx + ap
+      GetTime( timeSta );
       lapack::Lacpy( 'A', heightLocal, sbSize, ap.Data(), heightLocal, tmp.Data(), heightLocal );
+      GetTime( timeEnd );
+      iterCopy = iterCopy + 1;
+      timeCopy = timeCopy + ( timeEnd - timeSta );
+      
+      GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
           ax.Data(), heightLocal, cx.Data(), sbSize,
           1.0, tmp.Data(), heightLocal );
+      GetTime( timeEnd );
+      iterGemmN = iterGemmN + 1;
+      timeGemmN = timeGemmN + ( timeEnd - timeSta );
+
+      GetTime( timeSta );
       lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ax.Data(), heightLocal );
+      GetTime( timeEnd );
+      iterCopy = iterCopy + 1;
+      timeCopy = timeCopy + ( timeEnd - timeSta );
 
     }
-    GetTime( timeEnd );
-    iterSweepT = iterSweepT + 1;
-    timeSweepT = timeSweepT + ( timeEnd - timeSta );
 
     // CholeskyQR of the updated block X
     GetTime( timeSta );
@@ -6302,7 +6490,11 @@ EigenSolver::PPCGSolveReal    (
       iterMpirank0 = iterMpirank0 + 1;
       timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
     }
+    GetTime( timeSta );
     MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
+    GetTime( timeEnd );
+    iterBcast = iterBcast + 1;
+    timeBcast = timeBcast + ( timeEnd - timeSta );
 
     // X <- X * U^{-1} is orthogonal
     GetTime( timeSta );
@@ -6415,8 +6607,12 @@ EigenSolver::PPCGSolveReal    (
   iterSyevd = iterSyevd + 1;
   timeSyevd = timeSyevd + ( timeEnd1 - timeSta1 );
 
+  GetTime( timeSta );
   MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
   MPI_Bcast(eigValS.Data(), width, MPI_DOUBLE, 0, mpi_comm);
+  GetTime( timeEnd );
+  iterBcast = iterBcast + 2;
+  timeBcast = timeBcast + ( timeEnd - timeSta );
 
   GetTime( timeSta );
   // X <- X*C
@@ -6426,8 +6622,12 @@ EigenSolver::PPCGSolveReal    (
   iterGemmN = iterGemmN + 1;
   timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
+  GetTime( timeSta );
   lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
       X.Data(), heightLocal );
+  GetTime( timeEnd );
+  iterCopy = iterCopy + 1;
+  timeCopy = timeCopy + ( timeEnd - timeSta );
 
 
   GetTime( timeSta );
@@ -6438,23 +6638,39 @@ EigenSolver::PPCGSolveReal    (
   iterGemmN = iterGemmN + 1;
   timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
+  GetTime( timeSta );
   lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
       AX.Data(), heightLocal );
+  GetTime( timeEnd );
+  iterCopy = iterCopy + 1;
+  timeCopy = timeCopy + ( timeEnd - timeSta );
 
   // Compute norms of individual eigenpairs 
   DblNumVec  resNormLocal ( width ); 
   DblNumVec  resNorm( width );
 
+  GetTime( timeSta );
   for(Int j=0; j < width; j++){
     for(Int i=0; i < heightLocal; i++){
       Xtemp(i,j) = AX(i,j) - X(i,j)*eigValS(j);  
     }
   } 
+  GetTime( timeEnd );
+  iterOther = iterOther + 1;
+  timeOther = timeOther + ( timeEnd - timeSta );
+      
+  statusOFS << "Time for Xtemp in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
 
   SetValue( resNormLocal, 0.0 );
+  GetTime( timeSta );
   for( Int k = 0; k < width; k++ ){
     resNormLocal(k) = Energy(DblNumVec(heightLocal, false, Xtemp.VecData(k)));
   }
+  GetTime( timeEnd );
+  iterOther = iterOther + 1;
+  timeOther = timeOther + ( timeEnd - timeSta );
+  
+  statusOFS << "Time for resNorm in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
 
   SetValue( resNorm, 0.0 );
   MPI_Allreduce( resNormLocal.Data(), resNorm.Data(), width, MPI_DOUBLE, 
@@ -6469,10 +6685,20 @@ EigenSolver::PPCGSolveReal    (
     GetTime( timeEnd );
     timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
   }
+  GetTime( timeSta );
   MPI_Bcast(resNorm.Data(), width, MPI_DOUBLE, 0, mpi_comm);
+  GetTime( timeEnd );
+  iterBcast = iterBcast + 1;
+  timeBcast = timeBcast + ( timeEnd - timeSta );
 
+  GetTime( timeSta );
   resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
   resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
+  GetTime( timeEnd );
+  iterOther = iterOther + 2;
+  timeOther = timeOther + ( timeEnd - timeSta );
+  
+  statusOFS << "Time for resMax and resMin in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
 
 #if ( _DEBUGlevel_ >= 1 )
   statusOFS << "resNorm = " << resNorm << std::endl;
@@ -6525,14 +6751,20 @@ EigenSolver::PPCGSolveReal    (
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
+  GetTime( timeSta );
   lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
       psiPtr_->Wavefun().Data(), height );
+  GetTime( timeEnd );
+  iterCopy = iterCopy + 1;
+  timeCopy = timeCopy + ( timeEnd - timeSta );
 
   // REPORT ACTUAL EIGENRESIDUAL NORMS?
   statusOFS << std::endl << "After " << iter 
     << " PPCG iterations the min res norm is " 
     << resMin << ". The max res norm is " << resMax << std::endl << std::endl;
 
+  GetTime( timeEnd2 );
+  
   //        statusOFS << std::endl << "After " << iter 
   //            << " iterations, PPCG has converged."  << std::endl
   //            << "The maximum norm of the residual is " 
@@ -6550,16 +6782,22 @@ EigenSolver::PPCGSolveReal    (
   //    }
 
 #if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for iterGemmT     = " << iterGemmT           << "  timeGemmT     = " << timeGemmT << std::endl;
-    statusOFS << "Time for iterGemmN     = " << iterGemmN           << "  timeGemmN     = " << timeGemmN << std::endl;
-    statusOFS << "Time for iterAllreduce = " << iterAllreduce       << "  timeAllreduce = " << timeAllreduce << std::endl;
-    statusOFS << "Time for iterAlltoallv = " << iterAlltoallv       << "  timeAlltoallv = " << timeAlltoallv << std::endl;
-    statusOFS << "Time for iterSpinor    = " << iterSpinor          << "  timeSpinor    = " << timeSpinor << std::endl;
-    statusOFS << "Time for iterTrsm      = " << iterTrsm            << "  timeTrsm      = " << timeTrsm << std::endl;
-    statusOFS << "Time for iterPotrf     = " << iterPotrf           << "  timePotrf     = " << timePotrf << std::endl;
-    statusOFS << "Time for iterSyevd     = " << iterSyevd           << "  timeSyevd     = " << timeSyevd << std::endl;
-    statusOFS << "Time for iterMpirank0  = " << iterMpirank0        << "  timeMpirank0  = " << timeMpirank0 << std::endl;
-    statusOFS << "Time for iterSweepT    = " << iterSweepT          << "  timeSweepT    = " << timeSweepT << std::endl;
+    statusOFS << "Time for iterGemmT        = " << iterGemmT           << "  timeGemmT        = " << timeGemmT << std::endl;
+    statusOFS << "Time for iterGemmN        = " << iterGemmN           << "  timeGemmN        = " << timeGemmN << std::endl;
+    statusOFS << "Time for iterBcast        = " << iterBcast           << "  timeBcast        = " << timeBcast << std::endl;
+    statusOFS << "Time for iterAllreduce    = " << iterAllreduce       << "  timeAllreduce    = " << timeAllreduce << std::endl;
+    statusOFS << "Time for iterAlltoallv    = " << iterAlltoallv       << "  timeAlltoallv    = " << timeAlltoallv << std::endl;
+    statusOFS << "Time for iterAlltoallvMap = " << iterAlltoallvMap    << "  timeAlltoallvMap = " << timeAlltoallvMap << std::endl;
+    statusOFS << "Time for iterSpinor       = " << iterSpinor          << "  timeSpinor       = " << timeSpinor << std::endl;
+    statusOFS << "Time for iterTrsm         = " << iterTrsm            << "  timeTrsm         = " << timeTrsm << std::endl;
+    statusOFS << "Time for iterPotrf        = " << iterPotrf           << "  timePotrf        = " << timePotrf << std::endl;
+    statusOFS << "Time for iterSyevd        = " << iterSyevd           << "  timeSyevd        = " << timeSyevd << std::endl;
+    statusOFS << "Time for iterSygvd        = " << iterSygvd           << "  timeSygvd        = " << timeSygvd << std::endl;
+    statusOFS << "Time for iterMpirank0     = " << iterMpirank0        << "  timeMpirank0     = " << timeMpirank0 << std::endl;
+    statusOFS << "Time for iterSweepT       = " << iterSweepT          << "  timeSweepT       = " << timeSweepT << std::endl;
+    statusOFS << "Time for iterCopy         = " << iterCopy            << "  timeCopy         = " << timeCopy << std::endl;
+    statusOFS << "Time for iterOther        = " << iterOther           << "  timeOther        = " << timeOther << std::endl;
+    statusOFS << "Time for PPCG in PWDFT is " <<  timeEnd2 - timeSta2  << std::endl << std::endl;
 #endif
 
     return ;
