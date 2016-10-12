@@ -66,23 +66,54 @@ fprintf(fh, 'end Atom_Coord\n\n', 1);
 
 fclose(fh);
 
-fprintf('\n Done. input file generated in atompos.\n');
+fprintf('\n Done. Generated atompos file.\n');
 
 if(1)
-  disp('Reduced coordinate')
+  disp('Reduced coordinates')
   rdcmat = xyzmat ./ repmat([C(1,1), C(2,2), C(3,3)], ...
     size(xyzmat,1), 1);
   if( nargin <= 6 ) 
     filename = 'rdc';
   else
     filename = sprintf( 'rdc_%s', suffix );
-  end
+  end 
   save(filename,'-ascii','rdcmat');
 end
 
+if(1)
+   
+  disp('PWDFT/DGDFT input file');
+  
+  rdcmat = xyzmat ./ repmat([C(1,1), C(2,2), C(3,3)], ...
+    size(xyzmat,1), 1);
+
+  if( nargin <= 6 ) 
+    filename = 'pwdft_dgdft';
+  else
+    filename = sprintf( 'dgdft_pwdft_%s', suffix );
+  end
+  
+ fh = fopen(filename,'w'); 
+  
+ fprintf(fh, 'begin Super_Cell\n', 1);
+ fprintf(fh, '%12.6f     %12.6f    %12.6f\n', C(1,1), C(2,2), C(3,3));
+ fprintf(fh, 'end Super_Cell\n\n', 1);
+
+ fprintf(fh, 'Atom_Types_Num:   %6d\n\n', 1);
+ fprintf(fh, 'Atom_Type:        %6s\n\n', atype);
+
+ fprintf(fh, 'begin Atom_Coord\n', 1);
+ fprintf(fh, '%12.6f     %12.6f    %12.6f\n', rdcmat');
+ fprintf(fh, 'end Atom_Coord\n\n', 1);
+
+ fclose(fh);
+  
+end
+
+
 
 if(1)
-  disp('Lattice coordinate')
+  disp('Lattice coordinates')
   latmat = rdcmat .* repmat([nreps(1), nreps(2), nreps(3)], ...
     size(xyzmat,1), 1);
   if( nargin <= 6 ) 
@@ -106,3 +137,6 @@ if(1)
   end
   save(filename,'-ascii','Cang', 'angmat');
 end
+
+
+
