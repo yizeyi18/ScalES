@@ -1572,6 +1572,7 @@ HamiltonianDG::CalculateDensity    (
 #endif
 
                 IntNumVec heightBlocksizeIdx( mpisizeRow );
+                SetValue( heightBlocksizeIdx, 0 );
                 for( Int i = 0; i < mpisizeRow; i++ ){
                   if((height % mpisizeRow) == 0){
                     heightBlocksizeIdx(i) = heightBlocksize  * i;
@@ -1590,6 +1591,7 @@ HamiltonianDG::CalculateDensity    (
                 SetValue( localRhoLGLTemp1, 0.0 );
                 for( Int p = 0; p < numGridLocal; p++ ){
                   localRhoLGLTemp1( p + heightBlocksizeIdx(mpirankRow) ) = localRhoLGLRow(p);
+                  //localRhoLGLTemp1( p + heightBlocksize * mpirankRow ) = localRhoLGLRow(p);
                 }
 
                 SetValue( localRhoLGLTmp, 0.0 );
@@ -1785,6 +1787,7 @@ HamiltonianDG::CalculateDensity    (
 #endif
 
                 IntNumVec heightBlocksizeIdx( mpisizeRow );
+                SetValue( heightBlocksizeIdx, 0 );
                 for( Int i = 0; i < mpisizeRow; i++ ){
                   if((height % mpisizeRow) == 0){
                     heightBlocksizeIdx(i) = heightBlocksize  * i;
@@ -1803,6 +1806,7 @@ HamiltonianDG::CalculateDensity    (
                 SetValue( localRhoLGLTemp1, 0.0 );
                 for( Int p = 0; p < numGridLocal; p++ ){
                   localRhoLGLTemp1( p + heightBlocksizeIdx(mpirankRow) ) = localRhoLGLRow(p);
+                  //localRhoLGLTemp1( p + heightBlocksize * mpirankRow ) = localRhoLGLRow(p);
                 }
 
                 SetValue( localRhoLGLTmp, 0.0 );
@@ -2053,6 +2057,7 @@ HamiltonianDG::CalculateDensity    (
 #endif
 
               IntNumVec heightBlocksizeIdx( mpisizeRow );
+              SetValue( heightBlocksizeIdx, 0 );
               for( Int i = 0; i < mpisizeRow; i++ ){
                 if((height % mpisizeRow) == 0){
                   heightBlocksizeIdx(i) = heightBlocksize  * i;
@@ -2071,6 +2076,7 @@ HamiltonianDG::CalculateDensity    (
               SetValue( localRhoTemp1, 0.0 );
               for( Int p = 0; p < numGridLocal; p++ ){
                 localRhoTemp1( p + heightBlocksizeIdx(mpirankRow) ) = localRhoRow(p);
+                //localRhoTemp1( p + heightBlocksize * mpirankRow ) = localRhoRow(p);
               }
 
 
@@ -2493,6 +2499,7 @@ HamiltonianDG::CalculateDensityDM2    (
               Real factor;
               
               IntNumVec heightBlocksizeIdx( mpisizeRow );
+              SetValue( heightBlocksizeIdx, 0 );
               for( Int i = 0; i < mpisizeRow; i++ ){
                 if((height % mpisizeRow) == 0){
                   heightBlocksizeIdx(i) = heightBlocksize  * i;
@@ -2513,6 +2520,7 @@ HamiltonianDG::CalculateDensityDM2    (
                   factor = localDM(a,b);
                   if( b > a ) factor *= 2.0;
                   Int idxSta = heightBlocksizeIdx(mpirankRow);
+                  //Int idxSta = mpirankRow * heightBlocksize;
                   for( Int p = 0; p < heightLocal; p++ ){
                     localRhoLGLTmp(idxSta + p) += 
                       localBasisRow(p,a) * localBasisRow(p,b) * factor; 

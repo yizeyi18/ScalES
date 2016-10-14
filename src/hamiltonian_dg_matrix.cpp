@@ -925,7 +925,7 @@ void
                       widthLocal = widthBlocksize + 1;
                     }
 
-                    if(mpirankRow == (height % mpisizeRow)){
+                    if(mpirankRow < (height % mpisizeRow)){
                       heightLocal = heightBlocksize + 1;
                     }
 
@@ -1048,7 +1048,7 @@ void
                       widthLocal = widthBlocksize + 1;
                     }
 
-                    if(mpirankRow == (height % mpisizeRow)){
+                    if(mpirankRow < (height % mpisizeRow)){
                       heightLocal = heightBlocksize + 1;
                     }
 
@@ -1196,7 +1196,7 @@ void
                       widthLocal = widthBlocksize + 1;
                     }
 
-                    if(mpirankRow == (height % mpisizeRow)){
+                    if(mpirankRow < (height % mpisizeRow)){
                       heightLocal = heightBlocksize + 1;
                     }
 
@@ -1397,7 +1397,7 @@ void
                       widthLocal = widthBlocksize + 1;
                     }
 
-                    if(mpirankRow == (height % mpisizeRow)){
+                    if(mpirankRow < (height % mpisizeRow)){
                       heightLocal = heightBlocksize + 1;
                     }
 
@@ -1598,7 +1598,7 @@ void
                       widthLocal = widthBlocksize + 1;
                     }
 
-                    if(mpirankRow == (height % mpisizeRow)){
+                    if(mpirankRow < (height % mpisizeRow)){
                       heightLocal = heightBlocksize + 1;
                     }
 
@@ -1997,7 +1997,7 @@ void
                     widthRLocal = widthRBlocksize + 1;
                   }
 
-                  if(mpirankRow == (height % mpisizeRow)){
+                  if(mpirankRow < (height % mpisizeRow)){
                     heightLocal = heightBlocksize + 1;
                   }
 
@@ -2215,7 +2215,7 @@ void
                     widthRLocal = widthRBlocksize + 1;
                   }
 
-                  if(mpirankRow == (height % mpisizeRow)){
+                  if(mpirankRow < (height % mpisizeRow)){
                     heightLocal = heightBlocksize + 1;
                   }
 
@@ -2431,7 +2431,7 @@ void
                     widthRLocal = widthRBlocksize + 1;
                   }
 
-                  if(mpirankRow == (height % mpisizeRow)){
+                  if(mpirankRow < (height % mpisizeRow)){
                     heightLocal = heightBlocksize + 1;
                   }
 
@@ -2740,7 +2740,7 @@ void
                     widthLocal = widthBlocksize + 1;
                   }
 
-                  if(mpirankRow == (height % mpisizeRow)){
+                  if(mpirankRow < (height % mpisizeRow)){
                     heightLocal = heightBlocksize + 1;
                   }
 
