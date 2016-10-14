@@ -176,6 +176,14 @@ SCFDG::Setup    (
     PWDFT_Cheby_apply_wfn_ecut_filt_ =  esdfParam.PWDFT_Cheby_apply_wfn_ecut_filt;
 
 
+    // Using PPCG for PWDFT on extended element
+     if(PWSolver_ == "PPCG")
+      Diag_SCF_PWDFT_by_PPCG_ = 1;
+    else
+      Diag_SCF_PWDFT_by_PPCG_ = 0;
+
+    
+    
     Tbeta_            = esdfParam.Tbeta;
     scaBlockSize_     = esdfParam.scaBlockSize;
     numElem_          = esdfParam.numElem;
@@ -225,13 +233,24 @@ SCFDG::Setup    (
   {
     SCFDG_use_comp_subspace_ = esdfParam.scfdg_use_chefsi_complementary_subspace;  // Default: 0
 
-    // Needs checking against CheFSI ScaLAPACK option
     SCFDG_comp_subspace_parallel_ = esdfParam.scfdg_chefsi_complementary_subspace_parallel; 
+    
+    // Checking against CheFSI ScaLAPACK option
+    if(SCFDG_Cheby_use_ScaLAPACK_ == 0)
+      SCFDG_comp_subspace_parallel_ = 0;  // i.e., the parallel solver is NOT called if CheFSI subspace is not parallel
 
     SCFDG_comp_subspace_nstates_ = esdfParam.scfdg_complementary_subspace_nstates; // Defaults to a fraction of extra states
+    
+    // LOBPCG for top states option
     SCFDG_comp_subspace_LOBPCG_iter_ = esdfParam.scfdg_complementary_subspace_lobpcg_iter; // Default = 15
     SCFDG_comp_subspace_LOBPCG_tol_ = esdfParam.scfdg_complementary_subspace_lobpcg_tol; // Default = 1e-8
+    
+    // CheFSI for top states option
+    Hmat_top_states_use_Cheby_ = esdfParam.Hmat_top_states_use_Cheby;
+    Hmat_top_states_ChebyFilterOrder_ = esdfParam.Hmat_top_states_ChebyFilterOrder; 
+    Hmat_top_states_ChebyCycleNum_ = esdfParam.Hmat_top_states_ChebyCycleNum; 
 
+ 
     SCFDG_comp_subspace_N_solve_ = hamDG.NumExtraState() + SCFDG_comp_subspace_nstates_;     
     SCFDG_comp_subspace_engaged_ = false;
   }
@@ -1238,7 +1257,22 @@ SCFDG::Iterate    (  )
                   }
                   statusOFS << std::endl;
                 }
-              }                
+              }
+              else if(Diag_SCF_PWDFT_by_PPCG_ == 1)
+	      {
+		// Use LOBPCG on very first step, i.e., while starting from random guess
+		if(iter <= 1)
+		{
+		  statusOFS << " >>>> Calling LOBPCG for ALB generation on extended element ..." << std::endl;
+                  eigSol.LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+		}
+		else
+		{
+		  statusOFS << " >>>> Calling PPCG with previous ALBs for generation of new ALBs ..." << std::endl;
+		  eigSol.PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );
+		}
+		
+	      }             
               else 
               {
                 Int eigDynMaxIter = eigMaxIter_;
@@ -4644,19 +4678,40 @@ SCFDG::Iterate    (  )
     SetValue( temp_eig_vals_Xmat, 0.0 );
 
 
-    GetTime(extra_timeSta);
+    if(Hmat_top_states_use_Cheby_ == 0)
+    {  
+    
+     // Use serial LOBPCG to get the top states  
+     GetTime(extra_timeSta);
+
+   
+     LOBPCG_Hmat_top_serial(temp_Hmat,
+         temp_Xmat,
+         temp_eig_vals_Xmat,
+         SCFDG_comp_subspace_LOBPCG_iter_, SCFDG_comp_subspace_LOBPCG_tol_); // The tolerance should be dynamic probably
 
 
-    LOBPCG_Hmat_top_serial(temp_Hmat,
-        temp_Xmat,
-        temp_eig_vals_Xmat,
-        SCFDG_comp_subspace_LOBPCG_iter_, SCFDG_comp_subspace_LOBPCG_tol_); // The tolerance should be dynamic probably
+     GetTime(extra_timeEnd);
+
+     statusOFS << std::endl << " Serial LOBPCG completed on " <<  SCFDG_comp_subspace_N_solve_ 
+               << " top states ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
+      
+    }
+    else
+    {
+     
+     GetTime(extra_timeSta);
+
+               
+      
 
 
-    GetTime(extra_timeEnd);
+     GetTime(extra_timeEnd);
 
-    statusOFS << std::endl << " Serial LOBPCG completed on " <<  SCFDG_comp_subspace_N_solve_ 
-      << " top states ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
+     statusOFS << std::endl << " Serial CheFSI completed on " <<  SCFDG_comp_subspace_N_solve_ 
+               << " top states ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
+      
+    }
 
     // Broadcast the results from proc 0 to ensure all procs are using the same eigenstates
     MPI_Bcast(temp_Xmat.Data(), SCFDG_comp_subspace_N_solve_ * width, MPI_DOUBLE, 0, domain_.comm); // Eigenvectors

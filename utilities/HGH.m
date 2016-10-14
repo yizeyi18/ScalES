@@ -17,7 +17,8 @@
 % Znucs = [8 70];
 % Znucs = [1 8 22];
 % Znucs = [5 6 7];
-Znucs = [1];
+% Znucs = [1];
+Znucs = [29];
 res = cell(length(Znucs),2);
 
 for g=1:length(Znucs)
@@ -310,6 +311,34 @@ for g=1:length(Znucs)
 		rhocut = 3.5;
 		wavcut = 3.5;
 	end
+
+
+       % Copper (With semicore) 
+       if(Znuc==29)
+                Zion = 11;
+                mass = 63.546;
+                rloc = 0.530000;
+
+                r0   = 0.423734;
+                h011 = 3.888050;
+                h022 = 3.276584;
+                h033 = 2.290091;
+
+                r1   =  0.572177;
+                h111 =  1.751272;
+                h122 =  0.374943;
+                k111 = -0.024067;
+                k122 =  0.076481;
+ 
+                r2   =  0.266143;
+                h211 = -12.676957;
+                k211 =  0.010489;
+
+                rhocut = 3.5;
+                wavcut = 3.5;
+
+
+        end
 
 
 	% Ga

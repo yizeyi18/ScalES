@@ -829,8 +829,15 @@ struct ESDFInputParam{
   bool scfdg_use_chefsi_complementary_subspace;
   bool scfdg_chefsi_complementary_subspace_parallel;
   Int scfdg_complementary_subspace_nstates;
+  
+  // LOBPCG (for top states) related options
   Real scfdg_complementary_subspace_lobpcg_tol;
   Int scfdg_complementary_subspace_lobpcg_iter;
+  
+  // CheFSI (for top states) related options 
+  bool Hmat_top_states_use_Cheby;
+  Int  Hmat_top_states_ChebyFilterOrder; 
+  Int  Hmat_top_states_ChebyCycleNum; 
 
   // Inputs related to Chebyshev Filtered SCF iterations for PWDFT
   Int First_SCF_PWDFT_ChebyFilterOrder; // Default 40

@@ -136,6 +136,10 @@ private:
   bool PWDFT_Cheby_use_scala_;
   bool PWDFT_Cheby_apply_wfn_ecut_filt_;
 
+  // PPCG for PWDFT on extended element
+  bool Diag_SCF_PWDFT_by_PPCG_;
+
+  
   // PEXSI parameters
 #ifdef _USE_PEXSI_
   PPEXSIPlan          pexsiPlan_;
@@ -175,21 +179,29 @@ private:
   bool SCFDG_use_comp_subspace_;
   bool SCFDG_comp_subspace_parallel_;
   Int SCFDG_comp_subspace_nstates_;
+  
+  // LOBPCG (for top states) related options
   Int SCFDG_comp_subspace_LOBPCG_iter_;
   Real SCFDG_comp_subspace_LOBPCG_tol_;
 
+  // CheFSI (for top states) related options
+  bool Hmat_top_states_use_Cheby_;
+  Int  Hmat_top_states_ChebyFilterOrder_; 
+  Int  Hmat_top_states_ChebyCycleNum_; 
+
+  // Internal variables   
   Int SCFDG_comp_subspace_N_solve_;
   bool SCFDG_comp_subspace_engaged_;
 
 
-  double SCFDG_comp_subspace_saved_a_L_;
-  double SCFDG_comp_subspace_trace_Hmat_;
+  double SCFDG_comp_subspace_saved_a_L_; // This is for scaling the top level Chebyshev Filter
+  double SCFDG_comp_subspace_trace_Hmat_; 
 
   DblNumVec SCFDG_comp_subspace_top_eigvals_;
   DblNumVec SCFDG_comp_subspace_top_occupations_;
 
-  DblNumMat SCFDG_comp_subspace_start_guess_;
-  DblNumMat SCFDG_comp_subspace_matC_;
+  DblNumMat SCFDG_comp_subspace_start_guess_; // Used in the serial implementation 
+  DblNumMat SCFDG_comp_subspace_matC_; 
 
   /// @brief The total number of processors used by PEXSI.
   /// 
