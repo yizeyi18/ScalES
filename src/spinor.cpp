@@ -1073,7 +1073,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
 
 
-  if(1){ //For MPI huwei
+  if(1){ //For MPI
 
     // *********************************************************************
     // Perform interpolative separable density fitting
@@ -1365,14 +1365,24 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       for( Int mu = 0; mu < numMu_; mu++ ){
         Int muInd = pivMu(mu);
         // TODO Hard coded here with the row partition strategy
-        if( mpirank < mpisize - 1 ){
+        if( (ntot % mpisize) == 0 ){
           if( muInd <  mpirank * ntotBlocksize ||
-              muInd >= (mpirank+1) * ntotBlocksize )
+              muInd >= (mpirank + 1) * ntotBlocksize )
             continue;
-        }
-        else{
-          if( muInd < mpirank * ntotBlocksize )
-            continue;
+        } 
+        else{ 
+          if(mpirank < (ntot % mpisize)){
+            if( muInd <  mpirank * (ntotBlocksize + 1) ||
+                muInd >= (mpirank + 1) * (ntotBlocksize + 1) )
+              continue;
+          }
+          else{
+            if( muInd < ((ntot % mpisize) * (ntotBlocksize + 1) 
+                  + (mpirank - (ntot % mpisize)) * ntotBlocksize) ||
+                muInd >= ((ntot % mpisize) * (ntotBlocksize + 1) 
+                  + (mpirank + 1 - (ntot % mpisize)) * ntotBlocksize) )
+              continue;
+          }
         }
         // Local muInd
         //Int muIndRow = muInd - mpirank * ntotBlocksize;
@@ -1385,7 +1395,8 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
             muIndRow = muInd - mpirank * (ntotBlocksize + 1);
           }
           else{
-            muIndRow = muInd - (ntot % mpisize) * (ntotBlocksize + 1) - (mpirank - (ntot % mpisize)) * ntotBlocksize;
+            muIndRow = muInd - (ntot % mpisize) * (ntotBlocksize + 1) 
+              - (mpirank - (ntot % mpisize)) * ntotBlocksize;
           }
         }
 
@@ -1418,15 +1429,26 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       
         Int muInd = pivMu(mu);
         // TODO Hard coded here with the row partition strategy
-        if( mpirank < mpisize - 1 ){
+        if( (ntot % mpisize) == 0 ){
           if( muInd <  mpirank * ntotBlocksize ||
-              muInd >= (mpirank+1) * ntotBlocksize )
+              muInd >= (mpirank + 1) * ntotBlocksize )
             continue;
+        } 
+        else{ 
+          if(mpirank < (ntot % mpisize)){
+            if( muInd <  mpirank * (ntotBlocksize + 1) ||
+                muInd >= (mpirank + 1) * (ntotBlocksize + 1) )
+              continue;
+          }
+          else{
+            if( muInd < ((ntot % mpisize) * (ntotBlocksize + 1) 
+                  + (mpirank - (ntot % mpisize)) * ntotBlocksize) ||
+                muInd >= ((ntot % mpisize) * (ntotBlocksize + 1) 
+                  + (mpirank + 1 - (ntot % mpisize)) * ntotBlocksize) )
+              continue;
+          }
         }
-        else{
-          if( muInd < mpirank * ntotBlocksize )
-            continue;
-        }
+        // Local muInd
         // Local muInd
         //Int muIndRow = muInd - mpirank * ntotBlocksize;
         Int muIndRow;
@@ -1438,7 +1460,8 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
             muIndRow = muInd - mpirank * (ntotBlocksize + 1);
           }
           else{
-            muIndRow = muInd - (ntot % mpisize) * (ntotBlocksize + 1) - (mpirank - (ntot % mpisize)) * ntotBlocksize;
+            muIndRow = muInd - (ntot % mpisize) * (ntotBlocksize + 1) 
+              - (mpirank - (ntot % mpisize)) * ntotBlocksize;
           }
         }
        
