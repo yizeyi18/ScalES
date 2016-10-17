@@ -696,6 +696,77 @@ void QRCPF( Int m, Int n, double* A, Int* desca, Int* piv, double* tau)
 }
 
 
+void QRCPR( Int m, Int n, Int k, double* A, Int* desca, Int* piv, double* tau, Int nb_dist, Int nb_alg ) 
+{
+
+  int nprow, npcol, myrow, mycol;
+  int ictxt = desca[1]; // context
+
+	Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol ); 
+
+  if( m==0 || n==0 )
+  {
+    return;
+  }
+
+  int I_ONE = 1, I_ZERO = 0;
+
+  // Assume that Omega matrix is only stored on the first matrix
+  int m_omega = nb_dist + 10;
+  int mp_omega = SCALAPACK(numroc)( &m_omega, &m_omega, &myrow, &I_ZERO, &nprow );
+  int mq       = SCALAPACK(numroc)( &m, &m, &mycol, &I_ZERO, &npcol );
+  int nq = desca[5]; // NB
+
+  std::vector<double> OMEGA( mp_omega * mq );
+  int ii = 0;
+  for (int i = 0; i < mp_omega; i++) {
+    for (int j = 0; j < mq; j++) {
+      OMEGA[ii] = drand48() - 0.5 ;
+      ii++;	
+    }
+  }
+  std::vector<double> B( mp_omega * nq );
+
+  int descb[9], desc_OMEGA[9];
+
+  // Estimate lwork
+  Int lwork=-1, info;
+  double dummyWork;
+  // Is this necessary?
+  SCALAPACK(partial_pdgeqrf)( &m, &n, &k, A, &I_ONE, &I_ONE, 
+      desca, tau, &dummyWork, &lwork, &info );
+  lwork = (int) dummyWork;
+  std::vector<double> work(lwork);
+
+  int itemp;
+  itemp = std::max( 1, mp_omega ); 
+  SCALAPACK(descinit)( descb, &m_omega, &n, &m_omega, &nq, &I_ZERO, 
+      &I_ZERO, &ictxt, &itemp, &info );
+  itemp = std::max( 1, mp_omega ); 
+  SCALAPACK(descinit)( desc_OMEGA, &m_omega, &m, &m_omega, &m, &I_ZERO, 
+      &I_ZERO, &ictxt, &itemp, &info );
+
+  std::vector<int> pivB(n);
+  std::vector<double> tauB(n);
+  SCALAPACK(rqrcp)( &m, &n, &k, A, desca, &m_omega, &n, &B[0], descb, 
+      &OMEGA[0], desc_OMEGA, piv, tau, &nb_alg, &pivB[0], &tauB[0], 
+      &work[0], &lwork );
+
+
+  // Important: fortran index is 1-based. Change to 0-based
+  for( Int i = 0; i < n; i++ ){
+    piv[i]--;
+  }
+
+  if( info < 0 )
+  {
+    std::ostringstream msg;
+    msg << "Argument " << -info << " had illegal value";
+    ErrorHandling( msg.str().c_str() );
+  }
+
+  return;
+}
 
 } // namespace scalapack
 } // namespace dgdft

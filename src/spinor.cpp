@@ -1247,8 +1247,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //        SetValue( diagRLocal, 0.0 );
 //        SetValue( diagR, 0.0 );
 
-        scalapack::QRCPF( mb_MG, ntot, MG.Data(), &desc_MG[0], 
-            pivQRTmp.Data(), tau.Data() );
+//        scalapack::QRCPF( mb_MG, ntot, MG.Data(), &desc_MG[0], 
+//            pivQRTmp.Data(), tau.Data() );
+
+        scalapack::QRCPR( mb_MG, ntot, numMu_, MG.Data(), &desc_MG[0], 
+            pivQRTmp.Data(), tau.Data(), 80, 40 );
 
         // Combine the local pivQRTmp to global pivQR_
         if( (ntot % mpisize) == 0 ){

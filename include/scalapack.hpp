@@ -79,9 +79,12 @@ void Cblacs_gridinfo(const Int contxt,  Int* nprow, Int* npcol,
 
 void Cblacs_gridexit    (    int contxt );    
 
+
 // *********************************************************************
 // ScaLAPACK routines
 // *********************************************************************
+
+int SCALAPACK(numroc)(int *n, int *nb, int *iproc, int *isrcproc, int *nprocs);
 
 void SCALAPACK(descinit)(Int* desc, const Int* m, const Int * n, const Int* mb,
     const Int* nb, const Int* irsrc, const Int* icsrc,
@@ -151,10 +154,20 @@ void SCALAPACK(pzgetri)( const Int* n, dcomplex* A, const Int* ia,
     Int* info );
 
 //QRCP 
-void SCALAPACK(pdgeqpf)( Int* m, Int* n, double* A,
-    Int* ia, Int* ja, Int* desca, Int* ipiv, 
-    double* itau, double* work, Int* lwork,
+void SCALAPACK(pdgeqpf)( Int* m, Int* n, double* A, Int* ia, Int* ja,
+    Int* desca, Int* ipiv, double* itau, double* work, Int* lwork, 
     Int* info ); 
+
+// RQRCP by Jianwei Xiao, Julien Langou and Ming Gu
+Int SCALAPACK(rqrcp)( Int *m, Int *n, Int *k, double *A, Int *descA, 
+    Int *m_B, Int *n_B, double *B, Int *descB, double *OMEGA, 
+    Int *desc_OMEGA, Int *ipiv, double *tau, Int *nb,
+    Int *ipiv_a, double *tau_b, double *work, Int *lwork );
+
+// Auxiliary routine used by RQRCP
+void SCALAPACK(partial_pdgeqrf) ( int *m, int *n, int *k, double *a, int
+    *ia, int *ja, int *descA, double *tau, double *work, int *lwork, int
+    *info);
 
 
 } //extern "C"
@@ -488,7 +501,16 @@ Sygst( Int ibtype, char uplo, ScaLAPACKMatrix<double>& A,
 
 
 /// @brief QRCP3 ScaLAPACK's verison of xGEQPF
-void QRCPF( Int m, Int n, double* A, Int* desca, Int* piv, double* tau); 
+void QRCPF( Int m, Int n, double* A, Int* desca, Int* piv, double* tau ); 
+
+/// @brief RQRCP by Jianwei Xiao, Julien Langou and Ming Gu.
+/// NOTE: The implementation below hard coded several default parameters
+/// and may not be the most efficient.
+/// Currently assumes that the matrix is only partitioned by column, and
+/// the randomized matrix Omega is shared among all processors
+void QRCPR( Int m, Int n, Int k, double* A, Int* desca, Int* piv,
+    double* tau, Int nb_dist, Int nb_alg );
+
 
 } // namespace scalapack
 } // namespace dgdft

@@ -7,10 +7,13 @@ SRCS = scf_dg.cpp scf.cpp eigensolver.cpp  iondynamics.cpp \
 			 hamiltonian_dg_matrix.cpp hamiltonian_dg.cpp hamiltonian.cpp \
 			 periodtable.cpp spinor.cpp fourier.cpp utility.cpp esdf.cpp \
 			 mpi_interf.cpp scalapack.cpp lapack.cpp blas.cpp global.cpp 
-#SRCS = periodtable.cpp eigensolver.cpp spinor.cpp fourier.cpp \
-			 domain.cpp utility.cpp esdf.cpp lapack.cpp blas.cpp global.cpp
-OBJS = ${SRCS:.cpp=.o}
-DEPS = ${SRCS:.cpp=.d}
+SRCF90 = rqrcp.f90 check_qpf.f90  check_qrf.f90  partial_pdgeqpf.f90 \
+			 partial_qr_swap.f90  
+SRCF   = partial_pdgeqp3.f  partial_pdgeqrf.f  \
+				 pdgeqp3.f  pdgeqp3s.f  pdqppiv.f
+
+OBJS = ${SRCS:.cpp=.o} ${SRCF90:.f90=.o} ${SRCF:.f=.o}
+DEPS = ${SRCS:.cpp=.d} ${SRCF90:.f90=.d} ${SRCF:.f=.d}
 
 all: libdgdft.a
 
