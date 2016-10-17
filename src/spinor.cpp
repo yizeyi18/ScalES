@@ -1149,6 +1149,17 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     AlltoallForward (psiCol, psiRow, domain_.comm);
 
     // Computing the indices is optional
+
+    Int ntotLocalMG, ntotMG;
+
+    if( (ntot % mpisize) == 0 ){
+      ntotLocalMG = ntotBlocksize;
+    }
+    else{
+      ntotLocalMG = ntotBlocksize + 1;
+    }
+
+
     if( isFixColumnDF == false ){
       GetTime( timeSta );
 
@@ -1172,14 +1183,9 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       // Step 2: Pivoted QR decomposition  for the Hadamard product of
       // the compressed matrix. Transpose format for QRCP
    
-      Int ntotLocalMG;
-     
-      if( (ntot % mpisize) == 0 ){
-        ntotLocalMG = ntotBlocksize;
-      }
-      else{
-        ntotLocalMG = ntotBlocksize + 1;
-      }
+      // NOTE: All processors should have the same ntotLocalMG
+      ntotMG = ntotLocalMG * mpisize;
+
       DblNumMat MG( numPre*numPre, ntotLocalMG );
       SetValue( MG, 0.0 );
       for( Int j = 0; j < numPre; j++ ){
@@ -1190,8 +1196,8 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         }
       }
 
-      DblNumVec tau(ntot);
-      pivQR_.Resize(ntot);
+      DblNumVec tau(ntotMG);
+      pivQR_.Resize(ntotMG);
       SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
       // Q factor does not need to be used
 
@@ -1199,7 +1205,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       GetTime( timeQRCPSta );
 
       if(0){  
-        lapack::QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
+        lapack::QRCP( numPre*numPre, ntotMG, MG.Data(), numPre*numPre, 
             pivQR_.Data(), tau.Data() );
       }//
 
@@ -1221,16 +1227,12 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         Int mb_MG = numPre*numPre;
         Int nb_MG = ntotLocalMG;
 
-        Int mb_QR = ntot;
-
-        Int ntotBlocksizeMG = ntotLocalMG;
-
         // FIXME The current routine does not actually allow ntotLocal to be different on different processors.
         // This must be fixed.
-        SCALAPACK(descinit)(&desc_MG[0], &mb_MG, &ntot, &mb_MG, &ntotBlocksizeMG, &irsrc, &icsrc, &contxt, &mb_MG, &info);
+        SCALAPACK(descinit)(&desc_MG[0], &mb_MG, &ntotMG, &mb_MG, &nb_MG, &irsrc, 
+            &icsrc, &contxt, &mb_MG, &info);
 
-
-        IntNumVec pivQRTmp(ntot), pivQRLocal(ntot);
+        IntNumVec pivQRTmp(ntotMG), pivQRLocal(ntotMG);
         if( mb_MG > ntot ){
           std::ostringstream msg;
           msg << "numPre*numPre > ntot. The number of grid points is perhaps too small!" << std::endl;
@@ -1247,29 +1249,15 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //        SetValue( diagRLocal, 0.0 );
 //        SetValue( diagR, 0.0 );
 
-//        scalapack::QRCPF( mb_MG, ntot, MG.Data(), &desc_MG[0], 
-//            pivQRTmp.Data(), tau.Data() );
+        scalapack::QRCPF( mb_MG, ntotMG, MG.Data(), &desc_MG[0], 
+            pivQRTmp.Data(), tau.Data() );
 
-        scalapack::QRCPR( mb_MG, ntot, numMu_, MG.Data(), &desc_MG[0], 
-            pivQRTmp.Data(), tau.Data(), 80, 40 );
+//        scalapack::QRCPR( mb_MG, ntotMG, numMu_, MG.Data(), &desc_MG[0], 
+//            pivQRTmp.Data(), tau.Data(), 80, 40 );
 
         // Combine the local pivQRTmp to global pivQR_
-        if( (ntot % mpisize) == 0 ){
-          for( Int j = 0; j < ntotBlocksize; j++ ){
-            pivQRLocal[j + mpirank * ntotBlocksize] = pivQRTmp[j];
-          }
-        }
-        else{
-          if(mpirank < (ntot % mpisize)){
-            for( Int j = 0; j < (ntotBlocksize + 1); j++ ){
-              pivQRLocal[j + mpirank * (ntotBlocksize + 1)] = pivQRTmp[j];
-            }
-          }
-          else{
-            for( Int j = 0; j < ntotBlocksize; j++ ){
-              pivQRLocal[j + (ntot % mpisize) * (ntotBlocksize + 1) +  (mpirank - (ntot % mpisize)) * (ntotBlocksize - 1)] = pivQRTmp[j];
-            }
-          }
+        for( Int j = 0; j < ntotLocalMG; j++ ){
+          pivQRLocal[j + mpirank * ntotLocalMG] = pivQRTmp[j];
         }
 
         //        std::cout << "diag of MG = " << std::endl;
@@ -1280,7 +1268,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         //          }
         //        }
         MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
-            ntot, MPI_INT, MPI_SUM, domain_.comm );
+            ntotMG, MPI_INT, MPI_SUM, domain_.comm );
 
         if(contxt >= 0) {
           Cblacs_gridexit( contxt );
@@ -1367,41 +1355,12 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       for( Int mu = 0; mu < numMu_; mu++ ){
         Int muInd = pivMu(mu);
-        // TODO Hard coded here with the row partition strategy
-        if( (ntot % mpisize) == 0 ){
-          if( muInd <  mpirank * ntotBlocksize ||
-              muInd >= (mpirank + 1) * ntotBlocksize )
-            continue;
-        } 
-        else{ 
-          if(mpirank < (ntot % mpisize)){
-            if( muInd <  mpirank * (ntotBlocksize + 1) ||
-                muInd >= (mpirank + 1) * (ntotBlocksize + 1) )
-              continue;
-          }
-          else{
-            if( muInd < ((ntot % mpisize) * (ntotBlocksize + 1) 
-                  + (mpirank - (ntot % mpisize)) * ntotBlocksize) ||
-                muInd >= ((ntot % mpisize) * (ntotBlocksize + 1) 
-                  + (mpirank + 1 - (ntot % mpisize)) * ntotBlocksize) )
-              continue;
-          }
-        }
-        // Local muInd
-        //Int muIndRow = muInd - mpirank * ntotBlocksize;
-        Int muIndRow;
-        if( (ntot % mpisize) == 0 ){
-          muIndRow = muInd - mpirank * ntotBlocksize;
-        }
-        else{
-          if(mpirank < (ntot % mpisize)){
-            muIndRow = muInd - mpirank * (ntotBlocksize + 1);
-          }
-          else{
-            muIndRow = muInd - (ntot % mpisize) * (ntotBlocksize + 1) 
-              - (mpirank - (ntot % mpisize)) * ntotBlocksize;
-          }
-        }
+        // NOTE Hard coded here with the row partition strategy
+        if( muInd <  mpirank * ntotLocalMG ||
+            muInd >= (mpirank + 1) * ntotLocalMG )
+          continue;
+
+        Int muIndRow = muInd - mpirank * ntotLocalMG;
 
         for (Int k=0; k<numStateTotal; k++) {
           psiMuRow(k, mu) = psiRow(muIndRow,k);
@@ -1431,42 +1390,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       for( Int mu = 0; mu < numMu_; mu++ ){
       
         Int muInd = pivMu(mu);
-        // TODO Hard coded here with the row partition strategy
-        if( (ntot % mpisize) == 0 ){
-          if( muInd <  mpirank * ntotBlocksize ||
-              muInd >= (mpirank + 1) * ntotBlocksize )
-            continue;
-        } 
-        else{ 
-          if(mpirank < (ntot % mpisize)){
-            if( muInd <  mpirank * (ntotBlocksize + 1) ||
-                muInd >= (mpirank + 1) * (ntotBlocksize + 1) )
-              continue;
-          }
-          else{
-            if( muInd < ((ntot % mpisize) * (ntotBlocksize + 1) 
-                  + (mpirank - (ntot % mpisize)) * ntotBlocksize) ||
-                muInd >= ((ntot % mpisize) * (ntotBlocksize + 1) 
-                  + (mpirank + 1 - (ntot % mpisize)) * ntotBlocksize) )
-              continue;
-          }
-        }
-        // Local muInd
-        // Local muInd
-        //Int muIndRow = muInd - mpirank * ntotBlocksize;
-        Int muIndRow;
-        if( (ntot % mpisize) == 0 ){
-          muIndRow = muInd - mpirank * ntotBlocksize;
-        }
-        else{
-          if(mpirank < (ntot % mpisize)){
-            muIndRow = muInd - mpirank * (ntotBlocksize + 1);
-          }
-          else{
-            muIndRow = muInd - (ntot % mpisize) * (ntotBlocksize + 1) 
-              - (mpirank - (ntot % mpisize)) * ntotBlocksize;
-          }
-        }
+        // NOTE Hard coded here with the row partition strategy
+        if( muInd <  mpirank * ntotLocalMG ||
+            muInd >= (mpirank + 1) * ntotLocalMG )
+          continue;
+        Int muIndRow = muInd - mpirank * ntotLocalMG;
        
         for (Int nu=0; nu < numMu_; nu++) {
           PcolMuNuRow( mu, nu ) = XiRow( muIndRow, nu );
