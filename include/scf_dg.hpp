@@ -188,6 +188,7 @@ private:
   bool Hmat_top_states_use_Cheby_;
   Int  Hmat_top_states_ChebyFilterOrder_; 
   Int  Hmat_top_states_ChebyCycleNum_; 
+  double Hmat_top_states_Cheby_delta_fudge_;
 
   // Internal variables   
   Int SCFDG_comp_subspace_N_solve_;
@@ -202,6 +203,13 @@ private:
 
   DblNumMat SCFDG_comp_subspace_start_guess_; // Used in the serial implementation 
   DblNumMat SCFDG_comp_subspace_matC_; 
+  
+  
+  double SCFDG_comp_subspace_inner_CheFSI_lower_bound_;
+  double SCFDG_comp_subspace_inner_CheFSI_upper_bound_;
+  double SCFDG_comp_subspace_inner_CheFSI_a_L_;
+  
+
 
   /// @brief The total number of processors used by PEXSI.
   /// 

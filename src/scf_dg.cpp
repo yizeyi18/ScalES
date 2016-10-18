@@ -249,7 +249,7 @@ SCFDG::Setup    (
     Hmat_top_states_use_Cheby_ = esdfParam.Hmat_top_states_use_Cheby;
     Hmat_top_states_ChebyFilterOrder_ = esdfParam.Hmat_top_states_ChebyFilterOrder; 
     Hmat_top_states_ChebyCycleNum_ = esdfParam.Hmat_top_states_ChebyCycleNum; 
-
+    Hmat_top_states_Cheby_delta_fudge_ = 0.0;
  
     SCFDG_comp_subspace_N_solve_ = hamDG.NumExtraState() + SCFDG_comp_subspace_nstates_;     
     SCFDG_comp_subspace_engaged_ = false;
@@ -4700,16 +4700,59 @@ SCFDG::Iterate    (  )
     else
     {
      
-     GetTime(extra_timeSta);
+      // XXXXXXXXXXXXXXXXXXXXXX
+      // Use CheFSI for top states here : Use -H for the matrix
+      
+      // Fix the filter bounds
+      if(SCFDG_comp_subspace_engaged_ != 1)
+      {
+	SCFDG_comp_subspace_inner_CheFSI_a_L_ = - eigval[hamDG.NumStateTotal() - 1];
+	
+	int state_ind = hamDG.NumStateTotal() - SCFDG_comp_subspace_N_solve_;	
+	SCFDG_comp_subspace_inner_CheFSI_lower_bound_ = -0.5 * (eigval[state_ind] + eigval[state_ind - 1]);
+	
+	SCFDG_comp_subspace_inner_CheFSI_upper_bound_ = find_comp_subspace_UB_serial(temp_Hmat);
 
-               
+	Hmat_top_states_Cheby_delta_fudge_ = 0.5 * (eigval[state_ind] - eigval[state_ind - 1]);
+	
+	statusOFS << std::endl << " Going into inner CheFSI routine for top states ... ";
+	statusOFS << std::endl << "   Lower bound = average of eigenvalues  " << eigval[state_ind] << " and " <<  eigval[state_ind - 1]
+	                       << std::endl << "   Lanczos upper boound = " << SCFDG_comp_subspace_inner_CheFSI_upper_bound_ ;
+	
+      }
+      else
+      {
+	SCFDG_comp_subspace_inner_CheFSI_lower_bound_ = - (SCFDG_comp_subspace_top_eigvals_[SCFDG_comp_subspace_N_solve_ - 1] - Hmat_top_states_Cheby_delta_fudge_);
+	
+        SCFDG_comp_subspace_inner_CheFSI_upper_bound_ = find_comp_subspace_UB_serial(temp_Hmat);
+	
+	statusOFS << std::endl << " Going into inner CheFSI routine for top states ... ";
+	statusOFS << std::endl << "   Lower bound eigenvalue = " << SCFDG_comp_subspace_top_eigvals_[SCFDG_comp_subspace_N_solve_ - 1] 
+	                       << std::endl << "   delta_fudge = " << Hmat_top_states_Cheby_delta_fudge_
+	                       << std::endl << "   Lanczos upper bound = " << SCFDG_comp_subspace_inner_CheFSI_upper_bound_ ;
+			       
+         
+      }
+      
+ 
+      GetTime(extra_timeSta);
+      
+      CheFSI_Hmat_top_serial(temp_Hmat,
+			     temp_Xmat,
+			     temp_eig_vals_Xmat,
+			     Hmat_top_states_ChebyFilterOrder_,
+			     Hmat_top_states_ChebyCycleNum_,
+			     SCFDG_comp_subspace_inner_CheFSI_lower_bound_,SCFDG_comp_subspace_inner_CheFSI_upper_bound_, SCFDG_comp_subspace_inner_CheFSI_a_L_);
+			     
+  
+      GetTime(extra_timeEnd);
+      
       
 
-
-     GetTime(extra_timeEnd);
-
-     statusOFS << std::endl << " Serial CheFSI completed on " <<  SCFDG_comp_subspace_N_solve_ 
-               << " top states ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
+      statusOFS << std::endl << " Serial CheFSI completed on " <<  SCFDG_comp_subspace_N_solve_ 
+                << " top states ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
+		
+      //exit(1);		
       
     }
 

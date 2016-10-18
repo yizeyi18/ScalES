@@ -222,7 +222,7 @@ namespace esdf{
 // *********************************************************************
 const int nphys = 57;
 const int llength = 100;  /* length of the lines */
-const int numkw = 400;   /* maximum number of keywords */
+const int numkw = 500;   /* maximum number of keywords */
 
 
 
@@ -957,16 +957,28 @@ void esdf_key() {
   strcpy(kw_label[i],"scfdg_complementary_subspace_nstates");
   strcpy(kw_typ[i],"I:E");
 
+  // Inner LOBPCG related options
   i++;
-  strcpy(kw_label[i],"scfdg_complementary_subspace_lobpcg_tol");
+  strcpy(kw_label[i],"scfdg_complementary_subspace_inner_lobpcgtol");
   strcpy(kw_typ[i],"D:E");
 
   i++;
-  strcpy(kw_label[i],"scfdg_complementary_subspace_lobpcg_iter");
+  strcpy(kw_label[i],"scfdg_complementary_subspace_inner_lobpcgiter");
   strcpy(kw_typ[i],"I:E");
 
+  // Inner CheFSI related options
+  i++;
+  strcpy(kw_label[i],"scfdg_complementary_subspace_use_inner_cheby");
+  strcpy(kw_typ[i],"I:E");
+  
+  i++;
+  strcpy(kw_label[i],"scfdg_complementary_subspace_inner_chebyfilterorder");
+  strcpy(kw_typ[i],"I:E");
 
-
+  i++;
+  strcpy(kw_label[i],"scfdg_complementary_subspace_inner_chebycyclenum");
+  strcpy(kw_typ[i],"I:E");
+  
 }
 
 void esdf() {
@@ -2584,8 +2596,15 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.scfdg_use_chefsi_complementary_subspace = esdf_integer("SCFDG_use_CheFSI_complementary_subspace", 0);
     esdfParam.scfdg_chefsi_complementary_subspace_parallel = esdf_integer("SCFDG_CheFSI_complementary_subspace_parallel", 0);
     esdfParam.scfdg_complementary_subspace_nstates = esdf_integer("SCFDG_complementary_subspace_nstates", int(double(esdfParam.numExtraState)/20.0 + 0.5) );
-    esdfParam.scfdg_complementary_subspace_lobpcg_iter = esdf_integer("SCFDG_complementary_subspace_LOBPCG_iter", 15);
-    esdfParam.scfdg_complementary_subspace_lobpcg_tol = esdf_double("SCFDG_complementary_subspace_LOBPCG_tol", 1e-8);
+    
+    // Inner LOBPCG related options
+    esdfParam.scfdg_complementary_subspace_lobpcg_iter = esdf_integer("SCFDG_complementary_subspace_inner_LOBPCGiter", 15);
+    esdfParam.scfdg_complementary_subspace_lobpcg_tol = esdf_double("SCFDG_complementary_subspace_inner_LOBPCGtol", 1e-8);
+    
+    // Inner CheFSI related options
+    esdfParam.Hmat_top_states_use_Cheby = esdf_integer("SCFDG_complementary_subspace_use_inner_Cheby", 1);
+    esdfParam.Hmat_top_states_ChebyFilterOrder =  esdf_integer("SCFDG_complementary_subspace_inner_Chebyfilterorder", 5);
+    esdfParam.Hmat_top_states_ChebyCycleNum = esdf_integer("SCFDG_complementary_subspace_inner_Chebycyclenum", 3);
   }
 
   // Read position from lastPos.out into esdfParam.atomList[i].pos if isRestartPosition=1
