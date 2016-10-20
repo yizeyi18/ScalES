@@ -482,6 +482,8 @@ void
         // delta_d = d^T d
         NLCG_vars.delta_d_ = NLCG_vars.atom_ddot(NLCG_vars.atomforce_d_, NLCG_vars.atomforce_d_);
 
+        statusOFS << std::endl << " atomforce_d_ = " << NLCG_vars.atomforce_d_ << std::endl ;
+
         // alpha = - sigma_0 
         NLCG_vars.alpha_ = -NLCG_vars.sigma_0_;
 
@@ -631,10 +633,9 @@ void
         {
           for( Int d = 0; d < DIM; d++ )
           {
-            NLCG_vars.atomforce_s_[a][d]  = (NLCG_vars.atomforce_s_[a][d] + NLCG_vars.beta_ * NLCG_vars.atomforce_d_[a][d]);      
+            NLCG_vars.atomforce_d_[a][d]  = (NLCG_vars.atomforce_s_[a][d] + NLCG_vars.beta_ * NLCG_vars.atomforce_d_[a][d]);      
           }
         }
-
       }
 
       // Increment outer counter
