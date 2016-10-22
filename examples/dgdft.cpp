@@ -438,21 +438,27 @@ int main(int argc, char **argv)
     Int ionMaxIter = esdfParam.ionMaxIter;
     for( Int ionIter = 1; ionIter <= ionMaxIter; ionIter++ ){
 
-      // Change the SCF parameters if necessary
-      // FIXME hard coding to change parameters after the 5th MD step.
-      if( ionIter >= 5 )
-        scfDG.UpdateMDParameters( esdfParam );
-
       {
         std::ostringstream msg;
         msg << "Ion move step # " << ionIter;
         PrintBlock( statusOFS, msg.str() );
       }
 
+      // Change the SCF convergence criteria if necessary (in MD mode only)
+      if( (ionIter == esdfParam.MDscfEnergyCriteriaEngageIonIter) && (ionDyn.IsGeoOpt() == 0) )
+      {	
+       scfDG.UpdateMDParameters( esdfParam );
+       statusOFS << std::endl << " Switching to energy based SCF convergence on ioniter = " << ionIter << std::endl;
+      }
+      
+      
       // Make CheFSI work in iondynamics mode  
       if(ionIter >= 1)
+      {	
         scfDG.set_Cheby_iondynamics_schedule_flag(1);
-
+        scfDG.set_iondynamics_iter(ionIter); 
+      }
+      
       // Get the new atomic coordinates
       // NOTE: ionDyn directly updates the coordinates in Hamiltonian
       ionDyn.SetEpot( scfDG.Efree() );

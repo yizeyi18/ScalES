@@ -169,6 +169,19 @@ private:
 
   // Do the usual Chebyshev filtering schedule or work in ionic movement mode
   Int Cheby_iondynamics_schedule_flag_;
+  
+  // Ionic iteration related parameters
+  Int scfdg_ion_dyn_iter_; // Ionic iteration number
+  bool useEnergySCFconvergence_; // Whether to use energy based SCF convergence
+  Real md_scf_etot_diff_tol_; // Tolerance for SCF total energy for energy based SCF convergence
+  Real md_scf_eband_diff_tol_; // Tolerance for SCF band energy for energy based SCF convergence
+  Real md_scf_etot_;
+  Real md_scf_etot_old_;
+  Real md_scf_etot_diff_;
+  Real md_scf_eband_;
+  Real md_scf_eband_old_; 
+  Real md_scf_eband_diff_;
+
 
   // Deque for ALBs expressed on the LGL grid
   std::deque<DblNumMat> ALB_LGL_deque_;
@@ -179,6 +192,7 @@ private:
   bool SCFDG_use_comp_subspace_;
   bool SCFDG_comp_subspace_parallel_;
   Int SCFDG_comp_subspace_nstates_;
+  Int SCFDG_CS_ioniter_regular_cheby_freq_;
   
   // LOBPCG (for top states) related options
   Int SCFDG_comp_subspace_LOBPCG_iter_;
@@ -459,6 +473,8 @@ public:
       Int filter_order );    
 
   void set_Cheby_iondynamics_schedule_flag(int flag){Cheby_iondynamics_schedule_flag_ = flag;}
+  
+  void set_iondynamics_iter(int ion_iter){scfdg_ion_dyn_iter_ = ion_iter;}
 
 
   // **###**    

@@ -162,7 +162,7 @@ SCFDG::Setup    (
     solutionMethod_   = esdfParam.solutionMethod;
 
     PWSolver_                = esdfParam.PWSolver;
-
+    
     // Chebyshev Filtering related parameters for PWDFT on extended element
     if(PWSolver_ == "CheFSI")
       Diag_SCF_PWDFT_by_Cheby_ = 1;
@@ -221,6 +221,7 @@ SCFDG::Setup    (
     General_SCFDG_ChebyCycleNum_ = esdfParam.General_SCFDG_ChebyCycleNum; // Default 1
 
     Cheby_iondynamics_schedule_flag_ = 0;
+    scfdg_ion_dyn_iter_ = 0;
   }
 
 
@@ -241,6 +242,8 @@ SCFDG::Setup    (
 
     SCFDG_comp_subspace_nstates_ = esdfParam.scfdg_complementary_subspace_nstates; // Defaults to a fraction of extra states
     
+    SCFDG_CS_ioniter_regular_cheby_freq_ = esdfParam.scfdg_cs_ioniter_regular_cheby_freq; // Defaults to 20
+    
     // LOBPCG for top states option
     SCFDG_comp_subspace_LOBPCG_iter_ = esdfParam.scfdg_complementary_subspace_lobpcg_iter; // Default = 15
     SCFDG_comp_subspace_LOBPCG_tol_ = esdfParam.scfdg_complementary_subspace_lobpcg_tol; // Default = 1e-8
@@ -259,6 +262,21 @@ SCFDG::Setup    (
     SCFDG_use_comp_subspace_ = false;
     SCFDG_comp_subspace_engaged_ = false;
   }
+
+  
+     
+    // Ionic iteration related parameters
+    scfdg_ion_dyn_iter_ = 0; // Ionic iteration number
+    useEnergySCFconvergence_ = 0; // Whether to use energy based SCF convergence
+    md_scf_etot_diff_tol_ = esdfParam.MDscfEtotdiff; // Tolerance for SCF total energy for energy based SCF convergence
+    md_scf_eband_diff_tol_ = esdfParam.MDscfEbanddiff; // Tolerance for SCF band energy for energy based SCF convergence
+    
+    md_scf_etot_ = 0.0;
+    md_scf_etot_old_ = 0.0;
+    md_scf_etot_diff_ = 0.0;
+    md_scf_eband_ = 0.0;
+    md_scf_eband_old_ = 0.0; 
+    md_scf_eband_diff_ = 0.0;
 
 
   MPI_Barrier(domain_.comm);
@@ -1133,9 +1151,6 @@ SCFDG::Iterate    (  )
   // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   // FIXME: Assuming spinor has only one component here    
 
-
-
-
   for (iter=1; iter <= scfOuterMaxIter_; iter++) {
     if ( isSCFConverged && (iter >= scfOuterMinIter_ ) ) break;
 
@@ -1894,7 +1909,7 @@ SCFDG::Iterate    (  )
       if( iter > 1)
       {
         GetTime(timeEnd);
-        statusOFS << std::endl << " Rotation completed. ( " << (timeEnd - timeSta) << " s )";
+        statusOFS << std::endl << " All steps of basis rotation completed. ( " << (timeEnd - timeSta) << " s )";
 
       }
 
@@ -1944,6 +1959,25 @@ SCFDG::Iterate    (  )
 
     Int numAtom = hamDG.AtomList().size();
     efreeDifPerAtom_ = std::abs(Efree_ - EfreeHarris_) / numAtom;
+    
+      // Energy based convergence parameters
+      if(iter > 1)
+      {	
+       md_scf_eband_old_ = md_scf_eband_;
+       md_scf_etot_old_ = md_scf_etot_;      
+      }
+      else
+      {
+	 md_scf_eband_old_ = 0.0;       	 
+	 md_scf_etot_old_ = 0.0;
+      } 
+      
+       md_scf_eband_ = Ekin_;
+       md_scf_eband_diff_ = std::abs(md_scf_eband_old_ - md_scf_eband_);
+       md_scf_etot_ = Etot_;
+       md_scf_etot_diff_ = std::abs(md_scf_etot_old_ - md_scf_etot_);
+       
+	 
 
     // Compute the error of the mixing variable 
     {
@@ -1986,6 +2020,7 @@ SCFDG::Iterate    (  )
 
       scfOuterNorm_    = normMixDif / normMixOld;
 
+ 
 
       Print(statusOFS, "OUTERSCF: EfreeHarris                 = ", EfreeHarris_ ); 
       //            FIXME
@@ -1993,6 +2028,12 @@ SCFDG::Iterate    (  )
       Print(statusOFS, "OUTERSCF: Efree                       = ", Efree_ ); 
       Print(statusOFS, "OUTERSCF: norm(out-in)/norm(in) = ", scfOuterNorm_ ); 
       Print(statusOFS, "OUTERSCF: Efree diff per atom   = ", efreeDifPerAtom_ ); 
+      
+      if(useEnergySCFconvergence_ == 1)
+      {
+       	Print(statusOFS, "OUTERSCF: MD SCF Etot diff                      = ", md_scf_etot_diff_); 
+	Print(statusOFS, "OUTERSCF: MD SCF Eband diff                     = ", md_scf_eband_diff_); 
+      }
       statusOFS << std::endl;
     }
 
@@ -2000,14 +2041,30 @@ SCFDG::Iterate    (  )
     //    PrintState( );
 
 
-    if( iter >= 2 & 
-        ( (scfOuterNorm_ < scfOuterTolerance_) & 
+    // Check for convergence
+    if(useEnergySCFconvergence_ == 0)
+    {  
+      if( (iter >= 2) && 
+        ( (scfOuterNorm_ < scfOuterTolerance_) && 
           (efreeDifPerAtom_ < scfOuterEnergyTolerance_) ) ){
       /* converged */
       statusOFS << "Outer SCF is converged in " << iter << " steps !" << std::endl;
       isSCFConverged = true;
     }
-
+    }
+    else
+    {
+      if( (iter >= 2) && 
+	 (md_scf_etot_diff_ < md_scf_etot_diff_tol_) &&
+	 (md_scf_eband_diff_ < md_scf_eband_diff_tol_) )
+      {
+       // converged via energy criterion
+	statusOFS << "Outer SCF is converged via energy condition in " << iter << " steps !" << std::endl;
+	isSCFConverged = true;
+	
+      }
+      
+    }
     // Potential mixing for the outer SCF iteration. or no mixing at all anymore?
     // It seems that no mixing is the best.
 
@@ -2021,13 +2078,19 @@ SCFDG::Iterate    (  )
   statusOFS << std::endl;
   statusOFS << "Total time for all SCF iterations = " << 
     timeTotalEnd - timeTotalStart << " [s]" << std::endl;
+  if(scfdg_ion_dyn_iter_ >= 1)
+  {
+     statusOFS << " Ion dynamics iteration " << scfdg_ion_dyn_iter_ << " : ";
+  }
+  
   if( isSCFConverged == true ){
-    statusOFS << "Total number of outer SCF steps = " <<
+    statusOFS << "Total number of outer SCF steps for SCF convergence = " <<
       iter - 1 << std::endl;
   }
   else{
-    statusOFS << "Total number of outer SCF steps = " <<
+    statusOFS << "Total number of outer SCF steps (SCF not converged) = " <<
       scfOuterMaxIter_ << std::endl;
+      
   }
 
   //    if(0)
@@ -2081,7 +2144,7 @@ SCFDG::Iterate    (  )
 
       GetTime(extra_timeEnd);
 
-      statusOFS << std::endl << " Computation took " << (extra_timeEnd - extra_timeSta) << " s.";
+      statusOFS << std::endl << " DM Computation took " << (extra_timeEnd - extra_timeSta) << " s." << std::endl;
 
       // Call the PEXSI force evaluator
       hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );	
@@ -4772,6 +4835,12 @@ SCFDG::Iterate    (  )
     SCFDG_comp_subspace_top_eigvals_.Resize(SCFDG_comp_subspace_N_solve_);
     for(Int copy_iter = 0; copy_iter < SCFDG_comp_subspace_N_solve_; copy_iter ++)
       SCFDG_comp_subspace_top_eigvals_[copy_iter] = temp_eig_vals_Xmat[copy_iter];
+    
+    // Also update the top eigenvalues in hamDG in case we need them
+    // For example, they are required if we switch back to regular CheFSI at some stage 
+    Int n_top = hamDG.NumStateTotal() - 1;
+    for(Int copy_iter = 0; copy_iter < SCFDG_comp_subspace_N_solve_; copy_iter ++)
+      eigval[n_top - copy_iter] = SCFDG_comp_subspace_top_eigvals_[copy_iter];
 
     // Compute the occupations    
     SCFDG_comp_subspace_top_occupations_.Resize(SCFDG_comp_subspace_N_solve_);
@@ -5025,7 +5094,7 @@ SCFDG::Iterate    (  )
     GetTime(extra_timeSta);
 
 
-    // TODO ScaLAPCK version with the Pe*Pe grid
+    // TODO ScaLAPACK version with the Pe*Pe grid
     LOBPCG_Hmat_top_serial(temp_Hmat,
         temp_Xmat,
         temp_eig_vals_Xmat,
@@ -5684,30 +5753,57 @@ SCFDG::Iterate    (  )
 
         if( solutionMethod_ == "diag" ){
           {
-            // ~~**~~
+	   // ~~**~~
             if(Diag_SCFDG_by_Cheby_ == 1 )
             {
               // Chebyshev filtering based diagonalization
               GetTime(timeSta);
 
-              if(Cheby_iondynamics_schedule_flag_ == 1)
+              if(scfdg_ion_dyn_iter_ != 0)
               {
-                if(outerIter <= Second_SCFDG_ChebyOuterIter_ / 2) // Just some adhoc criterion used here
+		if(SCFDG_use_comp_subspace_ == 1)
                 {
-                  // Need to re-use current guess, so do not call the first Cheby step
-                  statusOFS << std::endl << " Calling Second stage Chebyshev Iter in iondynamics step " << std::endl;         
-                  scfdg_GeneralChebyStep(Second_SCFDG_ChebyCycleNum_, Second_SCFDG_ChebyFilterOrder_);
-                }
-                else
-                {     
+		
+		  if((scfdg_ion_dyn_iter_ % SCFDG_CS_ioniter_regular_cheby_freq_ == 0) && (outerIter <= Second_SCFDG_ChebyOuterIter_ / 2)) // Just some adhoc criterion used here
+		  {
+		   // Usual CheFSI to help corrrect drift / SCF convergence
+                   statusOFS << std::endl << " Calling Second stage Chebyshev Iter in iondynamics step to improve drift / SCF convergence ..." << std::endl;    
+
+		   scfdg_GeneralChebyStep(Second_SCFDG_ChebyCycleNum_, Second_SCFDG_ChebyFilterOrder_);
+		    
+		   SCFDG_comp_subspace_engaged_ = 0;
+		  }
+		  else
+		  {  
+                   // Decide serial or parallel version here
+                   statusOFS << std::endl << " Calling Complementary Subspace Method (serial version)  " << std::endl;
+                   scfdg_complementary_subspace_serial(General_SCFDG_ChebyFilterOrder_);
+
+                   // Set the engaged flag 
+                   SCFDG_comp_subspace_engaged_ = 1;
+		  }
+
+		}
+		else
+		{
+		 if(outerIter <= Second_SCFDG_ChebyOuterIter_ / 2) // Just some adhoc criterion used here
+                 {
+                   // Need to re-use current guess, so do not call the first Cheby step
+                   statusOFS << std::endl << " Calling Second stage Chebyshev Iter in iondynamics step " << std::endl;         
+                   scfdg_GeneralChebyStep(Second_SCFDG_ChebyCycleNum_, Second_SCFDG_ChebyFilterOrder_);
+                 }
+                 else
+                 {     
                   // Subsequent MD Steps
                   statusOFS << std::endl << " Calling General Chebyshev Iter in iondynamics step " << std::endl;
                   scfdg_GeneralChebyStep(General_SCFDG_ChebyCycleNum_, General_SCFDG_ChebyFilterOrder_); 
-                }
-              }
+                 }
+		  
+		}
+              } // if (scfdg_ion_dyn_iter_ != 0)
               else
               {    
-                // First MD step (or static calculation)        
+                // 0th MD / Geometry Optimization step (or static calculation)        
                 if(outerIter == 1)
                 {
                   statusOFS << std::endl << " Calling First Chebyshev Iter  " << std::endl;
@@ -5738,7 +5834,7 @@ SCFDG::Iterate    (  )
 
 
                 }
-              }
+              } // end of if(scfdg_ion_dyn_iter_ != 0)
 
 
               MPI_Barrier( domain_.comm );
@@ -6180,7 +6276,7 @@ SCFDG::Iterate    (  )
 
               GetTime(extra_timeEnd);
 
-              statusOFS << std::endl << " Computation took " << (extra_timeEnd - extra_timeSta) << " s." << std::endl;
+              statusOFS << std::endl << " DM Computation took " << (extra_timeEnd - extra_timeSta) << " s." << std::endl;
 
               // Call the PEXSI force evaluator
               hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );	
@@ -8731,6 +8827,8 @@ SCFDG::Iterate    (  )
     SCFDG::UpdateMDParameters    ( const esdf::ESDFInputParam& esdfParam )
     {
       scfOuterMaxIter_ = esdfParam.MDscfOuterMaxIter;
+      useEnergySCFconvergence_ = 1;
+      
       return ;
     }         // -----  end of method SCFDG::UpdateMDParameters  ----- 
 

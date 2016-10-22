@@ -123,7 +123,7 @@ namespace dgdft{
     for(int cycle_iter = 1; cycle_iter <= num_cycles; cycle_iter ++)
       { 
 	GetTime(time_sta);
-	statusOFS << std::endl << " Inner CheFSI cycle iter " << cycle_iter << " of " << num_cycles ;
+	statusOFS << std::endl << " Inner CheFSI cycle (using -H) iter no. " << cycle_iter << " of " << num_cycles ;
 	statusOFS << std::endl << "   Filter order = " << filter_order ;
 	statusOFS << std::endl << "   a = " << a << " b = " << b << " a_L = " << a_L ;
 	

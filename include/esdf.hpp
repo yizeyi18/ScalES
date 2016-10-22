@@ -196,10 +196,25 @@ struct ESDFInputParam{
   ///
   /// Default: 30
   Int                 scfOuterMaxIter;
-  /// @brief Maximum number of outer %SCF iterations in MD
-  ///
+  
+  
+  /// @brief From which ion iteration to engage energy based convergence in MD
+  /// 
+  /// Default: ionMaxIter + 1
+  Int MDscfEnergyCriteriaEngageIonIter;
+  /// @brief Maximum number of outer SCF iterations in MD
+  /// Currently this is interperetd slightly differently in DGDFT and PWDFT  
+  /// In DGDFT, this number goes into effect once Energy based SCF convergence is activated
   /// Default: the same as scfOuterMaxIter
   Int                 MDscfOuterMaxIter;
+  /// @brief Etot tolerance in Energy based convergence
+  /// The difference in Etot should be less than this in energy based SCf convergence
+  Real               MDscfEtotdiff;
+  /// @brief Eband tolerance in Energy based convergence
+  /// The difference in Eband should be less than this in energy based SCf convergence
+  Real               MDscfEbanddiff;
+  
+  
   /// @brief Maximum number of iterations for hybrid functional
   /// iterations.
   /// 
@@ -829,6 +844,7 @@ struct ESDFInputParam{
   bool scfdg_use_chefsi_complementary_subspace;
   bool scfdg_chefsi_complementary_subspace_parallel;
   Int scfdg_complementary_subspace_nstates;
+  Int scfdg_cs_ioniter_regular_cheby_freq;
   
   // LOBPCG (for top states) related options
   Real scfdg_complementary_subspace_lobpcg_tol;

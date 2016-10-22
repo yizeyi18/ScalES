@@ -631,7 +631,7 @@ void
         {
           for( Int d = 0; d < DIM; d++ )
           {
-            NLCG_vars.atomforce_s_[a][d]  = (NLCG_vars.atomforce_s_[a][d] + NLCG_vars.beta_ * NLCG_vars.atomforce_d_[a][d]);      
+            NLCG_vars.atomforce_d_[a][d]  = (NLCG_vars.atomforce_s_[a][d] + NLCG_vars.beta_ * NLCG_vars.atomforce_d_[a][d]);      
           }
         }
 
