@@ -809,6 +809,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     bool isFixColumnDF )
 {
   Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
 
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
@@ -1352,6 +1353,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       SetValue( PcolMuNu, 0.0 );
       SetValue( PcolPsiMu, 0.0 );
 
+      GetTime( timeSta1 );
 
       for( Int mu = 0; mu < numMu_; mu++ ){
         Int muInd = pivMu(mu);
@@ -1367,10 +1369,29 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
           phiMuRow(k, mu) = phiRow(muIndRow,k) * occupationRate[k];
         }
       }
+
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing the MuRow is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+      GetTime( timeSta1 );
+      
       MPI_Allreduce( psiMuRow.Data(), psiMu.Data(), 
           numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
       MPI_Allreduce( phiMuRow.Data(), phiMu.Data(), 
           numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
+      
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for MPI_Allreduce is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+      
+      GetTime( timeSta1 );
 
       blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
           psiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 0.0,
@@ -1378,15 +1399,33 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
           phiRow.Data(), ntotLocal, phiMu.Data(), numStateTotal, 0.0,
           PcolPhiMu.Data(), ntotLocal );
+      
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for GEMM is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
 
       Real* xiPtr = XiRow.Data();
       Real* PcolPsiMuPtr = PcolPsiMu.Data();
       Real* PcolPhiMuPtr = PcolPhiMu.Data();
 
+      GetTime( timeSta1 );
+      
       for( Int g = 0; g < ntotLocal * numMu_; g++ ){
         xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g];
       }
+      
+      GetTime( timeEnd1 );
 
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for xiPtr is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+      GetTime( timeSta1 );
+      
       for( Int mu = 0; mu < numMu_; mu++ ){
       
         Int muInd = pivMu(mu);
@@ -1402,24 +1441,68 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
      
       }//for
       
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for MuNuRow is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+      
+      GetTime( timeSta1 );
+      
       MPI_Allreduce( PcolMuNuRow.Data(), PcolMuNu.Data(), 
           numMu_* numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
 
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for MPI_Allreduce is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
 //      statusOFS << "PcolMuNu = " << PcolMuNu << std::endl;
 
       // Inversion based on Cholesky factorization
       // Xi <- Xi * L^{-T} L^{-1}
       // If overflow / underflow, reduce numMu_
+     
+      GetTime( timeSta1 );
+      
       if ( mpirank == 0) {
         lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
       }
-      MPI_Bcast(PcolMuNu.Data(), numMu_ * numMu_, MPI_DOUBLE, 0, domain_.comm);
+      
+      GetTime( timeEnd1 );
 
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for Potrf is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+      
+      GetTime( timeSta1 );
+     
+      MPI_Bcast(PcolMuNu.Data(), numMu_ * numMu_, MPI_DOUBLE, 0, domain_.comm);
+      
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for MPI_Bcast is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+      GetTime( timeSta1 );
+      
       blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numMu_, 1.0, 
           PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
 
       blas::Trsm( 'R', 'L', 'N', 'N', ntotLocal, numMu_, 1.0, 
           PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
+      
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for Trsm is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
 
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
