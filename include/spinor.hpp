@@ -69,6 +69,7 @@ private:
   // For density fitting
   Int               numMu_;
   IntNumVec         pivQR_;
+  IntNumVec         numProcPotrf_;
 
 public:
   // *********************************************************************
@@ -156,6 +157,7 @@ public:
       const DblNumVec& occupationRate,
       const Real numMuFac,
       const Real numGaussianRandomFac,
+      const Int numProcScaLAPACKPotrf, 
       NumTns<Real>& a3,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );

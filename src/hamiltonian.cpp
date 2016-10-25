@@ -97,6 +97,7 @@ KohnSham::Setup    (
   isHybridDF_          = esdfParam.isHybridDF;
   numMuHybridDF_       = esdfParam.numMuHybridDF;
   numGaussianRandomHybridDF_       = esdfParam.numGaussianRandomHybridDF;
+  numProcScaLAPACKPotrfHybridDF_       = esdfParam.numProcScaLAPACKPotrfHybridDF;
   exxDivergenceType_   = esdfParam.exxDivergenceType;
 
   // FIXME Hard coded
@@ -1306,6 +1307,7 @@ KohnSham::CalculateForce2    ( Spinor& psi, Fourier& fft  )
 
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
+  statusOFS << " "<< std::endl << std::endl;
   statusOFS << "Time for computing the derivative of Hartree potential is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
@@ -2102,7 +2104,7 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
   // semi-definite matrix.
   psi.AddMultSpinorEXXDF( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
       occupationRate_, numMuHybridDF_, numGaussianRandomHybridDF_,
-      vexxPsi, M, isFixColumnDF );
+      numProcScaLAPACKPotrfHybridDF_, vexxPsi, M, isFixColumnDF );
 
   // Implementation based on Cholesky
   if(0){

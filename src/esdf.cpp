@@ -429,13 +429,11 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"scf_outer_maxiter");
   strcpy(kw_typ[i],"I:E");
-
-  
   
   i++;
   strcpy(kw_label[i],"md_scf_energy_criteria_engage_ioniter");
   strcpy(kw_typ[i],"I:E");
-    
+
   i++;
   strcpy(kw_label[i],"md_scf_outer_maxiter");
   strcpy(kw_typ[i],"I:E");
@@ -447,9 +445,7 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"md_scf_eband_diff");
   strcpy(kw_typ[i],"D:E");
-  
-  
-  
+
   i++;
   strcpy(kw_label[i],"dg_degree");
   strcpy(kw_typ[i],"I:E");
@@ -878,7 +874,11 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"num_gaussianrandom_hybrid_df");
   strcpy(kw_typ[i],"D:E");
-  
+ 
+  i++;
+  strcpy(kw_label[i],"num_proc_scalapackpotrf_hybrid_df");
+  strcpy(kw_typ[i],"I:E");
+    
   i++;
   strcpy(kw_label[i],"hybrid_ace_outside");
   strcpy(kw_typ[i],"I:E");
@@ -977,8 +977,6 @@ void esdf_key() {
   strcpy(kw_label[i],"scfdg_cs_ioniter_regular_cheby_freq");
   strcpy(kw_typ[i],"I:E");
 
-  
-  
   // Inner LOBPCG related options
   i++;
   strcpy(kw_label[i],"scfdg_complementary_subspace_inner_lobpcgtol");
@@ -2231,7 +2229,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 );
     esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
     esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-6 );
-    esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-5 );
+    esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
     esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
     esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
     esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
@@ -2239,10 +2237,10 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.isHybridACE          = esdf_integer( "Hybrid_ACE", 1 );
     esdfParam.isHybridDF           = esdf_integer( "Hybrid_DF", 0 );
     esdfParam.numMuHybridDF        = esdf_double( "Num_Mu_Hybrid_DF", 6.0 );
-    esdfParam.numGaussianRandomHybridDF        = esdf_double( "Num_GaussianRandom_Hybrid_DF", 2.0 );
+    esdfParam.numGaussianRandomHybridDF = esdf_double( "Num_GaussianRandom_Hybrid_DF", 2.0 );
+    esdfParam.numProcScaLAPACKPotrfHybridDF  = esdf_integer( "Num_Proc_ScaLAPACKPotrf_Hybrid_DF", mpisize );
     esdfParam.isHybridACEOutside   = esdf_integer( "Hybrid_ACE_Outside", 0 );
     esdfParam.MDscfPhiMaxIter      = esdf_integer( "MD_SCF_Phi_MaxIter", esdfParam.scfPhiMaxIter  );
-    
     esdfParam.MDscfOuterMaxIter    = esdf_integer( "MD_SCF_Outer_MaxIter",  esdfParam.scfOuterMaxIter ); // This is used in DGDFT for energy based SCF
 
     if( esdfParam.isHybridACE == false &&
@@ -2584,13 +2582,11 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 1 );
     esdfParam.isOutputVelocity      = esdf_integer( "Output_Velocity", 1 );
     esdfParam.isOutputXYZ           = esdf_integer( "Output_XYZ", 1 );
-    
-    
+
     // Energy based SCF convergence for MD: currently used in DGDFT only
     esdfParam.MDscfEnergyCriteriaEngageIonIter = esdf_integer( "MD_SCF_energy_criteria_engage_ioniter", esdfParam.ionMaxIter + 1); 
     esdfParam.MDscfEtotdiff = esdf_double("MD_SCF_Etot_diff", esdfParam.scfOuterEnergyTolerance);
     esdfParam.MDscfEbanddiff = esdf_double("MD_SCF_Eband_diff", esdfParam.scfOuterEnergyTolerance);
-     
     // Restart position / thermostat
   }
 
@@ -2625,7 +2621,6 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.scfdg_chefsi_complementary_subspace_parallel = esdf_integer("SCFDG_CheFSI_complementary_subspace_parallel", 0);
     esdfParam.scfdg_complementary_subspace_nstates = esdf_integer("SCFDG_complementary_subspace_nstates", int(double(esdfParam.numExtraState)/20.0 + 0.5) );
     esdfParam.scfdg_cs_ioniter_regular_cheby_freq = esdf_integer("SCFDG_CS_ioniter_regular_Cheby_freq", 20 );
-    
     
     // Inner LOBPCG related options
     esdfParam.scfdg_complementary_subspace_lobpcg_iter = esdf_integer("SCFDG_complementary_subspace_inner_LOBPCGiter", 15);
@@ -2732,12 +2727,10 @@ void ESDFPrintInput( const ESDFInputParam& esdfParam ){
     Print(statusOFS, "MD extrapolation type                = ",  esdfParam.MDExtrapolationType);
     Print(statusOFS, "MD extrapolation variable            = ",  esdfParam.MDExtrapolationVariable);
     Print(statusOFS, "MD SCF Phi MaxIter                   = ",  esdfParam.MDscfPhiMaxIter);
-    
     Print(statusOFS, "MD SCF Outer MaxIter                 = ",  esdfParam.MDscfOuterMaxIter);
     Print(statusOFS, "MD SCF Energy Criteria Engage Iter   = ",  esdfParam.MDscfEnergyCriteriaEngageIonIter);
     Print(statusOFS, "MD SCF Etot diff                     = ",  esdfParam.MDscfEtotdiff);
     Print(statusOFS, "MD SCF Eband diff                    = ",  esdfParam.MDscfEbanddiff);
-
     Print(statusOFS, "");
   }
 

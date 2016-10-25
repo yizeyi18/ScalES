@@ -396,6 +396,8 @@ SCF::Iterate (  )
   bool isFixColumnDF = false;
 
   for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
+      
+    GetTime( timePhiIterStart );
 
     // Update the ACE if needed
     if( ham.IsHybrid() && isHybridACEOutside_ == false ){
@@ -443,7 +445,6 @@ SCF::Iterate (  )
         }
       }
       if ( isPhiIterConverged ) break;
-      GetTime( timePhiIterStart );
       std::ostringstream msg;
       msg << "Phi iteration # " << phiIter;
       PrintBlock( statusOFS, msg.str() );

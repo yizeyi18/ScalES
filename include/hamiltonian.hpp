@@ -130,6 +130,7 @@ protected:
   bool                        isHybridDF_;
   Real                        numMuHybridDF_;
   Real                        numGaussianRandomHybridDF_;
+  Int                         numProcScaLAPACKPotrfHybridDF_;
 
   Int                         exxDivergenceType_;
 
