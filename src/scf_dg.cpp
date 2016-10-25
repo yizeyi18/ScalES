@@ -1973,9 +1973,11 @@ SCFDG::Iterate    (  )
       } 
       
        md_scf_eband_ = Ekin_;
-       md_scf_eband_diff_ = std::abs(md_scf_eband_old_ - md_scf_eband_);
+       md_scf_eband_diff_ = std::abs(md_scf_eband_old_ - md_scf_eband_) / double(numAtom);
        md_scf_etot_ = Etot_;
-       md_scf_etot_diff_ = std::abs(md_scf_etot_old_ - md_scf_etot_);
+       //md_scf_etot_ = EfreeHarris_;
+       md_scf_etot_diff_ = std::abs(md_scf_etot_old_ - md_scf_etot_) / double(numAtom);
+	 //Int numAtom = hamDG.AtomList().size();;
        
 	 
 
@@ -2031,8 +2033,8 @@ SCFDG::Iterate    (  )
       
       if(useEnergySCFconvergence_ == 1)
       {
-       	Print(statusOFS, "OUTERSCF: MD SCF Etot diff                      = ", md_scf_etot_diff_); 
-	Print(statusOFS, "OUTERSCF: MD SCF Eband diff                     = ", md_scf_eband_diff_); 
+       	Print(statusOFS, "OUTERSCF: MD SCF Etot diff (per atom)           = ", md_scf_etot_diff_); 
+	Print(statusOFS, "OUTERSCF: MD SCF Eband diff (per atom)          = ", md_scf_eband_diff_); 
       }
       statusOFS << std::endl;
     }
@@ -2188,8 +2190,16 @@ SCFDG::Iterate    (  )
     Print(statusOFS, "! Efree           = ",  Efree_, "[au]");
     Print(statusOFS, "! Evdw            = ",  Evdw_, "[au]"); 
     Print(statusOFS, "! Fermi           = ",  fermi_, "[au]");
+    
+    statusOFS << std::endl << "  Convergence information : " << std::endl;
     Print(statusOFS, "! norm(out-in)/norm(in) = ",  scfOuterNorm_ ); 
     Print(statusOFS, "! Efree diff per atom   = ",  efreeDifPerAtom_, "[au]"); 
+    
+    if(useEnergySCFconvergence_ == 1)
+    {
+       Print(statusOFS, "! MD SCF Etot diff (per atom)  = ",  md_scf_etot_diff_, "[au]"); 
+       Print(statusOFS, "! MD SCF Eband diff (per atom) = ",  md_scf_eband_diff_, "[au]"); 
+    }
   }
 
   {

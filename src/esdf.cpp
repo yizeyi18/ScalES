@@ -2731,8 +2731,13 @@ void ESDFPrintInput( const ESDFInputParam& esdfParam ){
     Print(statusOFS, "Force tol for geoopt                 = ",  esdfParam.geoOptMaxForce );
     Print(statusOFS, "MD extrapolation type                = ",  esdfParam.MDExtrapolationType);
     Print(statusOFS, "MD extrapolation variable            = ",  esdfParam.MDExtrapolationVariable);
-    Print(statusOFS, "MD SCF Outer MaxIter                 = ",  esdfParam.MDscfOuterMaxIter);
     Print(statusOFS, "MD SCF Phi MaxIter                   = ",  esdfParam.MDscfPhiMaxIter);
+    
+    Print(statusOFS, "MD SCF Outer MaxIter                 = ",  esdfParam.MDscfOuterMaxIter);
+    Print(statusOFS, "MD SCF Energy Criteria Engage Iter   = ",  esdfParam.MDscfEnergyCriteriaEngageIonIter);
+    Print(statusOFS, "MD SCF Etot diff                     = ",  esdfParam.MDscfEtotdiff);
+    Print(statusOFS, "MD SCF Eband diff                    = ",  esdfParam.MDscfEbanddiff);
+
     Print(statusOFS, "");
   }
 
