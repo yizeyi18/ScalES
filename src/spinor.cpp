@@ -1469,11 +1469,12 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
           }
         } // iproc
 
-        if( (numMu_ - (mpisizePotrf - 1) * numMuBlocksizePotrf) < 1){
+        if( (numMu_ % mpisizePotrf != 0) && ((numMu_ % mpisizePotrf) < (mpisizePotrf - 1)) ){
           std::ostringstream msg;
-          msg << "The number of cores for ScaLAPACK Potrf needs to reassigned (2^n)."  << std::endl
+          msg << "The number of cores for ScaLAPACK Potrf needs to reassigned (better 2^n)."  << std::endl
+            << "mpisizePotrf = " << mpisizePotrf << std::endl
             << "numProcScaLAPACKPotrf = " << numProcScaLAPACKPotrf << std::endl
-            << "numMu_ = " << numMu_
+            << "numMu_ = " << numMu_ << std::endl
             << "numMu_ / numProcScaLAPACKPotrf = " << numMu_ / numProcScaLAPACKPotrf << std::endl
             << "numMu_ % numProcScaLAPACKPotrf = " << numMu_ % numProcScaLAPACKPotrf << std::endl
             << "(numMu_ % numProcScaLAPACKPotrf) < (numProcScaLAPACKPotrf - 1)" << std::endl
