@@ -1437,42 +1437,28 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
               msg.str().c_str() );
         }
 
-        bool isInPotrf;
-        if( mpirank < numProcScaLAPACKPotrf )
-          isInPotrf = true;
-        else
-          isInPotrf = false;
-
-        MPI_Comm commPotrf;
-        MPI_Comm_split( domain_.comm, isInPotrf, mpirank, &commPotrf );
-
-        Int mpirankPotrf, mpisizePotrf;
-        MPI_Comm_rank( commPotrf, &mpirankPotrf );
-        MPI_Comm_size( commPotrf, &mpisizePotrf );
-
         Int numMuBlocksizePotrf;
     
-        IntNumVec numMuLocalPotrf(mpisizePotrf);
+        IntNumVec numMuLocalPotrf(numProcScaLAPACKPotrf);
 
-        for( Int iproc = 0; iproc < mpisizePotrf; iproc++ ){
-          if (numMu_ % mpisizePotrf == 0)
+        for( Int iproc = 0; iproc < numProcScaLAPACKPotrf; iproc++ ){
+          if (numMu_ % numProcScaLAPACKPotrf == 0)
           {
-            numMuBlocksizePotrf = (numMu_ / mpisizePotrf);
+            numMuBlocksizePotrf = (numMu_ / numProcScaLAPACKPotrf);
             numMuLocalPotrf(iproc) = numMuBlocksizePotrf;
           } 
           else
           {
-            numMuBlocksizePotrf = (numMu_ / mpisizePotrf) + 1;
+            numMuBlocksizePotrf = (numMu_ / numProcScaLAPACKPotrf) + 1;
             numMuLocalPotrf(iproc) = numMuBlocksizePotrf;
-            if (iproc == mpisizePotrf - 1)
-              numMuLocalPotrf(iproc) = numMu_ - (mpisizePotrf - 1) * numMuBlocksizePotrf;
+            if (iproc == numProcScaLAPACKPotrf - 1)
+              numMuLocalPotrf(iproc) = numMu_ - (numProcScaLAPACKPotrf - 1) * numMuBlocksizePotrf;
           }
         } // iproc
 
-        if( (numMu_ % mpisizePotrf != 0) && ((numMu_ % mpisizePotrf) < (mpisizePotrf - 1)) ){
+        if( (numMu_ % numProcScaLAPACKPotrf != 0) && ((numMu_ % numProcScaLAPACKPotrf) < (numProcScaLAPACKPotrf - 1)) ){
           std::ostringstream msg;
-          msg << "The number of cores for ScaLAPACK Potrf needs to reassigned (better 2^n)."  << std::endl
-            << "mpisizePotrf = " << mpisizePotrf << std::endl
+          msg << "The number of cores for ScaLAPACK Potrf needs to reassigned (better 2^n * numMuFac)."  << std::endl
             << "numProcScaLAPACKPotrf = " << numProcScaLAPACKPotrf << std::endl
             << "numMu_ = " << numMu_ << std::endl
             << "numMu_ / numProcScaLAPACKPotrf = " << numMu_ / numProcScaLAPACKPotrf << std::endl
@@ -1485,15 +1471,19 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
         GetTime( timeSta1 );
           
-        DblNumMat PcolMuNuLocal(numMu_, numMuLocalPotrf(mpirankPotrf));
-        SetValue( PcolMuNuLocal, 0.0 );
-      
-        for( Int iproc = 0; iproc < mpisizePotrf; iproc++ ){
+        DblNumMat PcolMuNuLocal;
+        
+        if( mpirank < numProcScaLAPACKPotrf ){
+          PcolMuNuLocal.Resize(numMu_, numMuLocalPotrf(mpirank));
+          SetValue( PcolMuNuLocal, 0.0 );
+        }
+        
+        for( Int iproc = 0; iproc < numProcScaLAPACKPotrf; iproc++ ){
         
           DblNumMat PcolMuNuRowLocal(numMu_, numMuLocalPotrf(iproc));
           DblNumMat PcolMuNuRowLocalTemp(numMu_, numMuLocalPotrf(iproc));
           SetValue( PcolMuNuRowLocalTemp, 0.0 );
-
+        
           for( Int mu = 0; mu < numMu_; mu++ ){
 
             Int muInd = pivMu(mu);
@@ -1508,16 +1498,16 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
             }
 
           }//for mu
-
+          
           SetValue( PcolMuNuRowLocal, 0.0 );
           MPI_Reduce( PcolMuNuRowLocalTemp.Data(), PcolMuNuRowLocal.Data(), numMu_ * numMuLocalPotrf(iproc),
               MPI_DOUBLE, MPI_SUM, iproc, domain_.comm); 
           
-          if( iproc == mpirankPotrf ){
+          if( mpirank == iproc ){
             blas::Copy( numMu_ * numMuLocalPotrf(iproc), PcolMuNuRowLocal.Data(), 1, 
                 PcolMuNuLocal.Data(), 1 );
           }
-          
+        
         }//for iproc
 
         GetTime( timeEnd1 );
@@ -1542,7 +1532,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         Int nprow, npcol, myrow, mycol, info;
         Cblacs_get(0, 0, &contxt);
         nprow = 1;
-        npcol = mpisizePotrf;
+        npcol = numProcScaLAPACKPotrf;
 
         Cblacs_gridinit(&contxt, "C", nprow, npcol);
         Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
@@ -1560,7 +1550,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
           SCALAPACK(descinit)(&desc_PcolMuNu[0], &numMu_, &numMu_, &mb, &nb, &irsrc, &icsrc, &contxt, &numMu_, &info); 
           char LL = 'L';
           SCALAPACK(pdpotrf)(&LL, &numMu_, PcolMuNuLocal.Data(), &I_ONE, &I_ONE, &desc_PcolMuNu[0], &info);
-          //SCALAPACK(pdpotrf)("L", &numMu_, PcolMuNuLocal.Data(), &I_ONE, &I_ONE, &desc_PcolMuNu[0], &info);
         }
         
         GetTime( timeEnd1 );
@@ -1575,11 +1564,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         DblNumMat PcolMuNuTemp(numMu_, numMu_);
         SetValue( PcolMuNuTemp, 0.0 );
 
-        for( Int iproc = 0; iproc < mpisizePotrf; iproc++ ){
+        for( Int iproc = 0; iproc < numProcScaLAPACKPotrf; iproc++ ){
 
           DblNumMat PcolMuNuLocalTemp(numMu_, numMuLocalPotrf(iproc));
           SetValue( PcolMuNuLocalTemp, 0.0 );
-          if( iproc == mpirankPotrf ){
+          if( mpirank == iproc ){
             blas::Copy( numMu_ * numMuLocalPotrf(iproc), PcolMuNuLocal.Data(), 1, 
                 PcolMuNuLocalTemp.Data(), 1 );
           }
