@@ -219,6 +219,40 @@ int main(int argc, char **argv)
 
     UniformRandom( psi.Wavefun() );
 
+    if(0){ // For the same random values of psi in parallel
+
+      MPI_Comm mpi_comm = dm.comm;
+
+      Spinor  psiTemp;
+      psiTemp.Setup( dm, 1, hamKS.NumStateTotal(),
+          hamKS.NumStateTotal(), 0.0 );
+
+      if (mpirank == 0){
+        UniformRandom( psiTemp.Wavefun() );
+      }
+      MPI_Bcast(psiTemp.Wavefun().Data(),
+          psiTemp.Wavefun().m()*psiTemp.Wavefun().n()*psiTemp.Wavefun().p(),
+          MPI_DOUBLE, 0, mpi_comm);
+
+      Int size = psi.Wavefun().m() * psi.Wavefun().n();
+      Int nocc = psi.Wavefun().p();
+
+      IntNumVec& wavefunIdx = psi.WavefunIdx();
+      NumTns<Real>& wavefun = psi.Wavefun();
+
+      for (Int k=0; k<nocc; k++) {
+        Real *ptr = psi.Wavefun().MatData(k);
+        Real *ptr1 = psiTemp.Wavefun().MatData(wavefunIdx(k));
+        for (Int i=0; i<size; i++) {
+          *ptr = *ptr1;
+          ptr = ptr + 1;
+          ptr1 = ptr1 + 1;
+        }
+      }
+
+    } // if(1)
+
+
     if( hamKS.IsHybrid() ){
       GetTime( timeSta );
       hamKS.InitializeEXX( esdfParam.ecutWavefunction, fft );

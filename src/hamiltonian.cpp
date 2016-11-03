@@ -94,10 +94,11 @@ KohnSham::Setup    (
   numExtraState_       = esdfParam.numExtraState;
   XCType_              = esdfParam.XCType;
   isHybridACE_         = esdfParam.isHybridACE;
-  isHybridDF_          = esdfParam.isHybridDF;
-  numMuHybridDF_       = esdfParam.numMuHybridDF;
+  isHybridDF_                      = esdfParam.isHybridDF;
+  numMuHybridDF_                   = esdfParam.numMuHybridDF;
   numGaussianRandomHybridDF_       = esdfParam.numGaussianRandomHybridDF;
-  numProcScaLAPACKPotrfHybridDF_       = esdfParam.numProcScaLAPACKPotrfHybridDF;
+  numProcScaLAPACKPotrfHybridDF_   = esdfParam.numProcScaLAPACKPotrfHybridDF;
+  scaPotrfBlockSizeHybridDF_       = esdfParam.ScaLAPACKPotrfBlockSizeHybridDF;
   exxDivergenceType_   = esdfParam.exxDivergenceType;
 
   // FIXME Hard coded
@@ -406,7 +407,7 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
   for (Int i=0; i<ntotFine; i++) {
     val  += density_(i, RHO) * vol / ntotFine;
   }
-  
+
   Real val2 = val;
 
 #if ( _DEBUGlevel_ >= 0 )
@@ -472,10 +473,10 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
   Real epsRho = 1e-8, epsGRho = 1e-8;
 
   Real timeSta, timeEnd;
-  
+
   Real timeFFT = 0.00;
   Real timeOther = 0.00;
-  
+
   if( XCId_ == XC_LDA_XC_TETER93 ) 
   {
     xc_lda_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
@@ -605,22 +606,22 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
     }
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << " " << std::endl;
-      statusOFS << "Time for computing gradDensity in XC HSE06 is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    statusOFS << " " << std::endl;
+    statusOFS << "Time for computing gradDensity in XC HSE06 is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
     SetValue( epsxc_, 0.0 );
     SetValue( vxc1, 0.0 );
     SetValue( vxc2, 0.0 );
-    
+
     GetTime( timeSta );
     xc_gga_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
         gradDensity.VecData(RHO), epsxc_.Data(), vxc1.Data(), vxc2.Data() );
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for computing xc_gga_exc_vxc in XC HSE06 is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    statusOFS << "Time for computing xc_gga_exc_vxc in XC HSE06 is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
 
@@ -686,8 +687,8 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
     } // for d
 
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for FFT is " << timeFFT << " [s]" << std::endl;
-      statusOFS << "Time for Other is " << timeOther << " [s]" << std::endl;
+    statusOFS << "Time for FFT is " << timeFFT << " [s]" << std::endl;
+    statusOFS << "Time for Other is " << timeOther << " [s]" << std::endl;
 #endif
 
   } // XC_FAMILY Hybrid
@@ -702,9 +703,9 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
   }
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << " " << std::endl;
-      statusOFS << "Time for computing total xc energy in XC is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+  statusOFS << " " << std::endl;
+  statusOFS << "Time for computing total xc energy in XC is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
   return ;
@@ -1523,10 +1524,10 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
   Int ncom = wavefun.n();
 
   Int ntotR2C = fft.numGridTotalR2C;
-  
+
   Real timeSta, timeEnd;
   Real timeSta1, timeEnd1;
-  
+
   Real timeGemm = 0.0;
   Real timeAlltoallv = 0.0;
   Real timeAllreduce = 0.0;
@@ -1577,7 +1578,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
   if( isHybrid_ && isEXXActive_ ){
 
     GetTime( timeSta );
-  
+
     if( this->IsHybridACE() ){
 
       //      if(0)
@@ -2104,7 +2105,8 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
   // semi-definite matrix.
   psi.AddMultSpinorEXXDF( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
       occupationRate_, numMuHybridDF_, numGaussianRandomHybridDF_,
-      numProcScaLAPACKPotrfHybridDF_, vexxPsi, M, isFixColumnDF );
+      numProcScaLAPACKPotrfHybridDF_, scaPotrfBlockSizeHybridDF_,
+      vexxPsi, M, isFixColumnDF );
 
   // Implementation based on Cholesky
   if(0){
