@@ -6468,7 +6468,7 @@ SCFDG::Iterate    (  )
               // Note: Heuristics strategy for dynamically adjusting the
               // tolerance
               pexsiOptions_.muInertiaTolerance = 
-                std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.05 );
+                std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.01 );
               pexsiOptions_.numElectronPEXSITolerance = 
                 std::min( std::max( numElectronPEXSIToleranceTarget_, 1.0 * scfOuterNorm_ ), 0.5 );
 
