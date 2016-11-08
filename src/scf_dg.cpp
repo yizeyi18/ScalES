@@ -1048,7 +1048,13 @@ SCFDG::Iterate    (  )
   HamiltonianDG&  hamDG = *hamDGPtr_;
 
   if( XCType_ == "XC_GGA_XC_PBE" ){
+    GetTime( timeSta );
     hamDG.CalculateGradDensity(  *distfftPtr_ );
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for calculating gradient of density is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
   }
 
   GetTime( timeSta );

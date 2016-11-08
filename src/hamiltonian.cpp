@@ -523,6 +523,8 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
         + gradDensity2(i, RHO) * gradDensity2(i, RHO);
     }
 
+    Real timeXCSta, timeXCEnd;
+    GetTime(timeXCSta);
     SetValue( epsx, 0.0 );
     SetValue( vxc1, 0.0 );
     SetValue( vxc2, 0.0 );
@@ -534,6 +536,12 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
     SetValue( vxc2temp, 0.0 );
     xc_gga_exc_vxc( &CFuncType_, ntot, density_.VecData(RHO), 
         gradDensity.VecData(RHO), epsc.Data(), vxc1temp.Data(), vxc2temp.Data() );
+    GetTime(timeXCEnd);
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for calling the XC kernel is " <<
+      timeXCEnd - timeXCSta << " [s]" << std::endl << std::endl;
+#endif
+
 
     for( Int i = 0; i < ntot; i++ ){
       epsxc_(i) = epsx(i) + epsc(i) ;
