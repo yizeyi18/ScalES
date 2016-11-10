@@ -805,6 +805,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     const Real numMuFac,
     const Real numGaussianRandomFac,
     const Int numProcScaLAPACKPotrf,  
+    const Int scaPotrfBlockSize,  
     NumTns<Real>& a3, 
     NumMat<Real>& VxMat,
     bool isFixColumnDF )
@@ -1184,7 +1185,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       // Step 2: Pivoted QR decomposition  for the Hadamard product of
       // the compressed matrix. Transpose format for QRCP
-   
+
       // NOTE: All processors should have the same ntotLocalMG
       ntotMG = ntotLocalMG * mpisize;
 
@@ -1211,7 +1212,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
             pivQR_.Data(), tau.Data() );
       }//
 
-      if(1){
+      if(1){ // ScaLAPACL QRCP
         Int contxt;
         Int nprow, npcol, myrow, mycol, info;
         Cblacs_get(0, 0, &contxt);
@@ -1281,12 +1282,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       //statusOFS << std::endl<< "All processors exit with abort in spinor.cpp." << std::endl;
 
-
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for QRCP alone is " <<
         timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
 #endif
-
 
       if(0){
         Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
@@ -1321,6 +1320,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     // *********************************************************************
 
     GetTime( timeSta );
+    
     DblNumMat XiRow(ntotLocal, numMu_);
     DblNumMat psiMu(numStateTotal, numMu_);
     // PhiMu is scaled by the occupation number to reflect the "true" density matrix
@@ -1328,7 +1328,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     IntNumVec pivMu(numMu_);
 
     {
-      GetTime( timeSta );
+    
       for( Int mu = 0; mu < numMu_; mu++ ){
         pivMu(mu) = pivQR_(mu);
       }
@@ -1337,7 +1337,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       // Used before reduce
       DblNumMat psiMuRow(numStateTotal, numMu_);
       DblNumMat phiMuRow(numStateTotal, numMu_);
-      //DblNumMat PcolMuNuRow(numMu_, numMu_);
+      DblNumMat PcolMuNuRow(numMu_, numMu_);
       DblNumMat PcolPsiMuRow(ntotLocal, numMu_);
 
       // Collecting the matrices obtained from row partition
@@ -1347,7 +1347,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       SetValue( psiMuRow, 0.0 );
       SetValue( phiMuRow, 0.0 );
-      //SetValue( PcolMuNuRow, 0.0 );
+      SetValue( PcolMuNuRow, 0.0 );
       SetValue( PcolPsiMuRow, 0.0 );
 
       SetValue( phiMu, 0.0 );
@@ -1424,193 +1424,104 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       statusOFS << "Time for xiPtr is " <<
         timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
-
-      if(1){ // Parallel Portf
-
-        if( numProcScaLAPACKPotrf > mpisize ){
-          std::ostringstream msg;
-          msg << "The number of cores for ScaLAPACK Potrf cannot exceed mpisize."  << std::endl
-            << "numProcScaLAPACKPotrf ~ " << numProcScaLAPACKPotrf << std::endl
-            << "mpisize = " << mpisize
-            << std::endl;
-          ErrorHandling(
-              msg.str().c_str() );
-        }
-
-        bool isInPotrf;
-        if( mpirank < numProcScaLAPACKPotrf )
-          isInPotrf = true;
-        else
-          isInPotrf = false;
-
-        MPI_Comm commPotrf;
-        MPI_Comm_split( domain_.comm, isInPotrf, mpirank, &commPotrf );
-
-        Int mpirankPotrf, mpisizePotrf;
-        MPI_Comm_rank( commPotrf, &mpirankPotrf );
-        MPI_Comm_size( commPotrf, &mpisizePotrf );
-
-        Int numMuBlocksizePotrf;
-    
-        IntNumVec numMuLocalPotrf(mpisizePotrf);
-
-        for( Int iproc = 0; iproc < mpisizePotrf; iproc++ ){
-          if (numMu_ % mpisizePotrf == 0)
-          {
-            numMuBlocksizePotrf = (numMu_ / mpisizePotrf);
-            numMuLocalPotrf(iproc) = numMuBlocksizePotrf;
-          } 
-          else
-          {
-            numMuBlocksizePotrf = (numMu_ / mpisizePotrf) + 1;
-            numMuLocalPotrf(iproc) = numMuBlocksizePotrf;
-            if (iproc == mpisizePotrf - 1)
-              numMuLocalPotrf(iproc) = numMu_ - (mpisizePotrf - 1) * numMuBlocksizePotrf;
-          }
-        } // iproc
-
-        if( (numMu_ - (mpisizePotrf - 1) * numMuBlocksizePotrf) < 1){
-          std::ostringstream msg;
-          msg << "The number of cores for ScaLAPACK Potrf needs to reassigned (2^n)."  << std::endl
-            << "numProcScaLAPACKPotrf = " << numProcScaLAPACKPotrf << std::endl
-            << "numMu_ = " << numMu_
-            << "numMu_ / numProcScaLAPACKPotrf = " << numMu_ / numProcScaLAPACKPotrf << std::endl
-            << "numMu_ % numProcScaLAPACKPotrf = " << numMu_ % numProcScaLAPACKPotrf << std::endl
-            << "(numMu_ % numProcScaLAPACKPotrf) < (numProcScaLAPACKPotrf - 1)" << std::endl
-            << std::endl;
-          ErrorHandling(
-              msg.str().c_str() );
-        }
-
-        GetTime( timeSta1 );
           
-        DblNumMat PcolMuNuLocal(numMu_, numMuLocalPotrf(mpirankPotrf));
-        SetValue( PcolMuNuLocal, 0.0 );
+      GetTime( timeSta1 );
       
-        for( Int iproc = 0; iproc < mpisizePotrf; iproc++ ){
-        
-          DblNumMat PcolMuNuRowLocal(numMu_, numMuLocalPotrf(iproc));
-          DblNumMat PcolMuNuRowLocalTemp(numMu_, numMuLocalPotrf(iproc));
-          SetValue( PcolMuNuRowLocalTemp, 0.0 );
+      for( Int mu = 0; mu < numMu_; mu++ ){
 
-          for( Int mu = 0; mu < numMu_; mu++ ){
+        Int muInd = pivMu(mu);
+        // NOTE Hard coded here with the row partition strategy
+        if( muInd <  mpirank * ntotLocalMG ||
+            muInd >= (mpirank + 1) * ntotLocalMG )
+          continue;
+        Int muIndRow = muInd - mpirank * ntotLocalMG;
 
-            Int muInd = pivMu(mu);
-            // NOTE Hard coded here with the row partition strategy
-            if( muInd <  mpirank * ntotLocalMG ||
-                muInd >= (mpirank + 1) * ntotLocalMG )
-              continue;
-            Int muIndRow = muInd - mpirank * ntotLocalMG;
+        for (Int nu=0; nu < numMu_; nu++) {
+          PcolMuNuRow( mu, nu ) = XiRow( muIndRow, nu );
+        }
 
-            for (Int nu=0; nu < numMuLocalPotrf(iproc); nu++) {
-              PcolMuNuRowLocalTemp( mu, nu ) = XiRow( muIndRow, nu + iproc * numMuBlocksizePotrf );
-            }
-
-          }//for mu
-
-          SetValue( PcolMuNuRowLocal, 0.0 );
-          MPI_Reduce( PcolMuNuRowLocalTemp.Data(), PcolMuNuRowLocal.Data(), numMu_ * numMuLocalPotrf(iproc),
-              MPI_DOUBLE, MPI_SUM, iproc, domain_.comm); 
-          
-          if( iproc == mpirankPotrf ){
-            blas::Copy( numMu_ * numMuLocalPotrf(iproc), PcolMuNuRowLocal.Data(), 1, 
-                PcolMuNuLocal.Data(), 1 );
-          }
-          
-        }//for iproc
-
-        GetTime( timeEnd1 );
+      }//for mu
+      
+      GetTime( timeEnd1 );
 
 #if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for MuNuRow and MPI_Reduce is " <<
-          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+      statusOFS << "Time for PcolMuNuRow is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
-        //      statusOFS << "PcolMuNu = " << PcolMuNu << std::endl;
+      
+      GetTime( timeSta1 );
+     
+      MPI_Allreduce( PcolMuNuRow.Data(), PcolMuNu.Data(), 
+          numMu_* numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
+      
+      GetTime( timeEnd1 );
 
-        // Inversion based on Cholesky factorization
-        // Xi <- Xi * L^{-T} L^{-1}
-        // If overflow / underflow, reduce numMu_
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for MPI_Allreduce is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
         
-        if(0){
-          if ( mpirank == 0) {
-            lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
-          }
-        } // if(0)
+      GetTime( timeSta1 );
+
+      if(0){
+        if ( mpirank == 0) {
+          lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
+        }
+      } // if(0)
+
+      if(1){ // Parallel Portf
 
         Int contxt;
         Int nprow, npcol, myrow, mycol, info;
         Cblacs_get(0, 0, &contxt);
-        nprow = 1;
-        npcol = mpisizePotrf;
 
-        Cblacs_gridinit(&contxt, "C", nprow, npcol);
-        Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
-        Int desc_PcolMuNu[9];
-
-        Int irsrc = 0;
-        Int icsrc = 0;
-        Int mb = numMu_;
-        Int nb = numMuBlocksizePotrf;
-
-        GetTime( timeSta1 );
-
-        if (contxt >= 0)
-        {
-          SCALAPACK(descinit)(&desc_PcolMuNu[0], &numMu_, &numMu_, &mb, &nb, &irsrc, &icsrc, &contxt, &numMu_, &info); 
-          char LL = 'L';
-          SCALAPACK(pdpotrf)(&LL, &numMu_, PcolMuNuLocal.Data(), &I_ONE, &I_ONE, &desc_PcolMuNu[0], &info);
-          //SCALAPACK(pdpotrf)("L", &numMu_, PcolMuNuLocal.Data(), &I_ONE, &I_ONE, &desc_PcolMuNu[0], &info);
+        for( Int i = IRound(sqrt(double(numProcScaLAPACKPotrf))); 
+            i <= numProcScaLAPACKPotrf; i++){
+          nprow = i; npcol = numProcScaLAPACKPotrf / nprow;
+          if( nprow * npcol == numProcScaLAPACKPotrf ) break;
         }
+
+        IntNumVec pmap(numProcScaLAPACKPotrf);
+        // Take the first numProcScaLAPACK processors for diagonalization
+        for ( Int i = 0; i < numProcScaLAPACKPotrf; i++ ){
+          pmap[i] = i;
+        }
+
+        Cblacs_gridmap(&contxt, &pmap[0], nprow, nprow, npcol);
+
+        if( contxt >= 0 ){
+
+          Int numKeep = numMu_; 
+          Int lda = numMu_;
+
+          scalapack::ScaLAPACKMatrix<Real> square_mat_scala;
+
+          scalapack::Descriptor descReduceSeq, descReducePar;
+
+          // Leading dimension provided
+          descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt, lda );
+
+          // Automatically comptued Leading Dimension
+          descReducePar.Init( numKeep, numKeep, scaPotrfBlockSize, scaPotrfBlockSize, I_ZERO, I_ZERO, contxt );
+
+          square_mat_scala.SetDescriptor( descReducePar );
+
+          DblNumMat&  square_mat = PcolMuNu;
+          // Redistribute the input matrix over the process grid
+          SCALAPACK(pdgemr2d)(&numKeep, &numKeep, square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
+              &square_mat_scala.LocalMatrix()[0], &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &contxt );
+
+          // Make the ScaLAPACK call
+          char LL = 'L';
+          //SCALAPACK(pdpotrf)(&LL, &numMu_, square_mat_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &info);
+          scalapack::Potrf(LL, square_mat_scala);
+
+          // Redistribute back eigenvectors
+          SetValue(square_mat, 0.0 );
+          SCALAPACK(pdgemr2d)( &numKeep, &numKeep, square_mat_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(),
+              square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt );
         
-        GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for Potrf is " <<
-          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-        GetTime( timeSta1 );
-
-        DblNumMat PcolMuNuTemp(numMu_, numMu_);
-        SetValue( PcolMuNuTemp, 0.0 );
-
-        for( Int iproc = 0; iproc < mpisizePotrf; iproc++ ){
-
-          DblNumMat PcolMuNuLocalTemp(numMu_, numMuLocalPotrf(iproc));
-          SetValue( PcolMuNuLocalTemp, 0.0 );
-          if( iproc == mpirankPotrf ){
-            blas::Copy( numMu_ * numMuLocalPotrf(iproc), PcolMuNuLocal.Data(), 1, 
-                PcolMuNuLocalTemp.Data(), 1 );
-          }
-
-          MPI_Bcast(PcolMuNuLocalTemp.Data(), numMu_ * numMuLocalPotrf(iproc),
-              MPI_DOUBLE, iproc, domain_.comm);
-
-          blas::Copy( numMu_ * numMuLocalPotrf(iproc), PcolMuNuLocalTemp.Data(), 
-              1, &PcolMuNuTemp(0, iproc * numMuBlocksizePotrf), 1 );
-
-        }// for iproc
-
-        GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for MPI_Bcast is " <<
-          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-        GetTime( timeSta1 );
-
-        blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numMu_, 1.0, 
-            PcolMuNuTemp.Data(), numMu_, XiRow.Data(), ntotLocal );
-
-        blas::Trsm( 'R', 'L', 'N', 'N', ntotLocal, numMu_, 1.0, 
-            PcolMuNuTemp.Data(), numMu_, XiRow.Data(), ntotLocal );
-
-        GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for Trsm is " <<
-          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
+        } // if(contxt >= 0)
 
         if(contxt >= 0) {
           Cblacs_gridexit( contxt );
@@ -1618,14 +1529,47 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       } // if(1) for Parallel Portf
 
+      GetTime( timeEnd1 );
 
-      GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for computing the interpolation vectors is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+      statusOFS << "Time for Potrf is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
-    }
 
+      GetTime( timeSta1 );
+      
+      MPI_Bcast(PcolMuNu.Data(), numMu_ * numMu_, MPI_DOUBLE, 0, domain_.comm);
+
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for MPI_Bcast is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+      GetTime( timeSta1 );
+
+      blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numMu_, 1.0, 
+          PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
+
+      blas::Trsm( 'R', 'L', 'N', 'N', ntotLocal, numMu_, 1.0, 
+          PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
+
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for Trsm is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+    }
+      
+    GetTime( timeEnd );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing the interpolation vectors is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
     // *********************************************************************
     // Solve the Poisson equations
@@ -1635,7 +1579,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     DblNumMat XiCol(ntot, numMuLocal);
 
     AlltoallBackward (XiRow, XiCol, domain_.comm);
-
+       
     {
       GetTime( timeSta );
       for( Int mu = 0; mu < numMuLocal; mu++ ){
@@ -1708,10 +1652,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
           VxMatTemp.Data(), numStateTotal );
 
       SetValue( VxMat, 0.0 );
-      MPI_Allreduce( VxMatTemp.Data(), VxMat.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+      MPI_Allreduce( VxMatTemp.Data(), VxMat.Data(), numStateTotal * numStateTotal, 
+          MPI_DOUBLE, MPI_SUM, domain_.comm );
 
       Symmetrize( VxMat );
-      
+     
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for computing VxMat in the sym format is " <<

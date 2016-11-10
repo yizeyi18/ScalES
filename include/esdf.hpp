@@ -257,7 +257,12 @@ struct ESDFInputParam{
   /// @brief Density fitting uses this number of cores for Potrf in ScaLAPACAL
   ///
   /// Default: mpisize
-  Real                numProcScaLAPACKPotrfHybridDF;
+  Int                 numProcScaLAPACKPotrfHybridDF;
+  
+  /// @brief Density fitting uses this blocksize of cores for Potrf in ScaLAPACAL
+  ///
+  /// Default: 32
+  Int                 ScaLAPACKPotrfBlockSizeHybridDF;
 
   /// @brief Whether the ACE formulation is performed outside the SCF
   /// loop. This can be used when performing geometry optimization.

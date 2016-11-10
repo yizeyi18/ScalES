@@ -2756,6 +2756,9 @@ HamiltonianDG::CalculateXC    (
                 + gradDensity2(i) * gradDensity2(i);
             }
 
+            Real timeXCSta, timeXCEnd;
+            GetTime(timeXCSta);
+            
             SetValue( epsx, 0.0 );
             SetValue( vxc1, 0.0 );
             SetValue( vxc2, 0.0 );
@@ -2767,6 +2770,11 @@ HamiltonianDG::CalculateXC    (
             SetValue( vxc2temp, 0.0 );
             xc_gga_exc_vxc( &CFuncType_, localRho.Size(), localRho.Data(), 
                 gradDensity.Data(), epsc.Data(), vxc1temp.Data(), vxc2temp.Data() );
+            GetTime(timeXCEnd);
+#if ( _DEBUGlevel_ >= 0 )
+            statusOFS << "Time for calling the XC kernel is " <<
+              timeXCEnd - timeXCSta << " [s]" << std::endl << std::endl;
+#endif
 
             for( Int i = 0; i < localRho.Size(); i++ ){
               localEpsxc(i) = epsx(i) + epsc(i) ;

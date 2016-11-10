@@ -1048,7 +1048,13 @@ SCFDG::Iterate    (  )
   HamiltonianDG&  hamDG = *hamDGPtr_;
 
   if( XCType_ == "XC_GGA_XC_PBE" ){
+    GetTime( timeSta );
     hamDG.CalculateGradDensity(  *distfftPtr_ );
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for calculating gradient of density is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
   }
 
   GetTime( timeSta );
@@ -6017,7 +6023,13 @@ SCFDG::Iterate    (  )
             // of the energies.
 
             if( XCType_ == "XC_GGA_XC_PBE" ){
+              GetTime( timeSta );
               hamDG.CalculateGradDensity(  *distfftPtr_ );
+              GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+              statusOFS << "Time for calculating gradient of density is " <<
+                timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
             }
 
             GetTime( timeSta );
@@ -6311,7 +6323,7 @@ SCFDG::Iterate    (  )
               // Note: Heuristics strategy for dynamically adjusting the
               // tolerance
               pexsiOptions_.muInertiaTolerance = 
-                std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.05 );
+                std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.01 );
               pexsiOptions_.numElectronPEXSITolerance = 
                 std::min( std::max( numElectronPEXSIToleranceTarget_, 1.0 * scfOuterNorm_ ), 0.5 );
 
@@ -6592,7 +6604,13 @@ SCFDG::Iterate    (  )
             // of the energies.
 
             if( XCType_ == "XC_GGA_XC_PBE" ){
+              GetTime( timeSta );
               hamDG.CalculateGradDensity(  *distfftPtr_ );
+              GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+              statusOFS << "Time for calculating gradient of density is " <<
+                timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
             }
 
             hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
@@ -6842,7 +6860,13 @@ SCFDG::Iterate    (  )
           // new density
 
           if( XCType_ == "XC_GGA_XC_PBE" ){
+            GetTime( timeSta );
             hamDG.CalculateGradDensity(  *distfftPtr_ );
+            GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+            statusOFS << "Time for calculating gradient of density is " <<
+              timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
           }
 
           hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );

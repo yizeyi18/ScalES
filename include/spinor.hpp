@@ -158,6 +158,7 @@ public:
       const Real numMuFac,
       const Real numGaussianRandomFac,
       const Int numProcScaLAPACKPotrf, 
+      const Int scaPotrfBlockSize, 
       NumTns<Real>& a3,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
