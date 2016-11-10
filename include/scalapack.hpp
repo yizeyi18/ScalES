@@ -123,6 +123,15 @@ void SCALAPACK(pdgemm)(const char* transA, const char* transB,
     double* C, const Int* ic, const Int* jc, const Int* descc,
     const Int* contxt);
 
+
+void  SCALAPACK(pdsyrk)(const char *uplo , const char *trans , const Int *n , const Int *k , 
+			const double *alpha , const double *a , 
+			const Int *ia , const Int *ja , const Int *desca , 
+			const double *beta , double *c , 
+			const Int *ic , const Int *jc , const Int *descc,
+			const Int* contxt);
+
+
 void SCALAPACK(pdgemr2d)(const Int* m, const Int* n, const double* A, const Int* ia, 
     const Int* ja, const Int* desca, double* B,
     const Int* ib, const Int* jb, const Int* descb,
@@ -388,8 +397,19 @@ Gemm( char transA, char transB,
     double* C, Int ic, Int jc, Int* descc,
     Int contxt);
 
+
+void 
+Syrk ( char uplo, char trans,
+       Int n, int k,
+       double alpha, double *A,
+       Int ia, Int ja, Int *desca,
+       double beta, double *C,
+       Int ic, Int jc, Int *descc,
+       Int contxt);
+
 void
 Gemr2d(const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B);
+
 
 /// @brief Solve triangular matrix equation
 ///

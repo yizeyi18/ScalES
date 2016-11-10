@@ -242,6 +242,28 @@ Gemm( char transA, char transB,
   return;
 }   // -----  end of function Gemm  ----- 
 
+// Amartya Banerjee
+void 
+Syrk ( char uplo, char trans,
+       Int n, int k,
+       double alpha, double *A,
+       Int ia, Int ja, Int *desca,
+       double beta, double *C,
+       Int ic, Int jc, Int *descc,
+       Int contxt)
+{
+   SCALAPACK(pdsyrk)( &uplo, &trans, &n, &k,
+		      &alpha, A,
+		      &ia, &ja, desca,
+		      &beta, C,
+		      &ic, &jc, descc,
+		      &contxt
+		    );
+  
+  return; 
+  
+}
+       
 
 
 void

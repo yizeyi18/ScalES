@@ -4914,15 +4914,10 @@ SCFDG::Iterate    (  )
     //statusOFS << std::endl << " LAPACK Eigenvectors = " << std::endl << square_mat;
   }
 
-  // **###**    
+  
+  
   /// @brief Routines related to Chebyshev polynomial filtered 
   /// complementary subspace iteration strategy in DGDFT in parallel
-  /// 
-  /// Assume 
-  /// 
-  /// o M is divisible by Pe
-  /// o Each element has the same number of basis functions
-  /// o Number of states is divisible by Pe
   void SCFDG::scfdg_complementary_subspace_parallel(Int filter_order )
   {
     Int mpirank, mpisize;
@@ -5008,195 +5003,27 @@ SCFDG::Iterate    (  )
 
 
     // Step 3: Perform subspace projected problems
-    // Subspace problems serially done here
+    // Subspace problems solved in parallel here
 
-    statusOFS << std::endl << std::endl << " Solving subspace problems serially ...";
+    statusOFS << std::endl << std::endl << " Solving subspace problems in parallel ...";
+    
+    // YYYY
+    // Step a : Convert to ScaLAPACK format
+    
+    
+    exit(1);
 
     // Orthonormalize using Cholesky factorization  
     statusOFS << std::endl << " Orthonormalizing filtered vectors ... ";
     GetTime( timeSta );
-
-    DblNumMat &local_eigvec_mat = (hamDG.EigvecCoef().LocalMap().begin())->second;
-    DblNumMat square_mat;
-    DblNumMat temp_square_mat;
-
-    Int width = local_eigvec_mat.n();
-    Int height_local = local_eigvec_mat.m();
-
-    square_mat.Resize(width, width);
-    temp_square_mat.Resize(width, width);
-
-    SetValue(temp_square_mat, 0.0);
-
-    // Compute square_mat = X^T * X for Cholesky    
-    // TODO replace by SUMMA_GEMM for X using a processor grid M * Pe.
-    // There are ceil(M/Pe) proc groups each with Pe*Pe procs.
-    blas::Gemm( 'T', 'N', width, width, height_local, 
-        1.0, local_eigvec_mat.Data(), height_local,
-        local_eigvec_mat.Data(), height_local, 
-        0.0, temp_square_mat.Data(), width );
-
-    SetValue( square_mat, 0.0 );
-    MPI_Allreduce( temp_square_mat.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, domain_.colComm );
-
-    // In the following, reduction happens on colComm but the result is broadcast to everyone
-
-    // Make the Cholesky factorization call on proc 0
-    // TODO If the proc grid is in the first Pe*Pe group, perform
-    // Cholesky. ScaLAPACK contxt with exactly Pe*Pe procs.
-    if ( mpirank == 0) {
-      lapack::Potrf( 'U', width, square_mat.Data(), width );
-    }
-    // Send the Cholesky factor to every process
-    MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, domain_.comm);
-
-    // Do a solve with the Cholesky factor : Band parallelization ??
-    // X = X * U^{-1} is orthogonal, where U is the Cholesky factor
-    //
-    // TODO Broadcast the inverse to different groups. Call pdtrsm
-    blas::Trsm( 'R', 'U', 'N', 'N', height_local, width, 1.0, square_mat.Data(), width, 
-        local_eigvec_mat.Data(), height_local );
-
-
+    
+    
     GetTime( timeEnd );
-    statusOFS << std::endl << " Orthonormalization completed ( " << (timeEnd - timeSta ) << " s.)";
-
-    // Alternate to Raleigh-Ritz step
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    statusOFS << std::endl << std::endl << " Performing alternate to Raleigh-Ritz step ... ";
-    GetTime( timeSta );
-
-    // Compute H * X
-    DistVec<Index3, DblNumMat, ElemPrtn>  result_mat;
-    scfdg_Hamiltonian_times_eigenvectors(result_mat);
-    DblNumMat &local_result_mat = (result_mat.LocalMap().begin())->second;
-
-    SetValue(temp_square_mat, 0.0);
-
-    // Compute square_mat = X^T * HX 
-    // TODO replace by SUMMA_GEMM
-    blas::Gemm( 'T', 'N', width, width, height_local, 
-        1.0, local_eigvec_mat.Data(), height_local,
-        local_result_mat.Data(), height_local, 
-        0.0, temp_square_mat.Data(), width );
-
-    SetValue( square_mat, 0.0 );
-    MPI_Allreduce( temp_square_mat.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, domain_.colComm );
-
-    DblNumMat temp_Hmat(square_mat);
-
-    // Space for top few eigenpairs of projected Hamiltonian
-    // Note that SCFDG_comp_subspace_start_guess_ should contain the starting guess already
-    // This is either from the earlier ScaLAPACK results (when SCFDG_comp_subspace_engaged_ = 0)
-    // or from the previous LOBPCG results which are copied
-
-    DblNumMat temp_Xmat;
-    temp_Xmat.Resize(width, SCFDG_comp_subspace_N_solve_);
-    lapack::Lacpy( 'A', width, SCFDG_comp_subspace_N_solve_, SCFDG_comp_subspace_start_guess_.Data(), width, 
-        temp_Xmat.Data(), width );
+    statusOFS << std::endl << " Orthonormalization completed. ( " << (timeEnd - timeSta ) << " s.)";
 
 
-    // Space for top few eigenvalues of projected Hamiltonian
-    DblNumVec temp_eig_vals_Xmat(SCFDG_comp_subspace_N_solve_);
-    SetValue( temp_eig_vals_Xmat, 0.0 );
-
-
-    GetTime(extra_timeSta);
-
-
-    // TODO ScaLAPACK version with the Pe*Pe grid
-    LOBPCG_Hmat_top_serial(temp_Hmat,
-        temp_Xmat,
-        temp_eig_vals_Xmat,
-        SCFDG_comp_subspace_LOBPCG_iter_, SCFDG_comp_subspace_LOBPCG_tol_); // The tolerance should be dynamic probably
-
-
-    GetTime(extra_timeEnd);
-
-    statusOFS << std::endl << " Serial LOBPCG completed on " <<  SCFDG_comp_subspace_N_solve_ 
-      << " top states ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
-
-    // Broadcast the results from proc 0 to ensure all procs are using the same eigenstates
-    MPI_Bcast(temp_Xmat.Data(), SCFDG_comp_subspace_N_solve_ * width, MPI_DOUBLE, 0, domain_.comm); // Eigenvectors
-    MPI_Bcast(temp_eig_vals_Xmat.Data(), SCFDG_comp_subspace_N_solve_ , MPI_DOUBLE, 0, domain_.comm); // Eigenvectors
-
-
-    // Copy back the eigenstates to the guess for the next step
-
-    // Eigenvectors
-    lapack::Lacpy( 'A', width, SCFDG_comp_subspace_N_solve_, temp_Xmat.Data(), width, 
-        SCFDG_comp_subspace_start_guess_.Data(), width );
-
-
-    // Eigenvalues  
-    SCFDG_comp_subspace_top_eigvals_.Resize(SCFDG_comp_subspace_N_solve_);
-    for(Int copy_iter = 0; copy_iter < SCFDG_comp_subspace_N_solve_; copy_iter ++)
-      SCFDG_comp_subspace_top_eigvals_[copy_iter] = temp_eig_vals_Xmat[copy_iter];
-
-    // Compute the occupations    
-    SCFDG_comp_subspace_top_occupations_.Resize(SCFDG_comp_subspace_N_solve_);
-
-    Int howmany_to_calc = (hamDGPtr_->NumOccupiedState() + SCFDG_comp_subspace_N_solve_) - hamDGPtr_->NumStateTotal(); 
-    scfdg_calc_occ_rate_comp_subspc(SCFDG_comp_subspace_top_eigvals_,SCFDG_comp_subspace_top_occupations_, howmany_to_calc);
-
-
-    statusOFS << std::endl << " npsi = " << hamDGPtr_->NumStateTotal();
-    statusOFS << std::endl << " nOccStates = " << hamDGPtr_->NumOccupiedState();
-    statusOFS << std::endl << " howmany_to_calc = " << howmany_to_calc << std::endl;
-
-    statusOFS << std::endl << " Top Eigenvalues = " << SCFDG_comp_subspace_top_eigvals_ << std::endl;
-    statusOFS << std::endl << " Top Occupations = " << SCFDG_comp_subspace_top_occupations_ << std::endl;
-    statusOFS << std::endl << " Fermi level = " << fermi_ << std::endl;
-
-
-    // Form the matrix C by scaling the eigenvectors with the appropriate occupation related weights
-    // TODO MatC distributed on Pe*Pe grid but the column Pe proc
-    // stores MatC replicatedly.
-    SCFDG_comp_subspace_matC_.Resize(width, SCFDG_comp_subspace_N_solve_);
-    lapack::Lacpy( 'A', width, SCFDG_comp_subspace_N_solve_, temp_Xmat.Data(), width, 
-        SCFDG_comp_subspace_matC_.Data(), width );
-
-    double scale_fac;
-    for(Int scal_iter = 0; scal_iter < SCFDG_comp_subspace_N_solve_; scal_iter ++)
-    {
-      scale_fac = sqrt(1.0 - SCFDG_comp_subspace_top_occupations_(scal_iter));
-      blas::Scal(width, scale_fac, SCFDG_comp_subspace_matC_.VecData(scal_iter), 1);
-    }
-
-
-
-    // This calculation is done for computing the band energy later
-    SCFDG_comp_subspace_trace_Hmat_ = 0.0;
-    for(Int trace_calc = 0; trace_calc < width; trace_calc ++)
-      SCFDG_comp_subspace_trace_Hmat_ += temp_Hmat(trace_calc, trace_calc);
-
-
-
-    // // This is for debugging purposes 
-    //     DblNumVec eig_vals_Raleigh_Ritz; 
-    //     DblNumVec occup_Raleigh_Ritz; 
-    //     
-    //     eig_vals_Raleigh_Ritz.Resize(width);
-    //     occup_Raleigh_Ritz.Resize(width);
-    //     
-    //     
-    //     SetValue(eig_vals_Raleigh_Ritz, 0.0);
-    //     SetValue(occup_Raleigh_Ritz, 0.0);
-    //     
-    //     lapack::Syevd( 'V', 'U', width, square_mat.Data(), width, eig_vals_Raleigh_Ritz.Data() );
-    //     CalculateOccupationRate(eig_vals_Raleigh_Ritz , occup_Raleigh_Ritz );
-    //     
-    //     statusOFS << std::endl << " LAPACK eigenvalues = " << std::endl << eig_vals_Raleigh_Ritz << std::endl;
-    //     statusOFS << std::endl << " LAPACK occupations = " << std::endl << occup_Raleigh_Ritz << std::endl;
-    //     statusOFS << std::endl << " LAPACK Fermi level = " <<  fermi_ << std::endl;
-    //     
-    //statusOFS << std::endl << " LOBPCG eigenvalues = " << std::endl << temp_eig_vals_Xmat << std::endl;
-    //statusOFS << std::endl << " LAPACK eigenvalues = " << std::endl << eig_vals_Raleigh_Ritz << std::endl;
-
-    //statusOFS << std::endl << " LOBPCG Eigenvectors = " << std::endl << temp_Xmat;
-    //statusOFS << std::endl << " LAPACK Eigenvectors = " << std::endl << square_mat;
-  }
-
+}
+  
 
   // **###**  
   void SCFDG::scfdg_complementary_subspace_compute_fullDM()
@@ -5786,9 +5613,16 @@ SCFDG::Iterate    (  )
 		  else
 		  {  
                    // Decide serial or parallel version here
-                   statusOFS << std::endl << " Calling Complementary Subspace Method (serial version)  " << std::endl;
-                   scfdg_complementary_subspace_serial(General_SCFDG_ChebyFilterOrder_);
-
+		   if(SCFDG_comp_subspace_parallel_ == 0)
+		   {  
+		    statusOFS << std::endl << " Calling Complementary Subspace Method (serial version)  " << std::endl;
+		    scfdg_complementary_subspace_serial(General_SCFDG_ChebyFilterOrder_);
+		   }
+		   else
+		   {
+		    statusOFS << std::endl << " Calling Complementary Subspace Method (parallel version)  " << std::endl;
+		    scfdg_complementary_subspace_parallel(General_SCFDG_ChebyFilterOrder_);		     
+		   }
                    // Set the engaged flag 
                    SCFDG_comp_subspace_engaged_ = 1;
 		  }
@@ -5829,11 +5663,19 @@ SCFDG::Iterate    (  )
                   if(SCFDG_use_comp_subspace_ == 1)
                   {
                     // Decide serial or parallel version here
-                    statusOFS << std::endl << " Calling Complementary Subspace Method (serial version)  " << std::endl;
-                    scfdg_complementary_subspace_serial(General_SCFDG_ChebyFilterOrder_);
-
-                    // Now set the engaged flag 
-                    SCFDG_comp_subspace_engaged_ = 1;
+		   if(SCFDG_comp_subspace_parallel_ == 0)
+		   {  
+		    statusOFS << std::endl << " Calling Complementary Subspace Method (serial version)  " << std::endl;
+		    scfdg_complementary_subspace_serial(General_SCFDG_ChebyFilterOrder_);
+		   }
+		   else
+		   {
+		    statusOFS << std::endl << " Calling Complementary Subspace Method (parallel version)  " << std::endl;
+		    scfdg_complementary_subspace_parallel(General_SCFDG_ChebyFilterOrder_);		     
+		   }
+                    
+                   // Now set the engaged flag 
+                   SCFDG_comp_subspace_engaged_ = 1;
 
                   }
                   else
@@ -5942,6 +5784,7 @@ SCFDG::Iterate    (  )
                 GetTime( timeConversionSta );
                 scalapack::Syevd('U', scaH, eigs, scaZ);
                 GetTime( timeConversionEnd );
+                // statusOFS << std::endl << " SCALA Eigenvalues ~~~ " << eigs << std::endl; 
 #if ( _DEBUGlevel_ >= 1 )
                 statusOFS << "Time for scalapack::Syevd is " <<
                   timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;

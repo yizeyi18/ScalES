@@ -4,7 +4,8 @@
 include ../make.inc
 
 SRCS = pwdft.cpp dgdft.cpp \
-	diagonalize.cpp den2cube.cpp alb2cube.cpp lufact.cpp den2cubepw.cpp
+	diagonalize.cpp den2cube.cpp alb2cube.cpp lufact.cpp den2cubepw.cpp \
+	scala_time.cpp
 
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
@@ -31,6 +32,9 @@ alb2cube: alb2cube.o ${DGDFT_LIB}
 
 lufact: lufact.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ lufact.o $(LOADOPTS) )
+
+scala_time: scala_time.o ${DGDFT_LIB}
+	($(LOADER) -o $@ scala_time.o $(LOADOPTS) )
 
 -include ${DEPS}
 
