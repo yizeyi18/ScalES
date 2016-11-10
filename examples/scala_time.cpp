@@ -135,7 +135,11 @@ int main(int argc, char **argv)
 
     SetRandomSeed(mpirank);
     
+    statusOFS << " mpisize = " << mpisize; 
+    statusOFS << std::endl << " Matrix size = " << N << " * " << N_s 
+	      << " , blockSize = " << blockSize << std::endl;
     statusOFS << std::endl << " Setting up BLACS ( " << nprow << " * " << npcol << " proc. grid ) ...";
+    
     
     // Initialize BLACS
     Int contxt;
@@ -143,6 +147,7 @@ int main(int argc, char **argv)
     Cblacs_gridinit(&contxt, "C", nprow, npcol);
     
     statusOFS << " Done.";
+   
 
     // Set up ScaLAPACK
     statusOFS << std::endl << " Setting up ScaLAPACK ... ";
@@ -169,6 +174,9 @@ int main(int argc, char **argv)
     GetTime( timeEnd );
 
     statusOFS << "Done. ( " << (timeEnd - timeSta) << " s.)" << std::endl;
+    
+    statusOFS << std::endl << " -----------------------" <<  std::endl;
+
     
     for(int rep_iter = 1; rep_iter <= num_rep; rep_iter ++)
     {  
@@ -256,9 +264,7 @@ int main(int argc, char **argv)
       statusOFS << "Done. ( " << (timeEnd - timeSta) << " s.)";
       
       time_chol += (timeEnd - timeSta);
-      
-      statusOFS << std::endl << std::endl << " -----------------------" <<  std::endl;
-      
+           
       
       // Timing the TRSM step
       statusOFS << std::endl << " Solving using TRSM ... " ; 
@@ -272,7 +278,8 @@ int main(int argc, char **argv)
       
       time_trsm += (timeEnd - timeSta);
       
-      
+      statusOFS << std::endl << std::endl << " -----------------------" <<  std::endl;
+ 
     }
     
     statusOFS << std::endl << std::endl << " Cleaning up BLACS ... ";
@@ -281,6 +288,8 @@ int main(int argc, char **argv)
 
     statusOFS << " Done." << std::endl ;
 
+    statusOFS << std::endl << " Summary : "; 
+    statusOFS << std::endl << " mpisize = " << mpisize << " , grid = " << nprow << " * " << npcol;
     statusOFS << std::endl << " Matrix size = " << N << " * " << N_s 
 	      << " , blockSize = " << blockSize << std::endl;
     
@@ -288,6 +297,7 @@ int main(int argc, char **argv)
     statusOFS << std::endl << " Average SYRK time = " << time_syrk / num_rep << " s.";
     statusOFS << std::endl << " Average CHOL time = " << time_chol / num_rep << " s.";
     statusOFS << std::endl << " Average TRSM time = " << time_trsm / num_rep << " s.";
+    statusOFS << std::endl << std::endl << " -----------------------" <<  std::endl;
 
     
     statusOFS << std::endl << std::endl ;
