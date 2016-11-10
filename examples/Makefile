@@ -12,6 +12,8 @@ EXES = ${SRCS:.cpp=}
 
 pwdft: pwdft.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ pwdft.o $(LOADOPTS) )
+#pwdft: pwdft.o cuda_utils.o ${DGDFT_LIB} 
+#	($(LOADER) -o $@ pwdft.o cuda_utils.o $(LOADOPTS) )
 
 dgdft: dgdft.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ dgdft.o $(LOADOPTS) )

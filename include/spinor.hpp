@@ -55,6 +55,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "utility.hpp"
 #include  "lapack.hpp"
 #include  "esdf.hpp"
+#ifdef GPU
+#include  "cu_numvec_impl.hpp"
+#endif
 
 namespace dgdft{
 

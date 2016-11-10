@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin
+Authors: Weile Jia and Lin Lin
 
 This file is part of DGDFT. All rights reserved.
 
@@ -40,39 +40,76 @@ royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file dgdft.hpp
-/// @brief Main header file for DGDFT.
-/// @date 2012-08-01
-#ifndef _DGDFT_HPP_
-#define _DGDFT_HPP_
+/// @file numvec_decl.hpp
+/// @brief  Numerical vector.
+/// @date 2016-11-03
+#ifdef GPU
+#ifndef _CU_NUMVEC_DECL_HPP_
+#define _CU_NUMVEC_DECL_HPP_
 
-#include  "environment.hpp"
-#include    "blas.hpp"
-#include    "cublas.hpp"
-#include    "lapack.hpp"
-#include    "scalapack.hpp"
-#include  "mpi_interf.hpp"
-#include  "numvec_impl.hpp"
-#include  "nummat_impl.hpp"
-#include  "numtns_impl.hpp"
-#include  "tinyvec_impl.hpp"
-#include    "distvec_impl.hpp"
-#include  "sparse_matrix_impl.hpp"
+#include "environment.hpp"
+//#include "numvec_decl.hpp"
+//#include "numvec_impl.hpp"
+#include "cuda_utils.h"
 
-#include  "domain.hpp"
-#include  "fourier.hpp"
-#include  "hamiltonian.hpp"
-#include  "spinor.hpp"
-#include  "periodtable.hpp"
-#include  "esdf.hpp"
-#include  "eigensolver.hpp"
-#include  "utility.hpp"
-#include  "hamiltonian_dg.hpp"
-#include  "scf.hpp"
-#include  "scf_dg.hpp"
-#include  "iondynamics.hpp"
+namespace  dgdft{
+
+// Templated form of numerical vectors
+//
+// The main advantage of this portable NumVec structure is that it can
+// either own (owndata == true) or view (owndata == false) a piece of
+// data.
+
+template <class F> class cuNumVec
+{
+public:
+  Int  m_;                                // The number of elements 
+  bool owndata_;                          // Whether it owns the data
+  F* data_;                               // The pointer for the actual data
+public:
+  cuNumVec(Int m = 0);
+  cuNumVec(Int m, bool owndata, F* data);
+  cuNumVec(const cuNumVec& C);
+  ~cuNumVec();
+
+  cuNumVec& operator=(const cuNumVec& C);
+
+  void Resize ( Int m );
+
+  const F& operator()(Int i) const;  
+  F& operator()(Int i);  
+  const F& operator[](Int i) const;
+  F& operator[](Int i);
+
+  bool IsOwnData() const { return owndata_; }
+
+  F*   Data() const { return data_; }
+
+  Int  m () const { return m_; }
+
+  Int Size() const { return m_; }
+
+  void CopyTo(NumVec<F> & C); 
+
+  void CopyFrom(const NumVec<F> &C);
+
+};
+
+// Commonly used
+typedef cuNumVec<bool>       cuBolNumVec;
+typedef cuNumVec<Int>        cuIntNumVec;
+typedef cuNumVec<Real>       cuDblNumVec;
+typedef cuNumVec<Complex>    cuCpxNumVec;
 
 
-#endif // _DGDFT_HPP_
+// Utilities
+#if 0
+template <class F> inline void SetValue( cuNumVec<F>& vec, F val );
+template <class F> inline Real Energy( const cuNumVec<F>& vec );
+template <class F> inline void Sort( cuNumVec<F>& vec );
+#endif
 
+} // namespace dgdft
 
+#endif // _CU_NUMVEC_DECL_HPP_
+#endif // GPU

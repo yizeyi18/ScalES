@@ -399,7 +399,364 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorFine  ----- 
+#ifdef GPU
+void
+Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
+    const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
+{
 
+  if( !fft.isInitialized ){
+    ErrorHandling("Fourier is not prepared.");
+  }
+  Index3& numGrid = domain_.numGrid;
+  Index3& numGridFine = domain_.numGridFine;
+  Int ntot = wavefun_.m();
+  Int ncom = wavefun_.n();
+  Int numStateLocal = wavefun_.p();
+  Int ntotFine = domain_.NumGridTotalFine();
+  Real vol = domain_.Volume();
+
+  Int ntotR2C = fft.numGridTotalR2C;
+  Int ntotR2CFine = fft.numGridTotalR2CFine;
+
+  if( fft.domain.NumGridTotal() != ntot ){
+    ErrorHandling("Domain size does not match.");
+  }
+
+  // Temporary variable for saving wavefunction on a fine grid
+  DblNumVec psiFine(ntotFine);
+  DblNumVec psiUpdateFine(ntotFine);
+  cuDblNumVec cu_psi(ntot);
+  cuDblNumVec cu_psi_out(2*ntotR2C);
+  cuDblNumVec cu_psi_fine(ntotFine);
+  cuDblNumVec cu_psi_fineUpdate(ntotFine);
+  cuDblNumVec cu_psi_fine_out(2*ntotR2CFine);
+  
+
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+  
+  Real timeFFTCoarse = 0.0;
+  Real timeFFTFine = 0.0;
+  Real timeOther = 0.0;
+  Int  iterFFTCoarse = 0;
+  Int  iterFFTFine = 0;
+  Int  iterOther = 0;
+
+  GetTime( timeSta1 );
+ 
+  if(0)
+  {
+    for (Int k=0; k<numStateLocal; k++) {
+      for (Int j=0; j<ncom; j++) {
+
+        SetValue( fft.inputVecR2C, 0.0 );
+        SetValue( fft.outputVecR2C, Z_ZERO );
+
+        blas::Copy( ntot, wavefun_.VecData(j,k), 1,
+            fft.inputVecR2C.Data(), 1 );
+        FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
+
+
+        for (Int i=0; i<ntotR2C; i++)
+        {
+          if(fft.gkkR2C(i) > 5.0)
+            fft.outputVecR2C(i) = Z_ZERO;
+        }
+
+        FFTWExecute ( fft, fft.backwardPlanR2C );
+        blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
+            wavefun_.VecData(j,k), 1 );
+
+      }
+    }
+  }
+
+
+
+  //copy index into the GPU. note, this will be moved out of Hpsi. 
+  cuIntNumVec cu_idxFineGridR2C(ntotR2C);
+  cuDblNumVec cu_gkkR2C(ntotR2C);
+  cuDblNumVec cu_vtot(ntotFine);
+  cuda_memcpy_CPU2GPU(cu_idxFineGridR2C.Data(), fft.idxFineGridR2C.Data(), sizeof(Int) *ntotR2C); 
+  cuda_memcpy_CPU2GPU(cu_gkkR2C.Data(), fft.gkkR2C.Data(), sizeof(Real) *ntotR2C); 
+  cuda_memcpy_CPU2GPU(cu_vtot.Data(), vtot.Data(), sizeof(Real) *ntotFine); 
+  //#ifdef _USE_OPENMP_
+  //#pragma omp parallel
+  //    {
+  //#endif
+  for (Int k=0; k<numStateLocal; k++) {
+    for (Int j=0; j<ncom; j++) {
+#if 0
+      SetValue( psiFine, 0.0 );
+      SetValue( cu_psi, 0.0 );
+      SetValue( cu_psi_out, 0.0 );
+      SetValue( psiUpdateFine, 0.0 );
+#endif
+
+      // R2C version
+      if(1)
+      {
+#if 0
+        SetValue( fft.inputVecR2C, 0.0 ); 
+        SetValue( fft.inputVecR2CFine, 0.0 ); 
+        SetValue( fft.outputVecR2C, Z_ZERO ); 
+        SetValue( fft.outputVecR2CFine, Z_ZERO ); 
+#endif
+        // For c2r and r2c transforms, the default is to DESTROY the
+        // input, therefore a copy of the original matrix is necessary. 
+#if 0
+        blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
+            fft.inputVecR2C.Data(), 1 );
+#endif
+        GetTime( timeSta );
+        cuda_memcpy_CPU2GPU(cu_psi.Data(), wavefun_.VecData(j,k), sizeof(Real)*ntot);
+        cuFFTExecuteForward( fft, fft.cuPlanR2C[0], 0, cu_psi, cu_psi_out);
+        //cuda_memcpy_GPU2CPU(fft.outputVecR2C.Data(),cu_psi_out.Data(), sizeof(Real)*(2*ntotR2C));
+        GetTime( timeEnd );
+#if 0
+        std::cout <<"GPU " <<fft.outputVecR2C(0) << " "<<fft.outputVecR2C(1) << std::endl;
+        SetValue( fft.outputVecR2C, Z_ZERO ); 
+        FFTWExecute ( fft, fft.forwardPlanR2C );
+        std::cout << "CPU "<<fft.outputVecR2C(0) <<" "<< fft.outputVecR2C(1) << std::endl;
+#endif
+        iterFFTCoarse = iterFFTCoarse + 1;
+        timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
+
+        // statusOFS << std::endl << " Input vec = " << fft.inputVecR2C << std::endl;
+        // statusOFS << std::endl << " Output vec = " << fft.outputVecR2C << std::endl;
+
+
+        // Interpolate wavefunction from coarse to fine grid
+        {
+          SetValue(cu_psi_fine_out, 0.0);
+          Real fac = sqrt( double(ntot) / double(ntotFine) );
+          cuda_interpolate_wf_C2F( reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), 
+                                   reinterpret_cast<cuDoubleComplex*>(cu_psi_fine_out.Data()), 
+                                   cu_idxFineGridR2C.Data(), 
+                                   ntotR2C, 
+                                   fac);
+#if 0
+          Real fac = sqrt( double(ntot) / double(ntotFine) );
+          Int *idxPtr = fft.idxFineGridR2C.Data();
+          Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
+          Complex *fftOutPtr = fft.outputVecR2C.Data();
+          for( Int i = 0; i < ntotR2C; i++ ){
+            fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++) * fac;
+          }
+#endif
+        }
+
+        GetTime( timeSta );
+#if 0
+        cuda_memcpy_CPU2GPU(cu_psi_fine_out.Data(),fft.outputVecR2CFine.Data(), sizeof(Real)*2*ntotR2CFine);
+#endif
+        cuFFTExecuteInverse(fft, fft.cuPlanC2RFine[0], 1, cu_psi_fine_out, cu_psi_fine);
+        cuda_memcpy_GPU2CPU(psiFine.Data(),cu_psi_fine.Data(), sizeof(Real)*(ntotFine));
+#if 0
+        FFTWExecute ( fft, fft.backwardPlanR2CFine );
+#endif
+        GetTime( timeEnd );
+        iterFFTFine = iterFFTFine + 1;
+        timeFFTFine = timeFFTFine + ( timeEnd - timeSta );
+#if 0
+        blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
+#endif
+      }  // if (1)
+
+      // Add the contribution from local pseudopotential
+      //      for( Int i = 0; i < ntotFine; i++ ){
+      //        psiUpdateFine(i) += psiFine(i) * vtot(i);
+      //      }
+      
+      // cuda local psedupotential , note, we need psi and psiUpdate for the next nonlocal calculation.
+      cuda_memcpy_GPU2GPU(cu_psi_fineUpdate.Data(), cu_psi_fine.Data(), sizeof(Real)*ntotFine);
+      cuda_vtot( cu_psi_fineUpdate.Data(),
+                 cu_vtot.Data(), 
+                 ntotFine);
+      cuda_memcpy_GPU2CPU(psiUpdateFine.Data(),cu_psi_fineUpdate.Data(), sizeof(Real)*(ntotFine));
+#if 0
+      {
+        Real *psiUpdateFinePtr = psiUpdateFine.Data();
+        Real *psiFinePtr = psiFine.Data();
+        Real *vtotPtr = vtot.Data();
+        for( Int i = 0; i < ntotFine; i++ ){
+          *(psiUpdateFinePtr++) += *(psiFinePtr++) * *(vtotPtr++);
+        }
+      }
+#endif
+      // Add the contribution from nonlocal pseudopotential
+      if(1){
+        Int natm = pseudo.size();
+        for (Int iatm=0; iatm<natm; iatm++) {
+          Int nobt = pseudo[iatm].vnlListFine.size();
+          for (Int iobt=0; iobt<nobt; iobt++) {
+            const Real       vnlwgt = pseudo[iatm].vnlListFine[iobt].second;
+            const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
+            const IntNumVec &ivFine = vnlvecFine.first;
+            const DblNumMat &dvFine = vnlvecFine.second;
+
+            Real    weight = 0.0; 
+            const Int    *ivFineptr = ivFine.Data();
+            const Real   *dvFineptr = dvFine.VecData(VAL);
+            for (Int i=0; i<ivFine.m(); i++) {
+              weight += (*(dvFineptr++)) * psiFine[*(ivFineptr++)];
+            }
+            weight *= vol/Real(ntotFine)*vnlwgt;
+
+            ivFineptr = ivFine.Data();
+            dvFineptr = dvFine.VecData(VAL);
+            for (Int i=0; i<ivFine.m(); i++) {
+              psiUpdateFine[*(ivFineptr++)] += (*(dvFineptr++)) * weight;
+            }
+          } // for (iobt)
+        } // for (iatm)
+      }
+
+
+      // Laplacian operator. Perform inverse Fourier transform in the end
+      cuda_laplacian(  reinterpret_cast<cuDoubleComplex*>( cu_psi_out.Data()), 
+                       cu_gkkR2C.Data(),
+                       ntotR2C);
+#if 0
+      {
+        for (Int i=0; i<ntotR2C; i++) 
+          fft.outputVecR2C(i) *= fft.gkkR2C(i);
+      }
+#endif
+      // Restrict psiUpdateFine from fine grid in the real space to
+      // coarse grid in the Fourier space. Combine with the Laplacian contribution
+      //      for( Int i = 0; i < ntotFine; i++ ){
+      //        fft.inputComplexVecFine(i) = Complex( psiUpdateFine(i), 0.0 ); 
+      //      }
+      //SetValue( fft.inputComplexVecFine, Z_ZERO );
+#if 0
+      SetValue( fft.inputVecR2CFine, 0.0 );
+      blas::Copy( ntotFine, psiUpdateFine.Data(), 1, fft.inputVecR2CFine.Data(), 1 );
+#endif
+      // Fine to coarse grid
+      // Note the update is important since the Laplacian contribution is already taken into account.
+      // The computation order is also important
+      // fftw_execute( fft.forwardPlanFine );
+      GetTime( timeSta );
+
+      cuda_memcpy_CPU2GPU(cu_psi_fine.Data(), psiUpdateFine.Data(), sizeof(Real)*ntotFine);
+      cuFFTExecuteForward(fft, fft.cuPlanR2CFine[0], 1, cu_psi_fine, cu_psi_fine_out);
+      //cuda_memcpy_GPU2CPU(fft.outputVecR2CFine.Data(),cu_psi_fine_out.Data(), sizeof(Real)*(2*ntotR2CFine));
+
+#if 0
+      FFTWExecute ( fft, fft.forwardPlanR2CFine );
+#endif
+      GetTime( timeEnd );
+      iterFFTFine = iterFFTFine + 1;
+      timeFFTFine = timeFFTFine + ( timeEnd - timeSta );
+      //      {
+      //        Real fac = std::sqrt(Real(ntot) / (Real(ntotFine)));
+      //        Int* idxPtr = fft.idxFineGrid.Data();
+      //        Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
+      //        Complex *fftOutPtr = fft.outputComplexVec.Data();
+      //
+      //        for( Int i = 0; i < ntot; i++ ){
+      //          //          fft.outputComplexVec(i) += fft.outputComplexVecFine(fft.idxFineGrid(i)) * fac;
+      //          *(fftOutPtr++) += fftOutFinePtr[*(idxPtr++)] * fac;
+      //        }
+      //      }
+
+
+      {
+          //cuda_memcpy_CPU2GPU(cu_psi_out.Data(), fft.outputVecR2C.Data(), sizeof(Complex)*ntotR2C); // remove later.
+
+          Real fac = sqrt( double(ntotFine) / double(ntot) );
+          cuda_interpolate_wf_F2C( reinterpret_cast<cuDoubleComplex*>(cu_psi_fine_out.Data()), 
+                                   reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), 
+                                   cu_idxFineGridR2C.Data(), 
+                                   ntotR2C, 
+                                   fac);
+#if 0
+        Real fac = sqrt( double(ntotFine) / double(ntot) );
+        Int *idxPtr = fft.idxFineGridR2C.Data();
+        Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
+        Complex *fftOutPtr = fft.outputVecR2C.Data();
+        for( Int i = 0; i < ntotR2C; i++ ){
+          *(fftOutPtr++) += fftOutFinePtr[*(idxPtr++)] * fac;
+        }
+#endif
+      }
+
+      GetTime( timeSta );
+#if 0
+      cuda_memcpy_CPU2GPU(cu_psi_out.Data(), fft.outputVecR2C.Data(), sizeof(Real)*(2*ntotR2C));
+#endif
+      cuFFTExecuteInverse( fft, fft.cuPlanC2R[0], 0, cu_psi_out, cu_psi);
+      cuda_memcpy_GPU2CPU(a3.VecData(j,k), cu_psi.Data(), sizeof(Real)*ntot);
+#if 0
+      FFTWExecute ( fft, fft.backwardPlanR2C );
+#endif
+      GetTime( timeEnd );
+      iterFFTCoarse = iterFFTCoarse + 1;
+      timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
+
+      // Inverse Fourier transform to save back to the output vector
+      //fftw_execute( fft.backwardPlan );
+#if 0
+      blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
+#endif
+
+    } // j++
+  } // k++
+  //#ifdef _USE_OPENMP_
+  //    }
+  //#endif
+
+  if(0)
+  {
+    for (Int k=0; k<numStateLocal; k++) {
+      for (Int j=0; j<ncom; j++) {
+
+        SetValue( fft.inputVecR2C, 0.0 );
+        SetValue( fft.outputVecR2C, Z_ZERO );
+
+        blas::Copy( ntot, a3.VecData(j,k), 1,
+            fft.inputVecR2C.Data(), 1 );
+      
+        GetTime( timeSta );
+        FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
+        GetTime( timeEnd );
+        iterFFTCoarse = iterFFTCoarse + 1;
+        timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
+
+        for (Int i=0; i<ntotR2C; i++)
+        {
+          if(fft.gkkR2C(i) > 5.0)
+            fft.outputVecR2C(i) = Z_ZERO;
+        }
+
+        GetTime( timeSta );
+        FFTWExecute ( fft, fft.backwardPlanR2C );
+        GetTime( timeEnd );
+        iterFFTCoarse = iterFFTCoarse + 1;
+        timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
+        
+        blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
+            a3.VecData(j,k), 1 );
+
+      }
+    }
+  }
+
+  GetTime( timeEnd1 );
+  iterOther = iterOther + 1;
+  timeOther = timeOther + ( timeEnd1 - timeSta1 ) - timeFFTCoarse - timeFFTFine;
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for iterFFTCoarse    = " << iterFFTCoarse       << "  timeFFTCoarse    = " << timeFFTCoarse << std::endl;
+    statusOFS << "Time for iterFFTFine      = " << iterFFTFine         << "  timeFFTFine    = " << timeFFTFine << std::endl;
+    statusOFS << "Time for iterOther        = " << iterOther           << "  timeOther        = " << timeOther << std::endl;
+#endif
+
+  return ;
+}
+#else
 void
 Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
     const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
@@ -677,7 +1034,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorFineR2C  ----- 
-
+#endif
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
     const NumTns<Real>& phi,
     const DblNumVec& exxgkkR2C,

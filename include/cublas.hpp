@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin
+Authors: Weile Jia and Lin Lin
 
 This file is part of DGDFT. All rights reserved.
 
@@ -40,39 +40,63 @@ royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file dgdft.hpp
-/// @brief Main header file for DGDFT.
-/// @date 2012-08-01
-#ifndef _DGDFT_HPP_
-#define _DGDFT_HPP_
-
+/// @file cublas.hpp
+/// @brief Thin interface to CUBLAS
+/// @date 2016-10-21
+#ifdef GPU  // only used for the GPU version of the PWDFT code. 
+#ifndef _CUBLAS_HPP_
+#define _CUBLAS_HPP_
 #include  "environment.hpp"
-#include    "blas.hpp"
-#include    "cublas.hpp"
-#include    "lapack.hpp"
-#include    "scalapack.hpp"
-#include  "mpi_interf.hpp"
-#include  "numvec_impl.hpp"
-#include  "nummat_impl.hpp"
-#include  "numtns_impl.hpp"
-#include  "tinyvec_impl.hpp"
-#include    "distvec_impl.hpp"
-#include  "sparse_matrix_impl.hpp"
 
-#include  "domain.hpp"
-#include  "fourier.hpp"
-#include  "hamiltonian.hpp"
-#include  "spinor.hpp"
-#include  "periodtable.hpp"
-#include  "esdf.hpp"
-#include  "eigensolver.hpp"
-#include  "utility.hpp"
-#include  "hamiltonian_dg.hpp"
-#include  "scf.hpp"
-#include  "scf_dg.hpp"
-#include  "iondynamics.hpp"
+#include <cuda_runtime.h>
+#include <cuda.h>
+#include "cublas_v2.h"
+#include "cuda_errors.hpp"
+extern cublasHandle_t hcublas;
 
+namespace dgdft {
 
-#endif // _DGDFT_HPP_
+/// @namespace cublas
+///
+/// @brief Thin interface to CUBLAS
+namespace cublas {
 
+typedef  int               Int;
+typedef  cuComplex         scomplex;
+typedef  cuDoubleComplex   dcomplex;
 
+void Init(void);
+
+void Destroy(void);
+// *********************************************************************
+// Level 3 BLAS GEMM 
+// *********************************************************************
+ void Gemm 
+            ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
+            const float *alpha, const float* A, Int lda, const float* B, Int ldb,
+            const float *beta,        float* C, Int ldc );
+
+ void Gemm 
+           ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
+            const double *alpha, const double* A, Int lda, const double* B, Int ldb,
+            double *beta,        double* C, Int ldc );
+ void Gemm 
+          ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
+            const scomplex *alpha, const scomplex* A, Int lda, const scomplex* B, Int ldb,
+            const scomplex *beta,        scomplex* C, Int ldc );
+ void Gemm 
+          ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
+            const dcomplex *alpha, const dcomplex* A, Int lda, const dcomplex* B, Int ldb,
+            const dcomplex *beta,        dcomplex* C, Int ldc );
+ void Scal (int n, const float *alpha, float *x, int incx);
+ void Scal (int n, const double *alpha, double *x, int incx);
+ void Scal (int n, const scomplex *alpha, scomplex *x, int incx);
+ void Scal (int n, const float *alpha, scomplex *x, int incx);
+ void Scal (int n, const dcomplex *alpha, dcomplex *x, int incx);
+ void Scal (int n, const double *alpha, dcomplex *x, int incx);
+
+} // namespace cublas
+} // namespace dgdft
+
+#endif
+#endif

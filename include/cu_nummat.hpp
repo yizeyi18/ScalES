@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin
+Author: Weile Jia and Lin Lin
 
 This file is part of DGDFT. All rights reserved.
 
@@ -40,39 +40,84 @@ royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file dgdft.hpp
-/// @brief Main header file for DGDFT.
-/// @date 2012-08-01
-#ifndef _DGDFT_HPP_
-#define _DGDFT_HPP_
+/// @file cu_nummat.hpp
+/// @brief Numerical matrix.
+/// @date 2016-10-24
+#ifdef GPU
+#ifndef _CU_NUMMAT_HPP_
+#define _CU_NUMMAT_HPP_
 
-#include  "environment.hpp"
-#include    "blas.hpp"
-#include    "cublas.hpp"
-#include    "lapack.hpp"
-#include    "scalapack.hpp"
-#include  "mpi_interf.hpp"
-#include  "numvec_impl.hpp"
-#include  "nummat_impl.hpp"
-#include  "numtns_impl.hpp"
-#include  "tinyvec_impl.hpp"
-#include    "distvec_impl.hpp"
-#include  "sparse_matrix_impl.hpp"
+#include "environment.hpp"
+#include "nummat_decl.hpp"
+#include "cuda_utils.h"
 
-#include  "domain.hpp"
-#include  "fourier.hpp"
-#include  "hamiltonian.hpp"
-#include  "spinor.hpp"
-#include  "periodtable.hpp"
-#include  "esdf.hpp"
-#include  "eigensolver.hpp"
-#include  "utility.hpp"
-#include  "hamiltonian_dg.hpp"
-#include  "scf.hpp"
-#include  "scf_dg.hpp"
-#include  "iondynamics.hpp"
+namespace  dgdft{
 
+// Templated form of numerical matrix
+//
+// The main advantage of this portable cuNumMat structure is that it can
+// either own (owndata == true) or view (owndata == false) a piece of
+// data.
 
-#endif // _DGDFT_HPP_
+template <class F>
+  class cuNumMat
+  {
+  public:
+    Int m_, n_;
+    bool owndata_;
+    F* data_;
 
+  public:
+
+    cuNumMat(Int m=0, Int n=0);
+
+    cuNumMat(Int m, Int n, bool owndata, F* data);
+
+    cuNumMat(const cuNumMat& C); // the C must be a cuMat
+
+    ~cuNumMat();
+
+    cuNumMat& operator=(const cuNumMat& C);
+
+    void Resize(Int m, Int n);
+
+    const F& operator()(Int i, Int j) const;   // must be a device function, currently do not implement.
+
+    F& operator()(Int i, Int j);   // must be device function.
+
+    bool IsOwnData() const { return owndata_; }
+
+    F* Data() const { return data_; }
+
+    //F* VecData(Int j)  const;  // current do no implement this func.
+
+    Int m() const { return m_; }
+
+    Int n() const { return n_; }
+
+    Int Size() const { return m_ * n_; }
+
+    void CopyTo(NumMat<F> & C); 
+
+    void CopyFrom(const NumMat<F> &C);
+
+  };
+
+// Commonly used
+typedef cuNumMat<bool>     cuBolNumMat;
+typedef cuNumMat<Int>      cuIntNumMat;
+typedef cuNumMat<Real>     cuDblNumMat;
+typedef cuNumMat<Complex>  cuCpxNumMat;
+
+// Utilities
+/*
+template <class F> inline void SetValue(cuNumMat<F>& M, F val);
+template <class F> inline Real Energy(const cuNumMat<F>& M);
+template <class F> inline void Transpose ( const cuNumMat<F>& A, cuNumMat<F>& B );
+template <class F> inline void Symmetrize( cuNumMat<F>& A );
+*/
+} // namespace dgdft
+
+#endif // _CU_NUMMAT_HPP_
+#endif // GPU
 

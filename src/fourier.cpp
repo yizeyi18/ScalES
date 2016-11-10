@@ -46,7 +46,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2014-02-01 Dual grid implementation.
 #include  "fourier.hpp"
 #include  "blas.hpp"
-
+#ifdef GPU
+#include "cublas.hpp"
+#endif
 namespace dgdft{
 
 
@@ -69,6 +71,12 @@ Fourier::Fourier () :
     forwardPlanFine   = NULL;
     backwardPlanR2CFine  = NULL;
     forwardPlanR2CFine   = NULL;
+#if 0
+    cuforwardPlanR2C[NSTREAM];
+    cubackwardPlanR2C[NSTREAM];
+    cuforwardPlanR2CFine[NSTREAM];
+    cubackwardPlanR2CFine[NSTREAM];
+#endif 
   }
 
 Fourier::~Fourier () 
@@ -81,6 +89,17 @@ Fourier::~Fourier ()
   if( forwardPlanFine  ) fftw_destroy_plan( forwardPlanFine );
   if( backwardPlanR2CFine  ) fftw_destroy_plan( backwardPlanR2CFine );
   if( forwardPlanR2CFine   ) fftw_destroy_plan( forwardPlanR2CFine );
+#ifdef GPU
+  std::cout << "Destroy cufftPlan...... "<< std::endl;
+  Int i;
+  for(i =0; i < NSTREAM; i++)
+  {
+     cufftDestroy(cuPlanR2C[i]);
+     cufftDestroy(cuPlanR2CFine[i]);
+     cufftDestroy(cuPlanC2R[i]);
+     cufftDestroy(cuPlanC2RFine[i]);
+  }
+#endif
 }
 
 void Fourier::Initialize ( const Domain& dm )
@@ -179,8 +198,15 @@ void Fourier::Initialize ( const Domain& dm )
       reinterpret_cast<fftw_complex*>( &outputVecR2C[0] ),
       &inputVecR2C[0],
       plannerFlag);
-
-
+#ifdef GPU
+   Int i;
+   std::cout << "init the R2C cufftPlan: "<< numGrid[2] << " " << numGrid[1] <<" " << numGrid[0]<<std::endl;
+   for(i = 0; i < NSTREAM; i++)
+   {
+     cufftPlan3d(&cuPlanR2C[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_D2Z);
+     cufftPlan3d(&cuPlanC2R[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_Z2D);
+   }
+#endif
   // -1/2 \Delta  and Teter preconditioner in R2C
   gkkR2C.Resize( numGridTotalR2C );
   TeterPrecondR2C.Resize( numGridTotalR2C );
@@ -356,7 +382,15 @@ void Fourier::InitializeFine ( const Domain& dm )
       reinterpret_cast<fftw_complex*>( &outputVecR2CFine[0] ),
       &inputVecR2CFine[0],
       plannerFlag);
-
+#ifdef GPU
+   Int i;
+   std::cout << "init the R2CFine cufftPlan: "<< numGrid[2] << " " << numGrid[1] <<" " << numGrid[0]<<std::endl;
+   for(i = 0; i < NSTREAM; i++)
+   {
+     cufftPlan3d(&cuPlanR2CFine[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_D2Z);
+     cufftPlan3d(&cuPlanC2RFine[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_Z2D);
+   }
+#endif
   // -1/2 \Delta  and Teter preconditioner in R2C
   gkkR2CFine.Resize( numGridTotalR2CFine );
   TeterPrecondR2CFine.Resize( numGridTotalR2CFine );
@@ -418,6 +452,58 @@ void Fourier::InitializeFine ( const Domain& dm )
 
   return ;
 }        // -----  end of function Fourier::InitializeFine  ----- 
+
+#ifdef GPU
+
+void cuFFTExecuteForward( Fourier& fft, cufftHandle &plan, int fft_type, cuDblNumVec &cu_psi_in, cuDblNumVec &cu_psi_out )
+{
+   Index3& numGrid = fft.domain.numGrid;
+   Index3& numGridFine = fft.domain.numGridFine;
+   Real vol      = fft.domain.Volume();
+   Int ntot      = fft.domain.NumGridTotal();
+   Int ntotFine  = fft.domain.NumGridTotalFine();
+   Int ntotR2C = (numGrid[0]/2+1) * numGrid[1] * numGrid[2];
+   Int ntotR2CFine = (numGridFine[0]/2+1) * numGridFine[1] * numGridFine[2];
+   Real factor;
+   if(fft_type > 0) // fine grid FFT.
+   {
+      factor = vol/ntotFine;
+      assert( cufftExecD2Z(plan, cu_psi_in.Data(), reinterpret_cast<cuDoubleComplex*> (cu_psi_out.Data())) == CUFFT_SUCCESS );
+      cublas::Scal(2*ntotR2CFine, &factor, cu_psi_out.Data(),1); 
+   }
+   else // coarse grid FFT.
+   {
+      factor = vol/ntot;
+      assert( cufftExecD2Z(plan, cu_psi_in.Data(), reinterpret_cast<cuDoubleComplex*> (cu_psi_out.Data())) == CUFFT_SUCCESS );
+      cublas::Scal(2*ntotR2C, &factor, cu_psi_out.Data(), 1); 
+   }
+}
+void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuDblNumVec &cu_psi_in, cuDblNumVec &cu_psi_out )
+{
+   Index3& numGrid = fft.domain.numGrid;
+   Index3& numGridFine = fft.domain.numGridFine;
+   Real vol      = fft.domain.Volume();
+   Int ntot      = fft.domain.NumGridTotal();
+   Int ntotFine  = fft.domain.NumGridTotalFine();
+   Int ntotR2C = (numGrid[0]/2+1) * numGrid[1] * numGrid[2];
+   Int ntotR2CFine = (numGridFine[0]/2+1) * numGridFine[1] * numGridFine[2];
+   Real factor;
+   if(fft_type > 0) // fine grid FFT.
+   {
+      factor = 1.0 / vol;
+      assert( cufftExecZ2D(plan, reinterpret_cast<cuDoubleComplex*> (cu_psi_in.Data()), cu_psi_out.Data()) == CUFFT_SUCCESS );
+      cublas::Scal(ntotFine, &factor, cu_psi_out.Data(),1); 
+   }
+   else // coarse grid FFT.
+   {
+      factor = 1.0 / vol;
+      assert( cufftExecZ2D(plan, reinterpret_cast<cuDoubleComplex*> (cu_psi_in.Data()), cu_psi_out.Data()) == CUFFT_SUCCESS );
+      cublas::Scal(ntot, &factor, cu_psi_out.Data(), 1); 
+   }
+}
+
+
+#endif
 
 void FFTWExecute ( Fourier& fft, fftw_plan& plan ){
 
