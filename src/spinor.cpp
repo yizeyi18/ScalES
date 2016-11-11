@@ -432,9 +432,11 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   
   Real timeFFTCoarse = 0.0;
   Real timeFFTFine = 0.0;
+  Real timeNonlocal = 0.0;
   Real timeOther = 0.0;
   Int  iterFFTCoarse = 0;
   Int  iterFFTFine = 0;
+  Int  iterNonlocal = 0;
   Int  iterOther = 0;
 
   GetTime( timeSta1 );
@@ -537,6 +539,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       }
 
       // Add the contribution from nonlocal pseudopotential
+      GetTime( timeSta );
       if(1){
         Int natm = pseudo.size();
         for (Int iatm=0; iatm<natm; iatm++) {
@@ -563,6 +566,9 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
           } // for (iobt)
         } // for (iatm)
       }
+      GetTime( timeEnd );
+      iterNonlocal = iterNonlocal + 1;
+      timeNonlocal = timeNonlocal + ( timeEnd - timeSta );
 
 
       // Laplacian operator. Perform inverse Fourier transform in the end
@@ -667,11 +673,12 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
   GetTime( timeEnd1 );
   iterOther = iterOther + 1;
-  timeOther = timeOther + ( timeEnd1 - timeSta1 ) - timeFFTCoarse - timeFFTFine;
+  timeOther = timeOther + ( timeEnd1 - timeSta1 ) - timeFFTCoarse - timeFFTFine - timeNonlocal;
 
 #if ( _DEBUGlevel_ >= 0 )
     statusOFS << "Time for iterFFTCoarse    = " << iterFFTCoarse       << "  timeFFTCoarse    = " << timeFFTCoarse << std::endl;
-    statusOFS << "Time for iterFFTFine      = " << iterFFTFine         << "  timeFFTFine    = " << timeFFTFine << std::endl;
+    statusOFS << "Time for iterFFTFine      = " << iterFFTFine         << "  timeFFTFine      = " << timeFFTFine << std::endl;
+    statusOFS << "Time for iterNonlocal     = " << iterNonlocal        << "  timeNonlocal     = " << timeNonlocal << std::endl;
     statusOFS << "Time for iterOther        = " << iterOther           << "  timeOther        = " << timeOther << std::endl;
 #endif
 
