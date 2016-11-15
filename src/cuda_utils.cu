@@ -3,7 +3,7 @@
 #include "cuda_utils.h"
 
 #define DIM 128
-
+#define LDIM  256
  __device__ inline cuDoubleComplex operator* (const cuDoubleComplex & x,const cuDoubleComplex & y) {
     return cuCmul(x,y);
  }
@@ -35,7 +35,25 @@
     return (cuCreal(x)*cuCreal(x)) + (cuCimag(x)*cuCimag(x));
  }
 
+#if __CUDA_ARCH__ < 600
+__device__ double atomicAdd(double* address, double val)
+{
+    unsigned long long int* address_as_ull =
+                              (unsigned long long int*)address;
+    unsigned long long int old = *address_as_ull, assumed;
 
+    do {
+        assumed = old;
+        old = atomicCAS(address_as_ull, assumed,
+                        __double_as_longlong(val +
+                               __longlong_as_double(assumed)));
+
+    // Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+    } while (assumed != old);
+
+    return __longlong_as_double(old);
+}
+#endif
 __global__ void gpu_setValue( float* dev, float val, int len)
 {
 	int tid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -92,6 +110,14 @@ __global__ void gpu_laplacian ( cuDoubleComplex * psi, double * gkk, int len)
 		psi[tid] = psi[tid] * gkk[tid];
 	}
 }
+__global__ void gpu_teter( cuDoubleComplex * psi, double * teter, int len)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if(tid < len)
+	{
+		psi[tid] = psi[tid] * teter[tid];
+	}
+}
 
 __global__ void gpu_vtot( double* psi, double * gkk, int len)
 {
@@ -101,8 +127,128 @@ __global__ void gpu_vtot( double* psi, double * gkk, int len)
 		psi[tid] = psi[tid] * gkk[tid];
 	}
 }
+__global__ void gpu_update_psiUpdate( double *psiUpdate, double* NL, int * parts, int *index, double *atom_weight, double* weight)
+{
+	int start = parts[blockIdx.x];
+	int end   = parts[blockIdx.x+1];
+	int len   = end - start;
+	int tid = threadIdx.x;
+	double w = weight[blockIdx.x] * atom_weight[blockIdx.x];
+	double s;
 
+	while(tid < len)
+	{
+		int j = start + tid;
+		int i = index[j];
+		s = NL[j] * w;
+		atomicAdd(&psiUpdate[i], s);
+		tid += blockDim.x;
+	}
+}
 
+template<unsigned int blockSize>
+__global__ void gpu_cal_weight( double * psi, double * NL, int * parts, int * index, double * weight)
+{
+	//first get the starting and ending point and length
+        __shared__ double sdata[DIM];
+	int start = parts[blockIdx.x];
+	int end   = parts[blockIdx.x+1];
+	int len   = end - start;
+	
+	int tid   = threadIdx.x;
+	double s = 0.0;
+	while(tid < len)
+	{
+		int j = start + tid;
+		int i = index[j];
+		s += psi[i] * NL[j];
+ 		tid += blockDim.x;
+	}
+
+	sdata[threadIdx.x] =  s;
+ 	double mySum = s;
+	__syncthreads();
+
+	tid = threadIdx.x;
+	if ((blockSize >= 512) && (tid < 256))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 256];
+	}
+
+	__syncthreads();
+	
+	if ((blockSize >= 256) &&(tid < 128))
+	{
+	        sdata[tid] = mySum = mySum + sdata[tid + 128];
+	}
+	
+	 __syncthreads();
+	
+	if ((blockSize >= 128) && (tid <  64))
+	{
+	   sdata[tid] = mySum = mySum + sdata[tid +  64];
+	}
+	
+	__syncthreads();
+
+#if (__CUDA_ARCH__ >= 300 )
+	if ( tid < 32 )
+	{
+		// Fetch final intermediate sum from 2nd warp
+		if (blockSize >=  64) mySum += sdata[tid + 32];
+		// Reduce final warp using shuffle
+		for (int offset = warpSize/2; offset > 0; offset /= 2)
+		{
+		    mySum += __shfl_down(mySum, offset);
+		}
+	}
+#else
+    // fully unroll reduction within a single warp
+    if ((blockSize >=  64) && (tid < 32))
+    {
+        sdata[tid] = mySum = mySum + sdata[tid + 32];
+    }
+
+    __syncthreads();
+
+    if ((blockSize >=  32) && (tid < 16))
+    {
+        sdata[tid] = mySum = mySum + sdata[tid + 16];
+    }
+
+    __syncthreads();
+
+    if ((blockSize >=  16) && (tid <  8))
+    {
+        sdata[tid] = mySum = mySum + sdata[tid +  8];
+    }
+
+    __syncthreads();
+
+    if ((blockSize >=   8) && (tid <  4))
+    {
+        sdata[tid] = mySum = mySum + sdata[tid +  4];
+    }
+
+    __syncthreads();
+
+    if ((blockSize >=   4) && (tid <  2))
+    {
+        sdata[tid] = mySum = mySum + sdata[tid +  2];
+    }
+
+    __syncthreads();
+
+    if ((blockSize >=   2) && ( tid <  1))
+    {
+        sdata[tid] = mySum = mySum + sdata[tid +  1];
+    }
+
+    __syncthreads();
+#endif
+
+	if( tid == 0) weight[blockIdx.x] = mySum;
+}
 #if 0
 float* cuda_malloc( float* ptr, size_t size)
 {
@@ -206,6 +352,33 @@ void cuda_vtot( double* psi, double * vtot, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_vtot<<< ndim, DIM>>> ( psi, vtot, len);
+}
+
+void cuda_memory(void)
+{
+	size_t free_mem, total_mem;
+	cudaMemGetInfo(&free_mem, &total_mem);
+	cudaMemGetInfo(&free_mem, &total_mem);
+	cudaThreadSynchronize();
+	printf("free  memory is: %zu MB\n", free_mem/1000000);
+	printf("total memory is: %zu MB\n", total_mem/1000000);
+	fflush(stdout);
 } 
+
+void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int * index, int * parts,  double * atom_weight, double * weight, int blocks)
+{
+	// two steps. 
+        // 1. calculate the weight.
+        gpu_cal_weight<DIM><<<blocks, DIM, DIM * sizeof(double) >>>( psi, NL, parts, index, weight);
+
+        // 2. update the psiUpdate.
+	gpu_update_psiUpdate<<<blocks, LDIM>>>( psiUpdate, NL, parts, index, atom_weight, weight);
+}
+void cuda_teter( cuDoubleComplex* psi, double * vtot, int len)
+{
+	int ndim = (len + DIM - 1) / DIM;
+	gpu_teter<<< ndim, DIM>>> ( psi, vtot, len);
+}
+
 
 #endif

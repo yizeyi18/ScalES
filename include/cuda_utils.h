@@ -121,6 +121,9 @@ void cuda_interpolate_wf_C2F( cuDoubleComplex * coarse_psi, cuDoubleComplex * fi
 void cuda_interpolate_wf_F2C( cuDoubleComplex * fine_psi, cuDoubleComplex * coarse_psi, int * index, int len, double factor);
 void cuda_laplacian( cuDoubleComplex* psi, double * gkk, int len);
 void cuda_vtot( double* psi, double * vtot, int len);
+void cuda_memory(void);
+void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int * index, int * parts,  double * atom_weight, double * weight, int blocks);
+void cuda_teter( cuDoubleComplex* psi, double * vtot, int len);
 //}
 #endif
 #endif
