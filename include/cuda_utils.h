@@ -124,6 +124,8 @@ void cuda_vtot( double* psi, double * vtot, int len);
 void cuda_memory(void);
 void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int * index, int * parts,  double * atom_weight, double * weight, int blocks);
 void cuda_teter( cuDoubleComplex* psi, double * vtot, int len);
+void cuda_mapping_to_buf( double * buf, double * psi, int * index, int len );
+void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len );
 //}
 #endif
 #endif

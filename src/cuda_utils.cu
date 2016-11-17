@@ -35,6 +35,27 @@
     return (cuCreal(x)*cuCreal(x)) + (cuCimag(x)*cuCimag(x));
  }
 
+__global__ void gpu_mapping_to_buf( double *buf, double * psi, int *index, int len)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int x;
+	if(tid < len)
+	{
+		x = index[tid];
+		buf[x] = psi[tid];
+	}
+}
+
+__global__ void gpu_mapping_from_buf( double *psi, double * buf, int *index, int len)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int x;
+	if(tid < len)
+	{
+		x = index[tid];
+		psi[tid] = buf[x];
+	}
+}
 #if __CUDA_ARCH__ < 600
 __device__ double atomicAdd(double* address, double val)
 {
@@ -380,5 +401,15 @@ void cuda_teter( cuDoubleComplex* psi, double * vtot, int len)
 	gpu_teter<<< ndim, DIM>>> ( psi, vtot, len);
 }
 
+void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len )
+{
+	int ndim = (len + DIM - 1) / DIM;
+	gpu_mapping_from_buf<<< ndim, DIM>>>( psi, buf, index, len);	
+}
 
+void cuda_mapping_to_buf( double * buf, double * psi, int * index, int len )
+{
+	int ndim = (len + DIM - 1) / DIM;
+	gpu_mapping_to_buf<<< ndim, DIM>>>( buf, psi, index, len);	
+}
 #endif
