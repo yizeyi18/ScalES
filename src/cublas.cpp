@@ -151,6 +151,40 @@ void Destroy(void)
     CUBLAS_ERROR( cublasZdscal(hcublas, n, alpha, x, incx), "cublas CScal failed! ");
     return;
 }
+ 
+
+ void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
+             cublasDiagType_t diag, int m, int n, const float *alpha,  const float *A,  
+             int lda, float  *B, int ldb )
+{
+    CUBLAS_ERROR( cublasStrsm(hcublas, side, uplo, trans, diag, m, n, alpha, A, lda, B, ldb ), 
+                  " cublas Strsm failed! "); 
+    return;
+}
+ void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
+             cublasDiagType_t diag, int m, int n, const double *alpha, const double *A, 
+             int lda, double *B, int ldb )
+{
+    CUBLAS_ERROR( cublasDtrsm(hcublas, side, uplo, trans, diag, m, n, alpha, A, lda, B, ldb ), 
+                  " cublas Dtrsm failed! ");
+    return;
+}
+ void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
+             cublasDiagType_t diag, int m, int n, const cuComplex *alpha, 
+             const cuComplex *A, int lda, cuComplex *B, int ldb )
+{
+    CUBLAS_ERROR( cublasCtrsm(hcublas, side, uplo, trans, diag, m, n, alpha, A, lda, B, ldb ), 
+                  " cublas Ctrsm failed! ");
+    return;
+}
+ void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
+             cublasDiagType_t diag, int m, int n, const cuDoubleComplex *alpha, 
+             const cuDoubleComplex *A, int lda, cuDoubleComplex *B, int ldb )
+{
+    CUBLAS_ERROR( cublasZtrsm(hcublas, side, uplo, trans, diag, m, n, alpha, A, lda, B, ldb ), 
+                  " cublas Ztrsm failed! ");
+    return;
+}
 
 } // namespace cublas
 } // namespace dgdft

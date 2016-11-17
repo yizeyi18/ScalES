@@ -95,6 +95,18 @@ void Destroy(void);
  void Scal (int n, const dcomplex *alpha, dcomplex *x, int incx);
  void Scal (int n, const double *alpha, dcomplex *x, int incx);
 
+ void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
+             cublasDiagType_t diag, int m, int n, const float *alpha,  const float *A,  
+             int lda, float  *B, int ldb );
+ void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
+             cublasDiagType_t diag, int m, int n, const double *alpha, const double *A, 
+             int lda, double *B, int ldb );
+ void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
+             cublasDiagType_t diag, int m, int n, const cuComplex *alpha, 
+             const cuComplex *A, int lda, cuComplex *B, int ldb );
+ void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
+             cublasDiagType_t diag, int m, int n, const cuDoubleComplex *alpha, 
+             const cuDoubleComplex *A, int lda, cuDoubleComplex *B, int ldb );
 } // namespace cublas
 } // namespace dgdft
 

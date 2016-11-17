@@ -5535,10 +5535,14 @@ EigenSolver::PPCGSolveReal    (
   Int noccLocal = psiPtr_->NumState();
   Int noccTotal = psiPtr_->NumStateTotal();
 
-  /* get CUDA device. */
-
   /* init the cublas */
   cublasStatus_t status;
+  cublasSideMode_t right  = CUBLAS_SIDE_RIGHT;
+  cublasFillMode_t up     = CUBLAS_FILL_MODE_UPPER;
+  cublasDiagType_t nondiag   = CUBLAS_DIAG_NON_UNIT;
+  cublasOperation_t cu_transT = CUBLAS_OP_T;
+  cublasOperation_t cu_transN = CUBLAS_OP_N;
+  cublasOperation_t cu_transC = CUBLAS_OP_C;
   cublas::Init();
   std::cout << " GPU PPCG ........... " << std::endl;
 
@@ -5563,12 +5567,6 @@ EigenSolver::PPCGSolveReal    (
     throw std::logic_error("widthLocal != noccLocal.");
   }
 
-  // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
-  // GemmT: blas::Gemm( 'T', 'N')
-  // GemmN: blas::Gemm( 'N', 'N')
-  // Alltoallv: row-partition to column partition via MPI_Alltoallv 
-  // Spinor: Applying the Hamiltonian matrix 
-  // Mpirank0: Serial calculation part
 
   Real time1, time2;
   Real timeSta, timeEnd;
@@ -5769,8 +5767,10 @@ EigenSolver::PPCGSolveReal    (
   bool isConverged = false;
 
   // Initialization
+#if 0
   SetValue( S, 0.0 );
   SetValue( AS, 0.0 );
+#endif
 
   DblNumVec  eigValS(lda);
   SetValue( eigValS, 0.0 );
@@ -5831,14 +5831,6 @@ EigenSolver::PPCGSolveReal    (
   // Orthogonalization through Cholesky factorization
   GetTime( timeSta );
  
-#if 0
-  cublasHandle_t handle;
-  status = cublasCreate_v2(&handle);
-  if (status != CUBLAS_STATUS_SUCCESS)
-  {
-    std::cout<< " cublas create handle error " << status << std::endl;
-  }
-#endif
   Real one = 1.0;
   Real minus_one = -1.0;
   Real zero = 0.0;
@@ -5846,10 +5838,6 @@ EigenSolver::PPCGSolveReal    (
 #if 0
   cu_X.CopyFrom(X);
 #endif
-
-  cublasOperation_t cu_transT = CUBLAS_OP_T;
-  cublasOperation_t cu_transN = CUBLAS_OP_N;
-  cublasOperation_t cu_transC = CUBLAS_OP_C;
 
   cublas::Gemm( cu_transT, cu_transN, width, width, heightLocal, &one, cu_X.Data(), 
       heightLocal, cu_X.Data(), heightLocal, &zero, cu_XTXtemp1.Data(), width );
@@ -5897,15 +5885,24 @@ EigenSolver::PPCGSolveReal    (
 
   // X <- X * U^{-1} is orthogonal
   GetTime( timeSta );
+
+  cu_X.CopyFrom(X);
+  cu_XTX.CopyFrom( XTX );
+
+  cublas::Trsm( right, up, cu_transN, nondiag, heightLocal, width, &one, cu_XTX.Data(), width, cu_X.Data(), heightLocal );
+
+  cu_XTX.CopyTo( XTX );
+  
+#if 0
   blas::Trsm( 'R', 'U', 'N', 'N', heightLocal, width, 1.0, XTX.Data(), width, 
       X.Data(), heightLocal );
+#endif
   GetTime( timeEnd );
   iterTrsm = iterTrsm + 1;
   timeTrsm = timeTrsm + ( timeEnd - timeSta );
 
   GetTime( timeSta );
 
-  cu_X.CopyFrom(X);
   cuda_mapping_to_buf( cu_recvbuf.Data(), cu_X.Data(), cu_recvk.Data(), heightLocal*width);
   cuda_memcpy_GPU2CPU( recvbuf.Data(), cu_recvbuf.Data(), sizeof(Real)*heightLocal*width);
   
@@ -6874,8 +6871,14 @@ EigenSolver::PPCGSolveReal    (
 
     // X <- X * U^{-1} is orthogonal
     GetTime( timeSta );
+    cu_XTX.CopyFrom( XTX);
+    cublas::Trsm( right, up, cu_transN, nondiag, heightLocal, width, &one, cu_XTX.Data(), width, cu_X.Data(), heightLocal );
+    cu_XTX.CopyTo( XTX);
+    cu_X.CopyTo( X );
+#if 0
     blas::Trsm( 'R', 'U', 'N', 'N', heightLocal, width, 1.0, XTX.Data(), width, 
         X.Data(), heightLocal );
+#endif
     GetTime( timeEnd );
     iterTrsm = iterTrsm + 1;
     timeTrsm = timeTrsm + ( timeEnd - timeSta );
@@ -7205,6 +7208,7 @@ EigenSolver::PPCGSolveReal    (
 #endif
 
     cublas::Destroy();
+
 #if 0
     status = cublasDestroy_v2(handle);
     if (status != CUBLAS_STATUS_SUCCESS)
