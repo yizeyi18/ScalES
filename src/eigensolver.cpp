@@ -54,6 +54,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "blas.hpp"
 #ifdef GPU
 #include  "cublas.hpp"
+#include  "cuda_utils.h"
 #include  "cu_nummat_impl.hpp"
 #endif
 #include  "lapack.hpp"
@@ -6124,7 +6125,7 @@ EigenSolver::PPCGSolveReal    (
     iterGemmT = iterGemmT + 1;
     timeGemmT = timeGemmT + ( timeEnd - timeSta );
     GetTime( timeSta );
-    SetValue( XTX, 0.0 );
+    //SetValue( XTX, 0.0 );
     MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
     GetTime( timeEnd );
     iterAllreduce = iterAllreduce + 1;
@@ -6135,7 +6136,6 @@ EigenSolver::PPCGSolveReal    (
     cu_XTX.CopyFrom(XTX);
     cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &minus_one, cu_X.Data(),
                   heightLocal, cu_XTX.Data(), width, &one, cu_W.Data(), heightLocal );
-    cu_W.CopyTo(W);
     GetTime( timeEnd );
     iterGemmN = iterGemmN + 1;
     timeGemmN = timeGemmN + ( timeEnd - timeSta );
@@ -6145,7 +6145,6 @@ EigenSolver::PPCGSolveReal    (
     cu_AX.CopyFrom(AX);
     cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &minus_one,
                   cu_AX.Data(), heightLocal, cu_XTX.Data(), width, &one, cu_AW.Data(), heightLocal );
-    cu_AW.CopyTo(AW);
     GetTime( timeEnd );
     iterGemmN = iterGemmN + 1;
     timeGemmN = timeGemmN + ( timeEnd - timeSta );
@@ -6155,22 +6154,31 @@ EigenSolver::PPCGSolveReal    (
     Real normGlobal[width];
 
     GetTime( timeSta );
-
+    cuDblNumVec cu_normLocal(width);
+    cuda_calculate_Energy( cu_W.Data(), cu_normLocal.Data(), width-numLockedLocal, heightLocal ); // note, numLockedLocal == 0
+    cuda_memcpy_GPU2CPU( normLocal, cu_normLocal.Data(), sizeof(Real)*width);
+#if 0
     for( Int k = numLockedLocal; k < width; k++ ){
       normLocal[k] = Energy(DblNumVec(heightLocal, false, W.VecData(k)));
       normGlobal[k] = 0.0;
     }
+#endif
     MPI_Allreduce( &normLocal[0], &normGlobal[0], width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    cuda_memcpy_CPU2GPU(cu_normLocal.Data(), normGlobal, sizeof(Real)*width);
+    cuda_batch_Scal( cu_W.Data(),  cu_normLocal.Data(), width, heightLocal);
+    cuda_batch_Scal( cu_AW.Data(), cu_normLocal.Data(), width, heightLocal);
+#if 0    
     for( Int k = numLockedLocal; k < width; k++ ){
       Real norm = std::sqrt( normGlobal[k] );
       blas::Scal( heightLocal, 1.0 / norm, W.VecData(k), 1 );
       blas::Scal( heightLocal, 1.0 / norm, AW.VecData(k), 1 );
     }
+#endif
     GetTime( timeEnd );
     iterOther = iterOther + 2;
     timeOther = timeOther + ( timeEnd - timeSta );
 
-    statusOFS << "Time for norm1 in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+    statusOFS << "Time for norm0 in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
 
 
     // P = P - X(X'P), AP = AP - AX(X'P)
@@ -6195,34 +6203,40 @@ EigenSolver::PPCGSolveReal    (
       cu_XTX.CopyFrom( XTX );
       cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &minus_one,
                     cu_X.Data(), heightLocal, cu_XTX.Data(), width, &one, cu_P.Data(), heightLocal );
-      cu_P.CopyTo( P );
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
       GetTime( timeSta );
 
-      cu_AX.CopyFrom( AX );
+      //cu_AX.CopyFrom( AX );
       cu_AP.CopyFrom( AP );
       cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &minus_one,
                     cu_AX.Data(), heightLocal, cu_XTX.Data(), width, &one, cu_AP.Data(), heightLocal );
-      cu_AP.CopyTo( AP );
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
       // Normalize the conjugate direction
-      GetTime( timeSta );
+      cuda_calculate_Energy( cu_P.Data(), cu_normLocal.Data(), width-numLockedLocal, heightLocal ); // note, numLockedLocal == 0
+      cuda_memcpy_GPU2CPU( normLocal, cu_normLocal.Data(), sizeof(Real)*width);
+#if 0
       for( Int k = numLockedLocal; k < width; k++ ){
         normLocal[k] = Energy(DblNumVec(heightLocal, false, P.VecData(k)));
         normGlobal[k] = 0.0;
       }
+#endif
       MPI_Allreduce( &normLocal[0], &normGlobal[0], width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+      cuda_memcpy_CPU2GPU(cu_normLocal.Data(), normGlobal, sizeof(Real)*width);
+      cuda_batch_Scal( cu_P.Data(),  cu_normLocal.Data(), width, heightLocal);
+      cuda_batch_Scal( cu_AP.Data(), cu_normLocal.Data(), width, heightLocal);
+#if 0
       for( Int k = numLockedLocal; k < width; k++ ){
         Real norm = std::sqrt( normGlobal[k] );
         blas::Scal( heightLocal, 1.0 / norm, P.VecData(k), 1 );
         blas::Scal( heightLocal, 1.0 / norm, AP.VecData(k), 1 );
       }
+#endif
       GetTime( timeEnd );
       iterOther = iterOther + 2;
       timeOther = timeOther + ( timeEnd - timeSta );
@@ -6246,9 +6260,13 @@ EigenSolver::PPCGSolveReal    (
 
     SetValue( AMat, 0.0 ); SetValue( BMat, 0.0 );
     SetValue( AMatAll, 0.0 ); SetValue( BMatAll, 0.0 );
-    SetValue( AMatAllLocal, 0.0 ); SetValue( BMatAllLocal, 0.0 );
+    //SetValue( AMatAllLocal, 0.0 ); SetValue( BMatAllLocal, 0.0 );
 
     // LOCKING NOT SUPPORTED, loop over all columns 
+    cu_P.CopyTo( P );
+    cu_AP.CopyTo( AP );
+    cuda_setValue( cu_AMatAllLocal.Data(), 0.0, 9*sbSize*sbSize*nsb);
+    cuda_setValue( cu_BMatAllLocal.Data(), 0.0, 9*sbSize*sbSize*nsb);
     GetTime( time1);
     for( Int k = 0; k < nsb; k++ ){
 
@@ -6268,7 +6286,6 @@ EigenSolver::PPCGSolveReal    (
       GetTime( timeSta );
       //cu_x.CopyFrom( x );
       //cu_ax.CopyFrom( ax );
-      cu_AMatAllLocal.CopyFrom( AMatAllLocal );  // copy this into GPU to avoid GPU initilization of cu_AmatAllLocal 
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                   heightLocal, cu_ax.Data(), heightLocal, &zero, &cu_AMatAllLocal(0,3*sbSize*k), 3*sbSize );
 
@@ -6277,8 +6294,10 @@ EigenSolver::PPCGSolveReal    (
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       GetTime( timeSta );
+#if 0
       cu_w.CopyFrom( w );
       cu_aw.CopyFrom( aw );
+#endif
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_w.Data(),
                    heightLocal, cu_aw.Data(), heightLocal, &zero, &cu_AMatAllLocal(sbSize,3*sbSize*k+sbSize), 3*sbSize);
 
@@ -6289,15 +6308,15 @@ EigenSolver::PPCGSolveReal    (
       GetTime( timeSta );
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                    heightLocal, cu_aw.Data(), heightLocal, &zero, &cu_AMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize);
+#if 0
       cu_AMatAllLocal.CopyTo( AMatAllLocal );
-
+#endif
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       // BMatAllLoc            
       GetTime( timeSta );
-      cu_BMatAllLocal.CopyFrom( BMatAllLocal );
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                    heightLocal, cu_x.Data(), heightLocal, &zero, &cu_BMatAllLocal(0,3*sbSize*k), 3*sbSize);
 
@@ -6315,7 +6334,9 @@ EigenSolver::PPCGSolveReal    (
       GetTime( timeSta );
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                    heightLocal, cu_w.Data(), heightLocal, &zero, &cu_BMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize);
+#if 0
       cu_BMatAllLocal.CopyTo( BMatAllLocal );
+#endif
 
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
@@ -6327,13 +6348,15 @@ EigenSolver::PPCGSolveReal    (
         DblNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
         
         // GPU numMat
-        cuDblNumMat  cu_p (heightLocal, sbSize);
-        cuDblNumMat cu_ap (heightLocal, sbSize);
+        cuDblNumMat  cu_p (heightLocal, sbSize, false, cu_P.VecData(k)  );
+        cuDblNumMat cu_ap (heightLocal, sbSize, false, cu_AP.VecData(k) );
 
         // AMatAllLoc
         GetTime( timeSta );
+#if 0
         cu_p.CopyFrom( p );
         cu_ap.CopyFrom( ap );
+#endif
         cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_p.Data(),
                      heightLocal, cu_ap.Data(), heightLocal, &zero, &cu_AMatAllLocal(2*sbSize,3*sbSize*k+2*sbSize), 3*sbSize);
 
@@ -6352,7 +6375,9 @@ EigenSolver::PPCGSolveReal    (
         GetTime( timeSta );
         cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_w.Data(),
                      heightLocal, cu_ap.Data(), heightLocal, &zero, &cu_AMatAllLocal(sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
+#if 0
         cu_AMatAllLocal.CopyTo( AMatAllLocal );
+#endif
 
         GetTime( timeEnd );
         iterGemmT = iterGemmT + 1;
@@ -6378,8 +6403,9 @@ EigenSolver::PPCGSolveReal    (
         GetTime( timeSta );
         cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_w.Data(),
                      heightLocal, cu_p.Data(), heightLocal, &zero, &cu_BMatAllLocal(sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
+#if 0
         cu_BMatAllLocal.CopyTo( BMatAllLocal );
-
+#endif
         GetTime( timeEnd );
         iterGemmT = iterGemmT + 1;
         timeGemmT = timeGemmT + ( timeEnd - timeSta );
@@ -6387,6 +6413,9 @@ EigenSolver::PPCGSolveReal    (
       }             
 
     }
+
+    cu_AMatAllLocal.CopyTo( AMatAllLocal );
+    cu_BMatAllLocal.CopyTo( BMatAllLocal );
     GetTime( time2);
     firstTime += time2 - time1;
 
@@ -6404,6 +6433,8 @@ EigenSolver::PPCGSolveReal    (
 
     GetTime( time1);
     // Solve nsb small eigenproblems and update columns of X 
+    cu_W.CopyTo(W);
+    cu_AW.CopyTo(AW);
     for( Int k = 0; k < nsb; k++ ){
 
       Real eigs[3*sbSize];
