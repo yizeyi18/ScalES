@@ -84,8 +84,10 @@ Int combine(PTEntry& val, PTEntry& ext)
 // PeriodTable
 // *********************************************************************
 
-void PeriodTable::Setup( const std::string strptable )
+void PeriodTable::Setup( const std::string strptable, const std::string pseudoType )
 {
+  pseudoType_ = pseudoType;
+
   std::vector<Int> all(1,1);
 
   std::istringstream iss;  
@@ -116,7 +118,6 @@ void PeriodTable::Setup( const std::string strptable )
     splmap_[type] = spltmp;
   }
 }         // -----  end of method PeriodTable::Setup  ----- 
-
 
 void
 PeriodTable::CalculatePseudoCharge    (

@@ -157,6 +157,8 @@ private:
   std::map<Int, PTEntry> ptemap_; 
   /// @brief Map from atomic number to splines for pseudopotentials.
   std::map<Int, std::map< Int,std::vector<DblNumVec> > > splmap_;
+  /// @brief Type of the pseudopotential
+  std::string         pseudoType_;
 public:
   PeriodTable() {;}
   ~PeriodTable() {;}
@@ -169,8 +171,10 @@ public:
 
   /// @brief Read the information of the periodic table from file.  
   ///
-  /// All processors can call this routine at the same time
-  void Setup( const std::string );
+  /// All processors can call this routine at the same time. 
+  void Setup( const std::string strptable, const std::string pseudoType );
+
+
 
   /// @brief Generate the pseudo-charge and its derivatives.
   ///
@@ -206,6 +210,7 @@ public:
       const NumTns<std::vector<DblNumVec> >&   gridposElem,
       std::vector<std::pair<NumTns<SparseVec>, Real> >& vnlList );
 
+  std::string PseudoType() {return pseudoType_;}
 
 
   //---------------------------------------------

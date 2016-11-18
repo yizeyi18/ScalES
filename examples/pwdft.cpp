@@ -148,7 +148,7 @@ int main(int argc, char **argv)
     EigenSolver eigSol;
     SCF  scf;
 
-    ptable.Setup( esdfParam.periodTableFile );
+    ptable.Setup( esdfParam.periodTableFile, esdfParam.pseudoType );
 
     fft.Initialize( dm );
 

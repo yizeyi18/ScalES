@@ -1077,7 +1077,7 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
   // Compute the force from local pseudopotential
   // *********************************************************************
   // Method 1: Using the derivative of the pseudopotential
-  if(1){
+  if(0){
     for (Int a=0; a<numAtom; a++) {
       PseudoPot& pp = pseudo_[a];
       SparseVec& sp = pp.pseudoCharge;
@@ -1101,7 +1101,8 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
   }
 
   // Method 2: Using integration by parts
-  if(0)
+  // This formulation must be used when ONCV pseudopotential is used.
+  if(1)
   {
     for (Int a=0; a<numAtom; a++) {
       PseudoPot& pp = pseudo_[a];
@@ -1256,8 +1257,9 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
 
 
   // Method 2: Using integration by parts, and throw the derivative to the wavefunctions
-  // FIXME: Assumign real arithmetic is used here.
-  if(0)
+  // FIXME: Assuming real arithmetic is used here.
+  // This formulation must be used when ONCV pseudopotential is used.
+  if(1)
   {
     // Compute the derivative of the wavefunctions
 
@@ -1346,7 +1348,7 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
 
 
   // Method 3: Using the derivative of the pseudopotential, but evaluated on a fine grid
-  if(1)
+  if(0)
   {
     // Loop over atoms and pseudopotentials
     Int numEig = occupationRate_.m();
