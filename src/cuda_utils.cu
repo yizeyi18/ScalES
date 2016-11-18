@@ -34,7 +34,116 @@
   __device__ inline double Norm_2(const cuDoubleComplex & x) {
     return (cuCreal(x)*cuCreal(x)) + (cuCimag(x)*cuCimag(x));
  }
+__global__ void gpu_batch_Scal( double *psi, double *vec, int bandLen, int len)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int iband = tid / bandLen;
+	if(tid < len)
+	{
+		double alpha = 1.0 / sqrt( vec[iband] );
+		psi[tid] = psi[tid] * alpha;
+	}
+}
+template<unsigned int blockSize>
+__global__ void gpu_energy( double * psi, double * energy, int len)
+{
+        __shared__ double sdata[DIM];
+	int offset = blockIdx.x * len;
+	int tid = threadIdx.x;
+	double s = 0.0;
+	
+	while ( tid < len)
+	{
+		int index = tid + offset;
+		s += psi[index] * psi[index];
+		tid += blockDim.x;
+	}
+	
+	sdata[threadIdx.x] =  s;
+ 	double mySum = s;
+	__syncthreads();
 
+	tid = threadIdx.x;
+	if ((blockSize >= 512) && (tid < 256))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 256];
+	}
+
+	__syncthreads();
+	
+	if ((blockSize >= 256) &&(tid < 128))
+	{
+	        sdata[tid] = mySum = mySum + sdata[tid + 128];
+	}
+	
+	 __syncthreads();
+	
+	if ((blockSize >= 128) && (tid <  64))
+	{
+	   sdata[tid] = mySum = mySum + sdata[tid +  64];
+	}
+	
+	__syncthreads();
+
+#if (__CUDA_ARCH__ >= 300 )
+	if ( tid < 32 )
+	{
+		// Fetch final intermediate sum from 2nd warp
+		if (blockSize >=  64) mySum += sdata[tid + 32];
+		// Reduce final warp using shuffle
+		for (int offset = warpSize/2; offset > 0; offset /= 2)
+		{
+		    mySum += __shfl_down(mySum, offset);
+		}
+	}
+#else
+    // fully unroll reduction within a single warp
+    if ((blockSize >=  64) && (tid < 32))
+    {
+        sdata[tid] = mySum = mySum + sdata[tid + 32];
+    }
+
+    __syncthreads();
+
+    if ((blockSize >=  32) && (tid < 16))
+    {
+        sdata[tid] = mySum = mySum + sdata[tid + 16];
+    }
+
+    __syncthreads();
+
+    if ((blockSize >=  16) && (tid <  8))
+    {
+        sdata[tid] = mySum = mySum + sdata[tid +  8];
+    }
+
+    __syncthreads();
+
+    if ((blockSize >=   8) && (tid <  4))
+    {
+        sdata[tid] = mySum = mySum + sdata[tid +  4];
+    }
+
+    __syncthreads();
+
+    if ((blockSize >=   4) && (tid <  2))
+    {
+        sdata[tid] = mySum = mySum + sdata[tid +  2];
+    }
+
+    __syncthreads();
+
+    if ((blockSize >=   2) && ( tid <  1))
+    {
+        sdata[tid] = mySum = mySum + sdata[tid +  1];
+    }
+
+    __syncthreads();
+#endif
+
+	if( tid == 0) energy[blockIdx.x] = mySum;
+
+}
 __global__ void gpu_mapping_to_buf( double *buf, double * psi, int *index, int len)
 {
 	int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -411,5 +520,17 @@ void cuda_mapping_to_buf( double * buf, double * psi, int * index, int len )
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_mapping_to_buf<<< ndim, DIM>>>( buf, psi, index, len);	
+}
+void cuda_calculate_Energy( double * psi, double * energy, int nbands, int bandLen)
+{
+	// calculate  nbands psi Energy. 
+	gpu_energy<DIM><<<nbands, DIM, DIM*sizeof(double)>>>( psi, energy, bandLen);
+}
+
+void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen)
+{
+	int ndim = ( nband * bandLen + DIM - 1) / DIM;
+	int len = nband * bandLen;
+	gpu_batch_Scal<<< ndim, DIM >>> ( psi, vec, bandLen, len);
 }
 #endif

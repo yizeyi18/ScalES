@@ -126,6 +126,8 @@ void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int
 void cuda_teter( cuDoubleComplex* psi, double * vtot, int len);
 void cuda_mapping_to_buf( double * buf, double * psi, int * index, int len );
 void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len );
+void cuda_calculate_Energy( double * psi, double * energy, int nbands, int bandLen);
+void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen);
 //}
 #endif
 #endif
