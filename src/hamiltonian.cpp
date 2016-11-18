@@ -431,6 +431,40 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
 
+  MPI_Comm rowComm = MPI_COMM_NULL;
+  MPI_Comm colComm = MPI_COMM_NULL;
+  
+  Int mpirankRow, mpisizeRow, mpirankCol, mpisizeCol;
+  Int dmCol = DIM;
+  Int dmRow = mpisize / dmCol;
+
+  if(mpisize >= DIM){
+
+    IntNumVec mpiRowMap(mpisize);
+    IntNumVec mpiColMap(mpisize);
+
+    for( Int i = 0; i < mpisize; i++ ){
+      mpiRowMap(i) = i / dmCol;
+      mpiColMap(i) = i % dmCol;
+    } 
+
+    if( mpisize > dmRow * dmCol ){
+      for( Int k = dmRow * dmCol; k < mpisize; k++ ){
+        mpiRowMap(k) = dmRow - 1;
+      }
+    } 
+
+    MPI_Comm_split( domain_.comm, mpiRowMap(mpirank), mpirank, &rowComm );
+    MPI_Comm_split( domain_.comm, mpiColMap(mpirank), mpirank, &colComm );
+
+    MPI_Comm_rank(rowComm, &mpirankRow);
+    MPI_Comm_size(rowComm, &mpisizeRow);
+
+    MPI_Comm_rank(colComm, &mpirankCol);
+    MPI_Comm_size(colComm, &mpisizeCol);
+
+  }
+
   for( Int i = 0; i < ntotFine; i++ ){
     fft.inputComplexVecFine(i) = Complex( density_(i,RHO), 0.0 ); 
   }
@@ -492,9 +526,10 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
 
     } // mpisize < 3
     else { // mpisize > 3
+  
       for( d = 0; d < DIM; d++ ){
         DblNumMat& gradDensity = gradDensity_[d];
-        if ( d == mpirank ){ 
+        if ( d == mpirank % dmCol ){ 
           CpxNumVec& ik = fft.ikFine[d];
           for( Int i = 0; i < ntotFine; i++ ){
             if( fft.gkkFine(i) == 0 ){
@@ -511,14 +546,19 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
             gradDensity(i, RHO) = fft.inputComplexVecFine(i).real();
           }
         } // d == mpirank
+      } // for d
 
-        MPI_Bcast( gradDensity.Data(), ntotFine, MPI_DOUBLE, d, domain_.comm );
-
+      for( d = 0; d < DIM; d++ ){
+        DblNumMat& gradDensity = gradDensity_[d];
+        MPI_Bcast( gradDensity.Data(), ntotFine, MPI_DOUBLE, d, rowComm );
       } // for d
 
     } // mpisize > 3
 
   } //if(1)
+
+  if( rowComm != MPI_COMM_NULL ) MPI_Comm_free( & rowComm );
+  if( colComm != MPI_COMM_NULL ) MPI_Comm_free( & colComm );
 
   return ;
 }         // -----  end of method KohnSham::CalculateGradDensity  ----- 
@@ -533,6 +573,40 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
   MPI_Barrier(domain_.comm);
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  
+  MPI_Comm rowComm = MPI_COMM_NULL;
+  MPI_Comm colComm = MPI_COMM_NULL;
+  
+  Int mpirankRow, mpisizeRow, mpirankCol, mpisizeCol;
+  Int dmCol = DIM;
+  Int dmRow = mpisize / dmCol;
+
+  if(mpisize >= DIM){
+
+    IntNumVec mpiRowMap(mpisize);
+    IntNumVec mpiColMap(mpisize);
+
+    for( Int i = 0; i < mpisize; i++ ){
+      mpiRowMap(i) = i / dmCol;
+      mpiColMap(i) = i % dmCol;
+    } 
+
+    if( mpisize > dmRow * dmCol ){
+      for( Int k = dmRow * dmCol; k < mpisize; k++ ){
+        mpiRowMap(k) = dmRow - 1;
+      }
+    } 
+
+    MPI_Comm_split( domain_.comm, mpiRowMap(mpirank), mpirank, &rowComm );
+    MPI_Comm_split( domain_.comm, mpiColMap(mpirank), mpirank, &colComm );
+
+    MPI_Comm_rank(rowComm, &mpirankRow);
+    MPI_Comm_size(rowComm, &mpisizeRow);
+
+    MPI_Comm_rank(colComm, &mpirankCol);
+    MPI_Comm_size(colComm, &mpisizeCol);
+
+  }
 
   Int ntotBlocksize = ntot / mpisize;
   Int ntotLocal = ntotBlocksize;
@@ -705,11 +779,17 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
     } // mpisize < 3
     else { // mpisize > 3
 
+      std::vector<DblNumVec>      vxcTemp3d;
+      vxcTemp3d.resize( DIM );
+      for( Int d = 0; d < DIM; d++ ){
+        vxcTemp3d[d].Resize(ntot);
+        SetValue (vxcTemp3d[d], 0.0);
+      }
+
       for( d = 0; d < DIM; d++ ){
         DblNumMat& gradDensityd = gradDensity_[d];
-        DblNumVec vxcTemp3( ntot ); 
-        SetValue( vxcTemp3, 0.0 );
-        if ( d == mpirank ){ 
+        DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+        if ( d == mpirank % dmCol ){ 
           for(Int i = 0; i < ntot; i++){
             fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2Temp2(i), 0.0 ); 
           }
@@ -732,15 +812,15 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
           for( Int i = 0; i < ntot; i++ ){
             vxcTemp3(i) = fft.inputComplexVecFine(i).real();
           }
-
         } // d == mpirank
+      } // for d
 
-        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, domain_.comm );
-
+      for( d = 0; d < DIM; d++ ){
+        DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, rowComm );
         for( Int i = 0; i < ntot; i++ ){
           vxc_( i, RHO ) -= vxcTemp3(i);
         }
-
       } // for d
 
     } // mpisize > 3
@@ -868,12 +948,18 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
     
     } // mpisize < 3
     else { // mpisize > 3
+      
+      std::vector<DblNumVec>      vxcTemp3d;
+      vxcTemp3d.resize( DIM );
+      for( Int d = 0; d < DIM; d++ ){
+        vxcTemp3d[d].Resize(ntot);
+        SetValue (vxcTemp3d[d], 0.0);
+      }
 
       for( d = 0; d < DIM; d++ ){
         DblNumMat& gradDensityd = gradDensity_[d];
-        DblNumVec vxcTemp3( ntot ); 
-        SetValue( vxcTemp3, 0.0 );
-        if ( d == mpirank ){ 
+        DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+        if ( d == mpirank % dmCol ){ 
           for(Int i = 0; i < ntot; i++){
             fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
           }
@@ -898,13 +984,14 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
           }
 
         } // d == mpirank
+      } // for d
 
-        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, domain_.comm );
-
+      for( d = 0; d < DIM; d++ ){
+        DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, rowComm );
         for( Int i = 0; i < ntot; i++ ){
           vxc_( i, RHO ) -= vxcTemp3(i);
         }
-
       } // for d
 
     } // mpisize > 3
@@ -912,6 +999,9 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
   } // XC_FAMILY Hybrid
   else
     ErrorHandling( "Unsupported XC family!" );
+
+  if( rowComm != MPI_COMM_NULL ) MPI_Comm_free( & rowComm );
+  if( colComm != MPI_COMM_NULL ) MPI_Comm_free( & colComm );
 
   // Compute the total exchange-correlation energy
   val = 0.0;
