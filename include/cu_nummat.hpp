@@ -89,7 +89,7 @@ template <class F>
 
     F* Data() const { return data_; }
 
-    //F* VecData(Int j)  const;  // current do no implement this func.
+    F* VecData(Int j)  const;  // current do no implement this func.
 
     Int m() const { return m_; }
 
@@ -107,6 +107,7 @@ template <class F>
 typedef cuNumMat<bool>     cuBolNumMat;
 typedef cuNumMat<Int>      cuIntNumMat;
 typedef cuNumMat<Real>     cuDblNumMat;
+typedef cuNumMat<float>    cuFltNumMat;
 typedef cuNumMat<Complex>  cuCpxNumMat;
 
 // Utilities

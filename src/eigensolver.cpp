@@ -5569,9 +5569,13 @@ EigenSolver::PPCGSolveReal    (
 
 
   Real time1, time2;
+  Real time11, time22;
   Real timeSta, timeEnd;
   Real timeSta1, timeEnd1;
   Real timeSta2, timeEnd2;
+  Real firstTime = 0.0;
+  Real secondTime= 0.0;
+  Real calTime = 0.0;
   Real timeHpsi = 0.0;
   Real timeGemmT = 0.0;
   Real timeGemmN = 0.0;
@@ -5697,7 +5701,8 @@ EigenSolver::PPCGSolveReal    (
   // S = ( X | W | P ) is a triplet used for LOBPCG.  
   // W is the preconditioned residual
   // DblNumMat  S( height, 3*widthLocal ), AS( height, 3*widthLocal ); 
-  DblNumMat  S( heightLocal, 3*width ), AS( heightLocal, 3*width ); 
+  DblNumMat       S( heightLocal, 3*width ),    AS( heightLocal, 3*width ); 
+  cuDblNumMat  cu_S( heightLocal, 3*width ), cu_AS( heightLocal, 3*width ); 
   // AMat = S' * (AS),  BMat = S' * S
   // 
   // AMat = (X'*AX   X'*AW   X'*AP)
@@ -5716,7 +5721,6 @@ EigenSolver::PPCGSolveReal    (
   // Temporary buffer array.
   // The unpreconditioned residual will also be saved in Xtemp
   DblNumMat  XTX( width, width );
-  //? DblNumMat  XTXtemp( width, width );
   DblNumMat  XTXtemp1( width, width );
 
   DblNumMat  Xtemp( heightLocal, width );
@@ -5740,13 +5744,14 @@ EigenSolver::PPCGSolveReal    (
   // for GPU. please note we need to use copyTo adn copyFrom in the GPU matrix 
   cuDblNumMat cu_XTX(width, width);
   cuDblNumMat cu_XTXtemp1(width, width);
-  cuDblNumMat cu_X(heightLocal, width);
   cuDblNumMat cu_Xtemp(heightLocal, width);
-  cuDblNumMat cu_W(heightLocal, width);
-  cuDblNumMat cu_AW(heightLocal, width);
-  cuDblNumMat cu_P(heightLocal, width);
-  cuDblNumMat cu_AP(heightLocal, width);
-  cuDblNumMat cu_AX(heightLocal, width);
+
+  cuDblNumMat cu_X ( heightLocal, width, false, cu_S.VecData(0)        );
+  cuDblNumMat cu_W ( heightLocal, width, false, cu_S.VecData(width)    );
+  cuDblNumMat cu_P ( heightLocal, width, false, cu_S.VecData(2*width)  );
+  cuDblNumMat cu_AX( heightLocal, width, false, cu_AS.VecData(0)       );
+  cuDblNumMat cu_AW( heightLocal, width, false, cu_AS.VecData(width)   );
+  cuDblNumMat cu_AP( heightLocal, width, false, cu_AS.VecData(2*width) );
   
   //Int info;
   bool isRestart = false;
@@ -5960,6 +5965,7 @@ EigenSolver::PPCGSolveReal    (
     else
       numSet = 3;
 
+    GetTime( time11);
     // XTX <- X' * (AX)
     GetTime( timeSta );
     cu_X.CopyFrom(X);
@@ -6149,6 +6155,7 @@ EigenSolver::PPCGSolveReal    (
     Real normGlobal[width];
 
     GetTime( timeSta );
+
     for( Int k = numLockedLocal; k < width; k++ ){
       normLocal[k] = Energy(DblNumVec(heightLocal, false, W.VecData(k)));
       normGlobal[k] = 0.0;
@@ -6223,6 +6230,8 @@ EigenSolver::PPCGSolveReal    (
       statusOFS << "Time for norm2 in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
    
     }
+    GetTime( time22);
+    calTime += time22 - time11;
 
     // Perform the sweep
     GetTime( timeSta );
@@ -6240,6 +6249,7 @@ EigenSolver::PPCGSolveReal    (
     SetValue( AMatAllLocal, 0.0 ); SetValue( BMatAllLocal, 0.0 );
 
     // LOCKING NOT SUPPORTED, loop over all columns 
+    GetTime( time1);
     for( Int k = 0; k < nsb; k++ ){
 
       // fetch indiviual columns
@@ -6249,15 +6259,15 @@ EigenSolver::PPCGSolveReal    (
       DblNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
 
       // gpu data structure. 
-      cuDblNumMat cu_ax(heightLocal, sbSize);
-      cuDblNumMat cu_x (heightLocal, sbSize);
-      cuDblNumMat cu_w (heightLocal, sbSize);
-      cuDblNumMat cu_aw(heightLocal, sbSize);
+      cuDblNumMat cu_ax( heightLocal, sbSize, false, cu_AX.VecData(k)  );
+      cuDblNumMat cu_x ( heightLocal, sbSize, false, cu_X.VecData(k)  );
+      cuDblNumMat cu_w ( heightLocal, sbSize, false, cu_W.VecData(k) );
+      cuDblNumMat cu_aw( heightLocal, sbSize, false, cu_AW.VecData(k) );
       // Compute AMatAllLoc and BMatAllLoc            
       // AMatAllLoc
       GetTime( timeSta );
-      cu_x.CopyFrom( x );
-      cu_ax.CopyFrom( ax );
+      //cu_x.CopyFrom( x );
+      //cu_ax.CopyFrom( ax );
       cu_AMatAllLocal.CopyFrom( AMatAllLocal );  // copy this into GPU to avoid GPU initilization of cu_AmatAllLocal 
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                   heightLocal, cu_ax.Data(), heightLocal, &zero, &cu_AMatAllLocal(0,3*sbSize*k), 3*sbSize );
@@ -6377,6 +6387,8 @@ EigenSolver::PPCGSolveReal    (
       }             
 
     }
+    GetTime( time2);
+    firstTime += time2 - time1;
 
     GetTime( timeSta );
     MPI_Allreduce( AMatAllLocal.Data(), AMatAll.Data(), 9*sbSize*sbSize*nsb, MPI_DOUBLE, MPI_SUM, mpi_comm );
@@ -6390,6 +6402,7 @@ EigenSolver::PPCGSolveReal    (
     iterAllreduce = iterAllreduce + 1;
     timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
+    GetTime( time1);
     // Solve nsb small eigenproblems and update columns of X 
     for( Int k = 0; k < nsb; k++ ){
 
@@ -6545,6 +6558,8 @@ EigenSolver::PPCGSolveReal    (
       timeCopy = timeCopy + ( timeEnd - timeSta );
 
     }
+    GetTime( time2);
+    secondTime += time2 - time1;
 
     // CholeskyQR of the updated block X
     GetTime( timeSta );
@@ -6873,6 +6888,9 @@ EigenSolver::PPCGSolveReal    (
     statusOFS << "Time for iterSweepT       = " << iterSweepT          << "  timeSweepT       = " << timeSweepT << std::endl;
     statusOFS << "Time for iterCopy         = " << iterCopy            << "  timeCopy         = " << timeCopy << std::endl;
     statusOFS << "Time for iterOther        = " << iterOther           << "  timeOther        = " << timeOther << std::endl;
+    statusOFS << "Time for FIRST            = " << iterOther           << "  firstTime        = " << firstTime << std::endl;
+    statusOFS << "Time for SECOND           = " << iterOther           << "  secondTime       = " << secondTime<< std::endl;
+    statusOFS << "Time for calTime          = " << iterOther           << "  calTime          = " << calTime   << std::endl;
     statusOFS << "Time for PPCG in PWDFT is " <<  timeEnd2 - timeSta2  << std::endl << std::endl;
 #endif
 

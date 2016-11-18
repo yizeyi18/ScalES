@@ -163,7 +163,7 @@ inline F& cuNumMat<F>::operator()(Int i, Int j)  {
   }
   return data_[i+j*m_];
 }
-#if 0
+
 template <class F>
 inline F* cuNumMat<F>::VecData(Int j)  const 
 { 
@@ -178,7 +178,6 @@ inline F* cuNumMat<F>::VecData(Int j)  const
   return &(data_[j*m_]); 
 }
 
-#endif
 
 // *********************************************************************
 // Utilities
