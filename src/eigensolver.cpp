@@ -6258,16 +6258,17 @@ EigenSolver::PPCGSolveReal    (
     cuDblNumMat cu_AMatAllLocal( 3*sbSize, 3*sbSize*nsb );
     cuDblNumMat cu_BMatAllLocal( 3*sbSize, 3*sbSize*nsb );
 
-    SetValue( AMat, 0.0 ); SetValue( BMat, 0.0 );
-    SetValue( AMatAll, 0.0 ); SetValue( BMatAll, 0.0 );
+    //SetValue( AMat, 0.0 ); SetValue( BMat, 0.0 );
+    //SetValue( AMatAll, 0.0 ); SetValue( BMatAll, 0.0 );
     //SetValue( AMatAllLocal, 0.0 ); SetValue( BMatAllLocal, 0.0 );
 
     // LOCKING NOT SUPPORTED, loop over all columns 
+    GetTime( time1);
     cu_P.CopyTo( P );
     cu_AP.CopyTo( AP );
     cuda_setValue( cu_AMatAllLocal.Data(), 0.0, 9*sbSize*sbSize*nsb);
     cuda_setValue( cu_BMatAllLocal.Data(), 0.0, 9*sbSize*sbSize*nsb);
-    GetTime( time1);
+
     for( Int k = 0; k < nsb; k++ ){
 
       // fetch indiviual columns
@@ -6281,65 +6282,32 @@ EigenSolver::PPCGSolveReal    (
       cuDblNumMat cu_x ( heightLocal, sbSize, false, cu_X.VecData(k)  );
       cuDblNumMat cu_w ( heightLocal, sbSize, false, cu_W.VecData(k) );
       cuDblNumMat cu_aw( heightLocal, sbSize, false, cu_AW.VecData(k) );
+
       // Compute AMatAllLoc and BMatAllLoc            
       // AMatAllLoc
       GetTime( timeSta );
-      //cu_x.CopyFrom( x );
-      //cu_ax.CopyFrom( ax );
+
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                   heightLocal, cu_ax.Data(), heightLocal, &zero, &cu_AMatAllLocal(0,3*sbSize*k), 3*sbSize );
 
-      GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
-      timeGemmT = timeGemmT + ( timeEnd - timeSta );
-
-      GetTime( timeSta );
-#if 0
-      cu_w.CopyFrom( w );
-      cu_aw.CopyFrom( aw );
-#endif
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_w.Data(),
                    heightLocal, cu_aw.Data(), heightLocal, &zero, &cu_AMatAllLocal(sbSize,3*sbSize*k+sbSize), 3*sbSize);
 
-      GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
-      timeGemmT = timeGemmT + ( timeEnd - timeSta );
-
-      GetTime( timeSta );
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                    heightLocal, cu_aw.Data(), heightLocal, &zero, &cu_AMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize);
-#if 0
-      cu_AMatAllLocal.CopyTo( AMatAllLocal );
-#endif
-      GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
-      timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       // BMatAllLoc            
-      GetTime( timeSta );
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                    heightLocal, cu_x.Data(), heightLocal, &zero, &cu_BMatAllLocal(0,3*sbSize*k), 3*sbSize);
 
-      GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
-      timeGemmT = timeGemmT + ( timeEnd - timeSta );
-
-      GetTime( timeSta );
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_w.Data(),
                    heightLocal, cu_w.Data(), heightLocal, &zero, &cu_BMatAllLocal(sbSize,3*sbSize*k+sbSize), 3*sbSize);
-      GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
-      timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
-      GetTime( timeSta );
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                    heightLocal, cu_w.Data(), heightLocal, &zero, &cu_BMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize);
-#if 0
-      cu_BMatAllLocal.CopyTo( BMatAllLocal );
-#endif
 
       GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
+      iterGemmT = iterGemmT + 6;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       if ( numSet == 3 ){
@@ -6353,61 +6321,33 @@ EigenSolver::PPCGSolveReal    (
 
         // AMatAllLoc
         GetTime( timeSta );
-#if 0
-        cu_p.CopyFrom( p );
-        cu_ap.CopyFrom( ap );
-#endif
+
         cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_p.Data(),
                      heightLocal, cu_ap.Data(), heightLocal, &zero, &cu_AMatAllLocal(2*sbSize,3*sbSize*k+2*sbSize), 3*sbSize);
 
-        GetTime( timeEnd );
-        iterGemmT = iterGemmT + 1;
-        timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
-        GetTime( timeSta );
         cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                      heightLocal, cu_ap.Data(), heightLocal, &zero, &cu_AMatAllLocal(0,3*sbSize*k+2*sbSize), 3*sbSize );
 
-        GetTime( timeEnd );
-        iterGemmT = iterGemmT + 1;
-        timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
-        GetTime( timeSta );
         cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_w.Data(),
                      heightLocal, cu_ap.Data(), heightLocal, &zero, &cu_AMatAllLocal(sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
-#if 0
-        cu_AMatAllLocal.CopyTo( AMatAllLocal );
-#endif
 
-        GetTime( timeEnd );
-        iterGemmT = iterGemmT + 1;
-        timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
         // BMatAllLoc
-        GetTime( timeSta );
         cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_p.Data(),
                      heightLocal, cu_p.Data(), heightLocal, &zero, &cu_BMatAllLocal(2*sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
 
-        GetTime( timeEnd );
-        iterGemmT = iterGemmT + 1;
-        timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
-        GetTime( timeSta );
         cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                      heightLocal, cu_p.Data(), heightLocal, &zero, &cu_BMatAllLocal(0,3*sbSize*k+2*sbSize), 3*sbSize );
 
-        GetTime( timeEnd );
-        iterGemmT = iterGemmT + 1;
-        timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
-        GetTime( timeSta );
         cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_w.Data(),
                      heightLocal, cu_p.Data(), heightLocal, &zero, &cu_BMatAllLocal(sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
-#if 0
-        cu_BMatAllLocal.CopyTo( BMatAllLocal );
-#endif
+
         GetTime( timeEnd );
-        iterGemmT = iterGemmT + 1;
+        iterGemmT = iterGemmT + 6;
         timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       }             
@@ -6435,6 +6375,7 @@ EigenSolver::PPCGSolveReal    (
     // Solve nsb small eigenproblems and update columns of X 
     cu_W.CopyTo(W);
     cu_AW.CopyTo(AW);
+    std:: cout << "nsb is : " << nsb << "  num Set " << numSet  << std::endl;
     for( Int k = 0; k < nsb; k++ ){
 
       Real eigs[3*sbSize];
@@ -6603,8 +6544,9 @@ EigenSolver::PPCGSolveReal    (
     iterGemmT = iterGemmT + 1;
     timeGemmT = timeGemmT + ( timeEnd - timeSta );
     GetTime( timeSta );
-    SetValue( XTX, 0.0 );
+
     MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+
     GetTime( timeEnd );
     iterAllreduce = iterAllreduce + 1;
     timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
@@ -6650,14 +6592,22 @@ EigenSolver::PPCGSolveReal    (
   // orthonormal set
 
   if (!isConverged){
+    std:: cout <<" not converged.... " << std::endl;
     GetTime( timeSta );
+
+    //cu_X.CopyFrom( X ); // copy in line 6576.
+    cu_AX.CopyFrom( AX);
+    cublas::Gemm( cu_transT, cu_transN, width, width, heightLocal, &one, cu_X.Data(),
+                heightLocal, cu_AX.Data(), heightLocal, &zero, cu_XTXtemp1.Data(), width);
+    cu_XTXtemp1.CopyTo( XTXtemp1 );
+#if 0
     blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
         heightLocal, AX.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
+#endif
     GetTime( timeEnd );
     iterGemmT = iterGemmT + 1;
     timeGemmT = timeGemmT + ( timeEnd - timeSta );
     GetTime( timeSta );
-    SetValue( XTX, 0.0 );
     MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
     GetTime( timeEnd );
     iterAllreduce = iterAllreduce + 1;
