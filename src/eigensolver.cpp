@@ -5636,10 +5636,15 @@ EigenSolver::PPCGSolveReal    (
   IntNumVec recvdispls(mpisize);
   IntNumMat  sendk( height, widthLocal );
   IntNumMat  recvk( heightLocal, width );
+
   cuIntNumMat cu_sendk( height, widthLocal );
   cuIntNumMat cu_recvk( heightLocal, width );
   cuDblNumVec cu_sendbuf(height*widthLocal); 
   cuDblNumVec cu_recvbuf(heightLocal*width);
+  cuIntNumVec cu_sendcounts(mpisize);
+  cuIntNumVec cu_recvcounts(mpisize);
+  cuIntNumVec cu_senddispls(mpisize);
+  cuIntNumVec cu_recvdispls(mpisize);
 
   GetTime( timeSta );
   
@@ -5694,6 +5699,11 @@ EigenSolver::PPCGSolveReal    (
 
   cu_sendk.CopyFrom(sendk);
   cu_recvk.CopyFrom(recvk);
+  
+  cuda_memcpy_CPU2GPU(cu_sendcounts.Data(), sendcounts.Data(), sizeof(Int)*mpisize);
+  cuda_memcpy_CPU2GPU(cu_recvcounts.Data(), recvcounts.Data(), sizeof(Int)*mpisize);
+  cuda_memcpy_CPU2GPU(cu_senddispls.Data(), senddispls.Data(), sizeof(Int)*mpisize);
+  cuda_memcpy_CPU2GPU(cu_recvdispls.Data(), recvdispls.Data(), sizeof(Int)*mpisize);
  
   GetTime( timeEnd );
   iterAlltoallvMap = iterAlltoallvMap + 1;
@@ -5795,21 +5805,21 @@ EigenSolver::PPCGSolveReal    (
   
   cuda_memcpy_CPU2GPU(cu_X.Data(), psiPtr_->Wavefun().Data(), sizeof(Real)*heightLocal*width);
   cuda_mapping_to_buf( cu_sendbuf.Data(), cu_X.Data(), cu_sendk.Data(), heightLocal*width);
-  cuda_memcpy_GPU2CPU( sendbuf.Data(), cu_sendbuf.Data(), sizeof(Real)*heightLocal*width);
+  //cuda_memcpy_GPU2CPU( sendbuf.Data(), cu_sendbuf.Data(), sizeof(Real)*heightLocal*width);
 
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
 
   GetTime( timeSta );
-  MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-      &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+  MPI_Alltoallv( &cu_sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+      &cu_recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
   GetTime( timeEnd );
 
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
   GetTime( timeSta );
   
-  cuda_memcpy_CPU2GPU(cu_recvbuf.Data(), recvbuf.Data(), sizeof(Real)*heightLocal*width);
+//  cuda_memcpy_CPU2GPU(cu_recvbuf.Data(), recvbuf.Data(), sizeof(Real)*heightLocal*width);
   cuda_mapping_from_buf(cu_X.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
   cu_X.CopyTo(X);
 
@@ -5870,20 +5880,20 @@ EigenSolver::PPCGSolveReal    (
   GetTime( timeSta );
 
   cuda_mapping_to_buf( cu_recvbuf.Data(), cu_X.Data(), cu_recvk.Data(), heightLocal*width);
-  cuda_memcpy_GPU2CPU( recvbuf.Data(), cu_recvbuf.Data(), sizeof(Real)*heightLocal*width);
+  //cuda_memcpy_GPU2CPU( recvbuf.Data(), cu_recvbuf.Data(), sizeof(Real)*heightLocal*width);
   
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
 
   GetTime( timeSta );
-  MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-      &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+  MPI_Alltoallv( &cu_recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
+      &cu_sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
   GetTime( timeEnd );
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
   GetTime( timeSta );
-  cuda_memcpy_CPU2GPU(cu_sendbuf.Data(), sendbuf.Data(), sizeof(Real)*heightLocal*width);
+  //cuda_memcpy_CPU2GPU(cu_sendbuf.Data(), sendbuf.Data(), sizeof(Real)*heightLocal*width);
   cuda_mapping_from_buf(cu_X.Data(), cu_sendbuf.Data(), cu_sendk.Data(), heightLocal*width);
   cu_X.CopyTo( Xcol );
 
@@ -5905,20 +5915,20 @@ EigenSolver::PPCGSolveReal    (
   GetTime( timeSta );
   cu_X.CopyFrom(Xcol);
   cuda_mapping_to_buf( cu_sendbuf.Data(), cu_X.Data(), cu_sendk.Data(), heightLocal*width);
-  cuda_memcpy_GPU2CPU( sendbuf.Data(), cu_sendbuf.Data(), sizeof(Real)*heightLocal*width);
+  //cuda_memcpy_GPU2CPU( sendbuf.Data(), cu_sendbuf.Data(), sizeof(Real)*heightLocal*width);
   
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
   GetTime( timeSta );
-  MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-      &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+  MPI_Alltoallv( &cu_sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+      &cu_recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
   GetTime( timeEnd );
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
   GetTime( timeSta );
   
-  cuda_memcpy_CPU2GPU(cu_recvbuf.Data(), recvbuf.Data(), sizeof(Real)*heightLocal*width);
+  //cuda_memcpy_CPU2GPU(cu_recvbuf.Data(), recvbuf.Data(), sizeof(Real)*heightLocal*width);
   cuda_mapping_from_buf(cu_X.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
   cu_X.CopyTo(X);
 
@@ -5929,21 +5939,21 @@ EigenSolver::PPCGSolveReal    (
 
   cu_X.CopyFrom(AXcol);
   cuda_mapping_to_buf( cu_sendbuf.Data(), cu_X.Data(), cu_sendk.Data(), heightLocal*width);
-  cuda_memcpy_GPU2CPU( sendbuf.Data(), cu_sendbuf.Data(), sizeof(Real)*heightLocal*width);
+  //cuda_memcpy_GPU2CPU( sendbuf.Data(), cu_sendbuf.Data(), sizeof(Real)*heightLocal*width);
   
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
   GetTime( timeSta );
-  MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-      &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+  MPI_Alltoallv( &cu_sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+      &cu_recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
   GetTime( timeEnd );
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
   GetTime( timeSta );
-  cuda_memcpy_CPU2GPU(cu_recvbuf.Data(), recvbuf.Data(), sizeof(Real)*heightLocal*width);
-  cuda_mapping_from_buf(cu_X.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
-  cu_X.CopyTo(AX);
+  //cuda_memcpy_CPU2GPU(cu_recvbuf.Data(), recvbuf.Data(), sizeof(Real)*heightLocal*width);
+  cuda_mapping_from_buf(cu_AX.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
+  cu_AX.CopyTo(AX);
 
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
@@ -6020,20 +6030,20 @@ EigenSolver::PPCGSolveReal    (
     GetTime( timeSta );
     
     cuda_mapping_to_buf( cu_recvbuf.Data(), cu_Xtemp.Data(), cu_recvk.Data(), heightLocal*width);
-    cuda_memcpy_GPU2CPU( recvbuf.Data(), cu_recvbuf.Data(), sizeof(Real)*heightLocal*width);
+    //cuda_memcpy_GPU2CPU( recvbuf.Data(), cu_recvbuf.Data(), sizeof(Real)*heightLocal*width);
 
     GetTime( timeEnd );
     timeMapping += timeEnd - timeSta;
     GetTime( timeSta );
-    MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-        &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+    MPI_Alltoallv( &cu_recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
+        &cu_sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
     GetTime( timeEnd );
     iterAlltoallv = iterAlltoallv + 1;
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
     GetTime( timeSta );
     
-    cuda_memcpy_CPU2GPU(cu_recvbuf.Data(), sendbuf.Data(), sizeof(Real)*heightLocal*width);
-    cuda_mapping_from_buf(cu_Xtemp.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
+    //cuda_memcpy_CPU2GPU(cu_recvbuf.Data(), sendbuf.Data(), sizeof(Real)*heightLocal*width);
+    cuda_mapping_from_buf(cu_Xtemp.Data(), cu_sendbuf.Data(), cu_recvk.Data(), heightLocal*width);
     cu_Xtemp.CopyTo(Xcol);
 
     GetTime( timeEnd );
@@ -6072,19 +6082,19 @@ EigenSolver::PPCGSolveReal    (
     
     cu_W.CopyFrom(Wcol);
     cuda_mapping_to_buf( cu_sendbuf.Data(), cu_W.Data(), cu_sendk.Data(), heightLocal*width);
-    cuda_memcpy_GPU2CPU( sendbuf.Data(), cu_sendbuf.Data(), sizeof(Real)*heightLocal*width);
+   // cuda_memcpy_GPU2CPU( sendbuf.Data(), cu_sendbuf.Data(), sizeof(Real)*heightLocal*width);
 
     GetTime( timeEnd );
     timeMapping += timeEnd - timeSta;
     GetTime( timeSta );
-    MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+    MPI_Alltoallv( &cu_sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+        &cu_recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
     GetTime( timeEnd );
     iterAlltoallv = iterAlltoallv + 1;
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
     GetTime( timeSta );
     
-    cuda_memcpy_CPU2GPU(cu_recvbuf.Data(), recvbuf.Data(), sizeof(Real)*heightLocal*width);
+    //cuda_memcpy_CPU2GPU(cu_recvbuf.Data(), recvbuf.Data(), sizeof(Real)*heightLocal*width);
     cuda_mapping_from_buf(cu_W.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
 
     GetTime( timeEnd );
@@ -6094,19 +6104,19 @@ EigenSolver::PPCGSolveReal    (
 
     cu_AW.CopyFrom(AWcol);
     cuda_mapping_to_buf( cu_sendbuf.Data(), cu_AW.Data(), cu_sendk.Data(), heightLocal*width);
-    cuda_memcpy_GPU2CPU( sendbuf.Data(), cu_sendbuf.Data(), sizeof(Real)*heightLocal*width);
+    //cuda_memcpy_GPU2CPU( sendbuf.Data(), cu_sendbuf.Data(), sizeof(Real)*heightLocal*width);
     
     GetTime( timeEnd );
     timeMapping += timeEnd - timeSta;
     GetTime( timeSta );
-    MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
+    MPI_Alltoallv( &cu_sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
+        &cu_recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
     GetTime( timeEnd );
     iterAlltoallv = iterAlltoallv + 1;
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
     GetTime( timeSta );
     
-    cuda_memcpy_CPU2GPU(cu_recvbuf.Data(), recvbuf.Data(), sizeof(Real)*heightLocal*width);
+    //cuda_memcpy_CPU2GPU(cu_recvbuf.Data(), recvbuf.Data(), sizeof(Real)*heightLocal*width);
     cuda_mapping_from_buf(cu_AW.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
 
     GetTime( timeEnd );
@@ -6789,7 +6799,7 @@ EigenSolver::PPCGSolveReal    (
 #if ( _DEBUGlevel_ >= 2 )
 
   GetTime( timeSta );
-  cu_X.CopyFrom( X );
+  //cu_X.CopyFrom( X );
   cublas::Gemm( cu_transT, cu_transN, width, width, heightLocal, &one, cu_X.Data(),
                 heightLocal, cu_X.Data(), heightLocal, &zero, cu_XTXtemp1.Data(), width );
   cu_XTXtemp1.CopyTo( XTXtemp1 );
@@ -6815,31 +6825,43 @@ EigenSolver::PPCGSolveReal    (
   resVal_ = resNorm;
 
   GetTime( timeSta );
+  cu_X.CopyFrom(X);
+  cuda_mapping_to_buf( cu_recvbuf.Data(), cu_X.Data(), cu_recvk.Data(), heightLocal*width);
+#if 0
   for( Int j = 0; j < width; j++ ){ 
     for( Int i = 0; i < heightLocal; i++ ){
       recvbuf[recvk(i, j)] = X(i, j);
     }
   }
+#endif
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
   GetTime( timeSta );
-  MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-      &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
+  MPI_Alltoallv( &cu_recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
+      &cu_sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
   GetTime( timeEnd );
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
   GetTime( timeSta );
+
+  cuda_mapping_from_buf(cu_X.Data(), cu_sendbuf.Data(), cu_sendk.Data(), heightLocal*width);
+  cuda_memcpy_GPU2CPU( psiPtr_->Wavefun().Data(),cu_X.Data(), sizeof(Real)*heightLocal*width);
+
+#if 0
   for( Int j = 0; j < widthLocal; j++ ){ 
     for( Int i = 0; i < height; i++ ){
       Xcol(i, j) = sendbuf[sendk(i, j)]; 
     }
   }
+#endif
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
 
   GetTime( timeSta );
+#if 0
   lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
       psiPtr_->Wavefun().Data(), height );
+#endif
   GetTime( timeEnd );
   iterCopy = iterCopy + 1;
   timeCopy = timeCopy + ( timeEnd - timeSta );
