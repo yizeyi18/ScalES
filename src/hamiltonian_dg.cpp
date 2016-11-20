@@ -3185,7 +3185,7 @@ HamiltonianDG::CalculateForce    ( DistFourier& fft )
   // Compute the force from local pseudopotential
   // *********************************************************************
   // Method 1: Using the derivative of the pseudopotential
-  if(1){
+  if(0){
     for( Int k = 0; k < numElem_[2]; k++ )
       for( Int j = 0; j < numElem_[1]; j++ )
         for( Int i = 0; i < numElem_[0]; i++ ){
@@ -3224,7 +3224,9 @@ HamiltonianDG::CalculateForce    ( DistFourier& fft )
   // does not use the derivative of the pseudopotential. This is done
   // through integration by parts, and the derivative is applied to the
   // Coulomb potential evaluated on a uniform grid. 
-  if(0)
+  // 
+  // NOTE: For ONCV pseudopotential we can only use this version!
+  if(1)
   {
     for( Int k = 0; k < numElem_[2]; k++ )
       for( Int j = 0; j < numElem_[1]; j++ )
