@@ -201,15 +201,13 @@ void Fourier::Initialize ( const Domain& dm )
       plannerFlag);
 #ifdef GPU
   mpi::cuda_setDevice(MPI_COMM_WORLD);
-#endif
-#ifdef GPU
-   Int i;
-   std::cout << "init the R2C cufftPlan: "<< numGrid[2] << " " << numGrid[1] <<" " << numGrid[0]<<std::endl;
-   for(i = 0; i < NSTREAM; i++)
-   {
-     cufftPlan3d(&cuPlanR2C[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_D2Z);
-     cufftPlan3d(&cuPlanC2R[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_Z2D);
-   }
+  Int i;
+  std::cout << "init the R2C cufftPlan: "<< numGrid[2] << " " << numGrid[1] <<" " << numGrid[0]<<std::endl;
+  for(i = 0; i < NSTREAM; i++)
+  {
+    cufftPlan3d(&cuPlanR2C[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_D2Z);
+    cufftPlan3d(&cuPlanC2R[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_Z2D);
+  }
 #endif
   // -1/2 \Delta  and Teter preconditioner in R2C
   gkkR2C.Resize( numGridTotalR2C );

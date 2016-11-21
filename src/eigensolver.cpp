@@ -5545,7 +5545,8 @@ EigenSolver::PPCGSolveReal    (
   cublasOperation_t cu_transN = CUBLAS_OP_N;
   cublasOperation_t cu_transC = CUBLAS_OP_C;
   cublas::Init();
-  std::cout << " GPU PPCG ........... " << std::endl;
+  if(mpirank == 0)
+    std::cout << " GPU PPCG ........... " << std::endl;
 
   Int height = ntot * ncom;
   Int width = noccTotal;
@@ -6390,7 +6391,8 @@ EigenSolver::PPCGSolveReal    (
     // Solve nsb small eigenproblems and update columns of X 
     cu_W.CopyTo(W);
     cu_AW.CopyTo(AW);
-    std:: cout << "nsb is : " << nsb << "  num Set " << numSet  << std::endl;
+    if(mpirank == 0)
+      std:: cout << "nsb is : " << nsb << "  num Set " << numSet  << std::endl;
     for( Int k = 0; k < nsb; k++ ){
 
       Real eigs[3*sbSize];
@@ -6554,20 +6556,20 @@ EigenSolver::PPCGSolveReal    (
     cu_X.CopyFrom(X);
     cublas::Gemm( cu_transT, cu_transN, width, width, heightLocal, &one, cu_X.Data(), 
               heightLocal, cu_X.Data(), heightLocal, &zero, cu_XTXtemp1.Data(), width );
-    cu_XTXtemp1.CopyTo(XTXtemp1);
 
     GetTime( timeEnd );
     iterGemmT = iterGemmT + 1;
     timeGemmT = timeGemmT + ( timeEnd - timeSta );
     GetTime( timeSta );
 
-    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    MPI_Allreduce( cu_XTXtemp1.Data(), cu_XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    cu_XTX.CopyTo(XTX);
 
     GetTime( timeEnd );
     iterAllreduce = iterAllreduce + 1;
     timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
 
-    if ( mpirank == 0) {
+//    if ( mpirank == 0) {
       GetTime( timeSta );
       GetTime( timeSta1 );
       lapack::Potrf( 'U', width, XTX.Data(), width );
@@ -6577,9 +6579,9 @@ EigenSolver::PPCGSolveReal    (
       GetTime( timeEnd );
       iterMpirank0 = iterMpirank0 + 1;
       timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
-    }
+//    }
     GetTime( timeSta );
-    MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
+//    MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
     GetTime( timeEnd );
     iterBcast = iterBcast + 1;
     timeBcast = timeBcast + ( timeEnd - timeSta );
@@ -6610,7 +6612,7 @@ EigenSolver::PPCGSolveReal    (
   // orthonormal set
 
   if (!isConverged){
-    std:: cout <<" not converged.... " << std::endl;
+    if(mpirank == 0) std:: cout <<" not converged.... " << std::endl;
     GetTime( timeSta );
 
     //cu_X.CopyFrom( X ); // copy in line 6576.
