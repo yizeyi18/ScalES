@@ -48,6 +48,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "blas.hpp"
 #ifdef GPU
 #include "cublas.hpp"
+#include "mpi_interf.hpp"
 #endif
 namespace dgdft{
 
@@ -198,6 +199,9 @@ void Fourier::Initialize ( const Domain& dm )
       reinterpret_cast<fftw_complex*>( &outputVecR2C[0] ),
       &inputVecR2C[0],
       plannerFlag);
+#ifdef GPU
+  mpi::cuda_setDevice(MPI_COMM_WORLD);
+#endif
 #ifdef GPU
    Int i;
    std::cout << "init the R2C cufftPlan: "<< numGrid[2] << " " << numGrid[1] <<" " << numGrid[0]<<std::endl;

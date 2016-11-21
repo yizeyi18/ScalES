@@ -5576,8 +5576,10 @@ EigenSolver::PPCGSolveReal    (
   Real timeSta2, timeEnd2;
   Real firstTime = 0.0;
   Real secondTime= 0.0;
+  Real thirdTime= 0.0;
   Real calTime = 0.0;
   Real timeHpsi = 0.0;
+  Real timeStart = 0.0;
   Real timeGemmT = 0.0;
   Real timeGemmN = 0.0;
   Real timeBcast = 0.0;
@@ -5623,6 +5625,7 @@ EigenSolver::PPCGSolveReal    (
   }
 
   GetTime( timeSta2 );
+  GetTime( time11);
 
   // The following codes are not replaced by AlltoallForward /
   // AlltoallBackward since they are repetitively used in the
@@ -5957,6 +5960,8 @@ EigenSolver::PPCGSolveReal    (
 
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
+  GetTime( time22);
+  timeStart += time22 - time11;
 
 
   // Start the main loop
@@ -6543,6 +6548,7 @@ EigenSolver::PPCGSolveReal    (
     GetTime( time2);
     secondTime += time2 - time1;
 
+    GetTime( time1);
     // CholeskyQR of the updated block X
     GetTime( timeSta );
     cu_X.CopyFrom(X);
@@ -6588,6 +6594,8 @@ EigenSolver::PPCGSolveReal    (
     GetTime( timeEnd );
     iterTrsm = iterTrsm + 1;
     timeTrsm = timeTrsm + ( timeEnd - timeSta );
+    GetTime( time2);
+    thirdTime += time2 - time1;
 
   } while( (iter < eigMaxIter) || (resMin > eigMinTolerance) );
 
@@ -6891,9 +6899,13 @@ EigenSolver::PPCGSolveReal    (
     statusOFS << "Time for iterSweepT       = " << iterSweepT          << "  timeSweepT       = " << timeSweepT << std::endl;
     statusOFS << "Time for iterCopy         = " << iterCopy            << "  timeCopy         = " << timeCopy << std::endl;
     statusOFS << "Time for iterOther        = " << iterOther           << "  timeOther        = " << timeOther << std::endl;
+    statusOFS << "Time for start overhead   = " << iterOther           << "  overheadTime     = " << timeStart << std::endl;
+    statusOFS << "Time for calTime          = " << iterOther           << "  calTime          = " << calTime   << std::endl;
     statusOFS << "Time for FIRST            = " << iterOther           << "  firstTime        = " << firstTime << std::endl;
     statusOFS << "Time for SECOND           = " << iterOther           << "  secondTime       = " << secondTime<< std::endl;
-    statusOFS << "Time for calTime          = " << iterOther           << "  calTime          = " << calTime   << std::endl;
+    statusOFS << "Time for Third            = " << iterOther           << "  thirdTime        = " << thirdTime << std::endl;
+    statusOFS << "Time for overhead + first + second + third      = " << timeStart + calTime + firstTime + secondTime + thirdTime << std::endl;
+
     statusOFS << "Time for PPCG in PWDFT is " <<  timeEnd2 - timeSta2  << std::endl << std::endl;
 #endif
 
