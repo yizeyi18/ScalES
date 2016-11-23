@@ -1504,7 +1504,30 @@ KohnSham::CalculateForce2    ( Spinor& psi, Fourier& fft  )
 
   return ;
 }         // -----  end of method KohnSham::CalculateForce2  ----- 
+#ifdef GPU
+void
+KohnSham::MultSpinor    ( Spinor& psi, cuNumTns<Real>& a3, Fourier& fft )
+{
 
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+  
+  //SetValue( a3, 0.0 );
+
+  GetTime( timeSta );
+  psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for psi.AddMultSpinorFineR2C is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+  return ;
+}         // -----  end of method KohnSham::MultSpinor  ----- 
+
+
+#endif
 void
 KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 {

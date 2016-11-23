@@ -207,6 +207,10 @@ void Fourier::Initialize ( const Domain& dm )
   {
     cufftPlan3d(&cuPlanR2C[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_D2Z);
     cufftPlan3d(&cuPlanC2R[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_Z2D);
+#if 0
+    std::cout << " after init " << i << " cufft Plan ... " <<  8*numGrid[0] * numGrid[1] * numGrid[2] / 1000000<< std::endl;
+    cuda_memory();
+#endif
   }
 #endif
   // -1/2 \Delta  and Teter preconditioner in R2C
@@ -391,6 +395,10 @@ void Fourier::InitializeFine ( const Domain& dm )
    {
      cufftPlan3d(&cuPlanR2CFine[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_D2Z);
      cufftPlan3d(&cuPlanC2RFine[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_Z2D);
+#if 0
+     std::cout << " after init " << i << " cufft Fine  Plan ... "  <<  numGrid[0] * numGrid[1] * numGrid[2]*8 / 1000000<< std::endl;
+     cuda_memory();
+#endif
    }
 #endif
   // -1/2 \Delta  and Teter preconditioner in R2C

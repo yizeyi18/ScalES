@@ -13,7 +13,7 @@
 #include <cuda_runtime.h>
 #include <cufft.h>
 #include "cuComplex.h"
-#define NSTREAM 32
+#define NSTREAM 1
 #if 0
 #define CPU2GPU cudaMemcpyHostToDevice 
 #define GPU2CPU cudaMemcpyDeviceToHost 

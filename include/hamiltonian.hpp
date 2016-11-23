@@ -181,7 +181,9 @@ public:
 
   // Matrix vector multiplication
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft) = 0;
-
+#ifdef GPU
+  virtual void MultSpinor(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft) = 0;
+#endif
   virtual NumTns<Real>& PhiEXX() = 0;
 
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
@@ -307,6 +309,9 @@ public:
   // Matrix vector multiplication
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft);
 
+#ifdef GPU
+  virtual void MultSpinor(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft);
+#endif
 
   /// @brief Update phiEXX by the spinor psi. The Phi are normalized in
   /// the real space as

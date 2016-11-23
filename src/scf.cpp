@@ -536,7 +536,11 @@ SCF::Iterate (  )
           eigSolPtr_->LOBPCGSolveReal3(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
         } // Use PPCG
         else if( PWSolver_ == "PPCG" || PWSolver_ == "PPCGScaLAPACK" ){
+#ifdef GPU
+          eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow, iter );    
+#else
           eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+#endif
         }
         else{
           // FIXME Merge the Chebyshev into an option of PWSolver

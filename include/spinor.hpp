@@ -55,8 +55,10 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "utility.hpp"
 #include  "lapack.hpp"
 #include  "esdf.hpp"
+
 #ifdef GPU
 #include  "cu_numvec_impl.hpp"
+#include  "cu_numtns_impl.hpp"
 #endif
 
 namespace dgdft{
@@ -68,6 +70,10 @@ private:
   IntNumVec         wavefunIdx_;
   Int               numStateTotal_;
   Int               blocksize_;
+#ifdef GPU
+  // not use wavefun_ in the GPU implementation.
+  cuNumTns<Real>   cu_wavefun_;
+#endif
 
   // For density fitting
   Int               numMu_;
@@ -84,7 +90,13 @@ public:
 
   Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
       const bool owndata, Real* data );
-
+#ifdef GPU
+  // Weile, needs further consideration.
+  Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
+      const bool owndata, Real* data, bool isGPU);
+  void SetupGPU( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
+      const bool owndata, Real* data );
+#endif
   ~Spinor();
 
   void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
@@ -127,6 +139,11 @@ public:
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );
   void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );
+#ifdef GPU
+  void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
+      const std::vector<PseudoPot>& pseudo, cuNumTns<Real>& a3 );
+  void AddTeterPrecond( Fourier* fftPtr, cuNumTns<Real>& a3 );
+#endif
 
   void AddTeterPrecond( Fourier* fftPtr, NumTns<Real>& a3 );
 
