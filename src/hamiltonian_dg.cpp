@@ -3256,6 +3256,16 @@ HamiltonianDG::CalculateForce    ( DistFourier& fft )
   }
 
 
+  if(0){
+    // Output the local component of the force for debugging purpose
+    mpi::Allreduce( forceLocal.Data(), force.Data(), numAtom * DIM,
+        MPI_SUM, domain_.colComm );
+    for( Int a = 0; a < numAtom; a++ ){
+      Point3 ft(force(a,0),force(a,1),force(a,2));
+      Print( statusOFS, "atom", a, "localforce ", ft );
+    }
+  }
+
   // *********************************************************************
   // Compute the force from nonlocal pseudopotential
   // *********************************************************************
@@ -3264,6 +3274,7 @@ HamiltonianDG::CalculateForce    ( DistFourier& fft )
   // integration by parts, and the derivative is applied to the basis functions
   // evaluated on a LGL grid. This is illustrated in 
   // hamiltonian_dg_matrix.cpp
+  if(1)
   {
     // Step 1. Collect the eigenvectors from the neighboring elements
     // according to the support of the pseudopotential

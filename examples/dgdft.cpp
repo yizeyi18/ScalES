@@ -400,6 +400,320 @@ int main(int argc, char **argv)
     statusOFS << "! Total time for the SCF iteration = " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
+#if 0
+    // Compute the local part of the force using a pwdft-like functionality. This is purely for debuggin purpose
+    // 11/20/2016
+    if(1){
+      std::vector<DblNumVec>  vhartDrv(DIM);
+      Int numAtom = esdfParam.atomList.size();
+
+
+      // Compute vhartDrv on the original Fine grid
+      {
+        DblNumVec  rhoLocal;
+        DistNumVecToDistRowVec(
+            hamDG.Density(),
+            rhoLocal,
+            dm.numGridFine,
+            numElem,
+            distfft.localNzStart,
+            distfft.localNz,
+            distfft.isInGrid,
+            dm.colComm );
+
+
+
+        // Only works for fftsize == 1
+        // The code below can only be executed by mpirank == 0
+        if( distfft.isInGrid ){
+
+
+          // Output density
+          if(1)
+          {
+            std::ofstream rhoStream("DEN");
+
+            std::vector<DblNumVec>   gridpos(DIM);
+            UniformMeshFine ( dm, gridpos );
+            for( Int d = 0; d < DIM; d++ ){
+              serialize( gridpos[d], rhoStream, NO_MASK );
+            }
+            // Only work for the restricted spin case
+            serialize( rhoLocal, rhoStream, NO_MASK );
+            rhoStream.close();
+          }
+
+          // Read density from other runs
+          if(0)
+          {
+            std::istringstream rhoStream;
+            std::ifstream fin("DEN_READ");
+
+            std::vector<char> tmpstr;
+            tmpstr.insert(tmpstr.end(), std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>());
+            fin.close();
+            rhoStream.str( std::string(tmpstr.begin(), tmpstr.end()) );
+
+            std::vector<DblNumVec>   gridpos(DIM);
+            for( Int d = 0; d < DIM; d++ ){
+              deserialize( gridpos[d], rhoStream, NO_MASK );
+            }
+            // Only work for the restricted spin case
+            deserialize( rhoLocal, rhoStream, NO_MASK );
+          }
+
+          Fourier fft;
+          fft.Initialize( dm );
+          fft.InitializeFine( dm );
+          KohnSham hamKS;
+          hamKS.Setup( esdfParam, dm, esdfParam.atomList );
+          hamKS.CalculatePseudoPotential( ptable );
+
+          Int ntotFine  = fft.domain.NumGridTotalFine();
+
+          DblNumVec  totalCharge(ntotFine);
+          SetValue( totalCharge, 0.0 );
+
+          // totalCharge = density_ - pseudoCharge_
+          blas::Copy( ntotFine, rhoLocal.Data(), 1, totalCharge.Data(), 1 );
+          blas::Axpy( ntotFine, -1.0, hamKS.PseudoCharge().Data(),1,
+              totalCharge.Data(), 1 );
+
+          // Total charge in the Fourier space
+          CpxNumVec  totalChargeFourier( ntotFine );
+
+          for( Int i = 0; i < ntotFine; i++ ){
+            fft.inputComplexVecFine(i) = Complex( totalCharge(i), 0.0 );
+          }
+
+          FFTWExecute ( fft, fft.forwardPlanFine );
+
+          // Filter out high frequency modes
+//          for( Int i = 0; i < ntotFine; i++ ){
+//            if( fft.gkkFine(i) > 2 * esdfParam.ecutWavefunction ){
+//              fft.outputComplexVecFine(i) = Z_ZERO;
+//            }
+//          }
+
+
+          blas::Copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
+              totalChargeFourier.Data(), 1 );
+
+          // Compute the derivative of the Hartree potential via Fourier
+          // transform 
+          for( Int d = 0; d < DIM; d++ ){
+            CpxNumVec& ikFine = fft.ikFine[d];
+            for( Int i = 0; i < ntotFine; i++ ){
+              if( fft.gkkFine(i) == 0 ){
+                fft.outputComplexVecFine(i) = Z_ZERO;
+              }
+              else{
+                // NOTE: gkk already contains the factor 1/2.
+                fft.outputComplexVecFine(i) = totalChargeFourier(i) *
+                  2.0 * PI / fft.gkkFine(i) * ikFine(i);
+              }
+            }
+
+            FFTWExecute ( fft, fft.backwardPlanFine );
+
+            // vhartDrv saves the derivative of the Hartree potential
+            vhartDrv[d].Resize( ntotFine );
+
+            for( Int i = 0; i < ntotFine; i++ ){
+              vhartDrv[d](i) = fft.inputComplexVecFine(i).real();
+            }
+
+          } // for (d)
+        }
+      }
+
+      // Interpolate vhartDrv onto a even finer grid. only done on one proc
+      if( distfft.isInGrid ){
+        std::vector<DblNumVec>  vhartDrvFiner(DIM);
+        Domain dm2 = dm;
+        // make a copy
+        dm2.numGrid = dm2.numGridFine;
+        Int gridfac = 1;
+        dm2.numGridFine[0] = dm2.numGrid[0] * gridfac;
+        dm2.numGridFine[1] = dm2.numGrid[1] * gridfac;
+        dm2.numGridFine[2] = dm2.numGrid[2] * gridfac;
+
+        Fourier fft;
+        fft.Initialize( dm2 );
+        fft.InitializeFine( dm2 );
+        KohnSham hamKS;
+        hamKS.Setup( esdfParam, dm2, esdfParam.atomList );
+        hamKS.CalculatePseudoPotential( ptable );
+
+        Int ntot = dm2.NumGridTotal();
+        Int ntotFine = dm2.NumGridTotalFine();
+
+        for( Int d = 0; d < DIM; d++ ){
+          vhartDrvFiner[d].Resize(ntotFine);
+
+          SetValue( fft.inputComplexVec, Z_ZERO );
+          blas::Copy( ntot, vhartDrv[d].Data(), 1,
+              reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2 );
+
+          fftw_execute( fft.forwardPlan );
+          SetValue( fft.outputComplexVecFine, Z_ZERO ); 
+          Int *idxPtr = fft.idxFineGrid.Data();
+          Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
+          Complex *fftOutPtr = fft.outputComplexVec.Data();
+          for( Int i = 0; i < ntot; i++ ){
+            fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
+          }
+          fftw_execute( fft.backwardPlanFine );
+          Real fac = 1.0 / ntot; 
+          blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+              2, vhartDrvFiner[d].Data(), 1 );
+          blas::Scal( ntotFine, fac, vhartDrvFiner[d].Data(), 1 );
+        }
+
+        DblNumMat  force( numAtom, DIM );
+        SetValue( force, 0.0 );
+
+        for (Int a=0; a<numAtom; a++) {
+          PseudoPot& pp = hamKS.Pseudo()[a];
+          SparseVec& sp = pp.pseudoCharge;
+          IntNumVec& idx = sp.first;
+          DblNumMat& val = sp.second;
+
+          Real wgt = dm2.Volume() / dm2.NumGridTotalFine();
+          Real resX = 0.0;
+          Real resY = 0.0;
+          Real resZ = 0.0;
+          for( Int l = 0; l < idx.m(); l++ ){
+            resX += val(l, 0) * vhartDrvFiner[0][idx(l)] * wgt;
+            resY += val(l, 0) * vhartDrvFiner[1][idx(l)] * wgt;
+            resZ += val(l, 0) * vhartDrvFiner[2][idx(l)] * wgt;
+          }
+          force( a, 0 ) += resX;
+          force( a, 1 ) += resY;
+          force( a, 2 ) += resZ;
+
+        } // for (a)
+
+        for( Int a = 0; a < numAtom; a++ ){
+          Point3 ft(force(a,0),force(a,1),force(a,2));
+          Print( statusOFS, "atom", a, "localforce ", ft );
+        }
+      }
+
+
+    }
+
+    if(0){
+      DblNumVec  rhoLocal;
+      DistNumVecToDistRowVec(
+          hamDG.Density(),
+          rhoLocal,
+          dm.numGridFine,
+          numElem,
+          distfft.localNzStart,
+          distfft.localNz,
+          distfft.isInGrid,
+          dm.colComm );
+
+      // Only works for fftsize == 1
+      // The code below can only be executed by mpirank == 0
+      if( distfft.isInGrid ){
+        Int numAtom = esdfParam.atomList.size();
+        DblNumMat  force( numAtom, DIM );
+        SetValue( force, 0.0 );
+
+        Fourier fft;
+        fft.Initialize( dm );
+        fft.InitializeFine( dm );
+        KohnSham hamKS;
+        hamKS.Setup( esdfParam, dm, esdfParam.atomList );
+        hamKS.CalculatePseudoPotential( ptable );
+      
+        Int ntotFine  = fft.domain.NumGridTotalFine();
+
+
+        for (Int a=0; a<numAtom; a++) {
+          PseudoPot& pp = hamKS.Pseudo()[a];
+          SparseVec& sp = pp.pseudoCharge;
+          IntNumVec& idx = sp.first;
+          DblNumMat& val = sp.second;
+
+          std::vector<DblNumVec>  vhartDrv(DIM);
+
+          DblNumVec  totalCharge(ntotFine);
+          SetValue( totalCharge, 0.0 );
+
+          // totalCharge = density_ - pseudoCharge_
+          blas::Copy( ntotFine, rhoLocal.Data(), 1, totalCharge.Data(), 1 );
+          blas::Axpy( ntotFine, -1.0, hamKS.PseudoCharge().Data(),1,
+              totalCharge.Data(), 1 );
+          
+          // Add back the contribution from local pseudocharge
+          for (Int k=0; k<idx.m(); k++) 
+            totalCharge[idx(k)] += val(k, 0);
+
+          // Total charge in the Fourier space
+          CpxNumVec  totalChargeFourier( ntotFine );
+
+          for( Int i = 0; i < ntotFine; i++ ){
+            fft.inputComplexVecFine(i) = Complex( totalCharge(i), 0.0 );
+          }
+
+          FFTWExecute ( fft, fft.forwardPlanFine );
+
+          blas::Copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
+              totalChargeFourier.Data(), 1 );
+
+          // Compute the derivative of the Hartree potential via Fourier
+          // transform 
+          for( Int d = 0; d < DIM; d++ ){
+            CpxNumVec& ikFine = fft.ikFine[d];
+            for( Int i = 0; i < ntotFine; i++ ){
+              if( fft.gkkFine(i) == 0 ){
+                fft.outputComplexVecFine(i) = Z_ZERO;
+              }
+              else{
+                // NOTE: gkk already contains the factor 1/2.
+                fft.outputComplexVecFine(i) = totalChargeFourier(i) *
+                  2.0 * PI / fft.gkkFine(i) * ikFine(i);
+              }
+            }
+
+            FFTWExecute ( fft, fft.backwardPlanFine );
+
+            // vhartDrv saves the derivative of the Hartree potential
+            vhartDrv[d].Resize( ntotFine );
+
+            for( Int i = 0; i < ntotFine; i++ ){
+              vhartDrv[d](i) = fft.inputComplexVecFine(i).real();
+            }
+
+          } // for (d)
+
+          Real wgt = dm.Volume() / dm.NumGridTotalFine();
+          Real resX = 0.0;
+          Real resY = 0.0;
+          Real resZ = 0.0;
+          for( Int l = 0; l < idx.m(); l++ ){
+            resX += val(l, 0) * vhartDrv[0][idx(l)] * wgt;
+            resY += val(l, 0) * vhartDrv[1][idx(l)] * wgt;
+            resZ += val(l, 0) * vhartDrv[2][idx(l)] * wgt;
+          }
+          force( a, 0 ) += resX;
+          force( a, 1 ) += resY;
+          force( a, 2 ) += resZ;
+
+        } // for (a)
+
+
+        for( Int a = 0; a < numAtom; a++ ){
+          Point3 ft(force(a,0),force(a,1),force(a,2));
+          Print( statusOFS, "atom", a, "localforce ", ft );
+        }
+      }
+
+    }
+#endif
 
     // *********************************************************************
     // Geometry optimization or Molecular dynamics

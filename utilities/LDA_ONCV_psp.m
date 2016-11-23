@@ -1,5 +1,11 @@
 % Generate pseudopotential from psp8 file format to the binary format
 % that can be read by PWDFT/DGDFT (2016 or later).
+% 
+% Revision: 2016/11/06
+% Revision: 2016/11/22 Extend the nonlocal pseudopotential as an
+% odd function first and then interpolate
+
+
 
 Znucs = [1 3];
 res = cell(length(Znucs),2);
@@ -34,6 +40,8 @@ for g=1:length(Znucs)
 
   r = pp.r;
   rho = fnval(sprholoc, r);
+  drho = fnval(fnder(sprholoc,1),r);
+  % drho = fnval(fnder(csape(r,rho),1),r);
   Vloc = pp.vloc;
 
   gd = find(r>0);
@@ -52,25 +60,44 @@ for g=1:length(Znucs)
   spl(:,cnt) = r(:);
   wgt(cnt) = -1;    typ(cnt) =  9;    cut(cnt) = rhocut;    cnt=cnt+1;
 
-  % local pseudopotential, derivative padded by zero and not used
+  % local pseudopotential, as well as the derivative computed via
+  % numerical differentiation
   spl(:,cnt) = rho(:);
   wgt(cnt) = -1;   typ(cnt)  =  99;    cut(cnt) = rhocut;    cnt=cnt+1;
-  spl(:,cnt) = zeros(size(rho));
+  spl(:,cnt) = drho(:);
   wgt(cnt) = -1;   typ(cnt)  =  99;  cut(cnt) = rhocut; cnt=cnt+1;
 
   % nonlocal pseudopotential, derivative padded by zero and not used
   for l = 1 : pp.nonloc.nbeta
-    % Scale pp.nonloc.beta(:,l) by 1./r to be compatible with DGDFT
-    gd = find(pp.r>0);
-    pp.nonloc.beta(gd,l) = pp.nonloc.beta(gd,l)./(pp.r(gd));
-    pp.nonloc.beta(1,l) =  pp.nonloc.beta(2,l); 
+    stp = 0.0001;
+    interpr = [-5+stp/2:stp:5];
+    spnonloc = csape(pp.r,pp.nonloc.beta(:,l));
+    pos = find(interpr>0);
+    neg = find(interpr<0);
+    neg = neg(end:-1:1);
+    ppinterpr = zeros(size(interpr));
+    ppinterpr(pos) = fnval(spnonloc, interpr(pos)) ./ interpr(pos);
+    % NOT sure that this works in general
+    if( mod(pp.nonloc.lll(l),2) == 0 )
+      ppinterpr(neg) = ppinterpr(pos);
+    else
+      ppinterpr(neg) = -ppinterpr(pos);
+    end
+
+    spinterp = csape(interpr, ppinterpr);
+
+    pp.nonloc.beta(:,l) = fnval(spinterp,pp.r);
     spl(:,cnt) = pp.nonloc.beta(:,l);
     wgt(cnt)   = pp.nonloc.dij(l,l);
     typ(cnt)   = pp.nonloc.lll(l);
     cut(cnt)   = wavcut;
     cnt = cnt+1;
 
-    spl(:,cnt) = zeros(size(pp.nonloc.beta(:,l)));
+    spl(:,cnt) = fnval(fnder(spinterp,1),pp.r);
+    % NOT sure that this works in general
+    if( mod(pp.nonloc.lll(l),2) == 1 )
+      spl(1,cnt) = spl(2,cnt);
+    end
     wgt(cnt)   = pp.nonloc.dij(l,l);
     typ(cnt)   = pp.nonloc.lll(l);
     cut(cnt)   = wavcut;

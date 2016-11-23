@@ -1556,74 +1556,6 @@ KohnSham::CalculateForce2    ( Spinor& psi, Fourier& fft  )
   SetValue( forceLocal, 0.0 );
 
   // *********************************************************************
-  // Compute the derivative of the Hartree potential for computing the 
-  // local pseudopotential contribution to the Hellmann-Feynman force
-  // *********************************************************************
-  GetTime( timeSta );
-
-  std::vector<DblNumVec>  vhartDrv(DIM);
-
-  DblNumVec  totalCharge(ntotFine);
-  SetValue( totalCharge, 0.0 );
-
-  // totalCharge = density_ - pseudoCharge_
-  blas::Copy( ntotFine, density_.VecData(0), 1, totalCharge.Data(), 1 );
-  blas::Axpy( ntotFine, -1.0, pseudoCharge_.Data(),1,
-      totalCharge.Data(), 1 );
-
-  // Total charge in the Fourier space
-  CpxNumVec  totalChargeFourier( ntotFine );
-
-  for( Int i = 0; i < ntotFine; i++ ){
-    fft.inputComplexVecFine(i) = Complex( totalCharge(i), 0.0 );
-  }
-
-  GetTime( timeFFTSta );
-  FFTWExecute ( fft, fft.forwardPlanFine );
-  GetTime( timeFFTEnd );
-  timeFFTTotal += timeFFTEnd - timeFFTSta;
-
-
-  blas::Copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
-      totalChargeFourier.Data(), 1 );
-
-  // Compute the derivative of the Hartree potential via Fourier
-  // transform 
-  for( Int d = 0; d < DIM; d++ ){
-    CpxNumVec& ikFine = fft.ikFine[d];
-    for( Int i = 0; i < ntotFine; i++ ){
-      if( fft.gkkFine(i) == 0 ){
-        fft.outputComplexVecFine(i) = Z_ZERO;
-      }
-      else{
-        // NOTE: gkk already contains the factor 1/2.
-        fft.outputComplexVecFine(i) = totalChargeFourier(i) *
-          2.0 * PI / fft.gkkFine(i) * ikFine(i);
-      }
-    }
-
-    GetTime( timeFFTSta );
-    FFTWExecute ( fft, fft.backwardPlanFine );
-    GetTime( timeFFTEnd );
-    timeFFTTotal += timeFFTEnd - timeFFTSta;
-
-    // vhartDrv saves the derivative of the Hartree potential
-    vhartDrv[d].Resize( ntotFine );
-
-    for( Int i = 0; i < ntotFine; i++ ){
-      vhartDrv[d](i) = fft.inputComplexVecFine(i).real();
-    }
-
-  } // for (d)
-
-  GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-  statusOFS << " "<< std::endl << std::endl;
-  statusOFS << "Time for computing the derivative of Hartree potential is " <<
-    timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-  // *********************************************************************
   // Compute the force from local pseudopotential
   // *********************************************************************
   // Method 2: Using integration by parts for local pseudopotential.
@@ -1633,6 +1565,62 @@ KohnSham::CalculateForce2    ( Spinor& psi, Fourier& fft  )
   GetTime( timeSta );
   if(1)
   {
+    std::vector<DblNumVec>  vhartDrv(DIM);
+
+    DblNumVec  totalCharge(ntotFine);
+    SetValue( totalCharge, 0.0 );
+
+    // totalCharge = density_ - pseudoCharge_
+    blas::Copy( ntotFine, density_.VecData(0), 1, totalCharge.Data(), 1 );
+    blas::Axpy( ntotFine, -1.0, pseudoCharge_.Data(),1,
+        totalCharge.Data(), 1 );
+
+    // Total charge in the Fourier space
+    CpxNumVec  totalChargeFourier( ntotFine );
+
+    for( Int i = 0; i < ntotFine; i++ ){
+      fft.inputComplexVecFine(i) = Complex( totalCharge(i), 0.0 );
+    }
+
+    GetTime( timeFFTSta );
+    FFTWExecute ( fft, fft.forwardPlanFine );
+    GetTime( timeFFTEnd );
+    timeFFTTotal += timeFFTEnd - timeFFTSta;
+
+
+    blas::Copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
+        totalChargeFourier.Data(), 1 );
+
+    // Compute the derivative of the Hartree potential via Fourier
+    // transform 
+    for( Int d = 0; d < DIM; d++ ){
+      CpxNumVec& ikFine = fft.ikFine[d];
+      for( Int i = 0; i < ntotFine; i++ ){
+        if( fft.gkkFine(i) == 0 ){
+          fft.outputComplexVecFine(i) = Z_ZERO;
+        }
+        else{
+          // NOTE: gkk already contains the factor 1/2.
+          fft.outputComplexVecFine(i) = totalChargeFourier(i) *
+            2.0 * PI / fft.gkkFine(i) * ikFine(i);
+        }
+      }
+
+      GetTime( timeFFTSta );
+      FFTWExecute ( fft, fft.backwardPlanFine );
+      GetTime( timeFFTEnd );
+      timeFFTTotal += timeFFTEnd - timeFFTSta;
+
+      // vhartDrv saves the derivative of the Hartree potential
+      vhartDrv[d].Resize( ntotFine );
+
+      for( Int i = 0; i < ntotFine; i++ ){
+        vhartDrv[d](i) = fft.inputComplexVecFine(i).real();
+      }
+
+    } // for (d)
+
+
     for (Int a=0; a<numAtom; a++) {
       PseudoPot& pp = pseudo_[a];
       SparseVec& sp = pp.pseudoCharge;
@@ -1655,12 +1643,114 @@ KohnSham::CalculateForce2    ( Spinor& psi, Fourier& fft  )
     } // for (a)
   }
 
+
+
+  // Method 4 (2016/11/20): Remove the local contribution that involving
+  // overlapping pseudocharge contribution on the same atom.
+  // 
+  // THIS HAS NO EFFECT AT ALL ON THE FINAL RESULT!!
+  if(0)
+  {
+    for (Int a=0; a<numAtom; a++) {
+      PseudoPot& pp = pseudo_[a];
+      SparseVec& sp = pp.pseudoCharge;
+      IntNumVec& idx = sp.first;
+      DblNumMat& val = sp.second;
+
+
+      std::vector<DblNumVec>  vhartDrv(DIM);
+
+      DblNumVec  totalCharge(ntotFine);
+      SetValue( totalCharge, 0.0 );
+
+      // totalCharge = density_ - pseudoCharge_
+      blas::Copy( ntotFine, density_.VecData(0), 1, totalCharge.Data(), 1 );
+      blas::Axpy( ntotFine, -1.0, pseudoCharge_.Data(),1,
+          totalCharge.Data(), 1 );
+
+      // Add back the contribution from local pseudocharge
+      for (Int k=0; k<idx.m(); k++) 
+        totalCharge[idx(k)] += val(k, VAL);
+
+      // Total charge in the Fourier space
+      CpxNumVec  totalChargeFourier( ntotFine );
+
+      for( Int i = 0; i < ntotFine; i++ ){
+        fft.inputComplexVecFine(i) = Complex( totalCharge(i), 0.0 );
+      }
+
+      GetTime( timeFFTSta );
+      FFTWExecute ( fft, fft.forwardPlanFine );
+      GetTime( timeFFTEnd );
+      timeFFTTotal += timeFFTEnd - timeFFTSta;
+
+
+      blas::Copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
+          totalChargeFourier.Data(), 1 );
+
+      // Compute the derivative of the Hartree potential via Fourier
+      // transform 
+      for( Int d = 0; d < DIM; d++ ){
+        CpxNumVec& ikFine = fft.ikFine[d];
+        for( Int i = 0; i < ntotFine; i++ ){
+          if( fft.gkkFine(i) == 0 ){
+            fft.outputComplexVecFine(i) = Z_ZERO;
+          }
+          else{
+            // NOTE: gkk already contains the factor 1/2.
+            fft.outputComplexVecFine(i) = totalChargeFourier(i) *
+              2.0 * PI / fft.gkkFine(i) * ikFine(i);
+          }
+        }
+
+        GetTime( timeFFTSta );
+        FFTWExecute ( fft, fft.backwardPlanFine );
+        GetTime( timeFFTEnd );
+        timeFFTTotal += timeFFTEnd - timeFFTSta;
+
+        // vhartDrv saves the derivative of the Hartree potential
+        vhartDrv[d].Resize( ntotFine );
+
+        for( Int i = 0; i < ntotFine; i++ ){
+          vhartDrv[d](i) = fft.inputComplexVecFine(i).real();
+        }
+
+      } // for (d)
+
+
+
+      Real wgt = domain_.Volume() / domain_.NumGridTotalFine();
+      Real resX = 0.0;
+      Real resY = 0.0;
+      Real resZ = 0.0;
+      for( Int l = 0; l < idx.m(); l++ ){
+        resX += val(l, VAL) * vhartDrv[0][idx(l)] * wgt;
+        resY += val(l, VAL) * vhartDrv[1][idx(l)] * wgt;
+        resZ += val(l, VAL) * vhartDrv[2][idx(l)] * wgt;
+      }
+      force( a, 0 ) += resX;
+      force( a, 1 ) += resY;
+      force( a, 2 ) += resZ;
+
+    } // for (a)
+  }
+
+  if(0){
+    // Output the local component of the force for debugging purpose
+    for( Int a = 0; a < numAtom; a++ ){
+      Point3 ft(force(a,0),force(a,1),force(a,2));
+      Print( statusOFS, "atom", a, "localforce ", ft );
+    }
+  }
+
   GetTime( timeEnd );
 
 #if ( _DEBUGlevel_ >= 0 )
   statusOFS << "Time for computing the local potential contribution of the force is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+
+
   // *********************************************************************
   // Compute the force from nonlocal pseudopotential
   // *********************************************************************

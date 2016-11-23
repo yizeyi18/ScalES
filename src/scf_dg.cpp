@@ -5999,6 +5999,110 @@ SCFDG::Iterate    (  )
               // FIXME 
               // Do not need the conversion from column to row partition as well
               hamDG.CalculateDensity( hamDG.Density(), hamDG.DensityLGL() );
+
+              // 2016/11/20: Add filtering of the density. Impacts
+              // convergence at the order of 1e-5 for the LiH dimer
+              // example and therefore is not activated
+              if(0){
+                DistFourier& fft = *distfftPtr_;
+                Int ntot      = fft.numGridTotal;
+                Int ntotLocal = fft.numGridLocal;
+
+                DblNumVec  tempVecLocal;
+                DistNumVecToDistRowVec(
+                    hamDG.Density(),
+                    tempVecLocal,
+                    domain_.numGridFine,
+                    numElem_,
+                    fft.localNzStart,
+                    fft.localNz,
+                    fft.isInGrid,
+                    domain_.colComm );
+
+                if( fft.isInGrid ){
+                  for( Int i = 0; i < ntotLocal; i++ ){
+                    fft.inputComplexVecLocal(i) = Complex( 
+                        tempVecLocal(i), 0.0 );
+                  }
+
+                  fftw_execute( fft.forwardPlan );
+
+                  // Filter out high frequency modes
+                  for( Int i = 0; i < ntotLocal; i++ ){
+                    if( fft.gkkLocal(i) > std::pow(densityGridFactor_,2.0) * ecutWavefunction_ ){
+                      fft.outputComplexVecLocal(i) = Z_ZERO;
+                    }
+                  }
+
+                  fftw_execute( fft.backwardPlan );
+
+
+                  for( Int i = 0; i < ntotLocal; i++ ){
+                    tempVecLocal(i) = fft.inputComplexVecLocal(i).real() / ntot;
+                  }
+                }
+
+                DistRowVecToDistNumVec( 
+                    tempVecLocal,
+                    hamDG.Density(),
+                    domain_.numGridFine,
+                    numElem_,
+                    fft.localNzStart,
+                    fft.localNz,
+                    fft.isInGrid,
+                    domain_.colComm );
+
+
+                // Compute the sum of density and normalize again.
+                Real sumRhoLocal = 0.0, sumRho = 0.0;
+                for( Int k = 0; k < numElem_[2]; k++ )
+                  for( Int j = 0; j < numElem_[1]; j++ )
+                    for( Int i = 0; i < numElem_[0]; i++ ){
+                      Index3 key( i, j, k );
+                      if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                        DblNumVec& localRho = hamDG.Density().LocalMap()[key];
+
+                        Real* ptrRho = localRho.Data();
+                        for( Int p = 0; p < localRho.Size(); p++ ){
+                          sumRhoLocal += ptrRho[p];
+                        }
+                      }
+                    }
+
+                sumRhoLocal *= domain_.Volume() / domain_.NumGridTotalFine(); 
+                mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
+
+#if ( _DEBUGlevel_ >= 0 )
+                statusOFS << std::endl;
+                Print( statusOFS, "Sum Rho on uniform grid (after Fourier filtering) = ", sumRho );
+                statusOFS << std::endl;
+#endif
+                Real fac = hamDG.NumSpin() * hamDG.NumOccupiedState() / sumRho;
+                sumRhoLocal = 0.0, sumRho = 0.0;
+                for( Int k = 0; k < numElem_[2]; k++ )
+                  for( Int j = 0; j < numElem_[1]; j++ )
+                    for( Int i = 0; i < numElem_[0]; i++ ){
+                      Index3 key( i, j, k );
+                      if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                        DblNumVec& localRho = hamDG.Density().LocalMap()[key];
+                        blas::Scal(  localRho.Size(),  fac, localRho.Data(), 1 );
+                        
+                        Real* ptrRho = localRho.Data();
+                        for( Int p = 0; p < localRho.Size(); p++ ){
+                          sumRhoLocal += ptrRho[p];
+                        }
+                      }
+                    }
+
+                sumRhoLocal *= domain_.Volume() / domain_.NumGridTotalFine(); 
+                mpi::Allreduce( &sumRhoLocal, &sumRho, 1, MPI_SUM, domain_.colComm );
+
+#if ( _DEBUGlevel_ >= 0 )
+                statusOFS << std::endl;
+                Print( statusOFS, "Sum Rho on uniform grid (after normalization again) = ", sumRho );
+                statusOFS << std::endl;
+#endif
+              }
             }
 
           }	
