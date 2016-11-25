@@ -780,5 +780,15 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 }        // -----  end of function AlltoallBackward ----- 
 
 
+// From periodtable
+
+
+extern Int serialize(const Atom& val, std::ostream& os, const std::vector<Int>& mask);
+
+extern Int deserialize(Atom& val, std::istream& is, const std::vector<Int>& mask);
+
+extern Real MaxForce( const std::vector<Atom>& atomList );
+
+
 
 }  // namespace dgdft

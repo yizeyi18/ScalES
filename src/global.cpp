@@ -45,11 +45,20 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2012-08-01
 /// @date 2016-07-12 Update to the coredumper model for debugging
 #include    "environment.hpp"
+#include    "esdf.hpp"
+#include    "periodtable.hpp"
 #ifdef _COREDUMPER_
 #include <google/coredumper.h>
 #endif
 
 namespace dgdft{
+
+// *********************************************************************
+// Input parameters
+// *********************************************************************
+namespace esdf{
+ESDFInputParam  esdfParam;
+}
 
 // *********************************************************************
 // IO

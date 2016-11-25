@@ -44,6 +44,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @brief Periodic table and its entries.
 /// @date 2012-08-10
 #include "periodtable.hpp"
+#include "esdf.hpp"
+#include "utility.hpp"
 
 using namespace dgdft::PseudoComponent;
 
@@ -86,6 +88,7 @@ Int combine(PTEntry& val, PTEntry& ext)
 
 void PeriodTable::Setup( const std::string strptable, const std::string pseudoType )
 {
+  statusOFS << "from ptable, numElem = " << esdf::esdfParam.numElem << std::endl;
   pseudoType_ = pseudoType;
 
   std::vector<Int> all(1,1);
@@ -100,9 +103,6 @@ void PeriodTable::Setup( const std::string strptable, const std::string pseudoTy
     PTEntry& ptcur = (*mi).second;
     DblNumVec& params = ptcur.params;
     DblNumMat& samples = ptcur.samples;
-    if( samples.n() % 2 == 0 ){
-      ErrorHandling( "Wrong number of samples" );
-    }
     std::map< Int, std::vector<DblNumVec> > spltmp;
     for(Int g=1; g<samples.n(); g++) {
       Int nspl = samples.m();
@@ -891,6 +891,36 @@ PeriodTable::CalculateNonlocalPP    (
 
 //---------------------------------------------
 // TODO SpinOrbit from RelDFT
+
+
+// Serialization / Deserialization
+Int serialize(const Atom& val, std::ostream& os, const std::vector<Int>& mask)
+{
+  serialize(val.type, os, mask);
+  serialize(val.pos,  os, mask);
+  serialize(val.vel,  os, mask);
+  serialize(val.force,  os, mask);
+  return 0;
+}
+
+Int deserialize(Atom& val, std::istream& is, const std::vector<Int>& mask)
+{
+  deserialize(val.type, is, mask);
+  deserialize(val.pos,  is, mask);
+  deserialize(val.vel,  is, mask);
+  deserialize(val.force,  is, mask);
+  return 0;
+}
+
+Real MaxForce( const std::vector<Atom>& atomList ){
+  Int numAtom = atomList.size();
+  Real maxForce = 0.0;
+  for( Int i = 0; i < numAtom; i++ ){
+    Real forceMag = atomList[i].force.l2();
+    maxForce = ( maxForce < forceMag ) ? forceMag : maxForce;
+  }
+  return maxForce;
+}
 
 
 } // namespace dgdft

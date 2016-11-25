@@ -47,13 +47,18 @@ such enhancements or derivative works thereof, in binary and source code form.
 #define _PERIODTABLE_HPP_
 
 #include "environment.hpp"
+#include "domain.hpp"
 #include "tinyvec_impl.hpp"
 #include "numvec_impl.hpp"
 #include "nummat_impl.hpp"
 #include "numtns_impl.hpp"
-#include "utility.hpp"
 
 namespace dgdft{
+
+// The following typedefs must be IDENTIAL to that in utility.hpp (C++
+// feature only)
+typedef std::pair<IntNumVec, DblNumMat > SparseVec; 
+typedef std::pair<SparseVec, Real> NonlocalPP; 
 
 
 // *********************************************************************
@@ -94,14 +99,17 @@ enum {
 }
 
 /// @namespace PTSample
-/// @brief Index of the radial grid, the pseudocharge and derivative
-/// of the pseudocharge in samples and cuts.
+/// @brief Index of the radial grid, the pseudocharge, derivative
+/// of the pseudocharge, model core charge density, derivative of model
+/// core charge density, nonlocal pseudopotentials in samples and cuts.
 namespace PTSample{
 enum {
   RADIAL_GRID       = 0,
   PSEUDO_CHARGE     = 1,
   DRV_PSEUDO_CHARGE = 2,
-  NONLOCAL          = 3,
+  RHOATOM           = 3,
+  DRV_RHOATOM       = 4,
+  NONLOCAL          = 5,
 };
 }
 
@@ -113,6 +121,7 @@ namespace PTType{
 enum{
   RADIAL            = 9,
   PSEUDO_CHARGE     = 99,
+  RHOATOM           = 999,
   L0                = 0,
   L1                = 1,
   L2                = 2,
@@ -221,36 +230,7 @@ public:
 
 };
 
-// Periodic table structures
 
-// Serialization / Deserialization
-inline Int serialize(const Atom& val, std::ostream& os, const std::vector<Int>& mask)
-{
-  serialize(val.type, os, mask);
-  serialize(val.pos,  os, mask);
-  serialize(val.vel,  os, mask);
-  serialize(val.force,  os, mask);
-  return 0;
-}
-
-inline Int deserialize(Atom& val, std::istream& is, const std::vector<Int>& mask)
-{
-  deserialize(val.type, is, mask);
-  deserialize(val.pos,  is, mask);
-  deserialize(val.vel,  is, mask);
-  deserialize(val.force,  is, mask);
-  return 0;
-}
-
-inline Real MaxForce( const std::vector<Atom>& atomList ){
-  Int numAtom = atomList.size();
-  Real maxForce = 0.0;
-  for( Int i = 0; i < numAtom; i++ ){
-    Real forceMag = atomList[i].force.l2();
-    maxForce = ( maxForce < forceMag ) ? forceMag : maxForce;
-  }
-  return maxForce;
-} 
 
 
 } // namespace dgdft

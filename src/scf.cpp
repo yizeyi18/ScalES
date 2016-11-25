@@ -48,8 +48,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2016-01-19 Add hybrid functional
 /// @date 2016-04-08 Update mixing
 #include  "scf.hpp"
-#include    "blas.hpp"
-#include    "lapack.hpp"
+#include  "blas.hpp"
+#include  "lapack.hpp"
+#include  "periodtable.hpp"
 #include  "utility.hpp"
 
 namespace  dgdft{

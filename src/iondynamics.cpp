@@ -47,6 +47,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #define _IONDYNAMICS_CPP_
 
 #include  "iondynamics.hpp"
+#include  "utility.hpp"
 
 namespace dgdft{
 

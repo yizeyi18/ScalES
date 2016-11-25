@@ -116,9 +116,8 @@ int main(int argc, char **argv)
     }
 
 
-    // Read ESDF input file
+    // Read ESDF input file. Note: esdfParam is a global variable (11/25/2016)
     GetTime( timeSta );
-    ESDFInputParam  esdfParam;
 
     ESDFReadInput( esdfParam, inFile.c_str() );
 

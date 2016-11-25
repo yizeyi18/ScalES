@@ -45,6 +45,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2012-08-10
 #include "esdf.hpp"
 #include "utility.hpp" 
+#include "domain.hpp"
+#include "periodtable.hpp"
 #include <xc.h>
 
 namespace dgdft{

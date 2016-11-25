@@ -53,12 +53,17 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include <limits.h>
 #include "mpi.h"
 #include "domain.hpp"
-#include "periodtable.hpp"
+#include "numvec_impl.hpp"
+#include "nummat_impl.hpp"
+#include "numtns_impl.hpp"
 #include "tinyvec_impl.hpp"
 
 namespace dgdft{
 
+// Forward declaration of Atom structure in periodtable.hpp 
+struct Atom;
 
+//
 // *********************************************************************
 // Electronic structure data format
 // *********************************************************************
@@ -106,6 +111,8 @@ char *strupr(char *);
 // *********************************************************************
 // Input interface
 // *********************************************************************
+
+
 /// @struct ESDFInputParam
 /// @brief Main structure containing input parameters for the
 /// electronic structure calculation.
@@ -883,6 +890,11 @@ void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );
 void ESDFReadInput( ESDFInputParam& esdfParam, const char* filename );
 
 void ESDFPrintInput( const ESDFInputParam& esdfParam );
+
+
+// Global input parameters
+extern ESDFInputParam  esdfParam;
+
 
 } // namespace esdf
 } // namespace dgdft
