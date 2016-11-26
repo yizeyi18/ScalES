@@ -51,6 +51,7 @@ namespace dgdft{
 
 using namespace dgdft::PseudoComponent;
 using namespace dgdft::DensityComponent;
+using namespace dgdft::esdf;
 
 
 // *********************************************************************
@@ -84,7 +85,6 @@ KohnSham::~KohnSham() {
 
 void
 KohnSham::Setup    (
-    const esdf::ESDFInputParam& esdfParam,
     const Domain&               dm,
     const std::vector<Atom>&    atomList )
 {

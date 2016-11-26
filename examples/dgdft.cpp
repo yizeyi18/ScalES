@@ -119,14 +119,14 @@ int main(int argc, char **argv)
     // Read ESDF input file. Note: esdfParam is a global variable (11/25/2016)
     GetTime( timeSta );
 
-    ESDFReadInput( esdfParam, inFile.c_str() );
+    ESDFReadInput( inFile.c_str() );
 
     GetTime( timeEnd );
     statusOFS << "Time for reading the input file is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
     // Print the initial state
-    ESDFPrintInput( esdfParam );
+    ESDFPrintInput( );
 
 
     // *********************************************************************
@@ -340,14 +340,13 @@ int main(int argc, char **argv)
               // used in the extended element calculation
               KohnSham& hamKS = distHamKS.LocalMap()[key];
 
-              hamKS.Setup( esdfParam, dmExtElem, atomListExtElem );
+              hamKS.Setup( dmExtElem, atomListExtElem );
 
               hamKS.CalculatePseudoPotential( ptable );
 
               // Eigensolver class
               EigenSolver& eigSol = distEigSol.LocalMap()[key];
-              eigSol.Setup( esdfParam, 
-                  hamKS, 
+              eigSol.Setup( hamKS, 
                   spn, 
                   fftExtElem );
 
@@ -371,7 +370,8 @@ int main(int argc, char **argv)
     // Setup HamDG
     GetTime( timeSta );
 
-    HamiltonianDG hamDG( esdfParam );
+    HamiltonianDG hamDG;
+    hamDG.Setup();
     hamDG.CalculatePseudoPotential( ptable );
 
     GetTime( timeEnd );
@@ -382,7 +382,7 @@ int main(int argc, char **argv)
     GetTime( timeSta );
 
     SCFDG  scfDG;
-    scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt ); // This also sets Cheby_iondynamics_schedule_flag_ = 0
+    scfDG.Setup( hamDG, distEigSol, distfft, ptable, contxt ); // This also sets Cheby_iondynamics_schedule_flag_ = 0
 
     GetTime( timeEnd );
     statusOFS << "Time for setting up SCFDG is " <<
@@ -541,7 +541,7 @@ int main(int argc, char **argv)
         fft.Initialize( dm2 );
         fft.InitializeFine( dm2 );
         KohnSham hamKS;
-        hamKS.Setup( esdfParam, dm2, esdfParam.atomList );
+        hamKS.Setup( dm2, esdfParam.atomList );
         hamKS.CalculatePseudoPotential( ptable );
 
         Int ntot = dm2.NumGridTotal();
@@ -625,7 +625,7 @@ int main(int argc, char **argv)
         fft.Initialize( dm );
         fft.InitializeFine( dm );
         KohnSham hamKS;
-        hamKS.Setup( esdfParam, dm, esdfParam.atomList );
+        hamKS.Setup( sdfParam, dm, esdfParam.atomList );
         hamKS.CalculatePseudoPotential( ptable );
       
         Int ntotFine  = fft.domain.NumGridTotalFine();
@@ -722,7 +722,7 @@ int main(int argc, char **argv)
 
     IonDynamics ionDyn;
 
-    ionDyn.Setup( esdfParam, hamDG.AtomList(), ptable ); 
+    ionDyn.Setup( hamDG.AtomList(), ptable ); 
 
 
 
@@ -760,7 +760,7 @@ int main(int argc, char **argv)
       // Change the SCF convergence criteria if necessary (in MD mode only)
       if( (ionIter == esdfParam.MDscfEnergyCriteriaEngageIonIter) && (ionDyn.IsGeoOpt() == 0) )
       {	
-       scfDG.UpdateMDParameters( esdfParam );
+       scfDG.UpdateMDParameters( );
        statusOFS << std::endl << " Switching to energy based SCF convergence on ioniter = " << ionIter << std::endl;
       }
       

@@ -51,8 +51,11 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 namespace dgdft{
 
+using namespace dgdft::esdf;
+
+
 void
-  IonDynamics::Setup    ( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& atomList,
+  IonDynamics::Setup    ( std::vector<Atom>& atomList,
       PeriodTable& ptable )
   {
     Int mpirank, mpisize;

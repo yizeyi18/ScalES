@@ -117,10 +117,10 @@ int main(int argc, char **argv)
 
 
     // Read ESDF input file. Note: esdfParam is a global variable (11/25/2016)
-    ESDFReadInput( esdfParam, inFile.c_str() );
+    ESDFReadInput( inFile.c_str() );
 
     // Print the initial state
-    ESDFPrintInput( esdfParam );
+    ESDFPrintInput( );
 
     // Initialize multithreaded version of FFTW
 #ifdef _USE_FFTW_OPENMP_
@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 
     // Hamiltonian
 
-    hamKS.Setup( esdfParam, dm, esdfParam.atomList );
+    hamKS.Setup( dm, esdfParam.atomList );
 
     DblNumVec& vext = hamKS.Vext();
     SetValue( vext, 0.0 );
@@ -261,11 +261,11 @@ int main(int argc, char **argv)
 
 
     // Eigensolver class
-    eigSol.Setup( esdfParam, hamKS, psi, fft );
+    eigSol.Setup( hamKS, psi, fft );
 
     statusOFS << "Eigensolver setup finished ." << std::endl;
 
-    scf.Setup( esdfParam, eigSol, ptable );
+    scf.Setup( eigSol, ptable );
 
     statusOFS << "SCF setup finished ." << std::endl;
 
@@ -286,10 +286,10 @@ int main(int argc, char **argv)
 
     IonDynamics ionDyn;
 
-    ionDyn.Setup( esdfParam, hamKS.AtomList(), ptable ); 
+    ionDyn.Setup( hamKS.AtomList(), ptable ); 
 
     // Change the SCF parameters if necessary
-    scf.UpdateMDParameters( esdfParam );
+    scf.UpdateMDParameters( );
 
     Int maxHist = ionDyn.MaxHist();
     // Need to define both but one of them may be empty

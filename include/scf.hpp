@@ -165,7 +165,7 @@ public:
   // Operations
   // *********************************************************************
   // Basic parameters. Density and wavefunction
-  void  Setup( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable ); 
+  void  Setup( EigenSolver& eigSol, PeriodTable& ptable ); 
   void  Iterate();
   void  Update();
 
@@ -193,9 +193,9 @@ public:
       const DblNumVec&  residual );
 
   /// @brief Update the parameters for SCF during the MD simulation
-  void UpdateMDParameters( const esdf::ESDFInputParam& esdfParam );
+  /// This is done by modifying the global esdfParam parameters
+  void UpdateMDParameters( );
 
-  //    void  EllipticMix();
 
   // *********************************************************************
   // Inquiry

@@ -56,6 +56,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 namespace  dgdft{
 
 using namespace dgdft::DensityComponent;
+using namespace dgdft::esdf;
 
 SCF::SCF    (  )
 {
@@ -71,7 +72,7 @@ SCF::~SCF    (  )
 
 
 void
-SCF::Setup    ( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable )
+SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
 {
   int mpirank;  MPI_Comm_rank(esdfParam.domain.comm, &mpirank);
   int mpisize;  MPI_Comm_size(esdfParam.domain.comm, &mpisize);
@@ -1478,7 +1479,7 @@ SCF::PrintState    ( const Int iter  )
 
 
 void
-SCF::UpdateMDParameters    ( const esdf::ESDFInputParam& esdfParam )
+SCF::UpdateMDParameters    ( )
 {
   scfMaxIter_ = esdfParam.MDscfOuterMaxIter;
   scfPhiMaxIter_ = esdfParam.MDscfPhiMaxIter;

@@ -354,10 +354,8 @@ public:
 
   ~HamiltonianDG();
 
-  HamiltonianDG( const esdf::ESDFInputParam& esdfParam );
-
   /// @brief Setup the Hamiltonian DG class from the input parameter.
-  void Setup ( const esdf::ESDFInputParam& esdfParam );
+  void Setup ( );
 
   void UpdateHamiltonianDG    ( std::vector<Atom>& atomList );
   // *********************************************************************

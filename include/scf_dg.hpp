@@ -444,7 +444,6 @@ public:
 
   /// @brief Setup the basic parameters for initial SCF iteration.
   void  Setup( 
-      const esdf::ESDFInputParam& esdfParam, 
       HamiltonianDG& hamDG,
       DistVec<Index3, EigenSolver, ElemPrtn>&  distEigSol,
       DistFourier&   distfft,
@@ -576,7 +575,8 @@ public:
       const DistDblNumVec&  distResidual );
 
   /// @brief Update the parameters for SCF during the MD simulation
-  void UpdateMDParameters( const esdf::ESDFInputParam& esdfParam );
+  /// This is done through modifying the global esdfParam parameters
+  void UpdateMDParameters( );
 
   // *********************************************************************
   // Inquiry

@@ -88,7 +88,6 @@ Int combine(PTEntry& val, PTEntry& ext)
 
 void PeriodTable::Setup( const std::string strptable, const std::string pseudoType )
 {
-  statusOFS << "from ptable, numElem = " << esdf::esdfParam.numElem << std::endl;
   pseudoType_ = pseudoType;
 
   std::vector<Int> all(1,1);

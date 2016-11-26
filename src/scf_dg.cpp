@@ -56,6 +56,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 namespace  dgdft{
 
 using namespace dgdft::DensityComponent;
+using namespace dgdft::esdf;
 
 
 // FIXME Leave the smoother function to somewhere more appropriate
@@ -116,7 +117,6 @@ SCFDG::~SCFDG    (  )
 
 void
 SCFDG::Setup    ( 
-    const esdf::ESDFInputParam& esdfParam, 
     HamiltonianDG&              hamDG,
     DistVec<Index3, EigenSolver, ElemPrtn>&  distEigSol,
     DistFourier&                distfft,
@@ -8805,7 +8805,7 @@ SCFDG::Iterate    (  )
   }         // -----  end of method SCFDG::PrintState  ----- 
 
   void
-    SCFDG::UpdateMDParameters    ( const esdf::ESDFInputParam& esdfParam )
+    SCFDG::UpdateMDParameters    ( )
     {
       scfOuterMaxIter_ = esdfParam.MDscfOuterMaxIter;
       useEnergySCFconvergence_ = 1;

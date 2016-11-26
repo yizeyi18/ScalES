@@ -57,6 +57,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "mpi_interf.hpp"
 
 using namespace dgdft::scalapack;
+using namespace dgdft::esdf;
 
 
 namespace dgdft{
@@ -76,7 +77,6 @@ EigenSolver::~EigenSolver() {
 }
 
 void EigenSolver::Setup(
-    const esdf::ESDFInputParam& esdfParam,
     Hamiltonian& ham,
     Spinor& psi,
     Fourier& fft ) {

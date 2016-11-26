@@ -2097,13 +2097,13 @@ char *strupr(char *str) {
 // Input interface
 // *********************************************************************
 
-void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename ){
-  ESDFReadInput( esdfParam, filename.c_str() );
+void ESDFReadInput( const std::string filename ){
+  ESDFReadInput( filename.c_str() );
   return ;
 }
 
 void
-ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
+ESDFReadInput ( const char* filename )
 {
   Int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
   Int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
@@ -2676,7 +2676,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
   return ;
 }        // -----  end of function ESDFReadInput  ----- 
 
-void ESDFPrintInput( const ESDFInputParam& esdfParam ){
+void ESDFPrintInput( ){
   int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank ); 
   int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 

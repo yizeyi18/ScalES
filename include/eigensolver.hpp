@@ -98,7 +98,6 @@ public:
   // ********************  OPERATORS   *******************************
 
   void Setup(
-      const esdf::ESDFInputParam& esdfParam,
       Hamiltonian& ham,
       Spinor& psi,
       Fourier& fft );

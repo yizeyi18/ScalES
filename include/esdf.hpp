@@ -885,11 +885,11 @@ struct ESDFInputParam{
 };
 
 
-void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );
+void ESDFReadInput( const std::string filename );
 
-void ESDFReadInput( ESDFInputParam& esdfParam, const char* filename );
+void ESDFReadInput( const char* filename );
 
-void ESDFPrintInput( const ESDFInputParam& esdfParam );
+void ESDFPrintInput( );
 
 
 // Global input parameters

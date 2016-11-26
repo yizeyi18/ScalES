@@ -52,6 +52,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 namespace dgdft{
 
 using namespace PseudoComponent;
+using namespace esdf;
 
 // *********************************************************************
 // Hamiltonian class for DG
@@ -61,17 +62,8 @@ HamiltonianDG::HamiltonianDG() {
   XCInitialized_ = false;
 }
 
-HamiltonianDG::HamiltonianDG    ( const esdf::ESDFInputParam& esdfParam )
-{
 
-  Setup( esdfParam );
-
-
-  return ;
-}         // -----  end of method HamiltonianDG::HamiltonianDG  ----- 
-
-
-void HamiltonianDG::Setup ( const esdf::ESDFInputParam& esdfParam )
+void HamiltonianDG::Setup ( )
 {
   domain_            = esdfParam.domain;
   atomList_          = esdfParam.atomList;

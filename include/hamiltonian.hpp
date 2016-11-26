@@ -152,7 +152,6 @@ public:
   virtual ~Hamiltonian() {}
 
   virtual void Setup (
-      const esdf::ESDFInputParam& esdfParam,
       const Domain&              dm,
       const std::vector<Atom>&   atomList ) = 0;
 
@@ -278,7 +277,6 @@ public:
   ~KohnSham();
 
   virtual void Setup (
-      const esdf::ESDFInputParam& esdfParam,
       const Domain&              dm,
       const std::vector<Atom>&   atomList );
 
