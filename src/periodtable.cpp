@@ -47,9 +47,11 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include "esdf.hpp"
 #include "utility.hpp"
 
-using namespace dgdft::PseudoComponent;
 
 namespace  dgdft{
+
+using namespace dgdft::PseudoComponent;
+using namespace dgdft::esdf;
 
 // *********************************************************************
 // PTEntry
@@ -86,14 +88,14 @@ Int combine(PTEntry& val, PTEntry& ext)
 // PeriodTable
 // *********************************************************************
 
-void PeriodTable::Setup( const std::string strptable, const std::string pseudoType )
+void PeriodTable::Setup( )
 {
-  pseudoType_ = pseudoType;
+  pseudoType_ = esdfParam.pseudoType;
 
   std::vector<Int> all(1,1);
 
   std::istringstream iss;  
-  SharedRead( strptable, iss );
+  SharedRead( esdfParam.periodTableFile, iss );
   deserialize(ptemap_, iss, all);
 
   //create splines
@@ -891,7 +893,6 @@ PeriodTable::CalculateNonlocalPP    (
 //---------------------------------------------
 // TODO SpinOrbit from RelDFT
 
-
 // Serialization / Deserialization
 Int serialize(const Atom& val, std::ostream& os, const std::vector<Int>& mask)
 {
@@ -920,6 +921,7 @@ Real MaxForce( const std::vector<Atom>& atomList ){
   }
   return maxForce;
 }
+
 
 
 } // namespace dgdft

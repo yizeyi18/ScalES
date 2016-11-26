@@ -199,7 +199,7 @@ int main(int argc, char **argv)
 
     Domain&  dm = esdfParam.domain;
     PeriodTable ptable;
-    ptable.Setup( esdfParam.periodTableFile, esdfParam.pseudoType );
+    ptable.Setup( );
 
     GetTime( timeEnd );
     statusOFS << "Time for setting up the periodic table is " <<

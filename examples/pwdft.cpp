@@ -146,7 +146,7 @@ int main(int argc, char **argv)
     EigenSolver eigSol;
     SCF  scf;
 
-    ptable.Setup( esdfParam.periodTableFile, esdfParam.pseudoType );
+    ptable.Setup( );
 
     fft.Initialize( dm );
 
@@ -518,7 +518,7 @@ int main(int argc, char **argv)
           // Update Phi <- Psi
           GetTime( timeSta );
           hamKS.SetPhiEXX( psi, fft ); 
-          if( hamKS.IsHybridACE() ){
+          if( esdfParam.isHybridACE ){
             hamKS.CalculateVexxACE ( psi, fft );
           }
           GetTime( timeEnd );
@@ -544,7 +544,7 @@ int main(int argc, char **argv)
           // Update Phi <- Psi
           GetTime( timeSta );
           hamKS.SetPhiEXX( psi, fft ); 
-          if( hamKS.IsHybridACE() ){
+          if( esdfParam.isHybridACE ){
             hamKS.CalculateVexxACE ( psi, fft );
           }
           GetTime( timeEnd );

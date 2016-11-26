@@ -147,18 +147,6 @@ SCFDG::Setup    (
     scfOuterEnergyTolerance_ = esdfParam.scfOuterEnergyTolerance;
     numUnusedState_ = esdfParam.numUnusedState;
     SVDBasisTolerance_  = esdfParam.SVDBasisTolerance;
-    isEigToleranceDynamic_ = esdfParam.isEigToleranceDynamic;
-    isRestartDensity_ = esdfParam.isRestartDensity;
-    isRestartWfn_     = esdfParam.isRestartWfn;
-    isOutputDensity_  = esdfParam.isOutputDensity;
-    isOutputALBElemLGL_     = esdfParam.isOutputALBElemLGL;
-    isOutputALBElemUniform_ = esdfParam.isOutputALBElemUniform;
-    isOutputWfnExtElem_  = esdfParam.isOutputWfnExtElem;
-    isOutputPotExtElem_  = esdfParam.isOutputPotExtElem;
-    isOutputEigvecCoef_  = esdfParam.isOutputEigvecCoef;
-    isCalculateAPosterioriEachSCF_ = esdfParam.isCalculateAPosterioriEachSCF;
-    isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
-    isOutputHMatrix_  = esdfParam.isOutputHMatrix;
     solutionMethod_   = esdfParam.solutionMethod;
 
     PWSolver_                = esdfParam.PWSolver;
@@ -190,10 +178,8 @@ SCFDG::Setup    (
     ecutWavefunction_ = esdfParam.ecutWavefunction;
     densityGridFactor_= esdfParam.densityGridFactor;
     LGLGridFactor_    = esdfParam.LGLGridFactor;
-    isPeriodizePotential_ = esdfParam.isPeriodizePotential;
     distancePeriodize_= esdfParam.distancePeriodize;
 
-    isPotentialBarrier_ = esdfParam.isPotentialBarrier;
     potentialBarrierW_  = esdfParam.potentialBarrierW;
     potentialBarrierS_  = esdfParam.potentialBarrierS;
     potentialBarrierR_  = esdfParam.potentialBarrierR;
@@ -490,7 +476,7 @@ SCFDG::Setup    (
 
   density.SetComm(domain_.colComm);
 
-  if( isRestartDensity_ ) {
+  if( esdfParam.isRestartDensity ) {
     // Only the first processor column reads the matrix
 
 #if ( _DEBUGlevel_ >= 0 )
@@ -628,7 +614,7 @@ SCFDG::Setup    (
 
 
   // Wavefunctions in the extended element
-  if( isRestartWfn_ ){
+  if( esdfParam.isRestartWfn ){
 #if ( _DEBUGlevel_ >= 0 )
     statusOFS << "Restarting basis functions from WFNEXT_ files"
       << std::endl;
@@ -872,7 +858,7 @@ SCFDG::Setup    (
 
   // Whether to apply potential barrier in the extended element. CANNOT
   // be used together with periodization option
-  if( isPotentialBarrier_ ) {
+  if( esdfParam.isPotentialBarrier ) {
     vBarrier_.resize(DIM);
     for( Int k = 0; k < numElem_[2]; k++ )
       for( Int j = 0; j < numElem_[1]; j++ )
@@ -921,7 +907,7 @@ SCFDG::Setup    (
 
   // Whether to periodize the potential in the extended element. CANNOT
   // be used together with barrier option.
-  if( isPeriodizePotential_ ){
+  if( esdfParam.isPeriodizePotential ){
     vBubble_.resize(DIM);
     for( Int k = 0; k < numElem_[2]; k++ )
       for( Int j = 0; j < numElem_[1]; j++ )
@@ -1088,7 +1074,7 @@ SCFDG::Iterate    (  )
     // Compute the exchange-correlation potential and energy
     // Only compute the XC if restarting the density, since the initial
     // density can contain some negative contribution
-    if( isRestartDensity_ ){ 
+    if( esdfParam.isRestartDensity ){ 
       GetTime( timeSta );
       hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
       GetTime( timeEnd );
@@ -1224,7 +1210,7 @@ SCFDG::Iterate    (  )
               // Solve the basis functions in the extended element
 
               Real eigTolNow;
-              if( isEigToleranceDynamic_ ){
+              if( esdfParam.isEigToleranceDynamic ){
                 // Dynamic strategy to control the tolerance
                 if( iter == 1 )
                   // FIXME magic number
@@ -2279,7 +2265,7 @@ SCFDG::Iterate    (  )
         if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
           // Output density, and only mpirankRow == 0 does the job of
           // for each element.
-          if( isOutputDensity_ ){
+          if( esdfParam.isOutputDensity ){
             if( mpirankRow == 0 ){
 #if ( _DEBUGlevel_ >= 0 )
               statusOFS << std::endl 
@@ -2323,7 +2309,7 @@ SCFDG::Iterate    (  )
 
           // Output potential in extended element, and only mpirankRow
           // == 0 does the job of for each element.
-          if( isOutputPotExtElem_ ) {
+          if( esdfParam.isOutputPotExtElem ) {
             if( mpirankRow == 0 ){
 #if ( _DEBUGlevel_ >= 0 )
               statusOFS 
@@ -2350,7 +2336,7 @@ SCFDG::Iterate    (  )
           }
 
           // Output wavefunction in the extended element.  All processors participate
-          if( isOutputWfnExtElem_ )
+          if( esdfParam.isOutputWfnExtElem )
           {
 #if ( _DEBUGlevel_ >= 0 )
             statusOFS 
@@ -2376,7 +2362,7 @@ SCFDG::Iterate    (  )
           }
 
           // Output wavefunction in the element on LGL grid. All processors participate.
-          if( isOutputALBElemLGL_ )
+          if( esdfParam.isOutputALBElemLGL )
           {
 #if ( _DEBUGlevel_ >= 0 )
             statusOFS 
@@ -2402,7 +2388,7 @@ SCFDG::Iterate    (  )
           // All processors participate
           // NOTE: 
           // Since interpolation needs to be performed, this functionality can be slow.
-          if( isOutputALBElemUniform_ )
+          if( esdfParam.isOutputALBElemUniform )
           {
 #if ( _DEBUGlevel_ >= 0 )
             statusOFS 
@@ -2446,7 +2432,7 @@ SCFDG::Iterate    (  )
           // mpirankRow == 0 does the job of for each element.
           // This option is only valid for diagonalization
           // methods
-          if( isOutputEigvecCoef_ && solutionMethod_ == "diag" ) {
+          if( esdfParam.isOutputEigvecCoef && solutionMethod_ == "diag" ) {
             if( mpirankRow == 0 ){
 #if ( _DEBUGlevel_ >= 0 )
               statusOFS << std::endl 
@@ -5525,7 +5511,7 @@ SCFDG::Iterate    (  )
         // Write the Hamiltonian matrix to a file (if needed) 
         // *********************************************************************
 
-        if( isOutputHMatrix_ ){
+        if( esdfParam.isOutputHMatrix ){
           // Only the first processor column participates in the conversion
           if( mpirankRow == 0 ){
             DistSparseMatrix<Real>  HSparseMat;
@@ -6192,7 +6178,7 @@ SCFDG::Iterate    (  )
           }
 
           // Compute the force at every step
-          if( isCalculateForceEachSCF_ ){
+          if( esdfParam.isCalculateForceEachSCF ){
 
             // Compute force
             GetTime( timeSta );
@@ -6279,7 +6265,7 @@ SCFDG::Iterate    (  )
           // Compute the a posteriori error estimator at every step
           // FIXME This is not used when intra-element parallelization is
           // used.
-          if( isCalculateAPosterioriEachSCF_ && 0 )
+          if( esdfParam.isCalculateAPosterioriEachSCF && 0 )
           {
             GetTime( timeSta );
             DblNumTns  eta2Total, eta2Residual, eta2GradJump, eta2Jump;
@@ -6747,7 +6733,7 @@ SCFDG::Iterate    (  )
 #endif
 
           // Compute the force at every step
-          //      if( isCalculateForceEachSCF_ ){
+          //      if( esdfParam.isCalculateForceEachSCF ){
           //        // Compute force
           //        GetTime( timeSta );
           //        hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );
@@ -7176,7 +7162,7 @@ SCFDG::Iterate    (  )
 
               // Add the external barrier potential. CANNOT be used
               // together with periodization option
-              if( isPotentialBarrier_ ){
+              if( esdfParam.isPotentialBarrier ){
                 Domain& dmExtElem = eigSol.FFT().domain;
                 DblNumVec& vext = eigSol.Ham().Vext();
                 SetValue( vext, 0.0 );
@@ -7197,7 +7183,7 @@ SCFDG::Iterate    (  )
 
               // Periodize the external potential. CANNOT be used together
               // with the barrier potential option
-              if( isPeriodizePotential_ ){
+              if( esdfParam.isPeriodizePotential ){
                 Domain& dmExtElem = eigSol.FFT().domain;
                 // Get the potential
                 DblNumVec& vext = eigSol.Ham().Vext();

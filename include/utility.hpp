@@ -1773,15 +1773,5 @@ public:
 };
 
 
-// From periodtable
-
-// Serialization / Deserialization
-Int serialize(const Atom& val, std::ostream& os, const std::vector<Int>& mask);
-
-Int deserialize(Atom& val, std::istream& is, const std::vector<Int>& mask);
-
-Real MaxForce( const std::vector<Atom>& atomList );
-
-
 } // namespace dgdft
 #endif // _UTILITY_HPP_

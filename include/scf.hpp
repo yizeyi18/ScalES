@@ -83,13 +83,7 @@ private:
   Real                scfPhiTolerance_;
   Int                 numUnusedState_;
   bool                isEigToleranceDynamic_;
-  bool                isRestartDensity_;
-  bool                isRestartWfn_;
-  bool                isOutputDensity_;
-  bool                isOutputPotential_;
-  bool                isOutputWfn_;
 
-  bool                isCalculateForceEachSCF_;
   bool                isHybridACEOutside_;
 
   std::string         restartDensityFileName_;

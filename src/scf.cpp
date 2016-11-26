@@ -92,12 +92,6 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
     scfPhiMaxIter_ = esdfParam.scfPhiMaxIter;
     scfPhiTolerance_ = esdfParam.scfPhiTolerance;
     isEigToleranceDynamic_ = esdfParam.isEigToleranceDynamic;
-    isRestartDensity_ = esdfParam.isRestartDensity;
-    isRestartWfn_     = esdfParam.isRestartWfn;
-    isOutputDensity_  = esdfParam.isOutputDensity;
-    isOutputPotential_  = esdfParam.isOutputPotential;
-    isOutputWfn_      = esdfParam.isOutputWfn; 
-    isCalculateForceEachSCF_       = esdfParam.isCalculateForceEachSCF;
     Tbeta_         = esdfParam.Tbeta;
     mixVariable_   = esdfParam.mixVariable;
 
@@ -148,7 +142,7 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
   {
     DblNumMat&  density = eigSolPtr_->Ham().Density();
 
-    if( isRestartDensity_ ) {
+    if( esdfParam.isRestartDensity ) {
       std::istringstream rhoStream;      
       SharedRead( restartDensityFileName_, rhoStream);
       // TODO Error checking
@@ -272,7 +266,7 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
     }
   }
 
-  if( !isRestartWfn_ ) {
+  if( ! esdfParam.isRestartWfn ) {
     // Randomized input from outside
   }
   else {
@@ -351,7 +345,7 @@ SCF::Iterate (  )
   // FIXME The following treatment of the initial density is not
   // compatible with the density extrapolation step in MD
   if(0){
-    if( isRestartDensity_ ){ 
+    if( esdfParam.isRestartDensity ){ 
       ham.CalculateXC( Exc_, fft ); 
       // Compute the Hartree energy
       ham.CalculateHartree( fft );
@@ -411,16 +405,14 @@ SCF::Iterate (  )
         GetTime( timeSta );
         ham.SetPhiEXX( psi, fft ); 
 
-        if( ham.IsHybridACE()){
-          if( ham.IsHybridACE() ){
-            if( ham.IsHybridDF() ){
-              ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
-              // Fix the column after the first iteraiton
-              isFixColumnDF = true;
-            }
-            else{
-              ham.CalculateVexxACE ( psi, fft );
-            }
+        if( esdfParam.isHybridACE ){
+          if( esdfParam.isHybridDF ){
+            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+            // Fix the column after the first iteraiton
+            isFixColumnDF = true;
+          }
+          else{
+            ham.CalculateVexxACE ( psi, fft );
           }
         }
 
@@ -812,7 +804,7 @@ SCF::Iterate (  )
 
 
   // Output restarting information
-  if( isOutputDensity_ ){
+  if( esdfParam.isOutputDensity ){
     if( mpirank == 0 ){
       std::ofstream rhoStream(restartDensityFileName_.c_str());
       if( !rhoStream.good() ){
@@ -835,7 +827,7 @@ SCF::Iterate (  )
   }    
 
   // Output the total potential
-  if( isOutputPotential_ ){
+  if( esdfParam.isOutputPotential ){
     if( mpirank == 0 ){
       std::ofstream vtotStream(restartPotentialFileName_.c_str());
       if( !vtotStream.good() ){
@@ -854,7 +846,7 @@ SCF::Iterate (  )
     }
   }
 
-  if( isOutputWfn_ ){
+  if( esdfParam.isOutputWfn ){
     std::ostringstream wfnStream;
     serialize( eigSolPtr_->Psi().Wavefun(), wfnStream, NO_MASK );
     SeparateWrite( restartWfnFileName_, wfnStream, mpirank );

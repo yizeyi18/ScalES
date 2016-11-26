@@ -89,28 +89,15 @@ private:
   Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
   Int                 numUnusedState_;
   Real                SVDBasisTolerance_;
-  bool                isEigToleranceDynamic_;
-  bool                isRestartDensity_;
-  bool                isRestartWfn_;
-  bool                isOutputDensity_;
-  bool                isOutputALBElemLGL_;
-  bool                isOutputALBElemUniform_;
-  bool                isOutputWfnExtElem_;
-  bool                isOutputPotExtElem_; 
-  bool                isOutputEigvecCoef_;
-  bool                isCalculateAPosterioriEachSCF_;
-  bool                isCalculateForceEachSCF_;
-  bool                isOutputHMatrix_;
+  
   Real                ecutWavefunction_;
   Real                densityGridFactor_;        
   Real                LGLGridFactor_;
 
-  bool                isPeriodizePotential_;
   Point3              distancePeriodize_;
   // Bubble function along each dimension
   std::vector<DblNumVec>   vBubble_;
 
-  bool                isPotentialBarrier_;
   Real                potentialBarrierW_;
   Real                potentialBarrierS_;
   Real                potentialBarrierR_;

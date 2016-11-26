@@ -181,7 +181,7 @@ public:
   /// @brief Read the information of the periodic table from file.  
   ///
   /// All processors can call this routine at the same time. 
-  void Setup( const std::string strptable, const std::string pseudoType );
+  void Setup( );
 
 
 
@@ -230,6 +230,14 @@ public:
 
 };
 
+
+
+// Serialization / Deserialization
+Int serialize(const Atom& val, std::ostream& os, const std::vector<Int>& mask);
+
+Int deserialize(Atom& val, std::istream& is, const std::vector<Int>& mask);
+
+Real MaxForce( const std::vector<Atom>& atomList );
 
 
 

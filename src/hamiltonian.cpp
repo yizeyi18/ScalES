@@ -93,8 +93,6 @@ KohnSham::Setup    (
   pseudoType_          = esdfParam.pseudoType;
   numExtraState_       = esdfParam.numExtraState;
   XCType_              = esdfParam.XCType;
-  isHybridACE_         = esdfParam.isHybridACE;
-  isHybridDF_                      = esdfParam.isHybridDF;
   numMuHybridDF_                   = esdfParam.numMuHybridDF;
   numGaussianRandomHybridDF_       = esdfParam.numGaussianRandomHybridDF;
   numProcScaLAPACKPotrfHybridDF_   = esdfParam.numProcScaLAPACKPotrfHybridDF;
@@ -1979,7 +1977,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 
     GetTime( timeSta );
 
-    if( this->IsHybridACE() ){
+    if( esdfParam.isHybridACE ){
 
       //      if(0)
       //      {
@@ -2606,7 +2604,7 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
   }
 
   // Directly use the phiEXX_ and vexxProj_ to calculate the exchange energy
-  if( isHybridACE_ ){
+  if( esdfParam.isHybridACE ){
     // temporarily just implement here
     // Directly use projector
     Int numProj = vexxProj_.n();

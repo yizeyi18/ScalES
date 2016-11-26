@@ -126,8 +126,6 @@ protected:
   /// @brief Mixing parameter for hybrid functional calculation. Currently hard coded
   const Real                  exxFraction_ = 0.25;
 
-  bool                        isHybridACE_;
-  bool                        isHybridDF_;
   Real                        numMuHybridDF_;
   Real                        numGaussianRandomHybridDF_;
   Int                         numProcScaLAPACKPotrfHybridDF_;
@@ -224,8 +222,6 @@ public:
 
   Real        ScreenMu() { return screenMu_;}
   Real        EXXFraction() { return exxFraction_;}
-  bool        IsHybridACE() { return isHybridACE_; }
-  bool        IsHybridDF()  { return isHybridDF_; }
 
 
   // Functions to set and toggle state of filter application
