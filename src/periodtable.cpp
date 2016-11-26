@@ -116,6 +116,47 @@ void PeriodTable::Setup( )
     }
     splmap_[type] = spltmp;
   }
+
+  // Setup constant private variable parameters
+  if( esdfParam.pseudoType == "HGH" ){
+    ptsample_.RADIAL_GRID       = 0;
+    ptsample_.PSEUDO_CHARGE     = 1;
+    ptsample_.DRV_PSEUDO_CHARGE = 2;
+    ptsample_.RHOATOM           = -999;
+    ptsample_.DRV_RHOATOM       = -999;
+    ptsample_.NONLOCAL          = 3;
+  }
+  if( esdfParam.pseudoType == "ONCV" ){
+    ptsample_.RADIAL_GRID       = 0;
+    ptsample_.PSEUDO_CHARGE     = 1;
+    ptsample_.DRV_PSEUDO_CHARGE = 2;
+    ptsample_.RHOATOM           = 3;
+    ptsample_.DRV_RHOATOM       = 4;
+    ptsample_.NONLOCAL          = 5;
+  }
+
+  // Common so far for all pseudopotential
+
+  {
+    pttype_.RADIAL            = 9;
+    pttype_.PSEUDO_CHARGE     = 99;
+    pttype_.RHOATOM           = 999;
+    pttype_.L0                = 0;
+    pttype_.L1                = 1;
+    pttype_.L2                = 2;
+    pttype_.L3                = 3;
+    pttype_.SPINORBIT_L1      = -1;
+    pttype_.SPINORBIT_L2      = -2;
+    pttype_.SPINORBIT_L3      = -3;
+  }
+
+  {
+    ptparam_.ZNUC   = 0;
+    ptparam_.MASS   = 1;
+    ptparam_.ZION   = 2;
+    ptparam_.ESELF  = 3;
+  }
+
 }         // -----  end of method PeriodTable::Setup  ----- 
 
 void
@@ -188,12 +229,12 @@ PeriodTable::CalculatePseudoCharge    (
 
     Int idxsize = idx.size();
     //
-    std::vector<DblNumVec>& valspl = spldata[PTSample::PSEUDO_CHARGE]; 
+    std::vector<DblNumVec>& valspl = spldata[ptsample_.PSEUDO_CHARGE]; 
     std::vector<Real> val(idxsize,0.0);
     seval(&(val[0]), idxsize, &(rad[0]), valspl[0].m(), valspl[0].Data(), 
         valspl[1].Data(), valspl[2].Data(), valspl[3].Data(), valspl[4].Data());
     //
-    std::vector<DblNumVec>& derspl = spldata[PTSample::DRV_PSEUDO_CHARGE];
+    std::vector<DblNumVec>& derspl = spldata[ptsample_.DRV_PSEUDO_CHARGE];
     std::vector<Real> der(idxsize,0.0);
 
     seval(&(der[0]), idxsize, &(rad[0]), derspl[0].m(), derspl[0].Data(), 
@@ -272,7 +313,7 @@ PeriodTable::CalculateNonlocalPP    (
   // Initialize
   // First count all the pseudopotentials
   Int numpp = 0;
-  for(Int g=PTSample::NONLOCAL; g<ptentry.samples.n(); g=g+2) {
+  for(Int g=ptsample_.NONLOCAL; g<ptentry.samples.n(); g=g+2) {
     Int typ = ptentry.types(g);
 
     if(typ==0)
@@ -339,7 +380,7 @@ PeriodTable::CalculateNonlocalPP    (
     Int idxsize = idx.size();
     //process non-local pseudopotential one by one
     Int cntpp = 0;
-    for(Int g=PTSample::NONLOCAL; g<ptentry.samples.n(); g=g+2) {
+    for(Int g=ptsample_.NONLOCAL; g<ptentry.samples.n(); g=g+2) {
       Real wgt = ptentry.weights(g);
       Int typ = ptentry.types(g);
       //
@@ -351,7 +392,7 @@ PeriodTable::CalculateNonlocalPP    (
       std::vector<Real> der(idxsize,0.0);
       seval(&(der[0]), idxsize, &(rad[0]), derspl[0].m(), derspl[0].Data(), derspl[1].Data(), derspl[2].Data(), derspl[3].Data(), derspl[4].Data());
       //--
-      if(typ==PTType::L0) {
+      if(typ==pttype_.L0) {
         Real coef = sqrt(1.0/(4.0*PI)); //spherical harmonics
         IntNumVec iv(idx.size(), true, &(idx[0]));
         DblNumMat dv(idx.size(), DIM + 1); // Value and its three derivatives
@@ -370,9 +411,9 @@ PeriodTable::CalculateNonlocalPP    (
           }
         }
         vnlList[cntpp++] = NonlocalPP( SparseVec(iv,dv), wgt );
-      } // if(typ==PTType::L0);
+      } // if(typ==pttype_.L0);
 
-      if(typ==PTType::L1) {
+      if(typ==pttype_.L1) {
         Real coef = sqrt(3.0/(4.0*PI)); //spherical harmonics
         {
           IntNumVec iv(idx.size(), true, &(idx[0]));
@@ -428,9 +469,9 @@ PeriodTable::CalculateNonlocalPP    (
           }
           vnlList[cntpp++] = NonlocalPP( SparseVec(iv,dv), wgt );
         }
-      } // if(typ==PTType::L1)
+      } // if(typ==pttype_.L1)
 
-      if(typ==PTType::L2) {
+      if(typ==pttype_.L2) {
         // d_z2
         {
           Real coef = 1.0/4.0*sqrt(5.0/PI); // Coefficients for spherical harmonics
@@ -572,11 +613,11 @@ PeriodTable::CalculateNonlocalPP    (
           }
           vnlList[cntpp++] = NonlocalPP( SparseVec(iv,dv), wgt );
         }
-      } // if(typ==PTType::L2)
+      } // if(typ==pttype_.L2)
 
       // FIXME: The derivative at r=0 for the f orbital MAY NOT BE CORRECT.
       // LLIN: 10/21/2013
-      if(typ==PTType::L3) {
+      if(typ==pttype_.L3) {
         // f_z3
         {
           Real coef = 1.0/4.0*sqrt(7.0/PI); // Coefficients for spherical harmonics
@@ -801,7 +842,7 @@ PeriodTable::CalculateNonlocalPP    (
           }
           vnlList[cntpp++] = NonlocalPP( SparseVec(iv,dv), wgt );
         }
-      } // if(typ==PTType::L3)
+      } // if(typ==pttype_.L3)
     } // for (g)
 
     // Check the number of pseudopotentials
@@ -834,7 +875,7 @@ PeriodTable::CalculateNonlocalPP    (
 
   // First count all the pseudopotentials
   Int numpp = 0;
-  for(Int g=PTSample::NONLOCAL; g<ptentry.samples.n(); g=g+2) {
+  for(Int g=ptsample_.NONLOCAL; g<ptentry.samples.n(); g=g+2) {
     Int typ = ptentry.types(g);
 
     if(typ==0)
@@ -942,7 +983,7 @@ void PeriodTable::CalculateAtomDensity(
 
     Int idxsize = idx.size();
     //
-    std::vector<DblNumVec>& valspl = spldata[PTSample::RHOATOM]; 
+    std::vector<DblNumVec>& valspl = spldata[ptsample_.RHOATOM]; 
     std::vector<Real> val(idxsize,0.0);
     seval(&(val[0]), idxsize, &(rad[0]), valspl[0].m(), valspl[0].Data(), 
         valspl[1].Data(), valspl[2].Data(), valspl[3].Data(), valspl[4].Data());

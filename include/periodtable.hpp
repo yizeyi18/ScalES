@@ -83,54 +83,54 @@ struct Atom
     type(t), pos(p), vel(v), force(f) {}
 };
 
-/// @namespace PTParam
+/// @struct PTParam
 /// @brief Index of the parameters in each entry of the periodic table.
-namespace PTParam{
-enum {
+/// However, the detailed value may depend on the pseudopotential.
+struct PTParam{
   /// @brief Atomic number.
-  ZNUC   = 0,
+  Int ZNUC;
   /// @brief Nuclear mass.
-  MASS   = 1,
+  Int MASS;
   /// @brief Nuclear charge (valence).
-  ZION   = 2,
+  Int ZION;
   /// @brief Self-interaction energy.
-  ESELF  = 3
+  Int ESELF;
 };
-}
 
-/// @namespace PTSample
-/// @brief Index of the radial grid, the pseudocharge, derivative
-/// of the pseudocharge, model core charge density, derivative of model
-/// core charge density, nonlocal pseudopotentials in samples and cuts.
-namespace PTSample{
-enum {
-  RADIAL_GRID       = 0,
-  PSEUDO_CHARGE     = 1,
-  DRV_PSEUDO_CHARGE = 2,
-  RHOATOM           = 3,
-  DRV_RHOATOM       = 4,
-  NONLOCAL          = 5,
-};
-}
 
-/// @namespace PTType
+/// @struct PTType
 /// @brief Type of each sample, including radial grid, pseudocharge, and
 /// nonlocal projectors of different angular momentum, and the
 /// spin-orbit contribution. 
-namespace PTType{
-enum{
-  RADIAL            = 9,
-  PSEUDO_CHARGE     = 99,
-  RHOATOM           = 999,
-  L0                = 0,
-  L1                = 1,
-  L2                = 2,
-  L3                = 3,
-  SPINORBIT_L1         = -1,
-  SPINORBIT_L2      = -2,
-  SPINORBIT_L3      = -3
+/// However, the detailed value may depend on the pseudopotential.
+struct PTType{
+  Int RADIAL;
+  Int PSEUDO_CHARGE;
+  Int RHOATOM;
+  Int L0;
+  Int L1;
+  Int L2;
+  Int L3;
+  Int SPINORBIT_L1;
+  Int SPINORBIT_L2;
+  Int SPINORBIT_L3;
 };
+
+
+/// @struct PTSample
+/// @brief Index of the radial grid, the pseudocharge, derivative
+/// of the pseudocharge, model core charge density, derivative of model
+/// core charge density, nonlocal pseudopotentials in samples and cuts.
+/// However, the detailed value may depend on the pseudopotential.
+struct PTSample{
+  Int RADIAL_GRID;
+  Int PSEUDO_CHARGE;
+  Int DRV_PSEUDO_CHARGE;
+  Int RHOATOM;
+  Int DRV_RHOATOM;
+  Int NONLOCAL;
 };
+
 
 /// @brief The start of the radial grid.
 const Real MIN_RADIAL = 1e-10;
@@ -148,7 +148,7 @@ struct PTEntry
   DblNumVec weights; 
   /// @brief Type of each sample, following PTType.
   IntNumVec types; 
-  /// @brief Cutoff value for different sample, following PTSample.
+  /// @brief Cutoff value for different samples, following PTSample
   DblNumVec cutoffs; 
 };
 
@@ -162,6 +162,10 @@ Int combine(PTEntry&, PTEntry&);
 class PeriodTable
 {
 private:
+  PTParam  ptparam_;
+  PTType   pttype_;
+  PTSample ptsample_;
+
   /// @brief Map from atomic number to PTEntry
   std::map<Int, PTEntry> ptemap_; 
   /// @brief Map from atomic number to splines for pseudopotentials.
@@ -229,31 +233,31 @@ public:
       DblNumVec& atomDensity );
 
   /// @brief Whether the atom type has nonlocal pseudopotential
-  bool IsNonlocal(Int type) {return ptemap_[type].cutoffs.m()>PTSample::NONLOCAL;}
+  bool IsNonlocal(Int type) {return ptemap_[type].cutoffs.m()>ptsample_.NONLOCAL;}
   
   /// @brief Cutoff radius for the pseudocharge in the real space
-  Real RcutPseudoCharge(Int type)   {return ptemap_[type].cutoffs(PTSample::PSEUDO_CHARGE);}
+  Real RcutPseudoCharge(Int type)   {return ptemap_[type].cutoffs(ptsample_.PSEUDO_CHARGE);}
   
   /// @brief Cutoff radius for model atomic density in the real space.
   /// This is only used for constructing initial charge density, and
   /// does not need to be very accurate
-  Real RcutRhoAtom(Int type)   {return ptemap_[type].cutoffs(PTSample::RHOATOM);}
+  Real RcutRhoAtom(Int type)   {return ptemap_[type].cutoffs(ptsample_.RHOATOM);}
   
   /// @brief Cutoff radius for the nonlocal pseudpotental in the real
   /// space. If there are multiple pseudopotentials, Rcut should be the
   /// maximum radius so that ALL nonlocal pseudopotentials are accurate.
   Real RcutNonlocal(Int type)   {return (this->IsNonlocal(type)) ? 
-    ptemap_[type].cutoffs(PTSample::NONLOCAL) : 0.0;}
+    ptemap_[type].cutoffs(ptsample_.NONLOCAL) : 0.0;}
 
 
   /// @brief Atomic mass
-  Real Mass(Int type) {return ptemap_[type].params(PTParam::MASS);}
+  Real Mass(Int type) {return ptemap_[type].params(ptparam_.MASS);}
 
   /// @brief Valence charge of the ion
-  Real Zion(Int type) {return ptemap_[type].params(PTParam::ZION);}
+  Real Zion(Int type) {return ptemap_[type].params(ptparam_.ZION);}
 
   /// @brief Self ionic interaction energy
-  Real SelfIonInteraction(Int type) {return ptemap_[type].params(PTParam::ESELF);}
+  Real SelfIonInteraction(Int type) {return ptemap_[type].params(ptparam_.ESELF);}
 
   //---------------------------------------------
   // TODO SpinOrbit from RelDFT
