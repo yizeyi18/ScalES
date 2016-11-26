@@ -123,6 +123,7 @@ SCFDG::Setup    (
     PeriodTable&                ptable,
     Int                         contxt    )
 {
+  Real timeSta, timeEnd;
 
   // *********************************************************************
   // Read parameters from ESDFParam
@@ -555,7 +556,31 @@ SCFDG::Setup    (
 
   } // else using the zero initial guess
   else {
-    if( esdfParam.pseudoType == "HGH" ){
+    if( esdfParam.isUseAtomDensity ){
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Use superposition of atomic density as initial "
+        << "guess for electron density." << std::endl;
+#endif
+      GetTime( timeSta );
+      hamDGPtr_->CalculateAtomDensity( *ptablePtr_, *distfftPtr_ );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for calculating the atomic density = " 
+        << timeEnd - timeSta << " [s]" << std::endl;
+#endif
+
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key( i, j, k );
+            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+              DblNumVec&  denVec = density.LocalMap()[key];
+              DblNumVec&  atomdenVec  = hamDGPtr_->AtomDensity().LocalMap()[key];
+              blas::Copy( denVec.Size(), atomdenVec.Data(), 1, denVec.Data(), 1 );
+            }
+          } // for (i)
+    }
+    else{
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Generating initial density through linear combination of pseudocharges." 
         << std::endl;
@@ -613,20 +638,6 @@ SCFDG::Setup    (
           } // for (i)
     }
 
-    if( esdfParam.pseudoType == "ONCV" ){
-      for( Int k = 0; k < numElem_[2]; k++ )
-        for( Int j = 0; j < numElem_[1]; j++ )
-          for( Int i = 0; i < numElem_[0]; i++ ){
-            Index3 key( i, j, k );
-            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-              DblNumVec&  denVec = density.LocalMap()[key];
-              DblNumVec&  atomdenVec  = hamDGPtr_->AtomDensity().LocalMap()[key];
-              blas::Copy( denVec.Size(), atomdenVec.Data(), 1, denVec.Data(), 1 );
-            }
-          } // for (i)
-      statusOFS << "Use superposition of atomic density as initial "
-        << " guess for electron density." << std::endl;
-    }
   } // Restart the density
 
 

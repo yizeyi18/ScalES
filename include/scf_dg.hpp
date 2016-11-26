@@ -114,6 +114,8 @@ private:
   // PWDFT solver on extended element
   std::string         PWSolver_;
 
+  // LL: 2016/11/26 Some of the control parameters below are not
+  // necessary and can be referred to directly as esdfParam.xxx
 
   // Chebyshev Filtering variables for PWDFT on extended element
   bool Diag_SCF_PWDFT_by_Cheby_;

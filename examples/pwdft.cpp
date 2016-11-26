@@ -165,10 +165,6 @@ int main(int argc, char **argv)
     statusOFS << "Time for calculating the pseudopotential for the Hamiltonian = " 
       << timeEnd - timeSta << " [s]" << std::endl;
     
-    if( esdfParam.pseudoType == "ONCV" ){
-      hamKS.CalculateAtomDensity( ptable, fft );
-    }
-
 
     // Wavefunctions
     int numStateTotal = hamKS.NumStateTotal();

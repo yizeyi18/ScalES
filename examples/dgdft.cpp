@@ -373,9 +373,6 @@ int main(int argc, char **argv)
     HamiltonianDG hamDG;
     hamDG.Setup();
     hamDG.CalculatePseudoPotential( ptable );
-    if( esdfParam.pseudoType == "ONCV" ){
-      hamDG.CalculateAtomDensity( ptable, distfft );
-    }
 
     GetTime( timeEnd );
     statusOFS << "Time for setting up the DG Hamiltonian is " <<

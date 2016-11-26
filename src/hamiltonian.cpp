@@ -196,8 +196,6 @@ KohnSham::Setup    (
 
 
 
-
-
   return ;
 }         // -----  end of method KohnSham::Setup  ----- 
 

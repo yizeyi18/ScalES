@@ -76,6 +76,7 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
 {
   int mpirank;  MPI_Comm_rank(esdfParam.domain.comm, &mpirank);
   int mpisize;  MPI_Comm_size(esdfParam.domain.comm, &mpisize);
+  Real timeSta, timeEnd;
 
   // esdf parameters
   {
@@ -159,9 +160,37 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
           density.VecData(RHO), 1 );
     } // else using the zero initial guess
     else {
-      // Start from pseudocharge, usually this is not a very good idea
-      if( esdfParam.pseudoType == "HGH" ){
+      if( esdfParam.isUseAtomDensity ){
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS 
+          << "Use superposition of atomic density as initial "
+          << "guess for electron density." << std::endl;
+#endif
+        
+        GetTime( timeSta );
+        ham.CalculateAtomDensity( *ptablePtr_, eigSolPtr_->FFT() );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for calculating the atomic density = " 
+          << timeEnd - timeSta << " [s]" << std::endl;
+#endif
+
+        // Use the superposition of atomic density as the initial guess for density
+        const Domain& dm = esdfParam.domain;
+        Int ntotFine = dm.NumGridTotalFine();
+
+        SetValue( density, 0.0 );
+        blas::Copy( ntotFine, ham.AtomDensity().Data(), 1, 
+            density.VecData(0), 1 );
+
+      }
+      else{
+        // Start from pseudocharge, usually this is not a very good idea
         // make sure the pseudocharge is initialized
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Generating initial density through linear combination of pseudocharges." 
+          << std::endl;
+#endif
         DblNumVec&  pseudoCharge = ham.PseudoCharge();
         const Domain& dm = esdfParam.domain;
 
@@ -190,19 +219,6 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
 
         Print( statusOFS, "Rescaled density. Sum of density      = ", 
             sum1 * dm.Volume() / dm.NumGridTotalFine() );
-      }
-      
-      if( esdfParam.pseudoType == "ONCV" ){
-        // Use the superposition of atomic density as the initial guess for density
-        const Domain& dm = esdfParam.domain;
-        Int ntotFine = dm.NumGridTotalFine();
-
-        SetValue( density, 0.0 );
-        blas::Copy( ntotFine, ham.AtomDensity().Data(), 1, 
-            density.VecData(0), 1 );
-
-        statusOFS << "Use superposition of atomic density as initial "
-          << " guess for electron density." << std::endl;
       }
     }
   }

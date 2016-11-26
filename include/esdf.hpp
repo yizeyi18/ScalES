@@ -207,7 +207,6 @@ struct ESDFInputParam{
   /// Default: 30
   Int                 scfOuterMaxIter;
   
-  
   /// @brief From which ion iteration to engage energy based convergence in MD
   /// 
   /// Default: ionMaxIter + 1
@@ -216,7 +215,7 @@ struct ESDFInputParam{
   /// Currently this is interperetd slightly differently in DGDFT and PWDFT  
   /// In DGDFT, this number goes into effect once Energy based SCF convergence is activated
   /// Default: the same as scfOuterMaxIter
-  Int                 MDscfOuterMaxIter;
+  Int                MDscfOuterMaxIter;
   /// @brief Etot tolerance in Energy based convergence
   /// The difference in Etot should be less than this in energy based SCf convergence
   Real               MDscfEtotdiff;
@@ -330,6 +329,18 @@ struct ESDFInputParam{
   /// decomposition is performed to eliminate the linearly dependent
   /// modes with tolerance SVDBasisTolerance.
   Real                SVDBasisTolerance;
+
+
+  
+  /// @brief Whether to use the sum of atomic density as the initial
+  /// guess for electron density.
+  ///
+  /// Currently only works for ONCV pseudopotential and not for HGH
+  /// pseudopotential.
+  /// 
+  /// Default: 1
+  bool                isUseAtomDensity;
+
   /// @brief Whether to use the saved electron density as the start.
   ///
   /// Default: 0
@@ -480,7 +491,7 @@ struct ESDFInputParam{
   ///
   /// Default: "HGH"
   ///
-  /// Currently HGH is the only supported pseudopotential format.
+  /// Currently HGH and ONCV are the only supported pseudopotential format.
   std::string         pseudoType;
   /// @brief Solver for the planewave problem.  
   ///
