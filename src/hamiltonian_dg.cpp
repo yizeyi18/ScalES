@@ -185,6 +185,7 @@ void HamiltonianDG::Setup ( )
   // communicators.
   pseudoCharge_.SetComm( domain_.colComm );
   density_.SetComm( domain_.colComm );
+  atomDensity_.SetComm( domain_.colComm );
   densityLGL_.SetComm( domain_.colComm );
   vext_.SetComm( domain_.colComm );
   vhart_.SetComm( domain_.colComm );
@@ -216,6 +217,7 @@ void HamiltonianDG::Setup ( )
   // performed in the column communicator.
   pseudoCharge_.Prtn()  = elemPrtn_;
   density_.Prtn()       = elemPrtn_;
+  atomDensity_.Prtn()   = elemPrtn_;
   densityLGL_.Prtn()    = elemPrtn_;
   vext_.Prtn()          = elemPrtn_;
   vhart_.Prtn()         = elemPrtn_;
@@ -5208,5 +5210,195 @@ HamiltonianDG::CalculateAPosterioriError    (
 
   return ;
 }         // -----  end of method HamiltonianDG::CalculateAPosterioriError  ----- 
+
+void
+HamiltonianDG::CalculateAtomDensity    ( PeriodTable &ptable, DistFourier& fft ){
+  if( esdfParam.pseudoType == "HGH" ){
+    ErrorHandling("HGH pseudopotential does not yet support the computation of atomic density!");
+  }
+
+  Int ntotFine = domain_.NumGridTotalFine();
+  Int numAtom = atomList_.size();
+  Int mpirank, mpisize;
+  MPI_Comm_rank( domain_.comm, &mpirank );
+  MPI_Comm_size( domain_.comm, &mpisize );
+
+  Real vol = domain_.Volume();
+
+  // The number of electrons for normalization purpose. 
+  Int nelec = 0;
+  for (Int a=0; a<numAtom; a++) {
+    Int atype  = atomList_[a].type;
+    if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
+      ErrorHandling( "Cannot find the atom type." );
+    }
+    nelec = nelec + ptable.Zion(atype);
+  }
+  if( nelec % 2 != 0 ){
+    ErrorHandling( "This is spin-restricted calculation. nelec should be even." );
+  }
+
+  // Search for the number of atom types and build a list of atom types
+  std::set<Int> atomTypeSet;
+  for( Int a = 0; a < numAtom; a++ ){
+    atomTypeSet.insert( atomList_[a].type );
+  } // for (a)
+
+  // For each atom type, construct the atomic pseudocharge within the
+  // cutoff radius starting from the origin in the real space, and
+  // construct the structure factor. This is done by first generating
+  // the density on the element-wise grid, convert to Fourier grid, and
+  // then back
+
+  DistDblNumVec atomDensityR;
+  atomDensityR.SetComm( domain_.colComm );
+  atomDensityR.Prtn() = elemPrtn_;
+ 
+  Int ntotLocal = fft.numGridLocal;
+  DblNumVec atomDensityRLocal(ntotLocal);
+  CpxNumVec atomDensityGLocal(ntotLocal);
+  
+  SetValue( atomDensityRLocal, 0.0 );
+  SetValue( atomDensityGLocal, Z_ZERO );
+  CpxNumVec ccvecLocal(ntotLocal);
+
+
+  for( std::set<Int>::iterator itype = atomTypeSet.begin(); 
+      itype != atomTypeSet.end(); itype++ ){
+
+    Int atype = *itype;
+    Atom fakeAtom;
+    fakeAtom.type = atype;
+    // Note this should be starting point of the global domain
+    fakeAtom.pos = domain_.posStart;
+
+    // Compute the atomic density in all elements
+    for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+        for( Int i = 0; i < numElem_[0]; i++ ){
+          Index3 key( i, j, k );
+          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+            DblNumVec  localVec( numUniformGridElemFine_.prod() );
+
+            // uniformGridElemFine_(i,j,k) starts from the posStart of domainElem_(i,j,k)
+            ptable.CalculateAtomDensity( fakeAtom, domain_, uniformGridElemFine_(i,j,k), 
+                localVec );
+            atomDensityR.LocalMap()[key] = localVec;
+          } // own this element
+        } // for (i)
+
+    // Convert atomic density distributed row vector format
+    DistNumVecToDistRowVec(
+        atomDensityR,
+        atomDensityRLocal,
+        domain_.numGridFine,
+        numElem_,
+        fft.localNzStart,
+        fft.localNz,
+        fft.isInGrid,
+        domain_.colComm );
+
+    // Multiply with the structure factor on the local FFT grid. 
+    // Backward FFT is performed only in the end.
+    if( fft.isInGrid ){
+      // Compute the structure factor
+      SetValue( ccvecLocal, Z_ZERO );
+
+      Complex* ccvecPtr = ccvecLocal.Data();
+      Complex* ikxPtr = fft.ikLocal[0].Data();
+      Complex* ikyPtr = fft.ikLocal[1].Data();
+      Complex* ikzPtr = fft.ikLocal[2].Data();
+      Real xx, yy, zz;
+      Complex phase;
+
+      for (Int a=0; a<numAtom; a++) {
+        if( atomList_[a].type == atype ){
+          xx = atomList_[a].pos[0];
+          yy = atomList_[a].pos[1];
+          zz = atomList_[a].pos[2];
+          for( Int i = 0; i < ntotLocal; i++ ){
+            phase = -(ikxPtr[i] * xx + ikyPtr[i] * yy + ikzPtr[i] * zz);
+            ccvecPtr[i] += std::exp( phase );
+          }
+        }
+      }
+
+      // Transfer the atomic charge from real space to Fourier space, and
+      // multiply with the structure factor
+      for(Int i = 0; i < ntotLocal; i++){
+        fft.inputComplexVecLocal[i] = Complex( atomDensityRLocal[i], 0.0 ); 
+      }
+
+      fftw_execute( fft.forwardPlan );
+
+      for( Int i = 0; i < ntotLocal; i++ ){
+        // Make it smoother: AGGREESIVELY truncate components beyond EcutWavefunction
+        if( fft.gkkLocal[i] < esdfParam.ecutWavefunction ){
+          atomDensityGLocal[i] += fft.outputComplexVecLocal[i] * ccvecLocal[i];
+        }
+      }
+    }
+  } // for (itype)
+
+  if( fft.isInGrid ){
+    for( Int i = 0; i < ntotLocal; i++ ){
+      fft.outputComplexVecLocal[i] = atomDensityGLocal[i];
+    }
+      
+    fftw_execute( fft.backwardPlan );
+
+    for( Int i = 0; i < ntotLocal; i++ ){
+      atomDensityRLocal[i] = fft.inputComplexVecLocal[i].real() / ntotFine;
+    }
+  }
+
+  // Transfer back to the real space and add to atomDensity_ 
+  // Convert atomic density distributed row vector format
+  DistRowVecToDistNumVec( 
+      atomDensityRLocal,
+      atomDensity_,
+      domain_.numGridFine,
+      numElem_,
+      fft.localNzStart,
+      fft.localNz,
+      fft.isInGrid,
+      domain_.colComm );
+
+  Real localSum = 0.0, sumRho = 0.0;
+  for( std::map<Index3, DblNumVec>::iterator mi = atomDensity_.LocalMap().begin();
+      mi != atomDensity_.LocalMap().end(); mi++ ){
+    DblNumVec& vec = (*mi).second;
+    for( Int i = 0; i < vec.m(); i++ ){
+      localSum += vec[i];
+    }
+  }
+
+  localSum *= domain_.Volume() / domain_.NumGridTotalFine();
+
+  mpi::Allreduce( &localSum, &sumRho, 1, MPI_SUM, domain_.colComm );
+
+#if ( _DEBUGlevel_ >= 0 )
+  Print( statusOFS, "Sum of atomic density                        = ", sumRho );
+#endif
+
+  // Make adjustments to the pseudocharge
+  Real fac = nelec / sumRho;
+
+  for( std::map<Index3, DblNumVec>::iterator mi = atomDensity_.LocalMap().begin();
+      mi != atomDensity_.LocalMap().end(); mi++ ){
+    DblNumVec& vec = (*mi).second;
+    for( Int i = 0; i < vec.m(); i++ ){
+      vec[i] *= fac;
+    }
+  }
+
+#if ( _DEBUGlevel_ >= 0 )
+  Print( statusOFS, "After adjustment, sum of Pseudocharge        = ", 
+      (Real) nelec );
+#endif
+
+  return ;
+}         // -----  end of method HamiltonianDG::CalculateAtomDensity  ----- 
+
 
 } // namespace dgdft

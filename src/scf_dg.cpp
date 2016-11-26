@@ -555,61 +555,78 @@ SCFDG::Setup    (
 
   } // else using the zero initial guess
   else {
+    if( esdfParam.pseudoType == "HGH" ){
 #if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Generating initial density through linear combination of pseudocharges." 
-      << std::endl;
+      statusOFS << "Generating initial density through linear combination of pseudocharges." 
+        << std::endl;
 #endif
 
-    // Initialize the electron density using the pseudocharge
-    // make sure the pseudocharge is initialized
-    DistDblNumVec& pseudoCharge = hamDGPtr_->PseudoCharge();
+      // Initialize the electron density using the pseudocharge
+      // make sure the pseudocharge is initialized
+      DistDblNumVec& pseudoCharge = hamDGPtr_->PseudoCharge();
 
-    pseudoCharge.SetComm(domain_.colComm);
+      pseudoCharge.SetComm(domain_.colComm);
 
-    Real sumDensityLocal = 0.0, sumPseudoChargeLocal = 0.0;
-    Real sumDensity, sumPseudoCharge;
-    Real EPS = 1e-6;
+      Real sumDensityLocal = 0.0, sumPseudoChargeLocal = 0.0;
+      Real sumDensity, sumPseudoCharge;
+      Real EPS = 1e-6;
 
-    // make sure that the electron density is positive
-    for( Int k = 0; k < numElem_[2]; k++ )
-      for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-            DblNumVec&  denVec = density.LocalMap()[key];
-            DblNumVec&  ppVec  = pseudoCharge.LocalMap()[key];
-            for( Int p = 0; p < denVec.Size(); p++ ){
-              //                            denVec(p) = ppVec(p);
-              denVec(p) = ( ppVec(p) > EPS ) ? ppVec(p) : EPS;
-              sumDensityLocal += denVec(p);
-              sumPseudoChargeLocal += ppVec(p);
+      // make sure that the electron density is positive
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key( i, j, k );
+            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+              DblNumVec&  denVec = density.LocalMap()[key];
+              DblNumVec&  ppVec  = pseudoCharge.LocalMap()[key];
+              for( Int p = 0; p < denVec.Size(); p++ ){
+                //                            denVec(p) = ppVec(p);
+                denVec(p) = ( ppVec(p) > EPS ) ? ppVec(p) : EPS;
+                sumDensityLocal += denVec(p);
+                sumPseudoChargeLocal += ppVec(p);
+              }
             }
-          }
-        } // for (i)
+          } // for (i)
 
-    // Rescale the density
-    mpi::Allreduce( &sumDensityLocal, &sumDensity, 1, MPI_SUM,
-        domain_.colComm );
-    mpi::Allreduce( &sumPseudoChargeLocal, &sumPseudoCharge, 
-        1, MPI_SUM, domain_.colComm );
+      // Rescale the density
+      mpi::Allreduce( &sumDensityLocal, &sumDensity, 1, MPI_SUM,
+          domain_.colComm );
+      mpi::Allreduce( &sumPseudoChargeLocal, &sumPseudoCharge, 
+          1, MPI_SUM, domain_.colComm );
 
-    Print( statusOFS, "Initial density. Sum of density      = ", 
-        sumDensity * domain_.Volume() / domain_.NumGridTotalFine() );
+      Print( statusOFS, "Initial density. Sum of density      = ", 
+          sumDensity * domain_.Volume() / domain_.NumGridTotalFine() );
 #if ( _DEBUGlevel_ >= 1 )
-    Print( statusOFS, "Sum of pseudo charge        = ", 
-        sumPseudoCharge * domain_.Volume() / domain_.NumGridTotalFine() );
+      Print( statusOFS, "Sum of pseudo charge        = ", 
+          sumPseudoCharge * domain_.Volume() / domain_.NumGridTotalFine() );
 #endif
 
-    for( Int k = 0; k < numElem_[2]; k++ )
-      for( Int j = 0; j < numElem_[1]; j++ )
-        for( Int i = 0; i < numElem_[0]; i++ ){
-          Index3 key( i, j, k );
-          if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-            DblNumVec&  denVec = density.LocalMap()[key];
-            blas::Scal( denVec.Size(), sumPseudoCharge / sumDensity, 
-                denVec.Data(), 1 );
-          }
-        } // for (i)
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key( i, j, k );
+            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+              DblNumVec&  denVec = density.LocalMap()[key];
+              blas::Scal( denVec.Size(), sumPseudoCharge / sumDensity, 
+                  denVec.Data(), 1 );
+            }
+          } // for (i)
+    }
+
+    if( esdfParam.pseudoType == "ONCV" ){
+      for( Int k = 0; k < numElem_[2]; k++ )
+        for( Int j = 0; j < numElem_[1]; j++ )
+          for( Int i = 0; i < numElem_[0]; i++ ){
+            Index3 key( i, j, k );
+            if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+              DblNumVec&  denVec = density.LocalMap()[key];
+              DblNumVec&  atomdenVec  = hamDGPtr_->AtomDensity().LocalMap()[key];
+              blas::Copy( denVec.Size(), atomdenVec.Data(), 1, denVec.Data(), 1 );
+            }
+          } // for (i)
+      statusOFS << "Use superposition of atomic density as initial "
+        << " guess for electron density." << std::endl;
+    }
   } // Restart the density
 
 

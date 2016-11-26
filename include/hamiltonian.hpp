@@ -95,7 +95,7 @@ protected:
   DblNumMat                   density_;         
   // Gradient of the density
   std::vector<DblNumMat>      gradDensity_;
-  // Sum of atomic charge densities
+  // atomic charge densities
   DblNumVec                   atomDensity_;
   // External potential. TODO not implemented
   DblNumVec                   vext_;            

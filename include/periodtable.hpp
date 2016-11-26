@@ -225,12 +225,18 @@ public:
 
   /// @brief Generate the atomic density. This is to be used with
   /// structure factor to generate the initial atomic density.
+  ///
+  /// This can be used both for PWDFT and DGDFT.
   /// 
-  /// NOTE: This assumes atom.pos should agree with dm.posStart!
+  /// NOTE: This assumes atom.pos should agree with posStart in domain
+  /// (PWDFT) and global domain (DGDFT).
   ///
   void CalculateAtomDensity( const Atom& atom, const Domain& dm, 
       const std::vector<DblNumVec>& gridpos, 
       DblNumVec& atomDensity );
+
+
+
 
   /// @brief Whether the atom type has nonlocal pseudopotential
   bool IsNonlocal(Int type) {return ptemap_[type].cutoffs.m()>ptsample_.NONLOCAL;}

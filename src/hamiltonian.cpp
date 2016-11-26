@@ -276,13 +276,12 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
       numOccupiedState_ );
 
   // adjustment should be multiplicative
-  Real fac = numSpin_ * numOccupiedState_ / sumrho;
+  Real fac = nelec / sumrho;
   for (Int i=0; i<ntotFine; i++) 
     pseudoCharge_(i) *= fac; 
 
   Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
-      numSpin_ * numOccupiedState_ );
-
+      (Real) nelec );
 
   // Nonlocal projectors
   std::vector<DblNumVec> gridposCoarse;
@@ -369,9 +368,14 @@ void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
   // cutoff radius starting from the origin in the real space, and
   // construct the structure factor
 
-
+  // Origin-centered atomDensity in the real space and Fourier space
+  DblNumVec atomDensityR( ntotFine );
+  CpxNumVec atomDensityG( ntotFine );
   atomDensity_.Resize( ntotFine );
   SetValue( atomDensity_, 0.0 );
+  SetValue( atomDensityR, 0.0 );
+  SetValue( atomDensityG, Z_ZERO );
+
   for( std::set<Int>::iterator itype = atomTypeSet.begin(); 
     itype != atomTypeSet.end(); itype++ ){
     Int atype = *itype;
@@ -379,9 +383,6 @@ void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
     fakeAtom.type = atype;
     fakeAtom.pos = domain_.posStart;
 
-    // Origin-centered atomDensity in the real space
-    DblNumVec atomDensityR( ntotFine );
-    
     ptable.CalculateAtomDensity( fakeAtom, domain_, gridpos, atomDensityR );
 
     // Compute the structure factor
@@ -416,21 +417,26 @@ void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
     FFTWExecute ( fft, fft.forwardPlanFine );
 
     for( Int i = 0; i < ntotFine; i++ ){
-      fft.outputComplexVecFine[i] *= ccvec[i];
       // Make it smoother: AGGREESIVELY truncate components beyond EcutWavefunction
-      if( fft.gkkFine[i] > esdfParam.ecutWavefunction ){
-        fft.outputComplexVecFine[i] = Z_ZERO;
+      if( fft.gkkFine[i] < esdfParam.ecutWavefunction ){
+        atomDensityG[i] += fft.outputComplexVecFine[i] * ccvec[i];
       }
     }
+  }
 
-
-    // Transfer back to the real space and add to atomDensity_ 
+  // Transfer back to the real space and add to atomDensity_ 
+  {
+    for(Int i = 0; i < ntotFine; i++){
+      fft.outputComplexVecFine[i] = atomDensityG[i];
+    }
+  
     FFTWExecute ( fft, fft.backwardPlanFine );
 
     for( Int i = 0; i < ntotFine; i++ ){
-      atomDensity_[i] += fft.inputComplexVecFine[i].real();
+      atomDensity_[i] = fft.inputComplexVecFine[i].real();
     }
   }
+
 
   Real sumrho = 0.0;
   for (Int i=0; i<ntotFine; i++) 
@@ -445,7 +451,7 @@ void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
   for (Int i=0; i<ntotFine; i++) 
     atomDensity_[i] *= fac; 
 
-  Print( statusOFS, "After adjustment, Sum of atomic density = ", nelec );
+  Print( statusOFS, "After adjustment, Sum of atomic density = ", (Real) nelec );
 
   return ;
 }         // -----  end of method KohnSham::CalculateAtomDensity  ----- 
@@ -737,7 +743,7 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
 
   Real fac;
   // Cutoff 
-  Real epsRho = 1e-8, epsGRho = 1e-8;
+  Real epsRho = 1e-8, epsGRho = 1e-10;
 
   Real timeSta, timeEnd;
 
@@ -825,6 +831,20 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
       vxc2(i) += vxc2Temp( i );
     }
 
+
+    // Modify "bad points"
+    if(1){
+      for( Int i = 0; i < ntotLocal; i++ ){
+//        if( densityTemp(i,RHO) < epsRho ){
+        if( densityTemp(i,RHO) < epsRho || gradDensity(i,RHO) < epsGRho ){
+          epsxcTemp(i) = 0.0;
+          vxc1(i) = 0.0;
+          vxc2(i) = 0.0;
+        }
+      }
+    }
+
+
     SetValue( epsxc_, 0.0 );
     SetValue( vxcTemp, 0.0 );
     SetValue( vxc2Temp2, 0.0 );
@@ -844,16 +864,6 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-    // Modify "bad points"
-    if(1){
-      for( Int i = 0; i < ntot; i++ ){
-        if( density_(i,RHO) < epsRho ){
-          epsxc_(i) = 0.0;
-          vxcTemp(i) = 0.0;
-          vxc2Temp2(i) = 0.0;
-        }
-      }
-    }
 
     for( Int i = 0; i < ntot; i++ ){
       vxc_( i, RHO ) = vxcTemp(i);
@@ -1017,7 +1027,7 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
     // Modify "bad points"
     if(1){
       for( Int i = 0; i < ntot; i++ ){
-        if( density_(i,RHO) < epsRho ){
+        if( density_(i,RHO) < epsRho || gradDensity(i,RHO) < epsGRho ){
           epsxc_(i) = 0.0;
           vxc2(i) = 0.0;
           vxc_( i, RHO ) = 0.0;

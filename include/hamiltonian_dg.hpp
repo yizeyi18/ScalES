@@ -262,8 +262,13 @@ private:
   /// @brief Electron density in the global domain. No magnitization for
   /// DG calculation.
   DistDblNumVec    density_;
-
+  
+  /// @brief Gradient of the density
   std::vector<DistDblNumVec>      gradDensity_;
+
+  /// @brief atomic charge densities
+  DistDblNumVec                   atomDensity_;
+
 
   /// @brief Electron density in the global domain defined on the LGL
   /// grid. No magnitization for DG calculation.  
@@ -379,6 +384,11 @@ public:
   /// each element.
   void CalculatePseudoPotential( PeriodTable &ptable );
 
+  /// @brief Atomic density is implemented using the structure factor
+  /// method due to the large cutoff radius
+  void CalculateAtomDensity( PeriodTable &ptable, DistFourier&   fft );
+
+
   /// @brief Compute the electron density after the diagonalization
   /// of the DG Hamiltonian matrix.
   void CalculateDensity( 
@@ -492,6 +502,8 @@ public:
   DistDblNumVec&  DensityLGL() { return densityLGL_; }
 
   DistDblNumVec&  PseudoCharge() { return pseudoCharge_; }
+
+  DistDblNumVec&  AtomDensity() { return atomDensity_; }
 
   std::vector<Atom>&  AtomList() { return atomList_; }
 

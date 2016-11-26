@@ -982,16 +982,18 @@ void PeriodTable::CalculateAtomDensity(
         } // for (i)
 
     Int idxsize = idx.size();
-    //
-    std::vector<DblNumVec>& valspl = spldata[ptsample_.RHOATOM]; 
-    std::vector<Real> val(idxsize,0.0);
-    seval(&(val[0]), idxsize, &(rad[0]), valspl[0].m(), valspl[0].Data(), 
-        valspl[1].Data(), valspl[2].Data(), valspl[3].Data(), valspl[4].Data());
-    
-    for(Int g=0; g<idx.size(); g++) {
-      atomDensity[idx[g]] = val[g];
-    }
-  } 
+    if( idxsize > 0 ){
+      //
+      std::vector<DblNumVec>& valspl = spldata[ptsample_.RHOATOM]; 
+      std::vector<Real> val(idxsize,0.0);
+      seval(&(val[0]), idxsize, &(rad[0]), valspl[0].m(), valspl[0].Data(), 
+          valspl[1].Data(), valspl[2].Data(), valspl[3].Data(), valspl[4].Data());
+
+      for(Int g=0; g<idx.size(); g++) {
+        atomDensity[idx[g]] = val[g];
+      }
+    }  // if( idxsize > 0 )
+  }
 
   return ;
 }         // -----  end of method PeriodTable::CalculateAtomDensity  ----- 
