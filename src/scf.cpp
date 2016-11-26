@@ -140,7 +140,8 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
 
   // Density
   {
-    DblNumMat&  density = eigSolPtr_->Ham().Density();
+    Hamiltonian& ham = eigSolPtr_->Ham();
+    DblNumMat&  density = ham.Density();
 
     if( esdfParam.isRestartDensity ) {
       std::istringstream rhoStream;      
@@ -159,9 +160,9 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
     } // else using the zero initial guess
     else {
       // Start from pseudocharge, usually this is not a very good idea
-      if(1){
+      if( esdfParam.pseudoType == "HGH" ){
         // make sure the pseudocharge is initialized
-        DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
+        DblNumVec&  pseudoCharge = ham.PseudoCharge();
         const Domain& dm = esdfParam.domain;
 
         SetValue( density, 0.0 );
@@ -190,78 +191,18 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
         Print( statusOFS, "Rescaled density. Sum of density      = ", 
             sum1 * dm.Volume() / dm.NumGridTotalFine() );
       }
-
-      // Start from superposition of Gaussians. FIXME Currently
-      // the Gaussian parameter is fixed
-      if(0){
-        Hamiltonian& ham = eigSolPtr_->Ham();
-        std::vector<Atom>& atomList = ham.AtomList();
-        Int numAtom = atomList.size();
-        std::vector<DblNumVec> gridpos;
+      
+      if( esdfParam.pseudoType == "ONCV" ){
+        // Use the superposition of atomic density as the initial guess for density
         const Domain& dm = esdfParam.domain;
-        UniformMeshFine ( dm, gridpos );
-        Point3 Ls = dm.length;
-
         Int ntotFine = dm.NumGridTotalFine();
+
         SetValue( density, 0.0 );
+        blas::Copy( ntotFine, ham.AtomDensity().Data(), 1, 
+            density.VecData(0), 1 );
 
-
-        for (Int a=0; a<numAtom; a++) {
-          // FIXME Each atom's truncation radius and charge are the same.
-          // This only works for hydrogen
-          Real sigma2 = 1.0;
-          Real Z = 1.0;
-          Real coef = Z / std::pow(PI*sigma2, 1.5);
-          Point3 pos = atomList[a].pos;
-
-          std::vector<DblNumVec>  dist(DIM);
-
-          Point3 minDist;
-          for( Int d = 0; d < DIM; d++ ){
-            dist[d].Resize( gridpos[d].m() );
-
-            for( Int i = 0; i < gridpos[d].m(); i++ ){
-              dist[d](i) = gridpos[d](i) - pos[d];
-              dist[d](i) = dist[d](i) - IRound( dist[d](i) / Ls[d] ) * Ls[d];
-            }
-          }
-          {
-            Int irad = 0;
-            for(Int k = 0; k < gridpos[2].m(); k++)
-              for(Int j = 0; j < gridpos[1].m(); j++)
-                for(Int i = 0; i < gridpos[0].m(); i++){
-                  Real rad2 =  dist[0](i) * dist[0](i) +
-                    dist[1](j) * dist[1](j) +
-                    dist[2](k) * dist[2](k);
-
-                  density(irad,RHO) += coef*std::exp(-rad2/sigma2);
-                  irad++;
-                } // for (i)
-          } 
-        }
-
-        Real sum0 = 0.0;
-
-        // make sure that the electron density is positive
-        for (Int i=0; i<ntotFine; i++){
-          sum0 += density(i, RHO);
-        }
-        sum0 *= dm.Volume() / dm.NumGridTotalFine();
-
-        Print( statusOFS, "Initial density. Sum of density      = ", 
-            sum0 );
-
-        // Rescale the density
-        Real fac = ham.NumOccupiedState() * ham.NumSpin() / sum0;
-
-        Real sum1 = 0.0;
-        for (int i=0; i <ntotFine; i++){
-          density(i, RHO) *= fac;
-          sum1 += density(i, RHO);
-        } 
-
-        Print( statusOFS, "Rescaled density. Sum of density      = ", 
-            sum1 * dm.Volume() / dm.NumGridTotalFine() );
+        statusOFS << "Use superposition of atomic density as initial "
+          << " guess for electron density." << std::endl;
       }
     }
   }
@@ -1015,7 +956,7 @@ SCF::CalculateEnergy    (  )
   std::vector<Atom>&  atomList = eigSolPtr_->Ham().AtomList();
   for(Int a=0; a< atomList.size() ; a++) {
     Int type = atomList[a].type;
-    Eself_ +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
+    Eself_ +=  ptablePtr_->SelfIonInteraction(type);
   }
 
   // Correction energy

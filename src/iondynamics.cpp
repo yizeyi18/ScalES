@@ -88,7 +88,7 @@ void
       if (ptable.ptemap().find(atype)==ptable.ptemap().end() ){
         ErrorHandling( "Cannot find the atom type." );
       }
-      atomMass_[a]=amu2au*ptable.ptemap()[atype].params(PTParam::MASS); 
+      atomMass_[a]=amu2au*ptable.Mass(atype);
     }
 
     // Determine the mode of the ionDynamics

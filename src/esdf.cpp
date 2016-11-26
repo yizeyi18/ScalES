@@ -2150,12 +2150,12 @@ ESDFReadInput ( const char* filename )
     std::vector<Atom>&  atomList = esdfParam.atomList;
     atomList.clear();
 
-    Int numAtomType = esdf_integer("Atom_Types_Num", 0);
-    if( numAtomType == 0 ){
+    esdfParam.numAtomType = esdf_integer("Atom_Types_Num", 0);
+    if( esdfParam.numAtomType == 0 ){
       ErrorHandling("Atom_Types_Num cannot be found.");
     }
 
-    for( Int ityp = 0; ityp < numAtomType; ityp++ ){
+    for( Int ityp = 0; ityp < esdfParam.numAtomType; ityp++ ){
       Int type = esdf_integer( "Atom_Type", 0 );
       // TODO Add supported type list
       if( type == 0 ){

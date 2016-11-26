@@ -90,7 +90,6 @@ KohnSham::Setup    (
 {
   domain_              = dm;
   atomList_            = atomList;
-  pseudoType_          = esdfParam.pseudoType;
   numExtraState_       = esdfParam.numExtraState;
   XCType_              = esdfParam.XCType;
   numMuHybridDF_                   = esdfParam.numMuHybridDF;
@@ -222,7 +221,7 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
     if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
       ErrorHandling( "Cannot find the atom type." );
     }
-    nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
+    nelec = nelec + ptable.Zion(atype);
   }
   // FIXME Deal with the case when this is a buffer calculation and the
   // number of electrons is not a even number.
@@ -335,6 +334,121 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
   return ;
 }         // -----  end of method KohnSham::CalculatePseudoPotential ----- 
 
+void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
+  if( esdfParam.pseudoType == "HGH" ){
+    ErrorHandling("HGH pseudopotential does not yet support the computation of atomic density!");
+  }
+
+  Int ntotFine = domain_.NumGridTotalFine();
+  Int numAtom = atomList_.size();
+  Real vol = domain_.Volume();
+  std::vector<DblNumVec> gridpos;
+  UniformMeshFine ( domain_, gridpos );
+
+  // The number of electrons for normalization purpose. 
+  Int nelec = 0;
+  for (Int a=0; a<numAtom; a++) {
+    Int atype  = atomList_[a].type;
+    if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
+      ErrorHandling( "Cannot find the atom type." );
+    }
+    nelec = nelec + ptable.Zion(atype);
+  }
+  if( nelec % 2 != 0 ){
+    ErrorHandling( "This is spin-restricted calculation. nelec should be even." );
+  }
+
+
+  // Search for the number of atom types and build a list of atom types
+  std::set<Int> atomTypeSet;
+  for( Int a = 0; a < numAtom; a++ ){
+    atomTypeSet.insert( atomList_[a].type );
+  } // for (a)
+
+  // For each atom type, construct the atomic pseudocharge within the
+  // cutoff radius starting from the origin in the real space, and
+  // construct the structure factor
+
+
+  atomDensity_.Resize( ntotFine );
+  SetValue( atomDensity_, 0.0 );
+  for( std::set<Int>::iterator itype = atomTypeSet.begin(); 
+    itype != atomTypeSet.end(); itype++ ){
+    Int atype = *itype;
+    Atom fakeAtom;
+    fakeAtom.type = atype;
+    fakeAtom.pos = domain_.posStart;
+
+    // Origin-centered atomDensity in the real space
+    DblNumVec atomDensityR( ntotFine );
+    
+    ptable.CalculateAtomDensity( fakeAtom, domain_, gridpos, atomDensityR );
+
+    // Compute the structure factor
+    CpxNumVec ccvec(ntotFine);
+    SetValue( ccvec, Z_ZERO );
+
+    Complex* ccvecPtr = ccvec.Data();
+    Complex* ikxPtr = fft.ikFine[0].Data();
+    Complex* ikyPtr = fft.ikFine[1].Data();
+    Complex* ikzPtr = fft.ikFine[2].Data();
+    Real xx, yy, zz;
+    Complex phase;
+
+    for (Int a=0; a<numAtom; a++) {
+      if( atomList_[a].type == atype ){
+        xx = atomList_[a].pos[0];
+        yy = atomList_[a].pos[1];
+        zz = atomList_[a].pos[2];
+        for( Int i = 0; i < ntotFine; i++ ){
+          phase = -(ikxPtr[i] * xx + ikyPtr[i] * yy + ikzPtr[i] * zz);
+          ccvecPtr[i] += std::exp( phase );
+        }
+      }
+    }
+
+    // Transfer the atomic charge from real space to Fourier space, and
+    // multiply with the structure factor
+    for(Int i = 0; i < ntotFine; i++){
+      fft.inputComplexVecFine[i] = Complex( atomDensityR[i], 0.0 ); 
+    }
+
+    FFTWExecute ( fft, fft.forwardPlanFine );
+
+    for( Int i = 0; i < ntotFine; i++ ){
+      fft.outputComplexVecFine[i] *= ccvec[i];
+      // Make it smoother: AGGREESIVELY truncate components beyond EcutWavefunction
+      if( fft.gkkFine[i] > esdfParam.ecutWavefunction ){
+        fft.outputComplexVecFine[i] = Z_ZERO;
+      }
+    }
+
+
+    // Transfer back to the real space and add to atomDensity_ 
+    FFTWExecute ( fft, fft.backwardPlanFine );
+
+    for( Int i = 0; i < ntotFine; i++ ){
+      atomDensity_[i] += fft.inputComplexVecFine[i].real();
+    }
+  }
+
+  Real sumrho = 0.0;
+  for (Int i=0; i<ntotFine; i++) 
+    sumrho += atomDensity_[i]; 
+  sumrho *= vol / Real(ntotFine);
+
+  Print( statusOFS, "Sum of atomic density                        = ", 
+      sumrho );
+
+  // adjustment should be multiplicative
+  Real fac = nelec / sumrho;
+  for (Int i=0; i<ntotFine; i++) 
+    atomDensity_[i] *= fac; 
+
+  Print( statusOFS, "After adjustment, Sum of atomic density = ", nelec );
+
+  return ;
+}         // -----  end of method KohnSham::CalculateAtomDensity  ----- 
 
 
 void

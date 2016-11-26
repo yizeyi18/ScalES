@@ -90,8 +90,6 @@ Int combine(PTEntry& val, PTEntry& ext)
 
 void PeriodTable::Setup( )
 {
-  pseudoType_ = esdfParam.pseudoType;
-
   std::vector<Int> all(1,1);
 
   std::istringstream iss;  
@@ -137,7 +135,7 @@ PeriodTable::CalculatePseudoCharge    (
   PTEntry& ptentry = ptemap_[type];
   std::map< Int, std::vector<DblNumVec> >& spldata = splmap_[type];
 
-  Real Rzero = ptentry.cutoffs(PTSample::PSEUDO_CHARGE); 
+  Real Rzero = this->RcutPseudoCharge( type );
 
   // Initialize
   {
@@ -269,9 +267,7 @@ PeriodTable::CalculateNonlocalPP    (
   PTEntry& ptentry = ptemap_[type];
   std::map< Int, std::vector<DblNumVec> >& spldata = splmap_[type];
 
-  Real Rzero = 0;    
-  if(ptentry.cutoffs.m()>PTSample::NONLOCAL)      
-    Rzero = ptentry.cutoffs(PTSample::NONLOCAL); //CUTOFF VALUE FOR nonlocal ones
+  Real Rzero = this->RcutNonlocal( type );    
 
   // Initialize
   // First count all the pseudopotentials
@@ -889,6 +885,76 @@ PeriodTable::CalculateNonlocalPP    (
 
   return ;
 }         // -----  end of method PeriodTable::CalculateNonlocalPP  ----- 
+
+
+
+void PeriodTable::CalculateAtomDensity( 
+    const Atom& atom, 
+    const Domain& dm, 
+    const std::vector<DblNumVec>& gridpos, 
+    DblNumVec& atomDensity )
+{
+  Int type   = atom.type;
+  Point3 pos = atom.pos;
+  Point3 Ls  = dm.length;
+  Point3 posStart = dm.posStart;
+  Index3 Ns  = dm.numGridFine;
+
+  //get entry data and spline data
+  PTEntry& ptentry = ptemap_[type];
+  std::map< Int, std::vector<DblNumVec> >& spldata = splmap_[type];
+
+  Real Rzero = this->RcutRhoAtom( type );
+
+  SetValue(atomDensity, 0.0);
+
+  // Compute the minimal distance of the atom to this set of grid points
+  // and determine whether to continue 
+
+  std::vector<DblNumVec>  dist(DIM);
+  for( Int d = 0; d < DIM; d++ ){
+    dist[d].Resize( gridpos[d].m() );
+
+    for( Int i = 0; i < gridpos[d].m(); i++ ){
+      dist[d](i) = gridpos[d](i) - pos[d];
+      dist[d](i) = dist[d](i) - IRound( dist[d](i) / Ls[d] ) * Ls[d];
+    }
+  }
+
+  {
+    Int irad = 0;
+    std::vector<Int>  idx;
+    std::vector<Real> rad;
+    for(Int k = 0; k < gridpos[2].m(); k++)
+      for(Int j = 0; j < gridpos[1].m(); j++)
+        for(Int i = 0; i < gridpos[0].m(); i++){
+          Real dtmp = std::sqrt( 
+              dist[0](i) * dist[0](i) +
+              dist[1](j) * dist[1](j) +
+              dist[2](k) * dist[2](k) );
+
+          if( dtmp <= Rzero ) {
+            idx.push_back(irad);
+            rad.push_back(dtmp);
+          }
+          irad++;
+        } // for (i)
+
+    Int idxsize = idx.size();
+    //
+    std::vector<DblNumVec>& valspl = spldata[PTSample::RHOATOM]; 
+    std::vector<Real> val(idxsize,0.0);
+    seval(&(val[0]), idxsize, &(rad[0]), valspl[0].m(), valspl[0].Data(), 
+        valspl[1].Data(), valspl[2].Data(), valspl[3].Data(), valspl[4].Data());
+    
+    for(Int g=0; g<idx.size(); g++) {
+      atomDensity[idx[g]] = val[g];
+    }
+  } 
+
+  return ;
+}         // -----  end of method PeriodTable::CalculateAtomDensity  ----- 
+
 
 //---------------------------------------------
 // TODO SpinOrbit from RelDFT

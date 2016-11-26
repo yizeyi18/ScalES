@@ -166,8 +166,6 @@ private:
   std::map<Int, PTEntry> ptemap_; 
   /// @brief Map from atomic number to splines for pseudopotentials.
   std::map<Int, std::map< Int,std::vector<DblNumVec> > > splmap_;
-  /// @brief Type of the pseudopotential
-  std::string         pseudoType_;
 public:
   PeriodTable() {;}
   ~PeriodTable() {;}
@@ -219,14 +217,47 @@ public:
       const NumTns<std::vector<DblNumVec> >&   gridposElem,
       std::vector<std::pair<NumTns<SparseVec>, Real> >& vnlList );
 
-  std::string PseudoType() {return pseudoType_;}
 
+
+  /// @brief Generate the atomic density. This is to be used with
+  /// structure factor to generate the initial atomic density.
+  /// 
+  /// NOTE: This assumes atom.pos should agree with dm.posStart!
+  ///
+  void CalculateAtomDensity( const Atom& atom, const Domain& dm, 
+      const std::vector<DblNumVec>& gridpos, 
+      DblNumVec& atomDensity );
+
+  /// @brief Whether the atom type has nonlocal pseudopotential
+  bool IsNonlocal(Int type) {return ptemap_[type].cutoffs.m()>PTSample::NONLOCAL;}
+  
+  /// @brief Cutoff radius for the pseudocharge in the real space
+  Real RcutPseudoCharge(Int type)   {return ptemap_[type].cutoffs(PTSample::PSEUDO_CHARGE);}
+  
+  /// @brief Cutoff radius for model atomic density in the real space.
+  /// This is only used for constructing initial charge density, and
+  /// does not need to be very accurate
+  Real RcutRhoAtom(Int type)   {return ptemap_[type].cutoffs(PTSample::RHOATOM);}
+  
+  /// @brief Cutoff radius for the nonlocal pseudpotental in the real
+  /// space. If there are multiple pseudopotentials, Rcut should be the
+  /// maximum radius so that ALL nonlocal pseudopotentials are accurate.
+  Real RcutNonlocal(Int type)   {return (this->IsNonlocal(type)) ? 
+    ptemap_[type].cutoffs(PTSample::NONLOCAL) : 0.0;}
+
+
+  /// @brief Atomic mass
+  Real Mass(Int type) {return ptemap_[type].params(PTParam::MASS);}
+
+  /// @brief Valence charge of the ion
+  Real Zion(Int type) {return ptemap_[type].params(PTParam::ZION);}
+
+  /// @brief Self ionic interaction energy
+  Real SelfIonInteraction(Int type) {return ptemap_[type].params(PTParam::ESELF);}
 
   //---------------------------------------------
   // TODO SpinOrbit from RelDFT
 
-  //---------------------------------------------
-  // TODO: DG pseudopotential from DGDFT
 
 };
 

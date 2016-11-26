@@ -127,6 +127,9 @@ struct ESDFInputParam{
   /// Not an input parameter by the user.
   std::vector<Atom>   atomList;
 
+  /// @brief Number of atom types
+  Int                 numAtomType;
+
   /// @brief Mixing maximum dimension.
   ///
   /// Default: 9

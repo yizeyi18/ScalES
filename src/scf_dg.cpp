@@ -7575,7 +7575,7 @@ SCFDG::Iterate    (  )
       std::vector<Atom>&  atomList = hamDG.AtomList();
       for(Int a=0; a< atomList.size() ; a++) {
         Int type = atomList[a].type;
-        Eself_ +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
+        Eself_ += ptablePtr_->SelfIonInteraction(type);
       }
 
 
@@ -7706,7 +7706,7 @@ SCFDG::Iterate    (  )
       std::vector<Atom>&  atomList = hamDG.AtomList();
       for(Int a=0; a< atomList.size() ; a++) {
         Int type = atomList[a].type;
-        Eself_ +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
+        Eself_ += ptablePtr_->SelfIonInteraction(type);
       }
 
       // Hartree and XC part
@@ -7846,7 +7846,7 @@ SCFDG::Iterate    (  )
       std::vector<Atom>&  atomList = hamDG.AtomList();
       for(Int a=0; a< atomList.size() ; a++) {
         Int type = atomList[a].type;
-        Eself +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
+        Eself += ptablePtr_->SelfIonInteraction(type);
       }
 
       // Nonlinear correction part.  This part uses the Hartree energy and
@@ -7960,7 +7960,7 @@ SCFDG::Iterate    (  )
       std::vector<Atom>&  atomList = hamDG.AtomList();
       for(Int a=0; a< atomList.size() ; a++) {
         Int type = atomList[a].type;
-        Eself +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
+        Eself += ptablePtr_->SelfIonInteraction(type);
       }
 
 
@@ -8092,7 +8092,7 @@ SCFDG::Iterate    (  )
       std::vector<Atom>&  atomList = hamDG.AtomList();
       for(Int a=0; a< atomList.size() ; a++) {
         Int type = atomList[a].type;
-        Eself +=  ptablePtr_->ptemap()[type].params(PTParam::ESELF);
+        Eself_ += ptablePtr_->SelfIonInteraction(type);
       }
 
 

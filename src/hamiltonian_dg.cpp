@@ -1017,7 +1017,7 @@ HamiltonianDG::CalculatePseudoPotential    ( PeriodTable &ptable ){
       msg << "Cannot find the atom type for atom #" << a << std::endl;
       ErrorHandling( msg.str().c_str() );
     }
-    nelec = nelec + ptable.ptemap()[atype].params(PTParam::ZION);
+    nelec = nelec + ptable.Zion(atype);
   }
 
   if( nelec % 2 != 0 ){
@@ -1043,8 +1043,8 @@ HamiltonianDG::CalculatePseudoPotential    ( PeriodTable &ptable ){
     for( Int a = 0; a < numAtom; a++ ){
       Int type = atomList_[a].type;
       // For the case where there is no nonlocal pseudopotential
-      if(ptable.ptemap()[type].cutoffs.m()>PTSample::NONLOCAL)      
-        Rzero = ptable.ptemap()[type].cutoffs(PTSample::NONLOCAL);
+      if(ptable.IsNonlocal(atomList_[a].type))      
+        Rzero = ptable.RcutNonlocal(atomList_[a].type);
       else
         Rzero = 0.0;
 
@@ -1079,11 +1079,9 @@ HamiltonianDG::CalculatePseudoPotential    ( PeriodTable &ptable ){
           std::map<Int, PseudoPot>&  ppMap = pseudo_.LocalMap()[key];
           std::vector<DblNumVec>&    gridpos = uniformGridElemFine_( i, j, k );
           for( Int a = 0; a < numAtom; a++ ){
-            PTEntry& ptentry = ptable.ptemap()[atomList_[a].type];
-            // Cutoff radius: Take the largest one
-            Real Rzero = ptentry.cutoffs( PTSample::PSEUDO_CHARGE );
-            if(ptentry.cutoffs.m()>PTSample::NONLOCAL)      
-              Rzero = std::max( Rzero, ptentry.cutoffs(PTSample::NONLOCAL) );
+            Real Rzero = ptable.RcutPseudoCharge(atomList_[a].type);
+            if(ptable.IsNonlocal(atomList_[a].type))      
+              Rzero = std::max( Rzero, ptable.RcutNonlocal(atomList_[a].type) );
 
             // Compute the minimum distance of this atom to all grid points
             Point3 minDist;

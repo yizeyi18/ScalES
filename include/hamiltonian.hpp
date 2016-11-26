@@ -93,7 +93,10 @@ protected:
   // density_(:,1)    electron density
   // density_(:,2-4)  magnetization along x,y,z directions
   DblNumMat                   density_;         
+  // Gradient of the density
   std::vector<DblNumMat>      gradDensity_;
+  // Sum of atomic charge densities
+  DblNumVec                   atomDensity_;
   // External potential. TODO not implemented
   DblNumVec                   vext_;            
   // Hartree potential
@@ -160,6 +163,10 @@ public:
 
   virtual void CalculatePseudoPotential( PeriodTable &ptable ) = 0;
 
+  /// @brief Atomic density is implemented using the structure factor
+  /// method due to the large cutoff radius
+  virtual void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft ) = 0;
+
   virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft ) = 0;
 
   virtual void CalculateGradDensity( Fourier &fft ) = 0;
@@ -208,6 +215,7 @@ public:
 
   DblNumMat&  Density() { return density_; }
   std::vector<DblNumMat>  GradDensity() { return gradDensity_; }
+  DblNumVec&  AtomDensity() { return atomDensity_; }
   DblNumVec&  PseudoCharge() { return pseudoCharge_; }
   std::vector<PseudoPot>& Pseudo() {return pseudo_; };
   DblNumVec&  EigVal() { return eigVal_; }
@@ -282,6 +290,8 @@ public:
 
   virtual void CalculatePseudoPotential( PeriodTable &ptable );
 
+  virtual void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft );
+  
   virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft );
 
   virtual void CalculateGradDensity( Fourier& fft );
