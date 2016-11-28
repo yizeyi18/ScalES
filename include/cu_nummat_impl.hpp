@@ -109,6 +109,17 @@ template <class F> inline void cuNumMat<F>::Resize(Int m, Int n)  {
   }
 }
 
+template <class F> inline void cuNumMat<F>::CopyTo(cuNumMat<F> &C) {
+  // copy from the GPU NumMat to the CPU NumMat.
+  if( C.m_*C.n_ < m_ * n_) 
+  { 
+    C.Resize(m_, n_);
+  }
+  if(C.m_*C.n_ >= m_*n_) {
+    if(m_>0 && n_>0) { cuda_memcpy_GPU2GPU(C.data_, data_, sizeof(F)*m_*n_);}
+  }
+}
+
 template <class F> inline void cuNumMat<F>::CopyTo(NumMat<F> &C) {
   // copy from the GPU NumMat to the CPU NumMat.
   if( C.m_*C.n_ < m_ * n_) 
@@ -119,6 +130,23 @@ template <class F> inline void cuNumMat<F>::CopyTo(NumMat<F> &C) {
     if(m_>0 && n_>0) { cuda_memcpy_GPU2CPU(C.data_, data_, sizeof(F)*m_*n_);}
   }
 }
+
+template <class F> inline void cuNumMat<F>::CopyFrom(const cuNumMat<F> &C) {
+  // copy from the GPU NumMat to the CPU NumMat.
+  if( C.m_*C.n_ > m_ * n_) 
+  { 
+    std:: cout << " GPU memory not big enough. " << m_*n_ <<" "<< C.m_ * C.n_ << std:: endl;
+    cuda_free(data_);
+    m_ = C.m_; n_=C.n_; 
+    if(m_>0 && n_>0) { data_ = (F*)cuda_malloc( sizeof(F) * m_ * n_ ); } else data_=NULL;
+   }
+  if(C.m_*C.n_ <= m_*n_) {
+    //std::cout << " m n: "<< m_ <<" " <<n_ << std::endl;
+    //std::flush(std::cout);
+    if(m_>0 && n_>0) { cuda_memcpy_GPU2GPU(data_, C.data_, sizeof(F)*C.m_*C.n_);}
+  }
+}
+
 template <class F> inline void cuNumMat<F>::CopyFrom(const NumMat<F> &C) {
   // copy from the GPU NumMat to the CPU NumMat.
   if( C.m_*C.n_ > m_ * n_) 

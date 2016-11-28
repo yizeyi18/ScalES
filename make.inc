@@ -23,11 +23,15 @@ endif
 
 ifeq (${USE_GPU}, 1)
   NVCC = nvcc
-  CUDA_FLAG = -D GPU
+  CUDA_FLAG = -D GPU -D GPUDIRECT
+  CUDA_FLAG = -D GPU 
   CUDA_DIR = /usr/local/cuda
-  CUDA_LIB = -L${CUDA_DIR}/lib64 -lcufft -lcublas -lcudart -lcuda #-lcudadevrt
+  CUDA_INCLUDE  = -I${CUDA_DIR}/include
+  MAGMA_DIR = /opt/magma/2.1.0/mkl-gcc
+  MAGMA_INCLUDE = -I${MAGMA_DIR}/include 
+  MAGMA_LIB = -L${MAGMA_DIR}/lib
+  CUDA_LIB = -L${CUDA_DIR}/lib64 -lcufft -lcublas -lcudart -lcuda ${MAGMA_LIB} -lmagma -lmagma_sparse #-lcudadevrt
   NVCCFLAG = -gencode arch=compute_52,code=sm_52 -DGPU -I ../include
-  CUDA_INCLUDE = -I${CUDA_DIR}/include
 endif
 
 ifeq (${USE_OPENMP}, 1)
@@ -56,14 +60,14 @@ ifeq (${USE_PEXSI}, 1)
   PEXSI_LIB        = ${PEXSI_SRC_LIB} ${DSUPERLU_LIB} ${METIS_LIB} 
 endif
 
-DGDFT_DIR     = /home/weile/PEXSI/GPU
+DGDFT_DIR     = /home/weile/test
 
 # inclues
 BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
 FFTW_INCLUDE     = -I/home/weile/software/fftw3/include
 DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
 LIBXC_INCLUDE    = -I/opt/libxc/2.1.2/intel/include
-INCLUDES         = ${DGDFT_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE} ${CUDA_INCLUDE}
+INCLUDES         = ${DGDFT_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE} ${CUDA_INCLUDE} ${MAGMA_INCLUDE}
 
 # Libraries
 LIBXC_LIB        = /opt/libxc/2.1.2/intel/lib/libxc.a
@@ -73,7 +77,7 @@ FFTW_LIB         = -L/home/weile/software/fftw3/lib -lfftw3_mpi -lfftw3 -lm
 #MKL_LIB          = -Wl,--start-group  ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_core.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a -Wl,--end-group -lpthread -lm
 MKL_LIB          = -mkl=cluster 
 DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
-LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${MKL_LIB} ${IPM} ${CUDA_LIB} 
+LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${MKL_LIB} ${IPM} ${CUDA_LIB} ${MAGMA_LIB}
 
 CC           = mpicc
 CXX          = mpicc

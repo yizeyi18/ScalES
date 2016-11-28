@@ -65,7 +65,12 @@ void Init(void);
 
 void Destroy(void);
 
-void 
+void Potrf( char uplo, Int n, const double * A, Int lda );
+
+void Syevd( char jobz, char uplo, Int n, double *A, Int lda, double *eigs);
+
+void Lacpy(char uplo, Int m, Int n, const double * A , Int lda, double *B, Int ldb);
+
 
 } // namespace MAGMA
 } // namespace dgdft

@@ -101,6 +101,9 @@ template <class F>
 
     void CopyFrom(const NumMat<F> &C);
 
+    void CopyTo(cuNumMat<F> & C); 
+
+    void CopyFrom(const cuNumMat<F> &C);
   };
 
 // Commonly used

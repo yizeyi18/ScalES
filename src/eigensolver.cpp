@@ -1,5 +1,4 @@
-/*
-   Copyright (c) 2012 The Regents of the University of California,
+/* Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
 Author: Lin Lin, Wei Hu and Amartya Banerjee
@@ -53,6 +52,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "utility.hpp"
 #include  "blas.hpp"
 #ifdef GPU
+#include  "magma.hpp"
 #include  "cublas.hpp"
 #include  "cuda_utils.h"
 #include  "cu_nummat_impl.hpp"
@@ -5546,6 +5546,7 @@ EigenSolver::PPCGSolveReal    (
   cublasOperation_t cu_transN = CUBLAS_OP_N;
   cublasOperation_t cu_transC = CUBLAS_OP_C;
   cublas::Init();
+  MAGMA::Init();
   if(mpirank == 0)
   {
     std::cout << " GPU PPCG ........... " << std::endl;
@@ -5877,7 +5878,12 @@ EigenSolver::PPCGSolveReal    (
   //  if ( mpirank == 0) {  
   // each node do the Potrf, without the MPI_Bcast.
     GetTime( timeSta );
+    cu_XTX.CopyFrom( XTX );
+    MAGMA::Potrf( 'U', width, cu_XTX.Data(), width );
+    cu_XTX.CopyTo( XTX );
+#if 0
     lapack::Potrf( 'U', width, XTX.Data(), width );
+#endif
     GetTime( timeEnd );
     iterMpirank0 = iterMpirank0 + 1;
     timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
@@ -6023,14 +6029,17 @@ EigenSolver::PPCGSolveReal    (
     // Compute the residual.
     // R <- AX - X*(X'*AX)
     GetTime( timeSta );
+    cu_Xtemp.CopyFrom ( cu_AX );
+#if 0
     lapack::Lacpy( 'A', heightLocal, width, AX.Data(), heightLocal, Xtemp.Data(), heightLocal );
+#endif
     GetTime( timeEnd );
     iterCopy = iterCopy + 1;
     timeCopy = timeCopy + ( timeEnd - timeSta );
 
     GetTime( timeSta );
     cu_XTX.CopyFrom(XTX);
-    cu_Xtemp.CopyFrom(Xtemp);
+    //cu_Xtemp.CopyFrom(Xtemp);
     cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &minus_one, cu_X.Data(),
                   heightLocal, cu_XTX.Data(), width, &one, cu_Xtemp.Data(), heightLocal );
     cu_Xtemp.CopyTo(Xtemp);
@@ -6242,7 +6251,9 @@ EigenSolver::PPCGSolveReal    (
       iterGemmT = iterGemmT + 1;
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
       GetTime( timeSta );
+#if 0
       SetValue( XTX, 0.0 );
+#endif
       MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
       GetTime( timeEnd );
       iterAllreduce = iterAllreduce + 1;
@@ -6299,9 +6310,9 @@ EigenSolver::PPCGSolveReal    (
     // Perform the sweep
     GetTime( timeSta );
     Int sbSize = 1, nsb = width; // this should be generalized to subblocks 
-    DblNumMat  AMat( 3*sbSize, 3*sbSize ), BMat( 3*sbSize, 3*sbSize );
-    DblNumMat  AMatAll( 3*sbSize, 3*sbSize*nsb ), BMatAll( 3*sbSize, 3*sbSize*nsb ); // contains all nsb 3-by-3 matrices
-    DblNumMat  AMatAllLocal( 3*sbSize, 3*sbSize*nsb ), BMatAllLocal( 3*sbSize, 3*sbSize*nsb ); // contains local parts of all nsb 3-by-3 matrices
+    DblNumMat AMat( 3*sbSize, 3*sbSize ), BMat( 3*sbSize, 3*sbSize );
+    DblNumMat AMatAll( 3*sbSize, 3*sbSize*nsb ), BMatAll( 3*sbSize, 3*sbSize*nsb ); // contains all nsb 3-by-3 matrices
+    DblNumMat AMatAllLocal( 3*sbSize, 3*sbSize*nsb ), BMatAllLocal( 3*sbSize, 3*sbSize*nsb ); // contains local parts of all nsb 3-by-3 matrices
 
     // gpu
     cuDblNumMat cu_AMatAllLocal( 3*sbSize, 3*sbSize*nsb );
@@ -6608,7 +6619,13 @@ EigenSolver::PPCGSolveReal    (
 //    if ( mpirank == 0) {
       GetTime( timeSta );
       GetTime( timeSta1 );
+#if 0
       lapack::Potrf( 'U', width, XTX.Data(), width );
+#endif
+      cu_XTX.CopyFrom( XTX );
+      MAGMA::Potrf( 'U', width, cu_XTX.Data(), width );
+      //cu_XTX.CopyTo( XTX );
+
       GetTime( timeEnd1 );
       iterPotrf = iterPotrf + 1;
       timePotrf = timePotrf + ( timeEnd1 - timeSta1 );
@@ -6624,7 +6641,7 @@ EigenSolver::PPCGSolveReal    (
 
     // X <- X * U^{-1} is orthogonal
     GetTime( timeSta );
-    cu_XTX.CopyFrom( XTX);
+    //cu_XTX.CopyFrom( XTX);
     cublas::Trsm( right, up, cu_transN, nondiag, heightLocal, width, &one, cu_XTX.Data(), width, cu_X.Data(), heightLocal );
     cu_XTX.CopyTo( XTX);
     cu_X.CopyTo( X );
@@ -6959,7 +6976,7 @@ EigenSolver::PPCGSolveReal    (
 #endif
 
     cublas::Destroy();
-
+    MAGMA::Destroy();
 
     return ;
     }         // -----  end of method EigenSolver::PPCGSolveReal  ----- 
