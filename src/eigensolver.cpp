@@ -6091,8 +6091,10 @@ EigenSolver::PPCGSolveReal    (
     // Compute W = TW
     {
       GetTime( timeSta );
-      Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xcol.VecData(numLockedLocal));
-      NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
+      //Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xcol.VecData(numLockedLocal));
+      Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, cu_Xtemp.Data(),true);
+      cuNumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, cu_Wcol.Data());
+      //NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
 
       spnTemp.AddTeterPrecond( fftPtr_, tnsTemp );
       GetTime( timeEnd );
@@ -6103,9 +6105,12 @@ EigenSolver::PPCGSolveReal    (
     // Compute AW = A*W
     {
       GetTime( timeSta );
+      Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, cu_Wcol.Data(), true);
+      cuNumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, cu_AWcol.Data());
+#if 0
       Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
       NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, AWcol.VecData(numLockedLocal));
-
+#endif
       hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
       GetTime( timeEnd );
       iterSpinor = iterSpinor + 1;
@@ -6115,7 +6120,7 @@ EigenSolver::PPCGSolveReal    (
     // Convert from column format to row format
     // MPI_Alltoallv
     // Only convert W and AW
-    cu_Wcol.CopyFrom(Wcol);
+    //cu_Wcol.CopyFrom(Wcol);
 #if 1
     GetTime( timeSta );
     
@@ -6145,7 +6150,7 @@ EigenSolver::PPCGSolveReal    (
 #endif
     GetTime( timeSta );
 
-    cu_AWcol.CopyFrom(AWcol);
+    //cu_AWcol.CopyFrom(AWcol);
     cuda_mapping_to_buf( cu_sendbuf.Data(), cu_AWcol.Data(), cu_sendk.Data(), height*widthLocal);
     
     GetTime( timeEnd );
