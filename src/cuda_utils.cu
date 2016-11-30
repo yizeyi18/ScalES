@@ -34,6 +34,16 @@
   __device__ inline double Norm_2(const cuDoubleComplex & x) {
     return (cuCreal(x)*cuCreal(x)) + (cuCimag(x)*cuCimag(x));
  }
+
+__global__ void gpu_X_Equal_AX_minus_X_eigVal(double* Xtemp, double *AX, double *X, double *eigen, int len ,int bandLen)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int bid = tid / bandLen;
+	if(tid < len)
+	{
+		Xtemp[tid] = AX[tid] - X[tid] * eigen[bid];
+	}
+}
 __global__ void gpu_batch_Scal( double *psi, double *vec, int bandLen, int len)
 {
 	int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -577,4 +587,16 @@ void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen)
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
+void cu_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, double * eigen, int nbands, int bandLen)
+{
+	int ndim = ( nbands * bandLen + DIM - 1 ) / DIM;
+	int len = nbands * bandLen;
+	gpu_X_Equal_AX_minus_X_eigVal<<< ndim, DIM >>>( Xtemp, AX, X, eigen, len, bandLen );
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
+
+
 #endif

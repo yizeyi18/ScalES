@@ -6815,47 +6815,62 @@ EigenSolver::PPCGSolveReal    (
   cu_XTX.CopyFrom( XTX );
   cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &one, cu_X.Data(),
                 heightLocal, cu_XTX.Data(), width, &zero, cu_Xtemp.Data(), heightLocal);
+  cu_Xtemp.CopyTo( cu_X );
+#if 0
   cu_Xtemp.CopyTo( Xtemp );
-  
+#endif  
   GetTime( timeEnd );
   iterGemmN = iterGemmN + 1;
   timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
+#if 0
   GetTime( timeSta );
   lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
       X.Data(), heightLocal );
   GetTime( timeEnd );
   iterCopy = iterCopy + 1;
   timeCopy = timeCopy + ( timeEnd - timeSta );
+#endif
 
 
   GetTime( timeSta );
   // AX <- AX*C
   cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &one, cu_AX.Data(),
                 heightLocal, cu_XTX.Data(), width, &zero, cu_Xtemp.Data(), heightLocal);
+  cu_Xtemp.CopyTo( cu_AX );
+#if 0
   cu_Xtemp.CopyTo( Xtemp );
-
+#endif
   GetTime( timeEnd );
   iterGemmN = iterGemmN + 1;
   timeGemmN = timeGemmN + ( timeEnd - timeSta );
-
+#if 0
   GetTime( timeSta );
   lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
       AX.Data(), heightLocal );
   GetTime( timeEnd );
   iterCopy = iterCopy + 1;
   timeCopy = timeCopy + ( timeEnd - timeSta );
+#endif
 
   // Compute norms of individual eigenpairs 
   DblNumVec  resNormLocal ( width ); 
   DblNumVec  resNorm( width );
 
+  cuDblNumVec cu_eigValS(lda);
+  cu_eigValS.CopyFrom(eigValS);
+
   GetTime( timeSta );
+  cu_X_Equal_AX_minus_X_eigVal(cu_Xtemp.Data(), cu_AX.Data(), cu_X.Data(), 
+                               cu_eigValS.Data(), width, heightLocal);
+  //cu_Xtemp.CopyTo( Xtemp );
+#if 0
   for(Int j=0; j < width; j++){
     for(Int i=0; i < heightLocal; i++){
       Xtemp(i,j) = AX(i,j) - X(i,j)*eigValS(j);  
     }
   } 
+#endif
   GetTime( timeEnd );
   iterOther = iterOther + 1;
   timeOther = timeOther + ( timeEnd - timeSta );
@@ -6864,9 +6879,16 @@ EigenSolver::PPCGSolveReal    (
 
   SetValue( resNormLocal, 0.0 );
   GetTime( timeSta );
+
+  cuDblNumVec  cu_resNormLocal ( width ); 
+  cuda_calculate_Energy( cu_Xtemp.Data(), cu_resNormLocal.Data(), width, heightLocal);
+  cu_resNormLocal.CopyTo(resNormLocal);
+
+#if 0
   for( Int k = 0; k < width; k++ ){
     resNormLocal(k) = Energy(DblNumVec(heightLocal, false, Xtemp.VecData(k)));
   }
+#endif
   GetTime( timeEnd );
   iterOther = iterOther + 1;
   timeOther = timeOther + ( timeEnd - timeSta );
@@ -6939,7 +6961,7 @@ EigenSolver::PPCGSolveReal    (
   resVal_ = resNorm;
 
   GetTime( timeSta );
-  cu_X.CopyFrom(X);
+  //cu_X.CopyFrom(X);
   cuda_mapping_to_buf( cu_recvbuf.Data(), cu_X.Data(), cu_recvk.Data(), heightLocal*width);
 #if 0
   for( Int j = 0; j < width; j++ ){ 
