@@ -5897,7 +5897,6 @@ EigenSolver::PPCGSolveReal    (
     // X <- X * U^{-1} is orthogonal
     GetTime( timeSta );
   
-    //cu_X.CopyFrom(X);
     cu_XTX.CopyFrom( XTX );
     cublas::Trsm( right, up, cu_transN, nondiag, heightLocal, width, &one, cu_XTX.Data(), width, cu_X.Data(), heightLocal );
     cu_XTX.CopyTo( XTX );
@@ -5935,8 +5934,6 @@ EigenSolver::PPCGSolveReal    (
     // same to comment out the orthogonalization. 
     cuda_memcpy_CPU2GPU(cu_Xcol.Data(), psiPtr_->Wavefun().Data(), sizeof(Real)*height*widthLocal);
   } 
-  //cu_Xcol.CopyTo( Xcol );
-  cu_X.CopyTo( X ); // X copy?? CHECK
 
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
@@ -5977,7 +5974,6 @@ EigenSolver::PPCGSolveReal    (
 
   GetTime( timeSta );
   cuda_mapping_from_buf(cu_AX.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
-  cu_AX.CopyTo(AX);
 
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
@@ -6007,7 +6003,6 @@ EigenSolver::PPCGSolveReal    (
 
     // XTX <- X' * (AX)
     GetTime( timeSta );
-    cu_AX.CopyFrom(AX);
     cublas::Gemm( cu_transT, cu_transN, width, width, heightLocal, &one, cu_X.Data(),
                   heightLocal, cu_AX.Data(), heightLocal, &zero, cu_XTXtemp1.Data(), width );
     cu_XTXtemp1.CopyTo(XTXtemp1);
@@ -6035,10 +6030,8 @@ EigenSolver::PPCGSolveReal    (
 
     GetTime( timeSta );
     cu_XTX.CopyFrom(XTX);
-    //cu_Xtemp.CopyFrom(Xtemp);
     cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &minus_one, cu_X.Data(),
                   heightLocal, cu_XTX.Data(), width, &one, cu_Xtemp.Data(), heightLocal );
-    cu_Xtemp.CopyTo(Xtemp);
     GetTime( timeEnd );
     iterGemmN = iterGemmN + 1;
     timeGemmN = timeGemmN + ( timeEnd - timeSta );
@@ -6079,7 +6072,6 @@ EigenSolver::PPCGSolveReal    (
     GetTime( timeSta );
     
     cuda_mapping_from_buf(cu_Xcol.Data(), cu_sendbuf.Data(), cu_recvk.Data(), height*widthLocal);
-    //cu_Xcol.CopyTo(Xcol);
 
     GetTime( timeEnd );
     timeMapping += timeEnd - timeSta;
@@ -6116,7 +6108,6 @@ EigenSolver::PPCGSolveReal    (
     // Convert from column format to row format
     // MPI_Alltoallv
     // Only convert W and AW
-    //cu_Wcol.CopyFrom(Wcol);
 #if 1
     GetTime( timeSta );
     
@@ -6146,7 +6137,6 @@ EigenSolver::PPCGSolveReal    (
 #endif
     GetTime( timeSta );
 
-    //cu_AWcol.CopyFrom(AWcol);
     cuda_mapping_to_buf( cu_sendbuf.Data(), cu_AWcol.Data(), cu_sendk.Data(), height*widthLocal);
     
     GetTime( timeEnd );
@@ -6201,7 +6191,6 @@ EigenSolver::PPCGSolveReal    (
 
 
     GetTime( timeSta );
-    cu_AX.CopyFrom(AX);
     cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &minus_one,
                   cu_AX.Data(), heightLocal, cu_XTX.Data(), width, &one, cu_AW.Data(), heightLocal );
     GetTime( timeEnd );
@@ -6244,7 +6233,6 @@ EigenSolver::PPCGSolveReal    (
     if( numSet == 3 ){
       
       GetTime( timeSta );
-      cu_P.CopyFrom( P );
       cublas::Gemm( cu_transT, cu_transN, width, width, heightLocal, &one, cu_X.Data(),
                   heightLocal, cu_P.Data(), heightLocal, &zero, cu_XTXtemp1.Data(), width );
       cu_XTXtemp1.CopyTo( XTXtemp1 );
@@ -6270,8 +6258,6 @@ EigenSolver::PPCGSolveReal    (
 
       GetTime( timeSta );
 
-      //cu_AX.CopyFrom( AX );
-      cu_AP.CopyFrom( AP );
       cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &minus_one,
                     cu_AX.Data(), heightLocal, cu_XTX.Data(), width, &one, cu_AP.Data(), heightLocal );
       GetTime( timeEnd );
@@ -6325,8 +6311,6 @@ EigenSolver::PPCGSolveReal    (
 
     // LOCKING NOT SUPPORTED, loop over all columns 
     GetTime( time1);
-    cu_P.CopyTo( P );
-    cu_AP.CopyTo( AP );
     cuda_setValue( cu_AMatAllLocal.Data(), 0.0, 9*sbSize*sbSize*nsb);
     cuda_setValue( cu_BMatAllLocal.Data(), 0.0, 9*sbSize*sbSize*nsb);
 
@@ -6439,14 +6423,6 @@ EigenSolver::PPCGSolveReal    (
     if(mpirank == 0)
       std:: cout << "nsb is : " << nsb << "  num Set " << numSet  << std::endl;
 #endif
-    cu_W.CopyTo( W );
-    cu_AW.CopyTo(AW);
-    //cu_X.CopyFrom(X);
-    cu_P.CopyFrom(P);
-    cu_W.CopyFrom(W);
-    cu_AW.CopyFrom(AW);
-    cu_AP.CopyFrom(AP);
-    cu_AX.CopyFrom(AX);
     for( Int k = 0; k < nsb; k++ ){
 
       Real eigs[3*sbSize];
@@ -6459,8 +6435,6 @@ EigenSolver::PPCGSolveReal    (
 
       // small eigensolve
       GetTime( timeSta );
-      //cuda_memcpy_CPU2GPU( cu_AMat.Data(), &AMatAll(0,3*sbSize*k), 3*sbSize * sizeof(Real);
-      //cuda_memcpy_CPU2GPU( cu_BMat.Data(), &BMatAll(0,3*sbSize*k), 3*sbSize * sizeof(Real);
 
       lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &AMatAll(0,3*sbSize*k), 3*sbSize, AMat.Data(), 3*sbSize );
       lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &BMatAll(0,3*sbSize*k), 3*sbSize, BMat.Data(), 3*sbSize );
@@ -6674,19 +6648,13 @@ EigenSolver::PPCGSolveReal    (
       timeCopy = timeCopy + ( timeEnd - timeSta );
 
     }
-    //cu_X.CopyTo(X);
-    cu_P.CopyTo(P);
-    cu_W.CopyTo(W);
-    cu_AW.CopyTo(AW);
-    cu_AP.CopyTo(AP);
-    cu_AX.CopyTo(AX);
+
     GetTime( time2);
     secondTime += time2 - time1;
 
     GetTime( time1);
     // CholeskyQR of the updated block X
     GetTime( timeSta );
-    //cu_X.CopyFrom(X);
     cublas::Gemm( cu_transT, cu_transN, width, width, heightLocal, &one, cu_X.Data(), 
               heightLocal, cu_X.Data(), heightLocal, &zero, cu_XTXtemp1.Data(), width );
     cu_XTXtemp1.CopyTo(XTXtemp1);
@@ -6727,10 +6695,8 @@ EigenSolver::PPCGSolveReal    (
 
     // X <- X * U^{-1} is orthogonal
     GetTime( timeSta );
-    //cu_XTX.CopyFrom( XTX);
     cublas::Trsm( right, up, cu_transN, nondiag, heightLocal, width, &one, cu_XTX.Data(), width, cu_X.Data(), heightLocal );
     cu_XTX.CopyTo( XTX);
-    //cu_X.CopyTo( X );
 
     GetTime( timeEnd );
     iterTrsm = iterTrsm + 1;
@@ -6756,8 +6722,6 @@ EigenSolver::PPCGSolveReal    (
 #endif
     GetTime( timeSta );
 
-    //cu_X.CopyFrom( X ); // copy in line 6576.
-    cu_AX.CopyFrom( AX);
     cublas::Gemm( cu_transT, cu_transN, width, width, heightLocal, &one, cu_X.Data(),
                 heightLocal, cu_AX.Data(), heightLocal, &zero, cu_XTXtemp1.Data(), width);
     cu_XTXtemp1.CopyTo( XTXtemp1 );
@@ -6847,7 +6811,7 @@ EigenSolver::PPCGSolveReal    (
 
   GetTime( timeSta );
   // X <- X*C
-  //cu_X.CopyFrom( X );
+
   cu_XTX.CopyFrom( XTX );
   cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &one, cu_X.Data(),
                 heightLocal, cu_XTX.Data(), width, &zero, cu_Xtemp.Data(), heightLocal);
@@ -6867,7 +6831,6 @@ EigenSolver::PPCGSolveReal    (
 
   GetTime( timeSta );
   // AX <- AX*C
-  cu_AX.CopyFrom( AX );
   cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &one, cu_AX.Data(),
                 heightLocal, cu_XTX.Data(), width, &zero, cu_Xtemp.Data(), heightLocal);
   cu_Xtemp.CopyTo( Xtemp );
