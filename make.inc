@@ -31,7 +31,7 @@ ifeq (${USE_GPU}, 1)
   MAGMA_INCLUDE = -I${MAGMA_DIR}/include 
   MAGMA_LIB = -L${MAGMA_DIR}/lib
   CUDA_LIB = -L${CUDA_DIR}/lib64 -lcufft -lcublas -lcudart -lcuda ${MAGMA_LIB} -lmagma -lmagma_sparse #-lcudadevrt
-  NVCCFLAG = -gencode arch=compute_52,code=sm_52 -DGPU -I ../include
+  NVCCFLAG = -gencode arch=compute_52,code=sm_52 -DGPU -I ../include -D SYNC
 endif
 
 ifeq (${USE_OPENMP}, 1)

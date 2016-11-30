@@ -6082,8 +6082,8 @@ EigenSolver::PPCGSolveReal    (
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
     GetTime( timeSta );
     
-    cuda_mapping_from_buf(cu_Xtemp.Data(), cu_sendbuf.Data(), cu_recvk.Data(), height*widthLocal);
-    cu_Xtemp.CopyTo(Xcol);
+    cuda_mapping_from_buf(cu_Xcol.Data(), cu_sendbuf.Data(), cu_recvk.Data(), height*widthLocal);
+    cu_Xcol.CopyTo(Xcol);
 
     GetTime( timeEnd );
     timeMapping += timeEnd - timeSta;
@@ -6092,7 +6092,7 @@ EigenSolver::PPCGSolveReal    (
     {
       GetTime( timeSta );
       //Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xcol.VecData(numLockedLocal));
-      Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, cu_Xtemp.Data(),true);
+      Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, cu_Xcol.Data(),true);
       cuNumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, cu_Wcol.Data());
       //NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
 
@@ -6438,21 +6438,34 @@ EigenSolver::PPCGSolveReal    (
 
     GetTime( time1);
     // Solve nsb small eigenproblems and update columns of X 
-    cu_W.CopyTo(W);
-    cu_AW.CopyTo(AW);
 
 #if ( _DEBUGlevel_ >= 1 )
     if(mpirank == 0)
       std:: cout << "nsb is : " << nsb << "  num Set " << numSet  << std::endl;
 #endif
+    cu_W.CopyTo( W );
+    cu_AW.CopyTo(AW);
+    cu_X.CopyFrom(X);
+    cu_P.CopyFrom(P);
+    cu_W.CopyFrom(W);
+    cu_AW.CopyFrom(AW);
+    cu_AP.CopyFrom(AP);
+    cu_AX.CopyFrom(AX);
     for( Int k = 0; k < nsb; k++ ){
 
       Real eigs[3*sbSize];
       DblNumMat  cx( sbSize, sbSize ), cw( sbSize, sbSize ), cp( sbSize, sbSize);
-      DblNumMat tmp( heightLocal, sbSize );            
+      DblNumMat tmp( heightLocal, sbSize );      
+       
+      // gpu     
+      cuDblNumMat  cu_cx( sbSize, sbSize ), cu_cw( sbSize, sbSize ), cu_cp( sbSize, sbSize);
+      cuDblNumMat cu_tmp( heightLocal, sbSize );      
 
       // small eigensolve
       GetTime( timeSta );
+      //cuda_memcpy_CPU2GPU( cu_AMat.Data(), &AMatAll(0,3*sbSize*k), 3*sbSize * sizeof(Real);
+      //cuda_memcpy_CPU2GPU( cu_BMat.Data(), &BMatAll(0,3*sbSize*k), 3*sbSize * sizeof(Real);
+
       lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &AMatAll(0,3*sbSize*k), 3*sbSize, AMat.Data(), 3*sbSize );
       lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &BMatAll(0,3*sbSize*k), 3*sbSize, BMat.Data(), 3*sbSize );
       GetTime( timeEnd );
@@ -6474,7 +6487,18 @@ EigenSolver::PPCGSolveReal    (
       DblNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
       DblNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
 
+      // cuda parts. 
+      cuDblNumMat  cu_x( heightLocal, sbSize, false, cu_X.VecData(k) );
+      cuDblNumMat  cu_w( heightLocal, sbSize, false, cu_W.VecData(k) );
+      cuDblNumMat  cu_p( heightLocal, sbSize, false, cu_P.VecData(k) );
+      cuDblNumMat cu_ax( heightLocal, sbSize, false, cu_AX.VecData(k) );
+      cuDblNumMat cu_aw( heightLocal, sbSize, false, cu_AW.VecData(k) );
+      cuDblNumMat cu_ap( heightLocal, sbSize, false, cu_AP.VecData(k) );
       GetTime( timeSta );
+
+      cuda_memcpy_CPU2GPU( cu_cx.Data(), &AMat(0,0), sbSize *sbSize*sizeof(Real));
+      cuda_memcpy_CPU2GPU( cu_cw.Data(), &AMat(sbSize,0), sbSize *sbSize*sizeof(Real));
+
       lapack::Lacpy( 'A', sbSize, sbSize, &AMat(0,0), 3*sbSize, cx.Data(), sbSize );
       lapack::Lacpy( 'A', sbSize, sbSize, &AMat(sbSize,0), 3*sbSize, cw.Data(), sbSize );
       GetTime( timeEnd );
@@ -6485,54 +6509,79 @@ EigenSolver::PPCGSolveReal    (
       if( numSet == 3 ){
         
         GetTime( timeSta );
+        cuda_memcpy_CPU2GPU( cu_cp.Data(), &AMat(2*sbSize,0), sbSize *sbSize*sizeof(Real));
+#if 0
         lapack::Lacpy( 'A', sbSize, sbSize, &AMat(2*sbSize,0), 3*sbSize, cp.Data(), sbSize );
+#endif
         GetTime( timeEnd );
         iterCopy = iterCopy + 1;
         timeCopy = timeCopy + ( timeEnd - timeSta );
        
         // tmp <- p*cp 
         GetTime( timeSta );
+        cublas::Gemm( cu_transN, cu_transN, heightLocal, sbSize, sbSize, &one,
+                cu_p.Data(), heightLocal, cu_cp.Data(), sbSize, &zero, cu_tmp.Data(),heightLocal);
+#if 0
         blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
             p.Data(), heightLocal, cp.Data(), sbSize,
             0.0, tmp.Data(), heightLocal );
+#endif
         GetTime( timeEnd );
         iterGemmN = iterGemmN + 1;
         timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
         // p <- w*cw + tmp
         GetTime( timeSta );
+        cublas::Gemm( cu_transN, cu_transN, heightLocal, sbSize, sbSize, &one,
+                cu_w.Data(), heightLocal, cu_cw.Data(), sbSize, &one, cu_tmp.Data(),heightLocal);
+#if 0
         blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
             w.Data(), heightLocal, cw.Data(), sbSize,
             1.0, tmp.Data(), heightLocal );
+#endif
         GetTime( timeEnd );
         iterGemmN = iterGemmN + 1;
         timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
         GetTime( timeSta );
+        cuda_memcpy_GPU2GPU( cu_p.Data(), cu_tmp.Data(), heightLocal*sizeof(Real));
+#if 0
         lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, p.Data(), heightLocal );
+#endif
         GetTime( timeEnd );
         iterCopy = iterCopy + 1;
         timeCopy = timeCopy + ( timeEnd - timeSta );
 
         // tmp <- ap*cp 
         GetTime( timeSta );
+        cublas::Gemm( cu_transN, cu_transN, heightLocal, sbSize, sbSize, &one,
+                cu_ap.Data(), heightLocal, cu_cp.Data(), sbSize, &zero, cu_tmp.Data(),heightLocal);
+#if 0
         blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
             ap.Data(), heightLocal, cp.Data(), sbSize,
             0.0, tmp.Data(), heightLocal );
+#endif
         GetTime( timeEnd );
         iterGemmN = iterGemmN + 1;
         timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
         // ap <- aw*cw + tmp
         GetTime( timeSta );
+        cublas::Gemm( cu_transN, cu_transN, heightLocal, sbSize, sbSize, &one,
+                cu_aw.Data(), heightLocal, cu_cw.Data(), sbSize, &one, cu_tmp.Data(),heightLocal);
+#if 0
         blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
             aw.Data(), heightLocal, cw.Data(), sbSize,
             1.0, tmp.Data(), heightLocal );
+#endif
         GetTime( timeEnd );
         iterGemmN = iterGemmN + 1;
         timeGemmN = timeGemmN + ( timeEnd - timeSta );
         GetTime( timeSta );
+        cuda_memcpy_GPU2GPU( cu_ap.Data(), cu_tmp.Data(), heightLocal*sizeof(Real));
+#if 0
         lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ap.Data(), heightLocal );
+#endif
         GetTime( timeEnd );
         iterCopy = iterCopy + 1;
         timeCopy = timeCopy + ( timeEnd - timeSta );
@@ -6540,17 +6589,26 @@ EigenSolver::PPCGSolveReal    (
       }else{
         // p <- w*cw
         GetTime( timeSta );
+       
+        cublas::Gemm( cu_transN, cu_transN, heightLocal, sbSize, sbSize, &one,
+                cu_w.Data(), heightLocal, cu_cw.Data(), sbSize, &zero, cu_p.Data(),heightLocal);
+#if 0
         blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
             w.Data(), heightLocal, cw.Data(), sbSize,
             0.0, p.Data(), heightLocal );
+#endif
         GetTime( timeEnd );
         iterGemmN = iterGemmN + 1;
         timeGemmN = timeGemmN + ( timeEnd - timeSta );
         // ap <- aw*cw
         GetTime( timeSta );
+        cublas::Gemm( cu_transN, cu_transN, heightLocal, sbSize, sbSize, &one,
+                cu_aw.Data(), heightLocal, cu_cw.Data(), sbSize, &zero, cu_ap.Data(),heightLocal);
+#if 0
         blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
             aw.Data(), heightLocal, cw.Data(), sbSize,
             0.0, ap.Data(), heightLocal );
+#endif
         GetTime( timeEnd );
         iterGemmN = iterGemmN + 1;
         timeGemmN = timeGemmN + ( timeEnd - timeSta );
@@ -6558,47 +6616,74 @@ EigenSolver::PPCGSolveReal    (
 
       // x <- x*cx + p
       GetTime( timeSta );
+      cuda_memcpy_GPU2GPU( cu_tmp.Data(), cu_p.Data(), heightLocal*sizeof(Real));
+#if 0
       lapack::Lacpy( 'A', heightLocal, sbSize, p.Data(), heightLocal, tmp.Data(), heightLocal );
+#endif
       GetTime( timeEnd );
       iterCopy = iterCopy + 1;
       timeCopy = timeCopy + ( timeEnd - timeSta );
      
       GetTime( timeSta );
+      cublas::Gemm( cu_transN, cu_transN, heightLocal, sbSize, sbSize, &one,
+              cu_x.Data(), heightLocal, cu_cx.Data(), sbSize, &one, cu_tmp.Data(),heightLocal);
+#if 0
       blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
           x.Data(), heightLocal, cx.Data(), sbSize,
           1.0, tmp.Data(), heightLocal );
+#endif
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
       
       GetTime( timeSta );
+      cuda_memcpy_GPU2GPU( cu_x.Data(), cu_tmp.Data(), heightLocal*sizeof(Real));
+#if 0
       lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, x.Data(), heightLocal );
+#endif
       GetTime( timeEnd );
       iterCopy = iterCopy + 1;
       timeCopy = timeCopy + ( timeEnd - timeSta );
 
       // ax <- ax*cx + ap
       GetTime( timeSta );
+      cuda_memcpy_GPU2GPU( cu_tmp.Data(), cu_ap.Data(), heightLocal*sizeof(Real));
+
+#if 0
       lapack::Lacpy( 'A', heightLocal, sbSize, ap.Data(), heightLocal, tmp.Data(), heightLocal );
+#endif
       GetTime( timeEnd );
       iterCopy = iterCopy + 1;
       timeCopy = timeCopy + ( timeEnd - timeSta );
       
       GetTime( timeSta );
+      cublas::Gemm( cu_transN, cu_transN, heightLocal, sbSize, sbSize, &one,
+              cu_ax.Data(), heightLocal, cu_cx.Data(), sbSize, &one, cu_tmp.Data(),heightLocal);
+#if 0
       blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
           ax.Data(), heightLocal, cx.Data(), sbSize,
           1.0, tmp.Data(), heightLocal );
+#endif
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
       GetTime( timeSta );
+      cuda_memcpy_GPU2GPU( cu_ax.Data(), cu_tmp.Data(), heightLocal*sizeof(Real));
+#if 0
       lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ax.Data(), heightLocal );
+#endif
       GetTime( timeEnd );
       iterCopy = iterCopy + 1;
       timeCopy = timeCopy + ( timeEnd - timeSta );
 
     }
+    cu_X.CopyTo(X);
+    cu_P.CopyTo(P);
+    cu_W.CopyTo(W);
+    cu_AW.CopyTo(AW);
+    cu_AP.CopyTo(AP);
+    cu_AX.CopyTo(AX);
     GetTime( time2);
     secondTime += time2 - time1;
 

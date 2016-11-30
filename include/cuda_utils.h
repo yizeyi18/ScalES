@@ -8,6 +8,7 @@
 #ifdef GPU
 #ifndef _CUDA_UTILS_
 #define _CUDA_UTILS_
+#include <assert.h>
 #include <stdio.h>
 #include <cuda.h>
 #include <cuda_runtime.h>

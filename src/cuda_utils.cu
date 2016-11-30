@@ -433,6 +433,9 @@ void cuda_setValue( float* dev, float val, int len )
 	int ndim = len / DIM;
 	if(len % DIM) ndim++;
 	gpu_setValue<<<ndim, DIM>>>(dev, val, len);
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 
 void cuda_setValue( double* dev, double val, int len )
@@ -440,12 +443,18 @@ void cuda_setValue( double* dev, double val, int len )
 	int ndim = len / DIM;
 	if(len % DIM) ndim++;
 	gpu_setValue<<<ndim, DIM>>>(dev, val, len);
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 void cuda_setValue( cuDoubleComplex* dev, cuDoubleComplex val, int len )
 {
 	int ndim = len / DIM;
 	if(len % DIM) ndim++;
 	gpu_setValue<<<ndim, DIM>>>(dev, val, len);
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 
 void cuda_setValue( cuComplex* dev, cuComplex val, int len )
@@ -453,17 +462,26 @@ void cuda_setValue( cuComplex* dev, cuComplex val, int len )
 	int ndim = len / DIM;
 	if(len % DIM) ndim++;
 	gpu_setValue<<<ndim, DIM>>>(dev, val, len);
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 
 void cuda_interpolate_wf_C2F( cuDoubleComplex * coarse_psi, cuDoubleComplex * fine_psi, int * index, int len, double factor)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_interpolate_wf_C2F<<< ndim, DIM>>> ( coarse_psi, fine_psi, index, len, factor);
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 void cuda_interpolate_wf_F2C( cuDoubleComplex * fine_psi, cuDoubleComplex * coarse_psi, int * index, int len, double factor)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_interpolate_wf_F2C<<< ndim, DIM>>> ( fine_psi, coarse_psi, index, len, factor);
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 
 void *cuda_malloc( size_t size)
@@ -476,12 +494,17 @@ void cuda_laplacian( cuDoubleComplex* psi, double * gkk, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_laplacian<<< ndim, DIM>>> ( psi, gkk, len);
-	
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 void cuda_vtot( double* psi, double * vtot, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_vtot<<< ndim, DIM>>> ( psi, vtot, len);
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 
 void cuda_memory(void)
@@ -489,7 +512,7 @@ void cuda_memory(void)
 	size_t free_mem, total_mem;
 	cudaMemGetInfo(&free_mem, &total_mem);
 	cudaMemGetInfo(&free_mem, &total_mem);
-	cudaThreadSynchronize();
+	assert(cudaThreadSynchronize() == cudaSuccess );
 	printf("free  memory is: %zu MB\n", free_mem/1000000);
 	printf("total memory is: %zu MB\n", total_mem/1000000);
 	fflush(stdout);
@@ -500,31 +523,49 @@ void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int
 	// two steps. 
         // 1. calculate the weight.
         gpu_cal_weight<DIM><<<blocks, DIM, DIM * sizeof(double) >>>( psi, NL, parts, index, weight);
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 
         // 2. update the psiUpdate.
 	gpu_update_psiUpdate<<<blocks, LDIM>>>( psiUpdate, NL, parts, index, atom_weight, weight);
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 void cuda_teter( cuDoubleComplex* psi, double * vtot, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_teter<<< ndim, DIM>>> ( psi, vtot, len);
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 
 void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len )
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_mapping_from_buf<<< ndim, DIM>>>( psi, buf, index, len);	
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 
 void cuda_mapping_to_buf( double * buf, double * psi, int * index, int len )
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_mapping_to_buf<<< ndim, DIM>>>( buf, psi, index, len);	
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 void cuda_calculate_Energy( double * psi, double * energy, int nbands, int bandLen)
 {
 	// calculate  nbands psi Energy. 
 	gpu_energy<DIM><<<nbands, DIM, DIM*sizeof(double)>>>( psi, energy, bandLen);
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 
 void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen)
@@ -532,5 +573,8 @@ void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen)
 	int ndim = ( nband * bandLen + DIM - 1) / DIM;
 	int len = nband * bandLen;
 	gpu_batch_Scal<<< ndim, DIM >>> ( psi, vec, bandLen, len);
+#ifdef SYNC 
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 #endif
