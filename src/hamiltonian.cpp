@@ -1003,6 +1003,17 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
     SetValue( vxc2, 0.0 );
     SetValue( epsxc_, 0.0 );
 
+    // Modify "bad points"
+    if(1){
+      for( Int i = 0; i < ntotLocal; i++ ){
+        if( densityTemp(i,RHO) < epsRho || gradDensity(i,RHO) < epsGRho ){
+          epsxcTemp(i) = 0.0;
+          vxc1Temp(i) = 0.0;
+          vxc2Temp(i) = 0.0;
+        }
+      }
+    }
+
     GetTime( timeSta );
 
     MPI_Allgatherv( epsxcTemp.Data(), ntotLocal, MPI_DOUBLE, epsxc_.Data(), 
@@ -1020,17 +1031,6 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
 
     for( Int i = 0; i < ntot; i++ ){
       vxc_( i, RHO ) = vxc1(i);
-    }
-
-    // Modify "bad points"
-    if(1){
-      for( Int i = 0; i < ntot; i++ ){
-        if( density_(i,RHO) < epsRho || gradDensity(i,RHO) < epsGRho ){
-          epsxc_(i) = 0.0;
-          vxc2(i) = 0.0;
-          vxc_( i, RHO ) = 0.0;
-        }
-      }
     }
 
     Int d;
