@@ -1344,7 +1344,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       // Used before reduce
       DblNumMat psiMuRow(numStateTotal, numMu_);
       DblNumMat phiMuRow(numStateTotal, numMu_);
-      DblNumMat PcolMuNuRow(numMu_, numMu_);
+      //DblNumMat PcolMuNuRow(numMu_, numMu_);
       DblNumMat PcolPsiMuRow(ntotLocal, numMu_);
 
       // Collecting the matrices obtained from row partition
@@ -1354,7 +1354,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       SetValue( psiMuRow, 0.0 );
       SetValue( phiMuRow, 0.0 );
-      SetValue( PcolMuNuRow, 0.0 );
+      //SetValue( PcolMuNuRow, 0.0 );
       SetValue( PcolPsiMuRow, 0.0 );
 
       SetValue( phiMu, 0.0 );
@@ -1431,42 +1431,48 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       statusOFS << "Time for xiPtr is " <<
         timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
-          
-      GetTime( timeSta1 );
-      
-      for( Int mu = 0; mu < numMu_; mu++ ){
+      {
 
-        Int muInd = pivMu(mu);
-        // NOTE Hard coded here with the row partition strategy
-        if( muInd <  mpirank * ntotLocalMG ||
-            muInd >= (mpirank + 1) * ntotLocalMG )
-          continue;
-        Int muIndRow = muInd - mpirank * ntotLocalMG;
+        GetTime( timeSta1 );
 
-        for (Int nu=0; nu < numMu_; nu++) {
-          PcolMuNuRow( mu, nu ) = XiRow( muIndRow, nu );
-        }
+        DblNumMat PcolMuNuRow(numMu_, numMu_);
+        SetValue( PcolMuNuRow, 0.0 );
 
-      }//for mu
-      
-      GetTime( timeEnd1 );
+        for( Int mu = 0; mu < numMu_; mu++ ){
 
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for PcolMuNuRow is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-      
-      GetTime( timeSta1 );
-     
-      MPI_Allreduce( PcolMuNuRow.Data(), PcolMuNu.Data(), 
-          numMu_* numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
-      
-      GetTime( timeEnd1 );
+          Int muInd = pivMu(mu);
+          // NOTE Hard coded here with the row partition strategy
+          if( muInd <  mpirank * ntotLocalMG ||
+              muInd >= (mpirank + 1) * ntotLocalMG )
+            continue;
+          Int muIndRow = muInd - mpirank * ntotLocalMG;
+
+          for (Int nu=0; nu < numMu_; nu++) {
+            PcolMuNuRow( mu, nu ) = XiRow( muIndRow, nu );
+          }
+
+        }//for mu
+
+        GetTime( timeEnd1 );
 
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for MPI_Allreduce is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+        statusOFS << "Time for PcolMuNuRow is " <<
+          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
+
+        GetTime( timeSta1 );
+
+        MPI_Allreduce( PcolMuNuRow.Data(), PcolMuNu.Data(), 
+            numMu_* numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+        GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for MPI_Allreduce is " <<
+          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+      }
         
       GetTime( timeSta1 );
 
@@ -1543,18 +1549,22 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
-      GetTime( timeSta1 );
-      
-      MPI_Bcast(PcolMuNu.Data(), numMu_ * numMu_, MPI_DOUBLE, 0, domain_.comm);
+      { 
 
-      GetTime( timeEnd1 );
+        GetTime( timeSta1 );
+
+        MPI_Bcast(PcolMuNu.Data(), numMu_ * numMu_, MPI_DOUBLE, 0, domain_.comm);
+
+        GetTime( timeEnd1 );
 
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for MPI_Bcast is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+        statusOFS << "Time for MPI_Bcast is " <<
+          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
-      GetTime( timeSta1 );
+        GetTime( timeSta1 );
+
+      }
 
       blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numMu_, 1.0, 
           PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
