@@ -125,14 +125,23 @@ void Getrf( Int m, Int n, double* A, Int lda, Int* p )
 // conquer algorithm
 // *********************************************************************
 
-/*
 void Syevd
 ( char jobz, char uplo, Int n, double* A, Int lda, double* eigs ){
+
+  magma_vec_t zjob;
+  if (jobz == 'v' || jobz == 'V') zjob = MagmaVec; else  zjob = MagmaNoVec;
+  
+  magma_uplo_t m_uplo;
+  if(uplo == 'U') m_uplo = MagmaUpper; else m_uplo = MagmaLower;
+  magmaDouble_ptr dA = (magmaDouble_ptr) A;  
+
   Int lwork = -1, info;
   Int liwork = -1;
   std::vector<double> work(1);
   std::vector<int>    iwork(1);
 
+  //magma_dsyevd_gpu( zjob, m_uplo, n, dA, lda,  ... work, lwork, iwork, liwork, &info);
+/*
   MAGMA(dsyevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
       &lwork, &iwork[0], &liwork, &info );
   lwork = (Int)work[0];
@@ -142,14 +151,15 @@ void Syevd
 
   MAGMA(dsyevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
       &lwork, &iwork[0], &liwork, &info );
-
+*/
   if( info != 0 )
   {
     std::ostringstream msg;
-    msg << "syevd returned with info = " << info;
+    msg << "magma_dsyevd_gpu returned with info = " << info;
     ErrorHandling( msg.str().c_str() );
   }
 }
+/*
 */
 
 // *********************************************************************

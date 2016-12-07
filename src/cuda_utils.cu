@@ -4,6 +4,22 @@
 
 #define DIM 128
 #define LDIM  256
+
+double * dev_vtot;
+double * dev_gkkR2C;
+int    * dev_idxFineGridR2C;
+int    * dev_NLindex;
+int    * dev_NLpart;
+double * dev_NLvecFine;
+double * dev_atom_weight;
+double * dev_temp_weight;
+double * dev_TeterPrecond;
+
+bool vtot_gpu_flag;
+bool NL_gpu_flag;
+bool teter_gpu_flag;
+int totPart_gpu;
+
  __device__ inline cuDoubleComplex operator* (const cuDoubleComplex & x,const cuDoubleComplex & y) {
     return cuCmul(x,y);
  }
@@ -597,6 +613,31 @@ void cu_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, doub
 #endif
 }
 
-
-
+void cuda_init_vtot()
+{
+	dev_vtot           = NULL;
+	dev_gkkR2C         = NULL;
+	dev_idxFineGridR2C = NULL;
+	dev_NLindex        = NULL;
+	dev_NLpart         = NULL;
+	dev_NLvecFine      = NULL;
+	dev_atom_weight    = NULL;
+	dev_temp_weight    = NULL;
+	dev_TeterPrecond   = NULL;
+	vtot_gpu_flag      = false;
+	NL_gpu_flag        = false;
+	teter_gpu_flag     = false;
+}
+void cuda_clean_vtot()
+{
+	cuda_free(dev_vtot);
+	cuda_free(dev_gkkR2C);
+	cuda_free(dev_idxFineGridR2C);
+	cuda_free(dev_NLindex);
+	cuda_free(dev_NLpart);
+	cuda_free(dev_NLvecFine);
+	cuda_free(dev_atom_weight);
+	cuda_free(dev_temp_weight);
+	cuda_free(dev_TeterPrecond);
+}
 #endif

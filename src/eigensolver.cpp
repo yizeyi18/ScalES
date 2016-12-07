@@ -5517,7 +5517,7 @@ EigenSolver::GeneralChebyStep    (
 
 #ifdef GPU
 void
-EigenSolver::PPCGSolveReal    (
+EigenSolver::PPCGSolveReal (
     Int          numEig,
     Int          eigMaxIter,
     Real         eigMinTolerance,
@@ -5537,7 +5537,7 @@ EigenSolver::PPCGSolveReal    (
   Int noccLocal = psiPtr_->NumState();
   Int noccTotal = psiPtr_->NumStateTotal();
 
-  /* init the cublas */
+  /* init the CUDA Device */
   cublasStatus_t status;
   cublasSideMode_t right  = CUBLAS_SIDE_RIGHT;
   cublasFillMode_t up     = CUBLAS_FILL_MODE_UPPER;
@@ -5547,6 +5547,8 @@ EigenSolver::PPCGSolveReal    (
   cublasOperation_t cu_transC = CUBLAS_OP_C;
   cublas::Init();
   MAGMA::Init();
+  //cuda_init_vtot();
+
   if(mpirank == 0)
   {
     std::cout << " GPU PPCG ........... " << std::endl;
@@ -5554,7 +5556,8 @@ EigenSolver::PPCGSolveReal    (
   }
 #if ( _DEBUGlevel_ >= 1 )
 #endif
-
+  
+  
   Int height = ntot * ncom;
   Int width = noccTotal;
   Int lda = 3 * width;
@@ -6311,9 +6314,87 @@ EigenSolver::PPCGSolveReal    (
 
     // LOCKING NOT SUPPORTED, loop over all columns 
     GetTime( time1);
+    GetTime( timeSta );
     cuda_setValue( cu_AMatAllLocal.Data(), 0.0, 9*sbSize*sbSize*nsb);
     cuda_setValue( cu_BMatAllLocal.Data(), 0.0, 9*sbSize*sbSize*nsb);
+    
+    cublas::batched_Gemm6( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_X.Data(),
+                         heightLocal, cu_AX.Data(), heightLocal, &zero, cu_AMatAllLocal.Data(),
+                         3*sbSize, nsb, 3*sbSize, 0, 0,
+                    cu_W.Data(), cu_AW.Data(), cu_AMatAllLocal.Data(), 3*sbSize, sbSize, sbSize,
+                    cu_X.Data(), cu_AW.Data(), cu_AMatAllLocal.Data(), 3*sbSize, sbSize, 0,
+                    cu_X.Data(), cu_X.Data(), cu_BMatAllLocal.Data(), 3*sbSize, 0, 0,
+                    cu_W.Data(), cu_W.Data(), cu_BMatAllLocal.Data(), 3*sbSize, sbSize, sbSize,
+                    cu_X.Data(), cu_W.Data(), cu_BMatAllLocal.Data(), 3*sbSize, sbSize, 0);
+#if 0
+    cublas::batched_Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_X.Data(),
+                         heightLocal, cu_AX.Data(), heightLocal, &zero, cu_AMatAllLocal.Data(),
+                         3*sbSize, nsb, 3*sbSize, 0, 0);
 
+    cublas::batched_Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_W.Data(),
+                         heightLocal, cu_AW.Data(), heightLocal, &zero, cu_AMatAllLocal.Data(),
+                         3*sbSize, nsb, 3*sbSize, sbSize, sbSize);
+
+    cublas::batched_Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_X.Data(),
+                         heightLocal, cu_AW.Data(), heightLocal, &zero, cu_AMatAllLocal.Data(),
+                         3*sbSize, nsb, 3*sbSize, sbSize, 0);
+
+    cublas::batched_Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_X.Data(),
+                         heightLocal, cu_X.Data(), heightLocal, &zero, cu_BMatAllLocal.Data(),
+                         3*sbSize, nsb, 3*sbSize, 0, 0);
+
+    cublas::batched_Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_W.Data(),
+                         heightLocal, cu_W.Data(), heightLocal, &zero, cu_BMatAllLocal.Data(),
+                         3*sbSize, nsb, 3*sbSize, sbSize, sbSize);
+
+    cublas::batched_Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_X.Data(),
+                         heightLocal, cu_W.Data(), heightLocal, &zero, cu_BMatAllLocal.Data(),
+                         3*sbSize, nsb, 3*sbSize, sbSize, 0);
+#endif
+    GetTime( timeEnd );
+    iterGemmT = iterGemmT + 6;
+    timeGemmT = timeGemmT + ( timeEnd - timeSta );
+
+    if ( numSet == 3 ){
+      GetTime( timeSta );
+      cublas::batched_Gemm6(cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_P.Data(),
+                 heightLocal, cu_AP.Data(), heightLocal, &zero, cu_AMatAllLocal.Data(),
+                 3*sbSize, nsb, 3*sbSize, 2*sbSize, 2*sbSize,
+                 cu_X.Data(), cu_AP.Data(), cu_AMatAllLocal.Data(), 3*sbSize, 2*sbSize, 0,
+                 cu_W.Data(), cu_AP.Data(), cu_AMatAllLocal.Data(), 3*sbSize, 2*sbSize, sbSize,
+                 cu_P.Data(), cu_P.Data(), cu_BMatAllLocal.Data(), 3*sbSize, 2*sbSize, 2*sbSize,
+                 cu_X.Data(), cu_P.Data(), cu_BMatAllLocal.Data(), 3*sbSize, 2*sbSize, 0,
+                 cu_W.Data(), cu_P.Data(), cu_BMatAllLocal.Data(), 3*sbSize, 2*sbSize, sbSize);
+#if 0
+      cublas::batched_Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_P.Data(),
+                           heightLocal, cu_AP.Data(), heightLocal, &zero, cu_AMatAllLocal.Data(),
+                           3*sbSize, nsb, 3*sbSize, 2*sbSize, 2*sbSize);
+      cublas::batched_Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_X.Data(),
+                           heightLocal, cu_AP.Data(), heightLocal, &zero, cu_AMatAllLocal.Data(),
+                           3*sbSize, nsb, 3*sbSize, 2*sbSize, 0);
+      cublas::batched_Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_W.Data(),
+                           heightLocal, cu_AP.Data(), heightLocal, &zero, cu_AMatAllLocal.Data(),
+                           3*sbSize, nsb, 3*sbSize, 2*sbSize, sbSize);
+
+
+      cublas::batched_Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_P.Data(),
+                           heightLocal, cu_P.Data(), heightLocal, &zero, cu_BMatAllLocal.Data(),
+                           3*sbSize, nsb, 3*sbSize, 2*sbSize, 2*sbSize);
+
+      cublas::batched_Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_X.Data(),
+                           heightLocal, cu_P.Data(), heightLocal, &zero, cu_BMatAllLocal.Data(),
+                           3*sbSize, nsb, 3*sbSize, 2*sbSize, 0);
+
+      cublas::batched_Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_W.Data(),
+                           heightLocal, cu_P.Data(), heightLocal, &zero, cu_BMatAllLocal.Data(),
+                           3*sbSize, nsb, 3*sbSize, 2*sbSize, sbSize);
+#endif
+      GetTime( timeEnd );
+      iterGemmT = iterGemmT + 6;
+      timeGemmT = timeGemmT + ( timeEnd - timeSta );
+    }
+   
+#if 0
     for( Int k = 0; k < nsb; k++ ){
 
       // fetch indiviual columns
@@ -6331,10 +6412,9 @@ EigenSolver::PPCGSolveReal    (
       // Compute AMatAllLoc and BMatAllLoc            
       // AMatAllLoc
       GetTime( timeSta );
-
+/*
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                   heightLocal, cu_ax.Data(), heightLocal, &zero, &cu_AMatAllLocal(0,3*sbSize*k), 3*sbSize );
-
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_w.Data(),
                    heightLocal, cu_aw.Data(), heightLocal, &zero, &cu_AMatAllLocal(sbSize,3*sbSize*k+sbSize), 3*sbSize);
 
@@ -6350,6 +6430,7 @@ EigenSolver::PPCGSolveReal    (
 
       cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                    heightLocal, cu_w.Data(), heightLocal, &zero, &cu_BMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize);
+*/
 
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 6;
@@ -6366,10 +6447,9 @@ EigenSolver::PPCGSolveReal    (
 
         // AMatAllLoc
         GetTime( timeSta );
-
+#if 0
         cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_p.Data(),
                      heightLocal, cu_ap.Data(), heightLocal, &zero, &cu_AMatAllLocal(2*sbSize,3*sbSize*k+2*sbSize), 3*sbSize);
-
 
         cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_x.Data(),
                      heightLocal, cu_ap.Data(), heightLocal, &zero, &cu_AMatAllLocal(0,3*sbSize*k+2*sbSize), 3*sbSize );
@@ -6391,6 +6471,7 @@ EigenSolver::PPCGSolveReal    (
         cublas::Gemm( cu_transT, cu_transN, sbSize, sbSize, heightLocal, &one, cu_w.Data(),
                      heightLocal, cu_p.Data(), heightLocal, &zero, &cu_BMatAllLocal(sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
 
+#endif
         GetTime( timeEnd );
         iterGemmT = iterGemmT + 6;
         timeGemmT = timeGemmT + ( timeEnd - timeSta );
@@ -6398,6 +6479,7 @@ EigenSolver::PPCGSolveReal    (
       }             
 
     }
+#endif
 
     cu_AMatAllLocal.CopyTo( AMatAllLocal );
     cu_BMatAllLocal.CopyTo( BMatAllLocal );
@@ -7048,7 +7130,7 @@ EigenSolver::PPCGSolveReal    (
 
     cublas::Destroy();
     MAGMA::Destroy();
-
+    //cuda_clean_vtot();
     return ;
     }         // -----  end of method EigenSolver::PPCGSolveReal  ----- 
 

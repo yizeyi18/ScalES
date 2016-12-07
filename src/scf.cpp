@@ -452,6 +452,10 @@ SCF::Iterate (  )
 
     // Regular SCF iter
     bool isSCFConverged = false;
+    
+#ifdef GPU
+    cuda_init_vtot();
+#endif
     for (Int iter=1; iter <= scfMaxIter_; iter++) {
       if ( isSCFConverged ) break;
 
@@ -694,6 +698,9 @@ SCF::Iterate (  )
         << " [s]" << std::endl;
 
     }
+#ifdef GPU
+    cuda_clean_vtot();
+#endif
 
     if( ham.IsHybrid() && isHybridACEOutside_ == false ){
       if( ham.IsEXXActive() == false ) ham.SetEXXActive(true);

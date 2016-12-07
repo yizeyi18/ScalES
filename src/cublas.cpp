@@ -121,6 +121,16 @@ void Destroy(void)
     CUBLAS_ERROR(cublasZgemm_v2(hcublas, transA, transB, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc), " cublasZgemm failed !");
     return;
 }
+ void Gemm
+           ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
+            const double *alpha, double* A[], Int lda, double* B[], Int ldb,
+            const double *beta,   double* C[], Int ldc ,Int batchCount)
+{
+    
+    CUBLAS_ERROR(cublasDgemmBatched(hcublas, transA, transB, m, n, k, alpha, const_cast<double**>(A), lda, const_cast<double**>(B), ldb, beta, C, ldc, batchCount), " cublasDgemmBatched failed! ");
+    return;
+}
+
  void Scal (int n, const float *alpha, float *x, int incx)
 {
     CUBLAS_ERROR( cublasSscal(hcublas, n, alpha, x, incx), "cublas SScal failed! ");
@@ -185,6 +195,107 @@ void Destroy(void)
                   " cublas Ztrsm failed! ");
     return;
 }
+
+void batched_Gemm( cublasOperation_t transA, cublasOperation_t transB, int m, int n, int k, const double *alpha, double *A, int lda, double *B, int ldb, const double *beta, double *C, int ldc, int batchCount, int x, int y, int z)
+{
+	double ** h_A = (double **) malloc( sizeof(double*) *batchCount);
+	double ** h_B = (double **) malloc( sizeof(double*) *batchCount);
+	double ** h_C = (double **) malloc( sizeof(double*) *batchCount);
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i] = A + i* lda;
+		h_B[i] = B + i* ldb;
+		h_C[i] = C + i*3*x + 3*y + z;
+	}
+	
+	double **d_A, **d_B, **d_C;
+	cudaMalloc((void**)&d_A, sizeof(double*) * batchCount);
+	cudaMalloc((void**)&d_B, sizeof(double*) * batchCount);
+	cudaMalloc((void**)&d_C, sizeof(double*) * batchCount);
+	
+	cudaMemcpy( d_A, h_A, batchCount *sizeof(double*), cudaMemcpyHostToDevice);
+	cudaMemcpy( d_B, h_B, batchCount *sizeof(double*), cudaMemcpyHostToDevice);
+	cudaMemcpy( d_C, h_C, batchCount *sizeof(double*), cudaMemcpyHostToDevice);
+	
+	cublasDgemmBatched(hcublas, transA, transB, m, n, k, alpha, (const double**)(d_A), lda, (const double**)(d_B), ldb, beta, d_C, ldc, batchCount);
+
+	free(h_A);
+	free(h_B);
+	free(h_C);
+
+	cudaFree(d_A);
+	cudaFree(d_B);
+	cudaFree(d_C);
+}
+
+void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, int n, int k, const double *alpha, double *A, int lda, double *B, int ldb, const double *beta, double *C, int ldc, int batchCount, int x, int y, int z, 
+ double *A2, double *B2, double *C2, int x2, int y2, int z2,
+ double *A3, double *B3, double *C3, int x3, int y3, int z3,
+ double *A4, double *B4, double *C4, int x4, int y4, int z4,
+ double *A5, double *B5, double *C5, int x5, int y5, int z5,
+ double *A6, double *B6, double *C6, int x6, int y6, int z6)
+{
+	double ** h_A = (double **) malloc( sizeof(double*) *6*batchCount);
+	double ** h_B = (double **) malloc( sizeof(double*) *6*batchCount);
+	double ** h_C = (double **) malloc( sizeof(double*) *6*batchCount);
+
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i] = A + i* lda;
+		h_B[i] = B + i* ldb;
+		h_C[i] = C + i*3*x + 3*y + z;
+	}
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i+batchCount] = A2 + i* lda;
+		h_B[i+batchCount] = B2 + i* ldb;
+		h_C[i+batchCount] = C2 + i*3*x2 + 3*y2 + z2;
+	}
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i+2*batchCount] = A3 + i* lda;
+		h_B[i+2*batchCount] = B3 + i* ldb;
+		h_C[i+2*batchCount] = C3 + i*3*x3 + 3*y3 + z3;
+	}
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i+3*batchCount] = A4 + i* lda;
+		h_B[i+3*batchCount] = B4 + i* ldb;
+		h_C[i+3*batchCount] = C4 + i*3*x4 + 3*y4 + z4;
+	}
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i+4*batchCount] = A5 + i* lda;
+		h_B[i+4*batchCount] = B5 + i* ldb;
+		h_C[i+4*batchCount] = C5 + i*3*x5 + 3*y5 + z5;
+	}
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i+5*batchCount] = A6 + i* lda;
+		h_B[i+5*batchCount] = B6 + i* ldb;
+		h_C[i+5*batchCount] = C6 + i*3*x6 + 3*y6 + z6;
+	}
+	
+	double **d_A, **d_B, **d_C;
+	cudaMalloc((void**)&d_A, sizeof(double*) * 6*batchCount);
+	cudaMalloc((void**)&d_B, sizeof(double*) * 6*batchCount);
+	cudaMalloc((void**)&d_C, sizeof(double*) * 6*batchCount);
+	
+	cudaMemcpy( d_A, h_A, batchCount *6*sizeof(double*), cudaMemcpyHostToDevice);
+	cudaMemcpy( d_B, h_B, batchCount *6*sizeof(double*), cudaMemcpyHostToDevice);
+	cudaMemcpy( d_C, h_C, batchCount *6*sizeof(double*), cudaMemcpyHostToDevice);
+	
+	cublasDgemmBatched(hcublas, transA, transB, m, n, k, alpha, (const double**)(d_A), lda, (const double**)(d_B), ldb, beta, d_C, ldc, 6*batchCount);
+
+	free(h_A);
+	free(h_B);
+	free(h_C);
+
+	cudaFree(d_A);
+	cudaFree(d_B);
+	cudaFree(d_C);
+}
+
 
 } // namespace cublas
 } // namespace dgdft

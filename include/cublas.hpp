@@ -79,7 +79,7 @@ void Destroy(void);
  void Gemm 
            ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
             const double *alpha, const double* A, Int lda, const double* B, Int ldb,
-            double *beta,        double* C, Int ldc );
+            double *beta,              double* C, Int ldc );
  void Gemm 
           ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
             const scomplex *alpha, const scomplex* A, Int lda, const scomplex* B, Int ldb,
@@ -88,6 +88,19 @@ void Destroy(void);
           ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
             const dcomplex *alpha, const dcomplex* A, Int lda, const dcomplex* B, Int ldb,
             const dcomplex *beta,        dcomplex* C, Int ldc );
+ void Gemm
+           ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
+            const double *alpha, double* A[], Int lda, double* B[], Int ldb,
+            const double *beta,          double* C[], Int ldc, Int batchCount);
+
+void batched_Gemm( cublasOperation_t transA, cublasOperation_t transB, int m, int n, int k, const double *alpha, double *A, int lda, double *B, int ldb, const double *beta, double *C, int ldc, int batchCount, int x, int y,int z);
+void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, int n, int k, const double *alpha, double *A, int lda, double *B, int ldb, const double *beta, double *C, int ldc, int batchCount, int x, int y, int z, 
+ double *A2, double *B2, double *C2, int x2, int y2, int z2,
+ double *A3, double *B3, double *C3, int x3, int y3, int z3,
+ double *A4, double *B4, double *C4, int x4, int y4, int z4,
+ double *A5, double *B5, double *C5, int x5, int y5, int z5,
+ double *A6, double *B6, double *C6, int x6, int y6, int z6);
+
  void Scal (int n, const float *alpha, float *x, int incx);
  void Scal (int n, const double *alpha, double *x, int incx);
  void Scal (int n, const scomplex *alpha, scomplex *x, int incx);

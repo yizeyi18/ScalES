@@ -109,6 +109,23 @@ typedef struct ndim_int {
 //} cuComplex_p;
 //
 //extern "C"{
+
+extern double * dev_vtot;
+extern double * dev_gkkR2C;
+extern int    * dev_idxFineGridR2C;
+
+extern int    * dev_NLindex;
+extern int    * dev_NLpart;
+extern double * dev_NLvecFine;
+extern double * dev_atom_weight;
+extern double * dev_temp_weight;
+extern double * dev_TeterPrecond;
+extern int totPart_gpu;
+
+extern bool vtot_gpu_flag;
+extern bool NL_gpu_flag;
+extern bool teter_gpu_flag;
+
 void cuda_setValue( cuComplex* dev, cuComplex val, int len );
 void cuda_setValue( cuDoubleComplex* dev, cuDoubleComplex val, int len );
 void cuda_setValue( double* dev, double val, int len );
@@ -130,6 +147,8 @@ void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len );
 void cuda_calculate_Energy( double * psi, double * energy, int nbands, int bandLen);
 void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen);
 void cu_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, double * eigen, int nbands, int bandLen);
+void cuda_init_vtot();
+void cuda_clean_vtot();
 //}
 #endif
 #endif

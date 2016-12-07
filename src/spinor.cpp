@@ -261,14 +261,21 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, cuNumTns<Real>& a3)
 
   cuDblNumVec cu_psi(ntot);
   cuDblNumVec cu_psi_out(2*ntothalf);
-  cuDblNumVec cu_TeterPrecond(ntothalf);
-  cuda_memcpy_CPU2GPU(cu_TeterPrecond.Data(), fftPtr->TeterPrecondR2C.Data(), sizeof(Real)*ntothalf);
-
+  //cuDblNumVec cu_TeterPrecond(ntothalf);
+  if( !teter_gpu_flag ) {
+     // copy the Teter Preconditioner into GPU. only once. 
+     //std::cout << " copy Teter Precond into GPU... "<< teter_gpu_flag<<std::endl;
+     dev_TeterPrecond = (double*) cuda_malloc( sizeof(Real) * ntothalf);
+     cuda_memcpy_CPU2GPU(dev_TeterPrecond, fftPtr->TeterPrecondR2C.Data(), sizeof(Real)*ntothalf);
+     //cuda_memcpy_CPU2GPU(cu_TeterPrecond.Data(), fftPtr->TeterPrecondR2C.Data(), sizeof(Real)*ntothalf);
+     teter_gpu_flag = true;
+  } 
   for (Int k=0; k<nocc; k++) {
     for (Int j=0; j<ncom; j++) {
       cuda_memcpy_GPU2GPU(cu_psi.Data(), cu_wavefun_.VecData(j,k), sizeof(Real)*ntot);
       cuFFTExecuteForward( fft, fft.cuPlanR2C[0], 0, cu_psi, cu_psi_out);
-      cuda_teter( reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), cu_TeterPrecond.Data(), ntothalf);
+      //cuda_teter( reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), cu_TeterPrecond.Data(), ntothalf);
+      cuda_teter( reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), dev_TeterPrecond, ntothalf);
 
       cuFFTExecuteInverse( fft, fft.cuPlanC2R[0], 0, cu_psi_out, cu_psi);
       
@@ -561,6 +568,8 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
     ErrorHandling("Domain size does not match.");
   }
 
+  Real timeSta, timeEnd;
+  GetTime( timeSta );
   // Temporary variable for saving wavefunction on a fine grid
   DblNumVec psiFine(ntotFine);
   DblNumVec psiUpdateFine(ntotFine);
@@ -569,62 +578,92 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   cuDblNumVec cu_psi_fine(ntotFine);
   cuDblNumVec cu_psi_fineUpdate(ntotFine);
   cuDblNumVec cu_psi_fine_out(2*ntotR2CFine);
-
-  // get the total number of the nonlocal vector
-   Int totNLNum = 0;
-   Int totPart = 1;
-   Int natm = pseudo.size();
-   for (Int iatm=0; iatm<natm; iatm++) {
-      Int nobt = pseudo[iatm].vnlListFine.size();
-      totPart += nobt;
-      for(Int iobt = 0; iobt < nobt; iobt++)
-      {
+  
+  if( NL_gpu_flag == false ) 
+  {
+    // get the total number of the nonlocal vector
+     Int totNLNum = 0;
+     totPart_gpu = 1;
+     Int natm = pseudo.size();
+     for (Int iatm=0; iatm<natm; iatm++) {
+        Int nobt = pseudo[iatm].vnlListFine.size();
+        totPart_gpu += nobt;
+        for(Int iobt = 0; iobt < nobt; iobt++)
+        {
+              const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
+              const IntNumVec &ivFine = vnlvecFine.first;
+              totNLNum += ivFine.m();
+        }
+    } 
+    DblNumVec NLvecFine(totNLNum);
+    IntNumVec NLindex(totNLNum);
+    IntNumVec NLpart (totPart_gpu);
+    DblNumVec atom_weight(totPart_gpu);
+  
+    Int index = 0;
+    Int ipart = 0;
+    for (Int iatm=0; iatm<natm; iatm++) {
+        Int nobt = pseudo[iatm].vnlListFine.size();
+        for(Int iobt = 0; iobt < nobt; iobt++)
+        {
+            const Real       vnlwgt = pseudo[iatm].vnlListFine[iobt].second;
             const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
             const IntNumVec &ivFine = vnlvecFine.first;
-            totNLNum += ivFine.m();
-      }
-  } 
-  DblNumVec NLvecFine(totNLNum);
-  IntNumVec NLindex(totNLNum);
-  IntNumVec NLpart (totPart);
-  DblNumVec atom_weight(totPart);
+            const DblNumMat &dvFine = vnlvecFine.second;
+            const Int    *ivFineptr = ivFine.Data();
+            const Real   *dvFineptr = dvFine.VecData(VAL);
+            atom_weight(ipart) = vnlwgt *vol/Real(ntotFine);
+  
+            NLpart(ipart++) = index;
+            for(Int i = 0; i < ivFine.m(); i++)
+            {
+               NLvecFine(index)  = *(dvFineptr++);
+               NLindex(index++)  = *(ivFineptr++);
+            }
+        }
+    }
+    NLpart(ipart) = index;
+    dev_NLvecFine   = ( double*) cuda_malloc ( sizeof(double) * totNLNum );
+    dev_NLindex     = ( int*   ) cuda_malloc ( sizeof(int )   * totNLNum );
+    dev_NLpart      = ( int*   ) cuda_malloc ( sizeof(int )   * totPart_gpu );
+    dev_atom_weight = ( double*) cuda_malloc ( sizeof(double) * totPart_gpu );
+    dev_temp_weight = ( double*) cuda_malloc ( sizeof(double) * totPart_gpu );
 
-  Int index = 0;
-  Int ipart = 0;
-  for (Int iatm=0; iatm<natm; iatm++) {
-      Int nobt = pseudo[iatm].vnlListFine.size();
-      for(Int iobt = 0; iobt < nobt; iobt++)
-      {
-          const Real       vnlwgt = pseudo[iatm].vnlListFine[iobt].second;
-          const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
-          const IntNumVec &ivFine = vnlvecFine.first;
-          const DblNumMat &dvFine = vnlvecFine.second;
-          const Int    *ivFineptr = ivFine.Data();
-          const Real   *dvFineptr = dvFine.VecData(VAL);
-          atom_weight(ipart) = vnlwgt *vol/Real(ntotFine);
+    dev_idxFineGridR2C = ( int*) cuda_malloc ( sizeof(int   ) * ntotR2C );
+    dev_gkkR2C      = ( double*) cuda_malloc ( sizeof(double) * ntotR2C );
+    dev_vtot        = ( double*) cuda_malloc ( sizeof(double) * ntotFine);
 
-          NLpart(ipart++) = index;
-          for(Int i = 0; i < ivFine.m(); i++)
-          {
-             NLvecFine(index)  = *(dvFineptr++);
-             NLindex(index++)  = *(ivFineptr++);
-          }
-      }
+    cuda_memcpy_CPU2GPU( dev_NLvecFine,   NLvecFine.Data(),   totNLNum * sizeof(double) );
+    cuda_memcpy_CPU2GPU( dev_atom_weight, atom_weight.Data(), totPart_gpu* sizeof(double) );
+    cuda_memcpy_CPU2GPU( dev_NLindex,     NLindex.Data(),     totNLNum * sizeof(int) );
+    cuda_memcpy_CPU2GPU( dev_NLpart ,     NLpart.Data(),      totPart_gpu  * sizeof(int) );
+
+    cuda_memcpy_CPU2GPU(dev_idxFineGridR2C, fft.idxFineGridR2C.Data(), sizeof(Int) *ntotR2C); 
+    cuda_memcpy_CPU2GPU(dev_gkkR2C, fft.gkkR2C.Data(), sizeof(Real) *ntotR2C); 
+    cuda_memcpy_CPU2GPU(dev_vtot, vtot.Data(), sizeof(Real) *ntotFine); 
+
+    NL_gpu_flag = true;
+/*
+    cuDblNumVec cu_NLvecFine(totNLNum);
+    cuIntNumVec cu_NLindex(totNLNum);
+    cuIntNumVec cu_NLpart (totPart_gpu);
+    cuDblNumVec cu_atom_weight( totPart_gpu);
+    cuDblNumVec cu_temp_weight( totPart_gpu);
+  
+    cu_NLvecFine.CopyFrom(NLvecFine);
+    cu_NLindex.CopyFrom(NLindex);
+    cu_NLpart.CopyFrom(NLpart);
+    cu_atom_weight.CopyFrom(atom_weight);
+    // cuda nonlocal vector created.
+    //copy index into the GPU. note, this will be moved out of Hpsi. 
+    cuIntNumVec cu_idxFineGridR2C(ntotR2C);
+    cuDblNumVec cu_gkkR2C(ntotR2C);
+    cuDblNumVec cu_vtot(ntotFine);
+    cuda_memcpy_CPU2GPU(cu_idxFineGridR2C.Data(), fft.idxFineGridR2C.Data(), sizeof(Int) *ntotR2C); 
+    cuda_memcpy_CPU2GPU(cu_gkkR2C.Data(), fft.gkkR2C.Data(), sizeof(Real) *ntotR2C); 
+    cuda_memcpy_CPU2GPU(cu_vtot.Data(), vtot.Data(), sizeof(Real) *ntotFine); 
+*/
   }
-  NLpart(ipart) = index;
-  cuDblNumVec cu_NLvecFine(totNLNum);
-  cuIntNumVec cu_NLindex(totNLNum);
-  cuIntNumVec cu_NLpart (totPart);
-  cuDblNumVec cu_atom_weight( totPart);
-  cuDblNumVec cu_temp_weight( totPart);
-
-  cu_NLvecFine.CopyFrom(NLvecFine);
-  cu_NLindex.CopyFrom(NLindex);
-  cu_NLpart.CopyFrom(NLpart);
-  cu_atom_weight.CopyFrom(atom_weight);
-  //  cuda nonlocal vector created.
-
-  Real timeSta, timeEnd;
   Real timeSta1, timeEnd1;
   
   Real timeFFTCoarse = 0.0;
@@ -666,13 +705,8 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
 
 
-  //copy index into the GPU. note, this will be moved out of Hpsi. 
-  cuIntNumVec cu_idxFineGridR2C(ntotR2C);
-  cuDblNumVec cu_gkkR2C(ntotR2C);
-  cuDblNumVec cu_vtot(ntotFine);
-  cuda_memcpy_CPU2GPU(cu_idxFineGridR2C.Data(), fft.idxFineGridR2C.Data(), sizeof(Int) *ntotR2C); 
-  cuda_memcpy_CPU2GPU(cu_gkkR2C.Data(), fft.gkkR2C.Data(), sizeof(Real) *ntotR2C); 
-  cuda_memcpy_CPU2GPU(cu_vtot.Data(), vtot.Data(), sizeof(Real) *ntotFine); 
+  GetTime( timeEnd );
+  statusOFS << " Spinor overheader is : "<< timeEnd - timeSta <<  std::endl;
 
   for (Int k=0; k<numStateLocal; k++) {
     for (Int j=0; j<ncom; j++) {
@@ -692,7 +726,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       Real fac = sqrt( double(ntot) / double(ntotFine) );
       cuda_interpolate_wf_C2F( reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), 
                                reinterpret_cast<cuDoubleComplex*>(cu_psi_fine_out.Data()), 
-                               cu_idxFineGridR2C.Data(), 
+                               dev_idxFineGridR2C,
                                ntotR2C, 
                                fac);
 
@@ -705,25 +739,25 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       // cuda local psedupotential , note, we need psi and psiUpdate for the next nonlocal calculation.
       cuda_memcpy_GPU2GPU(cu_psi_fineUpdate.Data(), cu_psi_fine.Data(), sizeof(Real)*ntotFine);
       cuda_vtot( cu_psi_fineUpdate.Data(),
-                 cu_vtot.Data(), 
+                 dev_vtot,
                  ntotFine);
 
       // Add the contribution from nonlocal pseudopotential
       GetTime( timeSta );
       cuda_calculate_nonlocal(cu_psi_fineUpdate.Data(), 
                               cu_psi_fine.Data(),
-                              cu_NLvecFine.Data(),
-                              cu_NLindex.Data(),
-                              cu_NLpart.Data(),
-                              cu_atom_weight.Data(),
-                              cu_temp_weight.Data(),
-                              totPart-1);
+                              dev_NLvecFine,
+                              dev_NLindex,
+                              dev_NLpart,
+                              dev_atom_weight,
+                              dev_temp_weight,
+                              totPart_gpu-1);
       GetTime( timeEnd );
       timeNonlocal = timeNonlocal + ( timeEnd - timeSta );
 
       // Laplacian operator. Perform inverse Fourier transform in the end
       cuda_laplacian(  reinterpret_cast<cuDoubleComplex*>( cu_psi_out.Data()), 
-                       cu_gkkR2C.Data(),
+                       dev_gkkR2C,
                        ntotR2C);
       // Fine to coarse grid
       // Note the update is important since the Laplacian contribution is already taken into account.
@@ -740,7 +774,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       fac = sqrt( double(ntotFine) / double(ntot) );
       cuda_interpolate_wf_F2C( reinterpret_cast<cuDoubleComplex*>(cu_psi_fine_out.Data()), 
                                reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), 
-                               cu_idxFineGridR2C.Data(), 
+                               dev_idxFineGridR2C,
                                ntotR2C, 
                                fac);
 
