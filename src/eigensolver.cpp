@@ -7130,6 +7130,7 @@ EigenSolver::PPCGSolveReal (
 
     cublas::Destroy();
     MAGMA::Destroy();
+    cuda_set_vtot_flag();   // set the vtot_flag to false.
     //cuda_clean_vtot();
     return ;
     }         // -----  end of method EigenSolver::PPCGSolveReal  ----- 

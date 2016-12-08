@@ -643,6 +643,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
     cuda_memcpy_CPU2GPU(dev_vtot, vtot.Data(), sizeof(Real) *ntotFine); 
 
     NL_gpu_flag = true;
+    vtot_gpu_flag = true;
 /*
     cuDblNumVec cu_NLvecFine(totNLNum);
     cuIntNumVec cu_NLindex(totNLNum);
@@ -663,6 +664,10 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
     cuda_memcpy_CPU2GPU(cu_gkkR2C.Data(), fft.gkkR2C.Data(), sizeof(Real) *ntotR2C); 
     cuda_memcpy_CPU2GPU(cu_vtot.Data(), vtot.Data(), sizeof(Real) *ntotFine); 
 */
+  }
+  if( !vtot_gpu_flag) {
+    cuda_memcpy_CPU2GPU(dev_vtot, vtot.Data(), sizeof(Real) *ntotFine); 
+    vtot_gpu_flag = true;
   }
   Real timeSta1, timeEnd1;
   

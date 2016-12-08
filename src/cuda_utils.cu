@@ -640,4 +640,8 @@ void cuda_clean_vtot()
 	cuda_free(dev_temp_weight);
 	cuda_free(dev_TeterPrecond);
 }
+void cuda_set_vtot_flag()
+{
+	vtot_gpu_flag  = false;
+}
 #endif

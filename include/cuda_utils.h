@@ -149,6 +149,7 @@ void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen);
 void cu_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, double * eigen, int nbands, int bandLen);
 void cuda_init_vtot();
 void cuda_clean_vtot();
+void cuda_set_vtot_flag();
 //}
 #endif
 #endif
