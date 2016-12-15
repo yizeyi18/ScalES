@@ -1096,13 +1096,15 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     /// principle be a tensor, but only treated as matrix.
     //Int numPre = std::min(IRound(std::sqrt(numMu_*2.0)), numStateTotal);
     //Int numPre = std::min(IRound(std::sqrt(numMu_))+5, numStateTotal);
-    Int numPre = IRound(std::sqrt(numMu_*numGaussianRandomFac));
-    if( numPre > numStateTotal ){
+    //Int numPre = IRound(std::sqrt(numMu_*numGaussianRandomFac));
+    if( IRound(std::sqrt(numMu_*numGaussianRandomFac)) > numStateTotal ){
       ErrorHandling("numMu is too large for interpolative separable density fitting!");
     }
     
+    Int numPre = numMuFac*numGaussianRandomFac;
+    
     statusOFS << "numMu  = " << numMu_ << std::endl;
-    statusOFS << "numPre*numPre = " << numPre * numPre << std::endl;
+    statusOFS << "numPre*numStateTotal = " << numPre*numStateTotal << std::endl;
 
     // Convert the column partition to row partition
     Int numStateBlocksize = numStateTotal / mpisize;
@@ -1133,13 +1135,13 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     DblNumMat localVexxPsiRow( ntotLocal, numStateTotal );
     SetValue( localVexxPsiRow, 0.0 );
 
-    DblNumMat localphiGRow( ntotLocal, numPre );
-    SetValue( localphiGRow, 0.0 );
+    //DblNumMat localphiGRow( ntotLocal, numPre );
+    //SetValue( localphiGRow, 0.0 );
 
     DblNumMat localpsiGRow( ntotLocal, numPre );
     SetValue( localpsiGRow, 0.0 );
 
-    DblNumMat G(numStateTotal, numPre);
+    DblNumMat G( numStateTotal, numPre );
     SetValue( G, 0.0 );
 
     DblNumMat phiCol( ntot, numStateLocal );
@@ -1182,9 +1184,9 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
 
-      blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
-          phiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
-          localphiGRow.Data(), ntotLocal );
+      //blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
+      //    phiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
+      //    localphiGRow.Data(), ntotLocal );
 
       blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
           psiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
@@ -1196,15 +1198,35 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       // NOTE: All processors should have the same ntotLocalMG
       ntotMG = ntotLocalMG * mpisize;
 
-      DblNumMat MG( numPre*numPre, ntotLocalMG );
+      if(0){
+
+      //  DblNumMat MG( numPre*numPre, ntotLocalMG );
+      //  SetValue( MG, 0.0 );
+      //  for( Int j = 0; j < numPre; j++ ){
+      //    for( Int i = 0; i < numPre; i++ ){
+      //      for( Int ir = 0; ir < ntotLocal; ir++ ){
+      //        MG(i+j*numPre,ir) = localphiGRow(ir,i) * localpsiGRow(ir,j);
+      //      }
+      //    }
+      //  }
+
+      }//if(0)
+
+
+      DblNumMat MG( numStateTotal*numPre, ntotLocalMG );
       SetValue( MG, 0.0 );
-      for( Int j = 0; j < numPre; j++ ){
-        for( Int i = 0; i < numPre; i++ ){
-          for( Int ir = 0; ir < ntotLocal; ir++ ){
-            MG(i+j*numPre,ir) = localphiGRow(ir,i) * localpsiGRow(ir,j);
+
+      if(1){
+      
+        for( Int j = 0; j < numPre; j++ ){
+          for( Int i = 0; i < numStateTotal; i++ ){
+            for( Int ir = 0; ir < ntotLocal; ir++ ){
+              MG(i+j*numStateTotal,ir) = phiRow(ir,i) * ( localpsiGRow(ir,j) - psiRow(ir,i) * G(i, j) );
+            }
           }
         }
-      }
+
+      } // if(1)
 
       DblNumVec tau(ntotMG);
       pivQR_.Resize(ntotMG);
@@ -1215,7 +1237,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       GetTime( timeQRCPSta );
 
       if(0){  
-        lapack::QRCP( numPre*numPre, ntotMG, MG.Data(), numPre*numPre, 
+        lapack::QRCP( numStateTotal*numPre, ntotMG, MG.Data(), numStateTotal*numPre, 
             pivQR_.Data(), tau.Data() );
       }//
 
@@ -1234,7 +1256,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         Int irsrc = 0;
         Int icsrc = 0;
 
-        Int mb_MG = numPre*numPre;
+        Int mb_MG = numStateTotal*numPre;
         Int nb_MG = ntotLocalMG;
 
         // FIXME The current routine does not actually allow ntotLocal to be different on different processors.
@@ -1245,7 +1267,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         IntNumVec pivQRTmp(ntotMG), pivQRLocal(ntotMG);
         if( mb_MG > ntot ){
           std::ostringstream msg;
-          msg << "numPre*numPre > ntot. The number of grid points is perhaps too small!" << std::endl;
+          msg << "numStateTotal*numPre > ntot. The number of grid points is perhaps too small!" << std::endl;
           ErrorHandling( msg.str().c_str() );
         }
         // DiagR is only for debugging purpose
@@ -1334,7 +1356,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     DblNumMat PcolPhiMu(ntotLocal, numMu_);
     IntNumVec pivMu(numMu_);
 
-    {
     
       for( Int mu = 0; mu < numMu_; mu++ ){
         pivMu(mu) = pivQR_(mu);
@@ -1415,14 +1436,40 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
+      DblNumMat psiphiRow(ntotLocal, numStateTotal);
+      SetValue( psiphiRow, 0.0 );
+
+      for( Int ir = 0; ir < ntotLocal; ir++ ){
+        for (Int i=0; i<numStateTotal; i++) {
+          psiphiRow(ir,i) = psiRow(ir,i) * phiRow(ir, i); 
+        }
+      }       
+
+      DblNumMat psiphiMu(numStateTotal, numMu_);
+      SetValue( psiphiMu, 0.0 );
+
+      for( Int i = 0; i < numStateTotal; i++ ){
+        for (Int j = 0; j < numMu_; j++) {
+          psiphiMu(i,j) = psiMu(i,j) * phiMu(i,j); 
+        }
+      }       
+
+      DblNumMat PcolPsiPhiMu(ntotLocal, numMu_);
+      SetValue( PcolPsiPhiMu, 0.0 );
+
+      blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
+          psiphiRow.Data(), ntotLocal, psiphiMu.Data(), numStateTotal, 0.0,
+          PcolPsiPhiMu.Data(), ntotLocal );
+
       Real* xiPtr = XiRow.Data();
       Real* PcolPsiMuPtr = PcolPsiMu.Data();
       Real* PcolPhiMuPtr = PcolPhiMu.Data();
+      Real* PcolPsiPhiMuPtr = PcolPsiPhiMu.Data();
 
       GetTime( timeSta1 );
       
       for( Int g = 0; g < ntotLocal * numMu_; g++ ){
-        xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g];
+        xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g] - PcolPsiPhiMuPtr[g];
       }
       
       GetTime( timeEnd1 );
@@ -1432,7 +1479,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
       {
-
         GetTime( timeSta1 );
 
         DblNumMat PcolMuNuRow(numMu_, numMu_);
@@ -1579,7 +1625,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
-    }
       
     GetTime( timeEnd );
 
@@ -1629,22 +1674,91 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     GetTime( timeSta );
     // Rewrite Xi by Xi.*PcolPhi
-    Real* xiPtr = XiRow.Data();
-    Real* PcolPhiMuPtr = PcolPhiMu.Data();
-    for( Int g = 0; g < ntotLocal * numMu_; g++ ){
-      xiPtr[g] *= PcolPhiMuPtr[g];
-    }
-
-    // NOTE: a3 must be zero in order to compute the M matrix later
     DblNumMat a3Row( ntotLocal, numStateTotal );
     SetValue( a3Row, 0.0 );
-    blas::Gemm( 'N', 'T', ntotLocal, numStateTotal, numMu_, 1.0, 
-        XiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 1.0,
-        a3Row.Data(), ntotLocal ); 
+
+    if(0){
+
+      Real* xiPtr = XiRow.Data();
+      Real* PcolPhiMuPtr = PcolPhiMu.Data();
+      for( Int g = 0; g < ntotLocal * numMu_; g++ ){
+        xiPtr[g] *= PcolPhiMuPtr[g];
+      }
+
+      // NOTE: a3 must be zero in order to compute the M matrix later
+      blas::Gemm( 'N', 'T', ntotLocal, numStateTotal, numMu_, 1.0, 
+          XiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 1.0,
+          a3Row.Data(), ntotLocal ); 
+
+    } //if(0)
+
+
+    if(1){
+
+      for (Int i = 0; i < numStateTotal; i++) {
+
+        DblNumMat PcolPhiMui( ntotLocal, numMu_);
+        SetValue( PcolPhiMui, 0.0 );
+
+        for( Int ir = 0; ir < ntotLocal; ir++ ) {
+          for (Int j = 0; j < numMu_; j++) {
+            for (Int k = 0; k < numStateTotal; k++) {
+              if( k != i)
+              PcolPhiMui(ir,j) += phiRow(ir,k) * phiMu(k,j); 
+            }        
+          }
+        }
+
+        DblNumMat XiRowTemp(ntotLocal, numMu_);
+        SetValue( XiRowTemp, 0.0 );
+        lapack::Lacpy( 'A', ntotLocal, numMu_, XiRow.Data(), ntotLocal, XiRowTemp.Data(), ntotLocal );
+
+        Real* xiPtr = XiRowTemp.Data();
+        Real* PcolPhiMuiPtr = PcolPhiMui.Data();
+        for( Int g = 0; g < ntotLocal * numMu_; g++ ){
+          xiPtr[g] *= PcolPhiMuiPtr[g];
+        }
+
+        for( Int ir = 0; ir < ntotLocal; ir++ ){
+          for (Int j = 0; j < numMu_; j++) {
+            a3Row(ir,i) += XiRowTemp(ir,j)*psiMu(i,j); 
+          }
+        }
+
+      } //end for i
+
+    } //if(1)
 
     DblNumMat a3Col( ntot, numStateLocal );
+    SetValue( a3Col, 0.0 );
     
     AlltoallBackward (a3Row, a3Col, domain_.comm);
+   
+    if(1){
+
+      for (Int i=0; i<numStateLocal; i++) {
+
+        for( Int ir = 0; ir < ntot; ir++ ){
+          fft.inputVecR2C(ir) = psiCol(ir, i) * phiCol(ir, i);
+        }
+
+        FFTWExecute ( fft, fft.forwardPlanR2C );
+
+        // Solve the Poisson-like problem for exchange
+        for( Int ig = 0; ig < ntotR2C; ig++ ){
+          fft.outputVecR2C(ig) *= exxgkkR2C(ig);
+        }
+
+        FFTWExecute ( fft, fft.backwardPlanR2C );
+
+        Real fac = -exxFraction * occupationRate[wavefunIdx_(i)];  
+        for( Int ir = 0; ir < ntot; ir++ ){
+          a3Col(ir,i) += fft.inputVecR2C(ir) * phiCol(ir,i) * fac;
+        }
+
+      } // for i
+    
+    } //if(1)
 
     lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );
 
@@ -1664,6 +1778,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       DblNumMat VxMatTemp( numStateTotal, numStateTotal );
       SetValue( VxMatTemp, 0.0 );
       GetTime( timeSta );
+    
+      SetValue( a3Row, 0.0 );
+      AlltoallForward (a3Col, a3Row, domain_.comm);
+    
       blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal, -1.0,
           psiRow.Data(), ntotLocal, a3Row.Data(), ntotLocal, 0.0, 
           VxMatTemp.Data(), numStateTotal );
