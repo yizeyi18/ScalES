@@ -164,6 +164,30 @@ int main(int argc, char **argv)
     GetTime( timeEnd );
     statusOFS << "Time for calculating the pseudopotential for the Hamiltonian = " 
       << timeEnd - timeSta << " [s]" << std::endl;
+
+    // DEBUG
+    if(0){
+      std::vector<PseudoPot>& pseudo = hamKS.Pseudo();
+      if( mpirank == 1 ){
+        std::stringstream vStream;
+        std::vector<PseudoPot> pseudott;
+        for( Int i = 0; i < 3; i++ ){
+          pseudott.push_back(pseudo[i]);
+        }
+        serialize( pseudott, vStream, NO_MASK );
+        mpi::Send( vStream, 0, 1, 2, MPI_COMM_WORLD );
+      }
+      else{
+        std::stringstream vStream;
+        MPI_Status status1, status2;
+        mpi::Recv( vStream, 1, 1, 2, MPI_COMM_WORLD, status1, status2 );
+        std::vector<PseudoPot> pseudott;
+        deserialize(pseudott, vStream, NO_MASK);
+
+        statusOFS << "On proc 0, pseudott[1].pseudoCharge.first = " << 
+          pseudott[1].pseudoCharge.first << std::endl;
+      }
+    }
     
 
     // Wavefunctions

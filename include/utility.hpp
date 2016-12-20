@@ -1773,5 +1773,13 @@ public:
 };
 
 
+// serialize/deserialize the pseudopot
+
+Int serialize(const PseudoPot& val, std::ostream& os, const std::vector<Int>& mask);
+
+Int deserialize(PseudoPot& val, std::istream& is, const std::vector<Int>& mask);
+
+
+
 } // namespace dgdft
 #endif // _UTILITY_HPP_
