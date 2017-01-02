@@ -1083,6 +1083,41 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
 
 
+  // Pre-processing. Perform SCDM to align the orbitals into localized orbitals
+  // This assumes that the phi and psi orbitals are the same
+  IntNumVec permPhi(ntot);
+  DblNumMat Q(numStateTotal, numStateTotal);
+  DblNumMat phiSave(ntot, numStateTotal);
+  DblNumMat psiSave(ntot, numStateTotal);
+  lapack::Lacpy( 'A', ntot, numStateTotal, phi.Data(), ntot, phiSave.Data(), ntot );
+  lapack::Lacpy( 'A', ntot, numStateTotal, wavefun_.Data(), ntot, psiSave.Data(), ntot );
+
+  if(1){
+    if( mpisize > 1 )
+      ErrorHandling("Only works for mpisize == 1.");
+
+    DblNumMat phiT;
+    Transpose( DblNumMat(ntot, numStateTotal, false, phi.Data()), phiT );
+
+    // SCDM using sequential QRCP
+    DblNumMat R(numStateTotal, ntot);
+    lapack::QRCP( numStateTotal, ntot, phiT.Data(), Q.Data(), R.Data(), numStateTotal, 
+        permPhi.Data() );
+
+    // Make a copy before GEMM
+
+    // Rotate phi
+    blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, 1.0, 
+        phiSave.Data(), ntot, Q.Data(), numStateTotal, 0.0,
+        phi.Data(), ntot );
+    // Rotate psi
+    blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, 1.0, 
+        psiSave.Data(), ntot, Q.Data(), numStateTotal, 0.0,
+        wavefun_.Data(), ntot );
+  }
+
+
+
   if(1){ //For MPI
 
     // *********************************************************************
@@ -1100,9 +1135,9 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     if( IRound(std::sqrt(numMu_*numGaussianRandomFac)) > numStateTotal ){
       ErrorHandling("numMu is too large for interpolative separable density fitting!");
     }
-    
+
     Int numPre = numMuFac*numGaussianRandomFac;
-    
+
     statusOFS << "numMu  = " << numMu_ << std::endl;
     statusOFS << "numPre*numStateTotal = " << numPre*numStateTotal << std::endl;
 
@@ -1200,15 +1235,15 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       if(0){
 
-      //  DblNumMat MG( numPre*numPre, ntotLocalMG );
-      //  SetValue( MG, 0.0 );
-      //  for( Int j = 0; j < numPre; j++ ){
-      //    for( Int i = 0; i < numPre; i++ ){
-      //      for( Int ir = 0; ir < ntotLocal; ir++ ){
-      //        MG(i+j*numPre,ir) = localphiGRow(ir,i) * localpsiGRow(ir,j);
-      //      }
-      //    }
-      //  }
+        //  DblNumMat MG( numPre*numPre, ntotLocalMG );
+        //  SetValue( MG, 0.0 );
+        //  for( Int j = 0; j < numPre; j++ ){
+        //    for( Int i = 0; i < numPre; i++ ){
+        //      for( Int ir = 0; ir < ntotLocal; ir++ ){
+        //        MG(i+j*numPre,ir) = localphiGRow(ir,i) * localpsiGRow(ir,j);
+        //      }
+        //    }
+        //  }
 
       }//if(0)
 
@@ -1217,7 +1252,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       SetValue( MG, 0.0 );
 
       if(1){
-      
+
         for( Int j = 0; j < numPre; j++ ){
           for( Int i = 0; i < numStateTotal; i++ ){
             for( Int ir = 0; ir < ntotLocal; ir++ ){
@@ -1271,21 +1306,21 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
           ErrorHandling( msg.str().c_str() );
         }
         // DiagR is only for debugging purpose
-//        DblNumVec diagRLocal( mb_MG );
-//        DblNumVec diagR( mb_MG );
+        //        DblNumVec diagRLocal( mb_MG );
+        //        DblNumVec diagR( mb_MG );
 
         SetValue( pivQRTmp, 0 );
         SetValue( pivQRLocal, 0 );
         SetValue( pivQR_, 0 );
 
-//        SetValue( diagRLocal, 0.0 );
-//        SetValue( diagR, 0.0 );
+        //        SetValue( diagRLocal, 0.0 );
+        //        SetValue( diagR, 0.0 );
 
         scalapack::QRCPF( mb_MG, ntotMG, MG.Data(), &desc_MG[0], 
             pivQRTmp.Data(), tau.Data() );
 
-//        scalapack::QRCPR( mb_MG, ntotMG, numMu_, MG.Data(), &desc_MG[0], 
-//            pivQRTmp.Data(), tau.Data(), 80, 40 );
+        //        scalapack::QRCPR( mb_MG, ntotMG, numMu_, MG.Data(), &desc_MG[0], 
+        //            pivQRTmp.Data(), tau.Data(), 80, 40 );
 
         // Combine the local pivQRTmp to global pivQR_
         for( Int j = 0; j < ntotLocalMG; j++ ){
@@ -1349,283 +1384,283 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     // *********************************************************************
 
     GetTime( timeSta );
-    
+
     DblNumMat XiRow(ntotLocal, numMu_);
     DblNumMat psiMu(numStateTotal, numMu_);
     // PhiMu is scaled by the occupation number to reflect the "true" density matrix
     DblNumMat PcolPhiMu(ntotLocal, numMu_);
     IntNumVec pivMu(numMu_);
 
-    
-      for( Int mu = 0; mu < numMu_; mu++ ){
-        pivMu(mu) = pivQR_(mu);
+
+    for( Int mu = 0; mu < numMu_; mu++ ){
+      pivMu(mu) = pivQR_(mu);
+    }
+
+    // These three matrices are used only once. 
+    // Used before reduce
+    DblNumMat psiMuRow(numStateTotal, numMu_);
+    DblNumMat phiMuRow(numStateTotal, numMu_);
+    //DblNumMat PcolMuNuRow(numMu_, numMu_);
+    DblNumMat PcolPsiMuRow(ntotLocal, numMu_);
+
+    // Collecting the matrices obtained from row partition
+    DblNumMat phiMu(numStateTotal, numMu_);
+    DblNumMat PcolMuNu(numMu_, numMu_);
+    DblNumMat PcolPsiMu(ntotLocal, numMu_);
+
+    SetValue( psiMuRow, 0.0 );
+    SetValue( phiMuRow, 0.0 );
+    //SetValue( PcolMuNuRow, 0.0 );
+    SetValue( PcolPsiMuRow, 0.0 );
+
+    SetValue( phiMu, 0.0 );
+    SetValue( PcolMuNu, 0.0 );
+    SetValue( PcolPsiMu, 0.0 );
+
+    GetTime( timeSta1 );
+
+    for( Int mu = 0; mu < numMu_; mu++ ){
+      Int muInd = pivMu(mu);
+      // NOTE Hard coded here with the row partition strategy
+      if( muInd <  mpirank * ntotLocalMG ||
+          muInd >= (mpirank + 1) * ntotLocalMG )
+        continue;
+
+      Int muIndRow = muInd - mpirank * ntotLocalMG;
+
+      for (Int k=0; k<numStateTotal; k++) {
+        psiMuRow(k, mu) = psiRow(muIndRow,k);
+        phiMuRow(k, mu) = phiRow(muIndRow,k) * occupationRate[k];
       }
+    }
 
-      // These three matrices are used only once. 
-      // Used before reduce
-      DblNumMat psiMuRow(numStateTotal, numMu_);
-      DblNumMat phiMuRow(numStateTotal, numMu_);
-      //DblNumMat PcolMuNuRow(numMu_, numMu_);
-      DblNumMat PcolPsiMuRow(ntotLocal, numMu_);
+    GetTime( timeEnd1 );
 
-      // Collecting the matrices obtained from row partition
-      DblNumMat phiMu(numStateTotal, numMu_);
-      DblNumMat PcolMuNu(numMu_, numMu_);
-      DblNumMat PcolPsiMu(ntotLocal, numMu_);
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing the MuRow is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
 
-      SetValue( psiMuRow, 0.0 );
-      SetValue( phiMuRow, 0.0 );
-      //SetValue( PcolMuNuRow, 0.0 );
-      SetValue( PcolPsiMuRow, 0.0 );
+    GetTime( timeSta1 );
 
-      SetValue( phiMu, 0.0 );
-      SetValue( PcolMuNu, 0.0 );
-      SetValue( PcolPsiMu, 0.0 );
+    MPI_Allreduce( psiMuRow.Data(), psiMu.Data(), 
+        numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
+    MPI_Allreduce( phiMuRow.Data(), phiMu.Data(), 
+        numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
 
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for MPI_Allreduce is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+    GetTime( timeSta1 );
+
+    blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
+        psiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 0.0,
+        PcolPsiMu.Data(), ntotLocal );
+    blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
+        phiRow.Data(), ntotLocal, phiMu.Data(), numStateTotal, 0.0,
+        PcolPhiMu.Data(), ntotLocal );
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for GEMM is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+    DblNumMat psiphiRow(ntotLocal, numStateTotal);
+    SetValue( psiphiRow, 0.0 );
+
+    for( Int ir = 0; ir < ntotLocal; ir++ ){
+      for (Int i=0; i<numStateTotal; i++) {
+        psiphiRow(ir,i) = psiRow(ir,i) * phiRow(ir, i); 
+      }
+    }       
+
+    DblNumMat psiphiMu(numStateTotal, numMu_);
+    SetValue( psiphiMu, 0.0 );
+
+    for( Int i = 0; i < numStateTotal; i++ ){
+      for (Int j = 0; j < numMu_; j++) {
+        psiphiMu(i,j) = psiMu(i,j) * phiMu(i,j); 
+      }
+    }       
+
+    DblNumMat PcolPsiPhiMu(ntotLocal, numMu_);
+    SetValue( PcolPsiPhiMu, 0.0 );
+
+    blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
+        psiphiRow.Data(), ntotLocal, psiphiMu.Data(), numStateTotal, 0.0,
+        PcolPsiPhiMu.Data(), ntotLocal );
+
+    Real* xiPtr = XiRow.Data();
+    Real* PcolPsiMuPtr = PcolPsiMu.Data();
+    Real* PcolPhiMuPtr = PcolPhiMu.Data();
+    Real* PcolPsiPhiMuPtr = PcolPsiPhiMu.Data();
+
+    GetTime( timeSta1 );
+
+    for( Int g = 0; g < ntotLocal * numMu_; g++ ){
+      xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g] - PcolPsiPhiMuPtr[g];
+    }
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for xiPtr is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+    {
       GetTime( timeSta1 );
 
+      DblNumMat PcolMuNuRow(numMu_, numMu_);
+      SetValue( PcolMuNuRow, 0.0 );
+
       for( Int mu = 0; mu < numMu_; mu++ ){
+
         Int muInd = pivMu(mu);
         // NOTE Hard coded here with the row partition strategy
         if( muInd <  mpirank * ntotLocalMG ||
             muInd >= (mpirank + 1) * ntotLocalMG )
           continue;
-
         Int muIndRow = muInd - mpirank * ntotLocalMG;
 
-        for (Int k=0; k<numStateTotal; k++) {
-          psiMuRow(k, mu) = psiRow(muIndRow,k);
-          phiMuRow(k, mu) = phiRow(muIndRow,k) * occupationRate[k];
+        for (Int nu=0; nu < numMu_; nu++) {
+          PcolMuNuRow( mu, nu ) = XiRow( muIndRow, nu );
         }
-      }
+
+      }//for mu
 
       GetTime( timeEnd1 );
 
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for computing the MuRow is " <<
+      statusOFS << "Time for PcolMuNuRow is " <<
         timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
       GetTime( timeSta1 );
-      
-      MPI_Allreduce( psiMuRow.Data(), psiMu.Data(), 
-          numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
-      MPI_Allreduce( phiMuRow.Data(), phiMu.Data(), 
-          numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
-      
+
+      MPI_Allreduce( PcolMuNuRow.Data(), PcolMuNu.Data(), 
+          numMu_* numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
       GetTime( timeEnd1 );
 
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for MPI_Allreduce is " <<
         timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
-      
-      GetTime( timeSta1 );
 
-      blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
-          psiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 0.0,
-          PcolPsiMu.Data(), ntotLocal );
-      blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
-          phiRow.Data(), ntotLocal, phiMu.Data(), numStateTotal, 0.0,
-          PcolPhiMu.Data(), ntotLocal );
-      
-      GetTime( timeEnd1 );
+    }
 
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for GEMM is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
+    GetTime( timeSta1 );
 
-      DblNumMat psiphiRow(ntotLocal, numStateTotal);
-      SetValue( psiphiRow, 0.0 );
-
-      for( Int ir = 0; ir < ntotLocal; ir++ ){
-        for (Int i=0; i<numStateTotal; i++) {
-          psiphiRow(ir,i) = psiRow(ir,i) * phiRow(ir, i); 
-        }
-      }       
-
-      DblNumMat psiphiMu(numStateTotal, numMu_);
-      SetValue( psiphiMu, 0.0 );
-
-      for( Int i = 0; i < numStateTotal; i++ ){
-        for (Int j = 0; j < numMu_; j++) {
-          psiphiMu(i,j) = psiMu(i,j) * phiMu(i,j); 
-        }
-      }       
-
-      DblNumMat PcolPsiPhiMu(ntotLocal, numMu_);
-      SetValue( PcolPsiPhiMu, 0.0 );
-
-      blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
-          psiphiRow.Data(), ntotLocal, psiphiMu.Data(), numStateTotal, 0.0,
-          PcolPsiPhiMu.Data(), ntotLocal );
-
-      Real* xiPtr = XiRow.Data();
-      Real* PcolPsiMuPtr = PcolPsiMu.Data();
-      Real* PcolPhiMuPtr = PcolPhiMu.Data();
-      Real* PcolPsiPhiMuPtr = PcolPsiPhiMu.Data();
-
-      GetTime( timeSta1 );
-      
-      for( Int g = 0; g < ntotLocal * numMu_; g++ ){
-        xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g] - PcolPsiPhiMuPtr[g];
+    if(0){
+      if ( mpirank == 0) {
+        lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
       }
-      
-      GetTime( timeEnd1 );
+    } // if(0)
 
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for xiPtr is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-      {
-        GetTime( timeSta1 );
+    if(1){ // Parallel Portf
 
-        DblNumMat PcolMuNuRow(numMu_, numMu_);
-        SetValue( PcolMuNuRow, 0.0 );
+      Int contxt;
+      Int nprow, npcol, myrow, mycol, info;
+      Cblacs_get(0, 0, &contxt);
 
-        for( Int mu = 0; mu < numMu_; mu++ ){
-
-          Int muInd = pivMu(mu);
-          // NOTE Hard coded here with the row partition strategy
-          if( muInd <  mpirank * ntotLocalMG ||
-              muInd >= (mpirank + 1) * ntotLocalMG )
-            continue;
-          Int muIndRow = muInd - mpirank * ntotLocalMG;
-
-          for (Int nu=0; nu < numMu_; nu++) {
-            PcolMuNuRow( mu, nu ) = XiRow( muIndRow, nu );
-          }
-
-        }//for mu
-
-        GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for PcolMuNuRow is " <<
-          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-        GetTime( timeSta1 );
-
-        MPI_Allreduce( PcolMuNuRow.Data(), PcolMuNu.Data(), 
-            numMu_* numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
-
-        GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for MPI_Allreduce is " <<
-          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-      }
-        
-      GetTime( timeSta1 );
-
-      if(0){
-        if ( mpirank == 0) {
-          lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
-        }
-      } // if(0)
-
-      if(1){ // Parallel Portf
-
-        Int contxt;
-        Int nprow, npcol, myrow, mycol, info;
-        Cblacs_get(0, 0, &contxt);
-
-        for( Int i = IRound(sqrt(double(numProcScaLAPACKPotrf))); 
-            i <= numProcScaLAPACKPotrf; i++){
-          nprow = i; npcol = numProcScaLAPACKPotrf / nprow;
-          if( nprow * npcol == numProcScaLAPACKPotrf ) break;
-        }
-
-        IntNumVec pmap(numProcScaLAPACKPotrf);
-        // Take the first numProcScaLAPACK processors for diagonalization
-        for ( Int i = 0; i < numProcScaLAPACKPotrf; i++ ){
-          pmap[i] = i;
-        }
-
-        Cblacs_gridmap(&contxt, &pmap[0], nprow, nprow, npcol);
-
-        if( contxt >= 0 ){
-
-          Int numKeep = numMu_; 
-          Int lda = numMu_;
-
-          scalapack::ScaLAPACKMatrix<Real> square_mat_scala;
-
-          scalapack::Descriptor descReduceSeq, descReducePar;
-
-          // Leading dimension provided
-          descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt, lda );
-
-          // Automatically comptued Leading Dimension
-          descReducePar.Init( numKeep, numKeep, scaPotrfBlockSize, scaPotrfBlockSize, I_ZERO, I_ZERO, contxt );
-
-          square_mat_scala.SetDescriptor( descReducePar );
-
-          DblNumMat&  square_mat = PcolMuNu;
-          // Redistribute the input matrix over the process grid
-          SCALAPACK(pdgemr2d)(&numKeep, &numKeep, square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
-              &square_mat_scala.LocalMatrix()[0], &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &contxt );
-
-          // Make the ScaLAPACK call
-          char LL = 'L';
-          //SCALAPACK(pdpotrf)(&LL, &numMu_, square_mat_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &info);
-          scalapack::Potrf(LL, square_mat_scala);
-
-          // Redistribute back eigenvectors
-          SetValue(square_mat, 0.0 );
-          SCALAPACK(pdgemr2d)( &numKeep, &numKeep, square_mat_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(),
-              square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt );
-        
-        } // if(contxt >= 0)
-
-        if(contxt >= 0) {
-          Cblacs_gridexit( contxt );
-        }
-
-      } // if(1) for Parallel Portf
-
-      GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for Potrf is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-      { 
-
-        GetTime( timeSta1 );
-
-        MPI_Bcast(PcolMuNu.Data(), numMu_ * numMu_, MPI_DOUBLE, 0, domain_.comm);
-
-        GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for MPI_Bcast is " <<
-          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-        GetTime( timeSta1 );
-
+      for( Int i = IRound(sqrt(double(numProcScaLAPACKPotrf))); 
+          i <= numProcScaLAPACKPotrf; i++){
+        nprow = i; npcol = numProcScaLAPACKPotrf / nprow;
+        if( nprow * npcol == numProcScaLAPACKPotrf ) break;
       }
 
-      blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numMu_, 1.0, 
-          PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
+      IntNumVec pmap(numProcScaLAPACKPotrf);
+      // Take the first numProcScaLAPACK processors for diagonalization
+      for ( Int i = 0; i < numProcScaLAPACKPotrf; i++ ){
+        pmap[i] = i;
+      }
 
-      blas::Trsm( 'R', 'L', 'N', 'N', ntotLocal, numMu_, 1.0, 
-          PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
+      Cblacs_gridmap(&contxt, &pmap[0], nprow, nprow, npcol);
+
+      if( contxt >= 0 ){
+
+        Int numKeep = numMu_; 
+        Int lda = numMu_;
+
+        scalapack::ScaLAPACKMatrix<Real> square_mat_scala;
+
+        scalapack::Descriptor descReduceSeq, descReducePar;
+
+        // Leading dimension provided
+        descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt, lda );
+
+        // Automatically comptued Leading Dimension
+        descReducePar.Init( numKeep, numKeep, scaPotrfBlockSize, scaPotrfBlockSize, I_ZERO, I_ZERO, contxt );
+
+        square_mat_scala.SetDescriptor( descReducePar );
+
+        DblNumMat&  square_mat = PcolMuNu;
+        // Redistribute the input matrix over the process grid
+        SCALAPACK(pdgemr2d)(&numKeep, &numKeep, square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
+            &square_mat_scala.LocalMatrix()[0], &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &contxt );
+
+        // Make the ScaLAPACK call
+        char LL = 'L';
+        //SCALAPACK(pdpotrf)(&LL, &numMu_, square_mat_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &info);
+        scalapack::Potrf(LL, square_mat_scala);
+
+        // Redistribute back eigenvectors
+        SetValue(square_mat, 0.0 );
+        SCALAPACK(pdgemr2d)( &numKeep, &numKeep, square_mat_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(),
+            square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt );
+
+      } // if(contxt >= 0)
+
+      if(contxt >= 0) {
+        Cblacs_gridexit( contxt );
+      }
+
+    } // if(1) for Parallel Portf
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for Potrf is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+    { 
+
+      GetTime( timeSta1 );
+
+      MPI_Bcast(PcolMuNu.Data(), numMu_ * numMu_, MPI_DOUBLE, 0, domain_.comm);
 
       GetTime( timeEnd1 );
 
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for Trsm is " <<
+      statusOFS << "Time for MPI_Bcast is " <<
         timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
-      
+      GetTime( timeSta1 );
+
+    }
+
+    blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numMu_, 1.0, 
+        PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
+
+    blas::Trsm( 'R', 'L', 'N', 'N', ntotLocal, numMu_, 1.0, 
+        PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for Trsm is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+
     GetTime( timeEnd );
 
 #if ( _DEBUGlevel_ >= 0 )
@@ -1641,7 +1676,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     DblNumMat XiCol(ntot, numMuLocal);
 
     AlltoallBackward (XiRow, XiCol, domain_.comm);
-       
+
     {
       GetTime( timeSta );
       for( Int mu = 0; mu < numMuLocal; mu++ ){
@@ -1697,16 +1732,12 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       for (Int i = 0; i < numStateTotal; i++) {
 
-        DblNumMat PcolPhiMui( ntotLocal, numMu_);
-        SetValue( PcolPhiMui, 0.0 );
+        DblNumMat PcolPhiMui = PcolPhiMu;
 
-        for( Int ir = 0; ir < ntotLocal; ir++ ) {
-          for (Int j = 0; j < numMu_; j++) {
-            for (Int k = 0; k < numStateTotal; k++) {
-              if( k != i)
-              PcolPhiMui(ir,j) += phiRow(ir,k) * phiMu(k,j); 
-            }        
-          }
+        // Remove the self-contribution
+        for (Int mu = 0; mu < numMu_; mu++) {
+          blas::Axpy( ntotLocal, -phiMu(i,mu), phiRow.VecData(i),
+              1, PcolPhiMui.VecData(mu), 1 );
         }
 
         DblNumMat XiRowTemp(ntotLocal, numMu_);
@@ -1719,11 +1750,12 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
           xiPtr[g] *= PcolPhiMuiPtr[g];
         }
 
-        for( Int ir = 0; ir < ntotLocal; ir++ ){
-          for (Int j = 0; j < numMu_; j++) {
-            a3Row(ir,i) += XiRowTemp(ir,j)*psiMu(i,j); 
-          }
+
+        for ( Int mu = 0; mu < numMu_; mu++ ){
+          blas::Axpy( ntotLocal, psiMu(i,mu), XiRowTemp.VecData(mu),
+              1, a3Row.VecData(i), 1 );
         }
+
 
       } //end for i
 
@@ -1731,9 +1763,9 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     DblNumMat a3Col( ntot, numStateLocal );
     SetValue( a3Col, 0.0 );
-    
+
     AlltoallBackward (a3Row, a3Col, domain_.comm);
-   
+
     if(1){
 
       for (Int i=0; i<numStateLocal; i++) {
@@ -1757,7 +1789,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         }
 
       } // for i
-    
+
     } //if(1)
 
     lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );
@@ -1767,6 +1799,18 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     statusOFS << "Time for computing the exchange potential is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+
+    // Unrotate if SCDM is used
+    if(1){
+      lapack::Lacpy( 'A', ntot, numStateTotal, phiSave.Data(), ntot, 
+          phi.Data(), ntot );
+      lapack::Lacpy( 'A', ntot, numStateTotal, psiSave.Data(), ntot, 
+          wavefun_.Data(), ntot );
+    }
+
+
+
+
 
     // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
     // vexxPsi (a3) must be zero before entering this routine
@@ -1778,10 +1822,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       DblNumMat VxMatTemp( numStateTotal, numStateTotal );
       SetValue( VxMatTemp, 0.0 );
       GetTime( timeSta );
-    
+
       SetValue( a3Row, 0.0 );
       AlltoallForward (a3Col, a3Row, domain_.comm);
-    
+
       blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal, -1.0,
           psiRow.Data(), ntotLocal, a3Row.Data(), ntotLocal, 0.0, 
           VxMatTemp.Data(), numStateTotal );
@@ -1791,7 +1835,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
           MPI_DOUBLE, MPI_SUM, domain_.comm );
 
       Symmetrize( VxMat );
-     
+
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for computing VxMat in the sym format is " <<

@@ -2265,7 +2265,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.eigMinIter           = esdf_integer( "Eig_MinIter",  2 );
     esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
     esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
-    esdfParam.isUseAtomDensity = esdf_integer( "Use_Atom_Density", 1 );
+    esdfParam.isUseAtomDensity = esdf_integer( "Use_Atom_Density", 0 );
     esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
     esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
     esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );

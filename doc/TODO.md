@@ -94,6 +94,9 @@ TODO List   {#pageTODO}
   - Parallel implementation for PWDFT
   - Hybrid for DG
 
+- Nonlocal pseudopotential format is not very compatible with GPU like
+  structure
+
 DONE recently
 c Remove BLOPEX
 c Remove SCALAR design
