@@ -701,6 +701,11 @@ void esdf_key() {
   strcpy(kw_label[i],"solution_method");
   strcpy(kw_typ[i],"T:E");
 
+  
+  i++;
+  strcpy(kw_label[i],"smearing_scheme");
+  strcpy(kw_typ[i],"T:E");
+  
   i++;
   strcpy(kw_label[i],"num_pole");
   strcpy(kw_typ[i],"I:E");
@@ -2301,6 +2306,10 @@ ESDFReadInput ( const char* filename )
     Real temperature;
     temperature               = esdf_double( "Temperature", 300.0 );
     esdfParam.Tbeta           = au2K / temperature;
+    
+    
+    esdf_string("Smearing_Scheme", "FD", strtmp); 
+    esdfParam.smearing_scheme = strtmp;
 
     esdfParam.numExtraState   = esdf_integer( "Extra_States",  0 );
     esdfParam.numUnusedState  = esdf_integer( "Unused_States",  0 );
@@ -2707,7 +2716,8 @@ void ESDFPrintInput( ){
   Print(statusOFS, "Mixing Steplength                    = ",  esdfParam.mixStepLength);
 
   Print(statusOFS, "Temperature                          = ",  au2K / esdfParam.Tbeta, "[K]");
-  Print(statusOFS, "Extra states                         = ",  esdfParam.numExtraState );
+  Print(statusOFS, "Extra states                         = ",  esdfParam.numExtraState  );
+  Print(statusOFS, "Smearing scheme                      = ",  esdfParam.smearing_scheme );
   Print(statusOFS, "PeriodTable File                     = ",  esdfParam.periodTableFile );
   Print(statusOFS, "Pseudo Type                          = ",  esdfParam.pseudoType );
   Print(statusOFS, "PW Solver                            = ",  esdfParam.PWSolver );

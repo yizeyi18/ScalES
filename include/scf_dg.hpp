@@ -111,6 +111,9 @@ private:
   /// @brief Same as @ref esdf::ESDFInputParam::solutionMethod
   std::string         solutionMethod_;
 
+  std::string         SmearingScheme_;
+  Int                 MP_smearing_order_;
+  
   // PWDFT solver on extended element
   std::string         PWSolver_;
 
@@ -271,6 +274,7 @@ private:
 
   // Physical parameters
   Real                Tbeta_;                    // Inverse of temperature in atomic unit
+  Real                Tsigma_;                   // = kB * T in atomic units (i.e. = 1 / Tbeta_
   Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional
   Real                EfreeSecondOrder_;         // Second order accurate Helmholtz free energy 
   Real                Efree_;                    // Helmholtz free energy (KS energy functional)
@@ -416,8 +420,18 @@ private:
   void scfdg_calc_occ_rate_comp_subspc( DblNumVec& top_eigVals, DblNumVec& top_occ, Int num_solve);
 
 
+ // Internal routines for MP (and GB) type smearing 
+ double low_order_hermite_poly(double x, int order); // This returns Hermite polynomials (physicist convention) of order <= 6
+ double mp_occupations(double x, int order); // This returns the occupation as a function of x = (e_i - mu) / sigma
+ double mp_entropy(double x, int order); // This returns the contribution to the electronic entropy as a function of x = (e_i - mu) / sigma
+ 
+ // Calculate the Methfessel-Paxton (or Gaussian Broadening) occupations for a given set of eigenvalues and a fermi-level
+ void populate_mp_occupations(DblNumVec& input_eigvals, DblNumVec& output_occ, double fermi_mu);
+ 
+ // Calculate the residual function for use in Fermi-level calculations using bisection method
+ double mp_occupations_residual(DblNumVec& input_eigvals, double fermi_mu, int num_solve);
 
-
+ 
 public:
 
 

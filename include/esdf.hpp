@@ -512,6 +512,14 @@ struct ESDFInputParam{
   ///                   This option needs to turn on the macro -DPEXSI
   ///                   to support the libraries.
   std::string         solutionMethod; 
+  
+  
+  std::string         smearing_scheme;
+  /// @brief smearing scheme for fractional occupations 
+  /// options : FD - Fermi-Dirac distribution
+  ///           GB - Gaussian Broadening or Methfessel / Paxton of order 0
+  ///           MP - Methfessel-Paxton smearing - order 2 default, up to order 3 supported
+  
   /// @brief Type of the exchange-correlation functional.
   ///
   /// Default: "XC_LDA_XC_TETER93"

@@ -149,6 +149,22 @@ SCFDG::Setup    (
     numUnusedState_ = esdfParam.numUnusedState;
     SVDBasisTolerance_  = esdfParam.SVDBasisTolerance;
     solutionMethod_   = esdfParam.solutionMethod;
+    
+    // Choice of smearing scheme : Fermi-Dirac (FD) or Gaussian_Broadening (GB) or Methfessel-Paxton (MP)
+    // Currently PEXSI only supports FD smearing, so GB or MP have to be used with diag type methods
+    SmearingScheme_ = esdfParam.smearing_scheme;
+    if(solutionMethod_ == "pexsi")
+      SmearingScheme_ = "FD";
+    
+    if(SmearingScheme_ == "GB")
+      MP_smearing_order_ = 0;
+    else if(SmearingScheme_ == "MP")
+      MP_smearing_order_ = 2;
+    else
+      MP_smearing_order_ = -1; // For safety
+      
+    
+    
 
     PWSolver_                = esdfParam.PWSolver;
     
@@ -174,6 +190,7 @@ SCFDG::Setup    (
     
     
     Tbeta_            = esdfParam.Tbeta;
+    Tsigma_           = 1.0 / Tbeta_;
     scaBlockSize_     = esdfParam.scaBlockSize;
     numElem_          = esdfParam.numElem;
     ecutWavefunction_ = esdfParam.ecutWavefunction;
@@ -5326,40 +5343,90 @@ SCFDG::Iterate    (  )
 
       if( npsi > nOccStates )  
       { 
-        // The reverse order for the bounds needs to be used because the eigenvalues appear in decreasing order
-        lb = top_eigVals(npsi - 1);
-        ub = top_eigVals(0);
+	if(SmearingScheme_ == "FD")
+	{  
+	  // The reverse order for the bounds needs to be used because the eigenvalues appear in decreasing order
+	  lb = top_eigVals(npsi - 1);
+	  ub = top_eigVals(0);
 
-        flb = scfdg_fermi_func_comp_subspc(top_eigVals, top_occ, num_solve, lb);
-        fub = scfdg_fermi_func_comp_subspc(top_eigVals, top_occ, num_solve, ub);
+	  flb = scfdg_fermi_func_comp_subspc(top_eigVals, top_occ, num_solve, lb);
+	  fub = scfdg_fermi_func_comp_subspc(top_eigVals, top_occ, num_solve, ub);
 
-        if(flb * fub > 0.0)
-          ErrorHandling( "Bisection method for finding Fermi level cannot proceed !!" );
+	  if(flb * fub > 0.0)
+	    ErrorHandling( "Bisection method for finding Fermi level cannot proceed !!" );
 
-        fermi_ = (lb+ub)*0.5;
+	  fermi_ = (lb+ub)*0.5;
 
-        /* Start bisection iteration */
-        iter = 1;
-        fx = scfdg_fermi_func_comp_subspc(top_eigVals, top_occ, num_solve, fermi_);
+	  /* Start bisection iteration */
+	  iter = 1;
+	  fx = scfdg_fermi_func_comp_subspc(top_eigVals, top_occ, num_solve, fermi_);
 
 
-        while( (fabs(fx) > tol) && (iter < maxiter) ) 
-        {
-          flb = scfdg_fermi_func_comp_subspc(top_eigVals, top_occ, num_solve, lb);
-          fub = scfdg_fermi_func_comp_subspc(top_eigVals, top_occ, num_solve, ub);
+	  while( (fabs(fx) > tol) && (iter < maxiter) ) 
+	  {
+	    flb = scfdg_fermi_func_comp_subspc(top_eigVals, top_occ, num_solve, lb);
+	    fub = scfdg_fermi_func_comp_subspc(top_eigVals, top_occ, num_solve, ub);
 
-          if( (flb * fx) < 0.0 )
-            ub = fermi_;
-          else
-            lb = fermi_;
+	    if( (flb * fx) < 0.0 )
+	      ub = fermi_;
+	    else
+	      lb = fermi_;
 
-          fermi_ = (lb+ub)*0.5;
-          fx = scfdg_fermi_func_comp_subspc(top_eigVals, top_occ, num_solve, fermi_);
+	    fermi_ = (lb+ub)*0.5;
+	    fx = scfdg_fermi_func_comp_subspc(top_eigVals, top_occ, num_solve, fermi_);
 
-          iter++;
-        }
+	    iter++;
+	  }
+	} // end of if (SmearingScheme_ == "fd")
+	else
+	{
+	  // GB and MP smearing schemes
+	  
+	  // The reverse order for the bounds needs to be used because the eigenvalues appear in decreasing order
+	  lb = top_eigVals(npsi - 1);
+	  ub = top_eigVals(0);
 
-      }
+	  // Set up the function bounds
+	  flb = mp_occupations_residual(top_eigVals, lb, num_solve);
+	  fub = mp_occupations_residual(top_eigVals, ub, num_solve);
+	  
+	  if(flb * fub > 0.0)
+	    ErrorHandling( "Bisection method for finding Fermi level cannot proceed !!" );
+
+	  fermi_ = ( lb + ub ) * 0.5;
+
+	  /* Start bisection iteration */
+	  iter = 1;
+	  fx = mp_occupations_residual(top_eigVals, fermi_, num_solve);
+	  
+	  while( (fabs(fx) > tol) && (iter < maxiter) ) 
+	  {
+	    flb = mp_occupations_residual(top_eigVals, lb, num_solve);
+	    fub = mp_occupations_residual(top_eigVals, ub, num_solve);
+
+	    if( (flb * fx) < 0.0 )
+	      ub = fermi_;
+	    else
+	      lb = fermi_;
+
+	    fermi_ = ( lb + ub ) * 0.5;
+	    fx = mp_occupations_residual(top_eigVals, fermi_, num_solve);
+
+	    iter++;
+	  }
+	  
+	   if(iter >= maxiter)
+	      ErrorHandling( "Bisection method for finding Fermi level does not appear to converge !!" );
+	   else
+	    {
+	      // Bisection method seems to have converged
+	      // Fill up the occupations
+	      populate_mp_occupations(top_eigVals, top_occ, fermi_);
+	    }
+	  
+	  } // end of GB and MP smearing cases
+	
+      } // End of finite temperature case
       else 
       {
         if (npsi == nOccStates ) 
@@ -5400,6 +5467,95 @@ SCFDG::Iterate    (  )
     }
 
 
+    
+ // Internal routines for MP (and GB) type smearing
+ double SCFDG::low_order_hermite_poly(double x, int order)
+ {
+  double y; 
+  switch (order)
+  {
+    case 0: y = 1; break;
+    case 1: y = 2.0 * x; break;
+    case 2: y = 4.0 * x * x - 2.0; break;
+    case 3: y = 8.0 * x * x * x - 12.0 * x; break;
+    case 4: y = 16.0 * x * x * x * x - 48.0 * x * x + 12.0; break;
+    case 5: y = 32.0 * x * x * x * x * x - 160.0 * x * x * x + 120.0 * x; break;
+    case 6: y = 64.0 * x * x * x * x * x * x - 480.0 * x * x * x * x + 720.0 * x * x - 120.0; 
+  }
+      
+  return y;
+ }
+ 
+ double SCFDG::mp_occupations(double x, int order)
+ {
+   const double sqrt_pi = sqrt(M_PI);
+   double A_vec[4] = { 1.0 / sqrt_pi, -1.0 / (4.0 * sqrt_pi), 1.0 / (32.0 * sqrt_pi), -1.0 / (384 * sqrt_pi) };
+   double y = 0.5 *(1.0 - erf(x));
+   
+   for (int m = 1; m <= order; m++)
+     y = y + A_vec[m] * low_order_hermite_poly(x, 2 * order - 1) * exp(- x * x);
+   
+   return y;
+   
+ }
+ 
+ 
+ double SCFDG::mp_entropy(double x, int order)
+ {
+   const double sqrt_pi = sqrt(M_PI);
+   double A_vec[4] = { 1.0 / sqrt_pi, -1.0 / (4.0 * sqrt_pi), 1.0 / (32.0 * sqrt_pi), -1.0 / (384 * sqrt_pi) };
+   
+   double y = 0.5 * A_vec[order] * low_order_hermite_poly(x, 2 * order) * exp(- x * x);
+   
+   return y;
+ }
+ 
+ // This fills up the the output_occ occupations using the input eigvals, according to the Methfessel-Paxton recipe 
+ void SCFDG::populate_mp_occupations(DblNumVec& input_eigvals, DblNumVec& output_occ, double fermi_mu)
+ {
+   double x, t;
+   
+   for(int ii = 0; ii < input_eigvals.m(); ii ++)
+   {
+     x = (input_eigvals(ii) - fermi_mu) / Tsigma_ ;
+     t = mp_occupations(x, MP_smearing_order_); 
+     
+     if(t < 0.0)
+       t = 0.0;
+     if(t > 1.0)
+       t = 1.0;
+  
+     output_occ(ii) = t;
+
+   }
+   
+  }
+ 
+ 
+ // This computes the residual of (\sum_i f_i ) - n_e used for computing the Fermi level
+ double  SCFDG::mp_occupations_residual(DblNumVec& input_eigvals, double fermi_mu, int num_solve)
+ {
+   double x;
+   double y = 0.0, t;
+   
+   for(int ii = 0; ii < input_eigvals.m(); ii ++)
+   {
+     x = (input_eigvals(ii) - fermi_mu) / Tsigma_ ;
+     t = mp_occupations(x, MP_smearing_order_);
+     
+     if(t < 0.0)
+       t = 0.0;
+     if(t > 1.0)
+       t = 1.0;
+     
+     
+     y += t;    
+   }
+   
+   return (y - double(num_solve));
+   
+ }
+ 
 
   void
     SCFDG::InnerIterate    ( Int outerIter )
@@ -5874,8 +6030,9 @@ SCFDG::Iterate    (  )
           }	
           else
           {	
-
-            // Compute the occupation rate
+           
+	    
+            // Compute the occupation rate - specific smearing types dealt with within this function
             CalculateOccupationRate( hamDG.EigVal(), hamDG.OccupationRate() );
 
             // Compute the Harris energy functional.  
@@ -7298,105 +7455,196 @@ SCFDG::Iterate    (  )
       // FIXME Magic number here
       Real tol = 1e-10; 
       Int maxiter = 100;  
+      
+      if (SmearingScheme_ == "FD")
+      {
 
-      Real lb, ub, flb, fub, occsum;
-      Int ilb, iub, iter;
+	Real lb, ub, flb, fub, occsum;
+	Int ilb, iub, iter;
 
-      Int npsi       = hamDGPtr_->NumStateTotal();
-      Int nOccStates = hamDGPtr_->NumOccupiedState();
+	Int npsi       = hamDGPtr_->NumStateTotal();
+	Int nOccStates = hamDGPtr_->NumOccupiedState();
 
-      if( eigVal.m() != npsi ){
-        std::ostringstream msg;
-        msg 
-          << "The number of eigenstates do not match."  << std::endl
-          << "eigVal         ~ " << eigVal.m() << std::endl
-          << "numStateTotal  ~ " << npsi << std::endl;
-        ErrorHandling( msg.str().c_str() );
-      }
+	if( eigVal.m() != npsi ){
+	  std::ostringstream msg;
+	  msg 
+	    << "The number of eigenstates do not match."  << std::endl
+	    << "eigVal         ~ " << eigVal.m() << std::endl
+	    << "numStateTotal  ~ " << npsi << std::endl;
+	  ErrorHandling( msg.str().c_str() );
+	}
 
 
-      if( occupationRate.m() != npsi ) occupationRate.Resize( npsi );
+	if( occupationRate.m() != npsi ) occupationRate.Resize( npsi );
 
-      if( npsi > nOccStates )  {
-        /* use bisection to find efermi such that 
-         * sum_i fermidirac(ev(i)) = nocc
-         */
-        ilb = nOccStates-1;
-        iub = nOccStates+1;
+	if( npsi > nOccStates )  {
+	  /* use bisection to find efermi such that 
+	   * sum_i fermidirac(ev(i)) = nocc
+	  */
+	  ilb = nOccStates-1;
+	  iub = nOccStates+1;
 
-        lb = eigVal(ilb-1);
-        ub = eigVal(iub-1);
+	  lb = eigVal(ilb-1);
+	  ub = eigVal(iub-1);
 
-        /* Calculate Fermi-Dirac function and make sure that
-         * flb < nocc and fub > nocc
-         */
+	  /* Calculate Fermi-Dirac function and make sure that
+	  * flb < nocc and fub > nocc
+	  */
 
-        flb = 0.0;
-        fub = 0.0;
-        for(Int j = 0; j < npsi; j++) {
-          flb += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-lb)));
-          fub += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-ub))); 
-        }
+	  flb = 0.0;
+	  fub = 0.0;
+	  for(Int j = 0; j < npsi; j++) {
+	    flb += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-lb)));
+	    fub += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-ub))); 
+	  }
 
-        while( (nOccStates-flb)*(fub-nOccStates) < 0 ) {
-          if( flb > nOccStates ) {
-            if(ilb > 0){
-              ilb--;
-              lb = eigVal(ilb-1);
-              flb = 0.0;
-              for(Int j = 0; j < npsi; j++) flb += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-lb)));
-            }
-            else {
-              ErrorHandling( "Cannot find a lower bound for efermi" );
-            }
-          }
+	  while( (nOccStates-flb)*(fub-nOccStates) < 0 ) {
+	    if( flb > nOccStates ) {
+	      if(ilb > 0){
+		ilb--;
+		lb = eigVal(ilb-1);
+		flb = 0.0;
+		for(Int j = 0; j < npsi; j++) flb += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-lb)));
+	      }
+	      else {
+		ErrorHandling( "Cannot find a lower bound for efermi" );
+	      }
+	    }
 
-          if( fub < nOccStates ) {
-            if( iub < npsi ) {
-              iub++;
-              ub = eigVal(iub-1);
-              fub = 0.0;
-              for(Int j = 0; j < npsi; j++) fub += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-ub)));
-            }
-            else {
-              ErrorHandling( "Cannot find a lower bound for efermi, try to increase the number of wavefunctions" );
-            }
-          }
-        }  /* end while */
+	    if( fub < nOccStates ) {
+	      if( iub < npsi ) {
+		iub++;
+		ub = eigVal(iub-1);
+		fub = 0.0;
+		for(Int j = 0; j < npsi; j++) fub += 1.0 / (1.0 + exp(Tbeta_*(eigVal(j)-ub)));
+	      }
+	      else {
+		ErrorHandling( "Cannot find a lower bound for efermi, try to increase the number of wavefunctions" );
+	      }
+	    }
+	  }  /* end while */
 
-        fermi_ = (lb+ub)*0.5;
-        occsum = 0.0;
-        for(Int j = 0; j < npsi; j++) {
-          occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
-          occsum += occupationRate(j);
-        }
+	  fermi_ = (lb+ub)*0.5;
+	  occsum = 0.0;
+	  for(Int j = 0; j < npsi; j++) {
+	    occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
+	    occsum += occupationRate(j);
+	  }
+
+	  /* Start bisection iteration */
+	  iter = 1;
+	  while( (fabs(occsum - nOccStates) > tol) && (iter < maxiter) ) {
+	    if( occsum < nOccStates ) {lb = fermi_;}
+	    else {ub = fermi_;}
+
+	    fermi_ = (lb+ub)*0.5;
+	    occsum = 0.0;
+	    for(Int j = 0; j < npsi; j++) {
+	      occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
+	      occsum += occupationRate(j);
+	    }
+	    iter++;
+	  }
+	}
+	else {
+	  if (npsi == nOccStates ) {
+	    for(Int j = 0; j < npsi; j++) 
+	      occupationRate(j) = 1.0;
+	    fermi_ = eigVal(npsi-1);
+	  }
+	  else {
+	    ErrorHandling( "The number of eigenvalues in ev should be larger than nocc" );
+	  }
+	}
+      } // end of if (SmearingScheme_ == "FD")	
+      else
+      {
+	// MP and GB type smearing
+	
+	Int npsi       = hamDGPtr_->NumStateTotal();
+	Int nOccStates = hamDGPtr_->NumOccupiedState();
+
+	if( eigVal.m() != npsi ){
+	  std::ostringstream msg;
+	  msg 
+	    << "The number of eigenstates do not match."  << std::endl
+	    << "eigVal         ~ " << eigVal.m() << std::endl
+	    << "numStateTotal  ~ " << npsi << std::endl;
+	  ErrorHandling( msg.str().c_str() );
+	}
+
+
+	if( occupationRate.m() != npsi ) 
+	  occupationRate.Resize( npsi );
+	
+	Real lb, ub, flb, fub, fx;
+        Int  iter;
+
+
+      if( npsi > nOccStates )  
+      { 
+        // Set up the bounds
+        lb = eigVal(0);
+        ub = eigVal(npsi - 1);
+
+	// Set up the function bounds
+        flb = mp_occupations_residual(eigVal, lb, nOccStates);
+        fub = mp_occupations_residual(eigVal, ub, nOccStates);
+
+        if(flb * fub > 0.0)
+          ErrorHandling( "Bisection method for finding Fermi level cannot proceed !!" );
+
+        fermi_ = (lb + ub) * 0.5;
 
         /* Start bisection iteration */
         iter = 1;
-        while( (fabs(occsum - nOccStates) > tol) && (iter < maxiter) ) {
-          if( occsum < nOccStates ) {lb = fermi_;}
-          else {ub = fermi_;}
+        fx = mp_occupations_residual(eigVal, fermi_, nOccStates);
 
-          fermi_ = (lb+ub)*0.5;
-          occsum = 0.0;
-          for(Int j = 0; j < npsi; j++) {
-            occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
-            occsum += occupationRate(j);
-          }
+
+	// Iterate using the bisection method
+        while( (fabs(fx) > tol) && (iter < maxiter) ) 
+        {
+          flb = mp_occupations_residual(eigVal, lb, nOccStates);
+          fub = mp_occupations_residual(eigVal, ub, nOccStates);
+
+          if( (flb * fx) < 0.0 )
+            ub = fermi_;
+          else
+            lb = fermi_;
+
+          fermi_ = (lb + ub) * 0.5;
+          fx = mp_occupations_residual(eigVal, fermi_, nOccStates);
+
           iter++;
         }
-      }
-      else {
-        if (npsi == nOccStates ) {
+          
+        if(iter >= maxiter)
+	  ErrorHandling( "Bisection method for finding Fermi level does not appear to converge !!" );
+	else
+	{
+	  // Bisection method seems to have converged
+	  // Fill up the occupations
+	  populate_mp_occupations(eigVal, occupationRate, fermi_);
+	  
+	}	
+      } // end of if(npsi > nOccStates)
+      else 
+      {
+        if (npsi == nOccStates ) 
+        {
           for(Int j = 0; j < npsi; j++) 
-            occupationRate(j) = 1.0;
+           occupationRate(j) = 1.0;
+	  
           fermi_ = eigVal(npsi-1);
         }
-        else {
-          ErrorHandling( "The number of eigenvalues in ev should be larger than nocc" );
+        else 
+        {
+	  // npsi < nOccStates
+          ErrorHandling( "The number of top eigenvalues should be larger than number of occupied states !! " );
         }
-      }
-
+      } // end of if(npsi > nOccStates) ... else
+	
+      } // end of if(SmearingScheme_ == "FD") ... else
 
       return ;
     }         // -----  end of method SCFDG::CalculateOccupationRate  ----- 
@@ -7854,6 +8102,7 @@ SCFDG::Iterate    (  )
       if(SCFDG_comp_subspace_engaged_ == 1)
       {
 
+	// This part is the same irrespective of smearing type
         double HC_part = 0.0;
 
         for(Int sum_iter = 0; sum_iter < SCFDG_comp_subspace_N_solve_; sum_iter ++)
@@ -7925,37 +8174,81 @@ SCFDG::Iterate    (  )
 
         if(SCFDG_comp_subspace_engaged_ == 1)
         {
+	  // Complementary subspace technique in use
 
           double occup_energy_part = 0.0;
           double occup_tol = 1e-12;
-          double fl;
-          for(Int l=0; l < SCFDG_comp_subspace_top_occupations_.m(); l++)
-          {
-            fl = SCFDG_comp_subspace_top_occupations_(l);
-            if((fl > occup_tol) && ((1.0 - fl) > occup_tol))
-              occup_energy_part += fl * log(fl) + (1.0 - fl) * log(1 - fl);
+          double fl, x;
+	  
+	  if(SmearingScheme_ == "FD")
+	  {
+	    for(Int l=0; l < SCFDG_comp_subspace_top_occupations_.m(); l++)
+	    {
+	      fl = SCFDG_comp_subspace_top_occupations_(l);
+	      if((fl > occup_tol) && ((1.0 - fl) > occup_tol))
+		occup_energy_part += fl * log(fl) + (1.0 - fl) * log(1 - fl);
 
-          }
+	    }
 
-          EfreeHarris_ = Ekin + Ecor + (numSpin / Tbeta) * occup_energy_part;
-
-        }
+	    EfreeHarris_ = Ekin + Ecor + (numSpin / Tbeta) * occup_energy_part;
+	  }
+	  else
+	  {
+	    // Other kinds of smearing
+	    
+	    for(Int l=0; l < SCFDG_comp_subspace_top_occupations_.m(); l++)
+	    {
+	      fl = SCFDG_comp_subspace_top_occupations_(l);
+	      if((fl > occup_tol) && ((1.0 - fl) > occup_tol))
+	      {
+		x = (SCFDG_comp_subspace_top_eigvals_(l) - fermi_) / Tsigma_ ;
+		occup_energy_part += mp_entropy(x, MP_smearing_order_);
+	      }
+	    }
+	    
+	    EfreeHarris_ = Ekin + Ecor + (numSpin / Tbeta) * occup_energy_part;
+	    
+	  }
+        }  
         else
-        {  
+        { 
+	  // Complementary subspace technique not in use : full spectrum available
+	  if(SmearingScheme_ == "FD")
+	  {
+	    for(Int l=0; l< eigVal.m(); l++) {
+	      Real eig = eigVal(l);
+	      if( eig - fermi >= 0){
+		EfreeHarris_ += -numSpin /Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
+		}
+	      else{
+		EfreeHarris_ += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
+	      }
+	    }
+	    EfreeHarris_ += Ecor + fermi * hamDG.NumOccupiedState() * numSpin; 
+	  }
+	  else
+	  {
+	    // GB or MP schemes in use
+	    double occup_energy_part = 0.0;
+	    double occup_tol = 1e-12;
+	    double fl, x;
+	    
+	    for(Int l=0; l < eigVal.m(); l++)
+	    {
+	      fl = occupationRate(l);
+	      if((fl > occup_tol) && ((1.0 - fl) > occup_tol))
+	      { 
+		x = (eigVal(l) - fermi_) / Tsigma_ ;
+		occup_energy_part += mp_entropy(x, MP_smearing_order_) ;
+	      }
+	    }
 
-          for(Int l=0; l< eigVal.m(); l++) {
-            Real eig = eigVal(l);
-            if( eig - fermi >= 0){
-              EfreeHarris_ += -numSpin /Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
-            }
-            else{
-              EfreeHarris_ += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
-            }
-          }
-          EfreeHarris_ += Ecor + fermi * hamDG.NumOccupiedState() * numSpin; 
-        }
-
-      }
+	    EfreeHarris_ = Ekin + Ecor + (numSpin * Tsigma_) * occup_energy_part;
+	    
+	    }
+	
+	  } // end of full spectrum available calculation
+	} // end of finite temperature calculation
 
 
 
@@ -8099,6 +8392,7 @@ SCFDG::Iterate    (  )
       if(SCFDG_comp_subspace_engaged_ == 1)
       {
 
+	// This part is the same, irrespective of smearing type
         double HC_part = 0.0;
 
         for(Int sum_iter = 0; sum_iter < SCFDG_comp_subspace_N_solve_; sum_iter ++)
@@ -8195,41 +8489,83 @@ SCFDG::Iterate    (  )
 
         if(SCFDG_comp_subspace_engaged_ == 1)
         {
-
+          
           double occup_energy_part = 0.0;
           double occup_tol = 1e-12;
-          double fl;
-          for(Int l=0; l < SCFDG_comp_subspace_top_occupations_.m(); l++)
-          {
-            fl = SCFDG_comp_subspace_top_occupations_(l);
-            if((fl > occup_tol) && ((1.0 - fl) > occup_tol))
-              occup_energy_part += fl * log(fl) + (1.0 - fl) * log(1 - fl);
+          double fl, x;
+	  
+	  if(SmearingScheme_ == "FD")
+	  {
+	    for(Int l = 0; l < SCFDG_comp_subspace_top_occupations_.m(); l++)
+	    {
+	      fl = SCFDG_comp_subspace_top_occupations_(l);
+	      if((fl > occup_tol) && ((1.0 - fl) > occup_tol))
+		occup_energy_part += fl * log(fl) + (1.0 - fl) * log(1 - fl);
 
-          }
+	    }
 
-          EfreeSecondOrder_ = Ekin + Ecor + (numSpin / Tbeta) * occup_energy_part;
+	    EfreeSecondOrder_ = Ekin + Ecor + (numSpin / Tbeta) * occup_energy_part;
 
-        }
+	  }
+	  else
+	  {
+	    // MP and GB smearing    
+	    for(Int l = 0; l < SCFDG_comp_subspace_top_occupations_.m(); l++)
+	    {
+	      fl = SCFDG_comp_subspace_top_occupations_(l);
+	      if((fl > occup_tol) && ((1.0 - fl) > occup_tol))
+	      {
+		x = (SCFDG_comp_subspace_top_eigvals_(l) - fermi_) / Tsigma_ ;
+		occup_energy_part += mp_entropy(x, MP_smearing_order_);
+	      }
+	    }
+	    
+	    EfreeSecondOrder_ = Ekin + Ecor + (numSpin / Tbeta) * occup_energy_part;	    
+	    
+	  }
+	}
         else
-        {  
-          for(Int l=0; l< eigVal.m(); l++) {
-            Real eig = eigVal(l);
-            if( eig - fermi >= 0){
-              EfreeSecondOrder_ += -numSpin /Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
-            }
-            else{
-              EfreeSecondOrder_ += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
-            }
-          }
-          EfreeSecondOrder_ += Ecor + fermi * hamDG.NumOccupiedState() * numSpin; 
-        }
+        {
+	  // Complementary subspace technique not in use : full spectrum available
+	  if(SmearingScheme_ == "FD")
+	  {
+	  
+	    for(Int l=0; l< eigVal.m(); l++) {
+	      Real eig = eigVal(l);
+	      if( eig - fermi >= 0){
+		EfreeSecondOrder_ += -numSpin /Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
+	      }
+	      else{
+		EfreeSecondOrder_ += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
+	      }
+	    }
+	    EfreeSecondOrder_ += Ecor + fermi * hamDG.NumOccupiedState() * numSpin; 
+	  }
+	  else
+	  {
+	    // GB or MP schemes in use
+	    double occup_energy_part = 0.0;
+	    double occup_tol = 1e-12;
+	    double fl, x;
+	    
+	    for(Int l=0; l < eigVal.m(); l++)
+	    {
+	      fl = occupationRate(l);
+	      if((fl > occup_tol) && ((1.0 - fl) > occup_tol))
+	      { 
+		x = (eigVal(l) - fermi_) / Tsigma_ ;
+		occup_energy_part += mp_entropy(x, MP_smearing_order_) ;
+	      }
+	    }
 
-
-
-      }
-
-
-
+	    EfreeSecondOrder_ = Ekin + Ecor + (numSpin * Tsigma_) * occup_energy_part;
+	    
+	  }
+	    
+	 }  // end of full spectrum available calculation
+	  
+	  
+	} // end of finite temperature calculation
 
       return ;
     }         // -----  end of method SCFDG::CalculateSecondOrderEnergy  ----- 
