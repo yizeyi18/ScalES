@@ -156,6 +156,9 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
       deserialize( densityVec, rhoStream, NO_MASK );    
       blas::Copy( densityVec.m(), densityVec.Data(), 1, 
           density.VecData(RHO), 1 );
+      statusOFS << "Density restarted from file " 
+        << restartDensityFileName_ << std::endl;
+
     } // else using the zero initial guess
     else {
       if( esdfParam.isUseAtomDensity ){
@@ -223,11 +226,22 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
 
   if( ! esdfParam.isRestartWfn ) {
     // Randomized input from outside
+    // Setup the occupation rate by aufbau principle (needed for hybrid functional calculation)
+    DblNumVec& occ = eigSolPtr_->Ham().OccupationRate();
+    Int npsi = eigSolPtr_->Psi().NumStateTotal();
+    occ.Resize( npsi );
+    SetValue( occ, 0.0 );
+    for( Int k = 0; k < npsi; k++ ){
+      occ[k] = 1.0;
+    }
   }
   else {
     std::istringstream wfnStream;
     SeparateRead( restartWfnFileName_, wfnStream, mpirank );
     deserialize( eigSolPtr_->Psi().Wavefun(), wfnStream, NO_MASK );
+    deserialize( eigSolPtr_->Ham().OccupationRate(), wfnStream, NO_MASK );
+    statusOFS << "Wavefunction restarted from file " 
+      << restartWfnFileName_ << std::endl;
   }
 
   // XC functional
@@ -279,16 +293,6 @@ SCF::Iterate (  )
   }
 
   // Compute the Hartree energy
-  // FIXME
-  if(0)
-  {
-    DblNumMat rho = ham.Density();
-    SetValue(ham.Density(), 0.0);
-    ham.CalculateHartree( fft );
-    // No external potential
-    ham.Density() = rho;
-  }
-
   if(1){
     ham.CalculateXC( Exc_, fft ); 
     ham.CalculateHartree( fft );
@@ -332,12 +336,6 @@ SCF::Iterate (  )
 
   // Fock energies
   Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
-
-  // FIXME Do not use this for now
-  if( ham.IsHybrid() == false ){
-    // Let the hybrid functional be handledo outside the SCF loop
-    scfPhiMaxIter_ = 1;
-  }
 
   if( ham.IsEXXActive() == false ){
     Efock_ = 0.0;
@@ -804,6 +802,7 @@ SCF::Iterate (  )
   if( esdfParam.isOutputWfn ){
     std::ostringstream wfnStream;
     serialize( eigSolPtr_->Psi().Wavefun(), wfnStream, NO_MASK );
+    serialize( eigSolPtr_->Ham().OccupationRate(), wfnStream, NO_MASK );
     SeparateWrite( restartWfnFileName_, wfnStream, mpirank );
   }   
 

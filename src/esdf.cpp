@@ -891,7 +891,7 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
 
   i++;
-  strcpy(kw_label[i],"hybrid_ace_outside");
+  strcpy(kw_label[i],"hybrid_active_init");
   strcpy(kw_typ[i],"I:E");
 
   i++;
@@ -2250,6 +2250,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
     esdfParam.isHybridACE          = esdf_integer( "Hybrid_ACE", 1 );
     esdfParam.isHybridDF                       = esdf_integer( "Hybrid_DF", 0 );
+    esdfParam.isHybridActiveInit          = esdf_integer( "Hybrid_Active_Init", 0 );
     esdfParam.numMuHybridDF                    = esdf_double( "Num_Mu_Hybrid_DF", 6.0 );
     esdfParam.numGaussianRandomHybridDF        = esdf_double( "Num_GaussianRandom_Hybrid_DF", 2.0 );
     esdfParam.numProcScaLAPACKPotrfHybridDF    = esdf_integer( "Num_Proc_ScaLAPACKPotrf_Hybrid_DF", mpisize );
@@ -2841,6 +2842,7 @@ void ESDFPrintInput( ){
     Print(statusOFS, "SCF Phi Tol                          = ",  esdfParam.scfPhiTolerance);
     Print(statusOFS, "Hybrid ACE                           = ",  esdfParam.isHybridACE);
     Print(statusOFS, "Hybrid DF                            = ",  esdfParam.isHybridDF);
+    Print(statusOFS, "Hybrid Active Init                   = ",  esdfParam.isHybridActiveInit);
     Print(statusOFS, "Num mu hybrid DF                     = ",  esdfParam.numMuHybridDF);
     Print(statusOFS, "Num GaussianRandom hybrid DF         = ",  esdfParam.numGaussianRandomHybridDF);
     Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);

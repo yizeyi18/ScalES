@@ -281,6 +281,8 @@ int main(int argc, char **argv)
       GetTime( timeEnd );
       statusOFS << "Time for setting up the exchange for the Hamiltonian part = " 
         << timeEnd - timeSta << " [s]" << std::endl;
+      if( esdfParam.isHybridActiveInit )
+        hamKS.SetEXXActive(true);
     }
 
 

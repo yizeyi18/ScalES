@@ -239,6 +239,14 @@ struct ESDFInputParam{
   ///
   /// Default: 1e-6
   Real                scfPhiTolerance;
+  /// @brief Mixing type for performing hybrid functional calculations.
+  ///
+  /// Default: nested
+  ///
+  /// - = "nested"             : Standard nested two loop procedure
+  /// - = "scdiis"             : Selected column DIIS
+  ///
+  std::string         hybridMixType;
   /// @brief Whether to use the adaptively compressed exchange (ACE)
   /// formulation for hybrid functional.
   ///
@@ -250,6 +258,11 @@ struct ESDFInputParam{
   ///
   /// Default: 0
   bool                isHybridDF;
+  /// @brief Whether to initialize hybrid functional in the initial
+  /// step.
+  ///
+  /// Default: 0
+  bool                isHybridActiveInit;
 
   /// @brief Density fitting uses numMu * numStateTotal number of
   /// states for hybrid calculations with density fitting.

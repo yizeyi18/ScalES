@@ -2281,7 +2281,6 @@ void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
 {
   const Real epsDiv = 1e-8;
 
-  // FIXME Not considering restarting yet
   isEXXActive_ = false;
 
   Int numGridTotalR2C = fft.numGridTotalR2C;
