@@ -895,6 +895,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
 
   i++;
+  strcpy(kw_label[i],"hybrid_mixing_type");
+  strcpy(kw_typ[i],"T:B");
+
+  i++;
   strcpy(kw_label[i],"exx_divergence_type");
   strcpy(kw_typ[i],"I:E");
 
@@ -2248,9 +2252,19 @@ ESDFReadInput ( const char* filename )
     esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
     esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
     esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
-    esdfParam.isHybridACE          = esdf_integer( "Hybrid_ACE", 1 );
+
+
+    esdf_string("Hybrid_Mixing_Type", "nested", strtmp); 
+    esdfParam.hybridMixType         = strtmp;
+    if( esdfParam.hybridMixType != "nested" &&
+        esdfParam.hybridMixType != "scdiis" ){
+      ErrorHandling("Invalid hybrid mixing type.");
+    }
+
+    esdfParam.isHybridACE                      = esdf_integer( "Hybrid_ACE", 1 );
+    esdfParam.isHybridActiveInit               = esdf_integer( "Hybrid_Active_Init", 0 );
+    
     esdfParam.isHybridDF                       = esdf_integer( "Hybrid_DF", 0 );
-    esdfParam.isHybridActiveInit          = esdf_integer( "Hybrid_Active_Init", 0 );
     esdfParam.numMuHybridDF                    = esdf_double( "Num_Mu_Hybrid_DF", 6.0 );
     esdfParam.numGaussianRandomHybridDF        = esdf_double( "Num_GaussianRandom_Hybrid_DF", 2.0 );
     esdfParam.numProcScaLAPACKPotrfHybridDF    = esdf_integer( "Num_Proc_ScaLAPACKPotrf_Hybrid_DF", mpisize );
@@ -2843,6 +2857,7 @@ void ESDFPrintInput( ){
     Print(statusOFS, "Hybrid ACE                           = ",  esdfParam.isHybridACE);
     Print(statusOFS, "Hybrid DF                            = ",  esdfParam.isHybridDF);
     Print(statusOFS, "Hybrid Active Init                   = ",  esdfParam.isHybridActiveInit);
+    Print(statusOFS, "Hybrid Mixing Type                   = ",  esdfParam.hybridMixType);
     Print(statusOFS, "Num mu hybrid DF                     = ",  esdfParam.numMuHybridDF);
     Print(statusOFS, "Num GaussianRandom hybrid DF         = ",  esdfParam.numGaussianRandomHybridDF);
     Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);

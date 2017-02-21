@@ -121,7 +121,6 @@ private:
   DblNumMat           dfMat_;
   DblNumMat           dvMat_;
 
-  std::string         mixVariable_;
   /// @brief Work array for the mixing variable in the inner iteration.
   DblNumVec           mixSave_;
 
@@ -159,6 +158,7 @@ public:
   // Basic parameters. Density and wavefunction
   void  Setup( EigenSolver& eigSol, PeriodTable& ptable ); 
   void  Iterate();
+  void  InnerIterate();
   void  Update();
 
   void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
