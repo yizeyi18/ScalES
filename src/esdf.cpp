@@ -2254,14 +2254,9 @@ ESDFReadInput ( const char* filename )
     esdfParam.numGaussianRandomHybridDF        = esdf_double( "Num_GaussianRandom_Hybrid_DF", 2.0 );
     esdfParam.numProcScaLAPACKPotrfHybridDF    = esdf_integer( "Num_Proc_ScaLAPACKPotrf_Hybrid_DF", mpisize );
     esdfParam.ScaLAPACKPotrfBlockSizeHybridDF  = esdf_integer( "ScaLAPACKPotrf_Block_Size_Hybrid_DF", 32 );
-    esdfParam.isHybridACEOutside               = esdf_integer( "Hybrid_ACE_Outside", 0 );
     esdfParam.MDscfPhiMaxIter      = esdf_integer( "MD_SCF_Phi_MaxIter", esdfParam.scfPhiMaxIter  );
     esdfParam.MDscfOuterMaxIter    = esdf_integer( "MD_SCF_Outer_MaxIter",  esdfParam.scfOuterMaxIter ); // This is used in DGDFT for energy based SCF
 
-    if( esdfParam.isHybridACE == false &&
-        esdfParam.isHybridACEOutside == true ){
-      ErrorHandling("Cannot set Hybrid_ACE_Outside to be 1 but Hybrid_ACE to be 0.");
-    }
     esdfParam.exxDivergenceType    = esdf_integer( "EXX_Divergence_Type", 1 );
 
     // Default is no locking
@@ -2848,7 +2843,6 @@ void ESDFPrintInput( ){
     Print(statusOFS, "Hybrid DF                            = ",  esdfParam.isHybridDF);
     Print(statusOFS, "Num mu hybrid DF                     = ",  esdfParam.numMuHybridDF);
     Print(statusOFS, "Num GaussianRandom hybrid DF         = ",  esdfParam.numGaussianRandomHybridDF);
-    Print(statusOFS, "Hybrid ACE Outside SCF               = ",  esdfParam.isHybridACEOutside);
     Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);
 
     if( esdfParam.PWSolver == "LOBPCGScaLAPACK" ){

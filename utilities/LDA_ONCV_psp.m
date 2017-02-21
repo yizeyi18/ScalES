@@ -6,8 +6,10 @@
 % odd function first and then interpolate
 % Revision: 2016/11/25 Use the better interpolation scheme for local
 % charge density, model core density and their derivatives.
+% Revision: 2017/02/01 Incorporate with new LDA pseudopotential
 
-Znucs = [1 3];
+Znucs = [1 3 6 8 9 15];
+%Znucs = [9];
 res = cell(length(Znucs),2);
 
 for g=1:length(Znucs)
@@ -23,15 +25,54 @@ for g=1:length(Znucs)
       rhocut  = 2.0;
       rhoatomcut = 3.5;
       wavcut  = 1.5;
-      ppFile = './ONCV_Pask/20161112/H/H.LDA.psp8';
-      pprholocFile = './ONCV_Pask/20161112/H/H.LDA.rholoc';
+%       ppFile = './ONCV_Pask/20161112/H/H.LDA.psp8';
+%       pprholocFile = './ONCV_Pask/20161112/H/H.LDA.rholoc';
+      ppFile = './ONCV_Pask/20170201_LDA/H/H.1.02.oncvpsp.psp8';
+      pprholocFile = './ONCV_Pask/20170201_LDA/H/H.1.02.oncvpsp.rholoc';
     case 3 % Li
       mass = 6.941;
       rhocut  = 3.0;
       rhoatomcut = 6.0;
       wavcut  = 2.0;
-      ppFile = './ONCV_Pask/20161112/Li/Li.LDA.psp8';
-      pprholocFile = './ONCV_Pask/20161112/Li/Li.LDA.rholoc';
+%       ppFile = './ONCV_Pask/20161112/Li/Li.LDA.psp8';
+%       pprholocFile = './ONCV_Pask/20161112/Li/Li.LDA.rholoc';
+      ppFile = './ONCV_Pask/20170201_LDA/Li/Li.1.02.oncvpsp.psp8';
+      pprholocFile = './ONCV_Pask/20170201_LDA/Li/Li.1.02.oncvpsp.rholoc';
+    case 6 % C
+      mass = 12.011;
+      rhocut  = 3.0;
+      rhoatomcut = 4.0;
+      wavcut  = 2.0;
+      ppFile = './ONCV_Pask/20170201_LDA/C/C.1.02.oncvpsp.psp8';
+      pprholocFile = './ONCV_Pask/20170201_LDA/C/C.1.02.oncvpsp.rholoc';
+    case 8 % O
+      mass = 15.9994;
+      rhocut  = 3.0;
+      rhoatomcut = 4.0;
+      wavcut  = 2.0;
+      ppFile = './ONCV_Pask/20170201_LDA/O/O.1.02.oncvpsp.psp8';
+      pprholocFile = './ONCV_Pask/20170201_LDA/O/O.1.02.oncvpsp.rholoc';
+    case 9 % F
+      mass = 18.9984032;
+      rhocut  = 3.0;
+      rhoatomcut = 4.0;
+      wavcut  = 2.0;
+      ppFile = './ONCV_Pask/20170201_LDA/F/F.1.02.oncvpsp.psp8';
+      pprholocFile = './ONCV_Pask/20170201_LDA/F/F.1.02.oncvpsp.rholoc';
+    case 13 % Al
+      mass = 26.9815386;
+      rhocut  = 4.0;
+      rhoatomcut = 5.0;
+      wavcut  = 2.0;
+      ppFile = './ONCV_Pask/20170201_LDA/Al/Al.1.02.oncvpsp.psp8';
+      pprholocFile = './ONCV_Pask/20170201_LDA/Al/Al.1.02.oncvpsp.rholoc';
+    case 15 % P
+      mass = 30.973762;
+      rhocut  = 4.0;
+      rhoatomcut = 5.0;
+      wavcut  = 2.0;
+      ppFile = './ONCV_Pask/20170201_LDA/P/P.1.02.oncvpsp.psp8';
+      pprholocFile = './ONCV_Pask/20170201_LDA/P/P.1.02.oncvpsp.rholoc';
   end
 
   pp = psp8read( [], ppFile );
@@ -46,6 +87,9 @@ for g=1:length(Znucs)
   % Note rho is positive when read from THIS file
   % In the future the computation of rholoc should be derived from Vloc.
   rholocData = load(pprholocFile);
+  % The following line is important for processing the data from
+  % 2/1/2017
+  rholocData(find(rholocData(:,1)>rhocut),2) = 0.0;
   [interpr, rhointerpr] = ...
     splinerad( rholocData(:,1), rholocData(:,2), 1 );
   sprholoc = csape(interpr, rhointerpr);

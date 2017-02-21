@@ -103,8 +103,6 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
     XCType_                  = esdfParam.XCType;
     VDWType_                 = esdfParam.VDWType;
 
-    isHybridACEOutside_      = esdfParam.isHybridACEOutside;
-
     // Chebyshev Filtering related parameters
     if(PWSolver_ == "CheFSI")
       Diag_SCF_PWDFT_by_Cheby_ = 1;
@@ -336,7 +334,7 @@ SCF::Iterate (  )
   Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
 
   // FIXME Do not use this for now
-  if( ham.IsHybrid() == false || isHybridACEOutside_ == true ){
+  if( ham.IsHybrid() == false ){
     // Let the hybrid functional be handledo outside the SCF loop
     scfPhiMaxIter_ = 1;
   }
@@ -353,7 +351,7 @@ SCF::Iterate (  )
     GetTime( timePhiIterStart );
 
     // Update the ACE if needed
-    if( ham.IsHybrid() && isHybridACEOutside_ == false ){
+    if( ham.IsHybrid() ){
 
       if( ham.IsEXXActive() ){
         Real dExx;
@@ -643,7 +641,7 @@ SCF::Iterate (  )
 
     }
 
-    if( ham.IsHybrid() && isHybridACEOutside_ == false ){
+    if( ham.IsHybrid() ){
       if( ham.IsEXXActive() == false ) ham.SetEXXActive(true);
 
       Etot_ = Etot_ - Efock_;

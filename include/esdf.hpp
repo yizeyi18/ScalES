@@ -273,11 +273,6 @@ struct ESDFInputParam{
   /// Default: 32
   Int                 ScaLAPACKPotrfBlockSizeHybridDF;
 
-  /// @brief Whether the ACE formulation is performed outside the SCF
-  /// loop. This can be used when performing geometry optimization.
-  ///
-  /// Default: 0
-  bool                isHybridACEOutside;
 
   /// @brief Treatment of the divergence term in hybrid functional
   /// calculation.

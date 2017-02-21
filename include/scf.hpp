@@ -84,8 +84,6 @@ private:
   Int                 numUnusedState_;
   bool                isEigToleranceDynamic_;
 
-  bool                isHybridACEOutside_;
-
   std::string         restartDensityFileName_;
   std::string         restartPotentialFileName_;
   std::string         restartWfnFileName_;
