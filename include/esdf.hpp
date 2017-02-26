@@ -276,15 +276,15 @@ struct ESDFInputParam{
   /// Default: 6.0
   Real                numGaussianRandomHybridDF;
   
-  /// @brief Density fitting uses this number of cores for Potrf in ScaLAPACAL
+  /// @brief Density fitting uses this number of cores in ScaLAPACAL
   ///
   /// Default: mpisize
-  Int                 numProcScaLAPACKPotrfHybridDF;
+  Int                 numProcScaLAPACKHybridDF;
   
-  /// @brief Density fitting uses this blocksize of cores for Potrf in ScaLAPACAL
+  /// @brief Density fitting uses this blocksize of cores in ScaLAPACAL
   ///
   /// Default: 32
-  Int                 ScaLAPACKPotrfBlockSizeHybridDF;
+  Int                 BlockSizeScaLAPACKHybridDF;
 
 
   /// @brief Treatment of the divergence term in hybrid functional

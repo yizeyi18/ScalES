@@ -131,8 +131,8 @@ protected:
 
   Real                        numMuHybridDF_;
   Real                        numGaussianRandomHybridDF_;
-  Int                         numProcScaLAPACKPotrfHybridDF_;
-  Int                         scaPotrfBlockSizeHybridDF_;
+  Int                         numProcScaLAPACKHybridDF_;
+  Int                         BlockSizeScaLAPACKHybridDF_;
 
   Int                         exxDivergenceType_;
 

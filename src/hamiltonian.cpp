@@ -94,8 +94,8 @@ KohnSham::Setup    (
   XCType_              = esdfParam.XCType;
   numMuHybridDF_                   = esdfParam.numMuHybridDF;
   numGaussianRandomHybridDF_       = esdfParam.numGaussianRandomHybridDF;
-  numProcScaLAPACKPotrfHybridDF_   = esdfParam.numProcScaLAPACKPotrfHybridDF;
-  scaPotrfBlockSizeHybridDF_       = esdfParam.ScaLAPACKPotrfBlockSizeHybridDF;
+  numProcScaLAPACKHybridDF_        = esdfParam.numProcScaLAPACKHybridDF;
+  BlockSizeScaLAPACKHybridDF_      = esdfParam.BlockSizeScaLAPACKHybridDF;
   exxDivergenceType_   = esdfParam.exxDivergenceType;
 
   // FIXME Hard coded
@@ -2622,9 +2622,9 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
   SetValue( M, 0.0 );
   // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
   // semi-definite matrix.
-  psi.AddMultSpinorEXXDF3( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
+  psi.AddMultSpinorEXXDF4( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
       occupationRate_, numMuHybridDF_, numGaussianRandomHybridDF_,
-      numProcScaLAPACKPotrfHybridDF_, scaPotrfBlockSizeHybridDF_,
+      numProcScaLAPACKHybridDF_, BlockSizeScaLAPACKHybridDF_,
       vexxPsi, M, isFixColumnDF );
 
   // Implementation based on Cholesky
