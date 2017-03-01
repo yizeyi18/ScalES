@@ -441,57 +441,43 @@ SCF::Iterate (  )
     if( ham.IsEXXActive() == false ) 
       ham.SetEXXActive(true);
 
+    // Evaluate the Fock energy
+    // Update Phi <- Psi
+    GetTime( timeSta );
+    ham.SetPhiEXX( psi, fft ); 
+
+    // Update the ACE if needed
+    if( esdfParam.isHybridACE ){
+      if( esdfParam.isHybridDF ){
+        ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+        // Fix the column after the first iteraiton
+        isFixColumnDF = true;
+      }
+      else{
+        ham.CalculateVexxACE ( psi, fft );
+      }
+    }
+
+    GetTime( timeEnd );
+    statusOFS << "Time for updating Phi related variable is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+    GetTime( timeSta );
+    fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+    GetTime( timeEnd );
+    statusOFS << "Time for computing the EXX energy is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+    Efock_ = fock2;
+    fock1  = fock2;
+    
+
     if( esdfParam.hybridMixType == "nested" ){
 
       for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
 
         GetTime( timePhiIterStart );
 
-        // Update Phi <- Psi
-        GetTime( timeSta );
-        ham.SetPhiEXX( psi, fft ); 
-
-        // Update the ACE if needed
-        if( esdfParam.isHybridACE ){
-          if( esdfParam.isHybridDF ){
-            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
-            // Fix the column after the first iteraiton
-            isFixColumnDF = true;
-          }
-          else{
-            ham.CalculateVexxACE ( psi, fft );
-          }
-        }
-
-        GetTime( timeEnd );
-        statusOFS << "Time for updating Phi related variable is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        GetTime( timeSta );
-        fock2 = ham.CalculateEXXEnergy( psi, fft ); 
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the EXX energy is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
-        dExx = std::abs(fock2 - fock1) / std::abs(fock2);
-        fock1 = fock2;
-        Efock_ = fock2;
-
-        Etot_ = Etot_ - Efock_;
-        Efree_ = Efree_ - Efock_;
-
-        statusOFS << std::endl;
-        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
-        Print(statusOFS, "dExx              = ",  dExx, "[au]");
-        if( dExx < scfPhiTolerance_ ){
-          statusOFS << "SCF for hybrid functional is converged in " 
-            << phiIter << " steps !" << std::endl;
-          isPhiIterConverged = true;
-        }
-        if ( isPhiIterConverged ) break;
         std::ostringstream msg;
         msg << "Phi iteration # " << phiIter;
         PrintBlock( statusOFS, msg.str() );
@@ -590,6 +576,52 @@ SCF::Iterate (  )
 
         statusOFS << "Total wall clock time for this Phi iteration = " << 
           timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
+      
+        // Update Phi <- Psi
+        GetTime( timeSta );
+        ham.SetPhiEXX( psi, fft ); 
+
+        // Update the ACE if needed
+        if( esdfParam.isHybridACE ){
+          if( esdfParam.isHybridDF ){
+            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+            // Fix the column after the first iteraiton
+            isFixColumnDF = true;
+          }
+          else{
+            ham.CalculateVexxACE ( psi, fft );
+          }
+        }
+
+        GetTime( timeEnd );
+        statusOFS << "Time for updating Phi related variable is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        GetTime( timeSta );
+        fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the EXX energy is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
+        dExx = std::abs(fock2 - fock1) / std::abs(fock2);
+        fock1 = fock2;
+        Efock_ = fock2;
+
+        Etot_ = Etot_ - Efock_;
+        Efree_ = Efree_ - Efock_;
+
+        statusOFS << std::endl;
+        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
+        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
+        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
+        Print(statusOFS, "dExx              = ",  dExx, "[au]");
+        if( dExx < scfPhiTolerance_ ){
+          statusOFS << "SCF for hybrid functional is converged in " 
+            << phiIter << " steps !" << std::endl;
+          isPhiIterConverged = true;
+        }
+        if ( isPhiIterConverged ) break;
       } // for(phiIter)
     } // hybridMixType == "nested"
 
@@ -678,56 +710,6 @@ SCF::Iterate (  )
             psi.Wavefun().Data(), ntot, psiMuT.Data(), numOcc, 
             0.0, Pc.Data(), ntot );
 
-        // Update Phi <- Psi
-        GetTime( timeSta );
-        ham.SetPhiEXX( psi, fft ); 
-
-        // In principle there is no need to construct ACE operator here
-        // However, this makes the code more readable by directly calling 
-        // the MultSpinor function later
-        if( esdfParam.isHybridACE ){
-          if( esdfParam.isHybridDF ){
-            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
-            // Fix the column after the first iteraiton
-            isFixColumnDF = true;
-          }
-          else{
-            ham.CalculateVexxACE ( psi, fft );
-          }
-        }
-
-        GetTime( timeEnd );
-        statusOFS << "Time for updating Phi related variable is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        GetTime( timeSta );
-        fock2 = ham.CalculateEXXEnergy( psi, fft ); 
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the EXX energy is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
-        dExx = std::abs(fock2 - fock1) / std::abs(fock2);
-        // use scfNorm to reflect dExx
-        scfNorm_ = dExx;
-        fock1 = fock2;
-        Efock_ = fock2;
-
-        Etot_ = Etot_ - Efock_;
-        Efree_ = Efree_ - Efock_;
-
-        statusOFS << std::endl;
-        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
-        Print(statusOFS, "dExx              = ",  dExx, "[au]");
-
-        if( dExx < scfPhiTolerance_ ){
-          statusOFS << "SCF for hybrid functional is converged in " 
-            << phiIter << " steps !" << std::endl;
-          isPhiIterConverged = true;
-        }
-        if ( isPhiIterConverged ) break;
         std::ostringstream msg;
         msg << "Phi iteration # " << phiIter;
         PrintBlock( statusOFS, msg.str() );
@@ -815,6 +797,7 @@ SCF::Iterate (  )
           lapack::Orth( ntot, numOcc, psiPc.Data(), ntot );
         }
 
+        // Construct the new Hamiltonian operator
         Spinor spnPsiPc(fft.domain, 1, numStateTotal,
             numStateTotal, false, psiPc.Data());
 
@@ -906,6 +889,58 @@ SCF::Iterate (  )
 
         statusOFS << "Total wall clock time for this Phi iteration = " << 
           timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
+
+
+        // Update Phi <- Psi
+        GetTime( timeSta );
+        ham.SetPhiEXX( psi, fft ); 
+
+        // In principle there is no need to construct ACE operator here
+        // However, this makes the code more readable by directly calling 
+        // the MultSpinor function later
+        if( esdfParam.isHybridACE ){
+          if( esdfParam.isHybridDF ){
+            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+            // Fix the column after the first iteraiton
+            isFixColumnDF = true;
+          }
+          else{
+            ham.CalculateVexxACE ( psi, fft );
+          }
+        }
+
+        GetTime( timeEnd );
+        statusOFS << "Time for updating Phi related variable is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        GetTime( timeSta );
+        fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the EXX energy is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
+        dExx = std::abs(fock2 - fock1) / std::abs(fock2);
+        // use scfNorm to reflect dExx
+        scfNorm_ = dExx;
+        fock1 = fock2;
+        Efock_ = fock2;
+
+        Etot_ = Etot_ - Efock_;
+        Efree_ = Efree_ - Efock_;
+
+        statusOFS << std::endl;
+        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
+        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
+        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
+        Print(statusOFS, "dExx              = ",  dExx, "[au]");
+
+        if( dExx < scfPhiTolerance_ ){
+          statusOFS << "SCF for hybrid functional is converged in " 
+            << phiIter << " steps !" << std::endl;
+          isPhiIterConverged = true;
+        }
+        if ( isPhiIterConverged ) break;
       } // for(phiIter)
     } // hybridMixType == "scdiis"
 
