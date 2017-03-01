@@ -429,33 +429,50 @@ SCF::Iterate (  )
 
       if( mpisize > 1 )
         ErrorHandling("scdiis only works for mpisize == 1.");
+      
 
       Int ntot = esdfParam.domain.NumGridTotal();
+      Int numStateTotal = psi.NumStateTotal();
       Int numOcc = ham.NumOccupiedState();
+      
       IntNumVec permPsiOcc(numOcc);
-      DblNumMat ResSaveMat( ntot, numOcc, mixMaxDim_ ); 
-      DblNumMat PcSaveMat ( ntot, numOcc, mixMaxDim_ ); 
+
+      // For residual
+      dfMat_.Resize( ntot * numOcc, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
+      // For Pc
+      dvMat_.Resize( ntot * numOcc, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
+
       // Selected columns of density matrix
       DblNumMat Pc(ntot, numOcc);
-      // Orthonormalized Pc via Lowdin transformation.
-      DblNumMat phiPc(ntot, numOcc);
-      // Psi(r_mu,:)
-      DblNumMat Pc(ntot, numOcc);
+      DblNumMat Res(ntot, numOcc);
+      
+      // Compute all Hpsi for simplicity
+      DblNumMat psiPc(ntot, numStateTotal);
+      DblNumMat Hpsi(ntot, numStateTotal);
+      DblNumMat psiMuT(numOcc, numOcc);
+      DblNumMat HpsiMuT(numOcc, numOcc);
 
       {
         // This currently only works for insulating system
         IntNumVec permPsi(ntot);
-        DblNumMat Q(numOcc, numOcc);
-        DblNumMat R(numOcc, ntot);
+        DblNumVec tau(ntot);
 
         // Quick and dirty way to generate the transpose matrix
         DblNumMat psiOccT;
-        Transpose( DblNumMat(ntot, numOcc, false, psi.Data()), psiOccT );
-        lapack::QRCP( numOcc, ntot, phiOccT.Data(), Q.Data(), R.Data(), numOcc, 
-            permPsi.Data() );
+        Transpose( DblNumMat(ntot, numOcc, false, psi.Wavefun().Data()), psiOccT );
+        
+        statusOFS << DblNumMat(ntot, numOcc, false, psi.Wavefun().Data()) << std::endl; 
+        statusOFS << psiOccT << std::endl; 
+        
 
-        for( Int k = 0; k < numOcc; k++ ){
-          permPsiOcc[k] = permPsi[k];
+        // Important since if permPsi is not zero, it will try to use the number as 
+        // fixed columns
+        SetValue( permPsi, 0 ); 
+        lapack::QRCP( numOcc, ntot, psiOccT.Data(), numOcc, 
+            permPsi.Data(), tau.Data() );
+
+        for( Int mu = 0; mu < numOcc; mu++ ){
+          permPsiOcc[mu] = permPsi[mu];
         }
       }
 
@@ -463,11 +480,34 @@ SCF::Iterate (  )
 
         GetTime( timePhiIterStart );
 
+        for( Int mu = 0; mu < numOcc; mu++ ){
+          for( Int k = 0; k < numOcc; k++ ){
+            psiMuT(k,mu) = psi.Wavefun()(permPsiOcc[mu],0,k);
+          }
+        }
+
+#if ( _DEBUGlevel_ >= 1 )
+        {
+          // Monitor the singular values as a measure as the quality of
+          // the selected columns
+          DblNumMat tmp = psiMuT;
+          DblNumVec s(numOcc);
+          lapack::SingularValues( numOcc, numOcc, tmp.Data(), numOcc, s.Data() );
+          statusOFS << "Spsi = " << s << std::endl;
+        }
+#endif
+
+        blas::Gemm( 'N', 'N', ntot, numOcc, numOcc, 1.0, 
+            psi.Wavefun().Data(), ntot, psiMuT.Data(), numOcc, 
+            0.0, Pc.Data(), ntot );
+
         // Update Phi <- Psi
         GetTime( timeSta );
         ham.SetPhiEXX( psi, fft ); 
 
         // Update the ACE if needed
+        // FIXME No need to construct ACE here. Only need to compute
+        // Hpsi once for the residual
         if( esdfParam.isHybridACE ){
           if( esdfParam.isHybridDF ){
             ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
@@ -491,6 +531,8 @@ SCF::Iterate (  )
 
         // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
         dExx = std::abs(fock2 - fock1) / std::abs(fock2);
+        // use scfNorm to reflect dExx
+        scfNorm_ = dExx;
         fock1 = fock2;
         Efock_ = fock2;
 
@@ -505,10 +547,310 @@ SCF::Iterate (  )
         msg << "Phi iteration # " << phiIter;
         PrintBlock( statusOFS, msg.str() );
 
-        // Compute selected columns of density matrix
-        blas::Gemm( 'N', 'N', ntot, numOcc, numOcc, 1.0, 
-            psi.Wavefun().Data(), ntot, Q.Data(), numStateTotal, 0.0,
-            phi.Data(), ntot );
+        // Compute the residual
+        {
+          // Compute Hpsi for all psi 
+          NumTns<Real> tnsTemp(ntot, 1, numStateTotal, false, 
+              Hpsi.Data());
+          ham.MultSpinor( psi, tnsTemp, fft );
+          for( Int mu = 0; mu < numOcc; mu++ ){
+            for( Int k = 0; k < numOcc; k++ ){
+              HpsiMuT(k,mu) = Hpsi(permPsiOcc[mu],k);
+            }
+          }
+          blas::Gemm( 'N', 'N', ntot, numOcc, numOcc, 1.0, 
+              Hpsi.Data(), ntot, psiMuT.Data(), numOcc, 
+              0.0, Res.Data(), ntot );
+          blas::Gemm( 'N', 'N', ntot, numOcc, numOcc, -1.0, 
+              psi.Wavefun().Data(), ntot, HpsiMuT.Data(), numOcc, 
+              1.0, Res.Data(), ntot );
+        }
+
+        // Anderson mixing. Use the same mixMaxDim_ for Phi mixing
+        {
+          // Optimal input potential in Anderon mixing.
+          DblNumVec vOpt( ntot * numOcc ); 
+
+          // Number of iterations used, iter should start from 1
+          Int iterused = std::min( phiIter-1, mixMaxDim_ ); 
+          // The current position of dfMat, dvMat
+          Int ipos = phiIter - 1 - ((phiIter-2)/ mixMaxDim_ ) * mixMaxDim_;
+          // The next position of dfMat, dvMat
+          Int inext = phiIter - ((phiIter-1)/ mixMaxDim_) * mixMaxDim_;
+
+          blas::Copy( ntot * numOcc, Pc.Data(), 1, vOpt.Data(), 1 );
+
+          if( phiIter > 1 ){
+            // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
+            // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
+            blas::Scal( ntot * numOcc, -1.0, dfMat_.VecData(ipos-1), 1 );
+            blas::Axpy( ntot * numOcc, 1.0, Res.Data(), 1, dfMat_.VecData(ipos-1), 1 );
+            blas::Scal( ntot * numOcc, -1.0, dvMat_.VecData(ipos-1), 1 );
+            blas::Axpy( ntot * numOcc, 1.0, Pc.Data(), 1, dvMat_.VecData(ipos-1), 1 );
+
+            // Calculating pseudoinverse
+            DblNumMat dfMatTemp;
+            DblNumVec gammas(ntot * numOcc), S(iterused);
+
+            Int rank;
+            // FIXME Magic number
+            Real rcond = 1e-3;
+
+            // gammas    = res;
+            blas::Copy( ntot * numOcc, Res.Data(), 1, gammas.Data(), 1 );
+            dfMatTemp = dfMat_;
+
+            // May need different strategy in a parallel setup
+            lapack::SVDLeastSquare( ntot * numOcc, iterused, 1, 
+                dfMatTemp.Data(), ntot * numOcc,
+                gammas.Data(), ntot * numOcc,
+                S.Data(), rcond, &rank );
+
+            Print( statusOFS, "  Rank of dfmat = ", rank );
+
+            // Update vOpt only, which is the mixed Pc
+
+            blas::Gemv('N', ntot * numOcc, iterused, -1.0, dvMat_.Data(),
+                ntot * numOcc, gammas.Data(), 1, 1.0, vOpt.Data(), 1 );
+
+          }
+
+          // Update dfMat, dvMat, vMix 
+          // dfMat(:, inext-1) = Res(:)
+          // dvMat(:, inext-1) = Pc(:)
+          blas::Copy( ntot * numOcc, Res.Data(), 1, 
+              dfMat_.VecData(inext-1), 1 );
+          blas::Copy( ntot * numOcc, Pc.Data(),  1, 
+              dvMat_.VecData(inext-1), 1 );
+
+          // Orthogonalize vOpt to obtain psiPc. 
+          // psiPc has the same size
+          SetValue( psiPc, 0.0 );
+          blas::Copy( ntot * numOcc, vOpt.Data(), 1, psiPc.Data(), 1 );
+          lapack::Orth( ntot, numOcc, psiPc.Data(), ntot );
+        }
+
+        Spinor spnPsiPc(fft.domain, 1, numStateTotal,
+            numStateTotal, false, psiPc.Data());
+
+        // Compute the electron density
+        GetTime( timeSta );
+        ham.CalculateDensity(
+            spnPsiPc,
+            ham.OccupationRate(),
+            totalCharge_, 
+            fft );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing density in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+        // Compute the exchange-correlation potential and energy
+        if( isCalculateGradRho_ ){
+          GetTime( timeSta );
+          ham.CalculateGradDensity( fft );
+          GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+          statusOFS << "Time for computing gradient density in PWDFT is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+        }
+
+        GetTime( timeSta );
+        ham.CalculateXC( Exc_, fft ); 
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing XC potential in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+        // Compute the Hartree energy
+        GetTime( timeSta );
+        ham.CalculateHartree( fft );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing Hartree potential in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+        // No external potential
+
+        // Compute the total potential
+        GetTime( timeSta );
+        ham.CalculateVtot( ham.Vtot() );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing total potential in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+        // Update Phi <- Psi
+        GetTime( timeSta );
+        ham.SetPhiEXX( spnPsiPc, fft ); 
+
+        // Update the ACE if needed
+        // Still use psi but phi has changed
+        if( esdfParam.isHybridACE ){
+          if( esdfParam.isHybridDF ){
+            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+            // Fix the column after the first iteraiton
+            isFixColumnDF = true;
+          }
+          else{
+            ham.CalculateVexxACE ( psi, fft );
+          }
+        }
+
+        GetTime( timeEnd );
+        statusOFS << "Time for updating Phi related variable is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // TODO: Change InnerIterate to EigSolve
+        Real eigTolNow;
+        eigTolNow = eigTolerance_;
+
+        Int numEig = (psi.NumStateTotal());
+
+        if(Diag_SCF_PWDFT_by_Cheby_ == 0)
+        {  
+          statusOFS << "The current tolerance used by the eigensolver is " 
+            << eigTolNow << std::endl;
+          statusOFS << "The target number of converged eigenvectors is " 
+            << numEig << std::endl;
+        }
+
+        GetTime( timeSta );
+
+        if(Diag_SCF_PWDFT_by_Cheby_ == 1)
+        {
+          if(Cheby_iondynamics_schedule_flag_ == 0)
+          {
+            // Use static schedule
+            statusOFS << std::endl << " CheFSI in PWDFT working on static schedule." << std::endl;
+            // Use CheFSI or LOBPCG on first step 
+            if( phiIter <= 1){
+              if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
+                eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+              else
+                eigSolPtr_->FirstChebyStep(numEig, First_SCF_PWDFT_ChebyCycleNum_, First_SCF_PWDFT_ChebyFilterOrder_);
+            }
+            else{
+              eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
+            }
+          }
+          else
+          {
+            // Use ion-dynamics schedule
+            statusOFS << std::endl << " CheFSI in PWDFT working on ion-dynamics schedule." << std::endl;
+            if( phiIter <= 1)
+            {
+              for (int cheby_iter = 1; cheby_iter <= eigMaxIter_; cheby_iter ++)
+                eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
+            }
+            else
+            {
+              eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
+            }
+
+          }
+        }
+        else
+        {
+          // Use LOBPCG
+          if( PWSolver_ == "LOBPCG" ){
+            eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+          } // Use LOBPCG with ScaLAPACK
+          else if ( PWSolver_ == "LOBPCGScaLAPACK" ){
+            eigSolPtr_->LOBPCGSolveReal3(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+          } // Use PPCG
+          else if( PWSolver_ == "PPCG" || PWSolver_ == "PPCGScaLAPACK" ){
+            eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+          }
+          else{
+            // FIXME Merge the Chebyshev into an option of PWSolver
+            ErrorHandling("Not supported PWSolver type.");
+          }
+        }
+
+        GetTime( timeEnd );
+
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << std::endl << "Time for the eigensolver is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+        GetTime( timeSta );
+        ham.EigVal() = eigSolPtr_->EigVal();
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for ham.EigVal() in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+        // No need for normalization using LOBPCG
+
+        // Compute the occupation rate
+        GetTime( timeSta );
+        CalculateOccupationRate( ham.EigVal(), 
+            ham.OccupationRate() );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing occupation rate in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+        // Compute the electron density
+        GetTime( timeSta );
+        ham.CalculateDensity(
+            psi,
+            ham.OccupationRate(),
+            totalCharge_, 
+            fft );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing density in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+        // Compute the exchange-correlation potential and energy
+        if( isCalculateGradRho_ ){
+          GetTime( timeSta );
+          ham.CalculateGradDensity( fft );
+          GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+          statusOFS << "Time for computing gradient density in PWDFT is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+        }
+
+        GetTime( timeSta );
+        ham.CalculateXC( Exc_, fft ); 
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing XC potential in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+        // Compute the Hartree energy
+        GetTime( timeSta );
+        ham.CalculateHartree( fft );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing Hartree potential in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+        // No external potential
+
+        // Compute the total potential
+        GetTime( timeSta );
+        ham.CalculateVtot( ham.Vtot() );
+        GetTime( timeEnd );
+
+        Evdw_ = 0.0;
+
+        CalculateEnergy();
+
+        PrintState( phiIter );
 
 
         Etot_ = Etot_ - Efock_;
@@ -521,7 +863,7 @@ SCF::Iterate (  )
         statusOFS << "Total wall clock time for this Phi iteration = " << 
           timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
       } // for(phiIter)
-    } // hybridMixType == "nested"
+    } // hybridMixType == "scdiis"
 
   } // isHybrid == true
 
@@ -570,7 +912,6 @@ SCF::Iterate (  )
     if( ham.NumExtraState() > 0 ){
       Print(statusOFS, "! LUMO            = ",  LUMO*au2ev, "[eV]");
     }
-    Print(statusOFS, "! norm(out-in)/norm(in) = ",  scfNorm_ ); 
   }
 
   {
