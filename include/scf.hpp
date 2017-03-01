@@ -158,7 +158,8 @@ public:
   // Basic parameters. Density and wavefunction
   void  Setup( EigenSolver& eigSol, PeriodTable& ptable ); 
   void  Iterate();
-  void  InnerIterate();
+  // Solve the linear eigenvalue problem and compute potential etc
+  void  InnerSolve( Int iter ); 
   void  Update();
 
   void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );

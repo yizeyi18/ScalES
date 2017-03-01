@@ -279,6 +279,8 @@ SCF::Iterate (  )
   int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain.comm, &mpisize);
 
   Real timeSta, timeEnd;
+  Real timeIterStart(0), timeIterEnd(0);
+
   // Only works for KohnSham class
   Hamiltonian& ham = eigSolPtr_->Ham();
   Fourier&     fft = eigSolPtr_->FFT();
@@ -333,7 +335,93 @@ SCF::Iterate (  )
     std::ostringstream msg;
     msg << "Starting regular SCF iteration.";
     PrintBlock( statusOFS, msg.str() );
-    InnerIterate();
+    bool isSCFConverged = false;
+    for (Int iter=1; iter <= scfMaxIter_; iter++) {
+      // *********************************************************************
+      // Performing each iteartion
+      // *********************************************************************
+      {
+        std::ostringstream msg;
+        msg << "SCF iteration # " << iter;
+        PrintBlock( statusOFS, msg.str() );
+      }
+
+      GetTime( timeIterStart );
+
+      // Solve eigenvalue problem
+      // Update density, gradDensity, potential (stored in vtotNew_)
+      InnerSolve( iter );
+
+      Real normVtotDif = 0.0, normVtotOld = 0.0;
+      DblNumVec& vtotOld_ = ham.Vtot();
+      Int ntot = vtotOld_.m();
+      for( Int i = 0; i < ntot; i++ ){
+        normVtotDif += pow( vtotOld_(i) - vtotNew_(i), 2.0 );
+        normVtotOld += pow( vtotOld_(i), 2.0 );
+      }
+      normVtotDif = sqrt( normVtotDif );
+      normVtotOld = sqrt( normVtotOld );
+      scfNorm_    = normVtotDif / normVtotOld;
+
+      // FIXME Dump out the difference of the potential to
+      // investigate source of slow SCF convergence
+      if(0)
+      {
+        std::ostringstream vStream;
+        serialize( vtotOld_, vStream, NO_MASK );
+        serialize( vtotNew_, vStream, NO_MASK ); 
+        SharedWrite( "VOLDNEW", vStream );
+      }
+
+
+      Evdw_ = 0.0;
+
+      GetTime( timeSta );
+      CalculateEnergy();
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing energy in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      PrintState( iter );
+      
+      Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm_ );
+
+      if( scfNorm_ < scfTolerance_ ){
+        /* converged */
+        statusOFS << "SCF is converged in " << iter << " steps !" << std::endl;
+        isSCFConverged = true;
+      }
+
+      // Potential mixing
+      GetTime( timeSta );
+      if( mixType_ == "anderson" || mixType_ == "kerker+anderson" ){
+        AndersonMix(
+            iter,
+            mixStepLength_,
+            mixType_,
+            ham.Vtot(),
+            vtotOld_,
+            vtotNew_,
+            dfMat_,
+            dvMat_);
+      }
+      else{
+        ErrorHandling("Invalid mixing type.");
+      }
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing potential mixing in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      GetTime( timeIterEnd );
+
+      statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
+        << " [s]" << std::endl;
+
+    } // for (iter)
   }
 
   // NOTE: The different mixing mode of hybrid functional calculations
@@ -390,6 +478,13 @@ SCF::Iterate (  )
         fock1 = fock2;
         Efock_ = fock2;
 
+        Etot_ = Etot_ - Efock_;
+        Efree_ = Efree_ - Efock_;
+
+        statusOFS << std::endl;
+        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
+        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
+        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
         Print(statusOFS, "dExx              = ",  dExx, "[au]");
         if( dExx < scfPhiTolerance_ ){
           statusOFS << "SCF for hybrid functional is converged in " 
@@ -402,13 +497,95 @@ SCF::Iterate (  )
         PrintBlock( statusOFS, msg.str() );
 
         // Nested SCF iteration
-        InnerIterate();
+        bool isSCFConverged = false;
+        for (Int iter=1; iter <= scfMaxIter_; iter++) {
+          // *********************************************************************
+          // Performing each iteartion
+          // *********************************************************************
+          {
+            std::ostringstream msg;
+            msg << "SCF iteration # " << iter;
+            PrintBlock( statusOFS, msg.str() );
+          }
 
-        Etot_ = Etot_ - Efock_;
-        Efree_ = Efree_ - Efock_;
-        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
+          GetTime( timeIterStart );
+
+          // Solve eigenvalue problem
+          // Update density, gradDensity, potential (stored in vtotNew_)
+          InnerSolve( iter );
+
+          Real normVtotDif = 0.0, normVtotOld = 0.0;
+          DblNumVec& vtotOld_ = ham.Vtot();
+          Int ntot = vtotOld_.m();
+          for( Int i = 0; i < ntot; i++ ){
+            normVtotDif += pow( vtotOld_(i) - vtotNew_(i), 2.0 );
+            normVtotOld += pow( vtotOld_(i), 2.0 );
+          }
+          normVtotDif = sqrt( normVtotDif );
+          normVtotOld = sqrt( normVtotOld );
+          scfNorm_    = normVtotDif / normVtotOld;
+
+          // FIXME Dump out the difference of the potential to
+          // investigate source of slow SCF convergence
+          if(0)
+          {
+            std::ostringstream vStream;
+            serialize( vtotOld_, vStream, NO_MASK );
+            serialize( vtotNew_, vStream, NO_MASK ); 
+            SharedWrite( "VOLDNEW", vStream );
+          }
+
+
+          Evdw_ = 0.0;
+
+          GetTime( timeSta );
+          CalculateEnergy();
+          GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+          statusOFS << "Time for computing energy in PWDFT is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+          PrintState( iter );
+
+          Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm_ );
+
+
+          if( scfNorm_ < scfTolerance_ ){
+            /* converged */
+            statusOFS << "SCF is converged in " << iter << " steps !" << std::endl;
+            isSCFConverged = true;
+          }
+
+          // Potential mixing
+          GetTime( timeSta );
+          if( mixType_ == "anderson" || mixType_ == "kerker+anderson" ){
+            AndersonMix(
+                iter,
+                mixStepLength_,
+                mixType_,
+                ham.Vtot(),
+                vtotOld_,
+                vtotNew_,
+                dfMat_,
+                dvMat_);
+          }
+          else{
+            ErrorHandling("Invalid mixing type.");
+          }
+          GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+          statusOFS << "Time for computing potential mixing in PWDFT is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+          GetTime( timeIterEnd );
+
+          statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
+            << " [s]" << std::endl;
+
+        } // for (iter)
+
         GetTime( timePhiIterEnd );
 
         statusOFS << "Total wall clock time for this Phi iteration = " << 
@@ -420,6 +597,8 @@ SCF::Iterate (  )
 
     // New method for the commutator-DIIS with column selection strategy
     if( esdfParam.hybridMixType == "scdiis" ){
+
+
       // Computing selected columns of the density matrix. 
       // This requires a good initial guess of wavefunctions, 
       // from one of the following
@@ -431,7 +610,8 @@ SCF::Iterate (  )
         ErrorHandling("scdiis only works for mpisize == 1.");
       
 
-      Int ntot = esdfParam.domain.NumGridTotal();
+      Int ntot      = fft.domain.NumGridTotal();
+      Int ntotFine  = fft.domain.NumGridTotalFine();
       Int numStateTotal = psi.NumStateTotal();
       Int numOcc = ham.NumOccupiedState();
       
@@ -460,9 +640,6 @@ SCF::Iterate (  )
         // Quick and dirty way to generate the transpose matrix
         DblNumMat psiOccT;
         Transpose( DblNumMat(ntot, numOcc, false, psi.Wavefun().Data()), psiOccT );
-        
-        statusOFS << DblNumMat(ntot, numOcc, false, psi.Wavefun().Data()) << std::endl; 
-        statusOFS << psiOccT << std::endl; 
         
 
         // Important since if permPsi is not zero, it will try to use the number as 
@@ -505,9 +682,9 @@ SCF::Iterate (  )
         GetTime( timeSta );
         ham.SetPhiEXX( psi, fft ); 
 
-        // Update the ACE if needed
-        // FIXME No need to construct ACE here. Only need to compute
-        // Hpsi once for the residual
+        // In principle there is no need to construct ACE operator here
+        // However, this makes the code more readable by directly calling 
+        // the MultSpinor function later
         if( esdfParam.isHybridACE ){
           if( esdfParam.isHybridDF ){
             ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
@@ -536,7 +713,15 @@ SCF::Iterate (  )
         fock1 = fock2;
         Efock_ = fock2;
 
+        Etot_ = Etot_ - Efock_;
+        Efree_ = Efree_ - Efock_;
+
+        statusOFS << std::endl;
+        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
+        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
+        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
         Print(statusOFS, "dExx              = ",  dExx, "[au]");
+
         if( dExx < scfPhiTolerance_ ){
           statusOFS << "SCF for hybrid functional is converged in " 
             << phiIter << " steps !" << std::endl;
@@ -677,7 +862,9 @@ SCF::Iterate (  )
 
         // Compute the total potential
         GetTime( timeSta );
-        ham.CalculateVtot( ham.Vtot() );
+        ham.CalculateVtot( vtotNew_ );
+        blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
+
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
         statusOFS << "Time for computing total potential in PWDFT is " <<
@@ -705,146 +892,9 @@ SCF::Iterate (  )
         statusOFS << "Time for updating Phi related variable is " <<
           timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-        // TODO: Change InnerIterate to EigSolve
-        Real eigTolNow;
-        eigTolNow = eigTolerance_;
+        InnerSolve( phiIter );
+        blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
 
-        Int numEig = (psi.NumStateTotal());
-
-        if(Diag_SCF_PWDFT_by_Cheby_ == 0)
-        {  
-          statusOFS << "The current tolerance used by the eigensolver is " 
-            << eigTolNow << std::endl;
-          statusOFS << "The target number of converged eigenvectors is " 
-            << numEig << std::endl;
-        }
-
-        GetTime( timeSta );
-
-        if(Diag_SCF_PWDFT_by_Cheby_ == 1)
-        {
-          if(Cheby_iondynamics_schedule_flag_ == 0)
-          {
-            // Use static schedule
-            statusOFS << std::endl << " CheFSI in PWDFT working on static schedule." << std::endl;
-            // Use CheFSI or LOBPCG on first step 
-            if( phiIter <= 1){
-              if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
-                eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
-              else
-                eigSolPtr_->FirstChebyStep(numEig, First_SCF_PWDFT_ChebyCycleNum_, First_SCF_PWDFT_ChebyFilterOrder_);
-            }
-            else{
-              eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
-            }
-          }
-          else
-          {
-            // Use ion-dynamics schedule
-            statusOFS << std::endl << " CheFSI in PWDFT working on ion-dynamics schedule." << std::endl;
-            if( phiIter <= 1)
-            {
-              for (int cheby_iter = 1; cheby_iter <= eigMaxIter_; cheby_iter ++)
-                eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
-            }
-            else
-            {
-              eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
-            }
-
-          }
-        }
-        else
-        {
-          // Use LOBPCG
-          if( PWSolver_ == "LOBPCG" ){
-            eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
-          } // Use LOBPCG with ScaLAPACK
-          else if ( PWSolver_ == "LOBPCGScaLAPACK" ){
-            eigSolPtr_->LOBPCGSolveReal3(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
-          } // Use PPCG
-          else if( PWSolver_ == "PPCG" || PWSolver_ == "PPCGScaLAPACK" ){
-            eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
-          }
-          else{
-            // FIXME Merge the Chebyshev into an option of PWSolver
-            ErrorHandling("Not supported PWSolver type.");
-          }
-        }
-
-        GetTime( timeEnd );
-
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << std::endl << "Time for the eigensolver is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        GetTime( timeSta );
-        ham.EigVal() = eigSolPtr_->EigVal();
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for ham.EigVal() in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // No need for normalization using LOBPCG
-
-        // Compute the occupation rate
-        GetTime( timeSta );
-        CalculateOccupationRate( ham.EigVal(), 
-            ham.OccupationRate() );
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing occupation rate in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Compute the electron density
-        GetTime( timeSta );
-        ham.CalculateDensity(
-            psi,
-            ham.OccupationRate(),
-            totalCharge_, 
-            fft );
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing density in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Compute the exchange-correlation potential and energy
-        if( isCalculateGradRho_ ){
-          GetTime( timeSta );
-          ham.CalculateGradDensity( fft );
-          GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Time for computing gradient density in PWDFT is " <<
-            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-        }
-
-        GetTime( timeSta );
-        ham.CalculateXC( Exc_, fft ); 
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing XC potential in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Compute the Hartree energy
-        GetTime( timeSta );
-        ham.CalculateHartree( fft );
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing Hartree potential in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-        // No external potential
-
-        // Compute the total potential
-        GetTime( timeSta );
-        ham.CalculateVtot( ham.Vtot() );
-        GetTime( timeEnd );
 
         Evdw_ = 0.0;
 
@@ -852,12 +902,6 @@ SCF::Iterate (  )
 
         PrintState( phiIter );
 
-
-        Etot_ = Etot_ - Efock_;
-        Efree_ = Efree_ - Efock_;
-        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
         GetTime( timePhiIterEnd );
 
         statusOFS << "Total wall clock time for this Phi iteration = " << 
@@ -1023,7 +1067,7 @@ SCF::Iterate (  )
 
 
 void
-SCF::InnerIterate	(  )
+SCF::InnerSolve	( Int iter )
 {
   int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain.comm, &mpirank);
   int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain.comm, &mpisize);
@@ -1034,252 +1078,168 @@ SCF::InnerIterate	(  )
   Fourier&     fft = eigSolPtr_->FFT();
   Spinor&      psi = eigSolPtr_->Psi();
 
-  Real timeIterStart(0), timeIterEnd(0);
 
 
-  
-  bool isSCFConverged = false;
-  for (Int iter=1; iter <= scfMaxIter_; iter++) {
-    if ( isSCFConverged ) return;
 
-    // *********************************************************************
-    // Performing each iteartion
-    // *********************************************************************
+  // Solve the eigenvalue problem
+
+  Real eigTolNow;
+  if( isEigToleranceDynamic_ ){
+    // Dynamic strategy to control the tolerance
+    if( iter == 1 )
+      eigTolNow = 1e-2;
+    else
+      eigTolNow = std::max( std::min( scfNorm_*1e-2, 1e-2 ) , eigTolerance_);
+  }
+  else{
+    // Static strategy to control the tolerance
+    eigTolNow = eigTolerance_;
+  }
+
+  Int numEig = (psi.NumStateTotal());
+
+  if(Diag_SCF_PWDFT_by_Cheby_ == 0)
+  {  
+    statusOFS << "The current tolerance used by the eigensolver is " 
+      << eigTolNow << std::endl;
+    statusOFS << "The target number of converged eigenvectors is " 
+      << numEig << std::endl;
+  }
+
+  GetTime( timeSta );
+
+  if(Diag_SCF_PWDFT_by_Cheby_ == 1)
+  {
+    if(Cheby_iondynamics_schedule_flag_ == 0)
     {
-      std::ostringstream msg;
-      msg << "SCF iteration # " << iter;
-      PrintBlock( statusOFS, msg.str() );
-    }
-
-    GetTime( timeIterStart );
-
-    // Solve the eigenvalue problem
-
-    Real eigTolNow;
-    if( isEigToleranceDynamic_ ){
-      // Dynamic strategy to control the tolerance
-      if( iter == 1 )
-        eigTolNow = 1e-2;
-      else
-        eigTolNow = std::max( std::min( scfNorm_*1e-2, 1e-2 ) , eigTolerance_);
-    }
-    else{
-      // Static strategy to control the tolerance
-      eigTolNow = eigTolerance_;
-    }
-
-    Int numEig = (psi.NumStateTotal());
-
-    if(Diag_SCF_PWDFT_by_Cheby_ == 0)
-    {  
-      statusOFS << "The current tolerance used by the eigensolver is " 
-        << eigTolNow << std::endl;
-      statusOFS << "The target number of converged eigenvectors is " 
-        << numEig << std::endl;
-    }
-
-    GetTime( timeSta );
-
-    if(Diag_SCF_PWDFT_by_Cheby_ == 1)
-    {
-      if(Cheby_iondynamics_schedule_flag_ == 0)
-      {
-        // Use static schedule
-        statusOFS << std::endl << " CheFSI in PWDFT working on static schedule." << std::endl;
-        // Use CheFSI or LOBPCG on first step 
-        if(iter <= 1){
-          if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
-            eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
-          else
-            eigSolPtr_->FirstChebyStep(numEig, First_SCF_PWDFT_ChebyCycleNum_, First_SCF_PWDFT_ChebyFilterOrder_);
-        }
-        else{
-          eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
-        }
-      }
-      else
-      {
-        // Use ion-dynamics schedule
-        statusOFS << std::endl << " CheFSI in PWDFT working on ion-dynamics schedule." << std::endl;
-        if( iter <= 1)
-        {
-          for (int cheby_iter = 1; cheby_iter <= eigMaxIter_; cheby_iter ++)
-            eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
-        }
+      // Use static schedule
+      statusOFS << std::endl << " CheFSI in PWDFT working on static schedule." << std::endl;
+      // Use CheFSI or LOBPCG on first step 
+      if(iter <= 1){
+        if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
+          eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
         else
-        {
-          eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
-        }
-
+          eigSolPtr_->FirstChebyStep(numEig, First_SCF_PWDFT_ChebyCycleNum_, First_SCF_PWDFT_ChebyFilterOrder_);
+      }
+      else{
+        eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
       }
     }
     else
     {
-      // Use LOBPCG
-      if( PWSolver_ == "LOBPCG" ){
-        eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
-      } // Use LOBPCG with ScaLAPACK
-      else if ( PWSolver_ == "LOBPCGScaLAPACK" ){
-        eigSolPtr_->LOBPCGSolveReal3(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
-      } // Use PPCG
-      else if( PWSolver_ == "PPCG" || PWSolver_ == "PPCGScaLAPACK" ){
-        eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+      // Use ion-dynamics schedule
+      statusOFS << std::endl << " CheFSI in PWDFT working on ion-dynamics schedule." << std::endl;
+      if( iter <= 1)
+      {
+        for (int cheby_iter = 1; cheby_iter <= eigMaxIter_; cheby_iter ++)
+          eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
       }
-      else{
-        // FIXME Merge the Chebyshev into an option of PWSolver
-        ErrorHandling("Not supported PWSolver type.");
+      else
+      {
+        eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
       }
+
     }
-
-    GetTime( timeEnd );
-
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << std::endl << "Time for the eigensolver is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-    GetTime( timeSta );
-    ham.EigVal() = eigSolPtr_->EigVal();
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for ham.EigVal() in PWDFT is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-    // No need for normalization using LOBPCG
-
-    // Compute the occupation rate
-    GetTime( timeSta );
-    CalculateOccupationRate( ham.EigVal(), 
-        ham.OccupationRate() );
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing occupation rate in PWDFT is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-    // Compute the electron density
-    GetTime( timeSta );
-    ham.CalculateDensity(
-        psi,
-        ham.OccupationRate(),
-        totalCharge_, 
-        fft );
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing density in PWDFT is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-    // Compute the exchange-correlation potential and energy
-    if( isCalculateGradRho_ ){
-      GetTime( timeSta );
-      ham.CalculateGradDensity( fft );
-      GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for computing gradient density in PWDFT is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-    }
-
-    GetTime( timeSta );
-    ham.CalculateXC( Exc_, fft ); 
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing XC potential in PWDFT is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-    // Compute the Hartree energy
-    GetTime( timeSta );
-    ham.CalculateHartree( fft );
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing Hartree potential in PWDFT is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-    // No external potential
-
-    // Compute the total potential
-    GetTime( timeSta );
-    ham.CalculateVtot( vtotNew_ );
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing total potential in PWDFT is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-    Real normVtotDif = 0.0, normVtotOld = 0.0;
-    DblNumVec& vtotOld_ = ham.Vtot();
-    Int ntot = vtotOld_.m();
-    for( Int i = 0; i < ntot; i++ ){
-      normVtotDif += pow( vtotOld_(i) - vtotNew_(i), 2.0 );
-      normVtotOld += pow( vtotOld_(i), 2.0 );
-    }
-    normVtotDif = sqrt( normVtotDif );
-    normVtotOld = sqrt( normVtotOld );
-    scfNorm_    = normVtotDif / normVtotOld;
-
-    // FIXME Dump out the difference of the potential to
-    // investigate source of slow SCF convergence
-    if(0)
-    {
-      std::ostringstream vStream;
-      serialize( vtotOld_, vStream, NO_MASK );
-      serialize( vtotNew_, vStream, NO_MASK ); 
-      SharedWrite( "VOLDNEW", vStream );
-    }
-
-
-    Evdw_ = 0.0;
-
-    GetTime( timeSta );
-    CalculateEnergy();
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing energy in PWDFT is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-    PrintState( iter );
-
-    if( scfNorm_ < scfTolerance_ ){
-      /* converged */
-      statusOFS << "SCF is converged in " << iter << " steps !" << std::endl;
-      isSCFConverged = true;
-    }
-
-    // Potential mixing
-    GetTime( timeSta );
-    if( mixType_ == "anderson" || mixType_ == "kerker+anderson" ){
-      AndersonMix(
-          iter,
-          mixStepLength_,
-          mixType_,
-          ham.Vtot(),
-          vtotOld_,
-          vtotNew_,
-          dfMat_,
-          dvMat_);
+  }
+  else
+  {
+    // Use LOBPCG
+    if( PWSolver_ == "LOBPCG" ){
+      eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+    } // Use LOBPCG with ScaLAPACK
+    else if ( PWSolver_ == "LOBPCGScaLAPACK" ){
+      eigSolPtr_->LOBPCGSolveReal3(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+    } // Use PPCG
+    else if( PWSolver_ == "PPCG" || PWSolver_ == "PPCGScaLAPACK" ){
+      eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
     }
     else{
-      ErrorHandling("Invalid mixing type.");
+      // FIXME Merge the Chebyshev into an option of PWSolver
+      ErrorHandling("Not supported PWSolver type.");
     }
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing potential mixing in PWDFT is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-    GetTime( timeIterEnd );
-
-    statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
-      << " [s]" << std::endl;
-
   }
 
+  GetTime( timeEnd );
+
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << std::endl << "Time for the eigensolver is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+  GetTime( timeSta );
+  ham.EigVal() = eigSolPtr_->EigVal();
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for ham.EigVal() in PWDFT is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+  // No need for normalization using LOBPCG
+
+  // Compute the occupation rate
+  GetTime( timeSta );
+  CalculateOccupationRate( ham.EigVal(), 
+      ham.OccupationRate() );
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for computing occupation rate in PWDFT is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+  // Compute the electron density
+  GetTime( timeSta );
+  ham.CalculateDensity(
+      psi,
+      ham.OccupationRate(),
+      totalCharge_, 
+      fft );
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for computing density in PWDFT is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+  // Compute the exchange-correlation potential and energy
+  if( isCalculateGradRho_ ){
+    GetTime( timeSta );
+    ham.CalculateGradDensity( fft );
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing gradient density in PWDFT is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+  }
+
+  GetTime( timeSta );
+  ham.CalculateXC( Exc_, fft ); 
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for computing XC potential in PWDFT is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+  // Compute the Hartree energy
+  GetTime( timeSta );
+  ham.CalculateHartree( fft );
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for computing Hartree potential in PWDFT is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+  // No external potential
+
+  // Compute the total potential
+  GetTime( timeSta );
+  ham.CalculateVtot( vtotNew_ );
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for computing total potential in PWDFT is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
   return ;
-} 		// -----  end of method SCF::InnerIterate  ----- 
+} 		// -----  end of method SCF::InnerSolve  ----- 
 
 void
 SCF::CalculateOccupationRate    ( DblNumVec& eigVal, DblNumVec& occupationRate )
@@ -1886,7 +1846,6 @@ SCF::PrintState    ( const Int iter  )
   if( eigSolPtr_->Ham().NumExtraState() > 0 ){
     Print(statusOFS, "LUMO              = ",  LUMO*au2ev, "[eV]");
   }
-  Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm_ );
 
 
   return ;
