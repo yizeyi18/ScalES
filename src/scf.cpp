@@ -415,6 +415,114 @@ SCF::Iterate (  )
           timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
       } // for(phiIter)
     } // hybridMixType == "nested"
+
+
+
+    // New method for the commutator-DIIS with column selection strategy
+    if( esdfParam.hybridMixType == "scdiis" ){
+      // Computing selected columns of the density matrix. 
+      // This requires a good initial guess of wavefunctions, 
+      // from one of the following
+      // 1) a regular SCF calculation
+      // 2) restarting wavefunction with Hybrid_Active_Init = true
+
+
+      if( mpisize > 1 )
+        ErrorHandling("scdiis only works for mpisize == 1.");
+
+      Int ntot = esdfParam.domain.NumGridTotal();
+      Int numOcc = ham.NumOccupiedState();
+      IntNumVec permPsiOcc(numOcc);
+      DblNumMat ResSaveMat( ntot, numOcc, mixMaxDim_ ); 
+      DblNumMat PcSaveMat ( ntot, numOcc, mixMaxDim_ ); 
+      // Selected columns of density matrix
+      DblNumMat Pc(ntot, numOcc);
+      // Orthonormalized Pc via Lowdin transformation.
+      DblNumMat phiPc(ntot, numOcc);
+      // Psi(r_mu,:)
+      DblNumMat Pc(ntot, numOcc);
+
+      {
+        // This currently only works for insulating system
+        IntNumVec permPsi(ntot);
+        DblNumMat Q(numOcc, numOcc);
+        DblNumMat R(numOcc, ntot);
+
+        // Quick and dirty way to generate the transpose matrix
+        DblNumMat psiOccT;
+        Transpose( DblNumMat(ntot, numOcc, false, psi.Data()), psiOccT );
+        lapack::QRCP( numOcc, ntot, phiOccT.Data(), Q.Data(), R.Data(), numOcc, 
+            permPsi.Data() );
+
+        for( Int k = 0; k < numOcc; k++ ){
+          permPsiOcc[k] = permPsi[k];
+        }
+      }
+
+      for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
+
+        GetTime( timePhiIterStart );
+
+        // Update Phi <- Psi
+        GetTime( timeSta );
+        ham.SetPhiEXX( psi, fft ); 
+
+        // Update the ACE if needed
+        if( esdfParam.isHybridACE ){
+          if( esdfParam.isHybridDF ){
+            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+            // Fix the column after the first iteraiton
+            isFixColumnDF = true;
+          }
+          else{
+            ham.CalculateVexxACE ( psi, fft );
+          }
+        }
+
+        GetTime( timeEnd );
+        statusOFS << "Time for updating Phi related variable is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        GetTime( timeSta );
+        fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+        GetTime( timeEnd );
+        statusOFS << "Time for computing the EXX energy is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
+        dExx = std::abs(fock2 - fock1) / std::abs(fock2);
+        fock1 = fock2;
+        Efock_ = fock2;
+
+        Print(statusOFS, "dExx              = ",  dExx, "[au]");
+        if( dExx < scfPhiTolerance_ ){
+          statusOFS << "SCF for hybrid functional is converged in " 
+            << phiIter << " steps !" << std::endl;
+          isPhiIterConverged = true;
+        }
+        if ( isPhiIterConverged ) break;
+        std::ostringstream msg;
+        msg << "Phi iteration # " << phiIter;
+        PrintBlock( statusOFS, msg.str() );
+
+        // Compute selected columns of density matrix
+        blas::Gemm( 'N', 'N', ntot, numOcc, numOcc, 1.0, 
+            psi.Wavefun().Data(), ntot, Q.Data(), numStateTotal, 0.0,
+            phi.Data(), ntot );
+
+
+        Etot_ = Etot_ - Efock_;
+        Efree_ = Efree_ - Efock_;
+        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
+        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
+        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
+        GetTime( timePhiIterEnd );
+
+        statusOFS << "Total wall clock time for this Phi iteration = " << 
+          timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
+      } // for(phiIter)
+    } // hybridMixType == "nested"
+
   } // isHybrid == true
 
   // Calculate the Force
