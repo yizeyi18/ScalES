@@ -337,6 +337,7 @@ SCF::Iterate (  )
     PrintBlock( statusOFS, msg.str() );
     bool isSCFConverged = false;
     for (Int iter=1; iter <= scfMaxIter_; iter++) {
+      if ( isSCFConverged ) break;
       // *********************************************************************
       // Performing each iteartion
       // *********************************************************************
@@ -485,6 +486,7 @@ SCF::Iterate (  )
         // Nested SCF iteration
         bool isSCFConverged = false;
         for (Int iter=1; iter <= scfMaxIter_; iter++) {
+          if ( isSCFConverged ) break;
           // *********************************************************************
           // Performing each iteartion
           // *********************************************************************
