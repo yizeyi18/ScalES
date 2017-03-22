@@ -4138,7 +4138,7 @@ void Spinor::AddMultSpinorEXXDF4 ( Fourier& fft,
 
 
 //Method 1
-if(1){
+if(0){
 
     GetTime( timeSta1 );
 
@@ -4172,7 +4172,7 @@ if(1){
 
 
 //Method 2
-if(0){
+if(1){
 
   GetTime( timeSta1 );
 
