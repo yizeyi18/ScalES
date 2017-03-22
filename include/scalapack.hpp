@@ -123,6 +123,24 @@ void SCALAPACK(pdgemm)(const char* transA, const char* transB,
     double* C, const Int* ic, const Int* jc, const Int* descc,
     const Int* contxt);
 
+void SCALAPACK(pdtrmm)(const char* side, const char* uplo, const char* trans, const char* diag,
+    const Int* m, const Int* n, const double* alpha,
+    const double* A, const Int* ia, const Int* ja, const Int* desca, 
+    const double* B, const Int* ib, const Int* jb, const Int* descb);
+
+void SCALAPACK(pdsymm)(const char* side, const char* uplo,
+    const Int* m, const Int* n, 
+    const double* alpha,
+    const double* A, const Int* ia, const Int* ja, const Int* desca, 
+    const double* B, const Int* ib, const Int* jb, const Int* descb,
+    const double* beta,
+    const double* C, const Int* ic, const Int* jc, const Int* descc);
+
+void SCALAPACK(pdgels)(char* transA,
+    const Int* m, const Int* n, const Int* NRHS,
+    const double* A, const Int* ia, const Int* ja, const Int* desca, 
+    const double* B, const Int* ib, const Int* jb, const Int* descb,
+    double *work, Int *lwork, Int *info);
 
 void  SCALAPACK(pdsyrk)(const char *uplo , const char *trans , const Int *n , const Int *k , 
 			const double *alpha , const double *a , 
@@ -131,13 +149,23 @@ void  SCALAPACK(pdsyrk)(const char *uplo , const char *trans , const Int *n , co
 			const Int *ic , const Int *jc , const Int *descc,
 			const Int* contxt);
 
-
 void SCALAPACK(pdgemr2d)(const Int* m, const Int* n, const double* A, const Int* ia, 
     const Int* ja, const Int* desca, double* B,
     const Int* ib, const Int* jb, const Int* descb,
     const Int* contxt);
 
+void SCALAPACK(pdgeadd)(const char *trans,
+    const Int* m, const Int* n, 
+    const double *alpha, 
+    const double* A, const Int* ia, const Int* ja, const Int* desca, 
+    const double* beta,
+    double* B, const Int* ib, const Int* jb, const Int* descb);
+
 void SCALAPACK(pdpotrf)( const char* uplo, const Int* n, 
+    double* A, const Int* ia, const Int* ja, const Int* desca, 
+    Int* info );
+
+void SCALAPACK(pdpotri)( const char* uplo, const Int* n, 
     double* A, const Int* ia, const Int* ja, const Int* desca, 
     Int* info );
 
@@ -151,6 +179,14 @@ void SCALAPACK(pdtrsm)( const char* side, const char* uplo,
     const int* m, const int* n, const double* alpha,
     const double* a, const int* ia, const int* ja, const int* desca, 
     double* b, const int* ib, const int* jb, const int* descb );
+
+
+void SCALAPACK(pdtradd)(const char* uplo, const char* trans,
+    const Int* m, const Int* n,
+    const double* alpha,
+    const double* A, const Int* ia, const Int* ja, const Int* desca, 
+    const double* beta,
+    double* C, const Int* ic, const Int* jc, const Int* descc);
 
 // Factorization and triangular solve
 void SCALAPACK(pzgetrf)( const Int* m, const Int* n, dcomplex* A,

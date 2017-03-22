@@ -3416,6 +3416,7 @@ void Spinor::AddMultSpinorEXXDF4 ( Fourier& fft,
   Int ncolsNgNe2D, nrowsNgNe2D, lldNgNe2D; 
   Int ncolsNgNu1D, nrowsNgNu1D, lldNgNu1D; 
   Int ncolsNgNu2D, nrowsNgNu2D, lldNgNu2D; 
+  Int ncolsNuNg2D, nrowsNuNg2D, lldNuNg2D; 
   Int ncolsNeNe0D, nrowsNeNe0D, lldNeNe0D; 
   Int ncolsNeNe2D, nrowsNeNe2D, lldNeNe2D; 
   Int ncolsNuNu1D, nrowsNuNu1D, lldNuNu1D; 
@@ -3428,6 +3429,7 @@ void Spinor::AddMultSpinorEXXDF4 ( Fourier& fft,
   Int desc_NgNe2D[9];
   Int desc_NgNu1D[9];
   Int desc_NgNu2D[9];
+  Int desc_NuNg2D[9];
   Int desc_NeNe0D[9];
   Int desc_NeNe2D[9];
   Int desc_NuNu1D[9];
@@ -3545,6 +3547,17 @@ void Spinor::AddMultSpinorEXXDF4 ( Fourier& fft,
 
   SCALAPACK(descinit)(desc_NgNu2D, &Ng, &Nu, &mb2, &nb2, &I_ZERO, 
       &I_ZERO, &contxt2, &lldNgNu2D, &info2);
+  
+  //desc_NuNg2D
+  if(contxt2 >= 0){
+    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
+    nrowsNuNg2D = SCALAPACK(numroc)(&Nu, &mb2, &myrow2, &I_ZERO, &nprow2);
+    ncolsNuNg2D = SCALAPACK(numroc)(&Ng, &nb2, &mycol2, &I_ZERO, &npcol2);
+    lldNuNg2D = std::max( nrowsNuNg2D, 1 );
+  }
+
+  SCALAPACK(descinit)(desc_NuNg2D, &Nu, &Ng, &mb2, &nb2, &I_ZERO, 
+      &I_ZERO, &contxt2, &lldNuNg2D, &info2);
 
   //desc_NeNe2D
   if(contxt2 >= 0){
@@ -4123,15 +4136,19 @@ void Spinor::AddMultSpinorEXXDF4 ( Fourier& fft,
     timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
-  GetTime( timeSta1 );
 
-  SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+//Method 1
+if(1){
 
-  GetTime( timeEnd1 );
+    GetTime( timeSta1 );
+
+    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+
+    GetTime( timeEnd1 );
 
 #if ( _DEBUGlevel_ >= 0 )
-  statusOFS << "Time for PMuNu Potrf is " <<
-    timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+    statusOFS << "Time for PMuNu Potrf is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
   GetTime( timeSta1 );
@@ -4150,6 +4167,157 @@ void Spinor::AddMultSpinorEXXDF4 ( Fourier& fft,
   statusOFS << "Time for PMuNu and Xi pdtrsm is " <<
     timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
+
+}
+
+
+//Method 2
+if(0){
+
+  GetTime( timeSta1 );
+
+    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+    SCALAPACK(pdpotri)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for PMuNu Potrf is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+  GetTime( timeSta1 );
+
+  DblNumMat PMuNu2DTemp(nrowsNuNu2D, ncolsNuNu2D);
+  SetValue( PMuNu2DTemp, 0.0 );
+
+  lapack::Lacpy( 'A', nrowsNuNu2D, ncolsNuNu2D, PMuNu2D.Data(), nrowsNuNu2D, PMuNu2DTemp.Data(), nrowsNuNu2D );
+    
+  SCALAPACK(pdtradd)("U", "T", &Nu, &Nu, 
+      &D_ONE,
+      PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
+      &D_ZERO,
+      PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
+  
+  DblNumMat Xi2DTemp(nrowsNgNu2D, ncolsNgNu2D);
+  SetValue( Xi2DTemp, 0.0 );
+
+  SCALAPACK(pdgemm)("N", "N", &Ng, &Nu, &Nu, 
+      &D_ONE,
+      Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
+      PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
+      &D_ZERO,
+      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D, 
+      &contxt2 );
+
+  SetValue( Xi2D, 0.0 );
+  lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
+  
+  GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for PMuNu and Xi pdgemm is " <<
+    timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+}
+
+
+//Method 3
+if(0){
+
+    GetTime( timeSta1 );
+
+    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+    SCALAPACK(pdpotri)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for PMuNu Potrf is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+  GetTime( timeSta1 );
+  
+  DblNumMat Xi2DTemp(nrowsNgNu2D, ncolsNgNu2D);
+  SetValue( Xi2DTemp, 0.0 );
+
+  SCALAPACK(pdsymm)("R", "L", &Ng, &Nu, 
+      &D_ONE,
+      PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+      Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
+      &D_ZERO,
+      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+  
+  SetValue( Xi2D, 0.0 );
+  lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
+
+  GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for PMuNu and Xi pdsymm is " <<
+    timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+}
+
+
+//Method 4
+if(0){
+
+  GetTime( timeSta1 );
+  
+  DblNumMat Xi2DTemp(nrowsNuNg2D, ncolsNuNg2D);
+  SetValue( Xi2DTemp, 0.0 );
+  
+  DblNumMat PMuNu2DTemp(ncolsNuNu2D, nrowsNuNu2D);
+  SetValue( PMuNu2DTemp, 0.0 );
+  
+  SCALAPACK(pdgeadd)("T", &Nu, &Ng,
+      &D_ONE,
+      Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
+      &D_ZERO,
+      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D);
+  
+  SCALAPACK(pdgeadd)("T", &Nu, &Nu,
+      &D_ONE,
+      PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+      &D_ZERO,
+      PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
+  
+  Int lwork=-1, info;
+  double dummyWork;
+
+  SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
+      PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
+      &dummyWork, &lwork, &info);
+
+  lwork = dummyWork;
+  std::vector<double> work(lwork);
+
+  SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
+      PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
+      &work[0], &lwork, &info);
+  
+  SetValue( Xi2D, 0.0 );
+  SCALAPACK(pdgeadd)("T", &Ng, &Nu,
+      &D_ONE,
+      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
+      &D_ZERO,
+      Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+
+  GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for PMuNu and Xi pdgels is " <<
+    timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+}
+
 
   GetTime( timeEnd );
 
