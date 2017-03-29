@@ -959,7 +959,7 @@ SCF::Iterate (  )
       // from one of the following
       // 1) a regular SCF calculation
       // 2) restarting wavefunction with Hybrid_Active_Init = true
-
+        
       Int ntot      = fft.domain.NumGridTotal();
       Int ntotFine  = fft.domain.NumGridTotalFine();
       Int numStateTotal = psi.NumStateTotal();
@@ -974,68 +974,97 @@ SCF::Iterate (  )
       double D_MinusONE = -1.0;
 
       Real timeSta, timeEnd, timeSta1, timeEnd1;
-
-      // Convert the column partition to row partition
-      Int numStateBlocksize = numStateTotal / mpisize;
-      Int ntotBlocksize = ntot / mpisize;
-
-      Int numStateLocal1 = numStateBlocksize;
-      Int ntotLocal = ntotBlocksize;
-
-      if(mpirank < (numStateTotal % mpisize)){
-        numStateLocal1 = numStateBlocksize + 1;
-      }
       
-      if(numStateLocal !=  numStateLocal1){
-        statusOFS << "numStateLocal = " << numStateLocal << " numStateLocal1 = " << numStateLocal1 << std::endl;
+      Int contxt0D, contxt1DCol, contxt1DRow,  contxt2D;
+      Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
+      Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
+      Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
+      Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
+
+      Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
+      Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
+      Int ncolsNgNo1DCol, nrowsNgNo1DCol, lldNgNo1DCol; 
+      Int ncolsNgNo1DRow, nrowsNgNo1DRow, lldNgNo1DRow; 
+
+      Int desc_NgNe1DCol[9];
+      Int desc_NgNe1DRow[9];
+      Int desc_NgNo1DCol[9];
+      Int desc_NgNo1DRow[9];
+
+      Int Ne = numStateTotal; 
+      Int No = numOccTotal; 
+      Int Ng = ntot;
+
+      // 1D col MPI
+      nprow1DCol = 1;
+      npcol1DCol = mpisize;
+
+      Cblacs_get(0, 0, &contxt1DCol);
+      Cblacs_gridinit(&contxt1DCol, "C", nprow1DCol, npcol1DCol);
+      Cblacs_gridinfo(contxt1DCol, &nprow1DCol, &npcol1DCol, &myrow1DCol, &mycol1DCol);
+
+      // 1D row MPI
+      nprow1DRow = mpisize;
+      npcol1DRow = 1;
+
+      Cblacs_get(0, 0, &contxt1DRow);
+      Cblacs_gridinit(&contxt1DRow, "C", nprow1DRow, npcol1DRow);
+      Cblacs_gridinfo(contxt1DRow, &nprow1DRow, &npcol1DRow, &myrow1DRow, &mycol1DRow);
+
+
+      //desc_NgNe1DCol
+      if(contxt1DCol >= 0){
+        nrowsNgNe1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
+        ncolsNgNe1DCol = SCALAPACK(numroc)(&Ne, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
+        lldNgNe1DCol = std::max( nrowsNgNe1DCol, 1 );
+      }    
+
+      SCALAPACK(descinit)(desc_NgNe1DCol, &Ng, &Ne, &Ng, &I_ONE, &I_ZERO, 
+          &I_ZERO, &contxt1DCol, &lldNgNe1DCol, &info1DCol);
+
+      //desc_NgNe1DRow
+      if(contxt1DRow >= 0){
+        nrowsNgNe1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK_, &myrow1DRow, &I_ZERO, &nprow1DRow);
+        ncolsNgNe1DRow = SCALAPACK(numroc)(&Ne, &Ne, &mycol1DRow, &I_ZERO, &npcol1DRow);
+        lldNgNe1DRow = std::max( nrowsNgNe1DRow, 1 );
+      }    
+
+      SCALAPACK(descinit)(desc_NgNe1DRow, &Ng, &Ne, &BlockSizeScaLAPACK_, &Ne, &I_ZERO, 
+          &I_ZERO, &contxt1DRow, &lldNgNe1DRow, &info1DRow);
+
+      //desc_NgNo1DCol
+      if(contxt1DCol >= 0){
+        nrowsNgNo1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
+        ncolsNgNo1DCol = SCALAPACK(numroc)(&No, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
+        lldNgNo1DCol = std::max( nrowsNgNo1DCol, 1 );
+      }    
+
+      SCALAPACK(descinit)(desc_NgNo1DCol, &Ng, &No, &Ng, &I_ONE, &I_ZERO, 
+          &I_ZERO, &contxt1DCol, &lldNgNo1DCol, &info1DCol);
+
+      //desc_NgNo1DRow
+      if(contxt1DRow >= 0){
+        nrowsNgNo1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK_, &myrow1DRow, &I_ZERO, &nprow1DRow);
+        ncolsNgNo1DRow = SCALAPACK(numroc)(&No, &No, &mycol1DRow, &I_ZERO, &npcol1DRow);
+        lldNgNo1DRow = std::max( nrowsNgNo1DRow, 1 );
+      }    
+
+      SCALAPACK(descinit)(desc_NgNo1DRow, &Ng, &No, &BlockSizeScaLAPACK_, &No, &I_ZERO, 
+          &I_ZERO, &contxt1DRow, &lldNgNo1DRow, &info1DRow);
+      
+      if(numStateLocal !=  ncolsNgNe1DCol){
+        statusOFS << "numStateLocal = " << numStateLocal << " ncolsNgNe1DCol = " << ncolsNgNe1DCol << std::endl;
         ErrorHandling("The size of numState is not right!");
       }
       
-      if(mpirank < (ntot % mpisize)){
-        ntotLocal = ntotBlocksize + 1;
+      if(nrowsNgNe1DRow !=  nrowsNgNo1DRow){
+        statusOFS << "nrowsNgNe1DRow = " << nrowsNgNe1DRow << " ncolsNgNo1DRow = " << ncolsNgNo1DRow << std::endl;
+        ErrorHandling("The size of nrowsNgNe1DRow and ncolsNgNo1DRow is not right!");
       }
-   
-  
-      Int numOccBlocksize, numOccLocal; 
-  
-      bool isOcc;
-      
-      if(mpisize <= numOccTotal){
 
-        numOccBlocksize = numOccTotal / mpisize;
-        numOccLocal = numOccBlocksize;
 
-        if(mpirank < (numOccTotal % mpisize)){
-          numOccLocal = numOccBlocksize + 1;
-        }
-      
-        isOcc = true;
-
-      }
-      else{
-
-        if(mpirank < numOccTotal){
-          numOccBlocksize = 1; 
-          numOccLocal = 1;
-          isOcc = true;
-        }
-        else{
-          numOccBlocksize = 0; 
-          numOccLocal = 0;
-          isOcc = false;
-        }
-
-      }
-      
-      MPI_Comm commOcc;
-
-      Int mpirankOcc = -1;
-      Int mpisizeOcc = -1;
-
-      MPI_Comm_split( mpi_comm, isOcc, mpirank, &commOcc );
-
-      MPI_Comm_rank(commOcc, &mpirankOcc);
-      MPI_Comm_size(commOcc, &mpisizeOcc);
+      Int numOccLocal = ncolsNgNo1DCol;
+      Int ntotLocal = nrowsNgNe1DRow;
 
       DblNumMat psiPcCol(ntot, numStateLocal);
       DblNumMat psiPcRow(ntotLocal, numStateTotal);
@@ -1061,13 +1090,14 @@ SCF::Iterate (  )
       SetValue( psiRow, 0.0 );
 
       lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
-      AlltoallForward (psiCol, psiRow, mpi_comm);
+      //AlltoallForward (psiCol, psiRow, mpi_comm);
+      SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+          psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
 
       DblNumMat psiTemp(ntotLocal, numOccTotal);
       SetValue( psiTemp, 0.0 );
 
       lapack::Lacpy( 'A', ntotLocal, numOccTotal, psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal );
-
       
       // Phi loop
       for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
@@ -1077,7 +1107,9 @@ SCF::Iterate (  )
         SetValue( psiCol, 0.0 );
         lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
         SetValue( psiRow, 0.0 );
-        AlltoallForward (psiCol, psiRow, mpi_comm);
+        //AlltoallForward (psiCol, psiRow, mpi_comm);
+        SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+            psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
 
         if(1){
 
@@ -1109,7 +1141,9 @@ SCF::Iterate (  )
             0.0, PcRow.Data(), ntotLocal );
         
         SetValue( PcCol, 0.0 );
-        AlltoallBackward (PcRow, PcCol, mpi_comm);
+        //AlltoallBackward (PcRow, PcCol, mpi_comm);
+        SCALAPACK(pdgemr2d)(&Ng, &No, PcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
+            PcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
         
         std::ostringstream msg;
         msg << "Phi iteration # " << phiIter;
@@ -1123,7 +1157,9 @@ SCF::Iterate (  )
           ham.MultSpinor( psi, tnsTemp, fft );
         
           SetValue( HpsiRow, 0.0 );
-          AlltoallForward (HpsiCol, HpsiRow, mpi_comm);
+          //AlltoallForward (HpsiCol, HpsiRow, mpi_comm);
+          SCALAPACK(pdgemr2d)(&Ng, &Ne, HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+            HpsiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
 
           if(1){
 
@@ -1149,7 +1185,9 @@ SCF::Iterate (  )
               1.0, ResRow.Data(), ntotLocal );
         
           SetValue( ResCol, 0.0 );
-          AlltoallBackward (ResRow, ResCol, mpi_comm);
+          //AlltoallBackward (ResRow, ResCol, mpi_comm);
+          SCALAPACK(pdgemr2d)(&Ng, &No, ResRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
+              ResCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
         }
         
         // Anderson mixing. Use the same mixMaxDim_ for Phi mixing
@@ -1175,8 +1213,11 @@ SCF::Iterate (  )
             blas::Axpy( ntot * numOccLocal, 1.0, PcCol.Data(), 1, dvMat_.VecData(ipos-1), 1 );
 
             // Calculating pseudoinverse
-            DblNumMat dfMatTemp;
+            DblNumMat dfMatTemp(ntot * numOccLocal, mixMaxDim_);
             DblNumVec gammas(ntot * numOccLocal), S(iterused);
+            
+            SetValue( dfMatTemp, 0.0 );
+            SetValue( gammas, 0.0 );
 
             Int rank;
             // FIXME Magic number
@@ -1184,7 +1225,8 @@ SCF::Iterate (  )
 
             // gammas    = res;
             blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, gammas.Data(), 1 );
-            dfMatTemp = dfMat_;
+            lapack::Lacpy( 'A', ntot * numOccLocal, mixMaxDim_, dfMat_.Data(), ntot * numOccLocal, 
+                dfMatTemp.Data(), ntot * numOccLocal );
         
             // May need different strategy in a parallel setup
             if(0){  
@@ -1198,12 +1240,13 @@ SCF::Iterate (  )
                   ntot * numOccLocal, gammas.Data(), 1, 1.0, vOpt.Data(), 1 );
             
             }
-
+        
             if(1){
 
               DblNumMat XTX(iterused, iterused);
               DblNumMat XTXTemp(iterused, iterused);
               
+              SetValue( XTXTemp, 0.0 );
               blas::Gemm( 'T', 'N', iterused, iterused, ntot * numOccLocal, 1.0, 
               dfMatTemp.Data(), ntot * numOccLocal, dfMatTemp.Data(), ntot * numOccLocal, 
               0.0, XTXTemp.Data(), iterused );
@@ -1211,24 +1254,32 @@ SCF::Iterate (  )
               SetValue( XTX, 0.0 );
               MPI_Allreduce( XTXTemp.Data(), XTX.Data(), 
                   iterused * iterused, MPI_DOUBLE, MPI_SUM, mpi_comm );
-              
-              DblNumVec gammasTemp1(iterused);
-              DblNumVec gammasTemp2(iterused);
             
-              blas::Gemv('T', ntot * numOccLocal, iterused, 1.0, dfMatTemp.Data(),
-                  ntot * numOccLocal, gammas.Data(), 1, 0.0, gammasTemp1.Data(), 1 );
-              
+              DblNumVec gammasTemp1(iterused);
+              SetValue( gammasTemp1, 0.0 );
+              //blas::Gemv('T', ntot * numOccLocal, iterused, 1.0, dfMatTemp.Data(),
+              //    ntot * numOccLocal, gammas.Data(), 1, 0.0, gammasTemp1.Data(), 1 );
+
+              blas::Gemm( 'T', 'N', iterused, I_ONE, ntot * numOccLocal, 1.0, 
+                  dfMatTemp.Data(), ntot * numOccLocal, gammas.Data(), ntot * numOccLocal, 
+                  0.0, gammasTemp1.Data(), iterused );
+
+              DblNumVec gammasTemp2(iterused);
               SetValue( gammasTemp2, 0.0 );
               MPI_Allreduce( gammasTemp1.Data(), gammasTemp2.Data(), 
                   iterused, MPI_DOUBLE, MPI_SUM, mpi_comm );
-             
+              
               lapack::SVDLeastSquare( iterused, iterused, 1, 
                   XTX.Data(), iterused,
                   gammasTemp2.Data(), iterused,
                   S.Data(), rcond, &rank );
             
-              blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
-                  ntot * numOccLocal, gammasTemp2.Data(), 1, 1.0, vOpt.Data(), 1 );
+              //blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
+              //    ntot * numOccLocal, gammasTemp2.Data(), 1, 1.0, vOpt.Data(), 1 );
+              
+              blas::Gemm( 'N', 'N', ntot * numOccLocal, I_ONE, iterused, -1.0, 
+                  dvMat_.Data(), ntot * numOccLocal, gammasTemp2.Data(), iterused, 
+                  1.0, vOpt.Data(), ntot * numOccLocal );
             
             }
 
@@ -1253,7 +1304,9 @@ SCF::Iterate (  )
           // Orthogonalization through Cholesky factorization
          if(1){ 
             SetValue( psiPcRow, 0.0 );
-            AlltoallForward (psiPcCol, psiPcRow, mpi_comm);
+            //AlltoallForward (psiPcCol, psiPcRow, mpi_comm);
+            SCALAPACK(pdgemr2d)(&Ng, &No, psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
+                psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
 
             DblNumMat XTX(numOccTotal, numOccTotal);
             DblNumMat XTXTemp(numOccTotal, numOccTotal);
@@ -1273,7 +1326,9 @@ SCF::Iterate (  )
                 psiPcRow.Data(), ntotLocal );
 
             SetValue( psiPcCol, 0.0 );
-            AlltoallBackward (psiPcRow, psiPcCol, mpi_comm);
+            //AlltoallBackward (psiPcRow, psiPcCol, mpi_comm);
+            SCALAPACK(pdgemr2d)(&Ng, &No, psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
+                psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
           } 
         
         }//Anderson mixing
