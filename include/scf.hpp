@@ -83,6 +83,7 @@ private:
   Real                scfPhiTolerance_;
   Int                 numUnusedState_;
   bool                isEigToleranceDynamic_;
+  Int                 BlockSizeScaLAPACK_;
 
   std::string         restartDensityFileName_;
   std::string         restartPotentialFileName_;

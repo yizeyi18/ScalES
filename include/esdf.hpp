@@ -281,10 +281,10 @@ struct ESDFInputParam{
   /// Default: mpisize
   Int                 numProcScaLAPACKHybridDF;
   
-  /// @brief Density fitting uses this blocksize of cores in ScaLAPACAL
+  /// @brief The blocksize of cores in ScaLAPACAL
   ///
   /// Default: 32
-  Int                 BlockSizeScaLAPACKHybridDF;
+  Int                 BlockSizeScaLAPACK;
 
 
   /// @brief Treatment of the divergence term in hybrid functional

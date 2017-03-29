@@ -95,7 +95,7 @@ KohnSham::Setup    (
   numMuHybridDF_                   = esdfParam.numMuHybridDF;
   numGaussianRandomHybridDF_       = esdfParam.numGaussianRandomHybridDF;
   numProcScaLAPACKHybridDF_        = esdfParam.numProcScaLAPACKHybridDF;
-  BlockSizeScaLAPACKHybridDF_      = esdfParam.BlockSizeScaLAPACKHybridDF;
+  BlockSizeScaLAPACK_      = esdfParam.BlockSizeScaLAPACK;
   exxDivergenceType_   = esdfParam.exxDivergenceType;
 
   // FIXME Hard coded
@@ -2624,7 +2624,7 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
   // semi-definite matrix.
   psi.AddMultSpinorEXXDF4( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
       occupationRate_, numMuHybridDF_, numGaussianRandomHybridDF_,
-      numProcScaLAPACKHybridDF_, BlockSizeScaLAPACKHybridDF_,
+      numProcScaLAPACKHybridDF_, BlockSizeScaLAPACK_,
       vexxPsi, M, isFixColumnDF );
 
   // Implementation based on Cholesky

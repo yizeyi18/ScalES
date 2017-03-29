@@ -887,7 +887,7 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
  
   i++;
-  strcpy(kw_label[i],"block_size_scalapack_hybrid_df");
+  strcpy(kw_label[i],"block_size_scalapack");
   strcpy(kw_typ[i],"I:E");
 
   i++;
@@ -2257,7 +2257,8 @@ ESDFReadInput ( const char* filename )
     esdf_string("Hybrid_Mixing_Type", "nested", strtmp); 
     esdfParam.hybridMixType         = strtmp;
     if( esdfParam.hybridMixType != "nested" &&
-        esdfParam.hybridMixType != "scdiis" ){
+        esdfParam.hybridMixType != "scdiis" &&
+        esdfParam.hybridMixType != "pcdiis" ){
       ErrorHandling("Invalid hybrid mixing type.");
     }
 
@@ -2268,7 +2269,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.numMuHybridDF                    = esdf_double( "Num_Mu_Hybrid_DF", 6.0 );
     esdfParam.numGaussianRandomHybridDF        = esdf_double( "Num_GaussianRandom_Hybrid_DF", 2.0 );
     esdfParam.numProcScaLAPACKHybridDF    = esdf_integer( "Num_Proc_ScaLAPACK_Hybrid_DF", mpisize );
-    esdfParam.BlockSizeScaLAPACKHybridDF  = esdf_integer( "Block_Size_ScaLAPACK_Hybrid_DF", 32 );
+    esdfParam.BlockSizeScaLAPACK  = esdf_integer( "Block_Size_ScaLAPACK", 32 );
     esdfParam.MDscfPhiMaxIter      = esdf_integer( "MD_SCF_Phi_MaxIter", esdfParam.scfPhiMaxIter  );
     esdfParam.MDscfOuterMaxIter    = esdf_integer( "MD_SCF_Outer_MaxIter",  esdfParam.scfOuterMaxIter ); // This is used in DGDFT for energy based SCF
 
