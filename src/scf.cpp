@@ -1427,28 +1427,31 @@ SCF::Iterate (  )
         statusOFS << "Total wall clock time for this Phi iteration = " << 
           timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
 
+        if(0){
 
-        // Update Phi <- Psi
-        GetTime( timeSta );
-        ham.SetPhiEXX( psi, fft ); 
+          // Update Phi <- Psi
+          GetTime( timeSta );
+          ham.SetPhiEXX( psi, fft ); 
 
-        // In principle there is no need to construct ACE operator here
-        // However, this makes the code more readable by directly calling 
-        // the MultSpinor function later
-        if( esdfParam.isHybridACE ){
-          if( esdfParam.isHybridDF ){
-            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
-            // Fix the column after the first iteraiton
-            isFixColumnDF = true;
+          // In principle there is no need to construct ACE operator here
+          // However, this makes the code more readable by directly calling 
+          // the MultSpinor function later
+          if( esdfParam.isHybridACE ){
+            if( esdfParam.isHybridDF ){
+              ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+              // Fix the column after the first iteraiton
+              isFixColumnDF = true;
+            }
+            else{
+              ham.CalculateVexxACE ( psi, fft );
+            }
           }
-          else{
-            ham.CalculateVexxACE ( psi, fft );
-          }
-        }
 
-        GetTime( timeEnd );
-        statusOFS << "Time for updating Phi related variable is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+          GetTime( timeEnd );
+          statusOFS << "Time for updating Phi related variable is " <<
+            timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+        }//if
 
         GetTime( timeSta );
         fock2 = ham.CalculateEXXEnergy( psi, fft ); 
@@ -1480,7 +1483,7 @@ SCF::Iterate (  )
         if ( isPhiIterConverged ) break;
       } // for(phiIter)
 
-    } // hybridMixType == "scdiis"
+    } // hybridMixType == "pcdiis"
 
   } // isHybrid == true
 
