@@ -196,8 +196,7 @@ ScaLAPACKMatrix<F>::operator=    ( const ScaLAPACKMatrix<F>& A )
 //      A.Data(), &I_ONE, &I_ONE, A.Desc().Values(), 
 //      B.Data(), &I_ONE, &I_ONE, B.Desc().Values(), 
 //      &beta,
-//      C.Data(), &I_ONE, &I_ONE, C.Desc().Values(), 
-//      &contxt );    
+//      C.Data(), &I_ONE, &I_ONE, C.Desc().Values());    
 //  return;
 //}   // -----  end of function Gemm  ----- 
 
@@ -236,8 +235,7 @@ Gemm( char transA, char transB,
       A, &ia, &ja, desca, 
       B, &ib, &jb, descb,
       &beta,
-      C, &ic, &jc, descc,
-      &contxt );
+      C, &ic, &jc, descc);
 
   return;
 }   // -----  end of function Gemm  ----- 

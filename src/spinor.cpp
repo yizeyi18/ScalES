@@ -4077,16 +4077,14 @@ void Spinor::AddMultSpinorEXXDF4 ( Fourier& fft,
       psi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D,
       psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
       &D_ZERO,
-      PpsiMu2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D, 
-      &contxt2 );
+      PpsiMu2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
 
   SCALAPACK(pdgemm)("N", "N", &Ng, &Nu, &Ne, 
       &D_ONE,
       phi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D,
       phiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
       &D_ZERO,
-      PphiMu2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D, 
-      &contxt2 );
+      PphiMu2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
 
   GetTime( timeEnd1 );
 
@@ -4207,8 +4205,7 @@ if(1){
       Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
       PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
       &D_ZERO,
-      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D, 
-      &contxt2 );
+      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
 
   SetValue( Xi2D, 0.0 );
   lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
@@ -4383,8 +4380,7 @@ if(0){
       Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
       VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D, 
       &D_ZERO,
-      MMatMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
-      &contxt2 );
+      MMatMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
 
   DblNumMat phiMuNu2D(nrowsNuNu2D, ncolsNuNu2D);
   SCALAPACK(pdgemm)("T", "N", &Nu, &Nu, &Ne, 
@@ -4392,8 +4388,7 @@ if(0){
       phiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D,
       phiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
       &D_ZERO,
-      phiMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
-      &contxt2 );
+      phiMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
 
   Real* MMat2DPtr = MMatMuNu2D.Data();
   Real* phi2DPtr  = phiMuNu2D.Data();
@@ -4430,8 +4425,7 @@ if(0){
       VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
       psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
       &D_ZERO,
-      a32D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
-      &contxt2 );
+      a32D.Data(), &I_ONE, &I_ONE, desc_NgNe2D);
 
   DblNumMat a3Col( ntot, numStateLocal );
   SetValue(a3Col, 0.0 );
@@ -4463,16 +4457,14 @@ if(0){
         MMatMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
         psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
         &D_ZERO,
-        VxMatTemp2D.Data(), &I_ONE, &I_ONE, desc_NuNe2D, 
-        &contxt2 );
+        VxMatTemp2D.Data(), &I_ONE, &I_ONE, desc_NuNe2D);
 
     SCALAPACK(pdgemm)("N", "N", &Ne, &Ne, &Nu, 
         &D_ONE,
         psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
         VxMatTemp2D.Data(), &I_ONE, &I_ONE, desc_NuNe2D, 
         &D_ZERO,
-        VxMat2D.Data(), &I_ONE, &I_ONE, desc_NeNe2D, 
-        &contxt2 );
+        VxMat2D.Data(), &I_ONE, &I_ONE, desc_NeNe2D);
 
     SCALAPACK(pdgemr2d)(&Ne, &Ne, VxMat2D.Data(), &I_ONE, &I_ONE, desc_NeNe2D, 
         VxMat.Data(), &I_ONE, &I_ONE, desc_NeNe0D, &contxt2 );

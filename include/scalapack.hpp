@@ -115,8 +115,7 @@ void SCALAPACK(pdgemm)(const char* transA, const char* transB,
     const double* A, const Int* ia, const Int* ja, const Int* desca, 
     const double* B, const Int* ib, const Int* jb, const Int* descb,
     const double* beta,
-    double* C, const Int* ic, const Int* jc, const Int* descc,
-    const Int* contxt);
+    double* C, const Int* ic, const Int* jc, const Int* descc);
 
 void SCALAPACK(pdtrmm)(const char* side, const char* uplo, const char* trans, const char* diag,
     const Int* m, const Int* n, const double* alpha,
