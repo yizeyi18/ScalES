@@ -66,7 +66,7 @@ typedef  std::complex<double>   dcomplex;
 extern "C"{
 
   // *********************************************************************
-  // Cblas  routines
+  // BLACS  routines
   // *********************************************************************
   void Cblacs_get(const Int contxt, const Int what, Int* val);
 
@@ -90,30 +90,25 @@ void SCALAPACK(descinit)(Int* desc, const Int* m, const Int * n, const Int* mb,
     const Int* nb, const Int* irsrc, const Int* icsrc,
     const Int* contxt, const Int* lld, Int* info);
 
-void SCALAPACK(pdsyev)(const char *jobz, const char *uplo, const Int *n, double *a, 
-    const Int *ia, const Int *ja, const Int *desca, double *w, 
-    double *z, const Int *iz, const Int *jz, const Int *descz, 
-    double *work, const Int *lwork, Int *info);
 
-void SCALAPACK(pdsyevd)(const char *jobz, const char *uplo, const Int *n, double *a, 
-    const Int *ia, const Int *ja, const Int *desca, double *w, 
-    const double *z, const Int *iz, const Int *jz, const Int *descz, 
-    double *work, const Int *lwork, Int* iwork, const Int* liwork, 
-    Int *info);
+// Some Level-1 PBLAS routines
+void SCALAPACK(pdnrm2)(const Int *n , double *norm2 , const double *x , const Int *ix , const Int *jx , const Int *descx , const Int *incx );
+void SCALAPACK(pdscal)(const Int *n , const double *a , double *x , const Int *ix , const Int *jx , const Int *descx , const Int *incx );
+void SCALAPACK(pddot)(const Int *n , double *dot , const double *x , const Int *ix , const Int *jx , const Int *descx , const Int *incx , 
+		      const double *y , const Int *iy , const Int *jy , const Int *descy , const Int *incy );
+void SCALAPACK(pdaxpy)(const Int *n , const double *a , const double *x , const Int *ix , const Int *jx , const Int *descx , const Int *incx , 
+		       double *y , const Int *iy , const int *jy , const Int *descy , const Int *incy );
+void SCALAPACK(pdcopy)(const Int *n , const double *x , const Int *ix , const Int *jx , const Int *descx , const Int *incx , 
+		       double *y , const Int *iy , const Int *jy , const Int *descy , const Int *incy );
 
-void SCALAPACK(pdsyevr)(const char *jobz, const char *range, const char *uplo,
-    const Int *n, double* a, const Int *ia, const Int *ja,
-    const Int *desca, const double* vl, const double *vu,
-    const Int *il, const Int* iu, Int *m, Int *nz, 
-    double *w, double *z, const Int *iz, const Int *jz, 
-    const Int *descz, double *work, const Int *lwork, 
-    Int *iwork, const Int *liwork, Int *info);
 
-void SCALAPACK(pdlacpy)(const char* uplo,
-    const Int* m, const Int* n,
-    const double* A, const Int* ia, const Int* ja, const Int* desca, 
-    const double* B, const Int* ib, const Int* jb, const Int* descb );
+// Some Level-2 PBLAS routines
+void SCALAPACK(pdgemv)(const char *trans , const Int *m , const Int *n , const double *alpha , const double *a , const Int *ia , const Int *ja , const Int *desca , 
+		       const double *x , const Int *ix , const Int *jx , const Int *descx , const Int *incx , 
+		       const double *beta , double *y , const Int *iy , const Int *jy , const Int *descy , const Int *incy );
 
+
+// Some Level-3 PBLAS routines
 void SCALAPACK(pdgemm)(const char* transA, const char* transB,
     const Int* m, const Int* n, const Int* k,
     const double* alpha,
@@ -143,16 +138,23 @@ void SCALAPACK(pdgels)(char* transA,
     double *work, Int *lwork, Int *info);
 
 void  SCALAPACK(pdsyrk)(const char *uplo , const char *trans , const Int *n , const Int *k , 
-			const double *alpha , const double *a , 
-			const Int *ia , const Int *ja , const Int *desca , 
-			const double *beta , double *c , 
-			const Int *ic , const Int *jc , const Int *descc,
-			const Int* contxt);
+			const double *alpha , 
+			const double *a , const Int *ia , const Int *ja , const Int *desca , 
+			const double *beta , 
+			double *c , const Int *ic , const Int *jc , const Int *descc);
 
-void SCALAPACK(pdgemr2d)(const Int* m, const Int* n, const double* A, const Int* ia, 
-    const Int* ja, const Int* desca, double* B,
-    const Int* ib, const Int* jb, const Int* descb,
-    const Int* contxt);
+void SCALAPACK(pdsyr2k)(const char *uplo , const char *trans , const Int *n , const Int *k , 
+			const double *alpha , 
+			const double *a , const Int *ia , const Int *ja , const Int *desca , 
+			const double *b , const Int *ib , const Int *jb , const Int *descb , 
+			const double *beta , 
+			double *c , const Int *ic , const Int *jc , const Int *descc );
+
+void SCALAPACK(pdtradd)(const char* uplo, const char* trans, const Int* m, const Int* n,
+                        const double* alpha,
+                        const double* a, const Int* ia, const Int* ja, const Int* desca, 
+                        const double* beta,
+                        double* c, const Int* ic, const Int* jc, const Int* descc);
 
 void SCALAPACK(pdgeadd)(const char *trans,
     const Int* m, const Int* n, 
@@ -161,6 +163,25 @@ void SCALAPACK(pdgeadd)(const char *trans,
     const double* beta,
     double* B, const Int* ib, const Int* jb, const Int* descb);
 
+void SCALAPACK(pdtrsm)( const char* side, const char* uplo, 
+    const char* trans, const char* diag,
+    const int* m, const int* n, const double* alpha,
+    const double* a, const int* ia, const int* ja, const int* desca, 
+    double* b, const int* ib, const int* jb, const int* descb );
+
+
+// Other ScaLAPACK routines
+
+// Redistribution
+void SCALAPACK(pdgemr2d)(const Int* m, const Int* n, const double* A, const Int* ia, 
+    const Int* ja, const Int* desca, double* B,
+    const Int* ib, const Int* jb, const Int* descb,
+    const Int* contxt);
+
+// Trace of a square matrix
+double SCALAPACK(pdlatra)(const Int *n , const double *a , const Int *ia , const Int *ja , const Int *desca );
+
+// Cholesky
 void SCALAPACK(pdpotrf)( const char* uplo, const Int* n, 
     double* A, const Int* ia, const Int* ja, const Int* desca, 
     Int* info );
@@ -169,24 +190,36 @@ void SCALAPACK(pdpotri)( const char* uplo, const Int* n,
     double* A, const Int* ia, const Int* ja, const Int* desca, 
     Int* info );
 
+// Eigenvalue problems
 void SCALAPACK(pdsygst)( const Int* ibtype, const char* uplo, 
     const Int* n, double* A, const Int* ia, const Int* ja, 
     const Int* desca, const double* b, const Int* ib, const Int* jb,
     const Int* descb, double* scale, Int* info );
 
-void SCALAPACK(pdtrsm)( const char* side, const char* uplo, 
-    const char* trans, const char* diag,
-    const int* m, const int* n, const double* alpha,
-    const double* a, const int* ia, const int* ja, const int* desca, 
-    double* b, const int* ib, const int* jb, const int* descb );
-
-
-void SCALAPACK(pdtradd)(const char* uplo, const char* trans,
+void SCALAPACK(pdlacpy)(const char* uplo,
     const Int* m, const Int* n,
-    const double* alpha,
     const double* A, const Int* ia, const Int* ja, const Int* desca, 
-    const double* beta,
-    double* C, const Int* ic, const Int* jc, const Int* descc);
+    const double* B, const Int* ib, const Int* jb, const Int* descb );
+
+void SCALAPACK(pdsyev)(const char *jobz, const char *uplo, const Int *n, double *a, 
+    const Int *ia, const Int *ja, const Int *desca, double *w, 
+    double *z, const Int *iz, const Int *jz, const Int *descz, 
+    double *work, const Int *lwork, Int *info);
+
+void SCALAPACK(pdsyevd)(const char *jobz, const char *uplo, const Int *n, double *a, 
+    const Int *ia, const Int *ja, const Int *desca, double *w, 
+    const double *z, const Int *iz, const Int *jz, const Int *descz, 
+    double *work, const Int *lwork, Int* iwork, const Int* liwork, 
+    Int *info);
+
+void SCALAPACK(pdsyevr)(const char *jobz, const char *range, const char *uplo,
+    const Int *n, double* a, const Int *ia, const Int *ja,
+    const Int *desca, const double* vl, const double *vu,
+    const Int *il, const Int* iu, Int *m, Int *nz, 
+    double *w, double *z, const Int *iz, const Int *jz, 
+    const Int *descz, double *work, const Int *lwork, 
+    Int *iwork, const Int *liwork, Int *info);
+
 
 // Factorization and triangular solve
 void SCALAPACK(pzgetrf)( const Int* m, const Int* n, dcomplex* A,
@@ -198,7 +231,7 @@ void SCALAPACK(pzgetri)( const Int* n, dcomplex* A, const Int* ia,
     dcomplex *work, const Int* lwork, Int *iwork, const Int *liwork, 
     Int* info );
 
-//QRCP 
+// QRCP 
 void SCALAPACK(pdgeqpf)( Int* m, Int* n, double* A, Int* ia, Int* ja,
     Int* desca, Int* ipiv, double* itau, double* work, Int* lwork, 
     Int* info ); 
@@ -243,7 +276,7 @@ public:
     DLEN  = 9, 
   };
 
-  Descriptor() {values_.resize(DLEN);}
+  Descriptor() {values_.resize(DLEN); values_[CTXT] = -1;}
 
   /// @brief Constructor.
   ///
@@ -437,11 +470,19 @@ Gemm( char transA, char transB,
 void 
 Syrk ( char uplo, char trans,
        Int n, int k,
-       double alpha, double *A,
-       Int ia, Int ja, Int *desca,
-       double beta, double *C,
-       Int ic, Int jc, Int *descc,
-       Int contxt);
+       double alpha, 
+       double *A, Int ia, Int ja, Int *desca,
+       double beta, 
+       double *C, Int ic, Int jc, Int *descc);
+
+void
+Syr2k (char uplo, char trans,
+       Int n, int k,
+       double alpha, 
+       double *A, Int ia, Int ja, Int *desca,
+       double *B, Int ib, Int jb, Int *descb,
+       double beta,
+       double *C, Int ic, Int jc, Int *descc);
 
 void
 Gemr2d(const ScaLAPACKMatrix<double>& A, ScaLAPACKMatrix<double>& B);

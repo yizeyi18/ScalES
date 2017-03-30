@@ -889,9 +889,11 @@ struct ESDFInputParam{
   // Inputs related to Chebyshev polynomial filtered 
   // complementary subspace iteration strategy in DGDFT
   bool scfdg_use_chefsi_complementary_subspace;
-  bool scfdg_chefsi_complementary_subspace_parallel;
+  bool scfdg_chefsi_complementary_subspace_syrk;
   Int scfdg_complementary_subspace_nstates;
   Int scfdg_cs_ioniter_regular_cheby_freq;
+  
+  Int scfdg_cs_bigger_grid_dim_fac; 
   
   // LOBPCG (for top states) related options
   Real scfdg_complementary_subspace_lobpcg_tol;

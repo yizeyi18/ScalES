@@ -3,6 +3,417 @@
 #define _SCFDG_UPPER_END_SPECTRUM_HPP_
 
 namespace dgdft{
+  
+  // This should be called only by prcessors sharing the context of Hmat
+  double find_comp_subspace_UB_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat)
+  {
+     double b_up = 0.0;  
+     double alpha, beta;
+     double minus_alpha, minus_beta;
+     
+     char uplo = 'N';
+     const double scalar_one = 1.0;
+     const double scalar_minus_one = -1.0;
+     const double scalar_zero = 0.0;
+     
+     
+     const int ht = Hmat.Height();     
+     const int context = Hmat.Context();
+     const int scaBlockSize = Hmat.MB();
+     
+     // Set up v0
+     dgdft::scalapack::Descriptor vec_v0_desc;
+     vec_v0_desc.Init( ht, 1, 
+		       scaBlockSize, scaBlockSize, 
+		       0, 0, 
+		       context);   
+     dgdft::scalapack::ScaLAPACKMatrix<Real>  vec_v0;
+     vec_v0.SetDescriptor(vec_v0_desc);
+     
+     // Set up v
+     dgdft::scalapack::Descriptor vec_v_desc;
+     vec_v_desc.Init( ht, 1, 
+		      scaBlockSize, scaBlockSize, 
+		      0, 0, 
+		      context);   
+     dgdft::scalapack::ScaLAPACKMatrix<Real>  vec_v;     
+     vec_v.SetDescriptor(vec_v_desc);
+     
+     // Set up f
+     dgdft::scalapack::Descriptor vec_f_desc;
+     vec_f_desc.Init( ht, 1, 
+		      scaBlockSize, scaBlockSize, 
+		      0, 0, 
+		      context);   
+     dgdft::scalapack::ScaLAPACKMatrix<Real>  vec_f;    
+     vec_f.SetDescriptor(vec_f_desc);
+
+     
+     // Randomly initialize vector v
+     double *data_ptr =  vec_v.Data();    
+     for (int ii = 0; ii < vec_v0.LocalHeight(); ii ++)
+       data_ptr[ii] = UniformRandom();
+     
+     // Normalize this vector
+     double nrm;     
+     dgdft::scalapack::SCALAPACK(pdnrm2)(&ht, &nrm, vec_v.Data(), &I_ONE, &I_ONE, vec_v.Desc().Values(), &I_ONE);
+
+     double scalar_a = 1.0 / nrm;
+     dgdft::scalapack::SCALAPACK(pdscal)(&ht , &scalar_a , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values(), &I_ONE);
+
+     // Compute f = H * v : use -H here 
+     dgdft::scalapack::SCALAPACK(pdgemv)(&uplo , &ht , &ht , &scalar_minus_one , Hmat.Data() , &I_ONE , &I_ONE , Hmat.Desc().Values() , 
+					 vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
+					 &scalar_zero , vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE);
+
+     // alpha = dot(f,v)
+     dgdft::scalapack::SCALAPACK(pddot)(&ht , &alpha ,  vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
+		                        vec_v.Data() ,  &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE );
+     
+ 
+     // f = f - alpha * v;
+     minus_alpha = -alpha;
+     dgdft::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_alpha , vec_v.Data(), &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
+		                         vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE );
+
+     
+ 
+    int Num_Lanczos_Steps = 5;
+    DblNumMat mat_T(Num_Lanczos_Steps, Num_Lanczos_Steps);
+    SetValue(mat_T, 0.0);
+ 
+    // 0,0 entry is alpha
+    mat_T(0,0) = alpha;
+    
+    for(Int j = 1; j < Num_Lanczos_Steps; j ++)
+      {
+	// beta = norm2(f)
+	dgdft::scalapack::SCALAPACK(pdnrm2)(&ht, &beta, vec_f.Data(), &I_ONE, &I_ONE, vec_f.Desc().Values(), &I_ONE);
+	 
+	// v0 = v
+	dgdft::scalapack::SCALAPACK(pdcopy)(&ht , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
+		                            vec_v0.Data() , &I_ONE , &I_ONE , vec_v0.Desc().Values() , &I_ONE );
+   
+	// v = f / beta
+	dgdft::scalapack::SCALAPACK(pdcopy)(&ht , vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
+		                            vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE ); // v = f
+	
+	scalar_a = (1.0 / beta);
+	dgdft::scalapack::SCALAPACK(pdscal)(&ht , &scalar_a , vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values(), &I_ONE); // v <-- v (=f) / beta
+	
+	// f = H * v : use -H here 
+	dgdft::scalapack::SCALAPACK(pdgemv)(&uplo , &ht , &ht , &scalar_minus_one , Hmat.Data() , &I_ONE , &I_ONE , Hmat.Desc().Values() , 
+					    vec_v.Data() , &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
+					    &scalar_zero , vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE);
+
+ 
+	// f = f - beta * v0
+        minus_beta = -beta;
+	dgdft::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_beta , vec_v0.Data(), &I_ONE , &I_ONE , vec_v0.Desc().Values() , &I_ONE , 
+		                            vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE );
+	
+	// alpha = dot(f,v)
+	dgdft::scalapack::SCALAPACK(pddot)(&ht , &alpha ,  vec_f.Data(), &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE , 
+		                           vec_v.Data() ,  &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE );
+
+	// f = f - alpha * v;
+        minus_alpha = -alpha;
+	dgdft::scalapack::SCALAPACK(pdaxpy)(&ht, &minus_alpha , vec_v.Data(), &I_ONE , &I_ONE , vec_v.Desc().Values() , &I_ONE , 
+		                            vec_f.Data() , &I_ONE , &I_ONE , vec_f.Desc().Values() , &I_ONE );
+
+	
+	// Set up matrix entries
+	mat_T(j, j - 1) = beta;
+	mat_T(j - 1, j) = beta;
+	mat_T(j, j) = alpha;
+    
+      } // End of loop over Lanczos steps 
+
+    DblNumVec ritz_values(Num_Lanczos_Steps);
+    SetValue( ritz_values, 0.0 );
+
+
+    // Solve the eigenvalue problem for the Ritz values
+    lapack::Syevd( 'N', 'U', Num_Lanczos_Steps, mat_T.Data(), Num_Lanczos_Steps, ritz_values.Data() );
+   
+    // Compute the norm of f
+    dgdft::scalapack::SCALAPACK(pdnrm2)(&ht, &nrm, vec_f.Data(), &I_ONE, &I_ONE, vec_f.Desc().Values(), &I_ONE);
+    
+    // Finally compute upper bound
+    b_up = ritz_values(Num_Lanczos_Steps - 1) + nrm;
+    
+ 
+    
+//     // Verification
+//     statusOFS << std::endl << " Lanczos ritz values = " << ritz_values;
+//     statusOFS << std::endl << " Lanczos upper bound = " << b_up;
+
+    
+   /* dgdft::scalapack::ScaLAPACKMatrix<Real>  Hmat_copy;   
+    Hmat_copy.SetDescriptor(Hmat.Desc());
+    
+    uplo = 'N';
+    dgdft::scalapack::SCALAPACK(pdlacpy)(&uplo, &ht, &ht,
+                                         Hmat.Data(), &I_ONE, &I_ONE, Hmat.Desc().Values(), 
+                                         Hmat_copy.Data(), &I_ONE, &I_ONE, Hmat_copy.Desc().Values() );
+
+     int ind = 0;
+     double *ptr = Hmat_copy.Data();
+     for(int ii = 0; ii < Hmat_copy.LocalHeight(); ii ++)
+     {
+       for(int jj = 0; jj < Hmat_copy.LocalWidth(); jj ++)
+       {
+	 ptr[ind] = -ptr[ind];
+	 ind ++;
+       }
+     }
+    
+ 
+    dgdft::scalapack::ScaLAPACKMatrix<Real>  scaZ;
+    std::vector<Real> Hmat_eigen_values;
+
+    
+    scalapack::Syevd('U', Hmat_copy, Hmat_eigen_values, scaZ);
+
+    statusOFS << std::endl << " Full set of eigenvalues of -Hmat = " << std::endl;
+    for(int ii=0; ii < ht; ii ++)
+      statusOFS << std::endl << Hmat_eigen_values[ii];
+    statusOFS << std::endl << std::endl;
+   
+ */   
+     
+//       statusOFS << std::endl << std::endl 
+// 		<< " Ht = " << vec_v0.Height()
+// 		<< " Width = " << vec_v0.Width()
+// 		<< " loc. Ht = " << vec_v0.LocalHeight()
+// 		<< " loc. Width = " << vec_v0.LocalWidth()
+// 		<< " loc. LD = " << vec_v0.LocalLDim();	 
+//       statusOFS << std::endl
+//                 << " NumRowBlocks = " << vec_v0.NumRowBlocks()
+// 		<< " NumColBlocks = " << vec_v0.NumColBlocks()
+// 		<< " LocalNumRowBlocks = " << vec_v0.LocalNumRowBlocks()
+// 		<< " LocalNumColBlocks = " << vec_v0.LocalNumColBlocks()
+// 		<< " MB = " << vec_v0.MB() << " NB = " << vec_v0.NB(); 
+// 		statusOFS << std::endl << std::endl;                        
+	       
+     return b_up;
+     
+  }
+  
+  // This should be called only by prcessors sharing the context of Hmat
+  void  CheFSI_Hmat_top_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat,
+			         dgdft::scalapack::ScaLAPACKMatrix<Real>& Xmat,
+			         DblNumVec& eig_vals_Xmat,
+			         int filter_order,
+			         int num_cycles,
+			         double lower_bound, double upper_bound, double a_L)
+  {
+     
+     const int ht = Hmat.Height();     
+     const int wd = Xmat.Width();
+     const int context = Hmat.Context();
+     const int scaBlockSize = Hmat.MB();
+     
+     const int loc_sz = Xmat.LocalHeight() * Xmat.LocalWidth(); 
+
+     double time_sta, time_end;
+    
+     double a = lower_bound;
+     double b = upper_bound;
+     
+    // Set up Ymat
+     dgdft::scalapack::Descriptor Ymat_desc;
+     Ymat_desc.Init( ht, wd, 
+		     scaBlockSize, scaBlockSize, 
+		     0, 0, 
+		     context);   
+     dgdft::scalapack::ScaLAPACKMatrix<Real>  Ymat;
+     Ymat.SetDescriptor(Ymat_desc);
+	
+     // Set up Yt_mat
+     dgdft::scalapack::Descriptor Yt_mat_desc;
+     Yt_mat_desc.Init( ht, wd, 
+		       scaBlockSize, scaBlockSize, 
+		       0, 0, 
+		       context);   
+     dgdft::scalapack::ScaLAPACKMatrix<Real>  Yt_mat;
+     Yt_mat.SetDescriptor(Yt_mat_desc);
+
+    statusOFS << std::endl << "  ------- " << std::endl;
+    
+    for(int cycle_iter = 1; cycle_iter <= num_cycles; cycle_iter ++)
+      { 
+	GetTime(time_sta);
+	statusOFS << std::endl << " Inner parallel CheFSI cycle (using -H) iter no. " << cycle_iter << " of " << num_cycles ;
+	statusOFS << std::endl << "   Filter order = " << filter_order ;
+	statusOFS << std::endl << "   a = " << a << " b = " << b << " a_L = " << a_L ;
+	
+	
+	double e = (b - a) / 2.0;
+	double c = (a + b) / 2.0;
+	double sigma = e / (c - a_L);
+	double tau = 2.0 / sigma;
+
+	double sigma_new;
+	
+
+	// A) Compute the filtered subspace
+	// Step 1: Y = (H * X - c * X) * (sigma/e)
+  
+	// Compute Y = H * X : use -H here
+	dgdft::scalapack::Gemm('N', 'N',
+                               ht, wd, ht,
+                               -1.0,
+                               Hmat.Data(), I_ONE, I_ONE, Hmat.Desc().Values(), 
+                               Xmat.Data(), I_ONE, I_ONE, Xmat.Desc().Values(),
+                               0.0,
+                               Ymat.Data(), I_ONE, I_ONE, Ymat.Desc().Values(),
+                               context);
+
+  
+	// Compute Y = Y - c * X : Use local operations for this
+	blas::Axpy( loc_sz, (-c), Xmat.Data(), 1, Ymat.Data(), 1 );
+  
+	// Compute Y = Y * (sigma / e) : Use local operations for this
+	blas::Scal( loc_sz, (sigma / e), Ymat.Data(), 1 );
+	
+	// Loop over filter order
+	
+	for(int i = 2; i <= filter_order; i ++)
+	  {
+	    sigma_new = 1.0 / (tau - sigma);
+    
+	    
+	    // Step 2: Yt = (H * Y - c * Y) * (2 * sigma_new/e) - (sigma * sigma_new) * X
+    
+	    // Compute Yt = H * Y : use -H here
+	    dgdft::scalapack::Gemm('N', 'N',
+                                   ht, wd, ht,
+                                   -1.0,
+                                   Hmat.Data(), I_ONE, I_ONE, Hmat.Desc().Values(), 
+                                   Ymat.Data(), I_ONE, I_ONE, Ymat.Desc().Values(),
+                                   0.0,
+                                   Yt_mat.Data(), I_ONE, I_ONE, Yt_mat.Desc().Values(),
+                                   context);
+    
+	    
+	    // Compute Yt = Yt - c * Y : Use local operations for this
+	    blas::Axpy( loc_sz, (-c), Ymat.Data(), 1, Yt_mat.Data(), 1 );
+    
+	    // Compute Yt = Yt * (2 * sigma_new / e) : Use local operations for this
+	    blas::Scal( loc_sz, (2.0 * sigma_new / e), Yt_mat.Data(), 1 );
+    
+	    // Compute Yt = Yt - (sigma * sigma_new) * X : Use local operations for this
+	    blas::Axpy( loc_sz, (-sigma * sigma_new), Xmat.Data(), 1, Yt_mat.Data(), 1 );
+
+	    // Step 3: Update assignments
+    
+	    
+	    // Set X = Y : Use local operations for this
+	    blas::Copy( loc_sz, Ymat.Data(), 1, Xmat.Data(), 1);
+    
+	    // Set Y = Yt : Use local operations for this
+	    blas::Copy( loc_sz, Yt_mat.Data(), 1, Ymat.Data(), 1);
+
+	    // Set sigma = sigma_new
+	    sigma = sigma_new;	   
+	  }
+       
+	// B) Orthonormalize the filtered vectors
+	dgdft::scalapack::Descriptor square_mat_desc;
+        square_mat_desc.Init( wd, wd, 
+		              scaBlockSize, scaBlockSize, 
+		              0, 0, 
+		              context);   
+	
+        dgdft::scalapack::ScaLAPACKMatrix<Real> square_mat;
+        square_mat.SetDescriptor(square_mat_desc);
+  
+	// Compute X^T * X
+	dgdft::scalapack::Syrk('U', 'T',
+			       wd, ht,
+			       1.0, Xmat.Data(),
+			       I_ONE, I_ONE, Xmat.Desc().Values(),
+			       0.0, square_mat.Data(),
+			       I_ONE, I_ONE, square_mat.Desc().Values());
+  
+	// Compute the Cholesky factor 
+	dgdft::scalapack::Potrf( 'U', square_mat);
+	  
+	// Solve using the Cholesky factor
+	// X = X * U^{-1} is orthogonal, where U is the Cholesky factor
+	dgdft::scalapack::Trsm('R', 'U', 'N', 'N', 1.0,
+                               square_mat, 
+                               Xmat);
+	
+	
+	// C) Raleigh-Ritz step
+	// Compute Y = H * X : use -H here
+	dgdft::scalapack::Gemm('N', 'N',
+                               ht, wd, ht,
+                               -1.0,
+                               Hmat.Data(), I_ONE, I_ONE, Hmat.Desc().Values(), 
+                               Xmat.Data(), I_ONE, I_ONE, Xmat.Desc().Values(),
+                               0.0,
+                               Ymat.Data(), I_ONE, I_ONE, Ymat.Desc().Values(),
+                               context);
+
+  
+	// Compute X^T * HX
+	 dgdft::scalapack::Gemm( 'T', 'N',
+                                  wd, wd, ht,
+                                  1.0,
+                                  Xmat.Data(), I_ONE, I_ONE,  Xmat.Desc().Values(), 
+                                  Ymat.Data(), I_ONE, I_ONE,  Ymat.Desc().Values(),
+                                  0.0,
+                                  square_mat.Data(), I_ONE, I_ONE, square_mat.Desc().Values(),
+                                  context);
+
+
+  
+	// Solve the eigenvalue problem
+	std::vector<Real> temp_eigen_values_vector; 	
+	dgdft::scalapack::ScaLAPACKMatrix<Real>  scaZ;
+  
+	dgdft::scalapack::Syevd('U', square_mat, temp_eigen_values_vector, scaZ);
+	
+	// D) Subspace rotation step
+	// Copy X to Y
+	blas::Copy( loc_sz, Xmat.Data(), 1, Ymat.Data(), 1 );
+	
+        // X = X * Q (  Here Ymat contains X)
+	dgdft::scalapack::Gemm( 'N', 'N',
+                                ht, wd, wd,
+                                1.0,
+                                Ymat.Data(), I_ONE, I_ONE, Ymat.Desc().Values(), 
+                                scaZ.Data(), I_ONE, I_ONE, scaZ.Desc().Values(),
+                                0.0,
+                                Xmat.Data(), I_ONE, I_ONE,  Xmat.Desc().Values(),
+                                context);
+	
+  
+	// Adjust the lower filter bound for the next cycle 
+	a = temp_eigen_values_vector[wd - 1];
+  
+	// Flip the sign of the eigenvalues
+	for(int iter = 0; iter < wd; iter ++)
+	  eig_vals_Xmat(iter) = -temp_eigen_values_vector[iter];
+  
+	//statusOFS << std::endl << "  CheFSI Eigenvalues in this cycle = " << eig_vals_Xmat << std::endl;
+	
+	GetTime(time_end);
+	statusOFS << std::endl << " This inner CheFSI cycle finished in " << (time_end - time_sta) << " s." << std::endl;
+
+      }
+      
+     statusOFS << std::endl << "  ------- " << std::endl;
+     
+     
+     
+    
+    return;
+    
+  }
 
   double find_comp_subspace_UB_serial(DblNumMat& Hmat)
   {
@@ -22,7 +433,7 @@ namespace dgdft{
     double vec_v_nrm = blas::Nrm2( ht, vec_v.Data(), 1 );
     blas::Scal( ht, (1.0 / vec_v_nrm),  vec_v.Data(), 1 );
  
-    // Compute f = H * V
+    // Compute f = H * V : use -H here 
     DblNumVec vec_f(ht);
     blas::Gemv( 'N', ht, ht,
 		-1.0, Hmat.Data(), ht, 
@@ -87,9 +498,8 @@ namespace dgdft{
     b_up = ritz_values(Num_Lanczos_Steps - 1) + blas::Nrm2(ht, vec_f.Data(), 1);
 
 
-    //   statusOFS << std::endl << " Lanczos ritz values = " << ritz_values;
-    //   statusOFS << std::endl << " Lanczos upper bound = " << b_up;
-    // 
+    //  statusOFS << std::endl << " Lanczos ritz values = " << ritz_values;
+    //  statusOFS << std::endl << " Lanczos upper bound = " << b_up;
     //  
     //   DblNumVec lapack_eigvals_test(ht);
     //   SetValue (lapack_eigvals_test, 0.0);
@@ -123,7 +533,7 @@ namespace dgdft{
     for(int cycle_iter = 1; cycle_iter <= num_cycles; cycle_iter ++)
       { 
 	GetTime(time_sta);
-	statusOFS << std::endl << " Inner CheFSI cycle (using -H) iter no. " << cycle_iter << " of " << num_cycles ;
+	statusOFS << std::endl << " Inner serial CheFSI cycle (using -H) iter no. " << cycle_iter << " of " << num_cycles ;
 	statusOFS << std::endl << "   Filter order = " << filter_order ;
 	statusOFS << std::endl << "   a = " << a << " b = " << b << " a_L = " << a_L ;
 	

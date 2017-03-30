@@ -981,7 +981,7 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
 
   i++;
-  strcpy(kw_label[i],"scfdg_chefsi_complementary_subspace_parallel");
+  strcpy(kw_label[i],"scfdg_chefsi_complementary_subspace_syrk");
   strcpy(kw_typ[i],"I:E");
 
   i++;
@@ -991,6 +991,11 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"scfdg_cs_ioniter_regular_cheby_freq");
   strcpy(kw_typ[i],"I:E");
+  
+  i++;
+  strcpy(kw_label[i],"scfdg_cs_bigger_grid_dim_fac");
+  strcpy(kw_typ[i],"I:E");
+  
 
   // Inner LOBPCG related options
   i++;
@@ -2649,9 +2654,11 @@ ESDFReadInput ( const char* filename )
   // ~~
   {
     esdfParam.scfdg_use_chefsi_complementary_subspace = esdf_integer("SCFDG_use_CheFSI_complementary_subspace", 0);
-    esdfParam.scfdg_chefsi_complementary_subspace_parallel = esdf_integer("SCFDG_CheFSI_complementary_subspace_parallel", 0);
+    esdfParam.scfdg_chefsi_complementary_subspace_syrk = esdf_integer("SCFDG_CheFSI_complementary_subspace_syrk", 0);
     esdfParam.scfdg_complementary_subspace_nstates = esdf_integer("SCFDG_complementary_subspace_nstates", int(double(esdfParam.numExtraState)/20.0 + 0.5) );
     esdfParam.scfdg_cs_ioniter_regular_cheby_freq = esdf_integer("SCFDG_CS_ioniter_regular_Cheby_freq", 20 );
+    
+    esdfParam.scfdg_cs_bigger_grid_dim_fac = esdf_integer("SCFDG_CS_bigger_grid_dim_fac", 1 );
     
     // Inner LOBPCG related options
     esdfParam.scfdg_complementary_subspace_lobpcg_iter = esdf_integer("SCFDG_complementary_subspace_inner_LOBPCGiter", 15);

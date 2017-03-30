@@ -183,8 +183,12 @@ private:
   // complementary subspace iteration strategy in DGDFT
   bool SCFDG_use_comp_subspace_;
   bool SCFDG_comp_subspace_parallel_;
+  bool SCFDG_comp_subspace_syrk_; // Currently only available in the parallel version
+  bool SCFDG_comp_subspace_syr2k_; // Currently only available in the parallel version
+  
   Int SCFDG_comp_subspace_nstates_;
   Int SCFDG_CS_ioniter_regular_cheby_freq_;
+  Int SCFDG_CS_bigger_grid_dim_fac_;
   
   // LOBPCG (for top states) related options
   Int SCFDG_comp_subspace_LOBPCG_iter_;

@@ -57,6 +57,7 @@ namespace  dgdft{
 
 using namespace dgdft::DensityComponent;
 using namespace dgdft::esdf;
+using namespace dgdft::scalapack;
 
 
 // FIXME Leave the smoother function to somewhere more appropriate
@@ -238,15 +239,22 @@ SCFDG::Setup    (
   {
     SCFDG_use_comp_subspace_ = esdfParam.scfdg_use_chefsi_complementary_subspace;  // Default: 0
 
-    SCFDG_comp_subspace_parallel_ = esdfParam.scfdg_chefsi_complementary_subspace_parallel; 
+    SCFDG_comp_subspace_parallel_ = SCFDG_Cheby_use_ScaLAPACK_; // Use serial or parallel routine depending on early CheFSI steps
     
-    // Checking against CheFSI ScaLAPACK option
-    if(SCFDG_Cheby_use_ScaLAPACK_ == 0)
-      SCFDG_comp_subspace_parallel_ = 0;  // i.e., the parallel solver is NOT called if CheFSI subspace is not parallel
-
+    SCFDG_comp_subspace_syrk_ = esdfParam.scfdg_chefsi_complementary_subspace_syrk; // Syrk and Syr2k based updates, available in parallel routine only
+    SCFDG_comp_subspace_syr2k_ = SCFDG_comp_subspace_syrk_;
+      
+    
+    // Safeguard to ensure that CS strategy is called only after a few general Chebyshev cycles
+    // This allows the initial guess vectors to be copied
+    if(  SCFDG_use_comp_subspace_ == 1 && Second_SCFDG_ChebyOuterIter_ < 3)
+      Second_SCFDG_ChebyOuterIter_ = 3;
+    
     SCFDG_comp_subspace_nstates_ = esdfParam.scfdg_complementary_subspace_nstates; // Defaults to a fraction of extra states
     
     SCFDG_CS_ioniter_regular_cheby_freq_ = esdfParam.scfdg_cs_ioniter_regular_cheby_freq; // Defaults to 20
+    
+    SCFDG_CS_bigger_grid_dim_fac_ = esdfParam.scfdg_cs_bigger_grid_dim_fac; // Defaults to 1;
     
     // LOBPCG for top states option
     SCFDG_comp_subspace_LOBPCG_iter_ = esdfParam.scfdg_complementary_subspace_lobpcg_iter; // Default = 15
@@ -257,6 +265,12 @@ SCFDG::Setup    (
     Hmat_top_states_ChebyFilterOrder_ = esdfParam.Hmat_top_states_ChebyFilterOrder; 
     Hmat_top_states_ChebyCycleNum_ = esdfParam.Hmat_top_states_ChebyCycleNum; 
     Hmat_top_states_Cheby_delta_fudge_ = 0.0;
+    
+    // Extra precaution : Inner LOBPCG only available in serial mode and syrk type updates only available in paralle mode
+    if(SCFDG_comp_subspace_parallel_ == 1)
+      Hmat_top_states_use_Cheby_ = 1; 
+    else
+      SCFDG_comp_subspace_syrk_ = 0;
  
     SCFDG_comp_subspace_N_solve_ = hamDG.NumExtraState() + SCFDG_comp_subspace_nstates_;     
     SCFDG_comp_subspace_engaged_ = false;
@@ -3626,22 +3640,9 @@ SCFDG::Iterate    (  )
           MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, domain_.comm); // Eigen-vectors
           MPI_Bcast(eig_vals_Raleigh_Ritz.Data(), width, MPI_DOUBLE, 0,  domain_.comm); // Eigen-values
 
-          {
-            SCFDG_comp_subspace_start_guess_.Resize(width, SCFDG_comp_subspace_N_solve_);
-
-            for(Int copy_iter = 0; copy_iter < SCFDG_comp_subspace_N_solve_; copy_iter ++)
-            {
-              blas::Copy( width, square_mat.VecData(width - 1 - copy_iter), 1, 
-                  SCFDG_comp_subspace_start_guess_.VecData(copy_iter), 1 );
-
-
-              // lapack::Lacpy( 'A', width, 1, square_mat.VecData(width - 1 - copy_iter), width, 
-              //      SCFDG_comp_subspace_start_guess_.VecData(copy_iter), width );
-            }
-          }
-
           GetTime( timeEnd );
           statusOFS << std::endl << " Raleigh-Ritz step completed ( " << (timeEnd - timeSta ) << " s.)";
+	  
 
           // Subspace rotation step X <- X * Q: This part is non-scalable and needs to be fixed
           // !!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4206,7 +4207,15 @@ SCFDG::Iterate    (  )
           MPI_Bcast(square_mat.Data(), width*width, MPI_DOUBLE, 0, domain_.comm); // Eigen-vectors
           MPI_Bcast(eig_vals_Raleigh_Ritz.Data(), width, MPI_DOUBLE, 0,  domain_.comm); // Eigen-values
 
+          GetTime( timeEnd );
+          statusOFS << std::endl << " Raleigh-Ritz step completed ( " << (timeEnd - timeSta ) << " s.)";
+	  
+	   // This is for use with the Complementary Subspace strategy in subsequent steps
+	  if(SCFDG_use_comp_subspace_ == 1)
           {
+	    GetTime( timeSta );
+
+	    statusOFS << std::endl << std::endl << " Copying top states for serial CS strategy ... ";  
             SCFDG_comp_subspace_start_guess_.Resize(width, SCFDG_comp_subspace_N_solve_);
 
             for(Int copy_iter = 0; copy_iter < SCFDG_comp_subspace_N_solve_; copy_iter ++)
@@ -4218,11 +4227,12 @@ SCFDG::Iterate    (  )
               // lapack::Lacpy( 'A', width, 1, square_mat.VecData(width - 1 - copy_iter), width, 
               //      SCFDG_comp_subspace_start_guess_.VecData(copy_iter), width );
             }
+            
+            GetTime( timeEnd );
+            statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
           }
 
-          GetTime( timeEnd );
-          statusOFS << std::endl << " Raleigh-Ritz step completed ( " << (timeEnd - timeSta ) << " s.)";
-
+	  
           // Subspace rotation step X <- X * Q: This part is non-scalable and needs to be fixed
           // !!!!!!!!!!!!!!!!!!!!!!!!!!!!
           statusOFS << std::endl << std::endl << " Subspace rotation step ... ";
@@ -4442,6 +4452,48 @@ SCFDG::Iterate    (  )
           GetTime( timeEnd );
           statusOFS << std::endl << " H * X for filtered orthonormal vectors computed . ( " << (timeEnd - timeSta ) << " s.)";
 
+	  
+	  // Set up a single process ScaLAPACK matrix for use with parallel CS strategy	  
+	  // This is for copying the relevant portion of scaZ	   	     
+	  Int single_proc_context = -1;
+	  scalapack::Descriptor single_proc_desc;
+	  scalapack::ScaLAPACKMatrix<Real>  single_proc_scala_mat;
+	  	  
+	  
+	  if(SCFDG_use_comp_subspace_ == 1)
+	  {  
+	    
+	   // Reserve the serial space : this will actually contain the vectors in the reversed order
+	   SCFDG_comp_subspace_start_guess_.Resize( hamDG.NumStateTotal(), SCFDG_comp_subspace_N_solve_);
+	    
+	    Int single_proc_pmap[1];   
+	    single_proc_pmap[0] = 0; // Just using proc. 0 for the job.
+	
+	    // Set up BLACS for for the single proc context
+	  
+	    dgdft::scalapack::Cblacs_get( 0, 0, &single_proc_context );
+	    dgdft::scalapack::Cblacs_gridmap(&single_proc_context, &single_proc_pmap[0], 1, 1, 1);
+
+	    if( single_proc_context >= 0)
+	    {
+	      // For safety, make sure this is MPI Rank zero : throw an error otherwise
+	      // Fix this in the future ?
+	      if(mpirank != 0)
+	      {
+		  statusOFS << std::endl << std::endl << "  Error !! BLACS rank 0 does not match MPI rank 0 "
+		            << " Aborting ... " << std::endl << std::endl;
+		  MPI_Abort(domain_.comm, 0);
+	      }
+	      
+	      single_proc_desc.Init( hamDG.NumStateTotal(), SCFDG_comp_subspace_N_solve_,
+				      scaBlockSize_, scaBlockSize_, 
+				      0, 0,  single_proc_context );	      
+	       
+	      single_proc_scala_mat.SetDescriptor( single_proc_desc );
+	       
+	    }
+	  }
+     
 
           // Raleigh-Ritz step
           if(cheby_scala_context >= 0)
@@ -4513,9 +4565,61 @@ SCFDG::Iterate    (  )
             statusOFS << std::endl << " Eigenvalue problem solved in : " << (detail_timeEnd - detail_timeSta) << " s.";
 
 
-
-
-            // Subspace rotation step : X <- X * Q		
+	    // This is for use with the Complementary Subspace strategy in subsequent steps
+	    if(SCFDG_use_comp_subspace_ == 1)
+	    {
+	       GetTime( detail_timeSta);
+	       statusOFS << std::endl << std::endl << " Distributing and copying top states for parallel CS strategy ... ";
+	      
+     
+	     const Int M_copy_ = hamDG.NumStateTotal();
+	     const Int N_copy_ = SCFDG_comp_subspace_N_solve_;
+	     const Int copy_src_col = M_copy_ - N_copy_ + 1;
+	     
+	     // Note that this is being called inside cheby_scala_context >= 0
+	     SCALAPACK(pdgemr2d)(&M_copy_, &N_copy_, 
+				 scaZ.Data(), &I_ONE, &copy_src_col,
+				 scaZ.Desc().Values(), 
+				 single_proc_scala_mat.Data(), &I_ONE, &I_ONE, 
+				 single_proc_scala_mat.Desc().Values(), 
+				 &cheby_scala_context);    
+	     
+	     
+	     // Copy the data from single_proc_scala_mat to SCFDG_comp_subspace_start_guess_
+	     if( single_proc_context >= 0)
+	     {
+	       double *src_ptr, *dest_ptr; 
+	       
+// 	        statusOFS << std::endl << std::endl 
+// 		           << " Ht = " << single_proc_scala_mat.Height()
+// 			   << " Width = " << single_proc_scala_mat.Width()
+// 			   << " loc. Ht = " << single_proc_scala_mat.LocalHeight()
+// 			   << " loc. Width = " << single_proc_scala_mat.LocalWidth()
+// 			   << " loc. LD = " << single_proc_scala_mat.LocalLDim();	   
+// 		statusOFS << std::endl << std::endl;                        
+// 	       
+	       // Do this in the reverse order      
+	       for(Int copy_iter = 0; copy_iter < SCFDG_comp_subspace_N_solve_; copy_iter ++)
+	       {
+	         src_ptr = single_proc_scala_mat.Data() + (SCFDG_comp_subspace_N_solve_ - copy_iter - 1) * single_proc_scala_mat.LocalLDim();
+		 dest_ptr =  SCFDG_comp_subspace_start_guess_.VecData(copy_iter);
+		 
+		 blas::Copy( M_copy_, src_ptr, 1, dest_ptr, 1 );		 	 
+	       }
+	       
+	       
+	      }
+  
+	     	   	     
+	      GetTime( detail_timeEnd);
+	      statusOFS << "Done. (" << (detail_timeEnd - detail_timeSta) << " s.)";
+	     
+	    } // end of if(SCFDG_use_comp_subspace_ == 1)
+	    
+	    
+	    
+            // Subspace rotation step : X <- X * Q	
+            statusOFS << std::endl << std::endl << " Subspace rotation step ...  ";
             GetTime( detail_timeSta);
 
             // To save memory, copy X to HX
@@ -4536,7 +4640,7 @@ SCFDG::Iterate    (  )
                 cheby_scala_context);
 
             GetTime( detail_timeEnd);
-            statusOFS << std::endl << " Subspace rotation step completed in : " << (detail_timeEnd - detail_timeSta) << " s.";
+            statusOFS << " Done. (" << (detail_timeEnd - detail_timeSta) << " s.)";
 
 
 
@@ -4562,8 +4666,14 @@ SCFDG::Iterate    (  )
 
 
           } // End of if(cheby_scala_context >= 0)
+          else
+	  {
+	    statusOFS << std::endl << std::endl << " Waiting for ScaLAPACK solution of subspace problems ...";
+	  }
 
 
+          
+          
 
           // Communicate the final eigenvectors (to other intra-element processors)
           statusOFS << std::endl << " Communicating eigenvalues and eigenvectors ... ";
@@ -4580,7 +4690,20 @@ SCFDG::Iterate    (  )
           statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
 
 
+	  // Broadcast the guess vectors for the CS strategy from proc 0
+           if(SCFDG_use_comp_subspace_ == 1)
+	   {
+	     statusOFS << std::endl << std::endl << " Broadcasting guess vectors for parallel CS strategy ... ";
+	     GetTime( timeSta );
+	     
+	     MPI_Bcast(SCFDG_comp_subspace_start_guess_.Data(),hamDG.NumStateTotal() * SCFDG_comp_subspace_N_solve_, 
+			MPI_DOUBLE, 0,  domain_.comm); 
+	      
+	     GetTime( timeEnd );
+	     statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+	     
 
+	   }    
 
           // Reset the filtering bounds using results of the Raleigh-Ritz step    
           b_low = eigval(ref_mat_2.n() - 1);
@@ -4591,11 +4714,16 @@ SCFDG::Iterate    (  )
           MPI_Barrier(domain_.comm);
 
           // Clean up BLACS
-          if(cheby_scala_context >= 0) {
+          if(cheby_scala_context >= 0) 
+	  {
             dgdft::scalapack::Cblacs_gridexit( cheby_scala_context );
           }
-
-
+          
+	  if( single_proc_context >= 0)
+	  {
+	      dgdft::scalapack::Cblacs_gridexit( single_proc_context );
+	  }
+	     
 
         } // End of if(SCFDG_Cheby_use_ScaLAPACK_ == 0) ... else 
 
@@ -4619,6 +4747,10 @@ SCFDG::Iterate    (  )
   /// complementary subspace iteration strategy in DGDFT
   void SCFDG::scfdg_complementary_subspace_serial(Int filter_order )
   {
+    statusOFS << std::endl << " ----------------------------------------------------------" ; 
+    statusOFS << std::endl << " Complementary Subspace Strategy (Serial Subspace version): " << std::endl ; 
+    
+    
     Int mpirank, mpisize;
     MPI_Comm_rank( domain_.comm, &mpirank );
     MPI_Comm_size( domain_.comm, &mpisize );
@@ -4692,7 +4824,6 @@ SCFDG::Iterate    (  )
 
 
     GetTime( cheby_timeSta );
-    statusOFS << std::endl << std::endl << " ------------------------------- ";
     // Filter the subspace
     statusOFS << std::endl << std::endl << " Filtering the subspace ... (Filter order = " << Filter_Order << ")";
     GetTime( timeSta );
@@ -4826,8 +4957,9 @@ SCFDG::Iterate    (  )
 	Hmat_top_states_Cheby_delta_fudge_ = 0.5 * (eigval[state_ind] - eigval[state_ind - 1]);
 	
 	statusOFS << std::endl << " Going into inner CheFSI routine for top states ... ";
-	statusOFS << std::endl << "   Lower bound = average of eigenvalues  " << eigval[state_ind] << " and " <<  eigval[state_ind - 1]
-	                       << std::endl << "   Lanczos upper boound = " << SCFDG_comp_subspace_inner_CheFSI_upper_bound_ ;
+	statusOFS << std::endl << "   Lower bound = -(average of eigenvalues  " << eigval[state_ind] 
+	                       << " and " <<  eigval[state_ind - 1] << ") = " << SCFDG_comp_subspace_inner_CheFSI_lower_bound_
+	                       << std::endl << "   Lanczos upper bound = " << SCFDG_comp_subspace_inner_CheFSI_upper_bound_ ;
 	
       }
       else
@@ -4868,7 +5000,7 @@ SCFDG::Iterate    (  )
 
     // Broadcast the results from proc 0 to ensure all procs are using the same eigenstates
     MPI_Bcast(temp_Xmat.Data(), SCFDG_comp_subspace_N_solve_ * width, MPI_DOUBLE, 0, domain_.comm); // Eigenvectors
-    MPI_Bcast(temp_eig_vals_Xmat.Data(), SCFDG_comp_subspace_N_solve_ , MPI_DOUBLE, 0, domain_.comm); // Eigenvectors
+    MPI_Bcast(temp_eig_vals_Xmat.Data(), SCFDG_comp_subspace_N_solve_ , MPI_DOUBLE, 0, domain_.comm); // Eigenvalues
 
 
     // Copy back the eigenstates to the guess for the next step
@@ -4925,6 +5057,8 @@ SCFDG::Iterate    (  )
       SCFDG_comp_subspace_trace_Hmat_ += temp_Hmat(trace_calc, trace_calc);
 
 
+    statusOFS << std::endl << std::endl << " ------------------------------- ";
+
 
     // // This is for debugging purposes 
     //     DblNumVec eig_vals_Raleigh_Ritz; 
@@ -4957,6 +5091,10 @@ SCFDG::Iterate    (  )
   /// complementary subspace iteration strategy in DGDFT in parallel
   void SCFDG::scfdg_complementary_subspace_parallel(Int filter_order )
   {
+    
+    statusOFS << std::endl << " ----------------------------------------------------------" ; 
+    statusOFS << std::endl << " Complementary Subspace Strategy (Parallel Subspace version): " << std::endl ; 
+    
     Int mpirank, mpisize;
     MPI_Comm_rank( domain_.comm, &mpirank );
     MPI_Comm_size( domain_.comm, &mpisize );
@@ -4994,10 +5132,7 @@ SCFDG::Iterate    (  )
 
     // Step 1: Obtain the upper bound and the Ritz values (for the lower bound)
     // using the Lanczos estimator
-
     DblNumVec Lanczos_Ritz_values;
-
-
     statusOFS << std::endl << " Estimating the spectral bounds ... "; 
     GetTime( extra_timeSta );
     const int Num_Lanczos_Steps = 6;
@@ -5026,11 +5161,7 @@ SCFDG::Iterate    (  )
     // Step 2: Perform filtering
     const Int Filter_Order = filter_order ;
 
-
-
-
     GetTime( cheby_timeSta );
-    statusOFS << std::endl << std::endl << " ------------------------------- ";
     // Filter the subspace
     statusOFS << std::endl << std::endl << " Filtering the subspace ... (Filter order = " << Filter_Order << ")";
     GetTime( timeSta );
@@ -5042,23 +5173,791 @@ SCFDG::Iterate    (  )
     // Step 3: Perform subspace projected problems
     // Subspace problems solved in parallel here
 
-    statusOFS << std::endl << std::endl << " Solving subspace problems in parallel ...";
+    statusOFS << std::endl << std::endl << " Solving subspace problems in parallel :" << std::endl;
     
     // YYYY
     // Step a : Convert to ScaLAPACK format
-    
-    
-    exit(1);
-
-    // Orthonormalize using Cholesky factorization  
-    statusOFS << std::endl << " Orthonormalizing filtered vectors ... ";
+    // Setup BLACS / ScaLAPACK    
+    statusOFS << std::endl << " Setting up BLACS Process Grids ...";
     GetTime( timeSta );
+      
+    // Set up 3 independent ScaLAPACK contexts 
+    // First one is just the regular one that arises in CheFSI.
+    // It involves the first row of processes (i.e., 1 processor for every DG element)
     
+    int num_cheby_scala_procs = mpisizeCol; 
+
+    // Figure out the process grid dimensions for the cheby_scala_context
+    int temp_factor = int(sqrt(double(num_cheby_scala_procs)));
+    while(num_cheby_scala_procs % temp_factor != 0 )
+      ++temp_factor;
+
+    // temp_factor now contains the process grid height
+    int cheby_scala_num_rows = temp_factor;      
+    int cheby_scala_num_cols = num_cheby_scala_procs / temp_factor;
+
+    
+    // We favor process grids which are taller instead of being wider
+    if(cheby_scala_num_cols > cheby_scala_num_rows)
+    {
+      int exchg_temp = cheby_scala_num_cols;
+      cheby_scala_num_cols = cheby_scala_num_rows;
+      cheby_scala_num_rows = exchg_temp;
+    } 
+     
+    // Set up the ScaLAPACK context
+    IntNumVec cheby_scala_pmap(num_cheby_scala_procs);
+
+    // Use the first processor from every DG-element 
+    for ( Int pmap_iter = 0; pmap_iter < num_cheby_scala_procs; pmap_iter++ )
+       cheby_scala_pmap[pmap_iter] = pmap_iter * mpisizeRow; 
+
+    // Set up BLACS for subsequent ScaLAPACK operations
+    Int cheby_scala_context = -1;
+    dgdft::scalapack::Cblacs_get( 0, 0, &cheby_scala_context );
+    dgdft::scalapack::Cblacs_gridmap(&cheby_scala_context, &cheby_scala_pmap[0], cheby_scala_num_rows, cheby_scala_num_rows, cheby_scala_num_cols);
+
+    statusOFS << std::endl << " Cheby-Scala context will use " << num_cheby_scala_procs << " processes.";
+    statusOFS << std::endl << " Cheby-Scala process grid dim. = " << cheby_scala_num_rows << " * " << cheby_scala_num_cols << " .";
+  
+
+    // Next one is the "bigger grid" for doing some linear algebra operations
+    int bigger_grid_num_procs = num_cheby_scala_procs * SCFDG_CS_bigger_grid_dim_fac_;
+    
+    if(bigger_grid_num_procs > mpisize)
+    {
+      SCFDG_CS_bigger_grid_dim_fac_ = mpisize / num_cheby_scala_procs;
+      bigger_grid_num_procs = mpisize;
+      
+      statusOFS << std::endl << std::endl << " Warning !! Check input parameter SCFDG_CS_bigger_grid_dim_fac .";
+      statusOFS << std::endl << " Requested process grid is bigger than total no. of processes.";
+      statusOFS << std::endl << " Using " << bigger_grid_num_procs << " processes instead. ";
+      statusOFS << std::endl << " Calculation will now continue without throwing exception.";
+
+      statusOFS << std::endl;      
+    }
+    
+    int bigger_grid_num_rows = cheby_scala_num_rows * SCFDG_CS_bigger_grid_dim_fac_;
+    int bigger_grid_num_cols = cheby_scala_num_cols;
+    
+    IntNumVec bigger_grid_pmap(bigger_grid_num_procs);
+    int pmap_ctr = 0;
+    for (Int pmap_iter_1 = 0; pmap_iter_1 < num_cheby_scala_procs; pmap_iter_1 ++)
+    {
+     for (Int pmap_iter_2 = 0; pmap_iter_2 < SCFDG_CS_bigger_grid_dim_fac_; pmap_iter_2 ++)
+     {
+       bigger_grid_pmap[pmap_ctr] =  pmap_iter_1 * mpisizeRow + pmap_iter_2;
+       pmap_ctr ++;
+     }
+    }
+    
+   Int bigger_grid_context = -1;
+   dgdft::scalapack::Cblacs_get( 0, 0, &bigger_grid_context );
+   dgdft::scalapack::Cblacs_gridmap(&bigger_grid_context, &bigger_grid_pmap[0], bigger_grid_num_rows, bigger_grid_num_rows, bigger_grid_num_cols);   
+    
+   statusOFS << std::endl << " Bigger grid context will use " << bigger_grid_num_procs << " processes.";
+   statusOFS << std::endl << " Bigger process grid dim. = " << bigger_grid_num_rows << " * " << bigger_grid_num_cols << " .";
+   
+   // Finally, there is the single process case
+   Int single_proc_context = -1;
+   Int single_proc_pmap[1];  
+   single_proc_pmap[0] = 0; // Just using proc. 0 for the job.
+	
+   // Set up BLACS for for the single proc context
+   dgdft::scalapack::Cblacs_get( 0, 0, &single_proc_context );
+   dgdft::scalapack::Cblacs_gridmap(&single_proc_context, &single_proc_pmap[0], 1, 1, 1);
+   
+   // For safety, make sure this is MPI Rank zero : throw an error otherwise
+   // Fix this in the future ?
+   if(single_proc_context >= 0)
+   {  
+    if(mpirank != 0)
+    {
+      statusOFS << std::endl << std::endl << "  Error !! BLACS rank 0 does not match MPI rank 0 "
+	        << " Aborting ... " << std::endl << std::endl;
+      
+      MPI_Abort(domain_.comm, 0);
+     }
+   }
+
+   statusOFS << std::endl << " Single process context works with process 0 .";
+   statusOFS << std::endl << " Single process dimension = 1 * 1 ." << std::endl;
+   
+   GetTime( timeEnd );
+   statusOFS << " BLACS setup done. ( " << (timeEnd - timeSta ) << " s.)";
+
+   
+   // Step b: Orthonormalize using "bigger grid"
+   dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_eigvecs_X;
+   dgdft::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_eigvecs_X;
+   
+   scalapack::Descriptor cheby_eigvec_desc;
+   scalapack::Descriptor bigger_grid_eigvec_desc;
+   
+   statusOFS << std::endl << std::endl << " Orthonormalization step : " << std::endl;
+   
+   // DG to Cheby-Scala format conversion
+   if(cheby_scala_context >= 0)
+   { 
+      
+     statusOFS << std::endl << " Distributed vector X to ScaLAPACK (Cheby-Scala grid) conversion ... ";
+     GetTime( timeSta );
+
+     cheby_eigvec_desc.Init( hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
+			     scaBlockSize_, scaBlockSize_, 
+			     0, 0, 
+			     cheby_scala_context);
+
+     cheby_scala_eigvecs_X.SetDescriptor(cheby_eigvec_desc);
+     
+
+      // Make the conversion call         
+      scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(hamDG.EigvecCoef(),
+            domain_.colComm,
+            cheby_eigvec_desc,
+            cheby_scala_eigvecs_X);
+      
+      GetTime( timeEnd );
+      statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+   }
+   
+   // Cheby-Scala to Big grid format conversion
+    
+   Int M_copy_ =  hamDG.NumBasisTotal();
+   Int N_copy_ =  hamDG.NumStateTotal();
+  
+   
+   if(bigger_grid_context >= 0)
+   {
+      
+     statusOFS << std::endl << " Cheby-Scala grid to bigger grid pdgemr2d for X... ";
+     GetTime( timeSta );
+     
+     bigger_grid_eigvec_desc.Init( M_copy_, N_copy_, 
+				   scaBlockSize_, scaBlockSize_, 
+				   0, 0, 
+				   bigger_grid_context);  
+     
+     bigger_grid_eigvecs_X.SetDescriptor(bigger_grid_eigvec_desc);
+ 
+     SCALAPACK(pdgemr2d)(&M_copy_, &N_copy_, 
+		         cheby_scala_eigvecs_X.Data(), &I_ONE, &I_ONE,
+		         cheby_scala_eigvecs_X.Desc().Values(), 
+		         bigger_grid_eigvecs_X.Data(), &I_ONE, &I_ONE, 
+		         bigger_grid_eigvecs_X.Desc().Values(), 
+		         &bigger_grid_context);      
+     
+     GetTime( timeEnd );
+     statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)" << std::endl;
+        
+   }
+
+    
+    // Make the ScaLAPACK calls for orthonormalization   
+    GetTime( timeSta );
+    if(bigger_grid_context >= 0)
+   {
+     GetTime( extra_timeSta );
+     
+     // Compute C = X^T * X
+     dgdft::scalapack::Descriptor bigger_grid_chol_desc( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
+                     scaBlockSize_, scaBlockSize_, 
+                     0, 0, 
+                     bigger_grid_context);
+
+    dgdft::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_chol_mat;
+    bigger_grid_chol_mat.SetDescriptor(bigger_grid_chol_desc);
+     
+    if(SCFDG_comp_subspace_syrk_ == 0)
+    {
+      dgdft::scalapack::Gemm( 'T', 'N',
+                              hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
+                              1.0,
+                              bigger_grid_eigvecs_X.Data(), I_ONE, I_ONE, bigger_grid_eigvecs_X.Desc().Values(), 
+                              bigger_grid_eigvecs_X.Data(), I_ONE, I_ONE, bigger_grid_eigvecs_X.Desc().Values(),
+                              0.0,
+                              bigger_grid_chol_mat.Data(), I_ONE, I_ONE, bigger_grid_chol_mat.Desc().Values(),
+                              bigger_grid_context);
+    }
+    else
+    {  
+    
+      dgdft::scalapack::Syrk('U', 'T',
+			     hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
+			     1.0, bigger_grid_eigvecs_X.Data(),
+			     I_ONE, I_ONE,bigger_grid_eigvecs_X.Desc().Values(),
+			     0.0, bigger_grid_chol_mat.Data(),
+			     I_ONE, I_ONE,bigger_grid_chol_mat.Desc().Values());
+    }
+    
+
+    GetTime( extra_timeEnd);	    
+    if(SCFDG_comp_subspace_syrk_ == 0)
+     statusOFS << std::endl << " Overlap matrix computed using GEMM in : " << (extra_timeEnd - extra_timeSta) << " s.";
+    else
+     statusOFS << std::endl << " Overlap matrix computed using SYRK in : " << (extra_timeEnd - extra_timeSta) << " s.";
+    
+    GetTime( extra_timeSta);
+            
+    // Compute V = Chol(C)
+    dgdft::scalapack::Potrf( 'U', bigger_grid_chol_mat);
+
+    GetTime( extra_timeEnd);
+    statusOFS << std::endl << " Cholesky factorization computed in : " << (extra_timeEnd - extra_timeSta) << " s.";
+
+
+    GetTime( extra_timeSta);
+    
+    // Compute  X = X * V^{-1}
+    dgdft::scalapack::Trsm( 'R', 'U', 'N', 'N', 1.0,
+                bigger_grid_chol_mat, 
+                bigger_grid_eigvecs_X );
+
+    GetTime( extra_timeEnd);
+    statusOFS << std::endl << " TRSM computed in : " << (extra_timeEnd - extra_timeSta) << " s." << std::endl;    
+   }
+   
+   GetTime( timeEnd );
+   statusOFS << " Total time for ScaLAPACK calls during Orthonormalization  = " << (timeEnd - timeSta ) << " s." << std::endl;
+   
+  
+   if(bigger_grid_context >= 0)
+   {
+     // Convert back to Cheby-Scala grid
+    statusOFS << std::endl << " Bigger grid to Cheby-Scala grid pdgemr2d ... ";
+    GetTime( timeSta );
+         
+     
+    SCALAPACK(pdgemr2d)(&M_copy_, &N_copy_, 
+		        bigger_grid_eigvecs_X.Data(), &I_ONE, &I_ONE,
+		        bigger_grid_eigvecs_X.Desc().Values(), 
+		        cheby_scala_eigvecs_X.Data(), &I_ONE, &I_ONE, 
+		        cheby_scala_eigvecs_X.Desc().Values(), 
+		        &bigger_grid_context);  
     
     GetTime( timeEnd );
-    statusOFS << std::endl << " Orthonormalization completed. ( " << (timeEnd - timeSta ) << " s.)";
+    statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)";
+   }    
+
+    
+
+    if(cheby_scala_context >= 0)
+    {
+      statusOFS << std::endl << " ScaLAPACK (Cheby-Scala grid) to Distributed vector conversion ... ";
+      GetTime( timeSta );
+
+      // Convert to DG-distributed matrix format
+      ScaMatToDistNumMat(cheby_scala_eigvecs_X ,
+			 elemPrtn_,
+			 hamDG.EigvecCoef(),
+			 hamDG.ElemBasisIdx(), 
+			 domain_.colComm, 
+			 hamDG.NumStateTotal() );
+
+      GetTime( timeEnd );
+      statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)" << std::endl;     
+      
+    }
+    
+   // Communicate the orthonormalized eigenvectors (to other intra-element processors)
+   statusOFS << std::endl << " Communicating orthonormalized filtered vectors ... ";
+   GetTime( timeSta );
+
+   DblNumMat &ref_mat_1 =  (hamDG.EigvecCoef().LocalMap().begin())->second;
+   MPI_Bcast(ref_mat_1.Data(), (ref_mat_1.m() * ref_mat_1.n()), MPI_DOUBLE, 0, domain_.rowComm);
+
+   GetTime( timeEnd );
+   statusOFS << " Done. ( " << (timeEnd - timeSta ) << " s.)" << std::endl;
 
 
+   // Step c : Perform alternate to Raleigh-Ritz step
+   // Compute H * X
+   statusOFS << std::endl << " Computing H * X for filtered orthonormal vectors : ";
+   GetTime( timeSta );
+
+   DistVec<Index3, DblNumMat, ElemPrtn>  result_mat_HX;
+   scfdg_Hamiltonian_times_eigenvectors(result_mat_HX);
+
+   GetTime( timeEnd );
+   statusOFS << std::endl << " H * X for filtered orthonormal vectors computed . ( " << (timeEnd - timeSta ) << " s.)";
+
+   
+   statusOFS << std::endl << std::endl << " Alternate to Raleigh-Ritz step : " << std::endl;
+   
+   GetTime(timeSta);
+   // Convert HX to ScaLAPACK format on Cheby-Scala grid
+   dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_HX;
+   dgdft::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_HX;
+   
+   dgdft::scalapack::Descriptor cheby_scala_HX_desc;
+   dgdft::scalapack::Descriptor bigger_grid_HX_desc;
+   
+   
+   // Convert HX to ScaLAPACK format on Cheby-Scala grid
+   if(cheby_scala_context >= 0)
+   {
+     statusOFS << std::endl << " Distributed vector HX to ScaLAPACK (Cheby-Scala grid) conversion ... ";
+     GetTime( extra_timeSta );
+
+     cheby_scala_HX_desc.Init(hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
+			      scaBlockSize_, scaBlockSize_, 
+			      0, 0, 
+			      cheby_scala_context);
+     
+     cheby_scala_HX.SetDescriptor(cheby_scala_HX_desc);   
+     
+     
+     
+     scfdg_Cheby_convert_eigvec_distmat_to_ScaLAPACK(result_mat_HX,
+						     domain_.colComm,
+						     cheby_scala_HX_desc,
+						     cheby_scala_HX);
+	    
+     GetTime( extra_timeEnd );
+     statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)";	    
+
+   }
+  
+   // Move to bigger grid from Cheby-Scala grid 
+   if(bigger_grid_context >= 0)
+   {
+     statusOFS << std::endl << " Cheby-Scala grid to bigger grid pdgemr2d for HX ... ";
+     GetTime( extra_timeSta );
+   
+     
+     bigger_grid_HX_desc.Init(hamDG.NumBasisTotal(), hamDG.NumStateTotal(), 
+			      scaBlockSize_, scaBlockSize_, 
+			      0, 0, 
+			      bigger_grid_context);
+    
+     bigger_grid_HX.SetDescriptor(bigger_grid_HX_desc);   
+   
+   
+   
+     SCALAPACK(pdgemr2d)(&M_copy_, &N_copy_, 
+		         cheby_scala_HX.Data(), &I_ONE, &I_ONE,
+		         cheby_scala_HX.Desc().Values(), 
+		         bigger_grid_HX.Data(), &I_ONE, &I_ONE, 
+		         bigger_grid_HX.Desc().Values(), 
+		         &bigger_grid_context);      
+
+     GetTime( extra_timeEnd );
+     statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
+    
+   }
+    // Compute X^T * HX on bigger grid
+    dgdft::scalapack::Descriptor bigger_grid_square_mat_desc;
+    dgdft::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_square_mat;
+    
+     if(SCFDG_comp_subspace_syr2k_ == 0)
+      statusOFS << std::endl << " Computing X^T * HX on bigger grid using GEMM ... ";
+     else
+      statusOFS << std::endl << " Computing X^T * HX on bigger grid using SYR2K ... ";
+     
+    GetTime( extra_timeSta );
+    if(bigger_grid_context >= 0)
+    {
+      bigger_grid_square_mat_desc.Init( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
+					scaBlockSize_, scaBlockSize_, 
+					0, 0, 
+					bigger_grid_context);
+     
+      
+      bigger_grid_square_mat.SetDescriptor(bigger_grid_square_mat_desc);
+      
+      
+      if(SCFDG_comp_subspace_syr2k_ == 0)
+      {	
+       dgdft::scalapack::Gemm('T', 'N',
+                              hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
+                              1.0,
+                              bigger_grid_eigvecs_X.Data(), I_ONE, I_ONE, bigger_grid_eigvecs_X.Desc().Values(), 
+                              bigger_grid_HX.Data(), I_ONE, I_ONE, bigger_grid_HX.Desc().Values(),
+                              0.0,
+                              bigger_grid_square_mat.Data(), I_ONE, I_ONE, bigger_grid_square_mat.Desc().Values(),
+                              bigger_grid_context);
+      }
+      else
+      {
+	
+       dgdft::scalapack::Syr2k ('U', 'T',
+                                hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
+                                0.5, 
+                                bigger_grid_eigvecs_X.Data(), I_ONE, I_ONE, bigger_grid_eigvecs_X.Desc().Values(),
+                                bigger_grid_HX.Data(), I_ONE, I_ONE, bigger_grid_HX.Desc().Values(),
+                                0.0,
+                                bigger_grid_square_mat.Data(), I_ONE, I_ONE, bigger_grid_square_mat.Desc().Values());
+
+     
+       // Copy the upper triangle to a temporary location
+       dgdft::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_square_mat_copy;
+       bigger_grid_square_mat_copy.SetDescriptor(bigger_grid_square_mat_desc);
+	
+       char uplo = 'A';
+       int ht = hamDG.NumStateTotal();
+       dgdft::scalapack::SCALAPACK(pdlacpy)(&uplo, &ht, &ht,
+                                            bigger_grid_square_mat.Data(), &I_ONE, &I_ONE, bigger_grid_square_mat.Desc().Values(), 
+                                            bigger_grid_square_mat_copy.Data(), &I_ONE, &I_ONE, bigger_grid_square_mat_copy.Desc().Values() );
+
+       uplo = 'L';
+       char trans = 'T';
+       double scalar_one = 1.0, scalar_zero = 0.0;
+       dgdft::scalapack::SCALAPACK(pdtradd)(&uplo, &trans, &ht, &ht,
+                                            &scalar_one,
+                                            bigger_grid_square_mat_copy.Data(), &I_ONE, &I_ONE, bigger_grid_square_mat_copy.Desc().Values(), 
+                                            &scalar_zero,
+                                            bigger_grid_square_mat.Data(), &I_ONE, &I_ONE, bigger_grid_square_mat.Desc().Values());
+       
+      }	
+      
+    } 
+    
+    GetTime( extra_timeEnd );
+    statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" ;
+    
+   // Move square matrix to Cheby-Scala grid for working with top states
+    dgdft::scalapack::Descriptor cheby_scala_square_mat_desc;
+    dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_square_mat;
+    
+    statusOFS << std::endl << " Moving X^T * HX to Cheby-Scala grid using pdgemr2d ... ";
+    GetTime( extra_timeSta );
+    
+    if(cheby_scala_context >= 0)
+    {
+      cheby_scala_square_mat_desc.Init( hamDG.NumStateTotal(), hamDG.NumStateTotal(), 
+					scaBlockSize_, scaBlockSize_, 
+					0, 0, 
+					cheby_scala_context);
+      
+      cheby_scala_square_mat.SetDescriptor(cheby_scala_square_mat_desc);     
+    }
+    
+    if(bigger_grid_context >= 0)
+    {
+     SCALAPACK(pdgemr2d)(&N_copy_, &N_copy_, 
+		         bigger_grid_square_mat.Data(), &I_ONE, &I_ONE,
+		         bigger_grid_square_mat.Desc().Values(), 
+		         cheby_scala_square_mat.Data(), &I_ONE, &I_ONE, 
+		         cheby_scala_square_mat.Desc().Values(), 
+		         &bigger_grid_context);      
+    }
+    
+    GetTime( extra_timeEnd );
+    statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
+    
+    
+    
+    // All ready for doing the inner CheFSI
+    if(cheby_scala_context >= 0)
+    {
+      // Obtain the spectral bounds    
+      
+      // Fix the filter bounds using full ScaLAPACK results if inner Cheby has not been engaged
+      if(SCFDG_comp_subspace_engaged_ != 1)
+      {
+	SCFDG_comp_subspace_inner_CheFSI_a_L_ = - eigval[hamDG.NumStateTotal() - 1];
+	
+	int state_ind = hamDG.NumStateTotal() - SCFDG_comp_subspace_N_solve_;	
+	SCFDG_comp_subspace_inner_CheFSI_lower_bound_ = -0.5 * (eigval[state_ind] + eigval[state_ind - 1]);
+	
+	statusOFS << std::endl << " Computing upper bound of projected Hamiltonian (parallel) ... ";
+	GetTime( extra_timeSta );
+	SCFDG_comp_subspace_inner_CheFSI_upper_bound_ = find_comp_subspace_UB_parallel(cheby_scala_square_mat);
+        GetTime( extra_timeEnd );
+	statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
+	
+	Hmat_top_states_Cheby_delta_fudge_ = 0.5 * (eigval[state_ind] - eigval[state_ind - 1]);
+	
+	statusOFS << std::endl << " Going into inner CheFSI routine (parallel) for top states ... ";
+	statusOFS << std::endl << "   Lower bound = -(average of prev. eigenvalues " << eigval[state_ind] 
+	                       << " and " <<  eigval[state_ind - 1] << ") = " << SCFDG_comp_subspace_inner_CheFSI_lower_bound_;
+	
+      }
+      else
+      {
+	
+	// Fix the filter bounds using earlier inner CheFSI results
+	SCFDG_comp_subspace_inner_CheFSI_lower_bound_ = - (SCFDG_comp_subspace_top_eigvals_[SCFDG_comp_subspace_N_solve_ - 1] - Hmat_top_states_Cheby_delta_fudge_);
+	
+        statusOFS << std::endl << " Computing upper bound of projected Hamiltonian (parallel) ... ";
+	GetTime( extra_timeSta );
+	SCFDG_comp_subspace_inner_CheFSI_upper_bound_ = find_comp_subspace_UB_parallel(cheby_scala_square_mat);
+        GetTime( extra_timeEnd );
+	statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
+	
+	statusOFS << std::endl << " Going into inner CheFSI routine (parallel) for top states ... ";
+	statusOFS << std::endl << "   Lower bound eigenvalue = " << SCFDG_comp_subspace_top_eigvals_[SCFDG_comp_subspace_N_solve_ - 1] 
+	                       << std::endl << "   delta_fudge = " << Hmat_top_states_Cheby_delta_fudge_;
+	                      
+			              
+      }    
+    }
+    
+    
+    // Broadcast the inner filter bounds, etc. to every process. 
+    // This is definitely required by the procs participating in cheby_scala_context
+    // Some of the info is redundant
+    double bounds_array[4];
+    bounds_array[0] = SCFDG_comp_subspace_inner_CheFSI_lower_bound_;
+    bounds_array[1] = SCFDG_comp_subspace_inner_CheFSI_upper_bound_;
+    bounds_array[2] = SCFDG_comp_subspace_inner_CheFSI_a_L_;
+    bounds_array[3] = Hmat_top_states_Cheby_delta_fudge_;
+    
+    MPI_Bcast(bounds_array, 4, MPI_DOUBLE, 0, domain_.comm); 
+    
+    SCFDG_comp_subspace_inner_CheFSI_lower_bound_ = bounds_array[0];
+    SCFDG_comp_subspace_inner_CheFSI_upper_bound_ = bounds_array[1];
+    SCFDG_comp_subspace_inner_CheFSI_a_L_ = bounds_array[2];
+    Hmat_top_states_Cheby_delta_fudge_ = bounds_array[3];
+    
+    if(cheby_scala_context >= 0)
+     statusOFS << std::endl << "   Lanczos upper bound = " << SCFDG_comp_subspace_inner_CheFSI_upper_bound_ << std::endl;
+    
+    
+    // Load up and distibute top eigenvectors from serial storage
+    scalapack::Descriptor temp_single_proc_desc;
+    scalapack::ScaLAPACKMatrix<Real>  temp_single_proc_scala_mat;
+    
+    GetTime( extra_timeSta );
+    statusOFS << std::endl << " Loading up and distributing initial guess vectors ... ";
+    
+    int M_temp_ =  hamDG.NumStateTotal();
+    int N_temp_ =  SCFDG_comp_subspace_N_solve_;
+    
+    if(single_proc_context >= 0)
+    {
+      temp_single_proc_desc.Init(M_temp_, N_temp_,
+				 scaBlockSize_, scaBlockSize_, 
+				 0, 0,  single_proc_context );	      
+	       
+      temp_single_proc_scala_mat.SetDescriptor( temp_single_proc_desc );
+      
+      // Copy from the serial storage to the single process ScaLAPACK matrix
+      double *src_ptr, *dest_ptr; 
+      
+      // Copy in the regular order      
+      for(Int copy_iter = 0; copy_iter < SCFDG_comp_subspace_N_solve_; copy_iter ++)
+      {
+	src_ptr = SCFDG_comp_subspace_start_guess_.VecData(copy_iter);
+	dest_ptr = temp_single_proc_scala_mat.Data() + copy_iter * temp_single_proc_scala_mat.LocalLDim();
+		 
+        blas::Copy( M_temp_, src_ptr, 1, dest_ptr, 1 );		 	 	       	
+      }
+	        
+    }
+     
+    // Distribute onto Cheby-Scala grid    
+    scalapack::Descriptor Xmat_desc;
+    dgdft::scalapack::ScaLAPACKMatrix<Real> Xmat;
+    
+    if(cheby_scala_context >= 0)
+    {
+      Xmat_desc.Init(M_temp_, N_temp_,
+		     scaBlockSize_, scaBlockSize_, 
+		     0, 0,  cheby_scala_context );	  
+      
+      Xmat.SetDescriptor(Xmat_desc);     
+      
+     SCALAPACK(pdgemr2d)(&M_temp_, &N_temp_, 
+			 temp_single_proc_scala_mat.Data(), &I_ONE, &I_ONE,
+			 temp_single_proc_scala_mat.Desc().Values(), 
+			 Xmat.Data(), &I_ONE, &I_ONE, 
+			 Xmat.Desc().Values(), 
+			 &cheby_scala_context);    
+    }
+    
+     
+    GetTime( extra_timeEnd );
+    statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
+    
+    // Call the inner CheFSI routine 
+    DblNumVec eig_vals_Xmat;
+    eig_vals_Xmat.Resize(SCFDG_comp_subspace_N_solve_);
+    
+    if(cheby_scala_context >= 0)
+    {
+      GetTime(extra_timeSta);
+           
+      CheFSI_Hmat_top_parallel(cheby_scala_square_mat,
+			       Xmat,
+			       eig_vals_Xmat,
+			       Hmat_top_states_ChebyFilterOrder_,
+			       Hmat_top_states_ChebyCycleNum_,
+			       SCFDG_comp_subspace_inner_CheFSI_lower_bound_,SCFDG_comp_subspace_inner_CheFSI_upper_bound_, SCFDG_comp_subspace_inner_CheFSI_a_L_);
+			      
+      GetTime(extra_timeEnd);
+      
+     
+      statusOFS << std::endl << " Parallel CheFSI completed on " <<  SCFDG_comp_subspace_N_solve_ 
+                << " top states ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
+
+      
+    }
+    
+    // Redistribute and broadcast top eigenvectors to serial storage
+    GetTime( extra_timeSta );
+    statusOFS << std::endl << " Distributing back and broadcasting inner CheFSI vectors ... ";
+    
+    // Redistribute to single process ScaLAPACK matrix
+    if(cheby_scala_context >= 0)
+    {    
+      SCALAPACK(pdgemr2d)(&M_temp_, &N_temp_, 
+			  Xmat.Data(), &I_ONE, &I_ONE,
+			  Xmat.Desc().Values(), 
+			  temp_single_proc_scala_mat.Data(), &I_ONE, &I_ONE, 
+			  temp_single_proc_scala_mat.Desc().Values(), 
+			  &cheby_scala_context);    
+
+    }
+   
+    if(single_proc_context >= 0)
+    {
+      
+      // Copy from the single process ScaLAPACK matrix to serial storage
+      double *src_ptr, *dest_ptr; 
+      
+      // Copy in the regular order      
+      for(Int copy_iter = 0; copy_iter < SCFDG_comp_subspace_N_solve_; copy_iter ++)
+      {
+	src_ptr = temp_single_proc_scala_mat.Data() + copy_iter * temp_single_proc_scala_mat.LocalLDim();
+	dest_ptr = SCFDG_comp_subspace_start_guess_.VecData(copy_iter);
+			 
+        blas::Copy( M_temp_, src_ptr, 1, dest_ptr, 1 );		 	 	       	
+      }
+	        
+    }
+    
+    // Broadcast top eigenvectors to all processes
+    MPI_Bcast(SCFDG_comp_subspace_start_guess_.Data(),hamDG.NumStateTotal() * SCFDG_comp_subspace_N_solve_, 
+	      MPI_DOUBLE, 0,  domain_.comm); 
+    
+    GetTime( extra_timeEnd );
+    statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
+    
+     GetTime(timeEnd);
+     statusOFS << std::endl << std::endl << " Alternate to Raleigh-Ritz step performed in " << (timeEnd - timeSta ) << " s.";
+  
+    
+    GetTime( extra_timeSta );
+    statusOFS << std::endl << " Adjusting top eigenvalues ... ";
+    
+    // Broadcast the top eigenvalues to every processor
+    MPI_Bcast(eig_vals_Xmat.Data(), SCFDG_comp_subspace_N_solve_ , MPI_DOUBLE, 0, domain_.comm); 
+
+    
+    // Copy these to native storage
+    SCFDG_comp_subspace_top_eigvals_.Resize(SCFDG_comp_subspace_N_solve_);
+    for(Int copy_iter = 0; copy_iter < SCFDG_comp_subspace_N_solve_; copy_iter ++)
+      SCFDG_comp_subspace_top_eigvals_[copy_iter] = eig_vals_Xmat[copy_iter];
+    
+    // Also update the top eigenvalues in hamDG in case we need them
+    // For example, they are required if we switch back to regular CheFSI at some stage 
+    Int n_top = hamDG.NumStateTotal() - 1;
+    for(Int copy_iter = 0; copy_iter < SCFDG_comp_subspace_N_solve_; copy_iter ++)
+      eigval[n_top - copy_iter] = SCFDG_comp_subspace_top_eigvals_[copy_iter];
+
+    GetTime( extra_timeEnd );
+    statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
+    
+    
+    // Compute the occupations    
+    GetTime( extra_timeSta );
+    statusOFS << std::endl << " Computing occupation numbers : ";   
+    SCFDG_comp_subspace_top_occupations_.Resize(SCFDG_comp_subspace_N_solve_);
+
+    Int howmany_to_calc = (hamDGPtr_->NumOccupiedState() + SCFDG_comp_subspace_N_solve_) - hamDGPtr_->NumStateTotal(); 
+    scfdg_calc_occ_rate_comp_subspc(SCFDG_comp_subspace_top_eigvals_,SCFDG_comp_subspace_top_occupations_, howmany_to_calc);
+
+
+    statusOFS << std::endl << " npsi = " << hamDGPtr_->NumStateTotal();
+    statusOFS << std::endl << " nOccStates = " << hamDGPtr_->NumOccupiedState();
+    statusOFS << std::endl << " howmany_to_calc = " << howmany_to_calc << std::endl;
+
+    statusOFS << std::endl << " Top Eigenvalues = " << SCFDG_comp_subspace_top_eigvals_ ;
+    statusOFS << std::endl << " Top Occupations = " << SCFDG_comp_subspace_top_occupations_ ;
+    statusOFS << std::endl << " Fermi level = " << fermi_ << std::endl;
+
+    GetTime( extra_timeEnd );
+    statusOFS << std::endl << " Completed computing occupations. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
+
+    // Form the matrix C by scaling the eigenvectors with the appropriate occupation related weights
+    
+    GetTime( extra_timeSta );
+    statusOFS << std::endl << " Forming the occupation number weighted matrix C ... ";   
+    
+    int wd = hamDGPtr_->NumStateTotal();
+    
+    SCFDG_comp_subspace_matC_.Resize(wd, SCFDG_comp_subspace_N_solve_);
+    lapack::Lacpy( 'A', wd, SCFDG_comp_subspace_N_solve_, SCFDG_comp_subspace_start_guess_.Data(), wd, 
+                   SCFDG_comp_subspace_matC_.Data(), wd );
+
+    double scale_fac;
+    for(Int scal_iter = 0; scal_iter < SCFDG_comp_subspace_N_solve_; scal_iter ++)
+    {
+      scale_fac = sqrt(1.0 - SCFDG_comp_subspace_top_occupations_(scal_iter));
+      blas::Scal(wd, scale_fac, SCFDG_comp_subspace_matC_.VecData(scal_iter), 1);
+    }
+
+    GetTime( extra_timeEnd );
+    statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
+
+
+    // This calculation is done for computing the band energy later
+    GetTime( extra_timeSta );
+    statusOFS << std::endl << " Computing the trace of the projected Hamiltonian ... ";   
+    
+    SCFDG_comp_subspace_trace_Hmat_ = 0.0;
+    
+    if(cheby_scala_context >= 0)
+    {  
+       SCFDG_comp_subspace_trace_Hmat_ = dgdft::scalapack::SCALAPACK(pdlatra)(&M_temp_ , 
+									      cheby_scala_square_mat.Data() , &I_ONE , &I_ONE , 
+									      cheby_scala_square_mat.Desc().Values());
+      
+    }
+    
+    // Broadcast the trace
+    MPI_Bcast(&SCFDG_comp_subspace_trace_Hmat_, 1 , MPI_DOUBLE, 0, domain_.comm); 
+
+    
+    GetTime( extra_timeEnd );
+    statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
+
+    statusOFS << std::endl << std::endl << " ------------------------------- ";
+
+    
+    
+    
+    
+    
+    // Adjust other things... trace, etc. Broadcast necessary parts of these results
+    
+    
+     
+
+   statusOFS << std::endl << std::endl << " ------------------------------- " << std::endl;
+    
+    
+  
+   // Clean up BLACS
+   if(cheby_scala_context >= 0) 
+   {
+    dgdft::scalapack::Cblacs_gridexit( cheby_scala_context );
+   }
+   
+   if(bigger_grid_context >= 0)
+   {
+    dgdft::scalapack::Cblacs_gridexit( bigger_grid_context );
+
+   }
+
+  if( single_proc_context >= 0)
+  {
+    dgdft::scalapack::Cblacs_gridexit( single_proc_context );	     
+  }
+	     
+
+    
 }
   
 
@@ -5791,12 +6690,12 @@ SCFDG::Iterate    (  )
                    // Decide serial or parallel version here
 		   if(SCFDG_comp_subspace_parallel_ == 0)
 		   {  
-		    statusOFS << std::endl << " Calling Complementary Subspace Method (serial version)  " << std::endl;
+		    statusOFS << std::endl << " Calling Complementary Subspace Strategy (serial subspace version) ...  " << std::endl;
 		    scfdg_complementary_subspace_serial(General_SCFDG_ChebyFilterOrder_);
 		   }
 		   else
 		   {
-		    statusOFS << std::endl << " Calling Complementary Subspace Method (parallel version)  " << std::endl;
+		    statusOFS << std::endl << " Calling Complementary Subspace Strategy (parallel subspace version) ...  " << std::endl;
 		    scfdg_complementary_subspace_parallel(General_SCFDG_ChebyFilterOrder_);		     
 		   }
                    // Set the engaged flag 
@@ -5841,12 +6740,12 @@ SCFDG::Iterate    (  )
                     // Decide serial or parallel version here
 		   if(SCFDG_comp_subspace_parallel_ == 0)
 		   {  
-		    statusOFS << std::endl << " Calling Complementary Subspace Method (serial version)  " << std::endl;
+		    statusOFS << std::endl << " Calling Complementary Subspace Strategy (serial subspace version)  " << std::endl;
 		    scfdg_complementary_subspace_serial(General_SCFDG_ChebyFilterOrder_);
 		   }
 		   else
 		   {
-		    statusOFS << std::endl << " Calling Complementary Subspace Method (parallel version)  " << std::endl;
+		    statusOFS << std::endl << " Calling Complementary Subspace Strategy (parallel subspace version)  " << std::endl;
 		    scfdg_complementary_subspace_parallel(General_SCFDG_ChebyFilterOrder_);		     
 		   }
                     

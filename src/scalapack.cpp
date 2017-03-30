@@ -246,22 +246,40 @@ Gemm( char transA, char transB,
 void 
 Syrk ( char uplo, char trans,
        Int n, int k,
-       double alpha, double *A,
-       Int ia, Int ja, Int *desca,
-       double beta, double *C,
-       Int ic, Int jc, Int *descc,
-       Int contxt)
+       double alpha, 
+       double *A, Int ia, Int ja, Int *desca,
+       double beta, 
+       double *C, Int ic, Int jc, Int *descc)
 {
    SCALAPACK(pdsyrk)( &uplo, &trans, &n, &k,
-		      &alpha, A,
-		      &ia, &ja, desca,
-		      &beta, C,
-		      &ic, &jc, descc,
-		      &contxt
-		    );
+		      &alpha, 
+		      A, &ia, &ja, desca,
+		      &beta, 
+		      C, &ic, &jc, descc);
   
   return; 
   
+}
+       
+void
+Syr2k (char uplo, char trans,
+       Int n, int k,
+       double alpha, 
+       double *A, Int ia, Int ja, Int *desca,
+       double *B, Int ib, Int jb, Int *descb,
+       double beta,
+       double *C, Int ic, Int jc, Int *descc)
+{
+  SCALAPACK(pdsyr2k)(&uplo , &trans , 
+		     &n , &k , 
+		     &alpha , 
+		     A , &ia , &ja , desca , 
+		     B , &ib , &jb , descb , 
+		     &beta , 
+		     C , &ic , &jc , descc );
+
+ 
+ return;    
 }
        
 
