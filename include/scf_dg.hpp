@@ -111,6 +111,9 @@ private:
   /// @brief Same as @ref esdf::ESDFInputParam::solutionMethod
   std::string         solutionMethod_;
 
+  /// @brief Same as @ref esdf::ESDFInputParam::diagSolutionMethod
+  std::string         diagSolutionMethod_;
+
   std::string         SmearingScheme_;
   Int                 MP_smearing_order_;
   

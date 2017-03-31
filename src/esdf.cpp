@@ -701,7 +701,10 @@ void esdf_key() {
   strcpy(kw_label[i],"solution_method");
   strcpy(kw_typ[i],"T:E");
 
-  
+  i++;
+  strcpy(kw_label[i],"diag_solution_method");
+  strcpy(kw_typ[i],"T:E");
+
   i++;
   strcpy(kw_label[i],"smearing_scheme");
   strcpy(kw_typ[i],"T:E");
@@ -2464,6 +2467,14 @@ ESDFReadInput ( const char* filename )
 #endif
     }
 
+    esdf_string("Diag_Solution_Method", "elpa", strtmp); 
+    esdfParam.diagSolutionMethod  = strtmp;
+    /*
+    if( esdfParam.diagSolutionMethod != "elpa" &&
+        esdfParam.diagSolutionMethod != "scalapack" ){
+      ErrorHandling("Invalid Diag solution method for the projected problem.");
+    }
+    */
     // FFT
     // esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisize );
 
