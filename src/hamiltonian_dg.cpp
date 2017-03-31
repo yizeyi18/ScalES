@@ -780,7 +780,7 @@ void HamiltonianDG::Setup ( )
         }
       }
 
-
+    sizeHMat_ = numElem_[0] * numElem_[1] * numElem_[2] * esdfParam.numALBElem(0,0,0);
 
   return ;
 }         // -----  end of method HamiltonianDG::Setup  ----- 
