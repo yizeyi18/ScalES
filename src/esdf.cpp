@@ -2467,14 +2467,13 @@ ESDFReadInput ( const char* filename )
 #endif
     }
 
-    esdf_string("Diag_Solution_Method", "elpa", strtmp); 
+    esdf_string("Diag_Solution_Method", "scalapack", strtmp); 
     esdfParam.diagSolutionMethod  = strtmp;
-    /*
     if( esdfParam.diagSolutionMethod != "elpa" &&
         esdfParam.diagSolutionMethod != "scalapack" ){
       ErrorHandling("Invalid Diag solution method for the projected problem.");
     }
-    */
+
     // FFT
     // esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisize );
 

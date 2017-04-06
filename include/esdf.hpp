@@ -524,9 +524,9 @@ struct ESDFInputParam{
    /// @brief Method for solving the projected problem in the adaptive
   /// local basis set within the "diag" method
   ///
-  /// Default: "ELPA"
+  /// Default: "scalapack"
   ///
-  /// - = "elpa"      : just elpa
+  /// - = "elpa"      : use ELSI-ELPA to diag the H matrix
   /// - = "scalapack" : use scalapack to diag the H matrix
   std::string         diagSolutionMethod; 
   

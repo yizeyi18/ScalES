@@ -48,8 +48,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "blas.hpp"
 #include  "lapack.hpp"
 #include  "utility.hpp"
+#ifdef ELSI
 #include  "elsi.h"
-
+#endif
 // **###**
 #include  "scfdg_upper_end_of_spectrum.hpp"
 
@@ -345,6 +346,7 @@ namespace  dgdft{
         pexsiOptions_.ordering           = esdfParam.matrixOrdering;
         pexsiOptions_.npSymbFact         = esdfParam.npSymbFact;
         pexsiOptions_.verbosity          = 1; // FIXME
+
 
         numProcRowPEXSI_     = esdfParam.numProcRowPEXSI;
         numProcColPEXSI_     = esdfParam.numProcColPEXSI;
@@ -1019,37 +1021,58 @@ namespace  dgdft{
       // Initial value
       efreeDifPerAtom_ = 100.0;
 
+#ifdef ELSI
      // ELSI interface initilization for ELPA
-     if(diagSolutionMethod_ == "elpa")
+     if((diagSolutionMethod_ == "elpa") && ( solutionMethod_ == "diag" ))
      {
-           // Step 1. init the ELSI interface 
-           Int Solver = 1;      // 1: ELPA, 2: LibSOMM 3: PEXSI for dense matrix, default to use ELPA
-           Int parallelism = 1; // 1 for multi-MPIs 
-           Int storage = 0;     // ELSI only support DENSE(0) 
-           Int sizeH = hamDG.NumBasisTotal(); 
-           Int n_states = hamDG.NumStateTotal();
+       // Step 1. init the ELSI interface 
+       Int Solver = 1;      // 1: ELPA, 2: LibSOMM 3: PEXSI for dense matrix, default to use ELPA
+       Int parallelism = 1; // 1 for multi-MPIs 
+       Int storage = 0;     // ELSI only support DENSE(0) 
+       Int sizeH = hamDG.NumBasisTotal(); 
+       Int n_states = hamDG.NumStateTotal();
 
-           // I do not have number of electron here. need to confirm with Wei
-           Int n_electrons = 2.0* n_states;
-           statusOFS << " Setting up ELSI iterface " << std::endl;
+       Int n_electrons = 2.0* n_states;
+       statusOFS << std::endl<<" Done Setting up ELSI iterface " 
+                 << std::endl<<std::endl;
 
-           // n_calling_elsi will accumulate in the in ELSI calculation. 
-           c_elsi_init(Solver, parallelism, storage, sizeH, n_electrons, n_states);
+       c_elsi_init(Solver, parallelism, storage, sizeH, n_electrons, n_states);
 
-           // Step 2.  setup MPI Domain
-           int comm = MPI_Comm_c2f(domain_.comm);
-           c_elsi_set_mpi(comm); 
+       // Step 2.  setup MPI Domain
+       int comm = MPI_Comm_c2f(domain_.comm);
+       c_elsi_set_mpi(comm); 
 
-           // step 3: setup blacs for elsi. 
-           //  customize the ELSI interface to use identity matrix S
-           c_elsi_set_blacs(contxt, scaBlockSize_);   
-           c_elsi_customize(0, 1, 27.21138602, 1.0E-8, 1, 0, 0); 
+       // step 3: setup blacs for elsi. 
+       c_elsi_set_blacs(contxt, scaBlockSize_);   
+       //  customize the ELSI interface to use identity matrix S
+       c_elsi_customize(0, 1, 27.21138602, 1.0E-8, 1, 0, 0); 
 
-           // use ELPA 2 stage solver
-           c_elsi_customize_elpa(2); 
-
+       // use ELPA 2 stage solver
+       c_elsi_customize_elpa(2); 
      }
- 
+
+     if( solutionMethod_ == "pexsi" ){
+       Int Solver = 3;      // 1: ELPA, 2: LibSOMM 3: PEXSI for dense matrix, default to use ELPA
+       Int parallelism = 1; // 1 for multi-MPIs 
+       Int storage = 1;     // PEXSI only support sparse(1) 
+       Int sizeH = hamDG.NumBasisTotal(); 
+       Int n_states = hamDG.NumStateTotal();
+       Int n_electrons = 2.0* n_states;
+
+       statusOFS << std::endl<<" Done Setting up ELSI iterface " 
+                    << std::endl << " sizeH " << sizeH 
+                    << std::endl << " n_electron " << n_electrons
+                    << std::endl << " n_states "  << n_states
+                    << std::endl<<std::endl;
+
+       c_elsi_init(Solver, parallelism, storage, sizeH, n_electrons, n_states);
+
+       int comm = MPI_Comm_c2f(pexsiComm_);
+       c_elsi_set_mpi(comm); 
+
+       c_elsi_customize(1, 1, 27.21138602, 1.0E-8, 1, 0, 0); 
+     }
+#endif
 
       return ;
     }         // -----  end of method SCFDG::Setup  ----- 
@@ -2044,13 +2067,13 @@ namespace  dgdft{
 
         // Energy based convergence parameters
         if(iter > 1)
-        {	
+        {        
           md_scf_eband_old_ = md_scf_eband_;
           md_scf_etot_old_ = md_scf_etot_;      
         }
         else
         {
-          md_scf_eband_old_ = 0.0;       	 
+          md_scf_eband_old_ = 0.0;                
           md_scf_etot_old_ = 0.0;
         } 
 
@@ -2231,7 +2254,7 @@ namespace  dgdft{
           statusOFS << std::endl << " DM Computation took " << (extra_timeEnd - extra_timeSta) << " s." << std::endl;
 
           // Call the PEXSI force evaluator
-          hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );	
+          hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );        
         }
       }
       else if( solutionMethod_ == "pexsi" ){
@@ -4484,8 +4507,8 @@ namespace  dgdft{
               statusOFS << std::endl << " H * X for filtered orthonormal vectors computed . ( " << (timeEnd - timeSta ) << " s.)";
 
 
-              // Set up a single process ScaLAPACK matrix for use with parallel CS strategy	  
-              // This is for copying the relevant portion of scaZ	   	     
+              // Set up a single process ScaLAPACK matrix for use with parallel CS strategy          
+              // This is for copying the relevant portion of scaZ                        
               Int single_proc_context = -1;
               scalapack::Descriptor single_proc_desc;
               scalapack::ScaLAPACKMatrix<Real>  single_proc_scala_mat;
@@ -4518,7 +4541,7 @@ namespace  dgdft{
 
                   single_proc_desc.Init( hamDG.NumStateTotal(), SCFDG_comp_subspace_N_solve_,
                       scaBlockSize_, scaBlockSize_, 
-                      0, 0,  single_proc_context );	      
+                      0, 0,  single_proc_context );              
 
                   single_proc_scala_mat.SetDescriptor( single_proc_desc );
 
@@ -4621,21 +4644,21 @@ namespace  dgdft{
                   {
                     double *src_ptr, *dest_ptr; 
 
-                    // 	        statusOFS << std::endl << std::endl 
-                    // 		           << " Ht = " << single_proc_scala_mat.Height()
-                    // 			   << " Width = " << single_proc_scala_mat.Width()
-                    // 			   << " loc. Ht = " << single_proc_scala_mat.LocalHeight()
-                    // 			   << " loc. Width = " << single_proc_scala_mat.LocalWidth()
-                    // 			   << " loc. LD = " << single_proc_scala_mat.LocalLDim();	   
-                    // 		statusOFS << std::endl << std::endl;                        
-                    // 	       
+                    //                 statusOFS << std::endl << std::endl 
+                    //                            << " Ht = " << single_proc_scala_mat.Height()
+                    //                            << " Width = " << single_proc_scala_mat.Width()
+                    //                            << " loc. Ht = " << single_proc_scala_mat.LocalHeight()
+                    //                            << " loc. Width = " << single_proc_scala_mat.LocalWidth()
+                    //                            << " loc. LD = " << single_proc_scala_mat.LocalLDim();           
+                    //                 statusOFS << std::endl << std::endl;                        
+                    //                
                     // Do this in the reverse order      
                     for(Int copy_iter = 0; copy_iter < SCFDG_comp_subspace_N_solve_; copy_iter ++)
                     {
                       src_ptr = single_proc_scala_mat.Data() + (SCFDG_comp_subspace_N_solve_ - copy_iter - 1) * single_proc_scala_mat.LocalLDim();
                       dest_ptr =  SCFDG_comp_subspace_start_guess_.VecData(copy_iter);
 
-                      blas::Copy( M_copy_, src_ptr, 1, dest_ptr, 1 );		 	 
+                      blas::Copy( M_copy_, src_ptr, 1, dest_ptr, 1 );                          
                     }
 
 
@@ -4649,7 +4672,7 @@ namespace  dgdft{
 
 
 
-                // Subspace rotation step : X <- X * Q	
+                // Subspace rotation step : X <- X * Q        
                 statusOFS << std::endl << std::endl << " Subspace rotation step ...  ";
                 GetTime( detail_timeSta);
 
@@ -4980,7 +5003,7 @@ namespace  dgdft{
           {
             SCFDG_comp_subspace_inner_CheFSI_a_L_ = - eigval[hamDG.NumStateTotal() - 1];
 
-            int state_ind = hamDG.NumStateTotal() - SCFDG_comp_subspace_N_solve_;	
+            int state_ind = hamDG.NumStateTotal() - SCFDG_comp_subspace_N_solve_;        
             SCFDG_comp_subspace_inner_CheFSI_lower_bound_ = -0.5 * (eigval[state_ind] + eigval[state_ind - 1]);
 
             SCFDG_comp_subspace_inner_CheFSI_upper_bound_ = find_comp_subspace_UB_serial(temp_Hmat);
@@ -5025,7 +5048,7 @@ namespace  dgdft{
           statusOFS << std::endl << " Serial CheFSI completed on " <<  SCFDG_comp_subspace_N_solve_ 
             << " top states ( " << (extra_timeEnd - extra_timeSta ) << " s.)";
 
-          //exit(1);		
+          //exit(1);                
 
         }
 
@@ -5422,7 +5445,7 @@ namespace  dgdft{
           }
 
 
-          GetTime( extra_timeEnd);	    
+          GetTime( extra_timeEnd);            
           if(SCFDG_comp_subspace_syrk_ == 0)
             statusOFS << std::endl << " Overlap matrix computed using GEMM in : " << (extra_timeEnd - extra_timeSta) << " s.";
           else
@@ -5545,7 +5568,7 @@ namespace  dgdft{
               cheby_scala_HX);
 
           GetTime( extra_timeEnd );
-          statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)";	    
+          statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)";            
 
         }
 
@@ -5598,7 +5621,7 @@ namespace  dgdft{
 
 
           if(SCFDG_comp_subspace_syr2k_ == 0)
-          {	
+          {        
             dgdft::scalapack::Gemm('T', 'N',
                 hamDG.NumStateTotal(), hamDG.NumStateTotal(), hamDG.NumBasisTotal(),
                 1.0,
@@ -5639,7 +5662,7 @@ namespace  dgdft{
                 &scalar_zero,
                 bigger_grid_square_mat.Data(), &I_ONE, &I_ONE, bigger_grid_square_mat.Desc().Values());
 
-          }	
+          }        
 
         } 
 
@@ -5688,7 +5711,7 @@ namespace  dgdft{
           {
             SCFDG_comp_subspace_inner_CheFSI_a_L_ = - eigval[hamDG.NumStateTotal() - 1];
 
-            int state_ind = hamDG.NumStateTotal() - SCFDG_comp_subspace_N_solve_;	
+            int state_ind = hamDG.NumStateTotal() - SCFDG_comp_subspace_N_solve_;        
             SCFDG_comp_subspace_inner_CheFSI_lower_bound_ = -0.5 * (eigval[state_ind] + eigval[state_ind - 1]);
 
             statusOFS << std::endl << " Computing upper bound of projected Hamiltonian (parallel) ... ";
@@ -5759,7 +5782,7 @@ namespace  dgdft{
         {
           temp_single_proc_desc.Init(M_temp_, N_temp_,
               scaBlockSize_, scaBlockSize_, 
-              0, 0,  single_proc_context );	      
+              0, 0,  single_proc_context );              
 
           temp_single_proc_scala_mat.SetDescriptor( temp_single_proc_desc );
 
@@ -5772,7 +5795,7 @@ namespace  dgdft{
             src_ptr = SCFDG_comp_subspace_start_guess_.VecData(copy_iter);
             dest_ptr = temp_single_proc_scala_mat.Data() + copy_iter * temp_single_proc_scala_mat.LocalLDim();
 
-            blas::Copy( M_temp_, src_ptr, 1, dest_ptr, 1 );		 	 	       	
+            blas::Copy( M_temp_, src_ptr, 1, dest_ptr, 1 );                                                 
           }
 
         }
@@ -5785,7 +5808,7 @@ namespace  dgdft{
         {
           Xmat_desc.Init(M_temp_, N_temp_,
               scaBlockSize_, scaBlockSize_, 
-              0, 0,  cheby_scala_context );	  
+              0, 0,  cheby_scala_context );          
 
           Xmat.SetDescriptor(Xmat_desc);     
 
@@ -5853,7 +5876,7 @@ namespace  dgdft{
             src_ptr = temp_single_proc_scala_mat.Data() + copy_iter * temp_single_proc_scala_mat.LocalLDim();
             dest_ptr = SCFDG_comp_subspace_start_guess_.VecData(copy_iter);
 
-            blas::Copy( M_temp_, src_ptr, 1, dest_ptr, 1 );		 	 	       	
+            blas::Copy( M_temp_, src_ptr, 1, dest_ptr, 1 );                                                 
           }
 
         }
@@ -5984,7 +6007,7 @@ namespace  dgdft{
 
         if( single_proc_context >= 0)
         {
-          dgdft::scalapack::Cblacs_gridexit( single_proc_context );	     
+          dgdft::scalapack::Cblacs_gridexit( single_proc_context );             
         }
 
 
@@ -6060,7 +6083,7 @@ namespace  dgdft{
 
 
           // Now compute the X * C portion
-          XC_mat.Resize(mat_local.m(), SCFDG_comp_subspace_N_solve_);	
+          XC_mat.Resize(mat_local.m(), SCFDG_comp_subspace_N_solve_);        
           blas::Gemm( 'N', 'N', mat_local.m(), SCFDG_comp_subspace_N_solve_, mat_local.n(),
               1.0, 
               mat_local.Data(), mat_local.m(), 
@@ -6727,7 +6750,7 @@ namespace  dgdft{
                         else
                         {
                           statusOFS << std::endl << " Calling Complementary Subspace Strategy (parallel subspace version) ...  " << std::endl;
-                          scfdg_complementary_subspace_parallel(General_SCFDG_ChebyFilterOrder_);		     
+                          scfdg_complementary_subspace_parallel(General_SCFDG_ChebyFilterOrder_);                     
                         }
                         // Set the engaged flag 
                         SCFDG_comp_subspace_engaged_ = 1;
@@ -6777,7 +6800,7 @@ namespace  dgdft{
                         else
                         {
                           statusOFS << std::endl << " Calling Complementary Subspace Strategy (parallel subspace version)  " << std::endl;
-                          scfdg_complementary_subspace_parallel(General_SCFDG_ChebyFilterOrder_);		     
+                          scfdg_complementary_subspace_parallel(General_SCFDG_ChebyFilterOrder_);                     
                         }
 
                         // Now set the engaged flag 
@@ -6813,171 +6836,11 @@ namespace  dgdft{
                   //  statusOFS << setw(8) << i << setw(20) << '\t' << eigval[i] << std::endl;
 
                 }
-                // comment out for the ELSI interface integration
-//                   else
-//                {
-//
-//                  // ScaLAPACK based diagonalization
-//                  GetTime(timeSta);
-//                  Int sizeH = hamDG.NumBasisTotal();
-//
-//                  DblNumVec& eigval = hamDG.EigVal(); 
-//                  eigval.Resize( hamDG.NumStateTotal() );        
-//
-//                  for( Int k = 0; k < numElem_[2]; k++ )
-//                    for( Int j = 0; j < numElem_[1]; j++ )
-//                      for( Int i = 0; i < numElem_[0]; i++ ){
-//                        Index3 key( i, j, k );
-//                        if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-//                          const std::vector<Int>&  idx = hamDG.ElemBasisIdx()(i, j, k); 
-//                          DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
-//                          localCoef.Resize( idx.size(), hamDG.NumStateTotal() );        
-//                        }
-//                      } 
-//
-//                  // All processors participate in the data conversion procedure
-//
-//
-//                  scalapack::Descriptor descH;
-//
-//                  if( contxt_ >= 0 ){
-//                    descH.Init( sizeH, sizeH, scaBlockSize_, scaBlockSize_, 
-//                        0, 0, contxt_ );
-//                  }
-//
-//                  scalapack::ScaLAPACKMatrix<Real>  scaH, scaZ;
-//
-//                  std::vector<Int> mpirankElemVec(dmCol_);
-//                  std::vector<Int> mpirankScaVec( numProcScaLAPACK_ );
-//
-//                  // The processors in the first column are the source
-//                  for( Int i = 0; i < dmCol_; i++ ){
-//                    mpirankElemVec[i] = i * dmRow_;
-//                  }
-//                  // The first numProcScaLAPACK processors are the target
-//                  for( Int i = 0; i < numProcScaLAPACK_; i++ ){
-//                    mpirankScaVec[i] = i;
-//                  }
-//
-//#if ( _DEBUGlevel_ >= 2 )
-//                  statusOFS << "mpirankElemVec = " << mpirankElemVec << std::endl;
-//                  statusOFS << "mpirankScaVec = " << mpirankScaVec << std::endl;
-//#endif
-//
-//                  Real timeConversionSta, timeConversionEnd;
-//
-//                  GetTime( timeConversionSta );
-//                  DistElemMatToScaMat2( hamDG.HMat(),     descH,
-//                      scaH, hamDG.ElemBasisIdx(), domain_.comm,
-//                      domain_.colComm, mpirankElemVec,
-//                      mpirankScaVec );
-//                  GetTime( timeConversionEnd );
-//#if ( _DEBUGlevel_ >= 1 )
-//                  statusOFS << "Time for converting from DistElemMat to ScaMat is " <<
-//                    timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
-//#endif
-//
-//                  if(contxt_ >= 0){
-//
-//                    //          statusOFS << "LocalMatrix = " << scaH.LocalMatrix() << std::endl;
-//                    //
-//                    //          DistElemMatToScaMat( hamDG.HMat(),     descH,
-//                    //              scaH, hamDG.ElemBasisIdx(), domain_.colComm );
-//                    //
-//                    //          statusOFS << "LocalMatrixOri = " << scaH.LocalMatrix() << std::endl;
-//
-//                    std::vector<Real> eigs;
-//
-//                    GetTime( timeConversionSta );
-//                    scalapack::Syevd('U', scaH, eigs, scaZ);
-//                    GetTime( timeConversionEnd );
-//                    // statusOFS << std::endl << " SCALA Eigenvalues ~~~ " << eigs << std::endl; 
-//#if ( _DEBUGlevel_ >= 1 )
-//                    statusOFS << "Time for scalapack::Syevd is " <<
-//                      timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
-//#endif
-//
-//                    for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
-//                      eigval[i] = eigs[i];
-//
-//                  } //if(contxt_ >= 0)
-//
-//                  GetTime( timeConversionSta );
-//                  ScaMatToDistNumMat2( scaZ, hamDG.Density().Prtn(), 
-//                      hamDG.EigvecCoef(), hamDG.ElemBasisIdx(), domain_.comm,
-//                      domain_.colComm, mpirankElemVec, mpirankScaVec, 
-//                      hamDG.NumStateTotal() );
-//                  GetTime( timeConversionEnd );
-//#if ( _DEBUGlevel_ >= 1 )
-//                  statusOFS << "Time for converting from ScaMat to DistNumMat is " <<
-//                    timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
-//#endif
-//
-//                  GetTime( timeConversionSta );
-//
-//                  for( Int k = 0; k < numElem_[2]; k++ )
-//                    for( Int j = 0; j < numElem_[1]; j++ )
-//                      for( Int i = 0; i < numElem_[0]; i++ ){
-//                        Index3 key( i, j, k );
-//                        if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
-//                          DblNumMat& localCoef  = hamDG.EigvecCoef().LocalMap()[key];
-//                          MPI_Bcast(localCoef.Data(), localCoef.m() * localCoef.n(), MPI_DOUBLE, 0, domain_.rowComm);
-//                        }
-//                      } 
-//                  GetTime( timeConversionEnd );
-//#if ( _DEBUGlevel_ >= 1 )
-//                  statusOFS << "Time for MPI_Bcast eigval and localCoef is " <<
-//                    timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
-//#endif
-//
-//                  MPI_Barrier( domain_.comm );
-//                  MPI_Barrier( domain_.rowComm );
-//                  MPI_Barrier( domain_.colComm );
-//
-//                  GetTime( timeEnd );
-//#if ( _DEBUGlevel_ >= 0 )
-//                  statusOFS << "Time for diag DG matrix via ScaLAPACK is " <<
-//                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
-//#endif
-//
-//                  // Communicate the eigenvalues
-//                  Int mpirankScaSta = mpirankScaVec[0];
-//                  MPI_Bcast(eigval.Data(), hamDG.NumStateTotal(), MPI_DOUBLE, 
-//                      mpirankScaVec[0], domain_.comm);
-//
-//
-//                } // End of ScaLAPACK based diagonalization
-                else // call the ELSI interface
+               else // call the ELSI interface and old Scalapack interface
                 {
                   GetTime(timeSta);
 
-                  // Note, for the testing purpose, I will do the ELSI inteferce call all in here. 
-                  // However, after the tests, Step 1. and Step 2 will be moved to the initialization of the SCF
-                  // and Step 4 will be moved to the end of SCF calculation. 
-                  // as Victor said, my calling here may have problem when I am doing the init and finalization, 
-                  // cause ELSI needs to reuse some information to do SCF calculation. 
-
-		  /*
-                  // Step 1. init the ELSI interface 
-                  Int Solver = 1;      // 1: ELPA, 2: LibSOMM 3: PEXSI
-                  Int parallelism = 1; // 1 for multi-processors. when np > 1; parallelism = 1, else parallelism = 0
-                  Int storage = 0;     // ELSI only support DENSE(0) now according to the USER_GUIDE
-                  Int sizeH = hamDG.NumBasisTotal(); // used for the size of Hamitonian. 
-                  Int n_states = hamDG.NumStateTotal();
-
-                  // I do not have number of electron here. need to confirm with Wei
-                  Int n_electrons = 2.0* n_states;
-
-                  // n_calling_elsi will accumulate in the in ELSI calculation. 
-                  c_elsi_init(Solver, parallelism, storage, sizeH, n_electrons, n_states);
-
-                  // Step 2.  setup MPI Domain
-                  int test_comm = MPI_Comm_c2f(domain_.comm);
-                  c_elsi_set_mpi(test_comm); 
-
-		  */
-                  // Step 3. convert the matrix to scalapack format
-                  Int sizeH = hamDG.NumBasisTotal(); // used for the size of Hamitonian. 
+                   Int sizeH = hamDG.NumBasisTotal(); // used for the size of Hamitonian. 
                   DblNumVec& eigval = hamDG.EigVal(); 
                   eigval.Resize( hamDG.NumStateTotal() );        
 
@@ -7027,9 +6890,6 @@ namespace  dgdft{
                   GetTime( timeConversionEnd );
 
 
-		  // step 4: setup blacs for elsi. 
-                  //c_elsi_set_blacs(contxt_, scaBlockSize_);   
-
 #if ( _DEBUGlevel_ >= 1 )
                   statusOFS << "Time for converting from DistElemMat to ScaMat is " <<
                     timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
@@ -7040,30 +6900,35 @@ namespace  dgdft{
                   double * Smatrix = NULL;
                   GetTime( timeConversionSta );
 
-                  //  2nd parameter: customize the ELSI interface to use identity matrix S
-                  //c_elsi_customize(0, 1, 27.21138602, 1.0E-8, 1, 0, 0); 
+                  // allocate memory for the scaZ. and call ELSI: ELPA
 
-                  // use ELPA 2 stage solver
-                  //c_elsi_customize_elpa(2); 
-
-		  // allocate memory for the scaZ. and call ELSI: ELPA
-                  scaZ.SetDescriptor(scaH.Desc());
-
-
-                  if( diagSolutionMethod_ == "scalapack")
-		     scalapack::Syevd('U', scaH, eigs, scaZ);
-		  else // by default to use ELPA
+                  if( diagSolutionMethod_ == "scalapack"){
+                     scalapack::Syevd('U', scaH, eigs, scaZ);
+                  }
+                  else // by default to use ELPA
+                  {
+#ifdef ELSI
+                     scaZ.SetDescriptor(scaH.Desc());
                      c_elsi_ev_real(scaH.Data(), Smatrix, &eigs[0], scaZ.Data()); 
-		  
+#endif
+                  }
+                  
                   GetTime( timeConversionEnd );
 #if ( _DEBUGlevel_ >= 1 )
-                  statusOFS << "Time for ELSI::ELPA calling  " <<
-                    timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
+                  if( diagSolutionMethod_ == "scalapack"){
+                      statusOFS << "Time for Scalapack::diag " <<
+                          timeConversionEnd - timeConversionSta << " [s]" 
+                          << std::endl << std::endl;
+                  }
+                  else
+                  {
+                      statusOFS << "Time for ELSI::ELPA  Diag " <<
+                          timeConversionEnd - timeConversionSta << " [s]" 
+                          << std::endl << std::endl;
+                  }
 #endif
-
                   for( Int i = 0; i < hamDG.NumStateTotal(); i++ )
                     eigval[i] = eigs[i];
-
 
                   } //if(contxt_ >= -1)
 
@@ -7101,18 +6966,20 @@ namespace  dgdft{
 
                   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
+                  if( diagSolutionMethod_ == "scalapack"){
                   statusOFS << "Time for diag DG matrix via ScaLAPACK is " <<
                     timeEnd - timeSta << " [s]" << std::endl << std::endl;
+                  }
+                  else{
+                  statusOFS << "Time for diag DG matrix via ELSI:ELPA is " <<
+                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+                  }
 #endif
 
                   // Communicate the eigenvalues
                   Int mpirankScaSta = mpirankScaVec[0];
                   MPI_Bcast(eigval.Data(), hamDG.NumStateTotal(), MPI_DOUBLE, 
                       mpirankScaVec[0], domain_.comm);
-
-
-                 // Step 4.   move to the end of SCF in the futhure. 
-                 //c_elsi_finalize();
 
 
                 } // End of ELSI
@@ -7128,9 +6995,9 @@ namespace  dgdft{
                 // Calculate Harris energy without computing the occupations
                 CalculateHarrisEnergy();
 
-              }	
+              }        
               else
-              {	
+              {        
 
 
                 // Compute the occupation rate - specific smearing types dealt with within this function
@@ -7159,7 +7026,7 @@ namespace  dgdft{
                 // Density calculation for complementary subspace method
                 statusOFS << std::endl << " Using complementary subspace method for electron density ... " << std::endl;
 
-                Real GetTime_extra_sta, GetTime_extra_end;		
+                Real GetTime_extra_sta, GetTime_extra_end;                
                 GetTime(GetTime_extra_sta);
                 statusOFS << std::endl << " Forming diagonal blocks of density matrix ... ";
 
@@ -7216,9 +7083,9 @@ namespace  dgdft{
                 hamDG.CalculateDensityDM2(hamDG.Density(), hamDG.DensityLGL(), cheby_diag_dmat );
 
 
-              }	
+              }        
               else
-              {	
+              {        
 
                 int temp_m = hamDG.NumBasisTotal() / (numElem_[0] * numElem_[1] * numElem_[2]); // Average no. of ALBs per element
                 int temp_n = hamDG.NumStateTotal();
@@ -7226,7 +7093,7 @@ namespace  dgdft{
                 {  
                   statusOFS << std::endl << " Using alternate routine for electron density: " << std::endl;
 
-                  Real GetTime_extra_sta, GetTime_extra_end;		
+                  Real GetTime_extra_sta, GetTime_extra_end;                
                   GetTime(GetTime_extra_sta);
                   statusOFS << std::endl << " Forming diagonal blocks of density matrix ... ";
 
@@ -7377,7 +7244,7 @@ namespace  dgdft{
                   }
                 }
 
-              }	
+              }        
 
               MPI_Barrier( domain_.comm );
               MPI_Barrier( domain_.rowComm );
@@ -7477,7 +7344,7 @@ namespace  dgdft{
                     hamDG.CalculateForce( *distfftPtr_ );
                   }
                   else
-                  { 	
+                  {         
                     // Alternate (highly unusual) routine for debugging purposes
                     // Compute the Full DM (from eigenvectors) and call the PEXSI force evaluator
 
@@ -7497,7 +7364,7 @@ namespace  dgdft{
                     statusOFS << std::endl << " Computation took " << (extra_timeEnd - extra_timeSta) << " s." << std::endl;
 
                     // Call the PEXSI force evaluator
-                    hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );	
+                    hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );        
                   }
 
 
@@ -7520,7 +7387,7 @@ namespace  dgdft{
                   statusOFS << std::endl << " DM Computation took " << (extra_timeEnd - extra_timeSta) << " s." << std::endl;
 
                   // Call the PEXSI force evaluator
-                  hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );	
+                  hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );        
                 }
 
 
@@ -7582,6 +7449,7 @@ namespace  dgdft{
             // Method 2: Using the pole expansion and selected inversion (PEXSI) method
             // FIXME Currently it is assumed that all processors used by DG will be used by PEXSI.
 #ifdef _USE_PEXSI_
+/*
             // The following version is with intra-element parallelization
             if( solutionMethod_ == "pexsi" ){
               Real timePEXSISta, timePEXSIEnd;
@@ -7917,6 +7785,539 @@ namespace  dgdft{
                   } // for (mi)
                 }
               }
+              GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+              statusOFS << "Time for broadcasting the density matrix for post-processing is " <<
+                timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+              Evdw_ = 0.0;
+
+              // Compute the Harris energy functional.  
+              // NOTE: In computing the Harris energy, the density and the
+              // potential must be the INPUT density and potential without ANY
+              // update.
+              GetTime( timeSta );
+              CalculateHarrisEnergyDM( distFDMMat_ );
+              GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+              statusOFS << "Time for calculating the Harris energy is " <<
+                timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+              // Evaluate the electron density
+
+              for( Int k = 0; k < numElem_[2]; k++ )
+                for( Int j = 0; j < numElem_[1]; j++ )
+                  for( Int i = 0; i < numElem_[0]; i++ ){
+                    Index3 key( i, j, k );
+                    if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                      DblNumVec&  density      = hamDG.Density().LocalMap()[key];
+                    } // own this element
+                  } // for (i)
+
+
+              GetTime( timeSta );
+              hamDG.CalculateDensityDM2( 
+                  hamDG.Density(), hamDG.DensityLGL(), distDMMat_ );
+              MPI_Barrier( domain_.comm );
+              GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+              statusOFS << "Time for computing density in the global domain is " <<
+                timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+              for( Int k = 0; k < numElem_[2]; k++ )
+                for( Int j = 0; j < numElem_[1]; j++ )
+                  for( Int i = 0; i < numElem_[0]; i++ ){
+                    Index3 key( i, j, k );
+                    if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
+                      DblNumVec&  density      = hamDG.Density().LocalMap()[key];
+                    } // own this element
+                  } // for (i)
+
+
+              // Update the output potential, and the KS and second order accurate
+              // energy
+              GetTime(timeSta);
+              {
+                // Update the Hartree energy and the exchange correlation energy and
+                // potential for computing the KS energy and the second order
+                // energy.
+                // NOTE Vtot should not be updated until finishing the computation
+                // of the energies.
+
+                if( XCType_ == "XC_GGA_XC_PBE" ){
+                  GetTime( timeSta );
+                  hamDG.CalculateGradDensity(  *distfftPtr_ );
+                  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+                  statusOFS << "Time for calculating gradient of density is " <<
+                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+                }
+
+                hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
+
+                hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
+
+                // Compute the second order accurate energy functional.
+                // NOTE: In computing the second order energy, the density and the
+                // potential must be the OUTPUT density and potential without ANY
+                // MIXING.
+                //        CalculateSecondOrderEnergy();
+
+                // Compute the KS energy 
+                CalculateKSEnergyDM( 
+                    distEDMMat_, distFDMMat_ );
+
+                // Update the total potential AFTER updating the energy
+
+                // No external potential
+
+                // Compute the new total potential
+
+                hamDG.CalculateVtot( hamDG.Vtot() );
+
+              }
+              GetTime(timeEnd);
+#if ( _DEBUGlevel_ >= 0 )
+              statusOFS << "Time for computing the potential is " <<
+                timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+              // Compute the force at every step
+              //      if( esdfParam.isCalculateForceEachSCF ){
+              //        // Compute force
+              //        GetTime( timeSta );
+              //        hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );
+              //        GetTime( timeEnd );
+              //        statusOFS << "Time for computing the force is " <<
+              //          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+              //
+              //        // Print out the force
+              //        // Only master processor output information containing all atoms
+              //        if( mpirank == 0 ){
+              //          PrintBlock( statusOFS, "Atomic Force" );
+              //          {
+              //            Point3 forceCM(0.0, 0.0, 0.0);
+              //            std::vector<Atom>& atomList = hamDG.AtomList();
+              //            Int numAtom = atomList.size();
+              //            for( Int a = 0; a < numAtom; a++ ){
+              //              Print( statusOFS, "atom", a, "force", atomList[a].force );
+              //              forceCM += atomList[a].force;
+              //            }
+              //            statusOFS << std::endl;
+              //            Print( statusOFS, "force for centroid: ", forceCM );
+              //            statusOFS << std::endl;
+              //          }
+              //        }
+              //      }
+
+              // TODO Evaluate the a posteriori error estimator
+
+              GetTime( timePEXSIEnd );
+#if ( _DEBUGlevel_ >= 0 )
+              statusOFS << "Time for PEXSI evaluation is " <<
+                timePEXSIEnd - timePEXSISta << " [s]" << std::endl << std::endl;
+#endif
+            } //if( solutionMethod_ == "pexsi" )
+*/
+
+            // The following version is with intra-element parallelization
+            if( solutionMethod_ == "pexsi" ){
+
+              Real timePEXSISta, timePEXSIEnd;
+              GetTime( timePEXSISta );
+
+              Real numElectronExact = hamDG.NumOccupiedState() * hamDG.NumSpin();
+              Real muMinInertia, muMaxInertia;
+              Real muPEXSI, numElectronPEXSI;
+              Int numTotalInertiaIter = 0, numTotalPEXSIIter = 0;
+
+              std::vector<Int> mpirankSparseVec( numProcPEXSICommCol_ );
+
+              // FIXME 
+              // Currently, only the first processor column participate in the
+              // communication between PEXSI and DGDFT For the first processor
+              // column involved in PEXSI, the first numProcPEXSICommCol_
+              // processors are involved in the data communication between PEXSI
+              // and DGDFT
+
+              for( Int i = 0; i < numProcPEXSICommCol_; i++ ){
+                mpirankSparseVec[i] = i;
+              }
+
+#if ( _DEBUGlevel_ >= 1 )
+              statusOFS << "mpirankSparseVec = " << mpirankSparseVec << std::endl;
+#endif
+
+              Int info;
+
+              // Temporary matrices 
+              DistSparseMatrix<Real>  HSparseMat;
+              DistSparseMatrix<Real>  DMSparseMat;
+              DistSparseMatrix<Real>  EDMSparseMat;
+              DistSparseMatrix<Real>  FDMSparseMat;
+
+              if( mpirankRow == 0 ){
+
+                // Convert the DG matrix into the distributed CSC format
+
+                GetTime(timeSta);
+                DistElemMatToDistSparseMat3( 
+                    hamDG.HMat(),
+                    hamDG.NumBasisTotal(),
+                    HSparseMat,
+                    hamDG.ElemBasisIdx(),
+                    domain_.colComm,
+                    mpirankSparseVec );
+                GetTime(timeEnd);
+
+#if ( _DEBUGlevel_ >= 0 )
+                statusOFS << "Time for converting the DG matrix to DistSparseMatrix format is " <<
+                  timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+#if ( _DEBUGlevel_ >= 0 )
+                if( mpirankCol < numProcPEXSICommCol_ ){
+                  statusOFS << "H.size = " << HSparseMat.size << std::endl;
+                  statusOFS << "H.nnz  = " << HSparseMat.nnz << std::endl;
+                  statusOFS << "H.nnzLocal  = " << HSparseMat.nnzLocal << std::endl;
+                  statusOFS << "H.colptrLocal.m() = " << HSparseMat.colptrLocal.m() << std::endl;
+                  statusOFS << "H.rowindLocal.m() = " << HSparseMat.rowindLocal.m() << std::endl;
+                  statusOFS << "H.nzvalLocal.m() = " << HSparseMat.nzvalLocal.m() << std::endl;
+                }
+#endif
+              }
+
+              if( (mpirankRow < numProcPEXSICommRow_) && (mpirankCol < numProcPEXSICommCol_) )
+              {
+
+                // Load the matrices into PEXSI.  
+                // Only the processors with mpirankCol == 0 need to carry the
+                // nonzero values of HSparseMat
+
+#if ( _DEBUGlevel_ >= 0 )
+                statusOFS << "numProcPEXSICommRow_ = " << numProcPEXSICommRow_ << std::endl;
+                statusOFS << "numProcPEXSICommCol_ = " << numProcPEXSICommCol_ << std::endl;
+                statusOFS << "mpirankRow = " << mpirankRow << std::endl;
+                statusOFS << "mpirankCol = " << mpirankCol << std::endl;
+#endif
+
+
+                GetTime( timeSta );
+
+#ifndef ELSI                
+                PPEXSILoadRealHSMatrix(
+                    pexsiPlan_,
+                    pexsiOptions_,
+                    HSparseMat.size,
+                    HSparseMat.nnz,
+                    HSparseMat.nnzLocal,
+                    HSparseMat.colptrLocal.m() - 1,
+                    HSparseMat.colptrLocal.Data(),
+                    HSparseMat.rowindLocal.Data(),
+                    HSparseMat.nzvalLocal.Data(),
+                    1,  // isSIdentity
+                    NULL,
+                    &info );
+                GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+                statusOFS << "Time for loading the matrix into PEXSI is " <<
+                  timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+                if( info != 0 ){
+                  std::ostringstream msg;
+                  msg 
+                    << "PEXSI loading H matrix returns info " << info << std::endl;
+                  ErrorHandling( msg.str().c_str() );
+                }
+#endif           
+
+                // PEXSI solver
+
+                {
+                  if( outerIter >= inertiaCountSteps_ ){
+                    pexsiOptions_.isInertiaCount = 0;
+                  }
+                  // Note: Heuristics strategy for dynamically adjusting the
+                  // tolerance
+                  pexsiOptions_.muInertiaTolerance = 
+                    std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.01 );
+                  pexsiOptions_.numElectronPEXSITolerance = 
+                    std::min( std::max( numElectronPEXSIToleranceTarget_, 1.0 * scfOuterNorm_ ), 0.5 );
+
+                  // Only perform symbolic factorization for the first outer SCF. 
+                  // Reuse the previous Fermi energy as the initial guess for mu.
+                  if( outerIter == 1 ){
+                    pexsiOptions_.isSymbolicFactorize = 1;
+                    pexsiOptions_.mu0 = 0.5 * (pexsiOptions_.muMin0 + pexsiOptions_.muMax0);
+                  }
+                  else{
+                    pexsiOptions_.isSymbolicFactorize = 0;
+                    pexsiOptions_.mu0 = fermi_;
+                  }
+
+                  statusOFS << std::endl 
+                    << "muInertiaTolerance        = " << pexsiOptions_.muInertiaTolerance << std::endl
+                    << "numElectronPEXSITolerance = " << pexsiOptions_.numElectronPEXSITolerance << std::endl
+                    << "Symbolic factorization    =  " << pexsiOptions_.isSymbolicFactorize << std::endl;
+                }
+#ifdef ELSI
+#if ( _DEBUGlevel_ >= 0 )
+                statusOFS << std::endl << "ELSI PEXSI set sparsity start" << std::endl<< std::flush;
+#endif
+#endif
+
+                // ///////////////////////////////////////////////////////////////////////
+                // ///////////////////////////////////////////////////////////////////////
+#ifdef ELSI
+                c_elsi_set_sparsity( HSparseMat.nnz,
+                                   HSparseMat.nnzLocal,
+                                   HSparseMat.colptrLocal.m() - 1,
+                                   HSparseMat.rowindLocal.Data(),
+                                   HSparseMat.colptrLocal.Data() );
+
+                c_elsi_customize_pexsi(pexsiOptions_.temperature,
+                                       pexsiOptions_.gap,
+                                       pexsiOptions_.deltaE,
+                                       pexsiOptions_.numPole,
+                                       pexsiOptions_.maxPEXSIIter,
+                                       pexsiOptions_.muMin0,
+                                       pexsiOptions_.muMax0,
+                                       pexsiOptions_.mu0,
+                                       pexsiOptions_.muInertiaTolerance,
+                                       pexsiOptions_.muInertiaExpansion,
+                                       pexsiOptions_.muPEXSISafeGuard,
+                                       pexsiOptions_.numElectronPEXSITolerance,
+                                       pexsiOptions_.matrixType,
+                                       pexsiOptions_.isSymbolicFactorize,
+                                       pexsiOptions_.ordering,
+                                       pexsiOptions_.npSymbFact,
+                                       pexsiOptions_.verbosity);
+
+#if ( _DEBUGlevel_ >= 0 )
+                statusOFS << std::endl << "ELSI PEXSI Customize Done " << std::endl;
+#endif
+
+                CopyPattern( HSparseMat, DMSparseMat );
+                c_elsi_dm_real_sparse(HSparseMat.nzvalLocal.Data(), NULL, DMSparseMat.nzvalLocal.Data());
+
+                GetTime( timeEnd );
+
+                statusOFS << std::endl << "Time for ELSI PEXSI = " << 
+                       timeEnd - timeSta << " [s]" << std::endl << std::endl<<std::flush;
+
+#endif
+
+#ifndef ELSI
+                GetTime( timeSta );
+                // Old version of PEXSI driver, uses inertia counting + Newton's iteration
+                if(0){
+                  PPEXSIDFTDriver(
+                      pexsiPlan_,
+                      pexsiOptions_,
+                      numElectronExact,
+                      &muPEXSI,
+                      &numElectronPEXSI,         
+                      &muMinInertia,              
+                      &muMaxInertia,             
+                      &numTotalInertiaIter,
+                      &numTotalPEXSIIter,
+                      &info );
+                }
+
+                // New version of PEXSI driver, uses inertia count + pole update
+                // strategy. No Newton's iteration
+                if(1){
+                  PPEXSIDFTDriver2(
+                      pexsiPlan_,
+                      pexsiOptions_,
+                      numElectronExact,
+                      &muPEXSI,
+                      &numElectronPEXSI,         
+                      &muMinInertia,              
+                      &muMaxInertia,             
+                      &numTotalInertiaIter,
+                      &info );
+                }
+                GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+                statusOFS << "Time for the main PEXSI Driver is " <<
+                  timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+                if( info != 0 ){
+                  std::ostringstream msg;
+                  msg 
+                    << "PEXSI main driver returns info " << info << std::endl;
+                  ErrorHandling( msg.str().c_str() );
+                }
+
+                // Update the fermi level 
+                fermi_ = muPEXSI;
+
+                // Heuristics for the next step
+                pexsiOptions_.muMin0 = muMinInertia - 5.0 * pexsiOptions_.temperature;
+                pexsiOptions_.muMax0 = muMaxInertia + 5.0 * pexsiOptions_.temperature;
+
+                // Retrieve the PEXSI data
+
+                if( mpirankRow == 0 ){
+                  Real totalEnergyH, totalEnergyS, totalFreeEnergy;
+
+                  GetTime( timeSta );
+
+                  CopyPattern( HSparseMat, DMSparseMat );
+                  CopyPattern( HSparseMat, EDMSparseMat );
+                  CopyPattern( HSparseMat, FDMSparseMat );
+
+                  PPEXSIRetrieveRealDFTMatrix(
+                      pexsiPlan_,
+                      DMSparseMat.nzvalLocal.Data(),
+                      EDMSparseMat.nzvalLocal.Data(),
+                      FDMSparseMat.nzvalLocal.Data(),
+                      &totalEnergyH,
+                      &totalEnergyS,
+                      &totalFreeEnergy,
+                      &info );
+                  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+                  statusOFS << "Time for retrieving PEXSI data is " <<
+                    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+                  statusOFS << std::endl
+                    << "Results obtained from PEXSI:" << std::endl
+                    << "Total energy (H*DM)         = " << totalEnergyH << std::endl
+                    << "Total energy (S*EDM)        = " << totalEnergyS << std::endl
+                    << "Total free energy           = " << totalFreeEnergy << std::endl 
+                    << "InertiaIter                 = " << numTotalInertiaIter << std::endl
+                    << "PEXSIIter                   = " <<  numTotalPEXSIIter << std::endl
+                    << "mu                          = " << muPEXSI << std::endl
+                    << "numElectron                 = " << numElectronPEXSI << std::endl 
+                    << std::endl;
+
+                  if( info != 0 ){
+                    std::ostringstream msg;
+                    msg 
+                      << "PEXSI data retrieval returns info " << info << std::endl;
+                    ErrorHandling( msg.str().c_str() );
+                  }
+                }
+#endif
+              } // if( mpirank < numProcTotalPEXSI_ )
+
+              // Broadcast the Fermi level
+              MPI_Bcast( &fermi_, 1, MPI_DOUBLE, 0, domain_.comm );
+
+              if( mpirankRow == 0 )
+              {
+                GetTime(timeSta);
+                // Convert the density matrix from DistSparseMatrix format to the
+                // DistElemMat format
+                DistSparseMatToDistElemMat3(
+                    DMSparseMat,
+                    hamDG.NumBasisTotal(),
+                    hamDG.HMat().Prtn(),
+                    distDMMat_,
+                    hamDG.ElemBasisIdx(),
+                    hamDG.ElemBasisInvIdx(),
+                    domain_.colComm,
+                    mpirankSparseVec );
+
+
+                // Convert the energy density matrix from DistSparseMatrix
+                // format to the DistElemMat format
+#ifndef ELSI
+                DistSparseMatToDistElemMat3(
+                    EDMSparseMat,
+                    hamDG.NumBasisTotal(),
+                    hamDG.HMat().Prtn(),
+                    distEDMMat_,
+                    hamDG.ElemBasisIdx(),
+                    hamDG.ElemBasisInvIdx(),
+                    domain_.colComm,
+                    mpirankSparseVec );
+
+                // Convert the free energy density matrix from DistSparseMatrix
+                // format to the DistElemMat format
+                DistSparseMatToDistElemMat3(
+                    FDMSparseMat,
+                    hamDG.NumBasisTotal(),
+                    hamDG.HMat().Prtn(),
+                    distFDMMat_,
+                    hamDG.ElemBasisIdx(),
+                    hamDG.ElemBasisInvIdx(),
+                    domain_.colComm,
+                    mpirankSparseVec );
+#endif
+                GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+                statusOFS << "Time for converting the DistSparseMatrices to DistElemMat " << 
+                  "for post-processing is " <<
+                  timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+              }
+
+              // Broadcast the distElemMat matrices
+              // FIXME this is not a memory efficient implementation
+              GetTime(timeSta);
+              {
+                Int sstrSize;
+                std::vector<char> sstr;
+                if( mpirankRow == 0 ){
+                  std::stringstream distElemMatStream;
+                  Int cnt = 0;
+                  for( typename std::map<ElemMatKey, DblNumMat >::iterator mi  = distDMMat_.LocalMap().begin();
+                      mi != distDMMat_.LocalMap().end(); mi++ ){
+                    cnt++;
+                  } // for (mi)
+                  serialize( cnt, distElemMatStream, NO_MASK );
+                  for( typename std::map<ElemMatKey, DblNumMat >::iterator mi  = distDMMat_.LocalMap().begin();
+                      mi != distDMMat_.LocalMap().end(); mi++ ){
+                    ElemMatKey key = (*mi).first;
+                    serialize( key, distElemMatStream, NO_MASK );
+                    serialize( distDMMat_.LocalMap()[key], distElemMatStream, NO_MASK );
+#ifndef ELSI
+                    serialize( distEDMMat_.LocalMap()[key], distElemMatStream, NO_MASK ); 
+                    serialize( distFDMMat_.LocalMap()[key], distElemMatStream, NO_MASK ); 
+#endif
+                  } // for (mi)
+                  sstr.resize( Size( distElemMatStream ) );
+                  distElemMatStream.read( &sstr[0], sstr.size() );
+                  sstrSize = sstr.size();
+                }
+
+                MPI_Bcast( &sstrSize, 1, MPI_INT, 0, domain_.rowComm );
+                sstr.resize( sstrSize );
+                MPI_Bcast( &sstr[0], sstrSize, MPI_BYTE, 0, domain_.rowComm );
+
+                if( mpirankRow != 0 ){
+                  std::stringstream distElemMatStream;
+                  distElemMatStream.write( &sstr[0], sstrSize );
+                  Int cnt;
+                  deserialize( cnt, distElemMatStream, NO_MASK );
+                  for( Int i = 0; i < cnt; i++ ){
+                    ElemMatKey key;
+                    DblNumMat mat;
+                    deserialize( key, distElemMatStream, NO_MASK );
+                    deserialize( mat, distElemMatStream, NO_MASK );
+                    distDMMat_.LocalMap()[key] = mat;
+#ifndef ELSI
+                    deserialize( mat, distElemMatStream, NO_MASK );
+                    distEDMMat_.LocalMap()[key] = mat;
+                    deserialize( mat, distElemMatStream, NO_MASK );
+                    distFDMMat_.LocalMap()[key] = mat;
+#endif
+                  } // for (mi)
+                }
+              }
+
+              GetTime(timeSta);
               GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
               statusOFS << "Time for broadcasting the density matrix for post-processing is " <<
@@ -8657,7 +9058,7 @@ namespace  dgdft{
                 ErrorHandling( "The number of eigenvalues in ev should be larger than nocc" );
               }
             }
-          } // end of if (SmearingScheme_ == "FD")	
+          } // end of if (SmearingScheme_ == "FD")        
           else
           {
             // MP and GB type smearing
@@ -8727,7 +9128,7 @@ namespace  dgdft{
                 // Fill up the occupations
                 populate_mp_occupations(eigVal, occupationRate, fermi_);
 
-              }	
+              }        
             } // end of if(npsi > nOccStates)
             else 
             {
@@ -9020,20 +9421,20 @@ namespace  dgdft{
 
               Efree_ = Ekin_ + Ecor_ + (numSpin / Tbeta) * occup_energy_part;
 
-              // 	  for(Int l=0; l< SCFDG_comp_subspace_top_eigvals_.m(); l++) 
-              // 	    {
-              // 	      Real eig = SCFDG_comp_subspace_top_eigvals_(l);
-              // 	      if( eig - fermi >= 0){
-              // 		Efree_ += -numSpin /Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
-              // 	      }
-              // 	      else
-              // 		{
-              // 		  Efree_ += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
-              // 		} 
-              // 	    }
-              // 	  
-              // 	  Int howmany_to_calc = (hamDG.NumOccupiedState() + SCFDG_comp_subspace_N_solve_) - hamDG.NumStateTotal();
-              // 	  Efree_ += Ecor_ + fermi * (howmany_to_calc) * numSpin;
+              //           for(Int l=0; l< SCFDG_comp_subspace_top_eigvals_.m(); l++) 
+              //             {
+              //               Real eig = SCFDG_comp_subspace_top_eigvals_(l);
+              //               if( eig - fermi >= 0){
+              //                 Efree_ += -numSpin /Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
+              //               }
+              //               else
+              //                 {
+              //                   Efree_ += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
+              //                 } 
+              //             }
+              //           
+              //           Int howmany_to_calc = (hamDG.NumOccupiedState() + SCFDG_comp_subspace_N_solve_) - hamDG.NumStateTotal();
+              //           Efree_ += Ecor_ + fermi * (howmany_to_calc) * numSpin;
 
 
             }
@@ -9621,7 +10022,7 @@ namespace  dgdft{
                   }
                 }
 
-                EfreeSecondOrder_ = Ekin + Ecor + (numSpin / Tbeta) * occup_energy_part;	    
+                EfreeSecondOrder_ = Ekin + Ecor + (numSpin / Tbeta) * occup_energy_part;            
 
               }
             }
