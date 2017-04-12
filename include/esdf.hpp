@@ -850,7 +850,11 @@ struct ESDFInputParam{
   /// @brief Dampling factor for Langevin theromostat
   ///
   /// Default: 0.01
-  Real                                langevinDamping;                                
+  Real                                langevinDamping;
+  /// @brief Kappa value of XL-BOMD
+  ///
+  /// Default: 2.0
+  Real                                kappaXLBOMD;
   /// @brief Whether to use the previous position
   ///
   /// Default: 0

@@ -1037,16 +1037,22 @@ namespace  dgdft{
 
        Int n_electrons = 2.0* n_states;
        statusOFS << std::endl<<" Done Setting up ELSI iterface " 
+                 << Solver << " " << sizeH << " " << n_states
                  << std::endl<<std::endl;
 
        c_elsi_init(Solver, parallelism, storage, sizeH, n_electrons, n_states);
 
        // Step 2.  setup MPI Domain
-       int comm = MPI_Comm_c2f(domain_.comm);
+       MPI_Comm newComm;
+       MPI_Comm_split(domain_.comm, contxt, mpirank, &newComm);
+       int comm = MPI_Comm_c2f(newComm);
        c_elsi_set_mpi(comm); 
 
        // step 3: setup blacs for elsi. 
-       c_elsi_set_blacs(contxt, scaBlockSize_);   
+
+       if(contxt >= 0)
+           c_elsi_set_blacs(contxt, scaBlockSize_);   
+
        //  customize the ELSI interface to use identity matrix S
        c_elsi_customize(0, 1, 27.21138602, 1.0E-8, 1, 0, 0); 
 

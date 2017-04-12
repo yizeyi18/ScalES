@@ -1427,7 +1427,7 @@ SCF::Iterate (  )
         statusOFS << "Total wall clock time for this Phi iteration = " << 
           timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
 
-        if(0){
+        if(1){
 
           // Update Phi <- Psi
           GetTime( timeSta );
