@@ -516,12 +516,13 @@ int main(int argc, char **argv)
           Int numOccTotal = hamKS.NumOccupiedState();
 
           Real dt = esdfParam.MDTimeStep;
-          Real w = 1.0/dt ; // 1.4 comes from sqrt(2)
+          Real kappa = esdfParam.kappaXLBOMD;
+       
+          Real w = kappa/dt ; // 1.4 comes from sqrt(2)
 
           MPI_Comm mpi_comm = dm.comm;
     
           Int BlockSizeScaLAPACK = esdfParam.BlockSizeScaLAPACK;
-
 
           Int I_ONE = 1, I_ZERO = 0;
           double D_ONE = 1.0;

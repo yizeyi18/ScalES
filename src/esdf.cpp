@@ -835,6 +835,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"D:E");
 
   i++;
+  strcpy(kw_label[i],"kappa_xlbomd");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
   strcpy(kw_label[i],"restart_position");
   strcpy(kw_typ[i],"I:E");
 
@@ -2623,6 +2627,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.MDExtrapolationVariable      = strtmp;
     esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);
     esdfParam.langevinDamping       = esdf_double("Langevin_Damping", 0.01);
+    esdfParam.kappaXLBOMD           = esdf_double("kappa_XLBOMD", 2.00);
     esdfParam.isRestartPosition     = esdf_integer( "Restart_Position", 0 );
     esdfParam.isRestartVelocity     = esdf_integer( "Restart_Velocity", 0 );
     esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 1 );
