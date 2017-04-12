@@ -245,7 +245,7 @@ namespace  dgdft{
         SCFDG_comp_subspace_parallel_ = SCFDG_Cheby_use_ScaLAPACK_; // Use serial or parallel routine depending on early CheFSI steps
 
         SCFDG_comp_subspace_syrk_ = esdfParam.scfdg_chefsi_complementary_subspace_syrk; // Syrk and Syr2k based updates, available in parallel routine only
-        SCFDG_comp_subspace_syr2k_ = SCFDG_comp_subspace_syrk_;
+        SCFDG_comp_subspace_syr2k_ = esdfParam.scfdg_chefsi_complementary_subspace_syr2k;;
 
 
         // Safeguard to ensure that CS strategy is called only after a few general Chebyshev cycles
@@ -273,8 +273,11 @@ namespace  dgdft{
         if(SCFDG_comp_subspace_parallel_ == 1)
           Hmat_top_states_use_Cheby_ = 1; 
         else
+	{ 
           SCFDG_comp_subspace_syrk_ = 0;
-
+	  SCFDG_comp_subspace_syr2k_ = 0;
+	}
+	
         SCFDG_comp_subspace_N_solve_ = hamDG.NumExtraState() + SCFDG_comp_subspace_nstates_;     
         SCFDG_comp_subspace_engaged_ = false;
       }
@@ -4514,7 +4517,7 @@ namespace  dgdft{
               scalapack::ScaLAPACKMatrix<Real>  single_proc_scala_mat;
 
 
-              if(SCFDG_use_comp_subspace_ == 1)
+              if(SCFDG_use_comp_subspace_ == 1 && SCFDG_comp_subspace_N_solve_ != 0)
               {  
 
                 // Reserve the serial space : this will actually contain the vectors in the reversed order
@@ -4620,7 +4623,7 @@ namespace  dgdft{
 
 
                 // This is for use with the Complementary Subspace strategy in subsequent steps
-                if(SCFDG_use_comp_subspace_ == 1)
+                if(SCFDG_use_comp_subspace_ == 1 && SCFDG_comp_subspace_N_solve_ != 0)
                 {
                   GetTime( detail_timeSta);
                   statusOFS << std::endl << std::endl << " Distributing and copying top states for parallel CS strategy ... ";
@@ -4745,7 +4748,7 @@ namespace  dgdft{
 
 
               // Broadcast the guess vectors for the CS strategy from proc 0
-              if(SCFDG_use_comp_subspace_ == 1)
+              if(SCFDG_use_comp_subspace_ == 1 && SCFDG_comp_subspace_N_solve_ != 0)
               {
                 statusOFS << std::endl << std::endl << " Broadcasting guess vectors for parallel CS strategy ... ";
                 GetTime( timeSta );
@@ -5340,7 +5343,16 @@ namespace  dgdft{
         GetTime( timeEnd );
         statusOFS << " BLACS setup done. ( " << (timeEnd - timeSta ) << " s.)";
 
-
+        // Some diagnostic info
+	statusOFS << std::endl;
+	statusOFS << std::endl << " Note : On Cheby-Scala grid, scala_block_size * cheby_scala_num_rows = " << (scaBlockSize_ * cheby_scala_num_rows);
+        statusOFS << std::endl << "        On Cheby-Scala grid, scala_block_size * cheby_scala_num_cols = " << (scaBlockSize_ * cheby_scala_num_cols);
+        statusOFS << std::endl << "        On bigger grid, scala_block_size * bigger_grid_num_rows = " << (scaBlockSize_ * bigger_grid_num_rows);
+	statusOFS << std::endl << "        On bigger grid, scala_block_size * bigger_grid_num_cols = " << (scaBlockSize_ * bigger_grid_num_cols);
+        statusOFS << std::endl << "        Outer subspace problem dimension = " << hamDG.NumStateTotal() << " * " << hamDG.NumStateTotal();
+        statusOFS << std::endl << "        Inner subspace problem dimension = " << SCFDG_comp_subspace_N_solve_ << " * " << SCFDG_comp_subspace_N_solve_;
+        statusOFS << std::endl ;
+	
         // Step b: Orthonormalize using "bigger grid"
         dgdft::scalapack::ScaLAPACKMatrix<Real>  cheby_scala_eigvecs_X;
         dgdft::scalapack::ScaLAPACKMatrix<Real>  bigger_grid_eigvecs_X;
@@ -5606,7 +5618,7 @@ namespace  dgdft{
         if(SCFDG_comp_subspace_syr2k_ == 0)
           statusOFS << std::endl << " Computing X^T * HX on bigger grid using GEMM ... ";
         else
-          statusOFS << std::endl << " Computing X^T * HX on bigger grid using SYR2K ... ";
+          statusOFS << std::endl << " Computing X^T * HX on bigger grid using SYR2K + TRADD ... ";
 
         GetTime( extra_timeSta );
         if(bigger_grid_context >= 0)
@@ -6012,7 +6024,7 @@ namespace  dgdft{
 
 
 
-      }
+      } // end of scfdg_complementary_subspace_parallel
 
 
       // **###**  
@@ -7055,26 +7067,28 @@ namespace  dgdft{
                     cheby_diag_dmat.LocalMap()[diag_block_key].Data(),  temp_local_eig_vec.m());
 
 
+                if(SCFDG_comp_subspace_N_solve_ != 0)
+		{
+		  // Now compute the X * C portion
+                 DblNumMat XC_mat;
+                 XC_mat.Resize(eigvecs_local.m(), SCFDG_comp_subspace_N_solve_);
 
-                // Now compute the X * C portion
-                DblNumMat XC_mat;
-                XC_mat.Resize(eigvecs_local.m(), SCFDG_comp_subspace_N_solve_);
+                 blas::Gemm( 'N', 'N', temp_local_eig_vec.m(), SCFDG_comp_subspace_N_solve_, temp_local_eig_vec.n(),
+                             1.0, 
+                             temp_local_eig_vec.Data(), temp_local_eig_vec.m(), 
+                             SCFDG_comp_subspace_matC_.Data(), SCFDG_comp_subspace_matC_.m(),
+                             0.0, 
+                             XC_mat.Data(),  XC_mat.m());
 
-                blas::Gemm( 'N', 'N', temp_local_eig_vec.m(), SCFDG_comp_subspace_N_solve_, temp_local_eig_vec.n(),
-                    1.0, 
-                    temp_local_eig_vec.Data(), temp_local_eig_vec.m(), 
-                    SCFDG_comp_subspace_matC_.Data(), SCFDG_comp_subspace_matC_.m(),
-                    0.0, 
-                    XC_mat.Data(),  XC_mat.m());
-
-                // Subtract XC*XC^T from DM
-                blas::Gemm( 'N', 'T', XC_mat.m(), XC_mat.m(), XC_mat.n(),
-                    -1.0, 
-                    XC_mat.Data(), XC_mat.m(), 
-                    XC_mat.Data(), XC_mat.m(),
-                    1.0, 
-                    cheby_diag_dmat.LocalMap()[diag_block_key].Data(),  temp_local_eig_vec.m());
-
+                 // Subtract XC*XC^T from DM
+                 blas::Gemm( 'N', 'T', XC_mat.m(), XC_mat.m(), XC_mat.n(),
+                            -1.0, 
+                             XC_mat.Data(), XC_mat.m(), 
+                             XC_mat.Data(), XC_mat.m(),
+                             1.0, 
+                             cheby_diag_dmat.LocalMap()[diag_block_key].Data(),  temp_local_eig_vec.m());
+		}
+                
                 GetTime(GetTime_extra_end);
                 statusOFS << " Done. ( " << (GetTime_extra_end - GetTime_extra_sta)  << " s) " << std::endl ;
 

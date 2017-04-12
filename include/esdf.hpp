@@ -898,6 +898,8 @@ struct ESDFInputParam{
   // complementary subspace iteration strategy in DGDFT
   bool scfdg_use_chefsi_complementary_subspace;
   bool scfdg_chefsi_complementary_subspace_syrk;
+  bool scfdg_chefsi_complementary_subspace_syr2k;
+
   Int scfdg_complementary_subspace_nstates;
   Int scfdg_cs_ioniter_regular_cheby_freq;
   

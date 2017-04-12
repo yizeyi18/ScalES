@@ -65,10 +65,10 @@ typedef  std::complex<double>   dcomplex;
 
 extern "C"{
 
-  // *********************************************************************
-  // BLACS  routines
-  // *********************************************************************
-  void Cblacs_get(const Int contxt, const Int what, Int* val);
+// *********************************************************************
+// BLACS  routines
+// *********************************************************************
+void Cblacs_get(const Int contxt, const Int what, Int* val);
 
 void Cblacs_gridinit(Int* contxt, const char* order, const Int nprow, const Int npcol);
 
@@ -81,7 +81,7 @@ void Cblacs_gridexit    (    int contxt );
 
 
 // *********************************************************************
-// ScaLAPACK routines
+// ScaLAPACK and PBLAS routines
 // *********************************************************************
 
 int SCALAPACK(numroc)(int *n, int *nb, int *iproc, int *isrcproc, int *nprocs);
