@@ -518,7 +518,7 @@ int main(int argc, char **argv)
           Real dt = esdfParam.MDTimeStep;
           Real kappa = esdfParam.kappaXLBOMD;
        
-          Real w = kappa/dt ; // 1.4 comes from sqrt(2)
+          Real w = std::sqrt(kappa)/dt ; // 1.4 comes from sqrt(2)
 
           MPI_Comm mpi_comm = dm.comm;
     
