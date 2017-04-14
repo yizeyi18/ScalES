@@ -827,6 +827,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"T:E");
 
   i++;
+  strcpy(kw_label[i],"md_extrapolation_wavefunction");
+  strcpy(kw_typ[i],"T:E");
+
+  i++;
   strcpy(kw_label[i],"thermostat_mass");
   strcpy(kw_typ[i],"D:E");
 
@@ -2630,6 +2634,8 @@ ESDFReadInput ( const char* filename )
     esdfParam.MDExtrapolationType          = strtmp;
     esdf_string("MD_Extrapolation_Variable", "density", strtmp); 
     esdfParam.MDExtrapolationVariable      = strtmp;
+    esdf_string("MD_Extrapolation_Wavefunction", "aspc", strtmp); 
+    esdfParam.MDExtrapolationWavefunction  = strtmp;
     esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);
     esdfParam.langevinDamping       = esdf_double("Langevin_Damping", 0.01);
     esdfParam.kappaXLBOMD           = esdf_double("kappa_XLBOMD", 2.00);

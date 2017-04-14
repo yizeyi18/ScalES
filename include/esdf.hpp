@@ -832,6 +832,13 @@ struct ESDFInputParam{
   ///                      density is constructed from the
   ///                      wavefunctions
   std::string         MDExtrapolationVariable;
+  /// @brief Extrapolation wavefunction methods
+  ///
+  /// Default: "aspc"
+  ///
+  /// = "aspc"        : wavefunction extrapolation by using ASPC
+  /// = "xlbomd"        : wavefunction extrapolation by using XLBOMD
+  std::string         MDExtrapolationWavefunction;
   /// @brief Temperature for ion.
   ///
   /// Default: K
@@ -846,15 +853,15 @@ struct ESDFInputParam{
   /// @brief Mass for Nose-Hoover thermostat
   ///
   /// Default: 10.0
-  Real                                qMass;                                
+  Real                qMass;                                
   /// @brief Dampling factor for Langevin theromostat
   ///
   /// Default: 0.01
-  Real                                langevinDamping;
+  Real                langevinDamping;
   /// @brief Kappa value of XL-BOMD
   ///
   /// Default: 2.0
-  Real                                kappaXLBOMD;
+  Real                kappaXLBOMD;
   /// @brief Whether to use the previous position
   ///
   /// Default: 0

@@ -401,7 +401,7 @@ int main(int argc, char **argv)
         //huwei 20170306
         //Especially for XL-BOMD wavefunction extrapolation  
 
-        if(0){ 
+        if(esdfParam.MDExtrapolationWavefunction == "xlbomd"){ 
 
           statusOFS << "Extrapolating the Wavefunctions for XL-BOMD." << std::endl;
 
@@ -639,7 +639,7 @@ int main(int argc, char **argv)
 
 
         // ASPC
-        if(1){ 
+        if(esdfParam.MDExtrapolationWavefunction == "aspc"){ 
 
           statusOFS << "Extrapolating the Wavefunctions using ASPC." << std::endl;
 
@@ -896,7 +896,8 @@ int main(int argc, char **argv)
               totalCharge, 
               fft );
 
-        } //if()
+        } //if() Extrapolating the Wavefunctions using ASPC
+      
       } // wavefun extrapolation
 
 
