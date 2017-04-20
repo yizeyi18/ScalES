@@ -2522,7 +2522,7 @@ HamiltonianDG::CalculateDensityDM2    (
                   numLGLGridTotal, MPI_DOUBLE, MPI_SUM, domain_.rowComm );
             }
 
-            statusOFS << "Before interpolation" << std::endl;
+            statusOFS << std::endl << " Before interpolation" << std::endl;
 
             // Interpolate the local density from LGL grid to uniform
             // grid
@@ -2531,7 +2531,7 @@ HamiltonianDG::CalculateDensityDM2    (
                 numUniformGridElemFine_, 
                 localRhoLGL.Data(), 
                 localRho.Data() );
-            statusOFS << "After interpolation" << std::endl;
+            statusOFS << " After interpolation" << std::endl;
 
             sumRhoLGLLocal += blas::Dot( localRhoLGL.Size(),
                 localRhoLGL.Data(), 1, 
@@ -2553,8 +2553,8 @@ HamiltonianDG::CalculateDensityDM2    (
 
 #if ( _DEBUGlevel_ >= 0 )
     statusOFS << std::endl;
-    Print( statusOFS, "Sum Rho on LGL grid (raw data) = ", sumRhoLGL );
-    Print( statusOFS, "Sum Rho on uniform grid (interpolated) = ", sumRho );
+    Print( statusOFS, " Sum Rho on LGL grid (raw data) = ", sumRhoLGL );
+    Print( statusOFS, " Sum Rho on uniform grid (interpolated) = ", sumRho );
     statusOFS << std::endl;
 #endif
 

@@ -244,8 +244,9 @@ namespace  dgdft{
 
         SCFDG_comp_subspace_parallel_ = SCFDG_Cheby_use_ScaLAPACK_; // Use serial or parallel routine depending on early CheFSI steps
 
-        SCFDG_comp_subspace_syrk_ = esdfParam.scfdg_chefsi_complementary_subspace_syrk; // Syrk and Syr2k based updates, available in parallel routine only
-        SCFDG_comp_subspace_syr2k_ = esdfParam.scfdg_chefsi_complementary_subspace_syr2k;;
+        // Syrk and Syr2k based updates, available in parallel routine only
+        SCFDG_comp_subspace_syrk_ = esdfParam.scfdg_chefsi_complementary_subspace_syrk; 
+        SCFDG_comp_subspace_syr2k_ = esdfParam.scfdg_chefsi_complementary_subspace_syr2k;
 
 
         // Safeguard to ensure that CS strategy is called only after a few general Chebyshev cycles
@@ -595,14 +596,14 @@ namespace  dgdft{
       else {
         if( esdfParam.isUseAtomDensity ){
 #if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Use superposition of atomic density as initial "
+          statusOFS << " Use superposition of atomic density as initial "
             << "guess for electron density." << std::endl;
 #endif
           GetTime( timeSta );
           hamDGPtr_->CalculateAtomDensity( *ptablePtr_, *distfftPtr_ );
           GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Time for calculating the atomic density = " 
+          statusOFS << " Time for calculating the atomic density = " 
             << timeEnd - timeSta << " [s]" << std::endl;
 #endif
 
@@ -619,7 +620,7 @@ namespace  dgdft{
         }
         else{
 #if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Generating initial density through linear combination of pseudocharges." 
+          statusOFS << " Generating initial density through linear combination of pseudocharges." 
             << std::endl;
 #endif
 
@@ -1160,7 +1161,7 @@ namespace  dgdft{
         hamDG.CalculateGradDensity(  *distfftPtr_ );
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for calculating gradient of density is " <<
+        statusOFS << " Time for calculating gradient of density is " <<
           timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
       }
@@ -1169,7 +1170,7 @@ namespace  dgdft{
       hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for calculating XC is " <<
+      statusOFS << " Time for calculating XC is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
       // Compute the Hartree potential
@@ -1177,7 +1178,7 @@ namespace  dgdft{
       hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for calculating Hartree is " <<
+      statusOFS << " Time for calculating Hartree is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
       // No external potential
@@ -1187,7 +1188,7 @@ namespace  dgdft{
       hamDG.CalculateVtot( hamDG.Vtot() );
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for calculating Vtot is " <<
+      statusOFS << " Time for calculating Vtot is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -1201,7 +1202,7 @@ namespace  dgdft{
           hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
           GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Time for calculating XC is " <<
+          statusOFS << " Time for calculating XC is " <<
             timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
           // Compute the Hartree potential
@@ -1209,7 +1210,7 @@ namespace  dgdft{
           hamDG.CalculateHartree( hamDG.Vhart(), *distfftPtr_ );
           GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Time for calculating Hartree is " <<
+          statusOFS << " Time for calculating Hartree is " <<
             timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
           // No external potential
@@ -1219,7 +1220,7 @@ namespace  dgdft{
           hamDG.CalculateVtot( hamDG.Vtot() );
           GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Time for calculating Vtot is " <<
+          statusOFS << " Time for calculating Vtot is " <<
             timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
         }else {
@@ -1238,7 +1239,7 @@ namespace  dgdft{
                   SetValue( hamDG.Vtot().LocalMap()[key], 1.0 );
                 }
               } // for (i)
-          statusOFS << "Density may be negative, " << 
+          statusOFS << " Density may be negative, " << 
             "Skip the calculation of XC for the initial setup. " << std::endl;
         }
       }
@@ -1272,7 +1273,7 @@ namespace  dgdft{
         // Performing each iteartion
         {
           std::ostringstream msg;
-          msg << "Outer SCF iteration # " << iter;
+          msg << " Outer SCF iteration # " << iter;
           PrintBlock( statusOFS, msg.str() );
         }
 
@@ -1291,7 +1292,7 @@ namespace  dgdft{
 
           GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Time for updating the local potential in the extended element and the element is " <<
+          statusOFS << " Time for updating the local potential in the extended element and the element is " <<
             timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
         }
@@ -1347,10 +1348,10 @@ namespace  dgdft{
 
                   Int numEig = (eigSol.Psi().NumStateTotal())-numUnusedState_;
 #if ( _DEBUGlevel_ >= 0 ) 
-                  statusOFS << "The current tolerance used by the eigensolver is " 
+                  statusOFS << " The current tolerance used by the eigensolver is " 
                     << eigTolNow << std::endl;
-                  statusOFS << "The target number of converged eigenvectors is " 
-                    << numEig << std::endl;
+                  statusOFS << " The target number of converged eigenvectors is " 
+                    << numEig << std::endl << std::endl;
 #endif
 
                   GetTime( timeSta );
@@ -1416,7 +1417,7 @@ namespace  dgdft{
 
                   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                  statusOFS << "Eigensolver time = "     << timeEnd - timeSta
+                  statusOFS << std::endl << " Eigensolver time = "     << timeEnd - timeSta
                     << " [s]" << std::endl;
 #endif
 
@@ -1440,8 +1441,8 @@ namespace  dgdft{
                   avgRes = avgRes / eigSol.EigVal().m();
 #if ( _DEBUGlevel_ >= 0 )
                   statusOFS << std::endl;
-                  Print(statusOFS, "Max residual of basis = ", maxRes );
-                  Print(statusOFS, "Avg residual of basis = ", avgRes );
+                  Print(statusOFS, " Max residual of basis = ", maxRes );
+                  Print(statusOFS, " Avg residual of basis = ", avgRes );
                   statusOFS << std::endl;
 #endif
 
@@ -1527,7 +1528,7 @@ namespace  dgdft{
 #endif
                   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                  statusOFS << "Time for interpolating basis = "     << timeEnd - timeSta
+                  statusOFS << " Time for interpolating basis = "     << timeEnd - timeSta
                     << " [s]" << std::endl;
 #endif
 
@@ -1736,12 +1737,12 @@ namespace  dgdft{
 
 
 #if ( _DEBUGlevel_ >= 1 )
-                    statusOFS << "Singular values of the basis = " 
+                    statusOFS << " Singular values of the basis = " 
                       << S << std::endl;
 #endif
 
 #if ( _DEBUGlevel_ >= 0 )
-                    statusOFS << "Number of significant SVD basis = " 
+                    statusOFS << " Number of significant SVD basis = " 
                       << numSVDBasisTotal << std::endl;
 #endif
 
@@ -1752,7 +1753,7 @@ namespace  dgdft{
 
 
                     GetTime( timeEnd );
-                    statusOFS << "Time for SVD of basis = "     << timeEnd - timeSta
+                    statusOFS << " Time for SVD of basis = "     << timeEnd - timeSta
                       << " [s]" << std::endl;
 
 
@@ -1856,7 +1857,7 @@ namespace  dgdft{
 
         GetTime( timeBasisEnd );
 
-        statusOFS << std::endl << "Time for generating ALB function is " <<
+        statusOFS << std::endl << " Time for generating ALB function is " <<
           timeBasisEnd - timeBasisSta << " [s]" << std::endl << std::endl;
 
 
@@ -2063,7 +2064,7 @@ namespace  dgdft{
         MPI_Barrier( domain_.comm );
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for all inner SCF iterations is " <<
+        statusOFS << " Time for all inner SCF iterations is " <<
           timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -2164,7 +2165,7 @@ namespace  dgdft{
               ( (scfOuterNorm_ < scfOuterTolerance_) && 
                 (efreeDifPerAtom_ < scfOuterEnergyTolerance_) ) ){
             /* converged */
-            statusOFS << "Outer SCF is converged in " << iter << " steps !" << std::endl;
+            statusOFS << " Outer SCF is converged in " << iter << " steps !" << std::endl;
             isSCFConverged = true;
           }
         }
@@ -2175,7 +2176,7 @@ namespace  dgdft{
               (md_scf_eband_diff_ < md_scf_eband_diff_tol_) )
           {
             // converged via energy criterion
-            statusOFS << "Outer SCF is converged via energy condition in " << iter << " steps !" << std::endl;
+            statusOFS << " Outer SCF is converged via energy condition in " << iter << " steps !" << std::endl;
             isSCFConverged = true;
 
           }
@@ -2185,7 +2186,7 @@ namespace  dgdft{
         // It seems that no mixing is the best.
 
         GetTime( timeIterEnd );
-        statusOFS << "Time for this SCF iteration = " << timeIterEnd - timeIterStart
+        statusOFS << " Time for this SCF iteration = " << timeIterEnd - timeIterStart
           << " [s]" << std::endl;
       } // for( iter )
 
@@ -2200,11 +2201,11 @@ namespace  dgdft{
       }
 
       if( isSCFConverged == true ){
-        statusOFS << "Total number of outer SCF steps for SCF convergence = " <<
+        statusOFS << " Total number of outer SCF steps for SCF convergence = " <<
           iter - 1 << std::endl;
       }
       else{
-        statusOFS << "Total number of outer SCF steps (SCF not converged) = " <<
+        statusOFS << " Total number of outer SCF steps (SCF not converged) = " <<
           scfOuterMaxIter_ << std::endl;
 
       }
@@ -2270,7 +2271,7 @@ namespace  dgdft{
         hamDG.CalculateForceDM( *distfftPtr_, distDMMat_ );
       }
       GetTime( timeForceEnd );
-      statusOFS << "Time for computing the force is " <<
+      statusOFS << " Time for computing the force is " <<
         timeForceEnd - timeForceSta << " [s]" << std::endl << std::endl;
 
       // Calculate the VDW energy
@@ -2370,7 +2371,7 @@ namespace  dgdft{
           if( !fout.good() ){
             std::ostringstream msg;
             msg 
-              << "File " << structFileName.c_str() << " cannot be open." 
+              << "File " << structFileName.c_str() << " cannot be opened." 
               << std::endl;
             ErrorHandling( msg.str().c_str() );
           }
@@ -2577,7 +2578,7 @@ namespace  dgdft{
       GetTime( timeOutputEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << std::endl 
-        << "Time for outputing data is = " << timeOutputEnd - timeOutputSta
+        << " Time for outputing data is = " << timeOutputEnd - timeOutputSta
         << " [s]" << std::endl;
 #endif
 
@@ -6552,7 +6553,7 @@ namespace  dgdft{
 
             GetTime( timeIterStart );
 
-            statusOFS << std::endl << "Inner SCF iteration #"  
+            statusOFS << std::endl << " Inner SCF iteration #"  
               << innerIter << " starts." << std::endl << std::endl;
 
 
@@ -6578,7 +6579,7 @@ namespace  dgdft{
               MPI_Barrier( domain_.colComm );
               GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for constructing the DG matrix is " <<
+              statusOFS << " Time for constructing the DG matrix is " <<
                 timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
             }
@@ -6632,7 +6633,7 @@ namespace  dgdft{
               MPI_Barrier( domain_.comm );
               GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for updating the local potential in the extended element and the element is " <<
+              statusOFS << " Time for updating the local potential in the extended element and the element is " <<
                 timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -6643,7 +6644,7 @@ namespace  dgdft{
               MPI_Barrier( domain_.comm );
               GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for updating the DG matrix is " <<
+              statusOFS << " Time for updating the DG matrix is " <<
                 timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -6680,7 +6681,7 @@ namespace  dgdft{
                     domain_.colComm );
                 GetTime(timeEnd);
 #if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for converting the DG matrix to DistSparseMatrix format is " <<
+                statusOFS << " Time for converting the DG matrix to DistSparseMatrix format is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -6689,7 +6690,7 @@ namespace  dgdft{
                 //            WriteDistSparseMatrixFormatted( "H.matrix", HSparseMat );
                 GetTime(timeEnd);
 #if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for writing the matrix in parallel is " <<
+                statusOFS << " Time for writing the matrix in parallel is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
               }
@@ -6909,7 +6910,7 @@ namespace  dgdft{
 
 
 #if ( _DEBUGlevel_ >= 1 )
-                  statusOFS << "Time for converting from DistElemMat to ScaMat is " <<
+                  statusOFS << " Time for converting from DistElemMat to ScaMat is " <<
                     timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
                   if(contxt_ >= 0){
@@ -6934,13 +6935,13 @@ namespace  dgdft{
                   GetTime( timeConversionEnd );
 #if ( _DEBUGlevel_ >= 1 )
                   if( diagSolutionMethod_ == "scalapack"){
-                      statusOFS << "Time for Scalapack::diag " <<
+                      statusOFS << " Time for Scalapack::diag " <<
                           timeConversionEnd - timeConversionSta << " [s]" 
                           << std::endl << std::endl;
                   }
                   else
                   {
-                      statusOFS << "Time for ELSI::ELPA  Diag " <<
+                      statusOFS << " Time for ELSI::ELPA  Diag " <<
                           timeConversionEnd - timeConversionSta << " [s]" 
                           << std::endl << std::endl;
                   }
@@ -6957,7 +6958,7 @@ namespace  dgdft{
                       hamDG.NumStateTotal() );
                   GetTime( timeConversionEnd );
 #if ( _DEBUGlevel_ >= 1 )
-                  statusOFS << "Time for converting from ScaMat to DistNumMat is " <<
+                  statusOFS << " Time for converting from ScaMat to DistNumMat is " <<
                     timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -6974,7 +6975,7 @@ namespace  dgdft{
                       } 
                   GetTime( timeConversionEnd );
 #if ( _DEBUGlevel_ >= 1 )
-                  statusOFS << "Time for MPI_Bcast eigval and localCoef is " <<
+                  statusOFS << " Time for MPI_Bcast eigval and localCoef is " <<
                     timeConversionEnd - timeConversionSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -6985,11 +6986,11 @@ namespace  dgdft{
                   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
                   if( diagSolutionMethod_ == "scalapack"){
-                  statusOFS << "Time for diag DG matrix via ScaLAPACK is " <<
+                  statusOFS << " Time for diag DG matrix via ScaLAPACK is " <<
                     timeEnd - timeSta << " [s]" << std::endl << std::endl;
                   }
                   else{
-                  statusOFS << "Time for diag DG matrix via ELSI:ELPA is " <<
+                  statusOFS << " Time for diag DG matrix via ELSI:ELPA is " <<
                     timeEnd - timeSta << " [s]" << std::endl << std::endl;
                   }
 #endif
@@ -7044,10 +7045,13 @@ namespace  dgdft{
                 // Density calculation for complementary subspace method
                 statusOFS << std::endl << " Using complementary subspace method for electron density ... " << std::endl;
 
-                Real GetTime_extra_sta, GetTime_extra_end;                
+                Real GetTime_extra_sta, GetTime_extra_end;          
+		Real GetTime_fine_sta, GetTime_fine_end;
+		
                 GetTime(GetTime_extra_sta);
-                statusOFS << std::endl << " Forming diagonal blocks of density matrix ... ";
-
+                statusOFS << std::endl << " Forming diagonal blocks of density matrix : ";
+                GetTime(GetTime_fine_sta);
+		
                 // Compute the diagonal blocks of the density matrix
                 DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn> cheby_diag_dmat;  
                 cheby_diag_dmat.Prtn()     = hamDG.HMat().Prtn();
@@ -7072,7 +7076,10 @@ namespace  dgdft{
                     0.0, 
                     cheby_diag_dmat.LocalMap()[diag_block_key].Data(),  temp_local_eig_vec.m());
 
-
+                GetTime(GetTime_fine_end);
+		statusOFS << std::endl << " X * X^T computed in " << (GetTime_fine_end - GetTime_fine_sta) << " s.";
+		
+		GetTime(GetTime_fine_sta);
                 if(SCFDG_comp_subspace_N_solve_ != 0)
 		{
 		  // Now compute the X * C portion
@@ -7094,10 +7101,13 @@ namespace  dgdft{
                              1.0, 
                              cheby_diag_dmat.LocalMap()[diag_block_key].Data(),  temp_local_eig_vec.m());
 		}
+                GetTime(GetTime_fine_end);
+		statusOFS << std::endl << " X*C and XC * (XC)^T computed in " << (GetTime_fine_end - GetTime_fine_sta) << " s.";
+                
                 
                 GetTime(GetTime_extra_end);
-                statusOFS << " Done. ( " << (GetTime_extra_end - GetTime_extra_sta)  << " s) " << std::endl ;
-
+                statusOFS << std::endl << " Total time for computing diagonal blocks of DM = " << (GetTime_extra_end - GetTime_extra_sta)  << " s." << std::endl ;
+                statusOFS << std::endl;
 
                 // Make the call evaluate this on the real space grid 
                 hamDG.CalculateDensityDM2(hamDG.Density(), hamDG.DensityLGL(), cheby_diag_dmat );
@@ -7272,7 +7282,7 @@ namespace  dgdft{
 
               GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for computing density in the global domain is " <<
+              statusOFS << " Time for computing density in the global domain is " <<
                 timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -7290,7 +7300,7 @@ namespace  dgdft{
                   hamDG.CalculateGradDensity(  *distfftPtr_ );
                   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                  statusOFS << "Time for calculating gradient of density is " <<
+                  statusOFS << " Time for calculating gradient of density is " <<
                     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
                 }
@@ -7299,7 +7309,7 @@ namespace  dgdft{
                 hamDG.CalculateXC( Exc_, hamDG.Epsxc(), hamDG.Vxc(), *distfftPtr_ );
                 GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for computing Exc in the global domain is " <<
+                statusOFS << " Time for computing Exc in the global domain is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -7309,7 +7319,7 @@ namespace  dgdft{
 
                 GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for computing Vhart in the global domain is " <<
+                statusOFS << " Time for computing Vhart in the global domain is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -7329,7 +7339,7 @@ namespace  dgdft{
 
                 GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for computing KSEnergy in the global domain is " <<
+                statusOFS << " Time for computing KSEnergy in the global domain is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -7345,7 +7355,7 @@ namespace  dgdft{
 
                 GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for computing Vtot in the global domain is " <<
+                statusOFS << " Time for computing Vtot in the global domain is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
               }
@@ -7413,7 +7423,7 @@ namespace  dgdft{
 
 
                 GetTime( timeEnd );
-                statusOFS << "Time for computing the force is " <<
+                statusOFS << " Time for computing the force is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
                 // Print out the force
@@ -7445,7 +7455,7 @@ namespace  dgdft{
                 hamDG.CalculateAPosterioriError( 
                     eta2Total, eta2Residual, eta2GradJump, eta2Jump );
                 GetTime( timeEnd );
-                statusOFS << "Time for computing the a posteriori error is " <<
+                statusOFS << " Time for computing the a posteriori error is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
                 // Only master processor output information containing all atoms
@@ -7995,7 +8005,7 @@ namespace  dgdft{
                 GetTime(timeEnd);
 
 #if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for converting the DG matrix to DistSparseMatrix format is " <<
+                statusOFS << " Time for converting the DG matrix to DistSparseMatrix format is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -8045,7 +8055,7 @@ namespace  dgdft{
                     &info );
                 GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for loading the matrix into PEXSI is " <<
+                statusOFS << " Time for loading the matrix into PEXSI is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -8128,7 +8138,7 @@ namespace  dgdft{
 
                 GetTime( timeEnd );
 
-                statusOFS << std::endl << "Time for ELSI PEXSI = " << 
+                statusOFS << std::endl << " Time for ELSI PEXSI = " << 
                        timeEnd - timeSta << " [s]" << std::endl << std::endl<<std::flush;
 
 #endif
@@ -8166,7 +8176,7 @@ namespace  dgdft{
                 }
                 GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for the main PEXSI Driver is " <<
+                statusOFS << " Time for the main PEXSI Driver is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -8206,7 +8216,7 @@ namespace  dgdft{
                       &info );
                   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                  statusOFS << "Time for retrieving PEXSI data is " <<
+                  statusOFS << " Time for retrieving PEXSI data is " <<
                     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -8277,7 +8287,7 @@ namespace  dgdft{
 #endif
                 GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for converting the DistSparseMatrices to DistElemMat " << 
+                statusOFS << " Time for converting the DistSparseMatrices to DistElemMat " << 
                   "for post-processing is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
@@ -8340,7 +8350,7 @@ namespace  dgdft{
               GetTime(timeSta);
               GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for broadcasting the density matrix for post-processing is " <<
+              statusOFS << " Time for broadcasting the density matrix for post-processing is " <<
                 timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -8354,7 +8364,7 @@ namespace  dgdft{
               CalculateHarrisEnergyDM( distFDMMat_ );
               GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for calculating the Harris energy is " <<
+              statusOFS << " Time for calculating the Harris energy is " <<
                 timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -8376,7 +8386,7 @@ namespace  dgdft{
               MPI_Barrier( domain_.comm );
               GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for computing density in the global domain is " <<
+              statusOFS << " Time for computing density in the global domain is " <<
                 timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -8405,7 +8415,7 @@ namespace  dgdft{
                   hamDG.CalculateGradDensity(  *distfftPtr_ );
                   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                  statusOFS << "Time for calculating gradient of density is " <<
+                  statusOFS << " Time for calculating gradient of density is " <<
                     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
                 }
@@ -8435,7 +8445,7 @@ namespace  dgdft{
               }
               GetTime(timeEnd);
 #if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for computing the potential is " <<
+              statusOFS << " Time for computing the potential is " <<
                 timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -8471,7 +8481,7 @@ namespace  dgdft{
 
               GetTime( timePEXSIEnd );
 #if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for PEXSI evaluation is " <<
+              statusOFS << " Time for PEXSI evaluation is " <<
                 timePEXSIEnd - timePEXSISta << " [s]" << std::endl << std::endl;
 #endif
             } //if( solutionMethod_ == "pexsi" )
@@ -8540,7 +8550,7 @@ namespace  dgdft{
             MPI_Barrier( domain_.colComm );
             GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-            statusOFS << "Time for computing the SCF residual is " <<
+            statusOFS << " Time for computing the SCF residual is " <<
               timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -8602,7 +8612,7 @@ namespace  dgdft{
             MPI_Barrier( domain_.comm );
             GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-            statusOFS << "Time for mixing is " <<
+            statusOFS << " Time for mixing is " <<
               timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -8661,7 +8671,7 @@ namespace  dgdft{
                 hamDG.CalculateGradDensity(  *distfftPtr_ );
                 GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-                statusOFS << "Time for calculating gradient of density is " <<
+                statusOFS << " Time for calculating gradient of density is " <<
                   timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
               }
@@ -8686,7 +8696,7 @@ namespace  dgdft{
 
             GetTime( timeIterEnd );
 
-            statusOFS << "Time time for this inner SCF iteration = " << timeIterEnd - timeIterStart
+            statusOFS << " Time for this inner SCF iteration = " << timeIterEnd - timeIterStart
               << " [s]" << std::endl << std::endl;
 
           } // for (innerIter)

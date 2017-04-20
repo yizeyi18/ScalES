@@ -3,17 +3,20 @@
 
 include ../make.inc
 
-SRCS = ex45.cpp ex44.cpp ex43.cpp ex42.cpp ex41.cpp ex40.cpp ex39.cpp ex38.cpp ex37.cpp ex36.cpp \
-	   ex35.cpp ex34.cpp ex31.cpp ex30.cpp ex29.cpp ex28.cpp ex27.cpp ex26.cpp \
-	   ex25.cpp ex24.cpp ex23.cpp ex21.cpp ex22.cpp 
-
-#SRCS = ex1.cpp ex2.cpp ex3.cpp ex4.cpp ex5.cpp ex6.cpp ex7.cpp ex8.cpp\
-			 ex9.cpp ex10.cpp ex11.cpp ex12.cpp ex13.cpp ex14.cpp ex15.cpp\
-			 ex16.cpp
+SRCS = ex46.cpp ex47.cpp ex45.cpp ex44.cpp ex43.cpp ex42.cpp ex41.cpp \
+	ex40.cpp ex39.cpp ex38.cpp ex37.cpp ex36.cpp \
+	ex35.cpp ex34.cpp ex31.cpp ex30.cpp ex29.cpp ex28.cpp ex27.cpp ex26.cpp \
+	ex25.cpp ex24.cpp ex23.cpp ex21.cpp ex22.cpp 
 
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 EXES = ${SRCS:.cpp=}	
+
+ex47: ex47.o ${DGDFT_LIB} 
+	($(LOADER) -o $@ ex47.o $(LOADOPTS) )
+
+ex46: ex46.o ${DGDFT_LIB} 
+	($(LOADER) -o $@ ex46.o $(LOADOPTS) )
 
 ex45: ex45.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ ex45.o $(LOADOPTS) )
