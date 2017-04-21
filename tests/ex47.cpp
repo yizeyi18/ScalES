@@ -40,7 +40,8 @@ royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file scala_gemr2d.cpp
+/// @file ex47.cpp (formerly scala_gemr2d.cpp)
+
 #include "dgdft.hpp"
 
 using namespace dgdft;
@@ -102,7 +103,7 @@ int main(int argc, char **argv)
       }
     }
     
-    // Read in matrix dimesnions
+    // Read in matrix dimensions
     if( options.find("-N") != options.end() )
       N = atoi(options["-N"].c_str());
 

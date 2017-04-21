@@ -40,7 +40,7 @@ royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file scala_time.cpp
+/// @file ex46.cpp (formerly scala_time.cp)
 
 #include "dgdft.hpp"
 
@@ -105,7 +105,7 @@ int main(int argc, char **argv)
       }
     }
     
-    // Read in matrix dimesnions
+    // Read in matrix dimensions
     if( options.find("-N") != options.end() )
       N = atoi(options["-N"].c_str());
 
