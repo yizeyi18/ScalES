@@ -116,13 +116,21 @@ void
     {
       statusOFS << std::endl << " Setting up Non-linear CG based relaxation ...";
       // Set up the parameters and atom / force list for nlcg
-      int i_max = 50;
-      int j_max = 0;
+//       int i_max = 50;
+//       int j_max = 0;
+//       int n = 30;
+//       double epsilon_tol_outer = 1e-6;
+//       double epsilon_tol_inner = 1e-6;
+//       double sigma_0 = 0.5;
+
+      int i_max = esdfParam.ionMaxIter;
+      int j_max = 6;
       int n = 30;
-      double epsilon_tol_outer = 1e-6;
-      double epsilon_tol_inner = 1e-6;
+      double epsilon_tol_outer = sqrt(esdfParam.geoOptMaxForce * 3.0 * double(atomListPtr_->size()));
+      double epsilon_tol_inner = 1e-5;
       double sigma_0 = 0.5;
 
+      
       NLCG_vars.setup(i_max, j_max, n, 
           epsilon_tol_outer, epsilon_tol_inner, sigma_0,
           *atomListPtr_);

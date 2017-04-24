@@ -530,12 +530,6 @@ int main(int argc, char **argv)
 	num_cycles = atoi(options["-NC"].c_str());     
     
     
-    
-      // Read in print option
-      if( options.find("-P") != options.end() )
-	print_opt = atoi(options["-P"].c_str());     
-    
-    
       // Open output file
   
       if( mpirank == 0 ){
@@ -561,6 +555,9 @@ int main(int argc, char **argv)
       statusOFS << std::endl << " Number of electronic states = " << N_states;
       statusOFS << std::endl << " Number of top states = " << N_top;
 
+      statusOFS << std::endl << std::endl << " Smallest problem size (inner subspace problem) = " << N_top << " * " << N_top;
+      statusOFS << std::endl << " Note: proc_grid_rows * blocksize = " << (nprow * blockSize);
+      statusOFS << std::endl << " Note: proc_grid_cols * blocksize = " << (npcol * blockSize);
     
       statusOFS << std::endl << " -----------------------" <<  std::endl;
 
@@ -1012,9 +1009,12 @@ int main(int argc, char **argv)
       
       // Now do a pdgemr2d for redistributing the top states for DM computation
       GetTime( timeSta );
-      statusOFS << std::endl << " Redistributing top states to single process ... ";
+      statusOFS << std::endl << " Redistributing top states to single process : ";
     
       
+      double time_1_sta, time_1_end;
+      
+      GetTime( time_1_sta );
       Int single_proc_context = -1;
       Int single_proc_pmap[1];  
       single_proc_pmap[0] = 0; // Just using proc. 0 for the job.
@@ -1051,8 +1051,11 @@ int main(int argc, char **argv)
 			      &temp_context);    	  	  
 	}
 	
+	GetTime( time_1_end );
+        statusOFS << std::endl << " pdgemr2d completed in " << (time_1_end - time_1_sta) << " s.";
 
 	// Copy off the top states
+	GetTime( time_1_sta );
 	if(single_proc_context >= 0)
         {
 
@@ -1070,13 +1073,19 @@ int main(int argc, char **argv)
 
         }
 
+        GetTime( time_1_end );
+        statusOFS <<  std::endl << " Local dcopy completed in " << (time_1_end - time_1_sta) << " s.";
+	
+	GetTime( time_1_sta );
         // Broadcast local buffer of top vectors
         MPI_Bcast(top_states_local.Data(), N_states * N_top, 
 		  MPI_DOUBLE, 0, MPI_COMM_WORLD); 
 	
+	GetTime( time_1_end );
+        statusOFS <<  std::endl <<" MPI Broadcast completed in " << (time_1_end - time_1_sta) << " s.";
 	
 	GetTime( timeEnd );
-        statusOFS << "Done. ( " << (timeEnd - timeSta) << " s.)";
+        statusOFS <<  std::endl << " Redistribution of top states completed. ( " << (timeEnd - timeSta) << " s.)"  << std::endl;
 
 	// Now compute the extra part of DM due to CS strategy
         GetTime( timeSta );
