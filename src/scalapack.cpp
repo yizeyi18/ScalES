@@ -424,6 +424,7 @@ Syev(char uplo, ScaLAPACKMatrix<double>& A,
   return;
 }   // -----  end of function Syev ----- 
 
+// FIXME here is memory issue in Syevd (lwork and liwork)
 void
 Syevd(char uplo, ScaLAPACKMatrix<double>& A, 
     std::vector<double>& eigs,
