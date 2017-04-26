@@ -2463,7 +2463,7 @@ EigenSolver::LOBPCGSolveReal2    (
 
     //        statusOFS << iter << " " << eigMaxIter << std::endl;
     //        statusOFS << resMin << " " << eigMinTolerance << std::endl;
-  } while( (iter < eigMaxIter) || (resMin > eigMinTolerance) );
+  } while( (iter < (10 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
 
 
@@ -3613,7 +3613,7 @@ EigenSolver::LOBPCGSolveReal3    (
     statusOFS << "eigValS   = " << eigValS << std::endl;
 #endif
 
-  } while( (iter < eigMaxIter) || (resMin > eigMinTolerance) );
+  } while( (iter < (10 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
 
 
@@ -6455,7 +6455,7 @@ EigenSolver::PPCGSolveReal    (
     //        statusOFS << "eigValS   = " << eigValS << std::endl;
     //#endif
 
-  } while( (iter < eigMaxIter) || (resMin > eigMinTolerance) );
+  } while( (iter < (10 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
 
 

@@ -452,11 +452,11 @@ Syevd(char uplo, ScaLAPACKMatrix<double>& A,
       &work[0], &lwork,&iwork[0], &liwork, &info);
   lwork = (Int)work[0];
   // NOTE: Buggy memory allocation in pdsyevd?
-  lwork = lwork+500;
+  lwork = lwork+2048;
   work.resize(lwork);
   liwork = iwork[0];
   // NOTE: Buggy memory allocation in pdsyevd?
-  liwork = liwork+500;
+  liwork = liwork+2048;
   iwork.resize(liwork);
 
   SCALAPACK(pdsyevd)(&jobz, &uplo, &N, A.Data(), &I_ONE, &I_ONE,
