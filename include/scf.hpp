@@ -92,6 +92,7 @@ private:
   // Physical parameters
   Real                Tbeta_;                    // Inverse of temperature in atomic unit
   Real                Efree_;                    // Helmholtz free energy
+  Real                EfreeHarris_;              // Free energy from Harris functional
   Real                Etot_;                     // Total energy
   Real                Ekin_;                     // Kinetic energy
   Real                Ehart_;                    // Hartree energy
@@ -118,6 +119,8 @@ private:
   // SCF variables
   DblNumVec           vtotNew_;
   Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
+  Real                efreeDifPerAtom_;         // Difference between free energy and 
+                                                // Harris free energy per atom
   // for Anderson iteration
   DblNumMat           dfMat_;
   DblNumMat           dvMat_;
@@ -165,6 +168,7 @@ public:
 
   void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
   void  CalculateEnergy();
+  void  CalculateHarrisEnergy();
   void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
 
 

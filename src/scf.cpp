@@ -393,7 +393,11 @@ SCF::Iterate (  )
 
       PrintState( iter );
       
-      Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm_ );
+      Int numAtom = ham.AtomList().size();
+      efreeDifPerAtom_ = std::abs(Efree_ - EfreeHarris_) / numAtom;
+
+      Print(statusOFS, "norm(out-in)/norm(in) = ", scfNorm_ );
+      Print(statusOFS, "Efree diff per atom   = ", efreeDifPerAtom_ ); 
 
       if( scfNorm_ < scfTolerance_ ){
         /* converged */
@@ -541,8 +545,12 @@ SCF::Iterate (  )
 #endif
 
           PrintState( iter );
+          
+          Int numAtom = ham.AtomList().size();
+          efreeDifPerAtom_ = std::abs(Efree_ - EfreeHarris_) / numAtom;
 
-          Print(statusOFS, "norm(vout-vin)/norm(vin) = ", scfNorm_ );
+          Print(statusOFS, "norm(out-in)/norm(in) = ", scfNorm_ );
+          Print(statusOFS, "Efree diff per atom   = ", efreeDifPerAtom_ ); 
 
 
           if( scfNorm_ < scfTolerance_ ){
@@ -1501,6 +1509,7 @@ SCF::Iterate (  )
     // Update energy
     Etot_  += Evdw_;
     Efree_ += Evdw_;
+    EfreeHarris_ += Evdw_;
     Ecor_  += Evdw_;
 
     // Update force
@@ -1526,6 +1535,7 @@ SCF::Iterate (  )
       << "       Efree = Etot    + Entropy" << std::endl << std::endl;
     Print(statusOFS, "! Etot            = ",  Etot_, "[au]");
     Print(statusOFS, "! Efree           = ",  Efree_, "[au]");
+    Print(statusOFS, "! EfreeHarris     = ",  EfreeHarris_, "[au]");
     Print(statusOFS, "! Evdw            = ",  Evdw_, "[au]"); 
     Print(statusOFS, "! Fermi           = ",  fermi_, "[au]");
     Print(statusOFS, "! HOMO            = ",  HOMO*au2ev, "[ev]");
@@ -1761,6 +1771,9 @@ SCF::InnerSolve	( Int iter )
   statusOFS << "Time for computing occupation rate in PWDFT is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+
+  // Calculate the Harris energy before updating the density
+  CalculateHarrisEnergy ();
 
   // Compute the electron density
   GetTime( timeSta );
@@ -2011,6 +2024,82 @@ SCF::CalculateEnergy    (  )
   return ;
 }         // -----  end of method SCF::CalculateEnergy  ----- 
 
+void
+SCF::CalculateHarrisEnergy ( )
+{
+  // These variables are temporary variables only used in this routine
+  Real Ekin, Eself, Ehart, EVxc, Exc, Ecor, Efree;
+  
+  Ekin = 0.0;
+  DblNumVec&  eigVal         = eigSolPtr_->Ham().EigVal();
+  DblNumVec&  occupationRate = eigSolPtr_->Ham().OccupationRate();
+
+  // Kinetic energy
+  Int numSpin = eigSolPtr_->Ham().NumSpin();
+  for (Int i=0; i < eigVal.m(); i++) {
+    Ekin  += numSpin * eigVal(i) * occupationRate(i);
+  }
+
+  // Self energy part
+  Eself = 0;
+  std::vector<Atom>&  atomList = eigSolPtr_->Ham().AtomList();
+  for(Int a=0; a< atomList.size() ; a++) {
+    Int type = atomList[a].type;
+    Eself +=  ptablePtr_->SelfIonInteraction(type);
+  }
+
+
+  // Nonlinear correction part.  This part uses the Hartree energy and
+  // XC correlation energy from the old electron density.
+  Int  ntot = eigSolPtr_->FFT().domain.NumGridTotalFine();
+  Real vol  = eigSolPtr_->FFT().domain.Volume();
+  DblNumMat&  density      = eigSolPtr_->Ham().Density();
+  DblNumMat&  vxc          = eigSolPtr_->Ham().Vxc();
+  DblNumVec&  pseudoCharge = eigSolPtr_->Ham().PseudoCharge();
+  DblNumVec&  vhart        = eigSolPtr_->Ham().Vhart();
+  Ehart = 0.0;
+  EVxc  = 0.0;
+  for (Int i=0; i<ntot; i++) {
+    EVxc  += vxc(i,RHO) * density(i,RHO);
+    Ehart += 0.5 * vhart(i) * ( density(i,RHO) + pseudoCharge(i) );
+  }
+  Ehart *= vol/Real(ntot);
+  EVxc  *= vol/Real(ntot);
+  Exc    = Exc_;
+
+
+  // Correction energy
+  Ecor = (Exc - EVxc) - Ehart - Eself;
+
+  // Helmholtz free energy
+  
+  if( eigSolPtr_->Ham().NumOccupiedState() == 
+      eigSolPtr_->Ham().NumStateTotal() ){
+    // Zero temperature
+    Efree = Ekin + Ecor;
+  }
+  else{
+    // Finite temperature
+    Efree = 0.0;
+    Real fermi = fermi_;
+    Real Tbeta = Tbeta_;
+    for(Int l=0; l< eigVal.m(); l++) {
+      Real eig = eigVal(l);
+      if( eig - fermi >= 0){
+        Efree += -numSpin / Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
+      }
+      else{
+        Efree += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
+      }
+    }
+    Efree += Ecor + fermi * eigSolPtr_->Ham().NumOccupiedState() * numSpin; 
+  }
+
+  EfreeHarris_ = Efree;
+
+
+  return ;
+}         // -----  end of method SCF::CalculateHarrisEnergy  ----- 
 
 void
 SCF::CalculateVDW    ( Real& VDWEnergy, DblNumMat& VDWForce )
@@ -2409,6 +2498,7 @@ SCF::PrintState    ( const Int iter  )
     << "       Efree = Etot    + Entropy" << std::endl << std::endl;
   Print(statusOFS, "Etot              = ",  Etot_, "[au]");
   Print(statusOFS, "Efree             = ",  Efree_, "[au]");
+  Print(statusOFS, "EfreeHarris       = ",  EfreeHarris_, "[au]");
   Print(statusOFS, "Ekin              = ",  Ekin_, "[au]");
   Print(statusOFS, "Ehart             = ",  Ehart_, "[au]");
   Print(statusOFS, "EVxc              = ",  EVxc_, "[au]");
