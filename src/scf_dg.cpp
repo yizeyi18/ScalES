@@ -8047,6 +8047,8 @@ namespace  dgdft{
 #endif
               }
 
+              // So energy must be obtained from DM as in totalEnergyH
+              Real totalEnergyH; 
               if( (mpirankRow < numProcPEXSICommRow_) && (mpirankCol < numProcPEXSICommCol_) )
               {
 
@@ -8244,7 +8246,7 @@ namespace  dgdft{
 
                 // Update the fermi level 
                 fermi_ = muPEXSI;
-		difNumElectron = std::abs(numElectronPEXSI - numElectronExact);
+                difNumElectron = std::abs(numElectronPEXSI - numElectronExact);
 
                 // Heuristics for the next step
                 //pexsiOptions_.muMin0 = muMinInertia - 5.0 * pexsiOptions_.temperature;
@@ -8252,8 +8254,10 @@ namespace  dgdft{
 
                 // Retrieve the PEXSI data
 
+                // FIXME: Hack: in PEXSIDriver3, only DM is available.
+
                 if( mpirankRow == 0 ){
-                  Real totalEnergyH, totalEnergyS, totalFreeEnergy;
+                  Real totalEnergyS, totalFreeEnergy;
 
                   GetTime( timeSta );
 
@@ -8282,7 +8286,7 @@ namespace  dgdft{
                     << "Total energy (S*EDM)        = " << totalEnergyS << std::endl
                     << "Total free energy           = " << totalFreeEnergy << std::endl 
                     << "InertiaIter                 = " << numTotalInertiaIter << std::endl
-                    << "PEXSIIter                   = " <<  numTotalPEXSIIter << std::endl
+//                    << "PEXSIIter                   = " <<  numTotalPEXSIIter << std::endl
                     << "mu                          = " << muPEXSI << std::endl
                     << "numElectron                 = " << numElectronPEXSI << std::endl 
                     << std::endl;
@@ -8297,6 +8301,8 @@ namespace  dgdft{
 #endif
               } // if( mpirank < numProcTotalPEXSI_ )
 
+              // Broadcast the total energy Tr[H*DM]
+              MPI_Bcast( &totalEnergyH, 1, MPI_DOUBLE, 0, domain_.comm );
               // Broadcast the Fermi level
               MPI_Bcast( &fermi_, 1, MPI_DOUBLE, 0, domain_.comm );
               MPI_Bcast( &difNumElectron, 1, MPI_DOUBLE, 0, domain_.comm );
@@ -8488,8 +8494,7 @@ namespace  dgdft{
                 //        CalculateSecondOrderEnergy();
 
                 // Compute the KS energy 
-                CalculateKSEnergyDM( 
-                    distEDMMat_, distFDMMat_ );
+                CalculateKSEnergyDM( totalEnergyH, distEDMMat_, distFDMMat_ );
 
                 // Update the total potential AFTER updating the energy
 
@@ -9602,6 +9607,7 @@ namespace  dgdft{
 
       void
         SCFDG::CalculateKSEnergyDM (
+            Real totalEnergyH,
             DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distEDMMat,
             DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat )
         {
@@ -9670,6 +9676,7 @@ namespace  dgdft{
 
           Real Ehelm = 0.0, EhelmLocal = 0.0, EkinLocal = 0.0;
 
+          // FIXME Ekin is not used later.
           if( 1 ) {
             // Compute the trace of the energy density matrix in each element
             for( Int k = 0; k < numElem_[2]; k++ )
@@ -9701,6 +9708,10 @@ namespace  dgdft{
             Ehelm += fermi_ * hamDG.NumOccupiedState() * numSpin;
 
           }
+
+          // FIXME In order to be compatible with PPEXSIDFTDriver3, the
+          // Tr[H*DM] part is directly read from totalEnergyH
+          Ekin_ = totalEnergyH;
 
           // Total energy
           Etot_ = Ekin_ + Ecor_;

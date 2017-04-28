@@ -521,7 +521,11 @@ public:
 
   /// @brief Calculate the Kohn-Sham energy and other related energies
   /// using the energy density matrix and the free energy density matrix.
+  ///
+  /// FIXME In order to be compatible with PPEXSIDFTDriver3, the
+  /// Tr[H*DM] part is directly read from totalEnergyH
   void  CalculateKSEnergyDM(
+      Real totalEnergyH,
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distEDMMat,
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
 
