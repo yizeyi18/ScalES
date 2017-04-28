@@ -372,7 +372,15 @@ namespace  dgdft{
           ErrorHandling( msg.str().c_str() );
         }
 
-        numProcPEXSICommRow_ = std::min( esdfParam.numPole, dmRow_ );
+	// check check
+	Int numPoints =  mpisize / (numProcPEXSICommCol_ * esdfParam.numPole);
+	if(numPoints == 0) numPoints +=1;
+	//std::cout << " numPoints in PEXSI : " << numPoints << std::endl << std::endl;
+
+        numProcPEXSICommRow_ = std::min( esdfParam.numPole * numPoints, dmRow_ );
+	if(numProcPEXSICommRow_ > esdfParam.numPole)
+		numProcPEXSICommRow_ = (numProcPEXSICommRow_ / esdfParam.numPole ) * esdfParam.numPole;
+	
 
         numProcTotalPEXSI_   = numProcPEXSICommRow_ * numProcPEXSICommCol_;
 
@@ -1034,7 +1042,7 @@ namespace  dgdft{
        Int parallelism = 1; // 1 for multi-MPIs 
        Int storage = 0;     // ELSI only support DENSE(0) 
        Int sizeH = hamDG.NumBasisTotal(); 
-       Int n_states = hamDG.NumStateTotal();
+       Int n_states = hamDG.NumOccupiedState();
 
        Int n_electrons = 2.0* n_states;
        statusOFS << std::endl<<" Done Setting up ELSI iterface " 
@@ -1055,7 +1063,7 @@ namespace  dgdft{
            c_elsi_set_blacs(contxt, scaBlockSize_);   
 
        //  customize the ELSI interface to use identity matrix S
-       c_elsi_customize(0, 1, 27.21138602, 1.0E-8, 1, 0, 0); 
+       c_elsi_customize(0, 1, 1.0E-8, 1, 0, 0); 
 
        // use ELPA 2 stage solver
        c_elsi_customize_elpa(2); 
@@ -1066,7 +1074,7 @@ namespace  dgdft{
        Int parallelism = 1; // 1 for multi-MPIs 
        Int storage = 1;     // PEXSI only support sparse(1) 
        Int sizeH = hamDG.NumBasisTotal(); 
-       Int n_states = hamDG.NumStateTotal();
+       Int n_states = hamDG.NumOccupiedState();
        Int n_electrons = 2.0* n_states;
 
        statusOFS << std::endl<<" Done Setting up ELSI iterface " 
@@ -1080,7 +1088,7 @@ namespace  dgdft{
        int comm = MPI_Comm_c2f(pexsiComm_);
        c_elsi_set_mpi(comm); 
 
-       c_elsi_customize(1, 1, 27.21138602, 1.0E-8, 1, 0, 0); 
+       c_elsi_customize(1, 1, 1.0E-8, 1, 0, 0); 
      }
 #endif
 
@@ -7955,7 +7963,24 @@ namespace  dgdft{
 */
 
             // The following version is with intra-element parallelization
+            DistDblNumVec VtotHist; // check check
+	    // check check
+	    Real difNumElectron = 0.0;
             if( solutionMethod_ == "pexsi" ){
+
+            // Initialize the history of vtot , check check
+            for( Int k=0; k< numElem_[2]; k++ )
+              for( Int j=0; j< numElem_[1]; j++ )
+                for( Int i=0; i< numElem_[0]; i++ ) {
+                  Index3 key = Index3(i,j,k);
+                  if( distEigSolPtr_->Prtn().Owner(key) == (mpirank / dmRow_) ){
+                    DistDblNumVec& vtotCur = hamDG.Vtot();
+                    VtotHist.LocalMap()[key] = vtotCur.LocalMap()[key];
+                    //VtotHist.LocalMap()[key] = mixInnerSave_.LocalMap()[key];
+                  } // owns this element
+                } // for (i)
+
+
 
               Real timePEXSISta, timePEXSIEnd;
               GetTime( timePEXSISta );
@@ -8115,6 +8140,7 @@ namespace  dgdft{
                                        pexsiOptions_.gap,
                                        pexsiOptions_.deltaE,
                                        pexsiOptions_.numPole,
+                                       numProcPEXSICommCol_,  // # n_procs_per_pole
                                        pexsiOptions_.maxPEXSIIter,
                                        pexsiOptions_.muMin0,
                                        pexsiOptions_.muMax0,
@@ -8133,12 +8159,21 @@ namespace  dgdft{
                 statusOFS << std::endl << "ELSI PEXSI Customize Done " << std::endl;
 #endif
 
-                CopyPattern( HSparseMat, DMSparseMat );
+                if( mpirankRow == 0 )
+                   CopyPattern( HSparseMat, DMSparseMat );
+                statusOFS << std::endl << "ELSI PEXSI Copy pattern done" << std::endl;
                 c_elsi_dm_real_sparse(HSparseMat.nzvalLocal.Data(), NULL, DMSparseMat.nzvalLocal.Data());
 
                 GetTime( timeEnd );
+                statusOFS << std::endl << "ELSI PEXSI real sparse done" << std::endl;
 
-                statusOFS << std::endl << " Time for ELSI PEXSI = " << 
+                if( mpirankRow == 0 ){
+                  CopyPattern( HSparseMat, EDMSparseMat );
+                  CopyPattern( HSparseMat, FDMSparseMat );
+                  c_elsi_collect_pexsi(&fermi_,EDMSparseMat.nzvalLocal.Data(),FDMSparseMat.nzvalLocal.Data());
+                  statusOFS << std::endl << "ELSI PEXSI collecte done " << std::endl;
+                }
+                statusOFS << std::endl << "Time for ELSI PEXSI = " << 
                        timeEnd - timeSta << " [s]" << std::endl << std::endl<<std::flush;
 
 #endif
@@ -8162,7 +8197,7 @@ namespace  dgdft{
 
                 // New version of PEXSI driver, uses inertia count + pole update
                 // strategy. No Newton's iteration
-                if(1){
+                if(0){
                   PPEXSIDFTDriver2(
                       pexsiPlan_,
                       pexsiOptions_,
@@ -8174,6 +8209,26 @@ namespace  dgdft{
                       &numTotalInertiaIter,
                       &info );
                 }
+                // New version of PEXSI driver, use inertia count + pole update.
+                // two method of pole expansion. default is 2
+                int method = 2;
+
+		std::cout << " pexsiOptions_.muMin0 " << pexsiOptions_.muMin0 << " pexsiOptions_.muMax0 " << pexsiOptions_.muMax0 << std::endl;
+
+                if(1){
+                  PPEXSIDFTDriver3(
+                      pexsiPlan_,
+                      pexsiOptions_,
+                      numElectronExact,
+                      method,
+                      &muPEXSI,
+                      &numElectronPEXSI,         
+                      &pexsiOptions_.muMin0,              
+                      &pexsiOptions_.muMax0,             
+                      &numTotalInertiaIter,
+                      &info );
+                }
+ 
                 GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
                 statusOFS << " Time for the main PEXSI Driver is " <<
@@ -8189,10 +8244,11 @@ namespace  dgdft{
 
                 // Update the fermi level 
                 fermi_ = muPEXSI;
+		difNumElectron = std::abs(numElectronPEXSI - numElectronExact);
 
                 // Heuristics for the next step
-                pexsiOptions_.muMin0 = muMinInertia - 5.0 * pexsiOptions_.temperature;
-                pexsiOptions_.muMax0 = muMaxInertia + 5.0 * pexsiOptions_.temperature;
+                //pexsiOptions_.muMin0 = muMinInertia - 5.0 * pexsiOptions_.temperature;
+                //pexsiOptions_.muMax0 = muMaxInertia + 5.0 * pexsiOptions_.temperature;
 
                 // Retrieve the PEXSI data
 
@@ -8205,7 +8261,7 @@ namespace  dgdft{
                   CopyPattern( HSparseMat, EDMSparseMat );
                   CopyPattern( HSparseMat, FDMSparseMat );
 
-                  PPEXSIRetrieveRealDFTMatrix(
+                  PPEXSIRetrieveRealDFTMatrix2(
                       pexsiPlan_,
                       DMSparseMat.nzvalLocal.Data(),
                       EDMSparseMat.nzvalLocal.Data(),
@@ -8243,6 +8299,7 @@ namespace  dgdft{
 
               // Broadcast the Fermi level
               MPI_Bcast( &fermi_, 1, MPI_DOUBLE, 0, domain_.comm );
+              MPI_Bcast( &difNumElectron, 1, MPI_DOUBLE, 0, domain_.comm );
 
               if( mpirankRow == 0 )
               {
@@ -8262,7 +8319,7 @@ namespace  dgdft{
 
                 // Convert the energy density matrix from DistSparseMatrix
                 // format to the DistElemMat format
-#ifndef ELSI
+
                 DistSparseMatToDistElemMat3(
                     EDMSparseMat,
                     hamDG.NumBasisTotal(),
@@ -8284,7 +8341,7 @@ namespace  dgdft{
                     hamDG.ElemBasisInvIdx(),
                     domain_.colComm,
                     mpirankSparseVec );
-#endif
+
                 GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
                 statusOFS << " Time for converting the DistSparseMatrices to DistElemMat " << 
@@ -8312,10 +8369,10 @@ namespace  dgdft{
                     ElemMatKey key = (*mi).first;
                     serialize( key, distElemMatStream, NO_MASK );
                     serialize( distDMMat_.LocalMap()[key], distElemMatStream, NO_MASK );
-#ifndef ELSI
+
                     serialize( distEDMMat_.LocalMap()[key], distElemMatStream, NO_MASK ); 
                     serialize( distFDMMat_.LocalMap()[key], distElemMatStream, NO_MASK ); 
-#endif
+
                   } // for (mi)
                   sstr.resize( Size( distElemMatStream ) );
                   distElemMatStream.read( &sstr[0], sstr.size() );
@@ -8337,12 +8394,12 @@ namespace  dgdft{
                     deserialize( key, distElemMatStream, NO_MASK );
                     deserialize( mat, distElemMatStream, NO_MASK );
                     distDMMat_.LocalMap()[key] = mat;
-#ifndef ELSI
+
                     deserialize( mat, distElemMatStream, NO_MASK );
                     distEDMMat_.LocalMap()[key] = mat;
                     deserialize( mat, distElemMatStream, NO_MASK );
                     distFDMMat_.LocalMap()[key] = mat;
-#endif
+
                   } // for (mi)
                 }
               }
@@ -8442,7 +8499,7 @@ namespace  dgdft{
 
                 hamDG.CalculateVtot( hamDG.Vtot() );
 
-              }
+             }
               GetTime(timeEnd);
 #if ( _DEBUGlevel_ >= 0 )
               statusOFS << " Time for computing the potential is " <<
@@ -8686,7 +8743,54 @@ namespace  dgdft{
 
               hamDG.CalculateVtot( hamDG.Vtot() );
             }
+            // check check 
+            if( solutionMethod_ == "pexsi" )
+            {
+            Real deltaVmin = 0.0;
+            Real deltaVmax = 0.0;
 
+            for( Int k=0; k< numElem_[2]; k++ )
+              for( Int j=0; j< numElem_[1]; j++ )
+                for( Int i=0; i< numElem_[0]; i++ ) {
+                  Index3 key = Index3(i,j,k);
+                  if( distEigSolPtr_->Prtn().Owner(key) == (mpirank / dmRow_) ){
+                    DblNumVec vtotCur;
+                    vtotCur = hamDG.Vtot().LocalMap()[key];
+                    DblNumVec& oldVtot = VtotHist.LocalMap()[key];
+                    blas::Axpy( vtotCur.m(), -1.0, oldVtot.Data(),
+                                    1, vtotCur.Data(), 1);
+                    deltaVmin = std::min( deltaVmin, findMin(vtotCur) );
+                    deltaVmax = std::max( deltaVmax, findMax(vtotCur) );
+                  }
+                }
+
+              {
+                int color = mpirank % dmRow_;
+                MPI_Comm elemComm;
+                std::vector<Real> vlist(mpisize/dmRow_);
+  
+                MPI_Comm_split( domain_.comm, color, mpirank, &elemComm );
+                MPI_Allgather( &deltaVmin, 1, MPI_DOUBLE, &vlist[0], 1, MPI_DOUBLE, elemComm);
+                deltaVmin = 0.0;
+                for(int i =0; i < mpisize/dmRow_; i++)
+                  if(deltaVmin > vlist[i])
+                     deltaVmin = vlist[i];
+
+                MPI_Allgather( &deltaVmax, 1, MPI_DOUBLE, &vlist[0], 1, MPI_DOUBLE, elemComm);
+                deltaVmax = 0.0;
+                for(int i =0; i < mpisize/dmRow_; i++)
+                  if(deltaVmax < vlist[i])
+                     deltaVmax = vlist[i];
+ 
+                if( mpirank == 0 )
+                  std::cout <<"mpirank " << mpirank << " delta Vmin : " << deltaVmin <<" deltaVmax " << deltaVmax << " Total " << deltaVmax - deltaVmin<< std::endl << std::endl;;
+                pexsiOptions_.muMin0 += deltaVmin;
+                pexsiOptions_.muMax0 += deltaVmax;
+                MPI_Comm_free( &elemComm);
+              }
+            }
+ 
+ 
             // Print out the state variables of the current iteration
 
             // Only master processor output information containing all atoms
@@ -8698,7 +8802,11 @@ namespace  dgdft{
 
             statusOFS << " Time for this inner SCF iteration = " << timeIterEnd - timeIterStart
               << " [s]" << std::endl << std::endl;
-
+	   // check check
+           if( solutionMethod_ == "pexsi" &&  difNumElectron < 0.0001 ){
+               break;
+           }
+ 
           } // for (innerIter)
 
 
