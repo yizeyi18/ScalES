@@ -404,7 +404,7 @@ namespace  dgdft{
           Int outputFileIndex = mpirank;
           if(mpirank > 0)
             outputFileIndex = -1;
-
+#ifndef ELSI
           pexsiPlan_        = PPEXSIPlanInitialize(
               pexsiComm_,
               numProcRowPEXSI_,
@@ -417,6 +417,7 @@ namespace  dgdft{
               << "PEXSI initialization returns info " << info << std::endl;
             ErrorHandling( msg.str().c_str() );
           }
+#endif
         }
       }
 #endif
