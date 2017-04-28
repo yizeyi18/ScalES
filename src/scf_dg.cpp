@@ -8216,8 +8216,6 @@ namespace  dgdft{
                 // two method of pole expansion. default is 2
                 int method = 2;
 
-		std::cout << " pexsiOptions_.muMin0 " << pexsiOptions_.muMin0 << " pexsiOptions_.muMax0 " << pexsiOptions_.muMax0 << std::endl;
-
                 if(1){
                   PPEXSIDFTDriver3(
                       pexsiPlan_,
@@ -8788,14 +8786,11 @@ namespace  dgdft{
                   if(deltaVmax < vlist[i])
                      deltaVmax = vlist[i];
  
-                if( mpirank == 0 )
-                  std::cout <<"mpirank " << mpirank << " delta Vmin : " << deltaVmin <<" deltaVmax " << deltaVmax << " Total " << deltaVmax - deltaVmin<< std::endl << std::endl;;
                 pexsiOptions_.muMin0 += deltaVmin;
                 pexsiOptions_.muMax0 += deltaVmax;
                 MPI_Comm_free( &elemComm);
               }
             }
- 
  
             // Print out the state variables of the current iteration
 
@@ -8808,11 +8803,12 @@ namespace  dgdft{
 
             statusOFS << " Time for this inner SCF iteration = " << timeIterEnd - timeIterStart
               << " [s]" << std::endl << std::endl;
+#ifndef ELSI
 	   // check check
            if( solutionMethod_ == "pexsi" &&  difNumElectron < 0.0001 ){
                break;
            }
- 
+#endif 
           } // for (innerIter)
 
 
