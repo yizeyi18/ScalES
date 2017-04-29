@@ -766,6 +766,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
 
   i++;
+  strcpy(kw_label[i],"pexsi_method");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
   strcpy(kw_label[i],"mu_min");
   strcpy(kw_typ[i],"D:E");
 
@@ -2512,6 +2516,7 @@ ESDFReadInput ( const char* filename )
       esdf_double( "Mu_PEXSI_SafeGuard", 0.05 );
     esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
     esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
+    esdfParam.pexsiMethod       = esdf_integer( "Pexsi_Method", 2);
 
     // Split MPI communicators into row and column communicators
 

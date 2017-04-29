@@ -786,6 +786,10 @@ struct ESDFInputParam{
   /// Default: 0 
   Int                 ionMaxIter;
 
+  /// @brief PEXSI method 1: original pole exapansion 2: Moussa Expansion
+  ///
+  /// Default: 2
+  Int                 pexsiMethod; 
   /// @brief Mode for geometry optimization and molecular dynamics
   ///
   /// Default: NONE
