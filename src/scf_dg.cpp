@@ -8748,6 +8748,7 @@ namespace  dgdft{
               hamDG.CalculateVtot( hamDG.Vtot() );
             }
             // check check 
+#ifdef _USE_PEXSI_
             if( solutionMethod_ == "pexsi" )
             {
             Real deltaVmin = 0.0;
@@ -8791,7 +8792,7 @@ namespace  dgdft{
                 MPI_Comm_free( &elemComm);
               }
             }
- 
+#endif 
             // Print out the state variables of the current iteration
 
             // Only master processor output information containing all atoms
@@ -8803,12 +8804,6 @@ namespace  dgdft{
 
             statusOFS << " Time for this inner SCF iteration = " << timeIterEnd - timeIterStart
               << " [s]" << std::endl << std::endl;
-#ifndef ELSI
-	   // check check
-           if( solutionMethod_ == "pexsi" &&  difNumElectron < 0.0001 ){
-               break;
-           }
-#endif 
           } // for (innerIter)
 
 
