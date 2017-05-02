@@ -82,7 +82,7 @@ int main(int argc, char **argv)
     // Initialize log file
 #ifdef _RELEASE_
     // In the release mode, only the master processor outputs information
-    if( mpirank == 0 )
+//    if( mpirank == 0 )
     {
       stringstream  ss;
       ss << "statfile." << mpirank;

@@ -523,7 +523,8 @@ public:
   /// using the energy density matrix and the free energy density matrix.
   ///
   /// FIXME In order to be compatible with PPEXSIDFTDriver3, the
-  /// Tr[H*DM] part is directly read from totalEnergyH
+  /// Tr[H*DM] part is directly read from totalEnergyH, and free energy
+  /// is the total energy.
   void  CalculateKSEnergyDM(
       Real totalEnergyH,
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distEDMMat,
@@ -547,8 +548,11 @@ public:
   /// @brief Calculate the Harris (free) energy using density matrix and
   /// free energy density matrix.  
   ///
+  /// FIXME In order to be compatible with PPEXSIDFTDriver3, the
+  /// free energy is just not available. Free energy is the total energy
   /// @see CalculateHarrisEnergy
   void  CalculateHarrisEnergyDM(
+      Real totalFreeEnergy,
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
 
 

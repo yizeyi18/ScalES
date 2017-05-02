@@ -2516,7 +2516,7 @@ ESDFReadInput ( const char* filename )
       esdf_double( "Mu_PEXSI_SafeGuard", 0.05 );
     esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
     esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
-    esdfParam.pexsiMethod       = esdf_integer( "Pexsi_Method", 2);
+    esdfParam.pexsiMethod       = esdf_integer( "PEXSI_Method", 2);
 
     // Split MPI communicators into row and column communicators
 

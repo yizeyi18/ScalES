@@ -2194,6 +2194,7 @@ namespace  dgdft{
         // Potential mixing for the outer SCF iteration. or no mixing at all anymore?
         // It seems that no mixing is the best.
 
+
         GetTime( timeIterEnd );
         statusOFS << " Time for this SCF iteration = " << timeIterEnd - timeIterStart
           << " [s]" << std::endl;
@@ -8049,7 +8050,8 @@ namespace  dgdft{
               }
 
               // So energy must be obtained from DM as in totalEnergyH
-              Real totalEnergyH; 
+              // and free energy is nothing but energy..
+              Real totalEnergyH, totalFreeEnergy;
               if( (mpirankRow < numProcPEXSICommRow_) && (mpirankCol < numProcPEXSICommCol_) )
               {
 
@@ -8199,19 +8201,20 @@ namespace  dgdft{
                 }
 
                 // New version of PEXSI driver, uses inertia count + pole update
-                // strategy. No Newton's iteration
-                if(0){
-                  PPEXSIDFTDriver2(
-                      pexsiPlan_,
-                      pexsiOptions_,
-                      numElectronExact,
-                      &muPEXSI,
-                      &numElectronPEXSI,         
-                      &muMinInertia,              
-                      &muMaxInertia,             
-                      &numTotalInertiaIter,
-                      &info );
-                }
+                // strategy. No Newton's iteration. But this is not very stable.
+//                if(0){
+//                  PPEXSIDFTDriver2(
+//                      pexsiPlan_,
+//                      pexsiOptions_,
+//                      numElectronExact,
+//                      &muPEXSI,
+//                      &numElectronPEXSI,         
+//                      &muMinInertia,              
+//                      &muMaxInertia,             
+//                      &numTotalInertiaIter,
+//                      &info );
+//                }
+
                 // New version of PEXSI driver, use inertia count + pole update.
                 // two method of pole expansion. default is 2
                 int method = esdfParam.pexsiMethod;
@@ -8256,7 +8259,7 @@ namespace  dgdft{
                 // FIXME: Hack: in PEXSIDriver3, only DM is available.
 
                 if( mpirankRow == 0 ){
-                  Real totalEnergyS, totalFreeEnergy;
+                  Real totalEnergyS;
 
                   GetTime( timeSta );
 
@@ -8264,7 +8267,8 @@ namespace  dgdft{
                   CopyPattern( HSparseMat, EDMSparseMat );
                   CopyPattern( HSparseMat, FDMSparseMat );
 
-                  PPEXSIRetrieveRealDFTMatrix2(
+                  statusOFS << "Before retrieve" << std::endl;
+                  PPEXSIRetrieveRealDFTMatrix(
                       pexsiPlan_,
                       DMSparseMat.nzvalLocal.Data(),
                       EDMSparseMat.nzvalLocal.Data(),
@@ -8278,6 +8282,9 @@ namespace  dgdft{
                   statusOFS << " Time for retrieving PEXSI data is " <<
                     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+
+                  // FIXME: Hack: there is no free energy really. totalEnergyS is to be added later
+                  statusOFS << "NOTE: Free energy = Energy in PPEXSIDFTDriver3!" << std::endl;
 
                   statusOFS << std::endl
                     << "Results obtained from PEXSI:" << std::endl
@@ -8300,8 +8307,9 @@ namespace  dgdft{
 #endif
               } // if( mpirank < numProcTotalPEXSI_ )
 
-              // Broadcast the total energy Tr[H*DM]
+              // Broadcast the total energy Tr[H*DM] and free energy (which is energy)
               MPI_Bcast( &totalEnergyH, 1, MPI_DOUBLE, 0, domain_.comm );
+              MPI_Bcast( &totalFreeEnergy, 1, MPI_DOUBLE, 0, domain_.comm );
               // Broadcast the Fermi level
               MPI_Bcast( &fermi_, 1, MPI_DOUBLE, 0, domain_.comm );
               MPI_Bcast( &difNumElectron, 1, MPI_DOUBLE, 0, domain_.comm );
@@ -8423,7 +8431,7 @@ namespace  dgdft{
               // potential must be the INPUT density and potential without ANY
               // update.
               GetTime( timeSta );
-              CalculateHarrisEnergyDM( distFDMMat_ );
+              CalculateHarrisEnergyDM( totalFreeEnergy, distFDMMat_ );
               GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
               statusOFS << " Time for calculating the Harris energy is " <<
@@ -9709,8 +9717,10 @@ namespace  dgdft{
           Etot_ = Ekin_ + Ecor_;
 
           // Free energy at finite temperature
+          // FIXME PPEXSIDFTDriver3 does not have free energy
+          Ehelm = totalEnergyH;
           Efree_ = Ehelm + Ecor_;
-
+          
 
 
           return ;
@@ -9900,6 +9910,7 @@ namespace  dgdft{
 
       void
         SCFDG::CalculateHarrisEnergyDM(
+            Real totalFreeEnergy,
             DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat )
         {
           Int mpirank, mpisize;
@@ -10000,6 +10011,8 @@ namespace  dgdft{
           // Harris free energy functional. This has to be the finite
           // temperature formulation
 
+          // FIXME
+          Ehelm = totalFreeEnergy;
           EfreeHarris_ = Ehelm + Ecor;
 
 
