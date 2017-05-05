@@ -8218,6 +8218,7 @@ namespace  dgdft{
                 // New version of PEXSI driver, use inertia count + pole update.
                 // two method of pole expansion. default is 2
                 int method = esdfParam.pexsiMethod;
+                int npoint = esdfParam.pexsiNpoint;
 
                 if(1){
                   PPEXSIDFTDriver3(
@@ -8225,6 +8226,7 @@ namespace  dgdft{
                       pexsiOptions_,
                       numElectronExact,
                       method,
+                      npoint,
                       &muPEXSI,
                       &numElectronPEXSI,         
                       &pexsiOptions_.muMin0,              

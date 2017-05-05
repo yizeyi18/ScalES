@@ -790,6 +790,12 @@ struct ESDFInputParam{
   ///
   /// Default: 2
   Int                 pexsiMethod; 
+
+  /// @brief PEXSI method 1: original pole exapansion 2: Moussa Expansion
+  ///
+  /// Default: 2
+  Int                 pexsiNpoint; 
+
   /// @brief Mode for geometry optimization and molecular dynamics
   ///
   /// Default: NONE
