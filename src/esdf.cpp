@@ -2692,7 +2692,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.scfdg_use_chefsi_complementary_subspace = esdf_integer("SCFDG_use_CheFSI_complementary_subspace", 0);
     esdfParam.scfdg_chefsi_complementary_subspace_syrk = esdf_integer("SCFDG_CheFSI_complementary_subspace_syrk", 0);
     esdfParam.scfdg_chefsi_complementary_subspace_syr2k = esdf_integer("SCFDG_CheFSI_complementary_subspace_syr2k", esdfParam.scfdg_chefsi_complementary_subspace_syrk);
-
+      
     esdfParam.scfdg_complementary_subspace_nstates = esdf_integer("SCFDG_complementary_subspace_nstates", int(double(esdfParam.numExtraState)/20.0 + 0.5) );
     esdfParam.scfdg_cs_ioniter_regular_cheby_freq = esdf_integer("SCFDG_CS_ioniter_regular_Cheby_freq", 20 );
     

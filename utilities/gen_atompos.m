@@ -88,9 +88,9 @@ if(1)
     size(xyzmat,1), 1);
 
   if( nargin <= 6 ) 
-    filename = 'pwdft_dgdft';
+    filename = 'pwdft_dgdft_input';
   else
-    filename = sprintf( 'dgdft_pwdft_%s', suffix );
+    filename = sprintf( 'dgdft_pwdft_input_%s', suffix );
   end
   
  fh = fopen(filename,'w'); 
@@ -102,9 +102,9 @@ if(1)
  fprintf(fh, 'Atom_Types_Num:   %6d\n\n', 1);
  fprintf(fh, 'Atom_Type:        %6s\n\n', atype);
 
- fprintf(fh, 'begin Atom_Coord\n', 1);
+ fprintf(fh, 'begin Atom_Red\n', 1);
  fprintf(fh, '%12.6f     %12.6f    %12.6f\n', rdcmat');
- fprintf(fh, 'end Atom_Coord\n\n', 1);
+ fprintf(fh, 'end Atom_Red\n\n', 1);
 
  fclose(fh);
   
@@ -117,9 +117,9 @@ if(1)
   latmat = rdcmat .* repmat([nreps(1), nreps(2), nreps(3)], ...
     size(xyzmat,1), 1);
   if( nargin <= 6 ) 
-    filename = 'lat';
+    filename = 'lattice';
   else
-    filename = sprintf( 'lat_%s', suffix );
+    filename = sprintf( 'lattice_%s', suffix );
   end
   save(filename,'-ascii','latmat');
 end
@@ -131,9 +131,9 @@ if(1)
   disp('Coordinate in angstrom')
   angmat = xyzmat * au2ang;
   if( nargin <= 6 ) 
-    filename = 'ang';
+    filename = 'angstrom';
   else
-    filename = sprintf( 'ang_%s', suffix );
+    filename = sprintf( 'angstrom_%s', suffix );
   end
   save(filename,'-ascii','Cang', 'angmat');
 end

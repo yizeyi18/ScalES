@@ -248,11 +248,10 @@ namespace  dgdft{
         SCFDG_comp_subspace_syrk_ = esdfParam.scfdg_chefsi_complementary_subspace_syrk; 
         SCFDG_comp_subspace_syr2k_ = esdfParam.scfdg_chefsi_complementary_subspace_syr2k;
 
-
-        // Safeguard to ensure that CS strategy is called only after a few general Chebyshev cycles
+        // Safeguard to ensure that CS strategy is called only after atleast one general CheFSI cycle has been called
         // This allows the initial guess vectors to be copied
-        if(  SCFDG_use_comp_subspace_ == 1 && Second_SCFDG_ChebyOuterIter_ < 3)
-          Second_SCFDG_ChebyOuterIter_ = 3;
+        if(  SCFDG_use_comp_subspace_ == 1 && Second_SCFDG_ChebyOuterIter_ < 2)
+          Second_SCFDG_ChebyOuterIter_ = 2;
 
         SCFDG_comp_subspace_nstates_ = esdfParam.scfdg_complementary_subspace_nstates; // Defaults to a fraction of extra states
 
@@ -4858,7 +4857,8 @@ namespace  dgdft{
             }
           }
         }
-
+        
+        
 
         // Step 1: Obtain the upper bound and the Ritz values (for the lower bound)
         // using the Lanczos estimator
@@ -4910,6 +4910,16 @@ namespace  dgdft{
         // Subspace problems serially done here
 
         statusOFS << std::endl << std::endl << " Solving subspace problems serially ...";
+	
+	
+	// Some diagnostic info
+	statusOFS << std::endl;
+        statusOFS << std::endl << " Note : Outer subspace problem dimension = " << hamDG.NumStateTotal() << " * " << hamDG.NumStateTotal();
+        statusOFS << std::endl << "        Inner subspace problem dimension = " << SCFDG_comp_subspace_N_solve_ << " * " << SCFDG_comp_subspace_N_solve_;
+	statusOFS << std::endl << "        Matrix C has dimension = " << hamDG.NumStateTotal() << " * " << SCFDG_comp_subspace_N_solve_;
+	statusOFS << std::endl << "        Matrix C occupies " << (double(hamDG.NumStateTotal() *  SCFDG_comp_subspace_N_solve_ * 8) / double(1048576)) << " MBs per process.";
+
+        statusOFS << std::endl ;
 
         // Orthonormalize using Cholesky factorization  
         statusOFS << std::endl << " Orthonormalizing filtered vectors ... ";
@@ -5104,11 +5114,16 @@ namespace  dgdft{
 
         statusOFS << std::endl << " npsi = " << hamDGPtr_->NumStateTotal();
         statusOFS << std::endl << " nOccStates = " << hamDGPtr_->NumOccupiedState();
-        statusOFS << std::endl << " howmany_to_calc = " << howmany_to_calc << std::endl;
+        statusOFS << std::endl << " howmany_to_calc = " << howmany_to_calc;
+	statusOFS << std::endl << " SCFDG_comp_subspace_N_solve_ = " << SCFDG_comp_subspace_N_solve_ << std::endl;
 
-        statusOFS << std::endl << " Top Eigenvalues = " << SCFDG_comp_subspace_top_eigvals_ << std::endl;
-        statusOFS << std::endl << " Top Occupations = " << SCFDG_comp_subspace_top_occupations_ << std::endl;
+
         statusOFS << std::endl << " Fermi level = " << fermi_ << std::endl;
+	statusOFS << std::endl << " Top Eigenvalues and occupations (in reverse order) : ";
+	
+	for(int print_iter = 0; print_iter < SCFDG_comp_subspace_N_solve_; print_iter ++)
+	  statusOFS << std::endl <<  " " << std::setw(8) << print_iter << std::setw(20) << SCFDG_comp_subspace_top_eigvals_[print_iter] 
+	                         << '\t' << SCFDG_comp_subspace_top_occupations_[print_iter];
 
 
         // Form the matrix C by scaling the eigenvectors with the appropriate occupation related weights
@@ -5368,6 +5383,9 @@ namespace  dgdft{
 	statusOFS << std::endl << "        On bigger grid, scala_block_size * bigger_grid_num_cols = " << (scaBlockSize_ * bigger_grid_num_cols);
         statusOFS << std::endl << "        Outer subspace problem dimension = " << hamDG.NumStateTotal() << " * " << hamDG.NumStateTotal();
         statusOFS << std::endl << "        Inner subspace problem dimension = " << SCFDG_comp_subspace_N_solve_ << " * " << SCFDG_comp_subspace_N_solve_;
+	statusOFS << std::endl << "        Matrix C has dimension = " << hamDG.NumStateTotal() << " * " << SCFDG_comp_subspace_N_solve_;
+	statusOFS << std::endl << "        Matrix C occupies " << (double(hamDG.NumStateTotal() *  SCFDG_comp_subspace_N_solve_ * 8) / double(1048576)) << " MBs per process.";
+
         statusOFS << std::endl ;
 	
         // Step b: Orthonormalize using "bigger grid"
@@ -5947,26 +5965,31 @@ namespace  dgdft{
         GetTime( extra_timeSta );
         statusOFS << std::endl << " Computing occupation numbers : ";   
         SCFDG_comp_subspace_top_occupations_.Resize(SCFDG_comp_subspace_N_solve_);
+	
 
         Int howmany_to_calc = (hamDGPtr_->NumOccupiedState() + SCFDG_comp_subspace_N_solve_) - hamDGPtr_->NumStateTotal(); 
         scfdg_calc_occ_rate_comp_subspc(SCFDG_comp_subspace_top_eigvals_,SCFDG_comp_subspace_top_occupations_, howmany_to_calc);
 
-
-        statusOFS << std::endl << " npsi = " << hamDGPtr_->NumStateTotal();
+	statusOFS << std::endl << " npsi = " << hamDGPtr_->NumStateTotal();
         statusOFS << std::endl << " nOccStates = " << hamDGPtr_->NumOccupiedState();
-        statusOFS << std::endl << " howmany_to_calc = " << howmany_to_calc << std::endl;
-
-        statusOFS << std::endl << " Top Eigenvalues = " << SCFDG_comp_subspace_top_eigvals_ ;
-        statusOFS << std::endl << " Top Occupations = " << SCFDG_comp_subspace_top_occupations_ ;
-        statusOFS << std::endl << " Fermi level = " << fermi_ << std::endl;
-
-        GetTime( extra_timeEnd );
+        statusOFS << std::endl << " howmany_to_calc = " << howmany_to_calc;
+	statusOFS << std::endl << " SCFDG_comp_subspace_N_solve_ = " << SCFDG_comp_subspace_N_solve_ << std::endl;
+	
+	GetTime( extra_timeEnd );
         statusOFS << std::endl << " Completed computing occupations. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
 
+        
+	statusOFS << std::endl << " Fermi level = " << fermi_ << std::endl;
+	statusOFS << std::endl << " Top Eigenvalues and occupations (in reverse order) : ";
+	
+	for(int print_iter = 0; print_iter < SCFDG_comp_subspace_N_solve_; print_iter ++)
+	   statusOFS << std::endl <<  " " << std::setw(8) << print_iter << std::setw(20) << SCFDG_comp_subspace_top_eigvals_[print_iter] 
+	                         << '\t' << SCFDG_comp_subspace_top_occupations_[print_iter];
+        
         // Form the matrix C by scaling the eigenvectors with the appropriate occupation related weights
 
         GetTime( extra_timeSta );
-        statusOFS << std::endl << " Forming the occupation number weighted matrix C ... ";   
+        statusOFS << std::endl << " Forming the occupation number weighted matrix C : ";   
 
         int wd = hamDGPtr_->NumStateTotal();
 
@@ -5974,15 +5997,19 @@ namespace  dgdft{
         lapack::Lacpy( 'A', wd, SCFDG_comp_subspace_N_solve_, SCFDG_comp_subspace_start_guess_.Data(), wd, 
             SCFDG_comp_subspace_matC_.Data(), wd );
 
+	statusOFS << std::endl << "  Space for matrix C locally allocated. ( " << (double(hamDG.NumStateTotal() *  SCFDG_comp_subspace_N_solve_ * 8) / double(1048576)) << " MBs per process. )";;   
+
         double scale_fac;
         for(Int scal_iter = 0; scal_iter < SCFDG_comp_subspace_N_solve_; scal_iter ++)
         {
           scale_fac = sqrt(1.0 - SCFDG_comp_subspace_top_occupations_(scal_iter));
           blas::Scal(wd, scale_fac, SCFDG_comp_subspace_matC_.VecData(scal_iter), 1);
         }
+        statusOFS << std::endl << "  BLAS Scal operations completed. ";   
 
+        
         GetTime( extra_timeEnd );
-        statusOFS << " Done. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
+        statusOFS << std::endl  << " Occupation number weighted matrix C formed. ( " << (extra_timeEnd - extra_timeSta ) << " s.)" << std::endl;
 
 
         // This calculation is done for computing the band energy later
