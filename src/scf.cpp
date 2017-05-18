@@ -55,6 +55,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "utility.hpp"
 #include  "spinor.hpp"
 #include  "periodtable.hpp"
+#ifdef GPU
+#include "cuda_utils.h"
+#endif
 
 namespace  dgdft{
 
@@ -342,6 +345,9 @@ SCF::Iterate (  )
     msg << "Starting regular SCF iteration.";
     PrintBlock( statusOFS, msg.str() );
     bool isSCFConverged = false;
+#ifdef GPU
+    cuda_init_vtot();
+#endif
     for (Int iter=1; iter <= scfMaxIter_; iter++) {
       if ( isSCFConverged ) break;
       // *********************************************************************
@@ -433,6 +439,9 @@ SCF::Iterate (  )
         << " [s]" << std::endl;
 
     } // for (iter)
+#ifdef GPU
+    cuda_clean_vtot();
+#endif
   }
 
   // NOTE: The different mixing mode of hybrid functional calculations
@@ -1737,7 +1746,11 @@ SCF::InnerSolve	( Int iter )
       eigSolPtr_->LOBPCGSolveReal3(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
     } // Use PPCG
     else if( PWSolver_ == "PPCG" || PWSolver_ == "PPCGScaLAPACK" ){
-      eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+#ifdef GPU
+      eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow, iter );
+#else
+      eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );
+#endif
     }
     else{
       // FIXME Merge the Chebyshev into an option of PWSolver
