@@ -53,12 +53,17 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include <limits.h>
 #include "mpi.h"
 #include "domain.hpp"
-#include "periodtable.hpp"
+#include "numvec_impl.hpp"
+#include "nummat_impl.hpp"
+#include "numtns_impl.hpp"
 #include "tinyvec_impl.hpp"
 
 namespace dgdft{
 
+// Forward declaration of Atom structure in periodtable.hpp 
+struct Atom;
 
+//
 // *********************************************************************
 // Electronic structure data format
 // *********************************************************************
@@ -106,6 +111,8 @@ char *strupr(char *);
 // *********************************************************************
 // Input interface
 // *********************************************************************
+
+
 /// @struct ESDFInputParam
 /// @brief Main structure containing input parameters for the
 /// electronic structure calculation.
@@ -119,6 +126,9 @@ struct ESDFInputParam{
   ///
   /// Not an input parameter by the user.
   std::vector<Atom>   atomList;
+
+  /// @brief Number of atom types
+  Int                 numAtomType;
 
   /// @brief Mixing maximum dimension.
   ///
@@ -196,10 +206,24 @@ struct ESDFInputParam{
   ///
   /// Default: 30
   Int                 scfOuterMaxIter;
-  /// @brief Maximum number of outer %SCF iterations in MD
-  ///
+  
+  /// @brief From which ion iteration to engage energy based convergence in MD
+  /// 
+  /// Default: ionMaxIter + 1
+  Int MDscfEnergyCriteriaEngageIonIter;
+  /// @brief Maximum number of outer SCF iterations in MD
+  /// Currently this is interperetd slightly differently in DGDFT and PWDFT  
+  /// In DGDFT, this number goes into effect once Energy based SCF convergence is activated
   /// Default: the same as scfOuterMaxIter
-  Int                 MDscfOuterMaxIter;
+  Int                MDscfOuterMaxIter;
+  /// @brief Etot tolerance in Energy based convergence
+  /// The difference in Etot should be less than this in energy based SCf convergence
+  Real               MDscfEtotdiff;
+  /// @brief Eband tolerance in Energy based convergence
+  /// The difference in Eband should be less than this in energy based SCf convergence
+  Real               MDscfEbanddiff;
+  
+  
   /// @brief Maximum number of iterations for hybrid functional
   /// iterations.
   /// 
@@ -215,6 +239,14 @@ struct ESDFInputParam{
   ///
   /// Default: 1e-6
   Real                scfPhiTolerance;
+  /// @brief Mixing type for performing hybrid functional calculations.
+  ///
+  /// Default: nested
+  ///
+  /// - = "nested"             : Standard nested two loop procedure
+  /// - = "scdiis"             : Selected column DIIS
+  ///
+  std::string         hybridMixType;
   /// @brief Whether to use the adaptively compressed exchange (ACE)
   /// formulation for hybrid functional.
   ///
@@ -226,6 +258,11 @@ struct ESDFInputParam{
   ///
   /// Default: 0
   bool                isHybridDF;
+  /// @brief Whether to initialize hybrid functional in the initial
+  /// step.
+  ///
+  /// Default: 0
+  bool                isHybridActiveInit;
 
   /// @brief Density fitting uses numMu * numStateTotal number of
   /// states for hybrid calculations with density fitting.
@@ -238,12 +275,17 @@ struct ESDFInputParam{
   ///
   /// Default: 6.0
   Real                numGaussianRandomHybridDF;
-
-  /// @brief Whether the ACE formulation is performed outside the SCF
-  /// loop. This can be used when performing geometry optimization.
+  
+  /// @brief Density fitting uses this number of cores in ScaLAPACAL
   ///
-  /// Default: 0
-  bool                isHybridACEOutside;
+  /// Default: mpisize
+  Int                 numProcScaLAPACKHybridDF;
+  
+  /// @brief The blocksize of cores in ScaLAPACAL
+  ///
+  /// Default: 32
+  Int                 BlockSizeScaLAPACK;
+
 
   /// @brief Treatment of the divergence term in hybrid functional
   /// calculation.
@@ -295,6 +337,18 @@ struct ESDFInputParam{
   /// decomposition is performed to eliminate the linearly dependent
   /// modes with tolerance SVDBasisTolerance.
   Real                SVDBasisTolerance;
+
+
+  
+  /// @brief Whether to use the sum of atomic density as the initial
+  /// guess for electron density.
+  ///
+  /// Currently only works for ONCV pseudopotential and not for HGH
+  /// pseudopotential.
+  /// 
+  /// Default: 1
+  bool                isUseAtomDensity;
+
   /// @brief Whether to use the saved electron density as the start.
   ///
   /// Default: 0
@@ -445,7 +499,7 @@ struct ESDFInputParam{
   ///
   /// Default: "HGH"
   ///
-  /// Currently HGH is the only supported pseudopotential format.
+  /// Currently HGH and ONCV are the only supported pseudopotential format.
   std::string         pseudoType;
   /// @brief Solver for the planewave problem.  
   ///
@@ -466,6 +520,22 @@ struct ESDFInputParam{
   ///                   This option needs to turn on the macro -DPEXSI
   ///                   to support the libraries.
   std::string         solutionMethod; 
+  
+   /// @brief Method for solving the projected problem in the adaptive
+  /// local basis set within the "diag" method
+  ///
+  /// Default: "scalapack"
+  ///
+  /// - = "elpa"      : use ELSI-ELPA to diag the H matrix
+  /// - = "scalapack" : use scalapack to diag the H matrix
+  std::string         diagSolutionMethod; 
+  
+  std::string         smearing_scheme;
+  /// @brief smearing scheme for fractional occupations 
+  /// options : FD - Fermi-Dirac distribution
+  ///           GB - Gaussian Broadening or Methfessel / Paxton of order 0
+  ///           MP - Methfessel-Paxton smearing - order 2 default, up to order 3 supported
+  
   /// @brief Type of the exchange-correlation functional.
   ///
   /// Default: "XC_LDA_XC_TETER93"
@@ -716,6 +786,16 @@ struct ESDFInputParam{
   /// Default: 0 
   Int                 ionMaxIter;
 
+  /// @brief PEXSI method 1: original pole exapansion 2: Moussa Expansion
+  ///
+  /// Default: 2
+  Int                 pexsiMethod; 
+
+  /// @brief PEXSI method 1: original pole exapansion 2: Moussa Expansion
+  ///
+  /// Default: 2
+  Int                 pexsiNpoint; 
+
   /// @brief Mode for geometry optimization and molecular dynamics
   ///
   /// Default: NONE
@@ -762,6 +842,13 @@ struct ESDFInputParam{
   ///                      density is constructed from the
   ///                      wavefunctions
   std::string         MDExtrapolationVariable;
+  /// @brief Extrapolation wavefunction methods
+  ///
+  /// Default: "aspc"
+  ///
+  /// = "aspc"        : wavefunction extrapolation by using ASPC
+  /// = "xlbomd"        : wavefunction extrapolation by using XLBOMD
+  std::string         MDExtrapolationWavefunction;
   /// @brief Temperature for ion.
   ///
   /// Default: K
@@ -776,11 +863,15 @@ struct ESDFInputParam{
   /// @brief Mass for Nose-Hoover thermostat
   ///
   /// Default: 10.0
-  Real                                qMass;                                
+  Real                qMass;                                
   /// @brief Dampling factor for Langevin theromostat
   ///
   /// Default: 0.01
-  Real                                langevinDamping;                                
+  Real                langevinDamping;
+  /// @brief Kappa value of XL-BOMD
+  ///
+  /// Default: 2.0
+  Real                kappaXLBOMD;
   /// @brief Whether to use the previous position
   ///
   /// Default: 0
@@ -827,8 +918,13 @@ struct ESDFInputParam{
   // Inputs related to Chebyshev polynomial filtered 
   // complementary subspace iteration strategy in DGDFT
   bool scfdg_use_chefsi_complementary_subspace;
-  bool scfdg_chefsi_complementary_subspace_parallel;
+  bool scfdg_chefsi_complementary_subspace_syrk;
+  bool scfdg_chefsi_complementary_subspace_syr2k;
+
   Int scfdg_complementary_subspace_nstates;
+  Int scfdg_cs_ioniter_regular_cheby_freq;
+  
+  Int scfdg_cs_bigger_grid_dim_fac; 
   
   // LOBPCG (for top states) related options
   Real scfdg_complementary_subspace_lobpcg_tol;
@@ -852,11 +948,16 @@ struct ESDFInputParam{
 };
 
 
-void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename );
+void ESDFReadInput( const std::string filename );
 
-void ESDFReadInput( ESDFInputParam& esdfParam, const char* filename );
+void ESDFReadInput( const char* filename );
 
-void ESDFPrintInput( const ESDFInputParam& esdfParam );
+void ESDFPrintInput( );
+
+
+// Global input parameters
+extern ESDFInputParam  esdfParam;
+
 
 } // namespace esdf
 } // namespace dgdft

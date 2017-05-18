@@ -301,7 +301,7 @@ private:
 public:
 
   /// @brief Initial setup from the input parameters
-  void Setup( const esdf::ESDFInputParam& esdfParam, std::vector<Atom>& atomList,
+  void Setup( std::vector<Atom>& atomList,
       PeriodTable& ptable );
 
   /// @brief Main program to move the ions.

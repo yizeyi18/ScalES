@@ -47,13 +47,18 @@ such enhancements or derivative works thereof, in binary and source code form.
 #define _PERIODTABLE_HPP_
 
 #include "environment.hpp"
+#include "domain.hpp"
 #include "tinyvec_impl.hpp"
 #include "numvec_impl.hpp"
 #include "nummat_impl.hpp"
 #include "numtns_impl.hpp"
-#include "utility.hpp"
 
 namespace dgdft{
+
+// The following typedefs must be IDENTIAL to that in utility.hpp (C++
+// feature only)
+typedef std::pair<IntNumVec, DblNumMat > SparseVec; 
+typedef std::pair<SparseVec, Real> NonlocalPP; 
 
 
 // *********************************************************************
@@ -78,50 +83,54 @@ struct Atom
     type(t), pos(p), vel(v), force(f) {}
 };
 
-/// @namespace PTParam
+/// @struct PTParam
 /// @brief Index of the parameters in each entry of the periodic table.
-namespace PTParam{
-enum {
+/// However, the detailed value may depend on the pseudopotential.
+struct PTParam{
   /// @brief Atomic number.
-  ZNUC   = 0,
+  Int ZNUC;
   /// @brief Nuclear mass.
-  MASS   = 1,
+  Int MASS;
   /// @brief Nuclear charge (valence).
-  ZION   = 2,
+  Int ZION;
   /// @brief Self-interaction energy.
-  ESELF  = 3
+  Int ESELF;
 };
-}
 
-/// @namespace PTSample
-/// @brief Index of the radial grid, the pseudocharge and derivative
-/// of the pseudocharge in samples and cuts.
-namespace PTSample{
-enum {
-  RADIAL_GRID       = 0,
-  PSEUDO_CHARGE     = 1,
-  DRV_PSEUDO_CHARGE = 2,
-  NONLOCAL          = 3,
-};
-}
 
-/// @namespace PTType
+/// @struct PTType
 /// @brief Type of each sample, including radial grid, pseudocharge, and
 /// nonlocal projectors of different angular momentum, and the
 /// spin-orbit contribution. 
-namespace PTType{
-enum{
-  RADIAL            = 9,
-  PSEUDO_CHARGE     = 99,
-  L0                = 0,
-  L1                = 1,
-  L2                = 2,
-  L3                = 3,
-  SPINORBIT_L1         = -1,
-  SPINORBIT_L2      = -2,
-  SPINORBIT_L3      = -3
+/// However, the detailed value may depend on the pseudopotential.
+struct PTType{
+  Int RADIAL;
+  Int PSEUDO_CHARGE;
+  Int RHOATOM;
+  Int L0;
+  Int L1;
+  Int L2;
+  Int L3;
+  Int SPINORBIT_L1;
+  Int SPINORBIT_L2;
+  Int SPINORBIT_L3;
 };
+
+
+/// @struct PTSample
+/// @brief Index of the radial grid, the pseudocharge, derivative
+/// of the pseudocharge, model core charge density, derivative of model
+/// core charge density, nonlocal pseudopotentials in samples and cuts.
+/// However, the detailed value may depend on the pseudopotential.
+struct PTSample{
+  Int RADIAL_GRID;
+  Int PSEUDO_CHARGE;
+  Int DRV_PSEUDO_CHARGE;
+  Int RHOATOM;
+  Int DRV_RHOATOM;
+  Int NONLOCAL;
 };
+
 
 /// @brief The start of the radial grid.
 const Real MIN_RADIAL = 1e-10;
@@ -139,7 +148,7 @@ struct PTEntry
   DblNumVec weights; 
   /// @brief Type of each sample, following PTType.
   IntNumVec types; 
-  /// @brief Cutoff value for different sample, following PTSample.
+  /// @brief Cutoff value for different samples, following PTSample
   DblNumVec cutoffs; 
 };
 
@@ -153,6 +162,10 @@ Int combine(PTEntry&, PTEntry&);
 class PeriodTable
 {
 private:
+  PTParam  ptparam_;
+  PTType   pttype_;
+  PTSample ptsample_;
+
   /// @brief Map from atomic number to PTEntry
   std::map<Int, PTEntry> ptemap_; 
   /// @brief Map from atomic number to splines for pseudopotentials.
@@ -169,8 +182,10 @@ public:
 
   /// @brief Read the information of the periodic table from file.  
   ///
-  /// All processors can call this routine at the same time
-  void Setup( const std::string );
+  /// All processors can call this routine at the same time. 
+  void Setup( );
+
+
 
   /// @brief Generate the pseudo-charge and its derivatives.
   ///
@@ -208,44 +223,63 @@ public:
 
 
 
+  /// @brief Generate the atomic density. This is to be used with
+  /// structure factor to generate the initial atomic density.
+  ///
+  /// This can be used both for PWDFT and DGDFT.
+  /// 
+  /// NOTE: This assumes atom.pos should agree with posStart in domain
+  /// (PWDFT) and global domain (DGDFT).
+  ///
+  void CalculateAtomDensity( const Atom& atom, const Domain& dm, 
+      const std::vector<DblNumVec>& gridpos, 
+      DblNumVec& atomDensity );
+
+
+
+
+  /// @brief Whether the atom type has nonlocal pseudopotential
+  bool IsNonlocal(Int type) {return ptemap_[type].cutoffs.m()>ptsample_.NONLOCAL;}
+  
+  /// @brief Cutoff radius for the pseudocharge in the real space
+  Real RcutPseudoCharge(Int type)   {return ptemap_[type].cutoffs(ptsample_.PSEUDO_CHARGE);}
+  
+  /// @brief Cutoff radius for model atomic density in the real space.
+  /// This is only used for constructing initial charge density, and
+  /// does not need to be very accurate
+  Real RcutRhoAtom(Int type)   {return ptemap_[type].cutoffs(ptsample_.RHOATOM);}
+  
+  /// @brief Cutoff radius for the nonlocal pseudpotental in the real
+  /// space. If there are multiple pseudopotentials, Rcut should be the
+  /// maximum radius so that ALL nonlocal pseudopotentials are accurate.
+  Real RcutNonlocal(Int type)   {return (this->IsNonlocal(type)) ? 
+    ptemap_[type].cutoffs(ptsample_.NONLOCAL) : 0.0;}
+
+
+  /// @brief Atomic mass
+  Real Mass(Int type) {return ptemap_[type].params(ptparam_.MASS);}
+
+  /// @brief Valence charge of the ion
+  Real Zion(Int type) {return ptemap_[type].params(ptparam_.ZION);}
+
+  /// @brief Self ionic interaction energy
+  Real SelfIonInteraction(Int type) {return ptemap_[type].params(ptparam_.ESELF);}
+
   //---------------------------------------------
   // TODO SpinOrbit from RelDFT
 
-  //---------------------------------------------
-  // TODO: DG pseudopotential from DGDFT
 
 };
 
-// Periodic table structures
+
 
 // Serialization / Deserialization
-inline Int serialize(const Atom& val, std::ostream& os, const std::vector<Int>& mask)
-{
-  serialize(val.type, os, mask);
-  serialize(val.pos,  os, mask);
-  serialize(val.vel,  os, mask);
-  serialize(val.force,  os, mask);
-  return 0;
-}
+Int serialize(const Atom& val, std::ostream& os, const std::vector<Int>& mask);
 
-inline Int deserialize(Atom& val, std::istream& is, const std::vector<Int>& mask)
-{
-  deserialize(val.type, is, mask);
-  deserialize(val.pos,  is, mask);
-  deserialize(val.vel,  is, mask);
-  deserialize(val.force,  is, mask);
-  return 0;
-}
+Int deserialize(Atom& val, std::istream& is, const std::vector<Int>& mask);
 
-inline Real MaxForce( const std::vector<Atom>& atomList ){
-  Int numAtom = atomList.size();
-  Real maxForce = 0.0;
-  for( Int i = 0; i < numAtom; i++ ){
-    Real forceMag = atomList[i].force.l2();
-    maxForce = ( maxForce < forceMag ) ? forceMag : maxForce;
-  }
-  return maxForce;
-} 
+Real MaxForce( const std::vector<Atom>& atomList );
+
 
 
 } // namespace dgdft

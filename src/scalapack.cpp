@@ -196,8 +196,7 @@ ScaLAPACKMatrix<F>::operator=    ( const ScaLAPACKMatrix<F>& A )
 //      A.Data(), &I_ONE, &I_ONE, A.Desc().Values(), 
 //      B.Data(), &I_ONE, &I_ONE, B.Desc().Values(), 
 //      &beta,
-//      C.Data(), &I_ONE, &I_ONE, C.Desc().Values(), 
-//      &contxt );    
+//      C.Data(), &I_ONE, &I_ONE, C.Desc().Values());    
 //  return;
 //}   // -----  end of function Gemm  ----- 
 
@@ -236,12 +235,51 @@ Gemm( char transA, char transB,
       A, &ia, &ja, desca, 
       B, &ib, &jb, descb,
       &beta,
-      C, &ic, &jc, descc,
-      &contxt );
+      C, &ic, &jc, descc);
 
   return;
 }   // -----  end of function Gemm  ----- 
 
+// Amartya Banerjee
+void 
+Syrk ( char uplo, char trans,
+       Int n, int k,
+       double alpha, 
+       double *A, Int ia, Int ja, Int *desca,
+       double beta, 
+       double *C, Int ic, Int jc, Int *descc)
+{
+   SCALAPACK(pdsyrk)( &uplo, &trans, &n, &k,
+		      &alpha, 
+		      A, &ia, &ja, desca,
+		      &beta, 
+		      C, &ic, &jc, descc);
+  
+  return; 
+  
+}
+       
+void
+Syr2k (char uplo, char trans,
+       Int n, int k,
+       double alpha, 
+       double *A, Int ia, Int ja, Int *desca,
+       double *B, Int ib, Int jb, Int *descb,
+       double beta,
+       double *C, Int ic, Int jc, Int *descc)
+{
+  SCALAPACK(pdsyr2k)(&uplo , &trans , 
+		     &n , &k , 
+		     &alpha , 
+		     A , &ia , &ja , desca , 
+		     B , &ib , &jb , descb , 
+		     &beta , 
+		     C , &ic , &jc , descc );
+
+ 
+ return;    
+}
+       
 
 
 void
@@ -386,6 +424,7 @@ Syev(char uplo, ScaLAPACKMatrix<double>& A,
   return;
 }   // -----  end of function Syev ----- 
 
+// FIXME here is memory issue in Syevd (lwork and liwork)
 void
 Syevd(char uplo, ScaLAPACKMatrix<double>& A, 
     std::vector<double>& eigs,
@@ -414,11 +453,11 @@ Syevd(char uplo, ScaLAPACKMatrix<double>& A,
       &work[0], &lwork,&iwork[0], &liwork, &info);
   lwork = (Int)work[0];
   // NOTE: Buggy memory allocation in pdsyevd?
-  lwork = lwork+500;
+  lwork = lwork+2048;
   work.resize(lwork);
   liwork = iwork[0];
   // NOTE: Buggy memory allocation in pdsyevd?
-  liwork = liwork+500;
+  liwork = liwork+2048;
   iwork.resize(liwork);
 
   SCALAPACK(pdsyevd)(&jobz, &uplo, &N, A.Data(), &I_ONE, &I_ONE,

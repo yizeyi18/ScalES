@@ -57,6 +57,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 namespace dgdft{
 
+// Forward declaration of Atom structure in periodtable.hpp 
+struct Atom;
+
 // *********************************************************************
 // Global utility functions 
 // These utility functions do not depend on local definitions
@@ -1768,6 +1771,14 @@ public:
   }
 
 };
+
+
+// serialize/deserialize the pseudopot
+
+Int serialize(const PseudoPot& val, std::ostream& os, const std::vector<Int>& mask);
+
+Int deserialize(PseudoPot& val, std::istream& is, const std::vector<Int>& mask);
+
 
 
 } // namespace dgdft

@@ -83,14 +83,7 @@ private:
   Real                scfPhiTolerance_;
   Int                 numUnusedState_;
   bool                isEigToleranceDynamic_;
-  bool                isRestartDensity_;
-  bool                isRestartWfn_;
-  bool                isOutputDensity_;
-  bool                isOutputPotential_;
-  bool                isOutputWfn_;
-
-  bool                isCalculateForceEachSCF_;
-  bool                isHybridACEOutside_;
+  Int                 BlockSizeScaLAPACK_;
 
   std::string         restartDensityFileName_;
   std::string         restartPotentialFileName_;
@@ -99,6 +92,7 @@ private:
   // Physical parameters
   Real                Tbeta_;                    // Inverse of temperature in atomic unit
   Real                Efree_;                    // Helmholtz free energy
+  Real                EfreeHarris_;              // Free energy from Harris functional
   Real                Etot_;                     // Total energy
   Real                Ekin_;                     // Kinetic energy
   Real                Ehart_;                    // Hartree energy
@@ -125,11 +119,12 @@ private:
   // SCF variables
   DblNumVec           vtotNew_;
   Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
+  Real                efreeDifPerAtom_;         // Difference between free energy and 
+                                                // Harris free energy per atom
   // for Anderson iteration
   DblNumMat           dfMat_;
   DblNumMat           dvMat_;
 
-  std::string         mixVariable_;
   /// @brief Work array for the mixing variable in the inner iteration.
   DblNumVec           mixSave_;
 
@@ -165,12 +160,15 @@ public:
   // Operations
   // *********************************************************************
   // Basic parameters. Density and wavefunction
-  void  Setup( const esdf::ESDFInputParam& esdfParam, EigenSolver& eigSol, PeriodTable& ptable ); 
+  void  Setup( EigenSolver& eigSol, PeriodTable& ptable ); 
   void  Iterate();
+  // Solve the linear eigenvalue problem and compute potential etc
+  void  InnerSolve( Int iter ); 
   void  Update();
 
   void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
   void  CalculateEnergy();
+  void  CalculateHarrisEnergy();
   void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
 
 
@@ -193,9 +191,9 @@ public:
       const DblNumVec&  residual );
 
   /// @brief Update the parameters for SCF during the MD simulation
-  void UpdateMDParameters( const esdf::ESDFInputParam& esdfParam );
+  /// This is done by modifying the global esdfParam parameters
+  void UpdateMDParameters( );
 
-  //    void  EllipticMix();
 
   // *********************************************************************
   // Inquiry

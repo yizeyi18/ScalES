@@ -276,7 +276,27 @@ template <class F> inline Real Energy( const NumVec<F>& vec )
   for(Int i=0; i<vec.m(); i++)
     sum += std::abs(vec(i)*vec(i));
   return sum;
+}
+
+template <class F> inline Real findMin( const NumVec<F>& vec )
+{
+  Real min = 0.0;
+  for(Int i=0; i<vec.m(); i++)
+    if(vec(i) < min)
+	    min = vec(i);
+  return min;
 }  
+
+template <class F> inline Real findMax( const NumVec<F>& vec )
+{
+  Real max = 0.0;
+  for(Int i=0; i<vec.m(); i++)
+    if(vec(i) > max)
+	    max = vec(i);
+  return max;
+}  
+
+
 
 template <class F> inline void Sort( NumVec<F>& vec ){
   std::vector<F>  tvec(vec.m());

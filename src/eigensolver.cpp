@@ -62,6 +62,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "mpi_interf.hpp"
 
 using namespace dgdft::scalapack;
+using namespace dgdft::esdf;
 
 
 namespace dgdft{
@@ -81,7 +82,6 @@ EigenSolver::~EigenSolver() {
 }
 
 void EigenSolver::Setup(
-    const esdf::ESDFInputParam& esdfParam,
     Hamiltonian& ham,
     Spinor& psi,
     Fourier& fft ) {
@@ -1734,23 +1734,6 @@ EigenSolver::LOBPCGSolveReal2    (
   GetTime( timeSta );
   for( Int j = 0; j < widthLocal; j++ ){ 
     for( Int i = 0; i < height; i++ ){
-      sendbuf[sendk(i, j)] = Xcol(i, j); 
-    }
-  }
-  MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-      &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      X(i, j) = recvbuf[recvk(i, j)];
-    }
-  }
-  GetTime( timeEnd );
-  iterAlltoallv = iterAlltoallv + 1;
-  timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
-
-  GetTime( timeSta );
-  for( Int j = 0; j < widthLocal; j++ ){ 
-    for( Int i = 0; i < height; i++ ){
       sendbuf[sendk(i, j)] = AXcol(i, j); 
     }
   }
@@ -2485,7 +2468,7 @@ EigenSolver::LOBPCGSolveReal2    (
 
     //        statusOFS << iter << " " << eigMaxIter << std::endl;
     //        statusOFS << resMin << " " << eigMinTolerance << std::endl;
-  } while( (iter < eigMaxIter) || (resMin > eigMinTolerance) );
+  } while( (iter < (10 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
 
 
@@ -2895,23 +2878,6 @@ EigenSolver::LOBPCGSolveReal3    (
     iterSpinor = iterSpinor + 1;
     timeSpinor = timeSpinor + ( timeEnd - timeSta );
   }
-
-  GetTime( timeSta );
-  for( Int j = 0; j < widthLocal; j++ ){ 
-    for( Int i = 0; i < height; i++ ){
-      sendbuf[sendk(i, j)] = Xcol(i, j); 
-    }
-  }
-  MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-      &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      X(i, j) = recvbuf[recvk(i, j)];
-    }
-  }
-  GetTime( timeEnd );
-  iterAlltoallv = iterAlltoallv + 1;
-  timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
   GetTime( timeSta );
   for( Int j = 0; j < widthLocal; j++ ){ 
@@ -3652,7 +3618,7 @@ EigenSolver::LOBPCGSolveReal3    (
     statusOFS << "eigValS   = " << eigValS << std::endl;
 #endif
 
-  } while( (iter < eigMaxIter) || (resMin > eigMinTolerance) );
+  } while( (iter < (10 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
 
 
@@ -8132,7 +8098,7 @@ EigenSolver::PPCGSolveReal    (
     //        statusOFS << "eigValS   = " << eigValS << std::endl;
     //#endif
 
-  } while( (iter < eigMaxIter) || (resMin > eigMinTolerance) );
+  } while( (iter < (10 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
 
 

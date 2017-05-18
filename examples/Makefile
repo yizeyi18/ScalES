@@ -4,7 +4,7 @@
 include ../make.inc
 
 SRCS = pwdft.cpp dgdft.cpp \
-	diagonalize.cpp den2cube.cpp alb2cube.cpp lufact.cpp den2cubepw.cpp
+	diagonalize.cpp den2cube.cpp alb2cube.cpp lufact.cpp den2cubepw.cpp 
 
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
@@ -23,7 +23,6 @@ diagonalize: diagonalize.o ${DGDFT_LIB}
 
 den2cubepw: den2cubepw.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ den2cubepw.o $(LOADOPTS) )
-
 
 den2cube: den2cube.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ den2cube.o $(LOADOPTS) )

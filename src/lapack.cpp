@@ -267,6 +267,10 @@ extern "C" {
       const Int* lda, double* tau, double* work, const Int* lwork,
       Int* info);
 
+  // Construct the Q factor from QR factorization
+  void LAPACK(dorgqr) (const Int* m, const Int* n, const Int* k, 
+      double* A, const Int* lda, double* tau, double* work, 
+      const Int* lwork, Int* info);
 
 } // extern "C"
 
@@ -1510,6 +1514,77 @@ void QR( Int m, Int n, double* A, Int lda, double* tau )
 
   return;
 }
+
+
+void QRCP( Int m, Int n, double* A, double* Q, double* R, 
+    Int lda, Int * piv )
+{
+  if( m==0 || n==0 )
+  {
+    return;
+  }
+
+  Int lwork=-1, info;
+  double dummyWork;
+  std::vector<double> tau(n);
+
+
+  LAPACK(dgeqp3)
+    ( &m, &n, A, &lda, piv, &tau[0], &dummyWork, &lwork, &info );
+
+  lwork = dummyWork;
+  std::vector<double> work(lwork);
+  LAPACK(dgeqp3)
+    ( &m, &n, A, &lda, piv, &tau[0], &work[0], &lwork, &info );
+
+  if( info < 0 )
+  {
+    std::ostringstream msg;
+    msg << "xGEQP3 Argument " << -info << " had illegal value";
+    ErrorHandling( msg.str().c_str() );
+  }
+
+
+
+  // Important: fortran index is 1-based. Change to 0-based
+  for( Int i = 0; i < n; i++ ){
+    piv[i]--;
+  }
+
+  // Copy A to R. Assumes that R has been allocated with the same
+  // distribution as A
+  Lacpy( 'A', m, n, A, lda, R, lda ); 
+
+  // Delete the lower triangular entries of R
+  for( Int j = 0; j < n; j++ ){
+    for( Int i = 0; i < m; i++ ){
+      if( i > j )
+        R[i+j*lda] = 0.0;
+    }
+  }
+
+  // Reconstruct the Q factor
+  Int k = std::min( m, n );
+  lwork = -1;
+  LAPACK(dorgqr)
+    ( &m, &k, &k, A, &lda, &tau[0], &dummyWork, &lwork, &info );
+  lwork = dummyWork;
+  work.resize(lwork);
+  LAPACK(dorgqr)
+    ( &m, &k, &k, A, &lda, &tau[0], &work[0], &lwork, &info );
+
+  Lacpy( 'A', m, k, A, lda, Q, lda ); 
+
+  if( info < 0 )
+  {
+    std::ostringstream msg;
+    msg << "xORGQR Argument " << -info << " had illegal value";
+    ErrorHandling( msg.str().c_str() );
+  }
+
+  return;
+}
+
 
 } // namespace lapack
 } // namespace dgdft

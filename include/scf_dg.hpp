@@ -89,28 +89,15 @@ private:
   Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||
   Int                 numUnusedState_;
   Real                SVDBasisTolerance_;
-  bool                isEigToleranceDynamic_;
-  bool                isRestartDensity_;
-  bool                isRestartWfn_;
-  bool                isOutputDensity_;
-  bool                isOutputALBElemLGL_;
-  bool                isOutputALBElemUniform_;
-  bool                isOutputWfnExtElem_;
-  bool                isOutputPotExtElem_; 
-  bool                isOutputEigvecCoef_;
-  bool                isCalculateAPosterioriEachSCF_;
-  bool                isCalculateForceEachSCF_;
-  bool                isOutputHMatrix_;
+  
   Real                ecutWavefunction_;
   Real                densityGridFactor_;        
   Real                LGLGridFactor_;
 
-  bool                isPeriodizePotential_;
   Point3              distancePeriodize_;
   // Bubble function along each dimension
   std::vector<DblNumVec>   vBubble_;
 
-  bool                isPotentialBarrier_;
   Real                potentialBarrierW_;
   Real                potentialBarrierS_;
   Real                potentialBarrierR_;
@@ -124,9 +111,17 @@ private:
   /// @brief Same as @ref esdf::ESDFInputParam::solutionMethod
   std::string         solutionMethod_;
 
+  /// @brief Same as @ref esdf::ESDFInputParam::diagSolutionMethod
+  std::string         diagSolutionMethod_;
+
+  std::string         SmearingScheme_;
+  Int                 MP_smearing_order_;
+  
   // PWDFT solver on extended element
   std::string         PWSolver_;
 
+  // LL: 2016/11/26 Some of the control parameters below are not
+  // necessary and can be referred to directly as esdfParam.xxx
 
   // Chebyshev Filtering variables for PWDFT on extended element
   bool Diag_SCF_PWDFT_by_Cheby_;
@@ -169,6 +164,19 @@ private:
 
   // Do the usual Chebyshev filtering schedule or work in ionic movement mode
   Int Cheby_iondynamics_schedule_flag_;
+  
+  // Ionic iteration related parameters
+  Int scfdg_ion_dyn_iter_; // Ionic iteration number
+  bool useEnergySCFconvergence_; // Whether to use energy based SCF convergence
+  Real md_scf_etot_diff_tol_; // Tolerance for SCF total energy for energy based SCF convergence
+  Real md_scf_eband_diff_tol_; // Tolerance for SCF band energy for energy based SCF convergence
+  Real md_scf_etot_;
+  Real md_scf_etot_old_;
+  Real md_scf_etot_diff_;
+  Real md_scf_eband_;
+  Real md_scf_eband_old_; 
+  Real md_scf_eband_diff_;
+
 
   // Deque for ALBs expressed on the LGL grid
   std::deque<DblNumMat> ALB_LGL_deque_;
@@ -178,7 +186,12 @@ private:
   // complementary subspace iteration strategy in DGDFT
   bool SCFDG_use_comp_subspace_;
   bool SCFDG_comp_subspace_parallel_;
+  bool SCFDG_comp_subspace_syrk_; // Currently only available in the parallel version
+  bool SCFDG_comp_subspace_syr2k_; // Currently only available in the parallel version
+  
   Int SCFDG_comp_subspace_nstates_;
+  Int SCFDG_CS_ioniter_regular_cheby_freq_;
+  Int SCFDG_CS_bigger_grid_dim_fac_;
   
   // LOBPCG (for top states) related options
   Int SCFDG_comp_subspace_LOBPCG_iter_;
@@ -268,6 +281,7 @@ private:
 
   // Physical parameters
   Real                Tbeta_;                    // Inverse of temperature in atomic unit
+  Real                Tsigma_;                   // = kB * T in atomic units (i.e. = 1 / Tbeta_
   Real                EfreeHarris_;              // Helmholtz free energy defined through Harris energy functional
   Real                EfreeSecondOrder_;         // Second order accurate Helmholtz free energy 
   Real                Efree_;                    // Helmholtz free energy (KS energy functional)
@@ -413,8 +427,18 @@ private:
   void scfdg_calc_occ_rate_comp_subspc( DblNumVec& top_eigVals, DblNumVec& top_occ, Int num_solve);
 
 
+ // Internal routines for MP (and GB) type smearing 
+ double low_order_hermite_poly(double x, int order); // This returns Hermite polynomials (physicist convention) of order <= 6
+ double mp_occupations(double x, int order); // This returns the occupation as a function of x = (e_i - mu) / sigma
+ double mp_entropy(double x, int order); // This returns the contribution to the electronic entropy as a function of x = (e_i - mu) / sigma
+ 
+ // Calculate the Methfessel-Paxton (or Gaussian Broadening) occupations for a given set of eigenvalues and a fermi-level
+ void populate_mp_occupations(DblNumVec& input_eigvals, DblNumVec& output_occ, double fermi_mu);
+ 
+ // Calculate the residual function for use in Fermi-level calculations using bisection method
+ double mp_occupations_residual(DblNumVec& input_eigvals, double fermi_mu, int num_solve);
 
-
+ 
 public:
 
 
@@ -430,7 +454,6 @@ public:
 
   /// @brief Setup the basic parameters for initial SCF iteration.
   void  Setup( 
-      const esdf::ESDFInputParam& esdfParam, 
       HamiltonianDG& hamDG,
       DistVec<Index3, EigenSolver, ElemPrtn>&  distEigSol,
       DistFourier&   distfft,
@@ -459,6 +482,8 @@ public:
       Int filter_order );    
 
   void set_Cheby_iondynamics_schedule_flag(int flag){Cheby_iondynamics_schedule_flag_ = flag;}
+  
+  void set_iondynamics_iter(int ion_iter){scfdg_ion_dyn_iter_ = ion_iter;}
 
 
   // **###**    
@@ -496,7 +521,12 @@ public:
 
   /// @brief Calculate the Kohn-Sham energy and other related energies
   /// using the energy density matrix and the free energy density matrix.
+  ///
+  /// FIXME In order to be compatible with PPEXSIDFTDriver3, the
+  /// Tr[H*DM] part is directly read from totalEnergyH, and free energy
+  /// is the total energy.
   void  CalculateKSEnergyDM(
+      Real totalEnergyH,
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distEDMMat,
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
 
@@ -518,8 +548,11 @@ public:
   /// @brief Calculate the Harris (free) energy using density matrix and
   /// free energy density matrix.  
   ///
+  /// FIXME In order to be compatible with PPEXSIDFTDriver3, the
+  /// free energy is just not available. Free energy is the total energy
   /// @see CalculateHarrisEnergy
   void  CalculateHarrisEnergyDM(
+      Real totalFreeEnergy,
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distFDMMat );
 
 
@@ -560,7 +593,8 @@ public:
       const DistDblNumVec&  distResidual );
 
   /// @brief Update the parameters for SCF during the MD simulation
-  void UpdateMDParameters( const esdf::ESDFInputParam& esdfParam );
+  /// This is done through modifying the global esdfParam parameters
+  void UpdateMDParameters( );
 
   // *********************************************************************
   // Inquiry

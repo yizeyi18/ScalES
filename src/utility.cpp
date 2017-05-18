@@ -779,6 +779,24 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
   return ;
 }        // -----  end of function AlltoallBackward ----- 
 
+// serialize/deserialize the pseudopot
+
+Int serialize(const PseudoPot& val, std::ostream& os, const std::vector<Int>& mask)
+{
+  serialize( val.pseudoCharge,        os, mask );
+  serialize( val.vnlList,             os, mask );
+  serialize( val.vnlListFine,         os, mask );
+  // No need to serialize the communicator
+  return 0;
+}
+
+Int deserialize(PseudoPot& val, std::istream& is, const std::vector<Int>& mask)
+{
+  deserialize( val.pseudoCharge,      is, mask );
+  deserialize( val.vnlList,           is, mask );
+  deserialize( val.vnlListFine,       is, mask );
+  return 0;
+}
 
 
 }  // namespace dgdft

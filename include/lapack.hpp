@@ -253,6 +253,17 @@ void QRCP( Int m, Int n, double* A, Int lda, Int * piv,
 /// This should use DORGQR routine to generate the Q matrix.
 void QR( Int m, Int n, double* A, Int lda, double* tau );
 
+
+/// @brief QRCP Wrapper for xgeqp3 routine that returns the Q and R
+/// factors.
+///
+/// The index piv is adjusted to be 0-based.
+///
+/// The A matrix is still destroyed in the output.
+void QRCP( Int m, Int n, double* A, double* Q, double* R, 
+    Int lda, Int * piv );
+
+
 } // namespace lapack
 } // namespace dgdft
 #endif // _LAPACK_HPP_

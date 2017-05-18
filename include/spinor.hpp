@@ -78,6 +78,7 @@ private:
   // For density fitting
   Int               numMu_;
   IntNumVec         pivQR_;
+  IntNumVec         numProcPotrf_;
 
 public:
   // *********************************************************************
@@ -176,10 +177,54 @@ public:
       const DblNumVec& occupationRate,
       const Real numMuFac,
       const Real numGaussianRandomFac,
+      const Int numProcScaLAPACKPotrf, 
+      const Int scaPotrfBlockSize, 
       NumTns<Real>& a3,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
 
+
+  void AddMultSpinorEXXDF2 ( Fourier& fft, 
+      const NumTns<Real>& phi,
+      const DblNumVec& exxgkkR2C,
+      Real  exxFraction,
+      Real  numSpin,
+      const DblNumVec& occupationRate,
+      const Real numMuFac,
+      const Real numGaussianRandomFac,
+      const Int numProcScaLAPACKPotrf, 
+      const Int scaPotrfBlockSize, 
+      NumTns<Real>& a3,
+      NumMat<Real>& VxMat, 
+      bool isFixColumnDF );
+
+  void AddMultSpinorEXXDF3 ( Fourier& fft, 
+      const NumTns<Real>& phi,
+      const DblNumVec& exxgkkR2C,
+      Real  exxFraction,
+      Real  numSpin,
+      const DblNumVec& occupationRate,
+      const Real numMuFac,
+      const Real numGaussianRandomFac,
+      const Int numProcScaLAPACKPotrf, 
+      const Int scaPotrfBlockSize, 
+      NumTns<Real>& a3,
+      NumMat<Real>& VxMat, 
+      bool isFixColumnDF );
+
+  void AddMultSpinorEXXDF4 ( Fourier& fft, 
+      const NumTns<Real>& phi,
+      const DblNumVec& exxgkkR2C,
+      Real  exxFraction,
+      Real  numSpin,
+      const DblNumVec& occupationRate,
+      const Real numMuFac,
+      const Real numGaussianRandomFac,
+      const Int numProcScaLAPACKPotrf, 
+      const Int scaPotrfBlockSize, 
+      NumTns<Real>& a3,
+      NumMat<Real>& VxMat, 
+      bool isFixColumnDF );
 
 };  // Spinor
 

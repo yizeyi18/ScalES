@@ -45,6 +45,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2012-08-10
 #include "esdf.hpp"
 #include "utility.hpp" 
+#include "domain.hpp"
+#include "periodtable.hpp"
 #include <xc.h>
 
 namespace dgdft{
@@ -429,10 +431,22 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"scf_outer_maxiter");
   strcpy(kw_typ[i],"I:E");
+  
+  i++;
+  strcpy(kw_label[i],"md_scf_energy_criteria_engage_ioniter");
+  strcpy(kw_typ[i],"I:E");
 
   i++;
   strcpy(kw_label[i],"md_scf_outer_maxiter");
   strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"md_scf_etot_diff");
+  strcpy(kw_typ[i],"D:E");
+  
+  i++;
+  strcpy(kw_label[i],"md_scf_eband_diff");
+  strcpy(kw_typ[i],"D:E");
 
   i++;
   strcpy(kw_label[i],"dg_degree");
@@ -688,6 +702,14 @@ void esdf_key() {
   strcpy(kw_typ[i],"T:E");
 
   i++;
+  strcpy(kw_label[i],"diag_solution_method");
+  strcpy(kw_typ[i],"T:E");
+
+  i++;
+  strcpy(kw_label[i],"smearing_scheme");
+  strcpy(kw_typ[i],"T:E");
+  
+  i++;
   strcpy(kw_label[i],"num_pole");
   strcpy(kw_typ[i],"I:E");
 
@@ -741,6 +763,14 @@ void esdf_key() {
 
   i++;
   strcpy(kw_label[i],"max_pexsi_iter");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"pexsi_method");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"pexsi_npoint");
   strcpy(kw_typ[i],"I:E");
 
   i++;
@@ -805,11 +835,19 @@ void esdf_key() {
   strcpy(kw_typ[i],"T:E");
 
   i++;
+  strcpy(kw_label[i],"md_extrapolation_wavefunction");
+  strcpy(kw_typ[i],"T:E");
+
+  i++;
   strcpy(kw_label[i],"thermostat_mass");
   strcpy(kw_typ[i],"D:E");
 
   i++;
   strcpy(kw_label[i],"langevin_damping");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
+  strcpy(kw_label[i],"kappa_xlbomd");
   strcpy(kw_typ[i],"D:E");
 
   i++;
@@ -862,10 +900,22 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"num_gaussianrandom_hybrid_df");
   strcpy(kw_typ[i],"D:E");
-  
+ 
   i++;
-  strcpy(kw_label[i],"hybrid_ace_outside");
+  strcpy(kw_label[i],"num_proc_scalapack_hybrid_df");
   strcpy(kw_typ[i],"I:E");
+ 
+  i++;
+  strcpy(kw_label[i],"block_size_scalapack");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"hybrid_active_init");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"hybrid_mixing_type");
+  strcpy(kw_typ[i],"T:B");
 
   i++;
   strcpy(kw_label[i],"exx_divergence_type");
@@ -950,12 +1000,26 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
 
   i++;
-  strcpy(kw_label[i],"scfdg_chefsi_complementary_subspace_parallel");
+  strcpy(kw_label[i],"scfdg_chefsi_complementary_subspace_syrk");
   strcpy(kw_typ[i],"I:E");
 
   i++;
+  strcpy(kw_label[i],"scfdg_chefsi_complementary_subspace_syr2k");
+  strcpy(kw_typ[i],"I:E");
+
+  
+  i++;
   strcpy(kw_label[i],"scfdg_complementary_subspace_nstates");
   strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"scfdg_cs_ioniter_regular_cheby_freq");
+  strcpy(kw_typ[i],"I:E");
+  
+  i++;
+  strcpy(kw_label[i],"scfdg_cs_bigger_grid_dim_fac");
+  strcpy(kw_typ[i],"I:E");
+  
 
   // Inner LOBPCG related options
   i++;
@@ -978,7 +1042,10 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"scfdg_complementary_subspace_inner_chebycyclenum");
   strcpy(kw_typ[i],"I:E");
-  
+ 
+  i++;
+  strcpy(kw_label[i],"use_atom_density");
+  strcpy(kw_typ[i],"I:E");
 }
 
 void esdf() {
@@ -2071,13 +2138,13 @@ char *strupr(char *str) {
 // Input interface
 // *********************************************************************
 
-void ESDFReadInput( ESDFInputParam& esdfParam, const std::string filename ){
-  ESDFReadInput( esdfParam, filename.c_str() );
+void ESDFReadInput( const std::string filename ){
+  ESDFReadInput( filename.c_str() );
   return ;
 }
 
 void
-ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
+ESDFReadInput ( const char* filename )
 {
   Int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
   Int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
@@ -2124,12 +2191,12 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     std::vector<Atom>&  atomList = esdfParam.atomList;
     atomList.clear();
 
-    Int numAtomType = esdf_integer("Atom_Types_Num", 0);
-    if( numAtomType == 0 ){
+    esdfParam.numAtomType = esdf_integer("Atom_Types_Num", 0);
+    if( esdfParam.numAtomType == 0 ){
       ErrorHandling("Atom_Types_Num cannot be found.");
     }
 
-    for( Int ityp = 0; ityp < numAtomType; ityp++ ){
+    for( Int ityp = 0; ityp < esdfParam.numAtomType; ityp++ ){
       Int type = esdf_integer( "Atom_Type", 0 );
       // TODO Add supported type list
       if( type == 0 ){
@@ -2214,19 +2281,27 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
     esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
     esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
-    esdfParam.isHybridACE          = esdf_integer( "Hybrid_ACE", 1 );
-    esdfParam.isHybridDF           = esdf_integer( "Hybrid_DF", 0 );
-    esdfParam.numMuHybridDF        = esdf_double( "Num_Mu_Hybrid_DF", 6.0 );
-    esdfParam.numGaussianRandomHybridDF        = esdf_double( "Num_GaussianRandom_Hybrid_DF", 2.0 );
-    esdfParam.isHybridACEOutside   = esdf_integer( "Hybrid_ACE_Outside", 0 );
-    esdfParam.MDscfOuterMaxIter    = esdf_integer( "MD_SCF_Outer_MaxIter",  esdfParam.scfOuterMaxIter );
-    esdfParam.MDscfPhiMaxIter      = esdf_integer( "MD_SCF_Phi_MaxIter", esdfParam.scfPhiMaxIter  );
 
 
-    if( esdfParam.isHybridACE == false &&
-        esdfParam.isHybridACEOutside == true ){
-      ErrorHandling("Cannot set Hybrid_ACE_Outside to be 1 but Hybrid_ACE to be 0.");
+    esdf_string("Hybrid_Mixing_Type", "nested", strtmp); 
+    esdfParam.hybridMixType         = strtmp;
+    if( esdfParam.hybridMixType != "nested" &&
+        esdfParam.hybridMixType != "scdiis" &&
+        esdfParam.hybridMixType != "pcdiis" ){
+      ErrorHandling("Invalid hybrid mixing type.");
     }
+
+    esdfParam.isHybridACE                      = esdf_integer( "Hybrid_ACE", 1 );
+    esdfParam.isHybridActiveInit               = esdf_integer( "Hybrid_Active_Init", 0 );
+    
+    esdfParam.isHybridDF                       = esdf_integer( "Hybrid_DF", 0 );
+    esdfParam.numMuHybridDF                    = esdf_double( "Num_Mu_Hybrid_DF", 6.0 );
+    esdfParam.numGaussianRandomHybridDF        = esdf_double( "Num_GaussianRandom_Hybrid_DF", 2.0 );
+    esdfParam.numProcScaLAPACKHybridDF    = esdf_integer( "Num_Proc_ScaLAPACK_Hybrid_DF", mpisize );
+    esdfParam.BlockSizeScaLAPACK  = esdf_integer( "Block_Size_ScaLAPACK", 32 );
+    esdfParam.MDscfPhiMaxIter      = esdf_integer( "MD_SCF_Phi_MaxIter", esdfParam.scfPhiMaxIter  );
+    esdfParam.MDscfOuterMaxIter    = esdf_integer( "MD_SCF_Outer_MaxIter",  esdfParam.scfOuterMaxIter ); // This is used in DGDFT for energy based SCF
+
     esdfParam.exxDivergenceType    = esdf_integer( "EXX_Divergence_Type", 1 );
 
     // Default is no locking
@@ -2235,6 +2310,7 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.eigMinIter           = esdf_integer( "Eig_MinIter",  2 );
     esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
     esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
+    esdfParam.isUseAtomDensity = esdf_integer( "Use_Atom_Density", 0 );
     esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
     esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
     esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
@@ -2270,6 +2346,10 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     Real temperature;
     temperature               = esdf_double( "Temperature", 300.0 );
     esdfParam.Tbeta           = au2K / temperature;
+    
+    
+    esdf_string("Smearing_Scheme", "FD", strtmp); 
+    esdfParam.smearing_scheme = strtmp;
 
     esdfParam.numExtraState   = esdf_integer( "Extra_States",  0 );
     esdfParam.numUnusedState  = esdf_integer( "Unused_States",  0 );
@@ -2408,6 +2488,13 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
 #endif
     }
 
+    esdf_string("Diag_Solution_Method", "scalapack", strtmp); 
+    esdfParam.diagSolutionMethod  = strtmp;
+    if( esdfParam.diagSolutionMethod != "elpa" &&
+        esdfParam.diagSolutionMethod != "scalapack" ){
+      ErrorHandling("Invalid Diag solution method for the projected problem.");
+    }
+
     // FFT
     // esdfParam.numProcDistFFT  = esdf_integer( "Num_Proc_DistFFT", mpisize );
 
@@ -2433,6 +2520,8 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
       esdf_double( "Mu_PEXSI_SafeGuard", 0.05 );
     esdfParam.muMin             = esdf_double( "Mu_Min", -2.0 );
     esdfParam.muMax             = esdf_double( "Mu_Max", +2.0 );
+    esdfParam.pexsiMethod       = esdf_integer( "PEXSI_Method", 2);
+    esdfParam.pexsiNpoint       = esdf_integer( "PEXSI_Npoint", 2);
 
     // Split MPI communicators into row and column communicators
 
@@ -2550,19 +2639,26 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
     esdfParam.ionTemperature  = ionTemperature;
     esdfParam.TbetaIonTemperature   = au2K / ionTemperature;
 
-    esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 80.0);
+    esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 40.0);
     esdf_string("MD_Extrapolation_Type", "linear", strtmp); 
     esdfParam.MDExtrapolationType          = strtmp;
     esdf_string("MD_Extrapolation_Variable", "density", strtmp); 
     esdfParam.MDExtrapolationVariable      = strtmp;
+    esdf_string("MD_Extrapolation_Wavefunction", "aspc", strtmp); 
+    esdfParam.MDExtrapolationWavefunction  = strtmp;
     esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);
     esdfParam.langevinDamping       = esdf_double("Langevin_Damping", 0.01);
+    esdfParam.kappaXLBOMD           = esdf_double("kappa_XLBOMD", 2.00);
     esdfParam.isRestartPosition     = esdf_integer( "Restart_Position", 0 );
     esdfParam.isRestartVelocity     = esdf_integer( "Restart_Velocity", 0 );
     esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 1 );
     esdfParam.isOutputVelocity      = esdf_integer( "Output_Velocity", 1 );
     esdfParam.isOutputXYZ           = esdf_integer( "Output_XYZ", 1 );
 
+    // Energy based SCF convergence for MD: currently used in DGDFT only
+    esdfParam.MDscfEnergyCriteriaEngageIonIter = esdf_integer( "MD_SCF_energy_criteria_engage_ioniter", esdfParam.ionMaxIter + 1); 
+    esdfParam.MDscfEtotdiff = esdf_double("MD_SCF_Etot_diff", esdfParam.scfOuterEnergyTolerance);
+    esdfParam.MDscfEbanddiff = esdf_double("MD_SCF_Eband_diff", esdfParam.scfOuterEnergyTolerance);
     // Restart position / thermostat
   }
 
@@ -2594,8 +2690,13 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
   // ~~
   {
     esdfParam.scfdg_use_chefsi_complementary_subspace = esdf_integer("SCFDG_use_CheFSI_complementary_subspace", 0);
-    esdfParam.scfdg_chefsi_complementary_subspace_parallel = esdf_integer("SCFDG_CheFSI_complementary_subspace_parallel", 0);
+    esdfParam.scfdg_chefsi_complementary_subspace_syrk = esdf_integer("SCFDG_CheFSI_complementary_subspace_syrk", 0);
+    esdfParam.scfdg_chefsi_complementary_subspace_syr2k = esdf_integer("SCFDG_CheFSI_complementary_subspace_syr2k", esdfParam.scfdg_chefsi_complementary_subspace_syrk);
+      
     esdfParam.scfdg_complementary_subspace_nstates = esdf_integer("SCFDG_complementary_subspace_nstates", int(double(esdfParam.numExtraState)/20.0 + 0.5) );
+    esdfParam.scfdg_cs_ioniter_regular_cheby_freq = esdf_integer("SCFDG_CS_ioniter_regular_Cheby_freq", 20 );
+    
+    esdfParam.scfdg_cs_bigger_grid_dim_fac = esdf_integer("SCFDG_CS_bigger_grid_dim_fac", 1 );
     
     // Inner LOBPCG related options
     esdfParam.scfdg_complementary_subspace_lobpcg_iter = esdf_integer("SCFDG_complementary_subspace_inner_LOBPCGiter", 15);
@@ -2641,10 +2742,20 @@ ESDFReadInput ( ESDFInputParam& esdfParam, const char* filename )
   } //position read in for restart
 
 
+  // *********************************************************************
+  // Some remaining consistency checks
+  // *********************************************************************
+  if( (esdfParam.pseudoType == "HGH")
+      && esdfParam.isUseAtomDensity == true ){
+    std::ostringstream msg;
+    msg << "For the choice of pseudopotential cannot use atom density as the initial guess";
+    ErrorHandling(msg.str());
+  }
+
   return ;
 }        // -----  end of function ESDFReadInput  ----- 
 
-void ESDFPrintInput( const ESDFInputParam& esdfParam ){
+void ESDFPrintInput( ){
   int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank ); 
   int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
@@ -2661,7 +2772,8 @@ void ESDFPrintInput( const ESDFInputParam& esdfParam ){
   Print(statusOFS, "Mixing Steplength                    = ",  esdfParam.mixStepLength);
 
   Print(statusOFS, "Temperature                          = ",  au2K / esdfParam.Tbeta, "[K]");
-  Print(statusOFS, "Extra states                         = ",  esdfParam.numExtraState );
+  Print(statusOFS, "Extra states                         = ",  esdfParam.numExtraState  );
+  Print(statusOFS, "Smearing scheme                      = ",  esdfParam.smearing_scheme );
   Print(statusOFS, "PeriodTable File                     = ",  esdfParam.periodTableFile );
   Print(statusOFS, "Pseudo Type                          = ",  esdfParam.pseudoType );
   Print(statusOFS, "PW Solver                            = ",  esdfParam.PWSolver );
@@ -2679,6 +2791,7 @@ void ESDFPrintInput( const ESDFInputParam& esdfParam ){
   Print(statusOFS, "EcutWavefunction                     = ",  esdfParam.ecutWavefunction);
   Print(statusOFS, "Density GridFactor                   = ",  esdfParam.densityGridFactor);
 
+  Print(statusOFS, "Use Atom Density                     = ",  esdfParam.isUseAtomDensity);
   Print(statusOFS, "RestartDensity                       = ",  esdfParam.isRestartDensity);
   Print(statusOFS, "RestartWfn                           = ",  esdfParam.isRestartWfn);
   Print(statusOFS, "OutputDensity                        = ",  esdfParam.isOutputDensity);
@@ -2701,8 +2814,11 @@ void ESDFPrintInput( const ESDFInputParam& esdfParam ){
     Print(statusOFS, "Force tol for geoopt                 = ",  esdfParam.geoOptMaxForce );
     Print(statusOFS, "MD extrapolation type                = ",  esdfParam.MDExtrapolationType);
     Print(statusOFS, "MD extrapolation variable            = ",  esdfParam.MDExtrapolationVariable);
-    Print(statusOFS, "MD SCF Outer MaxIter                 = ",  esdfParam.MDscfOuterMaxIter);
     Print(statusOFS, "MD SCF Phi MaxIter                   = ",  esdfParam.MDscfPhiMaxIter);
+    Print(statusOFS, "MD SCF Outer MaxIter                 = ",  esdfParam.MDscfOuterMaxIter);
+    Print(statusOFS, "MD SCF Energy Criteria Engage Iter   = ",  esdfParam.MDscfEnergyCriteriaEngageIonIter);
+    Print(statusOFS, "MD SCF Etot diff                     = ",  esdfParam.MDscfEtotdiff);
+    Print(statusOFS, "MD SCF Eband diff                    = ",  esdfParam.MDscfEbanddiff);
     Print(statusOFS, "");
   }
 
@@ -2786,9 +2902,10 @@ void ESDFPrintInput( const ESDFInputParam& esdfParam ){
     Print(statusOFS, "SCF Phi Tol                          = ",  esdfParam.scfPhiTolerance);
     Print(statusOFS, "Hybrid ACE                           = ",  esdfParam.isHybridACE);
     Print(statusOFS, "Hybrid DF                            = ",  esdfParam.isHybridDF);
+    Print(statusOFS, "Hybrid Active Init                   = ",  esdfParam.isHybridActiveInit);
+    Print(statusOFS, "Hybrid Mixing Type                   = ",  esdfParam.hybridMixType);
     Print(statusOFS, "Num mu hybrid DF                     = ",  esdfParam.numMuHybridDF);
     Print(statusOFS, "Num GaussianRandom hybrid DF         = ",  esdfParam.numGaussianRandomHybridDF);
-    Print(statusOFS, "Hybrid ACE Outside SCF               = ",  esdfParam.isHybridACEOutside);
     Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);
 
     if( esdfParam.PWSolver == "LOBPCGScaLAPACK" ){
