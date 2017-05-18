@@ -6834,19 +6834,35 @@ EigenSolver::PPCGSolveReal (
       SCALAPACK(pdgemr2d)( &numKeep, &numKeep, eigvecs_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(),
           square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt_ );
     }
+    
+    statusOFS << std::endl;
+    statusOFS << std::endl;
+    statusOFS << " ********************************************************. " << std::endl;
+    statusOFS << " Scalapack PPCG is Error Prone. Double check to make sure. " << std::endl;
+    statusOFS << " Scalapack PPCG is Error Prone. Double check to make sure. " << std::endl;
+    statusOFS << " Scalapack PPCG is Error Prone. Double check to make sure. " << std::endl;
+    statusOFS << " ********************************************************. " << std::endl;
+    statusOFS << std::endl;
+    statusOFS << std::endl;
   }
   else //PWSolver_ == "PPCG"
   {
+#ifdef GPU_NOPTIMIZE
     if ( mpirank == 0 ){
+#endif
       GetTime( timeSta );
       //lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
       cu_XTX.CopyFrom( XTX );
       MAGMA::Syevd( 'V', 'U', width, cu_XTX.Data(), width, eigValS.Data() );
+#ifdef GPU_NOPTIMIZE
       cu_XTX.CopyTo( XTX );
+#endif
       GetTime( timeEnd );
       iterMpirank0 = iterMpirank0 + 1;
       timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
+#ifdef GPU_NOPTIMIZE
     }
+#endif
   }
 
   GetTime( timeEnd1 );
@@ -6854,8 +6870,11 @@ EigenSolver::PPCGSolveReal (
   timeSyevd = timeSyevd + ( timeEnd1 - timeSta1 );
 
   GetTime( timeSta );
+#ifdef GPU_NOPTIMIZE
   MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
   MPI_Bcast(eigValS.Data(), width, MPI_DOUBLE, 0, mpi_comm);
+  cu_XTX.CopyFrom( XTX );
+#endif
   GetTime( timeEnd );
   iterBcast = iterBcast + 2;
   timeBcast = timeBcast + ( timeEnd - timeSta );
@@ -6863,7 +6882,6 @@ EigenSolver::PPCGSolveReal (
   GetTime( timeSta );
   // X <- X*C
 
-  cu_XTX.CopyFrom( XTX );
   cublas::Gemm( cu_transN, cu_transN, heightLocal, width, width, &one, cu_X.Data(),
                 heightLocal, cu_XTX.Data(), width, &zero, cu_Xtemp.Data(), heightLocal);
   cu_Xtemp.CopyTo( cu_X );
