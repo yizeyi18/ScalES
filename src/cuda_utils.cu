@@ -20,6 +20,15 @@ bool NL_gpu_flag;
 bool teter_gpu_flag;
 int totPart_gpu;
 
+#define gpuErrchk(ans) {gpuAssert((ans),__FILE__,__LINE__);}
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+        if(code != cudaSuccess){
+                fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+                if(abort) exit(code);
+        }
+}
+
  __device__ inline cuDoubleComplex operator* (const cuDoubleComplex & x,const cuDoubleComplex & y) {
     return cuCmul(x,y);
  }
@@ -460,6 +469,8 @@ void cuda_setValue( float* dev, float val, int len )
 	if(len % DIM) ndim++;
 	gpu_setValue<<<ndim, DIM>>>(dev, val, len);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -470,6 +481,8 @@ void cuda_setValue( double* dev, double val, int len )
 	if(len % DIM) ndim++;
 	gpu_setValue<<<ndim, DIM>>>(dev, val, len);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -479,6 +492,8 @@ void cuda_setValue( cuDoubleComplex* dev, cuDoubleComplex val, int len )
 	if(len % DIM) ndim++;
 	gpu_setValue<<<ndim, DIM>>>(dev, val, len);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -489,6 +504,8 @@ void cuda_setValue( cuComplex* dev, cuComplex val, int len )
 	if(len % DIM) ndim++;
 	gpu_setValue<<<ndim, DIM>>>(dev, val, len);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -498,6 +515,8 @@ void cuda_interpolate_wf_C2F( cuDoubleComplex * coarse_psi, cuDoubleComplex * fi
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_interpolate_wf_C2F<<< ndim, DIM>>> ( coarse_psi, fine_psi, index, len, factor);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -506,6 +525,8 @@ void cuda_interpolate_wf_F2C( cuDoubleComplex * fine_psi, cuDoubleComplex * coar
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_interpolate_wf_F2C<<< ndim, DIM>>> ( fine_psi, coarse_psi, index, len, factor);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -521,6 +542,8 @@ void cuda_laplacian( cuDoubleComplex* psi, double * gkk, int len)
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_laplacian<<< ndim, DIM>>> ( psi, gkk, len);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -529,6 +552,8 @@ void cuda_vtot( double* psi, double * vtot, int len)
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_vtot<<< ndim, DIM>>> ( psi, vtot, len);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -550,12 +575,16 @@ void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int
         // 1. calculate the weight.
         gpu_cal_weight<DIM><<<blocks, DIM, DIM * sizeof(double) >>>( psi, NL, parts, index, weight);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 
         // 2. update the psiUpdate.
 	gpu_update_psiUpdate<<<blocks, LDIM>>>( psiUpdate, NL, parts, index, atom_weight, weight);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -564,6 +593,8 @@ void cuda_teter( cuDoubleComplex* psi, double * vtot, int len)
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_teter<<< ndim, DIM>>> ( psi, vtot, len);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -573,6 +604,8 @@ void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len )
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_mapping_from_buf<<< ndim, DIM>>>( psi, buf, index, len);	
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -582,6 +615,8 @@ void cuda_mapping_to_buf( double * buf, double * psi, int * index, int len )
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_mapping_to_buf<<< ndim, DIM>>>( buf, psi, index, len);	
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -590,6 +625,8 @@ void cuda_calculate_Energy( double * psi, double * energy, int nbands, int bandL
 	// calculate  nbands psi Energy. 
 	gpu_energy<DIM><<<nbands, DIM, DIM*sizeof(double)>>>( psi, energy, bandLen);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -600,6 +637,8 @@ void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen)
 	int len = nband * bandLen;
 	gpu_batch_Scal<<< ndim, DIM >>> ( psi, vec, bandLen, len);
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
@@ -609,6 +648,10 @@ void cu_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, doub
 	int len = nbands * bandLen;
 	gpu_X_Equal_AX_minus_X_eigVal<<< ndim, DIM >>>( Xtemp, AX, X, eigen, len, bandLen );
 #ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }

@@ -6839,7 +6839,10 @@ EigenSolver::PPCGSolveReal (
   {
     if ( mpirank == 0 ){
       GetTime( timeSta );
-      lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
+      //lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
+      cu_XTX.CopyFrom( XTX );
+      MAGMA::Syevd( 'V', 'U', width, cu_XTX.Data(), width, eigValS.Data() );
+      cu_XTX.CopyTo( XTX );
       GetTime( timeEnd );
       iterMpirank0 = iterMpirank0 + 1;
       timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );

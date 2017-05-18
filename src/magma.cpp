@@ -128,6 +128,18 @@ void Getrf( Int m, Int n, double* A, Int lda, Int* p )
 void Syevd
 ( char jobz, char uplo, Int n, double* A, Int lda, double* eigs ){
 
+////
+    magma_int_t *iwork, *isuppz, *ifail, aux_iwork[1];
+    magma_int_t N, n2, info, lwork, liwork, ldda;
+    N = n;
+    ldda = lda;
+    double aux_work[1];
+#ifdef COMPLEX
+    double *rwork, aux_rwork[1];
+    magma_int_t lrwork;
+#endif
+////
+
   magma_vec_t zjob;
   if (jobz == 'v' || jobz == 'V') zjob = MagmaVec; else  zjob = MagmaNoVec;
   
@@ -135,29 +147,60 @@ void Syevd
   if(uplo == 'U') m_uplo = MagmaUpper; else m_uplo = MagmaLower;
   magmaDouble_ptr dA = (magmaDouble_ptr) A;  
 
+  /*
   Int lwork = -1, info;
   Int liwork = -1;
   std::vector<double> work(1);
   std::vector<int>    iwork(1);
+  */
+  magma_dsyevd_gpu( zjob, m_uplo,
+                    N, NULL, lda, NULL,  // A, w
+                    NULL, lda,            // host A
+                    aux_work,  -1,
+                    #ifdef COMPLEX
+                    aux_rwork, -1,
+                    #endif
+                    aux_iwork, -1,
+                    &info );
 
-  //magma_dsyevd_gpu( zjob, m_uplo, n, dA, lda,  ... work, lwork, iwork, liwork, &info);
-/*
-  MAGMA(dsyevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
-      &lwork, &iwork[0], &liwork, &info );
-  lwork = (Int)work[0];
-  work.resize(lwork);
-  liwork = iwork[0];
-  iwork.resize(liwork);
+  lwork  = (magma_int_t) MAGMA_D_REAL( aux_work[0] );
+  liwork = aux_iwork[0];
+  double * h_R, *h_work;
 
-  MAGMA(dsyevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
-      &lwork, &iwork[0], &liwork, &info );
-*/
+  magma_dmalloc_pinned( &h_R,    N*lda  );
+  magma_dmalloc_pinned( &h_work, lwork  );
+  magma_imalloc_cpu( &iwork,  liwork );
+
+#ifdef COMPLEX
+  lrwork = (magma_int_t) aux_rwork[0];
+  double * rwork;
+  magma_dmalloc_pinned( &rwork,    lrwork );
+#endif
+
+
+
+  magma_dsyevd_gpu( zjob, m_uplo,
+                    N, dA, ldda, eigs,
+                    h_R, lda,          // h_R
+                    h_work, lwork,
+                    #ifdef COMPLEX
+                    rwork, lrwork,
+                    #endif
+                    iwork, liwork,
+                    &info );
   if( info != 0 )
   {
     std::ostringstream msg;
     msg << "magma_dsyevd_gpu returned with info = " << info;
     ErrorHandling( msg.str().c_str() );
   }
+
+  magma_free_pinned( h_R    );
+  magma_free_pinned( h_work );
+  magma_free_cpu( iwork );
+#ifdef COMPLEX
+  magma_free_pinned( rwork );
+#endif
 }
 /*
 */
