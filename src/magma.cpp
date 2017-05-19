@@ -47,7 +47,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 namespace dgdft {
 namespace MAGMA {
-
+#ifdef GPU
 void Init(void)
 {
   magma_int_t st = magma_init();
@@ -241,6 +241,7 @@ void Lacpy( char uplo, Int m, Int n, const double* A, Int lda, double* B, Int ld
   magmablas_dlacpy(magmaUplo, m, n, dA, lda, dB, ldb, queue);
   */
 }
+#endif
 
 } // namespace MAGMA
 } // namespace dgdft

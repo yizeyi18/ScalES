@@ -687,4 +687,27 @@ void cuda_set_vtot_flag()
 {
 	vtot_gpu_flag  = false;
 }
+
+__global__ void gpu_matrix_add( double * A, double * B, int length )
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if( tid < length )
+	{
+		A[tid] = A[tid] + B[tid];
+	}
+}
+
+void cuda_DMatrix_Add( double * A , double * B, int m, int n)
+{
+	// Matrix A and B are double dimension m,n; A = A + B
+	int ndim = (m * n + DIM - 1) / DIM;
+	int length = m*n;
+	gpu_matrix_add<<< ndim, DIM >>>( A, B, length);
+
+#ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
 #endif

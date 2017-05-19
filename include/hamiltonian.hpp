@@ -54,7 +54,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "utility.hpp"
 #include  "esdf.hpp"
 #include  <xc.h>
-
+#ifdef GPU
+#include "cublas.hpp"
+#endif
 namespace dgdft{
 
 // *********************************************************************

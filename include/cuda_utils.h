@@ -150,6 +150,7 @@ void cu_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, doub
 void cuda_init_vtot();
 void cuda_clean_vtot();
 void cuda_set_vtot_flag();
+void cuda_DMatrix_Add( double * A , double * B, int m, int n);
 //}
 #endif
 #endif

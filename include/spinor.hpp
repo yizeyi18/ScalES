@@ -122,6 +122,10 @@ public:
 
   NumTns<Real>& Wavefun() { return wavefun_; } 
   const NumTns<Real>& Wavefun() const { return wavefun_; } 
+#ifdef GPU
+  cuNumTns<Real>& cuWavefun() { return cu_wavefun_; } 
+  const cuNumTns<Real>& cuWavefun() const { return cu_wavefun_; } 
+#endif
   Real& Wavefun(const Int i, const Int j, const Int k) {return wavefun_(i,j,k); }
   const Real& Wavefun(const Int i, const Int j, const Int k) const {return wavefun_(i,j,k); }
 

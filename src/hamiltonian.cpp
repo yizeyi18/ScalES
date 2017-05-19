@@ -2032,11 +2032,20 @@ void
 KohnSham::MultSpinor    ( Spinor& psi, cuNumTns<Real>& a3, Fourier& fft )
 {
 
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  Int ntot      = fft.domain.NumGridTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int numStateTotal = psi.NumStateTotal();
+  Int numStateLocal = psi.NumState();
+  NumTns<Real>& wavefun = psi.Wavefun();
+  Int ncom = wavefun.n();
+
   Real timeSta, timeEnd;
   Real timeSta1, timeEnd1;
   
   //SetValue( a3, 0.0 );
-
   GetTime( timeSta );
   psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
   GetTime( timeEnd );
@@ -2044,6 +2053,120 @@ KohnSham::MultSpinor    ( Spinor& psi, cuNumTns<Real>& a3, Fourier& fft )
   statusOFS << "Time for psi.AddMultSpinorFineR2C is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
+
+  // adding up the Hybrid part in the GPU
+  // CHECK CHECK
+  // Note now, the psi.data is the GPU data. and a3.data is also in GPU. 
+  // also, a3 constains the Hpsi
+  if( isHybrid_ && isEXXActive_ ){
+
+    GetTime( timeSta );
+
+    if( esdfParam.isHybridACE ){ 
+
+      if(1){ // for MPI
+        // Convert the column partition to row partition
+
+        Int numStateBlocksize = numStateTotal / mpisize;
+        Int ntotBlocksize = ntot / mpisize;
+
+        Int numStateLocal = numStateBlocksize;
+        Int ntotLocal = ntotBlocksize;
+
+        if(mpirank < (numStateTotal % mpisize)){
+          numStateLocal = numStateBlocksize + 1;
+        }
+
+        if(mpirank < (ntot % mpisize)){
+          ntotLocal = ntotBlocksize + 1;
+        }
+
+        // copy the GPU data to CPU.
+        DblNumMat psiCol( ntot, numStateLocal );
+        cuda_memcpy_GPU2CPU( psiCol.Data(), psi.cuWavefun().Data(), ntot*numStateLocal*sizeof(Real) );
+
+        // for the Project VexxProj 
+        DblNumMat vexxProjCol( ntot, numStateLocal );
+        DblNumMat vexxProjRow( ntotLocal, numStateTotal );
+        lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
+
+        // MPI_Alltoall for the data redistribution.
+        DblNumMat psiRow( ntotLocal, numStateTotal );
+        AlltoallForward (psiCol, psiRow, domain_.comm);
+
+        // MPI_Alltoall for data redistribution.
+        AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
+
+        // GPU data for the G-para
+        cuDblNumMat cu_vexxProjRow ( ntotLocal, numStateTotal );
+        cuDblNumMat cu_psiRow ( ntotLocal, numStateTotal );
+        cuDblNumMat cu_MTemp( numStateTotal, numStateTotal );
+        DblNumMat MTemp( numStateTotal, numStateTotal );
+
+        // Copy data from CPU to GPU.
+        cuda_memcpy_CPU2GPU( cu_psiRow.Data(), psiRow.Data(), numStateTotal*ntotLocal*sizeof(Real) );
+        cuda_memcpy_CPU2GPU( cu_vexxProjRow.Data(), vexxProjRow.Data(), numStateTotal*ntotLocal*sizeof(Real) );
+
+	Real one = 1.0;
+	Real minus_one = -1.0;
+	Real zero = 0.0;
+        // GPU DGEMM calculation
+        cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numStateTotal, numStateTotal, ntotLocal,
+                    &one, cu_vexxProjRow.Data(), ntotLocal, 
+                    cu_psiRow.Data(), ntotLocal, &zero,
+                    cu_MTemp.Data(), numStateTotal );
+
+        cuda_memcpy_GPU2CPU( MTemp.Data(), cu_MTemp.Data(), numStateTotal*numStateTotal*sizeof(Real) );
+        DblNumMat M(numStateTotal, numStateTotal);
+        MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+	// copy from CPU to GPU
+        cuda_memcpy_CPU2GPU(  cu_MTemp.Data(), M.Data(), numStateTotal*numStateTotal*sizeof(Real) );
+        
+        cuDblNumMat cu_a3Row( ntotLocal, numStateTotal );
+        DblNumMat a3Row( ntotLocal, numStateTotal );
+
+        cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numStateTotal, numStateTotal, 
+                     &minus_one, cu_vexxProjRow.Data(), ntotLocal, 
+                     cu_MTemp.Data(), numStateTotal, &zero, 
+                     cu_a3Row.Data(), ntotLocal );
+
+        cuda_memcpy_GPU2CPU( a3Row.Data(), cu_a3Row.Data(), numStateTotal*ntotLocal*sizeof(Real) );
+
+        // a3Row to a3Col
+        DblNumMat a3Col( ntot, numStateLocal );
+        cuDblNumMat cu_a3Col( ntot, numStateLocal );
+        AlltoallBackward (a3Row, a3Col, domain_.comm);
+
+	//Copy a3Col to GPU.
+        cuda_memcpy_CPU2GPU( cu_a3Col.Data(), a3Col.Data(), numStateLocal*ntot*sizeof(Real) );
+
+        // do the matrix addition.
+	cuda_DMatrix_Add( a3.Data(), cu_a3Col.Data(), ntot, numStateLocal);
+
+      } //if(1)
+
+    }
+    else{
+
+      ErrorHandling(" GPU does not support normal HSE, try ACE");
+      
+    }
+
+    GetTime( timeEnd );
+//#if ( _DEBUGlevel_ >= 0 )
+//    statusOFS << "Time for updating hybrid Spinor is " <<
+//      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//    statusOFS << "Time for Gemm is " <<
+//      timeGemm << " [s]" << std::endl << std::endl;
+//    statusOFS << "Time for Alltoallv is " <<
+//      timeAlltoallv << " [s]" << std::endl << std::endl;
+//    statusOFS << "Time for Allreduce is " <<
+//      timeAllreduce << " [s]" << std::endl << std::endl;
+//#endif
+
+
+  }
 
 
   return ;
@@ -2076,7 +2199,6 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
   Real timeAllreduce = 0.0;
 
   SetValue( a3, 0.0 );
-
   // Apply an initial filter on the wavefunctions, if required
   if((apply_filter_ == 1 && apply_first_ == 1))
   {

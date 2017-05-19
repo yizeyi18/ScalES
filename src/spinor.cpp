@@ -809,7 +809,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
   return ;
 }
-
+/*
 void
 Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
     const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
@@ -1042,7 +1042,8 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
   return ;
 }
-#else
+*/
+#endif
 void
 Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
     const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
@@ -1327,7 +1328,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorFineR2C  ----- 
-#endif
+//#endif
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
     const NumTns<Real>& phi,
     const DblNumVec& exxgkkR2C,
