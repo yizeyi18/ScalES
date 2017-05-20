@@ -1463,7 +1463,7 @@ SCF::Iterate (  )
             }
             else{
               // GPU needs to be done
-              ham.CalculateVexxACE ( psi, fft );
+              ham.CalculateVexxACEGPU ( psi, fft );
             }
           }
 

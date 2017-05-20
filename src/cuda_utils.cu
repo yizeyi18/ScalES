@@ -710,4 +710,25 @@ void cuda_DMatrix_Add( double * A , double * B, int m, int n)
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
+__global__ void gpu_alpha_X_plus_beta_Y_multiply_Z( double * X, double alpha, double * Y, double beta, double * Z, int length)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if(tid < length)
+	{
+		X[tid] = alpha * X[tid] + beta * Y[tid] * Z[tid];
+	}
+}
+void cuda_Axpyz( double * X, double alpha, double * Y, double beta, double * Z, int length)
+{
+	int ndim = ( length + DIM - 1) / DIM ;
+	gpu_alpha_X_plus_beta_Y_multiply_Z <<< ndim, DIM >>> (X, alpha, Y, beta, Z, length);
+
+#ifdef SYNC 
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
+
 #endif

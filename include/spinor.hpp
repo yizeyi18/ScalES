@@ -165,6 +165,21 @@ public:
       const DblNumVec& occupationRate,
       NumTns<Real>& a3 );
 
+#ifdef GPU
+  /// @brief Apply the exchange operator to the spinor by solving
+  /// Poisson like equations
+  /// EXX: Spinor with exact exchange. 
+  /// Keeping the names separate is good for now, since the new
+  /// algorithm requires a different set of input parameters for AddMultSpinor
+  void AddMultSpinorEXX ( Fourier& fft,
+      const NumTns<Real>& phi,
+      const DblNumVec& exxgkkR2CFine,
+      Real  exxFraction,
+      Real  numSpin,
+      const DblNumVec& occupationRate,
+      cuNumTns<Real>& a3 );
+#endif
+
   /// @brief Spinor with exact exchange, and the cost is reduced using density fitting schemes.
   /// The density fitting uses the interpolative separable density fitting method
   ///

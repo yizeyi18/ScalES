@@ -151,6 +151,7 @@ void cuda_init_vtot();
 void cuda_clean_vtot();
 void cuda_set_vtot_flag();
 void cuda_DMatrix_Add( double * A , double * B, int m, int n);
+void cuda_Axpyz( double * X, double alpha, double * Y, double beta, double * Z, int length);
 //}
 #endif
 #endif

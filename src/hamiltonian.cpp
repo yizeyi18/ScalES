@@ -2562,6 +2562,187 @@ KohnSham::SetPhiEXX    (const Spinor& psi, Fourier& fft)
   return ;
 }         // -----  end of method KohnSham::SetPhiEXX  ----- 
 
+#ifdef GPU
+
+void
+KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
+{
+  // This assumes SetPhiEXX has been called so that phiEXX and psi
+  // contain the same information. 
+
+  // Since this is a projector, it should be done on the COARSE grid,
+  // i.e. to the wavefunction directly
+
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  // Only works for single processor
+  Int ntot      = fft.domain.NumGridTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int numStateTotal = psi.NumStateTotal();
+  Int numStateLocal = psi.NumState();
+  cuNumTns<Real>  cu_vexxPsi( ntot, 1, numStateLocal );
+  NumTns<Real>  vexxPsi( ntot, 1, numStateLocal );
+
+  // VexxPsi = V_{exx}*Phi.
+  //SetValue( vexxPsi, 0.0 );
+  psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
+      exxFraction_,  numSpin_, occupationRate_, cu_vexxPsi );
+
+  // Implementation based on SVD
+  DblNumMat  M(numStateTotal, numStateTotal);
+
+  if(0){
+    // FIXME
+    Real SVDTolerance = 1e-4;
+    // M = Phi'*vexxPsi
+    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+        1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
+        0.0, M.Data(), numStateTotal );
+
+    DblNumMat  U( numStateTotal, numStateTotal );
+    DblNumMat VT( numStateTotal, numStateTotal );
+    DblNumVec  S( numStateTotal );
+    SetValue( S, 0.0 );
+
+    lapack::QRSVD( numStateTotal, numStateTotal, M.Data(), numStateTotal,
+        S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
+
+
+    for( Int g = 0; g < numStateTotal; g++ ){
+      S[g] = std::sqrt( S[g] );
+    }
+
+    Int rankM = 0;
+    for( Int g = 0; g < numStateTotal; g++ ){
+      if( S[g] / S[0] > SVDTolerance ){
+        rankM++;
+      }
+    }
+    statusOFS << "rank of Phi'*VPhi matrix = " << rankM << std::endl;
+    for( Int g = 0; g < rankM; g++ ){
+      blas::Scal( numStateTotal, 1.0 / S[g], U.VecData(g), 1 );
+    }
+
+    vexxProj_.Resize( ntot, rankM );
+    blas::Gemm( 'N', 'N', ntot, rankM, numStateTotal, 1.0, 
+        vexxPsi.Data(), ntot, U.Data(), numStateTotal, 0.0,
+        vexxProj_.Data(), ntot );
+  }
+
+  // Implementation based on Cholesky
+  if(0){
+    // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
+    // semi-definite matrix.
+    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+        -1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
+        0.0, M.Data(), numStateTotal );
+
+    lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+
+    blas::Trsm( 'R', 'L', 'T', 'N', ntot, numStateTotal, 1.0, 
+        M.Data(), numStateTotal, vexxPsi.Data(), ntot );
+
+    vexxProj_.Resize( ntot, numStateTotal );
+    blas::Copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
+  }
+
+  if(1){ //For MPI
+
+    // Convert the column partition to row partition
+    Int numStateBlocksize = numStateTotal / mpisize;
+    Int ntotBlocksize = ntot / mpisize;
+
+    Int numStateLocal = numStateBlocksize;
+    Int ntotLocal = ntotBlocksize;
+
+    if(mpirank < (numStateTotal % mpisize)){
+      numStateLocal = numStateBlocksize + 1;
+    }
+
+    if(mpirank < (ntot % mpisize)){
+      ntotLocal = ntotBlocksize + 1;
+    }
+
+    DblNumMat localPsiCol( ntot, numStateLocal );
+    SetValue( localPsiCol, 0.0 );
+
+    DblNumMat localVexxPsiCol( ntot, numStateLocal );
+    SetValue( localVexxPsiCol, 0.0 );
+
+    DblNumMat localPsiRow( ntotLocal, numStateTotal );
+    SetValue( localPsiRow, 0.0 );
+
+    DblNumMat localVexxPsiRow( ntotLocal, numStateTotal );
+    SetValue( localVexxPsiRow, 0.0 );
+
+    // Initialize
+    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, localPsiCol.Data(), ntot );
+    lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
+
+    AlltoallForward (localPsiCol, localPsiRow, domain_.comm);
+    AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
+
+    DblNumMat MTemp( numStateTotal, numStateTotal );
+    SetValue( MTemp, 0.0 );
+
+    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
+        -1.0, localPsiRow.Data(), ntotLocal, 
+        localVexxPsiRow.Data(), ntotLocal, 0.0,
+        MTemp.Data(), numStateTotal );
+
+    SetValue( M, 0.0 );
+    MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+    if ( mpirank == 0) {
+      lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+    }
+
+    MPI_Bcast(M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_.comm);
+
+    blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numStateTotal, 1.0, 
+        M.Data(), numStateTotal, localVexxPsiRow.Data(), ntotLocal );
+
+    vexxProj_.Resize( ntot, numStateLocal );
+
+    AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
+  } //if(1)
+
+  // Sanity check. For debugging only
+  //  if(0){
+  //  // Make sure U and VT are the same. Should be an identity matrix
+  //    blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, numStateTotal, 1.0, 
+  //        VT.Data(), numStateTotal, U.Data(), numStateTotal, 0.0,
+  //        M.Data(), numStateTotal );
+  //    statusOFS << "M = " << M << std::endl;
+  //
+  //    NumTns<Real> vpsit = psi.Wavefun();
+  //    Int numProj = rankM;
+  //    DblNumMat Mt(numProj, numStateTotal);
+  //    
+  //    blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+  //        vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+  //        0.0, Mt.Data(), Mt.m() );
+  //    // Minus sign comes from that all eigenvalues are negative
+  //    blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+  //        vexxProj_.Data(), ntot, Mt.Data(), numProj,
+  //        0.0, vpsit.Data(), ntot );
+  //
+  //    for( Int k = 0; k < numStateTotal; k++ ){
+  //      Real norm = 0.0;
+  //      for( Int ir = 0; ir < ntot; ir++ ){
+  //        norm = norm + std::pow(vexxPsi(ir,0,k) - vpsit(ir,0,k), 2.0);
+  //      }
+  //      statusOFS << "Diff of vexxPsi " << std::sqrt(norm) << std::endl;
+  //    }
+  //  }
+
+
+  return ;
+}         // -----  end of method KohnSham::CalculateVexxACEGPU  ----- 
+
+#endif
 
 void
 KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )

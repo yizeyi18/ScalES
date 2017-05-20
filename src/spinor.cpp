@@ -1329,6 +1329,171 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   return ;
 }        // -----  end of method Spinor::AddMultSpinorFineR2C  ----- 
 //#endif
+
+#ifdef GPU
+void Spinor::AddMultSpinorEXX ( Fourier& fft, 
+    const NumTns<Real>& phi,
+    const DblNumVec& exxgkkR2C,
+    Real  exxFraction,
+    Real  numSpin,
+    const DblNumVec& occupationRate,
+    cuNumTns<Real>& a3 )
+{
+  if( !fft.isInitialized ){
+    ErrorHandling("Fourier is not prepared.");
+  }
+
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  Index3& numGrid = domain_.numGrid;
+  Index3& numGridFine = domain_.numGridFine;
+
+  Int ntot     = domain_.NumGridTotal();
+  Int ntotFine = domain_.NumGridTotalFine();
+  Int ntotR2C = fft.numGridTotalR2C;
+  Int ntotR2CFine = fft.numGridTotalR2CFine;
+  Int ncom = wavefun_.n();
+  Int numStateLocal = wavefun_.p();
+  Int numStateTotal = numStateTotal_;
+
+  Int ncomPhi = phi.n();
+
+  Real vol = domain_.Volume();
+
+  if( ncomPhi != 1 || ncom != 1 ){
+    ErrorHandling("Spin polarized case not implemented.");
+  }
+
+  if( fft.domain.NumGridTotal() != ntot ){
+    ErrorHandling("Domain size does not match.");
+  }
+
+  // Temporary variable for saving wavefunction on a fine grid
+  DblNumVec phiTemp(ntot);
+  cuDblNumVec cu_phiTemp(ntot);
+  cuDblNumVec cu_psi(ntot);
+  cuDblNumVec cu_psi_out(2*ntotR2C);
+  cuDblNumVec cu_exxgkkR2C;
+  cuda_memcpy_CPU2GPU(cu_exxgkkR2C.Data(), exxgkkR2C.Data(), sizeof(Real)*ntotR2C);
+
+  Int numStateLocalTemp;
+
+  MPI_Barrier(domain_.comm);
+
+  // book keeping the old interface while do the GPU inside. 
+  // 1st version code. 
+  for( Int iproc = 0; iproc < mpisize; iproc++ ){
+
+    if( iproc == mpirank )
+      numStateLocalTemp = numStateLocal;
+
+    MPI_Bcast( &numStateLocalTemp, 1, MPI_INT, iproc, domain_.comm );
+
+    IntNumVec wavefunIdxTemp(numStateLocalTemp);
+    if( iproc == mpirank ){
+      wavefunIdxTemp = wavefunIdx_;
+    }
+
+    MPI_Bcast( wavefunIdxTemp.Data(), numStateLocalTemp, MPI_INT, iproc, domain_.comm );
+
+    // FIXME OpenMP does not work since all variables are shared
+    for( Int kphi = 0; kphi < numStateLocalTemp; kphi++ ){
+      for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
+
+        SetValue( phiTemp, 0.0 );
+
+        if( iproc == mpirank )
+        { 
+          Real* phiPtr = phi.VecData(jphi, kphi);
+          for( Int ir = 0; ir < ntot; ir++ ){
+            phiTemp(ir) = phiPtr[ir];
+          }
+        }
+
+        MPI_Bcast( phiTemp.Data(), ntot, MPI_DOUBLE, iproc, domain_.comm );
+
+        // version 1: only do the GPU for the inner most part. 
+        // note that the ncom == 1; it is the spin.
+
+        // copy the phiTemp to GPU.
+        cuda_memcpy_CPU2GPU(cu_phiTemp.Data(), phiTemp.Data(), sizeof(Real)*ntot);
+
+	// copy the wave function to GPU.
+        cuda_memcpy_CPU2GPU(cu_wavefun_.Data(), wavefun_.Data(), sizeof(Real)*numStateLocal * ntot);
+      
+        
+        for (Int k=0; k<numStateLocal; k++) {
+          for (Int j=0; j<ncom; j++) {
+
+            // get the current psi pointer 
+            Real* cu_psiPtr = cu_wavefun_.VecData(j,k);
+
+            cuda_memcpy_GPU2GPU(cu_psi.Data(), cu_wavefun_.VecData(j,k), sizeof(Real)*ntot);
+
+            // input vec = psi * phi
+            cuda_vtot(cu_psi.Data(), cu_phiTemp.Data(), ntot);
+	        
+	    // exec the CUFFT. 
+            cuFFTExecuteForward( fft, fft.cuPlanR2C[0], 0, cu_psi, cu_psi_out);
+
+            // Solve the Poisson-like problem for exchange
+     	    // note, exxgkkR2C apply to psi exactly like teter or laplacian
+            cuda_teter( reinterpret_cast<cuDoubleComplex*> (cu_psi_out.Data()), cu_exxgkkR2C.Data(), ntotR2C );
+
+	    // exec the CUFFT. 
+            cuFFTExecuteInverse( fft, fft.cuPlanC2R[0], 0, cu_psi_out, cu_psi);
+
+            // multiply by the occupationRate.
+	    // multiply with fac.
+            Real *cu_a3Ptr = a3.VecData(j,k);
+            Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
+            cuda_Axpyz( cu_a3Ptr, 1.0, cu_psiPtr, fac, cu_phiTemp.Data(), ntot);
+            
+
+	/*
+            for( Int ir = 0; ir < ntot; ir++ ){
+              fft.inputVecR2C(ir) = psiPtr[ir] * phiTemp(ir);
+            }
+
+
+            FFTWExecute ( fft, fft.forwardPlanR2C );
+
+            // Solve the Poisson-like problem for exchange
+            for( Int ig = 0; ig < ntotR2C; ig++ ){
+              fft.outputVecR2C(ig) *= exxgkkR2C(ig);
+            }
+
+            FFTWExecute ( fft, fft.backwardPlanR2C );
+
+            Real* a3Ptr = a3.VecData(j,k);
+            Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
+            for( Int ir = 0; ir < ntot; ir++ ){
+              a3Ptr[ir] += fft.inputVecR2C(ir) * phiTemp(ir) * fac;
+            }
+	*/
+
+
+          } // for (j)
+        } // for (k)
+
+        MPI_Barrier(domain_.comm);
+
+
+      } // for (jphi)
+    } // for (kphi)
+
+  } //iproc
+
+  MPI_Barrier(domain_.comm);
+
+
+  return ;
+}        // -----  end of method Spinor::AddMultSpinorEXX  ----- 
+
+
+#endif
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
     const NumTns<Real>& phi,
     const DblNumVec& exxgkkR2C,
