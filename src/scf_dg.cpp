@@ -8213,7 +8213,7 @@ namespace  dgdft{
 #ifndef ELSI
                 GetTime( timeSta );
                 // Old version of PEXSI driver, uses inertia counting + Newton's iteration
-                if(0){
+                if(1){
                   PPEXSIDFTDriver(
                       pexsiPlan_,
                       pexsiOptions_,
@@ -8247,20 +8247,20 @@ namespace  dgdft{
                 int method = esdfParam.pexsiMethod;
                 int npoint = esdfParam.pexsiNpoint;
 
-                if(1){
-                  PPEXSIDFTDriver3(
-                      pexsiPlan_,
-                      pexsiOptions_,
-                      numElectronExact,
-                      method,
-                      npoint,
-                      &muPEXSI,
-                      &numElectronPEXSI,         
-                      &pexsiOptions_.muMin0,              
-                      &pexsiOptions_.muMax0,             
-                      &numTotalInertiaIter,
-                      &info );
-                }
+//                if(0){
+//                  PPEXSIDFTDriver3(
+//                      pexsiPlan_,
+//                      pexsiOptions_,
+//                      numElectronExact,
+//                      method,
+//                      npoint,
+//                      &muPEXSI,
+//                      &numElectronPEXSI,         
+//                      &pexsiOptions_.muMin0,              
+//                      &pexsiOptions_.muMax0,             
+//                      &numTotalInertiaIter,
+//                      &info );
+//                }
  
                 GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )

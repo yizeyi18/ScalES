@@ -182,6 +182,34 @@ public:
 };
 
 
+struct GeoOptVars
+{
+  // Currently the optimization parameters are taken from fminPGBB.m obtained from Zaiwen Wen.
+  // Variable names to be organized later
+  Real xtol;
+  Real gtol;
+
+  // Parameters for control the linear approximation in line search
+  Real tau;
+  Real rhols;
+  Real eta;
+  Real gamma;
+  Real STPEPS;
+  Real nt;
+
+  Int callType;
+  Int nls;
+
+
+  // Internal variables
+  std::vector<Point3>  atompos;
+  std::vector<Point3>  atomforce;
+  
+  std::vector<Point3>  atomposOld;
+  std::vector<Point3>  atomforceOld;
+};
+
+
 class IonDynamics
 {
 private:
@@ -194,6 +222,9 @@ private:
   Int maxHist_;
 
   /// @brief atomListHist_[0] stores the lastest atomic configuration
+  ///
+  /// FIXME
+  /// This should be combined with GeoOptVars information later
   std::vector<std::vector<Atom> >   atomListHist_;
 
   std::string          ionMove_;
@@ -228,10 +259,16 @@ private:
   bool                 isGeoOpt_;
   bool                 isMD_;
 
+  GeoOptVars           geoOptVars_;
 
   /// @brief BarzilaiBorwein method for geometry optimization
   ///
   void BarzilaiBorweinOpt( Int ionIter );
+
+  /// @brief PGBB method for geometry optimization (from Zaiwen Wen)
+  ///
+  void PGBBOpt( Int ionIter );
+
 
   /// @brief Non-linear Conjugate Gradient with Secant and Polak-Ribiere
   NLCG_internal_vars_type NLCG_vars;

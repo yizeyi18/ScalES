@@ -96,6 +96,7 @@ void
     isMD_     = false;
 
     if( ionMove_ == "bb" ||
+        ionMove_ == "pgbb" ||
         ionMove_ == "nlcg" ||
         ionMove_ == "bfgs" ){
       isGeoOpt_ = true;
@@ -107,10 +108,38 @@ void
       isMD_ = true;
     }
 
+    if( isGeoOpt_ == false && isMD_ == false ){
+      ErrorHandling("Neither geometry optimization nor MD is invoked.");
+    }
+
+
     // Geometry optimization
 
     if( ionMove_ == "bb" ){
     }
+
+    if( ionMove_ == "pgbb" ){
+      geoOptVars_.xtol = 1e-6;
+      geoOptVars_.gtol = 1e-6;
+
+      geoOptVars_.tau  = 1e-1; // Original default is 1e-3
+      geoOptVars_.rhols = 1e-4;
+      geoOptVars_.eta = 0.1;
+      geoOptVars_.gamma = 0.85;
+      geoOptVars_.STPEPS = 1e-10;
+      geoOptVars_.nt = 5;
+
+      geoOptVars_.callType = 0;
+
+
+      Int numAtom = atomList.size();
+      geoOptVars_.atompos.resize(numAtom);
+      geoOptVars_.atomposOld.resize(numAtom);
+      geoOptVars_.atomforce.resize(numAtom);
+      geoOptVars_.atomforceOld.resize(numAtom);
+
+    }
+
 
     if( ionMove_ == "nlcg" )
     {
@@ -308,6 +337,11 @@ void
       BarzilaiBorweinOpt( ionIter );
     }
 
+    if( ionMove_ == "pgbb" ){
+      PGBBOpt( ionIter );
+    }
+
+
     if( ionMove_ == "nlcg"){
       NLCG_Opt( ionIter );      
     }
@@ -382,94 +416,160 @@ void
   }         // -----  end of method IonDynamics::MoveIons  ----- 
 
 
-void
-  IonDynamics::BarzilaiBorweinOpt    ( Int ionIter )
-  {
-    Int mpirank, mpisize;
-    MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-    MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+void IonDynamics::BarzilaiBorweinOpt    ( Int ionIter )
+{
+  Int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
-    std::vector<Atom>&   atomList    = *atomListPtr_;
-    // Note: atomListHist_[0] stores the same info as atomList
-    std::vector<Atom>&   atomListOld = atomListHist_[1];
+  std::vector<Atom>&   atomList    = *atomListPtr_;
+  // Note: atomListHist_[0] stores the same info as atomList
+  std::vector<Atom>&   atomListOld = atomListHist_[1];
 
-    Int numAtom = atomList.size();
+  Int numAtom = atomList.size();
 
-    std::vector<Point3>  atompos(numAtom);
-    std::vector<Point3>  atomforce(numAtom);
-    std::vector<Point3>  atomposOld(numAtom);
-    std::vector<Point3>  atomforceOld(numAtom);
+  std::vector<Point3>  atompos(numAtom);
+  std::vector<Point3>  atomforce(numAtom);
+  std::vector<Point3>  atomposOld(numAtom);
+  std::vector<Point3>  atomforceOld(numAtom);
+
+  for( Int a = 0; a < numAtom; a++ ){
+    atompos[a]   = atomList[a].pos;
+    atomforce[a] = atomList[a].force;
+  }
+
+  // Output the XYZ format for movie
+  // Once this is written, all work associated with the current atomic
+  // position is DONE.
+  if( mpirank == 0 ){
+    if( isOutputXYZ_ ){
+      std::fstream fout;
+      fout.open("MD.xyz",std::ios::out | std::ios::app) ;
+      if( !fout.good() ){
+        ErrorHandling( "Cannot open MD.xyz!" );
+      }
+      fout << numAtom << std::endl;
+      fout << "MD step # "<< ionIter << std::endl;
+      for(Int a=0; a<numAtom; a++){
+        fout<< std::setw(6)<< atomList[a].type
+          << std::setw(16)<< atompos[a][0]*au2ang
+          << std::setw(16)<< atompos[a][1]*au2ang
+          << std::setw(16)<< atompos[a][2]*au2ang
+          << std::endl;
+      }
+      fout.close();
+    }
+  } // if( mpirank == 0 )
+
+
+  if( ionIter == 1 ){
+    // FIXME 0.1 is a magic number
+    for( Int a = 0; a < numAtom; a++ ){
+      atompos[a]   = atompos[a] + 0.1 * atomforce[a];
+    }
+  }
+  else{
 
     for( Int a = 0; a < numAtom; a++ ){
-      atompos[a]   = atomList[a].pos;
-      atomforce[a] = atomList[a].force;
+      atomposOld[a]   = atomListOld[a].pos;
+      atomforceOld[a] = atomListOld[a].force;
     }
 
-    // Output the XYZ format for movie
-    // Once this is written, all work associated with the current atomic
-    // position is DONE.
-    if( mpirank == 0 ){
-      if( isOutputXYZ_ ){
-        std::fstream fout;
-        fout.open("MD.xyz",std::ios::out | std::ios::app) ;
-        if( !fout.good() ){
-          ErrorHandling( "Cannot open MD.xyz!" );
-        }
-        fout << numAtom << std::endl;
-        fout << "MD step # "<< ionIter << std::endl;
-        for(Int a=0; a<numAtom; a++){
-          fout<< std::setw(6)<< atomList[a].type
-            << std::setw(16)<< atompos[a][0]*au2ang
-            << std::setw(16)<< atompos[a][1]*au2ang
-            << std::setw(16)<< atompos[a][2]*au2ang
-            << std::endl;
-        }
-        fout.close();
-      }
-    } // if( mpirank == 0 )
+    DblNumVec sVec(DIM*numAtom), yVec(DIM*numAtom);
+    SetValue( sVec, 0.0 );
+    SetValue( yVec, 0.0 );
 
-
-    if( ionIter == 1 ){
-      // FIXME 0.1 is a magic number
-      for( Int a = 0; a < numAtom; a++ ){
-        atompos[a]   = atompos[a] + 0.1 * atomforce[a];
+    for( Int a = 0; a < numAtom; a++ ){
+      for( Int d = 0; d < DIM; d++ ){
+        sVec(DIM*a+d) = atompos[a][d] - atomposOld[a][d];
+        yVec(DIM*a+d) = atomforce[a][d] - atomforceOld[a][d];
       }
     }
-    else{
+    // Note the minus sign
+    Real step = - blas::Dot( DIM*numAtom, sVec.Data(), 1, yVec.Data(), 1 ) / 
+      blas::Dot( DIM*numAtom, yVec.Data(), 1, yVec.Data(), 1 );
 
-      for( Int a = 0; a < numAtom; a++ ){
-        atomposOld[a]   = atomListOld[a].pos;
-        atomforceOld[a] = atomListOld[a].force;
-      }
+    for( Int a = 0; a < numAtom; a++ ){
+      // Update the atomic position
+      atompos[a]   = atompos[a] + step * atomforce[a];
+    }
+  }
 
-      DblNumVec sVec(DIM*numAtom), yVec(DIM*numAtom);
-      SetValue( sVec, 0.0 );
-      SetValue( yVec, 0.0 );
+  // Update atomic position to store in atomListPtr_
+  for(Int a = 0; a < numAtom; a++){
+    atomList[a].pos = atompos[a];
+  }
 
-      for( Int a = 0; a < numAtom; a++ ){
-        for( Int d = 0; d < DIM; d++ ){
-          sVec(DIM*a+d) = atompos[a][d] - atomposOld[a][d];
-          yVec(DIM*a+d) = atomforce[a][d] - atomforceOld[a][d];
-        }
-      }
-      // Note the minus sign
-      Real step = - blas::Dot( DIM*numAtom, sVec.Data(), 1, yVec.Data(), 1 ) / 
-        blas::Dot( DIM*numAtom, yVec.Data(), 1, yVec.Data(), 1 );
 
-      for( Int a = 0; a < numAtom; a++ ){
-        // Update the atomic position
-        atompos[a]   = atompos[a] + step * atomforce[a];
+  return ;
+}         // -----  end of method IonDynamics::BarzilaiBorweinOpt  ----- 
+
+void IonDynamics::PGBBOpt ( Int ionIter )
+{
+  Int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+
+  std::vector<Atom>&   atomList    = *atomListPtr_;
+
+  Int numAtom = atomList.size();
+
+  // Update the current position and force
+  for( Int a = 0; a < numAtom; a++ ){
+    geoOptVars_.atompos[a]   = atomList[a].pos;
+    geoOptVars_.atomforce[a] = atomList[a].force;
+  }
+
+  // Should evaluate here
+  
+  if( ionIter > 1 ){
+
+    DblNumVec sVec(DIM*numAtom), yVec(DIM*numAtom);
+    SetValue( sVec, 0.0 );
+    SetValue( yVec, 0.0 );
+
+    for( Int a = 0; a < numAtom; a++ ){
+      for( Int d = 0; d < DIM; d++ ){
+        sVec(DIM*a+d) = geoOptVars_.atompos[a][d] - geoOptVars_.atomposOld[a][d];
+        yVec(DIM*a+d) = geoOptVars_.atomforce[a][d] - geoOptVars_.atomforceOld[a][d];
       }
     }
 
-    // Update atomic position to store in atomListPtr_
-    for(Int a = 0; a < numAtom; a++){
-      atomList[a].pos = atompos[a];
+    Real sy = blas::Dot( DIM*numAtom, sVec.Data(), 1, yVec.Data(), 1 );
+    Real ss = blas::Dot( DIM*numAtom, sVec.Data(), 1, sVec.Data(), 1 );
+    Real yy = blas::Dot( DIM*numAtom, yVec.Data(), 1, yVec.Data(), 1 );
+
+    if( ionIter % 2 == 0 )
+      geoOptVars_.tau = ss / std::abs(sy);
+    else
+      geoOptVars_.tau = std::abs(sy) / yy;
+
+    statusOFS << "PGBB tau prev = " << geoOptVars_.tau << std::endl;
+
+    geoOptVars_.tau = std::max( std::min( geoOptVars_.tau, 1e10 ), 1e-10 );
+  }
+
+  statusOFS << "PGBB tau = " << geoOptVars_.tau << std::endl;
+
+  // Regular step. Update the history information
+  if( geoOptVars_.callType == 0 ){
+    for( Int a = 0; a < numAtom; a++ ){
+      geoOptVars_.atomposOld[a]   = geoOptVars_.atompos[a];
+      geoOptVars_.atomforceOld[a] = geoOptVars_.atomforce[a];
     }
+    geoOptVars_.nls = 1;
+  }
+
+  // Update atomic position to store in atomListPtr_
+  for( Int a = 0; a < numAtom; a++ ){
+    atomList[a].pos   = geoOptVars_.atomposOld[a] + 
+      geoOptVars_.tau * geoOptVars_.atomforceOld[a];
+  }
 
 
-    return ;
-  }         // -----  end of method IonDynamics::BarzilaiBorweinOpt  ----- 
+  return ;
+}         // -----  end of method IonDynamics::PGBBOpt  ----- 
+
 
 
 // Non-Linear Conjugate Gradients with Secant and Polak-Ribiere
