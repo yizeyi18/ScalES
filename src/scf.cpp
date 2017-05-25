@@ -1118,7 +1118,21 @@ SCF::Iterate (  )
       SetValue( psiTemp, 0.0 );
 
       lapack::Lacpy( 'A', ntotLocal, numOccTotal, psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal );
-      
+      Real one = 1.0;
+      Real minus_one = -1.0;
+      Real zero = 0.0;
+
+      cuDblNumMat cu_psiMuT(numOccTotal, numOccTotal);
+      cuDblNumMat cu_HpsiMuT(numOccTotal, numOccTotal);
+      cuDblNumMat cu_psiRow( ntotLocal, numStateTotal );
+      cuDblNumMat cu_psiTemp(ntotLocal, numOccTotal);
+      cuDblNumMat cu_PcRow(ntotLocal, numOccTotal);
+      cuDblNumMat cu_HpsiCol(ntot, numStateLocal);
+      cuDblNumMat cu_psi(ntot, numStateLocal);
+      cuDblNumMat cu_HpsiRow(ntotLocal, numStateTotal);
+      cuDblNumMat cu_ResRow(ntotLocal, numOccTotal);
+
+     
 #ifdef GPU
     //cuda_init_vtot();
 #endif
@@ -1138,10 +1152,20 @@ SCF::Iterate (  )
 
           DblNumMat psiMuTTemp(numOccTotal, numOccTotal);
           SetValue( psiMuTTemp, 0.0 );
+
+          cuDblNumMat cu_psiMuTTemp(numOccTotal, numOccTotal);
+          cu_psiRow.CopyFrom(psiRow);
+          cu_psiTemp.CopyFrom( psiTemp);
+          cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, 
+              &one, cu_psiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
+              &zero, cu_psiMuTTemp.Data(), numOccTotal );
+          cu_psiMuTTemp.CopyTo( psiMuTTemp );
+
+          /*
           blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
               psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
               0.0, psiMuTTemp.Data(), numOccTotal );
-
+          */
           SetValue( psiMuT, 0.0 );
           MPI_Allreduce( psiMuTTemp.Data(), psiMuT.Data(), 
               numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
@@ -1158,11 +1182,17 @@ SCF::Iterate (  )
           statusOFS << "Spsi = " << s << std::endl;
         }
 #endif
-
+        cu_psiMuT.CopyFrom( psiMuT);
+        cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &one, 
+            cu_psiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
+            &zero, cu_PcRow.Data(), ntotLocal );
+         cu_PcRow.CopyTo( PcRow );
+        
+        /*
         blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
             psiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
             0.0, PcRow.Data(), ntotLocal );
-        
+        */
         SetValue( PcCol, 0.0 );
         //AlltoallBackward (PcRow, PcCol, mpi_comm);
         SCALAPACK(pdgemr2d)(&Ng, &No, PcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
@@ -1175,39 +1205,68 @@ SCF::Iterate (  )
         // Compute the residual
         {
           // Compute Hpsi for all psi 
-          NumTns<Real> tnsTemp(ntot, 1, numStateLocal, false, 
-              HpsiCol.Data());
-          ham.MultSpinor( psi, tnsTemp, fft );
+          Int ncom = psi.NumComponent();
+          Int noccTotal = psi.NumStateTotal();
+          Int noccLocal = psi.NumState();
+
+          cuda_memcpy_CPU2GPU(cu_psi.Data(), psi.Wavefun().Data(), ntot*numStateLocal*sizeof(Real) );
+          cuNumTns<Real> tnsTemp(ntot, 1, numStateLocal, false, cu_HpsiCol.Data());
+          Spinor spnTemp(fft.domain, ncom, noccTotal, noccLocal, false, cu_psi.Data(), true);
+          ham.MultSpinor( spnTemp, tnsTemp, fft );
+          cu_HpsiCol.CopyTo(HpsiCol);
+
+          // remember to reset the vtot
+          cuda_set_vtot_flag();
+          //ham.MultSpinor( psi, tnsTemp, fft );
         
-          SetValue( HpsiRow, 0.0 );
+          //SetValue( HpsiRow, 0.0 );
           //AlltoallForward (HpsiCol, HpsiRow, mpi_comm);
           SCALAPACK(pdgemr2d)(&Ng, &Ne, HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
             HpsiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
 
+          cu_HpsiRow.CopyFrom(HpsiRow);
+
           if(1){
 
             DblNumMat HpsiMuTTemp(numOccTotal,numOccTotal);
-            SetValue( HpsiMuTTemp, 0.0 );
+            cuDblNumMat cu_HpsiMuTTemp(numOccTotal,numOccTotal);
+            //SetValue( HpsiMuTTemp, 0.0 );
 
+            cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, &one, 
+                cu_HpsiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
+                &zero, cu_HpsiMuTTemp.Data(), numOccTotal );
+            cu_HpsiMuTTemp.CopyTo(HpsiMuTTemp);
+/*
             blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
                 HpsiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
                 0.0, HpsiMuTTemp.Data(), numOccTotal );
-
-            SetValue( HpsiMuT, 0.0 );
+*/
+            //SetValue( HpsiMuT, 0.0 );
 
             MPI_Allreduce( HpsiMuTTemp.Data(), HpsiMuT.Data(), 
                 numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
 
           }//if
+          
+          cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &one, 
+              cu_HpsiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
+              &zero, cu_ResRow.Data(), ntotLocal );
 
+          cu_HpsiMuT.CopyFrom( HpsiMuT );
+          cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
+              cu_psiRow.Data(), ntotLocal, cu_HpsiMuT.Data(), numOccTotal, 
+              &one, cu_ResRow.Data(), ntotLocal );
+          cu_ResRow.CopyTo(ResRow);
+
+          /*
           blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
               HpsiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
               0.0, ResRow.Data(), ntotLocal );
           blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, -1.0, 
               psiRow.Data(), ntotLocal, HpsiMuT.Data(), numOccTotal, 
               1.0, ResRow.Data(), ntotLocal );
-        
           SetValue( ResCol, 0.0 );
+          */
           //AlltoallBackward (ResRow, ResCol, mpi_comm);
           SCALAPACK(pdgemr2d)(&Ng, &No, ResRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
               ResCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
