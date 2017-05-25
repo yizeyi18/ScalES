@@ -57,6 +57,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "periodtable.hpp"
 #ifdef GPU
 #include "cuda_utils.h"
+#include  "magma.hpp"
+#include  "cublas.hpp"
 #endif
 
 namespace  dgdft{
@@ -341,6 +343,8 @@ SCF::Iterate (  )
 
 #ifdef GPU
     cuda_init_vtot();
+    cublas::Init();
+    MAGMA::Init();
 #endif
   // Perform non-hybrid functional calculation first
   if( !ham.IsHybrid() || !ham.IsEXXActive()){
@@ -1423,7 +1427,7 @@ SCF::Iterate (  )
             isFixColumnDF = true;
           }
           else{
-            ham.CalculateVexxACE ( psi, fft );
+            ham.CalculateVexxACEGPU ( psi, fft );
           }
         }
 
@@ -1468,7 +1472,7 @@ SCF::Iterate (  )
           }
 
           GetTime( timeEnd );
-          statusOFS << "Time for updating Phi related variable is " <<
+          statusOFS << " GPU Time for updating Phi related variable is " <<
             timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
         }//if
@@ -2041,6 +2045,8 @@ SCF::Iterate (  )
   } // isHybrid == true
 
 #ifdef GPU
+    cublas::Destroy();
+    MAGMA::Destroy();
     cuda_clean_vtot();
 #endif
   // Calculate the Force

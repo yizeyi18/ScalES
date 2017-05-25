@@ -5511,8 +5511,6 @@ EigenSolver::PPCGSolveReal (
   cublasOperation_t cu_transT = CUBLAS_OP_T;
   cublasOperation_t cu_transN = CUBLAS_OP_N;
   cublasOperation_t cu_transC = CUBLAS_OP_C;
-  cublas::Init();
-  MAGMA::Init();
   //cuda_init_vtot();
 
   if(mpirank == 0)
@@ -7115,8 +7113,6 @@ EigenSolver::PPCGSolveReal (
     statusOFS << "Time for PPCG in PWDFT is " <<  timeEnd2 - timeSta2  << std::endl << std::endl;
 #endif
 
-    cublas::Destroy();
-    MAGMA::Destroy();
     cuda_set_vtot_flag();   // set the vtot_flag to false.
     //cuda_clean_vtot();
     return ;

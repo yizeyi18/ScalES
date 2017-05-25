@@ -2587,11 +2587,15 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
 
   // VexxPsi = V_{exx}*Phi.
   //SetValue( vexxPsi, 0.0 );
+  cuda_setValue( cu_vexxPsi.Data(), 0.0, ntot*numStateLocal);
   psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
       exxFraction_,  numSpin_, occupationRate_, cu_vexxPsi );
 
+  
+  cuda_memcpy_GPU2CPU(vexxPsi.Data(),cu_vexxPsi.Data(), sizeof(Real)*ntot*numStateLocal);
   // Implementation based on SVD
   DblNumMat  M(numStateTotal, numStateTotal);
+  
 
   if(0){
     // FIXME
@@ -2665,6 +2669,7 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
       ntotLocal = ntotBlocksize + 1;
     }
 
+    /*
     DblNumMat localPsiCol( ntot, numStateLocal );
     SetValue( localPsiCol, 0.0 );
 
@@ -2676,6 +2681,11 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
 
     DblNumMat localVexxPsiRow( ntotLocal, numStateTotal );
     SetValue( localVexxPsiRow, 0.0 );
+    */
+    DblNumMat localPsiRow( ntotLocal, numStateTotal );
+    DblNumMat localVexxPsiRow( ntotLocal, numStateTotal );
+    DblNumMat localPsiCol( ntot, numStateLocal );
+    DblNumMat localVexxPsiCol( ntot, numStateLocal );
 
     // Initialize
     lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, localPsiCol.Data(), ntot );
@@ -2685,25 +2695,48 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
     AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
 
     DblNumMat MTemp( numStateTotal, numStateTotal );
-    SetValue( MTemp, 0.0 );
+    //SetValue( MTemp, 0.0 );
+    cuDblNumMat cu_MTemp( numStateTotal, numStateTotal );
+    cuDblNumMat cu_localPsiRow( ntotLocal, numStateTotal);
+    cuDblNumMat cu_localVexxPsiRow( ntotLocal, numStateTotal );
 
+    cu_localPsiRow.CopyFrom(localPsiRow);
+    cu_localVexxPsiRow.CopyFrom(localVexxPsiRow);
+
+    Real minus_one = -1.0;
+    Real zero =  0.0;
+    Real one  =  1.0;
+
+    cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numStateTotal, numStateTotal, ntotLocal,
+                  &minus_one, cu_localPsiRow.Data(), ntotLocal, 
+                  cu_localVexxPsiRow.Data(), ntotLocal, &zero,
+                  cu_MTemp.Data(), numStateTotal );
+    cu_MTemp.CopyTo(MTemp);
+
+    MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+    /*
     blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
         -1.0, localPsiRow.Data(), ntotLocal, 
         localVexxPsiRow.Data(), ntotLocal, 0.0,
         MTemp.Data(), numStateTotal );
-
-    SetValue( M, 0.0 );
-    MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
-
-    if ( mpirank == 0) {
-      lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
-    }
-
-    MPI_Bcast(M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_.comm);
-
+    */
+    //SetValue( M, 0.0 );
+ 
+    //if ( mpirank == 0) {
+    //  lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+    //}
+    //MPI_Bcast(M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_.comm);
+    /*
     blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numStateTotal, 1.0, 
         M.Data(), numStateTotal, localVexxPsiRow.Data(), ntotLocal );
+    */
 
+    cu_MTemp.CopyFrom(M);
+    MAGMA::Potrf('L', numStateTotal, cu_MTemp.Data(), numStateTotal);
+    cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, 
+                  ntotLocal, numStateTotal, &one, cu_MTemp.Data(), numStateTotal, cu_localVexxPsiRow.Data(),
+                  ntotLocal);
+    cu_localVexxPsiRow.CopyTo(localVexxPsiRow);
     vexxProj_.Resize( ntot, numStateLocal );
 
     AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);

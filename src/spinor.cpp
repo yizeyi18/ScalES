@@ -1361,7 +1361,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
   Int ncomPhi = phi.n();
 
   Real vol = domain_.Volume();
-
+  
   if( ncomPhi != 1 || ncom != 1 ){
     ErrorHandling("Spin polarized case not implemented.");
   }
@@ -1375,8 +1375,11 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
   cuDblNumVec cu_phiTemp(ntot);
   cuDblNumVec cu_psi(ntot);
   cuDblNumVec cu_psi_out(2*ntotR2C);
-  cuDblNumVec cu_exxgkkR2C;
+  cuDblNumVec cu_exxgkkR2C(ntotR2C);
+  cuDblNumMat cu_wave(ntot, numStateLocal);
+
   cuda_memcpy_CPU2GPU(cu_exxgkkR2C.Data(), exxgkkR2C.Data(), sizeof(Real)*ntotR2C);
+
 
   Int numStateLocalTemp;
 
@@ -1421,21 +1424,25 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
         cuda_memcpy_CPU2GPU(cu_phiTemp.Data(), phiTemp.Data(), sizeof(Real)*ntot);
 
 	// copy the wave function to GPU.
-        cuda_memcpy_CPU2GPU(cu_wavefun_.Data(), wavefun_.Data(), sizeof(Real)*numStateLocal * ntot);
+        //cuda_memcpy_CPU2GPU(cu_wavefun_.Data(), wavefun_.Data(), sizeof(Real)*numStateLocal * ntot);
+        
+        cuda_memcpy_CPU2GPU(cu_wave.Data(), wavefun_.Data(), sizeof(Real)* numStateLocal * ntot );
       
         
         for (Int k=0; k<numStateLocal; k++) {
           for (Int j=0; j<ncom; j++) {
 
             // get the current psi pointer 
-            Real* cu_psiPtr = cu_wavefun_.VecData(j,k);
-
-            cuda_memcpy_GPU2GPU(cu_psi.Data(), cu_wavefun_.VecData(j,k), sizeof(Real)*ntot);
+            //Real* cu_psiPtr = & cu_wave(0,k);
+            
+            //cuda_memcpy_CPU2GPU(cu_psi.Data(), wavefun_.VecData(j,k), sizeof(Real)* ntot );
+            //cuda_memcpy_GPU2GPU(cu_psi.Data(), cu_psi0.Data(), sizeof(Real)*ntot);
+            cuda_memcpy_GPU2GPU(cu_psi.Data(), & cu_wave(0,k), sizeof(Real)*ntot);
 
             // input vec = psi * phi
             cuda_vtot(cu_psi.Data(), cu_phiTemp.Data(), ntot);
-	        
-	    // exec the CUFFT. 
+
+            // exec the CUFFT. 
             cuFFTExecuteForward( fft, fft.cuPlanR2C[0], 0, cu_psi, cu_psi_out);
 
             // Solve the Poisson-like problem for exchange
@@ -1449,14 +1456,13 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 	    // multiply with fac.
             Real *cu_a3Ptr = a3.VecData(j,k);
             Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
-            cuda_Axpyz( cu_a3Ptr, 1.0, cu_psiPtr, fac, cu_phiTemp.Data(), ntot);
+            cuda_Axpyz( cu_a3Ptr, 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot);
             
 
 	/*
             for( Int ir = 0; ir < ntot; ir++ ){
               fft.inputVecR2C(ir) = psiPtr[ir] * phiTemp(ir);
             }
-
 
             FFTWExecute ( fft, fft.forwardPlanR2C );
 
