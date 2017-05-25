@@ -1432,7 +1432,7 @@ SCF::Iterate (  )
         }
 
         GetTime( timeEnd );
-        statusOFS << "Time for updating Phi related variable is " <<
+        statusOFS << "GPU Time for updating Phi related variable is " <<
           timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
         InnerSolve( phiIter );
