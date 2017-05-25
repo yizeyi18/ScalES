@@ -1131,6 +1131,7 @@ SCF::Iterate (  )
       cuDblNumMat cu_psi(ntot, numStateLocal);
       cuDblNumMat cu_HpsiRow(ntotLocal, numStateTotal);
       cuDblNumMat cu_ResRow(ntotLocal, numOccTotal);
+      cuDblNumMat cu_psiPcRow(ntotLocal, numStateTotal);
 
      
 #ifdef GPU
@@ -1272,6 +1273,7 @@ SCF::Iterate (  )
               ResCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
         }
         
+        GetTime( timeSta );
         // Anderson mixing. Use the same mixMaxDim_ for Phi mixing
         {
           // Optimal input potential in Anderon mixing.
@@ -1390,24 +1392,43 @@ SCF::Iterate (  )
             SCALAPACK(pdgemr2d)(&Ng, &No, psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
                 psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
 
+            cu_psiPcRow.CopyFrom( psiPcRow );
+
             DblNumMat XTX(numOccTotal, numOccTotal);
             DblNumMat XTXTemp(numOccTotal, numOccTotal);
+            cuDblNumMat cu_XTXTemp(numOccTotal, numOccTotal);
+            
+            cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
+                ntotLocal, cu_psiPcRow.Data(), ntotLocal, &zero, cu_XTXTemp.Data(), numOccTotal );
+            cu_XTXTemp.CopyTo(XTXTemp);
 
+            /*
             blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiPcRow.Data(), 
                 ntotLocal, psiPcRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
             SetValue( XTX, 0.0 );
+            */
             MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
 
-            if ( mpirank == 0) {
-              lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
-            }
-            MPI_Bcast(XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, 0, mpi_comm);
+            //if ( mpirank == 0) {
+            //  lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
+            //}
+            //MPI_Bcast(XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, 0, mpi_comm);
+
+            cu_XTXTemp.CopyFrom(XTX);
+            MAGMA::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
+
+            cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, 
+                          ntotLocal, numOccTotal, &one, cu_XTXTemp.Data(), numOccTotal, cu_psiPcRow.Data(),
+                          ntotLocal);
+            cu_psiPcRow.CopyTo( psiPcRow );
 
             // X <- X * U^{-1} is orthogonal
+            /*
             blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
                 psiPcRow.Data(), ntotLocal );
-
             SetValue( psiPcCol, 0.0 );
+            */
+
             //AlltoallBackward (psiPcRow, psiPcCol, mpi_comm);
             SCALAPACK(pdgemr2d)(&Ng, &No, psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
                 psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
@@ -1415,6 +1436,11 @@ SCF::Iterate (  )
         
         }//Anderson mixing
 
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for GPU  Anderson mixing in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
         // Construct the new Hamiltonian operator
         Spinor spnPsiPc(fft.domain, 1, numStateTotal,
