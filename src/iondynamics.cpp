@@ -559,6 +559,23 @@ void IonDynamics::PGBBOpt ( Int ionIter )
     }
     geoOptVars_.nls = 1;
   }
+  
+  statusOFS << "Computed tau = " << geoOptVars_.tau << std::endl;
+
+  // Update tau if necessary
+  Real posdiffMax = 0.0, posdiff = 0.0;
+
+  for( Int a = 0; a < numAtom; a++ ){
+    posdiff = geoOptVars_.tau * geoOptVars_.atomforceOld[a].l2();
+    if( posdiffMax < posdiff )
+      posdiffMax = posdiff;
+  }
+
+  // magic number
+  Real possdiffBound = 0.1;
+  geoOptVars_.tau *= possdiffBound/std::max(posdiffMax, possdiffBound);
+
+  statusOFS << "Corrected tau = " << geoOptVars_.tau << std::endl;
 
   // Update atomic position to store in atomListPtr_
   for( Int a = 0; a < numAtom; a++ ){
