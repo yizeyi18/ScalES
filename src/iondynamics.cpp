@@ -141,8 +141,7 @@ void
     } // if( pgbb )
 
     if( ionMove_ == "lbfgs" ){
-      geoOptVars_.xtol = 1e-4;
-      geoOptVars_.gtol = 1e-4;
+      geoOptVars_.gtol = 1e-6;
 
       geoOptVars_.callType = 0;
       geoOptVars_.maxMixingDim = 7;
@@ -617,6 +616,7 @@ void IonDynamics::LBFGSOpt ( Int ionIter )
   DblNumVec diagdummy(N);
 //  SetValue( diagdummy, 0.01 );
   IntNumVec iPrint(2);
+  Real MACH_EPS = 1e-15;
 
   iPrint[0] = 1;  // output every IPRINT(0) iterations.
   iPrint[1] = 0;  // iteration count, number of function evaluations, 
@@ -631,13 +631,12 @@ void IonDynamics::LBFGSOpt ( Int ionIter )
     grad[3*a+2]  = -atomList[a].force[2];
   }
 
-  Real eps = geoOptVars_.gtol / geoOptVars_.xtol;
   statusOFS << "geoOptVars_.work.size() = " << geoOptVars_.work.Size() << std::endl;
   statusOFS << "Epot = " << Epot_ << std::endl;
 
   F2C(lbfgs)( &N, &geoOptVars_.maxMixingDim, pos.Data(),
      &Epot_, grad.Data(), &diagco, diagdummy.Data(), 
-     iPrint.Data(), &eps, &geoOptVars_.xtol, 
+     iPrint.Data(), &geoOptVars_.gtol, &MACH_EPS, 
      geoOptVars_.work.Data(), &geoOptVars_.callType );
 
   statusOFS << "callType = " << geoOptVars_.callType << std::endl;
