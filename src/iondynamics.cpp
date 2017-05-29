@@ -604,6 +604,10 @@ void IonDynamics::PGBBOpt ( Int ionIter )
 
 void IonDynamics::LBFGSOpt ( Int ionIter )
 {
+  Int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+
   std::vector<Atom>&   atomList    = *atomListPtr_;
 
   Int numAtom = atomList.size();
@@ -634,10 +638,13 @@ void IonDynamics::LBFGSOpt ( Int ionIter )
   statusOFS << "geoOptVars_.work.size() = " << geoOptVars_.work.Size() << std::endl;
   statusOFS << "Epot = " << Epot_ << std::endl;
 
-  F2C(lbfgs)( &N, &geoOptVars_.maxMixingDim, pos.Data(),
-     &Epot_, grad.Data(), &diagco, diagdummy.Data(), 
-     iPrint.Data(), &geoOptVars_.gtol, &MACH_EPS, 
-     geoOptVars_.work.Data(), &geoOptVars_.callType );
+  if( mpirank == 0 ){
+    F2C(lbfgs)( &N, &geoOptVars_.maxMixingDim, pos.Data(),
+        &Epot_, grad.Data(), &diagco, diagdummy.Data(), 
+        iPrint.Data(), &geoOptVars_.gtol, &MACH_EPS, 
+        geoOptVars_.work.Data(), &geoOptVars_.callType );
+  }
+  MPI_Bcast( &pos[0], N, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
 
   statusOFS << "callType = " << geoOptVars_.callType << std::endl;
   
