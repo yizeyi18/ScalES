@@ -365,540 +365,543 @@ int main(int argc, char **argv)
       statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
         << " [s]" << std::endl;
 
+      // Only extrapolation density / wavefunction for MD
+      if( ionDyn.IsGeoOpt() == false ){
 
-      // Update the density history through extrapolation
-      if( esdfParam.MDExtrapolationVariable == "density" )
-      {
-        statusOFS << "Extrapolating the density." << std::endl;
+        // Update the density history through extrapolation
+        if( esdfParam.MDExtrapolationVariable == "density" )
+        {
+          statusOFS << "Extrapolating the density." << std::endl;
 
-        for( Int l = maxHist-1; l > 0; l-- ){
-          densityHist[l]     = densityHist[l-1];
-        } // for (l)
-        densityHist[0] = hamKS.Density();
-        // FIXME add damping factor, currently for aspc2
-        // densityHist[0] = omega*hamKS.Density()+(1.0-omega)*densityHist[0];
-        //                    Real omega = 4.0/7.0;
-        //                    blas::Scal( densityHist[0].Size(), 1.0-omega, densityHist[0].Data(), 1 );
-        //                    blas::Axpy( densityHist[0].Size(), omega, hamKS.Density().Data(),
-        //                            1, densityHist[0].Data(), 1 );
-
-        // Compute the extrapolation coefficient
-        DblNumVec denCoef;
-        ionDyn.ExtrapolateCoefficient( ionIter, denCoef );
-        statusOFS << "Extrapolation coefficient = " << denCoef << std::endl;
-
-        // Update the electron density
-        DblNumMat& denCurVec  = hamKS.Density();
-        SetValue( denCurVec, 0.0 );
-        for( Int l = 0; l < maxHist; l++ ){
-          blas::Axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
-              1, denCurVec.Data(), 1 );
-        } // for (l)
-      } // density extrapolation
-
-      if( esdfParam.MDExtrapolationVariable == "wavefun" )
-      {
-        //huwei 20170306
-        //Especially for XL-BOMD wavefunction extrapolation  
-
-        if(esdfParam.MDExtrapolationWavefunction == "xlbomd"){ 
-
-          statusOFS << "Extrapolating the Wavefunctions for XL-BOMD." << std::endl;
-
-          Int ntot = psi.NumGridTotal();
-          Int ncom = psi.NumComponent(); 
-
-          Int numStateTotal = psi.NumStateTotal();
-          Int numStateLocal = psi.NumState();
-          Int numOccTotal = hamKS.NumOccupiedState();
-
-          Real dt = esdfParam.MDTimeStep;
-          Real kappa = esdfParam.kappaXLBOMD;
-
-          Real w = std::sqrt(kappa)/dt ; // 1.4 comes from sqrt(2)
-
-          MPI_Comm mpi_comm = dm.comm;
-
-          Int BlockSizeScaLAPACK = esdfParam.BlockSizeScaLAPACK;
-
-          Int I_ONE = 1, I_ZERO = 0;
-          double D_ONE = 1.0;
-          double D_ZERO = 0.0;
-          double D_MinusONE = -1.0;
-
-          Real timeSta, timeEnd, timeSta1, timeEnd1;
-
-          Int contxt0D, contxt1DCol, contxt1DRow,  contxt2D;
-          Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
-          Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
-          Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
-          Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
-
-          Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
-          Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
-          Int ncolsNgNo1DCol, nrowsNgNo1DCol, lldNgNo1DCol; 
-          Int ncolsNgNo1DRow, nrowsNgNo1DRow, lldNgNo1DRow; 
-
-          Int desc_NgNe1DCol[9];
-          Int desc_NgNe1DRow[9];
-          Int desc_NgNo1DCol[9];
-          Int desc_NgNo1DRow[9];
-
-          Int Ne = numStateTotal; 
-          Int No = numOccTotal; 
-          Int Ng = ntot;
-
-          // 1D col MPI
-          nprow1DCol = 1;
-          npcol1DCol = mpisize;
-
-          Cblacs_get(0, 0, &contxt1DCol);
-          Cblacs_gridinit(&contxt1DCol, "C", nprow1DCol, npcol1DCol);
-          Cblacs_gridinfo(contxt1DCol, &nprow1DCol, &npcol1DCol, &myrow1DCol, &mycol1DCol);
-
-          // 1D row MPI
-          nprow1DRow = mpisize;
-          npcol1DRow = 1;
-
-          Cblacs_get(0, 0, &contxt1DRow);
-          Cblacs_gridinit(&contxt1DRow, "C", nprow1DRow, npcol1DRow);
-          Cblacs_gridinfo(contxt1DRow, &nprow1DRow, &npcol1DRow, &myrow1DRow, &mycol1DRow);
-
-
-          //desc_NgNe1DCol
-          if(contxt1DCol >= 0){
-            nrowsNgNe1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
-            ncolsNgNe1DCol = SCALAPACK(numroc)(&Ne, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
-            lldNgNe1DCol = std::max( nrowsNgNe1DCol, 1 );
-          }    
-
-          SCALAPACK(descinit)(desc_NgNe1DCol, &Ng, &Ne, &Ng, &I_ONE, &I_ZERO, 
-              &I_ZERO, &contxt1DCol, &lldNgNe1DCol, &info1DCol);
-
-          //desc_NgNe1DRow
-          if(contxt1DRow >= 0){
-            nrowsNgNe1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK, &myrow1DRow, &I_ZERO, &nprow1DRow);
-            ncolsNgNe1DRow = SCALAPACK(numroc)(&Ne, &Ne, &mycol1DRow, &I_ZERO, &npcol1DRow);
-            lldNgNe1DRow = std::max( nrowsNgNe1DRow, 1 );
-          }    
-
-          SCALAPACK(descinit)(desc_NgNe1DRow, &Ng, &Ne, &BlockSizeScaLAPACK, &Ne, &I_ZERO, 
-              &I_ZERO, &contxt1DRow, &lldNgNe1DRow, &info1DRow);
-
-          //desc_NgNo1DCol
-          if(contxt1DCol >= 0){
-            nrowsNgNo1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
-            ncolsNgNo1DCol = SCALAPACK(numroc)(&No, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
-            lldNgNo1DCol = std::max( nrowsNgNo1DCol, 1 );
-          }    
-
-          SCALAPACK(descinit)(desc_NgNo1DCol, &Ng, &No, &Ng, &I_ONE, &I_ZERO, 
-              &I_ZERO, &contxt1DCol, &lldNgNo1DCol, &info1DCol);
-
-          //desc_NgNo1DRow
-          if(contxt1DRow >= 0){
-            nrowsNgNo1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK, &myrow1DRow, &I_ZERO, &nprow1DRow);
-            ncolsNgNo1DRow = SCALAPACK(numroc)(&No, &No, &mycol1DRow, &I_ZERO, &npcol1DRow);
-            lldNgNo1DRow = std::max( nrowsNgNo1DRow, 1 );
-          }    
-
-          SCALAPACK(descinit)(desc_NgNo1DRow, &Ng, &No, &BlockSizeScaLAPACK, &No, &I_ZERO, 
-              &I_ZERO, &contxt1DRow, &lldNgNo1DRow, &info1DRow);
-
-          if(numStateLocal !=  ncolsNgNe1DCol){
-            statusOFS << "numStateLocal = " << numStateLocal << " ncolsNgNe1DCol = " << ncolsNgNe1DCol << std::endl;
-            ErrorHandling("The size of numState is not right!");
-          }
-
-          if(nrowsNgNe1DRow !=  nrowsNgNo1DRow){
-            statusOFS << "nrowsNgNe1DRow = " << nrowsNgNe1DRow << " ncolsNgNo1DRow = " << ncolsNgNo1DRow << std::endl;
-            ErrorHandling("The size of nrowsNgNe1DRow and ncolsNgNo1DRow is not right!");
-          }
-
-
-          Int numOccLocal = ncolsNgNo1DCol;
-          Int ntotLocal = nrowsNgNe1DRow;
-
-          DblNumMat psiSCFCol( ntot, numStateLocal );
-          SetValue( psiSCFCol, 0.0 );
-
-          if(1){
-
-            DblNumMat psiCol( ntot, numStateLocal );
-            SetValue( psiCol, 0.0 );
-            DblNumMat psiRow( ntotLocal, numStateTotal );
-            SetValue( psiRow, 0.0 );
-            lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
-            //AlltoallForward (psiCol, psiRow, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-                psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
-
-            DblNumMat psiRefCol( ntot, numStateLocal );
-            SetValue( psiRefCol, 0.0 );
-            DblNumMat psiRefRow( ntotLocal, numStateTotal );
-            SetValue( psiRefRow, 0.0 );
-            lapack::Lacpy( 'A', ntot, numStateLocal, wavefunHist[0].Data(), ntot, psiRefCol.Data(), ntot );
-            //AlltoallForward (psiRefCol, psiRefRow, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &Ne, psiRefCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-                psiRefRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
-
-            DblNumMat Temp1(numOccTotal, numOccTotal);
-            SetValue( Temp1, 0.0 );
-            blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
-                psiRow.Data(), ntotLocal, psiRefRow.Data(), ntotLocal, 
-                0.0, Temp1.Data(), numOccTotal );
-
-            DblNumMat Temp2(numOccTotal, numOccTotal);
-            SetValue( Temp2, 0.0 );
-            MPI_Allreduce( Temp1.Data(), Temp2.Data(), 
-                numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
-
-            DblNumMat psiSCFRow( ntotLocal, numStateTotal );
-            SetValue( psiSCFRow, 0.0 );
-
-            blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
-                psiRow.Data(), ntotLocal, Temp2.Data(), numOccTotal, 
-                0.0, psiSCFRow.Data(), ntotLocal );
-
-            //AlltoallBackward (psiSCFRow, psiSCFCol, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &Ne, psiSCFRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, 
-                psiSCFCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt1DCol );
-
-          }//if
-
-
-          // FIXME More efficient to move the pointer later.
-          // Out of core is another option that might
-          // necessarily need to be taken into account
-          //maxHist = 3; 
           for( Int l = maxHist-1; l > 0; l-- ){
-            wavefunHist[l]     = wavefunHist[l-1];
+            densityHist[l]     = densityHist[l-1];
           } // for (l)
-
-          Real w2t2 = w * w * dt * dt;
-
-          for( Int k = 0; k < numStateLocal; k++ ){
-            for (Int j = 0; j < ncom; j++) {
-              Real *psiSCFPtr = psiSCFCol.VecData(k);
-              Real *psiRef0Ptr = wavefunHist[0].VecData(j,k);
-              Real *psiRef1Ptr = wavefunHist[1].VecData(j,k);
-              Real *psiRef2Ptr = wavefunHist[2].VecData(j,k);
-              for( Int r = 0; r < ntot; r++ ){
-                psiRef0Ptr[r] = 2.00 * psiRef1Ptr[r] - psiRef2Ptr[r] + w2t2 * (psiSCFPtr[r] - psiRef1Ptr[r]);
-              } // for (r)
-
-            } // for (j)
-          } // for (k)
-
-          // Orthogonalization through Cholesky factorization
-          if(1){
-
-            DblNumMat psiCol( ntot, numOccLocal );
-            SetValue( psiCol, 0.0 );
-            DblNumMat psiRow( ntotLocal, numOccTotal );
-            SetValue( psiRow, 0.0 );
-            lapack::Lacpy( 'A', ntot, numOccLocal, wavefunHist[0].Data(), ntot, psiCol.Data(), ntot );
-            //AlltoallForward (psiCol, psiRow, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &No, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
-                psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
-
-            DblNumMat XTX(numOccTotal, numOccTotal);
-            DblNumMat XTXTemp(numOccTotal, numOccTotal);
-
-            blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiRow.Data(), 
-                ntotLocal, psiRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
-            SetValue( XTX, 0.0 );
-            MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
-
-            if ( mpirank == 0) {
-              lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
-            }
-            MPI_Bcast(XTX.Data(), numOccTotal * numOccTotal, MPI_DOUBLE, 0, mpi_comm);
-
-            // X <- X * U^{-1} is orthogonal
-            blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
-                psiRow.Data(), ntotLocal );
-
-            SetValue( psiCol, 0.0 );
-            //AlltoallBackward (psiRow, psiCol, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &No, psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
-                psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
-            lapack::Lacpy( 'A', ntot, numOccLocal, psiCol.Data(), ntot, psi.Wavefun().Data(), ntot );
-          } // if
-
-
-          // Compute the extrapolated density
-          Real totalCharge;
-          hamKS.CalculateDensity(
-              psi,
-              hamKS.OccupationRate(),
-              totalCharge, 
-              fft );
-
-        } //if()
-
-
-        // ASPC
-        if(esdfParam.MDExtrapolationWavefunction == "aspc"){ 
-
-          statusOFS << "Extrapolating the Wavefunctions using ASPC." << std::endl;
-
-          Int ntot = psi.NumGridTotal();
-          Int ncom = psi.NumComponent(); 
-
-          Int numStateTotal = psi.NumStateTotal();
-          Int numStateLocal = psi.NumState();
-          Int numOccTotal = hamKS.NumOccupiedState();
-
-          Real dt = esdfParam.MDTimeStep;
-          Real kappa = esdfParam.kappaXLBOMD;
-
-          Real w = std::sqrt(kappa)/dt ; // 1.4 comes from sqrt(2)
-
-          MPI_Comm mpi_comm = dm.comm;
-
-          Int BlockSizeScaLAPACK = esdfParam.BlockSizeScaLAPACK;
-
-          Int I_ONE = 1, I_ZERO = 0;
-          double D_ONE = 1.0;
-          double D_ZERO = 0.0;
-          double D_MinusONE = -1.0;
-
-          Real timeSta, timeEnd, timeSta1, timeEnd1;
-
-          Int contxt0D, contxt1DCol, contxt1DRow,  contxt2D;
-          Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
-          Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
-          Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
-          Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
-
-          Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
-          Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
-          Int ncolsNgNo1DCol, nrowsNgNo1DCol, lldNgNo1DCol; 
-          Int ncolsNgNo1DRow, nrowsNgNo1DRow, lldNgNo1DRow; 
-
-          Int desc_NgNe1DCol[9];
-          Int desc_NgNe1DRow[9];
-          Int desc_NgNo1DCol[9];
-          Int desc_NgNo1DRow[9];
-
-          Int Ne = numStateTotal; 
-          Int No = numOccTotal; 
-          Int Ng = ntot;
-
-          // 1D col MPI
-          nprow1DCol = 1;
-          npcol1DCol = mpisize;
-
-          Cblacs_get(0, 0, &contxt1DCol);
-          Cblacs_gridinit(&contxt1DCol, "C", nprow1DCol, npcol1DCol);
-          Cblacs_gridinfo(contxt1DCol, &nprow1DCol, &npcol1DCol, &myrow1DCol, &mycol1DCol);
-
-          // 1D row MPI
-          nprow1DRow = mpisize;
-          npcol1DRow = 1;
-
-          Cblacs_get(0, 0, &contxt1DRow);
-          Cblacs_gridinit(&contxt1DRow, "C", nprow1DRow, npcol1DRow);
-          Cblacs_gridinfo(contxt1DRow, &nprow1DRow, &npcol1DRow, &myrow1DRow, &mycol1DRow);
-
-
-          //desc_NgNe1DCol
-          if(contxt1DCol >= 0){
-            nrowsNgNe1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
-            ncolsNgNe1DCol = SCALAPACK(numroc)(&Ne, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
-            lldNgNe1DCol = std::max( nrowsNgNe1DCol, 1 );
-          }    
-
-          SCALAPACK(descinit)(desc_NgNe1DCol, &Ng, &Ne, &Ng, &I_ONE, &I_ZERO, 
-              &I_ZERO, &contxt1DCol, &lldNgNe1DCol, &info1DCol);
-
-          //desc_NgNe1DRow
-          if(contxt1DRow >= 0){
-            nrowsNgNe1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK, &myrow1DRow, &I_ZERO, &nprow1DRow);
-            ncolsNgNe1DRow = SCALAPACK(numroc)(&Ne, &Ne, &mycol1DRow, &I_ZERO, &npcol1DRow);
-            lldNgNe1DRow = std::max( nrowsNgNe1DRow, 1 );
-          }    
-
-          SCALAPACK(descinit)(desc_NgNe1DRow, &Ng, &Ne, &BlockSizeScaLAPACK, &Ne, &I_ZERO, 
-              &I_ZERO, &contxt1DRow, &lldNgNe1DRow, &info1DRow);
-
-          //desc_NgNo1DCol
-          if(contxt1DCol >= 0){
-            nrowsNgNo1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
-            ncolsNgNo1DCol = SCALAPACK(numroc)(&No, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
-            lldNgNo1DCol = std::max( nrowsNgNo1DCol, 1 );
-          }    
-
-          SCALAPACK(descinit)(desc_NgNo1DCol, &Ng, &No, &Ng, &I_ONE, &I_ZERO, 
-              &I_ZERO, &contxt1DCol, &lldNgNo1DCol, &info1DCol);
-
-          //desc_NgNo1DRow
-          if(contxt1DRow >= 0){
-            nrowsNgNo1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK, &myrow1DRow, &I_ZERO, &nprow1DRow);
-            ncolsNgNo1DRow = SCALAPACK(numroc)(&No, &No, &mycol1DRow, &I_ZERO, &npcol1DRow);
-            lldNgNo1DRow = std::max( nrowsNgNo1DRow, 1 );
-          }    
-
-          SCALAPACK(descinit)(desc_NgNo1DRow, &Ng, &No, &BlockSizeScaLAPACK, &No, &I_ZERO, 
-              &I_ZERO, &contxt1DRow, &lldNgNo1DRow, &info1DRow);
-
-          if(numStateLocal !=  ncolsNgNe1DCol){
-            statusOFS << "numStateLocal = " << numStateLocal << " ncolsNgNe1DCol = " << ncolsNgNe1DCol << std::endl;
-            ErrorHandling("The size of numState is not right!");
-          }
-
-          if(nrowsNgNe1DRow !=  nrowsNgNo1DRow){
-            statusOFS << "nrowsNgNe1DRow = " << nrowsNgNe1DRow << " ncolsNgNo1DRow = " << ncolsNgNo1DRow << std::endl;
-            ErrorHandling("The size of nrowsNgNe1DRow and ncolsNgNo1DRow is not right!");
-          }
-
-
-          Int numOccLocal = ncolsNgNo1DCol;
-          Int ntotLocal = nrowsNgNe1DRow;
-
-          DblNumMat psiSCFCol( ntot, numStateLocal );
-          SetValue( psiSCFCol, 0.0 );
-
-          if(1){
-
-            DblNumMat psiCol( ntot, numStateLocal );
-            SetValue( psiCol, 0.0 );
-            DblNumMat psiRow( ntotLocal, numStateTotal );
-            SetValue( psiRow, 0.0 );
-            lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
-            //AlltoallForward (psiCol, psiRow, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-                psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
-
-            DblNumMat psiRefCol( ntot, numStateLocal );
-            SetValue( psiRefCol, 0.0 );
-            DblNumMat psiRefRow( ntotLocal, numStateTotal );
-            SetValue( psiRefRow, 0.0 );
-            lapack::Lacpy( 'A', ntot, numStateLocal, wavefunPre.Data(), ntot, psiRefCol.Data(), ntot );
-            //AlltoallForward (psiRefCol, psiRefRow, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &Ne, psiRefCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-                psiRefRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
-
-            DblNumMat Temp1(numOccTotal, numOccTotal);
-            SetValue( Temp1, 0.0 );
-            blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
-                psiRow.Data(), ntotLocal, psiRefRow.Data(), ntotLocal, 
-                0.0, Temp1.Data(), numOccTotal );
-
-            DblNumMat Temp2(numOccTotal, numOccTotal);
-            SetValue( Temp2, 0.0 );
-            MPI_Allreduce( Temp1.Data(), Temp2.Data(), 
-                numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
-
-            DblNumMat psiSCFRow( ntotLocal, numStateTotal );
-            SetValue( psiSCFRow, 0.0 );
-
-            blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
-                psiRow.Data(), ntotLocal, Temp2.Data(), numOccTotal, 
-                0.0, psiSCFRow.Data(), ntotLocal );
-
-            //AlltoallBackward (psiSCFRow, psiSCFCol, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &Ne, psiSCFRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, 
-                psiSCFCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt1DCol );
-
-            // Update wavefunPre, which stores the predictor.
-            // After this wavefunPre stores the mix of predictor and corrector
-            Int ASPCk;
-            if( esdfParam.MDExtrapolationType == "linear" )
-              ASPCk = 1;
-            else if( esdfParam.MDExtrapolationType == "aspc2" )
-              ASPCk = 2;
-            else if( esdfParam.MDExtrapolationType == "aspc3" )
-              ASPCk = 3;
-            else
-              ErrorHandling("Cannot use ASPC extrapolation");
-
-            Real omega = (ASPCk + 1.0) / (2.0 * ASPCk + 1.0);
-
-
-            for( Int k = 0; k < numStateLocal; k++ ){
-              for (Int j = 0; j < ncom; j++) {
-                Real *psiSCFPtr = psiSCFCol.VecData(k);
-                Real *psiPrePtr = wavefunPre.VecData(j,k);
-                for( Int r = 0; r < ntot; r++ ){
-                  psiPrePtr[r] = omega * psiSCFPtr[r] + ( 1.0 - omega ) * psiPrePtr[r];
-                } // for (r)
-              } // for (j)
-            } // for (k)
-
-          }//if
-
-
-          // FIXME More efficient to move the pointer later.
-          // Out of core is another option that might
-          // necessarily need to be taken into account
-          //maxHist = 3; 
-          for( Int l = maxHist-1; l > 0; l-- ){
-            wavefunHist[l]     = wavefunHist[l-1];
-          } // for (l)
-          wavefunHist[0] = wavefunPre;
+          densityHist[0] = hamKS.Density();
+          // FIXME add damping factor, currently for aspc2
+          // densityHist[0] = omega*hamKS.Density()+(1.0-omega)*densityHist[0];
+          //                    Real omega = 4.0/7.0;
+          //                    blas::Scal( densityHist[0].Size(), 1.0-omega, densityHist[0].Data(), 1 );
+          //                    blas::Axpy( densityHist[0].Size(), omega, hamKS.Density().Data(),
+          //                            1, densityHist[0].Data(), 1 );
 
           // Compute the extrapolation coefficient
           DblNumVec denCoef;
           ionDyn.ExtrapolateCoefficient( ionIter, denCoef );
           statusOFS << "Extrapolation coefficient = " << denCoef << std::endl;
 
-          // Reevaluate the predictor
-          SetValue( wavefunPre, 0.0 );
+          // Update the electron density
+          DblNumMat& denCurVec  = hamKS.Density();
+          SetValue( denCurVec, 0.0 );
           for( Int l = 0; l < maxHist; l++ ){
-            blas::Axpy( wavefunPre.Size(), denCoef[l], wavefunHist[l].Data(),
-                1, wavefunPre.Data(), 1 );
+            blas::Axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
+                1, denCurVec.Data(), 1 );
           } // for (l)
+        } // density extrapolation
 
-          // Orthogonalization through Cholesky factorization
-          if(1){
+        if( esdfParam.MDExtrapolationVariable == "wavefun" )
+        {
+          //huwei 20170306
+          //Especially for XL-BOMD wavefunction extrapolation  
 
-            DblNumMat psiCol( ntot, numOccLocal );
-            SetValue( psiCol, 0.0 );
-            DblNumMat psiRow( ntotLocal, numOccTotal );
-            SetValue( psiRow, 0.0 );
-            lapack::Lacpy( 'A', ntot, numOccLocal, wavefunPre.Data(), ntot, psiCol.Data(), ntot );
-            //AlltoallForward (psiCol, psiRow, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &No, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
-                psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
+          if(esdfParam.MDExtrapolationWavefunction == "xlbomd"){ 
 
-            DblNumMat XTX(numOccTotal, numOccTotal);
-            DblNumMat XTXTemp(numOccTotal, numOccTotal);
+            statusOFS << "Extrapolating the Wavefunctions for XL-BOMD." << std::endl;
 
-            blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiRow.Data(), 
-                ntotLocal, psiRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
-            SetValue( XTX, 0.0 );
-            MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
+            Int ntot = psi.NumGridTotal();
+            Int ncom = psi.NumComponent(); 
 
-            if ( mpirank == 0) {
-              lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
+            Int numStateTotal = psi.NumStateTotal();
+            Int numStateLocal = psi.NumState();
+            Int numOccTotal = hamKS.NumOccupiedState();
+
+            Real dt = esdfParam.MDTimeStep;
+            Real kappa = esdfParam.kappaXLBOMD;
+
+            Real w = std::sqrt(kappa)/dt ; // 1.4 comes from sqrt(2)
+
+            MPI_Comm mpi_comm = dm.comm;
+
+            Int BlockSizeScaLAPACK = esdfParam.BlockSizeScaLAPACK;
+
+            Int I_ONE = 1, I_ZERO = 0;
+            double D_ONE = 1.0;
+            double D_ZERO = 0.0;
+            double D_MinusONE = -1.0;
+
+            Real timeSta, timeEnd, timeSta1, timeEnd1;
+
+            Int contxt0D, contxt1DCol, contxt1DRow,  contxt2D;
+            Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
+            Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
+            Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
+            Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
+
+            Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
+            Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
+            Int ncolsNgNo1DCol, nrowsNgNo1DCol, lldNgNo1DCol; 
+            Int ncolsNgNo1DRow, nrowsNgNo1DRow, lldNgNo1DRow; 
+
+            Int desc_NgNe1DCol[9];
+            Int desc_NgNe1DRow[9];
+            Int desc_NgNo1DCol[9];
+            Int desc_NgNo1DRow[9];
+
+            Int Ne = numStateTotal; 
+            Int No = numOccTotal; 
+            Int Ng = ntot;
+
+            // 1D col MPI
+            nprow1DCol = 1;
+            npcol1DCol = mpisize;
+
+            Cblacs_get(0, 0, &contxt1DCol);
+            Cblacs_gridinit(&contxt1DCol, "C", nprow1DCol, npcol1DCol);
+            Cblacs_gridinfo(contxt1DCol, &nprow1DCol, &npcol1DCol, &myrow1DCol, &mycol1DCol);
+
+            // 1D row MPI
+            nprow1DRow = mpisize;
+            npcol1DRow = 1;
+
+            Cblacs_get(0, 0, &contxt1DRow);
+            Cblacs_gridinit(&contxt1DRow, "C", nprow1DRow, npcol1DRow);
+            Cblacs_gridinfo(contxt1DRow, &nprow1DRow, &npcol1DRow, &myrow1DRow, &mycol1DRow);
+
+
+            //desc_NgNe1DCol
+            if(contxt1DCol >= 0){
+              nrowsNgNe1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
+              ncolsNgNe1DCol = SCALAPACK(numroc)(&Ne, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
+              lldNgNe1DCol = std::max( nrowsNgNe1DCol, 1 );
+            }    
+
+            SCALAPACK(descinit)(desc_NgNe1DCol, &Ng, &Ne, &Ng, &I_ONE, &I_ZERO, 
+                &I_ZERO, &contxt1DCol, &lldNgNe1DCol, &info1DCol);
+
+            //desc_NgNe1DRow
+            if(contxt1DRow >= 0){
+              nrowsNgNe1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK, &myrow1DRow, &I_ZERO, &nprow1DRow);
+              ncolsNgNe1DRow = SCALAPACK(numroc)(&Ne, &Ne, &mycol1DRow, &I_ZERO, &npcol1DRow);
+              lldNgNe1DRow = std::max( nrowsNgNe1DRow, 1 );
+            }    
+
+            SCALAPACK(descinit)(desc_NgNe1DRow, &Ng, &Ne, &BlockSizeScaLAPACK, &Ne, &I_ZERO, 
+                &I_ZERO, &contxt1DRow, &lldNgNe1DRow, &info1DRow);
+
+            //desc_NgNo1DCol
+            if(contxt1DCol >= 0){
+              nrowsNgNo1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
+              ncolsNgNo1DCol = SCALAPACK(numroc)(&No, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
+              lldNgNo1DCol = std::max( nrowsNgNo1DCol, 1 );
+            }    
+
+            SCALAPACK(descinit)(desc_NgNo1DCol, &Ng, &No, &Ng, &I_ONE, &I_ZERO, 
+                &I_ZERO, &contxt1DCol, &lldNgNo1DCol, &info1DCol);
+
+            //desc_NgNo1DRow
+            if(contxt1DRow >= 0){
+              nrowsNgNo1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK, &myrow1DRow, &I_ZERO, &nprow1DRow);
+              ncolsNgNo1DRow = SCALAPACK(numroc)(&No, &No, &mycol1DRow, &I_ZERO, &npcol1DRow);
+              lldNgNo1DRow = std::max( nrowsNgNo1DRow, 1 );
+            }    
+
+            SCALAPACK(descinit)(desc_NgNo1DRow, &Ng, &No, &BlockSizeScaLAPACK, &No, &I_ZERO, 
+                &I_ZERO, &contxt1DRow, &lldNgNo1DRow, &info1DRow);
+
+            if(numStateLocal !=  ncolsNgNe1DCol){
+              statusOFS << "numStateLocal = " << numStateLocal << " ncolsNgNe1DCol = " << ncolsNgNe1DCol << std::endl;
+              ErrorHandling("The size of numState is not right!");
             }
-            MPI_Bcast(XTX.Data(), numOccTotal * numOccTotal, MPI_DOUBLE, 0, mpi_comm);
 
-            // X <- X * U^{-1} is orthogonal
-            blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
-                psiRow.Data(), ntotLocal );
-
-            SetValue( psiCol, 0.0 );
-            //AlltoallBackward (psiRow, psiCol, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &No, psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
-                psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
-            lapack::Lacpy( 'A', ntot, numOccLocal, psiCol.Data(), ntot, psi.Wavefun().Data(), ntot );
-          } // if
+            if(nrowsNgNe1DRow !=  nrowsNgNo1DRow){
+              statusOFS << "nrowsNgNe1DRow = " << nrowsNgNe1DRow << " ncolsNgNo1DRow = " << ncolsNgNo1DRow << std::endl;
+              ErrorHandling("The size of nrowsNgNe1DRow and ncolsNgNo1DRow is not right!");
+            }
 
 
-          // Compute the extrapolated density
-          Real totalCharge;
-          hamKS.CalculateDensity(
-              psi,
-              hamKS.OccupationRate(),
-              totalCharge, 
-              fft );
+            Int numOccLocal = ncolsNgNo1DCol;
+            Int ntotLocal = nrowsNgNe1DRow;
 
-        } //if() Extrapolating the Wavefunctions using ASPC
-      
-      } // wavefun extrapolation
+            DblNumMat psiSCFCol( ntot, numStateLocal );
+            SetValue( psiSCFCol, 0.0 );
+
+            if(1){
+
+              DblNumMat psiCol( ntot, numStateLocal );
+              SetValue( psiCol, 0.0 );
+              DblNumMat psiRow( ntotLocal, numStateTotal );
+              SetValue( psiRow, 0.0 );
+              lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+              //AlltoallForward (psiCol, psiRow, mpi_comm);
+              SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+                  psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
+
+              DblNumMat psiRefCol( ntot, numStateLocal );
+              SetValue( psiRefCol, 0.0 );
+              DblNumMat psiRefRow( ntotLocal, numStateTotal );
+              SetValue( psiRefRow, 0.0 );
+              lapack::Lacpy( 'A', ntot, numStateLocal, wavefunHist[0].Data(), ntot, psiRefCol.Data(), ntot );
+              //AlltoallForward (psiRefCol, psiRefRow, mpi_comm);
+              SCALAPACK(pdgemr2d)(&Ng, &Ne, psiRefCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+                  psiRefRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
+
+              DblNumMat Temp1(numOccTotal, numOccTotal);
+              SetValue( Temp1, 0.0 );
+              blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
+                  psiRow.Data(), ntotLocal, psiRefRow.Data(), ntotLocal, 
+                  0.0, Temp1.Data(), numOccTotal );
+
+              DblNumMat Temp2(numOccTotal, numOccTotal);
+              SetValue( Temp2, 0.0 );
+              MPI_Allreduce( Temp1.Data(), Temp2.Data(), 
+                  numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
+
+              DblNumMat psiSCFRow( ntotLocal, numStateTotal );
+              SetValue( psiSCFRow, 0.0 );
+
+              blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
+                  psiRow.Data(), ntotLocal, Temp2.Data(), numOccTotal, 
+                  0.0, psiSCFRow.Data(), ntotLocal );
+
+              //AlltoallBackward (psiSCFRow, psiSCFCol, mpi_comm);
+              SCALAPACK(pdgemr2d)(&Ng, &Ne, psiSCFRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, 
+                  psiSCFCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt1DCol );
+
+            }//if
+
+
+            // FIXME More efficient to move the pointer later.
+            // Out of core is another option that might
+            // necessarily need to be taken into account
+            //maxHist = 3; 
+            for( Int l = maxHist-1; l > 0; l-- ){
+              wavefunHist[l]     = wavefunHist[l-1];
+            } // for (l)
+
+            Real w2t2 = w * w * dt * dt;
+
+            for( Int k = 0; k < numStateLocal; k++ ){
+              for (Int j = 0; j < ncom; j++) {
+                Real *psiSCFPtr = psiSCFCol.VecData(k);
+                Real *psiRef0Ptr = wavefunHist[0].VecData(j,k);
+                Real *psiRef1Ptr = wavefunHist[1].VecData(j,k);
+                Real *psiRef2Ptr = wavefunHist[2].VecData(j,k);
+                for( Int r = 0; r < ntot; r++ ){
+                  psiRef0Ptr[r] = 2.00 * psiRef1Ptr[r] - psiRef2Ptr[r] + w2t2 * (psiSCFPtr[r] - psiRef1Ptr[r]);
+                } // for (r)
+
+              } // for (j)
+            } // for (k)
+
+            // Orthogonalization through Cholesky factorization
+            if(1){
+
+              DblNumMat psiCol( ntot, numOccLocal );
+              SetValue( psiCol, 0.0 );
+              DblNumMat psiRow( ntotLocal, numOccTotal );
+              SetValue( psiRow, 0.0 );
+              lapack::Lacpy( 'A', ntot, numOccLocal, wavefunHist[0].Data(), ntot, psiCol.Data(), ntot );
+              //AlltoallForward (psiCol, psiRow, mpi_comm);
+              SCALAPACK(pdgemr2d)(&Ng, &No, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
+                  psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
+
+              DblNumMat XTX(numOccTotal, numOccTotal);
+              DblNumMat XTXTemp(numOccTotal, numOccTotal);
+
+              blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiRow.Data(), 
+                  ntotLocal, psiRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
+              SetValue( XTX, 0.0 );
+              MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
+
+              if ( mpirank == 0) {
+                lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
+              }
+              MPI_Bcast(XTX.Data(), numOccTotal * numOccTotal, MPI_DOUBLE, 0, mpi_comm);
+
+              // X <- X * U^{-1} is orthogonal
+              blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
+                  psiRow.Data(), ntotLocal );
+
+              SetValue( psiCol, 0.0 );
+              //AlltoallBackward (psiRow, psiCol, mpi_comm);
+              SCALAPACK(pdgemr2d)(&Ng, &No, psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
+                  psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
+              lapack::Lacpy( 'A', ntot, numOccLocal, psiCol.Data(), ntot, psi.Wavefun().Data(), ntot );
+            } // if
+
+
+            // Compute the extrapolated density
+            Real totalCharge;
+            hamKS.CalculateDensity(
+                psi,
+                hamKS.OccupationRate(),
+                totalCharge, 
+                fft );
+
+          } //if()
+
+
+          // ASPC
+          if(esdfParam.MDExtrapolationWavefunction == "aspc"){ 
+
+            statusOFS << "Extrapolating the Wavefunctions using ASPC." << std::endl;
+
+            Int ntot = psi.NumGridTotal();
+            Int ncom = psi.NumComponent(); 
+
+            Int numStateTotal = psi.NumStateTotal();
+            Int numStateLocal = psi.NumState();
+            Int numOccTotal = hamKS.NumOccupiedState();
+
+            Real dt = esdfParam.MDTimeStep;
+            Real kappa = esdfParam.kappaXLBOMD;
+
+            Real w = std::sqrt(kappa)/dt ; // 1.4 comes from sqrt(2)
+
+            MPI_Comm mpi_comm = dm.comm;
+
+            Int BlockSizeScaLAPACK = esdfParam.BlockSizeScaLAPACK;
+
+            Int I_ONE = 1, I_ZERO = 0;
+            double D_ONE = 1.0;
+            double D_ZERO = 0.0;
+            double D_MinusONE = -1.0;
+
+            Real timeSta, timeEnd, timeSta1, timeEnd1;
+
+            Int contxt0D, contxt1DCol, contxt1DRow,  contxt2D;
+            Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
+            Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
+            Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
+            Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
+
+            Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
+            Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
+            Int ncolsNgNo1DCol, nrowsNgNo1DCol, lldNgNo1DCol; 
+            Int ncolsNgNo1DRow, nrowsNgNo1DRow, lldNgNo1DRow; 
+
+            Int desc_NgNe1DCol[9];
+            Int desc_NgNe1DRow[9];
+            Int desc_NgNo1DCol[9];
+            Int desc_NgNo1DRow[9];
+
+            Int Ne = numStateTotal; 
+            Int No = numOccTotal; 
+            Int Ng = ntot;
+
+            // 1D col MPI
+            nprow1DCol = 1;
+            npcol1DCol = mpisize;
+
+            Cblacs_get(0, 0, &contxt1DCol);
+            Cblacs_gridinit(&contxt1DCol, "C", nprow1DCol, npcol1DCol);
+            Cblacs_gridinfo(contxt1DCol, &nprow1DCol, &npcol1DCol, &myrow1DCol, &mycol1DCol);
+
+            // 1D row MPI
+            nprow1DRow = mpisize;
+            npcol1DRow = 1;
+
+            Cblacs_get(0, 0, &contxt1DRow);
+            Cblacs_gridinit(&contxt1DRow, "C", nprow1DRow, npcol1DRow);
+            Cblacs_gridinfo(contxt1DRow, &nprow1DRow, &npcol1DRow, &myrow1DRow, &mycol1DRow);
+
+
+            //desc_NgNe1DCol
+            if(contxt1DCol >= 0){
+              nrowsNgNe1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
+              ncolsNgNe1DCol = SCALAPACK(numroc)(&Ne, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
+              lldNgNe1DCol = std::max( nrowsNgNe1DCol, 1 );
+            }    
+
+            SCALAPACK(descinit)(desc_NgNe1DCol, &Ng, &Ne, &Ng, &I_ONE, &I_ZERO, 
+                &I_ZERO, &contxt1DCol, &lldNgNe1DCol, &info1DCol);
+
+            //desc_NgNe1DRow
+            if(contxt1DRow >= 0){
+              nrowsNgNe1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK, &myrow1DRow, &I_ZERO, &nprow1DRow);
+              ncolsNgNe1DRow = SCALAPACK(numroc)(&Ne, &Ne, &mycol1DRow, &I_ZERO, &npcol1DRow);
+              lldNgNe1DRow = std::max( nrowsNgNe1DRow, 1 );
+            }    
+
+            SCALAPACK(descinit)(desc_NgNe1DRow, &Ng, &Ne, &BlockSizeScaLAPACK, &Ne, &I_ZERO, 
+                &I_ZERO, &contxt1DRow, &lldNgNe1DRow, &info1DRow);
+
+            //desc_NgNo1DCol
+            if(contxt1DCol >= 0){
+              nrowsNgNo1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
+              ncolsNgNo1DCol = SCALAPACK(numroc)(&No, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
+              lldNgNo1DCol = std::max( nrowsNgNo1DCol, 1 );
+            }    
+
+            SCALAPACK(descinit)(desc_NgNo1DCol, &Ng, &No, &Ng, &I_ONE, &I_ZERO, 
+                &I_ZERO, &contxt1DCol, &lldNgNo1DCol, &info1DCol);
+
+            //desc_NgNo1DRow
+            if(contxt1DRow >= 0){
+              nrowsNgNo1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK, &myrow1DRow, &I_ZERO, &nprow1DRow);
+              ncolsNgNo1DRow = SCALAPACK(numroc)(&No, &No, &mycol1DRow, &I_ZERO, &npcol1DRow);
+              lldNgNo1DRow = std::max( nrowsNgNo1DRow, 1 );
+            }    
+
+            SCALAPACK(descinit)(desc_NgNo1DRow, &Ng, &No, &BlockSizeScaLAPACK, &No, &I_ZERO, 
+                &I_ZERO, &contxt1DRow, &lldNgNo1DRow, &info1DRow);
+
+            if(numStateLocal !=  ncolsNgNe1DCol){
+              statusOFS << "numStateLocal = " << numStateLocal << " ncolsNgNe1DCol = " << ncolsNgNe1DCol << std::endl;
+              ErrorHandling("The size of numState is not right!");
+            }
+
+            if(nrowsNgNe1DRow !=  nrowsNgNo1DRow){
+              statusOFS << "nrowsNgNe1DRow = " << nrowsNgNe1DRow << " ncolsNgNo1DRow = " << ncolsNgNo1DRow << std::endl;
+              ErrorHandling("The size of nrowsNgNe1DRow and ncolsNgNo1DRow is not right!");
+            }
+
+
+            Int numOccLocal = ncolsNgNo1DCol;
+            Int ntotLocal = nrowsNgNe1DRow;
+
+            DblNumMat psiSCFCol( ntot, numStateLocal );
+            SetValue( psiSCFCol, 0.0 );
+
+            if(1){
+
+              DblNumMat psiCol( ntot, numStateLocal );
+              SetValue( psiCol, 0.0 );
+              DblNumMat psiRow( ntotLocal, numStateTotal );
+              SetValue( psiRow, 0.0 );
+              lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+              //AlltoallForward (psiCol, psiRow, mpi_comm);
+              SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+                  psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
+
+              DblNumMat psiRefCol( ntot, numStateLocal );
+              SetValue( psiRefCol, 0.0 );
+              DblNumMat psiRefRow( ntotLocal, numStateTotal );
+              SetValue( psiRefRow, 0.0 );
+              lapack::Lacpy( 'A', ntot, numStateLocal, wavefunPre.Data(), ntot, psiRefCol.Data(), ntot );
+              //AlltoallForward (psiRefCol, psiRefRow, mpi_comm);
+              SCALAPACK(pdgemr2d)(&Ng, &Ne, psiRefCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+                  psiRefRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
+
+              DblNumMat Temp1(numOccTotal, numOccTotal);
+              SetValue( Temp1, 0.0 );
+              blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
+                  psiRow.Data(), ntotLocal, psiRefRow.Data(), ntotLocal, 
+                  0.0, Temp1.Data(), numOccTotal );
+
+              DblNumMat Temp2(numOccTotal, numOccTotal);
+              SetValue( Temp2, 0.0 );
+              MPI_Allreduce( Temp1.Data(), Temp2.Data(), 
+                  numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
+
+              DblNumMat psiSCFRow( ntotLocal, numStateTotal );
+              SetValue( psiSCFRow, 0.0 );
+
+              blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
+                  psiRow.Data(), ntotLocal, Temp2.Data(), numOccTotal, 
+                  0.0, psiSCFRow.Data(), ntotLocal );
+
+              //AlltoallBackward (psiSCFRow, psiSCFCol, mpi_comm);
+              SCALAPACK(pdgemr2d)(&Ng, &Ne, psiSCFRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, 
+                  psiSCFCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt1DCol );
+
+              // Update wavefunPre, which stores the predictor.
+              // After this wavefunPre stores the mix of predictor and corrector
+              Int ASPCk;
+              if( esdfParam.MDExtrapolationType == "linear" )
+                ASPCk = 1;
+              else if( esdfParam.MDExtrapolationType == "aspc2" )
+                ASPCk = 2;
+              else if( esdfParam.MDExtrapolationType == "aspc3" )
+                ASPCk = 3;
+              else
+                ErrorHandling("Cannot use ASPC extrapolation");
+
+              Real omega = (ASPCk + 1.0) / (2.0 * ASPCk + 1.0);
+
+
+              for( Int k = 0; k < numStateLocal; k++ ){
+                for (Int j = 0; j < ncom; j++) {
+                  Real *psiSCFPtr = psiSCFCol.VecData(k);
+                  Real *psiPrePtr = wavefunPre.VecData(j,k);
+                  for( Int r = 0; r < ntot; r++ ){
+                    psiPrePtr[r] = omega * psiSCFPtr[r] + ( 1.0 - omega ) * psiPrePtr[r];
+                  } // for (r)
+                } // for (j)
+              } // for (k)
+
+            }//if
+
+
+            // FIXME More efficient to move the pointer later.
+            // Out of core is another option that might
+            // necessarily need to be taken into account
+            //maxHist = 3; 
+            for( Int l = maxHist-1; l > 0; l-- ){
+              wavefunHist[l]     = wavefunHist[l-1];
+            } // for (l)
+            wavefunHist[0] = wavefunPre;
+
+            // Compute the extrapolation coefficient
+            DblNumVec denCoef;
+            ionDyn.ExtrapolateCoefficient( ionIter, denCoef );
+            statusOFS << "Extrapolation coefficient = " << denCoef << std::endl;
+
+            // Reevaluate the predictor
+            SetValue( wavefunPre, 0.0 );
+            for( Int l = 0; l < maxHist; l++ ){
+              blas::Axpy( wavefunPre.Size(), denCoef[l], wavefunHist[l].Data(),
+                  1, wavefunPre.Data(), 1 );
+            } // for (l)
+
+            // Orthogonalization through Cholesky factorization
+            if(1){
+
+              DblNumMat psiCol( ntot, numOccLocal );
+              SetValue( psiCol, 0.0 );
+              DblNumMat psiRow( ntotLocal, numOccTotal );
+              SetValue( psiRow, 0.0 );
+              lapack::Lacpy( 'A', ntot, numOccLocal, wavefunPre.Data(), ntot, psiCol.Data(), ntot );
+              //AlltoallForward (psiCol, psiRow, mpi_comm);
+              SCALAPACK(pdgemr2d)(&Ng, &No, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
+                  psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
+
+              DblNumMat XTX(numOccTotal, numOccTotal);
+              DblNumMat XTXTemp(numOccTotal, numOccTotal);
+
+              blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiRow.Data(), 
+                  ntotLocal, psiRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
+              SetValue( XTX, 0.0 );
+              MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
+
+              if ( mpirank == 0) {
+                lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
+              }
+              MPI_Bcast(XTX.Data(), numOccTotal * numOccTotal, MPI_DOUBLE, 0, mpi_comm);
+
+              // X <- X * U^{-1} is orthogonal
+              blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
+                  psiRow.Data(), ntotLocal );
+
+              SetValue( psiCol, 0.0 );
+              //AlltoallBackward (psiRow, psiCol, mpi_comm);
+              SCALAPACK(pdgemr2d)(&Ng, &No, psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
+                  psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
+              lapack::Lacpy( 'A', ntot, numOccLocal, psiCol.Data(), ntot, psi.Wavefun().Data(), ntot );
+            } // if
+
+
+            // Compute the extrapolated density
+            Real totalCharge;
+            hamKS.CalculateDensity(
+                psi,
+                hamKS.OccupationRate(),
+                totalCharge, 
+                fft );
+
+          } //if() Extrapolating the Wavefunctions using ASPC
+
+        } // wavefun extrapolation
+      }
 
 
       GetTime( timeSta );
