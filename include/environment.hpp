@@ -126,6 +126,7 @@ namespace dgdft{
 #define BLAS(name)      name##_
 #define LAPACK(name)    name##_
 #define SCALAPACK(name) name##_
+#define F2C(name)       name##_
 
 typedef    int                   Int;
 typedef    double                Real;

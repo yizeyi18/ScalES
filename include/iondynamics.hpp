@@ -54,7 +54,16 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "blas.hpp"
 #include  "lapack.hpp"
 
+
 namespace dgdft{
+
+extern "C"{
+Int F2C(lbfgs)( Int *n, Int *m, double *x, double *f, double* g, 
+    int *diagco, double *diag, int *iprint, double *eps,
+    double *xtol, double *work, int *iflag );
+}
+
+
 
 enum NLCG_call_type{NLCG_INIT, NLCG_CALL_TYPE_1, NLCG_CALL_TYPE_2, NLCG_CALL_TYPE_3, NLCG_CALL_TYPE_4};   
 
@@ -189,24 +198,27 @@ struct GeoOptVars
   Real xtol;
   Real gtol;
 
-  // Parameters for control the linear approximation in line search
+  // Parameters for controling the linear approximation in line search. 
+  // 
+  // Used in PGBB
   Real tau;
   Real rhols;
   Real eta;
   Real gamma;
   Real STPEPS;
   Real nt;
-
   Int callType;
   Int nls;
-
-
   // Internal variables
   std::vector<Point3>  atompos;
   std::vector<Point3>  atomforce;
-  
   std::vector<Point3>  atomposOld;
   std::vector<Point3>  atomforceOld;
+
+  // Parameters for LBFGS
+  // 
+  DblNumVec work;
+  Int maxMixingDim;
 };
 
 
@@ -269,6 +281,9 @@ private:
   ///
   void PGBBOpt( Int ionIter );
 
+  /// @brief Norcedal's implementation of L-BFGS
+  ///
+  void LBFGSOpt( Int ionIter );
 
   /// @brief Non-linear Conjugate Gradient with Secant and Polak-Ribiere
   NLCG_internal_vars_type NLCG_vars;

@@ -98,7 +98,7 @@ void
     if( ionMove_ == "bb" ||
         ionMove_ == "pgbb" ||
         ionMove_ == "nlcg" ||
-        ionMove_ == "bfgs" ){
+        ionMove_ == "lbfgs" ){
       isGeoOpt_ = true;
     }
 
@@ -119,8 +119,8 @@ void
     }
 
     if( ionMove_ == "pgbb" ){
-      geoOptVars_.xtol = 1e-6;
-      geoOptVars_.gtol = 1e-6;
+      geoOptVars_.xtol = 1e-4;
+      geoOptVars_.gtol = 1e-4;
 
       geoOptVars_.tau  = 1e-1; // Original default is 1e-3
       geoOptVars_.rhols = 1e-4;
@@ -138,7 +138,19 @@ void
       geoOptVars_.atomforce.resize(numAtom);
       geoOptVars_.atomforceOld.resize(numAtom);
 
-    }
+    } // if( pgbb )
+
+    if( ionMove_ == "lbfgs" ){
+      geoOptVars_.xtol = 1e-4;
+      geoOptVars_.gtol = 1e-4;
+
+      geoOptVars_.callType = 0;
+      geoOptVars_.maxMixingDim = 7;
+
+      Int numAtom = atomList.size();
+      Int lwork = (3*numAtom+1)*(2*geoOptVars_.maxMixingDim + 1);
+      geoOptVars_.work.Resize(lwork);
+    } // if( lbfgs )
 
 
     if( ionMove_ == "nlcg" )
@@ -341,6 +353,9 @@ void
       PGBBOpt( ionIter );
     }
 
+    if( ionMove_ == "lbfgs" ){
+      LBFGSOpt( ionIter );
+    }
 
     if( ionMove_ == "nlcg"){
       NLCG_Opt( ionIter );      
@@ -586,6 +601,55 @@ void IonDynamics::PGBBOpt ( Int ionIter )
 
   return ;
 }         // -----  end of method IonDynamics::PGBBOpt  ----- 
+
+
+void IonDynamics::LBFGSOpt ( Int ionIter )
+{
+  std::vector<Atom>&   atomList    = *atomListPtr_;
+
+  Int numAtom = atomList.size();
+
+  Int N = 3*numAtom;
+
+  DblNumVec pos(N);
+  DblNumVec grad(N);
+  Int diagco = 0;
+  DblNumVec diagdummy(N);
+//  SetValue( diagdummy, 0.01 );
+  IntNumVec iPrint(2);
+
+  iPrint[0] = 1;  // output every IPRINT(0) iterations.
+  iPrint[1] = 0;  // iteration count, number of function evaluations, 
+                  // function value, norm of the gradient, and steplength,
+
+  for( Int a = 0; a < numAtom; a++ ){
+    pos[3*a]     = atomList[a].pos[0];
+    pos[3*a+1]   = atomList[a].pos[1];
+    pos[3*a+2]   = atomList[a].pos[2];
+    grad[3*a]    = -atomList[a].force[0];
+    grad[3*a+1]  = -atomList[a].force[1];
+    grad[3*a+2]  = -atomList[a].force[2];
+  }
+
+  Real eps = geoOptVars_.gtol / geoOptVars_.xtol;
+  statusOFS << "geoOptVars_.work.size() = " << geoOptVars_.work.Size() << std::endl;
+  statusOFS << "Epot = " << Epot_ << std::endl;
+
+  F2C(lbfgs)( &N, &geoOptVars_.maxMixingDim, pos.Data(),
+     &Epot_, grad.Data(), &diagco, diagdummy.Data(), 
+     iPrint.Data(), &eps, &geoOptVars_.xtol, 
+     geoOptVars_.work.Data(), &geoOptVars_.callType );
+
+  statusOFS << "callType = " << geoOptVars_.callType << std::endl;
+  
+  for( Int a = 0; a < numAtom; a++ ){
+    atomList[a].pos[0] = pos[3*a];
+    atomList[a].pos[1] = pos[3*a+1];
+    atomList[a].pos[2] = pos[3*a+2];
+  }
+
+  return ;
+}         // -----  end of method IonDynamics::LBFGSOpt  ----- 
 
 
 
