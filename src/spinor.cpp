@@ -1387,6 +1387,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
   // book keeping the old interface while do the GPU inside. 
   // 1st version code. 
+  cuda_memcpy_CPU2GPU(cu_wave.Data(), wavefun_.Data(), sizeof(Real)* numStateLocal * ntot );
   for( Int iproc = 0; iproc < mpisize; iproc++ ){
 
     if( iproc == mpirank )
@@ -1405,7 +1406,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
     for( Int kphi = 0; kphi < numStateLocalTemp; kphi++ ){
       for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
 
-        SetValue( phiTemp, 0.0 );
+        //SetValue( phiTemp, 0.0 );
 
         if( iproc == mpirank )
         { 
@@ -1422,11 +1423,11 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
         // copy the phiTemp to GPU.
         cuda_memcpy_CPU2GPU(cu_phiTemp.Data(), phiTemp.Data(), sizeof(Real)*ntot);
+        Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
 
 	// copy the wave function to GPU.
         //cuda_memcpy_CPU2GPU(cu_wavefun_.Data(), wavefun_.Data(), sizeof(Real)*numStateLocal * ntot);
         
-        cuda_memcpy_CPU2GPU(cu_wave.Data(), wavefun_.Data(), sizeof(Real)* numStateLocal * ntot );
       
         
         for (Int k=0; k<numStateLocal; k++) {
@@ -1454,37 +1455,15 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
             // multiply by the occupationRate.
 	    // multiply with fac.
-            Real *cu_a3Ptr = a3.VecData(j,k);
-            Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
-            cuda_Axpyz( cu_a3Ptr, 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot);
+            //Real *cu_a3Ptr = a3.VecData(j,k);
+            //cuda_Axpyz( cu_a3Ptr, 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot);
+            cuda_Axpyz( a3.VecData(j,k), 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot);
             
-
-	/*
-            for( Int ir = 0; ir < ntot; ir++ ){
-              fft.inputVecR2C(ir) = psiPtr[ir] * phiTemp(ir);
-            }
-
-            FFTWExecute ( fft, fft.forwardPlanR2C );
-
-            // Solve the Poisson-like problem for exchange
-            for( Int ig = 0; ig < ntotR2C; ig++ ){
-              fft.outputVecR2C(ig) *= exxgkkR2C(ig);
-            }
-
-            FFTWExecute ( fft, fft.backwardPlanR2C );
-
-            Real* a3Ptr = a3.VecData(j,k);
-            Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
-            for( Int ir = 0; ir < ntot; ir++ ){
-              a3Ptr[ir] += fft.inputVecR2C(ir) * phiTemp(ir) * fac;
-            }
-	*/
-
-
           } // for (j)
         } // for (k)
 
-        MPI_Barrier(domain_.comm);
+        // no need to do the MPI_Barrier.
+        //MPI_Barrier(domain_.comm);
 
 
       } // for (jphi)

@@ -321,7 +321,6 @@ SCF::Iterate (  )
       // Compute the Hartree energy
       ham.CalculateHartree( fft );
       // No external potential
-
       // Compute the total potential
       ham.CalculateVtot( ham.Vtot() );
     }
@@ -475,7 +474,11 @@ SCF::Iterate (  )
         isFixColumnDF = true;
       }
       else{
+#ifdef GPU
+        ham.CalculateVexxACEGPU ( psi, fft );
+#else
         ham.CalculateVexxACE ( psi, fft );
+#endif
       }
     }
 
