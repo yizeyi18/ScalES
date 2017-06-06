@@ -206,6 +206,10 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
   Int numAtom = atomList_.size();
   Real vol = domain_.Volume();
 
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
   pseudo_.clear();
   pseudo_.resize( numAtom );
 
@@ -231,16 +235,79 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
   // Compute pseudocharge
 
+  Real timeSta, timeEnd;
+
+  int numAtomBlocksize = numAtom  / mpisize;
+  int numAtomLocal = numAtomBlocksize;
+  if(mpirank < (numAtom % mpisize)){
+    numAtomLocal = numAtomBlocksize + 1;
+  }
+  IntNumVec numAtomIdx( numAtomLocal );
+
+  if (numAtomBlocksize == 0 ){
+    for (Int i = 0; i < numAtomLocal; i++){
+      numAtomIdx[i] = mpirank;
+    }
+  }
+  else {
+    if ( (numAtom % mpisize) == 0 ){
+      for (Int i = 0; i < numAtomLocal; i++){
+        numAtomIdx[i] = numAtomBlocksize * mpirank + i;
+      }
+    }
+    else{
+      for (Int i = 0; i < numAtomLocal; i++){
+        if ( mpirank < (numAtom % mpisize) ){
+          numAtomIdx[i] = (numAtomBlocksize + 1) * mpirank + i;
+        }
+        else{
+          numAtomIdx[i] = (numAtomBlocksize + 1) * (numAtom % mpisize) + numAtomBlocksize * (mpirank - (numAtom % mpisize)) + i;
+        }
+      }
+    }
+  }
+
+  IntNumVec numAtomMpirank( numAtom );
+
+  if (numAtomBlocksize == 0 ){
+    for (Int i = 0; i < numAtom; i++){
+      numAtomMpirank[i] = i % mpisize;
+    }
+  }
+  else {
+    if ( (numAtom % mpisize) == 0 ){
+      for (Int i = 0; i < numAtom; i++){
+        numAtomMpirank[i] = i / numAtomBlocksize;
+      }
+    }
+    else{
+      for (Int i = 0; i < numAtom; i++){
+        if ( i < (numAtom % mpisize) * (numAtomBlocksize + 1) ){
+          numAtomMpirank[i] = i / (numAtomBlocksize + 1);
+        }
+        else{
+          numAtomMpirank[i] = numAtom % mpisize + (i - (numAtom % mpisize) * (numAtomBlocksize + 1)) / numAtomBlocksize;
+        }
+      }
+    }
+  }
+
+  GetTime( timeSta );
+
   Print( statusOFS, "Computing the local pseudopotential" );
-  SetValue( pseudoCharge_, 0.0 );
-  for (Int a=0; a<numAtom; a++) {
+
+  DblNumVec pseudoChargeLocal(ntotFine);
+  SetValue( pseudoChargeLocal, 0.0 );
+
+  for (Int i=0; i<numAtomLocal; i++) {
+    int a = numAtomIdx[i];
     ptable.CalculatePseudoCharge( atomList_[a], domain_, 
         gridpos, pseudo_[a].pseudoCharge );
     //accumulate to the global vector
     IntNumVec &idx = pseudo_[a].pseudoCharge.first;
     DblNumMat &val = pseudo_[a].pseudoCharge.second;
     for (Int k=0; k<idx.m(); k++) 
-      pseudoCharge_[idx(k)] += val(k, VAL);
+      pseudoChargeLocal[idx(k)] += val(k, VAL);
     // For debug purpose, check the summation of the derivative
     if(0){
       Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
@@ -262,6 +329,44 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
       }
     }
   }
+
+  SetValue( pseudoCharge_, 0.0 );
+  MPI_Allreduce( pseudoChargeLocal.Data(), pseudoCharge_.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+  for (Int a=0; a<numAtom; a++) {
+
+    std::stringstream vStream;
+    std::stringstream vStreamTemp;
+    int vStreamSize;
+
+    PseudoPot& pseudott = pseudo_[a]; 
+
+    serialize( pseudott, vStream, NO_MASK );
+
+    if (numAtomMpirank[a] == mpirank){
+      vStreamSize = Size( vStream );
+    }
+
+    MPI_Bcast( &vStreamSize, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
+
+    std::vector<char> sstr;
+    sstr.resize( vStreamSize );
+
+    if (numAtomMpirank[a] == mpirank){
+      vStream.read( &sstr[0], vStreamSize );
+    }
+
+    MPI_Bcast( &sstr[0], vStreamSize, MPI_BYTE, numAtomMpirank[a], domain_.comm );
+
+    vStreamTemp.write( &sstr[0], vStreamSize );
+
+    deserialize( pseudott, vStreamTemp, NO_MASK );
+
+  }
+
+  GetTime( timeEnd );
+
+  statusOFS << "Time for local pseudopotential " << timeEnd - timeSta  << std::endl;
 
   Real sumrho = 0.0;
   for (Int i=0; i<ntotFine; i++) 
@@ -285,16 +390,21 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
   std::vector<DblNumVec> gridposCoarse;
   UniformMesh ( domain_, gridposCoarse );
 
+  GetTime( timeSta );
+
   Print( statusOFS, "Computing the non-local pseudopotential" );
 
   Int cnt = 0; // the total number of PS used
-  for ( Int a=0; a < atomList_.size(); a++ ) {
+  Int cntLocal = 0; // the total number of PS used
+
+  for (Int i=0; i<numAtomLocal; i++) {
+    int a = numAtomIdx[i];
     ptable.CalculateNonlocalPP( atomList_[a], domain_, gridposCoarse,
         pseudo_[a].vnlList ); 
     // Introduce the nonlocal pseudopotential on the fine grid.
     ptable.CalculateNonlocalPP( atomList_[a], domain_, gridpos,
         pseudo_[a].vnlListFine ); 
-    cnt = cnt + pseudo_[a].vnlList.size();
+    cntLocal = cntLocal + pseudo_[a].vnlList.size();
 
     // For debug purpose, check the summation of the derivative
     if(0){
@@ -325,8 +435,57 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
   }
 
+  cnt = 0; // the total number of PS used
+  MPI_Allreduce( &cntLocal, &cnt, 1, MPI_INT, MPI_SUM, domain_.comm );
+  
   Print( statusOFS, "Total number of nonlocal pseudopotential = ",  cnt );
 
+  for (Int a=0; a<numAtom; a++) {
+
+    std::stringstream vStream1;
+    std::stringstream vStream2;
+    std::stringstream vStream1Temp;
+    std::stringstream vStream2Temp;
+    int vStream1Size, vStream2Size;
+
+    std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlList;
+    std::vector<NonlocalPP>& vnlListFine = pseudo_[a].vnlListFine;
+
+    serialize( vnlList, vStream1, NO_MASK );
+    serialize( vnlListFine, vStream2, NO_MASK );
+
+    if (numAtomMpirank[a] == mpirank){
+      vStream1Size = Size( vStream1 );
+      vStream2Size = Size( vStream2 );
+    }
+
+    MPI_Bcast( &vStream1Size, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
+    MPI_Bcast( &vStream2Size, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
+
+    std::vector<char> sstr1;
+    sstr1.resize( vStream1Size );
+    std::vector<char> sstr2;
+    sstr2.resize( vStream2Size );
+
+    if (numAtomMpirank[a] == mpirank){
+      vStream1.read( &sstr1[0], vStream1Size );
+      vStream2.read( &sstr2[0], vStream2Size );
+    }
+
+    MPI_Bcast( &sstr1[0], vStream1Size, MPI_BYTE, numAtomMpirank[a], domain_.comm );
+    MPI_Bcast( &sstr2[0], vStream2Size, MPI_BYTE, numAtomMpirank[a], domain_.comm );
+
+    vStream1Temp.write( &sstr1[0], vStream1Size );
+    vStream2Temp.write( &sstr2[0], vStream2Size );
+
+    deserialize( vnlList, vStream1Temp, NO_MASK );
+    deserialize( vnlListFine, vStream2Temp, NO_MASK );
+
+  }
+
+  GetTime( timeEnd );
+
+  statusOFS << "Time for nonlocal pseudopotential " << timeEnd - timeSta  << std::endl;
 
   return ;
 }         // -----  end of method KohnSham::CalculatePseudoPotential ----- 
