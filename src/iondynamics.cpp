@@ -108,9 +108,9 @@ void
       isMD_ = true;
     }
 
-    if( isGeoOpt_ == false && isMD_ == false ){
-      ErrorHandling("Neither geometry optimization nor MD is invoked.");
-    }
+    //if( isGeoOpt_ == false && isMD_ == false ){
+    //  ErrorHandling("Neither geometry optimization nor MD is invoked.");
+    //}
 
 
     // Geometry optimization
