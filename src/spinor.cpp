@@ -4071,6 +4071,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     GetTime( timeSta );
 
     DblNumMat MMatMuNu(numMu_, numMu_);
+    cuDblNumMat cu_MMatMuNu(numMu_, numMu_);
     {
       DblNumMat MMatMuNuTemp( numMu_, numMu_ );
       cuDblNumMat cu_MMatMuNuTemp( numMu_, numMu_ );
@@ -4091,6 +4092,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
 
       MPI_Allreduce( MMatMuNuTemp.Data(), MMatMuNu.Data(), numMu_ * numMu_, 
           MPI_DOUBLE, MPI_SUM, domain_.comm );
+      cu_MMatMuNu.CopyFrom( MMatMuNu );
     }
 
     // Element-wise multiply with phiMuNu matrix (i.e. density matrix)
@@ -4103,19 +4105,20 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numMu_, numMu_, numStateTotal, &one,
           cu_phiMu.Data(), numStateTotal, cu_phiMu.Data(), numStateTotal, &zero,
           cu_phiMuNu.Data(), numMu_ );
-      cu_phiMuNu.CopyTo(phiMuNu);
+      //cu_phiMuNu.CopyTo(phiMuNu);
+      cuda_hadamard_product( cu_MMatMuNu.Data(), cu_phiMuNu.Data(), cu_MMatMuNu.Data(), numMu_*numMu_);
 
       /*
       blas::Gemm( 'T', 'N', numMu_, numMu_, numStateTotal, 1.0,
           phiMu.Data(), numStateTotal, phiMu.Data(), numStateTotal, 0.0,
           phiMuNu.Data(), numMu_ );
-      */
       Real* MMatPtr = MMatMuNu.Data();
       Real* phiPtr  = phiMuNu.Data();
 
       for( Int g = 0; g < numMu_ * numMu_; g++ ){
         MMatPtr[g] *= phiPtr[g];
       }
+      */
     }
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -4130,31 +4133,19 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
 
     GetTime( timeSta );
     // Rewrite VXi by VXi.*PcolPhi
-    Real* VxiPtr = VXiRow.Data();
-    Real* PcolPhiMuPtr = PcolPhiMu.Data();
-    for( Int g = 0; g < ntotLocal * numMu_; g++ ){
-      VxiPtr[g] *= PcolPhiMuPtr[g];
-    }
-
+    // cu_VXiRow.CopyFrom(VXiRow);
+    cuda_hadamard_product( cu_VXiRow.Data(), cu_PcolPhiMu.Data(), cu_VXiRow.Data(), numMu_*ntotLocal );
+    
     // NOTE: a3 must be zero in order to compute the M matrix later
     DblNumMat a3Row( ntotLocal, numStateTotal );
-    //cuDblNumMat cu_a3Row( ntotLocal, numStateTotal );
-    //SetValue( a3Row, 0.0 );
     cuda_setValue( cu_a3.Data(), 0.0, ntotLocal*numStateTotal);
 
     cu_psiMu.CopyFrom(psiMu);
-    cu_VXiRow.CopyFrom(VXiRow);
-    //cu_a3.CopyFrom(a3Row);
 
     cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_T, ntotLocal, numStateTotal, numMu_, &one, 
         cu_VXiRow.Data(), ntotLocal, cu_psiMu.Data(), numStateTotal, &one,
         cu_a3.Data(), ntotLocal ); 
 
-    /*
-    blas::Gemm( 'N', 'T', ntotLocal, numStateTotal, numMu_, 1.0, 
-        VXiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 1.0,
-        a3Row.Data(), ntotLocal ); 
-    */
     //cu_a3Row.CopyTo(a3Row);
     // there is no need in MPI_AlltoallBackward from a3row to a3Col. 
     // cause in the next step, we will MPI_AlltoallForward them back to row parallel
@@ -4175,6 +4166,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     // vexxPsi (a3) must be zero before entering this routine
     VxMat.Resize( numStateTotal, numStateTotal );
     GetTime( timeSta );
+    /*
     if(0)
     {
       // Minus sign so that VxMat is positive semidefinite
@@ -4193,16 +4185,15 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       Symmetrize( VxMat );
      
     }
+    */
     if(1){
 
       DblNumMat VxMatTemp( numMu_, numStateTotal );
       cuDblNumMat cu_VxMatTemp( numMu_, numStateTotal );
-      //cuDblNumMat cu_psiMu(numStateTotal, numMu_);
-      cuDblNumMat cu_MMatMuNu(numMu_, numMu_);
       cuDblNumMat cu_VxMat( numStateTotal, numStateTotal );
 
       cu_psiMu.CopyFrom(psiMu);
-      cu_MMatMuNu.CopyFrom(MMatMuNu);
+      //cu_MMatMuNu.CopyFrom(MMatMuNu);
     
       cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_T, numMu_, numStateTotal, numMu_, &one, 
           cu_MMatMuNu.Data(), numMu_, cu_psiMu.Data(), numStateTotal, &zero,
@@ -4213,14 +4204,6 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
 
       cu_VxMat.CopyTo(VxMat);  // no need to copy them back to CPU. just keep them in GPU.
 
-      /*
-      blas::Gemm( 'N', 'T', numMu_, numStateTotal, numMu_, 1.0, 
-          MMatMuNu.Data(), numMu_, psiMu.Data(), numStateTotal, 0.0,
-          VxMatTemp.Data(), numMu_ );
-      blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, numMu_, 1.0,
-          psiMu.Data(), numStateTotal, VxMatTemp.Data(), numMu_, 0.0,
-          VxMat.Data(), numStateTotal );
-      */
     }
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
