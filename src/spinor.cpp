@@ -3356,7 +3356,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     const Real numGaussianRandomFac,
     const Int numProcScaLAPACKPotrf,  
     const Int scaPotrfBlockSize,  
-    NumTns<Real>& a3, 
+    cuDblNumMat & cu_a3, 
     NumMat<Real>& VxMat,
     bool isFixColumnDF )
 {
@@ -3436,47 +3436,38 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       ntotLocal = ntotBlocksize + 1;
     }
 
-    //DblNumMat localVexxPsiCol( ntot, numStateLocal );
-    //SetValue( localVexxPsiCol, 0.0 );
-
-    //DblNumMat localVexxPsiRow( ntotLocal, numStateTotal );
-    //SetValue( localVexxPsiRow, 0.0 );
-
     DblNumMat localphiGRow( ntotLocal, numPre );
-    //SetValue( localphiGRow, 0.0 );
-
     DblNumMat localpsiGRow( ntotLocal, numPre );
-    //SetValue( localpsiGRow, 0.0 );
-
-    DblNumMat G(numStateTotal, numPre);
-    SetValue( G, 0.0 );
-
-    DblNumMat phiCol( ntot, numStateLocal );
-    //SetValue( phiCol, 0.0 );
     DblNumMat phiRow( ntotLocal, numStateTotal );
-    //SetValue( phiRow, 0.0 );
-
-    DblNumMat psiCol( ntot, numStateLocal );
-    //SetValue( psiCol, 0.0 );
     DblNumMat psiRow( ntotLocal, numStateTotal );
-    //SetValue( psiRow, 0.0 );
 
     cuDblNumMat cu_phiRow( ntotLocal, numStateTotal );
     cuDblNumMat cu_psiRow( ntotLocal, numStateTotal );
+    cuda_setValue( cu_phiRow.Data(), 0.0, ntotLocal*numStateTotal);
+    cuda_setValue( cu_psiRow.Data(), 0.0, ntotLocal*numStateTotal);
 
     Real minus_one = -1.0;
     Real zero =  0.0;
     Real one  =  1.0;
 
-    lapack::Lacpy( 'A', ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
-    lapack::Lacpy( 'A', ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
+    {
+    //DblNumMat phiCol( ntot, numStateLocal );
+    //DblNumMat psiCol( ntot, numStateLocal );
+    cuDblNumMat cu_phiCol( ntot, numStateLocal );
+    cuDblNumMat cu_psiCol( ntot, numStateLocal );
+    
+    //lapack::Lacpy( 'A', ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
+    //lapack::Lacpy( 'A', ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
+    cuda_memcpy_CPU2GPU(cu_phiCol.Data(), phi.Data(),      sizeof(Real)*ntot*numStateLocal);
+    cuda_memcpy_CPU2GPU(cu_psiCol.Data(), wavefun_.Data(), sizeof(Real)*ntot*numStateLocal);
 
-    AlltoallForward (phiCol, phiRow, domain_.comm);
-    AlltoallForward (psiCol, psiRow, domain_.comm);
+    //AlltoallForward (phiCol, phiRow, domain_.comm);
+    GPU_AlltoallForward (cu_phiCol, cu_phiRow, domain_.comm);
+    GPU_AlltoallForward (cu_psiCol, cu_psiRow, domain_.comm);
 
-    cu_phiRow.CopyFrom(phiRow);
-    cu_psiRow.CopyFrom(psiRow);
-
+    cu_phiRow.CopyTo(phiRow);
+    cu_psiRow.CopyTo(psiRow);
+    }
     // Computing the indices is optional
 
     Int ntotLocalMG, ntotMG;
@@ -3495,6 +3486,8 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
    
 
     if( isFixColumnDF == false ){
+      DblNumMat G(numStateTotal, numPre);
+      SetValue( G, 0.0 );
       GetTime( timeSta );
 
       // Step 1: Pre-compression of the wavefunctions. This uses
@@ -3650,7 +3643,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
         serialize( pivQR_, muStream, NO_MASK );
         SharedWrite( "pivQR", muStream );
       }
-    }
+    } //if isFixColumnDF == false 
 
     // Load pivQR_ file
     if(0){
@@ -4057,10 +4050,11 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
 
         } // for (mu)
 
-        cu_XiCol.CopyTo(XiCol);
+        //cu_XiCol.CopyTo(XiCol);
 
         GetTime( timeSta1 );
-        AlltoallForward (XiCol, VXiRow, domain_.comm);
+        GPU_AlltoallForward (cu_XiCol, cu_VXiRow, domain_.comm);
+        cu_VXiRow.CopyTo( VXiRow );    // copy the data back to VXiRow, used in the next steps.
         GetTime( timeEnd1 );
         mpi_time += timeEnd1 - timeSta1;
 
@@ -4080,8 +4074,8 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     {
       DblNumMat MMatMuNuTemp( numMu_, numMu_ );
       cuDblNumMat cu_MMatMuNuTemp( numMu_, numMu_ );
-      cu_VXiRow.CopyFrom(VXiRow);
-      cu_XiRow.CopyFrom(XiRow);
+      //cu_VXiRow.CopyFrom(VXiRow);
+      //cu_XiRow.CopyFrom(XiRow);
 
       // Minus sign so that MMat is positive semidefinite
       cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numMu_, numMu_, ntotLocal, &minus_one,
@@ -4144,28 +4138,32 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
 
     // NOTE: a3 must be zero in order to compute the M matrix later
     DblNumMat a3Row( ntotLocal, numStateTotal );
-    cuDblNumMat cu_a3Row( ntotLocal, numStateTotal );
-    SetValue( a3Row, 0.0 );
+    //cuDblNumMat cu_a3Row( ntotLocal, numStateTotal );
+    //SetValue( a3Row, 0.0 );
+    cuda_setValue( cu_a3.Data(), 0.0, ntotLocal*numStateTotal);
 
     cu_psiMu.CopyFrom(psiMu);
     cu_VXiRow.CopyFrom(VXiRow);
-    cu_a3Row.CopyFrom(a3Row);
+    //cu_a3.CopyFrom(a3Row);
 
     cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_T, ntotLocal, numStateTotal, numMu_, &one, 
         cu_VXiRow.Data(), ntotLocal, cu_psiMu.Data(), numStateTotal, &one,
-        cu_a3Row.Data(), ntotLocal ); 
+        cu_a3.Data(), ntotLocal ); 
 
-    cu_a3Row.CopyTo(a3Row);
     /*
     blas::Gemm( 'N', 'T', ntotLocal, numStateTotal, numMu_, 1.0, 
         VXiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 1.0,
         a3Row.Data(), ntotLocal ); 
     */
-    DblNumMat a3Col( ntot, numStateLocal );
-    
-    AlltoallBackward (a3Row, a3Col, domain_.comm);
-
-    lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );
+    //cu_a3Row.CopyTo(a3Row);
+    // there is no need in MPI_AlltoallBackward from a3row to a3Col. 
+    // cause in the next step, we will MPI_AlltoallForward them back to row parallel
+   
+    /*
+    cuDblNumMat cu_a3Col( ntot, numStateLocal );
+    GPU_AlltoallBackward (cu_a3Row, cu_a3Col, domain_.comm);
+    cuda_memcpy_GPU2CPU( a3.Data(), cu_a3Col.Data(), sizeof(Real)*ntot*numStateLocal);
+    */
 
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -4213,7 +4211,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
           cu_psiMu.Data(), numStateTotal, cu_VxMatTemp.Data(), numMu_, &zero,
           cu_VxMat.Data(), numStateTotal );
 
-      cu_VxMat.CopyTo(VxMat);
+      cu_VxMat.CopyTo(VxMat);  // no need to copy them back to CPU. just keep them in GPU.
 
       /*
       blas::Gemm( 'N', 'T', numMu_, numStateTotal, numMu_, 1.0, 

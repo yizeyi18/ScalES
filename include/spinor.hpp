@@ -229,7 +229,7 @@ public:
       const Real numGaussianRandomFac,
       const Int numProcScaLAPACKPotrf, 
       const Int scaPotrfBlockSize, 
-      NumTns<Real>& a3,
+      cuDblNumMat & cu_a3,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
 

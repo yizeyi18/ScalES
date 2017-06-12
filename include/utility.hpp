@@ -1716,6 +1716,7 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
 void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
 #ifdef GPU
 void GPU_AlltoallBackward( cuDblNumMat& A, cuDblNumMat& B, MPI_Comm comm );
+void GPU_AlltoallForward ( cuDblNumMat& A, cuDblNumMat& B, MPI_Comm comm );
 #endif
 // ~~**~~
 // ------------------------------------------------------------------------------

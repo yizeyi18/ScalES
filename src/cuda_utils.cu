@@ -772,8 +772,10 @@ void cuda_cal_sendk( int * sendk, int * senddispl, int widthLocal, int height, i
 	int dim = (total + LEN - 1) / LEN;
 	
        	gpu_cal_sendk<<< dim, LEN>>> ( sendk, senddispl, widthLocal, height, heightBlockSize, mpisize );
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
-#ifdef GPU
 #endif
 }
 
@@ -783,10 +785,31 @@ void cuda_cal_recvk( int * recvk, int * recvdisp, int width, int heightLocal, in
 	int dim = ( total + LEN - 1 ) / LEN;
 	
 	gpu_cal_recvk<<< dim, LEN>>> ( recvk, recvdisp, width, heightLocal, mpisize );
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
-#ifdef GPU
 #endif
 }
-	
+template < class T >
+__global__ void gpu_hadamard_product ( T* dev_A, T* dev_B, T * dev_result, int length)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if(tid < length)
+	{
+		dev_result[tid] = dev_A[tid] * dev_B[tid];
+	}
+}
 
+void cuda_hadamard_product( double * in1, double * in2, double * out, int length)
+{
+	int dim = ( length + LEN - 1 ) / LEN;
+	gpu_hadamard_product<double> <<< dim, LEN >>> ( in1, in2, out, length );
+
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
 #endif

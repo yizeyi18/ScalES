@@ -3336,7 +3336,15 @@ KohnSham::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
   Int ntotFine  = fft.domain.NumGridTotalFine();
   Int numStateTotal = psi.NumStateTotal();
   Int numStateLocal = psi.NumState();
-  NumTns<Real>  vexxPsi( ntot, 1, numStateLocal );
+  //NumTns<Real>  vexxPsi( ntot, 1, numStateLocal );
+
+  Int ntotBlocksize = ntot / mpisize;
+  Int ntotLocal = ntotBlocksize;
+  if(mpirank < (ntot % mpisize)){
+    ntotLocal = ntotBlocksize + 1;
+  }
+
+  cuDblNumMat cu_vexxPsi( ntotLocal, numStateTotal );
 
   // VexxPsi = V_{exx}*Phi.
   DblNumMat  M(numStateTotal, numStateTotal);
@@ -3345,10 +3353,12 @@ KohnSham::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
 
   // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
   // semi-definite matrix.
+
+  // why keep so many MPI_Alltoalls? while this can be easily avoided. 
   psi.AddMultSpinorEXXDF3_GPU( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
       occupationRate_, numMuHybridDF_, numGaussianRandomHybridDF_,
       numProcScaLAPACKHybridDF_, BlockSizeScaLAPACK_,
-      vexxPsi, M, isFixColumnDF );
+      cu_vexxPsi, M, isFixColumnDF );
 
   GetTime( timeEnd );
   statusOFS << "GPU Time for AddMulSpinorEXXDF3_GPU  is " <<
@@ -3356,6 +3366,7 @@ KohnSham::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
 
   GetTime( timeSta );
   // Implementation based on Cholesky
+  /*
   if(0){
     lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
 
@@ -3365,7 +3376,7 @@ KohnSham::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
     vexxProj_.Resize( ntot, numStateTotal );
     blas::Copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
   }
-
+  */
   if(1){ //For MPI
 
     // Convert the column partition to row partition
@@ -3390,9 +3401,9 @@ KohnSham::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
     //SetValue( localVexxPsiRow, 0.0 );
 
     // Initialize
-    lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
+    //lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
 
-    AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
+    //AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
     
     /*
     if ( mpirank == 0) {
@@ -3409,7 +3420,9 @@ KohnSham::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
     Real one  =  1.0;
 
     cu_vexxProj_.Resize( ntotLocal, numStateTotal );
-    cu_vexxProj_.CopyFrom(localVexxPsiRow);
+    cu_vexxPsi.CopyTo( cu_vexxProj_);
+    //cu_vexxProj_.CopyFrom(localVexxPsiRow);
+
     cuDblNumMat cu_M( numStateTotal, numStateTotal );
     cu_M.CopyFrom(M);
 
