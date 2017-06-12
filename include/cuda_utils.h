@@ -154,6 +154,7 @@ void cuda_DMatrix_Add( double * A , double * B, int m, int n);
 void cuda_Axpyz( double * X, double alpha, double * Y, double beta, double * Z, int length);
 void cuda_cal_recvk( int * recvk, int * recvdisp, int width, int heightLocal, int mpisize);
 void cuda_cal_sendk( int * sendk, int * senddispl, int widthLocal, int height, int heightBlockSize, int mpisize);
+void cuda_hadamard_product( double * in1, double * in2, double * out, int length);
 //}
 #endif
 #endif

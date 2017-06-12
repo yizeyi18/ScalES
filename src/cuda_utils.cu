@@ -805,6 +805,7 @@ void cuda_hadamard_product( double * in1, double * in2, double * out, int length
 {
 	int dim = ( length + LEN - 1 ) / LEN;
 	gpu_hadamard_product<double> <<< dim, LEN >>> ( in1, in2, out, length );
+	assert(cudaThreadSynchronize() == cudaSuccess );
 
 #ifdef SYNC 
 	gpuErrchk(cudaPeekAtLastError());
