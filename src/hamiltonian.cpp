@@ -206,6 +206,10 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
   Int numAtom = atomList_.size();
   Real vol = domain_.Volume();
 
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
   pseudo_.clear();
   pseudo_.resize( numAtom );
 
@@ -231,16 +235,79 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
   // Compute pseudocharge
 
+  Real timeSta, timeEnd;
+
+  int numAtomBlocksize = numAtom  / mpisize;
+  int numAtomLocal = numAtomBlocksize;
+  if(mpirank < (numAtom % mpisize)){
+    numAtomLocal = numAtomBlocksize + 1;
+  }
+  IntNumVec numAtomIdx( numAtomLocal );
+
+  if (numAtomBlocksize == 0 ){
+    for (Int i = 0; i < numAtomLocal; i++){
+      numAtomIdx[i] = mpirank;
+    }
+  }
+  else {
+    if ( (numAtom % mpisize) == 0 ){
+      for (Int i = 0; i < numAtomLocal; i++){
+        numAtomIdx[i] = numAtomBlocksize * mpirank + i;
+      }
+    }
+    else{
+      for (Int i = 0; i < numAtomLocal; i++){
+        if ( mpirank < (numAtom % mpisize) ){
+          numAtomIdx[i] = (numAtomBlocksize + 1) * mpirank + i;
+        }
+        else{
+          numAtomIdx[i] = (numAtomBlocksize + 1) * (numAtom % mpisize) + numAtomBlocksize * (mpirank - (numAtom % mpisize)) + i;
+        }
+      }
+    }
+  }
+
+  IntNumVec numAtomMpirank( numAtom );
+
+  if (numAtomBlocksize == 0 ){
+    for (Int i = 0; i < numAtom; i++){
+      numAtomMpirank[i] = i % mpisize;
+    }
+  }
+  else {
+    if ( (numAtom % mpisize) == 0 ){
+      for (Int i = 0; i < numAtom; i++){
+        numAtomMpirank[i] = i / numAtomBlocksize;
+      }
+    }
+    else{
+      for (Int i = 0; i < numAtom; i++){
+        if ( i < (numAtom % mpisize) * (numAtomBlocksize + 1) ){
+          numAtomMpirank[i] = i / (numAtomBlocksize + 1);
+        }
+        else{
+          numAtomMpirank[i] = numAtom % mpisize + (i - (numAtom % mpisize) * (numAtomBlocksize + 1)) / numAtomBlocksize;
+        }
+      }
+    }
+  }
+
+  GetTime( timeSta );
+
   Print( statusOFS, "Computing the local pseudopotential" );
-  SetValue( pseudoCharge_, 0.0 );
-  for (Int a=0; a<numAtom; a++) {
+
+  DblNumVec pseudoChargeLocal(ntotFine);
+  SetValue( pseudoChargeLocal, 0.0 );
+
+  for (Int i=0; i<numAtomLocal; i++) {
+    int a = numAtomIdx[i];
     ptable.CalculatePseudoCharge( atomList_[a], domain_, 
         gridpos, pseudo_[a].pseudoCharge );
     //accumulate to the global vector
     IntNumVec &idx = pseudo_[a].pseudoCharge.first;
     DblNumMat &val = pseudo_[a].pseudoCharge.second;
     for (Int k=0; k<idx.m(); k++) 
-      pseudoCharge_[idx(k)] += val(k, VAL);
+      pseudoChargeLocal[idx(k)] += val(k, VAL);
     // For debug purpose, check the summation of the derivative
     if(0){
       Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
@@ -262,6 +329,44 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
       }
     }
   }
+
+  SetValue( pseudoCharge_, 0.0 );
+  MPI_Allreduce( pseudoChargeLocal.Data(), pseudoCharge_.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+  for (Int a=0; a<numAtom; a++) {
+
+    std::stringstream vStream;
+    std::stringstream vStreamTemp;
+    int vStreamSize;
+
+    PseudoPot& pseudott = pseudo_[a]; 
+
+    serialize( pseudott, vStream, NO_MASK );
+
+    if (numAtomMpirank[a] == mpirank){
+      vStreamSize = Size( vStream );
+    }
+
+    MPI_Bcast( &vStreamSize, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
+
+    std::vector<char> sstr;
+    sstr.resize( vStreamSize );
+
+    if (numAtomMpirank[a] == mpirank){
+      vStream.read( &sstr[0], vStreamSize );
+    }
+
+    MPI_Bcast( &sstr[0], vStreamSize, MPI_BYTE, numAtomMpirank[a], domain_.comm );
+
+    vStreamTemp.write( &sstr[0], vStreamSize );
+
+    deserialize( pseudott, vStreamTemp, NO_MASK );
+
+  }
+
+  GetTime( timeEnd );
+
+  statusOFS << "Time for local pseudopotential " << timeEnd - timeSta  << std::endl;
 
   Real sumrho = 0.0;
   for (Int i=0; i<ntotFine; i++) 
@@ -285,16 +390,21 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
   std::vector<DblNumVec> gridposCoarse;
   UniformMesh ( domain_, gridposCoarse );
 
+  GetTime( timeSta );
+
   Print( statusOFS, "Computing the non-local pseudopotential" );
 
   Int cnt = 0; // the total number of PS used
-  for ( Int a=0; a < atomList_.size(); a++ ) {
+  Int cntLocal = 0; // the total number of PS used
+
+  for (Int i=0; i<numAtomLocal; i++) {
+    int a = numAtomIdx[i];
     ptable.CalculateNonlocalPP( atomList_[a], domain_, gridposCoarse,
         pseudo_[a].vnlList ); 
     // Introduce the nonlocal pseudopotential on the fine grid.
     ptable.CalculateNonlocalPP( atomList_[a], domain_, gridpos,
         pseudo_[a].vnlListFine ); 
-    cnt = cnt + pseudo_[a].vnlList.size();
+    cntLocal = cntLocal + pseudo_[a].vnlList.size();
 
     // For debug purpose, check the summation of the derivative
     if(0){
@@ -325,8 +435,57 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
   }
 
+  cnt = 0; // the total number of PS used
+  MPI_Allreduce( &cntLocal, &cnt, 1, MPI_INT, MPI_SUM, domain_.comm );
+  
   Print( statusOFS, "Total number of nonlocal pseudopotential = ",  cnt );
 
+  for (Int a=0; a<numAtom; a++) {
+
+    std::stringstream vStream1;
+    std::stringstream vStream2;
+    std::stringstream vStream1Temp;
+    std::stringstream vStream2Temp;
+    int vStream1Size, vStream2Size;
+
+    std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlList;
+    std::vector<NonlocalPP>& vnlListFine = pseudo_[a].vnlListFine;
+
+    serialize( vnlList, vStream1, NO_MASK );
+    serialize( vnlListFine, vStream2, NO_MASK );
+
+    if (numAtomMpirank[a] == mpirank){
+      vStream1Size = Size( vStream1 );
+      vStream2Size = Size( vStream2 );
+    }
+
+    MPI_Bcast( &vStream1Size, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
+    MPI_Bcast( &vStream2Size, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
+
+    std::vector<char> sstr1;
+    sstr1.resize( vStream1Size );
+    std::vector<char> sstr2;
+    sstr2.resize( vStream2Size );
+
+    if (numAtomMpirank[a] == mpirank){
+      vStream1.read( &sstr1[0], vStream1Size );
+      vStream2.read( &sstr2[0], vStream2Size );
+    }
+
+    MPI_Bcast( &sstr1[0], vStream1Size, MPI_BYTE, numAtomMpirank[a], domain_.comm );
+    MPI_Bcast( &sstr2[0], vStream2Size, MPI_BYTE, numAtomMpirank[a], domain_.comm );
+
+    vStream1Temp.write( &sstr1[0], vStream1Size );
+    vStream2Temp.write( &sstr2[0], vStream2Size );
+
+    deserialize( vnlList, vStream1Temp, NO_MASK );
+    deserialize( vnlListFine, vStream2Temp, NO_MASK );
+
+  }
+
+  GetTime( timeEnd );
+
+  statusOFS << "Time for nonlocal pseudopotential " << timeEnd - timeSta  << std::endl;
 
   return ;
 }         // -----  end of method KohnSham::CalculatePseudoPotential ----- 
@@ -2029,6 +2188,205 @@ KohnSham::CalculateForce2    ( Spinor& psi, Fourier& fft  )
 }         // -----  end of method KohnSham::CalculateForce2  ----- 
 #ifdef GPU
 void
+KohnSham::ACEOperator ( cuDblNumMat& cu_psi, Fourier& fft, cuDblNumMat& cu_Hpsi)
+{
+
+     // 1. the projector is in a Row Parallel fashion
+     // 2. the projector is in GPU.
+     // 3. the AX (H*psi) is in the GPU
+
+     // in here we perform: 
+     // M = W'*AX 
+     // reduece M
+     // AX = AX + W*M 
+  if( isHybrid_ && isEXXActive_ ){
+
+    if( esdfParam.isHybridACE ){ 
+    int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+    int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+     Int ntot      = fft.domain.NumGridTotal();
+     Int ntotFine  = fft.domain.NumGridTotalFine();
+     Int numStateTotal = cu_psi.n();
+
+     Int ntotBlocksize = ntot / mpisize;
+     Int ntotLocal = ntotBlocksize;
+     if(mpirank < (ntot % mpisize)){
+       ntotLocal = ntotBlocksize + 1;
+     }
+
+     Real one = 1.0;
+     Real minus_one = -1.0;
+     Real zero = 0.0;
+
+     DblNumMat MTemp( numStateTotal, numStateTotal );
+     cuDblNumMat cu_MTemp( numStateTotal, numStateTotal );
+
+     cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numStateTotal, numStateTotal, ntotLocal,
+                   &one, cu_vexxProj_.Data(), ntotLocal, 
+                   cu_psi.Data(), ntotLocal, &zero,
+                   cu_MTemp.Data(), numStateTotal );
+     cuda_memcpy_GPU2CPU( MTemp.Data(), cu_MTemp.Data(), numStateTotal*numStateTotal*sizeof(Real) );
+
+     DblNumMat M(numStateTotal, numStateTotal);
+     MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+     cuda_memcpy_CPU2GPU(  cu_MTemp.Data(), M.Data(), numStateTotal*numStateTotal*sizeof(Real) );
+     cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numStateTotal, numStateTotal, 
+                   &minus_one, cu_vexxProj_.Data(), ntotLocal, 
+                   cu_MTemp.Data(), numStateTotal, &one, 
+                   cu_Hpsi.Data(), ntotLocal );
+    }
+  }
+}
+void
+KohnSham::MultSpinor_old    ( Spinor& psi, cuNumTns<Real>& a3, Fourier& fft )
+{
+
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  Int ntot      = fft.domain.NumGridTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int numStateTotal = psi.NumStateTotal();
+  Int numStateLocal = psi.NumState();
+  NumTns<Real>& wavefun = psi.Wavefun();
+  Int ncom = wavefun.n();
+
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+  
+  //SetValue( a3, 0.0 );
+  GetTime( timeSta );
+  psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for psi.AddMultSpinorFineR2C is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+  // adding up the Hybrid part in the GPU
+  // CHECK CHECK
+  // Note now, the psi.data is the GPU data. and a3.data is also in GPU. 
+  // also, a3 constains the Hpsi
+  // need to do this in another subroutine.
+  if(1)  
+  if( isHybrid_ && isEXXActive_ ){
+
+    GetTime( timeSta );
+
+    if( esdfParam.isHybridACE ){ 
+
+      if(1){ // for MPI
+        // Convert the column partition to row partition
+
+        Int numStateBlocksize = numStateTotal / mpisize;
+        Int ntotBlocksize = ntot / mpisize;
+
+        Int numStateLocal = numStateBlocksize;
+        Int ntotLocal = ntotBlocksize;
+
+        if(mpirank < (numStateTotal % mpisize)){
+          numStateLocal = numStateBlocksize + 1;
+        }
+
+        if(mpirank < (ntot % mpisize)){
+          ntotLocal = ntotBlocksize + 1;
+        }
+
+        // copy the GPU data to CPU.
+        DblNumMat psiCol( ntot, numStateLocal );
+        cuda_memcpy_GPU2CPU( psiCol.Data(), psi.cuWavefun().Data(), ntot*numStateLocal*sizeof(Real) );
+
+        // for the Project VexxProj 
+        DblNumMat vexxProjCol( ntot, numStateLocal );
+        DblNumMat vexxProjRow( ntotLocal, numStateTotal );
+        lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
+
+        // MPI_Alltoall for the data redistribution.
+        DblNumMat psiRow( ntotLocal, numStateTotal );
+        AlltoallForward (psiCol, psiRow, domain_.comm);
+
+        // MPI_Alltoall for data redistribution.
+        AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
+
+        // GPU data for the G-para
+        cuDblNumMat cu_vexxProjRow ( ntotLocal, numStateTotal );
+        cuDblNumMat cu_psiRow ( ntotLocal, numStateTotal );
+        cuDblNumMat cu_MTemp( numStateTotal, numStateTotal );
+        DblNumMat MTemp( numStateTotal, numStateTotal );
+
+        // Copy data from CPU to GPU.
+        cuda_memcpy_CPU2GPU( cu_psiRow.Data(), psiRow.Data(), numStateTotal*ntotLocal*sizeof(Real) );
+        cuda_memcpy_CPU2GPU( cu_vexxProjRow.Data(), vexxProjRow.Data(), numStateTotal*ntotLocal*sizeof(Real) );
+
+	Real one = 1.0;
+	Real minus_one = -1.0;
+	Real zero = 0.0;
+        // GPU DGEMM calculation
+        cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numStateTotal, numStateTotal, ntotLocal,
+                    &one, cu_vexxProjRow.Data(), ntotLocal, 
+                    cu_psiRow.Data(), ntotLocal, &zero,
+                    cu_MTemp.Data(), numStateTotal );
+
+        cuda_memcpy_GPU2CPU( MTemp.Data(), cu_MTemp.Data(), numStateTotal*numStateTotal*sizeof(Real) );
+        DblNumMat M(numStateTotal, numStateTotal);
+        MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+	// copy from CPU to GPU
+        cuda_memcpy_CPU2GPU(  cu_MTemp.Data(), M.Data(), numStateTotal*numStateTotal*sizeof(Real) );
+        
+        cuDblNumMat cu_a3Row( ntotLocal, numStateTotal );
+        DblNumMat a3Row( ntotLocal, numStateTotal );
+
+        cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numStateTotal, numStateTotal, 
+                     &minus_one, cu_vexxProjRow.Data(), ntotLocal, 
+                     cu_MTemp.Data(), numStateTotal, &zero, 
+                     cu_a3Row.Data(), ntotLocal );
+
+        cuda_memcpy_GPU2CPU( a3Row.Data(), cu_a3Row.Data(), numStateTotal*ntotLocal*sizeof(Real) );
+
+        // a3Row to a3Col
+        DblNumMat a3Col( ntot, numStateLocal );
+        cuDblNumMat cu_a3Col( ntot, numStateLocal );
+        AlltoallBackward (a3Row, a3Col, domain_.comm);
+
+	//Copy a3Col to GPU.
+        cuda_memcpy_CPU2GPU( cu_a3Col.Data(), a3Col.Data(), numStateLocal*ntot*sizeof(Real) );
+
+        // do the matrix addition.
+	cuda_DMatrix_Add( a3.Data(), cu_a3Col.Data(), ntot, numStateLocal);
+
+      } //if(1)
+
+    }
+    else{
+
+      ErrorHandling(" GPU does not support normal HSE, try ACE");
+      
+    }
+
+    GetTime( timeEnd );
+//#if ( _DEBUGlevel_ >= 0 )
+//    statusOFS << "Time for updating hybrid Spinor is " <<
+//      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+//    statusOFS << "Time for Gemm is " <<
+//      timeGemm << " [s]" << std::endl << std::endl;
+//    statusOFS << "Time for Alltoallv is " <<
+//      timeAlltoallv << " [s]" << std::endl << std::endl;
+//    statusOFS << "Time for Allreduce is " <<
+//      timeAllreduce << " [s]" << std::endl << std::endl;
+//#endif
+
+
+  }
+
+
+  return ;
+}         // -----  end of method KohnSham::MultSpinor  ----- 
+
+
+
+void
 KohnSham::MultSpinor    ( Spinor& psi, cuNumTns<Real>& a3, Fourier& fft )
 {
 
@@ -2058,6 +2416,8 @@ KohnSham::MultSpinor    ( Spinor& psi, cuNumTns<Real>& a3, Fourier& fft )
   // CHECK CHECK
   // Note now, the psi.data is the GPU data. and a3.data is also in GPU. 
   // also, a3 constains the Hpsi
+  // need to do this in another subroutine.
+  if(0)  // comment out the following parts.
   if( isHybrid_ && isEXXActive_ ){
 
     GetTime( timeSta );
@@ -2698,10 +3058,11 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
     //SetValue( MTemp, 0.0 );
     cuDblNumMat cu_MTemp( numStateTotal, numStateTotal );
     cuDblNumMat cu_localPsiRow( ntotLocal, numStateTotal);
-    cuDblNumMat cu_localVexxPsiRow( ntotLocal, numStateTotal );
+    cu_vexxProj_.Resize( ntotLocal, numStateTotal );
+    //cuDblNumMat cu_vexxProj_( ntotLocal, numStateTotal );
 
     cu_localPsiRow.CopyFrom(localPsiRow);
-    cu_localVexxPsiRow.CopyFrom(localVexxPsiRow);
+    cu_vexxProj_.CopyFrom(localVexxPsiRow);
 
     Real minus_one = -1.0;
     Real zero =  0.0;
@@ -2709,7 +3070,7 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
 
     cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numStateTotal, numStateTotal, ntotLocal,
                   &minus_one, cu_localPsiRow.Data(), ntotLocal, 
-                  cu_localVexxPsiRow.Data(), ntotLocal, &zero,
+                  cu_vexxProj_.Data(), ntotLocal, &zero,
                   cu_MTemp.Data(), numStateTotal );
     cu_MTemp.CopyTo(MTemp);
 
@@ -2734,9 +3095,9 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
     cu_MTemp.CopyFrom(M);
     MAGMA::Potrf('L', numStateTotal, cu_MTemp.Data(), numStateTotal);
     cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, 
-                  ntotLocal, numStateTotal, &one, cu_MTemp.Data(), numStateTotal, cu_localVexxPsiRow.Data(),
+                  ntotLocal, numStateTotal, &one, cu_MTemp.Data(), numStateTotal, cu_vexxProj_.Data(),
                   ntotLocal);
-    cu_localVexxPsiRow.CopyTo(localVexxPsiRow);
+    cu_vexxProj_.CopyTo(localVexxPsiRow);
     vexxProj_.Resize( ntot, numStateLocal );
 
     AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
@@ -2954,7 +3315,121 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
   return ;
 }         // -----  end of method KohnSham::CalculateVexxACE  ----- 
 
+#ifdef GPU
+void
+KohnSham::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
+{
+  // This assumes SetPhiEXX has been called so that phiEXX and psi
+  // contain the same information. 
 
+  // Since this is a projector, it should be done on the COARSE grid,
+  // i.e. to the wavefunction directly
+
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  Real timeSta, timeEnd;
+
+  GetTime( timeSta );
+  // Only works for single processor
+  Int ntot      = fft.domain.NumGridTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int numStateTotal = psi.NumStateTotal();
+  Int numStateLocal = psi.NumState();
+  NumTns<Real>  vexxPsi( ntot, 1, numStateLocal );
+
+  // VexxPsi = V_{exx}*Phi.
+  DblNumMat  M(numStateTotal, numStateTotal);
+  //SetValue( vexxPsi, 0.0 );
+  //SetValue( M, 0.0 );
+
+  // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
+  // semi-definite matrix.
+  psi.AddMultSpinorEXXDF3_GPU( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
+      occupationRate_, numMuHybridDF_, numGaussianRandomHybridDF_,
+      numProcScaLAPACKHybridDF_, BlockSizeScaLAPACK_,
+      vexxPsi, M, isFixColumnDF );
+
+  GetTime( timeEnd );
+  statusOFS << "GPU Time for AddMulSpinorEXXDF3_GPU  is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+  GetTime( timeSta );
+  // Implementation based on Cholesky
+  if(0){
+    lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+
+    blas::Trsm( 'R', 'L', 'T', 'N', ntot, numStateTotal, 1.0, 
+        M.Data(), numStateTotal, vexxPsi.Data(), ntot );
+
+    vexxProj_.Resize( ntot, numStateTotal );
+    blas::Copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
+  }
+
+  if(1){ //For MPI
+
+    // Convert the column partition to row partition
+    Int numStateBlocksize = numStateTotal / mpisize;
+    Int ntotBlocksize = ntot / mpisize;
+
+    Int numStateLocal = numStateBlocksize;
+    Int ntotLocal = ntotBlocksize;
+
+    if(mpirank < (numStateTotal % mpisize)){
+      numStateLocal = numStateBlocksize + 1;
+    }
+
+    if(mpirank < (ntot % mpisize)){
+      ntotLocal = ntotBlocksize + 1;
+    }
+
+    DblNumMat localVexxPsiCol( ntot, numStateLocal );
+    //SetValue( localVexxPsiCol, 0.0 );
+
+    DblNumMat localVexxPsiRow( ntotLocal, numStateTotal );
+    //SetValue( localVexxPsiRow, 0.0 );
+
+    // Initialize
+    lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
+
+    AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
+    
+    /*
+    if ( mpirank == 0) {
+      lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+    }
+
+    MPI_Bcast(M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_.comm);
+    blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numStateTotal, 1.0, 
+        M.Data(), numStateTotal, localVexxPsiRow.Data(), ntotLocal );
+    */
+
+    Real minus_one = -1.0;
+    Real zero =  0.0;
+    Real one  =  1.0;
+
+    cu_vexxProj_.Resize( ntotLocal, numStateTotal );
+    cu_vexxProj_.CopyFrom(localVexxPsiRow);
+    cuDblNumMat cu_M( numStateTotal, numStateTotal );
+    cu_M.CopyFrom(M);
+
+    MAGMA::Potrf('L', numStateTotal, cu_M.Data(), numStateTotal);
+    cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, 
+                  ntotLocal, numStateTotal, &one, cu_M.Data(), numStateTotal, cu_vexxProj_.Data(),
+                  ntotLocal);
+
+    cu_vexxProj_.CopyTo(localVexxPsiRow);
+
+    vexxProj_.Resize( ntot, numStateLocal );
+
+    AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
+  } //if(1)
+  GetTime( timeEnd );
+  statusOFS << "GPU Time for Vexx calculation is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+  return ;
+}
+#endif
 void
 KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
 {

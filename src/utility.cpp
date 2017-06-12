@@ -679,6 +679,90 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
   return ;
 }        // -----  end of function AlltoallForward ----- 
 
+#ifdef GPU
+
+void GPU_AlltoallBackward( cuDblNumMat& cu_A, cuDblNumMat& cu_B, MPI_Comm comm )
+{
+
+  int mpirank, mpisize;
+  MPI_Comm_rank( comm, &mpirank );
+  MPI_Comm_size( comm, &mpisize );
+
+  Int height = cu_B.m();
+  Int widthTemp = cu_B.n();
+
+  Int width = 0;
+  MPI_Allreduce( &widthTemp, &width, 1, MPI_INT, MPI_SUM, comm );
+
+  Int widthBlocksize = width / mpisize;
+  Int heightBlocksize = height / mpisize;
+  Int widthLocal = widthBlocksize;
+  Int heightLocal = heightBlocksize;
+
+  if(mpirank < (width % mpisize)){
+    widthLocal = widthBlocksize + 1;
+  }
+
+  if(mpirank < (height % mpisize)){
+    heightLocal = heightBlocksize + 1;
+  }
+
+  DblNumVec sendbuf(height*widthLocal); 
+  DblNumVec recvbuf(heightLocal*width);
+  IntNumVec sendcounts(mpisize);
+  IntNumVec recvcounts(mpisize);
+  IntNumVec senddispls(mpisize);
+  IntNumVec recvdispls(mpisize);
+
+  for( Int k = 0; k < mpisize; k++ ){ 
+    sendcounts[k] = heightBlocksize * widthLocal;
+    if( k < (height % mpisize)){
+      sendcounts[k] = sendcounts[k] + widthLocal;  
+    }
+  }
+
+  for( Int k = 0; k < mpisize; k++ ){ 
+    recvcounts[k] = heightLocal * widthBlocksize;
+    if( k < (width % mpisize)){
+      recvcounts[k] = recvcounts[k] + heightLocal;  
+    }
+  }
+
+  senddispls[0] = 0;
+  recvdispls[0] = 0;
+  for( Int k = 1; k < mpisize; k++ ){ 
+    senddispls[k] = senddispls[k-1] + sendcounts[k-1];
+    recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
+  }
+
+  cuIntNumMat  cu_sendk( height, widthLocal );
+  cuIntNumMat  cu_recvk( heightLocal, width );
+  cuIntNumVec  cu_senddispls(mpisize);
+  cuIntNumVec  cu_recvdispls(mpisize);
+  cuDblNumVec  cu_recvbuf(heightLocal*width);
+  cuDblNumVec  cu_sendbuf(height*widthLocal); 
+
+  cu_senddispls.CopyFrom( senddispls );
+  cu_recvdispls.CopyFrom( recvdispls );
+ 
+  cuda_cal_sendk( cu_sendk.Data(), cu_senddispls.Data(), widthLocal, height, heightBlocksize, mpisize );
+  cuda_cal_recvk( cu_recvk.Data(), cu_recvdispls.Data(), width, heightLocal, mpisize ); 
+
+  cuda_mapping_to_buf( cu_recvbuf.Data(), cu_A.Data(), cu_recvk.Data(), heightLocal*width);
+  cu_recvbuf.CopyTo( recvbuf );
+  
+  MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
+      &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, comm );
+
+  cu_sendbuf.CopyFrom( sendbuf );
+  cuda_mapping_from_buf(cu_B.Data(), cu_sendbuf.Data(), cu_sendk.Data(), height*widthLocal);
+  
+  return ;
+}        // -----  end of function GPU_AlltoallBackward ----- 
+
+
+#endif
+
 void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 {
 

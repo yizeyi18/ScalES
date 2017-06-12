@@ -192,6 +192,8 @@ public:
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft) = 0;
 #ifdef GPU
   virtual void MultSpinor(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft) = 0;
+  virtual void MultSpinor_old(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft) = 0;
+  virtual void ACEOperator( cuDblNumMat& cu_psi, Fourier& fft, cuDblNumMat& cu_Hpsi) = 0;
 #endif
   virtual NumTns<Real>& PhiEXX() = 0;
 
@@ -201,6 +203,7 @@ public:
 
 #ifdef GPU
   virtual void CalculateVexxACEGPU( Spinor& psi, Fourier& fft ) = 0;
+  virtual void CalculateVexxACEDFGPU( Spinor& psi, Fourier& fft, bool isFixColumnDF ) = 0;
 #endif 
 
   virtual void CalculateVexxACE( Spinor& psi, Fourier& fft ) = 0;
@@ -279,6 +282,9 @@ private:
   /// large systems.
   NumTns<Real>                phiEXX_; 
   DblNumMat                   vexxProj_; 
+#ifdef GPU
+  cuDblNumMat                 cu_vexxProj_; 
+#endif
   DblNumVec                   exxgkkR2C_;
 
 public:
@@ -324,6 +330,8 @@ public:
 
 #ifdef GPU
   virtual void MultSpinor(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft);
+  virtual void MultSpinor_old(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft);
+  virtual void ACEOperator( cuDblNumMat& cu_psi, Fourier& fft, cuDblNumMat& cu_Hpsi) ;
 #endif
 
   /// @brief Update phiEXX by the spinor psi. The Phi are normalized in
@@ -344,6 +352,7 @@ public:
 #ifdef GPU
   /// @brief Construct the ACE operator
   virtual void CalculateVexxACEGPU( Spinor& psi, Fourier& fft );
+  virtual void CalculateVexxACEDFGPU( Spinor& psi, Fourier& fft, bool isFixColumnDF );
 #endif
 
   /// @brief onstruct the ACE operator in the density fitting format.

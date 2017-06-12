@@ -469,7 +469,11 @@ SCF::Iterate (  )
     // Update the ACE if needed
     if( esdfParam.isHybridACE ){
       if( esdfParam.isHybridDF ){
+#ifdef GPU
+        ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
+#else
         ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+#endif
         // Fix the column after the first iteraiton
         isFixColumnDF = true;
       }
@@ -1125,6 +1129,13 @@ SCF::Iterate (  )
       Real minus_one = -1.0;
       Real zero = 0.0;
 
+     
+#ifdef GPU
+    //cuda_init_vtot();
+#endif
+      // Phi loop
+      for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
+      {
       cuDblNumMat cu_psiMuT(numOccTotal, numOccTotal);
       cuDblNumMat cu_HpsiMuT(numOccTotal, numOccTotal);
       cuDblNumMat cu_psiRow( ntotLocal, numStateTotal );
@@ -1135,13 +1146,8 @@ SCF::Iterate (  )
       cuDblNumMat cu_HpsiRow(ntotLocal, numStateTotal);
       cuDblNumMat cu_ResRow(ntotLocal, numOccTotal);
       cuDblNumMat cu_psiPcRow(ntotLocal, numStateTotal);
+      cu_psiTemp.CopyFrom( psiTemp);
 
-     
-#ifdef GPU
-    //cuda_init_vtot();
-#endif
-      // Phi loop
-      for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
 
         GetTime( timePhiIterStart );
           
@@ -1159,7 +1165,6 @@ SCF::Iterate (  )
 
           cuDblNumMat cu_psiMuTTemp(numOccTotal, numOccTotal);
           cu_psiRow.CopyFrom(psiRow);
-          cu_psiTemp.CopyFrom( psiTemp);
           cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, 
               &one, cu_psiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
               &zero, cu_psiMuTTemp.Data(), numOccTotal );
@@ -1215,8 +1220,13 @@ SCF::Iterate (  )
 
           cuda_memcpy_CPU2GPU(cu_psi.Data(), psi.Wavefun().Data(), ntot*numStateLocal*sizeof(Real) );
           cuNumTns<Real> tnsTemp(ntot, 1, numStateLocal, false, cu_HpsiCol.Data());
+          // there are two sets of grid for Row parallelization. 
+          // the old fashioned split and the Scalapack split.
+          // note that they turns out to be different ones in that: 
+          // Scalapack divide the Psi by blocks, and old way is continuous.  
+          // this is error prone.
           Spinor spnTemp(fft.domain, ncom, noccTotal, noccLocal, false, cu_psi.Data(), true);
-          ham.MultSpinor( spnTemp, tnsTemp, fft );
+          ham.MultSpinor_old( spnTemp, tnsTemp, fft );
           cu_HpsiCol.CopyTo(HpsiCol);
 
           // remember to reset the vtot
@@ -1229,6 +1239,10 @@ SCF::Iterate (  )
             HpsiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
 
           cu_HpsiRow.CopyFrom(HpsiRow);
+
+          // perform the ACE operator here
+          //ham.ACEOperator( cu_psiRow, fft, cu_HpsiRow );
+          //cu_HpsiRow.CopyTo(HpsiRow);
 
           if(1){
 
@@ -1438,6 +1452,7 @@ SCF::Iterate (  )
           } 
         
         }//Anderson mixing
+        } // GPU malloc and free.
 
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1510,7 +1525,7 @@ SCF::Iterate (  )
         // Still use psi but phi has changed
         if( esdfParam.isHybridACE ){
           if( esdfParam.isHybridDF ){
-            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+            ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
             // Fix the column after the first iteraiton
             isFixColumnDF = true;
           }
@@ -1549,7 +1564,7 @@ SCF::Iterate (  )
           // the MultSpinor function later
           if( esdfParam.isHybridACE ){
             if( esdfParam.isHybridDF ){
-              ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+              ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
               // Fix the column after the first iteraiton
               isFixColumnDF = true;
             }

@@ -5750,6 +5750,14 @@ EigenSolver::PPCGSolveReal (
   cuDblNumMat cu_AXcol( height, widthLocal );
   cuDblNumMat cu_AWcol( height, widthLocal );
 
+  if(mpirank == 0)
+  {
+    std::cout << " GPU PPCG begins alloc partially done" << std::endl;
+    std::cout << " Each G parallel WF takes: " << heightLocal * width/1024/128 << " MB" << std::endl;
+    std::cout << " Each band paralelel WF s: " << height* widthLocal/1024/128 << " MB" << std::endl;
+    std::cout << " Each S  takes GPU memory: " << width* width/1024/128 << " MB" << std::endl;
+    cuda_memory();
+  }
   //Int info;
   bool isRestart = false;
   // numSet = 2    : Steepest descent (Davidson), only use (X | W)
@@ -5942,6 +5950,9 @@ EigenSolver::PPCGSolveReal (
   GetTime( timeSta );
   cuda_mapping_from_buf(cu_AX.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
 
+  // perform the ACE operator 
+  hamPtr_->ACEOperator( cu_X, *fftPtr_, cu_AX);
+
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
   GetTime( time22);
@@ -6038,7 +6049,7 @@ EigenSolver::PPCGSolveReal (
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
     GetTime( timeSta );
     
-    cuda_mapping_from_buf(cu_Xcol.Data(), cu_sendbuf.Data(), cu_recvk.Data(), height*widthLocal);
+    cuda_mapping_from_buf(cu_Xcol.Data(), cu_sendbuf.Data(), cu_sendk.Data(), height*widthLocal);
 
     GetTime( timeEnd );
     timeMapping += timeEnd - timeSta;
@@ -6124,6 +6135,9 @@ EigenSolver::PPCGSolveReal (
     GetTime( timeSta );
     
     cuda_mapping_from_buf(cu_AW.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
+
+    // perform the ACE operator 
+    hamPtr_->ACEOperator( cu_W, *fftPtr_, cu_AW);
 
     GetTime( timeEnd );
     GetTime( time2);

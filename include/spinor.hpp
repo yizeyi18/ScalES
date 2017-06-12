@@ -59,6 +59,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #ifdef GPU
 #include  "cu_numvec_impl.hpp"
 #include  "cu_numtns_impl.hpp"
+#include  "cublas.hpp"
 #endif
 
 namespace dgdft{
@@ -216,6 +217,23 @@ public:
       NumTns<Real>& a3,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
+
+#ifdef GPU
+  void AddMultSpinorEXXDF3_GPU ( Fourier& fft, 
+      const NumTns<Real>& phi,
+      const DblNumVec& exxgkkR2C,
+      Real  exxFraction,
+      Real  numSpin,
+      const DblNumVec& occupationRate,
+      const Real numMuFac,
+      const Real numGaussianRandomFac,
+      const Int numProcScaLAPACKPotrf, 
+      const Int scaPotrfBlockSize, 
+      NumTns<Real>& a3,
+      NumMat<Real>& VxMat, 
+      bool isFixColumnDF );
+
+#endif
 
   void AddMultSpinorEXXDF3 ( Fourier& fft, 
       const NumTns<Real>& phi,

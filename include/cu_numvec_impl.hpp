@@ -65,9 +65,11 @@ template <class F>
     if(m>0) { 
       m_ = m;
       data_ = (F*) cuda_malloc( sizeof(F) * m_ );
+      /*
       if( data_ == NULL ){
         ErrorHandling("Cannot allocate memory.");
       }
+      */
     } 
     else 
       data_=NULL;
@@ -78,9 +80,11 @@ template <class F>
     if( owndata_ ){
       if( m_ > 0 ) { 
         data_ = (F*) cuda_malloc( sizeof(F) * m_ );
+        /*
         if( data_ == NULL ){
           ErrorHandling("Cannot allocate memory.");
         }
+        */
       }
       else
         data_ = NULL;
@@ -100,9 +104,11 @@ template <class F>
     if( owndata_ ){
       if( m_ > 0 ) { 
         data_ = (F*) cuda_malloc( sizeof(F) * m_ );
+        /*
         if( data_ == NULL ){
           ErrorHandling("Cannot allocate memory.");
         }
+        */
       }
       else
         data_ = NULL;
@@ -146,9 +152,11 @@ template < class F >
       if( owndata_ ) {
         if( m_ > 0 ){
           data_ = (F*) cuda_malloc( sizeof(F) * m_ );
+          /*
           if( data_ == NULL ){
             ErrorHandling("Cannot allocate memory.");
           }
+          */
         }
         else{
           data_ = NULL;
@@ -182,9 +190,11 @@ template < class F >
       m_ = m;
       if( m_ > 0 ){
         data_ = (F*) cuda_malloc( sizeof(F) * m_ );
+        /*
         if( data_ == NULL ){
           ErrorHandling("Cannot allocate memory.");
         }
+        */
       }
     }
 
