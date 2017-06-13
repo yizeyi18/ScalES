@@ -1229,7 +1229,7 @@ SCF::Iterate (  )
 
             Int rank;
             // FIXME Magic number
-            Real rcond = 1e-6;
+            Real rcond = 1e-9;
 
             // gammas    = res;
             blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, gammas.Data(), 1 );
