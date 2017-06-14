@@ -1343,7 +1343,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
     ErrorHandling("Fourier is not prepared.");
   }
 
-  MPI_Barrier(domain_.comm);
+  //MPI_Barrier(domain_.comm);
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
 
@@ -1383,7 +1383,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
   Int numStateLocalTemp;
 
-  MPI_Barrier(domain_.comm);
+  //MPI_Barrier(domain_.comm);
 
   // book keeping the old interface while do the GPU inside. 
   // 1st version code. 
@@ -1471,7 +1471,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
   } //iproc
 
-  MPI_Barrier(domain_.comm);
+  //MPI_Barrier(domain_.comm);
 
 
   return ;
@@ -3685,7 +3685,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       DblNumMat psiMuRow(numStateTotal, numMu_);
       DblNumMat phiMuRow(numStateTotal, numMu_);
       //DblNumMat PcolMuNuRow(numMu_, numMu_);
-      DblNumMat PcolPsiMuRow(ntotLocal, numMu_);
+      //DblNumMat PcolPsiMuRow(ntotLocal, numMu_);
 
       // Collecting the matrices obtained from row partition
       DblNumMat PcolMuNu(numMu_, numMu_);
@@ -3697,11 +3697,11 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       SetValue( psiMuRow, 0.0 );
       SetValue( phiMuRow, 0.0 );
       //SetValue( PcolMuNuRow, 0.0 );
-      SetValue( PcolPsiMuRow, 0.0 );
+      //SetValue( PcolPsiMuRow, 0.0 );
 
-      SetValue( phiMu, 0.0 );
-      SetValue( PcolMuNu, 0.0 );
-      SetValue( PcolPsiMu, 0.0 );
+      //SetValue( phiMu, 0.0 );
+      //SetValue( PcolMuNu, 0.0 );
+      //SetValue( PcolPsiMu, 0.0 );
 
       GetTime( timeSta1 );
 
@@ -3743,9 +3743,11 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       
       GetTime( timeSta1 );
       cu_psiMu.CopyFrom(psiMu);
-      cu_PcolPsiMu.CopyFrom(PcolPsiMu);
-      cu_PcolPhiMu.CopyFrom(PcolPhiMu);
       cu_phiMu.CopyFrom(phiMu);
+
+      //cu_PcolPsiMu.CopyFrom(PcolPsiMu);
+      //cu_PcolPhiMu.CopyFrom(PcolPhiMu);
+
       //cu_psiRow.CopyFrom(psiRow);
       //cu_phiRow.CopyFrom(phiRow);
 
@@ -3756,8 +3758,8 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
           cu_phiRow.Data(), ntotLocal, cu_phiMu.Data(), numStateTotal, &zero,
           cu_PcolPhiMu.Data(), ntotLocal );
 
-      cu_PcolPsiMu.CopyTo(PcolPsiMu);
-      cu_PcolPhiMu.CopyTo(PcolPhiMu);
+      //cu_PcolPsiMu.CopyTo(PcolPsiMu);
+      //cu_PcolPhiMu.CopyTo(PcolPhiMu);
 
       /*
       blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
@@ -3775,7 +3777,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
 #endif
       
       GetTime( timeSta1 );
-
+      /*
       Real* xiPtr = XiRow.Data();
       Real* PcolPsiMuPtr = PcolPsiMu.Data();
       Real* PcolPhiMuPtr = PcolPhiMu.Data();
@@ -3783,9 +3785,14 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       for( Int g = 0; g < ntotLocal * numMu_; g++ ){
         xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g];
       }
+      */
+      cuda_hadamard_product( cu_PcolPsiMu.Data(), cu_PcolPhiMu.Data(), cu_XiRow.Data(), ntotLocal * numMu_);
+      cu_XiRow.CopyTo(XiRow);
+      
 
       // 1/2/2017 Add extra weight to certain entries to the XiRow matrix
       // Currently only works for one processor
+      /*
       if(0)
       {
         Real wgt = 10.0;
@@ -3819,7 +3826,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
           }
         }
       }
-      
+      */
       
       GetTime( timeEnd1 );
 
@@ -3963,7 +3970,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       }
 
       cu_PcolMuNu.CopyFrom(PcolMuNu);
-      cu_XiRow.CopyFrom(XiRow);
+      //cu_XiRow.CopyFrom(XiRow);
 
       cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, 
                     ntotLocal, numMu_, &one, cu_PcolMuNu.Data(), numMu_, cu_XiRow.Data(),ntotLocal);
@@ -3971,8 +3978,8 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, 
                     ntotLocal, numMu_, &one, cu_PcolMuNu.Data(), numMu_, cu_XiRow.Data(),ntotLocal);
 
-      cu_PcolMuNu.CopyTo(PcolMuNu);
-      cu_XiRow.CopyTo(XiRow);
+      //cu_PcolMuNu.CopyTo(PcolMuNu);
+      //cu_XiRow.CopyTo(XiRow);
 
       /*
       blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numMu_, 1.0, 
@@ -4015,7 +4022,8 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       GetTime( timeSta1 );
       DblNumMat XiCol(ntot, numMuLocal);
       cuDblNumMat cu_XiCol(ntot, numMuLocal);
-      cu_XiRow.CopyFrom( XiRow );
+
+      //cu_XiRow.CopyFrom( XiRow );
       GPU_AlltoallBackward (cu_XiRow, cu_XiCol, domain_.comm);
       //cu_XiCol.CopyFrom(XiCol);
       //cu_XiCol.CopyTo( XiCol );
@@ -4027,13 +4035,17 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       cuDblNumVec cu_exxgkkR2C(ntotR2C);
 
       DblNumVec exxgkkR2CTemp(ntotR2C);
-      
+      /*
       for( Int ig = 0; ig < ntotR2C; ig++ ){
             exxgkkR2CTemp (ig) = -exxFraction * exxgkkR2C(ig);
       }
 
       cuda_memcpy_CPU2GPU(cu_exxgkkR2C.Data(), exxgkkR2CTemp.Data(), sizeof(Real)*ntotR2C);
-
+      */
+      Real temp = -exxFraction;
+      cuda_memcpy_CPU2GPU(cu_exxgkkR2C.Data(), exxgkkR2C.Data(), sizeof(Real)*ntotR2C);
+      cublas::Scal( ntotR2C, &temp, cu_exxgkkR2C.Data(), 1);
+     
       {
         for( Int mu = 0; mu < numMuLocal; mu++ ){
 
@@ -4053,8 +4065,10 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
         //cu_XiCol.CopyTo(XiCol);
 
         GetTime( timeSta1 );
+
         GPU_AlltoallForward (cu_XiCol, cu_VXiRow, domain_.comm);
-        cu_VXiRow.CopyTo( VXiRow );    // copy the data back to VXiRow, used in the next steps.
+        //cu_VXiRow.CopyTo( VXiRow );    // copy the data back to VXiRow, used in the next steps.
+
         GetTime( timeEnd1 );
         mpi_time += timeEnd1 - timeSta1;
 
@@ -4100,25 +4114,13 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
 
       DblNumMat phiMuNu(numMu_, numMu_);
       cuDblNumMat cu_phiMuNu(numMu_, numMu_);
-      cu_phiMu.CopyFrom(phiMu);
+      //cu_phiMu.CopyFrom(phiMu);
 
       cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numMu_, numMu_, numStateTotal, &one,
           cu_phiMu.Data(), numStateTotal, cu_phiMu.Data(), numStateTotal, &zero,
           cu_phiMuNu.Data(), numMu_ );
-      //cu_phiMuNu.CopyTo(phiMuNu);
       cuda_hadamard_product( cu_MMatMuNu.Data(), cu_phiMuNu.Data(), cu_MMatMuNu.Data(), numMu_*numMu_);
 
-      /*
-      blas::Gemm( 'T', 'N', numMu_, numMu_, numStateTotal, 1.0,
-          phiMu.Data(), numStateTotal, phiMu.Data(), numStateTotal, 0.0,
-          phiMuNu.Data(), numMu_ );
-      Real* MMatPtr = MMatMuNu.Data();
-      Real* phiPtr  = phiMuNu.Data();
-
-      for( Int g = 0; g < numMu_ * numMu_; g++ ){
-        MMatPtr[g] *= phiPtr[g];
-      }
-      */
     }
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )

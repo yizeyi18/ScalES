@@ -2952,7 +2952,7 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
       exxFraction_,  numSpin_, occupationRate_, cu_vexxPsi );
 
   
-  cuda_memcpy_GPU2CPU(vexxPsi.Data(),cu_vexxPsi.Data(), sizeof(Real)*ntot*numStateLocal);
+  //cuda_memcpy_GPU2CPU(vexxPsi.Data(),cu_vexxPsi.Data(), sizeof(Real)*ntot*numStateLocal);
   // Implementation based on SVD
   DblNumMat  M(numStateTotal, numStateTotal);
   
@@ -3045,24 +3045,26 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
     DblNumMat localPsiRow( ntotLocal, numStateTotal );
     DblNumMat localVexxPsiRow( ntotLocal, numStateTotal );
     DblNumMat localPsiCol( ntot, numStateLocal );
-    DblNumMat localVexxPsiCol( ntot, numStateLocal );
+    //DblNumMat localVexxPsiCol( ntot, numStateLocal );
 
     // Initialize
     lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, localPsiCol.Data(), ntot );
-    lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
+    //lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
+    cuDblNumMat cu_temp( ntot, numStateLocal, false, cu_vexxPsi.Data() );
 
     AlltoallForward (localPsiCol, localPsiRow, domain_.comm);
-    AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
+    //AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
+    cu_vexxProj_.Resize( ntotLocal, numStateTotal );
+    GPU_AlltoallForward (cu_temp, cu_vexxProj_, domain_.comm);
 
     DblNumMat MTemp( numStateTotal, numStateTotal );
     //SetValue( MTemp, 0.0 );
     cuDblNumMat cu_MTemp( numStateTotal, numStateTotal );
     cuDblNumMat cu_localPsiRow( ntotLocal, numStateTotal);
-    cu_vexxProj_.Resize( ntotLocal, numStateTotal );
     //cuDblNumMat cu_vexxProj_( ntotLocal, numStateTotal );
 
     cu_localPsiRow.CopyFrom(localPsiRow);
-    cu_vexxProj_.CopyFrom(localVexxPsiRow);
+    //cu_vexxProj_.CopyFrom(localVexxPsiRow);
 
     Real minus_one = -1.0;
     Real zero =  0.0;
@@ -3097,10 +3099,13 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
     cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, 
                   ntotLocal, numStateTotal, &one, cu_MTemp.Data(), numStateTotal, cu_vexxProj_.Data(),
                   ntotLocal);
-    cu_vexxProj_.CopyTo(localVexxPsiRow);
+    //cu_vexxProj_.CopyTo(localVexxPsiRow);
     vexxProj_.Resize( ntot, numStateLocal );
+    cu_localPsiRow.Resize( ntot, numStateLocal ); // use this as a column distribution data.
 
-    AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
+    //AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
+    GPU_AlltoallBackward (cu_vexxProj_, cu_localPsiRow, domain_.comm);
+    cu_localPsiRow.CopyTo( vexxProj_ );
   } //if(1)
 
   // Sanity check. For debugging only
