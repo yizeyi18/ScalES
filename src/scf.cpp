@@ -794,7 +794,7 @@ SCF::Iterate (  )
 
             Int rank;
             // FIXME Magic number
-            Real rcond = 1e-3;
+            Real rcond = 1e-6;
 
             // gammas    = res;
             blas::Copy( ntot * numOcc, Res.Data(), 1, gammas.Data(), 1 );
@@ -1322,7 +1322,7 @@ SCF::Iterate (  )
 
             Int rank;
             // FIXME Magic number
-            Real rcond = 1e-3;
+            Real rcond = 1e-9;
 
             // gammas    = res;
             blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, gammas.Data(), 1 );
@@ -1881,7 +1881,7 @@ SCF::Iterate (  )
 
             Int rank;
             // FIXME Magic number
-            Real rcond = 1e-3;
+            Real rcond = 1e-9;
 
             // gammas    = res;
             blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, gammas.Data(), 1 );
@@ -3032,7 +3032,7 @@ SCF::AndersonMix    (
 
     Int rank;
     // FIXME Magic number
-    Real rcond = 1e-3;
+    Real rcond = 1e-6;
 
     S.Resize(nrow);
 

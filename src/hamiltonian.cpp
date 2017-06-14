@@ -2933,7 +2933,10 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
   // Since this is a projector, it should be done on the COARSE grid,
   // i.e. to the wavefunction directly
 
-  MPI_Barrier(domain_.comm);
+  //MPI_Barrier(domain_.comm);
+  Real timeSta, timeEnd;
+  GetTime( timeSta );
+
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
 
@@ -2956,7 +2959,13 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
   // Implementation based on SVD
   DblNumMat  M(numStateTotal, numStateTotal);
   
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for AddMulSpinorEXX with GPU  is " <<
+         timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
+  GetTime( timeSta );
   if(0){
     // FIXME
     Real SVDTolerance = 1e-4;
@@ -3048,22 +3057,24 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
     //DblNumMat localVexxPsiCol( ntot, numStateLocal );
 
     // Initialize
-    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, localPsiCol.Data(), ntot );
     //lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
     cuDblNumMat cu_temp( ntot, numStateLocal, false, cu_vexxPsi.Data() );
-
-    AlltoallForward (localPsiCol, localPsiRow, domain_.comm);
-    //AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
     cu_vexxProj_.Resize( ntotLocal, numStateTotal );
     GPU_AlltoallForward (cu_temp, cu_vexxProj_, domain_.comm);
+
+    //lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, localPsiCol.Data(), ntot );
+    //AlltoallForward (localPsiCol, localPsiRow, domain_.comm);
+    cuda_memcpy_CPU2GPU( cu_temp.Data(), psi.Wavefun().Data(), ntot*numStateLocal*sizeof(Real));
+    cuDblNumMat cu_localPsiRow( ntotLocal, numStateTotal);
+    GPU_AlltoallForward (cu_temp, cu_localPsiRow, domain_.comm);
+    //cu_localPsiRow.CopyFrom(localPsiRow);
+    //AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
 
     DblNumMat MTemp( numStateTotal, numStateTotal );
     //SetValue( MTemp, 0.0 );
     cuDblNumMat cu_MTemp( numStateTotal, numStateTotal );
-    cuDblNumMat cu_localPsiRow( ntotLocal, numStateTotal);
     //cuDblNumMat cu_vexxProj_( ntotLocal, numStateTotal );
 
-    cu_localPsiRow.CopyFrom(localPsiRow);
     //cu_vexxProj_.CopyFrom(localVexxPsiRow);
 
     Real minus_one = -1.0;
@@ -3107,6 +3118,11 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
     GPU_AlltoallBackward (cu_vexxProj_, cu_localPsiRow, domain_.comm);
     cu_localPsiRow.CopyTo( vexxProj_ );
   } //if(1)
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for GPU calculate vexxProjector  " <<
+         timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
 
   // Sanity check. For debugging only
   //  if(0){
