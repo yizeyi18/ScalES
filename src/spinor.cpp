@@ -1343,6 +1343,11 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
     ErrorHandling("Fourier is not prepared.");
   }
 
+  Real timeSta, timeEnd;
+  Real timeBcast = 0.0;
+  Real timeBuf   = 0.0;
+  Int  BcastTimes = 0;
+
   //MPI_Barrier(domain_.comm);
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
@@ -1408,6 +1413,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
         //SetValue( phiTemp, 0.0 );
 
+        GetTime( timeSta );
         if( iproc == mpirank )
         { 
           Real* phiPtr = phi.VecData(jphi, kphi);
@@ -1415,8 +1421,14 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
             phiTemp(ir) = phiPtr[ir];
           }
         }
+        GetTime( timeEnd );
+        timeBuf += timeEnd - timeSta;
 
+        GetTime( timeSta );
         MPI_Bcast( phiTemp.Data(), ntot, MPI_DOUBLE, iproc, domain_.comm );
+        BcastTimes ++;
+        GetTime( timeEnd );
+        timeBcast += timeEnd - timeSta;
 
         // version 1: only do the GPU for the inner most part. 
         // note that the ncom == 1; it is the spin.
@@ -1471,8 +1483,13 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
   } //iproc
 
+ 
   //MPI_Barrier(domain_.comm);
 
+#if ( _DEBUGlevel_ >= 0 )
+   statusOFS << "Time for SendBuf is " << timeBuf << " [s] Bcast time: " << 
+     timeBcast << " [s]" <<  " Bcast times: " << BcastTimes << std::endl << std::endl;
+#endif
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorEXX  ----- 
