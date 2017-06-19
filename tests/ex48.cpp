@@ -637,19 +637,19 @@ int main(int argc, char **argv)
 
       statusOFS << "Done. ( " << (timeEnd - timeSta) << " s.)";
       
-       // Set up ScaLAPACK matrix C = X^T * X via SYRK
+      // Set up ScaLAPACK matrix C = X^T * X via SYRK
       statusOFS << std::endl << " Setting up matrix C via SYRK ... ";
     
       GetTime( timeSta );
 
       if(contxt >= 0)
 	{  
-	 dgdft::scalapack::Syrk('U', 'T',
-				N_states, N,
-				1.0, scaX.Data(),
-				I_ONE, I_ONE, scaX.Desc().Values(),
-				0.0, scaC.Data(),
-				I_ONE, I_ONE,scaC.Desc().Values());
+	  dgdft::scalapack::Syrk('U', 'T',
+				 N_states, N,
+				 1.0, scaX.Data(),
+				 I_ONE, I_ONE, scaX.Desc().Values(),
+				 0.0, scaC.Data(),
+				 I_ONE, I_ONE,scaC.Desc().Values());
 
 
       
@@ -735,7 +735,7 @@ int main(int argc, char **argv)
       statusOFS << std::endl << " Creating full matrix out of diagonal matrix : ";
       GetTime( timeSta );
       
-       if(contxt >= 0)
+      if(contxt >= 0)
 	{ 
 	  scalapack::Descriptor desc_small_X;
 	  scalapack::ScaLAPACKMatrix<Real>  small_X;
@@ -757,7 +757,7 @@ int main(int argc, char **argv)
 	  scalapack::ScaLAPACKMatrix<Real>  alt_C;
 	  
 	  desc_alt_C.Init( N_states, N_states, blockSize, blockSize, 
-			     0, 0, contxt );
+			   0, 0, contxt );
       
 	  alt_C.SetDescriptor(desc_alt_C);
 
@@ -799,14 +799,14 @@ int main(int argc, char **argv)
 	  
 	  
 	  // Finally, compute scaC = X^T * Y
-	   dgdft::scalapack::Gemm( 'T', 'N',
-				   N_states, N_states, N_states,
-				   1.0,
-				   small_Y.Data(), I_ONE, I_ONE, small_Y.Desc().Values(), 
-				   small_X.Data(), I_ONE, I_ONE, small_X.Desc().Values(),
-				   0.0,
-				   scaC.Data(), I_ONE, I_ONE, scaC.Desc().Values(),
-				   contxt);
+	  dgdft::scalapack::Gemm( 'T', 'N',
+				  N_states, N_states, N_states,
+				  1.0,
+				  small_Y.Data(), I_ONE, I_ONE, small_Y.Desc().Values(), 
+				  small_X.Data(), I_ONE, I_ONE, small_X.Desc().Values(),
+				  0.0,
+				  scaC.Data(), I_ONE, I_ONE, scaC.Desc().Values(),
+				  contxt);
 
 	  
 	  
@@ -865,8 +865,82 @@ int main(int argc, char **argv)
       statusOFS << "Done. ( " << (timeEnd - timeSta) << " s.)";
     
       statusOFS << std::endl << " -----------------------" <<  std::endl;
-      GetTime( extra_timeSta );
     
+      statusOFS << std::endl << " Setting up matrix H = X^T * Y via GEMM : ";
+      // Get time estimate for H = X^T * Y
+      scalapack::Descriptor descX_alt;
+      scalapack::ScaLAPACKMatrix<Real>  scaX_alt;
+      
+      scalapack::Descriptor descY_alt;
+      scalapack::ScaLAPACKMatrix<Real>  scaY_alt;
+      
+      GetTime( timeSta );
+      statusOFS << std::endl << " Setting up matrices X, Y with random entries ... ";
+      
+      if(contxt >= 0)
+	{ 
+	  // Fill up X_alt
+	  descX_alt.Init( N, N_states, blockSize, blockSize, 
+			  0, 0, contxt );
+      
+	  scaX_alt.SetDescriptor(descX_alt);
+      
+	  double *ptr = scaX_alt.Data();
+	  int loc_sz = scaX_alt.LocalHeight() * scaX_alt.LocalWidth();
+    
+	  for(int iter = 0; iter < loc_sz; iter ++)
+	    ptr[iter] = UniformRandom();
+      
+	  // Fill up Y_alt
+	  descY_alt.Init( N, N_states, blockSize, blockSize, 
+			  0, 0, contxt );
+      
+	  scaY_alt.SetDescriptor(descY_alt);
+      
+	  ptr = scaY_alt.Data();
+	  loc_sz = scaY_alt.LocalHeight() * scaY_alt.LocalWidth();
+    
+	  for(int iter = 0; iter < loc_sz; iter ++)
+	    ptr[iter] = UniformRandom();	  
+	  	  
+	}
+	
+      GetTime( timeEnd );
+      statusOFS << "Done. ( " << (timeEnd - timeSta) << " s.)";
+	
+      statusOFS << std::endl << " Constructing matrix H via GEMM ... ";
+      GetTime( timeSta );
+    
+      scalapack::Descriptor descH;
+      scalapack::ScaLAPACKMatrix<Real>  scaH;
+    
+      if(contxt >= 0)
+	{  
+	  descH.Init( N_states, N_states, blockSize, blockSize, 
+		      0, 0, contxt );
+      
+	  scaH.SetDescriptor(descH);
+      
+	  dgdft::scalapack::Gemm( 'T', 'N',
+				  N_states, N_states, N,
+				  1.0,
+				  scaX_alt.Data(), I_ONE, I_ONE,scaX_alt.Desc().Values(), 
+				  scaY_alt.Data(), I_ONE, I_ONE,scaY_alt.Desc().Values(),
+				  0.0,
+				  scaH.Data(), I_ONE, I_ONE, scaH.Desc().Values(),
+				  contxt);
+
+      
+	}
+      GetTime( timeEnd );
+
+      statusOFS << "Done. ( " << (timeEnd - timeSta) << " s.)";
+
+
+      // Eigenvalue problem direct solution + subspace rotation, etc.       
+      statusOFS << std::endl << " -----------------------" <<  std::endl;     
+      GetTime( extra_timeSta );    
+
       // Solve the eigenvalue problem   
       GetTime( timeSta );
       statusOFS << std::endl;
@@ -1023,10 +1097,10 @@ int main(int argc, char **argv)
       dgdft::scalapack::Cblacs_get( 0, 0, &single_proc_context );
       dgdft::scalapack::Cblacs_gridmap(&single_proc_context, &single_proc_pmap[0], 1, 1, 1);
 
-       scalapack::Descriptor temp_single_proc_desc;
-       scalapack::ScaLAPACKMatrix<Real>  temp_single_proc_scala_mat;
+      scalapack::Descriptor temp_single_proc_desc;
+      scalapack::ScaLAPACKMatrix<Real>  temp_single_proc_scala_mat;
       
-       if(single_proc_context >= 0)
+      if(single_proc_context >= 0)
         {
           temp_single_proc_desc.Init(N_states, N_top,
 				     blockSize, blockSize, 
@@ -1036,7 +1110,7 @@ int main(int argc, char **argv)
 	}
 	
 	
-	if(contxt >= 0)
+      if(contxt >= 0)
 	{
 	  int M_ = N_states;
 	  int N_ = N_top;
@@ -1051,12 +1125,12 @@ int main(int argc, char **argv)
 			      &temp_context);    	  	  
 	}
 	
-	GetTime( time_1_end );
-        statusOFS << std::endl << " pdgemr2d completed in " << (time_1_end - time_1_sta) << " s.";
+      GetTime( time_1_end );
+      statusOFS << std::endl << " pdgemr2d completed in " << (time_1_end - time_1_sta) << " s.";
 
-	// Copy off the top states
-	GetTime( time_1_sta );
-	if(single_proc_context >= 0)
+      // Copy off the top states
+      GetTime( time_1_sta );
+      if(single_proc_context >= 0)
         {
 
           // Copy from the single process ScaLAPACK matrix to serial storage
@@ -1064,50 +1138,50 @@ int main(int argc, char **argv)
 
           // Copy in the regular order      
           for(Int copy_iter = 0; copy_iter < N_top; copy_iter ++)
-          {
-            src_ptr = temp_single_proc_scala_mat.Data() + copy_iter * temp_single_proc_scala_mat.LocalLDim();
-            dest_ptr = top_states_local.VecData(copy_iter);
+	    {
+	      src_ptr = temp_single_proc_scala_mat.Data() + copy_iter * temp_single_proc_scala_mat.LocalLDim();
+	      dest_ptr = top_states_local.VecData(copy_iter);
 
-            blas::Copy( N_states, src_ptr, 1, dest_ptr, 1 );                                                 
-          }
+	      blas::Copy( N_states, src_ptr, 1, dest_ptr, 1 );                                                 
+	    }
 
         }
 
-        GetTime( time_1_end );
-        statusOFS <<  std::endl << " Local dcopy completed in " << (time_1_end - time_1_sta) << " s.";
+      GetTime( time_1_end );
+      statusOFS <<  std::endl << " Local dcopy completed in " << (time_1_end - time_1_sta) << " s.";
 	
-	GetTime( time_1_sta );
-        // Broadcast local buffer of top vectors
-        MPI_Bcast(top_states_local.Data(), N_states * N_top, 
-		  MPI_DOUBLE, 0, MPI_COMM_WORLD); 
+      GetTime( time_1_sta );
+      // Broadcast local buffer of top vectors
+      MPI_Bcast(top_states_local.Data(), N_states * N_top, 
+		MPI_DOUBLE, 0, MPI_COMM_WORLD); 
 	
-	GetTime( time_1_end );
-        statusOFS <<  std::endl <<" MPI Broadcast completed in " << (time_1_end - time_1_sta) << " s.";
+      GetTime( time_1_end );
+      statusOFS <<  std::endl <<" MPI Broadcast completed in " << (time_1_end - time_1_sta) << " s.";
 	
-	GetTime( timeEnd );
-        statusOFS <<  std::endl << " Redistribution of top states completed. ( " << (timeEnd - timeSta) << " s.)"  << std::endl;
+      GetTime( timeEnd );
+      statusOFS <<  std::endl << " Redistribution of top states completed. ( " << (timeEnd - timeSta) << " s.)"  << std::endl;
 
-	// Now compute the extra part of DM due to CS strategy
-        GetTime( timeSta );
-        statusOFS << std::endl << " Computing extra part of diagonal DM blocks due to CS strategy ... ";
+      // Now compute the extra part of DM due to CS strategy
+      GetTime( timeSta );
+      statusOFS << std::endl << " Computing extra part of diagonal DM blocks due to CS strategy ... ";
        
-	blas::Gemm( 'N', 'N', N_albs, N_top, N_states,
-                     1.0, 
-                     X_block_local.Data(), X_block_local.m(), 
-                     top_states_local.Data(), top_states_local.m(),
-                     0.0, 
-                     XC_mat_local.Data(), XC_mat_local.m());
+      blas::Gemm( 'N', 'N', N_albs, N_top, N_states,
+		  1.0, 
+		  X_block_local.Data(), X_block_local.m(), 
+		  top_states_local.Data(), top_states_local.m(),
+		  0.0, 
+		  XC_mat_local.Data(), XC_mat_local.m());
 	
-	 blas::Gemm( 'N', 'T', XC_mat_local.m(), XC_mat_local.m(), XC_mat_local.n(),
-                     -1.0, 
-                      XC_mat_local.Data(), XC_mat_local.m(), 
-                      XC_mat_local.Data(), XC_mat_local.m(),
-                      1.0, 
-                      DM_block_local.Data(),  DM_block_local.m());
+      blas::Gemm( 'N', 'T', XC_mat_local.m(), XC_mat_local.m(), XC_mat_local.n(),
+		  -1.0, 
+		  XC_mat_local.Data(), XC_mat_local.m(), 
+		  XC_mat_local.Data(), XC_mat_local.m(),
+		  1.0, 
+		  DM_block_local.Data(),  DM_block_local.m());
      
               
-	GetTime( timeEnd );
-        statusOFS << "Done. ( " << (timeEnd - timeSta) << " s.)";
+      GetTime( timeEnd );
+      statusOFS << "Done. ( " << (timeEnd - timeSta) << " s.)";
       
       GetTime( extra_timeEnd );     
       statusOFS << std::endl << std::endl << " Upper bound + CheFSI + DM part = " << (extra_timeEnd - extra_timeSta);

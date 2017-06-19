@@ -366,8 +366,8 @@ int main(int argc, char **argv)
         << " [s]" << std::endl;
 
       // Only extrapolation density / wavefunction for MD
-      if( ionDyn.IsGeoOpt() == false ){
-
+      //if( ionDyn.IsGeoOpt() == false ){
+       {
         // Update the density history through extrapolation
         if( esdfParam.MDExtrapolationVariable == "density" )
         {

@@ -820,6 +820,8 @@ struct ESDFInputParam{
   ///
   /// Default: 0.001 
   Real                geoOptMaxForce;
+  
+  Real                geoOpt_NLCG_sigma; // Line search step length parameter in NLCG for Geo Opt : Default = 0.5
 
   /// @brief Time step for MD simulation.
   ///

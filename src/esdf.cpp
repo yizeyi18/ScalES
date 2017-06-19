@@ -819,6 +819,11 @@ void esdf_key() {
   strcpy(kw_typ[i],"D:E");
 
   i++;
+  strcpy(kw_label[i],"geo_opt_nlcg_sigma");
+  strcpy(kw_typ[i],"D:E");
+
+  
+  i++;
   strcpy(kw_label[i],"md_max_step");
   strcpy(kw_typ[i],"I:E");
 
@@ -2632,7 +2637,8 @@ ESDFReadInput ( const char* filename )
 
     // Geometry optimization
     esdfParam.geoOptMaxForce = esdf_double( "Geo_Opt_Max_Force", 0.001 );
-
+    esdfParam.geoOpt_NLCG_sigma = esdf_double( "Geo_Opt_NLCG_Sigma", 0.5 );
+    
     // Molecualr dynamics
     Real ionTemperature;
     ionTemperature            = esdf_double( "Ion_Temperature", 300.0 );

@@ -1,45 +1,45 @@
 /*
-   Copyright (c) 2012 The Regents of the University of California,
-   through Lawrence Berkeley National Laboratory.  
+  Copyright (c) 2012 The Regents of the University of California,
+  through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin
+  Author: Lin Lin
 
-This file is part of DGDFT. All rights reserved.
+  This file is part of DGDFT. All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are met:
 
-(1) Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-(2) Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-(3) Neither the name of the University of California, Lawrence Berkeley
-National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-be used to endorse or promote products derived from this software without
-specific prior written permission.
+  (1) Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+  (2) Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+  (3) Neither the name of the University of California, Lawrence Berkeley
+  National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+  be used to endorse or promote products derived from this software without
+  specific prior written permission.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-You are under no obligation whatsoever to provide any bug fixes, patches, or
-upgrades to the features, functionality or performance of the source code
-("Enhancements") to anyone; however, if you choose to make your Enhancements
-available either publicly, or directly to Lawrence Berkeley National
-Laboratory, without imposing a separate written license agreement for such
-Enhancements, then you hereby grant the following license: a non-exclusive,
-royalty-free perpetual license to install, use, modify, prepare derivative
-works, incorporate into other computer software, distribute, and sublicense
-such enhancements or derivative works thereof, in binary and source code form.
- */
+  You are under no obligation whatsoever to provide any bug fixes, patches, or
+  upgrades to the features, functionality or performance of the source code
+  ("Enhancements") to anyone; however, if you choose to make your Enhancements
+  available either publicly, or directly to Lawrence Berkeley National
+  Laboratory, without imposing a separate written license agreement for such
+  Enhancements, then you hereby grant the following license: a non-exclusive,
+  royalty-free perpetual license to install, use, modify, prepare derivative
+  works, incorporate into other computer software, distribute, and sublicense
+  such enhancements or derivative works thereof, in binary and source code form.
+*/
 /// @file iondynamics.cpp
 /// @brief Geometry optimization and molecular dynamics for ions
 /// @date 2015-03-05 Organize previously implemented methods
@@ -51,12 +51,12 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 namespace dgdft{
 
-using namespace dgdft::esdf;
+  using namespace dgdft::esdf;
 
 
-void
+  void
   IonDynamics::Setup    ( std::vector<Atom>& atomList,
-      PeriodTable& ptable )
+			  PeriodTable& ptable )
   {
     Int mpirank, mpisize;
     MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
@@ -153,31 +153,39 @@ void
 
 
     if( ionMove_ == "nlcg" )
-    {
-      statusOFS << std::endl << " Setting up Non-linear CG based relaxation ...";
-      // Set up the parameters and atom / force list for nlcg
-//       int i_max = 50;
-//       int j_max = 0;
-//       int n = 30;
-//       double epsilon_tol_outer = 1e-6;
-//       double epsilon_tol_inner = 1e-6;
-//       double sigma_0 = 0.5;
+      {
+	statusOFS << std::endl << " Setting up Non-linear CG based relaxation ...";
+	// Set up the parameters and atom / force list for nlcg
+	//       int i_max = 50;
+	//       int j_max = 0;
+	//       int n = 30;
+	//       double epsilon_tol_outer = 1e-6;
+	//       double epsilon_tol_inner = 1e-6;
+	//       double sigma_0 = 0.5;
 
-      int i_max = esdfParam.ionMaxIter;
-      int j_max = 6;
-      int n = 30;
-      double epsilon_tol_outer = sqrt(esdfParam.geoOptMaxForce * 3.0 * double(atomListPtr_->size()));
-      double epsilon_tol_inner = 1e-5;
-      double sigma_0 = 0.5;
+	int i_max = esdfParam.ionMaxIter;
+	int j_max = 6;
+	int n = 30;
+
+	// double epsilon_tol_outer = 0.01 * sqrt(esdfParam.geoOptMaxForce * 3.0 * double(atomListPtr_->size()));
+	double epsilon_tol_outer =  esdfParam.geoOptMaxForce * sqrt(3.0 * double(atomListPtr_->size()));
+	double epsilon_tol_inner = 1e-5;
+	//double epsilon_tol_inner = 1e-4;
+      
+	double sigma_0 = esdfParam.geoOpt_NLCG_sigma; // Defaults to 0.5
+      
 
       
-      NLCG_vars.setup(i_max, j_max, n, 
-          epsilon_tol_outer, epsilon_tol_inner, sigma_0,
-          *atomListPtr_);
+	NLCG_vars.setup(i_max, j_max, n, 
+			epsilon_tol_outer, epsilon_tol_inner, sigma_0,
+			*atomListPtr_);
 
-      statusOFS << " Done ." << std::endl;
+	statusOFS << " Done ." << std::endl;
 
-    }
+	statusOFS << std::endl << " NLCG parameters : i_max = " << i_max << " , j_max = " << j_max << " , n = " << n;
+	statusOFS << std::endl << "                   epsilon_tol_outer = " << epsilon_tol_outer << " , epsilon_tol_inner = " << epsilon_tol_inner 
+		  << " , sigma_0 = " << sigma_0 << std::endl;                  
+      }
 
     // Molecular dynamics
     Ekinetic_ = 0.0;
@@ -189,7 +197,7 @@ void
     if( ionMove_ == "verlet" || ionMove_ == "langevin" ){
       if(esdfParam.isRestartVelocity){
         statusOFS << std::endl 
-          << "Read velocity information from lastVel.out. " << std::endl;
+		  << "Read velocity information from lastVel.out. " << std::endl;
 
         DblNumVec atomvelRead(3*numAtom);
         if( mpirank == 0 ){
@@ -247,7 +255,7 @@ void
 
       if(esdfParam.isRestartVelocity){
         statusOFS << std::endl 
-          << "Read velocity and thermostat information from lastVel.out. " << std::endl;
+		  << "Read velocity and thermostat information from lastVel.out. " << std::endl;
 
         DblNumVec atomvelRead(3*numAtom);
         if( mpirank == 0 ){
@@ -325,7 +333,7 @@ void
   }         // -----  end of method IonDynamics::Setup  ----- 
 
 
-void
+  void
   IonDynamics::MoveIons    ( Int ionIter )
   {
     Int mpirank, mpisize;
@@ -384,21 +392,21 @@ void
       Print(statusOFS, ""); 
       for(Int i=0; i < atomList.size(); i++) {
         statusOFS << std::setiosflags(std::ios::left) 
-          << std::setw(LENGTH_VAR_NAME) << "Type = "
-          << std::setw(6) << atomList[i].type
-          << std::setiosflags(std::ios::scientific)
-          << std::setiosflags(std::ios::showpos)
-          << std::setw(LENGTH_VAR_NAME) << "Pos  = "
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[0]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[1]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[2]
-          << std::setw(LENGTH_VAR_NAME) << "Vel  = "
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[0]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[1]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[2]
-          << std::resetiosflags(std::ios::scientific)
-          << std::resetiosflags(std::ios::showpos)
-          << std::endl;
+		  << std::setw(LENGTH_VAR_NAME) << "Type = "
+		  << std::setw(6) << atomList[i].type
+		  << std::setiosflags(std::ios::scientific)
+		  << std::setiosflags(std::ios::showpos)
+		  << std::setw(LENGTH_VAR_NAME) << "Pos  = "
+		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[0]
+		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[1]
+		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[2]
+		  << std::setw(LENGTH_VAR_NAME) << "Vel  = "
+		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[0]
+		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[1]
+		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[2]
+		  << std::resetiosflags(std::ios::scientific)
+		  << std::resetiosflags(std::ios::showpos)
+		  << std::endl;
       }
     }
 
@@ -412,13 +420,13 @@ void
         }
         for(Int i=0; i<numAtom; i++){
           fout << std::setiosflags(std::ios::scientific)
-            << std::setiosflags(std::ios::showpos)
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[0]
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[1]
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[2]
-            << std::resetiosflags(std::ios::scientific)
-            << std::resetiosflags(std::ios::showpos)
-            << std::endl;
+	       << std::setiosflags(std::ios::showpos)
+	       << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[0]
+	       << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[1]
+	       << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[2]
+	       << std::resetiosflags(std::ios::scientific)
+	       << std::resetiosflags(std::ios::showpos)
+	       << std::endl;
         }
         fout.close();
       }
@@ -430,239 +438,239 @@ void
   }         // -----  end of method IonDynamics::MoveIons  ----- 
 
 
-void IonDynamics::BarzilaiBorweinOpt    ( Int ionIter )
-{
-  Int mpirank, mpisize;
-  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+  void IonDynamics::BarzilaiBorweinOpt    ( Int ionIter )
+  {
+    Int mpirank, mpisize;
+    MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+    MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
-  std::vector<Atom>&   atomList    = *atomListPtr_;
-  // Note: atomListHist_[0] stores the same info as atomList
-  std::vector<Atom>&   atomListOld = atomListHist_[1];
+    std::vector<Atom>&   atomList    = *atomListPtr_;
+    // Note: atomListHist_[0] stores the same info as atomList
+    std::vector<Atom>&   atomListOld = atomListHist_[1];
 
-  Int numAtom = atomList.size();
+    Int numAtom = atomList.size();
 
-  std::vector<Point3>  atompos(numAtom);
-  std::vector<Point3>  atomforce(numAtom);
-  std::vector<Point3>  atomposOld(numAtom);
-  std::vector<Point3>  atomforceOld(numAtom);
+    std::vector<Point3>  atompos(numAtom);
+    std::vector<Point3>  atomforce(numAtom);
+    std::vector<Point3>  atomposOld(numAtom);
+    std::vector<Point3>  atomforceOld(numAtom);
 
-  for( Int a = 0; a < numAtom; a++ ){
-    atompos[a]   = atomList[a].pos;
-    atomforce[a] = atomList[a].force;
-  }
+    for( Int a = 0; a < numAtom; a++ ){
+      atompos[a]   = atomList[a].pos;
+      atomforce[a] = atomList[a].force;
+    }
 
-  // Output the XYZ format for movie
-  // Once this is written, all work associated with the current atomic
-  // position is DONE.
-  if( mpirank == 0 ){
-    if( isOutputXYZ_ ){
-      std::fstream fout;
-      fout.open("MD.xyz",std::ios::out | std::ios::app) ;
-      if( !fout.good() ){
-        ErrorHandling( "Cannot open MD.xyz!" );
+    // Output the XYZ format for movie
+    // Once this is written, all work associated with the current atomic
+    // position is DONE.
+    if( mpirank == 0 ){
+      if( isOutputXYZ_ ){
+	std::fstream fout;
+	fout.open("MD.xyz",std::ios::out | std::ios::app) ;
+	if( !fout.good() ){
+	  ErrorHandling( "Cannot open MD.xyz!" );
+	}
+	fout << numAtom << std::endl;
+	fout << "MD step # "<< ionIter << std::endl;
+	for(Int a=0; a<numAtom; a++){
+	  fout<< std::setw(6)<< atomList[a].type
+	      << std::setw(16)<< atompos[a][0]*au2ang
+	      << std::setw(16)<< atompos[a][1]*au2ang
+	      << std::setw(16)<< atompos[a][2]*au2ang
+	      << std::endl;
+	}
+	fout.close();
       }
-      fout << numAtom << std::endl;
-      fout << "MD step # "<< ionIter << std::endl;
-      for(Int a=0; a<numAtom; a++){
-        fout<< std::setw(6)<< atomList[a].type
-          << std::setw(16)<< atompos[a][0]*au2ang
-          << std::setw(16)<< atompos[a][1]*au2ang
-          << std::setw(16)<< atompos[a][2]*au2ang
-          << std::endl;
-      }
-      fout.close();
-    }
-  } // if( mpirank == 0 )
+    } // if( mpirank == 0 )
 
 
-  if( ionIter == 1 ){
-    // FIXME 0.1 is a magic number
-    for( Int a = 0; a < numAtom; a++ ){
-      atompos[a]   = atompos[a] + 0.1 * atomforce[a];
-    }
-  }
-  else{
-
-    for( Int a = 0; a < numAtom; a++ ){
-      atomposOld[a]   = atomListOld[a].pos;
-      atomforceOld[a] = atomListOld[a].force;
-    }
-
-    DblNumVec sVec(DIM*numAtom), yVec(DIM*numAtom);
-    SetValue( sVec, 0.0 );
-    SetValue( yVec, 0.0 );
-
-    for( Int a = 0; a < numAtom; a++ ){
-      for( Int d = 0; d < DIM; d++ ){
-        sVec(DIM*a+d) = atompos[a][d] - atomposOld[a][d];
-        yVec(DIM*a+d) = atomforce[a][d] - atomforceOld[a][d];
+    if( ionIter == 1 ){
+      // FIXME 0.1 is a magic number
+      for( Int a = 0; a < numAtom; a++ ){
+	atompos[a]   = atompos[a] + 0.1 * atomforce[a];
       }
     }
-    // Note the minus sign
-    Real step = - blas::Dot( DIM*numAtom, sVec.Data(), 1, yVec.Data(), 1 ) / 
-      blas::Dot( DIM*numAtom, yVec.Data(), 1, yVec.Data(), 1 );
+    else{
 
-    for( Int a = 0; a < numAtom; a++ ){
-      // Update the atomic position
-      atompos[a]   = atompos[a] + step * atomforce[a];
+      for( Int a = 0; a < numAtom; a++ ){
+	atomposOld[a]   = atomListOld[a].pos;
+	atomforceOld[a] = atomListOld[a].force;
+      }
+
+      DblNumVec sVec(DIM*numAtom), yVec(DIM*numAtom);
+      SetValue( sVec, 0.0 );
+      SetValue( yVec, 0.0 );
+
+      for( Int a = 0; a < numAtom; a++ ){
+	for( Int d = 0; d < DIM; d++ ){
+	  sVec(DIM*a+d) = atompos[a][d] - atomposOld[a][d];
+	  yVec(DIM*a+d) = atomforce[a][d] - atomforceOld[a][d];
+	}
+      }
+      // Note the minus sign
+      Real step = - blas::Dot( DIM*numAtom, sVec.Data(), 1, yVec.Data(), 1 ) / 
+	blas::Dot( DIM*numAtom, yVec.Data(), 1, yVec.Data(), 1 );
+
+      for( Int a = 0; a < numAtom; a++ ){
+	// Update the atomic position
+	atompos[a]   = atompos[a] + step * atomforce[a];
+      }
     }
-  }
 
-  // Update atomic position to store in atomListPtr_
-  for(Int a = 0; a < numAtom; a++){
-    atomList[a].pos = atompos[a];
-  }
+    // Update atomic position to store in atomListPtr_
+    for(Int a = 0; a < numAtom; a++){
+      atomList[a].pos = atompos[a];
+    }
 
 
-  return ;
-}         // -----  end of method IonDynamics::BarzilaiBorweinOpt  ----- 
+    return ;
+  }         // -----  end of method IonDynamics::BarzilaiBorweinOpt  ----- 
 
-void IonDynamics::PGBBOpt ( Int ionIter )
-{
-  Int mpirank, mpisize;
-  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+  void IonDynamics::PGBBOpt ( Int ionIter )
+  {
+    Int mpirank, mpisize;
+    MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+    MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
-  std::vector<Atom>&   atomList    = *atomListPtr_;
+    std::vector<Atom>&   atomList    = *atomListPtr_;
 
-  Int numAtom = atomList.size();
+    Int numAtom = atomList.size();
 
-  // Update the current position and force
-  for( Int a = 0; a < numAtom; a++ ){
-    geoOptVars_.atompos[a]   = atomList[a].pos;
-    geoOptVars_.atomforce[a] = atomList[a].force;
-  }
+    // Update the current position and force
+    for( Int a = 0; a < numAtom; a++ ){
+      geoOptVars_.atompos[a]   = atomList[a].pos;
+      geoOptVars_.atomforce[a] = atomList[a].force;
+    }
 
-  // Should evaluate here
+    // Should evaluate here
   
-  if( ionIter > 1 ){
+    if( ionIter > 1 ){
 
-    DblNumVec sVec(DIM*numAtom), yVec(DIM*numAtom);
-    SetValue( sVec, 0.0 );
-    SetValue( yVec, 0.0 );
+      DblNumVec sVec(DIM*numAtom), yVec(DIM*numAtom);
+      SetValue( sVec, 0.0 );
+      SetValue( yVec, 0.0 );
 
-    for( Int a = 0; a < numAtom; a++ ){
-      for( Int d = 0; d < DIM; d++ ){
-        sVec(DIM*a+d) = geoOptVars_.atompos[a][d] - geoOptVars_.atomposOld[a][d];
-        yVec(DIM*a+d) = geoOptVars_.atomforce[a][d] - geoOptVars_.atomforceOld[a][d];
+      for( Int a = 0; a < numAtom; a++ ){
+	for( Int d = 0; d < DIM; d++ ){
+	  sVec(DIM*a+d) = geoOptVars_.atompos[a][d] - geoOptVars_.atomposOld[a][d];
+	  yVec(DIM*a+d) = geoOptVars_.atomforce[a][d] - geoOptVars_.atomforceOld[a][d];
+	}
       }
+
+      Real sy = blas::Dot( DIM*numAtom, sVec.Data(), 1, yVec.Data(), 1 );
+      Real ss = blas::Dot( DIM*numAtom, sVec.Data(), 1, sVec.Data(), 1 );
+      Real yy = blas::Dot( DIM*numAtom, yVec.Data(), 1, yVec.Data(), 1 );
+
+      if( ionIter % 2 == 0 )
+	geoOptVars_.tau = ss / std::abs(sy);
+      else
+	geoOptVars_.tau = std::abs(sy) / yy;
+
+      statusOFS << "PGBB tau prev = " << geoOptVars_.tau << std::endl;
+
+      geoOptVars_.tau = std::max( std::min( geoOptVars_.tau, 1e10 ), 1e-10 );
     }
 
-    Real sy = blas::Dot( DIM*numAtom, sVec.Data(), 1, yVec.Data(), 1 );
-    Real ss = blas::Dot( DIM*numAtom, sVec.Data(), 1, sVec.Data(), 1 );
-    Real yy = blas::Dot( DIM*numAtom, yVec.Data(), 1, yVec.Data(), 1 );
+    statusOFS << "PGBB tau = " << geoOptVars_.tau << std::endl;
 
-    if( ionIter % 2 == 0 )
-      geoOptVars_.tau = ss / std::abs(sy);
-    else
-      geoOptVars_.tau = std::abs(sy) / yy;
+    // Regular step. Update the history information
+    if( geoOptVars_.callType == 0 ){
+      for( Int a = 0; a < numAtom; a++ ){
+	geoOptVars_.atomposOld[a]   = geoOptVars_.atompos[a];
+	geoOptVars_.atomforceOld[a] = geoOptVars_.atomforce[a];
+      }
+      geoOptVars_.nls = 1;
+    }
+  
+    statusOFS << "Computed tau = " << geoOptVars_.tau << std::endl;
 
-    statusOFS << "PGBB tau prev = " << geoOptVars_.tau << std::endl;
+    // Update tau if necessary
+    Real posdiffMax = 0.0, posdiff = 0.0;
 
-    geoOptVars_.tau = std::max( std::min( geoOptVars_.tau, 1e10 ), 1e-10 );
-  }
-
-  statusOFS << "PGBB tau = " << geoOptVars_.tau << std::endl;
-
-  // Regular step. Update the history information
-  if( geoOptVars_.callType == 0 ){
     for( Int a = 0; a < numAtom; a++ ){
-      geoOptVars_.atomposOld[a]   = geoOptVars_.atompos[a];
-      geoOptVars_.atomforceOld[a] = geoOptVars_.atomforce[a];
+      posdiff = geoOptVars_.tau * geoOptVars_.atomforceOld[a].l2();
+      if( posdiffMax < posdiff )
+	posdiffMax = posdiff;
     }
-    geoOptVars_.nls = 1;
-  }
+
+    // magic number
+    Real possdiffBound = 0.1;
+    geoOptVars_.tau *= possdiffBound/std::max(posdiffMax, possdiffBound);
+
+    statusOFS << "Corrected tau = " << geoOptVars_.tau << std::endl;
+
+    // Update atomic position to store in atomListPtr_
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].pos   = geoOptVars_.atomposOld[a] + 
+	geoOptVars_.tau * geoOptVars_.atomforceOld[a];
+    }
+
+
+    return ;
+  }         // -----  end of method IonDynamics::PGBBOpt  ----- 
+
+
+  void IonDynamics::LBFGSOpt ( Int ionIter )
+  {
+    Int mpirank, mpisize;
+    MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+    MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+
+    std::vector<Atom>&   atomList    = *atomListPtr_;
+
+    Int numAtom = atomList.size();
+
+    Int N = 3*numAtom;
+
+    DblNumVec pos(N);
+    DblNumVec grad(N);
+    Int diagco = 0;
+    DblNumVec diagdummy(N);
+    //  SetValue( diagdummy, 0.01 );
+    IntNumVec iPrint(2);
+    Real MACH_EPS = 1e-15;
+
+    iPrint[0] = 1;  // output every IPRINT(0) iterations.
+    iPrint[1] = 0;  // iteration count, number of function evaluations, 
+    // function value, norm of the gradient, and steplength,
+
+    for( Int a = 0; a < numAtom; a++ ){
+      pos[3*a]     = atomList[a].pos[0];
+      pos[3*a+1]   = atomList[a].pos[1];
+      pos[3*a+2]   = atomList[a].pos[2];
+      grad[3*a]    = -atomList[a].force[0];
+      grad[3*a+1]  = -atomList[a].force[1];
+      grad[3*a+2]  = -atomList[a].force[2];
+    }
+
+    statusOFS << "geoOptVars_.work.size() = " << geoOptVars_.work.Size() << std::endl;
+    statusOFS << "Epot = " << Epot_ << std::endl;
+
+    if( mpirank == 0 ){
+      F2C(lbfgs)( &N, &geoOptVars_.maxMixingDim, pos.Data(),
+		  &Epot_, grad.Data(), &diagco, diagdummy.Data(), 
+		  iPrint.Data(), &geoOptVars_.gtol, &MACH_EPS, 
+		  geoOptVars_.work.Data(), &geoOptVars_.callType );
+    }
+    MPI_Bcast( &pos[0], N, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+
+    statusOFS << "callType = " << geoOptVars_.callType << std::endl;
   
-  statusOFS << "Computed tau = " << geoOptVars_.tau << std::endl;
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].pos[0] = pos[3*a];
+      atomList[a].pos[1] = pos[3*a+1];
+      atomList[a].pos[2] = pos[3*a+2];
+    }
 
-  // Update tau if necessary
-  Real posdiffMax = 0.0, posdiff = 0.0;
-
-  for( Int a = 0; a < numAtom; a++ ){
-    posdiff = geoOptVars_.tau * geoOptVars_.atomforceOld[a].l2();
-    if( posdiffMax < posdiff )
-      posdiffMax = posdiff;
-  }
-
-  // magic number
-  Real possdiffBound = 0.1;
-  geoOptVars_.tau *= possdiffBound/std::max(posdiffMax, possdiffBound);
-
-  statusOFS << "Corrected tau = " << geoOptVars_.tau << std::endl;
-
-  // Update atomic position to store in atomListPtr_
-  for( Int a = 0; a < numAtom; a++ ){
-    atomList[a].pos   = geoOptVars_.atomposOld[a] + 
-      geoOptVars_.tau * geoOptVars_.atomforceOld[a];
-  }
-
-
-  return ;
-}         // -----  end of method IonDynamics::PGBBOpt  ----- 
-
-
-void IonDynamics::LBFGSOpt ( Int ionIter )
-{
-  Int mpirank, mpisize;
-  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
-
-  std::vector<Atom>&   atomList    = *atomListPtr_;
-
-  Int numAtom = atomList.size();
-
-  Int N = 3*numAtom;
-
-  DblNumVec pos(N);
-  DblNumVec grad(N);
-  Int diagco = 0;
-  DblNumVec diagdummy(N);
-//  SetValue( diagdummy, 0.01 );
-  IntNumVec iPrint(2);
-  Real MACH_EPS = 1e-15;
-
-  iPrint[0] = 1;  // output every IPRINT(0) iterations.
-  iPrint[1] = 0;  // iteration count, number of function evaluations, 
-                  // function value, norm of the gradient, and steplength,
-
-  for( Int a = 0; a < numAtom; a++ ){
-    pos[3*a]     = atomList[a].pos[0];
-    pos[3*a+1]   = atomList[a].pos[1];
-    pos[3*a+2]   = atomList[a].pos[2];
-    grad[3*a]    = -atomList[a].force[0];
-    grad[3*a+1]  = -atomList[a].force[1];
-    grad[3*a+2]  = -atomList[a].force[2];
-  }
-
-  statusOFS << "geoOptVars_.work.size() = " << geoOptVars_.work.Size() << std::endl;
-  statusOFS << "Epot = " << Epot_ << std::endl;
-
-  if( mpirank == 0 ){
-    F2C(lbfgs)( &N, &geoOptVars_.maxMixingDim, pos.Data(),
-        &Epot_, grad.Data(), &diagco, diagdummy.Data(), 
-        iPrint.Data(), &geoOptVars_.gtol, &MACH_EPS, 
-        geoOptVars_.work.Data(), &geoOptVars_.callType );
-  }
-  MPI_Bcast( &pos[0], N, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
-
-  statusOFS << "callType = " << geoOptVars_.callType << std::endl;
-  
-  for( Int a = 0; a < numAtom; a++ ){
-    atomList[a].pos[0] = pos[3*a];
-    atomList[a].pos[1] = pos[3*a+1];
-    atomList[a].pos[2] = pos[3*a+2];
-  }
-
-  return ;
-}         // -----  end of method IonDynamics::LBFGSOpt  ----- 
+    return ;
+  }         // -----  end of method IonDynamics::LBFGSOpt  ----- 
 
 
 
-// Non-Linear Conjugate Gradients with Secant and Polak-Ribiere
-// Page 53 of the online.pdf : "An introduction to the conjugate gradient method without the agonizing pain." -- Jonathan Richard Shewchuk (1994).
-// Implemented by Amartya S. Banerjee, May 2016
-void
+  // Non-Linear Conjugate Gradients with Secant and Polak-Ribiere
+  // Page 53 of the online.pdf : "An introduction to the conjugate gradient method without the agonizing pain." -- Jonathan Richard Shewchuk (1994).
+  // Implemented by Amartya S. Banerjee, May 2016
+  void
   IonDynamics::NLCG_Opt ( Int ionIter)
   {
 
@@ -671,188 +679,209 @@ void
     statusOFS << std::endl << " Inside NLCG stepper routine : Call type = " << NLCG_vars.call_type << std::endl;
 
     if(NLCG_vars.call_type == NLCG_CALL_TYPE_1)
-    {  
-      if((NLCG_vars.i_ <= NLCG_vars.i_max_) && 
-          (NLCG_vars.delta_new_ > (NLCG_vars.epsilon_tol_outer_ * NLCG_vars.epsilon_tol_outer_ * NLCG_vars.delta_0_)))
-      {
-        // j = 0
-        NLCG_vars.j_ = 0;
+      { 
+      
+	if( NLCG_vars.delta_new_ <= (NLCG_vars.epsilon_tol_outer_ * NLCG_vars.epsilon_tol_outer_ * NLCG_vars.delta_0_))
+	  {
+	    // This probably happened because the exit conditions inside here are slightly different from what the caller routines expect.
+	    // Adjust the exit tolerances 
+	    statusOFS << std::endl << " Could be stuck in Call type 1 of NLCG !!!" << std::endl; 
+	    statusOFS << std::endl << " Call type 1 : Will lower NLCG_vars.epsilon_tol_outer_ to ensure exit condition in calling routine is satisfied !! ";
+	
+	    NLCG_vars.epsilon_tol_outer_ = NLCG_vars.epsilon_tol_outer_ * 0.001;
 
-        // delta_d = d^T d
-        NLCG_vars.delta_d_ = NLCG_vars.atom_ddot(NLCG_vars.atomforce_d_, NLCG_vars.atomforce_d_);
+	    statusOFS << std::endl << "Resuming NLCG with Call type = " << NLCG_vars.call_type << std::endl;
+	  }
+      
+	if( ((NLCG_vars.i_ <= NLCG_vars.i_max_) && 
+	     (NLCG_vars.delta_new_ > (NLCG_vars.epsilon_tol_outer_ * NLCG_vars.epsilon_tol_outer_ * NLCG_vars.delta_0_))) )
+	  {
+	    // j = 0
+	    NLCG_vars.j_ = 0;
 
-        statusOFS << std::endl << " atomforce_d_ = " << NLCG_vars.atomforce_d_ << std::endl ;
+	    // delta_d = d^T d
+	    NLCG_vars.delta_d_ = NLCG_vars.atom_ddot(NLCG_vars.atomforce_d_, NLCG_vars.atomforce_d_);
 
-        // alpha = - sigma_0 
-        NLCG_vars.alpha_ = -NLCG_vars.sigma_0_;
+	    statusOFS << std::endl << " atomforce_d_ = " << NLCG_vars.atomforce_d_ << std::endl ;
 
-        statusOFS << std::endl << " sigma_0 = " << NLCG_vars.sigma_0_ << std::endl ;
+	    // alpha = - sigma_0 
+	    NLCG_vars.alpha_ = -NLCG_vars.sigma_0_;
 
-        // Use x and d to compute new position for force evalation
-        // pos = x + sigma_0 * d
-        for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-        {
-          for( Int d = 0; d < DIM; d++ )
-          {
-            atomList[a].pos[d] = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.sigma_0_ * NLCG_vars.atomforce_d_[a][d]);      
-          }
-        }
+	    statusOFS << std::endl << " sigma_0 = " << NLCG_vars.sigma_0_ << std::endl ;
 
-
-        NLCG_vars.call_type = NLCG_CALL_TYPE_2;
-
-        // Go back to do new evaluations of energy and forces after changing call type.
-        statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
-
-
-      } // end of if NLCG_vars.i_ <= NLCG_vars.i_max_ etc..
-      else
-      {
-        // Do Nothing ! Ions are not moved at all !
-
-      }
+	    // Use x and d to compute new position for force evalation
+	    // pos = x + sigma_0 * d
+	    for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+	      {
+		for( Int d = 0; d < DIM; d++ )
+		  {
+		    atomList[a].pos[d] = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.sigma_0_ * NLCG_vars.atomforce_d_[a][d]);      
+		  }
+	      }
 
 
-    } // end of call_type 1    
+	    NLCG_vars.call_type = NLCG_CALL_TYPE_2;
+
+	    // Go back to do new evaluations of energy and forces after changing call type.
+	    statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
+
+
+	  } // end of if NLCG_vars.i_ <= NLCG_vars.i_max_ etc..
+	else
+	  {
+	    // This situation should not arise at all
+	    statusOFS << std::endl << std::endl << " Reached unexpected portion of NLCG routine with Call type = 1. Will Abort now ! " << std::endl << std::endl;
+	    exit(1);
+	
+	  }
+      
+
+
+      } // end of call_type 1    
     else if(NLCG_vars.call_type == NLCG_CALL_TYPE_2)
-    {
+      {
 
-      // Compute eta_prev = [f'(x + sigma_0 * d)]^T d
-      std::vector<Point3>  atomforce_temp;
-      atomforce_temp.resize(NLCG_vars.numAtom);
-      for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-        atomforce_temp[a] = atomList[a].force;
+	// Compute eta_prev = [f'(x + sigma_0 * d)]^T d
+	std::vector<Point3>  atomforce_temp;
+	atomforce_temp.resize(NLCG_vars.numAtom);
+	for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+	  atomforce_temp[a] = atomList[a].force;
 
-      NLCG_vars.eta_prev_ = - NLCG_vars.atom_ddot(atomforce_temp, NLCG_vars.atomforce_d_); // Note the negative sign
+	NLCG_vars.eta_prev_ = - NLCG_vars.atom_ddot(atomforce_temp, NLCG_vars.atomforce_d_); // Note the negative sign
 
-      // Use x to update position for force evaluation
-      for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-        atomList[a].pos = NLCG_vars.atompos_x_[a];
+	// Use x to update position for force evaluation
+	for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+	  atomList[a].pos = NLCG_vars.atompos_x_[a];
 
 
-      NLCG_vars.call_type = NLCG_CALL_TYPE_3;
+	NLCG_vars.call_type = NLCG_CALL_TYPE_3;
 
-      // Go back to do new evaluations of energy and forces after changing call type.
-      statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
+	// Go back to do new evaluations of energy and forces after changing call type.
+	statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
 
-    } // end of call_type 2    
+      } // end of call_type 2    
     else if(NLCG_vars.call_type == NLCG_CALL_TYPE_3)
-    {
-
-      // Compute eta = [f'(x)]^T d
-      std::vector<Point3>  atomforce_temp;
-      atomforce_temp.resize(NLCG_vars.numAtom);
-      for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-        atomforce_temp[a] = atomList[a].force;
-
-      NLCG_vars.eta_ = - NLCG_vars.atom_ddot(atomforce_temp, NLCG_vars.atomforce_d_); // Note the negative sign
-
-      // alpha = alpha * (eta/(eta_prev-eta))
-      NLCG_vars.alpha_ =  NLCG_vars.alpha_ * (NLCG_vars.eta_ / (NLCG_vars.eta_prev_ - NLCG_vars.eta_));
-
-      // Set x = x + alpha * d
-      for( Int a = 0; a < NLCG_vars.numAtom; a++ )
       {
-        for( Int d = 0; d < DIM; d++ )
-        {
-          NLCG_vars.atompos_x_[a][d]  = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.alpha_ * NLCG_vars.atomforce_d_[a][d]);      
-        }
-      }
 
-      // Set eta_prev = eta
-      NLCG_vars.eta_prev_ = NLCG_vars.eta_;
+	// Compute eta = [f'(x)]^T d
+	std::vector<Point3>  atomforce_temp;
+	atomforce_temp.resize(NLCG_vars.numAtom);
+	for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+	  atomforce_temp[a] = atomList[a].force;
 
-      // Increment inner counter
-      NLCG_vars.j_ = NLCG_vars.j_ + 1;
+	NLCG_vars.eta_ = - NLCG_vars.atom_ddot(atomforce_temp, NLCG_vars.atomforce_d_); // Note the negative sign
 
-      // Exit conditions
-      if((NLCG_vars.j_ < NLCG_vars.j_max_) && 
-          ((NLCG_vars.alpha_ * NLCG_vars.alpha_ * NLCG_vars.delta_d_) > (NLCG_vars.epsilon_tol_inner_ * NLCG_vars.epsilon_tol_inner_)))
-      {
-        // Stay for looping : do not change call type
-        // Use x to update position for force evaluation
-        for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-          atomList[a].pos = NLCG_vars.atompos_x_[a];  
-      }
-      else
-      {
-        // Exit to pass control to remaining portion of code
-        NLCG_vars.call_type = NLCG_CALL_TYPE_4;
+	// alpha = alpha * (eta/(eta_prev-eta))
+	NLCG_vars.alpha_ =  NLCG_vars.alpha_ * (NLCG_vars.eta_ / (NLCG_vars.eta_prev_ - NLCG_vars.eta_));
 
-        // Use x to update position for force evaluation
-        for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-          atomList[a].pos = NLCG_vars.atompos_x_[a];  
+	// Set x = x + alpha * d
+	for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+	  {
+	    for( Int d = 0; d < DIM; d++ )
+	      {
+		NLCG_vars.atompos_x_[a][d]  = (NLCG_vars.atompos_x_[a][d] + NLCG_vars.alpha_ * NLCG_vars.atomforce_d_[a][d]);      
+	      }
+	  }
 
-      }
+	// Set eta_prev = eta
+	NLCG_vars.eta_prev_ = NLCG_vars.eta_;
 
-      statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
+	// Increment inner counter
+	NLCG_vars.j_ = NLCG_vars.j_ + 1;
+
+	// Exit conditions
+	if((NLCG_vars.j_ < NLCG_vars.j_max_) && 
+	   ((NLCG_vars.alpha_ * NLCG_vars.alpha_ * NLCG_vars.delta_d_) > (NLCG_vars.epsilon_tol_inner_ * NLCG_vars.epsilon_tol_inner_)))
+      
+	  //if((NLCG_vars.j_ < NLCG_vars.j_max_) && 
+	  //    ((NLCG_vars.alpha_ * NLCG_vars.alpha_ * NLCG_vars.delta_d_) > (NLCG_vars.epsilon_tol_inner_)))
+	  {
+	    // Stay for looping : do not change call type
+	    // Use x to update position for force evaluation
+	    for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+	      atomList[a].pos = NLCG_vars.atompos_x_[a];  
+	  }
+	else
+	  {
+	    // Exit to pass control to remaining portion of code
+	    NLCG_vars.call_type = NLCG_CALL_TYPE_4;
+
+	    // Use x to update position for force evaluation
+	    for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+	      atomList[a].pos = NLCG_vars.atompos_x_[a];  
+
+	  }
+
+	statusOFS << std::endl << " Calling back for SCF energy / force evaluation : Call type = " << NLCG_vars.call_type << std::endl;
 
 
-    } // end of call_type 3    
+      } // end of call_type 3    
     else
-    {
-
-      // Set r = - f'(x) : Note that  atomList[a].force = - grad E already - so no extra negative required
-      for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-        NLCG_vars.atomforce_r_[a] = atomList[a].force;
-
-      // Set delta_old = delta_new
-      NLCG_vars.delta_old_ = NLCG_vars.delta_new_ ;
-
-      // Set delta_mid = r^T s  
-      NLCG_vars.delta_mid_ =  NLCG_vars.atom_ddot( NLCG_vars.atomforce_r_, NLCG_vars.atomforce_s_);
-
-      // Set s = M^{-1} r : M = Identity used here
-      for( Int a = 0; a <  NLCG_vars.numAtom; a++ )
-        NLCG_vars.atomforce_s_[a] =  NLCG_vars.atomforce_r_[a];
-
-      // Set delta_new = r^T s
-      NLCG_vars.delta_new_ =  NLCG_vars.atom_ddot( NLCG_vars.atomforce_r_, NLCG_vars.atomforce_s_);
-
-      // Set beta = (delta_new - delta_mid) / delta_old
-      NLCG_vars.beta_ = (NLCG_vars.delta_new_ - NLCG_vars.delta_mid_) / NLCG_vars.delta_old_;
-
-      // Increment counter
-      NLCG_vars.k_ = NLCG_vars.k_ + 1;
-
-      if((NLCG_vars.k_ == NLCG_vars.n_) || (NLCG_vars.beta_ <= 0.0))
       {
-        // Set d = s
-        for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-          NLCG_vars.atomforce_d_[a] = NLCG_vars.atomforce_s_[a];
 
-        // set k = 0
-        NLCG_vars.k_ = 0;
+	// Set r = - f'(x) : Note that  atomList[a].force = - grad E already - so no extra negative required
+	for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+	  NLCG_vars.atomforce_r_[a] = atomList[a].force;
 
-      }
-      else
-      {
-        // Set d = s + beta * d
-        for( Int a = 0; a < NLCG_vars.numAtom; a++ )
-        {
-          for( Int d = 0; d < DIM; d++ )
-          {
-            NLCG_vars.atomforce_d_[a][d]  = (NLCG_vars.atomforce_s_[a][d] + NLCG_vars.beta_ * NLCG_vars.atomforce_d_[a][d]);      
-          }
-        }
-      }
+	// Set delta_old = delta_new
+	NLCG_vars.delta_old_ = NLCG_vars.delta_new_ ;
 
-      // Increment outer counter
-      NLCG_vars.i_ = NLCG_vars.i_ + 1;
+	// Set delta_mid = r^T s  
+	NLCG_vars.delta_mid_ =  NLCG_vars.atom_ddot( NLCG_vars.atomforce_r_, NLCG_vars.atomforce_s_);
 
-      NLCG_vars.call_type = NLCG_CALL_TYPE_1;
+	// Set s = M^{-1} r : M = Identity used here
+	for( Int a = 0; a <  NLCG_vars.numAtom; a++ )
+	  NLCG_vars.atomforce_s_[a] =  NLCG_vars.atomforce_r_[a];
 
-      // Change the call type to run the outer loop again.
-      statusOFS << std::endl << " Calling back : Call type = " << NLCG_vars.call_type << std::endl;
+	// Set delta_new = r^T s
+	NLCG_vars.delta_new_ =  NLCG_vars.atom_ddot( NLCG_vars.atomforce_r_, NLCG_vars.atomforce_s_);
 
-    } // end of call_type 4    
+	// Set beta = (delta_new - delta_mid) / delta_old
+	NLCG_vars.beta_ = (NLCG_vars.delta_new_ - NLCG_vars.delta_mid_) / NLCG_vars.delta_old_;
+
+	// Increment counter
+	NLCG_vars.k_ = NLCG_vars.k_ + 1;
+
+	if((NLCG_vars.k_ == NLCG_vars.n_) || (NLCG_vars.beta_ <= 0.0))
+	  {
+	    // Set d = s
+	    for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+	      NLCG_vars.atomforce_d_[a] = NLCG_vars.atomforce_s_[a];
+
+	    // set k = 0
+	    NLCG_vars.k_ = 0;
+	
+	    statusOFS << std::endl << " Restarting NLCG (k = n or beta < 0 satisfied) !!" << std::endl;
+
+	  }
+	else
+	  {
+	    // Set d = s + beta * d
+	    for( Int a = 0; a < NLCG_vars.numAtom; a++ )
+	      {
+		for( Int d = 0; d < DIM; d++ )
+		  {
+		    NLCG_vars.atomforce_d_[a][d]  = (NLCG_vars.atomforce_s_[a][d] + NLCG_vars.beta_ * NLCG_vars.atomforce_d_[a][d]);      
+		  }
+	      }
+	  }
+
+	// Increment outer counter
+	NLCG_vars.i_ = NLCG_vars.i_ + 1;
+
+	NLCG_vars.call_type = NLCG_CALL_TYPE_1;
+
+	// Change the call type to run the outer loop again.
+	statusOFS << std::endl << " Calling back : Call type = " << NLCG_vars.call_type << std::endl;
+
+      } // end of call_type 4    
 
 
 
     return;
   }   // -----  end of method IonDynamics::NLCG_Opt  -----  
 
-void
+  void
   IonDynamics::VelocityVerlet    ( Int ionIter )
   {
     Int mpirank, mpisize;
@@ -924,10 +953,10 @@ void
         fout << "MD step # "<< ionIter << std::endl;
         for(Int a=0; a<numAtom; a++){
           fout<< std::setw(6)<< atomList[a].type
-            << std::setw(16)<< atompos[a][0]*au2ang
-            << std::setw(16)<< atompos[a][1]*au2ang
-            << std::setw(16)<< atompos[a][2]*au2ang
-            << std::endl;
+	      << std::setw(16)<< atompos[a][0]*au2ang
+	      << std::setw(16)<< atompos[a][1]*au2ang
+	      << std::setw(16)<< atompos[a][2]*au2ang
+	      << std::endl;
         }
         fout.close();
       }
@@ -950,13 +979,13 @@ void
         }
         for(Int i=0; i<numAtom; i++){
           fout_v << std::setiosflags(std::ios::scientific)
-            << std::setiosflags(std::ios::showpos)
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0]
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1]
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2]
-            << std::resetiosflags(std::ios::scientific)
-            << std::resetiosflags(std::ios::showpos)
-            << std::endl;
+		 << std::setiosflags(std::ios::showpos)
+		 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0]
+		 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1]
+		 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2]
+		 << std::resetiosflags(std::ios::scientific)
+		 << std::resetiosflags(std::ios::showpos)
+		 << std::endl;
         }
         fout_v.close();
       }
@@ -980,7 +1009,7 @@ void
     return ;
   }         // -----  end of method IonDynamics::VelocityVerlet  ----- 
 
-void
+  void
   IonDynamics::NoseHoover1    ( Int ionIter )
   {
     Int mpirank, mpisize;
@@ -1066,10 +1095,10 @@ void
         fout << "MD step # "<< ionIter << std::endl;
         for(Int a=0; a<numAtom; a++){
           fout<< std::setw(6)<< atomList[a].type
-            << std::setw(16)<< atompos[a][0]*au2ang
-            << std::setw(16)<< atompos[a][1]*au2ang
-            << std::setw(16)<< atompos[a][2]*au2ang
-            << std::endl;
+	      << std::setw(16)<< atompos[a][0]*au2ang
+	      << std::setw(16)<< atompos[a][1]*au2ang
+	      << std::setw(16)<< atompos[a][2]*au2ang
+	      << std::endl;
         }
         fout.close();
       }
@@ -1107,36 +1136,36 @@ void
         }
         for(Int i=0; i<numAtom; i++){
           fout_v << std::setiosflags(std::ios::scientific)
-            << std::setiosflags(std::ios::showpos)
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0]
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1]
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2]
-            << std::resetiosflags(std::ios::scientific)
-            << std::resetiosflags(std::ios::showpos)
-            << std::endl;
+		 << std::setiosflags(std::ios::showpos)
+		 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0]
+		 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1]
+		 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2]
+		 << std::resetiosflags(std::ios::scientific)
+		 << std::resetiosflags(std::ios::showpos)
+		 << std::endl;
         }
 
         fout_v << std::setiosflags(std::ios::scientific)
-          << std::setiosflags(std::ios::showpos)
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< vxi1 << std::endl
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< xi1 << std::endl
-          << std::resetiosflags(std::ios::scientific)
-          << std::resetiosflags(std::ios::showpos);
+	       << std::setiosflags(std::ios::showpos)
+	       << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< vxi1 << std::endl
+	       << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< xi1 << std::endl
+	       << std::resetiosflags(std::ios::scientific)
+	       << std::resetiosflags(std::ios::showpos);
 
         fout_v.close();
 
 
         // Also output into the statfile
         statusOFS << std::endl 
-          << std::setiosflags(std::ios::left) 
-          << std::setw(LENGTH_VAR_NAME) << "vxi1 = "
-          << std::setiosflags(std::ios::scientific)
-          << std::setiosflags(std::ios::showpos)
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< vxi1 << std::endl
-          << std::setw(LENGTH_VAR_NAME) << "xi1 = "
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< xi1 << std::endl
-          << std::resetiosflags(std::ios::scientific)
-          << std::resetiosflags(std::ios::showpos);
+		  << std::setiosflags(std::ios::left) 
+		  << std::setw(LENGTH_VAR_NAME) << "vxi1 = "
+		  << std::setiosflags(std::ios::scientific)
+		  << std::setiosflags(std::ios::showpos)
+		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< vxi1 << std::endl
+		  << std::setw(LENGTH_VAR_NAME) << "xi1 = "
+		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< xi1 << std::endl
+		  << std::resetiosflags(std::ios::scientific)
+		  << std::resetiosflags(std::ios::showpos);
       }
     } // if( mpirank == 0 )
 
@@ -1152,7 +1181,7 @@ void
     return ;
   }         // -----  end of method IonDynamics::NoseHoover1  ----- 
 
-void
+  void
   IonDynamics::Langevin ( Int ionIter )
   {
     Int mpirank, mpisize;
@@ -1216,10 +1245,10 @@ void
         fout << "MD step # "<< ionIter << std::endl;
         for(Int a=0; a<numAtom; a++){
           fout<< std::setw(6)<< atomList[a].type
-            << std::setw(16)<< atompos[a][0]*au2ang
-            << std::setw(16)<< atompos[a][1]*au2ang
-            << std::setw(16)<< atompos[a][2]*au2ang
-            << std::endl;
+	      << std::setw(16)<< atompos[a][0]*au2ang
+	      << std::setw(16)<< atompos[a][1]*au2ang
+	      << std::setw(16)<< atompos[a][2]*au2ang
+	      << std::endl;
         }
         fout.close();
       }
@@ -1239,8 +1268,8 @@ void
         afac = (1.0 - damping*dt*0.5) / (1.0 + damping*dt*0.5);
         bfac = 1.0 / (1.0 + damping*dt*0.5);
         atompos[a] = atompos[a] + bfac * dt * ( atomvel[a] + 
-            dt * 0.5 / atomMass[a] * atomforce[a] +
-            0.5 / atomMass[a] * xi );
+						dt * 0.5 / atomMass[a] * atomforce[a] +
+						0.5 / atomMass[a] * xi );
         atomvel[a] = afac * atomvel[a] + 
           afac * dt * 0.5 / atomMass[a] * atomforce[a] +
           bfac / atomMass[a] * xi;
@@ -1258,13 +1287,13 @@ void
         }
         for(Int i=0; i<numAtom; i++){
           fout_v << std::setiosflags(std::ios::scientific)
-            << std::setiosflags(std::ios::showpos)
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0]
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1]
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2]
-            << std::resetiosflags(std::ios::scientific)
-            << std::resetiosflags(std::ios::showpos)
-            << std::endl;
+		 << std::setiosflags(std::ios::showpos)
+		 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0]
+		 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1]
+		 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2]
+		 << std::resetiosflags(std::ios::scientific)
+		 << std::resetiosflags(std::ios::showpos)
+		 << std::endl;
         }
 
         fout_v.close();
@@ -1291,7 +1320,7 @@ void
   }
 
 
-void
+  void
   IonDynamics::ExtrapolateCoefficient    ( Int ionIter, DblNumVec& coef ) {
     std::vector<Atom>&   atomList = *atomListPtr_;
     Int numAtom = atomList.size();
