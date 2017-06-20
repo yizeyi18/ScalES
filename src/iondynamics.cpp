@@ -164,15 +164,15 @@ namespace dgdft{
 	//       double sigma_0 = 0.5;
 
 	int i_max = esdfParam.ionMaxIter;
-	int j_max = 6;
+	int j_max = 5;
 	int n = 30;
 
 	// double epsilon_tol_outer = 0.01 * sqrt(esdfParam.geoOptMaxForce * 3.0 * double(atomListPtr_->size()));
 	double epsilon_tol_outer =  esdfParam.geoOptMaxForce * sqrt(3.0 * double(atomListPtr_->size()));
-	double epsilon_tol_inner = 1e-5;
-	//double epsilon_tol_inner = 1e-4;
+	//double epsilon_tol_inner = 1e-5;
+	double epsilon_tol_inner = 1e-4;
       
-	double sigma_0 = esdfParam.geoOpt_NLCG_sigma; // Defaults to 0.5
+	double sigma_0 = esdfParam.geoOpt_NLCG_sigma; // Defaults to 0.02
       
 
       

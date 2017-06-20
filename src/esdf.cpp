@@ -2637,7 +2637,7 @@ ESDFReadInput ( const char* filename )
 
     // Geometry optimization
     esdfParam.geoOptMaxForce = esdf_double( "Geo_Opt_Max_Force", 0.001 );
-    esdfParam.geoOpt_NLCG_sigma = esdf_double( "Geo_Opt_NLCG_Sigma", 0.5 );
+    esdfParam.geoOpt_NLCG_sigma = esdf_double( "Geo_Opt_NLCG_Sigma", 0.02 );
     
     // Molecualr dynamics
     Real ionTemperature;
