@@ -245,8 +245,14 @@ struct ESDFInputParam{
   ///
   /// - = "nested"             : Standard nested two loop procedure
   /// - = "scdiis"             : Selected column DIIS
+  /// - = "pcdiis"             : Projected commutator DIIS
   ///
   std::string         hybridMixType;
+  /// @brief Whether to update the ACE operator twice in PCDIIS.
+  ///
+  /// Default: 1
+  ///
+  bool                isHybridACETwicePCDIIS;
   /// @brief Whether to use the adaptively compressed exchange (ACE)
   /// formulation for hybrid functional.
   ///

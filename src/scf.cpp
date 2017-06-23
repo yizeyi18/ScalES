@@ -1435,7 +1435,7 @@ SCF::Iterate (  )
         statusOFS << "Total wall clock time for this Phi iteration = " << 
           timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
 
-        if(1){
+        if(esdfParam.isHybridACETwicePCDIIS == 1){
 
           // Update Phi <- Psi
           GetTime( timeSta );

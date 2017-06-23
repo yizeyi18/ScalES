@@ -923,6 +923,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"T:B");
 
   i++;
+  strcpy(kw_label[i],"hybrid_ace_twice_pcdiis");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
   strcpy(kw_label[i],"exx_divergence_type");
   strcpy(kw_typ[i],"I:E");
 
@@ -2295,6 +2299,8 @@ ESDFReadInput ( const char* filename )
         esdfParam.hybridMixType != "pcdiis" ){
       ErrorHandling("Invalid hybrid mixing type.");
     }
+
+    esdfParam.isHybridACETwicePCDIIS           = esdf_integer( "Hybrid_ACE_Twice_PCDIIS", 1 );
 
     esdfParam.isHybridACE                      = esdf_integer( "Hybrid_ACE", 1 );
     esdfParam.isHybridActiveInit               = esdf_integer( "Hybrid_Active_Init", 0 );
