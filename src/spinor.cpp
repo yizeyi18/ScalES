@@ -2669,9 +2669,6 @@ void Spinor::AddMultSpinorEXXDF3 ( Fourier& fft,
     lapack::Lacpy( 'A', ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
     lapack::Lacpy( 'A', ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
 
-    AlltoallForward (phiCol, phiRow, domain_.comm);
-    AlltoallForward (psiCol, psiRow, domain_.comm);
-
     // Computing the indices is optional
 
     Int ntotLocalMG, ntotMG;
@@ -2695,6 +2692,9 @@ void Spinor::AddMultSpinorEXXDF3 ( Fourier& fft,
       }
 
       MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
+    
+      AlltoallForward (phiCol, phiRow, domain_.comm);
+      AlltoallForward (psiCol, psiRow, domain_.comm);
 
       blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
           phiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
