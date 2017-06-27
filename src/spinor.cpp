@@ -3603,37 +3603,14 @@ void Spinor::AddMultSpinorEXXDF4 ( Fourier& fft,
   SCALAPACK(descinit)(desc_NuNe2D, &Nu, &Ne, &mb2, &nb2, &I_ZERO, 
       &I_ZERO, &contxt2, &lldNuNe2D, &info2);
 
-
-  DblNumMat localVexxPsiCol( ntot, numStateLocal );
-  SetValue( localVexxPsiCol, 0.0 );
-
-  DblNumMat localVexxPsiRow( ntotLocal, numStateTotal );
-  SetValue( localVexxPsiRow, 0.0 );
-
-  DblNumMat localphiGRow( ntotLocal, numPre );
-  SetValue( localphiGRow, 0.0 );
-
-  DblNumMat localpsiGRow( ntotLocal, numPre );
-  SetValue( localpsiGRow, 0.0 );
-
-  DblNumMat G(numStateTotal, numPre);
-  SetValue( G, 0.0 );
-
   DblNumMat phiCol( ntot, numStateLocal );
   SetValue( phiCol, 0.0 );
-  DblNumMat phiRow( ntotLocal, numStateTotal );
-  SetValue( phiRow, 0.0 );
 
   DblNumMat psiCol( ntot, numStateLocal );
   SetValue( psiCol, 0.0 );
-  DblNumMat psiRow( ntotLocal, numStateTotal );
-  SetValue( psiRow, 0.0 );
 
   lapack::Lacpy( 'A', ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
   lapack::Lacpy( 'A', ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
-
-  AlltoallForward (phiCol, phiRow, domain_.comm);
-  AlltoallForward (psiCol, psiRow, domain_.comm);
 
   // Computing the indices is optional
 
@@ -3647,7 +3624,26 @@ void Spinor::AddMultSpinorEXXDF4 ( Fourier& fft,
   }
 
   if( isFixColumnDF == false ){
+
     GetTime( timeSta );
+
+    DblNumMat localphiGRow( ntotLocal, numPre );
+    SetValue( localphiGRow, 0.0 );
+
+    DblNumMat localpsiGRow( ntotLocal, numPre );
+    SetValue( localpsiGRow, 0.0 );
+
+    DblNumMat G(numStateTotal, numPre);
+    SetValue( G, 0.0 );
+
+    DblNumMat phiRow( ntotLocal, numStateTotal );
+    SetValue( phiRow, 0.0 );
+
+    DblNumMat psiRow( ntotLocal, numStateTotal );
+    SetValue( psiRow, 0.0 );
+
+    AlltoallForward (phiCol, phiRow, domain_.comm);
+    AlltoallForward (psiCol, psiRow, domain_.comm);
 
     // Step 1: Pre-compression of the wavefunctions. This uses
     // multiplication with orthonormalized random Gaussian matrices
@@ -4056,7 +4052,7 @@ void Spinor::AddMultSpinorEXXDF4 ( Fourier& fft,
 #endif
 
   GetTime( timeSta1 );
-  
+
   DblNumMat psi2D(nrowsNgNe2D, ncolsNgNe2D);
   DblNumMat phi2D(nrowsNgNe2D, ncolsNgNe2D);
   SetValue( psi2D, 0.0 );
@@ -4135,8 +4131,8 @@ void Spinor::AddMultSpinorEXXDF4 ( Fourier& fft,
 #endif
 
 
-//Method 1
-if(0){
+  //Method 1
+  if(0){
 
     GetTime( timeSta1 );
 
@@ -4149,79 +4145,28 @@ if(0){
       timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
-  GetTime( timeSta1 );
+    GetTime( timeSta1 );
 
-  SCALAPACK(pdtrsm)("R", "L", "T", "N", &Ng, &Nu, &D_ONE,
-      PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-      Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+    SCALAPACK(pdtrsm)("R", "L", "T", "N", &Ng, &Nu, &D_ONE,
+        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
 
-  SCALAPACK(pdtrsm)("R", "L", "N", "N", &Ng, &Nu, &D_ONE,
-      PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-      Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
-
-  GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-  statusOFS << "Time for PMuNu and Xi pdtrsm is " <<
-    timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-}
-
-
-//Method 2
-if(1){
-
-  GetTime( timeSta1 );
-
-    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
-    SCALAPACK(pdpotri)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+    SCALAPACK(pdtrsm)("R", "L", "N", "N", &Ng, &Nu, &D_ONE,
+        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
 
     GetTime( timeEnd1 );
 
 #if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for PMuNu Potrf is " <<
+    statusOFS << "Time for PMuNu and Xi pdtrsm is " <<
       timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
-  GetTime( timeSta1 );
-
-  DblNumMat PMuNu2DTemp(nrowsNuNu2D, ncolsNuNu2D);
-  SetValue( PMuNu2DTemp, 0.0 );
-
-  lapack::Lacpy( 'A', nrowsNuNu2D, ncolsNuNu2D, PMuNu2D.Data(), nrowsNuNu2D, PMuNu2DTemp.Data(), nrowsNuNu2D );
-    
-  SCALAPACK(pdtradd)("U", "T", &Nu, &Nu, 
-      &D_ONE,
-      PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
-      &D_ZERO,
-      PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
-  
-  DblNumMat Xi2DTemp(nrowsNgNu2D, ncolsNgNu2D);
-  SetValue( Xi2DTemp, 0.0 );
-
-  SCALAPACK(pdgemm)("N", "N", &Ng, &Nu, &Nu, 
-      &D_ONE,
-      Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
-      PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
-      &D_ZERO,
-      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
-
-  SetValue( Xi2D, 0.0 );
-  lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
-  
-  GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-  statusOFS << "Time for PMuNu and Xi pdgemm is " <<
-    timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-}
+  }
 
 
-//Method 3
-if(0){
+  //Method 2
+  if(1){
 
     GetTime( timeSta1 );
 
@@ -4235,85 +4180,136 @@ if(0){
       timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
-  GetTime( timeSta1 );
-  
-  DblNumMat Xi2DTemp(nrowsNgNu2D, ncolsNgNu2D);
-  SetValue( Xi2DTemp, 0.0 );
+    GetTime( timeSta1 );
 
-  SCALAPACK(pdsymm)("R", "L", &Ng, &Nu, 
-      &D_ONE,
-      PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-      Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
-      &D_ZERO,
-      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
-  
-  SetValue( Xi2D, 0.0 );
-  lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
+    DblNumMat PMuNu2DTemp(nrowsNuNu2D, ncolsNuNu2D);
+    SetValue( PMuNu2DTemp, 0.0 );
 
-  GetTime( timeEnd1 );
+    lapack::Lacpy( 'A', nrowsNuNu2D, ncolsNuNu2D, PMuNu2D.Data(), nrowsNuNu2D, PMuNu2DTemp.Data(), nrowsNuNu2D );
 
-#if ( _DEBUGlevel_ >= 0 )
-  statusOFS << "Time for PMuNu and Xi pdsymm is " <<
-    timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
+    SCALAPACK(pdtradd)("U", "T", &Nu, &Nu, 
+        &D_ONE,
+        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
+        &D_ZERO,
+        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
 
-}
+    DblNumMat Xi2DTemp(nrowsNgNu2D, ncolsNgNu2D);
+    SetValue( Xi2DTemp, 0.0 );
 
+    SCALAPACK(pdgemm)("N", "N", &Ng, &Nu, &Nu, 
+        &D_ONE,
+        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
+        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
+        &D_ZERO,
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
 
-//Method 4
-if(0){
+    SetValue( Xi2D, 0.0 );
+    lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
 
-  GetTime( timeSta1 );
-  
-  DblNumMat Xi2DTemp(nrowsNuNg2D, ncolsNuNg2D);
-  SetValue( Xi2DTemp, 0.0 );
-  
-  DblNumMat PMuNu2DTemp(ncolsNuNu2D, nrowsNuNu2D);
-  SetValue( PMuNu2DTemp, 0.0 );
-  
-  SCALAPACK(pdgeadd)("T", &Nu, &Ng,
-      &D_ONE,
-      Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
-      &D_ZERO,
-      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D);
-  
-  SCALAPACK(pdgeadd)("T", &Nu, &Nu,
-      &D_ONE,
-      PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-      &D_ZERO,
-      PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
-  
-  Int lwork=-1, info;
-  double dummyWork;
-
-  SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
-      PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
-      &dummyWork, &lwork, &info);
-
-  lwork = dummyWork;
-  std::vector<double> work(lwork);
-
-  SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
-      PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
-      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
-      &work[0], &lwork, &info);
-  
-  SetValue( Xi2D, 0.0 );
-  SCALAPACK(pdgeadd)("T", &Ng, &Nu,
-      &D_ONE,
-      Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
-      &D_ZERO,
-      Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
-
-  GetTime( timeEnd1 );
+    GetTime( timeEnd1 );
 
 #if ( _DEBUGlevel_ >= 0 )
-  statusOFS << "Time for PMuNu and Xi pdgels is " <<
-    timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+    statusOFS << "Time for PMuNu and Xi pdgemm is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
 #endif
 
-}
+  }
+
+
+  //Method 3
+  if(0){
+
+    GetTime( timeSta1 );
+
+    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+    SCALAPACK(pdpotri)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for PMuNu Potrf is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+    GetTime( timeSta1 );
+
+    DblNumMat Xi2DTemp(nrowsNgNu2D, ncolsNgNu2D);
+    SetValue( Xi2DTemp, 0.0 );
+
+    SCALAPACK(pdsymm)("R", "L", &Ng, &Nu, 
+        &D_ONE,
+        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
+        &D_ZERO,
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+
+    SetValue( Xi2D, 0.0 );
+    lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for PMuNu and Xi pdsymm is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+  }
+
+
+  //Method 4
+  if(0){
+
+    GetTime( timeSta1 );
+
+    DblNumMat Xi2DTemp(nrowsNuNg2D, ncolsNuNg2D);
+    SetValue( Xi2DTemp, 0.0 );
+
+    DblNumMat PMuNu2DTemp(ncolsNuNu2D, nrowsNuNu2D);
+    SetValue( PMuNu2DTemp, 0.0 );
+
+    SCALAPACK(pdgeadd)("T", &Nu, &Ng,
+        &D_ONE,
+        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
+        &D_ZERO,
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D);
+
+    SCALAPACK(pdgeadd)("T", &Nu, &Nu,
+        &D_ONE,
+        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        &D_ZERO,
+        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
+
+    Int lwork=-1, info;
+    double dummyWork;
+
+    SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
+        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
+        &dummyWork, &lwork, &info);
+
+    lwork = dummyWork;
+    std::vector<double> work(lwork);
+
+    SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
+        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
+        &work[0], &lwork, &info);
+
+    SetValue( Xi2D, 0.0 );
+    SCALAPACK(pdgeadd)("T", &Ng, &Nu,
+        &D_ONE,
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
+        &D_ZERO,
+        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for PMuNu and Xi pdgels is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+  }
 
 
   GetTime( timeEnd );
@@ -4419,7 +4415,7 @@ if(0){
   // NOTE: a3 must be zero in order to compute the M matrix later
   DblNumMat a32D( nrowsNgNe2D, ncolsNgNe2D );
   SetValue( a32D, 0.0 );
-  
+
   SCALAPACK(pdgemm)("N", "T", &Ng, &Ne, &Nu, 
       &D_ONE,
       VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
