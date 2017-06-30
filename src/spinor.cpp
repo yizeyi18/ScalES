@@ -4498,4 +4498,1227 @@ void Spinor::AddMultSpinorEXXDF4 ( Fourier& fft,
 }        // -----  end of method Spinor::AddMultSpinorEXXDF4  ----- 
 
 
+// 2D MPI communication for matrix
+// Update: 6/26/2017
+void Spinor::AddMultSpinorEXXDF5 ( Fourier& fft, 
+    const NumTns<Real>& phi,
+    const DblNumVec& exxgkkR2C,
+    Real  exxFraction,
+    Real  numSpin,
+    const DblNumVec& occupationRate,
+    const Real numMuFac,
+    const Real numGaussianRandomFac,
+    const Int numProcScaLAPACK,  
+    const Int BlockSizeScaLAPACK,  
+    NumTns<Real>& a3, 
+    NumMat<Real>& VxMat,
+    bool isFixColumnDF )
+{
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+
+  if( !fft.isInitialized ){
+    ErrorHandling("Fourier is not prepared.");
+  }
+
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  Index3& numGrid = domain_.numGrid;
+  Index3& numGridFine = domain_.numGridFine;
+
+  Int ntot     = domain_.NumGridTotal();
+  Int ntotFine = domain_.NumGridTotalFine();
+  Int ntotR2C = fft.numGridTotalR2C;
+  Int ntotR2CFine = fft.numGridTotalR2CFine;
+  Int ncom = wavefun_.n();
+  Int numStateLocal = wavefun_.p();
+  Int numStateTotal = numStateTotal_;
+
+  Int ncomPhi = phi.n();
+
+  Real vol = domain_.Volume();
+
+  if( ncomPhi != 1 || ncom != 1 ){
+    ErrorHandling("Spin polarized case not implemented.");
+  }
+
+  if( fft.domain.NumGridTotal() != ntot ){
+    ErrorHandling("Domain size does not match.");
+  }
+
+
+  // *********************************************************************
+  // Perform interpolative separable density fitting
+  // *********************************************************************
+
+  //numMu_ = std::min(IRound(numStateTotal*numMuFac), ntot);
+  numMu_ = IRound(numStateTotal*numMuFac);
+
+  Int numPre = IRound(std::sqrt(numMu_*numGaussianRandomFac));
+  if( numPre > numStateTotal ){
+    ErrorHandling("numMu is too large for interpolative separable density fitting!");
+  }
+
+  statusOFS << "ntot          = " << ntot << std::endl;
+  statusOFS << "numMu         = " << numMu_ << std::endl;
+  statusOFS << "numPre        = " << numPre << std::endl;
+  statusOFS << "numPre*numPre = " << numPre * numPre << std::endl;
+
+  // Convert the column partition to row partition
+  Int numStateBlocksize = numStateTotal / mpisize;
+  //Int ntotBlocksize = ntot / mpisize;
+
+  Int numMuBlocksize = numMu_ / mpisize;
+
+  Int numStateLocal1 = numStateBlocksize;
+  //Int ntotLocal = ntotBlocksize;
+
+  Int numMuLocal = numMuBlocksize;
+
+  if(mpirank < (numStateTotal % mpisize)){
+    numStateLocal1 = numStateBlocksize + 1;
+  }
+
+  if(numStateLocal !=  numStateLocal1){
+    statusOFS << "numStateLocal = " << numStateLocal << " numStateLocal1 = " << numStateLocal1 << std::endl;
+    ErrorHandling("The size is not right in interpolative separable density fitting!");
+  }
+
+  if(mpirank < (numMu_ % mpisize)){
+    numMuLocal = numMuBlocksize + 1;
+  }
+
+  //if(mpirank < (ntot % mpisize)){
+  //  ntotLocal = ntotBlocksize + 1;
+  //}
+
+  //huwei 
+  //2D MPI commucation for all the matrix
+
+  Int I_ONE = 1, I_ZERO = 0;
+  double D_ONE = 1.0;
+  double D_ZERO = 0.0;
+  double D_MinusONE = -1.0;
+
+  Int contxt0, contxt1, contxt11, contxt2;
+  Int nprow0, npcol0, myrow0, mycol0, info0;
+  Int nprow1, npcol1, myrow1, mycol1, info1;
+  Int nprow11, npcol11, myrow11, mycol11, info11;
+  Int nprow2, npcol2, myrow2, mycol2, info2;
+
+  Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
+  Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
+  Int ncolsNgNe2D, nrowsNgNe2D, lldNgNe2D; 
+  Int ncolsNgNu1D, nrowsNgNu1D, lldNgNu1D; 
+  Int ncolsNgNu2D, nrowsNgNu2D, lldNgNu2D; 
+  Int ncolsNuNg2D, nrowsNuNg2D, lldNuNg2D; 
+  Int ncolsNeNe0D, nrowsNeNe0D, lldNeNe0D; 
+  Int ncolsNeNe2D, nrowsNeNe2D, lldNeNe2D; 
+  Int ncolsNuNu1D, nrowsNuNu1D, lldNuNu1D; 
+  Int ncolsNuNu2D, nrowsNuNu2D, lldNuNu2D; 
+  Int ncolsNeNu1D, nrowsNeNu1D, lldNeNu1D; 
+  Int ncolsNeNu2D, nrowsNeNu2D, lldNeNu2D; 
+  Int ncolsNuNe2D, nrowsNuNe2D, lldNuNe2D; 
+
+  Int desc_NgNe1DCol[9];
+  Int desc_NgNe1DRow[9];
+  Int desc_NgNe2D[9];
+  Int desc_NgNu1D[9];
+  Int desc_NgNu2D[9];
+  Int desc_NuNg2D[9];
+  Int desc_NeNe0D[9];
+  Int desc_NeNe2D[9];
+  Int desc_NuNu1D[9];
+  Int desc_NuNu2D[9];
+  Int desc_NeNu1D[9];
+  Int desc_NeNu2D[9];
+  Int desc_NuNe2D[9];
+
+  Int Ng = ntot;
+  Int Ne = numStateTotal_; 
+  Int Nu = numMu_; 
+
+  // 0D MPI
+  nprow0 = 1;
+  npcol0 = mpisize;
+
+  Cblacs_get(0, 0, &contxt0);
+  Cblacs_gridinit(&contxt0, "C", nprow0, npcol0);
+  Cblacs_gridinfo(contxt0, &nprow0, &npcol0, &myrow0, &mycol0);
+
+  SCALAPACK(descinit)(desc_NeNe0D, &Ne, &Ne, &Ne, &Ne, &I_ZERO, &I_ZERO, &contxt0, &Ne, &info0);
+
+  // 1D MPI
+  nprow1 = 1;
+  npcol1 = mpisize;
+
+  Cblacs_get(0, 0, &contxt1);
+  Cblacs_gridinit(&contxt1, "C", nprow1, npcol1);
+  Cblacs_gridinfo(contxt1, &nprow1, &npcol1, &myrow1, &mycol1);
+
+  //desc_NgNe1DCol
+  if(contxt1 >= 0){
+    nrowsNgNe1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1, &I_ZERO, &nprow1);
+    ncolsNgNe1DCol = SCALAPACK(numroc)(&Ne, &I_ONE, &mycol1, &I_ZERO, &npcol1);
+    lldNgNe1DCol = std::max( nrowsNgNe1DCol, 1 );
+  }    
+
+  SCALAPACK(descinit)(desc_NgNe1DCol, &Ng, &Ne, &Ng, &I_ONE, &I_ZERO, 
+      &I_ZERO, &contxt1, &lldNgNe1DCol, &info1);
+
+  nprow11 = mpisize;
+  npcol11 = 1;
+
+  Cblacs_get(0, 0, &contxt11);
+  Cblacs_gridinit(&contxt11, "C", nprow11, npcol11);
+  Cblacs_gridinfo(contxt11, &nprow11, &npcol11, &myrow11, &mycol11);
+ 
+  Int BlockSizeScaLAPACKTemp = BlockSizeScaLAPACK; 
+  //desc_NgNe1DRow
+  if(contxt11 >= 0){
+    nrowsNgNe1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACKTemp, &myrow11, &I_ZERO, &nprow11);
+    ncolsNgNe1DRow = SCALAPACK(numroc)(&Ne, &Ne, &mycol11, &I_ZERO, &npcol11);
+    lldNgNe1DRow = std::max( nrowsNgNe1DRow, 1 );
+  }    
+
+  SCALAPACK(descinit)(desc_NgNe1DRow, &Ng, &Ne, &BlockSizeScaLAPACKTemp, &Ne, &I_ZERO, 
+      &I_ZERO, &contxt11, &lldNgNe1DRow, &info11);
+
+  //desc_NeNu1D
+  if(contxt11 >= 0){
+    nrowsNeNu1D = SCALAPACK(numroc)(&Ne, &I_ONE, &myrow11, &I_ZERO, &nprow11);
+    ncolsNeNu1D = SCALAPACK(numroc)(&Nu, &Nu, &mycol11, &I_ZERO, &npcol11);
+    lldNeNu1D = std::max( nrowsNeNu1D, 1 );
+  }    
+
+  SCALAPACK(descinit)(desc_NeNu1D, &Ne, &Nu, &I_ONE, &Nu, &I_ZERO, 
+      &I_ZERO, &contxt11, &lldNeNu1D, &info11);
+
+  //desc_NgNu1D
+  if(contxt1 >= 0){
+    nrowsNgNu1D = SCALAPACK(numroc)(&Ng, &Ng, &myrow1, &I_ZERO, &nprow1);
+    ncolsNgNu1D = SCALAPACK(numroc)(&Nu, &I_ONE, &mycol1, &I_ZERO, &npcol1);
+    lldNgNu1D = std::max( nrowsNgNu1D, 1 );
+  }    
+
+  SCALAPACK(descinit)(desc_NgNu1D, &Ng, &Nu, &Ng, &I_ONE, &I_ZERO, 
+      &I_ZERO, &contxt1, &lldNgNu1D, &info1);
+
+  //desc_NuNu1D
+  if(contxt1 >= 0){
+    nrowsNuNu1D = SCALAPACK(numroc)(&Nu, &Nu, &myrow1, &I_ZERO, &nprow1);
+    ncolsNuNu1D = SCALAPACK(numroc)(&Nu, &I_ONE, &mycol1, &I_ZERO, &npcol1);
+    lldNuNu1D = std::max( nrowsNuNu1D, 1 );
+  }    
+
+  SCALAPACK(descinit)(desc_NuNu1D, &Nu, &Nu, &Nu, &I_ONE, &I_ZERO, 
+      &I_ZERO, &contxt1, &lldNuNu1D, &info1);
+
+
+  // 2D MPI
+  for( Int i = IRound(sqrt(double(mpisize))); i <= mpisize; i++){
+    nprow2 = i; npcol2 = mpisize / nprow2;
+    if( (nprow2 >= npcol2) && (nprow2 * npcol2 == mpisize) ) break;
+  }
+
+  Cblacs_get(0, 0, &contxt2);
+  //Cblacs_gridinit(&contxt2, "C", nprow2, npcol2);
+
+  IntNumVec pmap2(mpisize);
+  for ( Int i = 0; i < mpisize; i++ ){
+    pmap2[i] = i;
+  }
+  Cblacs_gridmap(&contxt2, &pmap2[0], nprow2, nprow2, npcol2);
+
+  Int mb2 = BlockSizeScaLAPACK;
+  Int nb2 = BlockSizeScaLAPACK;
+
+  //desc_NgNe2D
+  if(contxt2 >= 0){
+    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
+    nrowsNgNe2D = SCALAPACK(numroc)(&Ng, &mb2, &myrow2, &I_ZERO, &nprow2);
+    ncolsNgNe2D = SCALAPACK(numroc)(&Ne, &nb2, &mycol2, &I_ZERO, &npcol2);
+    lldNgNe2D = std::max( nrowsNgNe2D, 1 );
+  }
+
+  SCALAPACK(descinit)(desc_NgNe2D, &Ng, &Ne, &mb2, &nb2, &I_ZERO, 
+      &I_ZERO, &contxt2, &lldNgNe2D, &info2);
+
+  //desc_NgNu2D
+  if(contxt2 >= 0){
+    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
+    nrowsNgNu2D = SCALAPACK(numroc)(&Ng, &mb2, &myrow2, &I_ZERO, &nprow2);
+    ncolsNgNu2D = SCALAPACK(numroc)(&Nu, &nb2, &mycol2, &I_ZERO, &npcol2);
+    lldNgNu2D = std::max( nrowsNgNu2D, 1 );
+  }
+
+  SCALAPACK(descinit)(desc_NgNu2D, &Ng, &Nu, &mb2, &nb2, &I_ZERO, 
+      &I_ZERO, &contxt2, &lldNgNu2D, &info2);
+  
+  //desc_NuNg2D
+  if(contxt2 >= 0){
+    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
+    nrowsNuNg2D = SCALAPACK(numroc)(&Nu, &mb2, &myrow2, &I_ZERO, &nprow2);
+    ncolsNuNg2D = SCALAPACK(numroc)(&Ng, &nb2, &mycol2, &I_ZERO, &npcol2);
+    lldNuNg2D = std::max( nrowsNuNg2D, 1 );
+  }
+
+  SCALAPACK(descinit)(desc_NuNg2D, &Nu, &Ng, &mb2, &nb2, &I_ZERO, 
+      &I_ZERO, &contxt2, &lldNuNg2D, &info2);
+
+  //desc_NeNe2D
+  if(contxt2 >= 0){
+    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
+    nrowsNeNe2D = SCALAPACK(numroc)(&Ne, &mb2, &myrow2, &I_ZERO, &nprow2);
+    ncolsNeNe2D = SCALAPACK(numroc)(&Ne, &nb2, &mycol2, &I_ZERO, &npcol2);
+    lldNeNe2D = std::max( nrowsNeNe2D, 1 );
+  }
+
+  SCALAPACK(descinit)(desc_NeNe2D, &Ne, &Ne, &mb2, &nb2, &I_ZERO, 
+      &I_ZERO, &contxt2, &lldNeNe2D, &info2);
+
+  //desc_NuNu2D
+  if(contxt2 >= 0){
+    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
+    nrowsNuNu2D = SCALAPACK(numroc)(&Nu, &mb2, &myrow2, &I_ZERO, &nprow2);
+    ncolsNuNu2D = SCALAPACK(numroc)(&Nu, &nb2, &mycol2, &I_ZERO, &npcol2);
+    lldNuNu2D = std::max( nrowsNuNu2D, 1 );
+  }
+
+  SCALAPACK(descinit)(desc_NuNu2D, &Nu, &Nu, &mb2, &nb2, &I_ZERO, 
+      &I_ZERO, &contxt2, &lldNuNu2D, &info2);
+
+  //desc_NeNu2D
+  if(contxt2 >= 0){
+    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
+    nrowsNeNu2D = SCALAPACK(numroc)(&Ne, &mb2, &myrow2, &I_ZERO, &nprow2);
+    ncolsNeNu2D = SCALAPACK(numroc)(&Nu, &nb2, &mycol2, &I_ZERO, &npcol2);
+    lldNeNu2D = std::max( nrowsNeNu2D, 1 );
+  }
+
+  SCALAPACK(descinit)(desc_NeNu2D, &Ne, &Nu, &mb2, &nb2, &I_ZERO, 
+      &I_ZERO, &contxt2, &lldNeNu2D, &info2);
+
+  //desc_NuNe2D
+  if(contxt2 >= 0){
+    Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
+    nrowsNuNe2D = SCALAPACK(numroc)(&Nu, &mb2, &myrow2, &I_ZERO, &nprow2);
+    ncolsNuNe2D = SCALAPACK(numroc)(&Ne, &nb2, &mycol2, &I_ZERO, &npcol2);
+    lldNuNe2D = std::max( nrowsNuNe2D, 1 );
+  }
+
+  SCALAPACK(descinit)(desc_NuNe2D, &Nu, &Ne, &mb2, &nb2, &I_ZERO, 
+      &I_ZERO, &contxt2, &lldNuNe2D, &info2);
+
+  DblNumMat phiCol( ntot, numStateLocal );
+  SetValue( phiCol, 0.0 );
+
+  DblNumMat psiCol( ntot, numStateLocal );
+  SetValue( psiCol, 0.0 );
+
+  lapack::Lacpy( 'A', ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
+  lapack::Lacpy( 'A', ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
+
+  // Computing the indices is optional
+
+
+  Int ntotLocal = nrowsNgNe1DRow; 
+  Int ntotLocalMG = nrowsNgNe1DRow;
+  Int ntotMG = ntot;
+    
+  //if( (ntot % mpisize) == 0 ){
+  //  ntotLocalMG = ntotBlocksize;
+  //}
+  //else{
+  //  ntotLocalMG = ntotBlocksize + 1;
+ // }
+
+  if( isFixColumnDF == false ){
+
+    GetTime( timeSta );
+
+    DblNumMat localphiGRow( ntotLocal, numPre );
+    SetValue( localphiGRow, 0.0 );
+
+    DblNumMat localpsiGRow( ntotLocal, numPre );
+    SetValue( localpsiGRow, 0.0 );
+
+    DblNumMat G(numStateTotal, numPre);
+    SetValue( G, 0.0 );
+
+    DblNumMat phiRow( ntotLocal, numStateTotal );
+    SetValue( phiRow, 0.0 );
+
+    DblNumMat psiRow( ntotLocal, numStateTotal );
+    SetValue( psiRow, 0.0 );
+
+    SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+        psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1 );
+
+    SCALAPACK(pdgemr2d)(&Ng, &Ne, phiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+        phiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1 );
+
+    // Step 1: Pre-compression of the wavefunctions. This uses
+    // multiplication with orthonormalized random Gaussian matrices
+    if ( mpirank == 0) {
+      GaussianRandom(G);
+      lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+    }
+
+    GetTime( timeSta1 );
+
+    MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
+
+    GetTime( timeEnd1 );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for Gaussian MPI_Bcast is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+    GetTime( timeSta1 );
+
+    blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
+        phiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
+        localphiGRow.Data(), ntotLocal );
+
+    blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
+        psiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
+        localpsiGRow.Data(), ntotLocal );
+
+    GetTime( timeEnd1 );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for localphiGRow and localpsiGRow Gemm is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+    // Step 2: Pivoted QR decomposition  for the Hadamard product of
+    // the compressed matrix. Transpose format for QRCP
+
+    // NOTE: All processors should have the same ntotLocalMG
+    //ntotMG = ntotLocalMG * mpisize;
+
+    DblNumMat MG( numPre*numPre, ntotLocalMG );
+    //SetValue( MG, 0.0 );
+
+    GetTime( timeSta1 );
+
+    for( Int j = 0; j < numPre; j++ ){
+      for( Int i = 0; i < numPre; i++ ){
+        for( Int ir = 0; ir < ntotLocal; ir++ ){
+          MG(i+j*numPre,ir) = localphiGRow(ir,i) * localpsiGRow(ir,j);
+        }
+      }
+    }
+
+    GetTime( timeEnd1 );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing MG from localphiGRow and localpsiGRow is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+    DblNumVec tau(ntotMG);
+    pivQR_.Resize(ntotMG);
+    SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
+    // Q factor does not need to be used
+
+    for( Int k = 0; k < ntotMG; k++ ){
+      tau[k] = 0.0;
+    }
+
+
+    Real timeQRCPSta, timeQRCPEnd;
+    GetTime( timeQRCPSta );
+
+    if(0){  
+      lapack::QRCP( numPre*numPre, ntotMG, MG.Data(), numPre*numPre, 
+          pivQR_.Data(), tau.Data() );
+    }//
+
+
+    if(0){ // ScaLAPACL QRCP
+      Int contxt;
+      Int nprow, npcol, myrow, mycol, info;
+      Cblacs_get(0, 0, &contxt);
+      nprow = 1;
+      npcol = mpisize;
+
+      Cblacs_gridinit(&contxt, "C", nprow, npcol);
+      Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
+      Int desc_MG[9];
+
+      Int irsrc = 0;
+      Int icsrc = 0;
+
+      Int mb_MG = numPre*numPre;
+      Int nb_MG = ntotLocalMG;
+
+      // FIXME The current routine does not actually allow ntotLocal to be different on different processors.
+      // This must be fixed.
+      SCALAPACK(descinit)(&desc_MG[0], &mb_MG, &ntotMG, &mb_MG, &nb_MG, &irsrc, 
+          &icsrc, &contxt, &mb_MG, &info);
+
+      IntNumVec pivQRTmp(ntotMG), pivQRLocal(ntotMG);
+      if( mb_MG > ntot ){
+        std::ostringstream msg;
+        msg << "numPre*numPre > ntot. The number of grid points is perhaps too small!" << std::endl;
+        ErrorHandling( msg.str().c_str() );
+      }
+      // DiagR is only for debugging purpose
+      //        DblNumVec diagRLocal( mb_MG );
+      //        DblNumVec diagR( mb_MG );
+
+      SetValue( pivQRTmp, 0 );
+      SetValue( pivQRLocal, 0 );
+      SetValue( pivQR_, 0 );
+
+
+      //        SetValue( diagRLocal, 0.0 );
+      //        SetValue( diagR, 0.0 );
+
+      if(0) {
+        scalapack::QRCPF( mb_MG, ntotMG, MG.Data(), &desc_MG[0], 
+            pivQRTmp.Data(), tau.Data() );
+      }
+
+      if(1) {
+        scalapack::QRCPR( mb_MG, ntotMG, numMu_, MG.Data(), &desc_MG[0], 
+            pivQRTmp.Data(), tau.Data(), 80, 40 );
+      }
+
+
+      // Combine the local pivQRTmp to global pivQR_
+      for( Int j = 0; j < ntotLocalMG; j++ ){
+        pivQRLocal[j + mpirank * ntotLocalMG] = pivQRTmp[j];
+      }
+
+      //        std::cout << "diag of MG = " << std::endl;
+      //        if(mpirank == 0){
+      //          std::cout << pivQRLocal << std::endl;
+      //          for( Int j = 0; j < mb_MG; j++ ){
+      //            std::cout << MG(j,j) << std::endl;
+      //          }
+      //        }
+      MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
+          ntotMG, MPI_INT, MPI_SUM, domain_.comm );
+
+
+      if(contxt >= 0) {
+        Cblacs_gridexit( contxt );
+      }
+
+    } //ScaLAPACL QRCP
+
+
+    if(1){ //ScaLAPACL QRCP 2D
+
+      Int contxt1D, contxt2D;
+      Int nprow1D, npcol1D, myrow1D, mycol1D, info1D;
+      Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
+
+      Int ncols1D, nrows1D, lld1D; 
+      Int ncols2D, nrows2D, lld2D; 
+
+      Int desc_MG1D[9];
+      Int desc_MG2D[9];
+
+      Int m_MG = numPre*numPre;
+      Int n_MG = ntotMG;
+
+      Int mb_MG1D = numPre*numPre;
+      Int nb_MG1D = BlockSizeScaLAPACK;
+
+      nprow1D = 1;
+      npcol1D = mpisize;
+
+      Cblacs_get(0, 0, &contxt1D);
+      Cblacs_gridinit(&contxt1D, "C", nprow1D, npcol1D);
+      Cblacs_gridinfo(contxt1D, &nprow1D, &npcol1D, &myrow1D, &mycol1D);
+
+      nrows1D = SCALAPACK(numroc)(&m_MG, &mb_MG1D, &myrow1D, &I_ZERO, &nprow1D);
+      ncols1D = SCALAPACK(numroc)(&n_MG, &nb_MG1D, &mycol1D, &I_ZERO, &npcol1D);
+
+      lld1D = std::max( nrows1D, 1 );
+
+      SCALAPACK(descinit)(desc_MG1D, &m_MG, &n_MG, &mb_MG1D, &nb_MG1D, &I_ZERO, 
+          &I_ZERO, &contxt1D, &lld1D, &info1D);
+
+      for( Int i = std::min(mpisize, IRound(sqrt(double(mpisize*(n_MG/m_MG))))); 
+          i <= mpisize; i++){
+        npcol2D = i; nprow2D = mpisize / npcol2D;
+        if( (npcol2D >= nprow2D) && (nprow2D * npcol2D == mpisize) ) break;
+      }
+
+      Cblacs_get(0, 0, &contxt2D);
+      //Cblacs_gridinit(&contxt2D, "C", nprow2D, npcol2D);
+
+      IntNumVec pmap(mpisize);
+      for ( Int i = 0; i < mpisize; i++ ){
+        pmap[i] = i;
+      }
+      Cblacs_gridmap(&contxt2D, &pmap[0], nprow2D, nprow2D, npcol2D);
+
+      Int m_MG2DBlocksize = BlockSizeScaLAPACK;
+      Int n_MG2DBlocksize = BlockSizeScaLAPACK;
+
+      //Int m_MG2Local = m_MG/(m_MG2DBlocksize*nprow2D)*m_MG2DBlocksize;
+      //Int n_MG2Local = n_MG/(n_MG2DBlocksize*npcol2D)*n_MG2DBlocksize;
+      Int m_MG2Local, n_MG2Local;
+
+      MPI_Comm rowComm = MPI_COMM_NULL;
+      MPI_Comm colComm = MPI_COMM_NULL;
+
+      Int mpirankRow, mpisizeRow, mpirankCol, mpisizeCol;
+
+      MPI_Comm_split( domain_.comm, mpirank / nprow2D, mpirank, &rowComm );
+      MPI_Comm_split( domain_.comm, mpirank % nprow2D, mpirank, &colComm );
+
+      MPI_Comm_rank(rowComm, &mpirankRow);
+      MPI_Comm_size(rowComm, &mpisizeRow);
+
+      MPI_Comm_rank(colComm, &mpirankCol);
+      MPI_Comm_size(colComm, &mpisizeCol);
+
+      if(0){
+
+        if((m_MG % (m_MG2DBlocksize * nprow2D))!= 0){ 
+          if(mpirankRow < ((m_MG % (m_MG2DBlocksize*nprow2D)) / m_MG2DBlocksize)){
+            m_MG2Local = m_MG2Local + m_MG2DBlocksize;
+          }
+          if(((m_MG % (m_MG2DBlocksize*nprow2D)) % m_MG2DBlocksize) != 0){
+            if(mpirankRow == ((m_MG % (m_MG2DBlocksize*nprow2D)) / m_MG2DBlocksize)){
+              m_MG2Local = m_MG2Local + ((m_MG % (m_MG2DBlocksize*nprow2D)) % m_MG2DBlocksize);
+            }
+          }
+        }
+
+        if((n_MG % (n_MG2DBlocksize * npcol2D))!= 0){ 
+          if(mpirankCol < ((n_MG % (n_MG2DBlocksize*npcol2D)) / n_MG2DBlocksize)){
+            n_MG2Local = n_MG2Local + n_MG2DBlocksize;
+          }
+          if(((n_MG % (n_MG2DBlocksize*nprow2D)) % n_MG2DBlocksize) != 0){
+            if(mpirankCol == ((n_MG % (n_MG2DBlocksize*npcol2D)) / n_MG2DBlocksize)){
+              n_MG2Local = n_MG2Local + ((n_MG % (n_MG2DBlocksize*nprow2D)) % n_MG2DBlocksize);
+            }
+          }
+        }
+
+      } // if(0)
+
+
+      if(contxt2D >= 0){
+        Cblacs_gridinfo(contxt2D, &nprow2D, &npcol2D, &myrow2D, &mycol2D);
+        nrows2D = SCALAPACK(numroc)(&m_MG, &m_MG2DBlocksize, &myrow2D, &I_ZERO, &nprow2D);
+        ncols2D = SCALAPACK(numroc)(&n_MG, &n_MG2DBlocksize, &mycol2D, &I_ZERO, &npcol2D);
+        lld2D = std::max( nrows2D, 1 );
+      }
+
+      SCALAPACK(descinit)(desc_MG2D, &m_MG, &n_MG, &m_MG2DBlocksize, &n_MG2DBlocksize, &I_ZERO, 
+          &I_ZERO, &contxt2D, &lld2D, &info2D);
+      
+      m_MG2Local = nrows2D;
+      n_MG2Local = ncols2D;
+
+      IntNumVec pivQRTmp(ntotMG), pivQRLocal(ntotMG);
+      if( m_MG > ntot ){
+        std::ostringstream msg;
+        msg << "numPre*numPre > ntot. The number of grid points is perhaps too small!" << std::endl;
+        ErrorHandling( msg.str().c_str() );
+      }
+      // DiagR is only for debugging purpose
+      //        DblNumVec diagRLocal( mb_MG );
+      //        DblNumVec diagR( mb_MG );
+
+      SetValue( pivQRTmp, 0 );
+      SetValue( pivQRLocal, 0 );
+      SetValue( pivQR_, 0 );
+
+      DblNumMat&  MG1D = MG;
+      DblNumMat  MG2D (m_MG2Local, n_MG2Local);
+
+      SCALAPACK(pdgemr2d)(&m_MG, &n_MG, MG1D.Data(), &I_ONE, &I_ONE, desc_MG1D, 
+          MG2D.Data(), &I_ONE, &I_ONE, desc_MG2D, &contxt1D );
+
+      if(contxt2D >= 0){
+
+        Real timeQRCP1, timeQRCP2;
+        GetTime( timeQRCP1 );
+
+        scalapack::QRCPF( m_MG, n_MG, MG2D.Data(), desc_MG2D, pivQRTmp.Data(), tau.Data() );
+
+        //scalapack::QRCPR( m_MG, n_MG, numMu_, MG2D.Data(), desc_MG2D, pivQRTmp.Data(), tau.Data(), BlockSizeScaLAPACK, 32);
+
+        GetTime( timeQRCP2 );
+
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for QRCP is " << timeQRCP2 - timeQRCP1 << " [s]" << std::endl;
+#endif
+
+      }
+
+      // Redistribute back eigenvectors
+      SetValue(MG1D, 0.0 );
+
+      SCALAPACK(pdgemr2d)( &m_MG, &n_MG, MG2D.Data(), &I_ONE, &I_ONE, desc_MG2D,
+          MG1D.Data(), &I_ONE, &I_ONE, desc_MG1D, &contxt1D );
+
+      // Combine the local pivQRTmp to global pivQR_
+      for( Int j = 0; j < n_MG2Local; j++ ){
+        pivQRLocal[ (j / n_MG2DBlocksize) * n_MG2DBlocksize * npcol2D + mpirankCol * n_MG2DBlocksize + j % n_MG2DBlocksize] = pivQRTmp[j];
+      }
+
+      MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
+          ntotMG, MPI_INT, MPI_SUM, colComm );
+
+      if(contxt2D >= 0) {
+        Cblacs_gridexit( contxt2D );
+      }
+
+      if(contxt1D >= 0) {
+        Cblacs_gridexit( contxt1D );
+      }
+
+    } // if(1) ScaLAPACL QRCP
+
+    GetTime( timeQRCPEnd );
+
+    //statusOFS << std::endl<< "All processors exit with abort in spinor.cpp." << std::endl;
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for QRCP alone is " <<
+      timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
+#endif
+
+    if(0){
+      Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
+      statusOFS << "numMu_ = " << numMu_ << std::endl;
+      statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
+    }
+
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for density fitting with QRCP is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    // Dump out pivQR_
+    if(0){
+      std::ostringstream muStream;
+      serialize( pivQR_, muStream, NO_MASK );
+      SharedWrite( "pivQR", muStream );
+    }
+  }
+
+  // Load pivQR_ file
+  if(0){
+    statusOFS << "Loading pivQR file.." << std::endl;
+    std::istringstream muStream;
+    SharedRead( "pivQR", muStream );
+    deserialize( pivQR_, muStream, NO_MASK );
+  }
+
+  // *********************************************************************
+  // Compute the interpolation matrix via the density matrix formulation
+  // *********************************************************************
+
+  GetTime( timeSta );
+
+  // PhiMu is scaled by the occupation number to reflect the "true" density matrix
+  //IntNumVec pivMu(numMu_);
+  IntNumVec pivMu1(numMu_);
+
+  for( Int mu = 0; mu < numMu_; mu++ ){
+    pivMu1(mu) = pivQR_(mu);
+  }
+
+
+  //if(ntot % mpisize != 0){
+  //  for( Int mu = 0; mu < numMu_; mu++ ){
+  //    Int k1 = (pivMu1(mu) / ntotLocalMG) - (ntot % mpisize);
+  //    if(k1 > 0){
+  //      pivMu1(mu) = pivQR_(mu) - k1;
+  //    }
+  //  }
+  //}
+
+  GetTime( timeSta1 );
+
+  DblNumMat psiMuCol(numStateLocal, numMu_);
+  DblNumMat phiMuCol(numStateLocal, numMu_);
+  SetValue( psiMuCol, 0.0 );
+  SetValue( phiMuCol, 0.0 );
+
+  for (Int k=0; k<numStateLocal; k++) {
+    for (Int mu=0; mu<numMu_; mu++) {
+      psiMuCol(k, mu) = psiCol(pivMu1(mu),k);
+      phiMuCol(k, mu) = phiCol(pivMu1(mu),k) * occupationRate[(k * mpisize + mpirank)];
+    }
+  }
+
+  DblNumMat psiMu2D(nrowsNeNu2D, ncolsNeNu2D);
+  DblNumMat phiMu2D(nrowsNeNu2D, ncolsNeNu2D);
+  SetValue( psiMu2D, 0.0 );
+  SetValue( phiMu2D, 0.0 );
+
+  SCALAPACK(pdgemr2d)(&Ne, &Nu, psiMuCol.Data(), &I_ONE, &I_ONE, desc_NeNu1D, 
+      psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, &contxt11 );
+
+  SCALAPACK(pdgemr2d)(&Ne, &Nu, phiMuCol.Data(), &I_ONE, &I_ONE, desc_NeNu1D, 
+      phiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, &contxt11 );
+
+  GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for computing psiMuRow and phiMuRow is " <<
+    timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+  GetTime( timeSta1 );
+
+  DblNumMat psi2D(nrowsNgNe2D, ncolsNgNe2D);
+  DblNumMat phi2D(nrowsNgNe2D, ncolsNgNe2D);
+  SetValue( psi2D, 0.0 );
+  SetValue( phi2D, 0.0 );
+
+  SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+      psi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, &contxt1 );
+  SCALAPACK(pdgemr2d)(&Ng, &Ne, phiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+      phi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, &contxt1 );
+
+  DblNumMat PpsiMu2D(nrowsNgNu2D, ncolsNgNu2D);
+  DblNumMat PphiMu2D(nrowsNgNu2D, ncolsNgNu2D);
+  SetValue( PpsiMu2D, 0.0 );
+  SetValue( PphiMu2D, 0.0 );
+
+  SCALAPACK(pdgemm)("N", "N", &Ng, &Nu, &Ne, 
+      &D_ONE,
+      psi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D,
+      psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
+      &D_ZERO,
+      PpsiMu2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+
+  SCALAPACK(pdgemm)("N", "N", &Ng, &Nu, &Ne, 
+      &D_ONE,
+      phi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D,
+      phiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
+      &D_ZERO,
+      PphiMu2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+
+  GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for PpsiMu and PphiMu GEMM is " <<
+    timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+  GetTime( timeSta1 );
+
+  DblNumMat Xi2D(nrowsNgNu2D, ncolsNgNu2D);
+  SetValue( Xi2D, 0.0 );
+
+  Real* Xi2DPtr = Xi2D.Data();
+  Real* PpsiMu2DPtr = PpsiMu2D.Data();
+  Real* PphiMu2DPtr = PphiMu2D.Data();
+
+  for( Int g = 0; g < nrowsNgNu2D * ncolsNgNu2D; g++ ){
+    Xi2DPtr[g] = PpsiMu2DPtr[g] * PphiMu2DPtr[g];
+  }
+
+  DblNumMat Xi1D(nrowsNgNu1D, ncolsNuNu1D);
+  SetValue( Xi1D, 0.0 );
+
+  SCALAPACK(pdgemr2d)(&Ng, &Nu, Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D, 
+      Xi1D.Data(), &I_ONE, &I_ONE, desc_NgNu1D, &contxt2 );
+
+  DblNumMat PMuNu1D(nrowsNuNu1D, ncolsNuNu1D);
+  SetValue( PMuNu1D, 0.0 );
+
+  for (Int mu=0; mu<nrowsNuNu1D; mu++) {
+    for (Int nu=0; nu<ncolsNuNu1D; nu++) {
+      PMuNu1D(mu, nu) = Xi1D(pivMu1(mu),nu);
+    }
+  }
+
+  DblNumMat PMuNu2D(nrowsNuNu2D, ncolsNuNu2D);
+  SetValue( PMuNu2D, 0.0 );
+
+  SCALAPACK(pdgemr2d)(&Nu, &Nu, PMuNu1D.Data(), &I_ONE, &I_ONE, desc_NuNu1D, 
+      PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &contxt1 );
+
+  GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for computing PMuNu is " <<
+    timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+
+  //Method 1
+  if(0){
+
+    GetTime( timeSta1 );
+
+    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for PMuNu Potrf is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+    GetTime( timeSta1 );
+
+    SCALAPACK(pdtrsm)("R", "L", "T", "N", &Ng, &Nu, &D_ONE,
+        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+
+    SCALAPACK(pdtrsm)("R", "L", "N", "N", &Ng, &Nu, &D_ONE,
+        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for PMuNu and Xi pdtrsm is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+  }
+
+
+  //Method 2
+  if(1){
+
+    GetTime( timeSta1 );
+
+    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+    SCALAPACK(pdpotri)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for PMuNu Potrf is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+    GetTime( timeSta1 );
+
+    DblNumMat PMuNu2DTemp(nrowsNuNu2D, ncolsNuNu2D);
+    SetValue( PMuNu2DTemp, 0.0 );
+
+    lapack::Lacpy( 'A', nrowsNuNu2D, ncolsNuNu2D, PMuNu2D.Data(), nrowsNuNu2D, PMuNu2DTemp.Data(), nrowsNuNu2D );
+
+    SCALAPACK(pdtradd)("U", "T", &Nu, &Nu, 
+        &D_ONE,
+        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
+        &D_ZERO,
+        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
+
+    DblNumMat Xi2DTemp(nrowsNgNu2D, ncolsNgNu2D);
+    SetValue( Xi2DTemp, 0.0 );
+
+    SCALAPACK(pdgemm)("N", "N", &Ng, &Nu, &Nu, 
+        &D_ONE,
+        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
+        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D, 
+        &D_ZERO,
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+
+    SetValue( Xi2D, 0.0 );
+    lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for PMuNu and Xi pdgemm is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+  }
+
+
+  //Method 3
+  if(0){
+
+    GetTime( timeSta1 );
+
+    SCALAPACK(pdpotrf)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+    SCALAPACK(pdpotri)("L", &Nu, PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D, &info2);
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for PMuNu Potrf is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+    GetTime( timeSta1 );
+
+    DblNumMat Xi2DTemp(nrowsNgNu2D, ncolsNgNu2D);
+    SetValue( Xi2DTemp, 0.0 );
+
+    SCALAPACK(pdsymm)("R", "L", &Ng, &Nu, 
+        &D_ONE,
+        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
+        &D_ZERO,
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+
+    SetValue( Xi2D, 0.0 );
+    lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for PMuNu and Xi pdsymm is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+  }
+
+
+  //Method 4
+  if(0){
+
+    GetTime( timeSta1 );
+
+    DblNumMat Xi2DTemp(nrowsNuNg2D, ncolsNuNg2D);
+    SetValue( Xi2DTemp, 0.0 );
+
+    DblNumMat PMuNu2DTemp(ncolsNuNu2D, nrowsNuNu2D);
+    SetValue( PMuNu2DTemp, 0.0 );
+
+    SCALAPACK(pdgeadd)("T", &Nu, &Ng,
+        &D_ONE,
+        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
+        &D_ZERO,
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D);
+
+    SCALAPACK(pdgeadd)("T", &Nu, &Nu,
+        &D_ONE,
+        PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        &D_ZERO,
+        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
+
+    Int lwork=-1, info;
+    double dummyWork;
+
+    SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
+        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
+        &dummyWork, &lwork, &info);
+
+    lwork = dummyWork;
+    std::vector<double> work(lwork);
+
+    SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
+        PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
+        &work[0], &lwork, &info);
+
+    SetValue( Xi2D, 0.0 );
+    SCALAPACK(pdgeadd)("T", &Ng, &Nu,
+        &D_ONE,
+        Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
+        &D_ZERO,
+        Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
+
+    GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for PMuNu and Xi pdgels is " <<
+      timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+  }
+
+
+  GetTime( timeEnd );
+
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for computing the interpolation vectors is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+
+  // *********************************************************************
+  // Solve the Poisson equations.
+  // Store VXi separately. This is not the most memory efficient
+  // implementation
+  // *********************************************************************
+
+  DblNumMat VXi2D(nrowsNgNu2D, ncolsNgNu2D);
+
+  {
+    GetTime( timeSta );
+    // XiCol used for both input and output
+    DblNumMat XiCol(ntot, numMuLocal);
+    SetValue(XiCol, 0.0 );
+
+    SCALAPACK(pdgemr2d)(&Ng, &Nu, Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D, 
+        XiCol.Data(), &I_ONE, &I_ONE, desc_NgNu1D, &contxt2 );
+
+    GetTime( timeSta );
+    for( Int mu = 0; mu < numMuLocal; mu++ ){
+      blas::Copy( ntot,  XiCol.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
+
+      FFTWExecute ( fft, fft.forwardPlanR2C );
+
+      for( Int ig = 0; ig < ntotR2C; ig++ ){
+        fft.outputVecR2C(ig) *= -exxFraction * exxgkkR2C(ig);
+      }
+
+      FFTWExecute ( fft, fft.backwardPlanR2C );
+
+      blas::Copy( ntot, fft.inputVecR2C.Data(), 1, XiCol.VecData(mu), 1 );
+
+    } // for (mu)
+
+    SetValue(VXi2D, 0.0 );
+    SCALAPACK(pdgemr2d)(&Ng, &Nu, XiCol.Data(), &I_ONE, &I_ONE, desc_NgNu1D, 
+        VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D, &contxt1 );
+
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for solving Poisson-like equations is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+  }
+
+  // Prepare for the computation of the M matrix
+  GetTime( timeSta );
+
+  DblNumMat MMatMuNu2D(nrowsNuNu2D, ncolsNuNu2D);
+  SetValue(MMatMuNu2D, 0.0 );
+
+  SCALAPACK(pdgemm)("T", "N", &Nu, &Nu, &Ng, 
+      &D_MinusONE,
+      Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
+      VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D, 
+      &D_ZERO,
+      MMatMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
+
+  DblNumMat phiMuNu2D(nrowsNuNu2D, ncolsNuNu2D);
+  SCALAPACK(pdgemm)("T", "N", &Nu, &Nu, &Ne, 
+      &D_ONE,
+      phiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D,
+      phiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
+      &D_ZERO,
+      phiMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D);
+
+  Real* MMat2DPtr = MMatMuNu2D.Data();
+  Real* phi2DPtr  = phiMuNu2D.Data();
+
+  for( Int g = 0; g < nrowsNuNu2D * ncolsNuNu2D; g++ ){
+    MMat2DPtr[g] *= phi2DPtr[g];
+  }
+
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for preparing the M matrix is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+  // *********************************************************************
+  // Compute the exchange potential and the symmetrized inner product
+  // *********************************************************************
+
+  GetTime( timeSta );
+
+  // Rewrite VXi by VXi.*PcolPhi
+  Real* VXi2DPtr = VXi2D.Data();
+  Real* PphiMu2DPtr1 = PphiMu2D.Data();
+  for( Int g = 0; g < nrowsNgNu2D * ncolsNgNu2D; g++ ){
+    VXi2DPtr[g] *= PphiMu2DPtr1[g];
+  }
+
+  // NOTE: a3 must be zero in order to compute the M matrix later
+  DblNumMat a32D( nrowsNgNe2D, ncolsNgNe2D );
+  SetValue( a32D, 0.0 );
+
+  SCALAPACK(pdgemm)("N", "T", &Ng, &Ne, &Nu, 
+      &D_ONE,
+      VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
+      psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
+      &D_ZERO,
+      a32D.Data(), &I_ONE, &I_ONE, desc_NgNe2D);
+
+  DblNumMat a3Col( ntot, numStateLocal );
+  SetValue(a3Col, 0.0 );
+
+  SCALAPACK(pdgemr2d)(&Ng, &Ne, a32D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
+      a3Col.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt2 );
+
+  lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );
+
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for computing the exchange potential is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+  // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
+  // vexxPsi (a3) must be zero before entering this routine
+  VxMat.Resize( numStateTotal, numStateTotal );
+
+  GetTime( timeSta );
+
+  if(1){
+
+    DblNumMat VxMat2D( nrowsNeNe2D, ncolsNeNe2D );
+    DblNumMat VxMatTemp2D( nrowsNuNe2D, ncolsNuNe2D );
+
+    SCALAPACK(pdgemm)("N", "T", &Nu, &Ne, &Nu, 
+        &D_ONE,
+        MMatMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
+        psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
+        &D_ZERO,
+        VxMatTemp2D.Data(), &I_ONE, &I_ONE, desc_NuNe2D);
+
+    SCALAPACK(pdgemm)("N", "N", &Ne, &Ne, &Nu, 
+        &D_ONE,
+        psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
+        VxMatTemp2D.Data(), &I_ONE, &I_ONE, desc_NuNe2D, 
+        &D_ZERO,
+        VxMat2D.Data(), &I_ONE, &I_ONE, desc_NeNe2D);
+
+    SCALAPACK(pdgemr2d)(&Ne, &Ne, VxMat2D.Data(), &I_ONE, &I_ONE, desc_NeNe2D, 
+        VxMat.Data(), &I_ONE, &I_ONE, desc_NeNe0D, &contxt2 );
+
+    //if(mpirank == 0){
+    //  MPI_Bcast( VxMat.Data(), Ne * Ne, MPI_DOUBLE, 0, domain_.comm );
+    //}
+
+  }
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Time for computing VxMat in the sym format is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+  if(contxt0 >= 0) {
+    Cblacs_gridexit( contxt0 );
+  }
+
+  if(contxt1 >= 0) {
+    Cblacs_gridexit( contxt1 );
+  }
+
+  if(contxt11 >= 0) {
+    Cblacs_gridexit( contxt11 );
+  }
+
+  if(contxt2 >= 0) {
+    Cblacs_gridexit( contxt2 );
+  }
+
+  MPI_Barrier(domain_.comm);
+
+  return ;
+}        // -----  end of method Spinor::AddMultSpinorEXXDF5  ----- 
+
+
 }  // namespace dgdft

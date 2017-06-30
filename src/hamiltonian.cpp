@@ -2781,7 +2781,7 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
   SetValue( M, 0.0 );
   // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
   // semi-definite matrix.
-  psi.AddMultSpinorEXXDF4( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
+  psi.AddMultSpinorEXXDF5( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
       occupationRate_, numMuHybridDF_, numGaussianRandomHybridDF_,
       numProcScaLAPACKHybridDF_, BlockSizeScaLAPACK_,
       vexxPsi, M, isFixColumnDF );
