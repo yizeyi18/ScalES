@@ -92,9 +92,10 @@ KohnSham::Setup    (
   atomList_            = atomList;
   numExtraState_       = esdfParam.numExtraState;
   XCType_              = esdfParam.XCType;
-  numMuHybridDF_                   = esdfParam.numMuHybridDF;
-  numGaussianRandomHybridDF_       = esdfParam.numGaussianRandomHybridDF;
-  numProcScaLAPACKHybridDF_        = esdfParam.numProcScaLAPACKHybridDF;
+  hybridDFNumMu_                   = esdfParam.hybridDFNumMu;
+  hybridDFNumGaussianRandom_       = esdfParam.hybridDFNumGaussianRandom;
+  hybridDFNumProcScaLAPACK_        = esdfParam.hybridDFNumProcScaLAPACK;
+  hybridDFTolerance_               = esdfParam.hybridDFTolerance;
   BlockSizeScaLAPACK_      = esdfParam.BlockSizeScaLAPACK;
   exxDivergenceType_   = esdfParam.exxDivergenceType;
 
@@ -2781,9 +2782,9 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
   SetValue( M, 0.0 );
   // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
   // semi-definite matrix.
-  psi.AddMultSpinorEXXDF5( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
-      occupationRate_, numMuHybridDF_, numGaussianRandomHybridDF_,
-      numProcScaLAPACKHybridDF_, BlockSizeScaLAPACK_,
+  psi.AddMultSpinorEXXDF6( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
+      occupationRate_, hybridDFNumMu_, hybridDFNumGaussianRandom_,
+      hybridDFNumProcScaLAPACK_, hybridDFTolerance_, BlockSizeScaLAPACK_,
       vexxPsi, M, isFixColumnDF );
 
   // Implementation based on Cholesky

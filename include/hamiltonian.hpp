@@ -129,10 +129,11 @@ protected:
   /// @brief Mixing parameter for hybrid functional calculation. Currently hard coded
   const Real                  exxFraction_ = 0.25;
 
-  Real                        numMuHybridDF_;
-  Real                        numGaussianRandomHybridDF_;
-  Int                         numProcScaLAPACKHybridDF_;
+  Real                        hybridDFNumMu_;
+  Real                        hybridDFNumGaussianRandom_;
+  Int                         hybridDFNumProcScaLAPACK_;
   Int                         BlockSizeScaLAPACK_;
+  Real                        hybridDFTolerance_;
 
   Int                         exxDivergenceType_;
 

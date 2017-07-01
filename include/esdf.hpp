@@ -274,18 +274,23 @@ struct ESDFInputParam{
   /// states for hybrid calculations with density fitting.
   ///
   /// Default: 6.0
-  Real                numMuHybridDF;
+  Real                hybridDFNumMu;
   
   /// @brief Density fitting uses numGaussianRandom * numMu * numStateTotal number of
   /// states for GaussianRandom.
   ///
   /// Default: 6.0
-  Real                numGaussianRandomHybridDF;
+  Real                hybridDFNumGaussianRandom;
   
   /// @brief Density fitting uses this number of cores in ScaLAPACAL
   ///
   /// Default: mpisize
-  Int                 numProcScaLAPACKHybridDF;
+  Int                 hybridDFNumProcScaLAPACK;
+  
+  /// @brief Density fitting uses the tolerance to remove the matrix element
+  ///
+  /// Default: 1e-20
+  Real                hybridDFTolerance;
   
   /// @brief The blocksize of cores in ScaLAPACAL
   ///
