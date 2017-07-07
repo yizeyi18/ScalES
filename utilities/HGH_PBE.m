@@ -15,7 +15,7 @@
 % Znucs = [1 3 6 8 9 15];
 % Znucs = [1 3];
 % Znucs = [14];
-Znucs = [1 8 14 47];
+Znucs = [1 6 7 8 9 14 15 17 35];
 % Znucs = [8 13 22 38 57];
 % Znucs = [8 70];
 % Znucs = [1 8 22];
@@ -94,7 +94,7 @@ for g=1:length(Znucs)
 	% C
 	if(Znuc==6)
 		Zion = 4;
-		mass = 12.011;
+		mass = 12.0107;
 		rloc = .338471240;
 		C1 = -8.803673976;
 		C2 = 1.339210855;
@@ -104,6 +104,22 @@ for g=1:length(Znucs)
 		rhocut = 3.0;
 		wavcut = 3.0;
 	end
+
+
+	% N
+	if(Znuc==7)
+		Zion = 5;
+		mass = 14.0067;
+		rloc = 0.28379051;
+		C1 = -12.41522559;
+		C2 = 1.86809592;
+		r0 = .25540500;
+		h011 = 13.63026257;
+		r1 = .24549453;
+		rhocut = 3.0;
+		wavcut = 3.0;
+	end
+
 
 	% O
 	if(Znuc==8)
@@ -116,8 +132,8 @@ for g=1:length(Znucs)
 		h011    = 18.337458110;
 		r1      = .211332471;
 		%
-		rhocut  = 2.0;
-		wavcut  = 2.0;
+		rhocut  = 3.0;
+		wavcut  = 3.0;
 	end 
 
 	% F
@@ -131,8 +147,8 @@ for g=1:length(Znucs)
 		h011    = 23.743540450;
 		r1      = .186156084;
 
-		rhocut = 2.0;
-		wavcut = 2.0;
+		rhocut = 3.0;
+		wavcut = 3.0;
 	end 
 
 	%Si
@@ -155,7 +171,7 @@ for g=1:length(Znucs)
 	if(Znuc==15) 
 		Zion = 5;
 		mass = 30.973762;
-		rloc = 0.430000; 
+		rloc = .430000; 
 		C1 = -5.875943266;
 		r0 = .396377422;
 		h011 = 11.008862070;
@@ -165,6 +181,23 @@ for g=1:length(Znucs)
 		rhocut = 3.5;
 		wavcut = 3.5;
 	end
+
+
+	% Cl
+	if(Znuc==17) 
+		Zion = 7;
+		mass = 35.453;
+		rloc = 0.41000000; 
+		C1 = -6.39208181;
+		r0 = .396377422;
+		h011 = 15.21898983;
+		h022 = -4.93452321;
+		r1 = .37847416;
+		h111 = 4.33877527;
+		rhocut = 3.5;
+		wavcut = 3.5;
+	end
+
 
 	% Ti (WITH semicore)
 	if(Znuc==22) 
@@ -187,6 +220,29 @@ for g=1:length(Znucs)
 		rhocut = 3.5;
 		wavcut = 3.5;
 	end
+
+
+	% Br
+	if(Znuc==35) 
+		Zion    = 7;
+		mass    = 79.904;
+		rloc    = 0.50000000; 
+		r0      = 0.43803892;
+		h011    = 6.07855632;
+		h022    = 0.33049817;
+		h033    = -1.23838226;
+		r1      = 0.45313561;
+		h111    = 2.45930381;
+		h122    = 0.52275313;
+		k111    = 0.17300601;
+		k122    = -0.09956873;
+		r2      = 0.56771383;
+		h211    = 0.55926645;
+		k211    = 0.00654644;
+		rhocut  = 4.5;
+		wavcut  = 3.5;
+	end
+
 
 	% Ag (WITH d semicore)
 	if(Znuc==47)
