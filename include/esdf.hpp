@@ -833,6 +833,11 @@ struct ESDFInputParam{
   Real                geoOptMaxForce;
   
   Real                geoOpt_NLCG_sigma; // Line search step length parameter in NLCG for Geo Opt : Default = 0.5
+  
+  // These variables are related to the FIRE optimizer
+  Int FIRE_Nmin; // Set to 10 by default
+  Real FIRE_dt; // Set to 40.0 a.u. (= 1 femtosecond) by default
+  Real FIRE_atomic_mass; // Set to 4.0 by default
 
   /// @brief Time step for MD simulation.
   ///

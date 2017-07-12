@@ -190,6 +190,26 @@ public:
 
 };
 
+// A class for handling internal state of the FIRE optimizer
+ // *** JIT
+class FIRE_Opt_internal_vars_type
+{
+  private:
+    
+  public:
+    
+  // These variables get assigned through input options  
+  int FIRE_Nmin; // Set to 10 by default, through esdf
+  double FIRE_dt; // Set to 40.0 a.u. (= 1 femtosecond) by default, through esdf
+  double FIRE_atomic_mass; // Set to 4.0 by default, through esdf
+    
+  // These variables are internal to the working of the fire routines
+  int some_other_fire_opt_var_; // Change / add as required, underscore significes internal "work" variable
+  
+  // Put in methods as required
+  // There should be aparameter setup routine, for instance
+};
+
 
 struct GeoOptVars
 {
@@ -267,7 +287,7 @@ private:
   Int                  phase_; // NH1 has two phases
   // Langevin variables
   Real                 langevinDamping_;
-
+  
   bool                 isGeoOpt_;
   bool                 isMD_;
 
@@ -289,7 +309,12 @@ private:
   NLCG_internal_vars_type NLCG_vars;
   void NLCG_Opt(Int ionIter );
 
-  //  void FireOpt( Int ionIter );
+  /// @brief Fast Inertial Relaxation Engine
+   // *** JIT
+  FIRE_Opt_internal_vars_type FIRE_Opt_vars;
+  void FIRE_Verlet_Stepper(Int ionIter);
+  void FIRE_Opt(Int ionIter);
+  
 
   /// @brief VelocityVerlet for NVE simulation
   ///

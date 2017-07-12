@@ -98,7 +98,8 @@ namespace dgdft{
     if( ionMove_ == "bb" ||
         ionMove_ == "pgbb" ||
         ionMove_ == "nlcg" ||
-        ionMove_ == "lbfgs" ){
+        ionMove_ == "lbfgs" ||
+        ionMove_ == "fire"){
       isGeoOpt_ = true;
     }
 
@@ -187,6 +188,21 @@ namespace dgdft{
 		  << " , sigma_0 = " << sigma_0 << std::endl;                  
       }
 
+      // *** JIT
+      if( ionMove_ == "fire" )
+      {
+	statusOFS << std::endl << " Setting up FIRE based relaxation ...";
+
+	// Setup parameters here
+	int FIRE_Nmin = esdfParam.FIRE_Nmin;
+	double FIRE_dt = esdfParam.FIRE_dt;
+	double FIRE_atomic_mass = esdfParam.FIRE_atomic_mass;
+	
+	// Call the setup function for the FIRE internal variables class here
+	
+	statusOFS << std::endl << " FIRE based optimization parameters :"; // Output values here
+      }
+      
     // Molecular dynamics
     Ekinetic_ = 0.0;
     Epot_    = 0.0;
@@ -366,6 +382,10 @@ namespace dgdft{
 
     if( ionMove_ == "nlcg"){
       NLCG_Opt( ionIter );      
+    }
+    
+    if( ionMove_ == "fire"){
+      FIRE_Opt( ionIter ); 
     }
 
     // *********************************************************************
@@ -881,6 +901,21 @@ namespace dgdft{
     return;
   }   // -----  end of method IonDynamics::NLCG_Opt  -----  
 
+  
+  // Routines related to the Fast Inertial Relaxation Engine Optimizer
+  void 
+  IonDynamics::FIRE_Verlet_Stepper(Int ionIter)
+  {
+  }
+  
+  void 
+  IonDynamics::FIRE_Opt(Int ionIter)
+  {
+  }
+  
+  
+  
+  
   void
   IonDynamics::VelocityVerlet    ( Int ionIter )
   {

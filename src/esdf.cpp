@@ -824,6 +824,20 @@ void esdf_key() {
 
   
   i++;
+  strcpy(kw_label[i],"fire_nmin");
+  strcpy(kw_typ[i],"I:E");
+  
+  i++;
+  strcpy(kw_label[i],"fire_time_step");
+  strcpy(kw_typ[i],"D:E");
+
+  
+  i++;
+  strcpy(kw_label[i],"fire_atomic_mass");
+  strcpy(kw_typ[i],"D:E");
+
+
+  i++;
   strcpy(kw_label[i],"md_max_step");
   strcpy(kw_typ[i],"I:E");
 
@@ -2651,9 +2665,16 @@ ESDFReadInput ( const char* filename )
 
     // Geometry optimization
     esdfParam.geoOptMaxForce = esdf_double( "Geo_Opt_Max_Force", 0.001 );
+    
+    // NLCG related parameters
     esdfParam.geoOpt_NLCG_sigma = esdf_double( "Geo_Opt_NLCG_Sigma", 0.02 );
     
-    // Molecualr dynamics
+    // FIRE related parameters
+    esdfParam.FIRE_Nmin = esdf_integer( "FIRE_Nmin", 10 );
+    esdfParam.FIRE_dt = esdf_double("FIRE_Time_Step", 40.0);
+    esdfParam.FIRE_atomic_mass = esdf_double("FIRE_Atomic_Mass", 4.0);
+    
+    // Molecular dynamics
     Real ionTemperature;
     ionTemperature            = esdf_double( "Ion_Temperature", 300.0 );
     esdfParam.ionTemperature  = ionTemperature;
