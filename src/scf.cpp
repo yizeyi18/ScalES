@@ -2129,7 +2129,10 @@ SCF::CalculateVDW    ( Real& VDWEnergy, DblNumMat& VDWForce )
     bool need_gradient,newshell;
     const Real vdw_d = 20.0;
     const Real vdw_tol_default = 1e-10;
-    const Real vdw_s_pbe = 0.75;
+    const Real vdw_s_pbe = 0.75, vdw_s_BLYP = 1.2, vdw_s_B3LYP = 1.05;
+    const Real vdw_s_hse = 0.75;
+    //Thin Solid Films 535 (2013) 387-389
+
     Real c6,c6r6,ex,fr,fred1,fred2,fred3,gr,grad,r0,r1,r2,r3,rcart1,rcart2,rcart3;
     //real(dp) :: rcut,rcut2,rsq,rr,sfact,ucvol,vdw_s
     //character(len=500) :: msg
@@ -2178,8 +2181,11 @@ SCF::CalculateVDW    ( Real& VDWEnergy, DblNumMat& VDWForce )
     if (XCType_ == "XC_GGA_XC_PBE") {
       vdw_s = vdw_s_pbe;
     }
+    else if (XCType_ == "XC_HYB_GGA_XC_HSE06") {
+      vdw_s = vdw_s_hse;
+    }
     else {
-      ErrorHandling( "Van der Waals DFT-D2 correction in only compatible with GGA-PBE!" );
+      ErrorHandling( "Van der Waals DFT-D2 correction in only compatible with GGA-PBE and HSE06!" );
     }
 
     // Calculate the number of atom types.
