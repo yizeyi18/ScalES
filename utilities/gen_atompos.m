@@ -20,7 +20,7 @@ C = diag(asize);
 
 xyzmat = coefs*C';
 %
-% repeat the cell nrep times along the z direction
+% repeat the cell nrep times along the xyz directions
 %
 for krep = 1 : nrepz
   for jrep = 1 : nrepy
@@ -139,4 +139,18 @@ if(1)
 end
 
 
-
+if(1)
+    angmat = xyzmat * au2ang;
+    fname = sprintf('atompos_%s.xyz',atype);
+    fid = fopen(fname, 'w');
+    sz = length(angmat);
+    fprintf(fid,'%d\n',sz);
+    for ii=1:sz
+    
+        fprintf(fid, '\n%s\t%1.8f\t%1.8f\t%1.8f', atype, angmat(ii,1), ...
+            angmat(ii,2), angmat(ii, 3));
+        
+    end
+    
+    fclose(fid);
+end
