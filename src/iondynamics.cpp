@@ -200,6 +200,7 @@ namespace dgdft{
 	
 	// Call the setup function for the FIRE internal variables class here
 	
+	
 	statusOFS << std::endl << " FIRE based optimization parameters :"; // Output values here
       }
       

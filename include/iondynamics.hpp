@@ -71,8 +71,6 @@ class NLCG_internal_vars_type
 {
 private:
 
-
-
 public:
 
   // User defined variables : read from esdf or use defaults
@@ -129,7 +127,6 @@ public:
     atomforce_d_.resize(numAtom);
 
 
-
     i_ = 0;
     j_ = 0;
     k_ = 0;
@@ -179,10 +176,6 @@ public:
       }
     }
 
-
-
-
-
     return ans;    
 
   }
@@ -192,22 +185,133 @@ public:
 
 // A class for handling internal state of the FIRE optimizer
  // *** JIT
-class FIRE_Opt_internal_vars_type
+class FIRE_internal_vars_type
 {
   private:
     
   public:
     
   // These variables get assigned through input options  
-  int FIRE_Nmin; // Set to 10 by default, through esdf
-  double FIRE_dt; // Set to 40.0 a.u. (= 1 femtosecond) by default, through esdf
-  double FIRE_atomic_mass; // Set to 4.0 by default, through esdf
+  int nMin_; 			// Set to 10 by default, through esdf
+  double dt_; 			// Set to 40.0 a.u. (= 1 femtosecond) by default, through esdf
+  double atomicMass_; 		// Set to 4.0 by default, through esdf
     
   // These variables are internal to the working of the fire routines
-  int some_other_fire_opt_var_; // Change / add as required, underscore significes internal "work" variable
+  double fInc_;
+  double fDec_;
+  double alphaStart_;
+  double fAlpha_;
+  double dtMax_;		 	// Set it to 10*FIRE_dt_
+  
+  // Et-cetera:
+  int numAtom;
+
+  int i_;
+  int j_;
+  int k_;
+
+  std::vector<Point3>  atompos_x_;
+
+
   
   // Put in methods as required
   // There should be aparameter setup routine, for instance
+  
+  // Initialization routine
+   void setup(int nMin, double dt, double atomicMass, double fInc, double fDec, 
+	      double alphaStart, double fAlpha, double dtMax, 
+ 	      std::vector<Atom>&   atomList)
+{
+  nMin_ = nMin;
+  dt = dt_;
+  atomicMass = atomicMass_;
+  fInc = fInc_;
+  fDec = fDec_;
+  alphaStart = alphaStart_;
+  fAlpha = fAlpha_;
+  dtMax = dtMax_;
+
+  // Prepare the position and force lists
+  numAtom = atomList.size();
+  atompos_x_.resize(numAtom);
+  atomforce_r_.resize(numAtom);
+
+  // Set r = -f'(x) : Note that  atomList[a].force = - grad E already - so no extra negative required
+  for( Int a = 0; a < numAtom; a++ )
+    atomforce_r_[a] = atomList[a].force;
+
+  // Also copy the atom positions
+  for( Int a = 0; a < numAtom; a++ )
+    atompos_x_[a] = atomList[a].pos;
+
+  return;
+
+}
+  // Purpose: Compute L2-norm  of a vector
+  // Usage: To compute \hat{F} = F / norm( F ) 
+  double atom_l2norm(std::vector<Point3>&  list)
+  { 
+
+    double accum = 0.0;
+
+    for( Int a = 0; a < numAtom; a++ )
+    { 
+      for( Int d = 0; d < DIM; d++ )
+      {
+        accum += list_[a][d] * list[a][d];
+      }
+    }
+    
+    double l2norm = sqrt(accum);
+
+    return l2norm;
+
+  }
+
+  // Purpose: Compute dot product of two vectors
+  // Usage: To compute Power (P) = F . v  
+  double atom_ddot(std::vector<Point3>&  list_1, std::vector <Point3>&  list_2)
+  { 
+    
+    double ans = 0.0;
+    
+    for( Int a = 0; a < numAtom; a++ )
+    { 
+      for( Int d = 0; d < DIM; d++ )
+      { 
+        ans +=  (list_1[a][d] * list_2[a][d]);
+      }
+    }
+    
+    return ans;
+  
+  }
+
+  // Purpose: Scale a vector by multiplying its every element by a scalar
+  // Usage: Perform (1 - alpha) * v and alpha * \hat{F}
+  std:vector<Point3>& atom_scale(std:vector<Point3>& list, double& alpha)
+  {
+    for( Int a = 0; a < numAtom; a++ )
+    {
+      for( int d = 0; d < DIM; d++ )
+	{
+	  list[a][d] *= alpha;
+	}
+    }
+    
+    return list;
+  }
+
+
+
+
+
+
+  
+
+
+
+
 };
 
 
@@ -310,10 +414,12 @@ private:
   void NLCG_Opt(Int ionIter );
 
   /// @brief Fast Inertial Relaxation Engine
-   // *** JIT
-  FIRE_Opt_internal_vars_type FIRE_Opt_vars;
-  void FIRE_Verlet_Stepper(Int ionIter);
-  void FIRE_Opt(Int ionIter);
+   // Subhajit Banerjee
+   // July 2017
+  FIRE_internal_vars_type FIRE_Opt_vars;
+  void FIRE_VelocityVerlet(Int ionIter);
+  void FIREOpt(Int ionIter);
+  void FIRE_Stepper(Int ioniter);
   
 
   /// @brief VelocityVerlet for NVE simulation
