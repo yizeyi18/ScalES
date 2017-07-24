@@ -108,6 +108,11 @@ namespace dgdft{
         ionMove_ == "langevin" ){
       isMD_ = true;
     }
+    
+    // Grab the supercell info
+    supercell_x_ = esdfParam.domain.length[0];
+    supercell_y_ = esdfParam.domain.length[1];
+    supercell_z_ = esdfParam.domain.length[2];
 
     //if( isGeoOpt_ == false && isMD_ == false ){
     //  ErrorHandling("Neither geometry optimization nor MD is invoked.");
@@ -369,6 +374,36 @@ namespace dgdft{
     // *********************************************************************
     // Geometry optimization methods
     // *********************************************************************
+    
+    // Make sure no atom is outside supercell : assume rectangular cell
+    // Should be done both for geo opt and MD actually
+    if ((ionIter == 1) && (isGeoOpt_ == 1)) 
+    {
+      for (int ii = 0; ii < numAtom; ii ++)
+      {
+	// X coordinate adjustment
+        while ( atomList[ii].pos[0] > supercell_x_ )
+	  atomList[ii].pos[0] -= supercell_x_ ;
+	
+	while ( atomList[ii].pos[0] < 0.0 )
+	  atomList[ii].pos[0] += supercell_x_ ;
+	
+	// Y coordinate adjustment	
+	while ( atomList[ii].pos[1] > supercell_y_ )
+	  atomList[ii].pos[1] -= supercell_y_ ;
+	
+	while ( atomList[ii].pos[1] < 0.0 )
+	  atomList[ii].pos[1] += supercell_y_ ;
+	
+	// Z coordinate adjustment
+	while ( atomList[ii].pos[2] > supercell_z_ )
+	  atomList[ii].pos[2] -= supercell_z_ ;
+	
+	while ( atomList[ii].pos[2] < 0.0 )
+	  atomList[ii].pos[2] += supercell_z_ ;		
+      }
+    }
+      
     if( ionMove_ == "bb" ){
       BarzilaiBorweinOpt( ionIter );
     }
@@ -404,8 +439,36 @@ namespace dgdft{
       Langevin( ionIter );
     }
 
-
-
+    
+    // Make sure no atom is outside supercell after ionic moves
+    // Should be done both for geo opt and MD actually
+    if ((isGeoOpt_ == 1)) 
+    {
+      for (int ii = 0; ii < numAtom; ii ++)
+      {
+	// X coordinate adjustment
+        while ( atomList[ii].pos[0] > supercell_x_ )
+	  atomList[ii].pos[0] -= supercell_x_ ;
+	
+	while ( atomList[ii].pos[0] < 0.0 )
+	  atomList[ii].pos[0] += supercell_x_ ;
+	
+	// Y coordinate adjustment	
+	while ( atomList[ii].pos[1] > supercell_y_ )
+	  atomList[ii].pos[1] -= supercell_y_ ;
+	
+	while ( atomList[ii].pos[1] < 0.0 )
+	  atomList[ii].pos[1] += supercell_y_ ;
+	
+	// Z coordinate adjustment
+	while ( atomList[ii].pos[2] > supercell_z_ )
+	  atomList[ii].pos[2] -= supercell_z_ ;
+	
+	while ( atomList[ii].pos[2] < 0.0 )
+	  atomList[ii].pos[2] += supercell_z_ ;		
+      }
+    }    
+    
     // Output the new coordinates
     {
       Print(statusOFS, ""); 

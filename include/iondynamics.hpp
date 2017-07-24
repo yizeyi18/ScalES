@@ -373,6 +373,11 @@ private:
   bool                 isOutputXYZ_;
   std::string          MDExtrapolationType_;
 
+  // Supercell parameters : grab this from esdf
+  Real supercell_x_;
+  Real supercell_y_;
+  Real supercell_z_;
+  
   // Molecular dynamics variables
   Real                 Ekinetic_; // kinetic energy for ions
   Real                 Epot_;  // potential energy for ions
