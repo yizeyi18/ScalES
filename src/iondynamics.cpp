@@ -420,9 +420,11 @@ namespace dgdft{
       NLCG_Opt( ionIter );      
     }
     
-    if( ionMove_ == "fire"){
+    /*
+ * if( ionMove_ == "fire"){
       FIRE_Opt( ionIter ); 
     }
+*/
 
     // *********************************************************************
     // Molecular dynamics methods
@@ -967,6 +969,7 @@ namespace dgdft{
 
   
   // Routines related to the Fast Inertial Relaxation Engine Optimizer
+  /*
   void 
   IonDynamics::FIRE_Verlet_Stepper(Int ionIter)
   {
@@ -976,7 +979,7 @@ namespace dgdft{
   IonDynamics::FIRE_Opt(Int ionIter)
   {
   }
-  
+  */
   
   
   

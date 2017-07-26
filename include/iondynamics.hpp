@@ -185,7 +185,7 @@ public:
 
 // A class for handling internal state of the FIRE optimizer
  // *** JIT
-class FIRE_internal_vars_type
+/* class FIRE_internal_vars_type
 {
   private:
     
@@ -313,6 +313,7 @@ class FIRE_internal_vars_type
 
 
 };
+*/
 
 
 struct GeoOptVars
@@ -421,11 +422,12 @@ private:
   /// @brief Fast Inertial Relaxation Engine
    // Subhajit Banerjee
    // July 2017
-  FIRE_internal_vars_type FIRE_Opt_vars;
-  void FIRE_VelocityVerlet(Int ionIter);
-  void FIREOpt(Int ionIter);
-  void FIRE_Stepper(Int ioniter);
-  
+  /*
+   FIRE_internal_vars_type FIRE_Opt_vars;
+   void FIRE_VelocityVerlet(Int ionIter);
+   void FIREOpt(Int ionIter);
+   void FIRE_Stepper(Int ioniter);
+  */
 
   /// @brief VelocityVerlet for NVE simulation
   ///
