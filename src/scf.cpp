@@ -482,7 +482,8 @@ SCF::Iterate (  )
     Efock_ = fock2;
     fock1  = fock2;
     
-
+    GetTime( timeSta );
+    
     if( esdfParam.hybridMixType == "nested" ){
 
       for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
@@ -641,7 +642,11 @@ SCF::Iterate (  )
       } // for(phiIter)
     } // hybridMixType == "nested"
 
-
+    GetTime( timeEnd );
+    statusOFS << "Time for using nested method is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    
+    GetTime( timeSta );
 
     // New method for the commutator-DIIS with column selection strategy
     if( esdfParam.hybridMixType == "scdiis" ){
@@ -959,7 +964,12 @@ SCF::Iterate (  )
         if ( isPhiIterConverged ) break;
       } // for(phiIter)
     } // hybridMixType == "scdiis"
-
+    
+    GetTime( timeEnd );
+    statusOFS << "Time for using scdiis method is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    
+    GetTime( timeSta );
 
     if( esdfParam.hybridMixType == "pcdiis" ){
 
@@ -1074,14 +1084,16 @@ SCF::Iterate (  )
       Int numOccLocal = ncolsNgNo1DCol;
       Int ntotLocal = nrowsNgNe1DRow;
 
-      DblNumMat psiPcCol(ntot, numStateLocal);
-      DblNumMat psiPcRow(ntotLocal, numStateTotal);
+      //DblNumMat psiPcCol(ntot, numStateLocal);
+      //DblNumMat psiPcRow(ntotLocal, numStateTotal);
       DblNumMat HpsiCol(ntot, numStateLocal);
       DblNumMat HpsiRow(ntotLocal, numStateTotal);
 
       dfMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
       dvMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
 
+      DblNumMat psiPcCol(ntot, numOccLocal);
+      DblNumMat psiPcRow(ntotLocal, numOccTotal);
       DblNumMat PcCol(ntot, numOccLocal);
       DblNumMat PcRow(ntotLocal, numOccTotal);
       DblNumMat ResCol(ntot, numOccLocal);
@@ -1254,10 +1266,12 @@ SCF::Iterate (  )
               DblNumMat XTX(iterused, iterused);
               DblNumMat XTXTemp(iterused, iterused);
               
+              Int lld_ntotnumOccLocal = std::max( ntot * numOccLocal, 1 );
+              
               SetValue( XTXTemp, 0.0 );
               blas::Gemm( 'T', 'N', iterused, iterused, ntot * numOccLocal, 1.0, 
-              dfMatTemp.Data(), ntot * numOccLocal, dfMatTemp.Data(), ntot * numOccLocal, 
-              0.0, XTXTemp.Data(), iterused );
+              dfMatTemp.Data(), lld_ntotnumOccLocal, dfMatTemp.Data(), 
+              lld_ntotnumOccLocal, 0.0, XTXTemp.Data(), iterused );
         
               SetValue( XTX, 0.0 );
               MPI_Allreduce( XTXTemp.Data(), XTX.Data(), 
@@ -1269,8 +1283,8 @@ SCF::Iterate (  )
               //    ntot * numOccLocal, gammas.Data(), 1, 0.0, gammasTemp1.Data(), 1 );
 
               blas::Gemm( 'T', 'N', iterused, I_ONE, ntot * numOccLocal, 1.0, 
-                  dfMatTemp.Data(), ntot * numOccLocal, gammas.Data(), ntot * numOccLocal, 
-                  0.0, gammasTemp1.Data(), iterused );
+                  dfMatTemp.Data(), lld_ntotnumOccLocal, gammas.Data(), 
+                  lld_ntotnumOccLocal, 0.0, gammasTemp1.Data(), iterused );
 
               DblNumVec gammasTemp2(iterused);
               SetValue( gammasTemp2, 0.0 );
@@ -1286,8 +1300,8 @@ SCF::Iterate (  )
               //    ntot * numOccLocal, gammasTemp2.Data(), 1, 1.0, vOpt.Data(), 1 );
               
               blas::Gemm( 'N', 'N', ntot * numOccLocal, I_ONE, iterused, -1.0, 
-                  dvMat_.Data(), ntot * numOccLocal, gammasTemp2.Data(), iterused, 
-                  1.0, vOpt.Data(), ntot * numOccLocal );
+                  dvMat_.Data(), lld_ntotnumOccLocal, gammasTemp2.Data(), iterused, 
+                  1.0, vOpt.Data(), lld_ntotnumOccLocal );
             
             }
 
@@ -1341,10 +1355,14 @@ SCF::Iterate (  )
         
         }//Anderson mixing
 
+        DblNumMat psiPcColTemp(ntot, numStateLocal);
+        SetValue( psiPcColTemp, 0.0 );
+
+        lapack::Lacpy( 'A', ntot, numOccLocal, psiPcCol.Data(), ntot, psiPcColTemp.Data(), ntot );
 
         // Construct the new Hamiltonian operator
         Spinor spnPsiPc(fft.domain, 1, numStateTotal,
-            numStateLocal, false, psiPcCol.Data());
+            numStateLocal, false, psiPcColTemp.Data());
 
         // Compute the electron density
         GetTime( timeSta );
@@ -1492,7 +1510,11 @@ SCF::Iterate (  )
       } // for(phiIter)
 
     } // hybridMixType == "pcdiis"
-
+    
+    GetTime( timeEnd );
+    statusOFS << "Time for using pcdiis method is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    
   } // isHybrid == true
 
   // Calculate the Force
