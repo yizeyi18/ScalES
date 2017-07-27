@@ -1509,8 +1509,24 @@ SCF::Iterate (  )
         if ( isPhiIterConverged ) break;
       } // for(phiIter)
 
+      if(contxt0D >= 0) {
+        Cblacs_gridexit( contxt0D );
+      }
+
+      if(contxt1DCol >= 0) {
+        Cblacs_gridexit( contxt1DCol );
+      }
+
+      if(contxt1DRow >= 0) {
+        Cblacs_gridexit( contxt1DRow );
+      }
+
+      if(contxt2D >= 0) {
+        Cblacs_gridexit( contxt2D );
+      }
+
     } // hybridMixType == "pcdiis"
-    
+
     GetTime( timeEnd );
     statusOFS << "Time for using pcdiis method is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
