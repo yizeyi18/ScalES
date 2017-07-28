@@ -994,7 +994,8 @@ SCF::Iterate (  )
 
       Real timeSta, timeEnd, timeSta1, timeEnd1;
       
-      Int contxt0D, contxt1DCol, contxt1DRow,  contxt2D;
+      //Int contxt0D, contxt2D;
+      Int contxt1DCol, contxt1DRow;
       Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
       Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
       Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
@@ -1510,20 +1511,12 @@ SCF::Iterate (  )
         if ( isPhiIterConverged ) break;
       } // for(phiIter)
 
-      if(contxt0D >= 0) {
-        Cblacs_gridexit( contxt0D );
-      }
-
       if(contxt1DCol >= 0) {
         Cblacs_gridexit( contxt1DCol );
       }
 
       if(contxt1DRow >= 0) {
         Cblacs_gridexit( contxt1DRow );
-      }
-
-      if(contxt2D >= 0) {
-        Cblacs_gridexit( contxt2D );
       }
 
     } // hybridMixType == "pcdiis"
