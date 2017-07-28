@@ -2167,7 +2167,7 @@ SCF::CalculateVDW    ( Real& VDWEnergy, DblNumMat& VDWForce )
     bool need_gradient,newshell;
     const Real vdw_d = 20.0;
     const Real vdw_tol_default = 1e-10;
-    const Real vdw_s_pbe = 0.75, vdw_s_BLYP = 1.2, vdw_s_B3LYP = 1.05;
+    const Real vdw_s_pbe = 0.75, vdw_s_blyp = 1.2, vdw_s_b3lyp = 1.05;
     const Real vdw_s_hse = 0.75;
     //Thin Solid Films 535 (2013) 387-389
 
