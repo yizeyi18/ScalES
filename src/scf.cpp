@@ -253,7 +253,8 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
   {
     isCalculateGradRho_ = false;
     if( XCType_ == "XC_GGA_XC_PBE" || 
-        XCType_ == "XC_HYB_GGA_XC_HSE06" ) {
+        XCType_ == "XC_HYB_GGA_XC_HSE06" ||
+        XCType_ == "XC_HYB_GGA_XC_PBEH" ) {
       isCalculateGradRho_ = true;
     }
   }
@@ -482,7 +483,8 @@ SCF::Iterate (  )
     Efock_ = fock2;
     fock1  = fock2;
     
-
+    GetTime( timeSta );
+    
     if( esdfParam.hybridMixType == "nested" ){
 
       for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
@@ -641,7 +643,11 @@ SCF::Iterate (  )
       } // for(phiIter)
     } // hybridMixType == "nested"
 
-
+    GetTime( timeEnd );
+    statusOFS << "Time for using nested method is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    
+    GetTime( timeSta );
 
     // New method for the commutator-DIIS with column selection strategy
     if( esdfParam.hybridMixType == "scdiis" ){
@@ -959,7 +965,12 @@ SCF::Iterate (  )
         if ( isPhiIterConverged ) break;
       } // for(phiIter)
     } // hybridMixType == "scdiis"
-
+    
+    GetTime( timeEnd );
+    statusOFS << "Time for using scdiis method is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    
+    GetTime( timeSta );
 
     if( esdfParam.hybridMixType == "pcdiis" ){
 
@@ -983,7 +994,8 @@ SCF::Iterate (  )
 
       Real timeSta, timeEnd, timeSta1, timeEnd1;
       
-      Int contxt0D, contxt1DCol, contxt1DRow,  contxt2D;
+      //Int contxt0D, contxt2D;
+      Int contxt1DCol, contxt1DRow;
       Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
       Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
       Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
@@ -1074,14 +1086,16 @@ SCF::Iterate (  )
       Int numOccLocal = ncolsNgNo1DCol;
       Int ntotLocal = nrowsNgNe1DRow;
 
-      DblNumMat psiPcCol(ntot, numStateLocal);
-      DblNumMat psiPcRow(ntotLocal, numStateTotal);
+      //DblNumMat psiPcCol(ntot, numStateLocal);
+      //DblNumMat psiPcRow(ntotLocal, numStateTotal);
       DblNumMat HpsiCol(ntot, numStateLocal);
       DblNumMat HpsiRow(ntotLocal, numStateTotal);
 
       dfMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
       dvMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
 
+      DblNumMat psiPcCol(ntot, numOccLocal);
+      DblNumMat psiPcRow(ntotLocal, numOccTotal);
       DblNumMat PcCol(ntot, numOccLocal);
       DblNumMat PcRow(ntotLocal, numOccTotal);
       DblNumMat ResCol(ntot, numOccLocal);
@@ -1254,10 +1268,12 @@ SCF::Iterate (  )
               DblNumMat XTX(iterused, iterused);
               DblNumMat XTXTemp(iterused, iterused);
               
+              Int lld_ntotnumOccLocal = std::max( ntot * numOccLocal, 1 );
+              
               SetValue( XTXTemp, 0.0 );
               blas::Gemm( 'T', 'N', iterused, iterused, ntot * numOccLocal, 1.0, 
-              dfMatTemp.Data(), ntot * numOccLocal, dfMatTemp.Data(), ntot * numOccLocal, 
-              0.0, XTXTemp.Data(), iterused );
+              dfMatTemp.Data(), lld_ntotnumOccLocal, dfMatTemp.Data(), 
+              lld_ntotnumOccLocal, 0.0, XTXTemp.Data(), iterused );
         
               SetValue( XTX, 0.0 );
               MPI_Allreduce( XTXTemp.Data(), XTX.Data(), 
@@ -1269,8 +1285,8 @@ SCF::Iterate (  )
               //    ntot * numOccLocal, gammas.Data(), 1, 0.0, gammasTemp1.Data(), 1 );
 
               blas::Gemm( 'T', 'N', iterused, I_ONE, ntot * numOccLocal, 1.0, 
-                  dfMatTemp.Data(), ntot * numOccLocal, gammas.Data(), ntot * numOccLocal, 
-                  0.0, gammasTemp1.Data(), iterused );
+                  dfMatTemp.Data(), lld_ntotnumOccLocal, gammas.Data(), 
+                  lld_ntotnumOccLocal, 0.0, gammasTemp1.Data(), iterused );
 
               DblNumVec gammasTemp2(iterused);
               SetValue( gammasTemp2, 0.0 );
@@ -1286,8 +1302,8 @@ SCF::Iterate (  )
               //    ntot * numOccLocal, gammasTemp2.Data(), 1, 1.0, vOpt.Data(), 1 );
               
               blas::Gemm( 'N', 'N', ntot * numOccLocal, I_ONE, iterused, -1.0, 
-                  dvMat_.Data(), ntot * numOccLocal, gammasTemp2.Data(), iterused, 
-                  1.0, vOpt.Data(), ntot * numOccLocal );
+                  dvMat_.Data(), lld_ntotnumOccLocal, gammasTemp2.Data(), iterused, 
+                  1.0, vOpt.Data(), lld_ntotnumOccLocal );
             
             }
 
@@ -1341,10 +1357,14 @@ SCF::Iterate (  )
         
         }//Anderson mixing
 
+        DblNumMat psiPcColTemp(ntot, numStateLocal);
+        SetValue( psiPcColTemp, 0.0 );
+
+        lapack::Lacpy( 'A', ntot, numOccLocal, psiPcCol.Data(), ntot, psiPcColTemp.Data(), ntot );
 
         // Construct the new Hamiltonian operator
         Spinor spnPsiPc(fft.domain, 1, numStateTotal,
-            numStateLocal, false, psiPcCol.Data());
+            numStateLocal, false, psiPcColTemp.Data());
 
         // Compute the electron density
         GetTime( timeSta );
@@ -1491,8 +1511,20 @@ SCF::Iterate (  )
         if ( isPhiIterConverged ) break;
       } // for(phiIter)
 
+      if(contxt1DCol >= 0) {
+        Cblacs_gridexit( contxt1DCol );
+      }
+
+      if(contxt1DRow >= 0) {
+        Cblacs_gridexit( contxt1DRow );
+      }
+
     } // hybridMixType == "pcdiis"
 
+    GetTime( timeEnd );
+    statusOFS << "Time for using pcdiis method is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    
   } // isHybrid == true
 
   // Calculate the Force
@@ -2129,9 +2161,10 @@ SCF::CalculateVDW    ( Real& VDWEnergy, DblNumMat& VDWForce )
     bool need_gradient,newshell;
     const Real vdw_d = 20.0;
     const Real vdw_tol_default = 1e-10;
-    const Real vdw_s_pbe = 0.75, vdw_s_BLYP = 1.2, vdw_s_B3LYP = 1.05;
-    const Real vdw_s_hse = 0.75;
+    const Real vdw_s_pbe = 0.75, vdw_s_blyp = 1.2, vdw_s_b3lyp = 1.05;
+    const Real vdw_s_hse = 0.75, vdw_s_pbe0 = 0.60;
     //Thin Solid Films 535 (2013) 387-389
+    //J. Chem. Theory Comput. 2011, 7, 88–96
 
     Real c6,c6r6,ex,fr,fred1,fred2,fred3,gr,grad,r0,r1,r2,r3,rcart1,rcart2,rcart3;
     //real(dp) :: rcut,rcut2,rsq,rr,sfact,ucvol,vdw_s
@@ -2184,8 +2217,11 @@ SCF::CalculateVDW    ( Real& VDWEnergy, DblNumMat& VDWForce )
     else if (XCType_ == "XC_HYB_GGA_XC_HSE06") {
       vdw_s = vdw_s_hse;
     }
+    else if (XCType_ == "XC_HYB_GGA_XC_PBEH") {
+      vdw_s = vdw_s_pbe0;
+    }
     else {
-      ErrorHandling( "Van der Waals DFT-D2 correction in only compatible with GGA-PBE and HSE06!" );
+      ErrorHandling( "Van der Waals DFT-D2 correction in only compatible with GGA-PBE, HSE06, and PBE0!" );
     }
 
     // Calculate the number of atom types.

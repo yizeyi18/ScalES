@@ -5170,6 +5170,9 @@ void Spinor::AddMultSpinorEXXDF5 ( Fourier& fft,
 
       MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
           ntotMG, MPI_INT, MPI_SUM, colComm );
+      
+      if( rowComm != MPI_COMM_NULL ) MPI_Comm_free( & rowComm );
+      if( colComm != MPI_COMM_NULL ) MPI_Comm_free( & colComm );
 
       if(contxt2D >= 0) {
         Cblacs_gridexit( contxt2D );
@@ -6509,6 +6512,9 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
       for( Int j = 0; j < ntotMG; j++ ){
         pivQR_(j) = MGIdx(pivQRTmp2(j));
       }
+
+      if( rowComm != MPI_COMM_NULL ) MPI_Comm_free( & rowComm );
+      if( colComm != MPI_COMM_NULL ) MPI_Comm_free( & colComm );
 
       if(contxt2D >= 0) {
         Cblacs_gridexit( contxt2D );

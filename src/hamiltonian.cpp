@@ -76,6 +76,9 @@ KohnSham::~KohnSham() {
     else if( XCId_ == XC_HYB_GGA_XC_HSE06 ){
       xc_func_end(&XCFuncType_);
     }
+    else if( XCId_ == XC_HYB_GGA_XC_PBEH ){
+      xc_func_end(&XCFuncType_);
+    }
     else
       ErrorHandling("Unrecognized exchange-correlation type");
   }
@@ -147,6 +150,7 @@ KohnSham::Setup    (
     if( XCType_ == "XC_LDA_XC_TETER93" )
     { 
       XCId_ = XC_LDA_XC_TETER93;
+      statusOFS << "XC_LDA_XC_TETER93  XCId = " << XCId_  << std::endl << std::endl;
       if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
         ErrorHandling( "XC functional initialization error." );
       } 
@@ -157,6 +161,7 @@ KohnSham::Setup    (
     {
       XId_ = XC_GGA_X_PBE;
       CId_ = XC_GGA_C_PBE;
+      statusOFS << "XC_GGA_XC_PBE  XId_ CId_ = " << XId_ << " " << CId_  << std::endl << std::endl;
       // Perdew, Burke & Ernzerhof correlation
       // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
       // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
@@ -170,6 +175,7 @@ KohnSham::Setup    (
     else if( XCType_ == "XC_HYB_GGA_XC_HSE06" )
     {
       XCId_ = XC_HYB_GGA_XC_HSE06;
+      statusOFS << "XC_HYB_GGA_XC_HSE06  XCId = " << XCId_  << std::endl << std::endl;
       if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
         ErrorHandling( "XC functional initialization error." );
       } 
@@ -181,6 +187,19 @@ KohnSham::Setup    (
       // A. V. Krukau, O. A. Vydrov, A. F. Izmaylov, and G. E. Scuseria, J. Chem. Phys. 125, 224106 (2006) (doi: 10.1063/1.2404663)
       //
       // This is the same as the "hse" functional in QE 5.1
+    }
+    else if( XCType_ == "XC_HYB_GGA_XC_PBEH" )
+    {
+      XCId_ = XC_HYB_GGA_XC_PBEH;
+      statusOFS << "XC_HYB_GGA_XC_PBEH  XCId = " << XCId_  << std::endl << std::endl;
+      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "XC functional initialization error." );
+      } 
+
+      isHybrid_ = true;
+
+      // C. Adamo and V. Barone, J. Chem. Phys. 110, 6158 (1999) (doi: 10.1063/1.478522)
+      // M. Ernzerhof and G. E. Scuseria, J. Chem. Phys. 110, 5029 (1999) (doi: 10.1063/1.478401)  
     }
     else {
       ErrorHandling("Unrecognized exchange-correlation type");
@@ -1277,8 +1296,177 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
     } // mpisize > 3
 
   } // XC_FAMILY Hybrid
-  else
-    ErrorHandling( "Unsupported XC family!" );
+  else if( XCId_ == XC_HYB_GGA_XC_PBEH ){
+    // FIXME Condensify with the previous
+
+    DblNumMat gradDensity;
+    gradDensity.Resize( ntotLocal, numDensityComponent_ );
+    SetValue( gradDensity, 0.0 );
+    DblNumMat& gradDensity0 = gradDensity_[0];
+    DblNumMat& gradDensity1 = gradDensity_[1];
+    DblNumMat& gradDensity2 = gradDensity_[2];
+
+    GetTime( timeSta );
+    for(Int i = 0; i < ntotLocal; i++){
+      Int ii = i + localSizeDispls(mpirank);
+      gradDensity(i, RHO) = gradDensity0(ii, RHO) * gradDensity0(ii, RHO)
+        + gradDensity1(ii, RHO) * gradDensity1(ii, RHO)
+        + gradDensity2(ii, RHO) * gradDensity2(ii, RHO);
+    }
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << " " << std::endl;
+    statusOFS << "Time for computing gradDensity in XC PBE0 is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    DblNumMat densityTemp;
+    densityTemp.Resize( ntotLocal, numDensityComponent_ );
+
+    for( Int i = 0; i < ntotLocal; i++ ){
+      densityTemp(i, RHO) = density_(i + localSizeDispls(mpirank), RHO);
+    }
+
+    DblNumVec vxc1Temp(ntotLocal);             
+    DblNumVec vxc2Temp(ntotLocal);             
+    DblNumVec epsxcTemp(ntotLocal); 
+
+    SetValue( vxc1Temp, 0.0 );
+    SetValue( vxc2Temp, 0.0 );
+    SetValue( epsxcTemp, 0.0 );
+
+    GetTime( timeSta );
+    xc_gga_exc_vxc( &XCFuncType_, ntotLocal, densityTemp.VecData(RHO), 
+        gradDensity.VecData(RHO), epsxcTemp.Data(), vxc1Temp.Data(), vxc2Temp.Data() );
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing xc_gga_exc_vxc in XC PBE0 is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    DblNumVec vxc1(ntot);             
+    DblNumVec vxc2(ntot);             
+
+    SetValue( vxc1, 0.0 );
+    SetValue( vxc2, 0.0 );
+    SetValue( epsxc_, 0.0 );
+
+    // Modify "bad points"
+    if(1){
+      for( Int i = 0; i < ntotLocal; i++ ){
+        if( densityTemp(i,RHO) < epsRho || gradDensity(i,RHO) < epsGRho ){
+          epsxcTemp(i) = 0.0;
+          vxc1Temp(i) = 0.0;
+          vxc2Temp(i) = 0.0;
+        }
+      }
+    }
+
+    GetTime( timeSta );
+
+    MPI_Allgatherv( epsxcTemp.Data(), ntotLocal, MPI_DOUBLE, epsxc_.Data(), 
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+    MPI_Allgatherv( vxc1Temp.Data(), ntotLocal, MPI_DOUBLE, vxc1.Data(), 
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+    MPI_Allgatherv( vxc2Temp.Data(), ntotLocal, MPI_DOUBLE, vxc2.Data(), 
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for MPI_Allgatherv in XC PBE0 is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    for( Int i = 0; i < ntot; i++ ){
+      vxc_( i, RHO ) = vxc1(i);
+    }
+
+    Int d;
+    if( mpisize < DIM ){ // mpisize < 3
+
+      for( d = 0; d < DIM; d++ ){
+        DblNumMat& gradDensityd = gradDensity_[d];
+        for(Int i = 0; i < ntot; i++){
+          fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
+        }
+
+        FFTWExecute ( fft, fft.forwardPlanFine );
+
+        CpxNumVec& ik = fft.ikFine[d];
+
+        for( Int i = 0; i < ntot; i++ ){
+          if( fft.gkkFine(i) == 0 ){
+            fft.outputComplexVecFine(i) = Z_ZERO;
+          }
+          else{
+            fft.outputComplexVecFine(i) *= ik(i);
+          }
+        }
+
+        FFTWExecute ( fft, fft.backwardPlanFine );
+
+        GetTime( timeSta );
+        for( Int i = 0; i < ntot; i++ ){
+          vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real();
+        }
+        GetTime( timeEnd );
+        timeOther = timeOther + ( timeEnd - timeSta );
+
+      } // for d
+    
+    } // mpisize < 3
+    else { // mpisize > 3
+      
+      std::vector<DblNumVec>      vxcTemp3d;
+      vxcTemp3d.resize( DIM );
+      for( Int d = 0; d < DIM; d++ ){
+        vxcTemp3d[d].Resize(ntot);
+        SetValue (vxcTemp3d[d], 0.0);
+      }
+
+      for( d = 0; d < DIM; d++ ){
+        DblNumMat& gradDensityd = gradDensity_[d];
+        DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+        if ( d == mpirank % dmCol ){ 
+          for(Int i = 0; i < ntot; i++){
+            fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
+          }
+
+          FFTWExecute ( fft, fft.forwardPlanFine );
+
+          CpxNumVec& ik = fft.ikFine[d];
+
+          for( Int i = 0; i < ntot; i++ ){
+            if( fft.gkkFine(i) == 0 ){
+              fft.outputComplexVecFine(i) = Z_ZERO;
+            }
+            else{
+              fft.outputComplexVecFine(i) *= ik(i);
+            }
+          }
+
+          FFTWExecute ( fft, fft.backwardPlanFine );
+
+          for( Int i = 0; i < ntot; i++ ){
+            vxcTemp3(i) = fft.inputComplexVecFine(i).real();
+          }
+
+        } // d == mpirank
+      } // for d
+
+      for( d = 0; d < DIM; d++ ){
+        DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, rowComm );
+        for( Int i = 0; i < ntot; i++ ){
+          vxc_( i, RHO ) -= vxcTemp3(i);
+        }
+      } // for d
+
+    } // mpisize > 3
+
+  } // XC_FAMILY Hybrid
+    else
+      ErrorHandling( "Unsupported XC family!" );
 
   if( rowComm != MPI_COMM_NULL ) MPI_Comm_free( & rowComm );
   if( colComm != MPI_COMM_NULL ) MPI_Comm_free( & colComm );
