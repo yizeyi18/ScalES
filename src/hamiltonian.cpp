@@ -140,7 +140,36 @@ KohnSham::Setup    (
   vxc_.Resize( ntotFine, numDensityComponent_ );
   SetValue( vxc_, 0.0 );
 
+  // MPI communication 
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  int dmCol = DIM;
+  int dmRow = mpisize / dmCol;
+  
+  rowComm_ = MPI_COMM_NULL;
+  colComm_ = MPI_COMM_NULL;
 
+  if(mpisize >= DIM){
+
+    IntNumVec mpiRowMap(mpisize);
+    IntNumVec mpiColMap(mpisize);
+
+    for( Int i = 0; i < mpisize; i++ ){
+      mpiRowMap(i) = i / dmCol;
+      mpiColMap(i) = i % dmCol;
+    } 
+
+    if( mpisize > dmRow * dmCol ){
+      for( Int k = dmRow * dmCol; k < mpisize; k++ ){
+        mpiRowMap(k) = dmRow - 1;
+      }
+    } 
+
+    MPI_Comm_split( domain_.comm, mpiRowMap(mpirank), mpirank, &rowComm_ );
+    //MPI_Comm_split( domain_.comm, mpiColMap(mpirank), mpirank, &colComm_ );
+
+  }
 
   // Initialize the XC functionals, only spin-unpolarized case
   // Obtain the exchange-correlation id
@@ -721,44 +750,12 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
 {
   Int ntotFine  = fft.domain.NumGridTotalFine();
   Real vol  = domain_.Volume();
-
+  
   MPI_Barrier(domain_.comm);
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
-
-  MPI_Comm rowComm = MPI_COMM_NULL;
-  MPI_Comm colComm = MPI_COMM_NULL;
-  
-  Int mpirankRow, mpisizeRow, mpirankCol, mpisizeCol;
-  Int dmCol = DIM;
-  Int dmRow = mpisize / dmCol;
-
-  if(mpisize >= DIM){
-
-    IntNumVec mpiRowMap(mpisize);
-    IntNumVec mpiColMap(mpisize);
-
-    for( Int i = 0; i < mpisize; i++ ){
-      mpiRowMap(i) = i / dmCol;
-      mpiColMap(i) = i % dmCol;
-    } 
-
-    if( mpisize > dmRow * dmCol ){
-      for( Int k = dmRow * dmCol; k < mpisize; k++ ){
-        mpiRowMap(k) = dmRow - 1;
-      }
-    } 
-
-    MPI_Comm_split( domain_.comm, mpiRowMap(mpirank), mpirank, &rowComm );
-    MPI_Comm_split( domain_.comm, mpiColMap(mpirank), mpirank, &colComm );
-
-    MPI_Comm_rank(rowComm, &mpirankRow);
-    MPI_Comm_size(rowComm, &mpisizeRow);
-
-    MPI_Comm_rank(colComm, &mpirankCol);
-    MPI_Comm_size(colComm, &mpisizeCol);
-
-  }
+  int dmCol = DIM;
+  int dmRow = mpisize / dmCol;
 
   for( Int i = 0; i < ntotFine; i++ ){
     fft.inputComplexVecFine(i) = Complex( density_(i,RHO), 0.0 ); 
@@ -845,15 +842,12 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
 
       for( d = 0; d < DIM; d++ ){
         DblNumMat& gradDensity = gradDensity_[d];
-        MPI_Bcast( gradDensity.Data(), ntotFine, MPI_DOUBLE, d, rowComm );
+        MPI_Bcast( gradDensity.Data(), ntotFine, MPI_DOUBLE, d, rowComm_ );
       } // for d
 
     } // mpisize > 3
 
   } //if(1)
-
-  if( rowComm != MPI_COMM_NULL ) MPI_Comm_free( & rowComm );
-  if( colComm != MPI_COMM_NULL ) MPI_Comm_free( & colComm );
 
   return ;
 }         // -----  end of method KohnSham::CalculateGradDensity  ----- 
@@ -868,41 +862,9 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
   MPI_Barrier(domain_.comm);
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  int dmCol = DIM;
+  int dmRow = mpisize / dmCol;
   
-  MPI_Comm rowComm = MPI_COMM_NULL;
-  MPI_Comm colComm = MPI_COMM_NULL;
-  
-  Int mpirankRow, mpisizeRow, mpirankCol, mpisizeCol;
-  Int dmCol = DIM;
-  Int dmRow = mpisize / dmCol;
-
-  if(mpisize >= DIM){
-
-    IntNumVec mpiRowMap(mpisize);
-    IntNumVec mpiColMap(mpisize);
-
-    for( Int i = 0; i < mpisize; i++ ){
-      mpiRowMap(i) = i / dmCol;
-      mpiColMap(i) = i % dmCol;
-    } 
-
-    if( mpisize > dmRow * dmCol ){
-      for( Int k = dmRow * dmCol; k < mpisize; k++ ){
-        mpiRowMap(k) = dmRow - 1;
-      }
-    } 
-
-    MPI_Comm_split( domain_.comm, mpiRowMap(mpirank), mpirank, &rowComm );
-    MPI_Comm_split( domain_.comm, mpiColMap(mpirank), mpirank, &colComm );
-
-    MPI_Comm_rank(rowComm, &mpirankRow);
-    MPI_Comm_size(rowComm, &mpisizeRow);
-
-    MPI_Comm_rank(colComm, &mpirankCol);
-    MPI_Comm_size(colComm, &mpisizeCol);
-
-  }
-
   Int ntotBlocksize = ntot / mpisize;
   Int ntotLocal = ntotBlocksize;
   if(mpirank < (ntot % mpisize)){
@@ -1116,7 +1078,7 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
 
       for( d = 0; d < DIM; d++ ){
         DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
-        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, rowComm );
+        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, rowComm_ );
         for( Int i = 0; i < ntot; i++ ){
           vxc_( i, RHO ) -= vxcTemp3(i);
         }
@@ -1287,7 +1249,7 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
 
       for( d = 0; d < DIM; d++ ){
         DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
-        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, rowComm );
+        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, rowComm_ );
         for( Int i = 0; i < ntot; i++ ){
           vxc_( i, RHO ) -= vxcTemp3(i);
         }
@@ -1456,7 +1418,7 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
 
       for( d = 0; d < DIM; d++ ){
         DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
-        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, rowComm );
+        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, rowComm_ );
         for( Int i = 0; i < ntot; i++ ){
           vxc_( i, RHO ) -= vxcTemp3(i);
         }
@@ -1467,9 +1429,6 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
   } // XC_FAMILY Hybrid
     else
       ErrorHandling( "Unsupported XC family!" );
-
-  if( rowComm != MPI_COMM_NULL ) MPI_Comm_free( & rowComm );
-  if( colComm != MPI_COMM_NULL ) MPI_Comm_free( & colComm );
 
   // Compute the total exchange-correlation energy
   val = 0.0;

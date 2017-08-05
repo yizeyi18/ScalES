@@ -6405,19 +6405,19 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
       //Int n_MG2Local = n_MG/(n_MG2DBlocksize*npcol2D)*n_MG2DBlocksize;
       Int m_MG2Local, n_MG2Local;
 
-      MPI_Comm rowComm = MPI_COMM_NULL;
+      //MPI_Comm rowComm = MPI_COMM_NULL;
       MPI_Comm colComm = MPI_COMM_NULL;
 
       Int mpirankRow, mpisizeRow, mpirankCol, mpisizeCol;
 
-      MPI_Comm_split( domain_.comm, mpirank / nprow2D, mpirank, &rowComm );
+      //MPI_Comm_split( domain_.comm, mpirank / nprow2D, mpirank, &rowComm );
       MPI_Comm_split( domain_.comm, mpirank % nprow2D, mpirank, &colComm );
 
-      MPI_Comm_rank(rowComm, &mpirankRow);
-      MPI_Comm_size(rowComm, &mpisizeRow);
+      //MPI_Comm_rank(rowComm, &mpirankRow);
+      //MPI_Comm_size(rowComm, &mpisizeRow);
 
-      MPI_Comm_rank(colComm, &mpirankCol);
-      MPI_Comm_size(colComm, &mpisizeCol);
+      //MPI_Comm_rank(colComm, &mpirankCol);
+      //MPI_Comm_size(colComm, &mpisizeCol);
 
       if(0){
 
@@ -6513,7 +6513,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
         pivQR_(j) = MGIdx(pivQRTmp2(j));
       }
 
-      if( rowComm != MPI_COMM_NULL ) MPI_Comm_free( & rowComm );
+      //if( rowComm != MPI_COMM_NULL ) MPI_Comm_free( & rowComm );
       if( colComm != MPI_COMM_NULL ) MPI_Comm_free( & colComm );
 
       if(contxt2D >= 0) {

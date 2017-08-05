@@ -87,6 +87,9 @@ protected:
   xc_func_type                XFuncType_; 
   xc_func_type                CFuncType_; 
   bool                        XCInitialized_;
+ 
+  // MPI communication 
+  MPI_Comm rowComm_, colComm_;
 
   // Pseudocharge to represent the local pseudopotential
   DblNumVec                   pseudoCharge_;
