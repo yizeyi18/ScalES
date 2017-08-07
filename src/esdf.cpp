@@ -2670,9 +2670,9 @@ ESDFReadInput ( const char* filename )
     esdfParam.geoOpt_NLCG_sigma = esdf_double( "Geo_Opt_NLCG_Sigma", 0.02 );
     
     // FIRE related parameters
-    esdfParam.FIRE_Nmin = esdf_integer( "FIRE_Nmin", 10 );
-    esdfParam.FIRE_dt = esdf_double("FIRE_Time_Step", 40.0);
-    esdfParam.FIRE_atomicmass = esdf_double("FIRE_Atomic_Mass", 4.0);
+    esdfParam.FIRE_Nmin = esdf_integer( "FIRE_Nmin", 5 );		// Compare with LAMMPS
+    esdfParam.FIRE_dt = esdf_double("FIRE_Time_Step", 41.3413745758); 	// usually between 0.1-1fs 
+    esdfParam.FIRE_atomicmass = esdf_double("FIRE_Atomic_Mass", 4.0); 	// Compare with LAMMPS
     
     // Molecular dynamics
     Real ionTemperature;

@@ -54,6 +54,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "blas.hpp"
 #include  "lapack.hpp"
 
+using namespace std;
 
 namespace dgdft{
 
@@ -180,18 +181,19 @@ public:
 
 };
 
-// A class for handling internal state of the FIRE optimizer
+/*
+// A class for handling/manipulating internal state of the FIRE optimizer
  class FIRE_internal_vars_type
 {
   private:
 
   public:
-    
+
   // These variables get assigned through esdf input
-  int nMin_; 			// Set to 5 by default, through esdf
-  double dt_; 			// Set to 41.3413745758 a.u. (= 1 femtosecond) by default, through esdf
-  double mass_; 		// Set to 4.0 by default, through esdf
-    
+  int nMin_;                    // Set to 5 by default, through esdf
+  double dt_;                   // Set to 41.3413745758 a.u. (= 1 femtosecond) by default, through esdf
+  double mass_;                 // Set to 4.0 by default, through esdf
+
   // These variables are internal to the working of the fire routines.
   // Hence, hard coded as per: Ref: DOI: 10.1103/PhysRevLett.97.170201
   double fInc_;
@@ -201,17 +203,17 @@ public:
   // cut_ starts at 0 but keeps on getting updated as the 
   // iterations proceed
   int cut_;
- 
+
   double alpha_;
-  double dtMax_;		 	// Set this to 10*dt_
- 
+  double dtMax_;                        // Set this to 10*dt_
+
   int numAtom;
 
   // Position, velocity, and forces at time t = t + dt
   std::vector<Point3>  atomPos_;
   std::vector<Point3>  atomVel_;
   std::vector<Point3>  atomForce_;
-  
+
   // Position, velocity, and forces at time t = t
   std::vector<Point3>  atomPosOld_;
   std::vector<Point3>  atomVelOld_;
@@ -219,28 +221,28 @@ public:
 
 
   // Parameter setup method:
-  void setup(int nMin, double dt, double mass, double fInc, double fDec, 
-	     double alphaStart, double fAlpha, double alpha, int cut, double dtMax, 
-	     std::vector<Atom>& atomList, std::vector<Point3>& atomPos, 
-	     std::vector<Point3>& atomVel, std::vector<Point3>& atomForce, 
-	     std::vector<Point3>& atomPosOld, std::vector<Point3>& atomVelOld, 
-	     std::vector<Point3>& atomForceOld)
+  void setup(int nMin, double dt, double mass, double fInc, double fDec,
+             double alphaStart, double fAlpha, double alpha, int cut, double dtMax,
+             std::vector<Atom>& atomList, std::vector<Point3>& atomPos,
+             std::vector<Point3>& atomVel, std::vector<Point3>& atomForce,
+             std::vector<Point3>& atomPosOld, std::vector<Point3>& atomVelOld,
+             std::vector<Point3>& atomForceOld)
   {
-  
+
     // User controlled parameters, read from esdfParam.
     // Among these dt_ keeps on getting updated or reset as 
     // decided in the method FIREStepper()
     nMin_  = nMin;
-    dt_	   = dt;
+    dt_    = dt;
     mass_  = mass;
 
-    fInc_ 	= fInc;
-    fDec_ 	= fDec;
+    fInc_       = fInc;
+    fDec_       = fDec;
     alphaStart_ = alphaStart;
-    fAlpha_ 	= fAlpha;
-    cut_ 	= cut;
-    alpha_ 	= alpha;
-    dtMax_ 	= dtMax;
+    fAlpha_     = fAlpha;
+    cut_        = cut;
+    alpha_      = alpha;
+    dtMax_      = dtMax;
 
     numAtom = atomList.size();
 
@@ -258,31 +260,29 @@ public:
     atomPos_       = atomPos;
     atomVel_       = atomVel;
     atomForce_     = atomForce;
-    
-    // Required for the 
+
+    // Required for the first step
     atomPosOld_    = atomPosOld;
     atomVelOld_    = atomVelOld;
     atomForceOld_  = atomForceOld;
 
     return;
   }
-
-
   // Purpose: Compute L2-norm  of a vector
   // Usage: To compute \hat{F} = F / norm( F ) 
   double atom_l2norm(std::vector<Point3>&  list)
-  { 
+  {
 
     double accum = 0.0;
 
     for( Int a = 0; a < numAtom; a++ )
-    { 
+    {
       for( Int d = 0; d < DIM; d++ )
       {
-        accum += list[a][d] * list[a][d];
+        accum += list[a][d]*list[a][d];
       }
     }
-    
+
     double l2norm = sqrt(accum);
 
     return l2norm;
@@ -292,94 +292,312 @@ public:
   // Purpose: Compute dot product of two vectors
   // Usage: To compute Power (P) = F . v  
   double atom_ddot(std::vector<Point3>&  list1, std::vector <Point3>&  list2)
-  { 
-    
+  {
+
     double ans = 0.0;
-    
+
     for( Int a = 0; a < numAtom; a++ )
-    { 
+    {
       for( Int d = 0; d < DIM; d++ )
-      { 
-        ans +=  (list1[a][d] * list2[a][d]);
+      {
+        ans +=  list1[a][d]*list2[a][d];
       }
     }
-    
+
     return ans;
-  
+
   }
 
   // Purpose: Scale a vector by multiplying its every element by a scalar
   // Usage: Perform (1 - alpha) * v and alpha * \hat{F}
-  std::vector<Point3>& atom_scale(std::vector<Point3>& list, double fctr)
+  void atom_scale(std::vector<Point3>& list, double fctr)
   {
     for( Int a = 0; a < numAtom; a++ )
     {
       for( int d = 0; d < DIM; d++ )
-	{
-	  list[a][d] *= fctr;
-	}
+        {
+          list[a][d] *= fctr;
+        }
     }
-    
-    return list;
+
+    return;
   }
 
   // Add two vectors
-  std::vector<Point3>& atom_add(std::vector<Point3>& list1, std::vector<Point3>& list2)
+  void atom_add(std::vector<Point3>& list1, std::vector<Point3>& list2, std::vector<Point3>& list3)
   {
-    std::vector<Point3> ans;
+
+    // Now compute:
     for( Int a = 0; a < numAtom; a++ ){
       for( Int d = 0; d < DIM; d++ ){
-	ans[a][d] = list1[a][d] + list2[a][d];
+        list3[a][d] = list1[a][d] + list2[a][d];
       }
     }
-     
-    return ans;
+
+    return;
   }
-    
+
 
   //
-  void FIREStepper(std::vector<Atom>& atomList, std::vector<Point3>& atomVel, 
-		   std::vector<Point3>& atomForce, const int& it)
+  void FIREStepper( std::vector<Atom>& atomList, const int& it )
   {
-    Int numAtom = atomList.size();
 
     // Compute the Power:
-    double P = atom_ddot(atomVel, atomForce);
-  
-    // Compute Fhat; unit vector along direction of force:
+    double P = atom_ddot(atomVel_, atomForce_);
+
     std::vector<Point3>  fHat(numAtom);
-    fHat = atom_scale(atomForce, 1.0/atom_l2norm(atomForce));
-  
+
+    fHat = atomForce_;
+    
+    // fHat = atom_scale(atomForce_, 1.0/atom_l2norm(atomForce_));
+    atom_scale(fHat, 1.0/atom_l2norm(atomForce_));
+
     // FIRE Velocity update formula:
-    double normVel = atom_l2norm(atomVel);
+    double normVel = atom_l2norm(atomVel_);
 
-    atomVel = atom_add(atom_scale(atomVel, (1.0 - alpha_)), atom_scale(fHat, alpha_*normVel));
+    std::vector<Point3> tmpVel;
 
-    if (P <= 0.0){
+    tmpVel = atomVel_;
+
+//   std::vector<Point3> tmpFHat;
+//   tmpFHat = fHat;
+//   atom_scale(tmpFHat, alpha_*normVel);
+//   atom_add(tmpVel, tmpFHat, atomVel_);
+
+    std::vector<Point3> tmpForce;
+
+    tmpForce = atomForce_;
+   
+    atom_scale(tmpVel, (1.0 - alpha_));
+ 
+    atom_scale(tmpForce, alpha_*atom_l2norm(atomVel_)/atom_l2norm(atomForce_));
+
+    atom_add(tmpVel, tmpForce, atomVel_);
+
+    dtMax_ = 10.0*dt_;		// dtMax updated for every new dt. ** !!CHECK!! **
+
+
+    if (P < 0.0){
        // Reset the velocities to 0.0
        for( Int a = 0; a < numAtom; a++ ){
-	 for( Int d = 0; d < DIM; d++ ){
-           atomVel[a][d] = 0.0;
+         for( Int d = 0; d < DIM; d++ ){
+           atomVel_[a][d] = 0.0;
          }
        }
        cut_ = it;                 // cut_ <-- iter # (gets updated everytime P <= 0)
        dt_ = dt_*fDec_;           // slow down
        alpha_ = alphaStart_;      // reset alpha to alphaStart
     }
-    else if ((P > 0.0) && ((it - cut_) > nMin_)) {
+    else if ((P >= 0.0) && ((it - cut_) > nMin_)) {
        dt_ = std::min(dt_*fInc_, dtMax_);
        alpha_ = fAlpha_*alpha_;
     }
-    
+
     // Update atomic velocity to store in atomListPtr_.
     // This also gets used in velocity Verlet
     for( Int a = 0; a < numAtom; a++ ){
-      atomList[a].vel = atomVel[a];
+      atomList[a].vel = atomVel_[a];
     }
+
+    // statusOFS << std::endl << " cut = " << cut_ << " dt = " << dt_ << " alpha = " << alpha_ <<  std::endl;
 
     return;
  }
  };
+*/
+
+// A class for handling/manipulating internal state of the FIRE optimizer
+ class FIRE_internal_vars_type
+{
+  private:
+
+  public:
+
+  // These variables get assigned through esdf input
+  int nMin_;                    // Set to 5 by default, through esdf
+  double dt_;                   // Set to 41.3413745758 a.u. (= 1 femtosecond) by default, through esdf
+  double mass_;                 // Set to 4.0 by default, through esdf
+
+  // These variables are internal to the working of the fire routines.
+  // Hence, hard coded as per: Ref: DOI: 10.1103/PhysRevLett.97.170201
+  double fInc_;
+  double fDec_;
+  double alphaStart_;
+  double fAlpha_;
+  // cut_ starts at 0 but keeps on getting updated as the 
+  // iterations proceed
+  int cut_;
+
+  double alpha_;
+  double dtMax_;                        // Set this to 10*dt_
+
+  // Position, velocity, and forces at time t = t + dt
+  DblNumVec atomPos_;
+  DblNumVec atomVel_;
+  DblNumVec atomForce_;
+
+  // Position, velocity, and forces at time t = t
+  DblNumVec atomPosOld_;
+  DblNumVec atomVelOld_;
+  DblNumVec atomForceOld_;
+
+  int numAtom;
+
+  // Parameter setup method:
+  void setup(int nMin, double dt, double mass, double fInc, double fDec,
+             double alphaStart, double fAlpha, double alpha, int cut, double dtMax,
+             std::vector<Atom>& atomList, DblNumVec& atomPos, DblNumVec& atomVel, DblNumVec& atomForce, 
+	     DblNumVec& atomPosOld, DblNumVec& atomVelOld, DblNumVec& atomForceOld)
+  {
+
+    // User controlled parameters, read from esdfParam.
+    // Among these dt_ keeps on getting updated or reset as 
+    // decided in the method FIREStepper()
+    nMin_  = nMin;
+    dt_    = dt;
+    mass_  = mass;
+
+    fInc_       = fInc;
+    fDec_       = fDec;
+    alphaStart_ = alphaStart;
+    fAlpha_     = fAlpha;
+    cut_        = cut;
+    alpha_      = alpha;
+    dtMax_      = dtMax;
+
+    // dtMax_ = 10.0*dt_; 
+    // OR
+    // dtMax_ = 10.0*dt;
+
+    numAtom = atomList.size();
+
+    // Prepare the position, velocity, and force lists
+    atomPos_       = atomPos;
+    atomVel_       = atomVel;
+    atomForce_     = atomForce;
+
+    // Required for the first step
+    atomPosOld_    = atomPosOld;
+    atomVelOld_    = atomVelOld;
+    atomForceOld_  = atomForceOld;
+
+    return;
+  }
+  // Purpose: Compute L2-norm  of a vector
+  // Usage: To compute \hat{F} = F / norm( F ) 
+  double atom_l2norm(DblNumVec&  list)
+  {
+
+    double accum = 0.0;
+
+    for( Int i = 0; i < 3*numAtom; i++ ){
+      accum += list[i]*list[i];
+    }
+
+    double l2norm = sqrt(accum);
+
+    return l2norm;
+
+  }
+
+  // Purpose: Compute dot product of two vectors
+  // Usage: To compute Power (P) = F . v  
+  double atom_ddot(DblNumVec& list1, DblNumVec& list2)
+  {
+
+    double ans = 0.0;
+
+    for( Int i = 0; i < 3*numAtom; i++ ){
+        ans += list1[i]*list2[i];
+    }
+
+    return ans;
+
+  }
+
+  // Purpose: Scale a vector by multiplying its every element by a scalar
+  // Usage: Perform (1 - alpha) * v and alpha * \hat{F}
+  void atom_scale(DblNumVec& list, double fctr)
+  {
+    for( Int i = 0; i < 3*numAtom; i++ ){
+          list[i] *= fctr;
+    }
+
+    return;
+  }
+
+  // Add two vectors
+  void atom_add(DblNumVec& list1, DblNumVec& list2, DblNumVec& list3)
+  {
+
+    for( Int i = 0; i < 3*numAtom; i++ ){
+        list3[i] = list1[i] + list2[i];
+    }
+
+    return;
+  }
+
+
+  //
+  void FIREStepper( std::vector<Atom>& atomList, const int& it )
+  {
+
+    // Compute the Power:
+
+    double P = atom_ddot(atomVel_, atomForce_);
+
+    DblNumVec fHat(3*numAtom);
+
+    fHat = atomForce_;
+    
+    atom_scale(fHat, 1.0/atom_l2norm(atomForce_));
+
+    // FIRE Velocity update formula:
+    DblNumVec tmpVel(3*numAtom);
+
+    tmpVel = atomVel_;
+
+    DblNumVec tmpForce(3*numAtom);
+
+    tmpForce = atomForce_;
+   
+    atom_scale(tmpVel, (1.0 - alpha_));
+ 
+    atom_scale(tmpForce, alpha_*atom_l2norm(atomVel_)/atom_l2norm(atomForce_));
+
+    atom_add(tmpVel, tmpForce, atomVel_);
+
+    dtMax_ = 10.0*dt_;		// dtMax updated for every new dt. ** !!CHECK!! **
+
+
+    if (P < 0.0){
+       // Reset the velocities to 0.0
+       for( Int i = 0; i < 3*numAtom; i++ ){
+           atomVel_[i] = 0.0;
+       }
+       cut_ = it;                 // cut_ <-- iter # (gets updated everytime P <= 0)
+       dt_ = dt_*fDec_;           // slow down
+       alpha_ = alphaStart_;      // reset alpha to alphaStart
+    }
+    else if ((P >= 0.0) && ((it - cut_) > nMin_)) {
+       dt_ = std::min(dt_*fInc_, dtMax_);
+       alpha_ = fAlpha_*alpha_;
+    }
+
+    // Update atomic velocity to store in atomListPtr_.
+    // This also gets used in velocity Verlet
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].vel[0] = atomVel_[3*a];
+      atomList[a].vel[1] = atomVel_[3*a+1];
+      atomList[a].vel[2] = atomVel_[3*a+2];
+    }
+
+    // statusOFS << std::endl << " cut = " << cut_ << " dt = " << dt_ << " alpha = " << alpha_ <<  std::endl;
+
+    return;
+ }
+ };
+
 
 
 struct GeoOptVars
