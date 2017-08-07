@@ -108,7 +108,7 @@ public:
   // Initialization routine
   void setup(int i_max, int j_max, int n, 
       double epsilon_tol_outer, double epsilon_tol_inner, double sigma_0,
-      std::vector<Atom>&   atomList)
+      std::vector<Atom>& atomList)
   {
     call_type = NLCG_INIT;
 
@@ -125,7 +125,6 @@ public:
     atomforce_r_.resize(numAtom);
     atomforce_s_.resize(numAtom);
     atomforce_d_.resize(numAtom);
-
 
     i_ = 0;
     j_ = 0;
@@ -155,7 +154,6 @@ public:
     delta_0_ = delta_new_;
 
 
-
     call_type = NLCG_CALL_TYPE_1;
 
     return;
@@ -180,73 +178,96 @@ public:
 
   }
 
-
 };
 
 // A class for handling internal state of the FIRE optimizer
- // *** JIT
-class FIRE_internal_vars_type
+ class FIRE_internal_vars_type
 {
   private:
-    
+
   public:
     
-  // These variables get assigned through input options  
-  int nMin_; 			// Set to 10 by default, through esdf
-  double dt_; 			// Set to 40.0 a.u. (= 1 femtosecond) by default, through esdf
-  double atomicMass_; 		// Set to 4.0 by default, through esdf
+  // These variables get assigned through esdf input
+  int nMin_; 			// Set to 5 by default, through esdf
+  double dt_; 			// Set to 41.3413745758 a.u. (= 1 femtosecond) by default, through esdf
+  double mass_; 		// Set to 4.0 by default, through esdf
     
-  // These variables are internal to the working of the fire routines
+  // These variables are internal to the working of the fire routines.
+  // Hence, hard coded as per: Ref: DOI: 10.1103/PhysRevLett.97.170201
   double fInc_;
   double fDec_;
   double alphaStart_;
   double fAlpha_;
-  double dtMax_;		 	// Set it to 10*FIRE_dt_
-  
-  // Et-cetera:
+  // cut_ starts at 0 but keeps on getting updated as the 
+  // iterations proceed
+  int cut_;
+ 
+  double alpha_;
+  double dtMax_;		 	// Set this to 10*dt_
+ 
   int numAtom;
 
-  int i_;
-  int j_;
-  int k_;
-
-  std::vector<Point3>  atompos_x_;
-
-
+  // Position, velocity, and forces at time t = t + dt
+  std::vector<Point3>  atomPos_;
+  std::vector<Point3>  atomVel_;
+  std::vector<Point3>  atomForce_;
   
-  // Put in methods as required
-  // There should be aparameter setup routine, for instance
+  // Position, velocity, and forces at time t = t
+  std::vector<Point3>  atomPosOld_;
+  std::vector<Point3>  atomVelOld_;
+  std::vector<Point3>  atomForceOld_;
+
+
+  // Parameter setup method:
+  void setup(int nMin, double dt, double mass, double fInc, double fDec, 
+	     double alphaStart, double fAlpha, double alpha, int cut, double dtMax, 
+	     std::vector<Atom>& atomList, std::vector<Point3>& atomPos, 
+	     std::vector<Point3>& atomVel, std::vector<Point3>& atomForce, 
+	     std::vector<Point3>& atomPosOld, std::vector<Point3>& atomVelOld, 
+	     std::vector<Point3>& atomForceOld)
+  {
   
-  // Initialization routine
-   void setup(int nMin, double dt, double atomicMass, double fInc, double fDec, 
-	      double alphaStart, double fAlpha, double dtMax, 
- 	      std::vector<Atom>&   atomList)
-{
-  nMin_ = nMin;
-  dt = dt_;
-  atomicMass = atomicMass_;
-  fInc = fInc_;
-  fDec = fDec_;
-  alphaStart = alphaStart_;
-  fAlpha = fAlpha_;
-  dtMax = dtMax_;
+    // User controlled parameters, read from esdfParam.
+    // Among these dt_ keeps on getting updated or reset as 
+    // decided in the method FIREStepper()
+    nMin_  = nMin;
+    dt_	   = dt;
+    mass_  = mass;
 
-  // Prepare the position and force lists
-  numAtom = atomList.size();
-  atompos_x_.resize(numAtom);
-  atomforce_r_.resize(numAtom);
+    fInc_ 	= fInc;
+    fDec_ 	= fDec;
+    alphaStart_ = alphaStart;
+    fAlpha_ 	= fAlpha;
+    cut_ 	= cut;
+    alpha_ 	= alpha;
+    dtMax_ 	= dtMax;
 
-  // Set r = -f'(x) : Note that  atomList[a].force = - grad E already - so no extra negative required
-  for( Int a = 0; a < numAtom; a++ )
-    atomforce_r_[a] = atomList[a].force;
+    numAtom = atomList.size();
 
-  // Also copy the atom positions
-  for( Int a = 0; a < numAtom; a++ )
-    atompos_x_[a] = atomList[a].pos;
+    // dtMax_ = 10.0*dt_; 
+    // OR
+    // dtMax_ = 10.0*dt;
 
-  return;
 
-}
+    // Hard coded parameters (Ref: DOI: 10.1103/PhysRevLett.97.170201)
+    // These are set in the ionDyn.setup(). Among these alpha_ starts 
+    // from alphaStart_ but keeps on getting updated as alpha_*fAlpha_ or 
+    // or reset to alphaStart_  
+
+    // Prepare the position, velocity, and force lists
+    atomPos_       = atomPos;
+    atomVel_       = atomVel;
+    atomForce_     = atomForce;
+    
+    // Required for the 
+    atomPosOld_    = atomPosOld;
+    atomVelOld_    = atomVelOld;
+    atomForceOld_  = atomForceOld;
+
+    return;
+  }
+
+
   // Purpose: Compute L2-norm  of a vector
   // Usage: To compute \hat{F} = F / norm( F ) 
   double atom_l2norm(std::vector<Point3>&  list)
@@ -258,7 +279,7 @@ class FIRE_internal_vars_type
     { 
       for( Int d = 0; d < DIM; d++ )
       {
-        accum += list_[a][d] * list[a][d];
+        accum += list[a][d] * list[a][d];
       }
     }
     
@@ -270,7 +291,7 @@ class FIRE_internal_vars_type
 
   // Purpose: Compute dot product of two vectors
   // Usage: To compute Power (P) = F . v  
-  double atom_ddot(std::vector<Point3>&  list_1, std::vector <Point3>&  list_2)
+  double atom_ddot(std::vector<Point3>&  list1, std::vector <Point3>&  list2)
   { 
     
     double ans = 0.0;
@@ -279,7 +300,7 @@ class FIRE_internal_vars_type
     { 
       for( Int d = 0; d < DIM; d++ )
       { 
-        ans +=  (list_1[a][d] * list_2[a][d]);
+        ans +=  (list1[a][d] * list2[a][d]);
       }
     }
     
@@ -289,30 +310,76 @@ class FIRE_internal_vars_type
 
   // Purpose: Scale a vector by multiplying its every element by a scalar
   // Usage: Perform (1 - alpha) * v and alpha * \hat{F}
-  std:vector<Point3>& atom_scale(std:vector<Point3>& list, double& alpha)
+  std::vector<Point3>& atom_scale(std::vector<Point3>& list, double fctr)
   {
     for( Int a = 0; a < numAtom; a++ )
     {
       for( int d = 0; d < DIM; d++ )
 	{
-	  list[a][d] *= alpha;
+	  list[a][d] *= fctr;
 	}
     }
     
     return list;
   }
 
+  // Add two vectors
+  std::vector<Point3>& atom_add(std::vector<Point3>& list1, std::vector<Point3>& list2)
+  {
+    std::vector<Point3> ans;
+    for( Int a = 0; a < numAtom; a++ ){
+      for( Int d = 0; d < DIM; d++ ){
+	ans[a][d] = list1[a][d] + list2[a][d];
+      }
+    }
+     
+    return ans;
+  }
+    
 
+  //
+  void FIREStepper(std::vector<Atom>& atomList, std::vector<Point3>& atomVel, 
+		   std::vector<Point3>& atomForce, const int& it)
+  {
+    Int numAtom = atomList.size();
 
-
-
-
+    // Compute the Power:
+    double P = atom_ddot(atomVel, atomForce);
   
+    // Compute Fhat; unit vector along direction of force:
+    std::vector<Point3>  fHat(numAtom);
+    fHat = atom_scale(atomForce, 1.0/atom_l2norm(atomForce));
+  
+    // FIRE Velocity update formula:
+    double normVel = atom_l2norm(atomVel);
 
+    atomVel = atom_add(atom_scale(atomVel, (1.0 - alpha_)), atom_scale(fHat, alpha_*normVel));
 
+    if (P <= 0.0){
+       // Reset the velocities to 0.0
+       for( Int a = 0; a < numAtom; a++ ){
+	 for( Int d = 0; d < DIM; d++ ){
+           atomVel[a][d] = 0.0;
+         }
+       }
+       cut_ = it;                 // cut_ <-- iter # (gets updated everytime P <= 0)
+       dt_ = dt_*fDec_;           // slow down
+       alpha_ = alphaStart_;      // reset alpha to alphaStart
+    }
+    else if ((P > 0.0) && ((it - cut_) > nMin_)) {
+       dt_ = std::min(dt_*fInc_, dtMax_);
+       alpha_ = fAlpha_*alpha_;
+    }
+    
+    // Update atomic velocity to store in atomListPtr_.
+    // This also gets used in velocity Verlet
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].vel = atomVel[a];
+    }
 
-
-};
+    return;
+ }
+ };
 
 
 struct GeoOptVars
@@ -419,13 +486,9 @@ private:
   void NLCG_Opt(Int ionIter );
 
   /// @brief Fast Inertial Relaxation Engine
-   // Subhajit Banerjee
-   // July 2017
-  FIRE_internal_vars_type FIRE_Opt_vars;
-  void FIRE_VelocityVerlet(Int ionIter);
+  // Subhajit Banerjee
+  FIRE_internal_vars_type FIRE_vars;
   void FIREOpt(Int ionIter);
-  void FIRE_Stepper(Int ioniter);
-  
 
   /// @brief VelocityVerlet for NVE simulation
   ///

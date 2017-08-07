@@ -2672,7 +2672,7 @@ ESDFReadInput ( const char* filename )
     // FIRE related parameters
     esdfParam.FIRE_Nmin = esdf_integer( "FIRE_Nmin", 10 );
     esdfParam.FIRE_dt = esdf_double("FIRE_Time_Step", 40.0);
-    esdfParam.FIRE_atomic_mass = esdf_double("FIRE_Atomic_Mass", 4.0);
+    esdfParam.FIRE_atomicmass = esdf_double("FIRE_Atomic_Mass", 4.0);
     
     // Molecular dynamics
     Real ionTemperature;

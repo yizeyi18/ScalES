@@ -48,6 +48,7 @@
 
 #include  "iondynamics.hpp"
 #include  "utility.hpp"
+#include  <algorithm>		// std::min
 
 namespace dgdft{
 
@@ -180,8 +181,6 @@ namespace dgdft{
       
 	double sigma_0 = esdfParam.geoOpt_NLCG_sigma; // Defaults to 0.02
       
-
-      
 	NLCG_vars.setup(i_max, j_max, n, 
 			epsilon_tol_outer, epsilon_tol_inner, sigma_0,
 			*atomListPtr_);
@@ -191,25 +190,90 @@ namespace dgdft{
 	statusOFS << std::endl << " NLCG parameters : i_max = " << i_max << " , j_max = " << j_max << " , n = " << n;
 	statusOFS << std::endl << "                   epsilon_tol_outer = " << epsilon_tol_outer << " , epsilon_tol_inner = " << epsilon_tol_inner 
 		  << " , sigma_0 = " << sigma_0 << std::endl;                  
-      }
+      
+      }	// if( nlcg )
 
-      // *** JIT
+
       if( ionMove_ == "fire" )
       {
-	statusOFS << std::endl << " Setting up FIRE based relaxation ...";
+	statusOFS << std::endl << " Setting up Fast Inertial Relaxation Engine (FIRE) - - - > ";
 
-	// Setup parameters here
-	int FIRE_Nmin = esdfParam.FIRE_Nmin;
-	double FIRE_dt = esdfParam.FIRE_dt;
-	double FIRE_atomic_mass = esdfParam.FIRE_atomic_mass;
+	// Fetching user controlled parameters from esdfParam
+	int nMin    = esdfParam.FIRE_Nmin;
+	double dt   = esdfParam.FIRE_dt; 		// this is the starting dt
+	double mass = esdfParam.FIRE_atomicmass;
+
+	// Hard coded parameters (Ref: DOI: 10.1103/PhysRevLett.97.170201) 
+	double fInc	  = 1.1;
+	double fDec 	  = 0.5;
+	double alphaStart = 0.1;
+	double alpha 	  = alphaStart;
+	double fAlpha 	  = 0.99;
+	double dtMax 	  = 10.0*dt;
+
+        // cut_ starts at 0 but keeps on getting updated as the 
+        // iterations proceed
+        int cut           = 0;
 	
-	// Call the setup function for the FIRE internal variables class here
+        int numAtom;
+        std::vector<Point3>  atomPos;
+  	std::vector<Point3>  atomVel;
+  	std::vector<Point3>  atomForce;
+        std::vector<Point3>  atomPosOld;
+        std::vector<Point3>  atomVelOld;
+        std::vector<Point3>  atomForceOld;
+
+	// Prepare the position, velocity, and force lists
+        numAtom = atomList.size();
+
+        atomPos.resize(numAtom);
+        atomVel.resize(numAtom);
+        atomForce.resize(numAtom);
+
+        atomPosOld.resize(numAtom);
+        atomVelOld.resize(numAtom);
+        atomForceOld.resize(numAtom);       
+  	
+	// Copy the position and velocity from single-shot 
+	// calculation done outside geometry optimization loop:
+	for( Int a = 0; a < numAtom; a++ )
+          atomForce[a] = atomList[a].force;
+
+        // Copy the Positions:
+        for( Int a = 0; a < numAtom; a++ )
+    	  atomPos[a] = atomList[a].pos;
+
+  	// Set the velocities to be 0.0 for first FIRE velocity Verlet
+   	for( Int a = 0; a < numAtom; a++ ){
+	  for( Int d = 0; d < DIM; d++ ){
+            atomVel[a][d] = 0.0;
+	  }
+	}
 	
+	atomPosOld   = atomPos;
+    	atomVelOld   = atomVel;
+	atomForceOld = atomForce;
+
+	// Setting up internal variables of FIRE with user-defined parameters 
+	// as well as the default ones. This is done thru the setup method 
+	// of the FIRE_vars object which is an instance of the 
+	// class FIRE_internal_vars_type, defined in iondynamics.hpp
+	FIRE_vars.setup(nMin, dt, mass, fInc, fDec, alphaStart, fAlpha, alpha, 
+			cut, dtMax, atomList, atomPos, atomVel, atomForce, 
+			atomPosOld, atomVelOld, atomForceOld);
 	
-	statusOFS << std::endl << " FIRE based optimization parameters :"; // Output values here
-      }
+	statusOFS << " Done ." << std::endl;
+
+	statusOFS << std::endl << " <---- FIRE based optimization parameters ---->";
+        statusOFS << std::endl << "N_min = " << nMin << ", dt = " << dt << ", Mass = " << mass << std::endl;
+	statusOFS << std::endl << "f_inc = " << fInc << ", f_dec = " << fDec << ", alpha_start = " << alphaStart 
+			       << "f_alpha = " << fAlpha << ", dt_max = 10*dt = " << dtMax << std::endl;
+      }	// if( fire )
+
+
       
     // Molecular dynamics
+
     Ekinetic_ = 0.0;
     Epot_    = 0.0;
     EconserveInit_ = 0.0;
@@ -421,7 +485,7 @@ namespace dgdft{
     }
     
     if( ionMove_ == "fire"){
-      FIRE_Opt( ionIter ); 
+      FIREOpt( ionIter ); 
     }
 
     // *********************************************************************
@@ -515,7 +579,6 @@ namespace dgdft{
         fout.close();
       }
     }
-
 
 
     return ;
@@ -966,20 +1029,97 @@ namespace dgdft{
   }   // -----  end of method IonDynamics::NLCG_Opt  -----  
 
   
-  // Routines related to the Fast Inertial Relaxation Engine Optimizer
-  void 
-  IonDynamics::FIRE_Verlet_Stepper(Int ionIter)
+  // Routine implementing the Fast Inertial Relaxation Engine Optimizer
+  void IonDynamics::FIREOpt( Int ionIter )
   {
+     // IMPORTANT: iondynamics should only be performed by one
+     //            processor, and then the atomic position and velocity are
+     //            broadcast to other processors. This is particularly important
+     //            for stochastic methods
+
+     std::vector<Atom>& atomList = *atomListPtr_;
+
+     Int numAtom = atomList.size();
+
+  	
+       if( ionIter > 1 ){
+	 
+	 // Obtain the latest atomPos, atomVel, and atomForce from scf.Update()
+	 // via atomList
+	 
+	  for( Int a = 0; a < numAtom; a++ ){
+            FIRE_vars.atomPos_[a]   = atomList[a].pos;
+            FIRE_vars.atomVel_[a]   = atomList[a].vel;
+            FIRE_vars.atomForce_[a] = atomList[a].force;
+      	  }  
+	
+          // Update velocity as per velocity Verlet (NOTE: this is the 
+          // last step of velocity Verlet)
+          for( Int a = 0; a < numAtom; a++ )
+             FIRE_vars.atomVel_[a] = FIRE_vars.atomVel_[a]
+				     + 0.5*(FIRE_vars.atomForceOld_[a] + FIRE_vars.atomForce_[a])*FIRE_vars.dt_/FIRE_vars.mass_;
+
+	  // Update atomic velocity to store in atomListPtr_
+	  for( Int a = 0; a < numAtom; a++ )
+	    atomList[a].vel = FIRE_vars.atomVel_[a];
+	       
+	  // Update the latest atomVel, dt, and cut using FIRE update algorithm
+     	  FIRE_vars.FIREStepper(*atomListPtr_, FIRE_vars.atomVel_, FIRE_vars.atomForce_, ionIter);
+
+          // Having computed the new atomVel and dt (from FIREStepper), update atomPos; 
+          for (Int  a = 0; a < numAtom; a++ )
+            FIRE_vars.atomPos_[a] = FIRE_vars.atomPos_[a] + FIRE_vars.atomVel_[a]*FIRE_vars.dt_ 
+				    + 0.5*FIRE_vars.atomForce_[a]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
+
+	  // Store these new atomPos, atomVel, and atomForce as "Old"
+	//  FIRE_vars.savelaststep(atomPos, atomVel, atomForceCurr);
+
+	  // Update atomic position to store in atomListPtr_
+	  for( Int a = 0; a < numAtom; a++ )
+            atomList[a].pos = FIRE_vars.atomPos_[a];
+       }      // if( ionIter > 1)
+       else if( ionIter == 1 ){ 	// for FIRE, starting velocity = 0
+	   // Use the position and force values from single shot calculation done 
+	   // outside geometry optimization loop. Note these are already stored 
+	   // as atomPos and atomVel in FIRE_vars.setup(). 
+	   // Alongside in the same method the inititial velocity (stored in atomVel) 
+	   // is set to be 0 as required by FIRE.
+           
+	   // Update the latest atomVel_, dt_, and cut_ using FIRE update algorithm
+           FIRE_vars.FIREStepper(*atomListPtr_, FIRE_vars.atomVel_, FIRE_vars.atomForce_, ionIter);
+		
+	   // Having computed the new atomVel and dt_ (from FIREStepper), update atomPos using 
+	   // velocity Verlet
+	   for (Int  a = 0; a < numAtom; a++ )
+             FIRE_vars.atomPos_[a] = FIRE_vars.atomPos_[a] + FIRE_vars.atomVel_[a]*FIRE_vars.dt_
+				     + 0.5*FIRE_vars.atomForce_[a]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
+
+	   // For velocity useing just a linear update:
+	   for( Int a = 0; a < numAtom; a++ )
+             FIRE_vars.atomVel_[a] = FIRE_vars.atomVel_[a] + FIRE_vars.atomForce_[a]*FIRE_vars.dt_/FIRE_vars.mass_;
+	   
+	   // Store these new atomPos, atomVel, and atomForce as "Old"
+	   FIRE_vars.atomForceOld_ = FIRE_vars.atomForce_;
+//	   FIRE_vars.savelaststep(atomPos, atomVel, atomForce);
+	  
+	   // Update atomic position to store in atomListPtr_
+	   for(Int a = 0; a < numAtom; a++){
+      	     atomList[a].pos = FIRE_vars.atomPos_[a];
+             atomList[a].vel = FIRE_vars.atomVel_[a];
+	   }
+       }     // if( ionIter == 1)
+    // }   	// if( mpirank == 0 )
+/*     
+     for( Int a = 0; a < numAtom; a++ ){
+       MPI_Bcast( &atomPos[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+       MPI_Bcast( &atomVel[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+     }
+*/     
+     return; 
+  
   }
-  
-  void 
-  IonDynamics::FIRE_Opt(Int ionIter)
-  {
-  }
-  
-  
-  
-  
+
+
   void
   IonDynamics::VelocityVerlet    ( Int ionIter )
   {
@@ -990,7 +1130,6 @@ namespace dgdft{
     std::vector<Atom>&   atomList = *atomListPtr_;
 
     Int numAtom = atomList.size();
-
 
     std::vector<Point3>  atompos(numAtom);
     std::vector<Point3>  atomvel(numAtom);
@@ -1015,6 +1154,7 @@ namespace dgdft{
       for( Int a = 0; a < numAtom; a++ ){
         atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
       }
+
 
       // Propagate the chain. This is due to the remaining update of the
       // chain variables.
