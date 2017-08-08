@@ -228,26 +228,36 @@ namespace dgdft{
         DblNumVec  atomVelOld(3*numAtom);
         DblNumVec  atomForceOld(3*numAtom);
   	
-	// Copy the position and velocity from single-shot 
+	// Copy the position and force from the single-shot 
 	// calculation done outside geometry optimization loop:
+	
+	// Force:
 	for( Int a = 0; a < numAtom; a++ ){
+	  // Position
+          atomPos[3*a]   = atomList[a].pos[0];
+          atomPos[3*a+1] = atomList[a].pos[1];
+          atomPos[3*a+2] = atomList[a].pos[2];
+
+          // Force:
           atomForce[3*a]   = atomList[a].force[0];
 	  atomForce[3*a+1] = atomList[a].force[1];
 	  atomForce[3*a+2] = atomList[a].force[2];
+
+          // Reset velocity to zero for first FIRE velocity Verlet step
+	  atomList[a].vel[0] = 0.0;
+	  atomList[a].vel[1] = 0.0;
+	  atomList[a].vel[2] = 0.0;
+
         }
 
-        // Copy the Positions:
-        for( Int a = 0; a < numAtom; a++ ){
-    	  atomPos[3*a]   = atomList[a].pos[0];
-	  atomPos[3*a+1] = atomList[a].pos[1];
-	  atomPos[3*a+2] = atomList[a].pos[2];
-	}
-
-  	// Set the velocities to be 0.0 for first FIRE velocity Verlet
-   	for( Int i = 0; i < 3*numAtom; i++ ){
-          atomVel[i] = 0.0;
+	for( Int a = 0; a < numAtom; a++ ){
+          // Velocity:
+          atomVel[3*a]   = atomList[a].vel[0];
+          atomVel[3*a+1] = atomList[a].vel[1];
+          atomVel[3*a+2] = atomList[a].vel[2];
 	}
 	
+        // This is useful only for the first step
 	atomPosOld   = atomPos;
     	atomVelOld   = atomVel;
 	atomForceOld = atomForce;
@@ -256,8 +266,6 @@ namespace dgdft{
 	// as well as the default ones. This is done thru the setup method 
 	// of the FIRE_vars object which is an instance of the 
 	// class FIRE_internal_vars_type, defined in iondynamics.hpp
-
-	// FIRE_vars.initialize( atomList );
 
 	FIRE_vars.setup(nMin, dt, mass, fInc, fDec, alphaStart, fAlpha, alpha, 
 			cut, dtMax, atomList, atomPos, atomVel, atomForce, 
@@ -268,7 +276,7 @@ namespace dgdft{
 	statusOFS << std::endl << " <---- FIRE based optimization parameters ---->";
         statusOFS << std::endl << "N_min = " << nMin << ", dt = " << dt << ", Mass = " << mass << std::endl;
 	statusOFS << std::endl << "f_inc = " << fInc << ", f_dec = " << fDec << ", alpha_start = " << alphaStart 
-			       << "f_alpha = " << fAlpha << ", dt_max = 10*dt = " << dtMax << std::endl;
+			       << ", f_alpha = " << fAlpha << ", dt_max = 10*dt = " << dtMax << std::endl;
       }	// if( fire )
 
 
@@ -1259,16 +1267,21 @@ namespace dgdft{
 	    FIRE_vars.atomForce_[3*a+2] = atomList[a].force[2];
           }
 
+	  // *** CHNAGED *** FIRE_vars.atomVelOld_ = FIRE_vars.atomVel_;
+  	  // FIRE_vars.atomVel_ gets copies to FIRE_vars.atomVelOld_
+	  FIRE_vars.DblNumVecCopier(FIRE_vars.atomVel_, FIRE_vars.atomVelOld_);
+
           // Update velocity as per velocity Verlet (NOTE: this is the 
           // last step of velocity Verlet update initiated in step # [iter - 1]) 
-
 	  statusOFS << std::endl << " Updating velocities using velocity Verlet . . . " << std::endl;
 
           for( Int a = 0; a < numAtom; a++ ){
              FIRE_vars.atomVel_[3*a]   = FIRE_vars.atomVelOld_[3*a] + 0.5*(FIRE_vars.atomForceOld_[3*a]
                                          + FIRE_vars.atomForce_[3*a])*FIRE_vars.dt_/FIRE_vars.mass_;
+
              FIRE_vars.atomVel_[3*a+1] = FIRE_vars.atomVelOld_[3*a+1] + 0.5*(FIRE_vars.atomForceOld_[3*a+1]
                                          + FIRE_vars.atomForce_[3*a+1])*FIRE_vars.dt_/FIRE_vars.mass_;
+
              FIRE_vars.atomVel_[3*a+2] = FIRE_vars.atomVelOld_[3*a+2] + 0.5*(FIRE_vars.atomForceOld_[3*a+2]
                                          + FIRE_vars.atomForce_[3*a+2])*FIRE_vars.dt_/FIRE_vars.mass_;
 	  }
@@ -1277,27 +1290,60 @@ namespace dgdft{
 
           statusOFS << std::endl << " Modifying velocities output from Verlet and dt using FIRE . . . " << std::endl;
 
-          FIRE_vars.FIREStepper(*atomListPtr_, ionIter);
+          FIRE_vars.FIREStepper( ionIter );
+	  
+	  /*
 
-          FIRE_vars.atomVelOld_   = FIRE_vars.atomVel_;
+          // Update atomic velocity to store in atomListPtr_.
+	  // This also gets used in velocity Verlet
+          for( Int a = 0; a < numAtom; a++ ){
+            atomList[a].vel[0] = atomVel_[3*a];
+            atomList[a].vel[1] = atomVel_[3*a+1];
+            atomList[a].vel[2] = atomVel_[3*a+2];
+          }
 
-          FIRE_vars.atomForceOld_ = FIRE_vars.atomForce_;
+	  */
 
-          // Having computed the new atomVel and dt (from FIREStepper), update atomPos; 
+  	  // Debug Statement *** Print the updated velocities:
+	  statusOFS << std::endl << " ***  Global velocity vector after FIRE Update *** " << std::endl;
+	  FIRE_vars.DblNumVecPrinter( FIRE_vars.atomVel_ );
+
+          // Having modified the atomVel_ and dt_ (from FIREStepper), update atomPos; 
+
+	  // Store atomPos_ as atomPosold_ first
+  	  FIRE_vars.DblNumVecCopier(FIRE_vars.atomPos_, FIRE_vars.atomPosOld_);
 
           statusOFS << std::endl << " Updating positions using velocity Verlet . . . " << std::endl;
+	 
+	  /*
 
           for ( Int  a = 0; a < numAtom; a++ ){
             FIRE_vars.atomPos_[3*a]   = FIRE_vars.atomPosOld_[3*a] + FIRE_vars.atomVelOld_[3*a]*FIRE_vars.dt_
                                         + 0.5*FIRE_vars.atomForceOld_[3*a]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
+
             FIRE_vars.atomPos_[3*a+1] = FIRE_vars.atomPosOld_[3*a+1] + FIRE_vars.atomVelOld_[3*a+1]*FIRE_vars.dt_
                                         + 0.5*FIRE_vars.atomForceOld_[3*a+1]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
+
             FIRE_vars.atomPos_[3*a+2] = FIRE_vars.atomPosOld_[3*a+2] + FIRE_vars.atomVelOld_[3*a+2]*FIRE_vars.dt_
                                         + 0.5*FIRE_vars.atomForceOld_[3*a+2]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
 	  }
+	  
+ 	  */
+	  
+	  // x(t + dt) = x(t) + v(t) * dt + 1/2 * f(t)/m * dt^2
+          for ( Int  a = 0; a < numAtom; a++ ){
+            FIRE_vars.atomPos_[3*a]   = FIRE_vars.atomPosOld_[3*a] + FIRE_vars.atomVel_[3*a]*FIRE_vars.dt_
+                                        + 0.5*FIRE_vars.atomForce_[3*a]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
 
-          // Store this poistion as atomPosOld_, to be used later in velocity Verlet
-          FIRE_vars.atomPosOld_ = FIRE_vars.atomPos_;
+            FIRE_vars.atomPos_[3*a+1] = FIRE_vars.atomPosOld_[3*a+1] + FIRE_vars.atomVel_[3*a+1]*FIRE_vars.dt_
+                                        + 0.5*FIRE_vars.atomForce_[3*a+1]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
+
+            FIRE_vars.atomPos_[3*a+2] = FIRE_vars.atomPosOld_[3*a+2] + FIRE_vars.atomVel_[3*a+2]*FIRE_vars.dt_
+                                        + 0.5*FIRE_vars.atomForce_[3*a+2]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
+	  }
+
+          // Also store atomForce  as atomForceOld_ before moving on to next ionIter
+	  FIRE_vars.DblNumVecCopier(FIRE_vars.atomForce_, FIRE_vars.atomForceOld_);
 
        }      // if( ionIter > 1)
 
@@ -1312,24 +1358,45 @@ namespace dgdft{
            // Update atomPos using velocity Verlet
 	   statusOFS << std::endl << " Updating positions using velocity Verlet starting from zero initial velocities . . . " << std::endl;
 
+	   // Debug statement ****
+	   statusOFS << std::endl << " ** Velocity before the POSITION update in Iteration # " << ionIter << std::endl;
+	   FIRE_vars.DblNumVecPrinter( FIRE_vars.atomVel_ );
+	   
+ 	   // Store atomPos_ as atomPosold_ first
+	   FIRE_vars.DblNumVecCopier(FIRE_vars.atomPos_, FIRE_vars.atomPosOld_);
+
+	   /*
+
+	   // x(0 + dt) = x(0) + v(0) * dt + 1/2 * f(0)/m * dt^2
            for ( Int  a = 0; a < numAtom; a++ ){
-	     // x(0 + dt) = x(0) + v(0) * dt + 1/2 * f(0)/m * dt^2
              FIRE_vars.atomPos_[3*a]   = FIRE_vars.atomPosOld_[3*a] + FIRE_vars.atomVelOld_[3*a]*FIRE_vars.dt_
                                          + 0.5*FIRE_vars.atomForceOld_[3*a]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
+
              FIRE_vars.atomPos_[3*a+1] = FIRE_vars.atomPosOld_[3*a+1] + FIRE_vars.atomVelOld_[3*a+1]*FIRE_vars.dt_
                                          + 0.5*FIRE_vars.atomForceOld_[3*a+1]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
+
              FIRE_vars.atomPos_[3*a+2] = FIRE_vars.atomPosOld_[3*a+2] + FIRE_vars.atomVelOld_[3*a+2]*FIRE_vars.dt_
                                          + 0.5*FIRE_vars.atomForceOld_[3*a+2]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
 	   }
 
-           // Store this poistion as atomPosOld_, to be used later in velocity Verlet
-           FIRE_vars.atomPosOld_   = FIRE_vars.atomPos_;
+	   */
 
-           FIRE_vars.atomForceOld_ = FIRE_vars.atomForce_;              // This is redundant
-	
-	   FIRE_vars.atomVelOld_   = FIRE_vars.atomVel_;		// This too is redundant
+	   // x(0 + dt) = x(0) + v(0) * dt + 1/2 * f(0)/m * dt^2
+           for ( Int  a = 0; a < numAtom; a++ ){
+             FIRE_vars.atomPos_[3*a]   = FIRE_vars.atomPosOld_[3*a] + FIRE_vars.atomVel_[3*a]*FIRE_vars.dt_
+                                         + 0.5*FIRE_vars.atomForce_[3*a]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
 
-           statusOFS << std::endl << " Velocity update with velocity Verlet can only be done in the next step . . .  " << std::endl;
+             FIRE_vars.atomPos_[3*a+1] = FIRE_vars.atomPosOld_[3*a+1] + FIRE_vars.atomVel_[3*a+1]*FIRE_vars.dt_
+                                         + 0.5*FIRE_vars.atomForce_[3*a+1]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
+
+             FIRE_vars.atomPos_[3*a+2] = FIRE_vars.atomPosOld_[3*a+2] + FIRE_vars.atomVel_[3*a+2]*FIRE_vars.dt_
+                                         + 0.5*FIRE_vars.atomForce_[3*a+2]*FIRE_vars.dt_*FIRE_vars.dt_/FIRE_vars.mass_;
+	   }
+
+          // Also store atomForce  as atomForceOld_ before moving on to next ionIter
+	  FIRE_vars.DblNumVecCopier(FIRE_vars.atomForce_, FIRE_vars.atomForceOld_);
+
+          statusOFS << std::endl << " Velocity update with velocity Verlet can only be done in the next step . . .  " << std::endl;
 
        }     // if( ionIter == 1)
      }          // if( mpirank == 0 )
@@ -1343,7 +1410,7 @@ namespace dgdft{
        atomList[a].pos[0]    = FIRE_vars.atomPos_[3*a];
        atomList[a].pos[1]    = FIRE_vars.atomPos_[3*a+1];
        atomList[a].pos[2]    = FIRE_vars.atomPos_[3*a+2];
-
+/*
        atomList[a].vel[0]    = FIRE_vars.atomVel_[3*a];
        atomList[a].vel[1]    = FIRE_vars.atomVel_[3*a+1];
        atomList[a].vel[2]    = FIRE_vars.atomVel_[3*a+2];
@@ -1351,6 +1418,7 @@ namespace dgdft{
        atomList[a].force[0]  = FIRE_vars.atomForce_[3*a];
        atomList[a].force[1]  = FIRE_vars.atomForce_[3*a+1];
        atomList[a].force[2]  = FIRE_vars.atomForce_[3*a+2];
+*/
      }
 
      return;            // exit to next SCF update

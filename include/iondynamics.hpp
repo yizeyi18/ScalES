@@ -451,7 +451,7 @@ public:
   {
 
     // User controlled parameters, read from esdfParam.
-    // Among these dt_ keeps on getting updated or reset as 
+    // Among these dt_ and alpha_ are updated or reset as 
     // decided in the method FIREStepper()
     nMin_  = nMin;
     dt_    = dt;
@@ -464,10 +464,6 @@ public:
     cut_        = cut;
     alpha_      = alpha;
     dtMax_      = dtMax;
-
-    // dtMax_ = 10.0*dt_; 
-    // OR
-    // dtMax_ = 10.0*dt;
 
     numAtom = atomList.size();
 
@@ -483,7 +479,8 @@ public:
 
     return;
   }
-  // Purpose: Compute L2-norm  of a vector
+
+  // Purpose: Compute L2-norm  of a vector of length 3 * numAtom
   // Usage: To compute \hat{F} = F / norm( F ) 
   double atom_l2norm(DblNumVec&  list)
   {
@@ -508,7 +505,7 @@ public:
     double ans = 0.0;
 
     for( Int i = 0; i < 3*numAtom; i++ ){
-        ans += list1[i]*list2[i];
+      ans += list1[i]*list2[i];
     }
 
     return ans;
@@ -519,11 +516,13 @@ public:
   // Usage: Perform (1 - alpha) * v and alpha * \hat{F}
   void atom_scale(DblNumVec& list, double fctr)
   {
+
     for( Int i = 0; i < 3*numAtom; i++ ){
-          list[i] *= fctr;
+      list[i] *= fctr;
     }
 
     return;
+
   }
 
   // Add two vectors
@@ -531,20 +530,45 @@ public:
   {
 
     for( Int i = 0; i < 3*numAtom; i++ ){
-        list3[i] = list1[i] + list2[i];
+      list3[i] = list1[i] + list2[i];
     }
+
+    return;
+  }
+
+  //
+  void DblNumVecCopier( DblNumVec& list1, DblNumVec& list2 )
+  {
+
+    // list1 gets copies to list2
+    for( Int i = 0; i < 3*numAtom; i++ ){
+      list2[i] = list1[i];
+    }
+ 
+    return;
+  }
+
+  //
+  void DblNumVecPrinter( DblNumVec list )
+  {
+
+    for( Int i = 0; i < 3*numAtom; i++ ){
+      statusOFS << std::endl << "Component: " << i << " = " << list[i] << std::endl;
+    }  
 
     return;
   }
 
 
   //
-  void FIREStepper( std::vector<Atom>& atomList, const int& it )
+  void FIREStepper( const int& it )
   {
 
     // Compute the Power:
 
-    double P = atom_ddot(atomVel_, atomForce_);
+    double power = atom_ddot(atomVel_, atomForce_);
+
+    statusOFS << std::endl << "Power = " << power << std::endl;
 
     DblNumVec fHat(3*numAtom);
 
@@ -567,10 +591,15 @@ public:
 
     atom_add(tmpVel, tmpForce, atomVel_);
 
-    dtMax_ = 10.0*dt_;		// dtMax updated for every new dt. ** !!CHECK!! **
+    //dtMax_ = 10.0*dt_;		// dtMax updated for every new dt. ** !!CHECK!! **
+	
+    statusOFS << std::endl << "alpha_ before update: " << alpha_ << std::endl;
 
+    statusOFS << std::endl << "dt_ before update : " << dt_ << std::endl;
 
-    if (P < 0.0){
+    statusOFS << std::endl << " cut_ before update: " << cut_ << std::endl;
+
+    if (power < 0.0){
        // Reset the velocities to 0.0
        for( Int i = 0; i < 3*numAtom; i++ ){
            atomVel_[i] = 0.0;
@@ -579,10 +608,12 @@ public:
        dt_ = dt_*fDec_;           // slow down
        alpha_ = alphaStart_;      // reset alpha to alphaStart
     }
-    else if ((P >= 0.0) && ((it - cut_) > nMin_)) {
+    else if ((power >= 0.0) && ((it - cut_) > nMin_)) {
        dt_ = std::min(dt_*fInc_, dtMax_);
        alpha_ = fAlpha_*alpha_;
     }
+
+/* Do this outside 
 
     // Update atomic velocity to store in atomListPtr_.
     // This also gets used in velocity Verlet
@@ -592,7 +623,12 @@ public:
       atomList[a].vel[2] = atomVel_[3*a+2];
     }
 
-    // statusOFS << std::endl << " cut = " << cut_ << " dt = " << dt_ << " alpha = " << alpha_ <<  std::endl;
+*/
+    statusOFS << std::endl << "alpha_ after update: " << alpha_ << std::endl;
+
+    statusOFS << std::endl << "dt_ after update : " << dt_ << std::endl;
+
+    statusOFS << std::endl << " cut_ after update: " << cut_ << std::endl;
 
     return;
  }
