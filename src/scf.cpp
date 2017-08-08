@@ -2413,7 +2413,7 @@ SCF::AndersonMix    (
 
     Int rank;
     // FIXME Magic number
-    Real rcond = 1e-6;
+    Real rcond = 1e-12;
 
     S.Resize(nrow);
 
@@ -2425,7 +2425,7 @@ SCF::AndersonMix    (
         S.Data(), rcond, &rank );
 
     Print( statusOFS, "  Rank of dfmat = ", rank );
-
+    Print( statusOFS, "  Rcond = ", rcond );
     // Update vOpt, resOpt. 
 
     blas::Gemv('N', ntot, nrow, -1.0, dvMat.Data(),

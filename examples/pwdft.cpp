@@ -360,14 +360,20 @@ int main(int argc, char **argv)
       GetTime( timeSta );
       hamKS.UpdateHamiltonian( hamKS.AtomList() );
       hamKS.CalculatePseudoPotential( ptable );
+      
+      // Reset wavefunctions to random values for geometry optimization
+      // Except for CheFSI
+      if((ionDyn.IsGeoOpt() == true) && (esdfParam.PWSolver != "CheFSI")){
+          statusOFS << std::endl << " Resetting to random wavefunctions ... \n" << std::endl ; 
+	  UniformRandom( psi.Wavefun() );
+      }
+      
       scf.Update( ); 
       GetTime( timeEnd );
       statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
         << " [s]" << std::endl;
 
-      // Only extrapolation density / wavefunction for MD
-      //if( ionDyn.IsGeoOpt() == false ){
-       {
+       // Extrapolation of density : used for both geometry optimization and MD    
         // Update the density history through extrapolation
         if( esdfParam.MDExtrapolationVariable == "density" )
         {
@@ -398,6 +404,9 @@ int main(int argc, char **argv)
           } // for (l)
         } // density extrapolation
 
+         if( ionDyn.IsGeoOpt() == false )
+       {
+	 // Wavefunction extrapolation for MD , not used in geometry optimization
         if( esdfParam.MDExtrapolationVariable == "wavefun" )
         {
           //huwei 20170306
@@ -901,7 +910,7 @@ int main(int argc, char **argv)
           } //if() Extrapolating the Wavefunctions using ASPC
 
         } // wavefun extrapolation
-      }
+      } // if( ionDyn.IsGeoOpt() == false )
 
 
       GetTime( timeSta );

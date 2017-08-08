@@ -10618,7 +10618,7 @@ namespace  dgdft{
             // All processors solve the least square problem
 
             // FIXME Magic number for pseudo-inverse
-            Real rcond = 1e-6;
+            Real rcond = 1e-12;
             Int rank;
 
             DblNumVec  S( nrow );
