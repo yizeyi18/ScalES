@@ -201,7 +201,7 @@ namespace dgdft{
 	// Fetching user controlled parameters from esdfParam
 	int nMin    = esdfParam.FIRE_Nmin;
 	double dt   = esdfParam.FIRE_dt; 		// this is the starting dt
-	double mass = esdfParam.FIRE_atomicmass;
+	double mass = esdfParam.FIRE_atomicmass*amu2au; // ***
 
 	// Hard coded parameters (Ref: DOI: 10.1103/PhysRevLett.97.170201) 
 	double fInc	  = 1.1;
