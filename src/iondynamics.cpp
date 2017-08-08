@@ -650,7 +650,7 @@ namespace dgdft{
         std::fstream fout;
         fout.open("lastPos.out",std::ios::out);
         if( !fout.good() ){
-          ErrorHandling( "File cannot be open!" );
+          ErrorHandling( "File cannot be opened !" );
         }
         for(Int i=0; i<numAtom; i++){
           fout << std::setiosflags(std::ios::scientific)
@@ -665,6 +665,30 @@ namespace dgdft{
         fout.close();
       }
     }
+    
+    
+     // Output the XYZ format for movie
+    if( mpirank == 0 ){
+      if( isOutputXYZ_ ){
+	std::fstream fout;
+	fout.open("MD.xyz",std::ios::out | std::ios::app) ;
+	if( !fout.good() ){
+	  ErrorHandling( "Cannot open MD.xyz!" );
+	}
+	fout << numAtom << std::endl;
+	fout << "MD step # "<< ionIter << std::endl;
+	for(Int a=0; a<numAtom; a++){
+	  fout<< std::setw(6)<< atomList[a].type
+	      << std::setw(16)<< atomList[a].pos[0]*au2ang
+	      << std::setw(16)<< atomList[a].pos[1]*au2ang
+	      << std::setw(16)<< atomList[a].pos[2]*au2ang
+	      << std::endl;
+	}
+	fout.close();
+      }
+    } // if( mpirank == 0 )
+
+
 
 
     return ;
@@ -693,28 +717,28 @@ namespace dgdft{
       atomforce[a] = atomList[a].force;
     }
 
-    // Output the XYZ format for movie
-    // Once this is written, all work associated with the current atomic
-    // position is DONE.
-    if( mpirank == 0 ){
-      if( isOutputXYZ_ ){
-	std::fstream fout;
-	fout.open("MD.xyz",std::ios::out | std::ios::app) ;
-	if( !fout.good() ){
-	  ErrorHandling( "Cannot open MD.xyz!" );
-	}
-	fout << numAtom << std::endl;
-	fout << "MD step # "<< ionIter << std::endl;
-	for(Int a=0; a<numAtom; a++){
-	  fout<< std::setw(6)<< atomList[a].type
-	      << std::setw(16)<< atompos[a][0]*au2ang
-	      << std::setw(16)<< atompos[a][1]*au2ang
-	      << std::setw(16)<< atompos[a][2]*au2ang
-	      << std::endl;
-	}
-	fout.close();
-      }
-    } // if( mpirank == 0 )
+//     // Output the XYZ format for movie
+//     // Once this is written, all work associated with the current atomic
+//     // position is DONE.
+//     if( mpirank == 0 ){
+//       if( isOutputXYZ_ ){
+// 	std::fstream fout;
+// 	fout.open("MD.xyz",std::ios::out | std::ios::app) ;
+// 	if( !fout.good() ){
+// 	  ErrorHandling( "Cannot open MD.xyz!" );
+// 	}
+// 	fout << numAtom << std::endl;
+// 	fout << "MD step # "<< ionIter << std::endl;
+// 	for(Int a=0; a<numAtom; a++){
+// 	  fout<< std::setw(6)<< atomList[a].type
+// 	      << std::setw(16)<< atompos[a][0]*au2ang
+// 	      << std::setw(16)<< atompos[a][1]*au2ang
+// 	      << std::setw(16)<< atompos[a][2]*au2ang
+// 	      << std::endl;
+// 	}
+// 	fout.close();
+//       }
+//     } // if( mpirank == 0 )
 
 
     if( ionIter == 1 ){
@@ -1520,7 +1544,7 @@ namespace dgdft{
         std::fstream fout_v;
         fout_v.open("lastVel.out",std::ios::out);
         if( !fout_v.good() ){
-          ErrorHandling( "File cannot be open!" );
+          ErrorHandling( "File cannot be opened !" );
         }
         for(Int i=0; i<numAtom; i++){
           fout_v << std::setiosflags(std::ios::scientific)
@@ -1626,28 +1650,28 @@ namespace dgdft{
     Print(statusOFS, "MD_Econ    =  ", Econserve_);
     Print(statusOFS, "MD_Edrift  =  ", Edrift_);
 
-    // Output the XYZ format for movie
-    // Once this is written, all work associated with the current atomic
-    // position is DONE.
-    if( mpirank == 0 ){
-      if( isOutputXYZ_ ){
-        std::fstream fout;
-        fout.open("MD.xyz",std::ios::out | std::ios::app) ;
-        if( !fout.good() ){
-          ErrorHandling( "Cannot open MD.xyz!" );
-        }
-        fout << numAtom << std::endl;
-        fout << "MD step # "<< ionIter << std::endl;
-        for(Int a=0; a<numAtom; a++){
-          fout<< std::setw(6)<< atomList[a].type
-	      << std::setw(16)<< atompos[a][0]*au2ang
-	      << std::setw(16)<< atompos[a][1]*au2ang
-	      << std::setw(16)<< atompos[a][2]*au2ang
-	      << std::endl;
-        }
-        fout.close();
-      }
-    } // if( mpirank == 0 )
+//     // Output the XYZ format for movie
+//     // Once this is written, all work associated with the current atomic
+//     // position is DONE.
+//     if( mpirank == 0 ){
+//       if( isOutputXYZ_ ){
+//         std::fstream fout;
+//         fout.open("MD.xyz",std::ios::out | std::ios::app) ;
+//         if( !fout.good() ){
+//           ErrorHandling( "Cannot open MD.xyz!" );
+//         }
+//         fout << numAtom << std::endl;
+//         fout << "MD step # "<< ionIter << std::endl;
+//         for(Int a=0; a<numAtom; a++){
+//           fout<< std::setw(6)<< atomList[a].type
+// 	      << std::setw(16)<< atompos[a][0]*au2ang
+// 	      << std::setw(16)<< atompos[a][1]*au2ang
+// 	      << std::setw(16)<< atompos[a][2]*au2ang
+// 	      << std::endl;
+//         }
+//         fout.close();
+//       }
+//     } // if( mpirank == 0 )
 
     // Now prepare the variable for the next evalation of the force
 
@@ -1777,26 +1801,26 @@ namespace dgdft{
       Print(statusOFS, "MD_Ekin    =  ", Ekinetic_);
       Print(statusOFS, "MD_Epot    =  ", Epot_);
 
-      // Output the XYZ format for movie
-      // Once this is written, all work associated with the current atomic
-      // position is DONE.
-      if( isOutputXYZ_ ){
-        std::fstream fout;
-        fout.open("MD.xyz",std::ios::out | std::ios::app) ;
-        if( !fout.good() ){
-          ErrorHandling( "Cannot open MD.xyz!" );
-        }
-        fout << numAtom << std::endl;
-        fout << "MD step # "<< ionIter << std::endl;
-        for(Int a=0; a<numAtom; a++){
-          fout<< std::setw(6)<< atomList[a].type
-	      << std::setw(16)<< atompos[a][0]*au2ang
-	      << std::setw(16)<< atompos[a][1]*au2ang
-	      << std::setw(16)<< atompos[a][2]*au2ang
-	      << std::endl;
-        }
-        fout.close();
-      }
+//       // Output the XYZ format for movie
+//       // Once this is written, all work associated with the current atomic
+//       // position is DONE.
+//       if( isOutputXYZ_ ){
+//         std::fstream fout;
+//         fout.open("MD.xyz",std::ios::out | std::ios::app) ;
+//         if( !fout.good() ){
+//           ErrorHandling( "Cannot open MD.xyz!" );
+//         }
+//         fout << numAtom << std::endl;
+//         fout << "MD step # "<< ionIter << std::endl;
+//         for(Int a=0; a<numAtom; a++){
+//           fout<< std::setw(6)<< atomList[a].type
+// 	      << std::setw(16)<< atompos[a][0]*au2ang
+// 	      << std::setw(16)<< atompos[a][1]*au2ang
+// 	      << std::setw(16)<< atompos[a][2]*au2ang
+// 	      << std::endl;
+//         }
+//         fout.close();
+//       }
 
       // Now prepare the variable for the next evalation of the force
 

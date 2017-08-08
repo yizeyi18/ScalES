@@ -2752,8 +2752,8 @@ ESDFReadInput ( const char* filename )
   // Read position from lastPos.out into esdfParam.atomList[i].pos if isRestartPosition=1
   if(esdfParam.isRestartPosition){
     statusOFS << std::endl 
-      << "Read atomic position from lastPos.out, " << std::endl 
-      << "overwrite the atomic position read from the input file." 
+      << "Read in atomic position from lastPos.out, " << std::endl 
+      << "override the atomic positions read from the input file." 
       << std::endl;
 
     std::vector<Atom>&  atomList = esdfParam.atomList;
