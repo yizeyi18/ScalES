@@ -2241,9 +2241,28 @@ ESDFReadInput ( const char* filename )
       if( esdf_block("Atom_Bohr", &numAtom ) ){
         // Cartesian coordinate (in the unit of Bohr) 
         Point3 pos;
+	Domain& dm = esdfParam.domain;
+	
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
+	  
+	  // Force atom to be in unit cell : assume cuboidal unit cell for this
+	  while(pos[0] > dm.length[0])
+	    pos[0] -= dm.length[0];
+	  while(pos[0] < 0.0)
+	    pos[0] += dm.length[0];
+	  
+	  while(pos[1] > dm.length[1])
+	    pos[1] -= dm.length[1];
+	  while(pos[1] < 0.0)
+	    pos[1] += dm.length[1];
+	  
+	  while(pos[2] > dm.length[2])
+	    pos[2] -= dm.length[2];
+	  while(pos[2] < 0.0)
+	    pos[2] += dm.length[2];
+	  
           atomList.push_back( 
               Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
         }
@@ -2251,10 +2270,29 @@ ESDFReadInput ( const char* filename )
       else if( esdf_block("Atom_Ang", &numAtom ) ){
         // Cartesian coordinate (in the unit of angstrom) 
         Point3 pos;
+	Domain& dm = esdfParam.domain;
+	 
         const Real ANG2AU = 1.8897261;
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
+	  
+	  // Force atom to be in unit cell : assume cuboidal unit cell for this
+	  while(pos[0] > (dm.length[0] / ANG2AU) )
+	    pos[0] -= (dm.length[0] / ANG2AU);
+	  while(pos[0] < 0.0)
+	    pos[0] += (dm.length[0] / ANG2AU);
+	  
+	  while(pos[1] > (dm.length[1] / ANG2AU) )
+	    pos[1] -= (dm.length[1] / ANG2AU);
+	  while(pos[1] < 0.0)
+	    pos[1] += (dm.length[1] / ANG2AU);
+	  
+	  while(pos[2] > (dm.length[2] / ANG2AU) )
+	    pos[2] -= (dm.length[2] / ANG2AU);
+	  while(pos[2] < 0.0)
+	    pos[2] += (dm.length[2] / ANG2AU);
+	  
           atomList.push_back( 
               Atom( type, ANG2AU*pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
         }
@@ -2263,9 +2301,28 @@ ESDFReadInput ( const char* filename )
         // Reduce coordinate (in the unit of Super_Cell)
         Point3 pos;
         Point3 length = esdfParam.domain.length;
+	Domain& dm = esdfParam.domain;
+	 
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
+	  
+	  // Force atom to be in unit cell : assume cuboidal unit cell for this
+	  while(pos[0] > 1.0)
+	    pos[0] -= 1.0;
+	  while(pos[0] < 0.0)
+	    pos[0] += 1.0;
+	  
+	  while(pos[1] > 1.0)
+	    pos[1] -= 1.0;
+	  while(pos[1] < 0.0)
+	    pos[1] += 1.0;
+	  
+	  while(pos[2] > 1.0)
+	    pos[2] -= 1.0;
+	  while(pos[2] < 0.0)
+	    pos[2] += 1.0; 
+	  
           atomList.push_back( 
               Atom( type, Point3( pos[0]*length[0], pos[1]*length[1], pos[2]*length[2] ),
                 Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
@@ -2962,7 +3019,7 @@ void ESDFPrintInput( ){
 
     Print(statusOFS, ""); 
     Print(statusOFS, "NumAtom = ", (int)atomList.size()); 
-    Print(statusOFS, "Atom Type and Coordinates");
+    Print(statusOFS, "Atom Type and Coordinates (possibly after shifting into unit cell)");
     Print(statusOFS, ""); 
 
     for(Int i=0; i < atomList.size(); i++) {
