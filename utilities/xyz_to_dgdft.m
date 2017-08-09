@@ -128,8 +128,30 @@ for zz = 1:sz
     
     for ww = 1:ll
         
+        % Adjust the reduced coordinates to be between 0 and +1.00
+        if(xlist_red(ww) > 1.0)
+            xlist_red(ww) = xlist_red(ww) - 1.00;
+        end
+        if(xlist_red(ww) < 0.0)
+            xlist_red(ww) = xlist_red(ww) + 1.00;
+        end
+        
+        if(ylist_red(ww) > 1.0)
+            ylist_red(ww) = ylist_red(ww) - 1.00;
+        end
+        if(ylist_red(ww) < 0.0)
+            ylist_red(ww) = ylist_red(ww) + 1.00;
+        end
+        
+        if(zlist_red(ww) > 1.0)
+            zlist_red(ww) = zlist_red(ww) - 1.00;
+        end
+        if(zlist_red(ww) < 0.0)
+            zlist_red(ww) = zlist_red(ww) + 1.00;
+        end
+        
         if(shiftz_flag == 0)
-            
+              
           fprintf(fid_out,'\n %f %f %f', xlist_red(ww), ylist_red(ww), ...
                                     zlist_red(ww));
         else
