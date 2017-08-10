@@ -1170,17 +1170,20 @@ namespace dgdft{
 
           // Limit FIRE-vars.dt_ so no charges change more than dMax (dMax is arbitrary)
 	  double dMax = 0.1;	// hard-coded MAGIC number
+	  double vMax = 0.0;
+	  
+	  // Find the maximum component
+	  for( Int j = 0; j < 3*numAtom; j++ )
+	    vMax = std::max(fabs(FIRE_vars.atomVel_[j]), vMax);
 
-	  for( Int j = 0; j < 3*numAtom; j++ ){
-	    double vMax = std::max(fabs(FIRE_vars.atomVel_[j]), 0.0);
+	  // Reset dt here
+	  if (FIRE_vars.dt_* vMax > dMax){
+	      statusOFS << std::endl << " Warning! Possible large step in x avoided by readjusting dt. . . " << std::endl;
 
-	    if (FIRE_vars.dt_*vMax > dMax){
-	      statusOFS << std::endl << " Warning! Possible Large step in x avoided by readjusting dt. . . " << std::endl;
-
-	      FIRE_vars.dt_ = dMax/vMax;		// Reset dt here
+	      FIRE_vars.dt_ = dMax/vMax;		
 	    }
 	    
-	  }
+	  
 	  
 	  /*
 
