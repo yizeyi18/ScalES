@@ -449,35 +449,56 @@ namespace dgdft{
     // *********************************************************************
     // Geometry optimization methods
     // *********************************************************************
-     
-    // Make sure no atom is outside supercell : assume rectangular cell
-    // Should be done both for geo opt and MD actually
-    if ((ionIter == 1) && (isGeoOpt_ == 1)) 
-    {
-      for (int ii = 0; ii < numAtom; ii ++)
-      {
-	// X coordinate adjustment
-        while ( atomList[ii].pos[0] > supercell_x_ )
-	  atomList[ii].pos[0] -= supercell_x_ ;
-	
-	while ( atomList[ii].pos[0] < 0.0 )
-	  atomList[ii].pos[0] += supercell_x_ ;
-	
-	// Y coordinate adjustment	
-	while ( atomList[ii].pos[1] > supercell_y_ )
-	  atomList[ii].pos[1] -= supercell_y_ ;
-	
-	while ( atomList[ii].pos[1] < 0.0 )
-	  atomList[ii].pos[1] += supercell_y_ ;
-	
-	// Z coordinate adjustment
-	while ( atomList[ii].pos[2] > supercell_z_ )
-	  atomList[ii].pos[2] -= supercell_z_ ;
-	
-	while ( atomList[ii].pos[2] < 0.0 )
-	  atomList[ii].pos[2] += supercell_z_ ;		
-      }
-    }
+    
+    // Save the position at the infimum configuration
+    // This is done here before the ions move since the forces correspond to the unmoved ions
+    if ( mpirank == 0 ){
+      if ( isGeoOpt_ == 1 ){
+	Real fAtThisIter = MaxForce( atomList );
+
+        if ( fAtThisIter < fAtInfimum_ ){
+	  // Update fAtInfimum
+	  fAtInfimum_ = fAtThisIter;
+  
+          std::fstream fout;
+          fout.open("infimumPos.out",std::ios::out);
+          if ( !fout.good() ){
+            ErrorHandling( "File cannot be opened !" );
+          }    
+          for(Int i=0; i<numAtom; i++){
+            fout << std::setiosflags(std::ios::scientific)
+                 << std::setiosflags(std::ios::showpos)
+                 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[0]
+                 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[1]
+                 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[2]
+                 << std::resetiosflags(std::ios::scientific)
+                 << std::resetiosflags(std::ios::showpos)
+                 << std::endl;
+           }
+    
+           fout.close();
+         
+	   // Output the XYZ format for movie
+	   fout.open("InfimumMD.xyz",std::ios::out | std::ios::app) ;
+           if ( !fout.good() ){
+             ErrorHandling( "Cannot open MD.xyz!" );
+           }    
+           fout << numAtom << std::endl;
+           fout << "MD step # "<< ionIter << std::endl;
+           for(Int a=0; a<numAtom; a++){
+             fout<< std::setw(6)<< atomList[a].type
+                 << std::setw(16)<< atomList[a].pos[0]*au2ang
+                 << std::setw(16)<< atomList[a].pos[1]*au2ang
+                 << std::setw(16)<< atomList[a].pos[2]*au2ang
+                 << std::endl;
+       	   }
+    
+           fout.close();
+
+        } // if ( fAtInfimum < MaxForce( atomList ))
+      } // if ( isGeoOpt_ == 1 )
+    } // if( mpirank == 0 )   
+    
       
     if( ionMove_ == "bb" ){
       BarzilaiBorweinOpt( ionIter );
@@ -612,54 +633,6 @@ namespace dgdft{
 	fout.close();
       }
     } // if( mpirank == 0 )
-
-    // Save the position at the infimum configuration:
-    if ( mpirank == 0 ){
-      if ( isGeoOpt_ == 1 ){
-	Real fAtThisIter = MaxForce( atomList );
-
-        if ( fAtThisIter < fAtInfimum_ ){
-	  // Update fAtInfimum
-	  fAtInfimum_ = fAtThisIter;
-  
-          std::fstream fout;
-          fout.open("infimumPos.out",std::ios::out);
-          if ( !fout.good() ){
-            ErrorHandling( "File cannot be opened !" );
-          }    
-          for(Int i=0; i<numAtom; i++){
-            fout << std::setiosflags(std::ios::scientific)
-                 << std::setiosflags(std::ios::showpos)
-                 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[0]
-                 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[1]
-                 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[2]
-                 << std::resetiosflags(std::ios::scientific)
-                 << std::resetiosflags(std::ios::showpos)
-                 << std::endl;
-           }
-    
-           fout.close();
-         
-	   // Output the XYZ format for movie
-	   fout.open("InfimumMD.xyz",std::ios::out | std::ios::app) ;
-           if ( !fout.good() ){
-             ErrorHandling( "Cannot open MD.xyz!" );
-           }    
-           fout << numAtom << std::endl;
-           fout << "MD step # "<< ionIter << std::endl;
-           for(Int a=0; a<numAtom; a++){
-             fout<< std::setw(6)<< atomList[a].type
-                 << std::setw(16)<< atomList[a].pos[0]*au2ang
-                 << std::setw(16)<< atomList[a].pos[1]*au2ang
-                 << std::setw(16)<< atomList[a].pos[2]*au2ang
-                 << std::endl;
-       	   }
-    
-           fout.close();
-
-        } // if ( fAtInfimum < MaxForce( atomList ))
-      } // if ( isGeoOpt_ == 1 )
-    } // if( mpirank == 0 )   
 
 
     return ;
