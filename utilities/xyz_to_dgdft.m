@@ -25,8 +25,11 @@ acell_z_ang = 7.9376;
 fname_in = 'dislocation1.xyz'; 
 fname_out = 'dgdft_dislocation_1.txt';
 
-% This flag is useful for quasi-2D systems
-% If this is 1, we shift z direction atoms to cell center
+% These flags are useful for quasi-1D and quasi-2D systems
+% If any of them are 1, we shift the atoms in that direction 
+% to the cell center, i.e. we set the reduced coordinates to 0.5
+shiftx_flag = 0;
+shifty_flag = 0;
 shiftz_flag = 0; 
 
 % % % % % 
@@ -58,7 +61,7 @@ atom_list = zeros(N_atoms, 4);
 % Read in the atoms
 for ii=1:N_atoms
     
-    tline = fgetl(fid_in);
+    tline = strtrim(fgetl(fid_in));
     
     % Locate the first blank
     bl = find(tline == ' ');
@@ -150,14 +153,22 @@ for zz = 1:sz
             zlist_red(ww) = zlist_red(ww) + 1.00;
         end
         
-        if(shiftz_flag == 0)
-              
-          fprintf(fid_out,'\n %f %f %f', xlist_red(ww), ylist_red(ww), ...
-                                    zlist_red(ww));
-        else
-          fprintf(fid_out,'\n %f %f %f', xlist_red(ww), ylist_red(ww), ...
-                                    0.5);           
+        if(shiftx_flag == 1)
+            xlist_red(ww) = 0.5;
         end
+        
+        if(shifty_flag == 1)
+            ylist_red(ww) = 0.5;
+        end
+        
+        if(shiftz_flag == 1)
+            zlist_red(ww) = 0.5;
+        end
+        
+            
+        fprintf(fid_out,'\n %f %f %f', xlist_red(ww), ylist_red(ww), ...
+                                    zlist_red(ww));
+        
     end
     
     if(ll ~= 0)
@@ -170,5 +181,8 @@ end
 
 fclose(fid_out);
 
-fprintf('\n\n %d Total atom details printed.\n', sum_print_list);
-fprintf('\n\n Note: shiftz value = %d. \n\n', shiftz_flag);
+fprintf('\n\n %d Total atom details printed.\n\n\n', sum_print_list);
+
+fprintf(' Note: shiftx value = %d. \n', shiftx_flag);
+fprintf('       shifty value = %d. \n', shifty_flag);
+fprintf('       shiftz value = %d. \n\n\n', shiftz_flag);
