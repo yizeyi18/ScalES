@@ -6416,8 +6416,8 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
       //MPI_Comm_rank(rowComm, &mpirankRow);
       //MPI_Comm_size(rowComm, &mpisizeRow);
 
-      //MPI_Comm_rank(colComm, &mpirankCol);
-      //MPI_Comm_size(colComm, &mpisizeCol);
+      MPI_Comm_rank(colComm, &mpirankCol);
+      MPI_Comm_size(colComm, &mpisizeCol);
 
       if(0){
 
