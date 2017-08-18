@@ -69,6 +69,7 @@ private:
   // For density fitting
   Int               numMu_;
   IntNumVec         pivQR_;
+  DblNumMat         G_;
   IntNumVec         numProcPotrf_;
 
 public:

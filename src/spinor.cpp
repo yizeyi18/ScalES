@@ -6090,14 +6090,22 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
 
     // Step 1: Pre-compression of the wavefunctions. This uses
     // multiplication with orthonormalized random Gaussian matrices
-    if ( mpirank == 0) {
-      GaussianRandom(G);
-      lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
-    }
 
     GetTime( timeSta1 );
 
-    MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
+    if (G_.m_!=numStateTotal){
+      DblNumMat G(numStateTotal, numPre);
+      if ( mpirank == 0 ) {
+        GaussianRandom(G);
+        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+        statusOFS << "Random projection initialzied." << std::endl << std::endl;
+      }
+      MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
+      G_ = G;
+    } else {
+      statusOFS << "Random projection reused." << std::endl;
+    }
+    statusOFS << "G(0,0) = " << G_(0,0) << std::endl << std::endl;
 
     GetTime( timeEnd1 );
 #if ( _DEBUGlevel_ >= 0 )
@@ -6108,11 +6116,11 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     GetTime( timeSta1 );
 
     blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
-        phiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
+        phiRow.Data(), ntotLocal, G_.Data(), numStateTotal, 0.0,
         localphiGRow.Data(), ntotLocal );
 
     blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
-        psiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
+        psiRow.Data(), ntotLocal, G_.Data(), numStateTotal, 0.0,
         localpsiGRow.Data(), ntotLocal );
 
     GetTime( timeEnd1 );
@@ -6534,6 +6542,36 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     statusOFS << "Time for QRCP alone is " <<
       timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
 #endif
+    if(0){
+      DblNumVec weight(ntot);
+      Real* wp = weight.Data();
+      Real timeW1,timeW2;
+
+      GetTime(timeW1); 
+      DblNumVec phiW(ntot);
+      SetValue(phiW,0.0);
+      Real* phW = phiW.Data();
+      Real* ph = phiCol.Data();
+    
+      for (int j = 0; j < numStateLocal; j++){
+        for(int i = 0; i < ntot; i++){
+          phW[i] += ph[i+j*ntot]*ph[i+j*ntot];
+        }
+      }
+      MPI_Barrier(domain_.comm);
+      MPI_Reduce(phW, wp, ntot, MPI_DOUBLE, MPI_SUM, 0, domain_.comm);
+      MPI_Bcast(wp, ntot, MPI_DOUBLE, 0, domain_.comm);
+      GetTime(timeW2);
+      statusOFS << "Calculate weight: " << timeW2-timeW1 << "[s]" << std::endl << std::endl;
+
+      int rk = numMu_;
+      Real timeKMEANSta, timeKMEANEnd;
+      GetTime(timeKMEANSta);
+      KMEAN(ntot, weight, rk, domain_, pivQR_.Data());
+      GetTime(timeKMEANEnd);
+      statusOFS << "Kmean time is " << timeKMEANEnd-timeKMEANSta << "[s]" << std::endl << std::endl;
+    }
+    
 
     if(0){
       Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));

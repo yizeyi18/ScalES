@@ -1779,7 +1779,14 @@ Int serialize(const PseudoPot& val, std::ostream& os, const std::vector<Int>& ma
 
 Int deserialize(PseudoPot& val, std::istream& is, const std::vector<Int>& mask);
 
+void findMin(NumMat<Real>& A, const int Dim, NumVec<Int>& Imin);
 
+void findMin(NumMat<Real>& A, const int Dim, NumVec<Int>& Imin, NumVec<Real>& amin);
 
+void pdist2(NumMat<Real>& A, NumMat<Real>& B, NumMat<Real>& D);
+
+void unique(NumVec<Int>& Index);
+
+void KMEAN(Int n, NumVec<Real>& weight, Int& rk, const Domain &dm, Int* piv);
 } // namespace dgdft
 #endif // _UTILITY_HPP_

@@ -798,5 +798,396 @@ Int deserialize(PseudoPot& val, std::istream& is, const std::vector<Int>& mask)
   return 0;
 }
 
+void findMin(NumMat<Real>& A, const int Dim, NumVec<Int>& Imin){
+  int n = A.n_;
+  int m = A.m_;
+  if (Dim == 0){ 
+    Imin.Resize(n);
+    Int* Iptr = Imin.Data();
+    for (int i = 0; i < n; i++){
+      double* temp = A.VecData(i);
+      Iptr[i] = std::distance(temp,std::min_element(temp,temp+m));
+    }
+  } else {
+    Real* Aptr = A.Data();
+    DblNumVec amin(m,1,Aptr);
+    Imin.Resize(m);
+    SetValue(Imin,0);
+    Int* Iptr = Imin.Data();
+    Real* aptr = amin.Data();
+    for (int j = 1; j < n; j++){
+      for (int i = 0; i < m; i++){
+        if (Aptr[i+j*m] < aptr[i]){
+          aptr[i] = Aptr[i+j*m];
+          Iptr[i] = j;
+        }
+      }
+    }
+  }
+}
+
+void findMin(NumMat<Real>& A, const int Dim, NumVec<Int>& Imin, NumVec<Real>& amin){
+  int n = A.n_;
+  int m = A.m_;
+  if (Dim == 0){ 
+    Imin.Resize(n);
+    amin.Resize(n);
+    Int* Iptr = Imin.Data();
+    Real* aptr = amin.Data();
+    Int d;
+    for (int i = 0; i < n; i++){
+      double* temp = A.VecData(i);
+      d = std::distance(temp,std::min_element(temp,temp+m));
+      Iptr[i] = d;
+      aptr[i] = temp[d];
+    }
+  } else {
+    Real* Aptr = A.Data();
+    amin = DblNumVec(m,1,Aptr);
+    Imin.Resize(m);
+    SetValue(Imin,0);
+    Int* Iptr = Imin.Data();
+    Real* aptr = amin.Data();
+    for (int j = 1; j < n; j++){
+      for (int i = 0; i < m; i++){
+        if (Aptr[i+j*m] < aptr[i]){
+          aptr[i] = Aptr[i+j*m];
+          Iptr[i] = j;
+        }
+      }
+    } 
+  }
+}
+
+void pdist2(NumMat<Real>& A, NumMat<Real>& B, NumMat<Real>& D){
+  D.Resize(A.m_, B.m_);
+  Int Am = A.m_;
+  Int Bm = B.m_;
+  Real* Dptr = D.Data();
+  Real* Aptr = A.Data();
+  Real* Bptr = B.Data();
+  
+  Real d1,d2,d3;
+  int chunk = Bm/omp_get_max_threads()+1;
+#pragma omp for  schedule(static,chunk) nowait
+  for (int j = 0; j < Bm;  j++) {
+    for (int i = 0; i < Am; i++) {
+      d1 = Aptr[i] - Bptr[j];
+      d2 = Aptr[i+Am] - Bptr[j+Bm];
+      d3 = Aptr[i+2*Am] - Bptr[j+2*Bm];
+      Dptr[j*Am+i] = d1*d1 + d2*d2 + d3*d3;
+    }
+  }
+}
+
+void unique(NumVec<Int>& Index){
+  Sort(Index);
+  Int* Ipt = Index.Data();
+  Int* it = std::unique(Ipt, Ipt + Index.m_);
+  std::vector<Int> temp(Ipt, it); 
+  delete[] Index.Data();
+  Index.m_ = temp.size();
+  Index.data_ = new Int[Index.m_];
+  Ipt = Index.Data();
+  for (int i = 0; i < Index.m_; i++){
+    Ipt[i] = temp[i];
+  }
+}
+
+void KMEAN(Int n, NumVec<Real>& weight, Int& rk, const Domain &dm, Int* piv){
+  MPI_Barrier(dm.comm);
+  int mpirank; MPI_Comm_rank(dm.comm, &mpirank);
+  int mpisize; MPI_Comm_size(dm.comm, &mpisize);
+  
+  Real timeSta, timeEnd;
+  Real timeSta2, timeEnd2;
+  Real timeDist=0.0;
+  Real timeMin=0.0;
+  Real timeComm=0.0;
+  Real time0 = 0.0;
+
+  Real* wptr = weight.Data();
+  int npt;
+  std::vector<int> index(n);
+  double maxW = 0.0;
+  if(0){
+    maxW = findMax(weight);
+    npt = 0;
+    for (int i = 0; i < n;i++){
+      if (wptr[i] > 0.0*maxW){
+        index[npt] = i;
+        npt++;
+      }
+    }
+    index.resize(npt);
+  } else {
+    npt = n;
+    for (int i = 0; i < n; i++){
+      index[i] = i;
+    }
+  }
+
+  if(npt < rk){
+    int k0 = 0;
+    int k1 = 0;
+    for (int i = 0; i < npt; i++){
+      if ( i == index[k0] ){
+        piv[k0] = i;
+        k0 = std::min(k0+1, rk-1);
+      } else {
+        piv[npt+k1] = i;
+        k1++;
+      }
+    }
+    std::random_shuffle(piv+npt,piv+n);
+    return;
+  } 
+
+  int nptLocal = n/mpisize;
+  int res = n%mpisize;
+  if (mpirank < res){
+    nptLocal++;
+  }
+  int indexSta = mpirank*nptLocal;
+  if (mpirank >= res){
+    indexSta += res;
+  }
+  std::vector<int> indexLocal(nptLocal);
+  DblNumMat GridLocal(nptLocal,3);
+  Real* glptr = GridLocal.Data();
+  DblNumVec weightLocal(nptLocal);
+  Real* wlptr = weightLocal.Data();
+
+  int tmp;
+  double len[3];
+  double dx[3];
+  int nG[3];
+  for (int i = 0; i < 3; i++){
+    len[i] = dm.length[i];
+    nG[i] = dm.numGrid[i];
+    dx[i] = len[i]/nG[i];
+  }
+
+  for (int i = 0; i < nptLocal; i++){
+    tmp = index[indexSta+i];
+    indexLocal[i] = tmp;
+    wlptr[i] = wptr[tmp];
+    glptr[i] = (tmp%nG[1])*dx[0];
+    glptr[i+nptLocal] = (tmp%(nG[1]*nG[2])-glptr[i])/nG[1]*dx[2];
+    glptr[i+2*nptLocal] = (tmp-glptr[i]-glptr[i+nptLocal]*nG[1])/(nG[1]*nG[2])*dx[2];
+  }
+  DblNumMat C(rk,3);
+  Real* Cptr = C.Data();
+  std::vector<int> Cind = index;
+  std::vector<int> Cinit;
+  Cinit.reserve(rk);
+  std::random_shuffle(Cind.begin(), Cind.end());
+  GetTime(timeEnd);
+  statusOFS << "After Setup: " << timeEnd-timeSta << "[s]" << std::endl;
+
+  if (piv[0]!= piv[1]){
+    statusOFS << "Used previous initialization." << std::endl;
+    for (int i = 0; i < rk; i++){
+      if(wptr[piv[i]] > 0.0*maxW){
+        Cinit.push_back(piv[i]);
+      }
+    }
+    statusOFS << "Reusable pivots: " << Cinit.size() << std::endl;
+    GetTime(timeEnd);
+    statusOFS << "After load: " << timeEnd-timeSta << "[s]" << std::endl;
+    int k = 0;
+    while(Cinit.size() < rk && k < npt){
+      bool flag = 1;
+      int it = 0; 
+      while (flag && it < Cinit.size()){
+        if (Cinit[it] == Cind[k]){
+          flag = 0;
+        }
+        it++;
+      }
+      if(flag){
+        Cinit.push_back(Cind[k]);
+      }
+      k++;
+    }
+  } else {
+    Cinit = Cind;
+    Cinit.resize(rk);
+  }
+  GetTime(timeEnd);
+  statusOFS << "After Initialization: " << timeEnd-timeSta << "[s]" << std::endl;
+
+  for (int i = 0; i < rk; i++){
+    tmp = Cinit[i];
+    Cptr[i] = (tmp%nG[1])*dx[0];
+    Cptr[i+rk] = (tmp%(nG[1]*nG[2])-Cptr[i])/nG[1]*dx[2];
+    Cptr[i+2*rk] = (tmp-Cptr[i]-Cptr[i+rk]*nG[1])/(nG[1]*nG[2])*dx[2];
+  }
+
+  int s = 0;
+  int flag = n;
+  int flagrecv = 0;
+  IntNumVec label(nptLocal);
+  Int* lbptr = label.Data();
+  IntNumVec last(nptLocal);
+  Int* laptr = last.Data();
+  DblNumVec count(rk);
+  Real* cptr = count.Data();
+  DblNumMat DLocal(nptLocal, rk);
+  DblNumMat Crecv(rk,3);
+  Real* Crptr = Crecv.Data();
+  DblNumVec countrecv(rk);
+  Real* crptr = countrecv.Data();
+
+  GetTime(timeSta2);
+  pdist2(GridLocal, C, DLocal);
+  GetTime(timeEnd2);
+  timeDist += (timeEnd2-timeSta2);
+  
+  GetTime(timeSta2);
+  findMin(DLocal, 1, label);
+  GetTime(timeEnd2);
+  timeMin+=(timeEnd2-timeSta2);
+  lbptr = label.Data();
+
+  double maxF = 0.001*n;
+  while (flag > 0*maxF && s < 999){
+    SetValue(count, 0.0);
+    SetValue(C, 0.0);
+    for (int i = 0; i < nptLocal; i++){
+      tmp = lbptr[i];
+      cptr[tmp] += wlptr[i];
+      Cptr[tmp] += wlptr[i]*glptr[i];
+      Cptr[tmp+rk] += wlptr[i]*glptr[i+nptLocal];
+      Cptr[tmp+2*rk] += wlptr[i]*glptr[i+2*nptLocal];
+    }
+    MPI_Barrier(dm.comm);
+    GetTime(timeSta2);
+    MPI_Reduce(cptr, crptr, rk, MPI_DOUBLE, MPI_SUM, 0, dm.comm);
+    MPI_Reduce(Cptr, Crptr, rk*3, MPI_DOUBLE, MPI_SUM, 0, dm.comm);
+    GetTime(timeEnd2);
+    timeComm += (timeEnd2-timeSta2);
+
+    GetTime(timeSta2);
+    if (mpirank == 0){
+      tmp = rk;
+      for (int i = 0; i < rk; i++){
+        if(crptr[i] != 0.0){
+          Crptr[i] = Crptr[i]/crptr[i];
+          Crptr[i+tmp] = Crptr[i+tmp]/crptr[i];
+          Crptr[i+2*tmp] = Crptr[i+2*tmp]/crptr[i];
+        } else {
+          rk--;
+          Crptr[i] = Crptr[rk];
+          Crptr[i+tmp] = Crptr[rk+tmp];
+          Crptr[i+2*tmp] = Crptr[rk+2*tmp];
+          crptr[i] = crptr[rk];
+          i--;
+        }
+      }
+      C.Resize(rk,3);
+      Cptr = C.Data();
+      for (int i = 0; i < rk; i++){
+        Cptr[i] = Crptr[i];
+        Cptr[i+rk] = Crptr[i+tmp];
+        Cptr[i+2*rk] = Crptr[i+2*tmp];
+      }
+    }
+    GetTime(timeEnd2);
+    time0 += (timeEnd2-timeSta2);
+
+    MPI_Bcast(&rk, 1, MPI_INT, 0, dm.comm);
+    if (mpirank != 0){
+      C.Resize(rk,3);
+      Cptr= C.Data();
+    }
+    GetTime(timeSta2);
+    MPI_Bcast(Cptr, rk*3, MPI_DOUBLE, 0, dm.comm);
+    GetTime(timeEnd2);
+    timeComm += (timeEnd2-timeSta2);
+
+    count.Resize(rk);
+    GetTime(timeSta2);
+    pdist2(GridLocal, C, DLocal);
+    GetTime(timeEnd2);
+    timeDist += (timeEnd2-timeSta2);
+
+    last = label;
+    laptr = last.Data();
+    GetTime(timeSta2);
+    findMin(DLocal, 1, label);
+    GetTime(timeEnd2);
+    timeMin +=(timeEnd2-timeSta2);
+    lbptr = label.Data();
+    flag = 0;
+    for (int i = 0; i < label.m_; i++){
+      if(laptr[i]!=lbptr[i]){
+        flag++;
+      }
+    }
+    MPI_Barrier(dm.comm);
+    MPI_Reduce(&flag, &flagrecv, 1, MPI_INT, MPI_SUM, 0, dm.comm);
+    MPI_Bcast(&flagrecv, 1, MPI_INT, 0, dm.comm);
+    flag = flagrecv;
+    statusOFS<< flag << " ";
+    s++;
+  }
+  statusOFS << std::endl << "Converged in " << s << " iterations." << std::endl;
+  GetTime(timeEnd);
+  statusOFS << "After iteration: " << timeEnd-timeSta << "[s]" << std::endl;
+  IntNumVec Imin(rk);
+  Int* imptr = Imin.Data();
+  DblNumVec amin(rk);
+  findMin(DLocal, 0, Imin, amin);
+  for (int i = 0; i < rk; i++){
+    imptr[i] = indexLocal[imptr[i]];
+  }
+  IntNumMat Iminrecv(rk, mpisize);
+  Int* imrptr = Iminrecv.Data();
+  DblNumMat aminrecv(rk, mpisize);
+  MPI_Barrier(dm.comm);
+  
+  GetTime(timeSta2);
+  MPI_Gather(imptr, rk, MPI_INT, imrptr, rk, MPI_INT, 0, dm.comm);
+  MPI_Gather(amin.Data(), rk, MPI_DOUBLE, aminrecv.Data(), rk, MPI_DOUBLE, 0, dm.comm);
+  GetTime(timeEnd2);
+  timeComm += (timeEnd2-timeSta2);
+  IntNumVec pivTemp(rk);
+  Int* pvptr = pivTemp.Data();
+  
+  GetTime(timeSta2);
+  if (mpirank == 0) {
+    findMin(aminrecv,1,pivTemp);
+    for (int i = 0; i <rk; i++){
+      pvptr[i] = imrptr[i+rk*pvptr[i]];
+    }
+  }
+  GetTime(timeEnd2);
+  time0 += (timeEnd2-timeSta2);
+
+  GetTime(timeSta2);
+  MPI_Bcast(pvptr, rk, MPI_INT, 0, dm.comm);
+  GetTime(timeEnd2);
+  timeComm += (timeEnd2-timeSta2);
+
+  unique(pivTemp);
+  pvptr = pivTemp.Data();
+  rk = pivTemp.m_;
+  int k0 = 0;
+  int k1 = 0;
+  for (int i = 0; i < n; i++){
+    if(i == pvptr[k0]){
+      piv[k0] = i;
+      k0 = std::min(k0+1, rk-1);
+    } else {
+      piv[rk+k1] = i;
+      k1++;
+    }
+  }
+  statusOFS << "Dist time: " << timeDist << "[s]" << std::endl;
+  statusOFS << "Min time: " << timeMin << "[s]" << std::endl;
+  statusOFS << "Comm time: " << timeComm << "[s]" << std::endl;
+  statusOFS << "core0 time: " << time0 << "[s]" << std::endl;
+}
 
 }  // namespace dgdft
