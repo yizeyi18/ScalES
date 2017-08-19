@@ -248,6 +248,11 @@ struct ESDFInputParam{
   /// - = "pcdiis"             : Projected commutator DIIS
   ///
   std::string         hybridMixType;
+  /// @brief Whether to initialize hybrid functional in the initial
+  /// step.
+  ///
+  /// Default: 0
+  bool                isHybridActiveInit;
   /// @brief Whether to update the ACE operator twice in PCDIIS.
   ///
   /// Default: 1
@@ -264,12 +269,24 @@ struct ESDFInputParam{
   ///
   /// Default: 0
   bool                isHybridDF;
-  /// @brief Whether to initialize hybrid functional in the initial
-  /// step.
-  ///
-  /// Default: 0
-  bool                isHybridActiveInit;
 
+  /// @brief Type for selecting points in density fitting
+  ///
+  /// Default: "QRCP"
+  ///
+  /// Currently two types (QRCP and Kmeans) are supported.
+  std::string         hybridDFType;
+ 
+  /// @brief The tolerance used in K-means method of density fitting
+  ///
+  /// Default: 1e-3
+  Real                hybridDFKmeansTolerance;
+  
+  /// @brief The max number of iterations used in K-means method of density fitting
+  ///
+  /// Default: 99
+  Int                 hybridDFKmeansMaxIter;
+  
   /// @brief Density fitting uses numMu * numStateTotal number of
   /// states for hybrid calculations with density fitting.
   ///

@@ -1787,6 +1787,7 @@ void pdist2(NumMat<Real>& A, NumMat<Real>& B, NumMat<Real>& D);
 
 void unique(NumVec<Int>& Index);
 
-void KMEAN(Int n, NumVec<Real>& weight, Int& rk, const Domain &dm, Int* piv);
+void KMEAN(Int n, NumVec<Real>& weight, Int& rk, Real KmeansTolerance, 
+    Int KmeansMaxIter, const Domain &dm, Int* piv);
 } // namespace dgdft
 #endif // _UTILITY_HPP_

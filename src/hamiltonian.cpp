@@ -95,6 +95,10 @@ KohnSham::Setup    (
   atomList_            = atomList;
   numExtraState_       = esdfParam.numExtraState;
   XCType_              = esdfParam.XCType;
+  
+  hybridDFType_                    = esdfParam.hybridDFType;
+  hybridDFKmeansTolerance_         = esdfParam.hybridDFKmeansTolerance;
+  hybridDFKmeansMaxIter_           = esdfParam.hybridDFKmeansMaxIter;
   hybridDFNumMu_                   = esdfParam.hybridDFNumMu;
   hybridDFNumGaussianRandom_       = esdfParam.hybridDFNumGaussianRandom;
   hybridDFNumProcScaLAPACK_        = esdfParam.hybridDFNumProcScaLAPACK;
@@ -2929,11 +2933,12 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
   SetValue( M, 0.0 );
   // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
   // semi-definite matrix.
-  psi.AddMultSpinorEXXDF6( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
-      occupationRate_, hybridDFNumMu_, hybridDFNumGaussianRandom_,
+  psi.AddMultSpinorEXXDF7( fft, phiEXX_, exxgkkR2C_, exxFraction_,  numSpin_, 
+      occupationRate_, hybridDFType_, hybridDFKmeansTolerance_, 
+      hybridDFKmeansMaxIter_, hybridDFNumMu_, hybridDFNumGaussianRandom_,
       hybridDFNumProcScaLAPACK_, hybridDFTolerance_, BlockSizeScaLAPACK_,
       vexxPsi, M, isFixColumnDF );
-
+  
   // Implementation based on Cholesky
   if(0){
     lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);

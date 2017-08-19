@@ -132,6 +132,9 @@ protected:
   /// @brief Mixing parameter for hybrid functional calculation. Currently hard coded
   const Real                  exxFraction_ = 0.25;
 
+  std::string                 hybridDFType_;
+  Real                        hybridDFKmeansTolerance_;
+  Int                         hybridDFKmeansMaxIter_;
   Real                        hybridDFNumMu_;
   Real                        hybridDFNumGaussianRandom_;
   Int                         hybridDFNumProcScaLAPACK_;

@@ -892,7 +892,9 @@ void unique(NumVec<Int>& Index){
   }
 }
 
-void KMEAN(Int n, NumVec<Real>& weight, Int& rk, const Domain &dm, Int* piv){
+void KMEAN(Int n, NumVec<Real>& weight, Int& rk, Real KmeansTolerance, 
+    Int KmeansMaxIter,  const Domain &dm, Int* piv)
+{
   MPI_Barrier(dm.comm);
   int mpirank; MPI_Comm_rank(dm.comm, &mpirank);
   int mpisize; MPI_Comm_size(dm.comm, &mpisize);
@@ -1048,8 +1050,8 @@ void KMEAN(Int n, NumVec<Real>& weight, Int& rk, const Domain &dm, Int* piv){
   timeMin+=(timeEnd2-timeSta2);
   lbptr = label.Data();
 
-  double maxF = 0.001*n;
-  while (flag > 0*maxF && s < 999){
+  double maxF = KmeansTolerance*n;
+  while (flag > 0*maxF && s < KmeansMaxIter){
     SetValue(count, 0.0);
     SetValue(C, 0.0);
     for (int i = 0; i < nptLocal; i++){

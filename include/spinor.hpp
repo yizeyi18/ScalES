@@ -236,6 +236,23 @@ public:
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
 
+  void AddMultSpinorEXXDF7 ( Fourier& fft, 
+      const NumTns<Real>& phi,
+      const DblNumVec& exxgkkR2C,
+      Real  exxFraction,
+      Real  numSpin,
+      const DblNumVec& occupationRate,
+      std::string hybridDFType_,
+      Real  hybridDFKmeansTolerance, 
+      Int   hybridDFKmeansMaxIter, 
+      const Real numMuFac,
+      const Real numGaussianRandomFac,
+      const Int numProcScaLAPACKPotrf, 
+      const Real hybridDFTolerance,
+      const Int scaPotrfBlockSize, 
+      NumTns<Real>& a3,
+      NumMat<Real>& VxMat, 
+      bool isFixColumnDF );
 
 };  // Spinor
 
