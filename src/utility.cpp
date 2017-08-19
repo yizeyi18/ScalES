@@ -868,8 +868,6 @@ void pdist2(NumMat<Real>& A, NumMat<Real>& B, NumMat<Real>& D){
   Real* Bptr = B.Data();
   
   Real d1,d2,d3;
-  int chunk = Bm/omp_get_max_threads()+1;
-#pragma omp for  schedule(static,chunk) nowait
   for (int j = 0; j < Bm;  j++) {
     for (int i = 0; i < Am; i++) {
       d1 = Aptr[i] - Bptr[j];
