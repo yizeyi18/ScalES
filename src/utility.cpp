@@ -893,7 +893,7 @@ void unique(NumVec<Int>& Index){
 }
 
 void KMEAN(Int n, NumVec<Real>& weight, Int& rk, Real KmeansTolerance, 
-    Int KmeansMaxIter,  const Domain &dm, Int* piv)
+    Int KmeansMaxIter, Real DFTolerance,  const Domain &dm, Int* piv)
 {
   MPI_Barrier(dm.comm);
   int mpirank; MPI_Comm_rank(dm.comm, &mpirank);
@@ -906,15 +906,16 @@ void KMEAN(Int n, NumVec<Real>& weight, Int& rk, Real KmeansTolerance,
   Real timeComm=0.0;
   Real time0 = 0.0;
 
+  GetTime(timeSta);
   Real* wptr = weight.Data();
   int npt;
   std::vector<int> index(n);
   double maxW = 0.0;
-  if(0){
+  if(DFTolerance > 1e-16){
     maxW = findMax(weight);
     npt = 0;
     for (int i = 0; i < n;i++){
-      if (wptr[i] > 0.0*maxW){
+      if (wptr[i] > DFTolerance*maxW){
         index[npt] = i;
         npt++;
       }
@@ -988,7 +989,7 @@ void KMEAN(Int n, NumVec<Real>& weight, Int& rk, Real KmeansTolerance,
   if (piv[0]!= piv[1]){
     statusOFS << "Used previous initialization." << std::endl;
     for (int i = 0; i < rk; i++){
-      if(wptr[piv[i]] > 0.0*maxW){
+      if(wptr[piv[i]] > DFTolerance*maxW){
         Cinit.push_back(piv[i]);
       }
     }
@@ -1051,7 +1052,7 @@ void KMEAN(Int n, NumVec<Real>& weight, Int& rk, Real KmeansTolerance,
   lbptr = label.Data();
 
   double maxF = KmeansTolerance*n;
-  while (flag > 0*maxF && s < KmeansMaxIter){
+  while (flag > maxF && s < KmeansMaxIter){
     SetValue(count, 0.0);
     SetValue(C, 0.0);
     for (int i = 0; i < nptLocal; i++){

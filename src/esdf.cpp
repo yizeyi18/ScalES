@@ -2402,7 +2402,8 @@ ESDFReadInput ( const char* filename )
     esdf_string("Hybrid_DF_Type", "QRCP", strtmp); 
     esdfParam.hybridDFType         = strtmp;
     if( esdfParam.hybridDFType != "QRCP" &&
-        esdfParam.hybridDFType != "Kmeans"){
+        esdfParam.hybridDFType != "Kmeans" &&
+        esdfParam.hybridDFType != "Kmeans+QRCP"){
       ErrorHandling("Invalid ISDF type.");
     }
     

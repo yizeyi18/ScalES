@@ -7408,9 +7408,14 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
   //  ntotLocalMG = ntotBlocksize + 1;
   // }
     
-  pivQR_.Resize(ntot);
+  if ((pivQR_.m_ != ntot) || (hybridDFType == "QRCP")){
+    pivQR_.Resize(ntot);
+    SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
+    // Q factor does not need to be used
+  }
 
-  if( (isFixColumnDF == false) && (hybridDFType == "QRCP") ){
+
+  if( (isFixColumnDF == false) && ((hybridDFType == "QRCP") || (hybridDFType == "Kmeans+QRCP"))){
 
     GetTime( timeSta );
 
@@ -7614,8 +7619,6 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     }
 
     DblNumVec tau(ntotMG);
-    SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
-    // Q factor does not need to be used
 
     for( Int k = 0; k < ntotMG; k++ ){
       tau[k] = 0.0;
@@ -7907,6 +7910,10 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
       serialize( pivQR_, muStream, NO_MASK );
       SharedWrite( "pivQR", muStream );
     }
+
+    if (hybridDFType == "Kmeans+QRCP"){
+      hybridDFType = "Kmeans";
+    }
   } //  if( (isFixColumnDF == false) && (hybridDFType == "QRCP") )
 
   if( (isFixColumnDF == false) && (hybridDFType == "Kmeans") ){
@@ -7938,7 +7945,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     int rk = numMu_;
     SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
     GetTime(timeKMEANSta);
-    KMEAN(ntot, weight, rk, hybridDFKmeansTolerance, hybridDFKmeansMaxIter, domain_, pivQR_.Data());
+    KMEAN(ntot, weight, rk, hybridDFKmeansTolerance, hybridDFKmeansMaxIter, hybridDFTolerance, domain_, pivQR_.Data());
     GetTime(timeKMEANEnd);
     statusOFS << "Time for Kmeans alone is " << timeKMEANEnd-timeKMEANSta << "[s]" << std::endl << std::endl;
  
