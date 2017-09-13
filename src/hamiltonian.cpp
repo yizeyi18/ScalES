@@ -713,7 +713,7 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
       // FIXME Factor to be simplified
       fac = numSpin_ * occrate(psi.WavefunIdx(k));
       for( Int i = 0; i < ntotFine; i++ ){
-        densityLocal(i,RHO) +=  pow( std::abs(fft.inputComplexVecFine(i).real()), 2.0 ) * fac;
+        densityLocal(i,RHO) +=  (fft.inputComplexVecFine(i) * std::conj(fft.inputComplexVecFine(i))).real()* fac;
       }
     }
   }
