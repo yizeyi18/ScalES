@@ -480,7 +480,70 @@ Syevd(char uplo, ScaLAPACKMatrix<double>& A,
   return;
 }   // -----  end of function Syevd ----- 
 
+#ifdef _COMPLEX_
+// FIXME here is memory issue in Syevd (lwork and liwork)
+// Not sure, but complex version might have same problem
+void
+Syevd(char uplo, ScaLAPACKMatrix<dcomplex>& A, 
+    std::vector<double>& eigs,
+    ScaLAPACKMatrix<dcomplex>& Z){
 
+  if( A.Height() != A.Width() ){
+    std::ostringstream msg;
+    msg 
+      << "Syevd: A must be a square matrix. \n" 
+      << "The dimension of A is " << A.Height() << " x " << A.Width() << std::endl;
+    ErrorHandling( msg.str().c_str() );
+  }
+
+  char jobz = 'V';
+  Int  liwork = -1, lwork = -1, lrwork = -1, info;
+  std::vector<dcomplex> work(1);
+  std::vector<Int>    iwork(1);
+  std::vector<double> rwork(1);
+  Int N = A.Height();
+
+  eigs.resize(N);
+  Z.SetDescriptor(A.Desc());
+
+  SCALAPACK(pzheevd)(&jobz, &uplo, &N, A.Data(), &I_ONE, &I_ONE,
+      A.Desc().Values(), &eigs[0], Z.Data(),
+      &I_ONE, &I_ONE, Z.Desc().Values(), 
+      &work[0], &lwork,&rwork[0], &lrwork, &iwork[0], &liwork, &info);
+  lwork = (Int)work[0].real();
+  // NOTE: Buggy memory allocation in pdsyevd?
+  lwork = lwork+2048;
+  work.resize(lwork);
+  liwork = iwork[0];
+  // NOTE: Buggy memory allocation in pdsyevd?
+  liwork = liwork+2048;
+  iwork.resize(liwork);
+  lrwork = (Int)rwork[0];
+  rwork.resize(lrwork);
+
+  SCALAPACK(pzheevd)(&jobz, &uplo, &N, A.Data(), &I_ONE, &I_ONE,
+      A.Desc().Values(), &eigs[0], Z.Data(),
+      &I_ONE, &I_ONE, Z.Desc().Values(), 
+      &work[0], &lwork, &rwork[0], &lrwork, &iwork[0], &liwork, &info);
+
+  if( info < 0 )
+  {
+    std::ostringstream msg;
+    msg << "pdsyevd: logic error. Info = " << info << std::endl;
+    ErrorHandling( msg.str().c_str() );
+  }
+  else if( info > 0 )
+  {
+    std::ostringstream msg;
+    msg << "pdsyevd: runtime error. Info = " << info << std::endl;
+    ErrorHandling( msg.str().c_str() );
+  }
+  return;
+}   // -----  end of function Syevd ----- 
+
+
+
+#endif
 void
 Syevr(char uplo, ScaLAPACKMatrix<double>& A, 
     std::vector<double>& eigs,

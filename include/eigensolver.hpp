@@ -142,6 +142,14 @@ public:
   /// @param[in] eigMinTolerance Minimum tolerance must be reached
   /// during the LOBPCG iteration
   /// @param[in] eigTolerance  Residual tolerance.
+#ifdef _COMPLEX_
+  void PPCGSolveComplex(
+      Int          numEig,
+      Int          eigMaxIter,
+      Real         eigMinTolerance,
+      Real         eigTolerance );
+
+#else
   void LOBPCGSolveReal2(
       Int          numEig,
       Int          eigMaxIter,
@@ -157,6 +165,17 @@ public:
       Real         eigMinTolerance,
       Real         eigTolerance );
 
+
+  /// @brief Parallel PPCG solver
+  /// by ScaLAPACK.
+  void PPCGSolveReal(
+      Int          numEig,
+      Int          eigMaxIter,
+      Real         eigMinTolerance,
+      Real         eigTolerance );
+
+#endif
+
   /// @brief Routines for Chebyshev filtering
   void FirstChebyStep(
       Int      numEig,
@@ -166,15 +185,6 @@ public:
   void GeneralChebyStep(
       Int      numEig,
       Int        filter_order );
-
-
-  /// @brief Parallel PPCG solver
-  /// by ScaLAPACK.
-  void PPCGSolveReal(
-      Int          numEig,
-      Int          eigMaxIter,
-      Real         eigMinTolerance,
-      Real         eigTolerance );
 
 
   // ********************  ACCESS      *******************************

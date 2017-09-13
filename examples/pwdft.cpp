@@ -235,12 +235,13 @@ int main(int argc, char **argv)
       }    
     }
 
-    psi.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, 0.0 );
+    psi.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, Complex(0.0,0.0) );
 
     statusOFS << "Spinor setup finished." << std::endl;
 
     UniformRandom( psi.Wavefun() );
 
+#ifndef _COMPLEX_
     if(0){ // For the same random values of psi in parallel
 
       MPI_Comm mpi_comm = dm.comm;
@@ -284,7 +285,7 @@ int main(int argc, char **argv)
       if( esdfParam.isHybridActiveInit )
         hamKS.SetEXXActive(true);
     }
-
+#endif
 
     // Eigensolver class
     eigSol.Setup( hamKS, psi, fft );
@@ -320,8 +321,13 @@ int main(int argc, char **argv)
     Int maxHist = ionDyn.MaxHist();
     // Need to define both but one of them may be empty
     std::vector<DblNumMat>    densityHist(maxHist);
+#ifdef _COMPLEX_
+    std::vector<CpxNumTns>    wavefunHist(maxHist);
+    CpxNumTns                 wavefunPre;           // predictor
+#else
     std::vector<DblNumTns>    wavefunHist(maxHist);
     DblNumTns                 wavefunPre;           // predictor
+#endif
     if( esdfParam.MDExtrapolationVariable == "density" ){
       // densityHist[0] is the lastest density
       for( Int l = 0; l < maxHist; l++ ){
@@ -407,6 +413,7 @@ int main(int argc, char **argv)
          if( ionDyn.IsGeoOpt() == false )
        {
 	 // Wavefunction extrapolation for MD , not used in geometry optimization
+#ifndef _COMPLEX_
         if( esdfParam.MDExtrapolationVariable == "wavefun" )
         {
           //huwei 20170306
@@ -910,6 +917,7 @@ int main(int argc, char **argv)
           } //if() Extrapolating the Wavefunctions using ASPC
 
         } // wavefun extrapolation
+#endif
       } // if( ionDyn.IsGeoOpt() == false )
 
 

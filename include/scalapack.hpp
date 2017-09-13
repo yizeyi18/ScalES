@@ -171,6 +171,14 @@ void SCALAPACK(pdtrsm)( const char* side, const char* uplo,
 
 // Other ScaLAPACK routines
 
+#ifdef _COMPLEX_
+// Redistribution
+void SCALAPACK(pzgemr2d)(const Int* m, const Int* n, const dcomplex* A, const Int* ia, 
+    const Int* ja, const Int* desca, dcomplex* B,
+    const Int* ib, const Int* jb, const Int* descb,
+    const Int* contxt);
+#endif
+
 // Redistribution
 void SCALAPACK(pdgemr2d)(const Int* m, const Int* n, const double* A, const Int* ia, 
     const Int* ja, const Int* desca, double* B,
@@ -210,6 +218,14 @@ void SCALAPACK(pdsyevd)(const char *jobz, const char *uplo, const Int *n, double
     const double *z, const Int *iz, const Int *jz, const Int *descz, 
     double *work, const Int *lwork, Int* iwork, const Int* liwork, 
     Int *info);
+
+#ifdef _COMPLEX_
+void SCALAPACK(pzheevd)(const char *jobz, const char *uplo, const Int *n, dcomplex *a, 
+    const Int *ia, const Int *ja, const Int *desca, double *w, 
+    dcomplex *z, const Int *iz, const Int *jz, const Int *descz, 
+    dcomplex *work, const Int *lwork, double * rwork, int * lrwork,
+    Int* iwork, Int* liwork, Int *info);
+#endif
 
 void SCALAPACK(pdsyevr)(const char *jobz, const char *range, const char *uplo,
     const Int *n, double* a, const Int *ia, const Int *ja,
@@ -525,6 +541,20 @@ void
 Syevd(char uplo, ScaLAPACKMatrix<double>& A, 
     std::vector<double>& eigs,
     ScaLAPACKMatrix<double>& Z);
+
+#ifdef _COMPLEX_
+/// @brief Compute the eigenvalues and the eigenvectors for symmetric
+/// matrices using the divide-and-conquer algorithm for complex matrice
+///
+/// Performs zheev.
+/// NOTE: The eigenvector matrix Z is assumed to use the same
+/// descriptor as A.
+void
+Syevd(char uplo, ScaLAPACKMatrix<dcomplex>& A, 
+    std::vector<double>& eigs,
+    ScaLAPACKMatrix<dcomplex>& Z);
+
+#endif
 
 /// @brief Compute the eigenvalues and the eigenvectors for symmetric
 /// matrices using the MRRR algoritm for diagonalizing the tri-diagonal

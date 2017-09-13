@@ -703,10 +703,13 @@ namespace  dgdft{
               if( elemPrtn_.Owner( key ) == (mpirank / dmRow_) ){
                 EigenSolver&  eigSol = distEigSolPtr_->LocalMap()[key];
                 Spinor& psi = eigSol.Psi();
-
+#ifdef _COMPLEX_
+                DblNumTns  wavefun;
+                DblNumTns  wavefunRead;
+#else
                 DblNumTns& wavefun = psi.Wavefun();
                 DblNumTns  wavefunRead;
-
+#endif
                 std::vector<DblNumVec> gridpos(DIM);
                 for( Int d = 0; d < DIM; d++ ){
                   deserialize( gridpos[d], wfnStream, NO_MASK );
@@ -782,11 +785,19 @@ namespace  dgdft{
                   Int nocc = psi.Wavefun().p();
 
                   IntNumVec& wavefunIdx = psi.WavefunIdx();
+#ifdef _COMPLEX_
+                  NumTns<Real> wavefun ();
+#else
                   NumTns<Real>& wavefun = psi.Wavefun();
-
+#endif
                   for (Int k=0; k<nocc; k++) {
+#ifdef _COMPLEX_
+                    Real *ptr; 
+                    Real *ptr1;
+#else
                     Real *ptr = psi.Wavefun().MatData(k);
                     Real *ptr1 = psiTemp.Wavefun().MatData(wavefunIdx(k));
+#endif
                     for (Int i=0; i<size; i++) {
                       *ptr = *ptr1;
                       ptr = ptr + 1;
@@ -1373,7 +1384,9 @@ namespace  dgdft{
                       if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
                       { 
                         statusOFS << " >>>> Calling LOBPCG for ALB generation on extended element ..." << std::endl;
+#ifndef _COMPLEX_
                         eigSol.LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+#endif
                       }
                       else
                       {
@@ -1402,12 +1415,16 @@ namespace  dgdft{
                     if(iter <= 1)
                     {
                       statusOFS << " >>>> Calling LOBPCG for ALB generation on extended element ..." << std::endl;
+#ifndef _COMPLEX_
                       eigSol.LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+#endif
                     }
                     else
                     {
                       statusOFS << " >>>> Calling PPCG with previous ALBs for generation of new ALBs ..." << std::endl;
+#ifndef _COMPLEX_
                       eigSol.PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );
+#endif
                     }
 
                   }             
@@ -1420,7 +1437,9 @@ namespace  dgdft{
                     //                else{
                     //                    eigDynMaxIter = eigMaxIter_;
                     //                }
+#ifndef _COMPLEX_
                     eigSol.LOBPCGSolveReal2(numEig, eigDynMaxIter, eigMinTolerance_, eigTolNow );
+#endif
                   }
 
                   GetTime( timeEnd );
@@ -1459,8 +1478,11 @@ namespace  dgdft{
 
                   // Assuming that wavefun has only 1 component.  This should
                   // be changed when spin-polarization is added.
+#ifdef _COMPLEX_
+                  DblNumTns& wavefun() ;
+#else
                   DblNumTns& wavefun = psi.Wavefun();
-
+#endif
                   DblNumTns&   LGLWeight3D = hamDG.LGLWeight3D();
                   DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
 
@@ -1501,6 +1523,8 @@ namespace  dgdft{
 #ifdef _USE_OPENMP_
 #pragma omp for schedule (dynamic,1) nowait
 #endif
+#ifdef _COMPLEX_
+#else
                     for( Int l = 0; l < numBasis; l++ ){
                       InterpPeriodicUniformToLGL( 
                           numGridExtElem,
@@ -1509,7 +1533,7 @@ namespace  dgdft{
                           localBasis.VecData(l) );
                     }
 
-
+#endif
 
                     //#ifdef _USE_OPENMP_
                     //#pragma omp for schedule (dynamic,1) nowait
@@ -1820,13 +1844,14 @@ namespace  dgdft{
                         //
                         //                    }
                         //
-
+#ifdef _COMPLEX_
+#else
                         InterpPeriodicGridExtElemToGridElem( 
                             numGridExtElem,
                             numGridElemFine,
                             wavefun.VecData(0, k), 
                             localBasisUniformGrid.VecData(k) );
-
+#endif
 
                       } // for k
 
