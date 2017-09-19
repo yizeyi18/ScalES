@@ -317,6 +317,13 @@ int main(int argc, char **argv)
       scf.UpdateTDDFTParameters( );
       Int TDDFTMaxIter = esdfParam.ionMaxIter;
       
+      TDDFT myTDDFT;
+
+      myTDDFT.SetUp( hamKS, psi, fft, hamKS.AtomList(), ptable);
+
+
+      for (int i =0; i < 4; i++)
+        myTDDFT.advance();
 
       GetTime( timeEnd );
       statusOFS << "! TDDFT simulation time" << timeEnd - timeSta <<std::endl;

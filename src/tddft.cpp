@@ -428,20 +428,22 @@ namespace dgdft{
          }
    
          // Propagate velocity. This is the second part of Verlet step
-	 // this is for the Ek, not in tddft, 
-	 // CHECK CHECK
-	 /*
+	       // this is for the Ek, not in tddft, 
+	       // CHECK CHECK
+	       /*
          for( Int a = 0; a < numAtom; a++ ){
            atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
          }
          */
          // Update velocity and position
-         for(Int a=0; a<numAtom; a++) {
-           atomvel_temp[a] = atomvel[a]/2.0 + atomforce[a]*dt/atomMass[a]/8.0; 
-           atompos_mid[a] = atompos[a] + atomvel_temp[a] * dt;
-
-           atomvel_temp[a] = atomvel[a] + atomforce[a]*dt/atomMass[a]/2.0; 
-           atompos_fin[a] = atompos[a] + atomvel_temp[a] * dt;
+         if(options_.ehrenfest){
+           for(Int a=0; a<numAtom; a++) {
+             atomvel_temp[a] = atomvel[a]/2.0 + atomforce[a]*dt/atomMass[a]/8.0; 
+             atompos_mid[a] = atompos[a] + atomvel_temp[a] * dt;
+  
+             atomvel_temp[a] = atomvel[a] + atomforce[a]*dt/atomMass[a]/2.0; 
+             atompos_fin[a] = atompos[a] + atomvel_temp[a] * dt;
+           }
          }
        }
      }
@@ -459,11 +461,7 @@ namespace dgdft{
      Real dT = tf - ti;
      Real tmid =  (ti + tf)/2.0;
      statusOFS<< " RK4 step " << k << "  t = " << ti << std::endl;
-
-
-
      // 4-th order Runge-Kutta  Start now 
-
 
      //set the OccupationRate to 1.0
      //hamPtr_ = &ham;
@@ -478,16 +476,15 @@ namespace dgdft{
      CpxNumMat Hpsi(ntot, numStateLocal);
      NumTns<Complex> tnsTemp(ntot, 1, numStateLocal, false, Hpsi.Data());
      ham.MultSpinor( psi, tnsTemp, fft );
+     std::cout << " step: " << k_ << " K1 = -i1 * ( H1 * psi ) " << std::endl;
      
-
      // CHECK CHECK, not multiply the by -i yet. 
      CpxNumMat X2(ntot, numStateLocal);
      Complex* dataPtr = X2.Data();
      Complex* psiDataPtr = psi.Wavefun().Data();
      Complex* HpsiDataPtr = Hpsi.Data();
      for( Int i = 0; i < numStateLocal; i ++)
-       for( Int j = 0; i < ntot; j ++)
-       {
+       for( Int j = 0; j < ntot; j ++){
 	       Int index = i* ntot +j;
 	       dataPtr[index] = psiDataPtr[index] +  HpsiDataPtr[index] * options_.dt/2.0;
        }
@@ -520,6 +517,7 @@ namespace dgdft{
  
      // Now Hpsi is H2 * X2
      // K2 = -i1(H2 * psi) CHECK CHECK, not multply by -i yet. 
+     std::cout << " step: " << k_ << " K2 = -i1 * ( H2 * X2 ) " << std::endl;
      Int numStateTotal = psi.NumStateTotal();
      Spinor psi2 (fft.domain, 1, numStateTotal, numStateLocal, false, X2.Data() );
      ham.MultSpinor( psi2, tnsTemp, fft );
@@ -530,7 +528,7 @@ namespace dgdft{
      psiDataPtr = psi.Wavefun().Data();
      HpsiDataPtr = Hpsi.Data();
      for( Int i = 0; i < numStateLocal; i ++)
-       for( Int j = 0; i < ntot; j ++)
+       for( Int j = 0; j < ntot; j ++)
        {
 	       Int index = i* ntot +j;
 	       dataPtr[index] = psiDataPtr[index] +  HpsiDataPtr[index] * options_.dt/2.0;
@@ -563,6 +561,7 @@ namespace dgdft{
  
      // Now Hpsi is H2 * X2
      // K2 = -i1(H2 * psi) CHECK CHECK, not multply by -i yet. 
+     std::cout << " step: " << k_ << " K3 = -i1 * ( H3 * X3 ) " << std::endl;
      Spinor psi3 (fft.domain, 1, numStateTotal, numStateLocal, false, X3.Data() );
      ham.MultSpinor( psi3, tnsTemp, fft );
      
@@ -573,7 +572,7 @@ namespace dgdft{
      psiDataPtr = psi.Wavefun().Data();
      HpsiDataPtr = Hpsi.Data();
      for( Int i = 0; i < numStateLocal; i ++)
-       for( Int j = 0; i < ntot; j ++)
+       for( Int j = 0; j < ntot; j ++)
        {
 	       Int index = i* ntot +j;
 	       dataPtr[index] = psiDataPtr[index] +  HpsiDataPtr[index] * options_.dt;
@@ -605,23 +604,18 @@ namespace dgdft{
  
      // Now Hpsi is H2 * X2
      // K2 = -i1(H2 * psi) CHECK CHECK, not multply by -i yet. 
+     std::cout << " step: " << k_ << " K4 = -i1 * ( H4 * X4 ) " << std::endl;
      Spinor psi4 (fft.domain, 1, numStateTotal, numStateLocal, false, X3.Data() );
      ham.MultSpinor( psi4, tnsTemp, fft );
  
-
-
-
      Real totalCharge_;
      ham.CalculateDensity(
             psi,
             ham.OccupationRate(),
             totalCharge_, 
             fft );
-
       
-
      // 4-th order Runge-Kutta  Start now 
-
      {
        //get the new V(r,t+dt) from the rho(r,t+dt)
        Real Exc_;

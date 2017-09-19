@@ -71,6 +71,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "scf.hpp"
 #include  "scf_dg.hpp"
 #include  "iondynamics.hpp"
+#include  "tddft.hpp"
 
 
 #endif // _DGDFT_HPP_

@@ -148,8 +148,8 @@ namespace dgdft{
       ///
       /// Will determine both geometry optimization and molecular dynamics
       // ************** LIFECYCLE ********************
-      TDDFT ();
-      ~TDDFT();
+      TDDFT (){};
+      ~TDDFT(){};
 
       // ************** OPERATORS ********************
       void SetUp(
