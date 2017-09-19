@@ -429,6 +429,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
 
   i++;
+  strcpy(kw_label[i],"tddft");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
   strcpy(kw_label[i],"scf_outer_maxiter");
   strcpy(kw_typ[i],"I:E");
   
@@ -438,6 +442,10 @@ void esdf_key() {
 
   i++;
   strcpy(kw_label[i],"md_scf_outer_maxiter");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_scf_outer_maxiter");
   strcpy(kw_typ[i],"I:E");
 
   i++;
@@ -898,6 +906,10 @@ void esdf_key() {
 
   i++;
   strcpy(kw_label[i],"md_scf_phi_maxiter");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_scf_phi_maxiter");
   strcpy(kw_typ[i],"I:E");
 
   i++;
@@ -2377,6 +2389,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
     esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
     esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
+    esdfParam.isTDDFT              = esdf_integer( "TDDFT",   1); // default TDDFT is 1.
 
 
     esdf_string("Hybrid_Mixing_Type", "nested", strtmp); 
@@ -2417,6 +2430,9 @@ ESDFReadInput ( const char* filename )
     
     esdfParam.MDscfPhiMaxIter      = esdf_integer( "MD_SCF_Phi_MaxIter", esdfParam.scfPhiMaxIter  );
     esdfParam.MDscfOuterMaxIter    = esdf_integer( "MD_SCF_Outer_MaxIter",  esdfParam.scfOuterMaxIter ); // This is used in DGDFT for energy based SCF
+
+    esdfParam.TDDFTscfOuterMaxIter = esdf_integer( "TDDFT_SCF_Outer_MaxIter",  esdfParam.scfOuterMaxIter ); 
+    esdfParam.TDDFTscfPhiMaxIter   = esdf_integer( "TDDFT_SCF_Phi_MaxIter", esdfParam.scfPhiMaxIter  );
 
     esdfParam.exxDivergenceType    = esdf_integer( "EXX_Divergence_Type", 1 );
 
@@ -2940,6 +2956,8 @@ void ESDFPrintInput( ){
     Print(statusOFS, "MD extrapolation variable            = ",  esdfParam.MDExtrapolationVariable);
     Print(statusOFS, "MD SCF Phi MaxIter                   = ",  esdfParam.MDscfPhiMaxIter);
     Print(statusOFS, "MD SCF Outer MaxIter                 = ",  esdfParam.MDscfOuterMaxIter);
+    Print(statusOFS, "TDDFT SCF Phi MaxIter                = ",  esdfParam.TDDFTscfPhiMaxIter);
+    Print(statusOFS, "TDDFT SCF Outer MaxIter              = ",  esdfParam.TDDFTscfOuterMaxIter);
     Print(statusOFS, "MD SCF Energy Criteria Engage Iter   = ",  esdfParam.MDscfEnergyCriteriaEngageIonIter);
     Print(statusOFS, "MD SCF Etot diff                     = ",  esdfParam.MDscfEtotdiff);
     Print(statusOFS, "MD SCF Eband diff                    = ",  esdfParam.MDscfEbanddiff);

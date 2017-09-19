@@ -194,6 +194,9 @@ public:
   /// This is done by modifying the global esdfParam parameters
   void UpdateMDParameters( );
 
+  /// @brief Update the parameters for SCF during the TDDFT simulation
+  /// This is done by modifying the global esdfParam parameters
+  void UpdateTDDFTParameters( );
 
   // *********************************************************************
   // Inquiry

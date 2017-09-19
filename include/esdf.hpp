@@ -223,6 +223,9 @@ struct ESDFInputParam{
   /// The difference in Eband should be less than this in energy based SCf convergence
   Real               MDscfEbanddiff;
   
+  /// @brief Maximum number of outer SCF iterations in TDDFT
+  /// This is usually used in PWDFT  
+  Int                TDDFTscfOuterMaxIter;
   
   /// @brief Maximum number of iterations for hybrid functional
   /// iterations.
@@ -234,6 +237,19 @@ struct ESDFInputParam{
   /// 
   /// Default: the same as scfPhiMaxIter
   Int                 MDscfPhiMaxIter;
+
+  /// @brief Maximum number of iterations for hybrid functional
+  /// iterations in TDDFT
+  /// 
+  /// Default: the same as scfPhiMaxIter
+  Int                 TDDFTscfPhiMaxIter;
+
+  /// @brief use TDDFT or not
+  /// 
+  /// Default: 1
+  Int                 isTDDFT;
+
+
   /// @brief Tolerance for hybrid functional iterations using Fock
   /// energy
   ///

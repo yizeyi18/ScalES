@@ -2582,5 +2582,14 @@ SCF::UpdateMDParameters    ( )
   return ;
 }         // -----  end of method SCF::UpdateMDParameters  ----- 
 
+void
+SCF::UpdateTDDFTParameters    ( )
+{
+  scfMaxIter_    = esdfParam.TDDFTscfOuterMaxIter;
+  scfPhiMaxIter_ = esdfParam.TDDFTscfPhiMaxIter;
+  return ;
+}         // -----  end of method SCF::UpdateTDDFTParameters  ----- 
+
+
 
 } // namespace dgdft

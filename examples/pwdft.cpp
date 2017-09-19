@@ -311,6 +311,17 @@ int main(int argc, char **argv)
     // Geometry optimization or Molecular dynamics
     // *********************************************************************
 
+    if(esdfParam.isTDDFT) { // TDDFT
+      statusOFS << "! Begin the TDDFT simulation now " << std::endl;
+      GetTime( timeSta );
+      scf.UpdateTDDFTParameters( );
+      Int TDDFTMaxIter = esdfParam.ionMaxIter;
+      
+
+      GetTime( timeEnd );
+      statusOFS << "! TDDFT simulation time" << timeEnd - timeSta <<std::endl;
+    }
+    else{ 
     IonDynamics ionDyn;
 
     ionDyn.Setup( hamKS.AtomList(), ptable ); 
@@ -938,6 +949,7 @@ int main(int argc, char **argv)
       }
     } // ionIter
 
+   }// not TDDFT
 
   }
   catch( std::exception& e )
