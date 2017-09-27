@@ -321,9 +321,7 @@ int main(int argc, char **argv)
 
       myTDDFT.SetUp( hamKS, psi, fft, hamKS.AtomList(), ptable);
 
-
-      for (int i =0; i < 4; i++)
-        myTDDFT.advance();
+      myTDDFT.propagate( ptable );
 
       GetTime( timeEnd );
       statusOFS << "! TDDFT simulation time" << timeEnd - timeSta <<std::endl;

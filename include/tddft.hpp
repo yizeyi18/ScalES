@@ -161,9 +161,9 @@ namespace dgdft{
 
       void MoveIons( Int ionIter );
 
-      void advance();
+      void advanceRK4(PeriodTable& ptable) ;
       void done();  
-      void propergate();
+      void propagate(PeriodTable& ptable );
       
   };
 

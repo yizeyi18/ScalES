@@ -57,9 +57,10 @@ namespace dgdft{
      options->auto_save     = 0;
      options->load_save     = false;
      options->method        = "RK4";
-     options->ehrenfest     = false;
-     options->simulateTime  = 1.00;
-     options->dt            = 0.05;
+     options->ehrenfest     = true;
+     //options->ehrenfest     = false;
+     options->simulateTime  = 2.0;
+     options->dt            = 0.02;
      options->gmres_restart = 10; // not sure.
      options->krylovTol     = 1.0E-7;
      options->krylovMax     = 30; 
@@ -144,139 +145,6 @@ namespace dgdft{
   void
   TDDFT::VelocityVerlet    ( Int ionIter )
   {
-    Int mpirank, mpisize;
-    MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-    MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
-
-    std::vector<Atom>&   atomList = *atomListPtr_;
-
-    Int numAtom = atomList.size();
-
-    std::vector<Point3>  atompos(numAtom);
-    std::vector<Point3>  atomvel(numAtom);
-    std::vector<Point3>  atomforce(numAtom);
-
-    if( mpirank == 0 ){
-
-      // some aliasing to be compatible with implementation before
-      Real& dt = options_.dt;
-      DblNumVec& atomMass = atomMass_;
-      Real  K;
-
-      for( Int a = 0; a < numAtom; a++ ){
-        atompos[a]   = atomList[a].pos;
-        atomvel[a]   = atomList[a].vel;
-        atomforce[a] = atomList[a].force;
-      }
-
-
-      // Propagate velocity. This is the second part of Verlet step
-
-      for( Int a = 0; a < numAtom; a++ ){
-        atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
-      }
-
-
-      // Propagate the chain. This is due to the remaining update of the
-      // chain variables.
-      // used in verlet, commented out. Weile
-      /*
-      K=0.;
-      for(Int a=0; a<numAtom; a++){
-        for(Int j=0; j<3; j++){
-          K += atomMass[a]*atomvel[a][j]*atomvel[a][j]/2.;
-        }
-      }
-      */
-      // At this point, the position, velocity and thermostat variables are
-      // synced at the same time step
-
-      // CHECK CHECK 
-      /*
-      Ekinetic_  = K;
-      Econserve_ = Ekinetic_ + Epot_;
-      if(ionIter == 1)
-        EconserveInit_ = Econserve_;
-      Edrift_ = (Econserve_-EconserveInit_)/EconserveInit_;
-     
-      Print(statusOFS, "TDDFT_Ekin    =  ", Ekinetic_);
-      Print(statusOFS, "TDDFT_Epot    =  ", Epot_);
-      Print(statusOFS, "TDDFT_Econ    =  ", Econserve_);
-      Print(statusOFS, "TDDFT_Edrift  =  ", Edrift_);
-      */
-
-      // Output the XYZ format for movie
-      // Once this is written, all work associated with the current atomic
-      // position is DONE.
-      /*
-      if( isOutputXYZ_ ){
-        std::fstream fout;
-        fout.open("TDDFT.xyz",std::ios::out | std::ios::app) ;
-        if( !fout.good() ){
-          ErrorHandling( "Cannot open TDDFT.xyz!" );
-        }
-        fout << numAtom << std::endl;
-        fout << "TDDFT step # "<< ionIter << std::endl;
-        for(Int a=0; a<numAtom; a++){
-          fout<< std::setw(6)<< atomList[a].type
-	      << std::setw(16)<< atompos[a][0]*au2ang
-	      << std::setw(16)<< atompos[a][1]*au2ang
-	      << std::setw(16)<< atompos[a][2]*au2ang
-	      << std::endl;
-        }
-        fout.close();
-      }
-      */
-
-      // Update velocity and position
-      for(Int a=0; a<numAtom; a++) {
-        atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
-        atompos[a] = atompos[a] + atomvel[a] * dt;
-      }
-
-      // Output the position and thermostat variable. 
-      // These are the configuration that SCF will work on next. 
-      // Hence if the job is stopped in the middle of SCF (which is most
-      // likely), the TDDFT job should continue from this configuration
-
-      // CHECK CHECK 
-      /*
-      if(isOutputVelocity_){
-        std::fstream fout_v;
-        fout_v.open("lastVel.out",std::ios::out);
-        if( !fout_v.good() ){
-          ErrorHandling( "File cannot be opened !" );
-        }
-        for(Int i=0; i<numAtom; i++){
-          fout_v << std::setiosflags(std::ios::scientific)
-		 << std::setiosflags(std::ios::showpos)
-		 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0]
-		 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1]
-		 << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2]
-		 << std::resetiosflags(std::ios::scientific)
-		 << std::resetiosflags(std::ios::showpos)
-		 << std::endl;
-        }
-        fout_v.close();
-      }
-      */
-
-    } // if( mpirank == 0 )
-
-    // Sync the atomic position and velocity
-    for(Int a = 0; a < numAtom; a++){
-      MPI_Bcast( &atompos[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
-      MPI_Bcast( &atomvel[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
-    }
-
-    // Update atomic position and velocity to store in atomListPtr_
-    // NOTE: Force is NOT consistent with the position yet.
-    for(Int a = 0; a < numAtom; a++){
-      atomList[a].pos = atompos[a];
-      atomList[a].vel = atomvel[a];
-    }
-
-
     return ;
   }         // -----  end of method TDDFT::VelocityVerlet  ----- 
 
@@ -287,102 +155,11 @@ namespace dgdft{
     MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
     MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
-    std::vector<Atom>&   atomList = *atomListPtr_;
-    Int numAtom = atomList.size();
-
-    // Update saved atomList. 0 is the latest one
-    for( Int l = maxHist_-1; l > 0; l-- ){
-      atomListHist_[l] = atomListHist_[l-1];
-    }
-    atomListHist_[0] = atomList;
-
-    // *********************************************************************
-    // Molecular dynamics methods
-    // *********************************************************************
-    // if( ionMove_ == "verlet" ){
-    VelocityVerlet( ionIter );
-    //}
-   
-    // Output the new coordinates
-    /*
-    {
-      Print(statusOFS, ""); 
-      Print(statusOFS, "Atom Type and Coordinates");
-      Print(statusOFS, ""); 
-      for(Int i=0; i < atomList.size(); i++) {
-        statusOFS << std::setiosflags(std::ios::left) 
-		  << std::setw(LENGTH_VAR_NAME) << "Type = "
-		  << std::setw(6) << atomList[i].type
-		  << std::setiosflags(std::ios::scientific)
-		  << std::setiosflags(std::ios::showpos)
-		  << std::setw(LENGTH_VAR_NAME) << "Pos  = "
-		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[0]
-		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[1]
-		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[2]
-		  << std::setw(LENGTH_VAR_NAME) << "Vel  = "
-		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[0]
-		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[1]
-		  << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[2]
-		  << std::resetiosflags(std::ios::scientific)
-		  << std::resetiosflags(std::ios::showpos)
-		  << std::endl;
-      }
-    }
-    */
-
-    // Output the position. Common to all routines
-    /*
-    if( mpirank == 0 ){
-      if(isOutputPosition_){
-        std::fstream fout;
-        fout.open("lastPos.out",std::ios::out);
-        if( !fout.good() ){
-          ErrorHandling( "File cannot be opened !" );
-        }
-        for(Int i=0; i<numAtom; i++){
-          fout << std::setiosflags(std::ios::scientific)
-	       << std::setiosflags(std::ios::showpos)
-	       << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[0]
-	       << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[1]
-	       << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[2]
-	       << std::resetiosflags(std::ios::scientific)
-	       << std::resetiosflags(std::ios::showpos)
-	       << std::endl;
-        }
-        fout.close();
-      }
-    }
-    */
-     // Output the XYZ format for movie
-     /*
-    if( mpirank == 0 ){
-      if( isOutputXYZ_ ){
-	std::fstream fout;
-	fout.open("MD.xyz",std::ios::out | std::ios::app) ;
-	if( !fout.good() ){
-	  ErrorHandling( "Cannot open MD.xyz!" );
-	}
-	fout << numAtom << std::endl;
-	fout << "MD step # "<< ionIter << std::endl;
-	for(Int a=0; a<numAtom; a++){
-	  fout<< std::setw(6)<< atomList[a].type
-	      << std::setw(16)<< atomList[a].pos[0]*au2ang
-	      << std::setw(16)<< atomList[a].pos[1]*au2ang
-	      << std::setw(16)<< atomList[a].pos[2]*au2ang
-	      << std::endl;
-	}
-	fout.close();
-      }
-    } // if( mpirank == 0 )
-    */
-
     return ;
   }         // -----  end of method TDDFT::MoveIons  ----- 
 
+  void TDDFT::advanceRK4( PeriodTable& ptable ) {
 
-
-  void TDDFT::advance()
-  {
      Int mpirank, mpisize;
      MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
      MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
@@ -393,6 +170,25 @@ namespace dgdft{
 
      std::vector<Atom>&   atomList = *atomListPtr_;
      Int numAtom = atomList.size();
+
+     // print the options_ when first step. 
+     if(k_ == 0){
+       statusOFS<< std::endl;
+       statusOFS<< " -------   Print the TDDFT Options  ---------- "     << std::endl;
+       statusOFS<< " options.auto_save      " << options_.auto_save      << std::endl;
+       statusOFS<< " options.load_save      " << options_.load_save      << std::endl;
+       statusOFS<< " options.method         " << options_.method         << std::endl;
+       statusOFS<< " options.ehrenfest      " << options_.ehrenfest      << std::endl;
+       statusOFS<< " options.simulateTime   " << options_.simulateTime   << std::endl;
+       statusOFS<< " options.dt             " << options_.dt             << std::endl;
+       statusOFS<< " options.gmres_restart  " << options_.gmres_restart  << std::endl;
+       statusOFS<< " options.krylovTol      " << options_.krylovTol      << std::endl;
+       statusOFS<< " options.scfTol         " << options_.scfTol         << std::endl;
+       statusOFS<< " options.adNum          " << options_.adNum          << std::endl;
+       statusOFS<< " options.adUpdate       " << options_.adUpdate       << std::endl;
+       statusOFS<< " --------------------------------------------- "     << std::endl;
+       statusOFS<< std::endl;
+     }
  
      // Update saved atomList. 0 is the latest one
      for( Int l = maxHist_-1; l > 0; l-- ){
@@ -414,221 +210,388 @@ namespace dgdft{
      {
        if( mpirank == 0 ){
    
-         // some aliasing to be compatible with implementation before
          Real& dt = options_.dt;
          DblNumVec& atomMass = atomMass_;
-         Real  K;
    
          for( Int a = 0; a < numAtom; a++ ){
-           atompos[a]   = atomList[a].pos;
-           atompos_mid[a]   = atomList[a].pos;
-           atompos_fin[a]   = atomList[a].pos;
-           atomvel[a]   = atomList[a].vel;
-           atomforce[a] = atomList[a].force;
+           atompos[a]     = atomList[a].pos;
+           atompos_mid[a] = atomList[a].pos;
+           atompos_fin[a] = atomList[a].pos;
+           atomvel[a]     = atomList[a].vel;
+           atomforce[a]   = atomList[a].force;
          }
-   
-         // Propagate velocity. This is the second part of Verlet step
-	       // this is for the Ek, not in tddft, 
-	       // CHECK CHECK
-	       /*
-         for( Int a = 0; a < numAtom; a++ ){
-           atomvel[a] = atomvel[a] + atomforce[a]*dt*0.5/atomMass[a]; 
-         }
-         */
-         // Update velocity and position
+
+#if ( _DEBUGlevel_ >= 0 )
+           statusOFS<< " ----------------------------------------------- " << std::endl;
+           statusOFS<< " RK4 step " << k_ << "  t = " << dt << std::endl;
+           statusOFS << "time: " << k_*24.19*dt <<  " atom 1 pos: "<<std::setprecision(12) << atompos[0] << std::endl;
+           statusOFS << "time: " << k_*24.19*dt <<  " atom 2 pos: "<<std::setprecision(12) << atompos[1] << std::endl;
+  
+           for( Int a = 0; a < numAtom; a++ )
+             statusOFS << "time :" << k_*24.19*dt << " velocity :" << std::setprecision(12) << atomvel[a] << std::endl;
+           for( Int a = 0; a < numAtom; a++ )
+             statusOFS << "time :" << k_*24.19*dt << " Force :" << std::setprecision(12) << atomforce[a] << std::endl;
+#endif
+
+         // Update velocity and position when doing ehrenfest dynamics
          if(options_.ehrenfest){
            for(Int a=0; a<numAtom; a++) {
              atomvel_temp[a] = atomvel[a]/2.0 + atomforce[a]*dt/atomMass[a]/8.0; 
-             atompos_mid[a] = atompos[a] + atomvel_temp[a] * dt;
+             atompos_mid[a]  = atompos[a] + atomvel_temp[a] * dt;
   
              atomvel_temp[a] = atomvel[a] + atomforce[a]*dt/atomMass[a]/2.0; 
-             atompos_fin[a] = atompos[a] + atomvel_temp[a] * dt;
+             atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
            }
          }
+         /*
+         statusOFS << " atom 1 mid pos: "<< k_*24.19*dt << " "<<std::setprecision(12) << atompos_mid[0] << std::endl;
+         statusOFS << " atom 2 mid pos: "<< k_*24.19*dt << " "<<std::setprecision(12) << atompos_mid[1] << std::endl;
+         statusOFS << " atom 1 fin pos: "<< k_*24.19*dt << " "<<std::setprecision(12) << atompos_fin[0] << std::endl;
+         statusOFS << " atom 2 fin pos: "<< k_*24.19*dt << " "<<std::setprecision(12) << atompos_fin[1] << std::endl;
+         */
        }
      }
 
      // have the atompos_mid and atompos_final
-     for(Int a = 0; a < numAtom; a++){
-       MPI_Bcast( &atompos_mid[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
-       MPI_Bcast( &atompos_fin[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+     if(options_.ehrenfest){
+       for(Int a = 0; a < numAtom; a++){
+         MPI_Bcast( &atompos_mid[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+         MPI_Bcast( &atompos_fin[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+       }
      }
 
      // k_ is the current K
+     Complex i_Z_One = Complex(0.0, 1.0);
      Int k = k_;
      Real ti = tlist_[k];
      Real tf = tlist_[k+1];
      Real dT = tf - ti;
      Real tmid =  (ti + tf)/2.0;
-     statusOFS<< " RK4 step " << k << "  t = " << ti << std::endl;
-     // 4-th order Runge-Kutta  Start now 
 
-     //set the OccupationRate to 1.0
-     //hamPtr_ = &ham;
-     //Fourier& fft = *fftPtr_;
+     // 4-th order Runge-Kutta  Start now 
      DblNumVec &occupationRate = ham.OccupationRate();
      occupationRate.Resize( psi.NumStateTotal() );
      SetValue( occupationRate, 1.0);
+     //statusOFS << " Occupation Rate: " << occupationRate << std::endl;
+     if(k == 0) {
+       Real totalCharge_;
+       ham.CalculateDensity(
+            psi,
+            ham.OccupationRate(),
+            totalCharge_, 
+            fft );
 
-     // K1 = -i1(H1 * psi)
-     Int ntot      = fft.domain.NumGridTotal();
+#if ( _DEBUGlevel_ >= 0 )
+       statusOFS << " Init rho and vtot " << std::endl;
+       statusOFS << " total Charge init " << setw(16) << totalCharge_ << std::endl;
+#endif
+       //get the new V(r,t+dt) from the rho(r,t+dt)
+       Real Exc_;
+       ham.CalculateXC( Exc_, fft ); 
+       ham.CalculateHartree( fft );
+       ham.CalculateVtot( ham.Vtot() );
+     }
+
+     // HX1 = (H1 * psi)
+     Int ntot  = fft.domain.NumGridTotal();
      Int numStateLocal = psi.NumState();
-     CpxNumMat Hpsi(ntot, numStateLocal);
-     NumTns<Complex> tnsTemp(ntot, 1, numStateLocal, false, Hpsi.Data());
+     CpxNumMat Xtemp(ntot, numStateLocal); // X2, X3, X4
+     CpxNumMat HX1(ntot, numStateLocal);
+     NumTns<Complex> tnsTemp(ntot, 1, numStateLocal, false, HX1.Data());
      ham.MultSpinor( psi, tnsTemp, fft );
-     std::cout << " step: " << k_ << " K1 = -i1 * ( H1 * psi ) " << std::endl;
-     
-     // CHECK CHECK, not multiply the by -i yet. 
-     CpxNumMat X2(ntot, numStateLocal);
-     Complex* dataPtr = X2.Data();
+
+     // test psi * conj(psi) 
+#if ( _DEBUGlevel_ >= 0 )
+     statusOFS << " step: " << k_ << " K1 = -i1 * ( H1 * psi ) " << std::endl;
+     Int width = numStateLocal;
+     Int heightLocal = ntot;
+     CpxNumMat  XTXtemp1( width, width );
+
+     blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, psi.Wavefun().Data(), 
+      heightLocal, psi.Wavefun().Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
+
+     for( Int i = 0; i < width; i++)
+       statusOFS << " Psi * conjg( Psi) : "  << XTXtemp1(i,i) << std::endl;
+       Complex *ptr = psi.Wavefun().Data();
+       DblNumVec vtot = ham.Vtot();
+       statusOFS << " Psi  0 : " << ptr[0] << " HX1 " << HX1(0,0) << " vtot " << vtot[0] << std::endl;
+#endif
+ 
+     //  1. set up Psi <-- X - i ( HX1 ) * dt/2
+     Complex* dataPtr = Xtemp.Data();
      Complex* psiDataPtr = psi.Wavefun().Data();
-     Complex* HpsiDataPtr = Hpsi.Data();
+     Complex* HpsiDataPtr = HX1.Data();
+     Int numStateTotal = psi.NumStateTotal();
+     Spinor psi2 (fft.domain, 1, numStateTotal, numStateLocal, false, Xtemp.Data() );
      for( Int i = 0; i < numStateLocal; i ++)
        for( Int j = 0; j < ntot; j ++){
 	       Int index = i* ntot +j;
-	       dataPtr[index] = psiDataPtr[index] +  HpsiDataPtr[index] * options_.dt/2.0;
+	       dataPtr[index] = psiDataPtr[index] -  i_Z_One * HpsiDataPtr[index] * options_.dt/2.0;
        }
 
-     // Update the H matrix. 
-     // CHECK CHECK: The Vext is not updated here. 
-     {
-       // use the mid atom position
-       for( Int a = 0; a < numAtom; a++ ){
-           atomList[a].pos   =  atompos_mid[a];
-       }
-       Real totalCharge_;
-       ham.CalculateDensity(
-            psi,
-            ham.OccupationRate(),
-            totalCharge_, 
-            fft );
-
-       //get the new V(r,t+dt) from the rho(r,t+dt)
-       Real Exc_;
-       ham.CalculateXC( Exc_, fft ); 
-       ham.CalculateHartree( fft );
-       Int ntotFine = fft.domain.NumGridTotalFine();
-       DblNumVec vtotNew_;
-       vtotNew_.Resize(ntotFine); 
-       SetValue(vtotNew_, 0.0);
-       ham.CalculateVtot( vtotNew_ );
-       blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
+     // 2. if ehrenfest dynamics, re-calculate the Vlocal and Vnonlocal
+     if(options_.ehrenfest){
+      for( Int a = 0; a < numAtom; a++ ){
+        atomList[a].pos  = atompos_mid[a];
+      }
+      ham.UpdateHamiltonian( atomList );
+      ham.CalculatePseudoPotential( ptable );
      }
- 
-     // Now Hpsi is H2 * X2
-     // K2 = -i1(H2 * psi) CHECK CHECK, not multply by -i yet. 
-     std::cout << " step: " << k_ << " K2 = -i1 * ( H2 * X2 ) " << std::endl;
-     Int numStateTotal = psi.NumStateTotal();
-     Spinor psi2 (fft.domain, 1, numStateTotal, numStateLocal, false, X2.Data() );
-     ham.MultSpinor( psi2, tnsTemp, fft );
-
-     // X3 = X + dt/2 * K2
-     CpxNumMat X3(ntot, numStateLocal);
-     dataPtr = X3.Data();
-     psiDataPtr = psi.Wavefun().Data();
-     HpsiDataPtr = Hpsi.Data();
-     for( Int i = 0; i < numStateLocal; i ++)
-       for( Int j = 0; j < ntot; j ++)
-       {
-	       Int index = i* ntot +j;
-	       dataPtr[index] = psiDataPtr[index] +  HpsiDataPtr[index] * options_.dt/2.0;
-       }
-
-     // Update the H matrix. 
-     // CHECK CHECK: The Vext is not updated here. 
-     {
-       // use the mid atom position
-       for( Int a = 0; a < numAtom; a++ ){
-           atomList[a].pos   =  atompos_mid[a];
-       }
-       Real totalCharge_;
-       ham.CalculateDensity(
-            psi,
-            ham.OccupationRate(),
-            totalCharge_, 
-            fft );
-       //get the new V(r,t+dt) from the rho(r,t+dt)
-       Real Exc_;
-       ham.CalculateXC( Exc_, fft ); 
-       ham.CalculateHartree( fft );
-       Int ntotFine = fft.domain.NumGridTotalFine();
-       DblNumVec vtotNew_;
-       vtotNew_.Resize(ntotFine);
-       SetValue(vtotNew_, 0.0);
-       ham.CalculateVtot( vtotNew_ );
-       blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
-     }
- 
-     // Now Hpsi is H2 * X2
-     // K2 = -i1(H2 * psi) CHECK CHECK, not multply by -i yet. 
-     std::cout << " step: " << k_ << " K3 = -i1 * ( H3 * X3 ) " << std::endl;
-     Spinor psi3 (fft.domain, 1, numStateTotal, numStateLocal, false, X3.Data() );
-     ham.MultSpinor( psi3, tnsTemp, fft );
      
+     // 3. Update the H matrix. 
+     {
+       Real totalCharge_;
+       ham.CalculateDensity(
+            psi2,
+            ham.OccupationRate(),
+            totalCharge_, 
+            fft );
 
-     // X4 = X + dt/2 * K2
-     CpxNumMat X4(ntot, numStateLocal);
-     dataPtr = X4.Data();
+       Real Exc_;
+       ham.CalculateXC( Exc_, fft ); 
+       ham.CalculateHartree( fft );
+       ham.CalculateVtot( ham.Vtot() );
+     }
+ 
+     // 4. Calculate the K2 = H2 * X2
+     CpxNumMat HX2(ntot, numStateLocal);
+     NumTns<Complex> tnsTemp2(ntot, 1, numStateLocal, false, HX2.Data());
+     ham.MultSpinor( psi2, tnsTemp2, fft );
+
+     // check the psi * conj(psi)
+#if ( _DEBUGlevel_ >= 0 )
+     {
+     statusOFS << " step: " << k_ << " K2 = ( H2 * X2 ) " << std::endl;
+     Int width = numStateLocal;
+     Int heightLocal = ntot;
+     CpxNumMat  XTXtemp1( width, width );
+
+     blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, psi2.Wavefun().Data(), 
+      heightLocal, psi2.Wavefun().Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
+
+     for( Int i = 0; i < width; i++)
+       statusOFS << " Psi2 * conjg( Psi2) : " << XTXtemp1(i,i) << std::endl;
+       Complex *ptr = psi2.Wavefun().Data();
+       DblNumVec vtot = ham.Vtot();
+       statusOFS << " Psi 2   0 : " << ptr[0]  << " HX2 " << HX2(0,0)<< " vtot " << vtot[0] << std::endl;
+     }
+#endif 
+
+     //  1. set up Psi <-- X - i ( HX2) * dt/2
+     Spinor psi3 (fft.domain, 1, numStateTotal, numStateLocal, false, Xtemp.Data() );
+     dataPtr = Xtemp.Data();
      psiDataPtr = psi.Wavefun().Data();
-     HpsiDataPtr = Hpsi.Data();
+     HpsiDataPtr = HX2.Data();
      for( Int i = 0; i < numStateLocal; i ++)
        for( Int j = 0; j < ntot; j ++)
        {
 	       Int index = i* ntot +j;
-	       dataPtr[index] = psiDataPtr[index] +  HpsiDataPtr[index] * options_.dt;
+	       dataPtr[index] = psiDataPtr[index] -  i_Z_One * HpsiDataPtr[index] * options_.dt/2.0;
        }
 
-     // Update the H matrix. 
-     // CHECK CHECK: The Vext is not updated here. 
-     {
-       // use the mid atom position
+     // 2. if ehrenfest dynamics, re-calculate the Vlocal and Vnonlocal
+     if(options_.ehrenfest){
        for( Int a = 0; a < numAtom; a++ ){
-           atomList[a].pos   =  atompos_fin[a];
+         atomList[a].pos  = atompos_mid[a];
        }
+       ham.UpdateHamiltonian( atomList );
+       ham.CalculatePseudoPotential( ptable );
+     }
+
+     // 3. Update the H matrix. 
+     // CHECK CHECK: The Vext is zero, not updated here. 
+     {
        Real totalCharge_;
        ham.CalculateDensity(
-            psi,
+            psi3,
             ham.OccupationRate(),
             totalCharge_, 
             fft );
-       //get the new V(r,t+dt) from the rho(r,t+dt)
        Real Exc_;
        ham.CalculateXC( Exc_, fft ); 
        ham.CalculateHartree( fft );
-       Int ntotFine = fft.domain.NumGridTotalFine();
-       DblNumVec vtotNew_;
-       vtotNew_.Resize(ntotFine); SetValue(vtotNew_, 0.0);
-       ham.CalculateVtot( vtotNew_ );
-       blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
+       ham.CalculateVtot( ham.Vtot() );
      }
- 
-     // Now Hpsi is H2 * X2
-     // K2 = -i1(H2 * psi) CHECK CHECK, not multply by -i yet. 
-     std::cout << " step: " << k_ << " K4 = -i1 * ( H4 * X4 ) " << std::endl;
-     Spinor psi4 (fft.domain, 1, numStateTotal, numStateLocal, false, X3.Data() );
-     ham.MultSpinor( psi4, tnsTemp, fft );
- 
-     Real totalCharge_;
-     ham.CalculateDensity(
-            psi,
-            ham.OccupationRate(),
-            totalCharge_, 
-            fft );
-      
-     // 4-th order Runge-Kutta  Start now 
+     // 4. Calculate the K3 = H3 * X3
+     CpxNumMat HX3(ntot, numStateLocal);
+     NumTns<Complex> tnsTemp3(ntot, 1, numStateLocal, false, HX3.Data());
+     ham.MultSpinor( psi3, tnsTemp3, fft );
+
+     // check psi3*conj(psi3)
+#if ( _DEBUGlevel_ >= 0 )
      {
-       //get the new V(r,t+dt) from the rho(r,t+dt)
+       statusOFS << " step: " << k_ << " K3 = -i1 * ( H3 * X3 ) " << std::endl;
+       Int width = numStateLocal;
+       Int heightLocal = ntot;
+       CpxNumMat  XTXtemp1( width, width );
+  
+       blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, psi3.Wavefun().Data(), 
+        heightLocal, psi3.Wavefun().Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
+  
+       for( Int i = 0; i < width; i++)
+         statusOFS << " Psi3 * conjg( Psi3) : " << XTXtemp1(i,i) << std::endl;
+       Complex *ptr = psi3.Wavefun().Data();
+       DblNumVec vtot = ham.Vtot();
+       statusOFS << " Psi 3   0 : " << ptr[0]  << " HX3 " << HX2(0,0) << " vtot " << vtot[0] << std::endl;
+     }
+#endif
+
+
+     //  1. set up Psi <-- X - i ( HX3) * dt
+     Spinor psi4 (fft.domain, 1, numStateTotal, numStateLocal, false, Xtemp.Data() );
+     dataPtr = Xtemp.Data();
+     psiDataPtr = psi.Wavefun().Data();
+     HpsiDataPtr = HX3.Data();
+     for( Int i = 0; i < numStateLocal; i ++)
+       for( Int j = 0; j < ntot; j ++)
+       {
+	       Int index = i* ntot +j;
+	       dataPtr[index] = psiDataPtr[index] -  i_Z_One * HpsiDataPtr[index] * options_.dt;
+       }
+
+     // 2. if ehrenfest dynamics, re-calculate the Vlocal and Vnonlocal
+     if(options_.ehrenfest){
+      for( Int a = 0; a < numAtom; a++ ){
+        atomList[a].pos  = atompos_fin[a];
+      }
+      ham.UpdateHamiltonian( atomList );
+      ham.CalculatePseudoPotential( ptable );
+     }
+
+     // 3. Update the H matrix. 
+     {
+       Real totalCharge_;
+       ham.CalculateDensity(
+            psi4,
+            ham.OccupationRate(),
+            totalCharge_, 
+            fft );
+
        Real Exc_;
        ham.CalculateXC( Exc_, fft ); 
        ham.CalculateHartree( fft );
-       Int ntotFine = fft.domain.NumGridTotalFine();
-       DblNumVec vtotNew_;
-       vtotNew_.Resize(ntotFine); SetValue(vtotNew_, 0.0);
-       ham.CalculateVtot( vtotNew_ );
-       blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
+       ham.CalculateVtot( ham.Vtot() );
      }
+ 
+     // 4. Calculate the K3 = H3 * X3
+     // Now Hpsi is H2 * X2
+     // K2 = -i1(H2 * psi) 
+     CpxNumMat HX4(ntot, numStateLocal);
+     NumTns<Complex> tnsTemp4(ntot, 1, numStateLocal, false, HX4.Data());
+     ham.MultSpinor( psi4, tnsTemp4, fft );
+
+#if ( _DEBUGlevel_ >= 0 )
+     {
+     statusOFS << " step: " << k_ << " K4 = -i1 * ( H4 * X4 ) " << std::endl;
+     Int width = numStateLocal;
+     Int heightLocal = ntot;
+     CpxNumMat  XTXtemp1( width, width );
+
+     blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, psi4.Wavefun().Data(), 
+      heightLocal, psi4.Wavefun().Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
+
+     for( Int i = 0; i < width; i++)
+       statusOFS << " Psi4 * conjg( Psi4) : " << XTXtemp1(i,i) << std::endl;
+       Complex *ptr = psi4.Wavefun().Data();
+       DblNumVec vtot = ham.Vtot();
+       statusOFS << " Psi 4   0 : " << ptr[0]  << " HX4 " << HX4(0,0)<< " vtot " << vtot[0] << std::endl;
+     }
+#endif 
+
+     // Xf <--  X - i ( K1 + 2K2 + 2K3 + K4) * dt / 6.0
+     psiDataPtr = psi.Wavefun().Data();
+     Complex *XfPtr = Xtemp.Data();
+     Complex *K1    = HX1.Data();
+     Complex *K2    = HX2.Data();
+     Complex *K3    = HX3.Data();
+     Complex *K4    = HX4.Data();
+     for( Int i = 0; i < numStateLocal; i ++)
+       for( Int j = 0; j < ntot; j ++){
+	       Int index = i* ntot +j;
+	       XfPtr[index] =  psiDataPtr[index] 
+                         - i_Z_One * ( K1[index] + 2.0*K2[index] 
+                         + 2.0*K3[index] + K4[index]) *options_.dt /6.0;
+       }
+     
+     Spinor psiFinal (fft.domain, 1, numStateTotal, numStateLocal, false, Xtemp.Data() );
+
+     // 2. if ehrenfest dynamics, re-calculate the Vlocal and Vnonlocal
+     if(options_.ehrenfest){
+      for( Int a = 0; a < numAtom; a++ ){
+        atomList[a].pos  = atompos_fin[a];
+      }
+      ham.UpdateHamiltonian( atomList );
+      ham.CalculatePseudoPotential( ptable );
+     }
+
+     //get the new V(r,t+dt) from the rho(r,t+dt)
+     {
+       Real totalCharge_;
+       ham.CalculateDensity(
+            psiFinal,
+            ham.OccupationRate(),
+            totalCharge_, 
+            fft );
+
+       Real Exc_;
+       ham.CalculateXC( Exc_, fft ); 
+       ham.CalculateHartree( fft );
+       DblNumVec vtot;
+       Int ntotFine  = fft.domain.NumGridTotalFine();
+       vtot.Resize(ntotFine);
+       SetValue(vtot, 0.0);
+       ham.CalculateVtot( vtot);
+       Real *vtot0 = ham.Vtot().Data() ;
+#if ( _DEBUGlevel_ >= 0 )
+         statusOFS << "Xf delta vtot " << vtot(0) - vtot0[0] << std::endl;
+#endif
+       blas::Copy( ntotFine, vtot.Data(), 1, ham.Vtot().Data(), 1 );
+     }
+
+     psiDataPtr = psi.Wavefun().Data();
+     Complex* psiDataPtrFinal = psiFinal.Wavefun().Data();
+     for( Int i = 0; i < numStateLocal; i ++)
+       for( Int j = 0; j < ntot; j ++){
+	       Int index = i* ntot +j;
+	       psiDataPtr[index] =  psiDataPtrFinal[index];
+       }
+
+#if ( _DEBUGlevel_ >= 0 )
+     {
+     Int width = numStateLocal;
+     Int heightLocal = ntot;
+     CpxNumMat  XTXtemp1( width, width );
+
+     blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, psi.Wavefun().Data(), 
+      heightLocal, psi.Wavefun().Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
+
+     for( Int i = 0; i < width; i++)
+       statusOFS << " Psi End * conjg( Psi End) : " << XTXtemp1(i,i) << std::endl;
+       Complex *ptr = psi.Wavefun().Data();
+       DblNumVec vtot = ham.Vtot();
+       statusOFS << " Psi End 0 : " << ptr[0] << " vtot " << vtot[0] << std::endl;
+     }
+#endif
+     //for( Int j = 0; j < width; j++)
+       //statusOFS << " Psi * conjg( Psi) : " << i << " " << j << XTXtemp1(i,j) << std::endl;
+       
+     //update Velocity
+     if(options_.ehrenfest){
+       ham.CalculateForce( psi, fft);
+       Real& dt = options_.dt;
+       DblNumVec& atomMass = atomMass_;
+       for( Int a = 0; a < numAtom; a++ ){
+         atomList[a].vel = atomList[a].vel + (atomforce[a]/atomMass[a] + atomList[a].force/atomMass[a])*dt/2.0;
+       } 
+     }
+
      ++k_;
   }
-  
+
+  void TDDFT::propagate( PeriodTable& ptable ) {
+    Int totalSteps = tlist_.size();
+    for( Int i = 0; i < totalSteps; i++)
+        advanceRK4( ptable );
+   }
 }
 #endif
