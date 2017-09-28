@@ -312,7 +312,9 @@ int main(int argc, char **argv)
     // *********************************************************************
 
     if(esdfParam.isTDDFT) { // TDDFT
-      statusOFS << "! Begin the TDDFT simulation now " << std::endl;
+      statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
+      statusOFS << " ! Begin the TDDFT simulation now " << std::endl;
+      statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
       GetTime( timeSta );
       scf.UpdateTDDFTParameters( );
       Int TDDFTMaxIter = esdfParam.ionMaxIter;
@@ -324,7 +326,8 @@ int main(int argc, char **argv)
       myTDDFT.propagate( ptable );
 
       GetTime( timeEnd );
-      statusOFS << "! TDDFT simulation time" << timeEnd - timeSta <<std::endl;
+      statusOFS << "! TDDFT used time: " << timeEnd - timeSta << " [s]" <<std::endl;
+      statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
     }
     else{ 
     IonDynamics ionDyn;

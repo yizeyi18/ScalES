@@ -59,7 +59,7 @@ namespace dgdft{
      options->method        = "RK4";
      options->ehrenfest     = true;
      //options->ehrenfest     = false;
-     options->simulateTime  = 2.0;
+     options->simulateTime  = 0.20;
      options->dt            = 0.02;
      options->gmres_restart = 10; // not sure.
      options->krylovTol     = 1.0E-7;
@@ -222,15 +222,16 @@ namespace dgdft{
          }
 
 #if ( _DEBUGlevel_ >= 0 )
-           statusOFS<< " ----------------------------------------------- " << std::endl;
-           statusOFS<< " RK4 step " << k_ << "  t = " << dt << std::endl;
-           statusOFS << "time: " << k_*24.19*dt <<  " atom 1 pos: "<<std::setprecision(12) << atompos[0] << std::endl;
-           statusOFS << "time: " << k_*24.19*dt <<  " atom 2 pos: "<<std::setprecision(12) << atompos[1] << std::endl;
+           statusOFS<< "****************************************************************************" << std::endl << std::endl;
+           statusOFS<< "TDDFT RK4 Method, step " << k_ << "  t = " << dt << std::endl;
   
-           for( Int a = 0; a < numAtom; a++ )
-             statusOFS << "time :" << k_*24.19*dt << " velocity :" << std::setprecision(12) << atomvel[a] << std::endl;
-           for( Int a = 0; a < numAtom; a++ )
-             statusOFS << "time :" << k_*24.19*dt << " Force :" << std::setprecision(12) << atomforce[a] << std::endl;
+           for( Int a = 0; a < numAtom; a++ ){
+             statusOFS << "time: " << k_*24.19*dt << " atom " << a << " position: " << std::setprecision(12) << atompos[a]   << std::endl;
+             statusOFS << "time: " << k_*24.19*dt << " atom " << a << " velocity: " << std::setprecision(12) << atomvel[a]   << std::endl;
+             statusOFS << "time: " << k_*24.19*dt << " atom " << a << " Force:    " << std::setprecision(12) << atomforce[a] << std::endl;
+           }
+           statusOFS<< std::endl;
+           statusOFS<< "****************************************************************************" << std::endl << std::endl;
 #endif
 
          // Update velocity and position when doing ehrenfest dynamics
@@ -243,12 +244,6 @@ namespace dgdft{
              atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
            }
          }
-         /*
-         statusOFS << " atom 1 mid pos: "<< k_*24.19*dt << " "<<std::setprecision(12) << atompos_mid[0] << std::endl;
-         statusOFS << " atom 2 mid pos: "<< k_*24.19*dt << " "<<std::setprecision(12) << atompos_mid[1] << std::endl;
-         statusOFS << " atom 1 fin pos: "<< k_*24.19*dt << " "<<std::setprecision(12) << atompos_fin[0] << std::endl;
-         statusOFS << " atom 2 fin pos: "<< k_*24.19*dt << " "<<std::setprecision(12) << atompos_fin[1] << std::endl;
-         */
        }
      }
 
@@ -281,8 +276,7 @@ namespace dgdft{
             totalCharge_, 
             fft );
 
-#if ( _DEBUGlevel_ >= 0 )
-       statusOFS << " Init rho and vtot " << std::endl;
+#if ( _DEBUGlevel_ >= 2 )
        statusOFS << " total Charge init " << setw(16) << totalCharge_ << std::endl;
 #endif
        //get the new V(r,t+dt) from the rho(r,t+dt)
@@ -301,7 +295,8 @@ namespace dgdft{
      ham.MultSpinor( psi, tnsTemp, fft );
 
      // test psi * conj(psi) 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 2 )
+     statusOFS<< "***************   DEBUG INFOMATION ******************" << std::endl << std::endl;
      statusOFS << " step: " << k_ << " K1 = -i1 * ( H1 * psi ) " << std::endl;
      Int width = numStateLocal;
      Int heightLocal = ntot;
@@ -315,6 +310,7 @@ namespace dgdft{
        Complex *ptr = psi.Wavefun().Data();
        DblNumVec vtot = ham.Vtot();
        statusOFS << " Psi  0 : " << ptr[0] << " HX1 " << HX1(0,0) << " vtot " << vtot[0] << std::endl;
+     statusOFS<< "***************   DEBUG INFOMATION ******************" << std::endl << std::endl;
 #endif
  
      //  1. set up Psi <-- X - i ( HX1 ) * dt/2
@@ -359,8 +355,9 @@ namespace dgdft{
      ham.MultSpinor( psi2, tnsTemp2, fft );
 
      // check the psi * conj(psi)
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 2 )
      {
+     statusOFS<< "***************   DEBUG INFOMATION ******************" << std::endl << std::endl;
      statusOFS << " step: " << k_ << " K2 = ( H2 * X2 ) " << std::endl;
      Int width = numStateLocal;
      Int heightLocal = ntot;
@@ -375,6 +372,7 @@ namespace dgdft{
        DblNumVec vtot = ham.Vtot();
        statusOFS << " Psi 2   0 : " << ptr[0]  << " HX2 " << HX2(0,0)<< " vtot " << vtot[0] << std::endl;
      }
+     statusOFS<< "***************   DEBUG INFOMATION ******************" << std::endl << std::endl;
 #endif 
 
      //  1. set up Psi <-- X - i ( HX2) * dt/2
@@ -418,8 +416,9 @@ namespace dgdft{
      ham.MultSpinor( psi3, tnsTemp3, fft );
 
      // check psi3*conj(psi3)
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 2 )
      {
+       statusOFS<< "***************   DEBUG INFOMATION ******************" << std::endl << std::endl;
        statusOFS << " step: " << k_ << " K3 = -i1 * ( H3 * X3 ) " << std::endl;
        Int width = numStateLocal;
        Int heightLocal = ntot;
@@ -433,6 +432,7 @@ namespace dgdft{
        Complex *ptr = psi3.Wavefun().Data();
        DblNumVec vtot = ham.Vtot();
        statusOFS << " Psi 3   0 : " << ptr[0]  << " HX3 " << HX2(0,0) << " vtot " << vtot[0] << std::endl;
+       statusOFS<< "***************   DEBUG INFOMATION ******************" << std::endl << std::endl;
      }
 #endif
 
@@ -480,8 +480,9 @@ namespace dgdft{
      NumTns<Complex> tnsTemp4(ntot, 1, numStateLocal, false, HX4.Data());
      ham.MultSpinor( psi4, tnsTemp4, fft );
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 2 )
      {
+     statusOFS<< "***************   DEBUG INFOMATION ******************" << std::endl << std::endl;
      statusOFS << " step: " << k_ << " K4 = -i1 * ( H4 * X4 ) " << std::endl;
      Int width = numStateLocal;
      Int heightLocal = ntot;
@@ -492,9 +493,10 @@ namespace dgdft{
 
      for( Int i = 0; i < width; i++)
        statusOFS << " Psi4 * conjg( Psi4) : " << XTXtemp1(i,i) << std::endl;
-       Complex *ptr = psi4.Wavefun().Data();
-       DblNumVec vtot = ham.Vtot();
-       statusOFS << " Psi 4   0 : " << ptr[0]  << " HX4 " << HX4(0,0)<< " vtot " << vtot[0] << std::endl;
+     Complex *ptr = psi4.Wavefun().Data();
+     DblNumVec vtot = ham.Vtot();
+     statusOFS << " Psi 4   0 : " << ptr[0]  << " HX4 " << HX4(0,0)<< " vtot " << vtot[0] << std::endl;
+     statusOFS<< "***************   DEBUG INFOMATION ******************" << std::endl << std::endl;
      }
 #endif 
 
@@ -542,7 +544,7 @@ namespace dgdft{
        SetValue(vtot, 0.0);
        ham.CalculateVtot( vtot);
        Real *vtot0 = ham.Vtot().Data() ;
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 2 )
          statusOFS << "Xf delta vtot " << vtot(0) - vtot0[0] << std::endl;
 #endif
        blas::Copy( ntotFine, vtot.Data(), 1, ham.Vtot().Data(), 1 );
@@ -556,24 +558,24 @@ namespace dgdft{
 	       psiDataPtr[index] =  psiDataPtrFinal[index];
        }
 
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 2 )
      {
-     Int width = numStateLocal;
-     Int heightLocal = ntot;
-     CpxNumMat  XTXtemp1( width, width );
-
-     blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, psi.Wavefun().Data(), 
-      heightLocal, psi.Wavefun().Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-
-     for( Int i = 0; i < width; i++)
-       statusOFS << " Psi End * conjg( Psi End) : " << XTXtemp1(i,i) << std::endl;
+       statusOFS<< "***************   DEBUG INFOMATION ******************" << std::endl << std::endl;
+       Int width = numStateLocal;
+       Int heightLocal = ntot;
+       CpxNumMat  XTXtemp1( width, width );
+  
+       blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, psi.Wavefun().Data(), 
+        heightLocal, psi.Wavefun().Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
+  
+       for( Int i = 0; i < width; i++)
+         statusOFS << " Psi End * conjg( Psi End) : " << XTXtemp1(i,i) << std::endl;
        Complex *ptr = psi.Wavefun().Data();
        DblNumVec vtot = ham.Vtot();
        statusOFS << " Psi End 0 : " << ptr[0] << " vtot " << vtot[0] << std::endl;
+       statusOFS<< "***************   DEBUG INFOMATION ******************" << std::endl << std::endl;
      }
 #endif
-     //for( Int j = 0; j < width; j++)
-       //statusOFS << " Psi * conjg( Psi) : " << i << " " << j << XTXtemp1(i,j) << std::endl;
        
      //update Velocity
      if(options_.ehrenfest){
