@@ -52,21 +52,100 @@
 
 namespace dgdft{
 
+  using namespace dgdft::esdf;
+
+  void setDefaultEfieldOptions( eField * eF)
+  {
+    // set the polarization to x 
+    eF->pol.resize(3);
+    eF->pol[0] = 1.0;
+    eF->pol[1] = 0.0;
+    eF->pol[2] = 0.0;
+
+    // set frequency to 0.0 
+    eF->freq = 18.0/27.211385;
+
+    // set phase to 0.0 
+    eF->phase = 0.0;
+
+    // set phase to 0.0 
+    eF->env = "gaussian";
+
+    // set Amp to 0
+    eF->Amp = 0.0194;
+
+    // set t0 to 0
+    eF->t0 = 13.6056925;
+
+    // set tau to 0
+    eF->tau = 13.6056925;
+  }
+
+
+  void setEfieldPolarization( eField* eF, std::vector<Real> & pol)
+  {
+    Real scale = std::sqrt(pol[0]*pol[0] + pol[1]*pol[1] + pol[2] * pol[2]);
+
+    eF->pol.resize(3);
+    for(int i =0; i < 3; i++)
+      eF->pol[i] = pol[i]/scale;
+  }
+
+  void setEfieldFrequency( eField* eF, Real freq)
+  {
+    eF->freq = freq;
+  }
+
+  void setEfieldPhase( eField* eF, Real phase)
+  {
+    eF->phase = phase;
+  }
+
+  void setEfieldEnv( eField* eF, std::string env)
+  {
+    if(env != "constant" && env != "gaussian" &&
+       env != "erf"      && env != "sinsq"    &&
+       env != "hann"     && env != "kick")
+      env = "gaussian"; // set gaussian as default
+
+    eF->env = env;
+  }
+
+  void setEfieldAmplitude( eField* eF, Real Amp)
+  {
+    eF->Amp = Amp;
+  }
+
+  void setEfieldT0( eField* eF, Real t0)
+  {
+    eF->t0 = t0;
+  }
+
+  void setEfieldTau( eField* eF, Real tau)
+  {
+    if(tau <= 0.0){
+      tau = 1.0;
+      statusOFS << " Warning: Tau must be positive number; reset to 1.0 " << std::endl;
+    }
+    eF->tau = tau;
+  }
+
   void setDefaultTDDFTOptions( TDDFTOptions * options)
   {
      options->auto_save     = 0;
      options->load_save     = false;
      options->method        = "RK4";
-     options->ehrenfest     = true;
-     //options->ehrenfest     = false;
-     options->simulateTime  = 0.20;
-     options->dt            = 0.02;
+     //options->ehrenfest     = true;
+     options->ehrenfest     = false;
+     options->simulateTime  = 40.00;
+     options->dt            = 0.005;
      options->gmres_restart = 10; // not sure.
      options->krylovTol     = 1.0E-7;
      options->krylovMax     = 30; 
      options->scfTol        = 1.0E-7; 
      options->adNum         = 20; 
      options->adUpdate      = 1;
+     setDefaultEfieldOptions( & options->eField_);
   }
   void setTDDFTMethod( TDDFTOptions * options, std::string method)
   {
@@ -112,6 +191,11 @@ namespace dgdft{
       fftPtr_ = &fft;
       atomListPtr_ = &atomList;
 
+      // Grab the supercell info
+      supercell_x_ = esdfParam.domain.length[0];
+      supercell_y_ = esdfParam.domain.length[1];
+      supercell_z_ = esdfParam.domain.length[2];
+
       // History of atomic position
       maxHist_ = 4;  // hard coded
       atomListHist_.resize(maxHist_);
@@ -140,7 +224,154 @@ namespace dgdft{
       // might need to setup others, will add here.
       k_ = 0;
 
+      // CHECK CHECK: change this to a input parameter.
+      calDipole_ = 1;
+      calVext_ = 1;
+
+      if( calDipole_) {
+        statusOFS << " ************************ WARNING ******************************** " << std::endl;
+        statusOFS << " Warning: Please make sure that your atoms are centered at (0,0,0) " << std::endl;
+        statusOFS << " ************************ WARNING ******************************** " << std::endl;
+
+        Xr_.Resize( fft.domain.NumGridTotalFine() );
+        Yr_.Resize( fft.domain.NumGridTotalFine() );
+        Zr_.Resize( fft.domain.NumGridTotalFine() );
+        D_.Resize( fft.domain.NumGridTotalFine() );
+
+        Real * xr = Xr_.Data();
+        Real * yr = Yr_.Data();
+        Real * zr = Zr_.Data();
+ 
+        Int  idx;
+        Real Xtmp, Ytmp, Ztmp;       
+
+        for( Int k = 0; k < fft.domain.numGridFine[2]; k++ ){
+          for( Int j = 0; j < fft.domain.numGridFine[1]; j++ ){
+            for( Int i = 0; i < fft.domain.numGridFine[0]; i++ ){
+
+               idx = i + j * fft.domain.numGridFine[0] + k * fft.domain.numGridFine[0] * fft.domain.numGridFine[1];
+               Xtmp = (Real(i) - Real( round(Real(i)/Real(fft.domain.numGridFine[0])) * Real(fft.domain.numGridFine[0]) ) ) / Real(fft.domain.numGridFine[0]);
+               Ytmp = (Real(j) - Real( round(Real(j)/Real(fft.domain.numGridFine[1])) * Real(fft.domain.numGridFine[1]) ) ) / Real(fft.domain.numGridFine[1]);
+               Ztmp = (Real(k) - Real( round(Real(k)/Real(fft.domain.numGridFine[2])) * Real(fft.domain.numGridFine[2]) ) ) / Real(fft.domain.numGridFine[2]);
+
+               // should be AL(0,0) * X + AL(0,1) * Y + AL(0,2) * Z
+               // the other parts are zeros. 
+               xr[idx] = Xtmp * supercell_x_ ;
+               yr[idx] = Ytmp * supercell_y_ ;
+               zr[idx] = Ztmp * supercell_z_ ;
+
+              // get the p.D corresponding to the matlab KSSOLV 
+              D_[idx] = xr[idx] * options_.eField_.pol[0] + yr[idx] * options_.eField_.pol[1] + zr[idx] * options_.eField_.pol[2]; 
+            }
+          }
+        }
+
+        for( Int i = 0; i < fft.domain.numGridFine[0]; i++ ){
+          statusOFS << " Xr " << i << " " << xr[i] << std::endl;
+          //statusOFS << " Yr " << i << " " << yr[i] << std::endl;
+          //statusOFS << " Zr " << i << " " << zr[i] << std::endl;
+        }
+
+      } 
+
   } // TDDFT::Setup function
+
+  Real TDDFT::getEfield(Real t)
+  {
+    Real et = 0.0;
+    if (options_.eField_.env == "gaussian" ) {
+      Real temp = (t-options_.eField_.t0)/options_.eField_.tau;
+      et = options_.eField_.Amp * exp( - temp * temp / 2.0) * cos(options_.eField_.freq * t + options_.eField_.phase);
+      return et;
+    }
+    else{
+      statusOFS<< " Wrong Efield input, should be constant/gaussian/erf/sinsq/hann/kick" << std::endl;
+      exit(0);
+    }
+  }
+
+  void TDDFT::calculateVext(Real t)
+  {
+    Hamiltonian& ham = *hamPtr_;
+    Fourier&     fft = *fftPtr_;
+
+    if(calVext_){
+      Real et = getEfield(t);
+      DblNumVec & vext = ham.Vext();
+      // then Vext = Vext0 + et * options_.D
+      // Here we suppose the Vext0 are zeros.
+      Int idx;
+      for( Int k = 0; k < fft.domain.numGridFine[2]; k++ ){
+        for( Int j = 0; j < fft.domain.numGridFine[1]; j++ ){
+          for( Int i = 0; i < fft.domain.numGridFine[0]; i++ ){
+            idx = i + j * fft.domain.numGridFine[0] + k * fft.domain.numGridFine[0] * fft.domain.numGridFine[1];
+            vext[idx] = et * D_[idx];
+          }
+        }
+      }
+    }
+
+  }
+
+
+  void TDDFT::calculateDipole()
+  {
+     Hamiltonian& ham = *hamPtr_;
+     Fourier&     fft = *fftPtr_;
+     Spinor&      psi = *psiPtr_;
+     
+     // Di = ∫ Rho(i, j, k) * Xr(i, j, k) *dx
+     // Density is not distributed
+     Real *density = ham.Density().Data();
+     
+     Real Dx = 0.0;
+     Real Dy = 0.0;
+     Real Dz = 0.0;
+     Real sumRho = 0.0;
+     Real sumDx  = 0.0;
+     Real sumDy  = 0.0;
+     Real sumDz  = 0.0;
+
+     Real * xr = Xr_.Data();
+     Real * yr = Yr_.Data();
+     Real * zr = Zr_.Data();
+     for( Int k = 0; k < fft.domain.numGridFine[2]; k++ ){
+       for( Int j = 0; j < fft.domain.numGridFine[1]; j++ ){
+         for( Int i = 0; i < fft.domain.numGridFine[0]; i++ ){
+
+           sumRho += ( * density);
+           sumDx  += ( *xr);
+           sumDy  += ( *yr);
+           sumDz  += ( *zr);
+
+           Dx -=( *density ) * ( *xr++);
+           Dy -=( *density ) * ( *yr++);
+           Dz -=( *density++ ) * ( *zr++);
+         }
+       }
+     }
+     Dx *= Real(supercell_x_ * supercell_y_ * supercell_z_) / Real( fft.domain.numGridFine[0] * fft.domain.numGridFine[1]* fft.domain.numGridFine[2]);
+     Dy *= Real(supercell_x_ * supercell_y_ * supercell_z_) / Real( fft.domain.numGridFine[0] * fft.domain.numGridFine[1]* fft.domain.numGridFine[2]);
+     Dz *= Real(supercell_x_ * supercell_y_ * supercell_z_) / Real( fft.domain.numGridFine[0] * fft.domain.numGridFine[1]* fft.domain.numGridFine[2]);
+
+#if ( _DEBUGlevel_ >= 0 )
+     statusOFS<< "**** Dipole  Calculated *****" << std::endl << std::endl;
+     statusOFS << " Dipole x " << Dx << std::endl;
+     statusOFS << " Dipole y " << Dy << std::endl;
+     statusOFS << " Dipole z " << Dz << std::endl;
+     statusOFS<< "**** Dipole  Calculated *****" << std::endl << std::endl;
+#if 0
+     statusOFS << " sum Dx : " << sumDx << std::endl;
+     statusOFS << " sum Dy : " << sumDy << std::endl;
+     statusOFS << " sum Dz : " << sumDz << std::endl;
+     statusOFS << " sum Rho : " << sumRho << std::endl;
+     statusOFS << " super cell: " << supercell_x_ << " " << supercell_y_ << " " << supercell_z_ << std::endl;
+     statusOFS << " FFT size  : " << fft.domain.numGridFine[0] << " " << fft.domain.numGridFine[1] << " " << fft.domain.numGridFine[2]  << std::endl;
+#endif
+#endif
+     /*
+     */
+  }    // -----  end of method TDDFT::calculateDipole ---- 
 
   void
   TDDFT::VelocityVerlet    ( Int ionIter )
@@ -268,6 +499,7 @@ namespace dgdft{
      occupationRate.Resize( psi.NumStateTotal() );
      SetValue( occupationRate, 1.0);
      //statusOFS << " Occupation Rate: " << occupationRate << std::endl;
+     if(calDipole_)  calculateDipole();
      if(k == 0) {
        Real totalCharge_;
        ham.CalculateDensity(
@@ -283,7 +515,19 @@ namespace dgdft{
        Real Exc_;
        ham.CalculateXC( Exc_, fft ); 
        ham.CalculateHartree( fft );
+       calculateVext(ti);
+
+#if ( _DEBUGlevel_ >= 2 )
+       Real et0 = getEfield(0);
+       Real eti = getEfield(ti);
+       Real etmid = getEfield(tmid);
+       Real etf = getEfield(tf);
+       statusOFS << " DEBUG INFORMATION ON THE EFILED " << std::endl;
+       statusOFS << " et0: " << et0 << " eti " << eti << " etmid " << etmid << " etf " << etf << std::endl;
+       statusOFS << " DEBUG INFORMATION ON THE EFILED " << std::endl;
+#endif
        ham.CalculateVtot( ham.Vtot() );
+
      }
 
      // HX1 = (H1 * psi)
@@ -346,6 +590,7 @@ namespace dgdft{
        Real Exc_;
        ham.CalculateXC( Exc_, fft ); 
        ham.CalculateHartree( fft );
+       calculateVext(tmid);
        ham.CalculateVtot( ham.Vtot() );
      }
  
@@ -470,6 +715,7 @@ namespace dgdft{
        Real Exc_;
        ham.CalculateXC( Exc_, fft ); 
        ham.CalculateHartree( fft );
+       calculateVext(tf);
        ham.CalculateVtot( ham.Vtot() );
      }
  

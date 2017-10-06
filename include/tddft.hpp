@@ -61,6 +61,42 @@ namespace dgdft{
 
 
   typedef struct{
+
+    /// @brief polarization direction
+    std::vector<Real>  pol;
+
+    /// @brief carrier frequency (angular)
+    double freq;
+
+    /// @brief carrier-envelop phase
+    double phase;
+
+    /// @brief type of envelope
+    std::string env;
+
+    /// @brief Amplitude
+    double Amp;
+
+    /// @brief shift parameter
+    double t0;
+
+    /// @brief scale parameter, positive real
+    double tau;
+
+  } eField;
+
+  /// @brief set up default options for the eField
+  void setDefaultEfieldOptions( eField * extEfield);
+  void setEfieldPolarization( eField* extEfield, std::vector<Real> & pol);
+  void setEfieldFrequency( eField* extEfield, Real freq);
+  void setEfieldPhase( eField* extEfield, Real phase);
+  void setEfieldEnv( eField* extEfield, std::string env);
+  void setEfieldAmplitude( eField* extEfield, Real Amp);
+  void setEfieldT0( eField* extEfield, Real t0);
+  void setEfieldTau( eField* extEfield, Real tau);
+
+ 
+  typedef struct{
   
     /// @brief auto save interval
     int auto_save; 
@@ -98,7 +134,11 @@ namespace dgdft{
     /// @brief update interval of the adiabatic projector
     int adUpdate;
   
+    /// @brief the external field with time t
+    eField eField_;
+
     /// @brief output options, will include later
+   
     
   } TDDFTOptions;
   
@@ -119,6 +159,15 @@ namespace dgdft{
       Spinor*             psiPtr_;
       Int                 k_;
       Int                 maxHist_;
+
+      /// @brief the Xr, Yr, Zr for the dipole
+      Int                 calDipole_;
+      Int                 calVext_;
+
+      DblNumVec           Xr_;
+      DblNumVec           Yr_;
+      DblNumVec           Zr_;
+      DblNumVec           D_;
 
       std::vector<Atom>*   atomListPtr_;
       std::vector<Real>    tlist_;
@@ -159,11 +208,14 @@ namespace dgdft{
          std::vector<Atom>& atomList,
          PeriodTable& ptable) ;
 
+      void calculateDipole();
       void MoveIons( Int ionIter );
 
       void advanceRK4(PeriodTable& ptable) ;
       void done();  
       void propagate(PeriodTable& ptable );
+      Real getEfield( Real t);
+      void calculateVext(Real t);
       
   };
 
