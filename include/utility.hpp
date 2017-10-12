@@ -1707,7 +1707,10 @@ CopyPattern    ( const DistSparseMatrix<F1>& A, DistSparseMatrix<F2>& B )
   return ;
 }        // -----  end of template function CopyPattern  ----- 
 
-
+#ifdef _COMPLEX_
+void AlltoallForward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm );
+void AlltoallBackward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm );
+#endif
 void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
 void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
 

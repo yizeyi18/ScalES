@@ -187,6 +187,10 @@ namespace dgdft{
 
       TDDFTOptions options_;
        
+      // for Anderson iteration
+      DblNumMat           dfMat_;
+      DblNumMat           dvMat_;
+
       /// @brief VelocityVerlet for NVE simulation
       ///
       void VelocityVerlet( Int ionIter );
@@ -212,11 +216,25 @@ namespace dgdft{
       void MoveIons( Int ionIter );
 
       void advanceRK4(PeriodTable& ptable) ;
+      void advancePTTRAP(PeriodTable& ptable) ;
       void done();  
       void propagate(PeriodTable& ptable );
       Real getEfield( Real t);
       void calculateVext(Real t);
-      
+      void Update();
+
+      // Mixing
+      void  AndersonMix( 
+          Int iter,
+          Real            mixStepLength,
+          std::string     mixType,
+          DblNumVec&      vMix,
+          DblNumVec&      vOld,
+          DblNumVec&      vNew,
+          DblNumMat&      dfMat,
+          DblNumMat&      dvMat );
+
+
   };
 
 

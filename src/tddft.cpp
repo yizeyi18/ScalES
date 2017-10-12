@@ -134,11 +134,12 @@ namespace dgdft{
   {
      options->auto_save     = 0;
      options->load_save     = false;
-     options->method        = "RK4";
-     //options->ehrenfest     = true;
-     options->ehrenfest     = false;
-     options->simulateTime  = 40.00;
-     options->dt            = 0.005;
+     //options->method        = "RK4";
+     options->method        = "PTTRAP";
+     options->ehrenfest     = true;
+     //options->ehrenfest     = false;
+     options->simulateTime  = 0.10;
+     options->dt            = 0.10;
      options->gmres_restart = 10; // not sure.
      options->krylovTol     = 1.0E-7;
      options->krylovMax     = 30; 
@@ -274,6 +275,10 @@ namespace dgdft{
 
       } 
 
+    Int mixMaxDim_ = esdfParam.mixMaxDim;
+    Int ntotFine  = fftPtr_->domain.NumGridTotalFine();
+    dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
+    dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
   } // TDDFT::Setup function
 
   Real TDDFT::getEfield(Real t)
@@ -314,6 +319,15 @@ namespace dgdft{
   }
 
 
+  void TDDFT::Update() {
+
+    Int mixMaxDim_ = esdfParam.mixMaxDim;
+    Int ntotFine  = fftPtr_->domain.NumGridTotalFine();
+    dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
+    dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
+
+    return;
+  }
   void TDDFT::calculateDipole()
   {
      Hamiltonian& ham = *hamPtr_;
@@ -383,17 +397,125 @@ namespace dgdft{
   TDDFT::MoveIons    ( Int ionIter )
   {
     Int mpirank, mpisize;
-    MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-    MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
     return ;
   }         // -----  end of method TDDFT::MoveIons  ----- 
 
+  void
+  TDDFT::AndersonMix    ( 
+      Int iter,
+      Real            mixStepLength,
+      std::string     mixType,
+      DblNumVec&      vMix,
+      DblNumVec&      vOld,
+      DblNumVec&      vNew,
+      DblNumMat&      dfMat,
+      DblNumMat&      dvMat ) {
+
+    Int ntot  = fftPtr_->domain.NumGridTotalFine();
+  
+    // Residual 
+    DblNumVec res;
+    // Optimal input potential in Anderon mixing.
+    DblNumVec vOpt; 
+    // Optimal residual in Anderson mixing
+    DblNumVec resOpt; 
+    // Preconditioned optimal residual in Anderson mixing
+    DblNumVec precResOpt;
+  
+    res.Resize(ntot);
+    vOpt.Resize(ntot);
+    resOpt.Resize(ntot);
+    precResOpt.Resize(ntot);
+  
+    Int mixMaxDim_ = esdfParam.mixMaxDim;
+    // Number of iterations used, iter should start from 1
+    Int iterused = std::min( iter-1, mixMaxDim_ ); 
+    // The current position of dfMat, dvMat
+    Int ipos = iter - 1 - ((iter-2)/ mixMaxDim_ ) * mixMaxDim_;
+    // The next position of dfMat, dvMat
+    Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
+  
+    res = vOld;
+    // res(:) = vOld(:) - vNew(:) is the residual
+    blas::Axpy( ntot, -1.0, vNew.Data(), 1, res.Data(), 1 );
+  
+    vOpt = vOld;
+    resOpt = res;
+  
+    if( iter > 1 ){
+      // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
+      // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
+      blas::Scal( ntot, -1.0, dfMat.VecData(ipos-1), 1 );
+      blas::Axpy( ntot, 1.0, res.Data(), 1, dfMat.VecData(ipos-1), 1 );
+      blas::Scal( ntot, -1.0, dvMat.VecData(ipos-1), 1 );
+      blas::Axpy( ntot, 1.0, vOld.Data(), 1, dvMat.VecData(ipos-1), 1 );
+  
+  
+      // Calculating pseudoinverse
+      Int nrow = iterused;
+      DblNumMat dfMatTemp;
+      DblNumVec gammas, S;
+  
+      Int rank;
+      // FIXME Magic number
+      Real rcond = 1e-12;
+  
+      S.Resize(nrow);
+  
+      gammas    = res;
+      dfMatTemp = dfMat;
+  
+      lapack::SVDLeastSquare( ntot, iterused, 1, 
+          dfMatTemp.Data(), ntot, gammas.Data(), ntot,
+          S.Data(), rcond, &rank );
+  
+      Print( statusOFS, "  Rank of dfmat = ", rank );
+      Print( statusOFS, "  Rcond = ", rcond );
+      // Update vOpt, resOpt. 
+  
+      blas::Gemv('N', ntot, nrow, -1.0, dvMat.Data(),
+          ntot, gammas.Data(), 1, 1.0, vOpt.Data(), 1 );
+  
+      blas::Gemv('N', ntot, iterused, -1.0, dfMat.Data(),
+          ntot, gammas.Data(), 1, 1.0, resOpt.Data(), 1 );
+    }
+  
+    if( mixType == "kerker+anderson" ){
+      Print( statusOFS, " Kerker+anderson  is not supported in TDDFT ");
+    }
+    else if( mixType == "anderson" ){
+      precResOpt = resOpt;
+    }
+    else{
+      ErrorHandling("Invalid mixing type.");
+    }
+  
+  
+    // Update dfMat, dvMat, vMix 
+    // dfMat(:, inext-1) = res(:)
+    // dvMat(:, inext-1) = vOld(:)
+    blas::Copy( ntot, res.Data(), 1, 
+        dfMat.VecData(inext-1), 1 );
+    blas::Copy( ntot, vOld.Data(),  1, 
+        dvMat.VecData(inext-1), 1 );
+  
+    // vMix(:) = vOpt(:) - mixStepLength * precRes(:)
+    vMix = vOpt;
+    blas::Axpy( ntot, -mixStepLength, precResOpt.Data(), 1, vMix.Data(), 1 );
+  
+  
+    return ;
+  
+  }         // -----  end of method SCF::AndersonMix  ----- 
+
+
   void TDDFT::advanceRK4( PeriodTable& ptable ) {
 
      Int mpirank, mpisize;
-     MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-     MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+     MPI_Comm mpi_comm = fftPtr_->domain.comm;
+     MPI_Comm_rank( mpi_comm, &mpirank );
+     MPI_Comm_size( mpi_comm, &mpisize );
 
      Hamiltonian& ham = *hamPtr_;
      Fourier&     fft = *fftPtr_;
@@ -405,7 +527,7 @@ namespace dgdft{
      // print the options_ when first step. 
      if(k_ == 0){
        statusOFS<< std::endl;
-       statusOFS<< " -------   Print the TDDFT Options  ---------- "     << std::endl;
+       statusOFS<< " ----- TDDFT RK-4 Method Print Options   ----- "     << std::endl;
        statusOFS<< " options.auto_save      " << options_.auto_save      << std::endl;
        statusOFS<< " options.load_save      " << options_.load_save      << std::endl;
        statusOFS<< " options.method         " << options_.method         << std::endl;
@@ -481,8 +603,8 @@ namespace dgdft{
      // have the atompos_mid and atompos_final
      if(options_.ehrenfest){
        for(Int a = 0; a < numAtom; a++){
-         MPI_Bcast( &atompos_mid[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
-         MPI_Bcast( &atompos_fin[a][0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD ); 
+         MPI_Bcast( &atompos_mid[a][0], 3, MPI_DOUBLE, 0, mpi_comm ); 
+         MPI_Bcast( &atompos_fin[a][0], 3, MPI_DOUBLE, 0, mpi_comm ); 
        }
      }
 
@@ -835,11 +957,378 @@ namespace dgdft{
 
      ++k_;
   }
+  void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
+
+     Int mpirank, mpisize;
+     MPI_Comm mpi_comm = fftPtr_->domain.comm;
+     MPI_Comm_rank( mpi_comm, &mpirank );
+     MPI_Comm_size( mpi_comm, &mpisize );
+
+     Hamiltonian& ham = *hamPtr_;
+     Fourier&     fft = *fftPtr_;
+     Spinor&      psi = *psiPtr_;
+
+     std::vector<Atom>&   atomList = *atomListPtr_;
+     Int numAtom = atomList.size();
+
+     // print the options_ when first step. 
+     if(k_ == 0){
+       statusOFS<< std::endl;
+       statusOFS<< " -----   TDDFT PT-TRAP Print the Options  ---- "     << std::endl;
+       statusOFS<< " options.auto_save      " << options_.auto_save      << std::endl;
+       statusOFS<< " options.load_save      " << options_.load_save      << std::endl;
+       statusOFS<< " options.method         " << options_.method         << std::endl;
+       statusOFS<< " options.ehrenfest      " << options_.ehrenfest      << std::endl;
+       statusOFS<< " options.simulateTime   " << options_.simulateTime   << std::endl;
+       statusOFS<< " options.dt             " << options_.dt             << std::endl;
+       statusOFS<< " options.gmres_restart  " << options_.gmres_restart  << std::endl;
+       statusOFS<< " options.krylovTol      " << options_.krylovTol      << std::endl;
+       statusOFS<< " options.scfTol         " << options_.scfTol         << std::endl;
+       statusOFS<< " options.adNum          " << options_.adNum          << std::endl;
+       statusOFS<< " options.adUpdate       " << options_.adUpdate       << std::endl;
+       statusOFS<< " --------------------------------------------- "     << std::endl;
+       statusOFS<< std::endl;
+     }
+ 
+     // Update saved atomList. 0 is the latest one
+     for( Int l = maxHist_-1; l > 0; l-- ){
+       atomListHist_[l] = atomListHist_[l-1];
+     }
+     atomListHist_[0] = atomList;
+
+     // do the verlocity verlet algorithm to move ion
+     Int ionIter = k_;
+     //VelocityVerlet( ionIter );
+
+     std::vector<Point3>  atompos(numAtom);
+     std::vector<Point3>  atomvel(numAtom);
+     std::vector<Point3>  atomforce(numAtom);
+     std::vector<Point3>  atompos_fin(numAtom);
+     {
+       std::vector<Point3>  atomvel_temp(numAtom);
+       if( mpirank == 0 ){
+   
+         Real& dt = options_.dt;
+         DblNumVec& atomMass = atomMass_;
+   
+         for( Int a = 0; a < numAtom; a++ ){
+           atompos[a]     = atomList[a].pos;
+           atompos_fin[a] = atomList[a].pos;
+           atomvel[a]     = atomList[a].vel;
+           atomforce[a]   = atomList[a].force;
+         }
+
+#if ( _DEBUGlevel_ >= 0 )
+         statusOFS<< "***********************************************" << std::endl ;
+         statusOFS<< std::endl;
+         statusOFS<< "TDDFT PTTRAP Method, step " << k_ << "  t = " << dt << std::endl;
+  
+         for( Int a = 0; a < numAtom; a++ ){
+           statusOFS << "time: " << k_*24.19*dt << " atom " << a << " position: " << std::setprecision(12) << atompos[a]   << std::endl;
+           statusOFS << "time: " << k_*24.19*dt << " atom " << a << " velocity: " << std::setprecision(12) << atomvel[a]   << std::endl;
+           statusOFS << "time: " << k_*24.19*dt << " atom " << a << " Force:    " << std::setprecision(12) << atomforce[a] << std::endl;
+         }
+         statusOFS<< std::endl;
+         statusOFS<< "************************************************"<< std::endl;
+         statusOFS<< std::endl;
+#endif
+
+         // Update velocity and position when doing ehrenfest dynamics
+         if(options_.ehrenfest){
+           for(Int a=0; a<numAtom; a++) {
+             atomvel_temp[a] = atomvel[a] + atomforce[a]*dt/atomMass[a]/2.0; 
+             atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
+           }
+         }
+       }
+     }
+
+     // have the atompos_final
+     if(options_.ehrenfest){
+       for(Int a = 0; a < numAtom; a++){
+         MPI_Bcast( &atompos_fin[a][0], 3, MPI_DOUBLE, 0, mpi_comm); 
+       }
+     }
+
+     // k_ is the current K
+     Int k = k_;
+     Real ti = tlist_[k];
+     Real tf = tlist_[k+1];
+     Real dT = tf - ti;
+     Real tmid =  (ti + tf)/2.0;
+     Complex i_Z_One = Complex(0.0, 1.0);
+
+     // PT-TRAP Method starts, note we only use Ne bands
+     DblNumVec &occupationRate = ham.OccupationRate();
+     occupationRate.Resize( psi.NumStateTotal() );
+     SetValue( occupationRate, 1.0);
+
+
+     // update H when it is first step.
+     if(k == 0) {
+       Real totalCharge_;
+       ham.CalculateDensity(
+            psi,
+            ham.OccupationRate(),
+            totalCharge_, 
+            fft );
+       Real Exc_;
+       ham.CalculateXC( Exc_, fft ); 
+       ham.CalculateHartree( fft );
+       calculateVext(ti); // ti is 0
+       ham.CalculateVtot( ham.Vtot() );
+     }
+
+     // calculate Dipole at the beginning.
+     if(calDipole_)  calculateDipole();
+
+     // 1. Calculate Xmid which appears on the right hand of the equation
+     // HPSI = (H1 * psi)
+     Int ntot  = fft.domain.NumGridTotal();
+     Int numStateLocal = psi.NumState();
+     Int ntotLocal = ntot/mpisize;
+     if(mpirank < (ntot % mpisize)) ntotLocal++;
+     Int numStateTotal = psi.NumStateTotal();
+     CpxNumMat HPSI(ntot, numStateLocal);
+     NumTns<Complex> tnsTemp(ntot, 1, numStateLocal, false, HPSI.Data());
+     ham.MultSpinor( psi, tnsTemp, fft );
+
+     // All X's are in G-parallel
+     CpxNumMat X(ntotLocal, numStateTotal); 
+     CpxNumMat HX(ntotLocal, numStateTotal); 
+     CpxNumMat RX(ntotLocal, numStateTotal); 
+     CpxNumMat Xmid(ntotLocal, numStateTotal); 
+     CpxNumMat Xfin(ntotLocal, numStateTotal); 
+     CpxNumMat Ymid(ntotLocal, numStateTotal); 
+     CpxNumMat Yfin(ntotLocal, numStateTotal); 
+     CpxNumMat XF  (ntotLocal, numStateTotal);
+
+     // psi and HPSI in Band parallel 
+     CpxNumMat psiF  ( ntot, numStateLocal );
+     CpxNumMat psiCol( ntot, numStateLocal );
+     CpxNumMat psiYmid( ntot, numStateLocal );
+     CpxNumMat psiYfin( ntot, numStateLocal );
+     lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+
+     // tranfer psi and Hpsi from band-parallel to G-parallel
+     AlltoallForward( HPSI,  HX, mpi_comm);
+     AlltoallForward( psiCol, X, mpi_comm);
+
+     // RX <-- HX - X*(X'*HX)
+     Int width = numStateTotal;
+     Int heightLocal = ntotLocal;
+     CpxNumMat  XHXtemp( width, width );
+     CpxNumMat  XHX( width, width );
+     lapack::Lacpy( 'A', ntotLocal, numStateTotal, HX.Data(), ntotLocal, RX.Data(), ntotLocal );
+     blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+         heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+     MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+     blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
+         X.Data(), heightLocal, XHX.Data(), width, 1.0, RX.Data(), heightLocal );
+
+     // Xmid <-- X - li*T/2 * RX  in G-parallel
+     {
+       Complex * xmidPtr = Xmid.Data();
+       Complex * xPtr    = X.Data();
+       Complex * rxPtr   = RX.Data();
+       for( Int i = 0; i < numStateTotal; i ++)
+         for( Int j = 0; j < ntotLocal; j ++){
+  	       Int index = i* ntotLocal +j;
+           xmidPtr[index] = xPtr[index] -  i_Z_One * dT/2.0 * rxPtr[index];
+         }
+     }
+
+     // Xf <-- X
+     Spinor psiFinal (fft.domain, 1, numStateTotal, numStateLocal, false, psiF.Data() );
+     lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiF.Data(), ntot );
+
+     // move the atom from atom_begin to atom_final, then recalculate the
+     if(options_.ehrenfest){
+       for( Int a = 0; a < numAtom; a++ ){
+         atomList[a].pos  = atompos_fin[a];
+       }
+       ham.UpdateHamiltonian( atomList );
+       ham.CalculatePseudoPotential( ptable );
+     }
+ 
+     // get the charge density, but not update the H matrix
+     {
+       calculateVext(tf); // tf is the current step, calculate only once.
+
+       // get the charge density of the Hf.
+       Real totalCharge_;
+       ham.CalculateDensity(
+            psiFinal,
+            ham.OccupationRate(),
+            totalCharge_, 
+            fft );
+     }
+
+     Int maxscfiter = 20; // set to 20
+     for (int iscf = 0; iscf < maxscfiter; iscf++){
+
+       // update the Hf matrix, note rho is calculated before.
+       {
+         Real Exc_;
+         ham.CalculateXC( Exc_, fft ); 
+         ham.CalculateHartree( fft );
+         DblNumVec vtot;
+         Int ntotFine  = fft.domain.NumGridTotalFine();
+         vtot.Resize(ntotFine);
+         SetValue(vtot, 0.0);
+         ham.CalculateVtot( vtot);
+         Real *vtot0 = ham.Vtot().Data() ;
+         blas::Copy( ntotFine, vtot.Data(), 1, ham.Vtot().Data(), 1 );
+       }
+
+       // HXf <--- Hf * Xf , Now HPSI is HXf
+       ham.MultSpinor( psiFinal, tnsTemp, fft );
+
+       // XHXtemp <--- X'HXf
+       AlltoallForward( HPSI,  HX, mpi_comm);
+       AlltoallForward( psiF, X, mpi_comm);
+
+       blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+           heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+
+       MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+
+       // XHX <-- 0.5(XHX + XHX') 
+       {
+         Complex * xPtr = XHXtemp.Data();
+         Complex * yPtr = XHX.Data();
+         for(int i = 0; i < width; i++){
+           for(int j = 0; j < width; j++){
+             xPtr[i*width + j] = 0.5 * ( yPtr[i*width+j] + yPtr[j*width+i] );
+           }
+         }
+       }
+
+       // Diag XHX for the eigen value and eigen vectors
+       DblNumVec  eigValS(width);
+       lapack::Syevd( 'V', 'U', width, XHXtemp.Data(), width, eigValS.Data() );
+
+       // YpsiMid<-- XpsiMid * XHX 
+       blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
+           Xmid.Data(), heightLocal, XHXtemp.Data(), width, 0.0, Ymid.Data(), heightLocal );
+
+       // YpsiF <-- Xf * XHX
+       blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
+           X.Data(), heightLocal, XHXtemp.Data(), width, 0.0, Yfin.Data(), heightLocal );
+
+       // change from G-para to Band-parallel
+       AlltoallBackward( Ymid, psiYmid, mpi_comm);
+       AlltoallBackward( Yfin, psiYfin, mpi_comm);
+
+       // keep the Band-parallel in the GMRES subroutine
+       Int offset_band = 0;
+       MPI_Scan(&numStateLocal, &offset_band,1, MPI_INT, MPI_SUM, mpi_comm);
+       offset_band -= numStateLocal;
+
+       statusOFS << " my rank : " << mpirank << " offset " << offset_band << std::endl;
+
+       for( int j = 0; j < numStateLocal; j++){
+
+         // psiYmid now is rhs
+         Complex omega = eigValS(j+offset_band) + 2 * i_Z_One / dT; 
+         blas::Scal( ntot, -2*i_Z_One, psiYmid.Data() + j*ntot, 1 );
+
+         // get the precMat
+         //precmat  = spdiags(Hf.gkin - omega, 0, Ng, Ng);
+         // call the SGMRES here.
+
+       }
+
+       // Change the Parallelization
+       AlltoallForward ( psiYfin, XF, mpi_comm);
+
+       // Xf.psi = Ypsif * Cf', where Ypsif is the psi get from GMRES, check check
+       blas::Gemm( 'N', 'C', heightLocal, width, width, 1.0, 
+           XF.Data(), heightLocal, XHXtemp.Data(), width, 0.0, X.Data(), heightLocal );
+       
+       // Change the Parallelization
+       AlltoallBackward( X, psiF, mpi_comm);
+
+       // get the density
+       {
+         Real totalCharge_;
+         ham.CalculateDensity(
+              psiFinal,
+              ham.OccupationRate(),
+              totalCharge_, 
+              fft );
+
+         Int ntotFine  = fft.domain.NumGridTotalFine();
+         DblNumVec vtotNew(ntotFine);
+         Real Exc_;
+         ham.CalculateXC( Exc_, fft ); 
+         ham.CalculateHartree( fft );
+         ham.CalculateVtot( vtotNew );
+  
+  
+         Real normVtotDif = 0.0, normVtotOld = 0.0;
+         DblNumVec& vtotOld_ = ham.Vtot();
+         Int ntot = vtotOld_.m();
+         for( Int i = 0; i < ntot; i++ ){
+           normVtotDif += pow( vtotOld_(i) - vtotNew(i), 2.0 );
+           normVtotOld += pow( vtotOld_(i), 2.0 );
+         }
+         normVtotDif = sqrt( normVtotDif );
+         normVtotOld = sqrt( normVtotOld );
+         Real scfNorm_    = normVtotDif / normVtotOld;
+         blas::Copy( ntotFine, vtotNew.Data(), 1, ham.Vtot().Data(), 1 );
+
+         if( scfNorm_ < options_.scfTol){
+           /* converged */
+           statusOFS << "SCF is converged in " << iscf << " steps !" << std::endl;
+           Print(statusOFS, "norm(out-in)/norm(in) = ", scfNorm_ );
+           //isSCFConverged = true;
+           break; // break if converged. 
+         }
+
+         statusOFS << " Aderson mixing ........" << std::endl;
+         AndersonMix(
+             iscf,
+             esdfParam.mixStepLength,
+             esdfParam.mixType,
+             ham.Vtot(),
+             vtotOld_,
+             vtotNew,
+             dfMat_,
+             dvMat_);
+ 
+       }
+     }
+
+     // psi <--- psiFinal
+     blas::Copy( ntot*numStateLocal, psiFinal.Wavefun().Data(), 1, psi.Wavefun().Data(), 1 );
+
+     // Update the atomic position and the force.
+     if(options_.ehrenfest){
+       ham.CalculateForce( psi, fft);
+       Real& dt = options_.dt;
+       DblNumVec& atomMass = atomMass_;
+       for( Int a = 0; a < numAtom; a++ ){
+         atomList[a].vel = atomList[a].vel + (atomforce[a]/atomMass[a] + atomList[a].force/atomMass[a])*dt/2.0;
+       } 
+     }
+
+     //Update the anderson mixing 
+     Update();
+
+     ++k_;
+  } // TDDFT:: advancePTTRAP
 
   void TDDFT::propagate( PeriodTable& ptable ) {
     Int totalSteps = tlist_.size();
-    for( Int i = 0; i < totalSteps; i++)
+    if(options_.method == "RK4"){
+      for( Int i = 0; i < totalSteps; i++)
         advanceRK4( ptable );
+    }
+    else if( options_.method == "PTTRAP"){
+      for( Int i = 0; i < totalSteps; i++)
+        advancePTTRAP( ptable );
+    }
    }
 }
 #endif
