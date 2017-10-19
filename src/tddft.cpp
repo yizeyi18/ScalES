@@ -138,8 +138,8 @@ namespace dgdft{
      options->method        = "PTTRAP";
      options->ehrenfest     = true;
      //options->ehrenfest     = false;
-     options->simulateTime  = 0.10;
-     options->dt            = 0.10;
+     options->simulateTime  = 20.10;
+     options->dt            = 1.00;
      options->gmres_restart = 10; // not sure.
      options->krylovTol     = 1.0E-7;
      options->krylovMax     = 30; 
@@ -192,6 +192,7 @@ namespace dgdft{
       fftPtr_ = &fft;
       atomListPtr_ = &atomList;
 
+
       // Grab the supercell info
       supercell_x_ = esdfParam.domain.length[0];
       supercell_y_ = esdfParam.domain.length[1];
@@ -227,7 +228,7 @@ namespace dgdft{
 
       // CHECK CHECK: change this to a input parameter.
       calDipole_ = 1;
-      calVext_ = 1;
+      calVext_ = 0;
 
       if( calDipole_) {
         statusOFS << " ************************ WARNING ******************************** " << std::endl;
@@ -279,6 +280,9 @@ namespace dgdft{
     Int ntotFine  = fftPtr_->domain.NumGridTotalFine();
     dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
     dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
+
+    // init the sgmres solvers. 
+    sgmres_solver.Setup(ham, psi, fft, fft.domain.NumGridTotal());
   } // TDDFT::Setup function
 
   Real TDDFT::getEfield(Real t)
@@ -1165,7 +1169,8 @@ namespace dgdft{
      }
 
      Int maxscfiter = 20; // set to 20
-     for (int iscf = 0; iscf < maxscfiter; iscf++){
+     int iscf;
+     for (iscf = 0; iscf < maxscfiter; iscf++){
 
        // update the Hf matrix, note rho is calculated before.
        {
@@ -1236,6 +1241,8 @@ namespace dgdft{
          // get the precMat
          //precmat  = spdiags(Hf.gkin - omega, 0, Ng, Ng);
          // call the SGMRES here.
+         sgmres_solver.Solve( psiYmid.Data() + j* ntot, psiYfin.Data() + j* ntot, omega);
+
 
        }
 
@@ -1288,7 +1295,7 @@ namespace dgdft{
 
          statusOFS << " Aderson mixing ........" << std::endl;
          AndersonMix(
-             iscf,
+             iscf+1,
              esdfParam.mixStepLength,
              esdfParam.mixType,
              ham.Vtot(),

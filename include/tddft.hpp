@@ -53,6 +53,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "blas.hpp"
 #include  "lapack.hpp"
 #include  "hamiltonian.hpp"
+#include  "sgmres.hpp"
 
 
 using namespace std;
@@ -190,6 +191,8 @@ namespace dgdft{
       // for Anderson iteration
       DblNumMat           dfMat_;
       DblNumMat           dvMat_;
+
+      Sgmres sgmres_solver;
 
       /// @brief VelocityVerlet for NVE simulation
       ///
