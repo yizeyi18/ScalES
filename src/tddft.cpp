@@ -138,8 +138,8 @@ namespace dgdft{
      options->method        = "PTTRAP";
      options->ehrenfest     = true;
      //options->ehrenfest     = false;
-     options->simulateTime  = 20.10;
-     options->dt            = 1.00;
+     options->simulateTime  = 40.10;
+     options->dt            = 0.60;
      options->gmres_restart = 10; // not sure.
      options->krylovTol     = 1.0E-7;
      options->krylovMax     = 30; 
@@ -228,7 +228,7 @@ namespace dgdft{
 
       // CHECK CHECK: change this to a input parameter.
       calDipole_ = 1;
-      calVext_ = 0;
+      calVext_ = 1;
 
       if( calDipole_) {
         statusOFS << " ************************ WARNING ******************************** " << std::endl;
@@ -269,7 +269,7 @@ namespace dgdft{
         }
 
         for( Int i = 0; i < fft.domain.numGridFine[0]; i++ ){
-          statusOFS << " Xr " << i << " " << xr[i] << std::endl;
+          //statusOFS << " Xr " << i << " " << xr[i] << std::endl;
           //statusOFS << " Yr " << i << " " << yr[i] << std::endl;
           //statusOFS << " Zr " << i << " " << zr[i] << std::endl;
         }
@@ -277,6 +277,7 @@ namespace dgdft{
       } 
 
     Int mixMaxDim_ = esdfParam.mixMaxDim;
+    //statusOFS << " mixMaxDim_ " << mixMaxDim_ << std::endl;
     Int ntotFine  = fftPtr_->domain.NumGridTotalFine();
     dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
     dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
@@ -330,6 +331,7 @@ namespace dgdft{
     dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
     dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
 
+    //statusOFS << " Update ....... mixMaxDim_ " << mixMaxDim_ << std::endl;
     return;
   }
   void TDDFT::calculateDipole()
@@ -411,8 +413,7 @@ namespace dgdft{
       Real            mixStepLength,
       std::string     mixType,
       DblNumVec&      vMix,
-      DblNumVec&      vOld,
-      DblNumVec&      vNew,
+      DblNumVec&      vOld, DblNumVec&      vNew,
       DblNumMat&      dfMat,
       DblNumMat&      dvMat ) {
 
@@ -440,6 +441,7 @@ namespace dgdft{
     // The next position of dfMat, dvMat
     Int inext = iter - ((iter-1)/ mixMaxDim_) * mixMaxDim_;
   
+    statusOFS << " iter " << iter << " mixMaxDim_ " << mixMaxDim_ << " iterused " << iterused << " ipos  " << ipos << " inext " << inext << std::endl;
     res = vOld;
     // res(:) = vOld(:) - vNew(:) is the residual
     blas::Axpy( ntot, -1.0, vNew.Data(), 1, res.Data(), 1 );
@@ -619,6 +621,7 @@ namespace dgdft{
      Real tf = tlist_[k+1];
      Real dT = tf - ti;
      Real tmid =  (ti + tf)/2.0;
+     //statusOFS << " step " << k_ << " ti " << ti << " tf " << tf << " dT " << dT << std::endl;
 
      // 4-th order Runge-Kutta  Start now 
      DblNumVec &occupationRate = ham.OccupationRate();
@@ -1061,6 +1064,7 @@ namespace dgdft{
      Real dT = tf - ti;
      Real tmid =  (ti + tf)/2.0;
      Complex i_Z_One = Complex(0.0, 1.0);
+     //statusOFS << " step " << k_ << " ti " << ti << " tf " << tf << " dT " << dT << std::endl;
 
      // PT-TRAP Method starts, note we only use Ne bands
      DblNumVec &occupationRate = ham.OccupationRate();
@@ -1117,6 +1121,7 @@ namespace dgdft{
      // tranfer psi and Hpsi from band-parallel to G-parallel
      AlltoallForward( HPSI,  HX, mpi_comm);
      AlltoallForward( psiCol, X, mpi_comm);
+     lapack::Lacpy( 'A', ntotLocal, numStateTotal, X.Data(), ntotLocal, XF.Data(), ntotLocal );
 
      // RX <-- HX - X*(X'*HX)
      Int width = numStateTotal;
@@ -1168,7 +1173,7 @@ namespace dgdft{
             fft );
      }
 
-     Int maxscfiter = 20; // set to 20
+     Int maxscfiter = 9; // set to 20
      int iscf;
      for (iscf = 0; iscf < maxscfiter; iscf++){
 
@@ -1204,7 +1209,7 @@ namespace dgdft{
          Complex * yPtr = XHX.Data();
          for(int i = 0; i < width; i++){
            for(int j = 0; j < width; j++){
-             xPtr[i*width + j] = 0.5 * ( yPtr[i*width+j] + yPtr[j*width+i] );
+             xPtr[i*width + j] = 0.5 * ( yPtr[i*width+j] + std::conj(yPtr[j*width+i]) );
            }
          }
        }
@@ -1219,32 +1224,25 @@ namespace dgdft{
 
        // YpsiF <-- Xf * XHX
        blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
-           X.Data(), heightLocal, XHXtemp.Data(), width, 0.0, Yfin.Data(), heightLocal );
+           XF.Data(), heightLocal, XHXtemp.Data(), width, 0.0, Yfin.Data(), heightLocal );
 
        // change from G-para to Band-parallel
        AlltoallBackward( Ymid, psiYmid, mpi_comm);
        AlltoallBackward( Yfin, psiYfin, mpi_comm);
 
-       // keep the Band-parallel in the GMRES subroutine
-       Int offset_band = 0;
-       MPI_Scan(&numStateLocal, &offset_band,1, MPI_INT, MPI_SUM, mpi_comm);
-       offset_band -= numStateLocal;
-
-       statusOFS << " my rank : " << mpirank << " offset " << offset_band << std::endl;
 
        for( int j = 0; j < numStateLocal; j++){
 
+
          // psiYmid now is rhs
-         Complex omega = eigValS(j+offset_band) + 2 * i_Z_One / dT; 
+         Complex omega = eigValS(j) + 2 * i_Z_One / dT; 
          blas::Scal( ntot, -2*i_Z_One, psiYmid.Data() + j*ntot, 1 );
 
-         // get the precMat
-         //precmat  = spdiags(Hf.gkin - omega, 0, Ng, Ng);
          // call the SGMRES here.
          sgmres_solver.Solve( psiYmid.Data() + j* ntot, psiYfin.Data() + j* ntot, omega);
 
-
        }
+
 
        // Change the Parallelization
        AlltoallForward ( psiYfin, XF, mpi_comm);
@@ -1255,6 +1253,7 @@ namespace dgdft{
        
        // Change the Parallelization
        AlltoallBackward( X, psiF, mpi_comm);
+       lapack::Lacpy( 'A', ntotLocal, numStateTotal, X.Data(), ntotLocal, XF.Data(), ntotLocal );
 
        // get the density
        {
@@ -1272,7 +1271,6 @@ namespace dgdft{
          ham.CalculateHartree( fft );
          ham.CalculateVtot( vtotNew );
   
-  
          Real normVtotDif = 0.0, normVtotOld = 0.0;
          DblNumVec& vtotOld_ = ham.Vtot();
          Int ntot = vtotOld_.m();
@@ -1283,17 +1281,18 @@ namespace dgdft{
          normVtotDif = sqrt( normVtotDif );
          normVtotOld = sqrt( normVtotOld );
          Real scfNorm_    = normVtotDif / normVtotOld;
-         blas::Copy( ntotFine, vtotNew.Data(), 1, ham.Vtot().Data(), 1 );
+
+         Print(statusOFS, "norm(out-in)/norm(in) = ", scfNorm_ );
 
          if( scfNorm_ < options_.scfTol){
            /* converged */
-           statusOFS << "SCF is converged in " << iscf << " steps !" << std::endl;
-           Print(statusOFS, "norm(out-in)/norm(in) = ", scfNorm_ );
-           //isSCFConverged = true;
+           statusOFS << " TDDFT step " << k_ << "SCF is converged in " << iscf << " steps !" << std::endl;
            break; // break if converged. 
          }
 
-         statusOFS << " Aderson mixing ........" << std::endl;
+         statusOFS << " iscf " << iscf + 1 << " mixStepLength " << esdfParam.mixStepLength
+            << " " << esdfParam.mixType << std::endl;
+
          AndersonMix(
              iscf+1,
              esdfParam.mixStepLength,
@@ -1327,7 +1326,7 @@ namespace dgdft{
   } // TDDFT:: advancePTTRAP
 
   void TDDFT::propagate( PeriodTable& ptable ) {
-    Int totalSteps = tlist_.size();
+    Int totalSteps = tlist_.size() - 1;
     if(options_.method == "RK4"){
       for( Int i = 0; i < totalSteps; i++)
         advanceRK4( ptable );

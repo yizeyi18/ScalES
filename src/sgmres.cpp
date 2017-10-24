@@ -78,7 +78,7 @@ namespace dgdft{
         psiPtr_ = &psi;
         fftPtr_ = &fft;
         Precond_ = NULL;
-        size_ = size;  tol_ = 1e-6;  max_it_ = 20;
+        size_ = size;  tol_ = 1e-6;  max_it_ = 100;
         relres_ = 1.0; iter_ = 0; flag_ = true;
       }
 
@@ -164,9 +164,6 @@ namespace dgdft{
           Vout[i] = Vout[i] - omega * yVec [i];
       }
 
-
-
-
       // operation: solving H * solu = b, where H is an upper triangular matrix
       // suggest this function only used in sgmres::Solve, not manually
       void Sgmres::HSqr(
@@ -186,8 +183,9 @@ namespace dgdft{
             solu[i] = solu[i] - H[i+j*size]*solu[j];
             solu[i] = solu[i] / H[i+i*size];
         }
-      }
 
+
+      }
 
       // Main action: implementing GMRES
       void Sgmres::Solve( Complex * rhs, Complex* xVec, Complex omega) {
@@ -199,7 +197,7 @@ namespace dgdft{
         xVec_ = xVec; // point to the same address
 
         // part of Setup here.
-        tol_ = 1e-6;  max_it_ = 20;
+        tol_ = 1e-6;  max_it_ = 100;
         relres_ = 1.0; iter_ = 0; flag_ = true;
 
         // get the precondition matrix
@@ -213,6 +211,7 @@ namespace dgdft{
         double bnrm2, nrm2; 
         int i, j, k;
         double relres;
+
         int n = size_;
         int m = max_it_;
         Complex temp;
@@ -228,6 +227,13 @@ namespace dgdft{
             xVec_[i] = 0;
           bnrm2 = 1.0;
         }
+
+
+        MPI_Comm mpi_comm = fftPtr_->domain.comm;
+        int mpirank;  MPI_Comm_rank(mpi_comm, &mpirank);
+        int mpisize;  MPI_Comm_size(mpi_comm, &mpisize);
+
+        double * relres_list = new double[mpisize];
 
         Complex* r = new Complex[size_];
         // I think the preconditioner only works in the G-space, 
@@ -252,17 +258,30 @@ namespace dgdft{
           blas::Axpy( size_, 1.0 / Real(size_), fft.inputComplexVec.Data(), 1, r, 1 );
         }
 
+        /*
         for(i = 0; i < size_; ++i)
           r[i] = (rhs_[i] - r[i]) / Precond_[i];
+        */
 
         for(i = 0, relres = 0; i < size_; ++i)
           relres = relres + std::norm(r[i]);
         relres = sqrt(relres) / bnrm2;
 
-        if (relres < tol_)
         {
-          flag_ = true; iter_ = 0;
-          return;
+          MPI_Allgather(&relres, 1, MPI_DOUBLE, relres_list, 1, MPI_DOUBLE, mpi_comm);
+
+          bool stopFlag = true;
+          for( int ii = 0; ii < mpisize ; ii++){
+            if ( relres_list[ii] > tol_ )
+               stopFlag = false;
+          }
+
+          if (stopFlag)
+          {
+            flag_ = true; iter_ = 0;
+            delete r; delete relres_list;
+            return;
+          }
         }
 
         Complex* V = new Complex[n*(m+1)];
@@ -289,10 +308,24 @@ namespace dgdft{
 
         for(i = 0; i < m; ++i)
         {
+
           AMatdotVec(omega, V+i*n, w);
+
+          /// Preconditioning here.
+          {
+            blas::Copy( size_, w, 1, fft.inputComplexVec.Data(), 1 );
+            fftw_execute( fft.forwardPlan );
+            Complex * tempPtr = fft.outputComplexVec.Data();
+            for(j = 0; j < size_; ++j)
+              tempPtr[j] = tempPtr[j] / Precond_[j];
+            fftw_execute( fft.backwardPlan );
+            blas::Axpy( size_, 1.0 / Real(size_), fft.inputComplexVec.Data(), 1, w, 1 );
+          }
+
+          /*
           for(j = 0; j < n; ++j)
             w[j] = w[j] / Precond_[j];
-
+          */
           for(k = 0; k <= i; ++k)
           {
             for(j = 0, H[k+i*(m+1)] = 0; j < n; ++j)
@@ -334,6 +367,7 @@ namespace dgdft{
             sr = temp * cr;
           }
           cs[i] = cr;  sn[i] = sr;
+
           // end finding rotmat
           temp   = cs[i]*s[i];
           s[i+1] = -sn[i]*s[i];
@@ -342,11 +376,24 @@ namespace dgdft{
           H[i+1+i*(m+1)] = 0.0;
 
           relres  = std::abs(s[i+1]) / bnrm2;
-          if ( relres <= tol_ )
+         
+          MPI_Allgather(&relres, 1, MPI_DOUBLE, relres_list, 1, MPI_DOUBLE, mpi_comm);
+
+          bool stopFlag = true;
+          for( int ii = 0; ii < mpisize ; ii++){
+            if ( relres_list[ii] > tol_ )
+               stopFlag = false;
+          }
+
+          if(stopFlag) {
             break;
+          }
         }
 
-        iter = i + 1; 
+
+        // bug, fixed .. 
+        //iter = i + 1; 
+        iter = std::min(i+1, m);
 
         Complex* Hp = new Complex[iter*iter];
         for(i = 0; i < iter; ++i)
@@ -369,11 +416,13 @@ namespace dgdft{
           flag = false;
 
         delete r; delete V; delete H; delete cs; delete sn; delete s;
-        delete w; delete Hp; delete y; delete Precond_;
+        delete w; delete Hp; delete y; delete Precond_; delete relres_list;
         
         relres_ = relres;
         iter_ = iter;
         flag_ = flag;
+        if(flag_)  statusOFS << " GMRES used " <<  iter << " iterations, reached convergence" << std::endl;
+        else       statusOFS << " GMRES used " <<  iter << " iterations, did not reach convergence" << std::endl;
       }    
 
 } // namespace dgdft
