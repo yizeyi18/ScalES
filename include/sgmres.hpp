@@ -120,7 +120,7 @@ namespace dgdft{
         Complex* yVec, 
         Complex* Vout);
 
-      void Sgmres::AMatdotVec(
+      void AMatdotVec(
         Complex omega,
         Complex* yVec,
         Complex* Vout);

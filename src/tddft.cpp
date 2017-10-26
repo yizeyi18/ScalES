@@ -1308,8 +1308,8 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable  )
 
 
          // psiYmid now is rhs
-         Complex omega = eigValS(j) + 2 * i_Z_One / dT; 
-         blas::Scal( ntot, -2*i_Z_One, psiYmid.Data() + j*ntot, 1 );
+         Complex omega = eigValS(j) + 2.0 * i_Z_One / dT; 
+         blas::Scal( ntot, -2.0*i_Z_One, psiYmid.Data() + j*ntot, 1 );
 
          // call the SGMRES here.
          sgmres_solver.Solve( psiYmid.Data() + j* ntot, psiYfin.Data() + j* ntot, omega);

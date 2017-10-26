@@ -1517,11 +1517,11 @@ namespace  dgdft{
                   SetValue( localBasis, 0.0 );
 
 #ifdef _USE_OPENMP_
-#pragma omp parallel
-                  {
+//#pragma omp parallel
+//                  {
 #endif
 #ifdef _USE_OPENMP_
-#pragma omp for schedule (dynamic,1) nowait
+//#pragma omp for schedule (dynamic,1) nowait
 #endif
 #ifdef _COMPLEX_
 #else
@@ -1556,7 +1556,7 @@ namespace  dgdft{
                     //              }
 
 #ifdef _USE_OPENMP_
-                  }
+//                  }
 #endif
                   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
