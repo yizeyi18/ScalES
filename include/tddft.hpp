@@ -45,6 +45,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2017-09-05 
 #ifndef _TDDFT_HPP_
 #define _TDDFT_HPP_
+
 #include  "environment.hpp"
 #include  "domain.hpp"
 #include  "numvec_impl.hpp"
@@ -126,6 +127,9 @@ namespace dgdft{
     /// @brief maximum dimension of Krylov subspace
     Real krylovMax;
   
+    /// @brief maximum dimension of Krylov subspace
+    Real scfMaxIter;
+  
     /// @brief convergence criteria in SCF
     Real scfTol;
   
@@ -194,6 +198,15 @@ namespace dgdft{
 
       Sgmres sgmres_solver;
 
+      Real Ekin_;
+      Real Ehart_;
+      Real EVxc_;
+      Real Exc_;
+      Real Eself_;
+      Real Ecor_;
+      Real Etot_;
+      Real Efree_;
+
       /// @brief VelocityVerlet for NVE simulation
       ///
       void VelocityVerlet( Int ionIter );
@@ -225,6 +238,7 @@ namespace dgdft{
       Real getEfield( Real t);
       void calculateVext(Real t);
       void Update();
+      void CalculateEnergy(PeriodTable& ptable) ;
 
       // Mixing
       void  AndersonMix( 

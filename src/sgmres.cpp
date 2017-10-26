@@ -197,7 +197,8 @@ namespace dgdft{
         xVec_ = xVec; // point to the same address
 
         // part of Setup here.
-        tol_ = 1e-6;  max_it_ = 100;
+        tol_ = esdfParam.TDDFTKrylovTol;
+        max_it_ = esdfParam.TDDFTKrylovMax;
         relres_ = 1.0; iter_ = 0; flag_ = true;
 
         // get the precondition matrix

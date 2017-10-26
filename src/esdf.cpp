@@ -433,6 +433,78 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
 
   i++;
+  strcpy(kw_label[i],"tddft_ehrenfest");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_vext");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_vext_polx");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_vext_poly");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_vext_polz");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_vext_freq");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_vext_phase");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_vext_amp");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_vext_t0");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_vext_tau");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_vext_env");
+  strcpy(kw_typ[i],"T:B");
+
+  i++;
+  strcpy(kw_label[i],"tddft_method");
+  strcpy(kw_typ[i],"T:B");
+
+  i++;
+  strcpy(kw_label[i],"tddft_delta_t");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_total_t");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_krylov_max");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_max_iter");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_krylov_tol");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
+  strcpy(kw_label[i],"tddft_scf_tol");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
   strcpy(kw_label[i],"scf_outer_maxiter");
   strcpy(kw_typ[i],"I:E");
   
@@ -2379,7 +2451,7 @@ ESDFReadInput ( const char* filename )
     }
 
 
-    esdfParam.mixStepLength   = esdf_double( "Mixing_StepLength", 0.8 );
+    esdfParam.mixStepLength        = esdf_double( "Mixing_StepLength", 0.8 );
     esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
     esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 );
     esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
@@ -2389,7 +2461,41 @@ ESDFReadInput ( const char* filename )
     esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
     esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
     esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
-    esdfParam.isTDDFT              = esdf_integer( "TDDFT",   1); // default TDDFT is 1.
+
+    esdfParam.isTDDFT            = esdf_integer( "TDDFT",   1); 
+    esdfParam.isTDDFTEhrenfest   = esdf_integer( "TDDFT_EHRENFEST", 1); 
+    esdfParam.isTDDFTVext        = esdf_integer( "TDDFT_VEXT",   1); 
+    esdfParam.TDDFTVextPolx      = esdf_double( "TDDFT_VEXT_POLX", 1.0);
+    esdfParam.TDDFTVextPoly      = esdf_double( "TDDFT_VEXT_POLX", 0.0);
+    esdfParam.TDDFTVextPolz      = esdf_double( "TDDFT_VEXT_POLZ", 0.0);
+    esdfParam.TDDFTVextFreq      = esdf_double( "TDDFT_VEXT_FREQ", 18.0/27.211385);
+    esdfParam.TDDFTVextPhase     = esdf_double( "TDDFT_VEXT_PHASE",0.0);
+    esdfParam.TDDFTVextAmp       = esdf_double( "TDDFT_VEXT_AMP",  0.0194);
+    esdfParam.TDDFTVextT0        = esdf_double( "TDDFT_VEXT_T0",   13.6056925);
+    esdfParam.TDDFTVextTau       = esdf_double( "TDDFT_VEXT_TAU",  13.6056925);
+
+    esdf_string("TDDFT_VEXT_Env", "gaussian", strtmp); 
+    esdfParam.TDDFTVextEnv       = strtmp;
+    if(esdfParam.TDDFTVextEnv != "gaussian" &&
+        esdfParam.TDDFTVextEnv != "constant" &&
+        esdfParam.TDDFTVextEnv != "sinsq" &&
+        esdfParam.TDDFTVextEnv != "erf" &&
+        esdfParam.TDDFTVextEnv != "kick"){
+      ErrorHandling("Invalid VEXT Environment .");
+    }
+
+    esdf_string("TDDFT_Method", "PTTRAP", strtmp); 
+    esdfParam.TDDFTMethod        = strtmp;
+    if(esdfParam.TDDFTMethod != "PTTRAP" &&
+        esdfParam.TDDFTMethod != "RK4" ) {
+      ErrorHandling("Invalid TDDFT method.");
+    }
+    esdfParam.TDDFTDeltaT            = esdf_double("TDDFT_DELTA_T",  1.0);
+    esdfParam.TDDFTMaxIter            = esdf_integer("TDDFT_MAX_ITER", 50);
+    esdfParam.TDDFTTotalT            = esdf_double("TDDFT_Total_T",  40.0);
+    esdfParam.TDDFTKrylovMax         = esdf_integer("TDDFT_KRYLOV_MAX", 30);
+    esdfParam.TDDFTKrylovTol         = esdf_double("TDDFT_KRYLOV_TOL",  1.0E-7);
+    esdfParam.TDDFTScfTol            = esdf_double("TDDFT_SCF_TOL",  1.0E-7);
 
 
     esdf_string("Hybrid_Mixing_Type", "nested", strtmp); 
@@ -2964,6 +3070,26 @@ void ESDFPrintInput( ){
     Print(statusOFS, "");
   }
 
+  if(esdfParam.isTDDFT) {
+    PrintBlock(statusOFS, "TDDFT information");
+    Print(statusOFS, "TDDFT Method                         = ",  esdfParam.TDDFTMethod   );
+    Print(statusOFS, "TDDFT Ehrenfest dynamics             = ",  esdfParam.isTDDFTEhrenfest);
+    Print(statusOFS, "TDDFT Delta T                        = ",  esdfParam.TDDFTDeltaT   );
+    Print(statusOFS, "TDDFT Total T                        = ",  esdfParam.TDDFTTotalT   );
+    Print(statusOFS, "TDDFT KRYLOV Iteration Max           = ",  esdfParam.TDDFTKrylovMax);
+    Print(statusOFS, "TDDFT KRYLOV Tolerance               = ",  esdfParam.TDDFTKrylovTol);
+    Print(statusOFS, "TDDFT SCF Tolerance                  = ",  esdfParam.TDDFTScfTol   );
+    Print(statusOFS, "TDDFT V external                     = ",  esdfParam.isTDDFTVext );
+    Print(statusOFS, "TDDFT Environment                    = ",  esdfParam.TDDFTVextEnv  );
+    Print(statusOFS, "TDDFT Polarization X                 = ",  esdfParam.TDDFTVextPolx );
+    Print(statusOFS, "TDDFT Polarization Y                 = ",  esdfParam.TDDFTVextPoly );
+    Print(statusOFS, "TDDFT Polarization Z                 = ",  esdfParam.TDDFTVextPolz );
+    Print(statusOFS, "TDDFT V external Frequencey          = ",  esdfParam.TDDFTVextFreq );
+    Print(statusOFS, "TDDFT V external Phase               = ",  esdfParam.TDDFTVextPhase);
+    Print(statusOFS, "TDDFT V external Amplitude           = ",  esdfParam.TDDFTVextAmp  );
+    Print(statusOFS, "TDDFT V external T0                  = ",  esdfParam.TDDFTVextT0   );
+    Print(statusOFS, "TDDFT V external Tau                 = ",  esdfParam.TDDFTVextTau  );
+  }
   if( esdfParam.isDGDFT ){
     PrintBlock(statusOFS, "DGDFT information");
     // FIXME Potentially obsolete potential barriers

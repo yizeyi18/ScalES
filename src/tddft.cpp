@@ -43,42 +43,40 @@
 /// @file tddft.cpp
 /// @brief time dependent density functional theory with ehrenfest dynamics.
 /// @date 2017-09-05 
-#ifndef _TDDFT_CPP_
-#define _TDDFT_CPP_
 
 #include "tddft.hpp"
-#include "utility.hpp"
 
 
 namespace dgdft{
 
+using namespace dgdft::DensityComponent;
   using namespace dgdft::esdf;
 
   void setDefaultEfieldOptions( eField * eF)
   {
     // set the polarization to x 
     eF->pol.resize(3);
-    eF->pol[0] = 1.0;
-    eF->pol[1] = 0.0;
-    eF->pol[2] = 0.0;
+    eF->pol[0] = esdfParam.TDDFTVextPolx;
+    eF->pol[1] = esdfParam.TDDFTVextPoly;
+    eF->pol[2] = esdfParam.TDDFTVextPolz;
 
     // set frequency to 0.0 
-    eF->freq = 18.0/27.211385;
+    eF->freq = esdfParam.TDDFTVextFreq;
 
     // set phase to 0.0 
-    eF->phase = 0.0;
+    eF->phase = esdfParam.TDDFTVextPhase;
 
     // set phase to 0.0 
-    eF->env = "gaussian";
+    eF->env = esdfParam.TDDFTVextEnv;
 
     // set Amp to 0
-    eF->Amp = 0.0194;
+    eF->Amp = esdfParam.TDDFTVextAmp;
 
     // set t0 to 0
-    eF->t0 = 13.6056925;
+    eF->t0 = esdfParam.TDDFTVextT0;
 
     // set tau to 0
-    eF->tau = 13.6056925;
+    eF->tau = esdfParam.TDDFTVextTau;
   }
 
 
@@ -132,18 +130,19 @@ namespace dgdft{
 
   void setDefaultTDDFTOptions( TDDFTOptions * options)
   {
+     options->method        = esdfParam.TDDFTMethod;
+     options->ehrenfest     = esdfParam.isTDDFTEhrenfest;
+     options->simulateTime  = esdfParam.TDDFTTotalT;
+     options->dt            = esdfParam.TDDFTDeltaT;
+     options->scfMaxIter    = esdfParam.TDDFTMaxIter; 
+     options->krylovTol     = esdfParam.TDDFTKrylovTol;
+     options->krylovMax     = esdfParam.TDDFTKrylovMax; 
+     options->scfTol        = esdfParam.TDDFTScfTol; 
+
+     //  check check
      options->auto_save     = 0;
      options->load_save     = false;
-     //options->method        = "RK4";
-     options->method        = "PTTRAP";
-     options->ehrenfest     = true;
-     //options->ehrenfest     = false;
-     options->simulateTime  = 40.10;
-     options->dt            = 0.60;
      options->gmres_restart = 10; // not sure.
-     options->krylovTol     = 1.0E-7;
-     options->krylovMax     = 30; 
-     options->scfTol        = 1.0E-7; 
      options->adNum         = 20; 
      options->adUpdate      = 1;
      setDefaultEfieldOptions( & options->eField_);
@@ -515,6 +514,85 @@ namespace dgdft{
   
   }         // -----  end of method SCF::AndersonMix  ----- 
 
+void
+TDDFT::CalculateEnergy  ( PeriodTable& ptable  )
+{
+
+  Hamiltonian& ham = *hamPtr_;
+  Fourier&     fft = *fftPtr_;
+  Spinor&      psi = *psiPtr_;
+
+  Ekin_ = 0.0;
+  DblNumVec&  eigVal         = ham.EigVal();
+  DblNumVec&  occupationRate = ham.OccupationRate();
+
+  // Kinetic energy
+  Int numSpin = ham.NumSpin();
+  for (Int i=0; i < eigVal.m(); i++) {
+    Ekin_  += numSpin * eigVal(i) * occupationRate(i);
+  }
+
+  // Hartree and xc part
+  Int  ntot = fft.domain.NumGridTotalFine();
+  Real vol  = fft.domain.Volume();
+  DblNumMat&  density      = ham.Density();
+  DblNumMat&  vxc          = ham.Vxc();
+  DblNumVec&  pseudoCharge = ham.PseudoCharge();
+  DblNumVec&  vhart        = ham.Vhart();
+  Ehart_ = 0.0;
+  EVxc_  = 0.0;
+  for (Int i=0; i<ntot; i++) {
+    EVxc_  += vxc(i,RHO) * density(i,RHO);
+    Ehart_ += 0.5 * vhart(i) * ( density(i,RHO) + pseudoCharge(i) );
+  }
+  Ehart_ *= vol/Real(ntot);
+  EVxc_  *= vol/Real(ntot);
+
+  // Self energy part
+  Eself_ = 0;
+  std::vector<Atom>&  atomList = ham.AtomList();
+  for(Int a=0; a< atomList.size() ; a++) {
+    Int type = atomList[a].type;
+    Eself_ +=  ptable.SelfIonInteraction(type);
+  }
+
+  // Correction energy
+  Ecor_ = (Exc_ - EVxc_) - Ehart_ - Eself_;
+
+  // Total energy
+  Etot_ = Ekin_ + Ecor_;
+
+  // Helmholtz fre energy
+  if( ham.NumOccupiedState() == 
+      ham.NumStateTotal() ){
+    // Zero temperature
+    Efree_ = Etot_;
+  }
+  statusOFS << " total Energy :    " << Etot_ << std::endl;
+
+  /*
+  else{
+    // Finite temperature
+    Efree_ = 0.0;
+    Real fermi = fermi_;
+    Real Tbeta = Tbeta_;
+    for(Int l=0; l< eigVal.m(); l++) {
+      Real eig = eigVal(l);
+      if( eig - fermi >= 0){
+        Efree_ += -numSpin / Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
+      }
+      else{
+        Efree_ += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
+      }
+    }
+    Efree_ += Ecor_ + fermi * ham.NumOccupiedState() * numSpin; 
+  }
+  */
+
+  return ;
+}         // -----  end of method SCF::CalculateEnergy  ----- 
+
+
 
   void TDDFT::advanceRK4( PeriodTable& ptable ) {
 
@@ -641,7 +719,6 @@ namespace dgdft{
        statusOFS << " total Charge init " << setw(16) << totalCharge_ << std::endl;
 #endif
        //get the new V(r,t+dt) from the rho(r,t+dt)
-       Real Exc_;
        ham.CalculateXC( Exc_, fft ); 
        ham.CalculateHartree( fft );
        calculateVext(ti);
@@ -716,7 +793,6 @@ namespace dgdft{
             totalCharge_, 
             fft );
 
-       Real Exc_;
        ham.CalculateXC( Exc_, fft ); 
        ham.CalculateHartree( fft );
        calculateVext(tmid);
@@ -779,7 +855,6 @@ namespace dgdft{
             ham.OccupationRate(),
             totalCharge_, 
             fft );
-       Real Exc_;
        ham.CalculateXC( Exc_, fft ); 
        ham.CalculateHartree( fft );
        ham.CalculateVtot( ham.Vtot() );
@@ -841,7 +916,6 @@ namespace dgdft{
             totalCharge_, 
             fft );
 
-       Real Exc_;
        ham.CalculateXC( Exc_, fft ); 
        ham.CalculateHartree( fft );
        calculateVext(tf);
@@ -910,7 +984,6 @@ namespace dgdft{
             totalCharge_, 
             fft );
 
-       Real Exc_;
        ham.CalculateXC( Exc_, fft ); 
        ham.CalculateHartree( fft );
        DblNumVec vtot;
@@ -1080,7 +1153,6 @@ namespace dgdft{
             ham.OccupationRate(),
             totalCharge_, 
             fft );
-       Real Exc_;
        ham.CalculateXC( Exc_, fft ); 
        ham.CalculateHartree( fft );
        calculateVext(ti); // ti is 0
@@ -1089,6 +1161,7 @@ namespace dgdft{
 
      // calculate Dipole at the beginning.
      if(calDipole_)  calculateDipole();
+     CalculateEnergy( ptable);
 
      // 1. Calculate Xmid which appears on the right hand of the equation
      // HPSI = (H1 * psi)
@@ -1173,13 +1246,13 @@ namespace dgdft{
             fft );
      }
 
-     Int maxscfiter = 9; // set to 20
+     Int maxscfiter = options_.scfMaxIter; 
      int iscf;
+     int totalHx = 0;
      for (iscf = 0; iscf < maxscfiter; iscf++){
 
        // update the Hf matrix, note rho is calculated before.
        {
-         Real Exc_;
          ham.CalculateXC( Exc_, fft ); 
          ham.CalculateHartree( fft );
          DblNumVec vtot;
@@ -1266,7 +1339,6 @@ namespace dgdft{
 
          Int ntotFine  = fft.domain.NumGridTotalFine();
          DblNumVec vtotNew(ntotFine);
-         Real Exc_;
          ham.CalculateXC( Exc_, fft ); 
          ham.CalculateHartree( fft );
          ham.CalculateVtot( vtotNew );
@@ -1283,10 +1355,12 @@ namespace dgdft{
          Real scfNorm_    = normVtotDif / normVtotOld;
 
          Print(statusOFS, "norm(out-in)/norm(in) = ", scfNorm_ );
+         totalHx += sgmres_solver.iter_;
 
          if( scfNorm_ < options_.scfTol){
            /* converged */
-           statusOFS << " TDDFT step " << k_ << "SCF is converged in " << iscf << " steps !" << std::endl;
+           statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
+           statusOFS << "TDDFT step " << k_ << " used " << totalHx << " H * x operations!" << std::endl;
            break; // break if converged. 
          }
 
@@ -1337,4 +1411,3 @@ namespace dgdft{
     }
    }
 }
-#endif
