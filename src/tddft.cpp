@@ -196,6 +196,9 @@ void TDDFT::SetUp(
   MPI_Comm_rank( mpi_comm, &mpirank );
   MPI_Comm_size( mpi_comm, &mpisize );
 
+  if( psi.NumStateTotal() / mpisize != 0) 
+      ErrorHandling( " Band must be multiples of Np." );
+
   // Grab the supercell info
   supercell_x_ = esdfParam.domain.length[0];
   supercell_y_ = esdfParam.domain.length[1];
@@ -230,7 +233,7 @@ void TDDFT::SetUp(
   k_ = 0;
 
   // CHECK CHECK: change this to a input parameter.
-  calDipole_ = 1;
+  calDipole_ = esdfParam.isTDDFTDipole;
   calVext_ = esdfParam.isTDDFTVext;
 
   if( calDipole_) {
@@ -270,13 +273,6 @@ void TDDFT::SetUp(
         }
       }
     }
-
-    for( Int i = 0; i < fft.domain.numGridFine[0]; i++ ){
-      //statusOFS << " Xr " << i << " " << xr[i] << std::endl;
-      //statusOFS << " Yr " << i << " " << yr[i] << std::endl;
-      //statusOFS << " Zr " << i << " " << zr[i] << std::endl;
-    }
-
   } 
 
   Int mixMaxDim_ = esdfParam.mixMaxDim;
@@ -385,7 +381,7 @@ void TDDFT::calculateDipole(Real t)
   Dy *= Real(supercell_x_ * supercell_y_ * supercell_z_) / Real( fft.domain.numGridFine[0] * fft.domain.numGridFine[1]* fft.domain.numGridFine[2]);
   Dz *= Real(supercell_x_ * supercell_y_ * supercell_z_) / Real( fft.domain.numGridFine[0] * fft.domain.numGridFine[1]* fft.domain.numGridFine[2]);
 
-  dipoleOFS << "Time[as]: " << t * 24.188843 <<  " DipoleX " << Dx << " DipoleY " << Dy << " DipoleZ " << Dz << std::endl;
+  dipoleOFS << "Time[as]: " << t * 24.188843 <<  " " << Dx << " " << Dy << " " << Dz << std::endl;
 
 }    // -----  end of method TDDFT::calculateDipole ---- 
 

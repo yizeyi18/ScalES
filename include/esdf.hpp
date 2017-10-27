@@ -260,6 +260,11 @@ struct ESDFInputParam{
   /// Default: 1
   Int                 isTDDFTVext;
 
+  /// @brief calculate TDDFT dipole or not
+  /// 
+  /// Default: 1
+  Int                 isTDDFTDipole;
+
 
   /// @brief use TDDFT  Vexternal polorization in the X direction.
   /// 
