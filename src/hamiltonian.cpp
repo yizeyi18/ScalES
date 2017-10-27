@@ -3326,7 +3326,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Complex>& a3, Fourier& fft )
   GetTime( timeSta );
   psi.AddMultSpinorFine( fft, vtot_, pseudo_, a3 );
   GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
+#if ( _DEBUGlevel_ >= 1 )
   statusOFS << "Time for complex psi.AddMultSpinorFine is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
