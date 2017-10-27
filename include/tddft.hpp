@@ -213,6 +213,7 @@ namespace dgdft{
 
       std::ofstream vextOFS;
       std::ofstream dipoleOFS;
+      std::ifstream velocityOFS;
 
     public:
 

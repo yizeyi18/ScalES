@@ -422,8 +422,8 @@ void Sgmres::Solve( Complex * rhs, Complex* xVec, Complex omega) {
   relres_ = relres;
   iter_ = iter;
   flag_ = flag;
-  if(flag_)  statusOFS << " GMRES used " <<  iter << " iterations, reached convergence" << std::endl;
-  else       statusOFS << " GMRES used " <<  iter << " iterations, did not reach convergence" << std::endl;
+  if(flag_)  statusOFS << " GMRES used " <<  iter << " iterations, reached convergence, Residual is: " << relres<< std::endl;
+  else       statusOFS << " GMRES used " <<  iter << " iterations, did not reach convergence, Residual is: "<< relres << std::endl;
 }    
 
 } // namespace dgdft

@@ -196,7 +196,7 @@ void TDDFT::SetUp(
   MPI_Comm_rank( mpi_comm, &mpirank );
   MPI_Comm_size( mpi_comm, &mpisize );
 
-  if( psi.NumStateTotal() / mpisize != 0) 
+  if( psi.NumStateTotal() % mpisize != 0) 
       ErrorHandling( " Band must be multiples of Np." );
 
   // Grab the supercell info
@@ -287,6 +287,19 @@ void TDDFT::SetUp(
   if(mpirank == 0) {
     vextOFS.open( "vext.out");
     dipoleOFS.open( "dipole.out");
+    if(esdfParam.isTDDFTInputV) {
+      velocityOFS.open( "TDDFT_VELOCITY");
+      std::vector<Point3>  atomvel(numAtom);
+      Real x, y, z;
+      for( int m = 0; m < numAtom; m++){
+        velocityOFS >> x >> y >> z;
+        atomList[m].vel = Point3( x, y, z);
+      }
+    }
+  }
+  if(esdfParam.isTDDFTInputV) {
+    for(Int a = 0; a < numAtom; a++)
+      MPI_Bcast( &atomList[a].vel, 3, MPI_DOUBLE, 0, mpi_comm ); 
   }
 
 } // TDDFT::Setup function
