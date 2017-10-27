@@ -481,6 +481,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"T:B");
 
   i++;
+  strcpy(kw_label[i],"tddft_max_iter");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
   strcpy(kw_label[i],"tddft_delta_t");
   strcpy(kw_typ[i],"D:E");
 
@@ -490,10 +494,6 @@ void esdf_key() {
 
   i++;
   strcpy(kw_label[i],"tddft_krylov_max");
-  strcpy(kw_typ[i],"I:E");
-
-  i++;
-  strcpy(kw_label[i],"tddft_max_iter");
   strcpy(kw_typ[i],"I:E");
 
   i++;
@@ -2490,12 +2490,13 @@ ESDFReadInput ( const char* filename )
         esdfParam.TDDFTMethod != "RK4" ) {
       ErrorHandling("Invalid TDDFT method.");
     }
+
     esdfParam.TDDFTDeltaT            = esdf_double("TDDFT_DELTA_T",  1.0);
-    esdfParam.TDDFTMaxIter            = esdf_integer("TDDFT_MAX_ITER", 50);
-    esdfParam.TDDFTTotalT            = esdf_double("TDDFT_Total_T",  40.0);
+    esdfParam.TDDFTTotalT            = esdf_double("TDDFT_TOTAL_T",  40.0);
     esdfParam.TDDFTKrylovMax         = esdf_integer("TDDFT_KRYLOV_MAX", 30);
     esdfParam.TDDFTKrylovTol         = esdf_double("TDDFT_KRYLOV_TOL",  1.0E-7);
     esdfParam.TDDFTScfTol            = esdf_double("TDDFT_SCF_TOL",  1.0E-7);
+    esdfParam.TDDFTMaxIter           = esdf_integer("TDDFT_MAX_ITER", 50);
 
 
     esdf_string("Hybrid_Mixing_Type", "nested", strtmp); 

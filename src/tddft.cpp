@@ -1160,6 +1160,7 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
     ham.CalculateVtot( ham.Vtot() );
   }
 
+
   // calculate Dipole at the beginning.
   if(calDipole_)  calculateDipole();
   CalculateEnergy( ptable);
@@ -1307,9 +1308,9 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
 
     for( int j = 0; j < numStateLocal; j++){
 
-
+      int index = j * mpisize + mpirank;
       // psiYmid now is rhs
-      Complex omega = eigValS(j) + 2.0 * i_Z_One / dT; 
+      Complex omega = eigValS(index) + 2.0 * i_Z_One / dT; 
       blas::Scal( ntot, -2.0*i_Z_One, psiYmid.Data() + j*ntot, 1 );
 
       // call the SGMRES here.

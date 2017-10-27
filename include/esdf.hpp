@@ -335,12 +335,12 @@ struct ESDFInputParam{
   /// @brief TDDFT Krylov Max iteration number
   /// 
   /// Default: 30
-  Real TDDFTKrylovMax;
+  Int  TDDFTKrylovMax;
 
   /// @brief TDDFT SCF Max iteration number
   /// 
   /// Default: 30
-  Real TDDFTMaxIter;
+  Int  TDDFTMaxIter;
 
   /// @brief TDDFT Krylov Tolerance
   /// 
