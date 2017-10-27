@@ -211,6 +211,9 @@ namespace dgdft{
       ///
       void VelocityVerlet( Int ionIter );
 
+      std::ofstream vextOFS;
+      std::ofstream dipoleOFS;
+
     public:
 
       /// @brief Main program to move the ions.
@@ -228,7 +231,7 @@ namespace dgdft{
          std::vector<Atom>& atomList,
          PeriodTable& ptable) ;
 
-      void calculateDipole();
+      void calculateDipole(Real t);
       void MoveIons( Int ionIter );
 
       void advanceRK4(PeriodTable& ptable) ;

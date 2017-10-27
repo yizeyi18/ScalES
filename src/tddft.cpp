@@ -191,6 +191,10 @@ void TDDFT::SetUp(
   fftPtr_ = &fft;
   atomListPtr_ = &atomList;
 
+  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  Int mpirank, mpisize;
+  MPI_Comm_rank( mpi_comm, &mpirank );
+  MPI_Comm_size( mpi_comm, &mpisize );
 
   // Grab the supercell info
   supercell_x_ = esdfParam.domain.length[0];
@@ -227,7 +231,7 @@ void TDDFT::SetUp(
 
   // CHECK CHECK: change this to a input parameter.
   calDipole_ = 1;
-  calVext_ = 1;
+  calVext_ = esdfParam.isTDDFTVext;
 
   if( calDipole_) {
     statusOFS << " ************************ WARNING ******************************** " << std::endl;
@@ -283,6 +287,12 @@ void TDDFT::SetUp(
 
   // init the sgmres solvers. 
   sgmres_solver.Setup(ham, psi, fft, fft.domain.NumGridTotal());
+
+  if(mpirank == 0) {
+    vextOFS.open( "vext.out");
+    dipoleOFS.open( "dipole.out");
+  }
+
 } // TDDFT::Setup function
 
 Real TDDFT::getEfield(Real t)
@@ -307,6 +317,8 @@ void TDDFT::calculateVext(Real t)
   if(calVext_){
     Real et = getEfield(t);
     DblNumVec & vext = ham.Vext();
+
+    vextOFS << "Time[as]: " << t * 24.188843 << " et " << et << std::endl;
     // then Vext = Vext0 + et * options_.D
     // Here we suppose the Vext0 are zeros.
     Int idx;
@@ -333,7 +345,7 @@ void TDDFT::Update() {
   //statusOFS << " Update ....... mixMaxDim_ " << mixMaxDim_ << std::endl;
   return;
 }
-void TDDFT::calculateDipole()
+void TDDFT::calculateDipole(Real t)
 {
   Hamiltonian& ham = *hamPtr_;
   Fourier&     fft = *fftPtr_;
@@ -373,23 +385,8 @@ void TDDFT::calculateDipole()
   Dy *= Real(supercell_x_ * supercell_y_ * supercell_z_) / Real( fft.domain.numGridFine[0] * fft.domain.numGridFine[1]* fft.domain.numGridFine[2]);
   Dz *= Real(supercell_x_ * supercell_y_ * supercell_z_) / Real( fft.domain.numGridFine[0] * fft.domain.numGridFine[1]* fft.domain.numGridFine[2]);
 
-#if ( _DEBUGlevel_ >= 0 )
-  statusOFS<< "**** Dipole  Calculated *****" << std::endl << std::endl;
-  statusOFS << " Dipole x " << Dx << std::endl;
-  statusOFS << " Dipole y " << Dy << std::endl;
-  statusOFS << " Dipole z " << Dz << std::endl;
-  statusOFS<< "**** Dipole  Calculated *****" << std::endl << std::endl;
-#if 0
-  statusOFS << " sum Dx : " << sumDx << std::endl;
-  statusOFS << " sum Dy : " << sumDy << std::endl;
-  statusOFS << " sum Dz : " << sumDz << std::endl;
-  statusOFS << " sum Rho : " << sumRho << std::endl;
-  statusOFS << " super cell: " << supercell_x_ << " " << supercell_y_ << " " << supercell_z_ << std::endl;
-  statusOFS << " FFT size  : " << fft.domain.numGridFine[0] << " " << fft.domain.numGridFine[1] << " " << fft.domain.numGridFine[2]  << std::endl;
-#endif
-#endif
-  /*
-   */
+  dipoleOFS << "Time[as]: " << t * 24.188843 <<  " DipoleX " << Dx << " DipoleY " << Dy << " DipoleZ " << Dz << std::endl;
+
 }    // -----  end of method TDDFT::calculateDipole ---- 
 
 void
@@ -663,9 +660,9 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
       statusOFS<< "TDDFT RK4 Method, step " << k_ << "  t = " << dt << std::endl;
 
       for( Int a = 0; a < numAtom; a++ ){
-        statusOFS << "time: " << k_*24.19*dt << " atom " << a << " position: " << std::setprecision(12) << atompos[a]   << std::endl;
-        statusOFS << "time: " << k_*24.19*dt << " atom " << a << " velocity: " << std::setprecision(12) << atomvel[a]   << std::endl;
-        statusOFS << "time: " << k_*24.19*dt << " atom " << a << " Force:    " << std::setprecision(12) << atomforce[a] << std::endl;
+        statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " position: " << std::setprecision(12) << atompos[a]   << std::endl;
+        statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " velocity: " << std::setprecision(12) << atomvel[a]   << std::endl;
+        statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " Force:    " << std::setprecision(12) << atomforce[a] << std::endl;
       }
       statusOFS<< std::endl;
       statusOFS<< "****************************************************************************" << std::endl << std::endl;
@@ -706,7 +703,7 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
   occupationRate.Resize( psi.NumStateTotal() );
   SetValue( occupationRate, 1.0);
   //statusOFS << " Occupation Rate: " << occupationRate << std::endl;
-  if(calDipole_)  calculateDipole();
+  if(calDipole_)  calculateDipole(tlist_[k_]);
   if(k == 0) {
     Real totalCharge_;
     ham.CalculateDensity(
@@ -1105,9 +1102,9 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
       statusOFS<< "TDDFT PTTRAP Method, step " << k_ << "  t = " << dt << std::endl;
 
       for( Int a = 0; a < numAtom; a++ ){
-        statusOFS << "time: " << k_*24.19*dt << " atom " << a << " position: " << std::setprecision(12) << atompos[a]   << std::endl;
-        statusOFS << "time: " << k_*24.19*dt << " atom " << a << " velocity: " << std::setprecision(12) << atomvel[a]   << std::endl;
-        statusOFS << "time: " << k_*24.19*dt << " atom " << a << " Force:    " << std::setprecision(12) << atomforce[a] << std::endl;
+        statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " position: " << std::setprecision(12) << atompos[a]   << std::endl;
+        statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " velocity: " << std::setprecision(12) << atomvel[a]   << std::endl;
+        statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " Force:    " << std::setprecision(12) << atomforce[a] << std::endl;
       }
       statusOFS<< std::endl;
       statusOFS<< "************************************************"<< std::endl;
@@ -1162,7 +1159,7 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
 
 
   // calculate Dipole at the beginning.
-  if(calDipole_)  calculateDipole();
+  if(calDipole_)  calculateDipole(tlist_[k_]);
   CalculateEnergy( ptable);
 
   // 1. Calculate Xmid which appears on the right hand of the equation
