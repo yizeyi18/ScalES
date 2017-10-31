@@ -237,6 +237,7 @@ namespace dgdft{
 
       void advanceRK4(PeriodTable& ptable) ;
       void advancePTTRAP(PeriodTable& ptable) ;
+      void advancePTTRAPDIIS(PeriodTable& ptable) ;
       void done();  
       void propagate(PeriodTable& ptable );
       Real getEfield( Real t);

@@ -2497,7 +2497,8 @@ ESDFReadInput ( const char* filename )
     esdf_string("TDDFT_Method", "PTTRAP", strtmp); 
     esdfParam.TDDFTMethod        = strtmp;
     if(esdfParam.TDDFTMethod != "PTTRAP" &&
-        esdfParam.TDDFTMethod != "RK4" ) {
+        esdfParam.TDDFTMethod != "RK4"   &&
+        esdfParam.TDDFTMethod != "PTTRAPDIIS" ) {
       ErrorHandling("Invalid TDDFT method.");
     }
 

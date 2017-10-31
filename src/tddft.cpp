@@ -1405,7 +1405,443 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
   Update();
 
   ++k_;
+
 } // TDDFT:: advancePTTRAP
+
+
+
+void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
+
+  Int mpirank, mpisize;
+  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  MPI_Comm_rank( mpi_comm, &mpirank );
+  MPI_Comm_size( mpi_comm, &mpisize );
+
+  Hamiltonian& ham = *hamPtr_;
+  Fourier&     fft = *fftPtr_;
+  Spinor&      psi = *psiPtr_;
+
+  std::vector<Atom>&   atomList = *atomListPtr_;
+  Int numAtom = atomList.size();
+
+  // print the options_ when first step. 
+  if(k_ == 0) {
+    statusOFS<< std::endl;
+    statusOFS<< " -----   TDDFT PT-TRAP DIIS Print Options ---- "     << std::endl;
+    statusOFS<< " options.auto_save      " << options_.auto_save      << std::endl;
+    statusOFS<< " options.load_save      " << options_.load_save      << std::endl;
+    statusOFS<< " options.method         " << options_.method         << std::endl;
+    statusOFS<< " options.ehrenfest      " << options_.ehrenfest      << std::endl;
+    statusOFS<< " options.simulateTime   " << options_.simulateTime   << std::endl;
+    statusOFS<< " options.dt             " << options_.dt             << std::endl;
+    statusOFS<< " options.gmres_restart  " << options_.gmres_restart  << std::endl;
+    statusOFS<< " options.krylovTol      " << options_.krylovTol      << std::endl;
+    statusOFS<< " options.scfTol         " << options_.scfTol         << std::endl;
+    statusOFS<< " options.adNum          " << options_.adNum          << std::endl;
+    statusOFS<< " options.adUpdate       " << options_.adUpdate       << std::endl;
+    statusOFS<< " -----   TDDFT PT-TRAP DIIS Print Options ---- "     << std::endl;
+    statusOFS<< std::endl;
+  }
+
+  // Update saved atomList. 0 is the latest one
+  for( Int l = maxHist_-1; l > 0; l-- ){
+    atomListHist_[l] = atomListHist_[l-1];
+  }
+  atomListHist_[0] = atomList;
+
+  Int ionIter = k_;
+
+  std::vector<Point3>  atompos(numAtom);
+  std::vector<Point3>  atomvel(numAtom);
+  std::vector<Point3>  atomforce(numAtom);
+  std::vector<Point3>  atompos_fin(numAtom);
+  {
+    std::vector<Point3>  atomvel_temp(numAtom);
+    if( mpirank == 0 ){
+
+      Real& dt = options_.dt;
+      DblNumVec& atomMass = atomMass_;
+
+      for( Int a = 0; a < numAtom; a++ ){
+        atompos[a]     = atomList[a].pos;
+        atompos_fin[a] = atomList[a].pos;
+        atomvel[a]     = atomList[a].vel;
+        atomforce[a]   = atomList[a].force;
+      }
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS<< "***********************************************" << std::endl ;
+      statusOFS<< std::endl;
+      statusOFS<< "TDDFT PTTRAP DIIS Method, step " << k_ << "  t = " << dt << std::endl;
+
+      for( Int a = 0; a < numAtom; a++ ){
+        statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " position: " << atompos[a]   << std::endl;
+        statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " velocity: " << atomvel[a]   << std::endl;
+        statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " Force:    " << atomforce[a] << std::endl;
+      }
+      statusOFS<< std::endl;
+      statusOFS<< "************************************************"<< std::endl;
+      statusOFS<< std::endl;
+#endif
+
+      // Update velocity and position when doing ehrenfest dynamics
+      if(options_.ehrenfest){
+        for(Int a=0; a<numAtom; a++) {
+          atomvel_temp[a] = atomvel[a] + atomforce[a]*dt/atomMass[a]/2.0; 
+          atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
+        }
+      }
+    }
+  }
+
+  if(options_.ehrenfest){
+    for(Int a = 0; a < numAtom; a++){
+      MPI_Bcast( &atompos_fin[a][0], 3, MPI_DOUBLE, 0, mpi_comm); 
+    }
+  }
+
+  // k_ is the current K
+  Int k = k_;
+  Real ti = tlist_[k];
+  Real tf = tlist_[k+1];
+  Real dT = tf - ti;
+  Real tmid =  (ti + tf)/2.0;
+  Complex i_Z_One = Complex(0.0, 1.0);
+
+  // PT-TRAP DIIS Method 
+  DblNumVec &occupationRate = ham.OccupationRate();
+  occupationRate.Resize( psi.NumStateTotal() );
+  SetValue( occupationRate, 1.0);
+
+
+  // update H when it is first step.
+  if(k == 0) {
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psi,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+    ham.CalculateXC( Exc_, fft ); 
+    ham.CalculateHartree( fft );
+    calculateVext(ti); 
+    ham.CalculateVtot( ham.Vtot() );
+  }
+
+
+  // calculate Dipole at the beginning.
+  if(calDipole_)  calculateDipole(tlist_[k_]);
+  CalculateEnergy( ptable);
+
+  // 1. Calculate Xmid which appears on the right hand of the equation
+  // HPSI = (H1 * psi)
+  Int ntot  = fft.domain.NumGridTotal();
+  Int numStateLocal = psi.NumState();
+  Int ntotLocal = ntot/mpisize;
+  if(mpirank < (ntot % mpisize)) ntotLocal++;
+  Int numStateTotal = psi.NumStateTotal();
+  CpxNumMat HPSI(ntot, numStateLocal);
+  NumTns<Complex> tnsTemp(ntot, 1, numStateLocal, false, HPSI.Data());
+  ham.MultSpinor( psi, tnsTemp, fft );
+
+  //  All X's are in G-parallel
+  CpxNumMat X(ntotLocal, numStateTotal); 
+  CpxNumMat HX(ntotLocal, numStateTotal); 
+  CpxNumMat RX(ntotLocal, numStateTotal); 
+  CpxNumMat Xmid(ntotLocal, numStateTotal); 
+
+  // All psi's are in Band-parallel
+  CpxNumMat psiF  ( ntot, numStateLocal );
+  CpxNumMat psiCol( ntot, numStateLocal );
+  CpxNumMat psiRes( ntot, numStateLocal );
+  lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+
+  AlltoallForward( HPSI,  HX, mpi_comm);
+  AlltoallForward( psiCol, X, mpi_comm);
+  
+  // RX <-- HX - X*(X'*HX)
+  Int width = numStateTotal;
+  Int heightLocal = ntotLocal;
+  CpxNumMat  XHXtemp( width, width );
+  CpxNumMat  XHX( width, width );
+  lapack::Lacpy( 'A', ntotLocal, numStateTotal, HX.Data(), ntotLocal, RX.Data(), ntotLocal );
+  blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+      heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+  MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+  blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
+      X.Data(), heightLocal, XHX.Data(), width, 1.0, RX.Data(), heightLocal );
+
+  // Xmid <-- X - li*T/2 * RX  in G-parallel
+  {
+    Complex * xmidPtr = Xmid.Data();
+    Complex * xPtr    = X.Data();
+    Complex * rxPtr   = RX.Data();
+    for( Int i = 0; i < numStateTotal; i ++)
+      for( Int j = 0; j < ntotLocal; j ++){
+        Int index = i* ntotLocal +j;
+        xmidPtr[index] = xPtr[index] -  i_Z_One * dT/2.0 * rxPtr[index];
+      }
+  }
+
+  // psiF <== psi
+  Spinor psiFinal (fft.domain, 1, numStateTotal, numStateLocal, false, psiF.Data() );
+  lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiF.Data(), ntot );
+
+  // AtomPos <== AtomPosFinal, then update Vatom
+  if(options_.ehrenfest){
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].pos  = atompos_fin[a];
+    }
+    ham.UpdateHamiltonian( atomList );
+    ham.CalculatePseudoPotential( ptable );
+  }
+
+  // rhoF <== update Charge Density.
+  DblNumMat          rhoFinal; 
+  {
+    calculateVext(tf); // tf is the current step, calculate only once.
+
+    // get the charge density of the Hf.
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psiFinal,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+    Int ntotFine  = fftPtr_->domain.NumGridTotalFine();
+    rhoFinal.Resize (ntotFine, 1);  
+
+    Real * densityPtr = ham.Density().Data();
+    Real * rhoFinalPtr= rhoFinal.Data();
+    for(int i = 0; i < ntotFine; i++) {
+      rhoFinalPtr[i] = densityPtr[i];
+    }
+  }
+
+
+  Int numGridTotal = ntot;
+
+  if(1){
+
+    Int maxScfIteration = 100;
+    Real betaMix = 0.1;
+    Int  maxDim  = 10;
+    Real scfTol  = 1.0E-15;
+    
+    std::vector<CpxNumMat>   dfMat;
+    std::vector<CpxNumMat>   dvMat;
+    dfMat.resize( numStateLocal );
+    dvMat.resize( numStateLocal );
+    for( int i = 0; i < numStateLocal; i++) { 
+      dfMat[i].Resize( ntot, maxDim ); 
+      dvMat[i].Resize( ntot, maxDim ); 
+      SetValue( dfMat[i], Complex(0.0, 0.0) );
+      SetValue( dvMat[i], Complex(0.0, 0.0) );
+    }
+
+    CpxNumVec vin;
+    CpxNumVec vout;
+    vin.Resize( ntot);
+    vout.Resize( ntot);
+
+    for(int iscf = 1; iscf <= maxScfIteration; iscf++){
+      
+      Int iterused = std::min(iscf-1,(Int)maxDim);
+      Int ipos = iscf - 1 - floor((iscf-2)/maxDim)*maxDim;
+
+      std::cout << " iscf :" << iscf << " iterused: " << iterused << " ipos: " << ipos << std::endl;
+
+      // Update Hf <== updateV(molf, rhof)
+      Int ntotFine  = fft.domain.NumGridTotalFine();
+      {
+        ham.CalculateXC( Exc_, fft ); 
+        ham.CalculateHartree( fft );
+        DblNumVec vtot;
+        vtot.Resize(ntotFine);
+        SetValue(vtot, 0.0);
+        ham.CalculateVtot( vtot);
+        Real *vtot0 = ham.Vtot().Data() ;
+        blas::Copy( ntotFine, vtot.Data(), 1, ham.Vtot().Data(), 1 );
+      }
+
+      // HXf <== Hf * Xf, now HPSI is HXf  
+      ham.MultSpinor( psiFinal, tnsTemp, fft );
+
+      //  XHX <== XHXtemp <--- X'HXf
+      AlltoallForward( HPSI, HX, mpi_comm);
+      AlltoallForward( psiF, X,  mpi_comm);
+
+      blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+          heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+
+      MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+
+      // ResX <== Xf + 1i* dT/2 * ( HXf - Xf * XHXf ) - Xmid
+      // Note RX is the ResX
+      Complex traceXHX (0.0, 0.0);
+      {
+        // remember:
+        // X == X in G-parallel
+        // XHX == XHXf 
+        // Now Y == Xf * XHXf 
+        CpxNumMat Y(ntotLocal, numStateTotal); 
+        blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
+            X.Data(), heightLocal, XHX.Data(), width, 0.0, Y.Data(), heightLocal );
+
+        for( int i = 0; i < width; i++)
+           traceXHX += *(XHX.Data() + i * width + i);
+
+        // Do things in the G-parallel fashion. 
+        // HPSI is the HXf in G-parallel
+        // Xmid is in the G-parallel Fashion
+        // X is Xf in G-parallel fashion
+        // RX is the ResX 
+
+        Complex * ResPtr = RX.Data();
+        Complex * XfPtr  = X.Data();
+        Complex * HXfPtr = HPSI.Data();
+        Complex * YPtr   = Y.Data();
+        Complex * XmidPtr= Xmid.Data();
+        for ( int i = 0; i < width; i++)
+          for( int j = 0; j < heightLocal; j++){
+            int index = i * heightLocal + j;
+            ResPtr[index] = XfPtr[index] + i_Z_One * dT / 2.0 * ( HXfPtr[index] - YPtr[index] ) - XmidPtr[index];
+          }
+      }
+
+      // Tranpose the ResX to band Parallel
+      AlltoallBackward( RX, psiRes, mpi_comm);
+
+      // Check check, still have the pre-conditioner 
+      // not done yet.
+      CpxNumVec preMat(ntot);
+      Complex * precPtr = preMat.Data();
+      for( int i = 0; i < ntot; i++){
+        precPtr[i] = 1.0/(1.0 + i_Z_One * dT/2.0 * ( fft.gkk[i] - traceXHX / numStateTotal ));
+      }
+
+
+      for( int iband = 0; iband < numStateLocal; iband++ ) {
+         
+        Complex *vinPtr = vin.Data();
+        Complex *voutPtr= vout.Data();
+        Complex *psiFPtr= psiF.Data() + iband * ntot;
+        Complex *psiResPtr= psiRes.Data() + iband * ntot;
+
+        for( int i = 0; i < ntot; i++){
+          vinPtr[i]  =  psiFPtr  [i];
+          voutPtr[i] =  psiResPtr[i];
+        }
+
+        if( iscf > 1) {
+          Complex * dfMatPtr =  dfMat[iband].Data() + ipos * ntot;
+          Complex * dvMatPtr =  dvMat[iband].Data() + ipos * ntot;
+
+          for( int i = 0; i < ntot; i ++){
+            dfMatPtr[i] = dfMatPtr[i] - psiResPtr[i];
+            dvMatPtr[i] = dvMatPtr[i] - psiFPtr[i];
+          }
+
+          // Least Square problem here. 
+          Real rcond = 1.0E-12;
+          CpxNumVec gammas;
+          DblNumVec S;
+          S.Resize(iterused);
+          gammas.Resize(ntot);
+
+          blas::Copy( ntot, psiResPtr, 1, gammas.Data(), 1 );
+          Int rank;
+          Int nrow = iterused;
+
+          lapack::SVDLeastSquare( ntot, iterused, 1, 
+              dfMat[iband].Data(), ntot, gammas.Data(), ntot,
+              S.Data(), rcond, &rank );
+
+          Print( statusOFS, "  Rank of dfmat = ", rank );
+          Print( statusOFS, "  Rcond = ", rcond );
+
+          blas::Gemv('N', ntot, nrow, -1.0, dvMat[iband].Data(),
+              ntot, gammas.Data(), 1, 1.0, vin.Data(), 1 );
+
+          blas::Gemv('N', ntot, iterused, -1.0, dfMat[iband].Data(),
+              ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
+        }
+
+        int inext = iscf - std::floor((iscf - 1) / maxDim) *maxDim - 1;
+
+        Complex * dfMatPtr =  dfMat[iband].Data() + inext * ntot;
+        Complex * dvMatPtr =  dvMat[iband].Data() + inext * ntot;
+
+        for(int j = 0; j < ntot; j++){
+          dfMatPtr[j] = psiResPtr[j];
+          dvMatPtr[j] = psiFPtr[j];
+        }
+
+        // first FFT the vout to the G-space then do the Preconditioner. 
+        {
+          blas::Copy( ntot, voutPtr, 1, fft.inputComplexVec.Data(), 1 );
+          fftw_execute( fft.forwardPlan );
+          Complex * tempPtr = fft.outputComplexVec.Data();
+          for(int i = 0; i < ntot; ++i)
+            tempPtr[i] = tempPtr[i] * precPtr[i];
+          fftw_execute( fft.backwardPlan );
+          blas::Axpy( ntot, 1.0 / Real(ntot), fft.inputComplexVec.Data(), 1, voutPtr, 1 );
+        }
+
+        for( int j = 0; j < ntot; j++) {
+          psiFPtr[j] = vinPtr[j] + betaMix * voutPtr[j];
+        }
+      }
+
+      {
+        // Get the rhoFnew
+        Real totalCharge_;
+        ham.CalculateDensity(
+            psiFinal,
+            ham.OccupationRate(),
+            totalCharge_, 
+            fft );
+
+        // Norm check 
+        Real * densityPtr = ham.Density().Data();
+        Real * rhoFinalPtr= rhoFinal.Data();
+        Real normRhoF = 0.0;
+        Real normRhoDiff = 0.0;
+
+        for(int i = 0; i < ntotFine; i++) {
+          normRhoDiff += pow( rhoFinalPtr[i] - densityPtr[i], 2.0 ); 
+          normRhoF    += pow( rhoFinalPtr[i], 2.0 ); 
+        }
+        Real scfNorm = normRhoDiff / normRhoF;
+        Print(statusOFS, "norm(RhoOut-RhoIn)/norm(RhoIn) = ", scfNorm );
+        if( scfNorm < options_.scfTol){
+          statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
+          //statusOFS << "TDDFT step " << k_ << " used " << totalHx << " H * x operations!" << std::endl;
+          break;
+        }
+        // rhoF <== rhoFNew
+        blas::Copy( ntotFine, rhoFinal.Data(), 1, ham.Density().Data(), 1 );
+      }
+
+    } // iscf iteration
+
+
+  } // if 1
+
+  blas::Copy( ntot*numStateLocal, psiFinal.Wavefun().Data(), 1, psi.Wavefun().Data(), 1 );
+
+  if(options_.ehrenfest){
+    ham.CalculateForce( psi, fft);
+    Real& dt = options_.dt;
+    DblNumVec& atomMass = atomMass_;
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].vel = atomList[a].vel + (atomforce[a]/atomMass[a] + atomList[a].force/atomMass[a])*dt/2.0;
+    } 
+  }
+
+  ++k_;
+} // TDDFT:: advancePTTRAPDIIS
+
 
 void TDDFT::propagate( PeriodTable& ptable ) {
   Int totalSteps = tlist_.size() - 1;
@@ -1416,6 +1852,10 @@ void TDDFT::propagate( PeriodTable& ptable ) {
   else if( options_.method == "PTTRAP"){
     for( Int i = 0; i < totalSteps; i++)
       advancePTTRAP( ptable );
+  }
+  else if( options_.method == "PTTRAPDIIS"){
+    for( Int i = 0; i < totalSteps; i++)
+      advancePTTRAPDIIS( ptable );
   }
 }
 }
