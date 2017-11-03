@@ -1716,9 +1716,11 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       CpxNumVec preMat(ntot);
       Complex * precPtr = preMat.Data();
       for( int i = 0; i < ntot; i++){
-        precPtr[i] = 1.0/(1.0 + i_Z_One * dT/2.0 * ( fft.gkk[i] - traceXHX / numStateTotal ));
+        precPtr[i] = 1.0/(1.0 + i_Z_One * dT/2.0 * ( fft.gkk[i] - traceXHX / (Real)numStateTotal ));
       }
 
+      // FIXME
+      CpxNumMat dfMatTemp( ntot, maxDim ); 
 
       for( int iband = 0; iband < numStateLocal; iband++ ) {
          
@@ -1752,8 +1754,11 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
           Int rank;
           Int nrow = iterused;
 
+          // FIXME
+          dfMatTemp = dfMat[iband];
+
           lapack::SVDLeastSquare( ntot, iterused, 1, 
-              dfMat[iband].Data(), ntot, gammas.Data(), ntot,
+              dfMatTemp.Data(), ntot, gammas.Data(), ntot,
               S.Data(), rcond, &rank );
 
           for ( int i = 0 ; i < iterused ; i++)
@@ -1767,13 +1772,20 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
           blas::Gemv('N', ntot, iterused, -1.0, dfMat[iband].Data(),
               ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
+
+          statusOFS << "Gammas = " << std::endl;
+          for(Int i = 0; i < iterused; i++ ){
+            statusOFS << gammas[i] << std::endl;
+          }
         }
 
-        int inext = iscf - std::floor((iscf - 1) / maxDim) *maxDim -1;
+      
+
+        int inext = iscf - std::floor((iscf - 1) / maxDim) *maxDim;
         std::cout << " iscf :" << iscf << " iterused: " << iterused << " ipos: " << ipos << " inext " << inext<< std::endl;
 
-        Complex * dfMatPtr =  dfMat[iband].Data() + inext * ntot;
-        Complex * dvMatPtr =  dvMat[iband].Data() + inext * ntot;
+        Complex * dfMatPtr =  dfMat[iband].Data() + (inext-1) * ntot;
+        Complex * dvMatPtr =  dvMat[iband].Data() + (inext-1) * ntot;
 
         for(int j = 0; j < ntot; j++){
           dfMatPtr[j] = psiResPtr[j];
@@ -1788,13 +1800,14 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
           for(int i = 0; i < ntot; ++i)
             tempPtr[i] = tempPtr[i] * precPtr[i];
           fftw_execute( fft.backwardPlan );
+          SetValue( vout, Complex(0,0) );
           blas::Axpy( ntot, 1.0 / Real(ntot), fft.inputComplexVec.Data(), 1, voutPtr, 1 );
         }
 
         for( int j = 0; j < ntot; j++) {
           psiFPtr[j] = vinPtr[j] + betaMix * voutPtr[j];
         }
-      }
+      } // for (iband)
 
       {
         // Get the rhoFnew
@@ -1815,11 +1828,11 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
           normRhoDiff += pow( rhoFinalPtr[i] - densityPtr[i], 2.0 ); 
           normRhoF    += pow( rhoFinalPtr[i], 2.0 ); 
         }
-        Real scfNorm = normRhoDiff / normRhoF;
+        Real scfNorm = std::sqrt(normRhoDiff / normRhoF);
         Print(statusOFS, "norm(RhoOut-RhoIn)/norm(RhoIn) = ", scfNorm );
 
         // rhoF <== rhoFNew
-        blas::Copy( ntotFine, rhoFinal.Data(), 1, ham.Density().Data(), 1 );
+        blas::Copy( ntotFine,  ham.Density().Data(), 1,  rhoFinal.Data(), 1 );
 
         if( scfNorm < options_.scfTol){
           statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
