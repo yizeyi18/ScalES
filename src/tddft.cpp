@@ -1508,13 +1508,14 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   Real tmid =  (ti + tf)/2.0;
   Complex i_Z_One = Complex(0.0, 1.0);
 
-  // PT-TRAP DIIS Method 
+  // PT-TRAP DIIS Method, Occupation = 1
   DblNumVec &occupationRate = ham.OccupationRate();
   occupationRate.Resize( psi.NumStateTotal() );
   SetValue( occupationRate, 1.0);
 
-
-  // update H when it is first step.
+  // update H when it is first step. 
+  // This can be avoided since it is 
+  // already converged in the first SCF.
   if(k == 0) {
     Real totalCharge_;
     ham.CalculateDensity(
@@ -1527,7 +1528,6 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     calculateVext(ti); 
     ham.CalculateVtot( ham.Vtot() );
   }
-
 
   // calculate Dipole at the beginning.
   if(calDipole_)  calculateDipole(tlist_[k_]);
@@ -1626,7 +1626,6 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     Int maxScfIteration = 100;
     Real betaMix = 0.1;
     Int  maxDim  = 10;
-    Real scfTol  = 1.0E-15;
     
     std::vector<CpxNumMat>   dfMat;
     std::vector<CpxNumMat>   dvMat;
@@ -1643,11 +1642,13 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     CpxNumVec vout;
     vin.Resize( ntot);
     vout.Resize( ntot);
+    SetValue( vin,  Complex(0,0));
+    SetValue( vout, Complex(0,0));
 
     for(int iscf = 1; iscf <= maxScfIteration; iscf++){
       
-      Int iterused = std::min(iscf-1,(Int)maxDim);
-      Int ipos = iscf - 1 - floor((iscf-2)/maxDim)*maxDim;
+      Int iterused = std::min (iscf-1, maxDim);
+      Int ipos = iscf - 1 - floor( (iscf-2) / maxDim ) * maxDim;
 
       std::cout << " iscf :" << iscf << " iterused: " << iterused << " ipos: " << ipos << std::endl;
 
@@ -1656,18 +1657,14 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       {
         ham.CalculateXC( Exc_, fft ); 
         ham.CalculateHartree( fft );
-        DblNumVec vtot;
-        vtot.Resize(ntotFine);
-        SetValue(vtot, 0.0);
-        ham.CalculateVtot( vtot);
-        Real *vtot0 = ham.Vtot().Data() ;
-        blas::Copy( ntotFine, vtot.Data(), 1, ham.Vtot().Data(), 1 );
+        ham.CalculateVtot( ham.Vtot());
       }
 
       // HXf <== Hf * Xf, now HPSI is HXf  
       ham.MultSpinor( psiFinal, tnsTemp, fft );
 
       //  XHX <== XHXtemp <--- X'HXf
+      //  PsiF, HPSI are psiF and H*psiF
       AlltoallForward( HPSI, HX, mpi_comm);
       AlltoallForward( psiF, X,  mpi_comm);
 
@@ -1679,6 +1676,11 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       // ResX <== Xf + 1i* dT/2 * ( HXf - Xf * XHXf ) - Xmid
       // Note RX is the ResX
       Complex traceXHX (0.0, 0.0);
+      for( int i = 0; i < width; i++)
+        traceXHX += *(XHX.Data() + i * width + i);
+
+      std::cout << " iscf " << iscf << " trace[XHX] = " << traceXHX << std::endl;
+
       {
         // remember:
         // X == X in G-parallel
@@ -1688,18 +1690,15 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
         blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
             X.Data(), heightLocal, XHX.Data(), width, 0.0, Y.Data(), heightLocal );
 
-        for( int i = 0; i < width; i++)
-           traceXHX += *(XHX.Data() + i * width + i);
-
         // Do things in the G-parallel fashion. 
-        // HPSI is the HXf in G-parallel
+        // HX is the HXf in G-parallel
         // Xmid is in the G-parallel Fashion
         // X is Xf in G-parallel fashion
         // RX is the ResX 
 
         Complex * ResPtr = RX.Data();
         Complex * XfPtr  = X.Data();
-        Complex * HXfPtr = HPSI.Data();
+        Complex * HXfPtr = HX.Data();
         Complex * YPtr   = Y.Data();
         Complex * XmidPtr= Xmid.Data();
         for ( int i = 0; i < width; i++)
@@ -1734,8 +1733,8 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
         }
 
         if( iscf > 1) {
-          Complex * dfMatPtr =  dfMat[iband].Data() + ipos * ntot;
-          Complex * dvMatPtr =  dvMat[iband].Data() + ipos * ntot;
+          Complex * dfMatPtr =  dfMat[iband].Data() + (ipos-1) * ntot;
+          Complex * dvMatPtr =  dvMat[iband].Data() + (ipos-1) * ntot;
 
           for( int i = 0; i < ntot; i ++){
             dfMatPtr[i] = dfMatPtr[i] - psiResPtr[i];
@@ -1757,6 +1756,9 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
               dfMat[iband].Data(), ntot, gammas.Data(), ntot,
               S.Data(), rcond, &rank );
 
+          for ( int i = 0 ; i < iterused ; i++)
+            std::cout << " S: " << S[i] << std::endl;
+
           Print( statusOFS, "  Rank of dfmat = ", rank );
           Print( statusOFS, "  Rcond = ", rcond );
 
@@ -1767,7 +1769,8 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
               ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
         }
 
-        int inext = iscf - std::floor((iscf - 1) / maxDim) *maxDim - 1;
+        int inext = iscf - std::floor((iscf - 1) / maxDim) *maxDim -1;
+        std::cout << " iscf :" << iscf << " iterused: " << iterused << " ipos: " << ipos << " inext " << inext<< std::endl;
 
         Complex * dfMatPtr =  dfMat[iband].Data() + inext * ntot;
         Complex * dvMatPtr =  dvMat[iband].Data() + inext * ntot;
@@ -1814,14 +1817,19 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
         }
         Real scfNorm = normRhoDiff / normRhoF;
         Print(statusOFS, "norm(RhoOut-RhoIn)/norm(RhoIn) = ", scfNorm );
+
+        // rhoF <== rhoFNew
+        blas::Copy( ntotFine, rhoFinal.Data(), 1, ham.Density().Data(), 1 );
+
         if( scfNorm < options_.scfTol){
           statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
           //statusOFS << "TDDFT step " << k_ << " used " << totalHx << " H * x operations!" << std::endl;
           break;
         }
-        // rhoF <== rhoFNew
-        blas::Copy( ntotFine, rhoFinal.Data(), 1, ham.Density().Data(), 1 );
       }
+
+      AlltoallBackward( psiF, X, mpi_comm);
+
 
     } // iscf iteration
 
