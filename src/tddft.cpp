@@ -1372,8 +1372,12 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
         break; // break if converged. 
       }
 
+      /*
       statusOFS << " iscf " << iscf + 1 << " mixStepLength " << esdfParam.mixStepLength
         << " " << esdfParam.mixType << std::endl;
+
+      blas::Copy( ntotFine, vtotNew.Data(), 1, ham.Vtot().Data(), 1 );
+      */
 
       AndersonMix(
           iscf+1,
@@ -1623,9 +1627,9 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
   if(1){
 
-    Int maxScfIteration = 100;
-    Real betaMix = 0.1;
-    Int  maxDim  = 10;
+    Int maxScfIteration = options_.scfMaxIter;
+    Real betaMix = esdfParam.mixStepLength;
+    Int  maxDim  = esdfParam.mixMaxDim;
     
     std::vector<CpxNumMat>   dfMat;
     std::vector<CpxNumMat>   dvMat;
@@ -1649,8 +1653,6 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       
       Int iterused = std::min (iscf-1, maxDim);
       Int ipos = iscf - 1 - floor( (iscf-2) / maxDim ) * maxDim;
-
-      std::cout << " iscf :" << iscf << " iterused: " << iterused << " ipos: " << ipos << std::endl;
 
       // Update Hf <== updateV(molf, rhof)
       Int ntotFine  = fft.domain.NumGridTotalFine();
@@ -1678,8 +1680,6 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       Complex traceXHX (0.0, 0.0);
       for( int i = 0; i < width; i++)
         traceXHX += *(XHX.Data() + i * width + i);
-
-      std::cout << " iscf " << iscf << " trace[XHX] = " << traceXHX << std::endl;
 
       {
         // remember:
@@ -1761,8 +1761,8 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
               dfMatTemp.Data(), ntot, gammas.Data(), ntot,
               S.Data(), rcond, &rank );
 
-          for ( int i = 0 ; i < iterused ; i++)
-            std::cout << " S: " << S[i] << std::endl;
+          //for ( int i = 0 ; i < iterused ; i++)
+          //  std::cout << " S: " << S[i] << std::endl;
 
           Print( statusOFS, "  Rank of dfmat = ", rank );
           Print( statusOFS, "  Rcond = ", rcond );
@@ -1773,16 +1773,14 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
           blas::Gemv('N', ntot, iterused, -1.0, dfMat[iband].Data(),
               ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
 
-          statusOFS << "Gammas = " << std::endl;
-          for(Int i = 0; i < iterused; i++ ){
-            statusOFS << gammas[i] << std::endl;
-          }
+         // statusOFS << "Gammas = " << std::endl;
+         // for(Int i = 0; i < iterused; i++ ){
+         //   statusOFS << gammas[i] << std::endl;
+         // }
         }
 
-      
 
         int inext = iscf - std::floor((iscf - 1) / maxDim) *maxDim;
-        std::cout << " iscf :" << iscf << " iterused: " << iterused << " ipos: " << ipos << " inext " << inext<< std::endl;
 
         Complex * dfMatPtr =  dfMat[iband].Data() + (inext-1) * ntot;
         Complex * dvMatPtr =  dvMat[iband].Data() + (inext-1) * ntot;
@@ -1829,7 +1827,9 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
           normRhoF    += pow( rhoFinalPtr[i], 2.0 ); 
         }
         Real scfNorm = std::sqrt(normRhoDiff / normRhoF);
-        Print(statusOFS, "norm(RhoOut-RhoIn)/norm(RhoIn) = ", scfNorm );
+        //Print(statusOFS, "norm(RhoOut-RhoIn)/norm(RhoIn) = ", scfNorm );
+        statusOFS << "SCF " << iscf << " norm(RhoOut-RhoIn)/norm(RhoIn): " << scfNorm << std::endl;
+
 
         // rhoF <== rhoFNew
         blas::Copy( ntotFine,  ham.Density().Data(), 1,  rhoFinal.Data(), 1 );
@@ -1841,7 +1841,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
         }
       }
 
-      AlltoallBackward( psiF, X, mpi_comm);
+      //AlltoallForward ( psiF, X, mpi_comm);
 
 
     } // iscf iteration

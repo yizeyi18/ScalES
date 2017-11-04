@@ -256,7 +256,9 @@ void Sgmres::Solve( Complex * rhs, Complex* xVec, Complex omega) {
     for(i = 0; i < size_; ++i)
       tempPtr[i] = tempPtr[i] / Precond_[i];
     fftw_execute( fft.backwardPlan );
-    blas::Axpy( size_, 1.0 / Real(size_), fft.inputComplexVec.Data(), 1, r, 1 );
+    blas::Copy( size_,  fft.inputComplexVec.Data(), 1, r, 1 );
+    blas::Scal( size_,  1.0/Real(size_), r, 1 );
+    //blas::Axpy( size_, 1.0 / Real(size_), fft.inputComplexVec.Data(), 1, r, 1 );
   }
 
   /*
@@ -320,7 +322,9 @@ void Sgmres::Solve( Complex * rhs, Complex* xVec, Complex omega) {
       for(j = 0; j < size_; ++j)
         tempPtr[j] = tempPtr[j] / Precond_[j];
       fftw_execute( fft.backwardPlan );
-      blas::Axpy( size_, 1.0 / Real(size_), fft.inputComplexVec.Data(), 1, w, 1 );
+      //blas::Axpy( size_, 1.0 / Real(size_), fft.inputComplexVec.Data(), 1, w, 1 );
+      blas::Copy( size_,  fft.inputComplexVec.Data(), 1, w, 1 );
+      blas::Scal( size_,  1.0/Real(size_), w, 1 );
     }
 
     /*
