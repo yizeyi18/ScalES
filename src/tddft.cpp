@@ -367,10 +367,6 @@ void TDDFT::calculateDipole(Real t)
   Real Dx = 0.0;
   Real Dy = 0.0;
   Real Dz = 0.0;
-  Real sumRho = 0.0;
-  Real sumDx  = 0.0;
-  Real sumDy  = 0.0;
-  Real sumDz  = 0.0;
 
   Real * xr = Xr_.Data();
   Real * yr = Yr_.Data();
@@ -379,14 +375,10 @@ void TDDFT::calculateDipole(Real t)
     for( Int j = 0; j < fft.domain.numGridFine[1]; j++ ){
       for( Int i = 0; i < fft.domain.numGridFine[0]; i++ ){
 
-        sumRho += ( * density);
-        sumDx  += ( *xr);
-        sumDy  += ( *yr);
-        sumDz  += ( *zr);
-
         Dx -=( *density ) * ( *xr++);
         Dy -=( *density ) * ( *yr++);
         Dz -=( *density++ ) * ( *zr++);
+
       }
     }
   }
@@ -528,6 +520,7 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable  )
   Fourier&     fft = *fftPtr_;
   Spinor&      psi = *psiPtr_;
 
+  /*
   Ekin_ = 0.0;
   DblNumVec&  eigVal         = ham.EigVal();
   DblNumVec&  occupationRate = ham.OccupationRate();
@@ -537,6 +530,7 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable  )
   for (Int i=0; i < eigVal.m(); i++) {
     Ekin_  += numSpin * eigVal(i) * occupationRate(i);
   }
+  */
 
   // Hartree and xc part
   Int  ntot = fft.domain.NumGridTotalFine();
@@ -574,7 +568,29 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable  )
     // Zero temperature
     Efree_ = Etot_;
   }
-  statusOFS << " total Energy :    " << Etot_ << std::endl;
+
+  Real K = 0.0;
+  {
+    Int numAtom = atomList.size();
+    std::vector<Point3>  atompos(numAtom);
+    std::vector<Point3>  atomvel(numAtom);
+    std::vector<Point3>  atomforce(numAtom);
+    DblNumVec& atomMass = atomMass_;
+    for( Int a = 0; a < numAtom; a++ ){
+      atompos[a]   = atomList[a].pos;
+      atomvel[a]   = atomList[a].vel;
+      atomforce[a] = atomList[a].force;
+    }
+  
+    for(Int a=0; a<numAtom; a++){
+      for(Int j=0; j<3; j++){
+        K += atomMass[a]*atomvel[a][j]*atomvel[a][j]/2.;
+      }
+    }
+  }
+
+
+  statusOFS << " E_pot: " << Etot_ << " E_kin: " << K << " E_tot: " << Etot_ + K << std::endl;
 
   /*
      else{
@@ -651,7 +667,6 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
   std::vector<Point3>  atompos_mid(numAtom);
   std::vector<Point3>  atompos_fin(numAtom);
   {
-    if( mpirank == 0 ){
 
       Real& dt = options_.dt;
       DblNumVec& atomMass = atomMass_;
@@ -687,7 +702,6 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
           atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
         }
       }
-    }
   }
 
   // have the atompos_mid and atompos_final
@@ -1093,7 +1107,6 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
   std::vector<Point3>  atompos_fin(numAtom);
   {
     std::vector<Point3>  atomvel_temp(numAtom);
-    if( mpirank == 0 ){
 
       Real& dt = options_.dt;
       DblNumVec& atomMass = atomMass_;
@@ -1127,7 +1140,6 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
           atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
         }
       }
-    }
   }
 
   // have the atompos_final
@@ -1144,7 +1156,6 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
   Real dT = tf - ti;
   Real tmid =  (ti + tf)/2.0;
   Complex i_Z_One = Complex(0.0, 1.0);
-  //statusOFS << " step " << k_ << " ti " << ti << " tf " << tf << " dT " << dT << std::endl;
 
   // PT-TRAP Method starts, note we only use Ne bands
   DblNumVec &occupationRate = ham.OccupationRate();
@@ -1169,7 +1180,6 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
 
   // calculate Dipole at the beginning.
   if(calDipole_)  calculateDipole(tlist_[k_]);
-  CalculateEnergy( ptable);
 
   // 1. Calculate Xmid which appears on the right hand of the equation
   // HPSI = (H1 * psi)
@@ -1215,6 +1225,18 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
   MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
   blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
       X.Data(), heightLocal, XHX.Data(), width, 1.0, RX.Data(), heightLocal );
+
+  // check check
+  // E_kin = numSpin * trace( XHX )
+  Ekin_ = 0.0;
+  {
+    Complex * ptr = XHX.Data();
+    Int numSpin = ham.NumSpin();
+    for(int i =0; i < width; i++)
+      Ekin_ += numSpin * ptr[i*width+i].real();
+  }
+
+  CalculateEnergy( ptable);
 
   // Xmid <-- X - li*T/2 * RX  in G-parallel
   {
@@ -1461,7 +1483,6 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   std::vector<Point3>  atompos_fin(numAtom);
   {
     std::vector<Point3>  atomvel_temp(numAtom);
-    if( mpirank == 0 ){
 
       Real& dt = options_.dt;
       DblNumVec& atomMass = atomMass_;
@@ -1495,7 +1516,6 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
           atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
         }
       }
-    }
   }
 
   if(options_.ehrenfest){
@@ -1535,7 +1555,6 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
   // calculate Dipole at the beginning.
   if(calDipole_)  calculateDipole(tlist_[k_]);
-  CalculateEnergy( ptable);
 
   // 1. Calculate Xmid which appears on the right hand of the equation
   // HPSI = (H1 * psi)
@@ -1574,6 +1593,21 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
   blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
       X.Data(), heightLocal, XHX.Data(), width, 1.0, RX.Data(), heightLocal );
+
+
+  // check check
+  // E_kin = numSpin * trace( XHX )
+  Ekin_ = 0.0;
+  {
+    Complex * ptr = XHX.Data();
+    Int numSpin = ham.NumSpin();
+    for(int i =0; i < width; i++)
+      Ekin_ += numSpin * ptr[i*width+i].real();
+  }
+
+  //if(mpirank == 0)  std::cout << " Ekin_ " << Ekin_ << std::endl;
+
+  CalculateEnergy( ptable);
 
   // Xmid <-- X - li*T/2 * RX  in G-parallel
   {
@@ -1761,8 +1795,6 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
               dfMatTemp.Data(), ntot, gammas.Data(), ntot,
               S.Data(), rcond, &rank );
 
-          //for ( int i = 0 ; i < iterused ; i++)
-          //  std::cout << " S: " << S[i] << std::endl;
 
           Print( statusOFS, "  Rank of dfmat = ", rank );
           Print( statusOFS, "  Rcond = ", rcond );
@@ -1841,8 +1873,6 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
         }
       }
 
-      //AlltoallForward ( psiF, X, mpi_comm);
-
 
     } // iscf iteration
 
@@ -1859,6 +1889,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       atomList[a].vel = atomList[a].vel + (atomforce[a]/atomMass[a] + atomList[a].force/atomMass[a])*dt/2.0;
     } 
   }
+
 
   ++k_;
 } // TDDFT:: advancePTTRAPDIIS
