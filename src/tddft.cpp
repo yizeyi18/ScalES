@@ -1415,6 +1415,44 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
     }
   }
 
+  // Reorthogonalize
+  {
+    blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+        heightLocal, X.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+    MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+  
+    // XHXtemp = 0.5 * ( XHX + conj ( XHX ) )
+    {
+      Complex * xPtr = XHXtemp.Data();
+      Complex * yPtr = XHX.Data();
+      for(int i = 0; i < width; i++){
+        for(int j = 0; j < width; j++){
+          xPtr[i*width + j] = 0.5 * ( yPtr[i*width+j] + std::conj(yPtr[j*width+i]) );
+        }
+      }
+    }
+  
+    DblNumVec  eigValS(width);
+    lapack::Syevd( 'V', 'U', width, XHXtemp.Data(), width, eigValS.Data() );
+
+    CpxNumMat temp( width, width );
+    SetValue( temp, Complex(0.0, 0.0) );
+    for(int i = 0; i < width; i++) {
+      temp(i,i) = Complex( 1.0 / sqrt( eigValS[i] ), 0.0);
+    }
+
+    blas::Gemm( 'N', 'N', width, width, width, 1.0, XHXtemp.Data(),
+        width, temp.Data(), width, 0.0, XHX.Data(), width );
+
+    blas::Gemm( 'N', 'C', width, width, width, 1.0, XHX.Data(),
+        width, XHXtemp.Data(), width, 0.0, temp.Data(), width );
+
+    blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
+        heightLocal, temp.Data(), width, 0.0, HX.Data(), heightLocal );
+
+    AlltoallBackward ( HX, psiF, mpi_comm );
+  }
+
   // psi <--- psiFinal
   blas::Copy( ntot*numStateLocal, psiFinal.Wavefun().Data(), 1, psi.Wavefun().Data(), 1 );
 
