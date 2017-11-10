@@ -211,6 +211,7 @@ namespace dgdft{
       ///
       void VelocityVerlet( Int ionIter );
 
+      std::ofstream etotOFS;
       std::ofstream vextOFS;
       std::ofstream dipoleOFS;
       std::ifstream velocityOFS;
@@ -243,7 +244,8 @@ namespace dgdft{
       Real getEfield( Real t);
       void calculateVext(Real t);
       void Update();
-      void CalculateEnergy(PeriodTable& ptable) ;
+      void calculateEnergy(PeriodTable& ptable, Real t) ;
+      void calculateFext(PeriodTable& ptable, Real t) ;
 
       // Mixing
       void  AndersonMix( 

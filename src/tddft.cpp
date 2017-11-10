@@ -236,6 +236,9 @@ void TDDFT::SetUp(
   calDipole_ = esdfParam.isTDDFTDipole;
   calVext_ = esdfParam.isTDDFTVext;
 
+  //std::cout << " isTDDFTVext " << calVext_ << std::endl;
+  //std::cout << " isTDDFTDipole " << calDipole_ << std::endl;
+
   if( calDipole_) {
     statusOFS << " ************************ WARNING ******************************** " << std::endl;
     statusOFS << " Warning: Please make sure that your atoms are centered at (0,0,0) " << std::endl;
@@ -287,6 +290,8 @@ void TDDFT::SetUp(
   if(mpirank == 0) {
     vextOFS.open( "vext.out");
     dipoleOFS.open( "dipole.out");
+    etotOFS.open( "etot.out");
+
     if(esdfParam.isTDDFTInputV) {
       velocityOFS.open( "TDDFT_VELOCITY");
       std::vector<Point3>  atomvel(numAtom);
@@ -340,7 +345,45 @@ void TDDFT::calculateVext(Real t)
       }
     }
   }
+}
 
+void TDDFT::calculateFext( PeriodTable &ptable, Real t)
+{
+  Hamiltonian& ham = *hamPtr_;
+  Fourier&     fft = *fftPtr_;
+  std::vector<Atom>&  atomList = ham.AtomList();
+  Point3 result;
+  Int numAtom = atomList.size();
+
+  if(calVext_){
+
+    Real et = getEfield(t);
+    Real xet = options_.eField_.pol[0] * et ;
+    Real yet = options_.eField_.pol[1] * et ;
+    Real zet = options_.eField_.pol[2] * et ;
+
+    Real Fx = 0.0;
+    Real Fy = 0.0;
+    Real Fz = 0.0;
+
+    for (Int a=0; a<numAtom; a++) {
+      Int atype  = atomList[a].type;
+      if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
+        ErrorHandling( "Cannot find the atom type." );
+      }
+      Fx = xet * ptable.Zion(atype);
+      Fy = yet * ptable.Zion(atype);
+      Fz = zet * ptable.Zion(atype);
+      
+      //std::cout << " atom " << a << " Fx " << Fx << " Fy " << Fy << " Fz " << Fz << std::endl;
+      //std::cout << " atom " << a << " Force  " << atomList[a].force << std::endl;
+
+      atomList[a].force += Point3( Fx, Fy, Fz);
+
+      //std::cout << " atom " << a << " Force added Fext " << atomList[a].force << std::endl;
+    }
+  } 
+  return;
 }
 
 
@@ -514,7 +557,7 @@ TDDFT::AndersonMix    (
 }         // -----  end of method SCF::AndersonMix  ----- 
 
 void
-TDDFT::CalculateEnergy  ( PeriodTable& ptable  )
+TDDFT::calculateEnergy  ( PeriodTable& ptable, Real t)
 {
 
   Hamiltonian& ham = *hamPtr_;
@@ -571,16 +614,24 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable  )
   }
 
   Real K = 0.0;
+  Real Ef = 0.0;
   {
     Int numAtom = atomList.size();
     std::vector<Point3>  atompos(numAtom);
     std::vector<Point3>  atomvel(numAtom);
     std::vector<Point3>  atomforce(numAtom);
     DblNumVec& atomMass = atomMass_;
-    for( Int a = 0; a < numAtom; a++ ){
-      atompos[a]   = atomList[a].pos;
-      atomvel[a]   = atomList[a].vel;
-      atomforce[a] = atomList[a].force;
+
+    for( Int a = 0; a < numAtom; a++ )
+      atomvel[a] = atomList[a].vel;
+
+    if( options_.ehrenfest ) { 
+      for( Int a = 0; a < numAtom; a++ ){
+        atompos[a]   = atomList[a].pos;
+        atomforce[a] = atomList[a].force;
+        // 0.5 steps more
+        atomvel[a] = atomvel[a] + atomforce[a]*options_.dt*0.5/atomMass[a];  
+      }
     }
   
     for(Int a=0; a<numAtom; a++){
@@ -588,32 +639,33 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable  )
         K += atomMass[a]*atomvel[a][j]*atomvel[a][j]/2.;
       }
     }
+
+    // add the ion and Efield E-f
+    if(calVext_){
+      Real et = getEfield(t);
+      Real xet = options_.eField_.pol[0] * et ;
+      Real yet = options_.eField_.pol[1] * et ;
+      Real zet = options_.eField_.pol[2] * et ;
+
+      for (Int a=0; a<numAtom; a++) {
+        Int atype  = atomList[a].type;
+        if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
+          ErrorHandling( "Cannot find the atom type." );
+        }
+        Ef  -= ptable.Zion(atype) *( xet *  atompos[a][0] + yet * atompos[a][1] + zet * atompos[a][2] );
+      }
+    }
   }
 
-
-  statusOFS << " E_pot: " << Etot_ << " E_kin: " << K << " E_tot: " << Etot_ + K << std::endl;
-
-  /*
-     else{
-  // Finite temperature
-  Efree_ = 0.0;
-  Real fermi = fermi_;
-  Real Tbeta = Tbeta_;
-  for(Int l=0; l< eigVal.m(); l++) {
-  Real eig = eigVal(l);
-  if( eig - fermi >= 0){
-  Efree_ += -numSpin / Tbeta*log(1.0+exp(-Tbeta*(eig - fermi))); 
-  }
-  else{
-  Efree_ += numSpin * (eig - fermi) - numSpin / Tbeta*log(1.0+exp(Tbeta*(eig-fermi)));
-  }
-  }
-  Efree_ += Ecor_ + fermi * ham.NumOccupiedState() * numSpin; 
-  }
-   */
+  etotOFS << " Time,E_tot,E_kin,E_pot,Efield: "
+          << std::setprecision(12) << t * 24.188843 / 1000.0 << " " 
+          << std::setprecision(12) << (Etot_ + K + Ef ) * 27.21138602 << " "
+          << std::setprecision(12) << K * 27.21138602 << " "
+          << std::setprecision(12) << Etot_ * 27.21138602 << " "
+          << std::setprecision(12) << Ef * 27.21138602<< std::endl;
 
   return ;
-}         // -----  end of method SCF::CalculateEnergy  ----- 
+}         // -----  end of method SCF::calculateEnergy  ----- 
 
 
 
@@ -671,6 +723,7 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
 
       Real& dt = options_.dt;
       DblNumVec& atomMass = atomMass_;
+      if(k_ == 0)  calculateFext( ptable, 0.0); // update Force
 
       for( Int a = 0; a < numAtom; a++ ){
         atompos[a]     = atomList[a].pos;
@@ -1049,6 +1102,8 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
   //update Velocity
   if(options_.ehrenfest){
     ham.CalculateForce( psi, fft);
+    calculateFext( ptable, tf);
+
     Real& dt = options_.dt;
     DblNumVec& atomMass = atomMass_;
     for( Int a = 0; a < numAtom; a++ ){
@@ -1107,7 +1162,8 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
   std::vector<Point3>  atomforce(numAtom);
   std::vector<Point3>  atompos_fin(numAtom);
   {
-    std::vector<Point3>  atomvel_temp(numAtom);
+      std::vector<Point3>  atomvel_temp(numAtom);
+      if(k_ == 0)  calculateFext( ptable, 0.0); // update Force
 
       Real& dt = options_.dt;
       DblNumVec& atomMass = atomMass_;
@@ -1237,7 +1293,7 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
       Ekin_ += numSpin * ptr[i*width+i].real();
   }
 
-  CalculateEnergy( ptable);
+  calculateEnergy( ptable, ti);
 
   // Xmid <-- X - li*T/2 * RX  in G-parallel
   {
@@ -1459,6 +1515,8 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
   // Update the atomic position and the force.
   if(options_.ehrenfest){
     ham.CalculateForce( psi, fft);
+    calculateFext( ptable, tf);
+
     Real& dt = options_.dt;
     DblNumVec& atomMass = atomMass_;
     for( Int a = 0; a < numAtom; a++ ){
@@ -1522,39 +1580,40 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   std::vector<Point3>  atompos_fin(numAtom);
   {
     std::vector<Point3>  atomvel_temp(numAtom);
+    if(k_ == 0)  calculateFext( ptable, 0.0); // update Force
 
-      Real& dt = options_.dt;
-      DblNumVec& atomMass = atomMass_;
+    Real& dt = options_.dt;
+    DblNumVec& atomMass = atomMass_;
 
-      for( Int a = 0; a < numAtom; a++ ){
-        atompos[a]     = atomList[a].pos;
-        atompos_fin[a] = atomList[a].pos;
-        atomvel[a]     = atomList[a].vel;
-        atomforce[a]   = atomList[a].force;
-      }
+    for( Int a = 0; a < numAtom; a++ ){
+      atompos[a]     = atomList[a].pos;
+      atompos_fin[a] = atomList[a].pos;
+      atomvel[a]     = atomList[a].vel;
+      atomforce[a]   = atomList[a].force;
+    }
 
 #if ( _DEBUGlevel_ >= 0 )
-      statusOFS<< "***********************************************" << std::endl ;
-      statusOFS<< std::endl;
-      statusOFS<< "TDDFT PTTRAP DIIS Method, step " << k_ << "  t = " << dt << std::endl;
+    statusOFS<< "***********************************************" << std::endl ;
+    statusOFS<< std::endl;
+    statusOFS<< "TDDFT PTTRAP DIIS Method, step " << k_ << "  t = " << dt << std::endl;
 
-      for( Int a = 0; a < numAtom; a++ ){
-        statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " position: " << atompos[a]   << std::endl;
-        statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " velocity: " << atomvel[a]   << std::endl;
-        statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " Force:    " << atomforce[a] << std::endl;
-      }
-      statusOFS<< std::endl;
-      statusOFS<< "************************************************"<< std::endl;
-      statusOFS<< std::endl;
+    for( Int a = 0; a < numAtom; a++ ){
+      statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " position: " << atompos[a]   << std::endl;
+      statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " velocity: " << atomvel[a]   << std::endl;
+      statusOFS << "time: " << k_*24.188843*dt << " atom " << a << " Force:    " << atomforce[a] << std::endl;
+    }
+    statusOFS<< std::endl;
+    statusOFS<< "************************************************"<< std::endl;
+    statusOFS<< std::endl;
 #endif
 
-      // Update velocity and position when doing ehrenfest dynamics
-      if(options_.ehrenfest){
-        for(Int a=0; a<numAtom; a++) {
-          atomvel_temp[a] = atomvel[a] + atomforce[a]*dt/atomMass[a]/2.0; 
-          atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
-        }
+    // Update velocity and position when doing ehrenfest dynamics
+    if(options_.ehrenfest){
+      for(Int a=0; a<numAtom; a++) {
+        atomvel_temp[a] = atomvel[a] + atomforce[a]*dt/atomMass[a]/2.0; 
+        atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
       }
+    }
   }
 
   if(options_.ehrenfest){
@@ -1646,7 +1705,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
   //if(mpirank == 0)  std::cout << " Ekin_ " << Ekin_ << std::endl;
 
-  CalculateEnergy( ptable);
+  calculateEnergy( ptable, ti);
 
   // Xmid <-- X - li*T/2 * RX  in G-parallel
   {
@@ -1960,6 +2019,8 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
   if(options_.ehrenfest){
     ham.CalculateForce( psi, fft);
+    calculateFext( ptable, tf);
+
     Real& dt = options_.dt;
     DblNumVec& atomMass = atomMass_;
     for( Int a = 0; a < numAtom; a++ ){
