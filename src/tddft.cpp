@@ -236,9 +236,6 @@ void TDDFT::SetUp(
   calDipole_ = esdfParam.isTDDFTDipole;
   calVext_ = esdfParam.isTDDFTVext;
 
-  //std::cout << " isTDDFTVext " << calVext_ << std::endl;
-  //std::cout << " isTDDFTDipole " << calDipole_ << std::endl;
-
   if( calDipole_) {
     statusOFS << " ************************ WARNING ******************************** " << std::endl;
     statusOFS << " Warning: Please make sure that your atoms are centered at (0,0,0) " << std::endl;
@@ -374,13 +371,7 @@ void TDDFT::calculateFext( PeriodTable &ptable, Real t)
       Fx = xet * ptable.Zion(atype);
       Fy = yet * ptable.Zion(atype);
       Fz = zet * ptable.Zion(atype);
-      
-      //std::cout << " atom " << a << " Fx " << Fx << " Fy " << Fy << " Fz " << Fz << std::endl;
-      //std::cout << " atom " << a << " Force  " << atomList[a].force << std::endl;
-
       atomList[a].force += Point3( Fx, Fy, Fz);
-
-      //std::cout << " atom " << a << " Force added Fext " << atomList[a].force << std::endl;
     }
   } 
   return;
@@ -1702,8 +1693,6 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     for(int i =0; i < width; i++)
       Ekin_ += numSpin * ptr[i*width+i].real();
   }
-
-  //if(mpirank == 0)  std::cout << " Ekin_ " << Ekin_ << std::endl;
 
   calculateEnergy( ptable, ti);
 
