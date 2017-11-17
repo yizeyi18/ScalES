@@ -45,6 +45,7 @@
 /// @date 2017-09-05 
 
 #include "tddft.hpp"
+#include "utility.hpp"
 
 
 namespace dgdft{
@@ -311,7 +312,7 @@ Real TDDFT::getEfield(Real t)
   Real et = 0.0;
   if (options_.eField_.env == "gaussian" ) {
     Real temp = (t-options_.eField_.t0)/options_.eField_.tau;
-    et = options_.eField_.Amp * exp( - temp * temp / 2.0) * cos(options_.eField_.freq * t + options_.eField_.phase);
+    et = options_.eField_.Amp * exp( - temp * temp / 2.0) * sin(options_.eField_.freq * t + options_.eField_.phase);
     return et;
   }
   else{
@@ -613,17 +614,11 @@ TDDFT::calculateEnergy  ( PeriodTable& ptable, Real t)
     std::vector<Point3>  atomforce(numAtom);
     DblNumVec& atomMass = atomMass_;
 
-    for( Int a = 0; a < numAtom; a++ )
+    for( Int a = 0; a < numAtom; a++ ){
       atomvel[a] = atomList[a].vel;
-
-    if( options_.ehrenfest ) { 
-      for( Int a = 0; a < numAtom; a++ ){
-        atompos[a]   = atomList[a].pos;
-        atomforce[a] = atomList[a].force;
-        // 0.5 steps more
-        atomvel[a] = atomvel[a] + atomforce[a]*options_.dt*0.5/atomMass[a];  
-      }
+      atompos[a] = atomList[a].pos;
     }
+
   
     for(Int a=0; a<numAtom; a++){
       for(Int j=0; j<3; j++){
@@ -638,12 +633,23 @@ TDDFT::calculateEnergy  ( PeriodTable& ptable, Real t)
       Real yet = options_.eField_.pol[1] * et ;
       Real zet = options_.eField_.pol[2] * et ;
 
+      Point3 Ls = fft.domain.length;
+
+      Real dx, dy, dz;
       for (Int a=0; a<numAtom; a++) {
         Int atype  = atomList[a].type;
         if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
           ErrorHandling( "Cannot find the atom type." );
         }
-        Ef  -= ptable.Zion(atype) *( xet *  atompos[a][0] + yet * atompos[a][1] + zet * atompos[a][2] );
+        dx = atompos[a][0] - IRound(atompos[a][0] / Ls[0]) * Ls[0];
+        dy = atompos[a][1] - IRound(atompos[a][1] / Ls[1]) * Ls[1];
+        dz = atompos[a][2] - IRound(atompos[a][2] / Ls[2]) * Ls[2];
+
+//        etotOFS << "atompos = " << atompos[a] << std::endl;
+//        etotOFS << "Ls = " << Ls << std::endl;
+//        etotOFS << "dx = " << dx << ", dy = " << dy << ", dz = " << dz << std::endl;
+
+        Ef  -= ptable.Zion(atype) * ( xet * dx + yet * dy + zet * dz );
       }
     }
   }
@@ -1570,7 +1576,6 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   std::vector<Point3>  atomforce(numAtom);
   std::vector<Point3>  atompos_fin(numAtom);
   {
-    std::vector<Point3>  atomvel_temp(numAtom);
     if(k_ == 0)  calculateFext( ptable, 0.0); // update Force
 
     Real& dt = options_.dt;
@@ -1601,8 +1606,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     // Update velocity and position when doing ehrenfest dynamics
     if(options_.ehrenfest){
       for(Int a=0; a<numAtom; a++) {
-        atomvel_temp[a] = atomvel[a] + atomforce[a]*dt/atomMass[a]/2.0; 
-        atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
+        atompos_fin[a]  = atompos[a] + atomvel[a] * dt + atomforce[a]*(dt*dt)/(atomMass[a]*2.0);
       }
     }
   }
