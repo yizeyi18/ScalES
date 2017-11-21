@@ -330,7 +330,7 @@ void TDDFT::calculateVext(Real t)
     Real et = getEfield(t);
     DblNumVec & vext = ham.Vext();
 
-    vextOFS << "Time[as]: " << t * 24.188843 << " et " << et << std::endl;
+    vextOFS << "Time[fs]: " << t * 24.188843/1000.0 << " et " << et << std::endl;
     // then Vext = Vext0 + et * options_.D
     // Here we suppose the Vext0 are zeros.
     Int idx;
@@ -386,7 +386,6 @@ void TDDFT::Update() {
   dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
   dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
 
-  //statusOFS << " Update ....... mixMaxDim_ " << mixMaxDim_ << std::endl;
   return;
 }
 void TDDFT::calculateDipole(Real t)
@@ -421,7 +420,7 @@ void TDDFT::calculateDipole(Real t)
   Dy *= Real(supercell_x_ * supercell_y_ * supercell_z_) / Real( fft.domain.numGridFine[0] * fft.domain.numGridFine[1]* fft.domain.numGridFine[2]);
   Dz *= Real(supercell_x_ * supercell_y_ * supercell_z_) / Real( fft.domain.numGridFine[0] * fft.domain.numGridFine[1]* fft.domain.numGridFine[2]);
 
-  dipoleOFS << "Time[as]: " << t * 24.188843 <<  " " << Dx << " " << Dy << " " << Dz << std::endl;
+  dipoleOFS << "Time[fs]: " << t * 24.188843/1000.0 <<  " " << Dx << " " << Dy << " " << Dz << std::endl;
 
 }    // -----  end of method TDDFT::calculateDipole ---- 
 
