@@ -302,7 +302,18 @@ int main(int argc, char **argv)
     // *********************************************************************
 
     GetTime( timeSta );
-    scf.Iterate();
+
+    if( esdfParam.isTDDFT && esdfParam.isRestartDensity 
+        && esdfParam.isRestartWfn) 
+    {
+      statusOFS <<  std::endl << std::endl 
+        <<  "SCF skipped .... " 
+        <<  "TDDFT Restart From last step Density and wave function "
+        << std::endl << "SCF is skipped >>>>>>>"<< std::endl << std::endl;
+    } 
+    else
+      scf.Iterate();
+
     GetTime( timeEnd );
     statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
       << " [s]" << std::endl;
