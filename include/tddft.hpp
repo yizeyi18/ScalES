@@ -142,9 +142,11 @@ namespace dgdft{
     /// @brief the external field with time t
     eField eField_;
 
-    /// @brief output options, will include later
-   
-    
+    /// @brief output the atomic position in the XYZ format.  for
+    /// visualization purpose, only valid when ehrenfest dynamics is
+    /// used.
+    bool   isOutputXYZ;
+
   } TDDFTOptions;
   
   void setDefaultTDDFTOptions( TDDFTOptions * options);

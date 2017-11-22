@@ -139,6 +139,7 @@ void setDefaultTDDFTOptions( TDDFTOptions * options)
   options->krylovTol     = esdfParam.TDDFTKrylovTol;
   options->krylovMax     = esdfParam.TDDFTKrylovMax; 
   options->scfTol        = esdfParam.TDDFTScfTol; 
+  options->isOutputXYZ   = esdfParam.isOutputXYZ;
 
   //  check check
   options->auto_save     = 0;
@@ -191,6 +192,7 @@ void TDDFT::SetUp(
   psiPtr_ = &psi;
   fftPtr_ = &fft;
   atomListPtr_ = &atomList;
+
 
   MPI_Comm mpi_comm = fftPtr_->domain.comm;
   Int mpirank, mpisize;
@@ -742,6 +744,7 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
       statusOFS<< "****************************************************************************" << std::endl << std::endl;
 #endif
 
+
       // Update velocity and position when doing ehrenfest dynamics
       if(options_.ehrenfest){
         for(Int a=0; a<numAtom; a++) {
@@ -764,6 +767,7 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
 
   // k_ is the current K
   Complex i_Z_One = Complex(0.0, 1.0);
+  // FIXME k is a confusing variable
   Int k = k_;
   Real ti = tlist_[k];
   Real tf = tlist_[k+1];
@@ -1601,6 +1605,28 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     statusOFS<< "************************************************"<< std::endl;
     statusOFS<< std::endl;
 #endif
+
+    if( options_.isOutputXYZ && options_.ehrenfest ){
+      if( mpirank == 0 ){
+        std::fstream fout;
+        fout.open("TD.xyz",std::ios::out | std::ios::app) ;
+        if( !fout.good() ){
+          ErrorHandling( "Cannot open MD.xyz!" );
+        }
+        fout << numAtom << std::endl;
+        fout << "TD step # "<< k_ << std::endl;
+        for(Int a=0; a<numAtom; a++){
+          fout<< std::setw(6)<< atomList[a].type
+            << std::setw(16)<< atomList[a].pos[0]*au2ang
+            << std::setw(16)<< atomList[a].pos[1]*au2ang
+            << std::setw(16)<< atomList[a].pos[2]*au2ang
+            << std::endl;
+        }
+        fout.close();
+      } // if( mpirank == 0 )
+    }
+
+
 
     // Update velocity and position when doing ehrenfest dynamics
     if(options_.ehrenfest){
