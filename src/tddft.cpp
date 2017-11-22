@@ -1669,6 +1669,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   CpxNumMat psiF  ( ntot, numStateLocal );
   CpxNumMat psiCol( ntot, numStateLocal );
   CpxNumMat psiRes( ntot, numStateLocal );
+
   lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
 
   AlltoallForward( HPSI,  HX, mpi_comm);
@@ -1711,9 +1712,18 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       }
   }
 
-  // psiF <== psi
   Spinor psiFinal (fft.domain, 1, numStateTotal, numStateLocal, false, psiF.Data() );
-  lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiF.Data(), ntot );
+  if(0){
+    // psiF <== psi
+    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiF.Data(), ntot );
+  }
+  if(1){
+    // psiF <== psi - i * dT * RX
+    AlltoallBackward( RX, psiRes, mpi_comm);
+
+    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiF.Data(), ntot );
+    blas::Axpy( ntot, - i_Z_One * dT, psiRes.Data(), 1, psiF.Data(), 1 );
+  }
 
   // AtomPos <== AtomPosFinal, then update Vatom
   if(options_.ehrenfest){
@@ -2008,6 +2018,17 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   }
 
   blas::Copy( ntot*numStateLocal, psiFinal.Wavefun().Data(), 1, psi.Wavefun().Data(), 1 );
+
+  // Update the density for the renormalized wavefunction
+  {
+    // get the charge density of the Hf.
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psiFinal,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+  }
 
   if(options_.ehrenfest){
     ham.CalculateForce( psi, fft);
