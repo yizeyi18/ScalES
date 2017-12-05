@@ -235,6 +235,7 @@ namespace dgdft{
          std::vector<Atom>& atomList,
          PeriodTable& ptable) ;
 
+      void atomPosAdjust(std::vector<Point3> & atomPos);
       void calculateDipole(Real t);
       void MoveIons( Int ionIter );
 

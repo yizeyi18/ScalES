@@ -199,6 +199,7 @@ void TDDFT::SetUp(
   MPI_Comm_rank( mpi_comm, &mpirank );
   MPI_Comm_size( mpi_comm, &mpisize );
 
+  if( options_.method == "PTTRAP")
   if( psi.NumStateTotal() % mpisize != 0) 
       ErrorHandling( " Band must be multiples of Np." );
 
@@ -308,6 +309,27 @@ void TDDFT::SetUp(
   }
 
 } // TDDFT::Setup function
+
+void TDDFT::atomPosAdjust( std::vector<Point3> &atomPos)
+{
+   int numAtom = atomPos.size();
+   for( int ia = 0; ia < numAtom; ia)
+   {
+     if( atomPos[ia][0] < 0.0) 
+       atomPos[ia][0] += supercell_x_;
+     if( atomPos[ia][1] < 0.0) 
+       atomPos[ia][1] += supercell_y_;
+     if( atomPos[ia][2] < 0.0) 
+       atomPos[ia][2] += supercell_z_;
+     if( atomPos[ia][0] > supercell_x_) 
+       atomPos[ia][0] -= supercell_x_;
+     if( atomPos[ia][1] > supercell_y_) 
+       atomPos[ia][1] -= supercell_y_;
+     if( atomPos[ia][2] > supercell_z_) 
+       atomPos[ia][2] -= supercell_z_;
+   }
+}
+
 
 Real TDDFT::getEfield(Real t)
 {
@@ -747,13 +769,17 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
 
       // Update velocity and position when doing ehrenfest dynamics
       if(options_.ehrenfest){
+
         for(Int a=0; a<numAtom; a++) {
           atomvel_temp[a] = atomvel[a]/2.0 + atomforce[a]*dt/atomMass[a]/8.0; 
           atompos_mid[a]  = atompos[a] + atomvel_temp[a] * dt;
 
           atomvel_temp[a] = atomvel[a] + atomforce[a]*dt/atomMass[a]/2.0; 
           atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
+
         }
+        atomPosAdjust( atompos_mid );
+        atomPosAdjust( atompos_fin );
       }
   }
 
@@ -1195,7 +1221,9 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
         for(Int a=0; a<numAtom; a++) {
           atomvel_temp[a] = atomvel[a] + atomforce[a]*dt/atomMass[a]/2.0; 
           atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
+
         }
+        atomPosAdjust( atompos_fin );
       }
   }
 
@@ -1632,7 +1660,8 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     if(options_.ehrenfest){
       for(Int a=0; a<numAtom; a++) {
         atompos_fin[a]  = atompos[a] + atomvel[a] * dt + atomforce[a]*(dt*dt)/(atomMass[a]*2.0);
-      }
+      }  
+      atomPosAdjust( atompos_fin );
     }
   }
 
@@ -2074,17 +2103,104 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
 void TDDFT::propagate( PeriodTable& ptable ) {
   Int totalSteps = tlist_.size() - 1;
+  int startTime = 0;
+  if(esdfParam.save4RestartTDDFT ) {
+    startTime = esdfParam.restartTDDFTStep;
+  }
+  k_ = startTime;
   if(options_.method == "RK4"){
-    for( Int i = 0; i < totalSteps; i++)
+    for( Int i = startTime; i < totalSteps; i++)
       advanceRK4( ptable );
   }
   else if( options_.method == "PTTRAP"){
-    for( Int i = 0; i < totalSteps; i++)
+    for( Int i = startTime; i < totalSteps; i++)
       advancePTTRAP( ptable );
   }
   else if( options_.method == "PTTRAPDIIS"){
-    for( Int i = 0; i < totalSteps; i++)
+    for( Int i = startTime; i < totalSteps; i++)
       advancePTTRAPDIIS( ptable );
   }
+
+  // at the end of the propagation, write the WFN, DENSITY and Velocity, Atom Pos. 
+  if( esdfParam.save4RestartTDDFT ) {
+
+    statusOFS << std::endl 
+    << " ********************** Warning ************************************"<< std::endl;
+    statusOFS << " TDDFT now saves the WFN, DEN, Restart.xyz for restart " << std::endl;
+    statusOFS << " ********************** Warning ************************************" 
+      << std::endl << std::endl;
+
+    MPI_Comm mpi_comm = fftPtr_->domain.comm;
+    Int mpirank, mpisize;
+    MPI_Comm_rank( mpi_comm, &mpirank );
+    MPI_Comm_size( mpi_comm, &mpisize );
+
+    // WFN
+    {
+      std::ostringstream wfnStream;
+      serialize( psiPtr_->Wavefun(), wfnStream, NO_MASK );
+      serialize( hamPtr_->OccupationRate(), wfnStream, NO_MASK );
+      string restartWfnFileName_     = "WFN";
+      SeparateWrite( restartWfnFileName_, wfnStream, mpirank );
+    }
+    // output density
+    {
+      if( mpirank == 0 ){
+        string restartDensityFileName_ = "DEN";
+        std::ofstream rhoStream(restartDensityFileName_.c_str());
+        if( !rhoStream.good() ){
+          ErrorHandling( "Density file cannot be opened." );
+        }
+  
+        const Domain& dm =  fftPtr_->domain;
+        std::vector<DblNumVec>   gridpos(DIM);
+        UniformMeshFine ( dm, gridpos );
+        for( Int d = 0; d < DIM; d++ ){
+          serialize( gridpos[d], rhoStream, NO_MASK );
+        }
+  
+        // Only work for the restricted spin case
+        DblNumMat& densityMat = hamPtr_->Density();
+        DblNumVec densityVec(densityMat.m(), false, densityMat.Data());
+        serialize( densityVec, rhoStream, NO_MASK );
+        rhoStream.close();
+      }
+    }
+
+    // output restart atomic position
+    {
+      std::vector<Atom>&  atomList = hamPtr_->AtomList();
+      Int numAtom = atomList.size();
+      if( mpirank == 0 ){
+          std::fstream fout;
+          fout.open("Restart.xyz",std::ios::out | std::ios::app) ;
+          if( !fout.good() ){
+            ErrorHandling( "Cannot open Restart.xyz!" );
+          }
+          fout << numAtom << std::endl;
+          fout << " Last TDDFT step # "<< k_ << std::endl;
+          fout << " Atom Position Listed"<< std::endl;
+          for(Int a=0; a<numAtom; a++){
+          fout<< std::setw(16)<< atomList[a].pos[0]
+              << std::setw(16)<< atomList[a].pos[1]
+              << std::setw(16)<< atomList[a].pos[2]
+              << std::setw(6)<< atomList[a].type
+              << std::endl;
+          }
+          fout << std::endl;
+          fout << " Velocity for each atom " << std::endl;
+          for(Int a=0; a<numAtom; a++){
+          fout<< std::setw(16)<< atomList[a].vel[0]
+              << std::setw(16)<< atomList[a].vel[1]
+              << std::setw(16)<< atomList[a].vel[2]
+              << std::setw(6)<< atomList[a].type
+              << std::endl;
+          }
+          fout.close();
+      } // if( mpirank == 0 )
+    } 
+ 
+ 
+  } 
 }
 }

@@ -433,6 +433,18 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
 
   i++;
+  strcpy(kw_label[i],"restart_tddft");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"save_4_restart_tddft");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"restart_tddft_step");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
   strcpy(kw_label[i],"tddft_ehrenfest");
   strcpy(kw_typ[i],"I:E");
 
@@ -2471,6 +2483,9 @@ ESDFReadInput ( const char* filename )
     esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
 
     esdfParam.isTDDFT            = esdf_integer( "TDDFT",   1); 
+    esdfParam.isRestartTDDFT     = esdf_integer( "Restart_TDDFT", 0 );
+    esdfParam.restartTDDFTStep   = esdf_integer( "Restart_TDDFT_Step", 0 );
+    esdfParam.save4RestartTDDFT  = esdf_integer( "Save_4_Restart_TDDFT", 1 );
     esdfParam.isTDDFTEhrenfest   = esdf_integer( "TDDFT_EHRENFEST", 1); 
     esdfParam.isTDDFTVext        = esdf_integer( "TDDFT_VEXT",   1); 
     esdfParam.isTDDFTDipole      = esdf_integer( "TDDFT_DIPOLE",   1); 
@@ -3088,6 +3103,9 @@ void ESDFPrintInput( ){
     Print(statusOFS, "TDDFT Ehrenfest dynamics             = ",  esdfParam.isTDDFTEhrenfest);
     Print(statusOFS, "TDDFT Delta T                        = ",  esdfParam.TDDFTDeltaT   );
     Print(statusOFS, "TDDFT Total T                        = ",  esdfParam.TDDFTTotalT   );
+    Print(statusOFS, "TDDFT Restart                        = ",  esdfParam.isRestartTDDFT );
+    Print(statusOFS, "TDDFT Restart Step                   = ",  esdfParam.restartTDDFTStep);
+    Print(statusOFS, "TDDFT save for Restart               = ",  esdfParam.save4RestartTDDFT );
     Print(statusOFS, "TDDFT KRYLOV Iteration Max           = ",  esdfParam.TDDFTKrylovMax);
     Print(statusOFS, "TDDFT KRYLOV Tolerance               = ",  esdfParam.TDDFTKrylovTol);
     Print(statusOFS, "TDDFT SCF Tolerance                  = ",  esdfParam.TDDFTScfTol   );

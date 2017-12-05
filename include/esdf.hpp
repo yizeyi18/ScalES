@@ -223,6 +223,20 @@ struct ESDFInputParam{
   /// The difference in Eband should be less than this in energy based SCf convergence
   Real               MDscfEbanddiff;
   
+  /// @brief Whether to use the saved WFN, Density, Velocity to restart
+  ///
+  /// Default: 0
+  bool                save4RestartTDDFT;
+
+  /// @brief Whether to use the saved WFN, Density, Velocity to restart
+  ///
+  /// Default: 0
+  bool                isRestartTDDFT;
+
+  /// @brief Maximum number of outer SCF iterations in TDDFT
+  /// This is usually used in PWDFT  
+  Int                restartTDDFTStep;
+  
   /// @brief Maximum number of outer SCF iterations in TDDFT
   /// This is usually used in PWDFT  
   Int                TDDFTscfOuterMaxIter;
