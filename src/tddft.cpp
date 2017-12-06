@@ -313,7 +313,7 @@ void TDDFT::SetUp(
 void TDDFT::atomPosAdjust( std::vector<Point3> &atomPos)
 {
    int numAtom = atomPos.size();
-   for( int ia = 0; ia < numAtom; ia)
+   for( int ia = 0; ia < numAtom; ia++)
    {
      if( atomPos[ia][0] < 0.0) 
        atomPos[ia][0] += supercell_x_;
@@ -1127,7 +1127,7 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
 
   //update Velocity
   if(options_.ehrenfest){
-    ham.CalculateForce( psi, fft);
+    ham.CalculateForce2( psi, fft);
     calculateFext( ptable, tf);
 
     Real& dt = options_.dt;
@@ -1542,7 +1542,7 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
 
   // Update the atomic position and the force.
   if(options_.ehrenfest){
-    ham.CalculateForce( psi, fft);
+    ham.CalculateForce2( psi, fft);
     calculateFext( ptable, tf);
 
     Real& dt = options_.dt;
@@ -2086,7 +2086,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   }
 
   if(options_.ehrenfest){
-    ham.CalculateForce( psi, fft);
+    ham.CalculateForce2( psi, fft);
     calculateFext( ptable, tf);
 
     Real& dt = options_.dt;
