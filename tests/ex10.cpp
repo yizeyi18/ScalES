@@ -20,78 +20,78 @@ static char help[] = "Test for solving the eigenvalue problem for periodic Lapla
 
 int main(int argc, char **argv) 
 {
-	PetscErrorCode ierr;
+  PetscErrorCode ierr;
 
   ierr = SlepcInitialize(&argc,&argv,(char*)0,help); CHKERRQ(ierr);
-  
-  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nLaplace operator 3D\n\n");CHKERRQ(ierr);
-	
-	int mpirank, mpisize;
-	MPI_Comm_rank( PETSC_COMM_WORLD, &mpirank );
-	MPI_Comm_size( PETSC_COMM_WORLD, &mpisize );
 
-	try
-	{
+  ierr = PetscPrintf(PETSC_COMM_WORLD,"\nLaplace operator 3D\n\n");CHKERRQ(ierr);
+
+  int mpirank, mpisize;
+  MPI_Comm_rank( PETSC_COMM_WORLD, &mpirank );
+  MPI_Comm_size( PETSC_COMM_WORLD, &mpisize );
+
+  try
+  {
 #ifndef _USE_COMPLEX_
-		throw std::runtime_error("This test program require the usage of complex");
+    throw std::runtime_error("This test program require the usage of complex");
 #endif
 #ifdef  _RELEASE_
-		throw std::runtime_error("Test should be run under debug mode");
+    throw std::runtime_error("Test should be run under debug mode");
 #endif
 
 
-		// *********************************************************************
-		// Preparation
-		// *********************************************************************
+    // *********************************************************************
+    // Preparation
+    // *********************************************************************
 
-		PushCallStack( "Preparation" );
-	 
-		Domain  dm;
-		dm.length  = Point3( 1.0, 1.0, 1.0 );
-		dm.numGrid = Index3( 24, 72, 72);
+    PushCallStack( "Preparation" );
 
-		Hamiltonian ham;
-		Fourier fft;
-		PrepareFourier( fft, dm );
+    Domain  dm;
+    dm.length  = Point3( 1.0, 1.0, 1.0 );
+    dm.numGrid = Index3( 24, 72, 72);
 
-		// FIXME the magic number  10 here.
-		Int ncv = 10;
-	  Spinor  spn( dm, fft.numGridLocal, 1, ncv, Complex(1.0, 0.0) ); 	
+    Hamiltonian ham;
+    Fourier fft;
+    PrepareFourier( fft, dm );
 
-		PopCallStack();
+    // FIXME the magic number  10 here.
+    Int ncv = 10;
+    Spinor  spn( dm, fft.numGridLocal, 1, ncv, Complex(1.0, 0.0) ); 	
 
-		EigenSolver eigSol( ham, spn, fft );
-		eigSol.Setup();
+    PopCallStack();
 
-
-		// *********************************************************************
-		// Solve
-		// *********************************************************************
-		PushCallStack( "Solving" );
-		eigSol.Solve(false);
-		eigSol.PostProcessing();
-		eigSol.Solve(false);
-		eigSol.PostProcessing();
-		PopCallStack();
+    EigenSolver eigSol( ham, spn, fft );
+    eigSol.Setup();
 
 
-	}
-	catch( std::exception& e )
-	{
-		std::cerr << " caught exception with message: "
-			<< e.what() << std::endl;
-		DumpCallStack();
-	}
-	catch ( PetscErrorCode ierr ){
-		std::cerr 
-			<< "\n\n************************************************************************\n"  
-			<< "Caught PETSc error message " << std::endl;
-		DumpCallStack();
-		CHKERRQ(ierr);
-	}
-	
-	ierr = SlepcFinalize();CHKERRQ(ierr);
-	
+    // *********************************************************************
+    // Solve
+    // *********************************************************************
+    PushCallStack( "Solving" );
+    eigSol.Solve(false);
+    eigSol.PostProcessing();
+    eigSol.Solve(false);
+    eigSol.PostProcessing();
+    PopCallStack();
+
+
+  }
+  catch( std::exception& e )
+  {
+    std::cerr << " caught exception with message: "
+      << e.what() << std::endl;
+    DumpCallStack();
+  }
+  catch ( PetscErrorCode ierr ){
+    std::cerr 
+      << "\n\n************************************************************************\n"  
+      << "Caught PETSc error message " << std::endl;
+    DumpCallStack();
+    CHKERRQ(ierr);
+  }
+
+  ierr = SlepcFinalize();CHKERRQ(ierr);
+
   return 0;
 }
 

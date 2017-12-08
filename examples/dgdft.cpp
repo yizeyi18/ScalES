@@ -1,50 +1,52 @@
 /*
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
-   
-   Author: Lin Lin and Wei Hu
-	 
-   This file is part of DGDFT. All rights reserved.
 
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are met:
+Author: Lin Lin and Wei Hu
 
-   (1) Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-   (2) Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-   (3) Neither the name of the University of California, Lawrence Berkeley
-   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-   be used to endorse or promote products derived from this software without
-   specific prior written permission.
+This file is part of DGDFT. All rights reserved.
 
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
-   You are under no obligation whatsoever to provide any bug fixes, patches, or
-   upgrades to the features, functionality or performance of the source code
-   ("Enhancements") to anyone; however, if you choose to make your Enhancements
-   available either publicly, or directly to Lawrence Berkeley National
-   Laboratory, without imposing a separate written license agreement for such
-   Enhancements, then you hereby grant the following license: a non-exclusive,
-   royalty-free perpetual license to install, use, modify, prepare derivative
-   works, incorporate into other computer software, distribute, and sublicense
-   such enhancements or derivative works thereof, in binary and source code form.
-*/
+(1) Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+(2) Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+(3) Neither the name of the University of California, Lawrence Berkeley
+National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+be used to endorse or promote products derived from this software without
+specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+You are under no obligation whatsoever to provide any bug fixes, patches, or
+upgrades to the features, functionality or performance of the source code
+("Enhancements") to anyone; however, if you choose to make your Enhancements
+available either publicly, or directly to Lawrence Berkeley National
+Laboratory, without imposing a separate written license agreement for such
+Enhancements, then you hereby grant the following license: a non-exclusive,
+royalty-free perpetual license to install, use, modify, prepare derivative
+works, incorporate into other computer software, distribute, and sublicense
+such enhancements or derivative works thereof, in binary and source code form.
+ */
 /// @file dgdft.cpp
 /// @brief Main driver for DGDFT for self-consistent field iteration.
 /// @date 2012-09-16 Original version
 /// @date 2014-02-11 Dual grid implementation
 /// @date 2014-08-06 Intra-element parallelization
+/// @date 2016-03-07 Refactoring DGDFT to include geometry optimization
+/// and molecular dynamics.
 #include "dgdft.hpp"
 
 using namespace dgdft;
@@ -79,12 +81,13 @@ int main(int argc, char **argv)
 
     // Initialize log file
 #ifdef _RELEASE_
-     // In the release mode, only the master processor outputs information
-     if( mpirank == 0 ){
-       stringstream  ss;
-       ss << "statfile." << mpirank;
-       statusOFS.open( ss.str().c_str() );
-     }
+    // In the release mode, only the master processor outputs information
+    if( mpirank == 0 )
+    {
+      stringstream  ss;
+      ss << "statfile." << mpirank;
+      statusOFS.open( ss.str().c_str() );
+    }
 #else
     // Every processor outputs information
     {
@@ -93,18 +96,10 @@ int main(int argc, char **argv)
       statusOFS.open( ss.str().c_str() );
     }
 #endif
-    
-
 
     // Initialize FFTW
     fftw_mpi_init();
 
-    // Initialize BLACS
-
-    Int nprow, npcol;
-    Int contxt;
-    //Cblacs_get(0, 0, &contxt);
-    
     Print( statusOFS, "mpisize = ", mpisize );
     Print( statusOFS, "mpirank = ", mpirank );
 
@@ -121,191 +116,40 @@ int main(int argc, char **argv)
     }
 
 
-    // Read ESDF input file
+    // Read ESDF input file. Note: esdfParam is a global variable (11/25/2016)
     GetTime( timeSta );
-    ESDFInputParam  esdfParam;
 
-    ESDFReadInput( esdfParam, inFile.c_str() );
+    ESDFReadInput( inFile.c_str() );
 
     GetTime( timeEnd );
     statusOFS << "Time for reading the input file is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-    // The number of grid points have already been adjusted in ESDFReadInput.
-    //		{
-    //			bool isGridAdjusted = false;
-    //			Index3& numGrid = esdfParam.domain.numGrid;
-    //			Index3& numElem = esdfParam.numElem;
-    //			for( Int d = 0; d < DIM; d++ ){
-    //				if( numGrid[d] % numElem[d] != 0 ){
-    //					numGrid[d] = IRound( (Real)numGrid[d] / numElem[d] ) * numElem[d];
-    //					isGridAdjusted = true;
-    //				}
-    //			}
-    //			if( isGridAdjusted ){
-    //				statusOFS << std::endl 
-    //					<< "Grid size is adjusted to be a multiple of the number of elements." 
-    //					<< std::endl;
-    //			}
-    //		}
-
     // Print the initial state
-    GetTime( timeSta );
-    {
-      PrintBlock(statusOFS, "Basic information");
-
-      Print(statusOFS, "Super cell        = ",  esdfParam.domain.length );
-      Print(statusOFS, "Grid wfc size     = ",  esdfParam.domain.numGrid ); 
-      Print(statusOFS, "Grid rho size     = ",  esdfParam.domain.numGridFine );
-      Print(statusOFS, "Mixing dimension  = ",  esdfParam.mixMaxDim );
-      Print(statusOFS, "Mixing variable   = ",  esdfParam.mixVariable );
-      Print(statusOFS, "Mixing type       = ",  esdfParam.mixType );
-      Print(statusOFS, "Mixing Steplength = ",  esdfParam.mixStepLength);
-      Print(statusOFS, "SCF Outer Tol     = ",  esdfParam.scfOuterTolerance);
-      Print(statusOFS, "SCF Outer MaxIter = ",  esdfParam.scfOuterMaxIter);
-      Print(statusOFS, "SCF Free Energy Per Atom Tol = ",  esdfParam.scfOuterEnergyTolerance);
-      Print(statusOFS, "SCF Inner Tol     = ",  esdfParam.scfInnerTolerance);
-      Print(statusOFS, "SCF Inner MaxIter = ",  esdfParam.scfInnerMaxIter);
-      Print(statusOFS, "Eig Tolerence     = ",  esdfParam.eigTolerance);
-      Print(statusOFS, "Eig MaxIter       = ",  esdfParam.eigMaxIter);
-			Print(statusOFS, "Eig Tolerance Dyn = ",  esdfParam.isEigToleranceDynamic);
-			Print(statusOFS, "Num unused state  = ",  esdfParam.numUnusedState);
-      Print(statusOFS, "SVD Basis Tol     = ",  esdfParam.SVDBasisTolerance);
-
-      Print(statusOFS, "RestartDensity    = ",  esdfParam.isRestartDensity);
-      Print(statusOFS, "RestartWfn        = ",  esdfParam.isRestartWfn);
-      Print(statusOFS, "OutputDensity     = ",  esdfParam.isOutputDensity);
-      Print(statusOFS, "OutputALBElemLGL  = ",  esdfParam.isOutputALBElemLGL);
-      Print(statusOFS, "OutputALBElemUniform  = ",  esdfParam.isOutputALBElemUniform);
-      Print(statusOFS, "OutputWfnExtElem  = ",  esdfParam.isOutputWfnExtElem);
-      Print(statusOFS, "OutputPotExtElem  = ",  esdfParam.isOutputPotExtElem);
-      Print(statusOFS, "OutputHMatrix     = ",  esdfParam.isOutputHMatrix );
-
-      Print(statusOFS, "PeriodizePotential= ",  esdfParam.isPeriodizePotential);
-      Print(statusOFS, "DistancePeriodize = ",  esdfParam.distancePeriodize);
-
-
-      // FIXME Potentially obsolete potential barriers
-      Print(statusOFS, "Potential Barrier = ",  esdfParam.isPotentialBarrier);
-      Print(statusOFS, "Barrier W         = ",  esdfParam.potentialBarrierW);
-      Print(statusOFS, "Barrier S         = ",  esdfParam.potentialBarrierS);
-      Print(statusOFS, "Barrier R         = ",  esdfParam.potentialBarrierR);
-
-      Print(statusOFS, "EcutWavefunction  = ",  esdfParam.ecutWavefunction);
-      Print(statusOFS, "Density GridFactor= ",  esdfParam.densityGridFactor);
-      Print(statusOFS, "LGL GridFactor    = ",  esdfParam.LGLGridFactor);
-
-      Print(statusOFS, "Temperature       = ",  au2K / esdfParam.Tbeta, "[K]");
-      Print(statusOFS, "Extra states      = ",  esdfParam.numExtraState );
-      Print(statusOFS, "PeriodTable File  = ",  esdfParam.periodTableFile );
-      Print(statusOFS, "Pseudo Type       = ",  esdfParam.pseudoType );
-      Print(statusOFS, "PW Solver         = ",  esdfParam.PWSolver );
-      Print(statusOFS, "XC Type           = ",  esdfParam.XCType );
-
-      Print(statusOFS, "Penalty Alpha     = ",  esdfParam.penaltyAlpha );
-      Print(statusOFS, "Element size      = ",  esdfParam.numElem ); 
-      Print(statusOFS, "Wfn Elem GridSize = ",  esdfParam.numGridWavefunctionElem );
-      Print(statusOFS, "Rho Elem GridSize = ",  esdfParam.numGridDensityElem ); 
-      Print(statusOFS, "LGL Grid size     = ",  esdfParam.numGridLGL ); 
-      Print(statusOFS, "ScaLAPACK block   = ",  esdfParam.scaBlockSize); 
-      statusOFS << "Number of ALB for each element: " << std::endl 
-        << esdfParam.numALBElem << std::endl;
-      Print(statusOFS, "Number of procs for DistFFT  = ",  esdfParam.numProcDistFFT ); 
-
-      Print(statusOFS, "Solution Method   = ",  esdfParam.solutionMethod );
-      if( esdfParam.solutionMethod == "diag" ){
-        Print(statusOFS, "Number of procs for ScaLAPACK  = ",  esdfParam.numProcScaLAPACK); 
-      }
-      if( esdfParam.solutionMethod == "pexsi" ){
-        Print(statusOFS, "Number of poles   = ",  esdfParam.numPole); 
-        Print(statusOFS, "Nproc row PEXSI   = ",  esdfParam.numProcRowPEXSI); 
-        Print(statusOFS, "Nproc col PEXSI   = ",  esdfParam.numProcColPEXSI); 
-        Print(statusOFS, "Nproc for symbfact= ",  esdfParam.npSymbFact); 
-        Print(statusOFS, "Energy gap        = ",  esdfParam.energyGap); 
-        Print(statusOFS, "Spectral radius   = ",  esdfParam.spectralRadius); 
-        Print(statusOFS, "Matrix ordering   = ",  esdfParam.matrixOrdering); 
-        Print(statusOFS, "Inertia before SCF= ",  esdfParam.inertiaCountSteps);
-        Print(statusOFS, "Max PEXSI iter (deprecated)   = ",  esdfParam.maxPEXSIIter); 
-        Print(statusOFS, "MuMin0            = ",  esdfParam.muMin); 
-        Print(statusOFS, "MuMax0            = ",  esdfParam.muMax); 
-        Print(statusOFS, "NumElectron tol   = ",  esdfParam.numElectronPEXSITolerance); 
-        Print(statusOFS, "mu Inertia tol    = ",  esdfParam.muInertiaTolerance); 
-        Print(statusOFS, "mu Inertia expand = ",  esdfParam.muInertiaExpansion); 
-        Print(statusOFS, "mu PEXSI safeguard (deprecated)= ",  esdfParam.muPEXSISafeGuard); 
-      }
-
-
-
-      Print(statusOFS, "Calculate force at each step                        = ",  
-          esdfParam.isCalculateForceEachSCF );
-      Print(statusOFS, "Calculate A Posteriori error estimator at each step = ",  
-          esdfParam.isCalculateAPosterioriEachSCF);
-
-
-      // Only master processor output information containing all atoms
-      if( mpirank == 0 ){
-        PrintBlock(statusOFS, "Atom Type and Coordinates");
-
-        const std::vector<Atom>&  atomList = esdfParam.atomList;
-        for(Int i=0; i < atomList.size(); i++) {
-          Print(statusOFS, "Type = ", atomList[i].type, "Position  = ", atomList[i].pos);
-        }
-      }
-
-      statusOFS << std::endl;
-    }
-    GetTime( timeEnd );
-    statusOFS << "Time for outputing the initial state variable is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    ESDFPrintInput( );
 
 
     // *********************************************************************
     // Preparation
     // *********************************************************************
-    
-    // FIXME IMPORTANT: RandomSeed cannot be the same.
-    // SetRandomSeed(1);
+
+    // IMPORTANT: RandomSeed cannot be the same due to initialization of wavefunction
     SetRandomSeed(mpirank);
 
-    GetTime( timeSta );
-
-    Domain&  dm = esdfParam.domain;
-    PeriodTable ptable;
-    ptable.Setup( esdfParam.periodTableFile );
-
-    GetTime( timeEnd );
-    statusOFS << "Time for setting up the periodic table is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-    GetTime( timeSta );
-
-    // Setup the element and extended element information
-    DistVec<Index3, EigenSolver, ElemPrtn>  distEigSol; 
-    DistVec<Index3, KohnSham, ElemPrtn>     distHamKS;
-    DistVec<Index3, Spinor, ElemPrtn>       distPsi;
-    // FIXME no use?
-    distEigSol.SetComm( dm.comm );
-    distHamKS.SetComm( dm.comm );
-    distPsi.SetComm( dm.comm );
-
-    // All extended elements share the same Fourier structure.
-    Fourier fftExtElem;
-
-    // Setup the eigenvalue solvers in each extended element
+    // Setup BLACS
+    Int nprow, npcol;
+    Int contxt;
+    Int dmCol, dmRow;
+    Index3  numElem = esdfParam.numElem;
     {
-      // Element partition information
-      Index3  numElem = esdfParam.numElem;
-
-      IntNumTns& elemPrtnInfo = distEigSol.Prtn().ownerInfo;
-      elemPrtnInfo.Resize( numElem[0], numElem[1], numElem[2] );
 
       // Note the usage of notation can be a bit misleading here:
       // dmRow is the number of processors per row, which normally is
       // denoted by number of column processors
       // dmCol is the number of processors per column, which normally is
       // denoted by number of row processors
-      Int dmCol = numElem[0] * numElem[1] * numElem[2];
-      Int dmRow = mpisize / dmCol;
+      dmCol = numElem[0] * numElem[1] * numElem[2];
+      dmRow = mpisize / dmCol;
       Int numALBElement = esdfParam.numALBElem(0,0,0);
 
       if( mpisize > (dmCol * numALBElement) ){
@@ -314,12 +158,13 @@ int main(int argc, char **argv)
         msg << "The maximum number of processors is " << dmCol * numALBElement << std::endl;
         throw std::runtime_error( msg.str().c_str() );
       }
-    
+
       // Cblacs_gridinit(&contxt, "C", dmRow, dmCol);
       Int numProcScaLAPACK = esdfParam.numProcScaLAPACK;
-      
+
       // Here nprow, npcol is for the usage of ScaLAPACK in
       // diagonalization
+
       for( Int i = IRound(sqrt(double(numProcScaLAPACK))); 
           i <= numProcScaLAPACK; i++){
         nprow = i; npcol = numProcScaLAPACK / nprow;
@@ -330,7 +175,7 @@ int main(int argc, char **argv)
       statusOFS << "nprowSca = " << nprow << std::endl;
       statusOFS << "npcolSca = " << npcol << std::endl;
 #endif
-      
+
       Int ldpmap = npcol;
       IntNumVec pmap(numProcScaLAPACK);
       // Take the first numProcScaLAPACK processors for diagonalization
@@ -347,9 +192,39 @@ int main(int argc, char **argv)
         msg << "Total number of processors do not fit to the number processors per element." << std::endl;
         throw std::runtime_error( msg.str().c_str() );
       }
+    } // BLACS
 
+
+    GetTime( timeSta );
+
+    Domain&  dm = esdfParam.domain;
+    PeriodTable ptable;
+    ptable.Setup( );
+
+    GetTime( timeEnd );
+    statusOFS << "Time for setting up the periodic table is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+
+    // Setup the element and extended element information
+    DistVec<Index3, EigenSolver, ElemPrtn>  distEigSol; 
+    DistVec<Index3, KohnSham, ElemPrtn>     distHamKS;
+    DistVec<Index3, Spinor, ElemPrtn>       distPsi;
+
+    // All extended elements share the same Fourier structure.
+    Fourier fftExtElem;
+
+    // Element partition 
+    {
       GetTime( timeSta );
-      
+
+      distEigSol.SetComm( dm.comm );
+      distHamKS.SetComm( dm.comm );
+      distPsi.SetComm( dm.comm );
+
+      IntNumTns& elemPrtnInfo = distEigSol.Prtn().ownerInfo;
+      elemPrtnInfo.Resize( numElem[0], numElem[1], numElem[2] );
+
       Int cnt = 0;
       for( Int k=0; k< numElem[2]; k++ )
         for( Int j=0; j< numElem[1]; j++ )
@@ -368,11 +243,12 @@ int main(int argc, char **argv)
               // Setup the domain in the extended element
               Domain dmExtElem;
               for( Int d = 0; d < DIM; d++ ){
-               
+
                 dmExtElem.comm    = dm.rowComm;
                 dmExtElem.rowComm = dm.rowComm;
                 dmExtElem.colComm = dm.rowComm;
-              
+
+
                 // Assume the global domain starts from 0.0
                 if( numElem[d] == 1 ){
                   dmExtElem.length[d]      = dm.length[d];
@@ -394,7 +270,7 @@ int main(int argc, char **argv)
                 // since it is not used for parallelization
               } // for d
 
-              // Atoms	
+              // Atoms    
               std::vector<Atom>&  atomList = esdfParam.atomList;
               std::vector<Atom>   atomListExtElem;
 
@@ -413,35 +289,18 @@ int main(int argc, char **argv)
                 } // Atom is in the extended element
               }
 
-              GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 1 )
-              statusOFS << "Time for Initialize ExtElem = " << timeEnd - timeSta << std::endl;
-#endif
 
               // Fourier
-              GetTime( timeSta );
               fftExtElem.Initialize( dmExtElem );
-              GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for fftExtElem.Initialize = " << timeEnd - timeSta << std::endl;
-#endif
-              
-              GetTime( timeSta );
               fftExtElem.InitializeFine( dmExtElem );
-              GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-              statusOFS << "Time for fftExtElem.InitializeFine = " << timeEnd - timeSta << std::endl;
-#endif
-              // Wavefunction
-              //Spinor& spn = distPsi.LocalMap()[key];
-              //spn.Setup( dmExtElem, 1, esdfParam.numALBElem(i,j,k), 0.0 );
 
-              GetTime( timeSta );
-              
+              // Wavefunction
+
               int dmExtElemMpirank, dmExtElemMpisize;
               MPI_Comm_rank( dmExtElem.comm, &dmExtElemMpirank );
               MPI_Comm_size( dmExtElem.comm, &dmExtElemMpisize );
-              int numStateTotal = esdfParam.numALBElem(i,j,k);
+              int numStateTotal = esdfParam.numALBElem(i,j,k) + 
+                esdfParam.numUnusedState;
               int numStateLocal, blocksize;
 
               if ( numStateTotal <=  dmExtElemMpisize ) {
@@ -454,11 +313,8 @@ int main(int argc, char **argv)
                   // FIXME Throw an error here
                   numStateLocal = 0;
                 }
-  
               } 
-    
               else {  // numStateTotal >  mpisize
-      
                 if ( numStateTotal % dmExtElemMpisize == 0 ){
                   blocksize = numStateTotal / dmExtElemMpisize;
                   numStateLocal = blocksize ;
@@ -471,52 +327,37 @@ int main(int argc, char **argv)
                     numStateLocal = numStateLocal + 1 ;
                   }
                 }    
-
               }
 
               Spinor& spn = distPsi.LocalMap()[key];
-              
+
               spn.Setup( dmExtElem, 1, numStateTotal, numStateLocal, 0.0 );
 
               UniformRandom( spn.Wavefun() );
-              
-              GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 1 )
-              statusOFS << "Time for Initialize Spinor = " << timeEnd - timeSta << std::endl;
-#endif
+
               // Hamiltonian
               // The exchange-correlation type and numExtraState is not
               // used in the extended element calculation
-              statusOFS << "Hamiltonian begin." << std::endl;
               KohnSham& hamKS = distHamKS.LocalMap()[key];
 
-              GetTime( timeSta );
-              hamKS.Setup( esdfParam, dmExtElem, atomListExtElem );
-              GetTime( timeEnd );
-
-#if ( _DEBUGlevel_ >= 1 )
-              statusOFS << "Time for hamKS.Setup = " << timeEnd - timeSta << std::endl;
-#endif
+              hamKS.Setup( dmExtElem, atomListExtElem );
 
               hamKS.CalculatePseudoPotential( ptable );
 
-              statusOFS << "Hamiltonian constructed." << std::endl;
-
               // Eigensolver class
               EigenSolver& eigSol = distEigSol.LocalMap()[key];
-              eigSol.Setup( esdfParam, 
-                  hamKS, 
+              eigSol.Setup( hamKS, 
                   spn, 
                   fftExtElem );
 
             } // own this element
           } // for(i)
+      GetTime( timeEnd );
+      statusOFS << "Time for setting up extended element is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
     }
-    GetTime( timeEnd );
-    statusOFS << "Time for setting up extended element is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-    // Setup Fourier
+    // Setup distributed Fourier
     GetTime( timeSta );
 
     DistFourier distfft;
@@ -529,7 +370,8 @@ int main(int argc, char **argv)
     // Setup HamDG
     GetTime( timeSta );
 
-    HamiltonianDG hamDG( esdfParam );
+    HamiltonianDG hamDG;
+    hamDG.Setup();
     hamDG.CalculatePseudoPotential( ptable );
 
     GetTime( timeEnd );
@@ -540,7 +382,7 @@ int main(int argc, char **argv)
     GetTime( timeSta );
 
     SCFDG  scfDG;
-    scfDG.Setup( esdfParam, hamDG, distEigSol, distfft, ptable, contxt );
+    scfDG.Setup( hamDG, distEigSol, distfft, ptable, contxt ); // This also sets Cheby_iondynamics_schedule_flag_ = 0
 
     GetTime( timeEnd );
     statusOFS << "Time for setting up SCFDG is " <<
@@ -554,83 +396,491 @@ int main(int argc, char **argv)
     GetTime( timeSta );
     scfDG.Iterate();
     GetTime( timeEnd );
-    statusOFS << "Time for SCF iteration is " <<
+    statusOFS << "! Total time for the SCF iteration = " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
-    Real efreeHarris, etot, efree, ekin, ehart, eVxc, exc, evdw,
-         eself, ecor, fermi, scfOuterNorm, efreeDifPerAtom;
+#if 0
+    // Compute the local part of the force using a pwdft-like functionality. This is purely for debuggin purpose
+    // 11/20/2016
+    if(1){
+      std::vector<DblNumVec>  vhartDrv(DIM);
+      Int numAtom = esdfParam.atomList.size();
 
-    scfDG.LastSCF(efreeHarris, etot, efree, ekin, ehart, eVxc, exc, evdw,
-        eself, ecor, fermi, scfOuterNorm, efreeDifPerAtom );
 
-    std::vector<Atom>& atomList = hamDG.AtomList(); 
-    Real VDWEnergy = 0.0;
-    DblNumMat VDWForce;
-    VDWForce.Resize( atomList.size(), DIM );
-    SetValue( VDWForce, 0.0 );
+      // Compute vhartDrv on the original Fine grid
+      {
+        DblNumVec  rhoLocal;
+        DistNumVecToDistRowVec(
+            hamDG.Density(),
+            rhoLocal,
+            dm.numGridFine,
+            numElem,
+            distfft.localNzStart,
+            distfft.localNz,
+            distfft.isInGrid,
+            dm.colComm );
 
-    if( esdfParam.VDWType == "DFT-D2"){
-      scfDG.CalculateVDW ( VDWEnergy, VDWForce );
-    } 
-   
-    efreeHarris += VDWEnergy;
-    etot        += VDWEnergy;
-    efree       += VDWEnergy;
-    ecor        += VDWEnergy;
 
-    // Print out the energy
-    PrintBlock( statusOFS, "Energy" );
-    statusOFS 
-      << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + Evdw" << std::endl
-      << "       Etot  = Ekin + Ecor" << std::endl
-      << "       Efree = Etot	+ Entropy" << std::endl << std::endl;
-    Print(statusOFS, "EfreeHarris           = ",  efreeHarris, "[au]");
-    Print(statusOFS, "Etot                  = ",  etot, "[au]");
-    Print(statusOFS, "Efree                 = ",  efree, "[au]");
-    Print(statusOFS, "Ekin                  = ",  ekin, "[au]");
-    Print(statusOFS, "Ehart                 = ",  ehart, "[au]");
-    Print(statusOFS, "EVxc                  = ",  eVxc, "[au]");
-    Print(statusOFS, "Exc                   = ",  exc, "[au]"); 
-    Print(statusOFS, "Evdw                  = ",  VDWEnergy, "[au]"); 
-    Print(statusOFS, "Eself                 = ",  eself, "[au]");
-    Print(statusOFS, "Ecor                  = ",  ecor, "[au]");
-    Print(statusOFS, "Fermi                 = ",  fermi, "[au]");
-	  Print(statusOFS, "norm(out-in)/norm(in) = ",  scfOuterNorm ); 
-		Print(statusOFS, "Efree diff per atom   = ",  efreeDifPerAtom, "[au]"); 
 
-    // Print out the force
+        // Only works for fftsize == 1
+        // The code below can only be executed by mpirank == 0
+        if( distfft.isInGrid ){
 
-    PrintBlock( statusOFS, "Atomic Force" );
-    // Compute force
-    {
-      if( esdfParam.solutionMethod == "diag" ){
-        hamDG.CalculateForce( distfft );
+
+          // Output density
+          if(1)
+          {
+            std::ofstream rhoStream("DEN");
+
+            std::vector<DblNumVec>   gridpos(DIM);
+            UniformMeshFine ( dm, gridpos );
+            for( Int d = 0; d < DIM; d++ ){
+              serialize( gridpos[d], rhoStream, NO_MASK );
+            }
+            // Only work for the restricted spin case
+            serialize( rhoLocal, rhoStream, NO_MASK );
+            rhoStream.close();
+          }
+
+          // Read density from other runs
+          if(0)
+          {
+            std::istringstream rhoStream;
+            std::ifstream fin("DEN_READ");
+
+            std::vector<char> tmpstr;
+            tmpstr.insert(tmpstr.end(), std::istreambuf_iterator<char>(fin), std::istreambuf_iterator<char>());
+            fin.close();
+            rhoStream.str( std::string(tmpstr.begin(), tmpstr.end()) );
+
+            std::vector<DblNumVec>   gridpos(DIM);
+            for( Int d = 0; d < DIM; d++ ){
+              deserialize( gridpos[d], rhoStream, NO_MASK );
+            }
+            // Only work for the restricted spin case
+            deserialize( rhoLocal, rhoStream, NO_MASK );
+          }
+
+          Fourier fft;
+          fft.Initialize( dm );
+          fft.InitializeFine( dm );
+          KohnSham hamKS;
+          hamKS.Setup( esdfParam, dm, esdfParam.atomList );
+          hamKS.CalculatePseudoPotential( ptable );
+
+          Int ntotFine  = fft.domain.NumGridTotalFine();
+
+          DblNumVec  totalCharge(ntotFine);
+          SetValue( totalCharge, 0.0 );
+
+          // totalCharge = density_ - pseudoCharge_
+          blas::Copy( ntotFine, rhoLocal.Data(), 1, totalCharge.Data(), 1 );
+          blas::Axpy( ntotFine, -1.0, hamKS.PseudoCharge().Data(),1,
+              totalCharge.Data(), 1 );
+
+          // Total charge in the Fourier space
+          CpxNumVec  totalChargeFourier( ntotFine );
+
+          for( Int i = 0; i < ntotFine; i++ ){
+            fft.inputComplexVecFine(i) = Complex( totalCharge(i), 0.0 );
+          }
+
+          FFTWExecute ( fft, fft.forwardPlanFine );
+
+          // Filter out high frequency modes
+//          for( Int i = 0; i < ntotFine; i++ ){
+//            if( fft.gkkFine(i) > 2 * esdfParam.ecutWavefunction ){
+//              fft.outputComplexVecFine(i) = Z_ZERO;
+//            }
+//          }
+
+
+          blas::Copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
+              totalChargeFourier.Data(), 1 );
+
+          // Compute the derivative of the Hartree potential via Fourier
+          // transform 
+          for( Int d = 0; d < DIM; d++ ){
+            CpxNumVec& ikFine = fft.ikFine[d];
+            for( Int i = 0; i < ntotFine; i++ ){
+              if( fft.gkkFine(i) == 0 ){
+                fft.outputComplexVecFine(i) = Z_ZERO;
+              }
+              else{
+                // NOTE: gkk already contains the factor 1/2.
+                fft.outputComplexVecFine(i) = totalChargeFourier(i) *
+                  2.0 * PI / fft.gkkFine(i) * ikFine(i);
+              }
+            }
+
+            FFTWExecute ( fft, fft.backwardPlanFine );
+
+            // vhartDrv saves the derivative of the Hartree potential
+            vhartDrv[d].Resize( ntotFine );
+
+            for( Int i = 0; i < ntotFine; i++ ){
+              vhartDrv[d](i) = fft.inputComplexVecFine(i).real();
+            }
+
+          } // for (d)
+        }
       }
-      else if( esdfParam.solutionMethod == "pexsi" ){
-        hamDG.CalculateForceDM( distfft, scfDG.DMMat() );
+
+      // Interpolate vhartDrv onto a even finer grid. only done on one proc
+      if( distfft.isInGrid ){
+        std::vector<DblNumVec>  vhartDrvFiner(DIM);
+        Domain dm2 = dm;
+        // make a copy
+        dm2.numGrid = dm2.numGridFine;
+        Int gridfac = 1;
+        dm2.numGridFine[0] = dm2.numGrid[0] * gridfac;
+        dm2.numGridFine[1] = dm2.numGrid[1] * gridfac;
+        dm2.numGridFine[2] = dm2.numGrid[2] * gridfac;
+
+        Fourier fft;
+        fft.Initialize( dm2 );
+        fft.InitializeFine( dm2 );
+        KohnSham hamKS;
+        hamKS.Setup( dm2, esdfParam.atomList );
+        hamKS.CalculatePseudoPotential( ptable );
+
+        Int ntot = dm2.NumGridTotal();
+        Int ntotFine = dm2.NumGridTotalFine();
+
+        for( Int d = 0; d < DIM; d++ ){
+          vhartDrvFiner[d].Resize(ntotFine);
+
+          SetValue( fft.inputComplexVec, Z_ZERO );
+          blas::Copy( ntot, vhartDrv[d].Data(), 1,
+              reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2 );
+
+          fftw_execute( fft.forwardPlan );
+          SetValue( fft.outputComplexVecFine, Z_ZERO ); 
+          Int *idxPtr = fft.idxFineGrid.Data();
+          Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
+          Complex *fftOutPtr = fft.outputComplexVec.Data();
+          for( Int i = 0; i < ntot; i++ ){
+            fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
+          }
+          fftw_execute( fft.backwardPlanFine );
+          Real fac = 1.0 / ntot; 
+          blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+              2, vhartDrvFiner[d].Data(), 1 );
+          blas::Scal( ntotFine, fac, vhartDrvFiner[d].Data(), 1 );
+        }
+
+        DblNumMat  force( numAtom, DIM );
+        SetValue( force, 0.0 );
+
+        for (Int a=0; a<numAtom; a++) {
+          PseudoPot& pp = hamKS.Pseudo()[a];
+          SparseVec& sp = pp.pseudoCharge;
+          IntNumVec& idx = sp.first;
+          DblNumMat& val = sp.second;
+
+          Real wgt = dm2.Volume() / dm2.NumGridTotalFine();
+          Real resX = 0.0;
+          Real resY = 0.0;
+          Real resZ = 0.0;
+          for( Int l = 0; l < idx.m(); l++ ){
+            resX += val(l, 0) * vhartDrvFiner[0][idx(l)] * wgt;
+            resY += val(l, 0) * vhartDrvFiner[1][idx(l)] * wgt;
+            resZ += val(l, 0) * vhartDrvFiner[2][idx(l)] * wgt;
+          }
+          force( a, 0 ) += resX;
+          force( a, 1 ) += resY;
+          force( a, 2 ) += resZ;
+
+        } // for (a)
+
+        for( Int a = 0; a < numAtom; a++ ){
+          Point3 ft(force(a,0),force(a,1),force(a,2));
+          Print( statusOFS, "atom", a, "localforce ", ft );
+        }
+      }
+
+
+    }
+
+    if(0){
+      DblNumVec  rhoLocal;
+      DistNumVecToDistRowVec(
+          hamDG.Density(),
+          rhoLocal,
+          dm.numGridFine,
+          numElem,
+          distfft.localNzStart,
+          distfft.localNz,
+          distfft.isInGrid,
+          dm.colComm );
+
+      // Only works for fftsize == 1
+      // The code below can only be executed by mpirank == 0
+      if( distfft.isInGrid ){
+        Int numAtom = esdfParam.atomList.size();
+        DblNumMat  force( numAtom, DIM );
+        SetValue( force, 0.0 );
+
+        Fourier fft;
+        fft.Initialize( dm );
+        fft.InitializeFine( dm );
+        KohnSham hamKS;
+        hamKS.Setup( sdfParam, dm, esdfParam.atomList );
+        hamKS.CalculatePseudoPotential( ptable );
+      
+        Int ntotFine  = fft.domain.NumGridTotalFine();
+
+
+        for (Int a=0; a<numAtom; a++) {
+          PseudoPot& pp = hamKS.Pseudo()[a];
+          SparseVec& sp = pp.pseudoCharge;
+          IntNumVec& idx = sp.first;
+          DblNumMat& val = sp.second;
+
+          std::vector<DblNumVec>  vhartDrv(DIM);
+
+          DblNumVec  totalCharge(ntotFine);
+          SetValue( totalCharge, 0.0 );
+
+          // totalCharge = density_ - pseudoCharge_
+          blas::Copy( ntotFine, rhoLocal.Data(), 1, totalCharge.Data(), 1 );
+          blas::Axpy( ntotFine, -1.0, hamKS.PseudoCharge().Data(),1,
+              totalCharge.Data(), 1 );
+          
+          // Add back the contribution from local pseudocharge
+          for (Int k=0; k<idx.m(); k++) 
+            totalCharge[idx(k)] += val(k, 0);
+
+          // Total charge in the Fourier space
+          CpxNumVec  totalChargeFourier( ntotFine );
+
+          for( Int i = 0; i < ntotFine; i++ ){
+            fft.inputComplexVecFine(i) = Complex( totalCharge(i), 0.0 );
+          }
+
+          FFTWExecute ( fft, fft.forwardPlanFine );
+
+          blas::Copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
+              totalChargeFourier.Data(), 1 );
+
+          // Compute the derivative of the Hartree potential via Fourier
+          // transform 
+          for( Int d = 0; d < DIM; d++ ){
+            CpxNumVec& ikFine = fft.ikFine[d];
+            for( Int i = 0; i < ntotFine; i++ ){
+              if( fft.gkkFine(i) == 0 ){
+                fft.outputComplexVecFine(i) = Z_ZERO;
+              }
+              else{
+                // NOTE: gkk already contains the factor 1/2.
+                fft.outputComplexVecFine(i) = totalChargeFourier(i) *
+                  2.0 * PI / fft.gkkFine(i) * ikFine(i);
+              }
+            }
+
+            FFTWExecute ( fft, fft.backwardPlanFine );
+
+            // vhartDrv saves the derivative of the Hartree potential
+            vhartDrv[d].Resize( ntotFine );
+
+            for( Int i = 0; i < ntotFine; i++ ){
+              vhartDrv[d](i) = fft.inputComplexVecFine(i).real();
+            }
+
+          } // for (d)
+
+          Real wgt = dm.Volume() / dm.NumGridTotalFine();
+          Real resX = 0.0;
+          Real resY = 0.0;
+          Real resZ = 0.0;
+          for( Int l = 0; l < idx.m(); l++ ){
+            resX += val(l, 0) * vhartDrv[0][idx(l)] * wgt;
+            resY += val(l, 0) * vhartDrv[1][idx(l)] * wgt;
+            resZ += val(l, 0) * vhartDrv[2][idx(l)] * wgt;
+          }
+          force( a, 0 ) += resX;
+          force( a, 1 ) += resY;
+          force( a, 2 ) += resZ;
+
+        } // for (a)
+
+
+        for( Int a = 0; a < numAtom; a++ ){
+          Point3 ft(force(a,0),force(a,1),force(a,2));
+          Print( statusOFS, "atom", a, "localforce ", ft );
+        }
+      }
+
+    }
+#endif
+
+    // *********************************************************************
+    // Geometry optimization or Molecular dynamics
+    // *********************************************************************
+
+
+
+    IonDynamics ionDyn;
+
+    ionDyn.Setup( hamDG.AtomList(), ptable ); 
+
+
+
+    // For density extrapolation
+
+    Int maxHist = ionDyn.MaxHist();
+    // densityHist[0] is the most recent density
+    std::vector<DistDblNumVec>    densityHist(maxHist);
+    // Initialize the history of density
+    for( Int k=0; k< numElem[2]; k++ )
+      for( Int j=0; j< numElem[1]; j++ )
+        for( Int i=0; i< numElem[0]; i++ ) {
+          Index3 key = Index3(i,j,k);
+          if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+            for( Int l = 0; l < maxHist; l++ ){
+              DistDblNumVec& den    = densityHist[l];
+              DistDblNumVec& denCur = hamDG.Density();
+              den.LocalMap()[key]     = denCur.LocalMap()[key];
+            } // for (l)
+          } // own this element
+        }  // for (i)
+
+
+    // Main loop for geometry optimization or molecular dynamics
+    // If ionMaxIter == 1, it is equivalent to single shot calculation
+    Int ionMaxIter = esdfParam.ionMaxIter;
+    for( Int ionIter = 1; ionIter <= ionMaxIter; ionIter++ ){
+
+      {
+        std::ostringstream msg;
+        msg << "Ion move step # " << ionIter;
+        PrintBlock( statusOFS, msg.str() );
+      }
+
+      // Change the SCF convergence criteria if necessary (in MD mode only)
+      if( (ionIter == esdfParam.MDscfEnergyCriteriaEngageIonIter) && (ionDyn.IsGeoOpt() == 0) )
+      {	
+       scfDG.UpdateMDParameters( );
+       statusOFS << std::endl << " Switching to energy based SCF convergence on ioniter = " << ionIter << std::endl;
       }
       
-      if( esdfParam.VDWType == "DFT-D2"){
-        for( Int a = 0; a < atomList.size(); a++ ){
-          atomList[a].force += Point3( VDWForce(a,0), VDWForce(a,1), VDWForce(a,2) );
-        }
-      } 
-   
-    }
-
-    if( mpirank == 0 ){
-      Point3 forceCM(0.0, 0.0, 0.0);
-      std::vector<Atom>& atomList = hamDG.AtomList(); 
-      Int numAtom = atomList.size(); 
-      for( Int a = 0; a < numAtom; a++ ){
-        forceCM += atomList[a].force;
-        Print( statusOFS, "atom", a, "Force      ", atomList[a].force );
+      
+      // Make CheFSI work in iondynamics mode  
+      if(ionIter >= 1)
+      {	
+        scfDG.set_Cheby_iondynamics_schedule_flag(1);
+        scfDG.set_iondynamics_iter(ionIter); 
       }
-      statusOFS << std::endl;
-      Print( statusOFS, "force for centroid: ", forceCM );
-      statusOFS << std::endl;
-    }
+      
+      // Get the new atomic coordinates
+      // NOTE: ionDyn directly updates the coordinates in Hamiltonian
+      ionDyn.SetEpot( scfDG.Efree() );
+      ionDyn.MoveIons( ionIter );
 
+      // Update atomic position in the extended element
+      {
+        GetTime(timeSta);
+        std::vector<Atom>&  atomList = hamDG.AtomList();
+
+        for( Int k=0; k< numElem[2]; k++ )
+          for( Int j=0; j< numElem[1]; j++ )
+            for( Int i=0; i< numElem[0]; i++ ) {
+              Index3 key (i,j,k);
+              if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                // Setup the domain in the extended element
+                KohnSham& hamKS = distHamKS.LocalMap()[key];
+                Domain& dmExtElem = distEigSol.LocalMap()[key].FFT().domain;
+                std::vector<Atom> atomListExtElem;
+
+                Int numAtom = atomList.size();
+
+                for( Int a = 0; a < numAtom; a++ ){
+                  Point3 pos = atomList[a].pos;
+                  if( IsInSubdomain( pos, dmExtElem, dm.length ) ){
+                    // Update the coordinate relative to the extended
+                    // element
+                    for( Int d = 0; d < DIM; d++ ){
+                      pos[d] -= floor( ( pos[d] - dmExtElem.posStart[d] ) / 
+                          dm.length[d] )* dm.length[d];
+                    }
+                    atomListExtElem.push_back( Atom( atomList[a].type, 
+                          pos, atomList[a].vel, atomList[a].force ) );
+                  } // Atom is in the extended element
+                }
+
+                // Make a copy and update the atomList in the extended element
+                hamKS.UpdateHamiltonian( atomListExtElem );
+                hamKS.CalculatePseudoPotential( ptable );
+
+              }//own this element
+            }//(i)
+        GetTime( timeEnd );
+        statusOFS << "Time for updating the Hamiltonian in the extended elements = " 
+          << timeEnd - timeSta << " [s]" << std::endl;
+      }
+
+      GetTime( timeSta );
+      hamDG.UpdateHamiltonianDG( hamDG.AtomList() );
+      hamDG.CalculatePseudoPotential( ptable );
+      scfDG.Update( );
+
+      // Update the density history through extrapolation
+      {
+        for( Int k=0; k< numElem[2]; k++ )
+          for( Int j=0; j< numElem[1]; j++ )
+            for( Int i=0; i< numElem[0]; i++ ) {
+              Index3 key = Index3(i,j,k);
+              if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                for( Int l = maxHist-1; l > 0; l-- ){
+                  densityHist[l].LocalMap()[key]     = densityHist[l-1].LocalMap()[key];
+                } // for (l)
+                densityHist[0].LocalMap()[key] = hamDG.Density().LocalMap()[key];
+              } // own this element
+            }  // for (i)
+
+        // Compute the extrapolation coefficient
+        DblNumVec denCoef;
+        ionDyn.ExtrapolateCoefficient( ionIter, denCoef );
+        statusOFS << "Extrapolation density coefficient = " << denCoef << std::endl;
+
+        // Update the electron density
+        for( Int k=0; k< numElem[2]; k++ )
+          for( Int j=0; j< numElem[1]; j++ )
+            for( Int i=0; i< numElem[0]; i++ ) {
+              Index3 key = Index3(i,j,k);
+              if( distEigSol.Prtn().Owner(key) == (mpirank / dmRow) ){
+                DblNumVec& denCurVec  = hamDG.Density().LocalMap()[key];
+                SetValue( denCurVec, 0.0 );
+                for( Int l = 0; l < maxHist; l++ ){
+                  DblNumVec& denHistVec = densityHist[l].LocalMap()[key];
+
+                  blas::Axpy( denCurVec.m(), denCoef[l], denHistVec.Data(),
+                      1, denCurVec.Data(), 1 );
+                } // for (l)
+              } // own this element
+            }  // for (i)
+      } // density extrapolation
+
+      GetTime( timeEnd );
+      statusOFS << "Time for updating the Hamiltonian in DG = " 
+        << timeEnd - timeSta << " [s]" << std::endl;
+
+
+      GetTime( timeSta );
+      scfDG.Iterate( );
+      GetTime( timeEnd );
+      statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
+        << " [s]" << std::endl;
+
+      // Geometry optimization
+      if( ionDyn.IsGeoOpt() ){
+        if( MaxForce( hamDG.AtomList() ) < esdfParam.geoOptMaxForce ){
+          statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
+            << "Exit the loops for ions." << std::endl;
+          break;
+        }
+      }
+    } // ionIter
 
     // *********************************************************************
     // Clean up
@@ -640,7 +890,7 @@ int main(int argc, char **argv)
     if(contxt >= 0) {
       Cblacs_gridexit( contxt );
     }
-    
+
     // Finish fftw
     fftw_mpi_cleanup();
 
@@ -652,9 +902,6 @@ int main(int argc, char **argv)
   {
     std::cerr << "Processor " << mpirank << " caught exception with message: "
       << e.what() << std::endl;
-#ifndef _RELEASE_
-    DumpCallStack();
-#endif
   }
 
   MPI_Finalize();

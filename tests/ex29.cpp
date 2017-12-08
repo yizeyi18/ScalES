@@ -12,106 +12,106 @@ using namespace std;
 int main(int argc, char **argv) 
 {
 
-	MPI_Init(&argc, &argv);
-	int mpirank, mpisize;
-	MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
-	MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
+  MPI_Init(&argc, &argv);
+  int mpirank, mpisize;
+  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
+  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
 
-	Int height;
+  Int height;
 
-	if( argc != 2 ){
-		cout << "Run the code with " << endl << "ex29 {height}" << endl <<
-			"height:      the size of the matrix" << endl;
-		MPI_Finalize();
-		return -1;
-	}
+  if( argc != 2 ){
+    cout << "Run the code with " << endl << "ex29 {height}" << endl <<
+      "height:      the size of the matrix" << endl;
+    MPI_Finalize();
+    return -1;
+  }
 
-	height = atoi(argv[1]);
+  height = atoi(argv[1]);
 
-	Real timeSta, timeEnd;
+  Real timeSta, timeEnd;
 
-	Int omprank, ompsize;
+  Int omprank, ompsize;
 #pragma omp parallel shared(ompsize) private(omprank)
-	{
-		omprank = omp_get_thread_num();
-		ompsize = omp_get_num_threads();
-	}
+  {
+    omprank = omp_get_thread_num();
+    ompsize = omp_get_num_threads();
+  }
 
-	cout << "Number of threads = " << ompsize << endl;
+  cout << "Number of threads = " << ompsize << endl;
 
-	Int numMat = 24;
-	
-	cout << "Generate " << numMat << " matrices of size = " 
-		<< height << " x " << height << endl;
+  Int numMat = 24;
 
-
-	DblNumTns x0(height, height, numMat);
-	DblNumTns x1(height, height, numMat);
-	DblNumTns x2(height, height, numMat);
-	
-	SetValue( x0, 0.0 );
-	SetValue( x1, 0.0 );
-	SetValue( x2, 0.0 );
-	SetRandomSeed( 1 );
-	UniformRandom( x0 );
+  cout << "Generate " << numMat << " matrices of size = " 
+    << height << " x " << height << endl;
 
 
-	cout << "Get the accurate result using " << ompsize 
-		<< " number of consequetive multithreaded BLAS..." << endl;
+  DblNumTns x0(height, height, numMat);
+  DblNumTns x1(height, height, numMat);
+  DblNumTns x2(height, height, numMat);
 
-	{
-		GetTime( timeSta );
-		for( Int i = 0; i < numMat; i++ ){
-			blas::Gemm( 'N', 'N', height, height, height, 1.0, 
-					x0.MatData(i), height, x0.MatData(i), height, 0.0, 
-					x1.MatData(i), height );
-		}
-		GetTime( timeEnd );
-		cout << "Method 1 Time elapsed = " << timeEnd - timeSta << endl; 
-	}
+  SetValue( x0, 0.0 );
+  SetValue( x1, 0.0 );
+  SetValue( x2, 0.0 );
+  SetRandomSeed( 1 );
+  UniformRandom( x0 );
 
-	cout << "Get the result using " << ompsize 
-		<< " processors using OPENMP, each thread calling sequential BLAS..." << endl;
- 
-	{
-		GetTime( timeSta );
-		Int i;
-		Int CHUNK_SIZE = 1;
+
+  cout << "Get the accurate result using " << ompsize 
+    << " number of consequetive multithreaded BLAS..." << endl;
+
+  {
+    GetTime( timeSta );
+    for( Int i = 0; i < numMat; i++ ){
+      blas::Gemm( 'N', 'N', height, height, height, 1.0, 
+          x0.MatData(i), height, x0.MatData(i), height, 0.0, 
+          x1.MatData(i), height );
+    }
+    GetTime( timeEnd );
+    cout << "Method 1 Time elapsed = " << timeEnd - timeSta << endl; 
+  }
+
+  cout << "Get the result using " << ompsize 
+    << " processors using OPENMP, each thread calling sequential BLAS..." << endl;
+
+  {
+    GetTime( timeSta );
+    Int i;
+    Int CHUNK_SIZE = 1;
 #pragma omp parallel shared(ompsize, numMat, x0, x2, height, CHUNK_SIZE) private(i)
-		{
+    {
 #pragma omp for schedule(static,CHUNK_SIZE) 
-			for( i = 0; i < numMat; i++ ){
-					blas::Gemm( 'N', 'N', height, height, height, 1.0, 
-							x0.MatData(i), height, x0.MatData(i), height, 0.0, 
-							x2.MatData(i), height );
-			}
-		}
+      for( i = 0; i < numMat; i++ ){
+        blas::Gemm( 'N', 'N', height, height, height, 1.0, 
+            x0.MatData(i), height, x0.MatData(i), height, 0.0, 
+            x2.MatData(i), height );
+      }
+    }
 
-		GetTime( timeEnd );
-		cout << "Method 2 Time elapsed = " << timeEnd - timeSta << endl; 
+    GetTime( timeEnd );
+    cout << "Method 2 Time elapsed = " << timeEnd - timeSta << endl; 
 
 #pragma omp parallel shared(ompsize) private(omprank)
-		{
-			omprank = omp_get_thread_num();
-			ompsize = omp_get_num_threads();
-		}
+    {
+      omprank = omp_get_thread_num();
+      ompsize = omp_get_num_threads();
+    }
 
-		cout << "After calling the second method, number of threads = " << ompsize << endl;
+    cout << "After calling the second method, number of threads = " << ompsize << endl;
 
-		for( Int i = 0; i < numMat; i++ ){
-			DblNumMat err(height, height);
-			blas::Copy( height * height, x1.MatData(i), 1, err.Data(), 1 );
-			blas::Axpy( height * height, -1.0, x2.MatData(i), 1, 
-					err.Data(), 1 );
-			cout << "Matrix #" << i << endl;
-//			cout << "1st result = " << DblNumMat( height, height, false, x1.MatData(i) ) << endl;
-//			cout << "2nd result = " << DblNumMat( height, height, false, x2.MatData(i) ) << endl;
-			cout << "Error      = " << Energy( err ) << endl;
-		}
+    for( Int i = 0; i < numMat; i++ ){
+      DblNumMat err(height, height);
+      blas::Copy( height * height, x1.MatData(i), 1, err.Data(), 1 );
+      blas::Axpy( height * height, -1.0, x2.MatData(i), 1, 
+          err.Data(), 1 );
+      cout << "Matrix #" << i << endl;
+      //			cout << "1st result = " << DblNumMat( height, height, false, x1.MatData(i) ) << endl;
+      //			cout << "2nd result = " << DblNumMat( height, height, false, x2.MatData(i) ) << endl;
+      cout << "Error      = " << Energy( err ) << endl;
+    }
 
-	}
+  }
 
-	MPI_Finalize();
+  MPI_Finalize();
 
-	return 0;
+  return 0;
 }

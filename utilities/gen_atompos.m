@@ -20,7 +20,7 @@ C = diag(asize);
 
 xyzmat = coefs*C';
 %
-% repeat the cell nrep times along the z direction
+% repeat the cell nrep times along the xyz directions
 %
 for krep = 1 : nrepz
   for jrep = 1 : nrepy
@@ -66,29 +66,60 @@ fprintf(fh, 'end Atom_Coord\n\n', 1);
 
 fclose(fh);
 
-fprintf('\n Done. input file generated in atompos.\n');
+fprintf('\n Done. Generated atompos file.\n');
 
 if(1)
-  disp('Reduced coordinate')
+  disp('Reduced coordinates')
   rdcmat = xyzmat ./ repmat([C(1,1), C(2,2), C(3,3)], ...
     size(xyzmat,1), 1);
   if( nargin <= 6 ) 
     filename = 'rdc';
   else
     filename = sprintf( 'rdc_%s', suffix );
-  end
+  end 
   save(filename,'-ascii','rdcmat');
 end
 
+if(1)
+   
+  disp('PWDFT/DGDFT input file');
+  
+  rdcmat = xyzmat ./ repmat([C(1,1), C(2,2), C(3,3)], ...
+    size(xyzmat,1), 1);
+
+  if( nargin <= 6 ) 
+    filename = 'pwdft_dgdft_input';
+  else
+    filename = sprintf( 'dgdft_pwdft_input_%s', suffix );
+  end
+  
+ fh = fopen(filename,'w'); 
+  
+ fprintf(fh, 'begin Super_Cell\n', 1);
+ fprintf(fh, '%12.6f     %12.6f    %12.6f\n', C(1,1), C(2,2), C(3,3));
+ fprintf(fh, 'end Super_Cell\n\n', 1);
+
+ fprintf(fh, 'Atom_Types_Num:   %6d\n\n', 1);
+ fprintf(fh, 'Atom_Type:        %6s\n\n', atype);
+
+ fprintf(fh, 'begin Atom_Red\n', 1);
+ fprintf(fh, '%12.6f     %12.6f    %12.6f\n', rdcmat');
+ fprintf(fh, 'end Atom_Red\n\n', 1);
+
+ fclose(fh);
+  
+end
+
+
 
 if(1)
-  disp('Lattice coordinate')
+  disp('Lattice coordinates')
   latmat = rdcmat .* repmat([nreps(1), nreps(2), nreps(3)], ...
     size(xyzmat,1), 1);
   if( nargin <= 6 ) 
-    filename = 'lat';
+    filename = 'lattice';
   else
-    filename = sprintf( 'lat_%s', suffix );
+    filename = sprintf( 'lattice_%s', suffix );
   end
   save(filename,'-ascii','latmat');
 end
@@ -100,9 +131,26 @@ if(1)
   disp('Coordinate in angstrom')
   angmat = xyzmat * au2ang;
   if( nargin <= 6 ) 
-    filename = 'ang';
+    filename = 'angstrom';
   else
-    filename = sprintf( 'ang_%s', suffix );
+    filename = sprintf( 'angstrom_%s', suffix );
   end
   save(filename,'-ascii','Cang', 'angmat');
+end
+
+
+if(1)
+    angmat = xyzmat * au2ang;
+    fname = sprintf('atompos_%s.xyz',atype);
+    fid = fopen(fname, 'w');
+    sz = length(angmat);
+    fprintf(fid,'%d\n',sz);
+    for ii=1:sz
+    
+        fprintf(fid, '\n%s\t%1.8f\t%1.8f\t%1.8f', atype, angmat(ii,1), ...
+            angmat(ii,2), angmat(ii, 3));
+        
+    end
+    
+    fclose(fid);
 end

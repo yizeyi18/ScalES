@@ -3,30 +3,24 @@
 
 include ../make.inc
 
-SRCS = dgdft_NH1.cpp dgdft_bb.cpp pwdft_bb.cpp pwdft.cpp dgdft.cpp \
-			 diagonalize.cpp den2cube.cpp alb2cube.cpp lufact.cpp
+SRCS = pwdft.cpp dgdft.cpp \
+	diagonalize.cpp den2cube.cpp alb2cube.cpp lufact.cpp den2cubepw.cpp 
 
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 EXES = ${SRCS:.cpp=}	
 
-pwdft_bb: pwdft_bb.o ${DGDFT_LIB} 
-	($(LOADER) -o $@ pwdft_bb.o $(LOADOPTS) )
-
 pwdft: pwdft.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ pwdft.o $(LOADOPTS) )
-
-dgdft_NH1: dgdft_NH1.o ${DGDFT_LIB} 
-	($(LOADER) -o $@ dgdft_NH1.o $(LOADOPTS) )
-
-dgdft_bb: dgdft_bb.o ${DGDFT_LIB} 
-	($(LOADER) -o $@ dgdft_bb.o $(LOADOPTS) )
 
 dgdft: dgdft.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ dgdft.o $(LOADOPTS) )
 
 diagonalize: diagonalize.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ diagonalize.o $(LOADOPTS) )
+
+den2cubepw: den2cubepw.o ${DGDFT_LIB} 
+	($(LOADER) -o $@ den2cubepw.o $(LOADOPTS) )
 
 den2cube: den2cube.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ den2cube.o $(LOADOPTS) )

@@ -2,44 +2,44 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-   Author: Lin Lin and Wei Hu
-	 
-   This file is part of DGDFT. All rights reserved.
+Author: Lin Lin and Wei Hu
 
-   Redistribution and use in source and binary forms, with or without
-   modification, are permitted provided that the following conditions are met:
+This file is part of DGDFT. All rights reserved.
 
-   (1) Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-   (2) Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-   (3) Neither the name of the University of California, Lawrence Berkeley
-   National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-   be used to endorse or promote products derived from this software without
-   specific prior written permission.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
 
-   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-   DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-   (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-   LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-   ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+(1) Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+(2) Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+(3) Neither the name of the University of California, Lawrence Berkeley
+National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
+be used to endorse or promote products derived from this software without
+specific prior written permission.
 
-   You are under no obligation whatsoever to provide any bug fixes, patches, or
-   upgrades to the features, functionality or performance of the source code
-   ("Enhancements") to anyone; however, if you choose to make your Enhancements
-   available either publicly, or directly to Lawrence Berkeley National
-   Laboratory, without imposing a separate written license agreement for such
-   Enhancements, then you hereby grant the following license: a non-exclusive,
-   royalty-free perpetual license to install, use, modify, prepare derivative
-   works, incorporate into other computer software, distribute, and sublicense
-   such enhancements or derivative works thereof, in binary and source code form.
-*/
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+You are under no obligation whatsoever to provide any bug fixes, patches, or
+upgrades to the features, functionality or performance of the source code
+("Enhancements") to anyone; however, if you choose to make your Enhancements
+available either publicly, or directly to Lawrence Berkeley National
+Laboratory, without imposing a separate written license agreement for such
+Enhancements, then you hereby grant the following license: a non-exclusive,
+royalty-free perpetual license to install, use, modify, prepare derivative
+works, incorporate into other computer software, distribute, and sublicense
+such enhancements or derivative works thereof, in binary and source code form.
+ */
 /// @file hamiltonian_dg.hpp
 /// @brief The Hamiltonian class for DG calculation.
 /// @date 2013-01-09
@@ -74,11 +74,11 @@ namespace dgdft{
 /// index.
 struct ElemPrtn
 {
-	IntNumTns                 ownerInfo;
+  IntNumTns                 ownerInfo;
 
-	Int Owner (const Index3& key) const {
-		return ownerInfo(key(0), key(1), key(2));
-	}
+  Int Owner (const Index3& key) const {
+    return ownerInfo(key(0), key(1), key(2));
+  }
 };
 
 typedef std::pair<Index3, Index3>  ElemMatKey;
@@ -89,12 +89,12 @@ typedef std::pair<Index3, Index3>  ElemMatKey;
 /// mass matrix.
 struct ElemMatPrtn
 {
-	IntNumTns                 ownerInfo;
+  IntNumTns                 ownerInfo;
 
-	Int Owner (const ElemMatKey& key) const {
-		Index3 keyRow = key.first;
-		return ownerInfo(keyRow(0), keyRow(1), keyRow(2));
-	}
+  Int Owner (const ElemMatKey& key) const {
+    Index3 keyRow = key.first;
+    return ownerInfo(keyRow(0), keyRow(1), keyRow(2));
+  }
 };
 
 /// @struct AtomPrtn
@@ -102,11 +102,11 @@ struct ElemMatPrtn
 /// index.
 struct AtomPrtn 
 {
-	std::vector<Int> ownerInfo; 
+  std::vector<Int> ownerInfo; 
 
-	Int Owner(Int key) const {
-		return ownerInfo[key];
-	}
+  Int Owner(Int key) const {
+    return ownerInfo[key];
+  }
 };
 
 /// @struct BlockMatPrtn
@@ -114,11 +114,11 @@ struct AtomPrtn
 /// distribution.  This is used for ScaLAPACK calculation.
 struct BlockMatPrtn
 {
-	IntNumMat                 ownerInfo;
+  IntNumMat                 ownerInfo;
 
-	Int Owner (const Index2& key) const {
-		return ownerInfo(key(0), key(1));
-	}
+  Int Owner (const Index2& key) const {
+    return ownerInfo(key(0), key(1));
+  }
 };
 
 /// @struct VecPrtn
@@ -127,11 +127,11 @@ struct BlockMatPrtn
 /// row (column) index of a matrix.
 struct VecPrtn
 {
-	IntNumVec                 ownerInfo;
+  IntNumVec                 ownerInfo;
 
-	Int Owner (const Int & key) const {
-		return ownerInfo(key);
-	}
+  Int Owner (const Int & key) const {
+    return ownerInfo(key);
+  }
 };
 
 
@@ -160,42 +160,42 @@ typedef DistVec<Index3, CpxNumTns, ElemPrtn>   DistCpxNumTns;
 /// @brief Main class of DG for storing and assembling the DG matrix.
 class HamiltonianDG {
 private:
-	
-	// *********************************************************************
-	// Physical variables
-	// *********************************************************************
-	/// @brief Global domain.
-	Domain                      domain_;
 
-	/// @brief Element subdomains.
-	NumTns<Domain>              domainElem_;
-  
+  // *********************************************************************
+  // Physical variables
+  // *********************************************************************
+  /// @brief Global domain.
+  Domain                      domain_;
+
+  /// @brief Element subdomains.
+  NumTns<Domain>              domainElem_;
+
   /// @brief Uniform grid in the global domain
-	std::vector<DblNumVec>      uniformGrid_;
+  std::vector<DblNumVec>      uniformGrid_;
   std::vector<DblNumVec>      uniformGridFine_;
 
-	/// @brief Number of uniform grids in each element.  
-	///
-	/// Note: It must be satisifed that
-	///
-	/// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
-	Index3                      numUniformGridElem_;
+  /// @brief Number of uniform grids in each element.  
+  ///
+  /// Note: It must be satisifed that
+  ///
+  /// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
+  Index3                      numUniformGridElem_;
   Index3                      numUniformGridElemFine_;
 
-	/// @brief Number of LGL grids in each element.
-	Index3                      numLGLGridElem_;
+  /// @brief Number of LGL grids in each element.
+  Index3                      numLGLGridElem_;
 
-	/// @brief Number of element in externd element.
+  /// @brief Number of element in externd element.
   Index3 numExtElem_;
 
-	/// @brief Uniform grid in the elements, each has size 
-	/// numUniformGridElem_
-	NumTns<std::vector<DblNumVec> >   uniformGridElem_;
+  /// @brief Uniform grid in the elements, each has size 
+  /// numUniformGridElem_
+  NumTns<std::vector<DblNumVec> >   uniformGridElem_;
   NumTns<std::vector<DblNumVec> >   uniformGridElemFine_;
 
-	/// @brief Legendre-Gauss-Lobatto grid in the elements, each has size
-	/// numLGLGridElem_
-	NumTns<std::vector<DblNumVec> >   LGLGridElem_;
+  /// @brief Legendre-Gauss-Lobatto grid in the elements, each has size
+  /// numLGLGridElem_
+  NumTns<std::vector<DblNumVec> >   LGLGridElem_;
 
   /// @brief The 1D LGL weight along the x,y,z dimensions of each element.
   std::vector<DblNumVec>            LGLWeight1D_;
@@ -208,14 +208,14 @@ private:
   DblNumTns                         LGLWeight3D_;
 
 
-	/// @brief List of atoms.
-	std::vector<Atom>           atomList_;
-	/// @brief Number of spin-degeneracy, can be 1 or 2.
-	Int                         numSpin_;
-	/// @brief Number of extra states for fractional occupation number.
-	Int                         numExtraState_;
-	/// @brief Number of occupied states.
-	Int                         numOccupiedState_;
+  /// @brief List of atoms.
+  std::vector<Atom>           atomList_;
+  /// @brief Number of spin-degeneracy, can be 1 or 2.
+  Int                         numSpin_;
+  /// @brief Number of extra states for fractional occupation number.
+  Int                         numExtraState_;
+  /// @brief Number of occupied states.
+  Int                         numOccupiedState_;
   /// @brief Type of pseudopotential, default is HGH
   std::string                 pseudoType_;
   /// @brief Id of the exchange-correlation potential
@@ -232,15 +232,15 @@ private:
 
 
 
-	// *********************************************************************
-	// Computational variables
-	// *********************************************************************
+  // *********************************************************************
+  // Computational variables
+  // *********************************************************************
 
-	/// @brief The number of elements.
-	Index3                      numElem_;
+  /// @brief The number of elements.
+  Index3                      numElem_;
 
-	/// @brief Partition of element.
-	ElemPrtn                    elemPrtn_;
+  /// @brief Partition of element.
+  ElemPrtn                    elemPrtn_;
 
   /// @brief Number of processor rows and columns
   Int                         dmRow_;
@@ -248,84 +248,89 @@ private:
   //IntNumVec                   groupRank_;
 
   /// @brief Partition of a matrix defined through elements.
-	ElemMatPrtn                 elemMatPrtn_;
+  ElemMatPrtn                 elemMatPrtn_;
 
-	/// @brief Partition of atom.
-	AtomPrtn                    atomPrtn_;
+  /// @brief Partition of atom.
+  AtomPrtn                    atomPrtn_;
 
-	/// @brief Interior penalty parameter.
-	Real                        penaltyAlpha_;
+  /// @brief Interior penalty parameter.
+  Real                        penaltyAlpha_;
 
-	/// @brief Pseudocharge in the global domain. 
-	DistDblNumVec    pseudoCharge_;
+  /// @brief Pseudocharge in the global domain. 
+  DistDblNumVec    pseudoCharge_;
 
-	/// @brief Electron density in the global domain. No magnitization for
-	/// DG calculation.
+  /// @brief Electron density in the global domain. No magnitization for
+  /// DG calculation.
   DistDblNumVec    density_;
-
+  
+  /// @brief Gradient of the density
   std::vector<DistDblNumVec>      gradDensity_;
+
+  /// @brief atomic charge densities
+  DistDblNumVec                   atomDensity_;
+
 
   /// @brief Electron density in the global domain defined on the LGL
   /// grid. No magnitization for DG calculation.  
   /// FIXME This is only a temporary variable and MAY NOT BE the same as
   /// the density_ variable.
-	DistDblNumVec    densityLGL_;
+  DistDblNumVec    densityLGL_;
 
 
-	/// @brief External potential in the global domain. This is usually
-	/// not used.
-	DistDblNumVec    vext_;
+  /// @brief External potential in the global domain. This is usually
+  /// not used.
+  DistDblNumVec    vext_;
 
-	/// @brief Hartree potential in the global domain.
-	DistDblNumVec    vhart_;
+  /// @brief Hartree potential in the global domain.
+  DistDblNumVec    vhart_;
 
-	/// @brief Exchange-correlation potential in the global domain. No
-	/// magnization calculation in the DG code.
-	DistDblNumVec    vxc_;
+  /// @brief Exchange-correlation potential in the global domain. No
+  /// magnization calculation in the DG code.
+  DistDblNumVec    vxc_;
 
-	/// @brief Exchange-correlation energy density in the global domain.
-	DistDblNumVec    epsxc_;
+  /// @brief Exchange-correlation energy density in the global domain.
+  DistDblNumVec    epsxc_;
 
-	/// @brief Total potential in the global domain.
-	DistDblNumVec    vtot_;
+  /// @brief Total potential in the global domain.
+  DistDblNumVec    vtot_;
 
-	/// @brief Total potential on the local LGL grid.
-	DistDblNumVec    vtotLGL_;
+  /// @brief Total potential on the local LGL grid.
+  DistDblNumVec    vtotLGL_;
 
-	/// @brief Basis functions on the local uniform fine grid.
+  /// @brief Basis functions on the local uniform fine grid.
   IntNumVec        basisUniformFineIdx_;
-	DistDblNumMat    basisUniformFine_;
-	
+  DistDblNumMat    basisUniformFine_;
+
   /// @brief Basis functions on the local LGL grid.
   IntNumVec        basisLGLIdx_;
-	DistDblNumMat    basisLGL_;
+  DistDblNumMat    basisLGL_;
 
-	/// @brief Eigenvalues
-	DblNumVec        eigVal_;
+  /// @brief Eigenvalues
+  DblNumVec        eigVal_;
 
-	/// @brief Occupation number
-	DblNumVec        occupationRate_;
+  /// @brief Occupation number
+  DblNumVec        occupationRate_;
 
-	/// @brief Coefficients of the eigenfunctions
-	DistDblNumMat    eigvecCoef_;
+  /// @brief Coefficients of the eigenfunctions
+  DistDblNumMat    eigvecCoef_;
 
-	/// @brief Pseudopotential and nonlocal projectors in each element for
-	/// each atom. The value is given on a dense LGL grid.
-	DistVec<Index3, std::map<Int, PseudoPot>, ElemPrtn>  pseudo_;
+  /// @brief Pseudopotential and nonlocal projectors in each element for
+  /// each atom. The value is given on a dense LGL grid.
+  DistVec<Index3, std::map<Int, PseudoPot>, ElemPrtn>  pseudo_;
 
-	// FIXME
-	DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn>  vnlCoef_;
-	
-	// FIXME
-	std::vector<DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn> >  vnlDrvCoef_;
+  // FIXME
+  DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn>  vnlCoef_;
 
-	std::map<Int, DblNumVec>  vnlWeightMap_;
+  // FIXME
+  std::vector<DistVec<Index3, std::map<Int, DblNumMat>, ElemPrtn> >  vnlDrvCoef_;
 
-	/// @brief Differentiation matrix on the LGL grid.
-	std::vector<DblNumMat>    DMat_;
+  std::map<Int, DblNumVec>  vnlWeightMap_;
 
-	/// @brief Interpolation matrix from LGL to uniform grid in each
-	/// element (assuming all the elements are the same).
+  /// @brief Differentiation matrix on the LGL grid.
+  std::vector<DblNumMat>    DMat_;
+
+  /// @brief Interpolation matrix from LGL to uniform grid in each
+  /// element (assuming all the elements are the same).
   std::vector<DblNumMat>    LGLToUniformMat_;
   std::vector<DblNumMat>    LGLToUniformMatFine_;
 
@@ -334,12 +339,12 @@ private:
   NumTns< std::vector<DblNumMat> >    LGLToUniformGaussMatFine_;
 
   /// @brief DG Hamiltonian matrix.
-	DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>  HMat_;
+  DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>  HMat_;
 
-	/// @brief The size of the H matrix.
-	Int    sizeHMat_;
+  /// @brief The size of the H matrix.
+  Int    sizeHMat_;
 
-	/// @brief Indices of all the basis functions.
+  /// @brief Indices of all the basis functions.
   NumTns< std::vector<Int> >  elemBasisIdx_;
 
   /// @brief Inverse mapping of elemBasisIdx_
@@ -347,27 +352,23 @@ private:
 
 public:
 
-	// *********************************************************************
-	// Lifecycle
-	// *********************************************************************
-	HamiltonianDG();
+  // *********************************************************************
+  // Lifecycle
+  // *********************************************************************
+  HamiltonianDG();
 
-	~HamiltonianDG();
-
-	HamiltonianDG( const esdf::ESDFInputParam& esdfParam );
+  ~HamiltonianDG();
 
   /// @brief Setup the Hamiltonian DG class from the input parameter.
-	void Setup ( const esdf::ESDFInputParam& esdfParam );
+  void Setup ( );
 
-  /// @brief Update hamiltonianDG for Geometry optimization and MD  
-	void UpdateHamiltonianDG( const std::vector<Atom>& atomList );
+  void UpdateHamiltonianDG    ( std::vector<Atom>& atomList );
+  // *********************************************************************
+  // Operations
+  // *********************************************************************
 
-	// *********************************************************************
-	// Operations
-	// *********************************************************************
-
-	/// @brief Differentiate the basis functions on a certain element
-	/// along the dimension d.
+  /// @brief Differentiate the basis functions on a certain element
+  /// along the dimension d.
   void DiffPsi(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d);
 
   /// @brief Interpolation matrix from LGL to uniform grid in each element.
@@ -383,23 +384,28 @@ public:
   /// each element.
   void CalculatePseudoPotential( PeriodTable &ptable );
 
+  /// @brief Atomic density is implemented using the structure factor
+  /// method due to the large cutoff radius
+  void CalculateAtomDensity( PeriodTable &ptable, DistFourier&   fft );
+
+
   /// @brief Compute the electron density after the diagonalization
-	/// of the DG Hamiltonian matrix.
-	void CalculateDensity( 
+  /// of the DG Hamiltonian matrix.
+  void CalculateDensity( 
       DistDblNumVec& rho, 
       DistDblNumVec& rhoLGL );
-	
-	/// @brief Compute the electron density using the density matrix. This
+
+  /// @brief Compute the electron density using the density matrix. This
   /// is used after obtaining the density matrix using PEXSI.
-	void CalculateDensityDM( 
+  void CalculateDensityDM( 
       DistDblNumVec& rho, 
       DistDblNumVec& rhoLGL, 
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
 
-	/// @brief Compute the electron density using the density matrix and
+  /// @brief Compute the electron density using the density matrix and
   /// with intra-element parallelization. This is used after obtaining
   /// the density matrix using PEXSI.
-	void CalculateDensityDM2( 
+  void CalculateDensityDM2( 
       DistDblNumVec& rho, 
       DistDblNumVec& rhoLGL, 
       DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn>& distDMMat );
@@ -465,7 +471,7 @@ public:
       DblNumTns&       eta2Total,
       DblNumTns&       eta2Residual,
       DblNumTns&       eta2GradJump,
-      DblNumTns&       eta2Jump	);
+      DblNumTns&       eta2Jump    );
 
   // *********************************************************************
   // Access
@@ -485,9 +491,9 @@ public:
   DistDblNumVec&  Epsxc()  { return epsxc_; }
 
   /// @brief Hartree potential in the global domain.
-	DistDblNumVec&  Vhart() { return vhart_; }
+  DistDblNumVec&  Vhart() { return vhart_; }
 
-	/// @brief Electron density in the global domain. No magnitization for
+  /// @brief Electron density in the global domain. No magnitization for
   /// DG calculation.
   DistDblNumVec&  Density() { return density_; }
 
@@ -497,13 +503,15 @@ public:
 
   DistDblNumVec&  PseudoCharge() { return pseudoCharge_; }
 
+  DistDblNumVec&  AtomDensity() { return atomDensity_; }
+
   std::vector<Atom>&  AtomList() { return atomList_; }
 
-	Int NumSpin () { return numSpin_; }
+  Int NumSpin () { return numSpin_; }
 
-	DblNumVec&  EigVal() { return eigVal_; }
-	
-	DblNumVec&  OccupationRate() { return occupationRate_; }
+  DblNumVec&  EigVal() { return eigVal_; }
+
+  DblNumVec&  OccupationRate() { return occupationRate_; }
 
   IntNumVec&  BasisUniformFineIdx() { return basisUniformFineIdx_; }
   const IntNumVec&  BasisUniformFineIdx() const { return basisUniformFineIdx_; }
@@ -512,7 +520,7 @@ public:
 
   DistDblNumMat&  BasisUniformFine() { return basisUniformFine_; }
 
-	DistDblNumVec&  VtotLGL() { return vtotLGL_; }
+  DistDblNumVec&  VtotLGL() { return vtotLGL_; }
 
   IntNumVec&  BasisLGLIdx() { return basisLGLIdx_; }
   const IntNumVec&  BasisLGLIdx() const { return basisLGLIdx_; }
@@ -521,53 +529,53 @@ public:
 
   DistDblNumMat&  BasisLGL() { return basisLGL_; }
 
-	DistDblNumMat&  EigvecCoef() { return eigvecCoef_; }
+  DistDblNumMat&  EigvecCoef() { return eigvecCoef_; }
 
-	/// @brief DG Hamiltonian matrix.
-	DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>&  
-		HMat() { return HMat_; } 
+  /// @brief DG Hamiltonian matrix.
+  DistVec<ElemMatKey, DblNumMat, ElemMatPrtn>&  
+    HMat() { return HMat_; } 
 
-	Int NumBasisTotal() const { return sizeHMat_; }
+  Int NumBasisTotal() const { return sizeHMat_; }
 
   NumTns< std::vector<Int> >&  ElemBasisIdx() { return elemBasisIdx_; }
 
   std::vector<Index3>&  ElemBasisInvIdx() { return elemBasisInvIdx_; }
 
-	/// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
-	Index3 NumUniformGridElem() const { return numUniformGridElem_; }
+  /// domain_.numGrid[d] = numUniformGridElem_[d] * numElem_[d]
+  Index3 NumUniformGridElem() const { return numUniformGridElem_; }
   Index3 NumUniformGridElemFine() const { return numUniformGridElemFine_; }
 
-	/// @brief Number of LGL grids in each element.
-	Index3 NumLGLGridElem() const { return numLGLGridElem_; }
+  /// @brief Number of LGL grids in each element.
+  Index3 NumLGLGridElem() const { return numLGLGridElem_; }
 
-	/// @brief Return the uniform grid on each element
-	NumTns<std::vector<DblNumVec> >& UniformGridElem(){ return  uniformGridElem_; }
+  /// @brief Return the uniform grid on each element
+  NumTns<std::vector<DblNumVec> >& UniformGridElem(){ return  uniformGridElem_; }
   NumTns<std::vector<DblNumVec> >& UniformGridElemFine(){ return  uniformGridElemFine_; }
 
-	/// @brief Return the LGL grid on each element
-	NumTns<std::vector<DblNumVec> >& LGLGridElem(){ return  LGLGridElem_; }
+  /// @brief Return the LGL grid on each element
+  NumTns<std::vector<DblNumVec> >& LGLGridElem(){ return  LGLGridElem_; }
 
-	/// @brief Return the element domain information
-	NumTns<Domain>&  DomainElem(){ return domainElem_; }
+  /// @brief Return the element domain information
+  NumTns<Domain>&  DomainElem(){ return domainElem_; }
 
-	/// @brief Return the 1D LGL weights
-	std::vector<DblNumVec>&  LGLWeight1D(){ return LGLWeight1D_; }
+  /// @brief Return the 1D LGL weights
+  std::vector<DblNumVec>&  LGLWeight1D(){ return LGLWeight1D_; }
 
-	/// @brief Return the 2D LGL weights
-	std::vector<DblNumMat>&  LGLWeight2D(){ return LGLWeight2D_; }
+  /// @brief Return the 2D LGL weights
+  std::vector<DblNumMat>&  LGLWeight2D(){ return LGLWeight2D_; }
 
-	/// @brief Return the 3D LGL weights
-	DblNumTns&  LGLWeight3D(){ return LGLWeight3D_; }
+  /// @brief Return the 3D LGL weights
+  DblNumTns&  LGLWeight3D(){ return LGLWeight3D_; }
 
-	// *********************************************************************
-	// Inquiry
-	// *********************************************************************
+  // *********************************************************************
+  // Inquiry
+  // *********************************************************************
 
-	Int NumStateTotal() const { return numExtraState_ + numOccupiedState_; }
+  Int NumStateTotal() const { return numExtraState_ + numOccupiedState_; }
 
-	Int NumOccupiedState() const { return numOccupiedState_; }
+  Int NumOccupiedState() const { return numOccupiedState_; }
 
-	Int NumExtraState() const { return numExtraState_; }
+  Int NumExtraState() const { return numExtraState_; }
 
 };
 
