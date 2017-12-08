@@ -128,3 +128,33 @@ c Combine PWDFT_bb and MD
 c Refine Fourier to clean the normalization factors. Encapsulate the
   forward and backward Fourier transforms? In what convention?
   c Convention similar to QE can be considered.
+
+
+
+
+12/6/2017: refactor2
+
+@todo
+- Merge refactor1 into master, and start a refactor2 branch (easy)
+
+- Test the output from testSpecies.C from qbox, and benchmark with the
+  output from MATLAB and figure out the unit convention etc.
+
+- Adapt upf2qso to pspio.cpp/.hpp, and compare the results with MATLAB
+  again.
+
+- Introduce species.cpp/.hpp in parallel to periodtable.cpp/.hpp, to
+  maintain backward compatibility and with DGDFT. The local part of the
+  pseudopotential now removes the contribution from pseudocharge, and
+  Gaussian pseudocharge needs to be added. The nonlocal one can reuse
+  the current code structure.  The periodtable should eventually become
+  obsolete.
+
+- Coulomb interaction etc should be revamped. qbox can help.
+
+- Add support from BigDFT's Poisson solver to evaluate the non-periodic
+  boundary condition Coulomb. But perhaps the simplest is to find QE's
+  treatment and use Makov-Payne type of correction first. This also
+  outputs an estimate of the vacuum level. ESM / BigDFT's solver may be
+  the right way to do things.
+
