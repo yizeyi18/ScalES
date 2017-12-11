@@ -280,6 +280,36 @@ Int deserialize(Atom& val, std::istream& is, const std::vector<Int>& mask);
 
 Real MaxForce( const std::vector<Atom>& atomList );
 
+/// The following comes from the UPF2QSO subroutine.
+struct Element
+{
+  int z;
+  string symbol;
+  string config;
+  double mass;
+  Element(int zz, string s, string c, double m) : z(zz), symbol(s), config(c),
+    mass(m) {}
+};
+
+class PeriodicTable
+{
+  private:
+
+  vector<Element> ptable;
+  map<string,int> zmap;
+
+  public:
+
+  PeriodicTable(void);
+  int z(string symbol) const;
+  string symbol(int zval) const;
+  string configuration(int zval) const;
+  string configuration(string symbol) const;
+  double mass(int zval) const;
+  double mass(string symbol) const;
+  int size(void) const;
+
+};
 
 
 } // namespace dgdft
