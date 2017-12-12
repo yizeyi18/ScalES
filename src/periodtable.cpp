@@ -1032,29 +1032,29 @@ Real MaxForce( const std::vector<Atom>& atomList ){
 }
 
 /// the following code are merged from the UPF2QSO package
-int PeriodicTable::z(string symbol) const
+int PeriodicTable::z(std::string symbol) const
 {
-  map<string,int>::const_iterator i = zmap.find(symbol);
+  std::map<std::string,int>::const_iterator i = zmap.find(symbol);
   assert( i != zmap.end() );
   return (*i).second;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-string PeriodicTable::symbol(int z) const
+std::string PeriodicTable::symbol(int z) const
 {
   assert(z>0 && z<=ptable.size());
   return ptable[z-1].symbol;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-string PeriodicTable::configuration(int z) const
+std::string PeriodicTable::configuration(int z) const
 {
   assert(z>0 && z<=ptable.size());
   return ptable[z-1].config;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-string PeriodicTable::configuration(string symbol) const
+std::string PeriodicTable::configuration(std::string symbol) const
 {
   return ptable[z(symbol)-1].config;
 }
@@ -1067,7 +1067,7 @@ double PeriodicTable::mass(int z) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-double PeriodicTable::mass(string symbol) const
+double PeriodicTable::mass(std::string symbol) const
 {
   return ptable[z(symbol)-1].mass;
 }
@@ -1186,20 +1186,21 @@ PeriodicTable::PeriodicTable(void)
 }
 
 // change the main subroutine to a readin function.
-int main(int argc, char** argv)
+int readin(int argc, char** argv)
 {
-  cerr << " upf2qso " << release << endl;
+  const std::string release="1.6"; 
+  std::cerr << " upf2qso " << release << std::endl;
   if ( argc != 2 )
   {
-    cerr << " usage: upf2qso rcut < file.upf > file.xml" << endl;
+    std::cerr << " usage: upf2qso rcut < file.upf > file.xml" << std::endl;
     return 1;
   }
   assert(argc==2);
   const double rcut = atof(argv[1]);
 
   PeriodicTable pt;
-  string buf,s;
-  istringstream is;
+  std::string buf,s;
+  std::istringstream is;
 
   // determine UPF version
   int upf_version = 0;
@@ -1207,34 +1208,34 @@ int main(int argc, char** argv)
   // The first line of the UPF potential file contains either of the following:
   // <PP_INFO>  (for UPF version 1)
   // <UPF version="2.0.1"> (for UPF version 2)
-  string::size_type p;
-  getline(cin,buf);
+  std::string::size_type p;
+  getline(std::cin,buf);
   p = buf.find("<PP_INFO>");
-  if ( p != string::npos )
+  if ( p != std::string::npos )
     upf_version = 1;
   else
   {
     p = buf.find("<UPF version=\"2.0.1\">");
-    if ( p != string::npos )
+    if ( p != std::string::npos )
       upf_version = 2;
   }
   if ( upf_version == 0 )
   {
-    cerr << " Format of UPF file not recognized " << endl;
-    cerr << " First line of file: " << buf << endl;
+    std::cerr << " Format of UPF file not recognized " << std::endl;
+    std::cerr << " First line of file: " << buf << std::endl;
     return 1;
   }
 
-  cerr << " UPF version: " << upf_version << endl;
+  std::cerr << " UPF version: " << upf_version << std::endl;
 
   if ( upf_version == 1 )
   {
     // process UPF version 1 potential
-    string upf_pp_info;
+    std::string upf_pp_info;
     bool done = false;
     while (!done)
     {
-      getline(cin,buf);
+      getline(std::cin,buf);
       is.clear();
       is.str(buf);
       is >> s;
@@ -1248,7 +1249,7 @@ int main(int argc, char** argv)
     // remove all '<' and '>' characters from the PP_INFO field
     // for XML compatibility
     p = upf_pp_info.find_first_of("<>");
-    while ( p != string::npos )
+    while ( p != std::string::npos )
     {
       upf_pp_info[p] = ' ';
       p = upf_pp_info.find_first_of("<>");
@@ -1258,11 +1259,11 @@ int main(int argc, char** argv)
     skipln();
 
     // version number (ignore)
-    getline(cin,buf);
+    getline(std::cin,buf);
 
     // element symbol
-    string upf_symbol;
-    getline(cin,buf);
+    std::string upf_symbol;
+    getline(std::cin,buf);
     is.clear();
     is.str(buf);
     is >> upf_symbol;
@@ -1272,32 +1273,32 @@ int main(int argc, char** argv)
     const double mass = pt.mass(upf_symbol);
 
     // NC flag
-    string upf_ncflag;
-    getline(cin,buf);
+    std::string upf_ncflag;
+    getline(std::cin,buf);
     is.clear();
     is.str(buf);
     is >> upf_ncflag;
     if ( upf_ncflag != "NC" )
     {
-      cerr << " not a Norm-conserving potential" << endl;
-      cerr << " NC flag: " << upf_ncflag << endl;
+      std::cerr << " not a Norm-conserving potential" << std::endl;
+      std::cerr << " NC flag: " << upf_ncflag << std::endl;
       return 1;
     }
 
     // NLCC flag
-    string upf_nlcc_flag;
-    getline(cin,buf);
+    std::string upf_nlcc_flag;
+    getline(std::cin,buf);
     is.clear();
     is.str(buf);
     is >> upf_nlcc_flag;
     if ( upf_nlcc_flag == "T" )
     {
-      cerr << " Potential includes a non-linear core correction" << endl;
+      std::cerr << " Potential includes a non-linear core correction" << std::endl;
     }
 
     // XC functional (add in description)
-    string upf_xcf[4];
-    getline(cin,buf);
+    std::string upf_xcf[4];
+    getline(std::cin,buf);
     is.clear();
     is.str(buf);
     is >> upf_xcf[0] >> upf_xcf[1] >> upf_xcf[2] >> upf_xcf[3];
@@ -1308,47 +1309,47 @@ int main(int argc, char** argv)
 
     // Z valence
     double upf_zval;
-    getline(cin,buf);
+    getline(std::cin,buf);
     is.clear();
     is.str(buf);
     is >> upf_zval;
 
     // Total energy (ignore)
-    getline(cin,buf);
+    getline(std::cin,buf);
 
     // suggested cutoff (ignore)
-    getline(cin,buf);
+    getline(std::cin,buf);
 
     // max angular momentum
     int upf_lmax;
-    getline(cin,buf);
+    getline(std::cin,buf);
     is.clear();
     is.str(buf);
     is >> upf_lmax;
 
     // number of points in mesh
     int upf_mesh_size;
-    getline(cin,buf);
+    getline(std::cin,buf);
     is.clear();
     is.str(buf);
     is >> upf_mesh_size;
 
     // number of wavefunctions, number of projectors
     int upf_nwf, upf_nproj;
-    getline(cin,buf);
+    getline(std::cin,buf);
     is.clear();
     is.str(buf);
     is >> upf_nwf >> upf_nproj;
 
     // Wavefunctions
-    vector<string> upf_shell(upf_nwf);
-    vector<int> upf_l(upf_nwf);
-    vector<double> upf_occ(upf_nwf);
+    std::vector<std::string> upf_shell(upf_nwf);
+    std::vector<int> upf_l(upf_nwf);
+    std::vector<double> upf_occ(upf_nwf);
     // skip header
-    getline(cin,buf);
+    getline(std::cin,buf);
     for ( int ip = 0; ip < upf_nwf; ip++ )
     {
-      getline(cin,buf);
+      getline(std::cin,buf);
       is.clear();
       is.str(buf);
       is >> upf_shell[ip] >> upf_l[ip] >> upf_occ[ip];
@@ -1359,80 +1360,80 @@ int main(int argc, char** argv)
     seek_str("<PP_MESH>");
     seek_str("<PP_R>");
     skipln();
-    vector<double> upf_r(upf_mesh_size);
+    std::vector<double> upf_r(upf_mesh_size);
     for ( int i = 0; i < upf_mesh_size; i++ )
-     cin >> upf_r[i];
+     std::cin >> upf_r[i];
     seek_str("</PP_R>");
     seek_str("<PP_RAB>");
     skipln();
-    vector<double> upf_rab(upf_mesh_size);
+    std::vector<double> upf_rab(upf_mesh_size);
     for ( int i = 0; i < upf_mesh_size; i++ )
-     cin >> upf_rab[i];
+     std::cin >> upf_rab[i];
     seek_str("</PP_RAB>");
     seek_str("</PP_MESH>");
 
-    vector<double> upf_nlcc;
+    std::vector<double> upf_nlcc;
     if ( upf_nlcc_flag == "T" )
     {
       upf_nlcc.resize(upf_mesh_size);
       seek_str("<PP_NLCC>");
       skipln();
-      vector<double> upf_nlcc(upf_mesh_size);
+      std::vector<double> upf_nlcc(upf_mesh_size);
       for ( int i = 0; i < upf_mesh_size; i++ )
-        cin >> upf_nlcc[i];
+        std::cin >> upf_nlcc[i];
       seek_str("</PP_NLCC>");
     }
 
     seek_str("<PP_LOCAL>");
     skipln();
-    vector<double> upf_vloc(upf_mesh_size);
+    std::vector<double> upf_vloc(upf_mesh_size);
     for ( int i = 0; i < upf_mesh_size; i++ )
-      cin >> upf_vloc[i];
+      std::cin >> upf_vloc[i];
     seek_str("</PP_LOCAL>");
 
     seek_str("<PP_NONLOCAL>");
     skipln();
-    vector<vector<double> > upf_vnl;
+    std::vector<std::vector<double> > upf_vnl;
     upf_vnl.resize(upf_nproj);
-    vector<int> upf_proj_l(upf_nproj);
+    std::vector<int> upf_proj_l(upf_nproj);
     for ( int j = 0; j < upf_nproj; j++ )
     {
       seek_str("<PP_BETA>");
       skipln();
       int ip, l, np;
-      cin >> ip >> l;
+      std::cin >> ip >> l;
       skipln();
       assert(ip-1 < upf_nproj);
       assert(l <= upf_lmax);
       upf_proj_l[ip-1] = l;
-      cin >> np;
+      std::cin >> np;
       upf_vnl[j].resize(upf_mesh_size);
       for ( int i = 0; i < np; i++ )
-        cin >> upf_vnl[j][i];
+        std::cin >> upf_vnl[j][i];
       seek_str("</PP_BETA>");
       skipln();
     }
     seek_str("<PP_DIJ>");
     skipln();
     int upf_ndij;
-    cin >> upf_ndij;
+    std::cin >> upf_ndij;
     skipln();
     if ( upf_ndij != upf_nproj )
     {
-      cerr << " Number of non-zero Dij differs from number of projectors"
-           << endl;
+      std::cerr << " Number of non-zero Dij differs from number of projectors"
+           << std::endl;
       return 1;
     }
 
-    vector<double> upf_d(upf_ndij);
+    std::vector<double> upf_d(upf_ndij);
     for ( int i = 0; i < upf_ndij; i++ )
     {
       int m,n;
-      cin >> m >> n >> upf_d[i];
+      std::cin >> m >> n >> upf_d[i];
       if ( m != n )
       {
-        cerr << " Non-local Dij has off-diagonal elements" << endl;
-        cerr << " m=" << m << " n=" << n << endl;
+        std::cerr << " Non-local Dij has off-diagonal elements" << std::endl;
+        std::cerr << " m=" << m << " n=" << n << std::endl;
         return 1;
       }
     }
@@ -1443,7 +1444,7 @@ int main(int argc, char** argv)
     // make table iproj[l] mapping l to iproj
     // vnl(l) is in vnl[iproj[l]] if iproj[l] > -1
     // vlocal if iproj[llocal] = -1
-    vector<int> iproj(upf_lmax+2);
+    std::vector<int> iproj(upf_lmax+2);
     for ( int l = 0; l <= upf_lmax+1; l++ )
       iproj[l] = -1;
     for ( int j = 0; j < upf_nproj; j++ )
@@ -1464,56 +1465,56 @@ int main(int argc, char** argv)
 
     seek_str("<PP_PSWFC>");
     skipln();
-    vector<vector<double> > upf_wf;
-    vector<int> upf_wf_l(upf_nwf);
-    vector<double> upf_wf_occ(upf_nwf);
+    std::vector<std::vector<double> > upf_wf;
+    std::vector<int> upf_wf_l(upf_nwf);
+    std::vector<double> upf_wf_occ(upf_nwf);
     upf_wf.resize(upf_nwf);
     for ( int j = 0; j < upf_nwf; j++ )
     {
       upf_wf[j].resize(upf_mesh_size);
-      string label;
-      cin >> label >> upf_wf_l[j] >> upf_wf_occ[j];
+      std::string label;
+      std::cin >> label >> upf_wf_l[j] >> upf_wf_occ[j];
       skipln();
       for ( int i = 0; i < upf_mesh_size; i++ )
-        cin >> upf_wf[j][i];
+        std::cin >> upf_wf[j][i];
     }
     seek_str("</PP_PSWFC>");
 
     // output original data in file upf.dat
-    ofstream upf("upf.dat");
-    upf << "# vloc" << endl;
+    std::ofstream upf("upf.dat");
+    upf << "# vloc" << std::endl;
     for ( int i = 0; i < upf_vloc.size(); i++ )
-      upf << upf_r[i] << " " << upf_vloc[i] << endl;
-    upf << endl << endl;
+      upf << upf_r[i] << " " << upf_vloc[i] << std::endl;
+    upf << std::endl << std::endl;
     for ( int j = 0; j < upf_nproj; j++ )
     {
-      upf << "# proj j=" << j << endl;
+      upf << "# proj j=" << j << std::endl;
       for ( int i = 0; i < upf_vnl[j].size(); i++ )
-        upf << upf_r[i] << " " << upf_vnl[j][i] << endl;
-      upf << endl << endl;
+        upf << upf_r[i] << " " << upf_vnl[j][i] << std::endl;
+      upf << std::endl << std::endl;
     }
     for ( int j = 0; j < upf_nwf; j++ )
     {
-      upf << "# wf j=" << j << endl;
+      upf << "# wf j=" << j << std::endl;
       for ( int i = 0; i < upf_wf[j].size(); i++ )
-        upf << upf_r[i] << " " << upf_wf[j][i] << endl;
-      upf << endl << endl;
+        upf << upf_r[i] << " " << upf_wf[j][i] << std::endl;
+      upf << std::endl << std::endl;
     }
     upf.close();
 
 
     // print summary
-    cerr << "PP_INFO:" << endl << upf_pp_info << endl;
-    cerr << "Element: " << upf_symbol << endl;
-    cerr << "NC: " << upf_ncflag << endl;
-    cerr << "NLCC: " << upf_nlcc_flag << endl;
-    cerr << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
-         << upf_xcf[2] << " " << upf_xcf[3] << endl;
-    cerr << "Zv: " << upf_zval << endl;
-    cerr << "lmax: " << qso_lmax << endl;
-    cerr << "llocal: " << upf_llocal << endl;
-    cerr << "nwf: " << upf_nwf << endl;
-    cerr << "mesh_size: " << upf_mesh_size << endl;
+    std::cerr << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
+    std::cerr << "Element: " << upf_symbol << std::endl;
+    std::cerr << "NC: " << upf_ncflag << std::endl;
+    std::cerr << "NLCC: " << upf_nlcc_flag << std::endl;
+    std::cerr << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
+         << upf_xcf[2] << " " << upf_xcf[3] << std::endl;
+    std::cerr << "Zv: " << upf_zval << std::endl;
+    std::cerr << "lmax: " << qso_lmax << std::endl;
+    std::cerr << "llocal: " << upf_llocal << std::endl;
+    std::cerr << "nwf: " << upf_nwf << std::endl;
+    std::cerr << "mesh_size: " << upf_mesh_size << std::endl;
 
     // compute delta_vnl[l][i] on the upf log mesh
 
@@ -1521,7 +1522,7 @@ int main(int argc, char** argv)
     // the wavefunction amplitude is smaller than tol, outside of rcut_divide.
     const double tol = 1.e-5;
     const double rcut_divide = 1.0;
-    vector<vector<double> > delta_vnl;
+    std::vector<std::vector<double> > delta_vnl;
     delta_vnl.resize(upf_nproj);
     for ( int j = 0; j < upf_nproj; j++ )
     {
@@ -1556,7 +1557,7 @@ int main(int argc, char** argv)
       }
     }
 
-    vector<vector<double> > vps;
+    std::vector<std::vector<double> > vps;
     vps.resize(upf_nproj+1);
     for ( int j = 0; j < upf_nproj; j++ )
     {
@@ -1568,9 +1569,9 @@ int main(int argc, char** argv)
     // interpolate functions on linear mesh
     const double mesh_spacing = 0.01;
     int nplin = (int) (rcut / mesh_spacing);
-    vector<double> f(upf_mesh_size), fspl(upf_mesh_size);
+    std::vector<double> f(upf_mesh_size), fspl(upf_mesh_size);
 
-    vector<double> nlcc_lin(nplin);
+    std::vector<double> nlcc_lin(nplin);
     // interpolate NLCC
     if ( upf_nlcc_flag == "T" )
     {
@@ -1609,7 +1610,7 @@ int main(int argc, char** argv)
     spline(n,&upf_r[0],&f[0],yp_left,yp_right,
            bcnat_left,bcnat_right,&fspl[0]);
 
-    vector<double> vloc_lin(nplin);
+    std::vector<double> vloc_lin(nplin);
     for ( int i = 0; i < nplin; i++ )
     {
       double r = i * mesh_spacing;
@@ -1621,7 +1622,7 @@ int main(int argc, char** argv)
     }
 
     // interpolate vps[j], j=0, nproj-1
-    vector<vector<double> > vps_lin;
+    std::vector<std::vector<double> > vps_lin;
     vps_lin.resize(vps.size());
     for ( int j = 0; j < vps.size(); j++ )
     {
@@ -1653,28 +1654,28 @@ int main(int argc, char** argv)
     }
 
     // write potentials in gnuplot format on file vlin.dat
-    ofstream vlin("vlin.dat");
+    std::ofstream vlin("vlin.dat");
     for ( int l = 0; l <= qso_lmax; l++ )
     {
-      vlin << "# v, l=" << l << endl;
+      vlin << "# v, l=" << l << std::endl;
       if ( iproj[l] == -1 )
       {
         // l == llocal
         for ( int i = 0; i < nplin; i++ )
-          vlin << i*mesh_spacing << " " << vloc_lin[i] << endl;
-        vlin << endl << endl;
+          vlin << i*mesh_spacing << " " << vloc_lin[i] << std::endl;
+        vlin << std::endl << std::endl;
       }
       else
       {
         for ( int i = 0; i < nplin; i++ )
-          vlin << i*mesh_spacing << " " << vps_lin[iproj[l]][i] << endl;
-        vlin << endl << endl;
+          vlin << i*mesh_spacing << " " << vps_lin[iproj[l]][i] << std::endl;
+        vlin << std::endl << std::endl;
       }
     }
 
     // interpolate wavefunctions on the linear mesh
 
-    vector<vector<double> > wf_lin;
+    std::vector<std::vector<double> > wf_lin;
     wf_lin.resize(upf_nwf);
     for ( int j = 0; j < upf_nwf; j++ )
     {
@@ -1737,35 +1738,35 @@ int main(int argc, char** argv)
         }
       }
 
-      vlin << "# phi, l=" << upf_l[j] << endl;
+      vlin << "# phi, l=" << upf_l[j] << std::endl;
       for ( int i = 0; i < nplin; i++ )
-        vlin << i*mesh_spacing << " " << wf_lin[j][i] << endl;
-      vlin << endl << endl;
+        vlin << i*mesh_spacing << " " << wf_lin[j][i] << std::endl;
+      vlin << std::endl << std::endl;
     }
 
-    cerr << " interpolation done" << endl;
+    std::cerr << " interpolation done" << std::endl;
 
 #if 1
     // output potential on log mesh
-    ofstream vout("v.dat");
+    std::ofstream vout("v.dat");
     for ( int l = 0; l <= qso_lmax; l++ )
     {
-      vout << "# v, l=" << l << endl;
+      vout << "# v, l=" << l << std::endl;
       if ( iproj[l] == -1 )
       {
         // l == llocal
         for ( int i = 0; i < upf_vloc.size(); i++ )
-          vout << upf_r[i] << " " << 0.5*upf_vloc[i] << endl;
-        vout << endl << endl;
+          vout << upf_r[i] << " " << 0.5*upf_vloc[i] << std::endl;
+        vout << std::endl << std::endl;
       }
       else
       {
         for ( int i = 0; i < vps[iproj[l]].size(); i++ )
-          vout << upf_r[i] << " " << 0.5*vps[iproj[l]][i] << endl;
-        vout << endl << endl;
+          vout << upf_r[i] << " " << 0.5*vps[iproj[l]][i] << std::endl;
+        vout << std::endl << std::endl;
       }
     }
-    vout << endl << endl;
+    vout << std::endl << std::endl;
     vout.close();
 #endif
 
@@ -1775,52 +1776,52 @@ int main(int argc, char** argv)
     // Weile, comment out the QSO format output
     if(0)
     {
-      cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
-      cout << "<fpmd:species xmlns:fpmd=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0\"" << endl;
-      cout << "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"" << endl;
-      cout << "  xsi:schemaLocation=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0"  << endl;
-      cout << "  species.xsd\">" << endl;
-      cout << "<description>" << endl;
-      cout << "Translated from UPF format by upf2qso" << endl;
-      cout << upf_pp_info;
-      cout << "</description>" << endl;
-      cout << "<symbol>" << upf_symbol << "</symbol>" << endl;
-      cout << "<atomic_number>" << atomic_number << "</atomic_number>" << endl;
-      cout << "<mass>" << mass << "</mass>" << endl;
-      cout << "<norm_conserving_pseudopotential>" << endl;
-      cout << "<valence_charge>" << upf_zval << "</valence_charge>" << endl;
-      cout << "<lmax>" << qso_lmax << "</lmax>" << endl;
-      cout << "<llocal>" << upf_llocal << "</llocal>" << endl;
-      cout << "<nquad>0</nquad>" << endl;
-      cout << "<rquad>0.0</rquad>" << endl;
-      cout << "<mesh_spacing>" << mesh_spacing << "</mesh_spacing>" << endl;
+      std::cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
+      std::cout << "<fpmd:species xmlns:fpmd=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0\"" << std::endl;
+      std::cout << "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"" << std::endl;
+      std::cout << "  xsi:schemaLocation=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0"  << std::endl;
+      std::cout << "  species.xsd\">" << std::endl;
+      std::cout << "<description>" << std::endl;
+      std::cout << "Translated from UPF format by upf2qso" << std::endl;
+      std::cout << upf_pp_info;
+      std::cout << "</description>" << std::endl;
+      std::cout << "<symbol>" << upf_symbol << "</symbol>" << std::endl;
+      std::cout << "<atomic_number>" << atomic_number << "</atomic_number>" << std::endl;
+      std::cout << "<mass>" << mass << "</mass>" << std::endl;
+      std::cout << "<norm_conserving_pseudopotential>" << std::endl;
+      std::cout << "<valence_charge>" << upf_zval << "</valence_charge>" << std::endl;
+      std::cout << "<lmax>" << qso_lmax << "</lmax>" << std::endl;
+      std::cout << "<llocal>" << upf_llocal << "</llocal>" << std::endl;
+      std::cout << "<nquad>0</nquad>" << std::endl;
+      std::cout << "<rquad>0.0</rquad>" << std::endl;
+      std::cout << "<mesh_spacing>" << mesh_spacing << "</mesh_spacing>" << std::endl;
   
-      cout.setf(ios::scientific,ios::floatfield);
+      std::cout.setf(std::ios::scientific,std::ios::floatfield);
       if ( upf_nlcc_flag == "T" )
       {
-        cout << "<core_density size=\"" << nplin << "\">" << endl;
+        std::cout << "<core_density size=\"" << nplin << "\">" << std::endl;
         for ( int i = 0; i < nplin; i++ )
-          cout << setprecision(10) << nlcc_lin[i] << endl;
-        cout << "</core_density>" << endl;
+          std::cout << std::setprecision(10) << nlcc_lin[i] << std::endl;
+        std::cout << "</core_density>" << std::endl;
       }
   
       for ( int l = 0; l <= qso_lmax; l++ )
       {
-        cout << "<projector l=\"" << l << "\" size=\"" << nplin << "\">"
-             << endl;
-        cout << "<radial_potential>" << endl;
+        std::cout << "<projector l=\"" << l << "\" size=\"" << nplin << "\">"
+             << std::endl;
+        std::cout << "<radial_potential>" << std::endl;
         if ( iproj[l] == -1 )
         {
           // l == llocal
           for ( int i = 0; i < nplin; i++ )
-            cout << setprecision(10) << vloc_lin[i] << endl;
+            std::cout << std::setprecision(10) << vloc_lin[i] << std::endl;
         }
         else
         {
           for ( int i = 0; i < nplin; i++ )
-            cout << setprecision(10) << vps_lin[iproj[l]][i] << endl;
+            std::cout << std::setprecision(10) << vps_lin[iproj[l]][i] << std::endl;
         }
-        cout << "</radial_potential>" << endl;
+        std::cout << "</radial_potential>" << std::endl;
         // find index j corresponding to angular momentum l
         int j = 0;
         while ( upf_wf_l[j] != l && j < upf_nwf ) j++;
@@ -1829,15 +1830,15 @@ int main(int argc, char** argv)
         // print wf only if found
         if ( found )
         {
-          cout << "<radial_function>" << endl;
+          std::cout << "<radial_function>" << std::endl;
           for ( int i = 0; i < nplin; i++ )
-            cout << setprecision(10) << wf_lin[j][i] << endl;
-          cout << "</radial_function>" << endl;
+            std::cout << std::setprecision(10) << wf_lin[j][i] << std::endl;
+          std::cout << "</radial_function>" << std::endl;
         }
-        cout << "</projector>" << endl;
+        std::cout << "</projector>" << std::endl;
       }
-      cout << "</norm_conserving_pseudopotential>" << endl;
-      cout << "</fpmd:species>" << endl;
+      std::cout << "</norm_conserving_pseudopotential>" << std::endl;
+      std::cout << "</fpmd:species>" << std::endl;
     }
 
   }
@@ -1845,11 +1846,11 @@ int main(int argc, char** argv)
   {
     // process UPF version 2 potential
     seek_str("<PP_INFO>");
-    string upf_pp_info;
+    std::string upf_pp_info;
     bool done = false;
     while (!done)
     {
-      getline(cin,buf);
+      getline(std::cin,buf);
       is.clear();
       is.str(buf);
       is >> s;
@@ -1863,52 +1864,52 @@ int main(int argc, char** argv)
     // remove all '<' and '>' characters from the PP_INFO field
     // for XML compatibility
     p = upf_pp_info.find_first_of("<>");
-    while ( p != string::npos )
+    while ( p != std::string::npos )
     {
       upf_pp_info[p] = ' ';
       p = upf_pp_info.find_first_of("<>");
     }
 
-    string tag = find_start_element("PP_HEADER");
+    std::string tag = find_start_element("PP_HEADER");
 
     // get attribute "element"
-    string upf_symbol = get_attr(tag,"element");
-    cerr << " upf_symbol: " << upf_symbol << endl;
+    std::string upf_symbol = get_attr(tag,"element");
+    std::cerr << " upf_symbol: " << upf_symbol << std::endl;
 
     // get atomic number and mass
     const int atomic_number = pt.z(upf_symbol);
     const double mass = pt.mass(upf_symbol);
 
     // check if potential is norm-conserving or semi-local
-    string pseudo_type = get_attr(tag,"pseudo_type");
-    cerr << " pseudo_type = " << pseudo_type << endl;
+    std::string pseudo_type = get_attr(tag,"pseudo_type");
+    std::cerr << " pseudo_type = " << pseudo_type << std::endl;
     if ( pseudo_type!="NC" && pseudo_type!="SL" )
     {
-      cerr << " pseudo_type must be NC or SL" << endl;
+      std::cerr << " pseudo_type must be NC or SL" << std::endl;
       return 1;
     }
 
     // NLCC flag
-    string upf_nlcc_flag = get_attr(tag,"core_correction");
+    std::string upf_nlcc_flag = get_attr(tag,"core_correction");
     if ( upf_nlcc_flag == "T" )
     {
-      cerr << " Potential includes a non-linear core correction" << endl;
+      std::cerr << " Potential includes a non-linear core correction" << std::endl;
     }
-    cerr << " upf_nlcc_flag = " << upf_nlcc_flag << endl;
+    std::cerr << " upf_nlcc_flag = " << upf_nlcc_flag << std::endl;
 
     // XC functional (add in description)
-    string upf_functional = get_attr(tag,"functional");
+    std::string upf_functional = get_attr(tag,"functional");
     // add XC functional information to description
     upf_pp_info += "functional = " + upf_functional + '\n';
-    cerr << " upf_functional = " << upf_functional << endl;
+    std::cerr << " upf_functional = " << upf_functional << std::endl;
 
     // valence charge
     double upf_zval = 0.0;
-    string buf = get_attr(tag,"z_valence");
+    std::string buf = get_attr(tag,"z_valence");
     is.clear();
     is.str(buf);
     is >> upf_zval;
-    cerr << " upf_zval = " << upf_zval << endl;
+    std::cerr << " upf_zval = " << upf_zval << std::endl;
 
     // max angular momentum
     int upf_lmax;
@@ -1916,7 +1917,7 @@ int main(int argc, char** argv)
     is.clear();
     is.str(buf);
     is >> upf_lmax;
-    cerr << " upf_lmax = " << upf_lmax << endl;
+    std::cerr << " upf_lmax = " << upf_lmax << std::endl;
 
     // local angular momentum
     int upf_llocal;
@@ -1924,7 +1925,7 @@ int main(int argc, char** argv)
     is.clear();
     is.str(buf);
     is >> upf_llocal;
-    cerr << " upf_llocal = " << upf_llocal << endl;
+    std::cerr << " upf_llocal = " << upf_llocal << std::endl;
 
     // number of points in mesh
     int upf_mesh_size;
@@ -1932,7 +1933,7 @@ int main(int argc, char** argv)
     is.clear();
     is.str(buf);
     is >> upf_mesh_size;
-    cerr << " upf_mesh_size = " << upf_mesh_size << endl;
+    std::cerr << " upf_mesh_size = " << upf_mesh_size << std::endl;
 
     // number of wavefunctions
     int upf_nwf;
@@ -1940,7 +1941,7 @@ int main(int argc, char** argv)
     is.clear();
     is.str(buf);
     is >> upf_nwf;
-    cerr << " upf_nwf = " << upf_nwf << endl;
+    std::cerr << " upf_nwf = " << upf_nwf << std::endl;
 
     // number of projectors
     int upf_nproj;
@@ -1948,81 +1949,81 @@ int main(int argc, char** argv)
     is.clear();
     is.str(buf);
     is >> upf_nproj;
-    cerr << " upf_nproj = " << upf_nproj << endl;
+    std::cerr << " upf_nproj = " << upf_nproj << std::endl;
 
-    vector<int> upf_l(upf_nwf);
+    std::vector<int> upf_l(upf_nwf);
 
     // read mesh
     find_start_element("PP_MESH");
     find_start_element("PP_R");
-    vector<double> upf_r(upf_mesh_size);
+    std::vector<double> upf_r(upf_mesh_size);
     for ( int i = 0; i < upf_mesh_size; i++ )
-      cin >> upf_r[i];
+      std::cin >> upf_r[i];
     find_end_element("PP_R");
     find_start_element("PP_RAB");
-    vector<double> upf_rab(upf_mesh_size);
+    std::vector<double> upf_rab(upf_mesh_size);
     for ( int i = 0; i < upf_mesh_size; i++ )
-      cin >> upf_rab[i];
+      std::cin >> upf_rab[i];
     find_end_element("PP_RAB");
     find_end_element("PP_MESH");
 
     // NLCC
-    vector<double> upf_nlcc;
+    std::vector<double> upf_nlcc;
     if ( upf_nlcc_flag == "T" )
     {
       find_start_element("PP_NLCC");
       upf_nlcc.resize(upf_mesh_size);
       for ( int i = 0; i < upf_mesh_size; i++ )
-        cin >> upf_nlcc[i];
+        std::cin >> upf_nlcc[i];
       find_end_element("PP_NLCC");
     }
 
     find_start_element("PP_LOCAL");
-    vector<double> upf_vloc(upf_mesh_size);
+    std::vector<double> upf_vloc(upf_mesh_size);
     for ( int i = 0; i < upf_mesh_size; i++ )
-      cin >> upf_vloc[i];
+      std::cin >> upf_vloc[i];
     find_end_element("PP_LOCAL");
 
     find_start_element("PP_NONLOCAL");
-    vector<vector<double> > upf_vnl;
+    std::vector<std::vector<double> > upf_vnl;
     upf_vnl.resize(upf_nproj);
-    vector<int> upf_proj_l(upf_nproj);
+    std::vector<int> upf_proj_l(upf_nproj);
 
-    ostringstream os;
+    std::ostringstream os;
     for ( int j = 0; j < upf_nproj; j++ )
     {
       int index, angular_momentum;
       os.str("");
       os << j+1;
-      string element_name = "PP_BETA." + os.str();
+      std::string element_name = "PP_BETA." + os.str();
       tag = find_start_element(element_name);
-      cerr << tag << endl;
+      std::cerr << tag << std::endl;
 
       buf = get_attr(tag,"index");
       is.clear();
       is.str(buf);
       is >> index;
-      cerr << " index = " << index << endl;
+      std::cerr << " index = " << index << std::endl;
 
       buf = get_attr(tag,"angular_momentum");
       is.clear();
       is.str(buf);
       is >> angular_momentum;
-      cerr << " angular_momentum = " << angular_momentum << endl;
+      std::cerr << " angular_momentum = " << angular_momentum << std::endl;
 
       assert(angular_momentum <= upf_lmax);
       upf_proj_l[index-1] = angular_momentum;
 
       upf_vnl[j].resize(upf_mesh_size);
       for ( int i = 0; i < upf_mesh_size; i++ )
-        cin >> upf_vnl[j][i];
+        std::cin >> upf_vnl[j][i];
 
       find_end_element(element_name);
     }
 
     // compute number of projectors for each l
     // nproj_l[l] is the number of projectors having angular momentum l
-    vector<int> nproj_l(upf_lmax+1);
+    std::vector<int> nproj_l(upf_lmax+1);
     for ( int l = 0; l <= upf_lmax; l++ )
     {
       nproj_l[l] = 0;
@@ -2036,20 +2037,20 @@ int main(int argc, char** argv)
     is.clear();
     is.str(buf);
     is >> size;
-    cerr << "PP_DIJ size = " << size << endl;
+    std::cerr << "PP_DIJ size = " << size << std::endl;
 
     if ( size != upf_nproj*upf_nproj )
     {
-      cerr << " Number of non-zero Dij differs from number of projectors"
-           << endl;
+      std::cerr << " Number of non-zero Dij differs from number of projectors"
+           << std::endl;
       return 1;
     }
     int upf_ndij = size;
 
-    vector<double> upf_d(upf_ndij);
+    std::vector<double> upf_d(upf_ndij);
     for ( int i = 0; i < upf_ndij; i++ )
     {
-      cin >> upf_d[i];
+      std::cin >> upf_d[i];
     }
     int imax = sqrt(size+1.e-5);
     assert(imax*imax==size);
@@ -2060,8 +2061,8 @@ int main(int argc, char** argv)
       for ( int n = 0; n < imax; n++ )
         if ( (m != n) && (upf_d[n*imax+m] != 0.0) )
         {
-          cerr << " Non-local Dij has off-diagonal elements" << endl;
-          cerr << " m=" << m << " n=" << n << endl;
+          std::cerr << " Non-local Dij has off-diagonal elements" << std::endl;
+          std::cerr << " m=" << m << " n=" << n << std::endl;
           return 1;
         }
 
@@ -2072,7 +2073,7 @@ int main(int argc, char** argv)
     // make table iproj[l] mapping l to iproj
     // vnl(l) is in vnl[iproj[l]] if iproj[l] > -1
     // vlocal if iproj[llocal] = -1
-    vector<int> iproj(upf_lmax+2);
+    std::vector<int> iproj(upf_lmax+2);
     for ( int l = 0; l <= upf_lmax+1; l++ )
       iproj[l] = -1;
     for ( int j = 0; j < upf_nproj; j++ )
@@ -2090,71 +2091,71 @@ int main(int argc, char** argv)
     if ( pseudo_type == "SL" )
     {
       find_start_element("PP_PSWFC");
-      vector<vector<double> > upf_wf;
-      vector<int> upf_wf_l(upf_nwf);
+      std::vector<std::vector<double> > upf_wf;
+      std::vector<int> upf_wf_l(upf_nwf);
       upf_wf.resize(upf_nwf);
       for ( int j = 0; j < upf_nwf; j++ )
       {
         int index, l;
         os.str("");
         os << j+1;
-        string element_name = "PP_CHI." + os.str();
+        std::string element_name = "PP_CHI." + os.str();
         tag = find_start_element(element_name);
-        cerr << tag << endl;
+        std::cerr << tag << std::endl;
 
         buf = get_attr(tag,"index");
         is.clear();
         is.str(buf);
         is >> index;
-        cerr << " index = " << index << endl;
+        std::cerr << " index = " << index << std::endl;
 
         buf = get_attr(tag,"l");
         is.clear();
         is.str(buf);
         is >> l;
-        cerr << " l = " << l << endl;
+        std::cerr << " l = " << l << std::endl;
 
         assert(l <= upf_lmax);
         upf_proj_l[index-1] = l;
         upf_wf[j].resize(upf_mesh_size);
         for ( int i = 0; i < upf_mesh_size; i++ )
-          cin >> upf_wf[j][i];
+          std::cin >> upf_wf[j][i];
       }
       find_end_element("PP_PSWFC");
 
       // output original data in file upf.dat
-      ofstream upf("upf.dat");
-      upf << "# vloc" << endl;
+      std::ofstream upf("upf.dat");
+      upf << "# vloc" << std::endl;
       for ( int i = 0; i < upf_vloc.size(); i++ )
-        upf << upf_r[i] << " " << upf_vloc[i] << endl;
-      upf << endl << endl;
+        upf << upf_r[i] << " " << upf_vloc[i] << std::endl;
+      upf << std::endl << std::endl;
       for ( int j = 0; j < upf_nproj; j++ )
       {
-        upf << "# proj j=" << j << endl;
+        upf << "# proj j=" << j << std::endl;
         for ( int i = 0; i < upf_vnl[j].size(); i++ )
-          upf << upf_r[i] << " " << upf_vnl[j][i] << endl;
-        upf << endl << endl;
+          upf << upf_r[i] << " " << upf_vnl[j][i] << std::endl;
+        upf << std::endl << std::endl;
       }
       for ( int j = 0; j < upf_nwf; j++ )
       {
-        upf << "# wf j=" << j << endl;
+        upf << "# wf j=" << j << std::endl;
         for ( int i = 0; i < upf_wf[j].size(); i++ )
-          upf << upf_r[i] << " " << upf_wf[j][i] << endl;
-        upf << endl << endl;
+          upf << upf_r[i] << " " << upf_wf[j][i] << std::endl;
+        upf << std::endl << std::endl;
       }
       upf.close();
 
       // print summary
-      cerr << "PP_INFO:" << endl << upf_pp_info << endl;
-      cerr << "Element: " << upf_symbol << endl;
-       cerr << "NLCC: " << upf_nlcc_flag << endl;
-      //cerr << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
-      //     << upf_xcf[2] << " " << upf_xcf[3] << endl;
-      cerr << "Zv: " << upf_zval << endl;
-      cerr << "lmax: " << qso_lmax << endl;
-      cerr << "llocal: " << upf_llocal << endl;
-      cerr << "nwf: " << upf_nwf << endl;
-      cerr << "mesh_size: " << upf_mesh_size << endl;
+      std::cerr << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
+      std::cerr << "Element: " << upf_symbol << std::endl;
+       std::cerr << "NLCC: " << upf_nlcc_flag << std::endl;
+      //std::cerr << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
+      //     << upf_xcf[2] << " " << upf_xcf[3] << std::endl;
+      std::cerr << "Zv: " << upf_zval << std::endl;
+      std::cerr << "lmax: " << qso_lmax << std::endl;
+      std::cerr << "llocal: " << upf_llocal << std::endl;
+      std::cerr << "nwf: " << upf_nwf << std::endl;
+      std::cerr << "mesh_size: " << upf_mesh_size << std::endl;
 
       // compute delta_vnl[l][i] on the upf log mesh
 
@@ -2162,7 +2163,7 @@ int main(int argc, char** argv)
       // the wavefunction amplitude is smaller than tol, outside of rcut_divide.
       const double tol = 1.e-5;
       const double rcut_divide = 1.0;
-      vector<vector<double> > delta_vnl;
+      std::vector<std::vector<double> > delta_vnl;
       delta_vnl.resize(upf_nproj);
       for ( int j = 0; j < upf_nproj; j++ )
       {
@@ -2197,7 +2198,7 @@ int main(int argc, char** argv)
         }
       }
 
-      vector<vector<double> > vps;
+      std::vector<std::vector<double> > vps;
       vps.resize(upf_nproj+1);
       for ( int j = 0; j < upf_nproj; j++ )
       {
@@ -2209,10 +2210,10 @@ int main(int argc, char** argv)
       // interpolate functions on linear mesh
       const double mesh_spacing = 0.01;
       int nplin = (int) (rcut / mesh_spacing);
-      vector<double> f(upf_mesh_size), fspl(upf_mesh_size);
+      std::vector<double> f(upf_mesh_size), fspl(upf_mesh_size);
 
       // interpolate NLCC
-      vector<double> nlcc_lin(nplin);
+      std::vector<double> nlcc_lin(nplin);
       if ( upf_nlcc_flag == "T" )
       {
         assert(upf_mesh_size==upf_nlcc.size());
@@ -2250,7 +2251,7 @@ int main(int argc, char** argv)
       spline(n,&upf_r[0],&f[0],yp_left,yp_right,
              bcnat_left,bcnat_right,&fspl[0]);
 
-      vector<double> vloc_lin(nplin);
+      std::vector<double> vloc_lin(nplin);
       for ( int i = 0; i < nplin; i++ )
       {
         double r = i * mesh_spacing;
@@ -2262,7 +2263,7 @@ int main(int argc, char** argv)
       }
 
       // interpolate vps[j], j=0, nproj-1
-      vector<vector<double> > vps_lin;
+      std::vector<std::vector<double> > vps_lin;
       vps_lin.resize(vps.size());
       for ( int j = 0; j < vps.size(); j++ )
       {
@@ -2294,28 +2295,28 @@ int main(int argc, char** argv)
       }
 
       // write potentials in gnuplot format on file vlin.dat
-      ofstream vlin("vlin.dat");
+      std::ofstream vlin("vlin.dat");
       for ( int l = 0; l <= qso_lmax; l++ )
       {
-        vlin << "# v, l=" << l << endl;
+        vlin << "# v, l=" << l << std::endl;
         if ( iproj[l] == -1 )
         {
           // l == llocal
           for ( int i = 0; i < nplin; i++ )
-            vlin << i*mesh_spacing << " " << vloc_lin[i] << endl;
-          vlin << endl << endl;
+            vlin << i*mesh_spacing << " " << vloc_lin[i] << std::endl;
+          vlin << std::endl << std::endl;
         }
         else
         {
           for ( int i = 0; i < nplin; i++ )
-            vlin << i*mesh_spacing << " " << vps_lin[iproj[l]][i] << endl;
-          vlin << endl << endl;
+            vlin << i*mesh_spacing << " " << vps_lin[iproj[l]][i] << std::endl;
+          vlin << std::endl << std::endl;
         }
       }
 
       // interpolate wavefunctions on the linear mesh
 
-      vector<vector<double> > wf_lin;
+      std::vector<std::vector<double> > wf_lin;
       wf_lin.resize(upf_nwf);
       for ( int j = 0; j < upf_nwf; j++ )
       {
@@ -2378,35 +2379,35 @@ int main(int argc, char** argv)
           }
         }
 
-        vlin << "# phi, l=" << upf_l[j] << endl;
+        vlin << "# phi, l=" << upf_l[j] << std::endl;
         for ( int i = 0; i < nplin; i++ )
-          vlin << i*mesh_spacing << " " << wf_lin[j][i] << endl;
-        vlin << endl << endl;
+          vlin << i*mesh_spacing << " " << wf_lin[j][i] << std::endl;
+        vlin << std::endl << std::endl;
       }
 
-      cerr << " interpolation done" << endl;
+      std::cerr << " interpolation done" << std::endl;
 
   #if 1
       // output potential on log mesh
-      ofstream vout("v.dat");
+      std::ofstream vout("v.dat");
       for ( int l = 0; l <= qso_lmax; l++ )
       {
-        vout << "# v, l=" << l << endl;
+        vout << "# v, l=" << l << std::endl;
         if ( iproj[l] == -1 )
         {
           // l == llocal
           for ( int i = 0; i < upf_vloc.size(); i++ )
-            vout << upf_r[i] << " " << 0.5*upf_vloc[i] << endl;
-          vout << endl << endl;
+            vout << upf_r[i] << " " << 0.5*upf_vloc[i] << std::endl;
+          vout << std::endl << std::endl;
         }
         else
         {
           for ( int i = 0; i < vps[iproj[l]].size(); i++ )
-            vout << upf_r[i] << " " << 0.5*vps[iproj[l]][i] << endl;
-          vout << endl << endl;
+            vout << upf_r[i] << " " << 0.5*vps[iproj[l]][i] << std::endl;
+          vout << std::endl << std::endl;
         }
       }
-      vout << endl << endl;
+      vout << std::endl << std::endl;
       vout.close();
   #endif
 
@@ -2416,52 +2417,52 @@ int main(int argc, char** argv)
       // Weile, comment out the QSO format output
       if(0)
       {
-        cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
-        cout << "<fpmd:species xmlns:fpmd=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0\"" << endl;
-        cout << "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"" << endl;
-        cout << "  xsi:schemaLocation=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0"  << endl;
-        cout << "  species.xsd\">" << endl;
-        cout << "<description>" << endl;
-        cout << "Translated from UPF format by upf2qso" << endl;
-        cout << upf_pp_info;
-        cout << "</description>" << endl;
-        cout << "<symbol>" << upf_symbol << "</symbol>" << endl;
-        cout << "<atomic_number>" << atomic_number << "</atomic_number>" << endl;
-        cout << "<mass>" << mass << "</mass>" << endl;
-        cout << "<norm_conserving_pseudopotential>" << endl;
-        cout << "<valence_charge>" << upf_zval << "</valence_charge>" << endl;
-        cout << "<lmax>" << qso_lmax << "</lmax>" << endl;
-        cout << "<llocal>" << upf_llocal << "</llocal>" << endl;
-        cout << "<nquad>0</nquad>" << endl;
-        cout << "<rquad>0.0</rquad>" << endl;
-        cout << "<mesh_spacing>" << mesh_spacing << "</mesh_spacing>" << endl;
+        std::cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
+        std::cout << "<fpmd:species xmlns:fpmd=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0\"" << std::endl;
+        std::cout << "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"" << std::endl;
+        std::cout << "  xsi:schemaLocation=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0"  << std::endl;
+        std::cout << "  species.xsd\">" << std::endl;
+        std::cout << "<description>" << std::endl;
+        std::cout << "Translated from UPF format by upf2qso" << std::endl;
+        std::cout << upf_pp_info;
+        std::cout << "</description>" << std::endl;
+        std::cout << "<symbol>" << upf_symbol << "</symbol>" << std::endl;
+        std::cout << "<atomic_number>" << atomic_number << "</atomic_number>" << std::endl;
+        std::cout << "<mass>" << mass << "</mass>" << std::endl;
+        std::cout << "<norm_conserving_pseudopotential>" << std::endl;
+        std::cout << "<valence_charge>" << upf_zval << "</valence_charge>" << std::endl;
+        std::cout << "<lmax>" << qso_lmax << "</lmax>" << std::endl;
+        std::cout << "<llocal>" << upf_llocal << "</llocal>" << std::endl;
+        std::cout << "<nquad>0</nquad>" << std::endl;
+        std::cout << "<rquad>0.0</rquad>" << std::endl;
+        std::cout << "<mesh_spacing>" << mesh_spacing << "</mesh_spacing>" << std::endl;
   
-        cout.setf(ios::scientific,ios::floatfield);
+        std::cout.setf(std::ios::scientific,std::ios::floatfield);
         if ( upf_nlcc_flag == "T" )
         {
-          cout << "<core_density size=\"" << nplin << "\">" << endl;
+          std::cout << "<core_density size=\"" << nplin << "\">" << std::endl;
           for ( int i = 0; i < nplin; i++ )
-            cout << setprecision(10) << nlcc_lin[i] << endl;
-          cout << "</core_density>" << endl;
+            std::cout << std::setprecision(10) << nlcc_lin[i] << std::endl;
+          std::cout << "</core_density>" << std::endl;
         }
   
         for ( int l = 0; l <= qso_lmax; l++ )
         {
-          cout << "<projector l=\"" << l << "\" size=\"" << nplin << "\">"
-               << endl;
-          cout << "<radial_potential>" << endl;
+          std::cout << "<projector l=\"" << l << "\" size=\"" << nplin << "\">"
+               << std::endl;
+          std::cout << "<radial_potential>" << std::endl;
           if ( iproj[l] == -1 )
           {
             // l == llocal
             for ( int i = 0; i < nplin; i++ )
-              cout << setprecision(10) << vloc_lin[i] << endl;
+              std::cout << std::setprecision(10) << vloc_lin[i] << std::endl;
           }
           else
           {
             for ( int i = 0; i < nplin; i++ )
-              cout << setprecision(10) << vps_lin[iproj[l]][i] << endl;
+              std::cout << std::setprecision(10) << vps_lin[iproj[l]][i] << std::endl;
           }
-          cout << "</radial_potential>" << endl;
+          std::cout << "</radial_potential>" << std::endl;
           // find index j corresponding to angular momentum l
           int j = 0;
           while ( upf_wf_l[j] != l && j < upf_nwf ) j++;
@@ -2470,60 +2471,60 @@ int main(int argc, char** argv)
           // print wf only if found
           if ( found )
           {
-            cout << "<radial_function>" << endl;
+            std::cout << "<radial_function>" << std::endl;
             for ( int i = 0; i < nplin; i++ )
-              cout << setprecision(10) << wf_lin[j][i] << endl;
-            cout << "</radial_function>" << endl;
+              std::cout << std::setprecision(10) << wf_lin[j][i] << std::endl;
+            std::cout << "</radial_function>" << std::endl;
           }
-          cout << "</projector>" << endl;
+          std::cout << "</projector>" << std::endl;
         }
-        cout << "</norm_conserving_pseudopotential>" << endl;
-        cout << "</fpmd:species>" << endl;
+        std::cout << "</norm_conserving_pseudopotential>" << std::endl;
+        std::cout << "</fpmd:species>" << std::endl;
       }
     } // if SL
 
     if ( pseudo_type == "NC" )
     {
-      cerr << " NC potential" << endl;
+      std::cerr << " NC potential" << std::endl;
       // output original data in file upf.dat
-      ofstream upf("upf.dat");
-      upf << "# vloc" << endl;
+      std::ofstream upf("upf.dat");
+      upf << "# vloc" << std::endl;
       for ( int i = 0; i < upf_vloc.size(); i++ )
-        upf << upf_r[i] << " " << upf_vloc[i] << endl;
-      upf << endl << endl;
+        upf << upf_r[i] << " " << upf_vloc[i] << std::endl;
+      upf << std::endl << std::endl;
       for ( int j = 0; j < upf_nproj; j++ )
       {
-        upf << "# proj j=" << j << endl;
+        upf << "# proj j=" << j << std::endl;
         for ( int i = 0; i < upf_vnl[j].size(); i++ )
-          upf << upf_r[i] << " " << upf_vnl[j][i] << endl;
-        upf << endl << endl;
+          upf << upf_r[i] << " " << upf_vnl[j][i] << std::endl;
+        upf << std::endl << std::endl;
       }
 
-      upf << "# dij " << endl;
+      upf << "# dij " << std::endl;
       for ( int j = 0; j < upf_d.size(); j++ )
       {
-        upf << j << " " << upf_d[j] << endl;
+        upf << j << " " << upf_d[j] << std::endl;
       }
       upf.close();
 
       // print summary
-      cerr << "PP_INFO:" << endl << upf_pp_info << endl;
-      cerr << "Element: " << upf_symbol << endl;
-      cerr << "NLCC: " << upf_nlcc_flag << endl;
-      // cerr << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
-      //      << upf_xcf[2] << " " << upf_xcf[3] << endl;
-      cerr << "Zv: " << upf_zval << endl;
-      cerr << "lmax: " << qso_lmax << endl;
-      cerr << "nproj: " << upf_nproj << endl;
-      cerr << "mesh_size: " << upf_mesh_size << endl;
+      std::cerr << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
+      std::cerr << "Element: " << upf_symbol << std::endl;
+      std::cerr << "NLCC: " << upf_nlcc_flag << std::endl;
+      // std::cerr << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
+      //      << upf_xcf[2] << " " << upf_xcf[3] << std::endl;
+      std::cerr << "Zv: " << upf_zval << std::endl;
+      std::cerr << "lmax: " << qso_lmax << std::endl;
+      std::cerr << "nproj: " << upf_nproj << std::endl;
+      std::cerr << "mesh_size: " << upf_mesh_size << std::endl;
 
       // interpolate functions on linear mesh
       const double mesh_spacing = 0.01;
       int nplin = (int) (rcut / mesh_spacing);
-      vector<double> f(upf_mesh_size), fspl(upf_mesh_size);
+      std::vector<double> f(upf_mesh_size), fspl(upf_mesh_size);
 
       // interpolate NLCC
-      vector<double> nlcc_lin(nplin);
+      std::vector<double> nlcc_lin(nplin);
       if ( upf_nlcc_flag == "T" )
       {
         assert(upf_mesh_size==upf_nlcc.size());
@@ -2561,7 +2562,7 @@ int main(int argc, char** argv)
       spline(n,&upf_r[0],&f[0],yp_left,yp_right,
              bcnat_left,bcnat_right,&fspl[0]);
 
-      vector<double> vloc_lin(nplin);
+      std::vector<double> vloc_lin(nplin);
       for ( int i = 0; i < nplin; i++ )
       {
         double r = i * mesh_spacing;
@@ -2573,7 +2574,7 @@ int main(int argc, char** argv)
       }
 
       // interpolate vnl[j], j=0, nproj-1
-      vector<vector<double> > vnl_lin;
+      std::vector<std::vector<double> > vnl_lin;
       vnl_lin.resize(upf_nproj);
       for ( int j = 0; j < vnl_lin.size(); j++ )
       {
@@ -2605,17 +2606,17 @@ int main(int argc, char** argv)
       }
 
       // write local potential and projectors in gnuplot format on file vlin.dat
-      ofstream vlin("vlin.dat");
-      vlin << "# vlocal" << endl;
+      std::ofstream vlin("vlin.dat");
+      vlin << "# vlocal" << std::endl;
       for ( int i = 0; i < nplin; i++ )
-        vlin << vloc_lin[i] << endl;
-      vlin << endl << endl;
+        vlin << vloc_lin[i] << std::endl;
+      vlin << std::endl << std::endl;
       for ( int iproj = 0; iproj < vnl_lin.size(); iproj++ )
       {
-        vlin << "# projector, l=" << upf_proj_l[iproj] << endl;
+        vlin << "# projector, l=" << upf_proj_l[iproj] << std::endl;
         for ( int i = 0; i < nplin; i++ )
-          vlin << i*mesh_spacing << " " << vnl_lin[iproj][i] << endl;
-        vlin << endl << endl;
+          vlin << i*mesh_spacing << " " << vnl_lin[iproj][i] << std::endl;
+        vlin << std::endl << std::endl;
       }
 
       // Generate QSO file
@@ -2624,36 +2625,36 @@ int main(int argc, char** argv)
       // Weile, comment out the QSO format output
       if(0)
       {
-        cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl;
-        cout << "<fpmd:species xmlns:fpmd=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0\"" << endl;
-        cout << "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"" << endl;
-        cout << "  xsi:schemaLocation=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0"  << endl;
-        cout << "  species.xsd\">" << endl;
-        cout << "<description>" << endl;
-        cout << "Translated from UPF format by upf2qso" << endl;
-        cout << upf_pp_info;
-        cout << "</description>" << endl;
-        cout << "<symbol>" << upf_symbol << "</symbol>" << endl;
-        cout << "<atomic_number>" << atomic_number << "</atomic_number>" << endl;
-        cout << "<mass>" << mass << "</mass>" << endl;
-        cout << "<norm_conserving_semilocal_pseudopotential>" << endl;
-        cout << "<valence_charge>" << upf_zval << "</valence_charge>" << endl;
-        cout << "<mesh_spacing>" << mesh_spacing << "</mesh_spacing>" << endl;
+        std::cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
+        std::cout << "<fpmd:species xmlns:fpmd=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0\"" << std::endl;
+        std::cout << "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"" << std::endl;
+        std::cout << "  xsi:schemaLocation=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0"  << std::endl;
+        std::cout << "  species.xsd\">" << std::endl;
+        std::cout << "<description>" << std::endl;
+        std::cout << "Translated from UPF format by upf2qso" << std::endl;
+        std::cout << upf_pp_info;
+        std::cout << "</description>" << std::endl;
+        std::cout << "<symbol>" << upf_symbol << "</symbol>" << std::endl;
+        std::cout << "<atomic_number>" << atomic_number << "</atomic_number>" << std::endl;
+        std::cout << "<mass>" << mass << "</mass>" << std::endl;
+        std::cout << "<norm_conserving_semilocal_pseudopotential>" << std::endl;
+        std::cout << "<valence_charge>" << upf_zval << "</valence_charge>" << std::endl;
+        std::cout << "<mesh_spacing>" << mesh_spacing << "</mesh_spacing>" << std::endl;
   
-        cout.setf(ios::scientific,ios::floatfield);
+        std::cout.setf(std::ios::scientific,std::ios::floatfield);
         if ( upf_nlcc_flag == "T" )
         {
-          cout << "<core_density size=\"" << nplin << "\">" << endl;
+          std::cout << "<core_density size=\"" << nplin << "\">" << std::endl;
           for ( int i = 0; i < nplin; i++ )
-            cout << setprecision(10) << nlcc_lin[i] << endl;
-          cout << "</core_density>" << endl;
+            std::cout << std::setprecision(10) << nlcc_lin[i] << std::endl;
+          std::cout << "</core_density>" << std::endl;
         }
   
         // local potential
-        cout << "<local_potential size=\"" << nplin << "\">" << endl;
+        std::cout << "<local_potential size=\"" << nplin << "\">" << std::endl;
         for ( int i = 0; i < nplin; i++ )
-          cout << setprecision(10) << vloc_lin[i] << endl;
-        cout << "</local_potential>" << endl;
+          std::cout << std::setprecision(10) << vloc_lin[i] << std::endl;
+        std::cout << "</local_potential>" << std::endl;
   
         // projectors
         int ip = 0;
@@ -2661,13 +2662,13 @@ int main(int argc, char** argv)
         {
           for ( int i = 0; i < nproj_l[l]; i++ )
           {
-            cout << "<projector l=\"" << l << "\" i=\""
+            std::cout << "<projector l=\"" << l << "\" i=\""
                  << i+1 << "\" size=\"" << nplin << "\">"
-                 << endl;
+                 << std::endl;
             for ( int j = 0; j < nplin; j++ )
-              cout << setprecision(10) << vnl_lin[ip][j] << endl;
+              std::cout << std::setprecision(10) << vnl_lin[ip][j] << std::endl;
             ip++;
-            cout << "</projector>" << endl;
+            std::cout << "</projector>" << std::endl;
           }
         }
   
@@ -2682,18 +2683,18 @@ int main(int argc, char** argv)
               if ( (upf_proj_l[i] == l) && (upf_proj_l[j] == l) )
               {
                 int ij = i + j*upf_nproj;
-                cout << "<d_ij l=\"" << l << "\""
+                std::cout << "<d_ij l=\"" << l << "\""
                      << " i=\"" << i-ibase+1 << "\" j=\"" << j-jbase+1
-                     << "\" " << setprecision(10) << 0.5*upf_d[ij] << " />"
-                     << endl;
+                     << "\" " << std::setprecision(10) << 0.5*upf_d[ij] << " />"
+                     << std::endl;
               }
             }
           ibase += nproj_l[l];
           jbase += nproj_l[l];
         }
   
-        cout << "</norm_conserving_semilocal_pseudopotential>" << endl;
-        cout << "</fpmd:species>" << endl;
+        std::cout << "</norm_conserving_semilocal_pseudopotential>" << std::endl;
+        std::cout << "</fpmd:species>" << std::endl;
       }
     }
   } // version 1 or 2

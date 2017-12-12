@@ -1343,20 +1343,20 @@ void splintd (int n, double *xa, double *ya, double *y2a,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-string find_start_element(string name)
+std::string find_start_element(std::string name)
 {
   // return the contents of the tag at start of element "name"
-  string buf, token;
-  string search_str = "<" + name;
+  std::string buf, token;
+  std::string search_str = "<" + name;
   do
   {
-    cin >> token;
+    std::cin >> token;
   }
-  while ( !cin.eof() && token.find(search_str) == string::npos );
-  if ( cin.eof() )
+  while ( !std::cin.eof() && token.find(search_str) == std::string::npos );
+  if ( std::cin.eof() )
   {
-    cerr << " EOF reached before start element " << name << endl;
-    throw invalid_argument(name);
+    std::cerr << " EOF reached before start element " << name << std::endl;
+    throw std::invalid_argument(name);
   }
 
   buf = token;
@@ -1368,78 +1368,78 @@ string find_start_element(string name)
   char ch;
   do
   {
-    cin.get(ch);
+    std::cin.get(ch);
     found = ch == '>';
     buf += ch;
   }
-  while ( !cin.eof() && !found );
-  if ( cin.eof() )
+  while ( !std::cin.eof() && !found );
+  if ( std::cin.eof() )
   {
-    cerr << " EOF reached before > " << name << endl;
-    throw invalid_argument(name);
+    std::cerr << " EOF reached before > " << name << std::endl;
+    throw std::invalid_argument(name);
   }
   return buf;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void find_end_element(string name)
+void find_end_element(std::string name)
 {
-  string buf, token;
-  string search_str = "</" + name + ">";
+  std::string buf, token;
+  std::string search_str = "</" + name + ">";
   do
   {
-    cin >> token;
-    if ( token.find(search_str) != string::npos ) return;
+    std::cin >> token;
+    if ( token.find(search_str) != std::string::npos ) return;
   }
-  while ( !cin.eof() );
-  cerr << " EOF reached before end element " << name << endl;
-  throw invalid_argument(name);
+  while ( !std::cin.eof() );
+  std::cerr << " EOF reached before end element " << name << std::endl;
+  throw std::invalid_argument(name);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void seek_str(string tag)
+void seek_str(std::string tag)
 {
   // Read tokens from stdin until tag is found.
   // Throw an exception if tag not found before eof()
   bool done = false;
-  string token;
+  std::string token;
   int count = 0;
 
   do
   {
-    cin >> token;
-    if ( token.find(tag) != string::npos ) return;
+    std::cin >> token;
+    if ( token.find(tag) != std::string::npos ) return;
   }
-  while ( !cin.eof() );
+  while ( !std::cin.eof() );
 
-  cerr << " EOF reached before " << tag << endl;
-  throw invalid_argument(tag);
+  std::cerr << " EOF reached before " << tag << std::endl;
+  throw std::invalid_argument(tag);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-string get_attr(string buf, string attr)
+std::string get_attr(std::string buf, std::string attr)
 {
   bool done = false;
-  string s, search_string = " " + attr + "=";
+  std::string s, search_string = " " + attr + "=";
 
   // find attribute name in buf
-  string::size_type p = buf.find(search_string);
-  if ( p != string::npos )
+  std::string::size_type p = buf.find(search_string);
+  if ( p != std::string::npos )
   {
     // process attribute
-    string::size_type b = buf.find_first_of("\"",p);
-    string::size_type e = buf.find_first_of("\"",b+1);
-    if ( b == string::npos || e == string::npos )
+    std::string::size_type b = buf.find_first_of("\"",p);
+    std::string::size_type e = buf.find_first_of("\"",b+1);
+    if ( b == std::string::npos || e == std::string::npos )
     {
-      cerr << " get_attr: attribute not found: " << attr << endl;
-      throw invalid_argument(attr);
+      std::cerr << " get_attr: attribute not found: " << attr << std::endl;
+      throw std::invalid_argument(attr);
     }
     return buf.substr(b+1,e-b-1);
   }
   else
   {
-    cerr << " get_attr: attribute not found: " << attr << endl;
-    throw invalid_argument(attr);
+    std::cerr << " get_attr: attribute not found: " << attr << std::endl;
+    throw std::invalid_argument(attr);
   }
   return s;
 }
@@ -1449,9 +1449,9 @@ void skipln(void)
 {
   char ch;
   bool found = false;
-  while ( !cin.eof() && !found )
+  while ( !std::cin.eof() && !found )
   {
-    cin.get(ch);
+    std::cin.get(ch);
     found = ch == '\n';
   }
 }

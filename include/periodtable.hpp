@@ -284,10 +284,10 @@ Real MaxForce( const std::vector<Atom>& atomList );
 struct Element
 {
   int z;
-  string symbol;
-  string config;
+  std::string symbol;
+  std::string config;
   double mass;
-  Element(int zz, string s, string c, double m) : z(zz), symbol(s), config(c),
+  Element(int zz, std::string s, std::string c, double m) : z(zz), symbol(s), config(c),
     mass(m) {}
 };
 
@@ -295,18 +295,18 @@ class PeriodicTable
 {
   private:
 
-  vector<Element> ptable;
-  map<string,int> zmap;
+  std::vector<Element> ptable;
+  std::map<std::string,int> zmap;
 
   public:
 
   PeriodicTable(void);
-  int z(string symbol) const;
-  string symbol(int zval) const;
-  string configuration(int zval) const;
-  string configuration(string symbol) const;
+  int z(std::string symbol) const;
+  std::string symbol(int zval) const;
+  std::string configuration(int zval) const;
+  std::string configuration(std::string symbol) const;
   double mass(int zval) const;
-  double mass(string symbol) const;
+  double mass(std::string symbol) const;
   int size(void) const;
 
 };
