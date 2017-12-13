@@ -9,9 +9,9 @@
 % Revision: 2017/02/01 Incorporate with new LDA pseudopotential
 
 % Znucs = [1 3 6 8 9 15];
-Znucs = [1];
+Znucs = [1 9];
 res = cell(length(Znucs),2);
-
+close all;
 % FIXME hard coded from qbox for the radius of the Gaussian charge
 
 
@@ -213,11 +213,12 @@ for g=1:length(Znucs)
       pause
     end
   end
-  if(0)
+  if(1)
+    hold on
     plot(pp.r,Vlocshort,'r-.',pp.r,rhoGaussian(pp.r),'b-.');
     pause
   end
-  if(1)
+  if(0)
     plot(r,Vloc,'r-.',r,dVloc,'b-.');
     pause
   end
