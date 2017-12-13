@@ -130,8 +130,8 @@ KohnSham::Setup    (
   SetValue( pseudoCharge_, 0.0 );
 
   if( esdfParam.isUseVLocal == true ){
-    VLocalSR_.Resize( ntotFine );
-    SetValue( VLocalSR_, 0.0 );
+    vLocalSR_.Resize( ntotFine );
+    SetValue( vLocalSR_, 0.0 );
   }
     
 
@@ -451,15 +451,15 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
   } // Use the pseudocharge formulation
   else{
     DblNumVec pseudoChargeLocal(ntotFine);
-    DblNumVec VLocalSRLocal(ntotFine);
+    DblNumVec vLocalSRLocal(ntotFine);
     SetValue( pseudoChargeLocal, 0.0 );
-    SetValue( VLocalSRLocal, 0.0 );
+    SetValue( vLocalSRLocal, 0.0 );
 
 
     for (Int i=0; i<numAtomLocal; i++) {
       int a = numAtomIdx[i];
       ptable.CalculateVLocal( atomList_[a], domain_, 
-          gridpos, pseudo_[a].VLocalSR, pseudo_[a].pseudoCharge );
+          gridpos, pseudo_[a].vLocalSR, pseudo_[a].pseudoCharge );
 
       statusOFS << "Finish the computation of VLocal for atom " << i << std::endl;
 
@@ -492,17 +492,17 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
         }
       }
       {
-        IntNumVec &idx = pseudo_[a].VLocalSR.first;
-        DblNumMat &val = pseudo_[a].VLocalSR.second;
+        IntNumVec &idx = pseudo_[a].vLocalSR.first;
+        DblNumMat &val = pseudo_[a].vLocalSR.second;
         for (Int k=0; k<idx.m(); k++) 
-          VLocalSRLocal[idx(k)] += val(k, VAL);
+          vLocalSRLocal[idx(k)] += val(k, VAL);
       }
     }
 
     SetValue( pseudoCharge_, 0.0 );
-    SetValue( VLocalSR_, 0.0 );
+    SetValue( vLocalSR_, 0.0 );
     MPI_Allreduce( pseudoChargeLocal.Data(), pseudoCharge_.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_.comm );
-    MPI_Allreduce( VLocalSR_.Data(), VLocalSRLocal.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_.comm );
+    MPI_Allreduce( vLocalSRLocal.Data(), vLocalSR_.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_.comm );
 
     for (Int a=0; a<numAtom; a++) {
 
@@ -556,6 +556,9 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
     Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
         (Real) nelec );
+
+//    statusOFS << "vLocalSR = " << vLocalSR_  << std::endl;
+//    statusOFS << "pseudoCharge = " << pseudoCharge_ << std::endl;
   } // Use the VLocal formulation
  
   // Nonlocal projectors
@@ -1614,10 +1617,17 @@ void
 KohnSham::CalculateVtot    ( DblNumVec& vtot )
 {
   Int ntot = domain_.NumGridTotalFine();
-  for (int i=0; i<ntot; i++) {
-    vtot(i) = vext_(i) + vhart_(i) + vxc_(i, RHO);
+  if( esdfParam.isUseVLocal == false ){
+    for (int i=0; i<ntot; i++) {
+      vtot(i) = vext_(i) + vhart_(i) + vxc_(i, RHO);
+    }
   }
-
+  else
+  {
+    for (int i=0; i<ntot; i++) {
+      vtot(i) = vext_(i) + vLocalSR_(i) + vhart_(i) + vxc_(i, RHO);
+    }
+  }
 
   return ;
 }         // -----  end of method KohnSham::CalculateVtot  ----- 

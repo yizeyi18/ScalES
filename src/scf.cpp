@@ -259,6 +259,93 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
     }
   }
 
+  // Self energy part. 
+  {
+    Eself_ = 0.0;
+    std::vector<Atom>&  atomList = eigSolPtr_->Ham().AtomList();
+    for(Int a=0; a< atomList.size() ; a++) {
+      Int type = atomList[a].type;
+      Eself_ +=  ptablePtr_->SelfIonInteraction(type);
+    }
+  }
+
+  // Short range repulsion part
+  if( esdfParam.isUseVLocal == true ){
+    std::vector<Atom>&  atomList = eigSolPtr_->Ham().AtomList();
+    EIonSR_ = 0.0;
+    forceIonSR_.Resize( atomList.size(), DIM );
+    SetValue(forceIonSR_, 0.0);
+    const Domain& dm = esdfParam.domain;
+
+    for(Int a=0; a< atomList.size() ; a++) {
+      Int type_a = atomList[a].type;
+      Real Zion_a = ptablePtr_->Zion(type_a);
+      Real RGaussian_a = ptablePtr_->RGaussian(type_a);
+
+      for(Int b=a; b< atomList.size() ; b++) {
+        // Need to consider the interaction between the same atom and
+        // its periodic image. Be sure not to double ocunt
+        bool same_atom = (a==b);
+
+        Int type_b = atomList[b].type;
+        Real Zion_b = ptablePtr_->Zion(type_b);
+        Real RGaussian_b = ptablePtr_->RGaussian(type_b);
+
+        Real radius_ab = std::sqrt ( RGaussian_a*RGaussian_a + RGaussian_b*RGaussian_b );
+        // convergence criterion for lattice sums:
+        // facNbr * radius_ab < ncell * d
+        const Real facNbr = 8.0;
+        const Int ncell0 = (Int) (facNbr * radius_ab / dm.length[0]);
+        const Int ncell1 = (Int) (facNbr * radius_ab / dm.length[1]);
+        const Int ncell2 = (Int) (facNbr * radius_ab / dm.length[2]);
+        statusOFS << " SCF: ncell = "
+          << ncell0 << " " << ncell1 << " " << ncell2 << std::endl;
+        Point3 pos_ab = atomList[a].pos - atomList[b].pos;
+        for( Int d = 0; d < DIM; d++ ){
+          pos_ab[d] = pos_ab[d] - IRound(pos_ab[d] / dm.length[d])*dm.length[d];
+        }
+
+
+        // loop over neighboring cells
+        Real fac;
+        for ( Int ic0 = -ncell0; ic0 <= ncell0; ic0++ )
+          for ( Int ic1 = -ncell1; ic1 <= ncell1; ic1++ )
+            for ( Int ic2 = -ncell2; ic2 <= ncell2; ic2++ )
+            {
+              if ( !same_atom || ic0!=0 || ic1!=0 || ic2!=0 )
+              {
+                if ( same_atom )
+                  fac = 0.5;
+                else
+                  fac = 1.0;
+                
+                Point3 pos_ab_image;
+                pos_ab_image[0] = pos_ab[0] + ic0*dm.length[0];
+                pos_ab_image[1] = pos_ab[1] + ic1*dm.length[1];
+                pos_ab_image[2] = pos_ab[2] + ic2*dm.length[2];
+
+                Real r_ab = pos_ab_image.l2();
+                Real esr_term = Zion_a * Zion_b * std::erfc(r_ab / radius_ab) / r_ab;
+                Real desr_erfc = 2.0 * Zion_a * Zion_b *
+                  std::exp(-(r_ab / radius_ab)*(r_ab / radius_ab))/(radius_ab*std::sqrt(PI));
+                // desrdr = (1/r) d Esr / dr
+                Real desrdr = - fac * (esr_term+desr_erfc) / ( r_ab*r_ab );
+                
+                EIonSR_ += fac * esr_term;
+
+                forceIonSR_(a,0) -= desrdr * pos_ab_image[0];
+                forceIonSR_(b,0) += desrdr * pos_ab_image[0];
+                forceIonSR_(a,1) -= desrdr * pos_ab_image[1];
+                forceIonSR_(b,1) += desrdr * pos_ab_image[1];
+                forceIonSR_(a,2) -= desrdr * pos_ab_image[2];
+                forceIonSR_(b,2) += desrdr * pos_ab_image[2];
+              }
+            }
+      } // for (b)
+    } // for (a)
+  } // if esdfParam.isUseVLocal == true
+
+  // FIXME external force when needed
 
   return ;
 }         // -----  end of method SCF::Setup  ----- 
@@ -273,6 +360,20 @@ SCF::Update    ( )
     dfMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
     dvMat_.Resize( ntotFine, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
   }
+
+  // FIXME
+
+  // Self energy part. 
+  {
+    Eself_ = 0.0;
+    std::vector<Atom>&  atomList = eigSolPtr_->Ham().AtomList();
+    for(Int a=0; a< atomList.size() ; a++) {
+      Int type = atomList[a].type;
+      Eself_ +=  ptablePtr_->SelfIonInteraction(type);
+    }
+  }
+  // FIXME Short range repulsion part
+
 
   return ;
 }         // -----  end of method SCF::Update  ----- 
@@ -2014,16 +2115,11 @@ SCF::CalculateEnergy    (  )
   Ehart_ *= vol/Real(ntot);
   EVxc_  *= vol/Real(ntot);
 
-  // Self energy part
-  Eself_ = 0;
-  std::vector<Atom>&  atomList = eigSolPtr_->Ham().AtomList();
-  for(Int a=0; a< atomList.size() ; a++) {
-    Int type = atomList[a].type;
-    Eself_ +=  ptablePtr_->SelfIonInteraction(type);
-  }
 
   // Correction energy
   Ecor_ = (Exc_ - EVxc_) - Ehart_ - Eself_;
+  if( esdfParam.isUseVLocal == true )
+    Ecor_ += EIonSR_;
 
   // Total energy
   Etot_ = Ekin_ + Ecor_;
@@ -2547,6 +2643,8 @@ SCF::PrintState    ( const Int iter  )
   Print(statusOFS, "Exc               = ",  Exc_, "[au]"); 
   Print(statusOFS, "Evdw              = ",  Evdw_, "[au]"); 
   Print(statusOFS, "Eself             = ",  Eself_, "[au]");
+  if( esdfParam.isUseVLocal )
+    Print(statusOFS, "EIonSR            = ",  EIonSR_, "[au]");
   Print(statusOFS, "Ecor              = ",  Ecor_, "[au]");
   Print(statusOFS, "Fermi             = ",  fermi_, "[au]");
   Print(statusOFS, "Total charge      = ",  totalCharge_, "[au]");

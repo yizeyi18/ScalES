@@ -166,17 +166,15 @@ Code structure:
 - utility.hpp
   o add additional component called VLocalSR for short range VLocal and
     its derivatives. done
-- hamiltonian.hpp
 - hamiltonian.cpp
-  o CalculatePseudoPotential: 
+  o CalculatePseudoPotential:  done
       if isUseVLocal == false
         do before
       else
-        evaluate the short range VLocal contribution in pseudo.VLocalSR
+        evaluate the short range VLocal contribution in pseudo.VLocalSR.  done
         evaluate the Gaussian pseudocharge contribution in pseudo.pseudoCharge  done.
-        evaluate self energy
-        evaluate short range repulsion energy and store the contribution
-          to force.  
+  o CalculateVtot
+      add contribution from VLocalSR. done
   o CalculateForce2:
       if isUseVLocal == false
         do before
@@ -191,8 +189,8 @@ Code structure:
       
 - scf.cpp
   o add energySelf_ for the self energy, energySR_ and forceIonSR_ for
-    the short range correction energy.
-  o CalculateEnergy:
+    the short range correction energy. done
+  o CalculateEnergy: done
       if isUseVLocal == false
         do before
       else
@@ -211,8 +209,8 @@ Code structure:
     Reuse the Sparse structure and subtract contribution from Gaussian
     pseudocharge.  done
   o CalculateGaussianPseudoCharge. done
-  o Read Gaussian pseudocharge 
+  o Read Gaussian pseudocharge. done
   o Setup.
     Load the local pseudopotential, and modify the local part of the
-    pseudopotential to remove the Gaussian pseudocharge.
+    pseudopotential to remove the Gaussian pseudocharge. done
 

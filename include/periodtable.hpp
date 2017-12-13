@@ -296,8 +296,10 @@ public:
   /// @brief Valence charge of the ion
   Real Zion(Int type) {return ptemap_[type].params(ptparam_.ZION);}
 
-  /// @brief Self ionic interaction energy
-  Real SelfIonInteraction(Int type) {return ptemap_[type].params(ptparam_.ESELF);}
+  /// @brief Self ionic interaction energy.
+  ///
+  /// This handles the case of isUseVLocal = true or false
+  Real SelfIonInteraction(Int type); 
   
   /// @brief Cutoff radius for the pseudocharge in the real space
   Real RGaussian(Int type)   {return ptemap_[type].params(ptparam_.RGAUSSIAN);}

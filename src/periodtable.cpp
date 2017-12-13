@@ -1124,11 +1124,12 @@ PeriodTable::CalculateVLocal(
     std::vector<Real> val(idxsize,0.0);
     seval(&(val[0]), idxsize, &(rad[0]), valspl[0].m(), valspl[0].Data(), 
         valspl[1].Data(), valspl[2].Data(), valspl[3].Data(), valspl[4].Data());
+
     std::vector<DblNumVec>& derspl = spldata[ptsample_.DRV_VLOCAL];
     std::vector<Real> der(idxsize,0.0);
-
     seval(&(der[0]), idxsize, &(rad[0]), derspl[0].m(), derspl[0].Data(), 
         derspl[1].Data(), derspl[2].Data(), derspl[3].Data(), derspl[4].Data());
+
     IntNumVec iv(idx.size(), true, &(idx[0])); 
     DblNumMat dv( idx.size(), DIM+1 );  // Value and its three derivatives
     for(Int g=0; g<idx.size(); g++) {
@@ -1150,8 +1151,7 @@ PeriodTable::CalculateVLocal(
     SetValue(dv, D_ZERO);
     Real fac = Zion / std::pow(std::sqrt(PI) * RGaussian,3);
     for(Int g=0; g<idx.size(); g++) {
-      // Note the minus sign
-      dv(g, VAL) = -fac * std::exp(-(rad[g]/RGaussian)*(rad[g]/RGaussian)) ;
+      dv(g, VAL) = fac * std::exp(-(rad[g]/RGaussian)*(rad[g]/RGaussian)) ;
       // FIXME derivatives later
 //      if( rad[g]> MIN_RADIAL ) {
 //        dv(g, DX) = der[g] * xx[g]/rad[g];
@@ -1170,6 +1170,21 @@ PeriodTable::CalculateVLocal(
 }         // -----  end of method PeriodTable::CalculateVLocal  ----- 
 
 
+Real PeriodTable::SelfIonInteraction(Int type)
+{
+  Real eself;
+  if( esdfParam.isUseVLocal == false ){
+    eself = ptemap_[type].params(ptparam_.ESELF);
+  }
+  else{
+    Real Rzero = this->RcutPseudoCharge( type );
+    Real RGaussian = this->RGaussian( type );
+    Real Zion = this->Zion( type );
+    eself = Zion * Zion / ( std::sqrt(2.0 * PI) * RGaussian );
+  }
+  
+  return eself;
+}         // -----  end of method PeriodTable::CalculateVLocal  ----- 
 
 
 
@@ -1205,7 +1220,6 @@ Real MaxForce( const std::vector<Atom>& atomList ){
   }
   return maxForce;
 }
-
 
 
 } // namespace dgdft

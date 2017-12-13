@@ -784,6 +784,7 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 Int serialize(const PseudoPot& val, std::ostream& os, const std::vector<Int>& mask)
 {
   serialize( val.pseudoCharge,        os, mask );
+  serialize( val.vLocalSR,            os, mask );
   serialize( val.vnlList,             os, mask );
   serialize( val.vnlListFine,         os, mask );
   // No need to serialize the communicator
@@ -793,6 +794,7 @@ Int serialize(const PseudoPot& val, std::ostream& os, const std::vector<Int>& ma
 Int deserialize(PseudoPot& val, std::istream& is, const std::vector<Int>& mask)
 {
   deserialize( val.pseudoCharge,      is, mask );
+  deserialize( val.vLocalSR,          is, mask );
   deserialize( val.vnlList,           is, mask );
   deserialize( val.vnlListFine,       is, mask );
   return 0;

@@ -95,7 +95,7 @@ protected:
   // compensation pseudocharge
   DblNumVec                   pseudoCharge_;
   // Short range part of the the local pseudopotential
-  DblNumVec                   VLocalSR_;
+  DblNumVec                   vLocalSR_;
 
 
   // density_(:,1)    electron density
