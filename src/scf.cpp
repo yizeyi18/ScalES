@@ -1652,6 +1652,14 @@ SCF::Iterate (  )
     }
   } 
 
+  // Add the contribution from short range interaction
+  if( esdfParam.isUseVLocal == true ){
+    std::vector<Atom>& atomList = ham.AtomList();
+    for( Int a = 0; a < atomList.size(); a++ ){
+      atomList[a].force += Point3( forceIonSR_(a,0), forceIonSR_(a,1), forceIonSR_(a,2) );
+    }
+  }
+
   // Output the information after SCF
   {
     // Energy
