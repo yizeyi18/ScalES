@@ -158,3 +158,61 @@ c Refine Fourier to clean the normalization factors. Encapsulate the
   outputs an estimate of the vacuum level. ESM / BigDFT's solver may be
   the right way to do things.
 
+
+Code structure:
+
+- esdf.cpp
+  o add isUseVLocal to decide whether to use the VLocal formulation.  done
+- utility.hpp
+  o add additional component called VLocalSR for short range VLocal and
+    its derivatives. done
+- hamiltonian.hpp
+- hamiltonian.cpp
+  o CalculatePseudoPotential: 
+      if isUseVLocal == false
+        do before
+      else
+        evaluate the short range VLocal contribution in pseudo.VLocalSR
+        evaluate the Gaussian pseudocharge contribution in pseudo.pseudoCharge  done.
+        evaluate self energy
+        evaluate short range repulsion energy and store the contribution
+          to force.  
+  o CalculateForce2:
+      if isUseVLocal == false
+        do before
+      else
+        Add contribution from Gaussian pseudocharge (similar to current)
+        Add contribution from ionic VLocal
+        Add contribution from short range repulsion
+
+  o Cleanup: Merge later with CalculateForce
+  o Cleanup: remove the local pseudopotential and nonlocal
+    pseudopotential stored on the coarse grid. This is not useful.
+      
+- scf.cpp
+  o add energySelf_ for the self energy, energySR_ and forceIonSR_ for
+    the short range correction energy.
+  o CalculateEnergy:
+      if isUseVLocal == false
+        do before
+      else
+        Add contribution of SR and self energy from hamiltonian.cpp
+
+  o Perhaps include the contribution of short range and self energy  to
+    energy / force in scf instead of Hamiltonian, since vdW etc
+    is also included at the same level
+  o May need to change the code from Harris energy etc.
+  o May need to perform a test on the energy curve of the HF molecule
+    first to verify that the correction energy is indeed added correctly (no
+    over-bonding issue as observed before for the pseudoCharge version).
+
+- periodtable.cpp
+  o CalculateVLocalShortRange: 
+    Reuse the Sparse structure and subtract contribution from Gaussian
+    pseudocharge.  done
+  o CalculateGaussianPseudoCharge. done
+  o Read Gaussian pseudocharge 
+  o Setup.
+    Load the local pseudopotential, and modify the local part of the
+    pseudopotential to remove the Gaussian pseudocharge.
+

@@ -129,6 +129,13 @@ KohnSham::Setup    (
   pseudoCharge_.Resize( ntotFine );
   SetValue( pseudoCharge_, 0.0 );
 
+  if( esdfParam.isUseVLocal == true ){
+    VLocalSR_.Resize( ntotFine );
+    SetValue( VLocalSR_, 0.0 );
+  }
+    
+
+
   vext_.Resize( ntotFine );
   SetValue( vext_, 0.0 );
 
@@ -349,97 +356,210 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
   Print( statusOFS, "Computing the local pseudopotential" );
 
-  DblNumVec pseudoChargeLocal(ntotFine);
-  SetValue( pseudoChargeLocal, 0.0 );
+  if( esdfParam.isUseVLocal == false )
+  {
 
-  for (Int i=0; i<numAtomLocal; i++) {
-    int a = numAtomIdx[i];
-    ptable.CalculatePseudoCharge( atomList_[a], domain_, 
-        gridpos, pseudo_[a].pseudoCharge );
-    //accumulate to the global vector
-    IntNumVec &idx = pseudo_[a].pseudoCharge.first;
-    DblNumMat &val = pseudo_[a].pseudoCharge.second;
-    for (Int k=0; k<idx.m(); k++) 
-      pseudoChargeLocal[idx(k)] += val(k, VAL);
-    // For debug purpose, check the summation of the derivative
-    if(0){
-      Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
-      for (Int k=0; k<idx.m(); k++) {
-        sumVDX += val(k, DX);
-        sumVDY += val(k, DY);
-        sumVDZ += val(k, DZ);
+    DblNumVec pseudoChargeLocal(ntotFine);
+    SetValue( pseudoChargeLocal, 0.0 );
+
+    for (Int i=0; i<numAtomLocal; i++) {
+      int a = numAtomIdx[i];
+      ptable.CalculatePseudoCharge( atomList_[a], domain_, 
+          gridpos, pseudo_[a].pseudoCharge );
+      //accumulate to the global vector
+      IntNumVec &idx = pseudo_[a].pseudoCharge.first;
+      DblNumMat &val = pseudo_[a].pseudoCharge.second;
+      for (Int k=0; k<idx.m(); k++) 
+        pseudoChargeLocal[idx(k)] += val(k, VAL);
+      // For debug purpose, check the summation of the derivative
+      if(0){
+        Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
+        for (Int k=0; k<idx.m(); k++) {
+          sumVDX += val(k, DX);
+          sumVDY += val(k, DY);
+          sumVDZ += val(k, DZ);
+        }
+        sumVDX *= vol / Real(ntotFine);
+        sumVDY *= vol / Real(ntotFine);
+        sumVDZ *= vol / Real(ntotFine);
+        if( std::sqrt(sumVDX * sumVDX + sumVDY * sumVDY + sumVDZ * sumVDZ) 
+            > 1e-8 ){
+          Print( statusOFS, "Local pseudopotential may not be constructed correctly" );
+          Print( statusOFS, "For Atom ", a );
+          Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
+          Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
+          Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
+        }
       }
-      sumVDX *= vol / Real(ntotFine);
-      sumVDY *= vol / Real(ntotFine);
-      sumVDZ *= vol / Real(ntotFine);
-      if( std::sqrt(sumVDX * sumVDX + sumVDY * sumVDY + sumVDZ * sumVDZ) 
-          > 1e-8 ){
-        Print( statusOFS, "Local pseudopotential may not be constructed correctly" );
-        Print( statusOFS, "For Atom ", a );
-        Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
-        Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
-        Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
+    }
+
+    SetValue( pseudoCharge_, 0.0 );
+    MPI_Allreduce( pseudoChargeLocal.Data(), pseudoCharge_.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+    for (Int a=0; a<numAtom; a++) {
+
+      std::stringstream vStream;
+      std::stringstream vStreamTemp;
+      int vStreamSize;
+
+      PseudoPot& pseudott = pseudo_[a]; 
+
+      serialize( pseudott, vStream, NO_MASK );
+
+      if (numAtomMpirank[a] == mpirank){
+        vStreamSize = Size( vStream );
+      }
+
+      MPI_Bcast( &vStreamSize, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
+
+      std::vector<char> sstr;
+      sstr.resize( vStreamSize );
+
+      if (numAtomMpirank[a] == mpirank){
+        vStream.read( &sstr[0], vStreamSize );
+      }
+
+      MPI_Bcast( &sstr[0], vStreamSize, MPI_BYTE, numAtomMpirank[a], domain_.comm );
+
+      vStreamTemp.write( &sstr[0], vStreamSize );
+
+      deserialize( pseudott, vStreamTemp, NO_MASK );
+
+    }
+
+    GetTime( timeEnd );
+
+    statusOFS << "Time for local pseudopotential " << timeEnd - timeSta  << std::endl;
+
+    Real sumrho = 0.0;
+    for (Int i=0; i<ntotFine; i++) 
+      sumrho += pseudoCharge_[i]; 
+    sumrho *= vol / Real(ntotFine);
+
+    Print( statusOFS, "Sum of Pseudocharge                          = ", 
+        sumrho );
+    Print( statusOFS, "Number of Occupied States                    = ", 
+        numOccupiedState_ );
+
+    // adjustment should be multiplicative
+    Real fac = nelec / sumrho;
+    for (Int i=0; i<ntotFine; i++) 
+      pseudoCharge_(i) *= fac; 
+
+    Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
+        (Real) nelec );
+  } // Use the pseudocharge formulation
+  else{
+    DblNumVec pseudoChargeLocal(ntotFine);
+    DblNumVec VLocalSRLocal(ntotFine);
+    SetValue( pseudoChargeLocal, 0.0 );
+    SetValue( VLocalSRLocal, 0.0 );
+
+
+    for (Int i=0; i<numAtomLocal; i++) {
+      int a = numAtomIdx[i];
+      ptable.CalculateVLocal( atomList_[a], domain_, 
+          gridpos, pseudo_[a].VLocalSR, pseudo_[a].pseudoCharge );
+
+      statusOFS << "Finish the computation of VLocal for atom " << i << std::endl;
+
+      //accumulate to the global vector
+      {
+        IntNumVec &idx = pseudo_[a].pseudoCharge.first;
+        DblNumMat &val = pseudo_[a].pseudoCharge.second;
+        for (Int k=0; k<idx.m(); k++) 
+          pseudoChargeLocal[idx(k)] += val(k, VAL);
+
+        // For debug purpose, check the summation of the derivative
+        if(0){
+          Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
+          for (Int k=0; k<idx.m(); k++) {
+            sumVDX += val(k, DX);
+            sumVDY += val(k, DY);
+            sumVDZ += val(k, DZ);
+          }
+          sumVDX *= vol / Real(ntotFine);
+          sumVDY *= vol / Real(ntotFine);
+          sumVDZ *= vol / Real(ntotFine);
+          if( std::sqrt(sumVDX * sumVDX + sumVDY * sumVDY + sumVDZ * sumVDZ) 
+              > 1e-8 ){
+            Print( statusOFS, "Local pseudopotential may not be constructed correctly" );
+            Print( statusOFS, "For Atom ", a );
+            Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
+            Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
+            Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
+          }
+        }
+      }
+      {
+        IntNumVec &idx = pseudo_[a].VLocalSR.first;
+        DblNumMat &val = pseudo_[a].VLocalSR.second;
+        for (Int k=0; k<idx.m(); k++) 
+          VLocalSRLocal[idx(k)] += val(k, VAL);
       }
     }
-  }
 
-  SetValue( pseudoCharge_, 0.0 );
-  MPI_Allreduce( pseudoChargeLocal.Data(), pseudoCharge_.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_.comm );
+    SetValue( pseudoCharge_, 0.0 );
+    SetValue( VLocalSR_, 0.0 );
+    MPI_Allreduce( pseudoChargeLocal.Data(), pseudoCharge_.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_.comm );
+    MPI_Allreduce( VLocalSR_.Data(), VLocalSRLocal.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_.comm );
 
-  for (Int a=0; a<numAtom; a++) {
+    for (Int a=0; a<numAtom; a++) {
 
-    std::stringstream vStream;
-    std::stringstream vStreamTemp;
-    int vStreamSize;
+      std::stringstream vStream;
+      std::stringstream vStreamTemp;
+      int vStreamSize;
 
-    PseudoPot& pseudott = pseudo_[a]; 
+      PseudoPot& pseudott = pseudo_[a]; 
 
-    serialize( pseudott, vStream, NO_MASK );
+      serialize( pseudott, vStream, NO_MASK );
 
-    if (numAtomMpirank[a] == mpirank){
-      vStreamSize = Size( vStream );
+      if (numAtomMpirank[a] == mpirank){
+        vStreamSize = Size( vStream );
+      }
+
+      MPI_Bcast( &vStreamSize, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
+
+      std::vector<char> sstr;
+      sstr.resize( vStreamSize );
+
+      if (numAtomMpirank[a] == mpirank){
+        vStream.read( &sstr[0], vStreamSize );
+      }
+
+      MPI_Bcast( &sstr[0], vStreamSize, MPI_BYTE, numAtomMpirank[a], domain_.comm );
+
+      vStreamTemp.write( &sstr[0], vStreamSize );
+
+      deserialize( pseudott, vStreamTemp, NO_MASK );
+
     }
 
-    MPI_Bcast( &vStreamSize, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
+    GetTime( timeEnd );
 
-    std::vector<char> sstr;
-    sstr.resize( vStreamSize );
+    statusOFS << "Time for local pseudopotential " << timeEnd - timeSta  << std::endl;
 
-    if (numAtomMpirank[a] == mpirank){
-      vStream.read( &sstr[0], vStreamSize );
-    }
+    Real sumrho = 0.0;
+    for (Int i=0; i<ntotFine; i++) 
+      sumrho += pseudoCharge_[i]; 
+    sumrho *= vol / Real(ntotFine);
 
-    MPI_Bcast( &sstr[0], vStreamSize, MPI_BYTE, numAtomMpirank[a], domain_.comm );
+    Print( statusOFS, "Sum of Pseudocharge                          = ", 
+        sumrho );
+    Print( statusOFS, "Number of Occupied States                    = ", 
+        numOccupiedState_ );
 
-    vStreamTemp.write( &sstr[0], vStreamSize );
+    // adjustment should be multiplicative
+    Real fac = nelec / sumrho;
+    for (Int i=0; i<ntotFine; i++) 
+      pseudoCharge_(i) *= fac; 
 
-    deserialize( pseudott, vStreamTemp, NO_MASK );
-
-  }
-
-  GetTime( timeEnd );
-
-  statusOFS << "Time for local pseudopotential " << timeEnd - timeSta  << std::endl;
-
-  Real sumrho = 0.0;
-  for (Int i=0; i<ntotFine; i++) 
-    sumrho += pseudoCharge_[i]; 
-  sumrho *= vol / Real(ntotFine);
-
-  Print( statusOFS, "Sum of Pseudocharge                          = ", 
-      sumrho );
-  Print( statusOFS, "Number of Occupied States                    = ", 
-      numOccupiedState_ );
-
-  // adjustment should be multiplicative
-  Real fac = nelec / sumrho;
-  for (Int i=0; i<ntotFine; i++) 
-    pseudoCharge_(i) *= fac; 
-
-  Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
-      (Real) nelec );
-
+    Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
+        (Real) nelec );
+  } // Use the VLocal formulation
+ 
   // Nonlocal projectors
+  // FIXME. Remove the contribution form the coarse grid
   std::vector<DblNumVec> gridposCoarse;
   UniformMesh ( domain_, gridposCoarse );
 

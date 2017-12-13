@@ -91,8 +91,13 @@ protected:
   // MPI communication 
   MPI_Comm rowComm_, colComm_;
 
-  // Pseudocharge to represent the local pseudopotential
+  // Pseudocharge to represent the local pseudopotential or the Gaussian
+  // compensation pseudocharge
   DblNumVec                   pseudoCharge_;
+  // Short range part of the the local pseudopotential
+  DblNumVec                   VLocalSR_;
+
+
   // density_(:,1)    electron density
   // density_(:,2-4)  magnetization along x,y,z directions
   DblNumMat                   density_;         
@@ -115,6 +120,9 @@ protected:
   DblNumVec                   epsxc_; 
 
   // Pseudopotential for each atom
+  // If isUsePseudoCharge == true, then pseudo_ contains the information
+  // from the pseudocharge. Otherwise it contains the information of the
+  // local part of pseudocharge.
   std::vector<PseudoPot>      pseudo_;
 
   // Eigenvalues

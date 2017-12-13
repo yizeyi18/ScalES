@@ -1085,6 +1085,10 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"use_atom_density");
   strcpy(kw_typ[i],"I:E");
+  
+  i++;
+  strcpy(kw_label[i],"use_vlocal");
+  strcpy(kw_typ[i],"I:E");
 }
 
 void esdf() {
@@ -2427,6 +2431,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
     esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
     esdfParam.isUseAtomDensity = esdf_integer( "Use_Atom_Density", 0 );
+    esdfParam.isUseVLocal      = esdf_integer( "Use_VLocal", 1 );
     esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
     esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
     esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
@@ -2916,6 +2921,7 @@ void ESDFPrintInput( ){
   Print(statusOFS, "Density GridFactor                   = ",  esdfParam.densityGridFactor);
 
   Print(statusOFS, "Use Atom Density                     = ",  esdfParam.isUseAtomDensity);
+  Print(statusOFS, "Use VLocal                           = ",  esdfParam.isUseVLocal);
   Print(statusOFS, "RestartDensity                       = ",  esdfParam.isRestartDensity);
   Print(statusOFS, "RestartWfn                           = ",  esdfParam.isRestartWfn);
   Print(statusOFS, "OutputDensity                        = ",  esdfParam.isOutputDensity);

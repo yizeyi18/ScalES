@@ -529,6 +529,15 @@ struct ESDFInputParam{
   ///
   /// Currently HGH and ONCV are the only supported pseudopotential format.
   std::string         pseudoType;
+
+  /// @brief Whether to use the VLocal generated from the
+  /// pseudopotential, and use Gaussian pseudocharge as compensation
+  /// charge
+  ///
+  /// @todo This option will become obsolete in the future when
+  /// pseudopotential is read from text files.
+  bool                isUseVLocal;
+
   /// @brief Solver for the planewave problem.  
   ///
   /// @todo out-of-date description.  BLOPEX is to be removed.

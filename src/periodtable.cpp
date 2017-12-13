@@ -88,6 +88,15 @@ Int combine(PTEntry& val, PTEntry& ext)
 // PeriodTable
 // *********************************************************************
 
+// FIXME Setup should read in the pseudopotential files (later provided
+// capability for reading UPF files), and then fill PTEntry
+//
+// PTEntry / PTSample is the old format for reading the binary file, but may work
+// in the new format too, as long as the pseudopotential is associated
+// with atoms rather than species.
+// 
+// There is also room for optimizing the rcps parameter for each species 
+// (maybe solving a least squares problems by matlab and store the default value in a table?)
 void PeriodTable::Setup( )
 {
   std::vector<Int> all(1,1);
@@ -95,6 +104,82 @@ void PeriodTable::Setup( )
   std::istringstream iss;  
   SharedRead( esdfParam.periodTableFile, iss );
   deserialize(ptemap_, iss, all);
+
+  // Setup constant private variable parameters
+  if( esdfParam.pseudoType == "HGH" ){
+    ptsample_.RADIAL_GRID       = 0;
+    ptsample_.PSEUDO_CHARGE     = 1;
+    ptsample_.DRV_PSEUDO_CHARGE = 2;
+    ptsample_.RHOATOM           = -999;
+    ptsample_.DRV_RHOATOM       = -999;
+    ptsample_.NONLOCAL          = 3;
+  }
+  if( esdfParam.pseudoType == "ONCV" ){
+    ptsample_.RADIAL_GRID       = 0;
+    // If isUseVLocal == false, then ptsample stores the pseudocharge of
+    // the local part of the pseudopotential 
+    ptsample_.PSEUDO_CHARGE     = 1;
+    ptsample_.DRV_PSEUDO_CHARGE = 2;
+    // If isUseVLocal == true, then ptsample stores the local part of
+    // the pseudopotential 
+    ptsample_.VLOCAL            = 1;
+    ptsample_.DRV_VLOCAL        = 2;
+
+    ptsample_.RHOATOM           = 3;
+    ptsample_.DRV_RHOATOM       = 4;
+    ptsample_.NONLOCAL          = 5;
+  }
+
+  // Common so far for all pseudopotential
+  {
+    pttype_.RADIAL            = 9;
+    pttype_.PSEUDO_CHARGE     = 99;
+    pttype_.RHOATOM           = 999;
+    pttype_.VLOCAL            = 9999;
+    pttype_.L0                = 0;
+    pttype_.L1                = 1;
+    pttype_.L2                = 2;
+    pttype_.L3                = 3;
+    pttype_.SPINORBIT_L1      = -1;
+    pttype_.SPINORBIT_L2      = -2;
+    pttype_.SPINORBIT_L3      = -3;
+  }
+
+  {
+    ptparam_.ZNUC   = 0;
+    ptparam_.MASS   = 1;
+    ptparam_.ZION   = 2;
+    // If isUseVLocal == false, the position ESELF stores the self energy
+    // If isUseVLocal == true, the same position stores the radius of the
+    // Gaussian pseudocharge
+    ptparam_.ESELF  = 3;
+    ptparam_.RGAUSSIAN = 3;
+  }
+
+  // Extra processing of Vlocal data
+  if( esdfParam.isUseVLocal == true ){
+    for(std::map<Int,PTEntry>::iterator mi=ptemap_.begin(); mi!=ptemap_.end(); mi++) {
+      Int type = (*mi).first;    
+      PTEntry& ptcur = (*mi).second;
+      DblNumVec& params = ptcur.params;
+      DblNumMat& samples = ptcur.samples;
+      Int nspl = samples.m();
+      Real Zion = params(ptparam_.ZION);
+      Real RGaussian = params(ptparam_.RGAUSSIAN);
+      DblNumVec rad(nspl, false, samples.VecData(ptsample_.RADIAL_GRID));
+      DblNumVec vlocal(nspl, false, samples.VecData(ptsample_.VLOCAL));
+      // Remove the pseudocharge contribution
+      for(Int i = 0; i < rad.m(); i++){
+        if( rad[i] == 0 )
+          vlocal[i] += Zion / RGaussian * 2.0 / std::sqrt(PI);
+        else
+          vlocal[i] += Zion / rad[i] * std::erf(rad[i] / RGaussian);
+      }
+//      statusOFS << "RGaussian = " << RGaussian << std::endl;
+//      statusOFS << "VLocal SR for type " << type << " = " << vlocal << std::endl;
+    }
+  }
+
 
   //create splines
   for(std::map<Int,PTEntry>::iterator mi=ptemap_.begin(); mi!=ptemap_.end(); mi++) {
@@ -116,47 +201,6 @@ void PeriodTable::Setup( )
     }
     splmap_[type] = spltmp;
   }
-
-  // Setup constant private variable parameters
-  if( esdfParam.pseudoType == "HGH" ){
-    ptsample_.RADIAL_GRID       = 0;
-    ptsample_.PSEUDO_CHARGE     = 1;
-    ptsample_.DRV_PSEUDO_CHARGE = 2;
-    ptsample_.RHOATOM           = -999;
-    ptsample_.DRV_RHOATOM       = -999;
-    ptsample_.NONLOCAL          = 3;
-  }
-  if( esdfParam.pseudoType == "ONCV" ){
-    ptsample_.RADIAL_GRID       = 0;
-    ptsample_.PSEUDO_CHARGE     = 1;
-    ptsample_.DRV_PSEUDO_CHARGE = 2;
-    ptsample_.RHOATOM           = 3;
-    ptsample_.DRV_RHOATOM       = 4;
-    ptsample_.NONLOCAL          = 5;
-  }
-
-  // Common so far for all pseudopotential
-
-  {
-    pttype_.RADIAL            = 9;
-    pttype_.PSEUDO_CHARGE     = 99;
-    pttype_.RHOATOM           = 999;
-    pttype_.L0                = 0;
-    pttype_.L1                = 1;
-    pttype_.L2                = 2;
-    pttype_.L3                = 3;
-    pttype_.SPINORBIT_L1      = -1;
-    pttype_.SPINORBIT_L2      = -2;
-    pttype_.SPINORBIT_L3      = -3;
-  }
-
-  {
-    ptparam_.ZNUC   = 0;
-    ptparam_.MASS   = 1;
-    ptparam_.ZION   = 2;
-    ptparam_.ESELF  = 3;
-  }
-
 }         // -----  end of method PeriodTable::Setup  ----- 
 
 void
@@ -997,6 +1041,137 @@ void PeriodTable::CalculateAtomDensity(
 
   return ;
 }         // -----  end of method PeriodTable::CalculateAtomDensity  ----- 
+
+
+void
+PeriodTable::CalculateVLocal(
+    const Atom& atom, 
+    const Domain& dm,
+    const std::vector<DblNumVec>& gridpos,        
+    SparseVec& resVLocalSR, 
+    SparseVec& resGaussianPseudoCharge )
+{
+  Int type   = atom.type;
+  Point3 pos = atom.pos;
+  Point3 Ls  = dm.length;
+  Point3 posStart = dm.posStart;
+  Index3 Ns  = dm.numGridFine;
+
+  //get entry data and spline data
+  PTEntry& ptentry = ptemap_[type];
+  std::map< Int, std::vector<DblNumVec> >& spldata = splmap_[type];
+
+  // Use the pseudocharge cutoff for Gaussian compensation charge and
+  // short range potential
+  Real Rzero = this->RcutPseudoCharge( type );
+  Real RGaussian = this->RGaussian( type );
+  Real Zion = this->Zion( type );
+
+  // Initialize
+  {
+    SparseVec empty;
+    resVLocalSR = empty;
+    resGaussianPseudoCharge = empty;
+  }
+
+  // Compute the minimal distance of the atom to this set of grid points
+  // and determine whether to continue 
+
+  std::vector<DblNumVec>  dist(DIM);
+
+  Point3 minDist;
+  for( Int d = 0; d < DIM; d++ ){
+    dist[d].Resize( gridpos[d].m() );
+
+    minDist[d] = Rzero;
+    for( Int i = 0; i < gridpos[d].m(); i++ ){
+      dist[d](i) = gridpos[d](i) - pos[d];
+      dist[d](i) = dist[d](i) - IRound( dist[d](i) / Ls[d] ) * Ls[d];
+      if( std::abs( dist[d](i) ) < minDist[d] )
+        minDist[d] = std::abs( dist[d](i) );
+    }
+  }
+  if( std::sqrt( dot(minDist, minDist) ) <= Rzero ){
+    // At least one grid point is within Rzero
+    Int irad = 0;
+    std::vector<Int>  idx;
+    std::vector<Real> rad;
+    std::vector<Real> xx, yy, zz;
+    for(Int k = 0; k < gridpos[2].m(); k++)
+      for(Int j = 0; j < gridpos[1].m(); j++)
+        for(Int i = 0; i < gridpos[0].m(); i++){
+          Real dtmp = std::sqrt( 
+              dist[0](i) * dist[0](i) +
+              dist[1](j) * dist[1](j) +
+              dist[2](k) * dist[2](k) );
+
+          if( dtmp <= Rzero ) {
+            idx.push_back(irad);
+            rad.push_back(dtmp);
+            xx.push_back(dist[0](i));        
+            yy.push_back(dist[1](j));        
+            zz.push_back(dist[2](k));
+          }
+          irad++;
+        } // for (i)
+
+
+
+    Int idxsize = idx.size();
+    // Short range pseudopotential
+
+    std::vector<DblNumVec>& valspl = spldata[ptsample_.VLOCAL]; 
+    std::vector<Real> val(idxsize,0.0);
+    seval(&(val[0]), idxsize, &(rad[0]), valspl[0].m(), valspl[0].Data(), 
+        valspl[1].Data(), valspl[2].Data(), valspl[3].Data(), valspl[4].Data());
+    std::vector<DblNumVec>& derspl = spldata[ptsample_.DRV_VLOCAL];
+    std::vector<Real> der(idxsize,0.0);
+
+    seval(&(der[0]), idxsize, &(rad[0]), derspl[0].m(), derspl[0].Data(), 
+        derspl[1].Data(), derspl[2].Data(), derspl[3].Data(), derspl[4].Data());
+    IntNumVec iv(idx.size(), true, &(idx[0])); 
+    DblNumMat dv( idx.size(), DIM+1 );  // Value and its three derivatives
+    for(Int g=0; g<idx.size(); g++) {
+      dv(g, VAL) = val[g];
+      // FIXME derivatives later
+//      if( rad[g]> MIN_RADIAL ) {
+//        dv(g, DX) = der[g] * xx[g]/rad[g];
+//        dv(g, DY) = der[g] * yy[g]/rad[g];
+//        dv(g, DZ) = der[g] * zz[g]/rad[g];
+//      } else {
+//        dv(g, DX) = 0;
+//        dv(g, DY) = 0;
+//        dv(g, DZ) = 0;
+//      }
+    }
+    resVLocalSR = SparseVec(iv,dv);
+
+    // Gaussian pseudocharge
+    SetValue(dv, D_ZERO);
+    Real fac = Zion / std::pow(std::sqrt(PI) * RGaussian,3);
+    for(Int g=0; g<idx.size(); g++) {
+      // Note the minus sign
+      dv(g, VAL) = -fac * std::exp(-(rad[g]/RGaussian)*(rad[g]/RGaussian)) ;
+      // FIXME derivatives later
+//      if( rad[g]> MIN_RADIAL ) {
+//        dv(g, DX) = der[g] * xx[g]/rad[g];
+//        dv(g, DY) = der[g] * yy[g]/rad[g];
+//        dv(g, DZ) = der[g] * zz[g]/rad[g];
+//      } else {
+//        dv(g, DX) = 0;
+//        dv(g, DY) = 0;
+//        dv(g, DZ) = 0;
+//      }
+    }
+    resGaussianPseudoCharge = SparseVec(iv,dv);
+  } // if (norm(minDist) <= Rzero )
+
+  return ;
+}         // -----  end of method PeriodTable::CalculateVLocal  ----- 
+
+
+
+
 
 
 //---------------------------------------------

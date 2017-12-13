@@ -129,12 +129,19 @@ typedef std::pair<SparseVec, Real> NonlocalPP;
 struct PseudoPot
 {
   /// @brief Pseudocharge of an atom, defined on the uniform fine grid.
+  /// When VLocal is present, pseudoCharge corresponds to the Gaussian
+  /// compensation charge
   SparseVec                         pseudoCharge; 
+  /// @brief Short range local potential of an atom, defined on the uniform fine grid.
+  SparseVec                         VLocalSR; 
   /// @brief Nonlocal projectors of an atom, defined on the uniform coarse grid.
   std::vector<NonlocalPP>           vnlList;
   /// @brief Nonlocal projectors of an atom, defined on the uniform fine
-  /// grid. FIXME This is experimental stage and in the end only one
-  /// vnlList should be used, on the coarse or fine grid.
+  /// grid. 
+  ///
+  /// FIXME This is experimental stage and in the end only one
+  /// vnlList should be used, on the coarse or fine grid. All
+  /// vnlListFine should become vnlList.
   std::vector<NonlocalPP>           vnlListFine;
 };
 

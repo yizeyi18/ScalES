@@ -8,9 +8,13 @@
 % charge density, model core density and their derivatives.
 % Revision: 2017/02/01 Incorporate with new LDA pseudopotential
 
-Znucs = [1 3 6 8 9 15];
-%Znucs = [9];
+% Znucs = [1 3 6 8 9 15];
+Znucs = [1];
 res = cell(length(Znucs),2);
+
+% FIXME hard coded from qbox for the radius of the Gaussian charge
+rcps = 1.0;
+
 
 for g=1:length(Znucs)
   Znuc = Znucs(g); fprintf(1,'Znuc %d\n',Znuc);
@@ -96,7 +100,21 @@ for g=1:length(Znucs)
 
   rho = fnval(sprholoc, r);
   drho = fnval(fnder(sprholoc,1),r);
-  Vloc = pp.vloc;
+
+  Vlocshort = zeros(size(pp.vloc));
+  Vlocshort(1) = pp.vloc(1) + Zion / rcps * (2/sqrt(pi));
+  Vlocshort(2:end) = pp.vloc(2:end) + Zion ./ pp.r(2:end) .* ...
+    erf( pp.r(2:end) / rcps );
+  rhoGaussian = Zion * exp(-(pp.r / rcps).^2) / (pi^(3/2)*rcps^3);
+  % Check
+  fprintf('Int rhoGaussian = %g\n', ...
+    sum(pp.r.^2.*rhoGaussian.*pp.rab)*4*pi);
+  [interpr, Vlocinterpr] = ...
+    splinerad( pp.r, pp.vloc, 1 );
+  spVloc = csape(interpr, Vlocinterpr);
+  Vloc = fnval(spVloc,r);
+  dVloc = fnval(fnder(spVloc,1),r);
+  
 
   % atomic core charge density. 
   % Note: rhoatom read from psp8read is multiplied by 4*pi*r^2, and drhoc
@@ -123,12 +141,21 @@ for g=1:length(Znucs)
   spl(:,cnt) = r(:);
   wgt(cnt) = -1;    typ(cnt) =  9;    cut(cnt) = rhocut;    cnt=cnt+1;
 
-  % local pseudopotential, as well as the derivative computed via
-  % numerical differentiation
-  spl(:,cnt) = rho(:);
-  wgt(cnt) = -1;   typ(cnt)  =  99;    cut(cnt) = rhocut;    cnt=cnt+1;
-  spl(:,cnt) = drho(:);
-  wgt(cnt) = -1;   typ(cnt)  =  99;  cut(cnt) = rhocut; cnt=cnt+1;
+  if(0)
+    % local pseudocharge, as well as the derivative computed via
+    % numerical differentiation
+    spl(:,cnt) = rho(:);
+    wgt(cnt) = -1;   typ(cnt)  =  99;    cut(cnt) = rhocut;    cnt=cnt+1;
+    spl(:,cnt) = drho(:);
+    wgt(cnt) = -1;   typ(cnt)  =  99;  cut(cnt) = rhocut; cnt=cnt+1;
+  else
+    % local pseudopotential, as well as the derivative computed via
+    % numerical differentiation
+    spl(:,cnt) = Vloc(:);
+    wgt(cnt) = -1;   typ(cnt)  =  99;    cut(cnt) = rhocut;    cnt=cnt+1;
+    spl(:,cnt) = dVloc(:);
+    wgt(cnt) = -1;   typ(cnt)  =  99;  cut(cnt) = rhocut; cnt=cnt+1;
+  end
 
   % atomic core charge density and derivatives
   spl(:,cnt) = rhoatom(:);
@@ -208,6 +235,14 @@ for g=1:length(Znucs)
       plot(r,spl(:,l),'o');xlim([0 3.0]);
       pause
     end
+  end
+  if(0)
+    plot(pp.r,Vlocshort,'r-.',pp.r,rhoGaussian,'b-.');
+    pause
+  end
+  if(1)
+    plot(r,Vloc,'r-.',r,dVloc,'b-.');
+    pause
   end
 end
 
