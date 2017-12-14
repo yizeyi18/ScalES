@@ -533,7 +533,7 @@ struct ESDFInputParam{
   ///
   /// @note Only the master processor (mpirank == 0) reads this table,
   /// and the information is broadcast to other processors.
-  std::vector<char[80]>    pspFile;
+  std::vector<std::string>    pspFile;
  
   /// @brief Type of the pseudopotential
   ///
