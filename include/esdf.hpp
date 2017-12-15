@@ -523,6 +523,18 @@ struct ESDFInputParam{
   /// @note Only the master processor (mpirank == 0) reads this table,
   /// and the information is broadcast to other processors.
   std::string         periodTableFile;
+
+  /// @brief File for storing the information of the pseudopotential.
+  ///
+  /// Default: None
+  ///
+  /// In the current PWDFT code, we use UPF file pseudopotential, which 
+  /// is downloaded from QE website.
+  ///
+  /// @note Only the master processor (mpirank == 0) reads this table,
+  /// and the information is broadcast to other processors.
+  std::vector<std::string>    pspFile;
+ 
   /// @brief Type of the pseudopotential
   ///
   /// Default: "HGH"

@@ -1193,4 +1193,270 @@ void KMEAN(Int n, NumVec<Real>& weight, Int& rk, Real KmeansTolerance,
   statusOFS << "core0 time: " << time0 << "[s]" << std::endl;
 }
 
+/// the following parts are merged from UPFS2QSO package.
+
+void tridsolve(int n, double* d, double* e, double* f, double* x)
+{
+  // solve the tridiagonal system Ax=b
+  // d[i] = a(i,i)
+  // e[i] = a(i,i+1) (superdiagonal of A, e[n-1] not defined)
+  // f[i] = a(i,i-1) (subdiagonal of A, f[0] not defined)
+  // x[i] = right-hand side b as input
+  // x[i] = solution as output
+
+  for ( int i = 1; i < n; i++ )
+  {
+    f[i] /= d[i-1];
+    d[i] -= f[i]*e[i-1];
+  }
+
+  for ( int i = 1; i < n; i++ )
+    x[i] -= f[i]*x[i-1];
+
+  x[n-1] /= d[n-1];
+
+  for ( int i = n-2; i >= 0; i-- )
+    x[i] = (x[i]-e[i]*x[i+1])/d[i];
+}
+
+void spline(int n, double *x, double *y, double yp_left, double yp_right,
+  int bcnat_left, int bcnat_right, double *y2)
+{
+  const double third = 1.0/3.0;
+  const double sixth = 1.0/6.0;
+  double *d = new double[n];
+  double *e = new double[n];
+  double *f = new double[n];
+  if ( bcnat_left == 0 )
+  {
+    // use derivative yp_left at x[0]
+    const double h = x[1]-x[0];
+    assert(h>0.0);
+    d[0] = third*h;
+    e[0] = sixth*h;
+    f[0] = 0.0;
+    y2[0] = (y[1]-y[0])/h - yp_left;
+  }
+  else
+  {
+    // use natural spline at x[0]
+    d[0] = 1.0;
+    e[0] = 0.0;
+    f[0] = 0.0;
+    y2[0] = 0.0;
+  }
+  if ( bcnat_right == 0 )
+  {
+    // use derivative yp_right at x[n-1]
+    const double h = x[n-1]-x[n-2];
+    assert(h>0.0);
+    d[n-1] = third*h;
+    e[n-1] = 0.0;
+    f[n-1] = sixth*h;
+    y2[n-1] = yp_right - (y[n-1]-y[n-2])/h;
+  }
+  else
+  {
+    // use natural spline at x[n-1]
+    d[n-1] = 1.0;
+    e[n-1] = 0.0;
+    f[n-1] = 0.0;
+    y2[n-1] = 0.0;
+  }
+
+  // tridiagonal matrix
+  for ( int i = 1; i < n-1; i++ )
+  {
+    const double hp = x[i+1]-x[i];
+    const double hm = x[i]-x[i-1];
+    assert(hp>0.0);
+    assert(hm>0.0);
+    d[i] = third * (hp+hm);
+    e[i] = sixth * hp;
+    f[i] = sixth * hm;
+    y2[i] = (y[i+1]-y[i])/hp - (y[i]-y[i-1])/hm;
+  }
+
+  tridsolve(n,d,e,f,y2);
+
+  delete [] d;
+  delete [] e;
+  delete [] f;
+}
+
+void splint (int n, double *xa, double *ya, double *y2a, double x, double *y)
+{
+  int k;
+  double a,b,h;
+
+  int kl = 0;
+  int kh = n-1;
+
+  while ( kh - kl > 1 )
+  {
+    k = ( kh + kl ) / 2;
+    if ( xa[k] > x )
+      kh = k;
+    else
+      kl = k;
+  }
+
+  h = xa[kh] - xa[kl];
+  assert ( h > 0.0 );
+
+  a = ( xa[kh] - x ) / h;
+  b = ( x - xa[kl] ) / h;
+
+  *y = a * ya[kl] + b * ya[kh] + h * h * (1.0/6.0) *
+       ( (a*a*a-a) * y2a[kl] + (b*b*b-b) * y2a[kh] );
+
+}
+
+void splintd (int n, double *xa, double *ya, double *y2a,
+              double x, double *y, double *dy)
+{
+  int k;
+  double a,b,h;
+
+  int kl = 0;
+  int kh = n-1;
+
+  while ( kh - kl > 1 )
+  {
+    k = ( kh + kl ) / 2;
+    if ( xa[k] > x )
+      kh = k;
+    else
+      kl = k;
+  }
+
+  h = xa[kh] - xa[kl];
+  assert ( h > 0.0 );
+
+  a = ( xa[kh] - x ) / h;
+  b = ( x - xa[kl] ) / h;
+
+  *y = a * ya[kl] + b * ya[kh] + h * h * (1.0/6.0) *
+       ( (a*a*a-a) * y2a[kl] + (b*b*b-b) * y2a[kh] );
+
+  *dy = ( ya[kh] - ya[kl] ) / h +
+        h * ( ( (1.0/6.0) - 0.5 * a * a ) * y2a[kl] +
+              ( 0.5 * b * b - (1.0/6.0) ) * y2a[kh] );
+}
+
+////////////////////////////////////////////////////////////////////////////////
+std::string find_start_element(std::string name)
+{
+  // return the contents of the tag at start of element "name"
+  std::string buf, token;
+  std::string search_str = "<" + name;
+  do
+  {
+    std::cin >> token;
+  }
+  while ( !std::cin.eof() && token.find(search_str) == std::string::npos );
+  if ( std::cin.eof() )
+  {
+    std::cerr << " EOF reached before start element " << name << std::endl;
+    throw std::invalid_argument(name);
+  }
+
+  buf = token;
+  if ( buf[buf.length()-1] == '>' )
+    return buf;
+
+  // read until ">" is found
+  bool found = false;
+  char ch;
+  do
+  {
+    std::cin.get(ch);
+    found = ch == '>';
+    buf += ch;
+  }
+  while ( !std::cin.eof() && !found );
+  if ( std::cin.eof() )
+  {
+    std::cerr << " EOF reached before > " << name << std::endl;
+    throw std::invalid_argument(name);
+  }
+  return buf;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void find_end_element(std::string name)
+{
+  std::string buf, token;
+  std::string search_str = "</" + name + ">";
+  do
+  {
+    std::cin >> token;
+    if ( token.find(search_str) != std::string::npos ) return;
+  }
+  while ( !std::cin.eof() );
+  std::cerr << " EOF reached before end element " << name << std::endl;
+  throw std::invalid_argument(name);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void seek_str(std::string tag)
+{
+  // Read tokens from stdin until tag is found.
+  // Throw an exception if tag not found before eof()
+  bool done = false;
+  std::string token;
+  int count = 0;
+
+  do
+  {
+    std::cin >> token;
+    if ( token.find(tag) != std::string::npos ) return;
+  }
+  while ( !std::cin.eof() );
+
+  std::cerr << " EOF reached before " << tag << std::endl;
+  throw std::invalid_argument(tag);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+std::string get_attr(std::string buf, std::string attr)
+{
+  bool done = false;
+  std::string s, search_string = " " + attr + "=";
+
+  // find attribute name in buf
+  std::string::size_type p = buf.find(search_string);
+  if ( p != std::string::npos )
+  {
+    // process attribute
+    std::string::size_type b = buf.find_first_of("\"",p);
+    std::string::size_type e = buf.find_first_of("\"",b+1);
+    if ( b == std::string::npos || e == std::string::npos )
+    {
+      std::cerr << " get_attr: attribute not found: " << attr << std::endl;
+      throw std::invalid_argument(attr);
+    }
+    return buf.substr(b+1,e-b-1);
+  }
+  else
+  {
+    std::cerr << " get_attr: attribute not found: " << attr << std::endl;
+    throw std::invalid_argument(attr);
+  }
+  return s;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void skipln(void)
+{
+  char ch;
+  bool found = false;
+  while ( !std::cin.eof() && !found )
+  {
+    std::cin.get(ch);
+    found = ch == '\n';
+  }
+}
+
+
 }  // namespace dgdft

@@ -326,6 +326,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"B:E");
 
   i++;
+  strcpy(kw_label[i],"UPF_File");
+  strcpy(kw_typ[i],"B:E");
+
+  i++;
   strcpy(kw_label[i],"grid_spacing");
   strcpy(kw_typ[i],"P:E");
 
@@ -2228,6 +2232,28 @@ ESDFReadInput ( const char* filename )
 
     dm.posStart = Point3( 0.0, 0.0, 0.0 );
   }
+
+  {
+    Domain& dm = esdfParam.domain;
+    if( esdf_block("UPF_File", &nlines) ){
+      std::cout << " nline is " << nlines << std::endl;
+      esdfParam.pspFile.resize(nlines);
+      int m;
+      for( int i = 0; i < nlines; i++){
+        std::cout << " starting atom " << i << std::endl;
+        sscanf(block_data[i],"%d %s",&m, &esdfParam.pspFile[i]);
+        std::cout << "atom " << esdfParam.pspFile[i] << std::endl;
+        std::cout << "block data " <<  block_data[i] << std::endl;
+      }
+    }
+
+    else{
+      ErrorHandling("Super_Cell cannot be found.");
+    }
+  }
+
+  exit(0);
+
 
   // Atoms
   {

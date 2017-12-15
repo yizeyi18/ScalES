@@ -1798,5 +1798,17 @@ void unique(NumVec<Int>& Index);
 
 void KMEAN(Int n, NumVec<Real>& weight, Int& rk, Real KmeansTolerance, 
     Int KmeansMaxIter, Real DFTolerance, const Domain &dm, Int* piv);
+
+void spline(int n, double *x, double *y, double yp_left, double yp_right,
+            int bcnat_left, int bcnat_right, double *y2);
+void splint (int n, double *xa, double *ya, double *y2a, double x, double *y);
+void splintd (int n, double *xa, double *ya, double *y2a,
+              double x, double *y, double *dy);
+std::string find_start_element(std::string name);
+void find_end_element(std::string name);
+void seek_str(std::string tag);
+std::string get_attr(std::string buf, std::string attr);
+void skipln(void);
+
 } // namespace dgdft
 #endif // _UTILITY_HPP_
