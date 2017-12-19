@@ -1804,11 +1804,11 @@ void spline(int n, double *x, double *y, double yp_left, double yp_right,
 void splint (int n, double *xa, double *ya, double *y2a, double x, double *y);
 void splintd (int n, double *xa, double *ya, double *y2a,
               double x, double *y, double *dy);
-std::string find_start_element(std::string name);
-void find_end_element(std::string name);
-void seek_str(std::string tag);
+std::string find_start_element(std::string name, std::ifstream &upfin);
+void find_end_element(std::string name, std::ifstream & upfin);
+void seek_str(std::string tag, std::ifstream &upfin);
 std::string get_attr(std::string buf, std::string attr);
-void skipln(void);
-
+void skipln(std::ifstream &upfin);
+void splinerad( std::vector<double> & r, std::vector<double> & vloc, std::vector<double> & out_r, std::vector<double> & out_vloc , int even);
 } // namespace dgdft
 #endif // _UTILITY_HPP_

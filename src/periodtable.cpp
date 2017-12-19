@@ -46,6 +46,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include "periodtable.hpp"
 #include "esdf.hpp"
 #include "utility.hpp"
+#include "spline.h"
 
 
 namespace  dgdft{
@@ -103,7 +104,28 @@ void PeriodTable::Setup( )
 
   std::istringstream iss;  
   SharedRead( esdfParam.periodTableFile, iss );
-  deserialize(ptemap_, iss, all);
+
+  // all the readins are in the samples in the old version, 
+  // now in the new version, I should readin something else. 
+  // the readin are reading in a sequence of numbers, which
+  // is used to construct the ptemap_ struct.
+
+  {
+    PTEntry tempEntry;
+    for( int i = 0; i < esdfParam.pspFile.size(); i++){
+
+      std::cout << " read the UPF " << esdfParam.pspFile[i] << std::endl;
+      int atom;
+      readin(esdfParam.pspFile[i], &tempEntry, &atom);
+
+      std::map <Int,PTEntry> :: iterator it = ptemap_.end();
+
+      std::cout << " atom read are: " << atom << std::endl;
+      ptemap_.insert(it, std::pair<Int, PTEntry>(atom, tempEntry));
+    }
+  }
+
+  //deserialize(ptemap_, iss, all);
 
   // Setup constant private variable parameters
   if( esdfParam.pseudoType == "HGH" ){
@@ -1376,19 +1398,20 @@ PeriodicTable::PeriodicTable(void)
 }
 
 // change the main subroutine to a readin function.
-int readin(int argc, char** argv)
+int readin( std::string file_name, PTEntry * tempEntry, int * atom)
 {
-  const std::string release="1.6"; 
-  std::cerr << " upf2qso " << release << std::endl;
-  if ( argc != 2 )
-  {
-    std::cerr << " usage: upf2qso rcut < file.upf > file.xml" << std::endl;
-    return 1;
-  }
-  assert(argc==2);
-  const double rcut = atof(argv[1]);
+  DblNumVec & params  = (*tempEntry).params;
+  DblNumMat & samples = (*tempEntry).samples;
+  DblNumVec & weights = (*tempEntry).weights;
+  IntNumVec & types   = (*tempEntry).types;
+  DblNumVec & cutoffs = (*tempEntry).cutoffs;
+
+  params.Resize(5); // in the order of the ParamPT
+  
+  const double rcut = 6.0;  // FIXME
 
   PeriodicTable pt;
+
   std::string buf,s;
   std::istringstream is;
 
@@ -1398,8 +1421,10 @@ int readin(int argc, char** argv)
   // The first line of the UPF potential file contains either of the following:
   // <PP_INFO>  (for UPF version 1)
   // <UPF version="2.0.1"> (for UPF version 2)
+
   std::string::size_type p;
-  getline(std::cin,buf);
+  std::ifstream upfin( file_name );
+  getline(upfin,buf);
   p = buf.find("<PP_INFO>");
   if ( p != std::string::npos )
     upf_version = 1;
@@ -1411,12 +1436,12 @@ int readin(int argc, char** argv)
   }
   if ( upf_version == 0 )
   {
-    std::cerr << " Format of UPF file not recognized " << std::endl;
-    std::cerr << " First line of file: " << buf << std::endl;
+    std::cout << " Format of UPF file not recognized " << std::endl;
+    std::cout << " First line of file: " << buf << std::endl;
     return 1;
   }
 
-  std::cerr << " UPF version: " << upf_version << std::endl;
+  std::cout << " UPF version: " << upf_version << std::endl;
 
   if ( upf_version == 1 )
   {
@@ -1425,7 +1450,7 @@ int readin(int argc, char** argv)
     bool done = false;
     while (!done)
     {
-      getline(std::cin,buf);
+      getline(upfin,buf);
       is.clear();
       is.str(buf);
       is >> s;
@@ -1445,15 +1470,15 @@ int readin(int argc, char** argv)
       p = upf_pp_info.find_first_of("<>");
     }
 
-    seek_str("<PP_HEADER>");
-    skipln();
+    seek_str("<PP_HEADER>", upfin);
+    skipln(upfin);
 
     // version number (ignore)
-    getline(std::cin,buf);
+    getline(upfin,buf);
 
     // element symbol
     std::string upf_symbol;
-    getline(std::cin,buf);
+    getline(upfin,buf);
     is.clear();
     is.str(buf);
     is >> upf_symbol;
@@ -1461,34 +1486,35 @@ int readin(int argc, char** argv)
     // get atomic number and mass
     const int atomic_number = pt.z(upf_symbol);
     const double mass = pt.mass(upf_symbol);
+    *atom = atomic_number;
 
     // NC flag
     std::string upf_ncflag;
-    getline(std::cin,buf);
+    getline(upfin,buf);
     is.clear();
     is.str(buf);
     is >> upf_ncflag;
     if ( upf_ncflag != "NC" )
     {
-      std::cerr << " not a Norm-conserving potential" << std::endl;
-      std::cerr << " NC flag: " << upf_ncflag << std::endl;
+      std::cout << " not a Norm-conserving potential" << std::endl;
+      std::cout << " NC flag: " << upf_ncflag << std::endl;
       return 1;
     }
 
     // NLCC flag
     std::string upf_nlcc_flag;
-    getline(std::cin,buf);
+    getline(upfin,buf);
     is.clear();
     is.str(buf);
     is >> upf_nlcc_flag;
     if ( upf_nlcc_flag == "T" )
     {
-      std::cerr << " Potential includes a non-linear core correction" << std::endl;
+      std::cout << " Potential includes a non-linear core correction" << std::endl;
     }
 
     // XC functional (add in description)
     std::string upf_xcf[4];
-    getline(std::cin,buf);
+    getline(upfin,buf);
     is.clear();
     is.str(buf);
     is >> upf_xcf[0] >> upf_xcf[1] >> upf_xcf[2] >> upf_xcf[3];
@@ -1499,34 +1525,34 @@ int readin(int argc, char** argv)
 
     // Z valence
     double upf_zval;
-    getline(std::cin,buf);
+    getline(upfin,buf);
     is.clear();
     is.str(buf);
     is >> upf_zval;
 
     // Total energy (ignore)
-    getline(std::cin,buf);
+    getline(upfin,buf);
 
     // suggested cutoff (ignore)
-    getline(std::cin,buf);
+    getline(upfin,buf);
 
     // max angular momentum
     int upf_lmax;
-    getline(std::cin,buf);
+    getline(upfin,buf);
     is.clear();
     is.str(buf);
     is >> upf_lmax;
 
     // number of points in mesh
     int upf_mesh_size;
-    getline(std::cin,buf);
+    getline(upfin,buf);
     is.clear();
     is.str(buf);
     is >> upf_mesh_size;
 
     // number of wavefunctions, number of projectors
     int upf_nwf, upf_nproj;
-    getline(std::cin,buf);
+    getline(upfin,buf);
     is.clear();
     is.str(buf);
     is >> upf_nwf >> upf_nproj;
@@ -1536,81 +1562,81 @@ int readin(int argc, char** argv)
     std::vector<int> upf_l(upf_nwf);
     std::vector<double> upf_occ(upf_nwf);
     // skip header
-    getline(std::cin,buf);
+    getline(upfin,buf);
     for ( int ip = 0; ip < upf_nwf; ip++ )
     {
-      getline(std::cin,buf);
+      getline(upfin,buf);
       is.clear();
       is.str(buf);
       is >> upf_shell[ip] >> upf_l[ip] >> upf_occ[ip];
     }
-    seek_str("</PP_HEADER>");
+    seek_str("</PP_HEADER>", upfin);
 
     // read mesh
-    seek_str("<PP_MESH>");
-    seek_str("<PP_R>");
-    skipln();
+    seek_str("<PP_MESH>", upfin);
+    seek_str("<PP_R>", upfin);
+    skipln(upfin);
     std::vector<double> upf_r(upf_mesh_size);
     for ( int i = 0; i < upf_mesh_size; i++ )
-     std::cin >> upf_r[i];
-    seek_str("</PP_R>");
-    seek_str("<PP_RAB>");
-    skipln();
+     upfin >> upf_r[i];
+    seek_str("</PP_R>", upfin);
+    seek_str("<PP_RAB>", upfin);
+    skipln(upfin);
     std::vector<double> upf_rab(upf_mesh_size);
     for ( int i = 0; i < upf_mesh_size; i++ )
-     std::cin >> upf_rab[i];
-    seek_str("</PP_RAB>");
-    seek_str("</PP_MESH>");
+     upfin >> upf_rab[i];
+    seek_str("</PP_RAB>", upfin);
+    seek_str("</PP_MESH>", upfin);
 
     std::vector<double> upf_nlcc;
     if ( upf_nlcc_flag == "T" )
     {
       upf_nlcc.resize(upf_mesh_size);
-      seek_str("<PP_NLCC>");
-      skipln();
+      seek_str("<PP_NLCC>", upfin);
+      skipln(upfin);
       std::vector<double> upf_nlcc(upf_mesh_size);
       for ( int i = 0; i < upf_mesh_size; i++ )
-        std::cin >> upf_nlcc[i];
-      seek_str("</PP_NLCC>");
+        upfin >> upf_nlcc[i];
+      seek_str("</PP_NLCC>", upfin);
     }
 
-    seek_str("<PP_LOCAL>");
-    skipln();
+    seek_str("<PP_LOCAL>", upfin);
+    skipln(upfin);
     std::vector<double> upf_vloc(upf_mesh_size);
     for ( int i = 0; i < upf_mesh_size; i++ )
-      std::cin >> upf_vloc[i];
-    seek_str("</PP_LOCAL>");
+      upfin >> upf_vloc[i];
+    seek_str("</PP_LOCAL>", upfin);
 
-    seek_str("<PP_NONLOCAL>");
-    skipln();
+    seek_str("<PP_NONLOCAL>", upfin);
+    skipln(upfin);
     std::vector<std::vector<double> > upf_vnl;
     upf_vnl.resize(upf_nproj);
     std::vector<int> upf_proj_l(upf_nproj);
     for ( int j = 0; j < upf_nproj; j++ )
     {
-      seek_str("<PP_BETA>");
-      skipln();
+      seek_str("<PP_BETA>", upfin);
+      skipln(upfin);
       int ip, l, np;
-      std::cin >> ip >> l;
-      skipln();
+      upfin >> ip >> l;
+      skipln(upfin);
       assert(ip-1 < upf_nproj);
       assert(l <= upf_lmax);
       upf_proj_l[ip-1] = l;
-      std::cin >> np;
+      upfin >> np;
       upf_vnl[j].resize(upf_mesh_size);
       for ( int i = 0; i < np; i++ )
-        std::cin >> upf_vnl[j][i];
-      seek_str("</PP_BETA>");
-      skipln();
+        upfin >> upf_vnl[j][i];
+      seek_str("</PP_BETA>", upfin);
+      skipln(upfin);
     }
-    seek_str("<PP_DIJ>");
-    skipln();
+    seek_str("<PP_DIJ>", upfin);
+    skipln(upfin);
     int upf_ndij;
-    std::cin >> upf_ndij;
-    skipln();
+    upfin >> upf_ndij;
+    skipln(upfin);
     if ( upf_ndij != upf_nproj )
     {
-      std::cerr << " Number of non-zero Dij differs from number of projectors"
+      std::cout << " Number of non-zero Dij differs from number of projectors"
            << std::endl;
       return 1;
     }
@@ -1619,17 +1645,17 @@ int readin(int argc, char** argv)
     for ( int i = 0; i < upf_ndij; i++ )
     {
       int m,n;
-      std::cin >> m >> n >> upf_d[i];
+      upfin >> m >> n >> upf_d[i];
       if ( m != n )
       {
-        std::cerr << " Non-local Dij has off-diagonal elements" << std::endl;
-        std::cerr << " m=" << m << " n=" << n << std::endl;
+        std::cout << " Non-local Dij has off-diagonal elements" << std::endl;
+        std::cout << " m=" << m << " n=" << n << std::endl;
         return 1;
       }
     }
-    seek_str("</PP_DIJ>");
+    seek_str("</PP_DIJ>", upfin);
 
-    seek_str("</PP_NONLOCAL>");
+    seek_str("</PP_NONLOCAL>", upfin);
 
     // make table iproj[l] mapping l to iproj
     // vnl(l) is in vnl[iproj[l]] if iproj[l] > -1
@@ -1653,8 +1679,8 @@ int readin(int argc, char** argv)
       qso_lmax = upf_lmax+1;
     }
 
-    seek_str("<PP_PSWFC>");
-    skipln();
+    seek_str("<PP_PSWFC>", upfin);
+    skipln(upfin);
     std::vector<std::vector<double> > upf_wf;
     std::vector<int> upf_wf_l(upf_nwf);
     std::vector<double> upf_wf_occ(upf_nwf);
@@ -1663,12 +1689,12 @@ int readin(int argc, char** argv)
     {
       upf_wf[j].resize(upf_mesh_size);
       std::string label;
-      std::cin >> label >> upf_wf_l[j] >> upf_wf_occ[j];
-      skipln();
+      upfin >> label >> upf_wf_l[j] >> upf_wf_occ[j];
+      skipln(upfin);
       for ( int i = 0; i < upf_mesh_size; i++ )
-        std::cin >> upf_wf[j][i];
+        upfin >> upf_wf[j][i];
     }
-    seek_str("</PP_PSWFC>");
+    seek_str("</PP_PSWFC>", upfin);
 
     // output original data in file upf.dat
     std::ofstream upf("upf.dat");
@@ -1694,17 +1720,17 @@ int readin(int argc, char** argv)
 
 
     // print summary
-    std::cerr << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
-    std::cerr << "Element: " << upf_symbol << std::endl;
-    std::cerr << "NC: " << upf_ncflag << std::endl;
-    std::cerr << "NLCC: " << upf_nlcc_flag << std::endl;
-    std::cerr << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
+    std::cout << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
+    std::cout << "Element: " << upf_symbol << std::endl;
+    std::cout << "NC: " << upf_ncflag << std::endl;
+    std::cout << "NLCC: " << upf_nlcc_flag << std::endl;
+    std::cout << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
          << upf_xcf[2] << " " << upf_xcf[3] << std::endl;
-    std::cerr << "Zv: " << upf_zval << std::endl;
-    std::cerr << "lmax: " << qso_lmax << std::endl;
-    std::cerr << "llocal: " << upf_llocal << std::endl;
-    std::cerr << "nwf: " << upf_nwf << std::endl;
-    std::cerr << "mesh_size: " << upf_mesh_size << std::endl;
+    std::cout << "Zv: " << upf_zval << std::endl;
+    std::cout << "lmax: " << qso_lmax << std::endl;
+    std::cout << "llocal: " << upf_llocal << std::endl;
+    std::cout << "nwf: " << upf_nwf << std::endl;
+    std::cout << "mesh_size: " << upf_mesh_size << std::endl;
 
     // compute delta_vnl[l][i] on the upf log mesh
 
@@ -1934,7 +1960,7 @@ int readin(int argc, char** argv)
       vlin << std::endl << std::endl;
     }
 
-    std::cerr << " interpolation done" << std::endl;
+    std::cout << " interpolation done" << std::endl;
 
 #if 1
     // output potential on log mesh
@@ -2033,14 +2059,14 @@ int readin(int argc, char** argv)
 
   }
   else if ( upf_version == 2 )
-  {
+  { 
     // process UPF version 2 potential
-    seek_str("<PP_INFO>");
+    seek_str("<PP_INFO>", upfin);
     std::string upf_pp_info;
     bool done = false;
     while (!done)
     {
-      getline(std::cin,buf);
+      getline(upfin,buf);
       is.clear();
       is.str(buf);
       is >> s;
@@ -2060,22 +2086,26 @@ int readin(int argc, char** argv)
       p = upf_pp_info.find_first_of("<>");
     }
 
-    std::string tag = find_start_element("PP_HEADER");
+    std::string tag = find_start_element("PP_HEADER", upfin);
 
     // get attribute "element"
     std::string upf_symbol = get_attr(tag,"element");
-    std::cerr << " upf_symbol: " << upf_symbol << std::endl;
+    upf_symbol.erase(remove_if(upf_symbol.begin(), upf_symbol.end(), isspace), upf_symbol.end());
 
     // get atomic number and mass
     const int atomic_number = pt.z(upf_symbol);
     const double mass = pt.mass(upf_symbol);
 
+    *atom = atomic_number;
+    params[0] = atomic_number;
+    params[1] = mass;
+
     // check if potential is norm-conserving or semi-local
     std::string pseudo_type = get_attr(tag,"pseudo_type");
-    std::cerr << " pseudo_type = " << pseudo_type << std::endl;
+    std::cout << " pseudo_type = " << pseudo_type << std::endl;
     if ( pseudo_type!="NC" && pseudo_type!="SL" )
     {
-      std::cerr << " pseudo_type must be NC or SL" << std::endl;
+      std::cout << " pseudo_type must be NC or SL" << std::endl;
       return 1;
     }
 
@@ -2083,15 +2113,15 @@ int readin(int argc, char** argv)
     std::string upf_nlcc_flag = get_attr(tag,"core_correction");
     if ( upf_nlcc_flag == "T" )
     {
-      std::cerr << " Potential includes a non-linear core correction" << std::endl;
+      std::cout << " Potential includes a non-linear core correction" << std::endl;
     }
-    std::cerr << " upf_nlcc_flag = " << upf_nlcc_flag << std::endl;
+    std::cout << " upf_nlcc_flag = " << upf_nlcc_flag << std::endl;
 
     // XC functional (add in description)
     std::string upf_functional = get_attr(tag,"functional");
     // add XC functional information to description
     upf_pp_info += "functional = " + upf_functional + '\n';
-    std::cerr << " upf_functional = " << upf_functional << std::endl;
+    std::cout << " upf_functional = " << upf_functional << std::endl;
 
     // valence charge
     double upf_zval = 0.0;
@@ -2099,7 +2129,11 @@ int readin(int argc, char** argv)
     is.clear();
     is.str(buf);
     is >> upf_zval;
-    std::cerr << " upf_zval = " << upf_zval << std::endl;
+    std::cout << " upf_zval = " << upf_zval << std::endl;
+    params[2] = upf_zval;
+    params[3] = 1.0; // FIXME
+    params[4] = 3.0; // FIXME
+
 
     // max angular momentum
     int upf_lmax;
@@ -2107,7 +2141,7 @@ int readin(int argc, char** argv)
     is.clear();
     is.str(buf);
     is >> upf_lmax;
-    std::cerr << " upf_lmax = " << upf_lmax << std::endl;
+    std::cout << " upf_lmax = " << upf_lmax << std::endl;
 
     // local angular momentum
     int upf_llocal;
@@ -2115,7 +2149,7 @@ int readin(int argc, char** argv)
     is.clear();
     is.str(buf);
     is >> upf_llocal;
-    std::cerr << " upf_llocal = " << upf_llocal << std::endl;
+    std::cout << " upf_llocal = " << upf_llocal << std::endl;
 
     // number of points in mesh
     int upf_mesh_size;
@@ -2123,7 +2157,7 @@ int readin(int argc, char** argv)
     is.clear();
     is.str(buf);
     is >> upf_mesh_size;
-    std::cerr << " upf_mesh_size = " << upf_mesh_size << std::endl;
+    std::cout << " upf_mesh_size = " << upf_mesh_size << std::endl;
 
     // number of wavefunctions
     int upf_nwf;
@@ -2131,7 +2165,7 @@ int readin(int argc, char** argv)
     is.clear();
     is.str(buf);
     is >> upf_nwf;
-    std::cerr << " upf_nwf = " << upf_nwf << std::endl;
+    std::cout << " upf_nwf = " << upf_nwf << std::endl;
 
     // number of projectors
     int upf_nproj;
@@ -2139,42 +2173,93 @@ int readin(int argc, char** argv)
     is.clear();
     is.str(buf);
     is >> upf_nproj;
-    std::cerr << " upf_nproj = " << upf_nproj << std::endl;
+    std::cout << " upf_nproj = " << upf_nproj << std::endl;
+
+    samples.Resize( upf_mesh_size, 5 + 2*upf_nproj);
+    weights.Resize(5+2*upf_nproj);
+    cutoffs.Resize(5+2*upf_nproj);
+    types.Resize(5+2*upf_nproj);
+    SetValue( samples, 0.0);
+    SetValue( weights, 0.0);
+    SetValue( types, 0);
+    SetValue( cutoffs, 0.0);
 
     std::vector<int> upf_l(upf_nwf);
 
     // read mesh
-    find_start_element("PP_MESH");
-    find_start_element("PP_R");
+    find_start_element("PP_MESH", upfin);
+    find_start_element("PP_R", upfin);
     std::vector<double> upf_r(upf_mesh_size);
     for ( int i = 0; i < upf_mesh_size; i++ )
-      std::cin >> upf_r[i];
-    find_end_element("PP_R");
-    find_start_element("PP_RAB");
+      upfin >> upf_r[i];
+    find_end_element("PP_R", upfin);
+    find_start_element("PP_RAB", upfin);
     std::vector<double> upf_rab(upf_mesh_size);
     for ( int i = 0; i < upf_mesh_size; i++ )
-      std::cin >> upf_rab[i];
-    find_end_element("PP_RAB");
-    find_end_element("PP_MESH");
+      upfin >> upf_rab[i];
+    find_end_element("PP_RAB", upfin);
+    find_end_element("PP_MESH", upfin);
+
+    // add the mesh into samples.
+    for( int i = 0; i < upf_mesh_size; i++)
+      samples(i, 0) = upf_r[i];
+    weights[0] = -1;
+    types[0] = 9;
+    double rhocut = 6.0;
+    cutoffs[0] = rhocut;
+    cutoffs[1] = rhocut;
+    cutoffs[2] = rhocut;
+
+    double rhoatomcut = 4.0;
+    cutoffs[3] = rhoatomcut;
+    cutoffs[4] = rhoatomcut;
 
     // NLCC
     std::vector<double> upf_nlcc;
     if ( upf_nlcc_flag == "T" )
     {
-      find_start_element("PP_NLCC");
+      find_start_element("PP_NLCC", upfin);
       upf_nlcc.resize(upf_mesh_size);
       for ( int i = 0; i < upf_mesh_size; i++ )
-        std::cin >> upf_nlcc[i];
-      find_end_element("PP_NLCC");
+        upfin >> upf_nlcc[i];
+      find_end_element("PP_NLCC", upfin);
     }
 
-    find_start_element("PP_LOCAL");
+    find_start_element("PP_LOCAL", upfin);
     std::vector<double> upf_vloc(upf_mesh_size);
     for ( int i = 0; i < upf_mesh_size; i++ )
-      std::cin >> upf_vloc[i];
-    find_end_element("PP_LOCAL");
+      upfin >> upf_vloc[i];
+    find_end_element("PP_LOCAL",upfin);
 
-    find_start_element("PP_NONLOCAL");
+    // add the vlocal into samples.
+    // vlocal derivative is 0.0
+    tk::spline s;
+    {
+       for( int i = 0; i < upf_mesh_size; i++)
+         upf_vloc[i] = 0.5*upf_vloc[i];
+       std::vector < double > r; 
+       std::vector < double > vr; 
+       splinerad( upf_r, upf_vloc, r, vr, 1);
+       s.set_points(r, vr);
+       for( int i = 0; i < upf_r.size(); i ++)
+         upf_vloc[i] = s( upf_r[i] );
+    }
+    for( int i = 0; i < upf_mesh_size; i++)
+       samples(i, 1) = upf_vloc[i];
+
+
+    // set weights 0-4 to -1
+    weights[1] = -1;
+    weights[2] = -1;
+    weights[3] = -1;
+    weights[4] = -1;
+    types[1] = 99;
+    types[2] = 99;
+    types[3] = 999;
+    types[4] = 999;
+
+
+    find_start_element("PP_NONLOCAL", upfin);
     std::vector<std::vector<double> > upf_vnl;
     upf_vnl.resize(upf_nproj);
     std::vector<int> upf_proj_l(upf_nproj);
@@ -2186,29 +2271,51 @@ int readin(int argc, char** argv)
       os.str("");
       os << j+1;
       std::string element_name = "PP_BETA." + os.str();
-      tag = find_start_element(element_name);
-      std::cerr << tag << std::endl;
+      tag = find_start_element(element_name, upfin);
+      std::cout << tag << std::endl;
 
       buf = get_attr(tag,"index");
       is.clear();
       is.str(buf);
       is >> index;
-      std::cerr << " index = " << index << std::endl;
+      std::cout << " index = " << index << std::endl;
 
       buf = get_attr(tag,"angular_momentum");
       is.clear();
       is.str(buf);
       is >> angular_momentum;
-      std::cerr << " angular_momentum = " << angular_momentum << std::endl;
+      std::cout << " angular_momentum = " << angular_momentum << std::endl;
 
       assert(angular_momentum <= upf_lmax);
       upf_proj_l[index-1] = angular_momentum;
 
       upf_vnl[j].resize(upf_mesh_size);
       for ( int i = 0; i < upf_mesh_size; i++ )
-        std::cin >> upf_vnl[j][i];
+        upfin >> upf_vnl[j][i];
 
-      find_end_element(element_name);
+      find_end_element(element_name, upfin);
+
+      /// take the element nonlocal part.
+      {
+         std::vector < double > r; 
+         std::vector < double > vr; 
+         if(angular_momentum % 2 == 0) 
+           splinerad( upf_r, upf_vnl[j], r, vr, 0);
+         else
+           splinerad( upf_r, upf_vnl[j], r, vr, 1);
+
+         for( int i = 0; i < r.size(); i++)
+           vr[i] = vr[i] / r[i];
+         s.set_points(r, vr);
+
+         for( int i = 0; i < upf_r.size(); i ++)
+           upf_vnl[j][i] = s( upf_r[i] );
+      }
+ 
+      // nonlocal is written.
+      // nonlocal derivative is 0.0
+      for( int i = 0; i < upf_mesh_size; i++)
+	samples(i, 5+j*2) = upf_vnl[j][i];
     }
 
     // compute number of projectors for each l
@@ -2221,17 +2328,17 @@ int readin(int argc, char** argv)
         if ( upf_proj_l[ip] == l ) nproj_l[l]++;
     }
 
-    tag = find_start_element("PP_DIJ");
+    tag = find_start_element("PP_DIJ", upfin);
     int size;
     buf = get_attr(tag,"size");
     is.clear();
     is.str(buf);
     is >> size;
-    std::cerr << "PP_DIJ size = " << size << std::endl;
+    std::cout << "PP_DIJ size = " << size << std::endl;
 
     if ( size != upf_nproj*upf_nproj )
     {
-      std::cerr << " Number of non-zero Dij differs from number of projectors"
+      std::cout << " Number of non-zero Dij differs from number of projectors"
            << std::endl;
       return 1;
     }
@@ -2240,7 +2347,7 @@ int readin(int argc, char** argv)
     std::vector<double> upf_d(upf_ndij);
     for ( int i = 0; i < upf_ndij; i++ )
     {
-      std::cin >> upf_d[i];
+      upfin >> upf_d[i];
     }
     int imax = sqrt(size+1.e-5);
     assert(imax*imax==size);
@@ -2251,14 +2358,53 @@ int readin(int argc, char** argv)
       for ( int n = 0; n < imax; n++ )
         if ( (m != n) && (upf_d[n*imax+m] != 0.0) )
         {
-          std::cerr << " Non-local Dij has off-diagonal elements" << std::endl;
-          std::cerr << " m=" << m << " n=" << n << std::endl;
+          std::cout << " Non-local Dij has off-diagonal elements" << std::endl;
+          std::cout << " m=" << m << " n=" << n << std::endl;
           return 1;
         }
 
-    find_end_element("PP_DIJ");
+    find_end_element("PP_DIJ", upfin);
 
-    find_end_element("PP_NONLOCAL");
+    find_end_element("PP_NONLOCAL", upfin);
+
+    // add the weights to the Dij
+    for ( int j = 0; j < upf_nproj; j++ )
+    {
+      weights[5+2*j] = 0.5 * upf_d[j*imax+j];
+      weights[6+2*j] = 0.5 * upf_d[j*imax+j];
+
+      //weights[5+2*j] = upf_d[j*imax+j];
+      //weights[6+2*j] = upf_d[j*imax+j];
+
+      types[5+ 2*j] = upf_proj_l[j];
+      types[6+ 2*j] = upf_proj_l[j];
+      cutoffs[5+2*j] = 2.0;
+      cutoffs[6+2*j] = 2.0;
+    }
+
+    find_start_element("PP_RHOATOM", upfin);
+    std::vector<double> upf_rho_atom(upf_mesh_size);
+    for ( int i = 0; i < upf_mesh_size; i++ )
+      upfin >> upf_rho_atom[i];
+
+    //add the spline part
+    {
+       std::vector < double > r; 
+       std::vector < double > vr; 
+       splinerad( upf_r, upf_rho_atom, r, vr, 1);
+       for( int i = 0; i < r.size(); i++)
+	 vr[i] = vr[i] / ( 4.0 * PI * r[i] * r[i] );
+       s.set_points(r, vr);
+       for( int i = 0; i < upf_r.size(); i ++)
+         upf_rho_atom[i] = s( upf_r[i] );
+    }
+ 
+    // add the rho_atom to the samples
+    // rho_atom derivative is 0.0
+    for( int i = 0; i < upf_mesh_size; i++)
+      samples(i, 3) = upf_rho_atom[i] ;
+
+    find_end_element("PP_RHOATOM", upfin);
 
     // make table iproj[l] mapping l to iproj
     // vnl(l) is in vnl[iproj[l]] if iproj[l] > -1
@@ -2278,9 +2424,10 @@ int readin(int argc, char** argv)
       qso_lmax = upf_lmax+1;
     }
 
+#if 0
     if ( pseudo_type == "SL" )
     {
-      find_start_element("PP_PSWFC");
+      find_start_element("PP_PSWFC", upfin);
       std::vector<std::vector<double> > upf_wf;
       std::vector<int> upf_wf_l(upf_nwf);
       upf_wf.resize(upf_nwf);
@@ -2290,28 +2437,28 @@ int readin(int argc, char** argv)
         os.str("");
         os << j+1;
         std::string element_name = "PP_CHI." + os.str();
-        tag = find_start_element(element_name);
-        std::cerr << tag << std::endl;
+        tag = find_start_element(element_name, upfin);
+        std::cout << tag << std::endl;
 
         buf = get_attr(tag,"index");
         is.clear();
         is.str(buf);
         is >> index;
-        std::cerr << " index = " << index << std::endl;
+        std::cout << " index = " << index << std::endl;
 
         buf = get_attr(tag,"l");
         is.clear();
         is.str(buf);
         is >> l;
-        std::cerr << " l = " << l << std::endl;
+        std::cout << " l = " << l << std::endl;
 
         assert(l <= upf_lmax);
         upf_proj_l[index-1] = l;
         upf_wf[j].resize(upf_mesh_size);
         for ( int i = 0; i < upf_mesh_size; i++ )
-          std::cin >> upf_wf[j][i];
+          upfin >> upf_wf[j][i];
       }
-      find_end_element("PP_PSWFC");
+      find_end_element("PP_PSWFC", upfin);
 
       // output original data in file upf.dat
       std::ofstream upf("upf.dat");
@@ -2336,16 +2483,16 @@ int readin(int argc, char** argv)
       upf.close();
 
       // print summary
-      std::cerr << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
-      std::cerr << "Element: " << upf_symbol << std::endl;
-       std::cerr << "NLCC: " << upf_nlcc_flag << std::endl;
-      //std::cerr << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
+      std::cout << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
+      std::cout << "Element: " << upf_symbol << std::endl;
+       std::cout << "NLCC: " << upf_nlcc_flag << std::endl;
+      //std::cout << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
       //     << upf_xcf[2] << " " << upf_xcf[3] << std::endl;
-      std::cerr << "Zv: " << upf_zval << std::endl;
-      std::cerr << "lmax: " << qso_lmax << std::endl;
-      std::cerr << "llocal: " << upf_llocal << std::endl;
-      std::cerr << "nwf: " << upf_nwf << std::endl;
-      std::cerr << "mesh_size: " << upf_mesh_size << std::endl;
+      std::cout << "Zv: " << upf_zval << std::endl;
+      std::cout << "lmax: " << qso_lmax << std::endl;
+      std::cout << "llocal: " << upf_llocal << std::endl;
+      std::cout << "nwf: " << upf_nwf << std::endl;
+      std::cout << "mesh_size: " << upf_mesh_size << std::endl;
 
       // compute delta_vnl[l][i] on the upf log mesh
 
@@ -2575,9 +2722,9 @@ int readin(int argc, char** argv)
         vlin << std::endl << std::endl;
       }
 
-      std::cerr << " interpolation done" << std::endl;
-
-  #if 1
+      std::cout << " interpolation done" << std::endl;
+#endif
+  #if 0
       // output potential on log mesh
       std::ofstream vout("v.dat");
       for ( int l = 0; l <= qso_lmax; l++ )
@@ -2600,7 +2747,7 @@ int readin(int argc, char** argv)
       vout << std::endl << std::endl;
       vout.close();
   #endif
-
+#if  0
       // Generate QSO file
 
       // output potential in QSO format
@@ -2672,10 +2819,11 @@ int readin(int argc, char** argv)
         std::cout << "</fpmd:species>" << std::endl;
       }
     } // if SL
-
+#endif
+#if 0
     if ( pseudo_type == "NC" )
     {
-      std::cerr << " NC potential" << std::endl;
+      std::cout << " NC potential" << std::endl;
       // output original data in file upf.dat
       std::ofstream upf("upf.dat");
       upf << "# vloc" << std::endl;
@@ -2698,15 +2846,15 @@ int readin(int argc, char** argv)
       upf.close();
 
       // print summary
-      std::cerr << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
-      std::cerr << "Element: " << upf_symbol << std::endl;
-      std::cerr << "NLCC: " << upf_nlcc_flag << std::endl;
-      // std::cerr << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
+      std::cout << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
+      std::cout << "Element: " << upf_symbol << std::endl;
+      std::cout << "NLCC: " << upf_nlcc_flag << std::endl;
+      // std::cout << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
       //      << upf_xcf[2] << " " << upf_xcf[3] << std::endl;
-      std::cerr << "Zv: " << upf_zval << std::endl;
-      std::cerr << "lmax: " << qso_lmax << std::endl;
-      std::cerr << "nproj: " << upf_nproj << std::endl;
-      std::cerr << "mesh_size: " << upf_mesh_size << std::endl;
+      std::cout << "Zv: " << upf_zval << std::endl;
+      std::cout << "lmax: " << qso_lmax << std::endl;
+      std::cout << "nproj: " << upf_nproj << std::endl;
+      std::cout << "mesh_size: " << upf_mesh_size << std::endl;
 
       // interpolate functions on linear mesh
       const double mesh_spacing = 0.01;
@@ -2763,6 +2911,7 @@ int readin(int argc, char** argv)
           vloc_lin[i] = 0.5 * upf_vloc[0];
       }
 
+
       // interpolate vnl[j], j=0, nproj-1
       std::vector<std::vector<double> > vnl_lin;
       vnl_lin.resize(upf_nproj);
@@ -2809,7 +2958,7 @@ int readin(int argc, char** argv)
         vlin << std::endl << std::endl;
       }
 
-      // Generate QSO file
+     // Generate QSO file
 
       // output potential in QSO format
       // Weile, comment out the QSO format output
@@ -2887,6 +3036,7 @@ int readin(int argc, char** argv)
         std::cout << "</fpmd:species>" << std::endl;
       }
     }
+#endif
   } // version 1 or 2
   return 0;
 }

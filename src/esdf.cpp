@@ -2236,14 +2236,11 @@ ESDFReadInput ( const char* filename )
   {
     Domain& dm = esdfParam.domain;
     if( esdf_block("UPF_File", &nlines) ){
-      std::cout << " nline is " << nlines << std::endl;
       esdfParam.pspFile.resize(nlines);
       int m;
       for( int i = 0; i < nlines; i++){
-        std::cout << " starting atom " << i << std::endl;
-        sscanf(block_data[i],"%d %s",&m, &esdfParam.pspFile[i]);
-        std::cout << "atom " << esdfParam.pspFile[i] << std::endl;
-        std::cout << "block data " <<  block_data[i] << std::endl;
+	esdfParam.pspFile[i] = block_data[i];
+        std::cout << " starting atom " << i << "File :"<< block_data[i] << std::endl;
       }
     }
 
@@ -2251,9 +2248,6 @@ ESDFReadInput ( const char* filename )
       ErrorHandling("Super_Cell cannot be found.");
     }
   }
-
-  exit(0);
-
 
   // Atoms
   {

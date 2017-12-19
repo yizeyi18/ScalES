@@ -351,6 +351,8 @@ class PeriodicTable
 
 };
 
+int readin( std::string file_name, PTEntry* pt, int * atom);
+
 
 } // namespace dgdft
 

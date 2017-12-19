@@ -44,6 +44,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @brief Utility subroutines
 /// @date 2012-08-12
 #include "utility.hpp"
+#include "spline.h"
 
 namespace dgdft{
 
@@ -1344,18 +1345,65 @@ void splintd (int n, double *xa, double *ya, double *y2a,
               ( 0.5 * b * b - (1.0/6.0) ) * y2a[kh] );
 }
 
+void splinerad( std::vector<double> & r, std::vector<double> &v, std::vector <double> & out_r, std::vector <double> &out_v, int even)
+{
+   int n = r.size();
+   int size = 0;
+   double rmin = 10.0;
+   double rmax = 0.0;
+   for(int i = 0; i < n; i++)
+   {
+     if( r[i] > 0.0) {
+	     if( r[i] < rmin) rmin = r[i];
+	     if( r[i] > rmax) rmax = r[i];
+     }
+   }
+   double dstep = 0.001;
+   size = ( rmax - rmin ) / dstep;
+
+   std::vector < double> rtemp;
+   std::vector < double> vtemp;
+   rtemp.resize(size);
+   vtemp.resize(size);
+   for(int i = 0; i < size; i++)
+     rtemp[i] = rmin + i * dstep;
+
+   out_r.resize(2*size);
+   for(int i = 0; i < size; i++)
+     out_r[i] = - rtemp[size-1-i];
+   for(int i = size; i < 2*size; i++)
+     out_r[i] = rtemp[i-size];
+
+   out_v.resize(2*size);
+
+   tk::spline s;
+   s.set_points(r, v);
+
+   for(int i = 0; i < size; i++)
+     vtemp[i] = s( rtemp[i] );	   
+
+   out_v.resize(2*size);
+   if(even)
+     for(int i = 0; i < size; i++)
+       out_v[i] = vtemp[size-1-i];
+   else
+     for(int i = 0; i < size; i++)
+       out_v[i] = - vtemp[size-1-i];
+   for(int i = size; i < 2*size; i++)
+     out_v[i] = vtemp[i-size];
+}
 ////////////////////////////////////////////////////////////////////////////////
-std::string find_start_element(std::string name)
+std::string find_start_element(std::string name, std::ifstream &upfin)
 {
   // return the contents of the tag at start of element "name"
   std::string buf, token;
   std::string search_str = "<" + name;
   do
   {
-    std::cin >> token;
+    upfin >> token;
   }
-  while ( !std::cin.eof() && token.find(search_str) == std::string::npos );
-  if ( std::cin.eof() )
+  while ( !upfin.eof() && token.find(search_str) == std::string::npos );
+  if ( upfin.eof() )
   {
     std::cerr << " EOF reached before start element " << name << std::endl;
     throw std::invalid_argument(name);
@@ -1370,12 +1418,12 @@ std::string find_start_element(std::string name)
   char ch;
   do
   {
-    std::cin.get(ch);
+    upfin.get(ch);
     found = ch == '>';
     buf += ch;
   }
-  while ( !std::cin.eof() && !found );
-  if ( std::cin.eof() )
+  while ( !upfin.eof() && !found );
+  if ( upfin.eof() )
   {
     std::cerr << " EOF reached before > " << name << std::endl;
     throw std::invalid_argument(name);
@@ -1384,22 +1432,22 @@ std::string find_start_element(std::string name)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void find_end_element(std::string name)
+void find_end_element(std::string name, std::ifstream &upfin)
 {
   std::string buf, token;
   std::string search_str = "</" + name + ">";
   do
   {
-    std::cin >> token;
+    upfin >> token;
     if ( token.find(search_str) != std::string::npos ) return;
   }
-  while ( !std::cin.eof() );
+  while ( !upfin.eof() );
   std::cerr << " EOF reached before end element " << name << std::endl;
   throw std::invalid_argument(name);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void seek_str(std::string tag)
+void seek_str(std::string tag, std::ifstream &upfin)
 {
   // Read tokens from stdin until tag is found.
   // Throw an exception if tag not found before eof()
@@ -1409,10 +1457,10 @@ void seek_str(std::string tag)
 
   do
   {
-    std::cin >> token;
+    upfin >> token;
     if ( token.find(tag) != std::string::npos ) return;
   }
-  while ( !std::cin.eof() );
+  while ( !upfin.eof() );
 
   std::cerr << " EOF reached before " << tag << std::endl;
   throw std::invalid_argument(tag);
@@ -1447,13 +1495,13 @@ std::string get_attr(std::string buf, std::string attr)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void skipln(void)
+void skipln(std::ifstream & upfin )
 {
   char ch;
   bool found = false;
-  while ( !std::cin.eof() && !found )
+  while ( !upfin.eof() && !found )
   {
-    std::cin.get(ch);
+    upfin.get(ch);
     found = ch == '\n';
   }
 }
