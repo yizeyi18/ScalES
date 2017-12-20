@@ -2240,6 +2240,7 @@ ESDFReadInput ( const char* filename )
       int m;
       for( int i = 0; i < nlines; i++){
 	esdfParam.pspFile[i] = block_data[i];
+	esdfParam.pspFile[i].erase( remove_if( esdfParam.pspFile[i].begin(), esdfParam.pspFile[i].end(), isspace), esdfParam.pspFile[i].end());
       }
     }
 
