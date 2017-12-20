@@ -326,7 +326,7 @@ void esdf_key() {
   strcpy(kw_typ[i],"B:E");
 
   i++;
-  strcpy(kw_label[i],"UPF_File");
+  strcpy(kw_label[i],"upf_file");
   strcpy(kw_typ[i],"B:E");
 
   i++;
@@ -2240,7 +2240,6 @@ ESDFReadInput ( const char* filename )
       int m;
       for( int i = 0; i < nlines; i++){
 	esdfParam.pspFile[i] = block_data[i];
-        std::cout << " starting atom " << i << "File :"<< block_data[i] << std::endl;
       }
     }
 

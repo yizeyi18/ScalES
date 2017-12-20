@@ -60,20 +60,20 @@ using namespace dgdft::esdf;
 
 Int serialize(const PTEntry& val, std::ostream& os, const std::vector<Int>& mask)
 {
-  serialize(val.params, os, mask);
+  serialize(val.params,  os, mask);
   serialize(val.samples, os, mask);
   serialize(val.weights, os, mask);
-  serialize(val.types, os, mask);
+  serialize(val.types,   os, mask);
   serialize(val.cutoffs, os, mask);
   return 0;
 }
 
 Int deserialize(PTEntry& val, std::istream& is, const std::vector<Int>& mask)
 {
-  deserialize(val.params, is, mask);
+  deserialize(val.params,  is, mask);
   deserialize(val.samples, is, mask);
   deserialize(val.weights, is, mask);
-  deserialize(val.types, is, mask);
+  deserialize(val.types,   is, mask);
   deserialize(val.cutoffs, is, mask);
   return 0;
 }
@@ -103,7 +103,7 @@ void PeriodTable::Setup( )
   std::vector<Int> all(1,1);
 
   std::istringstream iss;  
-  SharedRead( esdfParam.periodTableFile, iss );
+  //SharedRead( esdfParam.periodTableFile, iss );
 
   // all the readins are in the samples in the old version, 
   // now in the new version, I should readin something else. 
@@ -111,20 +111,43 @@ void PeriodTable::Setup( )
   // is used to construct the ptemap_ struct.
 
   {
+    MPI_Barrier(MPI_COMM_WORLD);
+    int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
+    int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
+
     PTEntry tempEntry;
-    for( int i = 0; i < esdfParam.pspFile.size(); i++){
-
-      std::cout << " read the UPF " << esdfParam.pspFile[i] << std::endl;
-      int atom;
-      readin(esdfParam.pspFile[i], &tempEntry, &atom);
-
-      std::map <Int,PTEntry> :: iterator it = ptemap_.end();
-
-      std::cout << " atom read are: " << atom << std::endl;
-      ptemap_.insert(it, std::pair<Int, PTEntry>(atom, tempEntry));
+    if(mpirank==0) {
+      for( int i = 0; i < esdfParam.pspFile.size(); i++){
+        int atom;
+        readin(esdfParam.pspFile[i], &tempEntry, &atom);
+        std::map <Int,PTEntry> :: iterator it = ptemap_.end();
+        ptemap_.insert(it, std::pair<Int, PTEntry>(atom, tempEntry));
+      }
     }
+
+    std::stringstream vStream;
+    std::stringstream vStreamTemp;
+    int vStreamSize;
+
+    serialize( ptemap_, vStream, all);
+
+    if( mpirank == 0)
+      vStreamSize = Size( vStream );
+
+    MPI_Bcast( &vStreamSize, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    std::vector<char> sstr;
+    sstr.resize( vStreamSize );
+
+    if( mpirank == 0)
+      vStream.read( &sstr[0], vStreamSize );
+
+    MPI_Bcast( &sstr[0], vStreamSize, MPI_BYTE, 0, MPI_COMM_WORLD );
+    vStreamTemp.write( &sstr[0], vStreamSize );
+    deserialize( ptemap_, vStreamTemp, all);
   }
 
+  // implement the MPI Bcast of the ptemap_, now we are doing all processors readin
   //deserialize(ptemap_, iss, all);
 
   // Setup constant private variable parameters
@@ -1436,15 +1459,17 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
   }
   if ( upf_version == 0 )
   {
-    std::cout << " Format of UPF file not recognized " << std::endl;
-    std::cout << " First line of file: " << buf << std::endl;
+    statusOFS << " Format of UPF file not recognized " << std::endl;
+    statusOFS << " First line of file: " << buf << std::endl;
+    ErrorHandling( " Format of UPF file not recognized " );
     return 1;
   }
 
-  std::cout << " UPF version: " << upf_version << std::endl;
+  statusOFS << " UPF version: " << upf_version << std::endl;
 
   if ( upf_version == 1 )
   {
+    ErrorHandling( " Format of UPF file 1.0 not supported" );
     // process UPF version 1 potential
     std::string upf_pp_info;
     bool done = false;
@@ -1496,8 +1521,8 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is >> upf_ncflag;
     if ( upf_ncflag != "NC" )
     {
-      std::cout << " not a Norm-conserving potential" << std::endl;
-      std::cout << " NC flag: " << upf_ncflag << std::endl;
+      statusOFS << " not a Norm-conserving potential" << std::endl;
+      statusOFS << " NC flag: " << upf_ncflag << std::endl;
       return 1;
     }
 
@@ -1509,7 +1534,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is >> upf_nlcc_flag;
     if ( upf_nlcc_flag == "T" )
     {
-      std::cout << " Potential includes a non-linear core correction" << std::endl;
+      statusOFS << " Potential includes a non-linear core correction" << std::endl;
     }
 
     // XC functional (add in description)
@@ -1636,7 +1661,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     skipln(upfin);
     if ( upf_ndij != upf_nproj )
     {
-      std::cout << " Number of non-zero Dij differs from number of projectors"
+      statusOFS << " Number of non-zero Dij differs from number of projectors"
            << std::endl;
       return 1;
     }
@@ -1648,8 +1673,8 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
       upfin >> m >> n >> upf_d[i];
       if ( m != n )
       {
-        std::cout << " Non-local Dij has off-diagonal elements" << std::endl;
-        std::cout << " m=" << m << " n=" << n << std::endl;
+        statusOFS << " Non-local Dij has off-diagonal elements" << std::endl;
+        statusOFS << " m=" << m << " n=" << n << std::endl;
         return 1;
       }
     }
@@ -1720,17 +1745,17 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
 
 
     // print summary
-    std::cout << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
-    std::cout << "Element: " << upf_symbol << std::endl;
-    std::cout << "NC: " << upf_ncflag << std::endl;
-    std::cout << "NLCC: " << upf_nlcc_flag << std::endl;
-    std::cout << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
+    statusOFS << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
+    statusOFS << "Element: " << upf_symbol << std::endl;
+    statusOFS << "NC: " << upf_ncflag << std::endl;
+    statusOFS << "NLCC: " << upf_nlcc_flag << std::endl;
+    statusOFS << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
          << upf_xcf[2] << " " << upf_xcf[3] << std::endl;
-    std::cout << "Zv: " << upf_zval << std::endl;
-    std::cout << "lmax: " << qso_lmax << std::endl;
-    std::cout << "llocal: " << upf_llocal << std::endl;
-    std::cout << "nwf: " << upf_nwf << std::endl;
-    std::cout << "mesh_size: " << upf_mesh_size << std::endl;
+    statusOFS << "Zv: " << upf_zval << std::endl;
+    statusOFS << "lmax: " << qso_lmax << std::endl;
+    statusOFS << "llocal: " << upf_llocal << std::endl;
+    statusOFS << "nwf: " << upf_nwf << std::endl;
+    statusOFS << "mesh_size: " << upf_mesh_size << std::endl;
 
     // compute delta_vnl[l][i] on the upf log mesh
 
@@ -1960,9 +1985,9 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
       vlin << std::endl << std::endl;
     }
 
-    std::cout << " interpolation done" << std::endl;
+    statusOFS << " interpolation done" << std::endl;
 
-#if 1
+#if 0
     // output potential on log mesh
     std::ofstream vout("v.dat");
     for ( int l = 0; l <= qso_lmax; l++ )
@@ -1985,77 +2010,6 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     vout << std::endl << std::endl;
     vout.close();
 #endif
-
-    // Generate QSO file
-
-    // output potential in QSO format
-    // Weile, comment out the QSO format output
-    if(0)
-    {
-      std::cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
-      std::cout << "<fpmd:species xmlns:fpmd=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0\"" << std::endl;
-      std::cout << "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"" << std::endl;
-      std::cout << "  xsi:schemaLocation=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0"  << std::endl;
-      std::cout << "  species.xsd\">" << std::endl;
-      std::cout << "<description>" << std::endl;
-      std::cout << "Translated from UPF format by upf2qso" << std::endl;
-      std::cout << upf_pp_info;
-      std::cout << "</description>" << std::endl;
-      std::cout << "<symbol>" << upf_symbol << "</symbol>" << std::endl;
-      std::cout << "<atomic_number>" << atomic_number << "</atomic_number>" << std::endl;
-      std::cout << "<mass>" << mass << "</mass>" << std::endl;
-      std::cout << "<norm_conserving_pseudopotential>" << std::endl;
-      std::cout << "<valence_charge>" << upf_zval << "</valence_charge>" << std::endl;
-      std::cout << "<lmax>" << qso_lmax << "</lmax>" << std::endl;
-      std::cout << "<llocal>" << upf_llocal << "</llocal>" << std::endl;
-      std::cout << "<nquad>0</nquad>" << std::endl;
-      std::cout << "<rquad>0.0</rquad>" << std::endl;
-      std::cout << "<mesh_spacing>" << mesh_spacing << "</mesh_spacing>" << std::endl;
-  
-      std::cout.setf(std::ios::scientific,std::ios::floatfield);
-      if ( upf_nlcc_flag == "T" )
-      {
-        std::cout << "<core_density size=\"" << nplin << "\">" << std::endl;
-        for ( int i = 0; i < nplin; i++ )
-          std::cout << std::setprecision(10) << nlcc_lin[i] << std::endl;
-        std::cout << "</core_density>" << std::endl;
-      }
-  
-      for ( int l = 0; l <= qso_lmax; l++ )
-      {
-        std::cout << "<projector l=\"" << l << "\" size=\"" << nplin << "\">"
-             << std::endl;
-        std::cout << "<radial_potential>" << std::endl;
-        if ( iproj[l] == -1 )
-        {
-          // l == llocal
-          for ( int i = 0; i < nplin; i++ )
-            std::cout << std::setprecision(10) << vloc_lin[i] << std::endl;
-        }
-        else
-        {
-          for ( int i = 0; i < nplin; i++ )
-            std::cout << std::setprecision(10) << vps_lin[iproj[l]][i] << std::endl;
-        }
-        std::cout << "</radial_potential>" << std::endl;
-        // find index j corresponding to angular momentum l
-        int j = 0;
-        while ( upf_wf_l[j] != l && j < upf_nwf ) j++;
-        // check if found
-        const bool found = ( j != upf_nwf );
-        // print wf only if found
-        if ( found )
-        {
-          std::cout << "<radial_function>" << std::endl;
-          for ( int i = 0; i < nplin; i++ )
-            std::cout << std::setprecision(10) << wf_lin[j][i] << std::endl;
-          std::cout << "</radial_function>" << std::endl;
-        }
-        std::cout << "</projector>" << std::endl;
-      }
-      std::cout << "</norm_conserving_pseudopotential>" << std::endl;
-      std::cout << "</fpmd:species>" << std::endl;
-    }
 
   }
   else if ( upf_version == 2 )
@@ -2102,26 +2056,32 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
 
     // check if potential is norm-conserving or semi-local
     std::string pseudo_type = get_attr(tag,"pseudo_type");
-    std::cout << " pseudo_type = " << pseudo_type << std::endl;
+#ifdef 0
+    statusOFS << " pseudo_type = " << pseudo_type << std::endl;
     if ( pseudo_type!="NC" && pseudo_type!="SL" )
     {
-      std::cout << " pseudo_type must be NC or SL" << std::endl;
+      statusOFS << " pseudo_type must be NC or SL" << std::endl;
       return 1;
     }
+#endif
 
     // NLCC flag
     std::string upf_nlcc_flag = get_attr(tag,"core_correction");
     if ( upf_nlcc_flag == "T" )
     {
-      std::cout << " Potential includes a non-linear core correction" << std::endl;
+      statusOFS << " Potential includes a non-linear core correction" << std::endl;
     }
-    std::cout << " upf_nlcc_flag = " << upf_nlcc_flag << std::endl;
+#ifdef 0
+    statusOFS << " upf_nlcc_flag = " << upf_nlcc_flag << std::endl;
+#endif
 
     // XC functional (add in description)
     std::string upf_functional = get_attr(tag,"functional");
     // add XC functional information to description
     upf_pp_info += "functional = " + upf_functional + '\n';
-    std::cout << " upf_functional = " << upf_functional << std::endl;
+#ifdef 0
+    statusOFS << " upf_functional = " << upf_functional << std::endl;
+#endif
 
     // valence charge
     double upf_zval = 0.0;
@@ -2129,7 +2089,10 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is.clear();
     is.str(buf);
     is >> upf_zval;
-    std::cout << " upf_zval = " << upf_zval << std::endl;
+
+#ifdef 0
+    statusOFS << " upf_zval = " << upf_zval << std::endl;
+#endif
     params[2] = upf_zval;
     params[3] = 1.0; // FIXME
     params[4] = 3.0; // FIXME
@@ -2141,7 +2104,9 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is.clear();
     is.str(buf);
     is >> upf_lmax;
-    std::cout << " upf_lmax = " << upf_lmax << std::endl;
+#ifdef 0
+    statusOFS << " upf_lmax = " << upf_lmax << std::endl;
+#endif
 
     // local angular momentum
     int upf_llocal;
@@ -2149,23 +2114,27 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is.clear();
     is.str(buf);
     is >> upf_llocal;
-    std::cout << " upf_llocal = " << upf_llocal << std::endl;
-
+#ifdef 0
+    statusOFS << " upf_llocal = " << upf_llocal << std::endl;
+#endif
     // number of points in mesh
     int upf_mesh_size;
     buf = get_attr(tag,"mesh_size");
     is.clear();
     is.str(buf);
     is >> upf_mesh_size;
-    std::cout << " upf_mesh_size = " << upf_mesh_size << std::endl;
-
+#ifdef 0
+    statusOFS << " upf_mesh_size = " << upf_mesh_size << std::endl;
+#endif
     // number of wavefunctions
     int upf_nwf;
     buf = get_attr(tag,"number_of_wfc");
     is.clear();
     is.str(buf);
     is >> upf_nwf;
-    std::cout << " upf_nwf = " << upf_nwf << std::endl;
+#ifdef 0
+    statusOFS << " upf_nwf = " << upf_nwf << std::endl;
+#endif
 
     // number of projectors
     int upf_nproj;
@@ -2173,7 +2142,9 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is.clear();
     is.str(buf);
     is >> upf_nproj;
-    std::cout << " upf_nproj = " << upf_nproj << std::endl;
+#ifdef 0
+    statusOFS << " upf_nproj = " << upf_nproj << std::endl;
+#endif
 
     samples.Resize( upf_mesh_size, 5 + 2*upf_nproj);
     weights.Resize(5+2*upf_nproj);
@@ -2272,19 +2243,25 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
       os << j+1;
       std::string element_name = "PP_BETA." + os.str();
       tag = find_start_element(element_name, upfin);
-      std::cout << tag << std::endl;
+#ifdef 0
+      statusOFS << tag << std::endl;
+#endif
 
       buf = get_attr(tag,"index");
       is.clear();
       is.str(buf);
       is >> index;
-      std::cout << " index = " << index << std::endl;
+#ifdef 0
+      statusOFS << " index = " << index << std::endl;
+#endif
 
       buf = get_attr(tag,"angular_momentum");
       is.clear();
       is.str(buf);
       is >> angular_momentum;
-      std::cout << " angular_momentum = " << angular_momentum << std::endl;
+#ifdef 0
+      statusOFS << " angular_momentum = " << angular_momentum << std::endl;
+#endif
 
       assert(angular_momentum <= upf_lmax);
       upf_proj_l[index-1] = angular_momentum;
@@ -2334,11 +2311,13 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is.clear();
     is.str(buf);
     is >> size;
-    std::cout << "PP_DIJ size = " << size << std::endl;
+#ifdef 0
+    statusOFS << "PP_DIJ size = " << size << std::endl;
+#endif
 
     if ( size != upf_nproj*upf_nproj )
     {
-      std::cout << " Number of non-zero Dij differs from number of projectors"
+      statusOFS << " Number of non-zero Dij differs from number of projectors"
            << std::endl;
       return 1;
     }
@@ -2358,8 +2337,8 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
       for ( int n = 0; n < imax; n++ )
         if ( (m != n) && (upf_d[n*imax+m] != 0.0) )
         {
-          std::cout << " Non-local Dij has off-diagonal elements" << std::endl;
-          std::cout << " m=" << m << " n=" << n << std::endl;
+          statusOFS << " Non-local Dij has off-diagonal elements" << std::endl;
+          statusOFS << " m=" << m << " n=" << n << std::endl;
           return 1;
         }
 
@@ -2438,19 +2417,19 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
         os << j+1;
         std::string element_name = "PP_CHI." + os.str();
         tag = find_start_element(element_name, upfin);
-        std::cout << tag << std::endl;
+        statusOFS << tag << std::endl;
 
         buf = get_attr(tag,"index");
         is.clear();
         is.str(buf);
         is >> index;
-        std::cout << " index = " << index << std::endl;
+        statusOFS << " index = " << index << std::endl;
 
         buf = get_attr(tag,"l");
         is.clear();
         is.str(buf);
         is >> l;
-        std::cout << " l = " << l << std::endl;
+        statusOFS << " l = " << l << std::endl;
 
         assert(l <= upf_lmax);
         upf_proj_l[index-1] = l;
@@ -2483,16 +2462,16 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
       upf.close();
 
       // print summary
-      std::cout << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
-      std::cout << "Element: " << upf_symbol << std::endl;
-       std::cout << "NLCC: " << upf_nlcc_flag << std::endl;
-      //std::cout << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
+      statusOFS << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
+      statusOFS << "Element: " << upf_symbol << std::endl;
+       statusOFS << "NLCC: " << upf_nlcc_flag << std::endl;
+      //statusOFS << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
       //     << upf_xcf[2] << " " << upf_xcf[3] << std::endl;
-      std::cout << "Zv: " << upf_zval << std::endl;
-      std::cout << "lmax: " << qso_lmax << std::endl;
-      std::cout << "llocal: " << upf_llocal << std::endl;
-      std::cout << "nwf: " << upf_nwf << std::endl;
-      std::cout << "mesh_size: " << upf_mesh_size << std::endl;
+      statusOFS << "Zv: " << upf_zval << std::endl;
+      statusOFS << "lmax: " << qso_lmax << std::endl;
+      statusOFS << "llocal: " << upf_llocal << std::endl;
+      statusOFS << "nwf: " << upf_nwf << std::endl;
+      statusOFS << "mesh_size: " << upf_mesh_size << std::endl;
 
       // compute delta_vnl[l][i] on the upf log mesh
 
@@ -2722,7 +2701,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
         vlin << std::endl << std::endl;
       }
 
-      std::cout << " interpolation done" << std::endl;
+      statusOFS << " interpolation done" << std::endl;
 #endif
   #if 0
       // output potential on log mesh
@@ -2754,52 +2733,52 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
       // Weile, comment out the QSO format output
       if(0)
       {
-        std::cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
-        std::cout << "<fpmd:species xmlns:fpmd=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0\"" << std::endl;
-        std::cout << "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"" << std::endl;
-        std::cout << "  xsi:schemaLocation=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0"  << std::endl;
-        std::cout << "  species.xsd\">" << std::endl;
-        std::cout << "<description>" << std::endl;
-        std::cout << "Translated from UPF format by upf2qso" << std::endl;
-        std::cout << upf_pp_info;
-        std::cout << "</description>" << std::endl;
-        std::cout << "<symbol>" << upf_symbol << "</symbol>" << std::endl;
-        std::cout << "<atomic_number>" << atomic_number << "</atomic_number>" << std::endl;
-        std::cout << "<mass>" << mass << "</mass>" << std::endl;
-        std::cout << "<norm_conserving_pseudopotential>" << std::endl;
-        std::cout << "<valence_charge>" << upf_zval << "</valence_charge>" << std::endl;
-        std::cout << "<lmax>" << qso_lmax << "</lmax>" << std::endl;
-        std::cout << "<llocal>" << upf_llocal << "</llocal>" << std::endl;
-        std::cout << "<nquad>0</nquad>" << std::endl;
-        std::cout << "<rquad>0.0</rquad>" << std::endl;
-        std::cout << "<mesh_spacing>" << mesh_spacing << "</mesh_spacing>" << std::endl;
+        statusOFS << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
+        statusOFS << "<fpmd:species xmlns:fpmd=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0\"" << std::endl;
+        statusOFS << "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"" << std::endl;
+        statusOFS << "  xsi:schemaLocation=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0"  << std::endl;
+        statusOFS << "  species.xsd\">" << std::endl;
+        statusOFS << "<description>" << std::endl;
+        statusOFS << "Translated from UPF format by upf2qso" << std::endl;
+        statusOFS << upf_pp_info;
+        statusOFS << "</description>" << std::endl;
+        statusOFS << "<symbol>" << upf_symbol << "</symbol>" << std::endl;
+        statusOFS << "<atomic_number>" << atomic_number << "</atomic_number>" << std::endl;
+        statusOFS << "<mass>" << mass << "</mass>" << std::endl;
+        statusOFS << "<norm_conserving_pseudopotential>" << std::endl;
+        statusOFS << "<valence_charge>" << upf_zval << "</valence_charge>" << std::endl;
+        statusOFS << "<lmax>" << qso_lmax << "</lmax>" << std::endl;
+        statusOFS << "<llocal>" << upf_llocal << "</llocal>" << std::endl;
+        statusOFS << "<nquad>0</nquad>" << std::endl;
+        statusOFS << "<rquad>0.0</rquad>" << std::endl;
+        statusOFS << "<mesh_spacing>" << mesh_spacing << "</mesh_spacing>" << std::endl;
   
-        std::cout.setf(std::ios::scientific,std::ios::floatfield);
+        statusOFS.setf(std::ios::scientific,std::ios::floatfield);
         if ( upf_nlcc_flag == "T" )
         {
-          std::cout << "<core_density size=\"" << nplin << "\">" << std::endl;
+          statusOFS << "<core_density size=\"" << nplin << "\">" << std::endl;
           for ( int i = 0; i < nplin; i++ )
-            std::cout << std::setprecision(10) << nlcc_lin[i] << std::endl;
-          std::cout << "</core_density>" << std::endl;
+            statusOFS << std::setprecision(10) << nlcc_lin[i] << std::endl;
+          statusOFS << "</core_density>" << std::endl;
         }
   
         for ( int l = 0; l <= qso_lmax; l++ )
         {
-          std::cout << "<projector l=\"" << l << "\" size=\"" << nplin << "\">"
+          statusOFS << "<projector l=\"" << l << "\" size=\"" << nplin << "\">"
                << std::endl;
-          std::cout << "<radial_potential>" << std::endl;
+          statusOFS << "<radial_potential>" << std::endl;
           if ( iproj[l] == -1 )
           {
             // l == llocal
             for ( int i = 0; i < nplin; i++ )
-              std::cout << std::setprecision(10) << vloc_lin[i] << std::endl;
+              statusOFS << std::setprecision(10) << vloc_lin[i] << std::endl;
           }
           else
           {
             for ( int i = 0; i < nplin; i++ )
-              std::cout << std::setprecision(10) << vps_lin[iproj[l]][i] << std::endl;
+              statusOFS << std::setprecision(10) << vps_lin[iproj[l]][i] << std::endl;
           }
-          std::cout << "</radial_potential>" << std::endl;
+          statusOFS << "</radial_potential>" << std::endl;
           // find index j corresponding to angular momentum l
           int j = 0;
           while ( upf_wf_l[j] != l && j < upf_nwf ) j++;
@@ -2808,22 +2787,22 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
           // print wf only if found
           if ( found )
           {
-            std::cout << "<radial_function>" << std::endl;
+            statusOFS << "<radial_function>" << std::endl;
             for ( int i = 0; i < nplin; i++ )
-              std::cout << std::setprecision(10) << wf_lin[j][i] << std::endl;
-            std::cout << "</radial_function>" << std::endl;
+              statusOFS << std::setprecision(10) << wf_lin[j][i] << std::endl;
+            statusOFS << "</radial_function>" << std::endl;
           }
-          std::cout << "</projector>" << std::endl;
+          statusOFS << "</projector>" << std::endl;
         }
-        std::cout << "</norm_conserving_pseudopotential>" << std::endl;
-        std::cout << "</fpmd:species>" << std::endl;
+        statusOFS << "</norm_conserving_pseudopotential>" << std::endl;
+        statusOFS << "</fpmd:species>" << std::endl;
       }
     } // if SL
 #endif
 #if 0
     if ( pseudo_type == "NC" )
     {
-      std::cout << " NC potential" << std::endl;
+      statusOFS << " NC potential" << std::endl;
       // output original data in file upf.dat
       std::ofstream upf("upf.dat");
       upf << "# vloc" << std::endl;
@@ -2846,15 +2825,15 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
       upf.close();
 
       // print summary
-      std::cout << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
-      std::cout << "Element: " << upf_symbol << std::endl;
-      std::cout << "NLCC: " << upf_nlcc_flag << std::endl;
-      // std::cout << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
+      statusOFS << "PP_INFO:" << std::endl << upf_pp_info << std::endl;
+      statusOFS << "Element: " << upf_symbol << std::endl;
+      statusOFS << "NLCC: " << upf_nlcc_flag << std::endl;
+      // statusOFS << "XC: " << upf_xcf[0] << " " << upf_xcf[1] << " "
       //      << upf_xcf[2] << " " << upf_xcf[3] << std::endl;
-      std::cout << "Zv: " << upf_zval << std::endl;
-      std::cout << "lmax: " << qso_lmax << std::endl;
-      std::cout << "nproj: " << upf_nproj << std::endl;
-      std::cout << "mesh_size: " << upf_mesh_size << std::endl;
+      statusOFS << "Zv: " << upf_zval << std::endl;
+      statusOFS << "lmax: " << qso_lmax << std::endl;
+      statusOFS << "nproj: " << upf_nproj << std::endl;
+      statusOFS << "mesh_size: " << upf_mesh_size << std::endl;
 
       // interpolate functions on linear mesh
       const double mesh_spacing = 0.01;
@@ -2958,83 +2937,6 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
         vlin << std::endl << std::endl;
       }
 
-     // Generate QSO file
-
-      // output potential in QSO format
-      // Weile, comment out the QSO format output
-      if(0)
-      {
-        std::cout << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << std::endl;
-        std::cout << "<fpmd:species xmlns:fpmd=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0\"" << std::endl;
-        std::cout << "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"" << std::endl;
-        std::cout << "  xsi:schemaLocation=\"http://www.quantum-simulation.org/ns/fpmd/fpmd-1.0"  << std::endl;
-        std::cout << "  species.xsd\">" << std::endl;
-        std::cout << "<description>" << std::endl;
-        std::cout << "Translated from UPF format by upf2qso" << std::endl;
-        std::cout << upf_pp_info;
-        std::cout << "</description>" << std::endl;
-        std::cout << "<symbol>" << upf_symbol << "</symbol>" << std::endl;
-        std::cout << "<atomic_number>" << atomic_number << "</atomic_number>" << std::endl;
-        std::cout << "<mass>" << mass << "</mass>" << std::endl;
-        std::cout << "<norm_conserving_semilocal_pseudopotential>" << std::endl;
-        std::cout << "<valence_charge>" << upf_zval << "</valence_charge>" << std::endl;
-        std::cout << "<mesh_spacing>" << mesh_spacing << "</mesh_spacing>" << std::endl;
-  
-        std::cout.setf(std::ios::scientific,std::ios::floatfield);
-        if ( upf_nlcc_flag == "T" )
-        {
-          std::cout << "<core_density size=\"" << nplin << "\">" << std::endl;
-          for ( int i = 0; i < nplin; i++ )
-            std::cout << std::setprecision(10) << nlcc_lin[i] << std::endl;
-          std::cout << "</core_density>" << std::endl;
-        }
-  
-        // local potential
-        std::cout << "<local_potential size=\"" << nplin << "\">" << std::endl;
-        for ( int i = 0; i < nplin; i++ )
-          std::cout << std::setprecision(10) << vloc_lin[i] << std::endl;
-        std::cout << "</local_potential>" << std::endl;
-  
-        // projectors
-        int ip = 0;
-        for ( int l = 0; l <= upf_lmax; l++ )
-        {
-          for ( int i = 0; i < nproj_l[l]; i++ )
-          {
-            std::cout << "<projector l=\"" << l << "\" i=\""
-                 << i+1 << "\" size=\"" << nplin << "\">"
-                 << std::endl;
-            for ( int j = 0; j < nplin; j++ )
-              std::cout << std::setprecision(10) << vnl_lin[ip][j] << std::endl;
-            ip++;
-            std::cout << "</projector>" << std::endl;
-          }
-        }
-  
-        // d_ij
-        int ibase = 0;
-        int jbase = 0;
-        for ( int l = 0; l <= upf_lmax; l++ )
-        {
-          for ( int i = 0; i < upf_nproj; i++ )
-            for ( int j = 0; j < upf_nproj; j++ )
-            {
-              if ( (upf_proj_l[i] == l) && (upf_proj_l[j] == l) )
-              {
-                int ij = i + j*upf_nproj;
-                std::cout << "<d_ij l=\"" << l << "\""
-                     << " i=\"" << i-ibase+1 << "\" j=\"" << j-jbase+1
-                     << "\" " << std::setprecision(10) << 0.5*upf_d[ij] << " />"
-                     << std::endl;
-              }
-            }
-          ibase += nproj_l[l];
-          jbase += nproj_l[l];
-        }
-  
-        std::cout << "</norm_conserving_semilocal_pseudopotential>" << std::endl;
-        std::cout << "</fpmd:species>" << std::endl;
-      }
     }
 #endif
   } // version 1 or 2
