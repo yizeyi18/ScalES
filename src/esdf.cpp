@@ -326,6 +326,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"B:E");
 
   i++;
+  strcpy(kw_label[i],"upf_file");
+  strcpy(kw_typ[i],"B:E");
+
+  i++;
   strcpy(kw_label[i],"grid_spacing");
   strcpy(kw_typ[i],"P:E");
 
@@ -1188,6 +1192,10 @@ void esdf_key() {
  
   i++;
   strcpy(kw_label[i],"use_atom_density");
+  strcpy(kw_typ[i],"I:E");
+  
+  i++;
+  strcpy(kw_label[i],"use_vlocal");
   strcpy(kw_typ[i],"I:E");
 }
 
@@ -2329,6 +2337,22 @@ ESDFReadInput ( const char* filename )
     dm.posStart = Point3( 0.0, 0.0, 0.0 );
   }
 
+  {
+    Domain& dm = esdfParam.domain;
+    if( esdf_block("UPF_File", &nlines) ){
+      esdfParam.pspFile.resize(nlines);
+      int m;
+      for( int i = 0; i < nlines; i++){
+	esdfParam.pspFile[i] = block_data[i];
+	esdfParam.pspFile[i].erase( remove_if( esdfParam.pspFile[i].begin(), esdfParam.pspFile[i].end(), isspace), esdfParam.pspFile[i].end());
+      }
+    }
+
+    else{
+      ErrorHandling("Super_Cell cannot be found.");
+    }
+  }
+
   // Atoms
   {
     std::vector<Atom>&  atomList = esdfParam.atomList;
@@ -2576,6 +2600,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
     esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
     esdfParam.isUseAtomDensity = esdf_integer( "Use_Atom_Density", 0 );
+    esdfParam.isUseVLocal      = esdf_integer( "Use_VLocal", 1 );
     esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
     esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
     esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
@@ -3065,6 +3090,7 @@ void ESDFPrintInput( ){
   Print(statusOFS, "Density GridFactor                   = ",  esdfParam.densityGridFactor);
 
   Print(statusOFS, "Use Atom Density                     = ",  esdfParam.isUseAtomDensity);
+  Print(statusOFS, "Use VLocal                           = ",  esdfParam.isUseVLocal);
   Print(statusOFS, "RestartDensity                       = ",  esdfParam.isRestartDensity);
   Print(statusOFS, "RestartWfn                           = ",  esdfParam.isRestartWfn);
   Print(statusOFS, "OutputDensity                        = ",  esdfParam.isOutputDensity);

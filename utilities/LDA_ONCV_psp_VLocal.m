@@ -9,8 +9,11 @@
 % Revision: 2017/02/01 Incorporate with new LDA pseudopotential
 
 % Znucs = [1 3 6 8 9 15];
-Znucs = [1];
+Znucs = [1 9];
 res = cell(length(Znucs),2);
+close all;
+% FIXME hard coded from qbox for the radius of the Gaussian charge
+
 
 for g=1:length(Znucs)
   Znuc = Znucs(g); fprintf(1,'Znuc %d\n',Znuc);
@@ -22,57 +25,53 @@ for g=1:length(Znucs)
   switch(Znuc)
     case 1 % H
       mass = 1.00794;
-      rhocut  = 2.0;
+      rcps = 1.0;
+      rhocut  = 6.0;
       rhoatomcut = 3.5;
       wavcut  = 1.5;
-%       ppFile = './ONCV_Pask/20161112/H/H.LDA.psp8';
-%       pprholocFile = './ONCV_Pask/20161112/H/H.LDA.rholoc';
       ppFile = './ONCV_Pask/20170201_LDA/H/H.1.02.oncvpsp.psp8';
-      pprholocFile = './ONCV_Pask/20170201_LDA/H/H.1.02.oncvpsp.rholoc';
     case 3 % Li
       mass = 6.941;
-      rhocut  = 3.0;
+      rcps = 1.0;
+      rhocut  = 6.0;
       rhoatomcut = 6.0;
       wavcut  = 2.0;
-%       ppFile = './ONCV_Pask/20161112/Li/Li.LDA.psp8';
-%       pprholocFile = './ONCV_Pask/20161112/Li/Li.LDA.rholoc';
       ppFile = './ONCV_Pask/20170201_LDA/Li/Li.1.02.oncvpsp.psp8';
-      pprholocFile = './ONCV_Pask/20170201_LDA/Li/Li.1.02.oncvpsp.rholoc';
     case 6 % C
       mass = 12.011;
-      rhocut  = 3.0;
+      rcps = 1.0;
+      rhocut  = 6.0;
       rhoatomcut = 4.0;
       wavcut  = 2.0;
       ppFile = './ONCV_Pask/20170201_LDA/C/C.1.02.oncvpsp.psp8';
-      pprholocFile = './ONCV_Pask/20170201_LDA/C/C.1.02.oncvpsp.rholoc';
     case 8 % O
       mass = 15.9994;
-      rhocut  = 3.0;
+      rcps = 1.0;
+      rhocut  = 6.0;
       rhoatomcut = 4.0;
       wavcut  = 2.0;
       ppFile = './ONCV_Pask/20170201_LDA/O/O.1.02.oncvpsp.psp8';
-      pprholocFile = './ONCV_Pask/20170201_LDA/O/O.1.02.oncvpsp.rholoc';
     case 9 % F
       mass = 18.9984032;
-      rhocut  = 3.0;
+      rcps = 1.0;
+      rhocut  = 6.0;
       rhoatomcut = 4.0;
       wavcut  = 2.0;
       ppFile = './ONCV_Pask/20170201_LDA/F/F.1.02.oncvpsp.psp8';
-      pprholocFile = './ONCV_Pask/20170201_LDA/F/F.1.02.oncvpsp.rholoc';
     case 13 % Al
       mass = 26.9815386;
-      rhocut  = 4.0;
+      rcps = 1.0;
+      rhocut  = 6.0;
       rhoatomcut = 5.0;
       wavcut  = 2.0;
       ppFile = './ONCV_Pask/20170201_LDA/Al/Al.1.02.oncvpsp.psp8';
-      pprholocFile = './ONCV_Pask/20170201_LDA/Al/Al.1.02.oncvpsp.rholoc';
     case 15 % P
       mass = 30.973762;
-      rhocut  = 4.0;
+      rcps = 1.0;
+      rhocut  = 6.0;
       rhoatomcut = 5.0;
       wavcut  = 2.0;
       ppFile = './ONCV_Pask/20170201_LDA/P/P.1.02.oncvpsp.psp8';
-      pprholocFile = './ONCV_Pask/20170201_LDA/P/P.1.02.oncvpsp.rholoc';
   end
 
   pp = psp8read( [], ppFile );
@@ -84,19 +83,21 @@ for g=1:length(Znucs)
 
   % Interpolation grid to correctly treat the value at r=0.
 
-  % Note rho is positive when read from THIS file
-  % In the future the computation of rholoc should be derived from Vloc.
-  rholocData = load(pprholocFile);
-  % The following line is important for processing the data from
-  % 2/1/2017
-  rholocData(find(rholocData(:,1)>rhocut),2) = 0.0;
-  [interpr, rhointerpr] = ...
-    splinerad( rholocData(:,1), rholocData(:,2), 1 );
-  sprholoc = csape(interpr, rhointerpr);
 
-  rho = fnval(sprholoc, r);
-  drho = fnval(fnder(sprholoc,1),r);
-  Vloc = pp.vloc;
+  Vlocshort = zeros(size(pp.vloc));
+  Vlocshort(1) = pp.vloc(1) + Zion / rcps * (2/sqrt(pi));
+  Vlocshort(2:end) = pp.vloc(2:end) + Zion ./ pp.r(2:end) .* ...
+    erf( pp.r(2:end) / rcps );
+  rhoGaussian = @(r) Zion * exp(-(r / rcps).^2) / (pi^(3/2)*rcps^3);
+  % Check
+  fprintf('Int rhoGaussian = %g\n', ...
+    sum(pp.r.^2.*rhoGaussian(pp.r).*pp.rab)*4*pi);
+  [interpr, Vlocinterpr] = ...
+    splinerad( pp.r, pp.vloc, 1 );
+  spVloc = csape(interpr, Vlocinterpr);
+  Vloc = fnval(spVloc,r);
+  dVloc = fnval(fnder(spVloc,1),r);
+  
 
   % atomic core charge density. 
   % Note: rhoatom read from psp8read is multiplied by 4*pi*r^2, and drhoc
@@ -108,10 +109,11 @@ for g=1:length(Znucs)
   rhoatom = fnval(sprhoatom,r);
   drhoatom = fnval(fnder(sprhoatom,1),r);
 
-  % Note the minus sign
-  Es = 1/2* sum(4*pi*r.^2 .* Vloc .* (-rho) .* pp.rab);
 
-  cur = [Znuc mass Zion Es];
+  % Instead of storing the self energy, the 4-th entry is the Gaussian
+  % pseudocharge
+  % cur = [Znuc mass Zion Es];
+  cur = [Znuc mass Zion rcps];
 
   spl = zeros(numel(r), 0);
   wgt = zeros(1,0);
@@ -123,12 +125,14 @@ for g=1:length(Znucs)
   spl(:,cnt) = r(:);
   wgt(cnt) = -1;    typ(cnt) =  9;    cut(cnt) = rhocut;    cnt=cnt+1;
 
-  % local pseudopotential, as well as the derivative computed via
-  % numerical differentiation
-  spl(:,cnt) = rho(:);
-  wgt(cnt) = -1;   typ(cnt)  =  99;    cut(cnt) = rhocut;    cnt=cnt+1;
-  spl(:,cnt) = drho(:);
-  wgt(cnt) = -1;   typ(cnt)  =  99;  cut(cnt) = rhocut; cnt=cnt+1;
+  if(1)
+    % local pseudopotential, as well as the derivative computed via
+    % numerical differentiation
+    spl(:,cnt) = Vloc(:);
+    wgt(cnt) = -1;   typ(cnt)  =  99;    cut(cnt) = rhocut;    cnt=cnt+1;
+    spl(:,cnt) = dVloc(:);
+    wgt(cnt) = -1;   typ(cnt)  =  99;  cut(cnt) = rhocut; cnt=cnt+1;
+  end
 
   % atomic core charge density and derivatives
   spl(:,cnt) = rhoatom(:);
@@ -175,8 +179,8 @@ for g=1:length(Znucs)
 
     % Local pseudopotential
     pk = find(r>0 & r<rhocut); 
-    fprintf('int rho         = %15.10e\n', ...
-      sum(4*pi*r(pk).^2.*(rho(pk)).*pp.rab(pk)));
+    fprintf('int rhoGaussian = %15.10e\n', ...
+      sum(4*pi*r(pk).^2.*(rhoGaussian(r(pk))).*pp.rab(pk)));
 
     % Model core charge density
     pk = find(r>0 & r<rhoatomcut); 
@@ -209,10 +213,19 @@ for g=1:length(Znucs)
       pause
     end
   end
+  if(1)
+    hold on
+    plot(pp.r,Vlocshort,'r-.',pp.r,rhoGaussian(pp.r),'b-.');
+    pause
+  end
+  if(0)
+    plot(r,Vloc,'r-.',r,dVloc,'b-.');
+    pause
+  end
 end
 
 if(1)
-  binstr = sprintf('ONCV.bin');
+  binstr = sprintf('ONCVVLocal.bin');
   fid = fopen(binstr, 'w');
   string = {'map', ...
     {'int'}, ...

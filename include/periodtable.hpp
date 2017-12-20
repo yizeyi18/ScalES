@@ -86,6 +86,12 @@ struct Atom
 /// @struct PTParam
 /// @brief Index of the parameters in each entry of the periodic table.
 /// However, the detailed value may depend on the pseudopotential.
+///
+/// FIXME: RGAUSSIAN == ESELF
+///
+/// If isUseVLocal == false, the position ESELF stores the self energy
+/// If isUseVLocal == true, the same position stores the radius of the
+/// Gaussian pseudocharge
 struct PTParam{
   /// @brief Atomic number.
   Int ZNUC;
@@ -95,6 +101,10 @@ struct PTParam{
   Int ZION;
   /// @brief Self-interaction energy.
   Int ESELF;
+  /// @brief Effective radius of the Gaussian charge
+  /// In the future this could be a table storing the default value for
+  /// each type of species.
+  Int RGAUSSIAN;
 };
 
 
@@ -106,6 +116,7 @@ struct PTParam{
 struct PTType{
   Int RADIAL;
   Int PSEUDO_CHARGE;
+  Int VLOCAL;
   Int RHOATOM;
   Int L0;
   Int L1;
@@ -122,10 +133,21 @@ struct PTType{
 /// of the pseudocharge, model core charge density, derivative of model
 /// core charge density, nonlocal pseudopotentials in samples and cuts.
 /// However, the detailed value may depend on the pseudopotential.
+///
+/// FIXME: PSEUDO_CHARGE = VLOCAL, DRV_PSEUDO_CHARGE = DRV_VLOCAL.
+///
+///
+/// If isUseVLocal == false, then ptsample stores the pseudocharge of
+/// the local part of the pseudopotential 
+///
+/// If isUseVLocal == true, then ptsample stores the local part of the
+/// pseudopotential  in the same place
 struct PTSample{
   Int RADIAL_GRID;
   Int PSEUDO_CHARGE;
   Int DRV_PSEUDO_CHARGE;
+  Int VLOCAL;
+  Int DRV_VLOCAL;
   Int RHOATOM;
   Int DRV_RHOATOM;
   Int NONLOCAL;
@@ -236,6 +258,17 @@ public:
       DblNumVec& atomDensity );
 
 
+  /// @brief Generate the short range local pseudopotential and its
+  /// derivatives, as well as the Gaussian compensation charge and its derivatives.
+  ///
+  /// The data are saved in the sparse veector res
+  ///   res[0]         : values
+  ///   res[1]--res[3] : x,y,z components of the derivatives of the
+  void CalculateVLocal( const Atom& atom, const Domain& dm, 
+      const std::vector<DblNumVec>& gridpos,
+      SparseVec& resVLocalSR, 
+      SparseVec& resGaussianPseudoCharge );
+
 
 
   /// @brief Whether the atom type has nonlocal pseudopotential
@@ -243,7 +276,8 @@ public:
   
   /// @brief Cutoff radius for the pseudocharge in the real space
   Real RcutPseudoCharge(Int type)   {return ptemap_[type].cutoffs(ptsample_.PSEUDO_CHARGE);}
-  
+ 
+
   /// @brief Cutoff radius for model atomic density in the real space.
   /// This is only used for constructing initial charge density, and
   /// does not need to be very accurate
@@ -262,8 +296,14 @@ public:
   /// @brief Valence charge of the ion
   Real Zion(Int type) {return ptemap_[type].params(ptparam_.ZION);}
 
-  /// @brief Self ionic interaction energy
-  Real SelfIonInteraction(Int type) {return ptemap_[type].params(ptparam_.ESELF);}
+  /// @brief Self ionic interaction energy.
+  ///
+  /// This handles the case of isUseVLocal = true or false
+  Real SelfIonInteraction(Int type); 
+  
+  /// @brief Cutoff radius for the pseudocharge in the real space
+  Real RGaussian(Int type)   {return ptemap_[type].params(ptparam_.RGAUSSIAN);}
+
 
   //---------------------------------------------
   // TODO SpinOrbit from RelDFT
@@ -280,6 +320,38 @@ Int deserialize(Atom& val, std::istream& is, const std::vector<Int>& mask);
 
 Real MaxForce( const std::vector<Atom>& atomList );
 
+/// The following comes from the UPF2QSO subroutine.
+struct Element
+{
+  int z;
+  std::string symbol;
+  std::string config;
+  double mass;
+  Element(int zz, std::string s, std::string c, double m) : z(zz), symbol(s), config(c),
+    mass(m) {}
+};
+
+class PeriodicTable
+{
+  private:
+
+  std::vector<Element> ptable;
+  std::map<std::string,int> zmap;
+
+  public:
+
+  PeriodicTable(void);
+  int z(std::string symbol) const;
+  std::string symbol(int zval) const;
+  std::string configuration(int zval) const;
+  std::string configuration(std::string symbol) const;
+  double mass(int zval) const;
+  double mass(std::string symbol) const;
+  int size(void) const;
+
+};
+
+int readin( std::string file_name, PTEntry* pt, int * atom);
 
 
 } // namespace dgdft

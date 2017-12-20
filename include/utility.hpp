@@ -126,15 +126,24 @@ typedef std::pair<SparseVec, Real> NonlocalPP;
 /// @brief The pseudocharge and nonlocal projectors for each atom. 
 ///
 /// Each vector is on the global grid in the format of SparseVec.
+///
+/// FIXME Do not forget to change serialize / deserialize!!
 struct PseudoPot
 {
   /// @brief Pseudocharge of an atom, defined on the uniform fine grid.
+  /// When VLocal is present, pseudoCharge corresponds to the Gaussian
+  /// compensation charge
   SparseVec                         pseudoCharge; 
+  /// @brief Short range local potential of an atom, defined on the uniform fine grid.
+  SparseVec                         vLocalSR; 
   /// @brief Nonlocal projectors of an atom, defined on the uniform coarse grid.
   std::vector<NonlocalPP>           vnlList;
   /// @brief Nonlocal projectors of an atom, defined on the uniform fine
-  /// grid. FIXME This is experimental stage and in the end only one
-  /// vnlList should be used, on the coarse or fine grid.
+  /// grid. 
+  ///
+  /// FIXME This is experimental stage and in the end only one
+  /// vnlList should be used, on the coarse or fine grid. All
+  /// vnlListFine should become vnlList.
   std::vector<NonlocalPP>           vnlListFine;
 };
 
@@ -1792,5 +1801,17 @@ void unique(NumVec<Int>& Index);
 
 void KMEAN(Int n, NumVec<Real>& weight, Int& rk, Real KmeansTolerance, 
     Int KmeansMaxIter, Real DFTolerance, const Domain &dm, Int* piv);
+
+void spline(int n, double *x, double *y, double yp_left, double yp_right,
+            int bcnat_left, int bcnat_right, double *y2);
+void splint (int n, double *xa, double *ya, double *y2a, double x, double *y);
+void splintd (int n, double *xa, double *ya, double *y2a,
+              double x, double *y, double *dy);
+std::string find_start_element(std::string name, std::ifstream &upfin);
+void find_end_element(std::string name, std::ifstream & upfin);
+void seek_str(std::string tag, std::ifstream &upfin);
+std::string get_attr(std::string buf, std::string attr);
+void skipln(std::ifstream &upfin);
+void splinerad( std::vector<double> & r, std::vector<double> & vloc, std::vector<double> & out_r, std::vector<double> & out_vloc , int even);
 } // namespace dgdft
 #endif // _UTILITY_HPP_

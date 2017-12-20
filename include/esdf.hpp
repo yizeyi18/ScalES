@@ -664,12 +664,33 @@ struct ESDFInputParam{
   /// @note Only the master processor (mpirank == 0) reads this table,
   /// and the information is broadcast to other processors.
   std::string         periodTableFile;
+
+  /// @brief File for storing the information of the pseudopotential.
+  ///
+  /// Default: None
+  ///
+  /// In the current PWDFT code, we use UPF file pseudopotential, which 
+  /// is downloaded from QE website.
+  ///
+  /// @note Only the master processor (mpirank == 0) reads this table,
+  /// and the information is broadcast to other processors.
+  std::vector<std::string>    pspFile;
+ 
   /// @brief Type of the pseudopotential
   ///
   /// Default: "HGH"
   ///
   /// Currently HGH and ONCV are the only supported pseudopotential format.
   std::string         pseudoType;
+
+  /// @brief Whether to use the VLocal generated from the
+  /// pseudopotential, and use Gaussian pseudocharge as compensation
+  /// charge
+  ///
+  /// @todo This option will become obsolete in the future when
+  /// pseudopotential is read from text files.
+  bool                isUseVLocal;
+
   /// @brief Solver for the planewave problem.  
   ///
   /// @todo out-of-date description.  BLOPEX is to be removed.

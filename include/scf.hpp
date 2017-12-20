@@ -101,6 +101,7 @@ private:
   Real                Evdw_;                     // Van der Waals energy
   Real                EVxc_;                     // Exchange-correlation potential energy
   Real                Eself_;                    // Self energy due to the pseudopotential
+  Real                EIonSR_;                   // Short range repulsion energy for Gaussian charge
   Real                fermi_;                    // Fermi energy
   Real                Efock_;                    // Hartree-Fock energy
 
@@ -133,6 +134,11 @@ private:
   Index3  numGridDensityElem_;
 
   DblNumMat           forceVdw_;
+
+  /// @brief Ion short range repulsion energy due to the use of
+  /// Gaussian compensation charge formulation 
+  DblNumMat           forceIonSR_;
+
 
 
   // Chebyshev Filtering variables
