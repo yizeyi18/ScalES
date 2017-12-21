@@ -203,6 +203,9 @@ void TDDFT::SetUp(
   if( psi.NumStateTotal() % mpisize != 0) 
       ErrorHandling( " Band must be multiples of Np." );
 
+  if( esdfParam.numExtraState != 0 ) 
+    ErrorHandling( " ExtraState must be 0. check your pwdft.in ");
+
   // Grab the supercell info
   supercell_x_ = esdfParam.domain.length[0];
   supercell_y_ = esdfParam.domain.length[1];
