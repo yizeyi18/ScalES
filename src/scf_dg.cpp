@@ -1373,7 +1373,7 @@ namespace  dgdft{
                       if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
                       { 
                         statusOFS << " >>>> Calling LOBPCG for ALB generation on extended element ..." << std::endl;
-                        eigSol.LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+                        eigSol.LOBPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
                       }
                       else
                       {
@@ -1402,7 +1402,7 @@ namespace  dgdft{
                     if(iter <= 1)
                     {
                       statusOFS << " >>>> Calling LOBPCG for ALB generation on extended element ..." << std::endl;
-                      eigSol.LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+                      eigSol.LOBPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
                     }
                     else
                     {
@@ -1420,7 +1420,7 @@ namespace  dgdft{
                     //                else{
                     //                    eigDynMaxIter = eigMaxIter_;
                     //                }
-                    eigSol.LOBPCGSolveReal2(numEig, eigDynMaxIter, eigMinTolerance_, eigTolNow );
+                    eigSol.LOBPCGSolveReal(numEig, eigDynMaxIter, eigMinTolerance_, eigTolNow );
                   }
 
                   GetTime( timeEnd );

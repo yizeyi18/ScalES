@@ -104,12 +104,11 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
     //        numGridWavefunctionElem_ = esdfParam.numGridWavefunctionElem;
     //        numGridDensityElem_      = esdfParam.numGridDensityElem;  
 
-    PWSolver_                = esdfParam.PWSolver;
     XCType_                  = esdfParam.XCType;
     VDWType_                 = esdfParam.VDWType;
 
     // Chebyshev Filtering related parameters
-    if(PWSolver_ == "CheFSI")
+    if(esdfParam.PWSolver == "CheFSI")
       Diag_SCF_PWDFT_by_Cheby_ = 1;
     else
       Diag_SCF_PWDFT_by_Cheby_ = 0;
@@ -1839,7 +1838,7 @@ SCF::InnerSolve	( Int iter )
       // Use CheFSI or LOBPCG on first step 
       if(iter <= 1){
         if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
-          eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+          eigSolPtr_->LOBPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
         else
           eigSolPtr_->FirstChebyStep(numEig, First_SCF_PWDFT_ChebyCycleNum_, First_SCF_PWDFT_ChebyFilterOrder_);
       }
@@ -1866,13 +1865,10 @@ SCF::InnerSolve	( Int iter )
   else
   {
     // Use LOBPCG
-    if( PWSolver_ == "LOBPCG" ){
-      eigSolPtr_->LOBPCGSolveReal2(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
-    } // Use LOBPCG with ScaLAPACK
-    else if ( PWSolver_ == "LOBPCGScaLAPACK" ){
-      eigSolPtr_->LOBPCGSolveReal3(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+    if( esdfParam.PWSolver == "LOBPCG" || esdfParam.PWSolver == "LOBPCGScaLAPACK"){
+      eigSolPtr_->LOBPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
     } // Use PPCG
-    else if( PWSolver_ == "PPCG" || PWSolver_ == "PPCGScaLAPACK" ){
+    else if( esdfParam.PWSolver == "PPCG" || esdfParam.PWSolver == "PPCGScaLAPACK" ){
       eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
     }
     else{

@@ -110,7 +110,6 @@ private:
   EigenSolver*        eigSolPtr_;
   PeriodTable*        ptablePtr_;
 
-  std::string         PWSolver_;
   std::string         XCType_;
   std::string         VDWType_;
 
