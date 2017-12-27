@@ -435,7 +435,7 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"scf_outer_maxiter");
   strcpy(kw_typ[i],"I:E");
-  
+
   i++;
   strcpy(kw_label[i],"md_scf_energy_criteria_engage_ioniter");
   strcpy(kw_typ[i],"I:E");
@@ -447,7 +447,7 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"md_scf_etot_diff");
   strcpy(kw_typ[i],"D:E");
-  
+
   i++;
   strcpy(kw_label[i],"md_scf_eband_diff");
   strcpy(kw_typ[i],"D:E");
@@ -712,7 +712,7 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"smearing_scheme");
   strcpy(kw_typ[i],"T:E");
-  
+
   i++;
   strcpy(kw_label[i],"num_pole");
   strcpy(kw_typ[i],"I:E");
@@ -826,16 +826,16 @@ void esdf_key() {
   strcpy(kw_label[i],"geo_opt_nlcg_sigma");
   strcpy(kw_typ[i],"D:E");
 
-  
+
   i++;
   strcpy(kw_label[i],"fire_nmin");
   strcpy(kw_typ[i],"I:E");
-  
+
   i++;
   strcpy(kw_label[i],"fire_time_step");
   strcpy(kw_typ[i],"D:E");
 
-  
+
   i++;
   strcpy(kw_label[i],"fire_atomic_mass");
   strcpy(kw_typ[i],"D:E");
@@ -915,11 +915,11 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"hybrid_df");
   strcpy(kw_typ[i],"I:E");
-  
+
   i++;
   strcpy(kw_label[i],"hybrid_df_type");
   strcpy(kw_typ[i],"T:B");
-  
+
   i++;
   strcpy(kw_label[i],"hybrid_df_kmeans_tolerance");
   strcpy(kw_typ[i],"D:E");
@@ -935,15 +935,15 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"hybrid_df_num_gaussianrandom");
   strcpy(kw_typ[i],"D:E");
- 
+
   i++;
   strcpy(kw_label[i],"hybrid_df_num_proc_scalapack");
   strcpy(kw_typ[i],"I:E");
-  
+
   i++;
   strcpy(kw_label[i],"hybrid_df_tolerance");
   strcpy(kw_typ[i],"D:E");
- 
+
   i++;
   strcpy(kw_label[i],"block_size_scalapack");
   strcpy(kw_typ[i],"I:E");
@@ -1050,7 +1050,7 @@ void esdf_key() {
   strcpy(kw_label[i],"scfdg_chefsi_complementary_subspace_syr2k");
   strcpy(kw_typ[i],"I:E");
 
-  
+
   i++;
   strcpy(kw_label[i],"scfdg_complementary_subspace_nstates");
   strcpy(kw_typ[i],"I:E");
@@ -1058,11 +1058,11 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"scfdg_cs_ioniter_regular_cheby_freq");
   strcpy(kw_typ[i],"I:E");
-  
+
   i++;
   strcpy(kw_label[i],"scfdg_cs_bigger_grid_dim_fac");
   strcpy(kw_typ[i],"I:E");
-  
+
 
   // Inner LOBPCG related options
   i++;
@@ -1077,7 +1077,7 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"scfdg_complementary_subspace_use_inner_cheby");
   strcpy(kw_typ[i],"I:E");
-  
+
   i++;
   strcpy(kw_label[i],"scfdg_complementary_subspace_inner_chebyfilterorder");
   strcpy(kw_typ[i],"I:E");
@@ -1085,11 +1085,11 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"scfdg_complementary_subspace_inner_chebycyclenum");
   strcpy(kw_typ[i],"I:E");
- 
+
   i++;
   strcpy(kw_label[i],"use_atom_density");
   strcpy(kw_typ[i],"I:E");
-  
+
   i++;
   strcpy(kw_label[i],"use_vlocal");
   strcpy(kw_typ[i],"I:E");
@@ -2239,13 +2239,18 @@ ESDFReadInput ( const char* filename )
       esdfParam.pspFile.resize(nlines);
       int m;
       for( int i = 0; i < nlines; i++){
-	esdfParam.pspFile[i] = block_data[i];
-	esdfParam.pspFile[i].erase( remove_if( esdfParam.pspFile[i].begin(), esdfParam.pspFile[i].end(), isspace), esdfParam.pspFile[i].end());
+        esdfParam.pspFile[i] = block_data[i];
+        esdfParam.pspFile[i].erase( remove_if( esdfParam.pspFile[i].begin(), esdfParam.pspFile[i].end(), isspace), esdfParam.pspFile[i].end());
       }
     }
-
     else{
-      ErrorHandling("Super_Cell cannot be found.");
+      statusOFS << "UPF_File is not defined. " << std::endl;
+      statusOFS << "Use the old format of pseudopotential by defininig PeriodTable in the input file." << std::endl;
+      statusOFS << "This option will become deprecated in the future" << std::endl;
+      esdf_string("PeriodTable", "", strtmp);
+      esdfParam.periodTableFile = strtmp;
+      if( esdfParam.periodTableFile.empty() )
+        ErrorHandling("UPF_File or PeriodTable must be defined.");
     }
   }
 
@@ -2277,28 +2282,28 @@ ESDFReadInput ( const char* filename )
       if( esdf_block("Atom_Bohr", &numAtom ) ){
         // Cartesian coordinate (in the unit of Bohr) 
         Point3 pos;
-	Domain& dm = esdfParam.domain;
-	
+        Domain& dm = esdfParam.domain;
+
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
-	  
-	  // Force atom to be in unit cell : assume cuboidal unit cell for this
-	  while(pos[0] > dm.length[0])
-	    pos[0] -= dm.length[0];
-	  while(pos[0] < 0.0)
-	    pos[0] += dm.length[0];
-	  
-	  while(pos[1] > dm.length[1])
-	    pos[1] -= dm.length[1];
-	  while(pos[1] < 0.0)
-	    pos[1] += dm.length[1];
-	  
-	  while(pos[2] > dm.length[2])
-	    pos[2] -= dm.length[2];
-	  while(pos[2] < 0.0)
-	    pos[2] += dm.length[2];
-	  
+
+          // Force atom to be in unit cell : assume cuboidal unit cell for this
+          while(pos[0] > dm.length[0])
+            pos[0] -= dm.length[0];
+          while(pos[0] < 0.0)
+            pos[0] += dm.length[0];
+
+          while(pos[1] > dm.length[1])
+            pos[1] -= dm.length[1];
+          while(pos[1] < 0.0)
+            pos[1] += dm.length[1];
+
+          while(pos[2] > dm.length[2])
+            pos[2] -= dm.length[2];
+          while(pos[2] < 0.0)
+            pos[2] += dm.length[2];
+
           atomList.push_back( 
               Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
         }
@@ -2306,29 +2311,29 @@ ESDFReadInput ( const char* filename )
       else if( esdf_block("Atom_Ang", &numAtom ) ){
         // Cartesian coordinate (in the unit of angstrom) 
         Point3 pos;
-	Domain& dm = esdfParam.domain;
-	 
+        Domain& dm = esdfParam.domain;
+
         const Real ANG2AU = 1.8897261;
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
-	  
-	  // Force atom to be in unit cell : assume cuboidal unit cell for this
-	  while(pos[0] > (dm.length[0] / ANG2AU) )
-	    pos[0] -= (dm.length[0] / ANG2AU);
-	  while(pos[0] < 0.0)
-	    pos[0] += (dm.length[0] / ANG2AU);
-	  
-	  while(pos[1] > (dm.length[1] / ANG2AU) )
-	    pos[1] -= (dm.length[1] / ANG2AU);
-	  while(pos[1] < 0.0)
-	    pos[1] += (dm.length[1] / ANG2AU);
-	  
-	  while(pos[2] > (dm.length[2] / ANG2AU) )
-	    pos[2] -= (dm.length[2] / ANG2AU);
-	  while(pos[2] < 0.0)
-	    pos[2] += (dm.length[2] / ANG2AU);
-	  
+
+          // Force atom to be in unit cell : assume cuboidal unit cell for this
+          while(pos[0] > (dm.length[0] / ANG2AU) )
+            pos[0] -= (dm.length[0] / ANG2AU);
+          while(pos[0] < 0.0)
+            pos[0] += (dm.length[0] / ANG2AU);
+
+          while(pos[1] > (dm.length[1] / ANG2AU) )
+            pos[1] -= (dm.length[1] / ANG2AU);
+          while(pos[1] < 0.0)
+            pos[1] += (dm.length[1] / ANG2AU);
+
+          while(pos[2] > (dm.length[2] / ANG2AU) )
+            pos[2] -= (dm.length[2] / ANG2AU);
+          while(pos[2] < 0.0)
+            pos[2] += (dm.length[2] / ANG2AU);
+
           atomList.push_back( 
               Atom( type, ANG2AU*pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
         }
@@ -2337,28 +2342,28 @@ ESDFReadInput ( const char* filename )
         // Reduce coordinate (in the unit of Super_Cell)
         Point3 pos;
         Point3 length = esdfParam.domain.length;
-	Domain& dm = esdfParam.domain;
-	 
+        Domain& dm = esdfParam.domain;
+
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
-	  
-	  // Force atom to be in unit cell : assume cuboidal unit cell for this
-	  while(pos[0] > 1.0)
-	    pos[0] -= 1.0;
-	  while(pos[0] < 0.0)
-	    pos[0] += 1.0;
-	  
-	  while(pos[1] > 1.0)
-	    pos[1] -= 1.0;
-	  while(pos[1] < 0.0)
-	    pos[1] += 1.0;
-	  
-	  while(pos[2] > 1.0)
-	    pos[2] -= 1.0;
-	  while(pos[2] < 0.0)
-	    pos[2] += 1.0; 
-	  
+
+          // Force atom to be in unit cell : assume cuboidal unit cell for this
+          while(pos[0] > 1.0)
+            pos[0] -= 1.0;
+          while(pos[0] < 0.0)
+            pos[0] += 1.0;
+
+          while(pos[1] > 1.0)
+            pos[1] -= 1.0;
+          while(pos[1] < 0.0)
+            pos[1] += 1.0;
+
+          while(pos[2] > 1.0)
+            pos[2] -= 1.0;
+          while(pos[2] < 0.0)
+            pos[2] += 1.0; 
+
           atomList.push_back( 
               Atom( type, Point3( pos[0]*length[0], pos[1]*length[1], pos[2]*length[2] ),
                 Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
@@ -2415,14 +2420,14 @@ ESDFReadInput ( const char* filename )
 
     esdfParam.isHybridACE                      = esdf_integer( "Hybrid_ACE", 1 );
     esdfParam.isHybridActiveInit               = esdf_integer( "Hybrid_Active_Init", 0 );
-    
+
     esdfParam.isHybridDF                       = esdf_integer( "Hybrid_DF", 0 );
     //esdfParam.numMuHybridDF                    = esdf_double( "Num_Mu_Hybrid_DF", 6.0 );
     //esdfParam.numGaussianRandomHybridDF        = esdf_double( "Num_GaussianRandom_Hybrid_DF", 2.0 );
     //esdfParam.numProcScaLAPACKHybridDF         = esdf_integer( "Num_Proc_ScaLAPACK_Hybrid_DF", mpisize );
     //esdfParam.isHybridDFQRCP                   = esdf_integer( "Hybrid_DF_QRCP", 1 );
     //esdfParam.isHybridDFKmeans                 = esdf_integer( "Hybrid_DF_Kmeans", 0 );
-    
+
     esdf_string("Hybrid_DF_Type", "QRCP", strtmp); 
     esdfParam.hybridDFType         = strtmp;
     if( esdfParam.hybridDFType != "QRCP" &&
@@ -2430,7 +2435,7 @@ ESDFReadInput ( const char* filename )
         esdfParam.hybridDFType != "Kmeans+QRCP"){
       ErrorHandling("Invalid ISDF type.");
     }
-    
+
     esdfParam.hybridDFKmeansTolerance          = esdf_double( "Hybrid_DF_Kmeans_Tolerance", 1e-3 );
     esdfParam.hybridDFKmeansMaxIter            = esdf_integer( "Hybrid_DF_Kmeans_MaxIter", 99 );
     esdfParam.hybridDFNumMu                    = esdf_double( "Hybrid_DF_Num_Mu", 6.0 );
@@ -2438,7 +2443,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.hybridDFNumProcScaLAPACK         = esdf_integer( "Hybrid_DF_Num_Proc_ScaLAPACK", mpisize );
     esdfParam.hybridDFTolerance                = esdf_double( "Hybrid_DF_Tolerance", 1e-20 );
     esdfParam.BlockSizeScaLAPACK               = esdf_integer( "Block_Size_ScaLAPACK", 32 );
-    
+
     esdfParam.MDscfPhiMaxIter      = esdf_integer( "MD_SCF_Phi_MaxIter", esdfParam.scfPhiMaxIter  );
     esdfParam.MDscfOuterMaxIter    = esdf_integer( "MD_SCF_Outer_MaxIter",  esdfParam.scfOuterMaxIter ); // This is used in DGDFT for energy based SCF
 
@@ -2487,8 +2492,8 @@ ESDFReadInput ( const char* filename )
     Real temperature;
     temperature               = esdf_double( "Temperature", 300.0 );
     esdfParam.Tbeta           = au2K / temperature;
-    
-    
+
+
     esdf_string("Smearing_Scheme", "FD", strtmp); 
     esdfParam.smearing_scheme = strtmp;
 
@@ -2497,8 +2502,6 @@ ESDFReadInput ( const char* filename )
     esdfParam.isEigToleranceDynamic = esdf_integer( "Eig_Tolerance_Dynamic", 0 );
 
 
-    esdf_string("PeriodTable", "HGH.bin", strtmp);
-    esdfParam.periodTableFile = strtmp;
     esdf_string("Pseudo_Type", "HGH", strtmp); 
     esdfParam.pseudoType      = strtmp;
     esdf_string("PW_Solver", "LOBPCG", strtmp); 
@@ -2773,15 +2776,15 @@ ESDFReadInput ( const char* filename )
 
     // Geometry optimization
     esdfParam.geoOptMaxForce = esdf_double( "Geo_Opt_Max_Force", 0.001 );
-    
+
     // NLCG related parameters
     esdfParam.geoOpt_NLCG_sigma = esdf_double( "Geo_Opt_NLCG_Sigma", 0.02 );
-    
+
     // FIRE related parameters
     esdfParam.FIRE_Nmin = esdf_integer( "FIRE_Nmin", 5 );		// Compare with LAMMPS
     esdfParam.FIRE_dt = esdf_double("FIRE_Time_Step", 41.3413745758); 	// usually between 0.1-1fs 
     esdfParam.FIRE_atomicmass = esdf_double("FIRE_Atomic_Mass", 4.0); 	// Compare with LAMMPS
-    
+
     // Molecular dynamics
     Real ionTemperature;
     ionTemperature            = esdf_double( "Ion_Temperature", 300.0 );
@@ -2841,16 +2844,16 @@ ESDFReadInput ( const char* filename )
     esdfParam.scfdg_use_chefsi_complementary_subspace = esdf_integer("SCFDG_use_CheFSI_complementary_subspace", 0);
     esdfParam.scfdg_chefsi_complementary_subspace_syrk = esdf_integer("SCFDG_CheFSI_complementary_subspace_syrk", 0);
     esdfParam.scfdg_chefsi_complementary_subspace_syr2k = esdf_integer("SCFDG_CheFSI_complementary_subspace_syr2k", esdfParam.scfdg_chefsi_complementary_subspace_syrk);
-      
+
     esdfParam.scfdg_complementary_subspace_nstates = esdf_integer("SCFDG_complementary_subspace_nstates", int(double(esdfParam.numExtraState)/20.0 + 0.5) );
     esdfParam.scfdg_cs_ioniter_regular_cheby_freq = esdf_integer("SCFDG_CS_ioniter_regular_Cheby_freq", 20 );
-    
+
     esdfParam.scfdg_cs_bigger_grid_dim_fac = esdf_integer("SCFDG_CS_bigger_grid_dim_fac", 1 );
-    
+
     // Inner LOBPCG related options
     esdfParam.scfdg_complementary_subspace_lobpcg_iter = esdf_integer("SCFDG_complementary_subspace_inner_LOBPCGiter", 15);
     esdfParam.scfdg_complementary_subspace_lobpcg_tol = esdf_double("SCFDG_complementary_subspace_inner_LOBPCGtol", 1e-8);
-    
+
     // Inner CheFSI related options
     esdfParam.Hmat_top_states_use_Cheby = esdf_integer("SCFDG_complementary_subspace_use_inner_Cheby", 1);
     esdfParam.Hmat_top_states_ChebyFilterOrder =  esdf_integer("SCFDG_complementary_subspace_inner_Chebyfilterorder", 5);

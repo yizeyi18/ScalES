@@ -103,14 +103,13 @@ void PeriodTable::Setup( )
   std::vector<Int> all(1,1);
 
   std::istringstream iss;  
-  //SharedRead( esdfParam.periodTableFile, iss );
-
-  // all the readins are in the samples in the old version, 
-  // now in the new version, I should readin something else. 
-  // the readin are reading in a sequence of numbers, which
-  // is used to construct the ptemap_ struct.
-
+  if( esdfParam.periodTableFile.empty() )
   {
+    // all the readins are in the samples in the old version, 
+    // now in the new version, I should readin something else. 
+    // the readin are reading in a sequence of numbers, which
+    // is used to construct the ptemap_ struct.
+    // Read from UPF file
     MPI_Barrier(MPI_COMM_WORLD);
     int mpirank;  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
     int mpisize;  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
@@ -125,6 +124,7 @@ void PeriodTable::Setup( )
       }
     }
 
+    // implement the MPI Bcast of the ptemap_, now we are doing all processors readin
     std::stringstream vStream;
     std::stringstream vStreamTemp;
     int vStreamSize;
@@ -146,9 +146,14 @@ void PeriodTable::Setup( )
     vStreamTemp.write( &sstr[0], vStreamSize );
     deserialize( ptemap_, vStreamTemp, all);
   }
+  else{
+    // Read from periodTableFile, old format.
+    // This will become deprecated in the future
+    SharedRead( esdfParam.periodTableFile, iss );
+    deserialize(ptemap_, iss, all);
+  }
 
-  // implement the MPI Bcast of the ptemap_, now we are doing all processors readin
-  //deserialize(ptemap_, iss, all);
+
 
   // Setup constant private variable parameters
   if( esdfParam.pseudoType == "HGH" ){

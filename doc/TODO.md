@@ -90,8 +90,8 @@ TODO List   {#pageTODO}
     arithmetic (noncolinear spin and k-point seems to lead to very
     different code?)
 
-- Hybrid is in the KohnSham class with sequential implementation. 
-  - Parallel implementation for PWDFT
+- Hybrid is in the KohnSham class with sequential implementation.  
+  - Parallel implementation for PWDFT (done)
   - Hybrid for DG
 
 - Nonlocal pseudopotential format is not very compatible with GPU like
@@ -99,7 +99,7 @@ TODO List   {#pageTODO}
 
 DONE recently
 c Remove BLOPEX
-c Remove SCALAR design
+t Remove SCALAR design (still to merge with the complex version)
 c tentatively add core dumper 
   Better way to handle error: handling function taking a message as
   input is a more versatile way for handling error messaging. callstack
@@ -193,9 +193,8 @@ Code structure:
     energy / force in scf instead of Hamiltonian, since vdW etc
     is also included at the same level done
   o May need to change the code from Harris energy etc.
-  o May need to perform a test on the energy curve of the HF molecule
-    first to verify that the correction energy is indeed added correctly (no
-    over-bonding issue as observed before for the pseudoCharge version).
+  o Merge the computation of external force and VdW force into
+    CalculateForce?
 done
 
 - periodtable.cpp
