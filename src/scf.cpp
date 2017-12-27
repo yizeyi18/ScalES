@@ -2029,7 +2029,7 @@ void
 SCF::CalculateHarrisEnergy ( )
 {
   // These variables are temporary variables only used in this routine
-  Real Ekin, Eself, Ehart, EVxc, Exc, Ecor, Efree;
+  Real Ekin, Eself, Ehart, EVxc, Exc, Ecor, Efree, EIonSR, EVdw;
   
   Ekin = 0.0;
   DblNumVec&  eigVal         = eigSolPtr_->Ham().EigVal();
@@ -2048,6 +2048,16 @@ SCF::CalculateHarrisEnergy ( )
     Int type = atomList[a].type;
     Eself +=  ptablePtr_->SelfIonInteraction(type);
   }
+
+
+  // Ionic repulsion related energy
+  Eself = eigSolPtr_->Ham().Eself();
+
+  EIonSR = eigSolPtr_->Ham().EIonSR();
+
+  // Van der Waals energy
+  EVdw = eigSolPtr_->Ham().EVdw();
+
 
 
   // Nonlinear correction part.  This part uses the Hartree energy and
@@ -2070,7 +2080,7 @@ SCF::CalculateHarrisEnergy ( )
 
 
   // Correction energy
-  Ecor = (Exc - EVxc) - Ehart - Eself;
+  Ecor = (Exc - EVxc) - Ehart - Eself + EIonSR + EVdw;
 
   // Helmholtz free energy
   

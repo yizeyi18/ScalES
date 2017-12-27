@@ -221,7 +221,8 @@ Integrate with TDDFT branch:
   the LOBPCGScaLAPACK version converges slower than LOBPCG with a single
   core. This might be a bug, or related to issues related to the
   deflation. Need to try Meiyue's more stable version of LOBPCG.
-  PPCG seems to converge slower in general for this problem.
+  PPCG seems to converge slower in general for this problem, and the
+  number SCFs can also increase w.r.t. the number of processors.
   Maybe pseudopotential needs to be smoothed out?
  
 
