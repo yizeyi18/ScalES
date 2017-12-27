@@ -136,15 +136,8 @@ struct PseudoPot
   SparseVec                         pseudoCharge; 
   /// @brief Short range local potential of an atom, defined on the uniform fine grid.
   SparseVec                         vLocalSR; 
-  /// @brief Nonlocal projectors of an atom, defined on the uniform coarse grid.
+  /// @brief Nonlocal projectors of an atom, defined on the uniform fine grid.
   std::vector<NonlocalPP>           vnlList;
-  /// @brief Nonlocal projectors of an atom, defined on the uniform fine
-  /// grid. 
-  ///
-  /// FIXME This is experimental stage and in the end only one
-  /// vnlList should be used, on the coarse or fine grid. All
-  /// vnlListFine should become vnlList.
-  std::vector<NonlocalPP>           vnlListFine;
 };
 
 

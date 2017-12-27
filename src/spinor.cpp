@@ -326,10 +326,10 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
       if(1){
         Int natm = pseudo.size();
         for (Int iatm=0; iatm<natm; iatm++) {
-          Int nobt = pseudo[iatm].vnlListFine.size();
+          Int nobt = pseudo[iatm].vnlList.size();
           for (Int iobt=0; iobt<nobt; iobt++) {
-            const Real       vnlwgt = pseudo[iatm].vnlListFine[iobt].second;
-            const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
+            const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
+            const SparseVec &vnlvecFine = pseudo[iatm].vnlList[iobt].first;
             const IntNumVec &ivFine = vnlvecFine.first;
             const DblNumMat &dvFine = vnlvecFine.second;
 
@@ -543,10 +543,10 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       if(1){
         Int natm = pseudo.size();
         for (Int iatm=0; iatm<natm; iatm++) {
-          Int nobt = pseudo[iatm].vnlListFine.size();
+          Int nobt = pseudo[iatm].vnlList.size();
           for (Int iobt=0; iobt<nobt; iobt++) {
-            const Real       vnlwgt = pseudo[iatm].vnlListFine[iobt].second;
-            const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
+            const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
+            const SparseVec &vnlvecFine = pseudo[iatm].vnlList[iobt].first;
             const IntNumVec &ivFine = vnlvecFine.first;
             const DblNumMat &dvFine = vnlvecFine.second;
 

@@ -135,22 +135,15 @@ c Refine Fourier to clean the normalization factors. Encapsulate the
 12/6/2017: refactor2
 
 @todo
-- Merge refactor1 into master, and start a refactor2 branch (easy)
+- Merge refactor1 into master, and start a refactor2 branch (easy) done
 
 - Test the output from testSpecies.C from qbox, and benchmark with the
-  output from MATLAB and figure out the unit convention etc.
+  output from MATLAB and figure out the unit convention etc. done
 
 - Adapt upf2qso to pspio.cpp/.hpp, and compare the results with MATLAB
-  again.
+  again. done
 
-- Introduce species.cpp/.hpp in parallel to periodtable.cpp/.hpp, to
-  maintain backward compatibility and with DGDFT. The local part of the
-  pseudopotential now removes the contribution from pseudocharge, and
-  Gaussian pseudocharge needs to be added. The nonlocal one can reuse
-  the current code structure.  The periodtable should eventually become
-  obsolete.
-
-- Coulomb interaction etc should be revamped. qbox can help.
+- Coulomb interaction etc should be revamped. qbox can help. done
 
 - Add support from BigDFT's Poisson solver to evaluate the non-periodic
   boundary condition Coulomb. But perhaps the simplest is to find QE's
@@ -183,9 +176,9 @@ Code structure:
         Add contribution from ionic VLocal
         Add contribution from short range repulsion
 
-  o Cleanup: Merge later with CalculateForce
+  o Cleanup: Merge later with CalculateForce done
   o Cleanup: remove the local pseudopotential and nonlocal
-    pseudopotential stored on the coarse grid. This is not useful.
+    pseudopotential stored on the coarse grid. This is not useful. done
       
 - scf.cpp
   o add energySelf_ for the self energy, energySR_ and forceIonSR_ for
@@ -198,11 +191,12 @@ Code structure:
 
   o Perhaps include the contribution of short range and self energy  to
     energy / force in scf instead of Hamiltonian, since vdW etc
-    is also included at the same level
+    is also included at the same level done
   o May need to change the code from Harris energy etc.
   o May need to perform a test on the energy curve of the HF molecule
     first to verify that the correction energy is indeed added correctly (no
     over-bonding issue as observed before for the pseudoCharge version).
+done
 
 - periodtable.cpp
   o CalculateVLocalShortRange: 
@@ -212,5 +206,5 @@ Code structure:
   o Read Gaussian pseudocharge. done
   o Setup.
     Load the local pseudopotential, and modify the local part of the
-    pseudopotential to remove the Gaussian pseudocharge. done
+    pseudopotential to remove the Gaussian pseudocharge. done 
 

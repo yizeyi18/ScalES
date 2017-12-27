@@ -575,16 +575,14 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
   for (Int i=0; i<numAtomLocal; i++) {
     int a = numAtomIdx[i];
-    ptable.CalculateNonlocalPP( atomList_[a], domain_, gridposCoarse,
-        pseudo_[a].vnlList ); 
     // Introduce the nonlocal pseudopotential on the fine grid.
     ptable.CalculateNonlocalPP( atomList_[a], domain_, gridpos,
-        pseudo_[a].vnlListFine ); 
+        pseudo_[a].vnlList ); 
     cntLocal = cntLocal + pseudo_[a].vnlList.size();
 
     // For debug purpose, check the summation of the derivative
     if(0){
-      std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlListFine;
+      std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlList;
       for( Int l = 0; l < vnlList.size(); l++ ){
         SparseVec& bl = vnlList[l].first;
         IntNumVec& idx = bl.first;
@@ -625,38 +623,27 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
     int vStream1Size, vStream2Size;
 
     std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlList;
-    std::vector<NonlocalPP>& vnlListFine = pseudo_[a].vnlListFine;
 
     serialize( vnlList, vStream1, NO_MASK );
-    serialize( vnlListFine, vStream2, NO_MASK );
 
     if (numAtomMpirank[a] == mpirank){
       vStream1Size = Size( vStream1 );
-      vStream2Size = Size( vStream2 );
     }
 
     MPI_Bcast( &vStream1Size, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
-    MPI_Bcast( &vStream2Size, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
 
     std::vector<char> sstr1;
     sstr1.resize( vStream1Size );
-    std::vector<char> sstr2;
-    sstr2.resize( vStream2Size );
 
     if (numAtomMpirank[a] == mpirank){
       vStream1.read( &sstr1[0], vStream1Size );
-      vStream2.read( &sstr2[0], vStream2Size );
     }
 
     MPI_Bcast( &sstr1[0], vStream1Size, MPI_BYTE, numAtomMpirank[a], domain_.comm );
-    MPI_Bcast( &sstr2[0], vStream2Size, MPI_BYTE, numAtomMpirank[a], domain_.comm );
 
     vStream1Temp.write( &sstr1[0], vStream1Size );
-    vStream2Temp.write( &sstr2[0], vStream2Size );
 
     deserialize( vnlList, vStream1Temp, NO_MASK );
-    deserialize( vnlListFine, vStream2Temp, NO_MASK );
-
   }
 
   GetTime( timeEnd );
@@ -2018,7 +2005,7 @@ KohnSham::CalculateVtot    ( DblNumVec& vtot )
 //
 //    for( Int a = 0; a < numAtom; a++ ){
 //      // Use nonlocal pseudopotential on the fine grid 
-//      std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlListFine;
+//      std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlList;
 //      for( Int l = 0; l < vnlList.size(); l++ ){
 //        SparseVec& bl = vnlList[l].first;
 //        Real  gamma   = vnlList[l].second;
@@ -2424,7 +2411,7 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
 
       // Evaluate the contribution to the atomic force
       for( Int a = 0; a < numAtom; a++ ){
-        std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlListFine;
+        std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlList;
         for( Int l = 0; l < vnlList.size(); l++ ){
           SparseVec& bl = vnlList[l].first;
           Real  gamma   = vnlList[l].second;
