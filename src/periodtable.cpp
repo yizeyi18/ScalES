@@ -118,7 +118,7 @@ void PeriodTable::Setup( )
     if(mpirank==0) {
       for( int i = 0; i < esdfParam.pspFile.size(); i++){
         int atom;
-        readin(esdfParam.pspFile[i], &tempEntry, &atom);
+        ReadUPF(esdfParam.pspFile[i], &tempEntry, &atom);
         std::map <Int,PTEntry> :: iterator it = ptemap_.end();
         ptemap_.insert(it, std::pair<Int, PTEntry>(atom, tempEntry));
       }
@@ -1271,6 +1271,43 @@ Real MaxForce( const std::vector<Atom>& atomList ){
   return maxForce;
 }
 
+
+
+// *********************************************************************
+// The following comes from the UPF2QSO subroutine.
+// Do not 
+// *********************************************************************
+struct Element
+{
+  int z;
+  std::string symbol;
+  std::string config;
+  double mass;
+  Element(int zz, std::string s, std::string c, double m) : z(zz), symbol(s), config(c),
+    mass(m) {}
+};
+
+class PeriodicTable
+{
+  private:
+
+  std::vector<Element> ptable;
+  std::map<std::string,int> zmap;
+
+  public:
+
+  PeriodicTable(void);
+  int z(std::string symbol) const;
+  std::string symbol(int zval) const;
+  std::string configuration(int zval) const;
+  std::string configuration(std::string symbol) const;
+  double mass(int zval) const;
+  double mass(std::string symbol) const;
+  int size(void) const;
+
+};
+
+
 /// the following code are merged from the UPF2QSO package
 int PeriodicTable::z(std::string symbol) const
 {
@@ -1426,7 +1463,7 @@ PeriodicTable::PeriodicTable(void)
 }
 
 // change the main subroutine to a readin function.
-int readin( std::string file_name, PTEntry * tempEntry, int * atom)
+Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
 {
   DblNumVec & params  = (*tempEntry).params;
   DblNumMat & samples = (*tempEntry).samples;
