@@ -216,14 +216,6 @@ Integrate with TDDFT branch:
 
 - Cleaner treatment of pseudopotential
 
-- eigensolver.cpp: for HF molecule when ecut is large (80au)
-  ~/ResearchBIN/dgdft/HF/PW_UPF/ecut
-  the LOBPCGScaLAPACK version converges slower than LOBPCG with a single
-  core. This might be a bug, or related to issues related to the
-  deflation. Need to try Meiyue's more stable version of LOBPCG.
-  PPCG seems to converge slower in general for this problem, and the
-  number SCFs can also increase w.r.t. the number of processors.
-  Maybe pseudopotential needs to be smoothed out?
  
 
 Features included in PWDFT but may not in DGDFT:
@@ -236,3 +228,21 @@ Features included in PWDFT but may not in DGDFT:
   hamiltonian_dg rather than scf_dg
 
 
+Other functionalities in PWDFT:
+
+- PeriodTable: When the UPF format is stable enough, remove the support
+  for binary file. This allows the cleanup of PTEntry / PTSample format.
+
+- PeriodTable: add derivatives of the pseudopotential when needed (maybe
+  in phonon calculation).  Smooth out the pseudopotential as QE does.
+  This might smooth out the behavior of ONCV pseudopotential esp at high
+  kinetic energy cutoff (still needs more testing)
+
+- eigensolver.cpp: for HF molecule when ecut is large (80au)
+  ~/ResearchBIN/dgdft/HF/PW_UPF/ecut
+  the LOBPCGScaLAPACK version converges slower than LOBPCG with a single
+  core. This might be a bug, or related to issues related to the
+  deflation. Need to try Meiyue's more stable version of LOBPCG.
+  PPCG seems to converge slower in general for this problem, and the
+  number SCFs can also increase w.r.t. the number of processors.
+  Maybe pseudopotential needs to be smoothed out?

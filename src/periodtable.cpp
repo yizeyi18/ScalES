@@ -89,15 +89,13 @@ Int combine(PTEntry& val, PTEntry& ext)
 // PeriodTable
 // *********************************************************************
 
-// FIXME Setup should read in the pseudopotential files (later provided
-// capability for reading UPF files), and then fill PTEntry
-//
-// PTEntry / PTSample is the old format for reading the binary file, but may work
+// PTEntry / PTSample is the old format for reading the binary file, but works
 // in the new format too, as long as the pseudopotential is associated
 // with atoms rather than species.
 // 
 // There is also room for optimizing the rcps parameter for each species 
 // (maybe solving a least squares problems by matlab and store the default value in a table?)
+//
 void PeriodTable::Setup( )
 {
   std::vector<Int> all(1,1);
@@ -1473,7 +1471,6 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
 
   params.Resize(5); // in the order of the ParamPT
   
-  const double rcut = 6.0;  // FIXME
 
   PeriodicTable pt;
 
@@ -1512,6 +1509,7 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
   if ( upf_version == 1 )
   {
     ErrorHandling( " Format of UPF file 1.0 not supported" );
+#if 0
     // process UPF version 1 potential
     std::string upf_pp_info;
     bool done = false;
@@ -1851,6 +1849,7 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
 
     // interpolate functions on linear mesh
     const double mesh_spacing = 0.01;
+    const double rcut = 6.0;  // FIXME seems to be only useful for nonlinear core correction
     int nplin = (int) (rcut / mesh_spacing);
     std::vector<double> f(upf_mesh_size), fspl(upf_mesh_size);
 
@@ -2052,6 +2051,7 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
     vout << std::endl << std::endl;
     vout.close();
 #endif
+#endif
 
   }
   else if ( upf_version == 2 )
@@ -2135,9 +2135,12 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
 #if 0
     statusOFS << " upf_zval = " << upf_zval << std::endl;
 #endif
-    params[2] = upf_zval;
-    params[3] = 1.0; // FIXME Gaussian cut
-    params[4] = 3.0; // FIXME no use
+    // FIXME labels
+    const Int ZION = 2;
+    const Int RGAUSSIAN = 3;
+    params[ZION] = upf_zval;
+    // FIXME RGaussian should be given by a table according to the element type.
+    params[RGAUSSIAN] = 1.0; 
 
 
     // max angular momentum
@@ -2218,18 +2221,27 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
       samples(i, 0) = upf_r[i];
     weights[0] = -1;
     types[0] = 9;
-    // FIXME
-    double rhocut = 6.0;
-    cutoffs[0] = rhocut;
-    cutoffs[1] = rhocut;
-    cutoffs[2] = rhocut;
-
-    // FIXME
+    // FIXME labels
+    const Int RADIAL_GRID = 0;
+    const Int VLOCAL = 1;
+    const Int DRV_VLOCAL = 2;
+    const Int RHOATOM = 3;
+    const Int DRV_RHOATOM = 4;
+    // FIXME rhoatomcut should be given by a table according to the element type.
     double rhoatomcut = 4.0;
-    cutoffs[3] = rhoatomcut;
-    cutoffs[4] = rhoatomcut;
+    // FIXME rhocut should be given by a table according to the element type.
+    double rhocut = 6.0;
+    // FIXME nonlocal potential cutoff should be given by a table according to the element type.
+    double nlcut = 2.0;
 
-    // NLCC
+    cutoffs[RADIAL_GRID] = rhocut;
+    cutoffs[VLOCAL] = rhocut;
+    cutoffs[DRV_VLOCAL] = rhocut;
+
+    cutoffs[RHOATOM] = rhoatomcut;
+    cutoffs[DRV_RHOATOM] = rhoatomcut;
+
+    // NLCC not used
     std::vector<double> upf_nlcc;
     if ( upf_nlcc_flag == "T" )
     {
@@ -2401,9 +2413,9 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
 
       types[5+ 2*j] = upf_proj_l[j];
       types[6+ 2*j] = upf_proj_l[j];
-      // FIXME: Could be dangerous
-      cutoffs[5+2*j] = 2.0;
-      cutoffs[6+2*j] = 2.0;
+      // FIXME nonlocal cutoff should be given by a table according to the element type.
+      cutoffs[5+2*j] = nlcut;
+      cutoffs[6+2*j] = nlcut;
     }
 
     find_start_element("PP_RHOATOM", upfin);
