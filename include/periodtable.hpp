@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin
+Author: Lin Lin and Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -43,6 +43,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @file periodtable.hpp
 /// @brief Periodic table and its entries.
 /// @date 2012-08-10
+/// @date 2017-12-26 Add support for UPF format
 #ifndef _PERIODTABLE_HPP_
 #define _PERIODTABLE_HPP_
 

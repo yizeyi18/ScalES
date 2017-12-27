@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin
+Author: Lin Lin and Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -2056,7 +2056,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
 
     // check if potential is norm-conserving or semi-local
     std::string pseudo_type = get_attr(tag,"pseudo_type");
-#ifdef 0
+#if 0
     statusOFS << " pseudo_type = " << pseudo_type << std::endl;
     if ( pseudo_type!="NC" && pseudo_type!="SL" )
     {
@@ -2071,7 +2071,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     {
       statusOFS << " Potential includes a non-linear core correction" << std::endl;
     }
-#ifdef 0
+#if 0
     statusOFS << " upf_nlcc_flag = " << upf_nlcc_flag << std::endl;
 #endif
 
@@ -2079,7 +2079,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     std::string upf_functional = get_attr(tag,"functional");
     // add XC functional information to description
     upf_pp_info += "functional = " + upf_functional + '\n';
-#ifdef 0
+#if 0
     statusOFS << " upf_functional = " << upf_functional << std::endl;
 #endif
 
@@ -2090,12 +2090,12 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is.str(buf);
     is >> upf_zval;
 
-#ifdef 0
+#if 0
     statusOFS << " upf_zval = " << upf_zval << std::endl;
 #endif
     params[2] = upf_zval;
-    params[3] = 1.0; // FIXME
-    params[4] = 3.0; // FIXME
+    params[3] = 1.0; // FIXME Gaussian cut
+    params[4] = 3.0; // FIXME no use
 
 
     // max angular momentum
@@ -2104,7 +2104,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is.clear();
     is.str(buf);
     is >> upf_lmax;
-#ifdef 0
+#if 0
     statusOFS << " upf_lmax = " << upf_lmax << std::endl;
 #endif
 
@@ -2114,7 +2114,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is.clear();
     is.str(buf);
     is >> upf_llocal;
-#ifdef 0
+#if 0
     statusOFS << " upf_llocal = " << upf_llocal << std::endl;
 #endif
     // number of points in mesh
@@ -2123,7 +2123,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is.clear();
     is.str(buf);
     is >> upf_mesh_size;
-#ifdef 0
+#if 0
     statusOFS << " upf_mesh_size = " << upf_mesh_size << std::endl;
 #endif
     // number of wavefunctions
@@ -2132,7 +2132,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is.clear();
     is.str(buf);
     is >> upf_nwf;
-#ifdef 0
+#if 0
     statusOFS << " upf_nwf = " << upf_nwf << std::endl;
 #endif
 
@@ -2142,7 +2142,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is.clear();
     is.str(buf);
     is >> upf_nproj;
-#ifdef 0
+#if 0
     statusOFS << " upf_nproj = " << upf_nproj << std::endl;
 #endif
 
@@ -2176,11 +2176,13 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
       samples(i, 0) = upf_r[i];
     weights[0] = -1;
     types[0] = 9;
+    // FIXME
     double rhocut = 6.0;
     cutoffs[0] = rhocut;
     cutoffs[1] = rhocut;
     cutoffs[2] = rhocut;
 
+    // FIXME
     double rhoatomcut = 4.0;
     cutoffs[3] = rhoatomcut;
     cutoffs[4] = rhoatomcut;
@@ -2243,7 +2245,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
       os << j+1;
       std::string element_name = "PP_BETA." + os.str();
       tag = find_start_element(element_name, upfin);
-#ifdef 0
+#if 0
       statusOFS << tag << std::endl;
 #endif
 
@@ -2251,7 +2253,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
       is.clear();
       is.str(buf);
       is >> index;
-#ifdef 0
+#if 0
       statusOFS << " index = " << index << std::endl;
 #endif
 
@@ -2259,7 +2261,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
       is.clear();
       is.str(buf);
       is >> angular_momentum;
-#ifdef 0
+#if 0
       statusOFS << " angular_momentum = " << angular_momentum << std::endl;
 #endif
 
@@ -2292,7 +2294,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
       // nonlocal is written.
       // nonlocal derivative is 0.0
       for( int i = 0; i < upf_mesh_size; i++)
-	samples(i, 5+j*2) = upf_vnl[j][i];
+        samples(i, 5+j*2) = upf_vnl[j][i];
     }
 
     // compute number of projectors for each l
@@ -2311,7 +2313,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
     is.clear();
     is.str(buf);
     is >> size;
-#ifdef 0
+#if 0
     statusOFS << "PP_DIJ size = " << size << std::endl;
 #endif
 
@@ -2357,6 +2359,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
 
       types[5+ 2*j] = upf_proj_l[j];
       types[6+ 2*j] = upf_proj_l[j];
+      // FIXME: Could be dangerous
       cutoffs[5+2*j] = 2.0;
       cutoffs[6+2*j] = 2.0;
     }
@@ -2372,7 +2375,7 @@ int readin( std::string file_name, PTEntry * tempEntry, int * atom)
        std::vector < double > vr; 
        splinerad( upf_r, upf_rho_atom, r, vr, 1);
        for( int i = 0; i < r.size(); i++)
-	 vr[i] = vr[i] / ( 4.0 * PI * r[i] * r[i] );
+         vr[i] = vr[i] / ( 4.0 * PI * r[i] * r[i] );
        s.set_points(r, vr);
        for( int i = 0; i < upf_r.size(); i ++)
          upf_rho_atom[i] = s( upf_r[i] );

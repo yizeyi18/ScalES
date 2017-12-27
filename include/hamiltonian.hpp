@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin
+Author: Lin Lin and Wei Hu
 
 This file is part of DGDFT. All rights reserved.
 
@@ -192,13 +192,15 @@ public:
 
   virtual void CalculateVtot( DblNumVec& vtot ) = 0;
 
-  /// @brief Calculate the Hellmann-Feynman force for each atom.
-  virtual void CalculateForce ( Spinor& psi, Fourier& fft ) = 0;
+//  /// @brief Calculate the Hellmann-Feynman force for each atom.
+//  virtual void CalculateForce ( Spinor& psi, Fourier& fft ) = 0;
 
   /// @brief Calculate the Hellmann-Feynman force for each atom.
-  /// LL 2015/05/02:
-  /// This is a clean version for computing the force
-  virtual void CalculateForce2 ( Spinor& psi, Fourier& fft ) = 0;
+  /// This is a clean version for computing the force.
+  ///
+  /// In particular it is very important to calculate the nonlocal
+  /// contribution of the force on the fine grid.
+  virtual void CalculateForce ( Spinor& psi, Fourier& fft ) = 0;
 
   // Matrix vector multiplication
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft) = 0;

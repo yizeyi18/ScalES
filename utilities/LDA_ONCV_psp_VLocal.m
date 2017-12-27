@@ -9,7 +9,7 @@
 % Revision: 2017/02/01 Incorporate with new LDA pseudopotential
 
 % Znucs = [1 3 6 8 9 15];
-Znucs = [1 9];
+Znucs = [1 8];
 res = cell(length(Znucs),2);
 close all;
 % FIXME hard coded from qbox for the radius of the Gaussian charge
@@ -22,8 +22,7 @@ for g=1:length(Znucs)
   % For large systems it is expensive to generate the initial density in
   % the real space, and Fourier space with structure factor could be a
   % better idea.
-  switch(Znuc)
-    case 1 % H
+  switch(Znuc) case 1 % H
       mass = 1.00794;
       rcps = 1.0;
       rhocut  = 6.0;
@@ -50,7 +49,11 @@ for g=1:length(Znucs)
       rhocut  = 6.0;
       rhoatomcut = 4.0;
       wavcut  = 2.0;
-      ppFile = './ONCV_Pask/20170201_LDA/O/O.1.02.oncvpsp.psp8';
+      % This pseudopotential seems to introduce ghost states!
+      % ppFile = './ONCV_Pask/20170201_LDA/O/O.1.02.oncvpsp.psp8';
+      
+      % The ghost state at least disappears in water molecule.
+      ppFile = './ONCV_Pask/abinit/O.psp8';
     case 9 % F
       mass = 18.9984032;
       rcps = 1.0;
@@ -60,11 +63,12 @@ for g=1:length(Znucs)
       ppFile = './ONCV_Pask/20170201_LDA/F/F.1.02.oncvpsp.psp8';
     case 13 % Al
       mass = 26.9815386;
-      rcps = 1.0;
+      rcps = 1.2;
       rhocut  = 6.0;
       rhoatomcut = 5.0;
       wavcut  = 2.0;
-      ppFile = './ONCV_Pask/20170201_LDA/Al/Al.1.02.oncvpsp.psp8';
+      % ppFile = './ONCV_Pask/20170201_LDA/Al/Al.1.02.oncvpsp.psp8';
+      ppFile = './ONCV_Pask/abinit/Al.psp8';
     case 15 % P
       mass = 30.973762;
       rcps = 1.0;

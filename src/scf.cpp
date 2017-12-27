@@ -1629,12 +1629,7 @@ SCF::Iterate (  )
   } // isHybrid == true
 
   // Calculate the Force
-  if(0){
-    ham.CalculateForce( psi, fft );
-  }
-  if(1){
-    ham.CalculateForce2( psi, fft );
-  }
+  ham.CalculateForce( psi, fft );
 
   // Calculate the VDW energy
   if( VDWType_ == "DFT-D2"){
