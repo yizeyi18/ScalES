@@ -95,10 +95,10 @@ private:
   Real                EfreeHarris_;              // Free energy from Harris functional
   Real                Etot_;                     // Total energy
   Real                Ekin_;                     // Kinetic energy
-  Real                Ehart_;                    // Hartree energy
+  Real                Ehart_;                    // Hartree (correction) energy
   Real                Ecor_;                     // Nonlinear correction energy
   Real                Exc_;                      // Exchange-correlation energy
-  Real                Evdw_;                     // Van der Waals energy
+  Real                EVdw_;                     // Van der Waals energy
   Real                EVxc_;                     // Exchange-correlation potential energy
   Real                Eself_;                    // Self energy due to the pseudopotential
   Real                EIonSR_;                   // Short range repulsion energy for Gaussian charge
@@ -110,8 +110,6 @@ private:
   EigenSolver*        eigSolPtr_;
   PeriodTable*        ptablePtr_;
 
-  std::string         XCType_;
-  std::string         VDWType_;
 
   /// @brief Needed for GGA, meta-GGA and hybrid functional calculations
   bool                isCalculateGradRho_; 
@@ -131,12 +129,6 @@ private:
 
   Index3  numGridWavefunctionElem_;
   Index3  numGridDensityElem_;
-
-  DblNumMat           forceVdw_;
-
-  /// @brief Ion short range repulsion energy due to the use of
-  /// Gaussian compensation charge formulation 
-  DblNumMat           forceIonSR_;
 
 
 
@@ -174,7 +166,6 @@ public:
   void  CalculateOccupationRate ( DblNumVec& eigVal, DblNumVec& occupationRate );
   void  CalculateEnergy();
   void  CalculateHarrisEnergy();
-  void  CalculateVDW ( Real& VDWEnergy, DblNumMat& VDWForce );
 
 
 

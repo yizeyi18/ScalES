@@ -207,3 +207,31 @@ done
     Load the local pseudopotential, and modify the local part of the
     pseudopotential to remove the Gaussian pseudocharge. done 
 
+
+Integrate with TDDFT branch:
+
+- Unified treatment of efield at the Hamiltonian level.
+
+- Energy / force calculation all at the hamiltonian level.
+
+- Cleaner treatment of pseudopotential
+
+- eigensolver.cpp: for HF molecule when ecut is large (80au)
+  ~/ResearchBIN/dgdft/HF/PW_UPF/ecut
+  the LOBPCGScaLAPACK version converges slower than LOBPCG with a single
+  core. This might be a bug, or related to issues related to the
+  deflation. Need to try Meiyue's more stable version of LOBPCG.
+  PPCG seems to converge slower in general for this problem.
+  Maybe pseudopotential needs to be smoothed out?
+ 
+
+Features included in PWDFT but may not in DGDFT:
+
+- Support VLocal format and UPF format of pseudopotential
+
+- Remove local and nonlocal pseudopotential on the coarse uniform grid.
+
+- Calculate ionic repulsion, vdw, external energy / force in
+  hamiltonian_dg rather than scf_dg
+
+

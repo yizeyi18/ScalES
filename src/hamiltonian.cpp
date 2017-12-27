@@ -647,8 +647,17 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
   }
 
   GetTime( timeEnd );
-
+  
   statusOFS << "Time for nonlocal pseudopotential " << timeEnd - timeSta  << std::endl;
+
+  // Calculate other atomic related energies and forces, such as self
+  // energy, short range repulsion energy and VdW energies.
+  
+  this->CalculateIonSelfEnergyAndForce( ptable );
+
+  this->CalculateVdwEnergyAndForce();
+
+  // FIXME electric field contribution to the external energy and force
 
   return ;
 }         // -----  end of method KohnSham::CalculatePseudoPotential ----- 
@@ -2476,7 +2485,22 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
     atomList_[a].force = Point3( force(a,0), force(a,1), force(a,2) );
   } 
 
+  // Add extra contribution to the force
+  if( esdfParam.VDWType == "DFT-D2"){
+    // Update force
+    std::vector<Atom>& atomList = this->AtomList();
+    for( Int a = 0; a < atomList.size(); a++ ){
+      atomList[a].force += Point3( forceVdw_(a,0), forceVdw_(a,1), forceVdw_(a,2) );
+    }
+  }
 
+  // Add the contribution from short range interaction
+  if( esdfParam.isUseVLocal == true ){
+    std::vector<Atom>& atomList = this->AtomList();
+    for( Int a = 0; a < atomList.size(); a++ ){
+      atomList[a].force += Point3( forceIonSR_(a,0), forceIonSR_(a,1), forceIonSR_(a,2) );
+    }
+  }
 
   return ;
 }         // -----  end of method KohnSham::CalculateForce  ----- 
@@ -3318,4 +3342,313 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
 //    return ;
 //}        // -----  end of function KohnSham::UpdateHybrid  ----- 
 //
+
+
+void
+KohnSham::CalculateVdwEnergyAndForce    ()
+{
+
+
+  std::vector<Atom>&  atomList = this->AtomList();
+  EVdw_ = 0.0;
+  forceVdw_.Resize( atomList.size(), DIM );
+  SetValue( forceVdw_, 0.0 );
+
+  Int numAtom = atomList.size();
+
+  const Domain& dm = domain_;
+
+  if( esdfParam.VDWType == "DFT-D2"){
+
+    const Int vdw_nspecies = 55;
+    Int ia,is1,is2,is3,itypat,ja,jtypat,npairs,nshell;
+    bool need_gradient,newshell;
+    const Real vdw_d = 20.0;
+    const Real vdw_tol_default = 1e-10;
+    const Real vdw_s_pbe = 0.75, vdw_s_blyp = 1.2, vdw_s_b3lyp = 1.05;
+    const Real vdw_s_hse = 0.75, vdw_s_pbe0 = 0.60;
+    //Thin Solid Films 535 (2013) 387-389
+    //J. Chem. Theory Comput. 2011, 7, 88–96
+
+    Real c6,c6r6,ex,fr,fred1,fred2,fred3,gr,grad,r0,r1,r2,r3,rcart1,rcart2,rcart3;
+    //real(dp) :: rcut,rcut2,rsq,rr,sfact,ucvol,vdw_s
+    //character(len=500) :: msg
+    //type(atomdata_t) :: atom
+    //integer,allocatable :: ivdw(:)
+    //real(dp) :: gmet(3,3),gprimd(3,3),rmet(3,3)
+    //real(dp),allocatable :: vdw_c6(:,:),vdw_r0(:,:),xred01(:,:)
+    //DblNumVec vdw_c6_dftd2(vdw_nspecies);
+
+    double vdw_c6_dftd2[vdw_nspecies] = 
+    { 0.14, 0.08, 1.61, 1.61, 3.13, 1.75, 1.23, 0.70, 0.75, 0.63,
+      5.71, 5.71,10.79, 9.23, 7.84, 5.57, 5.07, 4.61,10.80,10.80,
+      10.80,10.80,10.80,10.80,10.80,10.80,10.80,10.80,10.80,10.80,
+      16.99,17.10,16.37,12.64,12.47,12.01,24.67,24.67,24.67,24.67,
+      24.67,24.67,24.67,24.67,24.67,24.67,24.67,24.67,37.32,38.71,
+      38.44,31.74,31.50,29.99, 0.00 };
+
+    // DblNumVec vdw_r0_dftd2(vdw_nspecies);
+    double vdw_r0_dftd2[vdw_nspecies] =
+    { 1.001,1.012,0.825,1.408,1.485,1.452,1.397,1.342,1.287,1.243,
+      1.144,1.364,1.639,1.716,1.705,1.683,1.639,1.595,1.485,1.474,
+      1.562,1.562,1.562,1.562,1.562,1.562,1.562,1.562,1.562,1.562,
+      1.650,1.727,1.760,1.771,1.749,1.727,1.628,1.606,1.639,1.639,
+      1.639,1.639,1.639,1.639,1.639,1.639,1.639,1.639,1.672,1.804,
+      1.881,1.892,1.892,1.881,1.000 };
+
+    for(Int i=0; i<vdw_nspecies; i++) {
+      vdw_c6_dftd2[i] = vdw_c6_dftd2[i] / 2625499.62 * pow(10/0.52917706, 6);
+      vdw_r0_dftd2[i] = vdw_r0_dftd2[i] / 0.52917706;
+    }
+
+    DblNumMat vdw_c6(vdw_nspecies, vdw_nspecies);
+    DblNumMat vdw_r0(vdw_nspecies, vdw_nspecies);
+    SetValue( vdw_c6, 0.0 );
+    SetValue( vdw_r0, 0.0 );
+
+    for(Int i=0; i<vdw_nspecies; i++) {
+      for(Int j=0; j<vdw_nspecies; j++) {
+        vdw_c6(i, j) = std::sqrt( vdw_c6_dftd2[i] * vdw_c6_dftd2[j] );
+        vdw_r0(i, j) = vdw_r0_dftd2[i] + vdw_r0_dftd2[j];
+      }
+    }
+
+    Real vdw_s;
+
+    if (XCType_ == "XC_GGA_XC_PBE") {
+      vdw_s = vdw_s_pbe;
+    }
+    else if (XCType_ == "XC_HYB_GGA_XC_HSE06") {
+      vdw_s = vdw_s_hse;
+    }
+    else if (XCType_ == "XC_HYB_GGA_XC_PBEH") {
+      vdw_s = vdw_s_pbe0;
+    }
+    else {
+      ErrorHandling( "Van der Waals DFT-D2 correction in only compatible with GGA-PBE, HSE06, and PBE0!" );
+    }
+
+    // Calculate the number of atom types.
+    //    Real numAtomType = 0;   
+    //    for(Int a=0; a< atomList.size() ; a++) {
+    //      Int type1 = atomList[a].type;
+    //      Int a1 = 0;
+    //      Int a2 = 0;
+    //      for(Int b=0; b<a ; b++) {
+    //        a1 = a1 + 1;
+    //        Int type2 = atomList[b].type;
+    //        if ( type1 != type2 ) {
+    //          a2 = a2 + 1;
+    //        }
+    //      }
+    //
+    //      if ( a1 == a2 ) {
+    //        numAtomType = numAtomType + 1;
+    //      }
+    //
+    //    }
+
+
+    //    IntNumVec  atomType ( numAtomType );
+    //    SetValue( atomType, 0 );
+
+    //    Real numAtomType1 = 0;
+    //    atomType(0) = atomList[0].type;
+
+
+    //    for(Int a=0; a< atomList.size() ; a++) {
+    //      Int type1 = atomList[a].type;
+    //      Int a1 = 0;
+    //      Int a2 = 0;
+    //      for(Int b=0; b<a ; b++) {
+    //        a1 = a1 + 1;
+    //        Int type2 = atomList[b].type;
+    //        if ( type1 != type2 ) {
+    //          a2 = a2 + 1;
+    //        }
+    //      }
+    //      if ( a1 == a2 ) {
+    //        numAtomType1 = numAtomType1 + 1;
+    //        atomType(numAtomType1-1) = atomList[a].type;
+    //      }
+    //    }
+
+
+    //    DblNumMat  vdw_c6 ( numAtomType, numAtomType );
+    //    DblNumMat  vdw_r0 ( numAtomType, numAtomType );
+    //    SetValue( vdw_c6, 0.0 );
+    //    SetValue( vdw_r0, 0.0 );
+    //
+    //    for(Int i=0; i< numAtomType; i++) {
+    //      for(Int j=0; j< numAtomType; j++) {
+    //        vdw_c6(i,j)=std::sqrt(vdw_c6_dftd2[atomType(i)-1]*vdw_c6_dftd2[atomType(j)-1]);
+    //        //vdw_r0(i,j)=(vdw_r0_dftd2(atomType(i))+vdw_r0_dftd2(atomType(j)))/Bohr_Ang;
+    //        vdw_r0(i,j)=(vdw_r0_dftd2[atomType(i)-1]+vdw_r0_dftd2[atomType(j)-1]);
+    //      }
+    //    }
+
+    //    statusOFS << "vdw_c6 = " << vdw_c6 << std::endl;
+    //    statusOFS << "vdw_r0 = " << vdw_r0 << std::endl;
+
+    for(Int ii=-1; ii<2; ii++) {
+      for(Int jj=-1; jj<2; jj++) {
+        for(Int kk=-1; kk<2; kk++) {
+
+          for(Int i=0; i<atomList.size(); i++) {
+            Int iType = atomList[i].type;
+            for(Int j=0; j<(i+1); j++) {
+              Int jType = atomList[j].type;
+
+              Real rx = atomList[i].pos[0] - atomList[j].pos[0] + ii * dm.length[0];
+              Real ry = atomList[i].pos[1] - atomList[j].pos[1] + jj * dm.length[1];
+              Real rz = atomList[i].pos[2] - atomList[j].pos[2] + kk * dm.length[2];
+              Real rr = std::sqrt( rx * rx + ry * ry + rz * rz );
+
+              if ( ( rr > 0.0001 ) && ( rr < 75.0 ) ) {
+
+                Real sfact = vdw_s;
+                if ( i == j ) sfact = sfact * 0.5;
+
+                Real c6 = vdw_c6(iType-1, jType-1);
+                Real r0 = vdw_r0(iType-1, jType-1);
+
+                Real ex = exp( -vdw_d * ( rr / r0 - 1 ));
+                Real fr = 1.0 / ( 1.0 + ex );
+                Real c6r6 = c6 / pow(rr, 6.0);
+
+                // Contribution to energy
+                EVdw_ = EVdw_ - sfact * fr * c6r6;
+
+                // Contribution to force
+                if( i != j ) {
+
+                  Real gr = ( vdw_d / r0 ) * ( fr * fr ) * ex;
+                  Real grad = sfact * ( gr - 6.0 * fr / rr ) * c6r6 / rr; 
+
+                  Real fx = grad * rx;
+                  Real fy = grad * ry;
+                  Real fz = grad * rz;
+
+                  forceVdw_( i, 0 ) = forceVdw_( i, 0 ) + fx; 
+                  forceVdw_( i, 1 ) = forceVdw_( i, 1 ) + fy; 
+                  forceVdw_( i, 2 ) = forceVdw_( i, 2 ) + fz; 
+                  forceVdw_( j, 0 ) = forceVdw_( j, 0 ) - fx; 
+                  forceVdw_( j, 1 ) = forceVdw_( j, 1 ) - fy; 
+                  forceVdw_( j, 2 ) = forceVdw_( j, 2 ) - fz; 
+
+                } // end for i != j
+
+              } // end if
+
+
+            } // end for j
+          } // end for i
+
+        } // end for ii
+      } // end for jj
+    } // end for kk
+
+
+    //#endif 
+
+  } // If DFT-D2
+
+  return ;
+}         // -----  end of method KohnSham::CalculateVdwEnergyAndForce  ----- 
+
+
+void
+KohnSham::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
+{
+
+  std::vector<Atom>&  atomList = this->AtomList();
+  EVdw_ = 0.0;
+  forceVdw_.Resize( atomList.size(), DIM );
+  SetValue( forceVdw_, 0.0 );
+  
+  // Self energy part. 
+  Eself_ = 0.0;
+  for(Int a=0; a< atomList.size() ; a++) {
+    Int type = atomList[a].type;
+    Eself_ +=  ptable.SelfIonInteraction(type);
+  }
+
+  // Short range repulsion part
+  EIonSR_ = 0.0;
+  forceIonSR_.Resize( atomList.size(), DIM );
+  SetValue(forceIonSR_, 0.0);
+  if( esdfParam.isUseVLocal == true ){
+    const Domain& dm = domain_;
+
+    for(Int a=0; a< atomList.size() ; a++) {
+      Int type_a = atomList[a].type;
+      Real Zion_a = ptable.Zion(type_a);
+      Real RGaussian_a = ptable.RGaussian(type_a);
+
+      for(Int b=a; b< atomList.size() ; b++) {
+        // Need to consider the interaction between the same atom and
+        // its periodic image. Be sure not to double ocunt
+        bool same_atom = (a==b);
+
+        Int type_b = atomList[b].type;
+        Real Zion_b = ptable.Zion(type_b);
+        Real RGaussian_b = ptable.RGaussian(type_b);
+
+        Real radius_ab = std::sqrt ( RGaussian_a*RGaussian_a + RGaussian_b*RGaussian_b );
+        // convergence criterion for lattice sums:
+        // facNbr * radius_ab < ncell * d
+        const Real facNbr = 8.0;
+        const Int ncell0 = (Int) (facNbr * radius_ab / dm.length[0]);
+        const Int ncell1 = (Int) (facNbr * radius_ab / dm.length[1]);
+        const Int ncell2 = (Int) (facNbr * radius_ab / dm.length[2]);
+        statusOFS << " SCF: ncell = "
+          << ncell0 << " " << ncell1 << " " << ncell2 << std::endl;
+        Point3 pos_ab = atomList[a].pos - atomList[b].pos;
+        for( Int d = 0; d < DIM; d++ ){
+          pos_ab[d] = pos_ab[d] - IRound(pos_ab[d] / dm.length[d])*dm.length[d];
+        }
+
+
+        // loop over neighboring cells
+        Real fac;
+        for ( Int ic0 = -ncell0; ic0 <= ncell0; ic0++ )
+          for ( Int ic1 = -ncell1; ic1 <= ncell1; ic1++ )
+            for ( Int ic2 = -ncell2; ic2 <= ncell2; ic2++ )
+            {
+              if ( !same_atom || ic0!=0 || ic1!=0 || ic2!=0 )
+              {
+                if ( same_atom )
+                  fac = 0.5;
+                else
+                  fac = 1.0;
+                
+                Point3 pos_ab_image;
+                pos_ab_image[0] = pos_ab[0] + ic0*dm.length[0];
+                pos_ab_image[1] = pos_ab[1] + ic1*dm.length[1];
+                pos_ab_image[2] = pos_ab[2] + ic2*dm.length[2];
+
+                Real r_ab = pos_ab_image.l2();
+                Real esr_term = Zion_a * Zion_b * std::erfc(r_ab / radius_ab) / r_ab;
+                Real desr_erfc = 2.0 * Zion_a * Zion_b *
+                  std::exp(-(r_ab / radius_ab)*(r_ab / radius_ab))/(radius_ab*std::sqrt(PI));
+                // desrdr = (1/r) d Esr / dr
+                Real desrdr = - fac * (esr_term+desr_erfc) / ( r_ab*r_ab );
+                
+                EIonSR_ += fac * esr_term;
+
+                forceIonSR_(a,0) -= desrdr * pos_ab_image[0];
+                forceIonSR_(b,0) += desrdr * pos_ab_image[0];
+                forceIonSR_(a,1) -= desrdr * pos_ab_image[1];
+                forceIonSR_(b,1) += desrdr * pos_ab_image[1];
+                forceIonSR_(a,2) -= desrdr * pos_ab_image[2];
+                forceIonSR_(b,2) += desrdr * pos_ab_image[2];
+              }
+            }
+      } // for (b)
+    } // for (a)
+  } // if esdfParam.isUseVLocal == true
+
+  return ;
+}         // -----  end of method KohnSham::CalculateIonSelfEnergyAndForce  ----- 
+
 } // namespace dgdft

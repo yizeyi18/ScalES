@@ -153,6 +153,16 @@ protected:
 
   Real                        exxDiv_;
 
+  Real                EVdw_;                     // Van der Waals energy
+  Real                Eself_;                    // Self energy due to the pseudopotential
+  Real                EIonSR_;                   // Short range repulsion energy for Gaussian charge
+
+  DblNumMat           forceVdw_;                 // Van der Waals force
+
+  /// @brief Ion short range repulsion energy due to the use of
+  /// Gaussian compensation charge formulation 
+  DblNumMat           forceIonSR_;
+
   // ~~~ * ~~~
   // Internal variables related to wavefunction filter in CheFSI for PWDFT 
   bool apply_filter_;
@@ -176,6 +186,9 @@ public:
   // Operations
   // *********************************************************************
 
+  /// @brief Calculate pseudopotential, as well as other atomic related
+  /// energies and forces, such as self energy, short range repulsion
+  /// energy and VdW energies.
   virtual void CalculatePseudoPotential( PeriodTable &ptable ) = 0;
 
   /// @brief Atomic density is implemented using the structure factor
@@ -247,6 +260,12 @@ public:
 
   Real        ScreenMu() { return screenMu_;}
   Real        EXXFraction() { return exxFraction_;}
+
+  Real        EVdw() { return EVdw_; }
+  Real        Eself() {return Eself_;}
+  Real        EIonSR() {return EIonSR_;}
+  DblNumMat&  ForceVdw() { return forceVdw_;}
+  DblNumMat&  ForceIonSR() {return forceIonSR_;}
 
 
   // Functions to set and toggle state of filter application
@@ -350,6 +369,14 @@ public:
 
   // Not implemented yet
   //  virtual void UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock );
+
+  /// @brief Calculate ionic self energy and short range repulsion
+  /// energy and force
+  void  CalculateIonSelfEnergyAndForce( PeriodTable &ptable );
+
+  /// @brief Calculate Van der Waals energy and force (which only depends on the
+  /// atomic position)
+  void  CalculateVdwEnergyAndForce();
 
 };
 

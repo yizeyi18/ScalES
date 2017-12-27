@@ -300,7 +300,7 @@ public:
   /// @brief Self ionic interaction energy.
   ///
   /// This handles the case of isUseVLocal = true or false
-  Real SelfIonInteraction(Int type); 
+  Real SelfIonInteraction (Int type); 
   
   /// @brief Cutoff radius for the pseudocharge in the real space
   Real RGaussian(Int type)   {return ptemap_[type].params(ptparam_.RGAUSSIAN);}

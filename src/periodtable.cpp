@@ -1220,7 +1220,7 @@ PeriodTable::CalculateVLocal(
 }         // -----  end of method PeriodTable::CalculateVLocal  ----- 
 
 
-Real PeriodTable::SelfIonInteraction(Int type)
+Real PeriodTable::SelfIonInteraction(Int type) 
 {
   Real eself;
   if( esdfParam.isUseVLocal == false ){
