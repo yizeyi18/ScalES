@@ -657,7 +657,10 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
   this->CalculateVdwEnergyAndForce();
 
-  // FIXME electric field contribution to the external energy and force
+  Eext_ = 0.0;
+  forceext_.Resize( atomList_.size(), DIM );
+  SetValue( forceext_, 0.0 );
+
 
   return ;
 }         // -----  end of method KohnSham::CalculatePseudoPotential ----- 
@@ -2587,6 +2590,14 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
     }
   }
 
+  // Add the contribution from external force
+  {
+    std::vector<Atom>& atomList = this->AtomList();
+    for( Int a = 0; a < atomList.size(); a++ ){
+      atomList[a].force += Point3( forceext_(a,0), forceext_(a,1), forceext_(a,2) );
+    }
+  }
+
   return ;
 }         // -----  end of method KohnSham::CalculateForce  ----- 
 
@@ -3000,6 +3011,14 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
     std::vector<Atom>& atomList = this->AtomList();
     for( Int a = 0; a < atomList.size(); a++ ){
       atomList[a].force += Point3( forceIonSR_(a,0), forceIonSR_(a,1), forceIonSR_(a,2) );
+    }
+  }
+
+  // Add the contribution from external force
+  {
+    std::vector<Atom>& atomList = this->AtomList();
+    for( Int a = 0; a < atomList.size(); a++ ){
+      atomList[a].force += Point3( forceext_(a,0), forceext_(a,1), forceext_(a,2) );
     }
   }
 
@@ -4325,8 +4344,10 @@ KohnSham::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
         const Int ncell0 = (Int) (facNbr * radius_ab / dm.length[0]);
         const Int ncell1 = (Int) (facNbr * radius_ab / dm.length[1]);
         const Int ncell2 = (Int) (facNbr * radius_ab / dm.length[2]);
+#if ( _DEBUGlevel_ >= 1 )
         statusOFS << " SCF: ncell = "
           << ncell0 << " " << ncell1 << " " << ncell2 << std::endl;
+#endif
         Point3 pos_ab = atomList[a].pos - atomList[b].pos;
         for( Int d = 0; d < DIM; d++ ){
           pos_ab[d] = pos_ab[d] - IRound(pos_ab[d] / dm.length[d])*dm.length[d];

@@ -156,12 +156,17 @@ protected:
   Real                EVdw_;                     // Van der Waals energy
   Real                Eself_;                    // Self energy due to the pseudopotential
   Real                EIonSR_;                   // Short range repulsion energy for Gaussian charge
+  Real                Eext_;                     // Energy due to external potential
 
-  DblNumMat           forceVdw_;                 // Van der Waals force
+  // Van der Waals force
+  DblNumMat           forceVdw_;                 
 
-  /// @brief Ion short range repulsion energy due to the use of
-  /// Gaussian compensation charge formulation 
+  // Ion short range repulsion energy due to the use of // Gaussian
+  // compensation charge formulation 
   DblNumMat           forceIonSR_;
+  
+  // Force due to external potential
+  DblNumMat           forceext_;
 
   // ~~~ * ~~~
   // Internal variables related to wavefunction filter in CheFSI for PWDFT 
@@ -269,9 +274,14 @@ public:
   Real        EVdw() { return EVdw_; }
   Real        Eself() {return Eself_;}
   Real        EIonSR() {return EIonSR_;}
+  Real        Eext() {return Eext_;}
   DblNumMat&  ForceVdw() { return forceVdw_;}
   DblNumMat&  ForceIonSR() {return forceIonSR_;}
+  DblNumMat&  ForceExt() {return forceext_;}
 
+  void        SetVext(const DblNumVec& vext) {vext_ = vext;}
+  void        SetEext(Real Eext) {Eext_=Eext;}
+  void        SetForceExt(const DblNumMat& forceext) {forceext_ = forceext;}
 
   // Functions to set and toggle state of filter application
   void set_wfn_filter(int apply_filter, int apply_first, Real wfn_cutoff)

@@ -337,9 +337,9 @@ int main(int argc, char **argv)
       
       TDDFT td;
 
-      td.SetUp( hamKS, psi, fft, hamKS.AtomList(), ptable);
+      td.Setup( hamKS, psi, fft, hamKS.AtomList(), ptable);
 
-      td.propagate( ptable );
+      td.Propagate( ptable );
 
       GetTime( timeEnd );
       statusOFS << "! TDDFT used time: " << timeEnd - timeSta << " [s]" <<std::endl;

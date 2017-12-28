@@ -164,6 +164,9 @@ const Real au2ang = 0.52917721;
 const Real amu2au = 1822.8885;
 const Real SPEED_OF_LIGHT = 137.0359895; 
 const Real PI = 3.141592653589793;
+const Real au2as = 24.188843;
+const Real au2fs = 0.024188843;
+
 
 /// @namespace DensityComponent
 /// 

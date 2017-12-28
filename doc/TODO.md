@@ -227,6 +227,9 @@ Features included in PWDFT but may not in DGDFT:
 - Calculate ionic repulsion, vdw, external energy / force in
   hamiltonian_dg rather than scf_dg
 
+- Many complex routines are very similar to the real version. Need a
+  cleaner and more maintanable version.
+
 
 Other functionalities in PWDFT:
 
@@ -246,3 +249,6 @@ Other functionalities in PWDFT:
   PPCG seems to converge slower in general for this problem, and the
   number SCFs can also increase w.r.t. the number of processors.
   Maybe pseudopotential needs to be smoothed out?
+
+- spline.h
+  it is weird to have multiple spline routines. Need to get rid of it.

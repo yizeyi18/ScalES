@@ -1535,13 +1535,14 @@ SCF::Iterate (  )
     // Print out the energy
     PrintBlock( statusOFS, "Energy" );
     statusOFS 
-      << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw" << std::endl
+      << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext" << std::endl
       << "       Etot  = Ekin + Ecor" << std::endl
       << "       Efree = Etot    + Entropy" << std::endl << std::endl;
     Print(statusOFS, "! Etot            = ",  Etot_, "[au]");
     Print(statusOFS, "! Efree           = ",  Efree_, "[au]");
     Print(statusOFS, "! EfreeHarris     = ",  EfreeHarris_, "[au]");
     Print(statusOFS, "! EVdw            = ",  EVdw_, "[au]"); 
+    Print(statusOFS, "Eext              = ",  Eext_, "[au]");
     Print(statusOFS, "! Fermi           = ",  fermi_, "[au]");
     Print(statusOFS, "! HOMO            = ",  HOMO*au2ev, "[ev]");
     if( ham.NumExtraState() > 0 ){
@@ -2011,6 +2012,10 @@ SCF::CalculateEnergy    (  )
   EVdw_ = eigSolPtr_->Ham().EVdw();
   Ecor_ += EVdw_;
 
+  // External energy
+  Eext_ = eigSolPtr_->Ham().Eext();
+  Ecor_ += Eext_;
+
   // Total energy
   Etot_ = Ekin_ + Ecor_;
 
@@ -2044,7 +2049,7 @@ void
 SCF::CalculateHarrisEnergy ( )
 {
   // These variables are temporary variables only used in this routine
-  Real Ekin, Eself, Ehart, EVxc, Exc, Ecor, Efree, EIonSR, EVdw;
+  Real Ekin, Eself, Ehart, EVxc, Exc, Ecor, Efree, EIonSR, EVdw, Eext;
   
   Ekin = 0.0;
   DblNumVec&  eigVal         = eigSolPtr_->Ham().EigVal();
@@ -2073,6 +2078,8 @@ SCF::CalculateHarrisEnergy ( )
   // Van der Waals energy
   EVdw = eigSolPtr_->Ham().EVdw();
 
+  // External energy
+  Eext = eigSolPtr_->Ham().Eext();
 
 
   // Nonlinear correction part.  This part uses the Hartree energy and
@@ -2095,7 +2102,7 @@ SCF::CalculateHarrisEnergy ( )
 
 
   // Correction energy
-  Ecor = (Exc - EVxc) - Ehart - Eself + EIonSR + EVdw;
+  Ecor = (Exc - EVxc) - Ehart - Eself + EIonSR + EVdw + Eext;
 
   // Helmholtz free energy
   
@@ -2306,7 +2313,7 @@ SCF::PrintState    ( const Int iter  )
   }
   statusOFS << std::endl;
   statusOFS 
-    << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw" << std::endl
+    << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext" << std::endl
     << "       Etot  = Ekin + Ecor" << std::endl
     << "       Efree = Etot    + Entropy" << std::endl << std::endl;
   Print(statusOFS, "Etot              = ",  Etot_, "[au]");
@@ -2319,6 +2326,7 @@ SCF::PrintState    ( const Int iter  )
   Print(statusOFS, "EVdw              = ",  EVdw_, "[au]"); 
   Print(statusOFS, "Eself             = ",  Eself_, "[au]");
   Print(statusOFS, "EIonSR            = ",  EIonSR_, "[au]");
+  Print(statusOFS, "Eext              = ",  Eext_, "[au]");
   Print(statusOFS, "Ecor              = ",  Ecor_, "[au]");
   Print(statusOFS, "Fermi             = ",  fermi_, "[au]");
   Print(statusOFS, "Total charge      = ",  totalCharge_, "[au]");

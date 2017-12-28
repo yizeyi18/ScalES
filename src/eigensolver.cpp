@@ -694,7 +694,9 @@ EigenSolver::PPCGSolveComplex (
     iterOther = iterOther + 2;
     timeOther = timeOther + ( timeEnd - timeSta );
 
+#if ( _DEBUGlevel_ >= 1 )
     statusOFS << "Time for norm1 in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+#endif
 
 
     // P = P - X(X'P), AP = AP - AX(X'P)
@@ -742,7 +744,9 @@ EigenSolver::PPCGSolveComplex (
       iterOther = iterOther + 2;
       timeOther = timeOther + ( timeEnd - timeSta );
     
+#if ( _DEBUGlevel_ >= 1 )
       statusOFS << "Time for norm2 in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+#endif
    
     }
 
@@ -4977,7 +4981,9 @@ EigenSolver::PPCGSolveReal    (
     iterOther = iterOther + 2;
     timeOther = timeOther + ( timeEnd - timeSta );
 
+#if ( _DEBUGlevel_ >= 1 )
     statusOFS << "Time for norm1 in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+#endif
 
 
     // P = P - X(X'P), AP = AP - AX(X'P)
@@ -5025,7 +5031,9 @@ EigenSolver::PPCGSolveReal    (
       iterOther = iterOther + 2;
       timeOther = timeOther + ( timeEnd - timeSta );
 
+#if ( _DEBUGlevel_ >= 1 )
       statusOFS << "Time for norm2 in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+#endif
 
     }
 

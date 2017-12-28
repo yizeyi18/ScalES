@@ -102,6 +102,7 @@ private:
   Real                EVxc_;                     // Exchange-correlation potential energy
   Real                Eself_;                    // Self energy due to the pseudopotential
   Real                EIonSR_;                   // Short range repulsion energy for Gaussian charge
+  Real                Eext_;                     // External energy
   Real                fermi_;                    // Fermi energy
   Real                Efock_;                    // Hartree-Fock energy
 
