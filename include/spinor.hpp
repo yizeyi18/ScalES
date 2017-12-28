@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin
+Author: Lin Lin and Wei Hu
 
 This file is part of DGDFT. All rights reserved.
 
@@ -61,7 +61,11 @@ namespace dgdft{
 class Spinor {
 private:
   Domain            domain_;                // mesh should be used here for general cases 
+#ifdef _COMPLEX_
+  NumTns<Complex>      wavefun_;               // Local data of the wavefunction 
+#else
   NumTns<Real>      wavefun_;               // Local data of the wavefunction 
+#endif
   IntNumVec         wavefunIdx_;
   Int               numStateTotal_;
   Int               blocksize_;
@@ -77,21 +81,32 @@ public:
   // Constructor and destructor
   // *********************************************************************
   Spinor(); 
+  ~Spinor();
+#ifdef _COMPLEX_
+  Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
+      const Complex val = static_cast<Complex>(0,0) );
 
+  Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
+      const bool owndata, Complex* data );
+
+  void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
+      const Complex val = static_cast<Complex>(0,0) ); 
+
+  void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
+      const bool owndata, Complex* data );
+#else
   Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
       const Real val = static_cast<Real>(0) );
 
   Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
       const bool owndata, Real* data );
 
-  ~Spinor();
-
   void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
       const Real val = static_cast<Real>(0) ); 
 
   void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
       const bool owndata, Real* data );
-
+#endif
   // *********************************************************************
   // Inquiries
   // *********************************************************************
@@ -106,11 +121,17 @@ public:
   Int&  WavefunIdx(const Int k) { return wavefunIdx_(k); }
   const Int&  WavefunIdx(const Int k) const { return wavefunIdx_(k); }
 
+#ifdef _COMPLEX_
+  NumTns<Complex>& Wavefun() { return wavefun_; } 
+  const NumTns<Complex>& Wavefun() const { return wavefun_; } 
+  Complex& Wavefun(const Int i, const Int j, const Int k) {return wavefun_(i,j,k); }
+  const Complex& Wavefun(const Int i, const Int j, const Int k) const {return wavefun_(i,j,k); }
+#else
   NumTns<Real>& Wavefun() { return wavefun_; } 
   const NumTns<Real>& Wavefun() const { return wavefun_; } 
   Real& Wavefun(const Int i, const Int j, const Int k) {return wavefun_(i,j,k); }
   const Real& Wavefun(const Int i, const Int j, const Int k) const {return wavefun_(i,j,k); }
-
+#endif
 
   // *********************************************************************
   // Access
@@ -122,6 +143,12 @@ public:
   void Normalize();
 
   // Perform all operations of matrix vector multiplication on a fine grid.
+#ifdef _COMPLEX_
+  void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
+      const std::vector<PseudoPot>& pseudo, NumTns<Complex>& a3 );
+
+  void AddTeterPrecond( Fourier* fftPtr, NumTns<Complex>& a3 );
+#else
   void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );
   void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
@@ -254,6 +281,7 @@ public:
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
 
+#endif
 };  // Spinor
 
 

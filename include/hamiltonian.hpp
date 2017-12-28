@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin and Wei Hu
+Author: Lin Lin, Wei Hu, Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -215,12 +215,14 @@ public:
   /// contribution of the force on the fine grid.
   virtual void CalculateForce ( Spinor& psi, Fourier& fft ) = 0;
 
-  // Matrix vector multiplication
+#ifdef _COMPLEX_
+  virtual void MultSpinor(Spinor& psi, NumTns<Complex>& a3, Fourier& fft) = 0;
+#else
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft) = 0;
+#endif
 
+#ifndef _COMPLEX_
   virtual NumTns<Real>& PhiEXX() = 0;
-
-  virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
 
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
 
@@ -229,6 +231,9 @@ public:
   virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF ) = 0;
 
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
+#endif
+  
+  virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
 
   //  virtual void UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock ) = 0;
 
@@ -342,8 +347,11 @@ public:
   virtual void CalculateForce ( Spinor& psi, Fourier& fft );
 
   // Matrix vector multiplication
+#ifdef _COMPLEX_
+  virtual void MultSpinor(Spinor& psi, NumTns<Complex>& a3, Fourier& fft);
+#else
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft);
-
+#endif
 
   /// @brief Update phiEXX by the spinor psi. The Phi are normalized in
   /// the real space as
@@ -353,6 +361,7 @@ public:
   /// while the wavefunction satisfies the normalization
   ///
   /// \sum |\psi(x)|^2 = 1, differing by a normalization constant. FIXME
+#ifndef _COMPLEX_
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
 
   virtual NumTns<Real>& PhiEXX() {return phiEXX_;}
@@ -364,6 +373,7 @@ public:
   virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF );
 
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
+#endif
 
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft );
 

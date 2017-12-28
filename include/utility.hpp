@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Authors: Lin Lin
+Authors: Lin Lin, Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -1712,6 +1712,8 @@ CopyPattern    ( const DistSparseMatrix<F1>& A, DistSparseMatrix<F2>& B )
 
 void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
 void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
+void AlltoallForward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm );
+void AlltoallBackward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm );
 
 // ~~**~~
 // ------------------------------------------------------------------------------

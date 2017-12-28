@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin, Wei Hu and Amartya Banerjee
+Author: Lin Lin, Wei Hu, Amartya Banerjee, Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -104,6 +104,14 @@ public:
   // ********************  OPERATIONS  *******************************
 
 
+#ifdef _COMPLEX_
+  void PPCGSolveComplex(
+      Int          numEig,
+      Int          eigMaxIter,
+      Real         eigMinTolerance,
+      Real         eigTolerance );
+#else
+
   /// @brief Parallel LOBPCG solver with intra-element
   /// parallelization.
   ///
@@ -123,6 +131,7 @@ public:
       Real         eigMinTolerance,
       Real         eigTolerance );
 
+#endif
 
   /// @brief Routines for Chebyshev filtering
   void FirstChebyStep(

@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin
+Author: Lin Lin, Wei Hu and Amartya Banerjee
 
 This file is part of DGDFT. All rights reserved.
 
@@ -190,6 +190,9 @@ public:
   /// This is done by modifying the global esdfParam parameters
   void UpdateMDParameters( );
 
+  /// @brief Update the parameters for SCF during the TDDFT simulation
+  /// This is done by modifying the global esdfParam parameters
+  void UpdateTDDFTParameters( );
 
   // *********************************************************************
   // Inquiry

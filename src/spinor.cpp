@@ -58,7 +58,323 @@ using namespace dgdft::scalapack;
 using namespace dgdft::PseudoComponent;
 
 Spinor::Spinor () { }         
+Spinor::~Spinor    () {}
 
+#ifdef _COMPLEX_
+Spinor::Spinor ( 
+    const Domain &dm, 
+    const Int     numComponent,
+    const Int     numStateTotal,
+    Int     numStateLocal,
+    const Complex  val ) {
+  this->Setup( dm, numComponent, numStateTotal, numStateLocal, val );
+
+}         // -----  end of method Spinor::Spinor  ----- 
+
+Spinor::Spinor ( const Domain &dm, 
+    const Int numComponent, 
+    const Int numStateTotal,
+    Int numStateLocal,
+    const bool owndata, 
+    Complex* data )
+{
+  this->Setup( dm, numComponent, numStateTotal, numStateLocal, owndata, data );
+
+}         // -----  end of method Spinor::Spinor  ----- 
+
+void Spinor::Setup ( 
+    const Domain &dm, 
+    const Int     numComponent,
+    const Int     numStateTotal,
+    Int     numStateLocal,
+    const Complex  val ) {
+
+  domain_       = dm;
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  Int blocksize;
+
+  if ( numStateTotal <=  mpisize ) {
+    blocksize = 1;
+  }
+  else {  // numStateTotal >  mpisize
+    if ( numStateTotal % mpisize == 0 ){
+      blocksize = numStateTotal / mpisize;
+    }
+    else {
+      blocksize = ((numStateTotal - 1) / mpisize) + 1;
+    }    
+  }
+
+  numStateTotal_ = numStateTotal;
+  blocksize_ = blocksize;
+
+  wavefunIdx_.Resize( numStateLocal );
+  SetValue( wavefunIdx_, 0 );
+  for (Int i = 0; i < numStateLocal; i++){
+    wavefunIdx_[i] = i * mpisize + mpirank ;
+  }
+
+  wavefun_.Resize( dm.NumGridTotal(), numComponent, numStateLocal );
+  SetValue( wavefun_, val );
+
+}         // -----  end of method Spinor::Setup  ----- 
+
+void Spinor::Setup ( const Domain &dm, 
+    const Int numComponent, 
+    const Int numStateTotal,
+    Int numStateLocal,
+    const bool owndata, 
+    Complex* data )
+{
+
+  domain_       = dm;
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  wavefun_      = NumTns<Complex>( dm.NumGridTotal(), numComponent, numStateLocal,
+      owndata, data );
+
+  Int blocksize;
+
+  if ( numStateTotal <=  mpisize ) {
+    blocksize = 1;
+  }
+  else {  // numStateTotal >  mpisize
+    if ( numStateTotal % mpisize == 0 ){
+      blocksize = numStateTotal / mpisize;
+    }
+    else {
+      blocksize = ((numStateTotal - 1) / mpisize) + 1;
+    }    
+  }
+
+  numStateTotal_ = numStateTotal;
+  blocksize_ = blocksize;
+
+  wavefunIdx_.Resize( numStateLocal );
+  SetValue( wavefunIdx_, 0 );
+  for (Int i = 0; i < numStateLocal; i++){
+    wavefunIdx_[i] = i * mpisize + mpirank ;
+  }
+
+}         // -----  end of method Spinor::Setup  ----- 
+
+void
+Spinor::Normalize    ( )
+{
+  Int size = wavefun_.m() * wavefun_.n();
+  Int nocc = wavefun_.p();
+
+  for (Int k=0; k<nocc; k++) {
+    Complex *ptr = wavefun_.MatData(k);
+    Real sum = 0.0;
+    for (Int i=0; i<size; i++) {
+      sum += pow(abs(*ptr++), 2.0);
+    }
+    sum = sqrt(sum);
+    if (sum != 0.0) {
+      ptr = wavefun_.MatData(k);
+      for (Int i=0; i<size; i++) *(ptr++) /= sum;
+    }
+  }
+  return ;
+}         // -----  end of method Spinor::Normalize  ----- 
+
+void
+Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Complex>& a3)
+{
+  Fourier& fft = *fftPtr;
+  if( !fftPtr->isInitialized ){
+    ErrorHandling("Fourier is not prepared.");
+  }
+  Int ntot = wavefun_.m();
+  Int ncom = wavefun_.n();
+  Int nocc = wavefun_.p();
+
+  if( fftPtr->domain.NumGridTotal() != ntot ){
+    ErrorHandling("Domain size does not match.");
+  }
+
+  Int numFFTGrid = fftPtr->numGridTotal;
+  // These two are private variables in the OpenMP context
+
+  for (Int k=0; k<nocc; k++) {
+    for (Int j=0; j<ncom; j++) {
+      // For c2r and r2c transforms, the default is to DESTROY the
+      // input, therefore a copy of the original matrix is necessary. 
+      blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
+          fft.inputComplexVec.Data(), 1 );
+
+      FFTWExecute ( fft, fft.forwardPlan );
+
+      Real* ptr1d      = fftPtr->TeterPrecond.Data();
+      Complex* ptr2    = fft.outputComplexVec.Data();
+      for (Int i=0; i<numFFTGrid; i++) 
+        *(ptr2++) *= *(ptr1d++);
+
+      FFTWExecute ( fft, fft.backwardPlan);
+
+      blas::Axpy( ntot, 1.0, fft.inputComplexVec.Data(), 1, a3.VecData(j,k), 1 );
+    }
+  }
+
+
+  return ;
+}         // -----  end of method Spinor::AddTeterPrecond ----- 
+
+void
+Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot, 
+    const std::vector<PseudoPot>& pseudo, NumTns<Complex>& a3 )
+{
+  // Complex case -- just temporary for TDDFT
+
+  if( !fft.isInitialized ){
+    ErrorHandling("Fourier is not prepared.");
+  }
+  Int ntot = wavefun_.m();
+  Int ncom = wavefun_.n();
+  Int numStateLocal = wavefun_.p();
+  Int ntotFine = domain_.NumGridTotalFine();
+  Real vol = domain_.Volume();
+
+  if( fft.domain.NumGridTotal() != ntot ){
+    ErrorHandling("Domain size does not match.");
+  }
+
+  // Temporary variable for saving wavefunction on a fine grid
+  CpxNumVec psiFine(ntotFine);
+  CpxNumVec psiUpdateFine(ntotFine);
+
+  for (Int k=0; k<numStateLocal; k++) {
+    for (Int j=0; j<ncom; j++) {
+
+      SetValue( psiFine, Complex(0.0,0.0) );
+      SetValue( psiUpdateFine, Complex(0.0,0.0) );
+
+      // Fourier transform
+      SetValue( fft.inputComplexVec, Z_ZERO ); // no need to set to zero
+      blas::Copy( ntot, wavefun_.VecData(j,k), 1, fft.inputComplexVec.Data(), 1 );
+
+      // Fourier transform of wavefunction saved in fft.outputComplexVec
+      fftw_execute( fft.forwardPlan );
+
+      // Interpolate wavefunction from coarse to fine grid
+      {
+        SetValue( fft.outputComplexVecFine, Z_ZERO ); 
+        Int *idxPtr = fft.idxFineGrid.Data();
+        Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
+        Complex *fftOutPtr = fft.outputComplexVec.Data();
+        for( Int i = 0; i < ntot; i++ ){
+          //fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i);
+          fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
+        }
+      }
+      fftw_execute( fft.backwardPlanFine );
+      Real fac = 1.0 / std::sqrt( double(domain_.NumGridTotal())  *
+          double(domain_.NumGridTotalFine()) ); 
+      //      for( Int i = 0; i < ntotFine; i++ ){
+      //        psiFine(i) = fft.inputComplexVecFine(i).real() * fac; 
+      //      }
+      blas::Copy( ntotFine, fft.inputComplexVecFine.Data(),
+          1, psiFine.Data(), 1 );
+      blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
+
+      // Add the contribution from local pseudopotential
+      //      for( Int i = 0; i < ntotFine; i++ ){
+      //        psiUpdateFine(i) += psiFine(i) * vtot(i);
+      //      }
+      {
+        Complex *psiUpdateFinePtr = psiUpdateFine.Data();
+        Complex *psiFinePtr = psiFine.Data();
+        Real *vtotPtr = vtot.Data();
+        for( Int i = 0; i < ntotFine; i++ ){
+          *(psiUpdateFinePtr++) += *(psiFinePtr++) * *(vtotPtr++);
+        }
+      }
+
+      // Add the contribution from nonlocal pseudopotential
+      if(1){
+        Int natm = pseudo.size();
+        for (Int iatm=0; iatm<natm; iatm++) {
+          Int nobt = pseudo[iatm].vnlList.size();
+          for (Int iobt=0; iobt<nobt; iobt++) {
+            const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
+            const SparseVec &vnlvec = pseudo[iatm].vnlList[iobt].first;
+            const IntNumVec &iv = vnlvec.first;
+            const DblNumMat &dv = vnlvec.second;
+
+            Complex weight = (0.0,0.0); 
+            const Int    *ivptr = iv.Data();
+            const Real   *dvptr = dv.VecData(VAL);
+            for (Int i=0; i<iv.m(); i++) {
+              weight += (*(dvptr++)) * psiFine[*(ivptr++)];
+            }
+            weight *= vol/Real(ntotFine)*vnlwgt;
+
+            ivptr = iv.Data();
+            dvptr = dv.VecData(VAL);
+            for (Int i=0; i<iv.m(); i++) {
+              psiUpdateFine[*(ivptr++)] += (*(dvptr++)) * weight;
+            }
+          } // for (iobt)
+        } // for (iatm)
+      }
+
+
+      // Laplacian operator. Perform inverse Fourier transform in the end
+      {
+        for (Int i=0; i<ntot; i++) 
+          fft.outputComplexVec(i) *= fft.gkk(i);
+      }
+
+      // Restrict psiUpdateFine from fine grid in the real space to
+      // coarse grid in the Fourier space. Combine with the Laplacian contribution
+      //      for( Int i = 0; i < ntotFine; i++ ){
+      //        fft.inputComplexVecFine(i) = Complex( psiUpdateFine(i), 0.0 ); 
+      //      }
+      SetValue( fft.inputComplexVecFine, Z_ZERO );
+      blas::Copy( ntotFine, psiUpdateFine.Data(), 1,
+          fft.inputComplexVecFine.Data(), 1 );
+
+      // Fine to coarse grid
+      // Note the update is important since the Laplacian contribution is already taken into account.
+      // The computation order is also important
+      fftw_execute( fft.forwardPlanFine );
+      {
+        Real fac = std::sqrt(Real(ntot) / (Real(ntotFine)));
+        Int* idxPtr = fft.idxFineGrid.Data();
+        Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
+        Complex *fftOutPtr = fft.outputComplexVec.Data();
+
+        for( Int i = 0; i < ntot; i++ ){
+          //          fft.outputComplexVec(i) += fft.outputComplexVecFine(fft.idxFineGrid(i)) * fac;
+          *(fftOutPtr++) += fftOutFinePtr[*(idxPtr++)] * fac;
+        }
+      }
+
+      // Inverse Fourier transform to save back to the output vector
+      fftw_execute( fft.backwardPlan );
+
+      //      Real    *ptr1 = a3.VecData(j,k);
+      //      for( Int i = 0; i < ntot; i++ ){
+      //        ptr1[i] += fft.inputComplexVec(i).real() / Real(ntot);
+      //      }
+      blas::Axpy( ntot, 1.0 / Real(ntot), 
+          fft.inputComplexVec.Data(), 1, a3.VecData(j,k), 1 );
+    }
+  }
+
+
+
+  return ;
+}        // -----  end of method Spinor::AddMultSpinorFine  ----- 
+
+
+#else
 Spinor::Spinor ( 
     const Domain &dm, 
     const Int     numComponent,
@@ -79,8 +395,6 @@ Spinor::Spinor ( const Domain &dm,
   this->Setup( dm, numComponent, numStateTotal, numStateLocal, owndata, data );
 
 }         // -----  end of method Spinor::Spinor  ----- 
-
-Spinor::~Spinor    () {}
 
 void Spinor::Setup ( 
     const Domain &dm, 
@@ -329,22 +643,22 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
           Int nobt = pseudo[iatm].vnlList.size();
           for (Int iobt=0; iobt<nobt; iobt++) {
             const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
-            const SparseVec &vnlvecFine = pseudo[iatm].vnlList[iobt].first;
-            const IntNumVec &ivFine = vnlvecFine.first;
-            const DblNumMat &dvFine = vnlvecFine.second;
+            const SparseVec &vnlvec = pseudo[iatm].vnlList[iobt].first;
+            const IntNumVec &iv = vnlvec.first;
+            const DblNumMat &dv = vnlvec.second;
 
             Real    weight = 0.0; 
-            const Int    *ivFineptr = ivFine.Data();
-            const Real   *dvFineptr = dvFine.VecData(VAL);
-            for (Int i=0; i<ivFine.m(); i++) {
-              weight += (*(dvFineptr++)) * psiFine[*(ivFineptr++)];
+            const Int    *ivptr = iv.Data();
+            const Real   *dvptr = dv.VecData(VAL);
+            for (Int i=0; i<iv.m(); i++) {
+              weight += (*(dvptr++)) * psiFine[*(ivptr++)];
             }
             weight *= vol/Real(ntotFine)*vnlwgt;
 
-            ivFineptr = ivFine.Data();
-            dvFineptr = dvFine.VecData(VAL);
-            for (Int i=0; i<ivFine.m(); i++) {
-              psiUpdateFine[*(ivFineptr++)] += (*(dvFineptr++)) * weight;
+            ivptr = iv.Data();
+            dvptr = dv.VecData(VAL);
+            for (Int i=0; i<iv.m(); i++) {
+              psiUpdateFine[*(ivptr++)] += (*(dvptr++)) * weight;
             }
           } // for (iobt)
         } // for (iatm)
@@ -546,22 +860,22 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
           Int nobt = pseudo[iatm].vnlList.size();
           for (Int iobt=0; iobt<nobt; iobt++) {
             const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
-            const SparseVec &vnlvecFine = pseudo[iatm].vnlList[iobt].first;
-            const IntNumVec &ivFine = vnlvecFine.first;
-            const DblNumMat &dvFine = vnlvecFine.second;
+            const SparseVec &vnlvec = pseudo[iatm].vnlList[iobt].first;
+            const IntNumVec &iv = vnlvec.first;
+            const DblNumMat &dv = vnlvec.second;
 
             Real    weight = 0.0; 
-            const Int    *ivFineptr = ivFine.Data();
-            const Real   *dvFineptr = dvFine.VecData(VAL);
-            for (Int i=0; i<ivFine.m(); i++) {
-              weight += (*(dvFineptr++)) * psiFine[*(ivFineptr++)];
+            const Int    *ivptr = iv.Data();
+            const Real   *dvptr = dv.VecData(VAL);
+            for (Int i=0; i<iv.m(); i++) {
+              weight += (*(dvptr++)) * psiFine[*(ivptr++)];
             }
             weight *= vol/Real(ntotFine)*vnlwgt;
 
-            ivFineptr = ivFine.Data();
-            dvFineptr = dvFine.VecData(VAL);
-            for (Int i=0; i<ivFine.m(); i++) {
-              psiUpdateFine[*(ivFineptr++)] += (*(dvFineptr++)) * weight;
+            ivptr = iv.Data();
+            dvptr = dv.VecData(VAL);
+            for (Int i=0; i<iv.m(); i++) {
+              psiUpdateFine[*(ivptr++)] += (*(dvptr++)) * weight;
             }
           } // for (iobt)
         } // for (iatm)
@@ -8472,5 +8786,6 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
   return ;
 }        // -----  end of method Spinor::AddMultSpinorEXXDF7  ----- 
 
+#endif
 
 }  // namespace dgdft

@@ -954,6 +954,149 @@ struct ESDFInputParam{
   bool                isOutputXYZ;
 
 
+  // TDDFT parameters
+  /// @brief Whether to use the saved WFN, Density, Velocity to restart
+  ///
+  /// Default: 0
+  bool                save4RestartTDDFT;
+
+  /// @brief Whether to use the saved WFN, Density, Velocity to restart
+  ///
+  /// Default: 0
+  bool                isRestartTDDFT;
+
+  /// @brief Maximum number of outer SCF iterations in TDDFT
+  /// This is usually used in PWDFT  
+  Int                restartTDDFTStep;
+  
+  /// @brief Maximum number of outer SCF iterations in TDDFT
+  /// This is usually used in PWDFT  
+  Int                TDDFTscfOuterMaxIter;
+
+  /// @brief Maximum number of iterations for hybrid functional
+  /// iterations in TDDFT
+  /// 
+  /// Default: the same as scfPhiMaxIter
+  Int                 TDDFTscfPhiMaxIter;
+
+  /// @brief use TDDFT or not
+  /// 
+  /// Default: 1
+  Int                 isTDDFT;
+
+  /// @brief use TDDFT ehrenfest dynamics
+  /// 
+  /// Default: 1
+  Int                 isTDDFTEhrenfest;
+
+
+  /// @brief use TDDFT  Vexternal or not
+  /// 
+  /// Default: 1
+  Int                 isTDDFTVext;
+
+  /// @brief calculate TDDFT dipole or not
+  /// 
+  /// Default: 1
+  Int                 isTDDFTDipole;
+
+  /// @brief calculate TDDFT dipole or not
+  /// 
+  /// Default: 1
+  Int                 isTDDFTInputV;
+
+  /// @brief use TDDFT  Vexternal polorization in the X direction.
+  /// 
+  /// Default: 1.0
+  Real TDDFTVextPolx;
+
+  /// @brief use TDDFT  Vexternal polorization in the X direction.
+  /// 
+  /// Default: 0.0
+  Real TDDFTVextPoly;
+
+  /// @brief use TDDFT  Vexternal polorization in the X direction.
+  /// 
+  /// Default: 0.0
+  Real TDDFTVextPolz;
+
+  /// @brief use TDDFT Vexternal Frequency.
+  /// 
+  /// Default: 18.0/27.211385
+  Real TDDFTVextFreq;
+
+  /// @brief use TDDFT Vexternal Phase
+  /// 
+  /// Default: 0.0
+  Real TDDFTVextPhase;
+
+  /// @brief use TDDFT Vexternal Amplitude 
+  /// 
+  /// Default: 0.0194
+  Real TDDFTVextAmp;
+
+  /// @brief use TDDFT Vexternal T0
+  /// 
+  /// Default: 13.6056925
+  Real TDDFTVextT0;
+
+  /// @brief use TDDFT Vexternal Tau
+  /// 
+  /// Default: 13.6056925
+  Real TDDFTVextTau;
+
+  /// @brief types of external fields
+  ///
+  /// Default: gaussian 
+  ///
+  /// - = "guassian"             : Gaussian type of External field
+  /// - = "constant"             : Constant type of External field
+  /// - = "sinsq"                : sin type of the external field
+  /// - = "erf"                  : Exp type of the external field
+  /// - = "kick "                :                            
+  ///
+  std::string        TDDFTVextEnv;
+
+  /// @brief types of TDDFT methods
+  ///
+  /// Default: PTTRAP
+  ///
+  /// - = "PTTRAP"       : implicit Parallel transport evolution with trapezoidal rule
+  /// - = "RK4"          :  Explicit Runge-Kutta 4th order method
+  ///
+  std::string        TDDFTMethod;
+
+  /// @brief TDDFT delta T
+  /// 
+  /// Default: 1.0 atomic unit
+  Real TDDFTDeltaT;
+
+  /// @brief TDDFT total T
+  /// 
+  /// Default: 40.0 atomic unit
+  Real TDDFTTotalT;
+
+  /// @brief TDDFT Krylov Max iteration number
+  /// 
+  /// Default: 30
+  Int  TDDFTKrylovMax;
+
+  /// @brief TDDFT SCF Max iteration number
+  /// 
+  /// Default: 30
+  Int  TDDFTMaxIter;
+
+  /// @brief TDDFT Krylov Tolerance
+  /// 
+  /// Default: 1.0E-7
+  Real TDDFTKrylovTol;
+
+  /// @brief TDDFT SCF Tolerance
+  /// 
+  /// Default: 1.0E-7
+  Real TDDFTScfTol;
+
+
   // Inputs related to Chebyshev Filtered SCF iterations for DG
   // FIXME To be combined with other input parameters
   // ~~**~~

@@ -436,6 +436,7 @@ SCF::Iterate (  )
 
   // NOTE: The different mixing mode of hybrid functional calculations
   // are not compatible with each other. So each requires its own code
+#ifndef _COMPLEX_
   if( ham.IsHybrid() ){
     // Fock energies
     Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
@@ -1518,6 +1519,7 @@ SCF::Iterate (  )
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
     
   } // isHybrid == true
+#endif
 
   // Calculate the Force. This includes contribution from ionic repulsion, VDW etc
   ham.CalculateForce( psi, fft );
@@ -1704,6 +1706,7 @@ SCF::InnerSolve	( Int iter )
       // Use static schedule
       statusOFS << std::endl << " CheFSI in PWDFT working on static schedule." << std::endl;
       // Use CheFSI or LOBPCG on first step 
+#ifndef _COMPLEX_
       if(iter <= 1){
         if(First_SCF_PWDFT_ChebyCycleNum_ <= 0)
           eigSolPtr_->LOBPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
@@ -1713,10 +1716,12 @@ SCF::InnerSolve	( Int iter )
       else{
         eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
       }
+#endif
     }
     else
     {
       // Use ion-dynamics schedule
+#ifndef _COMPLEX_
       statusOFS << std::endl << " CheFSI in PWDFT working on ion-dynamics schedule." << std::endl;
       if( iter <= 1)
       {
@@ -1727,12 +1732,21 @@ SCF::InnerSolve	( Int iter )
       {
         eigSolPtr_->GeneralChebyStep(numEig, General_SCF_PWDFT_ChebyFilterOrder_);
       }
-
+#endif
     }
   }
   else
   {
     // Use LOBPCG
+#ifdef _COMPLEX_
+    if( esdfParam.PWSolver == "PPCG" || esdfParam.PWSolver == "PPCGScaLAPACK" ){
+      eigSolPtr_->PPCGSolveComplex(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+    }
+    else{
+      // FIXME Merge the Chebyshev into an option of PWSolver
+      ErrorHandling("Not supported PWSolver for complex type.");
+    }
+#else
     if( esdfParam.PWSolver == "LOBPCG" || esdfParam.PWSolver == "LOBPCGScaLAPACK"){
       eigSolPtr_->LOBPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
     } // Use PPCG
@@ -1743,6 +1757,7 @@ SCF::InnerSolve	( Int iter )
       // FIXME Merge the Chebyshev into an option of PWSolver
       ErrorHandling("Not supported PWSolver type.");
     }
+#endif
   }
 
   GetTime( timeEnd );
@@ -2325,5 +2340,12 @@ SCF::UpdateMDParameters    ( )
   return ;
 }         // -----  end of method SCF::UpdateMDParameters  ----- 
 
+void
+SCF::UpdateTDDFTParameters    ( )
+{
+  scfMaxIter_    = esdfParam.TDDFTscfOuterMaxIter;
+  scfPhiMaxIter_ = esdfParam.TDDFTscfPhiMaxIter;
+  return ;
+}         // -----  end of method SCF::UpdateTDDFTParameters  ----- 
 
 } // namespace dgdft

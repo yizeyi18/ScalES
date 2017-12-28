@@ -177,6 +177,11 @@ void SCALAPACK(pdgemr2d)(const Int* m, const Int* n, const double* A, const Int*
     const Int* ib, const Int* jb, const Int* descb,
     const Int* contxt);
 
+void SCALAPACK(pzgemr2d)(const Int* m, const Int* n, const dcomplex* A, const Int* ia, 
+    const Int* ja, const Int* desca, dcomplex* B,
+    const Int* ib, const Int* jb, const Int* descb,
+    const Int* contxt);
+
 // Trace of a square matrix
 double SCALAPACK(pdlatra)(const Int *n , const double *a , const Int *ia , const Int *ja , const Int *desca );
 
@@ -210,6 +215,12 @@ void SCALAPACK(pdsyevd)(const char *jobz, const char *uplo, const Int *n, double
     const double *z, const Int *iz, const Int *jz, const Int *descz, 
     double *work, const Int *lwork, Int* iwork, const Int* liwork, 
     Int *info);
+
+void SCALAPACK(pzheevd)(const char *jobz, const char *uplo, const Int *n, dcomplex *a, 
+    const Int *ia, const Int *ja, const Int *desca, double *w, 
+    dcomplex *z, const Int *iz, const Int *jz, const Int *descz, 
+    dcomplex *work, const Int *lwork, double * rwork, int * lrwork,
+    Int* iwork, Int* liwork, Int *info);
 
 void SCALAPACK(pdsyevr)(const char *jobz, const char *range, const char *uplo,
     const Int *n, double* a, const Int *ia, const Int *ja,
@@ -525,6 +536,11 @@ void
 Syevd(char uplo, ScaLAPACKMatrix<double>& A, 
     std::vector<double>& eigs,
     ScaLAPACKMatrix<double>& Z);
+
+void
+Syevd(char uplo, ScaLAPACKMatrix<dcomplex>& A, 
+    std::vector<double>& eigs,
+    ScaLAPACKMatrix<dcomplex>& Z);
 
 /// @brief Compute the eigenvalues and the eigenvectors for symmetric
 /// matrices using the MRRR algoritm for diagonalizing the tri-diagonal

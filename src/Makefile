@@ -6,7 +6,8 @@ include ../make.inc
 SRCS = scf_dg.cpp scf.cpp eigensolver.cpp  iondynamics.cpp \
 			 hamiltonian_dg_matrix.cpp hamiltonian_dg.cpp hamiltonian.cpp \
 			 periodtable.cpp spinor.cpp fourier.cpp utility.cpp esdf.cpp \
-			 mpi_interf.cpp scalapack.cpp lapack.cpp blas.cpp global.cpp 
+			 mpi_interf.cpp scalapack.cpp lapack.cpp blas.cpp global.cpp \
+			 tddft.cpp  sgmres.cpp
 
 OBJS = ${SRCS:.cpp=.o} ${SRCF90:.f90=.o} ${SRCF:.f=.o}
 DEPS = ${SRCS:.cpp=.d} ${SRCF90:.f90=.d} ${SRCF:.f=.d}

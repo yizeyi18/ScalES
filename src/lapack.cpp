@@ -117,12 +117,26 @@ extern "C" {
       double *A, const Int *lda, double *W, double *work, 
       const int *lwork, Int *iwork, const int *liwork, int *info );
 
+  void LAPACK(zheevd)
+    ( const char *jobz, const char *uplo, const Int *n, 
+      dcomplex *A, const Int *lda, double *W, dcomplex* work, 
+      const int *lwork, double* rwork, int * lrwork, 
+      Int *iwork, const int *liwork, int *info );
+
   // For solving the generalized eigenvalue problem using the divide and
   // conquer algorithm  --- added by Eugene
   void LAPACK(dsygvd)
     ( const Int *itype, const char *jobz, const char *uplo, const Int *n, 
       double *A, const Int *lda, double* B, const Int *ldb, double *W, double *work, 
       const int *lwork, Int *iwork, const int *liwork, int *info );
+
+
+  // For solving the generalized eigenvalue problem using the divide and
+  // conquer algorithm  --- added by Eugene
+  void LAPACK(zhegvd)
+    ( const Int *itype, const char *jobz, const char *uplo, const Int *n, 
+      dcomplex*A, const Int *lda, dcomplex* B, const Int *ldb, double *W, dcomplex *work, 
+      const int *lwork, double *rwork, int *lrwork, Int *iwork, const int *liwork, int *info );
 
   // Triangular inversion
   void LAPACK(strtri)
@@ -517,6 +531,64 @@ void Sygvd
   {
     std::ostringstream msg;
     msg << "sygvd returned with info = " << info;
+    ErrorHandling( msg.str().c_str() );
+  }
+}
+
+void Syevd
+( char jobz, char uplo, Int n, dcomplex* A, Int lda, double* eigs ){
+  Int lwork = -1, info;
+  Int liwork = -1;
+  Int lrwork = -1;
+  std::vector<dcomplex> work(1);
+  std::vector<int>    iwork(1);
+  std::vector<double> rwork(1);
+
+  LAPACK(zheevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
+      &lwork, &rwork[0], &lrwork, &iwork[0], &liwork, &info );
+  lwork = (Int)work[0].real();
+  work.resize(lwork);
+  liwork = iwork[0];
+  iwork.resize(liwork);
+  lrwork = (Int) rwork[0];
+  rwork.resize(lrwork);
+
+  LAPACK(zheevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
+      &lwork, &rwork[0], &lrwork, &iwork[0], &liwork, &info );
+
+  if( info != 0 )
+  {
+    std::ostringstream msg;
+    msg << "syevd returned with info = " << info;
+    ErrorHandling( msg.str().c_str() );
+  }
+}
+
+void Sygvd
+( Int itype, char jobz, char uplo, Int n, dcomplex* A, Int lda, dcomplex* B, Int ldb, double* eigs ){
+  Int lwork = -1, info;
+  Int liwork = -1;
+  Int lrwork = -1;
+  std::vector<dcomplex> work(1);
+  std::vector<int>    iwork(1);
+  std::vector<double> rwork(1);
+
+  LAPACK(zhegvd)( &itype, &jobz, &uplo, &n, A, &lda, B, &ldb, eigs, &work[0],
+      &lwork, &rwork[0], &lrwork, &iwork[0], &liwork, &info );
+  lwork = (Int)work[0].real();
+  work.resize(lwork);
+  liwork = iwork[0];
+  iwork.resize(liwork);
+  lrwork = (Int) rwork[0];
+  rwork.resize(lrwork);
+
+  LAPACK(zhegvd)( &itype, &jobz, &uplo, &n, A, &lda, B, &ldb, eigs, &work[0],
+      &lwork, &rwork[0], &lrwork, &iwork[0], &liwork, &info );
+
+  if( info != 0 )
+  {
+    std::ostringstream msg;
+    msg << "zhegvd returned with info = " << info;
     ErrorHandling( msg.str().c_str() );
   }
 }

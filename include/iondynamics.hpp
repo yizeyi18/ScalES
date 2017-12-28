@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin
+  Author: Lin Lin, Amartya Banerjee and Subhajit Banerjee
 
 This file is part of DGDFT. All rights reserved.
 

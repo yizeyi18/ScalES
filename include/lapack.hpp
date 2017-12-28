@@ -108,6 +108,8 @@ void Hegst
 void Syevd
   ( char jobz, char uplo, Int n, double* A, Int lda, double* eigs );
 
+void Syevd
+  ( char jobz, char uplo, Int n, dcomplex* A, Int lda, double* eigs );
 
 // *********************************************************************
 // For solving the generalized eigenvalue problem using the divide and
@@ -117,6 +119,8 @@ void Syevd
 void Sygvd
   ( Int itype, char jobz, char uplo, Int n, double* A, Int lda, double* B, Int ldb, double* eigs );
 
+void Sygvd
+  ( Int itype, char jobz, char uplo, Int n, dcomplex* A, Int lda, dcomplex* B, Int ldb, double* eigs );
 
 // *********************************************************************
 // For computing the inverse of a triangular matrix

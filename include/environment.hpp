@@ -115,6 +115,11 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "c_pexsi_interface.h"
 #endif
 
+#ifdef CPX
+#define _COMPLEX_    // complex psi, just for TDDFT now. kind of a hack.
+#endif
+
+
 /***********************************************************************
  *  Data types and constants
  **********************************************************************/
