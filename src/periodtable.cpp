@@ -46,7 +46,6 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include "periodtable.hpp"
 #include "esdf.hpp"
 #include "utility.hpp"
-#include "spline.h"
 
 
 namespace  dgdft{
@@ -2260,16 +2259,25 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
 
     // add the vlocal into samples.
     // vlocal derivative is 0.0
-    tk::spline s;
     {
        for( int i = 0; i < upf_mesh_size; i++)
          upf_vloc[i] = 0.5*upf_vloc[i];
        std::vector < double > r; 
        std::vector < double > vr; 
        splinerad( upf_r, upf_vloc, r, vr, 1);
-       s.set_points(r, vr);
-       for( int i = 0; i < upf_r.size(); i ++)
-         upf_vloc[i] = s( upf_r[i] );
+
+       Int n = r.size();
+       DblNumVec spla(n,true,&vr[0]); 
+       DblNumVec splb(n), splc(n), spld(n);
+       spline(n, &r[0], spla.Data(), splb.Data(), splc.Data(), spld.Data());
+
+       seval(&upf_vloc[0], upf_r.size(), &upf_r[0], n, &r[0], spla.Data(), splb.Data(),
+           splc.Data(), spld.Data());
+
+//       tk::spline s;
+//       s.set_points(r, vr);
+//       for( int i = 0; i < upf_r.size(); i ++)
+//         upf_vloc[i] = s( upf_r[i] );
     }
     for( int i = 0; i < upf_mesh_size; i++)
        samples(i, 1) = upf_vloc[i];
@@ -2339,10 +2347,21 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
 
          for( int i = 0; i < r.size(); i++)
            vr[i] = vr[i] / r[i];
-         s.set_points(r, vr);
 
-         for( int i = 0; i < upf_r.size(); i ++)
-           upf_vnl[j][i] = s( upf_r[i] );
+//         tk::spline s;
+//         s.set_points(r, vr);
+//
+//         for( int i = 0; i < upf_r.size(); i ++)
+//           upf_vnl[j][i] = s( upf_r[i] );
+
+         Int n = r.size();
+         DblNumVec spla(n,true,&vr[0]); 
+         DblNumVec splb(n), splc(n), spld(n);
+         spline(n, &r[0], spla.Data(), splb.Data(), splc.Data(), spld.Data());
+
+         seval(&upf_vnl[j][0], upf_r.size(), &upf_r[0], n, &r[0], spla.Data(), splb.Data(),
+             splc.Data(), spld.Data());
+
       }
  
       // nonlocal is written.
@@ -2430,9 +2449,19 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
        splinerad( upf_r, upf_rho_atom, r, vr, 1);
        for( int i = 0; i < r.size(); i++)
          vr[i] = vr[i] / ( 4.0 * PI * r[i] * r[i] );
-       s.set_points(r, vr);
-       for( int i = 0; i < upf_r.size(); i ++)
-         upf_rho_atom[i] = s( upf_r[i] );
+
+       Int n = r.size();
+       DblNumVec spla(n,true,&vr[0]); 
+       DblNumVec splb(n), splc(n), spld(n);
+       spline(n, &r[0], spla.Data(), splb.Data(), splc.Data(), spld.Data());
+
+       seval(&upf_rho_atom[0], upf_r.size(), &upf_r[0], n, &r[0], spla.Data(), splb.Data(),
+           splc.Data(), spld.Data());
+
+//       tk::spline s;
+//       s.set_points(r, vr);
+//       for( int i = 0; i < upf_r.size(); i ++)
+//         upf_rho_atom[i] = s( upf_r[i] );
     }
  
     // add the rho_atom to the samples

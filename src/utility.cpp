@@ -44,7 +44,6 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @brief Utility subroutines
 /// @date 2012-08-12
 #include "utility.hpp"
-#include "spline.h"
 
 namespace dgdft{
 
@@ -185,8 +184,8 @@ void seval(double* v, int m, double* u, int n, double* x,
    n = the number of input data points
    u = the abs issa at which the spline is to be evaluated
    v = the value of the spline function at u
-   x,y = the arrays of data abs issas and ordinates
-   b,c,d = arrays of spline coefficients  omputed by spline
+   x,y = the arrays of data absissas and ordinates
+   b,c,d = arrays of spline coefficients computed by spline
 
    if  u  is not in the same interval as the previous  all, then a
    binary sear h is performed to determine the proper interval.
@@ -1576,11 +1575,17 @@ void splinerad( std::vector<double> & r, std::vector<double> &v, std::vector <do
 
    out_v.resize(2*size);
 
-   tk::spline s;
-   s.set_points(r, v);
+//   tk::spline s;
+//   s.set_points(r, v);
+//   for(int i = 0; i < size; i++)
+//     vtemp[i] = s( rtemp[i] );	   
 
-   for(int i = 0; i < size; i++)
-     vtemp[i] = s( rtemp[i] );	   
+   DblNumVec spla(n,true,&v[0]); 
+   DblNumVec splb(n), splc(n), spld(n);
+   spline(n, &r[0], spla.Data(), splb.Data(), splc.Data(), spld.Data());
+
+   seval(&vtemp[0], size, &rtemp[0], n, &r[0], spla.Data(), splb.Data(),
+       splc.Data(), spld.Data());
 
    out_v.resize(2*size);
    if(even)
@@ -1592,6 +1597,7 @@ void splinerad( std::vector<double> & r, std::vector<double> &v, std::vector <do
    for(int i = size; i < 2*size; i++)
      out_v[i] = vtemp[i-size];
 }
+
 ////////////////////////////////////////////////////////////////////////////////
 std::string find_start_element(std::string name, std::ifstream &upfin)
 {
