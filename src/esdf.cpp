@@ -1100,10 +1100,6 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
 
   i++;
-  strcpy(kw_label[i],"restart_tddft");
-  strcpy(kw_typ[i],"I:E");
-
-  i++;
   strcpy(kw_label[i],"save_4_restart_tddft");
   strcpy(kw_typ[i],"I:E");
 
@@ -1123,9 +1119,6 @@ void esdf_key() {
   strcpy(kw_label[i],"tddft_dipole");
   strcpy(kw_typ[i],"I:E");
 
-  i++;
-  strcpy(kw_label[i],"tddft_input_v");
-  strcpy(kw_typ[i],"I:E");
 
   i++;
   strcpy(kw_label[i],"tddft_vext_polx");
@@ -2517,13 +2510,11 @@ ESDFReadInput ( const char* filename )
     // TDDFT
     {
       esdfParam.isTDDFT            = esdf_integer( "TDDFT",   0); 
-      esdfParam.isRestartTDDFT     = esdf_integer( "Restart_TDDFT", 0 );
       esdfParam.restartTDDFTStep   = esdf_integer( "Restart_TDDFT_Step", 0 );
       esdfParam.save4RestartTDDFT  = esdf_integer( "Save_4_Restart_TDDFT", 1 );
       esdfParam.isTDDFTEhrenfest   = esdf_integer( "TDDFT_EHRENFEST", 1); 
       esdfParam.isTDDFTVext        = esdf_integer( "TDDFT_VEXT",   1); 
       esdfParam.isTDDFTDipole      = esdf_integer( "TDDFT_DIPOLE",   1); 
-      esdfParam.isTDDFTInputV      = esdf_integer( "TDDFT_INPUT_V",   0); 
       esdfParam.TDDFTVextPolx      = esdf_double( "TDDFT_VEXT_POLX", 1.0);
       esdfParam.TDDFTVextPoly      = esdf_double( "TDDFT_VEXT_POLX", 0.0);
       esdfParam.TDDFTVextPolz      = esdf_double( "TDDFT_VEXT_POLZ", 0.0);
@@ -3135,7 +3126,6 @@ void ESDFPrintInput( ){
     Print(statusOFS, "TDDFT Ehrenfest dynamics             = ",  esdfParam.isTDDFTEhrenfest);
     Print(statusOFS, "TDDFT Delta T                        = ",  esdfParam.TDDFTDeltaT   );
     Print(statusOFS, "TDDFT Total T                        = ",  esdfParam.TDDFTTotalT   );
-    Print(statusOFS, "TDDFT Restart                        = ",  esdfParam.isRestartTDDFT );
     Print(statusOFS, "TDDFT Restart Step                   = ",  esdfParam.restartTDDFTStep);
     Print(statusOFS, "TDDFT save for Restart               = ",  esdfParam.save4RestartTDDFT );
     Print(statusOFS, "TDDFT KRYLOV Iteration Max           = ",  esdfParam.TDDFTKrylovMax);
@@ -3143,7 +3133,6 @@ void ESDFPrintInput( ){
     Print(statusOFS, "TDDFT SCF Tolerance                  = ",  esdfParam.TDDFTScfTol   );
     Print(statusOFS, "TDDFT V external                     = ",  esdfParam.isTDDFTVext );
     Print(statusOFS, "TDDFT Calculate Dipole               = ",  esdfParam.isTDDFTDipole);
-    Print(statusOFS, "TDDFT Input Velocity                 = ",  esdfParam.isTDDFTInputV);
     Print(statusOFS, "TDDFT Environment                    = ",  esdfParam.TDDFTVextEnv  );
     Print(statusOFS, "TDDFT Polarization X                 = ",  esdfParam.TDDFTVextPolx );
     Print(statusOFS, "TDDFT Polarization Y                 = ",  esdfParam.TDDFTVextPoly );

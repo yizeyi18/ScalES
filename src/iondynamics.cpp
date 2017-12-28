@@ -67,9 +67,6 @@ void
     atomListPtr_            = &atomList;
     ionMove_                = esdfParam.ionMove;
     ionTemperature_         = 1.0 / esdfParam.TbetaIonTemperature;
-    isOutputPosition_       = esdfParam.isOutputPosition;
-    isOutputVelocity_       = esdfParam.isOutputVelocity;
-    isOutputXYZ_            = esdfParam.isOutputXYZ;
     MDExtrapolationType_    = esdfParam.MDExtrapolationType;
     dt_                     = esdfParam.MDTimeStep;
     Q1_                     = esdfParam.qMass;
@@ -592,7 +589,7 @@ void
 
     // Output the position. Common to all routines
     if( mpirank == 0 ){
-      if(isOutputPosition_){
+      if(esdfParam.isOutputPosition){
         std::fstream fout;
         fout.open("lastPos.out",std::ios::out);
         if( !fout.good() ){
@@ -615,7 +612,7 @@ void
 
     // Output the XYZ format for movie
     if( mpirank == 0 ){
-      if( isOutputXYZ_ ){
+      if( esdfParam.isOutputXYZ ){
         std::fstream fout;
         fout.open("MD.xyz",std::ios::out | std::ios::app) ;
         if( !fout.good() ){
@@ -624,10 +621,14 @@ void
         fout << numAtom << std::endl;
         fout << "MD step # "<< ionIter << std::endl;
         for(Int a=0; a<numAtom; a++){
-          fout<< std::setw(6)<< atomList[a].type
-            << std::setw(16)<< atomList[a].pos[0]*au2ang
-            << std::setw(16)<< atomList[a].pos[1]*au2ang
-            << std::setw(16)<< atomList[a].pos[2]*au2ang
+          fout << std::setw(6)<< atomList[a].type
+            << std::setiosflags(std::ios::scientific)
+            << std::setiosflags(std::ios::showpos)
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[0]*au2ang
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[1]*au2ang
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[2]*au2ang
+            << std::resetiosflags(std::ios::scientific)
+            << std::resetiosflags(std::ios::showpos)
             << std::endl;
         }
         fout.close();
@@ -1350,7 +1351,7 @@ IonDynamics::VelocityVerlet    ( Int ionIter )
     // Output the XYZ format for movie
     // Once this is written, all work associated with the current atomic
     // position is DONE.
-    if( isOutputXYZ_ ){
+    if( esdfParam.isOutputXYZ ){
       std::fstream fout;
       fout.open("MD.xyz",std::ios::out | std::ios::app) ;
       if( !fout.good() ){
@@ -1378,7 +1379,7 @@ IonDynamics::VelocityVerlet    ( Int ionIter )
     // These are the configuration that SCF will work on next. 
     // Hence if the job is stopped in the middle of SCF (which is most
     // likely), the MD job should continue from this configuration
-    if(isOutputVelocity_){
+    if(esdfParam.isOutputVelocity){
       std::fstream fout_v;
       fout_v.open("lastVel.out",std::ios::out);
       if( !fout_v.good() ){
@@ -1535,7 +1536,7 @@ IonDynamics::NoseHoover1    ( Int ionIter )
   // likely), the MD job should continue from this configuration
   if( mpirank == 0 ){
 
-    if(isOutputVelocity_){
+    if(esdfParam.isOutputVelocity){
       std::fstream fout_v;
       fout_v.open("lastVel.out",std::ios::out);
       if( !fout_v.good() ){
@@ -1686,7 +1687,7 @@ IonDynamics::Langevin ( Int ionIter )
     // These are the configuration that SCF will work on next. 
     // Hence if the job is stopped in the middle of SCF (which is most
     // likely), the MD job should continue from this configuration
-    if(isOutputVelocity_){
+    if(esdfParam.isOutputVelocity){
       std::fstream fout_v;
       fout_v.open("lastVel.out",std::ios::out);
       if( !fout_v.good() ){

@@ -458,9 +458,6 @@ private:
   DblNumVec            atomMass_;
 
   // Taken from input
-  bool                 isOutputPosition_; 
-  bool                 isOutputVelocity_;
-  bool                 isOutputXYZ_;
   std::string          MDExtrapolationType_;
 
   // Supercell parameters : grab this from esdf

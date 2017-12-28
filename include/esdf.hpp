@@ -960,10 +960,6 @@ struct ESDFInputParam{
   /// Default: 0
   bool                save4RestartTDDFT;
 
-  /// @brief Whether to use the saved WFN, Density, Velocity to restart
-  ///
-  /// Default: 0
-  bool                isRestartTDDFT;
 
   /// @brief Maximum number of outer SCF iterations in TDDFT
   /// This is usually used in PWDFT  
@@ -982,28 +978,24 @@ struct ESDFInputParam{
   /// @brief use TDDFT or not
   /// 
   /// Default: 1
-  Int                 isTDDFT;
+  bool                isTDDFT;
 
   /// @brief use TDDFT ehrenfest dynamics
   /// 
   /// Default: 1
-  Int                 isTDDFTEhrenfest;
+  bool                isTDDFTEhrenfest;
 
 
   /// @brief use TDDFT  Vexternal or not
   /// 
   /// Default: 1
-  Int                 isTDDFTVext;
+  bool                isTDDFTVext;
 
   /// @brief calculate TDDFT dipole or not
   /// 
   /// Default: 1
-  Int                 isTDDFTDipole;
+  bool                isTDDFTDipole;
 
-  /// @brief calculate TDDFT dipole or not
-  /// 
-  /// Default: 1
-  Int                 isTDDFTInputV;
 
   /// @brief use TDDFT  Vexternal polorization in the X direction.
   /// 

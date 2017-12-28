@@ -135,15 +135,15 @@ c Refine Fourier to clean the normalization factors. Encapsulate the
 12/6/2017: refactor2
 
 @todo
-- Merge refactor1 into master, and start a refactor2 branch (easy) done
+c Merge refactor1 into master, and start a refactor2 branch (easy) done
 
-- Test the output from testSpecies.C from qbox, and benchmark with the
+c Test the output from testSpecies.C from qbox, and benchmark with the
   output from MATLAB and figure out the unit convention etc. done
 
-- Adapt upf2qso to pspio.cpp/.hpp, and compare the results with MATLAB
+c Adapt upf2qso to pspio.cpp/.hpp, and compare the results with MATLAB
   again. done
 
-- Coulomb interaction etc should be revamped. qbox can help. done
+c Coulomb interaction etc should be revamped. qbox can help. done
 
 - Add support from BigDFT's Poisson solver to evaluate the non-periodic
   boundary condition Coulomb. But perhaps the simplest is to find QE's
@@ -154,21 +154,21 @@ c Refine Fourier to clean the normalization factors. Encapsulate the
 
 Code structure:
 
-- esdf.cpp
+c esdf.cpp
   o add isUseVLocal to decide whether to use the VLocal formulation.  done
-- utility.hpp
+c utility.hpp
   o add additional component called VLocalSR for short range VLocal and
     its derivatives. done
-- hamiltonian.cpp
+c hamiltonian.cpp
   o CalculatePseudoPotential:  done
       if isUseVLocal == false
         do before
       else
         evaluate the short range VLocal contribution in pseudo.VLocalSR.  done
         evaluate the Gaussian pseudocharge contribution in pseudo.pseudoCharge  done.
-  o CalculateVtot
-      add contribution from VLocalSR. done
-  o CalculateForce2:
+  o CalculateVtot. done
+      add contribution from VLocalSR
+  o CalculateForce2: done.
       if isUseVLocal == false
         do before
       else
@@ -180,7 +180,7 @@ Code structure:
   o Cleanup: remove the local pseudopotential and nonlocal
     pseudopotential stored on the coarse grid. This is not useful. done
       
-- scf.cpp
+c scf.cpp
   o add energySelf_ for the self energy, energySR_ and forceIonSR_ for
     the short range correction energy. done
   o CalculateEnergy: done
@@ -191,30 +191,31 @@ Code structure:
 
   o Perhaps include the contribution of short range and self energy  to
     energy / force in scf instead of Hamiltonian, since vdW etc
-    is also included at the same level done
-  o May need to change the code from Harris energy etc.
+    is also included at the same level.  done 
+  o May need to change the code from Harris energy etc. done
   o Merge the computation of external force and VdW force into
-    CalculateForce?
-done
+    CalculateForce? done
 
-- periodtable.cpp
+c periodtable.cpp
   o CalculateVLocalShortRange: 
     Reuse the Sparse structure and subtract contribution from Gaussian
     pseudocharge.  done
   o CalculateGaussianPseudoCharge. done
   o Read Gaussian pseudocharge. done
-  o Setup.
-    Load the local pseudopotential, and modify the local part of the
+  o Setup.  Load the local pseudopotential, and modify the local part of the
     pseudopotential to remove the Gaussian pseudocharge. done 
 
 
 Integrate with TDDFT branch:
 
-- Unified treatment of efield at the Hamiltonian level.
+- Unified treatment of efield at the Hamiltonian level. 
 
-- Energy / force calculation all at the hamiltonian level.
+c Energy / force calculation all at the hamiltonian level. done
 
 - Cleaner treatment of pseudopotential
+
+- Unified treatment of restarting / inputing position and velocity in
+  TDDFT
 
  
 
@@ -227,8 +228,7 @@ Features included in PWDFT but may not in DGDFT:
 - Calculate ionic repulsion, vdw, external energy / force in
   hamiltonian_dg rather than scf_dg
 
-- Many complex routines are very similar to the real version. Need a
-  cleaner and more maintanable version.
+- Pay attention to the compatibility with the complex data type
 
 
 Other functionalities in PWDFT:
@@ -252,3 +252,6 @@ Other functionalities in PWDFT:
 
 - spline.h
   it is weird to have multiple spline routines. Need to get rid of it.
+
+- Many complex routines are very similar to the real version. Need a
+  cleaner and more maintanable version.
