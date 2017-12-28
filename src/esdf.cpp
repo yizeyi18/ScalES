@@ -2388,6 +2388,7 @@ ESDFReadInput ( const char* filename )
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
 
+#if 0
           // Force atom to be in unit cell : assume cuboidal unit cell for this
           while(pos[0] > dm.length[0])
             pos[0] -= dm.length[0];
@@ -2403,6 +2404,11 @@ ESDFReadInput ( const char* filename )
             pos[2] -= dm.length[2];
           while(pos[2] < 0.0)
             pos[2] += dm.length[2];
+#endif
+          // Force atom to be centered around (0,0,0)
+          pos[0] -= IRound(pos[0]/dm.length[0])*dm.length[0];
+          pos[1] -= IRound(pos[1]/dm.length[1])*dm.length[1];
+          pos[2] -= IRound(pos[2]/dm.length[2])*dm.length[2];
 
           atomList.push_back( 
               Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
@@ -2413,12 +2419,13 @@ ESDFReadInput ( const char* filename )
         Point3 pos;
         Domain& dm = esdfParam.domain;
 
-        const Real ANG2AU = 1.8897261;
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
 
+#if 0
           // Force atom to be in unit cell : assume cuboidal unit cell for this
+          const Real ANG2AU = 1.8897261;
           while(pos[0] > (dm.length[0] / ANG2AU) )
             pos[0] -= (dm.length[0] / ANG2AU);
           while(pos[0] < 0.0)
@@ -2433,9 +2440,18 @@ ESDFReadInput ( const char* filename )
             pos[2] -= (dm.length[2] / ANG2AU);
           while(pos[2] < 0.0)
             pos[2] += (dm.length[2] / ANG2AU);
-
           atomList.push_back( 
               Atom( type, ANG2AU*pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
+#endif
+          // Force atom to be centered around (0,0,0)
+          pos /= au2ang;
+          pos[0] -= IRound(pos[0]/dm.length[0])*dm.length[0];
+          pos[1] -= IRound(pos[1]/dm.length[1])*dm.length[1];
+          pos[2] -= IRound(pos[2]/dm.length[2])*dm.length[2];
+          
+          atomList.push_back( 
+              Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
+
         }
       }
       else if ( esdf_block("Atom_Red", &numAtom) ){
@@ -2447,6 +2463,7 @@ ESDFReadInput ( const char* filename )
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
+#if 0
 
           // Force atom to be in unit cell : assume cuboidal unit cell for this
           while(pos[0] > 1.0)
@@ -2467,6 +2484,19 @@ ESDFReadInput ( const char* filename )
           atomList.push_back( 
               Atom( type, Point3( pos[0]*length[0], pos[1]*length[1], pos[2]*length[2] ),
                 Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
+#endif
+          // Force atom to be centered around (0,0,0)
+          pos[0] *= dm.length[0];
+          pos[1] *= dm.length[1];
+          pos[2] *= dm.length[2];
+
+          pos[0] -= IRound(pos[0]/dm.length[0])*dm.length[0];
+          pos[1] -= IRound(pos[1]/dm.length[1])*dm.length[1];
+          pos[2] -= IRound(pos[2]/dm.length[2])*dm.length[2];
+
+          atomList.push_back( 
+              Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
+
         }
       }
       else{
