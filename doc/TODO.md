@@ -208,13 +208,11 @@ c periodtable.cpp
 
 Integrate with TDDFT branch:
 
-- Unified treatment of efield at the Hamiltonian level. 
+c Unified treatment of efield at the Hamiltonian level. 
 
 c Energy / force calculation all at the hamiltonian level. done
 
-- Cleaner treatment of pseudopotential
-
-- Unified treatment of restarting / inputing position and velocity in
+c Unified treatment of restarting / inputing position and velocity in
   TDDFT
 
  
@@ -233,6 +231,15 @@ Features included in PWDFT but may not in DGDFT:
 
 Other functionalities in PWDFT:
 
+c spline.h
+  it is weird to have multiple spline routines. Need to get rid of it.
+
+- Combine the PeriodTable and PeriodicTable class
+
+c Need a MATLAB routine to visualize the locality / smoothness of the
+  UPF file after subtracting the Gaussian pseudocharge contribution. 
+  done. added upf_view
+
 - PeriodTable: When the UPF format is stable enough, remove the support
   for binary file. This allows the cleanup of PTEntry / PTSample format.
 
@@ -250,8 +257,15 @@ Other functionalities in PWDFT:
   number SCFs can also increase w.r.t. the number of processors.
   Maybe pseudopotential needs to be smoothed out?
 
-- spline.h
-  it is weird to have multiple spline routines. Need to get rid of it.
 
 - Many complex routines are very similar to the real version. Need a
   cleaner and more maintanable version.
+  One possibility is to mimic qbox: store the wavefunction on the coarse
+  Fourier grid, and add a label Spinor.IsReal() to indicate whether real
+  arithmetic or complex arithmetic should be used.  This would condense 
+  PPCG/LOBPCG Real/Complex versions. Just make sure that DGDFT changes
+  accordingly as well.  Treatment of spin/k-point. Qbox's design is to
+  have a SlaterDet class, and a Wavefunction class. The SlaterDet are
+  stored as SlaterDets sd_[ispin][ikp] in wavefunction. This means spin
+  and k-points are treated on different footing. It does not treat
+  non-colinear spin.
