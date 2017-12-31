@@ -957,6 +957,8 @@ struct ESDFInputParam{
   // TDDFT parameters
   /// @brief Whether to use the saved WFN, Density, Velocity to restart
   ///
+  /// FIXME This option is currently not used
+  ///
   /// Default: 0
   bool                save4RestartTDDFT;
 

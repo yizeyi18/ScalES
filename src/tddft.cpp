@@ -344,6 +344,70 @@ void TDDFT::Setup(
     ham.CalculateForce( psi, fft);
   }
 
+
+  if( options_.eField_.env == "kick" ){
+    // Transform psi to fine grid. Apply the delta kick on the real space
+    // fine grid, and then transform back
+    Int ntot = fft.domain.NumGridTotal();
+    Int ntotFine = fft.domain.NumGridTotalFine();
+    Int ncom = psi.NumComponent();
+    Int numStateLocal = psi.NumState();
+    CpxNumVec psiCoarse(ntot);
+    CpxNumVec psiFine(ntotFine);
+
+    for (Int k=0; k<numStateLocal; k++) {
+      for (Int j=0; j<ncom; j++) {
+
+        blas::Copy( ntot, psi.Wavefun().VecData(j,k), 1, fft.inputComplexVec.Data(), 1 );
+        // Fourier transform of wavefunction saved in fft.outputComplexVec
+        fftw_execute( fft.forwardPlan );
+
+        // Interpolate wavefunction from coarse to fine grid
+        SetValue( fft.outputComplexVecFine, Z_ZERO ); 
+        for( Int i = 0; i < ntot; i++ ){
+          fft.outputComplexVecFine[fft.idxFineGrid[i]] = fft.outputComplexVec[i];
+        }
+
+        fftw_execute( fft.backwardPlanFine );
+        Real fac = 1.0 / std::sqrt( double(fft.domain.NumGridTotal())  *
+            double(fft.domain.NumGridTotalFine()) ); 
+
+        blas::Copy( ntotFine, fft.inputComplexVecFine.Data(),
+            1, psiFine.Data(), 1 );
+        blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
+
+        // Add the contribution from local pseudopotential
+        Complex expfac;
+        for( Int i = 0; i < ntotFine; i++ ){
+          expfac = Complex(0.0,options_.eField_.Amp*D_[i]);
+          psiFine[i] *= std::exp(expfac);
+        }
+
+        // Restrict psiFine from fine grid in the real space to
+        // coarse grid in the Fourier space.
+        blas::Copy( ntotFine, psiFine.Data(), 1,
+            fft.inputComplexVecFine.Data(), 1 );
+
+        fftw_execute( fft.forwardPlanFine );
+        {
+          Real fac = std::sqrt(Real(ntot) / (Real(ntotFine)));
+
+          for( Int i = 0; i < ntot; i++ ){
+            fft.outputComplexVec[i] = fft.outputComplexVecFine[fft.idxFineGrid[i]] * fac;
+          }
+        }
+
+        // Inverse Fourier transform to save back to the output vector
+        fftw_execute( fft.backwardPlan );
+        blas::Copy( ntot, fft.inputComplexVec.Data(), 1,
+            psi.Wavefun().VecData(j,k), 1 ); 
+        blas::Scal( ntot, 1.0 / Real(ntot), psi.Wavefun().VecData(j,k), 1 );
+      } // for (j)
+    } // for (k)
+
+  } // apply delta kick
+
+
 } // TDDFT::Setup function
 
 void TDDFT::AdjustAtomPos( std::vector<Point3> &atomPos)
@@ -378,15 +442,17 @@ void TDDFT::AdjustAtomPos( std::vector<Point3> &atomPos)
 Real TDDFT::getEfield(Real t)
 {
   Real et = 0.0;
-  if (options_.eField_.env == "gaussian" ) {
+  if ( options_.eField_.env == "gaussian" ) {
     Real temp = (t-options_.eField_.t0)/options_.eField_.tau;
     et = options_.eField_.Amp * exp( - temp * temp / 2.0) * sin(options_.eField_.freq * t + options_.eField_.phase);
-    return et;
   }
+  else if( options_.eField_.env == "kick" )
+    et = 0.0;
   else{
     statusOFS<< " Wrong Efield input, should be constant/gaussian/erf/sinsq/hann/kick" << std::endl;
     exit(0);
   }
+  return et;
 }
 
 void TDDFT::CalculateEfieldExt(PeriodTable& ptable, Real t)
@@ -481,33 +547,23 @@ void TDDFT::CalculateDipole(Real t)
   Fourier&     fft = *fftPtr_;
   Spinor&      psi = *psiPtr_;
 
-  // Di = ∫ Rho(i, j, k) * Xr(i, j, k) *dx
+  // Di = -∫ Rho(i, j, k) * Xr(i, j, k) *dx
   // Density is not distributed
-  Real *density = ham.Density().Data();
+  DblNumMat& density = ham.Density();
 
   Real Dx = 0.0;
   Real Dy = 0.0;
   Real Dz = 0.0;
+  Real fac = fft.domain.Volume() / fft.domain.NumGridTotalFine();
+  
+  Dx = -fac * blas::Dot( fft.domain.NumGridTotalFine(), density.VecData(0), 1, 
+      Xr_.Data(), 1 );
+  Dy = -fac * blas::Dot( fft.domain.NumGridTotalFine(), density.VecData(0), 1, 
+      Yr_.Data(), 1 );
+  Dz = -fac * blas::Dot( fft.domain.NumGridTotalFine(), density.VecData(0), 1, 
+      Zr_.Data(), 1 );
 
-  Real * xr = Xr_.Data();
-  Real * yr = Yr_.Data();
-  Real * zr = Zr_.Data();
-  for( Int k = 0; k < fft.domain.numGridFine[2]; k++ ){
-    for( Int j = 0; j < fft.domain.numGridFine[1]; j++ ){
-      for( Int i = 0; i < fft.domain.numGridFine[0]; i++ ){
-
-        Dx -=( *density ) * ( *xr++);
-        Dy -=( *density ) * ( *yr++);
-        Dz -=( *density++ ) * ( *zr++);
-
-      }
-    }
-  }
-  Dx *= Real(supercell_x_ * supercell_y_ * supercell_z_) / Real( fft.domain.numGridFine[0] * fft.domain.numGridFine[1]* fft.domain.numGridFine[2]);
-  Dy *= Real(supercell_x_ * supercell_y_ * supercell_z_) / Real( fft.domain.numGridFine[0] * fft.domain.numGridFine[1]* fft.domain.numGridFine[2]);
-  Dz *= Real(supercell_x_ * supercell_y_ * supercell_z_) / Real( fft.domain.numGridFine[0] * fft.domain.numGridFine[1]* fft.domain.numGridFine[2]);
-
-  // Time (fs), dx, dy, dz
+  // Time (fs), Dx, Dy, Dz
   dipoleOFS 
     << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << t * au2fs <<  " " 
     << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << Dx << " " 
@@ -2089,11 +2145,12 @@ void TDDFT::Propagate( PeriodTable& ptable ) {
   }
 
   // at the end of the propagation, write the WFN, DENSITY and Velocity, Atom Pos. 
-  if( esdfParam.save4RestartTDDFT ) {
+//  if( esdfParam.save4RestartTDDFT ) {
+  if( 1 ) {
 
     statusOFS << std::endl 
       << " ********************** Warning ************************************"<< std::endl;
-    statusOFS << " TDDFT now saves the WFN, DEN, Pos, Vel for restart " << std::endl;
+    statusOFS << " TDDFT now optionally saves the WFN, DEN, Pos, Vel for restart " << std::endl;
     statusOFS << " ********************** Warning ************************************" 
       << std::endl << std::endl;
 
@@ -2103,6 +2160,7 @@ void TDDFT::Propagate( PeriodTable& ptable ) {
     MPI_Comm_size( mpi_comm, &mpisize );
 
     // WFN
+    if( esdfParam.isOutputWfn )
     {
       std::ostringstream wfnStream;
       serialize( psiPtr_->Wavefun(), wfnStream, NO_MASK );
@@ -2110,9 +2168,14 @@ void TDDFT::Propagate( PeriodTable& ptable ) {
       string restartWfnFileName_     = "WFN";
       SeparateWrite( restartWfnFileName_, wfnStream, mpirank );
     }
-    // output density
-    {
-      if( mpirank == 0 ){
+
+
+    if( mpirank == 0 ){
+      std::vector<Atom>&   atomList = *atomListPtr_;
+      Int numAtom = atomList.size();
+    
+      // output density
+      if( esdfParam.isOutputDensity ) {
         string restartDensityFileName_ = "DEN";
         std::ofstream rhoStream(restartDensityFileName_.c_str());
         if( !rhoStream.good() ){
@@ -2132,13 +2195,8 @@ void TDDFT::Propagate( PeriodTable& ptable ) {
         serialize( densityVec, rhoStream, NO_MASK );
         rhoStream.close();
       }
-    }
 
-    if( mpirank == 0 ){
-      std::vector<Atom>&   atomList = *atomListPtr_;
-      Int numAtom = atomList.size();
-      
-      if(esdfParam.isOutputPosition){
+      if(esdfParam.isOutputPosition & options_.ehrenfest){
         std::fstream fout;
         fout.open("lastPos.out",std::ios::out);
         if( !fout.good() ){
@@ -2159,7 +2217,7 @@ void TDDFT::Propagate( PeriodTable& ptable ) {
       } // OutputPosition
 
 
-      if(esdfParam.isOutputVelocity){
+      if(esdfParam.isOutputVelocity & options_.ehrenfest){
         std::fstream fout_v;
         fout_v.open("lastVel.out",std::ios::out);
         if( !fout_v.good() ){

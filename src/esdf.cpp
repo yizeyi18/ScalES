@@ -2541,7 +2541,7 @@ ESDFReadInput ( const char* filename )
     {
       esdfParam.isTDDFT            = esdf_integer( "TDDFT",   0); 
       esdfParam.restartTDDFTStep   = esdf_integer( "Restart_TDDFT_Step", 0 );
-      esdfParam.save4RestartTDDFT  = esdf_integer( "Save_4_Restart_TDDFT", 1 );
+//      esdfParam.save4RestartTDDFT  = esdf_integer( "Save_4_Restart_TDDFT", 1 );
       esdfParam.isTDDFTEhrenfest   = esdf_integer( "TDDFT_EHRENFEST", 1); 
       esdfParam.isTDDFTVext        = esdf_integer( "TDDFT_VEXT",   1); 
       esdfParam.isTDDFTDipole      = esdf_integer( "TDDFT_DIPOLE",   1); 
@@ -2554,7 +2554,7 @@ ESDFReadInput ( const char* filename )
       esdfParam.TDDFTVextT0        = esdf_double( "TDDFT_VEXT_T0",   13.6056925);
       esdfParam.TDDFTVextTau       = esdf_double( "TDDFT_VEXT_TAU",  13.6056925);
 
-      esdf_string("TDDFT_VEXT_Env", "gaussian", strtmp); 
+      esdf_string("TDDFT_VEXT_ENV", "gaussian", strtmp); 
       esdfParam.TDDFTVextEnv       = strtmp;
       if(esdfParam.TDDFTVextEnv != "gaussian" &&
           esdfParam.TDDFTVextEnv != "constant" &&
@@ -3157,7 +3157,7 @@ void ESDFPrintInput( ){
     Print(statusOFS, "TDDFT Delta T                        = ",  esdfParam.TDDFTDeltaT   );
     Print(statusOFS, "TDDFT Total T                        = ",  esdfParam.TDDFTTotalT   );
     Print(statusOFS, "TDDFT Restart Step                   = ",  esdfParam.restartTDDFTStep);
-    Print(statusOFS, "TDDFT save for Restart               = ",  esdfParam.save4RestartTDDFT );
+//    Print(statusOFS, "TDDFT save for Restart               = ",  esdfParam.save4RestartTDDFT );
     Print(statusOFS, "TDDFT KRYLOV Iteration Max           = ",  esdfParam.TDDFTKrylovMax);
     Print(statusOFS, "TDDFT KRYLOV Tolerance               = ",  esdfParam.TDDFTKrylovTol);
     Print(statusOFS, "TDDFT SCF Tolerance                  = ",  esdfParam.TDDFTScfTol   );
