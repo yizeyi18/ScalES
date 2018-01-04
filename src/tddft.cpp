@@ -738,6 +738,7 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable, Real t )
   }
 
   // Atomic kinetic energy
+  Real Eproton = 0.0;
   AtomKin_ = 0.0;
   {
     std::vector<Atom>&  atomList = ham.AtomList();
@@ -758,19 +759,25 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable, Real t )
         AtomKin_ += atomMass[a]*atomvel[a][j]*atomvel[a][j]/2.;
       }
     }
+
+    Int a = numAtom - 1;
+    for(Int j=0; j<3; j++){
+      Eproton += atomMass[a]*atomvel[a][j]*atomvel[a][j]/2.;
+    }
   }
 
   // External energy due to the electric field 
   Eext_ = ham.Eext();
 
-  //  Time(fs), E_tot(eV), E_kin(eV), E_pot(ev), E_field(eV) 
+  //  Time(fs), E_tot(eV), E_kin(eV), E_pot(ev), E_field(eV), E_proton
 
   etotOFS 
     << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << t * au2fs << " " 
     << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << (Etot_ + AtomKin_ + Eext_ ) * au2ev << " "
     << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << AtomKin_ * au2ev << " "
     << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << Etot_ * au2ev << " "
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << Eext_ * au2ev<< std::endl;
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << Eext_ * au2ev<< " "
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << Eproton * au2ev<< std::endl;
 
   return ;
 }         // -----  end of method TDDFT::CalculateEnergy  ----- 
@@ -1626,6 +1633,9 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   MPI_Comm_rank( mpi_comm, &mpirank );
   MPI_Comm_size( mpi_comm, &mpisize );
 
+  Real timeSta, timeEnd;
+  GetTime( timeSta );
+
   Hamiltonian& ham = *hamPtr_;
   Fourier&     fft = *fftPtr_;
   Spinor&      psi = *psiPtr_;
@@ -1835,6 +1845,8 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     }
   }
 
+  GetTime( timeEnd );
+  statusOFS << " TDDFT Step " << k_ << " Setting-up Time: " << timeEnd - timeSta << " [s]" << std::endl;
 
   Int numGridTotal = ntot;
 
@@ -2056,6 +2068,9 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
   } // if 1
 
+  GetTime( timeEnd );
+  statusOFS << " TDDFT Step " << k_ << " DIIS loop used Time: " << timeEnd - timeSta << " [s]" << std::endl;
+
   AlltoallForward( psiF,  X, mpi_comm);
 
   // Reorthogonalize
@@ -2118,8 +2133,10 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       atomList[a].vel = atomList[a].vel + (atomforce[a]/atomMass[a] + atomList[a].force/atomMass[a])*dt/2.0;
     } 
   }
-
-
+ 
+ 
+  GetTime( timeEnd );
+  statusOFS << " TDDFT Step " << k_ << " total Time: " << timeEnd - timeSta << " [s]" << std::endl;
   ++k_;
 } // TDDFT:: advancePTTRAPDIIS
 
@@ -2255,8 +2272,7 @@ void TDDFT::PrintState ( Int step ) {
   statusOFS<< "****************************************************************************" << std::endl << std::endl;
   statusOFS<< "Step " << step << ", time (fs) = " << t*au2fs << std::endl << std::endl;
 
-  if(options_.ehrenfest){
-    for( Int a = 0; a < atomList.size(); a++ ){
+  if(options_.ehrenfest){ for( Int a = 0; a < atomList.size(); a++ ){
       Print( statusOFS, "atom", a, "pos", atomList[a].pos );
     }
     statusOFS << std::endl;
