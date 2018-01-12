@@ -917,19 +917,6 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
 
   }
 
-  // E_kin = numSpin * trace( XHX )
-  Ekin_ = 0.0;
-  {
-    Complex * ptr = XHX.Data();
-    Int numSpin = ham.NumSpin();
-    for(int i =0; i < width; i++)
-      Ekin_ += numSpin * ptr[i*width+i].real();
-  }
-
-  CalculateEnergy( ptable, ti );
-
-
-
   // HX1 = (H1 * psi)
   Int ntot  = fft.domain.NumGridTotal();
   Int numStateLocal = psi.NumState();
@@ -2285,8 +2272,7 @@ void TDDFT::PrintState ( Int step ) {
   statusOFS<< "****************************************************************************" << std::endl << std::endl;
   statusOFS<< "Step " << step << ", time (fs) = " << t*au2fs << std::endl << std::endl;
 
-  if(options_.ehrenfest){
-    for( Int a = 0; a < atomList.size(); a++ ){
+  if(options_.ehrenfest){ for( Int a = 0; a < atomList.size(); a++ ){
       Print( statusOFS, "atom", a, "pos", atomList[a].pos );
     }
     statusOFS << std::endl;

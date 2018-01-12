@@ -1,4 +1,4 @@
-nreps         = [5 5 5];
+nreps         = [1 1 4];
 asize         = 10.2160;
 nat           = 8;
 coefs = [

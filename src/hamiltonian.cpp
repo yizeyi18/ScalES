@@ -277,17 +277,19 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
   UniformMeshFine ( domain_, gridpos );
 
   // calculate the number of occupied states
-  Int nelec = 0;
+  // need to distinguish the number of charges carried by the ion and that 
+  // carried by the electron
+  Int nZion = 0, nelec = 0;
   for (Int a=0; a<numAtom; a++) {
     Int atype  = atomList_[a].type;
     if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
       ErrorHandling( "Cannot find the atom type." );
     }
-    nelec = nelec + ptable.Zion(atype);
+    nZion = nZion + ptable.Zion(atype);
   }
 
   // add the extra electron
-  nelec = nelec + esdfParam.extraElectron;
+  nelec = nZion + esdfParam.extraElectron;
 
   // FIXME Deal with the case when this is a buffer calculation and the
   // number of electrons is not a even number.
@@ -446,12 +448,12 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
         numOccupiedState_ );
 
     // adjustment should be multiplicative
-    Real fac = nelec / sumrho;
+    Real fac = nZion / sumrho;
     for (Int i=0; i<ntotFine; i++) 
       pseudoCharge_(i) *= fac; 
 
     Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
-        (Real) nelec );
+        (Real) nZion );
   } // Use the pseudocharge formulation
   else{
     DblNumVec pseudoChargeLocal(ntotFine);
@@ -554,12 +556,12 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
         numOccupiedState_ );
 
     // adjustment should be multiplicative
-    Real fac = nelec / sumrho;
+    Real fac = nZion / sumrho;
     for (Int i=0; i<ntotFine; i++) 
       pseudoCharge_(i) *= fac; 
 
     Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
-        (Real) nelec );
+        (Real) nZion );
 
 //    statusOFS << "vLocalSR = " << vLocalSR_  << std::endl;
 //    statusOFS << "pseudoCharge = " << pseudoCharge_ << std::endl;
