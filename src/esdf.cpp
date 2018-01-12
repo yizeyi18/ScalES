@@ -469,6 +469,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
 
   i++;
+  strcpy(kw_label[i],"extra_electron");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
   strcpy(kw_label[i],"mapping_mode");
   strcpy(kw_typ[i],"T:E");
 
@@ -2687,6 +2691,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.VDWType          = strtmp;
     esdfParam.numProcScaLAPACKPW  = esdf_integer( "Num_Proc_ScaLAPACK_PW", mpisize );
     esdfParam.scaBlockSize  = esdf_integer( "ScaLAPACK_Block_Size", 32 );
+    esdfParam.extraElectron = esdf_integer( "Extra_Electron", 0);
   }
 
 
@@ -3124,6 +3129,7 @@ void ESDFPrintInput( ){
   Print(statusOFS, "RestartWfn                           = ",  esdfParam.isRestartWfn);
   Print(statusOFS, "OutputDensity                        = ",  esdfParam.isOutputDensity);
   Print(statusOFS, "OutputPotential                      = ",  esdfParam.isOutputPotential);
+  Print(statusOFS, "Number of Extra Electron             = ",  esdfParam.extraElectron);
 
   // Ionic motion
   if( esdfParam.ionMove != "" ){

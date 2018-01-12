@@ -285,6 +285,10 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
     }
     nelec = nelec + ptable.Zion(atype);
   }
+
+  // add the extra electron
+  nelec = nelec + esdfParam.extraElectron;
+
   // FIXME Deal with the case when this is a buffer calculation and the
   // number of electrons is not a even number.
   //
@@ -685,6 +689,8 @@ void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
     }
     nelec = nelec + ptable.Zion(atype);
   }
+  // add the extra electron
+  nelec = nelec + esdfParam.extraElectron;
   if( nelec % 2 != 0 ){
     ErrorHandling( "This is spin-restricted calculation. nelec should be even." );
   }

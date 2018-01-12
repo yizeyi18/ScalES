@@ -657,6 +657,10 @@ struct ESDFInputParam{
   /// Only used when ScaLAPACK is invoked.
   Int                 scaBlockSize;
 
+  // extra electron
+  // Default: 0
+  Int                 extraElectron;
+
   // Add a potential barrier in the extended element
   bool                isPotentialBarrier;
   Real                potentialBarrierW;
