@@ -2550,7 +2550,7 @@ ESDFReadInput ( const char* filename )
       esdfParam.isTDDFTVext        = esdf_integer( "TDDFT_VEXT",   1); 
       esdfParam.isTDDFTDipole      = esdf_integer( "TDDFT_DIPOLE",   1); 
       esdfParam.TDDFTVextPolx      = esdf_double( "TDDFT_VEXT_POLX", 1.0);
-      esdfParam.TDDFTVextPoly      = esdf_double( "TDDFT_VEXT_POLX", 0.0);
+      esdfParam.TDDFTVextPoly      = esdf_double( "TDDFT_VEXT_POLY", 0.0);
       esdfParam.TDDFTVextPolz      = esdf_double( "TDDFT_VEXT_POLZ", 0.0);
       esdfParam.TDDFTVextFreq      = esdf_double( "TDDFT_VEXT_FREQ", 18.0/27.211385);
       esdfParam.TDDFTVextPhase     = esdf_double( "TDDFT_VEXT_PHASE",0.0);
