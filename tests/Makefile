@@ -3,7 +3,7 @@
 
 include ../make.inc
 
-SRCS = ex48.cpp ex47.cpp ex46.cpp ex45.cpp ex44.cpp ex43.cpp ex42.cpp ex41.cpp \
+SRCS = ex49.cpp ex48.cpp ex47.cpp ex46.cpp ex45.cpp ex44.cpp ex43.cpp ex42.cpp ex41.cpp \
 	ex40.cpp ex39.cpp ex38.cpp ex37.cpp ex36.cpp \
 	ex35.cpp ex34.cpp ex31.cpp ex30.cpp ex29.cpp ex28.cpp ex27.cpp ex26.cpp \
 	ex25.cpp ex24.cpp ex23.cpp ex21.cpp ex22.cpp 
@@ -11,6 +11,9 @@ SRCS = ex48.cpp ex47.cpp ex46.cpp ex45.cpp ex44.cpp ex43.cpp ex42.cpp ex41.cpp \
 OBJS = ${SRCS:.cpp=.o}
 DEPS = ${SRCS:.cpp=.d}
 EXES = ${SRCS:.cpp=}	
+
+ex49: ex49.o ${DGDFT_LIB} 
+	($(LOADER) -o $@ ex49.o $(LOADOPTS) )
 
 ex48: ex48.o ${DGDFT_LIB} 
 	($(LOADER) -o $@ ex48.o $(LOADOPTS) )
