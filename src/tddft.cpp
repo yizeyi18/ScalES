@@ -980,6 +980,9 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
     ham.CalculateVtot( ham.Vtot() );
   }
 
+  // Add the Etot calculation
+  CalculateEnergy( ptable, ti );
+
   // 4. Calculate the K2 = H2 * X2
   CpxNumMat HX2(ntot, numStateLocal);
   NumTns<Complex> tnsTemp2(ntot, 1, numStateLocal, false, HX2.Data());
