@@ -888,7 +888,7 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
   SetValue( occupationRate, 1.0);
   //statusOFS << " Occupation Rate: " << occupationRate << std::endl;
   if(calDipole_)  CalculateDipole(tlist_[k_]);
-  if(k == 0) {
+  //if(k == 0) {
     Real totalCharge_;
     ham.CalculateDensity(
         psi,
@@ -915,7 +915,8 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
 #endif
     ham.CalculateVtot( ham.Vtot() );
 
-  }
+  //}
+
 
   // HX1 = (H1 * psi)
   Int ntot  = fft.domain.NumGridTotal();
@@ -924,6 +925,23 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
   CpxNumMat HX1(ntot, numStateLocal);
   NumTns<Complex> tnsTemp(ntot, 1, numStateLocal, false, HX1.Data());
   ham.MultSpinor( psi, tnsTemp, fft );
+
+  Ekin_ = 0.0;
+  {
+    Real Ekin_temp = 0.0;	  
+    CpxNumMat  XHX( numStateLocal, numStateLocal);
+    blas::Gemm( 'C', 'N', numStateLocal, numStateLocal, ntot, 1.0, psi.Wavefun().Data(), 
+        ntot, HX1.Data(), ntot, 0.0, XHX.Data(), numStateLocal );
+    Complex * ptr = XHX.Data();
+    Int numSpin = ham.NumSpin();
+    for(int i =0; i < numStateLocal; i++)
+      Ekin_temp += numSpin * ptr[i*numStateLocal+i].real();
+
+    MPI_Allreduce( &Ekin_temp, &Ekin_, 1, MPI_DOUBLE_PRECISION, MPI_SUM, mpi_comm );
+
+    CalculateEnergy( ptable, ti );
+  }
+
 
   // test psi * conj(psi) 
 #if ( _DEBUGlevel_ >= 2 )
@@ -979,9 +997,6 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
     CalculateEfieldExt(ptable, tmid);
     ham.CalculateVtot( ham.Vtot() );
   }
-
-  // Add the Etot calculation
-  CalculateEnergy( ptable, ti );
 
   // 4. Calculate the K2 = H2 * X2
   CpxNumMat HX2(ntot, numStateLocal);
