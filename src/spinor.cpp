@@ -1346,6 +1346,8 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
   Real timeSta, timeEnd;
   Real timeBcast = 0.0;
   Real timeBuf   = 0.0;
+  Real timeMemcpy= 0.0;
+  Real timeCompute = 0.0;
   Int  BcastTimes = 0;
 
   //MPI_Barrier(domain_.comm);
@@ -1434,23 +1436,19 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
         // note that the ncom == 1; it is the spin.
 
         // copy the phiTemp to GPU.
+        GetTime( timeSta );
         cuda_memcpy_CPU2GPU(cu_phiTemp.Data(), phiTemp.Data(), sizeof(Real)*ntot);
         Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
+        GetTime( timeEnd );
+        timeMemcpy += timeEnd - timeSta;
 
-	// copy the wave function to GPU.
-        //cuda_memcpy_CPU2GPU(cu_wavefun_.Data(), wavefun_.Data(), sizeof(Real)*numStateLocal * ntot);
         
-      
-        
+        GetTime( timeSta );
         for (Int k=0; k<numStateLocal; k++) {
           for (Int j=0; j<ncom; j++) {
 
-            // get the current psi pointer 
-            //Real* cu_psiPtr = & cu_wave(0,k);
-            
-            //cuda_memcpy_CPU2GPU(cu_psi.Data(), wavefun_.VecData(j,k), sizeof(Real)* ntot );
-            //cuda_memcpy_GPU2GPU(cu_psi.Data(), cu_psi0.Data(), sizeof(Real)*ntot);
-            cuda_memcpy_GPU2GPU(cu_psi.Data(), & cu_wave(0,k), sizeof(Real)*ntot);
+            //cuda_memcpy_GPU2GPU(cu_psi.Data(), & cu_wave(0,k), sizeof(Real)*ntot);
+            cuda_set_vector( cu_psi.Data(), &cu_wave(0,k), ntot);
 
             // input vec = psi * phi
             cuda_vtot(cu_psi.Data(), cu_phiTemp.Data(), ntot);
@@ -1473,9 +1471,9 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
             
           } // for (j)
         } // for (k)
-
-        // no need to do the MPI_Barrier.
-        //MPI_Barrier(domain_.comm);
+        //cuda_sync();
+        GetTime( timeEnd );
+        timeCompute += timeEnd - timeSta;
 
 
       } // for (jphi)
@@ -1488,7 +1486,10 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
 #if ( _DEBUGlevel_ >= 0 )
    statusOFS << "Time for SendBuf is " << timeBuf << " [s] Bcast time: " << 
-     timeBcast << " [s]" <<  " Bcast times: " << BcastTimes << std::endl << std::endl;
+     timeBcast << " [s]" <<  " Bcast times: " << BcastTimes 
+     << " memCpy time: " << timeMemcpy  << " compute time: "
+     << timeCompute << std::endl << std::endl;
+   statusOFS << " time added are: " << timeBuf + timeBcast  + timeMemcpy + timeCompute << std::endl;
 #endif
 
   return ;

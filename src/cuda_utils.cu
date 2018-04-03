@@ -805,12 +805,38 @@ void cuda_hadamard_product( double * in1, double * in2, double * out, int length
 {
 	int dim = ( length + LEN - 1 ) / LEN;
 	gpu_hadamard_product<double> <<< dim, LEN >>> ( in1, in2, out, length );
-	assert(cudaThreadSynchronize() == cudaSuccess );
 
 #ifdef SYNC 
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
+}
+template <class T>
+__global__ void gpu_set_vector( T* out, T* in , int length)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if( tid < length)
+	{
+		out[tid] = in[tid];
+	}
+}
+
+void cuda_set_vector( double * out, double *in, int length)
+{
+	int dim = (length + LEN - 1) / LEN;
+	gpu_set_vector< double> <<< dim, LEN >>>( out, in, length);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
+void cuda_sync()
+{
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
 }
 #endif

@@ -76,12 +76,12 @@ template <class F>
     if(owndata_) {
       if(m_>0 && n_>0 && p_>0) {
         data_ = (F*) cuda_malloc( sizeof(F) * m_ * n_ * p_);
-        cuda_memcpy_GPU2GPU(data_, data, sizeof(F) * m_ * n_ * p_ );
+        cuda_memcpy_GPU2GPU(data_, C.data_, sizeof(F) * m_ * n_ * p_ );
       }
       else 
         data_=NULL;
     }
-    else{ data_ = data; } 
+    else{ data_ = C.data_; } 
   } 
 
 
