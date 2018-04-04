@@ -47,9 +47,12 @@ such enhancements or derivative works thereof, in binary and source code form.
 #define _DGDFT_HPP_
 
 #include  "environment.hpp"
-#include  "blas.hpp"
-#include  "lapack.hpp"
-#include  "scalapack.hpp"
+#include    "blas.hpp"
+#ifdef GPU
+#include    "cublas.hpp"
+#endif
+#include    "lapack.hpp"
+#include    "scalapack.hpp"
 #include  "mpi_interf.hpp"
 #include  "numvec_impl.hpp"
 #include  "nummat_impl.hpp"

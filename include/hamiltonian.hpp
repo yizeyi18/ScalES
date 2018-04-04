@@ -54,7 +54,10 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "utility.hpp"
 #include  "esdf.hpp"
 #include  <xc.h>
-
+#ifdef GPU
+#include "cublas.hpp"
+#include "magma.hpp"
+#endif
 namespace dgdft{
 
 // *********************************************************************
@@ -227,9 +230,19 @@ public:
 #endif
 
 #ifndef _COMPLEX_
+#ifdef GPU
+  virtual void MultSpinor(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft) = 0;
+  virtual void MultSpinor_old(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft) = 0;
+  virtual void ACEOperator( cuDblNumMat& cu_psi, Fourier& fft, cuDblNumMat& cu_Hpsi) = 0;
+#endif
   virtual NumTns<Real>& PhiEXX() = 0;
 
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
+
+#ifdef GPU
+  virtual void CalculateVexxACEGPU( Spinor& psi, Fourier& fft ) = 0;
+  virtual void CalculateVexxACEDFGPU( Spinor& psi, Fourier& fft, bool isFixColumnDF ) = 0;
+#endif 
 
   virtual void CalculateVexxACE( Spinor& psi, Fourier& fft ) = 0;
 
@@ -321,6 +334,9 @@ private:
   /// large systems.
   NumTns<Real>                phiEXX_; 
   DblNumMat                   vexxProj_; 
+#ifdef GPU
+  cuDblNumMat                 cu_vexxProj_; 
+#endif
   DblNumVec                   exxgkkR2C_;
 
 public:
@@ -361,6 +377,12 @@ public:
   virtual void MultSpinor(Spinor& psi, NumTns<Complex>& a3, Fourier& fft);
 #else
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft);
+
+#ifdef GPU
+  virtual void MultSpinor(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft);
+  virtual void MultSpinor_old(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft);
+  virtual void ACEOperator( cuDblNumMat& cu_psi, Fourier& fft, cuDblNumMat& cu_Hpsi) ;
+#endif
 #endif
 
   /// @brief Update phiEXX by the spinor psi. The Phi are normalized in
@@ -378,6 +400,12 @@ public:
 
   /// @brief Construct the ACE operator
   virtual void CalculateVexxACE( Spinor& psi, Fourier& fft );
+
+#ifdef GPU
+  /// @brief Construct the ACE operator
+  virtual void CalculateVexxACEGPU( Spinor& psi, Fourier& fft );
+  virtual void CalculateVexxACEDFGPU( Spinor& psi, Fourier& fft, bool isFixColumnDF );
+#endif
 
   /// @brief onstruct the ACE operator in the density fitting format.
   virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF );

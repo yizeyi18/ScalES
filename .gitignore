@@ -1,6 +1,6 @@
-*.d
-*.o
-*.d.*
-*.a
-pwdft
-dgdft
+*/*.d
+*/*.o
+*/pwdft
+*/*.a
+*/*.swp
+*/jia

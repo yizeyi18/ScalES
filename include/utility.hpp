@@ -54,7 +54,11 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "nummat_impl.hpp"
 #include  "numtns_impl.hpp"
 #include  "sparse_matrix_impl.hpp"
-
+#ifdef GPU
+#include  "cu_nummat_impl.hpp"
+#include  "cu_numvec_impl.hpp"
+#include  "cuda_utils.h"
+#endif
 namespace dgdft{
 
 // Forward declaration of Atom structure in periodtable.hpp 
@@ -1715,6 +1719,10 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
 void AlltoallForward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm );
 void AlltoallBackward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm );
 
+#ifdef GPU
+void GPU_AlltoallBackward( cuDblNumMat& A, cuDblNumMat& B, MPI_Comm comm );
+void GPU_AlltoallForward ( cuDblNumMat& A, cuDblNumMat& B, MPI_Comm comm );
+#endif
 // ~~**~~
 // ------------------------------------------------------------------------------
 // Simple distributor class: parallel work load distributor.

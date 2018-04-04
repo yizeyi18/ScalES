@@ -56,6 +56,12 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "lapack.hpp"
 #include  "esdf.hpp"
 
+#ifdef GPU
+#include  "cu_numvec_impl.hpp"
+#include  "cu_numtns_impl.hpp"
+#include  "cublas.hpp"
+#endif
+
 namespace dgdft{
 
 class Spinor {
@@ -69,6 +75,10 @@ private:
   IntNumVec         wavefunIdx_;
   Int               numStateTotal_;
   Int               blocksize_;
+#ifdef GPU
+  // not use wavefun_ in the GPU implementation.
+  cuNumTns<Real>   cu_wavefun_;
+#endif
 
   // For density fitting
   Int               numMu_;
@@ -100,6 +110,13 @@ public:
 
   Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
       const bool owndata, Real* data );
+#ifdef GPU
+  // Weile, needs further consideration.
+  Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
+      const bool owndata, Real* data, bool isGPU);
+  void SetupGPU( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
+      const bool owndata, Real* data );
+#endif
 
   void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
       const Real val = static_cast<Real>(0) ); 
@@ -129,6 +146,10 @@ public:
 #else
   NumTns<Real>& Wavefun() { return wavefun_; } 
   const NumTns<Real>& Wavefun() const { return wavefun_; } 
+#ifdef GPU
+  cuNumTns<Real>& cuWavefun() { return cu_wavefun_; } 
+  const cuNumTns<Real>& cuWavefun() const { return cu_wavefun_; } 
+#endif
   Real& Wavefun(const Int i, const Int j, const Int k) {return wavefun_(i,j,k); }
   const Real& Wavefun(const Int i, const Int j, const Int k) const {return wavefun_(i,j,k); }
 #endif
@@ -153,6 +174,11 @@ public:
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );
   void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );
+#ifdef GPU
+  void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
+      const std::vector<PseudoPot>& pseudo, cuNumTns<Real>& a3 );
+  void AddTeterPrecond( Fourier* fftPtr, cuNumTns<Real>& a3 );
+#endif
 
   void AddTeterPrecond( Fourier* fftPtr, NumTns<Real>& a3 );
 
@@ -168,6 +194,21 @@ public:
       Real  numSpin,
       const DblNumVec& occupationRate,
       NumTns<Real>& a3 );
+
+#ifdef GPU
+  /// @brief Apply the exchange operator to the spinor by solving
+  /// Poisson like equations
+  /// EXX: Spinor with exact exchange. 
+  /// Keeping the names separate is good for now, since the new
+  /// algorithm requires a different set of input parameters for AddMultSpinor
+  void AddMultSpinorEXX ( Fourier& fft,
+      const NumTns<Real>& phi,
+      const DblNumVec& exxgkkR2CFine,
+      Real  exxFraction,
+      Real  numSpin,
+      const DblNumVec& occupationRate,
+      cuNumTns<Real>& a3 );
+#endif
 
   /// @brief Spinor with exact exchange, and the cost is reduced using density fitting schemes.
   /// The density fitting uses the interpolative separable density fitting method
@@ -280,6 +321,23 @@ public:
       NumTns<Real>& a3,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
+#ifdef GPU
+  void AddMultSpinorEXXDF3_GPU ( Fourier& fft, 
+      const NumTns<Real>& phi,
+      const DblNumVec& exxgkkR2C,
+      Real  exxFraction,
+      Real  numSpin,
+      const DblNumVec& occupationRate,
+      const Real numMuFac,
+      const Real numGaussianRandomFac,
+      const Int numProcScaLAPACKPotrf, 
+      const Int scaPotrfBlockSize, 
+      cuDblNumMat & cu_a3,
+      NumMat<Real>& VxMat, 
+      bool isFixColumnDF );
+
+#endif
+
 
 #endif
 };  // Spinor
