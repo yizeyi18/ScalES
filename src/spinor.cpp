@@ -81,63 +81,6 @@ Spinor::Spinor ( const Domain &dm,
   this->Setup( dm, numComponent, numStateTotal, numStateLocal, owndata, data );
 
 }         // -----  end of method Spinor::Spinor  ----- 
-#ifdef GPU
-Spinor::Spinor ( const Domain &dm, 
-    const Int numComponent, 
-    const Int numStateTotal,
-    Int numStateLocal,
-    const bool owndata, 
-    Real* data, 
-    bool isGPU )
-{
-  if(!isGPU || owndata)
-    ErrorHandling(" GPU Spinor setup error.");
-
-  // data is a GPU data.. 
-  this->SetupGPU( dm, numComponent, numStateTotal, numStateLocal, owndata, data);
-
-}         // -----  end of method Spinor::Spinor  ----- 
-
-void Spinor::SetupGPU ( const Domain &dm, 
-    const Int numComponent, 
-    const Int numStateTotal,
-    Int numStateLocal,
-    const bool owndata, 
-    Real* data )
-{
-  domain_       = dm;
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
-
-  cu_wavefun_  = cuNumTns<Real>( dm.NumGridTotal(), numComponent, numStateLocal,
-                            owndata, data );
-
-  Int blocksize;
-
-  if ( numStateTotal <=  mpisize ) {
-    blocksize = 1;
-  }
-  else {  // numStateTotal >  mpisize
-    if ( numStateTotal % mpisize == 0 ){
-      blocksize = numStateTotal / mpisize;
-    }
-    else {
-      blocksize = ((numStateTotal - 1) / mpisize) + 1;
-    }    
-  }
-
-  numStateTotal_ = numStateTotal;
-  blocksize_ = blocksize;
-
-  wavefunIdx_.Resize( numStateLocal );
-  for (Int i = 0; i < numStateLocal; i++){
-    wavefunIdx_[i] = i * mpisize + mpirank ;
-  }
-
-}         // -----  end of method Spinor::Setup  ----- 
-
-#endif
 
 void Spinor::Setup ( 
     const Domain &dm, 
@@ -192,13 +135,8 @@ void Spinor::Setup ( const Domain &dm,
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
 
-<<<<<<< HEAD
   wavefun_      = NumTns<Complex>( dm.NumGridTotal(), numComponent, numStateLocal,
       owndata, data );
-=======
-  wavefun_  = NumTns<Real>( dm.NumGridTotal(), numComponent, numStateLocal,
-                            owndata, data );
->>>>>>> GPU
 
   Int blocksize;
 
@@ -245,98 +183,6 @@ Spinor::Normalize    ( )
   }
   return ;
 }         // -----  end of method Spinor::Normalize  ----- 
-
-<<<<<<< HEAD
-=======
-#ifdef GPU
-void
-Spinor::AddTeterPrecond (Fourier* fftPtr, cuNumTns<Real>& a3)
-{
-  Fourier& fft = *fftPtr;
-  if( !fftPtr->isInitialized ){
-    ErrorHandling("Fourier is not prepared.");
-  }
-  Int ntot = cu_wavefun_.m();
-  Int ncom = cu_wavefun_.n();
-  Int nocc = cu_wavefun_.p();
-
-  if( fftPtr->domain.NumGridTotal() != ntot ){
-    ErrorHandling("Domain size does not match.");
-  }
-
-  Int ntothalf = fftPtr->numGridTotalR2C;
-
-  cuDblNumVec cu_psi(ntot);
-  cuDblNumVec cu_psi_out(2*ntothalf);
-  //cuDblNumVec cu_TeterPrecond(ntothalf);
-  if( !teter_gpu_flag ) {
-     // copy the Teter Preconditioner into GPU. only once. 
-     //std::cout << " copy Teter Precond into GPU... "<< teter_gpu_flag<<std::endl;
-     dev_TeterPrecond = (double*) cuda_malloc( sizeof(Real) * ntothalf);
-     cuda_memcpy_CPU2GPU(dev_TeterPrecond, fftPtr->TeterPrecondR2C.Data(), sizeof(Real)*ntothalf);
-     //cuda_memcpy_CPU2GPU(cu_TeterPrecond.Data(), fftPtr->TeterPrecondR2C.Data(), sizeof(Real)*ntothalf);
-     teter_gpu_flag = true;
-  } 
-  for (Int k=0; k<nocc; k++) {
-    for (Int j=0; j<ncom; j++) {
-      cuda_memcpy_GPU2GPU(cu_psi.Data(), cu_wavefun_.VecData(j,k), sizeof(Real)*ntot);
-      cuFFTExecuteForward( fft, fft.cuPlanR2C[0], 0, cu_psi, cu_psi_out);
-      //cuda_teter( reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), cu_TeterPrecond.Data(), ntothalf);
-      cuda_teter( reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), dev_TeterPrecond, ntothalf);
-
-      cuFFTExecuteInverse( fft, fft.cuPlanC2R[0], 0, cu_psi_out, cu_psi);
-      
-      cuda_memcpy_GPU2GPU(a3.VecData(j,k), cu_psi.Data(), ntot*sizeof(Real));
-      // not a good style. first set a3 to zero, then do a axpy. should do copy
-      //blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
-    }
-  }
-
-  return ;
-}         // -----  end of method Spinor::AddTeterPrecond for the GPU code. ----- 
-
-
-void
-Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
-{
-  Fourier& fft = *fftPtr;
-  if( !fftPtr->isInitialized ){
-    ErrorHandling("Fourier is not prepared.");
-  }
-  Int ntot = wavefun_.m();
-  Int ncom = wavefun_.n();
-  Int nocc = wavefun_.p();
-
-  if( fftPtr->domain.NumGridTotal() != ntot ){
-    ErrorHandling("Domain size does not match.");
-  }
-
-  Int ntothalf = fftPtr->numGridTotalR2C;
-
-  cuDblNumVec cu_psi(ntot);
-  cuDblNumVec cu_psi_out(2*ntothalf);
-  cuDblNumVec cu_TeterPrecond(ntothalf);
-  cuda_memcpy_CPU2GPU(cu_TeterPrecond.Data(), fftPtr->TeterPrecondR2C.Data(), sizeof(Real)*ntothalf);
-
-  for (Int k=0; k<nocc; k++) {
-    for (Int j=0; j<ncom; j++) {
-      cuda_memcpy_CPU2GPU(cu_psi.Data(), wavefun_.VecData(j,k), sizeof(Real)*ntot);
-      cuFFTExecuteForward( fft, fft.cuPlanR2C[0], 0, cu_psi, cu_psi_out);
-      cuda_teter( reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), cu_TeterPrecond.Data(), ntothalf);
-
-      cuFFTExecuteInverse( fft, fft.cuPlanC2R[0], 0, cu_psi_out, cu_psi);
-      
-      cuda_memcpy_GPU2CPU(a3.VecData(j,k), cu_psi.Data(), ntot*sizeof(Real));
-      // not a good style. first set a3 to zero, then do a axpy. should do copy
-      //blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
-    }
-  }
-
-  return ;
-}         // -----  end of method Spinor::AddTeterPrecond for the GPU code. ----- 
-
-#else
->>>>>>> GPU
 void
 Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Complex>& a3)
 {
@@ -378,7 +224,6 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Complex>& a3)
 
   return ;
 }         // -----  end of method Spinor::AddTeterPrecond ----- 
-#endif
 
 void
 Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot, 
@@ -526,10 +371,68 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorFine  ----- 
-<<<<<<< HEAD
 
 
 #else
+
+#ifdef GPU
+Spinor::Spinor ( const Domain &dm, 
+    const Int numComponent, 
+    const Int numStateTotal,
+    Int numStateLocal,
+    const bool owndata, 
+    Real* data, 
+    bool isGPU )
+{
+  if(!isGPU || owndata)
+    ErrorHandling(" GPU Spinor setup error.");
+
+  // data is a GPU data.. 
+  this->SetupGPU( dm, numComponent, numStateTotal, numStateLocal, owndata, data);
+
+}         // -----  end of method Spinor::Spinor  ----- 
+
+void Spinor::SetupGPU ( const Domain &dm, 
+    const Int numComponent, 
+    const Int numStateTotal,
+    Int numStateLocal,
+    const bool owndata, 
+    Real* data )
+{
+  domain_       = dm;
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  cu_wavefun_  = cuNumTns<Real>( dm.NumGridTotal(), numComponent, numStateLocal,
+                            owndata, data );
+
+  Int blocksize;
+
+  if ( numStateTotal <=  mpisize ) {
+    blocksize = 1;
+  }
+  else {  // numStateTotal >  mpisize
+    if ( numStateTotal % mpisize == 0 ){
+      blocksize = numStateTotal / mpisize;
+    }
+    else {
+      blocksize = ((numStateTotal - 1) / mpisize) + 1;
+    }    
+  }
+
+  numStateTotal_ = numStateTotal;
+  blocksize_ = blocksize;
+
+  wavefunIdx_.Resize( numStateLocal );
+  for (Int i = 0; i < numStateLocal; i++){
+    wavefunIdx_[i] = i * mpisize + mpirank ;
+  }
+
+}         // -----  end of method Spinor::Setup  ----- 
+
+#endif
+
 Spinor::Spinor ( 
     const Domain &dm, 
     const Int     numComponent,
@@ -546,12 +449,6 @@ Spinor::Spinor ( const Domain &dm,
     Int numStateLocal,
     const bool owndata, 
     Real* data )
-=======
-#ifdef GPU
-void
-Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
-    const std::vector<PseudoPot>& pseudo, cuNumTns<Real>& a3 )
->>>>>>> GPU
 {
   this->Setup( dm, numComponent, numStateTotal, numStateLocal, owndata, data );
 
@@ -582,16 +479,6 @@ void Spinor::Setup (
       blocksize = ((numStateTotal - 1) / mpisize) + 1;
     }    
   }
-<<<<<<< HEAD
-=======
-  Index3& numGrid = domain_.numGrid;
-  Index3& numGridFine = domain_.numGridFine;
-  Int ntot = cu_wavefun_.m();
-  Int ncom = cu_wavefun_.n();
-  Int numStateLocal = cu_wavefun_.p();
-  Int ntotFine = domain_.NumGridTotalFine();
-  Real vol = domain_.Volume();
->>>>>>> GPU
 
   numStateTotal_ = numStateTotal;
   blocksize_ = blocksize;
@@ -602,123 +489,10 @@ void Spinor::Setup (
     wavefunIdx_[i] = i * mpisize + mpirank ;
   }
 
-<<<<<<< HEAD
   wavefun_.Resize( dm.NumGridTotal(), numComponent, numStateLocal );
   SetValue( wavefun_, val );
 
 }         // -----  end of method Spinor::Setup  ----- 
-=======
-  Real timeSta, timeEnd;
-  GetTime( timeSta );
-  // Temporary variable for saving wavefunction on a fine grid
-  DblNumVec psiFine(ntotFine);
-  DblNumVec psiUpdateFine(ntotFine);
-  cuDblNumVec cu_psi(ntot);
-  cuDblNumVec cu_psi_out(2*ntotR2C);
-  cuDblNumVec cu_psi_fine(ntotFine);
-  cuDblNumVec cu_psi_fineUpdate(ntotFine);
-  cuDblNumVec cu_psi_fine_out(2*ntotR2CFine);
-  
-  if( NL_gpu_flag == false ) 
-  {
-    // get the total number of the nonlocal vector
-     Int totNLNum = 0;
-     totPart_gpu = 1;
-     Int natm = pseudo.size();
-     for (Int iatm=0; iatm<natm; iatm++) {
-        Int nobt = pseudo[iatm].vnlListFine.size();
-        totPart_gpu += nobt;
-        for(Int iobt = 0; iobt < nobt; iobt++)
-        {
-              const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
-              const IntNumVec &ivFine = vnlvecFine.first;
-              totNLNum += ivFine.m();
-        }
-    } 
-    DblNumVec NLvecFine(totNLNum);
-    IntNumVec NLindex(totNLNum);
-    IntNumVec NLpart (totPart_gpu);
-    DblNumVec atom_weight(totPart_gpu);
-  
-    Int index = 0;
-    Int ipart = 0;
-    for (Int iatm=0; iatm<natm; iatm++) {
-        Int nobt = pseudo[iatm].vnlListFine.size();
-        for(Int iobt = 0; iobt < nobt; iobt++)
-        {
-            const Real       vnlwgt = pseudo[iatm].vnlListFine[iobt].second;
-            const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
-            const IntNumVec &ivFine = vnlvecFine.first;
-            const DblNumMat &dvFine = vnlvecFine.second;
-            const Int    *ivFineptr = ivFine.Data();
-            const Real   *dvFineptr = dvFine.VecData(VAL);
-            atom_weight(ipart) = vnlwgt *vol/Real(ntotFine);
-  
-            NLpart(ipart++) = index;
-            for(Int i = 0; i < ivFine.m(); i++)
-            {
-               NLvecFine(index)  = *(dvFineptr++);
-               NLindex(index++)  = *(ivFineptr++);
-            }
-        }
-    }
-    NLpart(ipart) = index;
-    dev_NLvecFine   = ( double*) cuda_malloc ( sizeof(double) * totNLNum );
-    dev_NLindex     = ( int*   ) cuda_malloc ( sizeof(int )   * totNLNum );
-    dev_NLpart      = ( int*   ) cuda_malloc ( sizeof(int )   * totPart_gpu );
-    dev_atom_weight = ( double*) cuda_malloc ( sizeof(double) * totPart_gpu );
-    dev_temp_weight = ( double*) cuda_malloc ( sizeof(double) * totPart_gpu );
-
-    dev_idxFineGridR2C = ( int*) cuda_malloc ( sizeof(int   ) * ntotR2C );
-    dev_gkkR2C      = ( double*) cuda_malloc ( sizeof(double) * ntotR2C );
-    dev_vtot        = ( double*) cuda_malloc ( sizeof(double) * ntotFine);
-
-    cuda_memcpy_CPU2GPU( dev_NLvecFine,   NLvecFine.Data(),   totNLNum * sizeof(double) );
-    cuda_memcpy_CPU2GPU( dev_atom_weight, atom_weight.Data(), totPart_gpu* sizeof(double) );
-    cuda_memcpy_CPU2GPU( dev_NLindex,     NLindex.Data(),     totNLNum * sizeof(int) );
-    cuda_memcpy_CPU2GPU( dev_NLpart ,     NLpart.Data(),      totPart_gpu  * sizeof(int) );
-
-    cuda_memcpy_CPU2GPU(dev_idxFineGridR2C, fft.idxFineGridR2C.Data(), sizeof(Int) *ntotR2C); 
-    cuda_memcpy_CPU2GPU(dev_gkkR2C, fft.gkkR2C.Data(), sizeof(Real) *ntotR2C); 
-    cuda_memcpy_CPU2GPU(dev_vtot, vtot.Data(), sizeof(Real) *ntotFine); 
-
-    NL_gpu_flag = true;
-    vtot_gpu_flag = true;
-/*
-    cuDblNumVec cu_NLvecFine(totNLNum);
-    cuIntNumVec cu_NLindex(totNLNum);
-    cuIntNumVec cu_NLpart (totPart_gpu);
-    cuDblNumVec cu_atom_weight( totPart_gpu);
-    cuDblNumVec cu_temp_weight( totPart_gpu);
-  
-    cu_NLvecFine.CopyFrom(NLvecFine);
-    cu_NLindex.CopyFrom(NLindex);
-    cu_NLpart.CopyFrom(NLpart);
-    cu_atom_weight.CopyFrom(atom_weight);
-    // cuda nonlocal vector created.
-    //copy index into the GPU. note, this will be moved out of Hpsi. 
-    cuIntNumVec cu_idxFineGridR2C(ntotR2C);
-    cuDblNumVec cu_gkkR2C(ntotR2C);
-    cuDblNumVec cu_vtot(ntotFine);
-    cuda_memcpy_CPU2GPU(cu_idxFineGridR2C.Data(), fft.idxFineGridR2C.Data(), sizeof(Int) *ntotR2C); 
-    cuda_memcpy_CPU2GPU(cu_gkkR2C.Data(), fft.gkkR2C.Data(), sizeof(Real) *ntotR2C); 
-    cuda_memcpy_CPU2GPU(cu_vtot.Data(), vtot.Data(), sizeof(Real) *ntotFine); 
-*/
-  }
-  if( !vtot_gpu_flag) {
-    cuda_memcpy_CPU2GPU(dev_vtot, vtot.Data(), sizeof(Real) *ntotFine); 
-    vtot_gpu_flag = true;
-  }
-  Real timeSta1, timeEnd1;
-  
-  Real timeFFTCoarse = 0.0;
-  Real timeFFTFine = 0.0;
-  Real timeOther = 0.0;
-  Int  iterFFTCoarse = 0;
-  Int  iterFFTFine = 0;
-  Int  iterOther = 0;
-  Real timeNonlocal = 0.0;
->>>>>>> GPU
 
 void Spinor::Setup ( const Domain &dm, 
     const Int numComponent, 
@@ -782,6 +556,52 @@ Spinor::Normalize    ( )
   return ;
 }         // -----  end of method Spinor::Normalize  ----- 
 
+#ifdef GPU
+void
+Spinor::AddTeterPrecond (Fourier* fftPtr, cuNumTns<Real>& a3)
+{
+  Fourier& fft = *fftPtr;
+  if( !fftPtr->isInitialized ){
+    ErrorHandling("Fourier is not prepared.");
+  }
+  Int ntot = cu_wavefun_.m();
+  Int ncom = cu_wavefun_.n();
+  Int nocc = cu_wavefun_.p();
+
+  if( fftPtr->domain.NumGridTotal() != ntot ){
+    ErrorHandling("Domain size does not match.");
+  }
+
+  Int ntothalf = fftPtr->numGridTotalR2C;
+
+  cuDblNumVec cu_psi(ntot);
+  cuDblNumVec cu_psi_out(2*ntothalf);
+  //cuDblNumVec cu_TeterPrecond(ntothalf);
+  if( !teter_gpu_flag ) {
+     // copy the Teter Preconditioner into GPU. only once. 
+     //std::cout << " copy Teter Precond into GPU... "<< teter_gpu_flag<<std::endl;
+     dev_TeterPrecond = (double*) cuda_malloc( sizeof(Real) * ntothalf);
+     cuda_memcpy_CPU2GPU(dev_TeterPrecond, fftPtr->TeterPrecondR2C.Data(), sizeof(Real)*ntothalf);
+     //cuda_memcpy_CPU2GPU(cu_TeterPrecond.Data(), fftPtr->TeterPrecondR2C.Data(), sizeof(Real)*ntothalf);
+     teter_gpu_flag = true;
+  } 
+  for (Int k=0; k<nocc; k++) {
+    for (Int j=0; j<ncom; j++) {
+      cuda_memcpy_GPU2GPU(cu_psi.Data(), cu_wavefun_.VecData(j,k), sizeof(Real)*ntot);
+      cuFFTExecuteForward( fft, fft.cuPlanR2C[0], 0, cu_psi, cu_psi_out);
+      //cuda_teter( reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), cu_TeterPrecond.Data(), ntothalf);
+      cuda_teter( reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), dev_TeterPrecond, ntothalf);
+
+      cuFFTExecuteInverse( fft, fft.cuPlanC2R[0], 0, cu_psi_out, cu_psi);
+      
+      cuda_memcpy_GPU2GPU(a3.VecData(j,k), cu_psi.Data(), ntot*sizeof(Real));
+      // not a good style. first set a3 to zero, then do a axpy. should do copy
+      //blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
+    }
+  }
+
+  return ;
+}         // -----  end of method Spinor::AddTeterPrecond for the GPU code. ----- 
 
 void
 Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
@@ -798,7 +618,47 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
     ErrorHandling("Domain size does not match.");
   }
 
-<<<<<<< HEAD
+  Int ntothalf = fftPtr->numGridTotalR2C;
+
+  cuDblNumVec cu_psi(ntot);
+  cuDblNumVec cu_psi_out(2*ntothalf);
+  cuDblNumVec cu_TeterPrecond(ntothalf);
+  cuda_memcpy_CPU2GPU(cu_TeterPrecond.Data(), fftPtr->TeterPrecondR2C.Data(), sizeof(Real)*ntothalf);
+
+  for (Int k=0; k<nocc; k++) {
+    for (Int j=0; j<ncom; j++) {
+      cuda_memcpy_CPU2GPU(cu_psi.Data(), wavefun_.VecData(j,k), sizeof(Real)*ntot);
+      cuFFTExecuteForward( fft, fft.cuPlanR2C[0], 0, cu_psi, cu_psi_out);
+      cuda_teter( reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), cu_TeterPrecond.Data(), ntothalf);
+
+      cuFFTExecuteInverse( fft, fft.cuPlanC2R[0], 0, cu_psi_out, cu_psi);
+      
+      cuda_memcpy_GPU2CPU(a3.VecData(j,k), cu_psi.Data(), ntot*sizeof(Real));
+      // not a good style. first set a3 to zero, then do a axpy. should do copy
+      //blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
+    }
+  }
+
+  return ;
+}         // -----  end of method Spinor::AddTeterPrecond for the GPU code. ----- 
+
+#else 
+
+void
+Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
+{
+  Fourier& fft = *fftPtr;
+  if( !fftPtr->isInitialized ){
+    ErrorHandling("Fourier is not prepared.");
+  }
+  Int ntot = wavefun_.m();
+  Int ncom = wavefun_.n();
+  Int nocc = wavefun_.p();
+
+  if( fftPtr->domain.NumGridTotal() != ntot ){
+    ErrorHandling("Domain size does not match.");
+  }
+
   //#ifdef _USE_OPENMP_
   //#pragma omp parallel
   //  {
@@ -810,19 +670,12 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
   //#pragma omp for schedule (dynamic,1) nowait
   //#endif
   for (Int k=0; k<nocc; k++) {
-=======
-  GetTime( timeEnd );
-  statusOFS << " Spinor overheader is : "<< timeEnd - timeSta <<  std::endl;
-
-  for (Int k=0; k<numStateLocal; k++) {
->>>>>>> GPU
     for (Int j=0; j<ncom; j++) {
       // For c2r and r2c transforms, the default is to DESTROY the
       // input, therefore a copy of the original matrix is necessary. 
       blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
           reinterpret_cast<Real*>(fft.inputVecR2C.Data()), 1 );
 
-<<<<<<< HEAD
       FFTWExecute ( fft, fft.forwardPlanR2C );
       //          fftw_execute_dft_r2c(
       //                  fftPtr->forwardPlanR2C, 
@@ -852,6 +705,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
 
   return ;
 }         // -----  end of method Spinor::AddTeterPrecond ----- 
+#endif
 
 void
 Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot, 
@@ -1005,10 +859,10 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorFine  ----- 
-
+#ifdef GPU
 void
 Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
-    const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
+    const std::vector<PseudoPot>& pseudo, cuNumTns<Real>& a3 )
 {
 
   if( !fft.isInitialized ){
@@ -1016,9 +870,9 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   }
   Index3& numGrid = domain_.numGrid;
   Index3& numGridFine = domain_.numGridFine;
-  Int ntot = wavefun_.m();
-  Int ncom = wavefun_.n();
-  Int numStateLocal = wavefun_.p();
+  Int ntot = cu_wavefun_.m();
+  Int ncom = cu_wavefun_.n();
+  Int numStateLocal = cu_wavefun_.p();
   Int ntotFine = domain_.NumGridTotalFine();
   Real vol = domain_.Volume();
 
@@ -1029,21 +883,116 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
     ErrorHandling("Domain size does not match.");
   }
 
+  Real timeSta, timeEnd;
+  GetTime( timeSta );
   // Temporary variable for saving wavefunction on a fine grid
   DblNumVec psiFine(ntotFine);
   DblNumVec psiUpdateFine(ntotFine);
+  cuDblNumVec cu_psi(ntot);
+  cuDblNumVec cu_psi_out(2*ntotR2C);
+  cuDblNumVec cu_psi_fine(ntotFine);
+  cuDblNumVec cu_psi_fineUpdate(ntotFine);
+  cuDblNumVec cu_psi_fine_out(2*ntotR2CFine);
+  
+  if( NL_gpu_flag == false ) 
+  {
+    // get the total number of the nonlocal vector
+     Int totNLNum = 0;
+     totPart_gpu = 1;
+     Int natm = pseudo.size();
+     for (Int iatm=0; iatm<natm; iatm++) {
+        Int nobt = pseudo[iatm].vnlList.size();
+        totPart_gpu += nobt;
+        for(Int iobt = 0; iobt < nobt; iobt++)
+        {
+              const SparseVec &vnlvecFine = pseudo[iatm].vnlList[iobt].first;
+              const IntNumVec &ivFine = vnlvecFine.first;
+              totNLNum += ivFine.m();
+        }
+    } 
+    DblNumVec NLvecFine(totNLNum);
+    IntNumVec NLindex(totNLNum);
+    IntNumVec NLpart (totPart_gpu);
+    DblNumVec atom_weight(totPart_gpu);
+  
+    Int index = 0;
+    Int ipart = 0;
+    for (Int iatm=0; iatm<natm; iatm++) {
+        Int nobt = pseudo[iatm].vnlList.size();
+        for(Int iobt = 0; iobt < nobt; iobt++)
+        {
+            const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
+            const SparseVec &vnlvecFine = pseudo[iatm].vnlList[iobt].first;
+            const IntNumVec &ivFine = vnlvecFine.first;
+            const DblNumMat &dvFine = vnlvecFine.second;
+            const Int    *ivFineptr = ivFine.Data();
+            const Real   *dvFineptr = dvFine.VecData(VAL);
+            atom_weight(ipart) = vnlwgt *vol/Real(ntotFine);
+  
+            NLpart(ipart++) = index;
+            for(Int i = 0; i < ivFine.m(); i++)
+            {
+               NLvecFine(index)  = *(dvFineptr++);
+               NLindex(index++)  = *(ivFineptr++);
+            }
+        }
+    }
+    NLpart(ipart) = index;
+    dev_NLvecFine   = ( double*) cuda_malloc ( sizeof(double) * totNLNum );
+    dev_NLindex     = ( int*   ) cuda_malloc ( sizeof(int )   * totNLNum );
+    dev_NLpart      = ( int*   ) cuda_malloc ( sizeof(int )   * totPart_gpu );
+    dev_atom_weight = ( double*) cuda_malloc ( sizeof(double) * totPart_gpu );
+    dev_temp_weight = ( double*) cuda_malloc ( sizeof(double) * totPart_gpu );
 
-  Real timeSta, timeEnd;
+    dev_idxFineGridR2C = ( int*) cuda_malloc ( sizeof(int   ) * ntotR2C );
+    dev_gkkR2C      = ( double*) cuda_malloc ( sizeof(double) * ntotR2C );
+    dev_vtot        = ( double*) cuda_malloc ( sizeof(double) * ntotFine);
+
+    cuda_memcpy_CPU2GPU( dev_NLvecFine,   NLvecFine.Data(),   totNLNum * sizeof(double) );
+    cuda_memcpy_CPU2GPU( dev_atom_weight, atom_weight.Data(), totPart_gpu* sizeof(double) );
+    cuda_memcpy_CPU2GPU( dev_NLindex,     NLindex.Data(),     totNLNum * sizeof(int) );
+    cuda_memcpy_CPU2GPU( dev_NLpart ,     NLpart.Data(),      totPart_gpu  * sizeof(int) );
+
+    cuda_memcpy_CPU2GPU(dev_idxFineGridR2C, fft.idxFineGridR2C.Data(), sizeof(Int) *ntotR2C); 
+    cuda_memcpy_CPU2GPU(dev_gkkR2C, fft.gkkR2C.Data(), sizeof(Real) *ntotR2C); 
+    cuda_memcpy_CPU2GPU(dev_vtot, vtot.Data(), sizeof(Real) *ntotFine); 
+
+    NL_gpu_flag = true;
+    vtot_gpu_flag = true;
+/*
+    cuDblNumVec cu_NLvecFine(totNLNum);
+    cuIntNumVec cu_NLindex(totNLNum);
+    cuIntNumVec cu_NLpart (totPart_gpu);
+    cuDblNumVec cu_atom_weight( totPart_gpu);
+    cuDblNumVec cu_temp_weight( totPart_gpu);
+  
+    cu_NLvecFine.CopyFrom(NLvecFine);
+    cu_NLindex.CopyFrom(NLindex);
+    cu_NLpart.CopyFrom(NLpart);
+    cu_atom_weight.CopyFrom(atom_weight);
+    // cuda nonlocal vector created.
+    //copy index into the GPU. note, this will be moved out of Hpsi. 
+    cuIntNumVec cu_idxFineGridR2C(ntotR2C);
+    cuDblNumVec cu_gkkR2C(ntotR2C);
+    cuDblNumVec cu_vtot(ntotFine);
+    cuda_memcpy_CPU2GPU(cu_idxFineGridR2C.Data(), fft.idxFineGridR2C.Data(), sizeof(Int) *ntotR2C); 
+    cuda_memcpy_CPU2GPU(cu_gkkR2C.Data(), fft.gkkR2C.Data(), sizeof(Real) *ntotR2C); 
+    cuda_memcpy_CPU2GPU(cu_vtot.Data(), vtot.Data(), sizeof(Real) *ntotFine); 
+*/
+  }
+  if( !vtot_gpu_flag) {
+    cuda_memcpy_CPU2GPU(dev_vtot, vtot.Data(), sizeof(Real) *ntotFine); 
+    vtot_gpu_flag = true;
+  }
   Real timeSta1, timeEnd1;
   
   Real timeFFTCoarse = 0.0;
   Real timeFFTFine = 0.0;
-  Real timeNonlocal = 0.0;
   Real timeOther = 0.0;
   Int  iterFFTCoarse = 0;
   Int  iterFFTFine = 0;
-  Int  iterNonlocal = 0;
   Int  iterOther = 0;
+  Real timeNonlocal = 0.0;
 
   GetTime( timeSta1 );
  
@@ -1076,57 +1025,12 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
 
 
-  //#ifdef _USE_OPENMP_
-  //#pragma omp parallel
-  //    {
-  //#endif
+  GetTime( timeEnd );
+  statusOFS << " Spinor overheader is : "<< timeEnd - timeSta <<  std::endl;
+
   for (Int k=0; k<numStateLocal; k++) {
     for (Int j=0; j<ncom; j++) {
 
-      SetValue( psiFine, 0.0 );
-      SetValue( psiUpdateFine, 0.0 );
-
-      // R2C version
-      if(1)
-      {
-        SetValue( fft.inputVecR2C, 0.0 ); 
-        SetValue( fft.inputVecR2CFine, 0.0 ); 
-        SetValue( fft.outputVecR2C, Z_ZERO ); 
-        SetValue( fft.outputVecR2CFine, Z_ZERO ); 
-
-
-        // For c2r and r2c transforms, the default is to DESTROY the
-        // input, therefore a copy of the original matrix is necessary. 
-        blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
-            fft.inputVecR2C.Data(), 1 );
-
-        GetTime( timeSta );
-        FFTWExecute ( fft, fft.forwardPlanR2C );
-        GetTime( timeEnd );
-        iterFFTCoarse = iterFFTCoarse + 1;
-        timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
-
-        // statusOFS << std::endl << " Input vec = " << fft.inputVecR2C << std::endl;
-        // statusOFS << std::endl << " Output vec = " << fft.outputVecR2C << std::endl;
-
-
-        // Interpolate wavefunction from coarse to fine grid
-        {
-          Real fac = sqrt( double(ntot) / double(ntotFine) );
-          Int *idxPtr = fft.idxFineGridR2C.Data();
-          Complex *fftOutFinePtr = fft.outputVecR2CFine.Data();
-          Complex *fftOutPtr = fft.outputVecR2C.Data();
-          for( Int i = 0; i < ntotR2C; i++ ){
-            fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++) * fac;
-          }
-        }
-
-        GetTime( timeSta );
-        FFTWExecute ( fft, fft.backwardPlanR2CFine );
-        GetTime( timeEnd );
-        iterFFTFine = iterFFTFine + 1;
-        timeFFTFine = timeFFTFine + ( timeEnd - timeSta );
-=======
       // R2C version
       // For c2r and r2c transforms, the default is to DESTROY the
       // input, therefore a copy of the original matrix is necessary. 
@@ -1136,7 +1040,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       GetTime( timeEnd );
       iterFFTCoarse = iterFFTCoarse + 1;
       timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
->>>>>>> GPU
 
       // Interpolate wavefunction from coarse to fine grid
       SetValue(cu_psi_fine_out, 0.0);
@@ -1161,34 +1064,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
       // Add the contribution from nonlocal pseudopotential
       GetTime( timeSta );
-<<<<<<< HEAD
-      if(1){
-        Int natm = pseudo.size();
-        for (Int iatm=0; iatm<natm; iatm++) {
-          Int nobt = pseudo[iatm].vnlList.size();
-          for (Int iobt=0; iobt<nobt; iobt++) {
-            const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
-            const SparseVec &vnlvec = pseudo[iatm].vnlList[iobt].first;
-            const IntNumVec &iv = vnlvec.first;
-            const DblNumMat &dv = vnlvec.second;
-
-            Real    weight = 0.0; 
-            const Int    *ivptr = iv.Data();
-            const Real   *dvptr = dv.VecData(VAL);
-            for (Int i=0; i<iv.m(); i++) {
-              weight += (*(dvptr++)) * psiFine[*(ivptr++)];
-            }
-            weight *= vol/Real(ntotFine)*vnlwgt;
-
-            ivptr = iv.Data();
-            dvptr = dv.VecData(VAL);
-            for (Int i=0; i<iv.m(); i++) {
-              psiUpdateFine[*(ivptr++)] += (*(dvptr++)) * weight;
-            }
-          } // for (iobt)
-        } // for (iatm)
-      }
-=======
       cuda_calculate_nonlocal(cu_psi_fineUpdate.Data(), 
                               cu_psi_fine.Data(),
                               dev_NLvecFine,
@@ -1197,7 +1072,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
                               dev_atom_weight,
                               dev_temp_weight,
                               totPart_gpu-1);
->>>>>>> GPU
       GetTime( timeEnd );
       timeNonlocal = timeNonlocal + ( timeEnd - timeSta );
 
@@ -1288,11 +1162,11 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
    Int totPart = 1;
    Int natm = pseudo.size();
    for (Int iatm=0; iatm<natm; iatm++) {
-      Int nobt = pseudo[iatm].vnlListFine.size();
+      Int nobt = pseudo[iatm].vnlList.size();
       totPart += nobt;
       for(Int iobt = 0; iobt < nobt; iobt++)
       {
-            const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
+            const SparseVec &vnlvecFine = pseudo[iatm].vnlList[iobt].first;
             const IntNumVec &ivFine = vnlvecFine.first;
             totNLNum += ivFine.m();
       }
@@ -1305,11 +1179,11 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   Int index = 0;
   Int ipart = 0;
   for (Int iatm=0; iatm<natm; iatm++) {
-      Int nobt = pseudo[iatm].vnlListFine.size();
+      Int nobt = pseudo[iatm].vnlList.size();
       for(Int iobt = 0; iobt < nobt; iobt++)
       {
-          const Real       vnlwgt = pseudo[iatm].vnlListFine[iobt].second;
-          const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
+          const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
+          const SparseVec &vnlvecFine = pseudo[iatm].vnlList[iobt].first;
           const IntNumVec &ivFine = vnlvecFine.first;
           const DblNumMat &dvFine = vnlvecFine.second;
           const Int    *ivFineptr = ivFine.Data();
@@ -1485,6 +1359,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 }
 */
 #endif
+
 void
 Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
     const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
@@ -1628,25 +1503,25 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       if(1){
         Int natm = pseudo.size();
         for (Int iatm=0; iatm<natm; iatm++) {
-          Int nobt = pseudo[iatm].vnlListFine.size();
+          Int nobt = pseudo[iatm].vnlList.size();
           for (Int iobt=0; iobt<nobt; iobt++) {
-            const Real       vnlwgt = pseudo[iatm].vnlListFine[iobt].second;
-            const SparseVec &vnlvecFine = pseudo[iatm].vnlListFine[iobt].first;
-            const IntNumVec &ivFine = vnlvecFine.first;
-            const DblNumMat &dvFine = vnlvecFine.second;
+            const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
+            const SparseVec &vnlvec = pseudo[iatm].vnlList[iobt].first;
+            const IntNumVec &iv = vnlvec.first;
+            const DblNumMat &dv = vnlvec.second;
 
             Real    weight = 0.0; 
-            const Int    *ivFineptr = ivFine.Data();
-            const Real   *dvFineptr = dvFine.VecData(VAL);
-            for (Int i=0; i<ivFine.m(); i++) {
-              weight += (*(dvFineptr++)) * psiFine[*(ivFineptr++)];
+            const Int    *ivptr = iv.Data();
+            const Real   *dvptr = dv.VecData(VAL);
+            for (Int i=0; i<iv.m(); i++) {
+              weight += (*(dvptr++)) * psiFine[*(ivptr++)];
             }
             weight *= vol/Real(ntotFine)*vnlwgt;
 
-            ivFineptr = ivFine.Data();
-            dvFineptr = dvFine.VecData(VAL);
-            for (Int i=0; i<ivFine.m(); i++) {
-              psiUpdateFine[*(ivFineptr++)] += (*(dvFineptr++)) * weight;
+            ivptr = iv.Data();
+            dvptr = dv.VecData(VAL);
+            for (Int i=0; i<iv.m(); i++) {
+              psiUpdateFine[*(ivptr++)] += (*(dvptr++)) * weight;
             }
           } // for (iobt)
         } // for (iatm)
@@ -1769,7 +1644,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorFineR2C  ----- 
-//#endif
 
 #ifdef GPU
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
@@ -1938,6 +1812,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
 
 #endif
+
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
     const NumTns<Real>& phi,
     const DblNumVec& exxgkkR2C,
@@ -3101,706 +2976,6 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
   MPI_Barrier(domain_.comm);
 
   return ;
-}        // -----  end of method Spinor::AddMultSpinorEXXDF  ----- 
-
-
-// This is the latest density fitting algorithm using a weighted method
-// for implementing the least square procedure
-// Update: 1/2/2017
-void Spinor::AddMultSpinorEXXDF2 ( Fourier& fft, 
-    const NumTns<Real>& phi,
-    const DblNumVec& exxgkkR2C,
-    Real  exxFraction,
-    Real  numSpin,
-    const DblNumVec& occupationRate,
-    const Real numMuFac,
-    const Real numGaussianRandomFac,
-    const Int numProcScaLAPACKPotrf,  
-    const Int scaPotrfBlockSize,  
-    NumTns<Real>& a3, 
-    NumMat<Real>& VxMat,
-    bool isFixColumnDF )
-{
-  Real timeSta, timeEnd;
-  Real timeSta1, timeEnd1;
-
-  if( !fft.isInitialized ){
-    ErrorHandling("Fourier is not prepared.");
-  }
-
-  MPI_Barrier(domain_.comm);
-  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
-  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
-
-  Index3& numGrid = domain_.numGrid;
-  Index3& numGridFine = domain_.numGridFine;
-
-  Int ntot     = domain_.NumGridTotal();
-  Int ntotFine = domain_.NumGridTotalFine();
-  Int ntotR2C = fft.numGridTotalR2C;
-  Int ntotR2CFine = fft.numGridTotalR2CFine;
-  Int ncom = wavefun_.n();
-  Int numStateLocal = wavefun_.p();
-  Int numStateTotal = numStateTotal_;
-
-  Int ncomPhi = phi.n();
-
-  Real vol = domain_.Volume();
-
-  if( ncomPhi != 1 || ncom != 1 ){
-    ErrorHandling("Spin polarized case not implemented.");
-  }
-
-  if( fft.domain.NumGridTotal() != ntot ){
-    ErrorHandling("Domain size does not match.");
-  }
-
-
-  if(1){ //For MPI
-
-    // *********************************************************************
-    // Perform interpolative separable density fitting
-    // *********************************************************************
-
-    //numMu_ = std::min(IRound(numStateTotal*numMuFac), ntot);
-    numMu_ = IRound(numStateTotal*numMuFac);
-
-    Int numPre = IRound(std::sqrt(numMu_*numGaussianRandomFac));
-    if( numPre > numStateTotal ){
-      ErrorHandling("numMu is too large for interpolative separable density fitting!");
-    }
-    
-    statusOFS << "numMu  = " << numMu_ << std::endl;
-    statusOFS << "numPre*numPre = " << numPre * numPre << std::endl;
-
-    // Convert the column partition to row partition
-    Int numStateBlocksize = numStateTotal / mpisize;
-    Int ntotBlocksize = ntot / mpisize;
-
-    Int numMuBlocksize = numMu_ / mpisize;
-
-    Int numStateLocal = numStateBlocksize;
-    Int ntotLocal = ntotBlocksize;
-
-    Int numMuLocal = numMuBlocksize;
-
-    if(mpirank < (numStateTotal % mpisize)){
-      numStateLocal = numStateBlocksize + 1;
-    }
-
-    if(mpirank < (numMu_ % mpisize)){
-      numMuLocal = numMuBlocksize + 1;
-    }
-
-    if(mpirank < (ntot % mpisize)){
-      ntotLocal = ntotBlocksize + 1;
-    }
-
-    DblNumMat localVexxPsiCol( ntot, numStateLocal );
-    SetValue( localVexxPsiCol, 0.0 );
-
-    DblNumMat localVexxPsiRow( ntotLocal, numStateTotal );
-    SetValue( localVexxPsiRow, 0.0 );
-
-    DblNumMat localphiGRow( ntotLocal, numPre );
-    SetValue( localphiGRow, 0.0 );
-
-    DblNumMat localpsiGRow( ntotLocal, numPre );
-    SetValue( localpsiGRow, 0.0 );
-
-    DblNumMat G(numStateTotal, numPre);
-    SetValue( G, 0.0 );
-
-    DblNumMat phiCol( ntot, numStateLocal );
-    SetValue( phiCol, 0.0 );
-    DblNumMat phiRow( ntotLocal, numStateTotal );
-    SetValue( phiRow, 0.0 );
-
-    DblNumMat psiCol( ntot, numStateLocal );
-    SetValue( psiCol, 0.0 );
-    DblNumMat psiRow( ntotLocal, numStateTotal );
-    SetValue( psiRow, 0.0 );
-
-    lapack::Lacpy( 'A', ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
-    lapack::Lacpy( 'A', ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
-
-    AlltoallForward (phiCol, phiRow, domain_.comm);
-    AlltoallForward (psiCol, psiRow, domain_.comm);
-
-    // Computing the indices is optional
-
-    Int ntotLocalMG, ntotMG;
-
-    if( (ntot % mpisize) == 0 ){
-      ntotLocalMG = ntotBlocksize;
-    }
-    else{
-      ntotLocalMG = ntotBlocksize + 1;
-    }
-
-
-    if( isFixColumnDF == false ){
-      GetTime( timeSta );
-
-      // Step 1: Pre-compression of the wavefunctions. This uses
-      // multiplication with orthonormalized random Gaussian matrices
-      if ( mpirank == 0) {
-        GaussianRandom(G);
-        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
-      }
-
-      MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
-
-      blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
-          phiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
-          localphiGRow.Data(), ntotLocal );
-
-      blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
-          psiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
-          localpsiGRow.Data(), ntotLocal );
-
-      // Step 2: Pivoted QR decomposition  for the Hadamard product of
-      // the compressed matrix. Transpose format for QRCP
-
-      // NOTE: All processors should have the same ntotLocalMG
-      ntotMG = ntotLocalMG * mpisize;
-
-      DblNumMat MG( numPre*numPre, ntotLocalMG );
-      SetValue( MG, 0.0 );
-      for( Int j = 0; j < numPre; j++ ){
-        for( Int i = 0; i < numPre; i++ ){
-          for( Int ir = 0; ir < ntotLocal; ir++ ){
-            MG(i+j*numPre,ir) = localphiGRow(ir,i) * localpsiGRow(ir,j);
-          }
-        }
-      }
-
-      DblNumVec tau(ntotMG);
-      pivQR_.Resize(ntotMG);
-      SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
-      // Q factor does not need to be used
-
-      Real timeQRCPSta, timeQRCPEnd;
-      GetTime( timeQRCPSta );
-
-
-
-      if(0){  
-        lapack::QRCP( numPre*numPre, ntotMG, MG.Data(), numPre*numPre, 
-            pivQR_.Data(), tau.Data() );
-      }//
-
-
-      if(1){ // ScaLAPACL QRCP
-        Int contxt;
-        Int nprow, npcol, myrow, mycol, info;
-        Cblacs_get(0, 0, &contxt);
-        nprow = 1;
-        npcol = mpisize;
-
-        Cblacs_gridinit(&contxt, "C", nprow, npcol);
-        Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
-        Int desc_MG[9];
-        Int desc_QR[9];
-
-        Int irsrc = 0;
-        Int icsrc = 0;
-
-        Int mb_MG = numPre*numPre;
-        Int nb_MG = ntotLocalMG;
-
-        // FIXME The current routine does not actually allow ntotLocal to be different on different processors.
-        // This must be fixed.
-        SCALAPACK(descinit)(&desc_MG[0], &mb_MG, &ntotMG, &mb_MG, &nb_MG, &irsrc, 
-            &icsrc, &contxt, &mb_MG, &info);
-
-        IntNumVec pivQRTmp(ntotMG), pivQRLocal(ntotMG);
-        if( mb_MG > ntot ){
-          std::ostringstream msg;
-          msg << "numPre*numPre > ntot. The number of grid points is perhaps too small!" << std::endl;
-          ErrorHandling( msg.str().c_str() );
-        }
-        // DiagR is only for debugging purpose
-//        DblNumVec diagRLocal( mb_MG );
-//        DblNumVec diagR( mb_MG );
-
-        SetValue( pivQRTmp, 0 );
-        SetValue( pivQRLocal, 0 );
-        SetValue( pivQR_, 0 );
-
-//        SetValue( diagRLocal, 0.0 );
-//        SetValue( diagR, 0.0 );
-
-        scalapack::QRCPF( mb_MG, ntotMG, MG.Data(), &desc_MG[0], 
-            pivQRTmp.Data(), tau.Data() );
-
-//        scalapack::QRCPR( mb_MG, ntotMG, numMu_, MG.Data(), &desc_MG[0], 
-//            pivQRTmp.Data(), tau.Data(), 80, 40 );
-
-        // Combine the local pivQRTmp to global pivQR_
-        for( Int j = 0; j < ntotLocalMG; j++ ){
-          pivQRLocal[j + mpirank * ntotLocalMG] = pivQRTmp[j];
-        }
-
-        //        std::cout << "diag of MG = " << std::endl;
-        //        if(mpirank == 0){
-        //          std::cout << pivQRLocal << std::endl;
-        //          for( Int j = 0; j < mb_MG; j++ ){
-        //            std::cout << MG(j,j) << std::endl;
-        //          }
-        //        }
-        MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
-            ntotMG, MPI_INT, MPI_SUM, domain_.comm );
-
-        if(contxt >= 0) {
-          Cblacs_gridexit( contxt );
-        }
-      } //
-
-
-      GetTime( timeQRCPEnd );
-
-      //statusOFS << std::endl<< "All processors exit with abort in spinor.cpp." << std::endl;
-
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for QRCP alone is " <<
-        timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
-#endif
-
-      if(0){
-        Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
-        statusOFS << "numMu_ = " << numMu_ << std::endl;
-        statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
-      }
-
-      GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for density fitting with QRCP is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-      // Dump out pivQR_
-      if(0){
-        std::ostringstream muStream;
-        serialize( pivQR_, muStream, NO_MASK );
-        SharedWrite( "pivQR", muStream );
-      }
-    }
-
-    // Load pivQR_ file
-    if(0){
-      statusOFS << "Loading pivQR file.." << std::endl;
-      std::istringstream muStream;
-      SharedRead( "pivQR", muStream );
-      deserialize( pivQR_, muStream, NO_MASK );
-    }
-
-    // *********************************************************************
-    // Compute the interpolation matrix via the density matrix formulation
-    // *********************************************************************
-
-    GetTime( timeSta );
-    
-    DblNumMat XiRow(ntotLocal, numMu_);
-    DblNumMat psiMu(numStateTotal, numMu_);
-    // PhiMu is scaled by the occupation number to reflect the "true" density matrix
-    DblNumMat PcolPhiMu(ntotLocal, numMu_);
-    IntNumVec pivMu(numMu_);
-
-    {
-    
-      for( Int mu = 0; mu < numMu_; mu++ ){
-        pivMu(mu) = pivQR_(mu);
-      }
-
-      // These three matrices are used only once. 
-      // Used before reduce
-      DblNumMat psiMuRow(numStateTotal, numMu_);
-      DblNumMat phiMuRow(numStateTotal, numMu_);
-      //DblNumMat PcolMuNuRow(numMu_, numMu_);
-      DblNumMat PcolPsiMuRow(ntotLocal, numMu_);
-
-      // Collecting the matrices obtained from row partition
-      DblNumMat phiMu(numStateTotal, numMu_);
-      DblNumMat PcolMuNu(numMu_, numMu_);
-      DblNumMat PcolPsiMu(ntotLocal, numMu_);
-
-      SetValue( psiMuRow, 0.0 );
-      SetValue( phiMuRow, 0.0 );
-      //SetValue( PcolMuNuRow, 0.0 );
-      SetValue( PcolPsiMuRow, 0.0 );
-
-      SetValue( phiMu, 0.0 );
-      SetValue( PcolMuNu, 0.0 );
-      SetValue( PcolPsiMu, 0.0 );
-
-      GetTime( timeSta1 );
-
-      for( Int mu = 0; mu < numMu_; mu++ ){
-        Int muInd = pivMu(mu);
-        // NOTE Hard coded here with the row partition strategy
-        if( muInd <  mpirank * ntotLocalMG ||
-            muInd >= (mpirank + 1) * ntotLocalMG )
-          continue;
-
-        Int muIndRow = muInd - mpirank * ntotLocalMG;
-
-        for (Int k=0; k<numStateTotal; k++) {
-          psiMuRow(k, mu) = psiRow(muIndRow,k);
-          phiMuRow(k, mu) = phiRow(muIndRow,k) * occupationRate[k];
-        }
-      }
-
-      GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for computing the MuRow is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-      GetTime( timeSta1 );
-      
-      MPI_Allreduce( psiMuRow.Data(), psiMu.Data(), 
-          numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
-      MPI_Allreduce( phiMuRow.Data(), phiMu.Data(), 
-          numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
-      
-      GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for MPI_Allreduce is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-      
-      GetTime( timeSta1 );
-
-      blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
-          psiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 0.0,
-          PcolPsiMu.Data(), ntotLocal );
-      blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
-          phiRow.Data(), ntotLocal, phiMu.Data(), numStateTotal, 0.0,
-          PcolPhiMu.Data(), ntotLocal );
-      
-      GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for GEMM is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-      
-      GetTime( timeSta1 );
-
-      Real* xiPtr = XiRow.Data();
-      Real* PcolPsiMuPtr = PcolPsiMu.Data();
-      Real* PcolPhiMuPtr = PcolPhiMu.Data();
-      
-      for( Int g = 0; g < ntotLocal * numMu_; g++ ){
-        xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g];
-      }
-
-      // 1/2/2017 Add extra weight to certain entries to the XiRow matrix
-      // Currently only works for one processor
-      if(0)
-      {
-        Real wgt = 10.0;
-        // Correction for Diagonal entries
-        for( Int mu = 0; mu < numMu_; mu++ ){
-          xiPtr = XiRow.VecData(mu);
-          for( Int i = 0; i < numStateTotal; i++ ){
-            Real* phiPtr = phi.VecData(0, i);
-            Real* psiPtr = wavefun_.VecData(0,i);
-            Real  fac = phiMu(i,mu) * psiMu(i,mu) * wgt; 
-            for( Int g = 0; g < ntotLocal; g++ ){
-              xiPtr[g] += phiPtr[g] * psiPtr[g] * fac;
-            } 
-          }
-        }
-      }
-
-      if(0)
-      {
-        Real wgt = 10.0;
-        // Correction for HOMO 
-        for( Int mu = 0; mu < numMu_; mu++ ){
-          xiPtr = XiRow.VecData(mu);
-          Real* phiPtr = phi.VecData(0, numStateTotal-1);
-          for( Int i = 0; i < numStateTotal; i++ ){
-            Real* psiPtr = wavefun_.VecData(0,i);
-            Real  fac = phiMu(numStateTotal-1,mu) * psiMu(i,mu) * wgt; 
-            for( Int g = 0; g < ntotLocal; g++ ){
-              xiPtr[g] += phiPtr[g] * psiPtr[g] * fac;
-            } 
-          }
-        }
-      }
-      
-      
-      GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for xiPtr is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-      {
-
-        GetTime( timeSta1 );
-
-        DblNumMat PcolMuNuRow(numMu_, numMu_);
-        SetValue( PcolMuNuRow, 0.0 );
-
-        for( Int mu = 0; mu < numMu_; mu++ ){
-
-          Int muInd = pivMu(mu);
-          // NOTE Hard coded here with the row partition strategy
-          if( muInd <  mpirank * ntotLocalMG ||
-              muInd >= (mpirank + 1) * ntotLocalMG )
-            continue;
-          Int muIndRow = muInd - mpirank * ntotLocalMG;
-
-          for (Int nu=0; nu < numMu_; nu++) {
-            PcolMuNuRow( mu, nu ) = XiRow( muIndRow, nu );
-          }
-
-        }//for mu
-
-        GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for PcolMuNuRow is " <<
-          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-        GetTime( timeSta1 );
-
-        MPI_Allreduce( PcolMuNuRow.Data(), PcolMuNu.Data(), 
-            numMu_* numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
-
-        GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for MPI_Allreduce is " <<
-          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-      }
-        
-      GetTime( timeSta1 );
-
-      if(0){
-        if ( mpirank == 0) {
-          lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
-        }
-      } // if(0)
-
-      if(1){ // Parallel Portf
-
-        Int contxt;
-        Int nprow, npcol, myrow, mycol, info;
-        Cblacs_get(0, 0, &contxt);
-
-        for( Int i = IRound(sqrt(double(numProcScaLAPACKPotrf))); 
-            i <= numProcScaLAPACKPotrf; i++){
-          nprow = i; npcol = numProcScaLAPACKPotrf / nprow;
-          if( nprow * npcol == numProcScaLAPACKPotrf ) break;
-        }
-
-        IntNumVec pmap(numProcScaLAPACKPotrf);
-        // Take the first numProcScaLAPACK processors for diagonalization
-        for ( Int i = 0; i < numProcScaLAPACKPotrf; i++ ){
-          pmap[i] = i;
-        }
-
-        Cblacs_gridmap(&contxt, &pmap[0], nprow, nprow, npcol);
-
-        if( contxt >= 0 ){
-
-          Int numKeep = numMu_; 
-          Int lda = numMu_;
-
-          scalapack::ScaLAPACKMatrix<Real> square_mat_scala;
-
-          scalapack::Descriptor descReduceSeq, descReducePar;
-
-          // Leading dimension provided
-          descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt, lda );
-
-          // Automatically comptued Leading Dimension
-          descReducePar.Init( numKeep, numKeep, scaPotrfBlockSize, scaPotrfBlockSize, I_ZERO, I_ZERO, contxt );
-
-          square_mat_scala.SetDescriptor( descReducePar );
-
-          DblNumMat&  square_mat = PcolMuNu;
-          // Redistribute the input matrix over the process grid
-          SCALAPACK(pdgemr2d)(&numKeep, &numKeep, square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
-              &square_mat_scala.LocalMatrix()[0], &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &contxt );
-
-          // Make the ScaLAPACK call
-          char LL = 'L';
-          //SCALAPACK(pdpotrf)(&LL, &numMu_, square_mat_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &info);
-          scalapack::Potrf(LL, square_mat_scala);
-
-          // Redistribute back eigenvectors
-          SetValue(square_mat, 0.0 );
-          SCALAPACK(pdgemr2d)( &numKeep, &numKeep, square_mat_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(),
-              square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt );
-        
-        } // if(contxt >= 0)
-
-        if(contxt >= 0) {
-          Cblacs_gridexit( contxt );
-        }
-
-      } // if(1) for Parallel Portf
-
-      GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for Potrf is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-      { 
-
-        GetTime( timeSta1 );
-
-        MPI_Bcast(PcolMuNu.Data(), numMu_ * numMu_, MPI_DOUBLE, 0, domain_.comm);
-
-        GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for MPI_Bcast is " <<
-          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-        GetTime( timeSta1 );
-
-      }
-
-      blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numMu_, 1.0, 
-          PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
-
-      blas::Trsm( 'R', 'L', 'N', 'N', ntotLocal, numMu_, 1.0, 
-          PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
-
-      GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for Trsm is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-
-    }
-      
-    GetTime( timeEnd );
-
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing the interpolation vectors is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-    // *********************************************************************
-    // Solve the Poisson equations
-    // Rewrite Xi by the potential of Xi
-    // *********************************************************************
-
-    DblNumMat XiCol(ntot, numMuLocal);
-
-    AlltoallBackward (XiRow, XiCol, domain_.comm);
-       
-    {
-      GetTime( timeSta );
-      for( Int mu = 0; mu < numMuLocal; mu++ ){
-        blas::Copy( ntot,  XiCol.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
-
-        FFTWExecute ( fft, fft.forwardPlanR2C );
-
-        for( Int ig = 0; ig < ntotR2C; ig++ ){
-          fft.outputVecR2C(ig) *= -exxFraction * exxgkkR2C(ig);
-        }
-
-        FFTWExecute ( fft, fft.backwardPlanR2C );
-
-        blas::Copy( ntot, fft.inputVecR2C.Data(), 1, XiCol.VecData(mu), 1 );
-
-      } // for (mu)
-
-      AlltoallForward (XiCol, XiRow, domain_.comm);
-
-      GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for solving Poisson-like equations is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-    }
-
-
-
-
-    // *********************************************************************
-    // Compute the exchange potential and the symmetrized inner product
-    // *********************************************************************
-
-    GetTime( timeSta );
-    // Rewrite Xi by Xi.*PcolPhi
-    Real* xiPtr = XiRow.Data();
-    Real* PcolPhiMuPtr = PcolPhiMu.Data();
-    for( Int g = 0; g < ntotLocal * numMu_; g++ ){
-      xiPtr[g] *= PcolPhiMuPtr[g];
-    }
-
-    // NOTE: a3 must be zero in order to compute the M matrix later
-    DblNumMat a3Row( ntotLocal, numStateTotal );
-    SetValue( a3Row, 0.0 );
-    blas::Gemm( 'N', 'T', ntotLocal, numStateTotal, numMu_, 1.0, 
-        XiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 1.0,
-        a3Row.Data(), ntotLocal ); 
-
-    DblNumMat a3Col( ntot, numStateLocal );
-    
-    AlltoallBackward (a3Row, a3Col, domain_.comm);
-
-    lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );
-
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing the exchange potential is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-    // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-    // vexxPsi (a3) must be zero before entering this routine
-    VxMat.Resize( numStateTotal, numStateTotal );
-    if(0)
-    {
-      // Minus sign so that VxMat is positive semidefinite
-      // NOTE: No measure factor vol / ntot due to the normalization
-      // factor of psi
-      DblNumMat VxMatTemp( numStateTotal, numStateTotal );
-      SetValue( VxMatTemp, 0.0 );
-      GetTime( timeSta );
-      blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal, -1.0,
-          psiRow.Data(), ntotLocal, a3Row.Data(), ntotLocal, 0.0, 
-          VxMatTemp.Data(), numStateTotal );
-
-      SetValue( VxMat, 0.0 );
-      MPI_Allreduce( VxMatTemp.Data(), VxMat.Data(), numStateTotal * numStateTotal, 
-          MPI_DOUBLE, MPI_SUM, domain_.comm );
-
-      Symmetrize( VxMat );
-     
-      GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for computing VxMat in the sym format is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-    }
-
-  } //if(1) for For MPI
-
-  MPI_Barrier(domain_.comm);
-
-  return ;
-<<<<<<< HEAD
 }        // -----  end of method Spinor::AddMultSpinorEXXDF  ----- 
 
 
@@ -7676,18 +6851,11 @@ void Spinor::AddMultSpinorEXXDF2 ( Fourier& fft,
 //  return ;
 //}        // -----  end of method Spinor::AddMultSpinorEXXDF5  ----- 
 
-
-// 2D MPI communication for matrix
-// Update: 6/26/2017
-void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft, 
-=======
-}        // -----  end of method Spinor::AddMultSpinorEXXDF2  ----- 
 #ifdef GPU
 // This is density fitting formulation with symmetric implementation of
 // the M matrix when combined with ACE, so that the POTRF does not fail as often
 // Update: 1/10/2017
 void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft, 
->>>>>>> GPU
     const NumTns<Real>& phi,
     const DblNumVec& exxgkkR2C,
     Real  exxFraction,
@@ -7695,16 +6863,9 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     const DblNumVec& occupationRate,
     const Real numMuFac,
     const Real numGaussianRandomFac,
-<<<<<<< HEAD
-    const Int numProcScaLAPACK,  
-    const Real hybridDFTolerance,
-    const Int BlockSizeScaLAPACK,  
-    NumTns<Real>& a3, 
-=======
     const Int numProcScaLAPACKPotrf,  
     const Int scaPotrfBlockSize,  
     cuDblNumMat & cu_a3, 
->>>>>>> GPU
     NumMat<Real>& VxMat,
     bool isFixColumnDF )
 {
@@ -7744,24 +6905,6 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
   }
 
 
-<<<<<<< HEAD
-  // *********************************************************************
-  // Perform interpolative separable density fitting
-  // *********************************************************************
-
-  //numMu_ = std::min(IRound(numStateTotal*numMuFac), ntot);
-  numMu_ = IRound(numStateTotal*numMuFac);
-
-  Int numPre = IRound(std::sqrt(numMu_*numGaussianRandomFac));
-  if( numPre > numStateTotal ){
-    ErrorHandling("numMu is too large for interpolative separable density fitting!");
-  }
-
-  statusOFS << "ntot          = " << ntot << std::endl;
-  statusOFS << "numMu         = " << numMu_ << std::endl;
-  statusOFS << "numPre        = " << numPre << std::endl;
-  statusOFS << "numPre*numPre = " << numPre * numPre << std::endl;
-=======
   if(1){ //For MPI
 
     // *********************************************************************
@@ -7835,20 +6978,9 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     cu_psiRow.CopyTo(psiRow);
     }
     // Computing the indices is optional
->>>>>>> GPU
 
-  // Convert the column partition to row partition
-  Int numStateBlocksize = numStateTotal / mpisize;
-  //Int ntotBlocksize = ntot / mpisize;
+    Int ntotLocalMG, ntotMG;
 
-<<<<<<< HEAD
-  Int numMuBlocksize = numMu_ / mpisize;
-
-  Int numStateLocal1 = numStateBlocksize;
-  //Int ntotLocal = ntotBlocksize;
-
-  Int numMuLocal = numMuBlocksize;
-=======
     if( (ntot % mpisize) == 0 ){
       ntotLocalMG = ntotBlocksize;
     }
@@ -7866,26 +6998,16 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       DblNumMat G(numStateTotal, numPre);
       SetValue( G, 0.0 );
       GetTime( timeSta );
->>>>>>> GPU
 
-  if(mpirank < (numStateTotal % mpisize)){
-    numStateLocal1 = numStateBlocksize + 1;
-  }
+      // Step 1: Pre-compression of the wavefunctions. This uses
+      // multiplication with orthonormalized random Gaussian matrices
+      if ( mpirank == 0) {
+        GaussianRandom(G);
+        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+      }
 
-  if(numStateLocal !=  numStateLocal1){
-    statusOFS << "numStateLocal = " << numStateLocal << " numStateLocal1 = " << numStateLocal1 << std::endl;
-    ErrorHandling("The size is not right in interpolative separable density fitting!");
-  }
+      MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
 
-<<<<<<< HEAD
-  if(mpirank < (numMu_ % mpisize)){
-    numMuLocal = numMuBlocksize + 1;
-  }
-
-  //if(mpirank < (ntot % mpisize)){
-  //  ntotLocal = ntotBlocksize + 1;
-  //}
-=======
       cuDblNumMat cu_localphiGRow( ntotLocal, numPre );
       cuDblNumMat cu_G(numStateTotal, numPre);
       cuDblNumMat cu_localpsiGRow( ntotLocal, numPre );
@@ -7903,7 +7025,810 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
 
       cu_localphiGRow.CopyTo(localphiGRow);
       cu_localpsiGRow.CopyTo(localpsiGRow);
->>>>>>> GPU
+
+      // Step 2: Pivoted QR decomposition  for the Hadamard product of
+      // the compressed matrix. Transpose format for QRCP
+
+      // NOTE: All processors should have the same ntotLocalMG
+      ntotMG = ntotLocalMG * mpisize;
+
+      DblNumMat MG( numPre*numPre, ntotLocalMG );
+      SetValue( MG, 0.0 );
+      for( Int j = 0; j < numPre; j++ ){
+        for( Int i = 0; i < numPre; i++ ){
+          for( Int ir = 0; ir < ntotLocal; ir++ ){
+            MG(i+j*numPre,ir) = localphiGRow(ir,i) * localpsiGRow(ir,j);
+          }
+        }
+      }
+
+      DblNumVec tau(ntotMG);
+      pivQR_.Resize(ntotMG);
+      SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
+      // Q factor does not need to be used
+
+      Real timeQRCPSta, timeQRCPEnd;
+      GetTime( timeQRCPSta );
+
+
+
+      if(0){  
+        lapack::QRCP( numPre*numPre, ntotMG, MG.Data(), numPre*numPre, 
+            pivQR_.Data(), tau.Data() );
+      }//
+
+
+      if(1){ // ScaLAPACL QRCP
+        Int contxt;
+        Int nprow, npcol, myrow, mycol, info;
+        Cblacs_get(0, 0, &contxt);
+        nprow = 1;
+        npcol = mpisize;
+
+        Cblacs_gridinit(&contxt, "C", nprow, npcol);
+        Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
+        Int desc_MG[9];
+        Int desc_QR[9];
+
+        Int irsrc = 0;
+        Int icsrc = 0;
+
+        Int mb_MG = numPre*numPre;
+        Int nb_MG = ntotLocalMG;
+
+        // FIXME The current routine does not actually allow ntotLocal to be different on different processors.
+        // This must be fixed.
+        SCALAPACK(descinit)(&desc_MG[0], &mb_MG, &ntotMG, &mb_MG, &nb_MG, &irsrc, 
+            &icsrc, &contxt, &mb_MG, &info);
+
+        IntNumVec pivQRTmp(ntotMG), pivQRLocal(ntotMG);
+        if( mb_MG > ntot ){
+          std::ostringstream msg;
+          msg << "numPre*numPre > ntot. The number of grid points is perhaps too small!" << std::endl;
+          ErrorHandling( msg.str().c_str() );
+        }
+        // DiagR is only for debugging purpose
+//        DblNumVec diagRLocal( mb_MG );
+//        DblNumVec diagR( mb_MG );
+
+        SetValue( pivQRTmp, 0 );
+        SetValue( pivQRLocal, 0 );
+        SetValue( pivQR_, 0 );
+
+//        SetValue( diagRLocal, 0.0 );
+//        SetValue( diagR, 0.0 );
+
+        scalapack::QRCPF( mb_MG, ntotMG, MG.Data(), &desc_MG[0], 
+            pivQRTmp.Data(), tau.Data() );
+
+//        scalapack::QRCPR( mb_MG, ntotMG, numMu_, MG.Data(), &desc_MG[0], 
+//            pivQRTmp.Data(), tau.Data(), 80, 40 );
+
+        // Combine the local pivQRTmp to global pivQR_
+        for( Int j = 0; j < ntotLocalMG; j++ ){
+          pivQRLocal[j + mpirank * ntotLocalMG] = pivQRTmp[j];
+        }
+
+        //        std::cout << "diag of MG = " << std::endl;
+        //        if(mpirank == 0){
+        //          std::cout << pivQRLocal << std::endl;
+        //          for( Int j = 0; j < mb_MG; j++ ){
+        //            std::cout << MG(j,j) << std::endl;
+        //          }
+        //        }
+        MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
+            ntotMG, MPI_INT, MPI_SUM, domain_.comm );
+
+        if(contxt >= 0) {
+          Cblacs_gridexit( contxt );
+        }
+      } //
+
+
+      GetTime( timeQRCPEnd );
+
+      //statusOFS << std::endl<< "All processors exit with abort in spinor.cpp." << std::endl;
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for QRCP alone is " <<
+        timeQRCPEnd - timeQRCPSta << " [s]" << std::endl << std::endl;
+#endif
+
+      if(0){
+        Real tolR = std::abs(MG(numMu_-1,numMu_-1)/MG(0,0));
+        statusOFS << "numMu_ = " << numMu_ << std::endl;
+        statusOFS << "|R(numMu-1,numMu-1)/R(0,0)| = " << tolR << std::endl;
+      }
+
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for density fitting with QRCP is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      // Dump out pivQR_
+      if(0){
+        std::ostringstream muStream;
+        serialize( pivQR_, muStream, NO_MASK );
+        SharedWrite( "pivQR", muStream );
+      }
+    } //if isFixColumnDF == false 
+
+    // Load pivQR_ file
+    if(0){
+      statusOFS << "Loading pivQR file.." << std::endl;
+      std::istringstream muStream;
+      SharedRead( "pivQR", muStream );
+      deserialize( pivQR_, muStream, NO_MASK );
+    }
+
+    // *********************************************************************
+    // Compute the interpolation matrix via the density matrix formulation
+    // *********************************************************************
+
+    GetTime( timeSta );
+    
+    DblNumMat XiRow(ntotLocal, numMu_);
+    DblNumMat psiMu(numStateTotal, numMu_);
+
+    cuDblNumMat cu_psiMu(numStateTotal, numMu_);
+    cuDblNumMat cu_XiRow(ntotLocal, numMu_);
+
+    // PhiMu is scaled by the occupation number to reflect the "true" density matrix
+    DblNumMat PcolPhiMu(ntotLocal, numMu_);
+    cuDblNumMat cu_PcolPhiMu(ntotLocal, numMu_);
+
+    IntNumVec pivMu(numMu_);
+    DblNumMat phiMu(numStateTotal, numMu_);
+
+    cuDblNumMat cu_phiMu(numStateTotal, numMu_);
+
+    {
+    
+      for( Int mu = 0; mu < numMu_; mu++ ){
+        pivMu(mu) = pivQR_(mu);
+      }
+
+      // These three matrices are used only once. 
+      // Used before reduce
+      DblNumMat psiMuRow(numStateTotal, numMu_);
+      DblNumMat phiMuRow(numStateTotal, numMu_);
+      //DblNumMat PcolMuNuRow(numMu_, numMu_);
+      //DblNumMat PcolPsiMuRow(ntotLocal, numMu_);
+
+      // Collecting the matrices obtained from row partition
+      DblNumMat PcolMuNu(numMu_, numMu_);
+      DblNumMat PcolPsiMu(ntotLocal, numMu_);
+
+      cuDblNumMat cu_PcolPsiMu(ntotLocal, numMu_);
+      cuDblNumMat cu_PcolMuNu(numMu_, numMu_);
+
+      SetValue( psiMuRow, 0.0 );
+      SetValue( phiMuRow, 0.0 );
+      //SetValue( PcolMuNuRow, 0.0 );
+      //SetValue( PcolPsiMuRow, 0.0 );
+
+      //SetValue( phiMu, 0.0 );
+      //SetValue( PcolMuNu, 0.0 );
+      //SetValue( PcolPsiMu, 0.0 );
+
+      GetTime( timeSta1 );
+
+      for( Int mu = 0; mu < numMu_; mu++ ){
+        Int muInd = pivMu(mu);
+        // NOTE Hard coded here with the row partition strategy
+        if( muInd <  mpirank * ntotLocalMG ||
+            muInd >= (mpirank + 1) * ntotLocalMG )
+          continue;
+
+        Int muIndRow = muInd - mpirank * ntotLocalMG;
+
+        for (Int k=0; k<numStateTotal; k++) {
+          psiMuRow(k, mu) = psiRow(muIndRow,k);
+          phiMuRow(k, mu) = phiRow(muIndRow,k) * occupationRate[k];
+        }
+      }
+
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing the MuRow is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+      GetTime( timeSta1 );
+      
+      MPI_Allreduce( psiMuRow.Data(), psiMu.Data(), 
+          numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
+      MPI_Allreduce( phiMuRow.Data(), phiMu.Data(), 
+          numStateTotal * numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
+      
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for MPI_Allreduce is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+      
+      GetTime( timeSta1 );
+      cu_psiMu.CopyFrom(psiMu);
+      cu_phiMu.CopyFrom(phiMu);
+
+      //cu_PcolPsiMu.CopyFrom(PcolPsiMu);
+      //cu_PcolPhiMu.CopyFrom(PcolPhiMu);
+
+      //cu_psiRow.CopyFrom(psiRow);
+      //cu_phiRow.CopyFrom(phiRow);
+
+      cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numMu_, numStateTotal, &one, 
+          cu_psiRow.Data(), ntotLocal, cu_psiMu.Data(), numStateTotal, &zero,
+          cu_PcolPsiMu.Data(), ntotLocal );
+      cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numMu_, numStateTotal, &one, 
+          cu_phiRow.Data(), ntotLocal, cu_phiMu.Data(), numStateTotal, &zero,
+          cu_PcolPhiMu.Data(), ntotLocal );
+
+      //cu_PcolPsiMu.CopyTo(PcolPsiMu);
+      //cu_PcolPhiMu.CopyTo(PcolPhiMu);
+
+      /*
+      blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
+          psiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 0.0,
+          PcolPsiMu.Data(), ntotLocal );
+      blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
+          phiRow.Data(), ntotLocal, phiMu.Data(), numStateTotal, 0.0,
+          PcolPhiMu.Data(), ntotLocal );
+      */
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for GEMM is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+      
+      GetTime( timeSta1 );
+      /*
+      Real* xiPtr = XiRow.Data();
+      Real* PcolPsiMuPtr = PcolPsiMu.Data();
+      Real* PcolPhiMuPtr = PcolPhiMu.Data();
+      
+      for( Int g = 0; g < ntotLocal * numMu_; g++ ){
+        xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g];
+      }
+      */
+      cuda_hadamard_product( cu_PcolPsiMu.Data(), cu_PcolPhiMu.Data(), cu_XiRow.Data(), ntotLocal * numMu_);
+      cu_XiRow.CopyTo(XiRow);
+      
+
+      // 1/2/2017 Add extra weight to certain entries to the XiRow matrix
+      // Currently only works for one processor
+      /*
+      if(0)
+      {
+        Real wgt = 10.0;
+        // Correction for Diagonal entries
+        for( Int mu = 0; mu < numMu_; mu++ ){
+          xiPtr = XiRow.VecData(mu);
+          for( Int i = 0; i < numStateTotal; i++ ){
+            Real* phiPtr = phi.VecData(0, i);
+            Real* psiPtr = wavefun_.VecData(0,i);
+            Real  fac = phiMu(i,mu) * psiMu(i,mu) * wgt; 
+            for( Int g = 0; g < ntotLocal; g++ ){
+              xiPtr[g] += phiPtr[g] * psiPtr[g] * fac;
+            } 
+          }
+        }
+      }
+
+      if(0)
+      {
+        Real wgt = 10.0;
+        // Correction for HOMO 
+        for( Int mu = 0; mu < numMu_; mu++ ){
+          xiPtr = XiRow.VecData(mu);
+          Real* phiPtr = phi.VecData(0, numStateTotal-1);
+          for( Int i = 0; i < numStateTotal; i++ ){
+            Real* psiPtr = wavefun_.VecData(0,i);
+            Real  fac = phiMu(numStateTotal-1,mu) * psiMu(i,mu) * wgt; 
+            for( Int g = 0; g < ntotLocal; g++ ){
+              xiPtr[g] += phiPtr[g] * psiPtr[g] * fac;
+            } 
+          }
+        }
+      }
+      */
+      
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for xiPtr is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+      {
+
+        GetTime( timeSta1 );
+
+        DblNumMat PcolMuNuRow(numMu_, numMu_);
+        SetValue( PcolMuNuRow, 0.0 );
+
+        for( Int mu = 0; mu < numMu_; mu++ ){
+
+          Int muInd = pivMu(mu);
+          // NOTE Hard coded here with the row partition strategy
+          if( muInd <  mpirank * ntotLocalMG ||
+              muInd >= (mpirank + 1) * ntotLocalMG )
+            continue;
+          Int muIndRow = muInd - mpirank * ntotLocalMG;
+
+          for (Int nu=0; nu < numMu_; nu++) {
+            PcolMuNuRow( mu, nu ) = XiRow( muIndRow, nu );
+          }
+
+        }//for mu
+
+        GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for PcolMuNuRow is " <<
+          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+        GetTime( timeSta1 );
+
+        MPI_Allreduce( PcolMuNuRow.Data(), PcolMuNu.Data(), 
+            numMu_* numMu_, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+        GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for MPI_Allreduce is " <<
+          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+      }
+        
+      GetTime( timeSta1 );
+
+      if(0){
+        if ( mpirank == 0) {
+          lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
+        }
+      } // if(0)
+
+      if(1){ // Parallel Portf
+
+        Int contxt;
+        Int nprow, npcol, myrow, mycol, info;
+        Cblacs_get(0, 0, &contxt);
+
+        for( Int i = IRound(sqrt(double(numProcScaLAPACKPotrf))); 
+            i <= numProcScaLAPACKPotrf; i++){
+          nprow = i; npcol = numProcScaLAPACKPotrf / nprow;
+          if( nprow * npcol == numProcScaLAPACKPotrf ) break;
+        }
+
+        IntNumVec pmap(numProcScaLAPACKPotrf);
+        // Take the first numProcScaLAPACK processors for diagonalization
+        for ( Int i = 0; i < numProcScaLAPACKPotrf; i++ ){
+          pmap[i] = i;
+        }
+
+        Cblacs_gridmap(&contxt, &pmap[0], nprow, nprow, npcol);
+
+        if( contxt >= 0 ){
+
+          Int numKeep = numMu_; 
+          Int lda = numMu_;
+
+          scalapack::ScaLAPACKMatrix<Real> square_mat_scala;
+
+          scalapack::Descriptor descReduceSeq, descReducePar;
+
+          // Leading dimension provided
+          descReduceSeq.Init( numKeep, numKeep, numKeep, numKeep, I_ZERO, I_ZERO, contxt, lda );
+
+          // Automatically comptued Leading Dimension
+          descReducePar.Init( numKeep, numKeep, scaPotrfBlockSize, scaPotrfBlockSize, I_ZERO, I_ZERO, contxt );
+
+          square_mat_scala.SetDescriptor( descReducePar );
+
+          DblNumMat&  square_mat = PcolMuNu;
+          // Redistribute the input matrix over the process grid
+          SCALAPACK(pdgemr2d)(&numKeep, &numKeep, square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), 
+              &square_mat_scala.LocalMatrix()[0], &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &contxt );
+
+          // Make the ScaLAPACK call
+          char LL = 'L';
+          //SCALAPACK(pdpotrf)(&LL, &numMu_, square_mat_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(), &info);
+          scalapack::Potrf(LL, square_mat_scala);
+
+          // Redistribute back eigenvectors
+          SetValue(square_mat, 0.0 );
+          SCALAPACK(pdgemr2d)( &numKeep, &numKeep, square_mat_scala.Data(), &I_ONE, &I_ONE, square_mat_scala.Desc().Values(),
+              square_mat.Data(), &I_ONE, &I_ONE, descReduceSeq.Values(), &contxt );
+        
+        } // if(contxt >= 0)
+
+        if(contxt >= 0) {
+          Cblacs_gridexit( contxt );
+        }
+
+      } // if(1) for Parallel Portf
+
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for Potrf is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+      { 
+
+        GetTime( timeSta1 );
+
+        MPI_Bcast(PcolMuNu.Data(), numMu_ * numMu_, MPI_DOUBLE, 0, domain_.comm);
+
+        GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for MPI_Bcast is " <<
+          timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+        GetTime( timeSta1 );
+
+      }
+
+      cu_PcolMuNu.CopyFrom(PcolMuNu);
+      //cu_XiRow.CopyFrom(XiRow);
+
+      cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, 
+                    ntotLocal, numMu_, &one, cu_PcolMuNu.Data(), numMu_, cu_XiRow.Data(),ntotLocal);
+
+      cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, 
+                    ntotLocal, numMu_, &one, cu_PcolMuNu.Data(), numMu_, cu_XiRow.Data(),ntotLocal);
+
+      //cu_PcolMuNu.CopyTo(PcolMuNu);
+      //cu_XiRow.CopyTo(XiRow);
+
+      /*
+      blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numMu_, 1.0, 
+          PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
+
+      blas::Trsm( 'R', 'L', 'N', 'N', ntotLocal, numMu_, 1.0, 
+          PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
+      */
+      GetTime( timeEnd1 );
+
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for Trsm is " <<
+        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
+#endif
+
+    }
+      
+    GetTime( timeEnd );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing the interpolation vectors is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+
+    // *********************************************************************
+    // Solve the Poisson equations.
+    // Store VXi separately. This is not the most memory efficient
+    // implementation
+    // *********************************************************************
+
+    GetTime( timeSta );
+    DblNumMat VXiRow(ntotLocal, numMu_);
+    cuDblNumMat cu_VXiRow(ntotLocal, numMu_);
+
+    if(1){
+      // XiCol used for both input and output
+      Real mpi_time;
+      GetTime( timeSta1 );
+      DblNumMat XiCol(ntot, numMuLocal);
+      cuDblNumMat cu_XiCol(ntot, numMuLocal);
+
+      //cu_XiRow.CopyFrom( XiRow );
+      GPU_AlltoallBackward (cu_XiRow, cu_XiCol, domain_.comm);
+      //cu_XiCol.CopyFrom(XiCol);
+      //cu_XiCol.CopyTo( XiCol );
+      GetTime( timeEnd1 );
+      mpi_time = timeEnd1 - timeSta1;
+
+      cuDblNumVec cu_psi(ntot);
+      cuDblNumVec cu_psi_out(2*ntotR2C);
+      cuDblNumVec cu_exxgkkR2C(ntotR2C);
+
+      DblNumVec exxgkkR2CTemp(ntotR2C);
+      /*
+      for( Int ig = 0; ig < ntotR2C; ig++ ){
+            exxgkkR2CTemp (ig) = -exxFraction * exxgkkR2C(ig);
+      }
+
+      cuda_memcpy_CPU2GPU(cu_exxgkkR2C.Data(), exxgkkR2CTemp.Data(), sizeof(Real)*ntotR2C);
+      */
+      Real temp = -exxFraction;
+      cuda_memcpy_CPU2GPU(cu_exxgkkR2C.Data(), exxgkkR2C.Data(), sizeof(Real)*ntotR2C);
+      cublas::Scal( ntotR2C, &temp, cu_exxgkkR2C.Data(), 1);
+     
+      {
+        for( Int mu = 0; mu < numMuLocal; mu++ ){
+
+          // copy the WF to the buf.
+          cuda_memcpy_GPU2GPU(cu_psi.Data(), & cu_XiCol(0,mu), sizeof(Real)*ntot);
+
+          cuFFTExecuteForward( fft, fft.cuPlanR2C[0], 0, cu_psi, cu_psi_out);
+
+          cuda_teter( reinterpret_cast<cuDoubleComplex*> (cu_psi_out.Data()), cu_exxgkkR2C.Data(), ntotR2C );
+
+          cuFFTExecuteInverse( fft, fft.cuPlanC2R[0], 0, cu_psi_out, cu_psi);
+
+          cuda_memcpy_GPU2GPU( & cu_XiCol(0,mu), cu_psi.Data(), sizeof(Real)*ntot);
+
+        } // for (mu)
+
+        //cu_XiCol.CopyTo(XiCol);
+
+        GetTime( timeSta1 );
+
+        GPU_AlltoallForward (cu_XiCol, cu_VXiRow, domain_.comm);
+        //cu_VXiRow.CopyTo( VXiRow );    // copy the data back to VXiRow, used in the next steps.
+
+        GetTime( timeEnd1 );
+        mpi_time += timeEnd1 - timeSta1;
+
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for solving Poisson-like equations is " <<
+          timeEnd - timeSta << " [s]" << " MPI_Alltoall: " << mpi_time<< std::endl << std::endl;
+#endif
+      }
+    }
+
+    // Prepare for the computation of the M matrix
+
+    GetTime( timeSta );
+
+    DblNumMat MMatMuNu(numMu_, numMu_);
+    cuDblNumMat cu_MMatMuNu(numMu_, numMu_);
+    {
+      DblNumMat MMatMuNuTemp( numMu_, numMu_ );
+      cuDblNumMat cu_MMatMuNuTemp( numMu_, numMu_ );
+      //cu_VXiRow.CopyFrom(VXiRow);
+      //cu_XiRow.CopyFrom(XiRow);
+
+      // Minus sign so that MMat is positive semidefinite
+      cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numMu_, numMu_, ntotLocal, &minus_one,
+          cu_XiRow.Data(), ntotLocal, cu_VXiRow.Data(), ntotLocal, &zero, 
+          cu_MMatMuNuTemp.Data(), numMu_ );
+      cu_MMatMuNuTemp.CopyTo(MMatMuNuTemp);
+
+      /*
+      blas::Gemm( 'T', 'N', numMu_, numMu_, ntotLocal, -1.0,
+          XiRow.Data(), ntotLocal, VXiRow.Data(), ntotLocal, 0.0, 
+          MMatMuNuTemp.Data(), numMu_ );
+      */
+
+      MPI_Allreduce( MMatMuNuTemp.Data(), MMatMuNu.Data(), numMu_ * numMu_, 
+          MPI_DOUBLE, MPI_SUM, domain_.comm );
+      cu_MMatMuNu.CopyFrom( MMatMuNu );
+    }
+
+    // Element-wise multiply with phiMuNu matrix (i.e. density matrix)
+    {
+
+      DblNumMat phiMuNu(numMu_, numMu_);
+      cuDblNumMat cu_phiMuNu(numMu_, numMu_);
+      //cu_phiMu.CopyFrom(phiMu);
+
+      cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numMu_, numMu_, numStateTotal, &one,
+          cu_phiMu.Data(), numStateTotal, cu_phiMu.Data(), numStateTotal, &zero,
+          cu_phiMuNu.Data(), numMu_ );
+      cuda_hadamard_product( cu_MMatMuNu.Data(), cu_phiMuNu.Data(), cu_MMatMuNu.Data(), numMu_*numMu_);
+
+    }
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for preparing the M matrix is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+    // *********************************************************************
+    // Compute the exchange potential and the symmetrized inner product
+    // *********************************************************************
+
+    GetTime( timeSta );
+    // Rewrite VXi by VXi.*PcolPhi
+    // cu_VXiRow.CopyFrom(VXiRow);
+    cuda_hadamard_product( cu_VXiRow.Data(), cu_PcolPhiMu.Data(), cu_VXiRow.Data(), numMu_*ntotLocal );
+    
+    // NOTE: a3 must be zero in order to compute the M matrix later
+    DblNumMat a3Row( ntotLocal, numStateTotal );
+    cuda_setValue( cu_a3.Data(), 0.0, ntotLocal*numStateTotal);
+
+    cu_psiMu.CopyFrom(psiMu);
+
+    cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_T, ntotLocal, numStateTotal, numMu_, &one, 
+        cu_VXiRow.Data(), ntotLocal, cu_psiMu.Data(), numStateTotal, &one,
+        cu_a3.Data(), ntotLocal ); 
+
+    //cu_a3Row.CopyTo(a3Row);
+    // there is no need in MPI_AlltoallBackward from a3row to a3Col. 
+    // cause in the next step, we will MPI_AlltoallForward them back to row parallel
+   
+    /*
+    cuDblNumMat cu_a3Col( ntot, numStateLocal );
+    GPU_AlltoallBackward (cu_a3Row, cu_a3Col, domain_.comm);
+    cuda_memcpy_GPU2CPU( a3.Data(), cu_a3Col.Data(), sizeof(Real)*ntot*numStateLocal);
+    */
+
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing the exchange potential is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
+    // vexxPsi (a3) must be zero before entering this routine
+    VxMat.Resize( numStateTotal, numStateTotal );
+    GetTime( timeSta );
+    /*
+    if(0)
+    {
+      // Minus sign so that VxMat is positive semidefinite
+      // NOTE: No measure factor vol / ntot due to the normalization
+      // factor of psi
+      DblNumMat VxMatTemp( numStateTotal, numStateTotal );
+      SetValue( VxMatTemp, 0.0 );
+      blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal, -1.0,
+          psiRow.Data(), ntotLocal, a3Row.Data(), ntotLocal, 0.0, 
+          VxMatTemp.Data(), numStateTotal );
+
+      SetValue( VxMat, 0.0 );
+      MPI_Allreduce( VxMatTemp.Data(), VxMat.Data(), numStateTotal * numStateTotal, 
+          MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+      Symmetrize( VxMat );
+     
+    }
+    */
+    if(1){
+
+      DblNumMat VxMatTemp( numMu_, numStateTotal );
+      cuDblNumMat cu_VxMatTemp( numMu_, numStateTotal );
+      cuDblNumMat cu_VxMat( numStateTotal, numStateTotal );
+
+      cu_psiMu.CopyFrom(psiMu);
+      //cu_MMatMuNu.CopyFrom(MMatMuNu);
+    
+      cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_T, numMu_, numStateTotal, numMu_, &one, 
+          cu_MMatMuNu.Data(), numMu_, cu_psiMu.Data(), numStateTotal, &zero,
+          cu_VxMatTemp.Data(), numMu_ );
+      cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, numStateTotal, numStateTotal, numMu_, &one,
+          cu_psiMu.Data(), numStateTotal, cu_VxMatTemp.Data(), numMu_, &zero,
+          cu_VxMat.Data(), numStateTotal );
+
+      cu_VxMat.CopyTo(VxMat);  // no need to copy them back to CPU. just keep them in GPU.
+
+    }
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing VxMat in the sym format is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+  } //if(1) for For MPI
+
+  MPI_Barrier(domain_.comm);
+
+  return ;
+}        // -----  end of method Spinor::AddMultSpinorEXXDF3_GPU  ----- 
+
+
+#endif
+
+
+// 2D MPI communication for matrix
+// Update: 6/26/2017
+void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft, 
+    const NumTns<Real>& phi,
+    const DblNumVec& exxgkkR2C,
+    Real  exxFraction,
+    Real  numSpin,
+    const DblNumVec& occupationRate,
+    const Real numMuFac,
+    const Real numGaussianRandomFac,
+    const Int numProcScaLAPACK,  
+    const Real hybridDFTolerance,
+    const Int BlockSizeScaLAPACK,  
+    NumTns<Real>& a3, 
+    NumMat<Real>& VxMat,
+    bool isFixColumnDF )
+{
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+
+  if( !fft.isInitialized ){
+    ErrorHandling("Fourier is not prepared.");
+  }
+
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  Index3& numGrid = domain_.numGrid;
+  Index3& numGridFine = domain_.numGridFine;
+
+  Int ntot     = domain_.NumGridTotal();
+  Int ntotFine = domain_.NumGridTotalFine();
+  Int ntotR2C = fft.numGridTotalR2C;
+  Int ntotR2CFine = fft.numGridTotalR2CFine;
+  Int ncom = wavefun_.n();
+  Int numStateLocal = wavefun_.p();
+  Int numStateTotal = numStateTotal_;
+
+  Int ncomPhi = phi.n();
+
+  Real vol = domain_.Volume();
+
+  if( ncomPhi != 1 || ncom != 1 ){
+    ErrorHandling("Spin polarized case not implemented.");
+  }
+
+  if( fft.domain.NumGridTotal() != ntot ){
+    ErrorHandling("Domain size does not match.");
+  }
+
+
+  // *********************************************************************
+  // Perform interpolative separable density fitting
+  // *********************************************************************
+
+  //numMu_ = std::min(IRound(numStateTotal*numMuFac), ntot);
+  numMu_ = IRound(numStateTotal*numMuFac);
+
+  Int numPre = IRound(std::sqrt(numMu_*numGaussianRandomFac));
+  if( numPre > numStateTotal ){
+    ErrorHandling("numMu is too large for interpolative separable density fitting!");
+  }
+
+  statusOFS << "ntot          = " << ntot << std::endl;
+  statusOFS << "numMu         = " << numMu_ << std::endl;
+  statusOFS << "numPre        = " << numPre << std::endl;
+  statusOFS << "numPre*numPre = " << numPre * numPre << std::endl;
+
+  // Convert the column partition to row partition
+  Int numStateBlocksize = numStateTotal / mpisize;
+  //Int ntotBlocksize = ntot / mpisize;
+
+  Int numMuBlocksize = numMu_ / mpisize;
+
+  Int numStateLocal1 = numStateBlocksize;
+  //Int ntotLocal = ntotBlocksize;
+
+  Int numMuLocal = numMuBlocksize;
+
+  if(mpirank < (numStateTotal % mpisize)){
+    numStateLocal1 = numStateBlocksize + 1;
+  }
+
+  if(numStateLocal !=  numStateLocal1){
+    statusOFS << "numStateLocal = " << numStateLocal << " numStateLocal1 = " << numStateLocal1 << std::endl;
+    ErrorHandling("The size is not right in interpolative separable density fitting!");
+  }
+
+  if(mpirank < (numMu_ % mpisize)){
+    numMuLocal = numMuBlocksize + 1;
+  }
+
+  //if(mpirank < (ntot % mpisize)){
+  //  ntotLocal = ntotBlocksize + 1;
+  //}
 
   //huwei 
   //2D MPI commucation for all the matrix
@@ -8046,7 +7971,6 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
   Int mb2 = BlockSizeScaLAPACK;
   Int nb2 = BlockSizeScaLAPACK;
 
-<<<<<<< HEAD
   //desc_NgNe2D
   if(contxt2 >= 0){
     Cblacs_gridinfo(contxt2, &nprow2, &npcol2, &myrow2, &mycol2);
@@ -8054,15 +7978,6 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     ncolsNgNe2D = SCALAPACK(numroc)(&Ne, &nb2, &mycol2, &I_ZERO, &npcol2);
     lldNgNe2D = std::max( nrowsNgNe2D, 1 );
   }
-=======
-      // Dump out pivQR_
-      if(0){
-        std::ostringstream muStream;
-        serialize( pivQR_, muStream, NO_MASK );
-        SharedWrite( "pivQR", muStream );
-      }
-    } //if isFixColumnDF == false 
->>>>>>> GPU
 
   SCALAPACK(descinit)(desc_NgNe2D, &Ng, &Ne, &mb2, &nb2, &I_ZERO, 
       &I_ZERO, &contxt2, &lldNgNe2D, &info2);
@@ -8075,27 +7990,8 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     lldNgNu2D = std::max( nrowsNgNu2D, 1 );
   }
 
-<<<<<<< HEAD
   SCALAPACK(descinit)(desc_NgNu2D, &Ng, &Nu, &mb2, &nb2, &I_ZERO, 
       &I_ZERO, &contxt2, &lldNgNu2D, &info2);
-=======
-    GetTime( timeSta );
-    
-    DblNumMat XiRow(ntotLocal, numMu_);
-    DblNumMat psiMu(numStateTotal, numMu_);
-
-    cuDblNumMat cu_psiMu(numStateTotal, numMu_);
-    cuDblNumMat cu_XiRow(ntotLocal, numMu_);
-
-    // PhiMu is scaled by the occupation number to reflect the "true" density matrix
-    DblNumMat PcolPhiMu(ntotLocal, numMu_);
-    cuDblNumMat cu_PcolPhiMu(ntotLocal, numMu_);
-
-    IntNumVec pivMu(numMu_);
-    DblNumMat phiMu(numStateTotal, numMu_);
-
-    cuDblNumMat cu_phiMu(numStateTotal, numMu_);
->>>>>>> GPU
 
   //desc_NuNg2D
   if(contxt2 >= 0){
@@ -8105,7 +8001,6 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     lldNuNg2D = std::max( nrowsNuNg2D, 1 );
   }
 
-<<<<<<< HEAD
   SCALAPACK(descinit)(desc_NuNg2D, &Nu, &Ng, &mb2, &nb2, &I_ZERO, 
       &I_ZERO, &contxt2, &lldNuNg2D, &info2);
 
@@ -8127,30 +8022,6 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     ncolsNuNu2D = SCALAPACK(numroc)(&Nu, &nb2, &mycol2, &I_ZERO, &npcol2);
     lldNuNu2D = std::max( nrowsNuNu2D, 1 );
   }
-=======
-      // These three matrices are used only once. 
-      // Used before reduce
-      DblNumMat psiMuRow(numStateTotal, numMu_);
-      DblNumMat phiMuRow(numStateTotal, numMu_);
-      //DblNumMat PcolMuNuRow(numMu_, numMu_);
-      //DblNumMat PcolPsiMuRow(ntotLocal, numMu_);
-
-      // Collecting the matrices obtained from row partition
-      DblNumMat PcolMuNu(numMu_, numMu_);
-      DblNumMat PcolPsiMu(ntotLocal, numMu_);
-
-      cuDblNumMat cu_PcolPsiMu(ntotLocal, numMu_);
-      cuDblNumMat cu_PcolMuNu(numMu_, numMu_);
-
-      SetValue( psiMuRow, 0.0 );
-      SetValue( phiMuRow, 0.0 );
-      //SetValue( PcolMuNuRow, 0.0 );
-      //SetValue( PcolPsiMuRow, 0.0 );
-
-      //SetValue( phiMu, 0.0 );
-      //SetValue( PcolMuNu, 0.0 );
-      //SetValue( PcolPsiMu, 0.0 );
->>>>>>> GPU
 
   SCALAPACK(descinit)(desc_NuNu2D, &Nu, &Nu, &mb2, &nb2, &I_ZERO, 
       &I_ZERO, &contxt2, &lldNuNu2D, &info2);
@@ -8183,7 +8054,6 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
   DblNumMat psiCol( ntot, numStateLocal );
   SetValue( psiCol, 0.0 );
 
-<<<<<<< HEAD
   lapack::Lacpy( 'A', ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
   lapack::Lacpy( 'A', ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
 
@@ -8203,101 +8073,6 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
   // }
 
   if( isFixColumnDF == false ){
-=======
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for MPI_Allreduce is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-      
-      GetTime( timeSta1 );
-      cu_psiMu.CopyFrom(psiMu);
-      cu_phiMu.CopyFrom(phiMu);
-
-      //cu_PcolPsiMu.CopyFrom(PcolPsiMu);
-      //cu_PcolPhiMu.CopyFrom(PcolPhiMu);
-
-      //cu_psiRow.CopyFrom(psiRow);
-      //cu_phiRow.CopyFrom(phiRow);
-
-      cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numMu_, numStateTotal, &one, 
-          cu_psiRow.Data(), ntotLocal, cu_psiMu.Data(), numStateTotal, &zero,
-          cu_PcolPsiMu.Data(), ntotLocal );
-      cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numMu_, numStateTotal, &one, 
-          cu_phiRow.Data(), ntotLocal, cu_phiMu.Data(), numStateTotal, &zero,
-          cu_PcolPhiMu.Data(), ntotLocal );
-
-      //cu_PcolPsiMu.CopyTo(PcolPsiMu);
-      //cu_PcolPhiMu.CopyTo(PcolPhiMu);
-
-      /*
-      blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
-          psiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 0.0,
-          PcolPsiMu.Data(), ntotLocal );
-      blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
-          phiRow.Data(), ntotLocal, phiMu.Data(), numStateTotal, 0.0,
-          PcolPhiMu.Data(), ntotLocal );
-      */
-      GetTime( timeEnd1 );
-
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for GEMM is " <<
-        timeEnd1 - timeSta1 << " [s]" << std::endl << std::endl;
-#endif
-      
-      GetTime( timeSta1 );
-      /*
-      Real* xiPtr = XiRow.Data();
-      Real* PcolPsiMuPtr = PcolPsiMu.Data();
-      Real* PcolPhiMuPtr = PcolPhiMu.Data();
-      
-      for( Int g = 0; g < ntotLocal * numMu_; g++ ){
-        xiPtr[g] = PcolPsiMuPtr[g] * PcolPhiMuPtr[g];
-      }
-      */
-      cuda_hadamard_product( cu_PcolPsiMu.Data(), cu_PcolPhiMu.Data(), cu_XiRow.Data(), ntotLocal * numMu_);
-      cu_XiRow.CopyTo(XiRow);
-      
-
-      // 1/2/2017 Add extra weight to certain entries to the XiRow matrix
-      // Currently only works for one processor
-      /*
-      if(0)
-      {
-        Real wgt = 10.0;
-        // Correction for Diagonal entries
-        for( Int mu = 0; mu < numMu_; mu++ ){
-          xiPtr = XiRow.VecData(mu);
-          for( Int i = 0; i < numStateTotal; i++ ){
-            Real* phiPtr = phi.VecData(0, i);
-            Real* psiPtr = wavefun_.VecData(0,i);
-            Real  fac = phiMu(i,mu) * psiMu(i,mu) * wgt; 
-            for( Int g = 0; g < ntotLocal; g++ ){
-              xiPtr[g] += phiPtr[g] * psiPtr[g] * fac;
-            } 
-          }
-        }
-      }
-
-      if(0)
-      {
-        Real wgt = 10.0;
-        // Correction for HOMO 
-        for( Int mu = 0; mu < numMu_; mu++ ){
-          xiPtr = XiRow.VecData(mu);
-          Real* phiPtr = phi.VecData(0, numStateTotal-1);
-          for( Int i = 0; i < numStateTotal; i++ ){
-            Real* psiPtr = wavefun_.VecData(0,i);
-            Real  fac = phiMu(numStateTotal-1,mu) * psiMu(i,mu) * wgt; 
-            for( Int g = 0; g < ntotLocal; g++ ){
-              xiPtr[g] += phiPtr[g] * psiPtr[g] * fac;
-            } 
-          }
-        }
-      }
-      */
-      
-      GetTime( timeEnd1 );
->>>>>>> GPU
 
     GetTime( timeSta );
 
@@ -8469,34 +8244,11 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     SCALAPACK(descinit)(desc_1DRow, &m_MGTemp, &n_MGTemp, &I_ONE, &n_MGTemp, &I_ZERO, 
         &I_ZERO, &contxt11, &lld1DRow, &info11);
 
-<<<<<<< HEAD
     DblNumMat MGRow( nrows1DRow, ntot );
     SetValue( MGRow, 0.0 );
 
 
     GetTime( timeSta1 );
-=======
-      cu_PcolMuNu.CopyFrom(PcolMuNu);
-      //cu_XiRow.CopyFrom(XiRow);
-
-      cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, 
-                    ntotLocal, numMu_, &one, cu_PcolMuNu.Data(), numMu_, cu_XiRow.Data(),ntotLocal);
-
-      cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, 
-                    ntotLocal, numMu_, &one, cu_PcolMuNu.Data(), numMu_, cu_XiRow.Data(),ntotLocal);
-
-      //cu_PcolMuNu.CopyTo(PcolMuNu);
-      //cu_XiRow.CopyTo(XiRow);
-
-      /*
-      blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numMu_, 1.0, 
-          PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
-
-      blas::Trsm( 'R', 'L', 'N', 'N', ntotLocal, numMu_, 1.0, 
-          PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
-      */
-      GetTime( timeEnd1 );
->>>>>>> GPU
 
     SCALAPACK(pdgemr2d)(&m_MGTemp, &n_MGTemp, MGCol.Data(), &I_ONE, &I_ONE, desc_1DCol, 
         MGRow.Data(), &I_ONE, &I_ONE, desc_1DRow, &contxt1 );
@@ -8515,7 +8267,6 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       }
     }
 
-<<<<<<< HEAD
     DblNumVec tau(ntotMG);
     pivQR_.Resize(ntot);
     SetValue( pivQR_, 0 ); // Important. Otherwise QRCP uses piv as initial guess
@@ -8569,137 +8320,11 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       SetValue( pivQRTmp, 0 );
       SetValue( pivQRLocal, 0 );
       SetValue( pivQR_, 0 );
-=======
-
-
-    // *********************************************************************
-    // Solve the Poisson equations.
-    // Store VXi separately. This is not the most memory efficient
-    // implementation
-    // *********************************************************************
-
-    GetTime( timeSta );
-    DblNumMat VXiRow(ntotLocal, numMu_);
-    cuDblNumMat cu_VXiRow(ntotLocal, numMu_);
-
-    if(1){
-      // XiCol used for both input and output
-      Real mpi_time;
-      GetTime( timeSta1 );
-      DblNumMat XiCol(ntot, numMuLocal);
-      cuDblNumMat cu_XiCol(ntot, numMuLocal);
-
-      //cu_XiRow.CopyFrom( XiRow );
-      GPU_AlltoallBackward (cu_XiRow, cu_XiCol, domain_.comm);
-      //cu_XiCol.CopyFrom(XiCol);
-      //cu_XiCol.CopyTo( XiCol );
-      GetTime( timeEnd1 );
-      mpi_time = timeEnd1 - timeSta1;
-
-      cuDblNumVec cu_psi(ntot);
-      cuDblNumVec cu_psi_out(2*ntotR2C);
-      cuDblNumVec cu_exxgkkR2C(ntotR2C);
-
-      DblNumVec exxgkkR2CTemp(ntotR2C);
-      /*
-      for( Int ig = 0; ig < ntotR2C; ig++ ){
-            exxgkkR2CTemp (ig) = -exxFraction * exxgkkR2C(ig);
-      }
-
-      cuda_memcpy_CPU2GPU(cu_exxgkkR2C.Data(), exxgkkR2CTemp.Data(), sizeof(Real)*ntotR2C);
-      */
-      Real temp = -exxFraction;
-      cuda_memcpy_CPU2GPU(cu_exxgkkR2C.Data(), exxgkkR2C.Data(), sizeof(Real)*ntotR2C);
-      cublas::Scal( ntotR2C, &temp, cu_exxgkkR2C.Data(), 1);
-     
-      {
-        for( Int mu = 0; mu < numMuLocal; mu++ ){
-
-          // copy the WF to the buf.
-          cuda_memcpy_GPU2GPU(cu_psi.Data(), & cu_XiCol(0,mu), sizeof(Real)*ntot);
-
-          cuFFTExecuteForward( fft, fft.cuPlanR2C[0], 0, cu_psi, cu_psi_out);
-
-          cuda_teter( reinterpret_cast<cuDoubleComplex*> (cu_psi_out.Data()), cu_exxgkkR2C.Data(), ntotR2C );
-
-          cuFFTExecuteInverse( fft, fft.cuPlanC2R[0], 0, cu_psi_out, cu_psi);
-
-          cuda_memcpy_GPU2GPU( & cu_XiCol(0,mu), cu_psi.Data(), sizeof(Real)*ntot);
-
-        } // for (mu)
-
-        //cu_XiCol.CopyTo(XiCol);
-
-        GetTime( timeSta1 );
-
-        GPU_AlltoallForward (cu_XiCol, cu_VXiRow, domain_.comm);
-        //cu_VXiRow.CopyTo( VXiRow );    // copy the data back to VXiRow, used in the next steps.
-
-        GetTime( timeEnd1 );
-        mpi_time += timeEnd1 - timeSta1;
-
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for solving Poisson-like equations is " <<
-          timeEnd - timeSta << " [s]" << " MPI_Alltoall: " << mpi_time<< std::endl << std::endl;
-#endif
-      }
-    }
-
-    // Prepare for the computation of the M matrix
-
-    GetTime( timeSta );
-
-    DblNumMat MMatMuNu(numMu_, numMu_);
-    cuDblNumMat cu_MMatMuNu(numMu_, numMu_);
-    {
-      DblNumMat MMatMuNuTemp( numMu_, numMu_ );
-      cuDblNumMat cu_MMatMuNuTemp( numMu_, numMu_ );
-      //cu_VXiRow.CopyFrom(VXiRow);
-      //cu_XiRow.CopyFrom(XiRow);
-
-      // Minus sign so that MMat is positive semidefinite
-      cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numMu_, numMu_, ntotLocal, &minus_one,
-          cu_XiRow.Data(), ntotLocal, cu_VXiRow.Data(), ntotLocal, &zero, 
-          cu_MMatMuNuTemp.Data(), numMu_ );
-      cu_MMatMuNuTemp.CopyTo(MMatMuNuTemp);
-
-      /*
-      blas::Gemm( 'T', 'N', numMu_, numMu_, ntotLocal, -1.0,
-          XiRow.Data(), ntotLocal, VXiRow.Data(), ntotLocal, 0.0, 
-          MMatMuNuTemp.Data(), numMu_ );
-      */
-
-      MPI_Allreduce( MMatMuNuTemp.Data(), MMatMuNu.Data(), numMu_ * numMu_, 
-          MPI_DOUBLE, MPI_SUM, domain_.comm );
-      cu_MMatMuNu.CopyFrom( MMatMuNu );
-    }
-
-    // Element-wise multiply with phiMuNu matrix (i.e. density matrix)
-    {
-
-      DblNumMat phiMuNu(numMu_, numMu_);
-      cuDblNumMat cu_phiMuNu(numMu_, numMu_);
-      //cu_phiMu.CopyFrom(phiMu);
-
-      cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numMu_, numMu_, numStateTotal, &one,
-          cu_phiMu.Data(), numStateTotal, cu_phiMu.Data(), numStateTotal, &zero,
-          cu_phiMuNu.Data(), numMu_ );
-      cuda_hadamard_product( cu_MMatMuNu.Data(), cu_phiMuNu.Data(), cu_MMatMuNu.Data(), numMu_*numMu_);
-
-    }
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for preparing the M matrix is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
->>>>>>> GPU
 
 
       //        SetValue( diagRLocal, 0.0 );
       //        SetValue( diagR, 0.0 );
 
-<<<<<<< HEAD
       if(0) {
         scalapack::QRCPF( mb_MG, ntotMG, MG.Data(), &desc_MG[0], 
             pivQRTmp.Data(), tau.Data() );
@@ -8715,32 +8340,6 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       for( Int j = 0; j < ntotLocalMG; j++ ){
         pivQRLocal[j + mpirank * ntotLocalMG] = pivQRTmp[j];
       }
-=======
-    GetTime( timeSta );
-    // Rewrite VXi by VXi.*PcolPhi
-    // cu_VXiRow.CopyFrom(VXiRow);
-    cuda_hadamard_product( cu_VXiRow.Data(), cu_PcolPhiMu.Data(), cu_VXiRow.Data(), numMu_*ntotLocal );
-    
-    // NOTE: a3 must be zero in order to compute the M matrix later
-    DblNumMat a3Row( ntotLocal, numStateTotal );
-    cuda_setValue( cu_a3.Data(), 0.0, ntotLocal*numStateTotal);
-
-    cu_psiMu.CopyFrom(psiMu);
-
-    cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_T, ntotLocal, numStateTotal, numMu_, &one, 
-        cu_VXiRow.Data(), ntotLocal, cu_psiMu.Data(), numStateTotal, &one,
-        cu_a3.Data(), ntotLocal ); 
-
-    //cu_a3Row.CopyTo(a3Row);
-    // there is no need in MPI_AlltoallBackward from a3row to a3Col. 
-    // cause in the next step, we will MPI_AlltoallForward them back to row parallel
-   
-    /*
-    cuDblNumMat cu_a3Col( ntot, numStateLocal );
-    GPU_AlltoallBackward (cu_a3Row, cu_a3Col, domain_.comm);
-    cuda_memcpy_GPU2CPU( a3.Data(), cu_a3Col.Data(), sizeof(Real)*ntot*numStateLocal);
-    */
->>>>>>> GPU
 
       //        std::cout << "diag of MG = " << std::endl;
       //        if(mpirank == 0){
@@ -8752,98 +8351,22 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
           ntotMG, MPI_INT, MPI_SUM, domain_.comm );
 
-<<<<<<< HEAD
-=======
-    // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-    // vexxPsi (a3) must be zero before entering this routine
-    VxMat.Resize( numStateTotal, numStateTotal );
-    GetTime( timeSta );
-    /*
-    if(0)
-    {
-      // Minus sign so that VxMat is positive semidefinite
-      // NOTE: No measure factor vol / ntot due to the normalization
-      // factor of psi
-      DblNumMat VxMatTemp( numStateTotal, numStateTotal );
-      SetValue( VxMatTemp, 0.0 );
-      blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal, -1.0,
-          psiRow.Data(), ntotLocal, a3Row.Data(), ntotLocal, 0.0, 
-          VxMatTemp.Data(), numStateTotal );
->>>>>>> GPU
 
       if(contxt >= 0) {
         Cblacs_gridexit( contxt );
       }
 
-<<<<<<< HEAD
     } //ScaLAPACL QRCP
-=======
-      Symmetrize( VxMat );
-     
-    }
-    */
-    if(1){
-
-      DblNumMat VxMatTemp( numMu_, numStateTotal );
-      cuDblNumMat cu_VxMatTemp( numMu_, numStateTotal );
-      cuDblNumMat cu_VxMat( numStateTotal, numStateTotal );
-
-      cu_psiMu.CopyFrom(psiMu);
-      //cu_MMatMuNu.CopyFrom(MMatMuNu);
-    
-      cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_T, numMu_, numStateTotal, numMu_, &one, 
-          cu_MMatMuNu.Data(), numMu_, cu_psiMu.Data(), numStateTotal, &zero,
-          cu_VxMatTemp.Data(), numMu_ );
-      cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, numStateTotal, numStateTotal, numMu_, &one,
-          cu_psiMu.Data(), numStateTotal, cu_VxMatTemp.Data(), numMu_, &zero,
-          cu_VxMat.Data(), numStateTotal );
-
-      cu_VxMat.CopyTo(VxMat);  // no need to copy them back to CPU. just keep them in GPU.
-
-    }
-    GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-    statusOFS << "Time for computing VxMat in the sym format is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
->>>>>>> GPU
 
 
     if(1){ //ScaLAPACL QRCP 2D
 
-<<<<<<< HEAD
       Int contxt1D, contxt2D;
       Int nprow1D, npcol1D, myrow1D, mycol1D, info1D;
       Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
 
       Int ncols1D, nrows1D, lld1D; 
       Int ncols2D, nrows2D, lld2D; 
-=======
-  return ;
-}        // -----  end of method Spinor::AddMultSpinorEXXDF3_GPU  ----- 
-
-
-#endif
-// This is density fitting formulation with symmetric implementation of
-// the M matrix when combined with ACE, so that the POTRF does not fail as often
-// Update: 1/10/2017
-void Spinor::AddMultSpinorEXXDF3 ( Fourier& fft, 
-    const NumTns<Real>& phi,
-    const DblNumVec& exxgkkR2C,
-    Real  exxFraction,
-    Real  numSpin,
-    const DblNumVec& occupationRate,
-    const Real numMuFac,
-    const Real numGaussianRandomFac,
-    const Int numProcScaLAPACKPotrf,  
-    const Int scaPotrfBlockSize,  
-    NumTns<Real>& a3, 
-    NumMat<Real>& VxMat,
-    bool isFixColumnDF )
-{
-  Real timeSta, timeEnd;
-  Real timeSta1, timeEnd1;
->>>>>>> GPU
 
       Int desc_MG1D[9];
       Int desc_MG2D[9];

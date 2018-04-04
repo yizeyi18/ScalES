@@ -679,25 +679,16 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
   return ;
 }        // -----  end of function AlltoallForward ----- 
 
-<<<<<<< HEAD
-void AlltoallForward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm )
-=======
 #ifdef GPU
 void GPU_AlltoallForward( cuDblNumMat& cu_A, cuDblNumMat& cu_B, MPI_Comm comm )
->>>>>>> GPU
 {
 
   int mpirank, mpisize;
   MPI_Comm_rank( comm, &mpirank );
   MPI_Comm_size( comm, &mpisize );
 
-<<<<<<< HEAD
-  Int height = A.m();
-  Int widthTemp = A.n();
-=======
   Int height = cu_A.m();
   Int widthTemp = cu_A.n();
->>>>>>> GPU
 
   Int width = 0;
   MPI_Allreduce( &widthTemp, &width, 1, MPI_INT, MPI_SUM, comm );
@@ -715,13 +706,8 @@ void GPU_AlltoallForward( cuDblNumMat& cu_A, cuDblNumMat& cu_B, MPI_Comm comm )
     heightLocal = heightBlocksize + 1;
   }
   
-<<<<<<< HEAD
-  CpxNumVec sendbuf(height*widthLocal); 
-  CpxNumVec recvbuf(heightLocal*width);
-=======
   DblNumVec sendbuf(height*widthLocal); 
   DblNumVec recvbuf(heightLocal*width);
->>>>>>> GPU
   IntNumVec sendcounts(mpisize);
   IntNumVec recvcounts(mpisize);
   IntNumVec senddispls(mpisize);
@@ -750,52 +736,6 @@ void GPU_AlltoallForward( cuDblNumMat& cu_A, cuDblNumMat& cu_B, MPI_Comm comm )
     recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
   }
 
-<<<<<<< HEAD
-  if((height % mpisize) == 0){
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
-      } 
-    }
-  }
-  else{
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        if( i < ((height % mpisize) * (heightBlocksize+1)) ){
-          sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
-        }
-        else {
-          sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
-            + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
-        }
-      }
-    }
-  }
-
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
-    }
-  }
-
-  for( Int j = 0; j < widthLocal; j++ ){ 
-    for( Int i = 0; i < height; i++ ){
-      sendbuf[sendk(i, j)] = A(i, j); 
-    }
-  }
-  MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE_COMPLEX, 
-      &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE_COMPLEX, comm );
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      B(i, j) = recvbuf[recvk(i, j)];
-    }
-  }
-
-
-  return ;
-}        // -----  end of function AlltoallForward ----- 
-
-=======
   cuIntNumMat  cu_sendk( height, widthLocal );
   cuIntNumMat  cu_recvk( heightLocal, width );
   cuIntNumVec  cu_senddispls(mpisize);
@@ -904,7 +844,108 @@ void GPU_AlltoallBackward( cuDblNumMat& cu_A, cuDblNumMat& cu_B, MPI_Comm comm )
 
 
 #endif
->>>>>>> GPU
+
+
+void AlltoallForward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm )
+{
+
+  int mpirank, mpisize;
+  MPI_Comm_rank( comm, &mpirank );
+  MPI_Comm_size( comm, &mpisize );
+
+  Int height = A.m();
+  Int widthTemp = A.n();
+
+  Int width = 0;
+  MPI_Allreduce( &widthTemp, &width, 1, MPI_INT, MPI_SUM, comm );
+
+  Int widthBlocksize = width / mpisize;
+  Int heightBlocksize = height / mpisize;
+  Int widthLocal = widthBlocksize;
+  Int heightLocal = heightBlocksize;
+
+  if(mpirank < (width % mpisize)){
+    widthLocal = widthBlocksize + 1;
+  }
+  
+  if(mpirank < (height % mpisize)){
+    heightLocal = heightBlocksize + 1;
+  }
+  
+  CpxNumVec sendbuf(height*widthLocal); 
+  CpxNumVec recvbuf(heightLocal*width);
+  IntNumVec sendcounts(mpisize);
+  IntNumVec recvcounts(mpisize);
+  IntNumVec senddispls(mpisize);
+  IntNumVec recvdispls(mpisize);
+  IntNumMat  sendk( height, widthLocal );
+  IntNumMat  recvk( heightLocal, width );
+
+  for( Int k = 0; k < mpisize; k++ ){ 
+    sendcounts[k] = heightBlocksize * widthLocal;
+    if( k < (height % mpisize)){
+      sendcounts[k] = sendcounts[k] + widthLocal;  
+    }
+  }
+
+  for( Int k = 0; k < mpisize; k++ ){ 
+    recvcounts[k] = heightLocal * widthBlocksize;
+    if( k < (width % mpisize)){
+      recvcounts[k] = recvcounts[k] + heightLocal;  
+    }
+  }
+
+  senddispls[0] = 0;
+  recvdispls[0] = 0;
+  for( Int k = 1; k < mpisize; k++ ){ 
+    senddispls[k] = senddispls[k-1] + sendcounts[k-1];
+    recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
+  }
+
+  if((height % mpisize) == 0){
+    for( Int j = 0; j < widthLocal; j++ ){ 
+      for( Int i = 0; i < height; i++ ){
+        sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
+      } 
+    }
+  }
+  else{
+    for( Int j = 0; j < widthLocal; j++ ){ 
+      for( Int i = 0; i < height; i++ ){
+        if( i < ((height % mpisize) * (heightBlocksize+1)) ){
+          sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
+        }
+        else {
+          sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
+            + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
+        }
+      }
+    }
+  }
+
+  for( Int j = 0; j < width; j++ ){ 
+    for( Int i = 0; i < heightLocal; i++ ){
+      recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
+    }
+  }
+
+  for( Int j = 0; j < widthLocal; j++ ){ 
+    for( Int i = 0; i < height; i++ ){
+      sendbuf[sendk(i, j)] = A(i, j); 
+    }
+  }
+  MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE_COMPLEX, 
+      &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE_COMPLEX, comm );
+  for( Int j = 0; j < width; j++ ){ 
+    for( Int i = 0; i < heightLocal; i++ ){
+      B(i, j) = recvbuf[recvk(i, j)];
+    }
+  }
+
+
+  return ;
+}        // -----  end of function AlltoallForward ----- 
+
 
 void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 {

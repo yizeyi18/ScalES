@@ -322,6 +322,7 @@ SCF::Iterate (  )
       // Compute the Hartree energy
       ham.CalculateHartree( fft );
       // No external potential
+
       // Compute the total potential
       ham.CalculateVtot( ham.Vtot() );
     }
@@ -977,20 +978,15 @@ SCF::Iterate (  )
         if ( isPhiIterConverged ) break;
       } // for(phiIter)
     } // hybridMixType == "scdiis"
-<<<<<<< HEAD
     
     GetTime( timeEnd );
     statusOFS << "Time for using scdiis method is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
     
     GetTime( timeSta );
-
-=======
-
 #ifdef GPU
     // GPU version of pc-diis. 
     // note, ACE nested and scdiis can not work on GPU.
->>>>>>> GPU
     if( esdfParam.hybridMixType == "pcdiis" ){
 
       // This requires a good initial guess of wavefunctions, 
@@ -1013,8 +1009,7 @@ SCF::Iterate (  )
 
       Real timeSta, timeEnd, timeSta1, timeEnd1;
       
-      //Int contxt0D, contxt2D;
-      Int contxt1DCol, contxt1DRow;
+      Int contxt0D, contxt1DCol, contxt1DRow,  contxt2D;
       Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
       Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
       Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
@@ -1105,16 +1100,14 @@ SCF::Iterate (  )
       Int numOccLocal = ncolsNgNo1DCol;
       Int ntotLocal = nrowsNgNe1DRow;
 
-      //DblNumMat psiPcCol(ntot, numStateLocal);
-      //DblNumMat psiPcRow(ntotLocal, numStateTotal);
+      DblNumMat psiPcCol(ntot, numStateLocal);
+      DblNumMat psiPcRow(ntotLocal, numStateTotal);
       DblNumMat HpsiCol(ntot, numStateLocal);
       DblNumMat HpsiRow(ntotLocal, numStateTotal);
 
       dfMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
       dvMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
 
-      DblNumMat psiPcCol(ntot, numOccLocal);
-      DblNumMat psiPcRow(ntotLocal, numOccTotal);
       DblNumMat PcCol(ntot, numOccLocal);
       DblNumMat PcRow(ntotLocal, numOccTotal);
       DblNumMat ResCol(ntot, numOccLocal);
@@ -1361,12 +1354,10 @@ SCF::Iterate (  )
               DblNumMat XTX(iterused, iterused);
               DblNumMat XTXTemp(iterused, iterused);
               
-              Int lld_ntotnumOccLocal = std::max( ntot * numOccLocal, 1 );
-              
               SetValue( XTXTemp, 0.0 );
               blas::Gemm( 'T', 'N', iterused, iterused, ntot * numOccLocal, 1.0, 
-              dfMatTemp.Data(), lld_ntotnumOccLocal, dfMatTemp.Data(), 
-              lld_ntotnumOccLocal, 0.0, XTXTemp.Data(), iterused );
+              dfMatTemp.Data(), ntot * numOccLocal, dfMatTemp.Data(), ntot * numOccLocal, 
+              0.0, XTXTemp.Data(), iterused );
         
               SetValue( XTX, 0.0 );
               MPI_Allreduce( XTXTemp.Data(), XTX.Data(), 
@@ -1378,8 +1369,8 @@ SCF::Iterate (  )
               //    ntot * numOccLocal, gammas.Data(), 1, 0.0, gammasTemp1.Data(), 1 );
 
               blas::Gemm( 'T', 'N', iterused, I_ONE, ntot * numOccLocal, 1.0, 
-                  dfMatTemp.Data(), lld_ntotnumOccLocal, gammas.Data(), 
-                  lld_ntotnumOccLocal, 0.0, gammasTemp1.Data(), iterused );
+                  dfMatTemp.Data(), ntot * numOccLocal, gammas.Data(), ntot * numOccLocal, 
+                  0.0, gammasTemp1.Data(), iterused );
 
               DblNumVec gammasTemp2(iterused);
               SetValue( gammasTemp2, 0.0 );
@@ -1395,8 +1386,8 @@ SCF::Iterate (  )
               //    ntot * numOccLocal, gammasTemp2.Data(), 1, 1.0, vOpt.Data(), 1 );
               
               blas::Gemm( 'N', 'N', ntot * numOccLocal, I_ONE, iterused, -1.0, 
-                  dvMat_.Data(), lld_ntotnumOccLocal, gammasTemp2.Data(), iterused, 
-                  1.0, vOpt.Data(), lld_ntotnumOccLocal );
+                  dvMat_.Data(), ntot * numOccLocal, gammasTemp2.Data(), iterused, 
+                  1.0, vOpt.Data(), ntot * numOccLocal );
             
             }
 
@@ -1470,22 +1461,15 @@ SCF::Iterate (  )
         }//Anderson mixing
         } // GPU malloc and free.
 
-<<<<<<< HEAD
-        DblNumMat psiPcColTemp(ntot, numStateLocal);
-        SetValue( psiPcColTemp, 0.0 );
-
-        lapack::Lacpy( 'A', ntot, numOccLocal, psiPcCol.Data(), ntot, psiPcColTemp.Data(), ntot );
-=======
         GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
         statusOFS << "Time for GPU  Anderson mixing in PWDFT is " <<
           timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
->>>>>>> GPU
 
         // Construct the new Hamiltonian operator
         Spinor spnPsiPc(fft.domain, 1, numStateTotal,
-            numStateLocal, false, psiPcColTemp.Data());
+            numStateLocal, false, psiPcCol.Data());
 
         // Compute the electron density
         GetTime( timeSta );
@@ -1565,6 +1549,8 @@ SCF::Iterate (  )
         blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
 
 
+        EVdw_ = 0.0;
+
         CalculateEnergy();
 
         PrintState( phiIter );
@@ -1574,7 +1560,7 @@ SCF::Iterate (  )
         statusOFS << "Total wall clock time for this Phi iteration = " << 
           timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
 
-        if(esdfParam.isHybridACETwicePCDIIS == 1){
+        if(1){
 
           // Update Phi <- Psi
           GetTime( timeSta );
@@ -1631,28 +1617,9 @@ SCF::Iterate (  )
         if ( isPhiIterConverged ) break;
       } // for(phiIter)
 
-      if(contxt1DCol >= 0) {
-        Cblacs_gridexit( contxt1DCol );
-      }
-
-<<<<<<< HEAD
-      if(contxt1DRow >= 0) {
-        Cblacs_gridexit( contxt1DRow );
-      }
-
     } // hybridMixType == "pcdiis"
 
-    GetTime( timeEnd );
-    statusOFS << "Time for using pcdiis method is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-    
-  } // isHybrid == true
-#endif
-
-  // Calculate the Force. This includes contribution from ionic repulsion, VDW etc
-  ham.CalculateForce( psi, fft );
-=======
-#else  // cpu version of code. 
+#else
     if( esdfParam.hybridMixType == "pcdiis" ){
 
       // This requires a good initial guess of wavefunctions, 
@@ -1672,40 +1639,20 @@ SCF::Iterate (  )
       double D_ONE = 1.0;
       double D_ZERO = 0.0;
       double D_MinusONE = -1.0;
->>>>>>> GPU
 
       Real timeSta, timeEnd, timeSta1, timeEnd1;
       
-      Int contxt0D, contxt1DCol, contxt1DRow,  contxt2D;
+      //Int contxt0D, contxt2D;
+      Int contxt1DCol, contxt1DRow;
       Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
       Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
       Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
       Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
 
-<<<<<<< HEAD
-    // Print out the energy
-    PrintBlock( statusOFS, "Energy" );
-    statusOFS 
-      << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext" << std::endl
-      << "       Etot  = Ekin + Ecor" << std::endl
-      << "       Efree = Etot    + Entropy" << std::endl << std::endl;
-    Print(statusOFS, "! Etot            = ",  Etot_, "[au]");
-    Print(statusOFS, "! Efree           = ",  Efree_, "[au]");
-    Print(statusOFS, "! EfreeHarris     = ",  EfreeHarris_, "[au]");
-    Print(statusOFS, "! EVdw            = ",  EVdw_, "[au]"); 
-    Print(statusOFS, "Eext              = ",  Eext_, "[au]");
-    Print(statusOFS, "! Fermi           = ",  fermi_, "[au]");
-    Print(statusOFS, "! HOMO            = ",  HOMO*au2ev, "[ev]");
-    if( ham.NumExtraState() > 0 ){
-      Print(statusOFS, "! LUMO            = ",  LUMO*au2ev, "[eV]");
-    }
-  }
-=======
       Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
       Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
       Int ncolsNgNo1DCol, nrowsNgNo1DCol, lldNgNo1DCol; 
       Int ncolsNgNo1DRow, nrowsNgNo1DRow, lldNgNo1DRow; 
->>>>>>> GPU
 
       Int desc_NgNe1DCol[9];
       Int desc_NgNe1DRow[9];
@@ -1787,14 +1734,16 @@ SCF::Iterate (  )
       Int numOccLocal = ncolsNgNo1DCol;
       Int ntotLocal = nrowsNgNe1DRow;
 
-      DblNumMat psiPcCol(ntot, numStateLocal);
-      DblNumMat psiPcRow(ntotLocal, numStateTotal);
+      //DblNumMat psiPcCol(ntot, numStateLocal);
+      //DblNumMat psiPcRow(ntotLocal, numStateTotal);
       DblNumMat HpsiCol(ntot, numStateLocal);
       DblNumMat HpsiRow(ntotLocal, numStateTotal);
 
       dfMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
       dvMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
 
+      DblNumMat psiPcCol(ntot, numOccLocal);
+      DblNumMat psiPcRow(ntotLocal, numOccTotal);
       DblNumMat PcCol(ntot, numOccLocal);
       DblNumMat PcRow(ntotLocal, numOccTotal);
       DblNumMat ResCol(ntot, numOccLocal);
@@ -1967,10 +1916,12 @@ SCF::Iterate (  )
               DblNumMat XTX(iterused, iterused);
               DblNumMat XTXTemp(iterused, iterused);
               
+              Int lld_ntotnumOccLocal = std::max( ntot * numOccLocal, 1 );
+              
               SetValue( XTXTemp, 0.0 );
               blas::Gemm( 'T', 'N', iterused, iterused, ntot * numOccLocal, 1.0, 
-              dfMatTemp.Data(), ntot * numOccLocal, dfMatTemp.Data(), ntot * numOccLocal, 
-              0.0, XTXTemp.Data(), iterused );
+              dfMatTemp.Data(), lld_ntotnumOccLocal, dfMatTemp.Data(), 
+              lld_ntotnumOccLocal, 0.0, XTXTemp.Data(), iterused );
         
               SetValue( XTX, 0.0 );
               MPI_Allreduce( XTXTemp.Data(), XTX.Data(), 
@@ -1982,8 +1933,8 @@ SCF::Iterate (  )
               //    ntot * numOccLocal, gammas.Data(), 1, 0.0, gammasTemp1.Data(), 1 );
 
               blas::Gemm( 'T', 'N', iterused, I_ONE, ntot * numOccLocal, 1.0, 
-                  dfMatTemp.Data(), ntot * numOccLocal, gammas.Data(), ntot * numOccLocal, 
-                  0.0, gammasTemp1.Data(), iterused );
+                  dfMatTemp.Data(), lld_ntotnumOccLocal, gammas.Data(), 
+                  lld_ntotnumOccLocal, 0.0, gammasTemp1.Data(), iterused );
 
               DblNumVec gammasTemp2(iterused);
               SetValue( gammasTemp2, 0.0 );
@@ -1999,8 +1950,8 @@ SCF::Iterate (  )
               //    ntot * numOccLocal, gammasTemp2.Data(), 1, 1.0, vOpt.Data(), 1 );
               
               blas::Gemm( 'N', 'N', ntot * numOccLocal, I_ONE, iterused, -1.0, 
-                  dvMat_.Data(), ntot * numOccLocal, gammasTemp2.Data(), iterused, 
-                  1.0, vOpt.Data(), ntot * numOccLocal );
+                  dvMat_.Data(), lld_ntotnumOccLocal, gammasTemp2.Data(), iterused, 
+                  1.0, vOpt.Data(), lld_ntotnumOccLocal );
             
             }
 
@@ -2054,10 +2005,14 @@ SCF::Iterate (  )
         
         }//Anderson mixing
 
+        DblNumMat psiPcColTemp(ntot, numStateLocal);
+        SetValue( psiPcColTemp, 0.0 );
+
+        lapack::Lacpy( 'A', ntot, numOccLocal, psiPcCol.Data(), ntot, psiPcColTemp.Data(), ntot );
 
         // Construct the new Hamiltonian operator
         Spinor spnPsiPc(fft.domain, 1, numStateTotal,
-            numStateLocal, false, psiPcCol.Data());
+            numStateLocal, false, psiPcColTemp.Data());
 
         // Compute the electron density
         GetTime( timeSta );
@@ -2137,8 +2092,6 @@ SCF::Iterate (  )
         blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
 
 
-        Evdw_ = 0.0;
-
         CalculateEnergy();
 
         PrintState( phiIter );
@@ -2148,7 +2101,7 @@ SCF::Iterate (  )
         statusOFS << "Total wall clock time for this Phi iteration = " << 
           timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
 
-        if(1){
+        if(esdfParam.isHybridACETwicePCDIIS == 1){
 
           // Update Phi <- Psi
           GetTime( timeSta );
@@ -2204,38 +2157,31 @@ SCF::Iterate (  )
         if ( isPhiIterConverged ) break;
       } // for(phiIter)
 
+      if(contxt1DCol >= 0) {
+        Cblacs_gridexit( contxt1DCol );
+      }
+
+      if(contxt1DRow >= 0) {
+        Cblacs_gridexit( contxt1DRow );
+      }
+
     } // hybridMixType == "pcdiis"
 #endif
-  } // isHybrid == true
 
+    GetTime( timeEnd );
+    statusOFS << "Time for using pcdiis method is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    
+  } // isHybrid == true
 #ifdef GPU
     cublas::Destroy();
     MAGMA::Destroy();
     cuda_clean_vtot();
 #endif
-  // Calculate the Force
-  if(0){
-    ham.CalculateForce( psi, fft );
-  }
-  if(1){
-    ham.CalculateForce2( psi, fft );
-  }
+#endif
 
-  // Calculate the VDW energy
-  if( VDWType_ == "DFT-D2"){
-    CalculateVDW ( Evdw_, forceVdw_ );
-    // Update energy
-    Etot_  += Evdw_;
-    Efree_ += Evdw_;
-    EfreeHarris_ += Evdw_;
-    Ecor_  += Evdw_;
-
-    // Update force
-    std::vector<Atom>& atomList = ham.AtomList();
-    for( Int a = 0; a < atomList.size(); a++ ){
-      atomList[a].force += Point3( forceVdw_(a,0), forceVdw_(a,1), forceVdw_(a,2) );
-    }
-  } 
+  // Calculate the Force. This includes contribution from ionic repulsion, VDW etc
+  ham.CalculateForce( psi, fft );
 
   // Output the information after SCF
   {
@@ -2248,13 +2194,14 @@ SCF::Iterate (  )
     // Print out the energy
     PrintBlock( statusOFS, "Energy" );
     statusOFS 
-      << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + Evdw" << std::endl
+      << "NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext" << std::endl
       << "       Etot  = Ekin + Ecor" << std::endl
       << "       Efree = Etot    + Entropy" << std::endl << std::endl;
     Print(statusOFS, "! Etot            = ",  Etot_, "[au]");
     Print(statusOFS, "! Efree           = ",  Efree_, "[au]");
     Print(statusOFS, "! EfreeHarris     = ",  EfreeHarris_, "[au]");
-    Print(statusOFS, "! Evdw            = ",  Evdw_, "[au]"); 
+    Print(statusOFS, "! EVdw            = ",  EVdw_, "[au]"); 
+    Print(statusOFS, "Eext              = ",  Eext_, "[au]");
     Print(statusOFS, "! Fermi           = ",  fermi_, "[au]");
     Print(statusOFS, "! HOMO            = ",  HOMO*au2ev, "[ev]");
     if( ham.NumExtraState() > 0 ){
@@ -2463,17 +2410,12 @@ SCF::InnerSolve	( Int iter )
     if( esdfParam.PWSolver == "LOBPCG" || esdfParam.PWSolver == "LOBPCGScaLAPACK"){
       eigSolPtr_->LOBPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
     } // Use PPCG
-<<<<<<< HEAD
     else if( esdfParam.PWSolver == "PPCG" || esdfParam.PWSolver == "PPCGScaLAPACK" ){
-      eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
-=======
-    else if( PWSolver_ == "PPCG" || PWSolver_ == "PPCGScaLAPACK" ){
 #ifdef GPU
       eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow, iter );
 #else
-      eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );
+      eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
 #endif
->>>>>>> GPU
     }
     else{
       // FIXME Merge the Chebyshev into an option of PWSolver
@@ -2912,11 +2854,7 @@ SCF::AndersonMix    (
 
     Int rank;
     // FIXME Magic number
-<<<<<<< HEAD
     Real rcond = 1e-12;
-=======
-    Real rcond = 1e-6;
->>>>>>> GPU
 
     S.Resize(nrow);
 

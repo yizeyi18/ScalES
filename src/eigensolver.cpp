@@ -1,4 +1,5 @@
-/* Copyright (c) 2012 The Regents of the University of California,
+/*
+   Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
 Author: Lin Lin, Wei Hu, Amartya Banerjee, Weile Jia
@@ -4559,7 +4560,7 @@ EigenSolver::PPCGSolveReal (
   cuIntNumVec cu_recvdispls(mpisize);
 
   GetTime( timeSta );
-
+  
   for( Int k = 0; k < mpisize; k++ ){ 
     sendcounts[k] = heightBlocksize * widthLocal;
     if( k < (height % mpisize)){
@@ -4609,8 +4610,6 @@ EigenSolver::PPCGSolveReal (
   }
   // end For Alltoall
 
-<<<<<<< HEAD
-=======
   cu_sendk.CopyFrom(sendk);
   cu_recvk.CopyFrom(recvk);
   
@@ -4619,7 +4618,6 @@ EigenSolver::PPCGSolveReal (
   cuda_memcpy_CPU2GPU(cu_senddispls.Data(), senddispls.Data(), sizeof(Int)*mpisize);
   cuda_memcpy_CPU2GPU(cu_recvdispls.Data(), recvdispls.Data(), sizeof(Int)*mpisize);
  
->>>>>>> GPU
   GetTime( timeEnd );
   iterAlltoallvMap = iterAlltoallvMap + 1;
   timeAlltoallvMap = timeAlltoallvMap + ( timeEnd - timeSta );
@@ -5738,7 +5736,7 @@ EigenSolver::PPCGSolveReal (
 
   GetTime( timeSta1 );
 
-  if(PWSolver_ == "PPCGScaLAPACK")
+  if(esdfParam.PWSolver == "PPCGScaLAPACK")
   { 
     if( contxt_ >= 0 )
     {
@@ -6067,8 +6065,7 @@ EigenSolver::PPCGSolveReal (
     cuda_set_vtot_flag();   // set the vtot_flag to false.
     //cuda_clean_vtot();
     return ;
-    }         // -----  end of method EigenSolver::PPCGSolveReal  ----- 
-
+}         // -----  end of method EigenSolver::PPCGSolveReal  ----- 
 
 #else
 
@@ -6184,7 +6181,7 @@ EigenSolver::PPCGSolveReal    (
   IntNumMat  recvk( heightLocal, width );
 
   GetTime( timeSta );
-  
+
   for( Int k = 0; k < mpisize; k++ ){ 
     sendcounts[k] = heightBlocksize * widthLocal;
     if( k < (height % mpisize)){
@@ -6233,7 +6230,7 @@ EigenSolver::PPCGSolveReal    (
     }
   }
   // end For Alltoall
- 
+
   GetTime( timeEnd );
   iterAlltoallvMap = iterAlltoallvMap + 1;
   timeAlltoallvMap = timeAlltoallvMap + ( timeEnd - timeSta );
@@ -6398,23 +6395,6 @@ EigenSolver::PPCGSolveReal    (
     iterSpinor = iterSpinor + 1;
     timeSpinor = timeSpinor + ( timeEnd - timeSta );
   }
-
-  GetTime( timeSta );
-  for( Int j = 0; j < widthLocal; j++ ){ 
-    for( Int i = 0; i < height; i++ ){
-      sendbuf[sendk(i, j)] = Xcol(i, j); 
-    }
-  }
-  MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-      &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      X(i, j) = recvbuf[recvk(i, j)];
-    }
-  }
-  GetTime( timeEnd );
-  iterAlltoallv = iterAlltoallv + 1;
-  timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
   GetTime( timeSta );
   for( Int j = 0; j < widthLocal; j++ ){ 
@@ -7356,12 +7336,7 @@ EigenSolver::PPCGSolveReal    (
   return ;
 }         // -----  end of method EigenSolver::PPCGSolveReal  ----- 
 #endif
-
-<<<<<<< HEAD
-
-=======
-    return ;
-    }         // -----  end of method EigenSolver::PPCGSolveReal  ----- 
 #endif
->>>>>>> GPU
+
+
 } // namespace dgdft
