@@ -457,7 +457,7 @@ int main(int argc, char **argv)
             //huwei 20170306
             //Especially for XL-BOMD wavefunction extrapolation  
 
-            if(esdfParam.MDExtrapolationWavefunction == "xlbomd"){ 
+            if(esdfParam.MDExtrapolationType == "xlbomd"){ 
 
               statusOFS << "Extrapolating the Wavefunctions for XL-BOMD." << std::endl;
 
@@ -609,6 +609,10 @@ int main(int argc, char **argv)
                 MPI_Allreduce( Temp1.Data(), Temp2.Data(), 
                     numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
 
+                if( mpirank == 0 ){
+                  statusOFS << "(Psi'*Psi_{ref})_{0,0} = " << Temp2(0,0) << std::endl;
+                }
+
                 DblNumMat psiSCFRow( ntotLocal, numStateTotal );
                 SetValue( psiSCFRow, 0.0 );
 
@@ -626,7 +630,7 @@ int main(int argc, char **argv)
               // FIXME More efficient to move the pointer later.
               // Out of core is another option that might
               // necessarily need to be taken into account
-              //maxHist = 3; 
+              //maxHist >= 3; 
               for( Int l = maxHist-1; l > 0; l-- ){
                 wavefunHist[l]     = wavefunHist[l-1];
               } // for (l)
@@ -691,11 +695,8 @@ int main(int argc, char **argv)
                   totalCharge, 
                   fft );
 
-            } //if()
-
-
-            // ASPC
-            if(esdfParam.MDExtrapolationWavefunction == "aspc"){ 
+            } //if Extrapolating using xlbomd
+            else { 
 
               statusOFS << "Extrapolating the Wavefunctions using ASPC." << std::endl;
 
@@ -952,7 +953,7 @@ int main(int argc, char **argv)
                   totalCharge, 
                   fft );
 
-            } //if() Extrapolating the Wavefunctions using ASPC
+            } //if Extrapolating the Wavefunctions using ASPC
 
           } // wavefun extrapolation
 #endif

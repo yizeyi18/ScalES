@@ -2976,11 +2976,9 @@ ESDFReadInput ( const char* filename )
     esdfParam.MDExtrapolationType          = strtmp;
     esdf_string("MD_Extrapolation_Variable", "density", strtmp); 
     esdfParam.MDExtrapolationVariable      = strtmp;
-    esdf_string("MD_Extrapolation_Wavefunction", "aspc", strtmp); 
-    esdfParam.MDExtrapolationWavefunction  = strtmp;
     esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);
     esdfParam.langevinDamping       = esdf_double("Langevin_Damping", 0.01);
-    esdfParam.kappaXLBOMD           = esdf_double("kappa_XLBOMD", 2.00);
+    esdfParam.kappaXLBOMD           = esdf_double("kappa_XLBOMD", 1.70);
     esdfParam.isRestartPosition     = esdf_integer( "Restart_Position", 0 );
     esdfParam.isRestartVelocity     = esdf_integer( "Restart_Velocity", 0 );
     esdfParam.isOutputPosition      = esdf_integer( "Output_Position", 1 );

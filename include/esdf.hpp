@@ -885,12 +885,16 @@ struct ESDFInputParam{
   ///
   /// Default: 50.0
   Int                                    MDTimeStep; 
-  /// @brief Extrapolation type for updating the density
+  /// @brief Extrapolation type for updating the density or wavefunction
   ///
   /// Default: "linear"
+  /// 
+  /// = "linear"        : 1-step extrapolation 
+  /// = "quadratic"     : 2-step extrapolation
+  /// = "aspc2"         : 2-step ASPC extrapolation
+  /// = "aspc3"         : 3-step ASPC extrapolation
+  /// = "xlbomd"        : wavefunction extrapolation by using XLBOMD
   ///
-  /// Currently three extrapolation  types (linear, quadratic and
-  /// Dario) are supported.
   std::string         MDExtrapolationType;
   /// @brief Extrapolation variable
   ///
@@ -902,13 +906,6 @@ struct ESDFInputParam{
   ///                      density is constructed from the
   ///                      wavefunctions
   std::string         MDExtrapolationVariable;
-  /// @brief Extrapolation wavefunction methods
-  ///
-  /// Default: "aspc"
-  ///
-  /// = "aspc"        : wavefunction extrapolation by using ASPC
-  /// = "xlbomd"        : wavefunction extrapolation by using XLBOMD
-  std::string         MDExtrapolationWavefunction;
   /// @brief Temperature for ion.
   ///
   /// Default: K
