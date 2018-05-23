@@ -236,6 +236,12 @@ public:
   virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF ) = 0;
 
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
+#else
+
+  virtual NumTns<Complex>& PhiEXX() = 0;
+  virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
+  virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
+
 #endif
   
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
@@ -319,9 +325,17 @@ private:
   /// @brief Store all the orbitals for exact exchange calculation
   /// NOTE: This might impose serious memory constraint for relatively
   /// large systems.
+#ifdef _COMPLEX_
+  NumTns<Complex>             phiEXX_; 
+#else
   NumTns<Real>                phiEXX_; 
+#endif
   DblNumMat                   vexxProj_; 
   DblNumVec                   exxgkkR2C_;
+
+#ifdef _COMPLEX_
+  DblNumVec                   exxgkk_;
+#endif
 
 public:
 
@@ -383,6 +397,12 @@ public:
   virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF );
 
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
+#else
+
+  virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
+  virtual NumTns<Complex>& PhiEXX() {return phiEXX_;}
+  virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
+
 #endif
 
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft );

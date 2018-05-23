@@ -436,7 +436,6 @@ SCF::Iterate (  )
 
   // NOTE: The different mixing mode of hybrid functional calculations
   // are not compatible with each other. So each requires its own code
-#ifndef _COMPLEX_
   if( ham.IsHybrid() ){
     // Fock energies
     Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
@@ -458,6 +457,7 @@ SCF::Iterate (  )
     ham.SetPhiEXX( psi, fft ); 
 
     // Update the ACE if needed
+#ifndef _COMPLEX_
     if( esdfParam.isHybridACE ){
       if( esdfParam.isHybridDF ){
         ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
@@ -468,6 +468,7 @@ SCF::Iterate (  )
         ham.CalculateVexxACE ( psi, fft );
       }
     }
+#endif
 
     GetTime( timeEnd );
     statusOFS << "Time for updating Phi related variable is " <<
@@ -597,6 +598,7 @@ SCF::Iterate (  )
         ham.SetPhiEXX( psi, fft ); 
 
         // Update the ACE if needed
+#ifndef _COMPLEX_
         if( esdfParam.isHybridACE ){
           if( esdfParam.isHybridDF ){
             ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
@@ -607,6 +609,7 @@ SCF::Iterate (  )
             ham.CalculateVexxACE ( psi, fft );
           }
         }
+#endif
 
         GetTime( timeEnd );
         statusOFS << "Time for updating Phi related variable is " <<
@@ -643,7 +646,8 @@ SCF::Iterate (  )
     GetTime( timeEnd );
     statusOFS << "Time for using nested method is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
-    
+
+#ifndef _COMPLEX_ 
     GetTime( timeSta );
 
     // New method for the commutator-DIIS with column selection strategy
@@ -1517,9 +1521,9 @@ SCF::Iterate (  )
     GetTime( timeEnd );
     statusOFS << "Time for using pcdiis method is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
     
   } // isHybrid == true
-#endif
 
   // Calculate the Force. This includes contribution from ionic repulsion, VDW etc
   ham.CalculateForce( psi, fft );

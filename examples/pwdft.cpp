@@ -280,6 +280,7 @@ int main(int argc, char **argv)
 
     } // if(1)
 
+#endif
 
     if( hamKS.IsHybrid() ){
       GetTime( timeSta );
@@ -290,7 +291,6 @@ int main(int argc, char **argv)
       if( esdfParam.isHybridActiveInit )
         hamKS.SetEXXActive(true);
     }
-#endif
 
     // Eigensolver class
     eigSol.Setup( hamKS, psi, fft );

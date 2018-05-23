@@ -3103,11 +3103,11 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Complex>& a3, Fourier& fft )
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-#if 0
+#if 1
   if( isHybrid_ && isEXXActive_ ){
 
     GetTime( timeSta );
-
+#if 0
     if( esdfParam.isHybridACE ){
 
       //      if(0)
@@ -3213,11 +3213,13 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Complex>& a3, Fourier& fft )
       } //if(1)
 
     }
-    else{
-      psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
+    else
+#endif
+    // only calculate complex psi * phi directly
+    {
+      psi.AddMultSpinorEXX( fft, phiEXX_, exxgkk_,
           exxFraction_,  numSpin_, occupationRate_, a3 );
     }
-
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
     statusOFS << "Time for updating hybrid Spinor is " <<
@@ -3500,7 +3502,343 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 #endif
 
 
+#ifdef _COMPLEX_
 
+void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
+{
+
+  const Real epsDiv = 1e-8;
+
+  isEXXActive_ = false;
+
+  Int numGridTotalR2C = fft.numGridTotalR2C;
+  Int numGridTotal    = fft.numGridTotal;
+  exxgkkR2C_.Resize(numGridTotalR2C);
+  SetValue( exxgkkR2C_, 0.0 );
+
+  exxgkk_.Resize(numGridTotal);
+  SetValue( exxgkk_, 0.0 );
+
+
+  // extra 2.0 factor for ecutWavefunction compared to QE due to unit difference
+  // tpiba2 in QE is just a unit for G^2. Do not include it here
+  Real exxAlpha = 10.0 / (ecutWavefunction * 2.0);
+
+  // Gygi-Baldereschi regularization. Currently set to zero and compare
+  // with QE without the regularization 
+  // Set exxdiv_treatment to "none"
+  // NOTE: I do not quite understand the detailed derivation
+  // Compute the divergent term for G=0
+  Real gkk2;
+  if(exxDivergenceType_ == 0){
+    exxDiv_ = 0.0;
+  }
+  else if (exxDivergenceType_ == 1){
+    exxDiv_ = 0.0;
+    // no q-point
+    // NOTE: Compared to the QE implementation, it is easier to do below.
+    // Do the integration over the entire G-space rather than just the
+    // R2C grid. This is because it is an integration in the G-space.
+    // This implementation fully agrees with the QE result.
+    for( Int ig = 0; ig < fft.numGridTotal; ig++ ){
+      gkk2 = fft.gkk(ig) * 2.0;
+      if( gkk2 > epsDiv ){
+        if( screenMu_ > 0.0 ){
+          exxDiv_ += std::exp(-exxAlpha * gkk2) / gkk2 * 
+            (1.0 - std::exp(-gkk2 / (4.0*screenMu_*screenMu_)));
+        }
+        else{
+          exxDiv_ += std::exp(-exxAlpha * gkk2) / gkk2;
+        }
+      }
+    } // for (ig)
+
+    if( screenMu_ > 0.0 ){
+      exxDiv_ += 1.0 / (4.0*screenMu_*screenMu_);
+    }
+    else{
+      exxDiv_ -= exxAlpha;
+    }
+    exxDiv_ *= 4.0 * PI;
+
+
+    Int nqq = 100000;
+    Real dq = 5.0 / std::sqrt(exxAlpha) / nqq;
+    Real aa = 0.0;
+    Real qt, qt2;
+    for( Int iq = 0; iq < nqq; iq++ ){
+      qt = dq * (iq+0.5);
+      qt2 = qt*qt;
+      if( screenMu_ > 0.0 ){
+        aa -= std::exp(-exxAlpha *qt2) * 
+          std::exp(-qt2 / (4.0*screenMu_*screenMu_)) * dq;
+      }
+    }
+    aa = aa * 2.0 / PI + 1.0 / std::sqrt(exxAlpha*PI);
+    exxDiv_ -= domain_.Volume()*aa;
+  }
+
+  if(1){
+    statusOFS << "computed exxDiv_ = " << exxDiv_ << std::endl;
+  }
+
+
+  for( Int ig = 0; ig < numGridTotalR2C; ig++ ){
+    gkk2 = fft.gkkR2C(ig) * 2.0;
+    if( gkk2 > epsDiv ){
+      if( screenMu_ > 0 ){
+        // 2.0*pi instead 4.0*pi due to gkk includes a factor of 2
+        exxgkkR2C_[ig] = 4.0 * PI / gkk2 * (1.0 - 
+            std::exp( -gkk2 / (4.0*screenMu_*screenMu_) ));
+      }
+      else{
+        exxgkkR2C_[ig] = 4.0 * PI / gkk2;
+      }
+    }
+    else{
+      exxgkkR2C_[ig] = -exxDiv_;
+      if( screenMu_ > 0 ){
+        exxgkkR2C_[ig] += PI / (screenMu_*screenMu_);
+      }
+    }
+  } // for (ig)
+
+
+  for( Int ig = 0; ig < numGridTotal; ig++ ){
+    gkk2 = fft.gkk(ig) * 2.0;
+    if( gkk2 > epsDiv ){
+      if( screenMu_ > 0 ){
+        // 2.0*pi instead 4.0*pi due to gkk includes a factor of 2
+        exxgkk_[ig] = 4.0 * PI / gkk2 * (1.0 - 
+            std::exp( -gkk2 / (4.0*screenMu_*screenMu_) ));
+      }
+      else{
+        exxgkk_[ig] = 4.0 * PI / gkk2;
+      }
+    }
+    else{
+      exxgkk_[ig] = -exxDiv_;
+      if( screenMu_ > 0 ){
+        exxgkk_[ig] += PI / (screenMu_*screenMu_);
+      }
+    }
+  } // for (ig)
+
+
+
+  if(1){
+    statusOFS << "Hybrid mixing parameter  = " << exxFraction_ << std::endl; 
+    statusOFS << "Hybrid screening length = " << screenMu_ << std::endl;
+  }
+
+
+  return ;
+}        // -----  end of function KohnSham::InitializeEXX  ----- 
+
+void
+KohnSham::SetPhiEXX    (const Spinor& psi, Fourier& fft)
+{
+  // FIXME collect Psi into a globally shared array in the MPI context.
+  const NumTns<Complex>& wavefun = psi.Wavefun();
+  Int ntot = wavefun.m();
+  Int ncom = wavefun.n();
+  Int numStateLocal = wavefun.p();
+  Int numStateTotal = this->NumStateTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Real vol = fft.domain.Volume();
+
+  phiEXX_.Resize( ntot, ncom, numStateLocal );
+  SetValue( phiEXX_, Z_ZERO );
+
+  // FIXME Put in a more proper place
+  for (Int k=0; k<numStateLocal; k++) {
+    for (Int j=0; j<ncom; j++) {
+
+      Real fac = std::sqrt( double(ntot) / vol );
+      blas::Copy( ntot, wavefun.VecData(j,k), 1, phiEXX_.VecData(j,k), 1 );
+      blas::Scal( ntot, fac, phiEXX_.VecData(j,k), 1 );
+    } // for (j)
+  } // for (k)
+
+
+  return ;
+}         // -----  end of method KohnSham::SetPhiEXX  ----- 
+
+// This comes from exxenergy2() function in exx.f90 in QE.
+Real
+KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
+{
+
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  Real fockEnergy = 0.0;
+  Real fockEnergyLocal = 0.0;
+
+  // Repeat the calculation of Vexx
+  // FIXME Will be replaced by the stored VPhi matrix in the new
+  // algorithm to reduce the cost, but this should be a new function
+
+  // FIXME Should be combined better with the addition of exchange part in spinor
+  NumTns<Complex>& wavefun = psi.Wavefun();
+
+  if( !fft.isInitialized ){
+    ErrorHandling("Fourier is not prepared.");
+  }
+  Index3& numGrid = fft.domain.numGrid;
+  Index3& numGridFine = fft.domain.numGridFine;
+  Int ntot      = fft.domain.NumGridTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int numStateTotal = psi.NumStateTotal();
+  Int numStateLocal = psi.NumState();
+  Real vol = fft.domain.Volume();
+  Int ncom = wavefun.n();
+  NumTns<Complex>& phi = phiEXX_;
+  Int ncomPhi = phi.n();
+  if( ncomPhi != 1 || ncom != 1 ){
+    ErrorHandling("Spin polarized case not implemented.");
+  }
+  Int numStateLocalPhi = phi.p();
+
+  if( fft.domain.NumGridTotal() != ntot ){
+    ErrorHandling("Domain size does not match.");
+  }
+
+  // Directly use the phiEXX_ and vexxProj_ to calculate the exchange energy
+  /*
+  if( esdfParam.isHybridACE ){
+    // temporarily just implement here
+    // Directly use projector
+    Int numProj = vexxProj_.n();
+    Int numStateTotal = this->NumStateTotal();
+    Int ntot = psi.NumGridTotal();
+
+    if(0)
+    {
+      DblNumMat M(numProj, numStateTotal);
+
+      NumTns<Real>  vexxPsi( ntot, 1, numStateLocalPhi );
+      SetValue( vexxPsi, 0.0 );
+
+      blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+          vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+          0.0, M.Data(), M.m() );
+      // Minus sign comes from that all eigenvalues are negative
+      blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+          vexxProj_.Data(), ntot, M.Data(), numProj,
+          0.0, vexxPsi.Data(), ntot );
+
+      for( Int k = 0; k < numStateLocalPhi; k++ ){
+        for( Int j = 0; j < ncom; j++ ){
+          for( Int ir = 0; ir < ntot; ir++ ){
+            fockEnergy += vexxPsi(ir,j,k) * wavefun(ir,j,k) * occupationRate_[psi.WavefunIdx(k)];
+          }
+        }
+      }
+
+    }
+
+    if(1) // For MPI
+    {
+      Int numStateBlocksize = numStateTotal / mpisize;
+      Int ntotBlocksize = ntot / mpisize;
+
+      Int numStateLocal = numStateBlocksize;
+      Int ntotLocal = ntotBlocksize;
+
+      if(mpirank < (numStateTotal % mpisize)){
+        numStateLocal = numStateBlocksize + 1;
+      }
+
+      if(mpirank < (ntot % mpisize)){
+        ntotLocal = ntotBlocksize + 1;
+      }
+
+      DblNumMat psiCol( ntot, numStateLocal );
+      SetValue( psiCol, 0.0 );
+
+      DblNumMat psiRow( ntotLocal, numStateTotal );
+      SetValue( psiRow, 0.0 );
+
+      DblNumMat vexxProjCol( ntot, numStateLocal );
+      SetValue( vexxProjCol, 0.0 );
+
+      DblNumMat vexxProjRow( ntotLocal, numStateTotal );
+      SetValue( vexxProjRow, 0.0 );
+
+      DblNumMat vexxPsiCol( ntot, numStateLocal );
+      SetValue( vexxPsiCol, 0.0 );
+
+      DblNumMat vexxPsiRow( ntotLocal, numStateTotal );
+      SetValue( vexxPsiRow, 0.0 );
+
+      lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+      lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
+
+      AlltoallForward (psiCol, psiRow, domain_.comm);
+      AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
+
+      DblNumMat MTemp( numStateTotal, numStateTotal );
+      SetValue( MTemp, 0.0 );
+
+      blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
+          1.0, vexxProjRow.Data(), ntotLocal, 
+          psiRow.Data(), ntotLocal, 0.0,
+          MTemp.Data(), numStateTotal );
+
+      DblNumMat M(numStateTotal, numStateTotal);
+      SetValue( M, 0.0 );
+
+      MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+      blas::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, -1.0,
+          vexxProjRow.Data(), ntotLocal, M.Data(), numStateTotal,
+          0.0, vexxPsiRow.Data(), ntotLocal );
+
+      AlltoallBackward (vexxPsiRow, vexxPsiCol, domain_.comm);
+
+      fockEnergy = 0.0;
+      fockEnergyLocal = 0.0;
+
+      for( Int k = 0; k < numStateLocal; k++ ){
+        for( Int j = 0; j < ncom; j++ ){
+          for( Int ir = 0; ir < ntot; ir++ ){
+            fockEnergyLocal += vexxPsiCol(ir,k) * wavefun(ir,j,k) * occupationRate_[psi.WavefunIdx(k)];
+          }
+        }
+      }
+      mpi::Allreduce( &fockEnergyLocal, &fockEnergy, 1, MPI_SUM, domain_.comm );
+    } //if(1) 
+  }
+  else
+  */
+  {
+    NumTns<Complex>  vexxPsi( ntot, 1, numStateLocalPhi );
+    SetValue( vexxPsi, Z_ZERO );
+    psi.AddMultSpinorEXX( fft, phiEXX_, exxgkk_, 
+        exxFraction_,  numSpin_, occupationRate_, 
+        vexxPsi );
+    // Compute the exchange energy:
+    // Note: no additional normalization factor due to the
+    // normalization rule of psi, NOT phi!!
+    fockEnergy = 0.0;
+    fockEnergyLocal = 0.0;
+    for( Int k = 0; k < numStateLocalPhi; k++ ){
+      for( Int j = 0; j < ncom; j++ ){
+        for( Int ir = 0; ir < ntot; ir++ ){
+          fockEnergyLocal += (vexxPsi(ir,j,k) * wavefun(ir,j,k)).real() * occupationRate_[psi.WavefunIdx(k)];
+        }
+      }
+    }
+    mpi::Allreduce( &fockEnergyLocal, &fockEnergy, 1, MPI_SUM, domain_.comm );
+  }
+
+
+  return fockEnergy;
+}         // -----  end of method KohnSham::CalculateEXXEnergy  ----- 
+
+#else
 
 
 void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
@@ -3606,6 +3944,9 @@ void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
 
   return ;
 }        // -----  end of function KohnSham::InitializeEXX  ----- 
+
+
+#endif
 
 #ifndef _COMPLEX_
 void
