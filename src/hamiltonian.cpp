@@ -3827,7 +3827,7 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
     for( Int k = 0; k < numStateLocalPhi; k++ ){
       for( Int j = 0; j < ncom; j++ ){
         for( Int ir = 0; ir < ntot; ir++ ){
-          fockEnergyLocal += (vexxPsi(ir,j,k) * wavefun(ir,j,k)).real() * occupationRate_[psi.WavefunIdx(k)];
+          fockEnergyLocal += (vexxPsi(ir,j,k) * std::conj(wavefun(ir,j,k))).real() * occupationRate_[psi.WavefunIdx(k)];
         }
       }
     }

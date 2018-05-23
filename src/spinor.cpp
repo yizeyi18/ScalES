@@ -454,7 +454,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
             Complex* psiPtr = wavefun_.VecData(j,k);
             for( Int ir = 0; ir < ntot; ir++ ){
-              fft.inputComplexVec(ir) = psiPtr[ir] * phiTemp(ir);
+              fft.inputComplexVec(ir) = psiPtr[ir] * std::conj(phiTemp(ir));
             }
 
             FFTWExecute ( fft, fft.forwardPlan );
