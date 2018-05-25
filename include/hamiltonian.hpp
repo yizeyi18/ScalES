@@ -238,6 +238,7 @@ public:
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
 #else
 
+  virtual void CalculateVexxACE( Spinor& psi, Fourier& fft ) = 0;
   virtual NumTns<Complex>& PhiEXX() = 0;
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
@@ -330,7 +331,11 @@ private:
 #else
   NumTns<Real>                phiEXX_; 
 #endif
+#ifdef _COMPLEX_
+  CpxNumMat                   vexxProj_; 
+#else
   DblNumMat                   vexxProj_; 
+#endif
   DblNumVec                   exxgkkR2C_;
 
 #ifdef _COMPLEX_
@@ -399,6 +404,7 @@ public:
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
 #else
 
+  virtual void CalculateVexxACE( Spinor& psi, Fourier& fft );
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
   virtual NumTns<Complex>& PhiEXX() {return phiEXX_;}
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );

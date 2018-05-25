@@ -457,10 +457,13 @@ SCF::Iterate (  )
     ham.SetPhiEXX( psi, fft ); 
 
     // Update the ACE if needed
-#ifndef _COMPLEX_
     if( esdfParam.isHybridACE ){
       if( esdfParam.isHybridDF ){
+#ifndef _COMPLEX_
         ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+#else
+        statusOFS << " CalculateVexxACEDF is not implemented.... " << std::endl;
+#endif
         // Fix the column after the first iteraiton
         isFixColumnDF = true;
       }
@@ -468,7 +471,6 @@ SCF::Iterate (  )
         ham.CalculateVexxACE ( psi, fft );
       }
     }
-#endif
 
     GetTime( timeEnd );
     statusOFS << "Time for updating Phi related variable is " <<
@@ -598,10 +600,13 @@ SCF::Iterate (  )
         ham.SetPhiEXX( psi, fft ); 
 
         // Update the ACE if needed
-#ifndef _COMPLEX_
         if( esdfParam.isHybridACE ){
           if( esdfParam.isHybridDF ){
+#ifndef _COMPLEX_
             ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+#else
+            statusOFS << " CalculateVexxACEDF is not implemented.... " << std::endl;
+#endif
             // Fix the column after the first iteraiton
             isFixColumnDF = true;
           }
@@ -609,7 +614,6 @@ SCF::Iterate (  )
             ham.CalculateVexxACE ( psi, fft );
           }
         }
-#endif
 
         GetTime( timeEnd );
         statusOFS << "Time for updating Phi related variable is " <<

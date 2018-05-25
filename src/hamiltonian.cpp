@@ -3098,6 +3098,8 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Complex>& a3, Fourier& fft )
   GetTime( timeSta );
   psi.AddMultSpinorFine( fft, vtot_, pseudo_, a3 );
   GetTime( timeEnd );
+  statusOFS << "Time for complex psi.AddMultSpinorFine is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #if ( _DEBUGlevel_ >= 1 )
   statusOFS << "Time for complex psi.AddMultSpinorFine is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -3107,7 +3109,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Complex>& a3, Fourier& fft )
   if( isHybrid_ && isEXXActive_ ){
 
     GetTime( timeSta );
-#if 0
+
     if( esdfParam.isHybridACE ){
 
       //      if(0)
@@ -3139,17 +3141,17 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Complex>& a3, Fourier& fft )
           ntotLocal = ntotBlocksize + 1;
         }
 
-        DblNumMat psiCol( ntot, numStateLocal );
-        SetValue( psiCol, 0.0 );
+        CpxNumMat psiCol( ntot, numStateLocal );
+        SetValue( psiCol, Z_ZERO );
 
-        DblNumMat vexxProjCol( ntot, numStateLocal );
-        SetValue( vexxProjCol, 0.0 );
+        CpxNumMat vexxProjCol( ntot, numStateLocal );
+        SetValue( vexxProjCol, Z_ZERO );
 
-        DblNumMat psiRow( ntotLocal, numStateTotal );
-        SetValue( psiRow, 0.0 );
+        CpxNumMat psiRow( ntotLocal, numStateTotal );
+        SetValue( psiRow, Z_ZERO );
 
-        DblNumMat vexxProjRow( ntotLocal, numStateTotal );
-        SetValue( vexxProjRow, 0.0 );
+        CpxNumMat vexxProjRow( ntotLocal, numStateTotal );
+        SetValue( vexxProjRow, Z_ZERO );
 
         lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
         lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
@@ -3160,29 +3162,29 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Complex>& a3, Fourier& fft )
         GetTime( timeEnd1 );
         timeAlltoallv = timeAlltoallv + ( timeEnd1 - timeSta1 );
 
-        DblNumMat MTemp( numStateTotal, numStateTotal );
-        SetValue( MTemp, 0.0 );
+        CpxNumMat MTemp( numStateTotal, numStateTotal );
+        SetValue( MTemp, Z_ZERO );
 
         GetTime( timeSta1 );
-        blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
+        blas::Gemm( 'C', 'N', numStateTotal, numStateTotal, ntotLocal,
             1.0, vexxProjRow.Data(), ntotLocal, 
             psiRow.Data(), ntotLocal, 0.0,
             MTemp.Data(), numStateTotal );
         GetTime( timeEnd1 );
         timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
 
-        DblNumMat M(numStateTotal, numStateTotal);
-        SetValue( M, 0.0 );
+        CpxNumMat M(numStateTotal, numStateTotal);
+        SetValue( M, Z_ZERO );
         GetTime( timeSta1 );
-        MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+        MPI_Allreduce( MTemp.Data(), M.Data(), 2*numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
         GetTime( timeEnd1 );
         timeAllreduce = timeAllreduce + ( timeEnd1 - timeSta1 );
 
-        DblNumMat a3Col( ntot, numStateLocal );
-        SetValue( a3Col, 0.0 );
+        CpxNumMat a3Col( ntot, numStateLocal );
+        SetValue( a3Col, Z_ZERO );
 
-        DblNumMat a3Row( ntotLocal, numStateTotal );
-        SetValue( a3Row, 0.0 );
+        CpxNumMat a3Row( ntotLocal, numStateTotal );
+        SetValue( a3Row, Z_ZERO );
 
         GetTime( timeSta1 );
         blas::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, 
@@ -3200,8 +3202,8 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Complex>& a3, Fourier& fft )
         GetTime( timeSta1 );
         for (Int k=0; k<numStateLocal; k++) {
           for (Int j=0; j<ncom; j++) {
-            Real *p1 = a3Col.VecData(k);
-            Real *p2 = a3.VecData(j, k);
+            Complex *p1 = a3Col.VecData(k);
+            Complex *p2 = a3.VecData(j, k);
             for (Int i=0; i<ntot; i++) { 
               *(p2++) += *(p1++); 
             }
@@ -3214,13 +3216,12 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Complex>& a3, Fourier& fft )
 
     }
     else
-#endif
-    // only calculate complex psi * phi directly
     {
       psi.AddMultSpinorEXX( fft, phiEXX_, exxgkk_,
           exxFraction_,  numSpin_, occupationRate_, a3 );
     }
     GetTime( timeEnd );
+
 #if ( _DEBUGlevel_ >= 0 )
     statusOFS << "Time for updating hybrid Spinor is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -3837,6 +3838,187 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
 
   return fockEnergy;
 }         // -----  end of method KohnSham::CalculateEXXEnergy  ----- 
+
+void
+KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
+{
+  // This assumes SetPhiEXX has been called so that phiEXX and psi
+  // contain the same information. 
+
+  // Since this is a projector, it should be done on the COARSE grid,
+  // i.e. to the wavefunction directly
+
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  // Only works for single processor
+  Int ntot      = fft.domain.NumGridTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int numStateTotal = psi.NumStateTotal();
+  Int numStateLocal = psi.NumState();
+  NumTns<Complex>  vexxPsi( ntot, 1, numStateLocal );
+
+  // VexxPsi = V_{exx}*Phi.
+  SetValue( vexxPsi, Z_ZERO );
+  psi.AddMultSpinorEXX( fft, phiEXX_, exxgkk_,
+      exxFraction_,  numSpin_, occupationRate_, vexxPsi );
+
+  // Implementation based on SVD
+  CpxNumMat  M(numStateTotal, numStateTotal);
+
+  /*
+  if(0){
+    // FIXME
+    Real SVDTolerance = 1e-4;
+    // M = Phi'*vexxPsi
+    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+        1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
+        0.0, M.Data(), numStateTotal );
+
+    DblNumMat  U( numStateTotal, numStateTotal );
+    DblNumMat VT( numStateTotal, numStateTotal );
+    DblNumVec  S( numStateTotal );
+    SetValue( S, 0.0 );
+
+    lapack::QRSVD( numStateTotal, numStateTotal, M.Data(), numStateTotal,
+        S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
+
+
+    for( Int g = 0; g < numStateTotal; g++ ){
+      S[g] = std::sqrt( S[g] );
+    }
+
+    Int rankM = 0;
+    for( Int g = 0; g < numStateTotal; g++ ){
+      if( S[g] / S[0] > SVDTolerance ){
+        rankM++;
+      }
+    }
+    statusOFS << "rank of Phi'*VPhi matrix = " << rankM << std::endl;
+    for( Int g = 0; g < rankM; g++ ){
+      blas::Scal( numStateTotal, 1.0 / S[g], U.VecData(g), 1 );
+    }
+
+    vexxProj_.Resize( ntot, rankM );
+    blas::Gemm( 'N', 'N', ntot, rankM, numStateTotal, 1.0, 
+        vexxPsi.Data(), ntot, U.Data(), numStateTotal, 0.0,
+        vexxProj_.Data(), ntot );
+  }
+
+  // Implementation based on Cholesky
+  if(0){
+    // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
+    // semi-definite matrix.
+    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+        -1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
+        0.0, M.Data(), numStateTotal );
+
+    lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+
+    blas::Trsm( 'R', 'L', 'T', 'N', ntot, numStateTotal, 1.0, 
+        M.Data(), numStateTotal, vexxPsi.Data(), ntot );
+
+    vexxProj_.Resize( ntot, numStateTotal );
+    blas::Copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
+  }
+  */
+
+  if(1){ //For MPI
+
+    // Convert the column partition to row partition
+    Int numStateBlocksize = numStateTotal / mpisize;
+    Int ntotBlocksize = ntot / mpisize;
+
+    Int numStateLocal = numStateBlocksize;
+    Int ntotLocal = ntotBlocksize;
+
+    if(mpirank < (numStateTotal % mpisize)){
+      numStateLocal = numStateBlocksize + 1;
+    }
+
+    if(mpirank < (ntot % mpisize)){
+      ntotLocal = ntotBlocksize + 1;
+    }
+
+    CpxNumMat localPsiCol( ntot, numStateLocal );
+    SetValue( localPsiCol, Z_ZERO );
+
+    CpxNumMat localVexxPsiCol( ntot, numStateLocal );
+    SetValue( localVexxPsiCol, Z_ZERO );
+
+    CpxNumMat localPsiRow( ntotLocal, numStateTotal );
+    SetValue( localPsiRow, Z_ZERO );
+
+    CpxNumMat localVexxPsiRow( ntotLocal, numStateTotal );
+    SetValue( localVexxPsiRow, Z_ZERO );
+
+    // Initialize
+    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, localPsiCol.Data(), ntot );
+    lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
+
+    AlltoallForward (localPsiCol, localPsiRow, domain_.comm);
+    AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
+
+    CpxNumMat MTemp( numStateTotal, numStateTotal );
+    SetValue( MTemp, Z_ZERO );
+
+    blas::Gemm( 'C', 'N', numStateTotal, numStateTotal, ntotLocal,
+        -1.0, localPsiRow.Data(), ntotLocal, 
+        localVexxPsiRow.Data(), ntotLocal, 0.0,
+        MTemp.Data(), numStateTotal );
+
+    SetValue( M, Z_ZERO );
+    MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal*2, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+    if ( mpirank == 0) {
+      lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+    }
+
+    MPI_Bcast(M.Data(), 2*numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_.comm);
+
+    blas::Trsm( 'R', 'L', 'C', 'N', ntotLocal, numStateTotal, 1.0, 
+        M.Data(), numStateTotal, localVexxPsiRow.Data(), ntotLocal );
+
+    vexxProj_.Resize( ntot, numStateLocal );
+
+    AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
+  } //if(1)
+
+  // Sanity check. For debugging only
+  //  if(0){
+  //  // Make sure U and VT are the same. Should be an identity matrix
+  //    blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, numStateTotal, 1.0, 
+  //        VT.Data(), numStateTotal, U.Data(), numStateTotal, 0.0,
+  //        M.Data(), numStateTotal );
+  //    statusOFS << "M = " << M << std::endl;
+  //
+  //    NumTns<Real> vpsit = psi.Wavefun();
+  //    Int numProj = rankM;
+  //    DblNumMat Mt(numProj, numStateTotal);
+  //    
+  //    blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+  //        vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+  //        0.0, Mt.Data(), Mt.m() );
+  //    // Minus sign comes from that all eigenvalues are negative
+  //    blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+  //        vexxProj_.Data(), ntot, Mt.Data(), numProj,
+  //        0.0, vpsit.Data(), ntot );
+  //
+  //    for( Int k = 0; k < numStateTotal; k++ ){
+  //      Real norm = 0.0;
+  //      for( Int ir = 0; ir < ntot; ir++ ){
+  //        norm = norm + std::pow(vexxPsi(ir,0,k) - vpsit(ir,0,k), 2.0);
+  //      }
+  //      statusOFS << "Diff of vexxPsi " << std::sqrt(norm) << std::endl;
+  //    }
+  //  }
+
+
+  return ;
+}         // -----  end of method KohnSham::CalculateVexxACE  ----- 
+
+
 
 #else
 

@@ -797,6 +797,9 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
   std::vector<Atom>&   atomList = *atomListPtr_;
   Int numAtom = atomList.size();
 
+  if( ham.IsHybrid() ) {
+    ham.SetPhiEXX( psi, fft);
+  }
   // print the options_ when first step. 
   if(k_ == 0){
     statusOFS<< std::endl;
@@ -983,6 +986,9 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
     ham.CalculatePseudoPotential( ptable );
   }
 
+  if( ham.IsHybrid() ) {
+    ham.SetPhiEXX( psi2, fft);
+  }
   // 3. Update the H matrix. 
   {
     Real totalCharge_;
@@ -1036,6 +1042,9 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
       dataPtr[index] = psiDataPtr[index] -  i_Z_One * HpsiDataPtr[index] * options_.dt/2.0;
     }
 
+  if( ham.IsHybrid() ) {
+    ham.SetPhiEXX( psi3, fft);
+  }
   // 2. if ehrenfest dynamics, re-calculate the Vlocal and Vnonlocal
   if(options_.ehrenfest){
     for( Int a = 0; a < numAtom; a++ ){
@@ -1097,6 +1106,9 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
       dataPtr[index] = psiDataPtr[index] -  i_Z_One * HpsiDataPtr[index] * options_.dt;
     }
 
+  if( ham.IsHybrid() ) {
+    ham.SetPhiEXX( psi4, fft);
+  }
   // 2. if ehrenfest dynamics, re-calculate the Vlocal and Vnonlocal
   if(options_.ehrenfest){
     for( Int a = 0; a < numAtom; a++ ){
@@ -1658,6 +1670,10 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   Fourier&     fft = *fftPtr_;
   Spinor&      psi = *psiPtr_;
 
+  if( ham.IsHybrid() ) {
+    ham.SetPhiEXX( psi, fft);
+  }
+
   std::vector<Atom>&   atomList = *atomListPtr_;
   Int numAtom = atomList.size();
 
@@ -1905,6 +1921,9 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
         ham.CalculateVtot( ham.Vtot());
       }
 
+      if( ham.IsHybrid() ) {
+        ham.SetPhiEXX( psiFinal, fft);
+      }
       // HXf <== Hf * Xf, now HPSI is HXf  
       ham.MultSpinor( psiFinal, tnsTemp, fft );
 
@@ -2162,6 +2181,16 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 void TDDFT::Propagate( PeriodTable& ptable ) {
   Int totalSteps = tlist_.size() - 1;
   int startTime = 0;
+
+  if(hamPtr_->IsHybrid()) {
+    statusOFS << " TDDFT with HSE functions. " << std::endl;
+    //FIXME, change this when using ACE
+    hamPtr_->SetEXXActive(true) ; 
+    if(options_.method == "PTTRAP"){
+      ErrorHandling( "TDDFT HSE functions only works for PTTRAPDIIS and RK4");
+    }
+  }
+
   if(esdfParam.save4RestartTDDFT ) {
     startTime = esdfParam.restartTDDFTStep;
   }
