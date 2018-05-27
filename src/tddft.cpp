@@ -296,8 +296,26 @@ void TDDFT::Setup(
 
   if(mpirank == 0) {
     vextOFS.open( "vext.out");
+    vextOFS 
+      << std::setw(LENGTH_VAR_DATA) << " Time(fs) " << " " 
+      << std::setw(LENGTH_VAR_DATA) << " Vext " << " " << std::endl;
+
     dipoleOFS.open( "dipole.out");
+    dipoleOFS 
+      << std::setw(LENGTH_VAR_DATA) << " Time(fs) " 
+      << std::setw(LENGTH_VAR_DATA) << " Dipole_X "
+      << std::setw(LENGTH_VAR_DATA) << " Dipole_Y "
+      << std::setw(LENGTH_VAR_DATA) << " Dipole_Z " << std::endl;
+
     etotOFS.open( "etot.out");
+    etotOFS 
+      << std::setw(LENGTH_VAR_DATA) << " Time "    << " " 
+      << std::setw(LENGTH_VAR_DATA) << " Etot "    << " "
+      << std::setw(LENGTH_VAR_DATA) << " AtomKin " << " "
+      << std::setw(LENGTH_VAR_DATA) << " Epot "    << " "
+      << std::setw(LENGTH_VAR_DATA) << " Eext "    << " "
+      << std::setw(LENGTH_VAR_DATA) << " Eproton " << " "
+      << std::setw(LENGTH_VAR_DATA) << " Efock "   << std::endl;
 
   }
 
@@ -771,13 +789,19 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable, Real t )
 
   //  Time(fs), E_tot(eV), E_kin(eV), E_pot(ev), E_field(eV), E_proton
 
+  Real Efork = 0.0; 
+
+  if( ham.IsHybrid() ) {
+    Efork = ham.CalculateEXXEnergy( psi, fft ); 
+  }
   etotOFS 
     << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << t * au2fs << " " 
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << (Etot_ + AtomKin_ + Eext_ ) * au2ev << " "
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << (Etot_ + AtomKin_ + Eext_ - Efork) * au2ev << " "
     << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << AtomKin_ * au2ev << " "
     << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << Etot_ * au2ev << " "
     << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << Eext_ * au2ev<< " "
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << Eproton * au2ev<< std::endl;
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << Eproton * au2ev<< " "
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)  << Efork* au2ev<< std::endl;
 
   return ;
 }         // -----  end of method TDDFT::CalculateEnergy  ----- 
