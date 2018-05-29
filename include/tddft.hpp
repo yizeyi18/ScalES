@@ -253,6 +253,8 @@ namespace dgdft{
       void Update();
       void CalculateEnergy(PeriodTable& ptable, Real t) ;
       void PrintState( Int step );
+
+      Real InnerSolve(Int step, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat & HPSI, CpxNumMat &psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat &Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal );
       
       // Mixing
       void  AndersonMix( 

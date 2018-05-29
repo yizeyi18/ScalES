@@ -1932,8 +1932,49 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     SetValue( vin,  Complex(0,0));
     SetValue( vout, Complex(0,0));
 
-    for(int iscf = 1; iscf <= maxScfIteration; iscf++){
+    Real scfNorm = 0.0;
+    if( esdfParam.isHybridACE ) {
+      Real fock1 = 0.0;
+      Real fock2 = 0.0;
 
+      // Two SCF loops, outer and inner SCF.
+      // Outer SCF
+      int maxPhiIteration = 20;
+      Real scfPhiTolerance_ = 1.0E-7;
+      for( int phiIter = 0; phiIter < maxPhiIteration; phiIter++){
+
+        ham.SetPhiEXX( psiFinal, fft);
+        ham.CalculateVexxACE ( psi, fft );
+
+        fock1 = ham.CalculateEXXEnergy( psiFinal, fft ); 
+
+        // Inner SCF.
+        for(int iscf = 1; iscf <= maxScfIteration; iscf++){
+          scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
+          if( scfNorm < options_.scfTol){
+            statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
+            break;
+          }
+        }
+        fock2 = ham.CalculateEXXEnergy( psiFinal, fft ); 
+        Real dExx = std::abs(fock2 - fock1) / std::abs(fock2);
+
+        statusOFS << " Fock Energy  = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< fock2 << " [au]" << std::endl 
+                  << " dExx         = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< dExx  << " [au]" << std::endl;
+
+        if( dExx < scfPhiTolerance_ ) break; 
+
+      }
+    } else { // Note, the exact HF and PBE implementation together. 
+      for(int iscf = 1; iscf <= maxScfIteration; iscf++){
+        scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
+        if( scfNorm < options_.scfTol){
+          statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
+          break;
+        }
+      }
+    }
+#if 0
       Int iterused = std::min (iscf-1, maxDim);
       Int ipos = iscf - 1 - floor( (iscf-2) / maxDim ) * maxDim;
 
@@ -2124,8 +2165,8 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
           break;
         }
       }
-
-    } // iscf iteration
+#endif
+    //} // iscf iteration
 
   } // if 1
 
@@ -2391,5 +2432,223 @@ void TDDFT::PrintState ( Int step ) {
   return;
 }
 
+Real TDDFT::InnerSolve( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat &HPSI, CpxNumMat & psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat & Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal )
+{
+  Hamiltonian& ham = *hamPtr_;
+  Fourier&     fft = *fftPtr_;
+  Spinor&      psi = *psiPtr_;
+  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  Int mpirank, mpisize;
+  MPI_Comm_rank( mpi_comm, &mpirank );
+  MPI_Comm_size( mpi_comm, &mpisize );
+  Complex i_Z_One = Complex(0.0, 1.0);
+
+  Int  maxDim  = esdfParam.mixMaxDim;
+  Real betaMix = esdfParam.mixStepLength;
+
+  Int ntot  = fft.domain.NumGridTotal();
+  Int numStateLocal = psiFinal.NumState();
+  Int ntotLocal = ntot/mpisize;
+  if(mpirank < (ntot % mpisize)) ntotLocal++;
+  Int numStateTotal = psi.NumStateTotal();
+
+  Int iterused = std::min (iscf-1, maxDim);
+  Int ipos = iscf - 1 - floor( (iscf-2) / maxDim ) * maxDim;
+
+  // Update Hf <== updateV(molf, rhof)
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  {
+    ham.CalculateXC( Exc_, fft ); 
+    ham.CalculateHartree( fft );
+    ham.CalculateVtot( ham.Vtot());
+  }
+
+  if( ham.IsHybrid() && !esdfParam.isHybridACE ) {
+    ham.SetPhiEXX( psiFinal, fft);
+  }
+#if 0
+#endif
+  // HXf <== Hf * Xf, now HPSI is HXf  
+  ham.MultSpinor( psiFinal, tnsTemp, fft );
+  Int width = numStateTotal;
+  Int heightLocal = ntotLocal;
+
+  //  XHX <== XHXtemp <--- X'HXf
+  //  PsiF, HPSI are psiF and H*psiF
+  AlltoallForward( HPSI, HX, mpi_comm);
+  AlltoallForward( psiF, X,  mpi_comm);
+
+  blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+      heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+
+  MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+
+  // ResX <== Xf + 1i* dT/2 * ( HXf - Xf * XHXf ) - Xmid
+  // Note RX is the ResX
+  Complex traceXHX (0.0, 0.0);
+  for( int i = 0; i < width; i++)
+    traceXHX += *(XHX.Data() + i * width + i);
+
+  {
+    // remember:
+    // X == X in G-parallel
+    // XHX == XHXf 
+    // Now Y == Xf * XHXf 
+    CpxNumMat Y(ntotLocal, numStateTotal); 
+    blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
+        X.Data(), heightLocal, XHX.Data(), width, 0.0, Y.Data(), heightLocal );
+
+    // Do things in the G-parallel fashion. 
+    // HX is the HXf in G-parallel
+    // Xmid is in the G-parallel Fashion
+    // X is Xf in G-parallel fashion
+    // RX is the ResX 
+
+    Complex * ResPtr = RX.Data();
+    Complex * XfPtr  = X.Data();
+    Complex * HXfPtr = HX.Data();
+    Complex * YPtr   = Y.Data();
+    Complex * XmidPtr= Xmid.Data();
+    for ( int i = 0; i < width; i++)
+      for( int j = 0; j < heightLocal; j++){
+        int index = i * heightLocal + j;
+        ResPtr[index] = XfPtr[index] + i_Z_One * dT / 2.0 * ( HXfPtr[index] - YPtr[index] ) - XmidPtr[index];
+      }
+  }
+
+  // Tranpose the ResX to band Parallel
+  AlltoallBackward( RX, psiRes, mpi_comm);
+
+  // Check check, still have the pre-conditioner 
+  // not done yet.
+  CpxNumVec preMat(ntot);
+  Complex * precPtr = preMat.Data();
+  for( int i = 0; i < ntot; i++){
+    precPtr[i] = 1.0/(1.0 + i_Z_One * dT/2.0 * ( fft.gkk[i] - traceXHX / (Real)numStateTotal ));
+  }
+
+  // FIXME
+  CpxNumMat dfMatTemp( ntot, maxDim ); 
+
+  for( int iband = 0; iband < numStateLocal; iband++ ) {
+
+    Complex *vinPtr = vin.Data();
+    Complex *voutPtr= vout.Data();
+    Complex *psiFPtr= psiF.Data() + iband * ntot;
+    Complex *psiResPtr= psiRes.Data() + iband * ntot;
+
+    for( int i = 0; i < ntot; i++){
+      vinPtr[i]  =  psiFPtr  [i];
+      voutPtr[i] =  psiResPtr[i];
+    }
+
+    if( iscf > 1) {
+      Complex * dfMatPtr =  dfMat[iband].Data() + (ipos-1) * ntot;
+      Complex * dvMatPtr =  dvMat[iband].Data() + (ipos-1) * ntot;
+
+      for( int i = 0; i < ntot; i ++){
+        dfMatPtr[i] = dfMatPtr[i] - psiResPtr[i];
+        dvMatPtr[i] = dvMatPtr[i] - psiFPtr[i];
+      }
+
+      // Least Square problem here. 
+      Real rcond = 1.0E-12;
+      CpxNumVec gammas;
+      DblNumVec S;
+      S.Resize(iterused);
+      gammas.Resize(ntot);
+
+      blas::Copy( ntot, psiResPtr, 1, gammas.Data(), 1 );
+      Int rank;
+      Int nrow = iterused;
+
+      // FIXME
+      dfMatTemp = dfMat[iband];
+
+      lapack::SVDLeastSquare( ntot, iterused, 1, 
+          dfMatTemp.Data(), ntot, gammas.Data(), ntot,
+          S.Data(), rcond, &rank );
+
+
+      Print( statusOFS, "  Rank of dfmat = ", rank );
+      Print( statusOFS, "  Rcond = ", rcond );
+
+      blas::Gemv('N', ntot, nrow, -1.0, dvMat[iband].Data(),
+          ntot, gammas.Data(), 1, 1.0, vin.Data(), 1 );
+
+      blas::Gemv('N', ntot, iterused, -1.0, dfMat[iband].Data(),
+          ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
+
+      // statusOFS << "Gammas = " << std::endl;
+      // for(Int i = 0; i < iterused; i++ ){
+      //   statusOFS << gammas[i] << std::endl;
+      // }
+    }
+
+
+    int inext = iscf - std::floor((iscf - 1) / maxDim) *maxDim;
+
+    Complex * dfMatPtr =  dfMat[iband].Data() + (inext-1) * ntot;
+    Complex * dvMatPtr =  dvMat[iband].Data() + (inext-1) * ntot;
+
+    for(int j = 0; j < ntot; j++){
+      dfMatPtr[j] = psiResPtr[j];
+      dvMatPtr[j] = psiFPtr[j];
+    }
+
+    // first FFT the vout to the G-space then do the Preconditioner. 
+    {
+      blas::Copy( ntot, voutPtr, 1, fft.inputComplexVec.Data(), 1 );
+      fftw_execute( fft.forwardPlan );
+      Complex * tempPtr = fft.outputComplexVec.Data();
+      for(int i = 0; i < ntot; ++i)
+        tempPtr[i] = tempPtr[i] * precPtr[i];
+      fftw_execute( fft.backwardPlan );
+      SetValue( vout, Complex(0,0) );
+      blas::Axpy( ntot, 1.0 / Real(ntot), fft.inputComplexVec.Data(), 1, voutPtr, 1 );
+    }
+
+    for( int j = 0; j < ntot; j++) {
+      psiFPtr[j] = vinPtr[j] + betaMix * voutPtr[j];
+    }
+  } // for (iband)
+
+  Real scfNorm = 0.0;
+  {
+    // Get the rhoFnew
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psiFinal,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+
+    // Norm check 
+    Real * densityPtr = ham.Density().Data();
+    Real * rhoFinalPtr= rhoFinal.Data();
+    Real normRhoF = 0.0;
+    Real normRhoDiff = 0.0;
+
+    for(int i = 0; i < ntotFine; i++) {
+      normRhoDiff += pow( rhoFinalPtr[i] - densityPtr[i], 2.0 ); 
+      normRhoF    += pow( rhoFinalPtr[i], 2.0 ); 
+    }
+    Real scfNorm = std::sqrt(normRhoDiff / normRhoF);
+    //Print(statusOFS, "norm(RhoOut-RhoIn)/norm(RhoIn) = ", scfNorm );
+    statusOFS << "SCF " << iscf << " norm(RhoOut-RhoIn)/norm(RhoIn): " << scfNorm << std::endl;
+
+
+    // rhoF <== rhoFNew
+    blas::Copy( ntotFine,  ham.Density().Data(), 1,  rhoFinal.Data(), 1 );
+
+    
+    if( scfNorm < options_.scfTol){
+      statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
+      //statusOFS << "TDDFT step " << k_ << " used " << totalHx << " H * x operations!" << std::endl;
+    }
+    return scfNorm;
+  }
+
+}
 }
 #endif
