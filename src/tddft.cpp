@@ -1934,38 +1934,58 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
     Real scfNorm = 0.0;
     if( esdfParam.isHybridACE ) {
+
+      statusOFS << "TDDFT Hybrid ACE Operator ...." << std::endl;
+
       Real fock1 = 0.0;
       Real fock2 = 0.0;
 
       // Two SCF loops, outer and inner SCF.
       // Outer SCF
-      int maxPhiIteration = 20;
-      Real scfPhiTolerance_ = 1.0E-7;
+      int maxPhiIteration = 25;
+      Real scfPhiTolerance_ = 1.0E-8;
+
+      // new scheme: get E[V] <== V[psi_0] <== psi_0
+      ham.SetPhiEXX( psiFinal, fft);
+      ham.CalculateVexxACE ( psi, fft );
+      fock1 = ham.CalculateEXXEnergy( psiFinal, fft ); 
+
       for( int phiIter = 0; phiIter < maxPhiIteration; phiIter++){
 
-        ham.SetPhiEXX( psiFinal, fft);
-        ham.CalculateVexxACE ( psi, fft );
-
-        fock1 = ham.CalculateEXXEnergy( psiFinal, fft ); 
-
         // Inner SCF.
-        for(int iscf = 1; iscf <= maxScfIteration; iscf++){
+        for( int iscf = 1; iscf <= maxScfIteration; iscf++ ) {
           scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
           if( scfNorm < options_.scfTol){
             statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
             break;
           }
         }
+
+        // new scheme: get E[V] <== V[psi_0] <== psi_0
+        ham.SetPhiEXX( psiFinal, fft);
+        ham.CalculateVexxACE ( psiFinal, fft );
+
         fock2 = ham.CalculateEXXEnergy( psiFinal, fft ); 
         Real dExx = std::abs(fock2 - fock1) / std::abs(fock2);
 
         statusOFS << " Fock Energy  = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< fock2 << " [au]" << std::endl 
                   << " dExx         = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< dExx  << " [au]" << std::endl;
 
-        if( dExx < scfPhiTolerance_ ) break; 
-
+	fock1 = fock2;
+        if( dExx < scfPhiTolerance_ ) {
+          statusOFS << "TDDFT step " << k_ << " Phi Iteration in " << phiIter + 1<< " steps !" << std::endl;
+	  break; 
+	}
       }
-    } else { // Note, the exact HF and PBE implementation together. 
+    } 
+    else {
+
+      if( ham.IsHybrid() && !esdfParam.isHybridACE ) 
+        statusOFS << "TDDFT screen exchange ... " << std::endl;
+      else
+        statusOFS << "TDDFT PBE ... " << std::endl;
+
+      // Note, the exact HF and PBE implementation together. 
       for(int iscf = 1; iscf <= maxScfIteration; iscf++){
         scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
         if( scfNorm < options_.scfTol){
@@ -2642,10 +2662,12 @@ Real TDDFT::InnerSolve( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, 
     blas::Copy( ntotFine,  ham.Density().Data(), 1,  rhoFinal.Data(), 1 );
 
     
+#if 0
     if( scfNorm < options_.scfTol){
       statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
       //statusOFS << "TDDFT step " << k_ << " used " << totalHx << " H * x operations!" << std::endl;
     }
+#endif
     return scfNorm;
   }
 
