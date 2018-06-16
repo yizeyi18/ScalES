@@ -128,11 +128,17 @@ namespace dgdft{
     /// @brief maximum dimension of Krylov subspace
     Real krylovMax;
   
-    /// @brief maximum dimension of Krylov subspace
-    Real scfMaxIter;
+    /// @brief maximum dimension of diis iteration
+    Real diisMaxIter;
   
-    /// @brief convergence criteria in SCF
-    Real scfTol;
+    /// @brief maximum dimension of phi iteration
+    Real phiMaxIter;
+
+    /// @brief convergence criteria in phi iteration
+    Real phiTol;
+
+    /// @brief convergence criteria in phi iteration
+    Real diisTol;
   
     /// @brief dimension of the adiabatic subspace
     int adNum ;
@@ -156,7 +162,8 @@ namespace dgdft{
   void setTDDFTDt( TDDFTOptions * options, Real dT);
   void setTDDFTkrylovTol( TDDFTOptions * options, Real krylovTol);
   void setTDDFTkrylovMax( TDDFTOptions *options, int krylovMax);
-  void setTDDFTScfTol( TDDFTOptions *options, Real scfTol);
+  void setTDDFTDiisTol( TDDFTOptions *options, Real tol);
+  void setTDDFTPhiTol ( TDDFTOptions *options, Real tol);
 
   class TDDFT{
 

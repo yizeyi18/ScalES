@@ -970,13 +970,13 @@ struct ESDFInputParam{
   
   /// @brief Maximum number of outer SCF iterations in TDDFT
   /// This is usually used in PWDFT  
-  Int                TDDFTscfOuterMaxIter;
+  Int                TDDFTDiisMaxIter;
 
   /// @brief Maximum number of iterations for hybrid functional
   /// iterations in TDDFT
   /// 
-  /// Default: the same as scfPhiMaxIter
-  Int                 TDDFTscfPhiMaxIter;
+  /// Default: the same as PhiMaxIter
+  Int                 TDDFTPhiMaxIter;
 
   /// @brief use TDDFT or not
   /// 
@@ -1086,10 +1086,15 @@ struct ESDFInputParam{
   /// Default: 1.0E-7
   Real TDDFTKrylovTol;
 
-  /// @brief TDDFT SCF Tolerance
+  /// @brief TDDFT Phi Tolerance
   /// 
-  /// Default: 1.0E-7
-  Real TDDFTScfTol;
+  /// Default: 1.0E-8
+  Real TDDFTPhiTol;
+
+  /// @brief TDDFT Diis Tolerance
+  /// 
+  /// Default: 1.0E-6
+  Real TDDFTDiisTol;
 
 
   // Inputs related to Chebyshev Filtered SCF iterations for DG

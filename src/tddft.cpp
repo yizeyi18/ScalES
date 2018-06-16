@@ -137,13 +137,15 @@ void setDefaultTDDFTOptions( TDDFTOptions * options)
   options->ehrenfest     = esdfParam.isTDDFTEhrenfest;
   options->simulateTime  = esdfParam.TDDFTTotalT;
   options->dt            = esdfParam.TDDFTDeltaT;
-  options->scfMaxIter    = esdfParam.TDDFTMaxIter; 
+  options->phiMaxIter    = esdfParam.TDDFTPhiMaxIter; 
+  options->diisMaxIter   = esdfParam.TDDFTDiisMaxIter; 
   options->krylovTol     = esdfParam.TDDFTKrylovTol;
   options->krylovMax     = esdfParam.TDDFTKrylovMax; 
-  options->scfTol        = esdfParam.TDDFTScfTol; 
+  options->diisTol       = esdfParam.TDDFTDiisTol; 
+  options->phiTol        = esdfParam.TDDFTPhiTol; 
   options->isOutputXYZ   = esdfParam.isOutputXYZ;
 
-  //  check check
+  //  FIXME 
   options->auto_save     = 0;
   options->load_save     = false;
   options->gmres_restart = 10; // not sure.
@@ -178,9 +180,13 @@ void setTDDFTkrylovMax( TDDFTOptions *options, int krylovMax)
 {
   options->krylovMax = krylovMax;
 }
-void setTDDFTScfTol( TDDFTOptions *options, Real scfTol)
+void setTDDFTDiisTol( TDDFTOptions *options, Real diisTol)
 {
-  options->scfTol = scfTol;
+  options->diisTol = diisTol;
+}
+void setTDDFTPhiTol( TDDFTOptions *options, Real phiTol)
+{
+  options->phiTol = phiTol;
 }
 
 void TDDFT::Setup(
@@ -836,7 +842,8 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
     statusOFS<< " options.dt             " << options_.dt             << std::endl;
     statusOFS<< " options.gmres_restart  " << options_.gmres_restart  << std::endl;
     statusOFS<< " options.krylovTol      " << options_.krylovTol      << std::endl;
-    statusOFS<< " options.scfTol         " << options_.scfTol         << std::endl;
+    statusOFS<< " options.diisTol        " << options_.diisTol        << std::endl;
+    statusOFS<< " options.phiTol         " << options_.phiTol         << std::endl;
     statusOFS<< " options.adNum          " << options_.adNum          << std::endl;
     statusOFS<< " options.adUpdate       " << options_.adUpdate       << std::endl;
     statusOFS<< " --------------------------------------------- "     << std::endl;
@@ -1300,7 +1307,8 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
     statusOFS<< " options.dt             " << options_.dt             << std::endl;
     statusOFS<< " options.gmres_restart  " << options_.gmres_restart  << std::endl;
     statusOFS<< " options.krylovTol      " << options_.krylovTol      << std::endl;
-    statusOFS<< " options.scfTol         " << options_.scfTol         << std::endl;
+    statusOFS<< " options.diisTol        " << options_.diisTol        << std::endl;
+    statusOFS<< " options.phiTol         " << options_.phiTol         << std::endl;
     statusOFS<< " options.adNum          " << options_.adNum          << std::endl;
     statusOFS<< " options.adUpdate       " << options_.adUpdate       << std::endl;
     statusOFS<< " --------------------------------------------- "     << std::endl;
@@ -1481,7 +1489,7 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
         fft );
   }
 
-  Int maxscfiter = options_.scfMaxIter; 
+  Int maxscfiter = options_.diisMaxIter; 
   int iscf;
   int totalHx = 0;
   for (iscf = 0; iscf < maxscfiter; iscf++){
@@ -1592,7 +1600,7 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
       Print(statusOFS, "norm(out-in)/norm(in) = ", scfNorm_ );
       totalHx += sgmres_solver.iter_;
 
-      if( scfNorm_ < options_.scfTol){
+      if( scfNorm_ < options_.diisTol){
         /* converged */
         statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
         statusOFS << "TDDFT step " << k_ << " used " << totalHx << " H * x operations!" << std::endl;
@@ -1713,7 +1721,8 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     statusOFS<< " options.dt             " << options_.dt             << std::endl;
     statusOFS<< " options.gmres_restart  " << options_.gmres_restart  << std::endl;
     statusOFS<< " options.krylovTol      " << options_.krylovTol      << std::endl;
-    statusOFS<< " options.scfTol         " << options_.scfTol         << std::endl;
+    statusOFS<< " options.diisTol        " << options_.diisTol        << std::endl;
+    statusOFS<< " options.phiTol         " << options_.phiTol         << std::endl;
     statusOFS<< " options.adNum          " << options_.adNum          << std::endl;
     statusOFS<< " options.adUpdate       " << options_.adUpdate       << std::endl;
     statusOFS<< " -----   TDDFT PT-TRAP DIIS Print Options ---- "     << std::endl;
@@ -1910,7 +1919,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
   if(1){
 
-    Int maxScfIteration = options_.scfMaxIter;
+    Int maxScfIteration = options_.diisMaxIter;
     Real betaMix = esdfParam.mixStepLength;
     Int  maxDim  = esdfParam.mixMaxDim;
 
@@ -1942,8 +1951,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
       // Two SCF loops, outer and inner SCF.
       // Outer SCF
-      int maxPhiIteration = 25;
-      Real scfPhiTolerance_ = 1.0E-8;
+      int maxPhiIteration = options_.phiMaxIter;
 
       // new scheme: get E[V] <== V[psi_0] <== psi_0
       ham.SetPhiEXX( psiFinal, fft);
@@ -1955,7 +1963,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
         // Inner SCF.
         for( int iscf = 1; iscf <= maxScfIteration; iscf++ ) {
           scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
-          if( scfNorm < options_.scfTol){
+          if( scfNorm < options_.diisTol){
             statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
             break;
           }
@@ -1972,7 +1980,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
                   << " dExx         = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< dExx  << " [au]" << std::endl;
 
 	fock1 = fock2;
-        if( dExx < scfPhiTolerance_ ) {
+        if( dExx < options_.phiTol) {
           statusOFS << "TDDFT step " << k_ << " Phi Iteration in " << phiIter + 1<< " steps !" << std::endl;
 	  break; 
 	}
@@ -1988,7 +1996,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       // Note, the exact HF and PBE implementation together. 
       for(int iscf = 1; iscf <= maxScfIteration; iscf++){
         scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
-        if( scfNorm < options_.scfTol){
+        if( scfNorm < options_.diisTol){
           statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
           break;
         }
@@ -2179,7 +2187,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
         // rhoF <== rhoFNew
         blas::Copy( ntotFine,  ham.Density().Data(), 1,  rhoFinal.Data(), 1 );
 
-        if( scfNorm < options_.scfTol){
+        if( scfNorm < options_.diisTol){
           statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
           //statusOFS << "TDDFT step " << k_ << " used " << totalHx << " H * x operations!" << std::endl;
           break;
@@ -2663,7 +2671,7 @@ Real TDDFT::InnerSolve( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, 
 
     
 #if 0
-    if( scfNorm < options_.scfTol){
+    if( scfNorm < options_.diisTol){
       statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
       //statusOFS << "TDDFT step " << k_ << " used " << totalHx << " H * x operations!" << std::endl;
     }
