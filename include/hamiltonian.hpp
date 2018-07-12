@@ -247,6 +247,8 @@ public:
   
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
 
+  virtual void  Setup_XC( std::string xc) = 0;
+
   //  virtual void UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock ) = 0;
 
   void UpdateHamiltonian ( std::vector<Atom>&  atomList ) { atomList_ = atomList; }
@@ -423,6 +425,9 @@ public:
   /// @brief Calculate Van der Waals energy and force (which only depends on the
   /// atomic position)
   void  CalculateVdwEnergyAndForce();
+
+
+  void  Setup_XC( std::string xc);
 
 };
 

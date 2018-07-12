@@ -343,6 +343,10 @@ SCF::Iterate (  )
     msg << "Starting regular SCF iteration.";
     PrintBlock( statusOFS, msg.str() );
     bool isSCFConverged = false;
+
+    if( !ham.IsEXXActive() && ham.IsHybrid() ) {
+      ham.Setup_XC( "XC_GGA_XC_PBE");
+    }
     for (Int iter=1; iter <= scfMaxIter_; iter++) {
       if ( isSCFConverged ) break;
       // *********************************************************************
@@ -437,6 +441,7 @@ SCF::Iterate (  )
   // NOTE: The different mixing mode of hybrid functional calculations
   // are not compatible with each other. So each requires its own code
   if( ham.IsHybrid() ){
+    ham.Setup_XC( "XC_HYB_GGA_XC_HSE06");
     // Fock energies
     Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
 

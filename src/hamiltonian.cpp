@@ -4927,4 +4927,35 @@ KohnSham::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
   return ;
 }         // -----  end of method KohnSham::CalculateIonSelfEnergyAndForce  ----- 
 
+void KohnSham::Setup_XC( std::string xc_functional)
+{
+    if( xc_functional == "XC_GGA_XC_PBE" )
+    {
+      XId_  = XC_GGA_X_PBE;
+      CId_  = XC_GGA_C_PBE;
+      XCId_ = XC_GGA_X_PBE;
+      statusOFS << "XC_GGA_XC_PBE  XId_ CId_ = " << XId_ << " " << CId_  << std::endl << std::endl;
+      // Perdew, Burke & Ernzerhof correlation
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
+      if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "X functional initialization error." );
+      }
+      if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "C functional initialization error." );
+      }
+    }
+    else if( xc_functional == "XC_HYB_GGA_XC_HSE06" )
+    {
+      XCId_ = XC_HYB_GGA_XC_HSE06;
+      XId_ = XC_GGA_X_PBE;
+      CId_ = XC_GGA_X_PBE;
+      statusOFS << "XC_HYB_GGA_XC_HSE06  XCId = " << XCId_  << std::endl << std::endl;
+      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "XC functional initialization error." );
+      } 
+      isHybrid_ = true;
+    }
+}
+
 } // namespace dgdft
