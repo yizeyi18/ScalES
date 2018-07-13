@@ -798,6 +798,7 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable, Real t )
   Real Efork = 0.0; 
 
   if( ham.IsHybrid() ) {
+    // the fock energy calculation must use the ACE operator.
     Efork = ham.CalculateEXXEnergy( psi, fft ); 
   }
   etotOFS 
@@ -1696,6 +1697,28 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   MPI_Comm_size( mpi_comm, &mpisize );
 
   Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+
+  Real timeDF = 0.0;
+  Real timeSetPhi = 0.0;
+  Real timeCalACE = 0.0;
+  Real timeCalExxEnergy = 0.0;
+  Real timeDIISSCF = 0.0;
+  Real timeInit = 0.0;
+  Real timeDIIS = 0.0;
+  Real timeOrth = 0.0;
+  Real timeDensity = 0.0;
+  Real timeForce = 0.0;
+  Int  iterDF = 0;
+  Int  iterSetPhi  = 0;
+  Int  iterCalACE  = 0;
+  Int  iterDIISSCF = 0;
+  Int  iterDIIS    = 0;
+  Int  iterOrth    = 0;
+  Int  iterDensity = 0;
+  Int  iterCalExxEnergy  = 0;
+  Int  iterForce   = 0;
+
   GetTime( timeSta );
 
   Hamiltonian& ham = *hamPtr_;
@@ -1913,12 +1936,15 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   }
 
   GetTime( timeEnd );
-  statusOFS << " TDDFT Step " << k_ << " Setting-up Time: " << timeEnd - timeSta << " [s]" << std::endl;
+  timeInit += timeEnd - timeSta;
+  //statusOFS << " TDDFT Step " << k_ << " Setting-up Time: " << timeEnd - timeSta << " [s]" << std::endl;
+
 
   Int numGridTotal = ntot;
 
   if(1){
 
+    GetTime( timeSta1 );
     Int maxScfIteration = options_.diisMaxIter;
     Real betaMix = esdfParam.mixStepLength;
     Int  maxDim  = esdfParam.mixMaxDim;
@@ -1941,10 +1967,14 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     SetValue( vin,  Complex(0,0));
     SetValue( vout, Complex(0,0));
 
+    GetTime( timeEnd1 );
+    timeDF += timeEnd1 - timeSta1;
+    iterDF ++;
+
     Real scfNorm = 0.0;
     if( esdfParam.isHybridACE ) {
 
-      statusOFS << "TDDFT Hybrid ACE Operator ...." << std::endl;
+      statusOFS << "TDDFT is using Hybrid ACE Operator ...." << std::endl;
 
       Real fock1 = 0.0;
       Real fock2 = 0.0;
@@ -1954,26 +1984,63 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       int maxPhiIteration = options_.phiMaxIter;
 
       // new scheme: get E[V] <== V[psi_0] <== psi_0
+      GetTime( timeSta1 );
       ham.SetPhiEXX( psiFinal, fft);
+      GetTime( timeEnd1 );
+      timeSetPhi += timeEnd1 - timeSta1;
+      iterSetPhi ++;
+
+      GetTime( timeSta1 );
       ham.CalculateVexxACE ( psi, fft );
+      GetTime( timeEnd1 );
+      timeCalACE += timeEnd1 - timeSta1;
+      iterCalACE ++;
+
+      GetTime( timeSta1 );
       fock1 = ham.CalculateEXXEnergy( psiFinal, fft ); 
+      GetTime( timeEnd1 );
+      timeCalExxEnergy += timeEnd1 - timeSta1;
+      iterCalExxEnergy ++;
 
       for( int phiIter = 0; phiIter < maxPhiIteration; phiIter++){
 
         // Inner SCF.
-        for( int iscf = 1; iscf <= maxScfIteration; iscf++ ) {
+        GetTime( timeSta1 );
+	int iscf;
+        for( iscf = 1; iscf <= maxScfIteration; iscf++ ) {
           scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
           if( scfNorm < options_.diisTol){
-            statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
             break;
           }
         }
+        GetTime( timeEnd1 );
+        timeDIISSCF += timeEnd1 - timeSta1;
+        iterDIISSCF += iscf;
+
+        if( scfNorm < options_.diisTol)
+          statusOFS << "phiStep " << phiIter << " DIIS is  converged in " << iscf << " steps " << " scfNorm " << scfNorm << std::endl;
+	else 
+          statusOFS << "phiStep " << phiIter << " DIIS NOT converged in " << iscf << " steps " << " scfNorm " << scfNorm << std::endl;
 
         // new scheme: get E[V] <== V[psi_0] <== psi_0
+        GetTime( timeSta1 );
         ham.SetPhiEXX( psiFinal, fft);
-        ham.CalculateVexxACE ( psiFinal, fft );
+        GetTime( timeEnd1 );
+        timeSetPhi += timeEnd1 - timeSta1;
+        iterSetPhi ++;
 
+        GetTime( timeSta1 );
+        ham.CalculateVexxACE ( psiFinal, fft );
+        GetTime( timeEnd1 );
+        timeCalACE += timeEnd1 - timeSta1;
+        iterCalACE ++;
+
+        GetTime( timeSta1 );
         fock2 = ham.CalculateEXXEnergy( psiFinal, fft ); 
+        GetTime( timeEnd1 );
+        timeCalExxEnergy += timeEnd1 - timeSta1;
+        iterCalExxEnergy ++;
+
         Real dExx = std::abs(fock2 - fock1) / std::abs(fock2);
 
         statusOFS << " Fock Energy  = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< fock2 << " [au]" << std::endl 
@@ -2199,8 +2266,11 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   } // if 1
 
   GetTime( timeEnd );
-  statusOFS << " TDDFT Step " << k_ << " DIIS loop used Time: " << timeEnd - timeSta << " [s]" << std::endl;
+  timeDIIS += timeEnd - timeSta ;
+  iterDIIS ++;
+  //statusOFS << " TDDFT Step " << k_ << " DIIS loop used Time: " << timeEnd - timeSta1 << " [s]" << std::endl;
 
+  GetTime( timeSta1 );
   AlltoallForward( psiF,  X, mpi_comm);
 
   // Reorthogonalize
@@ -2243,7 +2313,12 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
   blas::Copy( ntot*numStateLocal, psiFinal.Wavefun().Data(), 1, psi.Wavefun().Data(), 1 );
 
+  GetTime( timeEnd );
+  timeOrth += timeEnd - timeSta1;
+  iterOrth ++;
+
   // Update the density for the renormalized wavefunction
+  GetTime( timeSta1 );
   {
     // get the charge density of the Hf.
     Real totalCharge_;
@@ -2253,7 +2328,12 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
         totalCharge_, 
         fft );
   }
+  GetTime( timeEnd );
+  timeDensity += timeEnd - timeSta1;
+  iterDensity ++;
 
+
+  GetTime( timeSta1 );
   if(options_.ehrenfest){
     ham.CalculateForce( psi, fft);
 
@@ -2263,10 +2343,27 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       atomList[a].vel = atomList[a].vel + (atomforce[a]/atomMass[a] + atomList[a].force/atomMass[a])*dt/2.0;
     } 
   }
- 
- 
   GetTime( timeEnd );
+  timeForce += timeEnd - timeSta1;
+  iterForce ++;
+
+  statusOFS << " ***************************************************************************" << endl;
+  if( esdfParam.isHybridACE) {
+  statusOFS << "   PHI Setup DF time: " << timeDF           << " [s] " << " iterations " << iterDF      << endl;
+  statusOFS << "   PHI Setup     Phi: " << timeSetPhi       << " [s] " << " iterations " << iterSetPhi  << endl;
+  statusOFS << "   PHI Calculate ACE: " << timeCalACE       << " [s] " << " iterations " << iterCalACE  << endl;
+  statusOFS << "   PHI CalEXX Energy: " << timeCalExxEnergy << " [s] " << " iterations " << iterCalExxEnergy << endl;
+  statusOFS << "   DIIS SCF     Time: " << timeDIISSCF      << " [s] " << " iterations " << iterDIISSCF << endl;
+  statusOFS << "   Adding Up   Above: " << timeDIISSCF + timeDF + timeSetPhi + timeCalACE + timeCalExxEnergy << " [s] " << endl;
+  }
+  statusOFS << " initialization    time: " << timeInit      << " [s] " << " iterations " << 1           << endl;
+  statusOFS << " SCF calculating   time: " << timeDIIS      << " [s] " << " iterations " << iterDIIS    << endl;
+  statusOFS << " othogonalization  time: " << timeOrth      << " [s] " << " iterations " << iterOrth    << endl;
+  statusOFS << " calculate density time: " << timeDensity   << " [s] " << " iterations " << iterDensity << endl;
+  statusOFS << " calculate Force   time: " << timeForce     << " [s] " << " iterations " << iterForce   << endl;
   statusOFS << " TDDFT Step " << k_ << " total Time: " << timeEnd - timeSta << " [s]" << std::endl;
+ 
+ 
   ++k_;
 } // TDDFT:: advancePTTRAPDIIS
 
@@ -2289,20 +2386,30 @@ void TDDFT::Propagate( PeriodTable& ptable ) {
   }
   k_ = startTime;
   if(options_.method == "RK4"){
-    for( Int i = startTime; i < totalSteps; i++)
+    for( Int i = startTime; i < totalSteps; i++){
       advanceRK4( ptable );
+      if( (i != 0) && (i % esdfParam.TDDFTautoSaveSteps == 0)) 
+        Store4Restart();
+    }
   }
   else if( options_.method == "PTTRAP"){
-    for( Int i = startTime; i < totalSteps; i++)
+    for( Int i = startTime; i < totalSteps; i++) {
       advancePTTRAP( ptable );
+      if( (i != 0) && (i % esdfParam.TDDFTautoSaveSteps == 0)) 
+        Store4Restart();
+    }
   }
   else if( options_.method == "PTTRAPDIIS"){
-    for( Int i = startTime; i < totalSteps; i++)
+    for( Int i = startTime; i < totalSteps; i++) {
       advancePTTRAPDIIS( ptable );
+      if( (i != 0) && (i % esdfParam.TDDFTautoSaveSteps == 0)) 
+        Store4Restart();
+    }
   }
 
   // at the end of the propagation, write the WFN, DENSITY and Velocity, Atom Pos. 
 //  if( esdfParam.save4RestartTDDFT ) {
+#if 0
   if( 1 ) {
 
     statusOFS << std::endl 
@@ -2395,9 +2502,101 @@ void TDDFT::Propagate( PeriodTable& ptable ) {
     } // mpirank == 0
 
 
-  } 
+  }
+#endif 
 }
 
+void TDDFT::Store4Restart()
+{
+    statusOFS << std::endl 
+      << " ********************** Warning ************************************"<< std::endl;
+    statusOFS << " TDDFT now optionally saves the WFN, DEN, Pos, Vel for restart " << std::endl;
+    statusOFS << " ********************** Warning ************************************" 
+      << std::endl << std::endl;
+
+    MPI_Comm mpi_comm = fftPtr_->domain.comm;
+    Int mpirank, mpisize;
+    MPI_Comm_rank( mpi_comm, &mpirank );
+    MPI_Comm_size( mpi_comm, &mpisize );
+
+    // WFN
+    if( esdfParam.isOutputWfn )
+    {
+      std::ostringstream wfnStream;
+      serialize( psiPtr_->Wavefun(), wfnStream, NO_MASK );
+      serialize( hamPtr_->OccupationRate(), wfnStream, NO_MASK );
+      string restartWfnFileName_     = "WFN";
+      SeparateWrite( restartWfnFileName_, wfnStream, mpirank );
+    }
+
+
+    if( mpirank == 0 ){
+      std::vector<Atom>&   atomList = *atomListPtr_;
+      Int numAtom = atomList.size();
+    
+      // output density
+      if( esdfParam.isOutputDensity ) {
+        string restartDensityFileName_ = "DEN";
+        std::ofstream rhoStream(restartDensityFileName_.c_str());
+        if( !rhoStream.good() ){
+          ErrorHandling( "Density file cannot be opened." );
+        }
+
+        const Domain& dm =  fftPtr_->domain;
+        std::vector<DblNumVec>   gridpos(DIM);
+        UniformMeshFine ( dm, gridpos );
+        for( Int d = 0; d < DIM; d++ ){
+          serialize( gridpos[d], rhoStream, NO_MASK );
+        }
+
+        // Only work for the restricted spin case
+        DblNumMat& densityMat = hamPtr_->Density();
+        DblNumVec densityVec(densityMat.m(), false, densityMat.Data());
+        serialize( densityVec, rhoStream, NO_MASK );
+        rhoStream.close();
+      }
+
+      if(esdfParam.isOutputPosition & options_.ehrenfest){
+        std::fstream fout;
+        fout.open("lastPos.out",std::ios::out);
+        if( !fout.good() ){
+          ErrorHandling( "File cannot be opened !" );
+        }
+
+        for(Int a=0; a<numAtom; a++){
+          fout << std::setiosflags(std::ios::scientific)
+            << std::setiosflags(std::ios::showpos)
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[0]
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[1]
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[2]
+            << std::resetiosflags(std::ios::scientific)
+            << std::resetiosflags(std::ios::showpos)
+            << std::endl;
+        }
+        fout.close();
+      } // OutputPosition
+
+
+      if(esdfParam.isOutputVelocity & options_.ehrenfest){
+        std::fstream fout_v;
+        fout_v.open("lastVel.out",std::ios::out);
+        if( !fout_v.good() ){
+          ErrorHandling( "File cannot be opened !" );
+        }
+        for(Int a=0; a<numAtom; a++){
+          fout_v << std::setiosflags(std::ios::scientific)
+            << std::setiosflags(std::ios::showpos)
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].vel[0]
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].vel[1]
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].vel[2]
+            << std::resetiosflags(std::ios::scientific)
+            << std::resetiosflags(std::ios::showpos)
+            << std::endl;
+        }
+        fout_v.close();
+      } // OutputVelocity
+    } // mpirank == 0
+}
 void TDDFT::PrintState ( Int step ) {
   Int mpirank, mpisize;
   MPI_Comm mpi_comm = fftPtr_->domain.comm;

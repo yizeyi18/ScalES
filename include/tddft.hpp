@@ -274,6 +274,7 @@ namespace dgdft{
           DblNumMat&      dfMat,
           DblNumMat&      dvMat );
 
+      void  Store4Restart();
 
   };
 

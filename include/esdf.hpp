@@ -1040,6 +1040,11 @@ struct ESDFInputParam{
   /// Default: 13.6056925
   Real TDDFTVextTau;
 
+  /// @brief auto save TDDFT WFN and DEN 
+  /// 
+  /// Default: 20
+  Int  TDDFTautoSaveSteps;
+
   /// @brief types of external fields
   ///
   /// Default: gaussian 

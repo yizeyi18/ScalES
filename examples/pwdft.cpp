@@ -309,6 +309,12 @@ int main(int argc, char **argv)
     if( esdfParam.isTDDFT && esdfParam.isRestartDensity 
         && esdfParam.isRestartWfn) 
     {
+      if( esdfParam.isHybridACE ) {
+	 hamKS.SetPhiEXX( psi, fft );
+	 hamKS.CalculateVexxACE( psi, fft);
+	 statusOFS << " calculate ACE operator ... " << std::endl;
+      }
+
       statusOFS <<  std::endl << std::endl 
         <<  "SCF skipped .... " 
         <<  "TDDFT Restart From last step Density and wave function "
