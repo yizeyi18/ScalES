@@ -431,6 +431,14 @@ void TDDFT::Setup(
 
   } // apply delta kick
 
+  {
+    isCalculateGradRho_ = false;
+    if( esdfParam.XCType == "XC_GGA_XC_PBE" || 
+        esdfParam.XCType == "XC_HYB_GGA_XC_HSE06" ||
+        esdfParam.XCType == "XC_HYB_GGA_XC_PBEH" ) {
+      isCalculateGradRho_ = true;
+    }
+  }
 
 } // TDDFT::Setup function
 
@@ -793,6 +801,9 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable, Real t )
   // External energy due to the electric field 
   Eext_ = ham.Eext();
 
+#if ( _DEBUGlevel_ >= 2 )
+  statusOFS << " Etot_ " << Etot_ << " EVdw " << EVdw_ << " Ecor_ " << Ecor_  << " EIonSR_ " << EIonSR_ << " Eself " << Eself_ << " EVxc_ " << EVxc_ << " Ehart_ " << Ehart_ << " Ekin_ " <<  Ekin_  << std::endl;
+#endif
   //  Time(fs), E_tot(eV), E_kin(eV), E_pot(ev), E_field(eV), E_proton
 
   Real Efork = 0.0; 
@@ -935,6 +946,9 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
     statusOFS << " total Charge init " << setw(16) << totalCharge_ << std::endl;
 #endif
     //get the new V(r,t+dt) from the rho(r,t+dt)
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
     ham.CalculateXC( Exc_, fft ); 
     ham.CalculateHartree( fft );
     CalculateEfieldExt(ptable, ti);
@@ -1030,6 +1044,9 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
         totalCharge_, 
         fft );
 
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
     ham.CalculateXC( Exc_, fft ); 
     ham.CalculateHartree( fft );
     CalculateEfieldExt(ptable, tmid);
@@ -1095,6 +1112,9 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
         ham.OccupationRate(),
         totalCharge_, 
         fft );
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
     ham.CalculateXC( Exc_, fft ); 
     ham.CalculateHartree( fft );
     ham.CalculateVtot( ham.Vtot() );
@@ -1159,6 +1179,9 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
         totalCharge_, 
         fft );
 
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
     ham.CalculateXC( Exc_, fft ); 
     ham.CalculateHartree( fft );
     CalculateEfieldExt(ptable, tf);
@@ -1227,6 +1250,9 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
         totalCharge_, 
         fft );
 
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
     ham.CalculateXC( Exc_, fft ); 
     ham.CalculateHartree( fft );
     DblNumVec vtot;
@@ -1387,6 +1413,9 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
           totalCharge_, 
           fft );
     }
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
     ham.CalculateXC( Exc_, fft ); 
     ham.CalculateHartree( fft );
     CalculateEfieldExt(ptable, ti); // ti is 0
@@ -1499,6 +1528,9 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
 
     // update the Hf matrix, note rho is calculated before.
     {
+      if( isCalculateGradRho_ ){
+        ham.CalculateGradDensity( fft );
+      }
       ham.CalculateXC( Exc_, fft ); 
       ham.CalculateHartree( fft );
       DblNumVec vtot;
@@ -1585,6 +1617,9 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
 
       Int ntotFine  = fft.domain.NumGridTotalFine();
       DblNumVec vtotNew(ntotFine);
+      if( isCalculateGradRho_ ){
+        ham.CalculateGradDensity( fft );
+      }
       ham.CalculateXC( Exc_, fft ); 
       ham.CalculateHartree( fft );
       ham.CalculateVtot( vtotNew );
@@ -1823,6 +1858,9 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
           ham.OccupationRate(),
           totalCharge_, 
           fft );
+    }
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
     }
     ham.CalculateXC( Exc_, fft ); 
     ham.CalculateHartree( fft );
@@ -2082,6 +2120,9 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       // Update Hf <== updateV(molf, rhof)
       Int ntotFine  = fft.domain.NumGridTotalFine();
       {
+        if( isCalculateGradRho_ ){
+          ham.CalculateGradDensity( fft );
+        }
         ham.CalculateXC( Exc_, fft ); 
         ham.CalculateHartree( fft );
         ham.CalculateVtot( ham.Vtot());
@@ -2690,7 +2731,10 @@ Real TDDFT::InnerSolve( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, 
 
   // Update Hf <== updateV(molf, rhof)
   Int ntotFine  = fft.domain.NumGridTotalFine();
-  {
+  { 
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
     ham.CalculateXC( Exc_, fft ); 
     ham.CalculateHartree( fft );
     ham.CalculateVtot( ham.Vtot());
