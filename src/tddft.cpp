@@ -1378,13 +1378,15 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
 
 
   // update H when it is first step.
-  if(k == 0) {
-    Real totalCharge_;
-    ham.CalculateDensity(
-        psi,
-        ham.OccupationRate(),
-        totalCharge_, 
-        fft );
+  if(k == esdfParam.restartTDDFTStep) {
+    if(!esdfParam.isRestartDensity){
+      Real totalCharge_;
+      ham.CalculateDensity(
+          psi,
+          ham.OccupationRate(),
+          totalCharge_, 
+          fft );
+    }
     ham.CalculateXC( Exc_, fft ); 
     ham.CalculateHartree( fft );
     CalculateEfieldExt(ptable, ti); // ti is 0
@@ -1811,13 +1813,17 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   // update H when it is first step. 
   // This can be avoided since it is 
   // already converged in the first SCF.
-  if(k == 0) {
-    Real totalCharge_;
-    ham.CalculateDensity(
-        psi,
-        ham.OccupationRate(),
-        totalCharge_, 
-        fft );
+  if(k == esdfParam.restartTDDFTStep) {
+    //if(!esdfParam.isRestartDensity){
+    if(1){
+	    statusOFS << " always start by calculating Density from WFN " << std::endl;
+      Real totalCharge_;
+      ham.CalculateDensity(
+          psi,
+          ham.OccupationRate(),
+          totalCharge_, 
+          fft );
+    }
     ham.CalculateXC( Exc_, fft ); 
     ham.CalculateHartree( fft );
     CalculateEfieldExt(ptable, ti); 
@@ -2381,7 +2387,7 @@ void TDDFT::Propagate( PeriodTable& ptable ) {
     }
   }
 
-  if(esdfParam.save4RestartTDDFT ) {
+  if(esdfParam.restartTDDFTStep) {
     startTime = esdfParam.restartTDDFTStep;
   }
   k_ = startTime;

@@ -312,7 +312,7 @@ int main(int argc, char **argv)
       if( esdfParam.isHybridACE ) {
 	 hamKS.SetPhiEXX( psi, fft );
 	 hamKS.CalculateVexxACE( psi, fft);
-	 statusOFS << " calculate ACE operator ... " << std::endl;
+	 statusOFS << " TDDFT init ACE operator ... " << std::endl;
       }
 
       statusOFS <<  std::endl << std::endl 
