@@ -349,6 +349,9 @@ SCF::Iterate (  )
 
       statusOFS << " re-calculate XC " << std::endl;
       if(1){
+        if( isCalculateGradRho_ ){
+          ham.CalculateGradDensity( fft );
+        }
         ham.CalculateXC( Exc_, fft ); 
         ham.CalculateHartree( fft );
       }
@@ -454,6 +457,9 @@ SCF::Iterate (  )
       ham.Setup_XC( "XC_HYB_GGA_XC_HSE06");
       statusOFS << " re-calculate XC " << std::endl;
       if(1){
+        if( isCalculateGradRho_ ){
+          ham.CalculateGradDensity( fft );
+        }
         ham.CalculateXC( Exc_, fft ); 
         ham.CalculateHartree( fft );
       }
