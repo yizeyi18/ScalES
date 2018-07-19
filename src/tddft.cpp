@@ -802,7 +802,9 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable, Real t )
   Eext_ = ham.Eext();
 
 #if ( _DEBUGlevel_ >= 2 )
-  statusOFS << " Etot_ " << Etot_ << " EVdw " << EVdw_ << " Ecor_ " << Ecor_  << " EIonSR_ " << EIonSR_ << " Eself " << Eself_ << " EVxc_ " << EVxc_ << " Ehart_ " << Ehart_ << " Ekin_ " <<  Ekin_  << std::endl;
+  statusOFS << " Etot_ " << Etot_ << " EVdw " << EVdw_ << " Ecor_ " << Ecor_  << " EIonSR_ " 
+    << EIonSR_ << " Eself " << Eself_ << " EVxc_ " << EVxc_ << " Ehart_ " << Ehart_ 
+    << " Ekin_ " <<  Ekin_  << std::endl;
 #endif
   //  Time(fs), E_tot(eV), E_kin(eV), E_pot(ev), E_field(eV), E_proton
 
