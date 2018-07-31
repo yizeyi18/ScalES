@@ -3707,7 +3707,6 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
   }
 
   // Directly use the phiEXX_ and vexxProj_ to calculate the exchange energy
-  /*
   if( esdfParam.isHybridACE ){
     // temporarily just implement here
     // Directly use projector
@@ -3715,6 +3714,7 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
     Int numStateTotal = this->NumStateTotal();
     Int ntot = psi.NumGridTotal();
 
+    /*
     if(0)
     {
       DblNumMat M(numProj, numStateTotal);
@@ -3739,6 +3739,7 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
       }
 
     }
+    */
 
     if(1) // For MPI
     {
@@ -3756,23 +3757,23 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
         ntotLocal = ntotBlocksize + 1;
       }
 
-      DblNumMat psiCol( ntot, numStateLocal );
-      SetValue( psiCol, 0.0 );
+      CpxNumMat psiCol( ntot, numStateLocal );
+      SetValue( psiCol, Z_ZERO );
 
-      DblNumMat psiRow( ntotLocal, numStateTotal );
-      SetValue( psiRow, 0.0 );
+      CpxNumMat psiRow( ntotLocal, numStateTotal );
+      SetValue( psiRow, Z_ZERO );
 
-      DblNumMat vexxProjCol( ntot, numStateLocal );
-      SetValue( vexxProjCol, 0.0 );
+      CpxNumMat vexxProjCol( ntot, numStateLocal );
+      SetValue( vexxProjCol, Z_ZERO );
 
-      DblNumMat vexxProjRow( ntotLocal, numStateTotal );
-      SetValue( vexxProjRow, 0.0 );
+      CpxNumMat vexxProjRow( ntotLocal, numStateTotal );
+      SetValue( vexxProjRow, Z_ZERO );
 
-      DblNumMat vexxPsiCol( ntot, numStateLocal );
-      SetValue( vexxPsiCol, 0.0 );
+      CpxNumMat vexxPsiCol( ntot, numStateLocal );
+      SetValue( vexxPsiCol, Z_ZERO );
 
-      DblNumMat vexxPsiRow( ntotLocal, numStateTotal );
-      SetValue( vexxPsiRow, 0.0 );
+      CpxNumMat vexxPsiRow( ntotLocal, numStateTotal );
+      SetValue( vexxPsiRow, Z_ZERO );
 
       lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
       lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
@@ -3780,18 +3781,18 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
       AlltoallForward (psiCol, psiRow, domain_.comm);
       AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
 
-      DblNumMat MTemp( numStateTotal, numStateTotal );
-      SetValue( MTemp, 0.0 );
+      CpxNumMat MTemp( numStateTotal, numStateTotal );
+      SetValue( MTemp, Z_ZERO );
 
-      blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
+      blas::Gemm( 'C', 'N', numStateTotal, numStateTotal, ntotLocal,
           1.0, vexxProjRow.Data(), ntotLocal, 
           psiRow.Data(), ntotLocal, 0.0,
           MTemp.Data(), numStateTotal );
 
-      DblNumMat M(numStateTotal, numStateTotal);
-      SetValue( M, 0.0 );
+      CpxNumMat M(numStateTotal, numStateTotal);
+      SetValue( M, Z_ZERO );
 
-      MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+      MPI_Allreduce( MTemp.Data(), M.Data(), 2*numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
 
       blas::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, -1.0,
           vexxProjRow.Data(), ntotLocal, M.Data(), numStateTotal,
@@ -3805,7 +3806,7 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
       for( Int k = 0; k < numStateLocal; k++ ){
         for( Int j = 0; j < ncom; j++ ){
           for( Int ir = 0; ir < ntot; ir++ ){
-            fockEnergyLocal += vexxPsiCol(ir,k) * wavefun(ir,j,k) * occupationRate_[psi.WavefunIdx(k)];
+            fockEnergyLocal += (vexxPsiCol(ir,k) * std::conj(wavefun(ir,j,k))).real() * occupationRate_[psi.WavefunIdx(k)];
           }
         }
       }
@@ -3813,7 +3814,6 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
     } //if(1) 
   }
   else
-  */
   {
     NumTns<Complex>  vexxPsi( ntot, 1, numStateLocalPhi );
     SetValue( vexxPsi, Z_ZERO );
@@ -4926,5 +4926,36 @@ KohnSham::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
 
   return ;
 }         // -----  end of method KohnSham::CalculateIonSelfEnergyAndForce  ----- 
+
+void KohnSham::Setup_XC( std::string xc_functional)
+{
+    if( xc_functional == "XC_GGA_XC_PBE" )
+    {
+      XId_  = XC_GGA_X_PBE;
+      CId_  = XC_GGA_C_PBE;
+      XCId_ = XC_GGA_X_PBE;
+      statusOFS << "XC_GGA_XC_PBE  XId_ CId_ = " << XId_ << " " << CId_  << std::endl << std::endl;
+      // Perdew, Burke & Ernzerhof correlation
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
+      if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "X functional initialization error." );
+      }
+      if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "C functional initialization error." );
+      }
+    }
+    else if( xc_functional == "XC_HYB_GGA_XC_HSE06" )
+    {
+      XCId_ = XC_HYB_GGA_XC_HSE06;
+      XId_ = XC_GGA_X_PBE;
+      CId_ = XC_GGA_X_PBE;
+      statusOFS << "XC_HYB_GGA_XC_HSE06  XCId = " << XCId_  << std::endl << std::endl;
+      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "XC functional initialization error." );
+      } 
+      isHybrid_ = true;
+    }
+}
 
 } // namespace dgdft
