@@ -146,6 +146,15 @@ struct ESDFInputParam{
   ///
   /// @todo Preconditioner better than Kerker mixing.
   std::string         mixType;
+
+  /// @brief job (used only at NNMD:traning and NNMD)
+  ///
+  /// Default: ""
+  ///
+  /// - = "NN_Collect_Data"   : collect data for NN training 
+  /// - = "NN_MD"             : run the PWDFT with NNMD
+  std::string         JOB;
+ 
   /// @brief Which variable to mix
   ///
   /// Default: potential

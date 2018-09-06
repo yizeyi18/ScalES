@@ -235,52 +235,12 @@ int main(int argc, char **argv)
       }    
     }
 
-#ifdef _COMPLEX_
-    psi.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, Z_ZERO );
-# else
     psi.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, D_ZERO );
-#endif
 
 
     statusOFS << "Spinor setup finished." << std::endl;
 
     UniformRandom( psi.Wavefun() );
-
-#ifndef _COMPLEX_
-    if(0){ // For the same random values of psi in parallel
-
-      MPI_Comm mpi_comm = dm.comm;
-
-      Spinor  psiTemp;
-      psiTemp.Setup( dm, 1, hamKS.NumStateTotal(),
-          hamKS.NumStateTotal(), 0.0 );
-
-      if (mpirank == 0){
-        UniformRandom( psiTemp.Wavefun() );
-      }
-      MPI_Bcast(psiTemp.Wavefun().Data(),
-          psiTemp.Wavefun().m()*psiTemp.Wavefun().n()*psiTemp.Wavefun().p(),
-          MPI_DOUBLE, 0, mpi_comm);
-
-      Int size = psi.Wavefun().m() * psi.Wavefun().n();
-      Int nocc = psi.Wavefun().p();
-
-      IntNumVec& wavefunIdx = psi.WavefunIdx();
-      NumTns<Real>& wavefun = psi.Wavefun();
-
-      for (Int k=0; k<nocc; k++) {
-        Real *ptr = psi.Wavefun().MatData(k);
-        Real *ptr1 = psiTemp.Wavefun().MatData(wavefunIdx(k));
-        for (Int i=0; i<size; i++) {
-          *ptr = *ptr1;
-          ptr = ptr + 1;
-          ptr1 = ptr1 + 1;
-        }
-      }
-
-    } // if(1)
-
-#endif
 
     if( hamKS.IsHybrid() ){
       GetTime( timeSta );
@@ -288,6 +248,9 @@ int main(int argc, char **argv)
       GetTime( timeEnd );
       statusOFS << "Time for setting up the exchange for the Hamiltonian part = " 
         << timeEnd - timeSta << " [s]" << std::endl;
+      ErrorHandling("Error.... PWDFT_NN does not work on hybrid functions");
+
+
       if( esdfParam.isHybridActiveInit )
         hamKS.SetEXXActive(true);
     }
@@ -306,55 +269,12 @@ int main(int argc, char **argv)
     // Single shot calculation first
     // *********************************************************************
 
-    if( esdfParam.isTDDFT && esdfParam.isRestartDensity 
-        && esdfParam.isRestartWfn) 
-    {
-      if( esdfParam.isHybridACE ) {
-	 hamKS.SetPhiEXX( psi, fft );
-	 hamKS.CalculateVexxACE( psi, fft);
-	 statusOFS << " TDDFT init ACE operator ... " << std::endl;
-      }
-
-      statusOFS <<  std::endl << std::endl 
-        <<  "SCF skipped .... " 
-        <<  "TDDFT Restart From last step Density and wave function "
-        << std::endl << "SCF is skipped >>>>>>>"<< std::endl << std::endl;
-    } 
-    else{
       GetTime( timeSta );
       scf.Iterate();
       GetTime( timeEnd );
       statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
         << " [s]" << std::endl;
-    }
 
-    // *********************************************************************
-    // Geometry optimization or Molecular dynamics
-    // *********************************************************************
-
-    if(esdfParam.isTDDFT) { // TDDFT
-      statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
-      statusOFS << " ! Begin the TDDFT simulation now " << std::endl;
-      statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
-#ifdef _COMPLEX_
-      GetTime( timeSta );
-      scf.UpdateTDDFTParameters( );
-      Int TDDFTMaxIter = esdfParam.ionMaxIter;
-      
-      TDDFT td;
-
-      td.Setup( hamKS, psi, fft, hamKS.AtomList(), ptable);
-
-      td.Propagate( ptable );
-
-      GetTime( timeEnd );
-      statusOFS << "! TDDFT used time: " << timeEnd - timeSta << " [s]" <<std::endl;
-      statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
-#else
-      ErrorHandling("TDDFT only works with complex arithmetic.");
-#endif
-    }
-    else{
       IonDynamics ionDyn;
 
       ionDyn.Setup( hamKS.AtomList(), ptable ); 
@@ -365,13 +285,9 @@ int main(int argc, char **argv)
       Int maxHist = ionDyn.MaxHist();
       // Need to define both but one of them may be empty
       std::vector<DblNumMat>    densityHist(maxHist);
-#ifdef _COMPLEX_
-      std::vector<CpxNumTns>    wavefunHist(maxHist);
-      CpxNumTns                 wavefunPre;           // predictor
-#else
       std::vector<DblNumTns>    wavefunHist(maxHist);
       DblNumTns                 wavefunPre;           // predictor
-#endif
+
       if( esdfParam.MDExtrapolationVariable == "density" ){
         // densityHist[0] is the lastest density
         for( Int l = 0; l < maxHist; l++ ){
@@ -411,6 +327,43 @@ int main(int argc, char **argv)
         hamKS.UpdateHamiltonian( hamKS.AtomList() );
         hamKS.CalculatePseudoPotential( ptable );
 
+
+        if( esdfParam.JOB == "NN_Collect_Data"){
+
+          statusOFS << " NN_Collect_Data: calculateAtomDensity ... " << std::endl;
+          hamKS.CalculateAtomDensity( ptable, fft);
+
+          // collect the data is a must.
+          if(1){
+
+           //mkdir 
+           string command ("mkdir ");
+           string dirName ("step");
+           dirName += to_string(ionIter);
+           command += dirName;
+           system( command.c_str() );
+           dirName += "/";
+
+           // write the rho_atom
+            string restartDensityFileName_ = dirName + "RHOATOM";
+            std::ofstream rhoStream(restartDensityFileName_.c_str());
+            if( !rhoStream.good() ){
+              ErrorHandling( "Density file cannot be opened." );
+            }
+    
+            const Domain& dm =  fft.domain;
+            std::vector<DblNumVec>   gridpos(DIM);
+            UniformMeshFine ( dm, gridpos );
+            for( Int d = 0; d < DIM; d++ ){
+              serialize( gridpos[d], rhoStream, NO_MASK );
+            }
+    
+            DblNumVec densityVec(hamKS.AtomDensity().m(), false, hamKS.AtomDensity().Data());
+            serialize( densityVec, rhoStream, NO_MASK );
+            rhoStream.close();
+
+          }
+        }
         // Reset wavefunctions to random values for geometry optimization
         // Except for CheFSI
         if((ionDyn.IsGeoOpt() == true) && (esdfParam.PWSolver != "CheFSI")){
@@ -422,6 +375,7 @@ int main(int argc, char **argv)
         GetTime( timeEnd );
         statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
           << " [s]" << std::endl;
+
 
         // Extrapolation of density : used for both geometry optimization and MD    
         // Update the density history through extrapolation
@@ -457,7 +411,6 @@ int main(int argc, char **argv)
         if( ionDyn.IsGeoOpt() == false )
         {
           // Wavefunction extrapolation for MD , not used in geometry optimization
-#ifndef _COMPLEX_
           if( esdfParam.MDExtrapolationVariable == "wavefun" )
           {
             //huwei 20170306
@@ -962,7 +915,6 @@ int main(int argc, char **argv)
             } //if Extrapolating the Wavefunctions using ASPC
 
           } // wavefun extrapolation
-#endif
         } // if( ionDyn.IsGeoOpt() == false )
 
 
@@ -972,8 +924,39 @@ int main(int argc, char **argv)
         statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
           << " [s]" << std::endl;
 
+        if( esdfParam.JOB == "NN_Collect_Data"){
 
+          // collect the data is a must.
+          if(1){
+            string dirName ("step");
+            dirName += to_string(ionIter);
+            dirName += "/";
+
+            // write the rho_atom
+            string restartDensityFileName_ = dirName + "DEN";
+            std::ofstream rhoStream(restartDensityFileName_.c_str());
+            if( !rhoStream.good() ){
+              ErrorHandling( "Density file cannot be opened." );
+            }
+    
+            const Domain& dm =  fft.domain;
+            std::vector<DblNumVec>   gridpos(DIM);
+            UniformMeshFine ( dm, gridpos );
+            for( Int d = 0; d < DIM; d++ ){
+              serialize( gridpos[d], rhoStream, NO_MASK );
+            }
+    
+            // Only work for the restricted spin case
+            DblNumMat& densityMat = hamKS.Density();
+            DblNumVec densityVec(densityMat.m(), false, densityMat.Data());
+            serialize( densityVec, rhoStream, NO_MASK );
+            rhoStream.close();
+ 
+          }
+        }
+ 
         // Geometry optimization
+        // PWDFT_NN will not do Geometry optimization
         if( ionDyn.IsGeoOpt() ){
           if( MaxForce( hamKS.AtomList() ) < esdfParam.geoOptMaxForce ){
             statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
@@ -982,7 +965,6 @@ int main(int argc, char **argv)
           }
         }
       } // ionIter
-   }// not TDDFT
   }
   catch( std::exception& e )
   {

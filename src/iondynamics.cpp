@@ -329,9 +329,22 @@ void
         if( mpirank == 0 ){
           Point3 xi;
           for(Int a=0; a<numAtom; a++) {
+
             xi[0] = GaussianRandom() * std::sqrt(ionTemperature_/atomMass_[a]);
             xi[1] = GaussianRandom() * std::sqrt(ionTemperature_/atomMass_[a]);
             xi[2] = GaussianRandom() * std::sqrt(ionTemperature_/atomMass_[a]);
+
+	    // make sure the velocity is 0.0 in MD
+	    // if job == NN_COLLECT then xi = 0.0
+	    if( esdfParam.JOB == "NN_Collect_Data"){
+
+              statusOFS << std::endl 
+                << "Neural Network Collecting Data: set velocity to 0.0. " << std::endl;
+
+              xi[0] = 0.0;
+              xi[1] = 0.0;
+              xi[2] = 0.0;
+	    }
             atomList[a].vel = xi;
           }
         }

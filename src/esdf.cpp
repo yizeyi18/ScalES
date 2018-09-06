@@ -358,6 +358,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"T:B");
 
   i++;
+  strcpy(kw_label[i],"job");
+  strcpy(kw_typ[i],"T:B");
+
+  i++;
   strcpy(kw_label[i],"mixing_param");
   strcpy(kw_typ[i],"D:E");
 
@@ -2532,6 +2536,15 @@ ESDFReadInput ( const char* filename )
         esdfParam.mixVariable != "potential" ){
       ErrorHandling("Invalid mixing variable.");
     }
+
+    esdf_string("Job", "", strtmp); 
+    esdfParam.JOB = strtmp;
+    if( esdfParam.JOB != "" &&
+        esdfParam.JOB != "NN_Collect_Data" &&
+        esdfParam.JOB != "NNMD" ){
+      ErrorHandling("Invalid JOB variable.");
+    }
+
 
 
     esdfParam.mixStepLength        = esdf_double( "Mixing_StepLength", 0.8 );
