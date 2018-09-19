@@ -249,9 +249,18 @@ public:
   virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF ) = 0;
 
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
+#else
+
+  virtual void CalculateVexxACE( Spinor& psi, Fourier& fft ) = 0;
+  virtual NumTns<Complex>& PhiEXX() = 0;
+  virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
+  virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
+
 #endif
   
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
+
+  virtual void  Setup_XC( std::string xc) = 0;
 
   //  virtual void UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock ) = 0;
 
@@ -332,12 +341,24 @@ private:
   /// @brief Store all the orbitals for exact exchange calculation
   /// NOTE: This might impose serious memory constraint for relatively
   /// large systems.
+#ifdef _COMPLEX_
+  NumTns<Complex>             phiEXX_; 
+#else
   NumTns<Real>                phiEXX_; 
+#endif
+#ifdef _COMPLEX_
+  CpxNumMat                   vexxProj_; 
+#else
   DblNumMat                   vexxProj_; 
 #ifdef GPU
   cuDblNumMat                 cu_vexxProj_; 
 #endif
+#endif
   DblNumVec                   exxgkkR2C_;
+
+#ifdef _COMPLEX_
+  DblNumVec                   exxgkk_;
+#endif
 
 public:
 
@@ -411,6 +432,13 @@ public:
   virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF );
 
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
+#else
+
+  virtual void CalculateVexxACE( Spinor& psi, Fourier& fft );
+  virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
+  virtual NumTns<Complex>& PhiEXX() {return phiEXX_;}
+  virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
+
 #endif
 
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft );
@@ -425,6 +453,9 @@ public:
   /// @brief Calculate Van der Waals energy and force (which only depends on the
   /// atomic position)
   void  CalculateVdwEnergyAndForce();
+
+
+  void  Setup_XC( std::string xc);
 
 };
 

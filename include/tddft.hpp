@@ -128,11 +128,17 @@ namespace dgdft{
     /// @brief maximum dimension of Krylov subspace
     Real krylovMax;
   
-    /// @brief maximum dimension of Krylov subspace
-    Real scfMaxIter;
+    /// @brief maximum dimension of diis iteration
+    Real diisMaxIter;
   
-    /// @brief convergence criteria in SCF
-    Real scfTol;
+    /// @brief maximum dimension of phi iteration
+    Real phiMaxIter;
+
+    /// @brief convergence criteria in phi iteration
+    Real phiTol;
+
+    /// @brief convergence criteria in phi iteration
+    Real diisTol;
   
     /// @brief dimension of the adiabatic subspace
     int adNum ;
@@ -156,7 +162,8 @@ namespace dgdft{
   void setTDDFTDt( TDDFTOptions * options, Real dT);
   void setTDDFTkrylovTol( TDDFTOptions * options, Real krylovTol);
   void setTDDFTkrylovMax( TDDFTOptions *options, int krylovMax);
-  void setTDDFTScfTol( TDDFTOptions *options, Real scfTol);
+  void setTDDFTDiisTol( TDDFTOptions *options, Real tol);
+  void setTDDFTPhiTol ( TDDFTOptions *options, Real tol);
 
   class TDDFT{
 
@@ -219,6 +226,8 @@ namespace dgdft{
       std::ofstream vextOFS;
       std::ofstream dipoleOFS;
       std::ifstream velocityOFS;
+      
+      bool isCalculateGradRho_; 
 
     public:
 
@@ -253,6 +262,8 @@ namespace dgdft{
       void Update();
       void CalculateEnergy(PeriodTable& ptable, Real t) ;
       void PrintState( Int step );
+
+      Real InnerSolve(Int step, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat & HPSI, CpxNumMat &psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat &Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal );
       
       // Mixing
       void  AndersonMix( 
@@ -265,6 +276,7 @@ namespace dgdft{
           DblNumMat&      dfMat,
           DblNumMat&      dvMat );
 
+      void  Store4Restart();
 
   };
 

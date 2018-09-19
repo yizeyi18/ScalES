@@ -169,6 +169,14 @@ public:
       const std::vector<PseudoPot>& pseudo, NumTns<Complex>& a3 );
 
   void AddTeterPrecond( Fourier* fftPtr, NumTns<Complex>& a3 );
+
+  void AddMultSpinorEXX ( Fourier& fft,
+      const NumTns<Complex>& phi,
+      const DblNumVec& exxgkkR2CFine,
+      Real  exxFraction,
+      Real  numSpin,
+      const DblNumVec& occupationRate,
+      NumTns<Complex>& a3 );
 #else
   void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );

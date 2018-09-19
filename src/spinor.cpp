@@ -372,6 +372,121 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
   return ;
 }        // -----  end of method Spinor::AddMultSpinorFine  ----- 
 
+void Spinor::AddMultSpinorEXX ( Fourier& fft, 
+    const NumTns<Complex>& phi,
+    const DblNumVec& exxgkkR2C,
+    Real  exxFraction,
+    Real  numSpin,
+    const DblNumVec& occupationRate,
+    NumTns<Complex>& a3 )
+{
+  if( !fft.isInitialized ){
+    ErrorHandling("Fourier is not prepared.");
+  }
+
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  Index3& numGrid = domain_.numGrid;
+  Index3& numGridFine = domain_.numGridFine;
+
+  Int ntot     = domain_.NumGridTotal();
+  Int ntotFine = domain_.NumGridTotalFine();
+  Int ntotR2C = fft.numGridTotalR2C;
+  Int ntotR2CFine = fft.numGridTotalR2CFine;
+  Int ncom = wavefun_.n();
+  Int numStateLocal = wavefun_.p();
+  Int numStateTotal = numStateTotal_;
+
+  Int ncomPhi = phi.n();
+
+  Real vol = domain_.Volume();
+
+  if( ncomPhi != 1 || ncom != 1 ){
+    ErrorHandling("Spin polarized case not implemented.");
+  }
+
+  if( fft.domain.NumGridTotal() != ntot ){
+    ErrorHandling("Domain size does not match.");
+  }
+
+  // Temporary variable for saving wavefunction on a fine grid
+  CpxNumVec phiTemp(ntot);
+
+  Int numStateLocalTemp;
+
+  MPI_Barrier(domain_.comm);
+
+  for( Int iproc = 0; iproc < mpisize; iproc++ ){
+
+    if( iproc == mpirank )
+      numStateLocalTemp = numStateLocal;
+
+    MPI_Bcast( &numStateLocalTemp, 1, MPI_INT, iproc, domain_.comm );
+
+    IntNumVec wavefunIdxTemp(numStateLocalTemp);
+    if( iproc == mpirank ){
+      wavefunIdxTemp = wavefunIdx_;
+    }
+
+    MPI_Bcast( wavefunIdxTemp.Data(), numStateLocalTemp, MPI_INT, iproc, domain_.comm );
+
+    // FIXME OpenMP does not work since all variables are shared
+    for( Int kphi = 0; kphi < numStateLocalTemp; kphi++ ){
+      for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
+
+        SetValue( phiTemp, Z_ZERO );
+
+        if( iproc == mpirank )
+        { 
+          Complex* phiPtr = phi.VecData(jphi, kphi);
+          for( Int ir = 0; ir < ntot; ir++ ){
+            phiTemp(ir) = phiPtr[ir];
+          }
+        }
+
+        MPI_Bcast( phiTemp.Data(), 2*ntot, MPI_DOUBLE, iproc, domain_.comm );
+
+        for (Int k=0; k<numStateLocal; k++) {
+          for (Int j=0; j<ncom; j++) {
+
+            Complex* psiPtr = wavefun_.VecData(j,k);
+            for( Int ir = 0; ir < ntot; ir++ ){
+              fft.inputComplexVec(ir) = psiPtr[ir] * std::conj(phiTemp(ir));
+            }
+
+            FFTWExecute ( fft, fft.forwardPlan );
+
+            // Solve the Poisson-like problem for exchange
+            for( Int ig = 0; ig < ntot; ig++ ){
+              fft.outputComplexVec(ig) *= exxgkkR2C(ig);
+            }
+
+            FFTWExecute ( fft, fft.backwardPlan );
+
+            Complex* a3Ptr = a3.VecData(j,k);
+            Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
+            for( Int ir = 0; ir < ntot; ir++ ) {
+              a3Ptr[ir] += fft.inputComplexVec(ir) * phiTemp(ir) * fac;
+            }
+
+          } // for (j)
+        } // for (k)
+
+        MPI_Barrier(domain_.comm);
+
+      } // for (jphi)
+    } // for (kphi)
+
+  } //iproc
+
+  MPI_Barrier(domain_.comm);
+
+
+  return ;
+}        // -----  end of method Spinor::AddMultSpinorEXX  ----- 
+
 
 #else
 

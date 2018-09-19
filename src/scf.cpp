@@ -353,6 +353,22 @@ SCF::Iterate (  )
     msg << "Starting regular SCF iteration.";
     PrintBlock( statusOFS, msg.str() );
     bool isSCFConverged = false;
+
+    if( !ham.IsEXXActive() && ham.IsHybrid() ) {
+      ham.Setup_XC( "XC_GGA_XC_PBE");
+
+      statusOFS << " re-calculate XC " << std::endl;
+      if(1){
+        if( isCalculateGradRho_ ){
+          ham.CalculateGradDensity( fft );
+        }
+        ham.CalculateXC( Exc_, fft ); 
+        ham.CalculateHartree( fft );
+      }
+      // Compute the total potential
+      ham.CalculateVtot( ham.Vtot() );
+
+    }
     for (Int iter=1; iter <= scfMaxIter_; iter++) {
       if ( isSCFConverged ) break;
       // *********************************************************************
@@ -446,8 +462,22 @@ SCF::Iterate (  )
 
   // NOTE: The different mixing mode of hybrid functional calculations
   // are not compatible with each other. So each requires its own code
-#ifndef _COMPLEX_
   if( ham.IsHybrid() ){
+    {
+      ham.Setup_XC( "XC_HYB_GGA_XC_HSE06");
+      statusOFS << " re-calculate XC " << std::endl;
+      if(1){
+        if( isCalculateGradRho_ ){
+          ham.CalculateGradDensity( fft );
+        }
+        ham.CalculateXC( Exc_, fft ); 
+        ham.CalculateHartree( fft );
+      }
+      // Compute the total potential
+      ham.CalculateVtot( ham.Vtot() );
+    }
+
+
     // Fock energies
     Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
 
@@ -470,10 +500,14 @@ SCF::Iterate (  )
     // Update the ACE if needed
     if( esdfParam.isHybridACE ){
       if( esdfParam.isHybridDF ){
+#ifndef _COMPLEX_
 #ifdef GPU
         ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
 #else
         ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+#endif
+#else
+        statusOFS << " Complex CalculateVexxACEDF is not implemented.... " << std::endl;
 #endif
         // Fix the column after the first iteraiton
         isFixColumnDF = true;
@@ -617,7 +651,11 @@ SCF::Iterate (  )
         // Update the ACE if needed
         if( esdfParam.isHybridACE ){
           if( esdfParam.isHybridDF ){
+#ifndef _COMPLEX_
             ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+#else
+            statusOFS << " CalculateVexxACEDF is not implemented.... " << std::endl;
+#endif
             // Fix the column after the first iteraiton
             isFixColumnDF = true;
           }
@@ -661,7 +699,8 @@ SCF::Iterate (  )
     GetTime( timeEnd );
     statusOFS << "Time for using nested method is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
-    
+
+#ifndef _COMPLEX_ 
     GetTime( timeSta );
 
     // New method for the commutator-DIIS with column selection strategy
@@ -3014,8 +3053,8 @@ SCF::UpdateMDParameters    ( )
 void
 SCF::UpdateTDDFTParameters    ( )
 {
-  scfMaxIter_    = esdfParam.TDDFTscfOuterMaxIter;
-  scfPhiMaxIter_ = esdfParam.TDDFTscfPhiMaxIter;
+  //scfMaxIter_    = esdfParam.TDDFTscfOuterMaxIter;
+  //scfPhiMaxIter_ = esdfParam.TDDFTscfPhiMaxIter;
   return ;
 }         // -----  end of method SCF::UpdateTDDFTParameters  ----- 
 
