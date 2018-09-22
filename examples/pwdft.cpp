@@ -355,7 +355,7 @@ int main(int argc, char **argv)
             std::vector<DblNumVec>   gridpos(DIM);
             UniformMeshFine ( dm, gridpos );
             for( Int d = 0; d < DIM; d++ ){
-              serialize( gridpos[d], rhoStream, NO_MASK );
+              //serialize( gridpos[d], rhoStream, NO_MASK );
             }
     
             DblNumVec densityVec(hamKS.AtomDensity().m(), false, hamKS.AtomDensity().Data());
@@ -943,7 +943,7 @@ int main(int argc, char **argv)
             std::vector<DblNumVec>   gridpos(DIM);
             UniformMeshFine ( dm, gridpos );
             for( Int d = 0; d < DIM; d++ ){
-              serialize( gridpos[d], rhoStream, NO_MASK );
+              //serialize( gridpos[d], rhoStream, NO_MASK );
             }
     
             // Only work for the restricted spin case
