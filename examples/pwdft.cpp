@@ -269,11 +269,13 @@ int main(int argc, char **argv)
     // Single shot calculation first
     // *********************************************************************
 
+      if( esdfParam.JOB != "NNMD"){
       GetTime( timeSta );
       scf.Iterate();
       GetTime( timeEnd );
       statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
         << " [s]" << std::endl;
+      }
 
       IonDynamics ionDyn;
 
@@ -328,6 +330,16 @@ int main(int argc, char **argv)
         hamKS.CalculatePseudoPotential( ptable );
 
 
+
+        if( esdfParam.JOB == "NNMD"){
+          hamKS.CalculateAtomDensity( ptable, fft);
+
+	  // add the prediction here.....
+	}
+
+
+
+
         if( esdfParam.JOB == "NN_Collect_Data"){
 
           statusOFS << " NN_Collect_Data: calculateAtomDensity ... " << std::endl;
@@ -377,6 +389,12 @@ int main(int argc, char **argv)
           << " [s]" << std::endl;
 
 
+        if( esdfParam.MDExtrapolationVariable == "density" ){
+        if( esdfParam.JOB == "NNMD"){
+          ErrorHandling( "Cannot use mixing density when do NNMD." );
+	}
+	}
+
         // Extrapolation of density : used for both geometry optimization and MD    
         // Update the density history through extrapolation
         if( esdfParam.MDExtrapolationVariable == "density" )
@@ -408,6 +426,7 @@ int main(int argc, char **argv)
           } // for (l)
         } // density extrapolation
 
+        if( esdfParam.JOB != "NNMD"){
         if( ionDyn.IsGeoOpt() == false )
         {
           // Wavefunction extrapolation for MD , not used in geometry optimization
@@ -916,6 +935,7 @@ int main(int argc, char **argv)
 
           } // wavefun extrapolation
         } // if( ionDyn.IsGeoOpt() == false )
+        } // NNMD 
 
 
         GetTime( timeSta );

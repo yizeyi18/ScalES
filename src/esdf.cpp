@@ -2991,7 +2991,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.MDTimeStep  = esdf_double("MD_Time_Step", 40.0);
     esdf_string("MD_Extrapolation_Type", "linear", strtmp); 
     esdfParam.MDExtrapolationType          = strtmp;
-    esdf_string("MD_Extrapolation_Variable", "density", strtmp); 
+    esdf_string("MD_Extrapolation_Variable", "wavefun", strtmp); 
     esdfParam.MDExtrapolationVariable      = strtmp;
     esdfParam.qMass       = esdf_double("Thermostat_Mass", 85000.0);
     esdfParam.langevinDamping       = esdf_double("Langevin_Damping", 0.01);
