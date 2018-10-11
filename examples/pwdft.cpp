@@ -334,7 +334,7 @@ int main(int argc, char **argv)
           hamKS.CalculateAtomDensity( ptable, fft);
 
           // collect the data is a must.
-          if(1){
+          if(mpirank == 0){
 
            //mkdir 
            string command ("mkdir ");
@@ -349,13 +349,6 @@ int main(int argc, char **argv)
             std::ofstream rhoStream(restartDensityFileName_.c_str());
             if( !rhoStream.good() ){
               ErrorHandling( "Density file cannot be opened." );
-            }
-    
-            const Domain& dm =  fft.domain;
-            std::vector<DblNumVec>   gridpos(DIM);
-            UniformMeshFine ( dm, gridpos );
-            for( Int d = 0; d < DIM; d++ ){
-              serialize( gridpos[d], rhoStream, NO_MASK );
             }
     
             DblNumVec densityVec(hamKS.AtomDensity().m(), false, hamKS.AtomDensity().Data());
@@ -927,7 +920,7 @@ int main(int argc, char **argv)
         if( esdfParam.JOB == "NN_Collect_Data"){
 
           // collect the data is a must.
-          if(1){
+          if(mpirank == 0){
             string dirName ("step");
             dirName += to_string(ionIter);
             dirName += "/";
@@ -937,13 +930,6 @@ int main(int argc, char **argv)
             std::ofstream rhoStream(restartDensityFileName_.c_str());
             if( !rhoStream.good() ){
               ErrorHandling( "Density file cannot be opened." );
-            }
-    
-            const Domain& dm =  fft.domain;
-            std::vector<DblNumVec>   gridpos(DIM);
-            UniformMeshFine ( dm, gridpos );
-            for( Int d = 0; d < DIM; d++ ){
-              serialize( gridpos[d], rhoStream, NO_MASK );
             }
     
             // Only work for the restricted spin case

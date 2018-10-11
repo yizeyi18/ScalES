@@ -338,12 +338,14 @@ void
 	    // if job == NN_COLLECT then xi = 0.0
 	    if( esdfParam.JOB == "NN_Collect_Data"){
 
+            /*
               statusOFS << std::endl 
                 << "Neural Network Collecting Data: set velocity to 0.0. " << std::endl;
 
               xi[0] = 0.0;
               xi[1] = 0.0;
               xi[2] = 0.0;
+	    */
 	    }
             atomList[a].vel = xi;
           }
