@@ -269,11 +269,13 @@ int main(int argc, char **argv)
     // Single shot calculation first
     // *********************************************************************
 
+      if( esdfParam.JOB != "NNMD"){
       GetTime( timeSta );
       scf.Iterate();
       GetTime( timeEnd );
       statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
         << " [s]" << std::endl;
+      }
 
       IonDynamics ionDyn;
 
@@ -328,6 +330,16 @@ int main(int argc, char **argv)
         hamKS.CalculatePseudoPotential( ptable );
 
 
+
+        if( esdfParam.JOB == "NNMD"){
+          hamKS.CalculateAtomDensity( ptable, fft);
+
+	  // add the prediction here.....
+	}
+
+
+
+
         if( esdfParam.JOB == "NN_Collect_Data"){
 
           statusOFS << " NN_Collect_Data: calculateAtomDensity ... " << std::endl;
@@ -351,7 +363,7 @@ int main(int argc, char **argv)
               ErrorHandling( "Density file cannot be opened." );
             }
     
-            DblNumVec densityVec(hamKS.AtomDensity().m(), false, hamKS.AtomDensity().Data());
+           DblNumVec densityVec(hamKS.AtomDensity().m(), false, hamKS.AtomDensity().Data());
             serialize( densityVec, rhoStream, NO_MASK );
             rhoStream.close();
 
@@ -369,6 +381,12 @@ int main(int argc, char **argv)
         statusOFS << "Time for updating the Hamiltonian = " << timeEnd - timeSta
           << " [s]" << std::endl;
 
+
+        if( esdfParam.MDExtrapolationVariable == "density" ){
+        if( esdfParam.JOB == "NNMD"){
+          ErrorHandling( "Cannot use mixing density when do NNMD." );
+	}
+	}
 
         // Extrapolation of density : used for both geometry optimization and MD    
         // Update the density history through extrapolation
@@ -401,6 +419,7 @@ int main(int argc, char **argv)
           } // for (l)
         } // density extrapolation
 
+        if( esdfParam.JOB != "NNMD"){
         if( ionDyn.IsGeoOpt() == false )
         {
           // Wavefunction extrapolation for MD , not used in geometry optimization
@@ -909,6 +928,7 @@ int main(int argc, char **argv)
 
           } // wavefun extrapolation
         } // if( ionDyn.IsGeoOpt() == false )
+        } // NNMD 
 
 
         GetTime( timeSta );
@@ -932,7 +952,7 @@ int main(int argc, char **argv)
               ErrorHandling( "Density file cannot be opened." );
             }
     
-            // Only work for the restricted spin case
+           // Only work for the restricted spin case
             DblNumMat& densityMat = hamKS.Density();
             DblNumVec densityVec(densityMat.m(), false, densityMat.Data());
             serialize( densityVec, rhoStream, NO_MASK );

@@ -379,6 +379,7 @@ SCF::Iterate (  )
       Real normVtotDif = 0.0, normVtotOld = 0.0;
       DblNumVec& vtotOld_ = ham.Vtot();
       Int ntot = vtotOld_.m();
+    if( esdfParam.JOB != "NNMD"){
       for( Int i = 0; i < ntot; i++ ){
         normVtotDif += pow( vtotOld_(i) - vtotNew_(i), 2.0 );
         normVtotOld += pow( vtotOld_(i), 2.0 );
@@ -396,6 +397,7 @@ SCF::Iterate (  )
         serialize( vtotNew_, vStream, NO_MASK ); 
         SharedWrite( "VOLDNEW", vStream );
       }
+    } // not update Vtot when 
 
 
       GetTime( timeSta );
@@ -414,12 +416,14 @@ SCF::Iterate (  )
       Print(statusOFS, "norm(out-in)/norm(in) = ", scfNorm_ );
       Print(statusOFS, "Efree diff per atom   = ", efreeDifPerAtom_ ); 
 
-      if( scfNorm_ < scfTolerance_ ){
+      //if( scfNorm_ < scfTolerance_ ){
+      if( efreeDifPerAtom_ < scfTolerance_ ){
         /* converged */
         statusOFS << "SCF is converged in " << iter << " steps !" << std::endl;
         isSCFConverged = true;
       }
 
+      if( esdfParam.JOB != "NNMD"){
       // Potential mixing
       GetTime( timeSta );
       if( mixType_ == "anderson" || mixType_ == "kerker+anderson" ){
@@ -436,6 +440,7 @@ SCF::Iterate (  )
       else{
         ErrorHandling("Invalid mixing type.");
       }
+      } // not do mixing when Neural Network MD
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
       statusOFS << "Time for computing potential mixing in PWDFT is " <<
@@ -1817,6 +1822,7 @@ SCF::InnerSolve	( Int iter )
 
   // No need for normalization using LOBPCG
 
+  if( esdfParam.JOB != "NNMD"){
   // Compute the occupation rate
   GetTime( timeSta );
   CalculateOccupationRate( ham.EigVal(), 
@@ -1876,6 +1882,7 @@ SCF::InnerSolve	( Int iter )
   GetTime( timeSta );
   ham.CalculateVtot( vtotNew_ );
   GetTime( timeEnd );
+  }
 #if ( _DEBUGlevel_ >= 0 )
   statusOFS << "Time for computing total potential in PWDFT is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
