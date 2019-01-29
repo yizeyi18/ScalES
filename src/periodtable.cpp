@@ -2082,9 +2082,17 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
     }
 
     std::string tag = find_start_element("PP_HEADER", upfin);
+#if 0
+    std::cout << "  pp header " << tag << " upfin " <<  upfin << std::endl;
+#endif
 
     // get attribute "element"
     std::string upf_symbol = get_attr(tag,"element");
+
+#if 0
+    std::cout << " get attribute " << upf_symbol << std::endl;
+#endif
+
     upf_symbol.erase(remove_if(upf_symbol.begin(), upf_symbol.end(), isspace), upf_symbol.end());
 
     // get atomic number and mass
@@ -2130,10 +2138,23 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
     is.clear();
     is.str(buf);
     is >> upf_zval;
-
 #if 0
     statusOFS << " upf_zval = " << upf_zval << std::endl;
 #endif
+
+    // FIXME rhocut readin from the PSP file. 
+    // for SG15, the default value is 6.01.
+    // but may change for other user defined PSP files. 
+    double rhocut = 6.01; 
+    buf = get_attr(tag,"rho_cutoff");
+    is.clear();
+    is.str(buf);
+    is >> rhocut;
+
+#if 0
+    statusOFS << " rhocut = " << rhocut << std::endl;
+#endif
+
     // FIXME labels
     const Int ZION = 2;
     const Int RGAUSSIAN = 3;
@@ -2228,10 +2249,8 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
     const Int DRV_RHOATOM = 4;
     // FIXME rhoatomcut should be given by a table according to the element type.
     double rhoatomcut = 4.0;
-    // FIXME rhocut should be given by a table according to the element type.
-    double rhocut = 6.0;
-    // FIXME nonlocal potential cutoff should be given by a table according to the element type.
-    double nlcut = 2.0;
+    // nonlocal potential cutoff read from the pseduopotential file below. 4.0 is just initial value.
+    double nlcut = 4.0;
 
     cutoffs[RADIAL_GRID] = rhocut;
     cutoffs[VLOCAL] = rhocut;
@@ -2303,6 +2322,8 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
     for ( int j = 0; j < upf_nproj; j++ )
     {
       int index, angular_momentum;
+      double cutoff_radius = 4.0; // 4.0 is big enough for Si as default
+
       os.str("");
       os << j+1;
       std::string element_name = "PP_BETA." + os.str();
@@ -2317,6 +2338,17 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
       is >> index;
 #if 0
       statusOFS << " index = " << index << std::endl;
+#endif
+
+      //reset nlcut
+      buf = get_attr(tag,"cutoff_radius");
+      is.clear();
+      is.str(buf);
+      is >> cutoff_radius;
+      nlcut = cutoff_radius;
+
+#if 0
+      statusOFS << " cutoff_radius = " << cutoff_radius << std::endl;
 #endif
 
       buf = get_attr(tag,"angular_momentum");
