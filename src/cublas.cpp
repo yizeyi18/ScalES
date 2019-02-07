@@ -74,7 +74,6 @@ namespace cublas {
 
 typedef  int               Int;
 typedef  cuComplex         scomplex;
-typedef  cuDoubleComplex   dcomplex;
 
 void Init(void)
 {
@@ -115,8 +114,8 @@ void Destroy(void)
 }
  void Gemm 
           ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
-            const dcomplex *alpha, const dcomplex* A, Int lda, const dcomplex* B, Int ldb,
-            const dcomplex *beta,        dcomplex* C, Int ldc )
+            const cuDoubleComplex *alpha, const cuDoubleComplex* A, Int lda, const cuDoubleComplex* B, Int ldb,
+            const cuDoubleComplex *beta,        cuDoubleComplex* C, Int ldc )
 {
     CUBLAS_ERROR(cublasZgemm_v2(hcublas, transA, transB, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc), " cublasZgemm failed !");
     return;
@@ -151,12 +150,12 @@ void Destroy(void)
     CUBLAS_ERROR( cublasCsscal(hcublas, n, alpha, x, incx), "cublas CScal failed! ");
     return;
 }
- void Scal (int n, const dcomplex *alpha, dcomplex *x, int incx)
+ void Scal (int n, const cuDoubleComplex *alpha, cuDoubleComplex *x, int incx)
 {
     CUBLAS_ERROR( cublasZscal(hcublas, n, alpha, x, incx), "cublas CScal failed! ");
     return;
 }
- void Scal (int n, const double *alpha, dcomplex *x, int incx)
+ void Scal (int n, const double *alpha, cuDoubleComplex *x, int incx)
 {
     CUBLAS_ERROR( cublasZdscal(hcublas, n, alpha, x, incx), "cublas CScal failed! ");
     return;
@@ -286,6 +285,75 @@ void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, i
 	cudaMemcpy( d_C, h_C, batchCount *6*sizeof(double*), cudaMemcpyHostToDevice);
 	
 	cublasDgemmBatched(hcublas, transA, transB, m, n, k, alpha, (const double**)(d_A), lda, (const double**)(d_B), ldb, beta, d_C, ldc, 6*batchCount);
+
+	free(h_A);
+	free(h_B);
+	free(h_C);
+
+	cudaFree(d_A);
+	cudaFree(d_B);
+	cudaFree(d_C);
+}
+
+
+void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, int n, int k, const cuDoubleComplex *alpha, cuDoubleComplex *A, int lda, cuDoubleComplex *B, int ldb, const cuDoubleComplex *beta, cuDoubleComplex *C, int ldc, int batchCount, int x, int y, int z, 
+ cuDoubleComplex *A2, cuDoubleComplex *B2, cuDoubleComplex *C2, int x2, int y2, int z2,
+ cuDoubleComplex *A3, cuDoubleComplex *B3, cuDoubleComplex *C3, int x3, int y3, int z3,
+ cuDoubleComplex *A4, cuDoubleComplex *B4, cuDoubleComplex *C4, int x4, int y4, int z4,
+ cuDoubleComplex *A5, cuDoubleComplex *B5, cuDoubleComplex *C5, int x5, int y5, int z5,
+ cuDoubleComplex *A6, cuDoubleComplex *B6, cuDoubleComplex *C6, int x6, int y6, int z6)
+{
+	cuDoubleComplex ** h_A = (cuDoubleComplex **) malloc( sizeof(cuDoubleComplex*) *6*batchCount);
+	cuDoubleComplex ** h_B = (cuDoubleComplex **) malloc( sizeof(cuDoubleComplex*) *6*batchCount);
+	cuDoubleComplex ** h_C = (cuDoubleComplex **) malloc( sizeof(cuDoubleComplex*) *6*batchCount);
+
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i] = A + i* lda;
+		h_B[i] = B + i* ldb;
+		h_C[i] = C + i*3*x + 3*y + z;
+	}
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i+batchCount] = A2 + i* lda;
+		h_B[i+batchCount] = B2 + i* ldb;
+		h_C[i+batchCount] = C2 + i*3*x2 + 3*y2 + z2;
+	}
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i+2*batchCount] = A3 + i* lda;
+		h_B[i+2*batchCount] = B3 + i* ldb;
+		h_C[i+2*batchCount] = C3 + i*3*x3 + 3*y3 + z3;
+	}
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i+3*batchCount] = A4 + i* lda;
+		h_B[i+3*batchCount] = B4 + i* ldb;
+		h_C[i+3*batchCount] = C4 + i*3*x4 + 3*y4 + z4;
+	}
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i+4*batchCount] = A5 + i* lda;
+		h_B[i+4*batchCount] = B5 + i* ldb;
+		h_C[i+4*batchCount] = C5 + i*3*x5 + 3*y5 + z5;
+	}
+	for(int i = 0; i < batchCount; i++ )
+	{
+		h_A[i+5*batchCount] = A6 + i* lda;
+		h_B[i+5*batchCount] = B6 + i* ldb;
+		h_C[i+5*batchCount] = C6 + i*3*x6 + 3*y6 + z6;
+	}
+	
+	cuDoubleComplex **d_A, **d_B, **d_C;
+	cudaMalloc((void**)&d_A, sizeof(cuDoubleComplex*) * 6*batchCount);
+	cudaMalloc((void**)&d_B, sizeof(cuDoubleComplex*) * 6*batchCount);
+	cudaMalloc((void**)&d_C, sizeof(cuDoubleComplex*) * 6*batchCount);
+	
+	cudaMemcpy( d_A, h_A, batchCount *6*sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
+	cudaMemcpy( d_B, h_B, batchCount *6*sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
+	cudaMemcpy( d_C, h_C, batchCount *6*sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
+	
+	cublasZgemmBatched(hcublas, transA, transB, m, n, k, alpha, (const cuDoubleComplex**)(d_A), lda, (const cuDoubleComplex**)(d_B), ldb, beta, d_C, ldc, 6*batchCount);
 
 	free(h_A);
 	free(h_B);

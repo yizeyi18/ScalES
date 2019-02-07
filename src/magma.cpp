@@ -71,6 +71,32 @@ void Destroy(void)
 // *********************************************************************
 // Cholesky factorization
 // *********************************************************************
+void Potrf( char uplo, Int n, const cuDoubleComplex* A, Int lda )
+{
+  magma_int_t info;
+  magma_uplo_t job; 
+
+  if (uplo == 'u' || uplo == 'U')
+       job = MagmaUpper;
+  else 
+       job = MagmaLower;
+
+  magmaDoubleComplex_ptr Aptr = (magmaDoubleComplex_ptr) A;
+  magma_zpotrf_gpu( job, n, Aptr, lda, &info );
+
+  if( info < 0 )
+  {
+    std::ostringstream msg;
+    msg << "zpotrf returned with info = " << info;
+    ErrorHandling( msg.str().c_str() );
+  }
+  else if( info > 0 ){
+    std::ostringstream msg;
+    msg << "zpotrf returned with info = " << info << std::endl;
+    //msg << "A(info,info) = " << A[info-1+(info-1)*lda] << std::endl;
+    ErrorHandling( msg.str().c_str() );
+  }
+}
 
 void Potrf( char uplo, Int n, const double* A, Int lda )
 {
@@ -124,6 +150,73 @@ void Getrf( Int m, Int n, double* A, Int lda, Int* p )
 // For solving the standard eigenvalue problem using the divide and
 // conquer algorithm
 // *********************************************************************
+void Syevd
+( char jobz, char uplo, Int n, cuDoubleComplex* A, Int lda, double* eigs ){
+
+////
+    magma_int_t *iwork, *isuppz, *ifail, aux_iwork[1];
+    magma_int_t N, n2, info, lwork, liwork, ldda;
+    N = n;
+    ldda = lda;
+    cuDoubleComplex aux_work[1];
+    double *rwork, aux_rwork[1];
+    magma_int_t lrwork;
+////
+
+  magma_vec_t zjob;
+  if (jobz == 'v' || jobz == 'V') zjob = MagmaVec; else  zjob = MagmaNoVec;
+  
+  magma_uplo_t m_uplo;
+  if(uplo == 'U') m_uplo = MagmaUpper; else m_uplo = MagmaLower;
+  magmaDoubleComplex_ptr dA = (magmaDoubleComplex_ptr) A;
+
+  /*
+  Int lwork = -1, info;
+  Int liwork = -1;
+  std::vector<double> work(1);
+  std::vector<int>    iwork(1);
+  */
+  magma_zheevd_gpu( zjob, m_uplo,
+                    N, NULL, lda, NULL,  // A, w
+                    NULL, lda,            // host A
+                    aux_work,  -1,
+                    aux_rwork, -1,
+                    aux_iwork, -1,
+                    &info );
+
+  lwork  = (magma_int_t) ( aux_work[0].x );
+  liwork = aux_iwork[0];
+  cuDoubleComplex * h_R, *h_work;
+
+  magma_zmalloc_pinned( &h_R,    N*lda  );
+  magma_zmalloc_pinned( &h_work, lwork  );
+  magma_imalloc_cpu( &iwork,  liwork );
+
+  lrwork = (magma_int_t) aux_rwork[0];
+  //double * rwork;
+  magma_dmalloc_pinned( &rwork,    lrwork );
+
+
+
+  magma_zheevd_gpu( zjob, m_uplo,
+                    N, dA, ldda, eigs,
+                    h_R, lda,          // h_R
+                    h_work, lwork,
+                    rwork, lrwork,
+                    iwork, liwork,
+                    &info );
+  if( info != 0 )
+  {
+    std::ostringstream msg;
+    msg << "magma_dsyevd_gpu returned with info = " << info;
+    ErrorHandling( msg.str().c_str() );
+  }
+
+  magma_free_pinned( h_R    );
+  magma_free_pinned( h_work );
+  magma_free_cpu( iwork );
+  magma_free_pinned( rwork );
+}
 
 void Syevd
 ( char jobz, char uplo, Int n, double* A, Int lda, double* eigs ){

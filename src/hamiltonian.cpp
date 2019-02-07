@@ -3036,6 +3036,244 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
 #endif
 
 #ifdef _COMPLEX_
+#ifdef GPU
+void
+KohnSham::MultSpinor    ( Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& fft )
+{
+
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  Int ntot      = fft.domain.NumGridTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int numStateTotal = psi.NumStateTotal();
+  Int numStateLocal = psi.NumState();
+  cuNumTns<cuDoubleComplex>& wavefun = psi.cuWavefun();
+  Int ncom = wavefun.n();
+
+  Int ntotR2C = fft.numGridTotal;
+
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+
+  Real timeGemm = 0.0;
+  Real timeAlltoallv = 0.0;
+  Real timeAllreduce = 0.0;
+
+#if 0
+  SetValue( a3, Complex(0.0,0.0) );
+  // Apply an initial filter on the wavefunctions, if required
+  if((apply_filter_ == 1 && apply_first_ == 1))
+  {
+
+    //statusOFS << std::endl << " In here in 1st filter : " << wfn_cutoff_ << std::endl; 
+    apply_first_ = 0;
+
+    for (Int k=0; k<numStateLocal; k++) {
+      for (Int j=0; j<ncom; j++) {
+
+        SetValue( fft.inputComplexVec,  Z_ZERO);
+        SetValue( fft.outputComplexVec, Z_ZERO );
+
+        blas::Copy( ntot, wavefun.VecData(j,k), 1,
+            fft.inputComplexVec.Data(), 1 );
+        FFTWExecute ( fft, fft.forwardPlan ); // So outputComplexVec contains the FFT result now
+
+
+        for (Int i=0; i<ntotR2C; i++)
+        {
+          if(fft.gkk(i) > wfn_cutoff_)
+            fft.outputComplexVec(i) = Z_ZERO;
+        }
+
+        FFTWExecute ( fft, fft.backwardPlan);
+        blas::Copy( ntot,  fft.inputComplexVec.Data(), 1,
+            wavefun.VecData(j,k), 1 );
+
+      }
+    }
+  }
+#endif
+
+  GetTime( timeSta );
+  psi.AddMultSpinorFine( fft, vtot_, pseudo_, a3 );
+  GetTime( timeEnd );
+  statusOFS << "Time for complex psi.AddMultSpinorFine is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#if ( _DEBUGlevel_ >= 1 )
+  statusOFS << "Time for complex psi.AddMultSpinorFine is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+#if 0
+  if( isHybrid_ && isEXXActive_ ){
+
+    GetTime( timeSta );
+
+    if( esdfParam.isHybridACE ){
+
+      //      if(0)
+      //      {
+      //        DblNumMat M(numStateTotal, numStateTotal);
+      //        blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 1.0,
+      //            vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+      //            0.0, M.Data(), M.m() );
+      //        // Minus sign comes from that all eigenvalues are negative
+      //        blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, -1.0,
+      //            vexxProj_.Data(), ntot, M.Data(), numStateTotal,
+      //            1.0, a3.Data(), ntot );
+      //      }
+
+      if(1){ // for MPI
+        // Convert the column partition to row partition
+
+        Int numStateBlocksize = numStateTotal / mpisize;
+        Int ntotBlocksize = ntot / mpisize;
+
+        Int numStateLocal = numStateBlocksize;
+        Int ntotLocal = ntotBlocksize;
+
+        if(mpirank < (numStateTotal % mpisize)){
+          numStateLocal = numStateBlocksize + 1;
+        }
+
+        if(mpirank < (ntot % mpisize)){
+          ntotLocal = ntotBlocksize + 1;
+        }
+
+        CpxNumMat psiCol( ntot, numStateLocal );
+        SetValue( psiCol, Z_ZERO );
+
+        CpxNumMat vexxProjCol( ntot, numStateLocal );
+        SetValue( vexxProjCol, Z_ZERO );
+
+        CpxNumMat psiRow( ntotLocal, numStateTotal );
+        SetValue( psiRow, Z_ZERO );
+
+        CpxNumMat vexxProjRow( ntotLocal, numStateTotal );
+        SetValue( vexxProjRow, Z_ZERO );
+
+        lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+        lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
+
+        GetTime( timeSta1 );
+        AlltoallForward (psiCol, psiRow, domain_.comm);
+        AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
+        GetTime( timeEnd1 );
+        timeAlltoallv = timeAlltoallv + ( timeEnd1 - timeSta1 );
+
+        CpxNumMat MTemp( numStateTotal, numStateTotal );
+        SetValue( MTemp, Z_ZERO );
+
+        GetTime( timeSta1 );
+        blas::Gemm( 'C', 'N', numStateTotal, numStateTotal, ntotLocal,
+            1.0, vexxProjRow.Data(), ntotLocal, 
+            psiRow.Data(), ntotLocal, 0.0,
+            MTemp.Data(), numStateTotal );
+        GetTime( timeEnd1 );
+        timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
+
+        CpxNumMat M(numStateTotal, numStateTotal);
+        SetValue( M, Z_ZERO );
+        GetTime( timeSta1 );
+        MPI_Allreduce( MTemp.Data(), M.Data(), 2*numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
+        GetTime( timeEnd1 );
+        timeAllreduce = timeAllreduce + ( timeEnd1 - timeSta1 );
+
+        CpxNumMat a3Col( ntot, numStateLocal );
+        SetValue( a3Col, Z_ZERO );
+
+        CpxNumMat a3Row( ntotLocal, numStateTotal );
+        SetValue( a3Row, Z_ZERO );
+
+        GetTime( timeSta1 );
+        blas::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, 
+            -1.0, vexxProjRow.Data(), ntotLocal, 
+            M.Data(), numStateTotal, 0.0, 
+            a3Row.Data(), ntotLocal );
+        GetTime( timeEnd1 );
+        timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
+
+        GetTime( timeSta1 );
+        AlltoallBackward (a3Row, a3Col, domain_.comm);
+        GetTime( timeEnd1 );
+        timeAlltoallv = timeAlltoallv + ( timeEnd1 - timeSta1 );
+
+        GetTime( timeSta1 );
+        for (Int k=0; k<numStateLocal; k++) {
+          for (Int j=0; j<ncom; j++) {
+            Complex *p1 = a3Col.VecData(k);
+            Complex *p2 = a3.VecData(j, k);
+            for (Int i=0; i<ntot; i++) { 
+              *(p2++) += *(p1++); 
+            }
+          }
+        }
+        GetTime( timeEnd1 );
+        timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
+
+      } //if(1)
+
+    }
+    else
+    {
+      psi.AddMultSpinorEXX( fft, phiEXX_, exxgkk_,
+          exxFraction_,  numSpin_, occupationRate_, a3 );
+    }
+    GetTime( timeEnd );
+
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for updating hybrid Spinor is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+    statusOFS << "Time for Gemm is " <<
+      timeGemm << " [s]" << std::endl << std::endl;
+    statusOFS << "Time for Alltoallv is " <<
+      timeAlltoallv << " [s]" << std::endl << std::endl;
+    statusOFS << "Time for Allreduce is " <<
+      timeAllreduce << " [s]" << std::endl << std::endl;
+#endif
+
+
+  }
+#endif
+
+#if 0 
+  // Apply filter on the wavefunctions before exit, if required
+  if((apply_filter_ == 1))
+  {
+    //statusOFS << std::endl << " In here in 2nd filter : "  << wfn_cutoff_<< std::endl; 
+    for (Int k=0; k<numStateLocal; k++) {
+      for (Int j=0; j<ncom; j++) {
+
+        SetValue( fft.inputComplexVec, Z_ZERO );
+        SetValue( fft.outputComplexVec, Z_ZERO );
+
+        blas::Copy( ntot, a3.VecData(j,k), 1,
+            fft.inputComplexVec.Data(), 1 );
+        FFTWExecute ( fft, fft.forwardPlan ); // So outputVecR2C contains the FFT result now
+
+
+        for (Int i=0; i<ntotR2C; i++)
+        {
+          if(fft.gkk(i) > wfn_cutoff_)
+            fft.outputComplexVec(i) = Z_ZERO;
+        }
+
+        FFTWExecute ( fft, fft.backwardPlan );
+        blas::Copy( ntot,  fft.inputComplexVec.Data(), 1,
+            a3.VecData(j,k), 1 );
+
+      }
+    }
+  }
+#endif
+
+
+  return ;
+}         // -----  end of method KohnSham::MultSpinor  ----- 
+
+#endif
 void
 KohnSham::MultSpinor    ( Spinor& psi, NumTns<Complex>& a3, Fourier& fft )
 {

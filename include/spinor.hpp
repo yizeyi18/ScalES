@@ -77,7 +77,11 @@ private:
   Int               blocksize_;
 #ifdef GPU
   // not use wavefun_ in the GPU implementation.
+#ifdef _COMPLEX_
+  cuNumTns<cuDoubleComplex>   cu_wavefun_;
+#else
   cuNumTns<Real>   cu_wavefun_;
+#endif
 #endif
 
   // For density fitting
@@ -98,6 +102,14 @@ public:
 
   Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
       const bool owndata, Complex* data );
+#ifdef GPU
+  // needs to change...
+  Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
+      const bool owndata, cuDoubleComplex* data, bool isGPU);
+  void SetupGPU( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
+      const bool owndata, cuDoubleComplex* data );
+#endif
+
 
   void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
       const Complex val = static_cast<Complex>(0,0) ); 
@@ -143,6 +155,10 @@ public:
   const NumTns<Complex>& Wavefun() const { return wavefun_; } 
   Complex& Wavefun(const Int i, const Int j, const Int k) {return wavefun_(i,j,k); }
   const Complex& Wavefun(const Int i, const Int j, const Int k) const {return wavefun_(i,j,k); }
+#ifdef GPU
+  cuNumTns<cuDoubleComplex>& cuWavefun() { return cu_wavefun_; } 
+  const cuNumTns<cuDoubleComplex>& cuWavefun() const { return cu_wavefun_; } 
+#endif
 #else
   NumTns<Real>& Wavefun() { return wavefun_; } 
   const NumTns<Real>& Wavefun() const { return wavefun_; } 
@@ -169,6 +185,12 @@ public:
       const std::vector<PseudoPot>& pseudo, NumTns<Complex>& a3 );
 
   void AddTeterPrecond( Fourier* fftPtr, NumTns<Complex>& a3 );
+#ifdef GPU
+  void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
+      const std::vector<PseudoPot>& pseudo, cuNumTns<cuDoubleComplex>& a3 );
+
+  void AddTeterPrecond( Fourier* fftPtr, cuNumTns<cuDoubleComplex>& a3 );
+#endif
 
   void AddMultSpinorEXX ( Fourier& fft,
       const NumTns<Complex>& phi,

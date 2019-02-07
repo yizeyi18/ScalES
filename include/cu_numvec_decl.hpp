@@ -99,7 +99,7 @@ public:
 typedef cuNumVec<bool>       cuBolNumVec;
 typedef cuNumVec<Int>        cuIntNumVec;
 typedef cuNumVec<Real>       cuDblNumVec;
-typedef cuNumVec<Complex>    cuCpxNumVec;
+typedef cuNumVec<cuDoubleComplex>    cuCpxNumVec;
 
 
 // Utilities

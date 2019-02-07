@@ -99,6 +99,8 @@ Fourier::~Fourier ()
      cufftDestroy(cuPlanR2CFine[i]);
      cufftDestroy(cuPlanC2R[i]);
      cufftDestroy(cuPlanC2RFine[i]);
+     cufftDestroy(cuPlanC2C[i]);
+     cufftDestroy(cuPlanC2CFine[i]);
   }
 #endif
 }
@@ -207,6 +209,7 @@ void Fourier::Initialize ( const Domain& dm )
   {
     cufftPlan3d(&cuPlanR2C[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_D2Z);
     cufftPlan3d(&cuPlanC2R[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_Z2D);
+    cufftPlan3d(&cuPlanC2C[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_Z2Z);
 #if 0
     std::cout << " after init " << i << " cufft Plan ... " <<  8*numGrid[0] * numGrid[1] * numGrid[2] / 1000000<< std::endl;
     cuda_memory();
@@ -395,6 +398,7 @@ void Fourier::InitializeFine ( const Domain& dm )
    {
      cufftPlan3d(&cuPlanR2CFine[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_D2Z);
      cufftPlan3d(&cuPlanC2RFine[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_Z2D);
+     cufftPlan3d(&cuPlanC2CFine[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_Z2Z);
 #if 0
      std::cout << " after init " << i << " cufft Fine  Plan ... "  <<  numGrid[0] * numGrid[1] * numGrid[2]*8 / 1000000<< std::endl;
      cuda_memory();
@@ -464,6 +468,49 @@ void Fourier::InitializeFine ( const Domain& dm )
 }        // -----  end of function Fourier::InitializeFine  ----- 
 
 #ifdef GPU
+void cuFFTExecuteForward( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out )
+{
+   Index3& numGrid = fft.domain.numGrid;
+   Index3& numGridFine = fft.domain.numGridFine;
+   Real vol      = fft.domain.Volume();
+   Int ntot      = fft.domain.NumGridTotal();
+   Int ntotFine  = fft.domain.NumGridTotalFine();
+   Real factor;
+   if(fft_type > 0) // fine grid FFT.
+   {
+      factor = vol/ntotFine;
+      assert( cufftExecZ2Z(plan, cu_psi_in.Data(), cu_psi_out.Data(), CUFFT_FORWARD)  == CUFFT_SUCCESS );
+      cublas::Scal( ntotFine, &factor, cu_psi_out.Data(),1); 
+   }
+   else // coarse grid FFT.
+   {
+      factor = vol/ntot;
+      assert( cufftExecZ2Z(plan, cu_psi_in.Data(), cu_psi_out.Data(), CUFFT_FORWARD)  == CUFFT_SUCCESS );
+      cublas::Scal(ntot, &factor, cu_psi_out.Data(), 1); 
+   }
+}
+void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out )
+{
+   Index3& numGrid = fft.domain.numGrid;
+   Index3& numGridFine = fft.domain.numGridFine;
+   Real vol      = fft.domain.Volume();
+   Int ntot      = fft.domain.NumGridTotal();
+   Int ntotFine  = fft.domain.NumGridTotalFine();
+   Real factor;
+   if(fft_type > 0) // fine grid FFT.
+   {
+      factor = 1.0 / vol;
+      assert( cufftExecZ2Z(plan, reinterpret_cast<cuDoubleComplex*> (cu_psi_in.Data()), cu_psi_out.Data(), CUFFT_INVERSE) == CUFFT_SUCCESS );
+      cublas::Scal(ntotFine, &factor, cu_psi_out.Data(),1); 
+   }
+   else // coarse grid FFT.
+   {
+      factor = 1.0 / vol;
+      assert( cufftExecZ2Z(plan, reinterpret_cast<cuDoubleComplex*> (cu_psi_in.Data()), cu_psi_out.Data(), CUFFT_INVERSE) == CUFFT_SUCCESS );
+      cublas::Scal(ntot, &factor, cu_psi_out.Data(), 1); 
+   }
+}
+
 
 void cuFFTExecuteForward( Fourier& fft, cufftHandle &plan, int fft_type, cuDblNumVec &cu_psi_in, cuDblNumVec &cu_psi_out )
 {

@@ -514,7 +514,13 @@ SCF::Iterate (  )
       }
       else{
 #ifdef GPU
+#ifdef _COMPLEX_
+        statusOFS << " Error Error Error  Error ................................" << std::endl;
+        statusOFS << " CalculateVexxACEGPU for Complex note implemented yet....." << std::endl;
+        statusOFS << " Error Error Error  Error ................................" << std::endl;
+#else
         ham.CalculateVexxACEGPU ( psi, fft );
+#endif
 #else
         ham.CalculateVexxACE ( psi, fft );
 #endif
@@ -2206,6 +2212,7 @@ SCF::Iterate (  )
 
     } // hybridMixType == "pcdiis"
 #endif
+#endif
 
     GetTime( timeEnd );
     statusOFS << "Time for using pcdiis method is " <<
@@ -2216,7 +2223,6 @@ SCF::Iterate (  )
     cublas::Destroy();
     MAGMA::Destroy();
     cuda_clean_vtot();
-#endif
 #endif
 
   // Calculate the Force. This includes contribution from ionic repulsion, VDW etc
@@ -2439,7 +2445,12 @@ SCF::InnerSolve	( Int iter )
     // Use LOBPCG
 #ifdef _COMPLEX_
     if( esdfParam.PWSolver == "PPCG" || esdfParam.PWSolver == "PPCGScaLAPACK" ){
+#ifdef GPU
+      std::cout << " start to do the complex gpu part ..... " << std::endl;
+      eigSolPtr_->PPCGSolveComplex(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow , iter );    
+#else
       eigSolPtr_->PPCGSolveComplex(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
+#endif
     }
     else{
       // FIXME Merge the Chebyshev into an option of PWSolver

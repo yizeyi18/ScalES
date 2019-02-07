@@ -224,6 +224,9 @@ public:
   virtual void CalculateForce ( Spinor& psi, Fourier& fft ) = 0;
 
 #ifdef _COMPLEX_
+#ifdef GPU
+  virtual void MultSpinor(Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& fft) = 0;
+#endif
   virtual void MultSpinor(Spinor& psi, NumTns<Complex>& a3, Fourier& fft) = 0;
 #else
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft) = 0;
@@ -395,6 +398,9 @@ public:
 
   // Matrix vector multiplication
 #ifdef _COMPLEX_
+#ifdef GPU
+  virtual void MultSpinor(Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& fft);
+#endif
   virtual void MultSpinor(Spinor& psi, NumTns<Complex>& a3, Fourier& fft);
 #else
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft);

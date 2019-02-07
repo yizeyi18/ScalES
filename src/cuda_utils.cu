@@ -14,6 +14,7 @@ int    * dev_NLpart;
 double * dev_NLvecFine;
 double * dev_atom_weight;
 double * dev_temp_weight;
+cuDoubleComplex* dev_temp_weight_complex;
 double * dev_TeterPrecond;
 
 bool vtot_gpu_flag;
@@ -61,6 +62,16 @@ __device__ inline double Norm_2(const cuDoubleComplex & x) {
 	return (cuCreal(x)*cuCreal(x)) + (cuCimag(x)*cuCimag(x));
 }
 
+__global__ void gpu_X_Equal_AX_minus_X_eigVal(cuDoubleComplex* Xtemp, cuDoubleComplex* AX, cuDoubleComplex *X, double *eigen, int len ,int bandLen)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int bid = tid / bandLen;
+	if(tid < len)
+	{
+		Xtemp[tid] = AX[tid] - X[tid] * eigen[bid];
+	}
+}
+
 __global__ void gpu_X_Equal_AX_minus_X_eigVal(double* Xtemp, double *AX, double *X, double *eigen, int len ,int bandLen)
 {
 	int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -70,6 +81,17 @@ __global__ void gpu_X_Equal_AX_minus_X_eigVal(double* Xtemp, double *AX, double 
 		Xtemp[tid] = AX[tid] - X[tid] * eigen[bid];
 	}
 }
+__global__ void gpu_batch_Scal( cuDoubleComplex *psi, double *vec, int bandLen, int len)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int iband = tid / bandLen;
+	if(tid < len)
+	{
+		double alpha = 1.0 / sqrt( vec[iband] );
+		psi[tid] = psi[tid] * alpha;
+	}
+}
+
 __global__ void gpu_batch_Scal( double *psi, double *vec, int bandLen, int len)
 {
 	int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -80,6 +102,111 @@ __global__ void gpu_batch_Scal( double *psi, double *vec, int bandLen, int len)
 		psi[tid] = psi[tid] * alpha;
 	}
 }
+	template<unsigned int blockSize>
+__global__ void gpu_energy( cuDoubleComplex * psi, double * energy, int len)
+{
+	__shared__ double sdata[DIM];
+	int offset = blockIdx.x * len;
+	int tid = threadIdx.x;
+	double s = 0.0;
+        cufftDoubleComplex px, py;
+
+	while ( tid < len)
+	{
+		int index = tid + offset;
+		px = psi[index];
+		py.x = px.x;
+		py.y = -px.y;
+		s += (px*py).x;
+		tid += blockDim.x;
+	}
+
+	sdata[threadIdx.x] =  s;
+	double mySum = s;
+	__syncthreads();
+
+	tid = threadIdx.x;
+	if ((blockSize >= 512) && (tid < 256))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 256];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >= 256) &&(tid < 128))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 128];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >= 128) && (tid <  64))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  64];
+	}
+
+	__syncthreads();
+
+#if (__CUDA_ARCH__ >= 300 )
+	if ( tid < 32 )
+	{
+		// Fetch final intermediate sum from 2nd warp
+		if (blockSize >=  64) mySum += sdata[tid + 32];
+		// Reduce final warp using shuffle
+		for (int offset = warpSize/2; offset > 0; offset /= 2)
+		{
+			mySum += __shfl_down(mySum, offset);
+		}
+	}
+#else
+	// fully unroll reduction within a single warp
+	if ((blockSize >=  64) && (tid < 32))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 32];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=  32) && (tid < 16))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 16];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=  16) && (tid <  8))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  8];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=   8) && (tid <  4))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  4];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=   4) && (tid <  2))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  2];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=   2) && ( tid <  1))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  1];
+	}
+
+	__syncthreads();
+#endif
+
+	if( tid == 0) energy[blockIdx.x] = mySum;
+
+}
+
 	template<unsigned int blockSize>
 __global__ void gpu_energy( double * psi, double * energy, int len)
 {
@@ -180,7 +307,8 @@ __global__ void gpu_energy( double * psi, double * energy, int len)
 	if( tid == 0) energy[blockIdx.x] = mySum;
 
 }
-__global__ void gpu_mapping_to_buf( double *buf, double * psi, int *index, int len)
+template<class T> 
+__global__ void gpu_mapping_to_buf( T* buf, T * psi, int *index, int len)
 {
 	int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	int x;
@@ -191,7 +319,8 @@ __global__ void gpu_mapping_to_buf( double *buf, double * psi, int *index, int l
 	}
 }
 
-__global__ void gpu_mapping_from_buf( double *psi, double * buf, int *index, int len)
+template<class T> 
+__global__ void gpu_mapping_from_buf( T *psi, T * buf, int *index, int len)
 {
 	int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	int x;
@@ -201,7 +330,9 @@ __global__ void gpu_mapping_from_buf( double *psi, double * buf, int *index, int
 		psi[tid] = buf[x];
 	}
 }
-#if __CUDA_ARCH__ < 600
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600
+
+#else
 __device__ double atomicAdd(double* address, double val)
 {
 	unsigned long long int* address_as_ull =
@@ -284,8 +415,8 @@ __global__ void gpu_teter( cuDoubleComplex * psi, double * teter, int len)
 		psi[tid] = psi[tid] * teter[tid];
 	}
 }
-
-__global__ void gpu_vtot( double* psi, double * gkk, int len)
+template<class T>
+__global__ void gpu_vtot( T* psi, double * gkk, int len)
 {
 	int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if(tid < len)
@@ -293,6 +424,26 @@ __global__ void gpu_vtot( double* psi, double * gkk, int len)
 		psi[tid] = psi[tid] * gkk[tid];
 	}
 }
+__global__ void gpu_update_psiUpdate( cuDoubleComplex *psiUpdate, double* NL, int * parts, int *index, double *atom_weight, cuDoubleComplex* weight)
+{
+	int start = parts[blockIdx.x];
+	int end   = parts[blockIdx.x+1];
+	int len   = end - start;
+	int tid = threadIdx.x;
+	cuDoubleComplex w = weight[blockIdx.x] * atom_weight[blockIdx.x];
+	cuDoubleComplex s;
+
+	while(tid < len)
+	{
+		int j = start + tid;
+		int i = index[j];
+		s = NL[j] * w;
+		atomicAdd(&psiUpdate[i].x, s.x);
+		atomicAdd(&psiUpdate[i].y, s.y);
+		tid += blockDim.x;
+	}
+}
+
 __global__ void gpu_update_psiUpdate( double *psiUpdate, double* NL, int * parts, int *index, double *atom_weight, double* weight)
 {
 	int start = parts[blockIdx.x];
@@ -310,6 +461,96 @@ __global__ void gpu_update_psiUpdate( double *psiUpdate, double* NL, int * parts
 		atomicAdd(&psiUpdate[i], s);
 		tid += blockDim.x;
 	}
+}
+	template<unsigned int blockSize>
+__global__ void gpu_cal_weight( cuDoubleComplex* psi, double * NL, int * parts, int * index, cuDoubleComplex * weight)
+{
+	//first get the starting and ending point and length
+	__shared__ cuDoubleComplex sdata[DIM];
+	int start = parts[blockIdx.x];
+	int end   = parts[blockIdx.x+1];
+	int len   = end - start;
+
+	int tid   = threadIdx.x;
+	cuDoubleComplex s = make_cuDoubleComplex (0.0, 0.0);
+	while(tid < len)
+	{
+		int j = start + tid;
+		int i = index[j];
+		s = s + psi[i] * NL[j];
+		tid += blockDim.x;
+	}
+
+	sdata[threadIdx.x] =  s;
+	cuDoubleComplex mySum = s;
+	__syncthreads();
+
+	tid = threadIdx.x;
+	if ((blockSize >= 512) && (tid < 256))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 256];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >= 256) &&(tid < 128))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 128];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >= 128) && (tid <  64))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  64];
+	}
+
+	__syncthreads();
+
+	// fully unroll reduction within a single warp
+	if ((blockSize >=  64) && (tid < 32))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 32];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=  32) && (tid < 16))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 16];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=  16) && (tid <  8))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  8];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=   8) && (tid <  4))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  4];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=   4) && (tid <  2))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  2];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=   2) && ( tid <  1))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  1];
+	}
+
+	__syncthreads();
+
+	if( tid == 0) weight[blockIdx.x] = mySum;
 }
 
 	template<unsigned int blockSize>
@@ -548,10 +789,21 @@ void cuda_laplacian( cuDoubleComplex* psi, double * gkk, int len)
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
+void cuda_vtot( cuDoubleComplex * psi, double * vtot, int len)
+{
+	int ndim = (len + DIM - 1) / DIM;
+	gpu_vtot<cuDoubleComplex><<< ndim, DIM>>> ( psi, vtot, len);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
 void cuda_vtot( double* psi, double * vtot, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
-	gpu_vtot<<< ndim, DIM>>> ( psi, vtot, len);
+	gpu_vtot<double><<< ndim, DIM>>> ( psi, vtot, len);
 #ifdef SYNC 
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());
@@ -569,6 +821,25 @@ void cuda_memory(void)
 	printf("total memory is: %zu MB\n", total_mem/1000000);
 	fflush(stdout);
 } 
+void cuda_calculate_nonlocal( cuDoubleComplex* psiUpdate, cuDoubleComplex* psi, double * NL, int * index, int * parts,  double * atom_weight, cuDoubleComplex* weight, int blocks)
+{
+	// two steps. 
+	// 1. calculate the weight.
+	gpu_cal_weight<DIM><<<blocks, DIM, DIM * sizeof(double) >>>( psi, NL, parts, index, weight);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+
+	// 2. update the psiUpdate.
+	gpu_update_psiUpdate<<<blocks, LDIM>>>( psiUpdate, NL, parts, index, atom_weight, weight);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
 
 void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int * index, int * parts,  double * atom_weight, double * weight, int blocks)
 {
@@ -600,10 +871,31 @@ void cuda_teter( cuDoubleComplex* psi, double * vtot, int len)
 #endif
 }
 
+void cuda_mapping_from_buf( cuDoubleComplex * psi, cuDoubleComplex * buf, int * index, int len )
+{
+	int ndim = (len + DIM - 1) / DIM;
+	gpu_mapping_from_buf<cuDoubleComplex><<< ndim, DIM>>>( psi, buf, index, len);	
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
 void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len )
 {
 	int ndim = (len + DIM - 1) / DIM;
-	gpu_mapping_from_buf<<< ndim, DIM>>>( psi, buf, index, len);	
+	gpu_mapping_from_buf<double><<< ndim, DIM>>>( psi, buf, index, len);	
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+void cuda_mapping_to_buf( cuDoubleComplex * buf, cuDoubleComplex * psi, int * index, int len )
+{
+	int ndim = (len + DIM - 1) / DIM;
+	gpu_mapping_to_buf<cuDoubleComplex><<< ndim, DIM>>>( buf, psi, index, len);	
 #ifdef SYNC 
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());
@@ -614,17 +906,39 @@ void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len )
 void cuda_mapping_to_buf( double * buf, double * psi, int * index, int len )
 {
 	int ndim = (len + DIM - 1) / DIM;
-	gpu_mapping_to_buf<<< ndim, DIM>>>( buf, psi, index, len);	
+	gpu_mapping_to_buf<double><<< ndim, DIM>>>( buf, psi, index, len);	
 #ifdef SYNC 
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
+void cuda_calculate_Energy( cuDoubleComplex * psi, double * energy, int nbands, int bandLen)
+{
+	// calculate  nbands psi Energy. 
+	gpu_energy<DIM><<<nbands, DIM, DIM*sizeof(double)>>>( psi, energy, bandLen);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
 void cuda_calculate_Energy( double * psi, double * energy, int nbands, int bandLen)
 {
 	// calculate  nbands psi Energy. 
 	gpu_energy<DIM><<<nbands, DIM, DIM*sizeof(double)>>>( psi, energy, bandLen);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+void cuda_batch_Scal( cuDoubleComplex * psi, double* vec, int nband, int bandLen)
+{
+	int ndim = ( nband * bandLen + DIM - 1) / DIM;
+	int len = nband * bandLen;
+	gpu_batch_Scal<<< ndim, DIM >>> ( psi, vec, bandLen, len);
 #ifdef SYNC 
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());
@@ -643,6 +957,20 @@ void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen)
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
+void cu_X_Equal_AX_minus_X_eigVal( cuDoubleComplex* Xtemp, cuDoubleComplex * AX, cuDoubleComplex * X, double * eigen, int nbands, int bandLen)
+{
+	int ndim = ( nbands * bandLen + DIM - 1 ) / DIM;
+	int len = nbands * bandLen;
+	gpu_X_Equal_AX_minus_X_eigVal<<< ndim, DIM >>>( Xtemp, AX, X, eigen, len, bandLen );
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
 void cu_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, double * eigen, int nbands, int bandLen)
 {
 	int ndim = ( nbands * bandLen + DIM - 1 ) / DIM;
@@ -682,6 +1010,7 @@ void cuda_clean_vtot()
 	cuda_free(dev_NLvecFine);
 	cuda_free(dev_atom_weight);
 	cuda_free(dev_temp_weight);
+	cuda_free(dev_temp_weight_complex);
 	cuda_free(dev_TeterPrecond);
 }
 void cuda_set_vtot_flag()

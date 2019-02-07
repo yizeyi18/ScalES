@@ -100,6 +100,13 @@ void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, i
  double *A4, double *B4, double *C4, int x4, int y4, int z4,
  double *A5, double *B5, double *C5, int x5, int y5, int z5,
  double *A6, double *B6, double *C6, int x6, int y6, int z6);
+void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, int n, int k, const cuDoubleComplex *alpha, cuDoubleComplex *A, int lda, cuDoubleComplex *B, int ldb, const cuDoubleComplex *beta, cuDoubleComplex *C, int ldc, int batchCount, int x, int y, int z, 
+ cuDoubleComplex *A2, cuDoubleComplex *B2, cuDoubleComplex *C2, int x2, int y2, int z2,
+ cuDoubleComplex *A3, cuDoubleComplex *B3, cuDoubleComplex *C3, int x3, int y3, int z3,
+ cuDoubleComplex *A4, cuDoubleComplex *B4, cuDoubleComplex *C4, int x4, int y4, int z4,
+ cuDoubleComplex *A5, cuDoubleComplex *B5, cuDoubleComplex *C5, int x5, int y5, int z5,
+ cuDoubleComplex *A6, cuDoubleComplex *B6, cuDoubleComplex *C6, int x6, int y6, int z6);
+
 
  void Scal (int n, const float *alpha, float *x, int incx);
  void Scal (int n, const double *alpha, double *x, int incx);

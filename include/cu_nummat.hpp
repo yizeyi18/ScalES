@@ -111,7 +111,7 @@ typedef cuNumMat<bool>     cuBolNumMat;
 typedef cuNumMat<Int>      cuIntNumMat;
 typedef cuNumMat<Real>     cuDblNumMat;
 typedef cuNumMat<float>    cuFltNumMat;
-typedef cuNumMat<Complex>  cuCpxNumMat;
+typedef cuNumMat<cuDoubleComplex>  cuCpxNumMat;
 
 // Utilities
 /*

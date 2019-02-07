@@ -55,6 +55,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 #include <cfloat>
 #include <complex>
+#ifdef CPX 
+#include <cufft.h>
+#endif
 #include <string>
 #include <cstring>
 
@@ -135,7 +138,11 @@ namespace dgdft{
 
 typedef    int                   Int;
 typedef    double                Real;
+#ifdef CPX
 typedef    std::complex<double>  Complex; 
+#else
+typedef    cuDoubleComplex Complex; 
+#endif
 
 // IO
 extern  std::ofstream  statusOFS;

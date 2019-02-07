@@ -66,8 +66,10 @@ void Init(void);
 void Destroy(void);
 
 void Potrf( char uplo, Int n, const double * A, Int lda );
+void Potrf( char uplo, Int n, const cuDoubleComplex* A, Int lda );
 
 void Syevd( char jobz, char uplo, Int n, double *A, Int lda, double *eigs);
+void Syevd( char jobz, char uplo, Int n, cuDoubleComplex *A, Int lda, double *eigs);
 
 void Lacpy(char uplo, Int m, Int n, const double * A , Int lda, double *B, Int ldb);
 
