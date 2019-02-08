@@ -141,6 +141,7 @@ void cuda_interpolate_wf_F2C( cuDoubleComplex * fine_psi, cuDoubleComplex * coar
 void cuda_laplacian( cuDoubleComplex* psi, double * gkk, int len);
 void cuda_vtot( double* psi, double * vtot, int len);
 void cuda_vtot( cuDoubleComplex* psi, double * vtot, int len);
+void cuda_vtot( cuDoubleComplex* psi, cuDoubleComplex* vtot, int len);
 void cuda_memory(void);
 void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int * index, int * parts,  double * atom_weight, double * weight, int blocks);
 void cuda_calculate_nonlocal( cuDoubleComplex* psiUpdate, cuDoubleComplex* psi, double * NL, int * index, int * parts,  double * atom_weight, cuDoubleComplex* weight, int blocks);
@@ -160,10 +161,12 @@ void cuda_clean_vtot();
 void cuda_set_vtot_flag();
 void cuda_DMatrix_Add( double * A , double * B, int m, int n);
 void cuda_Axpyz( double * X, double alpha, double * Y, double beta, double * Z, int length);
+void cuda_Axpyz( cuDoubleComplex* X, double alpha, cuDoubleComplex* Y, double beta, cuDoubleComplex* Z, int length);
 void cuda_cal_recvk( int * recvk, int * recvdisp, int width, int heightLocal, int mpisize);
 void cuda_cal_sendk( int * sendk, int * senddispl, int widthLocal, int height, int heightBlockSize, int mpisize);
 void cuda_hadamard_product( double * in1, double * in2, double * out, int length);
 void cuda_set_vector( double * out, double *in, int length);
+void cuda_set_vector( cuDoubleComplex* out, cuDoubleComplex *in, int length);
 void cuda_sync();
 //}
 #endif

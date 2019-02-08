@@ -190,6 +190,14 @@ public:
       const std::vector<PseudoPot>& pseudo, cuNumTns<cuDoubleComplex>& a3 );
 
   void AddTeterPrecond( Fourier* fftPtr, cuNumTns<cuDoubleComplex>& a3 );
+  void AddMultSpinorEXX ( Fourier& fft,
+      const NumTns<Complex>& phi,
+      const DblNumVec& exxgkk,
+      Real  exxFraction,
+      Real  numSpin,
+      const DblNumVec& occupationRate,
+      cuNumTns<cuDoubleComplex>& a3 );
+
 #endif
 
   void AddMultSpinorEXX ( Fourier& fft,

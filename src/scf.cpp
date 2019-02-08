@@ -2446,7 +2446,6 @@ SCF::InnerSolve	( Int iter )
 #ifdef _COMPLEX_
     if( esdfParam.PWSolver == "PPCG" || esdfParam.PWSolver == "PPCGScaLAPACK" ){
 #ifdef GPU
-      std::cout << " start to do the complex gpu part ..... " << std::endl;
       eigSolPtr_->PPCGSolveComplex(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow , iter );    
 #else
       eigSolPtr_->PPCGSolveComplex(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    

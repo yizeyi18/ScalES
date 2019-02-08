@@ -3238,6 +3238,13 @@ KohnSham::MultSpinor    ( Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& f
   }
 #endif
 
+  // a temporary fix for the HSE calculation. can not use the ACE algorithm.
+  if( isHybrid_ && isEXXActive_ ) {
+      statusOFS << " AddMultSpinorEXX...complex.GPU ... " << std::endl << std::flush;
+      psi.AddMultSpinorEXX( fft, phiEXX_, exxgkk_,
+          exxFraction_,  numSpin_, occupationRate_, a3 );
+  }
+
 #if 0 
   // Apply filter on the wavefunctions before exit, if required
   if((apply_filter_ == 1))
@@ -4228,6 +4235,8 @@ void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
 void
 KohnSham::SetPhiEXX    (const Spinor& psi, Fourier& fft)
 {
+
+  statusOFS << std::endl <<" setPhiEXX " << std::endl << std::flush;
   // FIXME collect Psi into a globally shared array in the MPI context.
   const NumTns<Complex>& wavefun = psi.Wavefun();
   Int ntot = wavefun.m();

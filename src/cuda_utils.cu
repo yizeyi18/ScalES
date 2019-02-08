@@ -416,6 +416,19 @@ __global__ void gpu_teter( cuDoubleComplex * psi, double * teter, int len)
 	}
 }
 template<class T>
+__global__ void gpu_vtot( T* psi, cuDoubleComplex * gkk, int len)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	cuDoubleComplex vtot;
+	if(tid < len)
+	{
+		vtot = gkk[tid];
+		vtot.y = - vtot.y;
+		psi[tid] = psi[tid] * vtot;
+	}
+}
+
+template<class T>
 __global__ void gpu_vtot( T* psi, double * gkk, int len)
 {
 	int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -692,7 +705,6 @@ void cuda_free( void *ptr)
 void cuda_memcpy_CPU2GPU( void *gpu, void * cpu, size_t size )
 {
 	CUDA_CALL( cudaMemcpy(gpu, cpu, size, cudaMemcpyHostToDevice ); );
-	//std::flush(std::cout);
 }
 
 void cuda_memcpy_GPU2CPU( void *cpu, void * gpu, size_t size )
@@ -789,6 +801,17 @@ void cuda_laplacian( cuDoubleComplex* psi, double * gkk, int len)
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
+void cuda_vtot( cuDoubleComplex * psi, cuDoubleComplex* vtot, int len)
+{
+	int ndim = (len + DIM - 1) / DIM;
+	gpu_vtot<cuDoubleComplex><<< ndim, DIM>>> ( psi, vtot, len);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
 void cuda_vtot( cuDoubleComplex * psi, double * vtot, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
@@ -1048,6 +1071,27 @@ __global__ void gpu_alpha_X_plus_beta_Y_multiply_Z( double * X, double alpha, do
 		X[tid] = alpha * X[tid] + beta * Y[tid] * Z[tid];
 	}
 }
+
+__global__ void gpu_alpha_X_plus_beta_Y_multiply_Z( cuDoubleComplex * X, double alpha, cuDoubleComplex * Y, double beta, cuDoubleComplex* Z, int length)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if(tid < length)
+	{
+		X[tid] = alpha * X[tid] + beta * Y[tid] * Z[tid];
+	}
+}
+void cuda_Axpyz( cuDoubleComplex * X, double alpha, cuDoubleComplex * Y, double beta, cuDoubleComplex * Z, int length)
+{
+	int ndim = ( length + DIM - 1) / DIM ;
+	gpu_alpha_X_plus_beta_Y_multiply_Z <<< ndim, DIM >>> (X, alpha, Y, beta, Z, length);
+
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
 void cuda_Axpyz( double * X, double alpha, double * Y, double beta, double * Z, int length)
 {
 	int ndim = ( length + DIM - 1) / DIM ;
@@ -1149,6 +1193,16 @@ __global__ void gpu_set_vector( T* out, T* in , int length)
 	{
 		out[tid] = in[tid];
 	}
+}
+void cuda_set_vector( cuDoubleComplex* out, cuDoubleComplex *in, int length)
+{
+	int dim = (length + LEN - 1) / LEN;
+	gpu_set_vector< cuDoubleComplex> <<< dim, LEN >>>( out, in, length);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
 }
 
 void cuda_set_vector( double * out, double *in, int length)
