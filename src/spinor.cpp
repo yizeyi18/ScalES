@@ -50,12 +50,15 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "lapack.hpp"
 #include  "scalapack.hpp"
 #include  "mpi_interf.hpp"
-
 namespace dgdft{
 
 using namespace dgdft::scalapack;
 
 using namespace dgdft::PseudoComponent;
+
+#ifdef GPU
+using namespace dgdft::esdf;
+#endif
 
 Spinor::Spinor () { }         
 Spinor::~Spinor    () {}
@@ -274,7 +277,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, cuNumTns<cuDoubleComplex>& a3)
      cuda_memcpy_CPU2GPU(dev_TeterPrecond, fftPtr->TeterPrecond.Data(), sizeof(Real)*numFFTGrid);
      //cuda_memcpy_CPU2GPU(cu_TeterPrecond.Data(), fftPtr->TeterPrecondR2C.Data(), sizeof(Real)*ntothalf);
      teter_gpu_flag = true;
-     std::cout << " malloc and memcpy the teter precondiioner to the GPU .. " << std::endl;
+     //std::cout << " malloc and memcpy the teter precondiioner to the GPU .. " << std::endl;
   } 
 
   for (Int k=0; k<nocc; k++) {
@@ -741,12 +744,17 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
   Int ntotFine = domain_.NumGridTotalFine();
   Int ntotR2C = fft.numGridTotalR2C;
   Int ntotR2CFine = fft.numGridTotalR2CFine;
-/*
-  Int ncom = cu_wavefun_.n();
-  Int numStateLocal = cu_wavefun_.p();
-*/
-  Int ncom = wavefun_.n();
-  Int numStateLocal = wavefun_.p();
+  Int ncom, numStateLocal;
+
+  if( esdfParam.isHybridACE ) {
+    ncom = wavefun_.n();
+    numStateLocal = wavefun_.p();
+  }  
+  else {
+    ncom = cu_wavefun_.n();
+    numStateLocal = cu_wavefun_.p();
+  }
+
   Int numStateTotal = numStateTotal_;
 
   Int ncomPhi = phi.n();
@@ -774,9 +782,15 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
   Int numStateLocalTemp;
 
   //MPI_Barrier(domain_.comm);
-  statusOFS << " wavefun_.Data " <<  wavefun_.Data() << std::endl << std::flush;
-  cuda_memcpy_CPU2GPU(cu_wave.Data(), wavefun_.Data(), sizeof(cuDoubleComplex)* numStateLocal * ntot);
-  //cuda_memcpy_GPU2GPU(cu_wave.Data(), cu_wavefun_.Data(), sizeof(cuDoubleComplex) * numStateLocal * ntot);
+  //statusOFS << " wavefun_.Data " <<  wavefun_.Data() << std::endl << std::flush;
+  if( esdfParam.isHybridACE ) {
+    cuda_memcpy_CPU2GPU(cu_wave.Data(), wavefun_.Data(), sizeof(cuDoubleComplex)* numStateLocal * ntot);
+    statusOFS << " Complex GPU ACE Operator calculation .. psi.AddMultSpinorEXX "  << std::endl;
+  }
+  else {
+    cuda_memcpy_GPU2GPU(cu_wave.Data(), cu_wavefun_.Data(), sizeof(cuDoubleComplex) * numStateLocal * ntot);
+    statusOFS << " Complex GPU HSE calculation .. psi.AddMultSpinorEXX "  << std::endl;
+  }
 
   for( Int iproc = 0; iproc < mpisize; iproc++ ){
 

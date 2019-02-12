@@ -3245,9 +3245,8 @@ KohnSham::MultSpinor    ( Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& f
 #endif
 
   // a temporary fix for the HSE calculation. can not use the ACE algorithm.
-  if(0)
+  if( !esdfParam.isHybridACE )
   if( isHybrid_ && isEXXActive_ ) {
-      statusOFS << " AddMultSpinorEXX...complex.GPU ... " << std::endl << std::flush;
       psi.AddMultSpinorEXX( fft, phiEXX_, exxgkk_,
           exxFraction_,  numSpin_, occupationRate_, a3 );
   }
@@ -4655,11 +4654,6 @@ KohnSham::CalculateVexxACEGPU1 ( Spinor& psi, Fourier& fft )
     
     //SetValue( M, Z_ZERO );
     MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal*2, MPI_DOUBLE, MPI_SUM, domain_.comm );
-
-
-   if(mpirank == 0)
-     for ( int i = 0; i < numStateTotal; i ++)
-        std::cout << "MM.Data[" << i << "] " << *( M.Data() + i*numStateTotal + i) << std::endl;
 
     /*
     if ( mpirank == 0) {
