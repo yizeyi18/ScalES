@@ -741,8 +741,12 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
   Int ntotFine = domain_.NumGridTotalFine();
   Int ntotR2C = fft.numGridTotalR2C;
   Int ntotR2CFine = fft.numGridTotalR2CFine;
+/*
   Int ncom = cu_wavefun_.n();
   Int numStateLocal = cu_wavefun_.p();
+*/
+  Int ncom = wavefun_.n();
+  Int numStateLocal = wavefun_.p();
   Int numStateTotal = numStateTotal_;
 
   Int ncomPhi = phi.n();
@@ -771,8 +775,8 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
   //MPI_Barrier(domain_.comm);
   statusOFS << " wavefun_.Data " <<  wavefun_.Data() << std::endl << std::flush;
-  //cuda_memcpy_CPU2GPU(cu_wave.Data(), wavefun_.Data(), sizeof(cuDoubleComplex)* numStateLocal * ntot);
-  cuda_memcpy_GPU2GPU(cu_wave.Data(), cu_wavefun_.Data(), sizeof(cuDoubleComplex) * numStateLocal * ntot);
+  cuda_memcpy_CPU2GPU(cu_wave.Data(), wavefun_.Data(), sizeof(cuDoubleComplex)* numStateLocal * ntot);
+  //cuda_memcpy_GPU2GPU(cu_wave.Data(), cu_wavefun_.Data(), sizeof(cuDoubleComplex) * numStateLocal * ntot);
 
   for( Int iproc = 0; iproc < mpisize; iproc++ ){
 

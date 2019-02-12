@@ -226,6 +226,7 @@ public:
 #ifdef _COMPLEX_
 #ifdef GPU
   virtual void MultSpinor(Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& fft) = 0;
+  virtual void ACEOperator( cuCpxNumMat& cu_psi, Fourier& fft, cuCpxNumMat& cu_Hpsi) = 0;
 #endif
   virtual void MultSpinor(Spinor& psi, NumTns<Complex>& a3, Fourier& fft) = 0;
 #else
@@ -254,6 +255,9 @@ public:
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
 #else
 
+#ifdef GPU
+  virtual void CalculateVexxACEGPU1( Spinor& psi, Fourier& fft ) = 0;
+#endif 
   virtual void CalculateVexxACE( Spinor& psi, Fourier& fft ) = 0;
   virtual NumTns<Complex>& PhiEXX() = 0;
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
@@ -351,6 +355,9 @@ private:
 #endif
 #ifdef _COMPLEX_
   CpxNumMat                   vexxProj_; 
+#ifdef GPU
+  cuCpxNumMat                 cu_vexxProj_; 
+#endif
 #else
   DblNumMat                   vexxProj_; 
 #ifdef GPU
@@ -400,6 +407,7 @@ public:
 #ifdef _COMPLEX_
 #ifdef GPU
   virtual void MultSpinor(Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& fft);
+  virtual void ACEOperator( cuCpxNumMat& cu_psi, Fourier& fft, cuCpxNumMat& cu_Hpsi) ;
 #endif
   virtual void MultSpinor(Spinor& psi, NumTns<Complex>& a3, Fourier& fft);
 #else
@@ -440,6 +448,9 @@ public:
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
 #else
 
+#ifdef GPU
+  virtual void CalculateVexxACEGPU1( Spinor& psi, Fourier& fft );
+#endif
   virtual void CalculateVexxACE( Spinor& psi, Fourier& fft );
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
   virtual NumTns<Complex>& PhiEXX() {return phiEXX_;}

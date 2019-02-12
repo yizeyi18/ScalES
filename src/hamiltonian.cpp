@@ -47,6 +47,12 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "blas.hpp"
 #include  "lapack.hpp"
 
+#ifdef USE_MAGMA
+#include "magma.h"
+#else
+#include "cuSolver.hpp"
+#endif
+
 namespace dgdft{
 
 using namespace dgdft::PseudoComponent;
@@ -3239,6 +3245,7 @@ KohnSham::MultSpinor    ( Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& f
 #endif
 
   // a temporary fix for the HSE calculation. can not use the ACE algorithm.
+  if(0)
   if( isHybrid_ && isEXXActive_ ) {
       statusOFS << " AddMultSpinorEXX...complex.GPU ... " << std::endl << std::flush;
       psi.AddMultSpinorEXX( fft, phiEXX_, exxgkk_,
@@ -3278,7 +3285,61 @@ KohnSham::MultSpinor    ( Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& f
 
 
   return ;
-}         // -----  end of method KohnSham::MultSpinor  ----- 
+}         // -----  end of method KohnSham::MultSpinor  ----- z
+
+void
+KohnSham::ACEOperator ( cuCpxNumMat& cu_psi, Fourier& fft, cuCpxNumMat& cu_Hpsi)
+{
+
+     // 1. the projector is in a Row Parallel fashion
+     // 2. the projector is in GPU.
+     // 3. the AX (H*psi) is in the GPU
+
+     // in here we perform: 
+     // M = W'*AX 
+     // reduece M
+     // AX = AX + W*M 
+  if( isHybrid_ && isEXXActive_ ){
+
+    if( esdfParam.isHybridACE ){ 
+    int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+    int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+     Int ntot      = fft.domain.NumGridTotal();
+     Int ntotFine  = fft.domain.NumGridTotalFine();
+     Int numStateTotal = cu_psi.n();
+
+     Int ntotBlocksize = ntot / mpisize;
+     Int ntotLocal = ntotBlocksize;
+     if(mpirank < (ntot % mpisize)){
+       ntotLocal = ntotBlocksize + 1;
+     }
+
+     cuDoubleComplex one; one.x = 1.0; one.y = 0.0;
+     cuDoubleComplex zero; zero.x = 0.0; zero.y = 0.0;
+     cuDoubleComplex minus_one; minus_one.x = -1.0; minus_one.y = 0.0;
+    
+     CpxNumMat MTemp( numStateTotal, numStateTotal );
+     cuCpxNumMat cu_MTemp( numStateTotal, numStateTotal );
+
+     cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, numStateTotal, numStateTotal, ntotLocal,
+                   &one, cu_vexxProj_.Data(), ntotLocal, 
+                   cu_psi.Data(), ntotLocal, &zero,
+                   cu_MTemp.Data(), numStateTotal );
+     cuda_memcpy_GPU2CPU( MTemp.Data(), cu_MTemp.Data(), numStateTotal*numStateTotal*sizeof(cuDoubleComplex) );
+
+     CpxNumMat M(numStateTotal, numStateTotal);
+
+     MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE_COMPLEX, MPI_SUM, domain_.comm );
+
+     cuda_memcpy_CPU2GPU(  cu_MTemp.Data(), M.Data(), numStateTotal*numStateTotal*sizeof(cuDoubleComplex) );
+     cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numStateTotal, numStateTotal, 
+                   &minus_one, cu_vexxProj_.Data(), ntotLocal, 
+                   cu_MTemp.Data(), numStateTotal, &one, 
+                   cu_Hpsi.Data(), ntotLocal );
+    }
+  }
+}
 
 #endif
 void
@@ -4236,12 +4297,12 @@ void
 KohnSham::SetPhiEXX    (const Spinor& psi, Fourier& fft)
 {
 
-  statusOFS << std::endl <<" setPhiEXX " << std::endl << std::flush;
   // FIXME collect Psi into a globally shared array in the MPI context.
   const NumTns<Complex>& wavefun = psi.Wavefun();
   Int ntot = wavefun.m();
   Int ncom = wavefun.n();
   Int numStateLocal = wavefun.p();
+  statusOFS << std::endl <<" setPhiEXX complex" << ntot << " ncom " << ncom << std::endl << std::flush;
   Int numStateTotal = this->NumStateTotal();
   Int ntotFine  = fft.domain.NumGridTotalFine();
   Real vol = fft.domain.Volume();
@@ -4437,6 +4498,238 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
   return fockEnergy;
 }         // -----  end of method KohnSham::CalculateEXXEnergy  ----- 
 
+#ifdef GPU
+void
+KohnSham::CalculateVexxACEGPU1 ( Spinor& psi, Fourier& fft )
+{
+  // This assumes SetPhiEXX has been called so that phiEXX and psi
+  // contain the same information. 
+
+  // Since this is a projector, it should be done on the COARSE grid,
+  // i.e. to the wavefunction directly
+
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  // Only works for single processor
+  Int ntot      = fft.domain.NumGridTotal();
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Int numStateTotal = psi.NumStateTotal();
+  Int numStateLocal = psi.NumState();
+  cuNumTns<cuDoubleComplex>  cu_vexxPsi( ntot, 1, numStateLocal );
+  NumTns<Complex>  vexxPsi( ntot, 1, numStateLocal );
+
+  // VexxPsi = V_{exx}*Phi.
+  // SetValue( vexxPsi, Z_ZERO );
+  cuDoubleComplex one; one.x = 1.0; one.y = 0.0;
+  cuDoubleComplex zero; zero.x = 0.0; zero.y = 0.0;
+  cuDoubleComplex minus_one; minus_one.x = -1.0; minus_one.y = 0.0;
+
+  statusOFS << " cudaSetValue CalculateVexxACEGPU1 " << std::endl << std::flush;
+
+  cuda_setValue( cu_vexxPsi.Data(), zero, ntot*numStateLocal);
+
+  psi.AddMultSpinorEXX( fft, phiEXX_, exxgkk_,
+      exxFraction_,  numSpin_, occupationRate_, cu_vexxPsi );
+
+  // Implementation based on SVD
+  CpxNumMat  M(numStateTotal, numStateTotal);
+
+  /*
+  if(0){
+    // FIXME
+    Real SVDTolerance = 1e-4;
+    // M = Phi'*vexxPsi
+    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+        1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
+        0.0, M.Data(), numStateTotal );
+
+    DblNumMat  U( numStateTotal, numStateTotal );
+    DblNumMat VT( numStateTotal, numStateTotal );
+    DblNumVec  S( numStateTotal );
+    SetValue( S, 0.0 );
+
+    lapack::QRSVD( numStateTotal, numStateTotal, M.Data(), numStateTotal,
+        S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
+
+
+    for( Int g = 0; g < numStateTotal; g++ ){
+      S[g] = std::sqrt( S[g] );
+    }
+
+    Int rankM = 0;
+    for( Int g = 0; g < numStateTotal; g++ ){
+      if( S[g] / S[0] > SVDTolerance ){
+        rankM++;
+      }
+    }
+    statusOFS << "rank of Phi'*VPhi matrix = " << rankM << std::endl;
+    for( Int g = 0; g < rankM; g++ ){
+      blas::Scal( numStateTotal, 1.0 / S[g], U.VecData(g), 1 );
+    }
+
+    vexxProj_.Resize( ntot, rankM );
+    blas::Gemm( 'N', 'N', ntot, rankM, numStateTotal, 1.0, 
+        vexxPsi.Data(), ntot, U.Data(), numStateTotal, 0.0,
+        vexxProj_.Data(), ntot );
+  }
+
+  // Implementation based on Cholesky
+  if(0){
+    // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
+    // semi-definite matrix.
+    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+        -1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
+        0.0, M.Data(), numStateTotal );
+
+    lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+
+    blas::Trsm( 'R', 'L', 'T', 'N', ntot, numStateTotal, 1.0, 
+        M.Data(), numStateTotal, vexxPsi.Data(), ntot );
+
+    vexxProj_.Resize( ntot, numStateTotal );
+    blas::Copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
+  }
+  */
+
+  if(1){ //For MPI
+
+    // Convert the column partition to row partition
+    Int numStateBlocksize = numStateTotal / mpisize;
+    Int ntotBlocksize = ntot / mpisize;
+
+    Int numStateLocal = numStateBlocksize;
+    Int ntotLocal = ntotBlocksize;
+
+    if(mpirank < (numStateTotal % mpisize)){
+      numStateLocal = numStateBlocksize + 1;
+    }
+
+    if(mpirank < (ntot % mpisize)){
+      ntotLocal = ntotBlocksize + 1;
+    }
+
+   /*
+    CpxNumMat localPsiCol( ntot, numStateLocal );
+    SetValue( localPsiCol, Z_ZERO );
+
+    CpxNumMat localVexxPsiCol( ntot, numStateLocal );
+    SetValue( localVexxPsiCol, Z_ZERO );
+
+    CpxNumMat localPsiRow( ntotLocal, numStateTotal );
+    SetValue( localPsiRow, Z_ZERO );
+
+    CpxNumMat localVexxPsiRow( ntotLocal, numStateTotal );
+    SetValue( localVexxPsiRow, Z_ZERO );
+*/
+
+    CpxNumMat localPsiRow( ntotLocal, numStateTotal );
+    CpxNumMat localVexxPsiRow( ntotLocal, numStateTotal );
+    CpxNumMat localPsiCol( ntot, numStateLocal );
+
+    //lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, localPsiCol.Data(), ntot );
+    //lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
+
+    // Initialize
+    cuCpxNumMat cu_temp( ntot, numStateLocal, false, cu_vexxPsi.Data() );
+    cu_vexxProj_.Resize( ntotLocal, numStateTotal );
+    GPU_AlltoallForward (cu_temp, cu_vexxProj_, domain_.comm);
+
+    cuda_memcpy_CPU2GPU( cu_temp.Data(), psi.Wavefun().Data(), ntot*numStateLocal*sizeof(cuDoubleComplex));
+    cuCpxNumMat cu_localPsiRow( ntotLocal, numStateTotal);
+    GPU_AlltoallForward (cu_temp, cu_localPsiRow, domain_.comm);
+
+    CpxNumMat MTemp( numStateTotal, numStateTotal );
+    cuCpxNumMat cu_MTemp( numStateTotal, numStateTotal );
+//    AlltoallForward (localPsiCol, localPsiRow, domain_.comm);
+//    AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
+
+    cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, numStateTotal, numStateTotal, ntotLocal,
+                  &minus_one, (cuDoubleComplex*) cu_localPsiRow.Data(), ntotLocal, 
+                  (cuDoubleComplex*) cu_vexxProj_.Data(), ntotLocal, &zero,
+                  (cuDoubleComplex*) cu_MTemp.Data(), numStateTotal );
+
+    cuda_memcpy_GPU2CPU( MTemp.Data(), cu_MTemp.Data(), sizeof(cuDoubleComplex) * numStateTotal * numStateTotal);
+    //cu_MTemp.CopyTo(MTemp);
+    
+    //SetValue( M, Z_ZERO );
+    MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal*2, MPI_DOUBLE, MPI_SUM, domain_.comm );
+
+
+   if(mpirank == 0)
+     for ( int i = 0; i < numStateTotal; i ++)
+        std::cout << "MM.Data[" << i << "] " << *( M.Data() + i*numStateTotal + i) << std::endl;
+
+    /*
+    if ( mpirank == 0) {
+      lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+    }
+
+    MPI_Bcast(M.Data(), 2*numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_.comm);
+
+    blas::Trsm( 'R', 'L', 'C', 'N', ntotLocal, numStateTotal, 1.0, 
+        M.Data(), numStateTotal, localVexxPsiRow.Data(), ntotLocal );
+
+    vexxProj_.Resize( ntot, numStateLocal );
+
+    AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
+    */
+    cuda_memcpy_CPU2GPU( cu_MTemp.Data(), M.Data(), sizeof(cuDoubleComplex) * numStateTotal * numStateTotal);
+#ifdef USE_MAGMA
+    MAGMA::Potrf('L', numStateTotal, cu_MTemp.Data(), numStateTotal);
+#else
+    cuSolver::Potrf('L', numStateTotal, cu_MTemp.Data(), numStateTotal);
+#endif
+    cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_C, CUBLAS_DIAG_NON_UNIT, 
+                  ntotLocal, numStateTotal, &one, (cuDoubleComplex*) cu_MTemp.Data(), numStateTotal, (cuDoubleComplex*)cu_vexxProj_.Data(),
+                  ntotLocal);
+    //cu_vexxProj_.CopyTo(localVexxPsiRow);
+    vexxProj_.Resize( ntot, numStateLocal );
+    cu_localPsiRow.Resize( ntot, numStateLocal ); // use this as a column distribution data.
+
+    //AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
+    GPU_AlltoallBackward (cu_vexxProj_, cu_localPsiRow, domain_.comm);
+
+    //cu_localPsiRow.CopyTo( vexxProj_ );
+    cuda_memcpy_GPU2CPU( vexxProj_.Data(), cu_localPsiRow.Data(), sizeof(cuDoubleComplex) * ntot * numStateLocal);
+  } //if(1)
+
+  // Sanity check. For debugging only
+  //  if(0){
+  //  // Make sure U and VT are the same. Should be an identity matrix
+  //    blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, numStateTotal, 1.0, 
+  //        VT.Data(), numStateTotal, U.Data(), numStateTotal, 0.0,
+  //        M.Data(), numStateTotal );
+  //    statusOFS << "M = " << M << std::endl;
+  //
+  //    NumTns<Real> vpsit = psi.Wavefun();
+  //    Int numProj = rankM;
+  //    DblNumMat Mt(numProj, numStateTotal);
+  //    
+  //    blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+  //        vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
+  //        0.0, Mt.Data(), Mt.m() );
+  //    // Minus sign comes from that all eigenvalues are negative
+  //    blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+  //        vexxProj_.Data(), ntot, Mt.Data(), numProj,
+  //        0.0, vpsit.Data(), ntot );
+  //
+  //    for( Int k = 0; k < numStateTotal; k++ ){
+  //      Real norm = 0.0;
+  //      for( Int ir = 0; ir < ntot; ir++ ){
+  //        norm = norm + std::pow(vexxPsi(ir,0,k) - vpsit(ir,0,k), 2.0);
+  //      }
+  //      statusOFS << "Diff of vexxPsi " << std::sqrt(norm) << std::endl;
+  //    }
+  //  }
+
+
+  return ;
+}         // -----  end of method KohnSham::CalculateVexxACEGPU1   ----- 
+
+
+#endif
 void
 KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 {
@@ -4949,7 +5242,11 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
     */
 
     cu_MTemp.CopyFrom(M);
+#ifdef USE_MAGMA
     MAGMA::Potrf('L', numStateTotal, cu_MTemp.Data(), numStateTotal);
+#else
+    cuSolver::Potrf('L', numStateTotal, cu_MTemp.Data(), numStateTotal);
+#endif
     cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, 
                   ntotLocal, numStateTotal, &one, cu_MTemp.Data(), numStateTotal, cu_vexxProj_.Data(),
                   ntotLocal);
@@ -5292,7 +5589,11 @@ KohnSham::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
     cuDblNumMat cu_M( numStateTotal, numStateTotal );
     cu_M.CopyFrom(M);
 
+#ifdef USE_MAGMA
     MAGMA::Potrf('L', numStateTotal, cu_M.Data(), numStateTotal);
+#else
+    cuSolver::Potrf('L', numStateTotal, cu_MTemp.Data(), numStateTotal);
+#endif
     cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_LOWER, CUBLAS_OP_T, CUBLAS_DIAG_NON_UNIT, 
                   ntotLocal, numStateTotal, &one, cu_M.Data(), numStateTotal, cu_vexxProj_.Data(),
                   ntotLocal);

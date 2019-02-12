@@ -53,7 +53,11 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "utility.hpp"
 #include  "blas.hpp"
 #ifdef GPU
+#ifdef USE_MAGMA
 #include  "magma.hpp"
+#else
+#include "cuSolver.hpp"
+#endif
 #include  "cublas.hpp"
 #include  "cuda_utils.h"
 #include  "cu_nummat_impl.hpp"
@@ -508,7 +512,11 @@ EigenSolver::PPCGSolveComplex(
     GetTime( timeSta );
     //cu_XTX.CopyFrom( XTX );
     cuda_memcpy_CPU2GPU( cu_XTX.Data(), XTX.Data(), sizeof(cuDoubleComplex)*width*width);
+#ifdef USE_MAGMA
     MAGMA::Potrf( 'U', width,(cuDoubleComplex*) cu_XTX.Data(), width );
+#else
+    cuSolver::Potrf( 'U', width, cu_XTX.Data(), width );
+#endif
     //cuda_memcpy_GPU2CPU( XTX.Data(), cu_XTX.Data(), sizeof(cuDoubleComplex)*width*width);
 
     //cu_XTX.CopyTo( XTX );
@@ -611,7 +619,7 @@ EigenSolver::PPCGSolveComplex(
   cuda_mapping_from_buf( (cuDoubleComplex*) cu_AX.Data(),  (cuDoubleComplex*) cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
 
   // perform the ACE operator 
-  //hamPtr_->ACEOperator( cu_X, *fftPtr_, cu_AX);
+  hamPtr_->ACEOperator( cu_X, *fftPtr_, cu_AX);
 
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
@@ -800,7 +808,7 @@ EigenSolver::PPCGSolveComplex(
     cuda_mapping_from_buf( (cuDoubleComplex*) cu_AW.Data(),  (cuDoubleComplex*) cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
 
     // perform the ACE operator 
-    //hamPtr_->ACEOperator( cu_W, *fftPtr_, cu_AW);
+    hamPtr_->ACEOperator( cu_W, *fftPtr_, cu_AW);
 
     GetTime( timeEnd );
     GetTime( time2);
@@ -1412,7 +1420,11 @@ EigenSolver::PPCGSolveComplex(
 #endif
       //cu_XTX.CopyFrom( XTX );
       cuda_memcpy_CPU2GPU( cu_XTX.Data(), XTX.Data(), sizeof(cuDoubleComplex)*width*width);
+#ifdef USE_MAGMA
       MAGMA::Potrf( 'U', width, cu_XTX.Data(), width );
+#else
+    cuSolver::Potrf( 'U', width, cu_XTX.Data(), width );
+#endif
       //cu_XTX.CopyTo( XTX );
 
       GetTime( timeEnd1 );
@@ -1547,7 +1559,12 @@ EigenSolver::PPCGSolveComplex(
       //lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
       //cu_XTX.CopyFrom( XTX );
       cuda_memcpy_CPU2GPU( cu_XTX.Data(), XTX.Data(), sizeof(cuDoubleComplex)*width*width);
+#ifdef USE_MAGMA
       MAGMA::Syevd( 'V', 'U', width, cu_XTX.Data(), width, eigValS.Data() );
+#else
+      cuSolver::Syevd( 'V', 'U', width, cu_XTX.Data(), width, eigValS.Data() );
+#endif
+
 #ifdef GPU_NOPTIMIZE
       //cu_XTX.CopyTo( XTX );
       cuda_memcpy_GPU2CPU( XTX.Data(), cu_XTX.Data(), sizeof(cuDoubleComplex)*width*width);
@@ -6490,7 +6507,12 @@ EigenSolver::PPCGSolveReal (
   // each node do the Potrf, without the MPI_Bcast.
     GetTime( timeSta );
     cu_XTX.CopyFrom( XTX );
+#ifdef USE_MAGMA
     MAGMA::Potrf( 'U', width, cu_XTX.Data(), width );
+#else
+    cuSolver::Potrf( 'U', width, cu_XTX.Data(), width );
+#endif
+
     cu_XTX.CopyTo( XTX );
 #if 0
     lapack::Potrf( 'U', width, XTX.Data(), width );
@@ -7373,7 +7395,11 @@ EigenSolver::PPCGSolveReal (
       lapack::Potrf( 'U', width, XTX.Data(), width );
 #endif
       cu_XTX.CopyFrom( XTX );
+#ifdef USE_MAGMA
       MAGMA::Potrf( 'U', width, cu_XTX.Data(), width );
+#else
+      cuSolver::Potrf( 'U', width, cu_XTX.Data(), width );
+#endif
       //cu_XTX.CopyTo( XTX );
 
       GetTime( timeEnd1 );
@@ -7501,7 +7527,12 @@ EigenSolver::PPCGSolveReal (
       GetTime( timeSta );
       //lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
       cu_XTX.CopyFrom( XTX );
+#ifdef USE_MAGMA
       MAGMA::Syevd( 'V', 'U', width, cu_XTX.Data(), width, eigValS.Data() );
+#else
+      cuSolver::Syevd( 'V', 'U', width, cu_XTX.Data(), width, eigValS.Data() );
+#endif
+
 #ifdef GPU_NOPTIMIZE
       cu_XTX.CopyTo( XTX );
 #endif

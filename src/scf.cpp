@@ -57,7 +57,11 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "periodtable.hpp"
 #ifdef GPU
 #include "cuda_utils.h"
+#ifdef USE_MAGMA
 #include  "magma.hpp"
+#else
+#include "cuSolver.hpp"
+#endif
 #include  "cublas.hpp"
 #endif
 
@@ -345,7 +349,11 @@ SCF::Iterate (  )
 #ifdef GPU
     cuda_init_vtot();
     cublas::Init();
+#ifdef USE_MAGMA
     MAGMA::Init();
+#else
+    cuSolver::Init();
+#endif
 #endif
   // Perform non-hybrid functional calculation first
   if( !ham.IsHybrid() || !ham.IsEXXActive()){
@@ -515,9 +523,8 @@ SCF::Iterate (  )
       else{
 #ifdef GPU
 #ifdef _COMPLEX_
-        statusOFS << " Error Error Error  Error ................................" << std::endl;
-        statusOFS << " CalculateVexxACEGPU for Complex note implemented yet....." << std::endl;
-        statusOFS << " Error Error Error  Error ................................" << std::endl;
+        statusOFS << " CalculateVexxACEGPU1 for Complex ..... scf.cpp line 526" << std::endl;
+        ham.CalculateVexxACEGPU1 ( psi, fft );
 #else
         ham.CalculateVexxACEGPU ( psi, fft );
 #endif
@@ -666,7 +673,17 @@ SCF::Iterate (  )
             isFixColumnDF = true;
           }
           else{
+
+#ifndef _COMPLEX_
             ham.CalculateVexxACE ( psi, fft );
+#else  // complex
+#ifdef GPU
+ 	    statusOFS << " ham.CalculateVexxACEGPU1 ..... " << std::endl << std::endl;
+            ham.CalculateVexxACEGPU1 ( psi, fft );
+#else
+            ham.CalculateVexxACE ( psi, fft );
+#endif
+#endif
           }
         }
 
@@ -1484,7 +1501,11 @@ SCF::Iterate (  )
             //MPI_Bcast(XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, 0, mpi_comm);
 
             cu_XTXTemp.CopyFrom(XTX);
+#ifdef USE_MAGMA
             MAGMA::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
+#else
+            cuSolver::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
+#endif
 
             cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, 
                           ntotLocal, numOccTotal, &one, cu_XTXTemp.Data(), numOccTotal, cu_psiPcRow.Data(),
@@ -2221,7 +2242,11 @@ SCF::Iterate (  )
   } // isHybrid == true
 #ifdef GPU
     cublas::Destroy();
+#ifdef USE_MAGMA
     MAGMA::Destroy();
+#else
+    cuSolver::Destroy();
+#endif
     cuda_clean_vtot();
 #endif
 

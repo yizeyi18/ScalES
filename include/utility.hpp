@@ -1719,9 +1719,16 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
 void AlltoallForward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm );
 void AlltoallBackward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm );
 
+#ifdef _COMPLEX_
+#ifdef GPU
+void GPU_AlltoallBackward( cuCpxNumMat& A, cuCpxNumMat& B, MPI_Comm comm );
+void GPU_AlltoallForward ( cuCpxNumMat& A, cuCpxNumMat& B, MPI_Comm comm );
+#endif
+#else
 #ifdef GPU
 void GPU_AlltoallBackward( cuDblNumMat& A, cuDblNumMat& B, MPI_Comm comm );
 void GPU_AlltoallForward ( cuDblNumMat& A, cuDblNumMat& B, MPI_Comm comm );
+#endif
 #endif
 // ~~**~~
 // ------------------------------------------------------------------------------
