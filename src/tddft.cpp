@@ -47,6 +47,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 #include "tddft.hpp"
 #include "utility.hpp"
+#ifdef GPU
+#include "cuda_utils.h"
+#endif
 
 
 #ifdef _COMPLEX_
@@ -801,7 +804,7 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable, Real t )
   // External energy due to the electric field 
   Eext_ = ham.Eext();
 
-#if ( _DEBUGlevel_ >= 2 )
+#if ( _DEBUGlevel_ >= 0 )
   statusOFS << " Etot_ " << Etot_ << " EVdw " << EVdw_ << " Ecor_ " << Ecor_  << " EIonSR_ " 
     << EIonSR_ << " Eself " << Eself_ << " EVxc_ " << EVxc_ << " Ehart_ " << Ehart_ 
     << " Ekin_ " <<  Ekin_  << std::endl;
@@ -826,6 +829,508 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable, Real t )
   return ;
 }         // -----  end of method TDDFT::CalculateEnergy  ----- 
 
+
+#ifdef GPU
+#ifdef _COMPLEX_
+void TDDFT::advanceRK4_GPU( PeriodTable& ptable ) {
+
+  Int mpirank, mpisize;
+  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  MPI_Comm_rank( mpi_comm, &mpirank );
+  MPI_Comm_size( mpi_comm, &mpisize );
+
+  if( mpirank == 0) {
+    if(k_ == 0){
+       statusOFS << std::endl;
+       statusOFS <<  " GPU advanced RK4 started ... " << std::endl;
+    }
+  }
+  Hamiltonian& ham = *hamPtr_;
+  Fourier&     fft = *fftPtr_;
+  Spinor&      psi = *psiPtr_;
+
+  std::vector<Atom>&   atomList = *atomListPtr_;
+  Int numAtom = atomList.size();
+
+  if( ham.IsHybrid() ) {
+    statusOFS << " --------------------------------------- " << std::endl;
+    statusOFS << " GPU RK4 using the hybrid HSE functionl. " << std::endl;
+    statusOFS << " --------------------------------------- " << std::endl;
+    ham.SetPhiEXX( psi, fft);
+  }
+  // print the options_ when first step. 
+  if(k_ == 0){
+    statusOFS<< std::endl;
+    statusOFS<< " ----- TDDFT RK-4 Method Print Options   ----- "     << std::endl;
+    statusOFS<< " options.auto_save      " << options_.auto_save      << std::endl;
+    statusOFS<< " options.load_save      " << options_.load_save      << std::endl;
+    statusOFS<< " options.method         " << options_.method         << std::endl;
+    statusOFS<< " options.ehrenfest      " << options_.ehrenfest      << std::endl;
+    statusOFS<< " options.simulateTime   " << options_.simulateTime   << std::endl;
+    statusOFS<< " options.dt             " << options_.dt             << std::endl;
+    statusOFS<< " options.gmres_restart  " << options_.gmres_restart  << std::endl;
+    statusOFS<< " options.krylovTol      " << options_.krylovTol      << std::endl;
+    statusOFS<< " options.diisTol        " << options_.diisTol        << std::endl;
+    statusOFS<< " options.phiTol         " << options_.phiTol         << std::endl;
+    statusOFS<< " options.adNum          " << options_.adNum          << std::endl;
+    statusOFS<< " options.adUpdate       " << options_.adUpdate       << std::endl;
+    statusOFS<< " --------------------------------------------- "     << std::endl;
+    statusOFS<< std::endl;
+  }
+
+  // Update saved atomList. 0 is the latest one
+  for( Int l = maxHist_-1; l > 0; l-- ){
+    atomListHist_[l] = atomListHist_[l-1];
+  }
+  atomListHist_[0] = atomList;
+
+  // do the verlocity verlet algorithm to move ion
+  Int ionIter = k_;
+
+  std::vector<Point3>  atompos(numAtom);
+  std::vector<Point3>  atomvel(numAtom);
+  std::vector<Point3>  atomvel_temp(numAtom);
+  std::vector<Point3>  atomforce(numAtom);
+
+  std::vector<Point3>  atompos_mid(numAtom);
+  std::vector<Point3>  atompos_fin(numAtom);
+  {
+
+    Real& dt = options_.dt;
+    DblNumVec& atomMass = atomMass_;
+    // do not update force at the beginning
+
+    for( Int a = 0; a < numAtom; a++ ){
+      atompos[a]     = atomList[a].pos;
+      atompos_mid[a] = atomList[a].pos;
+      atompos_fin[a] = atomList[a].pos;
+      atomvel[a]     = atomList[a].vel;
+      atomforce[a]   = atomList[a].force;
+    }
+
+    PrintState( k_ );
+
+    // Update velocity and position when doing ehrenfest dynamics
+    if(options_.ehrenfest){
+
+      for(Int a=0; a<numAtom; a++) {
+        atomvel_temp[a] = atomvel[a]/2.0 + atomforce[a]*dt/atomMass[a]/8.0; 
+        atompos_mid[a]  = atompos[a] + atomvel_temp[a] * dt;
+
+        atomvel_temp[a] = atomvel[a] + atomforce[a]*dt/atomMass[a]/2.0; 
+        atompos_fin[a]  = atompos[a] + atomvel_temp[a] * dt;
+
+      }
+      AdjustAtomPos( atompos_mid );
+      AdjustAtomPos( atompos_fin );
+    }
+  }
+
+  // have the atompos_mid and atompos_final
+  if(options_.ehrenfest){
+    for(Int a = 0; a < numAtom; a++){
+      MPI_Bcast( &atompos_mid[a][0], 3, MPI_DOUBLE, 0, mpi_comm ); 
+      MPI_Bcast( &atompos_fin[a][0], 3, MPI_DOUBLE, 0, mpi_comm ); 
+    }
+  }
+
+  // k_ is the current K
+  Complex i_Z_One = Complex(0.0, 1.0);
+  // FIXME k is a confusing variable
+  Int k = k_;
+  Real ti = tlist_[k];
+  Real tf = tlist_[k+1];
+  Real dT = tf - ti;
+  Real tmid =  (ti + tf)/2.0;
+  //statusOFS << " step " << k_ << " ti " << ti << " tf " << tf << " dT " << dT << std::endl;
+
+  // 4-th order Runge-Kutta  Start now 
+  DblNumVec &occupationRate = ham.OccupationRate();
+  occupationRate.Resize( psi.NumStateTotal() );
+  SetValue( occupationRate, 1.0);
+  //statusOFS << " Occupation Rate: " << occupationRate << std::endl;
+  if(calDipole_)  CalculateDipole(tlist_[k_]);
+  //if(k == 0) {
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psi,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+
+#if ( _DEBUGlevel_ >= 2 )
+    statusOFS << " total Charge init " << setw(16) << totalCharge_ << std::endl;
+#endif
+
+    //get the new V(r,t+dt) from the rho(r,t+dt)
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
+    ham.CalculateXC( Exc_, fft ); 
+    ham.CalculateHartree( fft );
+    CalculateEfieldExt(ptable, ti);
+
+#if ( _DEBUGlevel_ >= 2 )
+    Real et0 = getEfield(0);
+    Real eti = getEfield(ti);
+    Real etmid = getEfield(tmid);
+    Real etf = getEfield(tf);
+    statusOFS << " DEBUG INFORMATION ON THE EFILED " << std::endl;
+    statusOFS << " et0: " << et0 << " eti " << eti << " etmid " << etmid << " etf " << etf << std::endl;
+    statusOFS << " DEBUG INFORMATION ON THE EFILED " << std::endl;
+#endif
+
+    ham.CalculateVtot( ham.Vtot() );
+    cuda_reset_vtot_flag();
+
+  //}
+
+
+  // HX1 = (H1 * psi)
+  Int ntot  = fft.domain.NumGridTotal();
+  Int numStateLocal = psi.NumState();
+  CpxNumMat Xtemp(ntot, numStateLocal); // X2, X3, X4
+  CpxNumMat HX1(ntot, numStateLocal);
+  NumTns<Complex> tnsTemp(ntot, 1, numStateLocal, false, HX1.Data());
+
+  cuCpxNumMat cu_HX1(ntot, numStateLocal);
+  cuCpxNumMat cu_X(ntot, numStateLocal);
+  cuCpxNumMat cu_Xtemp(ntot, numStateLocal);
+
+  cuNumTns<cuDoubleComplex> cu_tnsTemp(ntot, 1, numStateLocal, false, cu_HX1.Data());
+  cuda_memcpy_CPU2GPU(cu_Xtemp.Data(), psiPtr_->Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  cuda_memcpy_GPU2GPU(cu_X.Data(), cu_Xtemp.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+
+  Spinor spnTemp( fftPtr_->domain, 1 , numStateLocal, numStateLocal, false,  cu_Xtemp.Data(), true );
+  ham.MultSpinor( spnTemp, cu_tnsTemp, fft );
+  cuda_memcpy_GPU2CPU(HX1.Data(), cu_HX1.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  
+  cuDoubleComplex  one ; one.x = 1.0; one.y = 0.0;
+  cuDoubleComplex  zero; zero.x = 0.0; zero.y = 0.0;
+  cuDoubleComplex  minus_one; minus_one.x = -1.0; minus_one.y = 0.0;
+ 
+  //ham.MultSpinor( psi, tnsTemp, fft );
+
+  Ekin_ = 0.0;
+  {
+
+    Real Ekin_temp = 0.0;	  
+    cuCpxNumMat  cu_XHX( numStateLocal, numStateLocal);
+    CpxNumMat  XHX( numStateLocal, numStateLocal);
+    cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, numStateLocal, numStateLocal, ntot, &one,  cu_X.Data(), 
+        ntot,  cu_HX1.Data(), ntot, &zero,  cu_XHX.Data(), numStateLocal);
+
+    cuda_memcpy_GPU2CPU(XHX.Data(), cu_XHX.Data(), sizeof(double)*2*numStateLocal*numStateLocal);
+    Int numSpin = ham.NumSpin();
+    Complex * ptr = XHX.Data();
+    for(int i =0; i < numStateLocal; i++)
+      Ekin_temp += numSpin * ptr[i*numStateLocal+i].real();
+
+    MPI_Allreduce( &Ekin_temp, &Ekin_, 1, MPI_DOUBLE_PRECISION, MPI_SUM, mpi_comm );
+
+    CalculateEnergy( ptable, ti );
+  }
+
+
+  //  1. set up Psi <-- X - i ( HX1 ) * dt/2
+  Complex* dataPtr = Xtemp.Data();
+  Complex* psiDataPtr = psi.Wavefun().Data();
+  Complex* HpsiDataPtr = HX1.Data();
+  Int numStateTotal = psi.NumStateTotal();
+  Spinor psi2 (fft.domain, 1, numStateTotal, numStateLocal, false, Xtemp.Data() );
+
+#ifdef GPU
+  {
+    cuda_memcpy_GPU2GPU(cu_Xtemp.Data(), cu_X.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+    cuDoubleComplex half_z; half_z.x = 0.00; half_z.y == -0.5 * options_.dt;
+    cublas::Axpy(ntot*numStateLocal, &half_z, cu_HX1.Data(), 1, cu_Xtemp.Data(), 1);
+    cuda_memcpy_GPU2CPU(Xtemp.Data(), cu_Xtemp.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  }
+#else
+  for( Int i = 0; i < numStateLocal; i ++)
+    for( Int j = 0; j < ntot; j ++){
+      Int index = i* ntot +j;
+      dataPtr[index] = psiDataPtr[index] -  i_Z_One * HpsiDataPtr[index] * options_.dt/2.0;
+    }
+#endif
+
+  // 2. if ehrenfest dynamics, re-calculate the Vlocal and Vnonlocal
+  if(options_.ehrenfest){
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].pos  = atompos_mid[a];
+    }
+    ham.UpdateHamiltonian( atomList );
+    ham.CalculatePseudoPotential( ptable );
+    // if GPU, reset the NL_gpu flag, nonlocal part is recalculate during ehrenfest dynamics
+    cuda_reset_nonlocal_flag();
+  }
+
+  if( ham.IsHybrid() ) {
+    ham.SetPhiEXX( psi2, fft);
+  }
+  // 3. Update the H matrix. 
+  {
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psi2,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
+    ham.CalculateXC( Exc_, fft ); 
+    ham.CalculateHartree( fft );
+    CalculateEfieldExt(ptable, tmid);
+    ham.CalculateVtot( ham.Vtot() );
+    cuda_reset_vtot_flag();
+  }
+
+  // 4. Calculate the K2 = H2 * X2
+  CpxNumMat HX2(ntot, numStateLocal);
+  //NumTns<Complex> tnsTemp2(ntot, 1, numStateLocal, false, HX2.Data());
+
+  cuCpxNumMat cu_HX2(ntot, numStateLocal);
+  //cuCpxNumMat cu_X2(ntot, numStateLocal);
+  //cuda_memcpy_CPU2GPU(cu_X2.Data(), psi2.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+
+  cuNumTns<cuDoubleComplex> cu_tnsTemp2(ntot, 1, numStateLocal, false, cu_HX2.Data());
+  cuda_memcpy_CPU2GPU(cu_Xtemp.Data(), psi2.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  Spinor spnTemp2( fftPtr_->domain, 1 , numStateLocal, numStateLocal, false,  cu_Xtemp.Data(), true );
+  ham.MultSpinor( spnTemp2, cu_tnsTemp2, fft );
+  cuda_memcpy_GPU2CPU(HX2.Data(), cu_HX2.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+ 
+  //ham.MultSpinor( psi2, tnsTemp2, fft );
+
+  //  1. set up Psi <-- X - i ( HX2) * dt/2
+  Spinor psi3 (fft.domain, 1, numStateTotal, numStateLocal, false, Xtemp.Data() );
+#ifdef GPU
+  {
+    cuda_memcpy_GPU2GPU(cu_Xtemp.Data(), cu_X.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+    cuDoubleComplex half_z; half_z.x = 0.00; half_z.y == -0.5 * options_.dt;
+    cublas::Axpy(ntot*numStateLocal, &half_z, cu_HX2.Data(), 1, cu_Xtemp.Data(), 1);
+    cuda_memcpy_GPU2CPU(Xtemp.Data(), cu_Xtemp.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  }
+#else
+
+  dataPtr = Xtemp.Data();
+  psiDataPtr = psi.Wavefun().Data();
+  HpsiDataPtr = HX2.Data();
+  for( Int i = 0; i < numStateLocal; i ++)
+    for( Int j = 0; j < ntot; j ++)
+    {
+      Int index = i* ntot +j;
+      dataPtr[index] = psiDataPtr[index] -  i_Z_One * HpsiDataPtr[index] * options_.dt/2.0;
+    }
+#endif
+  if( ham.IsHybrid() ) {
+    ham.SetPhiEXX( psi3, fft);
+  }
+  // 2. if ehrenfest dynamics, re-calculate the Vlocal and Vnonlocal
+  if(options_.ehrenfest){
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].pos  = atompos_mid[a];
+    }
+    ham.UpdateHamiltonian( atomList );
+    ham.CalculatePseudoPotential( ptable );
+    cuda_reset_nonlocal_flag();
+  }
+
+  // 3. Update the H matrix. 
+  // CHECK CHECK: The Vext is zero, not updated here. 
+  {
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psi3,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
+    ham.CalculateXC( Exc_, fft ); 
+    ham.CalculateHartree( fft );
+    ham.CalculateVtot( ham.Vtot() );
+    cuda_reset_vtot_flag();
+  }
+  // 4. Calculate the K3 = H3 * X3
+  CpxNumMat HX3(ntot, numStateLocal);
+  NumTns<Complex> tnsTemp3(ntot, 1, numStateLocal, false, HX3.Data());
+
+  //ham.MultSpinor( psi3, tnsTemp3, fft );
+
+  cuCpxNumMat cu_HX3(ntot, numStateLocal);
+  //cuCpxNumMat cu_X3(ntot, numStateLocal);
+
+  cuNumTns<cuDoubleComplex> cu_tnsTemp3(ntot, 1, numStateLocal, false, cu_HX3.Data());
+  cuda_memcpy_CPU2GPU(cu_Xtemp.Data(), psi3.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  Spinor spnTemp3( fftPtr_->domain, 1 , numStateLocal, numStateLocal, false,  cu_Xtemp.Data(), true );
+  ham.MultSpinor( spnTemp3, cu_tnsTemp3, fft );
+  cuda_memcpy_GPU2CPU(HX3.Data(), cu_HX3.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+ 
+
+  //  1. set up Psi <-- X - i ( HX3) * dt
+  Spinor psi4 (fft.domain, 1, numStateTotal, numStateLocal, false, Xtemp.Data() );
+
+#ifdef GPU
+  {
+    cuda_memcpy_GPU2GPU(cu_Xtemp.Data(), cu_X.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+    cuDoubleComplex half_z; half_z.x = 0.00; half_z.y == -0.5 * options_.dt;
+    cublas::Axpy(ntot*numStateLocal, &half_z, cu_HX2.Data(), 1, cu_Xtemp.Data(), 1);
+    cuda_memcpy_GPU2CPU(Xtemp.Data(), cu_Xtemp.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  }
+#else
+  dataPtr = Xtemp.Data();
+  psiDataPtr = psi.Wavefun().Data();
+  HpsiDataPtr = HX3.Data();
+  for( Int i = 0; i < numStateLocal; i ++)
+    for( Int j = 0; j < ntot; j ++)
+    {
+      Int index = i* ntot +j;
+      dataPtr[index] = psiDataPtr[index] -  i_Z_One * HpsiDataPtr[index] * options_.dt;
+    }
+#endif
+  if( ham.IsHybrid() ) {
+    ham.SetPhiEXX( psi4, fft);
+  }
+  // 2. if ehrenfest dynamics, re-calculate the Vlocal and Vnonlocal
+  if(options_.ehrenfest){
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].pos  = atompos_fin[a];
+    }
+    ham.UpdateHamiltonian( atomList );
+    ham.CalculatePseudoPotential( ptable );
+    cuda_reset_nonlocal_flag();
+  }
+
+  // 3. Update the H matrix. 
+  {
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psi4,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
+    ham.CalculateXC( Exc_, fft ); 
+    ham.CalculateHartree( fft );
+    CalculateEfieldExt(ptable, tf);
+    ham.CalculateVtot( ham.Vtot() );
+    cuda_reset_vtot_flag();
+  }
+
+  // 4. Calculate the K3 = H3 * X3
+  // Now Hpsi is H2 * X2
+  // K2 = -i1(H2 * psi) 
+  CpxNumMat HX4(ntot, numStateLocal);
+  NumTns<Complex> tnsTemp4(ntot, 1, numStateLocal, false, HX4.Data());
+  //ham.MultSpinor( psi4, tnsTemp4, fft );
+
+  cuCpxNumMat cu_HX4(ntot, numStateLocal);
+  //cuCpxNumMat cu_X4(ntot, numStateLocal);
+
+  cuNumTns<cuDoubleComplex> cu_tnsTemp4(ntot, 1, numStateLocal, false, cu_HX4.Data());
+  cuda_memcpy_CPU2GPU(cu_Xtemp.Data(), psi4.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  Spinor spnTemp4( fftPtr_->domain, 1 , numStateLocal, numStateLocal, false,  cu_Xtemp.Data(), true );
+  ham.MultSpinor( spnTemp4, cu_tnsTemp4, fft );
+  cuda_memcpy_GPU2CPU(HX4.Data(), cu_HX4.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+
+#ifdef GPU
+  {
+    cuda_memcpy_GPU2GPU(cu_Xtemp.Data(), cu_X.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+    cuDoubleComplex half_z; half_z.x = 0.00; half_z.y == -1.0;
+    cuDoubleComplex temp = half_z * (double)(options_.dt * 1.0 / 6.0) ;
+    cublas::Axpy(ntot*numStateLocal, &temp, cu_HX1.Data(), 1, cu_Xtemp.Data(), 1);
+    cublas::Axpy(ntot*numStateLocal, &temp, cu_HX4.Data(), 1, cu_Xtemp.Data(), 1);
+    temp = 2.0 * temp;
+    cublas::Axpy(ntot*numStateLocal, &temp, cu_HX2.Data(), 1, cu_Xtemp.Data(), 1);
+    cublas::Axpy(ntot*numStateLocal, &temp, cu_HX3.Data(), 1, cu_Xtemp.Data(), 1);
+    cuda_memcpy_GPU2CPU(Xtemp.Data(), cu_Xtemp.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  }
+#else
+  // Xf <--  X - i ( K1 + 2K2 + 2K3 + K4) * dt / 6.0
+  psiDataPtr = psi.Wavefun().Data();
+  Complex *XfPtr = Xtemp.Data();
+  Complex *K1    = HX1.Data();
+  Complex *K2    = HX2.Data();
+  Complex *K3    = HX3.Data();
+  Complex *K4    = HX4.Data();
+  for( Int i = 0; i < numStateLocal; i ++)
+    for( Int j = 0; j < ntot; j ++){
+      Int index = i* ntot +j;
+      XfPtr[index] =  psiDataPtr[index] 
+        - i_Z_One * ( K1[index] + 2.0*K2[index] 
+            + 2.0*K3[index] + K4[index]) *options_.dt /6.0;
+    }
+#endif
+
+  Spinor psiFinal (fft.domain, 1, numStateTotal, numStateLocal, false, Xtemp.Data() );
+
+  // 2. if ehrenfest dynamics, re-calculate the Vlocal and Vnonlocal
+  if(options_.ehrenfest){
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].pos  = atompos_fin[a];
+    }
+    ham.UpdateHamiltonian( atomList );
+    ham.CalculatePseudoPotential( ptable );
+    cuda_reset_nonlocal_flag();
+  }
+
+  //get the new V(r,t+dt) from the rho(r,t+dt)
+  {
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psiFinal,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
+    ham.CalculateXC( Exc_, fft ); 
+    ham.CalculateHartree( fft );
+    DblNumVec vtot;
+    Int ntotFine  = fft.domain.NumGridTotalFine();
+    vtot.Resize(ntotFine);
+    SetValue(vtot, 0.0);
+    ham.CalculateVtot( vtot);
+    cuda_reset_vtot_flag();
+    Real *vtot0 = ham.Vtot().Data() ;
+
+#if ( _DEBUGlevel_ >= 2 )
+    statusOFS << "Xf delta vtot " << vtot(0) - vtot0[0] << std::endl;
+#endif
+    blas::Copy( ntotFine, vtot.Data(), 1, ham.Vtot().Data(), 1 );
+  }
+
+  psiDataPtr = psi.Wavefun().Data();
+  Complex* psiDataPtrFinal = psiFinal.Wavefun().Data();
+  for( Int i = 0; i < numStateLocal; i ++)
+    for( Int j = 0; j < ntot; j ++){
+      Int index = i* ntot +j;
+      psiDataPtr[index] =  psiDataPtrFinal[index];
+    }
+
+  //update Velocity
+  if(options_.ehrenfest){
+    ham.CalculateForce( psi, fft);
+
+    Real& dt = options_.dt;
+    DblNumVec& atomMass = atomMass_;
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].vel = atomList[a].vel + (atomforce[a]/atomMass[a] + atomList[a].force/atomMass[a])*dt/2.0;
+    } 
+  }
+
+  ++k_;
+}
+#endif
+#endif
 
 void TDDFT::advanceRK4( PeriodTable& ptable ) {
 
@@ -1868,6 +2373,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     ham.CalculateHartree( fft );
     CalculateEfieldExt(ptable, ti); 
     ham.CalculateVtot( ham.Vtot() );
+    cuda_reset_vtot_flag();
   }
 
   // calculate Dipole at the beginning.
@@ -1882,7 +2388,18 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   Int numStateTotal = psi.NumStateTotal();
   CpxNumMat HPSI(ntot, numStateLocal);
   NumTns<Complex> tnsTemp(ntot, 1, numStateLocal, false, HPSI.Data());
+
+  #ifdef GPU
+  cuCpxNumMat cu_HPSI(ntot, numStateLocal);
+  cuCpxNumMat cu_PSI(ntot, numStateLocal);
+  cuNumTns<cuDoubleComplex> cu_tnsTemp(ntot, 1, numStateLocal, false, cu_HPSI.Data());
+  Spinor spnTemp( fftPtr_->domain, 1 , numStateLocal, numStateLocal, false,  cu_PSI.Data(), true );
+  cuda_memcpy_CPU2GPU(cu_PSI.Data(), psi.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  ham.MultSpinor( spnTemp, cu_tnsTemp, fft );
+  cuda_memcpy_GPU2CPU(HPSI.Data(), cu_HPSI.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  #else
   ham.MultSpinor( psi, tnsTemp, fft );
+  #endif
 
   //  All X's are in G-parallel
   CpxNumMat X(ntotLocal, numStateTotal); 
@@ -1890,28 +2407,67 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   CpxNumMat RX(ntotLocal, numStateTotal); 
   CpxNumMat Xmid(ntotLocal, numStateTotal); 
 
+  #ifdef GPU
+  //  All X's are in G-parallel
+  cuCpxNumMat cu_X(ntotLocal, numStateTotal); 
+  cuCpxNumMat cu_HX(ntotLocal, numStateTotal); 
+  cuCpxNumMat cu_RX(ntotLocal, numStateTotal); 
+  cuCpxNumMat cu_Xmid(ntotLocal, numStateTotal); 
+  #endif
+
   // All psi's are in Band-parallel
   CpxNumMat psiF  ( ntot, numStateLocal );
   CpxNumMat psiCol( ntot, numStateLocal );
   CpxNumMat psiRes( ntot, numStateLocal );
+
+  #ifdef GPU
+  // All psi's are in Band-parallel
+  cuCpxNumMat cu_psiF  ( ntot, numStateLocal );
+  cuCpxNumMat cu_psiCol( ntot, numStateLocal );
+  cuCpxNumMat cu_psiRes( ntot, numStateLocal );
+  #endif
 
   lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
 
   AlltoallForward( HPSI,  HX, mpi_comm);
   AlltoallForward( psiCol, X, mpi_comm);
 
-  // RX <-- HX - X*(X'*HX)
   Int width = numStateTotal;
   Int heightLocal = ntotLocal;
   CpxNumMat  XHXtemp( width, width );
   CpxNumMat  XHX( width, width );
+
+#ifdef GPU
+  cuDoubleComplex  one ; one.x = 1.0;  one.y = 0.0;
+  cuDoubleComplex  zero; zero.x = 0.0; zero.y = 0.0;
+  cuDoubleComplex  minus_one; minus_one.x = -1.0; minus_one.y = 0.0;
+
+  cuCpxNumMat  cu_XHX( width, width );
+  cuCpxNumMat  cu_XHXtemp( width, width );
+  cuda_memcpy_CPU2GPU( cu_RX.Data(), HX.Data(), sizeof(cuDoubleComplex)*ntotLocal*width );
+  cuda_memcpy_CPU2GPU( cu_X.Data(),  X.Data(),  sizeof(cuDoubleComplex)*ntotLocal*width );
+
+  cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, width, width, heightLocal, &one, cu_X.Data(), 
+      heightLocal, cu_RX.Data(), heightLocal, &zero, cu_XHXtemp.Data(), width );
+
+  cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex) );
+  MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+  cuda_memcpy_CPU2GPU( cu_XHX.Data(), XHX.Data(), width*width*sizeof(cuDoubleComplex) );
+
+  cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, heightLocal, width, width, &minus_one, 
+      cu_X.Data(), heightLocal, cu_XHX.Data(), width, &one, cu_RX.Data(), heightLocal );
+
+  cuda_memcpy_GPU2CPU( XHX.Data(), cu_XHX.Data(), width*width*sizeof(cuDoubleComplex) );
+  cuda_memcpy_GPU2CPU( RX.Data(), cu_RX.Data(), width*heightLocal*sizeof(cuDoubleComplex) );
+#else
+  // RX <-- HX - X*(X'*HX)
   lapack::Lacpy( 'A', ntotLocal, numStateTotal, HX.Data(), ntotLocal, RX.Data(), ntotLocal );
   blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
       heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
   MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
   blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
       X.Data(), heightLocal, XHX.Data(), width, 1.0, RX.Data(), heightLocal );
-
+#endif
 
   // check check
   // E_kin = numSpin * trace( XHX )
@@ -1923,10 +2479,19 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       Ekin_ += numSpin * ptr[i*width+i].real();
   }
 
+  statusOFS << " Ekin_ " << Ekin_ << std::endl << std::flush;
+
+  // !!!! FIXME FIXME !!!! 
   CalculateEnergy( ptable, ti );
 
   // Xmid <-- X - li*T/2 * RX  in G-parallel
   {
+  #ifdef GPU // FIXME FIXME
+    cuDoubleComplex temp; temp.x = 0.0; temp.y = -1.0 * dT / 2.0;
+    cuda_memcpy_GPU2GPU( cu_Xmid.Data(), cu_X.Data(),  sizeof(double)*2*width*heightLocal );
+    cublas::Axpy( numStateTotal*ntotLocal, &temp, cu_RX.Data(), 1, cu_Xmid.Data(), 1);
+    cuda_memcpy_GPU2CPU( Xmid.Data(), cu_Xmid.Data(),  sizeof(double)*2*width*heightLocal );
+  #else
     Complex * xmidPtr = Xmid.Data();
     Complex * xPtr    = X.Data();
     Complex * rxPtr   = RX.Data();
@@ -1935,6 +2500,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
         Int index = i* ntotLocal +j;
         xmidPtr[index] = xPtr[index] -  i_Z_One * dT/2.0 * rxPtr[index];
       }
+   #endif
   }
 
   Spinor psiFinal (fft.domain, 1, numStateTotal, numStateLocal, false, psiF.Data() );
@@ -1957,6 +2523,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     }
     ham.UpdateHamiltonian( atomList );
     ham.CalculatePseudoPotential( ptable );
+    cuda_reset_nonlocal_flag();
   }
 
   // rhoF <== update Charge Density.
@@ -2108,7 +2675,12 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
       // Note, the exact HF and PBE implementation together. 
       for(int iscf = 1; iscf <= maxScfIteration; iscf++){
+#ifdef GPU
+        statusOFS << " GPU InnerSolve iteartion " << iscf << std::endl;
+        scfNorm = InnerSolve_GPU( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
+#else
         scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
+#endif
         if( scfNorm < options_.diisTol){
           statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
           break;
@@ -2324,8 +2896,18 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
   // Reorthogonalize
   {
+    //FIXME:GPU allocation not done yet.
+    #ifdef GPU
+    cuda_memcpy_CPU2GPU( cu_X.Data(), X.Data(), width*heightLocal*sizeof(cuDoubleComplex));
+
+    cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, width, width, heightLocal, &one, cu_X.Data(),  
+        heightLocal, cu_X.Data(), heightLocal, &zero, cu_XHXtemp.Data(), width);
+
+    cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    #else
     blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
         heightLocal, X.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+    #endif
     MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
 
     // XHXtemp = 0.5 * ( XHX + conj ( XHX ) )
@@ -2340,7 +2922,14 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
     }
 
     DblNumVec  eigValS(width);
+
+    #ifdef GPU
+    cuda_memcpy_CPU2GPU( cu_XHXtemp.Data(), XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    cuSolver::Syevd( 'V', 'U', width, cu_XHXtemp.Data(), width, eigValS.Data() );
+    cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    #else
     lapack::Syevd( 'V', 'U', width, XHXtemp.Data(), width, eigValS.Data() );
+    #endif
 
     CpxNumMat temp( width, width );
     SetValue( temp, Complex(0.0, 0.0) );
@@ -2348,6 +2937,23 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
       temp(i,i) = Complex( 1.0 / sqrt( eigValS[i] ), 0.0);
     }
 
+    #ifdef GPU
+    // FIXME: GPU allocaltion/book keeping
+    cuCpxNumMat cu_temp( width, width );
+    cuda_memcpy_CPU2GPU( cu_XHXtemp.Data(), XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    cuda_memcpy_CPU2GPU( cu_temp.Data(), temp.Data(), width*width*sizeof(cuDoubleComplex));
+
+    cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, width, width, width, &one, cu_XHXtemp.Data(),
+        width, cu_temp.Data(), width, &zero, cu_XHX.Data(), width);
+
+    cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_C, width, width, width, &one, cu_XHX.Data(),
+        width, cu_XHXtemp.Data(), width, &zero, cu_temp.Data(), width );
+
+    cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, heightLocal, width, width, &one, cu_X.Data(),
+        heightLocal, cu_temp.Data(), width, &zero, cu_HX.Data(), heightLocal );
+
+    cuda_memcpy_GPU2CPU( HX.Data(), cu_HX.Data(), width*heightLocal*sizeof(cuDoubleComplex));
+    #else
     blas::Gemm( 'N', 'N', width, width, width, 1.0, XHXtemp.Data(),
         width, temp.Data(), width, 0.0, XHX.Data(), width );
 
@@ -2356,6 +2962,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
     blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
         heightLocal, temp.Data(), width, 0.0, HX.Data(), heightLocal );
+    #endif
 
     AlltoallBackward ( HX, psiF, mpi_comm );
   }
@@ -2425,7 +3032,7 @@ void TDDFT::Propagate( PeriodTable& ptable ) {
     statusOFS << " TDDFT with HSE functions. " << std::endl;
     //FIXME, change this when using ACE
     hamPtr_->SetEXXActive(true) ; 
-    if(options_.method == "PTTRAP"){
+    if(options_.method == "PTTRAP" ){
       ErrorHandling( "TDDFT HSE functions only works for PTTRAPDIIS and RK4");
     }
   }
@@ -2436,7 +3043,13 @@ void TDDFT::Propagate( PeriodTable& ptable ) {
   k_ = startTime;
   if(options_.method == "RK4"){
     for( Int i = startTime; i < totalSteps; i++){
+#ifdef GPU
+#ifdef _COMPLEX_
+      advanceRK4_GPU( ptable );
+#endif
+#else
       advanceRK4( ptable );
+#endif
       if( (i != 0) && (i % esdfParam.TDDFTautoSaveSteps == 0)) 
         Store4Restart();
     }
@@ -2740,6 +3353,7 @@ Real TDDFT::InnerSolve( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, 
     ham.CalculateXC( Exc_, fft ); 
     ham.CalculateHartree( fft );
     ham.CalculateVtot( ham.Vtot());
+    cuda_reset_vtot_flag();
   }
 
   if( ham.IsHybrid() && !esdfParam.isHybridACE ) {
@@ -2931,5 +3545,319 @@ Real TDDFT::InnerSolve( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, 
   }
 
 }
+#ifdef GPU
+Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat &HPSI, CpxNumMat & psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat & Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal )
+{
+  Hamiltonian& ham = *hamPtr_;
+  Fourier&     fft = *fftPtr_;
+  Spinor&      psi = *psiPtr_;
+  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  Int mpirank, mpisize;
+  MPI_Comm_rank( mpi_comm, &mpirank );
+  MPI_Comm_size( mpi_comm, &mpisize );
+  Complex i_Z_One = Complex(0.0, 1.0);
+
+  Int  maxDim  = esdfParam.mixMaxDim;
+  Real betaMix = esdfParam.mixStepLength;
+
+  Int ntot  = fft.domain.NumGridTotal();
+  Int numStateLocal = psiFinal.NumState();
+  Int ntotLocal = ntot/mpisize;
+  if(mpirank < (ntot % mpisize)) ntotLocal++;
+  Int numStateTotal = psi.NumStateTotal();
+
+  Int iterused = std::min (iscf-1, maxDim);
+  Int ipos = iscf - 1 - floor( (iscf-2) / maxDim ) * maxDim;
+
+  // Update Hf <== updateV(molf, rhof)
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  { 
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
+    ham.CalculateXC( Exc_, fft ); 
+    ham.CalculateHartree( fft );
+    ham.CalculateVtot( ham.Vtot());
+    cuda_reset_vtot_flag();
+  }
+
+  // will setPhi on GPU later...
+  if( ham.IsHybrid() && !esdfParam.isHybridACE ) {
+    ham.SetPhiEXX( psiFinal, fft);
+  }
+
+  //  GPU ..... part... get rid of the HX calculation
+  cuCpxNumMat cu_HpsiFinal(ntot, numStateLocal);
+  cuCpxNumMat cu_psiFinal(ntot, numStateLocal);
+  cuNumTns<cuDoubleComplex> cu_tnsTemp(ntot, 1, numStateLocal, false, cu_HpsiFinal.Data());
+
+  cuda_memcpy_CPU2GPU(cu_psiFinal.Data(), psiFinal.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  Spinor spnTemp( fftPtr_->domain, 1 , numStateLocal, numStateLocal, false,  cu_psiFinal.Data(), true );
+  ham.MultSpinor( spnTemp, cu_tnsTemp, fft );
+  cuda_memcpy_GPU2CPU(HPSI.Data(), cu_HpsiFinal.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+
+  // HXf <== Hf * Xf, now HPSI is HXf  
+  //ham.MultSpinor( psiFinal, tnsTemp, fft );
+  Int width = numStateTotal;
+  Int heightLocal = ntotLocal;
+
+  //  XHX <== XHXtemp <--- X'HXf
+  //  PsiF, HPSI are psiF and H*psiF
+  AlltoallForward( HPSI, HX, mpi_comm);
+  AlltoallForward( psiF, X,  mpi_comm);
+#ifdef GPU
+  cuCpxNumMat cu_HX(heightLocal, width);
+  cuCpxNumMat cu_X( heightLocal, width);
+  cuCpxNumMat cu_XHXtemp(width, width);
+
+  cuDoubleComplex  one ; one.x = 1.0; one.y = 0.0;
+  cuDoubleComplex  zero; zero.x = 0.0; zero.y = 0.0;
+  cuDoubleComplex  minus_one; minus_one.x = -1.0; minus_one.y =0.0;
+
+  cuda_memcpy_CPU2GPU( cu_X.Data(),  X.Data(),  sizeof(double)*2*width*heightLocal );
+  cuda_memcpy_CPU2GPU( cu_HX.Data(), HX.Data(), sizeof(double)*2*width*heightLocal );
+
+  cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, width, width, heightLocal, &one,  cu_X.Data(), 
+      heightLocal, cu_HX.Data(), heightLocal, &zero, cu_XHXtemp.Data(), width );
+
+  cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), sizeof(double)*2*width*width);
+
+  blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+      heightLocal, HX.Data(), heightLocal, 0.0, XHX.Data(), width );
+
+  for(int i =0; i < 4; i++)
+     statusOFS << " XHXtemp " << i << " " <<  std::setprecision(15) <<* (XHXtemp.Data() + i*width + i) << 
+               " XHX " << i << " " <<  std::setprecision(15) <<*(XHX.Data() + i*width + i) << std::endl << std::flush;
+#else
+  blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+      heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+#endif
+
+  MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+
+  // ResX <== Xf + 1i* dT/2 * ( HXf - Xf * XHXf ) - Xmid
+  // Note RX is the ResX
+  Complex traceXHX (0.0, 0.0);
+  for( int i = 0; i < width; i++)
+    traceXHX += *(XHX.Data() + i * width + i);
+
+  {
+    // remember:
+    // X == X in G-parallel
+    // XHX == XHXf 
+    // Now Y == Xf * XHXf 
+    CpxNumMat Y(ntotLocal, numStateTotal); 
+#ifdef GPU
+    cuCpxNumMat cu_Y(ntotLocal, numStateTotal); 
+    cuda_memcpy_CPU2GPU( cu_XHXtemp.Data(), XHX.Data(), sizeof(double)*2*width*width);
+    cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, heightLocal, width, width, &one, cu_X.Data(),  
+        heightLocal, cu_XHXtemp.Data(), width, &zero, cu_Y.Data(), heightLocal );
+    cuda_memcpy_GPU2CPU( Y.Data(), cu_Y.Data(),  sizeof(double)*2*width*heightLocal );
+#else
+    blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
+        X.Data(), heightLocal, XHX.Data(), width, 0.0, Y.Data(), heightLocal );
+#endif
+    // Do things in the G-parallel fashion. 
+    // HX is the HXf in G-parallel
+    // Xmid is in the G-parallel Fashion
+    // X is Xf in G-parallel fashion
+    // RX is the ResX 
+
+#ifdef GPU
+    cuCpxNumMat cu_RX( heightLocal, width);
+    cuCpxNumMat cu_Xmid( heightLocal, width);
+    cuDoubleComplex temp; temp.x = 0.0; temp.y = 1.0 * dT / 2.0;
+
+    //cuda_memcpy_GPU2GPU( cu_RX.Data(), cu_X.Data(),    sizeof(double)*2*width*heightLocal );
+    cuda_memcpy_CPU2GPU( cu_RX.Data(), X.Data(),  sizeof(double)*2*width*heightLocal );
+    cuda_memcpy_CPU2GPU( cu_Xmid.Data(), Xmid.Data(),  sizeof(double)*2*width*heightLocal );
+    cublas::Axpy(width*heightLocal, &temp, cu_HX.Data(), 1, cu_RX.Data(), 1);
+
+    temp.x = 0.0; temp.y = -0.5*dT;
+    cublas::Axpy(width*heightLocal, &temp, cu_Y.Data(), 1, cu_RX.Data(), 1);
+    cublas::Axpy(width*heightLocal, &minus_one, cu_Xmid.Data(), 1, cu_RX.Data(), 1);
+
+    cuda_memcpy_GPU2CPU( RX.Data(), cu_RX.Data(),  sizeof(double)*2*width*heightLocal );
+    
+#else
+    Complex * ResPtr = RX.Data();
+    Complex * XfPtr  = X.Data();
+    Complex * HXfPtr = HX.Data();
+    Complex * YPtr   = Y.Data();
+    Complex * XmidPtr= Xmid.Data();
+    for ( int i = 0; i < width; i++)
+      for( int j = 0; j < heightLocal; j++){
+        int index = i * heightLocal + j;
+        ResPtr[index] = XfPtr[index] + i_Z_One * dT / 2.0 * ( HXfPtr[index] - YPtr[index] ) - XmidPtr[index];
+      }
+#endif
+  }
+
+  // Tranpose the ResX to band Parallel
+  AlltoallBackward( RX, psiRes, mpi_comm);
+
+  // Check check, still have the pre-conditioner 
+  // not done yet.
+  CpxNumVec preMat(ntot);
+  Complex * precPtr = preMat.Data();
+  for( int i = 0; i < ntot; i++){
+    precPtr[i] = 1.0/(1.0 + i_Z_One * dT/2.0 * ( fft.gkk[i] - traceXHX / (Real)numStateTotal ));
+  }
+
+  // FIXME
+  CpxNumMat dfMatTemp( ntot, maxDim ); 
+
+  for( int iband = 0; iband < numStateLocal; iband++ ) {
+
+    Complex *vinPtr = vin.Data();
+    Complex *voutPtr= vout.Data();
+    Complex *psiFPtr= psiF.Data() + iband * ntot;
+    Complex *psiResPtr= psiRes.Data() + iband * ntot;
+
+    for( int i = 0; i < ntot; i++){
+      vinPtr[i]  =  psiFPtr  [i];
+      voutPtr[i] =  psiResPtr[i];
+    }
+
+    if( iscf > 1) {
+      Complex * dfMatPtr =  dfMat[iband].Data() + (ipos-1) * ntot;
+      Complex * dvMatPtr =  dvMat[iband].Data() + (ipos-1) * ntot;
+
+      for( int i = 0; i < ntot; i ++){
+        dfMatPtr[i] = dfMatPtr[i] - psiResPtr[i];
+        dvMatPtr[i] = dvMatPtr[i] - psiFPtr[i];
+      }
+
+      // Least Square problem here. 
+      Real rcond = 1.0E-12;
+      CpxNumVec gammas;
+      DblNumVec S;
+      S.Resize(iterused);
+      gammas.Resize(ntot);
+
+      blas::Copy( ntot, psiResPtr, 1, gammas.Data(), 1 );
+      Int rank;
+      Int nrow = iterused;
+
+      // FIXME
+      dfMatTemp = dfMat[iband];
+
+      lapack::SVDLeastSquare( ntot, iterused, 1, 
+          dfMatTemp.Data(), ntot, gammas.Data(), ntot,
+          S.Data(), rcond, &rank );
+
+
+      Print( statusOFS, "  Rank of dfmat = ", rank );
+      Print( statusOFS, "  Rcond = ", rcond );
+
+      blas::Gemv('N', ntot, nrow, -1.0, dvMat[iband].Data(),
+          ntot, gammas.Data(), 1, 1.0, vin.Data(), 1 );
+
+      blas::Gemv('N', ntot, iterused, -1.0, dfMat[iband].Data(),
+          ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
+
+      // statusOFS << "Gammas = " << std::endl;
+      // for(Int i = 0; i < iterused; i++ ){
+      //   statusOFS << gammas[i] << std::endl;
+      // }
+    }
+
+
+    int inext = iscf - std::floor((iscf - 1) / maxDim) *maxDim;
+
+    Complex * dfMatPtr =  dfMat[iband].Data() + (inext-1) * ntot;
+    Complex * dvMatPtr =  dvMat[iband].Data() + (inext-1) * ntot;
+
+    for(int j = 0; j < ntot; j++){
+      dfMatPtr[j] = psiResPtr[j];
+      dvMatPtr[j] = psiFPtr[j];
+    }
+
+    // first FFT the vout to the G-space then do the Preconditioner. 
+#ifdef GPU
+    {
+      cuCpxNumVec cu_voutPtr(ntot);
+      cuCpxNumVec cu_temp(ntot);
+      cuCpxNumVec cu_prec(ntot);
+
+      //cuCpxNumVec cu_gkk(ntot);
+      //cuda_memcpy_CPU2GPU( cu_gkk.Data(), fft.gkk, ntot*sizeof(cuDoubleComplex));
+      cuDoubleComplex factor; factor.x = 0.0; factor.y = 0.5*dT;
+      //cuda_tddft_prec( cu_prec.Data(), cu_gkk.Data(), traceXHX, factor, numStateTotal, ntot);
+
+      cuda_memcpy_CPU2GPU( cu_prec.Data(),    precPtr, ntot*sizeof(cuDoubleComplex));
+      cuda_memcpy_CPU2GPU( cu_voutPtr.Data(), voutPtr, ntot*sizeof(cuDoubleComplex));
+
+      cuFFTExecuteForward( fft, fft.cuPlanC2C[0], 0, cu_voutPtr, cu_temp);
+      cuda_teter( cu_temp.Data(), cu_prec.Data(), ntot );
+      cuFFTExecuteInverse2( fft, fft.cuPlanC2C[0], 0, cu_temp, cu_voutPtr);
+      cuda_setValue( cu_temp.Data(), zero, ntot);
+      cuDoubleComplex temp; temp.x = 1.0 / Real(ntot); temp.y = 0.0;
+      cublas::Axpy( ntot, &temp, cu_voutPtr.Data(), 1, cu_temp.Data() , 1);
+      cuda_memcpy_CPU2GPU(cu_voutPtr.Data(), vinPtr, ntot*sizeof(cuDoubleComplex) );
+      temp.x = betaMix; temp.y = 0.0;
+      cublas::Axpy( ntot, &temp, cu_temp.Data(), 1, cu_voutPtr.Data(), 1);
+      cuda_memcpy_GPU2CPU( voutPtr, cu_temp.Data(),    ntot*sizeof(cuDoubleComplex) );
+      cuda_memcpy_GPU2CPU( psiFPtr, cu_voutPtr.Data(), ntot*sizeof(cuDoubleComplex) );
+    }
+#else
+    {
+      blas::Copy( ntot, voutPtr, 1, fft.inputComplexVec.Data(), 1 );
+      fftw_execute( fft.forwardPlan );
+      Complex * tempPtr = fft.outputComplexVec.Data();
+      for(int i = 0; i < ntot; ++i)
+        tempPtr[i] = tempPtr[i] * precPtr[i];
+      fftw_execute( fft.backwardPlan );
+      SetValue( vout, Complex(0,0) );
+      blas::Axpy( ntot, 1.0 / Real(ntot), fft.inputComplexVec.Data(), 1, voutPtr, 1 );
+    }
+    for( int j = 0; j < ntot; j++) {
+      psiFPtr[j] = vinPtr[j] + betaMix * voutPtr[j];
+    }
+#endif
+
+  } // for (iband)
+
+  Real scfNorm = 0.0;
+  {
+    // Get the rhoFnew
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psiFinal,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+
+    // Norm check 
+    Real * densityPtr = ham.Density().Data();
+    Real * rhoFinalPtr= rhoFinal.Data();
+    Real normRhoF = 0.0;
+    Real normRhoDiff = 0.0;
+
+    for(int i = 0; i < ntotFine; i++) {
+      normRhoDiff += pow( rhoFinalPtr[i] - densityPtr[i], 2.0 ); 
+      normRhoF    += pow( rhoFinalPtr[i], 2.0 ); 
+    }
+    Real scfNorm = std::sqrt(normRhoDiff / normRhoF);
+    cuda_sync();
+    statusOFS << "SCF " << iscf << " norm(RhoOut-RhoIn)/norm(RhoIn): " << scfNorm << std::endl;
+
+
+    // rhoF <== rhoFNew
+    blas::Copy( ntotFine,  ham.Density().Data(), 1,  rhoFinal.Data(), 1 );
+
+    
+#if 0
+    if( scfNorm < options_.diisTol){
+      statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
+      //statusOFS << "TDDFT step " << k_ << " used " << totalHx << " H * x operations!" << std::endl;
+    }
+#endif
+    return scfNorm;
+  }
+
+}
+#endif
+
 }
 #endif

@@ -130,6 +130,26 @@ void Destroy(void)
     return;
 }
 
+void Axpy( int n, const float * alpha, const float * x, int incx, float * y, int incy)
+{
+    CUBLAS_ERROR( cublasSaxpy(hcublas, n, alpha, x, incx, y, incy), "cublas sAxpy failed! ");
+}
+
+void Axpy( int n, const double * alpha, const double * x, int incx, double * y, int incy)
+{
+    CUBLAS_ERROR( cublasDaxpy(hcublas, n, alpha, x, incx, y, incy), "cublas sAxpy failed! ");
+}
+
+void Axpy( int n, const cuComplex * alpha, const cuComplex * x, int incx, cuComplex * y, int incy)
+{
+    CUBLAS_ERROR( cublasCaxpy(hcublas, n, alpha, x, incx, y, incy), "cublas sAxpy failed! ");
+}
+
+void Axpy( int n, const cuDoubleComplex * alpha, const cuDoubleComplex * x, int incx, cuDoubleComplex * y, int incy)
+{
+    CUBLAS_ERROR( cublasZaxpy(hcublas, n, alpha, x, incx, y, incy), "cublas sAxpy failed! ");
+}
+
  void Scal (int n, const float *alpha, float *x, int incx)
 {
     CUBLAS_ERROR( cublasSscal(hcublas, n, alpha, x, incx), "cublas SScal failed! ");

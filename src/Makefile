@@ -3,12 +3,17 @@
 
 include ../make.inc
 
-SRCS = scf_dg.cpp scf.cpp eigensolver.cpp  iondynamics.cpp \
+ifeq (${USE_MAGMA},1)
+SRC += magma.cpp 
+else
+SRC += cuSolver.cpp 
+endif
+SRCS = scf_dg.cpp scf.cpp eigensolver.cpp  iondynamics.cpp cuSolver.cpp\
 			 hamiltonian_dg_matrix.cpp hamiltonian_dg.cpp hamiltonian.cpp \
 			 periodtable.cpp spinor.cpp fourier.cpp utility.cpp esdf.cpp \
 			 mpi_interf.cpp scalapack.cpp lapack.cpp blas.cpp global.cpp \
 			 tddft.cpp  sgmres.cpp \
-			 cuda_errors.cpp  cublas.cpp magma.cpp cuSolver.cpp
+			 cuda_errors.cpp  cublas.cpp 
 #SRCF90 = rqrcp.f90 check_qpf.f90  check_qrf.f90  partial_pdgeqpf.f90 \
 #			 partial_qr_swap.f90  
 #SRCF   = partial_pdgeqp3.f  partial_pdgeqrf.f  \

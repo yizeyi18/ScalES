@@ -56,7 +56,11 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  <xc.h>
 #ifdef GPU
 #include "cublas.hpp"
+#ifdef USE_MAGMA
 #include "magma.hpp"
+#else
+#include "cuSolver.hpp"
+#endif
 #endif
 namespace dgdft{
 

@@ -362,6 +362,7 @@ SCF::Iterate (  )
     PrintBlock( statusOFS, msg.str() );
     bool isSCFConverged = false;
 
+/*
     if( !ham.IsEXXActive() && ham.IsHybrid() ) {
       ham.Setup_XC( "XC_GGA_XC_PBE");
 
@@ -377,6 +378,7 @@ SCF::Iterate (  )
       ham.CalculateVtot( ham.Vtot() );
 
     }
+*/
     for (Int iter=1; iter <= scfMaxIter_; iter++) {
       if ( isSCFConverged ) break;
       // *********************************************************************
@@ -471,6 +473,7 @@ SCF::Iterate (  )
   // NOTE: The different mixing mode of hybrid functional calculations
   // are not compatible with each other. So each requires its own code
   if( ham.IsHybrid() ){
+/*
     {
       ham.Setup_XC( "XC_HYB_GGA_XC_HSE06");
       statusOFS << " re-calculate XC " << std::endl;
@@ -484,7 +487,7 @@ SCF::Iterate (  )
       // Compute the total potential
       ham.CalculateVtot( ham.Vtot() );
     }
-
+*/
 
     // Fock energies
     Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
@@ -2240,6 +2243,7 @@ SCF::Iterate (  )
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
     
   } // isHybrid == true
+/*
 #ifdef GPU
     cublas::Destroy();
 #ifdef USE_MAGMA
@@ -2249,7 +2253,7 @@ SCF::Iterate (  )
 #endif
     cuda_clean_vtot();
 #endif
-
+*/
   // Calculate the Force. This includes contribution from ionic repulsion, VDW etc
   ham.CalculateForce( psi, fft );
 
@@ -2671,7 +2675,10 @@ SCF::CalculateOccupationRate    ( DblNumVec& eigVal, DblNumVec& occupationRate )
     fermi_ = (lb+ub)*0.5;
     occsum = 0.0;
     for(Int j = 0; j < npsi; j++) {
-      occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
+      if(Tbeta_*(eigVal(j) - fermi_) > 250.0) 
+          occupationRate(j) = 0.0 ;
+      else
+          occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
       occsum += occupationRate(j);
     }
 
@@ -2684,7 +2691,10 @@ SCF::CalculateOccupationRate    ( DblNumVec& eigVal, DblNumVec& occupationRate )
       fermi_ = (lb+ub)*0.5;
       occsum = 0.0;
       for(Int j = 0; j < npsi; j++) {
-        occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
+        if(Tbeta_*(eigVal(j) - fermi_) > 250.0) 
+          occupationRate(j) = 0.0 ;
+        else
+          occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
         occsum += occupationRate(j);
       }
       iter++;

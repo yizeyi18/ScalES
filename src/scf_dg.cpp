@@ -1483,7 +1483,7 @@ namespace  dgdft{
                   // be changed when spin-polarization is added.
 #ifdef _COMPLEX_
                   // FIXME placeholder
-                  DblNumTns& wavefun() ;
+                  //DblNumTns& wavefun() ;
 #else
                   DblNumTns& wavefun = psi.Wavefun();
 #endif

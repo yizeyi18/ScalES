@@ -4470,14 +4470,30 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
       }
       mpi::Allreduce( &fockEnergyLocal, &fockEnergy, 1, MPI_SUM, domain_.comm );
     } //if(1) 
+
+    statusOFS << " Hybrid EXX energy is calculated via ACE Operator  " << std::endl;
   }
   else
   {
     NumTns<Complex>  vexxPsi( ntot, 1, numStateLocalPhi );
+#ifdef GPU
+    cuNumTns<cuDoubleComplex>  cu_vexxPsi( ntot, 1, numStateLocal );
+    cuDoubleComplex zero; zero.x = 0.0; zero.y = 0.0;
+    cuda_setValue( cu_vexxPsi.Data(), zero, ntot*numStateLocal);
+    cuCpxNumMat cu_Xcol ( ntot, numStateLocal);
+    Spinor spnTemp( fft.domain, ncom, psi.NumStateTotal(), psi.NumState(), false,  cu_Xcol.Data(), true );
+    cuda_memcpy_CPU2GPU( cu_Xcol.Data(), psi.Wavefun().Data(), ntot*numStateLocal*sizeof(cuDoubleComplex));
+
+    spnTemp.AddMultSpinorEXX( fft, phiEXX_, exxgkk_,
+        exxFraction_,  numSpin_, occupationRate_, cu_vexxPsi );
+
+    cuda_memcpy_GPU2CPU( vexxPsi.Data(), cu_vexxPsi.Data(), ntot*numStateLocal*sizeof(cuDoubleComplex));
+#else
     SetValue( vexxPsi, Z_ZERO );
     psi.AddMultSpinorEXX( fft, phiEXX_, exxgkk_, 
         exxFraction_,  numSpin_, occupationRate_, 
         vexxPsi );
+#endif
     // Compute the exchange energy:
     // Note: no additional normalization factor due to the
     // normalization rule of psi, NOT phi!!
@@ -4491,6 +4507,7 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
       }
     }
     mpi::Allreduce( &fockEnergyLocal, &fockEnergy, 1, MPI_SUM, domain_.comm );
+    statusOFS << " Hybrid EXX energy is calculated via direct method " << std::endl;
   }
 
 

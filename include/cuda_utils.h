@@ -109,6 +109,36 @@ typedef struct ndim_int {
 //} cuComplex_p;
 //
 //extern "C"{
+__device__ inline cuDoubleComplex operator* (const cuDoubleComplex & x,const cuDoubleComplex & y) {
+	return cuCmul(x,y);
+}
+
+__device__ inline cuDoubleComplex operator+ (const cuDoubleComplex & x,const cuDoubleComplex & y) {
+	return cuCadd(x,y);
+}
+
+__device__ inline cuDoubleComplex operator- (const cuDoubleComplex & x,const cuDoubleComplex & y) {
+	return cuCsub(x,y);
+}
+
+__device__ inline cuDoubleComplex operator* (const double & a,const cuDoubleComplex & x) {
+	return make_cuDoubleComplex (a*cuCreal(x), a*cuCimag(x));
+}
+
+__device__ inline cuDoubleComplex operator* (const cuDoubleComplex & x,const double & a) {
+	return make_cuDoubleComplex (a*cuCreal(x), a*cuCimag(x));
+}
+
+__device__ inline cuDoubleComplex operator+ (const double & a,const cuDoubleComplex & x) {
+	return make_cuDoubleComplex (a+cuCreal(x), cuCimag(x));
+}
+
+__device__ inline cuDoubleComplex operator+ (const cuDoubleComplex & x,const double & a) {
+	return make_cuDoubleComplex (a+cuCreal(x), cuCimag(x));
+}
+__device__ inline double Norm_2(const cuDoubleComplex & x) {
+	return (cuCreal(x)*cuCreal(x)) + (cuCimag(x)*cuCimag(x));
+}
 
 extern double * dev_vtot;
 extern double * dev_gkkR2C;
@@ -146,6 +176,7 @@ void cuda_memory(void);
 void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int * index, int * parts,  double * atom_weight, double * weight, int blocks);
 void cuda_calculate_nonlocal( cuDoubleComplex* psiUpdate, cuDoubleComplex* psi, double * NL, int * index, int * parts,  double * atom_weight, cuDoubleComplex* weight, int blocks);
 void cuda_teter( cuDoubleComplex* psi, double * vtot, int len);
+void cuda_teter( cuDoubleComplex* psi, cuDoubleComplex * vtot, int len);
 void cuda_mapping_to_buf( double * buf, double * psi, int * index, int len );
 void cuda_mapping_to_buf( cuDoubleComplex * buf, cuDoubleComplex * psi, int * index, int len );
 void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len );
@@ -158,7 +189,8 @@ void cu_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, doub
 void cu_X_Equal_AX_minus_X_eigVal( cuDoubleComplex* Xtemp, cuDoubleComplex* AX, cuDoubleComplex* X, double * eigen, int nbands, int bandLen);
 void cuda_init_vtot();
 void cuda_clean_vtot();
-void cuda_set_vtot_flag();
+void cuda_reset_vtot_flag();
+void cuda_reset_nonlocal_flag();
 void cuda_DMatrix_Add( double * A , double * B, int m, int n);
 void cuda_Axpyz( double * X, double alpha, double * Y, double beta, double * Z, int length);
 void cuda_Axpyz( cuDoubleComplex* X, double alpha, cuDoubleComplex* Y, double beta, cuDoubleComplex* Z, int length);

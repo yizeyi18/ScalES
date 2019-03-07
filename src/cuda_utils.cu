@@ -30,7 +30,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 		if(abort) exit(code);
 	}
 }
-
+/*
 __device__ inline cuDoubleComplex operator* (const cuDoubleComplex & x,const cuDoubleComplex & y) {
 	return cuCmul(x,y);
 }
@@ -61,7 +61,7 @@ __device__ inline cuDoubleComplex operator+ (const cuDoubleComplex & x,const dou
 __device__ inline double Norm_2(const cuDoubleComplex & x) {
 	return (cuCreal(x)*cuCreal(x)) + (cuCimag(x)*cuCimag(x));
 }
-
+*/
 __global__ void gpu_X_Equal_AX_minus_X_eigVal(cuDoubleComplex* Xtemp, cuDoubleComplex* AX, cuDoubleComplex *X, double *eigen, int len ,int bandLen)
 {
 	int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -406,6 +406,14 @@ __global__ void gpu_laplacian ( cuDoubleComplex * psi, double * gkk, int len)
 	{
 		psi[tid] = psi[tid] * gkk[tid];
 	}
+}
+__global__ void gpu_teter( cuDoubleComplex * psi, cuDoubleComplex * teter, int len)
+{
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+        if(tid < len)
+        {
+                psi[tid] = psi[tid] * teter[tid];
+        }
 }
 __global__ void gpu_teter( cuDoubleComplex * psi, double * teter, int len)
 {
@@ -883,6 +891,16 @@ void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
+void cuda_teter( cuDoubleComplex* psi, cuDoubleComplex* vtot, int len)
+{
+        int ndim = (len + DIM - 1) / DIM;
+        gpu_teter<<< ndim, DIM>>> ( psi, vtot, len);
+#ifdef SYNC
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+        assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
 void cuda_teter( cuDoubleComplex* psi, double * vtot, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
@@ -1036,9 +1054,33 @@ void cuda_clean_vtot()
 	cuda_free(dev_temp_weight_complex);
 	cuda_free(dev_TeterPrecond);
 }
-void cuda_set_vtot_flag()
+void cuda_reset_vtot_flag()
 {
+	cuda_free(dev_vtot);
+	dev_vtot       = NULL;
 	vtot_gpu_flag  = false;
+}
+void cuda_reset_nonlocal_flag()
+{
+	// Note, the gkk is malloc and freed with the nonlocal part.
+	// since GKK will not change until atom moves. 
+	cuda_free(dev_NLvecFine);
+	cuda_free(dev_NLpart);
+	cuda_free(dev_NLindex);
+	cuda_free(dev_atom_weight);
+	cuda_free(dev_temp_weight_complex);
+	cuda_free(dev_gkkR2C);
+	cuda_free(dev_idxFineGridR2C);
+
+	dev_gkkR2C         = NULL;
+	dev_idxFineGridR2C = NULL;
+	dev_NLindex        = NULL;
+	dev_NLpart         = NULL;
+	dev_NLvecFine      = NULL;
+	dev_atom_weight    = NULL;
+	dev_temp_weight    = NULL;
+
+        NL_gpu_flag = false;
 }
 
 __global__ void gpu_matrix_add( double * A, double * B, int length )
@@ -1209,6 +1251,26 @@ void cuda_set_vector( double * out, double *in, int length)
 {
 	int dim = (length + LEN - 1) / LEN;
 	gpu_set_vector< double> <<< dim, LEN >>>( out, in, length);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
+__global__ void gpu_tddft_prec( cuDoubleComplex * prec, cuDoubleComplex * gkk, cuDoubleComplex trace, cuDoubleComplex factor, double width, int ntot)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if(tid < ntot)
+	{
+		//prec[tid] = 1.0 / (1.0 + factor*( gkk[tid] - trace/width));
+ 	}
+}
+
+void cuda_tddft_prec( cuDoubleComplex * prec, cuDoubleComplex * gkk, cuDoubleComplex trace, cuDoubleComplex factor, int width, int ntot)
+{
+        int dim = (ntot + LEN - 1) /LEN;
+	gpu_tddft_prec<<< dim, LEN>>>( prec, gkk, trace, factor, (double) width, ntot);
 #ifdef SYNC 
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());

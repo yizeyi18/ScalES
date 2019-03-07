@@ -428,7 +428,6 @@ Spinor::AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot,
 
     dev_idxFineGridR2C = ( int*) cuda_malloc ( sizeof(int   ) * ntot);
     dev_gkkR2C      = ( double*) cuda_malloc ( sizeof(double) * ntot);
-    dev_vtot        = ( double*) cuda_malloc ( sizeof(double) * ntotFine);
 
     cuda_memcpy_CPU2GPU( dev_NLvecFine,   NLvecFine.Data(),   totNLNum * sizeof(double) );
     cuda_memcpy_CPU2GPU( dev_atom_weight, atom_weight.Data(), totPart_gpu* sizeof(double) );
@@ -437,10 +436,8 @@ Spinor::AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot,
 
     cuda_memcpy_CPU2GPU(dev_idxFineGridR2C, fft.idxFineGrid.Data(), sizeof(Int) *ntot); 
     cuda_memcpy_CPU2GPU(dev_gkkR2C, fft.gkk.Data(), sizeof(Real) *ntot); 
-    cuda_memcpy_CPU2GPU(dev_vtot, vtot.Data(), sizeof(Real) *ntotFine); 
 
     NL_gpu_flag = true;
-    vtot_gpu_flag = true;
 /*
     cuDblNumVec cu_NLvecFine(totNLNum);
     cuIntNumVec cu_NLindex(totNLNum);
@@ -463,6 +460,7 @@ Spinor::AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot,
 */
   }
   if( !vtot_gpu_flag) {
+    dev_vtot        = ( double*) cuda_malloc ( sizeof(double) * ntotFine);
     cuda_memcpy_CPU2GPU(dev_vtot, vtot.Data(), sizeof(Real) *ntotFine); 
     vtot_gpu_flag = true;
   }

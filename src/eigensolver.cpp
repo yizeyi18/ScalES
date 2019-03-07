@@ -1834,7 +1834,7 @@ EigenSolver::PPCGSolveComplex(
     statusOFS << "Time for PPCG in PWDFT is " <<  timeEnd2 - timeSta2  << std::endl << std::endl;
 #endif
 
-    cuda_set_vtot_flag();   // set the vtot_flag to false.
+    cuda_reset_vtot_flag();   // set the vtot_flag to false.
     //cuda_clean_vtot();
     return ;
 }         // -----  end of method EigenSolver::PPCGSolveComplex---- 
@@ -7794,7 +7794,7 @@ EigenSolver::PPCGSolveReal (
     statusOFS << "Time for PPCG in PWDFT is " <<  timeEnd2 - timeSta2  << std::endl << std::endl;
 #endif
 
-    cuda_set_vtot_flag();   // set the vtot_flag to false.
+    cuda_reset_vtot_flag();   // set the vtot_flag to false.
     //cuda_clean_vtot();
     return ;
 }         // -----  end of method EigenSolver::PPCGSolveReal  ----- 
