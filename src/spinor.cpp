@@ -347,6 +347,8 @@ Spinor::AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot,
     const std::vector<PseudoPot>& pseudo, cuNumTns<cuDoubleComplex>& a3 )
 {
 
+  statusOFS <<" AddMultSpinorFine GPU complex start " << std::endl << std::flush;
+
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
@@ -378,6 +380,7 @@ Spinor::AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot,
   
   if( NL_gpu_flag == false ) 
   {
+    statusOFS << " NL_GPU_flag is false " << std::endl << std::flush;
     // get the total number of the nonlocal vector
      Int totNLNum = 0;
      totPart_gpu = 1;
@@ -460,6 +463,7 @@ Spinor::AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot,
 */
   }
   if( !vtot_gpu_flag) {
+    statusOFS << " vtot_gpu_flag is false " << std::endl << std::flush;
     dev_vtot        = ( double*) cuda_malloc ( sizeof(double) * ntotFine);
     cuda_memcpy_CPU2GPU(dev_vtot, vtot.Data(), sizeof(Real) *ntotFine); 
     vtot_gpu_flag = true;
@@ -760,7 +764,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
   Real vol = domain_.Volume();
 
   if( ncomPhi != 1 || ncom != 1 ){
-    ErrorHandling("Spin polarized case not implemented.");
+    ErrorHandling("Spin polarized case not implemented. GPU AddMultSpinorEXX");
   }
 
   if( fft.domain.NumGridTotal() != ntot ){
@@ -778,6 +782,8 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
   cuda_memcpy_CPU2GPU(cu_exxgkk.Data(), exxgkk.Data(), sizeof(double)*ntot);
 
   Int numStateLocalTemp;
+  Real timeSta, timeEnd;
+  GetTime( timeSta );
 
   //MPI_Barrier(domain_.comm);
   //statusOFS << " wavefun_.Data " <<  wavefun_.Data() << std::endl << std::flush;
@@ -790,6 +796,91 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
     statusOFS << " Complex GPU HSE calculation .. psi.AddMultSpinorEXX "  << std::endl;
   }
 
+#ifdef GPU_BANDBYBAND_SP
+  cuNumVec<cuComplex> cu_singlePhiTemp(ntot);
+  cuCpxNumMat cu_phi(ntot, numStateLocal);
+  cuNumMat<cuComplex> cu_phiSingle(ntot,numStateLocal );
+  cuda_memcpy_CPU2GPU( cu_phi.Data(), phi.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  cuda_compress_d2f((float*)cu_phiSingle.Data(), (double*)cu_phi.Data(), 2*numStateLocal*ntot);
+
+  for( Int iproc = 0; iproc < mpisize; iproc++ ){
+
+    if( iproc == mpirank )
+      numStateLocalTemp = numStateLocal;
+
+    MPI_Bcast( &numStateLocalTemp, 1, MPI_INT, iproc, domain_.comm );
+
+    IntNumVec wavefunIdxTemp(numStateLocalTemp);
+    if( iproc == mpirank ){
+      wavefunIdxTemp = wavefunIdx_;
+    }
+
+    MPI_Bcast( wavefunIdxTemp.Data(), numStateLocalTemp, MPI_INT, iproc, domain_.comm );
+
+    // FIXME OpenMP does not work since all variables are shared
+    for( Int kphi = 0; kphi < numStateLocalTemp; kphi++ ){
+      for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
+
+        //SetValue( phiTemp, Z_ZERO );
+
+        /*
+        if( iproc == mpirank )
+        { 
+          Complex* phiPtr = phi.VecData(jphi, kphi);
+          for( Int ir = 0; ir < ntot; ir++ ){
+            phiTemp(ir) = phiPtr[ir];
+          }
+        }
+        */
+        if( iproc == mpirank )
+          cuda_memcpy_GPU2GPU(cu_singlePhiTemp.Data(), cu_phiSingle.Data() + kphi*ntot, sizeof(cuComplex)*ntot);
+
+        //MPI_Bcast( phiTemp.Data(), 2*ntot, MPI_DOUBLE, iproc, domain_.comm );
+        MPI_Bcast( cu_singlePhiTemp.Data(), 2*ntot, MPI_REAL, iproc, domain_.comm );
+
+        cuda_decompress_f2d((double*)cu_phiTemp.Data(), (float*)cu_singlePhiTemp.Data(), 2*ntot);
+
+        //cuda_memcpy_CPU2GPU(cu_phiTemp.Data(), phiTemp.Data(), sizeof(cuDoubleComplex)*ntot);
+
+        Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
+        if(occupationRate[wavefunIdxTemp(kphi)] < 1.0E-8) continue; 
+
+        for (Int k=0; k<numStateLocal; k++) {
+          for (Int j=0; j<ncom; j++) {
+
+	    // set vector
+            cuda_set_vector( cu_psi.Data(), &cu_wave(0,k), ntot);
+
+            // input vec = psi * conj(phi)
+            cuda_vtot(cu_psi.Data(), cu_phiTemp.Data(), ntot);
+
+            // exec the CUFFT. 
+            cuFFTExecuteForward( fft, fft.cuPlanC2C[0], 0, cu_psi, cu_psi_out);
+
+            // Solve the Poisson-like problem for exchange
+     	    // note, exxgkkR2C apply to psi exactly like teter or laplacian
+            cuda_teter( reinterpret_cast<cuDoubleComplex*> (cu_psi_out.Data()), cu_exxgkk.Data(), ntot );
+
+	    // exec the CUFFT. 
+            cuFFTExecuteInverse( fft, fft.cuPlanC2C[0], 0, cu_psi_out, cu_psi);
+
+            // multiply by the occupationRate.
+	    // multiply with fac.
+            //Real *cu_a3Ptr = a3.VecData(j,k);
+            //cuda_Axpyz( cu_a3Ptr, 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot);
+            cuda_Axpyz( a3.VecData(j,k), 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot);
+
+          } // for (j)
+        } // for (k)
+
+        //MPI_Barrier(domain_.comm);
+
+      } // for (jphi)
+    } // for (kphi)
+
+  } //iproc
+
+#else
   for( Int iproc = 0; iproc < mpisize; iproc++ ){
 
     if( iproc == mpirank )
@@ -857,10 +948,13 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
     } // for (kphi)
 
   } //iproc
-
+#endif
   //MPI_Barrier(domain_.comm);
 
+  statusOFS << " Complex GPU HSE calculation .. psi.AddMultSpinorEXX DONE"  << std::endl;
 
+  GetTime( timeEnd );
+  statusOFS << " GPU Complex HSE calculation: "<< timeEnd - timeSta <<  std::endl;
   return ;
 }        // -----  end of method Spinor::AddMultSpinorEXX  ----- 
 

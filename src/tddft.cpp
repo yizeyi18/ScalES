@@ -2231,7 +2231,1396 @@ void TDDFT::advancePTTRAP( PeriodTable& ptable ) {
 
 } // TDDFT:: advancePTTRAP
 
+#ifdef GPU
+void TDDFT::advancePTTRAPDIIS_GPU_BookKeeping( PeriodTable& ptable ) {
 
+  Int mpirank, mpisize;
+  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  MPI_Comm_rank( mpi_comm, &mpirank );
+  MPI_Comm_size( mpi_comm, &mpisize );
+
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+
+  Real timeDF = 0.0;
+  Real timeSetPhi = 0.0;
+  Real timeCalACE = 0.0;
+  Real timeCalExxEnergy = 0.0;
+  Real timeDIISSCF = 0.0;
+  Real timeInit = 0.0;
+  Real timeDIIS = 0.0;
+  Real timeOrth = 0.0;
+  Real timeDensity = 0.0;
+  Real timeForce = 0.0;
+  Int  iterDF = 0;
+  Int  iterSetPhi  = 0;
+  Int  iterCalACE  = 0;
+  Int  iterDIISSCF = 0;
+  Int  iterDIIS    = 0;
+  Int  iterOrth    = 0;
+  Int  iterDensity = 0;
+  Int  iterCalExxEnergy  = 0;
+  Int  iterForce   = 0;
+
+  GetTime( timeSta );
+
+  Hamiltonian& ham = *hamPtr_;
+  Fourier&     fft = *fftPtr_;
+  Spinor&      psi = *psiPtr_;
+
+  if( ham.IsHybrid() ) {
+    ham.SetPhiEXX( psi, fft);
+  }
+
+  std::vector<Atom>&   atomList = *atomListPtr_;
+  Int numAtom = atomList.size();
+
+  // print the options_ when first step. 
+  if(k_ == 0) {
+    statusOFS<< std::endl;
+    statusOFS<< " -----   TDDFT PT-TRAP DIIS Print Options ---- "     << std::endl;
+    statusOFS<< " options.auto_save      " << options_.auto_save      << std::endl;
+    statusOFS<< " options.load_save      " << options_.load_save      << std::endl;
+    statusOFS<< " options.method         " << options_.method         << std::endl;
+    statusOFS<< " options.ehrenfest      " << options_.ehrenfest      << std::endl;
+    statusOFS<< " options.simulateTime   " << options_.simulateTime   << std::endl;
+    statusOFS<< " options.dt             " << options_.dt             << std::endl;
+    statusOFS<< " options.gmres_restart  " << options_.gmres_restart  << std::endl;
+    statusOFS<< " options.krylovTol      " << options_.krylovTol      << std::endl;
+    statusOFS<< " options.diisTol        " << options_.diisTol        << std::endl;
+    statusOFS<< " options.phiTol         " << options_.phiTol         << std::endl;
+    statusOFS<< " options.adNum          " << options_.adNum          << std::endl;
+    statusOFS<< " options.adUpdate       " << options_.adUpdate       << std::endl;
+    statusOFS<< " -----   TDDFT PT-TRAP DIIS Print Options ---- "     << std::endl;
+    statusOFS<< std::endl;
+  }
+
+  // Update saved atomList. 0 is the latest one
+  for( Int l = maxHist_-1; l > 0; l-- ){
+    atomListHist_[l] = atomListHist_[l-1];
+  }
+  atomListHist_[0] = atomList;
+
+  Int ionIter = k_;
+
+  std::vector<Point3>  atompos(numAtom);
+  std::vector<Point3>  atomvel(numAtom);
+  std::vector<Point3>  atomforce(numAtom);
+  std::vector<Point3>  atompos_fin(numAtom);
+  {
+    // do not update force at the beginning
+
+    Real& dt = options_.dt;
+    DblNumVec& atomMass = atomMass_;
+
+    for( Int a = 0; a < numAtom; a++ ){
+      atompos[a]     = atomList[a].pos;
+      atompos_fin[a] = atomList[a].pos;
+      atomvel[a]     = atomList[a].vel;
+      atomforce[a]   = atomList[a].force;
+    }
+
+    PrintState( k_ );
+
+
+    // Update velocity and position when doing ehrenfest dynamics
+    if(options_.ehrenfest){
+      for(Int a=0; a<numAtom; a++) {
+        atompos_fin[a]  = atompos[a] + atomvel[a] * dt + atomforce[a]*(dt*dt)/(atomMass[a]*2.0);
+      }  
+      AdjustAtomPos( atompos_fin );
+    }
+  }
+
+  if(options_.ehrenfest){
+    for(Int a = 0; a < numAtom; a++){
+      MPI_Bcast( &atompos_fin[a][0], 3, MPI_DOUBLE, 0, mpi_comm); 
+    }
+  }
+
+  // k_ is the current K
+  Int k = k_;
+  Real ti = tlist_[k];
+  Real tf = tlist_[k+1];
+  Real dT = tf - ti;
+  Real tmid =  (ti + tf)/2.0;
+  Complex i_Z_One = Complex(0.0, 1.0);
+
+  // PT-TRAP DIIS Method, Occupation = 1
+  DblNumVec &occupationRate = ham.OccupationRate();
+  occupationRate.Resize( psi.NumStateTotal() );
+  SetValue( occupationRate, 1.0);
+
+  // update H when it is first step. 
+  // This can be avoided since it is 
+  // already converged in the first SCF.
+  if(k == esdfParam.restartTDDFTStep) {
+    //if(!esdfParam.isRestartDensity){
+    if(1){
+	    statusOFS << " always start by calculating Density from WFN " << std::endl;
+      Real totalCharge_;
+      ham.CalculateDensity(
+          psi,
+          ham.OccupationRate(),
+          totalCharge_, 
+          fft );
+    }
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
+    ham.CalculateXC( Exc_, fft ); 
+    ham.CalculateHartree( fft );
+    CalculateEfieldExt(ptable, ti); 
+    ham.CalculateVtot( ham.Vtot() );
+    cuda_reset_vtot_flag();
+  }
+
+  // calculate Dipole at the beginning.
+  if(calDipole_)  CalculateDipole(tlist_[k_]);
+
+  // 1. Calculate Xmid which appears on the right hand of the equation
+  // HPSI = (H1 * psi)
+  Int ntot  = fft.domain.NumGridTotal();
+  Int numStateLocal = psi.NumState();
+  Int ntotLocal = ntot/mpisize;
+  if(mpirank < (ntot % mpisize)) ntotLocal++;
+  Int numStateTotal = psi.NumStateTotal();
+  CpxNumMat HPSI(ntot, numStateLocal);
+  NumTns<Complex> tnsTemp(ntot, 1, numStateLocal, false, HPSI.Data());
+
+  #ifdef GPU
+  cuCpxNumMat cu_HPSI(ntot, numStateLocal);
+  cuCpxNumMat cu_PSI(ntot, numStateLocal);
+  cuNumTns<cuDoubleComplex> cu_tnsTemp(ntot, 1, numStateLocal, false, cu_HPSI.Data());
+  Spinor spnTemp( fftPtr_->domain, 1 , numStateLocal, numStateLocal, false,  cu_PSI.Data(), true );
+  cuda_memcpy_CPU2GPU(cu_PSI.Data(), psi.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  ham.MultSpinor( spnTemp, cu_tnsTemp, fft );
+  cuda_memcpy_GPU2CPU(HPSI.Data(), cu_HPSI.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  #else
+  ham.MultSpinor( psi, tnsTemp, fft );
+  #endif
+
+  //  All X's are in G-parallel
+  CpxNumMat X(ntotLocal, numStateTotal); 
+  CpxNumMat HX(ntotLocal, numStateTotal); 
+  CpxNumMat RX(ntotLocal, numStateTotal); 
+  CpxNumMat Xmid(ntotLocal, numStateTotal); 
+
+  #ifdef GPU
+  //  All X's are in G-parallel
+  cuCpxNumMat cu_X(ntotLocal, numStateTotal); 
+  cuCpxNumMat cu_HX(ntotLocal, numStateTotal); 
+  cuCpxNumMat cu_RX(ntotLocal, numStateTotal); 
+  cuCpxNumMat cu_Xmid(ntotLocal, numStateTotal); 
+  #endif
+
+  // All psi's are in Band-parallel
+  CpxNumMat psiF  ( ntot, numStateLocal );
+  CpxNumMat psiCol( ntot, numStateLocal );
+  CpxNumMat psiRes( ntot, numStateLocal );
+
+  #ifdef GPU
+  // All psi's are in Band-parallel
+  cuCpxNumMat cu_psiF  ( ntot, numStateLocal );
+  cuCpxNumMat cu_psiCol( ntot, numStateLocal );
+  cuCpxNumMat cu_psiRes( ntot, numStateLocal );
+  #endif
+
+  lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+
+  AlltoallForward( HPSI,  HX, mpi_comm);
+  AlltoallForward( psiCol, X, mpi_comm);
+
+  Int width = numStateTotal;
+  Int heightLocal = ntotLocal;
+  CpxNumMat  XHXtemp( width, width );
+  CpxNumMat  XHX( width, width );
+
+#ifdef GPU
+  cuDoubleComplex  one ; one.x = 1.0;  one.y = 0.0;
+  cuDoubleComplex  zero; zero.x = 0.0; zero.y = 0.0;
+  cuDoubleComplex  minus_one; minus_one.x = -1.0; minus_one.y = 0.0;
+
+  cuCpxNumMat  cu_XHX( width, width );
+  cuCpxNumMat  cu_XHXtemp( width, width );
+  cuda_memcpy_CPU2GPU( cu_RX.Data(), HX.Data(), sizeof(cuDoubleComplex)*ntotLocal*width );
+  cuda_memcpy_CPU2GPU( cu_X.Data(),  X.Data(),  sizeof(cuDoubleComplex)*ntotLocal*width );
+
+  cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, width, width, heightLocal, &one, cu_X.Data(), 
+      heightLocal, cu_RX.Data(), heightLocal, &zero, cu_XHXtemp.Data(), width );
+
+  cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex) );
+  MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+  cuda_memcpy_CPU2GPU( cu_XHX.Data(), XHX.Data(), width*width*sizeof(cuDoubleComplex) );
+
+  cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, heightLocal, width, width, &minus_one, 
+      cu_X.Data(), heightLocal, cu_XHX.Data(), width, &one, cu_RX.Data(), heightLocal );
+
+  cuda_memcpy_GPU2CPU( XHX.Data(), cu_XHX.Data(), width*width*sizeof(cuDoubleComplex) );
+  cuda_memcpy_GPU2CPU( RX.Data(), cu_RX.Data(), width*heightLocal*sizeof(cuDoubleComplex) );
+#else
+  // RX <-- HX - X*(X'*HX)
+  lapack::Lacpy( 'A', ntotLocal, numStateTotal, HX.Data(), ntotLocal, RX.Data(), ntotLocal );
+  blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+      heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+  MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+  blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
+      X.Data(), heightLocal, XHX.Data(), width, 1.0, RX.Data(), heightLocal );
+#endif
+
+  // check check
+  // E_kin = numSpin * trace( XHX )
+  Ekin_ = 0.0;
+  {
+    Complex * ptr = XHX.Data();
+    Int numSpin = ham.NumSpin();
+    for(int i =0; i < width; i++)
+      Ekin_ += numSpin * ptr[i*width+i].real();
+  }
+
+  statusOFS << " Ekin_ " << Ekin_ << std::endl << std::flush;
+
+  // !!!! FIXME FIXME !!!! 
+  CalculateEnergy( ptable, ti );
+
+  // Xmid <-- X - li*T/2 * RX  in G-parallel
+  {
+  #ifdef GPU // FIXME FIXME
+    cuDoubleComplex temp; temp.x = 0.0; temp.y = -1.0 * dT / 2.0;
+    cuda_memcpy_GPU2GPU( cu_Xmid.Data(), cu_X.Data(),  sizeof(double)*2*width*heightLocal );
+    cublas::Axpy( numStateTotal*ntotLocal, &temp, cu_RX.Data(), 1, cu_Xmid.Data(), 1);
+    cuda_memcpy_GPU2CPU( Xmid.Data(), cu_Xmid.Data(),  sizeof(double)*2*width*heightLocal );
+  #else
+    Complex * xmidPtr = Xmid.Data();
+    Complex * xPtr    = X.Data();
+    Complex * rxPtr   = RX.Data();
+    for( Int i = 0; i < numStateTotal; i ++)
+      for( Int j = 0; j < ntotLocal; j ++){
+        Int index = i* ntotLocal +j;
+        xmidPtr[index] = xPtr[index] -  i_Z_One * dT/2.0 * rxPtr[index];
+      }
+   #endif
+  }
+
+  Spinor psiFinal (fft.domain, 1, numStateTotal, numStateLocal, false, psiF.Data() );
+  if(0){
+    // psiF <== psi
+    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiF.Data(), ntot );
+  }
+  if(1){
+    // psiF <== psi - i * dT * RX
+    AlltoallBackward( RX, psiRes, mpi_comm);
+
+    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiF.Data(), ntot );
+    blas::Axpy( ntot, - i_Z_One * dT, psiRes.Data(), 1, psiF.Data(), 1 );
+  }
+
+  // AtomPos <== AtomPosFinal, then update Vatom
+  if(options_.ehrenfest){
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].pos  = atompos_fin[a];
+    }
+    ham.UpdateHamiltonian( atomList );
+    ham.CalculatePseudoPotential( ptable );
+    cuda_reset_nonlocal_flag();
+  }
+
+  // rhoF <== update Charge Density.
+  DblNumMat          rhoFinal; 
+  {
+    CalculateEfieldExt(ptable, tf); // tf is the current step, calculate only once.
+
+    // get the charge density of the Hf.
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psiFinal,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+    Int ntotFine  = fftPtr_->domain.NumGridTotalFine();
+    rhoFinal.Resize (ntotFine, 1);  
+
+    Real * densityPtr = ham.Density().Data();
+    Real * rhoFinalPtr= rhoFinal.Data();
+    for(int i = 0; i < ntotFine; i++) {
+      rhoFinalPtr[i] = densityPtr[i];
+    }
+  }
+
+  GetTime( timeEnd );
+  timeInit += timeEnd - timeSta;
+  //statusOFS << " TDDFT Step " << k_ << " Setting-up Time: " << timeEnd - timeSta << " [s]" << std::endl;
+
+
+  Int numGridTotal = ntot;
+
+  if(1){
+
+    GetTime( timeSta1 );
+    Int maxScfIteration = options_.diisMaxIter;
+    Real betaMix = esdfParam.mixStepLength;
+    Int  maxDim  = esdfParam.mixMaxDim;
+
+    std::vector<CpxNumMat>   dfMat;
+    std::vector<CpxNumMat>   dvMat;
+    dfMat.resize( numStateLocal );
+    dvMat.resize( numStateLocal );
+    for( int i = 0; i < numStateLocal; i++) { 
+      dfMat[i].Resize( ntot, maxDim ); 
+      dvMat[i].Resize( ntot, maxDim ); 
+      SetValue( dfMat[i], Complex(0.0, 0.0) );
+      SetValue( dvMat[i], Complex(0.0, 0.0) );
+    }
+
+    CpxNumVec vin;
+    CpxNumVec vout;
+    vin.Resize( ntot);
+    vout.Resize( ntot);
+    SetValue( vin,  Complex(0,0));
+    SetValue( vout, Complex(0,0));
+
+    GetTime( timeEnd1 );
+    timeDF += timeEnd1 - timeSta1;
+    iterDF ++;
+
+    Real scfNorm = 0.0;
+    if( esdfParam.isHybridACE ) {
+
+      statusOFS << "TDDFT is using Hybrid ACE Operator ...." << std::endl;
+
+      Real fock1 = 0.0;
+      Real fock2 = 0.0;
+
+      // Two SCF loops, outer and inner SCF.
+      // Outer SCF
+      int maxPhiIteration = options_.phiMaxIter;
+
+      // new scheme: get E[V] <== V[psi_0] <== psi_0
+      GetTime( timeSta1 );
+      ham.SetPhiEXX( psiFinal, fft);
+      GetTime( timeEnd1 );
+      timeSetPhi += timeEnd1 - timeSta1;
+      iterSetPhi ++;
+
+      GetTime( timeSta1 );
+      ham.CalculateVexxACE ( psi, fft );
+      GetTime( timeEnd1 );
+      timeCalACE += timeEnd1 - timeSta1;
+      iterCalACE ++;
+
+      GetTime( timeSta1 );
+      fock1 = ham.CalculateEXXEnergy( psiFinal, fft ); 
+      GetTime( timeEnd1 );
+      timeCalExxEnergy += timeEnd1 - timeSta1;
+      iterCalExxEnergy ++;
+
+      for( int phiIter = 0; phiIter < maxPhiIteration; phiIter++){
+
+        // Inner SCF.
+        GetTime( timeSta1 );
+	int iscf;
+        for( iscf = 1; iscf <= maxScfIteration; iscf++ ) {
+          scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
+          if( scfNorm < options_.diisTol){
+            break;
+          }
+        }
+        GetTime( timeEnd1 );
+        timeDIISSCF += timeEnd1 - timeSta1;
+        iterDIISSCF += iscf;
+
+        if( scfNorm < options_.diisTol)
+          statusOFS << "phiStep " << phiIter << " DIIS is  converged in " << iscf << " steps " << " scfNorm " << scfNorm << std::endl;
+	else 
+          statusOFS << "phiStep " << phiIter << " DIIS NOT converged in " << iscf << " steps " << " scfNorm " << scfNorm << std::endl;
+
+        // new scheme: get E[V] <== V[psi_0] <== psi_0
+        GetTime( timeSta1 );
+        ham.SetPhiEXX( psiFinal, fft);
+        GetTime( timeEnd1 );
+        timeSetPhi += timeEnd1 - timeSta1;
+        iterSetPhi ++;
+
+        GetTime( timeSta1 );
+        ham.CalculateVexxACE ( psiFinal, fft );
+        GetTime( timeEnd1 );
+        timeCalACE += timeEnd1 - timeSta1;
+        iterCalACE ++;
+
+        GetTime( timeSta1 );
+        fock2 = ham.CalculateEXXEnergy( psiFinal, fft ); 
+        GetTime( timeEnd1 );
+        timeCalExxEnergy += timeEnd1 - timeSta1;
+        iterCalExxEnergy ++;
+
+        Real dExx = std::abs(fock2 - fock1) / std::abs(fock2);
+
+        statusOFS << " Fock Energy  = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< fock2 << " [au]" << std::endl 
+                  << " dExx         = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< dExx  << " [au]" << std::endl;
+
+	fock1 = fock2;
+        if( dExx < options_.phiTol) {
+          statusOFS << "TDDFT step " << k_ << " Phi Iteration in " << phiIter + 1<< " steps !" << std::endl;
+	  break; 
+	}
+      }
+    } 
+    else {
+
+      if( ham.IsHybrid() && !esdfParam.isHybridACE ) 
+        statusOFS << "TDDFT screen exchange ... " << std::endl;
+      else
+        statusOFS << "TDDFT PBE ... " << std::endl;
+
+      // Note, the exact HF and PBE implementation together. 
+      GetTime( timeSta1 );
+      for(int iscf = 1; iscf <= maxScfIteration; iscf++){
+#ifdef GPU
+        statusOFS << " GPU InnerSolve iteartion " << iscf << std::endl;
+        scfNorm = InnerSolve_GPU( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
+#else
+        scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
+#endif
+        if( scfNorm < options_.diisTol){
+          statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
+          break;
+        }
+      }
+      GetTime( timeEnd1 );
+      
+      
+    }
+#if 0
+      Int iterused = std::min (iscf-1, maxDim);
+      Int ipos = iscf - 1 - floor( (iscf-2) / maxDim ) * maxDim;
+
+      // Update Hf <== updateV(molf, rhof)
+      Int ntotFine  = fft.domain.NumGridTotalFine();
+      {
+        if( isCalculateGradRho_ ){
+          ham.CalculateGradDensity( fft );
+        }
+        ham.CalculateXC( Exc_, fft ); 
+        ham.CalculateHartree( fft );
+        ham.CalculateVtot( ham.Vtot());
+      }
+
+      if( ham.IsHybrid() ) {
+        ham.SetPhiEXX( psiFinal, fft);
+      }
+      // HXf <== Hf * Xf, now HPSI is HXf  
+      ham.MultSpinor( psiFinal, tnsTemp, fft );
+
+      //  XHX <== XHXtemp <--- X'HXf
+      //  PsiF, HPSI are psiF and H*psiF
+      AlltoallForward( HPSI, HX, mpi_comm);
+      AlltoallForward( psiF, X,  mpi_comm);
+
+      blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+          heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+
+      MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+
+      // ResX <== Xf + 1i* dT/2 * ( HXf - Xf * XHXf ) - Xmid
+      // Note RX is the ResX
+      Complex traceXHX (0.0, 0.0);
+      for( int i = 0; i < width; i++)
+        traceXHX += *(XHX.Data() + i * width + i);
+
+      {
+        // remember:
+        // X == X in G-parallel
+        // XHX == XHXf 
+        // Now Y == Xf * XHXf 
+        CpxNumMat Y(ntotLocal, numStateTotal); 
+        blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
+            X.Data(), heightLocal, XHX.Data(), width, 0.0, Y.Data(), heightLocal );
+
+        // Do things in the G-parallel fashion. 
+        // HX is the HXf in G-parallel
+        // Xmid is in the G-parallel Fashion
+        // X is Xf in G-parallel fashion
+        // RX is the ResX 
+
+        Complex * ResPtr = RX.Data();
+        Complex * XfPtr  = X.Data();
+        Complex * HXfPtr = HX.Data();
+        Complex * YPtr   = Y.Data();
+        Complex * XmidPtr= Xmid.Data();
+        for ( int i = 0; i < width; i++)
+          for( int j = 0; j < heightLocal; j++){
+            int index = i * heightLocal + j;
+            ResPtr[index] = XfPtr[index] + i_Z_One * dT / 2.0 * ( HXfPtr[index] - YPtr[index] ) - XmidPtr[index];
+          }
+      }
+
+      // Tranpose the ResX to band Parallel
+      AlltoallBackward( RX, psiRes, mpi_comm);
+
+      // Check check, still have the pre-conditioner 
+      // not done yet.
+      CpxNumVec preMat(ntot);
+      Complex * precPtr = preMat.Data();
+      for( int i = 0; i < ntot; i++){
+        precPtr[i] = 1.0/(1.0 + i_Z_One * dT/2.0 * ( fft.gkk[i] - traceXHX / (Real)numStateTotal ));
+      }
+
+      // FIXME
+      CpxNumMat dfMatTemp( ntot, maxDim ); 
+
+      for( int iband = 0; iband < numStateLocal; iband++ ) {
+
+        Complex *vinPtr = vin.Data();
+        Complex *voutPtr= vout.Data();
+        Complex *psiFPtr= psiF.Data() + iband * ntot;
+        Complex *psiResPtr= psiRes.Data() + iband * ntot;
+
+        for( int i = 0; i < ntot; i++){
+          vinPtr[i]  =  psiFPtr  [i];
+          voutPtr[i] =  psiResPtr[i];
+        }
+
+        if( iscf > 1) {
+          Complex * dfMatPtr =  dfMat[iband].Data() + (ipos-1) * ntot;
+          Complex * dvMatPtr =  dvMat[iband].Data() + (ipos-1) * ntot;
+
+          for( int i = 0; i < ntot; i ++){
+            dfMatPtr[i] = dfMatPtr[i] - psiResPtr[i];
+            dvMatPtr[i] = dvMatPtr[i] - psiFPtr[i];
+          }
+
+          // Least Square problem here. 
+          Real rcond = 1.0E-12;
+          CpxNumVec gammas;
+          DblNumVec S;
+          S.Resize(iterused);
+          gammas.Resize(ntot);
+
+          blas::Copy( ntot, psiResPtr, 1, gammas.Data(), 1 );
+          Int rank;
+          Int nrow = iterused;
+
+          // FIXME
+          dfMatTemp = dfMat[iband];
+
+          lapack::SVDLeastSquare( ntot, iterused, 1, 
+              dfMatTemp.Data(), ntot, gammas.Data(), ntot,
+              S.Data(), rcond, &rank );
+
+
+          Print( statusOFS, "  Rank of dfmat = ", rank );
+          Print( statusOFS, "  Rcond = ", rcond );
+
+          blas::Gemv('N', ntot, nrow, -1.0, dvMat[iband].Data(),
+              ntot, gammas.Data(), 1, 1.0, vin.Data(), 1 );
+
+          blas::Gemv('N', ntot, iterused, -1.0, dfMat[iband].Data(),
+              ntot, gammas.Data(), 1, 1.0, vout.Data(), 1 );
+
+          // statusOFS << "Gammas = " << std::endl;
+          // for(Int i = 0; i < iterused; i++ ){
+          //   statusOFS << gammas[i] << std::endl;
+          // }
+        }
+
+
+        int inext = iscf - std::floor((iscf - 1) / maxDim) *maxDim;
+
+        Complex * dfMatPtr =  dfMat[iband].Data() + (inext-1) * ntot;
+        Complex * dvMatPtr =  dvMat[iband].Data() + (inext-1) * ntot;
+
+        for(int j = 0; j < ntot; j++){
+          dfMatPtr[j] = psiResPtr[j];
+          dvMatPtr[j] = psiFPtr[j];
+        }
+
+        // first FFT the vout to the G-space then do the Preconditioner. 
+        {
+          blas::Copy( ntot, voutPtr, 1, fft.inputComplexVec.Data(), 1 );
+          fftw_execute( fft.forwardPlan );
+          Complex * tempPtr = fft.outputComplexVec.Data();
+          for(int i = 0; i < ntot; ++i)
+            tempPtr[i] = tempPtr[i] * precPtr[i];
+          fftw_execute( fft.backwardPlan );
+          SetValue( vout, Complex(0,0) );
+          blas::Axpy( ntot, 1.0 / Real(ntot), fft.inputComplexVec.Data(), 1, voutPtr, 1 );
+        }
+
+        for( int j = 0; j < ntot; j++) {
+          psiFPtr[j] = vinPtr[j] + betaMix * voutPtr[j];
+        }
+      } // for (iband)
+
+      {
+        // Get the rhoFnew
+        Real totalCharge_;
+        ham.CalculateDensity(
+            psiFinal,
+            ham.OccupationRate(),
+            totalCharge_, 
+            fft );
+
+        // Norm check 
+        Real * densityPtr = ham.Density().Data();
+        Real * rhoFinalPtr= rhoFinal.Data();
+        Real normRhoF = 0.0;
+        Real normRhoDiff = 0.0;
+
+        for(int i = 0; i < ntotFine; i++) {
+          normRhoDiff += pow( rhoFinalPtr[i] - densityPtr[i], 2.0 ); 
+          normRhoF    += pow( rhoFinalPtr[i], 2.0 ); 
+        }
+        Real scfNorm = std::sqrt(normRhoDiff / normRhoF);
+        //Print(statusOFS, "norm(RhoOut-RhoIn)/norm(RhoIn) = ", scfNorm );
+        statusOFS << "SCF " << iscf << " norm(RhoOut-RhoIn)/norm(RhoIn): " << scfNorm << std::endl;
+
+
+        // rhoF <== rhoFNew
+        blas::Copy( ntotFine,  ham.Density().Data(), 1,  rhoFinal.Data(), 1 );
+
+        if( scfNorm < options_.diisTol){
+          statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
+          //statusOFS << "TDDFT step " << k_ << " used " << totalHx << " H * x operations!" << std::endl;
+          break;
+        }
+      }
+#endif
+    //} // iscf iteration
+
+  } // if 1
+
+  GetTime( timeEnd );
+  timeDIIS += timeEnd - timeSta ;
+  iterDIIS ++;
+  //statusOFS << " TDDFT Step " << k_ << " DIIS loop used Time: " << timeEnd - timeSta1 << " [s]" << std::endl;
+
+  GetTime( timeSta1 );
+  AlltoallForward( psiF,  X, mpi_comm);
+
+  // Reorthogonalize
+  {
+    //FIXME:GPU allocation not done yet.
+    #ifdef GPU
+    cuda_memcpy_CPU2GPU( cu_X.Data(), X.Data(), width*heightLocal*sizeof(cuDoubleComplex));
+
+    cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, width, width, heightLocal, &one, cu_X.Data(),  
+        heightLocal, cu_X.Data(), heightLocal, &zero, cu_XHXtemp.Data(), width);
+
+    cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    #else
+    blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+        heightLocal, X.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+    #endif
+    MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+
+    // XHXtemp = 0.5 * ( XHX + conj ( XHX ) )
+    {
+      Complex * xPtr = XHXtemp.Data();
+      Complex * yPtr = XHX.Data();
+      for(int i = 0; i < width; i++){
+        for(int j = 0; j < width; j++){
+          xPtr[i*width + j] = 0.5 * ( yPtr[i*width+j] + std::conj(yPtr[j*width+i]) );
+        }
+      }
+    }
+
+    DblNumVec  eigValS(width);
+
+    #ifdef GPU
+    cuda_memcpy_CPU2GPU( cu_XHXtemp.Data(), XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    cuSolver::Syevd( 'V', 'U', width, cu_XHXtemp.Data(), width, eigValS.Data() );
+    cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    #else
+    lapack::Syevd( 'V', 'U', width, XHXtemp.Data(), width, eigValS.Data() );
+    #endif
+
+    CpxNumMat temp( width, width );
+    SetValue( temp, Complex(0.0, 0.0) );
+    for(int i = 0; i < width; i++) {
+      temp(i,i) = Complex( 1.0 / sqrt( eigValS[i] ), 0.0);
+    }
+
+    #ifdef GPU
+    // FIXME: GPU allocaltion/book keeping
+    cuCpxNumMat cu_temp( width, width );
+    cuda_memcpy_CPU2GPU( cu_XHXtemp.Data(), XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    cuda_memcpy_CPU2GPU( cu_temp.Data(), temp.Data(), width*width*sizeof(cuDoubleComplex));
+
+    cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, width, width, width, &one, cu_XHXtemp.Data(),
+        width, cu_temp.Data(), width, &zero, cu_XHX.Data(), width);
+
+    cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_C, width, width, width, &one, cu_XHX.Data(),
+        width, cu_XHXtemp.Data(), width, &zero, cu_temp.Data(), width );
+
+    cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, heightLocal, width, width, &one, cu_X.Data(),
+        heightLocal, cu_temp.Data(), width, &zero, cu_HX.Data(), heightLocal );
+
+    cuda_memcpy_GPU2CPU( HX.Data(), cu_HX.Data(), width*heightLocal*sizeof(cuDoubleComplex));
+    #else
+    blas::Gemm( 'N', 'N', width, width, width, 1.0, XHXtemp.Data(),
+        width, temp.Data(), width, 0.0, XHX.Data(), width );
+
+    blas::Gemm( 'N', 'C', width, width, width, 1.0, XHX.Data(),
+        width, XHXtemp.Data(), width, 0.0, temp.Data(), width );
+
+    blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
+        heightLocal, temp.Data(), width, 0.0, HX.Data(), heightLocal );
+    #endif
+
+    AlltoallBackward ( HX, psiF, mpi_comm );
+  }
+
+  blas::Copy( ntot*numStateLocal, psiFinal.Wavefun().Data(), 1, psi.Wavefun().Data(), 1 );
+
+  GetTime( timeEnd );
+  timeOrth += timeEnd - timeSta1;
+  iterOrth ++;
+
+  // Update the density for the renormalized wavefunction
+  GetTime( timeSta1 );
+  {
+    // get the charge density of the Hf.
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psiFinal,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+  }
+  GetTime( timeEnd );
+  timeDensity += timeEnd - timeSta1;
+  iterDensity ++;
+
+
+  GetTime( timeSta1 );
+  if(options_.ehrenfest){
+    ham.CalculateForce( psi, fft);
+
+    Real& dt = options_.dt;
+    DblNumVec& atomMass = atomMass_;
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].vel = atomList[a].vel + (atomforce[a]/atomMass[a] + atomList[a].force/atomMass[a])*dt/2.0;
+    } 
+  }
+  GetTime( timeEnd );
+  timeForce += timeEnd - timeSta1;
+  iterForce ++;
+
+  statusOFS << " ***************************************************************************" << endl;
+  if( esdfParam.isHybridACE) {
+  statusOFS << "   PHI Setup DF time: " << timeDF           << " [s] " << " iterations " << iterDF      << endl;
+  statusOFS << "   PHI Setup     Phi: " << timeSetPhi       << " [s] " << " iterations " << iterSetPhi  << endl;
+  statusOFS << "   PHI Calculate ACE: " << timeCalACE       << " [s] " << " iterations " << iterCalACE  << endl;
+  statusOFS << "   PHI CalEXX Energy: " << timeCalExxEnergy << " [s] " << " iterations " << iterCalExxEnergy << endl;
+  statusOFS << "   DIIS SCF     Time: " << timeDIISSCF      << " [s] " << " iterations " << iterDIISSCF << endl;
+  statusOFS << "   Adding Up   Above: " << timeDIISSCF + timeDF + timeSetPhi + timeCalACE + timeCalExxEnergy << " [s] " << endl;
+  }
+  statusOFS << " initialization    time: " << timeInit      << " [s] " << " iterations " << 1           << endl;
+  statusOFS << " SCF calculating   time: " << timeDIIS      << " [s] " << " iterations " << iterDIIS    << endl;
+  statusOFS << " othogonalization  time: " << timeOrth      << " [s] " << " iterations " << iterOrth    << endl;
+  statusOFS << " calculate density time: " << timeDensity   << " [s] " << " iterations " << iterDensity << endl;
+  statusOFS << " calculate Force   time: " << timeForce     << " [s] " << " iterations " << iterForce   << endl;
+  statusOFS << " TDDFT Step " << k_ << " total Time: " << timeEnd - timeSta << " [s]" << std::endl;
+ 
+ 
+  ++k_;
+} // TDDFT:: advancePTTRAPDIIS_GPU_BookKeeping
+
+void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
+
+  Int mpirank, mpisize;
+  MPI_Comm mpi_comm = fftPtr_->domain.comm;
+  MPI_Comm_rank( mpi_comm, &mpirank );
+  MPI_Comm_size( mpi_comm, &mpisize );
+
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+
+  Real timeDF = 0.0;
+  Real timeSetPhi = 0.0;
+  Real timeCalACE = 0.0;
+  Real timeCalExxEnergy = 0.0;
+  Real timeDIISSCF = 0.0;
+  Real timeInit = 0.0;
+  Real timeDIIS = 0.0;
+  Real timeOrth = 0.0;
+  Real timeDensity = 0.0;
+  Real timeForce = 0.0;
+  Int  iterDF = 0;
+  Int  iterSetPhi  = 0;
+  Int  iterCalACE  = 0;
+  Int  iterDIISSCF = 0;
+  Int  iterDIIS    = 0;
+  Int  iterOrth    = 0;
+  Int  iterDensity = 0;
+  Int  iterCalExxEnergy  = 0;
+  Int  iterForce   = 0;
+
+  GetTime( timeSta );
+
+  Hamiltonian& ham = *hamPtr_;
+  Fourier&     fft = *fftPtr_;
+  Spinor&      psi = *psiPtr_;
+
+  if( ham.IsHybrid() ) {
+    ham.SetPhiEXX( psi, fft);
+  }
+
+  std::vector<Atom>&   atomList = *atomListPtr_;
+  Int numAtom = atomList.size();
+
+  // print the options_ when first step. 
+  if(k_ == 0) {
+    statusOFS<< std::endl;
+    statusOFS<< " -----   TDDFT PT-TRAP DIIS Print Options ---- "     << std::endl;
+    statusOFS<< " options.auto_save      " << options_.auto_save      << std::endl;
+    statusOFS<< " options.load_save      " << options_.load_save      << std::endl;
+    statusOFS<< " options.method         " << options_.method         << std::endl;
+    statusOFS<< " options.ehrenfest      " << options_.ehrenfest      << std::endl;
+    statusOFS<< " options.simulateTime   " << options_.simulateTime   << std::endl;
+    statusOFS<< " options.dt             " << options_.dt             << std::endl;
+    statusOFS<< " options.gmres_restart  " << options_.gmres_restart  << std::endl;
+    statusOFS<< " options.krylovTol      " << options_.krylovTol      << std::endl;
+    statusOFS<< " options.diisTol        " << options_.diisTol        << std::endl;
+    statusOFS<< " options.phiTol         " << options_.phiTol         << std::endl;
+    statusOFS<< " options.adNum          " << options_.adNum          << std::endl;
+    statusOFS<< " options.adUpdate       " << options_.adUpdate       << std::endl;
+    statusOFS<< " -----   TDDFT PT-TRAP DIIS Print Options ---- "     << std::endl;
+    statusOFS<< std::endl;
+  }
+
+  // Update saved atomList. 0 is the latest one
+  for( Int l = maxHist_-1; l > 0; l-- ){
+    atomListHist_[l] = atomListHist_[l-1];
+  }
+  atomListHist_[0] = atomList;
+
+  Int ionIter = k_;
+
+  std::vector<Point3>  atompos(numAtom);
+  std::vector<Point3>  atomvel(numAtom);
+  std::vector<Point3>  atomforce(numAtom);
+  std::vector<Point3>  atompos_fin(numAtom);
+  {
+    // do not update force at the beginning
+
+    Real& dt = options_.dt;
+    DblNumVec& atomMass = atomMass_;
+
+    for( Int a = 0; a < numAtom; a++ ){
+      atompos[a]     = atomList[a].pos;
+      atompos_fin[a] = atomList[a].pos;
+      atomvel[a]     = atomList[a].vel;
+      atomforce[a]   = atomList[a].force;
+    }
+
+    PrintState( k_ );
+
+
+    // Update velocity and position when doing ehrenfest dynamics
+    if(options_.ehrenfest){
+      for(Int a=0; a<numAtom; a++) {
+        atompos_fin[a]  = atompos[a] + atomvel[a] * dt + atomforce[a]*(dt*dt)/(atomMass[a]*2.0);
+      }  
+      AdjustAtomPos( atompos_fin );
+    }
+  }
+
+  if(options_.ehrenfest){
+    for(Int a = 0; a < numAtom; a++){
+      MPI_Bcast( &atompos_fin[a][0], 3, MPI_DOUBLE, 0, mpi_comm); 
+    }
+  }
+
+  // k_ is the current K
+  Int k = k_;
+  Real ti = tlist_[k];
+  Real tf = tlist_[k+1];
+  Real dT = tf - ti;
+  Real tmid =  (ti + tf)/2.0;
+  Complex i_Z_One = Complex(0.0, 1.0);
+
+  // PT-TRAP DIIS Method, Occupation = 1
+  DblNumVec &occupationRate = ham.OccupationRate();
+  occupationRate.Resize( psi.NumStateTotal() );
+  SetValue( occupationRate, 1.0);
+
+  // update H when it is first step. 
+  // This can be avoided since it is 
+  // already converged in the first SCF.
+  if(k == esdfParam.restartTDDFTStep) {
+    //if(!esdfParam.isRestartDensity){
+    if(1){
+	    statusOFS << " always start by calculating Density from WFN " << std::endl;
+      Real totalCharge_;
+      ham.CalculateDensity(
+          psi,
+          ham.OccupationRate(),
+          totalCharge_, 
+          fft );
+    }
+    if( isCalculateGradRho_ ){
+      ham.CalculateGradDensity( fft );
+    }
+    ham.CalculateXC( Exc_, fft ); 
+    ham.CalculateHartree( fft );
+    CalculateEfieldExt(ptable, ti); 
+    ham.CalculateVtot( ham.Vtot() );
+    cuda_reset_vtot_flag();
+  }
+
+  // calculate Dipole at the beginning.
+  if(calDipole_)  CalculateDipole(tlist_[k_]);
+
+  // 1. Calculate Xmid which appears on the right hand of the equation
+  // HPSI = (H1 * psi)
+  Int ntot  = fft.domain.NumGridTotal();
+  Int numStateLocal = psi.NumState();
+  Int ntotLocal = ntot/mpisize;
+  if(mpirank < (ntot % mpisize)) ntotLocal++;
+  Int numStateTotal = psi.NumStateTotal();
+  CpxNumMat HPSI(ntot, numStateLocal);
+  NumTns<Complex> tnsTemp(ntot, 1, numStateLocal, false, HPSI.Data());
+
+  #ifdef GPU
+  cuCpxNumMat cu_HPSI(ntot, numStateLocal);
+  cuCpxNumMat cu_PSI(ntot, numStateLocal);
+  cuNumTns<cuDoubleComplex> cu_tnsTemp(ntot, 1, numStateLocal, false, cu_HPSI.Data());
+  Spinor spnTemp( fftPtr_->domain, 1 , numStateLocal, numStateLocal, false,  cu_PSI.Data(), true );
+  cuda_memcpy_CPU2GPU(cu_PSI.Data(), psi.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  ham.MultSpinor( spnTemp, cu_tnsTemp, fft );
+  cuda_memcpy_GPU2CPU(HPSI.Data(), cu_HPSI.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  #else
+  ham.MultSpinor( psi, tnsTemp, fft );
+  #endif
+
+  //  All X's are in G-parallel
+  CpxNumMat X(ntotLocal, numStateTotal); 
+  CpxNumMat HX(ntotLocal, numStateTotal); 
+  CpxNumMat RX(ntotLocal, numStateTotal); 
+  CpxNumMat Xmid(ntotLocal, numStateTotal); 
+
+  #ifdef GPU
+  //  All X's are in G-parallel
+  cuCpxNumMat cu_X(ntotLocal, numStateTotal); 
+  cuCpxNumMat cu_HX(ntotLocal, numStateTotal); 
+  cuCpxNumMat cu_RX(ntotLocal, numStateTotal); 
+  cuCpxNumMat cu_Xmid(ntotLocal, numStateTotal); 
+  #endif
+
+  // All psi's are in Band-parallel
+  CpxNumMat psiF  ( ntot, numStateLocal );
+  CpxNumMat psiCol( ntot, numStateLocal );
+  CpxNumMat psiRes( ntot, numStateLocal );
+
+  #ifdef GPU
+  // All psi's are in Band-parallel
+  cuCpxNumMat cu_psiF  ( ntot, numStateLocal );
+  cuCpxNumMat cu_psiCol( ntot, numStateLocal );
+  cuCpxNumMat cu_psiRes( ntot, numStateLocal );
+  #endif
+
+  lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+
+  AlltoallForward( HPSI,  HX, mpi_comm);
+  AlltoallForward( psiCol, X, mpi_comm);
+
+  Int width = numStateTotal;
+  Int heightLocal = ntotLocal;
+  CpxNumMat  XHXtemp( width, width );
+  CpxNumMat  XHX( width, width );
+
+#ifdef GPU
+  cuDoubleComplex  one ; one.x = 1.0;  one.y = 0.0;
+  cuDoubleComplex  zero; zero.x = 0.0; zero.y = 0.0;
+  cuDoubleComplex  minus_one; minus_one.x = -1.0; minus_one.y = 0.0;
+
+  cuCpxNumMat  cu_XHX( width, width );
+  cuCpxNumMat  cu_XHXtemp( width, width );
+  cuda_memcpy_CPU2GPU( cu_RX.Data(), HX.Data(), sizeof(cuDoubleComplex)*ntotLocal*width );
+  cuda_memcpy_CPU2GPU( cu_X.Data(),  X.Data(),  sizeof(cuDoubleComplex)*ntotLocal*width );
+
+  cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, width, width, heightLocal, &one, cu_X.Data(), 
+      heightLocal, cu_RX.Data(), heightLocal, &zero, cu_XHXtemp.Data(), width );
+
+  cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex) );
+  MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+  cuda_memcpy_CPU2GPU( cu_XHX.Data(), XHX.Data(), width*width*sizeof(cuDoubleComplex) );
+
+  cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, heightLocal, width, width, &minus_one, 
+      cu_X.Data(), heightLocal, cu_XHX.Data(), width, &one, cu_RX.Data(), heightLocal );
+
+  cuda_memcpy_GPU2CPU( XHX.Data(), cu_XHX.Data(), width*width*sizeof(cuDoubleComplex) );
+  cuda_memcpy_GPU2CPU( RX.Data(), cu_RX.Data(), width*heightLocal*sizeof(cuDoubleComplex) );
+#else
+  // RX <-- HX - X*(X'*HX)
+  lapack::Lacpy( 'A', ntotLocal, numStateTotal, HX.Data(), ntotLocal, RX.Data(), ntotLocal );
+  blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+      heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+  MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+  blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
+      X.Data(), heightLocal, XHX.Data(), width, 1.0, RX.Data(), heightLocal );
+#endif
+
+  // check check
+  // E_kin = numSpin * trace( XHX )
+  Ekin_ = 0.0;
+  {
+    Complex * ptr = XHX.Data();
+    Int numSpin = ham.NumSpin();
+    for(int i =0; i < width; i++)
+      Ekin_ += numSpin * ptr[i*width+i].real();
+  }
+
+  statusOFS << " Ekin_ " << Ekin_ << std::endl << std::flush;
+
+  // !!!! FIXME FIXME !!!! 
+  CalculateEnergy( ptable, ti );
+
+  // Xmid <-- X - li*T/2 * RX  in G-parallel
+  {
+  #ifdef GPU // FIXME FIXME
+    cuDoubleComplex temp; temp.x = 0.0; temp.y = -1.0 * dT / 2.0;
+    cuda_memcpy_GPU2GPU( cu_Xmid.Data(), cu_X.Data(),  sizeof(double)*2*width*heightLocal );
+    cublas::Axpy( numStateTotal*ntotLocal, &temp, cu_RX.Data(), 1, cu_Xmid.Data(), 1);
+    cuda_memcpy_GPU2CPU( Xmid.Data(), cu_Xmid.Data(),  sizeof(double)*2*width*heightLocal );
+  #else
+    Complex * xmidPtr = Xmid.Data();
+    Complex * xPtr    = X.Data();
+    Complex * rxPtr   = RX.Data();
+    for( Int i = 0; i < numStateTotal; i ++)
+      for( Int j = 0; j < ntotLocal; j ++){
+        Int index = i* ntotLocal +j;
+        xmidPtr[index] = xPtr[index] -  i_Z_One * dT/2.0 * rxPtr[index];
+      }
+   #endif
+  }
+
+  Spinor psiFinal (fft.domain, 1, numStateTotal, numStateLocal, false, psiF.Data() );
+  if(0){
+    // psiF <== psi
+    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiF.Data(), ntot );
+  }
+  if(1){
+    // psiF <== psi - i * dT * RX
+    AlltoallBackward( RX, psiRes, mpi_comm);
+
+    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiF.Data(), ntot );
+    blas::Axpy( ntot, - i_Z_One * dT, psiRes.Data(), 1, psiF.Data(), 1 );
+  }
+
+  // AtomPos <== AtomPosFinal, then update Vatom
+  if(options_.ehrenfest){
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].pos  = atompos_fin[a];
+    }
+    ham.UpdateHamiltonian( atomList );
+    ham.CalculatePseudoPotential( ptable );
+    cuda_reset_nonlocal_flag();
+  }
+
+  // rhoF <== update Charge Density.
+  DblNumMat          rhoFinal; 
+  {
+    CalculateEfieldExt(ptable, tf); // tf is the current step, calculate only once.
+
+    // get the charge density of the Hf.
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psiFinal,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+    Int ntotFine  = fftPtr_->domain.NumGridTotalFine();
+    rhoFinal.Resize (ntotFine, 1);  
+
+    Real * densityPtr = ham.Density().Data();
+    Real * rhoFinalPtr= rhoFinal.Data();
+    for(int i = 0; i < ntotFine; i++) {
+      rhoFinalPtr[i] = densityPtr[i];
+    }
+  }
+
+  GetTime( timeEnd );
+  timeInit += timeEnd - timeSta;
+  //statusOFS << " TDDFT Step " << k_ << " Setting-up Time: " << timeEnd - timeSta << " [s]" << std::endl;
+
+
+  Int numGridTotal = ntot;
+
+  if(1){
+
+    GetTime( timeSta1 );
+    Int maxScfIteration = options_.diisMaxIter;
+    Real betaMix = esdfParam.mixStepLength;
+    Int  maxDim  = esdfParam.mixMaxDim;
+
+    std::vector<CpxNumMat>   dfMat;
+    std::vector<CpxNumMat>   dvMat;
+    dfMat.resize( numStateLocal );
+    dvMat.resize( numStateLocal );
+    for( int i = 0; i < numStateLocal; i++) { 
+      dfMat[i].Resize( ntot, maxDim ); 
+      dvMat[i].Resize( ntot, maxDim ); 
+      SetValue( dfMat[i], Complex(0.0, 0.0) );
+      SetValue( dvMat[i], Complex(0.0, 0.0) );
+    }
+
+    CpxNumVec vin;
+    CpxNumVec vout;
+    vin.Resize( ntot);
+    vout.Resize( ntot);
+    SetValue( vin,  Complex(0,0));
+    SetValue( vout, Complex(0,0));
+
+    GetTime( timeEnd1 );
+    timeDF += timeEnd1 - timeSta1;
+    iterDF ++;
+
+    Real scfNorm = 0.0;
+    if( esdfParam.isHybridACE ) {
+#if 0
+      statusOFS << "TDDFT is using Hybrid ACE Operator ...." << std::endl;
+
+      Real fock1 = 0.0;
+      Real fock2 = 0.0;
+
+      // Two SCF loops, outer and inner SCF.
+      // Outer SCF
+      int maxPhiIteration = options_.phiMaxIter;
+
+      // new scheme: get E[V] <== V[psi_0] <== psi_0
+      GetTime( timeSta1 );
+      ham.SetPhiEXX( psiFinal, fft);
+      GetTime( timeEnd1 );
+      timeSetPhi += timeEnd1 - timeSta1;
+      iterSetPhi ++;
+
+      GetTime( timeSta1 );
+      ham.CalculateVexxACE ( psi, fft );
+      GetTime( timeEnd1 );
+      timeCalACE += timeEnd1 - timeSta1;
+      iterCalACE ++;
+
+      GetTime( timeSta1 );
+      fock1 = ham.CalculateEXXEnergy( psiFinal, fft ); 
+      GetTime( timeEnd1 );
+      timeCalExxEnergy += timeEnd1 - timeSta1;
+      iterCalExxEnergy ++;
+
+      for( int phiIter = 0; phiIter < maxPhiIteration; phiIter++){
+
+        // Inner SCF.
+        GetTime( timeSta1 );
+	int iscf;
+        for( iscf = 1; iscf <= maxScfIteration; iscf++ ) {
+          scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
+          if( scfNorm < options_.diisTol){
+            break;
+          }
+        }
+        GetTime( timeEnd1 );
+        timeDIISSCF += timeEnd1 - timeSta1;
+        iterDIISSCF += iscf;
+
+        if( scfNorm < options_.diisTol)
+          statusOFS << "phiStep " << phiIter << " DIIS is  converged in " << iscf << " steps " << " scfNorm " << scfNorm << std::endl;
+	else 
+          statusOFS << "phiStep " << phiIter << " DIIS NOT converged in " << iscf << " steps " << " scfNorm " << scfNorm << std::endl;
+
+        // new scheme: get E[V] <== V[psi_0] <== psi_0
+        GetTime( timeSta1 );
+        ham.SetPhiEXX( psiFinal, fft);
+        GetTime( timeEnd1 );
+        timeSetPhi += timeEnd1 - timeSta1;
+        iterSetPhi ++;
+
+        GetTime( timeSta1 );
+        ham.CalculateVexxACE ( psiFinal, fft );
+        GetTime( timeEnd1 );
+        timeCalACE += timeEnd1 - timeSta1;
+        iterCalACE ++;
+
+        GetTime( timeSta1 );
+        fock2 = ham.CalculateEXXEnergy( psiFinal, fft ); 
+        GetTime( timeEnd1 );
+        timeCalExxEnergy += timeEnd1 - timeSta1;
+        iterCalExxEnergy ++;
+
+        Real dExx = std::abs(fock2 - fock1) / std::abs(fock2);
+
+        statusOFS << " Fock Energy  = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< fock2 << " [au]" << std::endl 
+                  << " dExx         = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< dExx  << " [au]" << std::endl;
+
+	fock1 = fock2;
+        if( dExx < options_.phiTol) {
+          statusOFS << "TDDFT step " << k_ << " Phi Iteration in " << phiIter + 1<< " steps !" << std::endl;
+	  break; 
+	}
+      }
+#endif
+    } 
+    else {
+
+      if( ham.IsHybrid() && !esdfParam.isHybridACE ) 
+        statusOFS << "TDDFT screen exchange ... " << std::endl;
+      else
+        statusOFS << "TDDFT PBE ... " << std::endl;
+
+      // Note, the exact HF and PBE implementation together. 
+      for(int iscf = 1; iscf <= maxScfIteration; iscf++){
+#ifdef GPU
+        statusOFS << " GPU InnerSolve iteartion " << iscf << std::endl;
+        scfNorm = InnerSolve_GPU( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
+#else
+        scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
+#endif
+        if( scfNorm < options_.diisTol){
+          statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
+          break;
+        }
+      }
+    }
+
+  } // if 1
+
+  GetTime( timeEnd );
+  timeDIIS += timeEnd - timeSta ;
+  iterDIIS ++;
+  //statusOFS << " TDDFT Step " << k_ << " DIIS loop used Time: " << timeEnd - timeSta1 << " [s]" << std::endl;
+
+  GetTime( timeSta1 );
+  AlltoallForward( psiF,  X, mpi_comm);
+
+  // Reorthogonalize
+  {
+    //FIXME:GPU allocation not done yet.
+    #ifdef GPU
+    cuda_memcpy_CPU2GPU( cu_X.Data(), X.Data(), width*heightLocal*sizeof(cuDoubleComplex));
+
+    cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, width, width, heightLocal, &one, cu_X.Data(),  
+        heightLocal, cu_X.Data(), heightLocal, &zero, cu_XHXtemp.Data(), width);
+
+    cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    #else
+    blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
+        heightLocal, X.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
+    #endif
+    MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+
+    // XHXtemp = 0.5 * ( XHX + conj ( XHX ) )
+    {
+      Complex * xPtr = XHXtemp.Data();
+      Complex * yPtr = XHX.Data();
+      for(int i = 0; i < width; i++){
+        for(int j = 0; j < width; j++){
+          xPtr[i*width + j] = 0.5 * ( yPtr[i*width+j] + std::conj(yPtr[j*width+i]) );
+        }
+      }
+    }
+
+    DblNumVec  eigValS(width);
+
+    #ifdef GPU
+    cuda_memcpy_CPU2GPU( cu_XHXtemp.Data(), XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    cuSolver::Syevd( 'V', 'U', width, cu_XHXtemp.Data(), width, eigValS.Data() );
+    cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    #else
+    lapack::Syevd( 'V', 'U', width, XHXtemp.Data(), width, eigValS.Data() );
+    #endif
+
+    CpxNumMat temp( width, width );
+    SetValue( temp, Complex(0.0, 0.0) );
+    for(int i = 0; i < width; i++) {
+      temp(i,i) = Complex( 1.0 / sqrt( eigValS[i] ), 0.0);
+    }
+
+    #ifdef GPU
+    // FIXME: GPU allocaltion/book keeping
+    cuCpxNumMat cu_temp( width, width );
+    cuda_memcpy_CPU2GPU( cu_XHXtemp.Data(), XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    cuda_memcpy_CPU2GPU( cu_temp.Data(), temp.Data(), width*width*sizeof(cuDoubleComplex));
+
+    cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, width, width, width, &one, cu_XHXtemp.Data(),
+        width, cu_temp.Data(), width, &zero, cu_XHX.Data(), width);
+
+    cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_C, width, width, width, &one, cu_XHX.Data(),
+        width, cu_XHXtemp.Data(), width, &zero, cu_temp.Data(), width );
+
+    cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, heightLocal, width, width, &one, cu_X.Data(),
+        heightLocal, cu_temp.Data(), width, &zero, cu_HX.Data(), heightLocal );
+
+    cuda_memcpy_GPU2CPU( HX.Data(), cu_HX.Data(), width*heightLocal*sizeof(cuDoubleComplex));
+    #else
+    blas::Gemm( 'N', 'N', width, width, width, 1.0, XHXtemp.Data(),
+        width, temp.Data(), width, 0.0, XHX.Data(), width );
+
+    blas::Gemm( 'N', 'C', width, width, width, 1.0, XHX.Data(),
+        width, XHXtemp.Data(), width, 0.0, temp.Data(), width );
+
+    blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
+        heightLocal, temp.Data(), width, 0.0, HX.Data(), heightLocal );
+    #endif
+
+    AlltoallBackward ( HX, psiF, mpi_comm );
+  }
+
+  blas::Copy( ntot*numStateLocal, psiFinal.Wavefun().Data(), 1, psi.Wavefun().Data(), 1 );
+
+  GetTime( timeEnd );
+  timeOrth += timeEnd - timeSta1;
+  iterOrth ++;
+
+  // Update the density for the renormalized wavefunction
+  GetTime( timeSta1 );
+  {
+    // get the charge density of the Hf.
+    Real totalCharge_;
+    ham.CalculateDensity(
+        psiFinal,
+        ham.OccupationRate(),
+        totalCharge_, 
+        fft );
+  }
+  GetTime( timeEnd );
+  timeDensity += timeEnd - timeSta1;
+  iterDensity ++;
+
+
+  GetTime( timeSta1 );
+  if(options_.ehrenfest){
+    ham.CalculateForce( psi, fft);
+
+    Real& dt = options_.dt;
+    DblNumVec& atomMass = atomMass_;
+    for( Int a = 0; a < numAtom; a++ ){
+      atomList[a].vel = atomList[a].vel + (atomforce[a]/atomMass[a] + atomList[a].force/atomMass[a])*dt/2.0;
+    } 
+  }
+  GetTime( timeEnd );
+  timeForce += timeEnd - timeSta1;
+  iterForce ++;
+
+  statusOFS << " ***************************************************************************" << endl;
+  if( esdfParam.isHybridACE) {
+  statusOFS << "   PHI Setup DF time: " << timeDF           << " [s] " << " iterations " << iterDF      << endl;
+  statusOFS << "   PHI Setup     Phi: " << timeSetPhi       << " [s] " << " iterations " << iterSetPhi  << endl;
+  statusOFS << "   PHI Calculate ACE: " << timeCalACE       << " [s] " << " iterations " << iterCalACE  << endl;
+  statusOFS << "   PHI CalEXX Energy: " << timeCalExxEnergy << " [s] " << " iterations " << iterCalExxEnergy << endl;
+  statusOFS << "   DIIS SCF     Time: " << timeDIISSCF      << " [s] " << " iterations " << iterDIISSCF << endl;
+  statusOFS << "   Adding Up   Above: " << timeDIISSCF + timeDF + timeSetPhi + timeCalACE + timeCalExxEnergy << " [s] " << endl;
+  }
+  statusOFS << " initialization    time: " << timeInit      << " [s] " << " iterations " << 1           << endl;
+  statusOFS << " SCF calculating   time: " << timeDIIS      << " [s] " << " iterations " << iterDIIS    << endl;
+  statusOFS << " othogonalization  time: " << timeOrth      << " [s] " << " iterations " << iterOrth    << endl;
+  statusOFS << " calculate density time: " << timeDensity   << " [s] " << " iterations " << iterDensity << endl;
+  statusOFS << " calculate Force   time: " << timeForce     << " [s] " << " iterations " << iterForce   << endl;
+  statusOFS << " TDDFT Step " << k_ << " total Time: " << timeEnd - timeSta << " [s]" << std::endl;
+ 
+ 
+  ++k_;
+} // TDDFT:: advancePTTRAPDIIS_GPU
+#endif
 
 void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
@@ -3063,7 +4452,11 @@ void TDDFT::Propagate( PeriodTable& ptable ) {
   }
   else if( options_.method == "PTTRAPDIIS"){
     for( Int i = startTime; i < totalSteps; i++) {
+#ifdef GPU
+      advancePTTRAPDIIS_GPU( ptable );
+#else
       advancePTTRAPDIIS( ptable );
+#endif
       if( (i != 0) && (i % esdfParam.TDDFTautoSaveSteps == 0)) 
         Store4Restart();
     }
@@ -3548,6 +4941,11 @@ Real TDDFT::InnerSolve( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, 
 #ifdef GPU
 Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat &HPSI, CpxNumMat & psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat & Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal )
 {
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+  GetTime( timeSta );
+  GetTime( timeSta1 );
+
   Hamiltonian& ham = *hamPtr_;
   Fourier&     fft = *fftPtr_;
   Spinor&      psi = *psiPtr_;
@@ -3580,6 +4978,9 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
     ham.CalculateVtot( ham.Vtot());
     cuda_reset_vtot_flag();
   }
+  GetTime( timeEnd1 );
+  statusOFS << "SCF " << iscf << " start by calculate Density : " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  GetTime( timeSta1 );
 
   // will setPhi on GPU later...
   if( ham.IsHybrid() && !esdfParam.isHybridACE ) {
@@ -3595,6 +4996,10 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
   Spinor spnTemp( fftPtr_->domain, 1 , numStateLocal, numStateLocal, false,  cu_psiFinal.Data(), true );
   ham.MultSpinor( spnTemp, cu_tnsTemp, fft );
   cuda_memcpy_GPU2CPU(HPSI.Data(), cu_HpsiFinal.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+
+  GetTime( timeEnd1 );
+  statusOFS << "SCF " << iscf << " Band parallel H*X calculate time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  GetTime( timeSta1 );
 
   // HXf <== Hf * Xf, now HPSI is HXf  
   //ham.MultSpinor( psiFinal, tnsTemp, fft );
@@ -3622,12 +5027,6 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
 
   cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), sizeof(double)*2*width*width);
 
-  blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
-      heightLocal, HX.Data(), heightLocal, 0.0, XHX.Data(), width );
-
-  for(int i =0; i < 4; i++)
-     statusOFS << " XHXtemp " << i << " " <<  std::setprecision(15) <<* (XHXtemp.Data() + i*width + i) << 
-               " XHX " << i << " " <<  std::setprecision(15) <<*(XHX.Data() + i*width + i) << std::endl << std::flush;
 #else
   blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
       heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
@@ -3703,6 +5102,9 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
   for( int i = 0; i < ntot; i++){
     precPtr[i] = 1.0/(1.0 + i_Z_One * dT/2.0 * ( fft.gkk[i] - traceXHX / (Real)numStateTotal ));
   }
+  GetTime( timeEnd1 );
+  statusOFS << "SCF " << iscf << " G-parallel calculation time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  GetTime( timeSta1 );
 
   // FIXME
   CpxNumMat dfMatTemp( ntot, maxDim ); 
@@ -3818,6 +5220,9 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
 
   } // for (iband)
 
+  GetTime( timeEnd1 );
+  statusOFS << "SCF " << iscf << " band-parallel calculation time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  GetTime( timeSta1 );
   Real scfNorm = 0.0;
   {
     // Get the rhoFnew
@@ -3847,6 +5252,9 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
     blas::Copy( ntotFine,  ham.Density().Data(), 1,  rhoFinal.Data(), 1 );
 
     
+    GetTime( timeEnd );
+    statusOFS << "SCF " << iscf << " Density calculation and copy wavefunction time: " << timeEnd - timeSta1 << " [s]" << std::endl;
+    statusOFS << "SCF " << iscf << " calculation time: " << timeEnd - timeSta << " [s]" << std::endl;
 #if 0
     if( scfNorm < options_.diisTol){
       statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;

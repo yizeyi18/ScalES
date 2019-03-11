@@ -253,6 +253,8 @@ namespace dgdft{
 #ifdef GPU
 #ifdef _COMPLEX_
       void advanceRK4_GPU(PeriodTable& ptable) ;
+      void advancePTTRAPDIIS_GPU(PeriodTable& ptable) ;
+      void advancePTTRAPDIIS_GPU_BookKeeping(PeriodTable& ptable) ;
 #endif
 #endif
       void advanceRK4(PeriodTable& ptable) ;

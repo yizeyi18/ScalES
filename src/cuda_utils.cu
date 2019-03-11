@@ -1278,6 +1278,48 @@ void cuda_tddft_prec( cuDoubleComplex * prec, cuDoubleComplex * gkk, cuDoubleCom
 #endif
 }
 
+template <class T>
+__global__ void gpu_compress( double *source, T* dest, int len)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if(tid < len)
+	{
+		dest[tid] = source[tid];
+	}
+}
+
+void cuda_compress_d2f( float *out, double *in, int length)
+{
+	int dim = ( length + LEN - 1) / LEN;
+	gpu_compress<float> <<< dim, LEN>>> ( in, out, length);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
+template <class T>
+__global__ void gpu_decompress( T *source, double* dest, int len)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	if(tid < len)
+	{
+		dest[tid] = source[tid];
+	}
+}
+
+void cuda_decompress_f2d( double *out, float *in, int length)
+{
+	int dim = ( length + LEN - 1) / LEN;
+	gpu_decompress<float> <<< dim, LEN>>> ( in, out, length);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
 void cuda_sync()
 {
 	gpuErrchk(cudaPeekAtLastError());

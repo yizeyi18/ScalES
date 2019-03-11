@@ -199,6 +199,8 @@ void cuda_cal_sendk( int * sendk, int * senddispl, int widthLocal, int height, i
 void cuda_hadamard_product( double * in1, double * in2, double * out, int length);
 void cuda_set_vector( double * out, double *in, int length);
 void cuda_set_vector( cuDoubleComplex* out, cuDoubleComplex *in, int length);
+void cuda_decompress_f2d( double *out, float *in, int length);
+void cuda_compress_d2f( float *out, double *in, int length);
 void cuda_sync();
 //}
 #endif
