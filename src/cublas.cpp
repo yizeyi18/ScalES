@@ -383,8 +383,34 @@ void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, i
 	cudaFree(d_B);
 	cudaFree(d_C);
 }
+/*
+void batched_least_square(cublasOperation_t trans, Int m, Int n, Int nrhs, cuDoubleComplex *A[], Int lda, cuDoubleComplex *C[], Int ldc, Int *info, Int * devInfoArray, Int batchSize )
+{
+        cuDoubleComplex ** h_A = ( cuDoubleComplex**) malloc ( sizeof(cuDoubleComplex*) * batchSize);
+        cuDoubleComplex ** h_C = ( cuDoubleComplex**) malloc ( sizeof(cuDoubleComplex*) * batchSize);
 
+        for( int i = 0; i < batchSize; i++)
+        {
+                h_A[i] = A + i*lda;
+                h_C[i] = C + i*ldc;
+        }
 
+        cuDoubleComplex **d_A, **d_C;
+        cudaMalloc((void**)&d_A, sizeof(cuDoubleComplex*) * batchSize);
+        cudaMalloc((void**)&d_C, sizeof(cuDoubleComplex*) * batchSize);
+
+        cudaMemcpy( d_A, h_A, batchSize*sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
+        cudaMemcpy( d_C, h_C, batchSize*sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
+
+        CUBLAS_ERROR( cublasZgelsBatched(hcublas, trans, m, n, nrhs, A, lda, C, ldc, info, devInfoArray, batchSize ), "cublasZgelsBatched failed!" );
+
+        free(h_A);
+        free(h_C);
+        cudaFree(d_A);
+        cudaFree(d_C);
+        return;
+}
+*/
 } // namespace cublas
 } // namespace dgdft
 

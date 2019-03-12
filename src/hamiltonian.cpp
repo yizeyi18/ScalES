@@ -804,6 +804,128 @@ void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
 
 #ifdef _COMPLEX_
 
+#ifdef GPU
+void
+KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft, bool isGPU)
+{
+  if( isGPU) {
+    statusOFS << " GPU ham.calculateDensity " << std::endl;
+  }
+  Int ntot = domain_.NumGridTotal();
+  Int ncom = psi.cuWavefun().n();
+  Int nocc = psi.cuWavefun().p();
+/*
+  Int ntot  = psi.NumGridTotal();
+  Int ncom  = psi.NumComponent();
+  Int nocc  = psi.NumState();
+*/
+  Real vol  = domain_.Volume();
+  statusOFS << ntot << " " << ncom << " " << nocc << " " << vol << std::endl << std::flush;
+
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+
+  DblNumMat   densityLocal;
+  densityLocal.Resize( ntotFine, ncom );   
+  SetValue( densityLocal, 0.0 );
+
+  Real fac;
+
+  SetValue( density_, 0.0 );
+
+  /* psi wavefunc.Data is the GPU wavefunction */
+  cuCpxNumVec cu_psi(ntot);
+  cuCpxNumVec cu_psi_out(ntot);
+  cuCpxNumVec cu_psi_fine_out(ntotFine);
+  cuCpxNumVec cu_psi_fine(ntotFine);
+  cuDblNumVec cu_density(ntotFine);
+  cuDblNumVec cu_den(ntotFine);
+
+  cuda_setValue( cu_density.Data(), 0.0, ntotFine);
+  cuDoubleComplex zero; zero.x = 0.0; zero.y = 0.0;
+
+  for (Int k=0; k<nocc; k++) {
+    for (Int j=0; j<ncom; j++) {
+
+      cuda_memcpy_GPU2GPU(cu_psi.Data(), psi.cuWavefun().Data()+k*ntot, sizeof(cuDoubleComplex)*ntot);
+      cuFFTExecuteForward2( fft, fft.cuPlanC2C[0], 0, cu_psi, cu_psi_out );
+
+      cuda_setValue(cu_psi_fine_out.Data(), (cuDoubleComplex)zero , ntotFine);
+      Real fac = sqrt( double(ntot) / double(ntotFine) );
+      cuda_interpolate_wf_C2F( reinterpret_cast<cuDoubleComplex*>(cu_psi_out.Data()), 
+                               reinterpret_cast<cuDoubleComplex*>(cu_psi_fine_out.Data()), 
+                               dev_idxFineGridR2C,
+                               ntot, 
+                               fac);
+
+      cuFFTExecuteInverse(fft, fft.cuPlanC2CFine[0], 1, cu_psi_fine_out, cu_psi_fine);
+      fac = numSpin_ * occrate(psi.WavefunIdx(k));
+      cuda_XTX( cu_psi_fine.Data(), cu_den.Data(), ntotFine);
+
+      cublas::Axpy( ntotFine, &fac, cu_den.Data(), 1, cu_density.Data(), 1);
+    }
+  }
+
+  #ifdef GPUDIRECT
+  mpi::Allreduce( cu_density.Data(), cu_den.Data(), ntotFine, MPI_SUM, domain_.comm );
+  #else
+  cuda_memcpy_GPU2CPU( densityLocal.Data(), cu_density.Data(), ntotFine *sizeof(double));
+  mpi::Allreduce( densityLocal.Data(), density_.Data(), ntotFine, MPI_SUM, domain_.comm );
+  cuda_memcpy_CPU2GPU( cu_den.Data(), density_.Data(), ntotFine *sizeof(double));
+  #endif 
+
+  #ifdef GPU
+  double * val_dev = (double*) cuda_malloc( sizeof(double));
+  val = 0.0; // sum of density
+  cuda_reduce( cu_den.Data(), val_dev, 1, ntotFine);
+  cuda_memcpy_GPU2CPU( &val, val_dev, sizeof(double));
+  Real val1 = val;
+  Real temp = (numSpin_ * Real(numOccupiedState_) * Real(ntotFine)) / ( vol * val );
+  cublas::Scal( ntotFine, &temp, cu_den.Data(), 1 );
+
+  cuda_reduce( cu_den.Data(), val_dev, 1, ntotFine);
+  cuda_memcpy_GPU2CPU( &val, val_dev, sizeof(double));
+  Real val2 = val;
+  
+  cuda_memcpy_GPU2CPU( density_.Data(), cu_den.Data(), ntotFine *sizeof(double));
+  cuda_free(val_dev);
+  #else
+
+  val = 0.0; // sum of density
+  for (Int i=0; i<ntotFine; i++) {
+    val  += density_(i, RHO);
+  }
+
+  Real val1 = val;
+
+  // Scale the density
+  blas::Scal( ntotFine, (numSpin_ * Real(numOccupiedState_) * Real(ntotFine)) / ( vol * val ), 
+      density_.VecData(RHO), 1 );
+
+  // Double check (can be neglected)
+  val = 0.0; // sum of density
+  for (Int i=0; i<ntotFine; i++) {
+    val  += density_(i, RHO) * vol / ntotFine;
+  }
+
+  Real val2 = val;
+  #endif
+
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << "Raw data, sum of density          = " << val1 << std::endl;
+  statusOFS << "Expected sum of density           = " << numSpin_ * numOccupiedState_ << std::endl;
+  statusOFS << "Raw data, sum of adjusted density = " << val2 << std::endl;
+#endif
+
+
+  return ;
+}         // -----  end of method KohnSham::CalculateDensity  ----- 
+
+#endif
+
 void
 KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft)
 {

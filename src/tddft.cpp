@@ -1014,7 +1014,7 @@ void TDDFT::advanceRK4_GPU( PeriodTable& ptable ) {
   Ekin_ = 0.0;
   {
 
-    Real Ekin_temp = 0.0;	  
+    Real Ekin_temp = 0.0;          
     cuCpxNumMat  cu_XHX( numStateLocal, numStateLocal);
     CpxNumMat  XHX( numStateLocal, numStateLocal);
     cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, numStateLocal, numStateLocal, ntot, &one,  cu_X.Data(), 
@@ -1484,7 +1484,7 @@ void TDDFT::advanceRK4( PeriodTable& ptable ) {
 
   Ekin_ = 0.0;
   {
-    Real Ekin_temp = 0.0;	  
+    Real Ekin_temp = 0.0;          
     CpxNumMat  XHX( numStateLocal, numStateLocal);
     blas::Gemm( 'C', 'N', numStateLocal, numStateLocal, ntot, 1.0, psi.Wavefun().Data(), 
         ntot, HX1.Data(), ntot, 0.0, XHX.Data(), numStateLocal );
@@ -2357,7 +2357,7 @@ void TDDFT::advancePTTRAPDIIS_GPU_BookKeeping( PeriodTable& ptable ) {
   if(k == esdfParam.restartTDDFTStep) {
     //if(!esdfParam.isRestartDensity){
     if(1){
-	    statusOFS << " always start by calculating Density from WFN " << std::endl;
+            statusOFS << " always start by calculating Density from WFN " << std::endl;
       Real totalCharge_;
       ham.CalculateDensity(
           psi,
@@ -2618,7 +2618,7 @@ void TDDFT::advancePTTRAPDIIS_GPU_BookKeeping( PeriodTable& ptable ) {
 
         // Inner SCF.
         GetTime( timeSta1 );
-	int iscf;
+        int iscf;
         for( iscf = 1; iscf <= maxScfIteration; iscf++ ) {
           scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
           if( scfNorm < options_.diisTol){
@@ -2631,7 +2631,7 @@ void TDDFT::advancePTTRAPDIIS_GPU_BookKeeping( PeriodTable& ptable ) {
 
         if( scfNorm < options_.diisTol)
           statusOFS << "phiStep " << phiIter << " DIIS is  converged in " << iscf << " steps " << " scfNorm " << scfNorm << std::endl;
-	else 
+        else 
           statusOFS << "phiStep " << phiIter << " DIIS NOT converged in " << iscf << " steps " << " scfNorm " << scfNorm << std::endl;
 
         // new scheme: get E[V] <== V[psi_0] <== psi_0
@@ -2658,11 +2658,11 @@ void TDDFT::advancePTTRAPDIIS_GPU_BookKeeping( PeriodTable& ptable ) {
         statusOFS << " Fock Energy  = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< fock2 << " [au]" << std::endl 
                   << " dExx         = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< dExx  << " [au]" << std::endl;
 
-	fock1 = fock2;
+        fock1 = fock2;
         if( dExx < options_.phiTol) {
           statusOFS << "TDDFT step " << k_ << " Phi Iteration in " << phiIter + 1<< " steps !" << std::endl;
-	  break; 
-	}
+          break; 
+        }
       }
     } 
     else {
@@ -3026,6 +3026,13 @@ void TDDFT::advancePTTRAPDIIS_GPU_BookKeeping( PeriodTable& ptable ) {
   ++k_;
 } // TDDFT:: advancePTTRAPDIIS_GPU_BookKeeping
 
+
+/* 
+ * This version is the GPU version of the PTTRAPDIIS code. 
+ * It will try to use GPU in the most efficient way, but it may cause some problem in the process
+ * The data movement will try to use CUDA aware MPI, and NVLink on Summit supercomputer
+ */
+
 void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
 
   Int mpirank, mpisize;
@@ -3132,6 +3139,21 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
     }
   }
 
+  /* start the initialization */
+  Int ntot  = fft.domain.NumGridTotal();
+  Int numStateLocal = psi.NumState();
+  Int ntotLocal = ntot/mpisize;
+  if(mpirank < (ntot % mpisize)) ntotLocal++;
+  Int numStateTotal = psi.NumStateTotal();
+  CpxNumMat HPSI(ntot, numStateLocal);
+  NumTns<Complex> tnsTemp(ntot, 1, numStateLocal, false, HPSI.Data());
+
+  cuCpxNumMat cu_HPSI(ntot, numStateLocal);
+  cuCpxNumMat cu_PSI(ntot, numStateLocal);
+  cuNumTns<cuDoubleComplex> cu_tnsTemp(ntot, 1, numStateLocal, false, cu_HPSI.Data());
+  Spinor spnTemp( fftPtr_->domain, 1 , numStateLocal, numStateLocal, false,  cu_PSI.Data(), true );
+  cuda_memcpy_CPU2GPU(cu_PSI.Data(), psi.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+
   // k_ is the current K
   Int k = k_;
   Real ti = tlist_[k];
@@ -3151,13 +3173,13 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
   if(k == esdfParam.restartTDDFTStep) {
     //if(!esdfParam.isRestartDensity){
     if(1){
-	    statusOFS << " always start by calculating Density from WFN " << std::endl;
+      statusOFS << " always start by calculating Density from WFN " << std::endl;
       Real totalCharge_;
       ham.CalculateDensity(
           psi,
           ham.OccupationRate(),
           totalCharge_, 
-          fft );
+          fft);
     }
     if( isCalculateGradRho_ ){
       ham.CalculateGradDensity( fft );
@@ -3174,20 +3196,8 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
 
   // 1. Calculate Xmid which appears on the right hand of the equation
   // HPSI = (H1 * psi)
-  Int ntot  = fft.domain.NumGridTotal();
-  Int numStateLocal = psi.NumState();
-  Int ntotLocal = ntot/mpisize;
-  if(mpirank < (ntot % mpisize)) ntotLocal++;
-  Int numStateTotal = psi.NumStateTotal();
-  CpxNumMat HPSI(ntot, numStateLocal);
-  NumTns<Complex> tnsTemp(ntot, 1, numStateLocal, false, HPSI.Data());
 
   #ifdef GPU
-  cuCpxNumMat cu_HPSI(ntot, numStateLocal);
-  cuCpxNumMat cu_PSI(ntot, numStateLocal);
-  cuNumTns<cuDoubleComplex> cu_tnsTemp(ntot, 1, numStateLocal, false, cu_HPSI.Data());
-  Spinor spnTemp( fftPtr_->domain, 1 , numStateLocal, numStateLocal, false,  cu_PSI.Data(), true );
-  cuda_memcpy_CPU2GPU(cu_PSI.Data(), psi.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
   ham.MultSpinor( spnTemp, cu_tnsTemp, fft );
   cuda_memcpy_GPU2CPU(HPSI.Data(), cu_HPSI.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
   #else
@@ -3220,10 +3230,17 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
   cuCpxNumMat cu_psiRes( ntot, numStateLocal );
   #endif
 
+  #ifndef GPU
+  statusOFS << " Error, should not copy the psi to psiCol anymore in the GPU implementation"<< std::endl;
   lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+  #endif
 
-  AlltoallForward( HPSI,  HX, mpi_comm);
-  AlltoallForward( psiCol, X, mpi_comm);
+  // Attention!
+  // Attention!
+  // Attention!
+  // Not Book keeping anymore... the HX and HPSI will no longer be used to book keeping
+  GPU_AlltoallForward( cu_HPSI,  cu_HX, mpi_comm);
+  GPU_AlltoallForward( cu_PSI,   cu_X,  mpi_comm);
 
   Int width = numStateTotal;
   Int heightLocal = ntotLocal;
@@ -3237,15 +3254,20 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
 
   cuCpxNumMat  cu_XHX( width, width );
   cuCpxNumMat  cu_XHXtemp( width, width );
-  cuda_memcpy_CPU2GPU( cu_RX.Data(), HX.Data(), sizeof(cuDoubleComplex)*ntotLocal*width );
-  cuda_memcpy_CPU2GPU( cu_X.Data(),  X.Data(),  sizeof(cuDoubleComplex)*ntotLocal*width );
+  cuda_memcpy_GPU2CPU( X.Data(), cu_X.Data(), sizeof(cuDoubleComplex)*ntotLocal*width );
+  cuda_memcpy_GPU2CPU( HX.Data(), cu_HX.Data(), sizeof(cuDoubleComplex)*ntotLocal*width );
+  cuda_memcpy_GPU2GPU( cu_RX.Data(), cu_HX.Data(), sizeof(cuDoubleComplex)*ntotLocal*width );
 
   cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, width, width, heightLocal, &one, cu_X.Data(), 
       heightLocal, cu_RX.Data(), heightLocal, &zero, cu_XHXtemp.Data(), width );
 
+#ifdef GPUDIRECT
+  MPI_Allreduce( cu_XHXtemp.Data(), cu_XHX.Data(), 2*width*width, MPI_DOUBLE_PRECISION, MPI_SUM, mpi_comm );
+#else
   cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex) );
   MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
   cuda_memcpy_CPU2GPU( cu_XHX.Data(), XHX.Data(), width*width*sizeof(cuDoubleComplex) );
+#endif
 
   cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, heightLocal, width, width, &minus_one, 
       cu_X.Data(), heightLocal, cu_XHX.Data(), width, &one, cu_RX.Data(), heightLocal );
@@ -3412,7 +3434,7 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
 
         // Inner SCF.
         GetTime( timeSta1 );
-	int iscf;
+        int iscf;
         for( iscf = 1; iscf <= maxScfIteration; iscf++ ) {
           scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
           if( scfNorm < options_.diisTol){
@@ -3425,7 +3447,7 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
 
         if( scfNorm < options_.diisTol)
           statusOFS << "phiStep " << phiIter << " DIIS is  converged in " << iscf << " steps " << " scfNorm " << scfNorm << std::endl;
-	else 
+        else 
           statusOFS << "phiStep " << phiIter << " DIIS NOT converged in " << iscf << " steps " << " scfNorm " << scfNorm << std::endl;
 
         // new scheme: get E[V] <== V[psi_0] <== psi_0
@@ -3452,11 +3474,11 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
         statusOFS << " Fock Energy  = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< fock2 << " [au]" << std::endl 
                   << " dExx         = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< dExx  << " [au]" << std::endl;
 
-	fock1 = fock2;
+        fock1 = fock2;
         if( dExx < options_.phiTol) {
           statusOFS << "TDDFT step " << k_ << " Phi Iteration in " << phiIter + 1<< " steps !" << std::endl;
-	  break; 
-	}
+          break; 
+        }
       }
 #endif
     } 
@@ -3620,6 +3642,7 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
  
   ++k_;
 } // TDDFT:: advancePTTRAPDIIS_GPU
+
 #endif
 
 void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
@@ -3747,7 +3770,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
   if(k == esdfParam.restartTDDFTStep) {
     //if(!esdfParam.isRestartDensity){
     if(1){
-	    statusOFS << " always start by calculating Density from WFN " << std::endl;
+            statusOFS << " always start by calculating Density from WFN " << std::endl;
       Real totalCharge_;
       ham.CalculateDensity(
           psi,
@@ -4008,7 +4031,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
         // Inner SCF.
         GetTime( timeSta1 );
-	int iscf;
+        int iscf;
         for( iscf = 1; iscf <= maxScfIteration; iscf++ ) {
           scfNorm = InnerSolve( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal);
           if( scfNorm < options_.diisTol){
@@ -4021,7 +4044,7 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
 
         if( scfNorm < options_.diisTol)
           statusOFS << "phiStep " << phiIter << " DIIS is  converged in " << iscf << " steps " << " scfNorm " << scfNorm << std::endl;
-	else 
+        else 
           statusOFS << "phiStep " << phiIter << " DIIS NOT converged in " << iscf << " steps " << " scfNorm " << scfNorm << std::endl;
 
         // new scheme: get E[V] <== V[psi_0] <== psi_0
@@ -4048,11 +4071,11 @@ void TDDFT::advancePTTRAPDIIS( PeriodTable& ptable ) {
         statusOFS << " Fock Energy  = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< fock2 << " [au]" << std::endl 
                   << " dExx         = " << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< dExx  << " [au]" << std::endl;
 
-	fock1 = fock2;
+        fock1 = fock2;
         if( dExx < options_.phiTol) {
           statusOFS << "TDDFT step " << k_ << " Phi Iteration in " << phiIter + 1<< " steps !" << std::endl;
-	  break; 
-	}
+          break; 
+        }
       }
     } 
     else {
@@ -4973,8 +4996,17 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
     if( isCalculateGradRho_ ){
       ham.CalculateGradDensity( fft );
     }
+  GetTime( timeEnd1 );
+  statusOFS << "SCF " << iscf << " CalculateGradDensity: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  GetTime( timeSta1 );
     ham.CalculateXC( Exc_, fft ); 
+  GetTime( timeEnd1 );
+  statusOFS << "SCF " << iscf << " CalculateXC: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  GetTime( timeSta1 );
     ham.CalculateHartree( fft );
+  GetTime( timeEnd1 );
+  statusOFS << "SCF " << iscf << " CalculateHartree: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  GetTime( timeSta1 );
     ham.CalculateVtot( ham.Vtot());
     cuda_reset_vtot_flag();
   }
@@ -5225,13 +5257,16 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
   GetTime( timeSta1 );
   Real scfNorm = 0.0;
   {
+    cuda_memcpy_CPU2GPU(cu_psiFinal.Data(), psiFinal.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
     // Get the rhoFnew
     Real totalCharge_;
     ham.CalculateDensity(
-        psiFinal,
+        //psiFinal,
+        spnTemp,
         ham.OccupationRate(),
         totalCharge_, 
-        fft );
+        fft,
+        true );
 
     // Norm check 
     Real * densityPtr = ham.Density().Data();

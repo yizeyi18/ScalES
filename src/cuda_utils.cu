@@ -206,6 +206,106 @@ __global__ void gpu_energy( cuDoubleComplex * psi, double * energy, int len)
 	if( tid == 0) energy[blockIdx.x] = mySum;
 
 }
+	template<unsigned int blockSize>
+__global__ void gpu_reduce( double * density, double * sum_den, int len)
+{
+	__shared__ double sdata[DIM];
+	int offset = blockIdx.x * len;
+	int tid = threadIdx.x;
+	double s = 0.0;
+
+	while ( tid < len)
+	{
+		int index = tid + offset;
+		s += density[index];
+		tid += blockDim.x;
+	}
+
+	sdata[threadIdx.x] =  s;
+	double mySum = s;
+	__syncthreads();
+
+	tid = threadIdx.x;
+	if ((blockSize >= 512) && (tid < 256))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 256];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >= 256) &&(tid < 128))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 128];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >= 128) && (tid <  64))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  64];
+	}
+
+	__syncthreads();
+
+#if (__CUDA_ARCH__ >= 300 )
+	if ( tid < 32 )
+	{
+		// Fetch final intermediate sum from 2nd warp
+		if (blockSize >=  64) mySum += sdata[tid + 32];
+		// Reduce final warp using shuffle
+		for (int offset = warpSize/2; offset > 0; offset /= 2)
+		{
+			mySum += __shfl_down(mySum, offset);
+		}
+	}
+#else
+	// fully unroll reduction within a single warp
+	if ((blockSize >=  64) && (tid < 32))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 32];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=  32) && (tid < 16))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid + 16];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=  16) && (tid <  8))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  8];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=   8) && (tid <  4))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  4];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=   4) && (tid <  2))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  2];
+	}
+
+	__syncthreads();
+
+	if ((blockSize >=   2) && ( tid <  1))
+	{
+		sdata[tid] = mySum = mySum + sdata[tid +  1];
+	}
+
+	__syncthreads();
+#endif
+
+	if( tid == 0) sum_den[blockIdx.x] = mySum;
+
+}
 
 	template<unsigned int blockSize>
 __global__ void gpu_energy( double * psi, double * energy, int len)
@@ -964,6 +1064,15 @@ void cuda_calculate_Energy( cuDoubleComplex * psi, double * energy, int nbands, 
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
+void cuda_reduce( double * density, double * sum, int nbands, int bandLen)
+{
+	gpu_reduce<DIM><<<nbands, DIM, DIM*sizeof(double)>>>( density, sum, bandLen);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
 
 void cuda_calculate_Energy( double * psi, double * energy, int nbands, int bandLen)
 {
@@ -1313,6 +1422,28 @@ void cuda_decompress_f2d( double *out, float *in, int length)
 {
 	int dim = ( length + LEN - 1) / LEN;
 	gpu_decompress<float> <<< dim, LEN>>> ( in, out, length);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+__global__ void gpu_XTX ( cuDoubleComplex *X, double * Y, int len)
+{
+	int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	cuDoubleComplex x, y;
+	if(tid < len)
+	{
+		x = X[tid];
+		y = x;
+		y.y = - x.y;
+		Y[tid] = (x * y).x;
+	}
+}
+void cuda_XTX( cuDoubleComplex * X, double * Y, int length)
+{
+	int dim = ( length + LEN - 1) / LEN;
+	gpu_XTX<<< dim, LEN>>>( X, Y, length);
 #ifdef SYNC 
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());

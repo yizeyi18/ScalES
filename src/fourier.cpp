@@ -468,6 +468,28 @@ void Fourier::InitializeFine ( const Domain& dm )
 }        // -----  end of function Fourier::InitializeFine  ----- 
 
 #ifdef GPU
+void cuFFTExecuteForward2( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out )
+{
+   Index3& numGrid = fft.domain.numGrid;
+   Index3& numGridFine = fft.domain.numGridFine;
+   Real vol      = fft.domain.Volume();
+   Int ntot      = fft.domain.NumGridTotal();
+   Int ntotFine  = fft.domain.NumGridTotalFine();
+   Real factor;
+   if(fft_type > 0) // fine grid FFT.
+   {
+      factor = vol/ntotFine;
+      assert( cufftExecZ2Z(plan, cu_psi_in.Data(), cu_psi_out.Data(), CUFFT_FORWARD)  == CUFFT_SUCCESS );
+      cublas::Scal( ntotFine, &factor, cu_psi_out.Data(),1); 
+   }
+   else // coarse grid FFT.
+   {
+      factor = vol/ntot;
+      assert( cufftExecZ2Z(plan, cu_psi_in.Data(), cu_psi_out.Data(), CUFFT_FORWARD)  == CUFFT_SUCCESS );
+      cublas::Scal(ntot, &factor, cu_psi_out.Data(), 1); 
+   }
+}
+
 void cuFFTExecuteForward( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out )
 {
    Index3& numGrid = fft.domain.numGrid;

@@ -207,6 +207,11 @@ public:
   /// method due to the large cutoff radius
   virtual void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft ) = 0;
 
+#ifdef _COMPLEX_
+#ifdef GPU
+  virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft, bool isGPU ) = 0;
+#endif
+#endif
   virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft ) = 0;
 
   virtual void CalculateGradDensity( Fourier &fft ) = 0;
@@ -395,6 +400,11 @@ public:
   virtual void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft );
   
   virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft );
+#ifdef _COMPLEX_
+#ifdef GPU
+  virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft, bool isGPU);
+#endif
+#endif
 
   virtual void CalculateGradDensity( Fourier& fft );
 
