@@ -1091,6 +1091,102 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 }         // -----  end of method KohnSham::CalculateDensity  ----- 
 #endif
 
+void
+KohnSham::CalculateGradDensity ( Fourier& fft , bool garbage)
+{
+  Int ntotFine  = fft.domain.NumGridTotalFine();
+  Real vol  = domain_.Volume();
+  
+  MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  int dmCol = DIM;
+  int dmRow = mpisize / dmCol;
+  Int ntotLocal = fft.numGridLocal;
+  CpxNumVec  cpxVec( ntotLocal );
+
+
+  if( fft.isMPIFFTW ) {
+   
+    for( Int i = 0; i < ntotLocal; i++ ){
+      Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
+      fft.inputComplexVecLocal(i) = Complex( density_(j,RHO), 0.0 );
+    }
+   
+    fftw_execute( fft.mpiforwardPlanFine );
+
+    Real fac = vol / double(ntotFine);
+    blas::Scal( ntotLocal, fac, fft.outputComplexVecLocal.Data(), 1);
+
+    blas::Copy( ntotLocal, fft.outputComplexVecLocal.Data(), 1,
+        cpxVec.Data(), 1 );
+  }
+
+
+  if(1){
+    
+    Int d;
+    if( mpisize < DIM ){ // mpisize < 3
+
+      statusOFS << " Sequential FFTW calculateGradDensity" << std::endl;
+      for( d = 0; d < DIM; d++ ){
+        DblNumMat& gradDensity = gradDensity_[d];
+        CpxNumVec& ik = fft.ikFine[d];
+        for( Int i = 0; i < ntotFine; i++ ){
+          if( fft.gkkFine(i) == 0 ){
+            fft.outputComplexVecFine(i) = Z_ZERO;
+          }
+          else{
+            fft.outputComplexVecFine(i) = cpxVec(i) * ik(i); 
+          }
+        }
+
+        FFTWExecute ( fft, fft.backwardPlanFine );
+
+        for( Int i = 0; i < ntotFine; i++ ){
+          gradDensity(i, RHO) = fft.inputComplexVecFine(i).real();
+        }
+      } // for d
+
+    } // mpisize < 3
+    else { // mpisize > 3
+      statusOFS << " MPI FFTW calculateGradDensity, use "<< esdfParam.fftwMPISize << " MPIs " << std::endl << std::flush;
+  
+      if( fft.isMPIFFTW ) {
+        DblNumVec temp(ntotLocal);  
+        for( d = 0; d < DIM; d++ ){
+          DblNumMat& gradDensity = gradDensity_[d];
+          CpxNumVec& ik = fft.ikFine[d];
+          for( Int i = 0; i < ntotLocal; i++ ){
+            Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
+            if( fft.gkkFine(j) == 0 )
+              fft.outputComplexVecLocal(i) = Z_ZERO;
+            else
+              fft.outputComplexVecLocal(i) = cpxVec(i) * ik(j);
+          }
+
+          fftw_execute( fft.mpibackwardPlanFine );
+          Real fac = 1.0 / vol;
+          blas::Scal( ntotLocal, fac, fft.inputComplexVecLocal.Data(), 1);
+          
+          for( Int i = 0; i < ntotLocal; i++ )
+            temp(i) = fft.inputComplexVecLocal(i).real();
+          
+          MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, gradDensity.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm );
+        }
+      }
+      MPI_Bcast( gradDensity_[0].Data(), ntotFine, MPI_DOUBLE, 0, domain_.comm );
+      MPI_Bcast( gradDensity_[1].Data(), ntotFine, MPI_DOUBLE, 0, domain_.comm );
+      MPI_Bcast( gradDensity_[2].Data(), ntotFine, MPI_DOUBLE, 0, domain_.comm );
+
+    } // mpisize > 3
+
+  } //if(1)
+
+
+  return ;
+}         // -----  end of method KohnSham::CalculateGradDensity  ----- 
+
 
 void
 KohnSham::CalculateGradDensity ( Fourier& fft )
@@ -1198,6 +1294,672 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
 
   return ;
 }         // -----  end of method KohnSham::CalculateGradDensity  ----- 
+
+void
+KohnSham::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
+{
+  Int ntot = domain_.NumGridTotalFine();
+  Real vol = domain_.Volume();
+
+  //MPI_Barrier(domain_.comm);
+  int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(domain_.comm, &mpisize);
+  int dmCol = DIM;
+  int dmRow = mpisize / dmCol;
+  
+  Int ntotBlocksize = ntot / mpisize;
+  Int ntotLocal = ntotBlocksize;
+  if(mpirank < (ntot % mpisize)){
+    ntotLocal = ntotBlocksize + 1;
+  } 
+  IntNumVec localSize(mpisize);
+  IntNumVec localSizeDispls(mpisize);
+  SetValue( localSize, 0 );
+  SetValue( localSizeDispls, 0 );
+  MPI_Allgather( &ntotLocal, 1, MPI_INT, localSize.Data(), 1, MPI_INT, domain_.comm );
+
+  for (Int i = 1; i < mpisize; i++ ){
+    localSizeDispls[i] = localSizeDispls[i-1] + localSize[i-1];
+  }
+
+  Real fac;
+  // Cutoff 
+  Real epsRho = 1e-8, epsGRho = 1e-10;
+
+  Real timeSta, timeEnd;
+
+  Real timeFFT = 0.00;
+  Real timeOther = 0.00;
+
+/*
+  if( XCId_ == XC_LDA_XC_TETER93 ) 
+  {
+    xc_lda_exc_vxc( &XCFuncType_, ntot, density_.VecData(RHO), 
+        epsxc_.Data(), vxc_.Data() );
+
+    // Modify "bad points"
+    if(1){
+      for( Int i = 0; i < ntot; i++ ){
+        if( density_(i,RHO) < epsRho ){
+          epsxc_(i) = 0.0;
+          vxc_( i, RHO ) = 0.0;
+        }
+      }
+    }
+
+
+  }//XC_FAMILY_LDA
+  else if( ( XId_ == XC_GGA_X_PBE ) && ( CId_ == XC_GGA_C_PBE ) ) {
+
+    DblNumMat gradDensity( ntotLocal, numDensityComponent_ );
+    DblNumMat& gradDensity0 = gradDensity_[0];
+    DblNumMat& gradDensity1 = gradDensity_[1];
+    DblNumMat& gradDensity2 = gradDensity_[2];
+
+    GetTime( timeSta );
+    for(Int i = 0; i < ntotLocal; i++){
+      Int ii = i + localSizeDispls(mpirank);
+      gradDensity(i, RHO) = gradDensity0(ii, RHO) * gradDensity0(ii, RHO)
+        + gradDensity1(ii, RHO) * gradDensity1(ii, RHO)
+        + gradDensity2(ii, RHO) * gradDensity2(ii, RHO);
+    }
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing gradDensity in XC GGA-PBE is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    DblNumMat densityTemp;
+    densityTemp.Resize( ntotLocal, numDensityComponent_ );
+
+    for( Int i = 0; i < ntotLocal; i++ ){
+      densityTemp(i, RHO) = density_(i + localSizeDispls(mpirank), RHO);
+    }
+
+    DblNumVec vxc1(ntotLocal);             
+    DblNumVec vxc2(ntotLocal);             
+    DblNumVec vxc1Temp(ntotLocal);             
+    DblNumVec vxc2Temp(ntotLocal);             
+    DblNumVec epsx(ntotLocal); 
+    DblNumVec epsc(ntotLocal); 
+
+    SetValue( vxc1, 0.0 );
+    SetValue( vxc2, 0.0 );
+    SetValue( vxc1Temp, 0.0 );
+    SetValue( vxc2Temp, 0.0 );
+    SetValue( epsx, 0.0 );
+    SetValue( epsc, 0.0 );
+
+    GetTime( timeSta );
+
+    xc_gga_exc_vxc( &XFuncType_, ntotLocal, densityTemp.VecData(RHO), 
+        gradDensity.VecData(RHO), epsx.Data(), vxc1.Data(), vxc2.Data() );
+
+    xc_gga_exc_vxc( &CFuncType_, ntotLocal, densityTemp.VecData(RHO), 
+        gradDensity.VecData(RHO), epsc.Data(), vxc1Temp.Data(), vxc2Temp.Data() );
+
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for calling the XC kernel in XC GGA-PBE is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    DblNumVec     epsxcTemp( ntotLocal );
+    DblNumVec     vxcTemp( ntot );
+    DblNumVec     vxc2Temp2( ntot );
+    for( Int i = 0; i < ntotLocal; i++ ){
+      epsxcTemp(i) = epsx(i) + epsc(i) ;
+      vxc1(i) += vxc1Temp( i );
+      vxc2(i) += vxc2Temp( i );
+    }
+
+
+    // Modify "bad points"
+    if(1){
+      for( Int i = 0; i < ntotLocal; i++ ){
+//        if( densityTemp(i,RHO) < epsRho ){
+        if( densityTemp(i,RHO) < epsRho || gradDensity(i,RHO) < epsGRho ){
+          epsxcTemp(i) = 0.0;
+          vxc1(i) = 0.0;
+          vxc2(i) = 0.0;
+        }
+      }
+    }
+
+
+    SetValue( epsxc_, 0.0 );
+    SetValue( vxcTemp, 0.0 );
+    SetValue( vxc2Temp2, 0.0 );
+
+    GetTime( timeSta );
+
+    MPI_Allgatherv( epsxcTemp.Data(), ntotLocal, MPI_DOUBLE, epsxc_.Data(), 
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+    MPI_Allgatherv( vxc1.Data(), ntotLocal, MPI_DOUBLE, vxcTemp.Data(), 
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+    MPI_Allgatherv( vxc2.Data(), ntotLocal, MPI_DOUBLE, vxc2Temp2.Data(), 
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for MPI_Allgatherv in XC GGA-PBE is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+    for( Int i = 0; i < ntot; i++ ){
+      vxc_( i, RHO ) = vxcTemp(i);
+    }
+    Int d;
+    if( mpisize < DIM ){ // mpisize < 3
+
+      for( Int d = 0; d < DIM; d++ ){
+        DblNumMat& gradDensityd = gradDensity_[d];
+        for(Int i = 0; i < ntot; i++){
+          fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2Temp2(i), 0.0 ); 
+        }
+
+        FFTWExecute ( fft, fft.forwardPlanFine );
+
+        CpxNumVec& ik = fft.ikFine[d];
+
+        for( Int i = 0; i < ntot; i++ ){
+          if( fft.gkkFine(i) == 0 ){
+            fft.outputComplexVecFine(i) = Z_ZERO;
+          }
+          else{
+            fft.outputComplexVecFine(i) *= ik(i);
+          }
+        }
+
+        FFTWExecute ( fft, fft.backwardPlanFine );
+
+        for( Int i = 0; i < ntot; i++ ){
+          vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real();
+        }
+
+      } // for d
+
+    } // mpisize < 3
+    else { // mpisize > 3
+
+      std::vector<DblNumVec>      vxcTemp3d;
+      vxcTemp3d.resize( DIM );
+      for( Int d = 0; d < DIM; d++ ){
+        vxcTemp3d[d].Resize(ntot);
+        SetValue (vxcTemp3d[d], 0.0);
+      }
+
+      for( d = 0; d < DIM; d++ ){
+        DblNumMat& gradDensityd = gradDensity_[d];
+        DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+        if ( d == mpirank % dmCol ){ 
+          for(Int i = 0; i < ntot; i++){
+            fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2Temp2(i), 0.0 ); 
+          }
+
+          FFTWExecute ( fft, fft.forwardPlanFine );
+
+          CpxNumVec& ik = fft.ikFine[d];
+
+          for( Int i = 0; i < ntot; i++ ){
+            if( fft.gkkFine(i) == 0 ){
+              fft.outputComplexVecFine(i) = Z_ZERO;
+            }
+            else{
+              fft.outputComplexVecFine(i) *= ik(i);
+            }
+          }
+
+          FFTWExecute ( fft, fft.backwardPlanFine );
+
+          for( Int i = 0; i < ntot; i++ ){
+            vxcTemp3(i) = fft.inputComplexVecFine(i).real();
+          }
+        } // d == mpirank
+      } // for d
+
+      for( d = 0; d < DIM; d++ ){
+        DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, rowComm_ );
+        for( Int i = 0; i < ntot; i++ ){
+          vxc_( i, RHO ) -= vxcTemp3(i);
+        }
+      } // for d
+
+    } // mpisize > 3
+
+
+
+  } // XC_FAMILY_GGA
+  else if( XCId_ == XC_HYB_GGA_XC_HSE06 ){
+*/
+  if( XCId_ == XC_HYB_GGA_XC_HSE06 ){
+    // FIXME Condensify with the previous
+
+    GetTime( timeSta );
+
+    DblNumMat gradDensity;
+    gradDensity.Resize( ntotLocal, numDensityComponent_ );
+    SetValue( gradDensity, 0.0 );
+    DblNumMat& gradDensity0 = gradDensity_[0];
+    DblNumMat& gradDensity1 = gradDensity_[1];
+    DblNumMat& gradDensity2 = gradDensity_[2];
+
+    for(Int i = 0; i < ntotLocal; i++){
+      Int ii = i + localSizeDispls(mpirank);
+      gradDensity(i, RHO) = gradDensity0(ii, RHO) * gradDensity0(ii, RHO)
+        + gradDensity1(ii, RHO) * gradDensity1(ii, RHO)
+        + gradDensity2(ii, RHO) * gradDensity2(ii, RHO);
+    }
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << " " << std::endl;
+    statusOFS << "Time for computing gradDensity in XC HSE06 is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    GetTime( timeSta );
+    DblNumMat densityTemp;
+    densityTemp.Resize( ntotLocal, numDensityComponent_ );
+
+    for( Int i = 0; i < ntotLocal; i++ ){
+      densityTemp(i, RHO) = density_(i + localSizeDispls(mpirank), RHO);
+    }
+
+    DblNumVec vxc1Temp(ntotLocal);             
+    DblNumVec vxc2Temp(ntotLocal);             
+    DblNumVec epsxcTemp(ntotLocal); 
+
+    SetValue( vxc1Temp, 0.0 );
+    SetValue( vxc2Temp, 0.0 );
+    SetValue( epsxcTemp, 0.0 );
+
+    xc_gga_exc_vxc( &XCFuncType_, ntotLocal, densityTemp.VecData(RHO), 
+        gradDensity.VecData(RHO), epsxcTemp.Data(), vxc1Temp.Data(), vxc2Temp.Data() );
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing xc_gga_exc_vxc in XC HSE06 is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    GetTime( timeSta );
+
+    DblNumVec vxc1(ntot);             
+    DblNumVec vxc2(ntot);             
+
+    //SetValue( vxc1, 0.0 );
+    //SetValue( vxc2, 0.0 );
+    //SetValue( epsxc_, 0.0 );
+
+    // Modify "bad points"
+    if(1){
+      for( Int i = 0; i < ntotLocal; i++ ){
+        if( densityTemp(i,RHO) < epsRho || gradDensity(i,RHO) < epsGRho ){
+          epsxcTemp(i) = 0.0;
+          vxc1Temp(i) = 0.0;
+          vxc2Temp(i) = 0.0;
+        }
+      }
+    }
+
+
+    MPI_Allgatherv( epsxcTemp.Data(), ntotLocal, MPI_DOUBLE, epsxc_.Data(), 
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+    MPI_Allgatherv( vxc1Temp.Data(), ntotLocal, MPI_DOUBLE, vxc1.Data(), 
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+    MPI_Allgatherv( vxc2Temp.Data(), ntotLocal, MPI_DOUBLE, vxc2.Data(), 
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for MPI_Allgatherv in XC HSE06 is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+
+    Int d;
+    if( mpisize < DIM ){ // mpisize < 3
+
+      for( Int i = 0; i < ntot; i++ ){
+        vxc_( i, RHO ) = vxc1(i);
+      }
+
+      for( d = 0; d < DIM; d++ ){
+        DblNumMat& gradDensityd = gradDensity_[d];
+        for(Int i = 0; i < ntot; i++){
+          fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
+        }
+
+        FFTWExecute ( fft, fft.forwardPlanFine );
+
+        CpxNumVec& ik = fft.ikFine[d];
+
+        for( Int i = 0; i < ntot; i++ ){
+          if( fft.gkkFine(i) == 0 ){
+            fft.outputComplexVecFine(i) = Z_ZERO;
+          }
+          else{
+            fft.outputComplexVecFine(i) *= ik(i);
+          }
+        }
+
+        FFTWExecute ( fft, fft.backwardPlanFine );
+
+        GetTime( timeSta );
+        for( Int i = 0; i < ntot; i++ ){
+          vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real();
+        }
+        GetTime( timeEnd );
+        timeOther = timeOther + ( timeEnd - timeSta );
+
+      } // for d
+    
+    } // mpisize < 3
+    else { // mpisize > 3
+
+      GetTime( timeSta );
+      if( fft.isMPIFFTW ) {
+        std::vector<DblNumVec>      vxcTemp3d;
+        DblNumVec temp;
+        vxcTemp3d.resize( DIM );
+        ntotLocal = fft.numGridLocal;
+        for( Int d = 0; d < DIM; d++ ){
+          vxcTemp3d[d].Resize(ntotLocal);
+          //SetValue (vxcTemp3d[d], 0.0);
+        }
+
+        temp.Resize(ntotLocal);
+        for(Int i = 0; i < ntotLocal; i++){
+          Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
+          temp(i) = vxc1(j);
+        }
+  
+        for( d = 0; d < DIM; d++ ){
+
+          DblNumMat& gradDensityd = gradDensity_[d];
+          DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+          for(Int i = 0; i < ntotLocal; i++){
+            Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
+            fft.inputComplexVecLocal(i) = Complex( gradDensityd( j, RHO ) * 2.0 * vxc2(j), 0.0 ); 
+          }
+
+          fftw_execute( fft.mpiforwardPlanFine );
+          fac = vol / double(ntot);
+          blas::Scal( ntotLocal, fac, fft.outputComplexVecLocal.Data(), 1);
+
+          CpxNumVec& ik = fft.ikFine[d];
+
+          for( Int i = 0; i < ntotLocal; i++ ){
+            Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
+            if( fft.gkkFine(j) == 0 )
+              fft.outputComplexVecLocal(i) = Z_ZERO;
+            else
+              fft.outputComplexVecLocal(i) *= ik(j);
+          }
+
+          fftw_execute( fft.mpibackwardPlanFine );
+          fac = 1.0 / vol;
+          blas::Scal( ntotLocal, fac, fft.inputComplexVecLocal.Data(), 1);
+
+          for( Int i = 0; i < ntotLocal; i++ ){
+            vxcTemp3(i) = fft.inputComplexVecLocal(i).real();
+          }
+
+          //SetValue (temp, 0.0);
+          //MPI_Gather( vxcTemp3.Data(), ntotLocal, MPI_DOUBLE, temp.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm);
+          //MPI_Allgather( vxcTemp3.Data(), ntotLocal, MPI_DOUBLE, temp.Data(), ntotLocal, MPI_DOUBLE, fft.comm);
+          for( Int i = 0; i < ntotLocal; i++ ){
+            Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
+            temp(i) -= vxcTemp3(i);
+          }
+        } // for d
+        MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, vxc_.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm);
+      } // if MPI FFTW 
+
+      MPI_Bcast( &vxc_(1,RHO), ntot, MPI_DOUBLE, 0, domain_.comm );
+
+      GetTime( timeEnd );
+      statusOFS << "Time for MPI FFTW calculation is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+     #if 0 
+      std::vector<DblNumVec>      vxcTemp3d;
+      vxcTemp3d.resize( DIM );
+      for( Int d = 0; d < DIM; d++ ){
+        vxcTemp3d[d].Resize(ntot);
+        SetValue (vxcTemp3d[d], 0.0);
+      }
+
+      for( d = 0; d < DIM; d++ ){
+        DblNumMat& gradDensityd = gradDensity_[d];
+        DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+        if ( d == mpirank % dmCol ){ 
+          for(Int i = 0; i < ntot; i++){
+            fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
+          }
+
+          FFTWExecute ( fft, fft.forwardPlanFine );
+
+          CpxNumVec& ik = fft.ikFine[d];
+
+          for( Int i = 0; i < ntot; i++ ){
+            if( fft.gkkFine(i) == 0 ){
+              fft.outputComplexVecFine(i) = Z_ZERO;
+            }
+            else{
+              fft.outputComplexVecFine(i) *= ik(i);
+            }
+          }
+
+          FFTWExecute ( fft, fft.backwardPlanFine );
+
+          for( Int i = 0; i < ntot; i++ ){
+            vxcTemp3(i) = fft.inputComplexVecFine(i).real();
+          }
+
+        } // d == mpirank
+      } // for d
+
+      for( d = 0; d < DIM; d++ ){
+        DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, rowComm_ );
+        for( Int i = 0; i < ntot; i++ ){
+          vxc_( i, RHO ) -= vxcTemp3(i);
+        }
+      } // for d
+    #endif
+    } // mpisize > 3
+
+  } // XC_FAMILY Hybrid
+/*
+  else if( XCId_ == XC_HYB_GGA_XC_PBEH ){
+    // FIXME Condensify with the previous
+
+    DblNumMat gradDensity;
+    gradDensity.Resize( ntotLocal, numDensityComponent_ );
+    SetValue( gradDensity, 0.0 );
+    DblNumMat& gradDensity0 = gradDensity_[0];
+    DblNumMat& gradDensity1 = gradDensity_[1];
+    DblNumMat& gradDensity2 = gradDensity_[2];
+
+    GetTime( timeSta );
+    for(Int i = 0; i < ntotLocal; i++){
+      Int ii = i + localSizeDispls(mpirank);
+      gradDensity(i, RHO) = gradDensity0(ii, RHO) * gradDensity0(ii, RHO)
+        + gradDensity1(ii, RHO) * gradDensity1(ii, RHO)
+        + gradDensity2(ii, RHO) * gradDensity2(ii, RHO);
+    }
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << " " << std::endl;
+    statusOFS << "Time for computing gradDensity in XC PBE0 is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    DblNumMat densityTemp;
+    densityTemp.Resize( ntotLocal, numDensityComponent_ );
+
+    for( Int i = 0; i < ntotLocal; i++ ){
+      densityTemp(i, RHO) = density_(i + localSizeDispls(mpirank), RHO);
+    }
+
+    DblNumVec vxc1Temp(ntotLocal);             
+    DblNumVec vxc2Temp(ntotLocal);             
+    DblNumVec epsxcTemp(ntotLocal); 
+
+    SetValue( vxc1Temp, 0.0 );
+    SetValue( vxc2Temp, 0.0 );
+    SetValue( epsxcTemp, 0.0 );
+
+    GetTime( timeSta );
+    xc_gga_exc_vxc( &XCFuncType_, ntotLocal, densityTemp.VecData(RHO), 
+        gradDensity.VecData(RHO), epsxcTemp.Data(), vxc1Temp.Data(), vxc2Temp.Data() );
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing xc_gga_exc_vxc in XC PBE0 is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    DblNumVec vxc1(ntot);             
+    DblNumVec vxc2(ntot);             
+
+    SetValue( vxc1, 0.0 );
+    SetValue( vxc2, 0.0 );
+    SetValue( epsxc_, 0.0 );
+
+    // Modify "bad points"
+    if(1){
+      for( Int i = 0; i < ntotLocal; i++ ){
+        if( densityTemp(i,RHO) < epsRho || gradDensity(i,RHO) < epsGRho ){
+          epsxcTemp(i) = 0.0;
+          vxc1Temp(i) = 0.0;
+          vxc2Temp(i) = 0.0;
+        }
+      }
+    }
+
+    GetTime( timeSta );
+
+    MPI_Allgatherv( epsxcTemp.Data(), ntotLocal, MPI_DOUBLE, epsxc_.Data(), 
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+    MPI_Allgatherv( vxc1Temp.Data(), ntotLocal, MPI_DOUBLE, vxc1.Data(), 
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+    MPI_Allgatherv( vxc2Temp.Data(), ntotLocal, MPI_DOUBLE, vxc2.Data(), 
+        localSize.Data(), localSizeDispls.Data(), MPI_DOUBLE, domain_.comm );
+
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for MPI_Allgatherv in XC PBE0 is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    for( Int i = 0; i < ntot; i++ ){
+      vxc_( i, RHO ) = vxc1(i);
+    }
+
+    Int d;
+    if( mpisize < DIM ){ // mpisize < 3
+
+      for( d = 0; d < DIM; d++ ){
+        DblNumMat& gradDensityd = gradDensity_[d];
+        for(Int i = 0; i < ntot; i++){
+          fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
+        }
+
+        FFTWExecute ( fft, fft.forwardPlanFine );
+
+        CpxNumVec& ik = fft.ikFine[d];
+
+        for( Int i = 0; i < ntot; i++ ){
+          if( fft.gkkFine(i) == 0 ){
+            fft.outputComplexVecFine(i) = Z_ZERO;
+          }
+          else{
+            fft.outputComplexVecFine(i) *= ik(i);
+          }
+        }
+
+        FFTWExecute ( fft, fft.backwardPlanFine );
+
+        GetTime( timeSta );
+        for( Int i = 0; i < ntot; i++ ){
+          vxc_( i, RHO ) -= fft.inputComplexVecFine(i).real();
+        }
+        GetTime( timeEnd );
+        timeOther = timeOther + ( timeEnd - timeSta );
+
+      } // for d
+    
+    } // mpisize < 3
+    else { // mpisize > 3
+      
+      std::vector<DblNumVec>      vxcTemp3d;
+      vxcTemp3d.resize( DIM );
+      for( Int d = 0; d < DIM; d++ ){
+        vxcTemp3d[d].Resize(ntot);
+        SetValue (vxcTemp3d[d], 0.0);
+      }
+
+      for( d = 0; d < DIM; d++ ){
+        DblNumMat& gradDensityd = gradDensity_[d];
+        DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+        if ( d == mpirank % dmCol ){ 
+          for(Int i = 0; i < ntot; i++){
+            fft.inputComplexVecFine(i) = Complex( gradDensityd( i, RHO ) * 2.0 * vxc2(i), 0.0 ); 
+          }
+
+          FFTWExecute ( fft, fft.forwardPlanFine );
+
+          CpxNumVec& ik = fft.ikFine[d];
+
+          for( Int i = 0; i < ntot; i++ ){
+            if( fft.gkkFine(i) == 0 ){
+              fft.outputComplexVecFine(i) = Z_ZERO;
+            }
+            else{
+              fft.outputComplexVecFine(i) *= ik(i);
+            }
+          }
+
+          FFTWExecute ( fft, fft.backwardPlanFine );
+
+          for( Int i = 0; i < ntot; i++ ){
+            vxcTemp3(i) = fft.inputComplexVecFine(i).real();
+          }
+
+        } // d == mpirank
+      } // for d
+
+      for( d = 0; d < DIM; d++ ){
+        DblNumVec& vxcTemp3 = vxcTemp3d[d]; 
+        MPI_Bcast( vxcTemp3.Data(), ntot, MPI_DOUBLE, d, rowComm_ );
+        for( Int i = 0; i < ntot; i++ ){
+          vxc_( i, RHO ) -= vxcTemp3(i);
+        }
+      } // for d
+
+    } // mpisize > 3
+
+  } // XC_FAMILY Hybrid
+    else
+      ErrorHandling( "Unsupported XC family!" );
+*/
+  // Compute the total exchange-correlation energy
+  val = 0.0;
+  GetTime( timeSta );
+  for(Int i = 0; i < ntot; i++){
+    val += density_(i, RHO) * epsxc_(i) * vol / (Real) ntot;
+  }
+  GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+  statusOFS << " val " << val << std::endl;
+  statusOFS << "Time for computing total xc energy in XC is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+  return ;
+}         // -----  end of method KohnSham::CalculateXC  ----- 
 
 
 void
@@ -1792,6 +2554,69 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
 
   return ;
 }         // -----  end of method KohnSham::CalculateXC  ----- 
+
+void KohnSham::CalculateHartree( Fourier& fft, bool extra) {
+  if( !fft.isInitialized ){
+    ErrorHandling("Fourier is not prepared.");
+  }
+
+  Int ntot = domain_.NumGridTotalFine();
+  if( fft.domain.NumGridTotalFine() != ntot ){
+    ErrorHandling( "Grid size does not match!" );
+  }
+
+  Real vol  = domain_.Volume();
+  Int ntotLocal = fft.numGridLocal;
+  // The contribution of the pseudoCharge is subtracted. So the Poisson
+  // equation is well defined for neutral system.
+  
+  if( fft.isMPIFFTW) {
+
+    for( Int i = 0; i < ntotLocal; i++ ){
+      Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
+      fft.inputComplexVecLocal(i) = Complex( 
+          density_(j,RHO) - pseudoCharge_(j), 0.0 );
+    }
+  
+    fftw_execute( fft.mpiforwardPlanFine );
+    Real fac = vol / double(ntot);
+    blas::Scal( ntotLocal, fac, fft.outputComplexVecLocal.Data(), 1);
+  
+    //FFTWExecute ( fft, fft.forwardPlanFine );
+  
+    for( Int i = 0; i < ntotLocal; i++ ){
+      Int j = i + fft.localNzStart * domain_.numGridFine[0] * domain_.numGridFine[1];
+      if( fft.gkkFine(j) == 0 ){
+        fft.outputComplexVecLocal(i) = Z_ZERO;
+      }
+      else{
+        // NOTE: gkk already contains the factor 1/2.
+        fft.outputComplexVecLocal(i) *= 2.0 * PI / fft.gkkFine(j);
+      }
+    }
+  
+    //FFTWExecute ( fft, fft.backwardPlanFine );
+    fftw_execute( fft.mpibackwardPlanFine );
+    fac = 1.0 / vol;
+    blas::Scal( ntotLocal, fac, fft.inputComplexVecLocal.Data(), 1);
+  
+    DblNumVec temp;
+    temp.Resize(ntotLocal);
+  
+    for( Int i = 0; i < ntotLocal; i++ ){
+      temp(i) = fft.inputComplexVecLocal(i).real();
+    }
+    
+    MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, vhart_.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm );
+  }
+
+  MPI_Bcast( vhart_.Data(), ntot, MPI_DOUBLE, 0, domain_.comm );
+
+  
+
+  return; 
+}  // -----  end of method KohnSham::CalculateHartree ----- 
+
 
 
 void KohnSham::CalculateHartree( Fourier& fft ) {

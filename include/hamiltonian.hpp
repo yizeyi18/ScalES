@@ -215,10 +215,14 @@ public:
   virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft ) = 0;
 
   virtual void CalculateGradDensity( Fourier &fft ) = 0;
+  virtual void CalculateGradDensity( Fourier &fft, bool isMPIFFTW ) = 0;
 
   virtual void CalculateXC (Real &val, Fourier& fft) = 0;
 
+  virtual void CalculateXC (Real &val, Fourier& fft, bool extra) = 0;
+
   virtual void CalculateHartree( Fourier& fft ) = 0;
+  virtual void CalculateHartree( Fourier& fft , bool extra) = 0;
 
   virtual void CalculateVtot( DblNumVec& vtot ) = 0;
 
@@ -408,9 +412,14 @@ public:
 
   virtual void CalculateGradDensity( Fourier& fft );
 
+  virtual void CalculateGradDensity( Fourier& fft, bool isMPIFFTW);
+
   virtual void CalculateXC ( Real &val, Fourier& fft );
 
+  virtual void CalculateXC ( Real &val, Fourier& fft, bool extra);
+
   virtual void CalculateHartree( Fourier& fft );
+  virtual void CalculateHartree( Fourier& fft, bool extra);
 
   virtual void CalculateVtot( DblNumVec& vtot );
 

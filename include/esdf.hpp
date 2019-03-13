@@ -303,6 +303,8 @@ struct ESDFInputParam{
   ///
   /// Default: mpisize
   Int                 hybridDFNumProcScaLAPACK;
+
+  Int                 fftwMPISize;
   
   /// @brief Density fitting uses the tolerance to remove the matrix element
   ///

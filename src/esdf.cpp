@@ -945,6 +945,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
 
   i++;
+  strcpy(kw_label[i],"fftw_mpi_size");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
   strcpy(kw_label[i],"hybrid_df_tolerance");
   strcpy(kw_typ[i],"D:E");
 
@@ -2624,6 +2628,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.hybridDFNumMu                    = esdf_double( "Hybrid_DF_Num_Mu", 6.0 );
     esdfParam.hybridDFNumGaussianRandom        = esdf_double( "Hybrid_DF_Num_GaussianRandom", 2.0 );
     esdfParam.hybridDFNumProcScaLAPACK         = esdf_integer( "Hybrid_DF_Num_Proc_ScaLAPACK", mpisize );
+    esdfParam.fftwMPISize                      = esdf_integer( "FFTW_MPI_Size", mpisize );
     esdfParam.hybridDFTolerance                = esdf_double( "Hybrid_DF_Tolerance", 1e-20 );
     esdfParam.BlockSizeScaLAPACK               = esdf_integer( "Block_Size_ScaLAPACK", 32 );
 
@@ -3183,6 +3188,7 @@ void ESDFPrintInput( ){
     Print(statusOFS, "TDDFT Phi Tolerance                  = ",  esdfParam.TDDFTPhiTol   );
     Print(statusOFS, "TDDFT DIIS MaxIter                   = ",  esdfParam.TDDFTDiisMaxIter);
     Print(statusOFS, "TDDFT Phi MaxIter                    = ",  esdfParam.TDDFTPhiMaxIter);
+    Print(statusOFS, "FFTW  MPI Size                       = ",  esdfParam.fftwMPISize);
   }
 
 

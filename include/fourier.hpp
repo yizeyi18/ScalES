@@ -76,6 +76,18 @@ struct Fourier {
   fftw_plan forwardPlanR2C;
   fftw_plan backwardPlanR2CFine;
   fftw_plan forwardPlanR2CFine;
+
+  fftw_plan mpiforwardPlanFine;
+  fftw_plan mpibackwardPlanFine;
+  MPI_Comm         comm;
+  ptrdiff_t        localNz;
+  ptrdiff_t        localNzStart;
+  ptrdiff_t        numAllocLocal;
+  Int              numGridLocal;
+  bool             isMPIFFTW;
+  CpxNumVec        inputComplexVecLocal;
+  CpxNumVec        outputComplexVecLocal;     
+
 #ifdef GPU
   cufftHandle cuPlanR2C[NSTREAM];
   cufftHandle cuPlanR2CFine[NSTREAM];
@@ -102,6 +114,7 @@ struct Fourier {
 
   CpxNumVec                inputComplexVecFine;     
   CpxNumVec                outputComplexVecFine;     
+
 
   // Real data Fourier transform
   Int       numGridTotalR2C;

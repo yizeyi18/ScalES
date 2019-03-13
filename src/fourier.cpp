@@ -46,11 +46,14 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2014-02-01 Dual grid implementation.
 #include  "fourier.hpp"
 #include  "blas.hpp"
+#include  "esdf.hpp"
 #ifdef GPU
 #include "cublas.hpp"
 #include "mpi_interf.hpp"
 #endif
 namespace dgdft{
+
+using namespace dgdft::esdf;
 
 
 // *********************************************************************
@@ -72,6 +75,9 @@ Fourier::Fourier () :
     forwardPlanFine   = NULL;
     backwardPlanR2CFine  = NULL;
     forwardPlanR2CFine   = NULL;
+    mpiforwardPlanFine   = NULL;
+    mpibackwardPlanFine  = NULL;
+    isMPIFFTW = false;
 #if 0
     cuforwardPlanR2C[NSTREAM];
     cubackwardPlanR2C[NSTREAM];
@@ -88,8 +94,10 @@ Fourier::~Fourier ()
   if( forwardPlanR2C   ) fftw_destroy_plan( forwardPlanR2C );
   if( backwardPlanFine ) fftw_destroy_plan( backwardPlanFine );
   if( forwardPlanFine  ) fftw_destroy_plan( forwardPlanFine );
-  if( backwardPlanR2CFine  ) fftw_destroy_plan( backwardPlanR2CFine );
-  if( forwardPlanR2CFine   ) fftw_destroy_plan( forwardPlanR2CFine );
+  if( backwardPlanR2CFine ) fftw_destroy_plan( backwardPlanR2CFine );
+  if( forwardPlanR2CFine  ) fftw_destroy_plan( forwardPlanR2CFine  );
+  if( mpiforwardPlanFine  ) fftw_destroy_plan( mpiforwardPlanFine  );
+  if( mpibackwardPlanFine ) fftw_destroy_plan( mpibackwardPlanFine );
 #ifdef GPU
   std::cout << "Destroy cufftPlan...... "<< std::endl;
   Int i;
@@ -251,6 +259,57 @@ void Fourier::Initialize ( const Domain& dm )
     b = 27.0 + a * (18.0 + a * (12.0 + a * 8.0) );
     TeterPrecondR2C[i] = b / ( b + 16.0 * pow(a, 4.0) );
   }
+
+  {
+    // MPI FFTW plan initialization.
+    Int mpisize, mpirank;
+    MPI_Comm_rank( MPI_COMM_WORLD, &mpirank);
+    MPI_Comm_rank( MPI_COMM_WORLD, &mpisize);
+    if(mpisize <  esdfParam.fftwMPISize){
+      isMPIFFTW = true;
+    }
+    statusOFS << " esdfParam.fftwMPISize : " << esdfParam.fftwMPISize << std::endl;
+    MPI_Comm_split( MPI_COMM_WORLD, isMPIFFTW, mpirank, &comm); 
+    if( isMPIFFTW){
+      Int mpirankFFT, mpisizeFFT;
+      MPI_Comm_rank( comm, &mpirankFFT );
+      MPI_Comm_size( comm, &mpisizeFFT );
+      Index3& numGrid = domain.numGridFine;
+      if( numGrid[2] < mpisizeFFT ){
+        ErrorHandling( " MPI FFTW initialization  error, reduce the number of MPIs used for fftw");
+      }
+      if( numGrid[2] % mpisizeFFT ){
+        ErrorHandling( " MPI FFTW initialization error, FFTW MPIs should be equaly divided by Z");
+      }
+      numAllocLocal =  fftw_mpi_local_size_3d(
+          numGrid[2], numGrid[1], numGrid[0], comm, 
+          &localNz, &localNzStart );
+
+      numGridLocal = numGrid[0] * numGrid[1] * localNz;
+      inputComplexVecLocal.Resize( numAllocLocal );
+      outputComplexVecLocal.Resize( numAllocLocal );
+
+      mpiforwardPlanFine = fftw_mpi_plan_dft_3d( 
+          numGrid[2], numGrid[1], numGrid[0], 
+          reinterpret_cast<fftw_complex*>( &inputComplexVecLocal[0] ), 
+          reinterpret_cast<fftw_complex*>( &outputComplexVecLocal[0] ),
+          comm, FFTW_FORWARD, plannerFlag );
+  
+      mpibackwardPlanFine = fftw_mpi_plan_dft_3d(
+          numGrid[2], numGrid[1], numGrid[0],
+          reinterpret_cast<fftw_complex*>( &outputComplexVecLocal[0] ),
+          reinterpret_cast<fftw_complex*>( &inputComplexVecLocal[0] ),
+          comm, FFTW_BACKWARD, plannerFlag);
+
+    std::cout  << mpirankFFT << "localNz        = " << localNz << std::endl;
+    std::cout  << mpirankFFT << "localNzStart   = " << localNzStart << std::endl;
+    std::cout  << mpirankFFT << "numAllocLocal  = " << numAllocLocal << std::endl;
+    std::cout  << mpirankFFT << "numGridLocal   = " << numGridLocal << std::endl;
+    std::cout  << mpirankFFT << "numGridTotal   = " << numGridTotal << std::endl;
+
+    }
+  }
+
 
   // Mark Fourier to be initialized
   isInitialized = true;

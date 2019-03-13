@@ -4994,19 +4994,19 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
   Int ntotFine  = fft.domain.NumGridTotalFine();
   { 
     if( isCalculateGradRho_ ){
-      ham.CalculateGradDensity( fft );
+      ham.CalculateGradDensity( fft, true);
     }
-  GetTime( timeEnd1 );
-  statusOFS << "SCF " << iscf << " CalculateGradDensity: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
-  GetTime( timeSta1 );
-    ham.CalculateXC( Exc_, fft ); 
-  GetTime( timeEnd1 );
-  statusOFS << "SCF " << iscf << " CalculateXC: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
-  GetTime( timeSta1 );
-    ham.CalculateHartree( fft );
-  GetTime( timeEnd1 );
-  statusOFS << "SCF " << iscf << " CalculateHartree: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
-  GetTime( timeSta1 );
+  //GetTime( timeEnd1 );
+  //statusOFS << "SCF " << iscf << " CalculateGradDensity: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  //GetTime( timeSta1 );
+    ham.CalculateXC( Exc_, fft, true ); 
+  //GetTime( timeEnd1 );
+  //statusOFS << "SCF " << iscf << " CalculateXC: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  //GetTime( timeSta1 );
+    ham.CalculateHartree( fft , true);
+  //GetTime( timeEnd1 );
+  //statusOFS << "SCF " << iscf << " CalculateHartree: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  //GetTime( timeSta1 );
     ham.CalculateVtot( ham.Vtot());
     cuda_reset_vtot_flag();
   }
