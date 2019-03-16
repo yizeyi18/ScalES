@@ -62,6 +62,7 @@ using namespace dgdft::scalapack;
 #ifdef USE_MAGMA
 #include  "magma.hpp"
 #else
+#include  "magma.hpp"
 #include "cuSolver.hpp"
 #endif
 #endif
@@ -327,6 +328,7 @@ int main(int argc, char **argv)
 #ifdef USE_MAGMA
          MAGMA::Init();
 #else
+         MAGMA::Init();
          cuSolver::Init();
 #endif
 #endif
@@ -1005,6 +1007,7 @@ int main(int argc, char **argv)
 #ifdef USE_MAGMA
     MAGMA::Destroy();
 #else
+    MAGMA::Destroy();
     cuSolver::Destroy();
 #endif
     cuda_clean_vtot();

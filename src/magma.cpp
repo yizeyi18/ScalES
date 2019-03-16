@@ -295,8 +295,51 @@ void Syevd
   magma_free_pinned( rwork );
 #endif
 }
+
+
 /*
+ * magma_zgels_gpu 
 */
+
+void Zgels( Int m, Int n, Int nrhs, cuDoubleComplex * A, Int lda, 
+       cuDoubleComplex * B, Int ldb)
+{
+ 
+  Int info;
+  magma_int_t lworkgpu, lhwork;
+  magmaDoubleComplex tmp[1], *h_work;
+
+  Int nb   = magma_get_zgeqrf_nb( m, n );
+  lworkgpu = (m - n + nb)*(nrhs + nb) + nrhs*nb;
+
+  magma_zgels_gpu( MagmaNoTrans, m, n, nrhs, NULL, lda,
+                   NULL, ldb, tmp, -1, &info );
+
+  if ( info != 0) 
+  {
+    std::ostringstream msg;
+    msg << "magma_zgels_gpu get work array size info = " << info;
+    ErrorHandling( msg.str().c_str() );
+  }
+  lhwork = (magma_int_t) MAGMA_Z_REAL( tmp[0] );
+  lhwork = lhwork > lworkgpu ? lhwork:lworkgpu;
+
+  magma_zmalloc_cpu( &h_work, lhwork );
+/*
+  magma_zgels_gpu( MagmaNoTrans, m, n, nrhs, A, lda,
+                   B, ldb, h_work, lworkgpu, &info );
+*/
+  magma_zgels3_gpu( MagmaNoTrans, m, n, nrhs, A, lda,
+                   B, ldb, h_work, lworkgpu, &info );
+  if ( info != 0) 
+  {
+    std::ostringstream msg;
+    msg << "magma_zgels_gpu error info = " << info;
+    ErrorHandling( msg.str().c_str() );
+  }
+  magma_free_cpu( h_work );
+}
+
 
 // *********************************************************************
 // For computing the inverse of a triangular matrix

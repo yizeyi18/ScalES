@@ -73,6 +73,7 @@ void Syevd( char jobz, char uplo, Int n, cuDoubleComplex *A, Int lda, double *ei
 
 void Lacpy(char uplo, Int m, Int n, const double * A , Int lda, double *B, Int ldb);
 
+void Zgels( Int m, Int n, Int nrhs, cuDoubleComplex * A, Int lda, cuDoubleComplex * B, Int ldb);
 
 } // namespace MAGMA
 } // namespace dgdft

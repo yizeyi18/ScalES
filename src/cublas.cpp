@@ -84,6 +84,41 @@ void Destroy(void)
 {
     CUBLAS_ERROR( cublasDestroy(hcublas), "Failed to initialze CUBLAS!" );
 }
+
+void Gemv ( cublasOperation_t transA, Int m, Int n, const double *alpha,
+          const double *A, int lda, const double *x, int incx,
+          const double *beta, double *y, int incy)
+{
+    CUBLAS_ERROR( cublasDgemv_v2(hcublas, transA, m, n, alpha, A, lda, x, incx, beta, y, incy ), "cublasDgemv_v2 failed !");
+    return;
+}
+
+
+void Gemv ( cublasOperation_t transA, Int m, Int n, const float *alpha,
+          const float *A, int lda, const float *x, int incx,
+          const float *beta, float *y, int incy)
+{
+    CUBLAS_ERROR( cublasSgemv_v2(hcublas, transA, m, n, alpha, A, lda, x, incx, beta, y, incy ), "cublasSgemv_v2 failed !");
+    return;
+}
+
+
+void Gemv ( cublasOperation_t transA, Int m, Int n, const cuComplex *alpha,
+          const cuComplex *A, int lda, const cuComplex *x, int incx,
+          const cuComplex *beta, cuComplex *y, int incy)
+{
+    CUBLAS_ERROR( cublasCgemv_v2(hcublas, transA, m, n, alpha, A, lda, x, incx, beta, y, incy ), "cublasCgemv_v2 failed !");
+    return;
+}
+
+void Gemv ( cublasOperation_t transA, Int m, Int n, const cuDoubleComplex *alpha,
+          const cuDoubleComplex *A, int lda, const cuDoubleComplex *x, int incx,
+          const cuDoubleComplex *beta, cuDoubleComplex *y, int incy)
+{
+    CUBLAS_ERROR( cublasZgemv_v2(hcublas, transA, m, n, alpha, A, lda, x, incx, beta, y, incy ), "cublasZgemv_v2 failed !");
+    return;
+}
+
 // *********************************************************************
 // Level 3 BLAS GEMM 
 // *********************************************************************
@@ -383,34 +418,43 @@ void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, i
 	cudaFree(d_B);
 	cudaFree(d_C);
 }
-/*
-void batched_least_square(cublasOperation_t trans, Int m, Int n, Int nrhs, cuDoubleComplex *A[], Int lda, cuDoubleComplex *C[], Int ldc, Int *info, Int * devInfoArray, Int batchSize )
+  
+void batched_least_square(Int m, Int n, Int nrhs, cuDoubleComplex *A, Int lda, cuDoubleComplex *C, Int ldc, Int batchSize , int maxDim)
 {
-        cuDoubleComplex ** h_A = ( cuDoubleComplex**) malloc ( sizeof(cuDoubleComplex*) * batchSize);
-        cuDoubleComplex ** h_C = ( cuDoubleComplex**) malloc ( sizeof(cuDoubleComplex*) * batchSize);
+	int info;
+	int *devInfoArray;
+        cudaMalloc( (void**)&devInfoArray, sizeof(int*) * batchSize );
+
+        cuDoubleComplex ** h_A = ( cuDoubleComplex**) malloc ( sizeof(cuDoubleComplex*) * batchSize );
+        cuDoubleComplex ** h_C = ( cuDoubleComplex**) malloc ( sizeof(cuDoubleComplex*) * batchSize );
 
         for( int i = 0; i < batchSize; i++)
         {
-                h_A[i] = A + i*lda;
-                h_C[i] = C + i*ldc;
+                h_A[i] = A + i * lda * maxDim;
+                h_C[i] = C + i * ldc * maxDim;
         }
 
         cuDoubleComplex **d_A, **d_C;
-        cudaMalloc((void**)&d_A, sizeof(cuDoubleComplex*) * batchSize);
-        cudaMalloc((void**)&d_C, sizeof(cuDoubleComplex*) * batchSize);
-
+        cudaMalloc( (void**)&d_A, sizeof(cuDoubleComplex*) * batchSize );
+        cudaMalloc( (void**)&d_C, sizeof(cuDoubleComplex*) * batchSize );
         cudaMemcpy( d_A, h_A, batchSize*sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
         cudaMemcpy( d_C, h_C, batchSize*sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
 
-        CUBLAS_ERROR( cublasZgelsBatched(hcublas, trans, m, n, nrhs, A, lda, C, ldc, info, devInfoArray, batchSize ), "cublasZgelsBatched failed!" );
+        CUBLAS_ERROR( cublasZgelsBatched ( hcublas, CUBLAS_OP_N, m, n, nrhs, d_A, lda, d_C, ldc, &info, devInfoArray, batchSize ), "cublasZgelsBatched failed!" );
+	
+	if( info < 0) 
+		std::cout << " Error,"<< -info << "th parameter is passed wrong. cublasZgelsBatched"<< std::endl;
 
         free(h_A);
         free(h_C);
+
         cudaFree(d_A);
         cudaFree(d_C);
+        cudaFree(devInfoArray);
+
         return;
 }
-*/
+
 } // namespace cublas
 } // namespace dgdft
 

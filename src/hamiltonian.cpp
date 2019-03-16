@@ -885,12 +885,17 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
   Real val1 = val;
   Real temp = (numSpin_ * Real(numOccupiedState_) * Real(ntotFine)) / ( vol * val );
   cublas::Scal( ntotFine, &temp, cu_den.Data(), 1 );
+  cuda_memcpy_GPU2CPU( density_.Data(), cu_den.Data(), ntotFine *sizeof(double));
 
-  cuda_reduce( cu_den.Data(), val_dev, 1, ntotFine);
+  //cuda_memcpy_GPU2GPU( cu_density.Data(), cu_den.Data(), ntotFine*sizeof(double) );
+  cuda_set_vector( cu_density.Data(), cu_den.Data(), ntotFine);
+  temp = vol / ntotFine;
+  cublas::Scal( ntotFine, &temp, cu_density.Data(), 1 );
+
+  cuda_reduce( cu_density.Data(), val_dev, 1, ntotFine);
   cuda_memcpy_GPU2CPU( &val, val_dev, sizeof(double));
   Real val2 = val;
   
-  cuda_memcpy_GPU2CPU( density_.Data(), cu_den.Data(), ntotFine *sizeof(double));
   cuda_free(val_dev);
   #else
 

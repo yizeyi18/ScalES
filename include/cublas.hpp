@@ -68,6 +68,18 @@ typedef  cuDoubleComplex   dcomplex;
 void Init(void);
 
 void Destroy(void);
+void Gemv ( cublasOperation_t transA, Int m, Int n, const double *alpha,
+          const double *A, int lda, const double *x, int incx,
+          const double *beta, double *y, int incy);
+void Gemv ( cublasOperation_t transA, Int m, Int n, const float *alpha,
+          const float *A, int lda, const float *x, int incx,
+          const float *beta, float *y, int incy);
+void Gemv ( cublasOperation_t transA, Int m, Int n, const cuComplex *alpha,
+          const cuComplex *A, int lda, const cuComplex *x, int incx,
+          const cuComplex *beta, cuComplex *y, int incy);
+void Gemv ( cublasOperation_t transA, Int m, Int n, const cuDoubleComplex *alpha,
+          const cuDoubleComplex *A, int lda, const cuDoubleComplex *x, int incx,
+          const cuDoubleComplex *beta, cuDoubleComplex *y, int incy);
 // *********************************************************************
 // Level 3 BLAS GEMM 
 // *********************************************************************
@@ -132,6 +144,7 @@ void Axpy( int n, const float * alpha, const float * x, int incx, float * y, int
  void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
              cublasDiagType_t diag, int m, int n, const cuDoubleComplex *alpha, 
              const cuDoubleComplex *A, int lda, cuDoubleComplex *B, int ldb );
+void batched_least_square(Int m, Int n, Int nrhs, cuDoubleComplex *A, Int lda, cuDoubleComplex *C, Int ldc, Int batchSize , int maxDim);
 } // namespace cublas
 } // namespace dgdft
 
