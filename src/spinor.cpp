@@ -773,16 +773,17 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
   // Temporary variable for saving wavefunction on a fine grid
   CpxNumVec   phiTemp(ntot);
-  cuCpxNumVec cu_psi(ntot);
   cuDblNumVec cu_exxgkk(ntot);
   cuCpxNumVec cu_phiTemp(ntot);
-  cuCpxNumVec cu_psi_out(ntot);
   cuCpxNumMat cu_wave(ntot, numStateLocal);
 
   cuda_memcpy_CPU2GPU(cu_exxgkk.Data(), exxgkk.Data(), sizeof(double)*ntot);
 
   Int numStateLocalTemp;
   Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1, commTime, compTime;
+  commTime = 0.0;
+  compTime = 0.0;
   GetTime( timeSta );
 
   //MPI_Barrier(domain_.comm);
@@ -796,7 +797,238 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
     statusOFS << " Complex GPU HSE calculation .. psi.AddMultSpinorEXX "  << std::endl;
   }
 
+  int nbands = 1;
+
+#ifdef BATCH_GPU_SENDRECV
+  IntNumVec psi_num(mpisize);
+  MPI_Allgather(&numStateLocal, 1, MPI_INT, psi_num.Data(), 1, MPI_INT, domain_.comm);
+
+  nbands = 16;
+  if( numStateLocal < nbands) nbands = numStateLocal;
+  //statusOFS << " GPU BATCH method with batch Size " << nbands <<  " numStateLocal " << numStateLocal << std::endl;
+  //statusOFS << " numGrid z,y,x " << numGrid[2] << " " << numGrid[1] << " " << numGrid[0] << std::endl;
+
+  cufftHandle batchPlanC2C;
+  int n[3] = { numGrid[2], numGrid[1], numGrid[0] };
+  cufftPlanMany( &batchPlanC2C, 3, n, NULL, 1, ntot, NULL, 1, ntot, CUFFT_Z2Z, nbands);
+
+  cuCpxNumVec cu_psi(ntot*nbands);
+  cuCpxNumVec cu_psi_out(ntot*nbands);
+
+  cuNumVec<cuComplex> cu_singlePhiTemp(ntot);
+  cuCpxNumMat cu_phi(ntot, numStateLocal);
+  cuNumMat<cuComplex> cu_phiSingle(ntot,numStateLocal );
+  cuda_memcpy_CPU2GPU( cu_phi.Data(), phi.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  cuda_compress_d2f((float*)cu_phiSingle.Data(), (double*)cu_phi.Data(), 2*numStateLocal*ntot);
+
+  for( Int iproc = 0; iproc < mpisize; iproc++ ){
+    int recvProc = (iproc + mpirank) % mpisize;
+    int recvLocalState = psi_num[recvProc];
+
+    // check check
+    numStateLocalTemp = psi_num[iproc];
+    numStateLocalTemp = recvLocalState;
+
+    IntNumVec wavefunIdxTemp(numStateLocalTemp);
+
+    for (Int i = 0; i < numStateLocalTemp; i++){
+        wavefunIdxTemp[i] = i * mpisize + recvProc;
+    }
+
+    // FIXME OpenMP does not work since all variables are shared
+    for( Int kphi = 0; kphi < numStateLocalTemp; kphi++ ){
+      for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
+
+        //SetValue( phiTemp, Z_ZERO );
+
+        /*
+        if( iproc == mpirank )
+        { 
+          Complex* phiPtr = phi.VecData(jphi, kphi);
+          for( Int ir = 0; ir < ntot; ir++ ){
+            phiTemp(ir) = phiPtr[ir];
+          }
+        }
+        */
+        if( iproc == mpirank )
+          cuda_memcpy_GPU2GPU(cu_singlePhiTemp.Data(), cu_phiSingle.Data() + kphi*ntot, sizeof(cuComplex)*ntot);
+
+        //MPI_Bcast( phiTemp.Data(), 2*ntot, MPI_DOUBLE, iproc, domain_.comm );
+        MPI_Bcast( cu_singlePhiTemp.Data(), 2*ntot, MPI_REAL, iproc, domain_.comm );
+
+        cuda_decompress_f2d((double*)cu_phiTemp.Data(), (float*)cu_singlePhiTemp.Data(), 2*ntot);
+
+        //cuda_memcpy_CPU2GPU(cu_phiTemp.Data(), phiTemp.Data(), sizeof(cuDoubleComplex)*ntot);
+
+        Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
+        if(occupationRate[wavefunIdxTemp(kphi)] < 1.0E-8) continue; 
+
+        for (Int k=0; k<numStateLocal; k+=nbands) {
+          for (Int j=0; j<ncom; j++) {
+
+            int nbands_t = nbands;
+            if( numStateLocal - k  < nbands) nbands_t = numStateLocal - k;
+	    //statusOFS << " working on the " << k << " index, nbands "<< nbands_t << std::endl << std::flush;
+
+	    // set vector
+            cuda_set_vector( cu_psi.Data(), &cu_wave(0,k), ntot*nbands_t);
+
+            // input vec = psi * conj(phi)
+            cuda_vtot(cu_psi.Data(), cu_phiTemp.Data(), ntot, nbands_t);
+
+            // exec the CUFFT. 
+            cuFFTExecuteForward( fft, batchPlanC2C, 0, cu_psi, cu_psi_out);
+
+            // Solve the Poisson-like problem for exchange
+     	    // note, exxgkkR2C apply to psi exactly like teter or laplacian
+            cuda_teter( reinterpret_cast<cuDoubleComplex*> (cu_psi_out.Data()), cu_exxgkk.Data(), ntot, nbands_t );
+
+	    // exec the CUFFT. 
+            cuFFTExecuteInverse( fft,batchPlanC2C, 0, cu_psi_out, cu_psi, nbands_t);
+
+            // multiply by the occupationRate.
+	    // multiply with fac.
+            //Real *cu_a3Ptr = a3.VecData(j,k);
+            //cuda_Axpyz( cu_a3Ptr, 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot);
+            cuda_Axpyz( a3.VecData(j,k), 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot, nbands_t);
+
+          } // for (j)
+        } // for (k)
+
+        //MPI_Barrier(domain_.comm);
+
+      } // for (jphi)
+    } // for (kphi)
+
+  } //iproc
+
+  cufftDestroy( batchPlanC2C ); 
+#endif
+
+#ifdef BATCH_GPU
+
+  GetTime( timeSta1 );
+  nbands = 16;
+  if( numStateLocal < nbands) nbands = numStateLocal;
+  //statusOFS << " GPU BATCH method with batch Size " << nbands <<  " numStateLocal " << numStateLocal << std::endl;
+  //statusOFS << " numGrid z,y,x " << numGrid[2] << " " << numGrid[1] << " " << numGrid[0] << std::endl;
+
+  cufftHandle batchPlanC2C;
+  int n[3] = { numGrid[2], numGrid[1], numGrid[0] };
+  cufftPlanMany( &batchPlanC2C, 3, n, NULL, 1, ntot, NULL, 1, ntot, CUFFT_Z2Z, nbands);
+
+  cuCpxNumVec cu_psi(ntot*nbands);
+  cuCpxNumVec cu_psi_out(ntot*nbands);
+
+  cuNumVec<cuComplex> cu_singlePhiTemp(ntot);
+  cuCpxNumMat cu_phi(ntot, numStateLocal);
+  cuNumMat<cuComplex> cu_phiSingle(ntot,numStateLocal );
+  cuda_memcpy_CPU2GPU( cu_phi.Data(), phi.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  cuda_compress_d2f((float*)cu_phiSingle.Data(), (double*)cu_phi.Data(), 2*numStateLocal*ntot);
+
+  IntNumVec psi_num(mpisize);
+  MPI_Allgather(&numStateLocal, 1, MPI_INT, psi_num.Data(), 1, MPI_INT, domain_.comm);
+  GetTime( timeEnd1 );
+  compTime += timeEnd1 - timeSta1;
+  GetTime( timeSta1 );
+
+  for( Int iproc = 0; iproc < mpisize; iproc++ ){
+    /*
+    if( iproc == mpirank )
+      numStateLocalTemp = numStateLocal;
+
+    MPI_Bcast( &numStateLocalTemp, 1, MPI_INT, iproc, domain_.comm );
+    */
+    numStateLocalTemp = psi_num[iproc];
+
+    IntNumVec wavefunIdxTemp(numStateLocalTemp);
+    for (Int i = 0; i < numStateLocalTemp; i++){
+        wavefunIdxTemp[i] = i * mpisize + iproc;
+    }
+
+    // FIXME OpenMP does not work since all variables are shared
+    for( Int kphi = 0; kphi < numStateLocalTemp; kphi++ ){
+      for( Int jphi = 0; jphi < ncomPhi; jphi++ ){
+
+        //SetValue( phiTemp, Z_ZERO );
+
+        /*
+        if( iproc == mpirank )
+        { 
+          Complex* phiPtr = phi.VecData(jphi, kphi);
+          for( Int ir = 0; ir < ntot; ir++ ){
+            phiTemp(ir) = phiPtr[ir];
+          }
+        }
+        */
+        if( iproc == mpirank )
+          cuda_memcpy_GPU2GPU(cu_singlePhiTemp.Data(), cu_phiSingle.Data() + kphi*ntot, sizeof(cuComplex)*ntot);
+
+        //MPI_Bcast( phiTemp.Data(), 2*ntot, MPI_DOUBLE, iproc, domain_.comm );
+        cuda_sync();
+	GetTime( timeEnd1 );
+	compTime += timeEnd1 - timeSta1;
+	GetTime( timeSta1 );
+
+        MPI_Bcast( cu_singlePhiTemp.Data(), 2*ntot, MPI_REAL, iproc, domain_.comm );
+
+	cuda_sync();
+	GetTime( timeEnd1 );
+	commTime += timeEnd1 - timeSta1;
+	GetTime( timeSta1 );
+
+        cuda_decompress_f2d((double*)cu_phiTemp.Data(), (float*)cu_singlePhiTemp.Data(), 2*ntot);
+
+        //cuda_memcpy_CPU2GPU(cu_phiTemp.Data(), phiTemp.Data(), sizeof(cuDoubleComplex)*ntot);
+
+        Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
+        if(occupationRate[wavefunIdxTemp(kphi)] < 1.0E-8) continue; 
+
+        for (Int k=0; k<numStateLocal; k+=nbands) {
+          for (Int j=0; j<ncom; j++) {
+
+            int nbands_t = nbands;
+            if( numStateLocal - k  < nbands) nbands_t = numStateLocal - k;
+	    //statusOFS << " working on the " << k << " index, nbands "<< nbands_t << std::endl << std::flush;
+
+	    // set vector
+            cuda_set_vector( cu_psi.Data(), &cu_wave(0,k), ntot*nbands_t);
+
+            // input vec = psi * conj(phi)
+            cuda_vtot(cu_psi.Data(), cu_phiTemp.Data(), ntot, nbands_t);
+
+            // exec the CUFFT. 
+            cuFFTExecuteForward( fft, batchPlanC2C, 0, cu_psi, cu_psi_out);
+
+            // Solve the Poisson-like problem for exchange
+     	    // note, exxgkkR2C apply to psi exactly like teter or laplacian
+            cuda_teter( reinterpret_cast<cuDoubleComplex*> (cu_psi_out.Data()), cu_exxgkk.Data(), ntot, nbands_t );
+
+	    // exec the CUFFT. 
+            cuFFTExecuteInverse( fft,batchPlanC2C, 0, cu_psi_out, cu_psi, nbands_t);
+
+            // multiply by the occupationRate.
+	    // multiply with fac.
+            //Real *cu_a3Ptr = a3.VecData(j,k);
+            //cuda_Axpyz( cu_a3Ptr, 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot);
+            cuda_Axpyz( a3.VecData(j,k), 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot, nbands_t);
+
+          } // for (j)
+        } // for (k)
+
+        //MPI_Barrier(domain_.comm);
+
+      } // for (jphi)
+    } // for (kphi)
+
+  } //iproc
+
+  cufftDestroy( batchPlanC2C ); 
+#endif
+
 #ifdef GPU_BANDBYBAND_SP
+  cuCpxNumVec cu_psi(ntot*nbands);
+  cuCpxNumVec cu_psi_out(ntot*nbands);
   cuNumVec<cuComplex> cu_singlePhiTemp(ntot);
   cuCpxNumMat cu_phi(ntot, numStateLocal);
   cuNumMat<cuComplex> cu_phiSingle(ntot,numStateLocal );
@@ -879,8 +1111,12 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
     } // for (kphi)
 
   } //iproc
+#endif
 
-#else
+#ifdef GPU_SPINOR
+  cuCpxNumVec cu_psi(ntot*nbands);
+  cuCpxNumVec cu_psi_out(ntot*nbands);
+
   for( Int iproc = 0; iproc < mpisize; iproc++ ){
 
     if( iproc == mpirank )
@@ -951,10 +1187,10 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 #endif
   //MPI_Barrier(domain_.comm);
 
-  statusOFS << " Complex GPU HSE calculation .. psi.AddMultSpinorEXX DONE"  << std::endl;
+  //statusOFS << " Complex GPU HSE calculation .. psi.AddMultSpinorEXX DONE"  << std::endl;
 
   GetTime( timeEnd );
-  statusOFS << " GPU Complex HSE calculation: "<< timeEnd - timeSta <<  std::endl;
+  statusOFS << " GPU Hybrid Fock Exchange: "<< timeEnd - timeSta << " Communication " << commTime << " computation " << compTime <<  std::endl;
   return ;
 }        // -----  end of method Spinor::AddMultSpinorEXX  ----- 
 

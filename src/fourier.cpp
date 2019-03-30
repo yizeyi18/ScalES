@@ -279,6 +279,7 @@ void Fourier::Initialize ( const Domain& dm )
         ErrorHandling( " MPI FFTW initialization  error, reduce the number of MPIs used for fftw");
       }
       if( numGrid[2] % mpisizeFFT ){
+	statusOFS << " numGrid[2]: " << numGrid[2] << " mpiSizeFFT " << mpisizeFFT << std::endl;
         ErrorHandling( " MPI FFTW initialization error, FFTW MPIs should be equaly divided by Z");
       }
       numAllocLocal =  fftw_mpi_local_size_3d(
@@ -570,6 +571,29 @@ void cuFFTExecuteForward( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNu
       //cublas::Scal(ntot, &factor, cu_psi_out.Data(), 1); 
    }
 }
+void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out , int nbands)
+{
+   Index3& numGrid = fft.domain.numGrid;
+   Index3& numGridFine = fft.domain.numGridFine;
+   Real vol      = fft.domain.Volume();
+   Int ntot      = fft.domain.NumGridTotal();
+   Int ntotFine  = fft.domain.NumGridTotalFine();
+   Real factor;
+   if(fft_type > 0) // fine grid FFT.
+   {
+      factor = 1.0 / vol;
+      assert( cufftExecZ2Z(plan, reinterpret_cast<cuDoubleComplex*> (cu_psi_in.Data()), cu_psi_out.Data(), CUFFT_INVERSE) == CUFFT_SUCCESS );
+      cublas::Scal(ntotFine, &factor, cu_psi_out.Data(),1); 
+   }
+   else // coarse grid FFT.
+   {
+      //factor = 1.0 / vol;
+      factor = 1.0 / Real(ntot*nbands);
+      assert( cufftExecZ2Z(plan, reinterpret_cast<cuDoubleComplex*> (cu_psi_in.Data()), cu_psi_out.Data(), CUFFT_INVERSE) == CUFFT_SUCCESS );
+      cublas::Scal(nbands*ntot, &factor, cu_psi_out.Data(), 1); 
+   }
+}
+
 void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out )
 {
    Index3& numGrid = fft.domain.numGrid;

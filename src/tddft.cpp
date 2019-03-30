@@ -3303,7 +3303,7 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
     cuDoubleComplex temp; temp.x = 0.0; temp.y = -1.0 * dT / 2.0;
     cuda_memcpy_GPU2GPU( cu_Xmid.Data(), cu_X.Data(),  sizeof(double)*2*width*heightLocal );
     cublas::Axpy( numStateTotal*ntotLocal, &temp, cu_RX.Data(), 1, cu_Xmid.Data(), 1);
-    cuda_memcpy_GPU2CPU( Xmid.Data(), cu_Xmid.Data(),  sizeof(double)*2*width*heightLocal );
+    //cuda_memcpy_GPU2CPU( Xmid.Data(), cu_Xmid.Data(),  sizeof(double)*2*width*heightLocal );
   #else
     Complex * xmidPtr = Xmid.Data();
     Complex * xPtr    = X.Data();
@@ -3381,6 +3381,7 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
       SetValue( dvMat[i], Complex(0.0, 0.0) );
     }
 
+/*
     std::vector<cuCpxNumMat>   dfMat_dev;
     std::vector<cuCpxNumMat>   dvMat_dev;
     dfMat_dev.resize( numStateLocal );
@@ -3392,7 +3393,7 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
       cuda_setValue( dfMat_dev[i].Data(), zero, ntot*maxDim );
       cuda_setValue( dvMat_dev[i].Data(), zero, ntot*maxDim );
     }
-
+*/
     CpxNumVec vin;
     CpxNumVec vout;
     vin.Resize( ntot);
@@ -3426,7 +3427,7 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
 
         cuda_memcpy_CPU2GPU( cu_psiRes.Data(), psiRes.Data(),  ntot*numStateLocal*sizeof(cuDoubleComplex) );
 
-        scfNorm = InnerSolve_GPU( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal, dfMat_dev, dvMat_dev, vin_dev, vout_dev, cu_psiRes, cu_RX );
+        scfNorm = InnerSolve_GPU( iscf, psiFinal, tnsTemp, HX, X, HPSI, psiF, XHX, XHXtemp, RX, Xmid, dT, psiRes, vin, vout, dfMat, dvMat, rhoFinal, vin_dev, vout_dev, cu_psiRes, cu_RX, cu_Xmid );
         if( scfNorm < options_.diisTol){
           statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps ! "<< scfNorm << std::endl;
           break;
@@ -3455,13 +3456,25 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
     cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, width, width, heightLocal, &one, cu_X.Data(),  
         heightLocal, cu_X.Data(), heightLocal, &zero, cu_XHXtemp.Data(), width);
 
-    cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    //cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
+    statusOFS << " reorthogonalization .... via cholesky decomposition... " << std::endl;
+    MPI_Allreduce( cu_XHXtemp.Data(), cu_XHX.Data(), 2*width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    cuSolver::Potrf( 'U', width, cu_XHX.Data(), width );
+    cublasFillMode_t up     = CUBLAS_FILL_MODE_UPPER;
+    cublasSideMode_t right  = CUBLAS_SIDE_RIGHT;
+    cublasOperation_t cu_transN = CUBLAS_OP_N;
+    cublasDiagType_t nondiag   = CUBLAS_DIAG_NON_UNIT;
+    cublas::Trsm( right, up, cu_transN, nondiag, heightLocal, width, (cuDoubleComplex*)&one, (cuDoubleComplex*)cu_XHX.Data(), width, (cuDoubleComplex*)cu_X.Data(), heightLocal );
+    //cuda_memcpy_GPU2CPU( HX.Data(), cu_X.Data(), heightLocal*width*sizeof(cuDoubleComplex) );
+    //AlltoallBackward ( HX, psiF, mpi_comm );
+    GPU_AlltoallBackward( cu_X, cu_PSI, mpi_comm);
+    
     #else
     blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
         heightLocal, X.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
     #endif
-    MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
 
+#if 0
     // XHXtemp = 0.5 * ( XHX + conj ( XHX ) )
     {
       Complex * xPtr = XHXtemp.Data();
@@ -3517,9 +3530,10 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
     #endif
 
     AlltoallBackward ( HX, psiF, mpi_comm );
+#endif
   }
-
-  blas::Copy( ntot*numStateLocal, psiFinal.Wavefun().Data(), 1, psi.Wavefun().Data(), 1 );
+  //blas::Copy( ntot*numStateLocal, psiFinal.Wavefun().Data(), 1, psi.Wavefun().Data(), 1 );
+  cuda_memcpy_GPU2CPU( psi.Wavefun().Data(), cu_PSI.Data(), numStateLocal*ntot*sizeof(cuDoubleComplex) );
 
   GetTime( timeEnd );
   timeOrth += timeEnd - timeSta1;
@@ -3531,10 +3545,12 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
     // get the charge density of the Hf.
     Real totalCharge_;
     ham.CalculateDensity(
-        psiFinal,
+        //psiFinal,
+        spnTemp,
         ham.OccupationRate(),
         totalCharge_, 
-        fft );
+        fft,
+        true );
   }
   GetTime( timeEnd );
   timeDensity += timeEnd - timeSta1;
@@ -5610,12 +5626,16 @@ Real TDDFT::InnerSolve_GPU2( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsT
 
 }
 
-Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat &HPSI, CpxNumMat & psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat & Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal, std::vector<cuCpxNumMat> & dfMat_dev, std::vector<cuCpxNumMat> & dvMat_dev, cuCpxNumVec & vin_dev, cuCpxNumVec &vout_dev, cuCpxNumMat & cu_psiRes, cuCpxNumMat & cu_RX )
+Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat &HPSI, CpxNumMat & psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat & Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal,  cuCpxNumVec & vin_dev, cuCpxNumVec &vout_dev, cuCpxNumMat & cu_psiRes, cuCpxNumMat & cu_RX , cuCpxNumMat & cu_Xmid)
 {
   Real timeSta, timeEnd;
-  Real timeSta1, timeEnd1;
   GetTime( timeSta );
+#ifdef _PROFILING_
+  reset_time();
+  reset_alltoall_time();
+  Real timeSta1, timeEnd1;
   GetTime( timeSta1 );
+#endif
 
   Hamiltonian& ham = *hamPtr_;
   Fourier&     fft = *fftPtr_;
@@ -5649,9 +5669,11 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
     ham.CalculateVtot( ham.Vtot());
     cuda_reset_vtot_flag();
   }
+#ifdef _PROFILING_
   GetTime( timeEnd1 );
-  statusOFS << "SCF " << iscf << " start by calculate Density : " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  statusOFS << "SCF " << iscf << " Density time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
   GetTime( timeSta1 );
+#endif
 
   // will setPhi on GPU later...
   if( ham.IsHybrid() && !esdfParam.isHybridACE ) {
@@ -5666,11 +5688,13 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
   cuda_memcpy_CPU2GPU(cu_psiFinal.Data(), psiFinal.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
   Spinor spnTemp( fftPtr_->domain, 1 , numStateLocal, numStateLocal, false,  cu_psiFinal.Data(), true );
   ham.MultSpinor( spnTemp, cu_tnsTemp, fft );
-  cuda_memcpy_GPU2CPU(HPSI.Data(), cu_HpsiFinal.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
+  //cuda_memcpy_GPU2CPU(HPSI.Data(), cu_HpsiFinal.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
 
+#ifdef _PROFILING_
   GetTime( timeEnd1 );
-  statusOFS << "SCF " << iscf << " Band parallel H*X calculate time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  statusOFS << "SCF " << iscf << " hybrid_HX time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
   GetTime( timeSta1 );
+#endif
 
   // HXf <== Hf * Xf, now HPSI is HXf  
   //ham.MultSpinor( psiFinal, tnsTemp, fft );
@@ -5679,31 +5703,26 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
 
   //  XHX <== XHXtemp <--- X'HXf
   //  PsiF, HPSI are psiF and H*psiF
-  AlltoallForward( HPSI, HX, mpi_comm);
-  AlltoallForward( psiF, X,  mpi_comm);
-#ifdef GPU
   cuCpxNumMat cu_HX(heightLocal, width);
   cuCpxNumMat cu_X( heightLocal, width);
+  GPU_AlltoallForward( cu_HpsiFinal, cu_HX, mpi_comm);
+  GPU_AlltoallForward( cu_psiFinal, cu_X,  mpi_comm);
+
   cuCpxNumMat cu_XHXtemp(width, width);
+  cuCpxNumMat cu_XHX(width, width);
 
   cuDoubleComplex  one ; one.x = 1.0; one.y = 0.0;
   cuDoubleComplex  zero; zero.x = 0.0; zero.y = 0.0;
   cuDoubleComplex  minus_one; minus_one.x = -1.0; minus_one.y =0.0;
 
-  cuda_memcpy_CPU2GPU( cu_X.Data(),  X.Data(),  sizeof(double)*2*width*heightLocal );
-  cuda_memcpy_CPU2GPU( cu_HX.Data(), HX.Data(), sizeof(double)*2*width*heightLocal );
+  //cuda_memcpy_CPU2GPU( cu_X.Data(),  X.Data(),  sizeof(double)*2*width*heightLocal );
+  //cuda_memcpy_CPU2GPU( cu_HX.Data(), HX.Data(), sizeof(double)*2*width*heightLocal );
 
   cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, width, width, heightLocal, &one,  cu_X.Data(), 
       heightLocal, cu_HX.Data(), heightLocal, &zero, cu_XHXtemp.Data(), width );
 
-  cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), sizeof(double)*2*width*width);
-
-#else
-  blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
-      heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
-#endif
-
-  MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+  MPI_Allreduce( cu_XHXtemp.Data(), cu_XHX.Data(), 2*width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+  cuda_memcpy_GPU2CPU( XHX.Data(), cu_XHX.Data(), sizeof(double)*2*width*width);
 
   // ResX <== Xf + 1i* dT/2 * ( HXf - Xf * XHXf ) - Xmid
   // Note RX is the ResX
@@ -5716,17 +5735,14 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
     // X == X in G-parallel
     // XHX == XHXf 
     // Now Y == Xf * XHXf 
-    CpxNumMat Y(ntotLocal, numStateTotal); 
-#ifdef GPU
+
+    //CpxNumMat Y(ntotLocal, numStateTotal); 
     cuCpxNumMat cu_Y(ntotLocal, numStateTotal); 
     cuda_memcpy_CPU2GPU( cu_XHXtemp.Data(), XHX.Data(), sizeof(double)*2*width*width);
     cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, heightLocal, width, width, &one, cu_X.Data(),  
         heightLocal, cu_XHXtemp.Data(), width, &zero, cu_Y.Data(), heightLocal );
-    cuda_memcpy_GPU2CPU( Y.Data(), cu_Y.Data(),  sizeof(double)*2*width*heightLocal );
-#else
-    blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
-        X.Data(), heightLocal, XHX.Data(), width, 0.0, Y.Data(), heightLocal );
-#endif
+    //cuda_memcpy_GPU2CPU( Y.Data(), cu_Y.Data(),  sizeof(double)*2*width*heightLocal );
+
     // Do things in the G-parallel fashion. 
     // HX is the HXf in G-parallel
     // Xmid is in the G-parallel Fashion
@@ -5734,18 +5750,18 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
     // RX is the ResX 
 
     //cuCpxNumMat cu_RX( heightLocal, width);
-    cuCpxNumMat cu_Xmid( heightLocal, width);
+    //cuCpxNumMat cu_Xmid( heightLocal, width);
     cuDoubleComplex temp; temp.x = 0.0; temp.y = 1.0 * dT / 2.0;
 
-    cuda_memcpy_CPU2GPU( cu_RX.Data(),   X.Data(),     sizeof(double)*2*width*heightLocal );
-    cuda_memcpy_CPU2GPU( cu_Xmid.Data(), Xmid.Data(),  sizeof(double)*2*width*heightLocal );
+    cuda_memcpy_GPU2GPU( cu_RX.Data(),   cu_X.Data(), sizeof(double)*2*width*heightLocal );
+    //cuda_memcpy_CPU2GPU( cu_Xmid.Data(), Xmid.Data(), sizeof(double)*2*width*heightLocal );
     cublas::Axpy(width*heightLocal, &temp, cu_HX.Data(), 1, cu_RX.Data(), 1);
 
     temp.x = 0.0; temp.y = -0.5*dT;
     cublas::Axpy(width*heightLocal, &temp, cu_Y.Data(), 1, cu_RX.Data(), 1);
     cublas::Axpy(width*heightLocal, &minus_one, cu_Xmid.Data(), 1, cu_RX.Data(), 1);
 
-    cuda_memcpy_GPU2CPU( RX.Data(), cu_RX.Data(),  sizeof(double)*2*width*heightLocal );
+    //cuda_memcpy_GPU2CPU( RX.Data(), cu_RX.Data(),  sizeof(double)*2*width*heightLocal );
 #if 0
     Complex * ResPtr = RX.Data();
     Complex * XfPtr  = X.Data();
@@ -5770,13 +5786,17 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
   for( int i = 0; i < ntot; i++){
     precPtr[i] = 1.0/(1.0 + i_Z_One * dT/2.0 * ( fft.gkk[i] - traceXHX / (Real)numStateTotal ));
   }
+
+#ifdef _PROFILING_
   GetTime( timeEnd1 );
-  statusOFS << "SCF " << iscf << " G-parallel calculation time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  statusOFS << "SCF " << iscf << " G-parallel time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
   GetTime( timeSta1 );
+#endif
 
 
   cuCpxNumMat cu_psiF( ntot, numStateLocal);
-  cuda_memcpy_CPU2GPU( cu_psiF.Data(), psiF.Data(), ntot*numStateLocal*sizeof(cuDoubleComplex) );
+  //cuda_memcpy_CPU2GPU( cu_psiF.Data(), psiF.Data(), ntot*numStateLocal*sizeof(cuDoubleComplex) );
+  cuda_memcpy_GPU2GPU( cu_psiF.Data(), cu_psiFinal.Data(), ntot*numStateLocal*sizeof(cuDoubleComplex) );
 
   Real timeZgels = 0.0;
   CpxNumMat dfMatTemp( ntot, maxDim ); 
@@ -5823,9 +5843,51 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
       // FIXME
       dfMatTemp = dfMat[iband];
 
+#if 0
       lapack::SVDLeastSquare( ntot, iterused, 1, 
           dfMatTemp.Data(), ntot, gammas.Data(), ntot,
           S.Data(), rcond, &rank );
+#else
+#ifdef GPU
+      
+      cuCpxNumVec cu_gammas(ntot);
+      cuda_setValue( cu_gammas.Data(), zero, ntot );
+
+      cuCpxNumMat cu_dfMatTemp( ntot, iterused); 
+      CpxNumMat  XTXtemp1( iterused, iterused);
+      cuCpxNumMat  cu_XTXtemp1( iterused, iterused);
+
+      cuda_memcpy_CPU2GPU( cu_dfMatTemp.Data(), dfMat[iband].Data(), iterused*ntot*sizeof(cuDoubleComplex) );
+ 
+      cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, iterused, iterused, ntot, &one, cu_dfMatTemp.Data(), 
+          ntot, cu_dfMatTemp.Data(), ntot, &zero,cu_XTXtemp1.Data(), iterused);
+
+      cublas::Gemv( CUBLAS_OP_C, ntot, iterused, &one, cu_dfMatTemp.Data(),
+          ntot, cu_psiResPtr, 1, &zero, cu_gammas.Data(), 1 );
+
+      cuda_memcpy_GPU2CPU( gammas.Data(), cu_gammas.Data(), ntot*sizeof(cuDoubleComplex) );
+      cuda_memcpy_GPU2CPU( XTXtemp1.Data(), cu_XTXtemp1.Data(), iterused*iterused*sizeof(cuDoubleComplex) );
+
+      lapack::SVDLeastSquare( iterused, iterused, 1, 
+          XTXtemp1.Data(), iterused, gammas.Data(), iterused,
+          S.Data(), rcond, &rank );
+      
+#else
+      SetValue( gammas, Complex( 0.0, 0.0) );
+      CpxNumMat  XTXtemp1( iterused, iterused);
+      blas::Gemm( 'C', 'N', iterused, iterused, ntot, 1.0, dfMat[iband].Data(), 
+          ntot, dfMat[iband].Data(), ntot, 0.0, XTXtemp1.Data(), iterused);
+
+      blas::Gemv('C', ntot, iterused, 1.0, dfMat[iband].Data(),
+          ntot, psiResPtr, 1, 0.0, gammas.Data(), 1 );
+
+      lapack::SVDLeastSquare( iterused, iterused, 1, 
+          XTXtemp1.Data(), iterused, gammas.Data(), iterused,
+          S.Data(), rcond, &rank );
+
+      // after that, gammas is only a vector of 20.
+#endif
+#endif
 
       Print( statusOFS, "  Rank of dfmat = ", rank );
       Print( statusOFS, "  Rcond = ", rcond );
@@ -5869,10 +5931,12 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
 
   cuda_memcpy_GPU2CPU( psiF.Data(), cu_psiF.Data(), ntot*numStateLocal*sizeof(cuDoubleComplex) );
 
+#ifdef _PROFILING_
   GetTime( timeEnd1 );
-  statusOFS << "SCF " << iscf << " magmaZgels calculation time: " << timeZgels << " [s]" << std::endl;
-  statusOFS << "SCF " << iscf << " band-parallel calculation time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  statusOFS << "SCF " << iscf << " band-parallel time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
   GetTime( timeSta1 );
+#endif
+
   Real scfNorm = 0.0;
   {
     cuda_memcpy_CPU2GPU(cu_psiFinal.Data(), psiFinal.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
@@ -5903,17 +5967,22 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
     blas::Copy( ntotFine,  ham.Density().Data(), 1,  rhoFinal.Data(), 1 );
     
     GetTime( timeEnd );
-    statusOFS << "SCF " << iscf << " Density calculation and copy wavefunction time: " << timeEnd - timeSta1 << " [s]" << std::endl;
-    statusOFS << "SCF " << iscf << " calculation time: " << timeEnd - timeSta << " [s]" << std::endl;
-#if 0
-    if( scfNorm < options_.diisTol){
-      statusOFS << "TDDFT step " << k_ << " SCF is converged in " << iscf << " steps !" << std::endl;
-      //statusOFS << "TDDFT step " << k_ << " used " << totalHx << " H * x operations!" << std::endl;
-    }
+
+    Real per_SCF_time = timeEnd - timeSta;
+#ifdef _PROFILING_
+    statusOFS << "SCF " << iscf << " Density calculation and copy wavefunction time: " << timeEnd - timeSta1 << " [s]" << std::endl << std::endl<< std::endl;;;
+    statusOFS << "-------------------------------------------------------------------------------- " << std::endl;
+    statusOFS << "- SCF " << iscf << " CPU2GPU cuda copy time: " << CPU2GPUTime << " [s]" << std::endl;
+    statusOFS << "- SCF " << iscf << " GPU2CPU cuda copy time: " << GPU2CPUTime << " [s]" << std::endl;
+    statusOFS << "- SCF " << iscf << " GPU2GPU cuda copy time: " << GPU2GPUTime << " [s]" << std::endl;
+    statusOFS << "- SCF " << iscf << " CPU-GPU total copytime: " << GPU2GPUTime+GPU2CPUTime+CPU2GPUTime<< " [s] " << (GPU2GPUTime+GPU2CPUTime+CPU2GPUTime)/per_SCF_time*100.0 << "%" << std::endl;
+    statusOFS << "- SCF " << iscf << " Alltoall used time    : " << alltoallTime<< " [s] " << alltoallTime/per_SCF_time*100.0 << "%"<< std::endl;
+    statusOFS << "- SCF " << iscf << " Alltoall with mapping : " << alltoallTimeTotal << " [s] " << alltoallTimeTotal/per_SCF_time*100.0 << "%" << std::endl;
+    statusOFS << "-------------------------------------------------------------------------------- " << std::endl;
 #endif
+    statusOFS << "SCF " << iscf << " calculation time: " << timeEnd - timeSta << " [s]" << std::endl;
     return scfNorm;
   }
-
 }
 
 #endif

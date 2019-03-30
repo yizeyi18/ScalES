@@ -47,6 +47,17 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 namespace dgdft{
 
+#ifdef _PROFILING_
+Real alltoallTime = 0.0;
+Real alltoallTimeTotal = 0.0;
+
+void reset_alltoall_time()
+{
+	alltoallTime = 0.0;
+	alltoallTimeTotal = 0.0;
+}
+#endif
+
 // *********************************************************************
 // Spline functions
 // *********************************************************************
@@ -683,6 +694,13 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 void GPU_AlltoallForward( cuCpxNumMat& cu_A, cuCpxNumMat& cu_B, MPI_Comm comm )
 {
 
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+  GetTime( timeSta1 );
+#endif
+
   int mpirank, mpisize;
   MPI_Comm_rank( comm, &mpirank );
   MPI_Comm_size( comm, &mpisize );
@@ -753,13 +771,32 @@ void GPU_AlltoallForward( cuCpxNumMat& cu_A, cuCpxNumMat& cu_B, MPI_Comm comm )
 
   //cu_sendbuf.CopyTo( sendbuf );
   cuda_memcpy_GPU2CPU( sendbuf.Data(), cu_sendbuf.Data(), sizeof(cuDoubleComplex) * height*widthLocal);
+
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  cuda_sync();
+  GetTime( timeSta );
+#endif
   
   MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE_COMPLEX, 
       &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE_COMPLEX, comm );
 
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  cuda_sync();
+  GetTime( timeEnd );
+  alltoallTime += timeEnd - timeSta;
+#endif
   //cu_recvbuf.CopyFrom( recvbuf );
   cuda_memcpy_CPU2GPU( cu_recvbuf.Data(), recvbuf.Data(), sizeof(cuDoubleComplex) * heightLocal*width);
   cuda_mapping_from_buf(cu_B.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
+
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  cuda_sync();
+  GetTime( timeEnd1 );
+  alltoallTimeTotal += timeEnd1 - timeSta1;
+#endif
  
 
   return ;
@@ -768,6 +805,14 @@ void GPU_AlltoallForward( cuCpxNumMat& cu_A, cuCpxNumMat& cu_B, MPI_Comm comm )
 
 void GPU_AlltoallBackward( cuCpxNumMat& cu_A, cuCpxNumMat& cu_B, MPI_Comm comm )
 {
+
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  cuda_sync();
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+  GetTime( timeSta1 );
+#endif
 
   int mpirank, mpisize;
   MPI_Comm_rank( comm, &mpirank );
@@ -838,14 +883,32 @@ void GPU_AlltoallBackward( cuCpxNumMat& cu_A, cuCpxNumMat& cu_B, MPI_Comm comm )
   //cu_recvbuf.CopyTo( recvbuf );
   cuda_memcpy_GPU2CPU( recvbuf.Data(), cu_recvbuf.Data(), sizeof(cuDoubleComplex) * heightLocal*width);
   
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  cuda_sync();
+  GetTime( timeSta );
+#endif
   MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE_COMPLEX, 
       &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE_COMPLEX, comm );
 
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  cuda_sync();
+  GetTime( timeEnd );
+  alltoallTime += timeEnd - timeSta;
+#endif
   //cu_sendbuf.CopyFrom( sendbuf );
   cuda_memcpy_CPU2GPU( cu_sendbuf.Data(), sendbuf.Data(), sizeof(cuDoubleComplex) * height*widthLocal);
 
   cuda_mapping_from_buf(cu_B.Data(), cu_sendbuf.Data(), cu_sendk.Data(), height*widthLocal);
-  
+
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  cuda_sync();
+  GetTime( timeEnd1 );
+  alltoallTimeTotal += timeEnd1 - timeSta1;
+#endif
+ 
   return ;
 }        // -----  end of function GPU_AlltoallBackward ----- 
 
@@ -1023,6 +1086,13 @@ void GPU_AlltoallBackward( cuDblNumMat& cu_A, cuDblNumMat& cu_B, MPI_Comm comm )
 void AlltoallForward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm )
 {
 
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+  GetTime( timeSta1 );
+#endif
+
   int mpirank, mpisize;
   MPI_Comm_rank( comm, &mpirank );
   MPI_Comm_size( comm, &mpisize );
@@ -1108,14 +1178,32 @@ void AlltoallForward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm )
       sendbuf[sendk(i, j)] = A(i, j); 
     }
   }
+
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  GetTime( timeSta );
+#endif
+
   MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE_COMPLEX, 
       &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE_COMPLEX, comm );
+
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  GetTime( timeEnd );
+  alltoallTime += timeEnd - timeSta;
+#endif
+
   for( Int j = 0; j < width; j++ ){ 
     for( Int i = 0; i < heightLocal; i++ ){
       B(i, j) = recvbuf[recvk(i, j)];
     }
   }
 
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  GetTime( timeEnd1 );
+  alltoallTimeTotal += timeEnd1 - timeSta1;
+#endif
 
   return ;
 }        // -----  end of function AlltoallForward ----- 
@@ -1224,6 +1312,13 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 void AlltoallBackward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm )
 {
 
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  Real timeSta, timeEnd;
+  Real timeSta1, timeEnd1;
+  GetTime( timeSta1 );
+#endif
+
   int mpirank, mpisize;
   MPI_Comm_rank( comm, &mpirank );
   MPI_Comm_size( comm, &mpisize );
@@ -1309,14 +1404,32 @@ void AlltoallBackward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm )
       recvbuf[recvk(i, j)] = A(i, j);
     }
   }
+
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  GetTime( timeSta );
+#endif
+
   MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE_COMPLEX, 
       &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE_COMPLEX, comm );
+
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  GetTime( timeEnd );
+  alltoallTime += timeEnd - timeSta;
+#endif
+
   for( Int j = 0; j < widthLocal; j++ ){ 
     for( Int i = 0; i < height; i++ ){
       B(i, j) = sendbuf[sendk(i, j)]; 
     }
   }
 
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  GetTime( timeEnd1 );
+  alltoallTimeTotal += timeEnd1 - timeSta1;
+#endif
 
   return ;
 }        // -----  end of function AlltoallBackward ----- 

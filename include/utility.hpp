@@ -61,6 +61,13 @@ such enhancements or derivative works thereof, in binary and source code form.
 #endif
 namespace dgdft{
 
+#ifdef _PROFILING_
+extern Real alltoallTime;
+extern Real alltoallTimeTotal ;
+void reset_alltoall_time();
+#endif
+
+
 // Forward declaration of Atom structure in periodtable.hpp 
 struct Atom;
 

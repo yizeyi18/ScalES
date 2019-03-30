@@ -2934,6 +2934,161 @@ ESDFReadInput ( const char* filename )
 
     Point3  elemLength;
 
+    Int nnn[300];
+    nnn[0] =0;
+    nnn[1] =1;
+    nnn[2] =2;
+    nnn[3] =3;
+    nnn[4] =4;
+    nnn[5] =5;
+    nnn[6] =6;
+    nnn[7] =7;
+    nnn[8] =8;
+    nnn[9] =9;
+    nnn[10] =10;
+    nnn[11] =12;
+    nnn[12] =14;
+    nnn[13] =15;
+    nnn[14] =16;
+    nnn[15] =18;
+    nnn[16] =20;
+    nnn[17] =21;
+    nnn[18] =24;
+    nnn[19] =25;
+    nnn[20] =27;
+    nnn[21] =28;
+    nnn[22] =30;
+    nnn[23] =32;
+    nnn[24] =35;
+    nnn[25] =36;
+    nnn[26] =40;
+    nnn[27] =42;
+    nnn[28] =45;
+    nnn[29] =48;
+    nnn[30] =49;
+    nnn[31] =50;
+    nnn[32] =54;
+    nnn[33] =56;
+    nnn[34] =60;
+    nnn[35] =63;
+    nnn[36] =64;
+    nnn[37] =70;
+    nnn[38] =72;
+    nnn[39] =75;
+    nnn[40] =80;
+    nnn[41] =81;
+    nnn[42] =84;
+    nnn[43] =90;
+    nnn[44] =96;
+    nnn[45] =98;
+    nnn[46] =100;
+    nnn[47] =105;
+    nnn[48] =108;
+    nnn[49] =112;
+    nnn[50] =120;
+    nnn[51] =125;
+    nnn[52] =126;
+    nnn[53] =128;
+    nnn[54] =135;
+    nnn[55] =140;
+    nnn[56] =144;
+    nnn[57] =147;
+    nnn[58] =150;
+    nnn[59] =160;
+    nnn[60] =162;
+    nnn[61] =168;
+    nnn[62] =175;
+    nnn[63] =180;
+    nnn[64] =189;
+    nnn[65] =192;
+    nnn[66] =196;
+    nnn[67] =200;
+    nnn[68] =210;
+    nnn[69] =216;
+    nnn[70] =224;
+    nnn[71] =225;
+    nnn[72] =240;
+    nnn[73] =243;
+    nnn[74] =245;
+    nnn[75] =250;
+    nnn[76] =252;
+    nnn[77] =256;
+    nnn[78] =270;
+    nnn[79] =280;
+    nnn[80] =288;
+    nnn[81] =294;
+    nnn[82] =300;
+    nnn[83] =315;
+    nnn[84] =320;
+    nnn[85] =324;
+    nnn[86] =336;
+    nnn[87] =343;
+    nnn[88] =350;
+    nnn[89] =360;
+    nnn[90] =375;
+    nnn[91] =378;
+    nnn[92] =384;
+    nnn[93] =392;
+    nnn[94] =400;
+    nnn[95] =405;
+    nnn[96] =420;
+    nnn[97] =432;
+    nnn[98] =441;
+    nnn[99] =448;
+    nnn[100] =450;
+    nnn[101] =480;
+    nnn[102] =486;
+    nnn[103] =490;
+    nnn[104] =500;
+    nnn[105] =504;
+    nnn[106] =512;
+    nnn[107] =525;
+    nnn[108] =540;
+    nnn[109] =560;
+    nnn[110] =567;
+    nnn[111] =576;
+    nnn[112] =588;
+    nnn[113] =600;
+    nnn[114] =625;
+    nnn[115] =630;
+    nnn[116] =640;
+    nnn[117] =648;
+    nnn[118] =672;
+    nnn[119] =675;
+    nnn[120] =686;
+    nnn[121] =700;
+    nnn[122] =720;
+    nnn[123] =729;
+    nnn[124] =735;
+    nnn[125] =750;
+    nnn[126] =756;
+    nnn[127] =768;
+    nnn[128] =784;
+    nnn[129] =800;
+    nnn[130] =810;
+    nnn[131] =840;
+    nnn[132] =864;
+    nnn[133] =875;
+    nnn[134] =882;
+    nnn[135] =896;
+    nnn[136] =900;
+    nnn[137] =945;
+    nnn[138] =960;
+    nnn[139] =972;
+    nnn[140] =980;
+    nnn[141] =1000;
+    nnn[142] =1008;
+    nnn[143] =1024;
+    nnn[144] =1029;
+    nnn[145] =1050;
+    nnn[146] =1080;
+    nnn[147] =1120;
+    nnn[148] =1125;
+    nnn[149] =1134;
+    nnn[150] =1152;
+    nnn[151] =1176;
+    nnn[152] =1200;
+ 
     for( Int d = 0; d < DIM; d++ ){
       elemLength[d] = dm.length[d] / numElem[d];
       // the number of grid is assumed to be at least an even number
@@ -2947,6 +3102,22 @@ ESDFReadInput ( const char* filename )
       dm.numGrid[d] = numGridWavefunctionElem[d] * numElem[d];  // Coarse Grid
 
       dm.numGridFine[d] = numGridDensityElem[d] * numElem[d]; // Fine Frid
+
+      for( int i = 1; i <= 151; i++)
+      {
+         if( nnn[i] >= dm.numGrid[d] && nnn[i+1] >  dm.numGrid[d] ) {
+            dm.numGrid[d] = nnn[i];
+           break;
+         }
+      }
+
+      for( int i = 1; i <= 151; i++)
+      {
+         if( nnn[i] >= dm.numGridFine[d] && nnn[i+1] >  dm.numGridFine[d] ) {
+            dm.numGridFine[d] = nnn[i];
+           break;
+         }
+      }
 
       numGridLGL[d] = std::ceil( numGridWavefunctionElem[d] * esdfParam.LGLGridFactor );
 

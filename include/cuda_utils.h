@@ -21,6 +21,11 @@
 #define GPU2GPU cudaMemcpyDeviceToDevice 
 #endif 
 
+#ifdef _PROFILING_
+extern double CPU2GPUTime ;
+extern double GPU2CPUTime ;
+extern double GPU2GPUTime ;
+#endif
 //Macros for n-dimensional array access (column major format)
 #define DIM2(x, y, xdim)                                       ((y * xdim) + x)
 #define DIM3(x, y, z, xdim, ydim)                              ((((z * ydim) + y) * xdim) + x)
@@ -203,7 +208,12 @@ void cuda_decompress_f2d( double *out, float *in, int length);
 void cuda_compress_d2f( float *out, double *in, int length);
 void cuda_XTX( cuDoubleComplex * X, double * Y, int length);
 void cuda_reduce( double * density, double * sum, int nbands, int bandLen);
+void cuda_Axpyz( cuDoubleComplex * X, double alpha, cuDoubleComplex * Y, double beta, cuDoubleComplex * Z, int length, int nbands);
+void cuda_teter( cuDoubleComplex* psi, double * vtot, int len, int nbands);
+void cuda_vtot( cuDoubleComplex * psi, cuDoubleComplex* vtot, int len, int nbands);
 void cuda_sync();
+void print_timing();
+void reset_time();
 //}
 #endif
 #endif
