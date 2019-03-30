@@ -5835,15 +5835,15 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
       S.Resize(iterused);
       gammas.Resize(ntot);
 
-      blas::Copy( ntot, psiResPtr, 1, gammas.Data(), 1 );
 
       Real rcond = 1.0E-12;
       Int rank;
 
       // FIXME
-      dfMatTemp = dfMat[iband];
 
 #if 0
+      blas::Copy( ntot, psiResPtr, 1, gammas.Data(), 1 );
+      dfMatTemp = dfMat[iband];
       lapack::SVDLeastSquare( ntot, iterused, 1, 
           dfMatTemp.Data(), ntot, gammas.Data(), ntot,
           S.Data(), rcond, &rank );
