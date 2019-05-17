@@ -839,18 +839,22 @@ cuDoubleComplex* cuda_malloc( cuDoubleComplex* ptr, size_t size)
 
 void reset_time()
 {
+#ifdef _PROFILING_
 	CPU2GPUTime = 0.0;
 	GPU2CPUTime = 0.0;
 	GPU2GPUTime = 0.0;
+#endif
 }
 
 void print_timing()
 {
+#ifdef _PROFILING_
 	printf( " cudaMemcpy CPU2GPU %lf \n", CPU2GPUTime );
 	printf( " cudaMemcpy GPU2CPU %lf \n", GPU2CPUTime );
 	printf( " cudaMemcpy GPU2GPU %lf \n", GPU2GPUTime );
 	printf( " cudaMemcpy Total time %lf \n", GPU2GPUTime + CPU2GPUTime + GPU2CPUTime);
 	fflush(stdout);
+#endif
 }
 
 void cuda_free( void *ptr)
@@ -858,6 +862,21 @@ void cuda_free( void *ptr)
 	CUDA_CALL( cudaFree(ptr) );
 }
 
+void cuda_memcpy_Async_CPU2GPU( void *gpu, void * cpu, size_t size )
+{
+#ifdef _PROFILING_
+	struct timeval begin, end;
+	gettimeofday(&begin, NULL);
+#endif
+	CUDA_CALL( cudaMemcpyAsync(gpu, cpu, size, cudaMemcpyHostToDevice, 0); );
+
+#ifdef _PROFILING_
+	gettimeofday(&end, NULL);
+	double time = 1000000* (end.tv_sec - begin.tv_sec) + end.tv_usec - begin.tv_usec;
+	time /= 1000000;
+	CPU2GPUTime += time;
+#endif
+}
 
 void cuda_memcpy_CPU2GPU( void *gpu, void * cpu, size_t size )
 {
@@ -1474,6 +1493,18 @@ __global__ void gpu_set_vector( T* out, T* in , int length)
 		out[tid] = in[tid];
 	}
 }
+void cuda_set_vector( cuComplex* out, cuComplex *in, int length)
+{
+	int dim = (length + LEN - 1) / LEN;
+	gpu_set_vector< cuComplex> <<< dim, LEN >>>( out, in, length);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
+
 void cuda_set_vector( cuDoubleComplex* out, cuDoubleComplex *in, int length)
 {
 	int dim = (length + LEN - 1) / LEN;

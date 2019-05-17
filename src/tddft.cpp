@@ -58,6 +58,10 @@ namespace dgdft{
 using namespace dgdft::DensityComponent;
 using namespace dgdft::esdf;
 
+#ifdef _PROFILING_
+using namespace  mpi;
+#endif
+
 void setDefaultEfieldOptions( eField * eF)
 {
   // set the polarization to x 
@@ -3034,6 +3038,11 @@ void TDDFT::advancePTTRAPDIIS_GPU_BookKeeping( PeriodTable& ptable ) {
 
 void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
 
+#ifdef _PROFILING_
+  reset_time();
+  reset_alltoall_time();
+  reset_mpi_time();
+#endif
   Int mpirank, mpisize;
   MPI_Comm mpi_comm = fftPtr_->domain.comm;
   MPI_Comm_rank( mpi_comm, &mpirank );
@@ -3261,10 +3270,12 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
       heightLocal, cu_RX.Data(), heightLocal, &zero, cu_XHXtemp.Data(), width );
 
 #ifdef GPUDIRECT
-  MPI_Allreduce( cu_XHXtemp.Data(), cu_XHX.Data(), 2*width*width, MPI_DOUBLE_PRECISION, MPI_SUM, mpi_comm );
+  //MPI_Allreduce( cu_XHXtemp.Data(), cu_XHX.Data(), 2*width*width, MPI_DOUBLE_PRECISION, MPI_SUM, mpi_comm );
+  mpi::Allreduce( (Real*) cu_XHXtemp.Data(), (Real*) cu_XHX.Data(), 2*width*width, MPI_SUM, mpi_comm );
 #else
   cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex) );
-  MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+  //MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+  mpi::Allreduce( (Real*) XHXtemp.Data(), (Real*) XHX.Data(), 2*width*width, MPI_SUM, mpi_comm );
   cuda_memcpy_CPU2GPU( cu_XHX.Data(), XHX.Data(), width*width*sizeof(cuDoubleComplex) );
 #endif
 
@@ -3278,7 +3289,8 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
   lapack::Lacpy( 'A', ntotLocal, numStateTotal, HX.Data(), ntotLocal, RX.Data(), ntotLocal );
   blas::Gemm( 'C', 'N', width, width, heightLocal, 1.0, X.Data(), 
       heightLocal, HX.Data(), heightLocal, 0.0, XHXtemp.Data(), width );
-  MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+  //MPI_Allreduce( XHXtemp.Data(), XHX.Data(), width*width, MPI_DOUBLE_COMPLEX, MPI_SUM, mpi_comm );
+  mpi::Allreduce( (Real*) XHXtemp.Data(), (Real*) XHX.Data(), 2*width*width, MPI_SUM, mpi_comm );
   blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
       X.Data(), heightLocal, XHX.Data(), width, 1.0, RX.Data(), heightLocal );
 #endif
@@ -3458,7 +3470,9 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
 
     //cuda_memcpy_GPU2CPU( XHXtemp.Data(), cu_XHXtemp.Data(), width*width*sizeof(cuDoubleComplex));
     statusOFS << " reorthogonalization .... via cholesky decomposition... " << std::endl;
-    MPI_Allreduce( cu_XHXtemp.Data(), cu_XHX.Data(), 2*width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    //MPI_Allreduce( cu_XHXtemp.Data(), cu_XHX.Data(), 2*width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+    mpi::Allreduce( (Real*) cu_XHXtemp.Data(), (Real*) cu_XHX.Data(), 2*width*width, MPI_SUM, mpi_comm );
+
     cuSolver::Potrf( 'U', width, cu_XHX.Data(), width );
     cublasFillMode_t up     = CUBLAS_FILL_MODE_UPPER;
     cublasSideMode_t right  = CUBLAS_SIDE_RIGHT;
@@ -3586,7 +3600,27 @@ void TDDFT::advancePTTRAPDIIS_GPU( PeriodTable& ptable ) {
   statusOFS << " calculate density time: " << timeDensity   << " [s] " << " iterations " << iterDensity << endl;
   statusOFS << " calculate Force   time: " << timeForce     << " [s] " << " iterations " << iterForce   << endl;
   statusOFS << " TDDFT Step " << k_ << " total Time: " << timeEnd - timeSta << " [s]" << std::endl;
+
+#ifdef _PROFILING_
+  Real totalTime = timeEnd - timeSta;
+
+  statusOFS << std::endl;
+  statusOFS << "************************************************************************************" << endl;
+  statusOFS << "! Step " << k_ << " CPU2GPU cuda copy time: " << CPU2GPUTime << " [s]" << std::endl;
+  statusOFS << "! Step " << k_ << " GPU2CPU cuda copy time: " << GPU2CPUTime << " [s]" << std::endl;
+  statusOFS << "! Step " << k_ << " GPU2GPU cuda copy time: " << GPU2GPUTime << " [s]" << std::endl;
+  statusOFS << "! Step " << k_ << " cuda memory time: " << GPU2GPUTime+GPU2CPUTime+CPU2GPUTime  << " [s] " <<std::endl;
+  statusOFS << "************************************************************************************" << endl;
+  statusOFS << "! Step " << k_ << " MPI_Alltoall  time: " << alltoallTime << " [s]" << std::endl;
+  statusOFS << "! Step " << k_ << " MPI_Alltoall  with Mapping: " << alltoallTimeTotal << " [s]" << std::endl;
+  statusOFS << "! Step " << k_ << " MPI_Allreduce time: " << allreduceTime << " [s]" << std::endl;
+  statusOFS << "! Step " << k_ << " MPI_Gather    time: " << allgatherTime << " [s]" << std::endl;
+  statusOFS << "! Step " << k_ << " MPI_Bcast time: " << bcastTime << " [s]" << std::endl;
+  statusOFS << "! Step " << k_ << " MPI Total time: " << bcastTime + allreduceTime + alltoallTime +allgatherTime << " [s]" << std::endl;
+  statusOFS << "************************************************************************************" << endl;
+  statusOFS << std::endl;
  
+#endif
  
   ++k_;
 } // TDDFT:: advancePTTRAPDIIS_GPU
@@ -4424,6 +4458,7 @@ void TDDFT::Propagate( PeriodTable& ptable ) {
   else if( options_.method == "PTTRAPDIIS"){
     for( Int i = startTime; i < totalSteps; i++) {
 #ifdef GPU
+
       advancePTTRAPDIIS_GPU( ptable );
 #else
       advancePTTRAPDIIS( ptable );
@@ -5631,9 +5666,9 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
   Real timeSta, timeEnd;
   GetTime( timeSta );
 #ifdef _PROFILING_
-  reset_time();
-  reset_alltoall_time();
   Real timeSta1, timeEnd1;
+  MPI_Barrier(MPI_COMM_WORLD);
+  cuda_sync();
   GetTime( timeSta1 );
 #endif
 
@@ -5670,8 +5705,10 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
     cuda_reset_vtot_flag();
   }
 #ifdef _PROFILING_
+  MPI_Barrier(MPI_COMM_WORLD);
+  cuda_sync();
   GetTime( timeEnd1 );
-  statusOFS << "SCF " << iscf << " Density time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  statusOFS << "SCF " << iscf << " hartree Potential XC Time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
   GetTime( timeSta1 );
 #endif
 
@@ -5691,9 +5728,13 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
   //cuda_memcpy_GPU2CPU(HPSI.Data(), cu_HpsiFinal.Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
 
 #ifdef _PROFILING_
+  MPI_Barrier(MPI_COMM_WORLD);
+  cuda_sync();
   GetTime( timeEnd1 );
   statusOFS << "SCF " << iscf << " hybrid_HX time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
   GetTime( timeSta1 );
+  Real a1 = alltoallTime;
+  Real r1 = allreduceTime;
 #endif
 
   // HXf <== Hf * Xf, now HPSI is HXf  
@@ -5721,7 +5762,8 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
   cublas::Gemm( CUBLAS_OP_C, CUBLAS_OP_N, width, width, heightLocal, &one,  cu_X.Data(), 
       heightLocal, cu_HX.Data(), heightLocal, &zero, cu_XHXtemp.Data(), width );
 
-  MPI_Allreduce( cu_XHXtemp.Data(), cu_XHX.Data(), 2*width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+  //MPI_Allreduce( cu_XHXtemp.Data(), cu_XHX.Data(), 2*width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
+  mpi::Allreduce( (Real*) cu_XHXtemp.Data(), (Real*) cu_XHX.Data(), 2*width*width, MPI_SUM, mpi_comm );
   cuda_memcpy_GPU2CPU( XHX.Data(), cu_XHX.Data(), sizeof(double)*2*width*width);
 
   // ResX <== Xf + 1i* dT/2 * ( HXf - Xf * XHXf ) - Xmid
@@ -5779,19 +5821,24 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
     GPU_AlltoallBackward( cu_RX, cu_psiRes, mpi_comm);
     cuda_memcpy_GPU2CPU( psiRes.Data(), cu_psiRes.Data(), numStateLocal * ntot * sizeof(cuDoubleComplex) );
   }
-  
+
+#ifdef _PROFILING_
+  MPI_Barrier(MPI_COMM_WORLD);
+  cuda_sync();
+  GetTime( timeEnd1 );
+  statusOFS << "SCF " << iscf << " Residual related  time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  statusOFS << "SCF " << iscf << " Residual alltoall time: " << alltoallTime - a1 << " [s]" << std::endl;
+  statusOFS << "SCF " << iscf << " Residual allreduce time: " << allreduceTime - r1 << " [s]" << std::endl;
+  Real c1 =  GPU2GPUTime+GPU2CPUTime+CPU2GPUTime;
+#endif
+
+ 
 
   CpxNumVec preMat(ntot);
   Complex * precPtr = preMat.Data();
   for( int i = 0; i < ntot; i++){
     precPtr[i] = 1.0/(1.0 + i_Z_One * dT/2.0 * ( fft.gkk[i] - traceXHX / (Real)numStateTotal ));
   }
-
-#ifdef _PROFILING_
-  GetTime( timeEnd1 );
-  statusOFS << "SCF " << iscf << " G-parallel time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
-  GetTime( timeSta1 );
-#endif
 
 
   cuCpxNumMat cu_psiF( ntot, numStateLocal);
@@ -5805,6 +5852,9 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
   cuCpxNumVec cu_temp(ntot);
   cuda_memcpy_CPU2GPU( cu_prec.Data(),    precPtr,         ntot*sizeof(cuDoubleComplex) );
 
+#ifdef _PROFILING_
+  GetTime( timeSta1 );
+#endif
   for( int iband = 0; iband < numStateLocal; iband++ ) {
 
     Complex *vinPtr  = vin.Data();
@@ -5929,14 +5979,17 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
 
   } // for (iband)
 
-  cuda_memcpy_GPU2CPU( psiF.Data(), cu_psiF.Data(), ntot*numStateLocal*sizeof(cuDoubleComplex) );
 
 #ifdef _PROFILING_
+  MPI_Barrier(MPI_COMM_WORLD);
+  cuda_sync();
   GetTime( timeEnd1 );
-  statusOFS << "SCF " << iscf << " band-parallel time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  statusOFS << "SCF " << iscf << " Anderson Total Time: " << timeEnd1 - timeSta1 << " [s]" << std::endl;
+  statusOFS << "SCF " << iscf << " Anderson memcpy Time: " << GPU2GPUTime+GPU2CPUTime+CPU2GPUTime - c1 << " [s]" << std::endl;
   GetTime( timeSta1 );
 #endif
 
+  cuda_memcpy_GPU2CPU( psiF.Data(), cu_psiF.Data(), ntot*numStateLocal*sizeof(cuDoubleComplex) );
   Real scfNorm = 0.0;
   {
     cuda_memcpy_CPU2GPU(cu_psiFinal.Data(), psiFinal.Wavefun().Data(), sizeof(cuDoubleComplex)*ntot*numStateLocal);
@@ -5971,14 +6024,14 @@ Real TDDFT::InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTe
     Real per_SCF_time = timeEnd - timeSta;
 #ifdef _PROFILING_
     statusOFS << "SCF " << iscf << " Density calculation and copy wavefunction time: " << timeEnd - timeSta1 << " [s]" << std::endl << std::endl<< std::endl;;;
-    statusOFS << "-------------------------------------------------------------------------------- " << std::endl;
-    statusOFS << "- SCF " << iscf << " CPU2GPU cuda copy time: " << CPU2GPUTime << " [s]" << std::endl;
-    statusOFS << "- SCF " << iscf << " GPU2CPU cuda copy time: " << GPU2CPUTime << " [s]" << std::endl;
-    statusOFS << "- SCF " << iscf << " GPU2GPU cuda copy time: " << GPU2GPUTime << " [s]" << std::endl;
-    statusOFS << "- SCF " << iscf << " CPU-GPU total copytime: " << GPU2GPUTime+GPU2CPUTime+CPU2GPUTime<< " [s] " << (GPU2GPUTime+GPU2CPUTime+CPU2GPUTime)/per_SCF_time*100.0 << "%" << std::endl;
-    statusOFS << "- SCF " << iscf << " Alltoall used time    : " << alltoallTime<< " [s] " << alltoallTime/per_SCF_time*100.0 << "%"<< std::endl;
-    statusOFS << "- SCF " << iscf << " Alltoall with mapping : " << alltoallTimeTotal << " [s] " << alltoallTimeTotal/per_SCF_time*100.0 << "%" << std::endl;
-    statusOFS << "-------------------------------------------------------------------------------- " << std::endl;
+//    statusOFS << "-------------------------------------------------------------------------------- " << std::endl;
+//    statusOFS << "- SCF " << iscf << " CPU2GPU cuda copy time: " << CPU2GPUTime << " [s]" << std::endl;
+//    statusOFS << "- SCF " << iscf << " GPU2CPU cuda copy time: " << GPU2CPUTime << " [s]" << std::endl;
+//    statusOFS << "- SCF " << iscf << " GPU2GPU cuda copy time: " << GPU2GPUTime << " [s]" << std::endl;
+//    statusOFS << "- SCF " << iscf << " CPU-GPU total copytime: " << GPU2GPUTime+GPU2CPUTime+CPU2GPUTime<< " [s] " << (GPU2GPUTime+GPU2CPUTime+CPU2GPUTime)/per_SCF_time*100.0 << "%" << std::endl;
+//    statusOFS << "- SCF " << iscf << " Alltoall used time    : " << alltoallTime<< " [s] " << alltoallTime/per_SCF_time*100.0 << "%"<< std::endl;
+//    statusOFS << "- SCF " << iscf << " Alltoall with mapping : " << alltoallTimeTotal << " [s] " << alltoallTimeTotal/per_SCF_time*100.0 << "%" << std::endl;
+//    statusOFS << "-------------------------------------------------------------------------------- " << std::endl;
 #endif
     statusOFS << "SCF " << iscf << " calculation time: " << timeEnd - timeSta << " [s]" << std::endl;
     return scfNorm;

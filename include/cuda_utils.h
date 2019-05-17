@@ -214,6 +214,8 @@ void cuda_vtot( cuDoubleComplex * psi, cuDoubleComplex* vtot, int len, int nband
 void cuda_sync();
 void print_timing();
 void reset_time();
+void cuda_set_vector( cuComplex* out, cuComplex *in, int length);
+void cuda_memcpy_Async_CPU2GPU( void *gpu, void * cpu, size_t size );
 //}
 #endif
 #endif

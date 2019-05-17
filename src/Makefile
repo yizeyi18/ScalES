@@ -8,7 +8,7 @@ SRC += magma.cpp
 else
 SRC += cuSolver.cpp 
 endif
-SRCS = scf_dg.cpp scf.cpp eigensolver.cpp  iondynamics.cpp cuSolver.cpp\
+SRCS = scf_dg.cpp scf.cpp eigensolver.cpp  iondynamics.cpp cuSolver.cpp magma.cpp \
 			 hamiltonian_dg_matrix.cpp hamiltonian_dg.cpp hamiltonian.cpp \
 			 periodtable.cpp spinor.cpp fourier.cpp utility.cpp esdf.cpp \
 			 mpi_interf.cpp scalapack.cpp lapack.cpp blas.cpp global.cpp \

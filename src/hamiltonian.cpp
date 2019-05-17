@@ -830,11 +830,11 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 
   DblNumMat   densityLocal;
   densityLocal.Resize( ntotFine, ncom );   
-  SetValue( densityLocal, 0.0 );
+  //SetValue( densityLocal, 0.0 );
 
   Real fac;
 
-  SetValue( density_, 0.0 );
+  //SetValue( density_, 0.0 );
 
   /* psi wavefunc.Data is the GPU wavefunction */
   cuCpxNumVec cu_psi(ntot);
@@ -846,6 +846,13 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 
   cuda_setValue( cu_density.Data(), 0.0, ntotFine);
   cuDoubleComplex zero; zero.x = 0.0; zero.y = 0.0;
+
+#ifdef _PROFILING_
+  Real timeSta1, timeEnd1;
+  MPI_Barrier(MPI_COMM_WORLD);
+  cuda_sync();
+  GetTime( timeSta1 );
+#endif
 
   for (Int k=0; k<nocc; k++) {
     for (Int j=0; j<ncom; j++) {
@@ -869,6 +876,14 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
     }
   }
 
+#ifdef _PROFILING_
+  MPI_Barrier(MPI_COMM_WORLD);
+  cuda_sync();
+  GetTime( timeEnd1 );
+  statusOFS << " Evaluate Density time " << timeEnd1 - timeSta1 << " [s] " << std::endl;
+  Real a1 = mpi::allreduceTime;
+#endif
+
   #ifdef GPUDIRECT
   mpi::Allreduce( cu_density.Data(), cu_den.Data(), ntotFine, MPI_SUM, domain_.comm );
   #else
@@ -876,6 +891,10 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
   mpi::Allreduce( densityLocal.Data(), density_.Data(), ntotFine, MPI_SUM, domain_.comm );
   cuda_memcpy_CPU2GPU( cu_den.Data(), density_.Data(), ntotFine *sizeof(double));
   #endif 
+
+#ifdef _PROFILING_
+  statusOFS << " Evaluate Density reduce " << mpi::allreduceTime - a1 << " [s] " << std::endl;
+#endif
 
   #ifdef GPU
   double * val_dev = (double*) cuda_malloc( sizeof(double));
@@ -1177,12 +1196,29 @@ KohnSham::CalculateGradDensity ( Fourier& fft , bool garbage)
           for( Int i = 0; i < ntotLocal; i++ )
             temp(i) = fft.inputComplexVecLocal(i).real();
           
+#ifdef _PROFILING_
+      Real timeSta, timeEnd;
+      GetTime( timeSta );
+#endif
           MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, gradDensity.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm );
+
+#ifdef _PROFILING_
+      GetTime( timeEnd );
+      mpi::allgatherTime += timeEnd - timeSta;
+#endif
         }
       }
+#ifdef _PROFILING_
+      Real timeSta, timeEnd;
+      GetTime( timeSta );
+#endif
       MPI_Bcast( gradDensity_[0].Data(), ntotFine, MPI_DOUBLE, 0, domain_.comm );
       MPI_Bcast( gradDensity_[1].Data(), ntotFine, MPI_DOUBLE, 0, domain_.comm );
       MPI_Bcast( gradDensity_[2].Data(), ntotFine, MPI_DOUBLE, 0, domain_.comm );
+#ifdef _PROFILING_
+      GetTime( timeEnd );
+      mpi::bcastTime += timeEnd - timeSta;
+#endif
 
     } // mpisize > 3
 
@@ -1719,11 +1755,27 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
             temp(i) -= vxcTemp3(i);
           }
         } // for d
+#ifdef _PROFILING_
+      Real timeSta, timeEnd;
+      GetTime( timeSta );
+#endif
         MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, vxc_.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm);
+#ifdef _PROFILING_
+      GetTime( timeEnd );
+      mpi::allgatherTime += timeEnd - timeSta;
+#endif
       } // if MPI FFTW 
 
+#ifdef _PROFILING_
+      Real timeSta, timeEnd;
+      GetTime( timeSta );
+#endif
       MPI_Bcast( &vxc_(1,RHO), ntot, MPI_DOUBLE, 0, domain_.comm );
 
+#ifdef _PROFILING_
+      GetTime( timeEnd );
+      mpi::bcastTime += timeEnd - timeSta;
+#endif
       GetTime( timeEnd );
       statusOFS << "Time for MPI FFTW calculation is " <<
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
@@ -2612,10 +2664,26 @@ void KohnSham::CalculateHartree( Fourier& fft, bool extra) {
       temp(i) = fft.inputComplexVecLocal(i).real();
     }
     
+#ifdef _PROFILING_
+      Real timeSta, timeEnd;
+      GetTime( timeSta );
+#endif
     MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, vhart_.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm );
+#ifdef _PROFILING_
+      GetTime( timeEnd );
+      mpi::allgatherTime += timeEnd - timeSta;
+#endif
   }
 
+#ifdef _PROFILING_
+      Real timeSta, timeEnd;
+      GetTime( timeSta );
+#endif
   MPI_Bcast( vhart_.Data(), ntot, MPI_DOUBLE, 0, domain_.comm );
+#ifdef _PROFILING_
+      GetTime( timeEnd );
+      mpi::bcastTime += timeEnd - timeSta;
+#endif
 
   
 

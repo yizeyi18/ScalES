@@ -58,6 +58,12 @@ namespace dgdft{
 /// @brief Interface with MPI to facilitate communication.
 namespace mpi{
 
+#ifdef _PROFILING_
+extern double allreduceTime;
+extern double bcastTime;
+extern double allgatherTime;
+void reset_mpi_time();
+#endif
 // *********************************************************************
 // Allgatherv
 //

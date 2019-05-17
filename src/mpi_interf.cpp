@@ -75,6 +75,16 @@ namespace mpi{
 // *********************************************************************
 // Gather
 // *********************************************************************
+double allreduceTime = 0.0;
+double bcastTime = 0.0 ;
+double allgatherTime = 0.0;
+
+void reset_mpi_time()
+{
+	allreduceTime = 0.0;
+	bcastTime = 0.0 ;
+	allgatherTime = 0.0;
+}
 
 void
   Allgatherv ( 
@@ -214,9 +224,21 @@ void
 void
   Allreduce ( Int* sendbuf, Int* recvbuf, Int count, MPI_Op op, MPI_Comm comm )
   {
+#ifdef _PROFILING_
+  Real timeSta, timeEnd;
+  MPI_Barrier( comm );
+  cuda_sync();
+  GetTime( timeSta );
+#endif
     MPI_Allreduce( sendbuf,  recvbuf, count, MPI_INT, 
         op, comm );
 
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  cuda_sync();
+  GetTime( timeEnd );
+  allreduceTime += timeEnd - timeSta;
+#endif
     return ;
   }        // -----  end of function Allreduce  ----- 
 
@@ -224,8 +246,23 @@ void
 void
   Allreduce ( Real* sendbuf, Real* recvbuf, Int count, MPI_Op op, MPI_Comm comm )
   {
+
+#ifdef _PROFILING_
+  Real timeSta, timeEnd;
+  MPI_Barrier( comm );
+  cuda_sync();
+  GetTime( timeSta );
+#endif
+
     MPI_Allreduce( sendbuf,  recvbuf, count, MPI_DOUBLE, 
         op, comm );
+
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  cuda_sync();
+  GetTime( timeEnd );
+  allreduceTime += timeEnd - timeSta;
+#endif
 
     return ;
   }        // -----  end of function Allreduce  ----- 
@@ -234,8 +271,22 @@ void
 void
   Allreduce ( Complex* sendbuf, Complex* recvbuf, Int count, MPI_Op op, MPI_Comm comm )
   {
+#ifdef _PROFILING_
+  Real timeSta, timeEnd;
+  MPI_Barrier( comm );
+  cuda_sync();
+  GetTime( timeSta );
+#endif
+
     MPI_Allreduce( (Real*)sendbuf, (Real*) recvbuf, 2*count, MPI_DOUBLE, 
         op, comm );
+
+#ifdef _PROFILING_
+  MPI_Barrier( comm );
+  cuda_sync();
+  GetTime( timeEnd );
+  allreduceTime += timeEnd - timeSta;
+#endif
 
     return ;
   }        // -----  end of function Allreduce  ----- 
@@ -345,7 +396,7 @@ void
          slot++;
        };
      }
-     devloc[myrank] = 0;
+     //devloc[myrank] = 0;
      if( (devloc[myrank] >= deviceCount) )
      {
        printf ("Error:::Assigning device %d  to process on node %s rank %d \n",devloc[myrank],  host_name, rank );
