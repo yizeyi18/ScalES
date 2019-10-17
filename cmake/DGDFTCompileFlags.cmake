@@ -57,7 +57,6 @@ endif( DGDFT_ENABLE_PROFILE )
 # Handle DEBUG / RELEASE flags
 if( CMAKE_BUILD_TYPE MATCHES Release )
 
-  target_compile_options( DGDFT::compile_definitions INTERFACE -O3 -w )
   target_compile_definitions( DGDFT::compile_definitions INTERFACE "-D RELEASE" )
 
 else()
@@ -66,7 +65,6 @@ else()
     set( DGDFT_DEBUG_LEVEL 1 )
   endif( NOT DGDFT_DEBUG_LEVEL )
 
-  target_compile_options( DGDFT::compile_definitions INTERFACE -O0 -w )
   target_compile_definitions( DGDFT::compile_definitions INTERFACE "-D DEBUG=${DGDFT_DEBUG_LEVEL}" )
 
 endif()

@@ -41,17 +41,15 @@
 #
 
 # BLAS / LAPACK
-
-# Find Linear Algebra libs (See FindLinAlg.cmake)
-find_package( LinAlg REQUIRED COMPONENTS BLAS LAPACK )
+find_package( BLAS   REQUIRED COMPONENTS lp64 )
+find_package( LAPACK REQUIRED COMPONENTS lp64 )
 
 add_library( DGDFT::linalg INTERFACE IMPORTED )
-target_link_libraries( DGDFT::linalg INTERFACE LinAlg::LAPACK )
-
-if( LinAlg_BLAS_USES_UNDERSCORE )
+target_link_libraries( DGDFT::linalg INTERFACE LAPACK::lapack )
+if( BLAS_USES_UNDERSCORE )
   target_compile_definitions( DGDFT::linalg INTERFACE "-D Add_" )
 endif()
-
+  
 
 
 
