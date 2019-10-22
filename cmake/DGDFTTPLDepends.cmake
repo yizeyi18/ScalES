@@ -41,8 +41,8 @@
 #
 
 # BLAS / LAPACK
-find_package( BLAS   REQUIRED COMPONENTS lp64 )
-find_package( LAPACK REQUIRED COMPONENTS lp64 )
+find_package( BLAS   REQUIRED OPTIONAL_COMPONENTS lp64 )
+find_package( LAPACK REQUIRED OPTIONAL_COMPONENTS lp64 )
 
 add_library( DGDFT::linalg INTERFACE IMPORTED )
 target_link_libraries( DGDFT::linalg INTERFACE LAPACK::lapack )
@@ -55,13 +55,13 @@ endif()
 
 
 find_package( ScaLAPACK REQUIRED                )
-find_package( LibXC     REQUIRED                )
+find_package( Libxc     REQUIRED                )
 find_package( FFTW3     REQUIRED COMPONENTS MPI )
 
 
 add_library( DGDFT::tpl_depends INTERFACE IMPORTED )
 target_link_libraries( DGDFT::tpl_depends INTERFACE ScaLAPACK::scalapack )
-target_link_libraries( DGDFT::tpl_depends INTERFACE LibXC::libxc         )
+target_link_libraries( DGDFT::tpl_depends INTERFACE Libxc::xc            )
 target_link_libraries( DGDFT::tpl_depends INTERFACE FFTW3::fftw3_mpi     )
 target_link_libraries( DGDFT::tpl_depends INTERFACE DGDFT::linalg        )
 

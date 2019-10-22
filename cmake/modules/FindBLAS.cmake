@@ -25,6 +25,8 @@ endforeach()
 
 fill_out_prefix( blas )
 
+message( STATUS "BLAS PREFIX: ${blas_PREFIX}" )
+
 if( NOT BLAS_PREFERENCE_LIST )
   set( BLAS_PREFERENCE_LIST "IntelMKL" "IBMESSL" "BLIS" "OpenBLAS" "ReferenceBLAS" )
 endif()

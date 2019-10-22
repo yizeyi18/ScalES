@@ -7264,13 +7264,16 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     DblNumMat PMuNu2DTemp(ncolsNuNu2D, nrowsNuNu2D);
     SetValue( PMuNu2DTemp, 0.0 );
 
-    SCALAPACK(pdgeadd)("T", &Nu, &Ng,
+    char transOp = 'T';
+    char notransOp = 'N';
+
+    SCALAPACK(pdgeadd)(&transOp, &Nu, &Ng,
         &D_ONE,
         Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
         &D_ZERO,
         Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D);
 
-    SCALAPACK(pdgeadd)("T", &Nu, &Nu,
+    SCALAPACK(pdgeadd)(&transOp, &Nu, &Nu,
         &D_ONE,
         PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
         &D_ZERO,
@@ -7279,7 +7282,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     Int lwork=-1, info;
     double dummyWork;
 
-    SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
+    SCALAPACK(pdgels)(&notransOp, &Nu, &Nu, &Ng, 
         PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
         Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
         &dummyWork, &lwork, &info);
@@ -7287,13 +7290,13 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     lwork = dummyWork;
     std::vector<double> work(lwork);
 
-    SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
+    SCALAPACK(pdgels)(&notransOp, &Nu, &Nu, &Ng, 
         PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
         Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
         &work[0], &lwork, &info);
 
     SetValue( Xi2D, 0.0 );
-    SCALAPACK(pdgeadd)("T", &Ng, &Nu,
+    SCALAPACK(pdgeadd)(&transOp, &Ng, &Nu,
         &D_ONE,
         Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
         &D_ZERO,
@@ -8671,13 +8674,15 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     DblNumMat PMuNu2DTemp(ncolsNuNu2D, nrowsNuNu2D);
     SetValue( PMuNu2DTemp, 0.0 );
 
-    SCALAPACK(pdgeadd)("T", &Nu, &Ng,
+    char transOp = 'T';
+    char notransOp = 'N';
+    SCALAPACK(pdgeadd)(&transOp, &Nu, &Ng,
         &D_ONE,
         Xi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
         &D_ZERO,
         Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D);
 
-    SCALAPACK(pdgeadd)("T", &Nu, &Nu,
+    SCALAPACK(pdgeadd)(&transOp, &Nu, &Nu,
         &D_ONE,
         PMuNu2D.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
         &D_ZERO,
@@ -8686,7 +8691,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     Int lwork=-1, info;
     double dummyWork;
 
-    SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
+    SCALAPACK(pdgels)(&notransOp, &Nu, &Nu, &Ng, 
         PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
         Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
         &dummyWork, &lwork, &info);
@@ -8694,13 +8699,13 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     lwork = dummyWork;
     std::vector<double> work(lwork);
 
-    SCALAPACK(pdgels)("N", &Nu, &Nu, &Ng, 
+    SCALAPACK(pdgels)(&notransOp, &Nu, &Nu, &Ng, 
         PMuNu2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNu2D,
         Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
         &work[0], &lwork, &info);
 
     SetValue( Xi2D, 0.0 );
-    SCALAPACK(pdgeadd)("T", &Ng, &Nu,
+    SCALAPACK(pdgeadd)(&transOp, &Ng, &Nu,
         &D_ONE,
         Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NuNg2D,
         &D_ZERO,
