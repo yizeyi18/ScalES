@@ -48,7 +48,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 namespace dgdft{
   
   // This should be called only by prcessors sharing the context of Hmat
-  double find_comp_subspace_UB_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat)
+  inline double find_comp_subspace_UB_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat)
   {
      double b_up = 0.0;  
      double alpha, beta;
@@ -244,7 +244,7 @@ namespace dgdft{
   }
   
   // This should be called only by prcessors sharing the context of Hmat
-  void  CheFSI_Hmat_top_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat,
+  inline void  CheFSI_Hmat_top_parallel(dgdft::scalapack::ScaLAPACKMatrix<Real>& Hmat,
 			         dgdft::scalapack::ScaLAPACKMatrix<Real>& Xmat,
 			         DblNumVec& eig_vals_Xmat,
 			         int filter_order,
@@ -458,7 +458,7 @@ namespace dgdft{
     
   }
 
-  double find_comp_subspace_UB_serial(DblNumMat& Hmat)
+  inline double find_comp_subspace_UB_serial(DblNumMat& Hmat)
   {
     double b_up = 0.0;
     int ht = Hmat.m();
@@ -558,7 +558,7 @@ namespace dgdft{
   
   }
   
-  void  CheFSI_Hmat_top_serial(DblNumMat& H_mat,
+inline  void  CheFSI_Hmat_top_serial(DblNumMat& H_mat,
 			       DblNumMat& X_mat,
 			       DblNumVec& eig_vals_X_mat,
 			       int filter_order,
@@ -723,7 +723,7 @@ namespace dgdft{
   
   
   
-  void  LOBPCG_Hmat_top_serial(DblNumMat& Hmat,
+ inline void  LOBPCG_Hmat_top_serial(DblNumMat& Hmat,
 			       DblNumMat& Xmat,
 			       DblNumVec& eig_vals_Xmat,
 			       Int eigMaxIter, Real eigTolerance)

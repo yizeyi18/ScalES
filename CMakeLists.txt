@@ -50,6 +50,11 @@ option( DGDFT_ENABLE_COMPLEX   "Enable Complex Arithmetic"    OFF )
 option( DGDFT_ENABLE_OPENMP    "Enable OpenMP Parallelism"    ON  )
 option( DGDFT_ENABLE_PROFILE   "Enable Performance Profiling" OFF )
 option( DGDFT_ENABLE_PEXSI     "Enable PEXSI Bindings"        OFF )
+option( DGDFT_ENABLE_CUDA      "Enable CUDA Bindings"         ON )
+
+if( DGDFT_ENABLE_CUDA )
+  enable_language( CUDA )
+endif()
 
 # Append local cmake directory to find CMAKE Modules
 if( CMAKE_MODULE_PATH )

@@ -50,6 +50,30 @@ set( LIBDG_SRC scf_dg.cpp scf.cpp eigensolver.cpp iondynamics.cpp
 
 add_library( libdgdft ${LIBDG_SRC} )
 
+if( DGDFT_ENABLE_CUDA )
+
+  find_package( CUDA REQUIRED )
+  message(STATUS "CUBLAS ${CUDA_CUBLAS_LIBRARIES}")
+  set( LIBDG_DEVICE_SRC cuda_scf_dg.cu )
+  add_library( libdgdft_device ${LIBDG_DEVICE_SRC} )
+  target_link_libraries( libdgdft_device
+    PUBLIC
+      DGDFT::compile_definitions
+      DGDFT::parallel_cxx
+      DGDFT::parallel_c
+      DGDFT::external
+      DGDFT::tpl_depends
+      ${CUDA_CUBLAS_LIBRARIES}
+  )
+
+  target_link_libraries(libdgdft PUBLIC libdgdft_device )
+
+  target_include_directories( libdgdft_device 
+    PUBLIC
+      $<INSTALL_INTERFACE:include>
+      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+  )
+endif()
 
 # TARGET properties
 

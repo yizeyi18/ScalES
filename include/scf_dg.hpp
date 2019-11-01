@@ -377,6 +377,8 @@ private:
 
   void scfdg_hamiltonian_times_distmat(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
       DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_mat);
+  void scfdg_hamiltonian_times_distmat_device(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
+      DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_mat,bool);
 
   void scfdg_Hamiltonian_times_eigenvectors(DistVec<Index3, DblNumMat, ElemPrtn>  &result_mat);
 
@@ -384,6 +386,10 @@ private:
       int Num_Lanczos_Steps);
 
   void scfdg_Chebyshev_filter_scaled(int m, 
+      double a, 
+      double b, 
+      double a_L);
+  void scfdg_Chebyshev_filter_scaled_device(int m, 
       double a, 
       double b, 
       double a_L);
