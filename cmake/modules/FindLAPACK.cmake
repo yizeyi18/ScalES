@@ -33,9 +33,15 @@ endif()
 if( NOT lapack_LIBRARIES )
 
   if( NOT TARGET BLAS::blas )
-    find_dependency( BLAS )
+    find_dependency( BLAS 
+      COMPONENTS          ${LAPACK_REQUIRED_COMPONENTS} 
+      OPTIONAL_COMPONENTS ${LAPACK_OPTIONAL_COMPONENTS} 
+    )
+  else()
+    message( STATUS "LAPACK will use predetermined BLAS::blas" )
   endif()
 
+  message( STATUS "Checking if BLAS::blas contains a LAPACK implementation...")
   # Check if BLAS LINKS to LAPACK
   cmake_push_check_state( RESET )
   set( CMAKE_REQUIRED_LIBRARIES BLAS::blas )
@@ -48,6 +54,9 @@ if( NOT lapack_LIBRARIES )
 
   if( blas_HAS_DSYEV_UNDERSCORE OR blas_HAS_DSYEV_NO_UNDERSCORE )
     set( blas_HAS_LAPACK TRUE )
+    message( STATUS "Checking if BLAS::blas contains a LAPACK implementation... Yes!")
+  else()
+    message( STATUS "Checking if BLAS::blas contains a LAPACK implementation... No!")
   endif()
 
   unset( blas_HAS_DSYEV_UNDERSCORE    )
@@ -71,10 +80,7 @@ if( NOT lapack_LIBRARIES )
     foreach( lapack_type ${LAPACK_PREFERENCE_LIST} )
 
       string( TOLOWER ${lapack_type} lapack_lower_case )
-      set( ${lapack_lower_case}_PREFIX         ${lapack_PREFIX}         )
-      set( ${lapack_lower_case}_INCLUDE_DIR    ${lapack_INCLUDE_DIR}    )
-      set( ${lapack_lower_case}_LIBRARY_DIR    ${lapack_LIBRARY_DIR}    )
-      set( ${lapack_lower_case}_PREFERS_STATIC ${lapack_PREFERS_STATIC} )
+      copy_meta_data( lapack ${lapack_lower_case} )
 
       find_package( ${lapack_type} 
         COMPONENTS          ${LAPACK_REQUIRED_COMPONENTS} 
@@ -110,6 +116,10 @@ if( NOT lapack_LIBRARIES )
     endif()
 
   endif()
+else()
+
+  message( STATUS "LAPACK LIBRARIES WERE SET BY USER: ${lapack_LIBRARIES}" )
+
 endif()
 
 if( NOT LAPACK_ilp64_FOUND )
