@@ -477,6 +477,7 @@ public:
   /// @brief Inner self consistent iteration subroutine without
   /// correcting the basis functions.
   void  InnerIterate( Int outerIter );
+  void  InnerIterate_device( Int outerIter );
 
 
   // ~~**~~

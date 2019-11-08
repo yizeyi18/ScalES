@@ -72,6 +72,7 @@ if( DGDFT_ENABLE_CUDA )
     PUBLIC
       $<INSTALL_INTERFACE:include>
       $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/cuda_include>
   )
 endif()
 
