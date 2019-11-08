@@ -114,58 +114,58 @@ template <class F>
 
 template <class F> 
   inline const F& NumTns<F>::operator()(Int i, Int j, Int k) const  {
-    if( i < 0 || i >= m_ ||
-        j < 0 || j >= n_ ||
-        k < 0 || k >= p_ ) {
-      std::ostringstream msg;
-      msg 
-        << "Index is out of bound."  << std::endl
-        << "Index bound    ~ (" << m_ << ", " << n_ << ", " << p_ << ")" << std::endl
-        << "This index     ~ (" << i  << ", " << j  << ", " << k  << ")" << std::endl;
-      ErrorHandling( msg.str().c_str() );
-    }
+    //if( i < 0 || i >= m_ ||
+    //    j < 0 || j >= n_ ||
+    //    k < 0 || k >= p_ ) {
+    //  std::ostringstream msg;
+    //  msg 
+    //    << "Index is out of bound."  << std::endl
+    //    << "Index bound    ~ (" << m_ << ", " << n_ << ", " << p_ << ")" << std::endl
+    //    << "This index     ~ (" << i  << ", " << j  << ", " << k  << ")" << std::endl;
+    //  ErrorHandling( msg.str().c_str() );
+    //}
     return data_[i+j*m_+k*m_*n_];
   }
 
 template <class F> 
   inline F& NumTns<F>:: operator()(Int i, Int j, Int k)  {
-    if( i < 0 || i >= m_ ||
-        j < 0 || j >= n_ ||
-        k < 0 || k >= p_ ) {
-      std::ostringstream msg;
-      msg 
-        << "Index is out of bound."  << std::endl
-        << "Index bound    ~ (" << m_ << ", " << n_ << ", " << p_ << ")" << std::endl
-        << "This index     ~ (" << i  << ", " << j  << ", " << k  << ")" << std::endl;
-      ErrorHandling( msg.str().c_str() );
-    }
+    //if( i < 0 || i >= m_ ||
+    //    j < 0 || j >= n_ ||
+    //    k < 0 || k >= p_ ) {
+    //  std::ostringstream msg;
+    //  msg 
+    //    << "Index is out of bound."  << std::endl
+    //    << "Index bound    ~ (" << m_ << ", " << n_ << ", " << p_ << ")" << std::endl
+    //    << "This index     ~ (" << i  << ", " << j  << ", " << k  << ")" << std::endl;
+    //  ErrorHandling( msg.str().c_str() );
+    //}
     return data_[i+j*m_+k*m_*n_];
   }
 
 template <class F> 
   inline F* NumTns<F>::MatData (Int k) const {
-    if( k < 0 || k >= p_ ) {
-      std::ostringstream msg;
-      msg 
-        << "Index is out of bound."  << std::endl
-        << "Index bound    ~ (" << p_ << ")" << std::endl
-        << "This index     ~ (" << k  << ")" << std::endl;
-      ErrorHandling( msg.str().c_str() );
-    }
+    //if( k < 0 || k >= p_ ) {
+    //  std::ostringstream msg;
+    //  msg 
+    //    << "Index is out of bound."  << std::endl
+    //    << "Index bound    ~ (" << p_ << ")" << std::endl
+    //    << "This index     ~ (" << k  << ")" << std::endl;
+    //  ErrorHandling( msg.str().c_str() );
+    //}
     return &(data_[k*m_*n_]);
   }
 
 template <class F> 
   inline F* NumTns<F>::VecData (Int j, Int k) const {
-    if( j < 0 || j >= n_ ||
-        k < 0 || k >= p_ ) {
-      std::ostringstream msg;
-      msg 
-        << "Index is out of bound."  << std::endl
-        << "Index bound    ~ (" << n_ << ", " << p_ << ")" << std::endl
-        << "This index     ~ (" << j  << ", " << k  << ")" << std::endl;
-      ErrorHandling( msg.str().c_str() );
-    }
+    //if( j < 0 || j >= n_ ||
+    //    k < 0 || k >= p_ ) {
+    //  std::ostringstream msg;
+    //  msg 
+    //    << "Index is out of bound."  << std::endl
+    //    << "Index bound    ~ (" << n_ << ", " << p_ << ")" << std::endl
+    //    << "This index     ~ (" << j  << ", " << k  << ")" << std::endl;
+    //  ErrorHandling( msg.str().c_str() );
+    //}
     return &(data_[k*m_*n_+j*m_]);
   }
 
@@ -180,6 +180,12 @@ template <class F> inline void SetValue(NumTns<F>& T, F val)
   for(Int i=0; i < T.m() * T.n() * T.p(); i++) *(ptr++) = val; 
 
   return;
+}
+template <class F> inline void SetZero(NumTns<F>& T)
+{
+
+  memset( T.data_, 0, T.m() * T.n() * T.p() * sizeof(F) );
+
 }
 
 template <class F> inline Real Energy(const NumTns<F>& T)

@@ -107,43 +107,43 @@ template <class F> inline void NumMat<F>::Resize(Int m, Int n)  {
 
 template <class F> 
 inline const F& NumMat<F>::operator()(Int i, Int j) const  { 
-  if( i < 0 || i >= m_ ||
-      j < 0 || j >= n_ ) {
-    std::ostringstream msg;
-    msg 
-      << "Index is out of bound."  << std::endl
-      << "Index bound    ~ (" << m_ << ", " << n_ << ")" << std::endl
-      << "This index     ~ (" << i  << ", " << j  << ")" << std::endl;
-    ErrorHandling( msg.str().c_str() ); 
-  }
+  //if( i < 0 || i >= m_ ||
+  //    j < 0 || j >= n_ ) {
+  //  std::ostringstream msg;
+  //  msg 
+  //    << "Index is out of bound."  << std::endl
+  //    << "Index bound    ~ (" << m_ << ", " << n_ << ")" << std::endl
+  //    << "This index     ~ (" << i  << ", " << j  << ")" << std::endl;
+  //  ErrorHandling( msg.str().c_str() ); 
+  //}
   return data_[i+j*m_];
 }
 
 template <class F>
 inline F& NumMat<F>::operator()(Int i, Int j)  { 
-  if( i < 0 || i >= m_ ||
-      j < 0 || j >= n_ ) {
-    std::ostringstream msg;
-    msg 
-      << "Index is out of bound."  << std::endl
-      << "Index bound    ~ (" << m_ << ", " << n_ << ")" << std::endl
-      << "This index     ~ (" << i  << ", " << j  << ")" << std::endl;
-    ErrorHandling( msg.str().c_str() ); 
-  }
+  //if( i < 0 || i >= m_ ||
+  //    j < 0 || j >= n_ ) {
+  //  std::ostringstream msg;
+  //  msg 
+  //    << "Index is out of bound."  << std::endl
+  //    << "Index bound    ~ (" << m_ << ", " << n_ << ")" << std::endl
+  //    << "This index     ~ (" << i  << ", " << j  << ")" << std::endl;
+  //  ErrorHandling( msg.str().c_str() ); 
+  //}
   return data_[i+j*m_];
 }
 
 template <class F>
 inline F* NumMat<F>::VecData(Int j)  const 
 { 
-  if( j < 0 || j >= n_ ) {
-    std::ostringstream msg;
-    msg 
-      << "Index is out of bound."  << std::endl
-      << "Index bound    ~ (" << n_ << ")" << std::endl
-      << "This index     ~ (" << j  << ")" << std::endl;
-    ErrorHandling( msg.str().c_str() ); 
-  }
+  //if( j < 0 || j >= n_ ) {
+  //  std::ostringstream msg;
+  //  msg 
+  //    << "Index is out of bound."  << std::endl
+  //    << "Index bound    ~ (" << n_ << ")" << std::endl
+  //    << "This index     ~ (" << j  << ")" << std::endl;
+  //  ErrorHandling( msg.str().c_str() ); 
+  //}
   return &(data_[j*m_]); 
 }
 
@@ -156,6 +156,11 @@ template <class F> inline void SetValue(NumMat<F>& M, F val)
 {
   F *ptr = M.data_;
   for (Int i=0; i < M.m()*M.n(); i++) *(ptr++) = val;
+}
+
+template <class F> inline void SetZero(NumMat<F>& M)
+{
+  memset( M.data_, 0, M.m() * M.n() * sizeof(F) );
 }
 
 template <class F> inline Real Energy(const NumMat<F>& M)

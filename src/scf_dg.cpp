@@ -3653,7 +3653,8 @@ namespace  dgdft{
             // Filter the eigenvectors
             statusOFS << std::endl << std::endl << " Filtering the eigenvectors ... (Filter order = " << Filter_Order << ")";
             GetTime( timeSta );
-            scfdg_Chebyshev_filter_scaled_device(Filter_Order, b_low, b_up, a_L);
+            scfdg_Chebyshev_filter_scaled(Filter_Order, b_low, b_up, a_L);
+            //scfdg_Chebyshev_filter_scaled_device(Filter_Order, b_low, b_up, a_L);
             GetTime( timeEnd );
             statusOFS << std::endl << " Filtering completed. ( " << (timeEnd - timeSta ) << " s.)";
 
@@ -4219,7 +4220,8 @@ namespace  dgdft{
             // Filter the eigenvectors
             statusOFS << std::endl << std::endl << " Filtering the eigenvectors ... (Filter order = " << Filter_Order << ")";
             GetTime( timeSta );
-            scfdg_Chebyshev_filter_scaled_device(Filter_Order, b_low, b_up, a_L);
+            scfdg_Chebyshev_filter_scaled(Filter_Order, b_low, b_up, a_L);
+            //scfdg_Chebyshev_filter_scaled_device(Filter_Order, b_low, b_up, a_L);
             GetTime( timeEnd );
             statusOFS << std::endl << " Filtering completed. ( " << (timeEnd - timeSta ) << " s.)";
 
@@ -4932,7 +4934,8 @@ namespace  dgdft{
         // Filter the subspace
         statusOFS << std::endl << std::endl << " Filtering the subspace ... (Filter order = " << Filter_Order << ")";
         GetTime( timeSta );
-        scfdg_Chebyshev_filter_scaled_device(Filter_Order, b_low, b_up, a_L);
+        scfdg_Chebyshev_filter_scaled(Filter_Order, b_low, b_up, a_L);
+        //scfdg_Chebyshev_filter_scaled_device(Filter_Order, b_low, b_up, a_L);
         GetTime( timeEnd );
         statusOFS << std::endl << " Filtering completed. ( " << (timeEnd - timeSta ) << " s.)";
 
@@ -5285,7 +5288,8 @@ namespace  dgdft{
         // Filter the subspace
         statusOFS << std::endl << std::endl << " Filtering the subspace ... (Filter order = " << Filter_Order << ")";
         GetTime( timeSta );
-        scfdg_Chebyshev_filter_scaled_device(Filter_Order, b_low, b_up, a_L);
+        scfdg_Chebyshev_filter_scaled(Filter_Order, b_low, b_up, a_L);
+        //scfdg_Chebyshev_filter_scaled_device(Filter_Order, b_low, b_up, a_L);
         GetTime( timeEnd );
         statusOFS << std::endl << " Filtering completed. ( " << (timeEnd - timeSta ) << " s.)";
 
