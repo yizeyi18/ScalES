@@ -41,8 +41,8 @@
 #
 
 # BLAS / LAPACK
-find_package( BLAS   REQUIRED OPTIONAL_COMPONENTS lp64 )
-find_package( LAPACK REQUIRED OPTIONAL_COMPONENTS lp64 )
+#find_package( BLAS   REQUIRED OPTIONAL_COMPONENTS lp64 )
+find_package( LAPACK REQUIRED OPTIONAL_COMPONENTS lp64 blacs scalapack )
 
 add_library( DGDFT::linalg INTERFACE IMPORTED )
 target_link_libraries( DGDFT::linalg INTERFACE LAPACK::lapack )

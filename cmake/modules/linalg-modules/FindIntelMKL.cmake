@@ -333,6 +333,16 @@ if( intelmkl_LIBRARY AND intelmkl_THREAD_LIBRARY AND intelmkl_CORE_LIBRARY )
     set( IntelMKL_LIBRARIES ${IntelMKL_LIBRARIES} tbb )
   endif() 
   set( IntelMKL_LIBRARIES ${IntelMKL_LIBRARIES} "m" "dl" )
+
+  if( "scalapack" IN_LIST IntelMKL_FIND_COMPONENTS OR
+      "blacs"     IN_LIST IntelMKL_FIND_COMPONENTS )
+
+    if( NOT TARGET MPI::MPI_C )
+      find_dependency( MPI )
+    endif()
+    list( APPEND IntelMKL_LIBRARIES MPI::MPI_C )
+
+  endif()
 endif()
 
 include(FindPackageHandleStandardArgs)
