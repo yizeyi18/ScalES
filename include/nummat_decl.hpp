@@ -102,6 +102,7 @@ typedef NumMat<Complex>  CpxNumMat;
 
 // Utilities
 template <class F> inline void SetValue(NumMat<F>& M, F val);
+template <class F> inline void SetZero(NumMat<F>& M);
 template <class F> inline Real Energy(const NumMat<F>& M);
 template <class F> inline void Transpose ( const NumMat<F>& A, NumMat<F>& B );
 template <class F> inline void Symmetrize( NumMat<F>& A );

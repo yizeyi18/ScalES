@@ -200,14 +200,14 @@ template < class F >
 template <class F> 
   inline F& NumVec<F>::operator()    ( Int i )
   {
-    if( i < 0 || i >= m_ ){
-      std::ostringstream msg;
-      msg 
-        << "Index is out of bound."  << std::endl
-        << "Index bound    ~ (" << m_ << ")" << std::endl
-        << "This index     ~ (" << i << ")" << std::endl;
-      ErrorHandling(msg.str().c_str());
-    }
+    //if( i < 0 || i >= m_ ){
+    //  std::ostringstream msg;
+    //  msg 
+    //    << "Index is out of bound."  << std::endl
+    //    << "Index bound    ~ (" << m_ << ")" << std::endl
+    //    << "This index     ~ (" << i << ")" << std::endl;
+    //  ErrorHandling(msg.str().c_str());
+    //}
     return data_[i];
 
   }         // -----  end of method NumVec<F>::operator()  ----- 
@@ -216,14 +216,14 @@ template <class F>
 template <class F>
   inline const F& NumVec<F>::operator()    ( Int i ) const
   {
-    if( i < 0 || i >= m_ ){
-      std::ostringstream msg;
-      msg 
-        << "Index is out of bound."  << std::endl
-        << "Index bound    ~ (" << m_ << ")" << std::endl
-        << "This index     ~ (" << i << ")" << std::endl;
-      ErrorHandling(msg.str().c_str());
-    }
+    //if( i < 0 || i >= m_ ){
+    //  std::ostringstream msg;
+    //  msg 
+    //    << "Index is out of bound."  << std::endl
+    //    << "Index bound    ~ (" << m_ << ")" << std::endl
+    //    << "This index     ~ (" << i << ")" << std::endl;
+    //  ErrorHandling(msg.str().c_str());
+    //}
     return data_[i];
 
   }         // -----  end of method NumVec<F>::operator()  ----- 
@@ -232,14 +232,14 @@ template <class F>
 template <class F> 
   inline F& NumVec<F>::operator[]    ( Int i )
   {
-    if( i < 0 || i >= m_ ){
-      std::ostringstream msg;
-      msg 
-        << "Index is out of bound."  << std::endl
-        << "Index bound    ~ (" << m_ << ")" << std::endl
-        << "This index     ~ (" << i << ")" << std::endl;
-      ErrorHandling(msg.str().c_str());
-    }
+    //if( i < 0 || i >= m_ ){
+    //  std::ostringstream msg;
+    //  msg 
+    //    << "Index is out of bound."  << std::endl
+    //    << "Index bound    ~ (" << m_ << ")" << std::endl
+    //    << "This index     ~ (" << i << ")" << std::endl;
+    //  ErrorHandling(msg.str().c_str());
+    //}
     return data_[i];
 
   }         // -----  end of method NumVec<F>::operator[]  ----- 
@@ -248,14 +248,14 @@ template <class F>
 template <class F> 
   inline const F& NumVec<F>::operator[]    ( Int i ) const
   {
-    if( i < 0 || i >= m_ ){
-      std::ostringstream msg;
-      msg 
-        << "Index is out of bound."  << std::endl
-        << "Index bound    ~ (" << m_ << ")" << std::endl
-        << "This index     ~ (" << i << ")" << std::endl;
-      ErrorHandling(msg.str().c_str());
-    }
+    //if( i < 0 || i >= m_ ){
+    //  std::ostringstream msg;
+    //  msg 
+    //    << "Index is out of bound."  << std::endl
+    //    << "Index bound    ~ (" << m_ << ")" << std::endl
+    //    << "This index     ~ (" << i << ")" << std::endl;
+    //  ErrorHandling(msg.str().c_str());
+    //}
     return data_[i];
 
   }         // -----  end of method NumVec<F>::operator[]  ----- 
@@ -268,6 +268,11 @@ template <class F> inline void SetValue( NumVec<F>& vec, F val )
 {
   for(Int i=0; i<vec.m(); i++)
     vec(i) = val;
+}
+
+template <typename F> inline void SetZero( NumVec<F>& vec )
+{
+  memset( vec.Data(), 0, vec.Size() * sizeof(F) );
 }
 
 template <class F> inline Real Energy( const NumVec<F>& vec )

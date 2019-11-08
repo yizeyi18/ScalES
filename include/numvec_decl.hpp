@@ -95,6 +95,7 @@ typedef NumVec<Complex>    CpxNumVec;
 
 // Utilities
 template <class F> inline void SetValue( NumVec<F>& vec, F val );
+template <class F> inline void SetZero( NumVec<F>& vec );
 template <class F> inline Real Energy( const NumVec<F>& vec );
 template <class F> inline Real findMin( const NumVec<F>& vec );
 template <class F> inline Real findMax( const NumVec<F>& vec );
