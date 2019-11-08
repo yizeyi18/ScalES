@@ -1,0 +1,10 @@
+pwdft -in [inFile]
+in:             Input file (default: pwdft.in)
+ caught exception with message: std::bad_alloc
+ caught exception with message: std::bad_alloc
+ caught exception with message: std::bad_alloc
+ caught exception with message: std::bad_alloc
+ caught exception with message: std::bad_alloc
+ caught exception with message: std::bad_alloc
+ caught exception with message: std::bad_alloc
+ caught exception with message: std::bad_alloc

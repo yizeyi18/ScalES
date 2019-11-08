@@ -1,0 +1,118 @@
+# Hydrogen Test
+#Ion_Move: verlet
+#Ion_Max_Iter: 0
+#MD_Max_Step:           20
+#MD_Time_Step:          40
+#Thermostat_Mass:       85000.0
+#Output_Position:       1
+#Output_Thermostat:     1
+#
+#Output_HMatrix: 1
+
+# Chebyshev Filtering options
+Diag_SCFDG_by_Cheby:            1
+SCFDG_Cheby_use_ScaLAPACK:      0
+First_SCFDG_ChebyFilterOrder:   40
+First_SCFDG_ChebyCycleNum:      2
+Second_SCFDG_ChebyOuterIter:    3
+Second_SCFDG_ChebyFilterOrder:  40
+Second_SCFDG_ChebyCycleNum:     2
+General_SCFDG_ChebyFilterOrder: 40
+General_SCFDG_ChebyCycleNum:    1
+
+
+# CheFSI with compl. subspc. stratgey
+SCFDG_use_CheFSI_complementary_subspace: 0
+SCFDG_CheFSI_complementary_subspace_parallel: 0
+SCFDG_complementary_subspace_nstates: 2
+SCFDG_complementary_subspace_LOBPCG_tol: 1e-8
+SCFDG_complementary_subspace_LOBPCG_iter: 15
+
+
+Mixing_Variable:       potential
+Mixing_Type:           anderson 
+Mixing_StepLength:     0.1
+Mixing_MaxDim:         6
+
+Output_Density:        0
+Restart_Density:       0
+Output_Wfn_Elem:       0
+Output_Wfn_ExtElem:    0
+Output_Pot_ExtElem:    0
+Output_HMatrix:        0
+
+Calculate_Force_Each_SCF:        0
+Calculate_APosteriori_Each_SCF:  0
+
+Extra_States:          4 #
+
+Temperature:           300
+SCF_Outer_MaxIter:     50 #
+SCF_Outer_Tolerance:   1e-5 #
+SCF_Inner_MaxIter:     1
+SCF_Inner_Tolerance:   1e-5
+
+
+SVD_Basis_Tolerance:   1e-6 ## 1e-2
+
+Use_VLocal: 0
+Pseudo_Type:           ONCV
+XC_Type:               XC_LDA_XC_TETER93
+begin UPF_File
+  H_ONCV_PBE-1.0.upf
+end UPF_File
+
+# CheFSI for ALBs
+PW_Solver:             LOBPCG
+
+Eig_MaxIter:           3
+Eig_Tolerance:         1e-20
+
+#PW_Solver:              CheFSI
+#First_SCF_PWDFT_ChebyFilterOrder: 10
+#First_SCF_PWDFT_ChebyCycleNum: 4
+#General_SCF_PWDFT_ChebyFilterOrder: 10
+#PWDFT_Cheby_use_scala: 1
+#PWDFT_Cheby_use_wfn_ecut_filt: 1
+
+
+Penalty_Alpha:         80.0  ### enough?
+Solution_Method   diag
+
+#ScaLAPACK_Block_Size:  4
+
+Ecut_Wavefunction:      5.0
+Density_Grid_Factor:    2.0
+LGL_Grid_Factor:        2.0
+
+Periodize_Potential:  0
+
+begin ALB_Num_Element
+40
+40
+40
+40
+end ALB_Num_Element
+
+begin Super_Cell
+    10       10       40
+end Super_Cell
+
+Atom_Types_Num:        1
+
+Atom_Type:             1
+
+begin Atom_Red
+   -0.07   0.00   0.10
+    0.07   0.00   0.10
+   -0.07   0.00   0.35
+    0.07   0.00   0.35
+   -0.07   0.00   0.60
+    0.07   0.00   0.60
+   -0.07   0.00   0.85
+    0.07   0.00   0.85
+end Atom_Red
+
+begin Element_Size
+     1           1           4
+end Element_Size

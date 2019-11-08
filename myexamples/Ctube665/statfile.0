@@ -1,0 +1,201 @@
+mpisize = 128             
+mpirank = 0               
+UPF_File is not defined. 
+Use the old format of pseudopotential by defininig PeriodTable in the input file.
+This option will become deprecated in the future
+Time for reading the input file is 0.80173 [s]
+
+
+*********************************************************************
+Common information
+*********************************************************************
+
+Super cell                           = +3.59048000e+01 +3.59048000e+01 +2.30679000e+01 
+Grid Wavefunction                    = 74              74              48              
+Grid Density                         = 148             148             96              
+Mixing dimension                     = 10              
+Mixing variable                      = potential       
+Mixing type                          = anderson        
+Mixing Steplength                    = +5.00000000e-01 
+Temperature                          = +3.00000000e+03 [K]   
+Extra states                         = 100             
+Smearing scheme                      = FD              
+PeriodTable File                     = C_ONCV_PBE-1.0.upf
+Pseudo Type                          = ONCV            
+PW Solver                            = LOBPCG          
+XC Type                              = XC_LDA_XC_TETER93
+SCF Outer Tol                        = +1.00000000e-05 
+SCF Outer MaxIter                    = 300             
+SCF Free Energy Per Atom Tol         = +1.00000000e-04 
+Eig Min Tolerence                    = +1.00000000e-03 
+Eig Tolerence                        = +1.00000000e-20 
+Eig MaxIter                          = 10              
+Eig Tolerance Dyn                    = false   
+Num unused state                     = 0               
+EcutWavefunction                     = +2.00000000e+01 
+Density GridFactor                   = +2.00000000e+00 
+Use Atom Density                     = false   
+Use VLocal                           = true    
+RestartDensity                       = false   
+RestartWfn                           = false   
+OutputDensity                        = false   
+OutputPotential                      = false   
+Number of Extra Electron             = 0               
+
+*********************************************************************
+DGDFT information
+*********************************************************************
+
+Penalty Alpha                        = +2.00000000e+01 
+Element size                         = 1               1               4               
+Wfn Elem GridSize                    = 74              74              12              
+Rho Elem GridSize                    = 148             148             24              
+LGL Grid size                        = 148             148             24              
+LGL GridFactor                       = +2.00000000e+00 
+SVD Basis Tol                        = +1.00000000e-20 
+SCF Inner Tol                        = +1.00000000e-05 
+SCF Inner MaxIter                    = 1               
+Number of ALB for each element: 
+1 1 4
+ 100 100 100 100
+
+
+Number of procs for DistFFT          = 4               
+Solution Method   = diag            
+Number of procs for ScaLAPACK        = 128             
+Number of procs for ScaLAPACK (PW)   = 32              
+ScaLAPACK block                      = 32              
+OutputALBElemLGL                   = false   
+OutputALBElemUniform               = false   
+OutputWfnExtElem                   = false   
+OutputPotExtElem                   = false   
+OutputHMatrix                      = false   
+Force each step (deprecated)       = false   
+A Posteriori error each step       = false   
+
+NumAtom = 120             
+Atom Type and Coordinates (possibly after shifting into unit cell)
+
+Type =  6    Position  = -1.00231848e+01 +1.74712761e+01 +1.15316427e+00 
+Type =  6    Position  = -1.22859050e+01 -1.36754202e+01 +1.15316427e+00 
+Type =  6    Position  = -1.44757379e+01 -1.21451575e+01 +1.15316427e+00 
+Type =  6    Position  = +1.37569245e+01 -1.28571492e+01 +1.15316427e+00 
+Type =  6    Position  = +1.07674909e+01 -1.71958857e+01 +1.15316427e+00 
+Type =  6    Position  = +1.05373410e+01 +1.60472915e+01 +1.15316427e+00 
+Type =  6    Position  = +1.28000612e+01 +1.12891878e+01 +1.15316427e+00 
+Type =  6    Position  = +1.49898951e+01 +9.75892503e+00 +1.15316427e+00 
+Type =  6    Position  = -1.56631106e+01 +9.33955672e+00 +1.15316427e+00 
+Type =  6    Position  = -1.32427683e+01 +1.04709168e+01 +1.15316427e+00 
+Type =  6    Position  = -1.02536920e+01 +1.48096533e+01 +1.15316427e+00 
+Type =  6    Position  = +1.61769073e+01 -1.17257892e+01 +1.15316427e+00 
+Type =  6    Position  = +1.07829295e+01 +1.47281490e+01 +3.45972350e+00 
+Type =  6    Position  = +1.19372689e+01 +1.23175002e+01 +3.45972350e+00 
+Type =  6    Position  = -1.14231115e+01 -1.47037326e+01 +3.45972350e+00 
+Type =  6    Position  = +1.27372281e+01 -1.37296373e+01 +3.45972350e+00 
+Type =  6    Position  = +1.62551801e+01 +9.31226843e+00 +3.45972350e+00 
+Type =  6    Position  = -1.69847656e+01 +9.10653485e+00 +3.45972350e+00 
+Type =  6    Position  = +1.12267131e+01 -1.59345493e+01 +3.45972350e+00 
+Type =  6    Position  = +1.74989229e+01 -1.14927673e+01 +3.45972350e+00 
+Type =  6    Position  = -1.22230718e+01 +1.13434038e+01 +3.45972350e+00 
+Type =  6    Position  = -1.07125558e+01 +1.35483168e+01 +3.45972350e+00 
+Type =  6    Position  = -1.02687733e+01 -1.71143824e+01 +3.45972350e+00 
+Type =  6    Position  = -1.57413823e+01 -1.16985030e+01 +3.45972350e+00 
+Type =  6    Position  = -1.00231848e+01 +1.74712761e+01 +5.76628306e+00 
+Type =  6    Position  = -1.22859050e+01 -1.36754202e+01 +5.76628306e+00 
+Type =  6    Position  = -1.44757379e+01 -1.21451575e+01 +5.76628306e+00 
+Type =  6    Position  = +1.37569245e+01 -1.28571492e+01 +5.76628306e+00 
+Type =  6    Position  = +1.07674909e+01 -1.71958857e+01 +5.76628306e+00 
+Type =  6    Position  = +1.05373410e+01 +1.60472915e+01 +5.76628306e+00 
+Type =  6    Position  = +1.28000612e+01 +1.12891878e+01 +5.76628306e+00 
+Type =  6    Position  = +1.49898951e+01 +9.75892503e+00 +5.76628306e+00 
+Type =  6    Position  = -1.56631106e+01 +9.33955672e+00 +5.76628306e+00 
+Type =  6    Position  = -1.32427683e+01 +1.04709168e+01 +5.76628306e+00 
+Type =  6    Position  = -1.02536920e+01 +1.48096533e+01 +5.76628306e+00 
+Type =  6    Position  = +1.61769073e+01 -1.17257892e+01 +5.76628306e+00 
+Type =  6    Position  = +1.07829295e+01 +1.47281490e+01 +8.07284226e+00 
+Type =  6    Position  = +1.19372689e+01 +1.23175002e+01 +8.07284226e+00 
+Type =  6    Position  = -1.14231115e+01 -1.47037326e+01 +8.07284226e+00 
+Type =  6    Position  = +1.27372281e+01 -1.37296373e+01 +8.07284226e+00 
+Type =  6    Position  = +1.62551801e+01 +9.31226843e+00 +8.07284226e+00 
+Type =  6    Position  = -1.69847656e+01 +9.10653485e+00 +8.07284226e+00 
+Type =  6    Position  = +1.12267131e+01 -1.59345493e+01 +8.07284226e+00 
+Type =  6    Position  = +1.74989229e+01 -1.14927673e+01 +8.07284226e+00 
+Type =  6    Position  = -1.22230718e+01 +1.13434038e+01 +8.07284226e+00 
+Type =  6    Position  = -1.07125558e+01 +1.35483168e+01 +8.07284226e+00 
+Type =  6    Position  = -1.02687733e+01 -1.71143824e+01 +8.07284226e+00 
+Type =  6    Position  = -1.57413823e+01 -1.16985030e+01 +8.07284226e+00 
+Type =  6    Position  = -1.00231848e+01 +1.74712761e+01 +1.03794018e+01 
+Type =  6    Position  = -1.22859050e+01 -1.36754202e+01 +1.03794018e+01 
+Type =  6    Position  = -1.44757379e+01 -1.21451575e+01 +1.03794018e+01 
+Type =  6    Position  = +1.37569245e+01 -1.28571492e+01 +1.03794018e+01 
+Type =  6    Position  = +1.07674909e+01 -1.71958857e+01 +1.03794018e+01 
+Type =  6    Position  = +1.05373410e+01 +1.60472915e+01 +1.03794018e+01 
+Type =  6    Position  = +1.28000612e+01 +1.12891878e+01 +1.03794018e+01 
+Type =  6    Position  = +1.49898951e+01 +9.75892503e+00 +1.03794018e+01 
+Type =  6    Position  = -1.56631106e+01 +9.33955672e+00 +1.03794018e+01 
+Type =  6    Position  = -1.32427683e+01 +1.04709168e+01 +1.03794018e+01 
+Type =  6    Position  = -1.02536920e+01 +1.48096533e+01 +1.03794018e+01 
+Type =  6    Position  = +1.61769073e+01 -1.17257892e+01 +1.03794018e+01 
+Type =  6    Position  = +1.07829295e+01 +1.47281490e+01 -1.03819393e+01 
+Type =  6    Position  = +1.19372689e+01 +1.23175002e+01 -1.03819393e+01 
+Type =  6    Position  = -1.14231115e+01 -1.47037326e+01 -1.03819393e+01 
+Type =  6    Position  = +1.27372281e+01 -1.37296373e+01 -1.03819393e+01 
+Type =  6    Position  = +1.62551801e+01 +9.31226843e+00 -1.03819393e+01 
+Type =  6    Position  = -1.69847656e+01 +9.10653485e+00 -1.03819393e+01 
+Type =  6    Position  = +1.12267131e+01 -1.59345493e+01 -1.03819393e+01 
+Type =  6    Position  = +1.74989229e+01 -1.14927673e+01 -1.03819393e+01 
+Type =  6    Position  = -1.22230718e+01 +1.13434038e+01 -1.03819393e+01 
+Type =  6    Position  = -1.07125558e+01 +1.35483168e+01 -1.03819393e+01 
+Type =  6    Position  = -1.02687733e+01 -1.71143824e+01 -1.03819393e+01 
+Type =  6    Position  = -1.57413823e+01 -1.16985030e+01 -1.03819393e+01 
+Type =  6    Position  = -1.00231848e+01 +1.74712761e+01 -8.07537975e+00 
+Type =  6    Position  = -1.22859050e+01 -1.36754202e+01 -8.07537975e+00 
+Type =  6    Position  = -1.44757379e+01 -1.21451575e+01 -8.07537975e+00 
+Type =  6    Position  = +1.37569245e+01 -1.28571492e+01 -8.07537975e+00 
+Type =  6    Position  = +1.07674909e+01 -1.71958857e+01 -8.07537975e+00 
+Type =  6    Position  = +1.05373410e+01 +1.60472915e+01 -8.07537975e+00 
+Type =  6    Position  = +1.28000612e+01 +1.12891878e+01 -8.07537975e+00 
+Type =  6    Position  = +1.49898951e+01 +9.75892503e+00 -8.07537975e+00 
+Type =  6    Position  = -1.56631106e+01 +9.33955672e+00 -8.07537975e+00 
+Type =  6    Position  = -1.32427683e+01 +1.04709168e+01 -8.07537975e+00 
+Type =  6    Position  = -1.02536920e+01 +1.48096533e+01 -8.07537975e+00 
+Type =  6    Position  = +1.61769073e+01 -1.17257892e+01 -8.07537975e+00 
+Type =  6    Position  = +1.07829295e+01 +1.47281490e+01 -5.76882018e+00 
+Type =  6    Position  = +1.19372689e+01 +1.23175002e+01 -5.76882018e+00 
+Type =  6    Position  = -1.14231115e+01 -1.47037326e+01 -5.76882018e+00 
+Type =  6    Position  = +1.27372281e+01 -1.37296373e+01 -5.76882018e+00 
+Type =  6    Position  = +1.62551801e+01 +9.31226843e+00 -5.76882018e+00 
+Type =  6    Position  = -1.69847656e+01 +9.10653485e+00 -5.76882018e+00 
+Type =  6    Position  = +1.12267131e+01 -1.59345493e+01 -5.76882018e+00 
+Type =  6    Position  = +1.74989229e+01 -1.14927673e+01 -5.76882018e+00 
+Type =  6    Position  = -1.22230718e+01 +1.13434038e+01 -5.76882018e+00 
+Type =  6    Position  = -1.07125558e+01 +1.35483168e+01 -5.76882018e+00 
+Type =  6    Position  = -1.02687733e+01 -1.71143824e+01 -5.76882018e+00 
+Type =  6    Position  = -1.57413823e+01 -1.16985030e+01 -5.76882018e+00 
+Type =  6    Position  = -1.00231848e+01 +1.74712761e+01 -3.46226063e+00 
+Type =  6    Position  = -1.22859050e+01 -1.36754202e+01 -3.46226063e+00 
+Type =  6    Position  = -1.44757379e+01 -1.21451575e+01 -3.46226063e+00 
+Type =  6    Position  = +1.37569245e+01 -1.28571492e+01 -3.46226063e+00 
+Type =  6    Position  = +1.07674909e+01 -1.71958857e+01 -3.46226063e+00 
+Type =  6    Position  = +1.05373410e+01 +1.60472915e+01 -3.46226063e+00 
+Type =  6    Position  = +1.28000612e+01 +1.12891878e+01 -3.46226063e+00 
+Type =  6    Position  = +1.49898951e+01 +9.75892503e+00 -3.46226063e+00 
+Type =  6    Position  = -1.56631106e+01 +9.33955672e+00 -3.46226063e+00 
+Type =  6    Position  = -1.32427683e+01 +1.04709168e+01 -3.46226063e+00 
+Type =  6    Position  = -1.02536920e+01 +1.48096533e+01 -3.46226063e+00 
+Type =  6    Position  = +1.61769073e+01 -1.17257892e+01 -3.46226063e+00 
+Type =  6    Position  = +1.07829295e+01 +1.47281490e+01 -1.15570246e+00 
+Type =  6    Position  = +1.19372689e+01 +1.23175002e+01 -1.15570246e+00 
+Type =  6    Position  = -1.14231115e+01 -1.47037326e+01 -1.15570246e+00 
+Type =  6    Position  = +1.27372281e+01 -1.37296373e+01 -1.15570246e+00 
+Type =  6    Position  = +1.62551801e+01 +9.31226843e+00 -1.15570246e+00 
+Type =  6    Position  = -1.69847656e+01 +9.10653485e+00 -1.15570246e+00 
+Type =  6    Position  = +1.12267131e+01 -1.59345493e+01 -1.15570246e+00 
+Type =  6    Position  = +1.74989229e+01 -1.14927673e+01 -1.15570246e+00 
+Type =  6    Position  = -1.22230718e+01 +1.13434038e+01 -1.15570246e+00 
+Type =  6    Position  = -1.07125558e+01 +1.35483168e+01 -1.15570246e+00 
+Type =  6    Position  = -1.02687733e+01 -1.71143824e+01 -1.15570246e+00 
+Type =  6    Position  = -1.57413823e+01 -1.16985030e+01 -1.15570246e+00 
+
+nprowSca = 16
+npcolSca = 8

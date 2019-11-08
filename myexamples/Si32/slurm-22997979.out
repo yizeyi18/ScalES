@@ -1,0 +1,6 @@
+pwdft -in [inFile]
+in:             Input file (default: pwdft.in)
+slurmstepd: error: *** STEP 22997979.0 ON nid00552 CANCELLED AT 2019-07-12T11:30:59 DUE TO TIME LIMIT ***
+slurmstepd: error: *** JOB 22997979 ON nid00552 CANCELLED AT 2019-07-12T11:30:59 DUE TO TIME LIMIT ***
+srun: got SIGCONT
+srun: forcing job termination

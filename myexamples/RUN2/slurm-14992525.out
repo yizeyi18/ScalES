@@ -1,0 +1,31 @@
+pwdft -in [inFile]
+in:             Input file (default: pwdft.in)
+ionIter = 1
+before callType = 0
+ LBFGS initialization....
+ LBFGS stp1 =    12.5667078952084     
+*************************************************
+  N=   96   NUMBER OF CORRECTIONS= 7
+       INITIAL VALUES
+ F= -1.246D+02   GNORM=  7.958D-02
+*************************************************
+
+   I   NFN    FUNC        GNORM       STEPLENGTH
+
+ returned from LB1, iter =            0  stp =   0.000000000000000E+000
+ do line search....
+ returned from MCSRCH, info =           -1  stp =    12.5667078952084     
+after callType = 1
+ionIter = 2
+before callType = 1
+after callType = 1
+ returned from MCSRCH, info =           -1  stp =    4.34975089152542     
+ionIter = 3
+before callType = 1
+after callType = 1
+ returned from MCSRCH, info =           -1  stp =   2.722050472817840E-007
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+slurmstepd: error: *** STEP 14992525.0 ON nid00714 CANCELLED AT 2018-09-20T17:25:58 DUE TO TIME LIMIT ***
+slurmstepd: error: *** JOB 14992525 ON nid00714 CANCELLED AT 2018-09-20T17:25:58 DUE TO TIME LIMIT ***
+srun: got SIGCONT
+srun: forcing job termination

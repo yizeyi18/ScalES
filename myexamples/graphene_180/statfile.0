@@ -1,0 +1,1900 @@
+mpisize = 36              
+mpirank = 0               
+Time for reading the input file is 0.107535 [s]
+
+
+*********************************************************************
+Common information
+*********************************************************************
+
+Super cell                           = +1.51178150e+01 +4.04023590e+01 +4.19916220e+01 
+Grid Wavefunction                    = 38              108             108             
+Grid Density                         = 76              216             216             
+Mixing dimension                     = 6               
+Mixing variable                      = potential       
+Mixing type                          = anderson        
+Mixing Steplength                    = +5.00000000e-02 
+Temperature                          = +3.00000000e+02 [K]   
+Extra states                         = 36              
+Smearing scheme                      = FD              
+PeriodTable File                     =                 
+Pseudo Type                          = ONCV            
+PW Solver                            = LOBPCG          
+XC Type                              = XC_LDA_XC_TETER93
+SCF Outer Tol                        = +1.00000000e-05 
+SCF Outer MaxIter                    = 200             
+SCF Free Energy Per Atom Tol         = +1.00000000e-04 
+Eig Min Tolerence                    = +1.00000000e-03 
+Eig Tolerence                        = +1.00000000e-20 
+Eig MaxIter                          = 3               
+Eig Tolerance Dyn                    = false   
+Num unused state                     = 0               
+EcutWavefunction                     = +3.00000000e+01 
+Density GridFactor                   = +2.00000000e+00 
+Use Atom Density                     = false   
+Use VLocal                           = false   
+RestartDensity                       = false   
+RestartWfn                           = false   
+OutputDensity                        = false   
+OutputPotential                      = false   
+Number of Extra Electron             = 0               
+
+*********************************************************************
+DGDFT information
+*********************************************************************
+
+Penalty Alpha                        = +1.00000000e+01 
+Element size                         = 1               6               6               
+Wfn Elem GridSize                    = 38              18              18              
+Rho Elem GridSize                    = 76              36              36              
+LGL Grid size                        = 76              36              36              
+LGL GridFactor                       = +2.00000000e+00 
+SVD Basis Tol                        = +1.00000000e-20 
+SCF Inner Tol                        = +1.00000000e-05 
+SCF Inner MaxIter                    = 1               
+Number of ALB for each element: 
+1 6 6
+ 120 120 120 120 120 120
+ 120 120 120 120 120 120
+ 120 120 120 120 120 120
+ 120 120 120 120 120 120
+ 120 120 120 120 120 120
+ 120 120 120 120 120 120
+
+
+Number of procs for DistFFT          = 36              
+Solution Method   = diag            
+Number of procs for ScaLAPACK        = 36              
+Number of procs for ScaLAPACK (PW)   = 1               
+ScaLAPACK block                      = 32              
+OutputALBElemLGL                   = false   
+OutputALBElemUniform               = false   
+OutputWfnExtElem                   = false   
+OutputPotExtElem                   = false   
+OutputHMatrix                      = false   
+Force each step (deprecated)       = false   
+A Posteriori error each step       = false   
+PeriodizePotential                 = true    
+DistancePeriodize                  = +0.00000000e+00 +3.36686325e+00 +3.49930183e+00 
+
+NumAtom = 180             
+Atom Type and Coordinates (possibly after shifting into unit cell)
+
+Type =  6    Position  = -7.55890750e+00 +0.00000000e+00 +0.00000000e+00 
+Type =  6    Position  = -7.55890750e+00 +2.69362531e+00 +0.00000000e+00 
+Type =  6    Position  = -7.55890750e+00 +4.04023594e+00 +2.33305452e+00 
+Type =  6    Position  = -7.55890750e+00 +6.73386097e+00 +2.33305452e+00 
+Type =  6    Position  = -7.55890750e+00 +8.08047192e+00 +0.00000000e+00 
+Type =  6    Position  = -7.55890750e+00 +1.07740966e+01 +0.00000000e+00 
+Type =  6    Position  = -7.55890750e+00 +1.21207082e+01 +2.33305452e+00 
+Type =  6    Position  = -7.55890750e+00 +1.48143335e+01 +2.33305452e+00 
+Type =  6    Position  = -7.55890750e+00 +1.61609438e+01 +0.00000000e+00 
+Type =  6    Position  = -7.55890750e+00 +1.88545692e+01 +0.00000000e+00 
+Type =  6    Position  = -7.55890750e+00 -2.02011795e+01 +2.33305452e+00 
+Type =  6    Position  = -7.55890750e+00 -1.75075542e+01 +2.33305452e+00 
+Type =  6    Position  = -7.55890750e+00 -1.61609426e+01 +0.00000000e+00 
+Type =  6    Position  = -7.55890750e+00 -1.34673174e+01 +0.00000000e+00 
+Type =  6    Position  = -7.55890750e+00 -1.21207082e+01 +2.33305452e+00 
+Type =  6    Position  = -7.55890750e+00 -9.42708287e+00 +2.33305452e+00 
+Type =  6    Position  = -7.55890750e+00 -8.08047132e+00 +0.00000000e+00 
+Type =  6    Position  = -7.55890750e+00 -5.38684604e+00 +0.00000000e+00 
+Type =  6    Position  = -7.55890750e+00 -4.04023687e+00 +2.33305452e+00 
+Type =  6    Position  = -7.55890750e+00 -1.34661155e+00 +2.33305452e+00 
+Type =  6    Position  = -7.55890750e+00 +0.00000000e+00 +4.66568920e+00 
+Type =  6    Position  = -7.55890750e+00 +2.69362531e+00 +4.66568920e+00 
+Type =  6    Position  = -7.55890750e+00 +4.04023594e+00 +6.99874343e+00 
+Type =  6    Position  = -7.55890750e+00 +6.73386097e+00 +6.99874343e+00 
+Type =  6    Position  = -7.55890750e+00 +8.08047192e+00 +4.66568920e+00 
+Type =  6    Position  = -7.55890750e+00 +1.07740966e+01 +4.66568920e+00 
+Type =  6    Position  = -7.55890750e+00 +1.21207082e+01 +6.99874343e+00 
+Type =  6    Position  = -7.55890750e+00 +1.48143335e+01 +6.99874343e+00 
+Type =  6    Position  = -7.55890750e+00 +1.61609438e+01 +4.66568920e+00 
+Type =  6    Position  = -7.55890750e+00 +1.88545692e+01 +4.66568920e+00 
+Type =  6    Position  = -7.55890750e+00 -2.02011795e+01 +6.99874343e+00 
+Type =  6    Position  = -7.55890750e+00 -1.75075542e+01 +6.99874343e+00 
+Type =  6    Position  = -7.55890750e+00 -1.61609426e+01 +4.66568920e+00 
+Type =  6    Position  = -7.55890750e+00 -1.34673174e+01 +4.66568920e+00 
+Type =  6    Position  = -7.55890750e+00 -1.21207082e+01 +6.99874343e+00 
+Type =  6    Position  = -7.55890750e+00 -9.42708287e+00 +6.99874343e+00 
+Type =  6    Position  = -7.55890750e+00 -8.08047132e+00 +4.66568920e+00 
+Type =  6    Position  = -7.55890750e+00 -5.38684604e+00 +4.66568920e+00 
+Type =  6    Position  = -7.55890750e+00 -4.04023687e+00 +6.99874343e+00 
+Type =  6    Position  = -7.55890750e+00 -1.34661155e+00 +6.99874343e+00 
+Type =  6    Position  = -7.55890750e+00 +0.00000000e+00 +9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 +2.69362531e+00 +9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 +4.04023594e+00 +1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 +6.73386097e+00 +1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 +8.08047192e+00 +9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 +1.07740966e+01 +9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 +1.21207082e+01 +1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 +1.48143335e+01 +1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 +1.61609438e+01 +9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 +1.88545692e+01 +9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 -2.02011795e+01 +1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 -1.75075542e+01 +1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 -1.61609426e+01 +9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 -1.34673174e+01 +9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 -1.21207082e+01 +1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 -9.42708287e+00 +1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 -8.08047132e+00 +9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 -5.38684604e+00 +9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 -4.04023687e+00 +1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 -1.34661155e+00 +1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 +0.00000000e+00 +1.39970676e+01 
+Type =  6    Position  = -7.55890750e+00 +2.69362531e+00 +1.39970676e+01 
+Type =  6    Position  = -7.55890750e+00 +4.04023594e+00 +1.63301218e+01 
+Type =  6    Position  = -7.55890750e+00 +6.73386097e+00 +1.63301218e+01 
+Type =  6    Position  = -7.55890750e+00 +8.08047192e+00 +1.39970676e+01 
+Type =  6    Position  = -7.55890750e+00 +1.07740966e+01 +1.39970676e+01 
+Type =  6    Position  = -7.55890750e+00 +1.21207082e+01 +1.63301218e+01 
+Type =  6    Position  = -7.55890750e+00 +1.48143335e+01 +1.63301218e+01 
+Type =  6    Position  = -7.55890750e+00 +1.61609438e+01 +1.39970676e+01 
+Type =  6    Position  = -7.55890750e+00 +1.88545692e+01 +1.39970676e+01 
+Type =  6    Position  = -7.55890750e+00 -2.02011795e+01 +1.63301218e+01 
+Type =  6    Position  = -7.55890750e+00 -1.75075542e+01 +1.63301218e+01 
+Type =  6    Position  = -7.55890750e+00 -1.61609426e+01 +1.39970676e+01 
+Type =  6    Position  = -7.55890750e+00 -1.34673174e+01 +1.39970676e+01 
+Type =  6    Position  = -7.55890750e+00 -1.21207082e+01 +1.63301218e+01 
+Type =  6    Position  = -7.55890750e+00 -9.42708287e+00 +1.63301218e+01 
+Type =  6    Position  = -7.55890750e+00 -8.08047132e+00 +1.39970676e+01 
+Type =  6    Position  = -7.55890750e+00 -5.38684604e+00 +1.39970676e+01 
+Type =  6    Position  = -7.55890750e+00 -4.04023687e+00 +1.63301218e+01 
+Type =  6    Position  = -7.55890750e+00 -1.34661155e+00 +1.63301218e+01 
+Type =  6    Position  = -7.55890750e+00 +0.00000000e+00 +1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 +2.69362531e+00 +1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 +4.04023594e+00 -2.09958110e+01 
+Type =  6    Position  = -7.55890750e+00 +6.73386097e+00 -2.09958110e+01 
+Type =  6    Position  = -7.55890750e+00 +8.08047192e+00 +1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 +1.07740966e+01 +1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 +1.21207082e+01 -2.09958110e+01 
+Type =  6    Position  = -7.55890750e+00 +1.48143335e+01 -2.09958110e+01 
+Type =  6    Position  = -7.55890750e+00 +1.61609438e+01 +1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 +1.88545692e+01 +1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 -2.02011795e+01 -2.09958110e+01 
+Type =  6    Position  = -7.55890750e+00 -1.75075542e+01 -2.09958110e+01 
+Type =  6    Position  = -7.55890750e+00 -1.61609426e+01 +1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 -1.34673174e+01 +1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 -1.21207082e+01 -2.09958110e+01 
+Type =  6    Position  = -7.55890750e+00 -9.42708287e+00 -2.09958110e+01 
+Type =  6    Position  = -7.55890750e+00 -8.08047132e+00 +1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 -5.38684604e+00 +1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 -4.04023687e+00 -2.09958110e+01 
+Type =  6    Position  = -7.55890750e+00 -1.34661155e+00 -2.09958110e+01 
+Type =  6    Position  = -7.55890750e+00 +0.00000000e+00 -1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 +2.69362531e+00 -1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 +4.04023594e+00 -1.63301231e+01 
+Type =  6    Position  = -7.55890750e+00 +6.73386097e+00 -1.63301231e+01 
+Type =  6    Position  = -7.55890750e+00 +8.08047192e+00 -1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 +1.07740966e+01 -1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 +1.21207082e+01 -1.63301231e+01 
+Type =  6    Position  = -7.55890750e+00 +1.48143335e+01 -1.63301231e+01 
+Type =  6    Position  = -7.55890750e+00 +1.61609438e+01 -1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 +1.88545692e+01 -1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 -2.02011795e+01 -1.63301231e+01 
+Type =  6    Position  = -7.55890750e+00 -1.75075542e+01 -1.63301231e+01 
+Type =  6    Position  = -7.55890750e+00 -1.61609426e+01 -1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 -1.34673174e+01 -1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 -1.21207082e+01 -1.63301231e+01 
+Type =  6    Position  = -7.55890750e+00 -9.42708287e+00 -1.63301231e+01 
+Type =  6    Position  = -7.55890750e+00 -8.08047132e+00 -1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 -5.38684604e+00 -1.86627568e+01 
+Type =  6    Position  = -7.55890750e+00 -4.04023687e+00 -1.63301231e+01 
+Type =  6    Position  = -7.55890750e+00 -1.34661155e+00 -1.63301231e+01 
+Type =  6    Position  = -7.55890750e+00 +0.00000000e+00 -1.39970664e+01 
+Type =  6    Position  = -7.55890750e+00 +2.69362531e+00 -1.39970664e+01 
+Type =  6    Position  = -7.55890750e+00 +4.04023594e+00 -1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 +6.73386097e+00 -1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 +8.08047192e+00 -1.39970664e+01 
+Type =  6    Position  = -7.55890750e+00 +1.07740966e+01 -1.39970664e+01 
+Type =  6    Position  = -7.55890750e+00 +1.21207082e+01 -1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 +1.48143335e+01 -1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 +1.61609438e+01 -1.39970664e+01 
+Type =  6    Position  = -7.55890750e+00 +1.88545692e+01 -1.39970664e+01 
+Type =  6    Position  = -7.55890750e+00 -2.02011795e+01 -1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 -1.75075542e+01 -1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 -1.61609426e+01 -1.39970664e+01 
+Type =  6    Position  = -7.55890750e+00 -1.34673174e+01 -1.39970664e+01 
+Type =  6    Position  = -7.55890750e+00 -1.21207082e+01 -1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 -9.42708287e+00 -1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 -8.08047132e+00 -1.39970664e+01 
+Type =  6    Position  = -7.55890750e+00 -5.38684604e+00 -1.39970664e+01 
+Type =  6    Position  = -7.55890750e+00 -4.04023687e+00 -1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 -1.34661155e+00 -1.16644326e+01 
+Type =  6    Position  = -7.55890750e+00 +0.00000000e+00 -9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 +2.69362531e+00 -9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 +4.04023594e+00 -6.99874465e+00 
+Type =  6    Position  = -7.55890750e+00 +6.73386097e+00 -6.99874465e+00 
+Type =  6    Position  = -7.55890750e+00 +8.08047192e+00 -9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 +1.07740966e+01 -9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 +1.21207082e+01 -6.99874465e+00 
+Type =  6    Position  = -7.55890750e+00 +1.48143335e+01 -6.99874465e+00 
+Type =  6    Position  = -7.55890750e+00 +1.61609438e+01 -9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 +1.88545692e+01 -9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 -2.02011795e+01 -6.99874465e+00 
+Type =  6    Position  = -7.55890750e+00 -1.75075542e+01 -6.99874465e+00 
+Type =  6    Position  = -7.55890750e+00 -1.61609426e+01 -9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 -1.34673174e+01 -9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 -1.21207082e+01 -6.99874465e+00 
+Type =  6    Position  = -7.55890750e+00 -9.42708287e+00 -6.99874465e+00 
+Type =  6    Position  = -7.55890750e+00 -8.08047132e+00 -9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 -5.38684604e+00 -9.33137841e+00 
+Type =  6    Position  = -7.55890750e+00 -4.04023687e+00 -6.99874465e+00 
+Type =  6    Position  = -7.55890750e+00 -1.34661155e+00 -6.99874465e+00 
+Type =  6    Position  = -7.55890750e+00 +0.00000000e+00 -4.66568794e+00 
+Type =  6    Position  = -7.55890750e+00 +2.69362531e+00 -4.66568794e+00 
+Type =  6    Position  = -7.55890750e+00 +4.04023594e+00 -2.33305422e+00 
+Type =  6    Position  = -7.55890750e+00 +6.73386097e+00 -2.33305422e+00 
+Type =  6    Position  = -7.55890750e+00 +8.08047192e+00 -4.66568794e+00 
+Type =  6    Position  = -7.55890750e+00 +1.07740966e+01 -4.66568794e+00 
+Type =  6    Position  = -7.55890750e+00 +1.21207082e+01 -2.33305422e+00 
+Type =  6    Position  = -7.55890750e+00 +1.48143335e+01 -2.33305422e+00 
+Type =  6    Position  = -7.55890750e+00 +1.61609438e+01 -4.66568794e+00 
+Type =  6    Position  = -7.55890750e+00 +1.88545692e+01 -4.66568794e+00 
+Type =  6    Position  = -7.55890750e+00 -2.02011795e+01 -2.33305422e+00 
+Type =  6    Position  = -7.55890750e+00 -1.75075542e+01 -2.33305422e+00 
+Type =  6    Position  = -7.55890750e+00 -1.61609426e+01 -4.66568794e+00 
+Type =  6    Position  = -7.55890750e+00 -1.34673174e+01 -4.66568794e+00 
+Type =  6    Position  = -7.55890750e+00 -1.21207082e+01 -2.33305422e+00 
+Type =  6    Position  = -7.55890750e+00 -9.42708287e+00 -2.33305422e+00 
+Type =  6    Position  = -7.55890750e+00 -8.08047132e+00 -4.66568794e+00 
+Type =  6    Position  = -7.55890750e+00 -5.38684604e+00 -4.66568794e+00 
+Type =  6    Position  = -7.55890750e+00 -4.04023687e+00 -2.33305422e+00 
+Type =  6    Position  = -7.55890750e+00 -1.34661155e+00 -2.33305422e+00 
+
+nprowSca = 6
+npcolSca = 6
+ UPF version: 2
+Time for setting up the periodic table is 0.082437992 [s]
+
+XC_LDA_XC_TETER93  XCId = 20
+
+Computing the local pseudopotential
+Time for local pseudopotential 2.2662768
+Sum of Pseudocharge                          = -4.06119262e+04 
+Number of Occupied States                    = 90              
+After adjustment, Sum of Pseudocharge        = +1.80000000e+02 
+Computing the non-local pseudopotential
+Total number of nonlocal pseudopotential = 360             
+Time for nonlocal pseudopotential 0.89838076
+Time for setting up extended element is 4.8922732 [s]
+
+localNz        = 6
+localNzStart   = 0
+numAllocLocal  = 98496
+numGridLocal   = 98496
+numGridTotal   = 3545856
+Time for setting up Distributed Fourier is 1.5563703 [s]
+
+Number of Occupied States                    = 360             
+
+Prepare the integration weights for constructing the DG matrix.
+
+Atomic pseudocharge computed.
+Sum of Pseudocharge                          = -1.62447821e+05 
+numOccupiedState                             = 360             
+After adjustment, sum of Pseudocharge        = +7.20000000e+02 
+Time for setting up the DG Hamiltonian is 0.45505595 [s]
+
+ Generating initial density through linear combination of pseudocharges.
+Initial density. Sum of density      = +7.20005821e+02 
+Initial random basis functions in the extended element.
+Initial basis functions with random guess.
+gridpos[0] = 
+76
+ 0.00000000e+00 1.98918618e-01 3.97837237e-01 5.96755855e-01 7.95674474e-01 9.94593092e-01 1.19351171e+00 1.39243033e+00 1.59134895e+00 1.79026757e+00 1.98918618e+00 2.18810480e+00 2.38702342e+00 2.58594204e+00 2.78486066e+00 2.98377928e+00 3.18269789e+00 3.38161651e+00 3.58053513e+00 3.77945375e+00 3.97837237e+00 4.17729099e+00 4.37620961e+00 4.57512822e+00 4.77404684e+00 4.97296546e+00 5.17188408e+00 5.37080270e+00 5.56972132e+00 5.76863993e+00 5.96755855e+00 6.16647717e+00 6.36539579e+00 6.56431441e+00 6.76323303e+00 6.96215164e+00 7.16107026e+00 7.35998888e+00 7.55890750e+00 7.75782612e+00 7.95674474e+00 8.15566336e+00 8.35458197e+00 8.55350059e+00 8.75241921e+00 8.95133783e+00 9.15025645e+00 9.34917507e+00 9.54809368e+00 9.74701230e+00 9.94593092e+00 1.01448495e+01 1.03437682e+01 1.05426868e+01 1.07416054e+01 1.09405240e+01 1.11394426e+01 1.13383613e+01 1.15372799e+01 1.17361985e+01 1.19351171e+01 1.21340357e+01 1.23329543e+01 1.25318730e+01 1.27307916e+01 1.29297102e+01 1.31286288e+01 1.33275474e+01 1.35264661e+01 1.37253847e+01 1.39243033e+01 1.41232219e+01 1.43221405e+01 1.45210591e+01 1.47199778e+01 1.49188964e+01
+
+gridpos[1] = 
+108
+ -6.73372650e+00 -6.54667854e+00 -6.35963058e+00 -6.17258262e+00 -5.98553467e+00 -5.79848671e+00 -5.61143875e+00 -5.42439079e+00 -5.23734283e+00 -5.05029487e+00 -4.86324692e+00 -4.67619896e+00 -4.48915100e+00 -4.30210304e+00 -4.11505508e+00 -3.92800712e+00 -3.74095917e+00 -3.55391121e+00 -3.36686325e+00 -3.17981529e+00 -2.99276733e+00 -2.80571937e+00 -2.61867142e+00 -2.43162346e+00 -2.24457550e+00 -2.05752754e+00 -1.87047958e+00 -1.68343162e+00 -1.49638367e+00 -1.30933571e+00 -1.12228775e+00 -9.35239792e-01 -7.48191833e-01 -5.61143875e-01 -3.74095917e-01 -1.87047958e-01 0.00000000e+00 1.87047958e-01 3.74095917e-01 5.61143875e-01 7.48191833e-01 9.35239792e-01 1.12228775e+00 1.30933571e+00 1.49638367e+00 1.68343163e+00 1.87047958e+00 2.05752754e+00 2.24457550e+00 2.43162346e+00 2.61867142e+00 2.80571937e+00 2.99276733e+00 3.17981529e+00 3.36686325e+00 3.55391121e+00 3.74095917e+00 3.92800713e+00 4.11505508e+00 4.30210304e+00 4.48915100e+00 4.67619896e+00 4.86324692e+00 5.05029487e+00 5.23734283e+00 5.42439079e+00 5.61143875e+00 5.79848671e+00 5.98553467e+00 6.17258263e+00 6.35963058e+00 6.54667854e+00 6.73372650e+00 6.92077446e+00 7.10782242e+00 7.29487037e+00 7.48191833e+00 7.66896629e+00 7.85601425e+00 8.04306221e+00 8.23011017e+00 8.41715813e+00 8.60420608e+00 8.79125404e+00 8.97830200e+00 9.16534996e+00 9.35239792e+00 9.53944587e+00 9.72649383e+00 9.91354179e+00 1.01005898e+01 1.02876377e+01 1.04746857e+01 1.06617336e+01 1.08487816e+01 1.10358295e+01 1.12228775e+01 1.14099255e+01 1.15969734e+01 1.17840214e+01 1.19710693e+01 1.21581173e+01 1.23451652e+01 1.25322132e+01 1.27192612e+01 1.29063091e+01 1.30933571e+01 1.32804050e+01
+
+gridpos[2] = 
+108
+ -6.99860367e+00 -6.80419801e+00 -6.60979235e+00 -6.41538669e+00 -6.22098104e+00 -6.02657538e+00 -5.83216972e+00 -5.63776406e+00 -5.44335841e+00 -5.24895275e+00 -5.05454709e+00 -4.86014144e+00 -4.66573578e+00 -4.47133012e+00 -4.27692446e+00 -4.08251881e+00 -3.88811315e+00 -3.69370749e+00 -3.49930183e+00 -3.30489618e+00 -3.11049052e+00 -2.91608486e+00 -2.72167920e+00 -2.52727355e+00 -2.33286789e+00 -2.13846223e+00 -1.94405657e+00 -1.74965092e+00 -1.55524526e+00 -1.36083960e+00 -1.16643394e+00 -9.72028287e-01 -7.77622630e-01 -5.83216972e-01 -3.88811315e-01 -1.94405657e-01 -8.88178420e-16 1.94405657e-01 3.88811315e-01 5.83216972e-01 7.77622630e-01 9.72028287e-01 1.16643394e+00 1.36083960e+00 1.55524526e+00 1.74965092e+00 1.94405657e+00 2.13846223e+00 2.33286789e+00 2.52727355e+00 2.72167920e+00 2.91608486e+00 3.11049052e+00 3.30489618e+00 3.49930183e+00 3.69370749e+00 3.88811315e+00 4.08251881e+00 4.27692446e+00 4.47133012e+00 4.66573578e+00 4.86014144e+00 5.05454709e+00 5.24895275e+00 5.44335841e+00 5.63776406e+00 5.83216972e+00 6.02657538e+00 6.22098104e+00 6.41538669e+00 6.60979235e+00 6.80419801e+00 6.99860367e+00 7.19300932e+00 7.38741498e+00 7.58182064e+00 7.77622630e+00 7.97063195e+00 8.16503761e+00 8.35944327e+00 8.55384893e+00 8.74825458e+00 8.94266024e+00 9.13706590e+00 9.33147156e+00 9.52587721e+00 9.72028287e+00 9.91468853e+00 1.01090942e+01 1.03034998e+01 1.04979055e+01 1.06923112e+01 1.08867168e+01 1.10811225e+01 1.12755281e+01 1.14699338e+01 1.16643394e+01 1.18587451e+01 1.20531508e+01 1.22475564e+01 1.24419621e+01 1.26363677e+01 1.28307734e+01 1.30251790e+01 1.32195847e+01 1.34139904e+01 1.36083960e+01 1.38028017e+01
+
+vBubble[0] = 
+76
+ 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00
+
+vBubble[1] = 
+108
+ 0.00000000e+00 0.00000000e+00 3.62740224e-08 4.80471286e-04 1.02762996e-02 4.72056074e-02 1.16828967e-01 2.11554804e-01 3.20871725e-01 4.36930857e-01 5.54918430e-01 6.71239933e-01 7.81235815e-01 8.77295640e-01 9.48988659e-01 9.88205232e-01 9.99345789e-01 9.99999872e-01 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 9.99999872e-01 9.99345789e-01 9.88205232e-01 9.48988659e-01 8.77295640e-01 7.81235815e-01 6.71239933e-01 5.54918430e-01 4.36930857e-01 3.20871725e-01 2.11554804e-01 1.16828967e-01 4.72056074e-02 1.02762996e-02 4.80471286e-04 3.62740224e-08 0.00000000e+00
+
+vBubble[2] = 
+108
+ 0.00000000e+00 0.00000000e+00 7.44329562e-08 5.65026424e-04 1.09909243e-02 4.88893079e-02 1.19242391e-01 2.14277784e-01 3.23584747e-01 4.39456074e-01 5.57164652e-01 6.73144161e-01 7.82730852e-01 8.78315732e-01 9.49522470e-01 9.88368600e-01 9.99359117e-01 9.99999877e-01 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 1.00000000e+00 9.99999877e-01 9.99359117e-01 9.88368600e-01 9.49522470e-01 8.78315732e-01 7.82730852e-01 6.73144161e-01 5.57164652e-01 4.39456074e-01 3.23584747e-01 2.14277784e-01 1.19242391e-01 4.88893079e-02 1.09909243e-02 5.65026424e-04 7.44329562e-08 0.00000000e+00
+
+Time for setting up SCFDG is 2.68488884e-01 [s]
+
+ Time for calculating XC is 9.41514969e-03 [s]
+
+ Time for calculating Hartree is 6.76102638e-02 [s]
+
+ Time for calculating Vtot is 1.29604340e-03 [s]
+
+
+*********************************************************************
+ Outer SCF iteration # 1
+*********************************************************************
+
+vtotMax  = -1.58862043e-02 
+vtotAvg  = -2.83576646e-01 
+vtotMin  = -5.21807634e-01 
+ Time for updating the local potential in the extended element and the element is 0.27608871 [s]
+
+ The current tolerance used by the eigensolver is 1e-20
+ The target number of converged eigenvectors is 120
+
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.40439796
+Time for iterFFTFine      = 240  timeFFTFine      = 3.7418032
+Time for iterNonlocal     = 120  timeNonlocal     = 2.0398486
+Time for iterOther        = 1  timeOther        = 2.3618228
+Time for psi.AddMultSpinorFineR2C is 8.5490823 [s]
+
+Minimum tolerance is 0.001
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.36824083
+Time for iterFFTFine      = 240  timeFFTFine      = 3.4564183
+Time for iterNonlocal     = 120  timeNonlocal     = 1.7425191
+Time for iterOther        = 1  timeOther        = 2.1141918
+Time for psi.AddMultSpinorFineR2C is 7.6823807 [s]
+
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.33486462
+Time for iterFFTFine      = 240  timeFFTFine      = 3.2122605
+Time for iterNonlocal     = 120  timeNonlocal     = 1.616802
+Time for iterOther        = 1  timeOther        = 1.9593601
+Time for psi.AddMultSpinorFineR2C is 7.1243174 [s]
+
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.38420272
+Time for iterFFTFine      = 240  timeFFTFine      = 3.5917146
+Time for iterNonlocal     = 120  timeNonlocal     = 1.9109709
+Time for iterOther        = 1  timeOther        = 2.2308786
+Time for psi.AddMultSpinorFineR2C is 8.1187849 [s]
+
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.39230967
+Time for iterFFTFine      = 240  timeFFTFine      = 3.6443672
+Time for iterNonlocal     = 120  timeNonlocal     = 1.8828278
+Time for iterOther        = 1  timeOther        = 2.2455235
+Time for psi.AddMultSpinorFineR2C is 8.1659882 [s]
+
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.39681482
+Time for iterFFTFine      = 240  timeFFTFine      = 3.6647756
+Time for iterNonlocal     = 120  timeNonlocal     = 1.9710658
+Time for iterOther        = 1  timeOther        = 2.2862654
+Time for psi.AddMultSpinorFineR2C is 8.3198991 [s]
+
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.3657608
+Time for iterFFTFine      = 240  timeFFTFine      = 3.4058652
+Time for iterNonlocal     = 120  timeNonlocal     = 1.7489295
+Time for iterOther        = 1  timeOther        = 2.0937769
+Time for psi.AddMultSpinorFineR2C is 7.6152554 [s]
+
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.39086127
+Time for iterFFTFine      = 240  timeFFTFine      = 3.6397984
+Time for iterNonlocal     = 120  timeNonlocal     = 1.8680651
+Time for iterOther        = 1  timeOther        = 2.2092094
+Time for psi.AddMultSpinorFineR2C is 8.1088576 [s]
+
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.33583641
+Time for iterFFTFine      = 240  timeFFTFine      = 3.2058985
+Time for iterNonlocal     = 120  timeNonlocal     = 1.6346812
+Time for iterOther        = 1  timeOther        = 1.9457047
+Time for psi.AddMultSpinorFineR2C is 7.1230378 [s]
+
+
+After 8 iterations, LOBPCG did not converge. 
+The maximum norm of the residual is 0.039023198
+
+The minimum norm of the residual is 0.0009897107
+
+Time for iterGemmT     = 91  timeGemmT     = 2.9255977
+Time for iterGemmN     = 55  timeGemmN     = 1.7592483
+Time for iterAllreduce = 91  timeAllreduce = 0.004891634
+Time for iterAlltoallv = 28  timeAlltoallv = 7.7772243
+Time for iterSpinor    = 17  timeSpinor    = 74.346577
+Time for iterTrsm      = 1  timeTrsm      = 0.060656548
+Time for iterMpirank0  = 58  timeMpirank0  = 0.19316578
+
+ Eigensolver time = 88.553421 [s]
+
+ALB calculation in extended element 0 0 0 
+basis#   = 0    eigval   = -2.92587938e-01 resval   = +9.89710703e-04 
+basis#   = 1    eigval   = -2.52951485e-01 resval   = +1.65448542e-03 
+basis#   = 2    eigval   = -2.50426427e-01 resval   = +1.48643543e-03 
+basis#   = 3    eigval   = -2.30083348e-01 resval   = +2.16446364e-03 
+basis#   = 4    eigval   = -2.10942932e-01 resval   = +1.60606617e-03 
+basis#   = 5    eigval   = -1.94287569e-01 resval   = +1.66690307e-03 
+basis#   = 6    eigval   = -1.89611158e-01 resval   = +1.89609091e-03 
+basis#   = 7    eigval   = -1.89212411e-01 resval   = +1.90739585e-03 
+basis#   = 8    eigval   = -1.86115983e-01 resval   = +2.04298657e-03 
+basis#   = 9    eigval   = -1.53669521e-01 resval   = +2.12327898e-03 
+basis#   = 10   eigval   = -1.49482503e-01 resval   = +2.17289059e-03 
+basis#   = 11   eigval   = -1.45278858e-01 resval   = +2.03782808e-03 
+basis#   = 12   eigval   = -1.29950553e-01 resval   = +2.38849198e-03 
+basis#   = 13   eigval   = -1.23578292e-01 resval   = +1.66237233e-03 
+basis#   = 14   eigval   = -1.01912373e-01 resval   = +2.29140447e-03 
+basis#   = 15   eigval   = -9.56793686e-02 resval   = +2.32777918e-03 
+basis#   = 16   eigval   = -9.55319852e-02 resval   = +2.55093925e-03 
+basis#   = 17   eigval   = -8.62216495e-02 resval   = +1.85687353e-03 
+basis#   = 18   eigval   = -8.29813337e-02 resval   = +2.08712743e-03 
+basis#   = 19   eigval   = -7.63262543e-02 resval   = +2.51703574e-03 
+basis#   = 20   eigval   = -5.93275842e-02 resval   = +3.21488301e-03 
+basis#   = 21   eigval   = -5.80367561e-02 resval   = +2.45748249e-03 
+basis#   = 22   eigval   = -3.79140676e-02 resval   = +2.89633416e-03 
+basis#   = 23   eigval   = -3.56323640e-02 resval   = +3.67112971e-03 
+basis#   = 24   eigval   = -3.17614076e-02 resval   = +2.74160782e-03 
+basis#   = 25   eigval   = -2.72139095e-02 resval   = +3.03793248e-03 
+basis#   = 26   eigval   = -2.66604268e-02 resval   = +2.15677930e-03 
+basis#   = 27   eigval   = -1.65067183e-02 resval   = +3.15572326e-03 
+basis#   = 28   eigval   = -1.20908208e-02 resval   = +2.80462608e-03 
+basis#   = 29   eigval   = -2.17225255e-03 resval   = +3.42468352e-03 
+basis#   = 30   eigval   = -1.03282376e-03 resval   = +3.14927859e-03 
+basis#   = 31   eigval   = +2.98011566e-03 resval   = +4.06933704e-03 
+basis#   = 32   eigval   = +1.19855616e-02 resval   = +3.51470565e-03 
+basis#   = 33   eigval   = +1.20162272e-02 resval   = +2.62577822e-03 
+basis#   = 34   eigval   = +2.28004127e-02 resval   = +2.65435391e-03 
+basis#   = 35   eigval   = +2.41391286e-02 resval   = +3.27594019e-03 
+basis#   = 36   eigval   = +3.11718505e-02 resval   = +3.96119749e-03 
+basis#   = 37   eigval   = +3.63786129e-02 resval   = +3.22713472e-03 
+basis#   = 38   eigval   = +4.29847783e-02 resval   = +2.95656212e-03 
+basis#   = 39   eigval   = +5.17304483e-02 resval   = +3.93842799e-03 
+basis#   = 40   eigval   = +5.55737605e-02 resval   = +3.94980066e-03 
+basis#   = 41   eigval   = +5.63310161e-02 resval   = +3.29853853e-03 
+basis#   = 42   eigval   = +6.21356830e-02 resval   = +4.24268606e-03 
+basis#   = 43   eigval   = +7.22292983e-02 resval   = +3.23219166e-03 
+basis#   = 44   eigval   = +8.07298402e-02 resval   = +5.30495069e-03 
+basis#   = 45   eigval   = +8.16355618e-02 resval   = +3.71902383e-03 
+basis#   = 46   eigval   = +8.75565599e-02 resval   = +5.10186044e-03 
+basis#   = 47   eigval   = +8.88701104e-02 resval   = +4.11011252e-03 
+basis#   = 48   eigval   = +9.34221721e-02 resval   = +4.27039160e-03 
+basis#   = 49   eigval   = +9.64888171e-02 resval   = +4.14336466e-03 
+basis#   = 50   eigval   = +9.99754704e-02 resval   = +4.09285203e-03 
+basis#   = 51   eigval   = +1.06376272e-01 resval   = +4.35492096e-03 
+basis#   = 52   eigval   = +1.07777254e-01 resval   = +3.12756941e-03 
+basis#   = 53   eigval   = +1.21645819e-01 resval   = +4.55934595e-03 
+basis#   = 54   eigval   = +1.24510430e-01 resval   = +4.24798078e-03 
+basis#   = 55   eigval   = +1.25484952e-01 resval   = +4.63146401e-03 
+basis#   = 56   eigval   = +1.35636730e-01 resval   = +5.65039410e-03 
+basis#   = 57   eigval   = +1.41245688e-01 resval   = +4.44409460e-03 
+basis#   = 58   eigval   = +1.43884256e-01 resval   = +4.24107414e-03 
+basis#   = 59   eigval   = +1.49493579e-01 resval   = +3.57986191e-03 
+basis#   = 60   eigval   = +1.55076594e-01 resval   = +5.19589441e-03 
+basis#   = 61   eigval   = +1.59333600e-01 resval   = +5.81277808e-03 
+basis#   = 62   eigval   = +1.62697835e-01 resval   = +4.99028535e-03 
+basis#   = 63   eigval   = +1.64445363e-01 resval   = +6.75460357e-03 
+basis#   = 64   eigval   = +1.75169155e-01 resval   = +6.55256693e-03 
+basis#   = 65   eigval   = +1.75984042e-01 resval   = +5.95250981e-03 
+basis#   = 66   eigval   = +1.78187935e-01 resval   = +5.62310529e-03 
+basis#   = 67   eigval   = +1.80326029e-01 resval   = +3.92889489e-03 
+basis#   = 68   eigval   = +1.81543323e-01 resval   = +6.17045268e-03 
+basis#   = 69   eigval   = +1.87785990e-01 resval   = +5.98438416e-03 
+basis#   = 70   eigval   = +1.88885564e-01 resval   = +6.93650620e-03 
+basis#   = 71   eigval   = +1.93037913e-01 resval   = +7.70861842e-03 
+basis#   = 72   eigval   = +1.93729819e-01 resval   = +5.04103084e-03 
+basis#   = 73   eigval   = +1.98694389e-01 resval   = +5.90239924e-03 
+basis#   = 74   eigval   = +2.04081790e-01 resval   = +4.90314840e-03 
+basis#   = 75   eigval   = +2.06991974e-01 resval   = +5.91167283e-03 
+basis#   = 76   eigval   = +2.10089532e-01 resval   = +4.14238274e-03 
+basis#   = 77   eigval   = +2.11214971e-01 resval   = +6.62096130e-03 
+basis#   = 78   eigval   = +2.15563038e-01 resval   = +6.88089348e-03 
+basis#   = 79   eigval   = +2.16532030e-01 resval   = +6.83598929e-03 
+basis#   = 80   eigval   = +2.16867884e-01 resval   = +5.39046985e-03 
+basis#   = 81   eigval   = +2.17666333e-01 resval   = +5.24797936e-03 
+basis#   = 82   eigval   = +2.21273168e-01 resval   = +9.68344177e-03 
+basis#   = 83   eigval   = +2.28311474e-01 resval   = +8.24160950e-03 
+basis#   = 84   eigval   = +2.32741207e-01 resval   = +7.07672089e-03 
+basis#   = 85   eigval   = +2.38550881e-01 resval   = +7.74652975e-03 
+basis#   = 86   eigval   = +2.42925079e-01 resval   = +1.05146015e-02 
+basis#   = 87   eigval   = +2.44065158e-01 resval   = +7.59363031e-03 
+basis#   = 88   eigval   = +2.46339695e-01 resval   = +6.90889440e-03 
+basis#   = 89   eigval   = +2.46574598e-01 resval   = +6.91488455e-03 
+basis#   = 90   eigval   = +2.46722960e-01 resval   = +7.56214683e-03 
+basis#   = 91   eigval   = +2.47683924e-01 resval   = +8.70275832e-03 
+basis#   = 92   eigval   = +2.50921690e-01 resval   = +7.68249710e-03 
+basis#   = 93   eigval   = +2.57148844e-01 resval   = +8.08371874e-03 
+basis#   = 94   eigval   = +2.59828575e-01 resval   = +9.39350482e-03 
+basis#   = 95   eigval   = +2.62025558e-01 resval   = +8.34715643e-03 
+basis#   = 96   eigval   = +2.67821679e-01 resval   = +7.62670715e-03 
+basis#   = 97   eigval   = +2.67977886e-01 resval   = +1.15441560e-02 
+basis#   = 98   eigval   = +2.73721593e-01 resval   = +1.03313691e-02 
+basis#   = 99   eigval   = +2.76306036e-01 resval   = +8.96794194e-03 
+basis#   = 100  eigval   = +2.84822484e-01 resval   = +1.57367431e-02 
+basis#   = 101  eigval   = +2.85761560e-01 resval   = +1.06217368e-02 
+basis#   = 102  eigval   = +2.89408748e-01 resval   = +1.15220413e-02 
+basis#   = 103  eigval   = +2.90865168e-01 resval   = +1.03776791e-02 
+basis#   = 104  eigval   = +2.91172184e-01 resval   = +1.37876158e-02 
+basis#   = 105  eigval   = +2.93068883e-01 resval   = +1.77847144e-02 
+basis#   = 106  eigval   = +2.98788945e-01 resval   = +1.76717118e-02 
+basis#   = 107  eigval   = +3.02300809e-01 resval   = +1.59652287e-02 
+basis#   = 108  eigval   = +3.08138400e-01 resval   = +2.14581319e-02 
+basis#   = 109  eigval   = +3.09454657e-01 resval   = +1.22904871e-02 
+basis#   = 110  eigval   = +3.11761984e-01 resval   = +2.16570040e-02 
+basis#   = 111  eigval   = +3.15754067e-01 resval   = +3.20683746e-02 
+basis#   = 112  eigval   = +3.19099952e-01 resval   = +2.18919182e-02 
+basis#   = 113  eigval   = +3.20545550e-01 resval   = +2.14941026e-02 
+basis#   = 114  eigval   = +3.29550616e-01 resval   = +2.66216962e-02 
+basis#   = 115  eigval   = +3.31957458e-01 resval   = +3.90231976e-02 
+basis#   = 116  eigval   = +3.36994939e-01 resval   = +3.15146435e-02 
+basis#   = 117  eigval   = +3.39953001e-01 resval   = +2.96844148e-02 
+basis#   = 118  eigval   = +3.40449815e-01 resval   = +3.88134264e-02 
+basis#   = 119  eigval   = +3.44031430e-01 resval   = +3.55484963e-02 
+
+ Max residual of basis = +3.90231976e-02 
+ Avg residual of basis = +7.61341747e-03 
+
+ Time for interpolating basis = 0.44551849 [s]
+ Number of significant SVD basis = 120
+ Time for SVD of basis = 1.0736601 [s]
+
+ Time for generating ALB function is 90.075291 [s]
+
+
+ AlltoallForward: Changing distribution of local basis functions ...  Done. ( 0.46923971 s)
+ Inner SCF iteration #1 starts.
+
+ Time for constructing the DG matrix is 16.838006 [s]
+
+
+Matrix H counter: 25
+
+ Calling First Chebyshev Iter  
+
+ Estimating the spectral bounds ...  Done. ( 0.34393549 s.)
+ Initializing eigenvectors randomly on first SCF step ...  Done. ( 0.00064706802 s.)
+
+ ------------------------------- 
+ First CheFSI step for DGDFT cycle 1 of 2 . 
+
+ Filtering the eigenvectors ... (Filter order = 60)
+HADIA FirstChebyStep
+
+ Chebyshev filtering : Process 0 working on 396 of 396 bands.
+ Chebyshev filtering : Lower bound = 75.778654
+                     : Upper bound = 192.29893
+                     : a_L = 1.3059987
+ GEMM CPU in Loop Total completed. ( 0.0032587051 s.)
+ GEMM CPU ONLY completed. ( 0.003247261 s.)
+ Batched Total completed. ( 0.00013828278 s.)
+ ----------- 1. Move Pointers from Host to Device ONLY ( 8.6545944e-05 s.)
+ ----------- 2. Batched ONLY ( 3.4332275e-05 s.)
+ ----------- 3. Reduction of Results (Daxpy loop) ONLY ( 0.0001039505 s.)
+ OTHER Timings
+ ----------- Handle Creation ONLY ( 1.5477114 s.)
+ ----------- 4. Moving X data to GPU ( 0.015742064 s.)
+  Host to Device bandwidth (GB/s): 0.080746195
+Time to pack and move X to GPU: 0.014712768
+
+ ----------- Loop Get Pointers ONLY ( 1.0967255e-05 s.)
+ ----------- Handle Destruction ONLY ( 0.00012111664 s.)
+ ----------- Copy Result Device to Host ONLY ( 0.00051021576 s.)
+calling GEMM, m, n, k, batchCount = 120 396 120 25
+--------------------------------------------------------------------
+
+ Total filtering time for 60 filter steps = 2.9754238 s.
+ Average per filter step = 0.049590397 s.
+ Eigenvector block rebuild time = 0.00024843216 s.
+ Filtering completed. ( 3.0100369 s.)
+
+ Solving subspace problems serially ...
+ Orthonormalizing filtered vectors ... 
+ Orthonormalization completed ( 0.009814024 s.)
+
+ Raleigh-Ritz step ... 
+ Hamiltonian times eigenvectors calculation time = 0.026180267 s.
+ Eigenvector block rebuild time = 0.00015759468 s.
+ Raleigh-Ritz step completed ( 0.043547869 s.)
+
+ Subspace rotation step ... 
+ Subspace rotation step completed ( 0.00048089027 s.)
+ ------------------------------- 
+ This Chebyshev cycle took a total of 3.0640817 s.
+ ------------------------------- 
+
+
+ ------------------------------- 
+ First CheFSI step for DGDFT cycle 2 of 2 . 
+
+ Filtering the eigenvectors ... (Filter order = 60)
+HADIA FirstChebyStep
+
+ Chebyshev filtering : Process 0 working on 396 of 396 bands.
+ Chebyshev filtering : Lower bound = 1.1006352
+                     : Upper bound = 192.29893
+                     : a_L = 0.065929381
+ GEMM CPU in Loop Total completed. ( 0.0034673214 s.)
+ GEMM CPU ONLY completed. ( 0.0034532547 s.)
+ Batched Total completed. ( 0.00015926361 s.)
+ ----------- 1. Move Pointers from Host to Device ONLY ( 1.5735626e-05 s.)
+ ----------- 2. Batched ONLY ( 2.2649765e-05 s.)
+ ----------- 3. Reduction of Results (Daxpy loop) ONLY ( 0.00013637543 s.)
+ OTHER Timings
+ ----------- Handle Creation ONLY ( 0.00039553642 s.)
+ ----------- 4. Moving X data to GPU ( 0.015792847 s.)
+  Host to Device bandwidth (GB/s): 0.078042064
+Time to pack and move X to GPU: 0.01522256
+
+ ----------- Loop Get Pointers ONLY ( 5.4836273e-06 s.)
+ ----------- Handle Destruction ONLY ( 0.00013613701 s.)
+ ----------- Copy Result Device to Host ONLY ( 0.0024693012 s.)
+calling GEMM, m, n, k, batchCount = 120 396 120 25
+--------------------------------------------------------------------
+
+ Total filtering time for 60 filter steps = 1.4045196 s.
+ Average per filter step = 0.023408659 s.
+ Eigenvector block rebuild time = 0.00017905235 s.
+ Filtering completed. ( 1.4324951 s.)
+
+ Solving subspace problems serially ...
+ Orthonormalizing filtered vectors ... 
+ Orthonormalization completed ( 0.0062878132 s.)
+
+ Raleigh-Ritz step ... 
+ Hamiltonian times eigenvectors calculation time = 0.024619102 s.
+ Eigenvector block rebuild time = 0.00015258789 s.
+ Raleigh-Ritz step completed ( 0.041577578 s.)
+
+ Subspace rotation step ... 
+ Subspace rotation step completed ( 0.00049066544 s.)
+ ------------------------------- 
+ This Chebyshev cycle took a total of 1.4809985 s.
+ ------------------------------- 
+
+ Total time for diag DG matrix via Chebyshev filtering is 4.8963511 [s]
+
+
+ Using alternate routine for electron density: 
+
+ Forming diagonal blocks of density matrix ...  Done. ( 0.00040364265 s) 
+
+ Before interpolation
+ After interpolation
+
+ Sum Rho on LGL grid (raw data) = +3.60000000e+02 
+ Sum Rho on uniform grid (interpolated) = +3.60003059e+02 
+
+ Time for computing density in the global domain is 6.0944772 [s]
+
+ Time for computing Exc in the global domain is 0.011306524 [s]
+
+ Time for computing Vhart in the global domain is 0.05679369 [s]
+
+ Time for computing KSEnergy in the global domain is 0.0011458397 [s]
+
+ Time for computing Vtot in the global domain is 0.00094723701 [s]
+
+ Time for computing the SCF residual is 0.0011017323 [s]
+
+ Time for mixing is 0.0082421303 [s]
+
+
+Eigenvalues in the global domain.
+band#    = 0    eigval   = -3.13198144e-01 occrate  = +1.00000000e+00 
+band#    = 1    eigval   = -3.03117280e-01 occrate  = +1.00000000e+00 
+band#    = 2    eigval   = -3.02360796e-01 occrate  = +1.00000000e+00 
+band#    = 3    eigval   = -3.01912551e-01 occrate  = +1.00000000e+00 
+band#    = 4    eigval   = -3.00470367e-01 occrate  = +1.00000000e+00 
+band#    = 5    eigval   = -2.91385326e-01 occrate  = +1.00000000e+00 
+band#    = 6    eigval   = -2.91061412e-01 occrate  = +1.00000000e+00 
+band#    = 7    eigval   = -2.90536450e-01 occrate  = +1.00000000e+00 
+band#    = 8    eigval   = -2.88811563e-01 occrate  = +1.00000000e+00 
+band#    = 9    eigval   = -2.69994141e-01 occrate  = +1.00000000e+00 
+band#    = 10   eigval   = -2.69656788e-01 occrate  = +1.00000000e+00 
+band#    = 11   eigval   = -2.65090171e-01 occrate  = +1.00000000e+00 
+band#    = 12   eigval   = -2.64223196e-01 occrate  = +1.00000000e+00 
+band#    = 13   eigval   = -2.59601709e-01 occrate  = +1.00000000e+00 
+band#    = 14   eigval   = -2.58332252e-01 occrate  = +1.00000000e+00 
+band#    = 15   eigval   = -2.57025311e-01 occrate  = +1.00000000e+00 
+band#    = 16   eigval   = -2.56081292e-01 occrate  = +1.00000000e+00 
+band#    = 17   eigval   = -2.55035102e-01 occrate  = +1.00000000e+00 
+band#    = 18   eigval   = -2.54411399e-01 occrate  = +1.00000000e+00 
+band#    = 19   eigval   = -2.53847950e-01 occrate  = +1.00000000e+00 
+band#    = 20   eigval   = -2.53511645e-01 occrate  = +1.00000000e+00 
+band#    = 21   eigval   = -2.50184908e-01 occrate  = +1.00000000e+00 
+band#    = 22   eigval   = -2.39897544e-01 occrate  = +1.00000000e+00 
+band#    = 23   eigval   = -2.38894610e-01 occrate  = +1.00000000e+00 
+band#    = 24   eigval   = -2.36481377e-01 occrate  = +1.00000000e+00 
+band#    = 25   eigval   = -2.35974288e-01 occrate  = +1.00000000e+00 
+band#    = 26   eigval   = -2.26485741e-01 occrate  = +1.00000000e+00 
+band#    = 27   eigval   = -2.25379378e-01 occrate  = +1.00000000e+00 
+band#    = 28   eigval   = -2.24912307e-01 occrate  = +1.00000000e+00 
+band#    = 29   eigval   = -2.23968807e-01 occrate  = +1.00000000e+00 
+band#    = 30   eigval   = -2.22472549e-01 occrate  = +1.00000000e+00 
+band#    = 31   eigval   = -2.21999507e-01 occrate  = +1.00000000e+00 
+band#    = 32   eigval   = -2.20004418e-01 occrate  = +1.00000000e+00 
+band#    = 33   eigval   = -2.16700708e-01 occrate  = +1.00000000e+00 
+band#    = 34   eigval   = -2.13485984e-01 occrate  = +1.00000000e+00 
+band#    = 35   eigval   = -2.12067614e-01 occrate  = +1.00000000e+00 
+band#    = 36   eigval   = -2.05837251e-01 occrate  = +1.00000000e+00 
+band#    = 37   eigval   = -2.05402690e-01 occrate  = +1.00000000e+00 
+band#    = 38   eigval   = -2.04324746e-01 occrate  = +1.00000000e+00 
+band#    = 39   eigval   = -2.04045920e-01 occrate  = +1.00000000e+00 
+band#    = 40   eigval   = -2.02576329e-01 occrate  = +1.00000000e+00 
+band#    = 41   eigval   = -2.01171533e-01 occrate  = +1.00000000e+00 
+band#    = 42   eigval   = -2.00108271e-01 occrate  = +1.00000000e+00 
+band#    = 43   eigval   = -1.99381757e-01 occrate  = +1.00000000e+00 
+band#    = 44   eigval   = -1.98079818e-01 occrate  = +1.00000000e+00 
+band#    = 45   eigval   = -1.96625523e-01 occrate  = +1.00000000e+00 
+band#    = 46   eigval   = -1.95382747e-01 occrate  = +1.00000000e+00 
+band#    = 47   eigval   = -1.93633236e-01 occrate  = +1.00000000e+00 
+band#    = 48   eigval   = -1.91522017e-01 occrate  = +1.00000000e+00 
+band#    = 49   eigval   = -1.90730673e-01 occrate  = +1.00000000e+00 
+band#    = 50   eigval   = -1.90145384e-01 occrate  = +1.00000000e+00 
+band#    = 51   eigval   = -1.89073228e-01 occrate  = +1.00000000e+00 
+band#    = 52   eigval   = -1.88390124e-01 occrate  = +1.00000000e+00 
+band#    = 53   eigval   = -1.86688761e-01 occrate  = +1.00000000e+00 
+band#    = 54   eigval   = -1.85900874e-01 occrate  = +1.00000000e+00 
+band#    = 55   eigval   = -1.85446942e-01 occrate  = +1.00000000e+00 
+band#    = 56   eigval   = -1.83414930e-01 occrate  = +1.00000000e+00 
+band#    = 57   eigval   = -1.82020305e-01 occrate  = +1.00000000e+00 
+band#    = 58   eigval   = -1.66703996e-01 occrate  = +1.00000000e+00 
+band#    = 59   eigval   = -1.64356824e-01 occrate  = +1.00000000e+00 
+band#    = 60   eigval   = -1.63978113e-01 occrate  = +1.00000000e+00 
+band#    = 61   eigval   = -1.63339760e-01 occrate  = +1.00000000e+00 
+band#    = 62   eigval   = -1.60897472e-01 occrate  = +1.00000000e+00 
+band#    = 63   eigval   = -1.60191823e-01 occrate  = +1.00000000e+00 
+band#    = 64   eigval   = -1.57598502e-01 occrate  = +1.00000000e+00 
+band#    = 65   eigval   = -1.56987524e-01 occrate  = +1.00000000e+00 
+band#    = 66   eigval   = -1.52717629e-01 occrate  = +1.00000000e+00 
+band#    = 67   eigval   = -1.52318284e-01 occrate  = +1.00000000e+00 
+band#    = 68   eigval   = -1.50830981e-01 occrate  = +1.00000000e+00 
+band#    = 69   eigval   = -1.49919978e-01 occrate  = +1.00000000e+00 
+band#    = 70   eigval   = -1.42732277e-01 occrate  = +1.00000000e+00 
+band#    = 71   eigval   = -1.41624931e-01 occrate  = +1.00000000e+00 
+band#    = 72   eigval   = -1.37815999e-01 occrate  = +1.00000000e+00 
+band#    = 73   eigval   = -1.36405472e-01 occrate  = +1.00000000e+00 
+band#    = 74   eigval   = -1.34477403e-01 occrate  = +1.00000000e+00 
+band#    = 75   eigval   = -1.33640876e-01 occrate  = +1.00000000e+00 
+band#    = 76   eigval   = -1.32562617e-01 occrate  = +1.00000000e+00 
+band#    = 77   eigval   = -1.31802775e-01 occrate  = +1.00000000e+00 
+band#    = 78   eigval   = -1.29770774e-01 occrate  = +1.00000000e+00 
+band#    = 79   eigval   = -1.28500836e-01 occrate  = +1.00000000e+00 
+band#    = 80   eigval   = -1.27482297e-01 occrate  = +1.00000000e+00 
+band#    = 81   eigval   = -1.26162225e-01 occrate  = +1.00000000e+00 
+band#    = 82   eigval   = -1.24582645e-01 occrate  = +1.00000000e+00 
+band#    = 83   eigval   = -1.23675162e-01 occrate  = +1.00000000e+00 
+band#    = 84   eigval   = -1.23005165e-01 occrate  = +1.00000000e+00 
+band#    = 85   eigval   = -1.21562710e-01 occrate  = +1.00000000e+00 
+band#    = 86   eigval   = -1.20275290e-01 occrate  = +1.00000000e+00 
+band#    = 87   eigval   = -1.19129715e-01 occrate  = +1.00000000e+00 
+band#    = 88   eigval   = -1.17535136e-01 occrate  = +1.00000000e+00 
+band#    = 89   eigval   = -1.16416524e-01 occrate  = +1.00000000e+00 
+band#    = 90   eigval   = -1.09403126e-01 occrate  = +1.00000000e+00 
+band#    = 91   eigval   = -1.07556165e-01 occrate  = +1.00000000e+00 
+band#    = 92   eigval   = -1.06968854e-01 occrate  = +1.00000000e+00 
+band#    = 93   eigval   = -1.04842095e-01 occrate  = +1.00000000e+00 
+band#    = 94   eigval   = -1.04413920e-01 occrate  = +1.00000000e+00 
+band#    = 95   eigval   = -1.02776159e-01 occrate  = +1.00000000e+00 
+band#    = 96   eigval   = -1.01392474e-01 occrate  = +1.00000000e+00 
+band#    = 97   eigval   = -9.69811221e-02 occrate  = +1.00000000e+00 
+band#    = 98   eigval   = -9.55984278e-02 occrate  = +1.00000000e+00 
+band#    = 99   eigval   = -9.45083688e-02 occrate  = +1.00000000e+00 
+band#    = 100  eigval   = -9.29677930e-02 occrate  = +1.00000000e+00 
+band#    = 101  eigval   = -9.14211097e-02 occrate  = +1.00000000e+00 
+band#    = 102  eigval   = -9.00390425e-02 occrate  = +1.00000000e+00 
+band#    = 103  eigval   = -8.96175982e-02 occrate  = +1.00000000e+00 
+band#    = 104  eigval   = -8.73738941e-02 occrate  = +1.00000000e+00 
+band#    = 105  eigval   = -8.71594074e-02 occrate  = +1.00000000e+00 
+band#    = 106  eigval   = -8.38939971e-02 occrate  = +1.00000000e+00 
+band#    = 107  eigval   = -8.33845582e-02 occrate  = +1.00000000e+00 
+band#    = 108  eigval   = -8.09167841e-02 occrate  = +1.00000000e+00 
+band#    = 109  eigval   = -7.85469580e-02 occrate  = +1.00000000e+00 
+band#    = 110  eigval   = -7.69522255e-02 occrate  = +1.00000000e+00 
+band#    = 111  eigval   = -7.60979230e-02 occrate  = +1.00000000e+00 
+band#    = 112  eigval   = -7.56861383e-02 occrate  = +1.00000000e+00 
+band#    = 113  eigval   = -7.21250845e-02 occrate  = +1.00000000e+00 
+band#    = 114  eigval   = -7.07851069e-02 occrate  = +1.00000000e+00 
+band#    = 115  eigval   = -7.03389080e-02 occrate  = +1.00000000e+00 
+band#    = 116  eigval   = -6.94746455e-02 occrate  = +1.00000000e+00 
+band#    = 117  eigval   = -6.67954915e-02 occrate  = +1.00000000e+00 
+band#    = 118  eigval   = -6.43403121e-02 occrate  = +1.00000000e+00 
+band#    = 119  eigval   = -6.03817180e-02 occrate  = +1.00000000e+00 
+band#    = 120  eigval   = -5.83783945e-02 occrate  = +1.00000000e+00 
+band#    = 121  eigval   = -5.77557823e-02 occrate  = +1.00000000e+00 
+band#    = 122  eigval   = -5.51824130e-02 occrate  = +1.00000000e+00 
+band#    = 123  eigval   = -5.39593564e-02 occrate  = +1.00000000e+00 
+band#    = 124  eigval   = -5.19929303e-02 occrate  = +1.00000000e+00 
+band#    = 125  eigval   = -4.89454953e-02 occrate  = +1.00000000e+00 
+band#    = 126  eigval   = -4.61227538e-02 occrate  = +1.00000000e+00 
+band#    = 127  eigval   = -4.48247820e-02 occrate  = +1.00000000e+00 
+band#    = 128  eigval   = -4.42551046e-02 occrate  = +1.00000000e+00 
+band#    = 129  eigval   = -4.29622806e-02 occrate  = +1.00000000e+00 
+band#    = 130  eigval   = -4.20824802e-02 occrate  = +1.00000000e+00 
+band#    = 131  eigval   = -4.08648834e-02 occrate  = +1.00000000e+00 
+band#    = 132  eigval   = -4.00332402e-02 occrate  = +1.00000000e+00 
+band#    = 133  eigval   = -3.87739562e-02 occrate  = +1.00000000e+00 
+band#    = 134  eigval   = -3.79774144e-02 occrate  = +1.00000000e+00 
+band#    = 135  eigval   = -3.72149206e-02 occrate  = +1.00000000e+00 
+band#    = 136  eigval   = -3.54866521e-02 occrate  = +1.00000000e+00 
+band#    = 137  eigval   = -3.47531873e-02 occrate  = +1.00000000e+00 
+band#    = 138  eigval   = -3.33130376e-02 occrate  = +1.00000000e+00 
+band#    = 139  eigval   = -3.26533852e-02 occrate  = +1.00000000e+00 
+band#    = 140  eigval   = -3.24825902e-02 occrate  = +1.00000000e+00 
+band#    = 141  eigval   = -3.17617324e-02 occrate  = +1.00000000e+00 
+band#    = 142  eigval   = -3.03680699e-02 occrate  = +1.00000000e+00 
+band#    = 143  eigval   = -2.98436125e-02 occrate  = +1.00000000e+00 
+band#    = 144  eigval   = -2.88710120e-02 occrate  = +1.00000000e+00 
+band#    = 145  eigval   = -2.83650797e-02 occrate  = +1.00000000e+00 
+band#    = 146  eigval   = -2.67639495e-02 occrate  = +1.00000000e+00 
+band#    = 147  eigval   = -2.58654797e-02 occrate  = +1.00000000e+00 
+band#    = 148  eigval   = -2.50520004e-02 occrate  = +1.00000000e+00 
+band#    = 149  eigval   = -2.42815006e-02 occrate  = +1.00000000e+00 
+band#    = 150  eigval   = -2.33853366e-02 occrate  = +1.00000000e+00 
+band#    = 151  eigval   = -2.23267397e-02 occrate  = +1.00000000e+00 
+band#    = 152  eigval   = -2.07911947e-02 occrate  = +1.00000000e+00 
+band#    = 153  eigval   = -1.97885871e-02 occrate  = +1.00000000e+00 
+band#    = 154  eigval   = -1.92525129e-02 occrate  = +1.00000000e+00 
+band#    = 155  eigval   = -1.72805603e-02 occrate  = +1.00000000e+00 
+band#    = 156  eigval   = -1.59962561e-02 occrate  = +1.00000000e+00 
+band#    = 157  eigval   = -1.52231227e-02 occrate  = +1.00000000e+00 
+band#    = 158  eigval   = -1.40189751e-02 occrate  = +1.00000000e+00 
+band#    = 159  eigval   = -1.30163781e-02 occrate  = +1.00000000e+00 
+band#    = 160  eigval   = -1.11319584e-02 occrate  = +1.00000000e+00 
+band#    = 161  eigval   = -1.06745914e-02 occrate  = +1.00000000e+00 
+band#    = 162  eigval   = -9.69010042e-03 occrate  = +1.00000000e+00 
+band#    = 163  eigval   = -8.59527958e-03 occrate  = +1.00000000e+00 
+band#    = 164  eigval   = -6.50709255e-03 occrate  = +1.00000000e+00 
+band#    = 165  eigval   = -5.51603199e-03 occrate  = +1.00000000e+00 
+band#    = 166  eigval   = -3.62743964e-03 occrate  = +1.00000000e+00 
+band#    = 167  eigval   = -2.06839647e-03 occrate  = +1.00000000e+00 
+band#    = 168  eigval   = +1.85595132e-04 occrate  = +1.00000000e+00 
+band#    = 169  eigval   = +3.45946391e-03 occrate  = +1.00000000e+00 
+band#    = 170  eigval   = +5.41427637e-03 occrate  = +1.00000000e+00 
+band#    = 171  eigval   = +7.02956565e-03 occrate  = +1.00000000e+00 
+band#    = 172  eigval   = +9.92299625e-03 occrate  = +1.00000000e+00 
+band#    = 173  eigval   = +1.21882654e-02 occrate  = +1.00000000e+00 
+band#    = 174  eigval   = +1.28684911e-02 occrate  = +1.00000000e+00 
+band#    = 175  eigval   = +1.34559990e-02 occrate  = +1.00000000e+00 
+band#    = 176  eigval   = +1.36668580e-02 occrate  = +1.00000000e+00 
+band#    = 177  eigval   = +1.61434533e-02 occrate  = +1.00000000e+00 
+band#    = 178  eigval   = +1.72058481e-02 occrate  = +1.00000000e+00 
+band#    = 179  eigval   = +1.96091795e-02 occrate  = +1.00000000e+00 
+band#    = 180  eigval   = +2.11000986e-02 occrate  = +1.00000000e+00 
+band#    = 181  eigval   = +2.36464609e-02 occrate  = +1.00000000e+00 
+band#    = 182  eigval   = +2.61841654e-02 occrate  = +1.00000000e+00 
+band#    = 183  eigval   = +2.65783287e-02 occrate  = +1.00000000e+00 
+band#    = 184  eigval   = +2.83956272e-02 occrate  = +1.00000000e+00 
+band#    = 185  eigval   = +3.02772266e-02 occrate  = +1.00000000e+00 
+band#    = 186  eigval   = +3.10466455e-02 occrate  = +1.00000000e+00 
+band#    = 187  eigval   = +3.18837665e-02 occrate  = +1.00000000e+00 
+band#    = 188  eigval   = +3.34189087e-02 occrate  = +1.00000000e+00 
+band#    = 189  eigval   = +3.53004682e-02 occrate  = +1.00000000e+00 
+band#    = 190  eigval   = +3.76621852e-02 occrate  = +1.00000000e+00 
+band#    = 191  eigval   = +3.98025646e-02 occrate  = +1.00000000e+00 
+band#    = 192  eigval   = +4.08880884e-02 occrate  = +1.00000000e+00 
+band#    = 193  eigval   = +4.27763192e-02 occrate  = +1.00000000e+00 
+band#    = 194  eigval   = +4.32689552e-02 occrate  = +1.00000000e+00 
+band#    = 195  eigval   = +4.53399596e-02 occrate  = +1.00000000e+00 
+band#    = 196  eigval   = +4.71418707e-02 occrate  = +1.00000000e+00 
+band#    = 197  eigval   = +4.84123352e-02 occrate  = +1.00000000e+00 
+band#    = 198  eigval   = +4.93465945e-02 occrate  = +1.00000000e+00 
+band#    = 199  eigval   = +5.16623810e-02 occrate  = +1.00000000e+00 
+band#    = 200  eigval   = +5.34005682e-02 occrate  = +1.00000000e+00 
+band#    = 201  eigval   = +5.43339292e-02 occrate  = +1.00000000e+00 
+band#    = 202  eigval   = +5.46640581e-02 occrate  = +1.00000000e+00 
+band#    = 203  eigval   = +5.76732254e-02 occrate  = +1.00000000e+00 
+band#    = 204  eigval   = +5.80992864e-02 occrate  = +1.00000000e+00 
+band#    = 205  eigval   = +6.02099501e-02 occrate  = +1.00000000e+00 
+band#    = 206  eigval   = +6.13739702e-02 occrate  = +1.00000000e+00 
+band#    = 207  eigval   = +6.29141388e-02 occrate  = +1.00000000e+00 
+band#    = 208  eigval   = +6.40268704e-02 occrate  = +1.00000000e+00 
+band#    = 209  eigval   = +6.42423852e-02 occrate  = +1.00000000e+00 
+band#    = 210  eigval   = +6.59829715e-02 occrate  = +1.00000000e+00 
+band#    = 211  eigval   = +6.74642694e-02 occrate  = +1.00000000e+00 
+band#    = 212  eigval   = +6.91067466e-02 occrate  = +1.00000000e+00 
+band#    = 213  eigval   = +6.92848238e-02 occrate  = +1.00000000e+00 
+band#    = 214  eigval   = +7.20382416e-02 occrate  = +1.00000000e+00 
+band#    = 215  eigval   = +7.27112716e-02 occrate  = +1.00000000e+00 
+band#    = 216  eigval   = +7.30270707e-02 occrate  = +1.00000000e+00 
+band#    = 217  eigval   = +7.36304389e-02 occrate  = +1.00000000e+00 
+band#    = 218  eigval   = +7.49113681e-02 occrate  = +1.00000000e+00 
+band#    = 219  eigval   = +7.60372584e-02 occrate  = +1.00000000e+00 
+band#    = 220  eigval   = +7.66798680e-02 occrate  = +1.00000000e+00 
+band#    = 221  eigval   = +7.88646320e-02 occrate  = +1.00000000e+00 
+band#    = 222  eigval   = +7.94605032e-02 occrate  = +1.00000000e+00 
+band#    = 223  eigval   = +8.08553783e-02 occrate  = +1.00000000e+00 
+band#    = 224  eigval   = +8.15534127e-02 occrate  = +1.00000000e+00 
+band#    = 225  eigval   = +8.30910236e-02 occrate  = +1.00000000e+00 
+band#    = 226  eigval   = +8.56508412e-02 occrate  = +1.00000000e+00 
+band#    = 227  eigval   = +8.72284980e-02 occrate  = +1.00000000e+00 
+band#    = 228  eigval   = +8.84706043e-02 occrate  = +1.00000000e+00 
+band#    = 229  eigval   = +8.86359503e-02 occrate  = +1.00000000e+00 
+band#    = 230  eigval   = +8.97933483e-02 occrate  = +1.00000000e+00 
+band#    = 231  eigval   = +9.06951987e-02 occrate  = +1.00000000e+00 
+band#    = 232  eigval   = +9.16703888e-02 occrate  = +1.00000000e+00 
+band#    = 233  eigval   = +9.40201153e-02 occrate  = +1.00000000e+00 
+band#    = 234  eigval   = +9.49903966e-02 occrate  = +1.00000000e+00 
+band#    = 235  eigval   = +9.62013153e-02 occrate  = +1.00000000e+00 
+band#    = 236  eigval   = +9.62904494e-02 occrate  = +1.00000000e+00 
+band#    = 237  eigval   = +9.94384388e-02 occrate  = +1.00000000e+00 
+band#    = 238  eigval   = +1.00294639e-01 occrate  = +1.00000000e+00 
+band#    = 239  eigval   = +1.00878029e-01 occrate  = +1.00000000e+00 
+band#    = 240  eigval   = +1.01582871e-01 occrate  = +1.00000000e+00 
+band#    = 241  eigval   = +1.03341782e-01 occrate  = +1.00000000e+00 
+band#    = 242  eigval   = +1.05168174e-01 occrate  = +1.00000000e+00 
+band#    = 243  eigval   = +1.05995685e-01 occrate  = +1.00000000e+00 
+band#    = 244  eigval   = +1.07914535e-01 occrate  = +1.00000000e+00 
+band#    = 245  eigval   = +1.09503552e-01 occrate  = +1.00000000e+00 
+band#    = 246  eigval   = +1.11565006e-01 occrate  = +1.00000000e+00 
+band#    = 247  eigval   = +1.11864032e-01 occrate  = +1.00000000e+00 
+band#    = 248  eigval   = +1.13053421e-01 occrate  = +1.00000000e+00 
+band#    = 249  eigval   = +1.13232502e-01 occrate  = +1.00000000e+00 
+band#    = 250  eigval   = +1.14705087e-01 occrate  = +1.00000000e+00 
+band#    = 251  eigval   = +1.15435888e-01 occrate  = +1.00000000e+00 
+band#    = 252  eigval   = +1.17156591e-01 occrate  = +1.00000000e+00 
+band#    = 253  eigval   = +1.17847310e-01 occrate  = +1.00000000e+00 
+band#    = 254  eigval   = +1.18571153e-01 occrate  = +1.00000000e+00 
+band#    = 255  eigval   = +1.20402896e-01 occrate  = +1.00000000e+00 
+band#    = 256  eigval   = +1.21908775e-01 occrate  = +1.00000000e+00 
+band#    = 257  eigval   = +1.23275671e-01 occrate  = +1.00000000e+00 
+band#    = 258  eigval   = +1.24321275e-01 occrate  = +1.00000000e+00 
+band#    = 259  eigval   = +1.25668810e-01 occrate  = +1.00000000e+00 
+band#    = 260  eigval   = +1.28290899e-01 occrate  = +1.00000000e+00 
+band#    = 261  eigval   = +1.29012979e-01 occrate  = +1.00000000e+00 
+band#    = 262  eigval   = +1.29967685e-01 occrate  = +1.00000000e+00 
+band#    = 263  eigval   = +1.31245734e-01 occrate  = +1.00000000e+00 
+band#    = 264  eigval   = +1.32315088e-01 occrate  = +1.00000000e+00 
+band#    = 265  eigval   = +1.32829475e-01 occrate  = +1.00000000e+00 
+band#    = 266  eigval   = +1.35403580e-01 occrate  = +1.00000000e+00 
+band#    = 267  eigval   = +1.36560967e-01 occrate  = +1.00000000e+00 
+band#    = 268  eigval   = +1.38097244e-01 occrate  = +1.00000000e+00 
+band#    = 269  eigval   = +1.38772593e-01 occrate  = +1.00000000e+00 
+band#    = 270  eigval   = +1.39725941e-01 occrate  = +1.00000000e+00 
+band#    = 271  eigval   = +1.41070437e-01 occrate  = +1.00000000e+00 
+band#    = 272  eigval   = +1.43661095e-01 occrate  = +1.00000000e+00 
+band#    = 273  eigval   = +1.44810483e-01 occrate  = +1.00000000e+00 
+band#    = 274  eigval   = +1.45645682e-01 occrate  = +1.00000000e+00 
+band#    = 275  eigval   = +1.46136635e-01 occrate  = +1.00000000e+00 
+band#    = 276  eigval   = +1.47046927e-01 occrate  = +1.00000000e+00 
+band#    = 277  eigval   = +1.48733253e-01 occrate  = +1.00000000e+00 
+band#    = 278  eigval   = +1.50448431e-01 occrate  = +1.00000000e+00 
+band#    = 279  eigval   = +1.51998237e-01 occrate  = +1.00000000e+00 
+band#    = 280  eigval   = +1.53262722e-01 occrate  = +1.00000000e+00 
+band#    = 281  eigval   = +1.55535948e-01 occrate  = +1.00000000e+00 
+band#    = 282  eigval   = +1.56016845e-01 occrate  = +1.00000000e+00 
+band#    = 283  eigval   = +1.57719726e-01 occrate  = +1.00000000e+00 
+band#    = 284  eigval   = +1.58688732e-01 occrate  = +1.00000000e+00 
+band#    = 285  eigval   = +1.59258924e-01 occrate  = +1.00000000e+00 
+band#    = 286  eigval   = +1.60246406e-01 occrate  = +1.00000000e+00 
+band#    = 287  eigval   = +1.60559604e-01 occrate  = +1.00000000e+00 
+band#    = 288  eigval   = +1.62179544e-01 occrate  = +1.00000000e+00 
+band#    = 289  eigval   = +1.64322013e-01 occrate  = +1.00000000e+00 
+band#    = 290  eigval   = +1.65666150e-01 occrate  = +1.00000000e+00 
+band#    = 291  eigval   = +1.66259521e-01 occrate  = +1.00000000e+00 
+band#    = 292  eigval   = +1.67536030e-01 occrate  = +1.00000000e+00 
+band#    = 293  eigval   = +1.69013583e-01 occrate  = +1.00000000e+00 
+band#    = 294  eigval   = +1.69985646e-01 occrate  = +1.00000000e+00 
+band#    = 295  eigval   = +1.71025780e-01 occrate  = +1.00000000e+00 
+band#    = 296  eigval   = +1.71522997e-01 occrate  = +1.00000000e+00 
+band#    = 297  eigval   = +1.74046757e-01 occrate  = +1.00000000e+00 
+band#    = 298  eigval   = +1.74779533e-01 occrate  = +1.00000000e+00 
+band#    = 299  eigval   = +1.75299154e-01 occrate  = +1.00000000e+00 
+band#    = 300  eigval   = +1.78950058e-01 occrate  = +1.00000000e+00 
+band#    = 301  eigval   = +1.79371849e-01 occrate  = +1.00000000e+00 
+band#    = 302  eigval   = +1.80573706e-01 occrate  = +1.00000000e+00 
+band#    = 303  eigval   = +1.81657458e-01 occrate  = +1.00000000e+00 
+band#    = 304  eigval   = +1.82618026e-01 occrate  = +1.00000000e+00 
+band#    = 305  eigval   = +1.84126975e-01 occrate  = +1.00000000e+00 
+band#    = 306  eigval   = +1.85774676e-01 occrate  = +1.00000000e+00 
+band#    = 307  eigval   = +1.86414244e-01 occrate  = +1.00000000e+00 
+band#    = 308  eigval   = +1.87416311e-01 occrate  = +1.00000000e+00 
+band#    = 309  eigval   = +1.90178054e-01 occrate  = +1.00000000e+00 
+band#    = 310  eigval   = +1.90905590e-01 occrate  = +1.00000000e+00 
+band#    = 311  eigval   = +1.92476482e-01 occrate  = +1.00000000e+00 
+band#    = 312  eigval   = +1.93356041e-01 occrate  = +1.00000000e+00 
+band#    = 313  eigval   = +1.95079774e-01 occrate  = +1.00000000e+00 
+band#    = 314  eigval   = +1.95285225e-01 occrate  = +1.00000000e+00 
+band#    = 315  eigval   = +1.97069687e-01 occrate  = +1.00000000e+00 
+band#    = 316  eigval   = +1.98265673e-01 occrate  = +1.00000000e+00 
+band#    = 317  eigval   = +1.98672582e-01 occrate  = +1.00000000e+00 
+band#    = 318  eigval   = +2.00122372e-01 occrate  = +1.00000000e+00 
+band#    = 319  eigval   = +2.01402134e-01 occrate  = +1.00000000e+00 
+band#    = 320  eigval   = +2.02244701e-01 occrate  = +1.00000000e+00 
+band#    = 321  eigval   = +2.03368129e-01 occrate  = +1.00000000e+00 
+band#    = 322  eigval   = +2.05784095e-01 occrate  = +1.00000000e+00 
+band#    = 323  eigval   = +2.06778984e-01 occrate  = +1.00000000e+00 
+band#    = 324  eigval   = +2.07783246e-01 occrate  = +1.00000000e+00 
+band#    = 325  eigval   = +2.08514657e-01 occrate  = +1.00000000e+00 
+band#    = 326  eigval   = +2.09565380e-01 occrate  = +1.00000000e+00 
+band#    = 327  eigval   = +2.10692877e-01 occrate  = +1.00000000e+00 
+band#    = 328  eigval   = +2.12508014e-01 occrate  = +1.00000000e+00 
+band#    = 329  eigval   = +2.14110669e-01 occrate  = +1.00000000e+00 
+band#    = 330  eigval   = +2.15470623e-01 occrate  = +1.00000000e+00 
+band#    = 331  eigval   = +2.16178184e-01 occrate  = +1.00000000e+00 
+band#    = 332  eigval   = +2.17729075e-01 occrate  = +1.00000000e+00 
+band#    = 333  eigval   = +2.19897993e-01 occrate  = +1.00000000e+00 
+band#    = 334  eigval   = +2.20282185e-01 occrate  = +1.00000000e+00 
+band#    = 335  eigval   = +2.21223723e-01 occrate  = +1.00000000e+00 
+band#    = 336  eigval   = +2.22034581e-01 occrate  = +1.00000000e+00 
+band#    = 337  eigval   = +2.23709497e-01 occrate  = +1.00000000e+00 
+band#    = 338  eigval   = +2.25295737e-01 occrate  = +1.00000000e+00 
+band#    = 339  eigval   = +2.27038872e-01 occrate  = +1.00000000e+00 
+band#    = 340  eigval   = +2.27525943e-01 occrate  = +1.00000000e+00 
+band#    = 341  eigval   = +2.29042997e-01 occrate  = +1.00000000e+00 
+band#    = 342  eigval   = +2.30882810e-01 occrate  = +1.00000000e+00 
+band#    = 343  eigval   = +2.31078314e-01 occrate  = +1.00000000e+00 
+band#    = 344  eigval   = +2.32953729e-01 occrate  = +1.00000000e+00 
+band#    = 345  eigval   = +2.34802274e-01 occrate  = +9.99999998e-01 
+band#    = 346  eigval   = +2.37308864e-01 occrate  = +9.99999979e-01 
+band#    = 347  eigval   = +2.37826991e-01 occrate  = +9.99999963e-01 
+band#    = 348  eigval   = +2.38208867e-01 occrate  = +9.99999945e-01 
+band#    = 349  eigval   = +2.39428156e-01 occrate  = +9.99999800e-01 
+band#    = 350  eigval   = +2.41784680e-01 occrate  = +9.99997612e-01 
+band#    = 351  eigval   = +2.42014471e-01 occrate  = +9.99996958e-01 
+band#    = 352  eigval   = +2.43211579e-01 occrate  = +9.99989276e-01 
+band#    = 353  eigval   = +2.44033907e-01 occrate  = +9.99974517e-01 
+band#    = 354  eigval   = +2.45989231e-01 occrate  = +9.99800470e-01 
+band#    = 355  eigval   = +2.47325607e-01 occrate  = +9.99185971e-01 
+band#    = 356  eigval   = +2.47887079e-01 occrate  = +9.98531003e-01 
+band#    = 357  eigval   = +2.50104206e-01 occrate  = +9.85050223e-01 
+band#    = 358  eigval   = +2.51472175e-01 occrate  = +9.39805744e-01 
+band#    = 359  eigval   = +2.52994900e-01 occrate  = +7.58652027e-01 
+band#    = 360  eigval   = +2.55381798e-01 occrate  = +2.03088321e-01 
+band#    = 361  eigval   = +2.56568540e-01 occrate  = +6.81001234e-02 
+band#    = 362  eigval   = +2.57028954e-01 occrate  = +4.30713504e-02 
+band#    = 363  eigval   = +2.59489970e-01 occrate  = +3.36387528e-03 
+band#    = 364  eigval   = +2.60707498e-01 occrate  = +9.36110139e-04 
+band#    = 365  eigval   = +2.61617714e-01 occrate  = +3.59327067e-04 
+band#    = 366  eigval   = +2.63087177e-01 occrate  = +7.65378520e-05 
+band#    = 367  eigval   = +2.64325640e-01 occrate  = +2.07855406e-05 
+band#    = 368  eigval   = +2.70132682e-01 occrate  = +4.60461482e-08 
+band#    = 369  eigval   = +2.70518776e-01 occrate  = +3.06688789e-08 
+band#    = 370  eigval   = +2.71876183e-01 occrate  = +7.34827423e-09 
+band#    = 371  eigval   = +2.75376654e-01 occrate  = +1.84507038e-10 
+band#    = 372  eigval   = +2.76342241e-01 occrate  = +6.67749328e-11 
+band#    = 373  eigval   = +2.77503755e-01 occrate  = +1.96629966e-11 
+band#    = 374  eigval   = +2.78496822e-01 occrate  = +6.91335076e-12 
+band#    = 375  eigval   = +2.79198618e-01 occrate  = +3.30275258e-12 
+band#    = 376  eigval   = +2.82376763e-01 occrate  = +1.16425664e-13 
+band#    = 377  eigval   = +2.83359324e-01 occrate  = +4.13894835e-14 
+band#    = 378  eigval   = +2.85346349e-01 occrate  = +5.11163161e-15 
+band#    = 379  eigval   = +2.88420233e-01 occrate  = +2.01091277e-16 
+band#    = 380  eigval   = +2.90945819e-01 occrate  = +1.40886808e-17 
+band#    = 381  eigval   = +2.92935763e-01 occrate  = +1.73462544e-18 
+band#    = 382  eigval   = +2.93554052e-01 occrate  = +9.04830500e-19 
+band#    = 383  eigval   = +2.94408538e-01 occrate  = +3.68090938e-19 
+band#    = 384  eigval   = +2.95165535e-01 occrate  = +1.65923764e-19 
+band#    = 385  eigval   = +2.97068681e-01 occrate  = +2.23832127e-20 
+band#    = 386  eigval   = +2.99683257e-01 occrate  = +1.42797135e-21 
+band#    = 387  eigval   = +3.04004917e-01 occrate  = +1.51062351e-23 
+band#    = 388  eigval   = +3.04948047e-01 occrate  = +5.59786711e-24 
+band#    = 389  eigval   = +3.06657496e-01 occrate  = +9.25935882e-25 
+band#    = 390  eigval   = +3.08278284e-01 occrate  = +1.68139250e-25 
+band#    = 391  eigval   = +3.11736696e-01 occrate  = +4.41289123e-27 
+band#    = 392  eigval   = +3.15211876e-01 occrate  = +1.13792055e-28 
+band#    = 393  eigval   = +3.16694427e-01 occrate  = +2.38996851e-29 
+band#    = 394  eigval   = +3.18290115e-01 occrate  = +4.45609391e-30 
+band#    = 395  eigval   = +3.23470038e-01 occrate  = +1.91008635e-32 
+
+EfreeHarris       = -1.05630147e+02 [au]  
+Etot              = +2.83896304e+02 [au]  
+Efree             = +2.83892802e+02 [au]  
+Ekin              = +6.53796953e+00 [au]  
+Ehart             = -3.96385901e+02 [au]  
+EVxc              = -2.61975118e+02 [au]  
+Exc               = -2.01002684e+02 [au]  
+Evdw              = +0.00000000e+00 [au]  
+Eself             = +1.80000000e+02 [au]  
+Ecor              = +2.77358335e+02 [au]  
+Fermi             = +2.54082989e-01 [au]  
+ Time for this inner SCF iteration = 30.86503 [s]
+
+ Time for all inner SCF iterations is 30.865333 [s]
+
+OUTERSCF: EfreeHarris                 = -1.05630147e+02 
+OUTERSCF: Efree                       = +2.83892802e+02 
+OUTERSCF: norm(out-in)/norm(in) = +1.34564628e-01 
+OUTERSCF: Efree diff per atom   = +2.16401638e+00 
+
+ Time for this SCF iteration = 121.7575 [s]
+
+*********************************************************************
+ Outer SCF iteration # 2
+*********************************************************************
+
+vtotMax  = +3.66807621e-02 
+vtotAvg  = -2.87712779e-01 
+vtotMin  = -5.94407742e-01 
+ Time for updating the local potential in the extended element and the element is 0.073919535 [s]
+
+ The current tolerance used by the eigensolver is 1e-20
+ The target number of converged eigenvectors is 120
+
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.36005926
+Time for iterFFTFine      = 240  timeFFTFine      = 3.3906701
+Time for iterNonlocal     = 120  timeNonlocal     = 1.9687538
+Time for iterOther        = 1  timeOther        = 2.0577941
+Time for psi.AddMultSpinorFineR2C is 7.7785907 [s]
+
+Minimum tolerance is 0.001
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.36118484
+Time for iterFFTFine      = 240  timeFFTFine      = 3.4311492
+Time for iterNonlocal     = 120  timeNonlocal     = 2.0398011
+Time for iterOther        = 1  timeOther        = 2.0943377
+Time for psi.AddMultSpinorFineR2C is 7.9278212 [s]
+
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.337924
+Time for iterFFTFine      = 240  timeFFTFine      = 3.2348685
+Time for iterNonlocal     = 120  timeNonlocal     = 1.8688996
+Time for iterOther        = 1  timeOther        = 1.9504912
+Time for psi.AddMultSpinorFineR2C is 7.3945827 [s]
+
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.37410903
+Time for iterFFTFine      = 240  timeFFTFine      = 3.4462609
+Time for iterNonlocal     = 120  timeNonlocal     = 2.1193585
+Time for iterOther        = 1  timeOther        = 2.1780558
+Time for psi.AddMultSpinorFineR2C is 8.1190429 [s]
+
+
+After 3 iterations, LOBPCG did not converge. 
+The maximum norm of the residual is 0.079041555
+
+The minimum norm of the residual is 0.00045034841
+
+Time for iterGemmT     = 31  timeGemmT     = 0.90982962
+Time for iterGemmN     = 20  timeGemmN     = 0.57010388
+Time for iterAllreduce = 31  timeAllreduce = 0.0020444393
+Time for iterAlltoallv = 13  timeAlltoallv = 3.4631159
+Time for iterSpinor    = 7  timeSpinor    = 32.385679
+Time for iterTrsm      = 1  timeTrsm      = 0.037915945
+Time for iterMpirank0  = 23  timeMpirank0  = 0.057900667
+
+ Eigensolver time = 38.218198 [s]
+
+ALB calculation in extended element 0 0 0 
+basis#   = 0    eigval   = -3.32213610e-01 resval   = +4.50348406e-04 
+basis#   = 1    eigval   = -2.92543014e-01 resval   = +6.64138148e-04 
+basis#   = 2    eigval   = -2.89133070e-01 resval   = +6.36269770e-04 
+basis#   = 3    eigval   = -2.49798602e-01 resval   = +7.00721268e-04 
+basis#   = 4    eigval   = -2.49136277e-01 resval   = +5.38539191e-04 
+basis#   = 5    eigval   = -2.32172107e-01 resval   = +1.13654797e-03 
+basis#   = 6    eigval   = -2.26877409e-01 resval   = +8.87966285e-04 
+basis#   = 7    eigval   = -2.07919711e-01 resval   = +5.67430300e-04 
+basis#   = 8    eigval   = -2.03780166e-01 resval   = +5.74485464e-04 
+basis#   = 9    eigval   = -1.91621427e-01 resval   = +1.06041311e-03 
+basis#   = 10   eigval   = -1.86384355e-01 resval   = +1.12904648e-03 
+basis#   = 11   eigval   = -1.62631866e-01 resval   = +5.20760091e-04 
+basis#   = 12   eigval   = -1.46999604e-01 resval   = +5.15603468e-04 
+basis#   = 13   eigval   = -1.42480269e-01 resval   = +1.50806435e-03 
+basis#   = 14   eigval   = -1.39389558e-01 resval   = +6.58849978e-04 
+basis#   = 15   eigval   = -1.36980489e-01 resval   = +1.65104516e-03 
+basis#   = 16   eigval   = -1.32573754e-01 resval   = +1.43952497e-03 
+basis#   = 17   eigval   = -1.02111436e-01 resval   = +6.53752195e-04 
+basis#   = 18   eigval   = -1.01485996e-01 resval   = +1.73923900e-03 
+basis#   = 19   eigval   = -9.84643827e-02 resval   = +6.63137586e-04 
+basis#   = 20   eigval   = -9.54726871e-02 resval   = +2.45772124e-03 
+basis#   = 21   eigval   = -7.62996373e-02 resval   = +1.35225139e-03 
+basis#   = 22   eigval   = -5.58883044e-02 resval   = +2.52890361e-03 
+basis#   = 23   eigval   = -5.07607503e-02 resval   = +2.15431166e-03 
+basis#   = 24   eigval   = -4.89270724e-02 resval   = +5.23834412e-04 
+basis#   = 25   eigval   = -4.32070783e-02 resval   = +2.22804154e-03 
+basis#   = 26   eigval   = -4.03640402e-02 resval   = +8.01988880e-04 
+basis#   = 27   eigval   = -3.45246529e-02 resval   = +2.32613475e-03 
+basis#   = 28   eigval   = -3.26209587e-02 resval   = +1.87783746e-03 
+basis#   = 29   eigval   = -3.23632642e-02 resval   = +5.43618219e-04 
+basis#   = 30   eigval   = -1.45655101e-02 resval   = +3.49303191e-03 
+basis#   = 31   eigval   = -3.97264277e-03 resval   = +6.08022557e-04 
+basis#   = 32   eigval   = +4.10843170e-03 resval   = +1.80754135e-03 
+basis#   = 33   eigval   = +8.20470969e-03 resval   = +3.85594828e-03 
+basis#   = 34   eigval   = +8.56060064e-03 resval   = +9.76117963e-04 
+basis#   = 35   eigval   = +8.93852856e-03 resval   = +2.48244583e-03 
+basis#   = 36   eigval   = +1.35779538e-02 resval   = +2.08643319e-03 
+basis#   = 37   eigval   = +2.44446973e-02 resval   = +3.92334558e-03 
+basis#   = 38   eigval   = +3.05178959e-02 resval   = +9.20232779e-04 
+basis#   = 39   eigval   = +4.18090222e-02 resval   = +4.09912245e-03 
+basis#   = 40   eigval   = +4.43864234e-02 resval   = +2.11763485e-03 
+basis#   = 41   eigval   = +4.59797829e-02 resval   = +2.06979514e-03 
+basis#   = 42   eigval   = +5.56545718e-02 resval   = +2.49714108e-03 
+basis#   = 43   eigval   = +5.81216777e-02 resval   = +2.23584964e-03 
+basis#   = 44   eigval   = +5.91740720e-02 resval   = +2.52035579e-03 
+basis#   = 45   eigval   = +6.67813816e-02 resval   = +2.10046248e-03 
+basis#   = 46   eigval   = +7.57376366e-02 resval   = +3.55242189e-03 
+basis#   = 47   eigval   = +7.59843661e-02 resval   = +2.87214498e-03 
+basis#   = 48   eigval   = +7.88169791e-02 resval   = +2.14841477e-03 
+basis#   = 49   eigval   = +8.47862649e-02 resval   = +2.06222773e-03 
+basis#   = 50   eigval   = +9.36049216e-02 resval   = +4.42809854e-03 
+basis#   = 51   eigval   = +9.50831912e-02 resval   = +3.49294842e-03 
+basis#   = 52   eigval   = +9.79092346e-02 resval   = +2.92096755e-03 
+basis#   = 53   eigval   = +1.13648972e-01 resval   = +8.53918500e-03 
+basis#   = 54   eigval   = +1.15862817e-01 resval   = +1.89713704e-03 
+basis#   = 55   eigval   = +1.18799668e-01 resval   = +2.06150068e-03 
+basis#   = 56   eigval   = +1.22670970e-01 resval   = +2.09997089e-03 
+basis#   = 57   eigval   = +1.23316487e-01 resval   = +3.71103455e-03 
+basis#   = 58   eigval   = +1.38307125e-01 resval   = +5.86720414e-03 
+basis#   = 59   eigval   = +1.45451775e-01 resval   = +2.63487651e-03 
+basis#   = 60   eigval   = +1.47213064e-01 resval   = +7.63379462e-03 
+basis#   = 61   eigval   = +1.55429780e-01 resval   = +6.44963304e-03 
+basis#   = 62   eigval   = +1.55936083e-01 resval   = +5.86238953e-03 
+basis#   = 63   eigval   = +1.62441461e-01 resval   = +2.63490046e-03 
+basis#   = 64   eigval   = +1.62693451e-01 resval   = +7.87037873e-03 
+basis#   = 65   eigval   = +1.65381772e-01 resval   = +9.16770036e-03 
+basis#   = 66   eigval   = +1.66021803e-01 resval   = +2.09975063e-03 
+basis#   = 67   eigval   = +1.70309314e-01 resval   = +1.00767127e-02 
+basis#   = 68   eigval   = +1.71146498e-01 resval   = +1.87377190e-03 
+basis#   = 69   eigval   = +1.72536811e-01 resval   = +9.02021597e-03 
+basis#   = 70   eigval   = +1.77131746e-01 resval   = +7.08859215e-03 
+basis#   = 71   eigval   = +1.78881380e-01 resval   = +1.82076551e-03 
+basis#   = 72   eigval   = +1.89197569e-01 resval   = +9.27091137e-03 
+basis#   = 73   eigval   = +1.90461321e-01 resval   = +6.36497967e-03 
+basis#   = 74   eigval   = +1.92092204e-01 resval   = +8.02640141e-03 
+basis#   = 75   eigval   = +1.96561616e-01 resval   = +9.88997542e-03 
+basis#   = 76   eigval   = +2.01217139e-01 resval   = +9.48263319e-03 
+basis#   = 77   eigval   = +2.01385416e-01 resval   = +2.19623658e-03 
+basis#   = 78   eigval   = +2.06361573e-01 resval   = +1.10416223e-02 
+basis#   = 79   eigval   = +2.07868507e-01 resval   = +1.10134574e-02 
+basis#   = 80   eigval   = +2.09941735e-01 resval   = +8.28829313e-03 
+basis#   = 81   eigval   = +2.13888355e-01 resval   = +2.01342659e-03 
+basis#   = 82   eigval   = +2.15397676e-01 resval   = +1.00674578e-02 
+basis#   = 83   eigval   = +2.17375683e-01 resval   = +7.40979127e-03 
+basis#   = 84   eigval   = +2.18431279e-01 resval   = +1.89707292e-03 
+basis#   = 85   eigval   = +2.25137981e-01 resval   = +9.31219359e-03 
+basis#   = 86   eigval   = +2.30283081e-01 resval   = +1.18788713e-02 
+basis#   = 87   eigval   = +2.33333102e-01 resval   = +2.54258844e-03 
+basis#   = 88   eigval   = +2.34474478e-01 resval   = +1.08957581e-02 
+basis#   = 89   eigval   = +2.36111388e-01 resval   = +2.68974972e-03 
+basis#   = 90   eigval   = +2.37411611e-01 resval   = +2.21443831e-03 
+basis#   = 91   eigval   = +2.39394427e-01 resval   = +2.73175698e-03 
+basis#   = 92   eigval   = +2.45285083e-01 resval   = +1.09156972e-02 
+basis#   = 93   eigval   = +2.45884087e-01 resval   = +2.40018600e-03 
+basis#   = 94   eigval   = +2.49306559e-01 resval   = +1.21063870e-02 
+basis#   = 95   eigval   = +2.57024377e-01 resval   = +1.15428986e-02 
+basis#   = 96   eigval   = +2.57560116e-01 resval   = +3.92885095e-03 
+basis#   = 97   eigval   = +2.61729746e-01 resval   = +1.59371792e-02 
+basis#   = 98   eigval   = +2.66965875e-01 resval   = +4.77540355e-03 
+basis#   = 99   eigval   = +2.73794958e-01 resval   = +2.32531525e-03 
+basis#   = 100  eigval   = +2.74634529e-01 resval   = +7.29866254e-03 
+basis#   = 101  eigval   = +2.75215695e-01 resval   = +3.37750228e-03 
+basis#   = 102  eigval   = +2.79062039e-01 resval   = +3.14302866e-03 
+basis#   = 103  eigval   = +2.83677718e-01 resval   = +4.16247440e-03 
+basis#   = 104  eigval   = +2.87152138e-01 resval   = +1.57145824e-02 
+basis#   = 105  eigval   = +2.87810061e-01 resval   = +2.43261200e-02 
+basis#   = 106  eigval   = +2.89528625e-01 resval   = +2.83517499e-03 
+basis#   = 107  eigval   = +2.98438311e-01 resval   = +1.37844944e-02 
+basis#   = 108  eigval   = +3.04586376e-01 resval   = +6.18380137e-03 
+basis#   = 109  eigval   = +3.06147021e-01 resval   = +1.24764905e-02 
+basis#   = 110  eigval   = +3.07167918e-01 resval   = +1.34724096e-02 
+basis#   = 111  eigval   = +3.08139707e-01 resval   = +4.51374205e-03 
+basis#   = 112  eigval   = +3.14147013e-01 resval   = +9.78636858e-03 
+basis#   = 113  eigval   = +3.17117206e-01 resval   = +4.70263781e-03 
+basis#   = 114  eigval   = +3.28872473e-01 resval   = +1.46948417e-02 
+basis#   = 115  eigval   = +3.29253664e-01 resval   = +6.76240393e-03 
+basis#   = 116  eigval   = +3.31416676e-01 resval   = +7.90415549e-02 
+basis#   = 117  eigval   = +3.35096613e-01 resval   = +6.31326809e-02 
+basis#   = 118  eigval   = +3.35812350e-01 resval   = +5.02135586e-02 
+basis#   = 119  eigval   = +3.38010169e-01 resval   = +1.96924555e-02 
+
+ Max residual of basis = +7.90415549e-02 
+ Avg residual of basis = +6.28871053e-03 
+
+ Time for interpolating basis = 0.42888284 [s]
+NOTE: The number of basis functions (after SVD) is the same as the number in the first SCF iteration.
+This facilitates the reuse of symbolic factorization in PEXSI.
+ Number of significant SVD basis = 120
+ Time for SVD of basis = 1.058219 [s]
+
+ Time for generating ALB function is 39.708418 [s]
+
+
+ Rotating the eigenvectors from the previous step ... 
+ AlltoallForward: Changing distribution of local basis functions ...  Done. ( 0.45667624 s)
+ Computing the overlap matrix using basis sets on LGL grid ...  Done. ( 0.016210318 s)
+ Rotating the eigenvectors using overlap matrix ...  Done. ( 0.0001847744 s)
+ All steps of basis rotation completed. ( 0.54571033 s )
+ Inner SCF iteration #1 starts.
+
+ Time for constructing the DG matrix is 5.7932794 [s]
+
+
+Matrix H counter: 25
+
+ Calling Second Stage Chebyshev Iter  
+
+ Estimating the spectral bounds ...  Done. ( 0.018103361 s.)
+
+ ------------------------------- 
+ General CheFSI step for DGDFT cycle 1 of 2 . 
+
+ Filtering the eigenvectors ... (Filter order = 60)
+HADIA GeneralChebyStep
+
+ Chebyshev filtering : Process 0 working on 396 of 396 bands.
+ Chebyshev filtering : Lower bound = 0.32347004
+                     : Upper bound = 192.66236
+                     : a_L = -0.31319814
+ GEMM CPU in Loop Total completed. ( 0.0033593178 s.)
+ GEMM CPU ONLY completed. ( 0.0033383369 s.)
+ Batched Total completed. ( 0.00017690659 s.)
+ ----------- 1. Move Pointers from Host to Device ONLY ( 0.00059509277 s.)
+ ----------- 2. Batched ONLY ( 3.2901764e-05 s.)
+ ----------- 3. Reduction of Results (Daxpy loop) ONLY ( 0.00014400482 s.)
+ OTHER Timings
+ ----------- Handle Creation ONLY ( 0.00051832199 s.)
+ ----------- 4. Moving X data to GPU ( 0.015729427 s.)
+  Host to Device bandwidth (GB/s): 0.080840085
+Time to pack and move X to GPU: 0.01469568
+
+ ----------- Loop Get Pointers ONLY ( 7.1525574e-06 s.)
+ ----------- Handle Destruction ONLY ( 0.00015711784 s.)
+ ----------- Copy Result Device to Host ONLY ( 0.0031061172 s.)
+calling GEMM, m, n, k, batchCount = 120 396 120 25
+--------------------------------------------------------------------
+
+ Total filtering time for 60 filter steps = 1.6693225 s.
+ Average per filter step = 0.027822042 s.
+ Eigenvector block rebuild time = 0.00021648407 s.
+ Filtering completed. ( 1.7074351 s.)
+
+ Solving subspace problems serially ...
+ Orthonormalizing filtered vectors ... 
+ Orthonormalization completed ( 0.0088169575 s.)
+
+ Raleigh-Ritz step ... 
+ Hamiltonian times eigenvectors calculation time = 0.033720732 s.
+ Eigenvector block rebuild time = 0.0001707077 s.
+ Raleigh-Ritz step completed ( 0.052005768 s.)
+
+ Copying top states for serial CS strategy ...  Done. ( 5.6505203e-05 s.)
+
+ Subspace rotation step ... 
+ Subspace rotation step completed ( 0.00051736832 s.)
+ ------------------------------- 
+ This Chebyshev cycle took a total of 1.7690144 s.
+ ------------------------------- 
+
+
+ ------------------------------- 
+ General CheFSI step for DGDFT cycle 2 of 2 . 
+
+ Filtering the eigenvectors ... (Filter order = 60)
+HADIA GeneralChebyStep
+
+ Chebyshev filtering : Process 0 working on 396 of 396 bands.
+ Chebyshev filtering : Lower bound = 0.22010086
+                     : Upper bound = 192.66236
+                     : a_L = -0.35617374
+ GEMM CPU in Loop Total completed. ( 0.0033373833 s.)
+ GEMM CPU ONLY completed. ( 0.0033185482 s.)
+ Batched Total completed. ( 0.00013113022 s.)
+ ----------- 1. Move Pointers from Host to Device ONLY ( 0.00078511238 s.)
+ ----------- 2. Batched ONLY ( 2.4557114e-05 s.)
+ ----------- 3. Reduction of Results (Daxpy loop) ONLY ( 0.0001065731 s.)
+ OTHER Timings
+ ----------- Handle Creation ONLY ( 0.0004029274 s.)
+ ----------- 4. Moving X data to GPU ( 0.015742779 s.)
+  Host to Device bandwidth (GB/s): 0.078748257
+Time to pack and move X to GPU: 0.015086048
+
+ ----------- Loop Get Pointers ONLY ( 4.529953e-06 s.)
+ ----------- Handle Destruction ONLY ( 0.00014424324 s.)
+ ----------- Copy Result Device to Host ONLY ( 0.0040290356 s.)
+calling GEMM, m, n, k, batchCount = 120 396 120 25
+--------------------------------------------------------------------
+
+ Total filtering time for 60 filter steps = 1.5479467 s.
+ Average per filter step = 0.025799112 s.
+ Eigenvector block rebuild time = 0.0002040863 s.
+ Filtering completed. ( 1.5830803 s.)
+
+ Solving subspace problems serially ...
+ Orthonormalizing filtered vectors ... 
+ Orthonormalization completed ( 0.0062708855 s.)
+
+ Raleigh-Ritz step ... 
+ Hamiltonian times eigenvectors calculation time = 0.027312994 s.
+ Eigenvector block rebuild time = 0.00016951561 s.
+ Raleigh-Ritz step completed ( 0.043955326 s.)
+
+ Copying top states for serial CS strategy ...  Done. ( 0.00021457672 s.)
+
+ Subspace rotation step ... 
+ Subspace rotation step completed ( 0.0005133152 s.)
+ ------------------------------- 
+ This Chebyshev cycle took a total of 1.634182 s.
+ ------------------------------- 
+
+ Total time for diag DG matrix via Chebyshev filtering is 3.4263976 [s]
+
+
+ Using alternate routine for electron density: 
+
+ Forming diagonal blocks of density matrix ...  Done. ( 0.00028395653 s) 
+
+ Before interpolation
+ After interpolation
+
+ Sum Rho on LGL grid (raw data) = +3.60000000e+02 
+ Sum Rho on uniform grid (interpolated) = +3.60000454e+02 
+
+ Time for computing density in the global domain is 6.0668848 [s]
+
+ Time for computing Exc in the global domain is 0.010604382 [s]
+
+ Time for computing Vhart in the global domain is 0.043413877 [s]
+
+ Time for computing KSEnergy in the global domain is 0.0012598038 [s]
+
+ Time for computing Vtot in the global domain is 0.0008661747 [s]
+
+ Time for computing the SCF residual is 0.0009598732 [s]
+
+Rank of dfmat = 1, rcond = 1e-12
+ Time for mixing is 0.015897989 [s]
+
+
+Eigenvalues in the global domain.
+band#    = 0    eigval   = -3.56176208e-01 occrate  = +1.00000000e+00 
+band#    = 1    eigval   = -3.46138924e-01 occrate  = +1.00000000e+00 
+band#    = 2    eigval   = -3.45934181e-01 occrate  = +1.00000000e+00 
+band#    = 3    eigval   = -3.43952933e-01 occrate  = +1.00000000e+00 
+band#    = 4    eigval   = -3.43433224e-01 occrate  = +1.00000000e+00 
+band#    = 5    eigval   = -3.34417926e-01 occrate  = +1.00000000e+00 
+band#    = 6    eigval   = -3.33833478e-01 occrate  = +1.00000000e+00 
+band#    = 7    eigval   = -3.33519886e-01 occrate  = +1.00000000e+00 
+band#    = 8    eigval   = -3.32610396e-01 occrate  = +1.00000000e+00 
+band#    = 9    eigval   = -3.13601165e-01 occrate  = +1.00000000e+00 
+band#    = 10   eigval   = -3.13498473e-01 occrate  = +1.00000000e+00 
+band#    = 11   eigval   = -3.09900042e-01 occrate  = +1.00000000e+00 
+band#    = 12   eigval   = -3.09761223e-01 occrate  = +1.00000000e+00 
+band#    = 13   eigval   = -3.02545005e-01 occrate  = +1.00000000e+00 
+band#    = 14   eigval   = -3.02482897e-01 occrate  = +1.00000000e+00 
+band#    = 15   eigval   = -3.01343851e-01 occrate  = +1.00000000e+00 
+band#    = 16   eigval   = -3.01315934e-01 occrate  = +1.00000000e+00 
+band#    = 17   eigval   = -2.99546391e-01 occrate  = +1.00000000e+00 
+band#    = 18   eigval   = -2.99402949e-01 occrate  = +1.00000000e+00 
+band#    = 19   eigval   = -2.98748535e-01 occrate  = +1.00000000e+00 
+band#    = 20   eigval   = -2.98598669e-01 occrate  = +1.00000000e+00 
+band#    = 21   eigval   = -2.73888608e-01 occrate  = +1.00000000e+00 
+band#    = 22   eigval   = -2.67711329e-01 occrate  = +1.00000000e+00 
+band#    = 23   eigval   = -2.67686942e-01 occrate  = +1.00000000e+00 
+band#    = 24   eigval   = -2.67547736e-01 occrate  = +1.00000000e+00 
+band#    = 25   eigval   = -2.67519624e-01 occrate  = +1.00000000e+00 
+band#    = 26   eigval   = -2.63303364e-01 occrate  = +1.00000000e+00 
+band#    = 27   eigval   = -2.63116769e-01 occrate  = +1.00000000e+00 
+band#    = 28   eigval   = -2.61085650e-01 occrate  = +1.00000000e+00 
+band#    = 29   eigval   = -2.60730534e-01 occrate  = +1.00000000e+00 
+band#    = 30   eigval   = -2.60648173e-01 occrate  = +1.00000000e+00 
+band#    = 31   eigval   = -2.60553748e-01 occrate  = +1.00000000e+00 
+band#    = 32   eigval   = -2.52888268e-01 occrate  = +1.00000000e+00 
+band#    = 33   eigval   = -2.52798999e-01 occrate  = +1.00000000e+00 
+band#    = 34   eigval   = -2.51013353e-01 occrate  = +1.00000000e+00 
+band#    = 35   eigval   = -2.50459231e-01 occrate  = +1.00000000e+00 
+band#    = 36   eigval   = -2.50106646e-01 occrate  = +1.00000000e+00 
+band#    = 37   eigval   = -2.49490193e-01 occrate  = +1.00000000e+00 
+band#    = 38   eigval   = -2.49459256e-01 occrate  = +1.00000000e+00 
+band#    = 39   eigval   = -2.49201828e-01 occrate  = +1.00000000e+00 
+band#    = 40   eigval   = -2.48478510e-01 occrate  = +1.00000000e+00 
+band#    = 41   eigval   = -2.48443360e-01 occrate  = +1.00000000e+00 
+band#    = 42   eigval   = -2.42725384e-01 occrate  = +1.00000000e+00 
+band#    = 43   eigval   = -2.42630655e-01 occrate  = +1.00000000e+00 
+band#    = 44   eigval   = -2.41981481e-01 occrate  = +1.00000000e+00 
+band#    = 45   eigval   = -2.41882343e-01 occrate  = +1.00000000e+00 
+band#    = 46   eigval   = -2.29045879e-01 occrate  = +1.00000000e+00 
+band#    = 47   eigval   = -2.28953813e-01 occrate  = +1.00000000e+00 
+band#    = 48   eigval   = -2.25189410e-01 occrate  = +1.00000000e+00 
+band#    = 49   eigval   = -2.25055137e-01 occrate  = +1.00000000e+00 
+band#    = 50   eigval   = -2.17392292e-01 occrate  = +1.00000000e+00 
+band#    = 51   eigval   = -2.17346049e-01 occrate  = +1.00000000e+00 
+band#    = 52   eigval   = -2.16192867e-01 occrate  = +1.00000000e+00 
+band#    = 53   eigval   = -2.16154392e-01 occrate  = +1.00000000e+00 
+band#    = 54   eigval   = -2.15482130e-01 occrate  = +1.00000000e+00 
+band#    = 55   eigval   = -2.15453554e-01 occrate  = +1.00000000e+00 
+band#    = 56   eigval   = -2.15203132e-01 occrate  = +1.00000000e+00 
+band#    = 57   eigval   = -2.15192315e-01 occrate  = +1.00000000e+00 
+band#    = 58   eigval   = -2.14248940e-01 occrate  = +1.00000000e+00 
+band#    = 59   eigval   = -2.14099694e-01 occrate  = +1.00000000e+00 
+band#    = 60   eigval   = -2.13463260e-01 occrate  = +1.00000000e+00 
+band#    = 61   eigval   = -2.13316759e-01 occrate  = +1.00000000e+00 
+band#    = 62   eigval   = -2.10937391e-01 occrate  = +1.00000000e+00 
+band#    = 63   eigval   = -2.10907386e-01 occrate  = +1.00000000e+00 
+band#    = 64   eigval   = -2.10737544e-01 occrate  = +1.00000000e+00 
+band#    = 65   eigval   = -2.10696531e-01 occrate  = +1.00000000e+00 
+band#    = 66   eigval   = -1.87592653e-01 occrate  = +1.00000000e+00 
+band#    = 67   eigval   = -1.87558068e-01 occrate  = +1.00000000e+00 
+band#    = 68   eigval   = -1.80522850e-01 occrate  = +1.00000000e+00 
+band#    = 69   eigval   = -1.80489680e-01 occrate  = +1.00000000e+00 
+band#    = 70   eigval   = -1.80357903e-01 occrate  = +1.00000000e+00 
+band#    = 71   eigval   = -1.80330631e-01 occrate  = +1.00000000e+00 
+band#    = 72   eigval   = -1.76810796e-01 occrate  = +1.00000000e+00 
+band#    = 73   eigval   = -1.76757292e-01 occrate  = +1.00000000e+00 
+band#    = 74   eigval   = -1.75821251e-01 occrate  = +1.00000000e+00 
+band#    = 75   eigval   = -1.75719918e-01 occrate  = +1.00000000e+00 
+band#    = 76   eigval   = -1.74723374e-01 occrate  = +1.00000000e+00 
+band#    = 77   eigval   = -1.74435535e-01 occrate  = +1.00000000e+00 
+band#    = 78   eigval   = -1.73034863e-01 occrate  = +1.00000000e+00 
+band#    = 79   eigval   = -1.72978748e-01 occrate  = +1.00000000e+00 
+band#    = 80   eigval   = -1.64806267e-01 occrate  = +1.00000000e+00 
+band#    = 81   eigval   = -1.64715495e-01 occrate  = +1.00000000e+00 
+band#    = 82   eigval   = -1.64618875e-01 occrate  = +1.00000000e+00 
+band#    = 83   eigval   = -1.64444586e-01 occrate  = +1.00000000e+00 
+band#    = 84   eigval   = -1.63998859e-01 occrate  = +1.00000000e+00 
+band#    = 85   eigval   = -1.63647517e-01 occrate  = +1.00000000e+00 
+band#    = 86   eigval   = -1.61151750e-01 occrate  = +1.00000000e+00 
+band#    = 87   eigval   = -1.61096422e-01 occrate  = +1.00000000e+00 
+band#    = 88   eigval   = -1.60119924e-01 occrate  = +1.00000000e+00 
+band#    = 89   eigval   = -1.60077042e-01 occrate  = +1.00000000e+00 
+band#    = 90   eigval   = -1.59802953e-01 occrate  = +1.00000000e+00 
+band#    = 91   eigval   = -1.59726586e-01 occrate  = +1.00000000e+00 
+band#    = 92   eigval   = -1.59648341e-01 occrate  = +1.00000000e+00 
+band#    = 93   eigval   = -1.59598976e-01 occrate  = +1.00000000e+00 
+band#    = 94   eigval   = -1.53871777e-01 occrate  = +1.00000000e+00 
+band#    = 95   eigval   = -1.53833130e-01 occrate  = +1.00000000e+00 
+band#    = 96   eigval   = -1.53140584e-01 occrate  = +1.00000000e+00 
+band#    = 97   eigval   = -1.53111045e-01 occrate  = +1.00000000e+00 
+band#    = 98   eigval   = -1.44877489e-01 occrate  = +1.00000000e+00 
+band#    = 99   eigval   = -1.44519769e-01 occrate  = +1.00000000e+00 
+band#    = 100  eigval   = -1.44404925e-01 occrate  = +1.00000000e+00 
+band#    = 101  eigval   = -1.44093241e-01 occrate  = +1.00000000e+00 
+band#    = 102  eigval   = -1.33681521e-01 occrate  = +1.00000000e+00 
+band#    = 103  eigval   = -1.33640338e-01 occrate  = +1.00000000e+00 
+band#    = 104  eigval   = -1.33367048e-01 occrate  = +1.00000000e+00 
+band#    = 105  eigval   = -1.33334173e-01 occrate  = +1.00000000e+00 
+band#    = 106  eigval   = -1.24658418e-01 occrate  = +1.00000000e+00 
+band#    = 107  eigval   = -1.24646150e-01 occrate  = +1.00000000e+00 
+band#    = 108  eigval   = -1.24403369e-01 occrate  = +1.00000000e+00 
+band#    = 109  eigval   = -1.24377759e-01 occrate  = +1.00000000e+00 
+band#    = 110  eigval   = -1.19931863e-01 occrate  = +1.00000000e+00 
+band#    = 111  eigval   = -1.19909975e-01 occrate  = +1.00000000e+00 
+band#    = 112  eigval   = -1.19749356e-01 occrate  = +1.00000000e+00 
+band#    = 113  eigval   = -1.19729107e-01 occrate  = +1.00000000e+00 
+band#    = 114  eigval   = -1.00820087e-01 occrate  = +1.00000000e+00 
+band#    = 115  eigval   = -9.99892284e-02 occrate  = +1.00000000e+00 
+band#    = 116  eigval   = -9.98568721e-02 occrate  = +1.00000000e+00 
+band#    = 117  eigval   = -9.98056535e-02 occrate  = +1.00000000e+00 
+band#    = 118  eigval   = -9.91360430e-02 occrate  = +1.00000000e+00 
+band#    = 119  eigval   = -9.75219742e-02 occrate  = +1.00000000e+00 
+band#    = 120  eigval   = -9.73692883e-02 occrate  = +1.00000000e+00 
+band#    = 121  eigval   = -9.56958806e-02 occrate  = +1.00000000e+00 
+band#    = 122  eigval   = -9.46899109e-02 occrate  = +1.00000000e+00 
+band#    = 123  eigval   = -9.46832789e-02 occrate  = +1.00000000e+00 
+band#    = 124  eigval   = -9.06926199e-02 occrate  = +1.00000000e+00 
+band#    = 125  eigval   = -9.05882846e-02 occrate  = +1.00000000e+00 
+band#    = 126  eigval   = -9.02677307e-02 occrate  = +1.00000000e+00 
+band#    = 127  eigval   = -8.97035315e-02 occrate  = +1.00000000e+00 
+band#    = 128  eigval   = -8.95943728e-02 occrate  = +1.00000000e+00 
+band#    = 129  eigval   = -8.94810526e-02 occrate  = +1.00000000e+00 
+band#    = 130  eigval   = -8.62342346e-02 occrate  = +1.00000000e+00 
+band#    = 131  eigval   = -8.62271284e-02 occrate  = +1.00000000e+00 
+band#    = 132  eigval   = -8.58864358e-02 occrate  = +1.00000000e+00 
+band#    = 133  eigval   = -8.58156533e-02 occrate  = +1.00000000e+00 
+band#    = 134  eigval   = -8.56721452e-02 occrate  = +1.00000000e+00 
+band#    = 135  eigval   = -8.54473014e-02 occrate  = +1.00000000e+00 
+band#    = 136  eigval   = -8.34369533e-02 occrate  = +1.00000000e+00 
+band#    = 137  eigval   = -8.30279916e-02 occrate  = +1.00000000e+00 
+band#    = 138  eigval   = -8.27915005e-02 occrate  = +1.00000000e+00 
+band#    = 139  eigval   = -8.27799765e-02 occrate  = +1.00000000e+00 
+band#    = 140  eigval   = -8.17549636e-02 occrate  = +1.00000000e+00 
+band#    = 141  eigval   = -8.17357593e-02 occrate  = +1.00000000e+00 
+band#    = 142  eigval   = -8.00854475e-02 occrate  = +1.00000000e+00 
+band#    = 143  eigval   = -8.00594761e-02 occrate  = +1.00000000e+00 
+band#    = 144  eigval   = -7.39553256e-02 occrate  = +1.00000000e+00 
+band#    = 145  eigval   = -7.34100057e-02 occrate  = +1.00000000e+00 
+band#    = 146  eigval   = -7.30663659e-02 occrate  = +1.00000000e+00 
+band#    = 147  eigval   = -7.22101731e-02 occrate  = +1.00000000e+00 
+band#    = 148  eigval   = -6.92500697e-02 occrate  = +1.00000000e+00 
+band#    = 149  eigval   = -6.92321284e-02 occrate  = +1.00000000e+00 
+band#    = 150  eigval   = -6.85382169e-02 occrate  = +1.00000000e+00 
+band#    = 151  eigval   = -6.85004776e-02 occrate  = +1.00000000e+00 
+band#    = 152  eigval   = -6.40647606e-02 occrate  = +1.00000000e+00 
+band#    = 153  eigval   = -6.40439047e-02 occrate  = +1.00000000e+00 
+band#    = 154  eigval   = -6.39475959e-02 occrate  = +1.00000000e+00 
+band#    = 155  eigval   = -6.39386778e-02 occrate  = +1.00000000e+00 
+band#    = 156  eigval   = -6.14335726e-02 occrate  = +1.00000000e+00 
+band#    = 157  eigval   = -6.14033537e-02 occrate  = +1.00000000e+00 
+band#    = 158  eigval   = -5.31567107e-02 occrate  = +1.00000000e+00 
+band#    = 159  eigval   = -5.30734048e-02 occrate  = +1.00000000e+00 
+band#    = 160  eigval   = -4.95240036e-02 occrate  = +1.00000000e+00 
+band#    = 161  eigval   = -4.93969023e-02 occrate  = +1.00000000e+00 
+band#    = 162  eigval   = -4.61584212e-02 occrate  = +1.00000000e+00 
+band#    = 163  eigval   = -4.61142788e-02 occrate  = +1.00000000e+00 
+band#    = 164  eigval   = -4.59841486e-02 occrate  = +1.00000000e+00 
+band#    = 165  eigval   = -4.59756037e-02 occrate  = +1.00000000e+00 
+band#    = 166  eigval   = -4.21865750e-02 occrate  = +1.00000000e+00 
+band#    = 167  eigval   = -4.21702238e-02 occrate  = +1.00000000e+00 
+band#    = 168  eigval   = -4.10570394e-02 occrate  = +1.00000000e+00 
+band#    = 169  eigval   = -4.10161832e-02 occrate  = +1.00000000e+00 
+band#    = 170  eigval   = -3.92156374e-02 occrate  = +1.00000000e+00 
+band#    = 171  eigval   = -3.90627866e-02 occrate  = +1.00000000e+00 
+band#    = 172  eigval   = -3.84380365e-02 occrate  = +1.00000000e+00 
+band#    = 173  eigval   = -3.83224324e-02 occrate  = +1.00000000e+00 
+band#    = 174  eigval   = -3.59088136e-02 occrate  = +1.00000000e+00 
+band#    = 175  eigval   = -3.53254522e-02 occrate  = +1.00000000e+00 
+band#    = 176  eigval   = -3.53055101e-02 occrate  = +1.00000000e+00 
+band#    = 177  eigval   = -3.52667830e-02 occrate  = +1.00000000e+00 
+band#    = 178  eigval   = -3.52528155e-02 occrate  = +1.00000000e+00 
+band#    = 179  eigval   = -3.11751248e-02 occrate  = +1.00000000e+00 
+band#    = 180  eigval   = -3.11305884e-02 occrate  = +1.00000000e+00 
+band#    = 181  eigval   = -2.63681198e-02 occrate  = +1.00000000e+00 
+band#    = 182  eigval   = -2.56796308e-02 occrate  = +1.00000000e+00 
+band#    = 183  eigval   = -2.56175540e-02 occrate  = +1.00000000e+00 
+band#    = 184  eigval   = -2.54583199e-02 occrate  = +1.00000000e+00 
+band#    = 185  eigval   = -2.49588550e-02 occrate  = +1.00000000e+00 
+band#    = 186  eigval   = -2.46938926e-02 occrate  = +1.00000000e+00 
+band#    = 187  eigval   = -7.81607261e-03 occrate  = +1.00000000e+00 
+band#    = 188  eigval   = -7.77717487e-03 occrate  = +1.00000000e+00 
+band#    = 189  eigval   = -7.65521248e-03 occrate  = +1.00000000e+00 
+band#    = 190  eigval   = -7.62276636e-03 occrate  = +1.00000000e+00 
+band#    = 191  eigval   = -8.38892194e-04 occrate  = +1.00000000e+00 
+band#    = 192  eigval   = -7.91504102e-04 occrate  = +1.00000000e+00 
+band#    = 193  eigval   = +6.01701608e-03 occrate  = +1.00000000e+00 
+band#    = 194  eigval   = +6.03176938e-03 occrate  = +1.00000000e+00 
+band#    = 195  eigval   = +6.37822258e-03 occrate  = +1.00000000e+00 
+band#    = 196  eigval   = +6.40270621e-03 occrate  = +1.00000000e+00 
+band#    = 197  eigval   = +6.48689168e-03 occrate  = +1.00000000e+00 
+band#    = 198  eigval   = +6.54986484e-03 occrate  = +1.00000000e+00 
+band#    = 199  eigval   = +8.12435381e-03 occrate  = +1.00000000e+00 
+band#    = 200  eigval   = +8.40243361e-03 occrate  = +1.00000000e+00 
+band#    = 201  eigval   = +8.62161617e-03 occrate  = +1.00000000e+00 
+band#    = 202  eigval   = +8.75551013e-03 occrate  = +1.00000000e+00 
+band#    = 203  eigval   = +9.78118515e-03 occrate  = +1.00000000e+00 
+band#    = 204  eigval   = +9.83548402e-03 occrate  = +1.00000000e+00 
+band#    = 205  eigval   = +1.07942569e-02 occrate  = +1.00000000e+00 
+band#    = 206  eigval   = +1.08448816e-02 occrate  = +1.00000000e+00 
+band#    = 207  eigval   = +1.39562796e-02 occrate  = +1.00000000e+00 
+band#    = 208  eigval   = +1.41706600e-02 occrate  = +1.00000000e+00 
+band#    = 209  eigval   = +1.42160544e-02 occrate  = +1.00000000e+00 
+band#    = 210  eigval   = +1.42290224e-02 occrate  = +1.00000000e+00 
+band#    = 211  eigval   = +1.60168664e-02 occrate  = +1.00000000e+00 
+band#    = 212  eigval   = +1.64182139e-02 occrate  = +1.00000000e+00 
+band#    = 213  eigval   = +1.64596640e-02 occrate  = +1.00000000e+00 
+band#    = 214  eigval   = +1.64974742e-02 occrate  = +1.00000000e+00 
+band#    = 215  eigval   = +1.65428874e-02 occrate  = +1.00000000e+00 
+band#    = 216  eigval   = +1.67314389e-02 occrate  = +1.00000000e+00 
+band#    = 217  eigval   = +1.71767303e-02 occrate  = +1.00000000e+00 
+band#    = 218  eigval   = +1.72439023e-02 occrate  = +1.00000000e+00 
+band#    = 219  eigval   = +1.79288600e-02 occrate  = +1.00000000e+00 
+band#    = 220  eigval   = +1.79343322e-02 occrate  = +1.00000000e+00 
+band#    = 221  eigval   = +1.89639340e-02 occrate  = +1.00000000e+00 
+band#    = 222  eigval   = +1.89831231e-02 occrate  = +1.00000000e+00 
+band#    = 223  eigval   = +2.06424693e-02 occrate  = +1.00000000e+00 
+band#    = 224  eigval   = +2.06460818e-02 occrate  = +1.00000000e+00 
+band#    = 225  eigval   = +2.07599403e-02 occrate  = +1.00000000e+00 
+band#    = 226  eigval   = +2.07776432e-02 occrate  = +1.00000000e+00 
+band#    = 227  eigval   = +2.60207119e-02 occrate  = +1.00000000e+00 
+band#    = 228  eigval   = +3.15891309e-02 occrate  = +1.00000000e+00 
+band#    = 229  eigval   = +3.68755423e-02 occrate  = +1.00000000e+00 
+band#    = 230  eigval   = +3.76411488e-02 occrate  = +1.00000000e+00 
+band#    = 231  eigval   = +4.02985343e-02 occrate  = +1.00000000e+00 
+band#    = 232  eigval   = +4.03548937e-02 occrate  = +1.00000000e+00 
+band#    = 233  eigval   = +4.05063382e-02 occrate  = +1.00000000e+00 
+band#    = 234  eigval   = +4.05228114e-02 occrate  = +1.00000000e+00 
+band#    = 235  eigval   = +4.13608610e-02 occrate  = +1.00000000e+00 
+band#    = 236  eigval   = +4.13895360e-02 occrate  = +1.00000000e+00 
+band#    = 237  eigval   = +4.21361256e-02 occrate  = +1.00000000e+00 
+band#    = 238  eigval   = +4.21704007e-02 occrate  = +1.00000000e+00 
+band#    = 239  eigval   = +4.24488706e-02 occrate  = +1.00000000e+00 
+band#    = 240  eigval   = +4.31523770e-02 occrate  = +1.00000000e+00 
+band#    = 241  eigval   = +4.66504709e-02 occrate  = +1.00000000e+00 
+band#    = 242  eigval   = +4.66747403e-02 occrate  = +1.00000000e+00 
+band#    = 243  eigval   = +4.67328193e-02 occrate  = +1.00000000e+00 
+band#    = 244  eigval   = +4.68141090e-02 occrate  = +1.00000000e+00 
+band#    = 245  eigval   = +4.74810954e-02 occrate  = +1.00000000e+00 
+band#    = 246  eigval   = +4.76533479e-02 occrate  = +1.00000000e+00 
+band#    = 247  eigval   = +5.48358688e-02 occrate  = +1.00000000e+00 
+band#    = 248  eigval   = +5.49264341e-02 occrate  = +1.00000000e+00 
+band#    = 249  eigval   = +5.49584129e-02 occrate  = +1.00000000e+00 
+band#    = 250  eigval   = +5.50316865e-02 occrate  = +1.00000000e+00 
+band#    = 251  eigval   = +5.51313879e-02 occrate  = +1.00000000e+00 
+band#    = 252  eigval   = +5.68460620e-02 occrate  = +1.00000000e+00 
+band#    = 253  eigval   = +5.70216796e-02 occrate  = +1.00000000e+00 
+band#    = 254  eigval   = +5.75801810e-02 occrate  = +1.00000000e+00 
+band#    = 255  eigval   = +5.78335614e-02 occrate  = +1.00000000e+00 
+band#    = 256  eigval   = +5.91595585e-02 occrate  = +1.00000000e+00 
+band#    = 257  eigval   = +5.91767516e-02 occrate  = +1.00000000e+00 
+band#    = 258  eigval   = +5.92348162e-02 occrate  = +1.00000000e+00 
+band#    = 259  eigval   = +5.93381289e-02 occrate  = +1.00000000e+00 
+band#    = 260  eigval   = +6.14396982e-02 occrate  = +1.00000000e+00 
+band#    = 261  eigval   = +6.14796933e-02 occrate  = +1.00000000e+00 
+band#    = 262  eigval   = +6.15470552e-02 occrate  = +1.00000000e+00 
+band#    = 263  eigval   = +6.16314494e-02 occrate  = +1.00000000e+00 
+band#    = 264  eigval   = +6.41234615e-02 occrate  = +1.00000000e+00 
+band#    = 265  eigval   = +6.42095137e-02 occrate  = +1.00000000e+00 
+band#    = 266  eigval   = +6.52653288e-02 occrate  = +1.00000000e+00 
+band#    = 267  eigval   = +6.52935904e-02 occrate  = +1.00000000e+00 
+band#    = 268  eigval   = +6.55901336e-02 occrate  = +1.00000000e+00 
+band#    = 269  eigval   = +6.57514599e-02 occrate  = +1.00000000e+00 
+band#    = 270  eigval   = +6.77534529e-02 occrate  = +1.00000000e+00 
+band#    = 271  eigval   = +6.81384561e-02 occrate  = +1.00000000e+00 
+band#    = 272  eigval   = +6.81831981e-02 occrate  = +1.00000000e+00 
+band#    = 273  eigval   = +6.82889402e-02 occrate  = +1.00000000e+00 
+band#    = 274  eigval   = +7.08586747e-02 occrate  = +1.00000000e+00 
+band#    = 275  eigval   = +7.09267266e-02 occrate  = +1.00000000e+00 
+band#    = 276  eigval   = +7.59753833e-02 occrate  = +1.00000000e+00 
+band#    = 277  eigval   = +7.61862667e-02 occrate  = +1.00000000e+00 
+band#    = 278  eigval   = +7.64132507e-02 occrate  = +1.00000000e+00 
+band#    = 279  eigval   = +7.64531432e-02 occrate  = +1.00000000e+00 
+band#    = 280  eigval   = +7.78836951e-02 occrate  = +1.00000000e+00 
+band#    = 281  eigval   = +7.84339899e-02 occrate  = +1.00000000e+00 
+band#    = 282  eigval   = +7.87154170e-02 occrate  = +1.00000000e+00 
+band#    = 283  eigval   = +7.96368452e-02 occrate  = +1.00000000e+00 
+band#    = 284  eigval   = +8.23381252e-02 occrate  = +1.00000000e+00 
+band#    = 285  eigval   = +8.23521281e-02 occrate  = +1.00000000e+00 
+band#    = 286  eigval   = +8.24065034e-02 occrate  = +1.00000000e+00 
+band#    = 287  eigval   = +8.26032943e-02 occrate  = +1.00000000e+00 
+band#    = 288  eigval   = +9.91797293e-02 occrate  = +1.00000000e+00 
+band#    = 289  eigval   = +9.93633603e-02 occrate  = +1.00000000e+00 
+band#    = 290  eigval   = +9.94884577e-02 occrate  = +1.00000000e+00 
+band#    = 291  eigval   = +9.96047791e-02 occrate  = +1.00000000e+00 
+band#    = 292  eigval   = +9.99274199e-02 occrate  = +1.00000000e+00 
+band#    = 293  eigval   = +1.00138032e-01 occrate  = +1.00000000e+00 
+band#    = 294  eigval   = +1.03904592e-01 occrate  = +1.00000000e+00 
+band#    = 295  eigval   = +1.04105259e-01 occrate  = +1.00000000e+00 
+band#    = 296  eigval   = +1.08581350e-01 occrate  = +1.00000000e+00 
+band#    = 297  eigval   = +1.09064216e-01 occrate  = +1.00000000e+00 
+band#    = 298  eigval   = +1.11876574e-01 occrate  = +1.00000000e+00 
+band#    = 299  eigval   = +1.12504222e-01 occrate  = +1.00000000e+00 
+band#    = 300  eigval   = +1.12948439e-01 occrate  = +1.00000000e+00 
+band#    = 301  eigval   = +1.13132538e-01 occrate  = +1.00000000e+00 
+band#    = 302  eigval   = +1.14945007e-01 occrate  = +1.00000000e+00 
+band#    = 303  eigval   = +1.15223192e-01 occrate  = +1.00000000e+00 
+band#    = 304  eigval   = +1.15551665e-01 occrate  = +1.00000000e+00 
+band#    = 305  eigval   = +1.15723517e-01 occrate  = +1.00000000e+00 
+band#    = 306  eigval   = +1.15886400e-01 occrate  = +1.00000000e+00 
+band#    = 307  eigval   = +1.15915530e-01 occrate  = +1.00000000e+00 
+band#    = 308  eigval   = +1.16230945e-01 occrate  = +1.00000000e+00 
+band#    = 309  eigval   = +1.16471766e-01 occrate  = +1.00000000e+00 
+band#    = 310  eigval   = +1.19124261e-01 occrate  = +1.00000000e+00 
+band#    = 311  eigval   = +1.19287796e-01 occrate  = +1.00000000e+00 
+band#    = 312  eigval   = +1.19789029e-01 occrate  = +1.00000000e+00 
+band#    = 313  eigval   = +1.20374642e-01 occrate  = +1.00000000e+00 
+band#    = 314  eigval   = +1.22755794e-01 occrate  = +1.00000000e+00 
+band#    = 315  eigval   = +1.22938861e-01 occrate  = +1.00000000e+00 
+band#    = 316  eigval   = +1.23322644e-01 occrate  = +1.00000000e+00 
+band#    = 317  eigval   = +1.23518637e-01 occrate  = +1.00000000e+00 
+band#    = 318  eigval   = +1.24060837e-01 occrate  = +1.00000000e+00 
+band#    = 319  eigval   = +1.24360428e-01 occrate  = +1.00000000e+00 
+band#    = 320  eigval   = +1.24544541e-01 occrate  = +1.00000000e+00 
+band#    = 321  eigval   = +1.24933757e-01 occrate  = +1.00000000e+00 
+band#    = 322  eigval   = +1.27145266e-01 occrate  = +1.00000000e+00 
+band#    = 323  eigval   = +1.27441342e-01 occrate  = +1.00000000e+00 
+band#    = 324  eigval   = +1.27816004e-01 occrate  = +1.00000000e+00 
+band#    = 325  eigval   = +1.28383324e-01 occrate  = +1.00000000e+00 
+band#    = 326  eigval   = +1.29916355e-01 occrate  = +1.00000000e+00 
+band#    = 327  eigval   = +1.30301202e-01 occrate  = +1.00000000e+00 
+band#    = 328  eigval   = +1.31140930e-01 occrate  = +1.00000000e+00 
+band#    = 329  eigval   = +1.31914743e-01 occrate  = +1.00000000e+00 
+band#    = 330  eigval   = +1.33855931e-01 occrate  = +1.00000000e+00 
+band#    = 331  eigval   = +1.35294719e-01 occrate  = +1.00000000e+00 
+band#    = 332  eigval   = +1.36101665e-01 occrate  = +1.00000000e+00 
+band#    = 333  eigval   = +1.36725127e-01 occrate  = +1.00000000e+00 
+band#    = 334  eigval   = +1.42391611e-01 occrate  = +1.00000000e+00 
+band#    = 335  eigval   = +1.42885194e-01 occrate  = +1.00000000e+00 
+band#    = 336  eigval   = +1.43144364e-01 occrate  = +1.00000000e+00 
+band#    = 337  eigval   = +1.44180534e-01 occrate  = +1.00000000e+00 
+band#    = 338  eigval   = +1.44248412e-01 occrate  = +1.00000000e+00 
+band#    = 339  eigval   = +1.45286536e-01 occrate  = +1.00000000e+00 
+band#    = 340  eigval   = +1.46324013e-01 occrate  = +1.00000000e+00 
+band#    = 341  eigval   = +1.47205923e-01 occrate  = +9.99999999e-01 
+band#    = 342  eigval   = +1.49591894e-01 occrate  = +9.99999988e-01 
+band#    = 343  eigval   = +1.50007319e-01 occrate  = +9.99999982e-01 
+band#    = 344  eigval   = +1.50476493e-01 occrate  = +9.99999970e-01 
+band#    = 345  eigval   = +1.50530898e-01 occrate  = +9.99999968e-01 
+band#    = 346  eigval   = +1.51348637e-01 occrate  = +9.99999925e-01 
+band#    = 347  eigval   = +1.51404061e-01 occrate  = +9.99999921e-01 
+band#    = 348  eigval   = +1.51758428e-01 occrate  = +9.99999885e-01 
+band#    = 349  eigval   = +1.53049324e-01 occrate  = +9.99999553e-01 
+band#    = 350  eigval   = +1.55267943e-01 occrate  = +9.99995380e-01 
+band#    = 351  eigval   = +1.56775218e-01 occrate  = +9.99977425e-01 
+band#    = 352  eigval   = +1.57168865e-01 occrate  = +9.99965835e-01 
+band#    = 353  eigval   = +1.58420913e-01 occrate  = +9.99872390e-01 
+band#    = 354  eigval   = +1.59196766e-01 occrate  = +9.99711278e-01 
+band#    = 355  eigval   = +1.61860749e-01 occrate  = +9.95253994e-01 
+band#    = 356  eigval   = +1.62520287e-01 occrate  = +9.90542802e-01 
+band#    = 357  eigval   = +1.64048508e-01 occrate  = +9.54474956e-01 
+band#    = 358  eigval   = +1.65585789e-01 occrate  = +8.06087346e-01 
+band#    = 359  eigval   = +1.66723554e-01 occrate  = +5.56555160e-01 
+band#    = 360  eigval   = +1.67828665e-01 occrate  = +2.81703496e-01 
+band#    = 361  eigval   = +1.68145651e-01 occrate  = +2.19311870e-01 
+band#    = 362  eigval   = +1.68930910e-01 occrate  = +1.09463721e-01 
+band#    = 363  eigval   = +1.69964954e-01 occrate  = +3.97475911e-02 
+band#    = 364  eigval   = +1.70483137e-01 occrate  = +2.34288950e-02 
+band#    = 365  eigval   = +1.71144269e-01 occrate  = +1.18211509e-02 
+band#    = 366  eigval   = +1.71624810e-01 occrate  = +7.16197100e-03 
+band#    = 367  eigval   = +1.72311436e-01 occrate  = +3.48946244e-03 
+band#    = 368  eigval   = +1.73748720e-01 occrate  = +7.70752339e-04 
+band#    = 369  eigval   = +1.74275204e-01 occrate  = +4.42981288e-04 
+band#    = 370  eigval   = +1.75772352e-01 occrate  = +9.16528139e-05 
+band#    = 371  eigval   = +1.76334943e-01 occrate  = +5.06974414e-05 
+band#    = 372  eigval   = +1.76654729e-01 occrate  = +3.62083049e-05 
+band#    = 373  eigval   = +1.77254996e-01 occrate  = +1.92493226e-05 
+band#    = 374  eigval   = +1.77942207e-01 occrate  = +9.33844249e-06 
+band#    = 375  eigval   = +1.78315332e-01 occrate  = +6.30534629e-06 
+band#    = 376  eigval   = +1.78617400e-01 occrate  = +4.58801806e-06 
+band#    = 377  eigval   = +1.79463852e-01 occrate  = +1.88229186e-06 
+band#    = 378  eigval   = +1.79863377e-01 occrate  = +1.23609597e-06 
+band#    = 379  eigval   = +1.80630731e-01 occrate  = +5.51152091e-07 
+band#    = 380  eigval   = +1.81057103e-01 occrate  = +3.51854863e-07 
+band#    = 381  eigval   = +1.81817098e-01 occrate  = +1.58105454e-07 
+band#    = 382  eigval   = +1.82363928e-01 occrate  = +8.89147861e-08 
+band#    = 383  eigval   = +1.83387278e-01 occrate  = +3.02809448e-08 
+band#    = 384  eigval   = +1.84372862e-01 occrate  = +1.07307171e-08 
+band#    = 385  eigval   = +1.86402447e-01 occrate  = +1.26719434e-09 
+band#    = 386  eigval   = +1.87810472e-01 occrate  = +2.87866973e-10 
+band#    = 387  eigval   = +1.89363064e-01 occrate  = +5.61635346e-11 
+band#    = 388  eigval   = +1.91559315e-01 occrate  = +5.56520368e-12 
+band#    = 389  eigval   = +1.91974702e-01 occrate  = +3.59413854e-12 
+band#    = 390  eigval   = +1.95792557e-01 occrate  = +6.46154320e-14 
+band#    = 391  eigval   = +1.96696729e-01 occrate  = +2.49465945e-14 
+band#    = 392  eigval   = +1.97079230e-01 occrate  = +1.66785590e-14 
+band#    = 393  eigval   = +1.99525637e-01 occrate  = +1.27007969e-15 
+band#    = 394  eigval   = +2.01919033e-01 occrate  = +1.02267210e-16 
+band#    = 395  eigval   = +2.02931152e-01 occrate  = +3.52424014e-17 
+
+EfreeHarris       = +2.44880357e+02 [au]  
+Etot              = +1.53770105e+02 [au]  
+Efree             = +1.53763761e+02 [au]  
+Ekin              = -3.24716342e+01 [au]  
+Ehart             = -3.03510092e+02 [au]  
+EVxc              = -2.69319361e+02 [au]  
+Exc               = -2.06587715e+02 [au]  
+Evdw              = +0.00000000e+00 [au]  
+Eself             = +1.80000000e+02 [au]  
+Ecor              = +1.86241739e+02 [au]  
+Fermi             = +1.66939397e-01 [au]  
+ Time for this inner SCF iteration = 15.37945 [s]
+
+ Time for all inner SCF iterations is 15.379922 [s]
+
+OUTERSCF: EfreeHarris                 = +2.44880357e+02 
+OUTERSCF: Efree                       = +1.53763761e+02 
+OUTERSCF: norm(out-in)/norm(in) = +1.78611641e-01 
+OUTERSCF: Efree diff per atom   = +5.06203310e-01 
+
+ Time for this SCF iteration = 55.709561 [s]
+
+*********************************************************************
+ Outer SCF iteration # 3
+*********************************************************************
+
+vtotMax  = +1.08668140e-01 
+vtotAvg  = -2.86068656e-01 
+vtotMin  = -6.97668277e-01 
+ Time for updating the local potential in the extended element and the element is 0.061565876 [s]
+
+ The current tolerance used by the eigensolver is 1e-20
+ The target number of converged eigenvectors is 120
+
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.35721159
+Time for iterFFTFine      = 240  timeFFTFine      = 3.3613167
+Time for iterNonlocal     = 120  timeNonlocal     = 1.8975334
+Time for iterOther        = 1  timeOther        = 2.0699935
+Time for psi.AddMultSpinorFineR2C is 7.6869948 [s]
+
+Minimum tolerance is 0.001
+in AddMultSpinorFineR2C 
+Time for iterFFTCoarse    = 240  timeFFTCoarse    = 0.37693429
+Time for iterFFTFine      = 240  timeFFTFine      = 3.5091796
+Time for iterNonlocal     = 120  timeNonlocal     = 1.975255
+Time for iterOther        = 1  timeOther        = 2.1796606
+Time for psi.AddMultSpinorFineR2C is 8.0419807 [s]
+

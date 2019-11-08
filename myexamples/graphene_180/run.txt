@@ -1,0 +1,1 @@
+srun -N 2 --ntasks-per-node=18 --time=30 ../../examples/dgdft -in dgdft.in
