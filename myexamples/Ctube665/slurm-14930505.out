@@ -1,8 +1,0 @@
-dgdft -in [inFile]
-in:             Input file (default: dgdft.in)
-Processor 0 caught exception with message: File cannot be open!
-srun: got SIGCONT
-slurmstepd: error: *** JOB 14930505 ON nid00698 CANCELLED AT 2018-09-17T13:48:24 ***
-slurmstepd: error: *** STEP 14930505.0 ON nid00698 CANCELLED AT 2018-09-17T13:48:24 ***
-srun: forcing job termination
-srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
