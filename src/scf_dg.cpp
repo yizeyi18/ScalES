@@ -1487,6 +1487,23 @@ namespace  dgdft{
 #else
                   DblNumTns& wavefun = psi.Wavefun();
 #endif
+
+                  // LL: 11/11/2019.
+                  // For debugging purposes, let all eigenfunctions have non-negative averages. 
+                  // This should fix the sign flips due to LAPACK (but this would not fix the problem
+                  // due to degenerate eigenvectors
+                  {
+                    for( Int l = 0; l < psi.NumState(); l++ ){
+                      Real sum_psi = 0.0;
+                      for( Int i = 0; i < psi.NumGridTotal(); i++ ){
+                        sum_psi += psi.Wavefun(i,0,l);
+                      }
+                      Real sgn = (sum_psi >= 0.0) ? 1.0 : -1.0;
+                      blas::Scal( psi.NumGridTotal(), sgn, psi.Wavefun().VecData(0,l), 1 );
+                    }
+                  }
+
+
                   DblNumTns&   LGLWeight3D = hamDG.LGLWeight3D();
                   DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
 
