@@ -571,7 +571,7 @@ Int SeparateWriteAscii(std::string name, std::ostringstream& os)
   if( !fout.good() ){
     ErrorHandling( "File cannot be open!" );
   }
-  fout<<os;
+  fout<<os.str();
   fout.close();
   //
   MPI_Barrier(MPI_COMM_WORLD);
