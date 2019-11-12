@@ -2099,8 +2099,8 @@ namespace  dgdft{
 
         // Main function here
 				//HA: Call device version
-        InnerIterate_device( iter );
-        //InnerIterate( iter );
+        //InnerIterate_device( iter );
+        InnerIterate( iter );
 
         MPI_Barrier( domain_.comm );
         GetTime( timeEnd );
@@ -3655,8 +3655,8 @@ namespace  dgdft{
             // Filter the eigenvectors
             statusOFS << std::endl << std::endl << " Filtering the eigenvectors ... (Filter order = " << Filter_Order << ")";
             GetTime( timeSta );
-            //scfdg_Chebyshev_filter_scaled(Filter_Order, b_low, b_up, a_L);
-            scfdg_Chebyshev_filter_scaled_device(Filter_Order, b_low, b_up, a_L);
+            scfdg_Chebyshev_filter_scaled(Filter_Order, b_low, b_up, a_L);
+            //scfdg_Chebyshev_filter_scaled_device(Filter_Order, b_low, b_up, a_L);
             GetTime( timeEnd );
             statusOFS << std::endl << " Filtering completed. ( " << (timeEnd - timeSta ) << " s.)";
 
