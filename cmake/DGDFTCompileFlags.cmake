@@ -46,7 +46,7 @@
 add_library( DGDFT::compile_definitions INTERFACE IMPORTED )
 
 # C++14
-target_compile_features( DGDFT::compile_definitions INTERFACE cxx_std_14 )
+#target_compile_features( DGDFT::compile_definitions INTERFACE cxx_std_14 )
 
 # Performance Profiling
 if( DGDFT_ENABLE_PROFILE )

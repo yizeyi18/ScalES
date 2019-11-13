@@ -46,7 +46,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2014-08-06 Add intra-element parallelization.
 #include  "scf_dg.hpp"
 #include  "blas.hpp"
-#include  "cuda_blas.hpp"
+//#include  "cuda_blas.hpp"
 #include  "lapack.hpp"
 #include  "utility.hpp"
 #ifdef ELSI
@@ -56,7 +56,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "scfdg_upper_end_of_spectrum.hpp"
 
 
-#include <cublas_v2.h>
+//#include <cublas_v2.h>
+#include <cuda_wrapper.hpp>
 
 namespace  dgdft{
 
@@ -64,24 +65,26 @@ namespace  dgdft{
   using namespace dgdft::esdf;
   using namespace dgdft::scalapack;
 
-	//Keys and CUDA pointers to Hamiltonian matrix
-	//TODO: Move to a class + add the handle
-	std::vector<ElemMatKey> hKeys;
-	std::vector<ElemMatKey> hamDGKeys;	
-	double **h_hamDG_ptr_d;
-	//Keys and CUDA pointers to X matrix
-	std::vector<Index3> XKeys;	
-	bool first = true;
-	//std::vector<Index3> pluckXKeys;	
-	double *d_local_X_data;
-	double **h_pluckX_ptr_d;
-	double **h_pluckY_ptr_d;
-	double **h_Harr_ptr_d;
-	double **d_Xarr, **d_Yarr, **d_Harr;
-	double *h_x_ptr;
-	DblNumMat new_Y_mat;
-	DblNumMat new_X_mat;
-	#define BATCH_COUNT 30
+/*
+  //Keys and CUDA pointers to Hamiltonian matrix
+  //TODO: Move to a class + add the handle
+  double **h_hamDG_ptr_d;
+  //Keys and CUDA pointers to X matrix
+  //std::vector<Index3> pluckXKeys;  
+  double *d_local_X_data;
+  double **h_pluckX_ptr_d;
+  double **h_pluckY_ptr_d;
+  double **h_Harr_ptr_d;
+  double **d_Xarr, **d_Yarr, **d_Harr;
+  double *h_x_ptr;
+*/
+  bool first = true;
+  std::vector<Index3> XKeys;  
+  std::vector<ElemMatKey> hKeys;
+  std::vector<ElemMatKey> hamDGKeys;  
+  DblNumMat new_Y_mat;
+  DblNumMat new_X_mat;
+  #define BATCH_COUNT 30
 
       void SCFDG::scfdg_hamiltonian_times_distmat_device(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
           DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_mat, bool applyBatched)
@@ -110,7 +113,7 @@ namespace  dgdft{
         // based on processor number, etc.
         Index3 key = (my_dist_mat.LocalMap().begin())->first;
 
-				//statusOFS << std::endl << "mpirank= " << mpirank << "\tkey= " << key << std::endl;
+        //statusOFS << std::endl << "mpirank= " << mpirank << "\tkey= " << key << std::endl;
         // Obtain keys of neighbors using the Hamiltonian matrix
         // We only use these keys to minimize communication in GetBegin since other parts of the vector
         // block, even if they are non-zero will get multiplied by the zero block of the Hamiltonian
@@ -136,37 +139,42 @@ namespace  dgdft{
         my_dist_mat.GetBegin( getKeys_list, NO_MASK ); 
         my_dist_mat.GetEnd( NO_MASK );
 
-				Real XDataCopy_timeSta,XDataCopy_timeEnd; 
-				GetTime(XDataCopy_timeSta);
-				//Copy X data to the GPU. Very expensive. Q: looks like data coming from MPI communication? Yes
-				//Pack the data and make one cudaMemcpy call!!
-				size_t len_buffer = my_dist_mat.LocalMap().size() * Hmat_times_my_dist_mat.LocalMap()[key].Size();
-				if(applyBatched) {
-					int ix=0;
+        Real XDataCopy_timeSta,XDataCopy_timeEnd; 
+        GetTime(XDataCopy_timeSta);
+        //Copy X data to the GPU. Very expensive. Q: looks like data coming from MPI communication? Yes
+        //Pack the data and make one cudaMemcpy call!!
+        size_t len_buffer = my_dist_mat.LocalMap().size() * Hmat_times_my_dist_mat.LocalMap()[key].Size();
+        if(applyBatched) {
+          int ix=0;
           for( const auto& x : my_dist_mat.LocalMap() ) {
-						Index3 iter_key = x.first; 
-						if(first)
-							XKeys.push_back(iter_key);
+            Index3 iter_key = x.first; 
+            if(first)
+              XKeys.push_back(iter_key);
             //std::copy( x.second.Data(), x.second.Data() + x.second.Size(), ptr );
-						memcpy(&h_x_ptr[ix*x.second.Size()], x.second.Data(), x.second.Size()*sizeof(double));
-						//statusOFS << std::endl << x.second.Data() << "\t" << x.second.Size() << "\t" << x.second.Data()+x.second.Size() << std::endl;
+            memcpy(hamDG.h_x_ptr.data() + ix * x.second.Size(), 
+                   x.second.Data(), x.second.Size()*sizeof(double));
+            //statusOFS << std::endl << x.second.Data() << "\t" << x.second.Size() << "\t" << x.second.Data()+x.second.Size() << std::endl;
             //h_x_ptr += x.second.Size();
-						ix++;
+            ix++;
           }
-					first = false;
+          first = false;
+#if 0
           cudaMemcpy( h_pluckX_ptr_d[0], h_x_ptr, len_buffer * sizeof(double), cudaMemcpyHostToDevice );
-					cudaError err = cudaGetLastError();
-					if ( cudaSuccess != err )
-						printf( "COPY X Data Error!: %s\n", cudaGetErrorString( err ) );
-				}
-				GetTime(XDataCopy_timeEnd);
-				
+          cudaError err = cudaGetLastError();
+          if ( cudaSuccess != err )
+            printf( "COPY X Data Error!: %s\n", cudaGetErrorString( err ) );
+#else
+          cuda::memcpy_h2d( hamDG.pluckX_pack_d.data(), hamDG.h_x_ptr.data(), hamDG.h_x_ptr.size() );
+#endif
+        }
+        GetTime(XDataCopy_timeEnd);
+        
         DblNumMat& mat_Y_local = Hmat_times_my_dist_mat.LocalMap()[key];
 
         // Obtain a reference to the chunk where we want to store
-				Real original_timeSta, original_timeEnd;
-				Real G_timeSta, G_timeEnd, totalTimeGEMM = 0.0;
-				GetTime( original_timeSta );
+        Real original_timeSta, original_timeEnd;
+        Real G_timeSta, G_timeEnd, totalTimeGEMM = 0.0;
+        GetTime( original_timeSta );
         // Now pluck out relevant chunks of the Hamiltonian and the vector and multiply
         for(typename std::map<Index3, DblNumMat >::iterator 
             mat_X_iterator = my_dist_mat.LocalMap().begin();
@@ -188,143 +196,168 @@ namespace  dgdft{
           Int m = mat_H_local.m(), n = mat_X_local.n(), k = mat_H_local.n();
 //Chao
 //statusOFS << "calling GEMM, m, n, k = " << m << " " << n << " " << k << std::endl; 
-					GetTime( G_timeSta );
+          GetTime( G_timeSta );
           blas::Gemm( 'N', 'N', m, n, k, 
               1.0, mat_H_local.Data(), m, 
               mat_X_local.Data(), k, 
               1.0, mat_Y_local.Data(), m);
-					GetTime( G_timeEnd );
-					totalTimeGEMM += (G_timeEnd - G_timeSta );
+          GetTime( G_timeEnd );
+          totalTimeGEMM += (G_timeEnd - G_timeSta );
 
 
         } // End of loop using mat_X_iterator
-				GetTime( original_timeEnd );
+        GetTime( original_timeEnd );
         //statusOFS << std::endl << " Hadia: .......End Original Run......\n" ;
 //#ifdef _USE_CUDA_
         //DblNumMat& mat_Y_local = Hmat_times_my_dist_mat.LocalMap()[key];
-				//DblNumMat copy_mat_X_local(mat_Y_local.m(), mat_Y_local.n());
-				if(applyBatched){
-					statusOFS << std::endl << " GEMM CPU in Loop Total completed. ( " << (original_timeEnd - original_timeSta ) << " s.)" << std::flush;
-					statusOFS << std::endl << " GEMM CPU ONLY completed. ( " << (totalTimeGEMM) << " s.)" << std::endl << std::flush;
-					Real timeSta, timeEnd;	
-					Real B_timeSta, B_timeEnd, R_timeSta, R_timeEnd, CPYR_timeSta, CPYR_timeEnd, Ptr_timeSta, Ptr_timeEnd, GetPtr_timeSta, GetPtr_timeEnd;
-					Real HC_timeSta, HC_timeEnd, HD_timeSta, HD_timeEnd;
-					//TODO: move handle creation/destruction
-					cublasStatus_t stat;
-					cublasHandle_t handle;
-					GetTime( HC_timeSta );
-					stat = cublasCreate(&handle);
-					if (stat != CUBLAS_STATUS_SUCCESS) {
-							statusOFS << std::endl <<"CUBLAS Handle initialization failed\n" 
-								<< std::endl << " Aborting ... " << std::endl;
-							exit(1);
-					}
-					GetTime( HC_timeEnd );
+        //DblNumMat copy_mat_X_local(mat_Y_local.m(), mat_Y_local.n());
+        if(applyBatched){
+          statusOFS << std::endl << " GEMM CPU in Loop Total completed. ( " << (original_timeEnd - original_timeSta ) << " s.)" << std::flush;
+          statusOFS << std::endl << " GEMM CPU ONLY completed. ( " << (totalTimeGEMM) << " s.)" << std::endl << std::flush;
+          Real timeSta, timeEnd;  
+          Real B_timeSta, B_timeEnd, R_timeSta, R_timeEnd, CPYR_timeSta, CPYR_timeEnd, Ptr_timeSta, Ptr_timeEnd, GetPtr_timeSta, GetPtr_timeEnd;
+          Real HC_timeSta, HC_timeEnd, HD_timeSta, HD_timeEnd;
+          //TODO: move handle creation/destruction
+          GetTime( HC_timeSta );
+#if 0
+          cublasStatus_t stat;
+          cublasHandle_t handle;
+          stat = cublasCreate(&handle);
+          if (stat != CUBLAS_STATUS_SUCCESS) {
+              statusOFS << std::endl <<"CUBLAS Handle initialization failed\n" 
+                << std::endl << " Aborting ... " << std::endl;
+              exit(1);
+          }
 
+#else
+          cuda::cublas_handle handle;
+#endif
+          GetTime( HC_timeEnd );
 
-					Int Bm = mat_Y_local.m(), Bn = mat_Y_local.n(), Bk = mat_Y_local.m();
-					int Bcount = my_dist_mat.LocalMap().size();
-					//Create host pointer array to device matrix storage
-					GetTime( GetPtr_timeSta);
-					// Loop to find pointers for the matrices
-					int cur = 0;
-					//Q: can be done only once? Since values of key/iter_key/pointer to data are not changing across calls.
-					for(typename std::map<Index3, DblNumMat >::iterator mat_X_iterator = my_dist_mat.LocalMap().begin() ;
+          Int Bm = mat_Y_local.m(), Bn = mat_Y_local.n(), Bk = mat_Y_local.m();
+          int Bcount = my_dist_mat.LocalMap().size();
+          //Create host pointer array to device matrix storage
+          GetTime( GetPtr_timeSta);
+          // Loop to find pointers for the matrices
+          int cur = 0;
+          //Q: can be done only once? Since values of key/iter_key/pointer to data are not changing across calls.
+          for(typename std::map<Index3, DblNumMat >::iterator mat_X_iterator = my_dist_mat.LocalMap().begin() ;
             mat_X_iterator != my_dist_mat.LocalMap().end(); mat_X_iterator ++, cur++ ){
 
-						Index3 iter_key = mat_X_iterator->first;       
+            Index3 iter_key = mat_X_iterator->first;       
 
-						// Create key for looking up Hamiltonian chunk 
-						ElemMatKey myelemmatkey = std::make_pair(key, iter_key);
-						//statusOFS << std::endl << "H: key: " << key << "\titer_key: " << iter_key << std::endl;
-						//Hadia: Find Hamiltionian matrix element position and map it to the new pointer position
-						int pos = std::distance(hamDGKeys.begin(), std::find(hamDGKeys.begin(), hamDGKeys.end(), myelemmatkey));
-						h_Harr_ptr_d[cur] = h_hamDG_ptr_d[pos];
-						hKeys.push_back(myelemmatkey);
-						
-					} // End of loop using mat_X_iterator to get pointers to matrices
-					GetTime( GetPtr_timeEnd);
+            // Create key for looking up Hamiltonian chunk 
+            ElemMatKey myelemmatkey = std::make_pair(key, iter_key);
+            //statusOFS << std::endl << "H: key: " << key << "\titer_key: " << iter_key << std::endl;
+            //Hadia: Find Hamiltionian matrix element position and map it to the new pointer position
+            int pos = std::distance(hamDGKeys.begin(), std::find(hamDGKeys.begin(), hamDGKeys.end(), myelemmatkey));
+            hamDG.h_Harr_ptr_d[cur] = hamDG.h_hamDG_ptr_d[pos].data();
+            hKeys.push_back(myelemmatkey);
+            
+          } // End of loop using mat_X_iterator to get pointers to matrices
+          GetTime( GetPtr_timeEnd);
 
-					//Moving this out of timing, since it can be called once only. *****Need to verify 
-					GetTime( Ptr_timeSta);
-					//Copy host array of device pointers to the device
-					//Q: can be done only once?
-					cudaMemcpy(d_Harr, h_Harr_ptr_d, Bcount*sizeof(double*), cudaMemcpyHostToDevice);
-					GetTime( Ptr_timeEnd);
+          //Moving this out of timing, since it can be called once only. *****Need to verify 
+          GetTime( Ptr_timeSta);
+          //Copy host array of device pointers to the device
+          //Q: can be done only once?
+#if 0
+          cudaMemcpy(d_Harr, h_Harr_ptr_d, Bcount*sizeof(double*), cudaMemcpyHostToDevice);
+#else
+          cuda::memcpy_h2d( hamDG.d_Harr.data(), hamDG.h_Harr_ptr_d.data(), Bcount );
+#endif
+          GetTime( Ptr_timeEnd);
 
-					double alpha = 1.0;
-					double beta  = 0.0;			//Hadia: Changed from 1 to 0 (to allow independent batches)
-					
-					GetTime( timeSta );
+          double alpha = 1.0;
+          double beta  = 0.0;      //Hadia: Changed from 1 to 0 (to allow independent batches)
+          
+          GetTime( timeSta );
 
-					GetTime( B_timeSta);
-					cublasDgemmBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N, 
-							Bm, Bn, Bk, &alpha, d_Harr, Bm, d_Xarr, Bk, &beta, d_Yarr, Bm, Bcount);
-					GetTime( B_timeEnd );
-					
-					//reduction on the GPUs	
-					GetTime( R_timeSta);
-					for(int bi = 1; bi < Bcount; bi++){
-							cublasDaxpy(handle, mat_Y_local.Size(), &alpha, h_pluckY_ptr_d[bi], 1, h_pluckY_ptr_d[0], 1);
-							//cublasDaxpy(handle, mat_Y_local.Size(), &alpha, d_Yarr[bi], 1, d_Yarr[0], 1);
-					}
-					GetTime( R_timeEnd);
+          GetTime( B_timeSta);
+#if 0
+          cublasDgemmBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N, 
+              Bm, Bn, Bk, &alpha, d_Harr, Bm, d_Xarr, Bk, &beta, d_Yarr, Bm, Bcount);
+#else
+          cuda::cublas_gemm_batched( handle, 'N', 'N', Bm, Bn, Bk, alpha,
+            hamDG.d_Harr.data(), Bm, hamDG.d_Xarr.data(), Bk, beta,
+            hamDG.d_Yarr.data(), Bm, Bcount );
+#endif
+          GetTime( B_timeEnd );
+          
+          //reduction on the GPUs  
+          GetTime( R_timeSta);
+          for(int bi = 1; bi < Bcount; bi++){
+#if 0
+              cublasDaxpy(handle, mat_Y_local.Size(), &alpha, h_pluckY_ptr_d[bi], 1, h_pluckY_ptr_d[0], 1);
+#else
+              cuda::cublas_axpy( handle, mat_Y_local.Size(), alpha, 
+                hamDG.h_pluckY_ptr_d[bi], 1, hamDG.h_pluckY_ptr_d[0], 1
+              );
+#endif
+              //cublasDaxpy(handle, mat_Y_local.Size(), &alpha, d_Yarr[bi], 1, d_Yarr[0], 1);
+          }
+          GetTime( R_timeEnd);
 
 
-					GetTime( timeEnd );
+          GetTime( timeEnd );
 
-					//Moving this out of timing, since we will not copy it back here since it will be used by next step.
-					GetTime( CPYR_timeSta);
-					DblNumMat copy_mat_Y_local(mat_Y_local.m(), mat_Y_local.n());
-					cudaMemcpy(copy_mat_Y_local.Data(), h_pluckY_ptr_d[0], mat_Y_local.Size()*sizeof(double), cudaMemcpyDeviceToHost);
-					//new_Y_mat = copy_mat_Y_local;
-					//int x_pos = std::distance(XKeys.begin(), std::find(XKeys.begin(), XKeys.end(), key));
-					//cudaMemcpy(copy_mat_X_local.Data(), h_pluckX_ptr_d[x_pos], mat_Y_local.Size()*sizeof(double), cudaMemcpyDeviceToHost);
-					/*
-					new_X_mat = copy_mat_X_local;
-					for(int ci = 0; ci < copy_mat_X_local.Size(); ci++)
-						statusOFS << copy_mat_X_local.Data()[ci] << std::endl;
-					*/
-					//cudaMemcpy(copy_mat_Y_local.Data(), d_Yarr[0], mat_Y_local.Size()*sizeof(double), cudaMemcpyDeviceToHost);
-					GetTime( CPYR_timeEnd);
+          //Moving this out of timing, since we will not copy it back here since it will be used by next step.
+          GetTime( CPYR_timeSta);
+          DblNumMat copy_mat_Y_local(mat_Y_local.m(), mat_Y_local.n());
+#if 0
+          cudaMemcpy(copy_mat_Y_local.Data(), h_pluckY_ptr_d[0], mat_Y_local.Size()*sizeof(double), cudaMemcpyDeviceToHost);
+#else
+          cuda::memcpy_d2h( copy_mat_Y_local.Data(), hamDG.pluckY_pack_d.data(), mat_Y_local.Size() );
+#endif
+          //new_Y_mat = copy_mat_Y_local;
+          //int x_pos = std::distance(XKeys.begin(), std::find(XKeys.begin(), XKeys.end(), key));
+          //cudaMemcpy(copy_mat_X_local.Data(), h_pluckX_ptr_d[x_pos], mat_Y_local.Size()*sizeof(double), cudaMemcpyDeviceToHost);
+          /*
+          new_X_mat = copy_mat_X_local;
+          for(int ci = 0; ci < copy_mat_X_local.Size(); ci++)
+            statusOFS << copy_mat_X_local.Data()[ci] << std::endl;
+          */
+          //cudaMemcpy(copy_mat_Y_local.Data(), d_Yarr[0], mat_Y_local.Size()*sizeof(double), cudaMemcpyDeviceToHost);
+          GetTime( CPYR_timeEnd);
+#if 0
+          GetTime( HD_timeSta );
+          cublasDestroy(handle);
+          GetTime( HD_timeEnd );
+#endif
 
-					GetTime( HD_timeSta );
-					cublasDestroy(handle);
-					GetTime( HD_timeEnd );
-
-					//Hadia: Compare output from both 
-					//statusOFS << std::endl << " ---------------------------------- Hadia: Compare Results of Both CUDA and CPU -------------------------------\n ";
-					for(int ci = 0; ci < copy_mat_Y_local.Size(); ci++){
-					//	statusOFS << copy_mat_Y_local.Data()[ci] << "\t" << Hmat_times_my_dist_mat.LocalMap()[key].Data()[ci] << std::endl;
-						if(abs(copy_mat_Y_local.Data()[ci]-mat_Y_local.Data()[ci]) > 0.000001 ) {
-							statusOFS << std::endl << " CUDA ERROR\n"  
-								<< std::endl << " GEMM Data Results not the same."
-								<< std::endl << " Aborting ... " << std::endl;
-							exit(1);
-						}
-					}
-					statusOFS << std::endl << " Batched Total completed. ( " << (timeEnd - timeSta ) << " s.)";
-					statusOFS << std::endl << " ----------- 1. Move Pointers from Host to Device ONLY ( " << (Ptr_timeEnd - Ptr_timeSta ) << " s.)";
-					statusOFS << std::endl << " ----------- 2. Batched ONLY ( " << (B_timeEnd - B_timeSta ) << " s.)";
-					statusOFS << std::endl << " ----------- 3. Reduction of Results (Daxpy loop) ONLY ( " << (R_timeEnd - R_timeSta ) << " s.)";
-					statusOFS << std::endl << " OTHER Timings\n ----------- Handle Creation ONLY ( " << (HC_timeEnd - HC_timeSta ) << " s.)";
-					statusOFS << std::endl << " ----------- 4. Moving X data to GPU ( " << (XDataCopy_timeEnd- XDataCopy_timeSta) << " s.)";
-					statusOFS << std::endl << " ----------- Loop Get Pointers ONLY ( " << (GetPtr_timeEnd - GetPtr_timeSta ) << " s.)";
-					statusOFS << std::endl << " ----------- Handle Destruction ONLY ( " << (HD_timeEnd - HD_timeSta ) << " s.)";
-					statusOFS << std::endl << " ----------- Copy Result Device to Host ONLY ( " << (CPYR_timeEnd - CPYR_timeSta ) << " s.)";
-					statusOFS << std::endl << "calling GEMM, m, n, k, batchCount = " << Bm << " " << Bn << " " << Bk << " " << Bcount <<  std::endl << "--------------------------------------------------------------------\n" ; 
-				} // end-applyBatched
-				/*
-				if(applyBatched) {
-					statusOFS << std::endl << "---------------------BATCHED Hamiltonian  keys and Data---------------------------" << std::endl;
-				}else
-					statusOFS << std::endl << "---------------------NON-BATCHED Hamiltonian keys and Data---------------------------" << std::endl;
-				for( int ih = 0; ih <  hKeys.size(); ih++){
-							statusOFS << std::endl << hKeys[ih].first << hKeys[ih].second << std::endl;
-							statusOFS << std::endl << "*****Data: " << h_Harr_ptr_d[ih] << std::endl;
-					}
-				statusOFS << std::endl << "------------------------------------------------" << std::endl;
-				*/
+          //Hadia: Compare output from both 
+          //statusOFS << std::endl << " ---------------------------------- Hadia: Compare Results of Both CUDA and CPU -------------------------------\n ";
+          for(int ci = 0; ci < copy_mat_Y_local.Size(); ci++){
+          //  statusOFS << copy_mat_Y_local.Data()[ci] << "\t" << Hmat_times_my_dist_mat.LocalMap()[key].Data()[ci] << std::endl;
+            if(abs(copy_mat_Y_local.Data()[ci]-mat_Y_local.Data()[ci]) > 0.000001 ) {
+              statusOFS << std::endl << " CUDA ERROR\n"  
+                << std::endl << " GEMM Data Results not the same."
+                << std::endl << " Aborting ... " << std::endl;
+              exit(1);
+            }
+          }
+          statusOFS << std::endl << " Batched Total completed. ( " << (timeEnd - timeSta ) << " s.)";
+          statusOFS << std::endl << " ----------- 1. Move Pointers from Host to Device ONLY ( " << (Ptr_timeEnd - Ptr_timeSta ) << " s.)";
+          statusOFS << std::endl << " ----------- 2. Batched ONLY ( " << (B_timeEnd - B_timeSta ) << " s.)";
+          statusOFS << std::endl << " ----------- 3. Reduction of Results (Daxpy loop) ONLY ( " << (R_timeEnd - R_timeSta ) << " s.)";
+          statusOFS << std::endl << " OTHER Timings\n ----------- Handle Creation ONLY ( " << (HC_timeEnd - HC_timeSta ) << " s.)";
+          statusOFS << std::endl << " ----------- 4. Moving X data to GPU ( " << (XDataCopy_timeEnd- XDataCopy_timeSta) << " s.)";
+          statusOFS << std::endl << " ----------- Loop Get Pointers ONLY ( " << (GetPtr_timeEnd - GetPtr_timeSta ) << " s.)";
+          statusOFS << std::endl << " ----------- Handle Destruction ONLY ( " << (HD_timeEnd - HD_timeSta ) << " s.)";
+          statusOFS << std::endl << " ----------- Copy Result Device to Host ONLY ( " << (CPYR_timeEnd - CPYR_timeSta ) << " s.)";
+          statusOFS << std::endl << "calling GEMM, m, n, k, batchCount = " << Bm << " " << Bn << " " << Bk << " " << Bcount <<  std::endl << "--------------------------------------------------------------------\n" ; 
+        } // end-applyBatched
+        /*
+        if(applyBatched) {
+          statusOFS << std::endl << "---------------------BATCHED Hamiltonian  keys and Data---------------------------" << std::endl;
+        }else
+          statusOFS << std::endl << "---------------------NON-BATCHED Hamiltonian keys and Data---------------------------" << std::endl;
+        for( int ih = 0; ih <  hKeys.size(); ih++){
+              statusOFS << std::endl << hKeys[ih].first << hKeys[ih].second << std::endl;
+              statusOFS << std::endl << "*****Data: " << h_Harr_ptr_d[ih] << std::endl;
+          }
+        statusOFS << std::endl << "------------------------------------------------" << std::endl;
+        */
         // Matrix * vector_block product is ready now ... 
         // Need to clean up extra entries in my_dist_mat
         typename std::map<Index3, DblNumMat >::iterator it;
@@ -372,7 +405,7 @@ namespace  dgdft{
 
           // Create distributed matrices pluck_X, pluck_Y, pluck_Yt for filtering 
           const Index3 key = (hamDG.EigvecCoef().LocalMap().begin())->first; // Will use same key as eigenvectors
-					//statusOFS << "Each key= " << key << std::endl;
+          //statusOFS << "Each key= " << key << std::endl;
           DblNumMat &eigvecs_local = (hamDG.EigvecCoef().LocalMap().begin())->second;
 
           Int local_width = band_distributor.current_proc_size;
@@ -402,56 +435,86 @@ namespace  dgdft{
               1,
               pluck_X.LocalMap()[key].Data(),
               1);
-						//Hadia: Move pluck_X matrix to CUDA
-					
+            //Hadia: Move pluck_X matrix to CUDA
+          
+#if 0
 //Size of the map changes after the GetEnd/GetBegin
 //Preallocate size.
-					//Q: Can all of this be done once and reused with each call to this scaled function? Yes.
-					//TODO: Find best place to move these.
-					h_pluckX_ptr_d = (double**) malloc(BATCH_COUNT*sizeof(double*));
-					h_pluckY_ptr_d = (double**) malloc(BATCH_COUNT*sizeof(double*));
-					h_Harr_ptr_d = (double**) malloc(BATCH_COUNT*sizeof(double*));
-					//Idea: use pinned memory. Pack all the data and malloc once!!
-					//Q: size of matrices fixed? Yes.
+          //Q: Can all of this be done once and reused with each call to this scaled function? Yes.
+          //TODO: Find best place to move these.
+          h_pluckX_ptr_d = (double**) malloc(BATCH_COUNT*sizeof(double*));
+          h_pluckY_ptr_d = (double**) malloc(BATCH_COUNT*sizeof(double*));
+          h_Harr_ptr_d = (double**) malloc(BATCH_COUNT*sizeof(double*));
+          //Idea: use pinned memory. Pack all the data and malloc once!!
+          //Q: size of matrices fixed? Yes.
 
           size_t total_length = BATCH_COUNT*local_height*local_width;
-					//for( int p_cur = 0; p_cur < BATCH_COUNT; p_cur++){
-						//Create device memory 
-						//cudaMalloc((void**)&h_pluckX_ptr_d[p_cur], local_height*local_width * sizeof(double)); //comment with packed version
-						//cudaMalloc((void**)&h_pluckY_ptr_d[p_cur], local_height*local_width  * sizeof(double));
+          //for( int p_cur = 0; p_cur < BATCH_COUNT; p_cur++){
+            //Create device memory 
+            //cudaMalloc((void**)&h_pluckX_ptr_d[p_cur], local_height*local_width * sizeof(double)); //comment with packed version
+            //cudaMalloc((void**)&h_pluckY_ptr_d[p_cur], local_height*local_width  * sizeof(double));
             //total_length += local_height * local_width;
-					//}
+          //}
 
-				  cudaMalloc((void**)&h_pluckX_ptr_d[0], total_length * sizeof(double));
-				  cudaMalloc((void**)&h_pluckY_ptr_d[0], total_length * sizeof(double));
-					cudaMallocHost((void**)&h_x_ptr, total_length * sizeof(double));
+          cudaMalloc((void**)&h_pluckX_ptr_d[0], total_length * sizeof(double));
+          cudaMalloc((void**)&h_pluckY_ptr_d[0], total_length * sizeof(double));
+          cudaMallocHost((void**)&h_x_ptr, total_length * sizeof(double));
           for( int p_cur = 1; p_cur < BATCH_COUNT; ++p_cur ) {
             h_pluckX_ptr_d[p_cur] = h_pluckX_ptr_d[p_cur-1] + local_width * local_height;
             h_pluckY_ptr_d[p_cur] = h_pluckY_ptr_d[p_cur-1] + local_width * local_height;
-						statusOFS << std::endl << "h_pluckX_ptr_d[" << p_cur << "]= " << h_pluckX_ptr_d[p_cur] << std::endl;
-						statusOFS << std::endl << "h_pluckY_ptr_d[" << p_cur << "]= " << h_pluckY_ptr_d[p_cur] << std::endl;
-					}
-					//cudaMalloc((void**)&d_local_X_data, BATCH_COUNT*local_height*local_width * sizeof(double));
-					cudaMalloc((void**)&d_Harr, BATCH_COUNT*sizeof(double*));
-					err = cudaGetLastError();
-					if ( cudaSuccess != err )
-						printf( "Malloc d_Harr Error!: %s\n", cudaGetErrorString( err ) );
-					cudaMalloc((void**)&d_Xarr, BATCH_COUNT*sizeof(double*));
-					err = cudaGetLastError();
-					if ( cudaSuccess != err )
-						printf( "Malloc d_Xarr Error!: %s\n", cudaGetErrorString( err ) );
-					cudaMalloc((void**)&d_Yarr, BATCH_COUNT*sizeof(double*));
-					err = cudaGetLastError();
-					if ( cudaSuccess != err )
-						printf( "Malloc d_Yarr Error!: %s\n", cudaGetErrorString( err ) );
-					cudaMemcpy(d_Xarr, h_pluckX_ptr_d, BATCH_COUNT*sizeof(double*), cudaMemcpyHostToDevice);
-					err = cudaGetLastError();
-					if ( cudaSuccess != err )
-						printf( "COPY X Pointers Error!: %s\n", cudaGetErrorString( err ) );
-					cudaMemcpy(d_Yarr, h_pluckY_ptr_d, BATCH_COUNT*sizeof(double*), cudaMemcpyHostToDevice);
-					err = cudaGetLastError();
-					if ( cudaSuccess != err )
-						printf( "COPY Y Pointers Error!: %s\n", cudaGetErrorString( err ) );
+            statusOFS << std::endl << "h_pluckX_ptr_d[" << p_cur << "]= " << h_pluckX_ptr_d[p_cur] << std::endl;
+            statusOFS << std::endl << "h_pluckY_ptr_d[" << p_cur << "]= " << h_pluckY_ptr_d[p_cur] << std::endl;
+          }
+#else
+
+          size_t total_length = BATCH_COUNT*local_height*local_width;
+          hamDG.pluckX_pack_d.resize( total_length );
+          hamDG.pluckY_pack_d.resize( total_length );
+          hamDG.h_x_ptr.resize( total_length ); // Use Pinned
+
+          for( auto i = 0; i < BATCH_COUNT; ++i ) {
+            hamDG.h_pluckX_ptr_d.emplace_back( 
+              hamDG.pluckX_pack_d.data() + i * local_height * local_width
+            );
+            hamDG.h_pluckY_ptr_d.emplace_back( 
+              hamDG.pluckY_pack_d.data() + i * local_height * local_width
+            );
+          }
+#endif
+
+#if 0
+          //cudaMalloc((void**)&d_local_X_data, BATCH_COUNT*local_height*local_width * sizeof(double));
+          cudaMalloc((void**)&d_Harr, BATCH_COUNT*sizeof(double*));
+          err = cudaGetLastError();
+          if ( cudaSuccess != err )
+            printf( "Malloc d_Harr Error!: %s\n", cudaGetErrorString( err ) );
+          cudaMalloc((void**)&d_Xarr, BATCH_COUNT*sizeof(double*));
+          err = cudaGetLastError();
+          if ( cudaSuccess != err )
+            printf( "Malloc d_Xarr Error!: %s\n", cudaGetErrorString( err ) );
+          cudaMalloc((void**)&d_Yarr, BATCH_COUNT*sizeof(double*));
+          err = cudaGetLastError();
+          if ( cudaSuccess != err )
+            printf( "Malloc d_Yarr Error!: %s\n", cudaGetErrorString( err ) );
+          cudaMemcpy(d_Xarr, h_pluckX_ptr_d, BATCH_COUNT*sizeof(double*), cudaMemcpyHostToDevice);
+          err = cudaGetLastError();
+          if ( cudaSuccess != err )
+            printf( "COPY X Pointers Error!: %s\n", cudaGetErrorString( err ) );
+          cudaMemcpy(d_Yarr, h_pluckY_ptr_d, BATCH_COUNT*sizeof(double*), cudaMemcpyHostToDevice);
+          err = cudaGetLastError();
+          if ( cudaSuccess != err )
+            printf( "COPY Y Pointers Error!: %s\n", cudaGetErrorString( err ) );
+#else
+
+          hamDG.d_Xarr.resize( BATCH_COUNT );
+          hamDG.d_Yarr.resize( BATCH_COUNT );
+          hamDG.d_Harr.resize( BATCH_COUNT );
+
+          cuda::memcpy_h2d( hamDG.d_Xarr.data(), hamDG.h_pluckX_ptr_d.data(),
+                            BATCH_COUNT );
+          cuda::memcpy_h2d( hamDG.d_Yarr.data(), hamDG.h_pluckY_ptr_d.data(),
+                            BATCH_COUNT );
+#endif
 
           SetValue(pluck_Y.LocalMap()[key], 0.0);
           SetValue(pluck_Yt.LocalMap()[key], 0.0);
@@ -477,29 +540,33 @@ namespace  dgdft{
           //statusOFS << std::endl << " Chebyshev filtering step 1 of " << m << " ... ";
           GetTime( extra_timeSta );
 
-					//***Hadia: This is the function that does the many mat. operations
+          //***Hadia: This is the function that does the many mat. operations
           scfdg_hamiltonian_times_distmat_device(pluck_X, pluck_Y, true); // Y = H * X
           scfdg_distmat_update(pluck_X, (-c) , pluck_Y,  1.0); // Y = -c * X + 1.0 * Y
-					int x_pos = std::distance(XKeys.begin(), std::find(XKeys.begin(), XKeys.end(), key));
-					statusOFS << std::endl << "x_pos: " << x_pos << std::endl;
+          int x_pos = std::distance(XKeys.begin(), std::find(XKeys.begin(), XKeys.end(), key));
+          statusOFS << std::endl << "x_pos: " << x_pos << std::endl;
 //#if USE_CUDA
 #if 1
-					statusOFS << std::endl << "Testing AXPBY" << std::endl;
-					axpby_device<double>(local_height * local_width, -c, h_pluckX_ptr_d[x_pos], 1, 1.0, h_pluckY_ptr_d[0], 1);
-					DblNumMat copy_mat_Y_local(local_height, local_width);
-					cudaMemcpy(copy_mat_Y_local.Data(), h_pluckY_ptr_d[0], copy_mat_Y_local.Size()*sizeof(double), cudaMemcpyDeviceToHost);
-					err = cudaGetLastError();
-					if ( cudaSuccess != err )
-						printf( "COPY Y Data Error!: %s\n", cudaGetErrorString( err ) );
-					for(int ci = 0; ci < copy_mat_Y_local.Size(); ci++){
-						statusOFS << copy_mat_Y_local.Data()[ci] << "\t" << pluck_Y.LocalMap()[key].Data()[ci] << std::endl;
-						if(abs(copy_mat_Y_local.Data()[ci]-pluck_Y.LocalMap()[key].Data()[ci]) > 0.000001 ) {
-							statusOFS << std::endl << " AXPBY CUDA ERROR\n"  
-								<< std::endl << " GEMM Data Results not the same."
-								<< std::endl << " Aborting ... " << std::endl;
-							exit(1);
-						}
-					}
+          statusOFS << std::endl << "Testing AXPBY" << std::endl;
+          cuda::axpby_device<double>(local_height * local_width, -c, hamDG.h_pluckX_ptr_d[x_pos], 1, 1.0, hamDG.h_pluckY_ptr_d[0], 1);
+          DblNumMat copy_mat_Y_local(local_height, local_width);
+#if 0
+          cudaMemcpy(copy_mat_Y_local.Data(), h_pluckY_ptr_d[0], copy_mat_Y_local.Size()*sizeof(double), cudaMemcpyDeviceToHost);
+          err = cudaGetLastError();
+          if ( cudaSuccess != err )
+            printf( "COPY Y Data Error!: %s\n", cudaGetErrorString( err ) );
+#else
+          cuda::memcpy_d2h( copy_mat_Y_local.Data(), hamDG.pluckY_pack_d.data(), copy_mat_Y_local.Size() );
+#endif
+          for(int ci = 0; ci < copy_mat_Y_local.Size(); ci++){
+            statusOFS << copy_mat_Y_local.Data()[ci] << "\t" << pluck_Y.LocalMap()[key].Data()[ci] << std::endl;
+            if(abs(copy_mat_Y_local.Data()[ci]-pluck_Y.LocalMap()[key].Data()[ci]) > 0.000001 ) {
+              statusOFS << std::endl << " AXPBY CUDA ERROR\n"  
+                << std::endl << " GEMM Data Results not the same."
+                << std::endl << " Aborting ... " << std::endl;
+              exit(1);
+            }
+          }
 #endif
           scfdg_distmat_update(pluck_Y, 0.0 , pluck_Y,  (sigma / e)); // Y = 0.0 * Y + (sigma / e) * Y
 
@@ -565,15 +632,17 @@ namespace  dgdft{
             << (extra_timeEnd - extra_timeSta ) << " s.";
 
 
-					free(h_pluckX_ptr_d);
-					free(h_pluckY_ptr_d);
-					//cudaFree(&h_pluckX_ptr_d[0]);
-					cudaFree(h_pluckX_ptr_d[0]);
-					cudaFree(&h_pluckY_ptr_d[0]);
-					cudaFree(d_Harr);
-					cudaFree(d_Xarr);
-					cudaFree(d_Yarr);
-					cudaFreeHost(h_x_ptr);
+#if 0
+          free(h_pluckX_ptr_d);
+          free(h_pluckY_ptr_d);
+          //cudaFree(&h_pluckX_ptr_d[0]);
+          cudaFree(h_pluckX_ptr_d[0]);
+          cudaFree(&h_pluckY_ptr_d[0]);
+          cudaFree(d_Harr);
+          cudaFree(d_Xarr);
+          cudaFree(d_Yarr);
+          cudaFreeHost(h_x_ptr);
+#endif
 
 
 
@@ -698,25 +767,36 @@ namespace  dgdft{
 #endif
 
             } // if ( innerIter == 1 )
-						//Hadia: Move DG Hamiltoniam matrix to CUDA
-					
-						h_hamDG_ptr_d = (double**) malloc(hamDG.HMat().LocalMap().size()*sizeof(double*));
-						int cur =0;
+            //Hadia: Move DG Hamiltoniam matrix to CUDA
+#if 0          
+            h_hamDG_ptr_d = (double**) malloc(hamDG.HMat().LocalMap().size()*sizeof(double*));
+#else
+            hamDGPtr_->h_hamDG_ptr_d.clear();
+            hamDGPtr_->h_hamDG_ptr_d.reserve(hamDG.HMat().LocalMap().size());
+#endif
+
+            int cur =0;
             //Hadia TODO: Pack all in one buffer.
-						for( std::map<ElemMatKey, DblNumMat>::iterator 
-								mi  = hamDG.HMat().LocalMap().begin();
-								mi != hamDG.HMat().LocalMap().end(); mi++ ){
-							ElemMatKey key = (*mi).first;
-							hamDGKeys.push_back(key);
-							//Create device memory and move data there
-							cudaMalloc((void**)&h_hamDG_ptr_d[cur], (*mi).second.Size() * sizeof(double));
-							cudaMemcpy(h_hamDG_ptr_d[cur], (*mi).second.Data(), (*mi).second.Size() * sizeof(double), cudaMemcpyHostToDevice);
-							cudaError err = cudaGetLastError();
-							if ( cudaSuccess != err )
-								printf( "COPY HamDG Ptrs Error!: %s\n", cudaGetErrorString( err ) );
-							cur++;
-						}
-						statusOFS << std::endl << "Matrix H counter: " << cur << std::endl ; //<< "size: " << (hamDG.HMat().LocalMap().begin()).second.Size() << std::endl;
+            for( std::map<ElemMatKey, DblNumMat>::iterator 
+                mi  = hamDG.HMat().LocalMap().begin();
+                mi != hamDG.HMat().LocalMap().end(); mi++ ){
+              ElemMatKey key = (*mi).first;
+              hamDGKeys.push_back(key);
+              //Create device memory and move data there
+#if 0
+              cudaMalloc((void**)&h_hamDG_ptr_d[cur], (*mi).second.Size() * sizeof(double));
+              cudaMemcpy(h_hamDG_ptr_d[cur], (*mi).second.Data(), (*mi).second.Size() * sizeof(double), cudaMemcpyHostToDevice);
+              cudaError err = cudaGetLastError();
+              if ( cudaSuccess != err )
+                printf( "COPY HamDG Ptrs Error!: %s\n", cudaGetErrorString( err ) );
+#else
+              hamDGPtr_->h_hamDG_ptr_d.emplace_back( mi->second.Size() );
+              cuda::memcpy_h2d( hamDGPtr_->h_hamDG_ptr_d.back().data(),
+                                mi->second.Data(), mi->second.Size() );
+#endif
+              cur++;
+            }
+            statusOFS << std::endl << "Matrix H counter: " << cur << std::endl ; //<< "size: " << (hamDG.HMat().LocalMap().begin()).second.Size() << std::endl;
 
 #if ( _DEBUGlevel_ >= 2 )
             {
@@ -1114,12 +1194,12 @@ namespace  dgdft{
                 statusOFS << std::endl << " Using complementary subspace method for electron density ... " << std::endl;
 
                 Real GetTime_extra_sta, GetTime_extra_end;          
-		Real GetTime_fine_sta, GetTime_fine_end;
-		
+    Real GetTime_fine_sta, GetTime_fine_end;
+    
                 GetTime(GetTime_extra_sta);
                 statusOFS << std::endl << " Forming diagonal blocks of density matrix : ";
                 GetTime(GetTime_fine_sta);
-		
+    
                 // Compute the diagonal blocks of the density matrix
                 DistVec<ElemMatKey, NumMat<Real>, ElemMatPrtn> cheby_diag_dmat;  
                 cheby_diag_dmat.Prtn()     = hamDG.HMat().Prtn();
@@ -1145,12 +1225,12 @@ namespace  dgdft{
                     cheby_diag_dmat.LocalMap()[diag_block_key].Data(),  temp_local_eig_vec.m());
 
                 GetTime(GetTime_fine_end);
-		statusOFS << std::endl << " X * X^T computed in " << (GetTime_fine_end - GetTime_fine_sta) << " s.";
-		
-		GetTime(GetTime_fine_sta);
+    statusOFS << std::endl << " X * X^T computed in " << (GetTime_fine_end - GetTime_fine_sta) << " s.";
+    
+    GetTime(GetTime_fine_sta);
                 if(SCFDG_comp_subspace_N_solve_ != 0)
-		{
-		  // Now compute the X * C portion
+    {
+      // Now compute the X * C portion
                  DblNumMat XC_mat;
                  XC_mat.Resize(eigvecs_local.m(), SCFDG_comp_subspace_N_solve_);
 
@@ -1168,9 +1248,9 @@ namespace  dgdft{
                              XC_mat.Data(), XC_mat.m(),
                              1.0, 
                              cheby_diag_dmat.LocalMap()[diag_block_key].Data(),  temp_local_eig_vec.m());
-		}
+    }
                 GetTime(GetTime_fine_end);
-		statusOFS << std::endl << " X*C and XC * (XC)^T computed in " << (GetTime_fine_end - GetTime_fine_sta) << " s.";
+    statusOFS << std::endl << " X*C and XC * (XC)^T computed in " << (GetTime_fine_end - GetTime_fine_sta) << " s.";
                 
                 
                 GetTime(GetTime_extra_end);
@@ -2024,8 +2104,8 @@ namespace  dgdft{
 
             // The following version is with intra-element parallelization
             DistDblNumVec VtotHist; // check check
-	    // check check
-	    Real difNumElectron = 0.0;
+      // check check
+      Real difNumElectron = 0.0;
             if( solutionMethod_ == "pexsi" ){
 //chao
 statusOFS << "Chao: pexsi starts from here! " << std::endl;
