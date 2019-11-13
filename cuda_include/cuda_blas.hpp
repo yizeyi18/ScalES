@@ -40,11 +40,11 @@ __global__ void axpby_kernel( const size_t n, const T alpha, const T* X, const s
 
 template <class T>
 void axpby_device( const size_t n, const T alpha, const T* X, const size_t INCX, const T beta, T* Y, const size_t INCY, cudaStream_t stream = 0) {
-	cudaDeviceSynchronize();
+//	cudaDeviceSynchronize();
 	axpby_kernel<T><<< std::ceil( n / 1024.0 ), 1024, 0, stream >>>( n, alpha, X, INCX, beta, Y, INCY );
 	cudaError err = cudaGetLastError();
 	if ( cudaSuccess != err )
-    printf( "Error!: %s\n", cudaGetErrorString( err ) );
+    printf( "AXPBY Error!: %s\n", cudaGetErrorString( err ) );
 
 }
 //} // namespace cudablas
