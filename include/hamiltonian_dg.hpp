@@ -61,6 +61,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "mpi_interf.hpp"
 #include  "lapack.hpp"
 #include  "scalapack.hpp"
+#include <device_vector.hpp>
 
 
 namespace dgdft{
@@ -576,6 +577,28 @@ public:
   Int NumOccupiedState() const { return numOccupiedState_; }
 
   Int NumExtraState() const { return numExtraState_; }
+
+
+
+
+
+  // DEVICE STUFF
+
+  
+  std::vector<ElemMatKey> hKeys;
+  std::vector<ElemMatKey> hamDGKeys;	
+
+  std::vector< cuda::device_vector<double> > h_hamDG_ptr_d; // X
+  //cuda::device_vector<double>                d_local_X_data;
+  cuda::device_vector< double >              pluckX_pack_d; // X
+  cuda::device_vector< double >              pluckY_pack_d; // X
+  std::vector<                     double* > h_pluckX_ptr_d; // X
+  std::vector<                     double* > h_pluckY_ptr_d;  // X
+  std::vector<                     double* > h_Harr_ptr_d;
+  cuda::device_vector<double*>               d_Xarr, d_Yarr, d_Harr;
+  std::vector< double >                      h_x_ptr;
+  
+
 
 };
 

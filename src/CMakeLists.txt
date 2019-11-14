@@ -45,7 +45,9 @@ set( LIBDG_SRC scf_dg.cpp scf.cpp eigensolver.cpp iondynamics.cpp
                hamiltonian.cpp periodtable.cpp spinor.cpp 
                fourier.cpp utility.cpp esdf.cpp mpi_interf.cpp 
                scalapack.cpp lapack.cpp blas.cpp global.cpp 
-               tddft.cpp sgmres.cpp )
+               tddft.cpp sgmres.cpp 
+cuda_memory_resource.cxx segregated_memory_resource.cxx cuda_scf_dg.cxx 
+)
 
 
 add_library( libdgdft ${LIBDG_SRC} )
@@ -54,7 +56,7 @@ if( DGDFT_ENABLE_CUDA )
 
   find_package( CUDA REQUIRED )
   message(STATUS "CUBLAS ${CUDA_CUBLAS_LIBRARIES}")
-  set( LIBDG_DEVICE_SRC cuda_scf_dg.cu )
+  set( LIBDG_DEVICE_SRC cuda_wrapper.cu )
   add_library( libdgdft_device ${LIBDG_DEVICE_SRC} )
   target_link_libraries( libdgdft_device
     PUBLIC
@@ -66,6 +68,7 @@ if( DGDFT_ENABLE_CUDA )
       ${CUDA_CUBLAS_LIBRARIES}
   )
 
+target_compile_features( libdgdft_device PRIVATE cxx_std_14 )
   target_link_libraries(libdgdft PUBLIC libdgdft_device )
 
   target_include_directories( libdgdft_device 
@@ -89,6 +92,7 @@ target_link_libraries( libdgdft
     DGDFT::external
     DGDFT::tpl_depends
 )
+target_compile_features( libdgdft PUBLIC cxx_std_17 )
 
 target_include_directories( libdgdft 
   PUBLIC
