@@ -1,2 +1,0 @@
-dgdft -in [inFile]
-in:             Input file (default: dgdft.in)
