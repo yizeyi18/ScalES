@@ -146,14 +146,9 @@ namespace  dgdft{
             ix++;
           }
           first = false;
-#if 0
-          cudaMemcpy( h_pluckX_ptr_d[0], h_x_ptr, len_buffer * sizeof(double), cudaMemcpyHostToDevice );
-          cudaError err = cudaGetLastError();
-          if ( cudaSuccess != err )
-            printf( "COPY X Data Error!: %s\n", cudaGetErrorString( err ) );
-#else
+
+          // DBWY: Copy packed data to device
           cuda::memcpy_h2d( hamDG.pluckX_pack_d.data(), hamDG.h_x_ptr.data(), hamDG.h_x_ptr.size() );
-#endif
         }
         GetTime(XDataCopy_timeEnd);
         
@@ -205,21 +200,10 @@ namespace  dgdft{
           Real timeSta, timeEnd;  
           Real B_timeSta, B_timeEnd, R_timeSta, R_timeEnd, CPYR_timeSta, CPYR_timeEnd, Ptr_timeSta, Ptr_timeEnd, GetPtr_timeSta, GetPtr_timeEnd;
           Real HC_timeSta, HC_timeEnd, HD_timeSta, HD_timeEnd;
-          //TODO: move handle creation/destruction
-          GetTime( HC_timeSta );
-#if 0
-          cublasStatus_t stat;
-          cublasHandle_t handle;
-          stat = cublasCreate(&handle);
-          if (stat != CUBLAS_STATUS_SUCCESS) {
-              statusOFS << std::endl <<"CUBLAS Handle initialization failed\n" 
-                << std::endl << " Aborting ... " << std::endl;
-              exit(1);
-          }
 
-#else
+          // DBWY: Create cublas handle TODO: move to HamiltonianDG
+          GetTime( HC_timeSta );
           cuda::cublas_handle handle;
-#endif
           GetTime( HC_timeEnd );
 
 
@@ -247,14 +231,10 @@ namespace  dgdft{
           GetTime( GetPtr_timeEnd);
 
           //Moving this out of timing, since it can be called once only. *****Need to verify 
-          GetTime( Ptr_timeSta);
           //Copy host array of device pointers to the device
-          //Q: can be done only once?
-#if 0
-          cudaMemcpy(d_Harr, h_Harr_ptr_d, Bcount*sizeof(double*), cudaMemcpyHostToDevice);
-#else
+          //Q: can be done only once? DBWY-A: Yes!
+          GetTime( Ptr_timeSta);
           cuda::memcpy_h2d( hamDG.d_Harr.data(), hamDG.h_Harr_ptr_d.data(), Bcount );
-#endif
           GetTime( Ptr_timeEnd);
 
           double alpha = 1.0;
@@ -263,27 +243,19 @@ namespace  dgdft{
           GetTime( timeSta );
 
           GetTime( B_timeSta);
-#if 0
-          cublasDgemmBatched(handle, CUBLAS_OP_N, CUBLAS_OP_N, 
-              Bm, Bn, Bk, &alpha, d_Harr, Bm, d_Xarr, Bk, &beta, d_Yarr, Bm, Bcount);
-#else
           cuda::cublas_gemm_batched( handle, 'N', 'N', Bm, Bn, Bk, alpha,
             hamDG.d_Harr.data(), Bm, hamDG.d_Xarr.data(), Bk, beta,
             hamDG.d_Yarr.data(), Bm, Bcount );
-#endif
           GetTime( B_timeEnd );
           
           //reduction on the GPUs  
+          // DBWY: This will be slow, should write a kernel that adds an arbitrary number of matrices
+          // using the device ptr array (on device)
           GetTime( R_timeSta);
           for(int bi = 1; bi < Bcount; bi++){
-#if 0
-              cublasDaxpy(handle, mat_Y_local.Size(), &alpha, h_pluckY_ptr_d[bi], 1, h_pluckY_ptr_d[0], 1);
-#else
-              cuda::cublas_axpy( handle, mat_Y_local.Size(), alpha, 
-                hamDG.h_pluckY_ptr_d[bi], 1, hamDG.h_pluckY_ptr_d[0], 1
-              );
-#endif
-              //cublasDaxpy(handle, mat_Y_local.Size(), &alpha, d_Yarr[bi], 1, d_Yarr[0], 1);
+            cuda::cublas_axpy( handle, mat_Y_local.Size(), alpha, 
+              hamDG.h_pluckY_ptr_d[bi], 1, hamDG.h_pluckY_ptr_d[0], 1
+            );
           }
           GetTime( R_timeEnd);
 
@@ -293,11 +265,8 @@ namespace  dgdft{
           //Moving this out of timing, since we will not copy it back here since it will be used by next step.
           GetTime( CPYR_timeSta);
           DblNumMat copy_mat_Y_local(mat_Y_local.m(), mat_Y_local.n());
-#if 0
-          cudaMemcpy(copy_mat_Y_local.Data(), h_pluckY_ptr_d[0], mat_Y_local.Size()*sizeof(double), cudaMemcpyDeviceToHost);
-#else
           cuda::memcpy_d2h( copy_mat_Y_local.Data(), hamDG.pluckY_pack_d.data(), mat_Y_local.Size() );
-#endif
+
           //new_Y_mat = copy_mat_Y_local;
           //int x_pos = std::distance(XKeys.begin(), std::find(XKeys.begin(), XKeys.end(), key));
           //cudaMemcpy(copy_mat_X_local.Data(), h_pluckX_ptr_d[x_pos], mat_Y_local.Size()*sizeof(double), cudaMemcpyDeviceToHost);
@@ -308,11 +277,6 @@ namespace  dgdft{
           */
           //cudaMemcpy(copy_mat_Y_local.Data(), d_Yarr[0], mat_Y_local.Size()*sizeof(double), cudaMemcpyDeviceToHost);
           GetTime( CPYR_timeEnd);
-#if 0
-          GetTime( HD_timeSta );
-          cublasDestroy(handle);
-          GetTime( HD_timeEnd );
-#endif
 
           //Hadia: Compare output from both 
           //statusOFS << std::endl << " ---------------------------------- Hadia: Compare Results of Both CUDA and CPU -------------------------------\n ";
@@ -426,35 +390,6 @@ namespace  dgdft{
               1);
             //Hadia: Move pluck_X matrix to CUDA
           
-#if 0
-//Size of the map changes after the GetEnd/GetBegin
-//Preallocate size.
-          //Q: Can all of this be done once and reused with each call to this scaled function? Yes.
-          //TODO: Find best place to move these.
-          h_pluckX_ptr_d = (double**) malloc(BATCH_COUNT*sizeof(double*));
-          h_pluckY_ptr_d = (double**) malloc(BATCH_COUNT*sizeof(double*));
-          h_Harr_ptr_d = (double**) malloc(BATCH_COUNT*sizeof(double*));
-          //Idea: use pinned memory. Pack all the data and malloc once!!
-          //Q: size of matrices fixed? Yes.
-
-          size_t total_length = BATCH_COUNT*local_height*local_width;
-          //for( int p_cur = 0; p_cur < BATCH_COUNT; p_cur++){
-            //Create device memory 
-            //cudaMalloc((void**)&h_pluckX_ptr_d[p_cur], local_height*local_width * sizeof(double)); //comment with packed version
-            //cudaMalloc((void**)&h_pluckY_ptr_d[p_cur], local_height*local_width  * sizeof(double));
-            //total_length += local_height * local_width;
-          //}
-
-          cudaMalloc((void**)&h_pluckX_ptr_d[0], total_length * sizeof(double));
-          cudaMalloc((void**)&h_pluckY_ptr_d[0], total_length * sizeof(double));
-          cudaMallocHost((void**)&h_x_ptr, total_length * sizeof(double));
-          for( int p_cur = 1; p_cur < BATCH_COUNT; ++p_cur ) {
-            h_pluckX_ptr_d[p_cur] = h_pluckX_ptr_d[p_cur-1] + local_width * local_height;
-            h_pluckY_ptr_d[p_cur] = h_pluckY_ptr_d[p_cur-1] + local_width * local_height;
-            statusOFS << std::endl << "h_pluckX_ptr_d[" << p_cur << "]= " << h_pluckX_ptr_d[p_cur] << std::endl;
-            statusOFS << std::endl << "h_pluckY_ptr_d[" << p_cur << "]= " << h_pluckY_ptr_d[p_cur] << std::endl;
-          }
-#else
 
           size_t total_length = BATCH_COUNT*local_height*local_width;
           hamDG.pluckX_pack_d.resize( total_length );
@@ -472,31 +407,7 @@ namespace  dgdft{
               hamDG.pluckY_pack_d.data() + i * local_height * local_width
             );
           }
-#endif
 
-#if 0
-          //cudaMalloc((void**)&d_local_X_data, BATCH_COUNT*local_height*local_width * sizeof(double));
-          cudaMalloc((void**)&d_Harr, BATCH_COUNT*sizeof(double*));
-          err = cudaGetLastError();
-          if ( cudaSuccess != err )
-            printf( "Malloc d_Harr Error!: %s\n", cudaGetErrorString( err ) );
-          cudaMalloc((void**)&d_Xarr, BATCH_COUNT*sizeof(double*));
-          err = cudaGetLastError();
-          if ( cudaSuccess != err )
-            printf( "Malloc d_Xarr Error!: %s\n", cudaGetErrorString( err ) );
-          cudaMalloc((void**)&d_Yarr, BATCH_COUNT*sizeof(double*));
-          err = cudaGetLastError();
-          if ( cudaSuccess != err )
-            printf( "Malloc d_Yarr Error!: %s\n", cudaGetErrorString( err ) );
-          cudaMemcpy(d_Xarr, h_pluckX_ptr_d, BATCH_COUNT*sizeof(double*), cudaMemcpyHostToDevice);
-          err = cudaGetLastError();
-          if ( cudaSuccess != err )
-            printf( "COPY X Pointers Error!: %s\n", cudaGetErrorString( err ) );
-          cudaMemcpy(d_Yarr, h_pluckY_ptr_d, BATCH_COUNT*sizeof(double*), cudaMemcpyHostToDevice);
-          err = cudaGetLastError();
-          if ( cudaSuccess != err )
-            printf( "COPY Y Pointers Error!: %s\n", cudaGetErrorString( err ) );
-#else
 
           hamDG.d_Xarr.resize( BATCH_COUNT );
           hamDG.d_Yarr.resize( BATCH_COUNT );
@@ -506,7 +417,6 @@ namespace  dgdft{
                             BATCH_COUNT );
           cuda::memcpy_h2d( hamDG.d_Yarr.data(), hamDG.h_pluckY_ptr_d.data(),
                             BATCH_COUNT );
-#endif
 
           SetValue(pluck_Y.LocalMap()[key], 0.0);
           SetValue(pluck_Yt.LocalMap()[key], 0.0);
@@ -540,16 +450,11 @@ namespace  dgdft{
 //#if USE_CUDA
 #if 1
           statusOFS << std::endl << "Testing AXPBY" << std::endl;
-          cuda::axpby_device<double>(local_height * local_width, -c, hamDG.h_pluckX_ptr_d[x_pos], 1, 1.0, hamDG.h_pluckY_ptr_d[0], 1);
+          cuda::axpby_device(local_height * local_width, -c, hamDG.h_pluckX_ptr_d[x_pos], 1, 1.0, hamDG.h_pluckY_ptr_d[0], 1);
           DblNumMat copy_mat_Y_local(local_height, local_width);
-#if 0
-          cudaMemcpy(copy_mat_Y_local.Data(), h_pluckY_ptr_d[0], copy_mat_Y_local.Size()*sizeof(double), cudaMemcpyDeviceToHost);
-          err = cudaGetLastError();
-          if ( cudaSuccess != err )
-            printf( "COPY Y Data Error!: %s\n", cudaGetErrorString( err ) );
-#else
+
           cuda::memcpy_d2h( copy_mat_Y_local.Data(), hamDG.pluckY_pack_d.data(), copy_mat_Y_local.Size() );
-#endif
+
           for(int ci = 0; ci < copy_mat_Y_local.Size(); ci++){
             statusOFS << copy_mat_Y_local.Data()[ci] << "\t" << pluck_Y.LocalMap()[key].Data()[ci] << std::endl;
             if(abs(copy_mat_Y_local.Data()[ci]-pluck_Y.LocalMap()[key].Data()[ci]) > 0.000001 ) {
@@ -622,20 +527,6 @@ namespace  dgdft{
           GetTime( extra_timeEnd );
           statusOFS << std::endl << " Eigenvector block rebuild time = " 
             << (extra_timeEnd - extra_timeSta ) << " s.";
-
-
-#if 0
-          free(h_pluckX_ptr_d);
-          free(h_pluckY_ptr_d);
-          //cudaFree(&h_pluckX_ptr_d[0]);
-          cudaFree(h_pluckX_ptr_d[0]);
-          cudaFree(&h_pluckY_ptr_d[0]);
-          cudaFree(d_Harr);
-          cudaFree(d_Xarr);
-          cudaFree(d_Yarr);
-          cudaFreeHost(h_x_ptr);
-#endif
-
 
 
         } // End of scfdg_Chebyshev_filter
@@ -760,14 +651,10 @@ namespace  dgdft{
 
             } // if ( innerIter == 1 )
             //Hadia: Move DG Hamiltoniam matrix to CUDA
-#if 0          
-            h_hamDG_ptr_d = (double**) malloc(hamDG.HMat().LocalMap().size()*sizeof(double*));
-#else
             hamDGPtr_->h_hamDG_ptr_d.clear();
             hamDGPtr_->h_hamDG_ptr_d.reserve(hamDG.HMat().LocalMap().size());
-#endif
 
-            int cur =0;
+            //int cur =0;
             //Hadia TODO: Pack all in one buffer.
             for( std::map<ElemMatKey, DblNumMat>::iterator 
                 mi  = hamDG.HMat().LocalMap().begin();
@@ -775,20 +662,13 @@ namespace  dgdft{
               ElemMatKey key = (*mi).first;
               hamDGKeys.push_back(key);
               //Create device memory and move data there
-#if 0
-              cudaMalloc((void**)&h_hamDG_ptr_d[cur], (*mi).second.Size() * sizeof(double));
-              cudaMemcpy(h_hamDG_ptr_d[cur], (*mi).second.Data(), (*mi).second.Size() * sizeof(double), cudaMemcpyHostToDevice);
-              cudaError err = cudaGetLastError();
-              if ( cudaSuccess != err )
-                printf( "COPY HamDG Ptrs Error!: %s\n", cudaGetErrorString( err ) );
-#else
               hamDGPtr_->h_hamDG_ptr_d.emplace_back( mi->second.Size() );
               cuda::memcpy_h2d( hamDGPtr_->h_hamDG_ptr_d.back().data(),
                                 mi->second.Data(), mi->second.Size() );
-#endif
-              cur++;
+      
+              //cur++;
             }
-            statusOFS << std::endl << "Matrix H counter: " << cur << std::endl ; //<< "size: " << (hamDG.HMat().LocalMap().begin()).second.Size() << std::endl;
+            //statusOFS << std::endl << "Matrix H counter: " << cur << std::endl ; //<< "size: " << (hamDG.HMat().LocalMap().begin()).second.Size() << std::endl;
 
 #if ( _DEBUGlevel_ >= 2 )
             {
