@@ -433,7 +433,7 @@ namespace  dgdft{
 					}
 					//cudaMalloc((void**)&d_local_X_data, BATCH_COUNT*local_height*local_width * sizeof(double));
 					cudaMalloc((void**)&d_Harr, BATCH_COUNT*sizeof(double*));
-					err = cudaGetLastError();
+					auto err = cudaGetLastError();
 					if ( cudaSuccess != err )
 						printf( "Malloc d_Harr Error!: %s\n", cudaGetErrorString( err ) );
 					cudaMalloc((void**)&d_Xarr, BATCH_COUNT*sizeof(double*));
