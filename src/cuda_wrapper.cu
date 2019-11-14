@@ -1,10 +1,35 @@
 #include <cuda_wrapper.hpp>
-#include <cassert>
 #include <iostream>
 
 #include <cublas_v2.h>
 
+#define CUDA_THROW_AS_ASSERT
+
+#ifdef CUDA_THROW_AS_ASSERT
+  #include <cassert>
+  #define CUDA_THROW(err){ assert( err == cudaSuccess ); }
+#else
+  #include <exception>
+  #define CUDA_THROW(err){ if(err != cudaSuccess) throw cuda_exception( err ); }
+#endif
+
 namespace cuda {
+
+class cuda_exception : public std::exception {
+
+  std::string message;
+
+  virtual const char* what() const throw() {
+    return message.c_str();
+  }
+
+public:
+
+  cuda_exception( const char* msg ) : std::exception(), message( msg ) { };
+  cuda_exception( cudaError_t err ) : cuda_exception( cudaGetErrorString( err ) ) { } 
+
+};
+
 namespace wrappers {
 
 void memset( void* data, int val, size_t len ) {
@@ -17,7 +42,8 @@ void device_sync() {
 
 void memcpy_h2d( void* dest, const void* src, size_t len ) {
   auto status = cudaMemcpy( dest, src, len, cudaMemcpyHostToDevice );
-  assert( status == cudaSuccess );
+  //assert( status == cudaSuccess );
+  CUDA_THROW( status );
 }
 
 void memcpy_d2h( void* dest, const void* src, size_t len ) {

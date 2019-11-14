@@ -65,19 +65,7 @@ namespace  dgdft{
   using namespace dgdft::esdf;
   using namespace dgdft::scalapack;
 
-/*
-  //Keys and CUDA pointers to Hamiltonian matrix
-  //TODO: Move to a class + add the handle
-  double **h_hamDG_ptr_d;
-  //Keys and CUDA pointers to X matrix
-  //std::vector<Index3> pluckXKeys;  
-  double *d_local_X_data;
-  double **h_pluckX_ptr_d;
-  double **h_pluckY_ptr_d;
-  double **h_Harr_ptr_d;
-  double **d_Xarr, **d_Yarr, **d_Harr;
-  double *h_x_ptr;
-*/
+  // Global vars: TODO REMOVE!
   bool first = true;
   std::vector<Index3> XKeys;  
   std::vector<ElemMatKey> hKeys;
