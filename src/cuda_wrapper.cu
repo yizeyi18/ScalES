@@ -9,10 +9,12 @@ namespace wrappers {
 
 void memset( void* data, int val, size_t len ) {
   auto status = cudaMemset( data, val, len );
+  assert( status == cudaSuccess );
 }
 
 void device_sync() {
-  cudaDeviceSynchronize();
+  auto status = cudaDeviceSynchronize();
+  assert( status == cudaSuccess );
 }
 
 void memcpy_h2d( void* dest, const void* src, size_t len ) {
@@ -50,11 +52,13 @@ namespace detail {
     cudaEvent_t event;
 
     cuda_event_pimpl(){
-      cudaEventCreate( &event );
+      auto status = cudaEventCreate( &event );
+      assert( status == cudaSuccess );
     }
 
     ~cuda_event_pimpl() noexcept {
-      cudaEventDestroy( event );
+      auto status = cudaEventDestroy( event );
+      assert( status == cudaSuccess );
     }
 
   };
@@ -64,11 +68,13 @@ namespace detail {
     cudaStream_t stream;
 
     cuda_stream_pimpl(){
-      cudaStreamCreate( &stream );
+      auto status = cudaStreamCreate( &stream );
+      assert( status == cudaSuccess );
     }
 
     ~cuda_stream_pimpl() noexcept {
-      cudaStreamDestroy( stream );
+      auto status = cudaStreamDestroy( stream );
+      assert( status == cudaSuccess );
     }
 
   };
@@ -78,11 +84,13 @@ namespace detail {
     cublasHandle_t handle;
 
     cublas_handle_pimpl(){
-      cublasCreate( &handle );
+      auto status = cublasCreate( &handle );
+      assert( status == CUBLAS_STATUS_SUCCESS );
     }
 
     ~cublas_handle_pimpl() noexcept {
-      cublasDestroy( handle );
+      auto status = cublasDestroy( handle );
+      assert( status == CUBLAS_STATUS_SUCCESS );
     }
 
   };
@@ -201,10 +209,14 @@ template <typename T>
 void axpby_device( 
   int N, T ALPHA, const T* X, int INCX, T BETA, T* Y, int INCY
 ) {
-  axpby_kernel<T><<< std::ceil( N / 1024.0 ), 1024 >>>( 
+
+  auto div = std::div( N, 1024 );
+  
+  axpby_kernel<T><<< div.quot + !!div.rem, 1024 >>>( 
     N, ALPHA, X, INCX, BETA, Y, INCY 
   );
   cudaError err = cudaGetLastError();
+  assert( err == cudaSuccess );
   if ( cudaSuccess != err )
     printf( "AXPBY Error!: %s\n", cudaGetErrorString( err ) );
 }
