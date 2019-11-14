@@ -1,6 +1,9 @@
 #pragma once
 #include <cstddef>
 #include <memory>
+#if __cplusplus >= 201703L
+#include "sfinae.hpp"
+#endif
 
 namespace cuda {
 
@@ -42,6 +45,62 @@ inline void device_sync() {
 }
 
 
+#if __cplusplus >= 201703L
+
+
+template <typename DestContainer, typename SrcContainer>
+std::enable_if_t<
+  (dgdft::has_data_member_v<DestContainer> or 
+   dgdft::has_Data_member_v<DestContainer>) and
+  (dgdft::has_data_member_v<SrcContainer> or 
+   dgdft::has_Data_member_v<SrcContainer>) and
+  (dgdft::has_size_member_v<DestContainer> or 
+   dgdft::has_Size_member_v<DestContainer>) and
+  (dgdft::has_size_member_v<SrcContainer> or 
+   dgdft::has_Size_member_v<SrcContainer>)
+> memcpy_h2d( DestContainer& dest, const SrcContainer& src ) {
+
+  auto size_dest = dgdft::get_size_member( dest );
+  auto size_src  = dgdft::get_size_member( src );
+
+  auto* data_dest = dgdft::get_data_member( dest );
+  auto* data_src  = dgdft::get_data_member( src );
+
+  assert( size_dest == size_src );
+  assert( data_dest != data_src );
+
+  memcpy_h2d( data_dest, data_src, size_dest );
+
+}
+
+template <typename DestContainer, typename SrcContainer>
+std::enable_if_t<
+  (dgdft::has_data_member_v<DestContainer> or 
+   dgdft::has_Data_member_v<DestContainer>) and
+  (dgdft::has_data_member_v<SrcContainer> or 
+   dgdft::has_Data_member_v<SrcContainer>) and
+  (dgdft::has_size_member_v<DestContainer> or 
+   dgdft::has_Size_member_v<DestContainer>) and
+  (dgdft::has_size_member_v<SrcContainer> or 
+   dgdft::has_Size_member_v<SrcContainer>)
+> memcpy_d2h( DestContainer& dest, const SrcContainer& src ) {
+
+  auto size_dest = dgdft::get_size_member( dest );
+  auto size_src  = dgdft::get_size_member( src );
+
+  auto* data_dest = dgdft::get_data_member( dest );
+  auto* data_src  = dgdft::get_data_member( src );
+
+  assert( size_dest == size_src );
+  assert( data_dest != data_src );
+
+  memcpy_d2h( data_dest, data_src, size_dest );
+
+}
+
+
+
+#endif
 
 
 

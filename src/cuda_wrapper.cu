@@ -1,7 +1,9 @@
 #include <cuda_wrapper.hpp>
 #include <iostream>
 #include <cassert>
-  #include <exception>
+#include <exception>
+
+#include "environment.hpp"
 
 #include <cublas_v2.h>
 
@@ -104,12 +106,14 @@ void* malloc( size_t len ) {
   void* ptr;
   CUDA_THROW( cudaMalloc( &ptr, len ) );
   //std::cout << "CUDA MALLOC " << len << ", " << ptr << std::endl;
+  //dgdft::statusOFS << "CUDA MALLOC " << len << ", " << ptr << std::endl;
   return ptr;
 
 }
 
 void  free( void* ptr ) {
   //std::cout << "CUDA FREE " << ptr << std::endl;
+  //dgdft::statusOFS << "CUDA FREE " << ptr << std::endl;
   CUDA_THROW( cudaFree( ptr ) );
 }
 

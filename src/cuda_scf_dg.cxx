@@ -148,7 +148,8 @@ namespace  dgdft{
           first = false;
 
           // DBWY: Copy packed data to device
-          cuda::memcpy_h2d( hamDG.pluckX_pack_d.data(), hamDG.h_x_ptr.data(), hamDG.h_x_ptr.size() );
+          //cuda::memcpy_h2d( hamDG.pluckX_pack_d.data(), hamDG.h_x_ptr.data(), hamDG.h_x_ptr.size() );
+          cuda::memcpy_h2d( hamDG.pluckX_pack_d, hamDG.h_x_ptr );
         }
         GetTime(XDataCopy_timeEnd);
         
@@ -224,7 +225,8 @@ namespace  dgdft{
             //statusOFS << std::endl << "H: key: " << key << "\titer_key: " << iter_key << std::endl;
             //Hadia: Find Hamiltionian matrix element position and map it to the new pointer position
             int pos = std::distance(hamDGKeys.begin(), std::find(hamDGKeys.begin(), hamDGKeys.end(), myelemmatkey));
-            hamDG.h_Harr_ptr_d.at(cur) = hamDG.h_hamDG_ptr_d.at(pos).data();
+            //hamDG.h_Harr_ptr_d.at(cur) = hamDG.h_hamDG_ptr_d.at(pos).data();
+            hamDG.h_Harr_ptr_d.at(cur) = hamDG.h_hamDG_ptr_d.at(pos);
             hKeys.push_back(myelemmatkey);
             
           } // End of loop using mat_X_iterator to get pointers to matrices
@@ -651,23 +653,34 @@ namespace  dgdft{
 
             } // if ( innerIter == 1 )
             //Hadia: Move DG Hamiltoniam matrix to CUDA
-            hamDGPtr_->h_hamDG_ptr_d.clear();
-            hamDGPtr_->h_hamDG_ptr_d.reserve(hamDG.HMat().LocalMap().size());
 
-            //int cur =0;
-            //Hadia TODO: Pack all in one buffer.
-            for( std::map<ElemMatKey, DblNumMat>::iterator 
-                mi  = hamDG.HMat().LocalMap().begin();
-                mi != hamDG.HMat().LocalMap().end(); mi++ ){
-              ElemMatKey key = (*mi).first;
-              hamDGKeys.push_back(key);
-              //Create device memory and move data there
-              hamDGPtr_->h_hamDG_ptr_d.emplace_back( mi->second.Size() );
-              cuda::memcpy_h2d( hamDGPtr_->h_hamDG_ptr_d.back().data(),
-                                mi->second.Data(), mi->second.Size() );
+
+            size_t nlocal     = hamDG.HMat().LocalMap().size();
+            size_t local_size = hamDG.HMat().LocalMap().begin()->second.Size();
+            hamDGPtr_->localH_pack_d.resize( nlocal * local_size );
+
+            std::vector<double> H_pack_h( nlocal * local_size );
+            hamDGPtr_->h_hamDG_ptr_d.clear();
+            hamDGPtr_->h_hamDG_ptr_d.reserve(nlocal);
+
+            for( auto [i, mi] = std::tuple( 0ul, hamDG.HMat().LocalMap().begin() );
+                 mi != hamDG.HMat().LocalMap().end(); ++mi, ++i ) {
+
+               ElemMatKey key = (*mi).first;
+               hamDGKeys.push_back(key);
+               
+               hamDGPtr_->h_hamDG_ptr_d.emplace_back( 
+                 hamDGPtr_->localH_pack_d.data() + i*local_size
+               );
+
+               memcpy( H_pack_h.data() + i * local_size, mi->second.Data(),  
+                       local_size * sizeof(double));
+             }
       
-              //cur++;
-            }
+             
+
+             cuda::memcpy_h2d( hamDG.localH_pack_d, H_pack_h );
+
             //statusOFS << std::endl << "Matrix H counter: " << cur << std::endl ; //<< "size: " << (hamDG.HMat().LocalMap().begin()).second.Size() << std::endl;
 
 #if ( _DEBUGlevel_ >= 2 )

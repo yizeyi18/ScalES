@@ -1,5 +1,6 @@
 #pragma once
 #include <experimental/memory_resource>
+#include <type_traits>
 
 namespace cuda {
 
@@ -47,5 +48,6 @@ class memory_resource : public std::experimental::pmr::memory_resource {
  *  @returns pointer to global instance of cuda::memory_resource
  */
 memory_resource* get_default_resource();
+
 
 }
