@@ -1,19 +1,69 @@
 #include <cuda_wrapper.hpp>
 #include <iostream>
+#include <cassert>
+  #include <exception>
 
 #include <cublas_v2.h>
 
-#define CUDA_THROW_AS_ASSERT
+//#define CUDA_THROW_AS_ASSERT
+
+#define CUDA_ASSERT(err)  { assert( err == cudaSuccess );           }
+#define CUBLAS_ASSERT(err){ assert( err == CUBLAS_STATUS_SUCCESS ); }
+
 
 #ifdef CUDA_THROW_AS_ASSERT
-  #include <cassert>
-  #define CUDA_THROW(err){ assert( err == cudaSuccess ); }
+  #define CUDA_THROW(err) CUDA_ASSERT(err);
+  #define CUBLAS_THROW(err) CUBLAS_ASSERT(err);
 #else
-  #include <exception>
-  #define CUDA_THROW(err){ if(err != cudaSuccess) throw cuda_exception( err ); }
+  #define CUDA_THROW(err)  { if(err != cudaSuccess) throw cuda_exception( err );           }
+  #define CUBLAS_THROW(err){ if(err != CUBLAS_STATUS_SUCCESS) throw cuda_exception( err ); }
 #endif
 
 namespace cuda {
+const char* cublasGetErrorString( cublasStatus_t status ) {
+
+  if( status == CUBLAS_STATUS_SUCCESS )
+    return "SUCCESS";
+  else if( status == CUBLAS_STATUS_NOT_INITIALIZED )
+    return "NOT INITIALIZED";
+  else if( status == CUBLAS_STATUS_ALLOC_FAILED )
+    return "ALLOC FAILED";
+  else if( status == CUBLAS_STATUS_INVALID_VALUE )
+    return "INVALID VALUE";
+  else if( status == CUBLAS_STATUS_ARCH_MISMATCH )
+    return "ARCH MISMATCH";
+  else if( status == CUBLAS_STATUS_MAPPING_ERROR )
+    return "MAPPING ERROR";
+  else if( status == CUBLAS_STATUS_EXECUTION_FAILED )
+    return "EXECUTION FAILED";
+  else if( status == CUBLAS_STATUS_INTERNAL_ERROR )
+    return "INTERNAL ERROR";
+  else if( status == CUBLAS_STATUS_NOT_SUPPORTED )
+    return "NOT SUPPORTED";
+  else if( status == CUBLAS_STATUS_LICENSE_ERROR )
+    return "INVALID LICENSE";
+  else 
+    return "CUBLAS ERROR NOT RECOGNIZED";
+  
+
+}
+
+cublasOperation_t cublasOpFromChar(char op){
+	switch (op) {
+		case 'n':
+		case 'N':
+			return CUBLAS_OP_N;
+		case 't':
+		case 'T':
+			return CUBLAS_OP_T;
+		case 'c':
+		case 'C':
+			return CUBLAS_OP_C;
+    default:
+      printf("UNKNOWN CUBLAS OP - DEFAULTING TO CUBLAS_OP_N");
+      return CUBLAS_OP_N;
+	}
+}
 
 class cuda_exception : public std::exception {
 
@@ -27,37 +77,32 @@ public:
 
   cuda_exception( const char* msg ) : std::exception(), message( msg ) { };
   cuda_exception( cudaError_t err ) : cuda_exception( cudaGetErrorString( err ) ) { } 
+  cuda_exception( cublasStatus_t err ) : cuda_exception( cublasGetErrorString( err ) ) { }
 
 };
 
 namespace wrappers {
 
 void memset( void* data, int val, size_t len ) {
-  auto status = cudaMemset( data, val, len );
-  assert( status == cudaSuccess );
+  CUDA_THROW( cudaMemset( data, val, len ) );
 }
 
 void device_sync() {
-  auto status = cudaDeviceSynchronize();
-  assert( status == cudaSuccess );
+  CUDA_THROW( cudaDeviceSynchronize() );
 }
 
 void memcpy_h2d( void* dest, const void* src, size_t len ) {
-  auto status = cudaMemcpy( dest, src, len, cudaMemcpyHostToDevice );
-  //assert( status == cudaSuccess );
-  CUDA_THROW( status );
+  CUDA_THROW( cudaMemcpy( dest, src, len, cudaMemcpyHostToDevice ) );
 }
 
 void memcpy_d2h( void* dest, const void* src, size_t len ) {
-  auto status = cudaMemcpy( dest, src, len, cudaMemcpyDeviceToHost );
-  assert( status == cudaSuccess );
+  CUDA_THROW( cudaMemcpy( dest, src, len, cudaMemcpyDeviceToHost ) );
 }
 
 void* malloc( size_t len ) {
 
   void* ptr;
-  auto status =cudaMalloc( &ptr, len );
-  assert( status == cudaSuccess );
+  CUDA_THROW( cudaMalloc( &ptr, len ) );
   //std::cout << "CUDA MALLOC " << len << ", " << ptr << std::endl;
   return ptr;
 
@@ -65,8 +110,7 @@ void* malloc( size_t len ) {
 
 void  free( void* ptr ) {
   //std::cout << "CUDA FREE " << ptr << std::endl;
-  auto status = cudaFree( ptr );
-  assert( status == cudaSuccess );
+  CUDA_THROW( cudaFree( ptr ) );
 }
 
 }
@@ -79,13 +123,11 @@ namespace detail {
     cudaEvent_t event;
 
     cuda_event_pimpl(){
-      auto status = cudaEventCreate( &event );
-      assert( status == cudaSuccess );
+      CUDA_THROW( cudaEventCreate( &event ) );
     }
 
     ~cuda_event_pimpl() noexcept {
-      auto status = cudaEventDestroy( event );
-      assert( status == cudaSuccess );
+      CUDA_ASSERT( cudaEventDestroy( event ) );
     }
 
   };
@@ -95,13 +137,11 @@ namespace detail {
     cudaStream_t stream;
 
     cuda_stream_pimpl(){
-      auto status = cudaStreamCreate( &stream );
-      assert( status == cudaSuccess );
+      CUDA_THROW( cudaStreamCreate( &stream ) );
     }
 
     ~cuda_stream_pimpl() noexcept {
-      auto status = cudaStreamDestroy( stream );
-      assert( status == cudaSuccess );
+      CUDA_ASSERT( cudaStreamDestroy( stream ) );
     }
 
   };
@@ -111,13 +151,11 @@ namespace detail {
     cublasHandle_t handle;
 
     cublas_handle_pimpl(){
-      auto status = cublasCreate( &handle );
-      assert( status == CUBLAS_STATUS_SUCCESS );
+      CUBLAS_THROW( cublasCreate( &handle ) );
     }
 
     ~cublas_handle_pimpl() noexcept {
-      auto status = cublasDestroy( handle );
-      assert( status == CUBLAS_STATUS_SUCCESS );
+      CUBLAS_ASSERT( cublasDestroy( handle ) );
     }
 
   };
@@ -132,8 +170,7 @@ cuda_stream::~cuda_stream() noexcept = default;
 cuda_stream::cuda_stream( cuda_stream&& ) noexcept = default;
 
 void cuda_stream::synchronize() const {
-  auto status = cudaStreamSynchronize( pimpl_->stream );
-  assert( status == cudaSuccess );
+  CUDA_THROW( cudaStreamSynchronize( pimpl_->stream ) );
 }
 
 
@@ -148,26 +185,21 @@ cuda_event::~cuda_event() noexcept = default;
 cuda_event::cuda_event( cuda_event&& ) noexcept = default;
 
 void cuda_event::record( const cuda_stream& stream ) {
-  auto status = cudaEventRecord( pimpl_->event, stream.pimpl_->stream );
-  assert( status == cudaSuccess );
+  CUDA_THROW( cudaEventRecord( pimpl_->event, stream.pimpl_->stream ) );
 }
 
 void cuda_event::record() {
-  auto status = cudaEventRecord( pimpl_->event );
-  assert( status == cudaSuccess );
+  CUDA_THROW( cudaEventRecord( pimpl_->event ) );
 }
 
 void cuda_event::synchronize() const {
-  auto status = cudaEventSynchronize( pimpl_->event );
-  assert( status == cudaSuccess );
+  CUDA_THROW( cudaEventSynchronize( pimpl_->event ) );
 }
 
 
 float cuda_event::elapsed_time( const cuda_event& first, const cuda_event& second ) {
   float time;
-  auto status = cudaEventElapsedTime( &time, 
-    first.pimpl_->event, second.pimpl_->event );
-  assert( status == cudaSuccess );
+  CUDA_THROW( cudaEventElapsedTime( &time, first.pimpl_->event, second.pimpl_->event ) );
   return time;
 }
 
@@ -194,16 +226,15 @@ void cublas_gemm_batched( cublas_handle& handle,
   double ALPHA, double** A_device, int LDA, double** B_device,
   int LDB, double BETA, double** C_device, int LDC, int batch_count ) {
 
-  cublasOperation_t TA = TRANSA == 'N' ? CUBLAS_OP_N : CUBLAS_OP_T;
-  cublasOperation_t TB = TRANSB == 'N' ? CUBLAS_OP_N : CUBLAS_OP_T;
+  cublasOperation_t TA = cublasOpFromChar(TRANSA) ;
+  cublasOperation_t TB = cublasOpFromChar(TRANSB) ;
 
   auto handle_h = handle.pimpl()->handle;
 
-  auto stat = 
-  cublasDgemmBatched( handle_h, TA, TB, M, N, K, &ALPHA, A_device, LDA, B_device,
-    LDB, &BETA, C_device, LDC, batch_count );
-
-  assert( stat == CUBLAS_STATUS_SUCCESS );
+  CUBLAS_THROW(
+    cublasDgemmBatched( handle_h, TA, TB, M, N, K, &ALPHA, A_device, LDA, B_device,
+      LDB, &BETA, C_device, LDC, batch_count )
+  )
 
 }
 
@@ -214,10 +245,8 @@ void cublas_axpy( cublas_handle& handle,
 
   auto handle_h = handle.pimpl()->handle;
 
-  auto stat = 
-    cublasDaxpy( handle_h, N, &ALPHA, X, INCX, Y, INCY );
+  CUBLAS_THROW( cublasDaxpy( handle_h, N, &ALPHA, X, INCX, Y, INCY ) );
 
-  assert( stat == CUBLAS_STATUS_SUCCESS );
 }
 
 template <typename T>
@@ -242,10 +271,7 @@ void axpby_device(
   axpby_kernel<T><<< div.quot + !!div.rem, 1024 >>>( 
     N, ALPHA, X, INCX, BETA, Y, INCY 
   );
-  cudaError err = cudaGetLastError();
-  assert( err == cudaSuccess );
-  if ( cudaSuccess != err )
-    printf( "AXPBY Error!: %s\n", cudaGetErrorString( err ) );
+  CUDA_THROW( cudaGetLastError() );
 }
 
 template
