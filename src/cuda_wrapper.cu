@@ -32,14 +32,15 @@ void* malloc( size_t len ) {
   void* ptr;
   auto status =cudaMalloc( &ptr, len );
   assert( status == cudaSuccess );
-  std::cout << "CUDA MALLOC " << len << ", " << ptr << std::endl;
+  //std::cout << "CUDA MALLOC " << len << ", " << ptr << std::endl;
   return ptr;
 
 }
 
 void  free( void* ptr ) {
-  std::cout << "CUDA FREE " << ptr << std::endl;
-  cudaFree( ptr );
+  //std::cout << "CUDA FREE " << ptr << std::endl;
+  auto status = cudaFree( ptr );
+  assert( status == cudaSuccess );
 }
 
 }
@@ -221,7 +222,7 @@ void axpby_device(
     printf( "AXPBY Error!: %s\n", cudaGetErrorString( err ) );
 }
 
-template <>
+template
 void axpby_device<double>( 
   int N, double ALPHA, const double* X, int INCX, double BETA, double* Y, int INCY
 );
