@@ -209,5 +209,13 @@ void axpby_device(
   int N, T ALPHA, const T* X, int INCX, T BETA, T* Y, int INCY
 );
 
+
+
+
+template <typename T>
+void chebyshev_filter_device( int N, T sigma, T sigma_new, T e, T c, T* HY, const T* Y, const T* X ); 
+
+
+
 }
 
