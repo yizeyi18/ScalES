@@ -59,7 +59,6 @@ such enhancements or derivative works thereof, in binary and source code form.
 //#include <cublas_v2.h>
 #include <cuda_api_wrappers.hpp>
 #include <cuda_type_wrappers.hpp>
-#include <cublas_wrappers.hpp>
 #include <axpby.hpp>
 
 namespace  dgdft{
@@ -208,7 +207,7 @@ namespace  dgdft{
 
           // DBWY: Create cublas handle TODO: move to HamiltonianDG
           GetTime( HC_timeSta );
-          cublas::handle handle;
+          //cublas::handle handle;
           GetTime( HC_timeEnd );
 
 
@@ -249,7 +248,7 @@ namespace  dgdft{
           GetTime( timeSta );
 
           GetTime( B_timeSta);
-          cublas::blas::gemm_batched( handle, 'N', 'N', Bm, Bn, Bk, alpha,
+          cublas::blas::gemm_batched( hamDG.handle, 'N', 'N', Bm, Bn, Bk, alpha,
             hamDG.d_Harr.data(), Bm, hamDG.d_Xarr.data(), Bk, beta,
             hamDG.d_Yarr.data(), Bm, Bcount );
           GetTime( B_timeEnd );
@@ -259,7 +258,7 @@ namespace  dgdft{
           // using the device ptr array (on device)
           GetTime( R_timeSta);
           for(int bi = 1; bi < Bcount; bi++){
-            cublas::blas::axpy( handle, mat_Y_local.Size(), alpha, 
+            cublas::blas::axpy( hamDG.handle, mat_Y_local.Size(), alpha, 
               hamDG.h_pluckY_ptr_d[bi], 1, hamDG.h_pluckY_ptr_d[0], 1
             );
           }
@@ -663,7 +662,7 @@ namespace  dgdft{
             size_t local_size = hamDG.HMat().LocalMap().begin()->second.Size();
             hamDGPtr_->localH_pack_d.resize( nlocal * local_size );
 
-            std::vector<double> H_pack_h( nlocal * local_size );
+            cuda::pinned_vector<double> H_pack_h( nlocal * local_size );
             hamDGPtr_->h_hamDG_ptr_d.clear();
             hamDGPtr_->h_hamDG_ptr_d.reserve(nlocal);
 
