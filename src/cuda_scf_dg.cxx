@@ -57,7 +57,10 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 
 //#include <cublas_v2.h>
-#include <cuda_wrapper.hpp>
+#include <cuda_api_wrappers.hpp>
+#include <cuda_type_wrappers.hpp>
+#include <cublas_wrappers.hpp>
+#include <axpby.hpp>
 
 namespace  dgdft{
 
@@ -149,7 +152,8 @@ namespace  dgdft{
 
           // DBWY: Copy packed data to device
           //cuda::memcpy_h2d( hamDG.pluckX_pack_d.data(), hamDG.h_x_ptr.data(), hamDG.h_x_ptr.size() );
-          cuda::memcpy_h2d( hamDG.pluckX_pack_d, hamDG.h_x_ptr );
+          //cuda::memcpy_h2d( hamDG.pluckX_pack_d, hamDG.h_x_ptr );
+          cuda::copy( hamDG.h_x_ptr, hamDG.pluckX_pack_d );
         }
         GetTime(XDataCopy_timeEnd);
         
@@ -204,7 +208,7 @@ namespace  dgdft{
 
           // DBWY: Create cublas handle TODO: move to HamiltonianDG
           GetTime( HC_timeSta );
-          cuda::cublas_handle handle;
+          cublas::handle handle;
           GetTime( HC_timeEnd );
 
 
@@ -245,7 +249,7 @@ namespace  dgdft{
           GetTime( timeSta );
 
           GetTime( B_timeSta);
-          cuda::cublas_gemm_batched( handle, 'N', 'N', Bm, Bn, Bk, alpha,
+          cublas::blas::gemm_batched( handle, 'N', 'N', Bm, Bn, Bk, alpha,
             hamDG.d_Harr.data(), Bm, hamDG.d_Xarr.data(), Bk, beta,
             hamDG.d_Yarr.data(), Bm, Bcount );
           GetTime( B_timeEnd );
@@ -255,7 +259,7 @@ namespace  dgdft{
           // using the device ptr array (on device)
           GetTime( R_timeSta);
           for(int bi = 1; bi < Bcount; bi++){
-            cuda::cublas_axpy( handle, mat_Y_local.Size(), alpha, 
+            cublas::blas::axpy( handle, mat_Y_local.Size(), alpha, 
               hamDG.h_pluckY_ptr_d[bi], 1, hamDG.h_pluckY_ptr_d[0], 1
             );
           }
@@ -452,7 +456,7 @@ namespace  dgdft{
 //#if USE_CUDA
 #if 1
           statusOFS << std::endl << "Testing AXPBY" << std::endl;
-          cuda::axpby_device(local_height * local_width, -c, hamDG.h_pluckX_ptr_d[x_pos], 1, 1.0, hamDG.h_pluckY_ptr_d[0], 1);
+          device::axpby_device(local_height * local_width, -c, hamDG.h_pluckX_ptr_d[x_pos], 1, 1.0, hamDG.h_pluckY_ptr_d[0], 1);
           DblNumMat copy_mat_Y_local(local_height, local_width);
 
           cuda::memcpy_d2h( copy_mat_Y_local.Data(), hamDG.pluckY_pack_d.data(), copy_mat_Y_local.Size() );
@@ -679,7 +683,8 @@ namespace  dgdft{
       
              
 
-             cuda::memcpy_h2d( hamDG.localH_pack_d, H_pack_h );
+             //cuda::memcpy_h2d( hamDG.localH_pack_d, H_pack_h );
+             cuda::copy( H_pack_h, hamDG.localH_pack_d );
 
             //statusOFS << std::endl << "Matrix H counter: " << cur << std::endl ; //<< "size: " << (hamDG.HMat().LocalMap().begin()).second.Size() << std::endl;
 
