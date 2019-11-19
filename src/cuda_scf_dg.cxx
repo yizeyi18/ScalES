@@ -74,7 +74,6 @@ namespace  dgdft{
   std::vector<ElemMatKey> hamDGKeys;  
   DblNumMat new_Y_mat;
   DblNumMat new_X_mat;
-  #define BATCH_COUNT 30
 
       void SCFDG::scfdg_hamiltonian_times_distmat_device(DistVec<Index3, DblNumMat, ElemPrtn>  &my_dist_mat, 
           DistVec<Index3, DblNumMat, ElemPrtn>  &Hmat_times_my_dist_mat, bool applyBatched)
@@ -303,7 +302,7 @@ namespace  dgdft{
           statusOFS << std::endl << " ----------- Loop Get Pointers ONLY ( " << (GetPtr_timeEnd - GetPtr_timeSta ) << " s.)";
           statusOFS << std::endl << " ----------- Handle Destruction ONLY ( " << (HD_timeEnd - HD_timeSta ) << " s.)";
           statusOFS << std::endl << " ----------- Copy Result Device to Host ONLY ( " << (CPYR_timeEnd - CPYR_timeSta ) << " s.)";
-          statusOFS << std::endl << "calling GEMM, m, n, k, batchCount = " << Bm << " " << Bn << " " << Bk << " " << Bcount <<  std::endl << "--------------------------------------------------------------------\n" ; 
+          statusOFS << std::endl << "calling GEMM, m, n, k, batchCount = " << Bm << " " << Bn << " " << Bk << " " << Bcount <<  std::endl << "--------------------------------------------------------------------" << std::endl; 
         } // end-applyBatched
         /*
         if(applyBatched) {
@@ -396,15 +395,15 @@ namespace  dgdft{
             //Hadia: Move pluck_X matrix to CUDA
           
 
-          size_t total_length = BATCH_COUNT*local_height*local_width;
+          size_t total_length = (hamDGPtr_->Bcount)*local_height*local_width;
           hamDG.pluckX_pack_d.resize( total_length );
           hamDG.pluckY_pack_d.resize( total_length );
           hamDG.h_x_ptr.resize( total_length ); // Use Pinned
 
-          hamDG.h_Harr_ptr_d.resize( BATCH_COUNT );
+          hamDG.h_Harr_ptr_d.resize( (hamDGPtr_->Bcount));
           hamDG.h_pluckX_ptr_d.clear();
           hamDG.h_pluckY_ptr_d.clear();
-          for( auto i = 0; i < BATCH_COUNT; ++i ) {
+          for( auto i = 0; i < (hamDGPtr_->Bcount); ++i ) {
             hamDG.h_pluckX_ptr_d.emplace_back( 
               hamDG.pluckX_pack_d.data() + i * local_height * local_width
             );
@@ -414,14 +413,14 @@ namespace  dgdft{
           }
 
 
-          hamDG.d_Xarr.resize( BATCH_COUNT );
-          hamDG.d_Yarr.resize( BATCH_COUNT );
-          hamDG.d_Harr.resize( BATCH_COUNT );
+          hamDG.d_Xarr.resize( (hamDGPtr_->Bcount) );
+          hamDG.d_Yarr.resize( (hamDGPtr_->Bcount) );
+          hamDG.d_Harr.resize( (hamDGPtr_->Bcount) );
 
           cuda::memcpy_h2d( hamDG.d_Xarr.data(), hamDG.h_pluckX_ptr_d.data(),
-                            BATCH_COUNT );
+                            (hamDGPtr_->Bcount) );
           cuda::memcpy_h2d( hamDG.d_Yarr.data(), hamDG.h_pluckY_ptr_d.data(),
-                            BATCH_COUNT );
+                            (hamDGPtr_->Bcount) );
 
           SetValue(pluck_Y.LocalMap()[key], 0.0);
           SetValue(pluck_Yt.LocalMap()[key], 0.0);
@@ -455,7 +454,7 @@ namespace  dgdft{
 //#if USE_CUDA
 #if 1
           //statusOFS << std::endl << "Testing AXPBY" << std::endl;
-          cuda::axpby_device(local_height * local_width, -c, hamDG.h_pluckX_ptr_d[x_pos], 1, 1.0, hamDG.h_pluckY_ptr_d[0], 1);
+          dgdft::device::axpby_device(local_height * local_width, -c, hamDG.h_pluckX_ptr_d[x_pos], 1, 1.0, hamDG.h_pluckY_ptr_d[0], 1);
           DblNumMat copy_mat_Y_local(local_height, local_width);
 
           cuda::memcpy_d2h( copy_mat_Y_local.Data(), hamDG.pluckY_pack_d.data(), copy_mat_Y_local.Size() );
@@ -666,6 +665,7 @@ namespace  dgdft{
             hamDGPtr_->h_hamDG_ptr_d.clear();
             hamDGPtr_->h_hamDG_ptr_d.reserve(nlocal);
 
+						int hCount = 0;
             for( auto [i, mi] = std::tuple( 0ul, hamDG.HMat().LocalMap().begin() );
                  mi != hamDG.HMat().LocalMap().end(); ++mi, ++i ) {
 
@@ -678,7 +678,9 @@ namespace  dgdft{
 
                memcpy( H_pack_h.data() + i * local_size, mi->second.Data(),  
                        local_size * sizeof(double));
+               hCount++;
              }
+             hamDGPtr_->Bcount = hCount;
       
              
 

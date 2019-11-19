@@ -588,6 +588,7 @@ public:
   
   //std::vector<ElemMatKey> hKeys;
   //std::vector<ElemMatKey> hamDGKeys;	
+	int Bcount;
 
   cuda::pinned_vector< double* > h_hamDG_ptr_d; 
   cuda::device_vector< double  > pluckX_pack_d; 
