@@ -449,14 +449,14 @@ namespace  dgdft{
           statusOFS << std::endl << "x_pos: " << x_pos << std::endl;
 //#if USE_CUDA
 #if 1
-          statusOFS << std::endl << "Testing AXPBY" << std::endl;
+          //statusOFS << std::endl << "Testing AXPBY" << std::endl;
           cuda::axpby_device(local_height * local_width, -c, hamDG.h_pluckX_ptr_d[x_pos], 1, 1.0, hamDG.h_pluckY_ptr_d[0], 1);
           DblNumMat copy_mat_Y_local(local_height, local_width);
 
           cuda::memcpy_d2h( copy_mat_Y_local.Data(), hamDG.pluckY_pack_d.data(), copy_mat_Y_local.Size() );
 
           for(int ci = 0; ci < copy_mat_Y_local.Size(); ci++){
-            statusOFS << copy_mat_Y_local.Data()[ci] << "\t" << pluck_Y.LocalMap()[key].Data()[ci] << std::endl;
+            //statusOFS << copy_mat_Y_local.Data()[ci] << "\t" << pluck_Y.LocalMap()[key].Data()[ci] << std::endl;
             if(abs(copy_mat_Y_local.Data()[ci]-pluck_Y.LocalMap()[key].Data()[ci]) > 0.000001 ) {
               statusOFS << std::endl << " AXPBY CUDA ERROR\n"  
                 << std::endl << " GEMM Data Results not the same."
