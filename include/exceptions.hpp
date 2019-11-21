@@ -14,8 +14,8 @@
   #define CUDA_THROW(err) CUDA_ASSERT(err);
   #define CUBLAS_THROW(err) CUBLAS_ASSERT(err);
 #else
-  #define CUDA_THROW(err)  { if(err != cudaSuccess) throw cuda::exception( cudaGetErrorString(err) );           }
-  #define CUBLAS_THROW(err){ if(err != CUBLAS_STATUS_SUCCESS) throw cublas::exception( cublasGetErrorString(err) ); }
+  #define CUDA_THROW(err)  { if(err != cudaSuccess) throw cuda::exception( std::string(cudaGetErrorString(err)) + std::string(" @ Line: " + std::string(__FILE__)) + std::to_string(__LINE__) );           }
+  #define CUBLAS_THROW(err){ if(err != CUBLAS_STATUS_SUCCESS) throw cublas::exception( std::string(cublasGetErrorString(err)) + std::string(" @ Line: " + std::string(__FILE__)) + std::to_string(__LINE__) ); } 
 #endif
 
 namespace cuda {
@@ -31,6 +31,7 @@ class exception : public std::exception {
 public:
 
   exception( const char* msg ) : std::exception(), message( msg ) { };
+  exception( std::string msg ) : std::exception(), message( msg ) { };
 
 };
 
@@ -49,6 +50,7 @@ class exception : public std::exception {
 public:
 
   exception( const char* msg ) : std::exception(), message( msg ) { };
+  exception( std::string msg ) : std::exception(), message( msg ) { };
 
 };
 

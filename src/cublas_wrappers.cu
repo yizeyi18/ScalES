@@ -7,25 +7,25 @@
 const char* cublasGetErrorString( cublasStatus_t status ) {
 
   if( status == CUBLAS_STATUS_SUCCESS )
-    return "SUCCESS";
+    return "CUBLAS SUCCESS";
   else if( status == CUBLAS_STATUS_NOT_INITIALIZED )
-    return "NOT INITIALIZED";
+    return "CUBLAS NOT INITIALIZED";
   else if( status == CUBLAS_STATUS_ALLOC_FAILED )
-    return "ALLOC FAILED";
+    return "CUBLAS ALLOC FAILED";
   else if( status == CUBLAS_STATUS_INVALID_VALUE )
-    return "INVALID VALUE";
+    return "CUBLAS INVALID VALUE";
   else if( status == CUBLAS_STATUS_ARCH_MISMATCH )
-    return "ARCH MISMATCH";
+    return "CUBLAS ARCH MISMATCH";
   else if( status == CUBLAS_STATUS_MAPPING_ERROR )
-    return "MAPPING ERROR";
+    return "CUBLAS MAPPING ERROR";
   else if( status == CUBLAS_STATUS_EXECUTION_FAILED )
-    return "EXECUTION FAILED";
+    return "CUBLAS EXECUTION FAILED";
   else if( status == CUBLAS_STATUS_INTERNAL_ERROR )
-    return "INTERNAL ERROR";
+    return "CUBLAS INTERNAL ERROR";
   else if( status == CUBLAS_STATUS_NOT_SUPPORTED )
-    return "NOT SUPPORTED";
+    return "CUBLAS NOT SUPPORTED";
   else if( status == CUBLAS_STATUS_LICENSE_ERROR )
-    return "INVALID LICENSE";
+    return "CUBLAS INVALID LICENSE";
   else 
     return "CUBLAS ERROR NOT RECOGNIZED";
   
