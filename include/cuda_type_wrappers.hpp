@@ -54,4 +54,21 @@ public:
 
 };
 
+
+
+template <typename Op>
+float time_cuda( const stream& s, const Op& op ) {
+
+  event start, end;
+  start.record( s );
+  op();
+  end.record( s);
+  end.synchronize();
+
+  return event::elapsed_time( start, end );
+
+}
+
+
+
 }
