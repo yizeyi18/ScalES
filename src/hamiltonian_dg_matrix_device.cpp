@@ -249,24 +249,6 @@ void
     {
       GetTime(timeSta);
 
-      statusOFS << "DBWY DiffPsi" << std::endl;
-      statusOFS << "DBWY NUMGrid = " << numGrid << std::endl;
-
-      // Copy DMat's over to device
-      cuda::pinned_vector< cuda::device_vector<double> > DMat_device;
-      for( const auto& D : DMat_ ) {
-        DMat_device.emplace_back( D.Size() );
-        cuda::memcpy_h2d( DMat_device.back().data(), D.Data(), D.Size() );
-      }
-
-      // Extract pointers
-      cuda::pinned_vector< double* > DMat_device_ptrs_h;
-      DMat_device_ptrs_h.reserve( DMat_device.size() );
-      for( auto& D : DMat_device )
-        DMat_device_ptrs_h.push_back( D.data() );
-
-      cuda::device_vector< double* > DMat_device_ptrs_d( DMat_device_ptrs_h );
-
       // Compute derivatives on each local element
       for( Int k = 0; k < numElem_[2]; k++ )
         for( Int j = 0; j < numElem_[1]; j++ )
@@ -303,85 +285,25 @@ void
               }
 
 
-              #if 1 // stupid method
+              #if 0 // stupid method
 
-              // x derivative
-              {
-              for( Int g = 0; g < numBasis; g++ ) {
-                double* basis_ptr    = basis_device.data() + g*basis.m();
-                double* dbasis_x_ptr = DbasisX_device.data() + g*DbasisX.m();
-                cublas::blas::gemm( handle, 'N', 'N', 
-                  numGrid[0], numGrid[1] * numGrid[2], numGrid[0],
-                  1., DMat_device[0].data(), numGrid[0], basis_ptr, numGrid[0],
-                  0., dbasis_x_ptr, numGrid[0]
-                );
-              }
-              }
-
-              // y derivative
-              {
-              auto m = numGrid[0];
-              auto n = numGrid[1];
-              for( Int kg = 0; kg < numBasis * numGrid[2]; ++kg ) {
-                double* basis_ptr    = basis_device.data()   + kg * numGrid[0] * numGrid[1];
-                double* dbasis_y_ptr = DbasisY_device.data() + kg * numGrid[0] * numGrid[1];
-                cublas::blas::gemm( handle, 'N', 'T', m, n, n,
-                  1., basis_ptr, m, DMat_device[1].data(), n, 
-                  0., dbasis_y_ptr, m 
-                );
-              }
-              }
-
-              // z derivative
-              {
-              auto m = numGrid[0] * numGrid[1];
-              auto n = numGrid[2];
-              for( Int g = 0; g < numBasis; g++ ) {
-                double* basis_ptr    = basis_device.data() + g*basis.m();
-                double* dbasis_z_ptr = DbasisZ_device.data() + g*DbasisZ.m();
-
-                cublas::blas::gemm( handle, 'N', 'T', m, n, n,
-                  1., basis_ptr, m, DMat_device[2].data(), n, 
-                  0., dbasis_z_ptr, m
-                );
-              }
-              }
+              DiffPsi_device_slow( numGrid, numBasis, basis_device.data(),
+                                   DbasisX_device.data(), 0 );
+              DiffPsi_device_slow( numGrid, numBasis, basis_device.data(),
+                                   DbasisY_device.data(), 1 );
+              DiffPsi_device_slow( numGrid, numBasis, basis_device.data(),
+                                   DbasisZ_device.data(), 2 );
 
               #else // efficient batched method
 
-              // x derivative
-              {
-              auto m = numGrid[0];
-              auto n = numGrid[1] * numGrid[2] * numBasis;
-              cublas::blas::gemm( handle, 'N', 'N', m, n, m,
-                1., DMat_device[0].data(), m, basis_device.data(), m,
-                0., DbasisX_device.data(), m
-              );
-              }
 
-              // y derivative
-              { 
-              auto m = numGrid[0];
-              auto n = numGrid[1];
-              cublas::blas::gemm_batched_strided( handle, 'N', 'T', m, n, n,
-                1., basis_device.data(), m, m*n, DMat_device[1].data(), n, 0,
-                0., DbasisY_device.data(), m, m*n,
-                numBasis * numGrid[2]
-              );
-              }
+              DiffPsi_device_fast( numGrid, numBasis, basis_device.data(),
+                                   DbasisX_device.data(), 0 );
+              DiffPsi_device_fast( numGrid, numBasis, basis_device.data(),
+                                   DbasisY_device.data(), 1 );
+              DiffPsi_device_fast( numGrid, numBasis, basis_device.data(),
+                                   DbasisZ_device.data(), 2 );
 
-
-
-              // z derivative
-              {
-              auto m = numGrid[0] * numGrid[1];
-              auto n = numGrid[2];
-              cublas::blas::gemm_batched_strided( handle, 'N', 'T', m, n, n,
-                1., basis_device.data(), m, basis.m(), DMat_device[2].data(), n, 0,
-                0., DbasisZ_device.data(), m, DbasisZ.m(),
-                numBasis
-              );
-              }
 
               #endif
 
@@ -2348,6 +2270,6 @@ void
 
 
     return ;
-  }         // -----  end of method HamiltonianDG::CalculateDGMatrix  ----- 
+  }         // -----  end of method HamiltonianDG::CalculateDGMatrix_device  ----- 
 
 } // namespace dgdft

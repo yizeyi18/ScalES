@@ -371,7 +371,8 @@ int main(int argc, char **argv)
     GetTime( timeSta );
 
     HamiltonianDG hamDG;
-    hamDG.Setup();
+    //hamDG.Setup();
+    hamDG.Setup_device();
     hamDG.CalculatePseudoPotential( ptable );
 
     GetTime( timeEnd );

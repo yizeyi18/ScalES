@@ -330,6 +330,7 @@ private:
 
   /// @brief Differentiation matrix on the LGL grid.
   std::vector<DblNumMat>    DMat_;
+  cuda::pinned_vector< cuda::device_vector<Real> > DMat_device_;
 
   /// @brief Interpolation matrix from LGL to uniform grid in each
   /// element (assuming all the elements are the same).
@@ -363,6 +364,7 @@ public:
 
   /// @brief Setup the Hamiltonian DG class from the input parameter.
   void Setup ( );
+  void Setup_device ( );
 
   void UpdateHamiltonianDG    ( std::vector<Atom>& atomList );
   // *********************************************************************
@@ -376,7 +378,7 @@ public:
   void DiffPsi_device_slow( const Index3& numGrid, Int numBasis, 
     const Real* psi, Real* Dpsi, Int d );
   void DiffPsi_device_fast( const Index3& numGrid, Int numBasis, 
-    const Real* psi, Real* Dpsi, Int d );
+    Real* psi, Real* Dpsi, Int d );
 
   /// @brief Interpolation matrix from LGL to uniform grid in each element.
   void InterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniformGridFine, 

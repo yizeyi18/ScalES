@@ -65,6 +65,8 @@ HamiltonianDG::HamiltonianDG() {
 
 void HamiltonianDG::Setup ( )
 {
+  statusOFS << "DBWY IN DG SETUP" << std::endl;
+
   domain_            = esdfParam.domain;
   atomList_          = esdfParam.atomList;
   pseudoType_        = esdfParam.pseudoType;
@@ -863,7 +865,7 @@ HamiltonianDG::DiffPsi    (const Index3& numGrid, const Real* psi, Real* Dpsi, I
         m, psi, m, 0.0, Dpsi, m );
   }
   else if( d == 1 ){
-    // Middle dimension, use Gemv
+    // Middle dimension, use Gemv TODO: move to GEMM ala GPU impl
     Int   m = numGrid[1], n = numGrid[0]*numGrid[2];
     Int   ptrShift;
     Int   inc = numGrid[0];
