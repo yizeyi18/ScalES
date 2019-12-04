@@ -25,6 +25,24 @@ void memcpy_d2d( void* dest, const void* src, size_t len ) {
   CUDA_THROW( cudaMemcpy( dest, src, len, cudaMemcpyDeviceToDevice ) );
 }
 
+void memcpy2d_h2d( void* dest, size_t dpitch, const void* src, size_t spitch, 
+                   size_t width, size_t height ) {
+  CUDA_THROW( cudaMemcpy2D( dest, dpitch, src, spitch, width, height,
+              cudaMemcpyHostToDevice ) );
+}
+
+void memcpy2d_d2h( void* dest, size_t dpitch, const void* src, size_t spitch, 
+                   size_t width, size_t height ) {
+  CUDA_THROW( cudaMemcpy2D( dest, dpitch, src, spitch, width, height,
+              cudaMemcpyDeviceToHost ) );
+}
+
+void memcpy2d_d2d( void* dest, size_t dpitch, const void* src, size_t spitch, 
+                   size_t width, size_t height ) {
+  CUDA_THROW( cudaMemcpy2D( dest, dpitch, src, spitch, width, height,
+              cudaMemcpyDeviceToDevice ) );
+}
+
 void* malloc( size_t len ) {
 
   void* ptr;

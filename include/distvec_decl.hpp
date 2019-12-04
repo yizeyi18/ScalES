@@ -87,6 +87,7 @@ public:
   const std::map<Key,Data>& LocalMap() const { return lclmap_; }
   Partition& Prtn()                          { return prtn_; }
   const Partition& Prtn() const              { return prtn_; }
+  MPI_Comm Comm() const               { return comm_; }
   //
   Int Insert(Key, Data&);
   Data& Access(Key);

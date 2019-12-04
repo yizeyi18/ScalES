@@ -18,6 +18,9 @@ namespace wrappers {
  */
 void memcpy_h2d( void* dest, const void* src, size_t len );
 
+void memcpy2d_h2d( void* dest, size_t dpitch, const void* src, size_t spitch,
+                   size_t width, size_t height );
+
 /**
  *  \brief Copy data from device to host
  *
@@ -30,6 +33,9 @@ void memcpy_h2d( void* dest, const void* src, size_t len );
  */
 void memcpy_d2h( void* dest, const void* src, size_t len );
 
+void memcpy2d_d2h( void* dest, size_t dpitch, const void* src, size_t spitch,
+                   size_t width, size_t height );
+
 /**
  *  \brief Copy data on device
  *
@@ -41,6 +47,9 @@ void memcpy_d2h( void* dest, const void* src, size_t len );
  *  @param[in]     len  Length of memory segment in bytes
  */
 void memcpy_d2d( void* dest, const void* src, size_t len );
+
+void memcpy2d_d2d( void* dest, size_t dpitch, const void* src, size_t spitch,
+                   size_t width, size_t height );
 
 /**
  *  \brief Allocate memory on the device
@@ -147,6 +156,14 @@ memcpy_h2d( T* dest, const T* src, size_t len ) {
   wrappers::memcpy_h2d( dest, src, len * sizeof(T) );
 }
 
+template <typename T>
+std::enable_if_t< std::is_trivially_copyable<T>::value >
+memcpy2d_h2d( T* dest, size_t dpitch, const T* src, size_t spitch,
+              size_t width, size_t height ) {
+  wrappers::memcpy2d_h2d( dest, dpitch * sizeof(T), src, spitch * sizeof(T),
+                        width * sizeof(T), height );
+}
+
 /**
  *  \brief Copy data from device to host
  *
@@ -166,6 +183,14 @@ memcpy_d2h( T* dest, const T* src, size_t len ) {
   wrappers::memcpy_d2h( dest, src, len * sizeof(T) );
 }
 
+template <typename T>
+std::enable_if_t< std::is_trivially_copyable<T>::value >
+memcpy2d_d2h( T* dest, size_t dpitch, const T* src, size_t spitch,
+              size_t width, size_t height ) {
+  wrappers::memcpy2d_d2h( dest, dpitch * sizeof(T), src, spitch * sizeof(T),
+                        width * sizeof(T), height );
+}
+
 /**
  *  \brief Copy data on device
  *
@@ -183,6 +208,14 @@ template <typename T>
 std::enable_if_t< std::is_trivially_copyable<T>::value >
 memcpy_d2d( T* dest, const T* src, size_t len ) {
   wrappers::memcpy_d2d( dest, src, len * sizeof(T) );
+}
+
+template <typename T>
+std::enable_if_t< std::is_trivially_copyable<T>::value >
+memcpy2d_d2d( T* dest, size_t dpitch, const T* src, size_t spitch,
+              size_t width, size_t height ) {
+  wrappers::memcpy2d_d2d( dest, dpitch * sizeof(T), src, spitch * sizeof(T),
+                        width * sizeof(T), height );
 }
 
 }

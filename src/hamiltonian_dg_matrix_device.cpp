@@ -67,7 +67,7 @@ using namespace PseudoComponent;
 void
   HamiltonianDG::CalculateDGMatrix_device    (  )
   {
-    statusOFS << "DBWY IN DEVICE FUNCTION" << std::endl;
+    statusOFS << "DBWY IN CalculateDGMatrix_device" << std::endl;
     Int mpirank, mpisize;
     Int numAtom = atomList_.size();
     MPI_Comm_rank( domain_.comm, &mpirank );
@@ -103,6 +103,10 @@ void
     std::vector<DistDblNumMat>   basisJump(NUM_FACE);
     std::vector<DistDblNumMat>   DbasisAverage(NUM_FACE);
 
+    std::vector<DistVec<Index3, cuda::device_vector<Real>, ElemPrtn> >
+      basisJump_device( NUM_FACE ),
+      DbasisAverage_device( NUM_FACE );
+
     // IMPORTANT:
     //
     // When intra-element parallelization is invoked, the communication of
@@ -110,14 +114,20 @@ void
     for( Int k = 0; k < NUM_FACE; k++ ) {
       basisJump[k].SetComm(domain_.colComm);
       DbasisAverage[k].SetComm(domain_.colComm);
+
+      basisJump_device[k].SetComm(domain_.colComm);
+      DbasisAverage_device[k].SetComm(domain_.colComm);
     } 
 
     // The derivative of basisLGL along x,y,z directions
     std::vector<DistDblNumMat>   Dbasis(DIM);
+    std::vector<DistVec<Index3, cuda::device_vector<Real>, ElemPrtn> >
+      Dbasis_device(DIM);
 
     // Same as above
     for( Int k = 0; k < DIM; k++ ) {
       Dbasis[k].SetComm(domain_.colComm);
+      Dbasis_device[k].SetComm(domain_.colComm);
     } 
 
     // Integration weights
@@ -225,10 +235,14 @@ void
       for( Int i = 0; i < NUM_FACE; i++ ){
         basisJump[i].Prtn()     = elemPrtn_;
         DbasisAverage[i].Prtn() = elemPrtn_;
+
+        basisJump_device[i].Prtn()     = elemPrtn_;
+        DbasisAverage_device[i].Prtn() = elemPrtn_;
       }
 
       for( Int i = 0; i < DIM; i++ ){
-        Dbasis[i].Prtn() = elemPrtn_;
+        Dbasis[i].Prtn()        = elemPrtn_;
+        Dbasis_device[i].Prtn() = elemPrtn_;
       }
 
       GetTime( timeEnd );
@@ -239,6 +253,28 @@ void
     }
 
 
+    // *********************************************************************
+    // Copy basis to the device
+    // TODO: Construct basisLGL on device
+    // *********************************************************************
+    DistVec<Index3, cuda::device_vector<Real>, ElemPrtn> basisLGL_device;
+    basisLGL_device.SetComm( basisLGL_.Comm() );
+    basisLGL_device.Prtn() = basisLGL_.Prtn();
+    for( Int k = 0; k < numElem_[2]; k++ )
+    for( Int j = 0; j < numElem_[1]; j++ )
+    for( Int i = 0; i < numElem_[0]; i++ ) {
+      Index3 key( i, j, k );
+      if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ) {
+        auto& basis        = basisLGL_.LocalMap()[key];
+        auto& basis_device = basisLGL_device.LocalMap()[key];
+
+        basis_device.resize( basis.Size() );
+        cuda::memcpy_h2d( basis_device.data(), basis.Data(), basis.Size() );
+      }
+    }
+
+    // XXX: Device variables
+    auto cublas_stream = handle.get_stream();
 
 
 
@@ -249,105 +285,167 @@ void
     {
       GetTime(timeSta);
 
-      // Compute derivatives on each local element
+      // Allocate DBasis (XXX: to factor out timings)
       for( Int k = 0; k < numElem_[2]; k++ )
-        for( Int j = 0; j < numElem_[1]; j++ )
-          for( Int i = 0; i < numElem_[0]; i++ ){
-            Index3 key( i, j, k );
-            if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
-              DblNumMat&  basis = basisLGL_.LocalMap()[key];
-              Int numBasis = basis.n();
+      for( Int j = 0; j < numElem_[1]; j++ )
+      for( Int i = 0; i < numElem_[0]; i++ ){
+        Index3 key( i, j, k );
+        if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
 
-              Dbasis[0].LocalMap()[key].Resize( basis.m(), basis.n() );
-              Dbasis[1].LocalMap()[key].Resize( basis.m(), basis.n() );
-              Dbasis[2].LocalMap()[key].Resize( basis.m(), basis.n() );
+          auto& basis        = basisLGL_.LocalMap()[key];
 
-              DblNumMat& DbasisX = Dbasis[0].LocalMap()[key];
-              DblNumMat& DbasisY = Dbasis[1].LocalMap()[key];
-              DblNumMat& DbasisZ = Dbasis[2].LocalMap()[key];
+          // Device
+          Dbasis_device[0].LocalMap()[key].resize( basis.Size() );
+          Dbasis_device[1].LocalMap()[key].resize( basis.Size() );
+          Dbasis_device[2].LocalMap()[key].resize( basis.Size() );
+          
+          // Host
+          Dbasis[0].LocalMap()[key].Resize( basis.m(), basis.n() );
+          Dbasis[1].LocalMap()[key].Resize( basis.m(), basis.n() );
+          Dbasis[2].LocalMap()[key].Resize( basis.m(), basis.n() );
 
+        } // own this element
+      } // for (ijk)
+      
+      cuda::event diff_psi_st, diff_psi_en;
+      diff_psi_st.record( cublas_stream );
 
-              statusOFS << "DBWY ELEM " << key << std::endl;
-              statusOFS << "  DBWY NBASIS " << numBasis << std::endl;
+      // Compute derivatives on each local element ( XXX: DEVICE )
+      for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+      for( Int i = 0; i < numElem_[0]; i++ ){
+        Index3 key( i, j, k );
+        if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
 
-              cuda::device_vector<double> DbasisX_device( DbasisX.Size() );
-              cuda::device_vector<double> DbasisY_device( DbasisY.Size() );
-              cuda::device_vector<double> DbasisZ_device( DbasisZ.Size() );
+          auto& basis        = basisLGL_.LocalMap()[key];
+          auto& basis_device = basisLGL_device.LocalMap()[key];
+          Int numBasis = basis.n();
 
-              cuda::device_vector<double> basis_device( basis.Size() );
-              cuda::memcpy_h2d( basis_device.data(), basis.Data(), basis.Size() );
+          auto& DbasisX_device = Dbasis_device[0].LocalMap()[key];
+          auto& DbasisY_device = Dbasis_device[1].LocalMap()[key];
+          auto& DbasisZ_device = Dbasis_device[2].LocalMap()[key];
 
-              // Compact implementation with the same efficiency
-              for( Int g = 0; g < numBasis; g++ ){
-                DiffPsi( numGrid, basis.VecData(g), DbasisX.VecData(g), 0 );
-                DiffPsi( numGrid, basis.VecData(g), DbasisY.VecData(g), 1 );
-                DiffPsi( numGrid, basis.VecData(g), DbasisZ.VecData(g), 2 );
-              }
+          // Compute derivatives on device using batched formulation
+          DiffPsi_device_fast( numGrid, numBasis, basis_device.data(),
+                               DbasisX_device.data(), 0 );
+          DiffPsi_device_fast( numGrid, numBasis, basis_device.data(),
+                               DbasisY_device.data(), 1 );
+          DiffPsi_device_fast( numGrid, numBasis, basis_device.data(),
+                               DbasisZ_device.data(), 2 );
 
+        } // own this element
+      } // for (ijk)
 
-              #if 0 // stupid method
+      diff_psi_en.record( cublas_stream );
+      cublas_stream.synchronize();
+      auto diff_psi_dur = cuda::event::elapsed_time( diff_psi_st, diff_psi_en );
 
-              DiffPsi_device_slow( numGrid, numBasis, basis_device.data(),
-                                   DbasisX_device.data(), 0 );
-              DiffPsi_device_slow( numGrid, numBasis, basis_device.data(),
-                                   DbasisY_device.data(), 1 );
-              DiffPsi_device_slow( numGrid, numBasis, basis_device.data(),
-                                   DbasisZ_device.data(), 2 );
-
-              #else // efficient batched method
-
-
-              DiffPsi_device_fast( numGrid, numBasis, basis_device.data(),
-                                   DbasisX_device.data(), 0 );
-              DiffPsi_device_fast( numGrid, numBasis, basis_device.data(),
-                                   DbasisY_device.data(), 1 );
-              DiffPsi_device_fast( numGrid, numBasis, basis_device.data(),
-                                   DbasisZ_device.data(), 2 );
-
-
-              #endif
-
-              cuda::pinned_vector< double > DbasisX_test( DbasisX.Size() );
-              cuda::pinned_vector< double > DbasisY_test( DbasisY.Size() );
-              cuda::pinned_vector< double > DbasisZ_test( DbasisZ.Size() );
-              cuda::copy( DbasisX_device, DbasisX_test );
-              cuda::copy( DbasisY_device, DbasisY_test );
-              cuda::copy( DbasisZ_device, DbasisZ_test );
-              cuda::wrappers::device_sync();
-
-              statusOFS << "DBWY MAX XVAL = " << 
-                *std::max_element( DbasisX_test.begin(), DbasisX_test.end() ) 
-              << std::endl;
-              statusOFS << "DBWY MAX YVAL = " << 
-                *std::max_element( DbasisY_test.begin(), DbasisY_test.end() ) 
-              << std::endl;
-              statusOFS << "DBWY MAX ZVAL = " << 
-                *std::max_element( DbasisZ_test.begin(), DbasisZ_test.end() ) 
-              << std::endl;
-
-              for( auto ii = 0; ii < DbasisX.Size(); ++ii )
-                DbasisX_test[ii] = std::abs( DbasisX_test[ii] - DbasisX.Data()[ii] );
-              for( auto ii = 0; ii < DbasisY.Size(); ++ii )
-                DbasisY_test[ii] = std::abs( DbasisY_test[ii] - DbasisY.Data()[ii] );
-              for( auto ii = 0; ii < DbasisZ.Size(); ++ii )
-                DbasisZ_test[ii] = std::abs( DbasisZ_test[ii] - DbasisZ.Data()[ii] );
-
-              statusOFS << "DBWY MAX XDIFF = " << 
-                *std::max_element( DbasisX_test.begin(), DbasisX_test.end() ) 
-              << std::endl;
-              statusOFS << "DBWY MAX YDIFF = " << 
-                *std::max_element( DbasisY_test.begin(), DbasisY_test.end() ) 
-              << std::endl;
-              statusOFS << "DBWY MAX ZDIFF = " << 
-                *std::max_element( DbasisZ_test.begin(), DbasisZ_test.end() ) 
-              << std::endl;
-
-
-            } // own this element
-          } // for (i)
+      Real diff_psi_st_host, diff_psi_en_host;
 
 
 
+
+
+
+
+
+
+
+
+
+      GetTime( diff_psi_st_host );
+      // Compute derivatives on each local element ( XXX: HOST )
+      for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+      for( Int i = 0; i < numElem_[0]; i++ ){
+        Index3 key( i, j, k );
+        if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
+
+          auto& basis        = basisLGL_.LocalMap()[key];
+          Int numBasis = basis.n();
+
+          DblNumMat& DbasisX = Dbasis[0].LocalMap()[key];
+          DblNumMat& DbasisY = Dbasis[1].LocalMap()[key];
+          DblNumMat& DbasisZ = Dbasis[2].LocalMap()[key];
+
+          // Compact implementation with the same efficiency
+          for( Int g = 0; g < numBasis; g++ ){
+            DiffPsi( numGrid, basis.VecData(g), DbasisX.VecData(g), 0 );
+            DiffPsi( numGrid, basis.VecData(g), DbasisY.VecData(g), 1 );
+            DiffPsi( numGrid, basis.VecData(g), DbasisZ.VecData(g), 2 );
+          }
+
+        } // own this element
+      } // for (ijk)
+      GetTime( diff_psi_en_host );
+
+      # if 0
+      // Compare host and device calculations
+      for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+      for( Int i = 0; i < numElem_[0]; i++ ){
+        Index3 key( i, j, k );
+        if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
+
+          auto& basis        = basisLGL_.LocalMap()[key];
+          Int numBasis = basis.n();
+
+          // Host evaluation
+          auto& DbasisX = Dbasis[0].LocalMap()[key];
+          auto& DbasisY = Dbasis[1].LocalMap()[key];
+          auto& DbasisZ = Dbasis[2].LocalMap()[key];
+
+          // Device evaluation
+          auto& DbasisX_device = Dbasis_device[0].LocalMap()[key];
+          auto& DbasisY_device = Dbasis_device[1].LocalMap()[key];
+          auto& DbasisZ_device = Dbasis_device[2].LocalMap()[key];
+
+          // Communucate device values to host
+          cuda::pinned_vector< double > DbasisX_test( DbasisX.Size() );
+          cuda::pinned_vector< double > DbasisY_test( DbasisY.Size() );
+          cuda::pinned_vector< double > DbasisZ_test( DbasisZ.Size() );
+          cuda::copy( DbasisX_device, DbasisX_test );
+          cuda::copy( DbasisY_device, DbasisY_test );
+          cuda::copy( DbasisZ_device, DbasisZ_test );
+          cuda::wrappers::device_sync();
+
+          statusOFS << "DBWY MAX XVAL = " << 
+            *std::max_element( DbasisX_test.begin(), DbasisX_test.end() ) 
+          << std::endl;
+          statusOFS << "DBWY MAX YVAL = " << 
+            *std::max_element( DbasisY_test.begin(), DbasisY_test.end() ) 
+          << std::endl;
+          statusOFS << "DBWY MAX ZVAL = " << 
+            *std::max_element( DbasisZ_test.begin(), DbasisZ_test.end() ) 
+          << std::endl;
+
+          for( auto ii = 0; ii < DbasisX.Size(); ++ii )
+            DbasisX_test[ii] = std::abs( DbasisX_test[ii] - DbasisX.Data()[ii] );
+          for( auto ii = 0; ii < DbasisY.Size(); ++ii )
+            DbasisY_test[ii] = std::abs( DbasisY_test[ii] - DbasisY.Data()[ii] );
+          for( auto ii = 0; ii < DbasisZ.Size(); ++ii )
+            DbasisZ_test[ii] = std::abs( DbasisZ_test[ii] - DbasisZ.Data()[ii] );
+
+          statusOFS << "DBWY MAX XDIFF = " << 
+            *std::max_element( DbasisX_test.begin(), DbasisX_test.end() ) 
+          << std::endl;
+          statusOFS << "DBWY MAX YDIFF = " << 
+            *std::max_element( DbasisY_test.begin(), DbasisY_test.end() ) 
+          << std::endl;
+          statusOFS << "DBWY MAX ZDIFF = " << 
+            *std::max_element( DbasisZ_test.begin(), DbasisZ_test.end() ) 
+          << std::endl;
+
+
+        } // own this element
+      } // for (ijk)
+      #endif
+
+
+      statusOFS << "Time for the local gradient calculation (Host) is " <<
+        (diff_psi_en_host - diff_psi_st_host)*1000 << " [ms]" << std::endl;
+      statusOFS << "Time for the local gradient calculation (Device) is " <<
+        diff_psi_dur << " [ms]" << std::endl << std::endl;
 
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 1 )
@@ -362,12 +460,19 @@ void
           for( Int i = 0; i < numElem_[0]; i++ ){
             Index3 key( i, j, k );
             if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
-              DblNumMat&  basis = basisLGL_.LocalMap()[key];
+              auto&  basis        = basisLGL_.LocalMap()[key];
+              auto&  basis_device = basisLGL_device.LocalMap()[key];
               Int numBasis = basis.n();
+
+              const Int NX = numGrid[0];
+              const Int NY = numGrid[1];
+              const Int NZ = numGrid[2];
 
               // x-direction
               {
-                Int  numGridFace = numGrid[1] * numGrid[2];
+                const Int  numGridFace = NY * NZ;
+
+                // Host alloc
                 DblNumMat emptyX( numGridFace, numBasis );
                 SetValue( emptyX, 0.0 );
                 basisJump[XL].LocalMap()[key] = emptyX;
@@ -381,20 +486,35 @@ void
                 DblNumMat&  drvR = DbasisAverage[XR].LocalMap()[key];
                 DblNumMat&  DbasisX = Dbasis[0].LocalMap()[key];
 
+
+                // Device alloc
+                basisJump_device[XL].LocalMap()[key].resize( numGridFace * numBasis );
+                basisJump_device[XR].LocalMap()[key].resize( numGridFace * numBasis );
+                DbasisAverage_device[XL].LocalMap()[key].resize( numGridFace * numBasis );
+                DbasisAverage_device[XR].LocalMap()[key].resize( numGridFace * numBasis );
+
+                auto&  valL_device = basisJump_device[XL].LocalMap()[key];
+                auto&  valR_device = basisJump_device[XR].LocalMap()[key];
+                auto&  drvL_device = DbasisAverage_device[XL].LocalMap()[key];
+                auto&  drvR_device = DbasisAverage_device[XR].LocalMap()[key];
+                auto&  DbasisX_device = Dbasis_device[0].LocalMap()[key];
+
+
+
                 // Form jumps and averages from volume to face.
                 // basis(0,:,:)             -> valL
-                // basis(numGrid[0]-1,:,:)  -> valR
+                // basis(NX-1,:,:)  -> valR
                 // Dbasis(0,:,:)            -> drvL
-                // Dbasis(numGrid[0]-1,:,:) -> drvR
+                // Dbasis(NX-1,:,:) -> drvR
                 for( Int g = 0; g < numBasis; g++ ){
                   Int idx, idxL, idxR;
-                  for( Int gk = 0; gk < numGrid[2]; gk++ )
-                    for( Int gj = 0; gj < numGrid[1]; gj++ ){
-                      idx  = gj + gk*numGrid[1];
-                      idxL = 0 + gj*numGrid[0] + gk * (numGrid[0] *
-                          numGrid[1]);
-                      idxR = (numGrid[0]-1) + gj*numGrid[0] + gk * (numGrid[0] *
-                          numGrid[1]);
+                  for( Int gk = 0; gk < NZ; gk++ )
+                    for( Int gj = 0; gj < NY; gj++ ){
+                      idx  = gj + gk*NY;
+                      idxL = 0 + gj*NX + gk * (NX *
+                          NY);
+                      idxR = (NX-1) + gj*NX + gk * (NX *
+                          NY);
 
                       // 0.5 comes from average
                       // {{a}} = 1/2 (a_L + a_R)
@@ -407,12 +527,87 @@ void
                     } // for (gj)
                 } // for (g)
 
+                // Device copies
+
+                // valL <- basis( 0, :, :, : )
+                cuda::memcpy2d_d2d( valL_device.data(), 1, 
+                                  basis_device.data(), NX,
+                                  1, NY * NZ * numBasis );
+
+                // valR <- basis( nx-1, :, :, : )
+                cuda::memcpy2d_d2d( valR_device.data(), 1, 
+                                  basis_device.data() + (NX-1), NX,
+                                  1, NY * NZ * numBasis );
+
+                // drvL <- Dbasis( 0, :, :, : )
+                cuda::memcpy2d_d2d( drvL_device.data(), 1, 
+                                  DbasisX_device.data(), NX,
+                                  1, NY * NZ * numBasis );
+
+                // drvR <- Dbasis( nx-1, :, :, : )
+                cuda::memcpy2d_d2d( drvR_device.data(), 1, 
+                                  DbasisX_device.data() + (NX-1), NX,
+                                  1, NY * NZ * numBasis );
+
+                // Test correctness
+                cuda::pinned_vector<double> 
+                  drvL_test( NY * NZ * numBasis ),
+                  drvR_test( NY * NZ * numBasis ),
+                  valL_test( NY * NZ * numBasis ),
+                  valR_test( NY * NZ * numBasis );
+
+                cuda::memcpy_d2h( valL_test.data(), valL_device.data(),
+                                  valL_device.size() );
+                cuda::memcpy_d2h( valR_test.data(), valR_device.data(),
+                                  valR_device.size() );
+                cuda::memcpy_d2h( drvL_test.data(), drvL_device.data(),
+                                  drvL_device.size() );
+                cuda::memcpy_d2h( drvR_test.data(), drvR_device.data(),
+                                  drvR_device.size() );
+
+
+                statusOFS << "DBWY X_VAL_L_MAX = " <<
+                  *std::max_element( valL_test.begin(), valL_test.end() )
+                << std::endl;
+                statusOFS << "DBWY X_VAL_R_MAX = " <<
+                  *std::max_element( valR_test.begin(), valR_test.end() )
+                << std::endl;
+                statusOFS << "DBWY X_DRV_L_MAX = " <<
+                  *std::max_element( drvL_test.begin(), drvL_test.end() )
+                << std::endl;
+                statusOFS << "DBWY X_DRV_R_MAX = " <<
+                  *std::max_element( drvR_test.begin(), drvR_test.end() )
+                << std::endl;
+
+
+                for( auto g = 0; g < valL_device.size(); ++g ) {
+                  valL_test[g] = std::abs( valL_test[g] + valL.Data()[g] );
+                  valR_test[g] = std::abs( valR_test[g] - valR.Data()[g] );
+                  drvL_test[g] = std::abs( drvL_test[g] - 2.*drvL.Data()[g] );
+                  drvR_test[g] = std::abs( drvR_test[g] - 2.*drvR.Data()[g] );
+                }
+
+                statusOFS << "DBWY X_VAL_L_DIFF = " <<
+                  *std::max_element( valL_test.begin(), valL_test.end() )
+                << std::endl;
+                statusOFS << "DBWY X_VAL_R_DIFF = " <<
+                  *std::max_element( valR_test.begin(), valR_test.end() )
+                << std::endl;
+                statusOFS << "DBWY X_DRV_L_DIFF = " <<
+                  *std::max_element( drvL_test.begin(), drvL_test.end() )
+                << std::endl;
+                statusOFS << "DBWY X_DRV_R_DIFF = " <<
+                  *std::max_element( drvR_test.begin(), drvR_test.end() )
+                << std::endl;
+
               } // x-direction
 
 
               // y-direction
               {
-                Int  numGridFace = numGrid[0] * numGrid[2];
+                const Int  numGridFace = NX * NZ;
+
+                // Host alloc
                 DblNumMat emptyY( numGridFace, numBasis );
                 SetValue( emptyY, 0.0 );
                 basisJump[YL].LocalMap()[key] = emptyY;
@@ -426,20 +621,32 @@ void
                 DblNumMat&  drvR = DbasisAverage[YR].LocalMap()[key];
                 DblNumMat&  DbasisY = Dbasis[1].LocalMap()[key];
 
+                // Device alloc
+                basisJump_device[YL].LocalMap()[key].resize( numGridFace * numBasis );
+                basisJump_device[YR].LocalMap()[key].resize( numGridFace * numBasis );
+                DbasisAverage_device[YL].LocalMap()[key].resize( numGridFace * numBasis );
+                DbasisAverage_device[YR].LocalMap()[key].resize( numGridFace * numBasis );
+
+                auto&  valL_device = basisJump_device[YL].LocalMap()[key];
+                auto&  valR_device = basisJump_device[YR].LocalMap()[key];
+                auto&  drvL_device = DbasisAverage_device[YL].LocalMap()[key];
+                auto&  drvR_device = DbasisAverage_device[YR].LocalMap()[key];
+                auto&  DbasisY_device = Dbasis_device[1].LocalMap()[key];
+
                 // Form jumps and averages from volume to face.
                 // basis(0,:,:)             -> valL
-                // basis(numGrid[0]-1,:,:)  -> valR
+                // basis(NX-1,:,:)  -> valR
                 // Dbasis(0,:,:)            -> drvL
-                // Dbasis(numGrid[0]-1,:,:) -> drvR
+                // Dbasis(NX-1,:,:) -> drvR
                 for( Int g = 0; g < numBasis; g++ ){
                   Int idx, idxL, idxR;
-                  for( Int gk = 0; gk < numGrid[2]; gk++ )
-                    for( Int gi = 0; gi < numGrid[0]; gi++ ){
-                      idx  = gi + gk*numGrid[0];
-                      idxL = gi + 0 *numGrid[0] +
-                        gk * (numGrid[0] * numGrid[1]);
-                      idxR = gi + (numGrid[1]-1)*numGrid[0] + 
-                        gk * (numGrid[0] * numGrid[1]);
+                  for( Int gk = 0; gk < NZ; gk++ )
+                    for( Int gi = 0; gi < NX; gi++ ){
+                      idx  = gi + gk*NX;
+                      idxL = gi + 0 *NX +
+                        gk * (NX * NY);
+                      idxR = gi + (NY-1)*NX + 
+                        gk * (NX * NY);
 
                       // 0.5 comes from average
                       // {{a}} = 1/2 (a_L + a_R)
@@ -452,11 +659,88 @@ void
                     } // for (gj)
                 } // for (g)
 
+                // Device copies
+
+                // valL <- basis( :, 0, :, : )
+                cuda::memcpy2d_d2d( valL_device.data(), NX, 
+                                  basis_device.data(), NX * NY,
+                                  NX, NZ * numBasis );
+
+                // valR <- basis( :, ny-1, :, : )
+                cuda::memcpy2d_d2d( valR_device.data(), NX, 
+                                  basis_device.data() + (NY-1)*NX, NX * NY,
+                                  NX, NZ * numBasis );
+
+                // drvL <- DbasisY( :, 0, :, : )
+                cuda::memcpy2d_d2d( drvL_device.data(), NX, 
+                                  DbasisY_device.data(), NX * NY,
+                                  NX, NZ * numBasis );
+
+                // drvR <- DbasisY( :, ny-1, :, : )
+                cuda::memcpy2d_d2d( drvR_device.data(), NX, 
+                                  DbasisY_device.data() + (NY-1)*NX, NX * NY,
+                                  NX, NZ * numBasis );
+
+                // Test correctness
+                cuda::pinned_vector<double> 
+                  drvL_test( NX * NZ * numBasis ),
+                  drvR_test( NX * NZ * numBasis ),
+                  valL_test( NX * NZ * numBasis ),
+                  valR_test( NX * NZ * numBasis );
+
+                cuda::memcpy_d2h( valL_test.data(), valL_device.data(),
+                                  valL_device.size() );
+                cuda::memcpy_d2h( valR_test.data(), valR_device.data(),
+                                  valR_device.size() );
+                cuda::memcpy_d2h( drvL_test.data(), drvL_device.data(),
+                                  drvL_device.size() );
+                cuda::memcpy_d2h( drvR_test.data(), drvR_device.data(),
+                                  drvR_device.size() );
+
+
+                statusOFS << std::endl;
+                statusOFS << "DBWY Y_VAL_L_MAX = " <<
+                  *std::max_element( valL_test.begin(), valL_test.end() )
+                << std::endl;
+                statusOFS << "DBWY Y_VAL_R_MAX = " <<
+                  *std::max_element( valR_test.begin(), valR_test.end() )
+                << std::endl;
+                statusOFS << "DBWY Y_DRV_L_MAX = " <<
+                  *std::max_element( drvL_test.begin(), drvL_test.end() )
+                << std::endl;
+                statusOFS << "DBWY Y_DRV_R_MAX = " <<
+                  *std::max_element( drvR_test.begin(), drvR_test.end() )
+                << std::endl;
+
+
+                for( auto g = 0; g < valL_device.size(); ++g ) {
+                  valL_test[g] = std::abs( valL_test[g] + valL.Data()[g] );
+                  valR_test[g] = std::abs( valR_test[g] - valR.Data()[g] );
+                  drvL_test[g] = std::abs( drvL_test[g] - 2.*drvL.Data()[g] );
+                  drvR_test[g] = std::abs( drvR_test[g] - 2.*drvR.Data()[g] );
+                }
+
+                statusOFS << "DBWY Y_VAL_L_DIFF = " <<
+                  *std::max_element( valL_test.begin(), valL_test.end() )
+                << std::endl;
+                statusOFS << "DBWY Y_VAL_R_DIFF = " <<
+                  *std::max_element( valR_test.begin(), valR_test.end() )
+                << std::endl;
+                statusOFS << "DBWY Y_DRV_L_DIFF = " <<
+                  *std::max_element( drvL_test.begin(), drvL_test.end() )
+                << std::endl;
+                statusOFS << "DBWY Y_DRV_R_DIFF = " <<
+                  *std::max_element( drvR_test.begin(), drvR_test.end() )
+                << std::endl;
+
+
               } // y-direction
 
               // z-direction
               {
-                Int  numGridFace = numGrid[0] * numGrid[1];
+                const Int  numGridFace = NX * NY;
+
+                // Host alloc
                 DblNumMat emptyZ( numGridFace, numBasis );
                 SetValue( emptyZ, 0.0 );
                 basisJump[ZL].LocalMap()[key] = emptyZ;
@@ -470,20 +754,32 @@ void
                 DblNumMat&  drvR = DbasisAverage[ZR].LocalMap()[key];
                 DblNumMat&  DbasisZ = Dbasis[2].LocalMap()[key];
 
+                // Device alloc
+                basisJump_device[ZL].LocalMap()[key].resize( numGridFace * numBasis );
+                basisJump_device[ZR].LocalMap()[key].resize( numGridFace * numBasis );
+                DbasisAverage_device[ZL].LocalMap()[key].resize( numGridFace * numBasis );
+                DbasisAverage_device[ZR].LocalMap()[key].resize( numGridFace * numBasis );
+
+                auto&  valL_device = basisJump_device[ZL].LocalMap()[key];
+                auto&  valR_device = basisJump_device[ZR].LocalMap()[key];
+                auto&  drvL_device = DbasisAverage_device[ZL].LocalMap()[key];
+                auto&  drvR_device = DbasisAverage_device[ZR].LocalMap()[key];
+                auto&  DbasisZ_device = Dbasis_device[2].LocalMap()[key];
+
                 // Form jumps and averages from volume to face.
                 // basis(0,:,:)             -> valL
-                // basis(numGrid[0]-1,:,:)  -> valR
+                // basis(NX-1,:,:)  -> valR
                 // Dbasis(0,:,:)            -> drvL
-                // Dbasis(numGrid[0]-1,:,:) -> drvR
+                // Dbasis(NX-1,:,:) -> drvR
                 for( Int g = 0; g < numBasis; g++ ){
                   Int idx, idxL, idxR;
-                  for( Int gj = 0; gj < numGrid[1]; gj++ )
-                    for( Int gi = 0; gi < numGrid[0]; gi++ ){
-                      idx  = gi + gj*numGrid[0];
-                      idxL = gi + gj*numGrid[0] +
-                        0 * (numGrid[0] * numGrid[1]);
-                      idxR = gi + gj*numGrid[0] +
-                        (numGrid[2]-1) * (numGrid[0] * numGrid[1]);
+                  for( Int gj = 0; gj < NY; gj++ )
+                    for( Int gi = 0; gi < NX; gi++ ){
+                      idx  = gi + gj*NX;
+                      idxL = gi + gj*NX +
+                        0 * (NX * NY);
+                      idxR = gi + gj*NX +
+                        (NZ-1) * (NX * NY);
 
                       // 0.5 comes from average
                       // {{a}} = 1/2 (a_L + a_R)
@@ -495,6 +791,80 @@ void
                       valR(idx, g) = +1.0 * basis( idxR, g );
                     } // for (gj)
                 } // for (g)
+
+                // Device copies
+
+                // valL <- basis( :, :, 0, : )
+                cuda::memcpy2d_d2d( valL_device.data(), NX * NY, 
+                                  basis_device.data(), NX * NY * NZ,
+                                  NX * NY, numBasis );
+
+                // valR <- basis( :, :, nz-1, : )
+                cuda::memcpy2d_d2d( valR_device.data(), NX * NY, 
+                                  basis_device.data() + (NZ-1)*NX*NY, NX * NY * NZ,
+                                  NX * NY, numBasis );
+
+                // drvL <- DbasisZ( :, :, 0, : )
+                cuda::memcpy2d_d2d( drvL_device.data(), NX * NY, 
+                                  DbasisZ_device.data(), NX * NY * NZ,
+                                  NX * NY, numBasis );
+
+                // drvR <- basis( :, :, nz-1, : )
+                cuda::memcpy2d_d2d( drvR_device.data(), NX * NY, 
+                                  DbasisZ_device.data() + (NZ-1)*NX*NY, NX * NY * NZ,
+                                  NX * NY, numBasis );
+
+                // Test correctness
+                cuda::pinned_vector<double> 
+                  drvL_test( NX * NY * numBasis ),
+                  drvR_test( NX * NY * numBasis ),
+                  valL_test( NX * NY * numBasis ),
+                  valR_test( NX * NY * numBasis );
+
+                cuda::memcpy_d2h( valL_test.data(), valL_device.data(),
+                                  valL_device.size() );
+                cuda::memcpy_d2h( valR_test.data(), valR_device.data(),
+                                  valR_device.size() );
+                cuda::memcpy_d2h( drvL_test.data(), drvL_device.data(),
+                                  drvL_device.size() );
+                cuda::memcpy_d2h( drvR_test.data(), drvR_device.data(),
+                                  drvR_device.size() );
+
+
+                statusOFS << std::endl;
+                statusOFS << "DBWY Z_VAL_L_MAX = " <<
+                  *std::max_element( valL_test.begin(), valL_test.end() )
+                << std::endl;
+                statusOFS << "DBWY Z_VAL_R_MAX = " <<
+                  *std::max_element( valR_test.begin(), valR_test.end() )
+                << std::endl;
+                statusOFS << "DBWY Z_DRV_L_MAX = " <<
+                  *std::max_element( drvL_test.begin(), drvL_test.end() )
+                << std::endl;
+                statusOFS << "DBWY Z_DRV_R_MAX = " <<
+                  *std::max_element( drvR_test.begin(), drvR_test.end() )
+                << std::endl;
+
+
+                for( auto g = 0; g < valL_device.size(); ++g ) {
+                  valL_test[g] = std::abs( valL_test[g] + valL.Data()[g] );
+                  valR_test[g] = std::abs( valR_test[g] - valR.Data()[g] );
+                  drvL_test[g] = std::abs( drvL_test[g] - 2.*drvL.Data()[g] );
+                  drvR_test[g] = std::abs( drvR_test[g] - 2.*drvR.Data()[g] );
+                }
+
+                statusOFS << "DBWY Z_VAL_L_DIFF = " <<
+                  *std::max_element( valL_test.begin(), valL_test.end() )
+                << std::endl;
+                statusOFS << "DBWY Z_VAL_R_DIFF = " <<
+                  *std::max_element( valR_test.begin(), valR_test.end() )
+                << std::endl;
+                statusOFS << "DBWY Z_DRV_L_DIFF = " <<
+                  *std::max_element( drvL_test.begin(), drvL_test.end() )
+                << std::endl;
+                statusOFS << "DBWY Z_DRV_R_DIFF = " <<
+                  *std::max_element( drvR_test.begin(), drvR_test.end() )
+                << std::endl;
 
               } // z-direction
 
