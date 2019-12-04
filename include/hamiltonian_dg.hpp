@@ -373,6 +373,11 @@ public:
   /// along the dimension d.
   void DiffPsi(const Index3& numGrid, const Real* psi, Real* Dpsi, Int d);
 
+  void DiffPsi_device_slow( const Index3& numGrid, Int numBasis, 
+    const Real* psi, Real* Dpsi, Int d );
+  void DiffPsi_device_fast( const Index3& numGrid, Int numBasis, 
+    const Real* psi, Real* Dpsi, Int d );
+
   /// @brief Interpolation matrix from LGL to uniform grid in each element.
   void InterpLGLToUniform( const Index3& numLGLGrid, const Index3& numUniformGridFine, 
       const Real* rhoLGL, Real* rhoUniform );
@@ -431,6 +436,7 @@ public:
   /// @brief Assemble the DG Hamiltonian matrix. The mass matrix is
   /// identity in the framework of adaptive local basis functions.
   void CalculateDGMatrix( ); 
+  void CalculateDGMatrix_device( ); 
 
   /// @brief Update the DG Hamiltonian matrix with the same set of
   /// adaptive local basis functions, but different local potential. 

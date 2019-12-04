@@ -120,6 +120,44 @@ void gemm_batched( handle& handle,
 }
 
 template <>
+void gemm_batched_strided( handle& handle,
+  char TRANSA, char TRANSB, int M, int N, int K, 
+  double ALPHA, double* A_device, int LDA, int strideA, double* B_device,
+  int LDB, int strideB, double BETA, double* C_device, int LDC, int strideC, 
+  int batch_count ) {
+
+  cublasOperation_t TA = cublasOpFromChar(TRANSA) ;
+  cublasOperation_t TB = cublasOpFromChar(TRANSB) ;
+
+  auto handle_h = detail::get_handle(handle)->handle;
+
+  CUBLAS_THROW(
+    cublasDgemmStridedBatched( handle_h, TA, TB, M, N, K, 
+      &ALPHA, A_device, LDA, strideA, B_device, LDB, strideB,
+      &BETA,  C_device, LDC, strideC, batch_count )
+  )
+
+}
+
+template <>
+void gemm( handle& handle,
+  char TRANSA, char TRANSB, int M, int N, int K, 
+  double ALPHA, const double* A_device, int LDA, const double* B_device,
+  int LDB, double BETA, double* C_device, int LDC ) {
+
+  cublasOperation_t TA = cublasOpFromChar(TRANSA) ;
+  cublasOperation_t TB = cublasOpFromChar(TRANSB) ;
+
+  auto handle_h = detail::get_handle(handle)->handle;
+
+  CUBLAS_THROW(
+    cublasDgemm( handle_h, TA, TB, M, N, K, &ALPHA, A_device, LDA, B_device,
+      LDB, &BETA, C_device, LDC )
+  )
+
+}
+
+template <>
 void axpy( handle& handle,
   int N, double ALPHA, const double* X, int INCX, double* Y, int INCY 
 ) {

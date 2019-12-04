@@ -570,7 +570,8 @@ namespace  dgdft{
                 MPI_Barrier( domain_.colComm );
 
 
-                hamDG.CalculateDGMatrix( );
+                //hamDG.CalculateDGMatrix( );
+                hamDG.CalculateDGMatrix_device( );
 
                 MPI_Barrier( domain_.comm );
                 MPI_Barrier( domain_.rowComm );

@@ -43,12 +43,19 @@ void gemm( handle& h,
   T ALPHA, const T* A_device, int LDA, const T* B_device,
   int LDB, T BETA, T* C_device, int LDC );
 
-
 template <typename T>
 void gemm_batched( handle& h,
   char TRANSA, char TRANSB, int M, int N, int K, 
   T ALPHA, T** A_device, int LDA, T** B_device,
   int LDB, T BETA, T** C_device, int LDC, int batch_count );
+
+template <typename T>
+void gemm_batched_strided( handle& h,
+  char TRANSA, char TRANSB, int M, int N, int K, 
+  T ALPHA, T* A_device, int LDA, int strideA, T* B_device,
+  int LDB, int strideB, T BETA, T* C_device, int LDC, int strideC,
+  int batch_count );
+
 
 template <typename T>
 void axpy( handle& h,
