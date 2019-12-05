@@ -168,6 +168,15 @@ void axpy( handle& handle,
 
 }
 
+template <>
+void scal( handle& handle, int N, double ALPHA, double* X, int INCX ) {
+
+  auto handle_h = detail::get_handle(handle)->handle;
+
+  CUBLAS_THROW( cublasDscal( handle_h, N, &ALPHA, X, INCX ) );
+
+}
+
 }
 
 }

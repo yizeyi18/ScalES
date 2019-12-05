@@ -454,422 +454,504 @@ void
 #endif
 
       GetTime(timeSta);
-      // Compute average of derivatives and jump of values
+
+
+      // Preallocate Device
       for( Int k = 0; k < numElem_[2]; k++ )
-        for( Int j = 0; j < numElem_[1]; j++ )
-          for( Int i = 0; i < numElem_[0]; i++ ){
-            Index3 key( i, j, k );
-            if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
-              auto&  basis        = basisLGL_.LocalMap()[key];
-              auto&  basis_device = basisLGL_device.LocalMap()[key];
-              Int numBasis = basis.n();
-
-              const Int NX = numGrid[0];
-              const Int NY = numGrid[1];
-              const Int NZ = numGrid[2];
-
-              // x-direction
-              {
-                const Int  numGridFace = NY * NZ;
-
-                // Host alloc
-                DblNumMat emptyX( numGridFace, numBasis );
-                SetValue( emptyX, 0.0 );
-                basisJump[XL].LocalMap()[key] = emptyX;
-                basisJump[XR].LocalMap()[key] = emptyX;
-                DbasisAverage[XL].LocalMap()[key] = emptyX;
-                DbasisAverage[XR].LocalMap()[key] = emptyX;
-
-                DblNumMat&  valL = basisJump[XL].LocalMap()[key];
-                DblNumMat&  valR = basisJump[XR].LocalMap()[key];
-                DblNumMat&  drvL = DbasisAverage[XL].LocalMap()[key];
-                DblNumMat&  drvR = DbasisAverage[XR].LocalMap()[key];
-                DblNumMat&  DbasisX = Dbasis[0].LocalMap()[key];
-
-
-                // Device alloc
-                basisJump_device[XL].LocalMap()[key].resize( numGridFace * numBasis );
-                basisJump_device[XR].LocalMap()[key].resize( numGridFace * numBasis );
-                DbasisAverage_device[XL].LocalMap()[key].resize( numGridFace * numBasis );
-                DbasisAverage_device[XR].LocalMap()[key].resize( numGridFace * numBasis );
-
-                auto&  valL_device = basisJump_device[XL].LocalMap()[key];
-                auto&  valR_device = basisJump_device[XR].LocalMap()[key];
-                auto&  drvL_device = DbasisAverage_device[XL].LocalMap()[key];
-                auto&  drvR_device = DbasisAverage_device[XR].LocalMap()[key];
-                auto&  DbasisX_device = Dbasis_device[0].LocalMap()[key];
-
-
-
-                // Form jumps and averages from volume to face.
-                // basis(0,:,:)             -> valL
-                // basis(NX-1,:,:)  -> valR
-                // Dbasis(0,:,:)            -> drvL
-                // Dbasis(NX-1,:,:) -> drvR
-                for( Int g = 0; g < numBasis; g++ ){
-                  Int idx, idxL, idxR;
-                  for( Int gk = 0; gk < NZ; gk++ )
-                    for( Int gj = 0; gj < NY; gj++ ){
-                      idx  = gj + gk*NY;
-                      idxL = 0 + gj*NX + gk * (NX *
-                          NY);
-                      idxR = (NX-1) + gj*NX + gk * (NX *
-                          NY);
-
-                      // 0.5 comes from average
-                      // {{a}} = 1/2 (a_L + a_R)
-                      drvL(idx, g) = +0.5 * DbasisX( idxL, g );
-                      drvR(idx, g) = +0.5 * DbasisX( idxR, g );
-                      // 1.0, -1.0 comes from jump with different normal vectors
-                      // [[a]] = -(1.0) a_L + (1.0) a_R
-                      valL(idx, g) = -1.0 * basis( idxL, g );
-                      valR(idx, g) = +1.0 * basis( idxR, g );
-                    } // for (gj)
-                } // for (g)
-
-                // Device copies
-
-                // valL <- basis( 0, :, :, : )
-                cuda::memcpy2d_d2d( valL_device.data(), 1, 
-                                  basis_device.data(), NX,
-                                  1, NY * NZ * numBasis );
-
-                // valR <- basis( nx-1, :, :, : )
-                cuda::memcpy2d_d2d( valR_device.data(), 1, 
-                                  basis_device.data() + (NX-1), NX,
-                                  1, NY * NZ * numBasis );
-
-                // drvL <- Dbasis( 0, :, :, : )
-                cuda::memcpy2d_d2d( drvL_device.data(), 1, 
-                                  DbasisX_device.data(), NX,
-                                  1, NY * NZ * numBasis );
-
-                // drvR <- Dbasis( nx-1, :, :, : )
-                cuda::memcpy2d_d2d( drvR_device.data(), 1, 
-                                  DbasisX_device.data() + (NX-1), NX,
-                                  1, NY * NZ * numBasis );
-
-                // Test correctness
-                cuda::pinned_vector<double> 
-                  drvL_test( NY * NZ * numBasis ),
-                  drvR_test( NY * NZ * numBasis ),
-                  valL_test( NY * NZ * numBasis ),
-                  valR_test( NY * NZ * numBasis );
-
-                cuda::memcpy_d2h( valL_test.data(), valL_device.data(),
-                                  valL_device.size() );
-                cuda::memcpy_d2h( valR_test.data(), valR_device.data(),
-                                  valR_device.size() );
-                cuda::memcpy_d2h( drvL_test.data(), drvL_device.data(),
-                                  drvL_device.size() );
-                cuda::memcpy_d2h( drvR_test.data(), drvR_device.data(),
-                                  drvR_device.size() );
-
-
-                statusOFS << "DBWY X_VAL_L_MAX = " <<
-                  *std::max_element( valL_test.begin(), valL_test.end() )
-                << std::endl;
-                statusOFS << "DBWY X_VAL_R_MAX = " <<
-                  *std::max_element( valR_test.begin(), valR_test.end() )
-                << std::endl;
-                statusOFS << "DBWY X_DRV_L_MAX = " <<
-                  *std::max_element( drvL_test.begin(), drvL_test.end() )
-                << std::endl;
-                statusOFS << "DBWY X_DRV_R_MAX = " <<
-                  *std::max_element( drvR_test.begin(), drvR_test.end() )
-                << std::endl;
-
-
-                for( auto g = 0; g < valL_device.size(); ++g ) {
-                  valL_test[g] = std::abs( valL_test[g] + valL.Data()[g] );
-                  valR_test[g] = std::abs( valR_test[g] - valR.Data()[g] );
-                  drvL_test[g] = std::abs( drvL_test[g] - 2.*drvL.Data()[g] );
-                  drvR_test[g] = std::abs( drvR_test[g] - 2.*drvR.Data()[g] );
-                }
-
-                statusOFS << "DBWY X_VAL_L_DIFF = " <<
-                  *std::max_element( valL_test.begin(), valL_test.end() )
-                << std::endl;
-                statusOFS << "DBWY X_VAL_R_DIFF = " <<
-                  *std::max_element( valR_test.begin(), valR_test.end() )
-                << std::endl;
-                statusOFS << "DBWY X_DRV_L_DIFF = " <<
-                  *std::max_element( drvL_test.begin(), drvL_test.end() )
-                << std::endl;
-                statusOFS << "DBWY X_DRV_R_DIFF = " <<
-                  *std::max_element( drvR_test.begin(), drvR_test.end() )
-                << std::endl;
-
-              } // x-direction
-
-
-              // y-direction
-              {
-                const Int  numGridFace = NX * NZ;
-
-                // Host alloc
-                DblNumMat emptyY( numGridFace, numBasis );
-                SetValue( emptyY, 0.0 );
-                basisJump[YL].LocalMap()[key] = emptyY;
-                basisJump[YR].LocalMap()[key] = emptyY;
-                DbasisAverage[YL].LocalMap()[key] = emptyY;
-                DbasisAverage[YR].LocalMap()[key] = emptyY;
-
-                DblNumMat&  valL = basisJump[YL].LocalMap()[key];
-                DblNumMat&  valR = basisJump[YR].LocalMap()[key];
-                DblNumMat&  drvL = DbasisAverage[YL].LocalMap()[key];
-                DblNumMat&  drvR = DbasisAverage[YR].LocalMap()[key];
-                DblNumMat&  DbasisY = Dbasis[1].LocalMap()[key];
-
-                // Device alloc
-                basisJump_device[YL].LocalMap()[key].resize( numGridFace * numBasis );
-                basisJump_device[YR].LocalMap()[key].resize( numGridFace * numBasis );
-                DbasisAverage_device[YL].LocalMap()[key].resize( numGridFace * numBasis );
-                DbasisAverage_device[YR].LocalMap()[key].resize( numGridFace * numBasis );
-
-                auto&  valL_device = basisJump_device[YL].LocalMap()[key];
-                auto&  valR_device = basisJump_device[YR].LocalMap()[key];
-                auto&  drvL_device = DbasisAverage_device[YL].LocalMap()[key];
-                auto&  drvR_device = DbasisAverage_device[YR].LocalMap()[key];
-                auto&  DbasisY_device = Dbasis_device[1].LocalMap()[key];
-
-                // Form jumps and averages from volume to face.
-                // basis(0,:,:)             -> valL
-                // basis(NX-1,:,:)  -> valR
-                // Dbasis(0,:,:)            -> drvL
-                // Dbasis(NX-1,:,:) -> drvR
-                for( Int g = 0; g < numBasis; g++ ){
-                  Int idx, idxL, idxR;
-                  for( Int gk = 0; gk < NZ; gk++ )
-                    for( Int gi = 0; gi < NX; gi++ ){
-                      idx  = gi + gk*NX;
-                      idxL = gi + 0 *NX +
-                        gk * (NX * NY);
-                      idxR = gi + (NY-1)*NX + 
-                        gk * (NX * NY);
-
-                      // 0.5 comes from average
-                      // {{a}} = 1/2 (a_L + a_R)
-                      drvL(idx, g) = +0.5 * DbasisY( idxL, g );
-                      drvR(idx, g) = +0.5 * DbasisY( idxR, g );
-                      // 1.0, -1.0 comes from jump with different normal vectors
-                      // [[a]] = -(1.0) a_L + (1.0) a_R
-                      valL(idx, g) = -1.0 * basis( idxL, g );
-                      valR(idx, g) = +1.0 * basis( idxR, g );
-                    } // for (gj)
-                } // for (g)
-
-                // Device copies
-
-                // valL <- basis( :, 0, :, : )
-                cuda::memcpy2d_d2d( valL_device.data(), NX, 
-                                  basis_device.data(), NX * NY,
-                                  NX, NZ * numBasis );
-
-                // valR <- basis( :, ny-1, :, : )
-                cuda::memcpy2d_d2d( valR_device.data(), NX, 
-                                  basis_device.data() + (NY-1)*NX, NX * NY,
-                                  NX, NZ * numBasis );
-
-                // drvL <- DbasisY( :, 0, :, : )
-                cuda::memcpy2d_d2d( drvL_device.data(), NX, 
-                                  DbasisY_device.data(), NX * NY,
-                                  NX, NZ * numBasis );
-
-                // drvR <- DbasisY( :, ny-1, :, : )
-                cuda::memcpy2d_d2d( drvR_device.data(), NX, 
-                                  DbasisY_device.data() + (NY-1)*NX, NX * NY,
-                                  NX, NZ * numBasis );
-
-                // Test correctness
-                cuda::pinned_vector<double> 
-                  drvL_test( NX * NZ * numBasis ),
-                  drvR_test( NX * NZ * numBasis ),
-                  valL_test( NX * NZ * numBasis ),
-                  valR_test( NX * NZ * numBasis );
-
-                cuda::memcpy_d2h( valL_test.data(), valL_device.data(),
-                                  valL_device.size() );
-                cuda::memcpy_d2h( valR_test.data(), valR_device.data(),
-                                  valR_device.size() );
-                cuda::memcpy_d2h( drvL_test.data(), drvL_device.data(),
-                                  drvL_device.size() );
-                cuda::memcpy_d2h( drvR_test.data(), drvR_device.data(),
-                                  drvR_device.size() );
-
-
-                statusOFS << std::endl;
-                statusOFS << "DBWY Y_VAL_L_MAX = " <<
-                  *std::max_element( valL_test.begin(), valL_test.end() )
-                << std::endl;
-                statusOFS << "DBWY Y_VAL_R_MAX = " <<
-                  *std::max_element( valR_test.begin(), valR_test.end() )
-                << std::endl;
-                statusOFS << "DBWY Y_DRV_L_MAX = " <<
-                  *std::max_element( drvL_test.begin(), drvL_test.end() )
-                << std::endl;
-                statusOFS << "DBWY Y_DRV_R_MAX = " <<
-                  *std::max_element( drvR_test.begin(), drvR_test.end() )
-                << std::endl;
-
-
-                for( auto g = 0; g < valL_device.size(); ++g ) {
-                  valL_test[g] = std::abs( valL_test[g] + valL.Data()[g] );
-                  valR_test[g] = std::abs( valR_test[g] - valR.Data()[g] );
-                  drvL_test[g] = std::abs( drvL_test[g] - 2.*drvL.Data()[g] );
-                  drvR_test[g] = std::abs( drvR_test[g] - 2.*drvR.Data()[g] );
-                }
-
-                statusOFS << "DBWY Y_VAL_L_DIFF = " <<
-                  *std::max_element( valL_test.begin(), valL_test.end() )
-                << std::endl;
-                statusOFS << "DBWY Y_VAL_R_DIFF = " <<
-                  *std::max_element( valR_test.begin(), valR_test.end() )
-                << std::endl;
-                statusOFS << "DBWY Y_DRV_L_DIFF = " <<
-                  *std::max_element( drvL_test.begin(), drvL_test.end() )
-                << std::endl;
-                statusOFS << "DBWY Y_DRV_R_DIFF = " <<
-                  *std::max_element( drvR_test.begin(), drvR_test.end() )
-                << std::endl;
-
-
-              } // y-direction
-
-              // z-direction
-              {
-                const Int  numGridFace = NX * NY;
-
-                // Host alloc
-                DblNumMat emptyZ( numGridFace, numBasis );
-                SetValue( emptyZ, 0.0 );
-                basisJump[ZL].LocalMap()[key] = emptyZ;
-                basisJump[ZR].LocalMap()[key] = emptyZ;
-                DbasisAverage[ZL].LocalMap()[key] = emptyZ;
-                DbasisAverage[ZR].LocalMap()[key] = emptyZ;
-
-                DblNumMat&  valL = basisJump[ZL].LocalMap()[key];
-                DblNumMat&  valR = basisJump[ZR].LocalMap()[key];
-                DblNumMat&  drvL = DbasisAverage[ZL].LocalMap()[key];
-                DblNumMat&  drvR = DbasisAverage[ZR].LocalMap()[key];
-                DblNumMat&  DbasisZ = Dbasis[2].LocalMap()[key];
-
-                // Device alloc
-                basisJump_device[ZL].LocalMap()[key].resize( numGridFace * numBasis );
-                basisJump_device[ZR].LocalMap()[key].resize( numGridFace * numBasis );
-                DbasisAverage_device[ZL].LocalMap()[key].resize( numGridFace * numBasis );
-                DbasisAverage_device[ZR].LocalMap()[key].resize( numGridFace * numBasis );
-
-                auto&  valL_device = basisJump_device[ZL].LocalMap()[key];
-                auto&  valR_device = basisJump_device[ZR].LocalMap()[key];
-                auto&  drvL_device = DbasisAverage_device[ZL].LocalMap()[key];
-                auto&  drvR_device = DbasisAverage_device[ZR].LocalMap()[key];
-                auto&  DbasisZ_device = Dbasis_device[2].LocalMap()[key];
-
-                // Form jumps and averages from volume to face.
-                // basis(0,:,:)             -> valL
-                // basis(NX-1,:,:)  -> valR
-                // Dbasis(0,:,:)            -> drvL
-                // Dbasis(NX-1,:,:) -> drvR
-                for( Int g = 0; g < numBasis; g++ ){
-                  Int idx, idxL, idxR;
-                  for( Int gj = 0; gj < NY; gj++ )
-                    for( Int gi = 0; gi < NX; gi++ ){
-                      idx  = gi + gj*NX;
-                      idxL = gi + gj*NX +
-                        0 * (NX * NY);
-                      idxR = gi + gj*NX +
-                        (NZ-1) * (NX * NY);
-
-                      // 0.5 comes from average
-                      // {{a}} = 1/2 (a_L + a_R)
-                      drvL(idx, g) = +0.5 * DbasisZ( idxL, g );
-                      drvR(idx, g) = +0.5 * DbasisZ( idxR, g );
-                      // 1.0, -1.0 comes from jump with different normal vectors
-                      // [[a]] = -(1.0) a_L + (1.0) a_R
-                      valL(idx, g) = -1.0 * basis( idxL, g );
-                      valR(idx, g) = +1.0 * basis( idxR, g );
-                    } // for (gj)
-                } // for (g)
-
-                // Device copies
-
-                // valL <- basis( :, :, 0, : )
-                cuda::memcpy2d_d2d( valL_device.data(), NX * NY, 
-                                  basis_device.data(), NX * NY * NZ,
-                                  NX * NY, numBasis );
-
-                // valR <- basis( :, :, nz-1, : )
-                cuda::memcpy2d_d2d( valR_device.data(), NX * NY, 
-                                  basis_device.data() + (NZ-1)*NX*NY, NX * NY * NZ,
-                                  NX * NY, numBasis );
-
-                // drvL <- DbasisZ( :, :, 0, : )
-                cuda::memcpy2d_d2d( drvL_device.data(), NX * NY, 
-                                  DbasisZ_device.data(), NX * NY * NZ,
-                                  NX * NY, numBasis );
-
-                // drvR <- basis( :, :, nz-1, : )
-                cuda::memcpy2d_d2d( drvR_device.data(), NX * NY, 
-                                  DbasisZ_device.data() + (NZ-1)*NX*NY, NX * NY * NZ,
-                                  NX * NY, numBasis );
-
-                // Test correctness
-                cuda::pinned_vector<double> 
-                  drvL_test( NX * NY * numBasis ),
-                  drvR_test( NX * NY * numBasis ),
-                  valL_test( NX * NY * numBasis ),
-                  valR_test( NX * NY * numBasis );
-
-                cuda::memcpy_d2h( valL_test.data(), valL_device.data(),
-                                  valL_device.size() );
-                cuda::memcpy_d2h( valR_test.data(), valR_device.data(),
-                                  valR_device.size() );
-                cuda::memcpy_d2h( drvL_test.data(), drvL_device.data(),
-                                  drvL_device.size() );
-                cuda::memcpy_d2h( drvR_test.data(), drvR_device.data(),
-                                  drvR_device.size() );
-
-
-                statusOFS << std::endl;
-                statusOFS << "DBWY Z_VAL_L_MAX = " <<
-                  *std::max_element( valL_test.begin(), valL_test.end() )
-                << std::endl;
-                statusOFS << "DBWY Z_VAL_R_MAX = " <<
-                  *std::max_element( valR_test.begin(), valR_test.end() )
-                << std::endl;
-                statusOFS << "DBWY Z_DRV_L_MAX = " <<
-                  *std::max_element( drvL_test.begin(), drvL_test.end() )
-                << std::endl;
-                statusOFS << "DBWY Z_DRV_R_MAX = " <<
-                  *std::max_element( drvR_test.begin(), drvR_test.end() )
-                << std::endl;
-
-
-                for( auto g = 0; g < valL_device.size(); ++g ) {
-                  valL_test[g] = std::abs( valL_test[g] + valL.Data()[g] );
-                  valR_test[g] = std::abs( valR_test[g] - valR.Data()[g] );
-                  drvL_test[g] = std::abs( drvL_test[g] - 2.*drvL.Data()[g] );
-                  drvR_test[g] = std::abs( drvR_test[g] - 2.*drvR.Data()[g] );
-                }
-
-                statusOFS << "DBWY Z_VAL_L_DIFF = " <<
-                  *std::max_element( valL_test.begin(), valL_test.end() )
-                << std::endl;
-                statusOFS << "DBWY Z_VAL_R_DIFF = " <<
-                  *std::max_element( valR_test.begin(), valR_test.end() )
-                << std::endl;
-                statusOFS << "DBWY Z_DRV_L_DIFF = " <<
-                  *std::max_element( drvL_test.begin(), drvL_test.end() )
-                << std::endl;
-                statusOFS << "DBWY Z_DRV_R_DIFF = " <<
-                  *std::max_element( drvR_test.begin(), drvR_test.end() )
-                << std::endl;
-
-              } // z-direction
-
-            }
-          } // for (i)
+      for( Int j = 0; j < numElem_[1]; j++ )
+      for( Int i = 0; i < numElem_[0]; i++ ){
+        Index3 key( i, j, k );
+        if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
+          auto&  basis        = basisLGL_.LocalMap()[key];
+          Int numBasis = basis.n();
+
+          const Int NX = numGrid[0];
+          const Int NY = numGrid[1];
+          const Int NZ = numGrid[2];
+
+          // x-direction
+          {
+            const Int  numGridFace = NY * NZ;
+
+            // Device alloc
+            basisJump_device[XL].LocalMap()[key].resize( numGridFace * numBasis );
+            basisJump_device[XR].LocalMap()[key].resize( numGridFace * numBasis );
+            DbasisAverage_device[XL].LocalMap()[key].resize( numGridFace * numBasis );
+            DbasisAverage_device[XR].LocalMap()[key].resize( numGridFace * numBasis );
+          } // x-direction
+
+
+          // y-direction
+          {
+            const Int  numGridFace = NX * NZ;
+
+            // Device alloc
+            basisJump_device[YL].LocalMap()[key].resize( numGridFace * numBasis );
+            basisJump_device[YR].LocalMap()[key].resize( numGridFace * numBasis );
+            DbasisAverage_device[YL].LocalMap()[key].resize( numGridFace * numBasis );
+            DbasisAverage_device[YR].LocalMap()[key].resize( numGridFace * numBasis );
+          } // y-direction
+
+          // z-direction
+          {
+            const Int  numGridFace = NX * NY;
+
+            // Device alloc
+            basisJump_device[ZL].LocalMap()[key].resize( numGridFace * numBasis );
+            basisJump_device[ZR].LocalMap()[key].resize( numGridFace * numBasis );
+            DbasisAverage_device[ZL].LocalMap()[key].resize( numGridFace * numBasis );
+            DbasisAverage_device[ZR].LocalMap()[key].resize( numGridFace * numBasis );
+          } // z-direction
+
+        } // I own
+      } // for (ijk)
+
+
+
+      cuda::event jump_st, jump_en;
+      jump_st.record();
+
+      // Compute average of derivatives and jump of values (XXX: Device)
+      for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+      for( Int i = 0; i < numElem_[0]; i++ ){
+        Index3 key( i, j, k );
+        if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
+          auto&  basis        = basisLGL_.LocalMap()[key];
+          auto&  basis_device = basisLGL_device.LocalMap()[key];
+          Int numBasis = basis.n();
+
+          const Int NX = numGrid[0];
+          const Int NY = numGrid[1];
+          const Int NZ = numGrid[2];
+
+          // x-direction
+          {
+            const Int  numGridFace = NY * NZ;
+
+            auto&  valL_device = basisJump_device[XL].LocalMap()[key];
+            auto&  valR_device = basisJump_device[XR].LocalMap()[key];
+            auto&  drvL_device = DbasisAverage_device[XL].LocalMap()[key];
+            auto&  drvR_device = DbasisAverage_device[XR].LocalMap()[key];
+            auto&  DbasisX_device = Dbasis_device[0].LocalMap()[key];
+
+            // Form jumps and averages from volume to face.
+            //   - jkg in [0, NYZ * NBF)
+            //   - ioff = (NX-1)
+
+            // valL <- -basis( 0, :, :, : )
+            //   valL[ jkg ] = -basis[ jkg * NX ]
+            cuda::memcpy2d_d2d( valL_device.data(), 1, 
+                              basis_device.data(), NX,
+                              1, NY * NZ * numBasis );
+            cublas::blas::scal( handle, NY * NZ * numBasis, -1., 
+              valL_device.data(), 1 );
+
+            // valR <- basis( nx-1, :, :, : )
+            //   valR[ jkg ] = basis[ ioff + jkg * NX ]
+            cuda::memcpy2d_d2d( valR_device.data(), 1, 
+                              basis_device.data() + (NX-1), NX,
+                              1, NY * NZ * numBasis );
+
+            // drvL <- 0.5 * DbasisX( 0, :, :, : )
+            //   drvL[ jkg ] = 0.5 * DbasisX[ jkg * NX ]
+            cuda::memcpy2d_d2d( drvL_device.data(), 1, 
+                              DbasisX_device.data(), NX,
+                              1, NY * NZ * numBasis );
+            cublas::blas::scal( handle, NY * NZ * numBasis, 0.5,
+              drvL_device.data(), 1 );
+
+            // drvR <- 0.5 * DbasisX( nx-1, :, :, : )
+            //   drvR[ jkg ] = 0.5 * DbasisX[ ioff + jkg * NX ]
+            cuda::memcpy2d_d2d( drvR_device.data(), 1, 
+                              DbasisX_device.data() + (NX-1), NX,
+                              1, NY * NZ * numBasis );
+            cublas::blas::scal( handle, NY * NZ * numBasis, 0.5,
+              drvR_device.data(), 1 );
+
+          } // x-direction
+
+
+          // y-direction
+          {
+            const Int  numGridFace = NX * NZ;
+
+            auto&  valL_device = basisJump_device[YL].LocalMap()[key];
+            auto&  valR_device = basisJump_device[YR].LocalMap()[key];
+            auto&  drvL_device = DbasisAverage_device[YL].LocalMap()[key];
+            auto&  drvR_device = DbasisAverage_device[YR].LocalMap()[key];
+            auto&  DbasisY_device = Dbasis_device[1].LocalMap()[key];
+
+            // Form jumps and averages from volume to face.
+            //   - i  in [0, NX)
+            //   - kg in [0, NZ * NBF)
+            //   - ioff = (NY-1) * NX
+
+            // valL <- -basis( :, 0, :, : )
+            //   valL[ i + kg * NX ] = -basis[ i + kg * NXY ]
+            cuda::memcpy2d_d2d( valL_device.data(), NX, 
+                              basis_device.data(), NX * NY,
+                              NX, NZ * numBasis );
+            cublas::blas::scal( handle, NX * NZ * numBasis, -1., 
+              valL_device.data(), 1 );
+
+            // valR <- basis( :, ny-1, :, : )
+            //   valR[ i + kg * NX ] = basis[ ioff + i + kg * NXY ]
+            cuda::memcpy2d_d2d( valR_device.data(), NX, 
+                              basis_device.data() + (NY-1)*NX, NX * NY,
+                              NX, NZ * numBasis );
+
+            // drvL <- 0.5 * DbasisY( :, 0, :, : )
+            //   drvL[ i + kg * NX ] = 0.5 * DbasisY[ i + kg * NXY ]
+            cuda::memcpy2d_d2d( drvL_device.data(), NX, 
+                              DbasisY_device.data(), NX * NY,
+                              NX, NZ * numBasis );
+            cublas::blas::scal( handle, NX * NZ * numBasis, 0.5,
+              drvL_device.data(), 1 );
+
+            // drvR <- 0.5 * DbasisY( :, ny-1, :, : )
+            //   drvR[ i + kg * NX ] = 0.5 * DbasisY[ ioff + i + kg * NXY ]
+            cuda::memcpy2d_d2d( drvR_device.data(), NX, 
+                              DbasisY_device.data() + (NY-1)*NX, NX * NY,
+                              NX, NZ * numBasis );
+            cublas::blas::scal( handle, NX * NZ * numBasis, 0.5,
+              drvR_device.data(), 1 );
+
+
+          } // y-direction
+
+          // z-direction
+          {
+            const Int  numGridFace = NX * NY;
+
+            auto&  valL_device = basisJump_device[ZL].LocalMap()[key];
+            auto&  valR_device = basisJump_device[ZR].LocalMap()[key];
+            auto&  drvL_device = DbasisAverage_device[ZL].LocalMap()[key];
+            auto&  drvR_device = DbasisAverage_device[ZR].LocalMap()[key];
+            auto&  DbasisZ_device = Dbasis_device[2].LocalMap()[key];
+
+            // Form jumps and averages from volume to face.
+            //   - ij in [0, NXY)
+            //   - g  in [0, NBF)
+            //   - ioff = (NZ-1) * NXY
+
+            // valL <- -basis( :, :, 0, : )
+            //   valL[ ij + g * NXY ] = -basis[ ij + g * NXYZ ]
+            cuda::memcpy2d_d2d( valL_device.data(), NX * NY, 
+                              basis_device.data(), NX * NY * NZ,
+                              NX * NY, numBasis );
+            cublas::blas::scal( handle, NX * NY * numBasis, -1., 
+              valL_device.data(), 1 );
+
+            // valR <- basis( :, :, nz-1, : )
+            //   valR[ ij + g * NXY ] = basis[ ioff + ij + g * NXYZ ]
+            cuda::memcpy2d_d2d( valR_device.data(), NX * NY, 
+                              basis_device.data() + (NZ-1)*NX*NY, NX * NY * NZ,
+                              NX * NY, numBasis );
+
+            // drvL <- 0.5 * DbasisZ( :, :, 0, : )
+            //   drvL[ ij + g * NXY ] = 0.5 * DbasisZ[ ij + g * NXYZ ]
+            cuda::memcpy2d_d2d( drvL_device.data(), NX * NY, 
+                              DbasisZ_device.data(), NX * NY * NZ,
+                              NX * NY, numBasis );
+            cublas::blas::scal( handle, NX * NY * numBasis, 0.5,
+              drvL_device.data(), 1 );
+
+            // drvR <- 0.5 * DbasisZ( :, :, nz-1, : )
+            //   drvR[ ij + g * NXY ] = 0.5 * DbasisZ[ ioff + ij + g * NXYZ ]
+            cuda::memcpy2d_d2d( drvR_device.data(), NX * NY, 
+                              DbasisZ_device.data() + (NZ-1)*NX*NY, NX * NY * NZ,
+                              NX * NY, numBasis );
+            cublas::blas::scal( handle, NX * NY * numBasis, 0.5,
+              drvR_device.data(), 1 );
+
+          } // z-direction
+
+        } // I own
+      } // for (ijk)
+      jump_en.record();
+      jump_en.synchronize();
+      auto jump_dur_device = cuda::event::elapsed_time( jump_st, jump_en );
+
+
+      // Preallocate Host 
+      for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+      for( Int i = 0; i < numElem_[0]; i++ ){
+        Index3 key( i, j, k );
+        if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
+          auto&  basis        = basisLGL_.LocalMap()[key];
+          Int numBasis = basis.n();
+
+          const Int NX = numGrid[0];
+          const Int NY = numGrid[1];
+          const Int NZ = numGrid[2];
+
+          // x-direction
+          {
+            const Int  numGridFace = NY * NZ;
+
+            // Host alloc
+            DblNumMat emptyX( numGridFace, numBasis );
+            SetValue( emptyX, 0.0 );
+            basisJump[XL].LocalMap()[key] = emptyX;
+            basisJump[XR].LocalMap()[key] = emptyX;
+            DbasisAverage[XL].LocalMap()[key] = emptyX;
+            DbasisAverage[XR].LocalMap()[key] = emptyX;
+          } // x-direction
+
+
+          // y-direction
+          {
+            const Int  numGridFace = NX * NZ;
+
+            // Host alloc
+            DblNumMat emptyY( numGridFace, numBasis );
+            SetValue( emptyY, 0.0 );
+            basisJump[YL].LocalMap()[key] = emptyY;
+            basisJump[YR].LocalMap()[key] = emptyY;
+            DbasisAverage[YL].LocalMap()[key] = emptyY;
+            DbasisAverage[YR].LocalMap()[key] = emptyY;
+          } // y-direction
+
+          // z-direction
+          {
+            const Int  numGridFace = NX * NY;
+
+            // Host alloc
+            DblNumMat emptyZ( numGridFace, numBasis );
+            SetValue( emptyZ, 0.0 );
+            basisJump[ZL].LocalMap()[key] = emptyZ;
+            basisJump[ZR].LocalMap()[key] = emptyZ;
+            DbasisAverage[ZL].LocalMap()[key] = emptyZ;
+            DbasisAverage[ZR].LocalMap()[key] = emptyZ;
+          } // z-direction
+
+        }
+      } // for (ijk)
+
+
+      Real jump_st_host, jump_en_host;
+
+      // Compute average of derivatives and jump of values ( XXX: Host )
+      GetTime( jump_st_host );
+      for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+      for( Int i = 0; i < numElem_[0]; i++ ){
+        Index3 key( i, j, k );
+        if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
+          auto&  basis        = basisLGL_.LocalMap()[key];
+          Int numBasis = basis.n();
+
+          const Int NX = numGrid[0];
+          const Int NY = numGrid[1];
+          const Int NZ = numGrid[2];
+
+          // x-direction
+          {
+            const Int  numGridFace = NY * NZ;
+
+            DblNumMat&  valL = basisJump[XL].LocalMap()[key];
+            DblNumMat&  valR = basisJump[XR].LocalMap()[key];
+            DblNumMat&  drvL = DbasisAverage[XL].LocalMap()[key];
+            DblNumMat&  drvR = DbasisAverage[XR].LocalMap()[key];
+            DblNumMat&  DbasisX = Dbasis[0].LocalMap()[key];
+
+
+            // Form jumps and averages from volume to face.
+            // basis(0,:,:)             -> valL
+            // basis(NX-1,:,:)  -> valR
+            // Dbasis(0,:,:)            -> drvL
+            // Dbasis(NX-1,:,:) -> drvR
+            for( Int g = 0; g < numBasis; g++ ){
+              Int idx, idxL, idxR;
+              for( Int gk = 0; gk < NZ; gk++ )
+                for( Int gj = 0; gj < NY; gj++ ){
+                  idx  = gj + gk*NY;
+                  idxL = 0 + gj*NX + gk * (NX *
+                      NY);
+                  idxR = (NX-1) + gj*NX + gk * (NX *
+                      NY);
+
+                  // 0.5 comes from average
+                  // {{a}} = 1/2 (a_L + a_R)
+                  drvL(idx, g) = +0.5 * DbasisX( idxL, g );
+                  drvR(idx, g) = +0.5 * DbasisX( idxR, g );
+                  // 1.0, -1.0 comes from jump with different normal vectors
+                  // [[a]] = -(1.0) a_L + (1.0) a_R
+                  valL(idx, g) = -1.0 * basis( idxL, g );
+                  valR(idx, g) = +1.0 * basis( idxR, g );
+                } // for (gj)
+            } // for (g)
+
+          } // x-direction
+
+
+          // y-direction
+          {
+            const Int  numGridFace = NX * NZ;
+
+            DblNumMat&  valL = basisJump[YL].LocalMap()[key];
+            DblNumMat&  valR = basisJump[YR].LocalMap()[key];
+            DblNumMat&  drvL = DbasisAverage[YL].LocalMap()[key];
+            DblNumMat&  drvR = DbasisAverage[YR].LocalMap()[key];
+            DblNumMat&  DbasisY = Dbasis[1].LocalMap()[key];
+
+            // Form jumps and averages from volume to face.
+            // basis(0,:,:)             -> valL
+            // basis(NX-1,:,:)  -> valR
+            // Dbasis(0,:,:)            -> drvL
+            // Dbasis(NX-1,:,:) -> drvR
+            for( Int g = 0; g < numBasis; g++ ){
+              Int idx, idxL, idxR;
+              for( Int gk = 0; gk < NZ; gk++ )
+                for( Int gi = 0; gi < NX; gi++ ){
+                  idx  = gi + gk*NX;
+                  idxL = gi + 0 *NX +
+                    gk * (NX * NY);
+                  idxR = gi + (NY-1)*NX + 
+                    gk * (NX * NY);
+
+                  // 0.5 comes from average
+                  // {{a}} = 1/2 (a_L + a_R)
+                  drvL(idx, g) = +0.5 * DbasisY( idxL, g );
+                  drvR(idx, g) = +0.5 * DbasisY( idxR, g );
+                  // 1.0, -1.0 comes from jump with different normal vectors
+                  // [[a]] = -(1.0) a_L + (1.0) a_R
+                  valL(idx, g) = -1.0 * basis( idxL, g );
+                  valR(idx, g) = +1.0 * basis( idxR, g );
+                } // for (gj)
+            } // for (g)
+
+          } // y-direction
+
+          // z-direction
+          {
+            const Int  numGridFace = NX * NY;
+
+            DblNumMat&  valL = basisJump[ZL].LocalMap()[key];
+            DblNumMat&  valR = basisJump[ZR].LocalMap()[key];
+            DblNumMat&  drvL = DbasisAverage[ZL].LocalMap()[key];
+            DblNumMat&  drvR = DbasisAverage[ZR].LocalMap()[key];
+            DblNumMat&  DbasisZ = Dbasis[2].LocalMap()[key];
+
+            // Form jumps and averages from volume to face.
+            // basis(0,:,:)             -> valL
+            // basis(NX-1,:,:)  -> valR
+            // Dbasis(0,:,:)            -> drvL
+            // Dbasis(NX-1,:,:) -> drvR
+            for( Int g = 0; g < numBasis; g++ ){
+              Int idx, idxL, idxR;
+              for( Int gj = 0; gj < NY; gj++ )
+                for( Int gi = 0; gi < NX; gi++ ){
+                  idx  = gi + gj*NX;
+                  idxL = gi + gj*NX +
+                    0 * (NX * NY);
+                  idxR = gi + gj*NX +
+                    (NZ-1) * (NX * NY);
+
+                  // 0.5 comes from average
+                  // {{a}} = 1/2 (a_L + a_R)
+                  drvL(idx, g) = +0.5 * DbasisZ( idxL, g );
+                  drvR(idx, g) = +0.5 * DbasisZ( idxR, g );
+                  // 1.0, -1.0 comes from jump with different normal vectors
+                  // [[a]] = -(1.0) a_L + (1.0) a_R
+                  valL(idx, g) = -1.0 * basis( idxL, g );
+                  valR(idx, g) = +1.0 * basis( idxR, g );
+                } // for (gj)
+            } // for (g)
+
+          } // z-direction
+
+        }
+      } // for (ijk)
+      GetTime( jump_en_host);
+      auto jump_dur_host = (jump_en_host - jump_st_host) * 1000;
+
+
+
+      // Compare average of derivatives and jump of values (XXX: Check)
+      auto face_check = [&]( auto& key, char dir, int LF, int RF ) {
+
+        auto&  valL = basisJump[LF].LocalMap()[key];
+        auto&  valR = basisJump[RF].LocalMap()[key];
+        auto&  drvL = DbasisAverage[LF].LocalMap()[key];
+        auto&  drvR = DbasisAverage[RF].LocalMap()[key];
+
+        auto&  valL_device = basisJump_device[LF].LocalMap()[key];
+        auto&  valR_device = basisJump_device[RF].LocalMap()[key];
+        auto&  drvL_device = DbasisAverage_device[LF].LocalMap()[key];
+        auto&  drvR_device = DbasisAverage_device[RF].LocalMap()[key];
+
+        // Test correctness
+        cuda::pinned_vector<double> 
+          drvL_test( valL_device.size() ),
+          drvR_test( valL_device.size() ),
+          valL_test( valL_device.size() ),
+          valR_test( valL_device.size() );
+
+        cuda::memcpy_d2h( valL_test.data(), valL_device.data(),
+                          valL_device.size() );
+        cuda::memcpy_d2h( valR_test.data(), valR_device.data(),
+                          valR_device.size() );
+        cuda::memcpy_d2h( drvL_test.data(), drvL_device.data(),
+                          drvL_device.size() );
+        cuda::memcpy_d2h( drvR_test.data(), drvR_device.data(),
+                          drvR_device.size() );
+
+
+        statusOFS << "DBWY " << dir << "_VAL_L_MAX = " <<
+          *std::max_element( valL_test.begin(), valL_test.end() )
+        << std::endl;
+        statusOFS << "DBWY " << dir << "_VAL_R_MAX = " <<
+          *std::max_element( valR_test.begin(), valR_test.end() )
+        << std::endl;
+        statusOFS << "DBWY " << dir << "_DRV_L_MAX = " <<
+          *std::max_element( drvL_test.begin(), drvL_test.end() )
+        << std::endl;
+        statusOFS << "DBWY " << dir << "_DRV_R_MAX = " <<
+          *std::max_element( drvR_test.begin(), drvR_test.end() )
+        << std::endl;
+
+
+        for( auto g = 0; g < valL_device.size(); ++g ) {
+          valL_test[g] = std::abs( valL_test[g] - valL.Data()[g] );
+          valR_test[g] = std::abs( valR_test[g] - valR.Data()[g] );
+          drvL_test[g] = std::abs( drvL_test[g] - drvL.Data()[g] );
+          drvR_test[g] = std::abs( drvR_test[g] - drvR.Data()[g] );
+        }
+
+        statusOFS << "DBWY " << dir << "_VAL_L_DIFF = " <<
+          *std::max_element( valL_test.begin(), valL_test.end() )
+        << std::endl;
+        statusOFS << "DBWY " << dir << "_VAL_R_DIFF = " <<
+          *std::max_element( valR_test.begin(), valR_test.end() )
+        << std::endl;
+        statusOFS << "DBWY " << dir << "_DRV_L_DIFF = " <<
+          *std::max_element( drvL_test.begin(), drvL_test.end() )
+        << std::endl;
+        statusOFS << "DBWY " << dir << "_DRV_R_DIFF = " <<
+          *std::max_element( drvR_test.begin(), drvR_test.end() )
+        << std::endl;
+      };
+
+      for( Int k = 0; k < numElem_[2]; k++ )
+      for( Int j = 0; j < numElem_[1]; j++ )
+      for( Int i = 0; i < numElem_[0]; i++ ){
+        Index3 key( i, j, k );
+        if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
+
+          face_check( key, 'X', XL, XR ); statusOFS << std::endl;
+          face_check( key, 'Y', YL, YR ); statusOFS << std::endl;
+          face_check( key, 'Z', ZL, ZR );
+
+        } // I own
+      } // for (ijk)
+
+      statusOFS << "Time for constructing the boundary terms (host) is " <<
+        jump_dur_host << " [ms]" << std::endl;
+      statusOFS << "Time for constructing the boundary terms (device) is " <<
+        jump_dur_device << " [ms]" << std::endl << std::endl;
 
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 1 )

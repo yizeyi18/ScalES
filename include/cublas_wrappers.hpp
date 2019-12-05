@@ -59,9 +59,10 @@ void gemm_batched_strided( handle& h,
 
 template <typename T>
 void axpy( handle& h,
-  int N, T ALPHA, const T* X, int INCX, T* Y, int INCY 
+  int N, T ALPHA, const T* X, int INCX, T* Y, int INCY );
 
-);
+template <typename T>
+void scal( handle& h, int N, T ALPHA, T* X, int INCX );
 
 }
 

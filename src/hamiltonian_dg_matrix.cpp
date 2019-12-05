@@ -356,6 +356,9 @@ void
 
       GetTime(timeSta);
       // Compute average of derivatives and jump of values
+      // TODO: These can be rewritten as a single "lascal" / "lacpy"
+      // ala the GPU impl
+      // TODO: Shouldn't copy emptyX,Y,Z, should just resize
       for( Int k = 0; k < numElem_[2]; k++ )
         for( Int j = 0; j < numElem_[1]; j++ )
           for( Int i = 0; i < numElem_[0]; i++ ){
