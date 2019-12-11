@@ -306,6 +306,7 @@ namespace  dgdft{
           statusOFS << std::endl << " @@, " << hamDG.Bcount << ", " << Bm << ", " << Bn << ", " << Bk << ", " << hamDG.Bcount 
             << ", " << msecBatchedTime << ", " << msecReduceTime << ", " << msecHPtrH2DTime << ", " 
             << msecXDataCopyTime << ", " << msecFindHPtrsTime << ", " << msecCopyResTime << ", " << originalGEMMTime << std::endl;
+          statusOFS << std::endl << " ##, " << originalGEMMTime / ( msecBatchedTime + msecReduceTime + msecXDataCopyTime + msecCopyResTime ) << std::endl;
           } // end-applyBatched
           // Matrix * vector_block product is ready now ... 
           // Need to clean up extra entries in my_dist_mat

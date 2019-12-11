@@ -115,6 +115,7 @@ int main(int argc, char **argv)
       inFile = "dgdft.in";
     }
 
+    statusOFS << "INFILE = " << inFile << std::endl;
 
     // Read ESDF input file. Note: esdfParam is a global variable (11/25/2016)
     GetTime( timeSta );

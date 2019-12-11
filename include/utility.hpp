@@ -55,6 +55,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "numtns_impl.hpp"
 #include  "sparse_matrix_impl.hpp"
 
+#include "device_vector.hpp"
+
 namespace dgdft{
 
 // Forward declaration of Atom structure in periodtable.hpp 
@@ -1217,6 +1219,41 @@ inline Int combine(DblNumMat& val, DblNumMat& ext)
       val(i,j) += ext(i,j);
   return 0;
 }
+
+
+template <typename T>
+inline Int serialize( const cuda::device_vector<T>& v, std::ostream& os, const std::vector<Int>& mask ) {
+
+  // Copy to Host
+  std::vector< T > v_h( v.size() );
+  cuda::copy( v, v_h );
+ 
+  // Serialize
+  size_t sz = v_h.size();
+  os.write( (char*)&sz, sizeof(sz) );
+  os.write( (char*)v_h.data(), sz * sizeof(T) );
+
+  return 0;
+
+}
+
+template <typename T>
+inline Int deserialize( cuda::device_vector<T>& v, std::istream& is, const std::vector<Int>& mask ) {
+
+  // Get the size
+  size_t sz = 0;
+  is.read( (char*)&sz, sizeof(sz) );
+
+  // Obtain on host and send to device
+  std::vector< T > v_h( sz );
+  v.resize( sz );
+  is.read( (char*)v_h.data(), sz * sizeof(T) );
+  cuda::copy( v_h, v );
+
+  return 0;
+
+}
+
 
 
 //-------------------

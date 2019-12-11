@@ -1002,6 +1002,7 @@ void
       boundaryYIdx.insert( boundaryYIdx.begin(), boundaryYset.begin(), boundaryYset.end() );
       boundaryZIdx.insert( boundaryZIdx.begin(), boundaryZset.begin(), boundaryZset.end() );
 
+      // Host Communication
       DbasisAverage[XR].GetBegin( boundaryXIdx, NO_MASK );
       DbasisAverage[YR].GetBegin( boundaryYIdx, NO_MASK );
       DbasisAverage[ZR].GetBegin( boundaryZIdx, NO_MASK );
@@ -1009,6 +1010,18 @@ void
       basisJump[XR].GetBegin( boundaryXIdx, NO_MASK );
       basisJump[YR].GetBegin( boundaryYIdx, NO_MASK );
       basisJump[ZR].GetBegin( boundaryZIdx, NO_MASK );
+
+      // Device Communication
+      // XXX: This involves copy to the host, should avoid if possible through
+      //      CUDA aware MPI
+      DbasisAverage_device[XR].GetBegin( boundaryXIdx, NO_MASK );
+      DbasisAverage_device[YR].GetBegin( boundaryYIdx, NO_MASK );
+      DbasisAverage_device[ZR].GetBegin( boundaryZIdx, NO_MASK );
+
+      basisJump_device[XR].GetBegin( boundaryXIdx, NO_MASK );
+      basisJump_device[YR].GetBegin( boundaryYIdx, NO_MASK );
+      basisJump_device[ZR].GetBegin( boundaryZIdx, NO_MASK );
+
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 1 )
       statusOFS << "After the GetBegin part of communication." << std::endl;
@@ -1039,22 +1052,53 @@ void
       for( Int d = 0; d < DIM; d++ ){
         vnlDrvCoef_[d].LocalMap().clear();
       }
+
+
+      // Setup vnlCoeff / vnlDrvCoeff on device
+      DistVec< Index3, std::map< Int, cuda::device_vector<Real> >, ElemPrtn >
+        vnlCoef_device;
+      std::vector< decltype(vnlCoef_device) > vnlDrvCoef_device( DIM );
+
+      vnlCoef_device.SetComm( vnlCoef_.Comm() );
+      vnlCoef_device.Prtn() = vnlCoef_.Prtn();
+      for( auto d = 0; d < DIM; ++d ) {
+        vnlDrvCoef_device[d].SetComm( vnlDrvCoef_[d].Comm() );
+        vnlDrvCoef_device[d].Prtn() = vnlDrvCoef_[d].Prtn();
+      }
+
+
       for( Int k = 0; k < numElem_[2]; k++ )
         for( Int j = 0; j < numElem_[1]; j++ )
           for( Int i = 0; i < numElem_[0]; i++ ){
             Index3 key( i, j, k );
             if( elemPrtn_.Owner(key) == (mpirank / dmRow_) ){
+
+              std::map<Int, PseudoPot>& pseudoMap =
+                pseudo_.LocalMap()[key];
+
+              // Host Maps
               std::map<Int, DblNumMat>  coefMap;
               std::map<Int, DblNumMat>  coefDrvXMap;
               std::map<Int, DblNumMat>  coefDrvYMap;
               std::map<Int, DblNumMat>  coefDrvZMap;
 
-              std::map<Int, PseudoPot>& pseudoMap =
-                pseudo_.LocalMap()[key];
+              // Device Maps
+              std::map<Int, cuda::device_vector<Real>>  coefMap_device;
+              std::map<Int, cuda::device_vector<Real>>  coefDrvXMap_device;
+              std::map<Int, cuda::device_vector<Real>>  coefDrvYMap_device;
+              std::map<Int, cuda::device_vector<Real>>  coefDrvZMap_device;
+
+              // Host Basis / DBasis
               DblNumMat&   basis = basisLGL_.LocalMap()[key];
               DblNumMat& DbasisX = Dbasis[0].LocalMap()[key];
               DblNumMat& DbasisY = Dbasis[1].LocalMap()[key];
               DblNumMat& DbasisZ = Dbasis[2].LocalMap()[key];
+
+              // Device Basis / DBasis
+              auto&   basis_device = basisLGL_device.LocalMap()[key];
+              auto& DbasisX_device = Dbasis_device[0].LocalMap()[key];
+              auto& DbasisY_device = Dbasis_device[1].LocalMap()[key];
+              auto& DbasisZ_device = Dbasis_device[2].LocalMap()[key];
 
               Int numBasis = basis.n();
               Int numBasisTotal = 0;
@@ -1063,9 +1107,7 @@ void
 
               // Loop over atoms, regardless of whether this atom belongs
               // to this element or not.
-              for( std::map<Int, PseudoPot>::iterator 
-                  mi  = pseudoMap.begin();
-                  mi != pseudoMap.end(); mi++ ){
+              for(auto mi  = pseudoMap.begin(); mi != pseudoMap.end(); mi++ ){
                 Int atomIdx = (*mi).first;
                 std::vector<NonlocalPP>&  vnlList = (*mi).second.vnlList;
                 // NOTE: in intra-element parallelization, coef and
@@ -1085,43 +1127,43 @@ void
                 // Loop over projector
                 // Method 2: Efficient way of implementation
                 // Local inner product computation
-                    for( Int g = 0; g < vnlList.size(); g++ ){
-                      SparseVec&  vnl = vnlList[g].first;
-                      Int         idxSize = vnl.first.Size();
+                for( Int g = 0; g < vnlList.size(); g++ ){
+                  SparseVec&  vnl = vnlList[g].first;
+                  Int         idxSize = vnl.first.Size();
 
-                      if( idxSize > 0 ) {
-                        Int        *ptrIdx = vnl.first.Data();
-                        Real       *ptrVal = vnl.second.VecData(VAL);
-                        Real       *ptrWeight = LGLWeight3D.Data();
-                        Real       *ptrBasis, *ptrDbasisX, *ptrDbasisY, *ptrDbasisZ;
-                        Real       *ptrCoef, *ptrCoefDrvX, *ptrCoefDrvY, *ptrCoefDrvZ;
-                        // Loop over basis function
-                        for( Int b = 0; b < numBasis; b++ ){
-                          // Loop over grid point
-                          ptrBasis    = basis.VecData(b);
-                          ptrDbasisX  = DbasisX.VecData(b);
-                          ptrDbasisY  = DbasisY.VecData(b);
-                          ptrDbasisZ  = DbasisZ.VecData(b);
-                          ptrCoef     = coef.VecData(g);
-                          ptrCoefDrvX = coefDrvX.VecData(g);
-                          ptrCoefDrvY = coefDrvY.VecData(g);
-                          ptrCoefDrvZ = coefDrvZ.VecData(g);
+                  if( idxSize > 0 ) {
+                    Int        *ptrIdx = vnl.first.Data();
+                    Real       *ptrVal = vnl.second.VecData(VAL);
+                    Real       *ptrWeight = LGLWeight3D.Data();
+                    Real       *ptrBasis, *ptrDbasisX, *ptrDbasisY, *ptrDbasisZ;
+                    Real       *ptrCoef, *ptrCoefDrvX, *ptrCoefDrvY, *ptrCoefDrvZ;
+                    // Loop over basis function
+                    for( Int b = 0; b < numBasis; b++ ){
+                      // Loop over grid point
+                      ptrBasis    = basis.VecData(b);
+                      ptrDbasisX  = DbasisX.VecData(b);
+                      ptrDbasisY  = DbasisY.VecData(b);
+                      ptrDbasisZ  = DbasisZ.VecData(b);
+                      ptrCoef     = coef.VecData(g);
+                      ptrCoefDrvX = coefDrvX.VecData(g);
+                      ptrCoefDrvY = coefDrvY.VecData(g);
+                      ptrCoefDrvZ = coefDrvZ.VecData(g);
 
-                          Int a = basisLGLIdx_(b); 
+                      Int a = basisLGLIdx_(b); 
 
-                          for( Int l = 0; l < idxSize; l++ ){
-                            ptrCoef[a]     += ptrWeight[ptrIdx[l]] * 
-                              ptrBasis[ptrIdx[l]] * ptrVal[l];
-                            ptrCoefDrvX[a] += ptrWeight[ptrIdx[l]] *
-                              ptrDbasisX[ptrIdx[l]] * ptrVal[l];
-                            ptrCoefDrvY[a] += ptrWeight[ptrIdx[l]] *
-                              ptrDbasisY[ptrIdx[l]] * ptrVal[l];
-                            ptrCoefDrvZ[a] += ptrWeight[ptrIdx[l]] *
-                              ptrDbasisZ[ptrIdx[l]] * ptrVal[l];
-                          }
-                        }
-                      } // non-empty
-                    } // for (g)
+                      for( Int l = 0; l < idxSize; l++ ){
+                        ptrCoef[a]     += ptrWeight[ptrIdx[l]] * 
+                          ptrBasis[ptrIdx[l]] * ptrVal[l];
+                        ptrCoefDrvX[a] += ptrWeight[ptrIdx[l]] *
+                          ptrDbasisX[ptrIdx[l]] * ptrVal[l];
+                        ptrCoefDrvY[a] += ptrWeight[ptrIdx[l]] *
+                          ptrDbasisY[ptrIdx[l]] * ptrVal[l];
+                        ptrCoefDrvZ[a] += ptrWeight[ptrIdx[l]] *
+                          ptrDbasisZ[ptrIdx[l]] * ptrVal[l];
+                      }
+                    }
+                  } // non-empty
+                } // for (g)
 
 
                 DblNumMat coefTemp( numBasisTotal, vnlList.size() );
@@ -2080,6 +2122,17 @@ void
 
     {
       GetTime( timeSta );
+
+      // Map sizes before XXX: Debug
+      size_t dba_XR_sz_before = DbasisAverage[XR].LocalMap().size();
+      size_t dba_YR_sz_before = DbasisAverage[YR].LocalMap().size();
+      size_t dba_ZR_sz_before = DbasisAverage[ZR].LocalMap().size();
+      size_t bj_XR_sz_before  = basisJump[XR].LocalMap().size();
+      size_t bj_YR_sz_before  = basisJump[YR].LocalMap().size();
+      size_t bj_ZR_sz_before  = basisJump[ZR].LocalMap().size();
+
+
+      // Host deserialize
       DbasisAverage[XR].GetEnd( NO_MASK );
       DbasisAverage[YR].GetEnd( NO_MASK );
       DbasisAverage[ZR].GetEnd( NO_MASK );
@@ -2087,6 +2140,78 @@ void
       basisJump[XR].GetEnd( NO_MASK );
       basisJump[YR].GetEnd( NO_MASK );
       basisJump[ZR].GetEnd( NO_MASK );
+
+      // Device deserialize
+      // TODO: involves host communication, should optimize
+      DbasisAverage_device[XR].GetEnd( NO_MASK );
+      DbasisAverage_device[YR].GetEnd( NO_MASK );
+      DbasisAverage_device[ZR].GetEnd( NO_MASK );
+
+      basisJump_device[XR].GetEnd( NO_MASK );
+      basisJump_device[YR].GetEnd( NO_MASK );
+      basisJump_device[ZR].GetEnd( NO_MASK );
+
+      // Map sizes after XXX: Debug
+      size_t dba_XR_sz_after = DbasisAverage[XR].LocalMap().size();
+      size_t dba_YR_sz_after = DbasisAverage[YR].LocalMap().size();
+      size_t dba_ZR_sz_after = DbasisAverage[ZR].LocalMap().size();
+      size_t bj_XR_sz_after  = basisJump[XR].LocalMap().size();
+      size_t bj_YR_sz_after  = basisJump[YR].LocalMap().size();
+      size_t bj_ZR_sz_after  = basisJump[ZR].LocalMap().size();
+
+      // Check that communication is correct
+      {
+        statusOFS << "DBWY CHECK GetBegin/GetEnd" << std::endl;
+
+        statusOFS << "LM DBA XR: " << dba_XR_sz_before << ", " << dba_XR_sz_after << std::endl;
+        statusOFS << "LM DBA YR: " << dba_YR_sz_before << ", " << dba_YR_sz_after << std::endl;
+        statusOFS << "LM DBA ZR: " << dba_ZR_sz_before << ", " << dba_ZR_sz_after << std::endl;
+        statusOFS << "LM BJ XR: " << bj_XR_sz_before << ", " << bj_XR_sz_after << std::endl;
+        statusOFS << "LM BJ YR: " << bj_YR_sz_before << ", " << bj_YR_sz_after << std::endl;
+        statusOFS << "LM BJ ZR: " << bj_ZR_sz_before << ", " << bj_ZR_sz_after << std::endl;
+
+
+        auto compare_distvec = []( std::string label, const auto& a, const auto& a_device ) {
+
+          // Make sure that the maps are the same size
+          assert( a.LocalMap().size() == a_device.LocalMap().size() );
+
+          statusOFS << label << " Diffs after GetEnd" << std::endl;
+
+          // Loop over keys in host copy
+          for( const auto& [key, host_val] : a.LocalMap() ) {
+
+            // Check that all proper keys are present in Dvice copy
+            auto dev_it = a_device.LocalMap().find( key );
+            assert( dev_it != a_device.LocalMap().end() );
+
+            const auto& [dev_key, dev_val] = *dev_it;
+
+            // Check that the members have the same values
+            assert( dev_val.size() == host_val.Size() );
+
+            std::vector< Real > dev_val_h( dev_val.size() );
+            cuda::copy( dev_val, dev_val_h );
+
+            for( auto i = 0; i < dev_val.size(); ++i )
+              dev_val_h[i] = std::abs( dev_val_h[i] - host_val.Data()[i] );
+
+            statusOFS << "  " << key << ", " << *std::max_element( dev_val_h.begin(), dev_val_h.end() ) << std::endl;
+     
+          }
+          
+        };
+
+        compare_distvec( "DbasisAverage XR", DbasisAverage[XR], DbasisAverage_device[XR] );
+        compare_distvec( "DbasisAverage YR", DbasisAverage[YR], DbasisAverage_device[YR] );
+        compare_distvec( "DbasisAverage ZR", DbasisAverage[ZR], DbasisAverage_device[ZR] );
+        compare_distvec( "basisJump XR", basisJump[XR], basisJump_device[XR] );
+        compare_distvec( "basisJump YR", basisJump[YR], basisJump_device[YR] );
+        compare_distvec( "basisJump ZR", basisJump[ZR], basisJump_device[ZR] );
+
+      }
+
+
 
       MPI_Barrier( domain_.comm );
       MPI_Barrier( domain_.rowComm );

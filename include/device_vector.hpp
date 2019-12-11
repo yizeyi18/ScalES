@@ -39,7 +39,7 @@ public:
   explicit device_vector( size_type n, 
     const allocator_type& alloc = allocator_type() ) : base( n, alloc ) { }
 
-  explicit device_vector( device_vector&& other ) : base( std::move(other) ) { }
+  explicit device_vector( device_vector&& other ) noexcept : base( std::move(other) ) { }
 
 
   // Copy semantics are special
@@ -61,6 +61,34 @@ public:
       memcpy_h2d( this->data(), other.data(), this->size() ); 
 
   }
+
+
+
+  device_vector& operator=( const device_vector& other ) {
+
+    this->resize( other.size() ); // Allocate device memory if need be
+
+    // Copy on device
+    if( this->size() )
+      memcpy_d2d( this->data(), other.data(), this->size() );
+
+    return *this;
+
+  }
+
+  template <typename Alloc>
+  device_vector& operator=( const host_vector<T, Alloc>& other ) {
+
+    this->resize( other.size() ); // Allocate device memory if need be
+
+    // Copy on device
+    if( this->size() )
+      memcpy_h2d( this->data(), other.data(), this->size() );
+
+    return *this;
+
+  }
+
 
 
   iterator begin(){ return iterator( this->data() ); }
