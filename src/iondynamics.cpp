@@ -148,6 +148,7 @@ void
 
     } // if( pgbb )
 
+#if(0)
     if( ionMove_ == "lbfgs" ){
       geoOptVars_.gtol = 1e-6;
 
@@ -158,7 +159,7 @@ void
       Int lwork = (3*numAtom+1)*(2*geoOptVars_.maxMixingDim + 1);
       geoOptVars_.work.Resize(lwork);
     } // if( lbfgs )
-
+#endif
 
     if( ionMove_ == "nlcg" )
     {
@@ -505,9 +506,9 @@ void
       PGBBOpt( ionIter );
     }
 
-    if( ionMove_ == "lbfgs" ){
-      LBFGSOpt( ionIter );
-    }
+//    if( ionMove_ == "lbfgs" ){
+//      LBFGSOpt( ionIter );
+//    }
 
     if( ionMove_ == "nlcg"){
       NLCG_Opt( ionIter );      
@@ -811,7 +812,8 @@ void IonDynamics::PGBBOpt ( Int ionIter )
   return ;
 }         // -----  end of method IonDynamics::PGBBOpt  ----- 
 
-
+// commit out by xmqin 20121202
+#if(0)
 void IonDynamics::LBFGSOpt ( Int ionIter )
 {
   Int mpirank, mpisize;
@@ -866,7 +868,7 @@ void IonDynamics::LBFGSOpt ( Int ionIter )
 
   return ;
 }         // -----  end of method IonDynamics::LBFGSOpt  ----- 
-
+#endif
 
 
 // Non-Linear Conjugate Gradients with Secant and Polak-Ribiere

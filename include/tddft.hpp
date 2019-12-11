@@ -55,10 +55,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "lapack.hpp"
 #include  "hamiltonian.hpp"
 #include  "sgmres.hpp"
-#ifdef GPU
-#include  "cuSolver.hpp"
-#include  "magma.hpp"
-#endif
+
+
 using namespace std;
 
 #ifdef _COMPLEX_
@@ -251,13 +249,7 @@ namespace dgdft{
       /// @brief Adjust the atomic positions to be within the box
       void AdjustAtomPos(std::vector<Point3> & atomPos);
       void CalculateDipole(Real t);
-#ifdef GPU
-#ifdef _COMPLEX_
-      void advanceRK4_GPU(PeriodTable& ptable) ;
-      void advancePTTRAPDIIS_GPU(PeriodTable& ptable) ;
-      void advancePTTRAPDIIS_GPU_BookKeeping(PeriodTable& ptable) ;
-#endif
-#endif
+
       void advanceRK4(PeriodTable& ptable) ;
       void advancePTTRAP(PeriodTable& ptable) ;
       void advancePTTRAPDIIS(PeriodTable& ptable) ;
@@ -270,11 +262,7 @@ namespace dgdft{
       void Update();
       void CalculateEnergy(PeriodTable& ptable, Real t) ;
       void PrintState( Int step );
-#ifdef GPU
-      Real InnerSolve_GPU(Int step, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat & HPSI, CpxNumMat &psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat &Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal );
-      Real InnerSolve_GPU( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat &HPSI, CpxNumMat & psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat & Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal, cuCpxNumVec & vin_dev, cuCpxNumVec & vout_dev, cuCpxNumMat & cu_psiRes, cuCpxNumMat & cu_RX , cuCpxNumMat & cu_Xmid);
-      Real InnerSolve_GPU2( int iscf, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat &HPSI, CpxNumMat & psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat & Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal, std::vector<cuCpxNumMat> & dfMat_dev, std::vector<cuCpxNumMat> & dvMat_dev, cuCpxNumVec & vin_dev, cuCpxNumVec & vout_dev, cuCpxNumMat & cu_psiRes, cuCpxNumMat & cu_RX );
-#endif
+
       Real InnerSolve(Int step, Spinor & psiFinal, NumTns<Complex> & tnsTemp, CpxNumMat & HX, CpxNumMat &X, CpxNumMat & HPSI, CpxNumMat &psiF, CpxNumMat & XHX, CpxNumMat & XHXtemp, CpxNumMat & RX, CpxNumMat &Xmid, Real & dT, CpxNumMat & psiRes, CpxNumVec & vin, CpxNumVec & vout, std::vector<CpxNumMat> & dfMat, std::vector<CpxNumMat> & dvMat, DblNumMat & rhoFinal );
       
       // Mixing

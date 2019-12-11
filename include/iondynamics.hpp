@@ -57,12 +57,13 @@ such enhancements or derivative works thereof, in binary and source code form.
 using namespace std;
 
 namespace dgdft{
-
-extern "C"{
-Int F2C(lbfgs)( Int *n, Int *m, double *x, double *f, double* g, 
-    int *diagco, double *diag, int *iprint, double *eps,
-    double *xtol, double *work, int *iflag );
-}
+//modified by  xmqin 20121202
+//
+//extern "C"{
+//Int F2C(lbfgs)( Int *n, Int *m, double *x, double *f, double* g, 
+//    int *diagco, double *diag, int *iprint, double *eps,
+ //   double *xtol, double *work, int *iflag );
+//}
 
 
 
@@ -498,9 +499,10 @@ private:
   void PGBBOpt( Int ionIter );
 
   /// @brief Norcedal's implementation of L-BFGS
-  ///
-  void LBFGSOpt( Int ionIter );
-
+//---------------------------------------------
+//Modified by xmqin
+  //void LBFGSOpt( Int ionIter );
+//--------------------------------------
   /// @brief Non-linear Conjugate Gradient with Secant and Polak-Ribiere
   NLCG_internal_vars_type NLCG_vars;
   void NLCG_Opt(Int ionIter );

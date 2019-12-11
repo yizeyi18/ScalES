@@ -47,17 +47,6 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 namespace dgdft{
 
-#ifdef _PROFILING_
-Real alltoallTime = 0.0;
-Real alltoallTimeTotal = 0.0;
-
-void reset_alltoall_time()
-{
-	alltoallTime = 0.0;
-	alltoallTimeTotal = 0.0;
-}
-#endif
-
 // *********************************************************************
 // Spline functions
 // *********************************************************************
@@ -582,7 +571,7 @@ Int SeparateWriteAscii(std::string name, std::ostringstream& os)
   if( !fout.good() ){
     ErrorHandling( "File cannot be open!" );
   }
-  fout<<os;
+  fout<<os.str();
   fout.close();
   //
   MPI_Barrier(MPI_COMM_WORLD);
@@ -689,232 +678,6 @@ void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 
   return ;
 }        // -----  end of function AlltoallForward ----- 
-#ifdef _COMPLEX_
-#ifdef GPU
-void GPU_AlltoallForward( cuCpxNumMat& cu_A, cuCpxNumMat& cu_B, MPI_Comm comm )
-{
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  Real timeSta, timeEnd;
-  Real timeSta1, timeEnd1;
-  GetTime( timeSta1 );
-#endif
-
-  int mpirank, mpisize;
-  MPI_Comm_rank( comm, &mpirank );
-  MPI_Comm_size( comm, &mpisize );
-
-  Int height = cu_A.m();
-  Int widthTemp = cu_A.n();
-
-  Int width = 0;
-  MPI_Allreduce( &widthTemp, &width, 1, MPI_INT, MPI_SUM, comm );
-
-  Int widthBlocksize = width / mpisize;
-  Int heightBlocksize = height / mpisize;
-  Int widthLocal = widthBlocksize;
-  Int heightLocal = heightBlocksize;
-
-  if(mpirank < (width % mpisize)){
-    widthLocal = widthBlocksize + 1;
-  }
-  
-  if(mpirank < (height % mpisize)){
-    heightLocal = heightBlocksize + 1;
-  }
-  
-  CpxNumVec sendbuf(height*widthLocal); 
-  CpxNumVec recvbuf(heightLocal*width);
-  IntNumVec sendcounts(mpisize);
-  IntNumVec recvcounts(mpisize);
-  IntNumVec senddispls(mpisize);
-  IntNumVec recvdispls(mpisize);
-  IntNumMat  sendk( height, widthLocal );
-  IntNumMat  recvk( heightLocal, width );
-
-  for( Int k = 0; k < mpisize; k++ ){ 
-    sendcounts[k] = heightBlocksize * widthLocal;
-    if( k < (height % mpisize)){
-      sendcounts[k] = sendcounts[k] + widthLocal;  
-    }
-  }
-
-  for( Int k = 0; k < mpisize; k++ ){ 
-    recvcounts[k] = heightLocal * widthBlocksize;
-    if( k < (width % mpisize)){
-      recvcounts[k] = recvcounts[k] + heightLocal;  
-    }
-  }
-
-  senddispls[0] = 0;
-  recvdispls[0] = 0;
-  for( Int k = 1; k < mpisize; k++ ){ 
-    senddispls[k] = senddispls[k-1] + sendcounts[k-1];
-    recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
-  }
-
-  cuIntNumMat  cu_sendk( height, widthLocal );
-  cuIntNumMat  cu_recvk( heightLocal, width );
-  cuIntNumVec  cu_senddispls(mpisize);
-  cuIntNumVec  cu_recvdispls(mpisize);
-  cuCpxNumVec  cu_recvbuf(heightLocal*width);
-  cuCpxNumVec  cu_sendbuf(height*widthLocal); 
-
-  cu_senddispls.CopyFrom( senddispls );
-  cu_recvdispls.CopyFrom( recvdispls );
- 
-  cuda_cal_sendk( cu_sendk.Data(), cu_senddispls.Data(), widthLocal, height, heightBlocksize, mpisize );
-  cuda_cal_recvk( cu_recvk.Data(), cu_recvdispls.Data(), width, heightLocal, mpisize ); 
-
-  cuda_mapping_to_buf( cu_sendbuf.Data(), cu_A.Data(), cu_sendk.Data(), height*widthLocal);
-
-  //cu_sendbuf.CopyTo( sendbuf );
-  cuda_memcpy_GPU2CPU( sendbuf.Data(), cu_sendbuf.Data(), sizeof(cuDoubleComplex) * height*widthLocal);
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  cuda_sync();
-  GetTime( timeSta );
-#endif
-  
-  MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE_COMPLEX, 
-      &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE_COMPLEX, comm );
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  cuda_sync();
-  GetTime( timeEnd );
-  alltoallTime += timeEnd - timeSta;
-#endif
-  //cu_recvbuf.CopyFrom( recvbuf );
-  cuda_memcpy_CPU2GPU( cu_recvbuf.Data(), recvbuf.Data(), sizeof(cuDoubleComplex) * heightLocal*width);
-  cuda_mapping_from_buf(cu_B.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  cuda_sync();
-  GetTime( timeEnd1 );
-  alltoallTimeTotal += timeEnd1 - timeSta1;
-#endif
- 
-
-  return ;
-}        // -----  end of function GPU_AlltoallForward ----- 
-
-
-void GPU_AlltoallBackward( cuCpxNumMat& cu_A, cuCpxNumMat& cu_B, MPI_Comm comm )
-{
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  cuda_sync();
-  Real timeSta, timeEnd;
-  Real timeSta1, timeEnd1;
-  GetTime( timeSta1 );
-#endif
-
-  int mpirank, mpisize;
-  MPI_Comm_rank( comm, &mpirank );
-  MPI_Comm_size( comm, &mpisize );
-
-  Int height = cu_B.m();
-  Int widthTemp = cu_B.n();
-
-  Int width = 0;
-  MPI_Allreduce( &widthTemp, &width, 1, MPI_INT, MPI_SUM, comm );
-
-  Int widthBlocksize = width / mpisize;
-  Int heightBlocksize = height / mpisize;
-  Int widthLocal = widthBlocksize;
-  Int heightLocal = heightBlocksize;
-
-  if(mpirank < (width % mpisize)){
-    widthLocal = widthBlocksize + 1;
-  }
-
-  if(mpirank < (height % mpisize)){
-    heightLocal = heightBlocksize + 1;
-  }
-
-  CpxNumVec sendbuf(height*widthLocal); 
-  CpxNumVec recvbuf(heightLocal*width);
-  IntNumVec sendcounts(mpisize);
-  IntNumVec recvcounts(mpisize);
-  IntNumVec senddispls(mpisize);
-  IntNumVec recvdispls(mpisize);
-
-  for( Int k = 0; k < mpisize; k++ ){ 
-    sendcounts[k] = heightBlocksize * widthLocal;
-    if( k < (height % mpisize)){
-      sendcounts[k] = sendcounts[k] + widthLocal;  
-    }
-  }
-
-  for( Int k = 0; k < mpisize; k++ ){ 
-    recvcounts[k] = heightLocal * widthBlocksize;
-    if( k < (width % mpisize)){
-      recvcounts[k] = recvcounts[k] + heightLocal;  
-    }
-  }
-
-  senddispls[0] = 0;
-  recvdispls[0] = 0;
-  for( Int k = 1; k < mpisize; k++ ){ 
-    senddispls[k] = senddispls[k-1] + sendcounts[k-1];
-    recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
-  }
-
-  cuIntNumMat  cu_sendk( height, widthLocal );
-  cuIntNumMat  cu_recvk( heightLocal, width );
-  cuIntNumVec  cu_senddispls(mpisize);
-  cuIntNumVec  cu_recvdispls(mpisize);
-  cuCpxNumVec  cu_recvbuf(heightLocal*width);
-  cuCpxNumVec  cu_sendbuf(height*widthLocal); 
-
-  cu_senddispls.CopyFrom( senddispls );
-  cu_recvdispls.CopyFrom( recvdispls );
- 
-  cuda_cal_sendk( cu_sendk.Data(), cu_senddispls.Data(), widthLocal, height, heightBlocksize, mpisize );
-  cuda_cal_recvk( cu_recvk.Data(), cu_recvdispls.Data(), width, heightLocal, mpisize ); 
-
-  cuda_mapping_to_buf( cu_recvbuf.Data(), cu_A.Data(), cu_recvk.Data(), heightLocal*width);
-
-  //cu_recvbuf.CopyTo( recvbuf );
-  cuda_memcpy_GPU2CPU( recvbuf.Data(), cu_recvbuf.Data(), sizeof(cuDoubleComplex) * heightLocal*width);
-  
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  cuda_sync();
-  GetTime( timeSta );
-#endif
-  MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE_COMPLEX, 
-      &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE_COMPLEX, comm );
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  cuda_sync();
-  GetTime( timeEnd );
-  alltoallTime += timeEnd - timeSta;
-#endif
-  //cu_sendbuf.CopyFrom( sendbuf );
-  cuda_memcpy_CPU2GPU( cu_sendbuf.Data(), sendbuf.Data(), sizeof(cuDoubleComplex) * height*widthLocal);
-
-  cuda_mapping_from_buf(cu_B.Data(), cu_sendbuf.Data(), cu_sendk.Data(), height*widthLocal);
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  cuda_sync();
-  GetTime( timeEnd1 );
-  alltoallTimeTotal += timeEnd1 - timeSta1;
-#endif
- 
-  return ;
-}        // -----  end of function GPU_AlltoallBackward ----- 
-
-
-#endif
-#endif
 
 #ifdef GPU
 void GPU_AlltoallForward( cuDblNumMat& cu_A, cuDblNumMat& cu_B, MPI_Comm comm )
@@ -1086,13 +849,6 @@ void GPU_AlltoallBackward( cuDblNumMat& cu_A, cuDblNumMat& cu_B, MPI_Comm comm )
 void AlltoallForward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm )
 {
 
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  Real timeSta, timeEnd;
-  Real timeSta1, timeEnd1;
-  GetTime( timeSta1 );
-#endif
-
   int mpirank, mpisize;
   MPI_Comm_rank( comm, &mpirank );
   MPI_Comm_size( comm, &mpisize );
@@ -1178,32 +934,14 @@ void AlltoallForward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm )
       sendbuf[sendk(i, j)] = A(i, j); 
     }
   }
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  GetTime( timeSta );
-#endif
-
   MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE_COMPLEX, 
       &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE_COMPLEX, comm );
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  GetTime( timeEnd );
-  alltoallTime += timeEnd - timeSta;
-#endif
-
   for( Int j = 0; j < width; j++ ){ 
     for( Int i = 0; i < heightLocal; i++ ){
       B(i, j) = recvbuf[recvk(i, j)];
     }
   }
 
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  GetTime( timeEnd1 );
-  alltoallTimeTotal += timeEnd1 - timeSta1;
-#endif
 
   return ;
 }        // -----  end of function AlltoallForward ----- 
@@ -1312,13 +1050,6 @@ void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 void AlltoallBackward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm )
 {
 
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  Real timeSta, timeEnd;
-  Real timeSta1, timeEnd1;
-  GetTime( timeSta1 );
-#endif
-
   int mpirank, mpisize;
   MPI_Comm_rank( comm, &mpirank );
   MPI_Comm_size( comm, &mpisize );
@@ -1404,32 +1135,14 @@ void AlltoallBackward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm )
       recvbuf[recvk(i, j)] = A(i, j);
     }
   }
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  GetTime( timeSta );
-#endif
-
   MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE_COMPLEX, 
       &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE_COMPLEX, comm );
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  GetTime( timeEnd );
-  alltoallTime += timeEnd - timeSta;
-#endif
-
   for( Int j = 0; j < widthLocal; j++ ){ 
     for( Int i = 0; i < height; i++ ){
       B(i, j) = sendbuf[sendk(i, j)]; 
     }
   }
 
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  GetTime( timeEnd1 );
-  alltoallTimeTotal += timeEnd1 - timeSta1;
-#endif
 
   return ;
 }        // -----  end of function AlltoallBackward ----- 

@@ -4,19 +4,22 @@
 // includes standard headers
 
 #ifdef GPU  // only used for the GPU version of the PWDFT code. 
-#ifndef _CUDA_ERRORS_HPP__
-#define _CUDA_ERRORS_HPP__
+#ifndef __HIP_PLATFORM_HCC__
+#define __HIP_PLATFORM_HCC__
+//#ifndef _CUDA_ERRORS_HPP__
+//#define _CUDA_ERRORS_HPP__
 #include <stdio.h>
 #include <stdlib.h>
-#include <cublas_v2.h>
-#include <cufft.h>
+#include <hipblas.h>
+#include <hip/hip_runtime.h>
+#include <rocfft.h>
 
 /******************************************************/
 // CUBLAS and CUFFT error checking, in library
 
 // returns string for CUBLAS API error
-char *cublasGetErrorString(cublasStatus_t error);
-char *cufftGetErrorString(cufftResult error);
+char *cublasGetErrorString(hipblasStatus_t error);
+char *cufftGetErrorString(rocfft_status error);
 #endif
 #endif
 /******************************************************/

@@ -56,11 +56,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  <xc.h>
 #ifdef GPU
 #include "cublas.hpp"
-#ifdef USE_MAGMA
-#include "magma.hpp"
-#else
-#include "cuSolver.hpp"
-#endif
+//#include "magma.hpp"
 #endif
 namespace dgdft{
 
@@ -207,22 +203,13 @@ public:
   /// method due to the large cutoff radius
   virtual void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft ) = 0;
 
-#ifdef _COMPLEX_
-#ifdef GPU
-  virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft, bool isGPU ) = 0;
-#endif
-#endif
   virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft ) = 0;
 
   virtual void CalculateGradDensity( Fourier &fft ) = 0;
-  virtual void CalculateGradDensity( Fourier &fft, bool isMPIFFTW ) = 0;
 
   virtual void CalculateXC (Real &val, Fourier& fft) = 0;
 
-  virtual void CalculateXC (Real &val, Fourier& fft, bool extra) = 0;
-
   virtual void CalculateHartree( Fourier& fft ) = 0;
-  virtual void CalculateHartree( Fourier& fft , bool extra) = 0;
 
   virtual void CalculateVtot( DblNumVec& vtot ) = 0;
 
@@ -237,10 +224,6 @@ public:
   virtual void CalculateForce ( Spinor& psi, Fourier& fft ) = 0;
 
 #ifdef _COMPLEX_
-#ifdef GPU
-  virtual void MultSpinor(Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& fft) = 0;
-  virtual void ACEOperator( cuCpxNumMat& cu_psi, Fourier& fft, cuCpxNumMat& cu_Hpsi) = 0;
-#endif
   virtual void MultSpinor(Spinor& psi, NumTns<Complex>& a3, Fourier& fft) = 0;
 #else
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft) = 0;
@@ -268,9 +251,6 @@ public:
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
 #else
 
-#ifdef GPU
-  virtual void CalculateVexxACEGPU1( Spinor& psi, Fourier& fft ) = 0;
-#endif 
   virtual void CalculateVexxACE( Spinor& psi, Fourier& fft ) = 0;
   virtual NumTns<Complex>& PhiEXX() = 0;
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
@@ -368,9 +348,6 @@ private:
 #endif
 #ifdef _COMPLEX_
   CpxNumMat                   vexxProj_; 
-#ifdef GPU
-  cuCpxNumMat                 cu_vexxProj_; 
-#endif
 #else
   DblNumMat                   vexxProj_; 
 #ifdef GPU
@@ -404,22 +381,12 @@ public:
   virtual void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft );
   
   virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft );
-#ifdef _COMPLEX_
-#ifdef GPU
-  virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft, bool isGPU);
-#endif
-#endif
 
   virtual void CalculateGradDensity( Fourier& fft );
 
-  virtual void CalculateGradDensity( Fourier& fft, bool isMPIFFTW);
-
   virtual void CalculateXC ( Real &val, Fourier& fft );
 
-  virtual void CalculateXC ( Real &val, Fourier& fft, bool extra);
-
   virtual void CalculateHartree( Fourier& fft );
-  virtual void CalculateHartree( Fourier& fft, bool extra);
 
   virtual void CalculateVtot( DblNumVec& vtot );
 
@@ -428,10 +395,6 @@ public:
 
   // Matrix vector multiplication
 #ifdef _COMPLEX_
-#ifdef GPU
-  virtual void MultSpinor(Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& fft);
-  virtual void ACEOperator( cuCpxNumMat& cu_psi, Fourier& fft, cuCpxNumMat& cu_Hpsi) ;
-#endif
   virtual void MultSpinor(Spinor& psi, NumTns<Complex>& a3, Fourier& fft);
 #else
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft);
@@ -471,9 +434,6 @@ public:
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
 #else
 
-#ifdef GPU
-  virtual void CalculateVexxACEGPU1( Spinor& psi, Fourier& fft );
-#endif
   virtual void CalculateVexxACE( Spinor& psi, Fourier& fft );
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
   virtual NumTns<Complex>& PhiEXX() {return phiEXX_;}

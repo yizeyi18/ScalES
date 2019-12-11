@@ -1,24 +1,24 @@
 #include <cuda.h>
 #include <stdio.h>
 #include <assert.h>
-#include <cuda_runtime.h>
-#include <cufft.h>
+#include <hip/hip_runtime.h>
+#include <hipfft.h>
 #include <stdlib.h>
 
 #define NX 4
 #define NY 4
 int main()
 {
-        float *vx = (float*) malloc( NX * NY * sizeof(cufftComplex));
-        cufftComplex *d_vx, *d_vx2;
+        float *vx = (float*) malloc( NX * NY * sizeof(hipfftComplex));
+        hipfftComplex *d_vx, *d_vx2;
      	int i;
     	for(i =0; i < NX *NY ; i++)
     		vx[i] = 1.0;
-	assert(cudaSetDevice(0) == cudaSuccess);
-	printf("NX NY sizoef(cufftComplex): %d %d %d \n", NX, NY, sizeof(cufftComplex));
-        assert(cudaMalloc(&d_vx,  NX*NY*sizeof(cufftComplex)) == cudaSuccess);
-        assert(cudaMalloc(&d_vx2, NX*NY*sizeof(cufftComplex)) == cudaSuccess);
-        assert(cudaMemcpy(d_vx, vx, NX*NY*sizeof(cufftComplex), cudaMemcpyHostToDevice) == cudaSuccess);
+	assert(hipSetDevice(0) == hipSuccess);
+	printf("NX NY sizoef(hipfftComplex): %d %d %d \n", NX, NY, sizeof(hipfftComplex));
+        assert(hipMalloc(&d_vx,  NX*NY*sizeof(hipfftComplex)) == hipSuccess);
+        assert(hipMalloc(&d_vx2, NX*NY*sizeof(hipfftComplex)) == hipSuccess);
+        assert(hipMemcpy(d_vx, vx, NX*NY*sizeof(hipfftComplex), hipMemcpyHostToDevice) == hipSuccess);
     	for(i =0; i < NX *NY ; i++)
     		vx[i] = 0.0;
         cufftHandle planr2c;
@@ -29,10 +29,10 @@ int main()
         //(cufftSetCompatibilityMode(planc2r, CUFFT_COMPATIBILITY_NATIVE));
         assert(cufftExecR2C(planr2c, (cufftReal *)d_vx, d_vx2) == CUFFT_SUCCESS);
         //cufftExecC2R(planc2r, d_vx, (cufftReal *)d_vx2);
-        assert(cudaMemcpy(vx, d_vx2, NX*NY*sizeof(cufftComplex), cudaMemcpyDeviceToHost) == cudaSuccess);
+        assert(hipMemcpy(vx, d_vx2, NX*NY*sizeof(hipfftComplex), hipMemcpyDeviceToHost) == hipSuccess);
 	for(i =0; i < NX *NY; i++)
 		printf(" vx[%d]: %f \n" , i, vx[i]);
-        cudaFree(d_vx);
-        cudaFree(d_vx2);
+        hipFree(d_vx);
+        hipFree(d_vx2);
         free(vx);
 }

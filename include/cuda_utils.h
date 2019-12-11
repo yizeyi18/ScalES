@@ -6,39 +6,40 @@
  * contains manipulation functions.
  */
 #ifdef GPU
+#ifndef __HIP_PLATFORM_HCC__
+#define __HIP_PLATFORM_HCC__
+#endif
 #ifndef _CUDA_UTILS_
 #define _CUDA_UTILS_
 #include <assert.h>
 #include <stdio.h>
 #include <cuda.h>
-#include <cuda_runtime.h>
-#include <cufft.h>
-#include "cuComplex.h"
+//#include <hip/hip_runtime.h>
+#include <hip/hip_runtime.h>
+#include <rocfft.h>
+#include <hipblas.h>
+#include <hip/hip_complex.h>
 #define NSTREAM 1
 #if 0
-#define CPU2GPU cudaMemcpyHostToDevice 
-#define GPU2CPU cudaMemcpyDeviceToHost 
-#define GPU2GPU cudaMemcpyDeviceToDevice 
+#define CPU2GPU hipMemcpyHostToDevice 
+#define GPU2CPU hipMemcpyDeviceToHost 
+#define GPU2GPU hipMemcpyDeviceToDevice 
 #endif 
-
-#ifdef _PROFILING_
-extern double CPU2GPUTime ;
-extern double GPU2CPUTime ;
-extern double GPU2GPUTime ;
-#endif
+typedef  hipDoubleComplex cuDoubleComplex;
+typedef  hipFloatComplex cuComplex;
 //Macros for n-dimensional array access (column major format)
 #define DIM2(x, y, xdim)                                       ((y * xdim) + x)
 #define DIM3(x, y, z, xdim, ydim)                              ((((z * ydim) + y) * xdim) + x)
 #define DIM4(x1, x2, x3, x4, x1dim, x2dim, x3dim)              ((((((x4 * x3dim) + x3) * x2dim) + x2) * x1dim) + x2)
 #define DIM5(x1, x2, x3, x4, x5, x1dim, x2dim, x3dim, x4dim)   ((((((((x5 * x4dim) + x4) * x3dim) + x3) * x2dim) + x2) * x1dim) + x1)
-
+/*
 #define CUDA_CALL(function) {\
-cudaError_t err = function; \
-if (err != cudaSuccess) \
+hipError_t err = function; \
+if (err != hipSuccess) \
   fprintf(stderr, "CURROR [%s,%d]: %s \n", \
-  __FILE__,  __LINE__, cudaGetErrorString(err)); \
+  __FILE__,  __LINE__, hipGetErrorString(err)); \
 }
-
+*/
 #define CUDA_FFT_CALL(function) {\
 cufftResult err = function; \
 if (err != CUFFT_SUCCESS) \
@@ -114,37 +115,8 @@ typedef struct ndim_int {
 //} cuComplex_p;
 //
 //extern "C"{
-__device__ inline cuDoubleComplex operator* (const cuDoubleComplex & x,const cuDoubleComplex & y) {
-	return cuCmul(x,y);
-}
-
-__device__ inline cuDoubleComplex operator+ (const cuDoubleComplex & x,const cuDoubleComplex & y) {
-	return cuCadd(x,y);
-}
-
-__device__ inline cuDoubleComplex operator- (const cuDoubleComplex & x,const cuDoubleComplex & y) {
-	return cuCsub(x,y);
-}
-
-__device__ inline cuDoubleComplex operator* (const double & a,const cuDoubleComplex & x) {
-	return make_cuDoubleComplex (a*cuCreal(x), a*cuCimag(x));
-}
-
-__device__ inline cuDoubleComplex operator* (const cuDoubleComplex & x,const double & a) {
-	return make_cuDoubleComplex (a*cuCreal(x), a*cuCimag(x));
-}
-
-__device__ inline cuDoubleComplex operator+ (const double & a,const cuDoubleComplex & x) {
-	return make_cuDoubleComplex (a+cuCreal(x), cuCimag(x));
-}
-
-__device__ inline cuDoubleComplex operator+ (const cuDoubleComplex & x,const double & a) {
-	return make_cuDoubleComplex (a+cuCreal(x), cuCimag(x));
-}
-__device__ inline double Norm_2(const cuDoubleComplex & x) {
-	return (cuCreal(x)*cuCreal(x)) + (cuCimag(x)*cuCimag(x));
-}
-
+//typedef  hipDoubleComplex cuDoubleComplex;
+//typedef  hipFloatComplex cuComplex;
 extern double * dev_vtot;
 extern double * dev_gkkR2C;
 extern int    * dev_idxFineGridR2C;
@@ -154,7 +126,6 @@ extern int    * dev_NLpart;
 extern double * dev_NLvecFine;
 extern double * dev_atom_weight;
 extern double * dev_temp_weight;
-extern cuDoubleComplex * dev_temp_weight_complex;
 extern double * dev_TeterPrecond;
 extern int totPart_gpu;
 
@@ -175,47 +146,24 @@ void cuda_interpolate_wf_C2F( cuDoubleComplex * coarse_psi, cuDoubleComplex * fi
 void cuda_interpolate_wf_F2C( cuDoubleComplex * fine_psi, cuDoubleComplex * coarse_psi, int * index, int len, double factor);
 void cuda_laplacian( cuDoubleComplex* psi, double * gkk, int len);
 void cuda_vtot( double* psi, double * vtot, int len);
-void cuda_vtot( cuDoubleComplex* psi, double * vtot, int len);
-void cuda_vtot( cuDoubleComplex* psi, cuDoubleComplex* vtot, int len);
 void cuda_memory(void);
 void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int * index, int * parts,  double * atom_weight, double * weight, int blocks);
-void cuda_calculate_nonlocal( cuDoubleComplex* psiUpdate, cuDoubleComplex* psi, double * NL, int * index, int * parts,  double * atom_weight, cuDoubleComplex* weight, int blocks);
 void cuda_teter( cuDoubleComplex* psi, double * vtot, int len);
-void cuda_teter( cuDoubleComplex* psi, cuDoubleComplex * vtot, int len);
 void cuda_mapping_to_buf( double * buf, double * psi, int * index, int len );
-void cuda_mapping_to_buf( cuDoubleComplex * buf, cuDoubleComplex * psi, int * index, int len );
 void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len );
-void cuda_mapping_from_buf( cuDoubleComplex * psi, cuDoubleComplex* buf, int * index, int len );
 void cuda_calculate_Energy( double * psi, double * energy, int nbands, int bandLen);
-void cuda_calculate_Energy( cuDoubleComplex* psi, double * energy, int nbands, int bandLen);
 void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen);
-void cuda_batch_Scal( cuDoubleComplex* psi, double * vec, int nband, int bandLen);
 void cu_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, double * eigen, int nbands, int bandLen);
-void cu_X_Equal_AX_minus_X_eigVal( cuDoubleComplex* Xtemp, cuDoubleComplex* AX, cuDoubleComplex* X, double * eigen, int nbands, int bandLen);
 void cuda_init_vtot();
 void cuda_clean_vtot();
-void cuda_reset_vtot_flag();
-void cuda_reset_nonlocal_flag();
+void cuda_set_vtot_flag();
 void cuda_DMatrix_Add( double * A , double * B, int m, int n);
 void cuda_Axpyz( double * X, double alpha, double * Y, double beta, double * Z, int length);
-void cuda_Axpyz( cuDoubleComplex* X, double alpha, cuDoubleComplex* Y, double beta, cuDoubleComplex* Z, int length);
 void cuda_cal_recvk( int * recvk, int * recvdisp, int width, int heightLocal, int mpisize);
 void cuda_cal_sendk( int * sendk, int * senddispl, int widthLocal, int height, int heightBlockSize, int mpisize);
 void cuda_hadamard_product( double * in1, double * in2, double * out, int length);
 void cuda_set_vector( double * out, double *in, int length);
-void cuda_set_vector( cuDoubleComplex* out, cuDoubleComplex *in, int length);
-void cuda_decompress_f2d( double *out, float *in, int length);
-void cuda_compress_d2f( float *out, double *in, int length);
-void cuda_XTX( cuDoubleComplex * X, double * Y, int length);
-void cuda_reduce( double * density, double * sum, int nbands, int bandLen);
-void cuda_Axpyz( cuDoubleComplex * X, double alpha, cuDoubleComplex * Y, double beta, cuDoubleComplex * Z, int length, int nbands);
-void cuda_teter( cuDoubleComplex* psi, double * vtot, int len, int nbands);
-void cuda_vtot( cuDoubleComplex * psi, cuDoubleComplex* vtot, int len, int nbands);
 void cuda_sync();
-void print_timing();
-void reset_time();
-void cuda_set_vector( cuComplex* out, cuComplex *in, int length);
-void cuda_memcpy_Async_CPU2GPU( void *gpu, void * cpu, size_t size );
 //}
 #endif
 #endif

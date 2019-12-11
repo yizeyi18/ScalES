@@ -58,14 +58,6 @@ using namespace std;
 using namespace dgdft::esdf;
 using namespace dgdft::scalapack;
 
-#ifdef GPU
-#ifdef USE_MAGMA
-#include  "magma.hpp"
-#else
-#include  "magma.hpp"
-#include "cuSolver.hpp"
-#endif
-#endif
 
 void Usage(){
   std::cout 
@@ -322,16 +314,6 @@ int main(int argc, char **argv)
 	 hamKS.CalculateVexxACE( psi, fft);
 	 statusOFS << " TDDFT init ACE operator ... " << std::endl;
       }
-#ifdef GPU
-         cuda_init_vtot();
-         cublas::Init();
-#ifdef USE_MAGMA
-         MAGMA::Init();
-#else
-         MAGMA::Init();
-         cuSolver::Init();
-#endif
-#endif
 
       statusOFS <<  std::endl << std::endl 
         <<  "SCF skipped .... " 
@@ -990,7 +972,6 @@ int main(int argc, char **argv)
         statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
           << " [s]" << std::endl;
 
-
         // Geometry optimization
         if( ionDyn.IsGeoOpt() ){
           if( MaxForce( hamKS.AtomList() ) < esdfParam.geoOptMaxForce ){
@@ -1001,18 +982,6 @@ int main(int argc, char **argv)
         }
       } // ionIter
    }// not TDDFT
-
-#ifdef GPU
-    cublas::Destroy();
-#ifdef USE_MAGMA
-    MAGMA::Destroy();
-#else
-    MAGMA::Destroy();
-    cuSolver::Destroy();
-#endif
-    cuda_clean_vtot();
-#endif
-
   }
   catch( std::exception& e )
   {

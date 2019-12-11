@@ -75,16 +75,6 @@ namespace mpi{
 // *********************************************************************
 // Gather
 // *********************************************************************
-double allreduceTime = 0.0;
-double bcastTime = 0.0 ;
-double allgatherTime = 0.0;
-
-void reset_mpi_time()
-{
-	allreduceTime = 0.0;
-	bcastTime = 0.0 ;
-	allgatherTime = 0.0;
-}
 
 void
   Allgatherv ( 
@@ -224,21 +214,9 @@ void
 void
   Allreduce ( Int* sendbuf, Int* recvbuf, Int count, MPI_Op op, MPI_Comm comm )
   {
-#ifdef _PROFILING_
-  Real timeSta, timeEnd;
-  MPI_Barrier( comm );
-  cuda_sync();
-  GetTime( timeSta );
-#endif
     MPI_Allreduce( sendbuf,  recvbuf, count, MPI_INT, 
         op, comm );
 
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  cuda_sync();
-  GetTime( timeEnd );
-  allreduceTime += timeEnd - timeSta;
-#endif
     return ;
   }        // -----  end of function Allreduce  ----- 
 
@@ -246,23 +224,8 @@ void
 void
   Allreduce ( Real* sendbuf, Real* recvbuf, Int count, MPI_Op op, MPI_Comm comm )
   {
-
-#ifdef _PROFILING_
-  Real timeSta, timeEnd;
-  MPI_Barrier( comm );
-  cuda_sync();
-  GetTime( timeSta );
-#endif
-
     MPI_Allreduce( sendbuf,  recvbuf, count, MPI_DOUBLE, 
         op, comm );
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  cuda_sync();
-  GetTime( timeEnd );
-  allreduceTime += timeEnd - timeSta;
-#endif
 
     return ;
   }        // -----  end of function Allreduce  ----- 
@@ -271,22 +234,8 @@ void
 void
   Allreduce ( Complex* sendbuf, Complex* recvbuf, Int count, MPI_Op op, MPI_Comm comm )
   {
-#ifdef _PROFILING_
-  Real timeSta, timeEnd;
-  MPI_Barrier( comm );
-  cuda_sync();
-  GetTime( timeSta );
-#endif
-
     MPI_Allreduce( (Real*)sendbuf, (Real*) recvbuf, 2*count, MPI_DOUBLE, 
         op, comm );
-
-#ifdef _PROFILING_
-  MPI_Barrier( comm );
-  cuda_sync();
-  GetTime( timeEnd );
-  allreduceTime += timeEnd - timeSta;
-#endif
 
     return ;
   }        // -----  end of function Allreduce  ----- 
@@ -351,7 +300,7 @@ void
     char host_name[MPI_MAX_PROCESSOR_NAME];
     char (*host_names)[MPI_MAX_PROCESSOR_NAME];
     size_t bytes;
-    struct cudaDeviceProp deviceProp;
+    struct hipDeviceProp_t deviceProp;
     MPI_Comm nodeComm;
     
     MPI_Comm_rank(comm, &rank);
@@ -384,19 +333,23 @@ void
      MPI_Comm_rank(nodeComm, &myrank);
      int deviceCount,slot = 0;
      int *devloc;
-     cudaGetDeviceCount(&deviceCount);
+     hipGetDeviceCount(&deviceCount);
      devloc=(int *)malloc(deviceCount*sizeof(int));
      
      for (dev = 0; dev < deviceCount; ++dev)
      {
-       cudaGetDeviceProperties(&deviceProp, dev);
+       hipGetDeviceProperties(&deviceProp, dev);
        if(deviceProp.minor <= 10 )
        {
          devloc[slot]=dev;
          slot++;
        };
      }
+
+     // modified by davidwu, 20190416
      //devloc[myrank] = 0;
+     devloc[myrank] = myrank;
+
      if( (devloc[myrank] >= deviceCount) )
      {
        printf ("Error:::Assigning device %d  to process on node %s rank %d \n",devloc[myrank],  host_name, rank );
@@ -405,7 +358,11 @@ void
      }
      
      printf ("Assigning device %d  to process on node %s rank %d, OK\n",devloc[myrank],  host_name, rank );
-     cudaSetDevice(devloc[myrank]);
+
+     hipSetDevice(devloc[myrank]);
+     // modified by davidwu, 20190415
+     //hipSetDevice(0);
+
      fflush(stdout);
      free(devloc);
      free(host_names);

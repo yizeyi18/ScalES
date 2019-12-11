@@ -55,9 +55,6 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 #include <cfloat>
 #include <complex>
-#ifdef CPX 
-#include <cufft.h>
-#endif
 #include <string>
 #include <cstring>
 
@@ -130,24 +127,15 @@ such enhancements or derivative works thereof, in binary and source code form.
 namespace dgdft{
 
 // Basic data types
-#ifdef SUMMITDEV
-#define BLAS(name)      name
-#define LAPACK(name)    name
-#define SCALAPACK(name) name
-#define F2C(name)       name
-#else
+
 #define BLAS(name)      name##_
 #define LAPACK(name)    name##_
 #define SCALAPACK(name) name##_
 #define F2C(name)       name##_
-#endif
+
 typedef    int                   Int;
 typedef    double                Real;
-#ifdef CPX
 typedef    std::complex<double>  Complex; 
-#else
-typedef    cuDoubleComplex Complex; 
-#endif
 
 // IO
 extern  std::ofstream  statusOFS;
@@ -216,12 +204,12 @@ const std::vector<Int> NO_MASK(1);
 
 // Write format control parameters 
 const int LENGTH_VAR_NAME = 8;
-const int LENGTH_DBL_DATA = 18;
+const int LENGTH_DBL_DATA = 16;
 const int LENGTH_INT_DATA = 5;
 const int LENGTH_VAR_UNIT = 6;
-const int LENGTH_DBL_PREC = 16;
+const int LENGTH_DBL_PREC = 8;
 const int LENGTH_FULL_PREC = 16;
-const int LENGTH_VAR_DATA = 18;
+const int LENGTH_VAR_DATA = 16;
 
 
 } // namespace dgdft

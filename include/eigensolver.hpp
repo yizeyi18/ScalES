@@ -147,21 +147,12 @@ public:
   /// @brief Parallel PPCG solver
   /// by ScaLAPACK.
 #ifdef GPU
-#ifdef _COMPLEX_
-  void PPCGSolveComplex(
-      Int          numEig,
-      Int          eigMaxIter,
-      Real         eigMinTolerance,
-      Real         eigTolerance,
-      Int          scf_iter );
-#else
   void PPCGSolveReal(
       Int          numEig,
       Int          eigMaxIter,
       Real         eigMinTolerance,
       Real         eigTolerance,
       Int          scf_iter );
-#endif
 #endif
   void PPCGSolveReal(
       Int          numEig,

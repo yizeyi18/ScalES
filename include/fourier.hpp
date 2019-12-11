@@ -53,6 +53,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #ifdef GPU
 #include "cu_numvec_impl.hpp"
 #include <assert.h>
+#include <hipfft.h>
 #endif
 namespace dgdft{
 
@@ -76,25 +77,11 @@ struct Fourier {
   fftw_plan forwardPlanR2C;
   fftw_plan backwardPlanR2CFine;
   fftw_plan forwardPlanR2CFine;
-
-  fftw_plan mpiforwardPlanFine;
-  fftw_plan mpibackwardPlanFine;
-  MPI_Comm         comm;
-  ptrdiff_t        localNz;
-  ptrdiff_t        localNzStart;
-  ptrdiff_t        numAllocLocal;
-  Int              numGridLocal;
-  bool             isMPIFFTW;
-  CpxNumVec        inputComplexVecLocal;
-  CpxNumVec        outputComplexVecLocal;     
-
 #ifdef GPU
-  cufftHandle cuPlanR2C[NSTREAM];
-  cufftHandle cuPlanR2CFine[NSTREAM];
-  cufftHandle cuPlanC2R[NSTREAM];
-  cufftHandle cuPlanC2RFine[NSTREAM];
-  cufftHandle cuPlanC2CFine[NSTREAM];
-  cufftHandle cuPlanC2C[NSTREAM];
+    hipfftHandle cuPlanR2C[NSTREAM];
+    hipfftHandle cuPlanR2CFine[NSTREAM];
+    hipfftHandle cuPlanC2R[NSTREAM];
+    hipfftHandle cuPlanC2RFine[NSTREAM];
 #endif
   unsigned  plannerFlag;
 
@@ -114,7 +101,6 @@ struct Fourier {
 
   CpxNumVec                inputComplexVecFine;     
   CpxNumVec                outputComplexVecFine;     
-
 
   // Real data Fourier transform
   Int       numGridTotalR2C;
@@ -148,13 +134,8 @@ struct Fourier {
 
 };
 #ifdef GPU
-void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out );
-void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out , int nbands);
-void cuFFTExecuteInverse2( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out );
-void cuFFTExecuteForward( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out );
-void cuFFTExecuteForward2( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out );
-void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuDblNumVec &cu_psi_in, cuDblNumVec &cu_psi_out );
-void cuFFTExecuteForward( Fourier& fft, cufftHandle &plan, int fft_type, cuDblNumVec &cu_psi_in, cuDblNumVec &cu_psi_out );
+void cuFFTExecuteInverse( Fourier& fft, hipfftHandle &plan, int fft_type, cuDblNumVec &cu_psi_in, cuDblNumVec &cu_psi_out );
+void cuFFTExecuteForward( Fourier& fft, hipfftHandle &plan, int fft_type, cuDblNumVec &cu_psi_in, cuDblNumVec &cu_psi_out );
 #endif
 void FFTWExecute( Fourier& fft, fftw_plan& plan );
 

@@ -1,74 +1,99 @@
 #ifdef GPU
 #include "cuda_errors.hpp"
-
-char *cublasGetErrorString(cublasStatus_t error)
+#include <hipblas.h>
+char *cublasGetErrorString(hipblasStatus_t error)
 {
     switch (error)
     {
-        case CUBLAS_STATUS_SUCCESS:
-            return "CUBLAS_STATUS_SUCCESS";
+        case HIPBLAS_STATUS_SUCCESS:
+            return "HIPBLAS_STATUS_SUCCESS";
 
-        case CUBLAS_STATUS_NOT_INITIALIZED:
-            return "CUBLAS_STATUS_NOT_INITIALIZED";
+        case HIPBLAS_STATUS_NOT_INITIALIZED:
+            return "HIPBLAS_STATUS_NOT_INITIALIZED";
 
-        case CUBLAS_STATUS_ALLOC_FAILED:
-            return "CUBLAS_STATUS_ALLOC_FAILED";
+        case HIPBLAS_STATUS_ALLOC_FAILED:
+            return "HIPBLAS_STATUS_ALLOC_FAILED";
 
-        case CUBLAS_STATUS_INVALID_VALUE:
-            return "CUBLAS_STATUS_INVALID_VALUE";
+        case HIPBLAS_STATUS_INVALID_VALUE:
+            return "HIPBLAS_STATUS_INVALID_VALUE";
 
-        case CUBLAS_STATUS_ARCH_MISMATCH:
-            return "CUBLAS_STATUS_ARCH_MISMATCH";
+        case HIPBLAS_STATUS_ARCH_MISMATCH:
+            return "HIPBLAS_STATUS_ARCH_MISMATCH";
 
-        case CUBLAS_STATUS_MAPPING_ERROR:
-            return "CUBLAS_STATUS_MAPPING_ERROR";
+        case HIPBLAS_STATUS_MAPPING_ERROR:
+            return "HIPBLAS_STATUS_MAPPING_ERROR";
 
-        case CUBLAS_STATUS_EXECUTION_FAILED:
-            return "CUBLAS_STATUS_EXECUTION_FAILED";
+        case HIPBLAS_STATUS_EXECUTION_FAILED:
+            return "HIPBLAS_STATUS_EXECUTION_FAILED";
+
+        case HIPBLAS_STATUS_INTERNAL_ERROR:
+            return "HIPBLAS_STATUS_INTERNAL_ERROR";
+
+        default:
+            return "<unknown>";
+
+/*        case rocblas_status_success:
+            return "rocblas_status_success";
+
+        case rocblas_status_invalid_handle:
+            return "rocblas_status_invalid_handle";
+
+        case rocblas_status_not_implemented:
+            return "rocblas_status_not_implemented";
+
+        case rocblas_status_invalid_pointer:
+            return "rocblas_status_invalid_pointer";
+
+        case rocblas_status_invalid_size:
+            return "rocblas_status_invalid_size";
+
+        case rocblas_status_memory_error:
+            return "rocblas_status_memory_error";
+
+        case rocblas_status_internal_error:
+            return "rocblas_status_internal_error";
 
         case CUBLAS_STATUS_INTERNAL_ERROR:
             return "CUBLAS_STATUS_INTERNAL_ERROR";
-
-	default:
-    	    return "<unknown>";
+*/
     }
 }
 
 // returns string for CUFFT API error
-char *cufftGetErrorString(cufftResult error)
+char *cufftGetErrorString(rocfft_status error)
 {
     switch (error)
     {
-	case CUFFT_SUCCESS:
-            return "CUFFT_SUCCESS";
+	case rocfft_status_success:
+            return "rocfft_status_success";
 
-        case CUFFT_INVALID_PLAN:
-            return "CUFFT_INVALID_PLAN";
+        case rocfft_status_failure:
+            return "rocfft_status_failure";
 
-        case CUFFT_ALLOC_FAILED:
-            return "CUFFT_ALLOC_FAILED";
+        case rocfft_status_invalid_arg_value:
+            return "rocfft_status_invalid_arg_value";
 
-        case CUFFT_INVALID_TYPE:
-            return "CUFFT_INVALID_TYPE";
+        case rocfft_status_invalid_dimensions:
+            return "rocfft_status_invalid_dimensions";
 
-        case CUFFT_INVALID_VALUE:
-            return "CUFFT_INVALID_VALUE";
+        case rocfft_status_invalid_array_type:
+            return "rocfft_status_invalid_array_type";
 
-        case CUFFT_INTERNAL_ERROR:
-            return "CUFFT_INTERNAL_ERROR";
+        case rocfft_status_invalid_strides:
+            return "rocfft_status_invalid_strides";
 
-        case CUFFT_EXEC_FAILED:
-            return "CUFFT_EXEC_FAILED";
+        case rocfft_status_invalid_distance:
+            return "rocfft_status_invalid_distance";
 
-        case CUFFT_SETUP_FAILED:
-            return "CUFFT_SETUP_FAILED";
-
+        case rocfft_status_invalid_offset:
+            return "rocfft_status_invalid_offset";
+/*
         case CUFFT_INVALID_SIZE:
             return "CUFFT_INVALID_SIZE";
 
         case CUFFT_UNALIGNED_DATA:
             return "CUFFT_UNALIGNED_DATA";
-
+*/
 	default:
     	    return "<unknown>";
     }

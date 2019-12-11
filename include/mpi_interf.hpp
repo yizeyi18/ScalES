@@ -48,8 +48,11 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 #include  "environment.hpp"
 #ifdef GPU
+#ifndef __HIP_PLATFORM_HCC__
+#define __HIP_PLATFORM_HCC__
+#endif
 #include "cuda.h"
-#include "cuda_runtime.h"
+#include <hip/hip_runtime.h>
 #endif
 namespace dgdft{
 
@@ -58,12 +61,6 @@ namespace dgdft{
 /// @brief Interface with MPI to facilitate communication.
 namespace mpi{
 
-#ifdef _PROFILING_
-extern double allreduceTime;
-extern double bcastTime;
-extern double allgatherTime;
-void reset_mpi_time();
-#endif
 // *********************************************************************
 // Allgatherv
 //

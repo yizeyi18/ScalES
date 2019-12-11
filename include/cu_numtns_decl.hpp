@@ -103,7 +103,7 @@ template <class F>
 typedef cuNumTns<bool>       cuBolNumTns;
 typedef cuNumTns<Int>        cuIntNumTns;
 typedef cuNumTns<Real>       cuDblNumTns;
-typedef cuNumTns<cuDoubleComplex>    cuCpxNumTns;
+typedef cuNumTns<Complex>    cuCpxNumTns;
 
 // Utilities
 //template <class F> inline void SetValue(cuNumTns<F>& T, F val);

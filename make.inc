@@ -10,8 +10,8 @@ USE_GPU          = 1
 
 ifeq (${COMPILE_MODE}, release)
   COMPILE_DEF    = -DRELEASE
-  COMPILE_FLAG   = -fast -w -D GPUDIRECT -no-ipo
-  COMPILE_FLAG   = -fast -w -no-ipo
+#  COMPILE_FLAG   = -fast -w -D GPUDIRECT -no-ipo
+  COMPILE_FLAG   = -O3 -w 
 endif
 ifeq (${COMPILE_MODE}, debug)
   COMPILE_DEF    = -DDEBUG=1
@@ -23,11 +23,13 @@ ifeq (${USE_COMPLEX}, 1)
 endif
 
 ifeq (${USE_GPU}, 1)
-  NVCC = nvcc
-  CUDA_FLAG = -I/ccs/home/jiawl/DG/GPU/include -D GPU
-  CUDA_LIB = -L${CUDA_DIR}/lib64 -lcufft -lcublas -lcudart -lcuda  -lmagma #-lmagma_sparse #-lcudadevrt
-  NVCCFLAG = -gencode arch=compute_35,code=sm_35 -DGPU -I ../include -DSYNC  # for debug purpose
-  NVCCFLAG = -gencode arch=compute_35,code=sm_35 -DGPU -I ../include 
+  HIPCC = /opt/rocm/bin/hipcc
+  #HIPCC_INCLUDE=/opt/rocm/hip/include
+  HIP_LIB = -L/opt/rocm/lib -lhip_hcc -L/opt/rocm/hipblas/lib -lhipblas -L/opt/rocm/rocfft/lib -lrocfft
+  #HIPCC_FLAG = -I/opt/rocm/hip/include -DGPU  -I ../include -I/opt/rocm/hip/include/hip -I/opt/rocm/hipblas/include -I/opt/rocm/rocfft/include
+  #HIP_FLAG = -D GPU -I/opt/rocm/hip/include/hip -I/opt/rocm/hip/include/hip/hcc_detail/cuda/ -I/opt/rocm/hip/include/hip/hcc_detail/ -I/opt/rocm/hipblas/include -I/opt/rocm/rocfft/include
+  HIPCC_FLAG = -I/opt/rocm/include -DGPU -I/opt/rocm/hip/include/hip/hcc_detail/cuda/ -I ../include -I/opt/rocm/hipblas/include -I/opt/rocm/rocfft/include
+  HIP_FLAG = -D GPU -I/opt/rocm/include -I/opt/rocm/hipblas/include -I/opt/rocm/rocfft/include -I/opt/rocm/hip/include/hip/hcc_detail/cuda/
 endif
 
 ifeq (${USE_OPENMP}, 1)
@@ -42,44 +44,48 @@ endif
 ifeq (${USE_PEXSI}, 1)
   PEXSI_DEF        = -DPEXSI
 
-  PEXSI_DIR        = /ccs/home/jiawl/DG/crd-pexsi
-  DSUPERLU_DIR     = /ccs/home/jiawl/software/SuperLU_DIST_5.1.1
-  METIS_DIR        = /ccs/home/jiawl/software/parmetis/lib
+  PEXSI_DIR        = 
+  DSUPERLU_DIR     = 
+  METIS_DIR        = 
   SCOTCH_DIR       = 
 
-  PEXSI_INCLUDE    = -I$(PEXSI_DIR)/include
-  PEXSI_SRC_LIB    = ${PEXSI_DIR}/src/libpexsi_edison_v0.10.0.a
-  DSUPERLU_LIB     = ${DSUPERLU_DIR}/lib/libsuperlu_dist5.1.1.a
-  SCOTCH_LIB       = -L${SCOTCH_DIR} -lptscotchparmetis -lptscotch -lptscotcherr -lscotch
-  METIS_LIB        = ${METIS_DIR}/libmetis.a
-  PEXSI_LIB        = ${PEXSI_SRC_LIB} ${DSUPERLU_LIB} ${SCOTCH_LIB}  ${METIS_LIB} 
-  PEXSI_LIB        = ${PEXSI_SRC_LIB} ${DSUPERLU_LIB} ${METIS_LIB} 
+  PEXSI_INCLUDE    = 
+  PEXSI_SRC_LIB    = 
+  DSUPERLU_LIB     = 
+  SCOTCH_LIB       = 
+  METIS_LIB        = 
+  PEXSI_LIB        = 
+  PEXSI_LIB        = 
 endif
 
-DGDFT_DIR     = /ccs/home/jiawl/DG/pwdft/crd-dgdft
+DGDFT_DIR     = /public/home/whu_ustc/lijl/pwdft-hip/pwdft-gcc
+#DGDFT_DIR     = /public/home/whu_ustc/lijl/pwdft-hip-20191204/pwdft-gcc-2
+FFTW_DIR      = /public/home/whu_ustc/soft/fftw/3.3.8/gcc
 
+FFTW_INCLUDE     = -I${FFTW_DIR}/include
+MKL_ROOT      = /opt/hpc/software/compiler/intel/intel-compiler-2017.5.239/mkl
 # inclues
-BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
-FFTW_INCLUDE     = -I/opt/cray/fftw/3.3.4.11/x86_64/include
 DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
-INCLUDES         = ${DGDFT_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE} ${MAGMA_INC}
+INCLUDES         = ${DGDFT_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE} ${HIPCC_INC}
 
 # Libraries
-LIBXC_DIR     = /ccs/home/jiawl/software/libxc
+
+LIBXC_DIR     =  /public/home/whu_ustc/soft/libxc-4.2.3
 LIBXC_LIB        = $(LIBXC_DIR)/lib/libxc.a
 LIBXC_INCLUDE    = -I$(LIBXC_DIR)/include
-BLOPEX_LIB       = #${DGDFT_DIR}/external/blopex/libblopex.a 
-FFTW_LIB         = -L/opt/cray/fftw/3.3.4.11/x86_64/lib -lfftw3_mpi -lfftw3 -lm
-MKL_LIB          = -Wl,--start-group  ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_core.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a -Wl,--end-group -lpthread -lm
-MKL_LIB          = #-mkl=cluster
+FFTW_LIB         = -L${FFTW_DIR}/lib -lfftw3_mpi -lfftw3 -lm
+MKL_LIB      = -L${MKL_ROOT}/lib/intel64 -lmkl_core -lmkl_intel_lp64  -lmkl_sequential -lmkl_blacs_openmpi_lp64  -lmkl_scalapack_lp64 -lpthread -lgfortran
 
+GFORTRAN_LIB     = -lgfortran
 DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
-LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${MKL_LIB} ${IPM} ${CUDA_LIB} ${MAGMA_LIB}
+RQRCP_LIB    = ${DGDFT_DIR}/external/rqrcp/librqrcp.a
+LBFGS_LIB    = ${DGDFT_DIR}/external/lbfgs/liblbfgs.a
+LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${GFORTRAN_LIB} ${BLOPEX_LIB} ${LBFGS_LIB} ${RQRCP_LIB} ${FFTW_LIB} ${MKL_LIB} ${IPM} ${HIP_LIB}
 
-CC           = cc
-CXX          = CC
-FC           = ftn
-LOADER       = CC
+CC	= mpicc
+CXX	= mpic++
+FC	= mpif90
+LOADER	= mpic++
 
 AR           = ar
 ARFLAGS      = rvcu
@@ -95,9 +101,9 @@ RMFLAGS      = -f
 #
 
 
-CFLAGS       = ${COMPILE_FLAG} ${OPENMP_FLAG} ${PROFILE_FLAG} ${INCLUDES} ${CUDA_FLAG}
-FFLAGS       = ${COMPILE_FLAG} ${OPENMP_FLAG} ${PROFILE_FLAG} ${INCLUDES} ${CUDA_FLAG}
-CXXFLAGS     = ${COMPILE_FLAG} ${OPENMP_FLAG} ${PROFILE_FLAG} ${INCLUDES} ${CUDA_FLAG}
+CFLAGS       = ${COMPILE_FLAG} ${OPENMP_FLAG} ${PROFILE_FLAG} ${INCLUDES} ${HIP_FLAG}
+FFLAGS       = ${COMPILE_FLAG} ${OPENMP_FLAG} ${PROFILE_FLAG} ${INCLUDES} ${HIP_FLAG}
+CXXFLAGS     = ${COMPILE_FLAG} ${OPENMP_FLAG} ${PROFILE_FLAG} ${INCLUDES} ${HIP_FLAG} -std=c++11 -fpermissive
 CCDEFS       = ${COMPILE_DEF} ${PEXSI_DEF} ${SCALAR_DEF} ${OPENMP_DEF}
 CPPDEFS      = ${COMPILE_DEF} ${PEXSI_DEF} ${SCALAR_DEF} ${OPENMP_DEF}
 LOADOPTS     = ${OPENMP_FLAG} ${PROFILE_FLAG} ${LIBS} 
@@ -118,7 +124,7 @@ LOADOPTS     = ${OPENMP_FLAG} ${PROFILE_FLAG} ${LIBS}
 %.o: %.F90
 	${FC} -c ${FFLAGS} $<
 %.o: %.cu
-	$(NVCC) -c ${NVCCFLAG} $<
+	$(HIPCC) -c -fPIC -fno-gpu-rdc -amdgpu-target=gfx906 -fpermissive ${HIPCC_FLAG} $<
 
 # Generate auto-dependencies (for cpp files now)
 %.d: %.cpp

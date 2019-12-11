@@ -57,11 +57,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "periodtable.hpp"
 #ifdef GPU
 #include "cuda_utils.h"
-#ifdef USE_MAGMA
-#include  "magma.hpp"
-#else
-#include "cuSolver.hpp"
-#endif
+//#include  "magma.hpp"
 #include  "cublas.hpp"
 #endif
 
@@ -349,11 +345,7 @@ SCF::Iterate (  )
 #ifdef GPU
     cuda_init_vtot();
     cublas::Init();
-#ifdef USE_MAGMA
-    MAGMA::Init();
-#else
-    cuSolver::Init();
-#endif
+  //MAGMA::Init();
 #endif
   // Perform non-hybrid functional calculation first
   if( !ham.IsHybrid() || !ham.IsEXXActive()){
@@ -362,7 +354,6 @@ SCF::Iterate (  )
     PrintBlock( statusOFS, msg.str() );
     bool isSCFConverged = false;
 
-/*
     if( !ham.IsEXXActive() && ham.IsHybrid() ) {
       ham.Setup_XC( "XC_GGA_XC_PBE");
 
@@ -378,7 +369,6 @@ SCF::Iterate (  )
       ham.CalculateVtot( ham.Vtot() );
 
     }
-*/
     for (Int iter=1; iter <= scfMaxIter_; iter++) {
       if ( isSCFConverged ) break;
       // *********************************************************************
@@ -473,7 +463,6 @@ SCF::Iterate (  )
   // NOTE: The different mixing mode of hybrid functional calculations
   // are not compatible with each other. So each requires its own code
   if( ham.IsHybrid() ){
-/*
     {
       ham.Setup_XC( "XC_HYB_GGA_XC_HSE06");
       statusOFS << " re-calculate XC " << std::endl;
@@ -487,7 +476,7 @@ SCF::Iterate (  )
       // Compute the total potential
       ham.CalculateVtot( ham.Vtot() );
     }
-*/
+
 
     // Fock energies
     Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
@@ -525,12 +514,7 @@ SCF::Iterate (  )
       }
       else{
 #ifdef GPU
-#ifdef _COMPLEX_
-        statusOFS << " CalculateVexxACEGPU1 for Complex ..... scf.cpp line 526" << std::endl;
-        ham.CalculateVexxACEGPU1 ( psi, fft );
-#else
         ham.CalculateVexxACEGPU ( psi, fft );
-#endif
 #else
         ham.CalculateVexxACE ( psi, fft );
 #endif
@@ -676,17 +660,7 @@ SCF::Iterate (  )
             isFixColumnDF = true;
           }
           else{
-
-#ifndef _COMPLEX_
             ham.CalculateVexxACE ( psi, fft );
-#else  // complex
-#ifdef GPU
- 	    statusOFS << " ham.CalculateVexxACEGPU1 ..... " << std::endl << std::endl;
-            ham.CalculateVexxACEGPU1 ( psi, fft );
-#else
-            ham.CalculateVexxACE ( psi, fft );
-#endif
-#endif
           }
         }
 
@@ -1237,7 +1211,7 @@ SCF::Iterate (  )
 
           cuDblNumMat cu_psiMuTTemp(numOccTotal, numOccTotal);
           cu_psiRow.CopyFrom(psiRow);
-          cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, 
+          cublas::Gemm( HIPBLAS_OP_T, HIPBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, 
               &one, cu_psiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
               &zero, cu_psiMuTTemp.Data(), numOccTotal );
           cu_psiMuTTemp.CopyTo( psiMuTTemp );
@@ -1264,7 +1238,7 @@ SCF::Iterate (  )
         }
 #endif
         cu_psiMuT.CopyFrom( psiMuT);
-        cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &one, 
+        cublas::Gemm( HIPBLAS_OP_N, HIPBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &one, 
             cu_psiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
             &zero, cu_PcRow.Data(), ntotLocal );
          cu_PcRow.CopyTo( PcRow );
@@ -1322,7 +1296,7 @@ SCF::Iterate (  )
             cuDblNumMat cu_HpsiMuTTemp(numOccTotal,numOccTotal);
             //SetValue( HpsiMuTTemp, 0.0 );
 
-            cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, &one, 
+            cublas::Gemm( HIPBLAS_OP_T, HIPBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, &one, 
                 cu_HpsiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
                 &zero, cu_HpsiMuTTemp.Data(), numOccTotal );
             cu_HpsiMuTTemp.CopyTo(HpsiMuTTemp);
@@ -1338,12 +1312,12 @@ SCF::Iterate (  )
 
           }//if
           
-          cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &one, 
+          cublas::Gemm( HIPBLAS_OP_N, HIPBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &one, 
               cu_HpsiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
               &zero, cu_ResRow.Data(), ntotLocal );
 
           cu_HpsiMuT.CopyFrom( HpsiMuT );
-          cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
+          cublas::Gemm( HIPBLAS_OP_N, HIPBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
               cu_psiRow.Data(), ntotLocal, cu_HpsiMuT.Data(), numOccTotal, 
               &one, cu_ResRow.Data(), ntotLocal );
           cu_ResRow.CopyTo(ResRow);
@@ -1487,7 +1461,7 @@ SCF::Iterate (  )
             DblNumMat XTXTemp(numOccTotal, numOccTotal);
             cuDblNumMat cu_XTXTemp(numOccTotal, numOccTotal);
             
-            cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
+            cublas::Gemm( HIPBLAS_OP_T, HIPBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
                 ntotLocal, cu_psiPcRow.Data(), ntotLocal, &zero, cu_XTXTemp.Data(), numOccTotal );
             cu_XTXTemp.CopyTo(XTXTemp);
 
@@ -1503,14 +1477,15 @@ SCF::Iterate (  )
             //}
             //MPI_Bcast(XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, 0, mpi_comm);
 
+ //           cu_XTXTemp.CopyFrom(XTX);
+//            MAGMA::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
+//modified by xmqin 20191202
+//-------------------------------------------------------------------------------
+            lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal ); 
             cu_XTXTemp.CopyFrom(XTX);
-#ifdef USE_MAGMA
-            MAGMA::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
-#else
-            cuSolver::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
-#endif
-
-            cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, 
+//-------------------------------------------------------------------------------
+//
+            cublas::Trsm( HIPBLAS_SIDE_RIGHT, HIPBLAS_FILL_MODE_UPPER, HIPBLAS_OP_N, HIPBLAS_DIAG_NON_UNIT, 
                           ntotLocal, numOccTotal, &one, cu_XTXTemp.Data(), numOccTotal, cu_psiPcRow.Data(),
                           ntotLocal);
             cu_psiPcRow.CopyTo( psiPcRow );
@@ -2236,24 +2211,19 @@ SCF::Iterate (  )
 
     } // hybridMixType == "pcdiis"
 #endif
-#endif
 
     GetTime( timeEnd );
     statusOFS << "Time for using pcdiis method is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
     
   } // isHybrid == true
-/*
 #ifdef GPU
     cublas::Destroy();
-#ifdef USE_MAGMA
-    MAGMA::Destroy();
-#else
-    cuSolver::Destroy();
-#endif
+    //MAGMA::Destroy();
     cuda_clean_vtot();
 #endif
-*/
+#endif
+
   // Calculate the Force. This includes contribution from ionic repulsion, VDW etc
   ham.CalculateForce( psi, fft );
 
@@ -2474,11 +2444,7 @@ SCF::InnerSolve	( Int iter )
     // Use LOBPCG
 #ifdef _COMPLEX_
     if( esdfParam.PWSolver == "PPCG" || esdfParam.PWSolver == "PPCGScaLAPACK" ){
-#ifdef GPU
-      eigSolPtr_->PPCGSolveComplex(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow , iter );    
-#else
       eigSolPtr_->PPCGSolveComplex(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
-#endif
     }
     else{
       // FIXME Merge the Chebyshev into an option of PWSolver
@@ -2675,10 +2641,7 @@ SCF::CalculateOccupationRate    ( DblNumVec& eigVal, DblNumVec& occupationRate )
     fermi_ = (lb+ub)*0.5;
     occsum = 0.0;
     for(Int j = 0; j < npsi; j++) {
-      if(Tbeta_*(eigVal(j) - fermi_) > 250.0) 
-          occupationRate(j) = 0.0 ;
-      else
-          occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
+      occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
       occsum += occupationRate(j);
     }
 
@@ -2691,10 +2654,7 @@ SCF::CalculateOccupationRate    ( DblNumVec& eigVal, DblNumVec& occupationRate )
       fermi_ = (lb+ub)*0.5;
       occsum = 0.0;
       for(Int j = 0; j < npsi; j++) {
-        if(Tbeta_*(eigVal(j) - fermi_) > 250.0) 
-          occupationRate(j) = 0.0 ;
-        else
-          occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
+        occupationRate(j) = 1.0 / (1.0 + exp(Tbeta_*(eigVal(j) - fermi_)));
         occsum += occupationRate(j);
       }
       iter++;
