@@ -2,7 +2,6 @@
 #ifndef  _CUDA_UTILS_CU_
 #define  _CUDA_UTILS_CU_
 #include "cuda_utils.h"
-//#include "hip_complex.h"
 #define DIM   128
 #define LDIM  256
 #define LEN   512
