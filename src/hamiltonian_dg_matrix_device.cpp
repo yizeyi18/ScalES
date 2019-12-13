@@ -1083,10 +1083,10 @@ void
               std::map<Int, DblNumMat>  coefDrvZMap;
 
               // Device Maps
-              std::map<Int, cuda::device_vector<Real>>  coefMap_device;
-              std::map<Int, cuda::device_vector<Real>>  coefDrvXMap_device;
-              std::map<Int, cuda::device_vector<Real>>  coefDrvYMap_device;
-              std::map<Int, cuda::device_vector<Real>>  coefDrvZMap_device;
+              //std::map<Int, cuda::device_vector<Real>>  coefMap_device;
+              //std::map<Int, cuda::device_vector<Real>>  coefDrvXMap_device;
+              //std::map<Int, cuda::device_vector<Real>>  coefDrvYMap_device;
+              //std::map<Int, cuda::device_vector<Real>>  coefDrvZMap_device;
 
               // Host Basis / DBasis
               DblNumMat&   basis = basisLGL_.LocalMap()[key];
@@ -1095,11 +1095,13 @@ void
               DblNumMat& DbasisZ = Dbasis[2].LocalMap()[key];
 
               // Device Basis / DBasis
-              auto&   basis_device = basisLGL_device.LocalMap()[key];
-              auto& DbasisX_device = Dbasis_device[0].LocalMap()[key];
-              auto& DbasisY_device = Dbasis_device[1].LocalMap()[key];
-              auto& DbasisZ_device = Dbasis_device[2].LocalMap()[key];
+              //auto&   basis_device = basisLGL_device.LocalMap()[key];
+              //auto& DbasisX_device = Dbasis_device[0].LocalMap()[key];
+              //auto& DbasisY_device = Dbasis_device[1].LocalMap()[key];
+              //auto& DbasisZ_device = Dbasis_device[2].LocalMap()[key];
 
+
+              // Get Total Number of basis functiosn
               Int numBasis = basis.n();
               Int numBasisTotal = 0;
               MPI_Allreduce( &numBasis, &numBasisTotal, 1, MPI_INT,
@@ -1114,6 +1116,7 @@ void
                 // coefDrvX/Y/Z contain different data among processors in
                 // each processor row in the same element.
 
+                // XXX: Host impl
                 DblNumMat coef( numBasisTotal, vnlList.size() );
                 DblNumMat coefDrvX( numBasisTotal, vnlList.size() );
                 DblNumMat coefDrvY( numBasisTotal, vnlList.size() ); 
@@ -1166,6 +1169,18 @@ void
                 } // for (g)
 
 
+
+                // XXX Device impl
+                //const size_t coefLen = numBasisTotal * vnlList.size();
+                //cuda::device_vector< Real > coef_device( coefLen );
+                //cuda::device_vector< Real > coefDrvX_device( coefLen );
+                //cuda::device_vector< Real > coefDrvY_device( coefLen );
+                //cuda::device_vector< Real > coefDrvZ_device( coefLen );
+
+                
+
+
+
                 DblNumMat coefTemp( numBasisTotal, vnlList.size() );
 
                 SetValue( coefTemp, 0.0 );
@@ -1196,6 +1211,99 @@ void
               vnlDrvCoef_[2].LocalMap()[key] = coefDrvZMap;
             } // own this element
           } // for (i)
+
+
+
+      // XXX: Copy VNL data to device
+      // TODO: Populate on device
+      {
+      for( const auto& [elem_key, host_map] : vnlCoef_.LocalMap() ) {
+        std::map< Int, cuda::device_vector<Real> > device_map;
+        for( const auto& [mat_key, mat] : host_map ) {
+          cuda::device_vector<Real> dev_mat( mat.Size() );
+          cuda::memcpy_h2d( dev_mat.data(), mat.Data(), mat.Size() );
+          device_map.emplace( std::make_pair( mat_key, std::move(dev_mat) ) );
+        }
+        vnlCoef_device.LocalMap().insert_or_assign( elem_key, std::move(device_map) );
+      }
+
+      for(int d = 0; d < DIM; ++d )
+      for( const auto& [elem_key, host_map] : vnlDrvCoef_[d].LocalMap() ) {
+        std::map< Int, cuda::device_vector<Real> > device_map;
+        for( const auto& [mat_key, mat] : host_map ) {
+          cuda::device_vector<Real> dev_mat( mat.Size() );
+          cuda::memcpy_h2d( dev_mat.data(), mat.Data(), mat.Size() );
+          device_map.emplace( std::make_pair( mat_key, std::move(dev_mat) ) );
+        }
+        vnlDrvCoef_device[d].LocalMap().insert_or_assign( elem_key, std::move(device_map) );
+      }
+      }
+
+
+
+      // Check the VNL data is the same on host and device
+      {
+
+      statusOFS << "DBWY VNL DIFF" << std::endl;
+      const auto& vnl_dev_lm = vnlCoef_device.LocalMap();
+      const auto& vnl_host_lm = vnlCoef_.LocalMap();
+      for( const auto& [elem_key, host_map] : vnl_host_lm ) {
+        assert( vnl_dev_lm.find( elem_key ) != vnl_dev_lm.end() );
+        assert( vnl_dev_lm.at( elem_key ).size() == host_map.size() );
+
+        const auto& dev_map = vnl_dev_lm.at( elem_key );
+        for( const auto& [mat_key, host_mat] : host_map ) {
+          assert( dev_map.find( mat_key ) != dev_map.end() );
+          assert( dev_map.at( mat_key ).size() == host_mat.Size() );
+
+          std::vector< Real > dev_mat_h( host_mat.Size() );
+          cuda::copy( dev_map.at( mat_key ), dev_mat_h );
+
+          statusOFS << "  MaxEL " <<  elem_key << ", " << mat_key << ", "  
+                    << *std::max_element( dev_mat_h.begin(), dev_mat_h.end() ) << std::endl;
+
+          for( auto i = 0; i < dev_mat_h.size(); ++i )
+            dev_mat_h[i] = std::abs( dev_mat_h[i] - host_mat.Data()[i] );
+
+          statusOFS << "  DIFF  " <<  elem_key << ", " << mat_key << ", "  
+                    << *std::max_element( dev_mat_h.begin(), dev_mat_h.end() ) << std::endl;
+        }
+      }
+
+      }
+
+      {
+
+      for( int d = 0; d < DIM; ++d ) {
+        statusOFS << "DBWY VNLDrv " << d << " DIFF" << std::endl;
+        const auto& vnl_dev_lm = vnlDrvCoef_device[d].LocalMap();
+        const auto& vnl_host_lm = vnlDrvCoef_[d].LocalMap();
+        for( const auto& [elem_key, host_map] : vnl_host_lm ) {
+          assert( vnl_dev_lm.find( elem_key ) != vnl_dev_lm.end() );
+          assert( vnl_dev_lm.at( elem_key ).size() == host_map.size() );
+
+          const auto& dev_map = vnl_dev_lm.at( elem_key );
+          for( const auto& [mat_key, host_mat] : host_map ) {
+            assert( dev_map.find( mat_key ) != dev_map.end() );
+            assert( dev_map.at( mat_key ).size() == host_mat.Size() );
+
+            std::vector< Real > dev_mat_h( host_mat.Size() );
+            cuda::copy( dev_map.at( mat_key ), dev_mat_h );
+
+            statusOFS << "  MaxEL " <<  elem_key << ", " << mat_key << ", "  
+                      << *std::max_element( dev_mat_h.begin(), dev_mat_h.end() ) << std::endl;
+
+            for( auto i = 0; i < dev_mat_h.size(); ++i )
+              dev_mat_h[i] = std::abs( dev_mat_h[i] - host_mat.Data()[i] );
+
+            statusOFS << "  DIFF  " <<  elem_key << ", " << mat_key << ", "  
+                      << *std::max_element( dev_mat_h.begin(), dev_mat_h.end() ) << std::endl;
+          }
+        }
+      }
+
+      }
+
 
 
       GetTime( timeEnd );

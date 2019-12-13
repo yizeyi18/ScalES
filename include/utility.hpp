@@ -1845,5 +1845,22 @@ void seek_str(std::string tag, std::ifstream &upfin);
 std::string get_attr(std::string buf, std::string attr);
 void skipln(std::ifstream &upfin);
 void splinerad( std::vector<double> & r, std::vector<double> & vloc, std::vector<double> & out_r, std::vector<double> & out_vloc , int even);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 } // namespace dgdft
 #endif // _UTILITY_HPP_
