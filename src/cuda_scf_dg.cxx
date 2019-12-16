@@ -102,16 +102,15 @@ namespace  dgdft{
         // based on processor number, etc.
         Index3 key = (my_dist_mat.LocalMap().begin())->first;
 
-        //statusOFS << std::endl << "mpirank= " << mpirank << "\tkey= " << key << std::endl;
         // Obtain keys of neighbors using the Hamiltonian matrix
         // We only use these keys to minimize communication in GetBegin since other parts of the vector
         // block, even if they are non-zero will get multiplied by the zero block of the Hamiltonian
         // anyway.
+        #if 0
         for(typename std::map<ElemMatKey, DblNumMat >::iterator 
             get_neighbors_from_Ham_iterator = hamDG.HMat().LocalMap().begin();
             get_neighbors_from_Ham_iterator != hamDG.HMat().LocalMap().end();
-            get_neighbors_from_Ham_iterator ++)
-        {
+            get_neighbors_from_Ham_iterator ++) {
           Index3 neighbor_key = (get_neighbors_from_Ham_iterator->first).second;
 
           if(neighbor_key == key)
@@ -119,6 +118,49 @@ namespace  dgdft{
           else
             getKeys_list.push_back(neighbor_key);
         }
+        #else
+        // { j | H(i,j) != 0 }
+        for( const auto& [neighbor_key, m] : hamDG.HMat().LocalMap() ) 
+          if( neighbor_key.second != key ) getKeys_list.emplace_back( neighbor_key.second );
+        #endif
+
+        #if 0
+        statusOFS << std::endl << "Local Y key " << key << std::endl;
+        statusOFS << "Neighbor Keys:" << std::endl;
+        for( const auto& key : getKeys_list )
+          statusOFS << "  " << key << std::endl;
+
+        // Create a bitmap sparse representation
+        DistVec< Index3, std::vector<Int>, ElemPrtn > HamDG_SPARSE;
+        HamDG_SPARSE.SetComm( my_dist_mat.Comm() );
+        HamDG_SPARSE.Prtn() = my_dist_mat.Prtn();
+        auto ne = hamDG.NumElem();
+        const auto ne_tot = ne[0] * ne[1] * ne[2];
+        std::vector<Int> bit_map( ne_tot, 0 );
+        std::vector<Index3> allkeys;
+        for( Int k = 0, l=0; k < ne[2]; k++ )
+        for( Int j = 0; j < ne[1]; j++ )
+        for( Int i = 0; i < ne[0]; i++, ++l ) {
+          Index3 tmp( i, j, k );
+          if( tmp != key ) allkeys.emplace_back( tmp );
+          if( std::find(getKeys_list.begin(),getKeys_list.end(), tmp ) != getKeys_list.end() )
+            bit_map[l] = 1;
+        }
+
+        HamDG_SPARSE.LocalMap().insert_or_assign( key, bit_map );
+        HamDG_SPARSE.GetBegin( allkeys, NO_MASK );
+        HamDG_SPARSE.GetEnd(NO_MASK);
+        statusOFS << "DBWY BITMAP" << std::endl;
+        for( Int k = 0; k < ne[2]; k++ )
+        for( Int j = 0; j < ne[1]; j++ )
+        for( Int i = 0; i < ne[0]; i++ ) {
+ 
+          Index3 tmp( i, j, k );
+          for( auto l : HamDG_SPARSE.LocalMap()[tmp] )
+            statusOFS << l << " ";
+          statusOFS << std::endl;
+        }
+        #endif
 
 
         // Do the communication necessary to get the information from
@@ -130,27 +172,38 @@ namespace  dgdft{
 
         //Copy X data to the GPU. Very expensive. Q: looks like data coming from MPI communication? Yes
         //Pack the data and make one cudaMemcpy call!!
-          auto msecXDataCopyTime = cuda::time_cuda( hamDG.handle.get_stream(),
-            [&]() {
-            size_t len_buffer = my_dist_mat.LocalMap().size() * Hmat_times_my_dist_mat.LocalMap()[key].Size();
-            if(applyBatched) {
-              int ix=0;
-              for( const auto& x : my_dist_mat.LocalMap() ) {
-                Index3 iter_key = x.first; 
-                if(first)
-                  XKeys.push_back(iter_key);
-                //std::copy( x.second.Data(), x.second.Data() + x.second.Size(), ptr );
-                memcpy(hamDG.h_x_ptr.data() + ix * x.second.Size(), 
-                  x.second.Data(), x.second.Size()*sizeof(double));
-                ix++;
-              }
-              cuda::copy( hamDG.h_x_ptr, hamDG.pluckX_pack_d );
+        auto msecXDataCopyTime = cuda::time_cuda( hamDG.handle.get_stream(),
+          [&]() {
+          size_t len_buffer = my_dist_mat.LocalMap().size() * Hmat_times_my_dist_mat.LocalMap()[key].Size();
+          if(applyBatched) {
+            int ix=0;
+            for( const auto& x : my_dist_mat.LocalMap() ) {
+              Index3 iter_key = x.first; 
+              if(first)
+                XKeys.push_back(iter_key);
+              //std::copy( x.second.Data(), x.second.Data() + x.second.Size(), ptr );
+              memcpy(hamDG.h_x_ptr.data() + ix * x.second.Size(), 
+                x.second.Data(), x.second.Size()*sizeof(double));
+              ix++;
             }
-          } );
+            cuda::copy( hamDG.h_x_ptr, hamDG.pluckX_pack_d );
+          }
+        } );
         
-        DblNumMat& mat_Y_local = Hmat_times_my_dist_mat.LocalMap()[key];
+
+
+
+
 
         // Obtain a reference to the chunk where we want to store
+        DblNumMat& mat_Y_local = Hmat_times_my_dist_mat.LocalMap()[key];
+
+
+
+
+
+
+        // XXX: Host GEMM
         auto originalGEMMTime = cuda::time_cuda( hamDG.handle.get_stream(),
             [&]() {
         // Now pluck out relevant chunks of the Hamiltonian and the vector and multiply
@@ -172,8 +225,8 @@ namespace  dgdft{
           DblNumMat& mat_H_local = ham_iterator->second; // Chunk from Hamiltonian
 
           Int m = mat_H_local.m(), n = mat_X_local.n(), k = mat_H_local.n();
-//Chao
-//statusOFS << "calling GEMM, m, n, k = " << m << " " << n << " " << k << std::endl; 
+      
+                                                                                     
           blas::Gemm( 'N', 'N', m, n, k, 
               1.0, mat_H_local.Data(), m, 
               mat_X_local.Data(), k, 
@@ -182,6 +235,16 @@ namespace  dgdft{
 
         } // End of loop using mat_X_iterator
         } );
+
+
+
+
+
+
+
+
+
+
         //statusOFS << std::endl << " Hadia: .......End Original Run......\n" ;
 //#ifdef _USE_CUDA_
         //DblNumMat& mat_Y_local = Hmat_times_my_dist_mat.LocalMap()[key];
@@ -233,41 +296,30 @@ namespace  dgdft{
           //gTotalSta.record( custream );
 
 
-#if 0
-          auto custream = hamDG.handle.get_stream();
-          cuda::event gemm_start, gemm_end;
-          gemm_start.record( custream );
-          cublas::blas::gemm_batched( hamDG.handle, 'N', 'N', Bm, Bn, Bk, alpha,
-              hamDG.d_Harr.data(), Bm, hamDG.d_Xarr.data(), Bk, beta,
-              hamDG.d_Yarr.data(), Bm, hamDG.Bcount);
-          gemm_end.record( custream );
-          gemm_end.synchronize();
-          auto msecBatchedTime = cuda::event::elapsed_time( gemm_start, gemm_end );
-#else
-          auto msecBatchedTime = cuda::time_cuda( hamDG.handle.get_stream(),
-            [&]() {
+          #if 0
+          auto msecBatchedTime = cuda::time_cuda( hamDG.handle.get_stream(), [&]() {
               cublas::blas::gemm_batched( hamDG.handle, 'N', 'N', Bm, Bn, Bk, alpha,
                   hamDG.d_Harr.data(), Bm, hamDG.d_Xarr.data(), Bk, beta,
                   hamDG.d_Yarr.data(), Bm, hamDG.Bcount );
             } );
-#endif
+          #else
+          auto msecBatchedTime = cuda::time_cuda( hamDG.handle.get_stream(), [&]() {
+            cublas::blas::gemm_batched_strided( hamDG.handle, 
+               'N', 'N', Bm, Bn, Bk, alpha,
+                hamDG.localH_pack_d.data(), Bm, Bm*Bk, 
+                hamDG.pluckX_pack_d.data(), Bk, Bk*Bn, beta,
+                hamDG.pluckY_pack_d.data(), Bm, Bm*Bn, 
+                hamDG.Bcount );
+          } );
+          #endif
 
           //reduction on the GPUs  
           // DBWY: This will be slow, should write a kernel that adds an arbitrary number of matrices
           // using the device ptr array (on device)
-#if 0
-          for(int bi = 1; bi < hamDG.Bcount; bi++){
-            cublas::blas::axpy( hamDG.handle, mat_Y_local.Size(), alpha, 
-                hamDG.h_pluckY_ptr_d[bi], 1, hamDG.h_pluckY_ptr_d[0], 1
-                );
-          }
-#else
-          auto msecReduceTime = cuda::time_cuda( hamDG.handle.get_stream(),
-            [&]() {
-           dgdft::device::add_vecs_device( hamDG.Bcount-1, mat_Y_local.Size(), 
-               hamDG.d_Yarr.data()+1, 1.0, hamDG.h_pluckY_ptr_d[0] );
+          auto msecReduceTime = cuda::time_cuda( hamDG.handle.get_stream(), [&]() {
+            dgdft::device::add_vecs_device( hamDG.Bcount-1, mat_Y_local.Size(), 
+                hamDG.d_Yarr.data()+1, 1.0, hamDG.h_pluckY_ptr_d[0] );
           } );
-#endif
 
 
           //gTotalEnd.record( custream );
@@ -276,19 +328,18 @@ namespace  dgdft{
 
           DblNumMat copy_mat_Y_local(mat_Y_local.m(), mat_Y_local.n());
           //Moving this out of timing, since we will not copy it back here since it will be used by next step.
-          auto msecCopyResTime = cuda::time_cuda( hamDG.handle.get_stream(),
-            [&]() {
-          cuda::memcpy_d2h( copy_mat_Y_local.Data(), hamDG.pluckY_pack_d.data(), mat_Y_local.Size() );
+          auto msecCopyResTime = cuda::time_cuda( hamDG.handle.get_stream(), [&]() {
+            cuda::memcpy_d2h( copy_mat_Y_local.Data(), hamDG.pluckY_pack_d.data(), mat_Y_local.Size() );
           }) ;
 
 
           //Hadia: Compare output from both 
-          //statusOFS << std::endl << " ---------------------------------- Hadia: Compare Results of Both CUDA and CPU -------------------------------\n ";
           for(int ci = 0; ci < copy_mat_Y_local.Size(); ci++){
+            auto m = mat_Y_local.m(); auto k = m; auto n = mat_Y_local.n();
             //  statusOFS << copy_mat_Y_local.Data()[ci] << "\t" << Hmat_times_my_dist_mat.LocalMap()[key].Data()[ci] << std::endl;
-            if(abs(copy_mat_Y_local.Data()[ci]-mat_Y_local.Data()[ci]) > 0.000001 ) {
+            if(abs(copy_mat_Y_local.Data()[ci]-mat_Y_local.Data()[ci]) > m*n*k * std::numeric_limits<Real>::epsilon() ) {
               statusOFS << std::endl << " CUDA ERROR\n"  
-                << std::endl << " GEMM Data Results not the same."
+                << std::endl << " GEMM Data Results not the same. diff = " << abs(copy_mat_Y_local.Data()[ci]-mat_Y_local.Data()[ci])
                 << std::endl << " Aborting ... " << std::endl;
               exit(1);
             }
@@ -301,21 +352,28 @@ namespace  dgdft{
           statusOFS << std::endl << " ----------- Moving X data to GPU (COMMUNICATION everytime) ( " << msecXDataCopyTime << " ms.)";
           statusOFS << std::endl << " ----------- Loop Find H Pointers ONLY (DONE ONCE) ( " << msecFindHPtrsTime << " ms.)";
           statusOFS << std::endl << " ----------- Copy Result Device to Host ONLY (will move out of this function) ( " << msecCopyResTime << " ms.)";
-          statusOFS << std::endl << "calling GEMM, m, n, k, batchCount = " << Bm << " " << Bn << " " << Bk << " " << hamDG.Bcount <<  std::endl << "--------------------------------------------------------------------" << std::endl; 
+          statusOFS << std::endl << "calling GEMM, m, n, k, batchCount = " << Bm << " " << Bn << " " << Bk << " " << hamDG.Bcount <<  std::endl 
+                    << "--------------------------------------------------------------------" << std::endl; 
           //@@, m, n, k, BatchCount, gemmBatchedTime, axpy reduction time, move Ham. pointers to device, move X data, find H pointers, copy result to host, CPU version time 
           statusOFS << std::endl << " @@, " << hamDG.Bcount << ", " << Bm << ", " << Bn << ", " << Bk << ", " << hamDG.Bcount 
             << ", " << msecBatchedTime << ", " << msecReduceTime << ", " << msecHPtrH2DTime << ", " 
             << msecXDataCopyTime << ", " << msecFindHPtrsTime << ", " << msecCopyResTime << ", " << originalGEMMTime << std::endl;
           statusOFS << std::endl << " ##, " << originalGEMMTime / ( msecBatchedTime + msecReduceTime + msecXDataCopyTime + msecCopyResTime ) << std::endl;
           } // end-applyBatched
+
+
           // Matrix * vector_block product is ready now ... 
           // Need to clean up extra entries in my_dist_mat
+          #if 0
           typename std::map<Index3, DblNumMat >::iterator it;
           for(Int delete_iter = 0; delete_iter <  getKeys_list.size(); delete_iter ++)
           {
             it = my_dist_mat.LocalMap().find(getKeys_list[delete_iter]);
             (my_dist_mat.LocalMap()).erase(it);
           }
+          #else
+          for( const auto& k : getKeys_list ) my_dist_mat.LocalMap().erase( k );
+          #endif
 
 
         }

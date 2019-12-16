@@ -568,6 +568,9 @@ public:
   /// @brief Return the element domain information
   NumTns<Domain>&  DomainElem(){ return domainElem_; }
 
+  Index3 NumElem() const { return numElem_; }
+
+
   /// @brief Return the 1D LGL weights
   std::vector<DblNumVec>&  LGLWeight1D(){ return LGLWeight1D_; }
 
