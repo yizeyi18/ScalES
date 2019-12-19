@@ -44,9 +44,15 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @brief Thin interface to LAPACK
 /// @date 2012-09-12
 #include "lapack.hpp"
+#include "blas.hpp"
 
 namespace dgdft {
 namespace lapack {
+
+template <typename T>
+constexpr bool abs_compare( const T& a, const T& b ) {
+  return std::abs(a) < std::abs(b);
+}
 
 extern "C" {
 
@@ -496,11 +502,21 @@ void Syevd
   LAPACK(dsyevd)( &jobz, &uplo, &n, A, &lda, eigs, &work[0],
       &lwork, &iwork[0], &liwork, &info );
 
-  if( info != 0 )
-  {
+  if( info != 0 ) {
     std::ostringstream msg;
     msg << "syevd returned with info = " << info;
     ErrorHandling( msg.str().c_str() );
+  }
+
+  if( jobz == 'V' )
+  for( Int j = 0; j < n; ++j ) {
+    auto* A_j = A + j*lda;
+    auto max_i = std::max_element( A_j, A_j + n, abs_compare<double> );
+    //statusOFS << "DBWY MAX I " << j << ", " << *max_i << std::endl;
+    if( std::signbit( *max_i ) ){
+      //statusOFS << "DBWY SWAPPING SIGNS" << std::endl;
+      blas::Scal( n, -1., A_j, 1 );
+    }
   }
 }
 
@@ -971,6 +987,8 @@ void QRSVD
   {
     ErrorHandling("sgesvd's updating process failed");
   }
+
+  
 }
 
 void QRSVD
@@ -1004,6 +1022,19 @@ void QRSVD
   else if( info > 0 )
   {
     ErrorHandling("dgesvd's updating process failed");
+  }
+
+  for( Int j = 0; j < std::min(m,n); ++j ) {
+
+    auto* U_j  = U      + j*ldu;
+    auto* VT_j = VTrans + j;
+
+    auto max_ui = std::max_element( U_j, U_j + m, abs_compare<double> );
+    if( std::signbit( *max_ui ) ) {
+      blas::Scal( m, -1., U_j,  1    );
+      blas::Scal( n, -1., VT_j, ldvt );
+    }
+
   }
 }
 
