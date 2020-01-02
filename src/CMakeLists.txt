@@ -64,6 +64,7 @@ target_link_libraries( libdgdft
     DGDFT::external
     DGDFT::tpl_depends
 )
+target_compile_features( libdgdft PUBLIC cxx_std_11 )
 
 target_include_directories( libdgdft 
   PUBLIC

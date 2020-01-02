@@ -1,3 +1,7 @@
+if( "ilp64" IN_LIST IBMESSL_FIND_COMPONENTS AND "lp64" IN_LIST IBMESSL_FIND_COMPONENTS )
+  message( FATAL_ERROR "IBMESSL cannot link to both ILP64 and LP64 iterfaces" )
+endif()
+
 set( ibmessl_LP64_SERIAL_LIBRARY_NAME  "essl"        )
 set( ibmessl_LP64_SMP_LIBRARY_NAME     "esslsmp"     )
 set( ibmessl_ILP64_SERIAL_LIBRARY_NAME "essl6464"    )
@@ -16,6 +20,7 @@ else()
   set( ibmessl_ILP64_LIBRARY_NAME ${ibmessl_ILP64_SERIAL_LIBRARY_NAME} )
 endif()
 
+
 find_path( ibmessl_INCLUDE_DIR
   NAMES essl.h
   HINTS ${ibmessl_PREFIX}
@@ -24,42 +29,45 @@ find_path( ibmessl_INCLUDE_DIR
   DOC "IBM(R) ESSL header"
 )
 
-
-if( ibmessl_INCLUDE_DIR )
-  set( IBMESSL_INCLUDE_DIR ${ibmessl_INCLUDE_DIR} )
-endif()
-
-# Handle LP64 / ILP64
 find_library( ibmessl_LP64_LIBRARY
   NAMES ${ibmessl_LP64_LIBRARY_NAME}
   HINTS ${ibmessl_PREFIX}
   PATHS ${ibmessl_LIBRARY_DIR} ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES} 
   PATH_SUFFIXES lib lib64 lib32
-  DOC "IBM(R) ESSL Library (LP64)"
+  DOC "IBM(R) ESSL Library"
 )
 
 find_library( ibmessl_ILP64_LIBRARY
-  NAMES ${ibmessl_ILP64_LIBRARY_NAME}
+  NAMES ${ibmessl_LP64_LIBRARY_NAME}
   HINTS ${ibmessl_PREFIX}
   PATHS ${ibmessl_LIBRARY_DIR} ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES} 
   PATH_SUFFIXES lib lib64 lib32
-  DOC "IBM(R) ESSL Library (ILP64)"
+  DOC "IBM(R) ESSL Library"
 )
 
-if( ibmessl_LP64_LIBRARY )
-  set( IBMESSL_lp64_FOUND TRUE )
-endif()
 if( ibmessl_ILP64_LIBRARY )
   set( IBMESSL_ilp64_FOUND TRUE )
 endif()
 
-# Default to LP64
-if( "ilp64" IN_LIST IBMESSL_FIND_COMPONENTS )
-  set( IBMESSL_LIBRARIES ${ibmessl_ILP64_LIBRARY} )
-else()
-  set( IBMESSL_LIBRARIES ${ibmessl_LP64_LIBRARY} )
+if( ibmessl_LP64_LIBRARY )
+  set( IBMESSL_lp64_FOUND TRUE )
 endif()
 
+if( "ilp64" IN_LIST IBMESSL_FIND_COMPONENTS )
+  set( ibmessl_LIBRARY ${ibmessl_ILP64_LIBRARY} )
+else()
+  set( ibmessl_LIBRARY ${ibmessl_LP64_LIBRARY} )
+endif()
+
+
+
+if( ibmessl_INCLUDE_DIR )
+  set( IBMESSL_INCLUDE_DIR ${ibmessl_INCLUDE_DIR} )
+endif()
+
+if( ibmessl_LIBRARY )
+  set( IBMESSL_LIBRARIES ${ibmessl_LIBRARY} )
+endif()
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args( IBMESSL
