@@ -62,7 +62,7 @@ class Spinor {
 private:
   Domain            domain_;                // mesh should be used here for general cases 
 #ifdef _COMPLEX_
-  NumTns<Complex>      wavefun_;               // Local data of the wavefunction 
+  NumTns<Complex>   wavefun_;               // Local data of the wavefunction 
 #else
   NumTns<Real>      wavefun_;               // Local data of the wavefunction 
 #endif
