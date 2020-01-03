@@ -9,3 +9,7 @@ Then, run the following command to make the website:
    sphinx-build -b html . doc_html
 
 The html pages will be built from the source files. 
+
+.md are for working notes (easier to type math equations etc)
+
+.rst are for sphinx documentation

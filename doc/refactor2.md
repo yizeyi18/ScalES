@@ -1,6 +1,8 @@
-TODO List   {#pageTODO}
-=========
-@todo
+Refactor2 of DGDFT
+==================
+
+This is a list from the 2nd major refactoring of DGDFT.
+
 - A better way to handle various exchange correlation functionals
   - Initialization, finalizing phase
   - Category: (LDA, GGA, Hybrid, Meta, VdW) + (XCId / XId+CId). Or just
