@@ -1,0 +1,228 @@
+%
+\documentclass{article}
+\usepackage{color, xcolor, colortbl}
+\usepackage{graphicx,epstopdf}
+\usepackage{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{bm}
+\usepackage[caption=false]{subfig}
+\usepackage{appendix}
+\usepackage{multirow}
+\usepackage{braket}
+\usepackage{hyperref}
+\usepackage[capitalize]{cleveref}
+\usepackage[english]{babel}
+
+
+\newcommand{\bvec}[1]{\mathbf{#1}}
+
+\newcommand{\va}{\bvec{a}}
+\newcommand{\vb}{\bvec{b}}
+\newcommand{\vc}{\bvec{c}}
+\newcommand{\vd}{\bvec{d}}
+\newcommand{\ve}{\bvec{e}}
+\newcommand{\vf}{\bvec{f}}
+\newcommand{\vg}{\bvec{g}}
+\newcommand{\vh}{\bvec{h}}
+\newcommand{\vi}{\bvec{i}}
+\newcommand{\vj}{\bvec{j}}
+\newcommand{\vk}{\bvec{k}}
+\newcommand{\vl}{\bvec{l}}
+\newcommand{\vm}{\bvec{m}}
+\newcommand{\vn}{\bvec{n}}
+\newcommand{\vo}{\bvec{o}}
+\newcommand{\vp}{\bvec{p}}
+\newcommand{\vq}{\bvec{q}}
+\newcommand{\vr}{\bvec{r}}
+\newcommand{\vs}{\bvec{s}}
+\newcommand{\vt}{\bvec{t}}
+\newcommand{\vu}{\bvec{u}}
+\newcommand{\vv}{\bvec{v}}
+\newcommand{\vw}{\bvec{w}}
+\newcommand{\vx}{\bvec{x}}
+\newcommand{\vy}{\bvec{y}}
+\newcommand{\vz}{\bvec{z}}
+
+\newcommand{\vF}{\bvec{F}}
+\newcommand{\vR}{\bvec{R}}
+
+
+%\newcommand{\diag}{\mathrm{diag}~}
+\renewcommand{\Re}{\mathrm{Re}}
+\renewcommand{\Im}{\mathrm{Im}}
+\newcommand{\I}{\mathrm{i}}
+
+\newcommand{\Tr}{\mathrm{Tr}}
+
+\newcommand{\mc}[1]{\mathcal{#1}}
+\newcommand{\mf}[1]{\mathfrak{#1}}
+\newcommand{\wt}[1]{\widetilde{#1}}
+
+\newcommand{\abs}[1]{\left\lvert#1\right\rvert}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+
+
+\newcommand{\ud}{\,\mathrm{d}}
+\newcommand{\Or}{\mathcal{O}}
+\newcommand{\EE}{\mathbb{E}}
+\newcommand{\NN}{\mathbb{N}}
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\CC}{\mathbb{C}}
+\newcommand{\ZZ}{\mathbb{Z}}
+
+% For electronic structure
+\newcommand{\ext}{\mathrm{ext}}
+\newcommand{\ee}{\mathrm{ee}}
+\newcommand{\II}{\mathrm{II}}
+\renewcommand{\c}{\mathrm{c}}
+\newcommand{\x}{\mathrm{x}}
+\newcommand{\Hxc}{\mathrm{Hxc}}
+\newcommand{\xc}{\mathrm{xc}}
+\newcommand{\eff}{\mathrm{eff}}
+
+
+\newtheorem{thm}{\protect\theoremname}
+\theoremstyle{plain}
+\newtheorem{lem}[thm]{\protect\lemmaname}
+\theoremstyle{remark}
+\newtheorem{rem}[thm]{\protect\remarkname}
+\theoremstyle{plain}
+\newtheorem*{lem*}{\protect\lemmaname}
+\theoremstyle{plain}
+\newtheorem{prop}[thm]{\protect\propositionname}
+\theoremstyle{plain}
+\newtheorem{cor}[thm]{\protect\corollaryname}
+\newtheorem{assumption}[thm]{Assumption}
+\newtheorem{defn}[thm]{Definition}
+\newtheorem{notation}[thm]{Notation}
+\newtheorem{fact}[thm]{Fact}
+\providecommand{\corollaryname}{Corollary}
+\providecommand{\lemmaname}{Lemma}
+\providecommand{\propositionname}{Proposition}
+\providecommand{\remarkname}{Remark}
+\providecommand{\theoremname}{Theorem}
+
+\newcommand{\LL}[1]{\textcolor{blue}{[LL:#1 ]}}
+
+
+\begin{document}
+
+%+Title
+\title{DGDFT: Developer's manual}
+\author{Authors}
+\date{\today}
+\maketitle
+
+
+\section{Introduction}
+
+The main goal of thisa developer's manual is to document and explain the implementation and design choices, that are neither simple to be documented directly in the code, nor suitable for publication in the literature.  
+
+\section{Energy evaluation}
+
+The Kohn-Sham total energy takes the form
+\begin{equation}
+    \begin{aligned}
+    E^{\text{KS}}=& \frac{1}{2} \sum_{i=1}^{N} \int \left|\nabla \psi_{i}(\vr)\right|^{2} \ud \vr +\sum_{I} \int V_{\text{loc}, I}\left(\vr-\vR_{I}\right) \rho(\vr) \ud \vr +\frac{1}{2} \iint v_C(\vr,\vr')\rho(\vr) \rho(\vr') \ud \vr \ud \vr'\\
+    &+\int E_{\text{xc}}[\rho(\vr)]\ud \vr+\sum_{I} \sum_{i=1}^{N} \sum_{l=1}^{L} \gamma_{I, \ell}\left(\int \psi_{i}(\vr) b_{I, \ell}\left(\vr-\vR_{I}\right)\right)^{2} +E_{\II}. 
+    \end{aligned}
+\label{eqn:KSEnergy}
+\end{equation}
+Here $V_{\text{loc},I}$ is the local component of the pseudopotential from the $I$-th atom, $\gamma_{I,\ell},b_{I,\ell}$ are the $\ell$-th nonlocal pseudopotential of the $I$-th atom, and $v_C$ is the Coulomb kernel, and sometimes we just write
+\begin{equation}
+v_C(\vr,\vr')=\frac{1}{|\vr-\vr'|}
+\label{eqn:vC}
+\end{equation}
+even when periodic boundary conditions are used. 
+We may also write the nonlocal pseudopotential as
+\begin{equation}
+V_{\text{nl}}(\vr,\vr';\{\vR_{I}\})=\sum_{I=1}^{M}\sum_{\ell=1}^{L_{I}} \gamma_{\ell,I}
+  b_{\ell,I}(\vr-\vR_{I}) b_{\ell,I}^{*}(\vr'-\vR_{I}).
+\label{eqn:nonlocal}
+\end{equation}
+
+We have omitted the integration domain $\Omega$ (in PWDFT / DGDFT we always assume the periodic boundary condition), and omitted the technical issues associated with the periodic boundary conditions (such as Ewald summation, which will be properly taken into account in the pseudocharge formulation). So we may write the ion-ion interaction term as
+
+\begin{equation}
+E_{\II}=\frac12 \sum_{I\ne J} Z_I Z_J v_C(\vR_I,\vR_J).
+\label{eqn:ionionenergy}
+\end{equation}
+
+In the diagonalization procedure, the total energy can also be evaluated as
+
+\begin{equation}
+  E^{\text{KS}}=\sum_{i=1}^N \varepsilon_i - \frac{1}{2} \iint v_C(\vr,\vr')\rho(\vr) \rho(\vr') \ud \vr \ud \vr-\int
+    \rho(\vr)V_{\xc}[\rho](\vr) \ud \vr+E_{\xc}[\rho] + E_{\II}.
+  \label{eqn:KSEnergy2}
+\end{equation}
+
+ 
+\section{Force evaluation}\label{sec:force}
+
+This section documents the evaluation of the Hellmann-Feynman force in PWDFT / DGDFT with the ONCV pseudopotential, as well as the rationale for choosing certain representation over others. In particular, we explain the ways to evaluate the local component of the force using the technique of pseudocharge / local pseudopotential + compensation charge, and the evaluation of the nonlocal component of the force using the density matrix formulation.
+
+Once the SCF iteration
+reaches convergence, the force on the $I$-th atom can be
+computed as the negative derivative of the total energy with respect to
+the atomic position $\vR_{I}$:
+\begin{equation}
+  \vF_{I} = -\frac{\partial E^{\text{KS}}(\{\vR_{I}\})}{\partial
+  \vR_{I}}.
+  \label{eqn:forceDef}
+\end{equation}
+The cost of the force calculation is
+greatly reduced via the Hellmann-Feynman theorem,
+which states that, at self-consistency,
+the partial derivative $\frac{\partial}{\partial \vR_{I}}$ only needs to be applied to
+terms in \cref{eqn:KSEnergy} which depend \textit{explicitly} on the
+atomic position $\vR_{I}$. The Hellmann-Feynman (HF) force is then given by
+\begin{equation}
+  \begin{split}
+    \vF_{I} = &-\int \frac{\partial
+    V_{\text{loc}}}{\partial \vR_{I}}(\vr;\{\vR_{I}\}) \rho(\vr) \ud \vr
+    - \sum_{i=1}^{N} \int \psi_{i}^{*}(\vr)
+    \frac{\partial V_{\text{nl}}}{\partial \vR_{I}}(\vr,\vr';\{\vR_{I}\})
+    \psi_{i}(\vr') \ud \vr \ud \vr'\\
+    &+ \sum_{J\ne I}\frac{Z_{I}Z_{J}}{\abs{\vR_{I}-\vR_{J}}^3}(\vR_{I}-\vR_{J}).
+  \end{split}
+  \label{eqn:forceHF1}
+\end{equation}
+
+Using integration by parts, the force can be rewritten as
+\begin{equation}
+  \begin{split}
+    \vF_{I} = &\int \nabla_{\vr} V_{\text{loc},I}(\vr-\vR_{I})
+    \rho(\vr) \ud \vr\\
+    & + 2 \Re \sum_{i=1}^{N} \sum_{\ell=1}^{L_{I}} \gamma_{I,\ell}
+    \left(\int \psi^{*}_{i}(\vr) \nabla_{\vr} b_{I,\ell}(\vr-\vR_{I}) \ud \vr \right)
+    \left(\int b^{*}_{I,\ell}(\vr'-\vR_{I}) \psi_{i}(\vr') \ud \vr' \right)\\
+    & + \sum_{J\ne I}\frac{Z_{I}Z_{J}}{\abs{\vR_{I}-\vR_{J}}^3}(\vR_{I}-\vR_{J}).
+  \end{split}
+  \label{eqn:forceHF2}
+\end{equation}
+We can further split the force into the local component,
+\begin{equation}
+ \vF_{\text{loc},I}=\int \nabla_{\vr} V_{\text{loc},I}(\vr-\vR_{I})
+    \rho(\vr) \ud \vr+ \sum_{J\ne I}\frac{Z_{I}Z_{J}}{\abs{\vR_{I}-\vR_{J}}^3}(\vR_{I}-\vR_{J})
+\label{eqn:force_loc}
+\end{equation}
+and the nonlocal component
+\begin{equation}
+ \vF_{\text{nl},I}= 2 \Re \sum_{i=1}^{N} \sum_{\ell=1}^{L_{I}} \gamma_{I,\ell}
+    \left(\int \psi^{*}_{i}(\vr) \nabla_{\vr} b_{I,\ell}(\vr-\vR_{I}) \ud \vr \right)
+    \left(\int b^{*}_{I,\ell}(\vr'-\vR_{I}) \psi_{i}(\vr') \ud \vr' \right).
+\label{eqn:force_nl}
+\end{equation}
+
+\subsection{Local component}
+
+The local pseudopotential $V_{\text{loc},I}(\vr)$ decays as $1/|\vr|$ as $|\vr|\to \infty$ and so is the ion-ion interaction. Therefore the direct evaluation of \cref{eqn:forceHF2} would be too costly. 
+
+\subsection{Nonlocal component}
+
+\end{document}
+
+
+

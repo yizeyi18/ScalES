@@ -11,3 +11,11 @@
       overflow: visible !important;
    }
 }
+
+/* override floating position of equation numbers*/
+span.eqno {
+    margin-left: 5px;
+    margin-right: -2em;
+    float: right;
+    font-style: italic;
+}

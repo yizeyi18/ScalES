@@ -1,9 +1,10 @@
-Welcome to DGDFT's documentation!
+Wlcome to DGDFT's documentation!
 =================================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+
    
    introduction
    install
@@ -11,4 +12,5 @@ Welcome to DGDFT's documentation!
    inputdgdft
    tutorial
    FAQ
+   developer
 
