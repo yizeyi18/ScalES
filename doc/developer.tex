@@ -118,7 +118,7 @@
 
 \section{Introduction}
 
-The main goal of thisa developer's manual is to document and explain the implementation and design choices, that are neither simple to be documented directly in the code, nor suitable for publication in the literature.  
+The main goal of this developer's manual is to document and explain the implementation and design choices, that are neither simple to be documented directly in the code, nor suitable for publication in the literature.  
 
 \section{Energy evaluation}
 
@@ -185,7 +185,8 @@ atomic position $\vR_{I}$. The Hellmann-Feynman (HF) force is then given by
     - \sum_{i=1}^{N} \int \psi_{i}^{*}(\vr)
     \frac{\partial V_{\text{nl}}}{\partial \vR_{I}}(\vr,\vr';\{\vR_{I}\})
     \psi_{i}(\vr') \ud \vr \ud \vr'\\
-    &+ \sum_{J\ne I}\frac{Z_{I}Z_{J}}{\abs{\vR_{I}-\vR_{J}}^3}(\vR_{I}-\vR_{J}).
+    &-\frac{\partial E_{\II}(\{\vR_{I}\})}{\partial
+  \vR_{I}}.
   \end{split}
   \label{eqn:forceHF1}
 \end{equation}
@@ -198,14 +199,16 @@ Using integration by parts, the force can be rewritten as
     & + 2 \Re \sum_{i=1}^{N} \sum_{\ell=1}^{L_{I}} \gamma_{I,\ell}
     \left(\int \psi^{*}_{i}(\vr) \nabla_{\vr} b_{I,\ell}(\vr-\vR_{I}) \ud \vr \right)
     \left(\int b^{*}_{I,\ell}(\vr'-\vR_{I}) \psi_{i}(\vr') \ud \vr' \right)\\
-    & + \sum_{J\ne I}\frac{Z_{I}Z_{J}}{\abs{\vR_{I}-\vR_{J}}^3}(\vR_{I}-\vR_{J}).
+    & -\frac{\partial E_{\II}(\{\vR_{I}\})}{\partial
+  \vR_{I}}.
   \end{split}
   \label{eqn:forceHF2}
 \end{equation}
 We can further split the force into the local component,
 \begin{equation}
  \vF_{\text{loc},I}=\int \nabla_{\vr} V_{\text{loc},I}(\vr-\vR_{I})
-    \rho(\vr) \ud \vr+ \sum_{J\ne I}\frac{Z_{I}Z_{J}}{\abs{\vR_{I}-\vR_{J}}^3}(\vR_{I}-\vR_{J})
+    \rho(\vr) \ud \vr-\frac{\partial E_{\II}(\{\vR_{I}\})}{\partial
+  \vR_{I}}.
 \label{eqn:force_loc}
 \end{equation}
 and the nonlocal component
@@ -218,9 +221,71 @@ and the nonlocal component
 
 \subsection{Local component}
 
-The local pseudopotential $V_{\text{loc},I}(\vr)$ decays as $1/|\vr|$ as $|\vr|\to \infty$ and so is the ion-ion interaction. Therefore the direct evaluation of \cref{eqn:forceHF2} would be too costly. 
+The local pseudopotential $V_{\text{loc},I}(\vr)$ decays as $1/|\vr|$ as $|\vr|\to \infty$ and so is the ion-ion interaction. Therefore the direct evaluation of \cref{eqn:forceHF2} would be too costly. There are two ways to overcome this issue. The first is the \textit{pseudocharge formulation}. Define
+\begin{equation}
+V_{\text{loc},I}(\vr)=\int v_C(\vr,\vr') \rho_{\text{loc},I}(\vr')\ud \vr,
+\label{eqn:pseudocharge}
+\end{equation}
+where $\rho_{\text{loc},I}$ is the pseudocharge and is localized in the real space. Assuming the pseudocharges from different atoms do not overlap (this turns out to be a severe restriction when atoms are close to each other, and corrections need to be included when this is violated, see \cite{PaskSterne2005,SolerArtachoGaleEtAl2002}), then the ion-ion interaction energy can be written (using Gauss's law) as 
+\begin{equation}
+\begin{aligned}
+E_{\II}=&\frac12 \iint v_C(\vr,\vr') \rho_{\text{loc}}(\vr)\rho_{\text{loc}}(\vr') \ud \vr \ud \vr' -\frac12  \sum_{I} \iint v_C(\vr,\vr') \rho_{\text{loc},I}(\vr)\rho_{\text{loc},I}(\vr') \ud \vr \ud \vr'\\
+=&\frac12  \iint v_C(\vr,\vr') \rho_{\text{loc}}(\vr)\rho_{\text{loc}}(\vr') \ud \vr \ud \vr' - \frac12 \sum_{I} \int V_{\text{loc},I}(\vr) \rho_{\text{loc},I}(\vr) \ud \vr.
+\end{aligned}
+\label{eqn:EII_pseudocharge}
+\end{equation}
+The second term in \cref{eqn:EII_pseudocharge} is a constant and is independent of the atomic position. So it does not contribute to the force. The contribution from the first term is
+\[
+ -\frac{\partial E_{\II}(\{\vR_{I}\})}{\partial
+  \vR_{I}}=\int V_{\text{loc}}(\vr) \nabla_\vr \rho_{\text{loc},I}(\vr) \ud \vr=-\int  \nabla_\vr V_{\text{loc}}(\vr) \rho_{\text{loc},I}(\vr) \ud \vr.
+\]
+Here we have used integration by parts as well as the periodic boundary condition. Then using integration by parts again, the contribution to the local component of the force is
+\begin{equation}
+\begin{aligned}
+\vF_{\text{loc},I}=&\int \nabla_{\vr} \rho_{\text{loc},I}(\vr-\vR_{I})
+    V_{\text{H}}(\vr) \ud \vr-\int  \nabla_\vr V_{\text{loc}}(\vr) \rho_{\text{loc},I}(\vr) \ud \vr\\
+=&-
+    \int  \nabla_\vr (V_{\text{H}}(\vr)+V_{\text{loc}}(\vr)) \rho_{\text{loc},I}(\vr) \ud \vr
+\end{aligned}
+\label{eqn:force_loc2}
+\end{equation}
+Note that although $V_{\text{H}}(\vr),V_{\text{loc}}(\vr)$ are themselves difficult to evaluate due to the long range interaction, \textit{for charge neural systems},  their sum
+\[
+V_{\text{H}}(\vr)+V_{\text{loc}}(\vr)=\int v_C(\vr,\vr') (\rho(\vr')+\rho_{\text{loc}}(\vr'))\ud \vr'
+\]
+can be conveniently evaluated by solving a Poisson's equation with periodic boundary conditions using FFT. 
+
+\begin{rem}
+There are two considerations in writing the formula above. The first is to avoid long range summation. The second is to avoid the explicit computation of $\nabla_\vr \rho_{\text{loc},I}$. This quantity is the third order derivative of $V_{\text{loc},I}$ which is actually provided by most pseudopotentials formats, and can be highly oscillatory.
+In fact, for many pseudopotentials (such as Troullier-Martins, and even the ONCV pseudopotential), even $\rho_{\text{loc},I}(\vr)$ is too oscillatory and cannot be directly used in a real space based code. Therefore one has to use the original $V_{\text{loc},I}$. This leads to the \texttt{Use\_VLocal} option in DGDFT. Therefore when TM and ONCV potentials are used, \texttt{Use\_VLocal} must be set to \texttt{true}.
+\end{rem}
+
+\begin{rem}
+In DGDFT, the electron density $\rho(\vr)$ is assumed to be positive, and hence the ionic charge must be negative. For legacy reason, $\rho_{\text{loc}}$ is stored with a  \textit{positive} total charge (the pointwise value can still be negative depending on the shape of the potential). So in the implementation, $\rho_{\text{loc}}$ should be interpreted as $-\rho_{\text{loc}}$. 
+\end{rem}
+
+When \texttt{Use\_VLocal==true}, we introduce the so called compensation charge to handle the long range interaction, denoted by $\rho_{\text{cp},I}$. The compensation charge is chosen to be a Gaussian function, so that its corresponding $V_{\text{cp},I}$ can be evaluated analytically. The $\sigma$ value of the Gaussian function is small enough so that the overlap of the compensation charges between any two atoms is negligible. Then 
+\[
+V_{\text{sr},I}(\vr)=V_{\text{loc},I}(\vr)-V_{\text{cp},I}(\vr)
+\] 
+becomes a short range potential that can be stored as a sparse vector. Clearly when $\rho_{\text{cp},I}=\rho_{\text{loc},I}$, the short range potential vanishes. Following the same derivation above, we find that the local component of the force is
+\begin{equation}
+\vF_{\text{loc},I}=- \int  \nabla_\vr \rho(\vr) V_{\text{sr},I}(\vr) \ud \vr-
+    \int  \nabla_\vr (V_{\text{H}}(\vr)+V_{\text{cp}}(\vr)) \rho_{\text{loc},I}(\vr) \ud \vr,
+\label{eqn:force_loc3}
+\end{equation}
+where $V_{\text{cp}}(\vr)=\sum_{I}V_{\text{cp},I}(\vr)$. This is the formulation used in PWDFT and DGDFT. 
+
+\begin{rem}
+In \cref{eqn:force_loc3}, we again choose not to compute the gradient for $V_{\text{sr},I}(\vr)$, but use integration by parts to move it to $\rho$, which is observed to be smoother. 
+\end{rem}
 
 \subsection{Nonlocal component}
+
+In DGDFT, the efficient way to evaluate the nonlocal contribution is through the reduced density matrix. This is documented in \cite[Eq. (29)]{ZhangLinHuEtAl2017}.
+
+\bibliographystyle{abbrv}
+\bibliography{developer}
 
 \end{document}
 
