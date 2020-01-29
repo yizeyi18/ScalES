@@ -4120,7 +4120,6 @@ HamiltonianDG::CalculateForceDM    (
   std::vector<DblNumVec>      vhartDrvLocal(DIM);
   DistDblNumVec   tempVec;
 
-
   vhart.SetComm( domain_.colComm );
   tempVec.SetComm( domain_.colComm );
 
@@ -4217,7 +4216,6 @@ HamiltonianDG::CalculateForceDM    (
         fft.isInGrid,
         domain_.colComm );
   }
-
 
   // *********************************************************************
   // Compute the force from local pseudopotential
