@@ -1216,6 +1216,30 @@ PeriodTable::CalculateVLocal(
   return ;
 }         // -----  end of method PeriodTable::CalculateVLocal  ----- 
 
+void
+PeriodTable::CalculateVLocal(
+    const Atom& atom, 
+    const Domain& dm,
+    const NumTns<std::vector<DblNumVec> >& gridposElem,
+    NumTns<SparseVec>& resVLocalSR, 
+    NumTns<SparseVec>& resGaussianPseudoCharge)
+{
+  Index3 numElem( gridposElem.m(), gridposElem.n(), gridposElem.p() );
+
+  resVLocalSR.Resize( numElem[0], numElem[1], numElem[2] );
+  resGaussianPseudoCharge.Resize( numElem[0], numElem[1], numElem[2] );
+
+  for( Int elemk = 0; elemk < numElem[2]; elemk++ )
+    for( Int elemj = 0; elemj < numElem[1]; elemj++ )
+      for( Int elemi = 0; elemi < numElem[0]; elemi++ ){
+        CalculateVLocal( atom, dm, 
+            gridposElem(elemi, elemj, elemk),
+            resVLocalSR( elemi, elemj, elemk ),
+            resGaussianPseudoCharge( elemi, elemj, elemk ) );
+      } // for (elemi)
+
+  return;
+}       // ------ end of method PeriodTable::CalculateVLocal  --------
 
 Real PeriodTable::SelfIonInteraction(Int type) 
 {
@@ -1231,7 +1255,7 @@ Real PeriodTable::SelfIonInteraction(Int type)
   }
   
   return eself;
-}         // -----  end of method PeriodTable::CalculateVLocal  ----- 
+}         // -----  end of method PeriodTable::SelfIonInteraction ---- 
 
 
 

@@ -1487,7 +1487,6 @@ namespace  dgdft{
 #else
                   DblNumTns& wavefun = psi.Wavefun();
 #endif
-
                   // LL: 11/11/2019.
                   // For debugging purposes, let all eigenfunctions have non-negative averages. 
                   // This should fix the sign flips due to LAPACK (but this would not fix the problem
@@ -1502,7 +1501,6 @@ namespace  dgdft{
                       blas::Scal( psi.NumGridTotal(), sgn, psi.Wavefun().VecData(0,l), 1 );
                     }
                   }
-
 
                   DblNumTns&   LGLWeight3D = hamDG.LGLWeight3D();
                   DblNumTns    sqrtLGLWeight3D( numLGLGrid[0], numLGLGrid[1], numLGLGrid[2] );
@@ -8180,10 +8178,12 @@ namespace  dgdft{
                   }
                   // Note: Heuristics strategy for dynamically adjusting the
                   // tolerance
+                  /*
                   pexsiOptions_.muInertiaTolerance = 
                     std::min( std::max( muInertiaToleranceTarget_, 0.1 * scfOuterNorm_ ), 0.01 );
                   pexsiOptions_.numElectronPEXSITolerance = 
                     std::min( std::max( numElectronPEXSIToleranceTarget_, 1.0 * scfOuterNorm_ ), 0.5 );
+                    */
 
                   // Only perform symbolic factorization for the first outer SCF. 
                   // Reuse the previous Fermi energy as the initial guess for mu.
@@ -8259,9 +8259,11 @@ namespace  dgdft{
 #endif
 
 #ifndef ELSI
+                pexsiOptions_.method = esdfParam.pexsiMethod;
+                pexsiOptions_.nPoints = esdfParam.pexsiNpoint;
                 GetTime( timeSta );
                 // Old version of PEXSI driver, uses inertia counting + Newton's iteration
-                if(1){
+                if(0){
                   PPEXSIDFTDriver(
                       pexsiPlan_,
                       pexsiOptions_,
@@ -8277,23 +8279,21 @@ namespace  dgdft{
 
                 // New version of PEXSI driver, uses inertia count + pole update
                 // strategy. No Newton's iteration. But this is not very stable.
-//                if(0){
-//                  PPEXSIDFTDriver2(
-//                      pexsiPlan_,
-//                      pexsiOptions_,
-//                      numElectronExact,
-//                      &muPEXSI,
-//                      &numElectronPEXSI,         
-//                      &muMinInertia,              
-//                      &muMaxInertia,             
-//                      &numTotalInertiaIter,
-//                      &info );
-//                }
+                if(1){
+                  PPEXSIDFTDriver2(
+                      pexsiPlan_,
+                      &pexsiOptions_,
+                      numElectronExact,
+                      &muPEXSI,
+                      &numElectronPEXSI,         
+                      //&muMinInertia,              
+                      //&muMaxInertia,             
+                      &numTotalInertiaIter,
+                      &info );
+                }
 
                 // New version of PEXSI driver, use inertia count + pole update.
                 // two method of pole expansion. default is 2
-                int method = esdfParam.pexsiMethod;
-                int npoint = esdfParam.pexsiNpoint;
 
 //                if(0){
 //                  PPEXSIDFTDriver3(
@@ -9609,6 +9609,11 @@ namespace  dgdft{
 
           // Correction energy
           Ecor_   = (Exc_ - EVxc_) - Ehart_ - Eself_;
+          if( esdfParam.isUseVLocal == true ){
+            Ecor_ += hamDG.EIonSR();
+          }
+
+
 
           // Total energy
           Etot_ = Ekin_ + Ecor_;
@@ -9740,6 +9745,9 @@ namespace  dgdft{
 
           // Correction energy
           Ecor_   = (Exc_ - EVxc_) - Ehart_ - Eself_;
+          if( esdfParam.isUseVLocal == true ){
+            Ecor_ += hamDG.EIonSR();
+          }
 
           // Kinetic energy and helmholtz free energy, calculated from the
           // energy and free energy density matrices.
@@ -9889,6 +9897,9 @@ namespace  dgdft{
 
           // Correction energy.  
           Ecor   = (Exc - EVxc) - Ehart - Eself;
+          if( esdfParam.isUseVLocal == true ){
+            Ecor  += hamDG.EIonSR();
+          }
 
           // Harris free energy functional
           if( hamDG.NumOccupiedState() == 
@@ -10050,7 +10061,9 @@ namespace  dgdft{
 
           // Correction energy.  
           Ecor   = (Exc - EVxc) - Ehart - Eself;
-
+          if( esdfParam.isUseVLocal == true ){
+            Ecor  += hamDG.EIonSR();
+          }
 
 
           // The Helmholtz part of the free energy
@@ -10880,6 +10893,7 @@ namespace  dgdft{
         Print(statusOFS, "Exc               = ",  Exc_, "[au]"); 
         Print(statusOFS, "Evdw              = ",  Evdw_, "[au]"); 
         Print(statusOFS, "Eself             = ",  Eself_, "[au]");
+        Print(statusOFS, "EionSR            = ",  hamDG.EIonSR(), "[au]");
         Print(statusOFS, "Ecor              = ",  Ecor_, "[au]");
         Print(statusOFS, "Fermi             = ",  fermi_, "[au]");
 

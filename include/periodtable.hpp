@@ -7,8 +7,7 @@ Author: Lin Lin and Weile Jia
 This file is part of DGDFT. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
+modification, are permitted provided that the following conditions are met: 
 (1) Redistributions of source code must retain the above copyright notice, this
 list of conditions and the following disclaimer.
 (2) Redistributions in binary form must reproduce the above copyright notice,
@@ -270,6 +269,12 @@ public:
       SparseVec& resVLocalSR, 
       SparseVec& resGaussianPseudoCharge );
 
+void  CalculateVLocal(
+    const Atom& atom, 
+    const Domain& dm,
+    const NumTns<std::vector<DblNumVec> >& gridposElem,
+    NumTns<SparseVec>& resVLocalSR, 
+    NumTns<SparseVec>& resGaussianPseudoCharge);
 
 
   /// @brief Whether the atom type has nonlocal pseudopotential

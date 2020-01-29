@@ -230,6 +230,10 @@ private:
   bool                        XCInitialized_;
 
 
+  // compensation charge formulation 
+  DblNumMat           forceIonSR_;
+
+  Real                EIonSR_;                   // Short range repulsion energy for Gaussian charge
 
 
   // *********************************************************************
@@ -280,6 +284,9 @@ private:
   /// @brief External potential in the global domain. This is usually
   /// not used.
   DistDblNumVec    vext_;
+
+  /// @brief Short range part of the local pseudopotential
+  DistDblNumVec    vLocalSR_;
 
   /// @brief Hartree potential in the global domain.
   DistDblNumVec    vhart_;
@@ -507,6 +514,10 @@ public:
 
   std::vector<Atom>&  AtomList() { return atomList_; }
 
+  DblNumMat& ForceIonSR() { return forceIonSR_; }
+
+  Real EIonSR() { return EIonSR_; }
+
   Int NumSpin () { return numSpin_; }
 
   DblNumVec&  EigVal() { return eigVal_; }
@@ -577,8 +588,9 @@ public:
 
   Int NumExtraState() const { return numExtraState_; }
 
-};
 
+  void CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable );
+};
 
 
 /// @brief Computes the inner product of three terms.
