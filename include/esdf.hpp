@@ -558,7 +558,23 @@ struct ESDFInputParam{
   ///                            external/ directory using the LOBPCG
   ///                            method but with BLAS3 for linear
   ///                            algebra operations.  (default)
-  std::string         PWSolver;                 
+  /// Default: "LOBPCG"
+  ///
+  /// - = "LOBPCG"       
+  /// - = "LOBPCGScaLAPACK"       
+  /// - = "PPCG"       
+  /// - = "PPCGScaLAPACK"       
+  /// - = "CheFSI"       
+  std::string         PWSolver;            
+
+  /// @brief Subblock size used in PPCG in PWDFT.  
+  ///
+  /// Default: "1"
+  ///
+  /// - = "1"       
+  /// - = "Nband+Extra_States" : Equivalent to LOBPCG      
+  Int                 PPCGsbSize;            
+
   /// @brief Method for solving the projected problem in the adaptive
   /// local basis set.
   ///
@@ -1148,7 +1164,15 @@ struct ESDFInputParam{
 
   /// @brief This is NOT an input parameter, but records whether
   /// DGDFT is performed.
-  bool isDGDFT; 
+  bool isDGDFT;
+
+  // Inputs related to LRTDDFT  
+  bool isLRTDDFT;                 // Default 0
+  bool isOutputExcitationEnergy;  // Default 1
+  bool isOutputExcitationWfn;     // Default 0
+  Int  nvband;                    // Default 1
+  Int  ncband;                    // Default 1 
+
 };
 
 

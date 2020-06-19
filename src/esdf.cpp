@@ -644,6 +644,10 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"pw_solver");
   strcpy(kw_typ[i],"T:E");
+  
+  i++;
+  strcpy(kw_label[i],"ppcg_sbSize");
+  strcpy(kw_typ[i],"I:E");
 
   i++;
   strcpy(kw_label[i],"xc_type");
@@ -1200,6 +1204,26 @@ void esdf_key() {
   strcpy(kw_label[i],"tddft_diis_maxiter");
   strcpy(kw_typ[i],"I:E");
 
+  // LRTDDFT options
+  i++;
+  strcpy(kw_label[i],"lrtddft");
+  strcpy(kw_typ[i],"I:E");
+  
+  i++;
+  strcpy(kw_label[i],"output_excitation_energy");
+  strcpy(kw_typ[i],"I:E");
+  
+  i++;
+  strcpy(kw_label[i],"output_excitation_wfn");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i], "nvband");
+  strcpy(kw_typ[i], "I:E");
+
+  i++;
+  strcpy(kw_label[i], "ncband");
+  strcpy(kw_typ[i], "I:E");
 
 }
 
@@ -2639,7 +2663,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
     esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
     esdfParam.isUseAtomDensity = esdf_integer( "Use_Atom_Density", 0 );
-    esdfParam.isUseVLocal      = esdf_integer( "Use_VLocal", 1 );
+    esdfParam.isUseVLocal      = esdf_integer( "Use_VLocal", 0 );
     esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
     esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );
     esdfParam.isOutputDensity  = esdf_integer( "Output_Density", 0 );
@@ -2696,6 +2720,12 @@ ESDFReadInput ( const char* filename )
     esdfParam.numProcScaLAPACKPW  = esdf_integer( "Num_Proc_ScaLAPACK_PW", mpisize );
     esdfParam.scaBlockSize  = esdf_integer( "ScaLAPACK_Block_Size", 32 );
     esdfParam.extraElectron = esdf_integer( "Extra_Electron", 0);
+
+    // PPCG 
+    {
+      esdfParam.PPCGsbSize = esdf_integer( "PPCG_sbSize", 1);
+    }
+
   }
 
 
@@ -3086,6 +3116,18 @@ ESDFReadInput ( const char* filename )
     ErrorHandling(msg.str());
   }
 
+  // *********************************************************************
+  // LRTDDFT
+  // *********************************************************************
+    
+  {
+	  esdfParam.isLRTDDFT = esdf_integer("LRTDDFT", 0);
+	  esdfParam.isOutputExcitationEnergy = esdf_integer("Output_Excitation_Energy", 0);
+	  esdfParam.isOutputExcitationWfn = esdf_integer("Output_Excitation_Wfn", 0);
+	  esdfParam.nvband = esdf_integer("Nvband", 1);
+	  esdfParam.ncband = esdf_integer("Ncband", 1);
+  }
+
   return ;
 }        // -----  end of function ESDFReadInput  ----- 
 
@@ -3273,10 +3315,30 @@ void ESDFPrintInput( ){
     Print(statusOFS, "Hybrid DF Tolerance                  = ",  esdfParam.hybridDFTolerance);
     Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);
 
-    if( esdfParam.PWSolver == "LOBPCGScaLAPACK" ){
+    if( esdfParam.PWSolver == "LOBPCGScaLAPACK" || esdfParam.PWSolver == "PPCGScaLAPACK" ){
       Print(statusOFS, "Number of procs for ScaLAPACK (PW)   = ",  esdfParam.numProcScaLAPACKPW); 
       Print(statusOFS, "ScaLAPACK block                      = ",  esdfParam.scaBlockSize); 
     }
+    
+    if( esdfParam.PWSolver == "PPCG" || esdfParam.PWSolver == "PPCGScaLAPACK" ){
+      Print(statusOFS, "Subblock size (sbSize) in PPCG       = ",  esdfParam.PPCGsbSize); 
+    }
+
+    if( esdfParam.isLRTDDFT ){
+
+	    PrintBlock(statusOFS, "PWDFT LRTDDFT");
+
+	    if( esdfParam.densityGridFactor != 1.0 ){
+		    ErrorHandling( "Density_Grid_Factor != 1.0 is NOT supported in LRTDDFT." );
+	    }
+
+	    Print(statusOFS, "LRTDDFT                              = ",  esdfParam.isLRTDDFT);
+	    Print(statusOFS, "Output_Excitation_Energy             = ",  esdfParam.isOutputExcitationEnergy);
+	    Print(statusOFS, "Output_Excitation_Wfn                = ",  esdfParam.isOutputExcitationWfn);
+	    Print(statusOFS, "Nvband                               = ",  esdfParam.nvband);
+	    Print(statusOFS, "Ncband                               = ",  esdfParam.ncband);
+    }
+
   } // PW
 
   // Only master processor output information containing all atoms
