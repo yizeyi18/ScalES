@@ -1,10 +1,9 @@
 Plan for Refactor2020
 ==================
 
-Last revision: 07/14/2020 
+Last revision: 07/17/2020 
 
 This note serves as a todo list for the 3rd major refactoring of ``DGDFT``.  This has a different scope from the original plan 12/20/2019 (see below).
-
 
 General thoughts
 ----------------
@@ -113,13 +112,16 @@ Goals for the future
 
 - [ ] The ScaLAPACK diagonalization should be replaced by ELPA. More specifically, the diagonalization / PEXSI interface should be replaced by the ELSI interafce.
 
-Original plan in 12/20/2019
+
+Meeting memos
 ==================
+
+12/20/2019
+-------------------
 
 It includes the note for initial discussion on 12/20/2019. together with new updates from 
 
 Coding perspectives
--------------------
 
 -  [ ] Datatype. NumMatBase -> NumMat and NumMap for data structure that
    stores actual values / only view other NumMat. The allocator
@@ -139,7 +141,6 @@ Coding perspectives
 -  [ ] Encapsulate the ``AllForward / AllBackward`` operations (mainly in PWDFT).
 
 Functionality
--------------
 
 - [ ] LOBPCG should be reimplemented. There are two options: one is for safety (slower but accurate), and the other is for production (faster but may break).
 
@@ -148,17 +149,26 @@ Functionality
 - [ ] The ScaLAPACK diagonalization should be replaced by ELPA. More specifically, the diagonalization / PEXSI interface should be replaced by the ELSI interafce.
 
 Input variables
----------------
 
 - [ ] ``Use_VLocal`` should be deprecated. With ONCV pseudopotential being the default option, we should always use the branch  ``Use_VLocal==1``.
 
 Tests
------
 
 - [ ] Setup unit tests with google test.
 - [ ] Test examples for PW / DG / TD.
 
-
-Bug fixes
+7/17/2020
 ---------
-- [x] The force evaluation of DG with ``Use_VLocal==1`` is incorrect. 
+
+- Confirm that pwdft/ and realdg/ will only use real arithematics. Move all complex arithmetics to tddft/
+
+- device level implementation can involve separate functions in
+  xxx_device.hpp and xxx_device.cpp, but not separate classes. 
+
+- We will implement wrappers around different implementation of GPUs
+  based on Weile's plan.
+
+- For the first step, Weile will perform the initial step of cleaning up
+  the pwdft/ and tddft/ folders, and make them compilable (with some
+  minimal dependency). Then we will merge with Wei and David's contributions
+
