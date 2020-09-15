@@ -5,7 +5,6 @@
  * Remember to also include cuda_utils.cu, which 
  * contains manipulation functions.
  */
-#ifdef GPU
 #ifndef _CUDA_UTILS_
 #define _CUDA_UTILS_
 #include <assert.h>
@@ -16,9 +15,9 @@
 #include "cuComplex.h"
 #define NSTREAM 1
 #if 0
-#define CPU2GPU cudaMemcpyHostToDevice 
-#define GPU2CPU cudaMemcpyDeviceToHost 
-#define GPU2GPU cudaMemcpyDeviceToDevice 
+#define HOST2DEVICE cudaMemcpyHostToDevice 
+#define DEVICE2HOST cudaMemcpyDeviceToHost 
+#define DEVICE2DEVICE cudaMemcpyDeviceToDevice 
 #endif 
 
 #ifdef _PROFILING_
@@ -162,60 +161,59 @@ extern bool vtot_gpu_flag;
 extern bool NL_gpu_flag;
 extern bool teter_gpu_flag;
 
-void cuda_setValue( cuComplex* dev, cuComplex val, int len );
-void cuda_setValue( cuDoubleComplex* dev, cuDoubleComplex val, int len );
-void cuda_setValue( double* dev, double val, int len );
-void cuda_setValue( float* dev, float val, int len );
-void cuda_memcpy_GPU2GPU( void * dest, void * src, size_t size);
-void cuda_memcpy_GPU2CPU( void *cpu, void * gpu, size_t size );
-void cuda_memcpy_CPU2GPU( void *gpu, void * cpu, size_t size );
-void cuda_free( void *ptr);
-void *cuda_malloc( size_t size);
-void cuda_interpolate_wf_C2F( cuDoubleComplex * coarse_psi, cuDoubleComplex * fine_psi, int * index, int len, double factor);
-void cuda_interpolate_wf_F2C( cuDoubleComplex * fine_psi, cuDoubleComplex * coarse_psi, int * index, int len, double factor);
-void cuda_laplacian( cuDoubleComplex* psi, double * gkk, int len);
-void cuda_vtot( double* psi, double * vtot, int len);
-void cuda_vtot( cuDoubleComplex* psi, double * vtot, int len);
-void cuda_vtot( cuDoubleComplex* psi, cuDoubleComplex* vtot, int len);
-void cuda_memory(void);
-void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int * index, int * parts,  double * atom_weight, double * weight, int blocks);
-void cuda_calculate_nonlocal( cuDoubleComplex* psiUpdate, cuDoubleComplex* psi, double * NL, int * index, int * parts,  double * atom_weight, cuDoubleComplex* weight, int blocks);
-void cuda_teter( cuDoubleComplex* psi, double * vtot, int len);
-void cuda_teter( cuDoubleComplex* psi, cuDoubleComplex * vtot, int len);
-void cuda_mapping_to_buf( double * buf, double * psi, int * index, int len );
-void cuda_mapping_to_buf( cuDoubleComplex * buf, cuDoubleComplex * psi, int * index, int len );
-void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len );
-void cuda_mapping_from_buf( cuDoubleComplex * psi, cuDoubleComplex* buf, int * index, int len );
-void cuda_calculate_Energy( double * psi, double * energy, int nbands, int bandLen);
-void cuda_calculate_Energy( cuDoubleComplex* psi, double * energy, int nbands, int bandLen);
-void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen);
-void cuda_batch_Scal( cuDoubleComplex* psi, double * vec, int nband, int bandLen);
-void cu_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, double * eigen, int nbands, int bandLen);
-void cu_X_Equal_AX_minus_X_eigVal( cuDoubleComplex* Xtemp, cuDoubleComplex* AX, cuDoubleComplex* X, double * eigen, int nbands, int bandLen);
-void cuda_init_vtot();
-void cuda_clean_vtot();
-void cuda_reset_vtot_flag();
-void cuda_reset_nonlocal_flag();
-void cuda_DMatrix_Add( double * A , double * B, int m, int n);
-void cuda_Axpyz( double * X, double alpha, double * Y, double beta, double * Z, int length);
-void cuda_Axpyz( cuDoubleComplex* X, double alpha, cuDoubleComplex* Y, double beta, cuDoubleComplex* Z, int length);
-void cuda_cal_recvk( int * recvk, int * recvdisp, int width, int heightLocal, int mpisize);
-void cuda_cal_sendk( int * sendk, int * senddispl, int widthLocal, int height, int heightBlockSize, int mpisize);
-void cuda_hadamard_product( double * in1, double * in2, double * out, int length);
-void cuda_set_vector( double * out, double *in, int length);
-void cuda_set_vector( cuDoubleComplex* out, cuDoubleComplex *in, int length);
-void cuda_decompress_f2d( double *out, float *in, int length);
-void cuda_compress_d2f( float *out, double *in, int length);
-void cuda_XTX( cuDoubleComplex * X, double * Y, int length);
-void cuda_reduce( double * density, double * sum, int nbands, int bandLen);
-void cuda_Axpyz( cuDoubleComplex * X, double alpha, cuDoubleComplex * Y, double beta, cuDoubleComplex * Z, int length, int nbands);
-void cuda_teter( cuDoubleComplex* psi, double * vtot, int len, int nbands);
-void cuda_vtot( cuDoubleComplex * psi, cuDoubleComplex* vtot, int len, int nbands);
-void cuda_sync();
+void device_setValue( cuComplex* dev, cuComplex val, int len );
+void device_setValue( cuDoubleComplex* dev, cuDoubleComplex val, int len );
+void device_setValue( double* dev, double val, int len );
+void device_setValue( float* dev, float val, int len );
+void device_memcpy_DEVICE2DEVICE( void * dest, void * src, size_t size);
+void device_memcpy_DEVICE2HOST( void *cpu, void * gpu, size_t size );
+void device_memcpy_HOST2DEVICE( void *gpu, void * cpu, size_t size );
+void device_free( void *ptr);
+void *device_malloc( size_t size);
+void device_interpolate_wf_C2F( cuDoubleComplex * coarse_psi, cuDoubleComplex * fine_psi, int * index, int len, double factor);
+void device_interpolate_wf_F2C( cuDoubleComplex * fine_psi, cuDoubleComplex * coarse_psi, int * index, int len, double factor);
+void device_laplacian( cuDoubleComplex* psi, double * gkk, int len);
+void device_vtot( double* psi, double * vtot, int len);
+void device_vtot( cuDoubleComplex* psi, double * vtot, int len);
+void device_vtot( cuDoubleComplex* psi, cuDoubleComplex* vtot, int len);
+void device_memory(void);
+void device_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int * index, int * parts,  double * atom_weight, double * weight, int blocks);
+void device_calculate_nonlocal( cuDoubleComplex* psiUpdate, cuDoubleComplex* psi, double * NL, int * index, int * parts,  double * atom_weight, cuDoubleComplex* weight, int blocks);
+void device_teter( cuDoubleComplex* psi, double * vtot, int len);
+void device_teter( cuDoubleComplex* psi, cuDoubleComplex * vtot, int len);
+void device_mapping_to_buf( double * buf, double * psi, int * index, int len );
+void device_mapping_to_buf( cuDoubleComplex * buf, cuDoubleComplex * psi, int * index, int len );
+void device_mapping_from_buf( double * psi, double * buf, int * index, int len );
+void device_mapping_from_buf( cuDoubleComplex * psi, cuDoubleComplex* buf, int * index, int len );
+void device_calculate_Energy( double * psi, double * energy, int nbands, int bandLen);
+void device_calculate_Energy( cuDoubleComplex* psi, double * energy, int nbands, int bandLen);
+void device_batch_Scal( double * psi, double * vec, int nband, int bandLen);
+void device_batch_Scal( cuDoubleComplex* psi, double * vec, int nband, int bandLen);
+void device_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, double * eigen, int nbands, int bandLen);
+void device_X_Equal_AX_minus_X_eigVal( cuDoubleComplex* Xtemp, cuDoubleComplex* AX, cuDoubleComplex* X, double * eigen, int nbands, int bandLen);
+void device_init_vtot();
+void device_clean_vtot();
+void device_reset_vtot_flag();
+void device_reset_nonlocal_flag();
+void device_DMatrix_Add( double * A , double * B, int m, int n);
+void device_Axpyz( double * X, double alpha, double * Y, double beta, double * Z, int length);
+void device_Axpyz( cuDoubleComplex* X, double alpha, cuDoubleComplex* Y, double beta, cuDoubleComplex* Z, int length);
+void device_cal_recvk( int * recvk, int * recvdisp, int width, int heightLocal, int mpisize);
+void device_cal_sendk( int * sendk, int * senddispl, int widthLocal, int height, int heightBlockSize, int mpisize);
+void device_hadamard_product( double * in1, double * in2, double * out, int length);
+void device_set_vector( double * out, double *in, int length);
+void device_set_vector( cuDoubleComplex* out, cuDoubleComplex *in, int length);
+void device_decompress_f2d( double *out, float *in, int length);
+void device_compress_d2f( float *out, double *in, int length);
+void device_XTX( cuDoubleComplex * X, double * Y, int length);
+void device_reduce( double * density, double * sum, int nbands, int bandLen);
+void device_Axpyz( cuDoubleComplex * X, double alpha, cuDoubleComplex * Y, double beta, cuDoubleComplex * Z, int length, int nbands);
+void device_teter( cuDoubleComplex* psi, double * vtot, int len, int nbands);
+void device_vtot( cuDoubleComplex * psi, cuDoubleComplex* vtot, int len, int nbands);
+void device_sync();
+void device_set_vector( cuComplex* out, cuComplex *in, int length);
+void device_memcpy_Async_HOST2DEVICE( void *gpu, void * cpu, size_t size );
 void print_timing();
 void reset_time();
-void cuda_set_vector( cuComplex* out, cuComplex *in, int length);
-void cuda_memcpy_Async_CPU2GPU( void *gpu, void * cpu, size_t size );
 //}
-#endif
 #endif

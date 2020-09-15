@@ -54,12 +54,14 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "utility.hpp"
 #include  "esdf.hpp"
 #include  <xc.h>
-#ifdef GPU
-#include "cublas.hpp"
+#ifdef DEVICE
+#include "device_blas.hpp"
+#include "device_fft.hpp"
+#include "device_utility.hpp"
 #ifdef USE_MAGMA
 #include "magma.hpp"
 #else
-#include "cuSolver.hpp"
+#include "device_solver.hpp"
 #endif
 #endif
 namespace dgdft{
@@ -207,11 +209,6 @@ public:
   /// method due to the large cutoff radius
   virtual void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft ) = 0;
 
-#ifdef _COMPLEX_
-#ifdef GPU
-  virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft, bool isGPU ) = 0;
-#endif
-#endif
   virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft ) = 0;
 
   virtual void CalculateGradDensity( Fourier &fft ) = 0;
@@ -236,27 +233,18 @@ public:
   /// contribution of the force on the fine grid.
   virtual void CalculateForce ( Spinor& psi, Fourier& fft ) = 0;
 
-#ifdef _COMPLEX_
-#ifdef GPU
-  virtual void MultSpinor(Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& fft) = 0;
-  virtual void ACEOperator( cuCpxNumMat& cu_psi, Fourier& fft, cuCpxNumMat& cu_Hpsi) = 0;
-#endif
-  virtual void MultSpinor(Spinor& psi, NumTns<Complex>& a3, Fourier& fft) = 0;
-#else
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft) = 0;
-#endif
 
-#ifndef _COMPLEX_
-#ifdef GPU
-  virtual void MultSpinor(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft) = 0;
-  virtual void MultSpinor_old(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft) = 0;
-  virtual void ACEOperator( cuDblNumMat& cu_psi, Fourier& fft, cuDblNumMat& cu_Hpsi) = 0;
+#ifdef DEVICE
+  virtual void MultSpinor(Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft) = 0;
+  virtual void MultSpinor_old(Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft) = 0;
+  virtual void ACEOperator( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& cu_Hpsi) = 0;
 #endif
   virtual NumTns<Real>& PhiEXX() = 0;
 
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
 
-#ifdef GPU
+#ifdef DEVICE
   virtual void CalculateVexxACEGPU( Spinor& psi, Fourier& fft ) = 0;
   virtual void CalculateVexxACEDFGPU( Spinor& psi, Fourier& fft, bool isFixColumnDF ) = 0;
 #endif 
@@ -266,17 +254,7 @@ public:
   virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF ) = 0;
 
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
-#else
 
-#ifdef GPU
-  virtual void CalculateVexxACEGPU1( Spinor& psi, Fourier& fft ) = 0;
-#endif 
-  virtual void CalculateVexxACE( Spinor& psi, Fourier& fft ) = 0;
-  virtual NumTns<Complex>& PhiEXX() = 0;
-  virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
-  virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
-
-#endif
   
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
 
@@ -361,27 +339,12 @@ private:
   /// @brief Store all the orbitals for exact exchange calculation
   /// NOTE: This might impose serious memory constraint for relatively
   /// large systems.
-#ifdef _COMPLEX_
-  NumTns<Complex>             phiEXX_; 
-#else
   NumTns<Real>                phiEXX_; 
-#endif
-#ifdef _COMPLEX_
-  CpxNumMat                   vexxProj_; 
-#ifdef GPU
-  cuCpxNumMat                 cu_vexxProj_; 
-#endif
-#else
   DblNumMat                   vexxProj_; 
-#ifdef GPU
-  cuDblNumMat                 cu_vexxProj_; 
-#endif
+#ifdef DEVICE
+  deviceDblNumMat                 cu_vexxProj_; 
 #endif
   DblNumVec                   exxgkkR2C_;
-
-#ifdef _COMPLEX_
-  DblNumVec                   exxgkk_;
-#endif
 
 public:
 
@@ -404,11 +367,6 @@ public:
   virtual void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft );
   
   virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft );
-#ifdef _COMPLEX_
-#ifdef GPU
-  virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft, bool isGPU);
-#endif
-#endif
 
   virtual void CalculateGradDensity( Fourier& fft );
 
@@ -427,20 +385,12 @@ public:
   virtual void CalculateForce ( Spinor& psi, Fourier& fft );
 
   // Matrix vector multiplication
-#ifdef _COMPLEX_
-#ifdef GPU
-  virtual void MultSpinor(Spinor& psi, cuNumTns<cuDoubleComplex>& a3, Fourier& fft);
-  virtual void ACEOperator( cuCpxNumMat& cu_psi, Fourier& fft, cuCpxNumMat& cu_Hpsi) ;
-#endif
-  virtual void MultSpinor(Spinor& psi, NumTns<Complex>& a3, Fourier& fft);
-#else
   virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft);
 
-#ifdef GPU
-  virtual void MultSpinor(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft);
-  virtual void MultSpinor_old(Spinor& psi, cuNumTns<Real>& a3, Fourier& fft);
-  virtual void ACEOperator( cuDblNumMat& cu_psi, Fourier& fft, cuDblNumMat& cu_Hpsi) ;
-#endif
+#ifdef DEVICE
+  virtual void MultSpinor(Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft);
+  virtual void MultSpinor_old(Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft);
+  virtual void ACEOperator( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& cu_Hpsi) ;
 #endif
 
   /// @brief Update phiEXX by the spinor psi. The Phi are normalized in
@@ -451,7 +401,6 @@ public:
   /// while the wavefunction satisfies the normalization
   ///
   /// \sum |\psi(x)|^2 = 1, differing by a normalization constant. FIXME
-#ifndef _COMPLEX_
   virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
 
   virtual NumTns<Real>& PhiEXX() {return phiEXX_;}
@@ -459,7 +408,7 @@ public:
   /// @brief Construct the ACE operator
   virtual void CalculateVexxACE( Spinor& psi, Fourier& fft );
 
-#ifdef GPU
+#ifdef DEVICE
   /// @brief Construct the ACE operator
   virtual void CalculateVexxACEGPU( Spinor& psi, Fourier& fft );
   virtual void CalculateVexxACEDFGPU( Spinor& psi, Fourier& fft, bool isFixColumnDF );
@@ -469,17 +418,6 @@ public:
   virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF );
 
   virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
-#else
-
-#ifdef GPU
-  virtual void CalculateVexxACEGPU1( Spinor& psi, Fourier& fft );
-#endif
-  virtual void CalculateVexxACE( Spinor& psi, Fourier& fft );
-  virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
-  virtual NumTns<Complex>& PhiEXX() {return phiEXX_;}
-  virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
-
-#endif
 
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft );
 

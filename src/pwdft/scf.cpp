@@ -55,14 +55,14 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "utility.hpp"
 #include  "spinor.hpp"
 #include  "periodtable.hpp"
-#ifdef GPU
-#include "cuda_utils.h"
+#ifdef DEVICE
+#include  "device_blas.hpp"
+#include "device_utils.h"
 #ifdef USE_MAGMA
 #include  "magma.hpp"
 #else
-#include "cuSolver.hpp"
+#include "device_solver.hpp"
 #endif
-#include  "cublas.hpp"
 #endif
 
 namespace  dgdft{
@@ -346,13 +346,13 @@ SCF::Iterate (  )
 
 
 
-#ifdef GPU
-    cuda_init_vtot();
-    cublas::Init();
+#ifdef DEVICE
+    device_init_vtot();
+    DEVICE_BLAS::Init();
 #ifdef USE_MAGMA
     MAGMA::Init();
 #else
-    cuSolver::Init();
+    device_solver::Init();
 #endif
 #endif
   // Perform non-hybrid functional calculation first
@@ -512,7 +512,7 @@ SCF::Iterate (  )
     if( esdfParam.isHybridACE ){
       if( esdfParam.isHybridDF ){
 #ifndef _COMPLEX_
-#ifdef GPU
+#ifdef DEVICE
         ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
 #else
         ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
@@ -524,13 +524,8 @@ SCF::Iterate (  )
         isFixColumnDF = true;
       }
       else{
-#ifdef GPU
-#ifdef _COMPLEX_
-        statusOFS << " CalculateVexxACEGPU1 for Complex ..... scf.cpp line 526" << std::endl;
-        ham.CalculateVexxACEGPU1 ( psi, fft );
-#else
+#ifdef DEVICE
         ham.CalculateVexxACEGPU ( psi, fft );
-#endif
 #else
         ham.CalculateVexxACE ( psi, fft );
 #endif
@@ -680,7 +675,7 @@ SCF::Iterate (  )
 #ifndef _COMPLEX_
             ham.CalculateVexxACE ( psi, fft );
 #else  // complex
-#ifdef GPU
+#ifdef DEVICE
  	    statusOFS << " ham.CalculateVexxACEGPU1 ..... " << std::endl << std::endl;
             ham.CalculateVexxACEGPU1 ( psi, fft );
 #else
@@ -1049,7 +1044,7 @@ SCF::Iterate (  )
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
     
     GetTime( timeSta );
-#ifdef GPU
+#ifdef DEVICE
     // GPU version of pc-diis. 
     // note, ACE nested and scdiis can not work on GPU.
     if( esdfParam.hybridMixType == "pcdiis" ){
@@ -1202,22 +1197,22 @@ SCF::Iterate (  )
       Real zero = 0.0;
 
      
-#ifdef GPU
-    //cuda_init_vtot();
+#ifdef DEVICE
+    //device_init_vtot();
 #endif
       // Phi loop
       for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
       {
-      cuDblNumMat cu_psiMuT(numOccTotal, numOccTotal);
-      cuDblNumMat cu_HpsiMuT(numOccTotal, numOccTotal);
-      cuDblNumMat cu_psiRow( ntotLocal, numStateTotal );
-      cuDblNumMat cu_psiTemp(ntotLocal, numOccTotal);
-      cuDblNumMat cu_PcRow(ntotLocal, numOccTotal);
-      cuDblNumMat cu_HpsiCol(ntot, numStateLocal);
-      cuDblNumMat cu_psi(ntot, numStateLocal);
-      cuDblNumMat cu_HpsiRow(ntotLocal, numStateTotal);
-      cuDblNumMat cu_ResRow(ntotLocal, numOccTotal);
-      cuDblNumMat cu_psiPcRow(ntotLocal, numStateTotal);
+      deviceDblNumMat cu_psiMuT(numOccTotal, numOccTotal);
+      deviceDblNumMat cu_HpsiMuT(numOccTotal, numOccTotal);
+      deviceDblNumMat cu_psiRow( ntotLocal, numStateTotal );
+      deviceDblNumMat cu_psiTemp(ntotLocal, numOccTotal);
+      deviceDblNumMat cu_PcRow(ntotLocal, numOccTotal);
+      deviceDblNumMat cu_HpsiCol(ntot, numStateLocal);
+      deviceDblNumMat cu_psi(ntot, numStateLocal);
+      deviceDblNumMat cu_HpsiRow(ntotLocal, numStateTotal);
+      deviceDblNumMat cu_ResRow(ntotLocal, numOccTotal);
+      deviceDblNumMat cu_psiPcRow(ntotLocal, numStateTotal);
       cu_psiTemp.CopyFrom( psiTemp);
 
 
@@ -1235,9 +1230,9 @@ SCF::Iterate (  )
           DblNumMat psiMuTTemp(numOccTotal, numOccTotal);
           SetValue( psiMuTTemp, 0.0 );
 
-          cuDblNumMat cu_psiMuTTemp(numOccTotal, numOccTotal);
+          deviceDblNumMat cu_psiMuTTemp(numOccTotal, numOccTotal);
           cu_psiRow.CopyFrom(psiRow);
-          cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, 
+          DEVICE_BLAS::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, 
               &one, cu_psiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
               &zero, cu_psiMuTTemp.Data(), numOccTotal );
           cu_psiMuTTemp.CopyTo( psiMuTTemp );
@@ -1264,7 +1259,7 @@ SCF::Iterate (  )
         }
 #endif
         cu_psiMuT.CopyFrom( psiMuT);
-        cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &one, 
+        DEVICE_BLAS::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &one, 
             cu_psiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
             &zero, cu_PcRow.Data(), ntotLocal );
          cu_PcRow.CopyTo( PcRow );
@@ -1290,8 +1285,8 @@ SCF::Iterate (  )
           Int noccTotal = psi.NumStateTotal();
           Int noccLocal = psi.NumState();
 
-          cuda_memcpy_CPU2GPU(cu_psi.Data(), psi.Wavefun().Data(), ntot*numStateLocal*sizeof(Real) );
-          cuNumTns<Real> tnsTemp(ntot, 1, numStateLocal, false, cu_HpsiCol.Data());
+          device_memcpy_HOST2DEVICE(cu_psi.Data(), psi.Wavefun().Data(), ntot*numStateLocal*sizeof(Real) );
+          deviceNumTns<Real> tnsTemp(ntot, 1, numStateLocal, false, cu_HpsiCol.Data());
           // there are two sets of grid for Row parallelization. 
           // the old fashioned split and the Scalapack split.
           // note that they turns out to be different ones in that: 
@@ -1302,7 +1297,7 @@ SCF::Iterate (  )
           cu_HpsiCol.CopyTo(HpsiCol);
 
           // remember to reset the vtot
-          cuda_set_vtot_flag();
+          device_reset_vtot_flag();
           //ham.MultSpinor( psi, tnsTemp, fft );
         
           //SetValue( HpsiRow, 0.0 );
@@ -1319,10 +1314,10 @@ SCF::Iterate (  )
           if(1){
 
             DblNumMat HpsiMuTTemp(numOccTotal,numOccTotal);
-            cuDblNumMat cu_HpsiMuTTemp(numOccTotal,numOccTotal);
+            deviceDblNumMat cu_HpsiMuTTemp(numOccTotal,numOccTotal);
             //SetValue( HpsiMuTTemp, 0.0 );
 
-            cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, &one, 
+            DEVICE_BLAS::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, &one, 
                 cu_HpsiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
                 &zero, cu_HpsiMuTTemp.Data(), numOccTotal );
             cu_HpsiMuTTemp.CopyTo(HpsiMuTTemp);
@@ -1338,12 +1333,12 @@ SCF::Iterate (  )
 
           }//if
           
-          cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &one, 
+          DEVICE_BLAS::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &one, 
               cu_HpsiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
               &zero, cu_ResRow.Data(), ntotLocal );
 
           cu_HpsiMuT.CopyFrom( HpsiMuT );
-          cublas::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
+          DEVICE_BLAS::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
               cu_psiRow.Data(), ntotLocal, cu_HpsiMuT.Data(), numOccTotal, 
               &one, cu_ResRow.Data(), ntotLocal );
           cu_ResRow.CopyTo(ResRow);
@@ -1485,9 +1480,9 @@ SCF::Iterate (  )
 
             DblNumMat XTX(numOccTotal, numOccTotal);
             DblNumMat XTXTemp(numOccTotal, numOccTotal);
-            cuDblNumMat cu_XTXTemp(numOccTotal, numOccTotal);
+            deviceDblNumMat cu_XTXTemp(numOccTotal, numOccTotal);
             
-            cublas::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
+            DEVICE_BLAS::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
                 ntotLocal, cu_psiPcRow.Data(), ntotLocal, &zero, cu_XTXTemp.Data(), numOccTotal );
             cu_XTXTemp.CopyTo(XTXTemp);
 
@@ -1507,10 +1502,10 @@ SCF::Iterate (  )
 #ifdef USE_MAGMA
             MAGMA::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
 #else
-            cuSolver::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
+            device_solver::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
 #endif
 
-            cublas::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, 
+            DEVICE_BLAS::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, 
                           ntotLocal, numOccTotal, &one, cu_XTXTemp.Data(), numOccTotal, cu_psiPcRow.Data(),
                           ntotLocal);
             cu_psiPcRow.CopyTo( psiPcRow );
@@ -2244,14 +2239,14 @@ SCF::Iterate (  )
     
   } // isHybrid == true
 /*
-#ifdef GPU
-    cublas::Destroy();
+#ifdef DEVICE
+    DEVICE_BLAS::Destroy();
 #ifdef USE_MAGMA
     MAGMA::Destroy();
 #else
-    cuSolver::Destroy();
+    device_solver::Destroy();
 #endif
-    cuda_clean_vtot();
+    device_clean_vtot();
 #endif
 */
   // Calculate the Force. This includes contribution from ionic repulsion, VDW etc
@@ -2472,25 +2467,12 @@ SCF::InnerSolve	( Int iter )
   else
   {
     // Use LOBPCG
-#ifdef _COMPLEX_
-    if( esdfParam.PWSolver == "PPCG" || esdfParam.PWSolver == "PPCGScaLAPACK" ){
-#ifdef GPU
-      eigSolPtr_->PPCGSolveComplex(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow , iter );    
-#else
-      eigSolPtr_->PPCGSolveComplex(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
-#endif
-    }
-    else{
-      // FIXME Merge the Chebyshev into an option of PWSolver
-      ErrorHandling("Not supported PWSolver for complex type.");
-    }
-#else
     if( esdfParam.PWSolver == "LOBPCG" || esdfParam.PWSolver == "LOBPCGScaLAPACK"){
       eigSolPtr_->LOBPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
     } // Use PPCG
     else if( esdfParam.PWSolver == "PPCG" || esdfParam.PWSolver == "PPCGScaLAPACK" ){
-#ifdef GPU
-      eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow, iter );
+#ifdef DEVICE
+      eigSolPtr_->devicePPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow, iter );
 #else
       eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    
 #endif
@@ -2499,7 +2481,6 @@ SCF::InnerSolve	( Int iter )
       // FIXME Merge the Chebyshev into an option of PWSolver
       ErrorHandling("Not supported PWSolver type.");
     }
-#endif
   }
 
   GetTime( timeEnd );

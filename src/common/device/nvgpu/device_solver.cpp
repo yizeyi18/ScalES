@@ -40,16 +40,17 @@ royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file cuSolver.cpp
-/// @brief Thin interface to cuSolver
+/// @file device_solver.cpp
+/// @brief Thin interface to device_solver
 /// @date 2012-09-12
-#ifdef GPU
-#include "cuSolver.hpp"
+#ifdef  DEVICE
+#include "device_solver.hpp"
+
 cusolverDnHandle_t cusolverH;
 
 
 namespace dgdft {
-namespace cuSolver {
+namespace device_solver {
 
 void Init(void)
 {
@@ -107,8 +108,6 @@ void Potrf( char uplo_host, Int n, double* A, Int lda ) {
   assert(cudaThreadSynchronize() == cudaSuccess);
   assert(cudaMalloc( (void**) & work_array, sizeof(double) * lwork) == cudaSuccess); 
   assert(cudaMalloc( (void**) & info, sizeof(int)  ) == cudaSuccess); 
-  //std::cout << " Buffer size allocated Okay " << lwork << std::endl;
-  //std::cout << "buffer size status " <<cusolver_status << std::endl<<std::flush;
 
 /*
   double * A_host = new double[n*n];

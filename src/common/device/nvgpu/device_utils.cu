@@ -1,6 +1,6 @@
 #ifndef  _CUDA_UTILS_CU_
 #define  _CUDA_UTILS_CU_
-#include "cuda_utils.h"
+#include "device_utils.h"
 #include <sys/time.h>
 
 #define DIM   128
@@ -22,6 +22,7 @@ bool vtot_gpu_flag;
 bool NL_gpu_flag;
 bool teter_gpu_flag;
 int totPart_gpu;
+
 
 #ifdef _PROFILING_
 double CPU2GPUTime = 0.0;
@@ -811,25 +812,25 @@ __global__ void gpu_cal_weight( double * psi, double * NL, int * parts, int * in
 	if( tid == 0) weight[blockIdx.x] = mySum;
 }
 #if 0
-float* cuda_malloc( float* ptr, size_t size)
+float* device_malloc( float* ptr, size_t size)
 {
 	printf("cudaMalloc float the pointer %d \n", size);
-	CUDA_CALL( cudaMalloc( &ptr, size ) );
+	device_CALL( cudaMalloc( &ptr, size ) );
 	return ptr;
 }
-double* cuda_malloc( double* ptr, size_t size)
+double* device_malloc( double* ptr, size_t size)
 {
 	printf("cudaMalloc double the pointer %d \n", size);
 	CUDA_CALL( cudaMalloc( &ptr, size ) );
 	return ptr;
 }
-cuComplex* cuda_malloc( cuComplex* ptr, size_t size)
+cuComplex* device_malloc( cuComplex* ptr, size_t size)
 {
 	printf("cudaMalloc complex the pointer %d \n", size);
 	CUDA_CALL( cudaMalloc( &ptr, size ) );
 	return ptr;
 }
-cuDoubleComplex* cuda_malloc( cuDoubleComplex* ptr, size_t size)
+cuDoubleComplex* device_malloc( cuDoubleComplex* ptr, size_t size)
 {
 	printf("cudaMalloc double complex the pointer %d \n", size);
 	CUDA_CALL( cudaMalloc( &ptr, size ) );
@@ -857,12 +858,12 @@ void print_timing()
 #endif
 }
 
-void cuda_free( void *ptr)
+void device_free( void *ptr)
 {
 	CUDA_CALL( cudaFree(ptr) );
 }
 
-void cuda_memcpy_Async_CPU2GPU( void *gpu, void * cpu, size_t size )
+void device_memcpy_Async_HOST2DEVICE( void *gpu, void * cpu, size_t size )
 {
 #ifdef _PROFILING_
 	struct timeval begin, end;
@@ -878,7 +879,7 @@ void cuda_memcpy_Async_CPU2GPU( void *gpu, void * cpu, size_t size )
 #endif
 }
 
-void cuda_memcpy_CPU2GPU( void *gpu, void * cpu, size_t size )
+void device_memcpy_HOST2DEVICE( void *gpu, void * cpu, size_t size )
 {
 #ifdef _PROFILING_
 	struct timeval begin, end;
@@ -893,7 +894,7 @@ void cuda_memcpy_CPU2GPU( void *gpu, void * cpu, size_t size )
 #endif
 }
 
-void cuda_memcpy_GPU2CPU( void *cpu, void * gpu, size_t size )
+void device_memcpy_DEVICE2HOST( void *cpu, void * gpu, size_t size )
 {
 #ifdef _PROFILING_
 	struct timeval begin, end;
@@ -908,7 +909,7 @@ void cuda_memcpy_GPU2CPU( void *cpu, void * gpu, size_t size )
 #endif
 }
 
-void cuda_memcpy_GPU2GPU( void * dest, void * src, size_t size)
+void device_memcpy_DEVICE2DEVICE( void * dest, void * src, size_t size)
 {
 #ifdef _PROFILING_
 	assert(cudaThreadSynchronize() == cudaSuccess );
@@ -925,7 +926,7 @@ void cuda_memcpy_GPU2GPU( void * dest, void * src, size_t size)
 #endif
 }
 
-void cuda_setValue( float* dev, float val, int len )
+void device_setValue( float* dev, float val, int len )
 {
 	int ndim = len / DIM;
 	if(len % DIM) ndim++;
@@ -937,7 +938,7 @@ void cuda_setValue( float* dev, float val, int len )
 #endif
 }
 
-void cuda_setValue( double* dev, double val, int len )
+void device_setValue( double* dev, double val, int len )
 {
 	int ndim = len / DIM;
 	if(len % DIM) ndim++;
@@ -948,19 +949,7 @@ void cuda_setValue( double* dev, double val, int len )
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
-void cuda_setValue( cuDoubleComplex* dev, cuDoubleComplex val, int len )
-{
-	int ndim = len / DIM;
-	if(len % DIM) ndim++;
-	gpu_setValue<<<ndim, DIM>>>(dev, val, len);
-#ifdef SYNC 
-	gpuErrchk(cudaPeekAtLastError());
-	gpuErrchk(cudaDeviceSynchronize());
-	assert(cudaThreadSynchronize() == cudaSuccess );
-#endif
-}
-
-void cuda_setValue( cuComplex* dev, cuComplex val, int len )
+void device_setValue( cuDoubleComplex* dev, cuDoubleComplex val, int len )
 {
 	int ndim = len / DIM;
 	if(len % DIM) ndim++;
@@ -972,7 +961,19 @@ void cuda_setValue( cuComplex* dev, cuComplex val, int len )
 #endif
 }
 
-void cuda_interpolate_wf_C2F( cuDoubleComplex * coarse_psi, cuDoubleComplex * fine_psi, int * index, int len, double factor)
+void device_setValue( cuComplex* dev, cuComplex val, int len )
+{
+	int ndim = len / DIM;
+	if(len % DIM) ndim++;
+	gpu_setValue<<<ndim, DIM>>>(dev, val, len);
+#ifdef SYNC 
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+	assert(cudaThreadSynchronize() == cudaSuccess );
+#endif
+}
+
+void device_interpolate_wf_C2F( cuDoubleComplex * coarse_psi, cuDoubleComplex * fine_psi, int * index, int len, double factor)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_interpolate_wf_C2F<<< ndim, DIM>>> ( coarse_psi, fine_psi, index, len, factor);
@@ -982,7 +983,7 @@ void cuda_interpolate_wf_C2F( cuDoubleComplex * coarse_psi, cuDoubleComplex * fi
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
-void cuda_interpolate_wf_F2C( cuDoubleComplex * fine_psi, cuDoubleComplex * coarse_psi, int * index, int len, double factor)
+void device_interpolate_wf_F2C( cuDoubleComplex * fine_psi, cuDoubleComplex * coarse_psi, int * index, int len, double factor)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_interpolate_wf_F2C<<< ndim, DIM>>> ( fine_psi, coarse_psi, index, len, factor);
@@ -993,13 +994,13 @@ void cuda_interpolate_wf_F2C( cuDoubleComplex * fine_psi, cuDoubleComplex * coar
 #endif
 }
 
-void *cuda_malloc( size_t size)
+void *device_malloc( size_t size)
 {
 	void *ptr;
 	CUDA_CALL( cudaMalloc( &ptr, size ) );
 	return ptr;
 }
-void cuda_laplacian( cuDoubleComplex* psi, double * gkk, int len)
+void device_laplacian( cuDoubleComplex* psi, double * gkk, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_laplacian<<< ndim, DIM>>> ( psi, gkk, len);
@@ -1010,7 +1011,7 @@ void cuda_laplacian( cuDoubleComplex* psi, double * gkk, int len)
 #endif
 }
 
-void cuda_vtot( cuDoubleComplex * psi, cuDoubleComplex* vtot, int len, int nbands)
+void device_vtot( cuDoubleComplex * psi, cuDoubleComplex* vtot, int len, int nbands)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	dim3 dim(ndim, nbands);
@@ -1022,7 +1023,7 @@ void cuda_vtot( cuDoubleComplex * psi, cuDoubleComplex* vtot, int len, int nband
 #endif
 }
 
-void cuda_vtot( cuDoubleComplex * psi, cuDoubleComplex* vtot, int len)
+void device_vtot( cuDoubleComplex * psi, cuDoubleComplex* vtot, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_vtot<cuDoubleComplex><<< ndim, DIM>>> ( psi, vtot, len);
@@ -1033,7 +1034,7 @@ void cuda_vtot( cuDoubleComplex * psi, cuDoubleComplex* vtot, int len)
 #endif
 }
 
-void cuda_vtot( cuDoubleComplex * psi, double * vtot, int len)
+void device_vtot( cuDoubleComplex * psi, double * vtot, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_vtot<cuDoubleComplex><<< ndim, DIM>>> ( psi, vtot, len);
@@ -1044,7 +1045,7 @@ void cuda_vtot( cuDoubleComplex * psi, double * vtot, int len)
 #endif
 }
 
-void cuda_vtot( double* psi, double * vtot, int len)
+void device_vtot( double* psi, double * vtot, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_vtot<double><<< ndim, DIM>>> ( psi, vtot, len);
@@ -1055,7 +1056,7 @@ void cuda_vtot( double* psi, double * vtot, int len)
 #endif
 }
 
-void cuda_memory(void)
+void device_memory(void)
 {
 	size_t free_mem, total_mem;
 	cudaMemGetInfo(&free_mem, &total_mem);
@@ -1065,7 +1066,7 @@ void cuda_memory(void)
 	printf("total memory is: %zu MB\n", total_mem/1000000);
 	fflush(stdout);
 } 
-void cuda_calculate_nonlocal( cuDoubleComplex* psiUpdate, cuDoubleComplex* psi, double * NL, int * index, int * parts,  double * atom_weight, cuDoubleComplex* weight, int blocks)
+void device_calculate_nonlocal( cuDoubleComplex* psiUpdate, cuDoubleComplex* psi, double * NL, int * index, int * parts,  double * atom_weight, cuDoubleComplex* weight, int blocks)
 {
 	// two steps. 
 	// 1. calculate the weight.
@@ -1085,7 +1086,7 @@ void cuda_calculate_nonlocal( cuDoubleComplex* psiUpdate, cuDoubleComplex* psi, 
 #endif
 }
 
-void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int * index, int * parts,  double * atom_weight, double * weight, int blocks)
+void device_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int * index, int * parts,  double * atom_weight, double * weight, int blocks)
 {
 	// two steps. 
 	// 1. calculate the weight.
@@ -1104,7 +1105,7 @@ void cuda_calculate_nonlocal( double * psiUpdate, double * psi, double * NL, int
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
-void cuda_teter( cuDoubleComplex* psi, cuDoubleComplex* vtot, int len)
+void device_teter( cuDoubleComplex* psi, cuDoubleComplex* vtot, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_teter<<< ndim, DIM>>> ( psi, vtot, len);
@@ -1114,7 +1115,7 @@ void cuda_teter( cuDoubleComplex* psi, cuDoubleComplex* vtot, int len)
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
-void cuda_teter( cuDoubleComplex* psi, double * vtot, int len, int nbands)
+void device_teter( cuDoubleComplex* psi, double * vtot, int len, int nbands)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	dim3 dim(ndim, nbands);
@@ -1126,7 +1127,7 @@ void cuda_teter( cuDoubleComplex* psi, double * vtot, int len, int nbands)
 #endif
 }
 
-void cuda_teter( cuDoubleComplex* psi, double * vtot, int len)
+void device_teter( cuDoubleComplex* psi, double * vtot, int len)
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_teter<<< ndim, DIM>>> ( psi, vtot, len);
@@ -1137,7 +1138,7 @@ void cuda_teter( cuDoubleComplex* psi, double * vtot, int len)
 #endif
 }
 
-void cuda_mapping_from_buf( cuDoubleComplex * psi, cuDoubleComplex * buf, int * index, int len )
+void device_mapping_from_buf( cuDoubleComplex * psi, cuDoubleComplex * buf, int * index, int len )
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_mapping_from_buf<cuDoubleComplex><<< ndim, DIM>>>( psi, buf, index, len);	
@@ -1148,7 +1149,7 @@ void cuda_mapping_from_buf( cuDoubleComplex * psi, cuDoubleComplex * buf, int * 
 #endif
 }
 
-void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len )
+void device_mapping_from_buf( double * psi, double * buf, int * index, int len )
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_mapping_from_buf<double><<< ndim, DIM>>>( psi, buf, index, len);	
@@ -1158,7 +1159,7 @@ void cuda_mapping_from_buf( double * psi, double * buf, int * index, int len )
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
-void cuda_mapping_to_buf( cuDoubleComplex * buf, cuDoubleComplex * psi, int * index, int len )
+void device_mapping_to_buf( cuDoubleComplex * buf, cuDoubleComplex * psi, int * index, int len )
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_mapping_to_buf<cuDoubleComplex><<< ndim, DIM>>>( buf, psi, index, len);	
@@ -1169,7 +1170,7 @@ void cuda_mapping_to_buf( cuDoubleComplex * buf, cuDoubleComplex * psi, int * in
 #endif
 }
 
-void cuda_mapping_to_buf( double * buf, double * psi, int * index, int len )
+void device_mapping_to_buf( double * buf, double * psi, int * index, int len )
 {
 	int ndim = (len + DIM - 1) / DIM;
 	gpu_mapping_to_buf<double><<< ndim, DIM>>>( buf, psi, index, len);	
@@ -1179,7 +1180,7 @@ void cuda_mapping_to_buf( double * buf, double * psi, int * index, int len )
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
-void cuda_calculate_Energy( cuDoubleComplex * psi, double * energy, int nbands, int bandLen)
+void device_calculate_Energy( cuDoubleComplex * psi, double * energy, int nbands, int bandLen)
 {
 	// calculate  nbands psi Energy. 
 	gpu_energy<DIM><<<nbands, DIM, DIM*sizeof(double)>>>( psi, energy, bandLen);
@@ -1189,7 +1190,7 @@ void cuda_calculate_Energy( cuDoubleComplex * psi, double * energy, int nbands, 
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
-void cuda_reduce( double * density, double * sum, int nbands, int bandLen)
+void device_reduce( double * density, double * sum, int nbands, int bandLen)
 {
 	gpu_reduce<DIM><<<nbands, DIM, DIM*sizeof(double)>>>( density, sum, bandLen);
 #ifdef SYNC 
@@ -1199,7 +1200,7 @@ void cuda_reduce( double * density, double * sum, int nbands, int bandLen)
 #endif
 }
 
-void cuda_calculate_Energy( double * psi, double * energy, int nbands, int bandLen)
+void device_calculate_Energy( double * psi, double * energy, int nbands, int bandLen)
 {
 	// calculate  nbands psi Energy. 
 	gpu_energy<DIM><<<nbands, DIM, DIM*sizeof(double)>>>( psi, energy, bandLen);
@@ -1209,7 +1210,7 @@ void cuda_calculate_Energy( double * psi, double * energy, int nbands, int bandL
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
-void cuda_batch_Scal( cuDoubleComplex * psi, double* vec, int nband, int bandLen)
+void device_batch_Scal( cuDoubleComplex * psi, double* vec, int nband, int bandLen)
 {
 	int ndim = ( nband * bandLen + DIM - 1) / DIM;
 	int len = nband * bandLen;
@@ -1221,7 +1222,7 @@ void cuda_batch_Scal( cuDoubleComplex * psi, double* vec, int nband, int bandLen
 #endif
 }
 
-void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen)
+void device_batch_Scal( double * psi, double * vec, int nband, int bandLen)
 {
 	int ndim = ( nband * bandLen + DIM - 1) / DIM;
 	int len = nband * bandLen;
@@ -1232,7 +1233,7 @@ void cuda_batch_Scal( double * psi, double * vec, int nband, int bandLen)
 	assert(cudaThreadSynchronize() == cudaSuccess );
 #endif
 }
-void cu_X_Equal_AX_minus_X_eigVal( cuDoubleComplex* Xtemp, cuDoubleComplex * AX, cuDoubleComplex * X, double * eigen, int nbands, int bandLen)
+void device_X_Equal_AX_minus_X_eigVal( cuDoubleComplex* Xtemp, cuDoubleComplex * AX, cuDoubleComplex * X, double * eigen, int nbands, int bandLen)
 {
 	int ndim = ( nbands * bandLen + DIM - 1 ) / DIM;
 	int len = nbands * bandLen;
@@ -1246,7 +1247,7 @@ void cu_X_Equal_AX_minus_X_eigVal( cuDoubleComplex* Xtemp, cuDoubleComplex * AX,
 #endif
 }
 
-void cu_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, double * eigen, int nbands, int bandLen)
+void device_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, double * eigen, int nbands, int bandLen)
 {
 	int ndim = ( nbands * bandLen + DIM - 1 ) / DIM;
 	int len = nbands * bandLen;
@@ -1260,7 +1261,7 @@ void cu_X_Equal_AX_minus_X_eigVal( double * Xtemp, double * AX, double * X, doub
 #endif
 }
 
-void cuda_init_vtot()
+void device_init_vtot()
 {
 	dev_vtot           = NULL;
 	dev_gkkR2C         = NULL;
@@ -1275,36 +1276,36 @@ void cuda_init_vtot()
 	NL_gpu_flag        = false;
 	teter_gpu_flag     = false;
 }
-void cuda_clean_vtot()
+void device_clean_vtot()
 {
-	cuda_free(dev_vtot);
-	cuda_free(dev_gkkR2C);
-	cuda_free(dev_idxFineGridR2C);
-	cuda_free(dev_NLindex);
-	cuda_free(dev_NLpart);
-	cuda_free(dev_NLvecFine);
-	cuda_free(dev_atom_weight);
-	cuda_free(dev_temp_weight);
-	cuda_free(dev_temp_weight_complex);
-	cuda_free(dev_TeterPrecond);
+	device_free(dev_vtot);
+	device_free(dev_gkkR2C);
+	device_free(dev_idxFineGridR2C);
+	device_free(dev_NLindex);
+	device_free(dev_NLpart);
+	device_free(dev_NLvecFine);
+	device_free(dev_atom_weight);
+	device_free(dev_temp_weight);
+	device_free(dev_temp_weight_complex);
+	device_free(dev_TeterPrecond);
 }
-void cuda_reset_vtot_flag()
+void device_reset_vtot_flag()
 {
-	cuda_free(dev_vtot);
+	device_free(dev_vtot);
 	dev_vtot       = NULL;
 	vtot_gpu_flag  = false;
 }
-void cuda_reset_nonlocal_flag()
+void device_reset_nonlocal_flag()
 {
 	// Note, the gkk is malloc and freed with the nonlocal part.
 	// since GKK will not change until atom moves. 
-	cuda_free(dev_NLvecFine);
-	cuda_free(dev_NLpart);
-	cuda_free(dev_NLindex);
-	cuda_free(dev_atom_weight);
-	cuda_free(dev_temp_weight_complex);
-	cuda_free(dev_gkkR2C);
-	cuda_free(dev_idxFineGridR2C);
+	device_free(dev_NLvecFine);
+	device_free(dev_NLpart);
+	device_free(dev_NLindex);
+	device_free(dev_atom_weight);
+	device_free(dev_temp_weight_complex);
+	device_free(dev_gkkR2C);
+	device_free(dev_idxFineGridR2C);
 
 	dev_gkkR2C         = NULL;
 	dev_idxFineGridR2C = NULL;
@@ -1326,7 +1327,7 @@ __global__ void gpu_matrix_add( double * A, double * B, int length )
 	}
 }
 
-void cuda_DMatrix_Add( double * A , double * B, int m, int n)
+void device_DMatrix_Add( double * A , double * B, int m, int n)
 {
 	// Matrix A and B are double dimension m,n; A = A + B
 	int ndim = (m * n + DIM - 1) / DIM;
@@ -1366,7 +1367,7 @@ __global__ void gpu_alpha_X_plus_beta_Y_multiply_Z( cuDoubleComplex * X, double 
 		X[tid] = alpha * X[tid] + beta * Y[tid] * Z[tid];
 	}
 }
-void cuda_Axpyz( cuDoubleComplex * X, double alpha, cuDoubleComplex * Y, double beta, cuDoubleComplex * Z, int length, int nbands)
+void device_Axpyz( cuDoubleComplex * X, double alpha, cuDoubleComplex * Y, double beta, cuDoubleComplex * Z, int length, int nbands)
 {
 	int ndim = ( length + DIM - 1) / DIM ;
 	dim3 dim( ndim, nbands);
@@ -1379,7 +1380,7 @@ void cuda_Axpyz( cuDoubleComplex * X, double alpha, cuDoubleComplex * Y, double 
 #endif
 }
 
-void cuda_Axpyz( cuDoubleComplex * X, double alpha, cuDoubleComplex * Y, double beta, cuDoubleComplex * Z, int length)
+void device_Axpyz( cuDoubleComplex * X, double alpha, cuDoubleComplex * Y, double beta, cuDoubleComplex * Z, int length)
 {
 	int ndim = ( length + DIM - 1) / DIM ;
 	gpu_alpha_X_plus_beta_Y_multiply_Z <<< ndim, DIM >>> (X, alpha, Y, beta, Z, length);
@@ -1391,7 +1392,7 @@ void cuda_Axpyz( cuDoubleComplex * X, double alpha, cuDoubleComplex * Y, double 
 #endif
 }
 
-void cuda_Axpyz( double * X, double alpha, double * Y, double beta, double * Z, int length)
+void device_Axpyz( double * X, double alpha, double * Y, double beta, double * Z, int length)
 {
 	int ndim = ( length + DIM - 1) / DIM ;
 	gpu_alpha_X_plus_beta_Y_multiply_Z <<< ndim, DIM >>> (X, alpha, Y, beta, Z, length);
@@ -1438,7 +1439,7 @@ __global__ void gpu_cal_recvk( int *recvk, int * recvdisps, int width, int heigh
 	}
 }
 
-void cuda_cal_sendk( int * sendk, int * senddispl, int widthLocal, int height, int heightBlockSize, int mpisize)
+void device_cal_sendk( int * sendk, int * senddispl, int widthLocal, int height, int heightBlockSize, int mpisize)
 {
 	int total = widthLocal * height;
 	int dim = (total + LEN - 1) / LEN;
@@ -1451,7 +1452,7 @@ void cuda_cal_sendk( int * sendk, int * senddispl, int widthLocal, int height, i
 #endif
 }
 
-void cuda_cal_recvk( int * recvk, int * recvdisp, int width, int heightLocal, int mpisize)
+void device_cal_recvk( int * recvk, int * recvdisp, int width, int heightLocal, int mpisize)
 {
 	int total = width * heightLocal;
 	int dim = ( total + LEN - 1 ) / LEN;
@@ -1473,7 +1474,7 @@ __global__ void gpu_hadamard_product ( T* dev_A, T* dev_B, T * dev_result, int l
 	}
 }
 
-void cuda_hadamard_product( double * in1, double * in2, double * out, int length)
+void device_hadamard_product( double * in1, double * in2, double * out, int length)
 {
 	int dim = ( length + LEN - 1 ) / LEN;
 	gpu_hadamard_product<double> <<< dim, LEN >>> ( in1, in2, out, length );
@@ -1493,7 +1494,7 @@ __global__ void gpu_set_vector( T* out, T* in , int length)
 		out[tid] = in[tid];
 	}
 }
-void cuda_set_vector( cuComplex* out, cuComplex *in, int length)
+void device_set_vector( cuComplex* out, cuComplex *in, int length)
 {
 	int dim = (length + LEN - 1) / LEN;
 	gpu_set_vector< cuComplex> <<< dim, LEN >>>( out, in, length);
@@ -1505,7 +1506,7 @@ void cuda_set_vector( cuComplex* out, cuComplex *in, int length)
 }
 
 
-void cuda_set_vector( cuDoubleComplex* out, cuDoubleComplex *in, int length)
+void device_set_vector( cuDoubleComplex* out, cuDoubleComplex *in, int length)
 {
 	int dim = (length + LEN - 1) / LEN;
 	gpu_set_vector< cuDoubleComplex> <<< dim, LEN >>>( out, in, length);
@@ -1516,7 +1517,7 @@ void cuda_set_vector( cuDoubleComplex* out, cuDoubleComplex *in, int length)
 #endif
 }
 
-void cuda_set_vector( double * out, double *in, int length)
+void device_set_vector( double * out, double *in, int length)
 {
 	int dim = (length + LEN - 1) / LEN;
 	gpu_set_vector< double> <<< dim, LEN >>>( out, in, length);
@@ -1536,7 +1537,7 @@ __global__ void gpu_tddft_prec( cuDoubleComplex * prec, cuDoubleComplex * gkk, c
 	}
 }
 
-void cuda_tddft_prec( cuDoubleComplex * prec, cuDoubleComplex * gkk, cuDoubleComplex trace, cuDoubleComplex factor, int width, int ntot)
+void device_tddft_prec( cuDoubleComplex * prec, cuDoubleComplex * gkk, cuDoubleComplex trace, cuDoubleComplex factor, int width, int ntot)
 {
 	int dim = (ntot + LEN - 1) /LEN;
 	gpu_tddft_prec<<< dim, LEN>>>( prec, gkk, trace, factor, (double) width, ntot);
@@ -1557,7 +1558,7 @@ __global__ void gpu_compress( double *source, T* dest, int len)
 	}
 }
 
-void cuda_compress_d2f( float *out, double *in, int length)
+void device_compress_d2f( float *out, double *in, int length)
 {
 	int dim = ( length + LEN - 1) / LEN;
 	gpu_compress<float> <<< dim, LEN>>> ( in, out, length);
@@ -1578,7 +1579,7 @@ __global__ void gpu_decompress( T *source, double* dest, int len)
 	}
 }
 
-void cuda_decompress_f2d( double *out, float *in, int length)
+void device_decompress_f2d( double *out, float *in, int length)
 {
 	int dim = ( length + LEN - 1) / LEN;
 	gpu_decompress<float> <<< dim, LEN>>> ( in, out, length);
@@ -1600,7 +1601,7 @@ __global__ void gpu_XTX ( cuDoubleComplex *X, double * Y, int len)
 		Y[tid] = (x * y).x;
 	}
 }
-void cuda_XTX( cuDoubleComplex * X, double * Y, int length)
+void device_XTX( cuDoubleComplex * X, double * Y, int length)
 {
 	int dim = ( length + LEN - 1) / LEN;
 	gpu_XTX<<< dim, LEN>>>( X, Y, length);
@@ -1611,7 +1612,7 @@ void cuda_XTX( cuDoubleComplex * X, double * Y, int length)
 #endif
 }
 
-void cuda_sync()
+void device_sync()
 {
 	gpuErrchk(cudaPeekAtLastError());
 	gpuErrchk(cudaDeviceSynchronize());

@@ -50,10 +50,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "environment.hpp"
 #include  "domain.hpp"
 #include  "numvec_impl.hpp"
-#ifdef GPU
-#include "cu_numvec_impl.hpp"
-#include <assert.h>
-#endif
+
 namespace dgdft{
 
 // *********************************************************************
@@ -88,14 +85,6 @@ struct Fourier {
   CpxNumVec        inputComplexVecLocal;
   CpxNumVec        outputComplexVecLocal;     
 
-#ifdef GPU
-  cufftHandle cuPlanR2C[NSTREAM];
-  cufftHandle cuPlanR2CFine[NSTREAM];
-  cufftHandle cuPlanC2R[NSTREAM];
-  cufftHandle cuPlanC2RFine[NSTREAM];
-  cufftHandle cuPlanC2CFine[NSTREAM];
-  cufftHandle cuPlanC2C[NSTREAM];
-#endif
   unsigned  plannerFlag;
 
   // Laplacian operator related
@@ -146,16 +135,9 @@ struct Fourier {
   void Initialize( const Domain& dm );
   void InitializeFine( const Domain& dm );
 
+
 };
-#ifdef GPU
-void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out );
-void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out , int nbands);
-void cuFFTExecuteInverse2( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out );
-void cuFFTExecuteForward( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out );
-void cuFFTExecuteForward2( Fourier& fft, cufftHandle &plan, int fft_type, cuCpxNumVec &cu_psi_in, cuCpxNumVec &cu_psi_out );
-void cuFFTExecuteInverse( Fourier& fft, cufftHandle &plan, int fft_type, cuDblNumVec &cu_psi_in, cuDblNumVec &cu_psi_out );
-void cuFFTExecuteForward( Fourier& fft, cufftHandle &plan, int fft_type, cuDblNumVec &cu_psi_in, cuDblNumVec &cu_psi_out );
-#endif
+
 void FFTWExecute( Fourier& fft, fftw_plan& plan );
 
 // *********************************************************************

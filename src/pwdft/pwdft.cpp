@@ -51,19 +51,18 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2014-07-15 Parallelization of PWDFT.
 /// @date 2016-03-07 Refactoring PWDFT to include geometry optimization
 /// and molecular dynamics.
-#include "dgdft.hpp"
+#include "pwdft.hpp"
 
 using namespace dgdft;
 using namespace std;
 using namespace dgdft::esdf;
 using namespace dgdft::scalapack;
 
-#ifdef GPU
+#ifdef DEVICE
 #ifdef USE_MAGMA
 #include  "magma.hpp"
 #else
-#include  "magma.hpp"
-#include "cuSolver.hpp"
+#include "device_solver.hpp"
 #endif
 #endif
 
@@ -243,11 +242,7 @@ int main(int argc, char **argv)
       }    
     }
 
-#ifdef _COMPLEX_
-    psi.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, Z_ZERO );
-# else
     psi.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, D_ZERO );
-#endif
 
 
     statusOFS << "Spinor setup finished." << std::endl;
@@ -322,14 +317,13 @@ int main(int argc, char **argv)
 	 hamKS.CalculateVexxACE( psi, fft);
 	 statusOFS << " TDDFT init ACE operator ... " << std::endl;
       }
-#ifdef GPU
-         cuda_init_vtot();
-         cublas::Init();
+#ifdef DEVICE
+         device_init_vtot();
+         DEVICE_BLAS::Init();
 #ifdef USE_MAGMA
          MAGMA::Init();
 #else
-         MAGMA::Init();
-         cuSolver::Init();
+         device_solver::Init();
 #endif
 #endif
 
@@ -352,25 +346,8 @@ int main(int argc, char **argv)
 
     if(esdfParam.isTDDFT) { // TDDFT
       statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
-      statusOFS << " ! Begin the TDDFT simulation now " << std::endl;
-      statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
-#ifdef _COMPLEX_
-      GetTime( timeSta );
-      scf.UpdateTDDFTParameters( );
-      Int TDDFTMaxIter = esdfParam.ionMaxIter;
-      
-      TDDFT td;
-
-      td.Setup( hamKS, psi, fft, hamKS.AtomList(), ptable);
-
-      td.Propagate( ptable );
-
-      GetTime( timeEnd );
-      statusOFS << "! TDDFT used time: " << timeEnd - timeSta << " [s]" <<std::endl;
-      statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
-#else
       ErrorHandling("TDDFT only works with complex arithmetic.");
-#endif
+      statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
     }
     else{
       IonDynamics ionDyn;
@@ -383,13 +360,8 @@ int main(int argc, char **argv)
       Int maxHist = ionDyn.MaxHist();
       // Need to define both but one of them may be empty
       std::vector<DblNumMat>    densityHist(maxHist);
-#ifdef _COMPLEX_
-      std::vector<CpxNumTns>    wavefunHist(maxHist);
-      CpxNumTns                 wavefunPre;           // predictor
-#else
       std::vector<DblNumTns>    wavefunHist(maxHist);
       DblNumTns                 wavefunPre;           // predictor
-#endif
       if( esdfParam.MDExtrapolationVariable == "density" ){
         // densityHist[0] is the lastest density
         for( Int l = 0; l < maxHist; l++ ){
@@ -1002,15 +974,14 @@ int main(int argc, char **argv)
       } // ionIter
    }// not TDDFT
 
-#ifdef GPU
-    cublas::Destroy();
+#ifdef DEVICE
+    DEVICE_BLAS::Destroy();
 #ifdef USE_MAGMA
     MAGMA::Destroy();
 #else
-    MAGMA::Destroy();
-    cuSolver::Destroy();
+    device_solver::Destroy();
 #endif
-    cuda_clean_vtot();
+    device_clean_vtot();
 #endif
 
   }

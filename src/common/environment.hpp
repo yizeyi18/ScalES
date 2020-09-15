@@ -143,12 +143,13 @@ namespace dgdft{
 #endif
 typedef    int                   Int;
 typedef    double                Real;
-#ifdef CPX
 typedef    std::complex<double>  Complex; 
+/*
+#ifdef CPX
 #else
 typedef    cuDoubleComplex Complex; 
 #endif
-
+*/
 // IO
 extern  std::ofstream  statusOFS;
 

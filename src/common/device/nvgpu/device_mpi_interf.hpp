@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Authors: Weile Jia and Lin Lin
+Author: Lin Lin & Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -40,46 +40,29 @@ royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file cuSolver.hpp
-/// @brief Thin interface to cuSolver
-/// @date 2016-10-21
-#ifdef GPU  // only used for the GPU version of the PWDFT code. 
-#ifndef _CUSOLVER_HPP_
-#define _CUSOLVER_HPP_
-#include  "environment.hpp"
-#include <cuda_runtime.h>
-#include <cusolverDn.h>
+/// @file device_mpi_interf.hpp
+/// @brief Interface with MPI to facilitate communication.
+/// @date 2020-08-23
+#ifndef _DEVICE_MPI_INTERF_HPP_
+#define _DEVICE_MPI_INTERF_HPP_
 
-extern cusolverDnHandle_t cusolverH;
+#include "environment.hpp"
+#include "cuda.h"
+#include "cuda_runtime.h"
+namespace dgdft{
 
-namespace dgdft {
-
-/// @namespace cuSolver
+/// @namespace mpi
 ///
-/// @brief Thin interface to cuSolver
-namespace cuSolver{
+/// @brief Interface with MPI to facilitate communication.
+namespace device_mpi{
 
-typedef  int               Int;
-typedef  cuComplex         scomplex;
-typedef  cuDoubleComplex   dcomplex;
+  void setDevice(MPI_Comm comm);
 
-void Init(void);
+} // namespace mpi
 
-void Destroy(void);
-
-void Potrf( char uplo, Int n, double * A, Int lda );
-
-void Potrf( char uplo, Int n, cuDoubleComplex * A, Int lda );
-
-void Syevd( char jobz, char uplo, Int n, double *A, Int lda, double *eigs);
-
-void Syevd( char jobz, char uplo, Int n, cuDoubleComplex *A, Int lda, double *eigs);
-
-void Lacpy(char uplo, Int m, Int n, const double * A , Int lda, double *B, Int ldb);
-
-
-} // namespace cuSolver
 } // namespace dgdft
 
-#endif
-#endif
+
+
+#endif // _DEVICE_MPI_INTERF_HPP_
+

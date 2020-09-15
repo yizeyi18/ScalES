@@ -47,10 +47,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 #define _MPI_INTERF_HPP_
 
 #include  "environment.hpp"
-#ifdef GPU
-#include "cuda.h"
-#include "cuda_runtime.h"
-#endif
+
 namespace dgdft{
 
 /// @namespace mpi
@@ -143,10 +140,6 @@ void
       Complex *bufRecv, Int *sizeRecv, 
       Int *displsRecv, MPI_Comm comm );
 
-#ifdef GPU
-void 
-  cuda_setDevice(MPI_Comm comm);
-#endif
 } // namespace mpi
 
 } // namespace dgdft

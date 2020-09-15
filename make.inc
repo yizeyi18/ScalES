@@ -6,12 +6,13 @@ USE_COMPLEX      = 0
 USE_OPENMP       = 0
 USE_PROFILE      = 0
 USE_PEXSI        = 0
-USE_GPU          = 1
+DEVICE           =  nvgpu
 
 ifeq (${COMPILE_MODE}, release)
   COMPILE_DEF    = -DRELEASE
   COMPILE_FLAG   = -fast -w -D GPUDIRECT -no-ipo
-  COMPILE_FLAG   = -fast -w -no-ipo
+  COMPILE_FLAG   = -fast -w -no-ipo -std=c++11
+  #COMPILE_FLAG   = -O3 -w -std=c++11
 endif
 ifeq (${COMPILE_MODE}, debug)
   COMPILE_DEF    = -DDEBUG=1
@@ -22,21 +23,13 @@ ifeq (${USE_COMPLEX}, 1)
   SCALAR_DEF    = -DCOMPLEXSCALAR
 endif
 
-ifeq (${USE_GPU}, 1)
-  NVCC = nvcc
-  CUDA_FLAG = -I/ccs/home/jiawl/DG/GPU/include -D GPU
-  CUDA_LIB = -L${CUDA_DIR}/lib64 -lcufft -lcublas -lcudart -lcuda  -lmagma #-lmagma_sparse #-lcudadevrt
-  NVCCFLAG = -gencode arch=compute_35,code=sm_35 -DGPU -I ../include -DSYNC  # for debug purpose
-  NVCCFLAG = -gencode arch=compute_35,code=sm_35 -DGPU -I ../include 
-endif
-
 ifeq (${USE_OPENMP}, 1)
   OPENMP_DEF   = -DOPENMP
-	OPENMP_FLAG  = -fopenmp
+  OPENMP_FLAG  = -fopenmp
 endif
 
 ifeq (${USE_PROFILE}, 1)
-	PROFILE_FLAG  = -g -pg
+  PROFILE_FLAG  = -g -pg
 endif
 
 ifeq (${USE_PEXSI}, 1)
@@ -56,30 +49,41 @@ ifeq (${USE_PEXSI}, 1)
   PEXSI_LIB        = ${PEXSI_SRC_LIB} ${DSUPERLU_LIB} ${METIS_LIB} 
 endif
 
-DGDFT_DIR     = /ccs/home/jiawl/DG/pwdft/crd-dgdft
+DGDFT_DIR     = /global/home/users/wjia/refactor2020
+
+ifeq (${DEVICE}, nvgpu)
+  NVCC = nvcc
+  CUDA_FLAG =  -D DEVICE  -I ${DGDFT_DIR}/src/common/device/ -I ${DGDFT_DIR}/src/common/device/nvgpu
+  CUDA_LIB = -L${CUDA_DIR}/lib64 -lcufft -lcublas -lcudart -lcuda  -lcusolver #-lmagma #-lmagma_sparse #-lcudadevrt
+  NVCCFLAG = -gencode arch=compute_35,code=sm_35 -DGPU -I ../include -DSYNC  # for debug purpose
+  NVCCFLAG = -gencode arch=compute_35,code=sm_35 -DGPU -I ../include 
+endif
+
 
 # inclues
 BLOPEX_INCLUDE   = -I${DGDFT_DIR}/external/blopex
 FFTW_INCLUDE     = -I/opt/cray/fftw/3.3.4.11/x86_64/include
-DGDFT_INCLUDE    = -I${DGDFT_DIR}/include 
+DGDFT_INCLUDE    = -I${DGDFT_DIR}/src/pwdft -I${DGDFT_DIR}/src/common 
 INCLUDES         = ${DGDFT_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE} ${MAGMA_INC}
 
 # Libraries
-LIBXC_DIR     = /ccs/home/jiawl/software/libxc
+LIBXC_DIR     = /global/home/users/wjia/shared_libraries/libxc-3.0.0/build_savio
 LIBXC_LIB        = $(LIBXC_DIR)/lib/libxc.a
 LIBXC_INCLUDE    = -I$(LIBXC_DIR)/include
 BLOPEX_LIB       = #${DGDFT_DIR}/external/blopex/libblopex.a 
 FFTW_LIB         = -L/opt/cray/fftw/3.3.4.11/x86_64/lib -lfftw3_mpi -lfftw3 -lm
-MKL_LIB          = -Wl,--start-group  ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_core.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a -Wl,--end-group -lpthread -lm
-MKL_LIB          = #-mkl=cluster
+FFTW_LIB         = -lfftw3_mpi -lfftw3
+MKL_LIB          =  -lstdc++ -mkl=cluster  -liomp5 -lpthread -lm -ldl -lstdc++ -lfftw3_mpi -lfftw3  -L /opt/intel/compilers_and_libraries_2016.2.181/linux/compiler/lib/intel64 -lifcore
 
-DGDFT_LIB    = ${DGDFT_DIR}/src/libdgdft.a
-LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${BLOPEX_LIB} ${FFTW_LIB} ${MKL_LIB} ${IPM} ${CUDA_LIB} ${MAGMA_LIB}
+DGDFT_LIB    = ${DGDFT_DIR}/src/common/libcommon.a
+RQRCP_LIB    = ${DGDFT_DIR}/external/rqrcp/librqrcp.a
+LBFGS_LIB    = ${DGDFT_DIR}/external/lbfgs/liblbfgs.a
+LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${RQRCP_LIB} ${LBFGS_LIB} ${FFTW_LIB} ${MKL_LIB} ${IPM} ${CUDA_LIB} ${MAGMA_LIB} 
 
-CC           = cc
-CXX          = CC
-FC           = ftn
-LOADER       = CC
+CC           = mpicc
+CXX          = mpiCC
+FC           = mpif90
+LOADER       = mpicc
 
 AR           = ar
 ARFLAGS      = rvcu
@@ -98,8 +102,8 @@ RMFLAGS      = -f
 CFLAGS       = ${COMPILE_FLAG} ${OPENMP_FLAG} ${PROFILE_FLAG} ${INCLUDES} ${CUDA_FLAG}
 FFLAGS       = ${COMPILE_FLAG} ${OPENMP_FLAG} ${PROFILE_FLAG} ${INCLUDES} ${CUDA_FLAG}
 CXXFLAGS     = ${COMPILE_FLAG} ${OPENMP_FLAG} ${PROFILE_FLAG} ${INCLUDES} ${CUDA_FLAG}
-CCDEFS       = ${COMPILE_DEF} ${PEXSI_DEF} ${SCALAR_DEF} ${OPENMP_DEF}
-CPPDEFS      = ${COMPILE_DEF} ${PEXSI_DEF} ${SCALAR_DEF} ${OPENMP_DEF}
+CCDEFS       = ${COMPILE_DEF} ${PEXSI_DEF} ${SCALAR_DEF} ${OPENMP_DEF} ${CUDA_FLAG}
+CPPDEFS      = ${COMPILE_DEF} ${PEXSI_DEF} ${SCALAR_DEF} ${OPENMP_DEF} ${CUDA_FLAG}
 LOADOPTS     = ${OPENMP_FLAG} ${PROFILE_FLAG} ${LIBS} 
 
 

@@ -43,6 +43,14 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @file MAGMA.hpp
 /// @brief Thin interface to MAGMA
 /// @date 2016-10-21
+
+
+/// @date 2020-8-7 
+/// MAGMA interface is not used in most CUDA code anymore, however, it might
+/// be useful in the future AMD GPU implementation. Thus, I will keep this interface
+/// for future purposes. 
+
+/// Note, only will be called in SYEVD, POTRF. 
 #ifdef GPU  // only used for the GPU version of the PWDFT code. 
 #ifndef _MAGMA_HPP_
 #define _MAGMA_HPP_

@@ -40,13 +40,13 @@ royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file cublas.hpp
+/// @file device_blas.hpp
 /// @brief Thin interface to CUBLAS
 /// @date 2016-10-21
-#ifdef GPU  // only used for the GPU version of the PWDFT code. 
+#ifdef DEVICE // only used for the GPU version of the PWDFT code. 
 #include  "environment.hpp"
+#include "device_blas.hpp"
 
-#include "cublas.hpp"
 cublasHandle_t hcublas;
 
 inline void __cublas_error(cublasStatus_t status, const char *file, int line, const char *msg)
@@ -57,7 +57,7 @@ inline void __cublas_error(cublasStatus_t status, const char *file, int line, co
       float bar = foo[0];
       printf("Tried to segfault! %f\n", bar);
 
-        printf("\nCUBLAS Error in %s, line %d: %s\n %s\n", file, line, cublasGetErrorString(status), msg);
+        printf("\nCUBLAS Error in %s, line %d: %s\n %s\n", file, line, deviceBLASGetErrorString(status), msg);
         cudaDeviceReset();
         exit(-1);
     }
@@ -67,10 +67,10 @@ inline void __cublas_error(cublasStatus_t status, const char *file, int line, co
 
 namespace dgdft {
 
-/// @namespace cublas
+/// @namespace DEVICE_BLAS
 ///
 /// @brief Thin interface to CUBLAS
-namespace cublas {
+namespace DEVICE_BLAS {
 
 typedef  int               Int;
 typedef  cuComplex         scomplex;
@@ -85,37 +85,53 @@ void Destroy(void)
     CUBLAS_ERROR( cublasDestroy(hcublas), "Failed to initialze CUBLAS!" );
 }
 
-void Gemv ( cublasOperation_t transA, Int m, Int n, const double *alpha,
+void Gemv ( char transA, Int m, Int n, const double *alpha,
           const double *A, int lda, const double *x, int incx,
           const double *beta, double *y, int incy)
 {
-    CUBLAS_ERROR( cublasDgemv_v2(hcublas, transA, m, n, alpha, A, lda, x, incx, beta, y, incy ), "cublasDgemv_v2 failed !");
+    cublasOperation_t trans;
+    if (transA == 'n' || transA == 'N') trans = CUBLAS_OP_N;
+    if (transA == 't' || transA == 'T') trans = CUBLAS_OP_T;
+    if (transA == 'c' || transA == 'C') trans = CUBLAS_OP_C;
+    CUBLAS_ERROR( cublasDgemv_v2(hcublas, trans, m, n, alpha, A, lda, x, incx, beta, y, incy ), "cublasDgemv_v2 failed !");
     return;
 }
 
 
-void Gemv ( cublasOperation_t transA, Int m, Int n, const float *alpha,
+void Gemv ( char transA, Int m, Int n, const float *alpha,
           const float *A, int lda, const float *x, int incx,
           const float *beta, float *y, int incy)
 {
-    CUBLAS_ERROR( cublasSgemv_v2(hcublas, transA, m, n, alpha, A, lda, x, incx, beta, y, incy ), "cublasSgemv_v2 failed !");
+    cublasOperation_t trans;
+    if (transA == 'n' || transA == 'N') trans = CUBLAS_OP_N;
+    if (transA == 't' || transA == 'T') trans = CUBLAS_OP_T;
+    if (transA == 'c' || transA == 'C') trans = CUBLAS_OP_C;
+    CUBLAS_ERROR( cublasSgemv_v2(hcublas, trans, m, n, alpha, A, lda, x, incx, beta, y, incy ), "cublasSgemv_v2 failed !");
     return;
 }
 
 
-void Gemv ( cublasOperation_t transA, Int m, Int n, const cuComplex *alpha,
+void Gemv ( char transA, Int m, Int n, const cuComplex *alpha,
           const cuComplex *A, int lda, const cuComplex *x, int incx,
           const cuComplex *beta, cuComplex *y, int incy)
 {
-    CUBLAS_ERROR( cublasCgemv_v2(hcublas, transA, m, n, alpha, A, lda, x, incx, beta, y, incy ), "cublasCgemv_v2 failed !");
+    cublasOperation_t trans;
+    if (transA == 'n' || transA == 'N') trans = CUBLAS_OP_N;
+    if (transA == 't' || transA == 'T') trans = CUBLAS_OP_T;
+    if (transA == 'c' || transA == 'C') trans = CUBLAS_OP_C;
+    CUBLAS_ERROR( cublasCgemv_v2(hcublas, trans, m, n, alpha, A, lda, x, incx, beta, y, incy ), "cublasCgemv_v2 failed !");
     return;
 }
 
-void Gemv ( cublasOperation_t transA, Int m, Int n, const cuDoubleComplex *alpha,
+void Gemv ( char transA, Int m, Int n, const cuDoubleComplex *alpha,
           const cuDoubleComplex *A, int lda, const cuDoubleComplex *x, int incx,
           const cuDoubleComplex *beta, cuDoubleComplex *y, int incy)
 {
-    CUBLAS_ERROR( cublasZgemv_v2(hcublas, transA, m, n, alpha, A, lda, x, incx, beta, y, incy ), "cublasZgemv_v2 failed !");
+    cublasOperation_t trans;
+    if (transA == 'n' || transA == 'N') trans = CUBLAS_OP_N;
+    if (transA == 't' || transA == 'T') trans = CUBLAS_OP_T;
+    if (transA == 'c' || transA == 'C') trans = CUBLAS_OP_C;
+    CUBLAS_ERROR( cublasZgemv_v2(hcublas, trans, m, n, alpha, A, lda, x, incx, beta, y, incy ), "cublasZgemv_v2 failed !");
     return;
 }
 
@@ -123,45 +139,80 @@ void Gemv ( cublasOperation_t transA, Int m, Int n, const cuDoubleComplex *alpha
 // Level 3 BLAS GEMM 
 // *********************************************************************
  void Gemm 
-            ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
+            ( char transA, char transB, Int m, Int n, Int k,
             const float *alpha, const float* A, Int lda, const float* B, Int ldb,
             const float *beta,        float* C, Int ldc )
 {
-    CUBLAS_ERROR(cublasSgemm_v2(hcublas, transA, transB, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc), " cublasSgemm failed ! ");
+    cublasOperation_t trans1, trans2;
+    if (transA == 'n' || transA == 'N') trans1 = CUBLAS_OP_N;
+    if (transA == 't' || transA == 'T') trans1 = CUBLAS_OP_T;
+    if (transA == 'c' || transA == 'C') trans1 = CUBLAS_OP_C;
+    if (transB == 'n' || transB == 'N') trans2 = CUBLAS_OP_N;
+    if (transB == 't' || transB == 'T') trans2 = CUBLAS_OP_T;
+    if (transB == 'c' || transB == 'C') trans2 = CUBLAS_OP_C;
+    CUBLAS_ERROR(cublasSgemm_v2(hcublas, trans1, trans2, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc), " cublasSgemm failed ! ");
     return;
 }
 
  void Gemm 
-           ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
+           ( char transA, char transB, Int m, Int n, Int k,
             const double *alpha, const double* A, Int lda, const double* B, Int ldb,
             double *beta,        double* C, Int ldc )
 {
-    CUBLAS_ERROR(cublasDgemm_v2(hcublas, transA, transB, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc), " cublasDgemm failed !");
+    cublasOperation_t trans1, trans2;
+    if (transA == 'n' || transA == 'N') trans1 = CUBLAS_OP_N;
+    if (transA == 't' || transA == 'T') trans1 = CUBLAS_OP_T;
+    if (transA == 'c' || transA == 'C') trans1 = CUBLAS_OP_C;
+    if (transB == 'n' || transB == 'N') trans2 = CUBLAS_OP_N;
+    if (transB == 't' || transB == 'T') trans2 = CUBLAS_OP_T;
+    if (transB == 'c' || transB == 'C') trans2 = CUBLAS_OP_C;
+    CUBLAS_ERROR(cublasDgemm_v2(hcublas, trans1, trans2, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc), " cublasDgemm failed !");
     return;
 }
  void Gemm 
-          ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
+          ( char transA, char transB, Int m, Int n, Int k,
             const scomplex *alpha, const scomplex* A, Int lda, const scomplex* B, Int ldb,
             const scomplex *beta,        scomplex* C, Int ldc )
 {
-    CUBLAS_ERROR(cublasCgemm_v2(hcublas, transA, transB, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc), " cublasCgemm failed !");
+    cublasOperation_t trans1, trans2;
+    if (transA == 'n' || transA == 'N') trans1 = CUBLAS_OP_N;
+    if (transA == 't' || transA == 'T') trans1 = CUBLAS_OP_T;
+    if (transA == 'c' || transA == 'C') trans1 = CUBLAS_OP_C;
+    if (transB == 'n' || transB == 'N') trans2 = CUBLAS_OP_N;
+    if (transB == 't' || transB == 'T') trans2 = CUBLAS_OP_T;
+    if (transB == 'c' || transB == 'C') trans2 = CUBLAS_OP_C;
+    CUBLAS_ERROR(cublasCgemm_v2(hcublas, trans1, trans2, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc), " cublasCgemm failed !");
     return;
 }
  void Gemm 
-          ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
+          ( char transA, char transB, Int m, Int n, Int k,
             const cuDoubleComplex *alpha, const cuDoubleComplex* A, Int lda, const cuDoubleComplex* B, Int ldb,
             const cuDoubleComplex *beta,        cuDoubleComplex* C, Int ldc )
 {
-    CUBLAS_ERROR(cublasZgemm_v2(hcublas, transA, transB, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc), " cublasZgemm failed !");
+    cublasOperation_t trans1, trans2;
+    if (transA == 'n' || transA == 'N') trans1 = CUBLAS_OP_N;
+    if (transA == 't' || transA == 'T') trans1 = CUBLAS_OP_T;
+    if (transA == 'c' || transA == 'C') trans1 = CUBLAS_OP_C;
+    if (transB == 'n' || transB == 'N') trans2 = CUBLAS_OP_N;
+    if (transB == 't' || transB == 'T') trans2 = CUBLAS_OP_T;
+    if (transB == 'c' || transB == 'C') trans2 = CUBLAS_OP_C;
+    CUBLAS_ERROR(cublasZgemm_v2(hcublas, trans1, trans2, m, n, k, alpha, A, lda, B, ldb, beta, C, ldc), " cublasZgemm failed !");
     return;
 }
  void Gemm
-           ( cublasOperation_t transA, cublasOperation_t transB, Int m, Int n, Int k,
+           ( char transA, char transB, Int m, Int n, Int k,
             const double *alpha, double* A[], Int lda, double* B[], Int ldb,
             const double *beta,   double* C[], Int ldc ,Int batchCount)
 {
+    cublasOperation_t trans1, trans2;
+    if (transA == 'n' || transA == 'N') trans1 = CUBLAS_OP_N;
+    if (transA == 't' || transA == 'T') trans1 = CUBLAS_OP_T;
+    if (transA == 'c' || transA == 'C') trans1 = CUBLAS_OP_C;
+    if (transB == 'n' || transB == 'N') trans2 = CUBLAS_OP_N;
+    if (transB == 't' || transB == 'T') trans2 = CUBLAS_OP_T;
+    if (transB == 'c' || transB == 'C') trans2 = CUBLAS_OP_C;
     
-    CUBLAS_ERROR(cublasDgemmBatched(hcublas, transA, transB, m, n, k, alpha, const_cast<double**>(A), lda, const_cast<double**>(B), ldb, beta, C, ldc, batchCount), " cublasDgemmBatched failed! ");
+    CUBLAS_ERROR(cublasDgemmBatched(hcublas, trans1, trans2, m, n, k, alpha, const_cast<double**>(A), lda, const_cast<double**>(B), ldb, beta, C, ldc, batchCount), " cublasDgemmBatched failed! ");
     return;
 }
 
@@ -217,41 +268,116 @@ void Axpy( int n, const cuDoubleComplex * alpha, const cuDoubleComplex * x, int 
 }
  
 
- void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
-             cublasDiagType_t diag, int m, int n, const float *alpha,  const float *A,  
+ void Trsm ( char side, char uplo, char trans, 
+             char diag, int m, int n, const float *alpha,  const float *A,  
              int lda, float  *B, int ldb )
 {
-    CUBLAS_ERROR( cublasStrsm(hcublas, side, uplo, trans, diag, m, n, alpha, A, lda, B, ldb ), 
+    cublasOperation_t trans1;
+    if (trans == 'n' || trans == 'N') trans1 = CUBLAS_OP_N;
+    if (trans == 't' || trans == 'T') trans1 = CUBLAS_OP_T;
+    if (trans == 'c' || trans == 'C') trans1 = CUBLAS_OP_C;
+
+    cublasSideMode_t side1;
+    if ( side == 'l' || side == 'L' ) side1 = CUBLAS_SIDE_LEFT;
+    if ( side == 'r' || side == 'R' ) side1 = CUBLAS_SIDE_RIGHT;
+
+    cublasFillMode_t  uplo1;
+    if( uplo == 'u' || uplo == 'U' ) uplo1 = CUBLAS_FILL_MODE_UPPER;
+    if( uplo == 'l' || uplo == 'L' ) uplo1 = CUBLAS_FILL_MODE_LOWER;
+
+    cublasDiagType_t diag1;
+    if ( diag == 'u' || diag == 'U' ) diag1 = CUBLAS_DIAG_UNIT;
+    if ( diag == 'n' || diag == 'N' ) diag1 = CUBLAS_DIAG_NON_UNIT;
+
+    CUBLAS_ERROR( cublasStrsm(hcublas, side1, uplo1, trans1, diag1, m, n, alpha, A, lda, B, ldb ), 
                   " cublas Strsm failed! "); 
     return;
 }
- void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
-             cublasDiagType_t diag, int m, int n, const double *alpha, const double *A, 
+ void Trsm ( char side, char uplo, char trans, 
+             char diag, int m, int n, const double *alpha, const double *A, 
              int lda, double *B, int ldb )
-{
-    CUBLAS_ERROR( cublasDtrsm(hcublas, side, uplo, trans, diag, m, n, alpha, A, lda, B, ldb ), 
+{   
+    cublasOperation_t trans1;
+    if (trans == 'n' || trans == 'N') trans1 = CUBLAS_OP_N;
+    if (trans == 't' || trans == 'T') trans1 = CUBLAS_OP_T;
+    if (trans == 'c' || trans == 'C') trans1 = CUBLAS_OP_C;
+
+    cublasSideMode_t side1;
+    if ( side == 'l' || side == 'L' ) side1 = CUBLAS_SIDE_LEFT;
+    if ( side == 'r' || side == 'R' ) side1 = CUBLAS_SIDE_RIGHT;
+
+    cublasFillMode_t  uplo1;
+    if( uplo == 'u' || uplo == 'U' ) uplo1 = CUBLAS_FILL_MODE_UPPER;
+    if( uplo == 'l' || uplo == 'L' ) uplo1 = CUBLAS_FILL_MODE_LOWER;
+
+    cublasDiagType_t diag1;
+    if ( diag == 'u' || diag == 'U' ) diag1 = CUBLAS_DIAG_UNIT;
+    if ( diag == 'n' || diag == 'N' ) diag1 = CUBLAS_DIAG_NON_UNIT;
+
+    CUBLAS_ERROR( cublasDtrsm(hcublas, side1, uplo1, trans1, diag1, m, n, alpha, A, lda, B, ldb ), 
                   " cublas Dtrsm failed! ");
     return;
 }
- void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
-             cublasDiagType_t diag, int m, int n, const cuComplex *alpha, 
+ void Trsm ( char side, char uplo, char trans, 
+             char diag, int m, int n, const cuComplex *alpha, 
              const cuComplex *A, int lda, cuComplex *B, int ldb )
 {
-    CUBLAS_ERROR( cublasCtrsm(hcublas, side, uplo, trans, diag, m, n, alpha, A, lda, B, ldb ), 
+    cublasOperation_t trans1;
+    if (trans == 'n' || trans == 'N') trans1 = CUBLAS_OP_N;
+    if (trans == 't' || trans == 'T') trans1 = CUBLAS_OP_T;
+    if (trans == 'c' || trans == 'C') trans1 = CUBLAS_OP_C;
+
+    cublasSideMode_t side1;
+    if ( side == 'l' || side == 'L' ) side1 = CUBLAS_SIDE_LEFT;
+    if ( side == 'r' || side == 'R' ) side1 = CUBLAS_SIDE_RIGHT;
+
+    cublasFillMode_t  uplo1;
+    if( uplo == 'u' || uplo == 'U' ) uplo1 = CUBLAS_FILL_MODE_UPPER;
+    if( uplo == 'l' || uplo == 'L' ) uplo1 = CUBLAS_FILL_MODE_LOWER;
+
+    cublasDiagType_t diag1;
+    if ( diag == 'u' || diag == 'U' ) diag1 = CUBLAS_DIAG_UNIT;
+    if ( diag == 'n' || diag == 'N' ) diag1 = CUBLAS_DIAG_NON_UNIT;
+
+    CUBLAS_ERROR( cublasCtrsm(hcublas, side1, uplo1, trans1, diag1, m, n, alpha, A, lda, B, ldb ), 
                   " cublas Ctrsm failed! ");
     return;
 }
- void Trsm ( cublasSideMode_t side, cublasFillMode_t uplo, cublasOperation_t trans, 
-             cublasDiagType_t diag, int m, int n, const cuDoubleComplex *alpha, 
+ void Trsm ( char side, char uplo, char trans, 
+             char diag, int m, int n, const cuDoubleComplex *alpha, 
              const cuDoubleComplex *A, int lda, cuDoubleComplex *B, int ldb )
 {
-    CUBLAS_ERROR( cublasZtrsm(hcublas, side, uplo, trans, diag, m, n, alpha, A, lda, B, ldb ), 
+    cublasOperation_t trans1;
+    if (trans == 'n' || trans == 'N') trans1 = CUBLAS_OP_N;
+    if (trans == 't' || trans == 'T') trans1 = CUBLAS_OP_T;
+    if (trans == 'c' || trans == 'C') trans1 = CUBLAS_OP_C;
+
+    cublasSideMode_t side1;
+    if ( side == 'l' || side == 'L' ) side1 = CUBLAS_SIDE_LEFT;
+    if ( side == 'r' || side == 'R' ) side1 = CUBLAS_SIDE_RIGHT;
+
+    cublasFillMode_t  uplo1;
+    if( uplo == 'u' || uplo == 'U' ) uplo1 = CUBLAS_FILL_MODE_UPPER;
+    if( uplo == 'l' || uplo == 'L' ) uplo1 = CUBLAS_FILL_MODE_LOWER;
+
+    cublasDiagType_t diag1;
+    if ( diag == 'u' || diag == 'U' ) diag1 = CUBLAS_DIAG_UNIT;
+    if ( diag == 'n' || diag == 'N' ) diag1 = CUBLAS_DIAG_NON_UNIT;
+
+    CUBLAS_ERROR( cublasZtrsm(hcublas, side1, uplo1, trans1, diag1, m, n, alpha, A, lda, B, ldb ), 
                   " cublas Ztrsm failed! ");
     return;
 }
 
-void batched_Gemm( cublasOperation_t transA, cublasOperation_t transB, int m, int n, int k, const double *alpha, double *A, int lda, double *B, int ldb, const double *beta, double *C, int ldc, int batchCount, int x, int y, int z)
+void batched_Gemm( char transA, char transB, int m, int n, int k, const double *alpha, double *A, int lda, double *B, int ldb, const double *beta, double *C, int ldc, int batchCount, int x, int y, int z)
 {
+	cublasOperation_t trans1, trans2;
+	if (transA == 'n' || transA == 'N') trans1 = CUBLAS_OP_N;
+	if (transA == 't' || transA == 'T') trans1 = CUBLAS_OP_T;
+	if (transA == 'c' || transA == 'C') trans1 = CUBLAS_OP_C;
+	if (transB == 'n' || transB == 'N') trans2 = CUBLAS_OP_N;
+	if (transB == 't' || transB == 'T') trans2 = CUBLAS_OP_T;
+	if (transB == 'c' || transB == 'C') trans2 = CUBLAS_OP_C;
 	double ** h_A = (double **) malloc( sizeof(double*) *batchCount);
 	double ** h_B = (double **) malloc( sizeof(double*) *batchCount);
 	double ** h_C = (double **) malloc( sizeof(double*) *batchCount);
@@ -271,7 +397,7 @@ void batched_Gemm( cublasOperation_t transA, cublasOperation_t transB, int m, in
 	cudaMemcpy( d_B, h_B, batchCount *sizeof(double*), cudaMemcpyHostToDevice);
 	cudaMemcpy( d_C, h_C, batchCount *sizeof(double*), cudaMemcpyHostToDevice);
 	
-	cublasDgemmBatched(hcublas, transA, transB, m, n, k, alpha, (const double**)(d_A), lda, (const double**)(d_B), ldb, beta, d_C, ldc, batchCount);
+	cublasDgemmBatched(hcublas, trans1, trans2, m, n, k, alpha, (const double**)(d_A), lda, (const double**)(d_B), ldb, beta, d_C, ldc, batchCount);
 
 	free(h_A);
 	free(h_B);
@@ -282,13 +408,21 @@ void batched_Gemm( cublasOperation_t transA, cublasOperation_t transB, int m, in
 	cudaFree(d_C);
 }
 
-void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, int n, int k, const double *alpha, double *A, int lda, double *B, int ldb, const double *beta, double *C, int ldc, int batchCount, int x, int y, int z, 
+void batched_Gemm6( char transA, char transB, int m, int n, int k, const double *alpha, double *A, int lda, double *B, int ldb, const double *beta, double *C, int ldc, int batchCount, int x, int y, int z, 
  double *A2, double *B2, double *C2, int x2, int y2, int z2,
  double *A3, double *B3, double *C3, int x3, int y3, int z3,
  double *A4, double *B4, double *C4, int x4, int y4, int z4,
  double *A5, double *B5, double *C5, int x5, int y5, int z5,
  double *A6, double *B6, double *C6, int x6, int y6, int z6)
 {
+	cublasOperation_t trans1, trans2;
+	if (transA == 'n' || transA == 'N') trans1 = CUBLAS_OP_N;
+	if (transA == 't' || transA == 'T') trans1 = CUBLAS_OP_T;
+	if (transA == 'c' || transA == 'C') trans1 = CUBLAS_OP_C;
+	if (transB == 'n' || transB == 'N') trans2 = CUBLAS_OP_N;
+	if (transB == 't' || transB == 'T') trans2 = CUBLAS_OP_T;
+	if (transB == 'c' || transB == 'C') trans2 = CUBLAS_OP_C;
+
 	double ** h_A = (double **) malloc( sizeof(double*) *6*batchCount);
 	double ** h_B = (double **) malloc( sizeof(double*) *6*batchCount);
 	double ** h_C = (double **) malloc( sizeof(double*) *6*batchCount);
@@ -339,7 +473,7 @@ void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, i
 	cudaMemcpy( d_B, h_B, batchCount *6*sizeof(double*), cudaMemcpyHostToDevice);
 	cudaMemcpy( d_C, h_C, batchCount *6*sizeof(double*), cudaMemcpyHostToDevice);
 	
-	cublasDgemmBatched(hcublas, transA, transB, m, n, k, alpha, (const double**)(d_A), lda, (const double**)(d_B), ldb, beta, d_C, ldc, 6*batchCount);
+	cublasDgemmBatched(hcublas, trans1, trans2, m, n, k, alpha, (const double**)(d_A), lda, (const double**)(d_B), ldb, beta, d_C, ldc, 6*batchCount);
 
 	free(h_A);
 	free(h_B);
@@ -351,13 +485,20 @@ void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, i
 }
 
 
-void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, int n, int k, const cuDoubleComplex *alpha, cuDoubleComplex *A, int lda, cuDoubleComplex *B, int ldb, const cuDoubleComplex *beta, cuDoubleComplex *C, int ldc, int batchCount, int x, int y, int z, 
+void batched_Gemm6( char transA, char transB, int m, int n, int k, const cuDoubleComplex *alpha, cuDoubleComplex *A, int lda, cuDoubleComplex *B, int ldb, const cuDoubleComplex *beta, cuDoubleComplex *C, int ldc, int batchCount, int x, int y, int z, 
  cuDoubleComplex *A2, cuDoubleComplex *B2, cuDoubleComplex *C2, int x2, int y2, int z2,
  cuDoubleComplex *A3, cuDoubleComplex *B3, cuDoubleComplex *C3, int x3, int y3, int z3,
  cuDoubleComplex *A4, cuDoubleComplex *B4, cuDoubleComplex *C4, int x4, int y4, int z4,
  cuDoubleComplex *A5, cuDoubleComplex *B5, cuDoubleComplex *C5, int x5, int y5, int z5,
  cuDoubleComplex *A6, cuDoubleComplex *B6, cuDoubleComplex *C6, int x6, int y6, int z6)
 {
+    cublasOperation_t trans1, trans2;
+    if (transA == 'n' || transA == 'N') trans1 = CUBLAS_OP_N;
+    if (transA == 't' || transA == 'T') trans1 = CUBLAS_OP_T;
+    if (transA == 'c' || transA == 'C') trans1 = CUBLAS_OP_C;
+    if (transB == 'n' || transB == 'N') trans2 = CUBLAS_OP_N;
+    if (transB == 't' || transB == 'T') trans2 = CUBLAS_OP_T;
+    if (transB == 'c' || transB == 'C') trans2 = CUBLAS_OP_C;
 	cuDoubleComplex ** h_A = (cuDoubleComplex **) malloc( sizeof(cuDoubleComplex*) *6*batchCount);
 	cuDoubleComplex ** h_B = (cuDoubleComplex **) malloc( sizeof(cuDoubleComplex*) *6*batchCount);
 	cuDoubleComplex ** h_C = (cuDoubleComplex **) malloc( sizeof(cuDoubleComplex*) *6*batchCount);
@@ -408,7 +549,7 @@ void batched_Gemm6( cublasOperation_t transA, cublasOperation_t transB, int m, i
 	cudaMemcpy( d_B, h_B, batchCount *6*sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
 	cudaMemcpy( d_C, h_C, batchCount *6*sizeof(cuDoubleComplex*), cudaMemcpyHostToDevice);
 	
-	cublasZgemmBatched(hcublas, transA, transB, m, n, k, alpha, (const cuDoubleComplex**)(d_A), lda, (const cuDoubleComplex**)(d_B), ldb, beta, d_C, ldc, 6*batchCount);
+	cublasZgemmBatched(hcublas, trans1, trans2, m, n, k, alpha, (const cuDoubleComplex**)(d_A), lda, (const cuDoubleComplex**)(d_B), ldb, beta, d_C, ldc, 6*batchCount);
 
 	free(h_A);
 	free(h_B);

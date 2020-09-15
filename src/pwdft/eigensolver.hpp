@@ -103,15 +103,6 @@ public:
 
   // ********************  OPERATIONS  *******************************
 
-
-#ifdef _COMPLEX_
-  void PPCGSolveComplex(
-      Int          numEig,
-      Int          eigMaxIter,
-      Real         eigMinTolerance,
-      Real         eigTolerance );
-#else
-
   /// @brief Parallel LOBPCG solver with intra-element
   /// parallelization.
   ///
@@ -131,7 +122,6 @@ public:
       Real         eigMinTolerance,
       Real         eigTolerance );
 
-#endif
 
   /// @brief Routines for Chebyshev filtering
   void FirstChebyStep(
@@ -146,23 +136,15 @@ public:
 
   /// @brief Parallel PPCG solver
   /// by ScaLAPACK.
-#ifdef GPU
-#ifdef _COMPLEX_
-  void PPCGSolveComplex(
-      Int          numEig,
-      Int          eigMaxIter,
-      Real         eigMinTolerance,
-      Real         eigTolerance,
-      Int          scf_iter );
-#else
-  void PPCGSolveReal(
+#ifdef DEVICE
+  void devicePPCGSolveReal(
       Int          numEig,
       Int          eigMaxIter,
       Real         eigMinTolerance,
       Real         eigTolerance,
       Int          scf_iter );
 #endif
-#endif
+
   void PPCGSolveReal(
       Int          numEig,
       Int          eigMaxIter,

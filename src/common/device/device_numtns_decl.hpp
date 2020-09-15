@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Authors: Lexing Ying and Lin Lin
+Authors: Lexing Ying and Lin Lin, Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -40,14 +40,15 @@ royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file cu_numtns_decl.hpp
+/// @file device_numtns_decl.hpp
 /// @brief Numerical tensor
-/// @date 2016-11-19
-#ifndef _CU_NUMTNS_DECL_HPP_
-#define _CU_NUMTNS_DECL_HPP_
+/// @date 2020-08-12
+#ifdef DEVICE
+#ifndef _DEVICE_NUMTNS_DECL_HPP_
+#define _DEVICE_NUMTNS_DECL_HPP_
 
 #include "environment.hpp"
-#include "cu_nummat_impl.hpp"
+#include "device_nummat_impl.hpp"
 
 namespace  dgdft{
 
@@ -58,22 +59,22 @@ namespace  dgdft{
 // data.
 
 template <class F>
-  class cuNumTns
+  class deviceNumTns
   {
   public:
     Int m_, n_, p_;
     bool owndata_;
     F* data_;
   public:
-    cuNumTns(Int m=0, Int n=0, Int p=0);
+    deviceNumTns(Int m=0, Int n=0, Int p=0);
 
-    cuNumTns(Int m, Int n, Int p, bool owndata, F* data);
+    deviceNumTns(Int m, Int n, Int p, bool owndata, F* data);
 
-    cuNumTns(const cuNumTns& C);
+    deviceNumTns(const deviceNumTns& C);
 
-    ~cuNumTns();
+    ~deviceNumTns();
 
-    cuNumTns& operator=(const cuNumTns& C);
+    deviceNumTns& operator=(const deviceNumTns& C);
 
     void Resize(Int m, Int n, Int p);
 
@@ -100,18 +101,19 @@ template <class F>
 
 
 // Commonly used
-typedef cuNumTns<bool>       cuBolNumTns;
-typedef cuNumTns<Int>        cuIntNumTns;
-typedef cuNumTns<Real>       cuDblNumTns;
-typedef cuNumTns<cuDoubleComplex>    cuCpxNumTns;
+typedef deviceNumTns<bool>       deviceBolNumTns;
+typedef deviceNumTns<Int>        deviceIntNumTns;
+typedef deviceNumTns<Real>       deviceDblNumTns;
+typedef deviceNumTns<cuDoubleComplex>    deviceCpxNumTns;
 
 // Utilities
-//template <class F> inline void SetValue(cuNumTns<F>& T, F val);
+//template <class F> inline void SetValue(deviceNumTns<F>& T, F val);
 
-//template <class F> inline Real Energy(const cuNumTns<F>& T);
+//template <class F> inline Real Energy(const deviceNumTns<F>& T);
 
 
 
 } // namespace dgdft
 
-#endif // _CU_NUMTNS_DECL_HPP_
+#endif // _DEVICE_NUMTNS_DECL_HPP_
+#endif // DEVICE

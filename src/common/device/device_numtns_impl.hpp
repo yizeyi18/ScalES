@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Authors: Lexing Ying and Lin Lin
+Authors: Lexing Ying and Lin Lin, Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -40,30 +40,31 @@ royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file cu_numtns_impl.hpp
+/// @file device_numtns_impl.hpp
 /// @brief Implementation of numerical tensor.
 /// @date 2016-11-21
-#ifndef _CU_NUMTNS_IMPL_HPP_
-#define _CU_NUMTNS_IMPL_HPP_
+#ifdef DEVICE
+#ifndef _DEVICE_NUMTNS_IMPL_HPP_
+#define _DEVICE_NUMTNS_IMPL_HPP_
 
-#include  "cu_numtns_decl.hpp"
+#include  "device_numtns_decl.hpp"
 
 namespace  dgdft{
 
 template <class F> 
-  inline cuNumTns<F>::cuNumTns(Int m, Int n, Int p): m_(m), n_(n), p_(p), owndata_(true) {
+  inline deviceNumTns<F>::deviceNumTns(Int m, Int n, Int p): m_(m), n_(n), p_(p), owndata_(true) {
     if(m_>0 && n_>0 && p_>0) 
-      data_ = (F*)cuda_malloc( sizeof(F) * m_ * n_ *p_); 
+      data_ = (F*)device_malloc( sizeof(F) * m_ * n_ *p_); 
     else 
       data_=NULL;
   }
 
 template <class F> 
-  inline cuNumTns<F>::cuNumTns(Int m, Int n, Int p, bool owndata, F* data): m_(m), n_(n), p_(p), owndata_(owndata) {
+  inline deviceNumTns<F>::deviceNumTns(Int m, Int n, Int p, bool owndata, F* data): m_(m), n_(n), p_(p), owndata_(owndata) {
     if(owndata_) {
       if(m_>0 && n_>0 && p_>0) {
-        data_ = (F*) cuda_malloc( sizeof(F) * m_ * n_ * p_);
-        cuda_memcpy_GPU2GPU(data_, data, sizeof(F) * m_ * n_ * p_ );
+        data_ = (F*) device_malloc( sizeof(F) * m_ * n_ * p_);
+        device_memcpy_DEVICE2DEVICE(data_, data, sizeof(F) * m_ * n_ * p_ );
       }
       else 
         data_=NULL;
@@ -72,11 +73,11 @@ template <class F>
   } 
 
 template <class F> 
-  inline cuNumTns<F>::cuNumTns(const cuNumTns& C): m_(C.m_), n_(C.n_), p_(C.p_), owndata_(C.owndata_) {
+  inline deviceNumTns<F>::deviceNumTns(const deviceNumTns& C): m_(C.m_), n_(C.n_), p_(C.p_), owndata_(C.owndata_) {
     if(owndata_) {
       if(m_>0 && n_>0 && p_>0) {
-        data_ = (F*) cuda_malloc( sizeof(F) * m_ * n_ * p_);
-        cuda_memcpy_GPU2GPU(data_, C.data_, sizeof(F) * m_ * n_ * p_ );
+        data_ = (F*) device_malloc( sizeof(F) * m_ * n_ * p_);
+        device_memcpy_DEVICE2DEVICE(data_, C.data_, sizeof(F) * m_ * n_ * p_ );
       }
       else 
         data_=NULL;
@@ -86,25 +87,25 @@ template <class F>
 
 
 template <class F> 
-  inline cuNumTns<F>::~cuNumTns() { 
+  inline deviceNumTns<F>::~deviceNumTns() { 
     if(owndata_) { 
-      if(m_>0 && n_>0 && p_>0) { cuda_free(data_) ; data_ = NULL; } 
+      if(m_>0 && n_>0 && p_>0) { device_free(data_) ; data_ = NULL; } 
     }
   }
 
 template <class F> 
-  inline cuNumTns<F>& cuNumTns<F>::operator=(const cuNumTns& C) {
+  inline deviceNumTns<F>& deviceNumTns<F>::operator=(const deviceNumTns& C) {
     // Do not copy if it is the same matrix.
     if(C.data_ == data_) return *this;
 
     if(owndata_) { 
-      if(m_>0 && n_>0 && p_>0) { cuda_free(data_) ; data_ = NULL; } 
+      if(m_>0 && n_>0 && p_>0) { device_free(data_) ; data_ = NULL; } 
     }
     m_ = C.m_; n_=C.n_; p_=C.p_; owndata_=C.owndata_;
     if(owndata_) {
       if(m_>0 && n_>0 && p_>0) {
-        data_ = (F*) cuda_malloc( sizeof(F) * m_ * n_ * p_);
-        cuda_memcpy_GPU2GPU(data_, C.data_, sizeof(F) * m_ * n_ * p_ );
+        data_ = (F*) device_malloc( sizeof(F) * m_ * n_ * p_);
+        device_memcpy_DEVICE2DEVICE(data_, C.data_, sizeof(F) * m_ * n_ * p_ );
       }
       else data_ = NULL;
     } 
@@ -113,19 +114,19 @@ template <class F>
 
 
 template <class F> 
-  inline void cuNumTns<F>::Resize(Int m, Int n, Int p)  {
+  inline void deviceNumTns<F>::Resize(Int m, Int n, Int p)  {
     if( owndata_ == false ){
       ErrorHandling("Tensor being resized must own data.");
     }
     if(m_!=m || n_!=n || p_!=p) {
-      if(m_>0 && n_>0 && p_>0) { cuda_free(data_); data_ = NULL; } 
+      if(m_>0 && n_>0 && p_>0) { device_free(data_); data_ = NULL; } 
       m_ = m; n_ = n; p_=p;
-      if(m_>0 && n_>0 && p_>0) { data_ = (F*) cuda_malloc( sizeof(F) * m_ * n_ * p_); } else data_=NULL;
+      if(m_>0 && n_>0 && p_>0) { data_ = (F*) device_malloc( sizeof(F) * m_ * n_ * p_); } else data_=NULL;
     }
   }
 
 template <class F> 
-  inline const F& cuNumTns<F>::operator()(Int i, Int j, Int k) const  {
+  inline const F& deviceNumTns<F>::operator()(Int i, Int j, Int k) const  {
     if( i < 0 || i >= m_ ||
         j < 0 || j >= n_ ||
         k < 0 || k >= p_ ) {
@@ -140,7 +141,7 @@ template <class F>
   }
 
 template <class F> 
-  inline F& cuNumTns<F>:: operator()(Int i, Int j, Int k)  {
+  inline F& deviceNumTns<F>:: operator()(Int i, Int j, Int k)  {
     if( i < 0 || i >= m_ ||
         j < 0 || j >= n_ ||
         k < 0 || k >= p_ ) {
@@ -155,7 +156,7 @@ template <class F>
   }
 
 template <class F> 
-  inline F* cuNumTns<F>::MatData (Int k) const {
+  inline F* deviceNumTns<F>::MatData (Int k) const {
     if( k < 0 || k >= p_ ) {
       std::ostringstream msg;
       msg 
@@ -168,7 +169,7 @@ template <class F>
   }
 
 template <class F> 
-  inline F* cuNumTns<F>::VecData (Int j, Int k) const {
+  inline F* deviceNumTns<F>::VecData (Int j, Int k) const {
     if( j < 0 || j >= n_ ||
         k < 0 || k >= p_ ) {
       std::ostringstream msg;
@@ -186,7 +187,7 @@ template <class F>
 // Utilities
 // *********************************************************************
 /*
-template <class F> inline void SetValue(cuNumTns<F>& T, F val)
+template <class F> inline void SetValue(deviceNumTns<F>& T, F val)
 {
   F *ptr = T.data_;
   for(Int i=0; i < T.m() * T.n() * T.p(); i++) *(ptr++) = val; 
@@ -194,7 +195,7 @@ template <class F> inline void SetValue(cuNumTns<F>& T, F val)
   return;
 }
 
-template <class F> inline Real Energy(const cuNumTns<F>& T)
+template <class F> inline Real Energy(const deviceNumTns<F>& T)
 {
   Real sum = 0;
 
@@ -207,4 +208,5 @@ template <class F> inline Real Energy(const cuNumTns<F>& T)
 */
 } // namespace dgdft
 
-#endif // _CU_NUMTNS_IMPL_HPP_
+#endif // _DEVICE_NUMTNS_IMPL_HPP_
+#endif // DEVICE

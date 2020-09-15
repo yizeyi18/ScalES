@@ -56,10 +56,12 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "lapack.hpp"
 #include  "esdf.hpp"
 
-#ifdef GPU
-#include  "cu_numvec_impl.hpp"
-#include  "cu_numtns_impl.hpp"
-#include  "cublas.hpp"
+#ifdef DEVICE
+#include  "device_numvec_impl.hpp"
+#include  "device_numtns_impl.hpp"
+#include  "device_blas.hpp"
+#include  "device_fft.hpp"
+#include  "device_utility.hpp"
 #endif
 
 namespace dgdft{
@@ -67,21 +69,13 @@ namespace dgdft{
 class Spinor {
 private:
   Domain            domain_;                // mesh should be used here for general cases 
-#ifdef _COMPLEX_
-  NumTns<Complex>      wavefun_;               // Local data of the wavefunction 
-#else
   NumTns<Real>      wavefun_;               // Local data of the wavefunction 
-#endif
   IntNumVec         wavefunIdx_;
   Int               numStateTotal_;
   Int               blocksize_;
-#ifdef GPU
-  // not use wavefun_ in the GPU implementation.
-#ifdef _COMPLEX_
-  cuNumTns<cuDoubleComplex>   cu_wavefun_;
-#else
-  cuNumTns<Real>   cu_wavefun_;
-#endif
+#ifdef DEVICE
+  // not use wavefun_ in the DEVICE implementation.
+  deviceNumTns<Real>   cu_wavefun_;
 #endif
 
   // For density fitting
@@ -96,33 +90,13 @@ public:
   // *********************************************************************
   Spinor(); 
   ~Spinor();
-#ifdef _COMPLEX_
-  Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
-      const Complex val = static_cast<Complex>(0,0) );
 
-  Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
-      const bool owndata, Complex* data );
-#ifdef GPU
-  // needs to change...
-  Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
-      const bool owndata, cuDoubleComplex* data, bool isGPU);
-  void SetupGPU( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
-      const bool owndata, cuDoubleComplex* data );
-#endif
-
-
-  void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
-      const Complex val = static_cast<Complex>(0,0) ); 
-
-  void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
-      const bool owndata, Complex* data );
-#else
   Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
       const Real val = static_cast<Real>(0) );
 
   Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
       const bool owndata, Real* data );
-#ifdef GPU
+#ifdef DEVICE
   // Weile, needs further consideration.
   Spinor( const Domain &dm, const Int numComponent, const Int numStateTotal, Int numStateLocal,
       const bool owndata, Real* data, bool isGPU);
@@ -135,7 +109,7 @@ public:
 
   void Setup( const Domain &dm, const Int numComponent, const Int numStateTotal, const Int numStateLocal,
       const bool owndata, Real* data );
-#endif
+
   // *********************************************************************
   // Inquiries
   // *********************************************************************
@@ -150,25 +124,14 @@ public:
   Int&  WavefunIdx(const Int k) { return wavefunIdx_(k); }
   const Int&  WavefunIdx(const Int k) const { return wavefunIdx_(k); }
 
-#ifdef _COMPLEX_
-  NumTns<Complex>& Wavefun() { return wavefun_; } 
-  const NumTns<Complex>& Wavefun() const { return wavefun_; } 
-  Complex& Wavefun(const Int i, const Int j, const Int k) {return wavefun_(i,j,k); }
-  const Complex& Wavefun(const Int i, const Int j, const Int k) const {return wavefun_(i,j,k); }
-#ifdef GPU
-  cuNumTns<cuDoubleComplex>& cuWavefun() { return cu_wavefun_; } 
-  const cuNumTns<cuDoubleComplex>& cuWavefun() const { return cu_wavefun_; } 
-#endif
-#else
   NumTns<Real>& Wavefun() { return wavefun_; } 
   const NumTns<Real>& Wavefun() const { return wavefun_; } 
-#ifdef GPU
-  cuNumTns<Real>& cuWavefun() { return cu_wavefun_; } 
-  const cuNumTns<Real>& cuWavefun() const { return cu_wavefun_; } 
+#ifdef DEVICE
+  deviceNumTns<Real>& cuWavefun() { return cu_wavefun_; } 
+  const deviceNumTns<Real>& cuWavefun() const { return cu_wavefun_; } 
 #endif
   Real& Wavefun(const Int i, const Int j, const Int k) {return wavefun_(i,j,k); }
   const Real& Wavefun(const Int i, const Int j, const Int k) const {return wavefun_(i,j,k); }
-#endif
 
   // *********************************************************************
   // Access
@@ -180,42 +143,15 @@ public:
   void Normalize();
 
   // Perform all operations of matrix vector multiplication on a fine grid.
-#ifdef _COMPLEX_
-  void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
-      const std::vector<PseudoPot>& pseudo, NumTns<Complex>& a3 );
-
-  void AddTeterPrecond( Fourier* fftPtr, NumTns<Complex>& a3 );
-#ifdef GPU
-  void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
-      const std::vector<PseudoPot>& pseudo, cuNumTns<cuDoubleComplex>& a3 );
-
-  void AddTeterPrecond( Fourier* fftPtr, cuNumTns<cuDoubleComplex>& a3 );
-  void AddMultSpinorEXX ( Fourier& fft,
-      const NumTns<Complex>& phi,
-      const DblNumVec& exxgkk,
-      Real  exxFraction,
-      Real  numSpin,
-      const DblNumVec& occupationRate,
-      cuNumTns<cuDoubleComplex>& a3 );
-
-#endif
-
-  void AddMultSpinorEXX ( Fourier& fft,
-      const NumTns<Complex>& phi,
-      const DblNumVec& exxgkkR2CFine,
-      Real  exxFraction,
-      Real  numSpin,
-      const DblNumVec& occupationRate,
-      NumTns<Complex>& a3 );
-#else
   void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );
   void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );
-#ifdef GPU
+
+#ifdef DEVICE 
   void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
-      const std::vector<PseudoPot>& pseudo, cuNumTns<Real>& a3 );
-  void AddTeterPrecond( Fourier* fftPtr, cuNumTns<Real>& a3 );
+      const std::vector<PseudoPot>& pseudo, deviceNumTns<Real>& a3 );
+  void AddTeterPrecond( Fourier* fftPtr, deviceNumTns<Real>& a3 );
 #endif
 
   void AddTeterPrecond( Fourier* fftPtr, NumTns<Real>& a3 );
@@ -233,7 +169,7 @@ public:
       const DblNumVec& occupationRate,
       NumTns<Real>& a3 );
 
-#ifdef GPU
+#ifdef DEVICE
   /// @brief Apply the exchange operator to the spinor by solving
   /// Poisson like equations
   /// EXX: Spinor with exact exchange. 
@@ -245,7 +181,7 @@ public:
       Real  exxFraction,
       Real  numSpin,
       const DblNumVec& occupationRate,
-      cuNumTns<Real>& a3 );
+      deviceNumTns<Real>& a3 );
 #endif
 
   /// @brief Spinor with exact exchange, and the cost is reduced using density fitting schemes.
@@ -359,7 +295,7 @@ public:
       NumTns<Real>& a3,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
-#ifdef GPU
+#ifdef DEVICE
   void AddMultSpinorEXXDF3_GPU ( Fourier& fft, 
       const NumTns<Real>& phi,
       const DblNumVec& exxgkkR2C,
@@ -370,14 +306,13 @@ public:
       const Real numGaussianRandomFac,
       const Int numProcScaLAPACKPotrf, 
       const Int scaPotrfBlockSize, 
-      cuDblNumMat & cu_a3,
+      deviceDblNumMat & cu_a3,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
 
 #endif
 
 
-#endif
 };  // Spinor
 
 

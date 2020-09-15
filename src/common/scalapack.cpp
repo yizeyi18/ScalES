@@ -799,7 +799,7 @@ void QRCPR( Int m, Int n, Int k, double* A, Int* desca, Int* piv, double* tau, I
   int nprow, npcol, myrow, mycol;
   int ictxt = desca[1]; // context
 
-	Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol ); 
+  Cblacs_gridinfo( ictxt, &nprow, &npcol, &myrow, &mycol ); 
 
   if( m==0 || n==0 )
   {
