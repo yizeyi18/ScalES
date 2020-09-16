@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin and Wei Hu
+Author: Lin Lin, Wei Hu, Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 

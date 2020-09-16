@@ -1,9 +1,14 @@
 Plan for Refactor2020
 ==================
 
-Last revision: 07/17/2020 
+Last revision: 09/15/2020 
 
 This note serves as a todo list for the 3rd major refactoring of ``DGDFT``.  This has a different scope from the original plan 12/20/2019 (see below).
+
+[x] done
+[p] in progress
+[ ] planned but not started
+[d] still under consideration but deferred to future developments
 
 General thoughts
 ----------------
@@ -16,27 +21,27 @@ General thoughts
   algorithms for iterative solution of DFT and Hartree-Fock problems,
   like PPCG, ACE, ISDF etc.
 
-- The PWDFT module should be in a relatively clean folder pwdft/. It is
+- [x] The PWDFT module should be in a relatively clean folder pwdft/. It is
   by design a real arithmetic, gamma point code. Spin polarization may
   be supported. However, further developments, such as k-points and
   many-body perturbation theory etc should be in separate folders.
 
-- The main difficulty of refactoring is the DG part. It is now in a
+- [x] The main difficulty of refactoring is the DG part. It is now in a
   separate folder called realdg/ (real both for real arithmetic and for
   that the basis functions are really discontinuous. This may be
   different in the future, and those codes should be in separate
   folders). For now let us put all the developments in dg into that
   folder (which could be a mess and that is fine).
 
-- TDDFT should be in a separate folder called tddft/. It defines complex
+- [x] TDDFT should be in a separate folder called tddft/. It defines complex
   spinors etc in its own folder and does not touch pwdft/.
 
-- GPU should be supported. We will put aside the issue of OpenMP for
+- [x] GPU should be supported. We will put aside the issue of OpenMP for
   now. However, there should be a consistent way to multiple types of
   GPUs. A wrapper around the current cuNumMat etc so that we can write 
   xxx.device == GPU, xxx.device == HIP etc would be desirable.
   
-- Support of accelerators should be in separate files, e.g. spinor.cpp
+- [x] Support of accelerators should be in separate files, e.g. spinor.cpp
   and spinor_device.cpp. The developers should try to make the
   corresponding files in sync with each other, and mark it so clearly in
   the code when syncing is not available / possible. For instance, when
@@ -60,14 +65,14 @@ General thoughts
 Main goal of refactor2020
 -------------------------
 
-- The structure of the code is largely based the current working code in
+- [p] The structure of the code is largely based the current working code in
   the `GPU` branch, and will merge with `cuda_dg` branch `AMD_GPU_HIP`
   branch. Features in other branches are mainly in DG and can be merged
   later.
 
-- Encapsulate some GPU / ScaLAPACK operations to improve the readibility
+- [p] Encapsulate some GPU / ScaLAPACK operations to improve the readibility
 
-- A coherent, cmake environment for compiling src/pwdft and
+- [p] A coherent, cmake environment for compiling src/pwdft and
   src/pwdft.cpp, with minimal requirement of external libraries. For
   instance, the default should be to compile pwdft, without the need of
   compiling PEXSI, etc.
@@ -76,39 +81,40 @@ Main goal of refactor2020
   being the default option, we should always use the branch
   ``Use_VLocal==1``.
 
-- Can we encapsulate the ``AllForward / AllBackward`` operations (mainly in PWDFT)?
+- [ ] Can we encapsulate the ``AllForward / AllBackward`` operations (mainly in PWDFT)?
 
-- Separate contents of #ifdef GPU statements to the corresponding _device file
+- [x] Separate contents of #ifdef GPU statements to the corresponding _device file
 
-- Separate contents of #ifdef COMPLEX statements to tddft/ folder.
+- [ ] Separate contents of #ifdef COMPLEX statements to tddft/ folder.
 
-- Make tddft/ compile. maybe with cmake.
+- [ ] Make tddft/ compile. maybe with cmake.
 
-- Make realdg/ compile. Old fashioned Makefile is fine.
+- [ ] Make realdg/ compile. Old fashioned Makefile is fine.
 
-- A minimal sphinx based document for DGDFT, supporting mainly the PWDFT
+- [p] A minimal sphinx based document for DGDFT, supporting mainly the PWDFT
   module.
 
-- Give a few examples in examples/pwdft, maybe examples/tddft etc.
+- [ ] Give a few examples in examples/pwdft, maybe examples/tddft etc.
 
-- Document the code, at least for those being refactored
+- [ ] Document the code, at least for those being refactored
 
-- Add some technical aspects of GPU support to `doc/developer.tex` 
+- [ ] Add some technical aspects of GPU support to `doc/developer.tex` 
 
-- Release DGDFT 1.0, and write a paper reporting the performance of
+- [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
 
-Goals for the future
---------------------
+- [ ] pwdft/spinor.cpp has too many deprecated implementations (in
+  particular related to ISDF etc). Need to cleanup and remove the unused
+  branches.
 
-- Simplified user input. Maybe INI, or benefit from a python interface
+- [d] Simplified user input. Maybe INI, or benefit from a python interface
   like `ase`?
 
-- HDF5 output of orbitals etc.
+- [ ] HDF5 output of orbitals etc.
 
 - [ ] LOBPCG should be reimplemented. There are two options: one is for safety (slower but accurate), and the other is for production (faster but may break).
 
-- [ ] the blas.cpp / lapack.cpp shoulod be replaced by ``blas++`` and ``lapack++``. For now keep the scalapack interface as is.
+- [d] the blas.cpp / lapack.cpp shoulod be replaced by ``blas++`` and ``lapack++``. For now keep the scalapack interface as is. Recently looked into Slate. It seems still primitive.
 
 - [ ] The ScaLAPACK diagonalization should be replaced by ELPA. More specifically, the diagonalization / PEXSI interface should be replaced by the ELSI interafce.
 

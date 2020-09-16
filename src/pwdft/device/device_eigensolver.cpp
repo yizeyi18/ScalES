@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin, Weile Jia
+Author: Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -42,13 +42,7 @@ such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file device_eigensolver.cpp
 /// @brief device_eigensolver in the global domain or extended element.
-/// @date 2014-04-25 First version of parallelized version. This does
-/// not scale well.
-/// @date 2014-08-07 Intra-element parallelization.  This has much
-/// improved scalability.
-/// @date 2016-04-04 Adjust some parameters for controlling the number
-/// of iterations dynamically.
-/// @date 2016-04-07 Add Chebyshev filtering.
+/// @date 2020-08-21
 #include  "eigensolver.hpp"
 #include  "utility.hpp"
 #include  "blas.hpp"

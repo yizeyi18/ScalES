@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin, Weile Jia
+Author: Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -42,7 +42,7 @@ such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file device_hamiltonian.cpp
 /// @brief device_hamiltonian class for planewave basis diagonalization method.
-/// @date 2012-09-16
+/// @date 2020-08-21
 #include  "hamiltonian.hpp"
 #include  "blas.hpp"
 #include  "lapack.hpp"

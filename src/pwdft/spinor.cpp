@@ -59,7 +59,6 @@ using namespace dgdft::PseudoComponent;
 Spinor::Spinor () { }         
 Spinor::~Spinor    () {}
 
-//complex version of code
 Spinor::Spinor ( 
     const Domain &dm, 
     const Int     numComponent,
@@ -217,10 +216,6 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
           reinterpret_cast<Real*>(fft.inputVecR2C.Data()), 1 );
 
       FFTWExecute ( fft, fft.forwardPlanR2C );
-      //          fftw_execute_dft_r2c(
-      //                  fftPtr->forwardPlanR2C, 
-      //                  realInVec.Data(),
-      //                  reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ));
 
       Real*    ptr1d   = fftPtr->TeterPrecondR2C.Data();
       Complex* ptr2    = fft.outputVecR2C.Data();
@@ -228,12 +223,6 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
         *(ptr2++) *= *(ptr1d++);
 
       FFTWExecute ( fft, fft.backwardPlanR2C);
-      //          fftw_execute_dft_c2r(
-      //                  fftPtr->backwardPlanR2C,
-      //                  reinterpret_cast<fftw_complex*>(cpxOutVec.Data() ),
-      //                  realInVec.Data() );
-      //          blas::Axpy( ntot, 1.0 / Real(ntot), realInVec.Data(), 1, 
-      //                  a3o.VecData(j, k), 1 );
 
       blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
     }
@@ -250,8 +239,6 @@ void
 Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot, 
     const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
 {
-  // TODO Complex case
-
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
