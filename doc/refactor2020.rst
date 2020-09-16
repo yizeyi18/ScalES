@@ -26,17 +26,14 @@ General thoughts
   be supported. However, further developments, such as k-points and
   many-body perturbation theory etc should be in separate folders.
 
-- [x] The main difficulty of refactoring is the DG part. It is now in a
-  separate folder called realdg/ (real both for real arithmetic and for
-  that the basis functions are really discontinuous. This may be
-  different in the future, and those codes should be in separate
-  folders). For now let us put all the developments in dg into that
-  folder (which could be a mess and that is fine).
+- [ ] The main difficulty of refactoring is the DG part. It is now in a
+  separate folder called dg/ (also uses real arithemetic). The new
+  developments by David should then be merged into dg/.
 
-- [x] TDDFT should be in a separate folder called tddft/. It defines complex
+- [ ] TDDFT should be in a separate folder called tddft/. It defines complex
   spinors etc in its own folder and does not touch pwdft/.
 
-- [x] GPU should be supported. We will put aside the issue of OpenMP for
+- [p] GPU should be supported. We will put aside the issue of OpenMP for
   now. However, there should be a consistent way to multiple types of
   GPUs. A wrapper around the current cuNumMat etc so that we can write 
   xxx.device == GPU, xxx.device == HIP etc would be desirable.
@@ -49,14 +46,14 @@ General thoughts
   GPU), and write in the documentation that spinor_device.cpp has not
   been modified correspondingly. 
 
-- Unit tests can be in separate folders say pwdft/tests, and should be
+- [ ] Unit tests can be in separate folders say pwdft/tests, and should be
   relatively up to date.
 
-- Wei's group will be developing a number of features based on PWDFT in
+- [ ] Wei's group will be developing a number of features based on PWDFT in
   the near future. They are already relatively comfortable with the
   current code structure and style. So different programming models
   (such as realtively new features in C++) should be avoided when
-  possible. However, the realdg/ folder is a relatively separate piece,
+  possible. However, the dg/ folder is a relatively separate piece,
   and can be used as a testbed for new programming models if needed
   (there may be also more benefit to be gained there)
 
@@ -89,7 +86,7 @@ Main goal of refactor2020
 
 - [ ] Make tddft/ compile. maybe with cmake.
 
-- [ ] Make realdg/ compile. Old fashioned Makefile is fine.
+- [ ] Make dg/ compile. Old fashioned Makefile is fine.
 
 - [p] A minimal sphinx based document for DGDFT, supporting mainly the PWDFT
   module.
@@ -166,7 +163,7 @@ Tests
 7/17/2020
 ---------
 
-- Confirm that pwdft/ and realdg/ will only use real arithematics. Move all complex arithmetics to tddft/
+- Confirm that pwdft/ and dg/ will only use real arithematics. Move all complex arithmetics to tddft/
 
 - device level implementation can involve separate functions in
   xxx_device.hpp and xxx_device.cpp, but not separate classes. 
