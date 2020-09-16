@@ -7,12 +7,13 @@ USE_OPENMP       = 0
 USE_PROFILE      = 0
 USE_PEXSI        = 0
 DEVICE           =  nvgpu
+#DEVICE           =  0
 
 ifeq (${COMPILE_MODE}, release)
   COMPILE_DEF    = -DRELEASE
-  COMPILE_FLAG   = -fast -w -D GPUDIRECT -no-ipo
-  COMPILE_FLAG   = -fast -w -no-ipo -std=c++11
-  #COMPILE_FLAG   = -O3 -w -std=c++11
+  #COMPILE_FLAG   = -fast -w -D GPUDIRECT -no-ipo
+  #COMPILE_FLAG   = -fast -w -no-ipo -std=c++11
+  COMPILE_FLAG   = -O3 -w -std=c++11
 endif
 ifeq (${COMPILE_MODE}, debug)
   COMPILE_DEF    = -DDEBUG=1
@@ -49,13 +50,14 @@ ifeq (${USE_PEXSI}, 1)
   PEXSI_LIB        = ${PEXSI_SRC_LIB} ${DSUPERLU_LIB} ${METIS_LIB} 
 endif
 
-DGDFT_DIR     = /global/home/users/wjia/refactor2020
+DGDFT_DIR     = /home/linlin/Projects/dgdft
 
 ifeq (${DEVICE}, nvgpu)
   NVCC = nvcc
-  CUDA_FLAG =  -D DEVICE  -I ${DGDFT_DIR}/src/common/device/ -I ${DGDFT_DIR}/src/common/device/nvgpu
-  CUDA_LIB = -L${CUDA_DIR}/lib64 -lcufft -lcublas -lcudart -lcuda  -lcusolver #-lmagma #-lmagma_sparse #-lcudadevrt
-  NVCCFLAG = -gencode arch=compute_35,code=sm_35 -DGPU -I ../include -DSYNC  # for debug purpose
+  CUDA_FLAG =  -D DEVICE  -I ${DGDFT_DIR}/src/common/device/ -I ${DGDFT_DIR}/src/common/device/nvgpu -I ${CUDA_DIR}/include
+  CUDA_DIR = /usr/local/cuda-10.2/targets/x86_64-linux
+  CUDA_LIB = -L${CUDA_DIR}/lib -lcufft -lcublas -lcudart -lcuda  -lcusolver #-lmagma #-lmagma_sparse #-lcudadevrt
+  # NVCCFLAG = -gencode arch=compute_35,code=sm_35 -DGPU -I ../include -DSYNC  # for debug purpose
   NVCCFLAG = -gencode arch=compute_35,code=sm_35 -DGPU -I ../include 
 endif
 
@@ -67,23 +69,25 @@ DGDFT_INCLUDE    = -I${DGDFT_DIR}/src/pwdft -I${DGDFT_DIR}/src/common
 INCLUDES         = ${DGDFT_INCLUDE} ${PEXSI_INCLUDE} ${LIBXC_INCLUDE} ${BLOPEX_INCLUDE} ${FFTW_INCLUDE} ${MAGMA_INC}
 
 # Libraries
-LIBXC_DIR     = /global/home/users/wjia/shared_libraries/libxc-3.0.0/build_savio
-LIBXC_LIB        = $(LIBXC_DIR)/lib/libxc.a
+LIBXC_DIR     = /usr/lib/x86_64-linux-gnu
+LIBXC_LIB        = $(LIBXC_DIR)/libxc.a
 LIBXC_INCLUDE    = -I$(LIBXC_DIR)/include
+SCALAPACK_LIB    = -L/usr/lib/x86_64-linux-gnu -lscalapack-openmpi
+LAPACK_LIB       = -L/usr/lib/x86_64-linux-gnu -llapack -lblas 
 BLOPEX_LIB       = #${DGDFT_DIR}/external/blopex/libblopex.a 
-FFTW_LIB         = -L/opt/cray/fftw/3.3.4.11/x86_64/lib -lfftw3_mpi -lfftw3 -lm
+FFTW_LIB         = -L/opt/cray/fftw/3.3.4.11/x86_64/lib -lfftw3_mpi -lfftw3
 FFTW_LIB         = -lfftw3_mpi -lfftw3
-MKL_LIB          =  -lstdc++ -mkl=cluster  -liomp5 -lpthread -lm -ldl -lstdc++ -lfftw3_mpi -lfftw3  -L /opt/intel/compilers_and_libraries_2016.2.181/linux/compiler/lib/intel64 -lifcore
+MKL_LIB          =  -lstdc++  -lpthread -lm -lgfortran
 
 DGDFT_LIB    = ${DGDFT_DIR}/src/common/libcommon.a
 RQRCP_LIB    = ${DGDFT_DIR}/external/rqrcp/librqrcp.a
 LBFGS_LIB    = ${DGDFT_DIR}/external/lbfgs/liblbfgs.a
-LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${RQRCP_LIB} ${LBFGS_LIB} ${FFTW_LIB} ${MKL_LIB} ${IPM} ${CUDA_LIB} ${MAGMA_LIB} 
+LIBS         = ${DGDFT_LIB} ${PEXSI_LIB} ${LIBXC_LIB} ${RQRCP_LIB} ${LBFGS_LIB} ${FFTW_LIB} ${SCALAPACK_LIB} ${LAPACK_LIB} ${MKL_LIB} ${CUDA_LIB} 
 
 CC           = mpicc
-CXX          = mpiCC
+CXX          = mpicxx
 FC           = mpif90
-LOADER       = mpicc
+LOADER       = mpicxx
 
 AR           = ar
 ARFLAGS      = rvcu
