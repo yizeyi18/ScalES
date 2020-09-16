@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Authors: Lin Lin, Weile Jia
+Authors: Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -41,7 +41,7 @@ works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file device_utility.cpp
-/// @brief Utility subroutines
+/// @brief DEVICE_UTILITY subroutines.
 /// @date 2020-08-12
 #include "device_utility.hpp"
 

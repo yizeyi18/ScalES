@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Weile Jia and Lin Lin
+Author: Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -40,8 +40,8 @@ royalty-free perpetual license to install, use, modify, prepare derivative
 works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
-/// @file device_nummat.hpp
-/// @brief Numerical matrix.
+/// @file device_nummat_decl.hpp
+/// @brief Numerical matrix on device
 /// @date 2020-08-12
 #ifdef DEVICE
 #ifndef _DEVICE_NUMMAT_DECL_HPP_

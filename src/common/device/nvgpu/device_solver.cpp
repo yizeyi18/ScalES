@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Authors: Jack Poulson and Lin Lin
+Authors: Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -42,7 +42,7 @@ such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file device_solver.cpp
 /// @brief Thin interface to device_solver
-/// @date 2012-09-12
+/// @date 2020-08-21
 #ifdef  DEVICE
 #include "device_solver.hpp"
 

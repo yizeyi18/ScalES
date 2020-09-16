@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Author: Lin Lin & Weile Jia
+Author: Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -42,8 +42,7 @@ such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file device_fft.cpp
 /// @brief Sequential and Distributed device_fft wrapper.
-/// @date 2011-11-01
-/// @date 2015-05-02 Add some dual grid functions
+/// @date 2020-08-12
 #ifndef _DEVICE_FFT_HPP_
 #define _DEVICE_FFT_HPP_
 

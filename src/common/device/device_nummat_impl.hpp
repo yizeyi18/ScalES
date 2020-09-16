@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Authors: Weile Jia and Lin Lin
+Author: Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -41,7 +41,7 @@ works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file device_nummat_impl.hpp
-/// @brief Implementation of numerical matrix.
+/// @brief Implementation of numerical matrix on device.
 /// @date 2020-08-12
 #ifdef DEVICE
 #ifndef _DEVICE_NUMMAT_IMPL_HPP_
@@ -155,7 +155,7 @@ template <class F> inline void deviceNumMat<F>::CopyFrom(const NumMat<F> &C) {
     device_free(data_);
     m_ = C.m_; n_=C.n_; 
     if(m_>0 && n_>0) { data_ = (F*)device_malloc( sizeof(F) * m_ * n_ ); } else data_=NULL;
-   }
+  }
   if(C.m_*C.n_ <= m_*n_) {
     //std::cout << " m n: "<< m_ <<" " <<n_ << std::endl;
     //std::flush(std::cout);

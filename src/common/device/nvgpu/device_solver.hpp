@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Authors: Weile Jia and Lin Lin
+Authors: Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 

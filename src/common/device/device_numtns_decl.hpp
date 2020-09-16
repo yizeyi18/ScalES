@@ -2,7 +2,7 @@
    Copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
-Authors: Lexing Ying and Lin Lin, Weile Jia
+Authors: Weile Jia
 
 This file is part of DGDFT. All rights reserved.
 
@@ -41,7 +41,7 @@ works, incorporate into other computer software, distribute, and sublicense
 such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file device_numtns_decl.hpp
-/// @brief Numerical tensor
+/// @brief Numerical tensor on device.
 /// @date 2020-08-12
 #ifdef DEVICE
 #ifndef _DEVICE_NUMTNS_DECL_HPP_
