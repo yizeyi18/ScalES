@@ -69,7 +69,7 @@ namespace dgdft{
 // *********************************************************************
   namespace device_fft{
 
-  void Init();
+  void Init(const Domain & dm);
   void Destroy(); 
 }
 

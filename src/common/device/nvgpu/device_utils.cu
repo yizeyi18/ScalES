@@ -2,7 +2,9 @@
 #define  _CUDA_UTILS_CU_
 #include "device_utils.h"
 #include <sys/time.h>
+#include <cooperative_groups.h>
 
+using namespace cooperative_groups;
 #define DIM   128
 #define LDIM  256
 #define LEN   512
@@ -156,6 +158,7 @@ __global__ void gpu_energy( cuDoubleComplex * psi, double * energy, int len)
 	__syncthreads();
 
 #if (__CUDA_ARCH__ >= 300 )
+        thread_block_tile<32> tile32 = tiled_partition<32>(this_thread_block()); 
 	if ( tid < 32 )
 	{
 		// Fetch final intermediate sum from 2nd warp
@@ -163,7 +166,8 @@ __global__ void gpu_energy( cuDoubleComplex * psi, double * energy, int len)
 		// Reduce final warp using shuffle
 		for (int offset = warpSize/2; offset > 0; offset /= 2)
 		{
-			mySum += __shfl_down(mySum, offset);
+			//mySum += __shfl_down(mySum, offset);
+                        mySum += tile32.shfl_down(mySum, offset);
 		}
 	}
 #else
@@ -256,6 +260,7 @@ __global__ void gpu_reduce( double * density, double * sum_den, int len)
 	__syncthreads();
 
 #if (__CUDA_ARCH__ >= 300 )
+        thread_block_tile<32> tile32 = tiled_partition<32>(this_thread_block()); 
 	if ( tid < 32 )
 	{
 		// Fetch final intermediate sum from 2nd warp
@@ -263,7 +268,8 @@ __global__ void gpu_reduce( double * density, double * sum_den, int len)
 		// Reduce final warp using shuffle
 		for (int offset = warpSize/2; offset > 0; offset /= 2)
 		{
-			mySum += __shfl_down(mySum, offset);
+                        mySum += tile32.shfl_down(mySum, offset);
+			//mySum += __shfl_down(mySum, offset);
 		}
 	}
 #else
@@ -357,6 +363,7 @@ __global__ void gpu_energy( double * psi, double * energy, int len)
 	__syncthreads();
 
 #if (__CUDA_ARCH__ >= 300 )
+        thread_block_tile<32> tile32 = tiled_partition<32>(this_thread_block()); 
 	if ( tid < 32 )
 	{
 		// Fetch final intermediate sum from 2nd warp
@@ -364,7 +371,8 @@ __global__ void gpu_energy( double * psi, double * energy, int len)
 		// Reduce final warp using shuffle
 		for (int offset = warpSize/2; offset > 0; offset /= 2)
 		{
-			mySum += __shfl_down(mySum, offset);
+			//mySum += __shfl_down(mySum, offset);
+                        mySum += tile32.shfl_down(mySum, offset);
 		}
 	}
 #else
@@ -754,6 +762,7 @@ __global__ void gpu_cal_weight( double * psi, double * NL, int * parts, int * in
 	__syncthreads();
 
 #if (__CUDA_ARCH__ >= 300 )
+        thread_block_tile<32> tile32 = tiled_partition<32>(this_thread_block()); 
 	if ( tid < 32 )
 	{
 		// Fetch final intermediate sum from 2nd warp
@@ -761,7 +770,8 @@ __global__ void gpu_cal_weight( double * psi, double * NL, int * parts, int * in
 		// Reduce final warp using shuffle
 		for (int offset = warpSize/2; offset > 0; offset /= 2)
 		{
-			mySum += __shfl_down(mySum, offset);
+			//mySum += __shfl_down(mySum, offset);
+                        mySum += tile32.shfl_down(mySum, offset);
 		}
 	}
 #else

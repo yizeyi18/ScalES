@@ -72,6 +72,7 @@ namespace device_fft{
     Domain  domain;
     domain = dm;
     Index3& numGrid = domain.numGrid;
+    Index3& numGridFine = domain.numGridFine;
 
     std::cout << "init the R2C cufftPlan: "<< numGrid[2] << " " << numGrid[1] <<" " << numGrid[0]<<std::endl;
 
@@ -80,6 +81,10 @@ namespace device_fft{
       cufftPlan3d(&cuPlanR2C[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_D2Z);
       cufftPlan3d(&cuPlanC2R[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_Z2D);
       cufftPlan3d(&cuPlanC2C[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_Z2Z);
+
+      cufftPlan3d(&cuPlanR2CFine[i], numGridFine[2], numGridFine[1], numGridFine[0], CUFFT_D2Z);
+      cufftPlan3d(&cuPlanC2RFine[i], numGridFine[2], numGridFine[1], numGridFine[0], CUFFT_Z2D);
+      cufftPlan3d(&cuPlanC2CFine[i], numGridFine[2], numGridFine[1], numGridFine[0], CUFFT_Z2Z);
     }
   }
   

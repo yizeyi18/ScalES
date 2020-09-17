@@ -308,7 +308,18 @@ int main(int argc, char **argv)
     // *********************************************************************
     // Single shot calculation first
     // *********************************************************************
+#ifdef DEVICE
+         device_init_vtot();
+         DEVICE_BLAS::Init();
+         device_fft::Init(dm);
+#ifdef USE_MAGMA
+         MAGMA::Init();
+#else
+         device_solver::Init();
+#endif
+#endif
 
+/*
     if( esdfParam.isTDDFT && esdfParam.isRestartDensity 
         && esdfParam.isRestartWfn) 
     {
@@ -317,22 +328,13 @@ int main(int argc, char **argv)
 	 hamKS.CalculateVexxACE( psi, fft);
 	 statusOFS << " TDDFT init ACE operator ... " << std::endl;
       }
-#ifdef DEVICE
-         device_init_vtot();
-         DEVICE_BLAS::Init();
-#ifdef USE_MAGMA
-         MAGMA::Init();
-#else
-         device_solver::Init();
-#endif
-#endif
-
       statusOFS <<  std::endl << std::endl 
         <<  "SCF skipped .... " 
         <<  "TDDFT Restart From last step Density and wave function "
         << std::endl << "SCF is skipped >>>>>>>"<< std::endl << std::endl;
     } 
-    else{
+    else */  
+    {
       GetTime( timeSta );
       scf.Iterate();
       GetTime( timeEnd );
@@ -976,6 +978,7 @@ int main(int argc, char **argv)
 
 #ifdef DEVICE
     DEVICE_BLAS::Destroy();
+    device_fft::Destroy();
 #ifdef USE_MAGMA
     MAGMA::Destroy();
 #else

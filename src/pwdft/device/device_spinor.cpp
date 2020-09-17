@@ -321,6 +321,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 */
   }
   if( !vtot_gpu_flag) {
+    dev_vtot        = ( double*) device_malloc ( sizeof(double) * ntotFine);
     device_memcpy_HOST2DEVICE(dev_vtot, vtot.Data(), sizeof(Real) *ntotFine); 
     vtot_gpu_flag = true;
   }
