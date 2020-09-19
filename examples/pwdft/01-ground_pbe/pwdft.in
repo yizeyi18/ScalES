@@ -9,7 +9,7 @@ Pseudo_Type:           ONCV
 Ecut_Wavefunction:        10
 
 begin UPF_File
-  Si_ONCV_PBE-1.2.upf
+  ../../pp_ONCV/Si_ONCV_PBE-1.2.upf
 end UPF_File
 
 begin Super_Cell
