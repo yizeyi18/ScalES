@@ -121,9 +121,12 @@ Target: refactor2020
 
 - [ ] The ScaLAPACK diagonalization should be replaced by ELPA. More specifically, the diagonalization / PEXSI interface should be replaced by the ELSI interafce.
 
-- [ ] A consistent method to specify the input / to print the input
-  parameters in pw/dg/td. so far everything is in esdf.hpp/cpp in
-  pwdft/. 
+- [p] A consistent method to specify the input / to print the input
+  parameters in pw/dg/td. so far only moves things to common/. Will see
+  whether a cleaner solution is needed when organizing dg and td.
+
+- [ ] Make use of the _XCClass in esdfParam and make the treatment of XC
+  cleaner
 
 Meeting memos 
 ====================

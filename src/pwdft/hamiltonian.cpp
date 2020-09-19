@@ -63,6 +63,7 @@ KohnSham::KohnSham() {
 }
 
 KohnSham::~KohnSham() {
+  // FIXME. A more general form
   if( XCInitialized_ ){
     if( XCId_ == XC_LDA_XC_TETER93 )
     {
