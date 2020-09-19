@@ -511,7 +511,8 @@ struct ESDFInputParam{
   /// relatively high temperature calculations.
   Int                 numExtraState;
   /// @brief Some states for the planewave solver are unused in order
-  /// to accelerate the convergence rate of the eigensolver.
+  /// to accelerate the convergence rate of the eigensolver. This is
+  /// only used in DG
   ///
   /// Default: 0
   Int                 numUnusedState;
@@ -1149,9 +1150,13 @@ struct ESDFInputParam{
   bool PWDFT_Cheby_use_scala; // Default 1
   bool PWDFT_Cheby_apply_wfn_ecut_filt; // Default 1
 
-  /// @brief This is NOT an input parameter, but records whether
-  /// DGDFT is performed.
-  bool isDGDFT; 
+  // The following are NOT input parameters
+
+  /// @brief Whether DGDFT is performed.
+  bool _isDGDFT; 
+
+  /// @brief Class of XC functional. Whether it is LDA / GGA / Hybrid
+  std::string _XCClass;
 };
 
 

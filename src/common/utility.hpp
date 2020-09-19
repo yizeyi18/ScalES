@@ -102,6 +102,14 @@ inline Int OptionsCreate(Int argc, char** argv, std::map<std::string,std::string
   return 0;
 }
 
+template<class Element, class Container>
+bool InArray(const Element & element, const Container & container)
+{
+  return std::find(std::begin(container), std::end(container), element)
+    != std::end(container);
+}
+
+
 // *********************************************************************
 // Stringstream
 // *********************************************************************

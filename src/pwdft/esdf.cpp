@@ -400,6 +400,10 @@ void esdf_key() {
   strcpy(kw_typ[i],"D:E");
 
   i++;
+  strcpy(kw_label[i],"scf_tolerance");
+  strcpy(kw_typ[i],"D:E");
+
+  i++;
   strcpy(kw_label[i],"scf_outer_tolerance");
   strcpy(kw_typ[i],"D:E");
 
@@ -430,6 +434,10 @@ void esdf_key() {
 
   i++;
   strcpy(kw_label[i],"scf_outer_miniter");
+  strcpy(kw_typ[i],"I:E");
+
+  i++;
+  strcpy(kw_label[i],"scf_maxiter");
   strcpy(kw_typ[i],"I:E");
 
   i++;
@@ -2463,13 +2471,8 @@ ESDFReadInput ( const char* filename )
 
 
     esdfParam.mixStepLength        = esdf_double( "Mixing_StepLength", 0.5 );
-    esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
-    esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 ); 
-    esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
-    esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-6 );
-    esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
-    esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
-    esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   100 );
+    esdfParam.scfOuterTolerance    = esdf_double( "SCF_Tolerance", 1e-6 );
+    esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_MaxIter",   100 );
     esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   30 );
     esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
 
@@ -2519,7 +2522,7 @@ ESDFReadInput ( const char* filename )
       
     }
 
-    esdf_string("Hybrid_Mixing_Type", "nested", strtmp); 
+    esdf_string("Hybrid_Mixing_Type", "pcdiis", strtmp); 
     esdfParam.hybridMixType         = strtmp;
     if( esdfParam.hybridMixType != "nested" &&
         esdfParam.hybridMixType != "scdiis" &&
@@ -2617,7 +2620,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.pseudoType      = strtmp;
     esdf_string("PW_Solver", "LOBPCG", strtmp); 
     esdfParam.PWSolver        = strtmp;
-    esdf_string("XC_Type", "LDA", strtmp); 
+    esdf_string("XC_Type", "Teter", strtmp); 
     esdfParam.XCType          = strtmp;
     esdf_string("VDW_Type", "None", strtmp); 
     esdfParam.VDWType          = strtmp;
@@ -2626,22 +2629,41 @@ ESDFReadInput ( const char* filename )
     esdfParam.extraElectron = esdf_integer( "Extra_Electron", 0);
   }
 
+  // Supported XC functionals
+  std::vector<std::string> LDA_list = { "Teter" };
+  std::vector<std::string> GGA_list = { "PBE" };
+  std::vector<std::string> Hybrid_list = { "HSE", "PBEH" };
+
+  if ( InArray(esdfParam.XCType, LDA_list) )
+    esdfParam._XCClass = "LDA";
+  if ( InArray(esdfParam.XCType, GGA_list) )
+    esdfParam._XCClass = "GGA";
+  if ( InArray(esdfParam.XCType, Hybrid_list) )
+    esdfParam._XCClass = "Hybrid";
+
 
   // DG
   Index3& numElem = esdfParam.numElem;
   if (esdf_block("Element_Size",&nlines)) {
     sscanf(block_data[0],"%d %d %d", 
         &numElem[0],&numElem[1],&numElem[2]);
-    esdfParam.isDGDFT = true;
+    esdfParam._isDGDFT = true;
   }
   else{
-    esdfParam.isDGDFT = false;
+    esdfParam._isDGDFT = false;
     numElem(0) = 1;
     numElem(1) = 1;
     numElem(2) = 1;
   }
 
-  if( esdfParam.isDGDFT ){
+  if( esdfParam._isDGDFT ){
+    // DGDFT specific parameters for controlling convergence
+
+    esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
+    esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 ); 
+    esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
+    esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
+    esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
 
     // Instead of grid size, use ecut to determine the number of grid
     // points in the local LGL domain.
@@ -3194,46 +3216,38 @@ void ESDFPrintInput( ){
 
   // If the product of the number of elements is 1, recognize this as a PWDFT calculation
 
-  PrintBlock(statusOFS, "Common information");
+  PrintBlock(statusOFS, "System information");
 
   Print(statusOFS, "Super cell                           = ",  esdfParam.domain.length );
   Print(statusOFS, "Grid Wavefunction                    = ",  esdfParam.domain.numGrid ); 
   Print(statusOFS, "Grid Density                         = ",  esdfParam.domain.numGridFine );
-  Print(statusOFS, "Mixing dimension                     = ",  esdfParam.mixMaxDim );
-  Print(statusOFS, "Mixing variable                      = ",  esdfParam.mixVariable );
-  Print(statusOFS, "Mixing type                          = ",  esdfParam.mixType );
-  Print(statusOFS, "Mixing Steplength                    = ",  esdfParam.mixStepLength);
+  Print(statusOFS, "");
 
   Print(statusOFS, "Temperature                          = ",  au2K / esdfParam.Tbeta, "[K]");
-  Print(statusOFS, "Extra states                         = ",  esdfParam.numExtraState  );
   Print(statusOFS, "Smearing scheme                      = ",  esdfParam.smearing_scheme );
-  Print(statusOFS, "Pseudo Type                          = ",  esdfParam.pseudoType );
-  Print(statusOFS, "PW Solver                            = ",  esdfParam.PWSolver );
-  Print(statusOFS, "XC Type                              = ",  esdfParam.XCType );
+  Print(statusOFS, "Extra states                         = ",  esdfParam.numExtraState  );
+  Print(statusOFS, "Number of Extra Electron             = ",  esdfParam.extraElectron);
+  Print(statusOFS, "");
 
-
-  Print(statusOFS, "SCF Outer Tol                        = ",  esdfParam.scfOuterTolerance);
-  Print(statusOFS, "SCF Outer MaxIter                    = ",  esdfParam.scfOuterMaxIter);
-  Print(statusOFS, "SCF Free Energy Per Atom Tol         = ",  esdfParam.scfOuterEnergyTolerance);
-  Print(statusOFS, "Eig Min Tolerence                    = ",  esdfParam.eigMinTolerance);
-  Print(statusOFS, "Eig Tolerence                        = ",  esdfParam.eigTolerance);
-  Print(statusOFS, "Eig MaxIter                          = ",  esdfParam.eigMaxIter);
-  Print(statusOFS, "Eig Tolerance Dyn                    = ",  esdfParam.isEigToleranceDynamic);
-  Print(statusOFS, "Num unused state                     = ",  esdfParam.numUnusedState);
-  Print(statusOFS, "EcutWavefunction                     = ",  esdfParam.ecutWavefunction);
+  Print(statusOFS, "EcutWavefunction                     = ",  esdfParam.ecutWavefunction, "[au]");
   Print(statusOFS, "Density GridFactor                   = ",  esdfParam.densityGridFactor);
+  Print(statusOFS, "");
 
-  Print(statusOFS, "Use Atom Density                     = ",  esdfParam.isUseAtomDensity);
+  Print(statusOFS, "Pseudo Type                          = ",  esdfParam.pseudoType );
+  Print(statusOFS, "XC Type                              = ",  esdfParam.XCType );
+  Print(statusOFS, "Use Atom Density initially           = ",  esdfParam.isUseAtomDensity);
   Print(statusOFS, "Use VLocal                           = ",  esdfParam.isUseVLocal);
+  Print(statusOFS, "");
+  
   Print(statusOFS, "RestartDensity                       = ",  esdfParam.isRestartDensity);
   Print(statusOFS, "RestartWfn                           = ",  esdfParam.isRestartWfn);
   Print(statusOFS, "OutputDensity                        = ",  esdfParam.isOutputDensity);
   Print(statusOFS, "OutputPotential                      = ",  esdfParam.isOutputPotential);
-  Print(statusOFS, "Number of Extra Electron             = ",  esdfParam.extraElectron);
+  Print(statusOFS, "");
 
   // Ionic motion
   if( esdfParam.ionMove != "" ){
-    Print(statusOFS, "");
+    PrintBlock(statusOFS, "Ion move information");
     Print(statusOFS, "Ion move mode                        = ",  esdfParam.ionMove);
     Print(statusOFS, "Max steps for ion                    = ",  esdfParam.ionMaxIter);
     Print(statusOFS, "MD time step                         = ",  esdfParam.MDTimeStep);
@@ -3285,8 +3299,24 @@ void ESDFPrintInput( ){
   }
 
 
-  if( esdfParam.isDGDFT ){
+  if( esdfParam._isDGDFT ){
     PrintBlock(statusOFS, "DGDFT information");
+    Print(statusOFS, "Mixing dimension                     = ",  esdfParam.mixMaxDim );
+    Print(statusOFS, "Mixing variable                      = ",  esdfParam.mixVariable );
+    Print(statusOFS, "Mixing type                          = ",  esdfParam.mixType );
+    Print(statusOFS, "Mixing Steplength                    = ",  esdfParam.mixStepLength);
+    
+    Print(statusOFS, "PW Solver                            = ",  esdfParam.PWSolver );
+   
+    Print(statusOFS, "SCF Outer Tol                        = ",  esdfParam.scfOuterTolerance);
+    Print(statusOFS, "SCF Outer MaxIter                    = ",  esdfParam.scfOuterMaxIter);
+    Print(statusOFS, "SCF Free Energy Per Atom Tol         = ",  esdfParam.scfOuterEnergyTolerance);
+    Print(statusOFS, "Eig Min Tolerence                    = ",  esdfParam.eigMinTolerance);
+    Print(statusOFS, "Eig Tolerence                        = ",  esdfParam.eigTolerance);
+    Print(statusOFS, "Eig MaxIter                          = ",  esdfParam.eigMaxIter);
+    Print(statusOFS, "Eig Tolerance Dyn                    = ",  esdfParam.isEigToleranceDynamic);
+
+    
     // FIXME Potentially obsolete potential barriers
     Print(statusOFS, "Penalty Alpha                        = ",  esdfParam.penaltyAlpha );
     Print(statusOFS, "Element size                         = ",  esdfParam.numElem ); 
@@ -3298,8 +3328,7 @@ void ESDFPrintInput( ){
     Print(statusOFS, "SVD Basis Tol                        = ",  esdfParam.SVDBasisTolerance);
     Print(statusOFS, "SCF Inner Tol                        = ",  esdfParam.scfInnerTolerance);
     Print(statusOFS, "SCF Inner MaxIter                    = ",  esdfParam.scfInnerMaxIter);
-
-
+    Print(statusOFS, "Num unused state                     = ",  esdfParam.numUnusedState);
 
     statusOFS << "Number of ALB for each element: " << std::endl 
       << esdfParam.numALBElem << std::endl;
@@ -3312,6 +3341,7 @@ void ESDFPrintInput( ){
       Print(statusOFS, "ScaLAPACK block                      = ",  esdfParam.scaBlockSize); 
     }
     if( esdfParam.solutionMethod == "pexsi" ){
+      Print(statusOFS, "");
       Print(statusOFS, "Number of poles                    = ",  esdfParam.numPole); 
       Print(statusOFS, "Nproc row PEXSI                    = ",  esdfParam.numProcRowPEXSI); 
       Print(statusOFS, "Nproc col PEXSI                    = ",  esdfParam.numProcColPEXSI); 
@@ -3359,18 +3389,34 @@ void ESDFPrintInput( ){
   } // DG
   else{
     PrintBlock(statusOFS, "PWDFT information");
+    
+    Print(statusOFS, "Mixing dimension                     = ",  esdfParam.mixMaxDim );
+    Print(statusOFS, "Mixing variable                      = ",  esdfParam.mixVariable );
+    Print(statusOFS, "Mixing type                          = ",  esdfParam.mixType );
+    Print(statusOFS, "Mixing Steplength                    = ",  esdfParam.mixStepLength);
 
-    // FIXME For DG as well later
-    Print(statusOFS, "SCF Phi MaxIter                      = ",  esdfParam.scfPhiMaxIter);
-    Print(statusOFS, "SCF Phi Tol                          = ",  esdfParam.scfPhiTolerance);
-    Print(statusOFS, "Hybrid ACE                           = ",  esdfParam.isHybridACE);
-    Print(statusOFS, "Hybrid DF                            = ",  esdfParam.isHybridDF);
-    Print(statusOFS, "Hybrid Active Init                   = ",  esdfParam.isHybridActiveInit);
-    Print(statusOFS, "Hybrid Mixing Type                   = ",  esdfParam.hybridMixType);
-    Print(statusOFS, "Hybrid DF Num Mu                     = ",  esdfParam.hybridDFNumMu);
-    Print(statusOFS, "Hybrid DF Num GaussianRandom         = ",  esdfParam.hybridDFNumGaussianRandom);
-    Print(statusOFS, "Hybrid DF Tolerance                  = ",  esdfParam.hybridDFTolerance);
-    Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);
+    Print(statusOFS, "PW Solver                            = ",  esdfParam.PWSolver );
+
+    Print(statusOFS, "SCF Tolerance                        = ",  esdfParam.scfOuterTolerance);
+    Print(statusOFS, "SCF MaxIter                          = ",  esdfParam.scfOuterMaxIter);
+    Print(statusOFS, "Eig Tolerence                        = ",  esdfParam.eigTolerance);
+    Print(statusOFS, "Eig MaxIter                          = ",  esdfParam.eigMaxIter);
+    Print(statusOFS, "Eig Tolerance Dyn                    = ",  esdfParam.isEigToleranceDynamic);
+
+    // Hybrid functional only
+    if( esdfParam._XCClass == "Hybrid" ){
+      Print(statusOFS, "");
+      Print(statusOFS, "SCF Phi MaxIter                      = ",  esdfParam.scfPhiMaxIter);
+      Print(statusOFS, "SCF Phi Tol                          = ",  esdfParam.scfPhiTolerance);
+      Print(statusOFS, "Hybrid ACE                           = ",  esdfParam.isHybridACE);
+      Print(statusOFS, "Hybrid DF                            = ",  esdfParam.isHybridDF);
+      Print(statusOFS, "Hybrid Active Init                   = ",  esdfParam.isHybridActiveInit);
+      Print(statusOFS, "Hybrid Mixing Type                   = ",  esdfParam.hybridMixType);
+      Print(statusOFS, "Hybrid DF Num Mu                     = ",  esdfParam.hybridDFNumMu);
+      Print(statusOFS, "Hybrid DF Num GaussianRandom         = ",  esdfParam.hybridDFNumGaussianRandom);
+      Print(statusOFS, "Hybrid DF Tolerance                  = ",  esdfParam.hybridDFTolerance);
+      Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);
+    }
 
     if( esdfParam.PWSolver == "LOBPCGScaLAPACK" ){
       Print(statusOFS, "Number of procs for ScaLAPACK (PW)   = ",  esdfParam.numProcScaLAPACKPW); 

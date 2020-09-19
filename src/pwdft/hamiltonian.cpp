@@ -187,7 +187,7 @@ KohnSham::Setup    (
   {
     isHybrid_ = false;
 
-    if( XCType_ == "LDA" )
+    if( XCType_ == "Teter" )
     { 
       XCId_ = XC_LDA_XC_TETER93;
       statusOFS << "LDA functional is used. In LIBXC, this is " << std::endl;
