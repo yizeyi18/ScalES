@@ -1,17 +1,17 @@
 Plan for Refactor2020
-==================
+---------------------
 
 Last revision: 09/15/2020 
 
 This note serves as a todo list for the 3rd major refactoring of ``DGDFT``.  This has a different scope from the original plan 12/20/2019 (see below).
 
-[x] done
-[p] in progress
-[ ] planned but not started
-[d] still under consideration but deferred to future developments
+- [x] done
+- [p] in progress
+- [ ] planned but not started
+- [d] still under consideration but deferred to future developments
 
 General thoughts
-----------------
+================
 
 - The key component of DGDFT is PWDFT, which has the potential of being
   developed into a highly efficient, massively parallel code usable by a
@@ -59,8 +59,8 @@ General thoughts
 
 
 
-Main goal of refactor2020
--------------------------
+Target: refactor2020
+====================
 
 - [p] The structure of the code is largely based the current working code in
   the `GPU` branch, and will merge with `cuda_dg` branch `AMD_GPU_HIP`
@@ -73,6 +73,7 @@ Main goal of refactor2020
   src/pwdft.cpp, with minimal requirement of external libraries. For
   instance, the default should be to compile pwdft, without the need of
   compiling PEXSI, etc.
+
 
 - [ ] ``Use_VLocal`` should be deprecated. With ONCV pseudopotential
   being the default option, we should always use the branch
@@ -104,6 +105,11 @@ Main goal of refactor2020
   particular related to ISDF etc). Need to cleanup and remove the unused
   branches.
 
+- [ ] Prepare tutorial examples for PWDFT
+
+- [ ] Prepare a set of relatively robust default parameters, and simply
+  the input file of the examples
+
 - [d] Simplified user input. Maybe INI, or benefit from a python interface
   like `ase`?
 
@@ -116,11 +122,10 @@ Main goal of refactor2020
 - [ ] The ScaLAPACK diagonalization should be replaced by ELPA. More specifically, the diagonalization / PEXSI interface should be replaced by the ELSI interafce.
 
 
-Meeting memos
-==================
+Meeting memos 
+====================
 
-12/20/2019
--------------------
+**12/20/2019**:
 
 It includes the note for initial discussion on 12/20/2019. together with new updates from 
 
@@ -160,8 +165,7 @@ Tests
 - [ ] Setup unit tests with google test.
 - [ ] Test examples for PW / DG / TD.
 
-7/17/2020
----------
+**7/17/2020**:
 
 - Confirm that pwdft/ and dg/ will only use real arithematics. Move all complex arithmetics to tddft/
 

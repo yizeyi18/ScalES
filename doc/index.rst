@@ -8,9 +8,9 @@ Wlcome to DGDFT's documentation!
    
    introduction
    install
+   tutorial
    inputpwdft
    inputdgdft
-   tutorial
    FAQ
-   developer
+   refactor2020
 

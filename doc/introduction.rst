@@ -4,7 +4,7 @@ Introduction
 Overview
 ========
 
-DGDFT (stands for Discontinuous Galerkin Density Functional Theory) is a
+DGDFT (short for Discontinuous Galerkin Density Functional Theory) is a
 software package designed to perform large scale electronic structure
 calculations (tens of thousands of atoms or larger). While the original
 goal of the project was only on very large scale systems taking
@@ -50,20 +50,25 @@ The DGDFT project started with a small team working part time on the
 project in a math department (the situation has not changed drastically
 so far). So almost all features of DGDFT are built around a single
 scenario: **perform fast, massively parallel, large scale, Gamma-point
-only DFT calculations** (with some more adjectives depending on the
+only, pseudopotential DFT calculations** (with some more adjectives depending on the
 detailed scenario, but the gist remains the same). DGDFT strives to be
-the **best code** in this regime. For **anything outside this regime**,
-we expect that users can easily find other software packages that
-(certainly) have more functionalities and outperform DGDFT. The
-following common tasks are currently considered out of scope of DGDFT.
-None of the limitation is fundamental. They are all due to the desire to
-make the code maintainable (a.k.a.  lack of man power and/or laziness).
+the **best electronic structure code** in this regime. For **anything
+outside this regime**, we expect that users can easily find other
+software packages that (certainly) have more functionalities and
+outperform DGDFT. The following common tasks are currently considered
+out of scope of DGDFT.  None of the limitation is fundamental. They are
+all due to the desire to make the code maintainable (a.k.a.  lack of man
+power and/or laziness).
 
 - Band structure calculations (or in general k-point sampling).
 
-- Non-orthorhombic supercells.
+- Non-orthorhombic supercells (originally because it takes some extra
+  efforts to make DG work for non-orthorhombic cells. for large systems
+  it is relatively easy to make orthorhombic supercells and is usually
+  not a problem, with the help of software packages such as ASE).
 
-- Anything other than norm-conserving pseudopotentials (e.g. all-electron, USPP, PAW).
+- Anything other than norm-conserving pseudopotentials (e.g.
+  all-electron, USPP, PAW).
 
 - Many more...
 
@@ -75,16 +80,15 @@ Contributors
 
 **Contributors to method and code developments:**
 
-- Lin Lin, University of California, Berkeley and Lawrence Berkeley National Laboratory, linlin@math.berkeley.edu
+- Lin Lin, University of California, Berkeley and Lawrence Berkeley National Laboratory
 - Wei Hu, University of Science and Technology of China
 - Weile Jia, University of California, Berkeley
 - Amartya Banerjee, University of California, Los Algeles
 - David Williams-Young, Lawrence Berkeley National Laboratory
 - Lexing Ying, Stanford University
 - Subhajit Banerjee, University of California, Davis
-- Kun Dong, Google
-- Jason Kaye, Flatiron Institute
 - Gaigong Zhang, ASML
+- Kun Dong, Google
 
 **Contributors to method developments:**
 
@@ -92,6 +96,7 @@ Contributors
 - Jianfeng Lu, Duke University
 - John Pask, Lawrence Livermore National Laboratory
 - Phanish Suryanarayana, Georgia Institute of Technology 
+- Benjamin Stamm, RWTH Aachen University
 - Lin-Wang Wang, Lawrence Berkeley National Laboratory
 - Chao Yang, Lawrence Berkeley National Laboratory
 
@@ -99,6 +104,7 @@ Citing DGDFT
 ==============
 For general usage of DGDFT package for electronic structure calculation, 
 **please cite the following two papers.**::
+
     @Article{JCP2012,
       Title                    = {{Adaptive local basis set for Kohn-Sham density functional theory in a discontinuous Galerkin framework I: Total energy calculation}},
       Author                   = {Lin, L. and Lu, J. and Ying, L. and E, W.},
@@ -119,6 +125,7 @@ For general usage of DGDFT package for electronic structure calculation,
 
 For hybrid functional calculations using PWDFT, 
 **please also cite the following paper.**::
+
     @Article{JCTC2016,
       Title                    = {Adaptively Compressed Exchange Operator},
       Author                   = {Lin, L.},
@@ -128,8 +135,9 @@ For hybrid functional calculations using PWDFT,
       Volume                   = {12}
     }
 
-For large scale calculations using DGDFT, 
+For large scale calculations using DGDFT and Chebyshev filtering, 
 **please also cite the following paper.**::
+
     @Article{JCTC2018_DG,
       Title                    = {Two-level {Chebyshev} filter based complementary subspace method for pushing the envelope of large-scale electronic structure calculations},
       Author                   = {A. S. Banerjee and L. Lin and P. Suryanarayana and C. Yang and J. E. Pask},
@@ -141,6 +149,7 @@ For large scale calculations using DGDFT,
 
 For large scale RT-TDDFT calculations,
 **please also cite the following paper.**::
+
     @Article{JCTC2018_TD,
       Title                    = {Fast real-time time-dependent density functional theory calculations with the parallel transport gauge},
       Author                   = {W. Jia and D. An and L.-W. Wang and L. Lin},
@@ -268,24 +277,74 @@ More references on DGDFT
 DGDFT version history
 =====================
 
+- v1.0 (TBD)
+
+  - First public release of DGDFT project.
+  - The publicly release version of DGDFT include only the ``pwdft`` module. 
+  - The ``dg`` and ``tddft`` module are available in the developer's
+    branch and will be released later.
+
+- Between v0.8 and v1.0 (2016-2020), we did not use a version system.
+  Instead many branches with functionalties have been developed. The
+  goal of the ``refactor2020`` branch is to merge many (not all) of the
+  functionalties into a more or less uniform code, which turns into the
+  new ``master`` branch for further developments. These branches
+  include:
+
+  - ``cuda_dg``: GPU development in DGDFT with cuda.
+  - ``GPU`` and ``AMD_GPU_HIP``: GPU developments in PWDFT with cuda and
+    hip, and TDDFT with cuda.
+  - ``TDDFT``: Real-time TDDFT.
+  - ``refactor1`` and ``refactor2`` (4/4/2016--12/27/2017): Major
+    refactoring of the code as well as method developments.  Merge with
+    ACE formulation of hybrid functionals.  Develop Chebyshev filtering
+    for PWDFT and DGDFT. ISDF algorithm for hybrid functionals. UPF file
+    format for pseudopotentials.
+
+- v0.8 (3/5/2016)
+
+  - A number of developments including merging with hybrid functional branch.
+
+- v0.7 (6/8/2015)
+
+  - A number of developments including GGA functionals and OpenMP.
+  
+- v0.6 (8/8/2014)
+
+  - A number of developments including intra-element parallelization
+
+- v0.5 (3/27/2014)
+
+  - A number of developments including integration with PEXSI.
+
 - v0.4 (5/20/2013)
+
   - Discard the attempt to use PETSc.
-  - Start to focus on MD in the v0.4.x tags.
+  - A number of developments in v0.4.x including MD, parallel
+    read/write, Harris functional, and OpenMP for LOBPCG
+  - Another (not used) functionality is the evaluation of the a
+    residual type posteriori error estimator in DGDFT, available at
+    4/16 with commit ``bb22eb9``.
 
 - v0.3 (1/20/2013)
+
   - Merge with the `elementorbital` developments (ultimately not used in
-    favor of the purely discontinuous orbitals)
+    favor of the purely discontinuous orbitals). The code are accessible
+    in the ``OldElementOrbital`` branch.
 
 - v0.2 (8/7/2012)
+
   - Get prepared to migrate to the PETSc environment.
 
-
 - v0.1 (5/5/2012)
+
   - Migrated to Git from SVN.
-  - Has been refactored perhaps twice from a C code to a C++ code.
+
+- pre v0.1 (around 2010--2012)
+
+  - Version control using SVN.
+  - C code refactored into a C++ code. Perhaps refactored twice.
   - Already a reasonably parallel code!
-
-
 
 License
 =======

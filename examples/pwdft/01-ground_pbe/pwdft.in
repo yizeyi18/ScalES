@@ -1,0 +1,60 @@
+# Si 8 atoms
+
+Output_Position:       0
+Output_Velocity:       0
+
+Mixing_Variable:       potential
+Mixing_Type:           kerker+anderson
+Mixing_StepLength:     0.2
+Mixing_MaxDim:         10
+
+Output_Density:         0
+Output_Wfn:             0
+Restart_Density:        0
+Restart_Wfn:            0 
+Output_HMatrix:         0
+
+Extra_States:           8
+
+Temperature:        	  300
+SCF_Outer_MaxIter:      500
+SCF_Outer_Tolerance:    1e-6
+SCF_Inner_MaxIter:      1
+SCF_Inner_Tolerance:    1e-6
+
+Eig_MaxIter: 	         3 
+Eig_Tolerance:          1e-8
+Eig_Tolerance_Dynamics: 0
+
+XC_Type:               XC_GGA_X_PBE
+Pseudo_Type:           ONCV 
+Use_VLocal:            1
+Use_Atom_Density:      1
+
+PW_Solver:                PPCG
+
+Ecut_Wavefunction:        10
+Density_Grid_Factor:	  2.0
+
+begin UPF_File
+  Si_ONCV_PBE-1.1.upf
+end UPF_File
+
+begin Super_Cell
+   10.2625   10.2625   10.2625
+end Super_Cell
+
+Atom_Types_Num:        1
+
+Atom_Type:              14
+
+begin Atom_Red
+0.030000 0.000000 0.000000
+0.000000 0.500000 0.500000
+0.500000 0.000000 0.500000
+0.500000 0.500000 0.000000
+0.750000 0.250000 0.750000
+0.250000 0.250000 0.250000
+0.250000 0.750000 0.750000
+0.750000 0.750000 0.250000
+end Atom_Red
