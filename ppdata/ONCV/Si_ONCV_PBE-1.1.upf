@@ -1,6 +1,8 @@
 <UPF version="2.0.1">
   <PP_INFO>
 
+ Si_ONCV_PBE-1.1.upf
+
  This pseudopotential file has been produced using the code
  ONCVPSP  (Optimized Norm-Conservinng Vanderbilt PSeudopotential)
  scalar-relativistic version 2.1.1, 03/26/2014 by D. R. Hamann

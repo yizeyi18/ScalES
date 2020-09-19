@@ -1,0 +1,12 @@
+ONCV/: 
+ONCV pseudopotentials from the SG15 collection in the UPF format, downloaded from
+
+http://www.quantum-simulation.org/potentials/sg15_oncv/sg15_oncv_upf_2020-02-06.tar.gz
+
+HGH/:
+a few HGH pseudopotentials downloaded from the quantum espresso website:
+
+https://www.quantum-espresso.org/pseudopotentials
+
+Users can download many more pseudopotentials (in the UPF) format from
+this website
