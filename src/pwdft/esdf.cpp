@@ -2633,7 +2633,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.pseudoType      = strtmp;
     esdf_string("PW_Solver", "LOBPCG", strtmp); 
     esdfParam.PWSolver        = strtmp;
-    esdf_string("XC_Type", "XC_LDA_XC_TETER93", strtmp); 
+    esdf_string("XC_Type", "LDA", strtmp); 
     esdfParam.XCType          = strtmp;
     esdf_string("VDW_Type", "None", strtmp); 
     esdfParam.VDWType          = strtmp;

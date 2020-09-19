@@ -1178,7 +1178,7 @@ namespace  dgdft{
 
       HamiltonianDG&  hamDG = *hamDGPtr_;
 
-      if( XCType_ == "XC_GGA_XC_PBE" ){
+      if( XCType_ == "PBE" ){
         GetTime( timeSta );
         hamDG.CalculateGradDensity(  *distfftPtr_ );
         GetTime( timeEnd );
@@ -7363,7 +7363,7 @@ namespace  dgdft{
                 // NOTE Vtot should not be updated until finishing the computation
                 // of the energies.
 
-                if( XCType_ == "XC_GGA_XC_PBE" ){
+                if( XCType_ == "PBE" ){
                   GetTime( timeSta );
                   hamDG.CalculateGradDensity(  *distfftPtr_ );
                   GetTime( timeEnd );
@@ -8540,7 +8540,7 @@ namespace  dgdft{
                 // NOTE Vtot should not be updated until finishing the computation
                 // of the energies.
 
-                if( XCType_ == "XC_GGA_XC_PBE" ){
+                if( XCType_ == "PBE" ){
                   GetTime( timeSta );
                   hamDG.CalculateGradDensity(  *distfftPtr_ );
                   GetTime( timeEnd );
@@ -8795,7 +8795,7 @@ namespace  dgdft{
               // Compute the exchange-correlation potential and energy from the
               // new density
 
-              if( XCType_ == "XC_GGA_XC_PBE" ){
+              if( XCType_ == "PBE" ){
                 GetTime( timeSta );
                 hamDG.CalculateGradDensity(  *distfftPtr_ );
                 GetTime( timeEnd );
@@ -10345,7 +10345,7 @@ namespace  dgdft{
             }
 
             Real vdw_s;
-            if (XCType_ == "XC_GGA_XC_PBE") {
+            if (XCType_ == "PBE") {
               vdw_s=vdw_s_pbe;
             }
             else {

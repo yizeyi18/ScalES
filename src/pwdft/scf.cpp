@@ -258,9 +258,9 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
   // XC functional
   {
     isCalculateGradRho_ = false;
-    if( esdfParam.XCType == "XC_GGA_XC_PBE" || 
-        esdfParam.XCType == "XC_HYB_GGA_XC_HSE06" ||
-        esdfParam.XCType == "XC_HYB_GGA_XC_PBEH" ) {
+    if( esdfParam.XCType == "PBE" || 
+        esdfParam.XCType == "HSE" ||
+        esdfParam.XCType == "PBEH" ) {
       isCalculateGradRho_ = true;
     }
   }

@@ -187,9 +187,10 @@ KohnSham::Setup    (
   {
     isHybrid_ = false;
 
-    if( XCType_ == "XC_LDA_XC_TETER93" )
+    if( XCType_ == "LDA" )
     { 
       XCId_ = XC_LDA_XC_TETER93;
+      statusOFS << "LDA functional is used. In LIBXC, this is " << std::endl;
       statusOFS << "XC_LDA_XC_TETER93  XCId = " << XCId_  << std::endl << std::endl;
       if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
         ErrorHandling( "XC functional initialization error." );
@@ -197,10 +198,11 @@ KohnSham::Setup    (
       // Teter 93
       // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
     }    
-    else if( XCType_ == "XC_GGA_XC_PBE" )
+    else if( XCType_ == "PBE" )
     {
       XId_ = XC_GGA_X_PBE;
       CId_ = XC_GGA_C_PBE;
+      statusOFS << "PBE functional is used. In LIBXC, this is " << std::endl;
       statusOFS << "XC_GGA_XC_PBE  XId_ CId_ = " << XId_ << " " << CId_  << std::endl << std::endl;
       // Perdew, Burke & Ernzerhof correlation
       // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
@@ -212,9 +214,10 @@ KohnSham::Setup    (
         ErrorHandling( "C functional initialization error." );
       }
     }
-    else if( XCType_ == "XC_HYB_GGA_XC_HSE06" )
+    else if( XCType_ == "HSE" )
     {
       XCId_ = XC_HYB_GGA_XC_HSE06;
+      statusOFS << "HSE functional is used. In LIBXC, this is " << std::endl;
       statusOFS << "XC_HYB_GGA_XC_HSE06  XCId = " << XCId_  << std::endl << std::endl;
       if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
         ErrorHandling( "XC functional initialization error." );
@@ -228,9 +231,10 @@ KohnSham::Setup    (
       //
       // This is the same as the "hse" functional in QE 5.1
     }
-    else if( XCType_ == "XC_HYB_GGA_XC_PBEH" )
+    else if( XCType_ == "PBEH" )
     {
       XCId_ = XC_HYB_GGA_XC_PBEH;
+      statusOFS << "PBEH functional is used. In LIBXC, this is " << std::endl;
       statusOFS << "XC_HYB_GGA_XC_PBEH  XCId = " << XCId_  << std::endl << std::endl;
       if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
         ErrorHandling( "XC functional initialization error." );
@@ -4293,13 +4297,13 @@ KohnSham::CalculateVdwEnergyAndForce    ()
 
     Real vdw_s;
 
-    if (XCType_ == "XC_GGA_XC_PBE") {
+    if (XCType_ == "PBE") {
       vdw_s = vdw_s_pbe;
     }
-    else if (XCType_ == "XC_HYB_GGA_XC_HSE06") {
+    else if (XCType_ == "HSE") {
       vdw_s = vdw_s_hse;
     }
-    else if (XCType_ == "XC_HYB_GGA_XC_PBEH") {
+    else if (XCType_ == "PBEH") {
       vdw_s = vdw_s_pbe0;
     }
     else {
