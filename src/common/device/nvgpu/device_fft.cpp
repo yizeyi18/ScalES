@@ -74,8 +74,9 @@ namespace device_fft{
     Index3& numGrid = domain.numGrid;
     Index3& numGridFine = domain.numGridFine;
 
+#if ( _DEBUGlevel_ >= 1 )
     std::cout << "init the R2C cufftPlan: "<< numGrid[2] << " " << numGrid[1] <<" " << numGrid[0]<<std::endl;
-
+#endif
     for(i = 0; i < NSTREAM; i++)
     {
       cufftPlan3d(&cuPlanR2C[i], numGrid[2], numGrid[1], numGrid[0], CUFFT_D2Z);
@@ -90,7 +91,9 @@ namespace device_fft{
   
   void Destroy() {
 
+#if ( _DEBUGlevel_ >= 1 )
     std::cout << "Destroy cufftPlan...... "<< std::endl;
+#endif
 
     Int i;
     for(i =0; i < NSTREAM; i++)

@@ -93,7 +93,6 @@ void Potrf( char uplo_host, Int n, double* A, Int lda ) {
   else 
     uplo = CUBLAS_FILL_MODE_LOWER;
 
-  //std::cout << " I am working in Potrf "<< n << " lda " << lda << std::endl;
   assert(cudaThreadSynchronize() == cudaSuccess);
 
   cusolver_status = 
@@ -109,15 +108,12 @@ void Potrf( char uplo_host, Int n, double* A, Int lda ) {
   assert(cudaMalloc( (void**) & work_array, sizeof(double) * lwork) == cudaSuccess); 
   assert(cudaMalloc( (void**) & info, sizeof(int)  ) == cudaSuccess); 
 
-/*
+/* for debugging purposes. 
   double * A_host = new double[n*n];
-
   assert(cudaMemcpy( A_host, A, sizeof(double) * n * n , cudaMemcpyDeviceToHost) == cudaSuccess);
-
   for(int i =0; i < n; i ++)
   for(int j =0; j < n; j ++)
    std::cout << " A ["<< i << "][" << j << "] = " << A_host[i*lda + j] << std::endl << std::flush;
-
 */
    
   cusolver_status =
@@ -138,10 +134,6 @@ void Potrf( char uplo_host, Int n, double* A, Int lda ) {
     ErrorHandling( msg.str().c_str() );
   }
 /*
-  std::cout << "status " <<cusolver_status <<std::flush;
-  std::cout << "status " <<cusolver_status <<std::flush;
-  std::cout << "status " <<cusolver_status <<std::flush;
-
   if( cusolver_status ==  CUSOLVER_STATUS_NOT_INITIALIZED) {
     std::cout << " CUSOLVER_STATUS_NOT_INITIALIZED " << std::endl << std::flush;
   }
@@ -168,13 +160,6 @@ void Potrf( char uplo_host, Int n, double* A, Int lda ) {
   assert( cudaSuccess == cudaFree(info));
   assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
 
-  /*
-  if( info != 0) {
-    std::ostringstream msg;
-    msg << "cu_solver potrf returned with info = " << info;
-    ErrorHandling( msg.str().c_str() );
-  }
-*/
 }
 
 void Potrf( char uplo_host, Int n, cuDoubleComplex * A, Int lda ) { 
@@ -191,8 +176,7 @@ void Potrf( char uplo_host, Int n, cuDoubleComplex * A, Int lda ) {
   else 
     uplo = CUBLAS_FILL_MODE_LOWER;
 
-  //std::cout << " I am working in Potrf "<< n << " lda " << lda << std::endl;
-  assert(cudaThreadSynchronize() == cudaSuccess);
+  //assert(cudaThreadSynchronize() == cudaSuccess);
 
   cusolver_status = 
   cusolverDnZpotrf_bufferSize( cusolverH, 
@@ -206,18 +190,14 @@ void Potrf( char uplo_host, Int n, cuDoubleComplex * A, Int lda ) {
   assert(cudaThreadSynchronize() == cudaSuccess);
   assert(cudaMalloc( (void**) & work_array, sizeof(cuDoubleComplex) * lwork) == cudaSuccess); 
   assert(cudaMalloc( (void**) & info, sizeof(int)  ) == cudaSuccess); 
-  //std::cout << " Buffer size allocated Okay " << lwork << std::endl;
-  //std::cout << "buffer size status " <<cusolver_status << std::endl<<std::flush;
 
+// for debugging purposes. 
 /*
   double * A_host = new double[n*n];
-
   assert(cudaMemcpy( A_host, A, sizeof(double) * n * n , cudaMemcpyDeviceToHost) == cudaSuccess);
-
   for(int i =0; i < n; i ++)
   for(int j =0; j < n; j ++)
    std::cout << " A ["<< i << "][" << j << "] = " << A_host[i*lda + j] << std::endl << std::flush;
-
 */
    
   cusolver_status =
@@ -238,10 +218,6 @@ void Potrf( char uplo_host, Int n, cuDoubleComplex * A, Int lda ) {
     ErrorHandling( msg.str().c_str() );
   }
 /*
-  std::cout << "status " <<cusolver_status <<std::flush;
-  std::cout << "status " <<cusolver_status <<std::flush;
-  std::cout << "status " <<cusolver_status <<std::flush;
-
   if( cusolver_status ==  CUSOLVER_STATUS_NOT_INITIALIZED) {
     std::cout << " CUSOLVER_STATUS_NOT_INITIALIZED " << std::endl << std::flush;
   }
@@ -260,21 +236,12 @@ void Potrf( char uplo_host, Int n, cuDoubleComplex * A, Int lda ) {
 
   if( cusolver_status ==  CUSOLVER_STATUS_EXECUTION_FAILED) 
     std::cout << " CUSOLVER_STATUS_EXECUTION_FAILED " << std::endl << std::flush;
-  std::cout << "status " <<cusolver_status <<std::flush;
-  std::cout << " cuPotrf execute done" << lwork << std::endl;
 */
   assert( cudaSuccess == cudaDeviceSynchronize());
   assert( cudaSuccess == cudaFree(work_array));
   assert( cudaSuccess == cudaFree(info));
   assert (cusolver_status == CUSOLVER_STATUS_SUCCESS);
 
-  /*
-  if( info != 0) {
-    std::ostringstream msg;
-    msg << "cu_solver potrf returned with info = " << info;
-    ErrorHandling( msg.str().c_str() );
-  }
-*/
 }
 
 // *********************************************************************
