@@ -2270,7 +2270,7 @@ SCF::Iterate (  )
     Print(statusOFS, "! Efree           = ",  Efree_, "[au]");
     Print(statusOFS, "! EfreeHarris     = ",  EfreeHarris_, "[au]");
     Print(statusOFS, "! EVdw            = ",  EVdw_, "[au]"); 
-    Print(statusOFS, "Eext              = ",  Eext_, "[au]");
+    Print(statusOFS, "! Eext            = ",  Eext_, "[au]");
     Print(statusOFS, "! Fermi           = ",  fermi_, "[au]");
     Print(statusOFS, "! HOMO            = ",  HOMO*au2ev, "[ev]");
     if( ham.NumExtraState() > 0 ){
@@ -3035,9 +3035,9 @@ SCF::PrintState    ( const Int iter  )
   for(Int i = 0; i < eigSolPtr_->EigVal().m(); i++){
     Print(statusOFS, 
         "band#    = ", i, 
-        "eigval   = ", eigSolPtr_->EigVal()(i),
-        "resval   = ", eigSolPtr_->ResVal()(i),
-        "occrate  = ", eigSolPtr_->Ham().OccupationRate()(i));
+        "  eigval   = ", eigSolPtr_->EigVal()(i),
+        "  resval   = ", eigSolPtr_->ResVal()(i),
+        "  occrate  = ", eigSolPtr_->Ham().OccupationRate()(i));
   }
   statusOFS << std::endl;
   statusOFS 

@@ -2378,12 +2378,11 @@ ESDFReadInput ( const char* filename )
 
     for( Int ityp = 0; ityp < esdfParam.numAtomType; ityp++ ){
       Int type = esdf_integer( "Atom_Type", 0 );
-      // TODO Add supported type list
       if( type == 0 ){
         ErrorHandling( "Atom_Type cannot be found.");
 
       }
-      // FIXME IMPORTANT. The "mass" parameter is removed from the
+      // IMPORTANT. The "mass" parameter is removed from the
       // reading list.  Mass can be obtained later with periodtable
       // structure and the atom type.  NOTE that the mass in PeriodTable 
       // is in atomic mass unit (amu), but the mass in
@@ -2400,24 +2399,7 @@ ESDFReadInput ( const char* filename )
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
 
-#if 0
-          // Force atom to be in unit cell : assume cuboidal unit cell for this
-          while(pos[0] > dm.length[0])
-            pos[0] -= dm.length[0];
-          while(pos[0] < 0.0)
-            pos[0] += dm.length[0];
-
-          while(pos[1] > dm.length[1])
-            pos[1] -= dm.length[1];
-          while(pos[1] < 0.0)
-            pos[1] += dm.length[1];
-
-          while(pos[2] > dm.length[2])
-            pos[2] -= dm.length[2];
-          while(pos[2] < 0.0)
-            pos[2] += dm.length[2];
-#endif
-          // Force atom to be centered around (0,0,0)
+          // Constrain the atoms to be within the supercell
           pos[0] -= IRound(pos[0]/dm.length[0])*dm.length[0];
           pos[1] -= IRound(pos[1]/dm.length[1])*dm.length[1];
           pos[2] -= IRound(pos[2]/dm.length[2])*dm.length[2];
@@ -2435,27 +2417,7 @@ ESDFReadInput ( const char* filename )
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
 
-#if 0
-          // Force atom to be in unit cell : assume cuboidal unit cell for this
-          const Real ANG2AU = 1.8897261;
-          while(pos[0] > (dm.length[0] / ANG2AU) )
-            pos[0] -= (dm.length[0] / ANG2AU);
-          while(pos[0] < 0.0)
-            pos[0] += (dm.length[0] / ANG2AU);
-
-          while(pos[1] > (dm.length[1] / ANG2AU) )
-            pos[1] -= (dm.length[1] / ANG2AU);
-          while(pos[1] < 0.0)
-            pos[1] += (dm.length[1] / ANG2AU);
-
-          while(pos[2] > (dm.length[2] / ANG2AU) )
-            pos[2] -= (dm.length[2] / ANG2AU);
-          while(pos[2] < 0.0)
-            pos[2] += (dm.length[2] / ANG2AU);
-          atomList.push_back( 
-              Atom( type, ANG2AU*pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
-#endif
-          // Force atom to be centered around (0,0,0)
+          // Constrain the atoms to be within the supercell
           pos /= au2ang;
           pos[0] -= IRound(pos[0]/dm.length[0])*dm.length[0];
           pos[1] -= IRound(pos[1]/dm.length[1])*dm.length[1];
@@ -2475,29 +2437,7 @@ ESDFReadInput ( const char* filename )
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
-#if 0
-
-          // Force atom to be in unit cell : assume cuboidal unit cell for this
-          while(pos[0] > 1.0)
-            pos[0] -= 1.0;
-          while(pos[0] < 0.0)
-            pos[0] += 1.0;
-
-          while(pos[1] > 1.0)
-            pos[1] -= 1.0;
-          while(pos[1] < 0.0)
-            pos[1] += 1.0;
-
-          while(pos[2] > 1.0)
-            pos[2] -= 1.0;
-          while(pos[2] < 0.0)
-            pos[2] += 1.0; 
-
-          atomList.push_back( 
-              Atom( type, Point3( pos[0]*length[0], pos[1]*length[1], pos[2]*length[2] ),
-                Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
-#endif
-          // Force atom to be centered around (0,0,0)
+          // Constrain the atoms to be within the supercell
           pos[0] *= dm.length[0];
           pos[1] *= dm.length[1];
           pos[2] *= dm.length[2];
@@ -2521,7 +2461,7 @@ ESDFReadInput ( const char* filename )
 
   // System parameters
   {
-    esdfParam.mixMaxDim       = esdf_integer("Mixing_MaxDim", 9);
+    esdfParam.mixMaxDim       = esdf_integer("Mixing_MaxDim", 10);
 
     esdf_string("Mixing_Type", "anderson", strtmp); 
     esdfParam.mixType         = strtmp;
@@ -2538,15 +2478,15 @@ ESDFReadInput ( const char* filename )
     }
 
 
-    esdfParam.mixStepLength        = esdf_double( "Mixing_StepLength", 0.8 );
+    esdfParam.mixStepLength        = esdf_double( "Mixing_StepLength", 0.5 );
     esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
-    esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 );
+    esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 ); 
     esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
     esdfParam.scfOuterTolerance    = esdf_double( "SCF_Outer_Tolerance", 1e-6 );
     esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
     esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
-    esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   30 );
-    esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   10 );
+    esdfParam.scfOuterMaxIter      = esdf_integer( "SCF_Outer_MaxIter",   100 );
+    esdfParam.scfPhiMaxIter        = esdf_integer( "SCF_Phi_MaxIter",   30 );
     esdfParam.scfPhiTolerance      = esdf_double( "SCF_Phi_Tolerance",   1e-6 );
 
     // TDDFT
@@ -2637,13 +2577,12 @@ ESDFReadInput ( const char* filename )
 
     esdfParam.exxDivergenceType    = esdf_integer( "EXX_Divergence_Type", 1 );
 
-    // Default is no locking
-    esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-20 );
+    esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-8 );
     esdfParam.eigMinTolerance      = esdf_double( "Eig_Min_Tolerance", 1e-3 );
     esdfParam.eigMinIter           = esdf_integer( "Eig_MinIter",  2 );
     esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
     esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
-    esdfParam.isUseAtomDensity = esdf_integer( "Use_Atom_Density", 0 );
+    esdfParam.isUseAtomDensity = esdf_integer( "Use_Atom_Density", 1 );
     esdfParam.isUseVLocal      = esdf_integer( "Use_VLocal", 1 );
     esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
     esdfParam.isRestartWfn     = esdf_integer( "Restart_Wfn", 0 );

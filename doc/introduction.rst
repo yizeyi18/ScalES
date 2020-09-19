@@ -123,42 +123,6 @@ For general usage of DGDFT package for electronic structure calculation,
       Volume                   = {143}
     }
 
-For hybrid functional calculations using PWDFT, 
-**please also cite the following paper.**::
-
-    @Article{JCTC2016,
-      Title                    = {Adaptively Compressed Exchange Operator},
-      Author                   = {Lin, L.},
-      Journal                  = {J. Chem. Theory Comput.},
-      Year                     = {2016},
-      Pages                    = {2242},
-      Volume                   = {12}
-    }
-
-For large scale calculations using DGDFT and Chebyshev filtering, 
-**please also cite the following paper.**::
-
-    @Article{JCTC2018_DG,
-      Title                    = {Two-level {Chebyshev} filter based complementary subspace method for pushing the envelope of large-scale electronic structure calculations},
-      Author                   = {A. S. Banerjee and L. Lin and P. Suryanarayana and C. Yang and J. E. Pask},
-      Journal                  = {J. Chem. Theory Comput.},
-      Year                     = {2018},
-      Pages                    = {2930},
-      Volume                   = {14}
-    }
-
-For large scale RT-TDDFT calculations,
-**please also cite the following paper.**::
-
-    @Article{JCTC2018_TD,
-      Title                    = {Fast real-time time-dependent density functional theory calculations with the parallel transport gauge},
-      Author                   = {W. Jia and D. An and L.-W. Wang and L. Lin},
-      Journal                  = {J. Chem. Theory Comput.},
-      Year                     = {2018},
-      Pages                    = {5645},
-      Volume                   = {14}
-    }
-
 
 More references on DGDFT
 ========================

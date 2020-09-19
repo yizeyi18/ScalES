@@ -42,7 +42,11 @@ such enhancements or derivative works thereof, in binary and source code form.
  */
 /// @file esdf.hpp
 /// @brief Electronic structure data format for reading the input data.
+/// 
+/// Note: the default values were set a few years ago and can be
+/// obsolete. Double check esdf.cpp for the default values
 /// @date 2012-08-10
+/// @date 2020-09-19
 #ifndef _ESDF_HPP_
 #define _ESDF_HPP_
 
@@ -132,8 +136,6 @@ struct ESDFInputParam{
 
   /// @brief Mixing maximum dimension.
   ///
-  /// Default: 9
-  ///
   /// This parameter is relevant for Anderson mixing.
   Int                 mixMaxDim;
   /// @brief Mixing type for self-consistent field iteration.
@@ -190,7 +192,8 @@ struct ESDFInputParam{
   ///
   /// Default: 1e-4
   Real                scfOuterEnergyTolerance;
-  /// @brief Minimum number of inner %SCF iterations
+  /// @brief Minimum number of inner %SCF iterations. This is only used
+  /// in DG.
   ///
   /// Default: 1
   Int                 scfInnerMinIter;
@@ -198,11 +201,13 @@ struct ESDFInputParam{
   ///
   /// Default: 1
   Int                 scfInnerMaxIter;
-  /// @brief Minimum number of outer %SCF iterations
+  /// @brief Minimum number of outer %SCF iterations. This is only used
+  /// in DG.
   ///
   /// Default: 3
   Int                 scfOuterMinIter;
-  /// @brief Maximum number of outer %SCF iterations
+  /// @brief Maximum number of outer %SCF iterations. In PWDFT, only the
+  /// outer iteration is used.
   ///
   /// Default: 30
   Int                 scfOuterMaxIter;
@@ -338,7 +343,7 @@ struct ESDFInputParam{
 
   /// @brief Tolerance for the eigenvalue solver
   ///
-  /// Default: 1e-6
+  /// Default: 1e-8
   ///
   /// Currently the LOBPCG method is used as the eigenvalue solver for
   /// obtaining the adaptive local basis functions, and eigTolerance
@@ -349,12 +354,19 @@ struct ESDFInputParam{
   /// @ref dgdft::esdf::ESDFInputParam::isEigToleranceDynamic "isEigToleranceDynamic"), the tolerance for
   /// the eigensolver is controlled dynamically and can be larger than
   /// eigTolerance.
+  ///
+  /// If eigTolerance is set to be a very low number (e.g. 1e-20), then
+  /// no locking is enforced, and the convergence is fully controlled by
+  /// the number of iterations 
   Real                eigTolerance;
-  /// @brief Minimum number of iterations for the eigensolver.
+  /// @brief Minimum number of iterations for the eigensolver. This is
+  /// only used in DG.
   ///
   /// Default: 1
   Int                 eigMinIter;
-  /// @brief Maximum number of iterations for the eigensolver.
+  /// @brief Maximum number of iterations for the eigensolver. A
+  /// relatively small number of iterations are used to accelerate the
+  /// SCF convergence.
   ///
   /// Default: 10
   Int                 eigMaxIter;
