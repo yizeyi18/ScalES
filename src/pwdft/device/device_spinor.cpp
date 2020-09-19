@@ -136,7 +136,6 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, deviceNumTns<Real>& a3)
   //deviceDblNumVec cu_TeterPrecond(ntothalf);
   if( !teter_gpu_flag ) {
      // copy the Teter Preconditioner into GPU. only once. 
-     //std::cout << " copy Teter Precond into GPU... "<< teter_gpu_flag<<std::endl;
      dev_TeterPrecond = (double*) device_malloc( sizeof(Real) * ntothalf);
      device_memcpy_HOST2DEVICE(dev_TeterPrecond, fftPtr->TeterPrecondR2C.Data(), sizeof(Real)*ntothalf);
      //device_memcpy_HOST2DEVICE(cu_TeterPrecond.Data(), fftPtr->TeterPrecondR2C.Data(), sizeof(Real)*ntothalf);

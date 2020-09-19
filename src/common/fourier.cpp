@@ -272,12 +272,13 @@ void Fourier::Initialize ( const Domain& dm )
           reinterpret_cast<fftw_complex*>( &inputComplexVecLocal[0] ),
           comm, FFTW_BACKWARD, plannerFlag);
 
+#if ( _DEBUGlevel_ >= 2 )
     std::cout  << mpirankFFT << "localNz        = " << localNz << std::endl;
     std::cout  << mpirankFFT << "localNzStart   = " << localNzStart << std::endl;
     std::cout  << mpirankFFT << "numAllocLocal  = " << numAllocLocal << std::endl;
     std::cout  << mpirankFFT << "numGridLocal   = " << numGridLocal << std::endl;
     std::cout  << mpirankFFT << "numGridTotal   = " << numGridTotal << std::endl;
-
+#endif
     }
   }
 

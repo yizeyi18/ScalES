@@ -285,8 +285,6 @@ template <class F> inline void deviceNumVec<F>::CopyFrom(const NumVec<F> &C) {
     if(m_>0 ) { data_ = (F*)device_malloc( sizeof(F) * m_ ); } else data_=NULL;
    }
   if(C.m_ <= m_) {
-    //std::cout << " m n: "<< m_ <<" " <<std::endl;
-    //std::flush(std::cout);
     if(m_>0 ) { device_memcpy_HOST2DEVICE(data_, C.data_, sizeof(F)*C.m_);}
   }
 }

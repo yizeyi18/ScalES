@@ -141,8 +141,6 @@ template <class F> inline void deviceNumMat<F>::CopyFrom(const deviceNumMat<F> &
     if(m_>0 && n_>0) { data_ = (F*)device_malloc( sizeof(F) * m_ * n_ ); } else data_=NULL;
    }
   if(C.m_*C.n_ <= m_*n_) {
-    //std::cout << " m n: "<< m_ <<" " <<n_ << std::endl;
-    //std::flush(std::cout);
     if(m_>0 && n_>0) { device_memcpy_DEVICE2DEVICE(data_, C.data_, sizeof(F)*C.m_*C.n_);}
   }
 }
@@ -157,8 +155,6 @@ template <class F> inline void deviceNumMat<F>::CopyFrom(const NumMat<F> &C) {
     if(m_>0 && n_>0) { data_ = (F*)device_malloc( sizeof(F) * m_ * n_ ); } else data_=NULL;
   }
   if(C.m_*C.n_ <= m_*n_) {
-    //std::cout << " m n: "<< m_ <<" " <<n_ << std::endl;
-    //std::flush(std::cout);
     if(m_>0 && n_>0) { device_memcpy_HOST2DEVICE(data_, C.data_, sizeof(F)*C.m_*C.n_);}
   }
 }

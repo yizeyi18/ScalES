@@ -309,7 +309,7 @@ EigenSolver::devicePPCGSolveReal (
   Real  resBlockNormLocal, resBlockNorm; // Frobenius norm of the residual block  
   Real  resMax, resMin;
 
-#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 2 )
   if(mpirank  == 0)  { std::cout << " after malloc cuS, cu_AS " << std::endl; device_memory(); }
 #endif
   // For convenience
@@ -342,6 +342,7 @@ EigenSolver::devicePPCGSolveReal (
   deviceDblNumMat cu_AXcol( height, widthLocal );
   deviceDblNumMat cu_AWcol( height, widthLocal );
 
+#if ( _DEBUGlevel_ >= 1 )
   if(mpirank == 0)
   {
     std::cout << " GPU PPCG begins alloc partially done" << std::endl;
@@ -350,6 +351,7 @@ EigenSolver::devicePPCGSolveReal (
     std::cout << " Each S  takes GPU memory: " << width* width/1024/128 << " MB" << std::endl;
     device_memory();
   }
+#endif
   //Int info;
   bool isRestart = false;
   // numSet = 2    : Steepest descent (Davidson), only use (X | W)
