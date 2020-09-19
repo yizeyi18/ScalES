@@ -485,10 +485,6 @@ void esdf_key() {
   strcpy(kw_typ[i],"I:E");
 
   i++;
-  strcpy(kw_label[i],"periodtable");
-  strcpy(kw_typ[i],"T:E");
-
-  i++;
   strcpy(kw_label[i],"pseudo_type");
   strcpy(kw_typ[i],"T:E");
 
@@ -2356,13 +2352,7 @@ ESDFReadInput ( const char* filename )
       }
     }
     else{
-      statusOFS << "UPF_File is not defined. " << std::endl;
-      statusOFS << "Use the old format of pseudopotential by defininig PeriodTable in the input file." << std::endl;
-      statusOFS << "This option will become deprecated in the future" << std::endl;
-      esdf_string("PeriodTable", "", strtmp);
-      esdfParam.periodTableFile = strtmp;
-      if( esdfParam.periodTableFile.empty() )
-        ErrorHandling("UPF_File or PeriodTable must be defined.");
+      ErrorHandling("UPF_File must be defined.");
     }
   }
 
@@ -2382,12 +2372,6 @@ ESDFReadInput ( const char* filename )
         ErrorHandling( "Atom_Type cannot be found.");
 
       }
-      // IMPORTANT. The "mass" parameter is removed from the
-      // reading list.  Mass can be obtained later with periodtable
-      // structure and the atom type.  NOTE that the mass in PeriodTable 
-      // is in atomic mass unit (amu), but the mass in
-      // atomvec is in atomic unit (au).
-
       Int  numAtom;
 
       if( esdf_block("Atom_Bohr", &numAtom ) ){
@@ -3223,7 +3207,6 @@ void ESDFPrintInput( ){
   Print(statusOFS, "Temperature                          = ",  au2K / esdfParam.Tbeta, "[K]");
   Print(statusOFS, "Extra states                         = ",  esdfParam.numExtraState  );
   Print(statusOFS, "Smearing scheme                      = ",  esdfParam.smearing_scheme );
-  Print(statusOFS, "PeriodTable File                     = ",  esdfParam.periodTableFile );
   Print(statusOFS, "Pseudo Type                          = ",  esdfParam.pseudoType );
   Print(statusOFS, "PW Solver                            = ",  esdfParam.PWSolver );
   Print(statusOFS, "XC Type                              = ",  esdfParam.XCType );
