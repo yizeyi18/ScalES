@@ -677,10 +677,6 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 }         // -----  end of method KohnSham::CalculatePseudoPotential ----- 
 
 void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
-  if( esdfParam.pseudoType == "HGH" ){
-    ErrorHandling("HGH pseudopotential does not yet support the computation of atomic density!");
-  }
-
   Int ntotFine = domain_.NumGridTotalFine();
   Int numAtom = atomList_.size();
   Real vol = domain_.Volume();

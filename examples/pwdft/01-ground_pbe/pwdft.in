@@ -4,7 +4,6 @@ Temperature:        	  300
 Extra_States:           8
 
 XC_Type:               PBE
-Pseudo_Type:           ONCV 
 
 Ecut_Wavefunction:        10
 

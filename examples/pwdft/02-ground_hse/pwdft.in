@@ -3,10 +3,9 @@
 Temperature:        	  300
 Extra_States:           8
 
-XC_Type:               HSE
-Pseudo_Type:           ONCV 
+XC_Type:                HSE
 
-Ecut_Wavefunction:        10
+Ecut_Wavefunction:      10
 
 begin UPF_File
   ../../pp_ONCV/Si_ONCV_PBE-1.2.upf
