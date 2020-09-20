@@ -378,7 +378,7 @@ inline Int Print(std::ostream &os, const std::string name, Real val, const std::
     << std::setw(LENGTH_VAR_NAME) << name
     << std::setiosflags(std::ios::scientific)
     << std::setiosflags(std::ios::showpos)
-    << std::setw(LENGTH_DBL_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val
+    << std::setw(LENGTH_DBL_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val << "  "
     << std::resetiosflags(std::ios::scientific)
     << std::resetiosflags(std::ios::showpos)
     << std::setw(LENGTH_VAR_UNIT) << unit 
@@ -391,9 +391,9 @@ inline Int Print(std::ostream &os, const char *name, Real val, const char *unit)
     << std::setw(LENGTH_VAR_NAME) << std::string(name)
     << std::setiosflags(std::ios::scientific)
     << std::setiosflags(std::ios::showpos)
-    << std::setw(LENGTH_DBL_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val
+    << std::setw(LENGTH_DBL_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val  << "  "
     << std::resetiosflags(std::ios::scientific)
-    << std::resetiosflags(std::ios::showpos)
+    << std::resetiosflags(std::ios::showpos) 
     << std::setw(LENGTH_VAR_UNIT) << std::string(unit) 
     << std::endl;
   return 0;
@@ -406,10 +406,10 @@ inline Int Print(std::ostream &os, const std::string name1, Real val1, const std
     << std::setw(LENGTH_VAR_NAME) << name1
     << std::setiosflags(std::ios::scientific)
     << std::setiosflags(std::ios::showpos)
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val1
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val1 << "  "
     << std::setw(LENGTH_VAR_UNIT) << unit1 
     << std::setw(LENGTH_VAR_NAME) << name2
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val2
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val2 << "  "
     << std::resetiosflags(std::ios::scientific)
     << std::resetiosflags(std::ios::showpos)
     << std::setw(LENGTH_VAR_UNIT) << unit2 
@@ -423,10 +423,10 @@ inline Int Print(std::ostream &os, const char *name1, Real val1, const char *uni
     << std::setw(LENGTH_VAR_NAME) << std::string(name1)
     << std::setiosflags(std::ios::scientific)
     << std::setiosflags(std::ios::showpos)
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val1
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val1 << "  "
     << std::setw(LENGTH_VAR_UNIT) << std::string(unit1) 
     << std::setw(LENGTH_VAR_NAME) << std::string(name2)
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val2
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val2 << "  "
     << std::resetiosflags(std::ios::scientific)
     << std::resetiosflags(std::ios::showpos)
     << std::setw(LENGTH_VAR_UNIT) << std::string(unit2) 
@@ -439,12 +439,12 @@ inline Int Print(std::ostream &os, const std::string name1, Int val1, const std:
     const std::string name2, Real val2, const std::string unit2) {
   os << std::setiosflags(std::ios::left)
     << std::setw(LENGTH_VAR_NAME) << name1
-    << std::setw(LENGTH_INT_DATA) << val1
+    << std::setw(LENGTH_INT_DATA) << val1 << "  "
     << std::setw(LENGTH_VAR_UNIT) << unit1 
     << std::setw(LENGTH_VAR_NAME) << name2
     << std::setiosflags(std::ios::scientific)
     << std::setiosflags(std::ios::showpos)
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val2
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val2 << "  "
     << std::resetiosflags(std::ios::scientific)
     << std::resetiosflags(std::ios::showpos)
     << std::setw(LENGTH_VAR_UNIT) << unit2 
@@ -456,12 +456,12 @@ inline Int Print(std::ostream &os, const char *name1, Int val1, const char *unit
     char *name2, Real val2, char *unit2) {
   os << std::setiosflags(std::ios::left)
     << std::setw(LENGTH_VAR_NAME) << std::string(name1)
-    << std::setw(LENGTH_INT_DATA) << val1
+    << std::setw(LENGTH_INT_DATA) << val1 << "  "
     << std::setw(LENGTH_VAR_UNIT) << std::string(unit1) 
     << std::setw(LENGTH_VAR_NAME) << std::string(name2)
     << std::setiosflags(std::ios::scientific)
     << std::setiosflags(std::ios::showpos)
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val2
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val2 << "  "
     << std::resetiosflags(std::ios::scientific)
     << std::resetiosflags(std::ios::showpos)
     << std::setw(LENGTH_VAR_UNIT) << std::string(unit2) 
@@ -475,13 +475,13 @@ inline Int Print(std::ostream &os,
     char *name3, Real val3) {
   os << std::setiosflags(std::ios::left)
     << std::setw(LENGTH_VAR_NAME) << std::string(name1)
-    << std::setw(LENGTH_INT_DATA) << val1 
+    << std::setw(LENGTH_INT_DATA) << val1  << "  "
     << std::setiosflags(std::ios::scientific)
     << std::setiosflags(std::ios::showpos)
     << std::setw(LENGTH_VAR_NAME) << std::string(name2)
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val2
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val2 << "  "
     << std::setw(LENGTH_VAR_NAME) << std::string(name3) 
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val3
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val3 << "  "
     << std::resetiosflags(std::ios::scientific)
     << std::resetiosflags(std::ios::showpos)
     << std::endl;
@@ -496,15 +496,15 @@ inline Int Print(std::ostream &os,
     const char *name4, Real val4 ) {
   os << std::setiosflags(std::ios::left)
     << std::setw(LENGTH_VAR_NAME) << std::string(name1)
-    << std::setw(LENGTH_INT_DATA) << val1 
+    << std::setw(LENGTH_INT_DATA) << val1  << "  "
     << std::setiosflags(std::ios::scientific)
     << std::setiosflags(std::ios::showpos)
     << std::setw(LENGTH_VAR_NAME) << std::string(name2)
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val2
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val2 << "  "
     << std::setw(LENGTH_VAR_NAME) << std::string(name3) 
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val3
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val3 << "  "
     << std::setw(LENGTH_VAR_NAME) << std::string(name4) 
-    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val4
+    << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< val4 << "  "
     << std::resetiosflags(std::ios::scientific)
     << std::resetiosflags(std::ios::showpos)
     << std::endl;
@@ -535,7 +535,7 @@ inline Int Print(std::ostream &os, const char *name, Int val) {
 inline Int Print(std::ostream &os, const std::string name, Int val, const std::string unit) {
   os << std::setiosflags(std::ios::left)
     << std::setw(LENGTH_VAR_NAME) << name
-    << std::setw(LENGTH_VAR_DATA) << val
+    << std::setw(LENGTH_VAR_DATA) << val << "  "
     << std::setw(LENGTH_VAR_UNIT) << unit 
     << std::endl;
   return 0;
@@ -545,7 +545,7 @@ inline Int Print(std::ostream &os, const std::string name, Int val, const std::s
 inline Int Print(std::ostream &os, const char* name, Int val, const std::string unit) {
   os << std::setiosflags(std::ios::left)
     << std::setw(LENGTH_VAR_NAME) << std::string(name)
-    << std::setw(LENGTH_VAR_DATA) << val
+    << std::setw(LENGTH_VAR_DATA) << val << "  "
     << std::setw(LENGTH_VAR_UNIT) << unit 
     << std::endl;
   return 0;
@@ -558,10 +558,10 @@ inline Int Print(std::ostream &os, const std::string name1, Int val1, const std:
     const std::string name2, Int val2, const std::string unit2) {
   os << std::setiosflags(std::ios::left)
     << std::setw(LENGTH_VAR_NAME) << name1
-    << std::setw(LENGTH_VAR_DATA) << val1
+    << std::setw(LENGTH_VAR_DATA) << val1 << "  "
     << std::setw(LENGTH_VAR_UNIT) << unit1 
     << std::setw(LENGTH_VAR_NAME) << name2
-    << std::setw(LENGTH_VAR_DATA) << val2
+    << std::setw(LENGTH_VAR_DATA) << val2 << "  "
     << std::setw(LENGTH_VAR_UNIT) << unit2 
     << std::endl;
   return 0;
@@ -571,10 +571,10 @@ inline Int Print(std::ostream &os, const char *name1, Int val1, const char *unit
     char *name2, Int val2, char *unit2) {
   os << std::setiosflags(std::ios::left)
     << std::setw(LENGTH_VAR_NAME) << std::string(name1)
-    << std::setw(LENGTH_VAR_DATA) << val1
+    << std::setw(LENGTH_VAR_DATA) << val1 << "  "
     << std::setw(LENGTH_VAR_UNIT) << std::string(unit1) 
     << std::setw(LENGTH_VAR_NAME) << std::string(name2)
-    << std::setw(LENGTH_VAR_DATA) << val2
+    << std::setw(LENGTH_VAR_DATA) << val2 << "  "
     << std::setw(LENGTH_VAR_UNIT) << std::string(unit2) 
     << std::endl;
   return 0;

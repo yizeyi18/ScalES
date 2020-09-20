@@ -1358,7 +1358,7 @@ EigenSolver::LOBPCGSolveReal    (
   }
   else{
     statusOFS << std::endl << "After " << iter 
-      << " iterations, LOBPCG did not converge. " << std::endl
+      << " iterations, LOBPCG reaches the max number of iterations. " << std::endl
       << "The maximum norm of the residual is " 
       << resMax << std::endl << std::endl
       << "The minimum norm of the residual is " 

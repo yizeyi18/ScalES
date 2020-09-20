@@ -74,6 +74,13 @@ Target: refactor2020
   instance, the default should be to compile pwdft, without the need of
   compiling PEXSI, etc.
 
+- [ ] Streamline the compilation of external packages in CMake: lbfgs (used in
+  ionMove=="lbfgs"), rqrcp (used in ISDF), maybe compile by default.
+  Other packages such as ELSI / PEXSI?
+
+- [x] Introduce a "program" variable in esdf to determine the program
+  mode. Deprecate the isDGDFT and isTDDFT flag
+
 
 - [x] ``Use_VLocal`` should be deprecated. With ONCV pseudopotential
   being the default option, we should always use the branch
@@ -130,6 +137,7 @@ Target: refactor2020
 
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
+
 
 
 Meeting memos 

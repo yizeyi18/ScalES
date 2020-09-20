@@ -248,11 +248,11 @@ void Fourier::Initialize ( const Domain& dm )
       MPI_Comm_size( comm, &mpisizeFFT );
       Index3& numGrid = domain.numGridFine;
       if( numGrid[2] < mpisizeFFT ){
-        ErrorHandling( " MPI FFTW initialization  error, reduce the number of MPIs used for fftw");
+        ErrorHandling( " MPI FFTW initialization  error, reduce FFTW_MPI_Size.");
       }
       if( numGrid[2] % mpisizeFFT ){
         statusOFS << " numGrid[2]: " << numGrid[2] << " mpiSizeFFT " << mpisizeFFT << std::endl;
-        ErrorHandling( " MPI FFTW initialization error, FFTW MPIs should be equaly divided by Z");
+        ErrorHandling( " MPI FFTW initialization error, the number of points along the z-direction should be divisible by FFTW_MPI_Size.");
       }
       numAllocLocal =  fftw_mpi_local_size_3d(
           numGrid[2], numGrid[1], numGrid[0], comm, 

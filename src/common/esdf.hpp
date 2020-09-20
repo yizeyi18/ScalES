@@ -124,6 +124,15 @@ char *strupr(char *);
 /// This struct is a bit messy, since all input parameters are passed
 /// through this struct
 struct ESDFInputParam{
+  /// @brief Program mode 
+  ///
+  /// Default: pwdft
+  ///
+  /// - pwdft:        Standard planewave based DFT
+  /// - dgdft:        Discontinuous Galerkin DFT 
+  /// - tddft:        Real time time-dependent DFT
+  std::string         program;
+  
   /// @brief Global computational domain.
   ///
   /// Not an input parameter by the user.
@@ -854,7 +863,7 @@ struct ESDFInputParam{
   /// Default: 2
   Int                 pexsiNpoint; 
 
-  /// @brief Mode for geometry optimization and molecular dynamics
+  /// @brief Method for geometry optimization and molecular dynamics
   ///
   /// Default: NONE
   ///
@@ -982,11 +991,6 @@ struct ESDFInputParam{
   /// 
   /// Default: the same as PhiMaxIter
   Int                 TDDFTPhiMaxIter;
-
-  /// @brief use TDDFT or not
-  /// 
-  /// Default: 1
-  bool                isTDDFT;
 
   /// @brief use TDDFT ehrenfest dynamics
   /// 
@@ -1156,9 +1160,6 @@ struct ESDFInputParam{
    * They are determined in esdf.cpp
    ************************************************************/
 
-  // Whether DGDFT is performed.
-  bool isDGDFT_; 
-
   // Family of XC functional. Whether it is LDA / GGA / Hybrid
   std::string XCFamily_;
   // LIBXC parameters
@@ -1172,6 +1173,8 @@ struct ESDFInputParam{
   bool        isMD_;
 };
 
+// Adjust the grid size to be more optimal for FFT. Grid sizes are currently hard coded
+Int AdjustNumGrid( Int numGrid );
 
 // Read / Write options common to all codes
 void ESDFReadInput( const std::string filename );
@@ -1179,6 +1182,7 @@ void ESDFReadInput( const std::string filename );
 void ESDFReadInput( const char* filename );
 
 void ESDFPrintInput( );
+
 
 // Specific input and output functions. Must call ESDFReadInput() first!
 // FIXME Still decidiing where these are needed

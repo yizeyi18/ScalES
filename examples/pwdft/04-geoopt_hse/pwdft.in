@@ -9,6 +9,8 @@ extra_states:           4
 xc_type:                HSE
 
 ecut_wavefunction:        40
+eig_maxiter:            5
+pw_solver:              LOBPCG
 
 begin upf_file
   ../../pp_ONCV/O_ONCV_PBE-1.2.upf

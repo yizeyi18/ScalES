@@ -1,7 +1,7 @@
 # H2O
 
 ion_move:               verlet
-ion_max_iter:           20
+ion_max_iter:           200
 
 temperature:        	  300
 extra_states:           4
