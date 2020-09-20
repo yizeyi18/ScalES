@@ -1151,7 +1151,10 @@ struct ESDFInputParam{
   bool PWDFT_Cheby_use_scala; // Default 1
   bool PWDFT_Cheby_apply_wfn_ecut_filt; // Default 1
 
-  // The following are NOT input parameters
+  /************************************************************ 
+   * The following are NOT input parameters. 
+   * They are determined in esdf.cpp
+   ************************************************************/
 
   // Whether DGDFT is performed.
   bool isDGDFT_; 
@@ -1163,6 +1166,10 @@ struct ESDFInputParam{
   Int         XId_;
   Int         CId_;
   bool        isXCSeparate_;
+
+  // Whether to perform geometry optimization / MD
+  bool        isGeoOpt_;
+  bool        isMD_;
 };
 
 

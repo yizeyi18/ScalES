@@ -3153,6 +3153,11 @@ ESDFReadInput ( const char* filename )
     esdfParam.ionMaxIter     = esdf_integer("Ion_Max_Iter", 0);
     esdf_string("Ion_Move", "", strtmp); 
     esdfParam.ionMove        = strtmp;
+    std::vector<std::string> GeoOpt_list = { "bb", "pgbb", "nlcg", "lbfgs", "fire" };
+    std::vector<std::string> MD_list = { "verlet", "nosehoover1", "langevin" };
+
+    esdfParam.isGeoOpt_ = InArray(esdfParam.ionMove, GeoOpt_list);
+    esdfParam.isMD_     = InArray(esdfParam.ionMove, MD_list);
 
     // Geometry optimization
     esdfParam.geoOptMaxForce = esdf_double( "Geo_Opt_Max_Force", 0.001 );
@@ -3311,27 +3316,36 @@ void ESDFPrintInput( ){
   Print(statusOFS, "");
 
   // Ionic motion
-  if( esdfParam.ionMove != "" ){
+  if( esdfParam.isGeoOpt_ || esdfParam.isMD_ ){
     PrintBlock(statusOFS, "Ion move information");
     Print(statusOFS, "Ion move mode                        = ",  esdfParam.ionMove);
     Print(statusOFS, "Max steps for ion                    = ",  esdfParam.ionMaxIter);
     Print(statusOFS, "MD time step                         = ",  esdfParam.MDTimeStep);
-    Print(statusOFS, "Ion Temperature                      = ",  esdfParam.ionTemperature, "[K]");
-    Print(statusOFS, "Thermostat mass                      = ",  esdfParam.qMass);
-    Print(statusOFS, "Langevin damping                     = ",  esdfParam.langevinDamping);
     Print(statusOFS, "RestartPosition                      = ",  esdfParam.isRestartPosition);
     Print(statusOFS, "RestartVelocity                      = ",  esdfParam.isRestartVelocity);
     Print(statusOFS, "OutputPosition                       = ",  esdfParam.isOutputPosition );
     Print(statusOFS, "OutputVelocity                       = ",  esdfParam.isOutputVelocity   );
     Print(statusOFS, "Output XYZ format                    = ",  esdfParam.isOutputXYZ );
-    Print(statusOFS, "Force tol for geoopt                 = ",  esdfParam.geoOptMaxForce );
-    Print(statusOFS, "MD extrapolation type                = ",  esdfParam.MDExtrapolationType);
-    Print(statusOFS, "MD extrapolation variable            = ",  esdfParam.MDExtrapolationVariable);
-    Print(statusOFS, "MD SCF Phi MaxIter                   = ",  esdfParam.MDscfPhiMaxIter);
-    Print(statusOFS, "MD SCF Outer MaxIter                 = ",  esdfParam.MDscfOuterMaxIter);
-    Print(statusOFS, "MD SCF Energy Criteria Engage Iter   = ",  esdfParam.MDscfEnergyCriteriaEngageIonIter);
-    Print(statusOFS, "MD SCF Etot diff                     = ",  esdfParam.MDscfEtotdiff);
-    Print(statusOFS, "MD SCF Eband diff                    = ",  esdfParam.MDscfEbanddiff);
+    Print(statusOFS, "");
+
+
+    if( esdfParam.isGeoOpt_ ){
+      Print(statusOFS, "Force tol for geoopt                 = ",  esdfParam.geoOptMaxForce );
+    }
+
+    if( esdfParam.isMD_ ){
+      Print(statusOFS, "Ion Temperature                      = ",  esdfParam.ionTemperature, "[K]");
+      Print(statusOFS, "Thermostat mass                      = ",  esdfParam.qMass);
+      Print(statusOFS, "Langevin damping                     = ",  esdfParam.langevinDamping);
+      Print(statusOFS, "MD extrapolation type                = ",  esdfParam.MDExtrapolationType);
+      Print(statusOFS, "MD extrapolation variable            = ",  esdfParam.MDExtrapolationVariable);
+      Print(statusOFS, "MD SCF Phi MaxIter                   = ",  esdfParam.MDscfPhiMaxIter);
+      Print(statusOFS, "MD SCF Outer MaxIter                 = ",  esdfParam.MDscfOuterMaxIter);
+      Print(statusOFS, "MD SCF Energy Criteria Engage Iter   = ",  esdfParam.MDscfEnergyCriteriaEngageIonIter);
+      Print(statusOFS, "MD SCF Etot diff                     = ",  esdfParam.MDscfEtotdiff);
+      Print(statusOFS, "MD SCF Eband diff                    = ",  esdfParam.MDscfEbanddiff);
+    }
+
     Print(statusOFS, "");
   }
 
@@ -3453,6 +3467,7 @@ void ESDFPrintInput( ){
     }
   } // DG
   else{
+    // FIXME maybe introduce a parameter such as isPWDFT_ to specify that PWDFT is being executed.
     PrintBlock(statusOFS, "PWDFT information");
     
     Print(statusOFS, "Mixing dimension                     = ",  esdfParam.mixMaxDim );

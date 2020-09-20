@@ -71,6 +71,9 @@ void
     dt_                     = esdfParam.MDTimeStep;
     Q1_                     = esdfParam.qMass;
     langevinDamping_        = esdfParam.langevinDamping;
+    // Determine the mode of the ionDynamics
+    isGeoOpt_ = esdfParam.isGeoOpt_;
+    isMD_     = esdfParam.isMD_;
 
     // History of atomic position
     maxHist_ = 4;  // hard coded
@@ -89,23 +92,7 @@ void
       atomMass_[a]=amu2au*ptable.Mass(atype);
     }
 
-    // Determine the mode of the ionDynamics
-    isGeoOpt_ = false;
-    isMD_     = false;
 
-    if( ionMove_ == "bb" ||
-        ionMove_ == "pgbb" ||
-        ionMove_ == "nlcg" ||
-        ionMove_ == "lbfgs" ||
-        ionMove_ == "fire"){
-      isGeoOpt_ = true;
-    }
-
-    if( ionMove_ == "verlet" ||
-        ionMove_ == "nosehoover1" ||
-        ionMove_ == "langevin" ){
-      isMD_ = true;
-    }
 
     if (isGeoOpt_ == 1){
       fAtInfimum_ = 10000.0;   // set the maxForce value to be very high to start with
@@ -458,16 +445,16 @@ void
           fAtInfimum_ = fAtThisIter;
 
           std::fstream fout;
-          fout.open("infimumPos.out",std::ios::out);
+          fout.open("bestPos.out",std::ios::out);
           if ( !fout.good() ){
             ErrorHandling( "File cannot be opened !" );
           }    
           for(Int i=0; i<numAtom; i++){
             fout << std::setiosflags(std::ios::scientific)
               << std::setiosflags(std::ios::showpos)
-              << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[0]
-              << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[1]
-              << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[2]
+              << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[0] << "  "
+              << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[1] << "  "
+              << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[2] << "  "
               << std::resetiosflags(std::ios::scientific)
               << std::resetiosflags(std::ios::showpos)
               << std::endl;
@@ -476,17 +463,21 @@ void
           fout.close();
 
           // Output the XYZ format for movie
-          fout.open("InfimumMD.xyz",std::ios::out | std::ios::app) ;
+          fout.open("bestTraj.xyz",std::ios::out | std::ios::app);
           if ( !fout.good() ){
-            ErrorHandling( "Cannot open MD.xyz!" );
+            ErrorHandling( "Cannot open bestTraj.xyz!" );
           }    
           fout << numAtom << std::endl;
-          fout << "MD step # "<< ionIter << std::endl;
+          fout << "ion step # "<< ionIter << std::endl;
           for(Int a=0; a<numAtom; a++){
-            fout<< std::setw(6)<< atomList[a].type
-              << std::setw(16)<< atomList[a].pos[0]*au2ang
-              << std::setw(16)<< atomList[a].pos[1]*au2ang
-              << std::setw(16)<< atomList[a].pos[2]*au2ang
+            fout << std::setw(6)<< atomList[a].type << "  "
+              << std::setiosflags(std::ios::scientific)
+              << std::setiosflags(std::ios::showpos)
+              << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[0]*au2ang << "  "
+              << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[1]*au2ang << "  "
+              << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[2]*au2ang << "  "
+              << std::resetiosflags(std::ios::scientific)
+              << std::resetiosflags(std::ios::showpos)
               << std::endl;
           }
 
@@ -574,13 +565,13 @@ void
           << std::setiosflags(std::ios::scientific)
           << std::setiosflags(std::ios::showpos)
           << std::setw(LENGTH_VAR_NAME) << "Pos  = "
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[0]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[1]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[2]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[0] << "  "
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[1] << "  "
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].pos[2] << "  "
           << std::setw(LENGTH_VAR_NAME) << "Vel  = "
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[0]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[1]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[2]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[0] << "  "
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[1] << "  "
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC) << atomList[i].vel[2] << "  "
           << std::resetiosflags(std::ios::scientific)
           << std::resetiosflags(std::ios::showpos)
           << std::endl;
@@ -598,9 +589,9 @@ void
         for(Int i=0; i<numAtom; i++){
           fout << std::setiosflags(std::ios::scientific)
             << std::setiosflags(std::ios::showpos)
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[0]
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[1]
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[2]
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[0] << "  "
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[1] << "  "
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[i].pos[2] << "  "
             << std::resetiosflags(std::ios::scientific)
             << std::resetiosflags(std::ios::showpos)
             << std::endl;
@@ -614,19 +605,19 @@ void
     if( mpirank == 0 ){
       if( esdfParam.isOutputXYZ ){
         std::fstream fout;
-        fout.open("MD.xyz",std::ios::out | std::ios::app) ;
+        fout.open("traj.xyz",std::ios::out | std::ios::app) ;
         if( !fout.good() ){
-          ErrorHandling( "Cannot open MD.xyz!" );
+          ErrorHandling( "Cannot open traj.xyz!" );
         }
         fout << numAtom << std::endl;
-        fout << "MD step # "<< ionIter << std::endl;
+        fout << "ion step # "<< ionIter << std::endl;
         for(Int a=0; a<numAtom; a++){
-          fout << std::setw(6)<< atomList[a].type
+          fout << std::setw(6)<< atomList[a].type << "  "
             << std::setiosflags(std::ios::scientific)
             << std::setiosflags(std::ios::showpos)
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[0]*au2ang
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[1]*au2ang
-            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[2]*au2ang
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[0]*au2ang << "  "
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[1]*au2ang << "  "
+            << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomList[a].pos[2]*au2ang << "  "
             << std::resetiosflags(std::ios::scientific)
             << std::resetiosflags(std::ios::showpos)
             << std::endl;
@@ -1388,9 +1379,9 @@ IonDynamics::VelocityVerlet    ( Int ionIter )
       for(Int i=0; i<numAtom; i++){
         fout_v << std::setiosflags(std::ios::scientific)
           << std::setiosflags(std::ios::showpos)
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0] << "  "
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1] << "  "
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2] << "  "
           << std::resetiosflags(std::ios::scientific)
           << std::resetiosflags(std::ios::showpos)
           << std::endl;
@@ -1545,9 +1536,9 @@ IonDynamics::NoseHoover1    ( Int ionIter )
       for(Int i=0; i<numAtom; i++){
         fout_v << std::setiosflags(std::ios::scientific)
           << std::setiosflags(std::ios::showpos)
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0] << "  "
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1] << "  "
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2] << "  "
           << std::resetiosflags(std::ios::scientific)
           << std::resetiosflags(std::ios::showpos)
           << std::endl;
@@ -1696,9 +1687,9 @@ IonDynamics::Langevin ( Int ionIter )
       for(Int i=0; i<numAtom; i++){
         fout_v << std::setiosflags(std::ios::scientific)
           << std::setiosflags(std::ios::showpos)
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1]
-          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2]
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][0] << "  "
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][1] << "  "
+          << std::setw(LENGTH_VAR_DATA) << std::setprecision(LENGTH_DBL_PREC)<< atomvel[i][2] << "  "
           << std::resetiosflags(std::ios::scientific)
           << std::resetiosflags(std::ios::showpos)
           << std::endl;
