@@ -1,6 +1,6 @@
 # H2O
 
-ion_move:               bb
+ion_move:               verlet
 ion_max_iter:           20
 
 temperature:        	  300
