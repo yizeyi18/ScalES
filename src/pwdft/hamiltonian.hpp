@@ -139,7 +139,6 @@ protected:
   DblNumVec                   occupationRate_;
 
   // Below are related to hybrid functionals
-  bool                        isHybrid_;
   bool                        isEXXActive_;
 
   /// @brief Screening parameter mu for range separated hybrid functional. Currently hard coded
@@ -281,7 +280,7 @@ public:
   std::vector<Atom>&  AtomList() { return atomList_; }
 
   bool        IsEXXActive() { return isEXXActive_; }
-  bool        IsHybrid() { return isHybrid_; }
+  bool        IsHybrid() { return (XCFamily_ == "Hybrid"); }
 
   void        SetEXXActive(bool flag) { isEXXActive_ = flag; }
 

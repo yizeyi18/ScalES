@@ -176,8 +176,6 @@ KohnSham::Setup    (
   // Initialize the XC functionals, only spin-unpolarized case
   // The exchange-correlation id has already been obtained in esdf
   {
-    isHybrid_ = ( XCFamily_ == "Hybrid" );
-
     if( isXCSeparate_ ){
       if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
         ErrorHandling( "X functional initialization error." );
@@ -2164,7 +2162,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
-  if( isHybrid_ && isEXXActive_ ){
+  if( this->IsHybrid() && isEXXActive_ ){
 
     GetTime( timeSta );
 

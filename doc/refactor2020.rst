@@ -125,6 +125,9 @@ Target: refactor2020
 - [p] Make use of the `XCFamily_` in esdfParam and make the treatment of XC
   cleaner. This is already done in pw
 
+- [ ] Move the density and wavefunction extrapolation part into
+  iondynamics
+
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
 

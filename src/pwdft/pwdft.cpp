@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 
     // Print the initial state
     ESDFPrintInput( );
-
+    
     // Initialize multithreaded version of FFTW
 #ifdef _USE_FFTW_OPENMP_
 #ifndef _USE_OPENMP_
@@ -195,7 +195,6 @@ int main(int argc, char **argv)
       }
     }
     
-
     // Wavefunctions
     int numStateTotal = hamKS.NumStateTotal();
     int numStateLocal, blocksize;
@@ -243,46 +242,9 @@ int main(int argc, char **argv)
 
     psi.Setup( dm, 1, hamKS.NumStateTotal(), numStateLocal, D_ZERO );
 
-
     statusOFS << "Spinor setup finished." << std::endl;
 
     UniformRandom( psi.Wavefun() );
-
-#ifndef _COMPLEX_
-    if(0){ // For the same random values of psi in parallel
-
-      MPI_Comm mpi_comm = dm.comm;
-
-      Spinor  psiTemp;
-      psiTemp.Setup( dm, 1, hamKS.NumStateTotal(),
-          hamKS.NumStateTotal(), 0.0 );
-
-      if (mpirank == 0){
-        UniformRandom( psiTemp.Wavefun() );
-      }
-      MPI_Bcast(psiTemp.Wavefun().Data(),
-          psiTemp.Wavefun().m()*psiTemp.Wavefun().n()*psiTemp.Wavefun().p(),
-          MPI_DOUBLE, 0, mpi_comm);
-
-      Int size = psi.Wavefun().m() * psi.Wavefun().n();
-      Int nocc = psi.Wavefun().p();
-
-      IntNumVec& wavefunIdx = psi.WavefunIdx();
-      NumTns<Real>& wavefun = psi.Wavefun();
-
-      for (Int k=0; k<nocc; k++) {
-        Real *ptr = psi.Wavefun().MatData(k);
-        Real *ptr1 = psiTemp.Wavefun().MatData(wavefunIdx(k));
-        for (Int i=0; i<size; i++) {
-          *ptr = *ptr1;
-          ptr = ptr + 1;
-          ptr1 = ptr1 + 1;
-        }
-      }
-
-    } // if(1)
-
-#endif
 
     if( hamKS.IsHybrid() ){
       GetTime( timeSta );
@@ -318,21 +280,6 @@ int main(int argc, char **argv)
 #endif
 #endif
 
-/*
-    if( esdfParam.isTDDFT && esdfParam.isRestartDensity 
-        && esdfParam.isRestartWfn) 
-    {
-      if( esdfParam.isHybridACE ) {
-	 hamKS.SetPhiEXX( psi, fft );
-	 hamKS.CalculateVexxACE( psi, fft);
-	 statusOFS << " TDDFT init ACE operator ... " << std::endl;
-      }
-      statusOFS <<  std::endl << std::endl 
-        <<  "SCF skipped .... " 
-        <<  "TDDFT Restart From last step Density and wave function "
-        << std::endl << "SCF is skipped >>>>>>>"<< std::endl << std::endl;
-    } 
-    else */  
     {
       GetTime( timeSta );
       scf.Iterate();
@@ -345,13 +292,7 @@ int main(int argc, char **argv)
     // Geometry optimization or Molecular dynamics
     // *********************************************************************
 
-    // FIXME: TD should be removed from this file
-    if(esdfParam.isTDDFT) { // TDDFT
-      statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
-      ErrorHandling("TDDFT only works with complex arithmetic.");
-      statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
-    }
-    else{
+    {
       IonDynamics ionDyn;
 
       ionDyn.Setup( hamKS.AtomList(), ptable ); 
@@ -449,10 +390,8 @@ int main(int argc, char **argv)
         if( ionDyn.IsGeoOpt() == false )
         {
           // Wavefunction extrapolation for MD , not used in geometry optimization
-#ifndef _COMPLEX_
           if( esdfParam.MDExtrapolationVariable == "wavefun" )
           {
-            //huwei 20170306
             //Especially for XL-BOMD wavefunction extrapolation  
 
             if(esdfParam.MDExtrapolationType == "xlbomd"){ 
@@ -954,7 +893,6 @@ int main(int argc, char **argv)
             } //if Extrapolating the Wavefunctions using ASPC
 
           } // wavefun extrapolation
-#endif
         } // if( ionDyn.IsGeoOpt() == false )
 
 
@@ -974,7 +912,7 @@ int main(int argc, char **argv)
           }
         }
       } // ionIter
-   }// not TDDFT
+   }
 
 #ifdef DEVICE
     DEVICE_BLAS::Destroy();

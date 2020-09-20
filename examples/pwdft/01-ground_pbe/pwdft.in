@@ -1,25 +1,25 @@
 # Si 8 atoms
 
-Temperature:        	  300
-Extra_States:           8
+temperature:        	  300
+extra_states:           8
 
-XC_Type:               PBE
+xc_type:                PBE
 
-Ecut_Wavefunction:        10
+ecut_wavefunction:        10
 
-begin UPF_File
+begin upf_file
   ../../pp_ONCV/Si_ONCV_PBE-1.2.upf
-end UPF_File
+end upf_file
 
-begin Super_Cell
+begin super_cell
    10.2625   10.2625   10.2625
-end Super_Cell
+end super_cell
 
-Atom_Types_Num:        1
+atom_types_num:        1
 
-Atom_Type:              14
+atom_type:              14
 
-begin Atom_Red
+begin atom_crystal
 0.030000 0.000000 0.000000
 0.000000 0.500000 0.500000
 0.500000 0.000000 0.500000
@@ -28,4 +28,4 @@ begin Atom_Red
 0.250000 0.250000 0.250000
 0.250000 0.750000 0.750000
 0.750000 0.750000 0.250000
-end Atom_Red
+end atom_crystal

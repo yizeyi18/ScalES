@@ -71,7 +71,7 @@ KohnSham::ACEOperator ( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& 
      // M = W'*AX 
      // reduece M
      // AX = AX + W*M 
-  if( isHybrid_ && isEXXActive_ ){
+  if( this->IsHybrid() && isEXXActive_ ){
 
     if( esdfParam.isHybridACE ){ 
     int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
@@ -142,7 +142,7 @@ KohnSham::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft 
   // also, a3 constains the Hpsi
   // need to do this in another subroutine.
   if(1)  
-  if( isHybrid_ && isEXXActive_ ){
+  if( this->IsHybrid()  && isEXXActive_ ){
 
     GetTime( timeSta );
 
@@ -290,7 +290,7 @@ KohnSham::MultSpinor    ( Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft )
   // also, a3 constains the Hpsi
   // need to do this in another subroutine.
   if(0)  // comment out the following parts.
-  if( isHybrid_ && isEXXActive_ ){
+  if( this->IsHybrid() && isEXXActive_ ){
 
     GetTime( timeSta );
 
