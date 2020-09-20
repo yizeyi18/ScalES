@@ -75,7 +75,7 @@ Target: refactor2020
   compiling PEXSI, etc.
 
 
-- [ ] ``Use_VLocal`` should be deprecated. With ONCV pseudopotential
+- [x] ``Use_VLocal`` should be deprecated. With ONCV pseudopotential
   being the default option, we should always use the branch
   ``Use_VLocal==1``.
 
@@ -92,14 +92,11 @@ Target: refactor2020
 - [p] A minimal sphinx based document for DGDFT, supporting mainly the PWDFT
   module.
 
-- [ ] Give a few examples in examples/pwdft, maybe examples/tddft etc.
+- [p] Give a few examples in examples/pwdft, maybe examples/tddft etc.
 
-- [ ] Document the code, at least for those being refactored
+- [p] Document the code, at least for those being refactored
 
 - [ ] Add some technical aspects of GPU support to `doc/developer.tex` 
-
-- [ ] Release DGDFT 1.0, and write a paper reporting the performance of
-  PWDFT for hybrid functional calculations on multi-GPUs.
 
 - [ ] pwdft/spinor.cpp has too many deprecated implementations (in
   particular related to ISDF etc). Need to cleanup and remove the unused
@@ -107,7 +104,7 @@ Target: refactor2020
 
 - [ ] Prepare tutorial examples for PWDFT
 
-- [ ] Prepare a set of relatively robust default parameters, and simply
+- [p] Prepare a set of relatively robust default parameters, and simply
   the input file of the examples
 
 - [d] Simplified user input. Maybe INI, or benefit from a python interface
@@ -125,8 +122,12 @@ Target: refactor2020
   parameters in pw/dg/td. so far only moves things to common/. Will see
   whether a cleaner solution is needed when organizing dg and td.
 
-- [ ] Make use of the _XCClass in esdfParam and make the treatment of XC
-  cleaner
+- [p] Make use of the `XCFamily_` in esdfParam and make the treatment of XC
+  cleaner. This is already done in pw
+
+- [ ] Release DGDFT 1.0, and write a paper reporting the performance of
+  PWDFT for hybrid functional calculations on multi-GPUs.
+
 
 Meeting memos 
 ====================
