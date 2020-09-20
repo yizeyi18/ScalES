@@ -86,11 +86,13 @@ protected:
   Int                         numDensityComponent_;
   // Type of pseudopotential, default HGH
   std::string                 pseudoType_;
-  // Id of the exchange-correlation potential
+  // Info of the exchange-correlation potential
   std::string                 XCType_;
   Int                         XCId_;
   Int                         XId_;
   Int                         CId_;
+  std::string                 XCFamily_;
+  bool                        isXCSeparate_;
   // Exchange-correlation potential using libxc package.
   xc_func_type                XCFuncType_; 
   xc_func_type                XFuncType_; 
@@ -254,8 +256,6 @@ public:
 
   
   virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
-
-  virtual void  Setup_XC( std::string xc) = 0;
 
   //  virtual void UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock ) = 0;
 
@@ -429,8 +429,6 @@ public:
   /// atomic position)
   void  CalculateVdwEnergyAndForce();
 
-
-  void  Setup_XC( std::string xc);
 
 };
 

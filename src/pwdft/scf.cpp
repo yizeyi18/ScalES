@@ -258,9 +258,7 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
   // XC functional
   {
     isCalculateGradRho_ = false;
-    if( esdfParam.XCType == "PBE" || 
-        esdfParam.XCType == "HSE" ||
-        esdfParam.XCType == "PBE0" ) {
+    if( esdfParam.XCFamily_ == "GGA" || esdfParam.XCFamily_ == "Hybrid" ) {
       isCalculateGradRho_ = true;
     }
   }
@@ -362,23 +360,6 @@ SCF::Iterate (  )
     PrintBlock( statusOFS, msg.str() );
     bool isSCFConverged = false;
 
-/*
-    if( !ham.IsEXXActive() && ham.IsHybrid() ) {
-      ham.Setup_XC( "XC_GGA_XC_PBE");
-
-      statusOFS << " re-calculate XC " << std::endl;
-      if(1){
-        if( isCalculateGradRho_ ){
-          ham.CalculateGradDensity( fft );
-        }
-        ham.CalculateXC( Exc_, fft ); 
-        ham.CalculateHartree( fft );
-      }
-      // Compute the total potential
-      ham.CalculateVtot( ham.Vtot() );
-
-    }
-*/
     for (Int iter=1; iter <= scfMaxIter_; iter++) {
       if ( isSCFConverged ) break;
       // *********************************************************************
@@ -473,21 +454,6 @@ SCF::Iterate (  )
   // NOTE: The different mixing mode of hybrid functional calculations
   // are not compatible with each other. So each requires its own code
   if( ham.IsHybrid() ){
-/*
-    {
-      ham.Setup_XC( "XC_HYB_GGA_XC_HSE06");
-      statusOFS << " re-calculate XC " << std::endl;
-      if(1){
-        if( isCalculateGradRho_ ){
-          ham.CalculateGradDensity( fft );
-        }
-        ham.CalculateXC( Exc_, fft ); 
-        ham.CalculateHartree( fft );
-      }
-      // Compute the total potential
-      ham.CalculateVtot( ham.Vtot() );
-    }
-*/
 
     // Fock energies
     Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;

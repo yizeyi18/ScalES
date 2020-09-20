@@ -104,11 +104,11 @@ int main(int argc, char **argv)
       stringstream  ss;
       ss << "statfile." << mpirank;
       statusOFS.open( ss.str().c_str() );
+      Print( statusOFS, "mpirank = ", mpirank );
     }
 #endif
 
-    Print( statusOFS, "mpirank = ", mpirank );
-    Print( statusOFS, "mpisize = ", mpisize );
+    Print( statusOFS, "The number of MPI processes is ", mpisize );
 
     // Initialize input parameters
     std::map<std::string,std::string> options;
@@ -121,7 +121,6 @@ int main(int argc, char **argv)
     else{
       inFile = "pwdft.in";
     }
-
 
     // Read ESDF input file. Note: esdfParam is a global variable (11/25/2016)
     ESDFReadInput( inFile.c_str() );
@@ -346,6 +345,7 @@ int main(int argc, char **argv)
     // Geometry optimization or Molecular dynamics
     // *********************************************************************
 
+    // FIXME: TD should be removed from this file
     if(esdfParam.isTDDFT) { // TDDFT
       statusOFS << "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ " << std::endl;
       ErrorHandling("TDDFT only works with complex arithmetic.");
