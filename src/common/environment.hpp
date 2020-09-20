@@ -108,7 +108,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 // Note that RELEASE overwrites DEBUG level.
 #ifdef RELEASE
 #define _RELEASE_
-#define _DEBUGlevel -1
+#define _DEBUGlevel_ -1
 #endif
 
 

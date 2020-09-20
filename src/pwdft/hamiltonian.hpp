@@ -100,8 +100,8 @@ protected:
   // MPI communication 
   MPI_Comm rowComm_, colComm_;
 
-  // Pseudocharge to represent the local pseudopotential or the Gaussian
-  // compensation pseudocharge
+  // Now pseudocharge represent the Gaussian compensation
+  // pseudocharge
   DblNumVec                   pseudoCharge_;
   // Short range part of the the local pseudopotential
   DblNumVec                   vLocalSR_;
@@ -129,9 +129,6 @@ protected:
   DblNumVec                   epsxc_; 
 
   // Pseudopotential for each atom
-  // If isUsePseudoCharge == true, then pseudo_ contains the information
-  // from the pseudocharge. Otherwise it contains the information of the
-  // local part of pseudocharge.
   std::vector<PseudoPot>      pseudo_;
 
   // Eigenvalues
@@ -139,7 +136,7 @@ protected:
   // Occupation rate
   DblNumVec                   occupationRate_;
 
-  // EXX variables
+  // Below are related to hybrid functionals
   bool                        isHybrid_;
   bool                        isEXXActive_;
 

@@ -66,7 +66,7 @@ void Init(void)
     msg << " CU_SOLVER init Error... " << std::endl;
   }
   else{
-    statusOFS << " cuSparse Solver is init successfully " << std::endl;
+    statusOFS << " cuSparse Solver is initialized successfully " << std::endl;
   }
    
 }

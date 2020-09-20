@@ -260,7 +260,7 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
     isCalculateGradRho_ = false;
     if( esdfParam.XCType == "PBE" || 
         esdfParam.XCType == "HSE" ||
-        esdfParam.XCType == "PBEH" ) {
+        esdfParam.XCType == "PBE0" ) {
       isCalculateGradRho_ = true;
     }
   }
@@ -2731,10 +2731,8 @@ SCF::CalculateEnergy    (  )
   Eself_ = eigSolPtr_->Ham().Eself();
 
   Ecor_ = (Exc_ - EVxc_) - Ehart_ - Eself_;
-  if( esdfParam.isUseVLocal == true ){
-    EIonSR_ = eigSolPtr_->Ham().EIonSR();
-    Ecor_ += EIonSR_;
-  }
+  EIonSR_ = eigSolPtr_->Ham().EIonSR();
+  Ecor_ += EIonSR_;
 
   // Van der Waals energy
   EVdw_ = eigSolPtr_->Ham().EVdw();

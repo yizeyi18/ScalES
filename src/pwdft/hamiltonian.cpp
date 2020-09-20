@@ -130,13 +130,9 @@ KohnSham::Setup    (
   pseudoCharge_.Resize( ntotFine );
   SetValue( pseudoCharge_, 0.0 );
 
-  if( esdfParam.isUseVLocal == true ){
-    vLocalSR_.Resize( ntotFine );
-    SetValue( vLocalSR_, 0.0 );
-  }
+  vLocalSR_.Resize( ntotFine );
+  SetValue( vLocalSR_, 0.0 );
     
-
-
   vext_.Resize( ntotFine );
   SetValue( vext_, 0.0 );
 
@@ -191,7 +187,7 @@ KohnSham::Setup    (
     if( XCType_ == "Teter" )
     { 
       XCId_ = XC_LDA_XC_TETER93;
-      statusOFS << "LDA functional is used. In LIBXC, this is " << std::endl;
+      statusOFS << "LDA functional is used. In LIBXC, the XC id is " << std::endl;
       statusOFS << "XC_LDA_XC_TETER93  XCId = " << XCId_  << std::endl << std::endl;
       if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
         ErrorHandling( "XC functional initialization error." );
@@ -203,8 +199,8 @@ KohnSham::Setup    (
     {
       XId_ = XC_GGA_X_PBE;
       CId_ = XC_GGA_C_PBE;
-      statusOFS << "PBE functional is used. In LIBXC, this is " << std::endl;
-      statusOFS << "XC_GGA_XC_PBE  XId_ CId_ = " << XId_ << " " << CId_  << std::endl << std::endl;
+      statusOFS << "PBE functional is used. In LIBXC, this requires X and C to be set separately" << std::endl;
+      statusOFS << "XC_GGA_X_PBE  XId = " << XId_ << ", XC_GGA_C_PBE  CId = " << CId_  << std::endl << std::endl;
       // Perdew, Burke & Ernzerhof correlation
       // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
       // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
@@ -218,7 +214,7 @@ KohnSham::Setup    (
     else if( XCType_ == "HSE" )
     {
       XCId_ = XC_HYB_GGA_XC_HSE06;
-      statusOFS << "HSE functional is used. In LIBXC, this is " << std::endl;
+      statusOFS << "HSE functional is used. In LIBXC, the XC id is" << std::endl;
       statusOFS << "XC_HYB_GGA_XC_HSE06  XCId = " << XCId_  << std::endl << std::endl;
       if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
         ErrorHandling( "XC functional initialization error." );
@@ -232,10 +228,10 @@ KohnSham::Setup    (
       //
       // This is the same as the "hse" functional in QE 5.1
     }
-    else if( XCType_ == "PBEH" )
+    else if( XCType_ == "PBE0" )
     {
       XCId_ = XC_HYB_GGA_XC_PBEH;
-      statusOFS << "PBEH functional is used. In LIBXC, this is " << std::endl;
+      statusOFS << "PBE0 functional is used. In LIBXC, this is " << std::endl;
       statusOFS << "XC_HYB_GGA_XC_PBEH  XCId = " << XCId_  << std::endl << std::endl;
       if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
         ErrorHandling( "XC functional initialization error." );
@@ -367,100 +363,7 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
   Print( statusOFS, "Computing the local pseudopotential" );
 
-  if( esdfParam.isUseVLocal == false )
   {
-
-    DblNumVec pseudoChargeLocal(ntotFine);
-    SetValue( pseudoChargeLocal, 0.0 );
-
-    for (Int i=0; i<numAtomLocal; i++) {
-      int a = numAtomIdx[i];
-      ptable.CalculatePseudoCharge( atomList_[a], domain_, 
-          gridpos, pseudo_[a].pseudoCharge );
-      //accumulate to the global vector
-      IntNumVec &idx = pseudo_[a].pseudoCharge.first;
-      DblNumMat &val = pseudo_[a].pseudoCharge.second;
-      for (Int k=0; k<idx.m(); k++) 
-        pseudoChargeLocal[idx(k)] += val(k, VAL);
-      // For debug purpose, check the summation of the derivative
-      if(0){
-        Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
-        for (Int k=0; k<idx.m(); k++) {
-          sumVDX += val(k, DX);
-          sumVDY += val(k, DY);
-          sumVDZ += val(k, DZ);
-        }
-        sumVDX *= vol / Real(ntotFine);
-        sumVDY *= vol / Real(ntotFine);
-        sumVDZ *= vol / Real(ntotFine);
-        if( std::sqrt(sumVDX * sumVDX + sumVDY * sumVDY + sumVDZ * sumVDZ) 
-            > 1e-8 ){
-          Print( statusOFS, "Local pseudopotential may not be constructed correctly" );
-          Print( statusOFS, "For Atom ", a );
-          Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
-          Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
-          Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
-        }
-      }
-    }
-
-    SetValue( pseudoCharge_, 0.0 );
-    MPI_Allreduce( pseudoChargeLocal.Data(), pseudoCharge_.Data(), ntotFine, MPI_DOUBLE, MPI_SUM, domain_.comm );
-
-    for (Int a=0; a<numAtom; a++) {
-
-      std::stringstream vStream;
-      std::stringstream vStreamTemp;
-      int vStreamSize;
-
-      PseudoPot& pseudott = pseudo_[a]; 
-
-      serialize( pseudott, vStream, NO_MASK );
-
-      if (numAtomMpirank[a] == mpirank){
-        vStreamSize = Size( vStream );
-      }
-
-      MPI_Bcast( &vStreamSize, 1, MPI_INT, numAtomMpirank[a], domain_.comm );
-
-      std::vector<char> sstr;
-      sstr.resize( vStreamSize );
-
-      if (numAtomMpirank[a] == mpirank){
-        vStream.read( &sstr[0], vStreamSize );
-      }
-
-      MPI_Bcast( &sstr[0], vStreamSize, MPI_BYTE, numAtomMpirank[a], domain_.comm );
-
-      vStreamTemp.write( &sstr[0], vStreamSize );
-
-      deserialize( pseudott, vStreamTemp, NO_MASK );
-
-    }
-
-    GetTime( timeEnd );
-
-    statusOFS << "Time for local pseudopotential " << timeEnd - timeSta  << std::endl;
-
-    Real sumrho = 0.0;
-    for (Int i=0; i<ntotFine; i++) 
-      sumrho += pseudoCharge_[i]; 
-    sumrho *= vol / Real(ntotFine);
-
-    Print( statusOFS, "Sum of Pseudocharge                          = ", 
-        sumrho );
-    Print( statusOFS, "Number of Occupied States                    = ", 
-        numOccupiedState_ );
-
-    // adjustment should be multiplicative
-    Real fac = nZion / sumrho;
-    for (Int i=0; i<ntotFine; i++) 
-      pseudoCharge_(i) *= fac; 
-
-    Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
-        (Real) nZion );
-  } // Use the pseudocharge formulation
-  else{
     DblNumVec pseudoChargeLocal(ntotFine);
     DblNumVec vLocalSRLocal(ntotFine);
     SetValue( pseudoChargeLocal, 0.0 );
@@ -472,8 +375,9 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
       ptable.CalculateVLocal( atomList_[a], domain_, 
           gridpos, pseudo_[a].vLocalSR, pseudo_[a].pseudoCharge );
 
+#if ( _DEBUGlevel_ >= 1 )
       statusOFS << "Finish the computation of VLocal for atom " << i << std::endl;
-
+#endif
       //accumulate to the global vector
       {
         IntNumVec &idx = pseudo_[a].pseudoCharge.first;
@@ -548,7 +452,7 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
     GetTime( timeEnd );
 
-    statusOFS << "Time for local pseudopotential " << timeEnd - timeSta  << std::endl;
+    statusOFS << "Time for local pseudopotential is " << timeEnd - timeSta  << " [s]" << std::endl << std::endl;
 
     Real sumrho = 0.0;
     for (Int i=0; i<ntotFine; i++) 
@@ -570,7 +474,7 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
 //    statusOFS << "vLocalSR = " << vLocalSR_  << std::endl;
 //    statusOFS << "pseudoCharge = " << pseudoCharge_ << std::endl;
-  } // Use the VLocal formulation
+  } // Use the VLocal to evaluate pseudocharge
  
   // Nonlocal projectors
   // FIXME. Remove the contribution form the coarse grid
@@ -659,7 +563,7 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
   GetTime( timeEnd );
   
-  statusOFS << "Time for nonlocal pseudopotential " << timeEnd - timeSta  << std::endl;
+  statusOFS << "Time for nonlocal pseudopotential " << timeEnd - timeSta  << " [s]" << std::endl << std::endl;
 
   // Calculate other atomic related energies and forces, such as self
   // energy, short range repulsion energy and VdW energies.
@@ -792,7 +696,7 @@ void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
   for (Int i=0; i<ntotFine; i++) 
     atomDensity_[i] *= fac; 
 
-  Print( statusOFS, "After adjustment, Sum of atomic density = ", (Real) nelec );
+  Print( statusOFS, "After adjustment, Sum of atomic density      = ", (Real) nelec );
 
   return ;
 }         // -----  end of method KohnSham::CalculateAtomDensity  ----- 
@@ -2498,16 +2402,8 @@ void
 KohnSham::CalculateVtot    ( DblNumVec& vtot )
 {
   Int ntot = domain_.NumGridTotalFine();
-  if( esdfParam.isUseVLocal == false ){
-    for (int i=0; i<ntot; i++) {
-      vtot(i) = vext_(i) + vhart_(i) + vxc_(i, RHO);
-    }
-  }
-  else
-  {
-    for (int i=0; i<ntot; i++) {
-      vtot(i) = vext_(i) + vLocalSR_(i) + vhart_(i) + vxc_(i, RHO);
-    }
+  for (int i=0; i<ntot; i++) {
+    vtot(i) = vext_(i) + vLocalSR_(i) + vhart_(i) + vxc_(i, RHO);
   }
 
   return ;
@@ -3005,87 +2901,7 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
   // pseudopotential such as Troullier-Martins
   GetTime( timeSta );
   
-  if( esdfParam.isUseVLocal == false )
   {
-    std::vector<DblNumVec>  vhartDrv(DIM);
-
-    DblNumVec  totalCharge(ntotFine);
-    SetValue( totalCharge, 0.0 );
-
-    // totalCharge = density_ - pseudoCharge_
-    blas::Copy( ntotFine, density_.VecData(0), 1, totalCharge.Data(), 1 );
-    blas::Axpy( ntotFine, -1.0, pseudoCharge_.Data(),1,
-        totalCharge.Data(), 1 );
-
-    // Total charge in the Fourier space
-    CpxNumVec  totalChargeFourier( ntotFine );
-
-    for( Int i = 0; i < ntotFine; i++ ){
-      fft.inputComplexVecFine(i) = Complex( totalCharge(i), 0.0 );
-    }
-
-    GetTime( timeFFTSta );
-    FFTWExecute ( fft, fft.forwardPlanFine );
-    GetTime( timeFFTEnd );
-    timeFFTTotal += timeFFTEnd - timeFFTSta;
-
-
-    blas::Copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
-        totalChargeFourier.Data(), 1 );
-
-    // Compute the derivative of the Hartree potential via Fourier
-    // transform 
-    for( Int d = 0; d < DIM; d++ ){
-      CpxNumVec& ikFine = fft.ikFine[d];
-      for( Int i = 0; i < ntotFine; i++ ){
-        if( fft.gkkFine(i) == 0 ){
-          fft.outputComplexVecFine(i) = Z_ZERO;
-        }
-        else{
-          // NOTE: gkk already contains the factor 1/2.
-          fft.outputComplexVecFine(i) = totalChargeFourier(i) *
-            2.0 * PI / fft.gkkFine(i) * ikFine(i);
-        }
-      }
-
-      GetTime( timeFFTSta );
-      FFTWExecute ( fft, fft.backwardPlanFine );
-      GetTime( timeFFTEnd );
-      timeFFTTotal += timeFFTEnd - timeFFTSta;
-
-      // vhartDrv saves the derivative of the Hartree potential
-      vhartDrv[d].Resize( ntotFine );
-
-      for( Int i = 0; i < ntotFine; i++ ){
-        vhartDrv[d](i) = fft.inputComplexVecFine(i).real();
-      }
-
-    } // for (d)
-
-
-    // FIXME This should be parallelized
-    for (Int a=0; a<numAtom; a++) {
-      PseudoPot& pp = pseudo_[a];
-      SparseVec& sp = pp.pseudoCharge;
-      IntNumVec& idx = sp.first;
-      DblNumMat& val = sp.second;
-
-      Real wgt = domain_.Volume() / domain_.NumGridTotalFine();
-      Real resX = 0.0;
-      Real resY = 0.0;
-      Real resZ = 0.0;
-      for( Int l = 0; l < idx.m(); l++ ){
-        resX += val(l, VAL) * vhartDrv[0][idx(l)] * wgt;
-        resY += val(l, VAL) * vhartDrv[1][idx(l)] * wgt;
-        resZ += val(l, VAL) * vhartDrv[2][idx(l)] * wgt;
-      }
-      force( a, 0 ) += resX;
-      force( a, 1 ) += resY;
-      force( a, 2 ) += resZ;
-
-    } // for (a)
-  } // pseudocharge formulation of the local contribution to the force
-  else{
     // First contribution from the pseudocharge
     std::vector<DblNumVec>  vhartDrv(DIM);
 
@@ -3194,8 +3010,6 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
       force( a, 2 ) += resZ;
 
     } // for (a)
-  
-  
   } // VLocal formulation of the local contribution to the force
 
 
@@ -3379,7 +3193,7 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
   }
 
   // Add the contribution from short range interaction
-  if( esdfParam.isUseVLocal == true ){
+  {
     std::vector<Atom>& atomList = this->AtomList();
     for( Int a = 0; a < atomList.size(); a++ ){
       atomList[a].force += Point3( forceIonSR_(a,0), forceIonSR_(a,1), forceIonSR_(a,2) );
@@ -4300,7 +4114,7 @@ KohnSham::CalculateVdwEnergyAndForce    ()
     else if (XCType_ == "HSE") {
       vdw_s = vdw_s_hse;
     }
-    else if (XCType_ == "PBEH") {
+    else if (XCType_ == "PBE0") {
       vdw_s = vdw_s_pbe0;
     }
     else {
@@ -4456,7 +4270,7 @@ KohnSham::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
   EIonSR_ = 0.0;
   forceIonSR_.Resize( atomList.size(), DIM );
   SetValue(forceIonSR_, 0.0);
-  if( esdfParam.isUseVLocal == true ){
+  {
     const Domain& dm = domain_;
 
     for(Int a=0; a< atomList.size() ; a++) {
@@ -4527,7 +4341,7 @@ KohnSham::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
             }
       } // for (b)
     } // for (a)
-  } // if esdfParam.isUseVLocal == true
+  } // Self energy due to VLocalSR 
 
   return ;
 }         // -----  end of method KohnSham::CalculateIonSelfEnergyAndForce  ----- 

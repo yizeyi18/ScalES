@@ -2424,8 +2424,10 @@ EigenSolver::FirstChebyStep    (
 
 
       GetTime( res_time_end );
+#if ( _DEBUGlevel_ >= 1 )
       statusOFS << std::endl << " Time for computing residual = " << (res_time_end - res_time_sta) << " s.";
       statusOFS << std::endl;
+#endif
 
 
     } // End of residual computation
@@ -3115,9 +3117,10 @@ EigenSolver::GeneralChebyStep    (
 #endif
 
     GetTime( res_time_end );
+#if ( _DEBUGlevel_ >= 1 )
     statusOFS << std::endl << " Time for computing residual = " << (res_time_end - res_time_sta) << " s.";
     statusOFS << std::endl;
-
+#endif
 
   }
 
@@ -4257,7 +4260,9 @@ EigenSolver::PPCGSolveReal    (
   iterOther = iterOther + 1;
   timeOther = timeOther + ( timeEnd - timeSta );
 
+#if ( _DEBUGlevel_ >= 1 )
   statusOFS << "Time for Xtemp in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+#endif
 
   SetValue( resNormLocal, 0.0 );
   GetTime( timeSta );
@@ -4268,7 +4273,9 @@ EigenSolver::PPCGSolveReal    (
   iterOther = iterOther + 1;
   timeOther = timeOther + ( timeEnd - timeSta );
 
+#if ( _DEBUGlevel_ >= 1 )
   statusOFS << "Time for resNorm in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+#endif
 
   SetValue( resNorm, 0.0 );
   MPI_Allreduce( resNormLocal.Data(), resNorm.Data(), width, MPI_DOUBLE, 
@@ -4296,7 +4303,9 @@ EigenSolver::PPCGSolveReal    (
   iterOther = iterOther + 2;
   timeOther = timeOther + ( timeEnd - timeSta );
 
+#if ( _DEBUGlevel_ >= 1 )
   statusOFS << "Time for resMax and resMin in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+#endif
 
 #if ( _DEBUGlevel_ >= 1 )
   statusOFS << "resNorm = " << resNorm << std::endl;

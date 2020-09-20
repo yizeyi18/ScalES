@@ -754,10 +754,8 @@ TDDFT::CalculateEnergy  ( PeriodTable& ptable, Real t )
 
   Ecor_ = (Exc_ - EVxc_) - Ehart_ - Eself_;
 
-  if( esdfParam.isUseVLocal == true ){
-    EIonSR_ = ham.EIonSR();
-    Ecor_ += EIonSR_;
-  }
+  EIonSR_ = ham.EIonSR();
+  Ecor_ += EIonSR_;
 
   // Van der Waals energy
   EVdw_ = ham.EVdw();

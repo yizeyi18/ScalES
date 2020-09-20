@@ -238,7 +238,9 @@ void Fourier::Initialize ( const Domain& dm )
     if(mpisize <  esdfParam.fftwMPISize){
       isMPIFFTW = true;
     }
+#if ( _DEBUGlevel_ >= 2 )
     statusOFS << " esdfParam.fftwMPISize : " << esdfParam.fftwMPISize << std::endl;
+#endif
     MPI_Comm_split( MPI_COMM_WORLD, isMPIFFTW, mpirank, &comm); 
     if( isMPIFFTW){
       Int mpirankFFT, mpisizeFFT;

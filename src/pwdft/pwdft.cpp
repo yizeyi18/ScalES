@@ -298,11 +298,11 @@ int main(int argc, char **argv)
     // Eigensolver class
     eigSol.Setup( hamKS, psi, fft );
 
-    statusOFS << "Eigensolver setup finished ." << std::endl;
+    statusOFS << "Eigensolver setup finished." << std::endl;
 
     scf.Setup( eigSol, ptable );
 
-    statusOFS << "SCF setup finished ." << std::endl;
+    statusOFS << "SCF setup finished." << std::endl;
 
 
     // *********************************************************************
