@@ -904,12 +904,10 @@ int main(int argc, char **argv)
 
 
         // Geometry optimization
-        if( ionDyn.IsGeoOpt() ){
-          if( MaxForce( hamKS.AtomList() ) < esdfParam.geoOptMaxForce ){
-            statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
-              << "Exit the loops for ions." << std::endl;
-            break;
-          }
+        if( ionDyn.IsGeoOpt() and ( MaxForce( hamKS.AtomList() ) < esdfParam.geoOptMaxForce ) ){
+          statusOFS << "Stopping criterion for geometry optimization has been reached." << std::endl
+            << "Exit the loops for ions." << std::endl;
+          break;
         }
       } // ionIter
    }
@@ -925,6 +923,7 @@ int main(int argc, char **argv)
     device_clean_vtot();
 #endif
 
+    Print(statusOFS, "PWDFT has finished the calculation.");
   }
   catch( std::exception& e )
   {

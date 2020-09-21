@@ -155,6 +155,10 @@ Target: refactor2020
   Furthermore, in this case the next ion move should start with PBE
   instead of Phi iteration.
 
+- [ ] Make sure that in geometry optimization, the atomic position,
+  atomic force, and convergence criterion are synced at the beginning of
+  each iteration (maybe via MPI broadcast)
+
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
 
@@ -216,4 +220,6 @@ Tests
 - For the first step, Weile will perform the initial step of cleaning up
   the pwdft/ and tddft/ folders, and make them compilable (with some
   minimal dependency). Then we will merge with Wei and David's contributions
+
+
 

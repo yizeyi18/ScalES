@@ -806,7 +806,9 @@ EigenSolver::devicePPCGSolveReal (
     iterOther = iterOther + 2;
     timeOther = timeOther + ( timeEnd - timeSta );
 
+#if ( _DEBUGlevel_ >= 1 )
     statusOFS << "Time for norm1 in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+#endif
 
 
     // P = P - X(X'P), AP = AP - AX(X'P)
@@ -868,7 +870,9 @@ EigenSolver::devicePPCGSolveReal (
       iterOther = iterOther + 2;
       timeOther = timeOther + ( timeEnd - timeSta );
     
+#if ( _DEBUGlevel_ >= 1 )
       statusOFS << "Time for norm2 in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+#endif
    
     }
     GetTime( time22);
@@ -1564,7 +1568,9 @@ EigenSolver::devicePPCGSolveReal (
   iterOther = iterOther + 1;
   timeOther = timeOther + ( timeEnd - timeSta );
       
+#if ( _DEBUGlevel_ >= 1 )
   statusOFS << "Time for Xtemp in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+#endif
 
   SetValue( resNormLocal, 0.0 );
   GetTime( timeSta );
@@ -1582,7 +1588,9 @@ EigenSolver::devicePPCGSolveReal (
   iterOther = iterOther + 1;
   timeOther = timeOther + ( timeEnd - timeSta );
   
+#if ( _DEBUGlevel_ >= 1 )
   statusOFS << "Time for resNorm in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+#endif
 
   SetValue( resNorm, 0.0 );
   MPI_Allreduce( resNormLocal.Data(), resNorm.Data(), width, MPI_DOUBLE, 
@@ -1610,7 +1618,9 @@ EigenSolver::devicePPCGSolveReal (
   iterOther = iterOther + 2;
   timeOther = timeOther + ( timeEnd - timeSta );
   
+#if ( _DEBUGlevel_ >= 1 )
   statusOFS << "Time for resMax and resMin in PWDFT is " <<  timeEnd - timeSta  << std::endl << std::endl;
+#endif
 
 #if ( _DEBUGlevel_ >= 1 )
   statusOFS << "resNorm = " << resNorm << std::endl;

@@ -1,0 +1,2606 @@
+The number of MPI processes is 1                 
+HSE functional is used. In LIBXC, the XC id is
+XC_HYB_GGA_XC_HSE06  XCId = 428
+
+
+*********************************************************************
+System information
+*********************************************************************
+
+Super cell                           = +1.0262499999999999e+01  +1.0262499999999999e+01  +1.0262499999999999e+01  
+Grid Wavefunction                    = 16                  16                  16                  
+Grid Density                         = 32                  32                  32                  
+
+Temperature                          = +3.0000000000000000e+02[K]   
+Smearing scheme                      = FD                
+Extra states                         = 8                 
+Number of Extra Electron             = 0                 
+
+EcutWavefunction                     = +1.0000000000000000e+01[au]  
+Density GridFactor                   = +2.0000000000000000e+00
+
+Pseudo Type                          = ONCV              
+XC Type                              = HSE               
+Use Atom Density initially           = true    
+
+RestartDensity                       = false   
+RestartWfn                           = false   
+OutputDensity                        = false   
+OutputPotential                      = false   
+
+
+*********************************************************************
+PWDFT information
+*********************************************************************
+
+Mixing dimension                     = 10                
+Mixing variable                      = potential         
+Mixing type                          = anderson          
+Mixing Steplength                    = +5.0000000000000000e-01
+PW Solver                            = PPCG              
+SCF Tolerance                        = +9.9999999999999995e-07
+SCF MaxIter                          = 100               
+Eig Tolerence                        = +1.0000000000000000e-08
+Eig MaxIter                          = 3                 
+Eig Min Tolerence                    = +1.0000000000000000e-03
+Eig Tolerance Dyn                    = false   
+
+SCF Phi MaxIter                      = 30                
+SCF Phi Tol                          = +9.9999999999999995e-07
+Hybrid ACE                           = true    
+Hybrid DF                            = false   
+Hybrid Active Init                   = false   
+Hybrid Mixing Type                   = pcdiis            
+Hybrid DF Num Mu                     = +6.0000000000000000e+00
+Hybrid DF Num GaussianRandom         = +2.0000000000000000e+00
+Hybrid DF Tolerance                  = +9.9999999999999995e-21
+EXX div type                         = 1                 
+
+NumAtom = 8                 
+Atom Type and Coordinates in the unit of au (periodically shifted back to supercell)
+
+Type =  14   Position  = +3.0787499999999995e-01  +0.0000000000000000e+00  +0.0000000000000000e+00  
+Type =  14   Position  = +0.0000000000000000e+00  -5.1312499999999996e+00  -5.1312499999999996e+00  
+Type =  14   Position  = -5.1312499999999996e+00  +0.0000000000000000e+00  -5.1312499999999996e+00  
+Type =  14   Position  = -5.1312499999999996e+00  -5.1312499999999996e+00  +0.0000000000000000e+00  
+Type =  14   Position  = -2.5656249999999998e+00  +2.5656249999999998e+00  -2.5656249999999998e+00  
+Type =  14   Position  = +2.5656249999999998e+00  +2.5656249999999998e+00  +2.5656249999999998e+00  
+Type =  14   Position  = +2.5656249999999998e+00  -2.5656249999999998e+00  -2.5656249999999998e+00  
+Type =  14   Position  = -2.5656249999999998e+00  -2.5656249999999998e+00  +2.5656249999999998e+00  
+
+Computing the local pseudopotential
+Time for local pseudopotential is 0.06290098198223859 [s]
+
+Sum of Pseudocharge                          = +3.1999999999932236e+01
+Number of Occupied States                    = 16                
+After adjustment, Sum of Pseudocharge        = +3.2000000000000000e+01
+Computing the non-local pseudopotential
+Total number of nonlocal pseudopotential = 64                
+Time for nonlocal pseudopotential 0.05606882899883203 [s]
+
+Time for calculating the pseudopotential for the Hamiltonian = 0.1193068719876464 [s]
+Spinor setup finished.
+computed exxDiv_ = 114.8710002889078
+Hybrid mixing parameter  = 0.25
+Hybrid screening length = 0.106
+Time for setting up the exchange for the Hamiltonian part = 0.003298579016700387 [s]
+Eigensolver setup finished.
+Sum of atomic density                        = +2.9047088825069775e+01
+After adjustment, Sum of atomic density      = +3.2000000000000000e+01
+SCF setup finished.
+
+*********************************************************************
+Starting regular SCF iteration.
+*********************************************************************
+
+
+*********************************************************************
+SCF iteration # 1
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 0.1819194180299202. The max res norm is 0.4485297778101451
+
+band#    = 0      eigval   = -1.4307557081556019e-01  resval   = +2.5514410631385231e-01  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -7.8732400119354215e-02  resval   = +2.5664538552011124e-01  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -6.7704590179680280e-02  resval   = +3.0657385033823015e-01  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -6.2902751121547654e-02  resval   = +2.4556910045495017e-01  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -4.6612421631059546e-02  resval   = +4.4852977781014514e-01  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -4.3093294051670554e-02  resval   = +3.3354780048920996e-01  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -3.8498148858491413e-02  resval   = +3.7552197519938901e-01  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +1.0182359571384358e-01  resval   = +1.9013430219291411e-01  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +1.0620216412463661e-01  resval   = +2.2093225693621513e-01  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +1.2313786509023514e-01  resval   = +2.6639184515704917e-01  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.2771404730846894e-01  resval   = +2.5611391674969219e-01  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.5353189438972092e-01  resval   = +2.6172610241148636e-01  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.6374318314577313e-01  resval   = +3.0442156529917658e-01  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.1548424224848040e-01  resval   = +1.8191941802992023e-01  occrate  = +9.9999999999989653e-01
+band#    = 14     eigval   = +2.2948548427634141e-01  resval   = +2.5841640970418084e-01  occrate  = +9.9999973983971580e-01
+band#    = 15     eigval   = +2.3647882953022070e-01  resval   = +2.9112394040929068e-01  occrate  = +9.9959079977585230e-01
+band#    = 16     eigval   = +2.5139555236253963e-01  resval   = +2.1222658907972314e-01  occrate  = +3.7053918788030552e-04
+band#    = 17     eigval   = +2.5353671553780505e-01  resval   = +2.7451647262000722e-01  occrate  = +3.8921257952458671e-05
+band#    = 18     eigval   = +2.7281181209247074e-01  resval   = +3.5714035132856181e-01  occrate  = +6.0112701462544637e-14
+band#    = 19     eigval   = +2.7834194665907208e-01  resval   = +3.0140400703269277e-01  occrate  = +1.7822646987303349e-16
+band#    = 20     eigval   = +2.9427217386830751e-01  resval   = +2.9131778648847839e-01  occrate  = +9.3062988706722211e-24
+band#    = 21     eigval   = +3.1553618063046429e-01  resval   = +2.3329299285907501e-01  occrate  = +1.7715264542110350e-33
+band#    = 22     eigval   = +3.7800722575625456e-01  resval   = +2.5371325066525746e-01  occrate  = +4.9081499478031857e-62
+band#    = 23     eigval   = +4.6289404829848041e-01  resval   = +3.1765442833350105e-01  occrate  = +7.7010328235675582e-101
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.7867431434556380e+01[au]  
+Efree             = -2.7867445376827238e+01[au]  
+EfreeHarris       = -2.8577400358617961e+01[au]  
+Ekin              = +1.9539766440580149e+00[au]  
+Ehart             = -1.9064897726919593e+01[au]  
+EVxc              = -9.9275879099613551e+00[au]  
+Exc               = -7.7498333219592368e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -2.9821408078614397e+01[au]  
+Fermi             = +2.4389002881243060e-01[au]  
+Total charge      = +3.1999999999999929e+01[au]  
+HOMO              = +6.4349164746962044e+00[eV]  
+LUMO              = +6.8408211626247253e+00[eV]  
+norm(out-in)/norm(in) = +6.3273151919782930e-02
+Efree diff per atom   = +8.8744372723840392e-02
+Total wall clock time for this SCF iteration = 0.69419768100488 [s]
+
+*********************************************************************
+SCF iteration # 2
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 0.01962189009198314. The max res norm is 0.1045570914494173
+
+band#    = 0      eigval   = -2.5318744094627771e-01  resval   = +4.0083622169043265e-02  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.1834796327250698e-01  resval   = +2.2869462177025825e-02  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -1.0495189210060778e-01  resval   = +2.6910019869841467e-02  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -9.6575481566192195e-02  resval   = +2.7015371561010443e-02  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.9805055173008519e-02  resval   = +2.4032525379772244e-02  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -8.8208218616124615e-02  resval   = +1.9621890091983143e-02  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.5966445046373260e-02  resval   = +2.6133132555581313e-02  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +7.6367160950565144e-02  resval   = +3.0892323100245252e-02  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +8.5423566176830737e-02  resval   = +3.3773959570964393e-02  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +8.7531074722139598e-02  resval   = +2.6419674868540511e-02  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +8.9761400811274789e-02  resval   = +3.0695463371596152e-02  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +9.2116475632782635e-02  resval   = +3.4542327391064720e-02  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +9.4802617214644308e-02  resval   = +2.7107656102458293e-02  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.8487600466814116e-01  resval   = +4.8716025540029205e-02  occrate  = +9.9999993566080525e-01
+band#    = 14     eigval   = +1.9377207488329176e-01  resval   = +4.9012180047291569e-02  occrate  = +9.9925042274617915e-01
+band#    = 15     eigval   = +1.9614672996288465e-01  resval   = +4.8067294757311772e-02  occrate  = +9.9094849543525165e-01
+band#    = 16     eigval   = +2.0499286792959875e-01  resval   = +4.1725445020686085e-02  occrate  = +9.7996940038752294e-03
+band#    = 17     eigval   = +2.1341614984312152e-01  resval   = +4.7482995447714123e-02  occrate  = +1.3962026832437947e-06
+band#    = 18     eigval   = +2.1647339647695144e-01  resval   = +5.8423639263172164e-02  occrate  = +5.5896921773030933e-08
+band#    = 19     eigval   = +2.2376014462613236e-01  resval   = +7.9355133427057509e-02  occrate  = +2.6085067031988308e-11
+band#    = 20     eigval   = +2.3007022042583242e-01  resval   = +5.6090311157881073e-02  occrate  = +3.4030072108550859e-14
+band#    = 21     eigval   = +2.5025732909206599e-01  resval   = +8.1039763793855177e-02  occrate  = +2.0124108415346908e-23
+band#    = 22     eigval   = +2.7821675961250936e-01  resval   = +5.6156906060970506e-02  occrate  = +3.3312240398042903e-36
+band#    = 23     eigval   = +3.0499440774047093e-01  resval   = +1.0455709144941727e-01  occrate  = +1.9130221364053690e-48
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.0011353488805330e+01[au]  
+Efree             = -3.0011567896389192e+01[au]  
+EfreeHarris       = -2.9273936278793773e+01[au]  
+Ekin              = +5.4768620740448370e-01[au]  
+Ehart             = -1.8277990156248087e+01[au]  
+EVxc              = -1.0151618889149679e+01[au]  
+Exc               = -7.9245883480714738e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0559039696209815e+01[au]  
+Fermi             = +2.0060788408255001e-01[au]  
+Total charge      = +3.2000000000000348e+01[au]  
+HOMO              = +5.3374241855110895e+00[eV]  
+LUMO              = +5.5781398514864646e+00[eV]  
+norm(out-in)/norm(in) = +1.3348544101507673e-01
+Efree diff per atom   = +9.2203952199427341e-02
+  Rank of dfmat = 1                 
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.6902152069960721 [s]
+
+*********************************************************************
+SCF iteration # 3
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 0.002053222078548434. The max res norm is 0.02690899777507289
+
+band#    = 0      eigval   = -2.4706222317506468e-01  resval   = +2.9869311888544949e-03  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.0600232044701803e-01  resval   = +2.0532220785484338e-03  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -9.9550520415366481e-02  resval   = +2.3759847184644952e-03  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -9.2736720992236996e-02  resval   = +2.6819041466960704e-03  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -9.2152154044010684e-02  resval   = +2.1839131054638707e-03  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -8.7875516870319803e-02  resval   = +3.0520756846362110e-03  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -8.4119109957875624e-02  resval   = +2.2217514954446021e-03  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +8.3051040129779027e-02  resval   = +5.3805210775348215e-03  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +8.6892102181449965e-02  resval   = +3.7597014141754451e-03  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +8.8505237329776804e-02  resval   = +3.4736051286115995e-03  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +8.9509682314566991e-02  resval   = +4.8128421941931896e-03  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +9.1016564115197859e-02  resval   = +4.2921550553399294e-03  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +9.3482455058755132e-02  resval   = +5.4144502439660127e-03  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.8935784635030836e-01  resval   = +1.8118545133988508e-02  occrate  = +9.9999988746546387e-01
+band#    = 14     eigval   = +1.9857514612422006e-01  resval   = +1.8324613708177007e-02  occrate  = +9.9816347080983903e-01
+band#    = 15     eigval   = +2.0436291676992022e-01  resval   = +2.0168837671941060e-02  occrate  = +5.5130257654131898e-01
+band#    = 16     eigval   = +2.0476375601604957e-01  resval   = +2.5980363110314961e-02  occrate  = +4.4621361265795589e-01
+band#    = 17     eigval   = +2.0997364581089484e-01  resval   = +2.5030626409091941e-02  occrate  = +3.3354100253058785e-03
+band#    = 18     eigval   = +2.1113809840009756e-01  resval   = +1.5126103946148078e-02  occrate  = +9.8144683591671819e-04
+band#    = 19     eigval   = +2.1649735279756110e-01  resval   = +1.7144264086305473e-02  occrate  = +3.4866811556200857e-06
+band#    = 20     eigval   = +2.1980910403314055e-01  resval   = +1.3642727392682462e-02  occrate  = +1.0678510735755810e-07
+band#    = 21     eigval   = +2.2351602508999321e-01  resval   = +2.6908997775072892e-02  occrate  = +2.1575629749459866e-09
+band#    = 22     eigval   = +2.8270899871622890e-01  resval   = +1.4660359031334875e-02  occrate  = +1.8838253464101567e-36
+band#    = 23     eigval   = +2.8834347541055771e-01  resval   = +2.2517248707620608e-02  occrate  = +5.0043607616181067e-39
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.0042650309439910e+01[au]  
+Efree             = -3.0045346176709977e+01[au]  
+EfreeHarris       = -2.9930796917375101e+01[au]  
+Ekin              = +6.3093864610477923e-01[au]  
+Ehart             = -1.8138313702528176e+01[au]  
+EVxc              = -1.0269332395911455e+01[au]  
+Exc               = -8.0171746604482124e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0673588955544691e+01[au]  
+Fermi             = +2.0455856421855434e-01[au]  
+Total charge      = +3.2000000000000192e+01[au]  
+HOMO              = +5.5609980079492551e+00[eV]  
+LUMO              = +5.5719053989987906e+00[eV]  
+norm(out-in)/norm(in) = +4.0795299889536396e-02
+Efree diff per atom   = +1.4318657416859448e-02
+  Rank of dfmat = 2                 
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.6941031760070473 [s]
+
+*********************************************************************
+SCF iteration # 4
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 0.0003533161357088918. The max res norm is 0.02141410137717547
+
+band#    = 0      eigval   = -2.4402776868719961e-01  resval   = +3.5331613570889183e-04  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.0053544863036246e-01  resval   = +6.1561568604622408e-04  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -9.4883696565721556e-02  resval   = +7.1792575238965330e-04  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.8955350416207099e-02  resval   = +6.4410191677440835e-04  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.8011049743787734e-02  resval   = +6.2193936395827146e-04  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -8.6565084382194235e-02  resval   = +5.7007536805044892e-04  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -8.2027645805142962e-02  resval   = +7.0445437809210632e-04  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +8.7273452404852417e-02  resval   = +1.3496814930837899e-03  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.0395790559753830e-02  resval   = +9.8049206997877767e-04  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.1086755209993348e-02  resval   = +1.0970480514651256e-03  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.2556699606294868e-02  resval   = +1.1295055526904787e-03  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +9.3427163394332324e-02  resval   = +1.3986731871555818e-03  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +9.5727329138629830e-02  resval   = +1.2651558880573989e-03  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.9369351393688400e-01  resval   = +1.9546154538238338e-03  occrate  = +9.9999966408356422e-01
+band#    = 14     eigval   = +1.9803908295119663e-01  resval   = +2.6660300977285902e-03  occrate  = +9.9996743807508837e-01
+band#    = 15     eigval   = +2.0548876164899660e-01  resval   = +2.2175790344027965e-03  occrate  = +9.2350387402484235e-01
+band#    = 16     eigval   = +2.1028659596672059e-01  resval   = +2.0536849484953236e-03  occrate  = +7.1812162639722690e-02
+band#    = 17     eigval   = +2.1305530089087407e-01  resval   = +3.9995256987312832e-03  occrate  = +4.1791067911061226e-03
+band#    = 18     eigval   = +2.1505074497703081e-01  resval   = +2.8714126892512726e-03  occrate  = +5.1345279780040795e-04
+band#    = 19     eigval   = +2.1855766236585991e-01  resval   = +3.2647661992419798e-03  occrate  = +1.2811458150660098e-05
+band#    = 20     eigval   = +2.1918964110144248e-01  resval   = +4.1104062234669451e-03  occrate  = +6.5872540273441832e-06
+band#    = 21     eigval   = +2.1947018752361944e-01  resval   = +2.8432888398998565e-03  occrate  = +4.9029647764297960e-06
+band#    = 22     eigval   = +2.8542094135693175e-01  resval   = +1.9385199661030288e-02  occrate  = +3.4861780149513564e-36
+band#    = 23     eigval   = +2.8981555571613071e-01  resval   = +2.1414101377175466e-02  occrate  = +3.4153610105083139e-38
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.0104636291060260e+01[au]  
+Efree             = -3.0105701432680117e+01[au]  
+EfreeHarris       = -2.9948525794622601e+01[au]  
+Ekin              = +7.2612830254194294e-01[au]  
+Ehart             = -1.7964054028698243e+01[au]  
+EVxc              = -1.0348804637717519e+01[au]  
+Exc               = -8.0795628664818544e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0830764593602204e+01[au]  
+Fermi             = +2.0785526073760191e-01[au]  
+Total charge      = +3.2000000000000135e+01[au]  
+HOMO              = +5.5916338064040811e+00[eV]  
+LUMO              = +5.7221895231898809e+00[eV]  
+norm(out-in)/norm(in) = +2.8251286144011591e-02
+Efree diff per atom   = +1.9646954757189583e-02
+  Rank of dfmat = 3                 
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.6988615209993441 [s]
+
+*********************************************************************
+SCF iteration # 5
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 0.0002401972124535568. The max res norm is 0.007414701142742246
+
+band#    = 0      eigval   = -2.4098808118998910e-01  resval   = +2.8457319081439173e-04  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -9.6389149031653354e-02  resval   = +3.0536785055984794e-04  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -9.1114114483621236e-02  resval   = +3.0333012810443503e-04  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.5603640805182624e-02  resval   = +2.8682812833111026e-04  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.3794057600072094e-02  resval   = +3.3339887934549973e-04  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -8.3057693873361926e-02  resval   = +3.1045857401202650e-04  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.8878552520150844e-02  resval   = +2.4019721245355683e-04  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.0639408360015591e-02  resval   = +6.5823194451804896e-04  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.3940530620931537e-02  resval   = +6.1312687203555235e-04  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.4383880557859748e-02  resval   = +6.8449233461807563e-04  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.5302614550199435e-02  resval   = +5.0587313204694163e-04  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +9.6203813232469432e-02  resval   = +5.5169114163886469e-04  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +9.8987589328614706e-02  resval   = +5.7656531196298585e-04  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.9755792658848489e-01  resval   = +6.0106795495834173e-04  occrate  = +9.9999883083669383e-01
+band#    = 14     eigval   = +2.0286898487058913e-01  resval   = +5.5922147761657231e-04  occrate  = +9.9968696905632437e-01
+band#    = 15     eigval   = +2.0978664112774276e-01  resval   = +7.0182388101948530e-04  occrate  = +6.8729285273247021e-01
+band#    = 16     eigval   = +2.1178927241113440e-01  resval   = +6.8955756557194327e-04  occrate  = +2.1074497340608098e-01
+band#    = 17     eigval   = +2.1262658788710226e-01  resval   = +1.0322211946902186e-03  occrate  = +9.9590386744551826e-02
+band#    = 18     eigval   = +2.1620885570988710e-01  resval   = +5.5984198278431372e-04  occrate  = +2.5416026112808233e-03
+band#    = 19     eigval   = +2.1934849040872964e-01  resval   = +1.4539420316750213e-03  occrate  = +9.3529576383175351e-05
+band#    = 20     eigval   = +2.2024791618496595e-01  resval   = +9.9103358135210783e-04  occrate  = +3.6292654288602197e-05
+band#    = 21     eigval   = +2.2111549365602337e-01  resval   = +9.3820001061402499e-04  occrate  = +1.4562364963119061e-05
+band#    = 22     eigval   = +2.8736835108127828e-01  resval   = +7.4147011427422461e-03  occrate  = +7.5340080462925333e-36
+band#    = 23     eigval   = +2.9125382842686848e-01  resval   = +6.4460911936493840e-03  occrate  = +1.2614071055189312e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9839539525013915e+01[au]  
+Efree             = -2.9842356405823232e+01[au]  
+EfreeHarris       = -2.9992439640381129e+01[au]  
+Ekin              = +8.4114183403039244e-01[au]  
+Ehart             = -1.8129260073447149e+01[au]  
+EVxc              = -1.0279465543577668e+01[au]  
+Exc               = -8.0253465825330146e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0680681359044307e+01[au]  
+Fermi             = +2.1053479489022697e-01[au]  
+Total charge      = +3.2000000000000050e+01[au]  
+HOMO              = +5.7085850595838421e+00[eV]  
+LUMO              = +5.7630794304492570e+00[eV]  
+norm(out-in)/norm(in) = +2.3582797378710180e-02
+Efree diff per atom   = +1.8760404319737134e-02
+  Rank of dfmat = 4                 
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7047176610212773 [s]
+
+*********************************************************************
+SCF iteration # 6
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 0.000181728286963091. The max res norm is 0.01100926065190403
+
+band#    = 0      eigval   = -2.3964464784632641e-01  resval   = +1.8172828696309099e-04  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -9.4161541652829195e-02  resval   = +2.1647370055633615e-04  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.8819347184064687e-02  resval   = +2.1321338929539078e-04  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.4400079695985120e-02  resval   = +2.3710040382173071e-04  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.2662809147499822e-02  resval   = +1.9663806836042391e-04  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -8.1677244772501878e-02  resval   = +2.4066992137450609e-04  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.7568408165593225e-02  resval   = +2.2229739775543443e-04  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.2333439685502214e-02  resval   = +4.4794844020300143e-04  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.5424780026679965e-02  resval   = +3.5804425441808324e-04  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.5895955608820416e-02  resval   = +3.5216799853769498e-04  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.6261971888450731e-02  resval   = +2.2408989073867457e-04  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +9.7563659246287487e-02  resval   = +3.1825966378503696e-04  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0013235422618001e-01  resval   = +2.4540723397239420e-04  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0010574040360693e-01  resval   = +3.4997284174854987e-04  occrate  = +9.9999303451579902e-01
+band#    = 14     eigval   = +2.0544509684428602e-01  resval   = +2.3903192539023095e-04  occrate  = +9.9808175548882705e-01
+band#    = 15     eigval   = +2.1060762442371697e-01  resval   = +4.7919271304876069e-04  occrate  = +6.9432971756134743e-01
+band#    = 16     eigval   = +2.1261228501429391e-01  resval   = +2.8031218652479860e-04  occrate  = +2.1591541172765372e-01
+band#    = 17     eigval   = +2.1365123900317295e-01  resval   = +3.1068080557306027e-04  occrate  = +8.4461647576337701e-02
+band#    = 18     eigval   = +2.1611277425503295e-01  resval   = +2.5177941921292044e-04  occrate  = +6.8666882794550460e-03
+band#    = 19     eigval   = +2.1949609301252807e-01  resval   = +8.2286150713948474e-04  occrate  = +1.9635220300352242e-04
+band#    = 20     eigval   = +2.2018247689666506e-01  resval   = +4.0709564613953598e-04  occrate  = +9.5348207983481304e-05
+band#    = 21     eigval   = +2.2062186006174897e-01  resval   = +2.4101824476817000e-04  occrate  = +6.0044378540247890e-05
+band#    = 22     eigval   = +2.8817119258007362e-01  resval   = +1.1009260651904029e-02  occrate  = +7.9364770859079100e-36
+band#    = 23     eigval   = +2.9205690873095047e-01  resval   = +6.6385838242539550e-03  occrate  = +1.3284578970938600e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9764670186406278e+01[au]  
+Efree             = -2.9767492508415849e+01[au]  
+EfreeHarris       = -2.9792348706059236e+01[au]  
+Ekin              = +8.9115497499464336e-01[au]  
+Ehart             = -1.8156071970262197e+01[au]  
+EVxc              = -1.0270524336171638e+01[au]  
+Exc               = -8.0183610742986424e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0655825161400919e+01[au]  
+Fermi             = +2.1138707889900654e-01[au]  
+Total charge      = +3.1999999999999904e+01[au]  
+HOMO              = +5.7309251521291653e+00[eV]  
+LUMO              = +5.7854747432536824e+00[eV]  
+norm(out-in)/norm(in) = +2.0107971597819446e-02
+Efree diff per atom   = +3.1070247054234557e-03
+  Rank of dfmat = 5                 
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.708581431012135 [s]
+
+*********************************************************************
+SCF iteration # 7
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 0.0005036052185925289. The max res norm is 0.005784992999738408
+
+band#    = 0      eigval   = -2.3480221132124399e-01  resval   = +5.1591550331369631e-04  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.6055342091293299e-02  resval   = +5.5117005255686025e-04  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.3445496939131128e-02  resval   = +6.4206255334055382e-04  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -7.9263750443082162e-02  resval   = +5.6972661927165858e-04  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -7.7023158603675368e-02  resval   = +5.1794504251294880e-04  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.5726673296991995e-02  resval   = +6.2391243623683562e-04  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.2136927036406007e-02  resval   = +5.0360521859252891e-04  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.7432457045313253e-02  resval   = +1.1182872414223575e-03  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +1.0050834751265002e-01  resval   = +8.8776203056249129e-04  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +1.0117146467313373e-01  resval   = +6.9127435454383046e-04  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0152459883135330e-01  resval   = +8.2844975930778232e-04  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0231545013713039e-01  resval   = +8.8032265905661907e-04  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0514268430447223e-01  resval   = +7.0313916811718139e-04  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0950122528149179e-01  resval   = +1.0053002604293560e-03  occrate  = +9.9582938759844586e-01
+band#    = 14     eigval   = +2.1205987446210095e-01  resval   = +9.5409428862693426e-04  occrate  = +9.4171316023638030e-01
+band#    = 15     eigval   = +2.1408778599675249e-01  resval   = +7.4921816621487266e-04  occrate  = +6.5651018348304135e-01
+band#    = 16     eigval   = +2.1573399807653923e-01  resval   = +7.2990057729761099e-04  occrate  = +2.5256233006992446e-01
+band#    = 17     eigval   = +2.1701598055592952e-01  resval   = +7.3452468692321500e-04  occrate  = +8.0587981617999099e-02
+band#    = 18     eigval   = +2.1737022174934764e-01  resval   = +7.5299471635230874e-04  occrate  = +5.6933503482500862e-02
+band#    = 19     eigval   = +2.1885614712096474e-01  resval   = +1.2427872937982260e-03  occrate  = +1.2477016968555733e-02
+band#    = 20     eigval   = +2.2060455773689452e-01  resval   = +9.5132278732137996e-04  occrate  = +2.0018944677674235e-03
+band#    = 21     eigval   = +2.2095544995509450e-01  resval   = +7.9785720333496889e-04  occrate  = +1.3845420718291959e-03
+band#    = 22     eigval   = +2.9175679246967412e-01  resval   = +2.8255423226495814e-03  occrate  = +5.9764562630477923e-36
+band#    = 23     eigval   = +2.9542737343975112e-01  resval   = +5.7849929997384085e-03  occrate  = +1.2546097549962612e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9310167618689142e+01[au]  
+Efree             = -2.9314059722697628e+01[au]  
+EfreeHarris       = -2.9587020592948512e+01[au]  
+Ekin              = +1.0726966724608937e+00[au]  
+Ehart             = -1.8455188501565967e+01[au]  
+EVxc              = -1.0149101377388764e+01[au]  
+Exc               = -7.9230937765686571e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0382864291150035e+01[au]  
+Fermi             = +2.1470320655003908e-01[au]  
+Total charge      = +3.2000000000000171e+01[au]  
+HOMO              = +5.8256251685552405e+00[eV]  
+LUMO              = +5.8704208792499681e+00[eV]  
+norm(out-in)/norm(in) = +2.4366180970227226e-02
+Efree diff per atom   = +3.4120108781360514e-02
+  Rank of dfmat = 6                 
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7067398230137769 [s]
+
+*********************************************************************
+SCF iteration # 8
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 0.0002064024793088508. The max res norm is 0.004435535854092928
+
+band#    = 0      eigval   = -2.3382954000542830e-01  resval   = +2.0640247930885081e-04  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.4246162145675638e-02  resval   = +2.6946938513162651e-04  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.2122866495328753e-02  resval   = +2.2337065563596381e-04  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -7.8130304777178708e-02  resval   = +2.5847327378341657e-04  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -7.6393017374373401e-02  resval   = +2.2410439937342022e-04  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.4423481789412382e-02  resval   = +2.7958075129003781e-04  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.1180857818282844e-02  resval   = +2.3736761688521562e-04  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.8172792058583161e-02  resval   = +4.7163784146239034e-04  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +1.0161260680342722e-01  resval   = +3.2251144219174697e-04  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +1.0233340901780326e-01  resval   = +3.0823631824851357e-04  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0271470593172889e-01  resval   = +3.9516063588958343e-04  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0315486345966342e-01  resval   = +3.9473793405063289e-04  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0631025668226020e-01  resval   = +2.9982020532068245e-04  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.1220726990049874e-01  resval   = +5.2675700202027228e-04  occrate  = +9.6781289610483534e-01
+band#    = 14     eigval   = +2.1394113069774529e-01  resval   = +6.5351838868753882e-04  occrate  = +8.2898373089323574e-01
+band#    = 15     eigval   = +2.1502270937326198e-01  resval   = +3.9248884416569077e-04  occrate  = +6.0825696705201882e-01
+band#    = 16     eigval   = +2.1634937219856668e-01  resval   = +3.8930651117302596e-04  occrate  = +2.7759346112549876e-01
+band#    = 17     eigval   = +2.1688595902438218e-01  resval   = +5.2774158490096433e-04  occrate  = +1.7928015220979415e-01
+band#    = 18     eigval   = +2.1787357089372250e-01  resval   = +3.5801092798294171e-04  occrate  = +7.1705948074937395e-02
+band#    = 19     eigval   = +2.1818524265680059e-01  resval   = +5.4051364790639819e-04  occrate  = +5.2708256327630827e-02
+band#    = 20     eigval   = +2.1986037738821607e-01  resval   = +6.4900997476505121e-04  occrate  = +9.4518118303631403e-03
+band#    = 21     eigval   = +2.2063446504894466e-01  resval   = +7.5785698652599284e-04  occrate  = +4.2067763694244222e-03
+band#    = 22     eigval   = +2.9276750197290213e-01  resval   = +4.4355358540929283e-03  occrate  = +4.4828870175299257e-36
+band#    = 23     eigval   = +2.9595098619213406e-01  resval   = +4.1616245212069214e-03  occrate  = +1.5714101896268737e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9195403569660574e+01[au]  
+Efree             = -2.9200867028193123e+01[au]  
+EfreeHarris       = -2.9275204017706905e+01[au]  
+Ekin              = +1.1131237319756799e+00[au]  
+Ehart             = -1.8535468603857108e+01[au]  
+EVxc              = -1.0122841793628218e+01[au]  
+Exc               = -7.9027773055854702e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0308527301636254e+01[au]  
+Fermi             = +2.1544072074118903e-01[au]  
+Total charge      = +3.1999999999999961e+01[au]  
+HOMO              = +5.8510657284989405e+00[eV]  
+LUMO              = +5.8871660614034944e+00[eV]  
+norm(out-in)/norm(in) = +1.2829562756150333e-02
+Efree diff per atom   = +9.2921236892227199e-03
+  Rank of dfmat = 7                 
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7050855300039984 [s]
+
+*********************************************************************
+SCF iteration # 9
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 8.110215669734505e-05. The max res norm is 0.003753425400143722
+
+band#    = 0      eigval   = -2.3457449441606737e-01  resval   = +8.1102156697345052e-05  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.4851837093850399e-02  resval   = +1.4472236882858357e-04  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.3035415476037738e-02  resval   = +1.4151255327224407e-04  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -7.8569837272535498e-02  resval   = +1.3993509118862918e-04  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -7.7850192526285195e-02  resval   = +1.4648656642308401e-04  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.5110835862937070e-02  resval   = +1.1890666717728968e-04  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.2169943449467533e-02  resval   = +1.5786721312606954e-04  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.7758026588797842e-02  resval   = +1.6639898036059346e-04  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +1.0082324125388026e-01  resval   = +1.8837238347588670e-04  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +1.0148905992789256e-01  resval   = +1.6119977925318008e-04  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0203653805914373e-01  resval   = +1.6310798630008662e-04  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0213838534491673e-01  resval   = +2.2017027030295987e-04  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0572978527961810e-01  resval   = +1.3497296576348239e-04  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.1191808089730599e-01  resval   = +2.8880017418609027e-04  occrate  = +9.5137320043883833e-01
+band#    = 14     eigval   = +2.1315670171447423e-01  resval   = +2.6946657229476404e-04  occrate  = +8.4157333312171634e-01
+band#    = 15     eigval   = +2.1416035701488034e-01  resval   = +2.3397497745407132e-04  occrate  = +6.4875054402629995e-01
+band#    = 16     eigval   = +2.1583277341300516e-01  resval   = +2.8008334563074959e-04  occrate  = +2.4107329551842330e-01
+band#    = 17     eigval   = +2.1639587572018723e-01  resval   = +2.8965232742916006e-04  occrate  = +1.4937446385816797e-01
+band#    = 18     eigval   = +2.1677754269384134e-01  resval   = +2.0208324668051419e-04  occrate  = +1.0515156747068569e-01
+band#    = 19     eigval   = +2.1751096115687779e-01  resval   = +2.9784895914597204e-04  occrate  = +5.1503184582677920e-02
+band#    = 20     eigval   = +2.1937692034112086e-01  resval   = +3.9795260355353248e-04  occrate  = +7.5598881492987147e-03
+band#    = 21     eigval   = +2.2007489007167563e-01  resval   = +4.4684057863135284e-04  occrate  = +3.6405228102867472e-03
+band#    = 22     eigval   = +2.9237801557461007e-01  resval   = +3.1450391667057990e-03  occrate  = +3.2416978363598925e-36
+band#    = 23     eigval   = +2.9535228921510265e-01  resval   = +3.7534254001437223e-03  occrate  = +1.4162530940840968e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9286228508007977e+01[au]  
+Efree             = -2.9291665365029250e+01[au]  
+EfreeHarris       = -2.9224841155892655e+01[au]  
+Ekin              = +1.0891230027648720e+00[au]  
+Ehart             = -1.8462534332448264e+01[au]  
+EVxc              = -1.0151270586559574e+01[au]  
+Exc               = -7.9250960362445779e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0375351510772848e+01[au]  
+Fermi             = +2.1474325836150054e-01[au]  
+Total charge      = +3.1999999999999989e+01[au]  
+HOMO              = +5.8275999264693601e+00[eV]  
+LUMO              = +5.8731086929590477e+00[eV]  
+norm(out-in)/norm(in) = +8.4556158321510318e-03
+Efree diff per atom   = +8.3530261420743379e-03
+  Rank of dfmat = 8                 
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7088786870008335 [s]
+
+*********************************************************************
+SCF iteration # 10
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 5.263365283848396e-05. The max res norm is 0.003464319307651146
+
+band#    = 0      eigval   = -2.3503545485342014e-01  resval   = +5.2633652838483958e-05  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.5342108517725113e-02  resval   = +6.4672249188623126e-05  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.3475519525184547e-02  resval   = +6.8188399347141244e-05  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -7.9038621314571955e-02  resval   = +6.3761659738473245e-05  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -7.8623154173090209e-02  resval   = +6.5902705250578172e-05  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.5693768932351815e-02  resval   = +6.3464701163143470e-05  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.2584137297217619e-02  resval   = +6.4432749281190461e-05  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.7388086984080621e-02  resval   = +8.5700617075887454e-05  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +1.0050662868102592e-01  resval   = +8.7745079807233882e-05  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +1.0101738180104462e-01  resval   = +1.1439612080007309e-04  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0145195445533631e-01  resval   = +1.2972710964148480e-04  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0163650593364965e-01  resval   = +8.3085443411224467e-05  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0525581954509258e-01  resval   = +1.1691578124112283e-04  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.1107169564084419e-01  resval   = +1.2363241183224727e-04  occrate  = +9.7088575372951547e-01
+band#    = 14     eigval   = +2.1261790721209647e-01  resval   = +1.4124644629321558e-04  occrate  = +8.6754981912036033e-01
+band#    = 15     eigval   = +2.1382425526767226e-01  resval   = +1.0223905632560154e-04  occrate  = +6.4786913156746828e-01
+band#    = 16     eigval   = +2.1551207537545075e-01  resval   = +1.0085645873673683e-04  occrate  = +2.3741874432712085e-01
+band#    = 17     eigval   = +2.1627241785353571e-01  resval   = +1.9712400879930663e-04  occrate  = +1.2268924044532303e-01
+band#    = 18     eigval   = +2.1663075079137242e-01  resval   = +1.5489875793247836e-04  occrate  = +8.7513398117120791e-02
+band#    = 19     eigval   = +2.1713287979658644e-01  resval   = +2.6239964425300491e-04  occrate  = +5.3508900157225169e-02
+band#    = 20     eigval   = +2.1897628736185204e-01  resval   = +2.0895549576758297e-04  occrate  = +8.0559830384366905e-03
+band#    = 21     eigval   = +2.1953102072460015e-01  resval   = +1.2725343398956133e-04  occrate  = +4.5090295366799118e-03
+band#    = 22     eigval   = +2.9195220179576920e-01  resval   = +3.4643193076511463e-03  occrate  = +3.5489817528830184e-36
+band#    = 23     eigval   = +2.9493463625512562e-01  resval   = +2.0633265684279574e-03  occrate  = +1.5372395395302353e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9328584014939128e+01[au]  
+Efree             = -2.9333662848082806e+01[au]  
+EfreeHarris       = -2.9307613629019936e+01[au]  
+Ekin              = +1.0728167148965935e+00[au]  
+Ehart             = -1.8434070138595413e+01[au]  
+EVxc              = -1.0162278453994563e+01[au]  
+Exc               = -7.9336889288895884e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0401400729835721e+01[au]  
+Fermi             = +2.1440348395628978e-01[au]  
+Total charge      = +3.2000000000000036e+01[au]  
+HOMO              = +5.8184541324269077e+00[eV]  
+LUMO              = +5.8643820551904096e+00[eV]  
+norm(out-in)/norm(in) = +7.6092490914724401e-03
+Efree diff per atom   = +3.2561523828587013e-03
+  Rank of dfmat = 9                 
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7022257040080149 [s]
+
+*********************************************************************
+SCF iteration # 11
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 5.123431985314014e-05. The max res norm is 0.00282684188546504
+
+band#    = 0      eigval   = -2.3553425705737924e-01  resval   = +5.1234319853140140e-05  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.6125277925994240e-02  resval   = +5.6762876693885249e-05  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.4044676414887665e-02  resval   = +6.5986595317416499e-05  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -7.9566033377666684e-02  resval   = +7.8928290156846995e-05  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -7.9181873033438155e-02  resval   = +7.0298874426143957e-05  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.6254700074896598e-02  resval   = +6.8942877506210441e-05  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.3053091604684497e-02  resval   = +7.5611758662804337e-05  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6938353372703581e-02  resval   = +1.3207751917905972e-04  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +1.0011310214765955e-01  resval   = +7.5165044835344438e-05  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +1.0039479608960593e-01  resval   = +8.5164816506816111e-05  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0086902539923415e-01  resval   = +1.2639938666260300e-04  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0116531178569614e-01  resval   = +1.0804241304933771e-04  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0478442774348384e-01  resval   = +8.7112309471977723e-05  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.1020950991626958e-01  resval   = +9.3207923608802412e-05  occrate  = +9.8118855988265474e-01
+band#    = 14     eigval   = +2.1219142493098309e-01  resval   = +9.2554681674133666e-05  occrate  = +8.6624649565064760e-01
+band#    = 15     eigval   = +2.1332331678327809e-01  resval   = +1.0783369185962038e-04  occrate  = +6.6301555180115546e-01
+band#    = 16     eigval   = +2.1516162654475077e-01  resval   = +1.5258320660324344e-04  occrate  = +2.2128209346297517e-01
+band#    = 17     eigval   = +2.1580011547397940e-01  resval   = +8.6736559623747995e-05  occrate  = +1.2672040692626638e-01
+band#    = 18     eigval   = +2.1621159795362688e-01  resval   = +8.2648503065365283e-05  occrate  = +8.6007192187470841e-02
+band#    = 19     eigval   = +2.1683872069596799e-01  resval   = +1.3551260461485554e-04  occrate  = +4.6375882509932631e-02
+band#    = 20     eigval   = +2.1877100466471994e-01  resval   = +1.2918778989408662e-04  occrate  = +6.3219986498903157e-03
+band#    = 21     eigval   = +2.1953397336892347e-01  resval   = +1.5880323036846603e-04  occrate  = +2.8418188865797171e-03
+band#    = 22     eigval   = +2.9151912351253506e-01  resval   = +2.8268418854650403e-03  occrate  = +3.5335680112317879e-36
+band#    = 23     eigval   = +2.9456648465408974e-01  resval   = +2.7446916145949366e-03  occrate  = +1.4294575338745004e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9382222364129458e+01[au]  
+Efree             = -2.9387111675614911e+01[au]  
+EfreeHarris       = -2.9351043027153800e+01[au]  
+Ekin              = +1.0552470141673744e+00[au]  
+Ehart             = -1.8394717957448467e+01[au]  
+EVxc              = -1.0177411514743207e+01[au]  
+Exc               = -7.9455384569523986e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0437469378296832e+01[au]  
+Fermi             = +2.1396627050573608e-01[au]  
+Total charge      = +3.1999999999999648e+01[au]  
+HOMO              = +5.8048229024667419e+00[eV]  
+LUMO              = +5.8548458571354329e+00[eV]  
+norm(out-in)/norm(in) = +4.9918537354373344e-03
+Efree diff per atom   = +4.5085810576388496e-03
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7013107500097249 [s]
+
+*********************************************************************
+SCF iteration # 12
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 5.172851793020615e-05. The max res norm is 0.003047509091184756
+
+band#    = 0      eigval   = -2.3614881173211560e-01  resval   = +6.2897886083285580e-05  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.6962159429450042e-02  resval   = +6.5630669302698029e-05  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.4732621373207570e-02  resval   = +6.2964364497800028e-05  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0244808785284227e-02  resval   = +5.9803359987602251e-05  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -7.9920223853692102e-02  resval   = +6.4287427086284811e-05  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7006184609959880e-02  resval   = +6.1900135504999799e-05  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.3663455833099939e-02  resval   = +5.1728517930206153e-05  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6393009893843709e-02  resval   = +1.0267543962560316e-04  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9433622344913528e-02  resval   = +8.8422217416561562e-05  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9797890331310202e-02  resval   = +9.5294047158077667e-05  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0030798128785902e-01  resval   = +9.5002464632499883e-05  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0045003518996938e-01  resval   = +7.7796040302905434e-05  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0420351726029563e-01  resval   = +8.2843203561025979e-05  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0943401470322057e-01  resval   = +8.7053690691217580e-05  occrate  = +9.8585400668413592e-01
+band#    = 14     eigval   = +2.1133441418724466e-01  resval   = +1.1482186373339187e-04  occrate  = +9.0411006804990990e-01
+band#    = 15     eigval   = +2.1271863565682886e-01  resval   = +1.2267673732530032e-04  occrate  = +6.8713160338814017e-01
+band#    = 16     eigval   = +2.1481833797730043e-01  resval   = +1.2667922487490519e-04  occrate  = +1.9413441736425158e-01
+band#    = 17     eigval   = +2.1559592485487683e-01  resval   = +1.0193227121901037e-04  occrate  = +9.6055631767014552e-02
+band#    = 18     eigval   = +2.1570970142108073e-01  resval   = +8.5920177212166386e-05  occrate  = +8.6148188586937832e-02
+band#    = 19     eigval   = +2.1652580597267423e-01  resval   = +8.4161695302786846e-05  occrate  = +3.8397210850888736e-02
+band#    = 20     eigval   = +2.1845766003837819e-01  resval   = +1.1243245835719539e-04  occrate  = +5.1991267632200489e-03
+band#    = 21     eigval   = +2.1899182505182468e-01  resval   = +7.5290531865227728e-05  occrate  = +2.9697465212651067e-03
+band#    = 22     eigval   = +2.9106648156179959e-01  resval   = +3.0475090911847563e-03  occrate  = +3.3610583872066355e-36
+band#    = 23     eigval   = +2.9414559724171346e-01  resval   = +2.3516319345229823e-03  occrate  = +1.3149761840870384e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9453792262653685e+01[au]  
+Efree             = -2.9458218018743935e+01[au]  
+EfreeHarris       = -2.9408474366393172e+01[au]  
+Ekin              = +1.0334207679939065e+00[au]  
+Ehart             = -1.8340223400404941e+01[au]  
+EVxc              = -1.0199262366805369e+01[au]  
+Exc               = -7.9626384043217922e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0487213030647592e+01[au]  
+Fermi             = +2.1346607672829698e-01[au]  
+Total charge      = +3.1999999999999833e+01[au]  
+HOMO              = +5.7883686915326980e+00[eV]  
+LUMO              = +5.8455044997604437e+00[eV]  
+norm(out-in)/norm(in) = +2.1432278792510090e-03
+Efree diff per atom   = +6.2179565438453821e-03
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7015900440164842 [s]
+
+*********************************************************************
+SCF iteration # 13
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 2.164950673880317e-05. The max res norm is 0.002560271336681555
+
+band#    = 0      eigval   = -2.3620036000144146e-01  resval   = +2.1649506738803170e-05  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7041334843961884e-02  resval   = +3.1179564537258169e-05  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.4842258516690874e-02  resval   = +3.1698246297603820e-05  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0163053038324397e-02  resval   = +2.6026894103891827e-05  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -7.9960998223581645e-02  resval   = +3.4705741217771555e-05  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7028093993522451e-02  resval   = +3.9210843010488014e-05  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.3783904922202215e-02  resval   = +3.2255126855794819e-05  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6410440052611804e-02  resval   = +4.8954410443345563e-05  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9384180461848839e-02  resval   = +3.9276859502902845e-05  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9754660503963116e-02  resval   = +4.3334919648156390e-05  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0025161146077960e-01  resval   = +4.9568199392818856e-05  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0038910647201335e-01  resval   = +5.7556361320468529e-05  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0414676803805820e-01  resval   = +4.2945777581774255e-05  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0936240203165649e-01  resval   = +7.0060990090344390e-05  occrate  = +9.8551083101869918e-01
+band#    = 14     eigval   = +2.1126381546923656e-01  resval   = +5.5122464659866158e-05  occrate  = +9.0188658865667137e-01
+band#    = 15     eigval   = +2.1263714794660521e-01  resval   = +6.5210861001934890e-05  occrate  = +6.8413045880395329e-01
+band#    = 16     eigval   = +2.1475011256150789e-01  resval   = +1.1823978796022593e-04  occrate  = +1.8980931529818776e-01
+band#    = 17     eigval   = +2.1545410013964053e-01  resval   = +1.0892310788242329e-04  occrate  = +1.0044819834281990e-01
+band#    = 18     eigval   = +2.1552586249115283e-01  resval   = +9.5636545578637922e-05  occrate  = +9.3825921385601238e-02
+band#    = 19     eigval   = +2.1644969781569387e-01  resval   = +9.5654136287516187e-05  occrate  = +3.7680532112595186e-02
+band#    = 20     eigval   = +2.1855066105453022e-01  resval   = +6.8134503185916039e-05  occrate  = +4.2709474830830820e-03
+band#    = 21     eigval   = +2.1908536792052286e-01  resval   = +7.3207664142637511e-05  occrate  = +2.4372068762631891e-03
+band#    = 22     eigval   = +2.9099877991919071e-01  resval   = +2.0782589211178581e-03  occrate  = +3.2668332907875249e-36
+band#    = 23     eigval   = +2.9412449677567865e-01  resval   = +2.5602713366815548e-03  occrate  = +1.2169310619578229e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9452444946020972e+01[au]  
+Efree             = -2.9456907967747544e+01[au]  
+EfreeHarris       = -2.9459872042625221e+01[au]  
+Ekin              = +1.0318040097489420e+00[au]  
+Ehart             = -1.8343577220760956e+01[au]  
+EVxc              = -1.0197427552219741e+01[au]  
+Exc               = -7.9611933352145021e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0484248955769914e+01[au]  
+Fermi             = +2.1337136074269933e-01[au]  
+Total charge      = +3.2000000000000099e+01[au]  
+HOMO              = +5.7861512980770335e+00[eV]  
+LUMO              = +5.8436479917045272e+00[eV]  
+norm(out-in)/norm(in) = +3.0287706580377750e-03
+Efree diff per atom   = +3.7050935970972532e-04
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7010998920013662 [s]
+
+*********************************************************************
+SCF iteration # 14
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 2.125935627240219e-05. The max res norm is 0.002419016197817812
+
+band#    = 0      eigval   = -2.3635547286347505e-01  resval   = +2.1259356272402192e-05  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7150052262504232e-02  resval   = +2.9994972603059317e-05  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.4981695449605765e-02  resval   = +3.0790149171608234e-05  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0356262162943976e-02  resval   = +2.9458205265174719e-05  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0168052833292550e-02  resval   = +3.0786079269737224e-05  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7239241681921561e-02  resval   = +2.9716677550463392e-05  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.3964032696308940e-02  resval   = +3.3684958454980853e-05  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6294938797739427e-02  resval   = +3.8438185613536809e-05  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9223188978439070e-02  resval   = +3.7165604671070221e-05  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9625314736625864e-02  resval   = +4.8374553730231536e-05  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0005902783915568e-01  resval   = +4.4696429799853375e-05  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0022306867712094e-01  resval   = +4.6570691023811221e-05  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0404536468168236e-01  resval   = +4.4415904453223668e-05  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0914232489627538e-01  resval   = +4.8123383355699087e-05  occrate  = +9.8696663217624669e-01
+band#    = 14     eigval   = +2.1107202958728039e-01  resval   = +5.3023856917731682e-05  occrate  = +9.0854110817572609e-01
+band#    = 15     eigval   = +2.1254964359318768e-01  resval   = +6.1321468137815884e-05  occrate  = +6.7713585268066045e-01
+band#    = 16     eigval   = +2.1460646038093620e-01  resval   = +7.0832901373159708e-05  occrate  = +1.9398390418777045e-01
+band#    = 17     eigval   = +2.1538582088134206e-01  resval   = +5.9597631142512939e-05  occrate  = +9.5810252161324189e-02
+band#    = 18     eigval   = +2.1548761477794945e-01  resval   = +5.7126593312788922e-05  occrate  = +8.6921536254148557e-02
+band#    = 19     eigval   = +2.1619997460552040e-01  resval   = +9.6072248743884469e-05  occrate  = +4.3039933741658987e-02
+band#    = 20     eigval   = +2.1829679969767962e-01  resval   = +8.1061012003527677e-05  occrate  = +4.9239205426603394e-03
+band#    = 21     eigval   = +2.1887795732926429e-01  resval   = +8.3429681325537333e-05  occrate  = +2.6768601111517199e-03
+band#    = 22     eigval   = +2.9085686435323088e-01  resval   = +2.4190161978178120e-03  occrate  = +3.3498458078769520e-36
+band#    = 23     eigval   = +2.9398851097370848e-01  resval   = +2.2076925660850896e-03  occrate  = +1.2400898249624694e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9463683593300072e+01[au]  
+Efree             = -2.9468119544316945e+01[au]  
+EfreeHarris       = -2.9462028732071342e+01[au]  
+Ekin              = +1.0266561747154435e+00[au]  
+Ehart             = -1.8336855307526147e+01[au]  
+EVxc              = -1.0200368904838680e+01[au]  
+Exc               = -7.9635035868442330e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0490339768015517e+01[au]  
+Fermi             = +2.1325328484778094e-01[au]  
+Total charge      = +3.1999999999999964e+01[au]  
+HOMO              = +5.7837701834270137e+00[eV]  
+LUMO              = +5.8397390169129011e+00[eV]  
+norm(out-in)/norm(in) = +1.0555100325499822e-03
+Efree diff per atom   = +7.6135153070033823e-04
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7049748179852031 [s]
+
+*********************************************************************
+SCF iteration # 15
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 1.600712954729176e-05. The max res norm is 0.002161806952299702
+
+band#    = 0      eigval   = -2.3652278464315096e-01  resval   = +1.7430935570690771e-05  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7391694722885896e-02  resval   = +1.6007129547291756e-05  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5186185065175307e-02  resval   = +1.6292963580992774e-05  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0599902861375680e-02  resval   = +1.7397409017036965e-05  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0365824545620287e-02  resval   = +1.9229847041145315e-05  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7400907948546288e-02  resval   = +1.9519436272250728e-05  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4093830032904900e-02  resval   = +1.7405204733066705e-05  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6124296794400543e-02  resval   = +3.0827061197373268e-05  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9039592276255875e-02  resval   = +3.0907871602241872e-05  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9399599095027616e-02  resval   = +2.4420799629778834e-05  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9906471438250752e-02  resval   = +2.2250158405816068e-05  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0008437318889843e-01  resval   = +3.3769914848628407e-05  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0390411924213533e-01  resval   = +2.6794999614896945e-05  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0892763393071248e-01  resval   = +2.2612072313805690e-05  occrate  = +9.8784936300707138e-01
+band#    = 14     eigval   = +2.1086323456723058e-01  resval   = +2.5137709696157185e-05  occrate  = +9.1378646890364235e-01
+band#    = 15     eigval   = +2.1233114375277737e-01  resval   = +3.1129215271115854e-05  occrate  = +6.9331741862409346e-01
+band#    = 16     eigval   = +2.1452932358391349e-01  resval   = +2.1133743832684566e-05  occrate  = +1.8271050931417007e-01
+band#    = 17     eigval   = +2.1530052272130168e-01  resval   = +2.6496801045941572e-05  occrate  = +9.0311215362680719e-02
+band#    = 18     eigval   = +2.1536552754131297e-01  resval   = +2.7302428491515365e-05  occrate  = +8.4845277704128863e-02
+band#    = 19     eigval   = +2.1612098555499512e-01  resval   = +2.5571744435636659e-05  occrate  = +4.0177335719662213e-02
+band#    = 20     eigval   = +2.1821569433735599e-01  resval   = +4.1326996430108458e-05  occrate  = +4.5944611877428380e-03
+band#    = 21     eigval   = +2.1883157958025043e-01  resval   = +3.5694120175846821e-05  occrate  = +2.4079501326275616e-03
+band#    = 22     eigval   = +2.9073627822197451e-01  resval   = +1.7169505073631036e-03  occrate  = +3.2572603461294521e-36
+band#    = 23     eigval   = +2.9386903715396834e-01  resval   = +2.1618069522997018e-03  occrate  = +1.2044043836267879e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9485195872982626e+01[au]  
+Efree             = -2.9489489508978721e+01[au]  
+EfreeHarris       = -2.9474014504752738e+01[au]  
+Ekin              = +1.0206188992588732e+00[au]  
+Ehart             = -1.8319891777477672e+01[au]  
+EVxc              = -1.0207199906822106e+01[au]  
+Exc               = -7.9688460630051665e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0505814772241500e+01[au]  
+Fermi             = +2.1310607100141021e-01[au]  
+Total charge      = +3.1999999999999790e+01[au]  
+HOMO              = +5.7778245001471698e+00[eV]  
+LUMO              = +5.8376400178314496e+00[eV]  
+norm(out-in)/norm(in) = +1.0149968242983876e-03
+Efree diff per atom   = +1.9343755282479336e-03
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7017745740013197 [s]
+
+*********************************************************************
+SCF iteration # 16
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 3.239507047501886e-06. The max res norm is 0.001885577451990026
+
+band#    = 0      eigval   = -2.3649015579692281e-01  resval   = +3.2395070475018856e-06  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7354586182850733e-02  resval   = +8.9482833025868593e-06  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5128078518846753e-02  resval   = +8.1262679429324643e-06  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0551429665612004e-02  resval   = +8.1353242010961017e-06  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0323377028900689e-02  resval   = +7.7108174330857968e-06  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7379825905762270e-02  resval   = +9.5048831998429731e-06  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4052800636060429e-02  resval   = +1.0148225105225096e-05  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6167195610697559e-02  resval   = +1.5262845688489574e-05  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9075522638069083e-02  resval   = +1.4256212276863239e-05  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9444864907909269e-02  resval   = +1.2629164603414536e-05  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9949741504851031e-02  resval   = +1.3343239658322038e-05  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0012046294779971e-01  resval   = +1.6814875328924532e-05  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391698995720910e-01  resval   = +1.6920881499589011e-05  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0898065398232710e-01  resval   = +1.3553167899199142e-05  occrate  = +9.8738942708474953e-01
+band#    = 14     eigval   = +2.1091302414337113e-01  resval   = +1.6786149089004517e-05  occrate  = +9.1105219362773227e-01
+band#    = 15     eigval   = +2.1235777772149217e-01  resval   = +1.9190790345954241e-05  occrate  = +6.9121986872185415e-01
+band#    = 16     eigval   = +2.1453897775100539e-01  resval   = +2.6376848642959331e-05  occrate  = +1.8391213500573420e-01
+band#    = 17     eigval   = +2.1530125202368944e-01  resval   = +3.6988582760755646e-05  occrate  = +9.1752659770924408e-02
+band#    = 18     eigval   = +2.1536382736998269e-01  resval   = +3.3219948871005967e-05  occrate  = +8.6409409405555485e-02
+band#    = 19     eigval   = +2.1611360898602858e-01  resval   = +1.6172663312555582e-05  occrate  = +4.1190183695258592e-02
+band#    = 20     eigval   = +2.1822627585225479e-01  resval   = +2.2905730252432249e-05  occrate  = +4.6268178549200550e-03
+band#    = 21     eigval   = +2.1883342012169738e-01  resval   = +1.9643006993753346e-05  occrate  = +2.4473047642104852e-03
+band#    = 22     eigval   = +2.9075376427668936e-01  resval   = +1.8855774519900255e-03  occrate  = +3.2565528342465744e-36
+band#    = 23     eigval   = +2.9388694610476473e-01  resval   = +1.8204105068070939e-03  occrate  = +1.2036068897881406e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9479524289587655e+01[au]  
+Efree             = -2.9483860774509417e+01[au]  
+EfreeHarris       = -2.9488259756686872e+01[au]  
+Ekin              = +1.0218915004763895e+00[au]  
+Ehart             = -1.8324715864564062e+01[au]  
+EVxc              = -1.0205251838342871e+01[au]  
+Exc               = -7.9673230994348696e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0501415790064044e+01[au]  
+Fermi             = +2.1312335067384702e-01[au]  
+Total charge      = +3.1999999999999854e+01[au]  
+HOMO              = +5.7785492473239461e+00[eV]  
+LUMO              = +5.8379027210890415e+00[eV]  
+norm(out-in)/norm(in) = +4.7814586731984379e-04
+Efree diff per atom   = +5.4987277218199182e-04
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.6989130960137118 [s]
+
+*********************************************************************
+SCF iteration # 17
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 1.941306554794664e-06. The max res norm is 0.001920393378673608
+
+band#    = 0      eigval   = -2.3649538707456041e-01  resval   = +1.9413065547946641e-06  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7361010443848197e-02  resval   = +5.6181826200738163e-06  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5138164077423903e-02  resval   = +5.6291332364496041e-06  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0559143420813287e-02  resval   = +5.8125220024743416e-06  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0334240255252279e-02  resval   = +4.9267338456887924e-06  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7384144271039484e-02  resval   = +5.5754774683730801e-06  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4059626958168895e-02  resval   = +6.0579883662212702e-06  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6170643272004946e-02  resval   = +8.9671027556719665e-06  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9072265788904643e-02  resval   = +8.5616796689899054e-06  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9440332059779077e-02  resval   = +9.1313066771843505e-06  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9928397359075466e-02  resval   = +1.0966546623022035e-05  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0010938733977556e-01  resval   = +9.1901559000758097e-06  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391165557843725e-01  resval   = +1.1120819658815247e-05  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0894265763957451e-01  resval   = +8.3949573775690502e-06  occrate  = +9.8790243308231485e-01
+band#    = 14     eigval   = +2.1089321998203234e-01  resval   = +9.0662499970621168e-06  occrate  = +9.1289068543393259e-01
+band#    = 15     eigval   = +2.1236779432300160e-01  resval   = +1.0950025716681677e-05  occrate  = +6.8940553017227968e-01
+band#    = 16     eigval   = +2.1453830150719755e-01  resval   = +8.7486314858020446e-06  occrate  = +1.8432797062713968e-01
+band#    = 17     eigval   = +2.1529068877499280e-01  resval   = +1.5792147144405564e-05  occrate  = +9.2856513536554844e-02
+band#    = 18     eigval   = +2.1537964701058490e-01  resval   = +1.5879045167923853e-05  occrate  = +8.5264164969192022e-02
+band#    = 19     eigval   = +2.1613496885574932e-01  resval   = +7.0135963867290085e-06  occrate  = +4.0390980966645930e-02
+band#    = 20     eigval   = +2.1825256259149678e-01  resval   = +7.4837851626474106e-06  occrate  = +4.5103455735504734e-03
+band#    = 21     eigval   = +2.1883379087910274e-01  resval   = +1.0155494596388791e-05  occrate  = +2.4513756775975241e-03
+band#    = 22     eigval   = +2.9074149783051123e-01  resval   = +1.3176856447154669e-03  occrate  = +3.3056629568103988e-36
+band#    = 23     eigval   = +2.9388112740800776e-01  resval   = +1.9203933786736079e-03  occrate  = +1.2134940290514814e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9479819410782142e+01[au]  
+Efree             = -2.9484141103901194e+01[au]  
+EfreeHarris       = -2.9484142737768366e+01[au]  
+Ekin              = +1.0215947454147261e+00[au]  
+Ehart             = -1.8324731696350653e+01[au]  
+EVxc              = -1.0205178435271378e+01[au]  
+Exc               = -7.9672638942827909e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0501414156196869e+01[au]  
+Fermi             = +2.1312530432532401e-01[au]  
+Total charge      = +3.2000000000000355e+01[au]  
+HOMO              = +5.7788218129240105e+00[eV]  
+LUMO              = +5.8378843195584329e+00[eV]  
+norm(out-in)/norm(in) = +2.5940704907928986e-04
+Efree diff per atom   = +2.0423339641695293e-07
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7001917320012581 [s]
+
+*********************************************************************
+SCF iteration # 18
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 1.342914803606053e-06. The max res norm is 0.001589265119202787
+
+band#    = 0      eigval   = -2.3649228255375587e-01  resval   = +1.3429148036060528e-06  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7353824933567165e-02  resval   = +2.9244769992547733e-06  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5130874774705823e-02  resval   = +3.5615216849545515e-06  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0542342142167656e-02  resval   = +3.2679846163724340e-06  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0330739182953609e-02  resval   = +3.3302867997756164e-06  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7388416637744165e-02  resval   = +2.9630607823632893e-06  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4068135185547446e-02  resval   = +3.0920370271662967e-06  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6172707688153058e-02  resval   = +5.5713692799115876e-06  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9079141202991231e-02  resval   = +5.3300575019648331e-06  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9452000008231067e-02  resval   = +5.7231101694658709e-06  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9926985578722649e-02  resval   = +6.4664693776455569e-06  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0010820343642611e-01  resval   = +4.5148380004113185e-06  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391676632368932e-01  resval   = +6.0604914528350997e-06  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0893793888664142e-01  resval   = +5.0245429540769552e-06  occrate  = +9.8802519595199079e-01
+band#    = 14     eigval   = +2.1089701865538266e-01  resval   = +6.2200677117467437e-06  occrate  = +9.1299865756368970e-01
+band#    = 15     eigval   = +2.1238755813631577e-01  resval   = +7.5331024769456073e-06  occrate  = +6.8608849064928690e-01
+band#    = 16     eigval   = +2.1453089378177476e-01  resval   = +8.3325926301495159e-06  occrate  = +1.8631393708663962e-01
+band#    = 17     eigval   = +2.1529801452594730e-01  resval   = +1.1918944078308981e-05  occrate  = +9.2658416151091771e-02
+band#    = 18     eigval   = +2.1537451429822543e-01  resval   = +1.1511180056831739e-05  occrate  = +8.6107101178283144e-02
+band#    = 19     eigval   = +2.1613157110842332e-01  resval   = +6.9597063641798525e-06  occrate  = +4.0738659293405186e-02
+band#    = 20     eigval   = +2.1823911623399136e-01  resval   = +8.6777974859151804e-06  occrate  = +4.5987993903809903e-03
+band#    = 21     eigval   = +2.1883138544690706e-01  resval   = +6.0608128325003343e-06  occrate  = +2.4707427718418645e-03
+band#    = 22     eigval   = +2.9073940428674144e-01  resval   = +1.4646166757620678e-03  occrate  = +3.3307504090464631e-36
+band#    = 23     eigval   = +2.9387820201833692e-01  resval   = +1.5892651192027873e-03  occrate  = +1.2237745713041840e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9478921182429382e+01[au]  
+Efree             = -2.9483258079146037e+01[au]  
+EfreeHarris       = -2.9484022535047416e+01[au]  
+Ekin              = +1.0217285178661077e+00[au]  
+Ehart             = -1.8325562244248104e+01[au]  
+EVxc              = -1.0204881654416885e+01[au]  
+Exc               = -7.9670332054243698e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0500649700295490e+01[au]  
+Fermi             = +2.1313039367060968e-01[au]  
+Total charge      = +3.1999999999999730e+01[au]  
+HOMO              = +5.7793596136571708e+00[eV]  
+LUMO              = +5.8376827450899791e+00[eV]  
+norm(out-in)/norm(in) = +2.0349117266526003e-04
+Efree diff per atom   = +9.5556987672384963e-05
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.6999460080114659 [s]
+
+*********************************************************************
+SCF iteration # 19
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 6.140397028016412e-07. The max res norm is 0.001658748016380902
+
+band#    = 0      eigval   = -2.3649360585048088e-01  resval   = +6.1403970280164118e-07  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7355916371155543e-02  resval   = +2.1931307961969099e-06  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5135463770983924e-02  resval   = +2.2269768661582746e-06  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0545534057873014e-02  resval   = +2.8589414698442786e-06  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0331170901533827e-02  resval   = +2.5104795105254094e-06  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7385994741036745e-02  resval   = +2.2741764600841171e-06  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4067351261266789e-02  resval   = +2.9755336588429808e-06  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6171067700620380e-02  resval   = +4.9424901483499008e-06  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9078469540136743e-02  resval   = +3.5113750236340729e-06  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9451555790140270e-02  resval   = +3.9413746489865533e-06  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9930056547739260e-02  resval   = +4.0889002517159132e-06  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0010572157312597e-01  resval   = +3.8306577070957982e-06  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391205460902336e-01  resval   = +3.6600991317241944e-06  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0894538129678494e-01  resval   = +2.9971446565911823e-06  occrate  = +9.8787899312226768e-01
+band#    = 14     eigval   = +2.1089507931385640e-01  resval   = +3.9898024378983104e-06  occrate  = +9.1280717930403843e-01
+band#    = 15     eigval   = +2.1237104820614672e-01  resval   = +3.6966036739789465e-06  occrate  = +6.8886620465000259e-01
+band#    = 16     eigval   = +2.1453643179942505e-01  resval   = +6.5087202663693958e-06  occrate  = +1.8476069269646575e-01
+band#    = 17     eigval   = +2.1529790581988828e-01  resval   = +4.8527389461065413e-06  occrate  = +9.2294596029108639e-02
+band#    = 18     eigval   = +2.1537919639920475e-01  resval   = +5.2396352592654092e-06  occrate  = +8.5371995192436517e-02
+band#    = 19     eigval   = +2.1612087651666714e-01  resval   = +4.0877349178415537e-06  occrate  = +4.1005520157514241e-02
+band#    = 20     eigval   = +2.1824384952823930e-01  resval   = +7.7832054335272822e-06  occrate  = +4.5558255157239751e-03
+band#    = 21     eigval   = +2.1883169802018940e-01  resval   = +3.4741616721950988e-06  occrate  = +2.4589934065180476e-03
+band#    = 22     eigval   = +2.9073756676901574e-01  resval   = +1.0148154093570913e-03  occrate  = +3.3223828618271373e-36
+band#    = 23     eigval   = +2.9387380145749470e-01  resval   = +1.6587480163809023e-03  occrate  = +1.2239978594670532e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9479339870321148e+01[au]  
+Efree             = -2.9483666461399451e+01[au]  
+EfreeHarris       = -2.9483298206568350e+01[au]  
+Ekin              = +1.0216780848054430e+00[au]  
+Ehart             = -1.8325162551908239e+01[au]  
+EVxc              = -1.0205021616099494e+01[au]  
+Exc               = -7.9671417295982145e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0501017955126592e+01[au]  
+Fermi             = +2.1312616643772647e-01[au]  
+Total charge      = +3.1999999999999922e+01[au]  
+HOMO              = +5.7789103555910177e+00[eV]  
+LUMO              = +5.8378334422203979e+00[eV]  
+norm(out-in)/norm(in) = +1.2206734619658765e-04
+Efree diff per atom   = +4.6031853887740226e-05
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.6973281120008323 [s]
+
+*********************************************************************
+SCF iteration # 20
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 5.359612003721505e-07. The max res norm is 0.001404243042307614
+
+band#    = 0      eigval   = -2.3649167776070920e-01  resval   = +5.3596120037215049e-07  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7353305262374767e-02  resval   = +1.1230079290223512e-06  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5131040995951104e-02  resval   = +1.1798755320039180e-06  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0541973001647643e-02  resval   = +1.1172851575029946e-06  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0329017957395832e-02  resval   = +1.1226296793855944e-06  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7387793922210679e-02  resval   = +1.1006297457500698e-06  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4067636983418769e-02  resval   = +1.3693859956358360e-06  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6173644755079696e-02  resval   = +2.2486018336038745e-06  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9078590150898510e-02  resval   = +1.5498358331879249e-06  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9453332619528448e-02  resval   = +1.9535263495734563e-06  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9931852906601726e-02  resval   = +2.3702580226969836e-06  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0010841230838230e-01  resval   = +2.3370522709031416e-06  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391402942065964e-01  resval   = +2.5988396110057698e-06  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0894801289747966e-01  resval   = +1.7304311223638447e-06  occrate  = +9.8786994692551100e-01
+band#    = 14     eigval   = +2.1089735854562405e-01  resval   = +2.2072002542497499e-06  occrate  = +9.1277658748946922e-01
+band#    = 15     eigval   = +2.1237520536531290e-01  resval   = +3.5140453611386710e-06  occrate  = +6.8835995167032649e-01
+band#    = 16     eigval   = +2.1453705943460952e-01  resval   = +2.8069754864881347e-06  occrate  = +1.8496474535652935e-01
+band#    = 17     eigval   = +2.1529845884249232e-01  resval   = +3.8551206279897742e-06  occrate  = +9.2414690089635251e-02
+band#    = 18     eigval   = +2.1537690074120547e-01  resval   = +4.4877111239743293e-06  occrate  = +8.5718631105653947e-02
+band#    = 19     eigval   = +2.1612618877995621e-01  resval   = +1.9799873719150236e-06  occrate  = +4.0865095714657705e-02
+band#    = 20     eigval   = +2.1824301369497481e-01  resval   = +2.0325985735388320e-06  occrate  = +4.5689713757977824e-03
+band#    = 21     eigval   = +2.1883268815287796e-01  resval   = +2.2202857994917407e-06  occrate  = +2.4613802416924165e-03
+band#    = 22     eigval   = +2.9073921637949629e-01  resval   = +1.1278765286815576e-03  occrate  = +3.3233080174574262e-36
+band#    = 23     eigval   = +2.9387188275138076e-01  resval   = +1.4042430423076139e-03  occrate  = +1.2289458933166444e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9479384539519362e+01[au]  
+Efree             = -2.9483714083559278e+01[au]  
+EfreeHarris       = -2.9483603947198624e+01[au]  
+Ekin              = +1.0217435519678810e+00[au]  
+Ehart             = -1.8325037818599696e+01[au]  
+EVxc              = -1.0205091453689786e+01[au]  
+Exc               = -7.9671969702406145e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0501128091487242e+01[au]  
+Fermi             = +2.1312808056218266e-01[au]  
+Total charge      = +3.1999999999999893e+01[au]  
+HOMO              = +5.7790234776495950e+00[eV]  
+LUMO              = +5.8378505210430420e+00[eV]  
+norm(out-in)/norm(in) = +6.6545411827617683e-05
+Efree diff per atom   = +1.3767045081714002e-05
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7009963809978217 [s]
+
+*********************************************************************
+SCF iteration # 21
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 3.596584179864568e-07. The max res norm is 0.00146221842594423
+
+band#    = 0      eigval   = -2.3648884455272751e-01  resval   = +3.5965841798645680e-07  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7350817305011874e-02  resval   = +5.9944961893771664e-07  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5129385013945055e-02  resval   = +8.4900721884423898e-07  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0540940190063262e-02  resval   = +6.0650732205417487e-07  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0325437255990575e-02  resval   = +6.2057345589036799e-07  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7381646995269754e-02  resval   = +6.8656495595822175e-07  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4061495579991463e-02  resval   = +6.5166178243978025e-07  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6175716801719449e-02  resval   = +8.9554843748489237e-07  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9081132359118251e-02  resval   = +8.5837013327000995e-07  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9454794315850317e-02  resval   = +1.2452720477682274e-06  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9935732121578802e-02  resval   = +1.5597057352771513e-06  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0011280938055679e-01  resval   = +9.9061807968850113e-07  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391712580438597e-01  resval   = +1.1051306244595011e-06  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0895294462850414e-01  resval   = +1.1750921491482083e-06  occrate  = +9.8783149945854243e-01
+band#    = 14     eigval   = +2.1090109178712679e-01  resval   = +1.2417191865819678e-06  occrate  = +9.1262184997070250e-01
+band#    = 15     eigval   = +2.1237721346206406e-01  resval   = +1.3276748091976043e-06  occrate  = +6.8833289003386711e-01
+band#    = 16     eigval   = +2.1453888453333825e-01  resval   = +1.1410887116375532e-06  occrate  = +1.8497476671660754e-01
+band#    = 17     eigval   = +2.1529796839306392e-01  resval   = +1.1140837298028744e-06  occrate  = +9.2624906998112530e-02
+band#    = 18     eigval   = +2.1537804515328399e-01  resval   = +1.3055349310221779e-06  occrate  = +8.5780011759842401e-02
+band#    = 19     eigval   = +2.1612926428942830e-01  resval   = +1.0372707350256698e-06  occrate  = +4.0816142189231942e-02
+band#    = 20     eigval   = +2.1824791386897727e-01  resval   = +1.9119150599340101e-06  occrate  = +4.5545751913472028e-03
+band#    = 21     eigval   = +2.1883381157852630e-01  resval   = +2.0256951079621359e-06  occrate  = +2.4633576725073712e-03
+band#    = 22     eigval   = +2.9074037655770835e-01  resval   = +7.7918075453168602e-04  occrate  = +3.3258558359077583e-36
+band#    = 23     eigval   = +2.9387120385580129e-01  resval   = +1.4622184259442297e-03  occrate  = +1.2322711604139561e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9479033836159410e+01[au]  
+Efree             = -2.9483365230242267e+01[au]  
+EfreeHarris       = -2.9483611023380064e+01[au]  
+Ekin              = +1.0218484621900363e+00[au]  
+Ehart             = -1.8325309423334751e+01[au]  
+EVxc              = -1.0204972238602695e+01[au]  
+Exc               = -7.9671035667507812e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0500882298349445e+01[au]  
+Fermi             = +2.1312996881423094e-01[au]  
+Total charge      = +3.2000000000000121e+01[au]  
+HOMO              = +5.7790781207434083e+00[eV]  
+LUMO              = +5.8379001845072125e+00[eV]  
+norm(out-in)/norm(in) = +3.0142654074736064e-05
+Efree diff per atom   = +3.0724142224602957e-05
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.7011996789951809 [s]
+
+*********************************************************************
+SCF iteration # 22
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 1.488580712900146e-07. The max res norm is 0.001239022902226166
+
+band#    = 0      eigval   = -2.3648831208132423e-01  resval   = +1.4885807129001462e-07  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7350285257704344e-02  resval   = +4.6597026715020387e-07  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5128332530550646e-02  resval   = +4.3102523444045346e-07  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0540257053531433e-02  resval   = +3.7094413352975412e-07  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0325446328597769e-02  resval   = +3.4929242816779161e-07  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7381481403735047e-02  resval   = +4.3855632724515166e-07  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4060465537818213e-02  resval   = +3.8503441430339569e-07  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6175568828421959e-02  resval   = +5.3729389209476679e-07  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9083187983460747e-02  resval   = +7.1307140708630052e-07  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9455493723360308e-02  resval   = +6.8596554752481085e-07  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9935058496822438e-02  resval   = +8.0170482379324880e-07  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0011326605094421e-01  resval   = +4.7712142887093555e-07  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391788160317915e-01  resval   = +5.9690376440451959e-07  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0895076856241407e-01  resval   = +6.0691388167056689e-07  occrate  = +9.8787434001797991e-01
+band#    = 14     eigval   = +2.1090203468164462e-01  resval   = +6.0520071176177186e-07  occrate  = +9.1264475173643811e-01
+band#    = 15     eigval   = +2.1237976686295221e-01  resval   = +5.4889944232635072e-07  occrate  = +6.8803075877354336e-01
+band#    = 16     eigval   = +2.1453858666208006e-01  resval   = +5.5060531967027548e-07  occrate  = +1.8521508210905041e-01
+band#    = 17     eigval   = +2.1530129040466348e-01  resval   = +6.6174431191093562e-07  occrate  = +9.2438747230727369e-02
+band#    = 18     eigval   = +2.1537844284687283e-01  resval   = +5.8929466930380864e-07  occrate  = +8.5847564611494939e-02
+band#    = 19     eigval   = +2.1612806713711896e-01  resval   = +7.2531862377745858e-07  occrate  = +4.0915692000376876e-02
+band#    = 20     eigval   = +2.1824614579220750e-01  resval   = +7.8818451534341678e-07  occrate  = +4.5688369935689170e-03
+band#    = 21     eigval   = +2.1883469152405807e-01  resval   = +9.5432486475133040e-07  occrate  = +2.4642264450910121e-03
+band#    = 22     eigval   = +2.9073877290821865e-01  resval   = +8.6714358632664936e-04  occrate  = +3.3357405550216380e-36
+band#    = 23     eigval   = +2.9386878308235781e-01  resval   = +1.2390229022261655e-03  occrate  = +1.2369970439791493e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9478899395634127e+01[au]  
+Efree             = -2.9483231709674634e+01[au]  
+EfreeHarris       = -2.9483349565731729e+01[au]  
+Ekin              = +1.0218650466582289e+00[au]  
+Ehart             = -1.8325438319974893e+01[au]  
+EVxc              = -1.0204921715712526e+01[au]  
+Exc               = -7.9670640844436624e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0500764442292354e+01[au]  
+Fermi             = +2.1313118458811370e-01[au]  
+Total charge      = +3.1999999999999783e+01[au]  
+HOMO              = +5.7791476023180346e+00[eV]  
+LUMO              = +5.8378920790177258e+00[eV]  
+norm(out-in)/norm(in) = +1.0433534571265482e-05
+Efree diff per atom   = +1.4732007136863956e-05
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.6981597009871621 [s]
+
+*********************************************************************
+SCF iteration # 23
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 7.31777202684324e-08. The max res norm is 0.001284890634795899
+
+band#    = 0      eigval   = -2.3648874105991113e-01  resval   = +7.3177720268432403e-08  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7350808417150608e-02  resval   = +2.0934464358280576e-07  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5128598008335610e-02  resval   = +2.0958267076034976e-07  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0540398448356060e-02  resval   = +1.9254793328720386e-07  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0325807998683121e-02  resval   = +2.2868797406086001e-07  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7381926278123611e-02  resval   = +1.7877438954190060e-07  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4061436157585606e-02  resval   = +2.0342110761289387e-07  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6175568700328964e-02  resval   = +3.0151255709778309e-07  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9082462209315256e-02  resval   = +2.9077246498021034e-07  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9455311567889920e-02  resval   = +3.1237927448452991e-07  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9935053039366159e-02  resval   = +2.5233180358569979e-07  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0011254468646874e-01  resval   = +2.9817756606941080e-07  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391729754908344e-01  resval   = +2.8850428341527717e-07  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0895112476194708e-01  resval   = +2.6557811397402686e-07  occrate  = +9.8786105690148107e-01
+band#    = 14     eigval   = +2.1090155077003842e-01  resval   = +2.4948056784170265e-07  occrate  = +9.1262689058431123e-01
+band#    = 15     eigval   = +2.1237866048231449e-01  resval   = +2.1037415211213723e-07  occrate  = +6.8812330253382203e-01
+band#    = 16     eigval   = +2.1453838043890455e-01  resval   = +2.6035374498095664e-07  occrate  = +1.8513717884938016e-01
+band#    = 17     eigval   = +2.1530014815750109e-01  resval   = +2.4043176980128105e-07  occrate  = +9.2478095631794002e-02
+band#    = 18     eigval   = +2.1537788409597469e-01  resval   = +2.2644016495659178e-07  occrate  = +8.5836167089522922e-02
+band#    = 19     eigval   = +2.1612755520270102e-01  resval   = +2.3475242662387510e-07  occrate  = +4.0908059428303070e-02
+band#    = 20     eigval   = +2.1824611347122516e-01  resval   = +2.2219554099613675e-07  occrate  = +4.5656574684213320e-03
+band#    = 21     eigval   = +2.1883424021404241e-01  resval   = +2.4385765448604114e-07  occrate  = +2.4635915078168539e-03
+band#    = 22     eigval   = +2.9073774939484992e-01  resval   = +5.9581162174981268e-04  occrate  = +3.3368881119356813e-36
+band#    = 23     eigval   = +2.9386596285240857e-01  resval   = +1.2848906347958987e-03  occrate  = +1.2397650119468906e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9478945598892594e+01[au]  
+Efree             = -2.9483277779214031e+01[au]  
+EfreeHarris       = -2.9483244549888195e+01[au]  
+Ekin              = +1.0218520727255986e+00[au]  
+Ehart             = -1.8325402020140725e+01[au]  
+EVxc              = -1.0204935762676394e+01[au]  
+Exc               = -7.9670750608992007e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0500797671618191e+01[au]  
+Fermi             = +2.1313048785156463e-01[au]  
+Total charge      = +3.1999999999999954e+01[au]  
+HOMO              = +5.7791174961685456e+00[eV]  
+LUMO              = +5.8378864673995006e+00[eV]  
+norm(out-in)/norm(in) = +5.7835943280200448e-06
+Efree diff per atom   = +4.1536657295893065e-06
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.6977908479748294 [s]
+
+*********************************************************************
+SCF iteration # 24
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 2.836394766333001e-08. The max res norm is 0.001095981140882028
+
+band#    = 0      eigval   = -2.3648887024630472e-01  resval   = +2.8363947663330008e-08  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7350852427403508e-02  resval   = +9.2161003104102716e-08  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5128657870554944e-02  resval   = +1.0925904989860872e-07  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0540788263517252e-02  resval   = +1.0357766823790011e-07  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0325924334690629e-02  resval   = +1.1038500681424207e-07  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7382160646892184e-02  resval   = +9.5166891089929233e-08  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4061498084393051e-02  resval   = +9.8695449457170362e-08  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6175465486087366e-02  resval   = +1.8748742585505517e-07  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9082158730947487e-02  resval   = +1.4347772026792277e-07  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9455174822933118e-02  resval   = +1.7863584234905126e-07  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9935084108242256e-02  resval   = +1.4918962508131304e-07  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0011242179738856e-01  resval   = +1.5388771774134257e-07  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391718235758424e-01  resval   = +1.4512643767692829e-07  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0895124886894598e-01  resval   = +1.3428911718821696e-07  occrate  = +9.8785790702535192e-01
+band#    = 14     eigval   = +2.1090139206831249e-01  resval   = +1.3964479272105857e-07  occrate  = +9.1262968454503313e-01
+band#    = 15     eigval   = +2.1237838459762706e-01  resval   = +1.2164014650748750e-07  occrate  = +6.8815729225400835e-01
+band#    = 16     eigval   = +2.1453832243432436e-01  resval   = +1.8572063654861758e-07  occrate  = +1.8512647506181135e-01
+band#    = 17     eigval   = +2.1529998080190321e-01  resval   = +1.2745627983130805e-07  occrate  = +9.2481800877444620e-02
+band#    = 18     eigval   = +2.1537808173156053e-01  resval   = +1.1735028308689149e-07  occrate  = +8.5809488870657369e-02
+band#    = 19     eigval   = +2.1612746328558474e-01  resval   = +2.2125489629503192e-07  occrate  = +4.0906676157322928e-02
+band#    = 20     eigval   = +2.1824587401797380e-01  resval   = +1.5586563306276879e-07  occrate  = +4.5662030461714040e-03
+band#    = 21     eigval   = +2.1883377444791108e-01  resval   = +1.2929952065714693e-07  occrate  = +2.4644720717192513e-03
+band#    = 22     eigval   = +2.9073705606680167e-01  resval   = +6.6270260997750203e-04  occrate  = +3.3388834248078220e-36
+band#    = 23     eigval   = +2.9386371859529059e-01  resval   = +1.0959811408820276e-03  occrate  = +1.2425330932300838e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9478969334120528e+01[au]  
+Efree             = -2.9483301350515809e+01[au]  
+EfreeHarris       = -2.9483281805799272e+01[au]  
+Ekin              = +1.0218478822141979e+00[au]  
+Ehart             = -1.8325380428493339e+01[au]  
+EVxc              = -1.0204945214018222e+01[au]  
+Exc               = -7.9670824653101802e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0500817216334728e+01[au]  
+Fermi             = +2.1313036243874200e-01[au]  
+Total charge      = +3.2000000000000256e+01[au]  
+HOMO              = +5.7791099889641000e+00[eV]  
+LUMO              = +5.8378848890145374e+00[eV]  
+norm(out-in)/norm(in) = +4.8742331782605081e-06
+Efree diff per atom   = +2.4430895670946029e-06
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.6977623300044797 [s]
+
+*********************************************************************
+SCF iteration # 25
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 2.366190996399712e-08. The max res norm is 0.001134843639252764
+
+band#    = 0      eigval   = -2.3648891984955681e-01  resval   = +2.3661909963997124e-08  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7350894107572380e-02  resval   = +6.2687922395799114e-08  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5128800050063985e-02  resval   = +5.5705307270075254e-08  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0540643477862370e-02  resval   = +5.8330377132273351e-08  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0325997800179336e-02  resval   = +6.6838187789317217e-08  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7382122280148180e-02  resval   = +5.1144243485056580e-08  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4061658266426675e-02  resval   = +5.9584477848517322e-08  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6175470717155528e-02  resval   = +1.0285776631484620e-07  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9082202989188337e-02  resval   = +7.6841949016440653e-08  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9455126758730431e-02  resval   = +9.9207700379740654e-08  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9934901583259642e-02  resval   = +1.0805408344060939e-07  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0011239782233498e-01  resval   = +1.0463271355456829e-07  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391717959308990e-01  resval   = +7.7351192560548058e-08  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0895111150092743e-01  resval   = +8.8335695820218223e-08  occrate  = +9.8785867547253503e-01
+band#    = 14     eigval   = +2.1090140517857719e-01  resval   = +9.9501104909854925e-08  occrate  = +9.1262216324312806e-01
+band#    = 15     eigval   = +2.1237838525784336e-01  resval   = +8.5869829934845027e-08  occrate  = +6.8813986279674000e-01
+band#    = 16     eigval   = +2.1453823658664217e-01  resval   = +2.0391527695122899e-07  occrate  = +1.8512795923080133e-01
+band#    = 17     eigval   = +2.1529998725028107e-01  resval   = +7.5399613098027374e-08  occrate  = +9.2474473235542906e-02
+band#    = 18     eigval   = +2.1537769365646228e-01  resval   = +9.3104652734111114e-08  occrate  = +8.5835219398310153e-02
+band#    = 19     eigval   = +2.1612725842222263e-01  resval   = +1.3048525113881849e-07  occrate  = +4.0911977384865301e-02
+band#    = 20     eigval   = +2.1824582859834996e-01  resval   = +1.7553811919226587e-07  occrate  = +4.5660543451668161e-03
+band#    = 21     eigval   = +2.1883402926327453e-01  resval   = +1.2574494910001553e-07  occrate  = +2.4636148847366965e-03
+band#    = 22     eigval   = +2.9073643086811057e-01  resval   = +4.5395638302873871e-04  occrate  = +3.3408123527740199e-36
+band#    = 23     eigval   = +2.9386177308753225e-01  resval   = +1.1348436392527642e-03  occrate  = +1.2449799141245166e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9478961862071689e+01[au]  
+Efree             = -2.9483294040340592e+01[au]  
+EfreeHarris       = -2.9483302693797381e+01[au]  
+Ekin              = +1.0218467008062506e+00[au]  
+Ehart             = -1.8325390058302357e+01[au]  
+EVxc              = -1.0204940703380425e+01[au]  
+Exc               = -7.9670789310246102e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0500808562877939e+01[au]  
+Fermi             = +2.1313028593795200e-01[au]  
+Total charge      = +3.1999999999999773e+01[au]  
+HOMO              = +5.7791100069294998e+00[eV]  
+LUMO              = +5.8378825529802061e+00[eV]  
+norm(out-in)/norm(in) = +2.3985837365653802e-06
+Efree diff per atom   = +1.0816820985581899e-06
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.6961466330103576 [s]
+
+*********************************************************************
+SCF iteration # 26
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 1.899983730877262e-08. The max res norm is 0.0009671097341468135
+
+band#    = 0      eigval   = -2.3648903688926073e-01  resval   = +1.8999837308772618e-08  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7351020049132255e-02  resval   = +3.5639639079929822e-08  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5128909974009764e-02  resval   = +3.8377203608647438e-08  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0540888971787933e-02  resval   = +3.6723605405685909e-08  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0326120697403927e-02  resval   = +4.4397751476752119e-08  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7382227154518604e-02  resval   = +3.5703523333677000e-08  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4061692190424216e-02  resval   = +4.1286392799899351e-08  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6175331128934241e-02  resval   = +5.7702372680436074e-08  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9082067688909786e-02  resval   = +4.5834030463760632e-08  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9454996590322198e-02  resval   = +5.9973462322765318e-08  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9934854971390777e-02  resval   = +5.8104941444236833e-08  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0011231022263230e-01  resval   = +5.8010251421889137e-08  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391708790830062e-01  resval   = +5.5732584895081665e-08  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0895103410832838e-01  resval   = +5.0506165301612841e-08  occrate  = +9.8785826529717746e-01
+band#    = 14     eigval   = +2.1090129588465806e-01  resval   = +5.0958611271864262e-08  occrate  = +9.1262211385875136e-01
+band#    = 15     eigval   = +2.1237826348073427e-01  resval   = +5.3601803784456435e-08  occrate  = +6.8814254968701560e-01
+band#    = 16     eigval   = +2.1453811122092339e-01  resval   = +6.8631380572089391e-08  occrate  = +1.8513041782705897e-01
+band#    = 17     eigval   = +2.1529987450016844e-01  resval   = +6.2528201951925911e-08  occrate  = +9.2474726568463797e-02
+band#    = 18     eigval   = +2.1537765736209166e-01  resval   = +6.2341161186014898e-08  occrate  = +8.5829141708181039e-02
+band#    = 19     eigval   = +2.1612713593594293e-01  resval   = +8.6479231929538265e-08  occrate  = +4.0912497951256899e-02
+band#    = 20     eigval   = +2.1824566112301227e-01  resval   = +5.5959878571155177e-08  occrate  = +4.5663298903129181e-03
+band#    = 21     eigval   = +2.1883378706904538e-01  resval   = +4.9707198498625843e-08  occrate  = +2.4639571688736769e-03
+band#    = 22     eigval   = +2.9073596390149420e-01  resval   = +5.0528536244211024e-04  occrate  = +3.3420682686263634e-36
+band#    = 23     eigval   = +2.9385995887424649e-01  resval   = +9.6710973414681350e-04  occrate  = +1.2472153485516293e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9478969818052363e+01[au]  
+Efree             = -2.9483301986462202e+01[au]  
+EfreeHarris       = -2.9483297628676702e+01[au]  
+Ekin              = +1.0218431026110744e+00[au]  
+Ehart             = -1.8325385254396345e+01[au]  
+EVxc              = -1.0204942771738772e+01[au]  
+Exc               = -7.9670805532624440e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0500812920663439e+01[au]  
+Fermi             = +2.1313017605567558e-01[au]  
+Total charge      = +3.1999999999999886e+01[au]  
+HOMO              = +5.7791066932057005e+00[eV]  
+LUMO              = +5.8378791416053666e+00[eV]  
+norm(out-in)/norm(in) = +1.1728849184115013e-06
+Efree diff per atom   = +5.4472318744558379e-07
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.696880179020809 [s]
+
+*********************************************************************
+SCF iteration # 27
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 7.359651678127063e-09. The max res norm is 0.001001809332461214
+
+band#    = 0      eigval   = -2.3648908402532937e-01  resval   = +7.3596516781270633e-09  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7351092473644948e-02  resval   = +1.8216605216733986e-08  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5128955510922463e-02  resval   = +1.9195520750152093e-08  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0540932829666609e-02  resval   = +1.8330195942691249e-08  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0326168133282166e-02  resval   = +1.7552702344844781e-08  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7382279209578977e-02  resval   = +2.2478174753040567e-08  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4061748500767605e-02  resval   = +1.9909564610922587e-08  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6175299242900247e-02  resval   = +2.5199107491489015e-08  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9081994079628741e-02  resval   = +3.2666474669757390e-08  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9454954757049088e-02  resval   = +2.8318385492962660e-08  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9934846951790890e-02  resval   = +2.8774603099286959e-08  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0011225693942699e-01  resval   = +3.1654900102276465e-08  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391702402638246e-01  resval   = +2.6451761241910940e-08  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0895107415622929e-01  resval   = +2.7223118501139231e-08  occrate  = +9.8785688176661646e-01
+band#    = 14     eigval   = +2.1090124668624718e-01  resval   = +3.7658047704136481e-08  occrate  = +9.1262040707999437e-01
+band#    = 15     eigval   = +2.1237810666220550e-01  resval   = +2.4930281214286418e-08  occrate  = +6.8816226609392428e-01
+band#    = 16     eigval   = +2.1453811825374719e-01  resval   = +4.3914855456042774e-08  occrate  = +1.8511826036127194e-01
+band#    = 17     eigval   = +2.1529982795943103e-01  resval   = +2.5123580731072240e-08  occrate  = +9.2472695587264925e-02
+band#    = 18     eigval   = +2.1537761048837686e-01  resval   = +2.2311974035869407e-08  occrate  = +8.5827270377181741e-02
+band#    = 19     eigval   = +2.1612707073586082e-01  resval   = +3.1692464805708829e-08  occrate  = +4.0912319014225970e-02
+band#    = 20     eigval   = +2.1824564250265818e-01  resval   = +7.7288488631342698e-08  occrate  = +4.5660863081050541e-03
+band#    = 21     eigval   = +2.1883377313846297e-01  resval   = +4.8652942669734056e-08  occrate  = +2.4638133238138698e-03
+band#    = 22     eigval   = +2.9073566696076031e-01  resval   = +3.4531452981607225e-04  occrate  = +3.3428683414266411e-36
+band#    = 23     eigval   = +2.9385841655498862e-01  resval   = +1.0018093324612141e-03  occrate  = +1.2491503176004791e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9478978207461235e+01[au]  
+Efree             = -2.9483310308707264e+01[au]  
+EfreeHarris       = -2.9483303507131570e+01[au]  
+Ekin              = +1.0218415147779001e+00[au]  
+Ehart             = -1.8325377792178351e+01[au]  
+EVxc              = -1.0204945799342275e+01[au]  
+Exc               = -7.9670829202236533e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0500819722239136e+01[au]  
+Fermi             = +2.1313010652317027e-01[au]  
+Total charge      = +3.1999999999999957e+01[au]  
+HOMO              = +5.7791024259563386e+00[eV]  
+LUMO              = +5.8378793329782424e+00[eV]  
+norm(out-in)/norm(in) = +1.1210354744718788e-06
+Efree diff per atom   = +8.5019696172139447e-07
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.6961596719920635 [s]
+
+*********************************************************************
+SCF iteration # 28
+*********************************************************************
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 2.969221587450315e-09. The max res norm is 0.0008545082023796175
+
+band#    = 0      eigval   = -2.3648905574913950e-01  resval   = +2.9692215874503155e-09  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -8.7351058714127114e-02  resval   = +1.0990688704875296e-08  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -8.5128933807075785e-02  resval   = +1.3100125456789928e-08  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -8.0540896608279497e-02  resval   = +1.2579170700630932e-08  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -8.0326137049395563e-02  resval   = +1.0233171671801052e-08  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -7.7382233183963922e-02  resval   = +1.2637945659872419e-08  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -7.4061717263324750e-02  resval   = +1.1538003246689587e-08  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +9.6175328904032964e-02  resval   = +1.6586559232047674e-08  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.9082036186023972e-02  resval   = +2.0345717815842813e-08  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.9454987797750083e-02  resval   = +1.7290013761849870e-08  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.9934856419137283e-02  resval   = +2.1017876721935780e-08  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0011228126559407e-01  resval   = +2.1622451091698796e-08  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.0391705237262192e-01  resval   = +1.7642682573688608e-08  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +2.0895105998839492e-01  resval   = +1.6780325238944087e-08  occrate  = +9.8785747101807586e-01
+band#    = 14     eigval   = +2.1090126508461413e-01  resval   = +2.0370950288807128e-08  occrate  = +9.1262159084761252e-01
+band#    = 15     eigval   = +2.1237818093609684e-01  resval   = +1.9059680195387231e-08  occrate  = +6.8815283049647624e-01
+band#    = 16     eigval   = +2.1453812122872926e-01  resval   = +2.1488238880673039e-08  occrate  = +1.8512294865775386e-01
+band#    = 17     eigval   = +2.1529982262919747e-01  resval   = +2.4360406322873814e-08  occrate  = +9.2476037472495123e-02
+band#    = 18     eigval   = +2.1537763878022986e-01  resval   = +2.7389226335007662e-08  occrate  = +8.5827618030978090e-02
+band#    = 19     eigval   = +2.1612711875886728e-01  resval   = +1.7482961075547857e-08  occrate  = +4.0911677950025052e-02
+band#    = 20     eigval   = +2.1824570240859703e-01  resval   = +3.2598305173575010e-08  occrate  = +4.5659552002570705e-03
+band#    = 21     eigval   = +2.1883378361273079e-01  resval   = +2.9011874932282573e-08  occrate  = +2.4638703081764400e-03
+band#    = 22     eigval   = +2.9073546778196452e-01  resval   = +3.8451982344365533e-04  occrate  = +3.3436836409647995e-36
+band#    = 23     eigval   = +2.9385710759872213e-01  resval   = +8.5450820237961754e-04  occrate  = +1.2509153568218737e-37
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -2.9478972612860062e+01[au]  
+Efree             = -2.9483304742857360e+01[au]  
+EfreeHarris       = -2.9483309400881186e+01[au]  
+Ekin              = +1.0218424513552469e+00[au]  
+Ehart             = -1.8325382924886110e+01[au]  
+EVxc              = -1.0204943611933063e+01[au]  
+Exc               = -7.9670812074983717e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0500815064215310e+01[au]  
+Fermi             = +2.1313013902458208e-01[au]  
+Total charge      = +3.1999999999999897e+01[au]  
+HOMO              = +5.7791044470517914e+00[eV]  
+LUMO              = +5.8378794139316250e+00[eV]  
+norm(out-in)/norm(in) = +4.3280216259041364e-07
+Efree diff per atom   = +5.8225297827618760e-07
+SCF is converged in 28 steps !
+  Rank of dfmat = 10                
+  Rcond = +9.9999999999999998e-13
+Total wall clock time for this SCF iteration = 0.6993889790028334 [s]
+Time for updating Phi related variable is 0.1210206899850164 [s]
+
+Time for computing the EXX energy is 0.02813163897371851 [s]
+
+Time for using nested method is 5.110050551593304e-07 [s]
+
+Time for using scdiis method is 2.199958544224501e-07 [s]
+
+
+*********************************************************************
+Phi iteration # 1
+*********************************************************************
+
+Time for updating Phi related variable is 0.04799823797657155 [s]
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 0.0006896065712172107. The max res norm is 0.002434638249926288
+
+band#    = 0      eigval   = -3.5997106340363549e-01  resval   = +1.3810324392879473e-03  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -2.0150435448471252e-01  resval   = +1.1182248874942924e-03  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -1.9709340301822947e-01  resval   = +9.5722172908404624e-04  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -1.9171131398393096e-01  resval   = +9.9539185200345584e-04  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -1.9016529707398103e-01  resval   = +8.6454635225730720e-04  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -1.8883222262236743e-01  resval   = +8.2826798373606509e-04  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -1.8469913220501741e-01  resval   = +8.7538250292355660e-04  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = -1.6908332720531124e-05  resval   = +1.9061898941652321e-03  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +3.9847541502951132e-03  resval   = +1.8989563862500812e-03  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +4.9146342436156175e-03  resval   = +1.5188111228857523e-03  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +5.0724322748272018e-03  resval   = +2.4346382499262878e-03  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +5.7814796325627912e-03  resval   = +1.5749794836087084e-03  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +9.0884734778051857e-03  resval   = +1.6895135425410365e-03  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.1017893569588294e-01  resval   = +6.8960657121721074e-04  occrate  = +1.0000000000000000e+00
+band#    = 14     eigval   = +1.1742545541719840e-01  resval   = +7.8187035005394866e-04  occrate  = +1.0000000000000000e+00
+band#    = 15     eigval   = +1.3140444415336505e-01  resval   = +7.4133786888553395e-04  occrate  = +9.9999999974607046e-01
+band#    = 16     eigval   = +1.7337623698502441e-01  resval   = +9.4344598045763848e-04  occrate  = +2.5626745197307676e-10
+band#    = 17     eigval   = +1.7682736299222193e-01  resval   = +1.0672579158010154e-03  occrate  = +6.7776315598880728e-12
+band#    = 18     eigval   = +1.7914803011648109e-01  resval   = +9.1748805577735923e-04  occrate  = +5.8915541303264288e-13
+band#    = 19     eigval   = +1.8215784756949843e-01  resval   = +1.3504700868650940e-03  occrate  = +2.4794196938221655e-14
+band#    = 20     eigval   = +1.8451491136330328e-01  resval   = +9.7804871855010551e-04  occrate  = +2.0742635171201493e-15
+band#    = 21     eigval   = +1.8455881216395670e-01  resval   = +1.6751806407893442e-03  occrate  = +1.9805943102776220e-15
+band#    = 22     eigval   = +2.4860965988345352e-01  resval   = +9.0288906299738382e-04  occrate  = +1.0403740518404302e-44
+band#    = 23     eigval   = +2.5233377997515560e-01  resval   = +7.9964799634530054e-04  occrate  = +2.0643344131768717e-46
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.3128703225992822e+01[au]  
+Efree             = -3.3128703226018551e+01[au]  
+EfreeHarris       = -3.2849774844341269e+01[au]  
+Ekin              = -2.2522861721333403e+00[au]  
+Ehart             = -1.7913107441969895e+01[au]  
+EVxc              = -1.0373967497093947e+01[au]  
+Exc               = -8.0994315993872146e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0876417053859484e+01[au]  
+Fermi             = +1.5239469389708965e-01[au]  
+Total charge      = +3.2000000000000149e+01[au]  
+HOMO              = +3.5756969205682156e+00[eV]  
+LUMO              = +4.7178075344507384e+00[eV]  
+Total wall clock time for this Phi iteration = 1.063523119984893 [s]
+Time for updating Phi related variable is 0.04802432400174439 [s]
+
+Time for computing the EXX energy is 0.03066572401439771 [s]
+
+
+Fock energy       = -1.7569038626671853e+00[au]  
+Etot(with fock)   = -3.1371799363325636e+01[au]  
+Efree(with fock)  = -3.1371799363351364e+01[au]  
+dExx              = +4.6901111972557370e-02[au]  
+
+*********************************************************************
+Phi iteration # 2
+*********************************************************************
+
+  Rank of dfmat = 1                 
+Time for updating Phi related variable is 0.04764525100472383 [s]
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 0.0002044350223857033. The max res norm is 0.003919795758149634
+
+band#    = 0      eigval   = -3.5558330001972682e-01  resval   = +2.0443502238570328e-04  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.9700432472581669e-01  resval   = +8.6632506007623461e-04  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -1.9322270439381131e-01  resval   = +6.7918706559354420e-04  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -1.8980653465198977e-01  resval   = +6.1930271077817684e-04  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -1.8727837915998280e-01  resval   = +6.6565860599777894e-04  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -1.8376516836578313e-01  resval   = +5.8554369420184716e-04  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -1.7646796037997259e-01  resval   = +6.4893002901290117e-04  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +3.7679372551542899e-03  resval   = +1.1534545920337000e-03  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +6.3529692484406274e-03  resval   = +8.7401908422283820e-04  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +7.1190044069666877e-03  resval   = +6.1342033276422377e-04  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.1476288109011913e-03  resval   = +7.3711282339043109e-04  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0171063406361704e-02  resval   = +8.7705051117168667e-04  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.3893482239654956e-02  resval   = +9.3309796475859357e-04  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.1023546107565965e-01  resval   = +6.0294283436982028e-04  occrate  = +1.0000000000000000e+00
+band#    = 14     eigval   = +1.1890713625739309e-01  resval   = +7.7594136117286770e-04  occrate  = +9.9999999999999867e-01
+band#    = 15     eigval   = +1.2876523327686520e-01  resval   = +9.3642926307172805e-04  occrate  = +9.9999999995877920e-01
+band#    = 16     eigval   = +1.7681937374017953e-01  resval   = +7.6487277791196682e-04  occrate  = +2.6173490671765615e-12
+band#    = 17     eigval   = +1.7705407792444705e-01  resval   = +1.0028772837976754e-03  occrate  = +2.0444249352282211e-12
+band#    = 18     eigval   = +1.8398030348965558e-01  resval   = +8.1803226626804581e-04  occrate  = +1.3943799688135163e-15
+band#    = 19     eigval   = +1.8568462283205903e-01  resval   = +7.7621884226368757e-04  occrate  = +2.3189133281801962e-16
+band#    = 20     eigval   = +1.8773393076189926e-01  resval   = +1.8050876819113442e-03  occrate  = +2.6821498568538679e-17
+band#    = 21     eigval   = +1.8848970186699818e-01  resval   = +8.7050147169952523e-04  occrate  = +1.2105894873986221e-17
+band#    = 22     eigval   = +2.5135331710206915e-01  resval   = +7.3405897453542545e-04  occrate  = +2.2187646963626754e-46
+band#    = 23     eigval   = +2.5657773854792787e-01  resval   = +3.9197957581496336e-03  occrate  = +9.0754474394495046e-49
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.3011900033118117e+01[au]  
+Efree             = -3.3011900033109242e+01[au]  
+EfreeHarris       = -3.2963294492220491e+01[au]  
+Ekin              = -2.1495369114483371e+00[au]  
+Ehart             = -1.7928430124310566e+01[au]  
+EVxc              = -1.0368459906937797e+01[au]  
+Exc               = -8.0951927593820336e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0862363121669780e+01[au]  
+Fermi             = +1.5148276984146047e-01[au]  
+Total charge      = +3.2000000000000071e+01[au]  
+HOMO              = +3.5038803373115908e+00[eV]  
+LUMO              = +4.8115000543029156e+00[eV]  
+Total wall clock time for this Phi iteration = 1.062483489979059 [s]
+Time for updating Phi related variable is 0.04665155199472792 [s]
+
+Time for computing the EXX energy is 0.02799977298127487 [s]
+
+
+Fock energy       = -1.7565268619379615e+00[au]  
+Etot(with fock)   = -3.1255373171180157e+01[au]  
+Efree(with fock)  = -3.1255373171171282e+01[au]  
+dExx              = +2.1462850207022875e-04[au]  
+
+*********************************************************************
+Phi iteration # 3
+*********************************************************************
+
+  Rank of dfmat = 2                 
+Time for updating Phi related variable is 0.04669812999782152 [s]
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 8.710033134053349e-05. The max res norm is 0.001673897617297584
+
+band#    = 0      eigval   = -3.5447313227243982e-01  resval   = +8.7100331340533491e-05  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.9674795709544379e-01  resval   = +2.5639858852098034e-04  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -1.9163222591779980e-01  resval   = +1.7749444840985741e-04  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -1.8748634216363697e-01  resval   = +3.7105117891558635e-04  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -1.8504374337662732e-01  resval   = +2.0335207454162549e-04  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -1.8318383469651409e-01  resval   = +1.2429986018204096e-04  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -1.7727898985804660e-01  resval   = +2.3385432712104992e-04  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +4.7798788489990876e-03  resval   = +3.8338271443491822e-04  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +7.9391207141101001e-03  resval   = +3.9013636231678591e-04  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.0124537248285567e-03  resval   = +4.1850046060802582e-04  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +9.7103702838243957e-03  resval   = +3.1734797175866127e-04  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +9.7584276154523020e-03  resval   = +3.1574087941280165e-04  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.3973521199275692e-02  resval   = +3.1473306325014610e-04  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.1246518668071891e-01  resval   = +3.9270194177291965e-04  occrate  = +1.0000000000000000e+00
+band#    = 14     eigval   = +1.1994967476519312e-01  resval   = +3.8290128059876146e-04  occrate  = +9.9999999999999911e-01
+band#    = 15     eigval   = +1.2796352830889249e-01  resval   = +4.4111681919433723e-04  occrate  = +9.9999999999572187e-01
+band#    = 16     eigval   = +1.7840951961487961e-01  resval   = +3.3960993274747447e-04  occrate  = +2.0339632265506120e-12
+band#    = 17     eigval   = +1.7901258428000297e-01  resval   = +7.7439998310918547e-04  occrate  = +1.0781116796226139e-12
+band#    = 18     eigval   = +1.8396191823114025e-01  resval   = +5.2869201664976293e-04  occrate  = +5.8907620005827993e-15
+band#    = 19     eigval   = +1.8650495640251102e-01  resval   = +5.5484787120890918e-04  occrate  = +4.0520124394382473e-16
+band#    = 20     eigval   = +1.8809491700625941e-01  resval   = +9.1341917284178229e-04  occrate  = +7.6006552913432010e-17
+band#    = 21     eigval   = +1.8898169081946659e-01  resval   = +6.5061563492358788e-04  occrate  = +2.9886808577511143e-17
+band#    = 22     eigval   = +2.5255070265293844e-01  resval   = +5.3006924563329721e-04  occrate  = +2.6069666847353246e-46
+band#    = 23     eigval   = +2.5725598522980375e-01  resval   = +1.6738976172975841e-03  occrate  = +1.8416477707900490e-48
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.2988651525713188e+01[au]  
+Efree             = -3.2988651525713223e+01[au]  
+EfreeHarris       = -3.2970660494209667e+01[au]  
+Ekin              = -2.1205881264784083e+00[au]  
+Ehart             = -1.7922016639324447e+01[au]  
+EVxc              = -1.0371929953051914e+01[au]  
+Exc               = -8.0979495980750329e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0868063399234781e+01[au]  
+Fermi             = +1.5283333749314176e-01[au]  
+Total charge      = +3.1999999999999929e+01[au]  
+HOMO              = +3.4820648347716725e+00[eV]  
+LUMO              = +4.8547701259055405e+00[eV]  
+Total wall clock time for this Phi iteration = 1.059057286998723 [s]
+Time for updating Phi related variable is 0.04679493300500326 [s]
+
+Time for computing the EXX energy is 0.02782639701035805 [s]
+
+
+Fock energy       = -1.7580987420506877e+00[au]  
+Etot(with fock)   = -3.1230552783662500e+01[au]  
+Efree(with fock)  = -3.1230552783662535e+01[au]  
+dExx              = +8.9407953895283764e-04[au]  
+
+*********************************************************************
+Phi iteration # 4
+*********************************************************************
+
+  Rank of dfmat = 3                 
+Time for updating Phi related variable is 0.04689475201303139 [s]
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 4.262190920182515e-05. The max res norm is 0.001076859817187855
+
+band#    = 0      eigval   = -3.5404578560058991e-01  resval   = +5.5039975228689463e-05  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.9598890449272968e-01  resval   = +9.8545542259196759e-05  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -1.9136418503886671e-01  resval   = +8.2425067078685730e-05  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -1.8640239972184589e-01  resval   = +4.2621909201825146e-05  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -1.8601302573217540e-01  resval   = +2.1070223174819147e-04  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -1.8254223414130941e-01  resval   = +7.6735634927586964e-05  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -1.7671714996273130e-01  resval   = +9.5359046862383406e-05  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +4.8367027517774138e-03  resval   = +1.4424111805519334e-04  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +8.5901760989486702e-03  resval   = +1.9719808899689681e-04  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.1212656558082028e-03  resval   = +1.5447696552551432e-04  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0114624627247928e-02  resval   = +1.4538753789627756e-04  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0159628447547560e-02  resval   = +1.3448374196962899e-04  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.3844213798276678e-02  resval   = +9.9778232865716272e-05  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.1304557614965507e-01  resval   = +1.6436467771255390e-04  occrate  = +1.0000000000000000e+00
+band#    = 14     eigval   = +1.2021582418822588e-01  resval   = +1.5556619199999635e-04  occrate  = +9.9999999999999911e-01
+band#    = 15     eigval   = +1.2784688671507774e-01  resval   = +2.0145597451014417e-04  occrate  = +9.9999999999759015e-01
+band#    = 16     eigval   = +1.7896446384284603e-01  resval   = +2.3725255641668033e-04  occrate  = +1.7806791656357328e-12
+band#    = 17     eigval   = +1.7977213490385391e-01  resval   = +2.2662849872019799e-04  occrate  = +7.6098216022759288e-13
+band#    = 18     eigval   = +1.8506359577649745e-01  resval   = +2.0710905606086680e-04  occrate  = +2.9005843367479468e-15
+band#    = 19     eigval   = +1.8629613941131556e-01  resval   = +2.4017729662850293e-04  occrate  = +7.9259625777444450e-16
+band#    = 20     eigval   = +1.8814060846254863e-01  resval   = +3.5138197781638890e-04  occrate  = +1.1373356979419314e-16
+band#    = 21     eigval   = +1.8964684194641410e-01  resval   = +2.6189904621241297e-04  occrate  = +2.3299315947402455e-17
+band#    = 22     eigval   = +2.5308642065512016e-01  resval   = +2.5479246394580245e-04  occrate  = +2.3289864351413430e-46
+band#    = 23     eigval   = +2.5758091700301161e-01  resval   = +1.0768598171878548e-03  occrate  = +2.0539737859253271e-48
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.2985369978029581e+01[au]  
+Efree             = -3.2985369978029887e+01[au]  
+EfreeHarris       = -3.2974492967335557e+01[au]  
+Ekin              = -2.1105975725150703e+00[au]  
+Ehart             = -1.7914678441977060e+01[au]  
+EVxc              = -1.0374966612589601e+01[au]  
+Exc               = -8.1003570665450635e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0874772405514513e+01[au]  
+Fermi             = +1.5326193399394972e-01[au]  
+Total charge      = +3.1999999999999957e+01[au]  
+HOMO              = +3.4788908554553655e+00[eV]  
+LUMO              = +4.8698709269462626e+00[eV]  
+Total wall clock time for this Phi iteration = 1.058397159009473 [s]
+Time for updating Phi related variable is 0.04671467101434246 [s]
+
+Time for computing the EXX energy is 0.02776557201286778 [s]
+
+
+Fock energy       = -1.7592760168623394e+00[au]  
+Etot(with fock)   = -3.1226093961167241e+01[au]  
+Efree(with fock)  = -3.1226093961167546e+01[au]  
+dExx              = +6.6918141347217645e-04[au]  
+
+*********************************************************************
+Phi iteration # 5
+*********************************************************************
+
+  Rank of dfmat = 4                 
+Time for updating Phi related variable is 0.04663945097126998 [s]
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 4.329951385581075e-05. The max res norm is 0.0006904583798138568
+
+band#    = 0      eigval   = -3.5372800974113383e-01  resval   = +4.3299513855810746e-05  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.9563802332260968e-01  resval   = +7.9078884330646218e-05  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -1.9126338126159195e-01  resval   = +7.1851287058650085e-05  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -1.8633960215814638e-01  resval   = +7.2519205638446987e-05  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -1.8598555215294513e-01  resval   = +7.4041254918766480e-05  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -1.8196945353095437e-01  resval   = +5.9323465125645858e-05  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -1.7605601938579923e-01  resval   = +7.1971125463256977e-05  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +5.1435071494662166e-03  resval   = +9.2746114083210417e-05  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +8.5782583351618914e-03  resval   = +7.7069950842654901e-05  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.4872787883523938e-03  resval   = +6.8263140911315988e-05  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0125577910596912e-02  resval   = +9.3631490362366853e-05  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0201245850519571e-02  resval   = +1.4719509036874973e-04  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.4361498284283911e-02  resval   = +1.0167021385854568e-04  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.1312349339175809e-01  resval   = +9.8481010935625596e-05  occrate  = +1.0000000000000000e+00
+band#    = 14     eigval   = +1.2047946436536867e-01  resval   = +1.1968163387228706e-04  occrate  = +9.9999999999999933e-01
+band#    = 15     eigval   = +1.2827279758553317e-01  resval   = +1.1171761584291941e-04  occrate  = +9.9999999999758526e-01
+band#    = 16     eigval   = +1.7951325159730566e-01  resval   = +1.0043209601316898e-04  occrate  = +1.5615564340159371e-12
+band#    = 17     eigval   = +1.8018355957888782e-01  resval   = +2.2046374517360870e-04  occrate  = +7.7115087720421651e-13
+band#    = 18     eigval   = +1.8538357467153990e-01  resval   = +1.2151706866819939e-04  occrate  = +3.2363318555799488e-15
+band#    = 19     eigval   = +1.8617199703836584e-01  resval   = +2.6725757830452045e-04  occrate  = +1.4113704312512760e-15
+band#    = 20     eigval   = +1.8878691156426852e-01  resval   = +1.9201998775292715e-04  occrate  = +9.0008478977557095e-17
+band#    = 21     eigval   = +1.9011941963837581e-01  resval   = +3.4522163295263843e-04  occrate  = +2.2138751890365874e-17
+band#    = 22     eigval   = +2.5321828829402859e-01  resval   = +1.5384396352201253e-04  occrate  = +3.1675678879253158e-46
+band#    = 23     eigval   = +2.5781583474672282e-01  resval   = +6.9045837981385682e-04  occrate  = +2.5063776378413654e-48
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.2982896828230508e+01[au]  
+Efree             = -3.2982896828230743e+01[au]  
+EfreeHarris       = -3.2977061452067453e+01[au]  
+Ekin              = -2.1024138397840586e+00[au]  
+Ehart             = -1.7908459507037723e+01[au]  
+EVxc              = -1.0377433570776503e+01[au]  
+Exc               = -8.1023156727245684e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0880482988446452e+01[au]  
+Fermi             = +1.5368596968333326e-01[au]  
+Total charge      = +3.1999999999999986e+01[au]  
+HOMO              = +3.4904804801270135e+00[eV]  
+LUMO              = +4.8848042018161495e+00[eV]  
+Total wall clock time for this Phi iteration = 1.061987084976863 [s]
+Time for updating Phi related variable is 0.04693040499114431 [s]
+
+Time for computing the EXX energy is 0.02776646101847291 [s]
+
+
+Fock energy       = -1.7602056631968184e+00[au]  
+Etot(with fock)   = -3.1222691165033691e+01[au]  
+Efree(with fock)  = -3.1222691165033925e+01[au]  
+dExx              = +5.2814642852052761e-04[au]  
+
+*********************************************************************
+Phi iteration # 6
+*********************************************************************
+
+  Rank of dfmat = 5                 
+Time for updating Phi related variable is 0.04669375700177625 [s]
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 1.690715855783081e-05. The max res norm is 0.0004957254613599442
+
+band#    = 0      eigval   = -3.5354299363146385e-01  resval   = +3.2130724833197897e-05  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.9575739911277798e-01  resval   = +6.4948060746982059e-05  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -1.9089682705706409e-01  resval   = +3.8142234924692582e-05  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -1.8585390553420589e-01  resval   = +4.9125037679445442e-05  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -1.8579884273321762e-01  resval   = +3.3610104232639133e-05  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -1.8197509228607642e-01  resval   = +3.6781630262871684e-05  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -1.7597359496031068e-01  resval   = +4.8718011269140979e-05  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +5.1328313881764372e-03  resval   = +5.4640107499084909e-05  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +8.9667829837569053e-03  resval   = +4.1946210331173615e-05  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.6420319072063523e-03  resval   = +4.2550130682539698e-05  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0284788517680991e-02  resval   = +8.5176147518637035e-05  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0335283821313799e-02  resval   = +1.6907158557830808e-05  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.4319630903953266e-02  resval   = +4.2506874354171289e-05  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.1314647379468105e-01  resval   = +5.1982920928405825e-05  occrate  = +1.0000000000000000e+00
+band#    = 14     eigval   = +1.2069050026428103e-01  resval   = +4.6831735499397029e-05  occrate  = +9.9999999999999933e-01
+band#    = 15     eigval   = +1.2856430856075160e-01  resval   = +4.8867239633132780e-05  occrate  = +9.9999999999763212e-01
+band#    = 16     eigval   = +1.7990040737840365e-01  resval   = +5.4189095425720073e-05  occrate  = +1.4399076789732972e-12
+band#    = 17     eigval   = +1.8024344426691352e-01  resval   = +8.5121197496728905e-05  occrate  = +1.0035106133042362e-12
+band#    = 18     eigval   = +1.8545201027231442e-01  resval   = +5.2009904159736410e-05  occrate  = +4.1737533129738611e-15
+band#    = 19     eigval   = +1.8631950107806375e-01  resval   = +7.9312703336058735e-05  occrate  = +1.6748277033724814e-15
+band#    = 20     eigval   = +1.8909216472299470e-01  resval   = +7.3900807519492918e-05  occrate  = +9.0469165835063462e-17
+band#    = 21     eigval   = +1.9018101062725615e-01  resval   = +6.6571859055380322e-05  occrate  = +2.8757805613188822e-17
+band#    = 22     eigval   = +2.5333223947371503e-01  resval   = +1.1043532993634973e-04  occrate  = +3.8939744161783430e-46
+band#    = 23     eigval   = +2.5788718524757565e-01  resval   = +4.9572546135994420e-04  occrate  = +3.2224615611562137e-48
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.2980552690638206e+01[au]  
+Efree             = -3.2980552690638490e+01[au]  
+EfreeHarris       = -3.2978103977609351e+01[au]  
+Ekin              = -2.0974320463463578e+00[au]  
+Ehart             = -1.7905545165959964e+01[au]  
+EVxc              = -1.0378781175474312e+01[au]  
+Exc               = -8.1033865921900183e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0883120644291850e+01[au]  
+Fermi             = +1.5399607301597501e-01[au]  
+Total charge      = +3.1999999999999968e+01[au]  
+HOMO              = +3.4984128975054078e+00[eV]  
+LUMO              = +4.8953392468305825e+00[eV]  
+Total wall clock time for this Phi iteration = 1.061783499986632 [s]
+Time for updating Phi related variable is 0.04682689800392836 [s]
+
+Time for computing the EXX energy is 0.02791959201567806 [s]
+
+
+Fock energy       = -1.7607028462827967e+00[au]  
+Etot(with fock)   = -3.1219849844355409e+01[au]  
+Efree(with fock)  = -3.1219849844355693e+01[au]  
+dExx              = +2.8237762381540005e-04[au]  
+
+*********************************************************************
+Phi iteration # 7
+*********************************************************************
+
+  Rank of dfmat = 6                 
+Time for updating Phi related variable is 0.04684929599170573 [s]
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 2.305886170353021e-05. The max res norm is 0.0003637636659570075
+
+band#    = 0      eigval   = -3.5340394750146042e-01  resval   = +2.9643407564141443e-05  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.9562010799703458e-01  resval   = +4.8886754850923134e-05  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -1.9087762453213397e-01  resval   = +3.8288156567919332e-05  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -1.8577493475442197e-01  resval   = +5.1403010480673379e-05  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -1.8575846585859859e-01  resval   = +2.7288596993980421e-05  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -1.8166138422710554e-01  resval   = +3.8476915388734297e-05  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -1.7572420579198153e-01  resval   = +5.0569634338280033e-05  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +5.1519634385109028e-03  resval   = +3.6533968124280955e-05  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.1078999261504402e-03  resval   = +3.3502444130576980e-05  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.6941011515203779e-03  resval   = +4.2367781980116019e-05  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0426276982147507e-02  resval   = +5.0391347101894115e-05  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0451833003701760e-02  resval   = +9.3376550413956134e-05  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.4444138181990095e-02  resval   = +6.0013255722537285e-05  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.1330627498532508e-01  resval   = +4.5799857429976378e-05  occrate  = +1.0000000000000000e+00
+band#    = 14     eigval   = +1.2086126593719163e-01  resval   = +5.7345807213642338e-05  occrate  = +9.9999999999999933e-01
+band#    = 15     eigval   = +1.2872573629219217e-01  resval   = +5.4129712618333906e-05  occrate  = +9.9999999999777867e-01
+band#    = 16     eigval   = +1.8016255062707573e-01  resval   = +4.1654008290564989e-05  occrate  = +1.3805737782837624e-12
+band#    = 17     eigval   = +1.8053038417226680e-01  resval   = +7.8209529823652246e-05  occrate  = +9.3737125331017606e-13
+band#    = 18     eigval   = +1.8550891385780291e-01  resval   = +2.3058861703530211e-05  occrate  = +4.9667590436081272e-15
+band#    = 19     eigval   = +1.8614679178827251e-01  resval   = +1.2794628989361078e-04  occrate  = +2.5379293876158698e-15
+band#    = 20     eigval   = +1.8938004552856674e-01  resval   = +5.9078165886400901e-05  occrate  = +8.4422873923716625e-17
+band#    = 21     eigval   = +1.9032606132494811e-01  resval   = +1.4212954267819674e-04  occrate  = +3.1189420887959604e-17
+band#    = 22     eigval   = +2.5341744726354276e-01  resval   = +1.0813019068000667e-04  occrate  = +4.4978056823566316e-46
+band#    = 23     eigval   = +2.5799155380202121e-01  resval   = +3.6376366595700750e-04  occrate  = +3.6478449257391751e-48
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.2978993598777564e+01[au]  
+Efree             = -3.2978993598777841e+01[au]  
+EfreeHarris       = -3.2978872261716091e+01[au]  
+Ekin              = -2.0933023615277464e+00[au]  
+Ehart             = -1.7902745512144939e+01[au]  
+EVxc              = -1.0379890767576759e+01[au]  
+Exc               = -8.1042671234354078e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0885691237249819e+01[au]  
+Fermi             = +1.5421823857525144e-01[au]  
+Total charge      = +3.2000000000000000e+01[au]  
+HOMO              = +3.5028055696553135e+00[eV]  
+LUMO              = +4.9024725276953491e+00[eV]  
+Total wall clock time for this Phi iteration = 1.058874256006675 [s]
+Time for updating Phi related variable is 0.04448934801621363 [s]
+
+Time for computing the EXX energy is 0.02703124200343154 [s]
+
+
+Fock energy       = -1.7611028404192970e+00[au]  
+Etot(with fock)   = -3.1217890758358266e+01[au]  
+Efree(with fock)  = -3.1217890758358543e+01[au]  
+dExx              = +2.2712707476244627e-04[au]  
+
+*********************************************************************
+Phi iteration # 8
+*********************************************************************
+
+  Rank of dfmat = 7                 
+Time for updating Phi related variable is 0.04677163300220855 [s]
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 2.979529638110589e-06. The max res norm is 0.0002395836586949519
+
+band#    = 0      eigval   = -3.5339729302878081e-01  resval   = +4.6907599210943280e-06  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.9558754825309266e-01  resval   = +6.0067689612610998e-06  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -1.9084582132005948e-01  resval   = +5.0157488104029758e-06  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -1.8579065782645923e-01  resval   = +6.2745947899822199e-06  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -1.8573055209901634e-01  resval   = +2.9795296381105892e-06  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -1.8168441615210448e-01  resval   = +5.8488616431857991e-06  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -1.7574167987142314e-01  resval   = +5.8384092088983253e-06  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +5.1910143269291824e-03  resval   = +6.1634726808115901e-06  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.1141858380019546e-03  resval   = +6.8748195564439003e-06  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.7254699435952458e-03  resval   = +3.7522668322459030e-06  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0394748823710338e-02  resval   = +7.5979427170275383e-06  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0430438292273487e-02  resval   = +1.7248499481326645e-05  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.4452585213958088e-02  resval   = +4.4480948828945393e-06  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.1332644700489800e-01  resval   = +1.0497205203725205e-05  occrate  = +1.0000000000000000e+00
+band#    = 14     eigval   = +1.2086458739978782e-01  resval   = +6.5083955184099820e-06  occrate  = +9.9999999999999933e-01
+band#    = 15     eigval   = +1.2872179559103314e-01  resval   = +3.6814544863001200e-06  occrate  = +9.9999999999778377e-01
+band#    = 16     eigval   = +1.8015676598317576e-01  resval   = +7.0304101039042589e-06  occrate  = +1.3863752388240020e-12
+band#    = 17     eigval   = +1.8052041768829469e-01  resval   = +1.6551418984294397e-05  occrate  = +9.4546281058790345e-13
+band#    = 18     eigval   = +1.8553111015340981e-01  resval   = +6.0581598805640986e-06  occrate  = +4.8428756593307851e-15
+band#    = 19     eigval   = +1.8615603707892237e-01  resval   = +2.5215105985269716e-05  occrate  = +2.5085921763155514e-15
+band#    = 20     eigval   = +1.8936098675115429e-01  resval   = +9.1497630961769291e-06  occrate  = +8.5970473432527756e-17
+band#    = 21     eigval   = +1.9033459848064027e-01  resval   = +2.7175509345269917e-05  occrate  = +3.0851874075596613e-17
+band#    = 22     eigval   = +2.5342614790232798e-01  resval   = +7.6892911314500569e-05  occrate  = +4.4483627431602303e-46
+band#    = 23     eigval   = +2.5798913749703878e-01  resval   = +2.3958365869495194e-04  occrate  = +3.6502093178388644e-48
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.2978812049689978e+01[au]  
+Efree             = -3.2978812049690262e+01[au]  
+EfreeHarris       = -3.2978875394086792e+01[au]  
+Ekin              = -2.0931133922332243e+00[au]  
+Ehart             = -1.7902735624688169e+01[au]  
+EVxc              = -1.0379903463988835e+01[au]  
+Exc               = -8.1042773525976504e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0885698657456757e+01[au]  
+Fermi             = +1.5421643785294353e-01[au]  
+Total charge      = +3.2000000000000000e+01[au]  
+HOMO              = +3.5026983377189054e+00[eV]  
+LUMO              = +4.9023151195230987e+00[eV]  
+Total wall clock time for this Phi iteration = 1.059169737010961 [s]
+Time for updating Phi related variable is 0.04671939401305281 [s]
+
+Time for computing the EXX energy is 0.02773234600317664 [s]
+
+
+Fock energy       = -1.7611074519784184e+00[au]  
+Etot(with fock)   = -3.1217704597711560e+01[au]  
+Efree(with fock)  = -3.1217704597711844e+01[au]  
+dExx              = +2.6185563613841123e-06[au]  
+
+*********************************************************************
+Phi iteration # 9
+*********************************************************************
+
+  Rank of dfmat = 8                 
+Time for updating Phi related variable is 0.04659025801811367 [s]
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 1.705841400219566e-06. The max res norm is 0.000214701129128522
+
+band#    = 0      eigval   = -3.5339736243559372e-01  resval   = +1.7058414002195661e-06  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.9560066347050534e-01  resval   = +3.5723527652971222e-06  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -1.9084915493834514e-01  resval   = +2.9852046656831398e-06  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -1.8578808843649164e-01  resval   = +3.4724388953948031e-06  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -1.8573699305571956e-01  resval   = +2.7076609510058863e-06  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -1.8168055472263361e-01  resval   = +2.5917616338354866e-06  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -1.7572658506240443e-01  resval   = +3.4727164038228079e-06  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +5.1785200514366091e-03  resval   = +2.9761044459401775e-06  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.1200755210302780e-03  resval   = +2.9104019267468761e-06  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.7194407964793731e-03  resval   = +2.4015707254697708e-06  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0397252775012038e-02  resval   = +4.0177159662808526e-06  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0436280746359262e-02  resval   = +6.1405369780857138e-06  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.4455306172466088e-02  resval   = +4.2050529921635938e-06  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.1332152541256779e-01  resval   = +5.3719555056939210e-06  occrate  = +1.0000000000000000e+00
+band#    = 14     eigval   = +1.2086931826587501e-01  resval   = +4.2648741823076527e-06  occrate  = +9.9999999999999933e-01
+band#    = 15     eigval   = +1.2872558666817707e-01  resval   = +3.0062028689818890e-06  occrate  = +9.9999999999780687e-01
+band#    = 16     eigval   = +1.8017753135104986e-01  resval   = +1.8866005469157961e-06  occrate  = +1.3761759959128323e-12
+band#    = 17     eigval   = +1.8052340791610386e-01  resval   = +7.2154581338218518e-06  occrate  = +9.5623183321856051e-13
+band#    = 18     eigval   = +1.8552211696513626e-01  resval   = +2.4936753055435445e-06  occrate  = +4.9602098703179230e-15
+band#    = 19     eigval   = +1.8614400610431489e-01  resval   = +1.3960783772235586e-05  occrate  = +2.5775996390402186e-15
+band#    = 20     eigval   = +1.8937348714801727e-01  resval   = +6.0577474427117224e-06  occrate  = +8.6083650427556035e-17
+band#    = 21     eigval   = +1.9032138958910638e-01  resval   = +1.6302408970911370e-05  occrate  = +3.1739889525176012e-17
+band#    = 22     eigval   = +2.5342325590974230e-01  resval   = +6.4500618466022057e-05  occrate  = +4.5269727954237835e-46
+band#    = 23     eigval   = +2.5798727871739419e-01  resval   = +2.1470112912852195e-04  occrate  = +3.7106769458244996e-48
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.2978862624431706e+01[au]  
+Efree             = -3.2978862624431997e+01[au]  
+EfreeHarris       = -3.2978880796303102e+01[au]  
+Ekin              = -2.0931121914243005e+00[au]  
+Ehart             = -1.7902679491564488e+01[au]  
+EVxc              = -1.0379923999592144e+01[au]  
+Exc               = -8.1042935306279276e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0885750433007406e+01[au]  
+Fermi             = +1.5423018812628586e-01[au]  
+Total charge      = +3.2000000000000014e+01[au]  
+HOMO              = +3.5028014981786337e+00[eV]  
+LUMO              = +4.9028801739429877e+00[eV]  
+Total wall clock time for this Phi iteration = 1.058568763983203 [s]
+Time for updating Phi related variable is 0.04712570100673474 [s]
+
+Time for computing the EXX energy is 0.02781603299081326 [s]
+
+
+Fock energy       = -1.7611141765202631e+00[au]  
+Etot(with fock)   = -3.1217748447911443e+01[au]  
+Efree(with fock)  = -3.1217748447911735e+01[au]  
+dExx              = +3.8183451898505344e-06[au]  
+
+*********************************************************************
+Phi iteration # 10
+*********************************************************************
+
+  Rank of dfmat = 9                 
+Time for updating Phi related variable is 0.04655517800711095 [s]
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 7.792715597573288e-07. The max res norm is 0.0001879854522089074
+
+band#    = 0      eigval   = -3.5339740995602520e-01  resval   = +7.7927155975732883e-07  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.9559966198246934e-01  resval   = +1.4345783867732631e-06  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -1.9085452012859164e-01  resval   = +1.7862577234338708e-06  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -1.8578406243031259e-01  resval   = +1.7329876350770181e-06  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -1.8573614718040002e-01  resval   = +8.8178042500128210e-07  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -1.8167468899162018e-01  resval   = +1.1268643825917664e-06  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -1.7573201369535060e-01  resval   = +2.1188658655365118e-06  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +5.1731816315286625e-03  resval   = +1.2988511104245398e-06  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.1230597680688249e-03  resval   = +1.7209116802314360e-06  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.7183731625743869e-03  resval   = +1.0915019642809564e-06  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0401068528518164e-02  resval   = +9.7881243987335298e-07  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0438689222462782e-02  resval   = +1.9162380073256514e-06  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.4452945938062277e-02  resval   = +1.1392284217767984e-06  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.1332161388597407e-01  resval   = +2.4459094376328056e-06  occrate  = +1.0000000000000000e+00
+band#    = 14     eigval   = +1.2086932340008345e-01  resval   = +1.6991025679543383e-06  occrate  = +9.9999999999999933e-01
+band#    = 15     eigval   = +1.2872606243725951e-01  resval   = +1.4501702664680757e-06  occrate  = +9.9999999999780731e-01
+band#    = 16     eigval   = +1.8017876288309789e-01  resval   = +1.4047228250951643e-06  occrate  = +1.3753990034302629e-12
+band#    = 17     eigval   = +1.8052496535248846e-01  resval   = +3.5336313067544452e-06  occrate  = +9.5536415687915230e-13
+band#    = 18     eigval   = +1.8551631689684087e-01  resval   = +1.5607674107523905e-06  occrate  = +4.9942369016978790e-15
+band#    = 19     eigval   = +1.8614246291476927e-01  resval   = +4.0992532692715694e-06  occrate  = +2.5836792631617710e-15
+band#    = 20     eigval   = +1.8937781620154448e-01  resval   = +2.2993421043487506e-06  occrate  = +8.5754995835292988e-17
+band#    = 21     eigval   = +1.9032349636998624e-01  resval   = +6.0543127537971798e-06  occrate  = +3.1692758018269960e-17
+band#    = 22     eigval   = +2.5342319866636798e-01  resval   = +4.1199158683909291e-05  occrate  = +4.5305585818311351e-46
+band#    = 23     eigval   = +2.5798688158482808e-01  resval   = +1.8798545220890742e-04  occrate  = +3.7149449753921370e-48
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.2978873642430067e+01[au]  
+Efree             = -3.2978873642430358e+01[au]  
+EfreeHarris       = -3.2978883190180937e+01[au]  
+Ekin              = -2.0931083727801965e+00[au]  
+Ehart             = -1.7902663547869626e+01[au]  
+EVxc              = -1.0379929387310455e+01[au]  
+Exc               = -8.1042978112938453e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0885765269649873e+01[au]  
+Fermi             = +1.5423088310927907e-01[au]  
+Total charge      = +3.2000000000000014e+01[au]  
+HOMO              = +3.5028144445143070e+00[eV]  
+LUMO              = +4.9029136856356867e+00[eV]  
+Total wall clock time for this Phi iteration = 1.057494578999467 [s]
+Time for updating Phi related variable is 0.04658026801189408 [s]
+
+Time for computing the EXX energy is 0.02776629399158992 [s]
+
+
+Fock energy       = -1.7611161731489213e+00[au]  
+Etot(with fock)   = -3.1217757469281146e+01[au]  
+Efree(with fock)  = -3.1217757469281437e+01[au]  
+dExx              = +1.1337291023880325e-06[au]  
+
+*********************************************************************
+Phi iteration # 11
+*********************************************************************
+
+  Rank of dfmat = 10                
+Time for updating Phi related variable is 0.04773785101133399 [s]
+
+The current tolerance used by the eigensolver is 1e-08
+The target number of converged eigenvectors is 24
+Minimum tolerance is 0.001
+
+After 3 PPCG iterations the min res norm is 3.307101059089527e-07. The max res norm is 0.0001797415048377796
+
+band#    = 0      eigval   = -3.5339730790080470e-01  resval   = +3.3071010590895268e-07  occrate  = +1.0000000000000000e+00
+band#    = 1      eigval   = -1.9559955343328034e-01  resval   = +6.6049547864937736e-07  occrate  = +1.0000000000000000e+00
+band#    = 2      eigval   = -1.9085110925054316e-01  resval   = +9.1493251161575061e-07  occrate  = +1.0000000000000000e+00
+band#    = 3      eigval   = -1.8578551998607770e-01  resval   = +5.6663689692577050e-07  occrate  = +1.0000000000000000e+00
+band#    = 4      eigval   = -1.8573694631817717e-01  resval   = +5.7374351162566944e-07  occrate  = +1.0000000000000000e+00
+band#    = 5      eigval   = -1.8167853136664128e-01  resval   = +4.0336328575331530e-07  occrate  = +1.0000000000000000e+00
+band#    = 6      eigval   = -1.7573042578920220e-01  resval   = +6.5541072467541491e-07  occrate  = +1.0000000000000000e+00
+band#    = 7      eigval   = +5.1730380168642552e-03  resval   = +8.5968424590829251e-07  occrate  = +1.0000000000000000e+00
+band#    = 8      eigval   = +9.1253354116366241e-03  resval   = +1.1692049932901738e-06  occrate  = +1.0000000000000000e+00
+band#    = 9      eigval   = +9.7174702310756332e-03  resval   = +7.2750425278444969e-07  occrate  = +1.0000000000000000e+00
+band#    = 10     eigval   = +1.0399186943861039e-02  resval   = +9.3391081881594687e-07  occrate  = +1.0000000000000000e+00
+band#    = 11     eigval   = +1.0439155484199334e-02  resval   = +9.4288489996200430e-07  occrate  = +1.0000000000000000e+00
+band#    = 12     eigval   = +1.4452547064886807e-02  resval   = +7.4883618685723875e-07  occrate  = +1.0000000000000000e+00
+band#    = 13     eigval   = +1.1332131202928440e-01  resval   = +1.3371807644765284e-06  occrate  = +1.0000000000000000e+00
+band#    = 14     eigval   = +1.2086979176655416e-01  resval   = +1.1283402979664816e-06  occrate  = +9.9999999999999933e-01
+band#    = 15     eigval   = +1.2872492600131694e-01  resval   = +1.0704173407300721e-06  occrate  = +9.9999999999781641e-01
+band#    = 16     eigval   = +1.8018327169551465e-01  resval   = +1.1117433204740245e-06  occrate  = +1.3728422542356921e-12
+band#    = 17     eigval   = +1.8052615954490389e-01  resval   = +1.5411787838768828e-06  occrate  = +9.5692101067613855e-13
+band#    = 18     eigval   = +1.8551396118357166e-01  resval   = +9.0563659346356242e-07  occrate  = +5.0211021495877846e-15
+band#    = 19     eigval   = +1.8614023794336507e-01  resval   = +2.6755146418483108e-06  occrate  = +2.5972200742418128e-15
+band#    = 20     eigval   = +1.8937965013485916e-01  resval   = +2.5797644045303387e-06  occrate  = +8.5836921168235078e-17
+band#    = 21     eigval   = +1.9032048997536777e-01  resval   = +3.9352872363232906e-06  occrate  = +3.1885071750309526e-17
+band#    = 22     eigval   = +2.5342279244533145e-01  resval   = +3.7602663045051159e-05  occrate  = +4.5455924518303610e-46
+band#    = 23     eigval   = +2.5798546866048805e-01  resval   = +1.7974150483777957e-04  occrate  = +3.7312240263932331e-48
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+Etot              = -3.2978874867483469e+01[au]  
+Efree             = -3.2978874867483754e+01[au]  
+EfreeHarris       = -3.2978882457426863e+01[au]  
+Ekin              = -2.0931132621898145e+00[au]  
+Ehart             = -1.7902667206544677e+01[au]  
+EVxc              = -1.0379929498745447e+01[au]  
+Exc               = -8.1042979170476652e+00[au]  
+EVdw              = +0.0000000000000000e+00[au]  
+Eself             = +5.1064611891383386e+01[au]  
+EIonSR            = +5.5149784727763983e-04[au]  
+Eext              = +0.0000000000000000e+00[au]  
+Ecor              = -3.0885761605293652e+01[au]  
+Fermi             = +1.5423362422659445e-01[au]  
+Total charge      = +3.1999999999999972e+01[au]  
+HOMO              = +3.5027835205183457e+00[eV]  
+LUMO              = +4.9030363766662521e+00[eV]  
+Total wall clock time for this Phi iteration = 1.064300942001864 [s]
+Time for updating Phi related variable is 0.04687737100175582 [s]
+
+Time for computing the EXX energy is 0.02771284099435434 [s]
+
+
+Fock energy       = -1.7611162958770814e+00[au]  
+Etot(with fock)   = -3.1217758571606389e+01[au]  
+Efree(with fock)  = -3.1217758571606673e+01[au]  
+dExx              = +6.9687709077699323e-08[au]  
+SCF for hybrid functional is converged in 11 steps !
+Time for using pcdiis method is 12.49597736899159 [s]
+
+
+*********************************************************************
+Energy
+*********************************************************************
+
+NOTE:  Ecor  = Exc - EVxc - Ehart - Eself + EIonSR + EVdw + Eext
+       Etot  = Ekin + Ecor
+       Efree = Etot    + Entropy
+
+! Etot            = -3.1217758571606389e+01[au]  
+! Efree           = -3.1217758571606673e+01[au]  
+! EfreeHarris     = -3.2978882457426863e+01[au]  
+! EVdw            = +0.0000000000000000e+00[au]  
+! Eext            = +0.0000000000000000e+00[au]  
+! Fermi           = +1.5423362422659445e-01[au]  
+! HOMO            = +3.5027835205183457e+00[ev]  
+! LUMO            = +4.9030363766662521e+00[eV]  
+
+*********************************************************************
+Atomic Force
+*********************************************************************
+
+atom    0    force   -3.2390659334478523e-02  +6.3964421455050139e-06  +6.4147826414217953e-06  
+atom    1    force   -1.2773646619162513e-02  -5.8063981444550092e-06  -5.8232787958365459e-06  
+atom    2    force   -5.3107331619630885e-03  +5.8045405464338109e-06  -5.9871781338837487e-06  
+atom    3    force   -5.3106919405128041e-03  -5.9703778264392318e-06  +5.8193369610770978e-06  
+atom    4    force   +1.1808244878546393e-02  -8.0396533265053929e-03  +8.0403196731491100e-03  
+atom    5    force   +1.6047746034271837e-02  +1.4235276557540019e-02  +1.4234597316475382e-02  
+atom    6    force   +1.6048187540357195e-02  -1.4235905512961663e-02  -1.4235224691069404e-02  
+atom    7    force   +1.1808244732096150e-02  +8.0396043215551771e-03  -8.0403708247213657e-03  
+
+force for centroid  : -7.3307870845355783e-05  -2.5375365081403700e-07  -2.5486349350054005e-07  
+Max force magnitude : +3.2390660601262042e-02
+
+! Total time for the SCF iteration = 32.47610737002105 [s]

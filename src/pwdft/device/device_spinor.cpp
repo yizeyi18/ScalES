@@ -363,10 +363,10 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
     }
   }
 
-
-
   GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
   statusOFS << " Spinor overheader is : "<< timeEnd - timeSta <<  std::endl;
+#endif
 
   for (Int k=0; k<numStateLocal; k++) {
     for (Int j=0; j<ncom; j++) {
