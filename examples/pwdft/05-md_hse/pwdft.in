@@ -15,9 +15,9 @@ begin upf_file
   ../../pp_ONCV/H_ONCV_PBE-1.2.upf
 end upf_file
 
-begin super_cell
-   10.0   10.0   10.0
-end super_cell
+begin super_cell_angstrom
+   6.0   6.0   6.0
+end super_cell_angstrom
 
 atom_types_num:        2
 

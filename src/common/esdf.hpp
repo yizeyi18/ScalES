@@ -553,7 +553,7 @@ struct ESDFInputParam{
  
   /// @brief Type of the pseudopotential
   ///
-  /// Default: "ONCV"
+  /// Default: "oncv"
   ///
   /// Currently ONCV is the only supported pseudopotential format.
   std::string         pseudoType;

@@ -156,7 +156,7 @@ void PeriodTable::Setup( )
     ptsample_.NONLOCAL          = 3;
   }
   */
-  if( esdfParam.pseudoType == "ONCV" ){
+  if( esdfParam.pseudoType == "oncv" ){
     ptsample_.RADIAL_GRID       = 0;
 
     ptsample_.VLOCAL            = 1;

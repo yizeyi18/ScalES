@@ -524,32 +524,34 @@ void
     }
 
 
-    // Make sure no atom is outside supercell after ionic moves
-    // Should be done both for geo opt and MD actually
-    if ((isGeoOpt_ == 1)) 
+    if ( isGeoOpt_ == 1 ) 
     {
-      for (int ii = 0; ii < numAtom; ii ++)
-      {
-        // X coordinate adjustment
-        while ( atomList[ii].pos[0] > supercell_x_ )
-          atomList[ii].pos[0] -= supercell_x_ ;
+      // Do not require this. This seems to create more problems
+      // 9/20/2020
+      if(0){
+        for (int ii = 0; ii < numAtom; ii ++)
+        {
+          // X coordinate adjustment
+          while ( atomList[ii].pos[0] > supercell_x_ )
+            atomList[ii].pos[0] -= supercell_x_ ;
 
-        while ( atomList[ii].pos[0] < 0.0 )
-          atomList[ii].pos[0] += supercell_x_ ;
+          while ( atomList[ii].pos[0] < 0.0 )
+            atomList[ii].pos[0] += supercell_x_ ;
 
-        // Y coordinate adjustment	
-        while ( atomList[ii].pos[1] > supercell_y_ )
-          atomList[ii].pos[1] -= supercell_y_ ;
+          // Y coordinate adjustment	
+          while ( atomList[ii].pos[1] > supercell_y_ )
+            atomList[ii].pos[1] -= supercell_y_ ;
 
-        while ( atomList[ii].pos[1] < 0.0 )
-          atomList[ii].pos[1] += supercell_y_ ;
+          while ( atomList[ii].pos[1] < 0.0 )
+            atomList[ii].pos[1] += supercell_y_ ;
 
-        // Z coordinate adjustment
-        while ( atomList[ii].pos[2] > supercell_z_ )
-          atomList[ii].pos[2] -= supercell_z_ ;
+          // Z coordinate adjustment
+          while ( atomList[ii].pos[2] > supercell_z_ )
+            atomList[ii].pos[2] -= supercell_z_ ;
 
-        while ( atomList[ii].pos[2] < 0.0 )
-          atomList[ii].pos[2] += supercell_z_ ;		
+          while ( atomList[ii].pos[2] < 0.0 )
+            atomList[ii].pos[2] += supercell_z_ ;		
+        }
       }
     }    
 
@@ -895,12 +897,16 @@ IonDynamics::NLCG_Opt ( Int ionIter)
       // delta_d = d^T d
       NLCG_vars.delta_d_ = NLCG_vars.atom_ddot(NLCG_vars.atomforce_d_, NLCG_vars.atomforce_d_);
 
+#if ( _DEBUGlevel_ >= 1 )
       statusOFS << std::endl << " atomforce_d_ = " << NLCG_vars.atomforce_d_ << std::endl ;
+#endif
 
       // alpha = - sigma_0 
       NLCG_vars.alpha_ = -NLCG_vars.sigma_0_;
 
+#if ( _DEBUGlevel_ >= 0 )
       statusOFS << std::endl << " sigma_0 = " << NLCG_vars.sigma_0_ << std::endl ;
+#endif
 
       // Use x and d to compute new position for force evalation
       // pos = x + sigma_0 * d

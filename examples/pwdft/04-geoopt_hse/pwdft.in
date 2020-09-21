@@ -1,6 +1,6 @@
 # H2O
 
-ion_move:               bb
+ion_move:               nlcg
 ion_max_iter:           20
 
 temperature:        	  300
@@ -8,7 +8,7 @@ extra_states:           4
 
 xc_type:                HSE
 
-ecut_wavefunction:        40
+ecut_wavefunction:      40
 eig_maxiter:            5
 pw_solver:              LOBPCG
 
@@ -17,9 +17,9 @@ begin upf_file
   ../../pp_ONCV/H_ONCV_PBE-1.2.upf
 end upf_file
 
-begin super_cell
-   10.0   10.0   10.0
-end super_cell
+begin super_cell_angstrom
+   6.0   6.0   6.0
+end super_cell_angstrom
 
 atom_types_num:        2
 

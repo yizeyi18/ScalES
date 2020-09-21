@@ -325,6 +325,10 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"super_cell");
   strcpy(kw_typ[i],"B:E");
+  
+  i++;
+  strcpy(kw_label[i],"super_cell_angstrom");
+  strcpy(kw_typ[i],"B:E");
 
   i++;
   strcpy(kw_label[i],"upf_file");
@@ -2369,9 +2373,13 @@ ESDFReadInput ( const char* filename )
       sscanf(block_data[0],"%lf %lf %lf",
           &dm.length[0],&dm.length[1],&dm.length[2]);
     }
-
+    else if( esdf_block("Super_Cell_Angstrom", &nlines) ){
+      sscanf(block_data[0],"%lf %lf %lf",
+          &dm.length[0],&dm.length[1],&dm.length[2]);
+      dm.length /= au2ang;
+    }
     else{
-      ErrorHandling("Super_Cell cannot be found.");
+      ErrorHandling("Super_Cell or Super_Cell_Angstrom must be defined.");
     }
 
     dm.posStart = Point3( 0.0, 0.0, 0.0 );
@@ -2419,10 +2427,6 @@ ESDFReadInput ( const char* filename )
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
 
-          // Constrain the atoms to be within the supercell
-          pos[0] -= IRound(pos[0]/dm.length[0])*dm.length[0];
-          pos[1] -= IRound(pos[1]/dm.length[1])*dm.length[1];
-          pos[2] -= IRound(pos[2]/dm.length[2])*dm.length[2];
 
           atomList.push_back( 
               Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
@@ -2436,13 +2440,8 @@ ESDFReadInput ( const char* filename )
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
-
-          // Constrain the atoms to be within the supercell
+           
           pos /= au2ang;
-          pos[0] -= IRound(pos[0]/dm.length[0])*dm.length[0];
-          pos[1] -= IRound(pos[1]/dm.length[1])*dm.length[1];
-          pos[2] -= IRound(pos[2]/dm.length[2])*dm.length[2];
-          
           atomList.push_back( 
               Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
 
@@ -2458,14 +2457,9 @@ ESDFReadInput ( const char* filename )
         for( Int j = 0; j < numAtom; j++ ){
           sscanf(block_data[j],"%lf %lf %lf", 
               &pos[0], &pos[1], &pos[2]);
-          // Constrain the atoms to be within the supercell
           pos[0] *= dm.length[0];
           pos[1] *= dm.length[1];
           pos[2] *= dm.length[2];
-
-          pos[0] -= IRound(pos[0]/dm.length[0])*dm.length[0];
-          pos[1] -= IRound(pos[1]/dm.length[1])*dm.length[1];
-          pos[2] -= IRound(pos[2]/dm.length[2])*dm.length[2];
 
           atomList.push_back( 
               Atom( type, pos, Point3(0.0,0.0,0.0), Point3(0.0,0.0,0.0) ) );
@@ -2618,7 +2612,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.isEigToleranceDynamic = esdf_integer( "Eig_Tolerance_Dynamic", 0 );
 
 
-    esdf_string("Pseudo_Type", "ONCV", strtmp); 
+    esdf_string("Pseudo_Type", "oncv", strtmp); 
     esdfParam.pseudoType      = strtmp;
     esdf_string("PW_Solver", "PPCG", strtmp); 
     esdfParam.PWSolver        = strtmp;
@@ -2749,6 +2743,28 @@ ESDFReadInput ( const char* filename )
       ErrorHandling("Element_Size must be defined.");
     }
 
+
+    // DGDFT specific parameters for controlling convergence
+    esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
+    esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 ); 
+    esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
+    esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
+    esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
+
+    // Instead of grid size, use ecut to determine the number of grid
+    // points in the local LGL domain.
+    // The LGL grid factor does not need to be an integer.
+    esdfParam.LGLGridFactor = esdf_double( "LGL_Grid_Factor", 2.0 );
+
+
+    esdfParam.GaussInterpFactor = esdf_double( "Gauss_Interp_Factor", 4.0 );
+
+    esdfParam.GaussSigma = esdf_double( "Gauss_Sigma", 0.001 );
+
+    esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 20.0 );
+
+
+
     // DGDFT requires the number of grids to be readjusted, so that the
     // wavefunction grid and the density grid sizes are a multiple of
     // the number of elements along each dimension.
@@ -2778,32 +2794,6 @@ ESDFReadInput ( const char* filename )
         numGridLGL[d] = std::ceil( numGridWavefunctionElem[d] * esdfParam.LGLGridFactor );
       } // for (d)
     }
-
-
-    // DGDFT specific parameters for controlling convergence
-    esdfParam.scfInnerTolerance    = esdf_double( "SCF_Inner_Tolerance", 1e-4 );
-    esdfParam.scfInnerMinIter      = esdf_integer( "SCF_Inner_MinIter",   1 ); 
-    esdfParam.scfInnerMaxIter      = esdf_integer( "SCF_Inner_MaxIter",   1 );
-    esdfParam.scfOuterEnergyTolerance    = esdf_double( "SCF_Outer_Energy_Tolerance", 1e-4 );
-    esdfParam.scfOuterMinIter      = esdf_integer( "SCF_Outer_MinIter",   3 );
-
-    // Instead of grid size, use ecut to determine the number of grid
-    // points in the local LGL domain.
-    // The LGL grid factor does not need to be an integer.
-    esdfParam.LGLGridFactor = esdf_double( "LGL_Grid_Factor", 2.0 );
-
-    //        Index3& numGridLGL = esdfParam.numGridLGL;
-    //        if (esdf_block("Element_Grid_Size", &nlines)) {
-    //            sscanf(block_data[0],"%d %d %d", 
-    //                    &numGridLGL[0],&numGridLGL[1],&numGridLGL[2] );
-    //        }
-
-
-    esdfParam.GaussInterpFactor = esdf_double( "Gauss_Interp_Factor", 4.0 );
-
-    esdfParam.GaussSigma = esdf_double( "Gauss_Sigma", 0.001 );
-
-    esdfParam.penaltyAlpha  = esdf_double( "Penalty_Alpha", 20.0 );
 
     // Get the number of basis functions per element
     // NOTE: ALB_Num_Element overwrites the parameter numALB later        
@@ -3356,7 +3346,7 @@ void ESDFPrintInput( ){
 
     Print(statusOFS, ""); 
     Print(statusOFS, "NumAtom = ", (int)atomList.size()); 
-    Print(statusOFS, "Atom Type and Coordinates in the unit of au (periodically shifted back to supercell)");
+    Print(statusOFS, "Atom Type and Coordinates (unit: au)");
     Print(statusOFS, ""); 
 
     for(Int i=0; i < atomList.size(); i++) {

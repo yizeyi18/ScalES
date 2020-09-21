@@ -135,6 +135,26 @@ Target: refactor2020
 - [ ] Move the density and wavefunction extrapolation part into
   iondynamics
 
+- [ ] Either make all string values of keywords to be lower case, or
+  make string comparison case insensitive
+
+- [ ] Do not document the parameter values yet in sphinx yet (they are
+  not stable for now). Directly refer to esdf.hpp and esdf.cpp
+
+- [p] Atom positions should not be remapped back to [-0.5 a, a), where a
+  is the lattice constant. In PW the mapping has been removed. Double
+  check this with DG/TD.
+
+- [ ] EfreeHarris seems to be problematic for hybrid functional
+  calculations.
+
+- [ ] Geometry optimization: should not reset to random wavefunctions
+  each time. This is particularly problematic for hybrid functionals,
+  where the Phi iteration starts from the beginning. In principle, the
+  wavefunction should be reset only if something goes wrong.
+  Furthermore, in this case the next ion move should start with PBE
+  instead of Phi iteration.
+
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
 
