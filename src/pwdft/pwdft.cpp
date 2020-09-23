@@ -59,6 +59,7 @@ using namespace dgdft::esdf;
 using namespace dgdft::scalapack;
 
 #ifdef DEVICE
+#include "device_mpi_interf.hpp"
 #ifdef USE_MAGMA
 #include  "magma.hpp"
 #else
@@ -270,6 +271,7 @@ int main(int argc, char **argv)
     // Single shot calculation first
     // *********************************************************************
 #ifdef DEVICE
+         device_mpi::setDevice(MPI_COMM_WORLD);
          device_init_vtot();
          DEVICE_BLAS::Init();
          device_fft::Init(dm);
