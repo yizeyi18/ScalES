@@ -31,7 +31,7 @@ P1 = np.array([[-1,  1,  1],
 
 print('make a supercell')
 # the supercell can also be constructed as
-# unitcell.cell @ P1.T
+# P1 @ unitcell.cell
 # the cell vectors are given as the row vectors
 supercell = make_supercell(unitcell, P1)
 
