@@ -13,7 +13,7 @@ begin upf_file
 end upf_file
 
 begin super_cell
-1.9730000000000000e+01 1.9730000000000000e+01 1.9730000000000000e+01
+   37.284296 37.284296 37.284296
 end super_cell
 
 atom_types_num:        2
