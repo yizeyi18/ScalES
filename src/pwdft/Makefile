@@ -22,5 +22,5 @@ ${DGDFT_LIB}:
 	(cd ${DGDFT_DIR}/src/common; make all )
 
 cleanall:
-	rm -f ${EXES} ${OBJS}  ${DGDFT_LIB} ${DEPS} *.d.o 
+	rm -f ${EXES} ${OBJS}  ${DGDFT_LIB} ${DEPS} *.d.o pwdft
 	cd ../common;  make cleanall
