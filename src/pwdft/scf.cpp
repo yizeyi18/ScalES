@@ -2375,7 +2375,7 @@ SCF::InnerSolve	( Int iter )
     if( iter == 1 )
       eigTolNow = 1e-2;
     else
-      eigTolNow = std::max( std::min( scfNorm_*1e-2, 1e-2 ) , eigTolerance_);
+      eigTolNow = std::max( std::min( scfNorm_*1e-3, 1e-2 ) , eigTolerance_);
   }
   else{
     // Static strategy to control the tolerance
