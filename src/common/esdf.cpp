@@ -2544,7 +2544,7 @@ ESDFReadInput ( const char* filename )
     esdfParam.eigTolerance         = esdf_double( "Eig_Tolerance", 1e-8 );
     esdfParam.eigMinTolerance      = esdf_double( "Eig_Min_Tolerance", 1e-3 );
     esdfParam.eigMinIter           = esdf_integer( "Eig_MinIter",  2 );
-    esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  3 );
+    esdfParam.eigMaxIter           = esdf_integer( "Eig_MaxIter",  10 );
     esdfParam.SVDBasisTolerance    = esdf_double( "SVD_Basis_Tolerance", 1e-6 );
     esdfParam.isUseAtomDensity = esdf_integer( "Use_Atom_Density", 1 );
     esdfParam.isRestartDensity = esdf_integer( "Restart_Density", 0 );
@@ -2592,7 +2592,21 @@ ESDFReadInput ( const char* filename )
         dm.numGrid[d] = AdjustNumGrid(std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
               dm.length[d] / PI));
         dm.numGridFine[d] = AdjustNumGrid(std::ceil(dm.numGrid[d] * esdfParam.densityGridFactor));
+        // FIXME: Temporary thing to make sure numGrid is an odd number (an odd thing to say..), and 
+        // fix esdfParam.densityGridFactor to be 2
+        if( dm.numGrid[d] % 2 == 0 ){
+          dm.numGrid[d] += 1;
+          dm.numGridFine[d] = dm.numGrid[d] * 2;
+        }
       } // for (d)
+//      if( dm.numGrid[0] % 2 == 0 ){
+//        dm.numGrid[0] += 1;
+//        dm.numGridFine[0] = dm.numGrid[0] * 2;
+//      }
+//      if( dm.numGrid[0] % 2 != 0 ){
+//        dm.numGrid[0] += 1;
+//        dm.numGridFine[0] = dm.numGrid[0] * 2;
+//      }
     }
 
 
@@ -2609,12 +2623,12 @@ ESDFReadInput ( const char* filename )
 
     esdfParam.numExtraState   = esdf_integer( "Extra_States",  0 );
     esdfParam.numUnusedState  = esdf_integer( "Unused_States",  0 );
-    esdfParam.isEigToleranceDynamic = esdf_integer( "Eig_Tolerance_Dynamic", 0 );
+    esdfParam.isEigToleranceDynamic = esdf_integer( "Eig_Tolerance_Dynamic", 1 );
 
 
     esdf_string("Pseudo_Type", "oncv", strtmp); 
     esdfParam.pseudoType      = strtmp;
-    esdf_string("PW_Solver", "PPCG", strtmp); 
+    esdf_string("PW_Solver", "LOBPCG", strtmp); 
     esdfParam.PWSolver        = strtmp;
     esdf_string("XC_Type", "Teter", strtmp); 
     esdfParam.XCType          = strtmp;
@@ -3144,7 +3158,7 @@ void ESDFPrintInput( ){
     Print(statusOFS, "Eig Tolerence                        = ",  esdfParam.eigTolerance);
     Print(statusOFS, "Eig MaxIter                          = ",  esdfParam.eigMaxIter);
     Print(statusOFS, "Eig Min Tolerence                    = ",  esdfParam.eigMinTolerance);
-    Print(statusOFS, "Eig Tolerance Dyn                    = ",  esdfParam.isEigToleranceDynamic);
+    Print(statusOFS, "Eig Tolerance Dynamic                = ",  esdfParam.isEigToleranceDynamic);
 
     // Hybrid functional only
     if( esdfParam.XCFamily_ == "Hybrid" ){
@@ -3519,6 +3533,7 @@ Int AdjustNumGrid( Int numGrid ){
   for( int i = 1; i <= 151; i++)
   {
     if( nnn[i] >= numGrid && nnn[i+1] > numGrid ) {
+//      numGridNew = IRound(nnn[i]/2.0)*2;
       numGridNew = nnn[i];
       break;
     }

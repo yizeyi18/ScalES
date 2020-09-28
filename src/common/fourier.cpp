@@ -383,16 +383,25 @@ void Fourier::InitializeFine ( const Domain& dm )
 
           PtrC = ii + jj * domain.numGrid[0] + kk * domain.numGrid[0] * domain.numGrid[1];
 
-          if ( (0 <= ii) && (ii < domain.numGrid[0] / 2) ) { iF = ii; } 
-          else if ( (ii == domain.numGrid[0] / 2) ) { iF = domain.numGridFine[0] / 2; } 
+//          if ( (0 <= ii) && (ii < domain.numGrid[0] / 2) ) { iF = ii; } 
+//          else if ( (ii == domain.numGrid[0] / 2) ) { iF = domain.numGridFine[0] / 2; } 
+//          else { iF = domain.numGridFine[0] - domain.numGrid[0] + ii; } 
+//
+//          if ( (0 <= jj) && (jj < domain.numGrid[1] / 2) ) { jF = jj; } 
+//          else if ( (jj == domain.numGrid[1] / 2) ) { jF = domain.numGridFine[1] / 2; } 
+//          else { jF = domain.numGridFine[1] - domain.numGrid[1] + jj; } 
+//
+//          if ( (0 <= kk) && (kk < domain.numGrid[2] / 2) ) { kF = kk; } 
+//          else if ( (kk == domain.numGrid[2] / 2) ) { kF = domain.numGridFine[2] / 2; } 
+//          else { kF = domain.numGridFine[2] - domain.numGrid[2] + kk; } 
+
+          if ( (0 <= ii) && (ii <= domain.numGrid[0] / 2) ) { iF = ii; } 
           else { iF = domain.numGridFine[0] - domain.numGrid[0] + ii; } 
 
-          if ( (0 <= jj) && (jj < domain.numGrid[1] / 2) ) { jF = jj; } 
-          else if ( (jj == domain.numGrid[1] / 2) ) { jF = domain.numGridFine[1] / 2; } 
+          if ( (0 <= jj) && (jj <= domain.numGrid[1] / 2) ) { jF = jj; } 
           else { jF = domain.numGridFine[1] - domain.numGrid[1] + jj; } 
 
-          if ( (0 <= kk) && (kk < domain.numGrid[2] / 2) ) { kF = kk; } 
-          else if ( (kk == domain.numGrid[2] / 2) ) { kF = domain.numGridFine[2] / 2; } 
+          if ( (0 <= kk) && (kk <= domain.numGrid[2] / 2) ) { kF = kk; } 
           else { kF = domain.numGridFine[2] - domain.numGrid[2] + kk; } 
 
           PtrF = iF + jF * domain.numGridFine[0] + kF * domain.numGridFine[0] * domain.numGridFine[1];
@@ -460,16 +469,24 @@ void Fourier::InitializeFine ( const Domain& dm )
 
           PtrC = ii + jj * (domain.numGrid[0]/2+1) + kk * (domain.numGrid[0]/2+1) * domain.numGrid[1];
 
-          if ( (0 <= ii) && (ii < domain.numGrid[0] / 2) ) { iF = ii; } 
-          else if ( (ii == domain.numGrid[0] / 2) ) { iF = domain.numGridFine[0] / 2; } 
-          else { iF = (domain.numGridFine[0]/2+1) - (domain.numGrid[0]/2+1) + ii; } 
+//          if ( (0 <= ii) && (ii < domain.numGrid[0] / 2) ) { iF = ii; } 
+//          else if ( (ii == domain.numGrid[0] / 2) ) { iF = domain.numGridFine[0] / 2; } 
+//          else { iF = (domain.numGridFine[0]/2+1) - (domain.numGrid[0]/2+1) + ii; } 
+//
+//          if ( (0 <= jj) && (jj < domain.numGrid[1] / 2) ) { jF = jj; } 
+//          else if ( (jj == domain.numGrid[1] / 2) ) { jF = domain.numGridFine[1] / 2; } 
+//          else { jF = domain.numGridFine[1] - domain.numGrid[1] + jj; } 
+//
+//          if ( (0 <= kk) && (kk < domain.numGrid[2] / 2) ) { kF = kk; } 
+//          else if ( (kk == domain.numGrid[2] / 2) ) { kF = domain.numGridFine[2] / 2; } 
+//          else { kF = domain.numGridFine[2] - domain.numGrid[2] + kk; } 
 
-          if ( (0 <= jj) && (jj < domain.numGrid[1] / 2) ) { jF = jj; } 
-          else if ( (jj == domain.numGrid[1] / 2) ) { jF = domain.numGridFine[1] / 2; } 
+          iF = ii;
+
+          if ( (0 <= jj) && (jj <= domain.numGrid[1] / 2) ) { jF = jj; } 
           else { jF = domain.numGridFine[1] - domain.numGrid[1] + jj; } 
 
-          if ( (0 <= kk) && (kk < domain.numGrid[2] / 2) ) { kF = kk; } 
-          else if ( (kk == domain.numGrid[2] / 2) ) { kF = domain.numGridFine[2] / 2; } 
+          if ( (0 <= kk) && (kk <= domain.numGrid[2] / 2) ) { kF = kk; } 
           else { kF = domain.numGridFine[2] - domain.numGrid[2] + kk; } 
 
           PtrF = iF + jF * (domain.numGridFine[0]/2+1) + kF * (domain.numGridFine[0]/2+1) * domain.numGridFine[1];
