@@ -30,7 +30,7 @@ ifeq (${DEVICE}, nvgpu)
   CUDA_FLAG =  -D DEVICE  -I ${DGDFT_DIR}/src/common/device/ -I ${DGDFT_DIR}/src/common/device/nvgpu -I ${CUDA_DIR}/include
   #CUDA_DIR = /usr/common/software/cuda/10.2.89
   CUDA_LIB = -L${CUDA_DIR}/lib64 -lcufft -lcublas -lcudart -lcusolver #-lmagma #-lmagma_sparse #-lcudadevrt
-  # NVCCFLAG = -gencode arch=compute_70,code=sm_70 -DGPU -I ../include -DSYNC  # for debug purpose
+  NVCCFLAG = -gencode arch=compute_70,code=sm_70 -DGPU #-I ../include -DSYNC  # for debug purpose
 endif
 
 ifeq (${USE_OPENMP}, 1)
