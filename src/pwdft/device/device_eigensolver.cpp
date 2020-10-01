@@ -1371,7 +1371,7 @@ EigenSolver::devicePPCGSolveReal (
     GetTime( time2);
     thirdTime += time2 - time1;
 
-  } while( (iter < eigMaxIter) || (resMin > eigMinTolerance) );
+  } while( (iter < eigMaxIter) && (resMin > eigMinTolerance) );
 
 
 

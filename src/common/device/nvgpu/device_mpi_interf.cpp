@@ -106,23 +106,22 @@ void setDevice(MPI_Comm comm)
           color++;
        }
      }
+     int mysize;
      MPI_Comm_split(MPI_COMM_WORLD, color, 0, &nodeComm);
      MPI_Comm_rank(nodeComm, &myrank);
+     MPI_Comm_size(nodeComm, &mysize);
+
      int deviceCount,slot = 0;
      int *devloc;
      cudaGetDeviceCount(&deviceCount);
-     devloc=(int *)malloc(deviceCount*sizeof(int));
+
+     devloc=(int *)malloc(mysize*sizeof(int));
+     for (dev = 0; dev < mysize; ++dev)
+       devloc[dev] = 0;
      
      for (dev = 0; dev < deviceCount; ++dev)
-     {
-       cudaGetDeviceProperties(&deviceProp, dev);
-       if(deviceProp.minor <= 10 )
-       {
-         devloc[slot]=dev;
-         slot++;
-       };
-     }
-     //devloc[myrank] = 0;
+       devloc[slot++]=dev;
+     
      if( (devloc[myrank] >= deviceCount) )
      {
        printf ("Error:::Assigning device %d  to process on node %s rank %d \n",devloc[myrank],  host_name, rank );
