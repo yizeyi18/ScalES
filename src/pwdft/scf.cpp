@@ -1169,18 +1169,24 @@ SCF::Iterate (  )
       // Phi loop
       for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
       {
-      deviceDblNumMat cu_psiMuT(numOccTotal, numOccTotal);
-      deviceDblNumMat cu_HpsiMuT(numOccTotal, numOccTotal);
-      deviceDblNumMat cu_psiRow( ntotLocal, numStateTotal );
-      deviceDblNumMat cu_psiTemp(ntotLocal, numOccTotal);
-      deviceDblNumMat cu_PcRow(ntotLocal, numOccTotal);
-      deviceDblNumMat cu_HpsiCol(ntot, numStateLocal);
-      deviceDblNumMat cu_psi(ntot, numStateLocal);
-      deviceDblNumMat cu_HpsiRow(ntotLocal, numStateTotal);
-      deviceDblNumMat cu_ResRow(ntotLocal, numOccTotal);
-      deviceDblNumMat cu_psiPcRow(ntotLocal, numStateTotal);
-      cu_psiTemp.CopyFrom( psiTemp);
+        deviceDblNumMat cu_psiMuT(numOccTotal, numOccTotal);
+        deviceDblNumMat cu_HpsiMuT(numOccTotal, numOccTotal);
+        deviceDblNumMat cu_psiRow( ntotLocal, numStateTotal );
+        deviceDblNumMat cu_psiTemp(ntotLocal, numOccTotal);
+        deviceDblNumMat cu_PcRow(ntotLocal, numOccTotal);
+        deviceDblNumMat cu_HpsiCol(ntot, numStateLocal);
+        deviceDblNumMat cu_psi(ntot, numStateLocal);
+        deviceDblNumMat cu_HpsiRow(ntotLocal, numStateTotal);
+        deviceDblNumMat cu_ResRow(ntotLocal, numOccTotal);
+        deviceDblNumMat cu_psiPcRow(ntotLocal, numStateTotal);
+        cu_psiTemp.CopyFrom( psiTemp);
 
+        char right  = 'R';
+        char up     = 'U';
+        char nondiag   = 'N';
+        char cu_transT = 'T';
+        char cu_transN = 'N';
+        char cu_transC = 'C';
 
         GetTime( timePhiIterStart );
           
@@ -1198,7 +1204,7 @@ SCF::Iterate (  )
 
           deviceDblNumMat cu_psiMuTTemp(numOccTotal, numOccTotal);
           cu_psiRow.CopyFrom(psiRow);
-          DEVICE_BLAS::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, 
+          DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, 
               &one, cu_psiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
               &zero, cu_psiMuTTemp.Data(), numOccTotal );
           cu_psiMuTTemp.CopyTo( psiMuTTemp );
@@ -1225,7 +1231,7 @@ SCF::Iterate (  )
         }
 #endif
         cu_psiMuT.CopyFrom( psiMuT);
-        DEVICE_BLAS::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &one, 
+        DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
             cu_psiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
             &zero, cu_PcRow.Data(), ntotLocal );
          cu_PcRow.CopyTo( PcRow );
@@ -1283,7 +1289,7 @@ SCF::Iterate (  )
             deviceDblNumMat cu_HpsiMuTTemp(numOccTotal,numOccTotal);
             //SetValue( HpsiMuTTemp, 0.0 );
 
-            DEVICE_BLAS::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, &one, 
+            DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, 
                 cu_HpsiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
                 &zero, cu_HpsiMuTTemp.Data(), numOccTotal );
             cu_HpsiMuTTemp.CopyTo(HpsiMuTTemp);
@@ -1299,12 +1305,12 @@ SCF::Iterate (  )
 
           }//if
           
-          DEVICE_BLAS::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &one, 
+          DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
               cu_HpsiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
               &zero, cu_ResRow.Data(), ntotLocal );
 
           cu_HpsiMuT.CopyFrom( HpsiMuT );
-          DEVICE_BLAS::Gemm( CUBLAS_OP_N, CUBLAS_OP_N, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
+          DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
               cu_psiRow.Data(), ntotLocal, cu_HpsiMuT.Data(), numOccTotal, 
               &one, cu_ResRow.Data(), ntotLocal );
           cu_ResRow.CopyTo(ResRow);
@@ -1448,7 +1454,7 @@ SCF::Iterate (  )
             DblNumMat XTXTemp(numOccTotal, numOccTotal);
             deviceDblNumMat cu_XTXTemp(numOccTotal, numOccTotal);
             
-            DEVICE_BLAS::Gemm( CUBLAS_OP_T, CUBLAS_OP_N, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
+            DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
                 ntotLocal, cu_psiPcRow.Data(), ntotLocal, &zero, cu_XTXTemp.Data(), numOccTotal );
             cu_XTXTemp.CopyTo(XTXTemp);
 
@@ -1471,7 +1477,7 @@ SCF::Iterate (  )
             device_solver::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
 #endif
 
-            DEVICE_BLAS::Trsm( CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER, CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT, 
+            DEVICE_BLAS::Trsm( right, up, cu_transN, nondiag, 
                           ntotLocal, numOccTotal, &one, cu_XTXTemp.Data(), numOccTotal, cu_psiPcRow.Data(),
                           ntotLocal);
             cu_psiPcRow.CopyTo( psiPcRow );
@@ -2451,10 +2457,8 @@ SCF::InnerSolve	( Int iter )
 
   GetTime( timeEnd );
 
-#if ( _DEBUGlevel_ >= 0 )
   statusOFS << std::endl << "Time for the eigensolver is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
 
   GetTime( timeSta );
   ham.EigVal() = eigSolPtr_->EigVal();
