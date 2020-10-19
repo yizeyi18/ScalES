@@ -182,6 +182,11 @@ Target: refactor2020
   subsequently redistribute the work for unconverged eigenvectors only.
   The locking strategy seems different in ppcg_gamma_gpu
 
+- [ ] Need to add SCAN functional (more generally, meta-GGA)
+
+- [ ] Need to provide API for an external electric field (w.o. using a
+  velocity gauge?)
+
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
 

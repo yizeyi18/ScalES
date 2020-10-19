@@ -1,15 +1,15 @@
 # H2O
 
-ion_move:               nlcg
+ion_move:               lbfgs
 ion_max_iter:           20
+mixing_steplength:      0.5
 
 temperature:        	  300
 extra_states:           4
 
 xc_type:                HSE
 
-ecut_wavefunction:      40
-eig_maxiter:            5
+ecut_wavefunction:      30
 pw_solver:              LOBPCG
 
 begin upf_file

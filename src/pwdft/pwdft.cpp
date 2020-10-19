@@ -347,11 +347,12 @@ int main(int argc, char **argv)
         hamKS.CalculatePseudoPotential( ptable );
 
         // Reset wavefunctions to random values for geometry optimization
-        // Except for CheFSI
-        if((ionDyn.IsGeoOpt() == true) && (esdfParam.PWSolver != "CheFSI")){
-          statusOFS << std::endl << " Resetting to random wavefunctions ... \n" << std::endl ; 
-          UniformRandom( psi.Wavefun() );
-        }
+        // Except for CheFSI. 
+        // LL: Not used 10/19/2020
+//        if((ionDyn.IsGeoOpt() == true) && (esdfParam.PWSolver != "CheFSI")){
+//          statusOFS << std::endl << " Resetting to random wavefunctions ... \n" << std::endl ; 
+//          UniformRandom( psi.Wavefun() );
+//        }
 
         scf.Update( ); 
         GetTime( timeEnd );
