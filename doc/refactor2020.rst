@@ -151,13 +151,36 @@ Target: refactor2020
 - [ ] Geometry optimization: should not reset to random wavefunctions
   each time. This is particularly problematic for hybrid functionals,
   where the Phi iteration starts from the beginning. In principle, the
-  wavefunction should be reset only if something goes wrong.
-  Furthermore, in this case the next ion move should start with PBE
+  wavefunction should be reset only if something goes wrong. (see what
+  QE does) Furthermore, in this case the next ion move should start with PBE
   instead of Phi iteration.
+
+- [ ] Properly handle the Gamma point and R2C, together with the Fourier
+  interpolation problem (using an odd number of grid points)
+
+- [ ] Coulomb norm in Anderson mixing.
+
+- [ ] Dynamic truncation criterion for eigensolver. In particular, the
+  criterion is controlled by an energy like quantity. This should be
+  implemented in all eigensolvers.
 
 - [ ] Make sure that in geometry optimization, the atomic position,
   atomic force, and convergence criterion are synced at the beginning of
   each iteration (maybe via MPI broadcast)
+
+- [ ] OpenMP support? (most have been deleted so far)
+
+- [ ] CUFFT: One-by-one executation: is there a more efficient way to
+  batched FFT? Why CUFFT does not suffer from the alignment issue? (i.e.
+  we do not need to copy a vector into a saved buffer?)
+
+- [ ] Eigensolver: in QE: reorder eigenvectors so that coefficients for
+  unconverged roots come first. This allows to use quick matrix-matrix
+  multiplications to set a new basis vector. Should we do the same? In
+  the GPU version, this is replaced by reorder_evals_revecs. In the GPU
+  based version pregterg_gpu, this is done by reorder_v, and
+  subsequently redistribute the work for unconverged eigenvectors only.
+  The locking strategy seems different in ppcg_gamma_gpu
 
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.

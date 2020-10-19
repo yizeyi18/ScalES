@@ -1,7 +1,7 @@
 # Si 8 atoms
 
 temperature:        	  300
-extra_states:           8
+extra_states:           0
 
 xc_type:                HSE
 

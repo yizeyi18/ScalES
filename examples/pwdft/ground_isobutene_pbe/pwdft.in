@@ -1,12 +1,17 @@
 # isobutene
 temperature:        	  300
 extra_states:           4
+#mixing_variable:        density
+#mixing_steplength:      0.2
 
 xc_type:                PBE
+# xc_type:                Teter
 
 ecut_wavefunction:      20
-eig_maxiter:            5
-#pw_solver:              LOBPCG
+eig_maxiter:            15
+eig_tolerance_dynamic:  1
+pw_solver:              LOBPCG
+#use_atom_density:       0
 
 begin upf_file
   ../../pp_ONCV/C_ONCV_PBE-1.2.upf

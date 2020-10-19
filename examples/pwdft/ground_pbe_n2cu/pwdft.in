@@ -1,13 +1,16 @@
 # N2 adsorbate on Cu
 temperature:        	  300
-extra_states:           4
+extra_states:           11
+#mixing_type:            kerker+anderson
+mixing_steplength:      0.2
 
 xc_type:                PBE
 
-ecut_wavefunction:      30
-eig_maxiter:            10
-pw_solver:              PPCG
-fftw_mpi_size:          10
+ecut_wavefunction:      20
+eig_maxiter:            15
+eig_tolerance_dynamic:  1
+pw_solver:              LOBPCG
+fftw_mpi_size:          2
 
 begin upf_file
   ../../pp_ONCV/Cu_ONCV_PBE-1.2.upf

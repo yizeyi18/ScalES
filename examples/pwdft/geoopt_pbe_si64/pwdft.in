@@ -1,15 +1,13 @@
-ion_move:               nlcg
-ion_max_iter:           30
+ion_move:               lbfgs 
+ion_max_iter:           20
 
-temperature:        	  30
+temperature:        	  300
 extra_states:           8
 
 xc_type:                PBE
 
 ecut_wavefunction:      10
-eig_maxiter:            5
 pw_solver:              LOBPCG
-hybrid_mixing_type:     pcdiis
 
 begin upf_file
   ../../pp_ONCV/Si_ONCV_PBE-1.2.upf
