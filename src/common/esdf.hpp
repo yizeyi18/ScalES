@@ -1176,6 +1176,9 @@ struct ESDFInputParam{
 // Adjust the grid size to be more optimal for FFT. Grid sizes are currently hard coded
 Int AdjustNumGrid( Int numGrid );
 
+// Adjust the grid size to be more optimal for PW part, choose only Odd numbers for converge considerations.
+Int AdjustNumGridOdd( Int numGrid );
+
 // Read / Write options common to all codes
 void ESDFReadInput( const std::string filename );
 

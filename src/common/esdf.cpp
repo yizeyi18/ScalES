@@ -2589,15 +2589,17 @@ ESDFReadInput ( const char* filename )
       Domain&  dm       = esdfParam.domain;
 
       for( Int d = 0; d < DIM; d++ ){
-        dm.numGrid[d] = AdjustNumGrid(std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
+        dm.numGrid[d] = AdjustNumGridOdd(std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
               dm.length[d] / PI));
         dm.numGridFine[d] = AdjustNumGrid(std::ceil(dm.numGrid[d] * esdfParam.densityGridFactor));
+	/*
         // FIXME: Temporary thing to make sure numGrid is an odd number (an odd thing to say..), and 
         // fix esdfParam.densityGridFactor to be 2
         if( dm.numGrid[d] % 2 == 0 ){
           dm.numGrid[d] += 1;
           dm.numGridFine[d] = dm.numGrid[d] * 2;
         }
+	*/
       } // for (d)
 //      if( dm.numGrid[0] % 2 == 0 ){
 //        dm.numGrid[0] += 1;
@@ -3372,6 +3374,57 @@ void ESDFPrintInput( ){
 
   return ;
 }        // -----  end of function ESDFPrintInput  ----- 
+
+Int AdjustNumGridOdd( Int numGrid ){
+  Int numGridNew;
+  Int nnn[100];
+  nnn[ 0] = 1;
+  nnn[ 1] = 3;
+  nnn[ 2] = 5;
+  nnn[ 3] = 7;
+  nnn[ 4] = 9;
+  nnn[ 5] = 15;
+  nnn[ 6] = 21;
+  nnn[ 7] = 25;
+  nnn[ 8] = 27;
+  nnn[ 9] = 35;
+  nnn[ 10] = 45;
+  nnn[ 11] = 49;
+  nnn[ 12] = 63;
+  nnn[ 13] = 75;
+  nnn[ 14] = 81;
+  nnn[ 15] = 105;
+  nnn[ 16] = 125;
+  nnn[ 17] = 135;
+  nnn[ 18] = 147;
+  nnn[ 19] = 175;
+  nnn[ 20] = 189;
+  nnn[ 21] = 225;
+  nnn[ 22] = 245;
+  nnn[ 23] = 315;
+  nnn[ 24] = 343;
+  nnn[ 25] = 375;
+  nnn[ 26] = 441;
+  nnn[ 27] = 525;
+  nnn[ 28] = 625;
+  nnn[ 29] = 735;
+  nnn[ 30] = 875;
+  nnn[ 31] = 1029;
+  nnn[ 32] = 1225;
+  nnn[ 33] = 1715;
+  nnn[ 34] = 2401;
+
+  for( int i = 1; i <= 33; i++)
+  {
+    if( nnn[i] >= numGrid && nnn[i+1] > numGrid ) {
+//      numGridNew = IRound(nnn[i]/2.0)*2;
+      numGridNew = nnn[i];
+      break;
+    }
+  }
+
+  return numGridNew;
+}
 
 Int AdjustNumGrid( Int numGrid ){
   Int numGridNew;
