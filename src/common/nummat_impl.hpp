@@ -107,6 +107,7 @@ template <class F> inline void NumMat<F>::Resize(Int m, Int n)  {
 
 template <class F> 
 inline const F& NumMat<F>::operator()(Int i, Int j) const  { 
+#if ( _DEBUGlevel_ >= 1 )
   if( i < 0 || i >= m_ ||
       j < 0 || j >= n_ ) {
     std::ostringstream msg;
@@ -116,11 +117,13 @@ inline const F& NumMat<F>::operator()(Int i, Int j) const  {
       << "This index     ~ (" << i  << ", " << j  << ")" << std::endl;
     ErrorHandling( msg.str().c_str() ); 
   }
+#endif
   return data_[i+j*m_];
 }
 
 template <class F>
 inline F& NumMat<F>::operator()(Int i, Int j)  { 
+#if ( _DEBUGlevel_ >= 1 )
   if( i < 0 || i >= m_ ||
       j < 0 || j >= n_ ) {
     std::ostringstream msg;
@@ -130,12 +133,14 @@ inline F& NumMat<F>::operator()(Int i, Int j)  {
       << "This index     ~ (" << i  << ", " << j  << ")" << std::endl;
     ErrorHandling( msg.str().c_str() ); 
   }
+#endif
   return data_[i+j*m_];
 }
 
 template <class F>
 inline F* NumMat<F>::VecData(Int j)  const 
 { 
+#if ( _DEBUGlevel_ >= 1 )
   if( j < 0 || j >= n_ ) {
     std::ostringstream msg;
     msg 
@@ -144,6 +149,7 @@ inline F* NumMat<F>::VecData(Int j)  const
       << "This index     ~ (" << j  << ")" << std::endl;
     ErrorHandling( msg.str().c_str() ); 
   }
+#endif
   return &(data_[j*m_]); 
 }
 

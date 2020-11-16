@@ -114,6 +114,7 @@ template <class F>
 
 template <class F> 
   inline const F& NumTns<F>::operator()(Int i, Int j, Int k) const  {
+#if ( _DEBUGlevel_ >= 1 )
     if( i < 0 || i >= m_ ||
         j < 0 || j >= n_ ||
         k < 0 || k >= p_ ) {
@@ -124,11 +125,13 @@ template <class F>
         << "This index     ~ (" << i  << ", " << j  << ", " << k  << ")" << std::endl;
       ErrorHandling( msg.str().c_str() );
     }
+#endif
     return data_[i+j*m_+k*m_*n_];
   }
 
 template <class F> 
   inline F& NumTns<F>:: operator()(Int i, Int j, Int k)  {
+#if ( _DEBUGlevel_ >= 1 )
     if( i < 0 || i >= m_ ||
         j < 0 || j >= n_ ||
         k < 0 || k >= p_ ) {
@@ -139,11 +142,13 @@ template <class F>
         << "This index     ~ (" << i  << ", " << j  << ", " << k  << ")" << std::endl;
       ErrorHandling( msg.str().c_str() );
     }
+#endif
     return data_[i+j*m_+k*m_*n_];
   }
 
 template <class F> 
   inline F* NumTns<F>::MatData (Int k) const {
+#if ( _DEBUGlevel_ >= 1 )
     if( k < 0 || k >= p_ ) {
       std::ostringstream msg;
       msg 
@@ -152,11 +157,13 @@ template <class F>
         << "This index     ~ (" << k  << ")" << std::endl;
       ErrorHandling( msg.str().c_str() );
     }
+#endif
     return &(data_[k*m_*n_]);
   }
 
 template <class F> 
   inline F* NumTns<F>::VecData (Int j, Int k) const {
+#if ( _DEBUGlevel_ >= 1 )
     if( j < 0 || j >= n_ ||
         k < 0 || k >= p_ ) {
       std::ostringstream msg;
@@ -166,6 +173,7 @@ template <class F>
         << "This index     ~ (" << j  << ", " << k  << ")" << std::endl;
       ErrorHandling( msg.str().c_str() );
     }
+#endif
     return &(data_[k*m_*n_+j*m_]);
   }
 

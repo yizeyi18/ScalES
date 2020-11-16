@@ -200,6 +200,7 @@ template < class F >
 template <class F> 
   inline F& NumVec<F>::operator()    ( Int i )
   {
+#if ( _DEBUGlevel_ >= 1 )
     if( i < 0 || i >= m_ ){
       std::ostringstream msg;
       msg 
@@ -208,6 +209,7 @@ template <class F>
         << "This index     ~ (" << i << ")" << std::endl;
       ErrorHandling(msg.str().c_str());
     }
+#endif
     return data_[i];
 
   }         // -----  end of method NumVec<F>::operator()  ----- 
@@ -216,6 +218,7 @@ template <class F>
 template <class F>
   inline const F& NumVec<F>::operator()    ( Int i ) const
   {
+#if ( _DEBUGlevel_ >= 1 )
     if( i < 0 || i >= m_ ){
       std::ostringstream msg;
       msg 
@@ -224,6 +227,7 @@ template <class F>
         << "This index     ~ (" << i << ")" << std::endl;
       ErrorHandling(msg.str().c_str());
     }
+#endif
     return data_[i];
 
   }         // -----  end of method NumVec<F>::operator()  ----- 
@@ -232,6 +236,7 @@ template <class F>
 template <class F> 
   inline F& NumVec<F>::operator[]    ( Int i )
   {
+#if ( _DEBUGlevel_ >= 1 )
     if( i < 0 || i >= m_ ){
       std::ostringstream msg;
       msg 
@@ -240,6 +245,7 @@ template <class F>
         << "This index     ~ (" << i << ")" << std::endl;
       ErrorHandling(msg.str().c_str());
     }
+#endif
     return data_[i];
 
   }         // -----  end of method NumVec<F>::operator[]  ----- 
@@ -248,6 +254,7 @@ template <class F>
 template <class F> 
   inline const F& NumVec<F>::operator[]    ( Int i ) const
   {
+#if ( _DEBUGlevel_ >= 1 )
     if( i < 0 || i >= m_ ){
       std::ostringstream msg;
       msg 
@@ -256,6 +263,7 @@ template <class F>
         << "This index     ~ (" << i << ")" << std::endl;
       ErrorHandling(msg.str().c_str());
     }
+#endif
     return data_[i];
 
   }         // -----  end of method NumVec<F>::operator[]  ----- 
