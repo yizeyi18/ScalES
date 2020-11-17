@@ -2639,6 +2639,12 @@ ESDFReadInput ( const char* filename )
     esdfParam.numProcScaLAPACKPW  = esdf_integer( "Num_Proc_ScaLAPACK_PW", mpisize );
     esdfParam.scaBlockSize  = esdf_integer( "ScaLAPACK_Block_Size", 32 );
     esdfParam.extraElectron = esdf_integer( "Extra_Electron", 0);
+
+    // PPCG 
+    {
+      esdfParam.PPCGsbSize = esdf_integer( "PPCG_sbSize", 1);
+    }
+  
   }
 
   // Post processing information for XC functionals

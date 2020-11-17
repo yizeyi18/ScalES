@@ -3764,7 +3764,7 @@ EigenSolver::PPCGSolveReal    (
 
     // Perform the sweep
     GetTime( timeSta );
-    Int sbSize = 1, nsb = width; // this should be generalized to subblocks 
+    Int sbSize = esdfParam.PPCGsbSize, nsb = width/sbSize; // this should be generalized to subblocks 
     DblNumMat  AMat( 3*sbSize, 3*sbSize ), BMat( 3*sbSize, 3*sbSize );
     DblNumMat  AMatAll( 3*sbSize, 3*sbSize*nsb ), BMatAll( 3*sbSize, 3*sbSize*nsb ); // contains all nsb 3-by-3 matrices
     DblNumMat  AMatAllLocal( 3*sbSize, 3*sbSize*nsb ), BMatAllLocal( 3*sbSize, 3*sbSize*nsb ); // contains local parts of all nsb 3-by-3 matrices
@@ -3777,10 +3777,10 @@ EigenSolver::PPCGSolveReal    (
     for( Int k = 0; k < nsb; k++ ){
 
       // fetch indiviual columns
-      DblNumMat  x( heightLocal, sbSize, false, X.VecData(k) );
-      DblNumMat  w( heightLocal, sbSize, false, W.VecData(k) );
-      DblNumMat ax( heightLocal, sbSize, false, AX.VecData(k) );
-      DblNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
+      DblNumMat  x( heightLocal, sbSize, false, X.VecData(sbSize*k) );
+      DblNumMat  w( heightLocal, sbSize, false, W.VecData(sbSize*k) );
+      DblNumMat ax( heightLocal, sbSize, false, AX.VecData(sbSize*k) );
+      DblNumMat aw( heightLocal, sbSize, false, AW.VecData(sbSize*k) );
 
       // Compute AMatAllLoc and BMatAllLoc            
       // AMatAllLoc
@@ -3933,12 +3933,12 @@ EigenSolver::PPCGSolveReal    (
       timeSygvd = timeSygvd + ( timeEnd - timeSta );
 
       // fetch indiviual columns
-      DblNumMat  x( heightLocal, sbSize, false, X.VecData(k) );
-      DblNumMat  w( heightLocal, sbSize, false, W.VecData(k) );
-      DblNumMat  p( heightLocal, sbSize, false, P.VecData(k) );
-      DblNumMat ax( heightLocal, sbSize, false, AX.VecData(k) );
-      DblNumMat aw( heightLocal, sbSize, false, AW.VecData(k) );
-      DblNumMat ap( heightLocal, sbSize, false, AP.VecData(k) );
+      DblNumMat  x( heightLocal, sbSize, false, X.VecData(sbSize*k) );
+      DblNumMat  w( heightLocal, sbSize, false, W.VecData(sbSize*k) );
+      DblNumMat  p( heightLocal, sbSize, false, P.VecData(sbSize*k) );
+      DblNumMat ax( heightLocal, sbSize, false, AX.VecData(sbSize*k) );
+      DblNumMat aw( heightLocal, sbSize, false, AW.VecData(sbSize*k) );
+      DblNumMat ap( heightLocal, sbSize, false, AP.VecData(sbSize*k) );
 
       GetTime( timeSta );
       lapack::Lacpy( 'A', sbSize, sbSize, &AMat(0,0), 3*sbSize, cx.Data(), sbSize );

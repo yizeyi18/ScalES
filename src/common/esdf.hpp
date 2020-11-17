@@ -573,6 +573,15 @@ struct ESDFInputParam{
   ///
   /// - = "CheFSI"    : Chebyshev filtered subspace iteration
   std::string         PWSolver;                 
+  
+  /// @brief Subblock size used in PPCG in PWDFT.
+  ///
+  /// Default: "1"
+  ///
+  /// - = "1"
+  /// - = "Nband+Extra_States" : Equivalent to LOBPCG
+  Int                 PPCGsbSize;
+  
   /// @brief Method for solving the projected problem in the adaptive
   /// local basis set.
   ///
