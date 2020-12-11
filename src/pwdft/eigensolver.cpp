@@ -204,128 +204,9 @@ EigenSolver::LOBPCGSolveReal    (
   // eigensolver.
   //
   statusOFS << "DBWY IN LOBPCG" << std::endl;
+
+  // DBWY: Set up distributor
   dist_util::BlockDistributor<double> bdist( mpi_comm, height, width );
-#if 0
-  DblNumVec sendbuf(height*widthLocal); 
-  DblNumVec recvbuf(heightLocal*width);
-  IntNumVec sendcounts(mpisize);
-  IntNumVec recvcounts(mpisize);
-  IntNumVec senddispls(mpisize);
-  IntNumVec recvdispls(mpisize);
-  IntNumMat  sendk( height, widthLocal );
-  IntNumMat  recvk( heightLocal, width );
-
-  for( Int k = 0; k < mpisize; k++ ){ 
-    sendcounts[k] = heightBlocksize * widthLocal;
-    if( k < (height % mpisize)){
-      sendcounts[k] = sendcounts[k] + widthLocal;  
-    }
-  }
-
-  for( Int k = 0; k < mpisize; k++ ){ 
-    recvcounts[k] = heightLocal * widthBlocksize;
-    if( k < (width % mpisize)){
-      recvcounts[k] = recvcounts[k] + heightLocal;  
-    }
-  }
-
-  senddispls[0] = 0;
-  recvdispls[0] = 0;
-  for( Int k = 1; k < mpisize; k++ ){ 
-    senddispls[k] = senddispls[k-1] + sendcounts[k-1];
-    recvdispls[k] = recvdispls[k-1] + recvcounts[k-1];
-  }
-
-  if((height % mpisize) == 0){
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        sendk(i, j) = senddispls[i / heightBlocksize] + j * heightBlocksize + i % heightBlocksize;
-      } 
-    }
-  }
-  else{
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        if( i < ((height % mpisize) * (heightBlocksize+1)) ){
-          sendk(i, j) = senddispls[i / (heightBlocksize+1)] + j * (heightBlocksize+1) + i % (heightBlocksize+1);
-        }
-        else {
-          sendk(i, j) = senddispls[(height % mpisize) + (i-(height % mpisize)*(heightBlocksize+1))/heightBlocksize]
-            + j * heightBlocksize + (i-(height % mpisize)*(heightBlocksize+1)) % heightBlocksize;
-        }
-      }
-    }
-  }
-
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
-    }
-  }
-
-  const auto& sendcounts_bdist = *bdist.sendcounts();
-  const auto& recvcounts_bdist = *bdist.recvcounts();
-  const auto& senddispls_bdist = *bdist.senddispls();
-  const auto& recvdispls_bdist = *bdist.recvdispls();
-  const auto& sendk_bdist = *bdist.sendk();
-  const auto& recvk_bdist = *bdist.recvk();
-  
-  bool sendcounts_iden = true;
-  for( Int i = 0; i < mpisize; ++i ) {
-    if( sendcounts[i] != sendcounts_bdist[i] ) {
-      sendcounts_iden = false;
-      break;
-    }
-  }
-  bool recvcounts_iden = true;
-  for( Int i = 0; i < mpisize; ++i ) {
-    if( recvcounts[i] != recvcounts_bdist[i] ) {
-      recvcounts_iden = false;
-      break;
-    }
-  }
-  bool senddispls_iden = true;
-  for( Int i = 0; i < mpisize; ++i ) {
-    if( senddispls[i] != senddispls_bdist[i] ) {
-      senddispls_iden = false;
-      break;
-    }
-  }
-  bool recvdispls_iden = true;
-  for( Int i = 0; i < mpisize; ++i ) {
-    if( recvdispls[i] != recvdispls_bdist[i] ) {
-      recvdispls_iden = false;
-      break;
-    }
-  }
-
-  bool sendk_iden = true;
-  for( Int j = 0; j < widthLocal; ++j ) 
-  for( Int i = 0; i < height;     ++i ) {
-    if( sendk(i,j) != sendk_bdist(i,j) ) {
-      sendk_iden = false;
-      break;
-    }
-  }
-
-  bool recvk_iden = true;
-  for( Int j = 0; j < width;       ++j ) 
-  for( Int i = 0; i < heightLocal; ++i ) {
-    if( recvk(i,j) != recvk_bdist(i,j) ) {
-      recvk_iden = false;
-      break;
-    }
-  }
-
-  statusOFS << "SENDCOUNTS = " << std::boolalpha << sendcounts_iden << std::endl;
-  statusOFS << "RECVCOUNTS = " << std::boolalpha << recvcounts_iden << std::endl;
-  statusOFS << "SENDDISPLS = " << std::boolalpha << senddispls_iden << std::endl;
-  statusOFS << "RECVDISPLS = " << std::boolalpha << recvdispls_iden << std::endl;
-  statusOFS << "SENDK      = " << std::boolalpha << sendk_iden << std::endl;
-  statusOFS << "RECVK      = " << std::boolalpha << recvk_iden << std::endl;
-  // end For Alltoall
-
-#endif
 
   // S = ( X | W | P ) is a triplet used for LOBPCG.  
   // W is the preconditioned residual
@@ -401,25 +282,12 @@ EigenSolver::LOBPCGSolveReal    (
   lapack::Lacpy( 'A', height, widthLocal, psiPtr_->Wavefun().Data(), height, 
       Xcol.Data(), height );
 
-  GetTime( timeSta );
-#if 0
-  for( Int j = 0; j < widthLocal; j++ ){ 
-    for( Int i = 0; i < height; i++ ){
-      sendbuf[sendk(i, j)] = Xcol(i, j); 
-    }
-  }
-  MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-      &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      X(i, j) = recvbuf[recvk(i, j)];
-    }
-  }
-#else
+
   // Redistribute X from Row -> Col format
+  GetTime( timeSta );
   bdist.redistribute_col_to_row( Xcol, X );
-#endif
   GetTime( timeEnd );
+
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
@@ -458,25 +326,11 @@ EigenSolver::LOBPCGSolveReal    (
   iterTrsm = iterTrsm + 1;
   timeTrsm = timeTrsm + ( timeEnd - timeSta );
 
-  GetTime( timeSta );
-#if 0
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      recvbuf[recvk(i, j)] = X(i, j);
-    }
-  }
-  MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-      &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
-  for( Int j = 0; j < widthLocal; j++ ){ 
-    for( Int i = 0; i < height; i++ ){
-      Xcol(i, j) = sendbuf[sendk(i, j)]; 
-    }
-  }
-#else
   // Redistribute from X Row -> Col format
+  GetTime( timeSta );
   bdist.redistribute_row_to_col( X, Xcol );
-#endif
   GetTime( timeEnd );
+
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
@@ -492,25 +346,11 @@ EigenSolver::LOBPCGSolveReal    (
     timeSpinor = timeSpinor + ( timeEnd - timeSta );
   }
 
-  GetTime( timeSta );
-#if 0
-  for( Int j = 0; j < widthLocal; j++ ){ 
-    for( Int i = 0; i < height; i++ ){
-      sendbuf[sendk(i, j)] = AXcol(i, j); 
-    }
-  }
-  MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-      &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      AX(i, j) = recvbuf[recvk(i, j)];
-    }
-  }
-#else
   // Redistribute AX from Row -> Col format
+  GetTime( timeSta );
   bdist.redistribute_col_to_row( AXcol, AX );
-#endif
   GetTime( timeEnd );
+
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
@@ -611,25 +451,11 @@ EigenSolver::LOBPCGSolveReal    (
     // MPI_Alltoallv
     // Only convert Xtemp here
 
+    // Redistribute from Xtemp Row -> Col format
     GetTime( timeSta );
-#if 0
-    for( Int j = 0; j < width; j++ ){ 
-      for( Int i = 0; i < heightLocal; i++ ){
-        recvbuf[recvk(i, j)] = Xtemp(i, j);
-      }
-    }
-    MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-        &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        Xcol(i, j) = sendbuf[sendk(i, j)]; 
-      }
-    }
-#else
-  // Redistribute from Xtemp Row -> Col format
-  bdist.redistribute_row_to_col( Xtemp, Xcol );
-#endif
+    bdist.redistribute_row_to_col( Xtemp, Xcol );
     GetTime( timeEnd );
+
     iterAlltoallv = iterAlltoallv + 1;
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
@@ -699,47 +525,19 @@ EigenSolver::LOBPCGSolveReal    (
     // MPI_Alltoallv
     // Only convert W and AW
 
-    GetTime( timeSta );
-#if 0
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        sendbuf[sendk(i, j)] = Wcol(i, j); 
-      }
-    }
-    MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
-    for( Int j = 0; j < width; j++ ){ 
-      for( Int i = 0; i < heightLocal; i++ ){
-        W(i, j) = recvbuf[recvk(i, j)];
-      }
-    }
-#else
     // Convert W Col to Row
+    GetTime( timeSta );
     bdist.redistribute_col_to_row( Wcol, W );
-#endif
     GetTime( timeEnd );
+
     iterAlltoallv = iterAlltoallv + 1;
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
-    GetTime( timeSta );
-#if 0
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        sendbuf[sendk(i, j)] = AWcol(i, j); 
-      }
-    }
-    MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
-    for( Int j = 0; j < width; j++ ){ 
-      for( Int i = 0; i < heightLocal; i++ ){
-        AW(i, j) = recvbuf[recvk(i, j)];
-      }
-    }
-#else
     // Convert AW Col to Row
+    GetTime( timeSta );
     bdist.redistribute_col_to_row( AWcol, AW );
-#endif
     GetTime( timeEnd );
+
     iterAlltoallv = iterAlltoallv + 1;
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
@@ -1427,25 +1225,11 @@ EigenSolver::LOBPCGSolveReal    (
   eigVal_ = DblNumVec( width, true, eigValS.Data() );
   resVal_ = resNorm;
 
-  GetTime( timeSta );
-#if 0
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      recvbuf[recvk(i, j)] = X(i, j);
-    }
-  }
-  MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-      &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
-  for( Int j = 0; j < widthLocal; j++ ){ 
-    for( Int i = 0; i < height; i++ ){
-      Xcol(i, j) = sendbuf[sendk(i, j)]; 
-    }
-  }
-#else
   // Redistribute X Row -> Col
+  GetTime( timeSta );
   bdist.redistribute_row_to_col( X, Xcol );
-#endif
   GetTime( timeEnd );
+
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
