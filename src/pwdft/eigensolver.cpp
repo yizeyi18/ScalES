@@ -56,6 +56,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "scalapack.hpp"
 #include  "mpi_interf.hpp"
 
+#include "block_distributor_decl.hpp"
+
+
 using namespace dgdft::scalapack;
 using namespace dgdft::esdf;
 
@@ -200,6 +203,9 @@ EigenSolver::LOBPCGSolveReal    (
   // AlltoallBackward since they are repetitively used in the
   // eigensolver.
   //
+  statusOFS << "DBWY IN LOBPCG" << std::endl;
+  dist_util::BlockDistributor<double> bdist( mpi_comm, height, width );
+#if 0
   DblNumVec sendbuf(height*widthLocal); 
   DblNumVec recvbuf(heightLocal*width);
   IntNumVec sendcounts(mpisize);
@@ -256,7 +262,70 @@ EigenSolver::LOBPCGSolveReal    (
       recvk(i, j) = recvdispls[j % mpisize] + (j / mpisize) * heightLocal + i;
     }
   }
+
+  const auto& sendcounts_bdist = *bdist.sendcounts();
+  const auto& recvcounts_bdist = *bdist.recvcounts();
+  const auto& senddispls_bdist = *bdist.senddispls();
+  const auto& recvdispls_bdist = *bdist.recvdispls();
+  const auto& sendk_bdist = *bdist.sendk();
+  const auto& recvk_bdist = *bdist.recvk();
+  
+  bool sendcounts_iden = true;
+  for( Int i = 0; i < mpisize; ++i ) {
+    if( sendcounts[i] != sendcounts_bdist[i] ) {
+      sendcounts_iden = false;
+      break;
+    }
+  }
+  bool recvcounts_iden = true;
+  for( Int i = 0; i < mpisize; ++i ) {
+    if( recvcounts[i] != recvcounts_bdist[i] ) {
+      recvcounts_iden = false;
+      break;
+    }
+  }
+  bool senddispls_iden = true;
+  for( Int i = 0; i < mpisize; ++i ) {
+    if( senddispls[i] != senddispls_bdist[i] ) {
+      senddispls_iden = false;
+      break;
+    }
+  }
+  bool recvdispls_iden = true;
+  for( Int i = 0; i < mpisize; ++i ) {
+    if( recvdispls[i] != recvdispls_bdist[i] ) {
+      recvdispls_iden = false;
+      break;
+    }
+  }
+
+  bool sendk_iden = true;
+  for( Int j = 0; j < widthLocal; ++j ) 
+  for( Int i = 0; i < height;     ++i ) {
+    if( sendk(i,j) != sendk_bdist(i,j) ) {
+      sendk_iden = false;
+      break;
+    }
+  }
+
+  bool recvk_iden = true;
+  for( Int j = 0; j < width;       ++j ) 
+  for( Int i = 0; i < heightLocal; ++i ) {
+    if( recvk(i,j) != recvk_bdist(i,j) ) {
+      recvk_iden = false;
+      break;
+    }
+  }
+
+  statusOFS << "SENDCOUNTS = " << std::boolalpha << sendcounts_iden << std::endl;
+  statusOFS << "RECVCOUNTS = " << std::boolalpha << recvcounts_iden << std::endl;
+  statusOFS << "SENDDISPLS = " << std::boolalpha << senddispls_iden << std::endl;
+  statusOFS << "RECVDISPLS = " << std::boolalpha << recvdispls_iden << std::endl;
+  statusOFS << "SENDK      = " << std::boolalpha << sendk_iden << std::endl;
+  statusOFS << "RECVK      = " << std::boolalpha << recvk_iden << std::endl;
   // end For Alltoall
+
+#endif
 
   // S = ( X | W | P ) is a triplet used for LOBPCG.  
   // W is the preconditioned residual
@@ -333,6 +402,7 @@ EigenSolver::LOBPCGSolveReal    (
       Xcol.Data(), height );
 
   GetTime( timeSta );
+#if 0
   for( Int j = 0; j < widthLocal; j++ ){ 
     for( Int i = 0; i < height; i++ ){
       sendbuf[sendk(i, j)] = Xcol(i, j); 
@@ -345,6 +415,10 @@ EigenSolver::LOBPCGSolveReal    (
       X(i, j) = recvbuf[recvk(i, j)];
     }
   }
+#else
+  // Redistribute X from Row -> Col format
+  bdist.redistribute_col_to_row( Xcol, X );
+#endif
   GetTime( timeEnd );
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
@@ -385,6 +459,7 @@ EigenSolver::LOBPCGSolveReal    (
   timeTrsm = timeTrsm + ( timeEnd - timeSta );
 
   GetTime( timeSta );
+#if 0
   for( Int j = 0; j < width; j++ ){ 
     for( Int i = 0; i < heightLocal; i++ ){
       recvbuf[recvk(i, j)] = X(i, j);
@@ -397,6 +472,10 @@ EigenSolver::LOBPCGSolveReal    (
       Xcol(i, j) = sendbuf[sendk(i, j)]; 
     }
   }
+#else
+  // Redistribute from X Row -> Col format
+  bdist.redistribute_row_to_col( X, Xcol );
+#endif
   GetTime( timeEnd );
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
@@ -414,6 +493,7 @@ EigenSolver::LOBPCGSolveReal    (
   }
 
   GetTime( timeSta );
+#if 0
   for( Int j = 0; j < widthLocal; j++ ){ 
     for( Int i = 0; i < height; i++ ){
       sendbuf[sendk(i, j)] = AXcol(i, j); 
@@ -426,6 +506,10 @@ EigenSolver::LOBPCGSolveReal    (
       AX(i, j) = recvbuf[recvk(i, j)];
     }
   }
+#else
+  // Redistribute AX from Row -> Col format
+  bdist.redistribute_col_to_row( AXcol, AX );
+#endif
   GetTime( timeEnd );
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
@@ -528,6 +612,7 @@ EigenSolver::LOBPCGSolveReal    (
     // Only convert Xtemp here
 
     GetTime( timeSta );
+#if 0
     for( Int j = 0; j < width; j++ ){ 
       for( Int i = 0; i < heightLocal; i++ ){
         recvbuf[recvk(i, j)] = Xtemp(i, j);
@@ -540,6 +625,10 @@ EigenSolver::LOBPCGSolveReal    (
         Xcol(i, j) = sendbuf[sendk(i, j)]; 
       }
     }
+#else
+  // Redistribute from Xtemp Row -> Col format
+  bdist.redistribute_row_to_col( Xtemp, Xcol );
+#endif
     GetTime( timeEnd );
     iterAlltoallv = iterAlltoallv + 1;
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
@@ -611,6 +700,7 @@ EigenSolver::LOBPCGSolveReal    (
     // Only convert W and AW
 
     GetTime( timeSta );
+#if 0
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
         sendbuf[sendk(i, j)] = Wcol(i, j); 
@@ -623,11 +713,16 @@ EigenSolver::LOBPCGSolveReal    (
         W(i, j) = recvbuf[recvk(i, j)];
       }
     }
+#else
+    // Convert W Col to Row
+    bdist.redistribute_col_to_row( Wcol, W );
+#endif
     GetTime( timeEnd );
     iterAlltoallv = iterAlltoallv + 1;
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
     GetTime( timeSta );
+#if 0
     for( Int j = 0; j < widthLocal; j++ ){ 
       for( Int i = 0; i < height; i++ ){
         sendbuf[sendk(i, j)] = AWcol(i, j); 
@@ -640,6 +735,10 @@ EigenSolver::LOBPCGSolveReal    (
         AW(i, j) = recvbuf[recvk(i, j)];
       }
     }
+#else
+    // Convert AW Col to Row
+    bdist.redistribute_col_to_row( AWcol, AW );
+#endif
     GetTime( timeEnd );
     iterAlltoallv = iterAlltoallv + 1;
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
@@ -1329,6 +1428,7 @@ EigenSolver::LOBPCGSolveReal    (
   resVal_ = resNorm;
 
   GetTime( timeSta );
+#if 0
   for( Int j = 0; j < width; j++ ){ 
     for( Int i = 0; i < heightLocal; i++ ){
       recvbuf[recvk(i, j)] = X(i, j);
@@ -1341,6 +1441,10 @@ EigenSolver::LOBPCGSolveReal    (
       Xcol(i, j) = sendbuf[sendk(i, j)]; 
     }
   }
+#else
+  // Redistribute X Row -> Col
+  bdist.redistribute_row_to_col( X, Xcol );
+#endif
   GetTime( timeEnd );
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
@@ -3298,6 +3402,70 @@ EigenSolver::PPCGSolveReal    (
     }
   }
   // end For Alltoall
+
+
+  statusOFS << "DBWY IN PPCG" << std::endl;
+  dist_util::BlockDistributor<double> bdist( mpi_comm, height, width );
+  const auto& sendcounts_bdist = *bdist.sendcounts();
+  const auto& recvcounts_bdist = *bdist.recvcounts();
+  const auto& senddispls_bdist = *bdist.senddispls();
+  const auto& recvdispls_bdist = *bdist.recvdispls();
+  const auto& sendk_bdist = *bdist.sendk();
+  const auto& recvk_bdist = *bdist.recvk();
+  
+  bool sendcounts_iden = true;
+  for( Int i = 0; i < mpisize; ++i ) {
+    if( sendcounts[i] != sendcounts_bdist[i] ) {
+      sendcounts_iden = false;
+      break;
+    }
+  }
+  bool recvcounts_iden = true;
+  for( Int i = 0; i < mpisize; ++i ) {
+    if( recvcounts[i] != recvcounts_bdist[i] ) {
+      recvcounts_iden = false;
+      break;
+    }
+  }
+  bool senddispls_iden = true;
+  for( Int i = 0; i < mpisize; ++i ) {
+    if( senddispls[i] != senddispls_bdist[i] ) {
+      senddispls_iden = false;
+      break;
+    }
+  }
+  bool recvdispls_iden = true;
+  for( Int i = 0; i < mpisize; ++i ) {
+    if( recvdispls[i] != recvdispls_bdist[i] ) {
+      recvdispls_iden = false;
+      break;
+    }
+  }
+
+  bool sendk_iden = true;
+  for( Int j = 0; j < widthLocal; ++j ) 
+  for( Int i = 0; i < height;     ++i ) {
+    if( sendk(i,j) != sendk_bdist(i,j) ) {
+      sendk_iden = false;
+      break;
+    }
+  }
+
+  bool recvk_iden = true;
+  for( Int j = 0; j < width;       ++j ) 
+  for( Int i = 0; i < heightLocal; ++i ) {
+    if( recvk(i,j) != recvk_bdist(i,j) ) {
+      recvk_iden = false;
+      break;
+    }
+  }
+
+  std::cout << "SENDCOUNTS = " << std::boolalpha << sendcounts_iden << std::endl;
+  std::cout << "RECVCOUNTS = " << std::boolalpha << recvcounts_iden << std::endl;
+  std::cout << "SENDDISPLS = " << std::boolalpha << senddispls_iden << std::endl;
+  std::cout << "RECVDISPLS = " << std::boolalpha << recvdispls_iden << std::endl;
+  std::cout << "SENDK      = " << std::boolalpha << sendk_iden << std::endl;
+  std::cout << "RECVK      = " << std::boolalpha << recvk_iden << std::endl;
 
   GetTime( timeEnd );
   iterAlltoallvMap = iterAlltoallvMap + 1;
