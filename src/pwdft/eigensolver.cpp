@@ -1058,10 +1058,10 @@ EigenSolver::LOBPCGSolveReal    (
 
     } // if ( numSet == 2 )
 
-//#if ( _DEBUGlevel_ >= 1 )
+#if ( _DEBUGlevel_ >= 1 )
     statusOFS << "numLocked = " << numLocked << std::endl;
     statusOFS << "eigValS   = " << eigValS << std::endl;
-//#endif
+#endif
 
   } while( (iter < (10 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
