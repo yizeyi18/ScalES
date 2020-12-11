@@ -65,6 +65,62 @@ using namespace dgdft::esdf;
 
 namespace dgdft{
 
+namespace detail {
+
+template <typename T>
+void row_dist_inner_replicate( int64_t  NLocal, 
+                               int64_t  K,
+                               int64_t  L,
+                               const T* XLocal,
+                               int64_t  LDXLocal,
+                               const T* YLocal,   
+                               int64_t  LDYLocal,
+                               T*       M,
+                               int64_t  LDM,
+                               MPI_Comm comm ) {
+
+  // Compute Local GEMM
+  blas::Gemm( 'C', 'N', K, L, NLocal, T(1.), XLocal, LDXLocal,
+              YLocal, LDYLocal, T(0.), M, LDM );
+
+  // Reduce In Place
+  // XXX: Deduce MPI_Type on template param
+  MPI_Allreduce( MPI_IN_PLACE, M, LDM*L, MPI_DOUBLE, MPI_SUM, comm );
+
+}
+
+template <typename T>
+void replicated_cholesky_qr_row_dist( int64_t NLocal, 
+                                      int64_t K,
+                                      T*      XLocal,
+                                      int64_t LDXLocal,
+                                      T*      R,
+                                      int64_t LDR,
+                                      MPI_Comm comm ) {
+
+  row_dist_inner_replicate( NLocal, K, K, XLocal, LDXLocal, XLocal, LDXLocal,
+                            R, LDR, comm );
+
+  Int mpi_rank;
+  MPI_Comm_rank( comm, &mpi_rank );
+
+  // Compute Cholesky on root + Bcast
+  // XXX: POTRF is replicatable, no reason to waste communication post replicated
+  //      inner product
+  if( mpi_rank == 0 ) {
+    lapack::Potrf( 'U', K, R, LDR );
+  }
+  MPI_Bcast( R, K*LDR, MPI_DOUBLE, 0, comm );
+
+  // X <- X * U**-1
+  blas::Trsm( 'R', 'U', 'N', 'N', NLocal, K, T(1.), R, LDR, XLocal, LDXLocal );
+
+}
+
+}
+
+
+
 EigenSolver::EigenSolver() {
   // IMPORTANT: 
   // Set contxt_ here. Otherwise if an empty Eigensolver realization
@@ -296,6 +352,7 @@ EigenSolver::LOBPCGSolveReal    (
   // *********************************************************************
 
   // Orthogonalization through Cholesky factorization
+#if 0
   GetTime( timeSta );
   blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
       heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
@@ -325,6 +382,10 @@ EigenSolver::LOBPCGSolveReal    (
   GetTime( timeEnd );
   iterTrsm = iterTrsm + 1;
   timeTrsm = timeTrsm + ( timeEnd - timeSta );
+#else
+  detail::replicated_cholesky_qr_row_dist( heightLocal, width, X.Data(), heightLocal,
+                                           XTX.Data(), width, mpi_comm );
+#endif
 
   // Redistribute from X Row -> Col format
   GetTime( timeSta );
@@ -374,6 +435,7 @@ EigenSolver::LOBPCGSolveReal    (
     SetValue( BMat, 0.0 );
 
     // XTX <- X' * (AX)
+ #if 0
     GetTime( timeSta );
     blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
         heightLocal, AX.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
@@ -386,6 +448,12 @@ EigenSolver::LOBPCGSolveReal    (
     GetTime( timeEnd );
     iterAllreduce = iterAllreduce + 1;
     timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+    detail::row_dist_inner_replicate( heightLocal, width, width, 
+                                      X.Data(),  heightLocal, 
+                                      AX.Data(), heightLocal, XTX.Data(), width,
+                                      mpi_comm );
+#endif
 
     lapack::Lacpy( 'A', width, width, XTX.Data(), width, AMat.Data(), lda );
 
@@ -546,6 +614,7 @@ EigenSolver::LOBPCGSolveReal    (
     // is saved at &AMat(0,width) to guarantee a continuous data
     // arrangement of AMat.  The same treatment applies to the blocks
     // below in both AMat and BMat.
+ #if 0
     GetTime( timeSta );
     // blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0, X.Data(),
     //    heightLocal, AW.VecData(numLocked), heightLocal, 
@@ -562,9 +631,17 @@ EigenSolver::LOBPCGSolveReal    (
     GetTime( timeEnd );
     iterAllreduce = iterAllreduce + 1;
     timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+    SetValue( XTXtemp, 0.0 );
+    detail::row_dist_inner_replicate( heightLocal, width, numActive,
+                                      X.Data(),              heightLocal, 
+                                      AW.VecData(numLocked), heightLocal, 
+                                      XTXtemp.Data(),        width, mpi_comm );
+#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0,width), lda );
 
     // Compute W' * (AW)
+#if 0
     GetTime( timeSta );
     //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
     //    W.VecData(numLocked), heightLocal, AW.VecData(numLocked), heightLocal, 
@@ -581,11 +658,19 @@ EigenSolver::LOBPCGSolveReal    (
     GetTime( timeEnd );
     iterAllreduce = iterAllreduce + 1;
     timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+    SetValue( XTXtemp, 0.0 );
+    detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
+                                      W. VecData(numLocked), heightLocal, 
+                                      AW.VecData(numLocked), heightLocal, 
+                                      XTXtemp.Data(),        width, mpi_comm );
+#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width,width), lda );
 
     if( numSet == 3 ){
 
       // Compute X' * (AP)
+#if 0
       GetTime( timeSta );
       //blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
       //    X.Data(), heightLocal, AP.VecData(numLocked), heightLocal, 
@@ -602,9 +687,17 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterAllreduce = iterAllreduce + 1;
       timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+      SetValue( XTXtemp, 0.0 );
+      detail::row_dist_inner_replicate( heightLocal, width, numActive,
+                                        X.Data(),              heightLocal, 
+                                        AP.VecData(numLocked), heightLocal, 
+                                        XTXtemp.Data(),        width, mpi_comm );
+#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0, width+numActive), lda );
 
       // Compute W' * (AP)
+#if 0
       GetTime( timeSta );
       //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
       //    W.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
@@ -621,9 +714,17 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterAllreduce = iterAllreduce + 1;
       timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+      SetValue( XTXtemp, 0.0 );
+      detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
+                                        W. VecData(numLocked), heightLocal, 
+                                        AP.VecData(numLocked), heightLocal, 
+                                        XTXtemp.Data(),        width, mpi_comm );
+#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width, width+numActive), lda );
 
       // Compute P' * (AP)
+#if 0
       GetTime( timeSta );
       //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
       //    P.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
@@ -640,6 +741,13 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterAllreduce = iterAllreduce + 1;
       timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+      SetValue( XTXtemp, 0.0 );
+      detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
+                                        P. VecData(numLocked), heightLocal, 
+                                        AP.VecData(numLocked), heightLocal, 
+                                        XTXtemp.Data(),        width, mpi_comm );
+#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width+numActive, width+numActive), lda );
 
     }
@@ -648,6 +756,7 @@ EigenSolver::LOBPCGSolveReal    (
     // Compute BMat (overlap matrix)
 
     // Compute X'*X
+#if 0
     GetTime( timeSta );
     //blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, 
     //    X.Data(), heightLocal, X.Data(), heightLocal, 
@@ -664,9 +773,17 @@ EigenSolver::LOBPCGSolveReal    (
     GetTime( timeEnd );
     iterAllreduce = iterAllreduce + 1;
     timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+    // XXX: Isn't this I?
+    detail::row_dist_inner_replicate( heightLocal, width, width, 
+                                      X.Data(), heightLocal, 
+                                      X.Data(), heightLocal, XTXtemp.Data(), width,
+                                      mpi_comm );
+#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,0), lda );
 
     // Compute X'*W
+#if 0
     GetTime( timeSta );
     //blas::Gemm( 'T', 'N', width, numActive, height, 1.0,
     //    X.Data(), height, W.VecData(numLocked), height,
@@ -683,9 +800,17 @@ EigenSolver::LOBPCGSolveReal    (
     GetTime( timeEnd );
     iterAllreduce = iterAllreduce + 1;
     timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+    SetValue( XTXtemp, 0.0 );
+    detail::row_dist_inner_replicate( heightLocal, width, numActive,
+                                      X.Data(),             heightLocal, 
+                                      W.VecData(numLocked), heightLocal, 
+                                      XTXtemp.Data(),       width, mpi_comm );
+#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,width), lda );
 
     // Compute W'*W
+#if 0
     GetTime( timeSta );
     //blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
     //    W.VecData(numLocked), height, W.VecData(numLocked), height,
@@ -702,11 +827,19 @@ EigenSolver::LOBPCGSolveReal    (
     GetTime( timeEnd );
     iterAllreduce = iterAllreduce + 1;
     timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+    SetValue( XTXtemp, 0.0 );
+    detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
+                                      W.VecData(numLocked), heightLocal, 
+                                      W.VecData(numLocked), heightLocal, 
+                                      XTXtemp.Data(),       width, mpi_comm );
+#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width), lda );
 
 
     if( numSet == 3 ){
       // Compute X'*P
+#if 0
       GetTime( timeSta );
       //blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
       //    X.Data(), heightLocal, P.VecData(numLocked), heightLocal, 
@@ -723,9 +856,17 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterAllreduce = iterAllreduce + 1;
       timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+      SetValue( XTXtemp, 0.0 );
+      detail::row_dist_inner_replicate( heightLocal, width, numActive,
+                                        X.Data(),             heightLocal, 
+                                        P.VecData(numLocked), heightLocal, 
+                                        XTXtemp.Data(),       width, mpi_comm );
+#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0, width+numActive), lda );
 
       // Compute W'*P
+#if 0
       GetTime( timeSta );
       //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
       //    W.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
@@ -742,9 +883,17 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterAllreduce = iterAllreduce + 1;
       timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+      SetValue( XTXtemp, 0.0 );
+      detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
+                                        W.VecData(numLocked), heightLocal, 
+                                        P.VecData(numLocked), heightLocal, 
+                                        XTXtemp.Data(),       width, mpi_comm );
+#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width+numActive), lda );
 
       // Compute P'*P
+#if 0
       GetTime( timeSta );
       //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
       //    P.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
@@ -761,6 +910,13 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterAllreduce = iterAllreduce + 1;
       timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+      SetValue( XTXtemp, 0.0 );
+      detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
+                                        P.VecData(numLocked), heightLocal, 
+                                        P.VecData(numLocked), heightLocal, 
+                                        XTXtemp.Data(),       width, mpi_comm );
+#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width+numActive, width+numActive), lda );
 
     } // if( numSet == 3 )
@@ -1159,10 +1315,10 @@ EigenSolver::LOBPCGSolveReal    (
 
     } // if ( numSet == 2 )
 
-#if ( _DEBUGlevel_ >= 1 )
+//#if ( _DEBUGlevel_ >= 1 )
     statusOFS << "numLocked = " << numLocked << std::endl;
     statusOFS << "eigValS   = " << eigValS << std::endl;
-#endif
+//#endif
 
   } while( (iter < (10 * eigMaxIter)) && ( (iter < eigMaxIter) || (resMin > eigMinTolerance) ) );
 
