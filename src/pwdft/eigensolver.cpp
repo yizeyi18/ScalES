@@ -351,41 +351,9 @@ EigenSolver::LOBPCGSolveReal    (
   // Main loop
   // *********************************************************************
 
-  // Orthogonalization through Cholesky factorization
-#if 0
-  GetTime( timeSta );
-  blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
-      heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
-  GetTime( timeSta );
-  SetValue( XTX, 0.0 );
-  MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-  GetTime( timeEnd );
-  iterAllreduce = iterAllreduce + 1;
-  timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-
-  if ( mpirank == 0) {
-    GetTime( timeSta );
-    lapack::Potrf( 'U', width, XTX.Data(), width );
-    GetTime( timeEnd );
-    iterMpirank0 = iterMpirank0 + 1;
-    timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
-  }
-  MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
-
-  // X <- X * U^{-1} is orthogonal
-  GetTime( timeSta );
-  blas::Trsm( 'R', 'U', 'N', 'N', heightLocal, width, 1.0, XTX.Data(), width, 
-      X.Data(), heightLocal );
-  GetTime( timeEnd );
-  iterTrsm = iterTrsm + 1;
-  timeTrsm = timeTrsm + ( timeEnd - timeSta );
-#else
+  // Orthogonalization through Cholesky QR
   detail::replicated_cholesky_qr_row_dist( heightLocal, width, X.Data(), heightLocal,
                                            XTX.Data(), width, mpi_comm );
-#endif
 
   // Redistribute from X Row -> Col format
   GetTime( timeSta );
@@ -435,26 +403,10 @@ EigenSolver::LOBPCGSolveReal    (
     SetValue( BMat, 0.0 );
 
     // XTX <- X' * (AX)
- #if 0
-    GetTime( timeSta );
-    blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
-        heightLocal, AX.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-    GetTime( timeEnd );
-    iterGemmT = iterGemmT + 1;
-    timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    GetTime( timeSta );
-    SetValue( XTX, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-    GetTime( timeEnd );
-    iterAllreduce = iterAllreduce + 1;
-    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
     detail::row_dist_inner_replicate( heightLocal, width, width, 
                                       X.Data(),  heightLocal, 
                                       AX.Data(), heightLocal, XTX.Data(), width,
                                       mpi_comm );
-#endif
-
     lapack::Lacpy( 'A', width, width, XTX.Data(), width, AMat.Data(), lda );
 
     // Compute the residual.
@@ -614,140 +566,45 @@ EigenSolver::LOBPCGSolveReal    (
     // is saved at &AMat(0,width) to guarantee a continuous data
     // arrangement of AMat.  The same treatment applies to the blocks
     // below in both AMat and BMat.
- #if 0
-    GetTime( timeSta );
-    // blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0, X.Data(),
-    //    heightLocal, AW.VecData(numLocked), heightLocal, 
-    //    0.0, &AMat(0,width), lda );
-    blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0, X.Data(),
-        heightLocal, AW.VecData(numLocked), heightLocal, 
-        0.0, XTXtemp1.Data(), width );
-    GetTime( timeEnd );
-    iterGemmT = iterGemmT + 1;
-    timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    GetTime( timeSta );
-    SetValue( XTXtemp, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-    GetTime( timeEnd );
-    iterAllreduce = iterAllreduce + 1;
-    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
     SetValue( XTXtemp, 0.0 );
     detail::row_dist_inner_replicate( heightLocal, width, numActive,
                                       X.Data(),              heightLocal, 
                                       AW.VecData(numLocked), heightLocal, 
                                       XTXtemp.Data(),        width, mpi_comm );
-#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0,width), lda );
 
     // Compute W' * (AW)
-#if 0
-    GetTime( timeSta );
-    //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-    //    W.VecData(numLocked), heightLocal, AW.VecData(numLocked), heightLocal, 
-    //    0.0, &AMat(width, width), lda );
-    blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-        W.VecData(numLocked), heightLocal, AW.VecData(numLocked), heightLocal, 
-        0.0, XTXtemp1.Data(), width );
-    GetTime( timeEnd );
-    iterGemmT = iterGemmT + 1;
-    timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    GetTime( timeSta );
-    SetValue( XTXtemp, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-    GetTime( timeEnd );
-    iterAllreduce = iterAllreduce + 1;
-    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
     SetValue( XTXtemp, 0.0 );
     detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
                                       W. VecData(numLocked), heightLocal, 
                                       AW.VecData(numLocked), heightLocal, 
                                       XTXtemp.Data(),        width, mpi_comm );
-#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width,width), lda );
 
     if( numSet == 3 ){
 
       // Compute X' * (AP)
-#if 0
-      GetTime( timeSta );
-      //blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-      //    X.Data(), heightLocal, AP.VecData(numLocked), heightLocal, 
-      //   0.0, &AMat(0, width+numActive), lda );
-      blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-          X.Data(), heightLocal, AP.VecData(numLocked), heightLocal, 
-          0.0, XTXtemp1.Data(), width );
-      GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
-      timeGemmT = timeGemmT + ( timeEnd - timeSta );
-      GetTime( timeSta );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      GetTime( timeEnd );
-      iterAllreduce = iterAllreduce + 1;
-      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
       SetValue( XTXtemp, 0.0 );
       detail::row_dist_inner_replicate( heightLocal, width, numActive,
                                         X.Data(),              heightLocal, 
                                         AP.VecData(numLocked), heightLocal, 
                                         XTXtemp.Data(),        width, mpi_comm );
-#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0, width+numActive), lda );
 
       // Compute W' * (AP)
-#if 0
-      GetTime( timeSta );
-      //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-      //    W.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
-      //    0.0, &AMat(width, width+numActive), lda );
-      blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-          W.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
-          0.0, XTXtemp1.Data(), width );
-      GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
-      timeGemmT = timeGemmT + ( timeEnd - timeSta );
-      GetTime( timeSta );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      GetTime( timeEnd );
-      iterAllreduce = iterAllreduce + 1;
-      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
       SetValue( XTXtemp, 0.0 );
       detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
                                         W. VecData(numLocked), heightLocal, 
                                         AP.VecData(numLocked), heightLocal, 
                                         XTXtemp.Data(),        width, mpi_comm );
-#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width, width+numActive), lda );
 
       // Compute P' * (AP)
-#if 0
-      GetTime( timeSta );
-      //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-      //    P.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
-      //    0.0, &AMat(width+numActive, width+numActive), lda );
-      blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-          P.VecData(numLocked), heightLocal, AP.VecData(numLocked), heightLocal, 
-          0.0, XTXtemp1.Data(), width );
-      GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
-      timeGemmT = timeGemmT + ( timeEnd - timeSta );
-      GetTime( timeSta );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      GetTime( timeEnd );
-      iterAllreduce = iterAllreduce + 1;
-      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
       SetValue( XTXtemp, 0.0 );
       detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
                                         P. VecData(numLocked), heightLocal, 
                                         AP.VecData(numLocked), heightLocal, 
                                         XTXtemp.Data(),        width, mpi_comm );
-#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width+numActive, width+numActive), lda );
 
     }
@@ -756,167 +613,53 @@ EigenSolver::LOBPCGSolveReal    (
     // Compute BMat (overlap matrix)
 
     // Compute X'*X
-#if 0
-    GetTime( timeSta );
-    //blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, 
-    //    X.Data(), heightLocal, X.Data(), heightLocal, 
-    //    0.0, &BMat(0,0), lda );
-    blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, 
-        X.Data(), heightLocal, X.Data(), heightLocal, 
-        0.0, XTXtemp1.Data(), width );
-    GetTime( timeEnd );
-    iterGemmT = iterGemmT + 1;
-    timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    GetTime( timeSta );
-    SetValue( XTXtemp, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-    GetTime( timeEnd );
-    iterAllreduce = iterAllreduce + 1;
-    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
     // XXX: Isn't this I?
     detail::row_dist_inner_replicate( heightLocal, width, width, 
                                       X.Data(), heightLocal, 
                                       X.Data(), heightLocal, XTXtemp.Data(), width,
                                       mpi_comm );
-#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,0), lda );
 
     // Compute X'*W
-#if 0
-    GetTime( timeSta );
-    //blas::Gemm( 'T', 'N', width, numActive, height, 1.0,
-    //    X.Data(), height, W.VecData(numLocked), height,
-    //    0.0, &BMat(0,width), lda );
-    blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-        X.Data(), heightLocal, W.VecData(numLocked), heightLocal,
-        0.0, XTXtemp1.Data(), width );
-    GetTime( timeEnd );
-    iterGemmT = iterGemmT + 1;
-    timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    GetTime( timeSta );
-    SetValue( XTXtemp, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-    GetTime( timeEnd );
-    iterAllreduce = iterAllreduce + 1;
-    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
     SetValue( XTXtemp, 0.0 );
     detail::row_dist_inner_replicate( heightLocal, width, numActive,
                                       X.Data(),             heightLocal, 
                                       W.VecData(numLocked), heightLocal, 
                                       XTXtemp.Data(),       width, mpi_comm );
-#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,width), lda );
 
     // Compute W'*W
-#if 0
-    GetTime( timeSta );
-    //blas::Gemm( 'T', 'N', numActive, numActive, height, 1.0,
-    //    W.VecData(numLocked), height, W.VecData(numLocked), height,
-    //    0.0, &BMat(width, width), lda );
-    blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-        W.VecData(numLocked), heightLocal, W.VecData(numLocked), heightLocal,
-        0.0, XTXtemp1.Data(), width );
-    GetTime( timeEnd );
-    iterGemmT = iterGemmT + 1;
-    timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    GetTime( timeSta );
-    SetValue( XTXtemp, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-    GetTime( timeEnd );
-    iterAllreduce = iterAllreduce + 1;
-    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
     SetValue( XTXtemp, 0.0 );
     detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
                                       W.VecData(numLocked), heightLocal, 
                                       W.VecData(numLocked), heightLocal, 
                                       XTXtemp.Data(),       width, mpi_comm );
-#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width), lda );
 
 
     if( numSet == 3 ){
       // Compute X'*P
-#if 0
-      GetTime( timeSta );
-      //blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-      //    X.Data(), heightLocal, P.VecData(numLocked), heightLocal, 
-      //    0.0, &BMat(0, width+numActive), lda );
-      blas::Gemm( 'T', 'N', width, numActive, heightLocal, 1.0,
-          X.Data(), heightLocal, P.VecData(numLocked), heightLocal, 
-          0.0, XTXtemp1.Data(), width );
-      GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
-      timeGemmT = timeGemmT + ( timeEnd - timeSta );
-      GetTime( timeSta );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      GetTime( timeEnd );
-      iterAllreduce = iterAllreduce + 1;
-      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
       SetValue( XTXtemp, 0.0 );
       detail::row_dist_inner_replicate( heightLocal, width, numActive,
                                         X.Data(),             heightLocal, 
                                         P.VecData(numLocked), heightLocal, 
                                         XTXtemp.Data(),       width, mpi_comm );
-#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0, width+numActive), lda );
 
       // Compute W'*P
-#if 0
-      GetTime( timeSta );
-      //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-      //    W.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
-      //    0.0, &BMat(width, width+numActive), lda );
-      blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-          W.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
-          0.0, XTXtemp1.Data(), width );
-      GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
-      timeGemmT = timeGemmT + ( timeEnd - timeSta );
-      GetTime( timeSta );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      GetTime( timeEnd );
-      iterAllreduce = iterAllreduce + 1;
-      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
       SetValue( XTXtemp, 0.0 );
       detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
                                         W.VecData(numLocked), heightLocal, 
                                         P.VecData(numLocked), heightLocal, 
                                         XTXtemp.Data(),       width, mpi_comm );
-#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width+numActive), lda );
 
       // Compute P'*P
-#if 0
-      GetTime( timeSta );
-      //blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-      //    P.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
-      //    0.0, &BMat(width+numActive, width+numActive), lda );
-      blas::Gemm( 'T', 'N', numActive, numActive, heightLocal, 1.0,
-          P.VecData(numLocked), heightLocal, P.VecData(numLocked), heightLocal,
-          0.0, XTXtemp1.Data(), width );
-      GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
-      timeGemmT = timeGemmT + ( timeEnd - timeSta );
-      GetTime( timeSta );
-      SetValue( XTXtemp, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTXtemp.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      GetTime( timeEnd );
-      iterAllreduce = iterAllreduce + 1;
-      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
       SetValue( XTXtemp, 0.0 );
       detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
                                         P.VecData(numLocked), heightLocal, 
                                         P.VecData(numLocked), heightLocal, 
                                         XTXtemp.Data(),       width, mpi_comm );
-#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width+numActive, width+numActive), lda );
 
     } // if( numSet == 3 )
