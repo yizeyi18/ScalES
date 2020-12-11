@@ -8,8 +8,8 @@ xc_type:                PBE
 ecut_wavefunction:      30
 
 begin upf_file
-  ../../pp_ONCV/H_ONCV_PBE-1.2.upf
-  ../../pp_ONCV/O_ONCV_PBE-1.2.upf
+  /autofs/nccs-svm1_home1/dbwy/devel/crd-dgdft/examples/pp_ONCV/H_ONCV_PBE-1.2.upf
+  /autofs/nccs-svm1_home1/dbwy/devel/crd-dgdft/examples/pp_ONCV/O_ONCV_PBE-1.2.upf
 end upf_file
 
 begin super_cell
