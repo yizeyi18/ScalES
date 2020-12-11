@@ -41,29 +41,46 @@
 #
 
 # BLAS / LAPACK
-#find_package( BLAS   REQUIRED OPTIONAL_COMPONENTS lp64 )
-find_package( LAPACK REQUIRED OPTIONAL_COMPONENTS lp64 blacs scalapack )
+find_package( ScaLAPACK REQUIRED )
 
 add_library( DGDFT::linalg INTERFACE IMPORTED )
-target_link_libraries( DGDFT::linalg INTERFACE LAPACK::lapack )
-if( BLAS_USES_UNDERSCORE )
+target_link_libraries( DGDFT::linalg INTERFACE ScaLAPACK::ScaLAPACK )
+if( BLAS_FORTRAN_UNDERSCORE )
   target_compile_definitions( DGDFT::linalg INTERFACE "-D Add_" )
 endif()
+
+find_package( Libxc QUIET )
+if( NOT Libxc_FOUND ) 
+
+  include(FetchContent)
+  FetchContent_Declare(
+    libxc
+    GIT_REPOSITORY https://gitlab.com/libxc/libxc.git
+    GIT_TAG        5.0.0
+  )
+
   
+  set( BUILD_TESTING OFF CACHE BOOL "" )
+  FetchContent_MakeAvailable( libxc )
+  add_library( Libxc::xc ALIAS xc )
+  target_include_directories( xc 
+    PUBLIC 
+      $<BUILD_INTERFACE:${libxc_SOURCE_DIR}/src>
+      $<BUILD_INTERFACE:${libxc_BINARY_DIR}/src>
+      $<BUILD_INTERFACE:${libxc_BINARY_DIR}>
+      $<BUILD_INTERFACE:${libxc_BINARY_DIR}/gen_funcidx>
+  )
+  
+endif()
 
 
-
-
-find_package( ScaLAPACK REQUIRED                )
-find_package( Libxc     REQUIRED                )
-find_package( FFTW3     REQUIRED COMPONENTS MPI )
+find_package( FFTW3 REQUIRED COMPONENTS MPI )
 
 
 add_library( DGDFT::tpl_depends INTERFACE IMPORTED )
-target_link_libraries( DGDFT::tpl_depends INTERFACE ScaLAPACK::scalapack )
-target_link_libraries( DGDFT::tpl_depends INTERFACE Libxc::xc            )
-target_link_libraries( DGDFT::tpl_depends INTERFACE FFTW3::fftw3_mpi     )
-target_link_libraries( DGDFT::tpl_depends INTERFACE DGDFT::linalg        )
+target_link_libraries( DGDFT::tpl_depends INTERFACE Libxc::xc        )
+target_link_libraries( DGDFT::tpl_depends INTERFACE FFTW3::fftw3_mpi )
+target_link_libraries( DGDFT::tpl_depends INTERFACE DGDFT::linalg    )
 
 # PEXSI
 if( DGDFT_ENABLE_PEXSI )
@@ -75,5 +92,6 @@ if( DGDFT_ENABLE_PEXSI )
   target_link_libraries( DGDFT::PEXSI INTERFACE PEXSI::PEXSI )
   target_compile_definitions( DGDFT::PEXSI INTERFACE "-D PEXSI" )
 
-  target_link_libraries( DGDFT::tpl_depends INTERFACE DGDFT::PEXSI         )
+  target_link_libraries( DGDFT::tpl_depends INTERFACE DGDFT::PEXSI )
+
 endif()

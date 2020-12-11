@@ -1,9 +1,5 @@
-#   Copyright (c) 2018 The Regents of the University of California,
+#   Copyright (c) 2020 The Regents of the University of California,
 #   through Lawrence Berkeley National Laboratory.  
-#
-#   Author: David Williams-Young
-#   
-#   This file is part of DGDFT. All rights reserved.
 #   
 #   Redistribution and use in source and binary forms, with or without
 #   modification, are permitted provided that the following conditions are met:
@@ -40,35 +36,10 @@
 #   such enhancements or derivative works thereof, in binary and source code form.
 #
 
+add_subdirectory( lbfgs )
+add_subdirectory( rqrcp )
 
-# Handle MPI 
-find_package( MPI REQUIRED )
 
-add_library( DGDFT::parallel_cxx     INTERFACE IMPORTED )
-add_library( DGDFT::parallel_c       INTERFACE IMPORTED )
-add_library( DGDFT::parallel_fortran INTERFACE IMPORTED )
+add_library( DGDFT::external INTERFACE IMPORTED GLOBAL )
 
-target_link_libraries( DGDFT::parallel_cxx     INTERFACE MPI::MPI_CXX     )
-target_link_libraries( DGDFT::parallel_c       INTERFACE MPI::MPI_C       )
-target_link_libraries( DGDFT::parallel_fortran INTERFACE MPI::MPI_Fortran )
-
-# Handle OpenMP
-if( DGDFT_ENABLE_OPENMP )
-
-  find_package( OpenMP REQUIRED )
-
-  target_link_libraries( DGDFT::parallel_cxx     INTERFACE OpenMP::OpenMP_CXX     )
-  target_link_libraries( DGDFT::parallel_c       INTERFACE OpenMP::OpenMP_C       )
-  target_link_libraries( DGDFT::parallel_fortran INTERFACE OpenMP::OpenMP_Fortran )
-
-endif()
-
-# Handle CUDA Toolkit
-if( DGDFT_ENABLE_CUDA )
-
-  find_package( CUDAToolkit REQUIRED )
-
-  add_library( DGDFT::cuda INTERFACE IMPORTED )
-  target_link_libraries( DGDFT::cuda INTERFACE CUDA::cublas CUDA::cufft CUDA::cusolver )
-  
-endif()
+target_link_libraries( DGDFT::external INTERFACE lbfgs rqrcp DGDFT::linalg )

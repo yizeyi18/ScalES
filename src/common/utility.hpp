@@ -888,6 +888,7 @@ inline Int deserialize(Point3& val, std::istream& is, const std::vector<Int>& ma
 inline Int combine(Point3& val, Point3& ext)
 {
   ErrorHandling( "Combine operation not implemented." );
+  return 0;
 }
 
 //-------------------

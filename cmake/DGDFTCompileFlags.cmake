@@ -73,5 +73,14 @@ endif()
 
 # COMPLEX flags
 if( DGDFT_ENABLE_COMPLEX )
-  target_compile_definitions( DGDFT::compile_definitions INTERFACE "-D COMPLEXSCALAR" )
+  target_compile_definitions( DGDFT::compile_definitions INTERFACE "-D CPX" )
 endif()
+
+# DEVICE flags
+if( DGDFT_ENABLE_DEVICE )
+  target_compile_definitions( DGDFT::compile_definitions INTERFACE "-D DEVICE" )
+endif()
+if( DGDFT_ENABLE_GPUDIRECT )
+  target_compile_definitions( DGDFT::compile_definitions INTERFACE "-D GPUDIRECT" )
+endif()
+

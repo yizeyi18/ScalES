@@ -1,7 +1,5 @@
-#   Copyright (c) 2018 The Regents of the University of California,
+#   Copyright (c) 2020 The Regents of the University of California,
 #   through Lawrence Berkeley National Laboratory.  
-#
-#   Author: David Williams-Young
 #   
 #   This file is part of DGDFT. All rights reserved.
 #   
@@ -39,36 +37,71 @@
 #   works, incorporate into other computer software, distribute, and sublicense
 #   such enhancements or derivative works thereof, in binary and source code form.
 #
+cmake_minimum_required( VERSION 3.17 ) # Require CMake 3.17+
+
+# Set up project definition + version information
+# TODO: Get version number
+project( DGDFT VERSION 0.0.0 LANGUAGES CXX C Fortran )
 
 
-# Handle MPI 
-find_package( MPI REQUIRED )
+# General DGDFT Options
+option( DGDFT_ENABLE_COMPLEX   "Enable Complex Arithmetic"    OFF )
+option( DGDFT_ENABLE_OPENMP    "Enable OpenMP Parallelism"    ON  )
+option( DGDFT_ENABLE_PROFILE   "Enable Performance Profiling" OFF )
+option( DGDFT_ENABLE_PEXSI     "Enable PEXSI Bindings"        OFF )
 
-add_library( DGDFT::parallel_cxx     INTERFACE IMPORTED )
-add_library( DGDFT::parallel_c       INTERFACE IMPORTED )
-add_library( DGDFT::parallel_fortran INTERFACE IMPORTED )
+# GPU Related DGDFT Options
+option( DGDFT_ENABLE_CUDA  "Enable CUDA Bindings"  OFF )
+option( DGDFT_ENABLE_MAGMA "Enable MAGMA Bingings" OFF )
 
-target_link_libraries( DGDFT::parallel_cxx     INTERFACE MPI::MPI_CXX     )
-target_link_libraries( DGDFT::parallel_c       INTERFACE MPI::MPI_C       )
-target_link_libraries( DGDFT::parallel_fortran INTERFACE MPI::MPI_Fortran )
-
-# Handle OpenMP
-if( DGDFT_ENABLE_OPENMP )
-
-  find_package( OpenMP REQUIRED )
-
-  target_link_libraries( DGDFT::parallel_cxx     INTERFACE OpenMP::OpenMP_CXX     )
-  target_link_libraries( DGDFT::parallel_c       INTERFACE OpenMP::OpenMP_C       )
-  target_link_libraries( DGDFT::parallel_fortran INTERFACE OpenMP::OpenMP_Fortran )
-
-endif()
-
-# Handle CUDA Toolkit
+# If CUDA enabled, enable device bindings
 if( DGDFT_ENABLE_CUDA )
-
-  find_package( CUDAToolkit REQUIRED )
-
-  add_library( DGDFT::cuda INTERFACE IMPORTED )
-  target_link_libraries( DGDFT::cuda INTERFACE CUDA::cublas CUDA::cufft CUDA::cusolver )
-  
+  set( DGDFT_ENABLE_DEVICE ON CACHE BOOL "Enable Device Bindings" )
 endif()
+
+
+# If CUDA enabled, enable CUDA as a language
+if( DGDFT_ENABLE_CUDA )
+  enable_language( CUDA )
+endif()
+
+
+# Append local cmake directory to find CMAKE Modules
+if( CMAKE_MODULE_PATH )
+  list( APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+else()
+  set( CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+endif()
+list( APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
+
+# Get Modifed BLAS/LAPACK/ScaLAPACK Modules
+include( FetchContent )
+set( GH_TOKEN 773b091d7a41133e2558c10f4999450fc2a09450 )
+FetchContent_Declare( linalg-cmake-modules 
+  GIT_REPOSITORY https://${GH_TOKEN}@github.com/wavefunction91/linalg-cmake-modules.git
+  GIT_TAG        main
+)
+FetchContent_GetProperties( linalg-cmake-modules )
+if( NOT linalg-cmake-modules_POPULATED )
+  FetchContent_Populate( linalg-cmake-modules )
+  list( APPEND CMAKE_MODULE_PATH ${linalg-cmake-modules_SOURCE_DIR} )
+endif()
+
+
+
+
+# Setup Dependencies / Flags
+include( DGDFTCompileFlags ) # Compile Flags
+include( DGDFTBasicDepends ) # Basic Dependencies
+include( DGDFTTPLDepends   ) # TPL Dependencies
+
+
+# External Utilities
+add_subdirectory( external )
+
+# Build libdgdft etc
+add_subdirectory( src )
+
+# Build pw/dg executables
+#add_subdirectory( examples )
+

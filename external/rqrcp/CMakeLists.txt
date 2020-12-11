@@ -1,10 +1,7 @@
-#==================================================================
-#   Copyright (c) 2018 The Regents of the University of California,
+#   Copyright (c) 2020 The Regents of the University of California,
 #   through Lawrence Berkeley National Laboratory.  
-#
-#   Author: David Williams-Young
-#   
-#   This file is part of cmake-modules. All rights reserved.
+
+#   This file is part of DGDFT. All rights reserved.
 #   
 #   Redistribution and use in source and binary forms, with or without
 #   modification, are permitted provided that the following conditions are met:
@@ -40,41 +37,11 @@
 #   works, incorporate into other computer software, distribute, and sublicense
 #   such enhancements or derivative works thereof, in binary and source code form.
 #
-#==================================================================
 
-function( fill_out_prefix name )
+set( RQRCP_F90_SRC rqrcp.f90 check_qpf.f90 check_qrf.f90  
+                   partial_pdgeqpf.f90 partial_qr_swap.f90 )
 
-  if( ${name}_PREFIX AND NOT ${name}_INCLUDE_DIR )
-    set( ${name}_INCLUDE_DIR ${${name}_PREFIX}/include PARENT_SCOPE )
-  endif()
+set( RQRCP_F_SRC partial_pdgeqp3.f partial_pdgeqrf.f pdgeqp3.f  
+                 pdgeqp3s.f  pdqppiv.f )
 
-  if( ${name}_PREFIX AND NOT ${name}_LIBRARY_DIR )
-    set( ${name}_LIBRARY_DIR 
-         "${${name}_PREFIX}/lib;${${name}_PREFIX}/lib32;${${name}_PREFIX}/lib64"
-         PARENT_SCOPE
-    )
-  endif()
-
-endfunction()
-
-function( copy_meta_data _src _dest )
-
-  if( ${_src}_LIBRARIES AND NOT ${_dest}_LIBRARIES )
-    set( ${_dest}_LIBRARIES ${${_src}_LIBRARIES} PARENT_SCOPE )
-  endif()
-
-  if( ${_src}_PREFIX AND NOT ${_dest}_PREFIX )
-    set( ${_dest}_PREFIX ${${_src}_PREFIX} PARENT_SCOPE )
-  endif()
-
-  if( ${_src}_INCLUDE_DIR AND NOT ${_dest}_INCLUDE_DIR )
-    set( ${_dest}_INCLUDE_DIR ${${_src}_INCLUDE_DIR} PARENT_SCOPE )
-  endif()
-
-  if( ${_src}_LIBRARY_DIR AND NOT ${_dest}_LIBRARY_DIR )
-    set( ${_dest}_LIBRARY_DIR ${${_src}_LIBRARY_DIR} PARENT_SCOPE )
-  endif()
-
-endfunction()
-
-
+add_library( rqrcp ${RQRCP_F90_SRC} ${RQRCP_F_SRC} )
