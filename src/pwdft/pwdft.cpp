@@ -123,6 +123,8 @@ int main(int argc, char **argv)
       inFile = "pwdft.in";
     }
 
+    Print( statusOFS, "Input file = ", inFile );
+
     // Read ESDF input file. Note: esdfParam is a global variable (11/25/2016)
     ESDFReadInput( inFile.c_str() );
 

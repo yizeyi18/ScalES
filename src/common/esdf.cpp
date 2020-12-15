@@ -224,7 +224,7 @@ namespace esdf{
 // Constants
 // *********************************************************************
 const int nphys = 57;
-const int llength = 100;  /* length of the lines */
+const int llength = 4096;  /* length of the lines */
 const int numkw = 500;   /* maximum number of keywords */
 
 
@@ -2350,7 +2350,7 @@ ESDFReadInput ( const char* filename )
   Int  mpirank;  MPI_Comm_rank( MPI_COMM_WORLD, &mpirank );
   Int  mpisize;  MPI_Comm_size( MPI_COMM_WORLD, &mpisize );
   Int  nlines;
-  const Int MAX_CHAR = 128;
+  const Int MAX_CHAR = 2048;
   char  strtmp[MAX_CHAR];
 
   // Read and distribute the input file
