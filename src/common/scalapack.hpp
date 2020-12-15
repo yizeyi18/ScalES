@@ -130,7 +130,7 @@ void SCALAPACK(pdsymm)(const char* side, const char* uplo,
     const double* beta,
     const double* C, const Int* ic, const Int* jc, const Int* descc);
 
-void SCALAPACK(pdgels)(char* transA,
+void SCALAPACK(pdgels)(const char* transA,
     const Int* m, const Int* n, const Int* NRHS,
     const double* A, const Int* ia, const Int* ja, const Int* desca, 
     const double* B, const Int* ib, const Int* jb, const Int* descb,

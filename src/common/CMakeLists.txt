@@ -30,7 +30,10 @@ if( DGDFT_ENABLE_CUDA )
 endif()
 
 add_library( common ${DG_COMMON_SRC} )
-target_include_directories( common PUBLIC ${CMAKE_CURRENT_LIST_DIR} )
+target_include_directories( common PUBLIC 
+  ${PROJECT_SOURCE_DIR}/src/common
+  ${PROJECT_BINARY_DIR}/src/common
+)
 target_link_libraries( common PUBLIC 
   DGDFT::compile_definitions
   DGDFT::parallel_c
@@ -41,3 +44,12 @@ target_link_libraries( common PUBLIC
 if( TARGET DGDFT::cuda )
   target_link_libraries( common DGDFT::cuda )
 endif()
+
+
+# Set up config file
+set( DG_PP_ONCV_PATH ${PROJECT_SOURCE_DIR}/examples/pp_ONCV )
+configure_file(
+  ${PROJECT_SOURCE_DIR}/src/common/config.hpp.in
+  ${PROJECT_BINARY_DIR}/src/common/config.hpp
+)
+target_compile_definitions( common PUBLIC DG_HAS_CONFIG )

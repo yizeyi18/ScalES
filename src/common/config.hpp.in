@@ -1,0 +1,4 @@
+#pragma once
+
+
+#cmakedefine DG_PP_ONCV_PATH "@DG_PP_ONCV_PATH@"

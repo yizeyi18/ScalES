@@ -47,6 +47,11 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include "esdf.hpp"
 #include "utility.hpp"
 
+#ifdef DG_HAS_CONFIG
+#include "config.hpp"
+#endif
+
+#include <sstream>
 
 namespace  dgdft{
 
@@ -1447,6 +1452,7 @@ PeriodicTable::PeriodicTable(void)
 // change the main subroutine to a readin function.
 Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
 {
+
   DblNumVec & params  = (*tempEntry).params;
   DblNumMat & samples = (*tempEntry).samples;
   DblNumVec & weights = (*tempEntry).weights;
@@ -1461,6 +1467,23 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
   std::string buf,s;
   std::istringstream is;
 
+  // Determine if UPF file is specified as a KW
+  auto kw_pos = file_name.find("KW:");
+  if( kw_pos != std::string::npos ) {
+  #ifdef DG_PP_ONCV_PATH
+    // Correct file name
+    file_name.erase(0,kw_pos);
+    file_name.erase(0,3);
+    file_name = std::string(DG_PP_ONCV_PATH "/") + file_name + std::string(".upf");
+
+    statusOFS << " * Reading from standard UPF file located at "
+              << file_name << std::endl;
+  #else
+    ErrorHandling(" KW for UPF Files Requires -DDG_PP_ONCV_PATH=...");
+  #endif
+  }
+
+
   // determine UPF version
   int upf_version = 0;
 
@@ -1470,22 +1493,28 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
 
   std::string::size_type p;
   std::ifstream upfin( file_name );
-  getline(upfin,buf);
-  p = buf.find("<PP_INFO>");
-  if ( p != std::string::npos )
-    upf_version = 1;
-  else
-  {
-    p = buf.find("<UPF version=\"2.0.1\">");
+  if( upfin.good() ) {
+    getline(upfin,buf);
+    p = buf.find("<PP_INFO>");
     if ( p != std::string::npos )
-      upf_version = 2;
-  }
-  if ( upf_version == 0 )
-  {
-    statusOFS << " Format of UPF file not recognized " << std::endl;
-    statusOFS << " First line of file: " << buf << std::endl;
-    ErrorHandling( " Format of UPF file not recognized " );
-    return 1;
+      upf_version = 1;
+    else
+    {
+      p = buf.find("<UPF version=\"2.0.1\">");
+      if ( p != std::string::npos )
+        upf_version = 2;
+    }
+    if ( upf_version == 0 )
+    {
+      statusOFS << " Format of UPF file not recognized " << std::endl;
+      statusOFS << " First line of file: " << buf << std::endl;
+      ErrorHandling( " Format of UPF file not recognized " );
+      return 1;
+    }
+  } else {
+    std::ostringstream msg;
+    msg << "UPF File " << file_name << " not found";
+    ErrorHandling( msg.str() );
   }
 
 #if ( _DEBUGlevel_ >= 1 )
