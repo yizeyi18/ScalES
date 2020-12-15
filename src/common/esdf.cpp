@@ -2646,7 +2646,7 @@ ESDFReadInput ( const char* filename )
 
     // PPCG 
     {
-      //esdfParam.PPCGsbSize = esdf_integer( "PPCG_sbSize", 1);
+      esdfParam.PPCGsbSize = esdf_integer( "PPCG_sbSize", 1);
     }
   
   }
