@@ -652,6 +652,10 @@ void esdf_key() {
   i++;
   strcpy(kw_label[i],"pw_solver");
   strcpy(kw_typ[i],"T:E");
+  
+  i++;
+  strcpy(kw_label[i],"ppcg_sbsize");
+  strcpy(kw_typ[i],"I:E");
 
   i++;
   strcpy(kw_label[i],"xc_type");

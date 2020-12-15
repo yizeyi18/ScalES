@@ -172,7 +172,8 @@ Target: refactor2020
 
 - [ ] CUFFT: One-by-one executation: is there a more efficient way to
   batched FFT? Why CUFFT does not suffer from the alignment issue? (i.e.
-  we do not need to copy a vector into a saved buffer?)
+  we do not need to copy a vector into a saved buffer?) Supporting 
+  FFT solvers other than FFTW (Wei)
 
 - [ ] Eigensolver: in QE: reorder eigenvectors so that coefficients for
   unconverged roots come first. This allows to use quick matrix-matrix
