@@ -20,3 +20,4 @@ endif()
 
 add_executable( pwdft ${DG_PWDFT_SRC} )
 target_link_libraries( pwdft PUBLIC common )
+target_include_directories( pwdft PUBLIC ${PROJECT_SOURCE_DIR}/src/pwdft )

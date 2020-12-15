@@ -74,6 +74,7 @@ EigenSolver::devicePPCGSolveReal (
     Real         eigTolerance, 
     Int          scf_iter)
 {
+  statusOFS << "DBWY TOP OF DEVICE EIGENSOLVER" << std::endl;
   // *********************************************************************
   // Initialization
   // *********************************************************************
@@ -113,6 +114,7 @@ EigenSolver::devicePPCGSolveReal (
   }
 #endif
   
+  statusOFS << "DBWY EIGENSOLVER @1" << std::endl;
   
   Int height = ntot * ncom;
   Int width = noccTotal;
@@ -267,6 +269,8 @@ EigenSolver::devicePPCGSolveReal (
   }
   // end For Alltoall
 
+  statusOFS << "DBWY EIGENSOLVER @2" << std::endl;
+
   cu_sendk.CopyFrom(sendk);
   cu_recvk.CopyFrom(recvk);
   
@@ -275,6 +279,8 @@ EigenSolver::devicePPCGSolveReal (
   device_memcpy_HOST2DEVICE(cu_senddispls.Data(), senddispls.Data(), sizeof(Int)*mpisize);
   device_memcpy_HOST2DEVICE(cu_recvdispls.Data(), recvdispls.Data(), sizeof(Int)*mpisize);
  
+  statusOFS << "DBWY EIGENSOLVER @4" << std::endl;
+
   GetTime( timeEnd );
   iterAlltoallvMap = iterAlltoallvMap + 1;
   timeAlltoallvMap = timeAlltoallvMap + ( timeEnd - timeSta );
@@ -394,15 +400,19 @@ EigenSolver::devicePPCGSolveReal (
   Real zero = 0.0;
   
   GetTime( timeSta );
+  statusOFS << "DBWY EIGENSOLVER @5" << std::endl;
+
 
   device_memcpy_HOST2DEVICE(cu_Xcol.Data(), psiPtr_->Wavefun().Data(), sizeof(Real)*height*widthLocal);
   device_mapping_to_buf( cu_sendbuf.Data(), cu_Xcol.Data(), cu_sendk.Data(), height*widthLocal);
+  statusOFS << "DBWY EIGENSOLVER @6" << std::endl;
+
 
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
 
   GetTime( timeSta );
-#ifdef GPUDIREC
+#ifdef GPUDIRECT
   MPI_Alltoallv( &cu_sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
       &cu_recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
 #else
@@ -415,11 +425,15 @@ EigenSolver::devicePPCGSolveReal (
   
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+  statusOFS << "DBWY EIGENSOLVER @7" << std::endl;
+
 
   GetTime( timeSta );
   device_mapping_from_buf(cu_X.Data(), cu_recvbuf.Data(), cu_recvk.Data(), heightLocal*width);
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
+  statusOFS << "DBWY EIGENSOLVER @8" << std::endl;
+
   
   // *********************************************************************
   // Main loop
@@ -479,6 +493,8 @@ EigenSolver::devicePPCGSolveReal (
     iterTrsm = iterTrsm + 1;
     timeTrsm = timeTrsm + ( timeEnd - timeSta );
   
+  statusOFS << "DBWY EIGENSOLVER @9" << std::endl;
+
     GetTime( timeSta );
   
     device_mapping_to_buf( cu_recvbuf.Data(), cu_X.Data(), cu_recvk.Data(), heightLocal*width);

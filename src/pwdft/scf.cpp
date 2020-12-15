@@ -2444,6 +2444,7 @@ SCF::InnerSolve	( Int iter )
     } // Use PPCG
     else if( esdfParam.PWSolver == "PPCG" || esdfParam.PWSolver == "PPCGScaLAPACK" ){
 #ifdef DEVICE
+      statusOFS << "DBWY BEFORE EIGENSOLVER PPCG" << std::endl;
       eigSolPtr_->devicePPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow, iter );
 #else
       eigSolPtr_->PPCGSolveReal(numEig, eigMaxIter_, eigMinTolerance_, eigTolNow );    

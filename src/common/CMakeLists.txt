@@ -16,15 +16,15 @@ set( DG_COMMON_SRC
 if( DGDFT_ENABLE_CUDA )
 
   set( DG_COMMON_CUDA_SRC
-       device_utility.cpp
-       device_blas.cpp
-       device_error.cpp
-       device_fft.cpp
-       device_mpi_interf.cpp
-       device_solver.cpp
-       device_utilis.cu )
+       device/device_utility.cpp
+       device/nvgpu/device_blas.cpp
+       device/nvgpu/device_error.cpp
+       device/nvgpu/device_fft.cpp
+       device/nvgpu/device_mpi_interf.cpp
+       device/nvgpu/device_solver.cpp
+       device/nvgpu/device_utils.cu )
 
-  list( TRANSFORM DG_COMMON_CUDA_SRC PREPEND "device/" )
+  #list( TRANSFORM DG_COMMON_CUDA_SRC PREPEND "device/nvgpu/" )
   list( APPEND DG_COMMON_SRC ${DG_COMMON_CUDA_SRC} )
 
 endif()
@@ -41,9 +41,14 @@ target_link_libraries( common PUBLIC
   DGDFT::tpl_depends
 )
 
-if( TARGET DGDFT::cuda )
-  target_link_libraries( common DGDFT::cuda )
+if( DGDFT_ENABLE_CUDA )
+  target_link_libraries( common PUBLIC DGDFT::cuda )
+  target_include_directories( common PUBLIC 
+    ${PROJECT_SOURCE_DIR}/src/common/device
+    ${PROJECT_SOURCE_DIR}/src/common/device/nvgpu
+  )
 endif()
+
 
 
 # Set up config file
