@@ -76,9 +76,8 @@ list( APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
 
 # Get Modifed BLAS/LAPACK/ScaLAPACK Modules
 include( FetchContent )
-set( GH_TOKEN 773b091d7a41133e2558c10f4999450fc2a09450 )
 FetchContent_Declare( linalg-cmake-modules 
-  GIT_REPOSITORY https://${GH_TOKEN}@github.com/wavefunction91/linalg-cmake-modules.git
+  GIT_REPOSITORY https://github.com/wavefunction91/linalg-cmake-modules.git
   GIT_TAG        main
 )
 FetchContent_GetProperties( linalg-cmake-modules )
