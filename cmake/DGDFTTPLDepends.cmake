@@ -52,6 +52,8 @@ endif()
 find_package( Libxc QUIET )
 if( NOT Libxc_FOUND ) 
 
+  message( STATUS "Libxc Not Found... Building!" )
+
   include(FetchContent)
   FetchContent_Declare(
     libxc
@@ -71,6 +73,9 @@ if( NOT Libxc_FOUND )
       $<BUILD_INTERFACE:${libxc_BINARY_DIR}/gen_funcidx>
   )
   
+else()
+  message( STATUS "Libxc Found" )
+  message( STATUS "Libxc_LIBRARIES = ${Libxc_LIBRARIES}" )
 endif()
 
 
