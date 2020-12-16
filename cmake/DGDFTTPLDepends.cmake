@@ -79,7 +79,7 @@ find_package( FFTW3 REQUIRED COMPONENTS MPI )
 
 add_library( DGDFT::tpl_depends INTERFACE IMPORTED )
 target_link_libraries( DGDFT::tpl_depends INTERFACE Libxc::xc        )
-target_link_libraries( DGDFT::tpl_depends INTERFACE FFTW3::fftw3_mpi )
+target_link_libraries( DGDFT::tpl_depends INTERFACE FFTW3::FFTW3_MPI )
 target_link_libraries( DGDFT::tpl_depends INTERFACE DGDFT::linalg    )
 
 # PEXSI

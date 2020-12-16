@@ -14,12 +14,12 @@
 #
 #    This module will export the following targets if FFTW3_FOUND
 #
-#      FFTW3::fftw3
+#      FFTW3::FFTW3
 #
 #    This module will export the following targets if 
 #    FFTW3_MPI_FOUND
 #
-#      FFTW3::fftw3_mpi
+#      FFTW3::FFTW3_MPI
 #
 #
 #    Proper usage:
@@ -29,16 +29,16 @@
 #
 #      if( FFTW3_FOUND )
 #        add_executable( test test.cxx )
-#        target_link_libraries( test FFTW3::fftw3 )
+#        target_link_libraries( test FFTW3::FFTW3 )
 #      endif()
 #
 #   This module will use the following variables to change
 #   default behaviour if set
 #
-#     fftw3_PREFIX
-#     fftw3_INCLUDE_DIR
-#     fftw3_LIBRARY_DIR
-#     fftw3_LIBRARIES
+#     FFTW3_PREFIX
+#     FFTW3_INCLUDE_DIR
+#     FFTW3_LIBRARY_DIR
+#     FFTW3_LIBRARIES
 #
 #==================================================================
 #   Copyright (c) 2018 The Regents of the University of California,
@@ -90,16 +90,11 @@ include(FindPackageHandleStandardArgs)
 
 # Set up some auxillary vars if hints have been set
 
-if( fftw3_PREFIX AND NOT fftw3_INCLUDE_DIR )
-  set( fftw3_INCLUDE_DIR ${fftw3_PREFIX}/include )
-endif()
-
-
-if( fftw3_PREFIX AND NOT fftw3_LIBRARY_DIR )
-  set( fftw3_LIBRARY_DIR 
-    ${fftw3_PREFIX}/lib 
-    ${fftw3_PREFIX}/lib32 
-    ${fftw3_PREFIX}/lib64 
+if( FFTW3_PREFIX AND NOT FFTW3_LIBRARY_DIR )
+  set( FFTW3_LIBRARY_DIR 
+    ${FFTW3_PREFIX}/lib 
+    ${FFTW3_PREFIX}/lib32 
+    ${FFTW3_PREFIX}/lib64 
   )
 endif()
 
@@ -112,8 +107,7 @@ endif()
 # Try to find the header
 find_path( FFTW3_INCLUDE_DIR 
   NAMES fftw3.h
-  HINTS ${fftw3_PREFIX}
-  PATHS ${fftw3_INCLUDE_DIR}
+  HINTS ${FFTW3_PREFIX}
   PATH_SUFFIXES include
   DOC "Location of FFTW header"
 )
@@ -121,23 +115,20 @@ find_path( FFTW3_INCLUDE_DIR
 
 
 # Try to serial find libraries if not already set
-if( NOT fftw3_LIBRARIES )
+if( NOT FFTW3_LIBRARIES )
 
   find_library( FFTW3_LIBRARIES
     NAMES fftw3 
-    HINTS ${fftw3_PREFIX}
-    PATHS ${fftw3_LIBRARY_DIR}
+    HINTS ${FFTW3_PREFIX}
+    PATHS ${FFTW3_LIBRARY_DIR}
     PATH_SUFFIXES lib lib64 lib32
     DOC "FFTW3 Library"
   )
 
-else()
-
-  # fiXME
-  set( FFTW3_LIBRARIES ${fftw3_LIBRARIES} )
-
 endif()
 
+
+# TODO: Add linkage testing
 
 # fftw3-MPI
 if( "MPI" IN_LIST FFTW3_FIND_COMPONENTS )
@@ -146,8 +137,7 @@ if( "MPI" IN_LIST FFTW3_FIND_COMPONENTS )
   # Try to find the header
   find_path( FFTW3_MPI_INCLUDE_DIR 
     NAMES fftw3-mpi.h
-    HINTS ${fftw3_PREFIX} ${fftw3_MPI_PREFIX}
-    PATHS ${fftw3_INCLUDE_DIR} ${fftw3_MPI_INCLUDE_DIR}
+    HINTS ${FFTW3_PREFIX} ${FFTW3_MPI_PREFIX}
     PATH_SUFFIXES include
     DOC "Location of FFTW3-MPI header"
   )
@@ -159,16 +149,11 @@ if( "MPI" IN_LIST FFTW3_FIND_COMPONENTS )
   
     find_library( FFTW3_MPI_LIBRARIES
       NAMES fftw3_mpi 
-      HINTS ${fftw3_PREFIX} ${fftw3_MPI_PREFIX}
-      PATHS ${fftw3_LIBRARY_DIR} ${fftw3_MPI_LIBRARY_DIR}
+      HINTS ${FFTW3_PREFIX} ${FFTW3_MPI_PREFIX}
+      PATHS ${FFTW3_LIBRARY_DIR} ${FFTW3_MPI_LIBRARY_DIR}
       PATH_SUFFIXES lib lib64 lib32
       DOC "FFTW3 of FFTW3-MPI Library"
     )
-  
-  else()
-  
-    # FIXME
-    set( FFTW3_MPI_LIBRARIES ${fftw3_MPI_LIBRARIES} )
   
   endif()
   
@@ -179,7 +164,8 @@ if( "MPI" IN_LIST FFTW3_FIND_COMPONENTS )
 
   # MPI
   if( NOT TARGET MPI::MPI_C )
-    find_package( MPI REQUIRED )
+    include(CMakeFindDependencyMacro)
+    find_dependency( MPI REQUIRED )
   endif()
 
 endif()
@@ -195,10 +181,10 @@ find_package_handle_standard_args( FFTW3
 )
 
 
-if( FFTW3_FOUND AND NOT TARGET FFTW3::fftw3 )
+if( FFTW3_FOUND AND NOT TARGET FFTW3::FFTW3 )
 
-  add_library( FFTW3::fftw3 INTERFACE IMPORTED )
-  set_target_properties( FFTW3::fftw3 PROPERTIES
+  add_library( FFTW3::FFTW3 INTERFACE IMPORTED )
+  set_target_properties( FFTW3::FFTW3 PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${FFTW3_INCLUDE_DIR}"
     INTERFACE_LINK_LIBRARIES      "${FFTW3_LIBRARIES}"
   )
@@ -206,12 +192,12 @@ if( FFTW3_FOUND AND NOT TARGET FFTW3::fftw3 )
 endif()
 
 
-if( FFTW3_MPI_FOUND AND NOT TARGET FFTW3::fftw3_mpi )
+if( FFTW3_MPI_FOUND AND NOT TARGET FFTW3::FFTW3_MPI )
 
-  add_library( FFTW3::fftw3_mpi INTERFACE IMPORTED )
-  set_target_properties( FFTW3::fftw3_mpi PROPERTIES
+  add_library( FFTW3::FFTW3_MPI INTERFACE IMPORTED )
+  set_target_properties( FFTW3::FFTW3_MPI PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${FFTW3_MPI_INCLUDE_DIR}"
-    INTERFACE_LINK_LIBRARIES      "${FFTW3_MPI_LIBRARIES};FFTW3::fftw3;MPI::MPI_C"
+    INTERFACE_LINK_LIBRARIES      "${FFTW3_MPI_LIBRARIES};FFTW3::FFTW3;MPI::MPI_C"
   )
 
 endif()

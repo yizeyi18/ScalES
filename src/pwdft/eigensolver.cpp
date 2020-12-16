@@ -3209,26 +3209,9 @@ EigenSolver::PPCGSolveReal    (
   iterCopy = iterCopy + 1;
   timeCopy = timeCopy + ( timeEnd - timeSta );
 
-#if 0
-  GetTime( timeSta );
-  for( Int j = 0; j < widthLocal; j++ ){ 
-    for( Int i = 0; i < height; i++ ){
-      sendbuf[sendk(i, j)] = Xcol(i, j); 
-    }
-  }
-  MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-      &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      X(i, j) = recvbuf[recvk(i, j)];
-    }
-  }
-  GetTime( timeEnd );
-#else
   GetTime( timeSta );
   bdist.redistribute_col_to_row( Xcol, X );
   GetTime( timeEnd );
-#endif
   iterAlltoallv = iterAlltoallv + 1;
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
@@ -3344,26 +3327,7 @@ EigenSolver::PPCGSolveReal    (
     // MPI_Alltoallv
     // Only convert Xtemp here
 
-#if 0
-    GetTime( timeSta );
-    for( Int j = 0; j < width; j++ ){ 
-      for( Int i = 0; i < heightLocal; i++ ){
-        recvbuf[recvk(i, j)] = Xtemp(i, j);
-      }
-    }
-    MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-        &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        Xcol(i, j) = sendbuf[sendk(i, j)]; 
-      }
-    }
-    GetTime( timeEnd );
-    iterAlltoallv = iterAlltoallv + 1;
-    timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
-#else
     bdist.redistribute_row_to_col( Xtemp, Xcol );
-#endif
 
     // Compute W = TW
     {
@@ -3395,69 +3359,15 @@ EigenSolver::PPCGSolveReal    (
     // MPI_Alltoallv
     // Only convert W and AW
 
-#if 0
-    GetTime( timeSta );
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        sendbuf[sendk(i, j)] = Wcol(i, j); 
-      }
-    }
-    MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
-    for( Int j = 0; j < width; j++ ){ 
-      for( Int i = 0; i < heightLocal; i++ ){
-        W(i, j) = recvbuf[recvk(i, j)];
-      }
-    }
-    GetTime( timeEnd );
-    iterAlltoallv = iterAlltoallv + 1;
-    timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
-#else
     bdist.redistribute_col_to_row( Wcol, W );
-#endif
-
-#if 0
-    GetTime( timeSta );
-    for( Int j = 0; j < widthLocal; j++ ){ 
-      for( Int i = 0; i < height; i++ ){
-        sendbuf[sendk(i, j)] = AWcol(i, j); 
-      }
-    }
-    MPI_Alltoallv( &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, 
-        &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
-    for( Int j = 0; j < width; j++ ){ 
-      for( Int i = 0; i < heightLocal; i++ ){
-        AW(i, j) = recvbuf[recvk(i, j)];
-      }
-    }
-    GetTime( timeEnd );
-    iterAlltoallv = iterAlltoallv + 1;
-    timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
-#else
     bdist.redistribute_col_to_row( AWcol, AW );
-#endif
 
 
     // W = W - X(X'W), AW = AW - AX(X'W)
-#if 0
-    GetTime( timeSta );
-    blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
-        heightLocal, W.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-    GetTime( timeEnd );
-    iterGemmT = iterGemmT + 1;
-    timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    GetTime( timeSta );
-    SetValue( XTX, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-    GetTime( timeEnd );
-    iterAllreduce = iterAllreduce + 1;
-    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
     detail::row_dist_inner_replicate( heightLocal, width, width,
                                       X.Data(), heightLocal,
                                       W.Data(), heightLocal, XTX.Data(), width,
                                       mpi_comm );
-#endif
 
 
     GetTime( timeSta );
@@ -3501,25 +3411,10 @@ EigenSolver::PPCGSolveReal    (
 
     // P = P - X(X'P), AP = AP - AX(X'P)
     if( numSet == 3 ){
-#if 0
-      GetTime( timeSta );
-      blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
-          heightLocal, P.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-      GetTime( timeEnd );
-      iterGemmT = iterGemmT + 1;
-      timeGemmT = timeGemmT + ( timeEnd - timeSta );
-      GetTime( timeSta );
-      SetValue( XTX, 0.0 );
-      MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      GetTime( timeEnd );
-      iterAllreduce = iterAllreduce + 1;
-      timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
       detail::row_dist_inner_replicate( heightLocal, width, width,
                                         X.Data(), heightLocal,
                                         P.Data(), heightLocal, XTX.Data(), width,
                                         mpi_comm );
-#endif
 
       GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
@@ -3862,48 +3757,8 @@ EigenSolver::PPCGSolveReal    (
     }
 
     // CholeskyQR of the updated block X
-#if 0
-    GetTime( timeSta );
-    blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
-        heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-    GetTime( timeEnd );
-    iterGemmT = iterGemmT + 1;
-    timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    GetTime( timeSta );
-    SetValue( XTX, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-    GetTime( timeEnd );
-    iterAllreduce = iterAllreduce + 1;
-    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-
-    if ( mpirank == 0) {
-      GetTime( timeSta );
-      GetTime( timeSta1 );
-      lapack::Potrf( 'U', width, XTX.Data(), width );
-      GetTime( timeEnd1 );
-      iterPotrf = iterPotrf + 1;
-      timePotrf = timePotrf + ( timeEnd1 - timeSta1 );
-      GetTime( timeEnd );
-      iterMpirank0 = iterMpirank0 + 1;
-      timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
-    }
-    GetTime( timeSta );
-    MPI_Bcast(XTX.Data(), width*width, MPI_DOUBLE, 0, mpi_comm);
-    GetTime( timeEnd );
-    iterBcast = iterBcast + 1;
-    timeBcast = timeBcast + ( timeEnd - timeSta );
-
-    // X <- X * U^{-1} is orthogonal
-    GetTime( timeSta );
-    blas::Trsm( 'R', 'U', 'N', 'N', heightLocal, width, 1.0, XTX.Data(), width, 
-        X.Data(), heightLocal );
-    GetTime( timeEnd );
-    iterTrsm = iterTrsm + 1;
-    timeTrsm = timeTrsm + ( timeEnd - timeSta );
-#else
     detail::replicated_cholesky_qr_row_dist( heightLocal, width, X.Data(), heightLocal,
                                              XTX.Data(), width, mpi_comm );
-#endif
 
 
     //            // Copy the eigenvalues
@@ -3931,25 +3786,10 @@ EigenSolver::PPCGSolveReal    (
   // orthonormal set
 
   if (!isConverged){
-#if 0
-    GetTime( timeSta );
-    blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
-        heightLocal, AX.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-    GetTime( timeEnd );
-    iterGemmT = iterGemmT + 1;
-    timeGemmT = timeGemmT + ( timeEnd - timeSta );
-    GetTime( timeSta );
-    SetValue( XTX, 0.0 );
-    MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-    GetTime( timeEnd );
-    iterAllreduce = iterAllreduce + 1;
-    timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
     detail::row_dist_inner_replicate( heightLocal, width, width,
                                       X.Data(), heightLocal,
                                       AX.Data(), heightLocal, XTX.Data(), width,
                                       mpi_comm );
-#endif
   }
 
   GetTime( timeSta1 );
@@ -4125,25 +3965,10 @@ EigenSolver::PPCGSolveReal    (
 
 #if ( _DEBUGlevel_ >= 2 )
 
-#if 0
-  GetTime( timeSta );
-  blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
-      heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
-  GetTime( timeEnd );
-  iterGemmT = iterGemmT + 1;
-  timeGemmT = timeGemmT + ( timeEnd - timeSta );
-  GetTime( timeSta );
-  SetValue( XTX, 0.0 );
-  MPI_Allreduce( XTXtemp1.Data(), XTX.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-  GetTime( timeEnd );
-  iterAllreduce = iterAllreduce + 1;
-  timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
-#else
   detail::row_dist_inner_replicate( heightLocal, width, width,
                                     X.Data(), heightLocal,
                                     X.Data(), heightLocal, XTX.Data(), width,
                                     mpi_comm );
-#endif
 
   statusOFS << "After the PPCG, XTX = " << XTX << std::endl;
 
@@ -4155,26 +3980,7 @@ EigenSolver::PPCGSolveReal    (
   eigVal_ = DblNumVec( width, true, eigValS.Data() );
   resVal_ = resNorm;
 
-#if 0
-  GetTime( timeSta );
-  for( Int j = 0; j < width; j++ ){ 
-    for( Int i = 0; i < heightLocal; i++ ){
-      recvbuf[recvk(i, j)] = X(i, j);
-    }
-  }
-  MPI_Alltoallv( &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, 
-      &sendbuf[0], &sendcounts[0], &senddispls[0], MPI_DOUBLE, mpi_comm );
-  for( Int j = 0; j < widthLocal; j++ ){ 
-    for( Int i = 0; i < height; i++ ){
-      Xcol(i, j) = sendbuf[sendk(i, j)]; 
-    }
-  }
-  GetTime( timeEnd );
-  iterAlltoallv = iterAlltoallv + 1;
-  timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
-#else
   bdist.redistribute_row_to_col( X, Xcol );
-#endif
 
   GetTime( timeSta );
   lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
