@@ -246,6 +246,16 @@ EigenSolver::LOBPCGSolveReal    (
   Int  iterScaLAPACKFactor = 0;
   Int  iterScaLAPACK = 0;
 
+  Real timeAlltoallForward  = 0.0;
+  Real timeAlltoallBackward = 0.0;
+  Int  iterAlltoallForward  = 0;
+  Int  iterAlltoallBackward = 0;
+
+
+
+
+
+
   if( numEig > width ){
     std::ostringstream msg;
     msg 
@@ -263,6 +273,33 @@ EigenSolver::LOBPCGSolveReal    (
 
   // DBWY: Set up distributor
   dist_util::BlockDistributor<double> bdist( mpi_comm, height, width );
+
+
+
+
+
+
+  // Setup profiling wrappers
+  auto profile_col_to_row = [&]( const DblNumMat& col_data, DblNumMat& row_data ) {
+    GetTime( timeSta );
+    bdist.redistribute_col_to_row( col_data, row_data );
+    GetTime( timeEnd );
+
+    timeAlltoallBackward += (timeEnd - timeSta);
+    iterAlltoallBackward++;
+  };
+
+  auto profile_row_to_col = [&]( const DblNumMat& row_data, DblNumMat& col_data ) {
+    GetTime( timeSta );
+    bdist.redistribute_row_to_col( row_data, col_data );
+    GetTime( timeEnd );
+
+    timeAlltoallBackward += (timeEnd - timeSta);
+    iterAlltoallBackward++;
+  };
+
+
+
 
   // S = ( X | W | P ) is a triplet used for LOBPCG.  
   // W is the preconditioned residual

@@ -527,6 +527,8 @@ EigenSolver::devicePPCGSolveReal (
 
   GetTime( timeEnd );
   timeMapping += timeEnd - timeSta;
+  statusOFS << "DBWY EIGENSOLVER @10" << std::endl;
+
 
   // Applying the Hamiltonian matrix
   {
@@ -539,6 +541,8 @@ EigenSolver::devicePPCGSolveReal (
     iterSpinor = iterSpinor + 1;
     timeSpinor = timeSpinor + ( timeEnd - timeSta );
   }
+  statusOFS << "DBWY EIGENSOLVER @11" << std::endl;
+
 
   GetTime( timeSta );
 
@@ -557,6 +561,8 @@ EigenSolver::devicePPCGSolveReal (
       &recvbuf[0], &recvcounts[0], &recvdispls[0], MPI_DOUBLE, mpi_comm );
   device_memcpy_HOST2DEVICE(cu_recvbuf.Data(), recvbuf.Data(), sizeof(Real)*heightLocal*width);
 #endif
+
+  statusOFS << "DBWY EIGENSOLVER @12" << std::endl;
 
   GetTime( timeEnd );
   iterAlltoallv = iterAlltoallv + 1;
