@@ -37,8 +37,8 @@ public:
     MRem_   = M % comm_size_;
     NRem_   = N % comm_size_;
 
-    MLocal_ = MBlock_ + (comm_rank_ < ( MRem_ ) );
-    NLocal_ = NBlock_ + (comm_rank_ < ( NRem_ ) );
+    MLocal_ = MBlock_ + !!(comm_rank_ < ( MRem_ ));
+    NLocal_ = NBlock_ + !!(comm_rank_ < ( NRem_ ));
 
   };
   
@@ -55,12 +55,6 @@ public:
   virtual void redistribute_row_to_col( const NumMat<T>& row_data, NumMat<T>& col_data ) = 0;
   virtual void redistribute_col_to_row( const NumMat<T>& col_data, NumMat<T>& row_data ) = 0;
 
-  virtual const IntNumVec* sendcounts() const = 0;
-  virtual const IntNumVec* recvcounts() const = 0;
-  virtual const IntNumVec* senddispls() const = 0;
-  virtual const IntNumVec* recvdispls() const = 0;
-  virtual const IntNumMat* sendk()      const = 0;
-  virtual const IntNumMat* recvk()      const = 0;
 };
 
 }
@@ -73,12 +67,12 @@ BlockDistributor<T>::BlockDistributor(
   impl_(std::move(impl)) { }
 
 template <typename T>
+BlockDistributor<T>::BlockDistributor() noexcept : impl_(nullptr) { };
+
+template <typename T>
 BlockDistributor<T>::BlockDistributor( MPI_Comm comm, Int M, Int N ) :
   BlockDistributor( detail::make_default_host_distributor<T>( comm, M, N ) ) { }
   
-template <typename T>
-BlockDistributor<T>::BlockDistributor() noexcept : impl_(nullptr) { };
-
 template <typename T>
 BlockDistributor<T>::~BlockDistributor() noexcept = default;
 
@@ -97,61 +91,6 @@ void BlockDistributor<T>::redistribute_col_to_row( const NumMat<T>& col_data,
   if( impl_ )
     impl_->redistribute_col_to_row( col_data, row_data );
   else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
-}
-
-template <typename T>
-const IntNumVec* BlockDistributor<T>::sendcounts() const {
-
-  if( impl_ ) return impl_->sendcounts();
-  else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
-
-  return nullptr;
-
-}
-template <typename T>
-const IntNumVec* BlockDistributor<T>::recvcounts() const {
-
-  if( impl_ ) return impl_->recvcounts();
-  else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
-
-  return nullptr;
-
-}
-template <typename T>
-const IntNumVec* BlockDistributor<T>::senddispls() const {
-
-  if( impl_ ) return impl_->senddispls();
-  else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
-
-  return nullptr;
-
-}
-template <typename T>
-const IntNumVec* BlockDistributor<T>::recvdispls() const {
-
-  if( impl_ ) return impl_->recvdispls();
-  else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
-
-  return nullptr;
-
-}
-template <typename T>
-const IntNumMat* BlockDistributor<T>::sendk() const {
-
-  if( impl_ ) return impl_->sendk();
-  else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
-
-  return nullptr;
-
-}
-template <typename T>
-const IntNumMat* BlockDistributor<T>::recvk() const {
-
-  if( impl_ ) return impl_->recvk();
-  else throw std::runtime_error("BlockDistributor Has Not Been Initialized");
-
-  return nullptr;
-
 }
 
 } // namespace dist_util

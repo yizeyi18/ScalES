@@ -689,7 +689,7 @@ template <class F> inline std::ostream& operator<<( std::ostream& os, const NumV
 template <class F> inline std::ostream& operator<<( std::ostream& os, const NumMat<F>& mat)
 {
   os<<mat.m()<<" "<<mat.n()<<std::endl;
-  os.setf(std::ios_base::scientific, std::ios_base::floatfield);
+  //os.setf(std::ios_base::scientific, std::ios_base::floatfield);
   for(Int i=0; i<mat.m(); i++) {
     for(Int j=0; j<mat.n(); j++)
       os<<" "<<mat(i,j);

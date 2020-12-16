@@ -3,7 +3,8 @@
 namespace dgdft {
 namespace dist_util {
 
-template class HostBlockDistributor<double>;
+template class HostGenericBlockDistributor<double>;
+template class HostOptPackBlockDistributor<double>;
 
 
 namespace detail {

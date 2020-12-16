@@ -41,16 +41,6 @@ public:
   void redistribute_row_to_col( const NumMat<T>& row_data, NumMat<T>& col_data );
   void redistribute_col_to_row( const NumMat<T>& col_data, NumMat<T>& row_data );
 
-#if 1 // These should not be needed in production
-
-  const IntNumVec* sendcounts() const;
-  const IntNumVec* recvcounts() const;
-  const IntNumVec* senddispls() const;
-  const IntNumVec* recvdispls() const;
-  const IntNumMat* sendk()      const;
-  const IntNumMat* recvk()      const;
-
-#endif
 };
 
 } // namespace dist_util

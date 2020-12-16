@@ -275,6 +275,36 @@ EigenSolver::LOBPCGSolveReal    (
   dist_util::BlockDistributor<double> bdist( mpi_comm, height, width );
 
 
+  if(0){
+    Int h  = 13;
+    Int w  = 17;
+    Int hB = h/mpisize;
+    Int wB = w/mpisize;
+    Int hL = hB + !!(mpirank < (h%mpisize));
+    Int wL = wB + !!(mpirank < (w%mpisize));
+
+
+    dist_util::BlockDistributor<double> btmp( mpi_comm, h, w );
+    NumMat<double> row_data_tmp( hL, w ), col_data_tmp( h, wL );
+
+
+    SetValue( col_data_tmp, (double)mpirank );
+    btmp.redistribute_col_to_row( col_data_tmp, row_data_tmp );
+    statusOFS << "DBWY COL  DATA" << col_data_tmp  << std::endl;
+    statusOFS << "DBWY ROW  DATA" << row_data_tmp  << std::endl;
+
+    SetValue( col_data_tmp, 0. );
+    SetValue( row_data_tmp, 0. );
+
+    for( int j = 0; j < w;  ++j ) 
+    for( int i = 0; i < hL; ++i ) {
+      row_data_tmp(i, j) = j % mpisize;
+    }
+
+    btmp.redistribute_row_to_col( row_data_tmp, col_data_tmp );
+    statusOFS << "DBWY COL  DATA" << col_data_tmp  << std::endl;
+    statusOFS << "DBWY ROW  DATA" << row_data_tmp  << std::endl;
+  }
 
 
 
