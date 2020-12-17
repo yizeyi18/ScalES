@@ -232,6 +232,7 @@ EigenSolver::LOBPCGSolveReal    (
   Real timeAllreduce = 0.0;
   Real timeAlltoallv = 0.0;
   Real timeSpinor = 0.0;
+  Real timePrec = 0.0;
   Real timeTrsm = 0.0;
   Real timeMpirank0 = 0.0;
   Real timeScaLAPACKFactor = 0.0;
@@ -241,6 +242,7 @@ EigenSolver::LOBPCGSolveReal    (
   Int  iterAllreduce = 0;
   Int  iterAlltoallv = 0;
   Int  iterSpinor = 0;
+  Int  iterPrec = 0;
   Int  iterTrsm = 0;
   Int  iterMpirank0 = 0;
   Int  iterScaLAPACKFactor = 0;
@@ -320,10 +322,48 @@ EigenSolver::LOBPCGSolveReal    (
 
   };
 
+  auto profile_matvec = [&]( int64_t nS_total, int64_t nS_local, 
+                             const DblNumMat& _X, DblNumMat& _AX ) {
 
-/*
-  auto profile_spinor = [&]( const DblNumMat& _X, DblNumMat& _AX
-*/
+    Real spinorStart, spinorEnd;
+
+    GetTime( spinorStart );
+
+    // Setup temporary datastructures for Matvec
+    Spinor spnTmp( fftPtr_->domain, ncom, nS_total, nS_local, false, _X.Data() );
+    NumTns<Real> tnsTmp( ntot, ncom, nS_local, false, _AX.Data() );
+
+    // Perform Matvec
+    hamPtr_->MultSpinor( spnTmp, tnsTmp, *fftPtr_ );
+
+    GetTime( spinorEnd );
+
+    timeSpinor += (spinorEnd - spinorStart);
+    iterSpinor++;
+
+  };
+
+  auto profile_applyprec = [&]( int64_t nS_total, int64_t nS_local, 
+                           const DblNumMat& _X, DblNumMat& _TX ) {
+
+    Real precStart, precEnd;
+
+    GetTime( precStart );
+
+    // Setup temporary datastructures for Preconditioner
+    Spinor spnTmp( fftPtr_->domain, ncom, nS_total, nS_local, false, _X.Data() );
+    NumTns<Real> tnsTmp( ntot, ncom, nS_local, false, _TX.Data() );
+
+    // Apply preconditioner
+    SetValue( tnsTmp, 0. );
+    spnTmp.AddTeterPrecond( fftPtr_, tnsTmp );
+
+    GetTime( precEnd );
+
+    timePrec += (precEnd - precStart);
+    iterPrec++;
+
+  };
 
 
 
@@ -417,6 +457,8 @@ EigenSolver::LOBPCGSolveReal    (
   profile_row_to_col( X, Xcol );
 
   // Applying the Hamiltonian matrix
+  // AX = H * X (col format)
+  #if 0
   {
     GetTime( timeSta );
     Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
@@ -427,6 +469,9 @@ EigenSolver::LOBPCGSolveReal    (
     iterSpinor = iterSpinor + 1;
     timeSpinor = timeSpinor + ( timeEnd - timeSta );
   }
+  #else
+  profile_matvec( noccTotal, noccLocal, Xcol, AXcol );
+  #endif
 
   // Redistribute AX from Col -> Row format
   profile_col_to_row( AXcol, AX );
@@ -522,6 +567,7 @@ EigenSolver::LOBPCGSolveReal    (
     // Redistribute from Xtemp Row -> Col format
     profile_row_to_col( Xtemp, Xcol );
 
+#if 0
     {
       GetTime( timeSta );
       Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xcol.VecData(numLockedLocal));
@@ -533,6 +579,9 @@ EigenSolver::LOBPCGSolveReal    (
       iterSpinor = iterSpinor + 1;
       timeSpinor = timeSpinor + ( timeEnd - timeSta );
     }
+#else
+    profile_applyprec( noccTotal, noccLocal, Xcol, Wcol );
+#endif
 
     Real norm = 0.0; 
     // Normalize the preconditioned residual
@@ -573,6 +622,7 @@ EigenSolver::LOBPCGSolveReal    (
 
     // Compute AMat
     // Compute AW = A*W
+#if 0
     {
       GetTime( timeSta );
       Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
@@ -583,6 +633,9 @@ EigenSolver::LOBPCGSolveReal    (
       iterSpinor = iterSpinor + 1;
       timeSpinor = timeSpinor + ( timeEnd - timeSta );
     }
+#else
+    profile_matvec( noccTotal, noccLocal, Wcol, AWcol );
+#endif
 
     // Convert from column format to row format
     // MPI_Alltoallv
