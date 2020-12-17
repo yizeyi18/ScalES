@@ -6,7 +6,6 @@
 
 
 namespace dgdft {
-namespace dist_util {
 
 namespace detail {
 
@@ -52,5 +51,4 @@ BlockDistributor<T> make_block_distributor( BlockDistAlg alg,
 
 }
 
-}
 }

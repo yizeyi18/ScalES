@@ -7,7 +7,6 @@
 #include "lapack.hpp"
 
 namespace dgdft {
-namespace dist_util {
 
 template <typename T>
 class HostOptPackBlockDistributor : public detail::BlockDistributorImpl<T> {
@@ -134,6 +133,5 @@ public:
 
 }; // HostOptPackBlockDistributor
 
-}
 }
 

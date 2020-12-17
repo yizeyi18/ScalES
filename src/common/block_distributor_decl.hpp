@@ -6,7 +6,6 @@
 #include <memory>
 
 namespace dgdft {
-namespace dist_util {
 
 
 // Block Distribution Algorithms
@@ -52,5 +51,4 @@ public:
 template <typename T>
 BlockDistributor<T> make_block_distributor( BlockDistAlg alg, MPI_Comm comm, Int M, Int N );
 
-} // namespace dist_util
 } // namespace dgdft

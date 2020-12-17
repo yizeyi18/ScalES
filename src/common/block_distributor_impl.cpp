@@ -2,7 +2,6 @@
 #include "block_distributor_factory.hpp"
 
 namespace dgdft {
-namespace dist_util {
 
 #define bdist_impl(T) \
 template class BlockDistributor<T>; \
@@ -16,5 +15,4 @@ bdist_impl(double);
 // TODO Complex
 
 
-} // namespace dist_util
 } // namespace dgdft

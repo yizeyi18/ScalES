@@ -272,9 +272,9 @@ EigenSolver::LOBPCGSolveReal    (
   statusOFS << "DBWY IN LOBPCG" << std::endl;
 
   // DBWY: Set up distributor
-  //dist_util::BlockDistributor<double> bdist( mpi_comm, height, width );
+  //BlockDistributor<double> bdist( mpi_comm, height, width );
   auto bdist = 
-    dist_util::make_block_distributor<double>( dist_util::BlockDistAlg::HostOptPack, mpi_comm,
+    make_block_distributor<double>( BlockDistAlg::HostOptPack, mpi_comm,
                                     height, width );
 
   // Setup profiling wrappers
@@ -3125,9 +3125,9 @@ EigenSolver::PPCGSolveReal    (
 
 
   statusOFS << "DBWY IN PPCG" << std::endl;
-  //dist_util::BlockDistributor<double> bdist( mpi_comm, height, width );
+  //BlockDistributor<double> bdist( mpi_comm, height, width );
   auto bdist = 
-    dist_util::make_block_distributor<double>( dist_util::BlockDistAlg::HostGeneric, mpi_comm,
+    make_block_distributor<double>( BlockDistAlg::HostGeneric, mpi_comm,
                                     height, width );
 
   GetTime( timeEnd );
