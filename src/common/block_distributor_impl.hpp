@@ -69,12 +69,23 @@ BlockDistributor<T>::BlockDistributor(
 template <typename T>
 BlockDistributor<T>::BlockDistributor() noexcept : impl_(nullptr) { };
 
-template <typename T>
-BlockDistributor<T>::BlockDistributor( MPI_Comm comm, Int M, Int N ) :
-  BlockDistributor( detail::make_default_host_distributor<T>( comm, M, N ) ) { }
+//template <typename T>
+//BlockDistributor<T>::BlockDistributor( MPI_Comm comm, Int M, Int N ) :
+//  BlockDistributor( detail::make_default_host_<T>( comm, M, N ) ) { }
   
 template <typename T>
 BlockDistributor<T>::~BlockDistributor() noexcept = default;
+
+
+template <typename T>
+BlockDistributor<T>& BlockDistributor<T>::operator=( BlockDistributor&& other ) noexcept {
+  impl_ = std::move(other.impl_);
+  return (*this);
+}
+
+template <typename T>
+BlockDistributor<T>::BlockDistributor( BlockDistributor&& other ) noexcept :
+  BlockDistributor( std::move(other.impl_) ) { }
 
 
 template <typename T>

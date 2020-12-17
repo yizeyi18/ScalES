@@ -272,42 +272,10 @@ EigenSolver::LOBPCGSolveReal    (
   statusOFS << "DBWY IN LOBPCG" << std::endl;
 
   // DBWY: Set up distributor
-  dist_util::BlockDistributor<double> bdist( mpi_comm, height, width );
-
-
-  if(0){
-    Int h  = 13;
-    Int w  = 17;
-    Int hB = h/mpisize;
-    Int wB = w/mpisize;
-    Int hL = hB + !!(mpirank < (h%mpisize));
-    Int wL = wB + !!(mpirank < (w%mpisize));
-
-
-    dist_util::BlockDistributor<double> btmp( mpi_comm, h, w );
-    NumMat<double> row_data_tmp( hL, w ), col_data_tmp( h, wL );
-
-
-    SetValue( col_data_tmp, (double)mpirank );
-    btmp.redistribute_col_to_row( col_data_tmp, row_data_tmp );
-    statusOFS << "DBWY COL  DATA" << col_data_tmp  << std::endl;
-    statusOFS << "DBWY ROW  DATA" << row_data_tmp  << std::endl;
-
-    SetValue( col_data_tmp, 0. );
-    SetValue( row_data_tmp, 0. );
-
-    for( int j = 0; j < w;  ++j ) 
-    for( int i = 0; i < hL; ++i ) {
-      row_data_tmp(i, j) = j % mpisize;
-    }
-
-    btmp.redistribute_row_to_col( row_data_tmp, col_data_tmp );
-    statusOFS << "DBWY COL  DATA" << col_data_tmp  << std::endl;
-    statusOFS << "DBWY ROW  DATA" << row_data_tmp  << std::endl;
-  }
-
-
-
+  //dist_util::BlockDistributor<double> bdist( mpi_comm, height, width );
+  auto bdist = 
+    dist_util::make_block_distributor<double>( dist_util::BlockDistAlg::HostOptPack, mpi_comm,
+                                    height, width );
 
   // Setup profiling wrappers
   auto profile_col_to_row = [&]( const DblNumMat& col_data, DblNumMat& row_data ) {
@@ -3157,7 +3125,10 @@ EigenSolver::PPCGSolveReal    (
 
 
   statusOFS << "DBWY IN PPCG" << std::endl;
-  dist_util::BlockDistributor<double> bdist( mpi_comm, height, width );
+  //dist_util::BlockDistributor<double> bdist( mpi_comm, height, width );
+  auto bdist = 
+    dist_util::make_block_distributor<double>( dist_util::BlockDistAlg::HostGeneric, mpi_comm,
+                                    height, width );
 
   GetTime( timeEnd );
   iterAlltoallvMap = iterAlltoallvMap + 1;

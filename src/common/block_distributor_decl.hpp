@@ -8,21 +8,20 @@
 namespace dgdft {
 namespace dist_util {
 
+
+// Block Distribution Algorithms
+enum class BlockDistAlg {
+  HostGeneric,
+  HostOptPack
+};
+
+
+
+
 namespace detail {
 
 template <typename T>
 class BlockDistributorImpl;
-
-
-template <typename T>
-std::unique_ptr< BlockDistributorImpl<T> > 
-  make_default_host_distributor( MPI_Comm comm, Int M, Int N );
-
-#ifdef DEVICE 
-template <typename T>
-std::unique_ptr< BlockDistributorImpl<T> > 
-  make_default_device_distributor( MPI_Comm comm, Int M, Int N );
-#endif
 
 }
 
@@ -35,13 +34,23 @@ public:
 
   BlockDistributor() noexcept;
   BlockDistributor( std::unique_ptr< detail::BlockDistributorImpl<T> >&& impl );
-  BlockDistributor( MPI_Comm comm, Int M, Int N );
+  //BlockDistributor( MPI_Comm comm, Int M, Int N );
   ~BlockDistributor() noexcept;
+
+  BlockDistributor( const BlockDistributor& ) = delete;
+  BlockDistributor( BlockDistributor&& ) noexcept;
+
+  BlockDistributor& operator=( const BlockDistributor& ) = delete;
+  BlockDistributor& operator=( BlockDistributor&& ) noexcept;
 
   void redistribute_row_to_col( const NumMat<T>& row_data, NumMat<T>& col_data );
   void redistribute_col_to_row( const NumMat<T>& col_data, NumMat<T>& row_data );
 
 };
+
+
+template <typename T>
+BlockDistributor<T> make_block_distributor( BlockDistAlg alg, MPI_Comm comm, Int M, Int N );
 
 } // namespace dist_util
 } // namespace dgdft

@@ -10,7 +10,6 @@ set( DG_COMMON_SRC
      scalapack.cpp  
      utility.cpp 
      block_distributor_impl.cpp
-     host_block_distributor.cpp
 )
 
 if( DGDFT_ENABLE_CUDA )
