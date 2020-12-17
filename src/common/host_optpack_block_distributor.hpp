@@ -3,6 +3,7 @@
 
 #include "numvec_impl.hpp"
 #include "nummat_impl.hpp"
+#include "utility.hpp"
 
 #include "lapack.hpp"
 
@@ -58,6 +59,9 @@ public:
   void redistribute_row_to_col( const NumMat<T>& row_data, 
                                       NumMat<T>& col_data ) override { 
 
+    Real timeSta, timeEnd;
+
+    GetTime( timeSta );
     // Pack row_data into buffer
     Int recvbuf_off = 0;
     for( Int irank = 0; irank < this->comm_size_; ++irank ) {
@@ -69,6 +73,9 @@ public:
 
       recvbuf_off += col_rank_local * this->MLocal_;
     }
+    GetTime( timeEnd );
+
+    Real r2c_pack_dur = timeEnd - timeSta;
 
     MPI_Alltoallv( recvbuf_.Data(), recvcounts_.Data(), recvdispls_.Data(),
                    MPI_DOUBLE, // FIXME: base on template param
@@ -76,6 +83,7 @@ public:
                    MPI_DOUBLE, // FIXME: base on template param
                    this->comm_ );
 
+    GetTime( timeSta );
     Int row_offset  = 0;
     Int sendbuf_off = 0;
     for( Int irank = 0; irank < this->comm_size_; ++irank ) {
@@ -89,6 +97,12 @@ public:
       sendbuf_off += this->NLocal_ * row_rank_local;
       row_offset  += row_rank_local;
     }
+    GetTime( timeEnd );
+
+    Real r2c_unpack_dur = timeEnd - timeSta;
+
+    statusOFS << "R2C PACK DUR   = " << r2c_pack_dur   << std::endl;
+    statusOFS << "R2C UNPACK DUR = " << r2c_unpack_dur << std::endl;
 
   };
 

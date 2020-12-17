@@ -246,10 +246,12 @@ EigenSolver::LOBPCGSolveReal    (
   Int  iterScaLAPACKFactor = 0;
   Int  iterScaLAPACK = 0;
 
-  Real timeAlltoallForward  = 0.0;
-  Real timeAlltoallBackward = 0.0;
-  Int  iterAlltoallForward  = 0;
-  Int  iterAlltoallBackward = 0;
+  Real timeR2C    = 0.0;
+  Real timeC2R    = 0.0;
+  Real timeCholQR = 0.0;
+  Int  iterR2C    = 0;
+  Int  iterC2R    = 0;
+  Int  iterCholQR = 0;
 
 
 
@@ -269,32 +271,59 @@ EigenSolver::LOBPCGSolveReal    (
   // AlltoallBackward since they are repetitively used in the
   // eigensolver.
   //
-  statusOFS << "DBWY IN LOBPCG" << std::endl;
+  //statusOFS << "DBWY IN LOBPCG" << std::endl;
 
-  // DBWY: Set up distributor
+  // Set up distributor
   //BlockDistributor<double> bdist( mpi_comm, height, width );
   auto bdist = 
-    make_block_distributor<double>( BlockDistAlg::HostOptPack, mpi_comm,
+    make_block_distributor<double>( BlockDistAlg::HostGeneric, mpi_comm,
                                     height, width );
 
   // Setup profiling wrappers
   auto profile_col_to_row = [&]( const DblNumMat& col_data, DblNumMat& row_data ) {
-    GetTime( timeSta );
-    bdist.redistribute_col_to_row( col_data, row_data );
-    GetTime( timeEnd );
 
-    timeAlltoallBackward += (timeEnd - timeSta);
-    iterAlltoallBackward++;
+    Real c2rStart, c2rEnd;
+
+    GetTime( c2rStart );
+    bdist.redistribute_col_to_row( col_data, row_data );
+    GetTime( c2rEnd );
+
+    timeC2R += (c2rEnd - c2rStart);
+    iterC2R++;
+
   };
 
   auto profile_row_to_col = [&]( const DblNumMat& row_data, DblNumMat& col_data ) {
-    GetTime( timeSta );
-    bdist.redistribute_row_to_col( row_data, col_data );
-    GetTime( timeEnd );
 
-    timeAlltoallBackward += (timeEnd - timeSta);
-    iterAlltoallBackward++;
+    Real r2cStart, r2cEnd;
+
+    GetTime( r2cStart );
+    bdist.redistribute_row_to_col( row_data, col_data );
+    GetTime( r2cEnd );
+
+    timeR2C += (r2cEnd - r2cStart);
+    iterR2C++;
+
   };
+
+  auto profile_chol_qr = [&]( DblNumMat& _X, DblNumMat& _R, MPI_Comm _c ) {
+
+    Real cholQRStart, cholQREnd;
+
+    GetTime( cholQRStart );
+    detail::replicated_cholesky_qr_row_dist( _X.m(), _X.n(), _X.Data(), _X.m(),
+                                             _R.Data(), _R.m(), _c );
+    GetTime( cholQREnd );
+
+    timeCholQR += (cholQREnd - cholQRStart);
+    iterCholQR++;
+
+  };
+
+
+/*
+  auto profile_spinor = [&]( const DblNumMat& _X, DblNumMat& _AX
+*/
 
 
 
@@ -375,28 +404,17 @@ EigenSolver::LOBPCGSolveReal    (
 
 
   // Redistribute X from Row -> Col format
-  GetTime( timeSta );
-  bdist.redistribute_col_to_row( Xcol, X );
-  GetTime( timeEnd );
-
-  iterAlltoallv = iterAlltoallv + 1;
-  timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+  profile_col_to_row( Xcol, X );
 
   // *********************************************************************
   // Main loop
   // *********************************************************************
 
   // Orthogonalization through Cholesky QR
-  detail::replicated_cholesky_qr_row_dist( heightLocal, width, X.Data(), heightLocal,
-                                           XTX.Data(), width, mpi_comm );
+  profile_chol_qr( X, XTX, mpi_comm );
 
   // Redistribute from X Row -> Col format
-  GetTime( timeSta );
-  bdist.redistribute_row_to_col( X, Xcol );
-  GetTime( timeEnd );
-
-  iterAlltoallv = iterAlltoallv + 1;
-  timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+  profile_row_to_col( X, Xcol );
 
   // Applying the Hamiltonian matrix
   {
@@ -411,12 +429,7 @@ EigenSolver::LOBPCGSolveReal    (
   }
 
   // Redistribute AX from Col -> Row format
-  GetTime( timeSta );
-  bdist.redistribute_col_to_row( AXcol, AX );
-  GetTime( timeEnd );
-
-  iterAlltoallv = iterAlltoallv + 1;
-  timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+  profile_col_to_row( AXcol, AX );
 
 
   // Start the main loop
@@ -507,12 +520,7 @@ EigenSolver::LOBPCGSolveReal    (
     // Only convert Xtemp here
 
     // Redistribute from Xtemp Row -> Col format
-    GetTime( timeSta );
-    bdist.redistribute_row_to_col( Xtemp, Xcol );
-    GetTime( timeEnd );
-
-    iterAlltoallv = iterAlltoallv + 1;
-    timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+    profile_row_to_col( Xtemp, Xcol );
 
     {
       GetTime( timeSta );
@@ -580,21 +588,9 @@ EigenSolver::LOBPCGSolveReal    (
     // MPI_Alltoallv
     // Only convert W and AW
 
-    // Convert W Col to Row
-    GetTime( timeSta );
-    bdist.redistribute_col_to_row( Wcol, W );
-    GetTime( timeEnd );
-
-    iterAlltoallv = iterAlltoallv + 1;
-    timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
-
-    // Convert AW Col to Row
-    GetTime( timeSta );
-    bdist.redistribute_col_to_row( AWcol, AW );
-    GetTime( timeEnd );
-
-    iterAlltoallv = iterAlltoallv + 1;
-    timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+    // Convert W/AW from Col to Row
+    profile_col_to_row( Wcol,  W  );
+    profile_col_to_row( AWcol, AW );
 
     // Compute X' * (AW)
     // Instead of saving the block at &AMat(0,width+numLocked), the data
@@ -1160,12 +1156,7 @@ EigenSolver::LOBPCGSolveReal    (
   resVal_ = resNorm;
 
   // Redistribute X Row -> Col
-  GetTime( timeSta );
-  bdist.redistribute_row_to_col( X, Xcol );
-  GetTime( timeEnd );
-
-  iterAlltoallv = iterAlltoallv + 1;
-  timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
+  profile_row_to_col( X, Xcol );
 
   lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
       psiPtr_->Wavefun().Data(), height );
@@ -3124,7 +3115,7 @@ EigenSolver::PPCGSolveReal    (
 #endif
 
 
-  statusOFS << "DBWY IN PPCG" << std::endl;
+  //statusOFS << "DBWY IN PPCG" << std::endl;
   //BlockDistributor<double> bdist( mpi_comm, height, width );
   auto bdist = 
     make_block_distributor<double>( BlockDistAlg::HostGeneric, mpi_comm,
