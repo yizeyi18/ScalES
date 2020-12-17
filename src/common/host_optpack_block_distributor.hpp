@@ -101,8 +101,10 @@ public:
 
     Real r2c_unpack_dur = timeEnd - timeSta;
 
+#if ( _DEBUGlevel_ >= 1 )
     statusOFS << "R2C PACK DUR   = " << r2c_pack_dur   << std::endl;
     statusOFS << "R2C UNPACK DUR = " << r2c_unpack_dur << std::endl;
+#endif
 
   };
 

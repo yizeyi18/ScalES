@@ -136,25 +136,39 @@ template <class F> inline bool operator<=(const Vec3T<F>& a, const Vec3T<F>& b) 
 // Vec3T: Numerical operations
 // *********************************************************************
 template <class F> inline Vec3T<F> operator- (const Vec3T<F>& a) {
-  Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = -a[i]; return r;
+  Vec3T<F> r;  
+  for(Int i=0; i<3; i++) r[i] = -a[i]; 
+  return r;
 }
 template <class F> inline Vec3T<F> operator+ (const Vec3T<F>& a, const Vec3T<F>& b) {
-  Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = a[i]+b[i]; return r; 
+  Vec3T<F> r;  
+  for(Int i=0; i<3; i++) r[i] = a[i]+b[i]; 
+  return r; 
 }
 template <class F> inline Vec3T<F> operator- (const Vec3T<F>& a, const Vec3T<F>& b) {
-  Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = a[i]-b[i]; return r;
+  Vec3T<F> r;  
+  for(Int i=0; i<3; i++) r[i] = a[i]-b[i]; 
+  return r;
 }
 template <class F> inline Vec3T<F> operator* (F scl, const Vec3T<F>& a) {
-  Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = scl*a[i];  return r;
+  Vec3T<F> r;  
+  for(Int i=0; i<3; i++) r[i] = scl*a[i];  
+  return r;
 }
 template <class F> inline Vec3T<F> operator* (const Vec3T<F>& a, F scl) {
-  Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = scl*a[i];  return r;
+  Vec3T<F> r;  
+  for(Int i=0; i<3; i++) r[i] = scl*a[i];  
+  return r;
 }
 template <class F> inline Vec3T<F> operator/ (const Vec3T<F>& a, F scl) {
-  Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = a[i]/scl;  return r;
+  Vec3T<F> r;  
+  for(Int i=0; i<3; i++) r[i] = a[i]/scl;  
+  return r;
 }
 template <class F> inline F operator* (const Vec3T<F>& a, const Vec3T<F>& b) {
-  F sum=F(0); for(Int i=0; i<3; i++) sum=sum+a(i)*b(i); return sum;
+  F sum=F(0); 
+  for(Int i=0; i<3; i++) sum=sum+a(i)*b(i); 
+  return sum;
 }
 template <class F> inline F dot       (const Vec3T<F>& a, const Vec3T<F>& b) {
   return a*b;
@@ -170,44 +184,66 @@ template <class F> inline Vec3T<F> cross     (const Vec3T<F>& a, const Vec3T<F>&
 // Vec3T: Element wise numerical operations
 // *********************************************************************
 template <class F> inline Vec3T<F> ewmin(const Vec3T<F>& a, const Vec3T<F>& b) {
-  Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = std::min(a[i], b[i]); return r;
+  Vec3T<F> r;  
+  for(Int i=0; i<3; i++) r[i] = std::min(a[i], b[i]); 
+  return r;
 }
 template <class F> inline Vec3T<F> ewmax(const Vec3T<F>& a, const Vec3T<F>& b) {
-  Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = std::max(a[i], b[i]); return r;
+  Vec3T<F> r;  
+  for(Int i=0; i<3; i++) r[i] = std::max(a[i], b[i]); 
+  return r;
 }
 template <class F> inline Vec3T<F> ewabs(const Vec3T<F>& a) {
-  Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = std::abs(a[i]); return r;
+  Vec3T<F> r;  
+  for(Int i=0; i<3; i++) r[i] = std::abs(a[i]); 
+  return r;
 }
 template <class F> inline Vec3T<F> ewmul(const Vec3T<F>&a, const Vec3T<F>& b) {
-  Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = a[i]*b[i]; return r;
+  Vec3T<F> r;  
+  for(Int i=0; i<3; i++) r[i] = a[i]*b[i]; 
+  return r;
 }
 template <class F> inline Vec3T<F> ewdiv(const Vec3T<F>&a, const Vec3T<F>& b) { 
-  Vec3T<F> r;  for(Int i=0; i<3; i++) r[i] = a[i]/b[i]; return r;
+  Vec3T<F> r;  
+  for(Int i=0; i<3; i++) r[i] = a[i]/b[i]; 
+  return r;
 }
 template <class F> inline Vec3T<F> ewrnd(const Vec3T<F>&a) { //round
-  Vec3T<F> r;  for(Int i=0; i<3; i++)    r[i] = round(a[i]);  return r;
+  Vec3T<F> r;  
+  for(Int i=0; i<3; i++)    r[i] = round(a[i]);  
+  return r;
 }
 
 // *********************************************************************
 // Vec3T: Accumulative boolean operations
 // *********************************************************************
 template <class F> inline bool allequ(const Vec3T<F>& a, const Vec3T<F>& b) {
-  bool res = true;  for(Int i=0; i<3; i++)   res = res && (a(i)==b(i));  return res;
+  bool res = true;  
+  for(Int i=0; i<3; i++)   res = res && (a(i)==b(i));  
+  return res;
 }
 template <class F> inline bool allneq(const Vec3T<F>& a, const Vec3T<F>& b) {
   return !(a==b);
 }
 template <class F> inline bool allgtt(const Vec3T<F>& a, const Vec3T<F>& b) {
-  bool res = true;  for(Int i=0; i<3; i++)   res = res && (a(i)> b(i));  return res; 
+  bool res = true;  
+  for(Int i=0; i<3; i++)   res = res && (a(i)> b(i));  
+  return res; 
 }
 template <class F> inline bool alllst(const Vec3T<F>& a, const Vec3T<F>& b) {
-  bool res = true;  for(Int i=0; i<3; i++)   res = res && (a(i)< b(i));  return res; 
+  bool res = true;  
+  for(Int i=0; i<3; i++)   res = res && (a(i)< b(i));  
+  return res; 
 }
 template <class F> inline bool allgoe(const Vec3T<F>& a, const Vec3T<F>& b) {
-  bool res = true;  for(Int i=0; i<3; i++)    res = res && (a(i)>=b(i));  return res; 
+  bool res = true;  
+  for(Int i=0; i<3; i++)    res = res && (a(i)>=b(i));  
+  return res; 
 }
 template <class F> inline bool allloe(const Vec3T<F>& a, const Vec3T<F>& b) {
-  bool res = true;  for(Int i=0; i<3; i++)   res = res && (a(i)<=b(i));  return res; 
+  bool res = true;  
+  for(Int i=0; i<3; i++)   res = res && (a(i)<=b(i));  
+  return res; 
 }
 
 
@@ -215,10 +251,12 @@ template <class F> inline bool allloe(const Vec3T<F>& a, const Vec3T<F>& b) {
 // Vec3T: Input and output
 // *********************************************************************
 template <class F> std::istream& operator>>(std::istream& is, Vec3T<F>& a) {
-  for(Int i=0; i<3; i++) is>>a[i]; return is;
+  for(Int i=0; i<3; i++) {is>>a[i];} 
+  return is;
 }
 template <class F> std::ostream& operator<<(std::ostream& os, const Vec3T<F>& a) { 
-  for(Int i=0; i<3; i++) os<<a[i]<<" "; return os;
+  for(Int i=0; i<3; i++) {os<<a[i]<<" ";} 
+  return os;
 }
 
 
@@ -269,25 +307,39 @@ template <class F> inline bool operator<=(const Vec2T<F>& a, const Vec2T<F>& b) 
 // Vec2T: Numerical operations
 // *********************************************************************
 template <class F> inline Vec2T<F> operator- (const Vec2T<F>& a) {
-  Vec2T<F> r;  for(int i=0; i<2; i++) r[i] = -a[i]; return r;
+  Vec2T<F> r;  
+  for(int i=0; i<2; i++) r[i] = -a[i]; 
+  return r;
 }
 template <class F> inline Vec2T<F> operator+ (const Vec2T<F>& a, const Vec2T<F>& b) {
-  Vec2T<F> r;  for(int i=0; i<2; i++) r[i] = a[i]+b[i]; return r; 
+  Vec2T<F> r;  
+  for(int i=0; i<2; i++) r[i] = a[i]+b[i]; 
+  return r; 
 }
 template <class F> inline Vec2T<F> operator- (const Vec2T<F>& a, const Vec2T<F>& b) {
-  Vec2T<F> r;  for(int i=0; i<2; i++) r[i] = a[i]-b[i]; return r;
+  Vec2T<F> r;  
+  for(int i=0; i<2; i++) r[i] = a[i]-b[i]; 
+  return r;
 }
 template <class F> inline Vec2T<F> operator* (F scl, const Vec2T<F>& a) {
-  Vec2T<F> r;  for(int i=0; i<2; i++) r[i] = scl*a[i];  return r;
+  Vec2T<F> r;  
+  for(int i=0; i<2; i++) r[i] = scl*a[i];  
+  return r;
 }
 template <class F> inline Vec2T<F> operator* (const Vec2T<F>& a, F scl) {
-  Vec2T<F> r;  for(int i=0; i<2; i++) r[i] = scl*a[i];  return r;
+  Vec2T<F> r;  
+  for(int i=0; i<2; i++) r[i] = scl*a[i];  
+  return r;
 }
 template <class F> inline Vec2T<F> operator/ (const Vec2T<F>& a, F scl) {
-  Vec2T<F> r;  for(int i=0; i<2; i++) r[i] = a[i]/scl;  return r;
+  Vec2T<F> r;  
+  for(int i=0; i<2; i++) r[i] = a[i]/scl;  
+  return r;
 }
 template <class F> inline F operator* (const Vec2T<F>& a, const Vec2T<F>& b) {
-  F sum=F(0); for(int i=0; i<2; i++) sum=sum+a(i)*b(i); return sum;
+  F sum=F(0); 
+  for(int i=0; i<2; i++) sum=sum+a(i)*b(i); 
+  return sum;
 }
 template <class F> inline F dot       (const Vec2T<F>& a, const Vec2T<F>& b) {
   return a*b;
@@ -297,32 +349,46 @@ template <class F> inline F dot       (const Vec2T<F>& a, const Vec2T<F>& b) {
 // Vec2T: Element wise numerical operations
 // *********************************************************************
 template <class F> inline Vec2T<F> ewmin(const Vec2T<F>& a, const Vec2T<F>& b) {
-  Vec2T<F> r;  for(int i=0; i<2; i++) r[i] = std::min(a[i], b[i]); return r;
+  Vec2T<F> r;  
+  for(int i=0; i<2; i++) r[i] = std::min(a[i], b[i]); 
+  return r;
 }
 template <class F> inline Vec2T<F> ewmax(const Vec2T<F>& a, const Vec2T<F>& b) {
-  Vec2T<F> r;  for(int i=0; i<2; i++) r[i] = std::max(a[i], b[i]); return r;
+  Vec2T<F> r;  
+  for(int i=0; i<2; i++) r[i] = std::max(a[i], b[i]); 
+  return r;
 }
 template <class F> inline Vec2T<F> ewabs(const Vec2T<F>& a) {
-  Vec2T<F> r;  for(int i=0; i<2; i++) r[i] = std::abs(a[i]); return r;
+  Vec2T<F> r;  
+  for(int i=0; i<2; i++) r[i] = std::abs(a[i]); 
+  return r;
 }
 template <class F> inline Vec2T<F> ewmul(const Vec2T<F>&a, const Vec2T<F>& b) {
-  Vec2T<F> r;  for(int i=0; i<2; i++) r[i] = a[i]*b[i]; return r;
+  Vec2T<F> r;  
+  for(int i=0; i<2; i++) r[i] = a[i]*b[i]; 
+  return r;
 }
 template <class F> inline Vec2T<F> ewdiv(const Vec2T<F>&a, const Vec2T<F>& b) { 
-  Vec2T<F> r;  for(int i=0; i<2; i++) r[i] = a[i]/b[i]; return r;
+  Vec2T<F> r;  
+  for(int i=0; i<2; i++) r[i] = a[i]/b[i]; 
+  return r;
 }
 template <class F> inline Vec2T<F> ewrnd(const Vec2T<F>&a) { //round
-  Vec2T<F> r;  for(int i=0; i<2; i++)    r[i] = round(a[i]);  return r;
+  Vec2T<F> r;  
+  for(int i=0; i<2; i++)    r[i] = round(a[i]);  
+  return r;
 }
 
 // *********************************************************************
 // Vec2T: Input and output
 // *********************************************************************
 template <class F> std::istream& operator>>(std::istream& is, Vec2T<F>& a) {
-  for(int i=0; i<2; i++) is>>a[i]; return is;
+  for(int i=0; i<2; i++) {is>>a[i];} 
+  return is;
 }
 template <class F> std::ostream& operator<<(std::ostream& os, const Vec2T<F>& a) { 
-  for(int i=0; i<2; i++) os<<a[i]<<" "; return os;
+  for(int i=0; i<2; i++) {os<<a[i]<<" ";} 
+  return os;
 }
 
 } // namespace dgdft
