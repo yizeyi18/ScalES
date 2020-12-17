@@ -1,7 +1,7 @@
 #ifdef DEVICE
 #include "device_error.hpp"
 
-char *deviceBLASGetErrorString(cublasStatus_t error)
+const char *deviceBLASGetErrorString(cublasStatus_t error)
 {
     switch (error)
     {
@@ -35,7 +35,7 @@ char *deviceBLASGetErrorString(cublasStatus_t error)
 }
 
 // returns string for CUFFT API error
-char *deviceFFTGetErrorString(cufftResult error)
+const char *deviceFFTGetErrorString(cufftResult error)
 {
     switch (error)
     {

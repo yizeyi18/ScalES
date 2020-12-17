@@ -110,6 +110,7 @@ template <class F>
       else data_ = NULL;
     } 
     else data_ = C.data_;
+    return (*this);
   }
 
 

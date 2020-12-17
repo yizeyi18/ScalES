@@ -16,8 +16,8 @@
 // CUBLAS and CUFFT error checking, in library
 
 // returns string for CUBLAS API error
-char *deviceBLASGetErrorString(cublasStatus_t error);
-char *deviceFFTGetErrorString(cufftResult error);
+const char *deviceBLASGetErrorString(cublasStatus_t error);
+const char *deviceFFTGetErrorString(cufftResult error);
 #endif
 #endif
 /******************************************************/
