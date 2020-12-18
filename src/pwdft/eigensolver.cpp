@@ -386,6 +386,19 @@ EigenSolver::LOBPCGSolveReal    (
 
   };
 
+  // Xp = BETA * Xp + _ALPHA * X * C
+  // X is heightLocal x k
+  // C is k x l
+  // Xp is heightLocal x l
+  auto basis_update = 
+    [&]( Int _k, Int _l, Real _ALPHA, const Real* _X, const Real* _C, Int _LDC,
+         Real _BETA, Real* _XP ) {
+
+    blas::Gemm( 'N', 'N', heightLocal, _l, _k, _ALPHA, _X, heightLocal,
+                _C, _LDC, _BETA, _XP, heightLocal );
+
+  };
+
 
 
   // S = ( X | W | P ) is a triplet used for LOBPCG.  
@@ -509,12 +522,13 @@ EigenSolver::LOBPCGSolveReal    (
     // R <- AX - X*(X'*AX)
     lapack::Lacpy( 'A', heightLocal, width, AX.Data(), heightLocal, Xtemp.Data(), heightLocal );
 
-    GetTime( timeSta );
+#if 0
     blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
         X.Data(), heightLocal, AMat.Data(), lda, 1.0, Xtemp.Data(), heightLocal );
-    GetTime( timeEnd );
-    iterGemmN = iterGemmN + 1;
-    timeGemmN = timeGemmN + ( timeEnd - timeSta );
+#else
+    basis_update( width, width, -1.0, X.Data(), XTX.Data(), width, 1.0, 
+                  Xtemp.Data() );
+#endif
 
     // Compute the norm of the residual
     SetValue( resNormLocal, 0.0 );
@@ -950,6 +964,7 @@ EigenSolver::LOBPCGSolveReal    (
 
       // Update the eigenvectors 
       // X <- X * C_X + W * C_W
+#if 0
       GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
           X.Data(), heightLocal, &AMat(0,0), lda,
@@ -957,7 +972,12 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
+#else
+      basis_update( width, width, 1.0, X.Data(), &AMat(0,0), lda,
+                    0.0, Xtemp.Data() );
+#endif
 
+#if 0
       GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
           W.VecData(numLocked), heightLocal, &AMat(width,0), lda,
@@ -965,6 +985,10 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
+#else
+      basis_update( width, width, 1.0, W.Data(), &AMat(width,0), lda,
+                    1.0, Xtemp.Data() );
+#endif
 
       // Save the result into X
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
@@ -975,8 +999,10 @@ EigenSolver::LOBPCGSolveReal    (
           heightLocal, P.VecData(numLocked), heightLocal );
     } 
     else{ //numSet == 3
+
       // Compute the conjugate direction
       // P <- W * C_W + P * C_P
+#if 0
       GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
           W.VecData(numLocked), heightLocal, &AMat(width, 0), lda, 
@@ -984,7 +1010,12 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
+#else
+      basis_update( width, width, 1.0, W.Data(), &AMat(width,0), lda,
+                    0.0, Xtemp.Data() );
+#endif
 
+#if 0
       GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
           P.VecData(numLocked), heightLocal, &AMat(width+numActive,0), lda,
@@ -992,12 +1023,17 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
+#else
+      basis_update( width, width, 1.0, P.Data(), &AMat(2*width,0), lda,
+                    1.0, Xtemp.Data() );
+#endif
 
       lapack::Lacpy( 'A', heightLocal, numActive, Xtemp.VecData(numLocked), 
           heightLocal, P.VecData(numLocked), heightLocal );
 
       // Update the eigenvectors
       // X <- X * C_X + P
+#if 0
       GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, 
           X.Data(), heightLocal, &AMat(0,0), lda, 
@@ -1005,6 +1041,10 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
+#else
+      basis_update( width, width, 1.0, X.Data(), &AMat(0,0), lda,
+                    1.0, Xtemp.Data() );
+#endif
 
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
           X.Data(), heightLocal );
@@ -1015,6 +1055,7 @@ EigenSolver::LOBPCGSolveReal    (
     // Update AX and AP
     if( numSet == 2 ){
       // AX <- AX * C_X + AW * C_W
+#if 0
       GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
           AX.Data(), heightLocal, &AMat(0,0), lda,
@@ -1022,7 +1063,12 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
+#else
+      basis_update( width, width, 1.0, AX.Data(), &AMat(0,0), lda,
+                    0.0, Xtemp.Data() );
+#endif
 
+#if 0
       GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
           AW.VecData(numLocked), heightLocal, &AMat(width,0), lda,
@@ -1030,6 +1076,10 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
+#else
+      basis_update( width, width, 1.0, AW.Data(), &AMat(width,0), lda,
+                    1.0, Xtemp.Data() );
+#endif
 
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
           AX.Data(), heightLocal );
@@ -1041,6 +1091,7 @@ EigenSolver::LOBPCGSolveReal    (
     }
     else{
       // AP <- AW * C_W + A_P * C_P
+#if 0
       GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0, 
           AW.VecData(numLocked), heightLocal, &AMat(width,0), lda,
@@ -1048,7 +1099,12 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
+#else
+      basis_update( width, width, 1.0, AW.Data(), &AMat(width,0), lda,
+                    0.0, Xtemp.Data() );
+#endif
 
+#if 0
       GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, width, numActive, 1.0,
           AP.VecData(numLocked), heightLocal, &AMat(width+numActive, 0), lda,
@@ -1056,11 +1112,16 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
+#else
+      basis_update( width, width, 1.0, AP.Data(), &AMat(2*width,0), lda,
+                    1.0, Xtemp.Data() );
+#endif
 
       lapack::Lacpy( 'A', heightLocal, numActive, Xtemp.VecData(numLocked),
           heightLocal, AP.VecData(numLocked), heightLocal );
 
       // AX <- AX * C_X + AP
+#if 0
       GetTime( timeSta );
       blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0,
           AX.Data(), heightLocal, &AMat(0,0), lda,
@@ -1068,6 +1129,10 @@ EigenSolver::LOBPCGSolveReal    (
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
+#else
+      basis_update( width, width, 1.0, AX.Data(), &AMat(0,0), lda,
+                    1.0, Xtemp.Data() );
+#endif
 
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
           AX.Data(), heightLocal );
@@ -1104,6 +1169,7 @@ EigenSolver::LOBPCGSolveReal    (
 
 
 
+#if 0
   GetTime( timeSta );
   // X <- X*C
   blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
@@ -1111,12 +1177,17 @@ EigenSolver::LOBPCGSolveReal    (
   GetTime( timeEnd );
   iterGemmN = iterGemmN + 1;
   timeGemmN = timeGemmN + ( timeEnd - timeSta );
+#else
+  basis_update( width, width, 1.0, X.Data(), XTX.Data(), width, 
+                0.0, Xtemp.Data() );
+#endif
 
   lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
       X.Data(), heightLocal );
 
 #if ( _DEBUGlevel_ >= 2 )
 
+#if 0
   GetTime( timeSta );
   blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
       heightLocal, X.Data(), heightLocal, 0.0, XTXtemp1.Data(), width );
@@ -1129,6 +1200,9 @@ EigenSolver::LOBPCGSolveReal    (
   GetTime( timeEnd );
   iterAllreduce = iterAllreduce + 1;
   timeAllreduce = timeAllreduce + ( timeEnd - timeSta );
+#else
+  profile_dist_inner( width, width, X.Data(), X.Data(), XTX.Data() );
+#endif
 
   statusOFS << "After the LOBPCG, XTX = " << XTX << std::endl;
 
