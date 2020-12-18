@@ -494,23 +494,15 @@ EigenSolver::LOBPCGSolveReal    (
     statusOFS << "iter = " << iter << std::endl;
 #endif
 
-    if( iter == 1 || isRestart == true )
-      numSet = 2;
-    else
-      numSet = 3;
+    if( iter == 1 || isRestart == true ) numSet = 2;
+    else                                 numSet = 3;
 
     SetValue( AMat, 0.0 );
     SetValue( BMat, 0.0 );
 
-    // XTX <- X' * (AX)
-#if 0
-    detail::row_dist_inner_replicate( heightLocal, width, width, 
-                                      X.Data(),  heightLocal, 
-                                      AX.Data(), heightLocal, XTX.Data(), width,
-                                      mpi_comm );
-#else
+    // AMat(1:width,1:width) <- X' * (AX)
+    // Save a copy in XTX
     profile_dist_inner( width, width, X.Data(), AX.Data(), XTX.Data() );
-#endif
     lapack::Lacpy( 'A', width, width, XTX.Data(), width, AMat.Data(), lda );
 
     // Compute the residual.
@@ -570,14 +562,11 @@ EigenSolver::LOBPCGSolveReal    (
 
     // Compute the preconditioned residual W = T*R.
     // The residual is saved in Xtemp
-
-    // Convert from row format to column format.
-    // MPI_Alltoallv
-    // Only convert Xtemp here
-
-    // Redistribute from Xtemp Row -> Col format
+      
+    // Redistribute from Xtemp (Row) -> Xcol (Col)
     profile_row_to_col( Xtemp, Xcol );
 
+    // W <- T * X (Col format) 
     profile_applyprec( noccTotal, noccLocal, Xcol, Wcol );
 
     Real norm = 0.0; 
@@ -621,11 +610,7 @@ EigenSolver::LOBPCGSolveReal    (
     // Compute AW = A*W
     profile_matvec( noccTotal, noccLocal, Wcol, AWcol );
 
-    // Convert from column format to row format
-    // MPI_Alltoallv
-    // Only convert W and AW
-
-    // Convert W/AW from Col to Row
+    // Convert W/AW from Col to Row formats
     profile_col_to_row( Wcol,  W  );
     profile_col_to_row( AWcol, AW );
 
@@ -634,68 +619,31 @@ EigenSolver::LOBPCGSolveReal    (
     // is saved at &AMat(0,width) to guarantee a continuous data
     // arrangement of AMat.  The same treatment applies to the blocks
     // below in both AMat and BMat.
-#if 0
-    SetValue( XTXtemp, 0.0 );
-    detail::row_dist_inner_replicate( heightLocal, width, numActive,
-                                      X.Data(),              heightLocal, 
-                                      AW.VecData(numLocked), heightLocal, 
-                                      XTXtemp.Data(),        width, mpi_comm );
-#else
+
+    // AMat(1:width,width:2*width) = X' * (AW)
     // TODO: locking
     profile_dist_inner( width, width, X.Data(), AW.Data(), XTXtemp.Data() );
-#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0,width), lda );
 
-#if 0
     // Compute W' * (AW)
-    SetValue( XTXtemp, 0.0 );
-    detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
-                                      W. VecData(numLocked), heightLocal, 
-                                      AW.VecData(numLocked), heightLocal, 
-                                      XTXtemp.Data(),        mpi_comm );
-#else
+    // AMat(width:2*width, width:2*width) = W' * (AW)
     // TODO: locking
     profile_dist_inner( width, width, W.Data(), AW.Data(), XTXtemp.Data() );
-#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width,width), lda );
 
     if( numSet == 3 ){
 
       // Compute X' * (AP)
-#if 0
-      SetValue( XTXtemp, 0.0 );
-      detail::row_dist_inner_replicate( heightLocal, width, numActive,
-                                        X.Data(),              heightLocal, 
-                                        AP.VecData(numLocked), heightLocal, 
-                                        XTXtemp.Data(),        mpi_comm );
-#else
       // TODO: locking
       profile_dist_inner( width, width, X.Data(), AP.Data(), XTXtemp.Data() );
-#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0, width+numActive), lda );
 
       // Compute W' * (AP)
-#if 0
-      SetValue( XTXtemp, 0.0 );
-      detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
-                                        W. VecData(numLocked), heightLocal, 
-                                        AP.VecData(numLocked), heightLocal, 
-                                        XTXtemp.Data(),        mpi_comm );
-#else
       profile_dist_inner( width, width, W.Data(), AP.Data(), XTXtemp.Data() );
-#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width, width+numActive), lda );
 
       // Compute P' * (AP)
-#if 0
-      SetValue( XTXtemp, 0.0 );
-      detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
-                                        P. VecData(numLocked), heightLocal, 
-                                        AP.VecData(numLocked), heightLocal, 
-                                        XTXtemp.Data(),        mpi_comm );
-#else
       profile_dist_inner( width, width, P.Data(), AP.Data(), XTXtemp.Data() );
-#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width+numActive, width+numActive), lda );
 
     }
@@ -705,76 +653,29 @@ EigenSolver::LOBPCGSolveReal    (
 
     // Compute X'*X
     // XXX: Isn't this I?
-#if 0
-    detail::row_dist_inner_replicate( heightLocal, width, width, 
-                                      X.Data(), heightLocal, 
-                                      X.Data(), heightLocal, XTXtemp.Data(),
-                                      mpi_comm );
-#else
     profile_dist_inner( width, width, X.Data(), X.Data(), XTXtemp.Data() );
-#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,0), lda );
 
     // Compute X'*W
-#if 0
-    SetValue( XTXtemp, 0.0 );
-    detail::row_dist_inner_replicate( heightLocal, width, numActive,
-                                      X.Data(),             heightLocal, 
-                                      W.VecData(numLocked), heightLocal, 
-                                      XTXtemp.Data(),       mpi_comm );
-#else
     profile_dist_inner( width, width, X.Data(), W.Data(), XTXtemp.Data() );
-#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,width), lda );
 
     // Compute W'*W
-#if 0
-    SetValue( XTXtemp, 0.0 );
-    detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
-                                      W.VecData(numLocked), heightLocal, 
-                                      W.VecData(numLocked), heightLocal, 
-                                      XTXtemp.Data(),       mpi_comm );
-#else
     profile_dist_inner( width, width, W.Data(), W.Data(), XTXtemp.Data() );
-#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width), lda );
 
 
     if( numSet == 3 ){
       // Compute X'*P
-#if 0
-      SetValue( XTXtemp, 0.0 );
-      detail::row_dist_inner_replicate( heightLocal, width, numActive,
-                                        X.Data(),             heightLocal, 
-                                        P.VecData(numLocked), heightLocal, 
-                                        XTXtemp.Data(),       mpi_comm );
-#else
       profile_dist_inner( width, width, X.Data(), P.Data(), XTXtemp.Data() );
-#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0, width+numActive), lda );
 
       // Compute W'*P
-#if 0
-      SetValue( XTXtemp, 0.0 );
-      detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
-                                        W.VecData(numLocked), heightLocal, 
-                                        P.VecData(numLocked), heightLocal, 
-                                        XTXtemp.Data(),       mpi_comm );
-#else
       profile_dist_inner( width, width, W.Data(), P.Data(), XTXtemp.Data() );
-#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width+numActive), lda );
 
       // Compute P'*P
-#if 0
-      SetValue( XTXtemp, 0.0 );
-      detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
-                                        P.VecData(numLocked), heightLocal, 
-                                        P.VecData(numLocked), heightLocal, 
-                                        XTXtemp.Data(),       mpi_comm );
-#else
       profile_dist_inner( width, width, P.Data(), P.Data(), XTXtemp.Data() );
-#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width+numActive, width+numActive), lda );
 
     } // if( numSet == 3 )
