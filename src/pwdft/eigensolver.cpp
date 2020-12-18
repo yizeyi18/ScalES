@@ -76,16 +76,15 @@ void row_dist_inner_replicate( int64_t  NLocal,
                                const T* YLocal,   
                                int64_t  LDYLocal,
                                T*       M,
-                               int64_t  LDM,
                                MPI_Comm comm ) {
 
   // Compute Local GEMM
   blas::Gemm( 'C', 'N', K, L, NLocal, T(1.), XLocal, LDXLocal,
-              YLocal, LDYLocal, T(0.), M, LDM );
+              YLocal, LDYLocal, T(0.), M, K );
 
   // Reduce In Place
   // XXX: Deduce MPI_Type on template param
-  MPI_Allreduce( MPI_IN_PLACE, M, LDM*L, MPI_DOUBLE, MPI_SUM, comm );
+  MPI_Allreduce( MPI_IN_PLACE, M, K*L, MPI_DOUBLE, MPI_SUM, comm );
 
 }
 
@@ -95,11 +94,10 @@ void replicated_cholesky_qr_row_dist( int64_t NLocal,
                                       T*      XLocal,
                                       int64_t LDXLocal,
                                       T*      R,
-                                      int64_t LDR,
                                       MPI_Comm comm ) {
 
   row_dist_inner_replicate( NLocal, K, K, XLocal, LDXLocal, XLocal, LDXLocal,
-                            R, LDR, comm );
+                            R, comm );
 
   Int mpi_rank;
   MPI_Comm_rank( comm, &mpi_rank );
@@ -108,12 +106,12 @@ void replicated_cholesky_qr_row_dist( int64_t NLocal,
   // XXX: POTRF is replicatable, no reason to waste communication post replicated
   //      inner product
   if( mpi_rank == 0 ) {
-    lapack::Potrf( 'U', K, R, LDR );
+    lapack::Potrf( 'U', K, R, K );
   }
-  MPI_Bcast( R, K*LDR, MPI_DOUBLE, 0, comm );
+  MPI_Bcast( R, K*K, MPI_DOUBLE, 0, comm );
 
   // X <- X * U**-1
-  blas::Trsm( 'R', 'U', 'N', 'N', NLocal, K, T(1.), R, LDR, XLocal, LDXLocal );
+  blas::Trsm( 'R', 'U', 'N', 'N', NLocal, K, T(1.), R, K, XLocal, LDXLocal );
 
 }
 
@@ -231,8 +229,6 @@ EigenSolver::LOBPCGSolveReal    (
   Real timeGemmN = 0.0;
   Real timeAllreduce = 0.0;
   Real timeAlltoallv = 0.0;
-  Real timeSpinor = 0.0;
-  Real timePrec = 0.0;
   Real timeTrsm = 0.0;
   Real timeMpirank0 = 0.0;
   Real timeScaLAPACKFactor = 0.0;
@@ -241,19 +237,23 @@ EigenSolver::LOBPCGSolveReal    (
   Int  iterGemmN = 0;
   Int  iterAllreduce = 0;
   Int  iterAlltoallv = 0;
-  Int  iterSpinor = 0;
-  Int  iterPrec = 0;
   Int  iterTrsm = 0;
   Int  iterMpirank0 = 0;
   Int  iterScaLAPACKFactor = 0;
   Int  iterScaLAPACK = 0;
 
-  Real timeR2C    = 0.0;
-  Real timeC2R    = 0.0;
-  Real timeCholQR = 0.0;
-  Int  iterR2C    = 0;
-  Int  iterC2R    = 0;
-  Int  iterCholQR = 0;
+  Real timeSpinor     = 0.0;
+  Real timePrec       = 0.0;
+  Real timeR2C        = 0.0;
+  Real timeC2R        = 0.0;
+  Real timeCholQR     = 0.0;
+  Real timeBlockInner = 0.0;
+  Int  iterR2C        = 0;
+  Int  iterC2R        = 0;
+  Int  iterCholQR     = 0;
+  Int  iterSpinor     = 0;
+  Int  iterPrec       = 0;
+  Int  iterBlockInner = 0;
 
 
 
@@ -314,7 +314,7 @@ EigenSolver::LOBPCGSolveReal    (
 
     GetTime( cholQRStart );
     detail::replicated_cholesky_qr_row_dist( _X.m(), _X.n(), _X.Data(), _X.m(),
-                                             _R.Data(), _R.m(), _c );
+                                             _R.Data(), _c );
     GetTime( cholQREnd );
 
     timeCholQR += (cholQREnd - cholQRStart);
@@ -365,6 +365,26 @@ EigenSolver::LOBPCGSolveReal    (
 
   };
 
+
+
+  auto profile_dist_inner = [&]( int64_t _m, int64_t _n, const Real* _X,
+                                 const Real* _Y, Real* _RES ) {
+
+
+    Real innerStart, innerEnd;
+
+    GetTime( innerStart );
+    // All matrices in that use this code have a lead dimension / contraction
+    // dimenstion of heightLocal
+    detail::row_dist_inner_replicate( heightLocal, _m, _n, _X, heightLocal,
+                                      _Y, heightLocal, _RES, mpi_comm );
+
+    GetTime( innerEnd );
+
+    timeBlockInner += (innerEnd - innerStart);
+    iterBlockInner++;
+
+  };
 
 
 
@@ -450,7 +470,7 @@ EigenSolver::LOBPCGSolveReal    (
   // Main loop
   // *********************************************************************
 
-  // Orthogonalization through Cholesky QR
+  // Orthogonalize X via Cholesky QR
   profile_chol_qr( X, XTX, mpi_comm );
 
   // Redistribute from X Row -> Col format
@@ -458,20 +478,7 @@ EigenSolver::LOBPCGSolveReal    (
 
   // Applying the Hamiltonian matrix
   // AX = H * X (col format)
-  #if 0
-  {
-    GetTime( timeSta );
-    Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, noccLocal, false, Xcol.Data());
-    NumTns<Real> tnsTemp(ntot, ncom, noccLocal, false, AXcol.Data());
-
-    hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
-    GetTime( timeEnd );
-    iterSpinor = iterSpinor + 1;
-    timeSpinor = timeSpinor + ( timeEnd - timeSta );
-  }
-  #else
   profile_matvec( noccTotal, noccLocal, Xcol, AXcol );
-  #endif
 
   // Redistribute AX from Col -> Row format
   profile_col_to_row( AXcol, AX );
@@ -481,7 +488,7 @@ EigenSolver::LOBPCGSolveReal    (
   Int iter = 0;
   statusOFS << "Minimum tolerance is " << eigMinTolerance << std::endl;
 
-  do{
+  do {
     iter++;
 #if ( _DEBUGlevel_ >= 1 )
     statusOFS << "iter = " << iter << std::endl;
@@ -496,10 +503,14 @@ EigenSolver::LOBPCGSolveReal    (
     SetValue( BMat, 0.0 );
 
     // XTX <- X' * (AX)
+#if 0
     detail::row_dist_inner_replicate( heightLocal, width, width, 
                                       X.Data(),  heightLocal, 
                                       AX.Data(), heightLocal, XTX.Data(), width,
                                       mpi_comm );
+#else
+    profile_dist_inner( width, width, X.Data(), AX.Data(), XTX.Data() );
+#endif
     lapack::Lacpy( 'A', width, width, XTX.Data(), width, AMat.Data(), lda );
 
     // Compute the residual.
@@ -567,21 +578,7 @@ EigenSolver::LOBPCGSolveReal    (
     // Redistribute from Xtemp Row -> Col format
     profile_row_to_col( Xtemp, Xcol );
 
-#if 0
-    {
-      GetTime( timeSta );
-      Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Xcol.VecData(numLockedLocal));
-      NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
-
-      SetValue( tnsTemp, 0.0 );
-      spnTemp.AddTeterPrecond( fftPtr_, tnsTemp );
-      GetTime( timeEnd );
-      iterSpinor = iterSpinor + 1;
-      timeSpinor = timeSpinor + ( timeEnd - timeSta );
-    }
-#else
     profile_applyprec( noccTotal, noccLocal, Xcol, Wcol );
-#endif
 
     Real norm = 0.0; 
     // Normalize the preconditioned residual
@@ -622,20 +619,7 @@ EigenSolver::LOBPCGSolveReal    (
 
     // Compute AMat
     // Compute AW = A*W
-#if 0
-    {
-      GetTime( timeSta );
-      Spinor spnTemp(fftPtr_->domain, ncom, noccTotal, widthLocal-numLockedLocal, false, Wcol.VecData(numLockedLocal));
-      NumTns<Real> tnsTemp(ntot, ncom, widthLocal-numLockedLocal, false, AWcol.VecData(numLockedLocal));
-
-      hamPtr_->MultSpinor( spnTemp, tnsTemp, *fftPtr_ );
-      GetTime( timeEnd );
-      iterSpinor = iterSpinor + 1;
-      timeSpinor = timeSpinor + ( timeEnd - timeSta );
-    }
-#else
     profile_matvec( noccTotal, noccLocal, Wcol, AWcol );
-#endif
 
     // Convert from column format to row format
     // MPI_Alltoallv
@@ -650,45 +634,68 @@ EigenSolver::LOBPCGSolveReal    (
     // is saved at &AMat(0,width) to guarantee a continuous data
     // arrangement of AMat.  The same treatment applies to the blocks
     // below in both AMat and BMat.
+#if 0
     SetValue( XTXtemp, 0.0 );
     detail::row_dist_inner_replicate( heightLocal, width, numActive,
                                       X.Data(),              heightLocal, 
                                       AW.VecData(numLocked), heightLocal, 
                                       XTXtemp.Data(),        width, mpi_comm );
+#else
+    // TODO: locking
+    profile_dist_inner( width, width, X.Data(), AW.Data(), XTXtemp.Data() );
+#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0,width), lda );
 
+#if 0
     // Compute W' * (AW)
     SetValue( XTXtemp, 0.0 );
     detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
                                       W. VecData(numLocked), heightLocal, 
                                       AW.VecData(numLocked), heightLocal, 
-                                      XTXtemp.Data(),        width, mpi_comm );
+                                      XTXtemp.Data(),        mpi_comm );
+#else
+    // TODO: locking
+    profile_dist_inner( width, width, W.Data(), AW.Data(), XTXtemp.Data() );
+#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width,width), lda );
 
     if( numSet == 3 ){
 
       // Compute X' * (AP)
+#if 0
       SetValue( XTXtemp, 0.0 );
       detail::row_dist_inner_replicate( heightLocal, width, numActive,
                                         X.Data(),              heightLocal, 
                                         AP.VecData(numLocked), heightLocal, 
-                                        XTXtemp.Data(),        width, mpi_comm );
+                                        XTXtemp.Data(),        mpi_comm );
+#else
+      // TODO: locking
+      profile_dist_inner( width, width, X.Data(), AP.Data(), XTXtemp.Data() );
+#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(0, width+numActive), lda );
 
       // Compute W' * (AP)
+#if 0
       SetValue( XTXtemp, 0.0 );
       detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
                                         W. VecData(numLocked), heightLocal, 
                                         AP.VecData(numLocked), heightLocal, 
-                                        XTXtemp.Data(),        width, mpi_comm );
+                                        XTXtemp.Data(),        mpi_comm );
+#else
+      profile_dist_inner( width, width, W.Data(), AP.Data(), XTXtemp.Data() );
+#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width, width+numActive), lda );
 
       // Compute P' * (AP)
+#if 0
       SetValue( XTXtemp, 0.0 );
       detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
                                         P. VecData(numLocked), heightLocal, 
                                         AP.VecData(numLocked), heightLocal, 
-                                        XTXtemp.Data(),        width, mpi_comm );
+                                        XTXtemp.Data(),        mpi_comm );
+#else
+      profile_dist_inner( width, width, P.Data(), AP.Data(), XTXtemp.Data() );
+#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &AMat(width+numActive, width+numActive), lda );
 
     }
@@ -698,52 +705,76 @@ EigenSolver::LOBPCGSolveReal    (
 
     // Compute X'*X
     // XXX: Isn't this I?
+#if 0
     detail::row_dist_inner_replicate( heightLocal, width, width, 
                                       X.Data(), heightLocal, 
-                                      X.Data(), heightLocal, XTXtemp.Data(), width,
+                                      X.Data(), heightLocal, XTXtemp.Data(),
                                       mpi_comm );
+#else
+    profile_dist_inner( width, width, X.Data(), X.Data(), XTXtemp.Data() );
+#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,0), lda );
 
     // Compute X'*W
+#if 0
     SetValue( XTXtemp, 0.0 );
     detail::row_dist_inner_replicate( heightLocal, width, numActive,
                                       X.Data(),             heightLocal, 
                                       W.VecData(numLocked), heightLocal, 
-                                      XTXtemp.Data(),       width, mpi_comm );
+                                      XTXtemp.Data(),       mpi_comm );
+#else
+    profile_dist_inner( width, width, X.Data(), W.Data(), XTXtemp.Data() );
+#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0,width), lda );
 
     // Compute W'*W
+#if 0
     SetValue( XTXtemp, 0.0 );
     detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
                                       W.VecData(numLocked), heightLocal, 
                                       W.VecData(numLocked), heightLocal, 
-                                      XTXtemp.Data(),       width, mpi_comm );
+                                      XTXtemp.Data(),       mpi_comm );
+#else
+    profile_dist_inner( width, width, W.Data(), W.Data(), XTXtemp.Data() );
+#endif
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width), lda );
 
 
     if( numSet == 3 ){
       // Compute X'*P
+#if 0
       SetValue( XTXtemp, 0.0 );
       detail::row_dist_inner_replicate( heightLocal, width, numActive,
                                         X.Data(),             heightLocal, 
                                         P.VecData(numLocked), heightLocal, 
-                                        XTXtemp.Data(),       width, mpi_comm );
+                                        XTXtemp.Data(),       mpi_comm );
+#else
+      profile_dist_inner( width, width, X.Data(), P.Data(), XTXtemp.Data() );
+#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(0, width+numActive), lda );
 
       // Compute W'*P
+#if 0
       SetValue( XTXtemp, 0.0 );
       detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
                                         W.VecData(numLocked), heightLocal, 
                                         P.VecData(numLocked), heightLocal, 
-                                        XTXtemp.Data(),       width, mpi_comm );
+                                        XTXtemp.Data(),       mpi_comm );
+#else
+      profile_dist_inner( width, width, W.Data(), P.Data(), XTXtemp.Data() );
+#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width, width+numActive), lda );
 
       // Compute P'*P
+#if 0
       SetValue( XTXtemp, 0.0 );
       detail::row_dist_inner_replicate( heightLocal, numActive, numActive,
                                         P.VecData(numLocked), heightLocal, 
                                         P.VecData(numLocked), heightLocal, 
-                                        XTXtemp.Data(),       width, mpi_comm );
+                                        XTXtemp.Data(),       mpi_comm );
+#else
+      profile_dist_inner( width, width, P.Data(), P.Data(), XTXtemp.Data() );
+#endif
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, &BMat(width+numActive, width+numActive), lda );
 
     } // if( numSet == 3 )
@@ -3266,7 +3297,7 @@ EigenSolver::PPCGSolveReal    (
 
   // Orthogonalization through Cholesky factorization
   detail::replicated_cholesky_qr_row_dist( heightLocal, width, X.Data(), heightLocal,
-                                           XTX.Data(), width, mpi_comm );
+                                           XTX.Data(), mpi_comm );
 
   // Redistribute from X Row -> Col format
   bdist.redistribute_row_to_col( X, Xcol );
@@ -3305,7 +3336,7 @@ EigenSolver::PPCGSolveReal    (
     // XTX <- X' * (AX)
     detail::row_dist_inner_replicate( heightLocal, width, width, 
                                       X.Data(),  heightLocal, 
-                                      AX.Data(), heightLocal, XTX.Data(), width,
+                                      AX.Data(), heightLocal, XTX.Data(), 
                                       mpi_comm );
 
     // Compute the residual.
@@ -3411,7 +3442,7 @@ EigenSolver::PPCGSolveReal    (
     // W = W - X(X'W), AW = AW - AX(X'W)
     detail::row_dist_inner_replicate( heightLocal, width, width,
                                       X.Data(), heightLocal,
-                                      W.Data(), heightLocal, XTX.Data(), width,
+                                      W.Data(), heightLocal, XTX.Data(), 
                                       mpi_comm );
 
 
@@ -3458,7 +3489,7 @@ EigenSolver::PPCGSolveReal    (
     if( numSet == 3 ){
       detail::row_dist_inner_replicate( heightLocal, width, width,
                                         X.Data(), heightLocal,
-                                        P.Data(), heightLocal, XTX.Data(), width,
+                                        P.Data(), heightLocal, XTX.Data(), 
                                         mpi_comm );
 
       GetTime( timeSta );
@@ -3803,7 +3834,7 @@ EigenSolver::PPCGSolveReal    (
 
     // CholeskyQR of the updated block X
     detail::replicated_cholesky_qr_row_dist( heightLocal, width, X.Data(), heightLocal,
-                                             XTX.Data(), width, mpi_comm );
+                                             XTX.Data(), mpi_comm );
 
 
     //            // Copy the eigenvalues
@@ -3833,7 +3864,7 @@ EigenSolver::PPCGSolveReal    (
   if (!isConverged){
     detail::row_dist_inner_replicate( heightLocal, width, width,
                                       X.Data(), heightLocal,
-                                      AX.Data(), heightLocal, XTX.Data(), width,
+                                      AX.Data(), heightLocal, XTX.Data(), 
                                       mpi_comm );
   }
 
@@ -4012,7 +4043,7 @@ EigenSolver::PPCGSolveReal    (
 
   detail::row_dist_inner_replicate( heightLocal, width, width,
                                     X.Data(), heightLocal,
-                                    X.Data(), heightLocal, XTX.Data(), width,
+                                    X.Data(), heightLocal, XTX.Data(), 
                                     mpi_comm );
 
   statusOFS << "After the PPCG, XTX = " << XTX << std::endl;
