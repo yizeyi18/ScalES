@@ -1838,5 +1838,39 @@ void seek_str(std::string tag, std::ifstream &upfin);
 std::string get_attr(std::string buf, std::string attr);
 void skipln(std::ifstream &upfin);
 void splinerad( std::vector<double> & r, std::vector<double> & vloc, std::vector<double> & out_r, std::vector<double> & out_vloc , int even);
+
+
+
+
+
+
+
+template <typename T>
+void ColNormalize( NumMat<T>& A ) {
+
+  const Int m = A.m();
+  const Int n = A.n();
+
+  for( Int k = 0; k < n; ++k ) {
+    auto Ak = A.VecData(k);
+
+    // Compute col norm
+    T nrm = 0; // TODO: deduce real on T
+    for( Int i = 0; i < m; ++i ) {
+      nrm += Ak[i] * Ak[i]; // TODO: Add conj for complex
+    }
+    nrm = std::sqrt( nrm );
+
+    // Normalize
+    for( Int i = 0; i < m; ++i ) {
+      Ak[i] /= nrm;
+    }
+  }
+
+}
+
+
+
+
 } // namespace dgdft
 #endif // _UTILITY_HPP_
