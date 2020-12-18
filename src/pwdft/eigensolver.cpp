@@ -495,16 +495,6 @@ EigenSolver::LOBPCGSolveReal    (
   //        = 3    : Conjugate gradient, use all the triplet (X | W | P)
   Int numSet = 2;
 
-  // numLocked is the number of converged vectors
-  Int numLockedLocal = 0, numLockedSaveLocal = 0;
-  Int numLockedTotal = 0, numLockedSaveTotal = 0; 
-  Int numLockedSave = 0;
-  Int numActiveLocal = 0;
-  Int numActiveTotal = 0;
-
-  const Int numLocked = 0;  // Never perform locking in this version
-  const Int numActive = width;
-
   bool isConverged = false;
 
   // Initialization
@@ -641,9 +631,6 @@ EigenSolver::LOBPCGSolveReal    (
       break;
     }
 
-    numActiveTotal = width - numLockedTotal;
-    numActiveLocal = widthLocal - numLockedLocal;
-
     // If the number of locked vectors goes down, perform steppest
     // descent rather than conjugate gradient
     // if( numLockedTotal < numLockedSaveTotal )
@@ -767,10 +754,10 @@ EigenSolver::LOBPCGSolveReal    (
     Int numCol;
     if( numSet == 3 ){
       // Conjugate gradient
-      numCol = width + 2 * numActiveTotal;
+      numCol = 3 * width;
     }
     else{
-      numCol = width + numActiveTotal;
+      numCol = 2 * width;
     }
 
     if( esdfParam.PWSolver == "LOBPCGScaLAPACK" ){
@@ -1014,11 +1001,11 @@ EigenSolver::LOBPCGSolveReal    (
 
       // Save the result into X
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
-          X.Data(), heightLocal );
+                     X.Data(), heightLocal );
 
       // P <- W
-      lapack::Lacpy( 'A', heightLocal, numActive, W.VecData(numLocked), 
-          heightLocal, P.VecData(numLocked), heightLocal );
+      lapack::Lacpy( 'A', heightLocal, width, W.Data(), heightLocal, 
+                     P.Data(), heightLocal );
 
     } else { //numSet == 3
 
@@ -1027,49 +1014,49 @@ EigenSolver::LOBPCGSolveReal    (
       basis_update( width, width, 1.0, W.Data(), C_W, lda, 0.0, Xtemp.Data() );
       basis_update( width, width, 1.0, P.Data(), C_P, lda, 1.0, Xtemp.Data() );
 
-      lapack::Lacpy( 'A', heightLocal, numActive, Xtemp.VecData(numLocked), 
-          heightLocal, P.VecData(numLocked), heightLocal );
+      lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
+                     P.Data(), heightLocal );
 
       // Update the eigenvectors
       // X <- X * C_X + P
       basis_update( width, width, 1.0, X.Data(), C_X, lda, 1.0, Xtemp.Data() );
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
-          X.Data(), heightLocal );
+                     X.Data(), heightLocal );
 
     } // if ( numSet == 2 )
 
 
     // Update AX and AP
     if( numSet == 2 ){
+
       // AX <- AX * C_X + AW * C_W
       basis_update( width, width, 1.0, AX.Data(), C_X, lda, 0.0, Xtemp.Data() );
       basis_update( width, width, 1.0, AW.Data(), C_W, lda, 1.0, Xtemp.Data() );
 
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
-          AX.Data(), heightLocal );
+                     AX.Data(), heightLocal );
 
       // AP <- AW
-      lapack::Lacpy( 'A', heightLocal, numActive, AW.VecData(numLocked), heightLocal,
-          AP.VecData(numLocked), heightLocal );
+      lapack::Lacpy( 'A', heightLocal, width, AW.Data(), heightLocal,
+                     AP.Data(), heightLocal );
 
-    }
-    else{
+    } else { // numSet == 3
       // AP <- AW * C_W + A_P * C_P
       basis_update( width, width, 1.0, AW.Data(), C_W, lda, 0.0, Xtemp.Data() );
       basis_update( width, width, 1.0, AP.Data(), C_P, lda, 1.0, Xtemp.Data() );
 
-      lapack::Lacpy( 'A', heightLocal, numActive, Xtemp.VecData(numLocked),
-          heightLocal, AP.VecData(numLocked), heightLocal );
+      lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
+                     AP.Data(), heightLocal );
 
       // AX <- AX * C_X + AP
       basis_update( width, width, 1.0, AX.Data(), C_X, lda, 1.0, Xtemp.Data() );
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
-          AX.Data(), heightLocal );
+                     AX.Data(), heightLocal );
 
     } // if ( numSet == 2 )
 
 #if ( _DEBUGlevel_ >= 1 )
-    statusOFS << "numLocked = " << numLocked << std::endl;
+    //statusOFS << "numLocked = " << numLocked << std::endl;
     statusOFS << "eigValS   = " << eigValS << std::endl;
 #endif
 
@@ -1102,7 +1089,7 @@ EigenSolver::LOBPCGSolveReal    (
                 0.0, Xtemp.Data() );
 
   lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
-      X.Data(), heightLocal );
+                 X.Data(), heightLocal );
 
 #if ( _DEBUGlevel_ >= 2 )
 
