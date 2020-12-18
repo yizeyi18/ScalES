@@ -556,7 +556,6 @@ EigenSolver::LOBPCGSolveReal    (
     auto* A_WTAW = &AMat(width,     width);
     auto* A_WTAP = &AMat(width,   2*width);
     auto* A_PTAP = &AMat(2*width, 2*width);
-
     
     auto* B_XTX = &BMat(0,       0      );
     auto* B_XTW = &BMat(0,         width);
@@ -587,35 +586,11 @@ EigenSolver::LOBPCGSolveReal    (
                   Xtemp.Data() );
 
     // Compute the norm of the residual
-#if 0
-    SetValue( resNormLocal, 0.0 );
-    for( Int k = 0; k < width; k++ ){
-      resNormLocal(k) = Energy(DblNumVec(heightLocal, false, Xtemp.VecData(k)));
-    }
-
-    SetValue( resNorm, 0.0 );
-    MPI_Allreduce( resNormLocal.Data(), resNorm.Data(), width, MPI_DOUBLE, 
-        MPI_SUM, mpi_comm );
-
-    if ( mpirank == 0 ){
-      GetTime( timeSta );
-      for( Int k = 0; k < width; k++ ){
-        resNorm(k) = std::sqrt( resNorm(k) ) / std::max( 1.0, std::abs( XTX(k,k) ) );
-      }
-      GetTime( timeEnd );
-      iterMpirank0 = iterMpirank0 + 1;
-      timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
-    }
-    MPI_Bcast(resNorm.Data(), width, MPI_DOUBLE, 0, mpi_comm);
-#else
-
     detail::row_dist_col_norm( heightLocal, width, Xtemp.Data(), heightLocal,
                                resNorm.Data(), mpi_comm );
     // XXX: ??
     for( Int k = 0; k < width; ++k )
       resNorm(k) /= std::max( 1.0, std::abs( XTX(k,k) ) );
-
-#endif
 
     resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
     resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
@@ -631,11 +606,6 @@ EigenSolver::LOBPCGSolveReal    (
       isConverged = true;
       break;
     }
-
-    // If the number of locked vectors goes down, perform steppest
-    // descent rather than conjugate gradient
-    // if( numLockedTotal < numLockedSaveTotal )
-    //  numSet = 2;
 
     // Compute the preconditioned residual W = T*R.
     // The residual is saved in Xtemp
@@ -743,7 +713,7 @@ EigenSolver::LOBPCGSolveReal    (
     }
 #endif
 
-    // Rayleigh-Ritz procedure
+    // Rayleigh-Ritz Procedure
     // AMat * C = BMat * C * Lambda
     // Assuming the dimension (needed) for C is width * width, then
     //     ( C_X )
