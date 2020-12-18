@@ -158,6 +158,7 @@ void replicated_cholesky_qr_row_dist( int64_t NLocal,
 
 }
 
+
 }
 
 
@@ -696,7 +697,7 @@ EigenSolver::LOBPCGSolveReal    (
     }
 
 
-    // Compute BMat (overlap matrix)
+    /*** Compute BMat (overlap matrix) ***/
 
     // Compute X'*X
     // XXX: Isn't this I?
@@ -760,6 +761,8 @@ EigenSolver::LOBPCGSolveReal    (
       numCol = 2 * width;
     }
 
+#if 0
+    statusOFS << "PW SOLVER " << esdfParam.PWSolver << std::endl;
     if( esdfParam.PWSolver == "LOBPCGScaLAPACK" ){
       // Solve the generalized eigenvalue problem using ScaLAPACK
       // NOTE: This uses a simplified implementation with Sygst / Syevd / Trsm. 
@@ -986,6 +989,16 @@ EigenSolver::LOBPCGSolveReal    (
 
       } // mpirank ==0
     } // sequential LOBPCG
+#else
+
+    // Solve Rayleigh-Ritz problem
+    // TODO: Handle ScaLAPACK path
+    if( mpirank == 0 ) {
+      lapack::Sygvd( 1, 'V', 'U', numCol, A_XTAX, lda, B_XTX, lda,
+                     eigValS.Data() );
+    }
+
+#endif
 
     // All processors synchronize the information
     MPI_Bcast(AMat.Data(), lda*lda, MPI_DOUBLE, 0, mpi_comm);
