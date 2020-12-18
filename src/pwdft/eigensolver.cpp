@@ -658,50 +658,10 @@ EigenSolver::LOBPCGSolveReal    (
     // W <- T * X (Col format) 
     profile_applyprec( noccTotal, noccLocal, Xcol, Wcol );
 
-    Real norm = 0.0; 
     // Normalize the preconditioned residual
-#if 0
-    for( Int k = numLockedLocal; k < widthLocal; k++ ){
-      norm = Energy(DblNumVec(height, false, Wcol.VecData(k)));
-      norm = std::sqrt( norm );
-      blas::Scal( height, 1.0 / norm, Wcol.VecData(k), 1 );
-    }
-#else
     ColNormalize( Wcol );
-#endif
 
-    // Normalize the conjugate direction
-    //Real normLocal = 0.0; 
-    //if( numSet == 3 ){
-    //  for( Int k = numLockedLocal; k < width; k++ ){
-    //    normLocal = Energy(DblNumVec(heightLocal, false, P.VecData(k)));
-    //    norm = 0.0; 
-    //    MPI_Allreduce( &normLocal, &norm, 1, MPI_DOUBLE, MPI_SUM, mpi_comm );
-    //    norm = std::sqrt( norm );
-    //    blas::Scal( heightLocal, 1.0 / norm, P.VecData(k), 1 );
-    //    blas::Scal( heightLocal, 1.0 / norm, AP.VecData(k), 1 );
-    //  }
-    //} 
-
-    // Normalize the conjugate direction
-#if 0
-    Real normPLocal[width]; 
-    Real normP[width]; 
-    if( numSet == 3 ){
-      for( Int k = numLockedLocal; k < width; k++ ){
-        normPLocal[k] = Energy(DblNumVec(heightLocal, false, P.VecData(k)));
-        normP[k] = 0.0;
-      }
-      MPI_Allreduce( &normPLocal[0], &normP[0], width, MPI_DOUBLE, MPI_SUM, mpi_comm );
-      for( Int k = numLockedLocal; k < width; k++ ){
-        norm = std::sqrt( normP[k] );
-        blas::Scal( heightLocal, 1.0 / norm, P.VecData(k), 1 );
-        blas::Scal( heightLocal, 1.0 / norm, AP.VecData(k), 1 );
-      }
-    } 
-#else
-
-    // Normalize P + update AP
+    // Normalize the conjugate direction (P) and update AP
     DblNumVec normP(width);
     detail::row_dist_col_norm( heightLocal, width, P.Data(), heightLocal,
                                normP.Data(), mpi_comm );
@@ -711,9 +671,9 @@ EigenSolver::LOBPCGSolveReal    (
       blas::Scal( heightLocal, 1./normP(k), AP.VecData(k), 1 );
     }
 
-#endif
 
-    // Compute AMat
+    /*** Compute AMat ***/
+
     // Compute AW = A*W
     profile_matvec( noccTotal, noccLocal, Wcol, AWcol );
 
@@ -722,18 +682,11 @@ EigenSolver::LOBPCGSolveReal    (
     profile_col_to_row( AWcol, AW );
 
     // Compute X' * (AW)
-    // Instead of saving the block at &AMat(0,width+numLocked), the data
-    // is saved at &AMat(0,width) to guarantee a continuous data
-    // arrangement of AMat.  The same treatment applies to the blocks
-    // below in both AMat and BMat.
-
-    // AMat(1:width,width:2*width) = X' * (AW)
     // TODO: locking
     profile_dist_inner( width, width, X.Data(), AW.Data(), XTXtemp.Data() );
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, A_XTAW, lda );
 
     // Compute W' * (AW)
-    // AMat(width:2*width, width:2*width) = W' * (AW)
     // TODO: locking
     profile_dist_inner( width, width, W.Data(), AW.Data(), XTXtemp.Data() );
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, A_WTAW, lda );
@@ -772,7 +725,8 @@ EigenSolver::LOBPCGSolveReal    (
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_WTW, lda );
 
 
-    if( numSet == 3 ){
+    if( numSet == 3 ) {
+
       // Compute X'*P
       profile_dist_inner( width, width, X.Data(), P.Data(), XTXtemp.Data() );
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_XTP, lda );
