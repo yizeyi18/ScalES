@@ -427,33 +427,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
   GetTime( timeSta1 );
  
-  if(0)
-  {
-    for (Int k=0; k<numStateLocal; k++) {
-      for (Int j=0; j<ncom; j++) {
-
-        SetValue( fft.inputVecR2C, 0.0 );
-        SetValue( fft.outputVecR2C, Z_ZERO );
-
-        blas::Copy( ntot, wavefun_.VecData(j,k), 1,
-            fft.inputVecR2C.Data(), 1 );
-        FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
-
-
-        for (Int i=0; i<ntotR2C; i++)
-        {
-          if(fft.gkkR2C(i) > 5.0)
-            fft.outputVecR2C(i) = Z_ZERO;
-        }
-
-        FFTWExecute ( fft, fft.backwardPlanR2C );
-        blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
-            wavefun_.VecData(j,k), 1 );
-
-      }
-    }
-  }
-
 
 
   //#ifdef _USE_OPENMP_
@@ -476,7 +449,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
 
         // For c2r and r2c transforms, the default is to DESTROY the
-        // input, therefore a copy of the original matrix is necessary. 
+        // input, therefore a copy of the original vector is necessary. 
         blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
             fft.inputVecR2C.Data(), 1 );
 
@@ -621,41 +594,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   //    }
   //#endif
 
-  if(0)
-  {
-    for (Int k=0; k<numStateLocal; k++) {
-      for (Int j=0; j<ncom; j++) {
-
-        SetValue( fft.inputVecR2C, 0.0 );
-        SetValue( fft.outputVecR2C, Z_ZERO );
-
-        blas::Copy( ntot, a3.VecData(j,k), 1,
-            fft.inputVecR2C.Data(), 1 );
-      
-        GetTime( timeSta );
-        FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
-        GetTime( timeEnd );
-        iterFFTCoarse = iterFFTCoarse + 1;
-        timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
-
-        for (Int i=0; i<ntotR2C; i++)
-        {
-          if(fft.gkkR2C(i) > 5.0)
-            fft.outputVecR2C(i) = Z_ZERO;
-        }
-
-        GetTime( timeSta );
-        FFTWExecute ( fft, fft.backwardPlanR2C );
-        GetTime( timeEnd );
-        iterFFTCoarse = iterFFTCoarse + 1;
-        timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
-        
-        blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
-            a3.VecData(j,k), 1 );
-
-      }
-    }
-  }
 
   GetTime( timeEnd1 );
   iterOther = iterOther + 1;
@@ -3747,80 +3685,6 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     }//
 
 
-    if(0){ // ScaLAPACL QRCP
-      Int contxt;
-      Int nprow, npcol, myrow, mycol, info;
-      Cblacs_get(0, 0, &contxt);
-      nprow = 1;
-      npcol = mpisize;
-
-      Cblacs_gridinit(&contxt, "C", nprow, npcol);
-      Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
-      Int desc_MG[9];
-
-      Int irsrc = 0;
-      Int icsrc = 0;
-
-      Int mb_MG = numPre*numPre;
-      Int nb_MG = ntotLocalMG;
-
-      // FIXME The current routine does not actually allow ntotLocal to be different on different processors.
-      // This must be fixed.
-      SCALAPACK(descinit)(&desc_MG[0], &mb_MG, &ntotMG, &mb_MG, &nb_MG, &irsrc, 
-          &icsrc, &contxt, &mb_MG, &info);
-
-      IntNumVec pivQRTmp(ntotMG), pivQRLocal(ntotMG);
-      if( mb_MG > ntot ){
-        std::ostringstream msg;
-        msg << "numPre*numPre > ntot. The number of grid points is perhaps too small!" << std::endl;
-        ErrorHandling( msg.str().c_str() );
-      }
-      // DiagR is only for debugging purpose
-      //        DblNumVec diagRLocal( mb_MG );
-      //        DblNumVec diagR( mb_MG );
-
-      SetValue( pivQRTmp, 0 );
-      SetValue( pivQRLocal, 0 );
-      SetValue( pivQR_, 0 );
-
-
-      //        SetValue( diagRLocal, 0.0 );
-      //        SetValue( diagR, 0.0 );
-
-      if(0) {
-        scalapack::QRCPF( mb_MG, ntotMG, MG.Data(), &desc_MG[0], 
-            pivQRTmp.Data(), tau.Data() );
-      }
-
-      if(1) {
-        scalapack::QRCPR( mb_MG, ntotMG, numMu_, MG.Data(), &desc_MG[0], 
-            pivQRTmp.Data(), tau.Data(), 80, 40 );
-      }
-
-
-      // Combine the local pivQRTmp to global pivQR_
-      for( Int j = 0; j < ntotLocalMG; j++ ){
-        pivQRLocal[j + mpirank * ntotLocalMG] = pivQRTmp[j];
-      }
-
-      //        std::cout << "diag of MG = " << std::endl;
-      //        if(mpirank == 0){
-      //          std::cout << pivQRLocal << std::endl;
-      //          for( Int j = 0; j < mb_MG; j++ ){
-      //            std::cout << MG(j,j) << std::endl;
-      //          }
-      //        }
-      MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
-          ntotMG, MPI_INT, MPI_SUM, domain_.comm );
-
-
-      if(contxt >= 0) {
-        Cblacs_gridexit( contxt );
-      }
-
-    } //ScaLAPACL QRCP
-
-
     if(1){ //ScaLAPACL QRCP 2D
 
       Int contxt1D, contxt2D;
@@ -3889,32 +3753,6 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 
       MPI_Comm_rank(colComm, &mpirankCol);
       MPI_Comm_size(colComm, &mpisizeCol);
-
-      if(0){
-
-        if((m_MG % (m_MG2DBlocksize * nprow2D))!= 0){ 
-          if(mpirankRow < ((m_MG % (m_MG2DBlocksize*nprow2D)) / m_MG2DBlocksize)){
-            m_MG2Local = m_MG2Local + m_MG2DBlocksize;
-          }
-          if(((m_MG % (m_MG2DBlocksize*nprow2D)) % m_MG2DBlocksize) != 0){
-            if(mpirankRow == ((m_MG % (m_MG2DBlocksize*nprow2D)) / m_MG2DBlocksize)){
-              m_MG2Local = m_MG2Local + ((m_MG % (m_MG2DBlocksize*nprow2D)) % m_MG2DBlocksize);
-            }
-          }
-        }
-
-        if((n_MG % (n_MG2DBlocksize * npcol2D))!= 0){ 
-          if(mpirankCol < ((n_MG % (n_MG2DBlocksize*npcol2D)) / n_MG2DBlocksize)){
-            n_MG2Local = n_MG2Local + n_MG2DBlocksize;
-          }
-          if(((n_MG % (n_MG2DBlocksize*nprow2D)) % n_MG2DBlocksize) != 0){
-            if(mpirankCol == ((n_MG % (n_MG2DBlocksize*npcol2D)) / n_MG2DBlocksize)){
-              n_MG2Local = n_MG2Local + ((n_MG % (n_MG2DBlocksize*nprow2D)) % n_MG2DBlocksize);
-            }
-          }
-        }
-
-      } // if(0)
 
       if(contxt2D >= 0){
         Cblacs_gridinfo(contxt2D, &nprow2D, &npcol2D, &myrow2D, &mycol2D);

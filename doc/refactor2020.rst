@@ -188,10 +188,28 @@ Target: refactor2020
 - [ ] Need to provide API for an external electric field (w.o. using a
   velocity gauge?)
 
+- [ ] Make the new bdist.redistribute_col_to_row and
+  bdist.redistribute_row_to_col consistent with the existing
+  AlltoallForward / AlltoallBackward (e.g. used in MultSpinor) 
+
+- [ ] Rename the awkward 'a3' in Hamiltonian and spinor to e.g. psiNew?
+
+- [ ] Cleanup the AddMultSpinorEXXDF7 routine using the ScaLAPACK class.
+  Remove the descriptors and contexts floating around. Decide whether to
+  keep other EXXDF routines
+
+- [ ] Utilities to NumVec to clean up the spinor: 
+  
+    a. fine to coarse / coarse to fine grid
+    b. element-wise product of two arrays (given by pointers) added to
+    the third array. add to blas?
+
+- [ ] HSE calculation should not start with HSE w.o. exchange, this can
+  create some instabilities. Instead it should start from e.g. PBE
+  calculations (check QE's implementation)
+
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
-
-
 
 Meeting memos 
 ====================
