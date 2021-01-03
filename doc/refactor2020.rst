@@ -155,10 +155,19 @@ Target: refactor2020
   QE does) Furthermore, in this case the next ion move should start with PBE
   instead of Phi iteration.
 
-- [ ] Properly handle the Gamma point and R2C, together with the Fourier
-  interpolation problem (using an odd number of grid points)
+- [x] Properly handle the Gamma point and R2C, together with the Fourier
+  interpolation problem (using an odd number of grid points). 
+  
+- [ ] Maybe a better way is to avoid R2C during the coarse to fine grid
+  interpolation, and use C2C instead. Then the coarse grid does not need
+  to be restricted to an odd number of grid points.
 
-- [ ] Coulomb norm in Anderson mixing.
+- [ ] Add support for the HGH pseudopotential
+
+- [ ] Clean up the PWDFT source code, and make it more modular at the
+  high level
+
+- [d] Coulomb norm in Anderson mixing.
 
 - [ ] Dynamic truncation criterion for eigensolver. In particular, the
   criterion is controlled by an energy like quantity. This should be
@@ -172,8 +181,9 @@ Target: refactor2020
 
 - [ ] CUFFT: One-by-one executation: is there a more efficient way to
   batched FFT? Why CUFFT does not suffer from the alignment issue? (i.e.
-  we do not need to copy a vector into a saved buffer?) Supporting 
-  FFT solvers other than FFTW (Wei)
+  we do not need to copy a vector into a saved buffer?) 
+  
+- [ ] Supporting FFT solvers other than FFTW (Wei)
 
 - [ ] Eigensolver: in QE: reorder eigenvectors so that coefficients for
   unconverged roots come first. This allows to use quick matrix-matrix
@@ -207,6 +217,10 @@ Target: refactor2020
 - [ ] HSE calculation should not start with HSE w.o. exchange, this can
   create some instabilities. Instead it should start from e.g. PBE
   calculations (check QE's implementation)
+
+- [ ] Encapsulate the ScaLAPACK usages in terms of the ScaLAPACKMatrix
+  class.
+
 
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
