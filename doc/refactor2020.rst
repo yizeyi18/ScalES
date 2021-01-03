@@ -158,7 +158,7 @@ Target: refactor2020
 - [x] Properly handle the Gamma point and R2C, together with the Fourier
   interpolation problem (using an odd number of grid points). 
   
-- [ ] Maybe a better way is to avoid R2C during the coarse to fine grid
+- [x] Maybe a better way is to avoid R2C during the coarse to fine grid
   interpolation, and use C2C instead. Then the coarse grid does not need
   to be restricted to an odd number of grid points.
 
@@ -220,6 +220,10 @@ Target: refactor2020
 
 - [ ] Encapsulate the ScaLAPACK usages in terms of the ScaLAPACKMatrix
   class. Start with pcdiis
+
+- [ ] Change the default behavior from column partition to row partition
+  in order to allow more processors than the number of bands (suggested
+  by Wei Hu)
 
 
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of

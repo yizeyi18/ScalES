@@ -142,9 +142,13 @@ public:
   // *********************************************************************
   void Normalize();
 
-  // Perform all operations of matrix vector multiplication on a fine grid.
+  // Perform all operations of matrix vector multiplication.
   void AddMultSpinor( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi );
+  
+  // LL: 1/3/2021
+  // This function requires the coarse grid to be an odd number along each
+  // direction, and therefore should be deprecated in the future.
   void AddMultSpinorR2C( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi );
 

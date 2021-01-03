@@ -253,7 +253,7 @@ Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot,
     ErrorHandling("Domain size does not match.");
   }
 
-  // Temporary variable for saving wavefunction on a fine grid
+  // Temporary variable for saving wavefunction on the fine grid
   DblNumVec psiFine(ntotFine);
   DblNumVec psiUpdateFine(ntotFine);
 
@@ -272,35 +272,32 @@ Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot,
 
       // Interpolate wavefunction from coarse to fine grid
       {
-        Real fac = sqrt( double(ntot) / double(ntotFine) );
+        auto fac = sqrt( double(ntot) / double(ntotFine) );
         SetValue( fft.outputComplexVecFine, Z_ZERO ); 
         auto idxPtr = fft.idxFineGrid.Data();
-        Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
-        Complex *fftOutPtr = fft.outputComplexVec.Data();
+        auto fftOutFinePtr = fft.outputComplexVecFine.Data();
+        auto fftOutPtr = fft.outputComplexVec.Data();
         for( auto i = 0; i < ntot; i++ ){
-          fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++) * fac;
+          fftOutFinePtr[idxPtr[i]] = fftOutPtr[i] * fac;
         }
-      }
-      FFTWExecute( fft, fft.backwardPlanFine );
-      
-      blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
-          2, psiFine.Data(), 1 );
+        FFTWExecute( fft, fft.backwardPlanFine );
 
-      // Add the contribution from local pseudopotential
-      //      for( auto i = 0; i < ntotFine; i++ ){
-      //        psiUpdateFine(i) += psiFine(i) * vtot(i);
-      //      }
+        blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+            2, psiFine.Data(), 1 );
+      }
+
+      // Apply the local potential
       {
-        Real *psiUpdateFinePtr = psiUpdateFine.Data();
-        Real *psiFinePtr = psiFine.Data();
-        Real *vtotPtr = vtot.Data();
+        auto psiUpdateFinePtr = psiUpdateFine.Data();
+        auto psiFinePtr = psiFine.Data();
+        auto vtotPtr = vtot.Data();
         for( auto i = 0; i < ntotFine; i++ ){
-          *(psiUpdateFinePtr++) += *(psiFinePtr++) * *(vtotPtr++);
+          psiUpdateFinePtr[i] += psiFinePtr[i] * vtotPtr[i];
         }
       }
 
       // Add the contribution from nonlocal pseudopotential
-      if(1){
+      {
         auto natm = pseudo.size();
         for (auto iatm=0; iatm<natm; iatm++) {
           auto nobt = pseudo[iatm].vnlList.size();
@@ -311,50 +308,47 @@ Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot,
             auto& dv = vnlvec.second;
 
             auto weight = 0.0; 
-            const Int    *ivptr = iv.Data();
-            const Real   *dvptr = dv.VecData(VAL);
+            auto ivptr = iv.Data();
+            auto dvptr = dv.VecData(VAL);
             for (auto i=0; i<iv.m(); i++) {
-              weight += (*(dvptr++)) * psiFine[*(ivptr++)];
+              weight += dvptr[i] * psiFine[ivptr[i]];
             }
             weight *= vol/Real(ntotFine)*vnlwgt;
 
             ivptr = iv.Data();
             dvptr = dv.VecData(VAL);
             for (auto i=0; i<iv.m(); i++) {
-              psiUpdateFine[*(ivptr++)] += (*(dvptr++)) * weight;
+              psiUpdateFine[ivptr[i]] += dvptr[i] * weight;
             }
           } // for (iobt)
         } // for (iatm)
       }
 
-
       // Laplacian operator. Perform inverse Fourier transform in the end
       {
         for (auto i=0; i<ntot; i++) 
-          fft.outputComplexVec(i) *= fft.gkk(i);
+          fft.outputComplexVec[i] *= fft.gkk[i];
       }
 
       // Restrict psiUpdateFine from fine grid in the real space to
       // coarse grid in the Fourier space. Combine with the Laplacian contribution
-      //      for( auto i = 0; i < ntotFine; i++ ){
-      //        fft.inputComplexVecFine(i) = Complex( psiUpdateFine(i), 0.0 ); 
-      //      }
-      SetValue( fft.inputComplexVecFine, Z_ZERO );
-      blas::Copy( ntotFine, psiUpdateFine.Data(), 1,
-          reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()), 2 );
 
       // Fine to coarse grid
       // Note the update is important since the Laplacian contribution is already taken into account.
       // The computation order is also important
-      FFTWExecute( fft, fft.forwardPlanFine );
       {
-        Real fac = sqrt( double(ntotFine) / double(ntot) );
+        SetValue( fft.inputComplexVecFine, Z_ZERO ); // Do not forget this
+        blas::Copy( ntotFine, psiUpdateFine.Data(), 1,
+            reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()), 2 );
+        FFTWExecute( fft, fft.forwardPlanFine );
+
+        auto fac = sqrt( double(ntotFine) / double(ntot) );
         auto idxPtr = fft.idxFineGrid.Data();
-        Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
-        Complex *fftOutPtr = fft.outputComplexVec.Data();
+        auto fftOutFinePtr = fft.outputComplexVecFine.Data();
+        auto fftOutPtr = fft.outputComplexVec.Data();
 
         for( auto i = 0; i < ntot; i++ ){
-          *(fftOutPtr++) += fftOutFinePtr[*(idxPtr++)] * fac;
+          fftOutPtr[i] += fftOutFinePtr[idxPtr[i]] * fac;
         }
       }
 
@@ -366,12 +360,14 @@ Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot,
     }
   }
 
-
-
   return ;
 }        // -----  end of method Spinor::AddMultSpinor  ----- 
 
 
+// LL: 1/3/2021
+// This function requires the coarse grid to be an odd number along each
+// direction, and therefore should be deprecated in the future.
+/*
 void
 Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot, 
     const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi )
@@ -594,6 +590,7 @@ Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot,
 
   return ;
 }        // -----  end of method Spinor::AddMultSpinorR2C  ----- 
+*/
 
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
     const NumTns<Real>& phi,
