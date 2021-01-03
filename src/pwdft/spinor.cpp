@@ -236,7 +236,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& Hpsi)
 }         // -----  end of method Spinor::AddTeterPrecond ----- 
 
 void
-Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot, 
+Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot, 
     const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi )
 {
   if( !fft.isInitialized ){
@@ -384,10 +384,10 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
 
 
   return ;
-}        // -----  end of method Spinor::AddMultSpinorFine  ----- 
+}        // -----  end of method Spinor::AddMultSpinor  ----- 
 
 void
-Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
+Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot, 
     const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi )
 {
 
@@ -607,7 +607,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 #endif
 
   return ;
-}        // -----  end of method Spinor::AddMultSpinorFineR2C  ----- 
+}        // -----  end of method Spinor::AddMultSpinorR2C  ----- 
 
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
     const NumTns<Real>& phi,

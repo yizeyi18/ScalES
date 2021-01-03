@@ -200,7 +200,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& Hpsi)
 }         // -----  end of method Spinor::AddTeterPrecond for the GPU code. ----- 
 */
 void
-Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
+Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot, 
     const std::vector<PseudoPot>& pseudo, deviceNumTns<Real>& Hpsi )
 {
 

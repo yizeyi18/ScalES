@@ -129,10 +129,10 @@ KohnSham::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& ff
   
   //SetValue( Hpsi, 0.0 );
   GetTime( timeSta );
-  psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, Hpsi );
+  psi.AddMultSpinorR2C( fft, vtot_, pseudo_, Hpsi );
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-  statusOFS << "Time for psi.AddMultSpinorFineR2C is " <<
+  statusOFS << "Time for psi.AddMultSpinorR2C is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -277,10 +277,10 @@ KohnSham::MultSpinor    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft )
   
   //SetValue( Hpsi, 0.0 );
   GetTime( timeSta );
-  psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, Hpsi );
+  psi.AddMultSpinorR2C( fft, vtot_, pseudo_, Hpsi );
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-  statusOFS << "Time for psi.AddMultSpinorFineR2C is " <<
+  statusOFS << "Time for psi.AddMultSpinorR2C is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 

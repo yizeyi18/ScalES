@@ -143,13 +143,13 @@ public:
   void Normalize();
 
   // Perform all operations of matrix vector multiplication on a fine grid.
-  void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
+  void AddMultSpinor( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi );
-  void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
+  void AddMultSpinorR2C( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi );
 
 #ifdef DEVICE 
-  void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
+  void AddMultSpinorR2C( Fourier& fft, const DblNumVec& vtot, 
       const std::vector<PseudoPot>& pseudo, deviceNumTns<Real>& Hpsi );
   void AddTeterPrecond( Fourier* fftPtr, deviceNumTns<Real>& Hpsi );
 #endif
