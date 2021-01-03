@@ -184,7 +184,7 @@ Spinor::Normalize    ( )
 
 
 void
-Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
+Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& Hpsi)
 {
   Fourier& fft = *fftPtr;
   if( !fftPtr->isInitialized ){
@@ -224,7 +224,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
 
       FFTWExecute ( fft, fft.backwardPlanR2C);
 
-      blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
+      blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, Hpsi.VecData(j,k), 1 );
     }
   }
   //#ifdef _USE_OPENMP_
@@ -237,7 +237,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
 
 void
 Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot, 
-    const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
+    const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi )
 {
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
@@ -371,13 +371,13 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
       // Inverse Fourier transform to save back to the output vector
       fftw_execute( fft.backwardPlan );
 
-      //      Real    *ptr1 = a3.VecData(j,k);
+      //      Real    *ptr1 = Hpsi.VecData(j,k);
       //      for( Int i = 0; i < ntot; i++ ){
       //        ptr1[i] += fft.inputComplexVec(i).real() / Real(ntot);
       //      }
       blas::Axpy( ntot, 1.0 / Real(ntot), 
           reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2,
-          a3.VecData(j,k), 1 );
+          Hpsi.VecData(j,k), 1 );
     }
   }
 
@@ -388,7 +388,7 @@ Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot,
 
 void
 Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
-    const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
+    const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi )
 {
 
   if( !fft.isInitialized ){
@@ -586,7 +586,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       // Inverse Fourier transform to save back to the output vector
       //fftw_execute( fft.backwardPlan );
 
-      blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
+      blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, Hpsi.VecData(j,k), 1 );
 
     } // j++
   } // k++
@@ -615,7 +615,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
     Real  exxFraction,
     Real  numSpin,
     const DblNumVec& occupationRate,
-    NumTns<Real>& a3 )
+    NumTns<Real>& Hpsi )
 {
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
@@ -702,10 +702,10 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
             FFTWExecute ( fft, fft.backwardPlanR2C );
 
-            Real* a3Ptr = a3.VecData(j,k);
+            Real* HpsiPtr = Hpsi.VecData(j,k);
             Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
             for( Int ir = 0; ir < ntot; ir++ ){
-              a3Ptr[ir] += fft.inputVecR2C(ir) * phiTemp(ir) * fac;
+              HpsiPtr[ir] += fft.inputVecR2C(ir) * phiTemp(ir) * fac;
             }
 
           } // for (j)
@@ -737,7 +737,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     const Real numGaussianRandomFac,
     const Int numProcScaLAPACKPotrf,  
     const Int scaPotrfBlockSize,  
-    NumTns<Real>& a3, 
+    NumTns<Real>& Hpsi, 
     NumMat<Real>& VxMat,
     bool isFixColumnDF )
 {
@@ -968,10 +968,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //        xiPtr[g] *= PcolPhiMuPtr[g];
 //      }
 //
-//      // NOTE: a3 must be zero in order to compute the M matrix later
+//      // NOTE: Hpsi must be zero in order to compute the M matrix later
 //      blas::Gemm( 'N', 'T', ntot, numStateTotal, numMu_, 1.0, 
 //          Xi.Data(), ntot, psiMu.Data(), numStateTotal, 1.0,
-//          a3.Data(), ntot ); 
+//          Hpsi.Data(), ntot ); 
 //
 //      GetTime( timeEnd );
 //#if ( _DEBUGlevel_ >= 0 )
@@ -981,7 +981,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //    }
 //
 //    // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-//    // vexxPsi (a3) must be zero before entering this routine
+//    // vexxPsi (Hpsi) must be zero before entering this routine
 //    VxMat.Resize( numStateTotal, numStateTotal );
 //    {
 //      // Minus sign so that VxMat is positive semidefinite
@@ -989,7 +989,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //      // factor of psi
 //      GetTime( timeSta );
 //      blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, -1.0,
-//          wavefun_.Data(), ntot, a3.Data(), ntot, 0.0, 
+//          wavefun_.Data(), ntot, Hpsi.Data(), ntot, 0.0, 
 //          VxMat.Data(), numStateTotal );
 //
 //      //        statusOFS << "VxMat = " << VxMat << std::endl;
@@ -1633,8 +1633,8 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     GetTime( timeSta );
     // Rewrite Xi by Xi.*PcolPhi
-    DblNumMat a3Row( ntotLocal, numStateTotal );
-    SetValue( a3Row, 0.0 );
+    DblNumMat HpsiRow( ntotLocal, numStateTotal );
+    SetValue( HpsiRow, 0.0 );
 
     if(0){
 
@@ -1644,10 +1644,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         xiPtr[g] *= PcolPhiMuPtr[g];
       }
 
-      // NOTE: a3 must be zero in order to compute the M matrix later
+      // NOTE: Hpsi must be zero in order to compute the M matrix later
       blas::Gemm( 'N', 'T', ntotLocal, numStateTotal, numMu_, 1.0, 
           XiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 1.0,
-          a3Row.Data(), ntotLocal ); 
+          HpsiRow.Data(), ntotLocal ); 
 
     } //if(0)
 
@@ -1677,7 +1677,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
         for ( Int mu = 0; mu < numMu_; mu++ ){
           blas::Axpy( ntotLocal, psiMu(i,mu), XiRowTemp.VecData(mu),
-              1, a3Row.VecData(i), 1 );
+              1, HpsiRow.VecData(i), 1 );
         }
 
 
@@ -1685,10 +1685,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     } //if(1)
 
-    DblNumMat a3Col( ntot, numStateLocal );
-    SetValue( a3Col, 0.0 );
+    DblNumMat HpsiCol( ntot, numStateLocal );
+    SetValue( HpsiCol, 0.0 );
 
-    AlltoallBackward (a3Row, a3Col, domain_.comm);
+    AlltoallBackward (HpsiRow, HpsiCol, domain_.comm);
 
     if(1){
 
@@ -1709,14 +1709,14 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
         Real fac = -exxFraction * occupationRate[wavefunIdx_(i)];  
         for( Int ir = 0; ir < ntot; ir++ ){
-          a3Col(ir,i) += fft.inputVecR2C(ir) * phiCol(ir,i) * fac;
+          HpsiCol(ir,i) += fft.inputVecR2C(ir) * phiCol(ir,i) * fac;
         }
 
       } // for i
 
     } //if(1)
 
-    lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );
+    lapack::Lacpy( 'A', ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
 
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1737,7 +1737,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
 
     // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-    // vexxPsi (a3) must be zero before entering this routine
+    // vexxPsi (Hpsi) must be zero before entering this routine
     VxMat.Resize( numStateTotal, numStateTotal );
     {
       // Minus sign so that VxMat is positive semidefinite
@@ -1747,11 +1747,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       SetValue( VxMatTemp, 0.0 );
       GetTime( timeSta );
 
-      SetValue( a3Row, 0.0 );
-      AlltoallForward (a3Col, a3Row, domain_.comm);
+      SetValue( HpsiRow, 0.0 );
+      AlltoallForward (HpsiCol, HpsiRow, domain_.comm);
 
       blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal, -1.0,
-          psiRow.Data(), ntotLocal, a3Row.Data(), ntotLocal, 0.0, 
+          psiRow.Data(), ntotLocal, HpsiRow.Data(), ntotLocal, 0.0, 
           VxMatTemp.Data(), numStateTotal );
 
       SetValue( VxMat, 0.0 );
@@ -1789,7 +1789,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     const Int numProcScaLAPACK,  
     const Real hybridDFTolerance,
     const Int BlockSizeScaLAPACK,  
-    NumTns<Real>& a3, 
+    NumTns<Real>& Hpsi, 
     NumMat<Real>& VxMat,
     bool isFixColumnDF )
 {
@@ -3032,24 +3032,24 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     VXi2DPtr[g] *= PphiMu2DPtr1[g];
   }
 
-  // NOTE: a3 must be zero in order to compute the M matrix later
-  DblNumMat a32D( nrowsNgNe2D, ncolsNgNe2D );
-  SetValue( a32D, 0.0 );
+  // NOTE: Hpsi must be zero in order to compute the M matrix later
+  DblNumMat Hpsi2D( nrowsNgNe2D, ncolsNgNe2D );
+  SetValue( Hpsi2D, 0.0 );
 
   SCALAPACK(pdgemm)("N", "T", &Ng, &Ne, &Nu, 
       &D_ONE,
       VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
       psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
       &D_ZERO,
-      a32D.Data(), &I_ONE, &I_ONE, desc_NgNe2D);
+      Hpsi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D);
 
-  DblNumMat a3Col( ntot, numStateLocal );
-  SetValue(a3Col, 0.0 );
+  DblNumMat HpsiCol( ntot, numStateLocal );
+  SetValue(HpsiCol, 0.0 );
 
-  SCALAPACK(pdgemr2d)(&Ng, &Ne, a32D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
-      a3Col.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt2 );
+  SCALAPACK(pdgemr2d)(&Ng, &Ne, Hpsi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
+      HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt2 );
 
-  lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );
+  lapack::Lacpy( 'A', ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
 
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -3058,7 +3058,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
 #endif
 
   // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-  // vexxPsi (a3) must be zero before entering this routine
+  // vexxPsi (Hpsi) must be zero before entering this routine
   VxMat.Resize( numStateTotal, numStateTotal );
 
   GetTime( timeSta );
@@ -3134,7 +3134,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     const Int numProcScaLAPACK,  
     const Real hybridDFTolerance,
     const Int BlockSizeScaLAPACK,  
-    NumTns<Real>& a3, 
+    NumTns<Real>& Hpsi, 
     NumMat<Real>& VxMat,
     bool isFixColumnDF )
 {
@@ -4339,24 +4339,24 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     VXi2DPtr[g] *= PphiMu2DPtr1[g];
   }
 
-  // NOTE: a3 must be zero in order to compute the M matrix later
-  DblNumMat a32D( nrowsNgNe2D, ncolsNgNe2D );
-  SetValue( a32D, 0.0 );
+  // NOTE: Hpsi must be zero in order to compute the M matrix later
+  DblNumMat Hpsi2D( nrowsNgNe2D, ncolsNgNe2D );
+  SetValue( Hpsi2D, 0.0 );
 
   SCALAPACK(pdgemm)("N", "T", &Ng, &Ne, &Nu, 
       &D_ONE,
       VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
       psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
       &D_ZERO,
-      a32D.Data(), &I_ONE, &I_ONE, desc_NgNe2D);
+      Hpsi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D);
 
-  DblNumMat a3Col( ntot, numStateLocal );
-  SetValue(a3Col, 0.0 );
+  DblNumMat HpsiCol( ntot, numStateLocal );
+  SetValue(HpsiCol, 0.0 );
 
-  SCALAPACK(pdgemr2d)(&Ng, &Ne, a32D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
-      a3Col.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt2 );
+  SCALAPACK(pdgemr2d)(&Ng, &Ne, Hpsi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
+      HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt2 );
 
-  lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );
+  lapack::Lacpy( 'A', ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
 
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -4365,7 +4365,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 #endif
 
   // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-  // vexxPsi (a3) must be zero before entering this routine
+  // vexxPsi (Hpsi) must be zero before entering this routine
   VxMat.Resize( numStateTotal, numStateTotal );
 
   GetTime( timeSta );

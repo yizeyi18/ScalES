@@ -296,6 +296,7 @@ int main(int argc, char **argv)
     // Geometry optimization or Molecular dynamics
     // *********************************************************************
 
+
     {
       IonDynamics ionDyn;
 

@@ -231,11 +231,11 @@ public:
   /// contribution of the force on the fine grid.
   virtual void CalculateForce ( Spinor& psi, Fourier& fft ) = 0;
 
-  virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft) = 0;
+  virtual void MultSpinor(Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft) = 0;
 
 #ifdef DEVICE
-  virtual void MultSpinor(Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft) = 0;
-  virtual void MultSpinor_old(Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft) = 0;
+  virtual void MultSpinor(Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft) = 0;
+  virtual void MultSpinor_old(Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft) = 0;
   virtual void ACEOperator( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& cu_Hpsi) = 0;
 #endif
   virtual NumTns<Real>& PhiEXX() = 0;
@@ -381,11 +381,11 @@ public:
   virtual void CalculateForce ( Spinor& psi, Fourier& fft );
 
   // Matrix vector multiplication
-  virtual void MultSpinor(Spinor& psi, NumTns<Real>& a3, Fourier& fft);
+  virtual void MultSpinor(Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft);
 
 #ifdef DEVICE
-  virtual void MultSpinor(Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft);
-  virtual void MultSpinor_old(Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft);
+  virtual void MultSpinor(Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft);
+  virtual void MultSpinor_old(Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft);
   virtual void ACEOperator( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& cu_Hpsi) ;
 #endif
 

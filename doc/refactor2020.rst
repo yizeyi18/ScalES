@@ -202,7 +202,7 @@ Target: refactor2020
   bdist.redistribute_row_to_col consistent with the existing
   AlltoallForward / AlltoallBackward (e.g. used in MultSpinor) 
 
-- [ ] Rename the awkward 'a3' in Hamiltonian and spinor to e.g. psiNew?
+- [x] Rename the awkward 'a3' in Hamiltonian and spinor to Hpsi
 
 - [ ] Cleanup the AddMultSpinorEXXDF7 routine using the ScaLAPACK class.
   Remove the descriptors and contexts floating around. Decide whether to
@@ -219,7 +219,7 @@ Target: refactor2020
   calculations (check QE's implementation)
 
 - [ ] Encapsulate the ScaLAPACK usages in terms of the ScaLAPACKMatrix
-  class.
+  class. Start with pcdiis
 
 
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of

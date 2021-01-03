@@ -2096,7 +2096,7 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
 
 
 void
-KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
+KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
 {
 
   MPI_Barrier(domain_.comm);
@@ -2119,7 +2119,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
   Real timeAlltoallv = 0.0;
   Real timeAllreduce = 0.0;
 
-  SetValue( a3, 0.0 );
+  SetValue( Hpsi, 0.0 );
 
   // Apply an initial filter on the wavefunctions, if required
   if((apply_filter_ == 1 && apply_first_ == 1))
@@ -2155,7 +2155,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 
 
   GetTime( timeSta );
-  psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
+  psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, Hpsi );
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
   statusOFS << "Time for psi.AddMultSpinorFineR2C is " <<
@@ -2177,7 +2177,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
       //        // Minus sign comes from that all eigenvalues are negative
       //        blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, -1.0,
       //            vexxProj_.Data(), ntot, M.Data(), numStateTotal,
-      //            1.0, a3.Data(), ntot );
+      //            1.0, Hpsi.Data(), ntot );
       //      }
 
       if(1){ // for MPI
@@ -2236,30 +2236,30 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
         GetTime( timeEnd1 );
         timeAllreduce = timeAllreduce + ( timeEnd1 - timeSta1 );
 
-        DblNumMat a3Col( ntot, numStateLocal );
-        SetValue( a3Col, 0.0 );
+        DblNumMat HpsiCol( ntot, numStateLocal );
+        SetValue( HpsiCol, 0.0 );
 
-        DblNumMat a3Row( ntotLocal, numStateTotal );
-        SetValue( a3Row, 0.0 );
+        DblNumMat HpsiRow( ntotLocal, numStateTotal );
+        SetValue( HpsiRow, 0.0 );
 
         GetTime( timeSta1 );
         blas::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, 
             -1.0, vexxProjRow.Data(), ntotLocal, 
             M.Data(), numStateTotal, 0.0, 
-            a3Row.Data(), ntotLocal );
+            HpsiRow.Data(), ntotLocal );
         GetTime( timeEnd1 );
         timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
 
         GetTime( timeSta1 );
-        AlltoallBackward (a3Row, a3Col, domain_.comm);
+        AlltoallBackward (HpsiRow, HpsiCol, domain_.comm);
         GetTime( timeEnd1 );
         timeAlltoallv = timeAlltoallv + ( timeEnd1 - timeSta1 );
 
         GetTime( timeSta1 );
         for (Int k=0; k<numStateLocal; k++) {
           for (Int j=0; j<ncom; j++) {
-            Real *p1 = a3Col.VecData(k);
-            Real *p2 = a3.VecData(j, k);
+            Real *p1 = HpsiCol.VecData(k);
+            Real *p2 = Hpsi.VecData(j, k);
             for (Int i=0; i<ntot; i++) { 
               *(p2++) += *(p1++); 
             }
@@ -2273,7 +2273,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
     }
     else{
       psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
-          exxFraction_,  numSpin_, occupationRate_, a3 );
+          exxFraction_,  numSpin_, occupationRate_, Hpsi );
     }
 
     GetTime( timeEnd );
@@ -2301,7 +2301,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
         SetValue( fft.inputVecR2C, 0.0 );
         SetValue( fft.outputVecR2C, Z_ZERO );
 
-        blas::Copy( ntot, a3.VecData(j,k), 1,
+        blas::Copy( ntot, Hpsi.VecData(j,k), 1,
             fft.inputVecR2C.Data(), 1 );
         FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
 
@@ -2314,7 +2314,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 
         FFTWExecute ( fft, fft.backwardPlanR2C );
         blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
-            a3.VecData(j,k), 1 );
+            Hpsi.VecData(j,k), 1 );
 
       }
     }
