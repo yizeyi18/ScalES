@@ -2155,10 +2155,12 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
 
 
   GetTime( timeSta );
-  psi.AddMultSpinorR2C( fft, vtot_, pseudo_, Hpsi );
+  // LL: change the default behavior 1/3/2021
+  // psi.AddMultSpinorR2C( fft, vtot_, pseudo_, Hpsi );
+  psi.AddMultSpinor( fft, vtot_, pseudo_, Hpsi );
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-  statusOFS << "Time for psi.AddMultSpinorR2C is " <<
+  statusOFS << "Time for psi.AddMultSpinor is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 

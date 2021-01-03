@@ -2593,26 +2593,12 @@ ESDFReadInput ( const char* filename )
       Domain&  dm       = esdfParam.domain;
 
       for( Int d = 0; d < DIM; d++ ){
-        dm.numGrid[d] = AdjustNumGridOdd(std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
+        // dm.numGrid[d] = AdjustNumGridOdd(std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
+        //      dm.length[d] / PI));
+        dm.numGrid[d] = AdjustNumGrid(std::ceil(std::sqrt(2.0 * esdfParam.ecutWavefunction) * 
               dm.length[d] / PI));
         dm.numGridFine[d] = AdjustNumGrid(std::ceil(dm.numGrid[d] * esdfParam.densityGridFactor));
-	/*
-        // FIXME: Temporary thing to make sure numGrid is an odd number (an odd thing to say..), and 
-        // fix esdfParam.densityGridFactor to be 2
-        if( dm.numGrid[d] % 2 == 0 ){
-          dm.numGrid[d] += 1;
-          dm.numGridFine[d] = dm.numGrid[d] * 2;
-        }
-	*/
       } // for (d)
-//      if( dm.numGrid[0] % 2 == 0 ){
-//        dm.numGrid[0] += 1;
-//        dm.numGridFine[0] = dm.numGrid[0] * 2;
-//      }
-//      if( dm.numGrid[0] % 2 != 0 ){
-//        dm.numGrid[0] += 1;
-//        dm.numGridFine[0] = dm.numGrid[0] * 2;
-//      }
     }
 
 
