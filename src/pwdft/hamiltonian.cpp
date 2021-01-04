@@ -157,14 +157,9 @@ void Hamiltonian::DestroyXC() {
   }
 }
 
-// *********************************************************************
-// KohnSham class
-// *********************************************************************
-
-
 
 void
-KohnSham::Setup    (
+Hamiltonian::Setup    (
     const Domain&               dm,
     const std::vector<Atom>&    atomList )
 {
@@ -268,11 +263,11 @@ KohnSham::Setup    (
     set_wfn_filter(0, 0, esdfParam.ecutWavefunction);
 
   return ;
-}         // -----  end of method KohnSham::Setup  ----- 
+}         // -----  end of method Hamiltonian::Setup  ----- 
 
 
 void
-KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
+Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
   Int ntotFine = domain_.NumGridTotalFine();
   Int numAtom = atomList_.size();
   Real vol = domain_.Volume();
@@ -588,9 +583,9 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
 
   return ;
-}         // -----  end of method KohnSham::CalculatePseudoPotential ----- 
+}         // -----  end of method Hamiltonian::CalculatePseudoPotential ----- 
 
-void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
+void Hamiltonian::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
   Int ntotFine = domain_.NumGridTotalFine();
   Int numAtom = atomList_.size();
   Real vol = domain_.Volume();
@@ -709,10 +704,10 @@ void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
   Print( statusOFS, "After adjustment, Sum of atomic density      = ", (Real) nelec );
 
   return ;
-}         // -----  end of method KohnSham::CalculateAtomDensity  ----- 
+}         // -----  end of method Hamiltonian::CalculateAtomDensity  ----- 
 
 void
-KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft)
+Hamiltonian::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft)
 {
   Int ntot  = psi.NumGridTotal();
   Int ncom  = psi.NumComponent();
@@ -790,10 +785,10 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 
 
   return ;
-}         // -----  end of method KohnSham::CalculateDensity  ----- 
+}         // -----  end of method Hamiltonian::CalculateDensity  ----- 
 
 void
-KohnSham::CalculateGradDensity ( Fourier& fft , bool garbage)
+Hamiltonian::CalculateGradDensity ( Fourier& fft , bool garbage)
 {
   Int ntotFine  = fft.domain.NumGridTotalFine();
   Real vol  = domain_.Volume();
@@ -903,11 +898,11 @@ KohnSham::CalculateGradDensity ( Fourier& fft , bool garbage)
 
 
   return ;
-}         // -----  end of method KohnSham::CalculateGradDensity  ----- 
+}         // -----  end of method Hamiltonian::CalculateGradDensity  ----- 
 
 
 void
-KohnSham::CalculateGradDensity ( Fourier& fft )
+Hamiltonian::CalculateGradDensity ( Fourier& fft )
 {
   Int ntotFine  = fft.domain.NumGridTotalFine();
   Real vol  = domain_.Volume();
@@ -1011,10 +1006,10 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
   } //if(1)
 
   return ;
-}         // -----  end of method KohnSham::CalculateGradDensity  ----- 
+}         // -----  end of method Hamiltonian::CalculateGradDensity  ----- 
 
 // FIXME same format as in the other CalculateXC
-void KohnSham::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
+void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
 {
   Int ntot = domain_.NumGridTotalFine();
   Real vol = domain_.Volume();
@@ -1271,11 +1266,11 @@ void KohnSham::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
 #endif
 
   return ;
-}         // -----  end of method KohnSham::CalculateXC  ----- 
+}         // -----  end of method Hamiltonian::CalculateXC  ----- 
 
 
 void
-KohnSham::CalculateXC    ( Real &val, Fourier& fft )
+Hamiltonian::CalculateXC    ( Real &val, Fourier& fft )
 {
   Int ntot = domain_.NumGridTotalFine();
   Real vol = domain_.Volume();
@@ -1688,9 +1683,9 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
 #endif
 
   return ;
-}         // -----  end of method KohnSham::CalculateXC  ----- 
+}         // -----  end of method Hamiltonian::CalculateXC  ----- 
 
-void KohnSham::CalculateHartree( Fourier& fft, bool extra) {
+void Hamiltonian::CalculateHartree( Fourier& fft, bool extra) {
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
@@ -1766,11 +1761,11 @@ void KohnSham::CalculateHartree( Fourier& fft, bool extra) {
   
 
   return; 
-}  // -----  end of method KohnSham::CalculateHartree ----- 
+}  // -----  end of method Hamiltonian::CalculateHartree ----- 
 
 
 
-void KohnSham::CalculateHartree( Fourier& fft ) {
+void Hamiltonian::CalculateHartree( Fourier& fft ) {
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
@@ -1806,11 +1801,11 @@ void KohnSham::CalculateHartree( Fourier& fft ) {
   }
 
   return; 
-}  // -----  end of method KohnSham::CalculateHartree ----- 
+}  // -----  end of method Hamiltonian::CalculateHartree ----- 
 
 
 void
-KohnSham::CalculateVtot    ( DblNumVec& vtot )
+Hamiltonian::CalculateVtot    ( DblNumVec& vtot )
 {
   Int ntot = domain_.NumGridTotalFine();
   for (int i=0; i<ntot; i++) {
@@ -1818,11 +1813,11 @@ KohnSham::CalculateVtot    ( DblNumVec& vtot )
   }
 
   return ;
-}         // -----  end of method KohnSham::CalculateVtot  ----- 
+}         // -----  end of method Hamiltonian::CalculateVtot  ----- 
 
 
 void
-KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
+Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
 {
 
   Real timeSta, timeEnd;
@@ -2159,12 +2154,12 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
   }
 
   return ;
-}         // -----  end of method KohnSham::CalculateForce  ----- 
+}         // -----  end of method Hamiltonian::CalculateForce  ----- 
 
 
 
 void
-KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
+Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
 {
 
   MPI_Barrier(domain_.comm);
@@ -2393,11 +2388,11 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
 
 
   return ;
-}         // -----  end of method KohnSham::MultSpinor  ----- 
+}         // -----  end of method Hamiltonian::MultSpinor  ----- 
 
 
 
-void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
+void Hamiltonian::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
 {
   const Real epsDiv = 1e-8;
 
@@ -2499,12 +2494,12 @@ void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
 
 
   return ;
-}        // -----  end of function KohnSham::InitializeEXX  ----- 
+}        // -----  end of function Hamiltonian::InitializeEXX  ----- 
 
 
 
 void
-KohnSham::SetPhiEXX    (const Spinor& psi, Fourier& fft)
+Hamiltonian::SetPhiEXX    (const Spinor& psi, Fourier& fft)
 {
   // FIXME collect Psi into a globally shared array in the MPI context.
   const NumTns<Real>& wavefun = psi.Wavefun();
@@ -2537,12 +2532,12 @@ KohnSham::SetPhiEXX    (const Spinor& psi, Fourier& fft)
 
 
   return ;
-}         // -----  end of method KohnSham::SetPhiEXX  ----- 
+}         // -----  end of method Hamiltonian::SetPhiEXX  ----- 
 
 
 
 void
-KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
+Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 {
   // This assumes SetPhiEXX has been called so that phiEXX and psi
   // contain the same information. 
@@ -2716,10 +2711,10 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 
 
   return ;
-}         // -----  end of method KohnSham::CalculateVexxACE  ----- 
+}         // -----  end of method Hamiltonian::CalculateVexxACE  ----- 
 
 void
-KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
+Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
 {
   // This assumes SetPhiEXX has been called so that phiEXX and psi
   // contain the same information. 
@@ -2803,12 +2798,12 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
     AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
   } //if(1)
   return ;
-}         // -----  end of method KohnSham::CalculateVexxACEDF  ----- 
+}         // -----  end of method Hamiltonian::CalculateVexxACEDF  ----- 
 
 
 // This comes from exxenergy2() function in exx.f90 in QE.
 Real
-KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
+Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
 {
 
   MPI_Barrier(domain_.comm);
@@ -2975,22 +2970,22 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
 
 
   return fockEnergy;
-}         // -----  end of method KohnSham::CalculateEXXEnergy  ----- 
+}         // -----  end of method Hamiltonian::CalculateEXXEnergy  ----- 
 
 
 
 //void
-//KohnSham::UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock )
+//Hamiltonian::UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock )
 //{
 //
 //
 //    return ;
-//}        // -----  end of function KohnSham::UpdateHybrid  ----- 
+//}        // -----  end of function Hamiltonian::UpdateHybrid  ----- 
 //
 
 
 void
-KohnSham::CalculateVdwEnergyAndForce    ()
+Hamiltonian::CalculateVdwEnergyAndForce    ()
 {
 
 
@@ -3199,11 +3194,11 @@ KohnSham::CalculateVdwEnergyAndForce    ()
   } // If DFT-D2
 
   return ;
-}         // -----  end of method KohnSham::CalculateVdwEnergyAndForce  ----- 
+}         // -----  end of method Hamiltonian::CalculateVdwEnergyAndForce  ----- 
 
 
 void
-KohnSham::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
+Hamiltonian::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
 {
 
   std::vector<Atom>&  atomList = this->AtomList();
@@ -3296,6 +3291,6 @@ KohnSham::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
   } // Self energy due to VLocalSR 
 
   return ;
-}         // -----  end of method KohnSham::CalculateIonSelfEnergyAndForce  ----- 
+}         // -----  end of method Hamiltonian::CalculateIonSelfEnergyAndForce  ----- 
 
 } // namespace dgdft

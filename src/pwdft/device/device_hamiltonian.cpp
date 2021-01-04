@@ -56,11 +56,11 @@ using namespace dgdft::esdf;
 
 
 // *********************************************************************
-// KohnSham class
+// Hamiltonian class
 // *********************************************************************
 #ifdef DEVICE
 void
-KohnSham::ACEOperator ( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& cu_Hpsi)
+Hamiltonian::ACEOperator ( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& cu_Hpsi)
 {
 
      // 1. the projector is in a Row Parallel fashion
@@ -111,7 +111,7 @@ KohnSham::ACEOperator ( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& 
   }
 }
 void
-KohnSham::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft )
+Hamiltonian::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft )
 {
 
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
@@ -254,12 +254,12 @@ KohnSham::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& ff
 
 
   return ;
-}         // -----  end of method KohnSham::MultSpinor  ----- 
+}         // -----  end of method Hamiltonian::MultSpinor  ----- 
 
 
 
 void
-KohnSham::MultSpinor    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft )
+Hamiltonian::MultSpinor    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft )
 {
 
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
@@ -402,12 +402,12 @@ KohnSham::MultSpinor    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft )
 
 
   return ;
-}         // -----  end of method KohnSham::MultSpinor  ----- 
+}         // -----  end of method Hamiltonian::MultSpinor  ----- 
 
 
 
 void
-KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
+Hamiltonian::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
 {
   // This assumes SetPhiEXX has been called so that phiEXX and psi
   // contain the same information. 
@@ -641,11 +641,11 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
 
 
   return ;
-}         // -----  end of method KohnSham::CalculateVexxACEGPU  ----- 
+}         // -----  end of method Hamiltonian::CalculateVexxACEGPU  ----- 
 
 
 void
-KohnSham::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
+Hamiltonian::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
 {
   // This assumes SetPhiEXX has been called so that phiEXX and psi
   // contain the same information. 

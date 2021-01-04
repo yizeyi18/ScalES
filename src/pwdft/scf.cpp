@@ -286,7 +286,6 @@ SCF::Iterate (  )
   Real timeSta, timeEnd;
   Real timeIterStart(0), timeIterEnd(0);
 
-  // Only works for KohnSham class
   Hamiltonian& ham = eigSolPtr_->Ham();
   Fourier&     fft = eigSolPtr_->FFT();
   Spinor&      psi = eigSolPtr_->Psi();
@@ -2356,7 +2355,6 @@ SCF::InnerSolve	( Int iter )
   int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain.comm, &mpisize);
 
   Real timeSta, timeEnd;
-  // Only works for KohnSham class
   Hamiltonian& ham = eigSolPtr_->Ham();
   Fourier&     fft = eigSolPtr_->FFT();
   Spinor&      psi = eigSolPtr_->Psi();

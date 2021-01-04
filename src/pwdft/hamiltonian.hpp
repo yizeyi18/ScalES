@@ -70,13 +70,11 @@ namespace dgdft{
 // Base Hamiltonian class 
 // *********************************************************************
 
-
-
-
-/// @brief Pure virtual class for handling different types of
-/// Hamiltonian.
+/// @brief Hamiltonian class for Gamma-point Kohn-Sham calculations. 
+/// 
+/// So far only the restricted Kohn-Sham calculations are supported.
 class Hamiltonian {
-protected:
+private:
   Domain                      domain_;
   // List of atoms
   std::vector<Atom>           atomList_;
@@ -108,9 +106,6 @@ protected:
   // Short range part of the the local pseudopotential
   DblNumVec                   vLocalSR_;
 
-
-  // density_(:,1)    electron density
-  // density_(:,2-4)  magnetization along x,y,z directions
   DblNumMat                   density_;         
   // Gradient of the density
   std::vector<DblNumMat>      gradDensity_;
@@ -140,6 +135,18 @@ protected:
 
   // Below are related to hybrid functionals
   bool                        isEXXActive_;
+
+
+  /// @brief Store all the orbitals for exact exchange calculation
+  /// NOTE: This might impose serious memory constraint for relatively
+  /// large systems.
+  NumTns<Real>                phiEXX_; 
+  DblNumMat                   vexxProj_; 
+#ifdef DEVICE
+  deviceDblNumMat             cu_vexxProj_; 
+#endif
+  DblNumVec                   exxgkkR2C_;
+
 
   /// @brief Screening parameter mu for range separated hybrid functional. Currently hard coded
   const Real                  screenMu_ = 0.106;
@@ -187,11 +194,11 @@ public:
   // Lifecycle
   // *********************************************************************
   Hamiltonian();
-  virtual ~Hamiltonian();
+  ~Hamiltonian();
 
-  virtual void Setup (
+  void Setup (
       const Domain&              dm,
-      const std::vector<Atom>&   atomList ) = 0;
+      const std::vector<Atom>&   atomList );
 
 
   // *********************************************************************
@@ -201,68 +208,89 @@ public:
   /// @brief Calculate pseudopotential, as well as other atomic related
   /// energies and forces, such as self energy, short range repulsion
   /// energy and VdW energies.
-  virtual void CalculatePseudoPotential( PeriodTable &ptable ) = 0;
+  void CalculatePseudoPotential( PeriodTable &ptable );
 
   /// @brief Atomic density is implemented using the structure factor
   /// method due to the large cutoff radius
-  virtual void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft ) = 0;
+  void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft );
 
-  virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft ) = 0;
+  void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft );
 
-  virtual void CalculateGradDensity( Fourier &fft ) = 0;
-  virtual void CalculateGradDensity( Fourier &fft, bool isMPIFFTW ) = 0;
+  void CalculateGradDensity( Fourier &fft );
+  void CalculateGradDensity( Fourier &fft, bool isMPIFFTW );
 
-  virtual void CalculateXC (Real &val, Fourier& fft) = 0;
+  void CalculateXC (Real &val, Fourier& fft);
 
-  virtual void CalculateXC (Real &val, Fourier& fft, bool extra) = 0;
+  void CalculateXC (Real &val, Fourier& fft, bool extra);
 
-  virtual void CalculateHartree( Fourier& fft ) = 0;
-  virtual void CalculateHartree( Fourier& fft , bool extra) = 0;
+  void CalculateHartree( Fourier& fft );
+  void CalculateHartree( Fourier& fft , bool extra);
 
-  virtual void CalculateVtot( DblNumVec& vtot ) = 0;
+  void CalculateVtot( DblNumVec& vtot );
 
 //  /// @brief Calculate the Hellmann-Feynman force for each atom.
-//  virtual void CalculateForce ( Spinor& psi, Fourier& fft ) = 0;
+//  void CalculateForce ( Spinor& psi, Fourier& fft );
 
   /// @brief Calculate the Hellmann-Feynman force for each atom.
   /// This is a clean version for computing the force.
   ///
   /// In particular it is very important to calculate the nonlocal
   /// contribution of the force on the fine grid.
-  virtual void CalculateForce ( Spinor& psi, Fourier& fft ) = 0;
+  void CalculateForce ( Spinor& psi, Fourier& fft );
 
-  virtual void MultSpinor(Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft) = 0;
+  void MultSpinor(Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft);
 
 #ifdef DEVICE
-  virtual void MultSpinor(Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft) = 0;
-  virtual void MultSpinor_old(Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft) = 0;
-  virtual void ACEOperator( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& cu_Hpsi) = 0;
+  void MultSpinor(Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft);
+  void MultSpinor_old(Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft);
+  void ACEOperator( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& cu_Hpsi);
 #endif
-  virtual NumTns<Real>& PhiEXX() = 0;
+  
+  NumTns<Real>& PhiEXX() {return phiEXX_;}
 
-  virtual void SetPhiEXX(const Spinor& psi, Fourier& fft) = 0;
+  /// @brief Update phiEXX by the spinor psi. The Phi are normalized in
+  /// the real space as
+  ///
+  /// \int |\phi(x)|^2 dx = 1
+  ///
+  /// while the wavefunction satisfies the normalization
+  ///
+  /// \sum |\psi(x)|^2 = 1, differing by a normalization constant. FIXME
+  void SetPhiEXX(const Spinor& psi, Fourier& fft);
 
 #ifdef DEVICE
-  virtual void CalculateVexxACEGPU( Spinor& psi, Fourier& fft ) = 0;
-  virtual void CalculateVexxACEDFGPU( Spinor& psi, Fourier& fft, bool isFixColumnDF ) = 0;
+  void CalculateVexxACEGPU( Spinor& psi, Fourier& fft );
+  void CalculateVexxACEDFGPU( Spinor& psi, Fourier& fft, bool isFixColumnDF );
 #endif 
 
-  virtual void CalculateVexxACE( Spinor& psi, Fourier& fft ) = 0;
+  /// @brief Construct the ACE operator
+  void CalculateVexxACE( Spinor& psi, Fourier& fft );
 
-  virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF ) = 0;
+  /// @brief Construct the ACE operator in the density fitting format.
+  void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF );
 
-  virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft ) = 0;
+  Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
 
   
-  virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft ) = 0;
+  void InitializeEXX( Real ecutWavefunction, Fourier& fft );
 
-  //  virtual void UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock ) = 0;
+  //  void UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock );
 
   void UpdateHamiltonian ( std::vector<Atom>&  atomList ) { atomList_ = atomList; }
 
   void SetupXC( std::string XCType );
   
   void DestroyXC();
+
+
+  /// @brief Calculate ionic self energy and short range repulsion
+  /// energy and force
+  void  CalculateIonSelfEnergyAndForce( PeriodTable &ptable );
+
+  /// @brief Calculate Van der Waals energy and force (which only depends on the
+  /// atomic position)
+  void  CalculateVdwEnergyAndForce();
+
 
   // *********************************************************************
   // Access
@@ -325,115 +353,6 @@ public:
   Int  NumOccupiedState() const { return numOccupiedState_; }
   Int  NumExtraState() const { return numExtraState_; }
   Int  NumDensityComponent() const { return density_.n(); }
-
-};
-
-
-// *********************************************************************
-// One-component Kohn-Sham class
-// *********************************************************************
-/// @brief Detailed implementation of one-component (spin-restricted)
-/// Kohn-Sham calculations.
-class KohnSham: public Hamiltonian {
-private: 
-
-  /// @brief Store all the orbitals for exact exchange calculation
-  /// NOTE: This might impose serious memory constraint for relatively
-  /// large systems.
-  NumTns<Real>                phiEXX_; 
-  DblNumMat                   vexxProj_; 
-#ifdef DEVICE
-  deviceDblNumMat                 cu_vexxProj_; 
-#endif
-  DblNumVec                   exxgkkR2C_;
-
-public:
-
-  // *********************************************************************
-  // Lifecycle
-  // *********************************************************************
-  KohnSham(){};
-  ~KohnSham(){};
-
-  virtual void Setup (
-      const Domain&              dm,
-      const std::vector<Atom>&   atomList );
-
-  // *********************************************************************
-  // Operations
-  // *********************************************************************
-
-  virtual void CalculatePseudoPotential( PeriodTable &ptable );
-
-  virtual void CalculateAtomDensity( PeriodTable &ptable, Fourier &fft );
-  
-  virtual void CalculateDensity( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier& fft );
-
-  virtual void CalculateGradDensity( Fourier& fft );
-
-  virtual void CalculateGradDensity( Fourier& fft, bool isMPIFFTW);
-
-  virtual void CalculateXC ( Real &val, Fourier& fft );
-
-  virtual void CalculateXC ( Real &val, Fourier& fft, bool extra);
-
-  virtual void CalculateHartree( Fourier& fft );
-  virtual void CalculateHartree( Fourier& fft, bool extra);
-
-  virtual void CalculateVtot( DblNumVec& vtot );
-
-  /// @brief Calculate the Hellmann-Feynman force for each atom.
-  virtual void CalculateForce ( Spinor& psi, Fourier& fft );
-
-  // Matrix vector multiplication
-  virtual void MultSpinor(Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft);
-
-#ifdef DEVICE
-  virtual void MultSpinor(Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft);
-  virtual void MultSpinor_old(Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft);
-  virtual void ACEOperator( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& cu_Hpsi) ;
-#endif
-
-  /// @brief Update phiEXX by the spinor psi. The Phi are normalized in
-  /// the real space as
-  ///
-  /// \int |\phi(x)|^2 dx = 1
-  ///
-  /// while the wavefunction satisfies the normalization
-  ///
-  /// \sum |\psi(x)|^2 = 1, differing by a normalization constant. FIXME
-  virtual void SetPhiEXX(const Spinor& psi, Fourier& fft);
-
-  virtual NumTns<Real>& PhiEXX() {return phiEXX_;}
-
-  /// @brief Construct the ACE operator
-  virtual void CalculateVexxACE( Spinor& psi, Fourier& fft );
-
-#ifdef DEVICE
-  /// @brief Construct the ACE operator
-  virtual void CalculateVexxACEGPU( Spinor& psi, Fourier& fft );
-  virtual void CalculateVexxACEDFGPU( Spinor& psi, Fourier& fft, bool isFixColumnDF );
-#endif
-
-  /// @brief onstruct the ACE operator in the density fitting format.
-  virtual void CalculateVexxACEDF( Spinor& psi, Fourier& fft, bool isFixColumnDF );
-
-  virtual Real CalculateEXXEnergy( Spinor& psi, Fourier& fft );
-
-  virtual void InitializeEXX( Real ecutWavefunction, Fourier& fft );
-
-  // Not implemented yet
-  //  virtual void UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock );
-
-  /// @brief Calculate ionic self energy and short range repulsion
-  /// energy and force
-  void  CalculateIonSelfEnergyAndForce( PeriodTable &ptable );
-
-  /// @brief Calculate Van der Waals energy and force (which only depends on the
-  /// atomic position)
-  void  CalculateVdwEnergyAndForce();
-
-
 };
 
 

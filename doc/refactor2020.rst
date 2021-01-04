@@ -233,7 +233,7 @@ Target: refactor2020
 - [ ] Remove the unnecessary getters in hamiltonian and scf, for e.g.
   energies etc. (only for those with getters)
 
-- [ ] Remove the KohnSham class and just have one Hamiltonian class.
+- [x] Remove the KohnSham class and just have one Hamiltonian class.
   Future expansion of the functionality will not be based on inheritance
   but separate folders.
 
@@ -245,6 +245,12 @@ Target: refactor2020
   folders should not be controlled by a central routine in the common/
   folder). The existing parser can be renamed esdf_common.hpp and
   esdf_common.cpp
+
+- [ ] Change `scf::Iterate` to `scf::Execute()`. Inside this function,
+  first call `scf::IterateSemilocal` for all functionals (including
+  hybrid ones, unless the hybrid mode is activated). Here for hybrid
+  functional calculations, we run PBE first. Then execute
+  `scf::IterateHybrid` for hybrid functional calculations.
 
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
