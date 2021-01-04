@@ -2637,64 +2637,6 @@ ESDFReadInput ( const char* filename )
   
   }
 
-  // Post processing information for XC functionals
-  {
-    std::vector<std::string> LDA_list = { "Teter" };
-    std::vector<std::string> GGA_list = { "PBE" };
-    std::vector<std::string> Hybrid_list = { "HSE", "PBE0" };
-
-    esdfParam.isXCSeparate_ = false; // default is not to separate X and C
-    if ( InArray(esdfParam.XCType, LDA_list) ){
-      esdfParam.XCFamily_ = "LDA";
-      if( esdfParam.XCType == "Teter" )
-      { 
-        esdfParam.XCId_ = XC_LDA_XC_TETER93;
-        statusOFS << "LDA functional is used. In LIBXC, the XC id is " << std::endl;
-        statusOFS << "XC_LDA_XC_TETER93  XCId = " << esdfParam.XCId_  << std::endl << std::endl;
-        // Teter 93
-        // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
-      }   
-    }
-    else if ( InArray(esdfParam.XCType, GGA_list) ){
-      esdfParam.XCFamily_ = "GGA";
-
-      if( esdfParam.XCType == "PBE" )
-      {
-        esdfParam.XId_ = XC_GGA_X_PBE;
-        esdfParam.CId_ = XC_GGA_C_PBE;
-        esdfParam.isXCSeparate_ = true;
-        statusOFS << "PBE functional is used. In LIBXC, this requires X and C to be set separately" << std::endl;
-        statusOFS << "XC_GGA_X_PBE  XId = " << esdfParam.XId_ << ", XC_GGA_C_PBE  CId = " << esdfParam.CId_  << std::endl << std::endl;
-        // Perdew, Burke & Ernzerhof correlation
-        // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
-        // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
-      }
-    }
-    else if ( InArray(esdfParam.XCType, Hybrid_list) ){
-      esdfParam.XCFamily_ = "Hybrid";
-
-      if( esdfParam.XCType == "HSE" ){
-        esdfParam.XCId_ = XC_HYB_GGA_XC_HSE06;
-        statusOFS << "HSE functional is used. In LIBXC, the XC id is" << std::endl;
-        statusOFS << "XC_HYB_GGA_XC_HSE06  XCId = " << esdfParam.XCId_  << std::endl << std::endl;
-        // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
-        // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
-        // A. V. Krukau, O. A. Vydrov, A. F. Izmaylov, and G. E. Scuseria, J. Chem. Phys. 125, 224106 (2006) (doi: 10.1063/1.2404663)
-        // This is the same as the "hse" functional in QE 5.1
-      }
-      if ( esdfParam.XCType == "PBE0" ) {
-        esdfParam.XCId_ = XC_HYB_GGA_XC_PBEH;
-        statusOFS << "PBE0 functional is used. In LIBXC, this is " << std::endl;
-        statusOFS << "XC_HYB_GGA_XC_PBEH  XCId = " << esdfParam.XCId_  << std::endl << std::endl;
-        // C. Adamo and V. Barone, J. Chem. Phys. 110, 6158 (1999) (doi: 10.1063/1.478522)
-        // M. Ernzerhof and G. E. Scuseria, J. Chem. Phys. 110, 5029 (1999) (doi: 10.1063/1.478401)  
-      }
-    }
-    else {
-      ErrorHandling("Unrecognized exchange-correlation type");
-    }
-  }
-
 
 
 
@@ -3159,21 +3101,19 @@ void ESDFPrintInput( ){
     Print(statusOFS, "Eig Tolerance Dynamic                = ",  esdfParam.isEigToleranceDynamic);
 
     // Hybrid functional only
-    if( esdfParam.XCFamily_ == "Hybrid" ){
-      Print(statusOFS, "");
-      Print(statusOFS, "SCF Phi MaxIter                      = ",  esdfParam.scfPhiMaxIter);
-      Print(statusOFS, "SCF Phi Tol                          = ",  esdfParam.scfPhiTolerance);
-      Print(statusOFS, "Hybrid ACE                           = ",  esdfParam.isHybridACE);
-      Print(statusOFS, "Hybrid DF                            = ",  esdfParam.isHybridDF);
-      Print(statusOFS, "Hybrid Active Init                   = ",  esdfParam.isHybridActiveInit);
-      Print(statusOFS, "Hybrid Mixing Type                   = ",  esdfParam.hybridMixType);
-      Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);
+    Print(statusOFS, "");
+    Print(statusOFS, "SCF Phi MaxIter                      = ",  esdfParam.scfPhiMaxIter);
+    Print(statusOFS, "SCF Phi Tol                          = ",  esdfParam.scfPhiTolerance);
+    Print(statusOFS, "Hybrid ACE                           = ",  esdfParam.isHybridACE);
+    Print(statusOFS, "Hybrid DF                            = ",  esdfParam.isHybridDF);
+    Print(statusOFS, "Hybrid Active Init                   = ",  esdfParam.isHybridActiveInit);
+    Print(statusOFS, "Hybrid Mixing Type                   = ",  esdfParam.hybridMixType);
+    Print(statusOFS, "EXX div type                         = ",  esdfParam.exxDivergenceType);
 
-      if( esdfParam.isHybridDF ){
-        Print(statusOFS, "Hybrid DF Num Mu                     = ",  esdfParam.hybridDFNumMu);
-        Print(statusOFS, "Hybrid DF Num GaussianRandom         = ",  esdfParam.hybridDFNumGaussianRandom);
-        Print(statusOFS, "Hybrid DF Tolerance                  = ",  esdfParam.hybridDFTolerance);
-      }
+    if( esdfParam.isHybridDF ){
+      Print(statusOFS, "Hybrid DF Num Mu                     = ",  esdfParam.hybridDFNumMu);
+      Print(statusOFS, "Hybrid DF Num GaussianRandom         = ",  esdfParam.hybridDFNumGaussianRandom);
+      Print(statusOFS, "Hybrid DF Tolerance                  = ",  esdfParam.hybridDFTolerance);
     }
 
     if( esdfParam.PWSolver == "LOBPCGScaLAPACK" ){
@@ -3317,9 +3257,7 @@ void ESDFPrintInput( ){
     Print(statusOFS, "GeoOpt SCF MaxIter                   = ",  esdfParam.MDscfOuterMaxIter);
     Print(statusOFS, "GeoOpt extrapolation type            = ",  esdfParam.MDExtrapolationType);
     Print(statusOFS, "GeoOpt extrapolation variable        = ",  esdfParam.MDExtrapolationVariable);
-    if( esdfParam.XCFamily_ == "Hybrid" ){
-      Print(statusOFS, "GeoOpt SCF Phi MaxIter               = ",  esdfParam.MDscfPhiMaxIter);
-    }
+    Print(statusOFS, "GeoOpt SCF Phi MaxIter               = ",  esdfParam.MDscfPhiMaxIter);
     if( esdfParam.ionMove == "fire" ){
       Print(statusOFS, "MD time step                         = ",  esdfParam.MDTimeStep * au2fs, "[fs]");
     }
@@ -3340,9 +3278,8 @@ void ESDFPrintInput( ){
     Print(statusOFS, "MD extrapolation type                = ",  esdfParam.MDExtrapolationType);
     Print(statusOFS, "MD extrapolation variable            = ",  esdfParam.MDExtrapolationVariable);
     Print(statusOFS, "MD SCF MaxIter                       = ",  esdfParam.MDscfOuterMaxIter);
-    if( esdfParam.XCFamily_ == "Hybrid" ){
-      Print(statusOFS, "MD SCF Phi MaxIter                   = ",  esdfParam.MDscfPhiMaxIter);
-    }
+    Print(statusOFS, "MD SCF Phi MaxIter                   = ",  esdfParam.MDscfPhiMaxIter);
+    
     if( esdfParam.ionMove == "nosehoover1" ){
       Print(statusOFS, "Thermostat mass                      = ",  esdfParam.qMass);
     }

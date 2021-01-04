@@ -186,8 +186,8 @@ public:
   // *********************************************************************
   // Lifecycle
   // *********************************************************************
-  Hamiltonian() {}
-  virtual ~Hamiltonian() {}
+  Hamiltonian();
+  virtual ~Hamiltonian();
 
   virtual void Setup (
       const Domain&              dm,
@@ -260,6 +260,9 @@ public:
 
   void UpdateHamiltonian ( std::vector<Atom>&  atomList ) { atomList_ = atomList; }
 
+  void SetupXC( std::string XCType );
+  
+  void DestroyXC();
 
   // *********************************************************************
   // Access
@@ -298,6 +301,8 @@ public:
   void        SetVext(const DblNumVec& vext) {vext_ = vext;}
   void        SetEext(Real Eext) {Eext_=Eext;}
   void        SetForceExt(const DblNumMat& forceext) {forceext_ = forceext;}
+
+  bool        XCRequireGradDensity() {return XCFamily_ == "GGA" || XCFamily_ == "Hybrid"; }
 
   // Functions to set and toggle state of filter application
   void set_wfn_filter(int apply_filter, int apply_first, Real wfn_cutoff)
@@ -347,8 +352,8 @@ public:
   // *********************************************************************
   // Lifecycle
   // *********************************************************************
-  KohnSham();
-  ~KohnSham();
+  KohnSham(){};
+  ~KohnSham(){};
 
   virtual void Setup (
       const Domain&              dm,

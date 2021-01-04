@@ -1169,14 +1169,6 @@ struct ESDFInputParam{
    * They are determined in esdf.cpp
    ************************************************************/
 
-  // Family of XC functional. Whether it is LDA / GGA / Hybrid
-  std::string XCFamily_;
-  // LIBXC parameters
-  Int         XCId_;
-  Int         XId_;
-  Int         CId_;
-  bool        isXCSeparate_;
-
   // Whether to perform geometry optimization / MD
   bool        isGeoOpt_;
   bool        isMD_;
@@ -1195,15 +1187,6 @@ void ESDFReadInput( const char* filename );
 
 void ESDFPrintInput( );
 
-
-// Specific input and output functions. Must call ESDFReadInput() first!
-// FIXME Still decidiing where these are needed
-//void ESDFReadInput_PWDFT( );
-//void ESDFPrintInput_PWDFT( );
-//void ESDFReadInput_DG( );
-//void ESDFPrintInput_DG( );
-//void ESDFReadInput_TDDFT( );
-//void ESDFPrintInput_TDDFT( );
 
 // Global input parameters
 extern ESDFInputParam  esdfParam;

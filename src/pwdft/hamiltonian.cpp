@@ -54,16 +54,99 @@ using namespace dgdft::PseudoComponent;
 using namespace dgdft::DensityComponent;
 using namespace dgdft::esdf;
 
-
 // *********************************************************************
-// KohnSham class
+// Hamiltonian base class
 // *********************************************************************
 
-KohnSham::KohnSham() {
+Hamiltonian::Hamiltonian() {
   XCInitialized_ = false;
 }
 
-KohnSham::~KohnSham() {
+Hamiltonian::~Hamiltonian() {
+  DestroyXC();
+}
+
+void Hamiltonian::SetupXC( std::string XCType ) {
+
+  DestroyXC();
+
+  std::vector<std::string> LDA_list = { "Teter" };
+  std::vector<std::string> GGA_list = { "PBE" };
+  std::vector<std::string> Hybrid_list = { "HSE", "PBE0" };
+
+  isXCSeparate_ = false; // default is not to separate X and C
+  if ( InArray(XCType, LDA_list) ){
+    XCFamily_ = "LDA";
+    if( XCType == "Teter" )
+    { 
+      XCId_ = XC_LDA_XC_TETER93;
+      statusOFS << "LDA functional is used. In LIBXC, the XC id is " << std::endl;
+      statusOFS << "XC_LDA_XC_TETER93  XCId = " << XCId_  << std::endl << std::endl;
+      // Teter 93
+      // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
+    }   
+  }
+  else if ( InArray(XCType, GGA_list) ){
+    XCFamily_ = "GGA";
+
+    if( XCType == "PBE" )
+    {
+      XId_ = XC_GGA_X_PBE;
+      CId_ = XC_GGA_C_PBE;
+      isXCSeparate_ = true;
+      statusOFS << "PBE functional is used. In LIBXC, this requires X and C to be set separately" << std::endl;
+      statusOFS << "XC_GGA_X_PBE  XId = " << XId_ << ", XC_GGA_C_PBE  CId = " << CId_  << std::endl << std::endl;
+      // Perdew, Burke & Ernzerhof correlation
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
+    }
+  }
+  else if ( InArray(XCType, Hybrid_list) ){
+    XCFamily_ = "Hybrid";
+
+    if( XCType == "HSE" ){
+      XCId_ = XC_HYB_GGA_XC_HSE06;
+      statusOFS << "HSE functional is used. In LIBXC, the XC id is" << std::endl;
+      statusOFS << "XC_HYB_GGA_XC_HSE06  XCId = " << XCId_  << std::endl << std::endl;
+      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
+      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
+      // A. V. Krukau, O. A. Vydrov, A. F. Izmaylov, and G. E. Scuseria, J. Chem. Phys. 125, 224106 (2006) (doi: 10.1063/1.2404663)
+      // This is the same as the "hse" functional in QE 5.1
+    }
+    if ( XCType == "PBE0" ) {
+      XCId_ = XC_HYB_GGA_XC_PBEH;
+      statusOFS << "PBE0 functional is used. In LIBXC, this is " << std::endl;
+      statusOFS << "XC_HYB_GGA_XC_PBEH  XCId = " << XCId_  << std::endl << std::endl;
+      // C. Adamo and V. Barone, J. Chem. Phys. 110, 6158 (1999) (doi: 10.1063/1.478522)
+      // M. Ernzerhof and G. E. Scuseria, J. Chem. Phys. 110, 5029 (1999) (doi: 10.1063/1.478401)  
+    }
+  }
+  else {
+    ErrorHandling("Unrecognized exchange-correlation type");
+  }
+
+  // Initialize the XC functionals, only spin-unpolarized case
+  // The exchange-correlation id has already been obtained in esdf
+  {
+    if( isXCSeparate_ ){
+      if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "X functional initialization error." );
+      }
+      if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "C functional initialization error." );
+      }
+    }
+    else{
+      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "XC functional initialization error." );
+      } 
+    }
+  }
+
+  XCInitialized_ = true;
+}
+
+void Hamiltonian::DestroyXC() {
   if( XCInitialized_ ){
     if( isXCSeparate_ ){
       xc_func_end(&XFuncType_);
@@ -73,6 +156,10 @@ KohnSham::~KohnSham() {
       xc_func_end(&XCFuncType_);
   }
 }
+
+// *********************************************************************
+// KohnSham class
+// *********************************************************************
 
 
 
@@ -85,11 +172,6 @@ KohnSham::Setup    (
   atomList_            = atomList;
   numExtraState_       = esdfParam.numExtraState;
   XCType_              = esdfParam.XCType;
-  XCFamily_            = esdfParam.XCFamily_;  // Evaluated in esdf.cpp for the XC family
-  XCId_                = esdfParam.XCId_;
-  XId_                 = esdfParam.XId_;
-  CId_                 = esdfParam.CId_;
-  isXCSeparate_        = esdfParam.isXCSeparate_; // Whether to evaluate X and C separately
   
   hybridDFType_                    = esdfParam.hybridDFType;
   hybridDFKmeansTolerance_         = esdfParam.hybridDFKmeansTolerance;
@@ -173,24 +255,10 @@ KohnSham::Setup    (
 
   }
 
-  // Initialize the XC functionals, only spin-unpolarized case
-  // The exchange-correlation id has already been obtained in esdf
-  {
-    if( isXCSeparate_ ){
-      if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
-        ErrorHandling( "X functional initialization error." );
-      }
-      if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
-        ErrorHandling( "C functional initialization error." );
-      }
-    }
-    else{
-      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-        ErrorHandling( "XC functional initialization error." );
-      } 
-    }
-  }
 
+  // Set up the XC functional
+  SetupXC( XCType_ );
+  
   // ~~~ * ~~~
   // Set up wavefunction filter options: useful for CheFSI in PWDFT, for example
   // Affects the MATVEC operations in MultSpinor
@@ -510,9 +578,9 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
   // Calculate other atomic related energies and forces, such as self
   // energy, short range repulsion energy and VdW energies.
   
-  this->CalculateIonSelfEnergyAndForce( ptable );
+  CalculateIonSelfEnergyAndForce( ptable );
 
-  this->CalculateVdwEnergyAndForce();
+  CalculateVdwEnergyAndForce();
 
   Eext_ = 0.0;
   forceext_.Resize( atomList_.size(), DIM );
@@ -1866,7 +1934,7 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
   
     // Second, contribution from the vLocalSR.  
     // The integration by parts formula requires the calculation of the grad density
-    this->CalculateGradDensity( fft );
+    CalculateGradDensity( fft );
 
     // FIXME This should be parallelized
     for (Int a=0; a<numAtom; a++) {

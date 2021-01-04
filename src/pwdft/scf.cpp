@@ -255,15 +255,6 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
       << restartWfnFileName_ << std::endl;
   }
 
-  // XC functional
-  {
-    isCalculateGradRho_ = false;
-    if( esdfParam.XCFamily_ == "GGA" || esdfParam.XCFamily_ == "Hybrid" ) {
-      isCalculateGradRho_ = true;
-    }
-  }
-
-
   // FIXME external force when needed
 
   return ;
@@ -303,7 +294,7 @@ SCF::Iterate (  )
   // EXX: Only allow hybrid functional here
 
   // Compute the exchange-correlation potential and energy
-  if( isCalculateGradRho_ ){
+  if( ham.XCRequireGradDensity() ){
     ham.CalculateGradDensity( fft );
   }
 
@@ -878,7 +869,7 @@ SCF::Iterate (  )
 #endif
 
         // Compute the exchange-correlation potential and energy
-        if( isCalculateGradRho_ ){
+        if( ham.XCRequireGradDensity() ){
           GetTime( timeSta );
           ham.CalculateGradDensity( fft );
           GetTime( timeEnd );
@@ -1521,7 +1512,7 @@ SCF::Iterate (  )
 #endif
 
         // Compute the exchange-correlation potential and energy
-        if( isCalculateGradRho_ ){
+        if( ham.XCRequireGradDensity() ){
           GetTime( timeSta );
           ham.CalculateGradDensity( fft );
           GetTime( timeEnd );
@@ -2064,7 +2055,7 @@ SCF::Iterate (  )
 #endif
 
         // Compute the exchange-correlation potential and energy
-        if( isCalculateGradRho_ ){
+        if( ham.XCRequireGradDensity() ){
           GetTime( timeSta );
           ham.CalculateGradDensity( fft );
           GetTime( timeEnd );
@@ -2498,7 +2489,7 @@ SCF::InnerSolve	( Int iter )
 #endif
 
   // Compute the exchange-correlation potential and energy
-  if( isCalculateGradRho_ ){
+  if( ham.XCRequireGradDensity() ){
     GetTime( timeSta );
     ham.CalculateGradDensity( fft );
     GetTime( timeEnd );

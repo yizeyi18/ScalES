@@ -129,8 +129,11 @@ Target: refactor2020
   parameters in pw/dg/td. so far only moves things to common/. Will see
   whether a cleaner solution is needed when organizing dg and td.
 
-- [p] Make use of the `XCFamily_` in esdfParam and make the treatment of XC
-  cleaner. This is already done in pw
+- [x] Make use of the `XCFamily_` in esdfParam and make the treatment of XC
+  cleaner. 
+
+- [ ] Allow Hamiltonian to set the XC functional, instead of setting it
+  in esdf
 
 - [ ] Move the density and wavefunction extrapolation part into
   iondynamics
@@ -216,7 +219,7 @@ Target: refactor2020
 
 - [ ] HSE calculation should not start with HSE w.o. exchange, this can
   create some instabilities. Instead it should start from e.g. PBE
-  calculations (check QE's implementation)
+  calculations (check QE's implementation). To make it better, 
 
 - [ ] Encapsulate the ScaLAPACK usages in terms of the ScaLAPACKMatrix
   class. Start with pcdiis
@@ -225,6 +228,23 @@ Target: refactor2020
   in order to allow more processors than the number of bands (suggested
   by Wei Hu)
 
+- [d] Support of non-orthorhombic cells
+
+- [ ] Remove the unnecessary getters in hamiltonian and scf, for e.g.
+  energies etc. (only for those with getters)
+
+- [ ] Remove the KohnSham class and just have one Hamiltonian class.
+  Future expansion of the functionality will not be based on inheritance
+  but separate folders.
+
+- [ ] Remove the `component` in Spinor. Future expansion will be in
+  separate folders.
+
+- [ ] Move esdf.cpp and esdf.hpp to the pwdft folder. In fact, each
+  folder should be allowed to use its own esdfs (basically, separate
+  folders should not be controlled by a central routine in the common/
+  folder). The existing parser can be renamed esdf_common.hpp and
+  esdf_common.cpp
 
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
