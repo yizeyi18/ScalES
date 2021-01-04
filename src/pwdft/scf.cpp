@@ -255,15 +255,6 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
       << restartWfnFileName_ << std::endl;
   }
 
-  // XC functional
-  {
-    isCalculateGradRho_ = false;
-    if( esdfParam.XCFamily_ == "GGA" || esdfParam.XCFamily_ == "Hybrid" ) {
-      isCalculateGradRho_ = true;
-    }
-  }
-
-
   // FIXME external force when needed
 
   return ;
@@ -295,7 +286,6 @@ SCF::Iterate (  )
   Real timeSta, timeEnd;
   Real timeIterStart(0), timeIterEnd(0);
 
-  // Only works for KohnSham class
   Hamiltonian& ham = eigSolPtr_->Ham();
   Fourier&     fft = eigSolPtr_->FFT();
   Spinor&      psi = eigSolPtr_->Psi();
@@ -303,7 +293,7 @@ SCF::Iterate (  )
   // EXX: Only allow hybrid functional here
 
   // Compute the exchange-correlation potential and energy
-  if( isCalculateGradRho_ ){
+  if( ham.XCRequireGradDensity() ){
     ham.CalculateGradDensity( fft );
   }
 
@@ -878,7 +868,7 @@ SCF::Iterate (  )
 #endif
 
         // Compute the exchange-correlation potential and energy
-        if( isCalculateGradRho_ ){
+        if( ham.XCRequireGradDensity() ){
           GetTime( timeSta );
           ham.CalculateGradDensity( fft );
           GetTime( timeEnd );
@@ -1521,7 +1511,7 @@ SCF::Iterate (  )
 #endif
 
         // Compute the exchange-correlation potential and energy
-        if( isCalculateGradRho_ ){
+        if( ham.XCRequireGradDensity() ){
           GetTime( timeSta );
           ham.CalculateGradDensity( fft );
           GetTime( timeEnd );
@@ -2064,7 +2054,7 @@ SCF::Iterate (  )
 #endif
 
         // Compute the exchange-correlation potential and energy
-        if( isCalculateGradRho_ ){
+        if( ham.XCRequireGradDensity() ){
           GetTime( timeSta );
           ham.CalculateGradDensity( fft );
           GetTime( timeEnd );
@@ -2365,7 +2355,6 @@ SCF::InnerSolve	( Int iter )
   int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain.comm, &mpisize);
 
   Real timeSta, timeEnd;
-  // Only works for KohnSham class
   Hamiltonian& ham = eigSolPtr_->Ham();
   Fourier&     fft = eigSolPtr_->FFT();
   Spinor&      psi = eigSolPtr_->Psi();
@@ -2498,7 +2487,7 @@ SCF::InnerSolve	( Int iter )
 #endif
 
   // Compute the exchange-correlation potential and energy
-  if( isCalculateGradRho_ ){
+  if( ham.XCRequireGradDensity() ){
     GetTime( timeSta );
     ham.CalculateGradDensity( fft );
     GetTime( timeEnd );

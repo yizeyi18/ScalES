@@ -129,8 +129,11 @@ Target: refactor2020
   parameters in pw/dg/td. so far only moves things to common/. Will see
   whether a cleaner solution is needed when organizing dg and td.
 
-- [p] Make use of the `XCFamily_` in esdfParam and make the treatment of XC
-  cleaner. This is already done in pw
+- [x] Make use of the `XCFamily_` in esdfParam and make the treatment of XC
+  cleaner. 
+
+- [ ] Allow Hamiltonian to set the XC functional, instead of setting it
+  in esdf
 
 - [ ] Move the density and wavefunction extrapolation part into
   iondynamics
@@ -155,10 +158,19 @@ Target: refactor2020
   QE does) Furthermore, in this case the next ion move should start with PBE
   instead of Phi iteration.
 
-- [ ] Properly handle the Gamma point and R2C, together with the Fourier
-  interpolation problem (using an odd number of grid points)
+- [x] Properly handle the Gamma point and R2C, together with the Fourier
+  interpolation problem (using an odd number of grid points). 
+  
+- [x] Maybe a better way is to avoid R2C during the coarse to fine grid
+  interpolation, and use C2C instead. Then the coarse grid does not need
+  to be restricted to an odd number of grid points.
 
-- [ ] Coulomb norm in Anderson mixing.
+- [ ] Add support for the HGH pseudopotential
+
+- [ ] Clean up the PWDFT source code, and make it more modular at the
+  high level
+
+- [d] Coulomb norm in Anderson mixing.
 
 - [ ] Dynamic truncation criterion for eigensolver. In particular, the
   criterion is controlled by an energy like quantity. This should be
@@ -172,8 +184,9 @@ Target: refactor2020
 
 - [ ] CUFFT: One-by-one executation: is there a more efficient way to
   batched FFT? Why CUFFT does not suffer from the alignment issue? (i.e.
-  we do not need to copy a vector into a saved buffer?) Supporting 
-  FFT solvers other than FFTW (Wei)
+  we do not need to copy a vector into a saved buffer?) 
+  
+- [ ] Supporting FFT solvers other than FFTW (Wei)
 
 - [ ] Eigensolver: in QE: reorder eigenvectors so that coefficients for
   unconverged roots come first. This allows to use quick matrix-matrix
@@ -188,10 +201,59 @@ Target: refactor2020
 - [ ] Need to provide API for an external electric field (w.o. using a
   velocity gauge?)
 
+- [ ] Make the new bdist.redistribute_col_to_row and
+  bdist.redistribute_row_to_col consistent with the existing
+  AlltoallForward / AlltoallBackward (e.g. used in MultSpinor) 
+
+- [x] Rename the awkward 'a3' in Hamiltonian and spinor to Hpsi
+
+- [ ] Cleanup the AddMultSpinorEXXDF7 routine using the ScaLAPACK class.
+  Remove the descriptors and contexts floating around. Decide whether to
+  keep other EXXDF routines
+
+- [ ] Utilities to NumVec to clean up the spinor: 
+  
+    a. fine to coarse / coarse to fine grid
+    b. element-wise product of two arrays (given by pointers) added to
+    the third array. add to blas?
+
+- [ ] HSE calculation should not start with HSE w.o. exchange, this can
+  create some instabilities. Instead it should start from e.g. PBE
+  calculations (check QE's implementation). To make it better, 
+
+- [ ] Encapsulate the ScaLAPACK usages in terms of the ScaLAPACKMatrix
+  class. Start with pcdiis
+
+- [ ] Change the default behavior from column partition to row partition
+  in order to allow more processors than the number of bands (suggested
+  by Wei Hu)
+
+- [d] Support of non-orthorhombic cells
+
+- [ ] Remove the unnecessary getters in hamiltonian and scf, for e.g.
+  energies etc. (only for those with getters)
+
+- [x] Remove the KohnSham class and just have one Hamiltonian class.
+  Future expansion of the functionality will not be based on inheritance
+  but separate folders.
+
+- [ ] Remove the `component` in Spinor. Future expansion will be in
+  separate folders.
+
+- [ ] Move esdf.cpp and esdf.hpp to the pwdft folder. In fact, each
+  folder should be allowed to use its own esdfs (basically, separate
+  folders should not be controlled by a central routine in the common/
+  folder). The existing parser can be renamed esdf_common.hpp and
+  esdf_common.cpp
+
+- [ ] Change `scf::Iterate` to `scf::Execute()`. Inside this function,
+  first call `scf::IterateSemilocal` for all functionals (including
+  hybrid ones, unless the hybrid mode is activated). Here for hybrid
+  functional calculations, we run PBE first. Then execute
+  `scf::IterateHybrid` for hybrid functional calculations.
+
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
-
-
 
 Meeting memos 
 ====================

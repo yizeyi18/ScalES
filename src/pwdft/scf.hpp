@@ -112,9 +112,6 @@ private:
   PeriodTable*        ptablePtr_;
 
 
-  /// @brief Needed for GGA, meta-GGA and hybrid functional calculations
-  bool                isCalculateGradRho_; 
-
   // SCF variables
   DblNumVec           vtotNew_;
   Real                scfNorm_;                 // ||V_{new} - V_{old}|| / ||V_{old}||

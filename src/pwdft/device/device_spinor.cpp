@@ -115,7 +115,7 @@ void Spinor::SetupGPU ( const Domain &dm,
 }         // -----  end of method Spinor::Setup  ----- 
 
 void
-Spinor::AddTeterPrecond (Fourier* fftPtr, deviceNumTns<Real>& a3)
+Spinor::AddTeterPrecond (Fourier* fftPtr, deviceNumTns<Real>& Hpsi)
 {
   Fourier& fft = *fftPtr;
   if( !fftPtr->isInitialized ){
@@ -150,9 +150,9 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, deviceNumTns<Real>& a3)
 
       deviceFFTExecuteInverse( fft, cuPlanC2R[0], 0, cu_psi_out, cu_psi);
       
-      device_memcpy_DEVICE2DEVICE(a3.VecData(j,k), cu_psi.Data(), ntot*sizeof(Real));
-      // not a good style. first set a3 to zero, then do a axpy. should do copy
-      //blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
+      device_memcpy_DEVICE2DEVICE(Hpsi.VecData(j,k), cu_psi.Data(), ntot*sizeof(Real));
+      // not a good style. first set Hpsi to zero, then do a axpy. should do copy
+      //blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, Hpsi.VecData(j,k), 1 );
     }
   }
 
@@ -161,7 +161,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, deviceNumTns<Real>& a3)
 
 /*
 void
-Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
+Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& Hpsi)
 {
   Fourier& fft = *fftPtr;
   if( !fftPtr->isInitialized ){
@@ -190,9 +190,9 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
 
       deviceFFTExecuteInverse( fft, cuPlanC2R[0], 0, cu_psi_out, cu_psi);
       
-      device_memcpy_DEVICE2HOST(a3.VecData(j,k), cu_psi.Data(), ntot*sizeof(Real));
-      // not a good style. first set a3 to zero, then do a axpy. should do copy
-      //blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
+      device_memcpy_DEVICE2HOST(Hpsi.VecData(j,k), cu_psi.Data(), ntot*sizeof(Real));
+      // not a good style. first set Hpsi to zero, then do a axpy. should do copy
+      //blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, Hpsi.VecData(j,k), 1 );
     }
   }
 
@@ -200,8 +200,8 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
 }         // -----  end of method Spinor::AddTeterPrecond for the GPU code. ----- 
 */
 void
-Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
-    const std::vector<PseudoPot>& pseudo, deviceNumTns<Real>& a3 )
+Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot, 
+    const std::vector<PseudoPot>& pseudo, deviceNumTns<Real>& Hpsi )
 {
 
   if( !fft.isInitialized ){
@@ -442,7 +442,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
       //CUDA FFT inverse and copy back.
       deviceFFTExecuteInverse( fft, cuPlanC2R[0], 0, cu_psi_out, cu_psi);
-      device_memcpy_DEVICE2DEVICE(a3.VecData(j,k), cu_psi.Data(), sizeof(Real)*ntot);
+      device_memcpy_DEVICE2DEVICE(Hpsi.VecData(j,k), cu_psi.Data(), sizeof(Real)*ntot);
 
       GetTime( timeEnd );
       iterFFTCoarse = iterFFTCoarse + 1;
@@ -471,7 +471,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
     Real  exxFraction,
     Real  numSpin,
     const DblNumVec& occupationRate,
-    deviceNumTns<Real>& a3 )
+    deviceNumTns<Real>& Hpsi )
 {
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
@@ -599,9 +599,9 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
             // multiply by the occupationRate.
 	    // multiply with fac.
-            //Real *cu_a3Ptr = a3.VecData(j,k);
-            //device_Axpyz( cu_a3Ptr, 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot);
-            device_Axpyz( a3.VecData(j,k), 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot);
+            //Real *cu_HpsiPtr = Hpsi.VecData(j,k);
+            //device_Axpyz( cu_HpsiPtr, 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot);
+            device_Axpyz( Hpsi.VecData(j,k), 1.0, cu_psi.Data(), fac, cu_phiTemp.Data(), ntot);
             
           } // for (j)
         } // for (k)
@@ -643,7 +643,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     const Real numGaussianRandomFac,
     const Int numProcScaLAPACKPotrf,  
     const Int scaPotrfBlockSize,  
-    deviceDblNumMat & cu_a3, 
+    deviceDblNumMat & cu_Hpsi, 
     NumMat<Real>& VxMat,
     bool isFixColumnDF )
 {
@@ -1425,24 +1425,24 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
     // cu_VXiRow.CopyFrom(VXiRow);
     device_hadamard_product( cu_VXiRow.Data(), cu_PcolPhiMu.Data(), cu_VXiRow.Data(), numMu_*ntotLocal );
     
-    // NOTE: a3 must be zero in order to compute the M matrix later
-    DblNumMat a3Row( ntotLocal, numStateTotal );
-    device_setValue( cu_a3.Data(), 0.0, ntotLocal*numStateTotal);
+    // NOTE: Hpsi must be zero in order to compute the M matrix later
+    DblNumMat HpsiRow( ntotLocal, numStateTotal );
+    device_setValue( cu_Hpsi.Data(), 0.0, ntotLocal*numStateTotal);
 
     cu_psiMu.CopyFrom(psiMu);
 
     DEVICE_BLAS::Gemm( 'N', 'T', ntotLocal, numStateTotal, numMu_, &one, 
         cu_VXiRow.Data(), ntotLocal, cu_psiMu.Data(), numStateTotal, &one,
-        cu_a3.Data(), ntotLocal ); 
+        cu_Hpsi.Data(), ntotLocal ); 
 
-    //cu_a3Row.CopyTo(a3Row);
-    // there is no need in MPI_AlltoallBackward from a3row to a3Col. 
+    //cu_HpsiRow.CopyTo(HpsiRow);
+    // there is no need in MPI_AlltoallBackward from Hpsirow to HpsiCol. 
     // cause in the next step, we will MPI_AlltoallForward them back to row parallel
    
     /*
-    deviceDblNumMat cu_a3Col( ntot, numStateLocal );
-    device_AlltoallBackward (cu_a3Row, cu_a3Col, domain_.comm);
-    device_memcpy_DEVICE2HOST( a3.Data(), cu_a3Col.Data(), sizeof(Real)*ntot*numStateLocal);
+    deviceDblNumMat cu_HpsiCol( ntot, numStateLocal );
+    device_AlltoallBackward (cu_HpsiRow, cu_HpsiCol, domain_.comm);
+    device_memcpy_DEVICE2HOST( Hpsi.Data(), cu_HpsiCol.Data(), sizeof(Real)*ntot*numStateLocal);
     */
 
     GetTime( timeEnd );
@@ -1452,7 +1452,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
 #endif
 
     // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-    // vexxPsi (a3) must be zero before entering this routine
+    // vexxPsi (Hpsi) must be zero before entering this routine
     VxMat.Resize( numStateTotal, numStateTotal );
     GetTime( timeSta );
     /*
@@ -1464,7 +1464,7 @@ void Spinor::AddMultSpinorEXXDF3_GPU ( Fourier& fft,
       DblNumMat VxMatTemp( numStateTotal, numStateTotal );
       SetValue( VxMatTemp, 0.0 );
       blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal, -1.0,
-          psiRow.Data(), ntotLocal, a3Row.Data(), ntotLocal, 0.0, 
+          psiRow.Data(), ntotLocal, HpsiRow.Data(), ntotLocal, 0.0, 
           VxMatTemp.Data(), numStateTotal );
 
       SetValue( VxMat, 0.0 );
