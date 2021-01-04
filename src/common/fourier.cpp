@@ -372,7 +372,7 @@ void Fourier::InitializeFine ( const Domain& dm )
   }
 
 
-  // Compute the index for mapping coarse to find grid
+  // Compute the index for mapping coarse to fine grid
   idxFineGrid.Resize(domain.NumGridTotal());
   SetValue( idxFineGrid, 0 );
   {
@@ -458,7 +458,7 @@ void Fourier::InitializeFine ( const Domain& dm )
     TeterPrecondR2CFine[i] = b / ( b + 16.0 * pow(a, 4.0) );
   }
 
-  // Compute the index for mapping coarse to find grid
+  // Compute the index for mapping coarse to fine grid
   idxFineGridR2C.Resize(numGridTotalR2C);
   SetValue( idxFineGridR2C, 0 );
   {

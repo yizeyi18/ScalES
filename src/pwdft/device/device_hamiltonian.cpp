@@ -56,11 +56,11 @@ using namespace dgdft::esdf;
 
 
 // *********************************************************************
-// KohnSham class
+// Hamiltonian class
 // *********************************************************************
 #ifdef DEVICE
 void
-KohnSham::ACEOperator ( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& cu_Hpsi)
+Hamiltonian::ACEOperator ( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& cu_Hpsi)
 {
 
      // 1. the projector is in a Row Parallel fashion
@@ -111,7 +111,7 @@ KohnSham::ACEOperator ( deviceDblNumMat& cu_psi, Fourier& fft, deviceDblNumMat& 
   }
 }
 void
-KohnSham::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft )
+Hamiltonian::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft )
 {
 
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
@@ -127,19 +127,19 @@ KohnSham::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft 
   Real timeSta, timeEnd;
   Real timeSta1, timeEnd1;
   
-  //SetValue( a3, 0.0 );
+  //SetValue( Hpsi, 0.0 );
   GetTime( timeSta );
-  psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
+  psi.AddMultSpinorR2C( fft, vtot_, pseudo_, Hpsi );
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-  statusOFS << "Time for psi.AddMultSpinorFineR2C is " <<
+  statusOFS << "Time for psi.AddMultSpinorR2C is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
   // adding up the Hybrid part in the GPU
   // CHECK CHECK
-  // Note now, the psi.data is the GPU data. and a3.data is also in GPU. 
-  // also, a3 constains the Hpsi
+  // Note now, the psi.data is the GPU data. and Hpsi.data is also in GPU. 
+  // also, Hpsi constains the Hpsi
   // need to do this in another subroutine.
   if(1)  
   if( this->IsHybrid()  && isEXXActive_ ){
@@ -207,26 +207,26 @@ KohnSham::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft 
 	// copy from CPU to GPU
         device_memcpy_HOST2DEVICE(  cu_MTemp.Data(), M.Data(), numStateTotal*numStateTotal*sizeof(Real) );
         
-        deviceDblNumMat cu_a3Row( ntotLocal, numStateTotal );
-        DblNumMat a3Row( ntotLocal, numStateTotal );
+        deviceDblNumMat cu_HpsiRow( ntotLocal, numStateTotal );
+        DblNumMat HpsiRow( ntotLocal, numStateTotal );
 
         DEVICE_BLAS::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, 
                      &minus_one, cu_vexxProjRow.Data(), ntotLocal, 
                      cu_MTemp.Data(), numStateTotal, &zero, 
-                     cu_a3Row.Data(), ntotLocal );
+                     cu_HpsiRow.Data(), ntotLocal );
 
-        device_memcpy_DEVICE2HOST( a3Row.Data(), cu_a3Row.Data(), numStateTotal*ntotLocal*sizeof(Real) );
+        device_memcpy_DEVICE2HOST( HpsiRow.Data(), cu_HpsiRow.Data(), numStateTotal*ntotLocal*sizeof(Real) );
 
-        // a3Row to a3Col
-        DblNumMat a3Col( ntot, numStateLocal );
-        deviceDblNumMat cu_a3Col( ntot, numStateLocal );
-        AlltoallBackward (a3Row, a3Col, domain_.comm);
+        // HpsiRow to HpsiCol
+        DblNumMat HpsiCol( ntot, numStateLocal );
+        deviceDblNumMat cu_HpsiCol( ntot, numStateLocal );
+        AlltoallBackward (HpsiRow, HpsiCol, domain_.comm);
 
-	//Copy a3Col to GPU.
-        device_memcpy_HOST2DEVICE( cu_a3Col.Data(), a3Col.Data(), numStateLocal*ntot*sizeof(Real) );
+	//Copy HpsiCol to GPU.
+        device_memcpy_HOST2DEVICE( cu_HpsiCol.Data(), HpsiCol.Data(), numStateLocal*ntot*sizeof(Real) );
 
         // do the matrix addition.
-	device_DMatrix_Add( a3.Data(), cu_a3Col.Data(), ntot, numStateLocal);
+	device_DMatrix_Add( Hpsi.Data(), cu_HpsiCol.Data(), ntot, numStateLocal);
 
       } //if(1)
 
@@ -254,12 +254,12 @@ KohnSham::MultSpinor_old    ( Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft 
 
 
   return ;
-}         // -----  end of method KohnSham::MultSpinor  ----- 
+}         // -----  end of method Hamiltonian::MultSpinor  ----- 
 
 
 
 void
-KohnSham::MultSpinor    ( Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft )
+Hamiltonian::MultSpinor    ( Spinor& psi, deviceNumTns<Real>& Hpsi, Fourier& fft )
 {
 
   int mpirank;  MPI_Comm_rank(domain_.comm, &mpirank);
@@ -275,19 +275,19 @@ KohnSham::MultSpinor    ( Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft )
   Real timeSta, timeEnd;
   Real timeSta1, timeEnd1;
   
-  //SetValue( a3, 0.0 );
+  //SetValue( Hpsi, 0.0 );
   GetTime( timeSta );
-  psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
+  psi.AddMultSpinorR2C( fft, vtot_, pseudo_, Hpsi );
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-  statusOFS << "Time for psi.AddMultSpinorFineR2C is " <<
+  statusOFS << "Time for psi.AddMultSpinorR2C is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
   // adding up the Hybrid part in the GPU
   // CHECK CHECK
-  // Note now, the psi.data is the GPU data. and a3.data is also in GPU. 
-  // also, a3 constains the Hpsi
+  // Note now, the psi.data is the GPU data. and Hpsi.data is also in GPU. 
+  // also, Hpsi constains the Hpsi
   // need to do this in another subroutine.
   if(0)  // comment out the following parts.
   if( this->IsHybrid() && isEXXActive_ ){
@@ -355,26 +355,26 @@ KohnSham::MultSpinor    ( Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft )
 	// copy from CPU to GPU
         device_memcpy_HOST2DEVICE(  cu_MTemp.Data(), M.Data(), numStateTotal*numStateTotal*sizeof(Real) );
         
-        deviceDblNumMat cu_a3Row( ntotLocal, numStateTotal );
-        DblNumMat a3Row( ntotLocal, numStateTotal );
+        deviceDblNumMat cu_HpsiRow( ntotLocal, numStateTotal );
+        DblNumMat HpsiRow( ntotLocal, numStateTotal );
 
         DEVICE_BLAS::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, 
                      &minus_one, cu_vexxProjRow.Data(), ntotLocal, 
                      cu_MTemp.Data(), numStateTotal, &zero, 
-                     cu_a3Row.Data(), ntotLocal );
+                     cu_HpsiRow.Data(), ntotLocal );
 
-        device_memcpy_DEVICE2HOST( a3Row.Data(), cu_a3Row.Data(), numStateTotal*ntotLocal*sizeof(Real) );
+        device_memcpy_DEVICE2HOST( HpsiRow.Data(), cu_HpsiRow.Data(), numStateTotal*ntotLocal*sizeof(Real) );
 
-        // a3Row to a3Col
-        DblNumMat a3Col( ntot, numStateLocal );
-        deviceDblNumMat cu_a3Col( ntot, numStateLocal );
-        AlltoallBackward (a3Row, a3Col, domain_.comm);
+        // HpsiRow to HpsiCol
+        DblNumMat HpsiCol( ntot, numStateLocal );
+        deviceDblNumMat cu_HpsiCol( ntot, numStateLocal );
+        AlltoallBackward (HpsiRow, HpsiCol, domain_.comm);
 
-	//Copy a3Col to GPU.
-        device_memcpy_HOST2DEVICE( cu_a3Col.Data(), a3Col.Data(), numStateLocal*ntot*sizeof(Real) );
+	//Copy HpsiCol to GPU.
+        device_memcpy_HOST2DEVICE( cu_HpsiCol.Data(), HpsiCol.Data(), numStateLocal*ntot*sizeof(Real) );
 
         // do the matrix addition.
-	device_DMatrix_Add( a3.Data(), cu_a3Col.Data(), ntot, numStateLocal);
+	device_DMatrix_Add( Hpsi.Data(), cu_HpsiCol.Data(), ntot, numStateLocal);
 
       } //if(1)
 
@@ -402,12 +402,12 @@ KohnSham::MultSpinor    ( Spinor& psi, deviceNumTns<Real>& a3, Fourier& fft )
 
 
   return ;
-}         // -----  end of method KohnSham::MultSpinor  ----- 
+}         // -----  end of method Hamiltonian::MultSpinor  ----- 
 
 
 
 void
-KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
+Hamiltonian::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
 {
   // This assumes SetPhiEXX has been called so that phiEXX and psi
   // contain the same information. 
@@ -641,11 +641,11 @@ KohnSham::CalculateVexxACEGPU ( Spinor& psi, Fourier& fft )
 
 
   return ;
-}         // -----  end of method KohnSham::CalculateVexxACEGPU  ----- 
+}         // -----  end of method Hamiltonian::CalculateVexxACEGPU  ----- 
 
 
 void
-KohnSham::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
+Hamiltonian::CalculateVexxACEDFGPU ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
 {
   // This assumes SetPhiEXX has been called so that phiEXX and psi
   // contain the same information. 

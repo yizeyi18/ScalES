@@ -54,16 +54,99 @@ using namespace dgdft::PseudoComponent;
 using namespace dgdft::DensityComponent;
 using namespace dgdft::esdf;
 
-
 // *********************************************************************
-// KohnSham class
+// Hamiltonian base class
 // *********************************************************************
 
-KohnSham::KohnSham() {
+Hamiltonian::Hamiltonian() {
   XCInitialized_ = false;
 }
 
-KohnSham::~KohnSham() {
+Hamiltonian::~Hamiltonian() {
+  DestroyXC();
+}
+
+void Hamiltonian::SetupXC( std::string XCType ) {
+
+  DestroyXC();
+
+  std::vector<std::string> LDA_list = { "Teter" };
+  std::vector<std::string> GGA_list = { "PBE" };
+  std::vector<std::string> Hybrid_list = { "HSE", "PBE0" };
+
+  isXCSeparate_ = false; // default is not to separate X and C
+  if ( InArray(XCType, LDA_list) ){
+    XCFamily_ = "LDA";
+    if( XCType == "Teter" )
+    { 
+      XCId_ = XC_LDA_XC_TETER93;
+      statusOFS << "LDA functional is used. In LIBXC, the XC id is " << std::endl;
+      statusOFS << "XC_LDA_XC_TETER93  XCId = " << XCId_  << std::endl << std::endl;
+      // Teter 93
+      // S Goedecker, M Teter, J Hutter, Phys. Rev B 54, 1703 (1996) 
+    }   
+  }
+  else if ( InArray(XCType, GGA_list) ){
+    XCFamily_ = "GGA";
+
+    if( XCType == "PBE" )
+    {
+      XId_ = XC_GGA_X_PBE;
+      CId_ = XC_GGA_C_PBE;
+      isXCSeparate_ = true;
+      statusOFS << "PBE functional is used. In LIBXC, this requires X and C to be set separately" << std::endl;
+      statusOFS << "XC_GGA_X_PBE  XId = " << XId_ << ", XC_GGA_C_PBE  CId = " << CId_  << std::endl << std::endl;
+      // Perdew, Burke & Ernzerhof correlation
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 77, 3865 (1996)
+      // JP Perdew, K Burke, and M Ernzerhof, Phys. Rev. Lett. 78, 1396(E) (1997)
+    }
+  }
+  else if ( InArray(XCType, Hybrid_list) ){
+    XCFamily_ = "Hybrid";
+
+    if( XCType == "HSE" ){
+      XCId_ = XC_HYB_GGA_XC_HSE06;
+      statusOFS << "HSE functional is used. In LIBXC, the XC id is" << std::endl;
+      statusOFS << "XC_HYB_GGA_XC_HSE06  XCId = " << XCId_  << std::endl << std::endl;
+      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 118, 8207 (2003) (doi: 10.1063/1.1564060)
+      // J. Heyd, G. E. Scuseria, and M. Ernzerhof, J. Chem. Phys. 124, 219906 (2006) (doi: 10.1063/1.2204597)
+      // A. V. Krukau, O. A. Vydrov, A. F. Izmaylov, and G. E. Scuseria, J. Chem. Phys. 125, 224106 (2006) (doi: 10.1063/1.2404663)
+      // This is the same as the "hse" functional in QE 5.1
+    }
+    if ( XCType == "PBE0" ) {
+      XCId_ = XC_HYB_GGA_XC_PBEH;
+      statusOFS << "PBE0 functional is used. In LIBXC, this is " << std::endl;
+      statusOFS << "XC_HYB_GGA_XC_PBEH  XCId = " << XCId_  << std::endl << std::endl;
+      // C. Adamo and V. Barone, J. Chem. Phys. 110, 6158 (1999) (doi: 10.1063/1.478522)
+      // M. Ernzerhof and G. E. Scuseria, J. Chem. Phys. 110, 5029 (1999) (doi: 10.1063/1.478401)  
+    }
+  }
+  else {
+    ErrorHandling("Unrecognized exchange-correlation type");
+  }
+
+  // Initialize the XC functionals, only spin-unpolarized case
+  // The exchange-correlation id has already been obtained in esdf
+  {
+    if( isXCSeparate_ ){
+      if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "X functional initialization error." );
+      }
+      if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "C functional initialization error." );
+      }
+    }
+    else{
+      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
+        ErrorHandling( "XC functional initialization error." );
+      } 
+    }
+  }
+
+  XCInitialized_ = true;
+}
+
+void Hamiltonian::DestroyXC() {
   if( XCInitialized_ ){
     if( isXCSeparate_ ){
       xc_func_end(&XFuncType_);
@@ -75,9 +158,8 @@ KohnSham::~KohnSham() {
 }
 
 
-
 void
-KohnSham::Setup    (
+Hamiltonian::Setup    (
     const Domain&               dm,
     const std::vector<Atom>&    atomList )
 {
@@ -85,11 +167,6 @@ KohnSham::Setup    (
   atomList_            = atomList;
   numExtraState_       = esdfParam.numExtraState;
   XCType_              = esdfParam.XCType;
-  XCFamily_            = esdfParam.XCFamily_;  // Evaluated in esdf.cpp for the XC family
-  XCId_                = esdfParam.XCId_;
-  XId_                 = esdfParam.XId_;
-  CId_                 = esdfParam.CId_;
-  isXCSeparate_        = esdfParam.isXCSeparate_; // Whether to evaluate X and C separately
   
   hybridDFType_                    = esdfParam.hybridDFType;
   hybridDFKmeansTolerance_         = esdfParam.hybridDFKmeansTolerance;
@@ -173,24 +250,10 @@ KohnSham::Setup    (
 
   }
 
-  // Initialize the XC functionals, only spin-unpolarized case
-  // The exchange-correlation id has already been obtained in esdf
-  {
-    if( isXCSeparate_ ){
-      if( xc_func_init(&XFuncType_, XId_, XC_UNPOLARIZED) != 0 ){
-        ErrorHandling( "X functional initialization error." );
-      }
-      if( xc_func_init(&CFuncType_, CId_, XC_UNPOLARIZED) != 0 ){
-        ErrorHandling( "C functional initialization error." );
-      }
-    }
-    else{
-      if( xc_func_init(&XCFuncType_, XCId_, XC_UNPOLARIZED) != 0 ){
-        ErrorHandling( "XC functional initialization error." );
-      } 
-    }
-  }
 
+  // Set up the XC functional
+  SetupXC( XCType_ );
+  
   // ~~~ * ~~~
   // Set up wavefunction filter options: useful for CheFSI in PWDFT, for example
   // Affects the MATVEC operations in MultSpinor
@@ -200,11 +263,11 @@ KohnSham::Setup    (
     set_wfn_filter(0, 0, esdfParam.ecutWavefunction);
 
   return ;
-}         // -----  end of method KohnSham::Setup  ----- 
+}         // -----  end of method Hamiltonian::Setup  ----- 
 
 
 void
-KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
+Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
   Int ntotFine = domain_.NumGridTotalFine();
   Int numAtom = atomList_.size();
   Real vol = domain_.Volume();
@@ -510,9 +573,9 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
   // Calculate other atomic related energies and forces, such as self
   // energy, short range repulsion energy and VdW energies.
   
-  this->CalculateIonSelfEnergyAndForce( ptable );
+  CalculateIonSelfEnergyAndForce( ptable );
 
-  this->CalculateVdwEnergyAndForce();
+  CalculateVdwEnergyAndForce();
 
   Eext_ = 0.0;
   forceext_.Resize( atomList_.size(), DIM );
@@ -520,9 +583,9 @@ KohnSham::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
 
   return ;
-}         // -----  end of method KohnSham::CalculatePseudoPotential ----- 
+}         // -----  end of method Hamiltonian::CalculatePseudoPotential ----- 
 
-void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
+void Hamiltonian::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
   Int ntotFine = domain_.NumGridTotalFine();
   Int numAtom = atomList_.size();
   Real vol = domain_.Volume();
@@ -641,10 +704,10 @@ void KohnSham::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
   Print( statusOFS, "After adjustment, Sum of atomic density      = ", (Real) nelec );
 
   return ;
-}         // -----  end of method KohnSham::CalculateAtomDensity  ----- 
+}         // -----  end of method Hamiltonian::CalculateAtomDensity  ----- 
 
 void
-KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft)
+Hamiltonian::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &val, Fourier &fft)
 {
   Int ntot  = psi.NumGridTotal();
   Int ncom  = psi.NumComponent();
@@ -722,10 +785,10 @@ KohnSham::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Real &
 
 
   return ;
-}         // -----  end of method KohnSham::CalculateDensity  ----- 
+}         // -----  end of method Hamiltonian::CalculateDensity  ----- 
 
 void
-KohnSham::CalculateGradDensity ( Fourier& fft , bool garbage)
+Hamiltonian::CalculateGradDensity ( Fourier& fft , bool garbage)
 {
   Int ntotFine  = fft.domain.NumGridTotalFine();
   Real vol  = domain_.Volume();
@@ -835,11 +898,11 @@ KohnSham::CalculateGradDensity ( Fourier& fft , bool garbage)
 
 
   return ;
-}         // -----  end of method KohnSham::CalculateGradDensity  ----- 
+}         // -----  end of method Hamiltonian::CalculateGradDensity  ----- 
 
 
 void
-KohnSham::CalculateGradDensity ( Fourier& fft )
+Hamiltonian::CalculateGradDensity ( Fourier& fft )
 {
   Int ntotFine  = fft.domain.NumGridTotalFine();
   Real vol  = domain_.Volume();
@@ -943,10 +1006,10 @@ KohnSham::CalculateGradDensity ( Fourier& fft )
   } //if(1)
 
   return ;
-}         // -----  end of method KohnSham::CalculateGradDensity  ----- 
+}         // -----  end of method Hamiltonian::CalculateGradDensity  ----- 
 
 // FIXME same format as in the other CalculateXC
-void KohnSham::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
+void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
 {
   Int ntot = domain_.NumGridTotalFine();
   Real vol = domain_.Volume();
@@ -1203,11 +1266,11 @@ void KohnSham::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
 #endif
 
   return ;
-}         // -----  end of method KohnSham::CalculateXC  ----- 
+}         // -----  end of method Hamiltonian::CalculateXC  ----- 
 
 
 void
-KohnSham::CalculateXC    ( Real &val, Fourier& fft )
+Hamiltonian::CalculateXC    ( Real &val, Fourier& fft )
 {
   Int ntot = domain_.NumGridTotalFine();
   Real vol = domain_.Volume();
@@ -1620,9 +1683,9 @@ KohnSham::CalculateXC    ( Real &val, Fourier& fft )
 #endif
 
   return ;
-}         // -----  end of method KohnSham::CalculateXC  ----- 
+}         // -----  end of method Hamiltonian::CalculateXC  ----- 
 
-void KohnSham::CalculateHartree( Fourier& fft, bool extra) {
+void Hamiltonian::CalculateHartree( Fourier& fft, bool extra) {
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
@@ -1698,11 +1761,11 @@ void KohnSham::CalculateHartree( Fourier& fft, bool extra) {
   
 
   return; 
-}  // -----  end of method KohnSham::CalculateHartree ----- 
+}  // -----  end of method Hamiltonian::CalculateHartree ----- 
 
 
 
-void KohnSham::CalculateHartree( Fourier& fft ) {
+void Hamiltonian::CalculateHartree( Fourier& fft ) {
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
@@ -1738,11 +1801,11 @@ void KohnSham::CalculateHartree( Fourier& fft ) {
   }
 
   return; 
-}  // -----  end of method KohnSham::CalculateHartree ----- 
+}  // -----  end of method Hamiltonian::CalculateHartree ----- 
 
 
 void
-KohnSham::CalculateVtot    ( DblNumVec& vtot )
+Hamiltonian::CalculateVtot    ( DblNumVec& vtot )
 {
   Int ntot = domain_.NumGridTotalFine();
   for (int i=0; i<ntot; i++) {
@@ -1750,11 +1813,11 @@ KohnSham::CalculateVtot    ( DblNumVec& vtot )
   }
 
   return ;
-}         // -----  end of method KohnSham::CalculateVtot  ----- 
+}         // -----  end of method Hamiltonian::CalculateVtot  ----- 
 
 
 void
-KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
+Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
 {
 
   Real timeSta, timeEnd;
@@ -1866,7 +1929,7 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
   
     // Second, contribution from the vLocalSR.  
     // The integration by parts formula requires the calculation of the grad density
-    this->CalculateGradDensity( fft );
+    CalculateGradDensity( fft );
 
     // FIXME This should be parallelized
     for (Int a=0; a<numAtom; a++) {
@@ -2091,12 +2154,12 @@ KohnSham::CalculateForce    ( Spinor& psi, Fourier& fft  )
   }
 
   return ;
-}         // -----  end of method KohnSham::CalculateForce  ----- 
+}         // -----  end of method Hamiltonian::CalculateForce  ----- 
 
 
 
 void
-KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
+Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
 {
 
   MPI_Barrier(domain_.comm);
@@ -2119,7 +2182,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
   Real timeAlltoallv = 0.0;
   Real timeAllreduce = 0.0;
 
-  SetValue( a3, 0.0 );
+  SetValue( Hpsi, 0.0 );
 
   // Apply an initial filter on the wavefunctions, if required
   if((apply_filter_ == 1 && apply_first_ == 1))
@@ -2155,10 +2218,12 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 
 
   GetTime( timeSta );
-  psi.AddMultSpinorFineR2C( fft, vtot_, pseudo_, a3 );
+  // LL: change the default behavior 1/3/2021
+  // psi.AddMultSpinorR2C( fft, vtot_, pseudo_, Hpsi );
+  psi.AddMultSpinor( fft, vtot_, pseudo_, Hpsi );
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
-  statusOFS << "Time for psi.AddMultSpinorFineR2C is " <<
+  statusOFS << "Time for psi.AddMultSpinor is " <<
     timeEnd - timeSta << " [s]" << std::endl << std::endl;
 #endif
 
@@ -2177,7 +2242,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
       //        // Minus sign comes from that all eigenvalues are negative
       //        blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, -1.0,
       //            vexxProj_.Data(), ntot, M.Data(), numStateTotal,
-      //            1.0, a3.Data(), ntot );
+      //            1.0, Hpsi.Data(), ntot );
       //      }
 
       if(1){ // for MPI
@@ -2236,30 +2301,30 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
         GetTime( timeEnd1 );
         timeAllreduce = timeAllreduce + ( timeEnd1 - timeSta1 );
 
-        DblNumMat a3Col( ntot, numStateLocal );
-        SetValue( a3Col, 0.0 );
+        DblNumMat HpsiCol( ntot, numStateLocal );
+        SetValue( HpsiCol, 0.0 );
 
-        DblNumMat a3Row( ntotLocal, numStateTotal );
-        SetValue( a3Row, 0.0 );
+        DblNumMat HpsiRow( ntotLocal, numStateTotal );
+        SetValue( HpsiRow, 0.0 );
 
         GetTime( timeSta1 );
         blas::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, 
             -1.0, vexxProjRow.Data(), ntotLocal, 
             M.Data(), numStateTotal, 0.0, 
-            a3Row.Data(), ntotLocal );
+            HpsiRow.Data(), ntotLocal );
         GetTime( timeEnd1 );
         timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
 
         GetTime( timeSta1 );
-        AlltoallBackward (a3Row, a3Col, domain_.comm);
+        AlltoallBackward (HpsiRow, HpsiCol, domain_.comm);
         GetTime( timeEnd1 );
         timeAlltoallv = timeAlltoallv + ( timeEnd1 - timeSta1 );
 
         GetTime( timeSta1 );
         for (Int k=0; k<numStateLocal; k++) {
           for (Int j=0; j<ncom; j++) {
-            Real *p1 = a3Col.VecData(k);
-            Real *p2 = a3.VecData(j, k);
+            Real *p1 = HpsiCol.VecData(k);
+            Real *p2 = Hpsi.VecData(j, k);
             for (Int i=0; i<ntot; i++) { 
               *(p2++) += *(p1++); 
             }
@@ -2273,7 +2338,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
     }
     else{
       psi.AddMultSpinorEXX( fft, phiEXX_, exxgkkR2C_,
-          exxFraction_,  numSpin_, occupationRate_, a3 );
+          exxFraction_,  numSpin_, occupationRate_, Hpsi );
     }
 
     GetTime( timeEnd );
@@ -2301,7 +2366,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
         SetValue( fft.inputVecR2C, 0.0 );
         SetValue( fft.outputVecR2C, Z_ZERO );
 
-        blas::Copy( ntot, a3.VecData(j,k), 1,
+        blas::Copy( ntot, Hpsi.VecData(j,k), 1,
             fft.inputVecR2C.Data(), 1 );
         FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
 
@@ -2314,7 +2379,7 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 
         FFTWExecute ( fft, fft.backwardPlanR2C );
         blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
-            a3.VecData(j,k), 1 );
+            Hpsi.VecData(j,k), 1 );
 
       }
     }
@@ -2323,11 +2388,11 @@ KohnSham::MultSpinor    ( Spinor& psi, NumTns<Real>& a3, Fourier& fft )
 
 
   return ;
-}         // -----  end of method KohnSham::MultSpinor  ----- 
+}         // -----  end of method Hamiltonian::MultSpinor  ----- 
 
 
 
-void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
+void Hamiltonian::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
 {
   const Real epsDiv = 1e-8;
 
@@ -2429,12 +2494,12 @@ void KohnSham::InitializeEXX ( Real ecutWavefunction, Fourier& fft )
 
 
   return ;
-}        // -----  end of function KohnSham::InitializeEXX  ----- 
+}        // -----  end of function Hamiltonian::InitializeEXX  ----- 
 
 
 
 void
-KohnSham::SetPhiEXX    (const Spinor& psi, Fourier& fft)
+Hamiltonian::SetPhiEXX    (const Spinor& psi, Fourier& fft)
 {
   // FIXME collect Psi into a globally shared array in the MPI context.
   const NumTns<Real>& wavefun = psi.Wavefun();
@@ -2467,12 +2532,12 @@ KohnSham::SetPhiEXX    (const Spinor& psi, Fourier& fft)
 
 
   return ;
-}         // -----  end of method KohnSham::SetPhiEXX  ----- 
+}         // -----  end of method Hamiltonian::SetPhiEXX  ----- 
 
 
 
 void
-KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
+Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 {
   // This assumes SetPhiEXX has been called so that phiEXX and psi
   // contain the same information. 
@@ -2646,10 +2711,10 @@ KohnSham::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 
 
   return ;
-}         // -----  end of method KohnSham::CalculateVexxACE  ----- 
+}         // -----  end of method Hamiltonian::CalculateVexxACE  ----- 
 
 void
-KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
+Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
 {
   // This assumes SetPhiEXX has been called so that phiEXX and psi
   // contain the same information. 
@@ -2733,12 +2798,12 @@ KohnSham::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF )
     AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
   } //if(1)
   return ;
-}         // -----  end of method KohnSham::CalculateVexxACEDF  ----- 
+}         // -----  end of method Hamiltonian::CalculateVexxACEDF  ----- 
 
 
 // This comes from exxenergy2() function in exx.f90 in QE.
 Real
-KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
+Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
 {
 
   MPI_Barrier(domain_.comm);
@@ -2905,22 +2970,22 @@ KohnSham::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
 
 
   return fockEnergy;
-}         // -----  end of method KohnSham::CalculateEXXEnergy  ----- 
+}         // -----  end of method Hamiltonian::CalculateEXXEnergy  ----- 
 
 
 
 //void
-//KohnSham::UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock )
+//Hamiltonian::UpdateHybrid ( Int phiIter, const Spinor& psi, Fourier& fft, Real Efock )
 //{
 //
 //
 //    return ;
-//}        // -----  end of function KohnSham::UpdateHybrid  ----- 
+//}        // -----  end of function Hamiltonian::UpdateHybrid  ----- 
 //
 
 
 void
-KohnSham::CalculateVdwEnergyAndForce    ()
+Hamiltonian::CalculateVdwEnergyAndForce    ()
 {
 
 
@@ -3129,11 +3194,11 @@ KohnSham::CalculateVdwEnergyAndForce    ()
   } // If DFT-D2
 
   return ;
-}         // -----  end of method KohnSham::CalculateVdwEnergyAndForce  ----- 
+}         // -----  end of method Hamiltonian::CalculateVdwEnergyAndForce  ----- 
 
 
 void
-KohnSham::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
+Hamiltonian::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
 {
 
   std::vector<Atom>&  atomList = this->AtomList();
@@ -3226,6 +3291,6 @@ KohnSham::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
   } // Self energy due to VLocalSR 
 
   return ;
-}         // -----  end of method KohnSham::CalculateIonSelfEnergyAndForce  ----- 
+}         // -----  end of method Hamiltonian::CalculateIonSelfEnergyAndForce  ----- 
 
 } // namespace dgdft

@@ -184,7 +184,7 @@ Spinor::Normalize    ( )
 
 
 void
-Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
+Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& Hpsi)
 {
   Fourier& fft = *fftPtr;
   if( !fftPtr->isInitialized ){
@@ -224,7 +224,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
 
       FFTWExecute ( fft, fft.backwardPlanR2C);
 
-      blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
+      blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, Hpsi.VecData(j,k), 1 );
     }
   }
   //#ifdef _USE_OPENMP_
@@ -236,159 +236,141 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& a3)
 }         // -----  end of method Spinor::AddTeterPrecond ----- 
 
 void
-Spinor::AddMultSpinorFine ( Fourier& fft, const DblNumVec& vtot, 
-    const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
+Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot, 
+    const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi )
 {
+
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
   }
-  Int ntot = wavefun_.m();
-  Int ncom = wavefun_.n();
-  Int numStateLocal = wavefun_.p();
-  Int ntotFine = domain_.NumGridTotalFine();
-  Real vol = domain_.Volume();
+  auto ntot = wavefun_.m();
+  auto ncom = wavefun_.n();
+  auto numStateLocal = wavefun_.p();
+  auto ntotFine = domain_.NumGridTotalFine();
+  auto vol = domain_.Volume();
 
   if( fft.domain.NumGridTotal() != ntot ){
     ErrorHandling("Domain size does not match.");
   }
 
-  // Temporary variable for saving wavefunction on a fine grid
+  // Temporary variable for saving wavefunction on the fine grid
   DblNumVec psiFine(ntotFine);
   DblNumVec psiUpdateFine(ntotFine);
 
-  for (Int k=0; k<numStateLocal; k++) {
-    for (Int j=0; j<ncom; j++) {
+  for (auto k=0; k<numStateLocal; k++) {
+    for (auto j=0; j<ncom; j++) {
 
       SetValue( psiFine, 0.0 );
       SetValue( psiUpdateFine, 0.0 );
 
-      // Fourier transform
-
-      //      for( Int i = 0; i < ntot; i++ ){
-      //        fft.inputComplexVec(i) = Complex( wavefun_(i,j,k), 0.0 ); 
-      //      }
       SetValue( fft.inputComplexVec, Z_ZERO );
       blas::Copy( ntot, wavefun_.VecData(j,k), 1,
           reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2 );
 
       // Fourier transform of wavefunction saved in fft.outputComplexVec
-      fftw_execute( fft.forwardPlan );
+      FFTWExecute( fft, fft.forwardPlan );
 
       // Interpolate wavefunction from coarse to fine grid
       {
+        auto fac = sqrt( double(ntot) / double(ntotFine) );
         SetValue( fft.outputComplexVecFine, Z_ZERO ); 
-        Int *idxPtr = fft.idxFineGrid.Data();
-        Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
-        Complex *fftOutPtr = fft.outputComplexVec.Data();
-        for( Int i = 0; i < ntot; i++ ){
-          //          fft.outputComplexVecFine(fft.idxFineGrid(i)) = fft.outputComplexVec(i);
-          fftOutFinePtr[*(idxPtr++)] = *(fftOutPtr++);
+        auto idxPtr = fft.idxFineGrid.Data();
+        auto fftOutFinePtr = fft.outputComplexVecFine.Data();
+        auto fftOutPtr = fft.outputComplexVec.Data();
+        for( auto i = 0; i < ntot; i++ ){
+          fftOutFinePtr[idxPtr[i]] = fftOutPtr[i] * fac;
         }
-      }
-      fftw_execute( fft.backwardPlanFine );
-      Real fac = 1.0 / std::sqrt( double(domain_.NumGridTotal())  *
-          double(domain_.NumGridTotalFine()) ); 
-      //      for( Int i = 0; i < ntotFine; i++ ){
-      //        psiFine(i) = fft.inputComplexVecFine(i).real() * fac; 
-      //      }
-      blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
-          2, psiFine.Data(), 1 );
-      blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
+        FFTWExecute( fft, fft.backwardPlanFine );
 
-      // Add the contribution from local pseudopotential
-      //      for( Int i = 0; i < ntotFine; i++ ){
-      //        psiUpdateFine(i) += psiFine(i) * vtot(i);
-      //      }
+        blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+            2, psiFine.Data(), 1 );
+      }
+
+      // Apply the local potential
       {
-        Real *psiUpdateFinePtr = psiUpdateFine.Data();
-        Real *psiFinePtr = psiFine.Data();
-        Real *vtotPtr = vtot.Data();
-        for( Int i = 0; i < ntotFine; i++ ){
-          *(psiUpdateFinePtr++) += *(psiFinePtr++) * *(vtotPtr++);
+        auto psiUpdateFinePtr = psiUpdateFine.Data();
+        auto psiFinePtr = psiFine.Data();
+        auto vtotPtr = vtot.Data();
+        for( auto i = 0; i < ntotFine; i++ ){
+          psiUpdateFinePtr[i] += psiFinePtr[i] * vtotPtr[i];
         }
       }
 
       // Add the contribution from nonlocal pseudopotential
-      if(1){
-        Int natm = pseudo.size();
-        for (Int iatm=0; iatm<natm; iatm++) {
-          Int nobt = pseudo[iatm].vnlList.size();
-          for (Int iobt=0; iobt<nobt; iobt++) {
-            const Real       vnlwgt = pseudo[iatm].vnlList[iobt].second;
-            const SparseVec &vnlvec = pseudo[iatm].vnlList[iobt].first;
-            const IntNumVec &iv = vnlvec.first;
-            const DblNumMat &dv = vnlvec.second;
+      {
+        auto natm = pseudo.size();
+        for (auto iatm=0; iatm<natm; iatm++) {
+          auto nobt = pseudo[iatm].vnlList.size();
+          for (auto iobt=0; iobt<nobt; iobt++) {
+            auto& vnlwgt = pseudo[iatm].vnlList[iobt].second;
+            auto& vnlvec = pseudo[iatm].vnlList[iobt].first;
+            auto& iv = vnlvec.first;
+            auto& dv = vnlvec.second;
 
-            Real    weight = 0.0; 
-            const Int    *ivptr = iv.Data();
-            const Real   *dvptr = dv.VecData(VAL);
-            for (Int i=0; i<iv.m(); i++) {
-              weight += (*(dvptr++)) * psiFine[*(ivptr++)];
+            auto weight = 0.0; 
+            auto ivptr = iv.Data();
+            auto dvptr = dv.VecData(VAL);
+            for (auto i=0; i<iv.m(); i++) {
+              weight += dvptr[i] * psiFine[ivptr[i]];
             }
             weight *= vol/Real(ntotFine)*vnlwgt;
 
             ivptr = iv.Data();
             dvptr = dv.VecData(VAL);
-            for (Int i=0; i<iv.m(); i++) {
-              psiUpdateFine[*(ivptr++)] += (*(dvptr++)) * weight;
+            for (auto i=0; i<iv.m(); i++) {
+              psiUpdateFine[ivptr[i]] += dvptr[i] * weight;
             }
           } // for (iobt)
         } // for (iatm)
       }
 
-
       // Laplacian operator. Perform inverse Fourier transform in the end
       {
-        for (Int i=0; i<ntot; i++) 
-          fft.outputComplexVec(i) *= fft.gkk(i);
+        for (auto i=0; i<ntot; i++) 
+          fft.outputComplexVec[i] *= fft.gkk[i];
       }
 
       // Restrict psiUpdateFine from fine grid in the real space to
       // coarse grid in the Fourier space. Combine with the Laplacian contribution
-      //      for( Int i = 0; i < ntotFine; i++ ){
-      //        fft.inputComplexVecFine(i) = Complex( psiUpdateFine(i), 0.0 ); 
-      //      }
-      SetValue( fft.inputComplexVecFine, Z_ZERO );
-      blas::Copy( ntotFine, psiUpdateFine.Data(), 1,
-          reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()), 2 );
 
       // Fine to coarse grid
       // Note the update is important since the Laplacian contribution is already taken into account.
       // The computation order is also important
-      fftw_execute( fft.forwardPlanFine );
       {
-        Real fac = std::sqrt(Real(ntot) / (Real(ntotFine)));
-        Int* idxPtr = fft.idxFineGrid.Data();
-        Complex *fftOutFinePtr = fft.outputComplexVecFine.Data();
-        Complex *fftOutPtr = fft.outputComplexVec.Data();
+        SetValue( fft.inputComplexVecFine, Z_ZERO ); // Do not forget this
+        blas::Copy( ntotFine, psiUpdateFine.Data(), 1,
+            reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()), 2 );
+        FFTWExecute( fft, fft.forwardPlanFine );
 
-        for( Int i = 0; i < ntot; i++ ){
-          //          fft.outputComplexVec(i) += fft.outputComplexVecFine(fft.idxFineGrid(i)) * fac;
-          *(fftOutPtr++) += fftOutFinePtr[*(idxPtr++)] * fac;
+        auto fac = sqrt( double(ntotFine) / double(ntot) );
+        auto idxPtr = fft.idxFineGrid.Data();
+        auto fftOutFinePtr = fft.outputComplexVecFine.Data();
+        auto fftOutPtr = fft.outputComplexVec.Data();
+
+        for( auto i = 0; i < ntot; i++ ){
+          fftOutPtr[i] += fftOutFinePtr[idxPtr[i]] * fac;
         }
       }
 
       // Inverse Fourier transform to save back to the output vector
-      fftw_execute( fft.backwardPlan );
+      FFTWExecute( fft, fft.backwardPlan );
 
-      //      Real    *ptr1 = a3.VecData(j,k);
-      //      for( Int i = 0; i < ntot; i++ ){
-      //        ptr1[i] += fft.inputComplexVec(i).real() / Real(ntot);
-      //      }
-      blas::Axpy( ntot, 1.0 / Real(ntot), 
-          reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2,
-          a3.VecData(j,k), 1 );
+      blas::Axpy( ntot, 1.0, reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2,
+          Hpsi.VecData(j,k), 1 );
     }
   }
 
-
-
   return ;
-}        // -----  end of method Spinor::AddMultSpinorFine  ----- 
+}        // -----  end of method Spinor::AddMultSpinor  ----- 
 
+
+// LL: 1/3/2021
+// This function requires the coarse grid to be an odd number along each
+// direction, and therefore should be deprecated in the future.
+/*
 void
-Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot, 
-    const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 )
+Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot, 
+    const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi )
 {
 
   if( !fft.isInitialized ){
@@ -427,33 +409,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
   GetTime( timeSta1 );
  
-  if(0)
-  {
-    for (Int k=0; k<numStateLocal; k++) {
-      for (Int j=0; j<ncom; j++) {
-
-        SetValue( fft.inputVecR2C, 0.0 );
-        SetValue( fft.outputVecR2C, Z_ZERO );
-
-        blas::Copy( ntot, wavefun_.VecData(j,k), 1,
-            fft.inputVecR2C.Data(), 1 );
-        FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
-
-
-        for (Int i=0; i<ntotR2C; i++)
-        {
-          if(fft.gkkR2C(i) > 5.0)
-            fft.outputVecR2C(i) = Z_ZERO;
-        }
-
-        FFTWExecute ( fft, fft.backwardPlanR2C );
-        blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
-            wavefun_.VecData(j,k), 1 );
-
-      }
-    }
-  }
-
 
 
   //#ifdef _USE_OPENMP_
@@ -476,7 +431,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 
 
         // For c2r and r2c transforms, the default is to DESTROY the
-        // input, therefore a copy of the original matrix is necessary. 
+        // input, therefore a copy of the original vector is necessary. 
         blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
             fft.inputVecR2C.Data(), 1 );
 
@@ -613,7 +568,7 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
       // Inverse Fourier transform to save back to the output vector
       //fftw_execute( fft.backwardPlan );
 
-      blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, a3.VecData(j,k), 1 );
+      blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, Hpsi.VecData(j,k), 1 );
 
     } // j++
   } // k++
@@ -621,41 +576,6 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
   //    }
   //#endif
 
-  if(0)
-  {
-    for (Int k=0; k<numStateLocal; k++) {
-      for (Int j=0; j<ncom; j++) {
-
-        SetValue( fft.inputVecR2C, 0.0 );
-        SetValue( fft.outputVecR2C, Z_ZERO );
-
-        blas::Copy( ntot, a3.VecData(j,k), 1,
-            fft.inputVecR2C.Data(), 1 );
-      
-        GetTime( timeSta );
-        FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
-        GetTime( timeEnd );
-        iterFFTCoarse = iterFFTCoarse + 1;
-        timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
-
-        for (Int i=0; i<ntotR2C; i++)
-        {
-          if(fft.gkkR2C(i) > 5.0)
-            fft.outputVecR2C(i) = Z_ZERO;
-        }
-
-        GetTime( timeSta );
-        FFTWExecute ( fft, fft.backwardPlanR2C );
-        GetTime( timeEnd );
-        iterFFTCoarse = iterFFTCoarse + 1;
-        timeFFTCoarse = timeFFTCoarse + ( timeEnd - timeSta );
-        
-        blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
-            a3.VecData(j,k), 1 );
-
-      }
-    }
-  }
 
   GetTime( timeEnd1 );
   iterOther = iterOther + 1;
@@ -669,7 +589,8 @@ Spinor::AddMultSpinorFineR2C ( Fourier& fft, const DblNumVec& vtot,
 #endif
 
   return ;
-}        // -----  end of method Spinor::AddMultSpinorFineR2C  ----- 
+}        // -----  end of method Spinor::AddMultSpinorR2C  ----- 
+*/
 
 void Spinor::AddMultSpinorEXX ( Fourier& fft, 
     const NumTns<Real>& phi,
@@ -677,7 +598,7 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
     Real  exxFraction,
     Real  numSpin,
     const DblNumVec& occupationRate,
-    NumTns<Real>& a3 )
+    NumTns<Real>& Hpsi )
 {
   if( !fft.isInitialized ){
     ErrorHandling("Fourier is not prepared.");
@@ -764,10 +685,10 @@ void Spinor::AddMultSpinorEXX ( Fourier& fft,
 
             FFTWExecute ( fft, fft.backwardPlanR2C );
 
-            Real* a3Ptr = a3.VecData(j,k);
+            Real* HpsiPtr = Hpsi.VecData(j,k);
             Real fac = -exxFraction * occupationRate[wavefunIdxTemp(kphi)];  
             for( Int ir = 0; ir < ntot; ir++ ){
-              a3Ptr[ir] += fft.inputVecR2C(ir) * phiTemp(ir) * fac;
+              HpsiPtr[ir] += fft.inputVecR2C(ir) * phiTemp(ir) * fac;
             }
 
           } // for (j)
@@ -799,7 +720,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     const Real numGaussianRandomFac,
     const Int numProcScaLAPACKPotrf,  
     const Int scaPotrfBlockSize,  
-    NumTns<Real>& a3, 
+    NumTns<Real>& Hpsi, 
     NumMat<Real>& VxMat,
     bool isFixColumnDF )
 {
@@ -1030,10 +951,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //        xiPtr[g] *= PcolPhiMuPtr[g];
 //      }
 //
-//      // NOTE: a3 must be zero in order to compute the M matrix later
+//      // NOTE: Hpsi must be zero in order to compute the M matrix later
 //      blas::Gemm( 'N', 'T', ntot, numStateTotal, numMu_, 1.0, 
 //          Xi.Data(), ntot, psiMu.Data(), numStateTotal, 1.0,
-//          a3.Data(), ntot ); 
+//          Hpsi.Data(), ntot ); 
 //
 //      GetTime( timeEnd );
 //#if ( _DEBUGlevel_ >= 0 )
@@ -1043,7 +964,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //    }
 //
 //    // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-//    // vexxPsi (a3) must be zero before entering this routine
+//    // vexxPsi (Hpsi) must be zero before entering this routine
 //    VxMat.Resize( numStateTotal, numStateTotal );
 //    {
 //      // Minus sign so that VxMat is positive semidefinite
@@ -1051,7 +972,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //      // factor of psi
 //      GetTime( timeSta );
 //      blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, -1.0,
-//          wavefun_.Data(), ntot, a3.Data(), ntot, 0.0, 
+//          wavefun_.Data(), ntot, Hpsi.Data(), ntot, 0.0, 
 //          VxMat.Data(), numStateTotal );
 //
 //      //        statusOFS << "VxMat = " << VxMat << std::endl;
@@ -1695,8 +1616,8 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     GetTime( timeSta );
     // Rewrite Xi by Xi.*PcolPhi
-    DblNumMat a3Row( ntotLocal, numStateTotal );
-    SetValue( a3Row, 0.0 );
+    DblNumMat HpsiRow( ntotLocal, numStateTotal );
+    SetValue( HpsiRow, 0.0 );
 
     if(0){
 
@@ -1706,10 +1627,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
         xiPtr[g] *= PcolPhiMuPtr[g];
       }
 
-      // NOTE: a3 must be zero in order to compute the M matrix later
+      // NOTE: Hpsi must be zero in order to compute the M matrix later
       blas::Gemm( 'N', 'T', ntotLocal, numStateTotal, numMu_, 1.0, 
           XiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 1.0,
-          a3Row.Data(), ntotLocal ); 
+          HpsiRow.Data(), ntotLocal ); 
 
     } //if(0)
 
@@ -1739,7 +1660,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
         for ( Int mu = 0; mu < numMu_; mu++ ){
           blas::Axpy( ntotLocal, psiMu(i,mu), XiRowTemp.VecData(mu),
-              1, a3Row.VecData(i), 1 );
+              1, HpsiRow.VecData(i), 1 );
         }
 
 
@@ -1747,10 +1668,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     } //if(1)
 
-    DblNumMat a3Col( ntot, numStateLocal );
-    SetValue( a3Col, 0.0 );
+    DblNumMat HpsiCol( ntot, numStateLocal );
+    SetValue( HpsiCol, 0.0 );
 
-    AlltoallBackward (a3Row, a3Col, domain_.comm);
+    AlltoallBackward (HpsiRow, HpsiCol, domain_.comm);
 
     if(1){
 
@@ -1771,14 +1692,14 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
         Real fac = -exxFraction * occupationRate[wavefunIdx_(i)];  
         for( Int ir = 0; ir < ntot; ir++ ){
-          a3Col(ir,i) += fft.inputVecR2C(ir) * phiCol(ir,i) * fac;
+          HpsiCol(ir,i) += fft.inputVecR2C(ir) * phiCol(ir,i) * fac;
         }
 
       } // for i
 
     } //if(1)
 
-    lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );
+    lapack::Lacpy( 'A', ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
 
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1799,7 +1720,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
 
     // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-    // vexxPsi (a3) must be zero before entering this routine
+    // vexxPsi (Hpsi) must be zero before entering this routine
     VxMat.Resize( numStateTotal, numStateTotal );
     {
       // Minus sign so that VxMat is positive semidefinite
@@ -1809,11 +1730,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       SetValue( VxMatTemp, 0.0 );
       GetTime( timeSta );
 
-      SetValue( a3Row, 0.0 );
-      AlltoallForward (a3Col, a3Row, domain_.comm);
+      SetValue( HpsiRow, 0.0 );
+      AlltoallForward (HpsiCol, HpsiRow, domain_.comm);
 
       blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal, -1.0,
-          psiRow.Data(), ntotLocal, a3Row.Data(), ntotLocal, 0.0, 
+          psiRow.Data(), ntotLocal, HpsiRow.Data(), ntotLocal, 0.0, 
           VxMatTemp.Data(), numStateTotal );
 
       SetValue( VxMat, 0.0 );
@@ -1851,7 +1772,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     const Int numProcScaLAPACK,  
     const Real hybridDFTolerance,
     const Int BlockSizeScaLAPACK,  
-    NumTns<Real>& a3, 
+    NumTns<Real>& Hpsi, 
     NumMat<Real>& VxMat,
     bool isFixColumnDF )
 {
@@ -3094,24 +3015,24 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     VXi2DPtr[g] *= PphiMu2DPtr1[g];
   }
 
-  // NOTE: a3 must be zero in order to compute the M matrix later
-  DblNumMat a32D( nrowsNgNe2D, ncolsNgNe2D );
-  SetValue( a32D, 0.0 );
+  // NOTE: Hpsi must be zero in order to compute the M matrix later
+  DblNumMat Hpsi2D( nrowsNgNe2D, ncolsNgNe2D );
+  SetValue( Hpsi2D, 0.0 );
 
   SCALAPACK(pdgemm)("N", "T", &Ng, &Ne, &Nu, 
       &D_ONE,
       VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
       psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
       &D_ZERO,
-      a32D.Data(), &I_ONE, &I_ONE, desc_NgNe2D);
+      Hpsi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D);
 
-  DblNumMat a3Col( ntot, numStateLocal );
-  SetValue(a3Col, 0.0 );
+  DblNumMat HpsiCol( ntot, numStateLocal );
+  SetValue(HpsiCol, 0.0 );
 
-  SCALAPACK(pdgemr2d)(&Ng, &Ne, a32D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
-      a3Col.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt2 );
+  SCALAPACK(pdgemr2d)(&Ng, &Ne, Hpsi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
+      HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt2 );
 
-  lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );
+  lapack::Lacpy( 'A', ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
 
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -3120,7 +3041,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
 #endif
 
   // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-  // vexxPsi (a3) must be zero before entering this routine
+  // vexxPsi (Hpsi) must be zero before entering this routine
   VxMat.Resize( numStateTotal, numStateTotal );
 
   GetTime( timeSta );
@@ -3196,7 +3117,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     const Int numProcScaLAPACK,  
     const Real hybridDFTolerance,
     const Int BlockSizeScaLAPACK,  
-    NumTns<Real>& a3, 
+    NumTns<Real>& Hpsi, 
     NumMat<Real>& VxMat,
     bool isFixColumnDF )
 {
@@ -3747,80 +3668,6 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     }//
 
 
-    if(0){ // ScaLAPACL QRCP
-      Int contxt;
-      Int nprow, npcol, myrow, mycol, info;
-      Cblacs_get(0, 0, &contxt);
-      nprow = 1;
-      npcol = mpisize;
-
-      Cblacs_gridinit(&contxt, "C", nprow, npcol);
-      Cblacs_gridinfo(contxt, &nprow, &npcol, &myrow, &mycol);
-      Int desc_MG[9];
-
-      Int irsrc = 0;
-      Int icsrc = 0;
-
-      Int mb_MG = numPre*numPre;
-      Int nb_MG = ntotLocalMG;
-
-      // FIXME The current routine does not actually allow ntotLocal to be different on different processors.
-      // This must be fixed.
-      SCALAPACK(descinit)(&desc_MG[0], &mb_MG, &ntotMG, &mb_MG, &nb_MG, &irsrc, 
-          &icsrc, &contxt, &mb_MG, &info);
-
-      IntNumVec pivQRTmp(ntotMG), pivQRLocal(ntotMG);
-      if( mb_MG > ntot ){
-        std::ostringstream msg;
-        msg << "numPre*numPre > ntot. The number of grid points is perhaps too small!" << std::endl;
-        ErrorHandling( msg.str().c_str() );
-      }
-      // DiagR is only for debugging purpose
-      //        DblNumVec diagRLocal( mb_MG );
-      //        DblNumVec diagR( mb_MG );
-
-      SetValue( pivQRTmp, 0 );
-      SetValue( pivQRLocal, 0 );
-      SetValue( pivQR_, 0 );
-
-
-      //        SetValue( diagRLocal, 0.0 );
-      //        SetValue( diagR, 0.0 );
-
-      if(0) {
-        scalapack::QRCPF( mb_MG, ntotMG, MG.Data(), &desc_MG[0], 
-            pivQRTmp.Data(), tau.Data() );
-      }
-
-      if(1) {
-        scalapack::QRCPR( mb_MG, ntotMG, numMu_, MG.Data(), &desc_MG[0], 
-            pivQRTmp.Data(), tau.Data(), 80, 40 );
-      }
-
-
-      // Combine the local pivQRTmp to global pivQR_
-      for( Int j = 0; j < ntotLocalMG; j++ ){
-        pivQRLocal[j + mpirank * ntotLocalMG] = pivQRTmp[j];
-      }
-
-      //        std::cout << "diag of MG = " << std::endl;
-      //        if(mpirank == 0){
-      //          std::cout << pivQRLocal << std::endl;
-      //          for( Int j = 0; j < mb_MG; j++ ){
-      //            std::cout << MG(j,j) << std::endl;
-      //          }
-      //        }
-      MPI_Allreduce( pivQRLocal.Data(), pivQR_.Data(), 
-          ntotMG, MPI_INT, MPI_SUM, domain_.comm );
-
-
-      if(contxt >= 0) {
-        Cblacs_gridexit( contxt );
-      }
-
-    } //ScaLAPACL QRCP
-
-
     if(1){ //ScaLAPACL QRCP 2D
 
       Int contxt1D, contxt2D;
@@ -3889,32 +3736,6 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 
       MPI_Comm_rank(colComm, &mpirankCol);
       MPI_Comm_size(colComm, &mpisizeCol);
-
-      if(0){
-
-        if((m_MG % (m_MG2DBlocksize * nprow2D))!= 0){ 
-          if(mpirankRow < ((m_MG % (m_MG2DBlocksize*nprow2D)) / m_MG2DBlocksize)){
-            m_MG2Local = m_MG2Local + m_MG2DBlocksize;
-          }
-          if(((m_MG % (m_MG2DBlocksize*nprow2D)) % m_MG2DBlocksize) != 0){
-            if(mpirankRow == ((m_MG % (m_MG2DBlocksize*nprow2D)) / m_MG2DBlocksize)){
-              m_MG2Local = m_MG2Local + ((m_MG % (m_MG2DBlocksize*nprow2D)) % m_MG2DBlocksize);
-            }
-          }
-        }
-
-        if((n_MG % (n_MG2DBlocksize * npcol2D))!= 0){ 
-          if(mpirankCol < ((n_MG % (n_MG2DBlocksize*npcol2D)) / n_MG2DBlocksize)){
-            n_MG2Local = n_MG2Local + n_MG2DBlocksize;
-          }
-          if(((n_MG % (n_MG2DBlocksize*nprow2D)) % n_MG2DBlocksize) != 0){
-            if(mpirankCol == ((n_MG % (n_MG2DBlocksize*npcol2D)) / n_MG2DBlocksize)){
-              n_MG2Local = n_MG2Local + ((n_MG % (n_MG2DBlocksize*nprow2D)) % n_MG2DBlocksize);
-            }
-          }
-        }
-
-      } // if(0)
 
       if(contxt2D >= 0){
         Cblacs_gridinfo(contxt2D, &nprow2D, &npcol2D, &myrow2D, &mycol2D);
@@ -4501,24 +4322,24 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     VXi2DPtr[g] *= PphiMu2DPtr1[g];
   }
 
-  // NOTE: a3 must be zero in order to compute the M matrix later
-  DblNumMat a32D( nrowsNgNe2D, ncolsNgNe2D );
-  SetValue( a32D, 0.0 );
+  // NOTE: Hpsi must be zero in order to compute the M matrix later
+  DblNumMat Hpsi2D( nrowsNgNe2D, ncolsNgNe2D );
+  SetValue( Hpsi2D, 0.0 );
 
   SCALAPACK(pdgemm)("N", "T", &Ng, &Ne, &Nu, 
       &D_ONE,
       VXi2D.Data(), &I_ONE, &I_ONE, desc_NgNu2D,
       psiMu2D.Data(), &I_ONE, &I_ONE, desc_NeNu2D, 
       &D_ZERO,
-      a32D.Data(), &I_ONE, &I_ONE, desc_NgNe2D);
+      Hpsi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D);
 
-  DblNumMat a3Col( ntot, numStateLocal );
-  SetValue(a3Col, 0.0 );
+  DblNumMat HpsiCol( ntot, numStateLocal );
+  SetValue(HpsiCol, 0.0 );
 
-  SCALAPACK(pdgemr2d)(&Ng, &Ne, a32D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
-      a3Col.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt2 );
+  SCALAPACK(pdgemr2d)(&Ng, &Ne, Hpsi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
+      HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt2 );
 
-  lapack::Lacpy( 'A', ntot, numStateLocal, a3Col.Data(), ntot, a3.Data(), ntot );
+  lapack::Lacpy( 'A', ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
 
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -4527,7 +4348,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 #endif
 
   // Compute the matrix VxMat = -Psi'* vexxPsi and symmetrize
-  // vexxPsi (a3) must be zero before entering this routine
+  // vexxPsi (Hpsi) must be zero before entering this routine
   VxMat.Resize( numStateTotal, numStateTotal );
 
   GetTime( timeSta );

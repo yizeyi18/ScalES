@@ -142,19 +142,23 @@ public:
   // *********************************************************************
   void Normalize();
 
-  // Perform all operations of matrix vector multiplication on a fine grid.
-  void AddMultSpinorFine( Fourier& fft, const DblNumVec& vtot, 
-      const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );
-  void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
-      const std::vector<PseudoPot>& pseudo, NumTns<Real>& a3 );
+  // Perform all operations of matrix vector multiplication.
+  void AddMultSpinor( Fourier& fft, const DblNumVec& vtot, 
+      const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi );
+  
+  // LL: 1/3/2021
+  // This function requires the coarse grid to be an odd number along each
+  // direction, and therefore should be deprecated in the future.
+  void AddMultSpinorR2C( Fourier& fft, const DblNumVec& vtot, 
+      const std::vector<PseudoPot>& pseudo, NumTns<Real>& Hpsi );
 
 #ifdef DEVICE 
-  void AddMultSpinorFineR2C( Fourier& fft, const DblNumVec& vtot, 
-      const std::vector<PseudoPot>& pseudo, deviceNumTns<Real>& a3 );
-  void AddTeterPrecond( Fourier* fftPtr, deviceNumTns<Real>& a3 );
+  void AddMultSpinorR2C( Fourier& fft, const DblNumVec& vtot, 
+      const std::vector<PseudoPot>& pseudo, deviceNumTns<Real>& Hpsi );
+  void AddTeterPrecond( Fourier* fftPtr, deviceNumTns<Real>& Hpsi );
 #endif
 
-  void AddTeterPrecond( Fourier* fftPtr, NumTns<Real>& a3 );
+  void AddTeterPrecond( Fourier* fftPtr, NumTns<Real>& Hpsi );
 
   /// @brief Apply the exchange operator to the spinor by solving
   /// Poisson like equations
@@ -167,7 +171,7 @@ public:
       Real  exxFraction,
       Real  numSpin,
       const DblNumVec& occupationRate,
-      NumTns<Real>& a3 );
+      NumTns<Real>& Hpsi );
 
 #ifdef DEVICE
   /// @brief Apply the exchange operator to the spinor by solving
@@ -181,7 +185,7 @@ public:
       Real  exxFraction,
       Real  numSpin,
       const DblNumVec& occupationRate,
-      deviceNumTns<Real>& a3 );
+      deviceNumTns<Real>& Hpsi );
 #endif
 
   /// @brief Spinor with exact exchange, and the cost is reduced using density fitting schemes.
@@ -202,7 +206,7 @@ public:
       const Real numGaussianRandomFac,
       const Int numProcScaLAPACKPotrf, 
       const Int scaPotrfBlockSize, 
-      NumTns<Real>& a3,
+      NumTns<Real>& Hpsi,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
 
@@ -217,7 +221,7 @@ public:
 //      const Real numGaussianRandomFac,
 //      const Int numProcScaLAPACKPotrf, 
 //      const Int scaPotrfBlockSize, 
-//      NumTns<Real>& a3,
+//      NumTns<Real>& Hpsi,
 //      NumMat<Real>& VxMat, 
 //      bool isFixColumnDF );
 //
@@ -231,7 +235,7 @@ public:
 //      const Real numGaussianRandomFac,
 //      const Int numProcScaLAPACKPotrf, 
 //      const Int scaPotrfBlockSize, 
-//      NumTns<Real>& a3,
+//      NumTns<Real>& Hpsi,
 //      NumMat<Real>& VxMat, 
 //      bool isFixColumnDF );
 //
@@ -245,7 +249,7 @@ public:
 //      const Real numGaussianRandomFac,
 //      const Int numProcScaLAPACKPotrf, 
 //      const Int scaPotrfBlockSize, 
-//      NumTns<Real>& a3,
+//      NumTns<Real>& Hpsi,
 //      NumMat<Real>& VxMat, 
 //      bool isFixColumnDF );
 //
@@ -259,7 +263,7 @@ public:
 //      const Real numGaussianRandomFac,
 //      const Int numProcScaLAPACKPotrf, 
 //      const Int scaPotrfBlockSize, 
-//      NumTns<Real>& a3,
+//      NumTns<Real>& Hpsi,
 //      NumMat<Real>& VxMat, 
 //      bool isFixColumnDF );
   
@@ -274,7 +278,7 @@ public:
       const Int numProcScaLAPACKPotrf, 
       const Real hybridDFTolerance,
       const Int scaPotrfBlockSize, 
-      NumTns<Real>& a3,
+      NumTns<Real>& Hpsi,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
 
@@ -292,7 +296,7 @@ public:
       const Int numProcScaLAPACKPotrf, 
       const Real hybridDFTolerance,
       const Int scaPotrfBlockSize, 
-      NumTns<Real>& a3,
+      NumTns<Real>& Hpsi,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
 #ifdef DEVICE
@@ -306,7 +310,7 @@ public:
       const Real numGaussianRandomFac,
       const Int numProcScaLAPACKPotrf, 
       const Int scaPotrfBlockSize, 
-      deviceDblNumMat & cu_a3,
+      deviceDblNumMat & cu_Hpsi,
       NumMat<Real>& VxMat, 
       bool isFixColumnDF );
 
