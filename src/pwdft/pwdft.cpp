@@ -174,30 +174,6 @@ int main(int argc, char **argv)
     statusOFS << "Time for calculating the pseudopotential for the Hamiltonian = " 
       << timeEnd - timeSta << " [s]" << std::endl;
 
-    // DEBUG
-    if(0){
-      std::vector<PseudoPot>& pseudo = ham.Pseudo();
-      if( mpirank == 1 ){
-        std::stringstream vStream;
-        std::vector<PseudoPot> pseudott;
-        for( Int i = 0; i < 3; i++ ){
-          pseudott.push_back(pseudo[i]);
-        }
-        serialize( pseudott, vStream, NO_MASK );
-        mpi::Send( vStream, 0, 1, 2, MPI_COMM_WORLD );
-      }
-      else{
-        std::stringstream vStream;
-        MPI_Status status1, status2;
-        mpi::Recv( vStream, 1, 1, 2, MPI_COMM_WORLD, status1, status2 );
-        std::vector<PseudoPot> pseudott;
-        deserialize(pseudott, vStream, NO_MASK);
-
-        statusOFS << "On proc 0, pseudott[1].pseudoCharge.first = " << 
-          pseudott[1].pseudoCharge.first << std::endl;
-      }
-    }
-    
     // Wavefunctions
     int numStateTotal = ham.NumStateTotal();
     int numStateLocal, blocksize;
@@ -216,6 +192,7 @@ int main(int argc, char **argv)
     }
 
 
+    // LL: FIXME 01/04/2021  This should go to Spinor
     if ( numStateTotal <=  mpisize ) {
       blocksize = 1;
 
@@ -249,6 +226,7 @@ int main(int argc, char **argv)
 
     UniformRandom( psi.Wavefun() );
 
+    // LL: FIXME 01/04/2021 This part should go to SCF
     if( ham.IsHybrid() ){
       GetTime( timeSta );
       ham.InitializeEXX( esdfParam.ecutWavefunction, fft );
@@ -273,20 +251,20 @@ int main(int argc, char **argv)
     // Single shot calculation first
     // *********************************************************************
 #ifdef DEVICE
-         device_mpi::setDevice(MPI_COMM_WORLD);
-         device_init_vtot();
-         DEVICE_BLAS::Init();
-         device_fft::Init(dm);
+    device_mpi::setDevice(MPI_COMM_WORLD);
+    device_init_vtot();
+    DEVICE_BLAS::Init();
+    device_fft::Init(dm);
 #ifdef USE_MAGMA
-         MAGMA::Init();
+    MAGMA::Init();
 #else
-         device_solver::Init();
+    device_solver::Init();
 #endif
 #endif
 
     {
       GetTime( timeSta );
-      scf.Iterate();
+      scf.Execute();
       GetTime( timeEnd );
       statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
         << " [s]" << std::endl;
@@ -297,6 +275,7 @@ int main(int argc, char **argv)
     // *********************************************************************
 
 
+    // LL: FIXME 01/04/2021 Need to organize this into the ionDynamics class. 
     {
       IonDynamics ionDyn;
 
@@ -903,7 +882,7 @@ int main(int argc, char **argv)
 
 
         GetTime( timeSta );
-        scf.Iterate( );
+        scf.Execute( );
         GetTime( timeEnd );
         statusOFS << "! Total time for the SCF iteration = " << timeEnd - timeSta
           << " [s]" << std::endl;

@@ -330,7 +330,9 @@ public:
   void        SetEext(Real Eext) {Eext_=Eext;}
   void        SetForceExt(const DblNumMat& forceext) {forceext_ = forceext;}
 
-  bool        XCRequireGradDensity() {return XCFamily_ == "GGA" || XCFamily_ == "Hybrid"; }
+  bool        XCRequireGradDensity()  {return XCFamily_ == "GGA" or XCFamily_ == "Hybrid"; }
+  bool        XCRequireIterateDensity() {return XCFamily_ != "Hybrid" or ( not isEXXActive_ ); }
+  bool        XCRequireIterateWavefun()    {return XCFamily_ == "Hybrid" and isEXXActive_; }
 
   // Functions to set and toggle state of filter application
   void set_wfn_filter(int apply_filter, int apply_first, Real wfn_cutoff)

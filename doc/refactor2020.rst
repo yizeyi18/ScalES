@@ -246,11 +246,13 @@ Target: refactor2020
   folder). The existing parser can be renamed esdf_common.hpp and
   esdf_common.cpp
 
-- [ ] Change `scf::Iterate` to `scf::Execute()`. Inside this function,
-  first call `scf::IterateSemilocal` for all functionals (including
+- [x] Change `SCF::Iterate` to `SCF::Execute()`. Inside this function,
+  first call `SCF::IterateDensity` for all functionals (including
   hybrid ones, unless the hybrid mode is activated). Here for hybrid
   functional calculations, we run PBE first. Then execute
-  `scf::IterateHybrid` for hybrid functional calculations.
+  `SCF::IterateWavefun` for hybrid functional calculations.
+
+- [ ] `SCF::IterateDensity` should be reused in `SCF::IterateWavefun`
 
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
