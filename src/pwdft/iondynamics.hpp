@@ -575,9 +575,7 @@ public:
   void Setup( std::vector<Atom>& atomList,
       PeriodTable& ptable );
 
-  /// @brief Main program to move the ions.
-  ///
-  /// Will determine both geometry optimization and molecular dynamics
+  /// @brief Move the ions for one step
   void MoveIons( Int ionIter );
 
   /// @brief Extrapolating coefficient for density or wavefunction

@@ -134,8 +134,7 @@ Target: refactor2020
 - [x] Allow Hamiltonian to set the XC functional, instead of setting it
   in esdf
 
-- [ ] Move the density and wavefunction extrapolation part into
-  iondynamics
+- [ ] Cleanup the iondynamics (detailed in pwdft.cpp). Need discussion
 
 - [ ] Either make all string values of keywords to be lower case, or
   make string comparison case insensitive
@@ -206,12 +205,22 @@ Target: refactor2020
   Remove the descriptors and contexts floating around. Decide whether to
   keep other EXXDF routines
 
-- [ ] Make the new bdist.redistribute_col_to_row and
-  bdist.redistribute_row_to_col consistent with the existing
-  AlltoallForward / AlltoallBackward (e.g. used in MultSpinor) 
+- [ ] Make a decision about the best way to proceed with row<->col
+  transformation among the methods of 
+  
+    a. the new bdist.redistribute_col_to_row and
+    b. the old AlltoallForward / AlltoallBackward (e.g. used in MultSpinor) 
+    c. methods based on pdgemr2d (not available in GPU, but according to
+    Wei may be faster on CPU).
 
-- [ ] pcdiis: the data conversion should not be done with gemr2d, but
-  should be done with block distributors.
+    We need:
+    
+    1. Benchmark results about the performance of each option.
+    2. Leave at most two options (preferably one) for such a task. 
+    3. In case pdgemr2d is needed in the end, it needs to be
+           encapsulated.
+
+- [ ] pcdiis: cleanup the row<->col transformation.
 
 - [d] Utilities to NumVec to clean up the spinor: 
   
@@ -239,6 +248,10 @@ Target: refactor2020
 - [p] Remove the meaningless getters / setters in hamiltonian and scf,
   in the sense that the access subroutines provide full access to the
   variable without providing any additional information / explanation.
+
+- [ ] In Hamiltonian, add a pointer `ptablePtr_` for access to the
+  information in the periodic table. Remove the pointer from the `SCF`
+  class.
 
 - [x] Remove the KohnSham class and just have one Hamiltonian class.
   Future expansion of the functionality will not be based on inheritance

@@ -275,6 +275,21 @@ int main(int argc, char **argv)
 
 
     // LL: FIXME 01/04/2021 Need to organize this into the ionDynamics class. 
+    // One possibility is to introduce a scfPtr in the ionDynamics
+    // class, and include all routines below as 
+    //
+    // ionDyn.Execute( scf );
+    //
+    // and put densityHist / wavefunHist as variables in ionDynamics.
+    //
+    // We clearly need:
+    //   1. a proper structure to hold the history information
+    //   2. subroutines for density / wavefunction extrapolation.
+    // 
+    // NOTE: It is unclear that all the SCF structures, densityHist etc
+    // should be put under the `ionDynamics` class. If so some
+    // 'callback' routines could be needed.  Need to discuss about this
+    // before making a decision.
     {
       IonDynamics ionDyn;
 
