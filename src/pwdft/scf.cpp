@@ -310,17 +310,23 @@ SCF::Execute    ( )
 #endif
 
   if( ham.XCRequireIterateDensity() ){
-    // FIXME: LL 1/4/2021. Try to change the XC functional if needed here, and then change it back
-    IterateDensity();
-    if( ham.IsHybrid() and ham.IsEXXActive() == false ) 
+    if( ham.IsHybrid() and ham.IsEXXActive() == false ){
+      // Modify the XC functional to improve SCF convergence
+      ham.SetupXC("PBE");
+      IterateDensity();
+      ham.SetupXC(esdfParam.XCType);
       ham.SetEXXActive(true);
+    }
+    else{
+      IterateDensity();
+    }
   }
 
   if( ham.XCRequireIterateWavefun() ){
     IterateWavefun();
   }
 
-  // FIXME: LL 1/4/2021 Should the Destroy() functions be activated?
+  // FIXME: LL 1/4/2021 Should the Destroy() functions be activated somewhere?
 /*
 #ifdef DEVICE
     DEVICE_BLAS::Destroy();

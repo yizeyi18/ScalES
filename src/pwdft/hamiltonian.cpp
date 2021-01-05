@@ -143,6 +143,7 @@ void Hamiltonian::SetupXC( std::string XCType ) {
     }
   }
 
+  XCType_ = XCType;
   XCInitialized_ = true;
 }
 
