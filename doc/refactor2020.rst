@@ -129,10 +129,9 @@ Target: refactor2020
   parameters in pw/dg/td. so far only moves things to common/. Will see
   whether a cleaner solution is needed when organizing dg and td.
 
-- [x] Make use of the `XCFamily_` in esdfParam and make the treatment of XC
-  cleaner. 
+- [x] Make use of the `XCFamily_` and make the treatment of XC cleaner. 
 
-- [ ] Allow Hamiltonian to set the XC functional, instead of setting it
+- [x] Allow Hamiltonian to set the XC functional, instead of setting it
   in esdf
 
 - [ ] Move the density and wavefunction extrapolation part into
@@ -186,7 +185,7 @@ Target: refactor2020
   batched FFT? Why CUFFT does not suffer from the alignment issue? (i.e.
   we do not need to copy a vector into a saved buffer?) 
   
-- [ ] Supporting FFT solvers other than FFTW (Wei)
+- [d] Supporting FFT solvers other than FFTW (Wei)
 
 - [ ] Eigensolver: in QE: reorder eigenvectors so that coefficients for
   unconverged roots come first. This allows to use quick matrix-matrix
@@ -196,14 +195,10 @@ Target: refactor2020
   subsequently redistribute the work for unconverged eigenvectors only.
   The locking strategy seems different in ppcg_gamma_gpu
 
-- [ ] Need to add SCAN functional (more generally, meta-GGA)
+- [d] Need to add SCAN functional (more generally, meta-GGA)
 
-- [ ] Need to provide API for an external electric field (w.o. using a
-  velocity gauge?)
-
-- [ ] Make the new bdist.redistribute_col_to_row and
-  bdist.redistribute_row_to_col consistent with the existing
-  AlltoallForward / AlltoallBackward (e.g. used in MultSpinor) 
+- [d] Need to provide API for an external electric field (w.o. using a
+  velocity gauge?) 
 
 - [x] Rename the awkward 'a3' in Hamiltonian and spinor to Hpsi
 
@@ -211,36 +206,45 @@ Target: refactor2020
   Remove the descriptors and contexts floating around. Decide whether to
   keep other EXXDF routines
 
-- [ ] Utilities to NumVec to clean up the spinor: 
+- [ ] Make the new bdist.redistribute_col_to_row and
+  bdist.redistribute_row_to_col consistent with the existing
+  AlltoallForward / AlltoallBackward (e.g. used in MultSpinor) 
+
+- [ ] pcdiis: the data conversion should not be done with gemr2d, but
+  should be done with block distributors.
+
+- [d] Utilities to NumVec to clean up the spinor: 
   
-    a. fine to coarse / coarse to fine grid
-    b. element-wise product of two arrays (given by pointers) added to
+    [ ] fine to coarse / coarse to fine grid
+    [ ] element-wise product of two arrays (given by pointers) added to
     the third array. add to blas?
 
-- [ ] HSE calculation should not start with HSE w.o. exchange, this can
+- [x] HSE calculation should not start with HSE w.o. exchange, this can
   create some instabilities. Instead it should start from e.g. PBE
-  calculations (check QE's implementation). To make it better, 
-
-- [ ] Encapsulate the ScaLAPACK usages in terms of the ScaLAPACKMatrix
-  class. Start with pcdiis
+  calculations. 
 
 - [ ] Change the default behavior from column partition to row partition
   in order to allow more processors than the number of bands (suggested
-  by Wei Hu)
+  by Wei Hu. This requires some discussion)
+
+- [ ] The value of RGaussian should be properly set and tested for
+  elements in the periodic table. In particular it should be checked
+  that the overlap is not an issue (or better, implement the correction
+  to the overlapping Gaussian charges in the self-interaction energy
+  part c.f. Martin appendix). This may already be an issue, but would
+  DEFINITELY be needed when changing to non-orthorhombic cells
 
 - [d] Support of non-orthorhombic cells
 
-- [ ] Remove the unnecessary getters in hamiltonian and scf, for e.g.
-  energies etc. (only for those with getters)
+- [p] Remove the meaningless getters / setters in hamiltonian and scf,
+  in the sense that the access subroutines provide full access to the
+  variable without providing any additional information / explanation.
 
 - [x] Remove the KohnSham class and just have one Hamiltonian class.
   Future expansion of the functionality will not be based on inheritance
   but separate folders.
 
-- [ ] Remove the `component` in Spinor. Future expansion will be in
-  separate folders.
-
-- [ ] Move esdf.cpp and esdf.hpp to the pwdft folder. In fact, each
+- [d] Move esdf.cpp and esdf.hpp to the pwdft folder. In fact, each
   folder should be allowed to use its own esdfs (basically, separate
   folders should not be controlled by a central routine in the common/
   folder). The existing parser can be renamed esdf_common.hpp and
@@ -256,6 +260,8 @@ Target: refactor2020
 
 - [ ] Release DGDFT 1.0, and write a paper reporting the performance of
   PWDFT for hybrid functional calculations on multi-GPUs.
+
+
 
 Meeting memos 
 ====================

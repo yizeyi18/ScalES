@@ -165,8 +165,7 @@ int main(int argc, char **argv)
 
     ham.Setup( dm, esdfParam.atomList );
 
-    DblNumVec& vext = ham.Vext();
-    SetValue( vext, 0.0 );
+    SetValue( ham.vext, 0.0 );
 
     GetTime( timeSta );
     ham.CalculatePseudoPotential( ptable );

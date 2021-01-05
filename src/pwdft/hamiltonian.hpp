@@ -98,6 +98,7 @@ private:
   bool                        XCInitialized_;
  
   // MPI communication 
+  // LL: FIXME 01/04/2021 Rethink whether the comms should be here
   MPI_Comm rowComm_, colComm_;
 
   // Now pseudocharge represent the Gaussian compensation
@@ -111,8 +112,6 @@ private:
   std::vector<DblNumMat>      gradDensity_;
   // atomic charge densities
   DblNumVec                   atomDensity_;
-  // External potential. TODO not implemented
-  DblNumVec                   vext_;            
   // Hartree potential
   DblNumVec                   vhart_;           
   // vxc_(:,1)        exchange-correlation potential
@@ -189,6 +188,16 @@ private:
   Real wfn_cutoff_;
 
 public:
+
+  // *********************************************************************
+  // Publicly accessible variables
+  // *********************************************************************
+
+  // LL: FIXME 01/04/2021 In the progress of moving setters and getters and clean up the code
+
+  // External potential. TODO not implemented
+  DblNumVec                   vext;            
+
 
   // *********************************************************************
   // Lifecycle
@@ -296,7 +305,6 @@ public:
   // Access
   // *********************************************************************
   DblNumVec&  Vtot() { return vtot_; }
-  DblNumVec&  Vext() { return vext_; }
   DblNumMat&  Vxc()  { return vxc_; }
   DblNumVec&  Vhart() { return vhart_; }
 
@@ -326,8 +334,6 @@ public:
   DblNumMat&  ForceIonSR() {return forceIonSR_;}
   DblNumMat&  ForceExt() {return forceext_;}
 
-  void        SetVext(const DblNumVec& vext) {vext_ = vext;}
-  void        SetEext(Real Eext) {Eext_=Eext;}
   void        SetForceExt(const DblNumMat& forceext) {forceext_ = forceext;}
 
   bool        XCRequireGradDensity()  {return XCFamily_ == "GGA" or XCFamily_ == "Hybrid"; }
