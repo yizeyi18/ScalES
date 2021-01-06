@@ -146,7 +146,7 @@ Target: refactor2020
   is the lattice constant. In PW the mapping has been removed. Double
   check this with DG/TD.
 
-- [ ] EfreeHarris seems to be problematic for hybrid functional
+- [x] EfreeHarris seems to be problematic for hybrid functional
   calculations.
 
 - [ ] Geometry optimization: should not reset to random wavefunctions
@@ -166,7 +166,7 @@ Target: refactor2020
 - [ ] Add support for the HGH pseudopotential
 
 - [ ] Clean up the PWDFT source code, and make it more modular at the
-  high level
+  high level (after fixing geometry optimization)
 
 - [d] Coulomb norm in Anderson mixing.
 

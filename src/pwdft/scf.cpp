@@ -788,13 +788,15 @@ SCF::IterateWavefun    ( )
       fock1 = fock2;
       Efock_ = fock2;
 
-      Etot_ = Etot_ - Efock_;
-      Efree_ = Efree_ - Efock_;
+      Etot_        -= Efock_;
+      Efree_       -= Efock_;
+      EfreeHarris_ -= Efock_;
 
       statusOFS << std::endl;
-      Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-      Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-      Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
+      Print(statusOFS, "Fock energy             = ",  Efock_, "[au]");
+      Print(statusOFS, "Etot(with fock)         = ",  Etot_, "[au]");
+      Print(statusOFS, "Efree(with fock)        = ",  Efree_, "[au]");
+      Print(statusOFS, "EfreeHarris(with fock)  = ",  EfreeHarris_, "[au]");
       Print(statusOFS, "dExx              = ",  dExx, "[au]");
       if( dExx < scfPhiTolerance_ ){
         statusOFS << "SCF for hybrid functional is converged in " 
@@ -1440,14 +1442,15 @@ SCF::IterateWavefun    ( )
       fock1 = fock2;
       Efock_ = fock2;
 
-      Etot_ = Etot_ - Efock_;
-      Efree_ = Efree_ - Efock_;
+      Etot_        -= Efock_;
+      Efree_       -= Efock_;
+      EfreeHarris_ -= Efock_;
 
       statusOFS << std::endl;
-      Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-      Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-      Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
-      Print(statusOFS, "dExx              = ",  dExx, "[au]");
+      Print(statusOFS, "Fock energy             = ",  Efock_, "[au]");
+      Print(statusOFS, "Etot(with fock)         = ",  Etot_, "[au]");
+      Print(statusOFS, "Efree(with fock)        = ",  Efree_, "[au]");
+      Print(statusOFS, "EfreeHarris(with fock)  = ",  EfreeHarris_, "[au]");
 
       if( dExx < scfPhiTolerance_ ){
         statusOFS << "SCF for hybrid functional is converged in " 
@@ -1987,14 +1990,15 @@ SCF::IterateWavefun    ( )
       fock1 = fock2;
       Efock_ = fock2;
 
-      Etot_ = Etot_ - Efock_;
-      Efree_ = Efree_ - Efock_;
+      Etot_        -= Efock_;
+      Efree_       -= Efock_;
+      EfreeHarris_ -= Efock_;
 
       statusOFS << std::endl;
-      Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-      Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-      Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
-      Print(statusOFS, "dExx              = ",  dExx, "[au]");
+      Print(statusOFS, "Fock energy             = ",  Efock_, "[au]");
+      Print(statusOFS, "Etot(with fock)         = ",  Etot_, "[au]");
+      Print(statusOFS, "Efree(with fock)        = ",  Efree_, "[au]");
+      Print(statusOFS, "EfreeHarris(with fock)  = ",  EfreeHarris_, "[au]");
 
       if( dExx < scfPhiTolerance_ ){
         statusOFS << "SCF for hybrid functional is converged in " 
