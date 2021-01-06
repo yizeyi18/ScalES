@@ -163,7 +163,12 @@ Target: refactor2020
   interpolation, and use C2C instead. Then the coarse grid does not need
   to be restricted to an odd number of grid points.
 
-- [ ] Add support for the HGH pseudopotential
+- [ ] Add support for the HGH pseudopotential. This requires
+  supporting non-off-diagonal DIJ (see KSSOLV's implementation pseudopotential/getvnl.m)
+
+- [d] Keep upfread up to date (c.f. the new implementation in KSSOLV
+  @PpData/upfread.m. The current implementation is more like
+  @PpData/upfreadold.m)
 
 - [ ] Clean up the PWDFT source code, and make it more modular at the
   high level (after fixing geometry optimization)
@@ -241,7 +246,8 @@ Target: refactor2020
   that the overlap is not an issue (or better, implement the correction
   to the overlapping Gaussian charges in the self-interaction energy
   part c.f. Martin appendix). This may already be an issue, but would
-  DEFINITELY be needed when changing to non-orthorhombic cells
+  DEFINITELY be needed when changing to non-orthorhombic cells (see
+  periodtable.cpp for more information under FIXME)
 
 - [d] Support of non-orthorhombic cells
 
