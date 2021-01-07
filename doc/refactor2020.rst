@@ -10,6 +10,10 @@ This note serves as a todo list for the 3rd major refactoring of ``DGDFT``.  Thi
 - [ ] planned but not started
 - [d] still under consideration but deferred to future developments
 
+Goal: Release DGDFT 1.0, and write a paper reporting the performance of
+  PWDFT for hybrid functional calculations on multi-GPUs.
+
+
 General thoughts
 ================
 
@@ -57,10 +61,57 @@ General thoughts
   and can be used as a testbed for new programming models if needed
   (there may be also more benefit to be gained there)
 
+- [p] A minimal sphinx based document for DGDFT, supporting mainly the PWDFT
+  module.  Do not document the parameter values yet in sphinx yet (they are
+  not stable for now). Directly refer to esdf.hpp and esdf.cpp
 
 
-Target: refactor2020
-====================
+Target: refactor2020 for PWDFT
+==============================
+
+
+- [x] Introduce a "program" variable in esdf to determine the program
+  mode. Deprecate the isDGDFT and isTDDFT flag
+
+- [x] ``Use_VLocal`` should be deprecated. With ONCV pseudopotential
+  being the default option, we should always use the branch
+  ``Use_VLocal==1``.
+
+- [x] Remove the KohnSham class and just have one Hamiltonian class.
+  Future expansion of the functionality will not be based on inheritance
+  but separate folders.
+
+- [x] Simplified user input.
+
+- [x] Change `SCF::Iterate` to `SCF::Execute()`. Inside this function,
+  first call `SCF::IterateDensity` for all functionals (including
+  hybrid ones, unless the hybrid mode is activated). Here for hybrid
+  functional calculations, we run PBE first. Then execute
+  `SCF::IterateWavefun` for hybrid functional calculations.
+
+- [x] Separate contents of #ifdef GPU statements to the corresponding _device file
+
+- [x] Make use of the `XCFamily_` and make the treatment of XC cleaner. 
+
+- [x] Allow Hamiltonian to set the XC functional, instead of setting it
+  in esdf
+
+- [x] Properly handle the Gamma point and R2C, together with the Fourier
+  interpolation problem (using an odd number of grid points). 
+  
+- [x] Maybe a better way is to avoid R2C during the coarse to fine grid
+  interpolation, and use C2C instead. Then the coarse grid does not need
+  to be restricted to an odd number of grid points.
+
+- [x] EfreeHarris seems to be problematic for hybrid functional
+  calculations.
+
+- [x] Rename the awkward 'a3' in Hamiltonian and spinor to Hpsi
+
+- [x] HSE calculation should not start with HSE w.o. exchange, this can
+  create some instabilities. Instead it should start from e.g. PBE
+  calculations. 
+
 
 - [p] The structure of the code is largely based the current working code in
   the `GPU` branch, and will merge with `cuda_dg` branch `AMD_GPU_HIP`
@@ -74,54 +125,25 @@ Target: refactor2020
   instance, the default should be to compile pwdft, without the need of
   compiling PEXSI, etc.
 
-- [ ] Streamline the compilation of external packages in CMake: lbfgs (used in
+- [p] Streamline the compilation of external packages in CMake: lbfgs (used in
   ionMove=="lbfgs"), rqrcp (used in ISDF), maybe compile by default.
   Other packages such as ELSI / PEXSI?
-
-- [x] Introduce a "program" variable in esdf to determine the program
-  mode. Deprecate the isDGDFT and isTDDFT flag
-
-
-- [x] ``Use_VLocal`` should be deprecated. With ONCV pseudopotential
-  being the default option, we should always use the branch
-  ``Use_VLocal==1``.
-
-- [ ] Can we encapsulate the ``AllForward / AllBackward`` operations (mainly in PWDFT)?
-
-- [x] Separate contents of #ifdef GPU statements to the corresponding _device file
-
-- [ ] Separate contents of #ifdef COMPLEX statements to tddft/ folder.
-
-- [ ] Make tddft/ compile. maybe with cmake.
-
-- [ ] Make dg/ compile. Old fashioned Makefile is fine.
-
-- [p] A minimal sphinx based document for DGDFT, supporting mainly the PWDFT
-  module.
+- [p] Can we encapsulate the ``AllForward / AllBackward`` operations (mainly in PWDFT)?
 
 - [p] Give a few examples in examples/pwdft, maybe examples/tddft etc.
 
 - [p] Document the code, at least for those being refactored
 
-- [ ] Add some technical aspects of GPU support to `doc/developer.tex` 
-
-- [ ] pwdft/spinor.cpp has too many deprecated implementations (in
+- [p] pwdft/spinor.cpp has too many deprecated implementations (in
   particular related to ISDF etc). Need to cleanup and remove the unused
   branches.
 
-- [ ] Prepare tutorial examples for PWDFT
+- [p] Prepare tutorial examples for PWDFT
 
 - [p] Prepare a set of relatively robust default parameters, and simply
   the input file of the examples
 
-- [d] Simplified user input. Maybe INI, or benefit from a python interface
-  like `ase`?
-
-- [ ] HDF5 output of orbitals etc.
-
 - [ ] LOBPCG should be reimplemented. There are two options: one is for safety (slower but accurate), and the other is for production (faster but may break).
-
-- [d] the blas.cpp / lapack.cpp shoulod be replaced by ``blas++`` and ``lapack++``. For now keep the scalapack interface as is. Recently looked into Slate. It seems still primitive.
 
 - [ ] The ScaLAPACK diagonalization should be replaced by ELPA. More specifically, the diagonalization / PEXSI interface should be replaced by the ELSI interafce.
 
@@ -129,25 +151,13 @@ Target: refactor2020
   parameters in pw/dg/td. so far only moves things to common/. Will see
   whether a cleaner solution is needed when organizing dg and td.
 
-- [x] Make use of the `XCFamily_` and make the treatment of XC cleaner. 
-
-- [x] Allow Hamiltonian to set the XC functional, instead of setting it
-  in esdf
 
 - [ ] Cleanup the iondynamics (detailed in pwdft.cpp). Need discussion
 
-- [ ] Either make all string values of keywords to be lower case, or
-  make string comparison case insensitive
-
-- [ ] Do not document the parameter values yet in sphinx yet (they are
-  not stable for now). Directly refer to esdf.hpp and esdf.cpp
 
 - [p] Atom positions should not be remapped back to [-0.5 a, a), where a
   is the lattice constant. In PW the mapping has been removed. Double
   check this with DG/TD.
-
-- [x] EfreeHarris seems to be problematic for hybrid functional
-  calculations.
 
 - [ ] Geometry optimization: should not reset to random wavefunctions
   each time. This is particularly problematic for hybrid functionals,
@@ -156,24 +166,30 @@ Target: refactor2020
   QE does) Furthermore, in this case the next ion move should start with PBE
   instead of Phi iteration.
 
-- [x] Properly handle the Gamma point and R2C, together with the Fourier
-  interpolation problem (using an odd number of grid points). 
-  
-- [x] Maybe a better way is to avoid R2C during the coarse to fine grid
-  interpolation, and use C2C instead. Then the coarse grid does not need
-  to be restricted to an odd number of grid points.
-
 - [ ] Add support for the HGH pseudopotential. This requires
-  supporting non-off-diagonal DIJ (see KSSOLV's implementation pseudopotential/getvnl.m)
+  supporting non-off-diagonal DIJ (see KSSOLV's implementation
+  pseudopotential/getvnl.m). However, fixing this requires at least one
+  of the two actions:
 
-- [d] Keep upfread up to date (c.f. the new implementation in KSSOLV
-  @PpData/upfread.m. The current implementation is more like
-  @PpData/upfreadold.m)
+    1. Diagonalize the DIJ matrix and store the eigenvectors. The
+       problem with this is that the cutoffs from different nonlocal
+       pseudopotentials will be mixed, which complicates the
+       CalculateNonLocalPP process.
+
+    2. Change vnl.weight from a scalar to a vector, storing each row of
+       DIJ for a given J. Then when adding the contribution from the
+       nonlocal pseudopotential, we first compute
+       `<beta_J|psi>`, and then add `|beta_I>D_{IJ}<beta_J|psi>` to psi.
+       We may add an if statement on `D_{IJ} != 0` to skip certain I's
+       to reduce cost. This may affect other parts of the code such as
+       DG.
+    
+  Neither change is very simple, so we first need to decide whether we
+  do need to support pseudopotentials where DIJ has off-diagonal
+  entries (like HGH).
 
 - [ ] Clean up the PWDFT source code, and make it more modular at the
   high level (after fixing geometry optimization)
-
-- [d] Coulomb norm in Anderson mixing.
 
 - [ ] Dynamic truncation criterion for eigensolver. In particular, the
   criterion is controlled by an energy like quantity. This should be
@@ -183,28 +199,17 @@ Target: refactor2020
   atomic force, and convergence criterion are synced at the beginning of
   each iteration (maybe via MPI broadcast)
 
-- [ ] OpenMP support? (most have been deleted so far)
-
 - [ ] CUFFT: One-by-one executation: is there a more efficient way to
   batched FFT? Why CUFFT does not suffer from the alignment issue? (i.e.
   we do not need to copy a vector into a saved buffer?) 
   
-- [d] Supporting FFT solvers other than FFTW (Wei)
-
-- [ ] Eigensolver: in QE: reorder eigenvectors so that coefficients for
+- [p] Eigensolver: in QE: reorder eigenvectors so that coefficients for
   unconverged roots come first. This allows to use quick matrix-matrix
   multiplications to set a new basis vector. Should we do the same? In
   the GPU version, this is replaced by reorder_evals_revecs. In the GPU
   based version pregterg_gpu, this is done by reorder_v, and
   subsequently redistribute the work for unconverged eigenvectors only.
   The locking strategy seems different in ppcg_gamma_gpu
-
-- [d] Need to add SCAN functional (more generally, meta-GGA)
-
-- [d] Need to provide API for an external electric field (w.o. using a
-  velocity gauge?) 
-
-- [x] Rename the awkward 'a3' in Hamiltonian and spinor to Hpsi
 
 - [ ] Cleanup the AddMultSpinorEXXDF7 routine using the ScaLAPACK class.
   Remove the descriptors and contexts floating around. Decide whether to
@@ -227,19 +232,6 @@ Target: refactor2020
 
 - [ ] pcdiis: cleanup the row<->col transformation.
 
-- [d] Utilities to NumVec to clean up the spinor: 
-  
-    [ ] fine to coarse / coarse to fine grid
-    [ ] element-wise product of two arrays (given by pointers) added to
-    the third array. add to blas?
-
-- [x] HSE calculation should not start with HSE w.o. exchange, this can
-  create some instabilities. Instead it should start from e.g. PBE
-  calculations. 
-
-- [ ] Change the default behavior from column partition to row partition
-  in order to allow more processors than the number of bands (suggested
-  by Wei Hu. This requires some discussion)
 
 - [ ] The value of RGaussian should be properly set and tested for
   elements in the periodic table. In particular it should be checked
@@ -249,19 +241,40 @@ Target: refactor2020
   DEFINITELY be needed when changing to non-orthorhombic cells (see
   periodtable.cpp for more information under FIXME)
 
-- [d] Support of non-orthorhombic cells
-
 - [p] Remove the meaningless getters / setters in hamiltonian and scf,
   in the sense that the access subroutines provide full access to the
   variable without providing any additional information / explanation.
+  [This requires some thoughts.]
 
 - [ ] In Hamiltonian, add a pointer `ptablePtr_` for access to the
   information in the periodic table. Remove the pointer from the `SCF`
   class.
 
-- [x] Remove the KohnSham class and just have one Hamiltonian class.
-  Future expansion of the functionality will not be based on inheritance
-  but separate folders.
+- [ ] `SCF::IterateDensity` should be reused in `SCF::IterateWavefun`
+
+Plans for further developments in PWDFT
+=======================================
+
+- [d] OpenMP support? (most have been deleted so far)
+
+- [d] Add some technical aspects of GPU support to `doc/developer.tex` 
+
+- [d] Either make all string values of keywords to be lower case, or
+  make string comparison case insensitive
+
+- [d] HDF5 output of orbitals etc.
+
+- [d] the blas.cpp / lapack.cpp shoulod be replaced by ``blas++`` and
+  ``lapack++``. For now keep the scalapack interface as is. Recently
+  looked into Slate. It seems still primitive.
+
+- [d] Keep upfread up to date (c.f. the new implementation in KSSOLV
+  @PpData/upfread.m. The current implementation is more like
+  @PpData/upfreadold.m)
+
+- [d] Coulomb norm in Anderson mixing.
+
+- [d] Supporting FFT solvers other than FFTW (Wei)
 
 - [d] Move esdf.cpp and esdf.hpp to the pwdft folder. In fact, each
   folder should be allowed to use its own esdfs (basically, separate
@@ -269,16 +282,55 @@ Target: refactor2020
   folder). The existing parser can be renamed esdf_common.hpp and
   esdf_common.cpp
 
-- [x] Change `SCF::Iterate` to `SCF::Execute()`. Inside this function,
-  first call `SCF::IterateDensity` for all functionals (including
-  hybrid ones, unless the hybrid mode is activated). Here for hybrid
-  functional calculations, we run PBE first. Then execute
-  `SCF::IterateWavefun` for hybrid functional calculations.
+- [d] Support of non-orthorhombic cells
 
-- [ ] `SCF::IterateDensity` should be reused in `SCF::IterateWavefun`
+- [d] Need to add SCAN functional (more generally, meta-GGA)
 
-- [ ] Release DGDFT 1.0, and write a paper reporting the performance of
-  PWDFT for hybrid functional calculations on multi-GPUs.
+- [d] Need to provide API for an external electric field (w.o. using a
+  velocity gauge?) 
+
+- [d] Utilities to NumVec to clean up the spinor: 
+  
+    [ ] fine to coarse / coarse to fine grid
+    [ ] element-wise product of two arrays (given by pointers) added to
+    the third array. add to blas?
+
+- [d] The wavefun format, instead of (ir, icom, iband), maybe it is
+  better to rearrange it to be (ir, iband, icom). By letting the last
+  component of the tensor to be the component, we may use it for spin /
+  k-points laters.
+
+- [d] Change the default behavior from column partition to row partition
+  in order to allow more processors than the number of bands (suggested
+  by Wei Hu. This requires some discussion)
+
+
+- [d] The spinor class, other than storing the wavefunction, mainly
+  provides information of the partition of the wavefunctions. If we
+  would like to clean this up, it seems that the design in
+  `hamiltonian_dg.hpp` is a better way to go, i.e. just store the
+  wavefunction as something like `DistDblNumTns`, i.e.
+  
+  `typedef DistVec<IndexGroup, DblNumTns, IndexPrtn>   DblSpinor;`
+  where the distribution is hidden under the key-data-partition
+  structure. Then we may just embed spinor as a member Psi in
+  Hamiltonian. Correspondingly the 
+
+  This is potentially a BIG change. If we want to do this, we should
+  think carefully about the data structure.
+
+Plans for TDDFT 
+===============
+
+- [ ] Separate contents of #ifdef COMPLEX statements to tddft/ folder.
+
+- [ ] Make tddft/ compile. maybe with cmake.
+
+
+Plans for DGDFT
+===============
+
+- [ ] Make dg/ compile. Old fashioned Makefile is fine.
 
 
 
