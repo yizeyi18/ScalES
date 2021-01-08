@@ -2158,9 +2158,10 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
     statusOFS << " upf_zval = " << upf_zval << std::endl;
 #endif
 
-    // FIXME rhocut readin from the PSP file. 
+    // LL: FIXME 01/06/2021 This can surely be a problem and should be carefully tested.
+    // rhocut readin from the PSP file. 
     // for SG15, the default value is 6.01.
-    // but may change for other user defined PSP files. 
+    // but may change for other UPF files. 
     double rhocut = 6.01; 
     buf = get_attr(tag,"rho_cutoff");
     is.clear();
@@ -2175,9 +2176,13 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
     const Int ZION = 2;
     const Int RGAUSSIAN = 3;
     params[ZION] = upf_zval;
-    // FIXME RGaussian should be given by a table according to the element type.
+    // LL: FIXME 01/06/2021 RGaussian determines the radius of the
+    // Gaussian compensation charge.  It should be given by a table
+    // according to the element type, and carefully tested. 
+    //
+    // The correction due to the overlap of Gaussian charges should also
+    // be implemented.
     params[RGAUSSIAN] = 1.0; 
-
 
     // max angular momentum
     int upf_lmax;
@@ -2263,10 +2268,12 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
     const Int DRV_VLOCAL = 2;
     const Int RHOATOM = 3;
     const Int DRV_RHOATOM = 4;
-    // FIXME rhoatomcut should be given by a table according to the element type.
+    // LL: FIXME 01/06/2021 
+    // rhoatomcut should be given by a table according to the element
+    // type and be tested. This presumably plays a less important role
+    // since it only provides the initial guess of the electron density
+    // from individual atoms and could be wrong anyway.
     double rhoatomcut = 4.0;
-    // nonlocal potential cutoff read from the pseduopotential file below. 4.0 is just initial value.
-    double nlcut = 4.0;
 
     cutoffs[RADIAL_GRID] = rhocut;
     cutoffs[VLOCAL] = rhocut;
@@ -2297,8 +2304,8 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
     {
        for( int i = 0; i < upf_mesh_size; i++)
          upf_vloc[i] = 0.5*upf_vloc[i];
-       std::vector < double > r; 
-       std::vector < double > vr; 
+       std::vector<double> r; 
+       std::vector<double> vr; 
        splinerad( upf_r, upf_vloc, r, vr, 1);
 
        Int n = r.size();
@@ -2334,11 +2341,16 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
     upf_vnl.resize(upf_nproj);
     std::vector<int> upf_proj_l(upf_nproj);
 
+    // nonlocal potential cutoff read from the pseduopotential file below. 4.0 is just initial value.
+    double nlcut = 4.0;
+    
     std::ostringstream os;
     for ( int j = 0; j < upf_nproj; j++ )
     {
+#if 0
+      statusOFS << "#proj = " << j << std::endl;
+#endif
       int index, angular_momentum;
-      double cutoff_radius = 4.0; // 4.0 is big enough for Si as default
 
       os.str("");
       os << j+1;
@@ -2356,15 +2368,14 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
       statusOFS << " index = " << index << std::endl;
 #endif
 
-      //reset nlcut
+      //reset nlcut (cutoff radius for nonlocal pseudopotential)
       buf = get_attr(tag,"cutoff_radius");
       is.clear();
       is.str(buf);
-      is >> cutoff_radius;
-      nlcut = cutoff_radius;
+      is >> nlcut;
 
 #if 0
-      statusOFS << " cutoff_radius = " << cutoff_radius << std::endl;
+      statusOFS << " cutoff_radius = " << nlcut << std::endl;
 #endif
 
       buf = get_attr(tag,"angular_momentum");

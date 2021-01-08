@@ -1737,10 +1737,15 @@ void seek_str(std::string tag, std::ifstream &upfin)
 std::string get_attr(std::string buf, std::string attr)
 {
   bool done = false;
-  std::string s, search_string = " " + attr + "=";
+  std::string s, search_string = attr + "=";
 
   // find attribute name in buf
-  std::string::size_type p = buf.find(search_string);
+  std::string::size_type p = buf.find(" " + search_string);
+  if ( p == std::string::npos ){
+    // give it another try. Sometimes the attribute starts from a new
+    // line without a space in front of it
+    p = buf.find("\n" + search_string);
+  }
   if ( p != std::string::npos )
   {
     // process attribute

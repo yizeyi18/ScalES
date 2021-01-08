@@ -275,10 +275,8 @@ SCF::Update    ( )
   return ;
 }         // -----  end of method SCF::Update  ----- 
 
-
-
 void
-SCF::Iterate (  )
+SCF::Execute    ( )
 {
   int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain.comm, &mpirank);
   int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain.comm, &mpisize);
@@ -290,1916 +288,52 @@ SCF::Iterate (  )
   Fourier&     fft = eigSolPtr_->FFT();
   Spinor&      psi = eigSolPtr_->Psi();
 
-  // EXX: Only allow hybrid functional here
-
   // Compute the exchange-correlation potential and energy
   if( ham.XCRequireGradDensity() ){
     ham.CalculateGradDensity( fft );
   }
 
-  // Compute the Hartree energy
-  if(1){
-    ham.CalculateXC( Exc_, fft ); 
-    ham.CalculateHartree( fft );
-  }
-
   // Compute the total potential
+  ham.CalculateXC( Exc_, fft ); 
+  ham.CalculateHartree( fft );
   ham.CalculateVtot( ham.Vtot() );
 
-  // FIXME The following treatment of the initial density is not
-  // compatible with the density extrapolation step in MD
-  if(0){
-    if( esdfParam.isRestartDensity ){ 
-      ham.CalculateXC( Exc_, fft ); 
-      // Compute the Hartree energy
-      ham.CalculateHartree( fft );
-      // No external potential
+  // FIXME: LL 1/4/2021 the right place?
+#ifdef DEVICE
+  device_init_vtot();
+  DEVICE_BLAS::Init();
+#ifdef USE_MAGMA
+  MAGMA::Init();
+#else
+  device_solver::Init();
+#endif
+#endif
 
-      // Compute the total potential
-      ham.CalculateVtot( ham.Vtot() );
+  if( ham.XCRequireIterateDensity() ){
+
+    if( ham.IsHybrid() and ham.IsEXXActive() == false ){
+      std::ostringstream msg;
+      msg << "For hybrid functionals without initial guess, start with a PBE calculation.";
+      PrintBlock( statusOFS, msg.str() );
+      // Modify the XC functional to improve SCF convergence
+      ham.SetupXC("PBE");
+      IterateDensity();
+      ham.SetupXC(esdfParam.XCType);
+      ham.SetEXXActive(true);
     }
     else{
-      // Technically needed, otherwise the initial Vtot will be zero 
-      // (density = sum of pseudocharge). 
-      // Note that the treatment will be different if the initial
-      // density is taken from linear superposition of atomic orbitals
-      // 
-      // In the future this might need to be changed to something else
-      // (see more from QE, VASP and QBox)?
-      SetValue(ham.Vtot(), 1.0 );
-      statusOFS << "Density may be negative, " << 
-        "Skip the calculation of XC for the initial setup. " << std::endl;
+      std::ostringstream msg;
+      msg << "Starting regular SCF iteration.";
+      PrintBlock( statusOFS, msg.str() );
+      IterateDensity();
     }
   }
 
-
-
-#ifdef DEVICE
-    device_init_vtot();
-    DEVICE_BLAS::Init();
-#ifdef USE_MAGMA
-    MAGMA::Init();
-#else
-    device_solver::Init();
-#endif
-#endif
-  // Perform non-hybrid functional calculation first
-  if( !ham.IsHybrid() || !ham.IsEXXActive()){
-    std::ostringstream msg;
-    msg << "Starting regular SCF iteration.";
-    PrintBlock( statusOFS, msg.str() );
-    bool isSCFConverged = false;
-
-    for (Int iter=1; iter <= scfMaxIter_; iter++) {
-      if ( isSCFConverged ) break;
-      // *********************************************************************
-      // Performing each iteartion
-      // *********************************************************************
-      {
-        std::ostringstream msg;
-        msg << "SCF iteration # " << iter;
-        PrintBlock( statusOFS, msg.str() );
-      }
-
-      GetTime( timeIterStart );
-
-      // Solve eigenvalue problem
-      // Update density, gradDensity, potential (stored in vtotNew_)
-      InnerSolve( iter );
-
-      Real normVtotDif = 0.0, normVtotOld = 0.0;
-      DblNumVec& vtotOld_ = ham.Vtot();
-      Int ntot = vtotOld_.m();
-      for( Int i = 0; i < ntot; i++ ){
-        normVtotDif += pow( vtotOld_(i) - vtotNew_(i), 2.0 );
-        normVtotOld += pow( vtotOld_(i), 2.0 );
-      }
-      normVtotDif = sqrt( normVtotDif );
-      normVtotOld = sqrt( normVtotOld );
-      scfNorm_    = normVtotDif / normVtotOld;
-
-      // FIXME Dump out the difference of the potential to
-      // investigate source of slow SCF convergence
-      if(0)
-      {
-        std::ostringstream vStream;
-        serialize( vtotOld_, vStream, NO_MASK );
-        serialize( vtotNew_, vStream, NO_MASK ); 
-        SharedWrite( "VOLDNEW", vStream );
-      }
-
-
-      GetTime( timeSta );
-      CalculateEnergy();
-      GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for computing energy in PWDFT is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-      PrintState( iter );
-      
-      Int numAtom = ham.AtomList().size();
-      efreeDifPerAtom_ = std::abs(Efree_ - EfreeHarris_) / numAtom;
-
-      Print(statusOFS, "norm(out-in)/norm(in) = ", scfNorm_ );
-      Print(statusOFS, "Efree diff per atom   = ", efreeDifPerAtom_ ); 
-
-      if( scfNorm_ < scfTolerance_ ){
-        /* converged */
-        statusOFS << "SCF is converged in " << iter << " steps !" << std::endl;
-        isSCFConverged = true;
-      }
-
-      // Potential mixing
-      GetTime( timeSta );
-      if( mixType_ == "anderson" || mixType_ == "kerker+anderson" ){
-        AndersonMix(
-            iter,
-            mixStepLength_,
-            mixType_,
-            ham.Vtot(),
-            vtotOld_,
-            vtotNew_,
-            dfMat_,
-            dvMat_);
-      }
-      else{
-        ErrorHandling("Invalid mixing type.");
-      }
-      GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-      statusOFS << "Time for computing potential mixing in PWDFT is " <<
-        timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-      GetTime( timeIterEnd );
-
-      statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
-        << " [s]" << std::endl;
-
-    } // for (iter)
+  if( ham.XCRequireIterateWavefun() ){
+    IterateWavefun();
   }
 
-  // NOTE: The different mixing mode of hybrid functional calculations
-  // are not compatible with each other. So each requires its own code
-  if( ham.IsHybrid() ){
-
-    // Fock energies
-    Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
-
-    // EXX: Run SCF::Iterate here
-    bool isPhiIterConverged = false;
-
-    // FIXME
-    bool isFixColumnDF = false;
-    Real timePhiIterStart(0), timePhiIterEnd(0);
-    Real dExx;
-    
-    if( ham.IsEXXActive() == false ) 
-      ham.SetEXXActive(true);
-
-    // Evaluate the Fock energy
-    // Update Phi <- Psi
-    GetTime( timeSta );
-    ham.SetPhiEXX( psi, fft ); 
-
-    // Update the ACE if needed
-    if( esdfParam.isHybridACE ){
-      if( esdfParam.isHybridDF ){
-#ifndef _COMPLEX_
-#ifdef DEVICE
-        ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
-#else
-        ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
-#endif
-#else
-        statusOFS << " Complex CalculateVexxACEDF is not implemented.... " << std::endl;
-#endif
-        // Fix the column after the first iteraiton
-        isFixColumnDF = true;
-      }
-      else{
-#ifdef DEVICE
-        ham.CalculateVexxACEGPU ( psi, fft );
-#else
-        ham.CalculateVexxACE ( psi, fft );
-#endif
-      }
-    }
-
-    GetTime( timeEnd );
-    statusOFS << "Time for updating Phi related variable is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-    GetTime( timeSta );
-    fock2 = ham.CalculateEXXEnergy( psi, fft ); 
-    GetTime( timeEnd );
-    statusOFS << "Time for computing the EXX energy is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-    Efock_ = fock2;
-    fock1  = fock2;
-    
-    GetTime( timeSta );
-    
-    if( esdfParam.hybridMixType == "nested" ){
-
-      for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
-
-        GetTime( timePhiIterStart );
-
-        std::ostringstream msg;
-        msg << "Phi iteration # " << phiIter;
-        PrintBlock( statusOFS, msg.str() );
-
-        // Nested SCF iteration
-        bool isSCFConverged = false;
-        for (Int iter=1; iter <= scfMaxIter_; iter++) {
-          if ( isSCFConverged ) break;
-          // *********************************************************************
-          // Performing each iteartion
-          // *********************************************************************
-          {
-            std::ostringstream msg;
-            msg << "SCF iteration # " << iter;
-            PrintBlock( statusOFS, msg.str() );
-          }
-
-          GetTime( timeIterStart );
-
-          // Solve eigenvalue problem
-          // Update density, gradDensity, potential (stored in vtotNew_)
-          InnerSolve( iter );
-
-          Real normVtotDif = 0.0, normVtotOld = 0.0;
-          DblNumVec& vtotOld_ = ham.Vtot();
-          Int ntot = vtotOld_.m();
-          for( Int i = 0; i < ntot; i++ ){
-            normVtotDif += pow( vtotOld_(i) - vtotNew_(i), 2.0 );
-            normVtotOld += pow( vtotOld_(i), 2.0 );
-          }
-          normVtotDif = sqrt( normVtotDif );
-          normVtotOld = sqrt( normVtotOld );
-          scfNorm_    = normVtotDif / normVtotOld;
-
-          // FIXME Dump out the difference of the potential to
-          // investigate source of slow SCF convergence
-          if(0)
-          {
-            std::ostringstream vStream;
-            serialize( vtotOld_, vStream, NO_MASK );
-            serialize( vtotNew_, vStream, NO_MASK ); 
-            SharedWrite( "VOLDNEW", vStream );
-          }
-
-
-          GetTime( timeSta );
-          CalculateEnergy();
-          GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Time for computing energy in PWDFT is " <<
-            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-          PrintState( iter );
-          
-          Int numAtom = ham.AtomList().size();
-          efreeDifPerAtom_ = std::abs(Efree_ - EfreeHarris_) / numAtom;
-
-          Print(statusOFS, "norm(out-in)/norm(in) = ", scfNorm_ );
-          Print(statusOFS, "Efree diff per atom   = ", efreeDifPerAtom_ ); 
-
-
-          if( scfNorm_ < scfTolerance_ ){
-            /* converged */
-            statusOFS << "SCF is converged in " << iter << " steps !" << std::endl;
-            isSCFConverged = true;
-          }
-
-          // Potential mixing
-          GetTime( timeSta );
-          if( mixType_ == "anderson" || mixType_ == "kerker+anderson" ){
-            AndersonMix(
-                iter,
-                mixStepLength_,
-                mixType_,
-                ham.Vtot(),
-                vtotOld_,
-                vtotNew_,
-                dfMat_,
-                dvMat_);
-          }
-          else{
-            ErrorHandling("Invalid mixing type.");
-          }
-          GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Time for computing potential mixing in PWDFT is " <<
-            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-          GetTime( timeIterEnd );
-
-          statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
-            << " [s]" << std::endl;
-
-        } // for (iter)
-
-        GetTime( timePhiIterEnd );
-
-        statusOFS << "Total wall clock time for this Phi iteration = " << 
-          timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
-      
-        // Update Phi <- Psi
-        GetTime( timeSta );
-        ham.SetPhiEXX( psi, fft ); 
-
-        // Update the ACE if needed
-        if( esdfParam.isHybridACE ){
-          if( esdfParam.isHybridDF ){
-#ifndef _COMPLEX_
-            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
-#else
-            statusOFS << " CalculateVexxACEDF is not implemented.... " << std::endl;
-#endif
-            // Fix the column after the first iteraiton
-            isFixColumnDF = true;
-          }
-          else{
-
-#ifndef _COMPLEX_
-            ham.CalculateVexxACE ( psi, fft );
-#else  // complex
-#ifdef DEVICE
- 	    statusOFS << " ham.CalculateVexxACEGPU1 ..... " << std::endl << std::endl;
-            ham.CalculateVexxACEGPU1 ( psi, fft );
-#else
-            ham.CalculateVexxACE ( psi, fft );
-#endif
-#endif
-          }
-        }
-
-        GetTime( timeEnd );
-        statusOFS << "Time for updating Phi related variable is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        GetTime( timeSta );
-        fock2 = ham.CalculateEXXEnergy( psi, fft ); 
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the EXX energy is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
-        dExx = std::abs(fock2 - fock1) / std::abs(fock2);
-        fock1 = fock2;
-        Efock_ = fock2;
-
-        Etot_ = Etot_ - Efock_;
-        Efree_ = Efree_ - Efock_;
-
-        statusOFS << std::endl;
-        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
-        Print(statusOFS, "dExx              = ",  dExx, "[au]");
-        if( dExx < scfPhiTolerance_ ){
-          statusOFS << "SCF for hybrid functional is converged in " 
-            << phiIter << " steps !" << std::endl;
-          isPhiIterConverged = true;
-        }
-        if ( isPhiIterConverged ) break;
-      } // for(phiIter)
-    } // hybridMixType == "nested"
-
-    GetTime( timeEnd );
-    statusOFS << "Time for using nested method is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-#ifndef _COMPLEX_ 
-    GetTime( timeSta );
-
-    // New method for the commutator-DIIS with column selection strategy
-    if( esdfParam.hybridMixType == "scdiis" ){
-
-
-      // Computing selected columns of the density matrix. 
-      // This requires a good initial guess of wavefunctions, 
-      // from one of the following
-      // 1) a regular SCF calculation
-      // 2) restarting wavefunction with Hybrid_Active_Init = true
-
-
-      if( mpisize > 1 )
-        ErrorHandling("scdiis only works for mpisize == 1.");
-      
-
-      Int ntot      = fft.domain.NumGridTotal();
-      Int ntotFine  = fft.domain.NumGridTotalFine();
-      Int numStateTotal = psi.NumStateTotal();
-      Int numOcc = ham.NumOccupiedState();
-      
-      IntNumVec permPsiOcc(numOcc);
-
-      // For residual
-      dfMat_.Resize( ntot * numOcc, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
-      // For Pc
-      dvMat_.Resize( ntot * numOcc, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
-
-      // Selected columns of density matrix
-      DblNumMat Pc(ntot, numOcc);
-      DblNumMat Res(ntot, numOcc);
-      
-      // Compute all Hpsi for simplicity
-      DblNumMat psiPc(ntot, numStateTotal);
-      DblNumMat Hpsi(ntot, numStateTotal);
-      DblNumMat psiMuT(numOcc, numOcc);
-      DblNumMat HpsiMuT(numOcc, numOcc);
-
-      {
-        // This currently only works for insulating system
-        IntNumVec permPsi(ntot);
-        DblNumVec tau(ntot);
-
-        // Quick and dirty way to generate the transpose matrix
-        DblNumMat psiOccT;
-        Transpose( DblNumMat(ntot, numOcc, false, psi.Wavefun().Data()), psiOccT );
-        
-
-        // Important since if permPsi is not zero, it will try to use the number as 
-        // fixed columns
-        SetValue( permPsi, 0 ); 
-        lapack::QRCP( numOcc, ntot, psiOccT.Data(), numOcc, 
-            permPsi.Data(), tau.Data() );
-
-        for( Int mu = 0; mu < numOcc; mu++ ){
-          permPsiOcc[mu] = permPsi[mu];
-        }
-      }
-
-      for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
-
-        GetTime( timePhiIterStart );
-
-        for( Int mu = 0; mu < numOcc; mu++ ){
-          for( Int k = 0; k < numOcc; k++ ){
-            psiMuT(k,mu) = psi.Wavefun()(permPsiOcc[mu],0,k);
-          }
-        }
-
-#if ( _DEBUGlevel_ >= 1 )
-        {
-          // Monitor the singular values as a measure as the quality of
-          // the selected columns
-          DblNumMat tmp = psiMuT;
-          DblNumVec s(numOcc);
-          lapack::SingularValues( numOcc, numOcc, tmp.Data(), numOcc, s.Data() );
-          statusOFS << "Spsi = " << s << std::endl;
-        }
-#endif
-
-        blas::Gemm( 'N', 'N', ntot, numOcc, numOcc, 1.0, 
-            psi.Wavefun().Data(), ntot, psiMuT.Data(), numOcc, 
-            0.0, Pc.Data(), ntot );
-
-        std::ostringstream msg;
-        msg << "Phi iteration # " << phiIter;
-        PrintBlock( statusOFS, msg.str() );
-
-        // Compute the residual
-        {
-          // Compute Hpsi for all psi 
-          NumTns<Real> tnsTemp(ntot, 1, numStateTotal, false, 
-              Hpsi.Data());
-          ham.MultSpinor( psi, tnsTemp, fft );
-          for( Int mu = 0; mu < numOcc; mu++ ){
-            for( Int k = 0; k < numOcc; k++ ){
-              HpsiMuT(k,mu) = Hpsi(permPsiOcc[mu],k);
-            }
-          }
-          blas::Gemm( 'N', 'N', ntot, numOcc, numOcc, 1.0, 
-              Hpsi.Data(), ntot, psiMuT.Data(), numOcc, 
-              0.0, Res.Data(), ntot );
-          blas::Gemm( 'N', 'N', ntot, numOcc, numOcc, -1.0, 
-              psi.Wavefun().Data(), ntot, HpsiMuT.Data(), numOcc, 
-              1.0, Res.Data(), ntot );
-        }
-
-        // Anderson mixing. Use the same mixMaxDim_ for Phi mixing
-        {
-          // Optimal input potential in Anderon mixing.
-          DblNumVec vOpt( ntot * numOcc ); 
-
-          // Number of iterations used, iter should start from 1
-          Int iterused = std::min( phiIter-1, mixMaxDim_ ); 
-          // The current position of dfMat, dvMat
-          Int ipos = phiIter - 1 - ((phiIter-2)/ mixMaxDim_ ) * mixMaxDim_;
-          // The next position of dfMat, dvMat
-          Int inext = phiIter - ((phiIter-1)/ mixMaxDim_) * mixMaxDim_;
-
-          blas::Copy( ntot * numOcc, Pc.Data(), 1, vOpt.Data(), 1 );
-
-          if( phiIter > 1 ){
-            // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
-            // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
-            blas::Scal( ntot * numOcc, -1.0, dfMat_.VecData(ipos-1), 1 );
-            blas::Axpy( ntot * numOcc, 1.0, Res.Data(), 1, dfMat_.VecData(ipos-1), 1 );
-            blas::Scal( ntot * numOcc, -1.0, dvMat_.VecData(ipos-1), 1 );
-            blas::Axpy( ntot * numOcc, 1.0, Pc.Data(), 1, dvMat_.VecData(ipos-1), 1 );
-
-            // Calculating pseudoinverse
-            DblNumMat dfMatTemp;
-            DblNumVec gammas(ntot * numOcc), S(iterused);
-
-            Int rank;
-            // FIXME Magic number
-            Real rcond = 1e-6;
-
-            // gammas    = res;
-            blas::Copy( ntot * numOcc, Res.Data(), 1, gammas.Data(), 1 );
-            dfMatTemp = dfMat_;
-
-            // May need different strategy in a parallel setup
-            lapack::SVDLeastSquare( ntot * numOcc, iterused, 1, 
-                dfMatTemp.Data(), ntot * numOcc,
-                gammas.Data(), ntot * numOcc,
-                S.Data(), rcond, &rank );
-
-            Print( statusOFS, "  Rank of dfmat = ", rank );
-
-            // Update vOpt only, which is the mixed Pc
-
-            blas::Gemv('N', ntot * numOcc, iterused, -1.0, dvMat_.Data(),
-                ntot * numOcc, gammas.Data(), 1, 1.0, vOpt.Data(), 1 );
-
-          }
-
-          // Update dfMat, dvMat, vMix 
-          // dfMat(:, inext-1) = Res(:)
-          // dvMat(:, inext-1) = Pc(:)
-          blas::Copy( ntot * numOcc, Res.Data(), 1, 
-              dfMat_.VecData(inext-1), 1 );
-          blas::Copy( ntot * numOcc, Pc.Data(),  1, 
-              dvMat_.VecData(inext-1), 1 );
-
-          // Orthogonalize vOpt to obtain psiPc. 
-          // psiPc has the same size
-          SetValue( psiPc, 0.0 );
-          blas::Copy( ntot * numOcc, vOpt.Data(), 1, psiPc.Data(), 1 );
-          lapack::Orth( ntot, numOcc, psiPc.Data(), ntot );
-        }
-
-        // Construct the new Hamiltonian operator
-        Spinor spnPsiPc(fft.domain, 1, numStateTotal,
-            numStateTotal, false, psiPc.Data());
-
-        // Compute the electron density
-        GetTime( timeSta );
-        ham.CalculateDensity(
-            spnPsiPc,
-            ham.OccupationRate(),
-            totalCharge_, 
-            fft );
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing density in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Compute the exchange-correlation potential and energy
-        if( ham.XCRequireGradDensity() ){
-          GetTime( timeSta );
-          ham.CalculateGradDensity( fft );
-          GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Time for computing gradient density in PWDFT is " <<
-            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-        }
-
-        GetTime( timeSta );
-        ham.CalculateXC( Exc_, fft ); 
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing XC potential in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Compute the Hartree energy
-        GetTime( timeSta );
-        ham.CalculateHartree( fft );
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing Hartree potential in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-        // No external potential
-
-        // Compute the total potential
-        GetTime( timeSta );
-        ham.CalculateVtot( vtotNew_ );
-        blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
-
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing total potential in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Update Phi <- Psi
-        GetTime( timeSta );
-        ham.SetPhiEXX( spnPsiPc, fft ); 
-
-        // Update the ACE if needed
-        // Still use psi but phi has changed
-        if( esdfParam.isHybridACE ){
-          if( esdfParam.isHybridDF ){
-            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
-            // Fix the column after the first iteraiton
-            isFixColumnDF = true;
-          }
-          else{
-            ham.CalculateVexxACE ( psi, fft );
-          }
-        }
-
-        GetTime( timeEnd );
-        statusOFS << "Time for updating Phi related variable is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        InnerSolve( phiIter );
-        blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
-
-
-        CalculateEnergy();
-
-        PrintState( phiIter );
-
-        GetTime( timePhiIterEnd );
-
-        statusOFS << "Total wall clock time for this Phi iteration = " << 
-          timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
-
-
-        // Update Phi <- Psi
-        GetTime( timeSta );
-        ham.SetPhiEXX( psi, fft ); 
-
-        // In principle there is no need to construct ACE operator here
-        // However, this makes the code more readable by directly calling 
-        // the MultSpinor function later
-        if( esdfParam.isHybridACE ){
-          if( esdfParam.isHybridDF ){
-            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
-            // Fix the column after the first iteraiton
-            isFixColumnDF = true;
-          }
-          else{
-            ham.CalculateVexxACE ( psi, fft );
-          }
-        }
-
-        GetTime( timeEnd );
-        statusOFS << "Time for updating Phi related variable is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        GetTime( timeSta );
-        fock2 = ham.CalculateEXXEnergy( psi, fft ); 
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the EXX energy is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
-        dExx = std::abs(fock2 - fock1) / std::abs(fock2);
-        // use scfNorm to reflect dExx
-        scfNorm_ = dExx;
-        fock1 = fock2;
-        Efock_ = fock2;
-
-        Etot_ = Etot_ - Efock_;
-        Efree_ = Efree_ - Efock_;
-
-        statusOFS << std::endl;
-        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
-        Print(statusOFS, "dExx              = ",  dExx, "[au]");
-
-        if( dExx < scfPhiTolerance_ ){
-          statusOFS << "SCF for hybrid functional is converged in " 
-            << phiIter << " steps !" << std::endl;
-          isPhiIterConverged = true;
-        }
-        if ( isPhiIterConverged ) break;
-      } // for(phiIter)
-    } // hybridMixType == "scdiis"
-    
-    GetTime( timeEnd );
-    statusOFS << "Time for using scdiis method is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-    
-    GetTime( timeSta );
-#ifdef DEVICE
-    // GPU version of pc-diis. 
-    // note, ACE nested and scdiis can not work on GPU.
-    if( esdfParam.hybridMixType == "pcdiis" ){
-
-      // This requires a good initial guess of wavefunctions, 
-      // from one of the following
-      // 1) a regular SCF calculation
-      // 2) restarting wavefunction with Hybrid_Active_Init = true
-        
-      Int ntot      = fft.domain.NumGridTotal();
-      Int ntotFine  = fft.domain.NumGridTotalFine();
-      Int numStateTotal = psi.NumStateTotal();
-      Int numStateLocal = psi.NumState();
-      Int numOccTotal = ham.NumOccupiedState();
-
-      MPI_Comm mpi_comm = eigSolPtr_->FFT().domain.comm;
-
-      Int I_ONE = 1, I_ZERO = 0;
-      double D_ONE = 1.0;
-      double D_ZERO = 0.0;
-      double D_MinusONE = -1.0;
-
-      Real timeSta, timeEnd, timeSta1, timeEnd1;
-      
-      Int contxt0D, contxt1DCol, contxt1DRow,  contxt2D;
-      Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
-      Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
-      Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
-      Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
-
-      Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
-      Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
-      Int ncolsNgNo1DCol, nrowsNgNo1DCol, lldNgNo1DCol; 
-      Int ncolsNgNo1DRow, nrowsNgNo1DRow, lldNgNo1DRow; 
-
-      Int desc_NgNe1DCol[9];
-      Int desc_NgNe1DRow[9];
-      Int desc_NgNo1DCol[9];
-      Int desc_NgNo1DRow[9];
-
-      Int Ne = numStateTotal; 
-      Int No = numOccTotal; 
-      Int Ng = ntot;
-
-      // 1D col MPI
-      nprow1DCol = 1;
-      npcol1DCol = mpisize;
-
-      Cblacs_get(0, 0, &contxt1DCol);
-      Cblacs_gridinit(&contxt1DCol, "C", nprow1DCol, npcol1DCol);
-      Cblacs_gridinfo(contxt1DCol, &nprow1DCol, &npcol1DCol, &myrow1DCol, &mycol1DCol);
-
-      // 1D row MPI
-      nprow1DRow = mpisize;
-      npcol1DRow = 1;
-
-      Cblacs_get(0, 0, &contxt1DRow);
-      Cblacs_gridinit(&contxt1DRow, "C", nprow1DRow, npcol1DRow);
-      Cblacs_gridinfo(contxt1DRow, &nprow1DRow, &npcol1DRow, &myrow1DRow, &mycol1DRow);
-
-
-      //desc_NgNe1DCol
-      if(contxt1DCol >= 0){
-        nrowsNgNe1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
-        ncolsNgNe1DCol = SCALAPACK(numroc)(&Ne, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
-        lldNgNe1DCol = std::max( nrowsNgNe1DCol, 1 );
-      }    
-
-      SCALAPACK(descinit)(desc_NgNe1DCol, &Ng, &Ne, &Ng, &I_ONE, &I_ZERO, 
-          &I_ZERO, &contxt1DCol, &lldNgNe1DCol, &info1DCol);
-
-      //desc_NgNe1DRow
-      if(contxt1DRow >= 0){
-        nrowsNgNe1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK_, &myrow1DRow, &I_ZERO, &nprow1DRow);
-        ncolsNgNe1DRow = SCALAPACK(numroc)(&Ne, &Ne, &mycol1DRow, &I_ZERO, &npcol1DRow);
-        lldNgNe1DRow = std::max( nrowsNgNe1DRow, 1 );
-      }    
-
-      SCALAPACK(descinit)(desc_NgNe1DRow, &Ng, &Ne, &BlockSizeScaLAPACK_, &Ne, &I_ZERO, 
-          &I_ZERO, &contxt1DRow, &lldNgNe1DRow, &info1DRow);
-
-      //desc_NgNo1DCol
-      if(contxt1DCol >= 0){
-        nrowsNgNo1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
-        ncolsNgNo1DCol = SCALAPACK(numroc)(&No, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
-        lldNgNo1DCol = std::max( nrowsNgNo1DCol, 1 );
-      }    
-
-      SCALAPACK(descinit)(desc_NgNo1DCol, &Ng, &No, &Ng, &I_ONE, &I_ZERO, 
-          &I_ZERO, &contxt1DCol, &lldNgNo1DCol, &info1DCol);
-
-      //desc_NgNo1DRow
-      if(contxt1DRow >= 0){
-        nrowsNgNo1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK_, &myrow1DRow, &I_ZERO, &nprow1DRow);
-        ncolsNgNo1DRow = SCALAPACK(numroc)(&No, &No, &mycol1DRow, &I_ZERO, &npcol1DRow);
-        lldNgNo1DRow = std::max( nrowsNgNo1DRow, 1 );
-      }    
-
-      SCALAPACK(descinit)(desc_NgNo1DRow, &Ng, &No, &BlockSizeScaLAPACK_, &No, &I_ZERO, 
-          &I_ZERO, &contxt1DRow, &lldNgNo1DRow, &info1DRow);
-      
-      if(numStateLocal !=  ncolsNgNe1DCol){
-        statusOFS << "numStateLocal = " << numStateLocal << " ncolsNgNe1DCol = " << ncolsNgNe1DCol << std::endl;
-        ErrorHandling("The size of numState is not right!");
-      }
-      
-      if(nrowsNgNe1DRow !=  nrowsNgNo1DRow){
-        statusOFS << "nrowsNgNe1DRow = " << nrowsNgNe1DRow << " ncolsNgNo1DRow = " << ncolsNgNo1DRow << std::endl;
-        ErrorHandling("The size of nrowsNgNe1DRow and ncolsNgNo1DRow is not right!");
-      }
-
-
-      Int numOccLocal = ncolsNgNo1DCol;
-      Int ntotLocal = nrowsNgNe1DRow;
-
-      DblNumMat psiPcCol(ntot, numStateLocal);
-      DblNumMat psiPcRow(ntotLocal, numStateTotal);
-      DblNumMat HpsiCol(ntot, numStateLocal);
-      DblNumMat HpsiRow(ntotLocal, numStateTotal);
-
-      dfMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
-      dvMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
-
-      DblNumMat PcCol(ntot, numOccLocal);
-      DblNumMat PcRow(ntotLocal, numOccTotal);
-      DblNumMat ResCol(ntot, numOccLocal);
-      DblNumMat ResRow(ntotLocal, numOccTotal);
-
-      DblNumMat psiMuT(numOccTotal, numOccTotal);
-      DblNumMat psiMuTLocal(numOccLocal, numOccTotal);
-      DblNumMat HpsiMuT(numOccTotal, numOccTotal);
-      DblNumMat HpsiMuTLocal(numOccLocal, numOccTotal);
-
-      DblNumMat psiCol( ntot, numStateLocal );
-      SetValue( psiCol, 0.0 );
-      DblNumMat psiRow( ntotLocal, numStateTotal );
-      SetValue( psiRow, 0.0 );
-
-      lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
-      //AlltoallForward (psiCol, psiRow, mpi_comm);
-      SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-          psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
-
-      DblNumMat psiTemp(ntotLocal, numOccTotal);
-      SetValue( psiTemp, 0.0 );
-
-      lapack::Lacpy( 'A', ntotLocal, numOccTotal, psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal );
-      Real one = 1.0;
-      Real minus_one = -1.0;
-      Real zero = 0.0;
-
-     
-#ifdef DEVICE
-    //device_init_vtot();
-#endif
-      // Phi loop
-      for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
-      {
-        deviceDblNumMat cu_psiMuT(numOccTotal, numOccTotal);
-        deviceDblNumMat cu_HpsiMuT(numOccTotal, numOccTotal);
-        deviceDblNumMat cu_psiRow( ntotLocal, numStateTotal );
-        deviceDblNumMat cu_psiTemp(ntotLocal, numOccTotal);
-        deviceDblNumMat cu_PcRow(ntotLocal, numOccTotal);
-        deviceDblNumMat cu_HpsiCol(ntot, numStateLocal);
-        deviceDblNumMat cu_psi(ntot, numStateLocal);
-        deviceDblNumMat cu_HpsiRow(ntotLocal, numStateTotal);
-        deviceDblNumMat cu_ResRow(ntotLocal, numOccTotal);
-        deviceDblNumMat cu_psiPcRow(ntotLocal, numStateTotal);
-        cu_psiTemp.CopyFrom( psiTemp);
-
-        char right  = 'R';
-        char up     = 'U';
-        char nondiag   = 'N';
-        char cu_transT = 'T';
-        char cu_transN = 'N';
-        char cu_transC = 'C';
-
-        GetTime( timePhiIterStart );
-          
-        SetValue( psiCol, 0.0 );
-        lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
-        SetValue( psiRow, 0.0 );
-        //AlltoallForward (psiCol, psiRow, mpi_comm);
-        SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-            psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
-
-        if(1){
-
-          DblNumMat psiMuTTemp(numOccTotal, numOccTotal);
-          SetValue( psiMuTTemp, 0.0 );
-
-          deviceDblNumMat cu_psiMuTTemp(numOccTotal, numOccTotal);
-          cu_psiRow.CopyFrom(psiRow);
-          DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, 
-              &one, cu_psiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
-              &zero, cu_psiMuTTemp.Data(), numOccTotal );
-          cu_psiMuTTemp.CopyTo( psiMuTTemp );
-
-          /*
-          blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
-              psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
-              0.0, psiMuTTemp.Data(), numOccTotal );
-          */
-          SetValue( psiMuT, 0.0 );
-          MPI_Allreduce( psiMuTTemp.Data(), psiMuT.Data(), 
-              numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
-
-        }//if
-
-#if ( _DEBUGlevel_ >= 1 )
-        {
-          // Monitor the singular values as a measure as the quality of
-          // the selected columns
-          DblNumMat tmp = psiMuT;
-          DblNumVec s(numOccTotal);
-          lapack::SingularValues( numOccTotal, numOccTotal, tmp.Data(), numOccTotal, s.Data() );
-          statusOFS << "Spsi = " << s << std::endl;
-        }
-#endif
-        cu_psiMuT.CopyFrom( psiMuT);
-        DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
-            cu_psiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
-            &zero, cu_PcRow.Data(), ntotLocal );
-         cu_PcRow.CopyTo( PcRow );
-        
-        /*
-        blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
-            psiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
-            0.0, PcRow.Data(), ntotLocal );
-        */
-        SetValue( PcCol, 0.0 );
-        //AlltoallBackward (PcRow, PcCol, mpi_comm);
-        SCALAPACK(pdgemr2d)(&Ng, &No, PcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
-            PcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
-        
-        std::ostringstream msg;
-        msg << "Phi iteration # " << phiIter;
-        PrintBlock( statusOFS, msg.str() );
-
-        // Compute the residual
-        {
-          // Compute Hpsi for all psi 
-          Int ncom = psi.NumComponent();
-          Int noccTotal = psi.NumStateTotal();
-          Int noccLocal = psi.NumState();
-
-          device_memcpy_HOST2DEVICE(cu_psi.Data(), psi.Wavefun().Data(), ntot*numStateLocal*sizeof(Real) );
-          deviceNumTns<Real> tnsTemp(ntot, 1, numStateLocal, false, cu_HpsiCol.Data());
-          // there are two sets of grid for Row parallelization. 
-          // the old fashioned split and the Scalapack split.
-          // note that they turns out to be different ones in that: 
-          // Scalapack divide the Psi by blocks, and old way is continuous.  
-          // this is error prone.
-          Spinor spnTemp(fft.domain, ncom, noccTotal, noccLocal, false, cu_psi.Data(), true);
-          ham.MultSpinor_old( spnTemp, tnsTemp, fft );
-          cu_HpsiCol.CopyTo(HpsiCol);
-
-          // remember to reset the vtot
-          device_reset_vtot_flag();
-          //ham.MultSpinor( psi, tnsTemp, fft );
-        
-          //SetValue( HpsiRow, 0.0 );
-          //AlltoallForward (HpsiCol, HpsiRow, mpi_comm);
-          SCALAPACK(pdgemr2d)(&Ng, &Ne, HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-            HpsiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
-
-          cu_HpsiRow.CopyFrom(HpsiRow);
-
-          // perform the ACE operator here
-          //ham.ACEOperator( cu_psiRow, fft, cu_HpsiRow );
-          //cu_HpsiRow.CopyTo(HpsiRow);
-
-          if(1){
-
-            DblNumMat HpsiMuTTemp(numOccTotal,numOccTotal);
-            deviceDblNumMat cu_HpsiMuTTemp(numOccTotal,numOccTotal);
-            //SetValue( HpsiMuTTemp, 0.0 );
-
-            DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, 
-                cu_HpsiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
-                &zero, cu_HpsiMuTTemp.Data(), numOccTotal );
-            cu_HpsiMuTTemp.CopyTo(HpsiMuTTemp);
-/*
-            blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
-                HpsiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
-                0.0, HpsiMuTTemp.Data(), numOccTotal );
-*/
-            //SetValue( HpsiMuT, 0.0 );
-
-            MPI_Allreduce( HpsiMuTTemp.Data(), HpsiMuT.Data(), 
-                numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
-
-          }//if
-          
-          DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
-              cu_HpsiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
-              &zero, cu_ResRow.Data(), ntotLocal );
-
-          cu_HpsiMuT.CopyFrom( HpsiMuT );
-          DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
-              cu_psiRow.Data(), ntotLocal, cu_HpsiMuT.Data(), numOccTotal, 
-              &one, cu_ResRow.Data(), ntotLocal );
-          cu_ResRow.CopyTo(ResRow);
-
-          /*
-          blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
-              HpsiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
-              0.0, ResRow.Data(), ntotLocal );
-          blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, -1.0, 
-              psiRow.Data(), ntotLocal, HpsiMuT.Data(), numOccTotal, 
-              1.0, ResRow.Data(), ntotLocal );
-          SetValue( ResCol, 0.0 );
-          */
-          //AlltoallBackward (ResRow, ResCol, mpi_comm);
-          SCALAPACK(pdgemr2d)(&Ng, &No, ResRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
-              ResCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
-        }
-        
-        GetTime( timeSta );
-        // Anderson mixing. Use the same mixMaxDim_ for Phi mixing
-        {
-          // Optimal input potential in Anderon mixing.
-          DblNumVec vOpt( ntot * numOccLocal ); 
-
-          // Number of iterations used, iter should start from 1
-          Int iterused = std::min( phiIter-1, mixMaxDim_ ); 
-          // The current position of dfMat, dvMat
-          Int ipos = phiIter - 1 - ((phiIter-2)/ mixMaxDim_ ) * mixMaxDim_;
-          // The next position of dfMat, dvMat
-          Int inext = phiIter - ((phiIter-1)/ mixMaxDim_) * mixMaxDim_;
-        
-          blas::Copy( ntot * numOccLocal, PcCol.Data(), 1, vOpt.Data(), 1 );
-
-          if( phiIter > 1 ){
-            // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
-            // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
-            blas::Scal( ntot * numOccLocal, -1.0, dfMat_.VecData(ipos-1), 1 );
-            blas::Axpy( ntot * numOccLocal, 1.0, ResCol.Data(), 1, dfMat_.VecData(ipos-1), 1 );
-            blas::Scal( ntot * numOccLocal, -1.0, dvMat_.VecData(ipos-1), 1 );
-            blas::Axpy( ntot * numOccLocal, 1.0, PcCol.Data(), 1, dvMat_.VecData(ipos-1), 1 );
-
-            // Calculating pseudoinverse
-            DblNumMat dfMatTemp(ntot * numOccLocal, mixMaxDim_);
-            DblNumVec gammas(ntot * numOccLocal), S(iterused);
-            
-            SetValue( dfMatTemp, 0.0 );
-            SetValue( gammas, 0.0 );
-
-            Int rank;
-            // FIXME Magic number
-            Real rcond = 1e-9;
-
-            // gammas    = res;
-            blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, gammas.Data(), 1 );
-            lapack::Lacpy( 'A', ntot * numOccLocal, mixMaxDim_, dfMat_.Data(), ntot * numOccLocal, 
-                dfMatTemp.Data(), ntot * numOccLocal );
-        
-            // May need different strategy in a parallel setup
-            if(0){  
-              
-              lapack::SVDLeastSquare( ntot * numOccLocal, iterused, 1, 
-                  dfMatTemp.Data(), ntot * numOccLocal,
-                  gammas.Data(), ntot * numOccLocal,
-                  S.Data(), rcond, &rank );
-            
-              blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
-                  ntot * numOccLocal, gammas.Data(), 1, 1.0, vOpt.Data(), 1 );
-            
-            }
-        
-            if(1){
-
-              DblNumMat XTX(iterused, iterused);
-              DblNumMat XTXTemp(iterused, iterused);
-              
-              SetValue( XTXTemp, 0.0 );
-              blas::Gemm( 'T', 'N', iterused, iterused, ntot * numOccLocal, 1.0, 
-              dfMatTemp.Data(), ntot * numOccLocal, dfMatTemp.Data(), ntot * numOccLocal, 
-              0.0, XTXTemp.Data(), iterused );
-        
-              SetValue( XTX, 0.0 );
-              MPI_Allreduce( XTXTemp.Data(), XTX.Data(), 
-                  iterused * iterused, MPI_DOUBLE, MPI_SUM, mpi_comm );
-            
-              DblNumVec gammasTemp1(iterused);
-              SetValue( gammasTemp1, 0.0 );
-              //blas::Gemv('T', ntot * numOccLocal, iterused, 1.0, dfMatTemp.Data(),
-              //    ntot * numOccLocal, gammas.Data(), 1, 0.0, gammasTemp1.Data(), 1 );
-
-              blas::Gemm( 'T', 'N', iterused, I_ONE, ntot * numOccLocal, 1.0, 
-                  dfMatTemp.Data(), ntot * numOccLocal, gammas.Data(), ntot * numOccLocal, 
-                  0.0, gammasTemp1.Data(), iterused );
-
-              DblNumVec gammasTemp2(iterused);
-              SetValue( gammasTemp2, 0.0 );
-              MPI_Allreduce( gammasTemp1.Data(), gammasTemp2.Data(), 
-                  iterused, MPI_DOUBLE, MPI_SUM, mpi_comm );
-              
-              lapack::SVDLeastSquare( iterused, iterused, 1, 
-                  XTX.Data(), iterused,
-                  gammasTemp2.Data(), iterused,
-                  S.Data(), rcond, &rank );
-            
-              //blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
-              //    ntot * numOccLocal, gammasTemp2.Data(), 1, 1.0, vOpt.Data(), 1 );
-              
-              blas::Gemm( 'N', 'N', ntot * numOccLocal, I_ONE, iterused, -1.0, 
-                  dvMat_.Data(), ntot * numOccLocal, gammasTemp2.Data(), iterused, 
-                  1.0, vOpt.Data(), ntot * numOccLocal );
-            
-            }
-
-            Print( statusOFS, "  Rank of dfmat = ", rank );
-
-          }
-
-          // Update dfMat, dvMat, vMix 
-          // dfMat(:, inext-1) = Res(:)
-          // dvMat(:, inext-1) = Pc(:)
-          blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, 
-              dfMat_.VecData(inext-1), 1 );
-          blas::Copy( ntot * numOccLocal, PcCol.Data(),  1, 
-              dvMat_.VecData(inext-1), 1 );
-            
-          // Orthogonalize vOpt to obtain psiPc. 
-          // psiPc has the same size
-          SetValue( psiPcCol, 0.0 );
-          blas::Copy( ntot * numOccLocal, vOpt.Data(), 1, psiPcCol.Data(), 1 );
-          //lapack::Orth( ntot, numOccLocal, psiPcCol.Data(), ntotLocal );
-          
-          // Orthogonalization through Cholesky factorization
-         if(1){ 
-            SetValue( psiPcRow, 0.0 );
-            //AlltoallForward (psiPcCol, psiPcRow, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &No, psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
-                psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
-
-            cu_psiPcRow.CopyFrom( psiPcRow );
-
-            DblNumMat XTX(numOccTotal, numOccTotal);
-            DblNumMat XTXTemp(numOccTotal, numOccTotal);
-            deviceDblNumMat cu_XTXTemp(numOccTotal, numOccTotal);
-            
-            DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
-                ntotLocal, cu_psiPcRow.Data(), ntotLocal, &zero, cu_XTXTemp.Data(), numOccTotal );
-            cu_XTXTemp.CopyTo(XTXTemp);
-
-            /*
-            blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiPcRow.Data(), 
-                ntotLocal, psiPcRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
-            SetValue( XTX, 0.0 );
-            */
-            MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
-
-            //if ( mpirank == 0) {
-            //  lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
-            //}
-            //MPI_Bcast(XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, 0, mpi_comm);
-
-            cu_XTXTemp.CopyFrom(XTX);
-#ifdef USE_MAGMA
-            MAGMA::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
-#else
-            device_solver::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
-#endif
-
-            DEVICE_BLAS::Trsm( right, up, cu_transN, nondiag, 
-                          ntotLocal, numOccTotal, &one, cu_XTXTemp.Data(), numOccTotal, cu_psiPcRow.Data(),
-                          ntotLocal);
-            cu_psiPcRow.CopyTo( psiPcRow );
-
-            // X <- X * U^{-1} is orthogonal
-            /*
-            blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
-                psiPcRow.Data(), ntotLocal );
-            SetValue( psiPcCol, 0.0 );
-            */
-
-            //AlltoallBackward (psiPcRow, psiPcCol, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &No, psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
-                psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
-          } 
-        
-        }//Anderson mixing
-        } // GPU malloc and free.
-
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for GPU  Anderson mixing in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Construct the new Hamiltonian operator
-        Spinor spnPsiPc(fft.domain, 1, numStateTotal,
-            numStateLocal, false, psiPcCol.Data());
-
-        // Compute the electron density
-        GetTime( timeSta );
-        ham.CalculateDensity(
-            spnPsiPc,
-            ham.OccupationRate(),
-            totalCharge_, 
-            fft );
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing density in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Compute the exchange-correlation potential and energy
-        if( ham.XCRequireGradDensity() ){
-          GetTime( timeSta );
-          ham.CalculateGradDensity( fft );
-          GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Time for computing gradient density in PWDFT is " <<
-            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-        }
-
-        GetTime( timeSta );
-        ham.CalculateXC( Exc_, fft ); 
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing XC potential in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Compute the Hartree energy
-        GetTime( timeSta );
-        ham.CalculateHartree( fft );
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing Hartree potential in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-        // No external potential
-
-        // Compute the total potential
-        GetTime( timeSta );
-        ham.CalculateVtot( vtotNew_ );
-        blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
-
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing total potential in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Update Phi <- Psi
-        GetTime( timeSta );
-        ham.SetPhiEXX( spnPsiPc, fft ); 
-
-        // Update the ACE if needed
-        // Still use psi but phi has changed
-        if( esdfParam.isHybridACE ){
-          if( esdfParam.isHybridDF ){
-            ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
-            // Fix the column after the first iteraiton
-            isFixColumnDF = true;
-          }
-          else{
-            ham.CalculateVexxACEGPU ( psi, fft );
-          }
-        }
-
-        GetTime( timeEnd );
-        statusOFS << "GPU Time for updating Phi related variable is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        InnerSolve( phiIter );
-        blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
-
-
-        EVdw_ = 0.0;
-
-        CalculateEnergy();
-
-        PrintState( phiIter );
-
-        GetTime( timePhiIterEnd );
-
-        statusOFS << "Total wall clock time for this Phi iteration = " << 
-          timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
-
-        if(1){
-
-          // Update Phi <- Psi
-          GetTime( timeSta );
-          ham.SetPhiEXX( psi, fft ); 
-
-          // In principle there is no need to construct ACE operator here
-          // However, this makes the code more readable by directly calling 
-          // the MultSpinor function later
-          if( esdfParam.isHybridACE ){
-            if( esdfParam.isHybridDF ){
-              ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
-              // Fix the column after the first iteraiton
-              isFixColumnDF = true;
-            }
-            else{
-              // GPU needs to be done
-              ham.CalculateVexxACEGPU ( psi, fft );
-            }
-          }
-
-          GetTime( timeEnd );
-          statusOFS << " GPU Time for updating Phi related variable is " <<
-            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        }//if
-
-        GetTime( timeSta );
-        fock2 = ham.CalculateEXXEnergy( psi, fft ); 
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the EXX energy is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
-        dExx = std::abs(fock2 - fock1) / std::abs(fock2);
-        // use scfNorm to reflect dExx
-        scfNorm_ = dExx;
-        fock1 = fock2;
-        Efock_ = fock2;
-
-        Etot_ = Etot_ - Efock_;
-        Efree_ = Efree_ - Efock_;
-
-        statusOFS << std::endl;
-        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
-        Print(statusOFS, "dExx              = ",  dExx, "[au]");
-        
-        if( dExx < scfPhiTolerance_ ){
-          statusOFS << "SCF for hybrid functional is converged in " 
-            << phiIter << " steps !" << std::endl;
-          isPhiIterConverged = true;
-        }
-        if ( isPhiIterConverged ) break;
-      } // for(phiIter)
-
-    } // hybridMixType == "pcdiis"
-
-#else
-    if( esdfParam.hybridMixType == "pcdiis" ){
-
-      // This requires a good initial guess of wavefunctions, 
-      // from one of the following
-      // 1) a regular SCF calculation
-      // 2) restarting wavefunction with Hybrid_Active_Init = true
-        
-      Int ntot      = fft.domain.NumGridTotal();
-      Int ntotFine  = fft.domain.NumGridTotalFine();
-      Int numStateTotal = psi.NumStateTotal();
-      Int numStateLocal = psi.NumState();
-      Int numOccTotal = ham.NumOccupiedState();
-
-      MPI_Comm mpi_comm = eigSolPtr_->FFT().domain.comm;
-
-      Int I_ONE = 1, I_ZERO = 0;
-      double D_ONE = 1.0;
-      double D_ZERO = 0.0;
-      double D_MinusONE = -1.0;
-
-      Real timeSta, timeEnd, timeSta1, timeEnd1;
-      
-      //Int contxt0D, contxt2D;
-      Int contxt1DCol, contxt1DRow;
-      Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
-      Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
-      Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
-      Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
-
-      Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
-      Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
-      Int ncolsNgNo1DCol, nrowsNgNo1DCol, lldNgNo1DCol; 
-      Int ncolsNgNo1DRow, nrowsNgNo1DRow, lldNgNo1DRow; 
-
-      Int desc_NgNe1DCol[9];
-      Int desc_NgNe1DRow[9];
-      Int desc_NgNo1DCol[9];
-      Int desc_NgNo1DRow[9];
-
-      Int Ne = numStateTotal; 
-      Int No = numOccTotal; 
-      Int Ng = ntot;
-
-      // 1D col MPI
-      nprow1DCol = 1;
-      npcol1DCol = mpisize;
-
-      Cblacs_get(0, 0, &contxt1DCol);
-      Cblacs_gridinit(&contxt1DCol, "C", nprow1DCol, npcol1DCol);
-      Cblacs_gridinfo(contxt1DCol, &nprow1DCol, &npcol1DCol, &myrow1DCol, &mycol1DCol);
-
-      // 1D row MPI
-      nprow1DRow = mpisize;
-      npcol1DRow = 1;
-
-      Cblacs_get(0, 0, &contxt1DRow);
-      Cblacs_gridinit(&contxt1DRow, "C", nprow1DRow, npcol1DRow);
-      Cblacs_gridinfo(contxt1DRow, &nprow1DRow, &npcol1DRow, &myrow1DRow, &mycol1DRow);
-
-
-      //desc_NgNe1DCol
-      if(contxt1DCol >= 0){
-        nrowsNgNe1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
-        ncolsNgNe1DCol = SCALAPACK(numroc)(&Ne, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
-        lldNgNe1DCol = std::max( nrowsNgNe1DCol, 1 );
-      }    
-
-      SCALAPACK(descinit)(desc_NgNe1DCol, &Ng, &Ne, &Ng, &I_ONE, &I_ZERO, 
-          &I_ZERO, &contxt1DCol, &lldNgNe1DCol, &info1DCol);
-
-      //desc_NgNe1DRow
-      if(contxt1DRow >= 0){
-        nrowsNgNe1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK_, &myrow1DRow, &I_ZERO, &nprow1DRow);
-        ncolsNgNe1DRow = SCALAPACK(numroc)(&Ne, &Ne, &mycol1DRow, &I_ZERO, &npcol1DRow);
-        lldNgNe1DRow = std::max( nrowsNgNe1DRow, 1 );
-      }    
-
-      SCALAPACK(descinit)(desc_NgNe1DRow, &Ng, &Ne, &BlockSizeScaLAPACK_, &Ne, &I_ZERO, 
-          &I_ZERO, &contxt1DRow, &lldNgNe1DRow, &info1DRow);
-
-      //desc_NgNo1DCol
-      if(contxt1DCol >= 0){
-        nrowsNgNo1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
-        ncolsNgNo1DCol = SCALAPACK(numroc)(&No, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
-        lldNgNo1DCol = std::max( nrowsNgNo1DCol, 1 );
-      }    
-
-      SCALAPACK(descinit)(desc_NgNo1DCol, &Ng, &No, &Ng, &I_ONE, &I_ZERO, 
-          &I_ZERO, &contxt1DCol, &lldNgNo1DCol, &info1DCol);
-
-      //desc_NgNo1DRow
-      if(contxt1DRow >= 0){
-        nrowsNgNo1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK_, &myrow1DRow, &I_ZERO, &nprow1DRow);
-        ncolsNgNo1DRow = SCALAPACK(numroc)(&No, &No, &mycol1DRow, &I_ZERO, &npcol1DRow);
-        lldNgNo1DRow = std::max( nrowsNgNo1DRow, 1 );
-      }    
-
-      SCALAPACK(descinit)(desc_NgNo1DRow, &Ng, &No, &BlockSizeScaLAPACK_, &No, &I_ZERO, 
-          &I_ZERO, &contxt1DRow, &lldNgNo1DRow, &info1DRow);
-      
-      if(numStateLocal !=  ncolsNgNe1DCol){
-        statusOFS << "numStateLocal = " << numStateLocal << " ncolsNgNe1DCol = " << ncolsNgNe1DCol << std::endl;
-        ErrorHandling("The size of numState is not right!");
-      }
-      
-      if(nrowsNgNe1DRow !=  nrowsNgNo1DRow){
-        statusOFS << "nrowsNgNe1DRow = " << nrowsNgNe1DRow << " ncolsNgNo1DRow = " << ncolsNgNo1DRow << std::endl;
-        ErrorHandling("The size of nrowsNgNe1DRow and ncolsNgNo1DRow is not right!");
-      }
-
-
-      Int numOccLocal = ncolsNgNo1DCol;
-      Int ntotLocal = nrowsNgNe1DRow;
-
-      //DblNumMat psiPcCol(ntot, numStateLocal);
-      //DblNumMat psiPcRow(ntotLocal, numStateTotal);
-      DblNumMat HpsiCol(ntot, numStateLocal);
-      DblNumMat HpsiRow(ntotLocal, numStateTotal);
-
-      dfMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
-      dvMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
-
-      DblNumMat psiPcCol(ntot, numOccLocal);
-      DblNumMat psiPcRow(ntotLocal, numOccTotal);
-      DblNumMat PcCol(ntot, numOccLocal);
-      DblNumMat PcRow(ntotLocal, numOccTotal);
-      DblNumMat ResCol(ntot, numOccLocal);
-      DblNumMat ResRow(ntotLocal, numOccTotal);
-
-      DblNumMat psiMuT(numOccTotal, numOccTotal);
-      DblNumMat psiMuTLocal(numOccLocal, numOccTotal);
-      DblNumMat HpsiMuT(numOccTotal, numOccTotal);
-      DblNumMat HpsiMuTLocal(numOccLocal, numOccTotal);
-
-      DblNumMat psiCol( ntot, numStateLocal );
-      SetValue( psiCol, 0.0 );
-      DblNumMat psiRow( ntotLocal, numStateTotal );
-      SetValue( psiRow, 0.0 );
-
-      lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
-      //AlltoallForward (psiCol, psiRow, mpi_comm);
-      SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-          psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
-
-      DblNumMat psiTemp(ntotLocal, numOccTotal);
-      SetValue( psiTemp, 0.0 );
-
-      lapack::Lacpy( 'A', ntotLocal, numOccTotal, psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal );
-      
-      // Phi loop
-      for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
-
-        GetTime( timePhiIterStart );
-          
-        SetValue( psiCol, 0.0 );
-        lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
-        SetValue( psiRow, 0.0 );
-        //AlltoallForward (psiCol, psiRow, mpi_comm);
-        SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-            psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
-
-        if(1){
-
-          DblNumMat psiMuTTemp(numOccTotal, numOccTotal);
-          SetValue( psiMuTTemp, 0.0 );
-          blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
-              psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
-              0.0, psiMuTTemp.Data(), numOccTotal );
-
-          SetValue( psiMuT, 0.0 );
-          MPI_Allreduce( psiMuTTemp.Data(), psiMuT.Data(), 
-              numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
-
-        }//if
-
-#if ( _DEBUGlevel_ >= 1 )
-        {
-          // Monitor the singular values as a measure as the quality of
-          // the selected columns
-          DblNumMat tmp = psiMuT;
-          DblNumVec s(numOccTotal);
-          lapack::SingularValues( numOccTotal, numOccTotal, tmp.Data(), numOccTotal, s.Data() );
-          statusOFS << "Spsi = " << s << std::endl;
-        }
-#endif
-
-        blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
-            psiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
-            0.0, PcRow.Data(), ntotLocal );
-        
-        SetValue( PcCol, 0.0 );
-        //AlltoallBackward (PcRow, PcCol, mpi_comm);
-        SCALAPACK(pdgemr2d)(&Ng, &No, PcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
-            PcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
-        
-        std::ostringstream msg;
-        msg << "Phi iteration # " << phiIter;
-        PrintBlock( statusOFS, msg.str() );
-
-        // Compute the residual
-        {
-          // Compute Hpsi for all psi 
-          NumTns<Real> tnsTemp(ntot, 1, numStateLocal, false, 
-              HpsiCol.Data());
-          ham.MultSpinor( psi, tnsTemp, fft );
-        
-          SetValue( HpsiRow, 0.0 );
-          //AlltoallForward (HpsiCol, HpsiRow, mpi_comm);
-          SCALAPACK(pdgemr2d)(&Ng, &Ne, HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
-            HpsiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
-
-          if(1){
-
-            DblNumMat HpsiMuTTemp(numOccTotal,numOccTotal);
-            SetValue( HpsiMuTTemp, 0.0 );
-
-            blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
-                HpsiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
-                0.0, HpsiMuTTemp.Data(), numOccTotal );
-
-            SetValue( HpsiMuT, 0.0 );
-
-            MPI_Allreduce( HpsiMuTTemp.Data(), HpsiMuT.Data(), 
-                numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
-
-          }//if
-
-          blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
-              HpsiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
-              0.0, ResRow.Data(), ntotLocal );
-          blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, -1.0, 
-              psiRow.Data(), ntotLocal, HpsiMuT.Data(), numOccTotal, 
-              1.0, ResRow.Data(), ntotLocal );
-        
-          SetValue( ResCol, 0.0 );
-          //AlltoallBackward (ResRow, ResCol, mpi_comm);
-          SCALAPACK(pdgemr2d)(&Ng, &No, ResRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
-              ResCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
-        }
-        
-        // Anderson mixing. Use the same mixMaxDim_ for Phi mixing
-        {
-          // Optimal input potential in Anderon mixing.
-          DblNumVec vOpt( ntot * numOccLocal ); 
-
-          // Number of iterations used, iter should start from 1
-          Int iterused = std::min( phiIter-1, mixMaxDim_ ); 
-          // The current position of dfMat, dvMat
-          Int ipos = phiIter - 1 - ((phiIter-2)/ mixMaxDim_ ) * mixMaxDim_;
-          // The next position of dfMat, dvMat
-          Int inext = phiIter - ((phiIter-1)/ mixMaxDim_) * mixMaxDim_;
-        
-          blas::Copy( ntot * numOccLocal, PcCol.Data(), 1, vOpt.Data(), 1 );
-
-          if( phiIter > 1 ){
-            // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
-            // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
-            blas::Scal( ntot * numOccLocal, -1.0, dfMat_.VecData(ipos-1), 1 );
-            blas::Axpy( ntot * numOccLocal, 1.0, ResCol.Data(), 1, dfMat_.VecData(ipos-1), 1 );
-            blas::Scal( ntot * numOccLocal, -1.0, dvMat_.VecData(ipos-1), 1 );
-            blas::Axpy( ntot * numOccLocal, 1.0, PcCol.Data(), 1, dvMat_.VecData(ipos-1), 1 );
-
-            // Calculating pseudoinverse
-            DblNumMat dfMatTemp(ntot * numOccLocal, mixMaxDim_);
-            DblNumVec gammas(ntot * numOccLocal), S(iterused);
-            
-            SetValue( dfMatTemp, 0.0 );
-            SetValue( gammas, 0.0 );
-
-            Int rank;
-            // FIXME Magic number
-            Real rcond = 1e-9;
-
-            // gammas    = res;
-            blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, gammas.Data(), 1 );
-            lapack::Lacpy( 'A', ntot * numOccLocal, mixMaxDim_, dfMat_.Data(), ntot * numOccLocal, 
-                dfMatTemp.Data(), ntot * numOccLocal );
-        
-            // May need different strategy in a parallel setup
-            if(0){  
-              
-              lapack::SVDLeastSquare( ntot * numOccLocal, iterused, 1, 
-                  dfMatTemp.Data(), ntot * numOccLocal,
-                  gammas.Data(), ntot * numOccLocal,
-                  S.Data(), rcond, &rank );
-            
-              blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
-                  ntot * numOccLocal, gammas.Data(), 1, 1.0, vOpt.Data(), 1 );
-            
-            }
-        
-            if(1){
-
-              DblNumMat XTX(iterused, iterused);
-              DblNumMat XTXTemp(iterused, iterused);
-              
-              Int lld_ntotnumOccLocal = std::max( ntot * numOccLocal, 1 );
-              
-              SetValue( XTXTemp, 0.0 );
-              blas::Gemm( 'T', 'N', iterused, iterused, ntot * numOccLocal, 1.0, 
-              dfMatTemp.Data(), lld_ntotnumOccLocal, dfMatTemp.Data(), 
-              lld_ntotnumOccLocal, 0.0, XTXTemp.Data(), iterused );
-        
-              SetValue( XTX, 0.0 );
-              MPI_Allreduce( XTXTemp.Data(), XTX.Data(), 
-                  iterused * iterused, MPI_DOUBLE, MPI_SUM, mpi_comm );
-            
-              DblNumVec gammasTemp1(iterused);
-              SetValue( gammasTemp1, 0.0 );
-              //blas::Gemv('T', ntot * numOccLocal, iterused, 1.0, dfMatTemp.Data(),
-              //    ntot * numOccLocal, gammas.Data(), 1, 0.0, gammasTemp1.Data(), 1 );
-
-              blas::Gemm( 'T', 'N', iterused, I_ONE, ntot * numOccLocal, 1.0, 
-                  dfMatTemp.Data(), lld_ntotnumOccLocal, gammas.Data(), 
-                  lld_ntotnumOccLocal, 0.0, gammasTemp1.Data(), iterused );
-
-              DblNumVec gammasTemp2(iterused);
-              SetValue( gammasTemp2, 0.0 );
-              MPI_Allreduce( gammasTemp1.Data(), gammasTemp2.Data(), 
-                  iterused, MPI_DOUBLE, MPI_SUM, mpi_comm );
-              
-              lapack::SVDLeastSquare( iterused, iterused, 1, 
-                  XTX.Data(), iterused,
-                  gammasTemp2.Data(), iterused,
-                  S.Data(), rcond, &rank );
-            
-              //blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
-              //    ntot * numOccLocal, gammasTemp2.Data(), 1, 1.0, vOpt.Data(), 1 );
-              
-              blas::Gemm( 'N', 'N', ntot * numOccLocal, I_ONE, iterused, -1.0, 
-                  dvMat_.Data(), lld_ntotnumOccLocal, gammasTemp2.Data(), iterused, 
-                  1.0, vOpt.Data(), lld_ntotnumOccLocal );
-            
-            }
-
-            Print( statusOFS, "  Rank of dfmat = ", rank );
-
-          }
-
-          // Update dfMat, dvMat, vMix 
-          // dfMat(:, inext-1) = Res(:)
-          // dvMat(:, inext-1) = Pc(:)
-          blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, 
-              dfMat_.VecData(inext-1), 1 );
-          blas::Copy( ntot * numOccLocal, PcCol.Data(),  1, 
-              dvMat_.VecData(inext-1), 1 );
-            
-          // Orthogonalize vOpt to obtain psiPc. 
-          // psiPc has the same size
-          SetValue( psiPcCol, 0.0 );
-          blas::Copy( ntot * numOccLocal, vOpt.Data(), 1, psiPcCol.Data(), 1 );
-          //lapack::Orth( ntot, numOccLocal, psiPcCol.Data(), ntotLocal );
-          
-          // Orthogonalization through Cholesky factorization
-         if(1){ 
-            SetValue( psiPcRow, 0.0 );
-            //AlltoallForward (psiPcCol, psiPcRow, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &No, psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
-                psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
-
-            DblNumMat XTX(numOccTotal, numOccTotal);
-            DblNumMat XTXTemp(numOccTotal, numOccTotal);
-
-            blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiPcRow.Data(), 
-                ntotLocal, psiPcRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
-            SetValue( XTX, 0.0 );
-            MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
-
-            if ( mpirank == 0) {
-              lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
-            }
-            MPI_Bcast(XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, 0, mpi_comm);
-
-            // X <- X * U^{-1} is orthogonal
-            blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
-                psiPcRow.Data(), ntotLocal );
-
-            SetValue( psiPcCol, 0.0 );
-            //AlltoallBackward (psiPcRow, psiPcCol, mpi_comm);
-            SCALAPACK(pdgemr2d)(&Ng, &No, psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
-                psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
-          } 
-        
-        }//Anderson mixing
-
-        DblNumMat psiPcColTemp(ntot, numStateLocal);
-        SetValue( psiPcColTemp, 0.0 );
-
-        lapack::Lacpy( 'A', ntot, numOccLocal, psiPcCol.Data(), ntot, psiPcColTemp.Data(), ntot );
-
-        // Construct the new Hamiltonian operator
-        Spinor spnPsiPc(fft.domain, 1, numStateTotal,
-            numStateLocal, false, psiPcColTemp.Data());
-
-        // Compute the electron density
-        GetTime( timeSta );
-        ham.CalculateDensity(
-            spnPsiPc,
-            ham.OccupationRate(),
-            totalCharge_, 
-            fft );
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing density in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Compute the exchange-correlation potential and energy
-        if( ham.XCRequireGradDensity() ){
-          GetTime( timeSta );
-          ham.CalculateGradDensity( fft );
-          GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-          statusOFS << "Time for computing gradient density in PWDFT is " <<
-            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-        }
-
-        GetTime( timeSta );
-        ham.CalculateXC( Exc_, fft ); 
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing XC potential in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Compute the Hartree energy
-        GetTime( timeSta );
-        ham.CalculateHartree( fft );
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing Hartree potential in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-        // No external potential
-
-        // Compute the total potential
-        GetTime( timeSta );
-        ham.CalculateVtot( vtotNew_ );
-        blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
-
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing total potential in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        // Update Phi <- Psi
-        GetTime( timeSta );
-        ham.SetPhiEXX( spnPsiPc, fft ); 
-
-        // Update the ACE if needed
-        // Still use psi but phi has changed
-        if( esdfParam.isHybridACE ){
-          if( esdfParam.isHybridDF ){
-            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
-            // Fix the column after the first iteraiton
-            isFixColumnDF = true;
-          }
-          else{
-            ham.CalculateVexxACE ( psi, fft );
-          }
-        }
-
-        GetTime( timeEnd );
-        statusOFS << "Time for updating Phi related variable is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        InnerSolve( phiIter );
-        blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
-
-
-        CalculateEnergy();
-
-        PrintState( phiIter );
-
-        GetTime( timePhiIterEnd );
-
-        statusOFS << "Total wall clock time for this Phi iteration = " << 
-          timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
-
-        if(esdfParam.isHybridACETwicePCDIIS == 1){
-
-          // Update Phi <- Psi
-          GetTime( timeSta );
-          ham.SetPhiEXX( psi, fft ); 
-
-          // In principle there is no need to construct ACE operator here
-          // However, this makes the code more readable by directly calling 
-          // the MultSpinor function later
-          if( esdfParam.isHybridACE ){
-            if( esdfParam.isHybridDF ){
-              ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
-              // Fix the column after the first iteraiton
-              isFixColumnDF = true;
-            }
-            else{
-              ham.CalculateVexxACE ( psi, fft );
-            }
-          }
-
-          GetTime( timeEnd );
-          statusOFS << "Time for updating Phi related variable is " <<
-            timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        }//if
-
-        GetTime( timeSta );
-        fock2 = ham.CalculateEXXEnergy( psi, fft ); 
-        GetTime( timeEnd );
-        statusOFS << "Time for computing the EXX energy is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-
-        // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
-        dExx = std::abs(fock2 - fock1) / std::abs(fock2);
-        // use scfNorm to reflect dExx
-        scfNorm_ = dExx;
-        fock1 = fock2;
-        Efock_ = fock2;
-
-        Etot_ = Etot_ - Efock_;
-        Efree_ = Efree_ - Efock_;
-
-        statusOFS << std::endl;
-        Print(statusOFS, "Fock energy       = ",  Efock_, "[au]");
-        Print(statusOFS, "Etot(with fock)   = ",  Etot_, "[au]");
-        Print(statusOFS, "Efree(with fock)  = ",  Efree_, "[au]");
-        Print(statusOFS, "dExx              = ",  dExx, "[au]");
-        
-        if( dExx < scfPhiTolerance_ ){
-          statusOFS << "SCF for hybrid functional is converged in " 
-            << phiIter << " steps !" << std::endl;
-          isPhiIterConverged = true;
-        }
-        if ( isPhiIterConverged ) break;
-      } // for(phiIter)
-
-      if(contxt1DCol >= 0) {
-        Cblacs_gridexit( contxt1DCol );
-      }
-
-      if(contxt1DRow >= 0) {
-        Cblacs_gridexit( contxt1DRow );
-      }
-
-    } // hybridMixType == "pcdiis"
-#endif
-#endif
-
-    GetTime( timeEnd );
-    statusOFS << "Time for using pcdiis method is " <<
-      timeEnd - timeSta << " [s]" << std::endl << std::endl;
-    
-  } // isHybrid == true
+  // FIXME: LL 1/4/2021 Should the Destroy() functions be activated somewhere?
 /*
 #ifdef DEVICE
     DEVICE_BLAS::Destroy();
@@ -2218,9 +352,9 @@ SCF::Iterate (  )
   {
     // Energy
     Real HOMO, LUMO;
-    HOMO = eigSolPtr_->EigVal()(eigSolPtr_->Ham().NumOccupiedState()-1);
-    if( eigSolPtr_->Ham().NumExtraState() > 0 )
-      LUMO = eigSolPtr_->EigVal()(eigSolPtr_->Ham().NumOccupiedState());
+    HOMO = eigSolPtr_->EigVal()(ham.NumOccupiedState()-1);
+    if( ham.NumExtraState() > 0 )
+      LUMO = eigSolPtr_->EigVal()(ham.NumOccupiedState());
 
     // Print out the energy
     PrintBlock( statusOFS, "Energy" );
@@ -2260,7 +394,8 @@ SCF::Iterate (  )
 
 
   // Output the structure information
-  if(1){
+  // FIXME: Change to using hdf5 file format
+  if(0){
     if( mpirank == 0 ){
       std::ostringstream structStream;
 #if ( _DEBUGlevel_ >= 0 )
@@ -2345,7 +480,1462 @@ SCF::Iterate (  )
 
 
   return ;
-}         // -----  end of method SCF::Iterate  ----- 
+}         // -----  end of method SCF::Execute  ----- 
+
+void
+SCF::IterateDensity    ( )
+{
+  int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain.comm, &mpisize);
+
+  Real timeSta, timeEnd;
+  Real timeIterStart(0), timeIterEnd(0);
+
+  Hamiltonian& ham = eigSolPtr_->Ham();
+  Fourier&     fft = eigSolPtr_->FFT();
+  Spinor&      psi = eigSolPtr_->Psi();
+ 
+
+  // Perform non-hybrid functional calculation first
+  bool isSCFConverged = false;
+
+  for (Int iter=1; iter <= scfMaxIter_; iter++) {
+    if ( isSCFConverged ) break;
+    // *********************************************************************
+    // Performing each iteartion
+    // *********************************************************************
+    {
+      std::ostringstream msg;
+      msg << "SCF iteration # " << iter;
+      PrintBlock( statusOFS, msg.str() );
+    }
+
+    GetTime( timeIterStart );
+
+    // Solve eigenvalue problem
+    // Update density, gradDensity, potential (stored in vtotNew_)
+    InnerSolve( iter );
+
+    Real normVtotDif = 0.0, normVtotOld = 0.0;
+    DblNumVec& vtotOld_ = ham.Vtot();
+    Int ntot = vtotOld_.m();
+    for( Int i = 0; i < ntot; i++ ){
+      normVtotDif += pow( vtotOld_(i) - vtotNew_(i), 2.0 );
+      normVtotOld += pow( vtotOld_(i), 2.0 );
+    }
+    normVtotDif = sqrt( normVtotDif );
+    normVtotOld = sqrt( normVtotOld );
+    scfNorm_    = normVtotDif / normVtotOld;
+
+    GetTime( timeSta );
+    CalculateEnergy();
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing energy in PWDFT is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    PrintState( iter );
+
+    Int numAtom = ham.AtomList().size();
+    efreeDifPerAtom_ = std::abs(Efree_ - EfreeHarris_) / numAtom;
+
+    Print(statusOFS, "norm(out-in)/norm(in) = ", scfNorm_ );
+    Print(statusOFS, "Efree diff per atom   = ", efreeDifPerAtom_ ); 
+
+    if( scfNorm_ < scfTolerance_ ){
+      statusOFS << "SCF is converged in " << iter << " steps !" << std::endl;
+      isSCFConverged = true;
+    }
+
+    // Potential mixing
+    GetTime( timeSta );
+    if( mixType_ == "anderson" || mixType_ == "kerker+anderson" ){
+      AndersonMix(
+          iter,
+          mixStepLength_,
+          mixType_,
+          ham.Vtot(),
+          vtotOld_,
+          vtotNew_,
+          dfMat_,
+          dvMat_);
+    }
+    else{
+      ErrorHandling("Invalid mixing type.");
+    }
+    GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+    statusOFS << "Time for computing potential mixing in PWDFT is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+    GetTime( timeIterEnd );
+
+    statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
+      << " [s]" << std::endl;
+
+  } // for (iter)
+
+  return ;
+}         // -----  end of method SCF::IterateDensity  ----- 
+
+void
+SCF::IterateWavefun    ( )
+{
+  int mpirank;  MPI_Comm_rank(eigSolPtr_->FFT().domain.comm, &mpirank);
+  int mpisize;  MPI_Comm_size(eigSolPtr_->FFT().domain.comm, &mpisize);
+
+  Real timeSta, timeEnd;
+  Real timeIterStart(0), timeIterEnd(0);
+
+  Hamiltonian& ham = eigSolPtr_->Ham();
+  Fourier&     fft = eigSolPtr_->FFT();
+  Spinor&      psi = eigSolPtr_->Psi();
+
+
+  // Fock energies
+  Real fock0 = 0.0, fock1 = 0.0, fock2 = 0.0;
+
+  bool isPhiIterConverged = false;
+
+  // FIXME the decision whether to fix the column choices for density
+  // fitting should be controled by a parameter outside
+  bool isFixColumnDF = false;
+  Real timePhiIterStart(0), timePhiIterEnd(0);
+  Real dExx;
+
+  // NOTE: The different mixing mode of hybrid functional calculations
+  // are not compatible with each other. So each requires its own code
+
+  // Evaluate the Fock energy
+  // Update Phi <- Psi
+  GetTime( timeSta );
+  ham.SetPhiEXX( psi, fft ); 
+
+  // Construct the ACE operator
+  if( esdfParam.isHybridACE ){
+    if( esdfParam.isHybridDF ){
+#ifdef DEVICE
+      ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
+#else
+      ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+#endif
+      // Fix the column after the first iteraiton
+      isFixColumnDF = true;
+    }
+    else{
+#ifdef DEVICE
+      ham.CalculateVexxACEGPU ( psi, fft );
+#else
+      ham.CalculateVexxACE ( psi, fft );
+#endif
+    }
+  }
+
+  GetTime( timeEnd );
+  statusOFS << "Time for updating Phi related variable is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+  GetTime( timeSta );
+  fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+  GetTime( timeEnd );
+  statusOFS << "Time for computing the EXX energy is " <<
+    timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+  Efock_ = fock2;
+  fock1  = fock2;
+
+  if( esdfParam.hybridMixType == "nested" ){
+    GetTime( timeSta );
+
+    for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
+
+      std::ostringstream msg;
+      msg << "Phi iteration # " << phiIter;
+      PrintBlock( statusOFS, msg.str() );
+
+      // Nested SCF iteration
+      GetTime( timePhiIterStart );
+      IterateDensity();
+      GetTime( timePhiIterEnd );
+
+      statusOFS << "Total wall clock time for this Phi iteration = " << 
+        timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
+
+      // Update Phi <- Psi
+      GetTime( timeSta );
+      ham.SetPhiEXX( psi, fft ); 
+
+      // Update the ACE if needed
+      if( esdfParam.isHybridACE ){
+        if( esdfParam.isHybridDF ){
+          ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+          // Fix the column after the first iteraiton
+          isFixColumnDF = true;
+        }
+        else{
+#ifdef DEVICE
+          statusOFS << " ham.CalculateVexxACEGPU1 ..... " << std::endl << std::endl;
+          ham.CalculateVexxACEGPU1 ( psi, fft );
+#else
+          ham.CalculateVexxACE ( psi, fft );
+#endif
+        }
+      }
+
+      GetTime( timeEnd );
+      statusOFS << "Time for updating Phi related variable is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      GetTime( timeSta );
+      fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+      GetTime( timeEnd );
+      statusOFS << "Time for computing the EXX energy is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
+      dExx = std::abs(fock2 - fock1) / std::abs(fock2);
+      fock1 = fock2;
+      Efock_ = fock2;
+
+      Etot_        -= Efock_;
+      Efree_       -= Efock_;
+      EfreeHarris_ -= Efock_;
+
+      statusOFS << std::endl;
+      Print(statusOFS, "Fock energy             = ",  Efock_, "[au]");
+      Print(statusOFS, "Etot(with fock)         = ",  Etot_, "[au]");
+      Print(statusOFS, "Efree(with fock)        = ",  Efree_, "[au]");
+      Print(statusOFS, "EfreeHarris(with fock)  = ",  EfreeHarris_, "[au]");
+      Print(statusOFS, "dExx              = ",  dExx, "[au]");
+      if( dExx < scfPhiTolerance_ ){
+        statusOFS << "SCF for hybrid functional is converged in " 
+          << phiIter << " steps !" << std::endl;
+        isPhiIterConverged = true;
+      }
+      if ( isPhiIterConverged ) break;
+    } // for(phiIter)
+
+    GetTime( timeEnd );
+    statusOFS << "Time for using nested method is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+  } // hybridMixType == "nested"
+
+
+#ifdef DEVICE
+  // GPU version of pc-diis. 
+  // note, ACE nested can not work on GPU yet
+  if( esdfParam.hybridMixType == "pcdiis" ){
+    GetTime( timeSta );
+
+    // This requires a good initial guess of wavefunctions, 
+    // from one of the following
+    // 1) a regular SCF calculation
+    // 2) restarting wavefunction with Hybrid_Active_Init = true
+    
+
+    Int ntot      = fft.domain.NumGridTotal();
+    Int ntotFine  = fft.domain.NumGridTotalFine();
+    Int numStateTotal = psi.NumStateTotal();
+    Int numStateLocal = psi.NumState();
+    Int numOccTotal = ham.NumOccupiedState();
+
+    MPI_Comm mpi_comm = eigSolPtr_->FFT().domain.comm;
+
+    Int I_ONE = 1, I_ZERO = 0;
+    double D_ONE = 1.0;
+    double D_ZERO = 0.0;
+    double D_MinusONE = -1.0;
+
+    // FIXME: LL 1/4/2021 Cleanup the pcdiis method with ScaLAPACKMatrix structures
+    Real timeSta, timeEnd, timeSta1, timeEnd1;
+
+    Int contxt0D, contxt1DCol, contxt1DRow,  contxt2D;
+    Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
+    Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
+    Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
+    Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
+
+    Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
+    Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
+    Int ncolsNgNo1DCol, nrowsNgNo1DCol, lldNgNo1DCol; 
+    Int ncolsNgNo1DRow, nrowsNgNo1DRow, lldNgNo1DRow; 
+
+    Int desc_NgNe1DCol[9];
+    Int desc_NgNe1DRow[9];
+    Int desc_NgNo1DCol[9];
+    Int desc_NgNo1DRow[9];
+
+    Int Ne = numStateTotal; 
+    Int No = numOccTotal; 
+    Int Ng = ntot;
+
+    // 1D col MPI
+    nprow1DCol = 1;
+    npcol1DCol = mpisize;
+
+    Cblacs_get(0, 0, &contxt1DCol);
+    Cblacs_gridinit(&contxt1DCol, "C", nprow1DCol, npcol1DCol);
+    Cblacs_gridinfo(contxt1DCol, &nprow1DCol, &npcol1DCol, &myrow1DCol, &mycol1DCol);
+
+    // 1D row MPI
+    nprow1DRow = mpisize;
+    npcol1DRow = 1;
+
+    Cblacs_get(0, 0, &contxt1DRow);
+    Cblacs_gridinit(&contxt1DRow, "C", nprow1DRow, npcol1DRow);
+    Cblacs_gridinfo(contxt1DRow, &nprow1DRow, &npcol1DRow, &myrow1DRow, &mycol1DRow);
+
+
+    //desc_NgNe1DCol
+    if(contxt1DCol >= 0){
+      nrowsNgNe1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
+      ncolsNgNe1DCol = SCALAPACK(numroc)(&Ne, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
+      lldNgNe1DCol = std::max( nrowsNgNe1DCol, 1 );
+    }    
+
+    SCALAPACK(descinit)(desc_NgNe1DCol, &Ng, &Ne, &Ng, &I_ONE, &I_ZERO, 
+        &I_ZERO, &contxt1DCol, &lldNgNe1DCol, &info1DCol);
+
+    //desc_NgNe1DRow
+    if(contxt1DRow >= 0){
+      nrowsNgNe1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK_, &myrow1DRow, &I_ZERO, &nprow1DRow);
+      ncolsNgNe1DRow = SCALAPACK(numroc)(&Ne, &Ne, &mycol1DRow, &I_ZERO, &npcol1DRow);
+      lldNgNe1DRow = std::max( nrowsNgNe1DRow, 1 );
+    }    
+
+    SCALAPACK(descinit)(desc_NgNe1DRow, &Ng, &Ne, &BlockSizeScaLAPACK_, &Ne, &I_ZERO, 
+        &I_ZERO, &contxt1DRow, &lldNgNe1DRow, &info1DRow);
+
+    //desc_NgNo1DCol
+    if(contxt1DCol >= 0){
+      nrowsNgNo1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
+      ncolsNgNo1DCol = SCALAPACK(numroc)(&No, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
+      lldNgNo1DCol = std::max( nrowsNgNo1DCol, 1 );
+    }    
+
+    SCALAPACK(descinit)(desc_NgNo1DCol, &Ng, &No, &Ng, &I_ONE, &I_ZERO, 
+        &I_ZERO, &contxt1DCol, &lldNgNo1DCol, &info1DCol);
+
+    //desc_NgNo1DRow
+    if(contxt1DRow >= 0){
+      nrowsNgNo1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK_, &myrow1DRow, &I_ZERO, &nprow1DRow);
+      ncolsNgNo1DRow = SCALAPACK(numroc)(&No, &No, &mycol1DRow, &I_ZERO, &npcol1DRow);
+      lldNgNo1DRow = std::max( nrowsNgNo1DRow, 1 );
+    }    
+
+    SCALAPACK(descinit)(desc_NgNo1DRow, &Ng, &No, &BlockSizeScaLAPACK_, &No, &I_ZERO, 
+        &I_ZERO, &contxt1DRow, &lldNgNo1DRow, &info1DRow);
+
+    if(numStateLocal !=  ncolsNgNe1DCol){
+      statusOFS << "numStateLocal = " << numStateLocal << " ncolsNgNe1DCol = " << ncolsNgNe1DCol << std::endl;
+      ErrorHandling("The size of numState is not right!");
+    }
+
+    if(nrowsNgNe1DRow !=  nrowsNgNo1DRow){
+      statusOFS << "nrowsNgNe1DRow = " << nrowsNgNe1DRow << " ncolsNgNo1DRow = " << ncolsNgNo1DRow << std::endl;
+      ErrorHandling("The size of nrowsNgNe1DRow and ncolsNgNo1DRow is not right!");
+    }
+
+
+    Int numOccLocal = ncolsNgNo1DCol;
+    Int ntotLocal = nrowsNgNe1DRow;
+
+    DblNumMat psiPcCol(ntot, numStateLocal);
+    DblNumMat psiPcRow(ntotLocal, numStateTotal);
+    DblNumMat HpsiCol(ntot, numStateLocal);
+    DblNumMat HpsiRow(ntotLocal, numStateTotal);
+
+    dfMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
+    dvMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
+
+    DblNumMat PcCol(ntot, numOccLocal);
+    DblNumMat PcRow(ntotLocal, numOccTotal);
+    DblNumMat ResCol(ntot, numOccLocal);
+    DblNumMat ResRow(ntotLocal, numOccTotal);
+
+    DblNumMat psiMuT(numOccTotal, numOccTotal);
+    DblNumMat psiMuTLocal(numOccLocal, numOccTotal);
+    DblNumMat HpsiMuT(numOccTotal, numOccTotal);
+    DblNumMat HpsiMuTLocal(numOccLocal, numOccTotal);
+
+    DblNumMat psiCol( ntot, numStateLocal );
+    SetValue( psiCol, 0.0 );
+    DblNumMat psiRow( ntotLocal, numStateTotal );
+    SetValue( psiRow, 0.0 );
+
+    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+    //AlltoallForward (psiCol, psiRow, mpi_comm);
+    SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+        psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
+
+    DblNumMat psiTemp(ntotLocal, numOccTotal);
+    SetValue( psiTemp, 0.0 );
+
+    lapack::Lacpy( 'A', ntotLocal, numOccTotal, psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal );
+    Real one = 1.0;
+    Real minus_one = -1.0;
+    Real zero = 0.0;
+
+
+#ifdef DEVICE
+    //device_init_vtot();
+#endif
+    // Phi loop
+    for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
+      {
+        deviceDblNumMat cu_psiMuT(numOccTotal, numOccTotal);
+        deviceDblNumMat cu_HpsiMuT(numOccTotal, numOccTotal);
+        deviceDblNumMat cu_psiRow( ntotLocal, numStateTotal );
+        deviceDblNumMat cu_psiTemp(ntotLocal, numOccTotal);
+        deviceDblNumMat cu_PcRow(ntotLocal, numOccTotal);
+        deviceDblNumMat cu_HpsiCol(ntot, numStateLocal);
+        deviceDblNumMat cu_psi(ntot, numStateLocal);
+        deviceDblNumMat cu_HpsiRow(ntotLocal, numStateTotal);
+        deviceDblNumMat cu_ResRow(ntotLocal, numOccTotal);
+        deviceDblNumMat cu_psiPcRow(ntotLocal, numStateTotal);
+        cu_psiTemp.CopyFrom( psiTemp);
+
+        char right  = 'R';
+        char up     = 'U';
+        char nondiag   = 'N';
+        char cu_transT = 'T';
+        char cu_transN = 'N';
+        char cu_transC = 'C';
+
+        GetTime( timePhiIterStart );
+
+        SetValue( psiCol, 0.0 );
+        lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+        SetValue( psiRow, 0.0 );
+        //AlltoallForward (psiCol, psiRow, mpi_comm);
+        SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+            psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
+
+        if(1){
+
+          DblNumMat psiMuTTemp(numOccTotal, numOccTotal);
+          SetValue( psiMuTTemp, 0.0 );
+
+          deviceDblNumMat cu_psiMuTTemp(numOccTotal, numOccTotal);
+          cu_psiRow.CopyFrom(psiRow);
+          DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, 
+              &one, cu_psiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
+              &zero, cu_psiMuTTemp.Data(), numOccTotal );
+          cu_psiMuTTemp.CopyTo( psiMuTTemp );
+
+          /*
+             blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
+             psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
+             0.0, psiMuTTemp.Data(), numOccTotal );
+           */
+          SetValue( psiMuT, 0.0 );
+          MPI_Allreduce( psiMuTTemp.Data(), psiMuT.Data(), 
+              numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
+
+        }//if
+
+#if ( _DEBUGlevel_ >= 1 )
+        {
+          // Monitor the singular values as a measure as the quality of
+          // the selected columns
+          DblNumMat tmp = psiMuT;
+          DblNumVec s(numOccTotal);
+          lapack::SingularValues( numOccTotal, numOccTotal, tmp.Data(), numOccTotal, s.Data() );
+          statusOFS << "Spsi = " << s << std::endl;
+        }
+#endif
+        cu_psiMuT.CopyFrom( psiMuT);
+        DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
+            cu_psiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
+            &zero, cu_PcRow.Data(), ntotLocal );
+        cu_PcRow.CopyTo( PcRow );
+
+        /*
+           blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
+           psiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
+           0.0, PcRow.Data(), ntotLocal );
+         */
+        SetValue( PcCol, 0.0 );
+        //AlltoallBackward (PcRow, PcCol, mpi_comm);
+        SCALAPACK(pdgemr2d)(&Ng, &No, PcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
+            PcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
+
+        std::ostringstream msg;
+        msg << "Phi iteration # " << phiIter;
+        PrintBlock( statusOFS, msg.str() );
+
+        // Compute the residual
+        {
+          // Compute Hpsi for all psi 
+          Int ncom = psi.NumComponent();
+          Int noccTotal = psi.NumStateTotal();
+          Int noccLocal = psi.NumState();
+
+          device_memcpy_HOST2DEVICE(cu_psi.Data(), psi.Wavefun().Data(), ntot*numStateLocal*sizeof(Real) );
+          deviceNumTns<Real> tnsTemp(ntot, 1, numStateLocal, false, cu_HpsiCol.Data());
+          // there are two sets of grid for Row parallelization. 
+          // the old fashioned split and the Scalapack split.
+          // note that they turns out to be different ones in that: 
+          // Scalapack divide the Psi by blocks, and old way is continuous.  
+          // this is error prone.
+          Spinor spnTemp(fft.domain, ncom, noccTotal, noccLocal, false, cu_psi.Data(), true);
+          ham.MultSpinor_old( spnTemp, tnsTemp, fft );
+          cu_HpsiCol.CopyTo(HpsiCol);
+
+          // remember to reset the vtot
+          device_reset_vtot_flag();
+          //ham.MultSpinor( psi, tnsTemp, fft );
+
+          //SetValue( HpsiRow, 0.0 );
+          //AlltoallForward (HpsiCol, HpsiRow, mpi_comm);
+          SCALAPACK(pdgemr2d)(&Ng, &Ne, HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+              HpsiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
+
+          cu_HpsiRow.CopyFrom(HpsiRow);
+
+          // perform the ACE operator here
+          //ham.ACEOperator( cu_psiRow, fft, cu_HpsiRow );
+          //cu_HpsiRow.CopyTo(HpsiRow);
+
+          if(1){
+
+            DblNumMat HpsiMuTTemp(numOccTotal,numOccTotal);
+            deviceDblNumMat cu_HpsiMuTTemp(numOccTotal,numOccTotal);
+            //SetValue( HpsiMuTTemp, 0.0 );
+
+            DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, 
+                cu_HpsiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
+                &zero, cu_HpsiMuTTemp.Data(), numOccTotal );
+            cu_HpsiMuTTemp.CopyTo(HpsiMuTTemp);
+            /*
+               blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
+               HpsiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
+               0.0, HpsiMuTTemp.Data(), numOccTotal );
+             */
+            //SetValue( HpsiMuT, 0.0 );
+
+            MPI_Allreduce( HpsiMuTTemp.Data(), HpsiMuT.Data(), 
+                numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
+
+          }//if
+
+          DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
+              cu_HpsiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
+              &zero, cu_ResRow.Data(), ntotLocal );
+
+          cu_HpsiMuT.CopyFrom( HpsiMuT );
+          DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
+              cu_psiRow.Data(), ntotLocal, cu_HpsiMuT.Data(), numOccTotal, 
+              &one, cu_ResRow.Data(), ntotLocal );
+          cu_ResRow.CopyTo(ResRow);
+
+          /*
+             blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
+             HpsiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
+             0.0, ResRow.Data(), ntotLocal );
+             blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, -1.0, 
+             psiRow.Data(), ntotLocal, HpsiMuT.Data(), numOccTotal, 
+             1.0, ResRow.Data(), ntotLocal );
+             SetValue( ResCol, 0.0 );
+           */
+          //AlltoallBackward (ResRow, ResCol, mpi_comm);
+          SCALAPACK(pdgemr2d)(&Ng, &No, ResRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
+              ResCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
+        }
+
+        GetTime( timeSta );
+        // Anderson mixing. Use the same mixMaxDim_ for Phi mixing
+        {
+          // Optimal input potential in Anderon mixing.
+          DblNumVec vOpt( ntot * numOccLocal ); 
+
+          // Number of iterations used, iter should start from 1
+          Int iterused = std::min( phiIter-1, mixMaxDim_ ); 
+          // The current position of dfMat, dvMat
+          Int ipos = phiIter - 1 - ((phiIter-2)/ mixMaxDim_ ) * mixMaxDim_;
+          // The next position of dfMat, dvMat
+          Int inext = phiIter - ((phiIter-1)/ mixMaxDim_) * mixMaxDim_;
+
+          blas::Copy( ntot * numOccLocal, PcCol.Data(), 1, vOpt.Data(), 1 );
+
+          if( phiIter > 1 ){
+            // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
+            // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
+            blas::Scal( ntot * numOccLocal, -1.0, dfMat_.VecData(ipos-1), 1 );
+            blas::Axpy( ntot * numOccLocal, 1.0, ResCol.Data(), 1, dfMat_.VecData(ipos-1), 1 );
+            blas::Scal( ntot * numOccLocal, -1.0, dvMat_.VecData(ipos-1), 1 );
+            blas::Axpy( ntot * numOccLocal, 1.0, PcCol.Data(), 1, dvMat_.VecData(ipos-1), 1 );
+
+            // Calculating pseudoinverse
+            DblNumMat dfMatTemp(ntot * numOccLocal, mixMaxDim_);
+            DblNumVec gammas(ntot * numOccLocal), S(iterused);
+
+            SetValue( dfMatTemp, 0.0 );
+            SetValue( gammas, 0.0 );
+
+            Int rank;
+            // FIXME Magic number
+            Real rcond = 1e-9;
+
+            // gammas    = res;
+            blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, gammas.Data(), 1 );
+            lapack::Lacpy( 'A', ntot * numOccLocal, mixMaxDim_, dfMat_.Data(), ntot * numOccLocal, 
+                dfMatTemp.Data(), ntot * numOccLocal );
+
+            // May need different strategy in a parallel setup
+            if(0){  
+
+              lapack::SVDLeastSquare( ntot * numOccLocal, iterused, 1, 
+                  dfMatTemp.Data(), ntot * numOccLocal,
+                  gammas.Data(), ntot * numOccLocal,
+                  S.Data(), rcond, &rank );
+
+              blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
+                  ntot * numOccLocal, gammas.Data(), 1, 1.0, vOpt.Data(), 1 );
+
+            }
+
+            if(1){
+
+              DblNumMat XTX(iterused, iterused);
+              DblNumMat XTXTemp(iterused, iterused);
+
+              SetValue( XTXTemp, 0.0 );
+              blas::Gemm( 'T', 'N', iterused, iterused, ntot * numOccLocal, 1.0, 
+                  dfMatTemp.Data(), ntot * numOccLocal, dfMatTemp.Data(), ntot * numOccLocal, 
+                  0.0, XTXTemp.Data(), iterused );
+
+              SetValue( XTX, 0.0 );
+              MPI_Allreduce( XTXTemp.Data(), XTX.Data(), 
+                  iterused * iterused, MPI_DOUBLE, MPI_SUM, mpi_comm );
+
+              DblNumVec gammasTemp1(iterused);
+              SetValue( gammasTemp1, 0.0 );
+              //blas::Gemv('T', ntot * numOccLocal, iterused, 1.0, dfMatTemp.Data(),
+              //    ntot * numOccLocal, gammas.Data(), 1, 0.0, gammasTemp1.Data(), 1 );
+
+              blas::Gemm( 'T', 'N', iterused, I_ONE, ntot * numOccLocal, 1.0, 
+                  dfMatTemp.Data(), ntot * numOccLocal, gammas.Data(), ntot * numOccLocal, 
+                  0.0, gammasTemp1.Data(), iterused );
+
+              DblNumVec gammasTemp2(iterused);
+              SetValue( gammasTemp2, 0.0 );
+              MPI_Allreduce( gammasTemp1.Data(), gammasTemp2.Data(), 
+                  iterused, MPI_DOUBLE, MPI_SUM, mpi_comm );
+
+              lapack::SVDLeastSquare( iterused, iterused, 1, 
+                  XTX.Data(), iterused,
+                  gammasTemp2.Data(), iterused,
+                  S.Data(), rcond, &rank );
+
+              //blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
+              //    ntot * numOccLocal, gammasTemp2.Data(), 1, 1.0, vOpt.Data(), 1 );
+
+              blas::Gemm( 'N', 'N', ntot * numOccLocal, I_ONE, iterused, -1.0, 
+                  dvMat_.Data(), ntot * numOccLocal, gammasTemp2.Data(), iterused, 
+                  1.0, vOpt.Data(), ntot * numOccLocal );
+
+            }
+
+            Print( statusOFS, "  Rank of dfmat = ", rank );
+
+          }
+
+          // Update dfMat, dvMat, vMix 
+          // dfMat(:, inext-1) = Res(:)
+          // dvMat(:, inext-1) = Pc(:)
+          blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, 
+              dfMat_.VecData(inext-1), 1 );
+          blas::Copy( ntot * numOccLocal, PcCol.Data(),  1, 
+              dvMat_.VecData(inext-1), 1 );
+
+          // Orthogonalize vOpt to obtain psiPc. 
+          // psiPc has the same size
+          SetValue( psiPcCol, 0.0 );
+          blas::Copy( ntot * numOccLocal, vOpt.Data(), 1, psiPcCol.Data(), 1 );
+          //lapack::Orth( ntot, numOccLocal, psiPcCol.Data(), ntotLocal );
+
+          // Orthogonalization through Cholesky factorization
+          if(1){ 
+            SetValue( psiPcRow, 0.0 );
+            //AlltoallForward (psiPcCol, psiPcRow, mpi_comm);
+            SCALAPACK(pdgemr2d)(&Ng, &No, psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
+                psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
+
+            cu_psiPcRow.CopyFrom( psiPcRow );
+
+            DblNumMat XTX(numOccTotal, numOccTotal);
+            DblNumMat XTXTemp(numOccTotal, numOccTotal);
+            deviceDblNumMat cu_XTXTemp(numOccTotal, numOccTotal);
+
+            DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
+                ntotLocal, cu_psiPcRow.Data(), ntotLocal, &zero, cu_XTXTemp.Data(), numOccTotal );
+            cu_XTXTemp.CopyTo(XTXTemp);
+
+            /*
+               blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiPcRow.Data(), 
+               ntotLocal, psiPcRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
+               SetValue( XTX, 0.0 );
+             */
+            MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
+
+            //if ( mpirank == 0) {
+            //  lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
+            //}
+            //MPI_Bcast(XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, 0, mpi_comm);
+
+            cu_XTXTemp.CopyFrom(XTX);
+#ifdef USE_MAGMA
+            MAGMA::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
+#else
+            device_solver::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
+#endif
+
+            DEVICE_BLAS::Trsm( right, up, cu_transN, nondiag, 
+                ntotLocal, numOccTotal, &one, cu_XTXTemp.Data(), numOccTotal, cu_psiPcRow.Data(),
+                ntotLocal);
+            cu_psiPcRow.CopyTo( psiPcRow );
+
+            // X <- X * U^{-1} is orthogonal
+            /*
+               blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
+               psiPcRow.Data(), ntotLocal );
+               SetValue( psiPcCol, 0.0 );
+             */
+
+            //AlltoallBackward (psiPcRow, psiPcCol, mpi_comm);
+            SCALAPACK(pdgemr2d)(&Ng, &No, psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
+                psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
+          } 
+
+        }//Anderson mixing
+      } // GPU malloc and free.
+
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for GPU  Anderson mixing in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      // Construct the new Hamiltonian operator
+      Spinor spnPsiPc(fft.domain, 1, numStateTotal,
+          numStateLocal, false, psiPcCol.Data());
+
+      // Compute the electron density
+      GetTime( timeSta );
+      ham.CalculateDensity(
+          spnPsiPc,
+          ham.OccupationRate(),
+          totalCharge_, 
+          fft );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing density in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      // Compute the exchange-correlation potential and energy
+      if( ham.XCRequireGradDensity() ){
+        GetTime( timeSta );
+        ham.CalculateGradDensity( fft );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing gradient density in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+      }
+
+      GetTime( timeSta );
+      ham.CalculateXC( Exc_, fft ); 
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing XC potential in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      // Compute the Hartree energy
+      GetTime( timeSta );
+      ham.CalculateHartree( fft );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing Hartree potential in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+      // No external potential
+
+      // Compute the total potential
+      GetTime( timeSta );
+      ham.CalculateVtot( vtotNew_ );
+      blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
+
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing total potential in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      // Update Phi <- Psi
+      GetTime( timeSta );
+      ham.SetPhiEXX( spnPsiPc, fft ); 
+
+      // Update the ACE if needed
+      // Still use psi but phi has changed
+      if( esdfParam.isHybridACE ){
+        if( esdfParam.isHybridDF ){
+          ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
+          // Fix the column after the first iteraiton
+          isFixColumnDF = true;
+        }
+        else{
+          ham.CalculateVexxACEGPU ( psi, fft );
+        }
+      }
+
+      GetTime( timeEnd );
+      statusOFS << "GPU Time for updating Phi related variable is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      InnerSolve( phiIter );
+      blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
+
+
+      EVdw_ = 0.0;
+
+      CalculateEnergy();
+
+      PrintState( phiIter );
+
+      GetTime( timePhiIterEnd );
+
+      statusOFS << "Total wall clock time for this Phi iteration = " << 
+        timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
+
+      if(1){
+
+        // Update Phi <- Psi
+        GetTime( timeSta );
+        ham.SetPhiEXX( psi, fft ); 
+
+        // In principle there is no need to construct ACE operator here
+        // However, this makes the code more readable by directly calling 
+        // the MultSpinor function later
+        if( esdfParam.isHybridACE ){
+          if( esdfParam.isHybridDF ){
+            ham.CalculateVexxACEDFGPU( psi, fft, isFixColumnDF );
+            // Fix the column after the first iteraiton
+            isFixColumnDF = true;
+          }
+          else{
+            // GPU needs to be done
+            ham.CalculateVexxACEGPU ( psi, fft );
+          }
+        }
+
+        GetTime( timeEnd );
+        statusOFS << " GPU Time for updating Phi related variable is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      }//if
+
+      GetTime( timeSta );
+      fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+      GetTime( timeEnd );
+      statusOFS << "Time for computing the EXX energy is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
+      dExx = std::abs(fock2 - fock1) / std::abs(fock2);
+      // use scfNorm to reflect dExx
+      scfNorm_ = dExx;
+      fock1 = fock2;
+      Efock_ = fock2;
+
+      Etot_        -= Efock_;
+      Efree_       -= Efock_;
+      EfreeHarris_ -= Efock_;
+
+      statusOFS << std::endl;
+      Print(statusOFS, "Fock energy             = ",  Efock_, "[au]");
+      Print(statusOFS, "Etot(with fock)         = ",  Etot_, "[au]");
+      Print(statusOFS, "Efree(with fock)        = ",  Efree_, "[au]");
+      Print(statusOFS, "EfreeHarris(with fock)  = ",  EfreeHarris_, "[au]");
+
+      if( dExx < scfPhiTolerance_ ){
+        statusOFS << "SCF for hybrid functional is converged in " 
+          << phiIter << " steps !" << std::endl;
+        isPhiIterConverged = true;
+      }
+      if ( isPhiIterConverged ) break;
+    } // for(phiIter)
+    
+    GetTime( timeEnd );
+    statusOFS << "Time for using pcdiis method is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+  } // hybridMixType == "pcdiis"
+
+#else
+
+  // FIXME: LL 1/4/2021 How to reduce the amount of repetition between the CPU and GPU branches?
+  if( esdfParam.hybridMixType == "pcdiis" ){
+    GetTime( timeSta );
+
+    // This requires a good initial guess of wavefunctions, 
+    // from one of the following
+    // 1) a regular SCF calculation
+    // 2) restarting wavefunction with Hybrid_Active_Init = true
+
+    Int ntot      = fft.domain.NumGridTotal();
+    Int ntotFine  = fft.domain.NumGridTotalFine();
+    Int numStateTotal = psi.NumStateTotal();
+    Int numStateLocal = psi.NumState();
+    Int numOccTotal = ham.NumOccupiedState();
+
+    MPI_Comm mpi_comm = eigSolPtr_->FFT().domain.comm;
+
+    Int I_ONE = 1, I_ZERO = 0;
+    double D_ONE = 1.0;
+    double D_ZERO = 0.0;
+    double D_MinusONE = -1.0;
+
+    Real timeSta, timeEnd, timeSta1, timeEnd1;
+
+    //Int contxt0D, contxt2D;
+    Int contxt1DCol, contxt1DRow;
+    Int nprow0D, npcol0D, myrow0D, mycol0D, info0D;
+    Int nprow1DCol, npcol1DCol, myrow1DCol, mycol1DCol, info1DCol;
+    Int nprow1DRow, npcol1DRow, myrow1DRow, mycol1DRow, info1DRow;
+    Int nprow2D, npcol2D, myrow2D, mycol2D, info2D;
+
+    Int ncolsNgNe1DCol, nrowsNgNe1DCol, lldNgNe1DCol; 
+    Int ncolsNgNe1DRow, nrowsNgNe1DRow, lldNgNe1DRow; 
+    Int ncolsNgNo1DCol, nrowsNgNo1DCol, lldNgNo1DCol; 
+    Int ncolsNgNo1DRow, nrowsNgNo1DRow, lldNgNo1DRow; 
+
+    Int desc_NgNe1DCol[9];
+    Int desc_NgNe1DRow[9];
+    Int desc_NgNo1DCol[9];
+    Int desc_NgNo1DRow[9];
+
+    Int Ne = numStateTotal; 
+    Int No = numOccTotal; 
+    Int Ng = ntot;
+
+    // 1D col MPI
+    nprow1DCol = 1;
+    npcol1DCol = mpisize;
+
+    Cblacs_get(0, 0, &contxt1DCol);
+    Cblacs_gridinit(&contxt1DCol, "C", nprow1DCol, npcol1DCol);
+    Cblacs_gridinfo(contxt1DCol, &nprow1DCol, &npcol1DCol, &myrow1DCol, &mycol1DCol);
+
+    // 1D row MPI
+    nprow1DRow = mpisize;
+    npcol1DRow = 1;
+
+    Cblacs_get(0, 0, &contxt1DRow);
+    Cblacs_gridinit(&contxt1DRow, "C", nprow1DRow, npcol1DRow);
+    Cblacs_gridinfo(contxt1DRow, &nprow1DRow, &npcol1DRow, &myrow1DRow, &mycol1DRow);
+
+
+    //desc_NgNe1DCol
+    if(contxt1DCol >= 0){
+      nrowsNgNe1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
+      ncolsNgNe1DCol = SCALAPACK(numroc)(&Ne, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
+      lldNgNe1DCol = std::max( nrowsNgNe1DCol, 1 );
+    }    
+
+    SCALAPACK(descinit)(desc_NgNe1DCol, &Ng, &Ne, &Ng, &I_ONE, &I_ZERO, 
+        &I_ZERO, &contxt1DCol, &lldNgNe1DCol, &info1DCol);
+
+    //desc_NgNe1DRow
+    if(contxt1DRow >= 0){
+      nrowsNgNe1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK_, &myrow1DRow, &I_ZERO, &nprow1DRow);
+      ncolsNgNe1DRow = SCALAPACK(numroc)(&Ne, &Ne, &mycol1DRow, &I_ZERO, &npcol1DRow);
+      lldNgNe1DRow = std::max( nrowsNgNe1DRow, 1 );
+    }    
+
+    SCALAPACK(descinit)(desc_NgNe1DRow, &Ng, &Ne, &BlockSizeScaLAPACK_, &Ne, &I_ZERO, 
+        &I_ZERO, &contxt1DRow, &lldNgNe1DRow, &info1DRow);
+
+    //desc_NgNo1DCol
+    if(contxt1DCol >= 0){
+      nrowsNgNo1DCol = SCALAPACK(numroc)(&Ng, &Ng, &myrow1DCol, &I_ZERO, &nprow1DCol);
+      ncolsNgNo1DCol = SCALAPACK(numroc)(&No, &I_ONE, &mycol1DCol, &I_ZERO, &npcol1DCol);
+      lldNgNo1DCol = std::max( nrowsNgNo1DCol, 1 );
+    }    
+
+    SCALAPACK(descinit)(desc_NgNo1DCol, &Ng, &No, &Ng, &I_ONE, &I_ZERO, 
+        &I_ZERO, &contxt1DCol, &lldNgNo1DCol, &info1DCol);
+
+    //desc_NgNo1DRow
+    if(contxt1DRow >= 0){
+      nrowsNgNo1DRow = SCALAPACK(numroc)(&Ng, &BlockSizeScaLAPACK_, &myrow1DRow, &I_ZERO, &nprow1DRow);
+      ncolsNgNo1DRow = SCALAPACK(numroc)(&No, &No, &mycol1DRow, &I_ZERO, &npcol1DRow);
+      lldNgNo1DRow = std::max( nrowsNgNo1DRow, 1 );
+    }    
+
+    SCALAPACK(descinit)(desc_NgNo1DRow, &Ng, &No, &BlockSizeScaLAPACK_, &No, &I_ZERO, 
+        &I_ZERO, &contxt1DRow, &lldNgNo1DRow, &info1DRow);
+
+    if(numStateLocal !=  ncolsNgNe1DCol){
+      statusOFS << "numStateLocal = " << numStateLocal << " ncolsNgNe1DCol = " << ncolsNgNe1DCol << std::endl;
+      ErrorHandling("The size of numState is not right!");
+    }
+
+    if(nrowsNgNe1DRow !=  nrowsNgNo1DRow){
+      statusOFS << "nrowsNgNe1DRow = " << nrowsNgNe1DRow << " ncolsNgNo1DRow = " << ncolsNgNo1DRow << std::endl;
+      ErrorHandling("The size of nrowsNgNe1DRow and ncolsNgNo1DRow is not right!");
+    }
+
+
+    Int numOccLocal = ncolsNgNo1DCol;
+    Int ntotLocal = nrowsNgNe1DRow;
+
+    //DblNumMat psiPcCol(ntot, numStateLocal);
+    //DblNumMat psiPcRow(ntotLocal, numStateTotal);
+    DblNumMat HpsiCol(ntot, numStateLocal);
+    DblNumMat HpsiRow(ntotLocal, numStateTotal);
+
+    dfMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dfMat_, 0.0 );
+    dvMat_.Resize( ntot * numOccLocal, mixMaxDim_ ); SetValue( dvMat_, 0.0 );
+
+    DblNumMat psiPcCol(ntot, numOccLocal);
+    DblNumMat psiPcRow(ntotLocal, numOccTotal);
+    DblNumMat PcCol(ntot, numOccLocal);
+    DblNumMat PcRow(ntotLocal, numOccTotal);
+    DblNumMat ResCol(ntot, numOccLocal);
+    DblNumMat ResRow(ntotLocal, numOccTotal);
+
+    DblNumMat psiMuT(numOccTotal, numOccTotal);
+    DblNumMat psiMuTLocal(numOccLocal, numOccTotal);
+    DblNumMat HpsiMuT(numOccTotal, numOccTotal);
+    DblNumMat HpsiMuTLocal(numOccLocal, numOccTotal);
+
+    DblNumMat psiCol( ntot, numStateLocal );
+    SetValue( psiCol, 0.0 );
+    DblNumMat psiRow( ntotLocal, numStateTotal );
+    SetValue( psiRow, 0.0 );
+
+    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+    //AlltoallForward (psiCol, psiRow, mpi_comm);
+    SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+        psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
+
+    DblNumMat psiTemp(ntotLocal, numOccTotal);
+    SetValue( psiTemp, 0.0 );
+
+    lapack::Lacpy( 'A', ntotLocal, numOccTotal, psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal );
+
+    // Phi loop
+    for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
+
+      GetTime( timePhiIterStart );
+
+      SetValue( psiCol, 0.0 );
+      lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+      SetValue( psiRow, 0.0 );
+      //AlltoallForward (psiCol, psiRow, mpi_comm);
+      SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+          psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
+
+      if(1){
+
+        DblNumMat psiMuTTemp(numOccTotal, numOccTotal);
+        SetValue( psiMuTTemp, 0.0 );
+        blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
+            psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
+            0.0, psiMuTTemp.Data(), numOccTotal );
+
+        SetValue( psiMuT, 0.0 );
+        MPI_Allreduce( psiMuTTemp.Data(), psiMuT.Data(), 
+            numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
+
+      }//if
+
+#if ( _DEBUGlevel_ >= 1 )
+      {
+        // Monitor the singular values as a measure as the quality of
+        // the selected columns
+        DblNumMat tmp = psiMuT;
+        DblNumVec s(numOccTotal);
+        lapack::SingularValues( numOccTotal, numOccTotal, tmp.Data(), numOccTotal, s.Data() );
+        statusOFS << "Spsi = " << s << std::endl;
+      }
+#endif
+
+      blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
+          psiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
+          0.0, PcRow.Data(), ntotLocal );
+
+      SetValue( PcCol, 0.0 );
+      //AlltoallBackward (PcRow, PcCol, mpi_comm);
+      SCALAPACK(pdgemr2d)(&Ng, &No, PcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
+          PcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
+
+      std::ostringstream msg;
+      msg << "Phi iteration # " << phiIter;
+      PrintBlock( statusOFS, msg.str() );
+
+      // Compute the residual
+      {
+        // Compute Hpsi for all psi 
+        NumTns<Real> tnsTemp(ntot, 1, numStateLocal, false, 
+            HpsiCol.Data());
+        ham.MultSpinor( psi, tnsTemp, fft );
+
+        SetValue( HpsiRow, 0.0 );
+        //AlltoallForward (HpsiCol, HpsiRow, mpi_comm);
+        SCALAPACK(pdgemr2d)(&Ng, &Ne, HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
+            HpsiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
+
+        if(1){
+
+          DblNumMat HpsiMuTTemp(numOccTotal,numOccTotal);
+          SetValue( HpsiMuTTemp, 0.0 );
+
+          blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
+              HpsiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
+              0.0, HpsiMuTTemp.Data(), numOccTotal );
+
+          SetValue( HpsiMuT, 0.0 );
+
+          MPI_Allreduce( HpsiMuTTemp.Data(), HpsiMuT.Data(), 
+              numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm );
+
+        }//if
+
+        blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
+            HpsiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
+            0.0, ResRow.Data(), ntotLocal );
+        blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, -1.0, 
+            psiRow.Data(), ntotLocal, HpsiMuT.Data(), numOccTotal, 
+            1.0, ResRow.Data(), ntotLocal );
+
+        SetValue( ResCol, 0.0 );
+        //AlltoallBackward (ResRow, ResCol, mpi_comm);
+        SCALAPACK(pdgemr2d)(&Ng, &No, ResRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
+            ResCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
+      }
+
+      // Anderson mixing. Use the same mixMaxDim_ for Phi mixing
+      {
+        // Optimal input potential in Anderon mixing.
+        DblNumVec vOpt( ntot * numOccLocal ); 
+
+        // Number of iterations used, iter should start from 1
+        Int iterused = std::min( phiIter-1, mixMaxDim_ ); 
+        // The current position of dfMat, dvMat
+        Int ipos = phiIter - 1 - ((phiIter-2)/ mixMaxDim_ ) * mixMaxDim_;
+        // The next position of dfMat, dvMat
+        Int inext = phiIter - ((phiIter-1)/ mixMaxDim_) * mixMaxDim_;
+
+        blas::Copy( ntot * numOccLocal, PcCol.Data(), 1, vOpt.Data(), 1 );
+
+        if( phiIter > 1 ){
+          // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
+          // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
+          blas::Scal( ntot * numOccLocal, -1.0, dfMat_.VecData(ipos-1), 1 );
+          blas::Axpy( ntot * numOccLocal, 1.0, ResCol.Data(), 1, dfMat_.VecData(ipos-1), 1 );
+          blas::Scal( ntot * numOccLocal, -1.0, dvMat_.VecData(ipos-1), 1 );
+          blas::Axpy( ntot * numOccLocal, 1.0, PcCol.Data(), 1, dvMat_.VecData(ipos-1), 1 );
+
+          // Calculating pseudoinverse
+          DblNumMat dfMatTemp(ntot * numOccLocal, mixMaxDim_);
+          DblNumVec gammas(ntot * numOccLocal), S(iterused);
+
+          SetValue( dfMatTemp, 0.0 );
+          SetValue( gammas, 0.0 );
+
+          Int rank;
+          // FIXME Magic number
+          Real rcond = 1e-9;
+
+          // gammas    = res;
+          blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, gammas.Data(), 1 );
+          lapack::Lacpy( 'A', ntot * numOccLocal, mixMaxDim_, dfMat_.Data(), ntot * numOccLocal, 
+              dfMatTemp.Data(), ntot * numOccLocal );
+
+          // May need different strategy in a parallel setup
+          if(0){  
+
+            lapack::SVDLeastSquare( ntot * numOccLocal, iterused, 1, 
+                dfMatTemp.Data(), ntot * numOccLocal,
+                gammas.Data(), ntot * numOccLocal,
+                S.Data(), rcond, &rank );
+
+            blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
+                ntot * numOccLocal, gammas.Data(), 1, 1.0, vOpt.Data(), 1 );
+
+          }
+
+          if(1){
+
+            DblNumMat XTX(iterused, iterused);
+            DblNumMat XTXTemp(iterused, iterused);
+
+            Int lld_ntotnumOccLocal = std::max( ntot * numOccLocal, 1 );
+
+            SetValue( XTXTemp, 0.0 );
+            blas::Gemm( 'T', 'N', iterused, iterused, ntot * numOccLocal, 1.0, 
+                dfMatTemp.Data(), lld_ntotnumOccLocal, dfMatTemp.Data(), 
+                lld_ntotnumOccLocal, 0.0, XTXTemp.Data(), iterused );
+
+            SetValue( XTX, 0.0 );
+            MPI_Allreduce( XTXTemp.Data(), XTX.Data(), 
+                iterused * iterused, MPI_DOUBLE, MPI_SUM, mpi_comm );
+
+            DblNumVec gammasTemp1(iterused);
+            SetValue( gammasTemp1, 0.0 );
+            //blas::Gemv('T', ntot * numOccLocal, iterused, 1.0, dfMatTemp.Data(),
+            //    ntot * numOccLocal, gammas.Data(), 1, 0.0, gammasTemp1.Data(), 1 );
+
+            blas::Gemm( 'T', 'N', iterused, I_ONE, ntot * numOccLocal, 1.0, 
+                dfMatTemp.Data(), lld_ntotnumOccLocal, gammas.Data(), 
+                lld_ntotnumOccLocal, 0.0, gammasTemp1.Data(), iterused );
+
+            DblNumVec gammasTemp2(iterused);
+            SetValue( gammasTemp2, 0.0 );
+            MPI_Allreduce( gammasTemp1.Data(), gammasTemp2.Data(), 
+                iterused, MPI_DOUBLE, MPI_SUM, mpi_comm );
+
+            lapack::SVDLeastSquare( iterused, iterused, 1, 
+                XTX.Data(), iterused,
+                gammasTemp2.Data(), iterused,
+                S.Data(), rcond, &rank );
+
+            //blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
+            //    ntot * numOccLocal, gammasTemp2.Data(), 1, 1.0, vOpt.Data(), 1 );
+
+            blas::Gemm( 'N', 'N', ntot * numOccLocal, I_ONE, iterused, -1.0, 
+                dvMat_.Data(), lld_ntotnumOccLocal, gammasTemp2.Data(), iterused, 
+                1.0, vOpt.Data(), lld_ntotnumOccLocal );
+
+          }
+
+          Print( statusOFS, "  Rank of dfmat = ", rank );
+
+        }
+
+        // Update dfMat, dvMat, vMix 
+        // dfMat(:, inext-1) = Res(:)
+        // dvMat(:, inext-1) = Pc(:)
+        blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, 
+            dfMat_.VecData(inext-1), 1 );
+        blas::Copy( ntot * numOccLocal, PcCol.Data(),  1, 
+            dvMat_.VecData(inext-1), 1 );
+
+        // Orthogonalize vOpt to obtain psiPc. 
+        // psiPc has the same size
+        SetValue( psiPcCol, 0.0 );
+        blas::Copy( ntot * numOccLocal, vOpt.Data(), 1, psiPcCol.Data(), 1 );
+        //lapack::Orth( ntot, numOccLocal, psiPcCol.Data(), ntotLocal );
+
+        // Orthogonalization through Cholesky factorization
+        if(1){ 
+          SetValue( psiPcRow, 0.0 );
+          //AlltoallForward (psiPcCol, psiPcRow, mpi_comm);
+          SCALAPACK(pdgemr2d)(&Ng, &No, psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
+              psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
+
+          DblNumMat XTX(numOccTotal, numOccTotal);
+          DblNumMat XTXTemp(numOccTotal, numOccTotal);
+
+          blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiPcRow.Data(), 
+              ntotLocal, psiPcRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
+          SetValue( XTX, 0.0 );
+          MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
+
+          if ( mpirank == 0) {
+            lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
+          }
+          MPI_Bcast(XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, 0, mpi_comm);
+
+          // X <- X * U^{-1} is orthogonal
+          blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
+              psiPcRow.Data(), ntotLocal );
+
+          SetValue( psiPcCol, 0.0 );
+          //AlltoallBackward (psiPcRow, psiPcCol, mpi_comm);
+          SCALAPACK(pdgemr2d)(&Ng, &No, psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
+              psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
+        } 
+
+      }//Anderson mixing
+
+      DblNumMat psiPcColTemp(ntot, numStateLocal);
+      SetValue( psiPcColTemp, 0.0 );
+
+      lapack::Lacpy( 'A', ntot, numOccLocal, psiPcCol.Data(), ntot, psiPcColTemp.Data(), ntot );
+
+      // Construct the new Hamiltonian operator
+      Spinor spnPsiPc(fft.domain, 1, numStateTotal,
+          numStateLocal, false, psiPcColTemp.Data());
+
+      // Compute the electron density
+      GetTime( timeSta );
+      ham.CalculateDensity(
+          spnPsiPc,
+          ham.OccupationRate(),
+          totalCharge_, 
+          fft );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing density in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      // Compute the exchange-correlation potential and energy
+      if( ham.XCRequireGradDensity() ){
+        GetTime( timeSta );
+        ham.CalculateGradDensity( fft );
+        GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+        statusOFS << "Time for computing gradient density in PWDFT is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+      }
+
+      GetTime( timeSta );
+      ham.CalculateXC( Exc_, fft ); 
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing XC potential in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      // Compute the Hartree energy
+      GetTime( timeSta );
+      ham.CalculateHartree( fft );
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing Hartree potential in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+      // No external potential
+
+      // Compute the total potential
+      GetTime( timeSta );
+      ham.CalculateVtot( vtotNew_ );
+      blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
+
+      GetTime( timeEnd );
+#if ( _DEBUGlevel_ >= 0 )
+      statusOFS << "Time for computing total potential in PWDFT is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+#endif
+
+      // Update Phi <- Psi
+      GetTime( timeSta );
+      ham.SetPhiEXX( spnPsiPc, fft ); 
+
+      // Update the ACE if needed
+      // Still use psi but phi has changed
+      if( esdfParam.isHybridACE ){
+        if( esdfParam.isHybridDF ){
+          ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+          // Fix the column after the first iteraiton
+          isFixColumnDF = true;
+        }
+        else{
+          ham.CalculateVexxACE ( psi, fft );
+        }
+      }
+
+      GetTime( timeEnd );
+      statusOFS << "Time for updating Phi related variable is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      InnerSolve( phiIter );
+      blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
+
+
+      CalculateEnergy();
+
+      PrintState( phiIter );
+
+      GetTime( timePhiIterEnd );
+
+      statusOFS << "Total wall clock time for this Phi iteration = " << 
+        timePhiIterEnd - timePhiIterStart << " [s]" << std::endl;
+
+      if(esdfParam.isHybridACETwicePCDIIS == 1){
+
+        // Update Phi <- Psi
+        GetTime( timeSta );
+        ham.SetPhiEXX( psi, fft ); 
+
+        // In principle there is no need to construct ACE operator here
+        // However, this makes the code more readable by directly calling 
+        // the MultSpinor function later
+        if( esdfParam.isHybridACE ){
+          if( esdfParam.isHybridDF ){
+            ham.CalculateVexxACEDF( psi, fft, isFixColumnDF );
+            // Fix the column after the first iteraiton
+            isFixColumnDF = true;
+          }
+          else{
+            ham.CalculateVexxACE ( psi, fft );
+          }
+        }
+
+        GetTime( timeEnd );
+        statusOFS << "Time for updating Phi related variable is " <<
+          timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      }//if
+
+      GetTime( timeSta );
+      fock2 = ham.CalculateEXXEnergy( psi, fft ); 
+      GetTime( timeEnd );
+      statusOFS << "Time for computing the EXX energy is " <<
+        timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+      // Note: initially fock1 = 0.0. So it should at least run for 1 iteration.
+      dExx = std::abs(fock2 - fock1) / std::abs(fock2);
+      // use scfNorm to reflect dExx
+      scfNorm_ = dExx;
+      fock1 = fock2;
+      Efock_ = fock2;
+
+      Etot_        -= Efock_;
+      Efree_       -= Efock_;
+      EfreeHarris_ -= Efock_;
+
+      statusOFS << std::endl;
+      Print(statusOFS, "Fock energy             = ",  Efock_, "[au]");
+      Print(statusOFS, "Etot(with fock)         = ",  Etot_, "[au]");
+      Print(statusOFS, "Efree(with fock)        = ",  Efree_, "[au]");
+      Print(statusOFS, "EfreeHarris(with fock)  = ",  EfreeHarris_, "[au]");
+
+      if( dExx < scfPhiTolerance_ ){
+        statusOFS << "SCF for hybrid functional is converged in " 
+          << phiIter << " steps !" << std::endl;
+        isPhiIterConverged = true;
+      }
+      if ( isPhiIterConverged ) break;
+    } // for(phiIter)
+
+    if(contxt1DCol >= 0) {
+      Cblacs_gridexit( contxt1DCol );
+    }
+
+    if(contxt1DRow >= 0) {
+      Cblacs_gridexit( contxt1DRow );
+    }
+
+    GetTime( timeEnd );
+    statusOFS << "Time for using pcdiis method is " <<
+      timeEnd - timeSta << " [s]" << std::endl << std::endl;
+
+  } // hybridMixType == "pcdiis"
+#endif
+
+  return ;
+}         // -----  end of method SCF::IterateWavefun  ----- 
 
 
 void
@@ -2532,7 +2122,7 @@ void
 SCF::CalculateOccupationRate    ( DblNumVec& eigVal, DblNumVec& occupationRate )
 {
   // For a given finite temperature, update the occupation number */
-  // FIXME Magic number here
+  // NOTE Magic number here
   Real tol = 1e-10; 
   Int maxiter = 100;  
 

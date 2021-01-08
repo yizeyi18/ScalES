@@ -143,6 +143,7 @@ void Hamiltonian::SetupXC( std::string XCType ) {
     }
   }
 
+  XCType_ = XCType;
   XCInitialized_ = true;
 }
 
@@ -204,8 +205,8 @@ Hamiltonian::Setup    (
   vLocalSR_.Resize( ntotFine );
   SetValue( vLocalSR_, 0.0 );
     
-  vext_.Resize( ntotFine );
-  SetValue( vext_, 0.0 );
+  vext.Resize( ntotFine );
+  SetValue( vext, 0.0 );
 
   vhart_.Resize( ntotFine );
   SetValue( vhart_, 0.0 );
@@ -1809,7 +1810,7 @@ Hamiltonian::CalculateVtot    ( DblNumVec& vtot )
 {
   Int ntot = domain_.NumGridTotalFine();
   for (int i=0; i<ntot; i++) {
-    vtot(i) = vext_(i) + vLocalSR_(i) + vhart_(i) + vxc_(i, RHO);
+    vtot(i) = vext(i) + vLocalSR_(i) + vhart_(i) + vxc_(i, RHO);
   }
 
   return ;
