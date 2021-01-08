@@ -112,6 +112,7 @@ Target: refactor2020 for PWDFT
   create some instabilities. Instead it should start from e.g. PBE
   calculations. 
 
+- [x] `SCF::IterateDensity` should be reused in `SCF::IterateWavefun`
 
 - [p] The structure of the code is largely based the current working code in
   the `GPU` branch, and will merge with `cuda_dg` branch `AMD_GPU_HIP`
@@ -241,16 +242,10 @@ Target: refactor2020 for PWDFT
   DEFINITELY be needed when changing to non-orthorhombic cells (see
   periodtable.cpp for more information under FIXME)
 
-- [p] Remove the meaningless getters / setters in hamiltonian and scf,
-  in the sense that the access subroutines provide full access to the
-  variable without providing any additional information / explanation.
-  [This requires some thoughts.]
-
 - [ ] In Hamiltonian, add a pointer `ptablePtr_` for access to the
   information in the periodic table. Remove the pointer from the `SCF`
   class.
 
-- [ ] `SCF::IterateDensity` should be reused in `SCF::IterateWavefun`
 
 Plans for further developments in PWDFT
 =======================================
@@ -304,6 +299,10 @@ Plans for further developments in PWDFT
   in order to allow more processors than the number of bands (suggested
   by Wei Hu. This requires some discussion)
 
+- [p] Remove the meaningless getters / setters in hamiltonian and scf,
+  in the sense that the access subroutines provide full access to the
+  variable without providing any additional information / explanation.
+  [This requires some thoughts.]
 
 - [d] The spinor class, other than storing the wavefunction, mainly
   provides information of the partition of the wavefunctions. If we
@@ -318,6 +317,8 @@ Plans for further developments in PWDFT
 
   This is potentially a BIG change. If we want to do this, we should
   think carefully about the data structure.
+
+
 
 Plans for TDDFT 
 ===============

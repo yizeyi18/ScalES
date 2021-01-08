@@ -310,7 +310,11 @@ SCF::Execute    ( )
 #endif
 
   if( ham.XCRequireIterateDensity() ){
+
     if( ham.IsHybrid() and ham.IsEXXActive() == false ){
+      std::ostringstream msg;
+      msg << "For hybrid functionals without initial guess, start with a PBE calculation.";
+      PrintBlock( statusOFS, msg.str() );
       // Modify the XC functional to improve SCF convergence
       ham.SetupXC("PBE");
       IterateDensity();
@@ -318,6 +322,9 @@ SCF::Execute    ( )
       ham.SetEXXActive(true);
     }
     else{
+      std::ostringstream msg;
+      msg << "Starting regular SCF iteration.";
+      PrintBlock( statusOFS, msg.str() );
       IterateDensity();
     }
   }
@@ -490,9 +497,6 @@ SCF::IterateDensity    ( )
  
 
   // Perform non-hybrid functional calculation first
-  std::ostringstream msg;
-  msg << "Starting regular SCF iteration.";
-  PrintBlock( statusOFS, msg.str() );
   bool isSCFConverged = false;
 
   for (Int iter=1; iter <= scfMaxIter_; iter++) {
@@ -647,106 +651,13 @@ SCF::IterateWavefun    ( )
 
     for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
 
-      GetTime( timePhiIterStart );
-
       std::ostringstream msg;
       msg << "Phi iteration # " << phiIter;
       PrintBlock( statusOFS, msg.str() );
 
       // Nested SCF iteration
-      bool isSCFConverged = false;
-      // FIXME: LL 1/4/2021 this should be cleaned up to reuse IterateDensity
-      for (Int iter=1; iter <= scfMaxIter_; iter++) {
-        if ( isSCFConverged ) break;
-        // *********************************************************************
-        // Performing each iteartion
-        // *********************************************************************
-        {
-          std::ostringstream msg;
-          msg << "SCF iteration # " << iter;
-          PrintBlock( statusOFS, msg.str() );
-        }
-
-        GetTime( timeIterStart );
-
-        // Solve eigenvalue problem
-        // Update density, gradDensity, potential (stored in vtotNew_)
-        InnerSolve( iter );
-
-        Real normVtotDif = 0.0, normVtotOld = 0.0;
-        DblNumVec& vtotOld_ = ham.Vtot();
-        Int ntot = vtotOld_.m();
-        for( Int i = 0; i < ntot; i++ ){
-          normVtotDif += pow( vtotOld_(i) - vtotNew_(i), 2.0 );
-          normVtotOld += pow( vtotOld_(i), 2.0 );
-        }
-        normVtotDif = sqrt( normVtotDif );
-        normVtotOld = sqrt( normVtotOld );
-        scfNorm_    = normVtotDif / normVtotOld;
-
-        // FIXME Dump out the difference of the potential to
-        // investigate source of slow SCF convergence
-        if(0)
-        {
-          std::ostringstream vStream;
-          serialize( vtotOld_, vStream, NO_MASK );
-          serialize( vtotNew_, vStream, NO_MASK ); 
-          SharedWrite( "VOLDNEW", vStream );
-        }
-
-
-        GetTime( timeSta );
-        CalculateEnergy();
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing energy in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        PrintState( iter );
-
-        Int numAtom = ham.AtomList().size();
-        efreeDifPerAtom_ = std::abs(Efree_ - EfreeHarris_) / numAtom;
-
-        Print(statusOFS, "norm(out-in)/norm(in) = ", scfNorm_ );
-        Print(statusOFS, "Efree diff per atom   = ", efreeDifPerAtom_ ); 
-
-
-        if( scfNorm_ < scfTolerance_ ){
-          /* converged */
-          statusOFS << "SCF is converged in " << iter << " steps !" << std::endl;
-          isSCFConverged = true;
-        }
-
-        // Potential mixing
-        GetTime( timeSta );
-        if( mixType_ == "anderson" || mixType_ == "kerker+anderson" ){
-          AndersonMix(
-              iter,
-              mixStepLength_,
-              mixType_,
-              ham.Vtot(),
-              vtotOld_,
-              vtotNew_,
-              dfMat_,
-              dvMat_);
-        }
-        else{
-          ErrorHandling("Invalid mixing type.");
-        }
-        GetTime( timeEnd );
-#if ( _DEBUGlevel_ >= 0 )
-        statusOFS << "Time for computing potential mixing in PWDFT is " <<
-          timeEnd - timeSta << " [s]" << std::endl << std::endl;
-#endif
-
-        GetTime( timeIterEnd );
-
-        statusOFS << "Total wall clock time for this SCF iteration = " << timeIterEnd - timeIterStart
-          << " [s]" << std::endl;
-
-      } // for (iter)
-
+      GetTime( timePhiIterStart );
+      IterateDensity();
       GetTime( timePhiIterEnd );
 
       statusOFS << "Total wall clock time for this Phi iteration = " << 

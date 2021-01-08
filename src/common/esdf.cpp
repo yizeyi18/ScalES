@@ -2507,7 +2507,6 @@ ESDFReadInput ( const char* filename )
     esdf_string("Hybrid_Mixing_Type", "pcdiis", strtmp); 
     esdfParam.hybridMixType         = strtmp;
     if( esdfParam.hybridMixType != "nested" &&
-        esdfParam.hybridMixType != "scdiis" &&
         esdfParam.hybridMixType != "pcdiis" ){
       ErrorHandling("Invalid hybrid mixing type.");
     }
@@ -2524,8 +2523,9 @@ ESDFReadInput ( const char* filename )
     //esdfParam.isHybridDFQRCP                   = esdf_integer( "Hybrid_DF_QRCP", 1 );
     //esdfParam.isHybridDFKmeans                 = esdf_integer( "Hybrid_DF_Kmeans", 0 );
 
-    esdf_string("Hybrid_DF_Type", "QRCP", strtmp); 
+    esdf_string("Hybrid_DF_Type", "Kmeans+QRCP", strtmp); 
     esdfParam.hybridDFType         = strtmp;
+    // LL: FIXME 01/08/2021 the code only supports Kmeans+QRCP?
     if( esdfParam.hybridDFType != "QRCP" &&
         esdfParam.hybridDFType != "Kmeans" &&
         esdfParam.hybridDFType != "Kmeans+QRCP"){
