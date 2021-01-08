@@ -533,7 +533,9 @@ EigenSolver::LOBPCGSolveReal    (
 
   // Start the main loop
   Int iter = 0;
+  Real lockTolerance = eigTolerance;
   statusOFS << "Minimum tolerance is " << eigMinTolerance << std::endl;
+  statusOFS << "Locking tolerance is " << lockTolerance   << std::endl;
 
   do {
     iter++;
@@ -606,6 +608,8 @@ EigenSolver::LOBPCGSolveReal    (
       isConverged = true;
       break;
     }
+
+    statusOFS << "NLOCK = " << std::count_if( resNorm.Data(), resNorm.Data() + numEig, [&](const auto x){ return x <= lockTolerance; } ) << std::endl;
 
     // Compute the preconditioned residual W = T*R.
     // The residual is saved in Xtemp
