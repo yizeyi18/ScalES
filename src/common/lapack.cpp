@@ -286,6 +286,10 @@ extern "C" {
       double* A, const Int* lda, double* tau, double* work, 
       const Int* lwork, Int* info);
 
+
+
+  void LAPACK(dlapmt) (const Int* forward, const Int* m, const Int* n,
+      double* X, const Int* LDX, const Int* K );
 } // extern "C"
 
 
@@ -1657,6 +1661,15 @@ void QRCP( Int m, Int n, double* A, double* Q, double* R,
   return;
 }
 
+
+
+void ColPermute( bool Forward, Int m, Int n, double* X, Int LDX, Int* K ) {
+  Int _F = !!Forward;
+
+  for( Int j = 0; j < n; ++j ) K[j] += 1;
+  LAPACK(dlapmt)( &_F, &m, &n, X, &LDX, K );
+  for( Int j = 0; j < n; ++j ) K[j] -= 1;
+}
 
 } // namespace lapack
 } // namespace dgdft

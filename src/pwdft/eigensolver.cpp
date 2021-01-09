@@ -58,6 +58,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 #include "block_distributor_decl.hpp"
 
+#include <numeric>
 
 using namespace dgdft::scalapack;
 using namespace dgdft::esdf;
@@ -531,11 +532,19 @@ EigenSolver::LOBPCGSolveReal    (
   profile_col_to_row( AXcol, AX );
 
 
+
   // Start the main loop
   Int iter = 0;
   Real lockTolerance = eigTolerance;
+
+  bool enableLocking = true;
+  if( not enableLocking ) {
+    lockTolerance = -1.;
+  }
+
   statusOFS << "Minimum tolerance is " << eigMinTolerance << std::endl;
   statusOFS << "Locking tolerance is " << lockTolerance   << std::endl;
+
 
   do {
     iter++;
@@ -549,26 +558,17 @@ EigenSolver::LOBPCGSolveReal    (
     SetValue( AMat, 0.0 );
     SetValue( BMat, 0.0 );
 
+    // Precompute static pointer offsets
+    auto* A_XTAX = &AMat(0,     0);
+    auto* A_XTAW = &AMat(0,     width);
+    auto* A_WTAW = &AMat(width, width);
 
-    // Precompute pointer offsets
-    // TODO: locking
-    auto* A_XTAX = &AMat(0,       0      );
-    auto* A_XTAW = &AMat(0,         width);
-    auto* A_XTAP = &AMat(0,       2*width);
-    auto* A_WTAW = &AMat(width,     width);
-    auto* A_WTAP = &AMat(width,   2*width);
-    auto* A_PTAP = &AMat(2*width, 2*width);
-    
-    auto* B_XTX = &BMat(0,       0      );
-    auto* B_XTW = &BMat(0,         width);
-    auto* B_XTP = &BMat(0,       2*width);
-    auto* B_WTW = &BMat(width,     width);
-    auto* B_WTP = &BMat(width,   2*width);
-    auto* B_PTP = &BMat(2*width, 2*width);
+    auto* B_XTX = &BMat(0,     0    );
+    auto* B_XTW = &BMat(0,     width);
+    auto* B_WTW = &BMat(width, width);
 
-    auto* C_X = &AMat(0,       0);
-    auto* C_W = &AMat(width,   0);
-    auto* C_P = &AMat(2*width, 0);
+    auto* C_X = &AMat(0,     0);
+    auto* C_W = &AMat(width, 0);
 
 
     // AMat(1:width,1:width) <- X' * (AX)
@@ -609,7 +609,74 @@ EigenSolver::LOBPCGSolveReal    (
       break;
     }
 
-    statusOFS << "NLOCK = " << std::count_if( resNorm.Data(), resNorm.Data() + numEig, [&](const auto x){ return x <= lockTolerance; } ) << std::endl;
+
+    Int nLock = std::count_if( resNorm.Data(), resNorm.Data() + numEig, 
+                               [&](const auto x){ return x <= lockTolerance; } );
+    Int nActive = width - nLock;
+
+
+    Int nLockLocal   = (nLock / mpisize) + !!(mpirank < (nLock % mpisize));
+    Int nActiveLocal = widthLocal - nLockLocal;
+
+
+    // Precompute dynamic pointer offsets
+#if 0
+    // TODO: locking
+    auto* A_XTAP = &AMat(0,       2*width);
+    auto* A_WTAP = &AMat(width,   2*width);
+    auto* A_PTAP = &AMat(2*width, 2*width);
+    
+    auto* B_XTP = &BMat(0,       2*width);
+    auto* B_WTP = &BMat(width,   2*width);
+    auto* B_PTP = &BMat(2*width, 2*width);
+
+    auto* C_P = &AMat(2*width, 0);
+#else
+    auto* A_XTAP = &AMat(0,             width+nActive);
+    auto* A_WTAP = &AMat(width,         width+nActive);
+    auto* A_PTAP = &AMat(width+nActive, width+nActive);
+    
+    auto* B_XTP = &BMat(0,       width+nActive);
+    auto* B_WTP = &BMat(width,   width+nActive);
+    auto* B_PTP = &BMat(width+nActive, width+nActive);
+
+    auto* C_P = &AMat(width+nActive, 0);
+#endif
+    
+
+#if 1
+    statusOFS << "NLOCK         = " << nLock        << std::endl;
+    statusOFS << "NACTIVE       = " << nActive      << std::endl;
+    statusOFS << std::endl;
+#endif
+
+    if( nLockLocal + nActiveLocal != widthLocal )
+      ErrorHandling("You Assumed Wrong...");
+
+#if 0
+    DblNumMat TMP(5,4);
+    std::vector< int > perm = { 2, 1, 0, 3 };
+    for( auto j = 0; j < 4; ++j )
+    for( auto i = 0; i < 5; ++i )
+      TMP(i,j) = j;
+
+    statusOFS << "BEFORE PERM" << std::endl << TMP << std::endl;
+    lapack::ColPermute( true, 5, 4, TMP.Data(), 5, perm.data() ); 
+    statusOFS << "AFTER PERM" << std::endl << TMP << std::endl;
+#endif
+
+    // Permute residual vectors so unconverged ones come first
+    {
+      std::vector<Int> perm( width );
+      std::iota( perm.begin(), perm.end(), 0 );
+      std::stable_sort( perm.begin(), perm.end(), [&](Int i, Int j) {
+        return resNorm(i) > resNorm(j);
+      });
+
+      lapack::ColPermute( true, heightLocal, width, Xtemp.Data(), heightLocal,
+                          perm.data() );
+    }
+
 
     // Compute the preconditioned residual W = T*R.
     // The residual is saved in Xtemp
@@ -617,7 +684,7 @@ EigenSolver::LOBPCGSolveReal    (
     // Redistribute from Xtemp (Row) -> Xcol (Col)
     profile_row_to_col( Xtemp, Xcol );
 
-    // W <- T * X (Col format) 
+    // W <- T * R (Col format) 
     profile_applyprec( noccTotal, noccLocal, Xcol, Wcol );
 
     // Normalize the preconditioned residual
@@ -643,6 +710,7 @@ EigenSolver::LOBPCGSolveReal    (
     profile_col_to_row( Wcol,  W  );
     profile_col_to_row( AWcol, AW );
 
+#if 0
     // Compute X' * (AW)
     // TODO: locking
     profile_dist_inner( width, width, X.Data(), AW.Data(), XTXtemp.Data() );
@@ -652,9 +720,20 @@ EigenSolver::LOBPCGSolveReal    (
     // TODO: locking
     profile_dist_inner( width, width, W.Data(), AW.Data(), XTXtemp.Data() );
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, A_WTAW, lda );
+#else
+    // Compute X' * (AW)
+    profile_dist_inner( width, nActive, X.Data(), AW.Data(), XTXtemp.Data() );
+    lapack::Lacpy( 'A', width, nActive, XTXtemp.Data(), width, A_XTAW, lda );
+
+    // Compute W' * (AW)
+    profile_dist_inner( nActive, nActive, W.Data(), AW.Data(), XTXtemp.Data() );
+    lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
+                   A_WTAW, lda );
+#endif
 
     if( numSet == 3 ){
 
+#if 0
       // Compute X' * (AP)
       // TODO: locking
       profile_dist_inner( width, width, X.Data(), AP.Data(), XTXtemp.Data() );
@@ -667,6 +746,23 @@ EigenSolver::LOBPCGSolveReal    (
       // Compute P' * (AP)
       profile_dist_inner( width, width, P.Data(), AP.Data(), XTXtemp.Data() );
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, A_PTAP, lda );
+#else
+      // Compute X' * (AP)
+      profile_dist_inner( width, nActive, X.Data(), AP.Data(), XTXtemp.Data() );
+      lapack::Lacpy( 'A', width, nActive, XTXtemp.Data(), width, A_XTAP, lda );
+
+      // Compute W' * (AP)
+      profile_dist_inner( nActive, nActive, W.Data(), AP.Data(), 
+                          XTXtemp.Data() );
+      lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
+                     A_WTAP, lda );
+
+      // Compute P' * (AP)
+      profile_dist_inner( nActive, nActive, P.Data(), AP.Data(), 
+                          XTXtemp.Data() );
+      lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
+                     A_PTAP, lda );
+#endif
 
     }
 
@@ -678,6 +774,7 @@ EigenSolver::LOBPCGSolveReal    (
     profile_dist_inner( width, width, X.Data(), X.Data(), XTXtemp.Data() );
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_XTX, lda );
 
+#if 0
     // Compute X'*W
     profile_dist_inner( width, width, X.Data(), W.Data(), XTXtemp.Data() );
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_XTW, lda );
@@ -685,10 +782,20 @@ EigenSolver::LOBPCGSolveReal    (
     // Compute W'*W
     profile_dist_inner( width, width, W.Data(), W.Data(), XTXtemp.Data() );
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_WTW, lda );
+#else
+    // Compute X'*W
+    profile_dist_inner( width, nActive, X.Data(), W.Data(), XTXtemp.Data() );
+    lapack::Lacpy( 'A', width, nActive, XTXtemp.Data(), width, B_XTW, lda );
+
+    // Compute W'*W
+    profile_dist_inner( nActive, nActive, W.Data(), W.Data(), XTXtemp.Data() );
+    lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
+                   B_WTW, lda );
+#endif
 
 
     if( numSet == 3 ) {
-
+#if 0
       // Compute X'*P
       profile_dist_inner( width, width, X.Data(), P.Data(), XTXtemp.Data() );
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_XTP, lda );
@@ -700,18 +807,37 @@ EigenSolver::LOBPCGSolveReal    (
       // Compute P'*P
       profile_dist_inner( width, width, P.Data(), P.Data(), XTXtemp.Data() );
       lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_PTP, lda );
+#else
+      // Compute X'*P
+      profile_dist_inner( width, nActive, X.Data(), P.Data(), XTXtemp.Data() );
+      lapack::Lacpy( 'A', width, nActive, XTXtemp.Data(), width, B_XTP, lda );
+
+      // Compute W'*P
+      profile_dist_inner( nActive, nActive, W.Data(), P.Data(), 
+                          XTXtemp.Data() );
+      lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
+                     B_WTP, lda );
+
+      // Compute P'*P
+      profile_dist_inner( nActive, nActive, P.Data(), P.Data(), 
+                          XTXtemp.Data() );
+      lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
+                     B_PTP, lda );
+#endif
 
     } // if( numSet == 3 )
 
 #if ( _DEBUGlevel_ >= 2 )
     {
-      DblNumMat WTW( width, width );
-      lapack::Lacpy( 'A', width, width, B_WTW, lda, WTW.Data(), width );
+      DblNumMat WTW( nActive, nActive );
+      lapack::Lacpy( 'A', nActive, nActive, B_WTW, lda, 
+                     WTW.Data(), nActive );
       statusOFS << "W'*W = " << WTW << std::endl;
       if( numSet == 3 )
       {
-        DblNumMat PTP( width, width );
-        lapack::Lacpy( 'A', width, width, B_PTP, lda, PTP.Data(), width );
+        DblNumMat PTP( nActive, nActive );
+        lapack::Lacpy( 'A', nActive, nActive, B_PTP, lda, 
+                       PTP.Data(), nActive );
         statusOFS << "P'*P = " << PTP << std::endl;
       }
     }
@@ -727,6 +853,7 @@ EigenSolver::LOBPCGSolveReal    (
     //     ( C_P )
     //
     Int numCol;
+#if 0
     if( numSet == 3 ){
       // Conjugate gradient
       numCol = 3 * width;
@@ -734,6 +861,15 @@ EigenSolver::LOBPCGSolveReal    (
     else{
       numCol = 2 * width;
     }
+#else
+    if( numSet == 3 ){
+      // Conjugate gradient
+      numCol = width + 2 * nActive;
+    }
+    else{
+      numCol = width + nActive;
+    }
+#endif
 
     // Solve Rayleigh-Ritz problem
     // TODO: Handle ScaLAPACK path
@@ -752,23 +888,23 @@ EigenSolver::LOBPCGSolveReal    (
 
       // Update the eigenvectors 
       // X <- X * C_X + W * C_W
-      basis_update( width, width, 1.0, X.Data(), C_X, lda, 0.0, Xtemp.Data() );
-      basis_update( width, width, 1.0, W.Data(), C_W, lda, 1.0, Xtemp.Data() );
+      basis_update( width,   width, 1.0, X.Data(), C_X, lda, 0.0, Xtemp.Data() );
+      basis_update( nActive, width, 1.0, W.Data(), C_W, lda, 1.0, Xtemp.Data() );
 
       // Save the result into X
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
                      X.Data(), heightLocal );
 
       // P <- W
-      lapack::Lacpy( 'A', heightLocal, width, W.Data(), heightLocal, 
+      lapack::Lacpy( 'A', heightLocal, nActive, W.Data(), heightLocal, 
                      P.Data(), heightLocal );
 
     } else { //numSet == 3
 
       // Compute the conjugate direction
       // P <- W * C_W + P * C_P
-      basis_update( width, width, 1.0, W.Data(), C_W, lda, 0.0, Xtemp.Data() );
-      basis_update( width, width, 1.0, P.Data(), C_P, lda, 1.0, Xtemp.Data() );
+      basis_update( nActive, width, 1.0, W.Data(), C_W, lda, 0.0, Xtemp.Data() );
+      basis_update( nActive, width, 1.0, P.Data(), C_P, lda, 1.0, Xtemp.Data() );
 
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
                      P.Data(), heightLocal );
@@ -786,20 +922,20 @@ EigenSolver::LOBPCGSolveReal    (
     if( numSet == 2 ){
 
       // AX <- AX * C_X + AW * C_W
-      basis_update( width, width, 1.0, AX.Data(), C_X, lda, 0.0, Xtemp.Data() );
-      basis_update( width, width, 1.0, AW.Data(), C_W, lda, 1.0, Xtemp.Data() );
+      basis_update( width,   width, 1.0, AX.Data(), C_X, lda, 0.0, Xtemp.Data() );
+      basis_update( nActive, width, 1.0, AW.Data(), C_W, lda, 1.0, Xtemp.Data() );
 
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
                      AX.Data(), heightLocal );
 
       // AP <- AW
-      lapack::Lacpy( 'A', heightLocal, width, AW.Data(), heightLocal,
+      lapack::Lacpy( 'A', heightLocal, nActive, AW.Data(), heightLocal,
                      AP.Data(), heightLocal );
 
     } else { // numSet == 3
       // AP <- AW * C_W + A_P * C_P
-      basis_update( width, width, 1.0, AW.Data(), C_W, lda, 0.0, Xtemp.Data() );
-      basis_update( width, width, 1.0, AP.Data(), C_P, lda, 1.0, Xtemp.Data() );
+      basis_update( nActive, width, 1.0, AW.Data(), C_W, lda, 0.0, Xtemp.Data() );
+      basis_update( nActive, width, 1.0, AP.Data(), C_P, lda, 1.0, Xtemp.Data() );
 
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
                      AP.Data(), heightLocal );

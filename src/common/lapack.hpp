@@ -268,6 +268,11 @@ void QRCP( Int m, Int n, double* A, double* Q, double* R,
     Int lda, Int * piv );
 
 
+
+
+
+void ColPermute( bool Forward, Int m, Int n, double* X, Int LDX, Int* K ); 
+
 } // namespace lapack
 } // namespace dgdft
 #endif // _LAPACK_HPP_
