@@ -615,8 +615,13 @@ EigenSolver::LOBPCGSolveReal    (
     Int nActive = width - nLock;
 
 
+#if 0
     Int nLockLocal   = (nLock / mpisize) + !!(mpirank < (nLock % mpisize));
     Int nActiveLocal = widthLocal - nLockLocal;
+#else
+    Int nActiveLocal   = (nActive / mpisize) + !!(mpirank < (nActive % mpisize));
+    Int nLockLocal = widthLocal - nActiveLocal;
+#endif
 
 
     // Precompute dynamic pointer offsets
@@ -685,7 +690,11 @@ EigenSolver::LOBPCGSolveReal    (
     profile_row_to_col( Xtemp, Xcol );
 
     // W <- T * R (Col format) 
+#if 0
     profile_applyprec( noccTotal, noccLocal, Xcol, Wcol );
+#else
+    profile_applyprec( nActive, nActiveLocal, Xcol, Wcol );
+#endif
 
     // Normalize the preconditioned residual
     ColNormalize( Wcol );
@@ -704,7 +713,11 @@ EigenSolver::LOBPCGSolveReal    (
     /*** Compute AMat ***/
 
     // Compute AW = A*W
+#if 0
     profile_matvec( noccTotal, noccLocal, Wcol, AWcol );
+#else
+    profile_matvec( nActive, nActiveLocal, Wcol, AWcol );
+#endif
 
     // Convert W/AW from Col to Row formats
     profile_col_to_row( Wcol,  W  );
