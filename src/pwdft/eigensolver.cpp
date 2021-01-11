@@ -564,7 +564,7 @@ EigenSolver::LOBPCGSolveReal    (
   Int iter = 0;
   Real lockTolerance = std::min(1e-5,eigTolerance);
 
-  bool enableLocking = false;
+  bool enableLocking = true;
   if( not enableLocking ) {
     lockTolerance = -1.;
   }
@@ -664,7 +664,7 @@ EigenSolver::LOBPCGSolveReal    (
     
 
     // Permute residual vectors so unconverged ones come first
-    {
+    if( enableLocking ) {
       std::vector<Int> res_perm( width );
       std::iota( res_perm.begin(), res_perm.end(), 0 );
       std::stable_sort( res_perm.begin(), res_perm.end(), [&](Int i, Int j) {
