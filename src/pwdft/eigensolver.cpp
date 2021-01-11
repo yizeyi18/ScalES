@@ -446,6 +446,33 @@ EigenSolver::LOBPCGSolveReal    (
 
 
 
+  auto print_iter_fields = []( auto _iter, auto _resMax, auto _resMin,
+                               auto _nLock, auto _nActive ) {
+
+    // Get current format for output
+    auto cur_print_prec = statusOFS.precision();
+    //std::ios_base::fmtflags ff = statusOFS.flags();
+    //auto out_is_sci     = 
+    //  (ff & std::ios_base::floatfield) == std::ios_base::scientific;
+
+    // Print iteration information
+    statusOFS << std::setprecision(10);
+    statusOFS << std::scientific;
+
+    statusOFS << std::setw(9) << _iter;
+    statusOFS << std::setw(20) << _resMax;
+    statusOFS << std::setw(20) << _resMin;
+    statusOFS << std::setw(10) << _nLock;
+    statusOFS << std::setw(10) << _nActive;
+    statusOFS << std::endl;
+    
+    // Reset output format
+    statusOFS << std::setprecision(cur_print_prec);
+    //if( not out_is_sci ) statusOFS << std::fixed; 
+      
+  };
+
+
   // S = ( X | W | P ) is a triplet used for LOBPCG.  
   // W is the preconditioned residual
   // DblNumMat  S( height, 3*widthLocal ), AS( height, 3*widthLocal ); 
@@ -535,7 +562,7 @@ EigenSolver::LOBPCGSolveReal    (
 
   // Start the main loop
   Int iter = 0;
-  Real lockTolerance = eigTolerance;
+  Real lockTolerance = std::min(1e-5,eigTolerance);
 
   bool enableLocking = true;
   if( not enableLocking ) {
@@ -545,15 +572,14 @@ EigenSolver::LOBPCGSolveReal    (
   statusOFS << "Minimum tolerance is " << eigMinTolerance << std::endl;
   statusOFS << "Locking tolerance is " << lockTolerance   << std::endl;
 
+  // Print headers
+  print_iter_fields( "Iter:", "ResMax:", "ResMin:", "NLock:", "NActive:" );
 
   do {
     iter++;
-#if ( _DEBUGlevel_ >= 1 )
-    statusOFS << "iter = " << iter << std::endl;
-#endif
 
-    if( iter == 1 || isRestart == true ) numSet = 2;
-    else                                 numSet = 3;
+    if( iter == 1 or isRestart ) numSet = 2;
+    else                         numSet = 3;
 
     SetValue( AMat, 0.0 );
     SetValue( BMat, 0.0 );
@@ -597,11 +623,23 @@ EigenSolver::LOBPCGSolveReal    (
     resMax = *(std::max_element( resNorm.Data(), resNorm.Data() + numEig ) );
     resMin = *(std::min_element( resNorm.Data(), resNorm.Data() + numEig ) );
 
+
+    // Determine which vectors to lock
+    Int nLock = std::count_if( resNorm.Data(), resNorm.Data() + numEig, 
+                               [&](const auto x){ return x <= lockTolerance; } );
+    Int nActive = width - nLock;
+
+    Int nActiveLocal   = (nActive / mpisize) + !!(mpirank < (nActive % mpisize));
+
+
+    // Print iteration info
+    print_iter_fields( iter, resMax, resMin, nLock, nActive );
+
+    
+
 #if ( _DEBUGlevel_ >= 1 )
     statusOFS << "resNorm = " << resNorm << std::endl;
     statusOFS << "eigValS = " << eigValS << std::endl;
-    statusOFS << "maxRes  = " << resMax  << std::endl;
-    statusOFS << "minRes  = " << resMin  << std::endl;
 #endif
 
     if( resMax < eigTolerance ){
@@ -610,33 +648,9 @@ EigenSolver::LOBPCGSolveReal    (
     }
 
 
-    Int nLock = std::count_if( resNorm.Data(), resNorm.Data() + numEig, 
-                               [&](const auto x){ return x <= lockTolerance; } );
-    Int nActive = width - nLock;
-
-
-#if 0
-    Int nLockLocal   = (nLock / mpisize) + !!(mpirank < (nLock % mpisize));
-    Int nActiveLocal = widthLocal - nLockLocal;
-#else
-    Int nActiveLocal   = (nActive / mpisize) + !!(mpirank < (nActive % mpisize));
-    Int nLockLocal = widthLocal - nActiveLocal;
-#endif
 
 
     // Precompute dynamic pointer offsets
-#if 0
-    // TODO: locking
-    auto* A_XTAP = &AMat(0,       2*width);
-    auto* A_WTAP = &AMat(width,   2*width);
-    auto* A_PTAP = &AMat(2*width, 2*width);
-    
-    auto* B_XTP = &BMat(0,       2*width);
-    auto* B_WTP = &BMat(width,   2*width);
-    auto* B_PTP = &BMat(2*width, 2*width);
-
-    auto* C_P = &AMat(2*width, 0);
-#else
     auto* A_XTAP = &AMat(0,             width+nActive);
     auto* A_WTAP = &AMat(width,         width+nActive);
     auto* A_PTAP = &AMat(width+nActive, width+nActive);
@@ -646,40 +660,18 @@ EigenSolver::LOBPCGSolveReal    (
     auto* B_PTP = &BMat(width+nActive, width+nActive);
 
     auto* C_P = &AMat(width+nActive, 0);
-#endif
     
-
-#if 1
-    statusOFS << "NLOCK         = " << nLock        << std::endl;
-    statusOFS << "NACTIVE       = " << nActive      << std::endl;
-    statusOFS << std::endl;
-#endif
-
-    if( nLockLocal + nActiveLocal != widthLocal )
-      ErrorHandling("You Assumed Wrong...");
-
-#if 0
-    DblNumMat TMP(5,4);
-    std::vector< int > perm = { 2, 1, 0, 3 };
-    for( auto j = 0; j < 4; ++j )
-    for( auto i = 0; i < 5; ++i )
-      TMP(i,j) = j;
-
-    statusOFS << "BEFORE PERM" << std::endl << TMP << std::endl;
-    lapack::ColPermute( true, 5, 4, TMP.Data(), 5, perm.data() ); 
-    statusOFS << "AFTER PERM" << std::endl << TMP << std::endl;
-#endif
 
     // Permute residual vectors so unconverged ones come first
     {
-      std::vector<Int> perm( width );
-      std::iota( perm.begin(), perm.end(), 0 );
-      std::stable_sort( perm.begin(), perm.end(), [&](Int i, Int j) {
+      std::vector<Int> res_perm( width );
+      std::iota( res_perm.begin(), res_perm.end(), 0 );
+      std::stable_sort( res_perm.begin(), res_perm.end(), [&](Int i, Int j) {
         return resNorm(i) > resNorm(j);
       });
 
       lapack::ColPermute( true, heightLocal, width, Xtemp.Data(), heightLocal,
-                          perm.data() );
+                          res_perm.data() );
     }
 
 
@@ -689,12 +681,8 @@ EigenSolver::LOBPCGSolveReal    (
     // Redistribute from Xtemp (Row) -> Xcol (Col)
     profile_row_to_col( Xtemp, Xcol );
 
-    // W <- T * R (Col format) 
-#if 0
-    profile_applyprec( noccTotal, noccLocal, Xcol, Wcol );
-#else
+    // W <- T * R (Col format, active only) 
     profile_applyprec( nActive, nActiveLocal, Xcol, Wcol );
-#endif
 
     // Normalize the preconditioned residual
     ColNormalize( Wcol );
@@ -712,70 +700,39 @@ EigenSolver::LOBPCGSolveReal    (
 
     /*** Compute AMat ***/
 
-    // Compute AW = A*W
-#if 0
-    profile_matvec( noccTotal, noccLocal, Wcol, AWcol );
-#else
+    // Compute AW = A*W (active only)
     profile_matvec( nActive, nActiveLocal, Wcol, AWcol );
-#endif
 
     // Convert W/AW from Col to Row formats
     profile_col_to_row( Wcol,  W  );
     profile_col_to_row( AWcol, AW );
 
-#if 0
-    // Compute X' * (AW)
-    // TODO: locking
-    profile_dist_inner( width, width, X.Data(), AW.Data(), XTXtemp.Data() );
-    lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, A_XTAW, lda );
-
-    // Compute W' * (AW)
-    // TODO: locking
-    profile_dist_inner( width, width, W.Data(), AW.Data(), XTXtemp.Data() );
-    lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, A_WTAW, lda );
-#else
-    // Compute X' * (AW)
+    // Compute X' * AW (active only)
     profile_dist_inner( width, nActive, X.Data(), AW.Data(), XTXtemp.Data() );
     lapack::Lacpy( 'A', width, nActive, XTXtemp.Data(), width, A_XTAW, lda );
 
-    // Compute W' * (AW)
+    // Compute W' * AW (active only)
     profile_dist_inner( nActive, nActive, W.Data(), AW.Data(), XTXtemp.Data() );
     lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
                    A_WTAW, lda );
-#endif
 
     if( numSet == 3 ){
 
-#if 0
-      // Compute X' * (AP)
-      // TODO: locking
-      profile_dist_inner( width, width, X.Data(), AP.Data(), XTXtemp.Data() );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, A_XTAP, lda );
-
-      // Compute W' * (AP)
-      profile_dist_inner( width, width, W.Data(), AP.Data(), XTXtemp.Data() );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, A_WTAP, lda );
-
-      // Compute P' * (AP)
-      profile_dist_inner( width, width, P.Data(), AP.Data(), XTXtemp.Data() );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, A_PTAP, lda );
-#else
-      // Compute X' * (AP)
+      // Compute X' * AP (active only)
       profile_dist_inner( width, nActive, X.Data(), AP.Data(), XTXtemp.Data() );
       lapack::Lacpy( 'A', width, nActive, XTXtemp.Data(), width, A_XTAP, lda );
 
-      // Compute W' * (AP)
+      // Compute W' * AP (active only)
       profile_dist_inner( nActive, nActive, W.Data(), AP.Data(), 
                           XTXtemp.Data() );
       lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
                      A_WTAP, lda );
 
-      // Compute P' * (AP)
+      // Compute P' * AP (active only)
       profile_dist_inner( nActive, nActive, P.Data(), AP.Data(), 
                           XTXtemp.Data() );
       lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
                      A_PTAP, lda );
-#endif
 
     }
 
@@ -787,56 +744,33 @@ EigenSolver::LOBPCGSolveReal    (
     profile_dist_inner( width, width, X.Data(), X.Data(), XTXtemp.Data() );
     lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_XTX, lda );
 
-#if 0
-    // Compute X'*W
-    profile_dist_inner( width, width, X.Data(), W.Data(), XTXtemp.Data() );
-    lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_XTW, lda );
-
-    // Compute W'*W
-    profile_dist_inner( width, width, W.Data(), W.Data(), XTXtemp.Data() );
-    lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_WTW, lda );
-#else
-    // Compute X'*W
+    // Compute X'*W (active only)
     profile_dist_inner( width, nActive, X.Data(), W.Data(), XTXtemp.Data() );
     lapack::Lacpy( 'A', width, nActive, XTXtemp.Data(), width, B_XTW, lda );
 
-    // Compute W'*W
+    // Compute W'*W (active only)
     profile_dist_inner( nActive, nActive, W.Data(), W.Data(), XTXtemp.Data() );
     lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
                    B_WTW, lda );
-#endif
 
 
     if( numSet == 3 ) {
-#if 0
-      // Compute X'*P
-      profile_dist_inner( width, width, X.Data(), P.Data(), XTXtemp.Data() );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_XTP, lda );
 
-      // Compute W'*P
-      profile_dist_inner( width, width, W.Data(), P.Data(), XTXtemp.Data() );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_WTP, lda );
-
-      // Compute P'*P
-      profile_dist_inner( width, width, P.Data(), P.Data(), XTXtemp.Data() );
-      lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_PTP, lda );
-#else
-      // Compute X'*P
+      // Compute X'*P (active only)
       profile_dist_inner( width, nActive, X.Data(), P.Data(), XTXtemp.Data() );
       lapack::Lacpy( 'A', width, nActive, XTXtemp.Data(), width, B_XTP, lda );
 
-      // Compute W'*P
+      // Compute W'*P (active only)
       profile_dist_inner( nActive, nActive, W.Data(), P.Data(), 
                           XTXtemp.Data() );
       lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
                      B_WTP, lda );
 
-      // Compute P'*P
+      // Compute P'*P (active only)
       profile_dist_inner( nActive, nActive, P.Data(), P.Data(), 
                           XTXtemp.Data() );
       lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
                      B_PTP, lda );
-#endif
 
     } // if( numSet == 3 )
 
@@ -866,15 +800,6 @@ EigenSolver::LOBPCGSolveReal    (
     //     ( C_P )
     //
     Int numCol;
-#if 0
-    if( numSet == 3 ){
-      // Conjugate gradient
-      numCol = 3 * width;
-    }
-    else{
-      numCol = 2 * width;
-    }
-#else
     if( numSet == 3 ){
       // Conjugate gradient
       numCol = width + 2 * nActive;
@@ -882,7 +807,6 @@ EigenSolver::LOBPCGSolveReal    (
     else{
       numCol = width + nActive;
     }
-#endif
 
     // Solve Rayleigh-Ritz problem
     // TODO: Handle ScaLAPACK path
@@ -908,7 +832,7 @@ EigenSolver::LOBPCGSolveReal    (
       lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
                      X.Data(), heightLocal );
 
-      // P <- W
+      // P <- W 
       lapack::Lacpy( 'A', heightLocal, nActive, W.Data(), heightLocal, 
                      P.Data(), heightLocal );
 
@@ -946,6 +870,7 @@ EigenSolver::LOBPCGSolveReal    (
                      AP.Data(), heightLocal );
 
     } else { // numSet == 3
+
       // AP <- AW * C_W + A_P * C_P
       basis_update( nActive, width, 1.0, AW.Data(), C_W, lda, 0.0, Xtemp.Data() );
       basis_update( nActive, width, 1.0, AP.Data(), C_P, lda, 1.0, Xtemp.Data() );
@@ -960,8 +885,10 @@ EigenSolver::LOBPCGSolveReal    (
 
     } // if ( numSet == 2 )
 
+
+
+
 #if ( _DEBUGlevel_ >= 1 )
-    //statusOFS << "numLocked = " << numLocked << std::endl;
     statusOFS << "eigValS   = " << eigValS << std::endl;
 #endif
 
