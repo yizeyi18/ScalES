@@ -564,7 +564,7 @@ EigenSolver::LOBPCGSolveReal    (
   Int iter = 0;
   Real lockTolerance = std::min(1e-5,eigTolerance);
 
-  bool enableLocking = true;
+  bool enableLocking = false;
   if( not enableLocking ) {
     lockTolerance = -1.;
   }
@@ -573,7 +573,8 @@ EigenSolver::LOBPCGSolveReal    (
   statusOFS << "Locking tolerance is " << lockTolerance   << std::endl;
 
   // Print headers
-  print_iter_fields( "Iter:", "ResMax:", "ResMin:", "NLock:", "NActive:" );
+  print_iter_fields( "Iter", "ResMax", "ResMin", "NLock", "NActive" );
+  print_iter_fields( "====", "======", "======", "=====", "=======" );
 
   do {
     iter++;
