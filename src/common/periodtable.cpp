@@ -2209,10 +2209,24 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
     statusOFS << " upf_nproj = " << upf_nproj << std::endl;
 #endif
 
+
+    // LL: FIXME 01/12/2021 The 2* in the structures below is due to
+    // the legacy support of spin-orbit coupling in the HGH pseudopotentials. 
+    // However, this option is not available anyway in recent UPF files such as
+    // https://www.quantum-espresso.org/upf_files/Bi.pbe-hgh.UPF
+    // So we will remove this for now, and think about how to consistently support
+    // spin-orbit coupling when needed in the future.
+    // For now we only support the scalar relativistic pseudopotential. 
+    // Compared to
+    // Hartwigsen, C., Goedecker, S., & Hutter, J. (1998). Relativistic
+    // separable dual-space Gaussian pseudopotentials from H to Rn.
+    // Physical Review B, 58(7), 3641.
+    // this means that we neglect the contribution k_ij in Eq. (19)
     samples.Resize( upf_mesh_size, 5 + 2*upf_nproj);
     weights.Resize(5+2*upf_nproj);
     cutoffs.Resize(5+2*upf_nproj);
     types.Resize(5+2*upf_nproj);
+
     SetValue( samples, 0.0);
     SetValue( weights, 0.0);
     SetValue( types, 0);

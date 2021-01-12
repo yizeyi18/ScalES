@@ -114,6 +114,7 @@ Target: refactor2020 for PWDFT
 
 - [x] `SCF::IterateDensity` should be reused in `SCF::IterateWavefun`
 
+
 - [ ] In Hamiltonian, add a pointer `ptablePtr_` for access to the
   information in the periodic table. Remove the pointer from the `SCF`
   class.
@@ -162,6 +163,9 @@ Target: refactor2020 for PWDFT
   is the lattice constant. In PW the mapping has been removed. Double
   check this with DG/TD.
 
+- [ ] Remove the legacy support of the spin-orbit coupling
+  pseudopotential (not supported by UPF anyway)
+
 - [ ] Add support for the HGH pseudopotential. This requires
   supporting non-off-diagonal DIJ (see KSSOLV's implementation
   pseudopotential/getvnl.m). However, fixing this requires at least one
@@ -170,7 +174,7 @@ Target: refactor2020 for PWDFT
     1. Diagonalize the DIJ matrix and store the eigenvectors. The
        problem with this is that the cutoffs from different nonlocal
        pseudopotentials will be mixed, which complicates the
-       CalculateNonLocalPP process.
+       CalculateNonLocalPP process. (Lin CPU)
 
     2. Change vnl.weight from a scalar to a vector, storing each row of
        DIJ for a given J. Then when adding the contribution from the
@@ -178,11 +182,11 @@ Target: refactor2020 for PWDFT
        `<beta_J|psi>`, and then add `|beta_I>D_{IJ}<beta_J|psi>` to psi.
        We may add an if statement on `D_{IJ} != 0` to skip certain I's
        to reduce cost. This may affect other parts of the code such as
-       DG. (Lin CPU)
+       DG. 
     
   Neither change is very simple, so we first need to decide whether we
   do need to support pseudopotentials where DIJ has off-diagonal
-  entries (like HGH).
+  entries (like HGH). Currently option 1 seems easier.
 
 - [ ] Clean up the PWDFT source code, and make it more modular at the
   high level (after fixing geometry optimization). Create a separate
