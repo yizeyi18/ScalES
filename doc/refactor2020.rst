@@ -114,6 +114,10 @@ Target: refactor2020 for PWDFT
 
 - [x] `SCF::IterateDensity` should be reused in `SCF::IterateWavefun`
 
+- [ ] In Hamiltonian, add a pointer `ptablePtr_` for access to the
+  information in the periodic table. Remove the pointer from the `SCF`
+  class.
+
 - [p] The structure of the code is largely based the current working code in
   the `GPU` branch, and will merge with `cuda_dg` branch `AMD_GPU_HIP`
   branch. Features in other branches are mainly in DG and can be merged
@@ -144,7 +148,7 @@ Target: refactor2020 for PWDFT
 - [p] Prepare a set of relatively robust default parameters, and simply
   the input file of the examples
 
-- [ ] LOBPCG should be reimplemented. There are two options: one is for safety (slower but accurate), and the other is for production (faster but may break).
+- [p] LOBPCG should be reimplemented. There are two options: one is for safety (slower but accurate), and the other is for production (faster but may break).
 
 - [ ] The ScaLAPACK diagonalization should be replaced by ELPA. More specifically, the diagonalization / PEXSI interface should be replaced by the ELSI interafce.
 
@@ -153,19 +157,10 @@ Target: refactor2020 for PWDFT
   whether a cleaner solution is needed when organizing dg and td.
 
 
-- [ ] Cleanup the iondynamics (detailed in pwdft.cpp). Need discussion
-
 
 - [p] Atom positions should not be remapped back to [-0.5 a, a), where a
   is the lattice constant. In PW the mapping has been removed. Double
   check this with DG/TD.
-
-- [ ] Geometry optimization: should not reset to random wavefunctions
-  each time. This is particularly problematic for hybrid functionals,
-  where the Phi iteration starts from the beginning. In principle, the
-  wavefunction should be reset only if something goes wrong. (see what
-  QE does) Furthermore, in this case the next ion move should start with PBE
-  instead of Phi iteration.
 
 - [ ] Add support for the HGH pseudopotential. This requires
   supporting non-off-diagonal DIJ (see KSSOLV's implementation
@@ -183,22 +178,30 @@ Target: refactor2020 for PWDFT
        `<beta_J|psi>`, and then add `|beta_I>D_{IJ}<beta_J|psi>` to psi.
        We may add an if statement on `D_{IJ} != 0` to skip certain I's
        to reduce cost. This may affect other parts of the code such as
-       DG.
+       DG. (Lin CPU)
     
   Neither change is very simple, so we first need to decide whether we
   do need to support pseudopotentials where DIJ has off-diagonal
   entries (like HGH).
 
 - [ ] Clean up the PWDFT source code, and make it more modular at the
-  high level (after fixing geometry optimization)
+  high level (after fixing geometry optimization). Create a separate
+  file (e.g. md.cpp), and pwdft.cpp should stop at scf::Execute() (Wei)
+  Make sure that in geometry optimization, the atomic position,
+  atomic force, and convergence criterion are synced at the beginning of
+  each iteration (maybe via MPI broadcast)
+  Geometry optimization: should not reset to random wavefunctions
+  each time. This is particularly problematic for hybrid functionals,
+  where the Phi iteration starts from the beginning. In principle, the
+  wavefunction should be reset only if something goes wrong. (see what
+  QE does) Furthermore, in this case the next ion move should start with PBE
+  instead of Phi iteration.
+
+
 
 - [ ] Dynamic truncation criterion for eigensolver. In particular, the
   criterion is controlled by an energy like quantity. This should be
   implemented in all eigensolvers.
-
-- [ ] Make sure that in geometry optimization, the atomic position,
-  atomic force, and convergence criterion are synced at the beginning of
-  each iteration (maybe via MPI broadcast)
 
 - [ ] CUFFT: One-by-one executation: is there a more efficient way to
   batched FFT? Why CUFFT does not suffer from the alignment issue? (i.e.
@@ -210,11 +213,13 @@ Target: refactor2020 for PWDFT
   the GPU version, this is replaced by reorder_evals_revecs. In the GPU
   based version pregterg_gpu, this is done by reorder_v, and
   subsequently redistribute the work for unconverged eigenvectors only.
-  The locking strategy seems different in ppcg_gamma_gpu
+
+- [p] The locking strategy in LOBPCG / PPCG. (David)
 
 - [ ] Cleanup the AddMultSpinorEXXDF7 routine using the ScaLAPACK class.
   Remove the descriptors and contexts floating around. Decide whether to
-  keep other EXXDF routines
+  keep other EXXDF routines (David will first look at 2D distribution,
+  and then pass to Weile)
 
 - [ ] Make a decision about the best way to proceed with row<->col
   transformation among the methods of 
@@ -231,7 +236,11 @@ Target: refactor2020 for PWDFT
     3. In case pdgemr2d is needed in the end, it needs to be
            encapsulated.
 
-- [ ] pcdiis: cleanup the row<->col transformation.
+    a. clean interface with bdist.redistribute_col_to_row (David). 
+    b. Get rid of AlltoallForward / AlltoallBackward (David)
+    c. test the performance of different implementations of bdist (Wei)
+
+- [ ] pcdiis: cleanup the row<->col transformation. (Wei)
 
 
 - [ ] The value of RGaussian should be properly set and tested for
@@ -242,9 +251,6 @@ Target: refactor2020 for PWDFT
   DEFINITELY be needed when changing to non-orthorhombic cells (see
   periodtable.cpp for more information under FIXME)
 
-- [ ] In Hamiltonian, add a pointer `ptablePtr_` for access to the
-  information in the periodic table. Remove the pointer from the `SCF`
-  class.
 
 
 Plans for further developments in PWDFT
