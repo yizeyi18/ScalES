@@ -2043,29 +2043,6 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
 
     statusOFS << " interpolation done" << std::endl;
 
-#if 0
-    // output potential on log mesh
-    std::ofstream vout("v.dat");
-    for ( int l = 0; l <= qso_lmax; l++ )
-    {
-      vout << "# v, l=" << l << std::endl;
-      if ( iproj[l] == -1 )
-      {
-        // l == llocal
-        for ( int i = 0; i < upf_vloc.size(); i++ )
-          vout << upf_r[i] << " " << 0.5*upf_vloc[i] << std::endl;
-        vout << std::endl << std::endl;
-      }
-      else
-      {
-        for ( int i = 0; i < vps[iproj[l]].size(); i++ )
-          vout << upf_r[i] << " " << 0.5*vps[iproj[l]][i] << std::endl;
-        vout << std::endl << std::endl;
-      }
-    }
-    vout << std::endl << std::endl;
-    vout.close();
-#endif
 #endif
 
   }
@@ -2341,8 +2318,8 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
     upf_vnl.resize(upf_nproj);
     std::vector<int> upf_proj_l(upf_nproj);
 
-    // nonlocal potential cutoff read from the pseduopotential file below. 4.0 is just initial value.
-    double nlcut = 4.0;
+    // nonlocal potential cutoff read from the pseduopotential file below. 1.0 is just initial value.
+    double nlcut = 1.0;
     
     std::ostringstream os;
     for ( int j = 0; j < upf_nproj; j++ )
@@ -2368,14 +2345,17 @@ Int ReadUPF( std::string file_name, PTEntry * tempEntry, Int * atom)
       statusOFS << " index = " << index << std::endl;
 #endif
 
-      //reset nlcut (cutoff radius for nonlocal pseudopotential)
+      // define nlcut (cutoff radius for nonlocal pseudopotential) as
+      // the largest cutoff among all pseudopotentials
       buf = get_attr(tag,"cutoff_radius");
       is.clear();
       is.str(buf);
-      is >> nlcut;
+      Real cutoff_radius;
+      is >> cutoff_radius;
+      nlcut = std::max(nlcut, cutoff_radius);
 
 #if 0
-      statusOFS << " cutoff_radius = " << nlcut << std::endl;
+      statusOFS << " current cutoff radius for nonlocal = " << nlcut << std::endl;
 #endif
 
       buf = get_attr(tag,"angular_momentum");
