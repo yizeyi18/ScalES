@@ -323,7 +323,7 @@ EigenSolver::LOBPCGSolveReal    (
   // Set up distributor
   //BlockDistributor<double> bdist( mpi_comm, height, width );
   auto bdist = 
-    make_block_distributor<double>( BlockDistAlg::HostGeneric, mpi_comm,
+    make_block_distributor<double>( BlockDistAlg::HostOptPack, mpi_comm,
                                     height, width );
 
   // Setup profiling wrappers
