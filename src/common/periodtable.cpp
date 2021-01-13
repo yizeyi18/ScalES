@@ -71,8 +71,7 @@ struct Element
     mass(m) {}
 };
 
-// LL: FIXME 01/12/2021 Remove the confusing periodictable structure
-class PeriodicTable
+class ElementTable
 {
   private:
 
@@ -81,7 +80,7 @@ class PeriodicTable
 
   public:
 
-  PeriodicTable(void);
+  ElementTable(void);
   int z(std::string symbol) const;
   std::string symbol(int zval) const;
   std::string configuration(int zval) const;
@@ -92,7 +91,7 @@ class PeriodicTable
 
 };
 
-PeriodicTable::PeriodicTable(void)
+ElementTable::ElementTable(void)
 {
   ptable.push_back(Element(1,"H","1s1",1.00794));
   ptable.push_back(Element(2,"He","1s2",4.00260));
@@ -201,7 +200,7 @@ PeriodicTable::PeriodicTable(void)
 
 
 /// the following code are merged from the UPF2QSO package
-int PeriodicTable::z(std::string symbol) const
+int ElementTable::z(std::string symbol) const
 {
   std::map<std::string,int>::const_iterator i = zmap.find(symbol);
   assert( i != zmap.end() );
@@ -209,40 +208,40 @@ int PeriodicTable::z(std::string symbol) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-std::string PeriodicTable::symbol(int z) const
+std::string ElementTable::symbol(int z) const
 {
   assert(z>0 && z<=ptable.size());
   return ptable[z-1].symbol;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-std::string PeriodicTable::configuration(int z) const
+std::string ElementTable::configuration(int z) const
 {
   assert(z>0 && z<=ptable.size());
   return ptable[z-1].config;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-std::string PeriodicTable::configuration(std::string symbol) const
+std::string ElementTable::configuration(std::string symbol) const
 {
   return ptable[z(symbol)-1].config;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-double PeriodicTable::mass(int z) const
+double ElementTable::mass(int z) const
 {
   assert(z>0 && z<=ptable.size());
   return ptable[z-1].mass;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-double PeriodicTable::mass(std::string symbol) const
+double ElementTable::mass(std::string symbol) const
 {
   return ptable[z(symbol)-1].mass;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int PeriodicTable::size(void) const
+int ElementTable::size(void) const
 {
   return ptable.size();
 }
@@ -381,10 +380,9 @@ void PeriodTable::Setup( )
 
 
   // Processing of Vlocal data
-  // LL: FIXME 01/12/2021 C++11 standard
-  for(std::map<Int,PTEntry>::iterator mi=ptemap_.begin(); mi!=ptemap_.end(); mi++) {
-    Int type = (*mi).first;    
-    PTEntry& ptcur = (*mi).second;
+  for(auto& mi: ptemap_) {
+    Int type = mi.first;    
+    PTEntry& ptcur = mi.second;
     DblNumVec& params = ptcur.params;
     DblNumMat& samples = ptcur.samples;
     Int nspl = samples.m();
@@ -394,7 +392,7 @@ void PeriodTable::Setup( )
     DblNumVec vlocal(nspl, false, samples.VecData(ptsample_.VLOCAL));
     // Remove the pseudocharge contribution
     for(Int i = 0; i < rad.m(); i++){
-      if( rad[i] == 0 )
+      if( rad[i] < 1e-12 )
         vlocal[i] += Zion / RGaussian * 2.0 / std::sqrt(PI);
       else
         vlocal[i] += Zion / rad[i] * std::erf(rad[i] / RGaussian);
@@ -404,11 +402,10 @@ void PeriodTable::Setup( )
   }
 
 
-  //create splines
-  // LL: FIXME 01/12/2021 C++11 standard
-  for(std::map<Int,PTEntry>::iterator mi=ptemap_.begin(); mi!=ptemap_.end(); mi++) {
-    Int type = (*mi).first;    
-    PTEntry& ptcur = (*mi).second;
+  // Create splines
+  for(auto& mi: ptemap_) {
+    Int type = mi.first;    
+    PTEntry& ptcur = mi.second;
     DblNumVec& params = ptcur.params;
     DblNumMat& samples = ptcur.samples;
     std::map< Int, std::vector<DblNumVec> > spltmp;
@@ -417,7 +414,6 @@ void PeriodTable::Setup( )
       DblNumVec rad(nspl, true, samples.VecData(0));
       DblNumVec a(nspl, true, samples.VecData(g));
       DblNumVec b(nspl), c(nspl), d(nspl);
-      //create splines
       spline(nspl, rad.Data(), a.Data(), b.Data(), c.Data(), d.Data());
       std::vector<DblNumVec> aux(5);
       aux[0] = rad;      aux[1] = a;      aux[2] = b;      aux[3] = c;      aux[4] = d;
@@ -646,18 +642,17 @@ PeriodTable::CalculateNonlocalPP    (
         } // for (i)
 
     Int idxsize = idx.size();
-    //process non-local pseudopotential one by one
+    // Process non-local pseudopotential one by one
     Int cntpp = 0;
-    // LL: FIXME 01/12/2021 Change the ambiguous name g
-    for(Int g=ptsample_.NONLOCAL; g<ptentry.samples.n(); g++) {
-      Real wgt = ptentry.weights(g);
-      Int typ = ptentry.types(g);
+    for(Int j=ptsample_.NONLOCAL; j<ptentry.samples.n(); j++) {
+      Real wgt = ptentry.weights(j);
+      Int typ = ptentry.types(j);
       //
-      std::vector<DblNumVec>& valspl = spldata[g]; 
+      std::vector<DblNumVec>& valspl = spldata[j]; 
       std::vector<Real> val(idxsize,0.0);
       seval(&(val[0]), idxsize, &(rad[0]), valspl[0].m(), valspl[0].Data(), valspl[1].Data(), valspl[2].Data(), valspl[3].Data(), valspl[4].Data());
       //
-      // std::vector<DblNumVec>& derspl = spldata[g+1]; 
+      // std::vector<DblNumVec>& derspl = spldata[j+1]; 
       // std::vector<Real> der(idxsize,0.0);
       // seval(&(der[0]), idxsize, &(rad[0]), derspl[0].m(), derspl[0].Data(), derspl[1].Data(), derspl[2].Data(), derspl[3].Data(), derspl[4].Data());
       //--
@@ -1128,7 +1123,7 @@ PeriodTable::CalculateNonlocalPP    (
           vnlList[cntpp++] = NonlocalPP( SparseVec(iv,dv), wgt );
         }
       } // if(typ==pttype_.L3)
-    } // for (g)
+    } // for (j)
 
     // Check the number of pseudopotentials
     if( cntpp != numpp ){
@@ -1470,7 +1465,7 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
   params.Resize(5); // in the order of the ParamPT
   
 
-  PeriodicTable pt;
+  ElementTable etable;
 
   std::string buf,s;
   std::istringstream is;
@@ -1568,12 +1563,9 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
     upf_symbol.erase(remove_if(upf_symbol.begin(), upf_symbol.end(), isspace), upf_symbol.end());
 
     // get atomic number and mass
-    const int atomic_number = pt.z(upf_symbol);
-    const double mass = pt.mass(upf_symbol);
-
-    atom = atomic_number;
-    params[0] = atomic_number;
-    params[1] = mass;
+    atom = etable.z(upf_symbol);
+    params[ptparam_.ZNUC] = atom;
+    params[ptparam_.MASS] = etable.mass(upf_symbol);
 
     // check if potential is norm-conserving or semi-local
     std::string pseudo_type = get_attr(tag,"pseudo_type");
@@ -1631,17 +1623,14 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
     statusOFS << " rhocut = " << rhocut << std::endl;
 #endif
 
-    // FIXME labels
-    const Int ZION = 2;
-    const Int RGAUSSIAN = 3;
-    params[ZION] = upf_zval;
     // LL: FIXME 01/06/2021 RGaussian determines the radius of the
     // Gaussian compensation charge.  It should be given by a table
     // according to the element type, and carefully tested. 
     //
     // The correction due to the overlap of Gaussian charges should also
     // be implemented.
-    params[RGAUSSIAN] = 1.0; 
+    params[ptparam_.ZION] = upf_zval;
+    params[ptparam_.RGAUSSIAN] = 1.0; 
 
     // max angular momentum
     int upf_lmax;
@@ -1754,7 +1743,7 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
     // type and be tested. This presumably plays a less important role
     // since it only provides the initial guess of the electron density
     // from individual atoms and could be wrong anyway.
-    double rhoatomcut = 4.0;
+    double rhoatomcut = 6.0;
 
     cutoffs[ptsample_.RADIAL_GRID] = rhocut;
     cutoffs[ptsample_.VLOCAL] = rhocut;

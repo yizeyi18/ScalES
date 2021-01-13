@@ -128,7 +128,7 @@ struct PTType{
 /// core charge density, nonlocal pseudopotentials in samples and cuts.
 /// However, the detailed value may depend on the pseudopotential.
 ///
-/// FIXME: Make PSEUDO_CHARGE and DRV_PSEUDO_CHARGE deprecated
+/// LL: FIXME: Make PSEUDO_CHARGE and DRV_PSEUDO_CHARGE deprecated
 /// PSEUDO_CHARGE = VLOCAL, DRV_PSEUDO_CHARGE = DRV_VLOCAL.
 struct PTSample{
   Int RADIAL_GRID;

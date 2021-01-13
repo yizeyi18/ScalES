@@ -310,6 +310,8 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
   Real timeSta, timeEnd;
 
+  // LL: FIXME 01/13/2021 Rethink whether the distribution of tasks
+  // should be here, or a clearer structure is needed
   int numAtomBlocksize = numAtom  / mpisize;
   int numAtomLocal = numAtomBlocksize;
   if(mpirank < (numAtom % mpisize)){
