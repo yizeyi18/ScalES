@@ -333,6 +333,8 @@ void PeriodTable::Setup( )
     ptparam_.RGAUSSIAN = 3;
   }
 
+  Real EPS = 1e-12;
+
   {
     // all the readins are in the samples in the old version, 
     // now in the new version, I should readin something else. 
@@ -392,7 +394,7 @@ void PeriodTable::Setup( )
     DblNumVec vlocal(nspl, false, samples.VecData(ptsample_.VLOCAL));
     // Remove the pseudocharge contribution
     for(Int i = 0; i < rad.m(); i++){
-      if( rad[i] < 1e-12 )
+      if( rad[i] < EPS )
         vlocal[i] += Zion / RGaussian * 2.0 / std::sqrt(PI);
       else
         vlocal[i] += Zion / rad[i] * std::erf(rad[i] / RGaussian);
@@ -1464,6 +1466,7 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
 
   params.Resize(5); // in the order of the ParamPT
   
+  Real EPS = 1e-12;
 
   ElementTable etable;
 
@@ -1615,7 +1618,7 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
     // for SG15, the default value for rhocut is 6.01.
     // Some pseudopotentials do not provide the value of rhocut. 
     // In such a case also set it to 6.01
-    if( rhocut < 1e-10 )
+    if( rhocut < EPS )
       rhocut = 6.01;
 
 
@@ -1919,7 +1922,7 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
           // 0.5 is because the unit of UPF is Ry
           nonlocalD(i,j) = 0.5 * upf_d[i*upf_nproj+j];
           if( (upf_proj_l[i] != upf_proj_l[j]) and
-              std::abs(nonlocalD(i,j)) > 1e-10 ){
+              std::abs(nonlocalD(i,j)) > EPS ){
             ErrorHandling("DIJ cannot have off-diagonal entries for different channels.");
           }
         }
@@ -1943,7 +1946,7 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
         for( int j = 0; j < nproj_l; j++ )
           for( int i = 0; i < nproj_l; i++ ){
             D_block(i,j) = nonlocalD(idx[i], idx[j]);
-            if( i != j and std::abs(D_block(i,j))>1e-10 )
+            if( i != j and std::abs(D_block(i,j))>EPS )
               isDiagonal = false;
           }
 

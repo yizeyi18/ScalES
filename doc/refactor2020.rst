@@ -201,6 +201,9 @@ Target: refactor2020 for PWDFT
   QE does) Furthermore, in this case the next ion move should start with PBE
   instead of Phi iteration.
 
+- [ ] Clean up the GPU part of the code to remove redundant copying.
+  Also find a better way to remove the added argument `garbage` to
+  distinguish the GPU and non-GPU versions of the same function. (Weile)
 
 
 - [ ] Dynamic truncation criterion for eigensolver. In particular, the
@@ -257,6 +260,10 @@ Target: refactor2020 for PWDFT
   DEFINITELY be needed when changing to non-orthorhombic cells (see
   periodtable.cpp for more information under FIXME)
 
+- [ ] The wavefun format, instead of (ir, icom, iband), maybe it is
+  better to rearrange it to be (ir, iband, icom). By letting the last
+  component of the tensor to be the component, we may use it for spin /
+  k-points laters.
 
 
 Plans for further developments in PWDFT
@@ -302,10 +309,6 @@ Plans for further developments in PWDFT
     [ ] element-wise product of two arrays (given by pointers) added to
     the third array. add to blas?
 
-- [d] The wavefun format, instead of (ir, icom, iband), maybe it is
-  better to rearrange it to be (ir, iband, icom). By letting the last
-  component of the tensor to be the component, we may use it for spin /
-  k-points laters.
 
 - [d] Change the default behavior from column partition to row partition
   in order to allow more processors than the number of bands (suggested
