@@ -1,8 +1,7 @@
 # Si 8 atoms
 
-temperature:        	  300
-extra_states:           8
 
+pseudo_type:            hgh
 xc_type:                PBE
 
 ecut_wavefunction:        10

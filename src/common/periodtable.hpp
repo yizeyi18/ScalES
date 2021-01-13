@@ -56,8 +56,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 namespace dgdft{
 
-// The following typedefs must be IDENTIAL to that in utility.hpp (C++
-// feature only)
+// The following typedefs must be IDENTIAL to that in utility.hpp 
 typedef std::pair<IntNumVec, DblNumMat > SparseVec; 
 typedef std::pair<SparseVec, Real> NonlocalPP; 
 
@@ -155,7 +154,8 @@ struct PTEntry
   /// @brief Radial grid, pseudocharge and nonlocal projectors and
   /// their derivatives.
   DblNumMat samples; 
-  /// @brief Weight of each sample. Only used for the nonlocal projectors. 
+  /// @brief The weight for the nonlocal pseudopotential, obtained as
+  /// the eigenvalues by diagonlzing the DIJ matrix
   DblNumVec weights; 
   /// @brief Type of each sample, following PTType.
   IntNumVec types; 
@@ -215,6 +215,8 @@ public:
   ///   res[0]         : pseudo-charge values
   ///   res[1]--res[3] : x,y,z components of the derivatives of the
   ///             pseudo-charge
+  ///
+  /// LL: FIXME 01/12/2021 This should be moved to DG 
   void CalculatePseudoCharge    (
       const Atom& atom, 
       const Domain& dm,
@@ -228,6 +230,7 @@ public:
 
   /// @brief Generate the nonlocal pseudopotential projectors over a set
   /// of elements.
+  /// LL: FIXME 01/12/2021 This should be moved to DG 
   void CalculateNonlocalPP( const Atom& atom, const Domain& dm, 
       const NumTns<std::vector<DblNumVec> >&   gridposElem,
       std::vector<std::pair<NumTns<SparseVec>, Real> >& vnlList );
@@ -258,7 +261,10 @@ public:
       SparseVec& resVLocalSR, 
       SparseVec& resGaussianPseudoCharge );
 
-
+  /// @brief Read PTEntry from UPF file.
+  ///
+  /// This is obtained and modified from the UPF2QSO subroutine in Qbox.
+  void ReadUPF( std::string file_name, PTEntry& pt, Int& atom);
 
   /// @brief Whether the atom type has nonlocal pseudopotential
   bool IsNonlocal(Int type) {return ptemap_[type].cutoffs.m()>ptsample_.NONLOCAL;}
@@ -293,10 +299,6 @@ public:
   Real RGaussian(Int type)   {return ptemap_[type].params(ptparam_.RGAUSSIAN);}
 
 
-  //---------------------------------------------
-  // TODO SpinOrbit from RelDFT
-
-
 };
 
 
@@ -308,10 +310,6 @@ Int deserialize(Atom& val, std::istream& is, const std::vector<Int>& mask);
 
 Real MaxForce( const std::vector<Atom>& atomList );
 
-/// @brief Read PTEntry from UPF file.
-///
-/// This is obtained from the UPF2QSO subroutine in Qbox.
-Int ReadUPF( std::string file_name, PTEntry* pt, Int * atom);
 
 
 } // namespace dgdft

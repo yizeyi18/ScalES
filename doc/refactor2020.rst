@@ -166,7 +166,7 @@ Target: refactor2020 for PWDFT
 - [ ] Remove the legacy support of the spin-orbit coupling
   pseudopotential (not supported by UPF anyway)
 
-- [ ] Add support for the HGH pseudopotential. This requires
+- [x] Add support for the HGH pseudopotential. This requires
   supporting non-off-diagonal DIJ (see KSSOLV's implementation
   pseudopotential/getvnl.m). However, fixing this requires at least one
   of the two actions:
@@ -246,6 +246,8 @@ Target: refactor2020 for PWDFT
 
 - [ ] pcdiis: cleanup the row<->col transformation. (Wei)
 
+- [ ] Rename the project to Scalable Electronic Structure (ScalES,
+  pronounced as "scales"). Change namespace etc, legal part etc
 
 - [ ] The value of RGaussian should be properly set and tested for
   elements in the periodic table. In particular it should be checked
