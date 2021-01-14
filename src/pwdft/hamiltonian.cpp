@@ -312,6 +312,8 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
 
   Real timeSta, timeEnd;
 
+  // LL: FIXME 01/13/2021 Rethink whether the distribution of tasks
+  // should be here, or a clearer structure is needed
   int numAtomBlocksize = numAtom  / mpisize;
   int numAtomLocal = numAtomBlocksize;
   if(mpirank < (numAtom % mpisize)){
@@ -485,9 +487,6 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
   } // Use the VLocal to evaluate pseudocharge
  
   // Nonlocal projectors
-  // FIXME. Remove the contribution form the coarse grid
-  std::vector<DblNumVec> gridposCoarse;
-  UniformMesh ( domain_, gridposCoarse );
 
   GetTime( timeSta );
 
@@ -502,34 +501,6 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
     ptable.CalculateNonlocalPP( atomList_[a], domain_, gridpos,
         pseudo_[a].vnlList ); 
     cntLocal = cntLocal + pseudo_[a].vnlList.size();
-
-    // For debug purpose, check the summation of the derivative
-    if(0){
-      std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlList;
-      for( Int l = 0; l < vnlList.size(); l++ ){
-        SparseVec& bl = vnlList[l].first;
-        IntNumVec& idx = bl.first;
-        DblNumMat& val = bl.second;
-        Real sumVDX = 0.0, sumVDY = 0.0, sumVDZ = 0.0;
-        for (Int k=0; k<idx.m(); k++) {
-          sumVDX += val(k, DX);
-          sumVDY += val(k, DY);
-          sumVDZ += val(k, DZ);
-        }
-        sumVDX *= vol / Real(ntotFine);
-        sumVDY *= vol / Real(ntotFine);
-        sumVDZ *= vol / Real(ntotFine);
-        if( std::sqrt(sumVDX * sumVDX + sumVDY * sumVDY + sumVDZ * sumVDZ) 
-            > 1e-8 ){
-          Print( statusOFS, "Local pseudopotential may not be constructed correctly" );
-          statusOFS << "For atom " << a << ", projector " << l << std::endl;
-          Print( statusOFS, "Sum dV_a / dx = ", sumVDX );
-          Print( statusOFS, "Sum dV_a / dy = ", sumVDY );
-          Print( statusOFS, "Sum dV_a / dz = ", sumVDZ );
-        }
-      }
-    }
-
   }
 
   cnt = 0; // the total number of PS used
@@ -537,6 +508,7 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
   
   Print( statusOFS, "Total number of nonlocal pseudopotential = ",  cnt );
 
+  // Every processor owns all nonlocal pseudopotentials in the end
   for (Int a=0; a<numAtom; a++) {
 
     std::stringstream vStream1;
@@ -545,7 +517,7 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
     std::stringstream vStream2Temp;
     int vStream1Size, vStream2Size;
 
-    std::vector<NonlocalPP>& vnlList = pseudo_[a].vnlList;
+    auto& vnlList = pseudo_[a].vnlList;
 
     serialize( vnlList, vStream1, NO_MASK );
 
@@ -583,7 +555,6 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
   Eext_ = 0.0;
   forceext_.Resize( atomList_.size(), DIM );
   SetValue( forceext_, 0.0 );
-
 
   return ;
 }         // -----  end of method Hamiltonian::CalculatePseudoPotential ----- 
@@ -729,7 +700,6 @@ Hamiltonian::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Rea
   densityLocal.Resize( ntotFine, ncom );   
   SetValue( densityLocal, 0.0 );
 
-  Real fac;
 
   SetValue( density_, 0.0 );
   for (Int k=0; k<nocc; k++) {
@@ -751,8 +721,7 @@ Hamiltonian::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Rea
 
       FFTWExecute ( fft, fft.backwardPlanFine );
 
-      // FIXME Factor to be simplified
-      fac = numSpin_ * occrate(psi.WavefunIdx(k));
+      Real fac = numSpin_ * occrate(psi.WavefunIdx(k));
       for( Int i = 0; i < ntotFine; i++ ){
         densityLocal(i,RHO) +=  pow( std::abs(fft.inputComplexVecFine(i).real()), 2.0 ) * fac;
       }
@@ -875,7 +844,7 @@ Hamiltonian::CalculateGradDensity ( Fourier& fft , bool garbage)
       Real timeSta, timeEnd;
       GetTime( timeSta );
 #endif
-          MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, gradDensity.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm );
+      MPI_Gather( temp.Data(), ntotLocal, MPI_DOUBLE, gradDensity.Data(), ntotLocal, MPI_DOUBLE, 0, fft.comm );
 
 #ifdef _PROFILING_
       GetTime( timeEnd );

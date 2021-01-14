@@ -114,6 +114,7 @@ Target: refactor2020 for PWDFT
 
 - [x] `SCF::IterateDensity` should be reused in `SCF::IterateWavefun`
 
+
 - [ ] In Hamiltonian, add a pointer `ptablePtr_` for access to the
   information in the periodic table. Remove the pointer from the `SCF`
   class.
@@ -162,7 +163,10 @@ Target: refactor2020 for PWDFT
   is the lattice constant. In PW the mapping has been removed. Double
   check this with DG/TD.
 
-- [ ] Add support for the HGH pseudopotential. This requires
+- [ ] Remove the legacy support of the spin-orbit coupling
+  pseudopotential (not supported by UPF anyway)
+
+- [x] Add support for the HGH pseudopotential. This requires
   supporting non-off-diagonal DIJ (see KSSOLV's implementation
   pseudopotential/getvnl.m). However, fixing this requires at least one
   of the two actions:
@@ -170,7 +174,7 @@ Target: refactor2020 for PWDFT
     1. Diagonalize the DIJ matrix and store the eigenvectors. The
        problem with this is that the cutoffs from different nonlocal
        pseudopotentials will be mixed, which complicates the
-       CalculateNonLocalPP process.
+       CalculateNonLocalPP process. (Lin CPU)
 
     2. Change vnl.weight from a scalar to a vector, storing each row of
        DIJ for a given J. Then when adding the contribution from the
@@ -178,11 +182,11 @@ Target: refactor2020 for PWDFT
        `<beta_J|psi>`, and then add `|beta_I>D_{IJ}<beta_J|psi>` to psi.
        We may add an if statement on `D_{IJ} != 0` to skip certain I's
        to reduce cost. This may affect other parts of the code such as
-       DG. (Lin CPU)
+       DG. 
     
   Neither change is very simple, so we first need to decide whether we
   do need to support pseudopotentials where DIJ has off-diagonal
-  entries (like HGH).
+  entries (like HGH). Currently option 1 seems easier.
 
 - [ ] Clean up the PWDFT source code, and make it more modular at the
   high level (after fixing geometry optimization). Create a separate
@@ -197,6 +201,9 @@ Target: refactor2020 for PWDFT
   QE does) Furthermore, in this case the next ion move should start with PBE
   instead of Phi iteration.
 
+- [ ] Clean up the GPU part of the code to remove redundant copying.
+  Also find a better way to remove the added argument `garbage` to
+  distinguish the GPU and non-GPU versions of the same function. (Weile)
 
 
 - [ ] Dynamic truncation criterion for eigensolver. In particular, the
@@ -242,6 +249,8 @@ Target: refactor2020 for PWDFT
 
 - [ ] pcdiis: cleanup the row<->col transformation. (Wei)
 
+- [ ] Rename the project to Scalable Electronic Structure (ScalES,
+  pronounced as "scales"). Change namespace etc, legal part etc
 
 - [ ] The value of RGaussian should be properly set and tested for
   elements in the periodic table. In particular it should be checked
@@ -251,6 +260,10 @@ Target: refactor2020 for PWDFT
   DEFINITELY be needed when changing to non-orthorhombic cells (see
   periodtable.cpp for more information under FIXME)
 
+- [ ] The wavefun format, instead of (ir, icom, iband), maybe it is
+  better to rearrange it to be (ir, iband, icom). By letting the last
+  component of the tensor to be the component, we may use it for spin /
+  k-points laters.
 
 
 Plans for further developments in PWDFT
@@ -296,10 +309,6 @@ Plans for further developments in PWDFT
     [ ] element-wise product of two arrays (given by pointers) added to
     the third array. add to blas?
 
-- [d] The wavefun format, instead of (ir, icom, iband), maybe it is
-  better to rearrange it to be (ir, iband, icom). By letting the last
-  component of the tensor to be the component, we may use it for spin /
-  k-points laters.
 
 - [d] Change the default behavior from column partition to row partition
   in order to allow more processors than the number of bands (suggested

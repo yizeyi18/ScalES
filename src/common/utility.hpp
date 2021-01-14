@@ -145,8 +145,6 @@ typedef std::pair<SparseVec, Real> NonlocalPP;
 /// @brief The pseudocharge and nonlocal projectors for each atom. 
 ///
 /// Each vector is on the global grid in the format of SparseVec.
-///
-/// FIXME Do not forget to change serialize / deserialize!!
 struct PseudoPot
 {
   /// @brief Pseudocharge of an atom, defined on the uniform fine grid.
@@ -1839,6 +1837,8 @@ void find_end_element(std::string name, std::ifstream & upfin);
 void seek_str(std::string tag, std::ifstream &upfin);
 std::string get_attr(std::string buf, std::string attr);
 void skipln(std::ifstream &upfin);
+
+// spline along the radial direction
 void splinerad( std::vector<double> & r, std::vector<double> & vloc, std::vector<double> & out_r, std::vector<double> & out_vloc , int even);
 } // namespace dgdft
 #endif // _UTILITY_HPP_
