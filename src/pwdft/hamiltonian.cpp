@@ -48,6 +48,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "blas.hpp"
 #include  "lapack.hpp"
 
+#include "block_distributor_decl.hpp"
+
 namespace dgdft{
 
 using namespace dgdft::PseudoComponent;
@@ -2279,8 +2281,16 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
         lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
 
         GetTime( timeSta1 );
+#if 0
         AlltoallForward (psiCol, psiRow, domain_.comm);
         AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
+#else
+        auto bdist = 
+          make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+                                          ntot, numStateTotal );
+        bdist.redistribute_col_to_row( psiCol,      psiRow      );
+        bdist.redistribute_col_to_row( vexxProjCol, vexxProjRow );
+#endif
         GetTime( timeEnd1 );
         timeAlltoallv = timeAlltoallv + ( timeEnd1 - timeSta1 );
 
@@ -2317,7 +2327,11 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
         timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
 
         GetTime( timeSta1 );
+#if 0
         AlltoallBackward (HpsiRow, HpsiCol, domain_.comm);
+#else
+        bdist.redistribute_row_to_col(HpsiRow, HpsiCol);
+#endif
         GetTime( timeEnd1 );
         timeAlltoallv = timeAlltoallv + ( timeEnd1 - timeSta1 );
 
@@ -2653,8 +2667,16 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
     lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, localPsiCol.Data(), ntot );
     lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
 
+#if 0
     AlltoallForward (localPsiCol, localPsiRow, domain_.comm);
     AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
+#else
+    auto bdist = 
+      make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+                                      ntot, numStateTotal );
+    bdist.redistribute_col_to_row( localPsiCol,     localPsiRow     );
+    bdist.redistribute_col_to_row( localVexxPsiCol, localVexxPsiRow );
+#endif
 
     DblNumMat MTemp( numStateTotal, numStateTotal );
     SetValue( MTemp, 0.0 );
@@ -2678,7 +2700,11 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
 
     vexxProj_.Resize( ntot, numStateLocal );
 
+#if 0
     AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
+#else
+    bdist.redistribute_row_to_col(localVexxPsiRow, vexxProj_);
+#endif
   } //if(1)
 
   // Sanity check. For debugging only
@@ -2783,7 +2809,14 @@ Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
     // Initialize
     lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
 
+#if 0
     AlltoallForward (localVexxPsiCol, localVexxPsiRow, domain_.comm);
+#else
+    auto bdist = 
+      make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+                                      ntot, numStateTotal );
+    bdist.redistribute_col_to_row( localVexxPsiCol, localVexxPsiRow );
+#endif
 
     if ( mpirank == 0) {
       lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
@@ -2796,7 +2829,11 @@ Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
 
     vexxProj_.Resize( ntot, numStateLocal );
 
+#if 0
     AlltoallBackward (localVexxPsiRow, vexxProj_, domain_.comm);
+#else
+    bdist.redistribute_row_to_col(localVexxPsiRow, vexxProj_);
+#endif
   } //if(1)
   return ;
 }         // -----  end of method Hamiltonian::CalculateVexxACEDF  ----- 
@@ -2913,8 +2950,16 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
       lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
       lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
 
+#if 0
       AlltoallForward (psiCol, psiRow, domain_.comm);
       AlltoallForward (vexxProjCol, vexxProjRow, domain_.comm);
+#else
+      auto bdist = 
+        make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+                                        ntot, numStateTotal );
+      bdist.redistribute_col_to_row( psiCol,      psiRow      );
+      bdist.redistribute_col_to_row( vexxProjCol, vexxProjRow );
+#endif
 
       DblNumMat MTemp( numStateTotal, numStateTotal );
       SetValue( MTemp, 0.0 );
@@ -2933,7 +2978,11 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
           vexxProjRow.Data(), ntotLocal, M.Data(), numStateTotal,
           0.0, vexxPsiRow.Data(), ntotLocal );
 
+#if 0
       AlltoallBackward (vexxPsiRow, vexxPsiCol, domain_.comm);
+#else
+      bdist.redistribute_row_to_col( vexxPsiRow, vexxPsiCol );
+#endif
 
       fockEnergy = 0.0;
       fockEnergyLocal = 0.0;

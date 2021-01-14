@@ -1732,10 +1732,12 @@ CopyPattern    ( const DistSparseMatrix<F1>& A, DistSparseMatrix<F2>& B )
 }        // -----  end of template function CopyPattern  ----- 
 
 
+#if 0
 void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
 void AlltoallBackward( DblNumMat& A, DblNumMat& B, MPI_Comm comm );
 void AlltoallForward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm );
 void AlltoallBackward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm );
+#endif
 
 #ifdef _COMPLEX_
 #ifdef GPU

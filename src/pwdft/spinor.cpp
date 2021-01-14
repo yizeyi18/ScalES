@@ -50,6 +50,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "lapack.hpp"
 #include  "scalapack.hpp"
 #include  "mpi_interf.hpp"
+
+#include "block_distributor_decl.hpp"
+
 namespace dgdft{
 
 using namespace dgdft::scalapack;
@@ -1099,8 +1102,17 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     lapack::Lacpy( 'A', ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
     lapack::Lacpy( 'A', ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
 
+#if 0
     AlltoallForward (phiCol, phiRow, domain_.comm);
     AlltoallForward (psiCol, psiRow, domain_.comm);
+#else
+    auto bdist = 
+      make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
+                                      ntot, numStateTotal );
+    bdist.redistribute_col_to_row( phiCol, phiRow );
+    bdist.redistribute_col_to_row( psiCol, psiRow );
+#endif
+    
 
     // Computing the indices is optional
 
@@ -1582,7 +1594,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     DblNumMat XiCol(ntot, numMuLocal);
 
+#if 0
     AlltoallBackward (XiRow, XiCol, domain_.comm);
+#else
+    bdist.redistribute_row_to_col( XiRow, XiCol );
+#endif
 
     {
       GetTime( timeSta );
@@ -1601,7 +1617,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
       } // for (mu)
 
+#if 0
       AlltoallForward (XiCol, XiRow, domain_.comm);
+#else
+      bdist.redistribute_col_to_row( XiCol, XiRow );
+#endif
 
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1671,7 +1691,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     DblNumMat HpsiCol( ntot, numStateLocal );
     SetValue( HpsiCol, 0.0 );
 
+#if 0
     AlltoallBackward (HpsiRow, HpsiCol, domain_.comm);
+#else
+    bdist.redistribute_row_to_col( HpsiRow, HpsiCol );
+#endif
 
     if(1){
 
@@ -1731,7 +1755,11 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       GetTime( timeSta );
 
       SetValue( HpsiRow, 0.0 );
+#if 0
       AlltoallForward (HpsiCol, HpsiRow, domain_.comm);
+#else
+      bdist.redistribute_col_to_row( HpsiCol, HpsiRow );
+#endif
 
       blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal, -1.0,
           psiRow.Data(), ntotLocal, HpsiRow.Data(), ntotLocal, 0.0, 

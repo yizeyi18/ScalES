@@ -590,6 +590,7 @@ Int SeparateWriteAscii(std::string name, std::ostringstream& os)
 }
 
 
+#if 0
 void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 {
 
@@ -1040,6 +1041,7 @@ void AlltoallBackward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm )
 
   return ;
 }        // -----  end of function AlltoallBackward ----- 
+#endif
 
 
 // serialize/deserialize the pseudopot
