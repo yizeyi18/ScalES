@@ -220,8 +220,13 @@ Target: refactor2020 for PWDFT
   the GPU version, this is replaced by reorder_evals_revecs. In the GPU
   based version pregterg_gpu, this is done by reorder_v, and
   subsequently redistribute the work for unconverged eigenvectors only.
+  - [d] in LOBPCG
+  - [ ] in PPCG
+  - [ ] in Chebyshev
 
 - [p] The locking strategy in LOBPCG / PPCG. (David)
+  - [d] in LOBPCG
+  - [ ] in PPCG
 
 - [ ] Cleanup the AddMultSpinorEXXDF7 routine using the ScaLAPACK class.
   Remove the descriptors and contexts floating around. Decide whether to
@@ -243,9 +248,11 @@ Target: refactor2020 for PWDFT
     3. In case pdgemr2d is needed in the end, it needs to be
            encapsulated.
 
-    a. clean interface with bdist.redistribute_col_to_row (David). 
-    b. Get rid of AlltoallForward / AlltoallBackward (David)
-    c. test the performance of different implementations of bdist (Wei)
+    a. [d] clean interface with bdist.redistribute_col_to_row (David). 
+    b. [p] Get rid of AlltoallForward / AlltoallBackward (David)
+           [d] in CPU code
+           [ ] in GPU code
+    c. [ ] test the performance of different implementations of bdist (Wei)
 
 - [ ] pcdiis: cleanup the row<->col transformation. (Wei)
 
