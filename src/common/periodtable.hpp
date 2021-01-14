@@ -272,6 +272,8 @@ public:
   /// @brief Cutoff radius for the pseudocharge in the real space
   Real RcutPseudoCharge(Int type)   {return ptemap_[type].cutoffs(ptsample_.PSEUDO_CHARGE);}
  
+  /// @brief Cutoff radius for the pseudocharge in the real space
+  Real RcutVLocal(Int type)   {return ptemap_[type].cutoffs(ptsample_.VLOCAL);}
 
   /// @brief Cutoff radius for model atomic density in the real space.
   /// This is only used for constructing initial charge density, and
