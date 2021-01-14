@@ -590,6 +590,7 @@ Int SeparateWriteAscii(std::string name, std::ostringstream& os)
 }
 
 
+#if 0
 void AlltoallForward( DblNumMat& A, DblNumMat& B, MPI_Comm comm )
 {
 
@@ -1040,6 +1041,7 @@ void AlltoallBackward( CpxNumMat& A, CpxNumMat& B, MPI_Comm comm )
 
   return ;
 }        // -----  end of function AlltoallBackward ----- 
+#endif
 
 
 // serialize/deserialize the pseudopot
@@ -1636,10 +1638,6 @@ void splinerad( std::vector<double> & r, std::vector<double> &v, std::vector <do
 
    out_v.resize(2*size);
 
-//   tk::spline s;
-//   s.set_points(r, v);
-//   for(int i = 0; i < size; i++)
-//     vtemp[i] = s( rtemp[i] );	   
 
    DblNumVec spla(n,true,&v[0]); 
    DblNumVec splb(n), splc(n), spld(n);
