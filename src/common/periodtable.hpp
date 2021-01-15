@@ -92,8 +92,8 @@ struct PTParam{
   Int ZNUC;
   /// @brief Nuclear mass.
   Int MASS;
-  /// @brief Nuclear charge (valence).
-  Int ZION;
+  /// @brief Nuclear valence charge.
+  Int ZVAL;
   /// @brief Effective radius of the Gaussian charge
   /// In the future this could be a table storing the default value for
   /// each type of species.
@@ -291,7 +291,7 @@ public:
   Real Mass(Int type) {return ptemap_[type].params(ptparam_.MASS);}
 
   /// @brief Valence charge of the ion
-  Real Zion(Int type) {return ptemap_[type].params(ptparam_.ZION);}
+  Real Zval(Int type) {return ptemap_[type].params(ptparam_.ZVAL);}
 
   /// @brief Self ionic interaction energy.
   ///
@@ -299,8 +299,6 @@ public:
   
   /// @brief Cutoff radius for the pseudocharge in the real space
   Real RGaussian(Int type)   {return ptemap_[type].params(ptparam_.RGAUSSIAN);}
-
-
 };
 
 
