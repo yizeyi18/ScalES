@@ -1,5 +1,6 @@
 #pragma once
 
+#include "environment.hpp"
 #include <lapack.hh>
 
 namespace dgdft {
@@ -11,6 +12,7 @@ void QRCP( Int m, Int n, T* A, Int lda, Int * piv, T* tau ) {
 
   if( !( m and n ) ) return;
 
+  statusOFS << "IN QRCP - NO Q" << std::endl;
   std::vector<int64_t> _piv( n );
   auto info = lapack::geqp3( m, n, A, lda, _piv.data(), tau );
 
@@ -31,6 +33,7 @@ void QRCP( Int m, Int n, T* A, T* Q, T* R, Int lda, Int * piv ) {
 
   if( !( m and n ) ) return;
 
+  statusOFS << "IN QRCP - with Q" << std::endl;
   std::vector<T> tau(std::min(m,n));
   QRCP( m, n, A, lda, piv, tau.data() ); // Perform QR factorization
 
