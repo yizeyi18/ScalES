@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012 The Regents of the University of California,
+   copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
 Authors: Lin Lin, Wei Hu, Amartya Banerjee, Weile Jia
@@ -48,8 +48,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2016-01-19 Add hybrid functional
 /// @date 2016-04-08 Update mixing
 #include  "scf.hpp"
-#include  "blas.hpp"
-#include  "lapack.hpp"
+#include  <blas.hh>
+#include  <lapack.hh>
 #include  "scalapack.hpp"
 #include  "mpi_interf.hpp"
 #include  "utility.hpp"
@@ -165,7 +165,7 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
       DblNumVec densityVec;
       // only for restricted spin case
       deserialize( densityVec, rhoStream, NO_MASK );    
-      blas::Copy( densityVec.m(), densityVec.Data(), 1, 
+      blas::copy( densityVec.m(), densityVec.Data(), 1, 
           density.VecData(RHO), 1 );
       statusOFS << "Density restarted from file " 
         << restartDensityFileName_ << std::endl;
@@ -192,7 +192,7 @@ SCF::Setup    ( EigenSolver& eigSol, PeriodTable& ptable )
         Int ntotFine = dm.NumGridTotalFine();
 
         SetValue( density, 0.0 );
-        blas::Copy( ntotFine, ham.AtomDensity().Data(), 1, 
+        blas::copy( ntotFine, ham.AtomDensity().Data(), 1, 
             density.VecData(0), 1 );
 
       }
@@ -866,7 +866,7 @@ SCF::IterateWavefun    ( )
     DblNumMat psiRow( ntotLocal, numStateTotal );
     SetValue( psiRow, 0.0 );
 
-    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+    lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
     //AlltoallForward (psiCol, psiRow, mpi_comm);
     SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
         psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
@@ -874,7 +874,7 @@ SCF::IterateWavefun    ( )
     DblNumMat psiTemp(ntotLocal, numOccTotal);
     SetValue( psiTemp, 0.0 );
 
-    lapack::Lacpy( 'A', ntotLocal, numOccTotal, psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal );
+    lapack::lacpy( lapack::MatrixType::General, ntotLocal, numOccTotal, psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal );
     Real one = 1.0;
     Real minus_one = -1.0;
     Real zero = 0.0;
@@ -896,7 +896,7 @@ SCF::IterateWavefun    ( )
         deviceDblNumMat cu_HpsiRow(ntotLocal, numStateTotal);
         deviceDblNumMat cu_ResRow(ntotLocal, numOccTotal);
         deviceDblNumMat cu_psiPcRow(ntotLocal, numStateTotal);
-        cu_psiTemp.CopyFrom( psiTemp);
+        cu_psiTemp.copyFrom( psiTemp);
 
         char right  = 'R';
         char up     = 'U';
@@ -908,7 +908,7 @@ SCF::IterateWavefun    ( )
         GetTime( timePhiIterStart );
 
         SetValue( psiCol, 0.0 );
-        lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+        lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
         SetValue( psiRow, 0.0 );
         //AlltoallForward (psiCol, psiRow, mpi_comm);
         SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
@@ -920,14 +920,14 @@ SCF::IterateWavefun    ( )
           SetValue( psiMuTTemp, 0.0 );
 
           deviceDblNumMat cu_psiMuTTemp(numOccTotal, numOccTotal);
-          cu_psiRow.CopyFrom(psiRow);
-          DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, 
+          cu_psiRow.copyFrom(psiRow);
+          DEVICE_BLAS::gemm( blas::Layout::ColMajor,  cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, 
               &one, cu_psiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
               &zero, cu_psiMuTTemp.Data(), numOccTotal );
-          cu_psiMuTTemp.CopyTo( psiMuTTemp );
+          cu_psiMuTTemp.copyTo( psiMuTTemp );
 
           /*
-             blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
+             blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, 
              psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
              0.0, psiMuTTemp.Data(), numOccTotal );
            */
@@ -947,14 +947,14 @@ SCF::IterateWavefun    ( )
           statusOFS << "Spsi = " << s << std::endl;
         }
 #endif
-        cu_psiMuT.CopyFrom( psiMuT);
-        DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
+        cu_psiMuT.copyFrom( psiMuT);
+        DEVICE_BLAS::gemm( blas::Layout::ColMajor,  cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
             cu_psiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
             &zero, cu_PcRow.Data(), ntotLocal );
-        cu_PcRow.CopyTo( PcRow );
+        cu_PcRow.copyTo( PcRow );
 
         /*
-           blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
+           blas::gemm( blas::Layout::ColMajor,  blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numOccTotal, numOccTotal, 1.0, 
            psiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
            0.0, PcRow.Data(), ntotLocal );
          */
@@ -977,13 +977,13 @@ SCF::IterateWavefun    ( )
           device_memcpy_HOST2DEVICE(cu_psi.Data(), psi.Wavefun().Data(), ntot*numStateLocal*sizeof(Real) );
           deviceNumTns<Real> tnsTemp(ntot, 1, numStateLocal, false, cu_HpsiCol.Data());
           // there are two sets of grid for Row parallelization. 
-          // the old fashioned split and the Scalapack split.
+          // the old fashioned split and the scalapack split.
           // note that they turns out to be different ones in that: 
-          // Scalapack divide the Psi by blocks, and old way is continuous.  
+          // scalapack divide the Psi by blocks, and old way is continuous.  
           // this is error prone.
           Spinor spnTemp(fft.domain, ncom, noccTotal, noccLocal, false, cu_psi.Data(), true);
           ham.MultSpinor_old( spnTemp, tnsTemp, fft );
-          cu_HpsiCol.CopyTo(HpsiCol);
+          cu_HpsiCol.copyTo(HpsiCol);
 
           // remember to reset the vtot
           device_reset_vtot_flag();
@@ -994,11 +994,11 @@ SCF::IterateWavefun    ( )
           SCALAPACK(pdgemr2d)(&Ng, &Ne, HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
               HpsiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
 
-          cu_HpsiRow.CopyFrom(HpsiRow);
+          cu_HpsiRow.copyFrom(HpsiRow);
 
           // perform the ACE operator here
           //ham.ACEOperator( cu_psiRow, fft, cu_HpsiRow );
-          //cu_HpsiRow.CopyTo(HpsiRow);
+          //cu_HpsiRow.copyTo(HpsiRow);
 
           if(1){
 
@@ -1006,12 +1006,12 @@ SCF::IterateWavefun    ( )
             deviceDblNumMat cu_HpsiMuTTemp(numOccTotal,numOccTotal);
             //SetValue( HpsiMuTTemp, 0.0 );
 
-            DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, 
+            DEVICE_BLAS::gemm( blas::Layout::ColMajor,  cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, 
                 cu_HpsiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
                 &zero, cu_HpsiMuTTemp.Data(), numOccTotal );
-            cu_HpsiMuTTemp.CopyTo(HpsiMuTTemp);
+            cu_HpsiMuTTemp.copyTo(HpsiMuTTemp);
             /*
-               blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
+               blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, 
                HpsiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
                0.0, HpsiMuTTemp.Data(), numOccTotal );
              */
@@ -1022,21 +1022,21 @@ SCF::IterateWavefun    ( )
 
           }//if
 
-          DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
+          DEVICE_BLAS::gemm( blas::Layout::ColMajor,  cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
               cu_HpsiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
               &zero, cu_ResRow.Data(), ntotLocal );
 
-          cu_HpsiMuT.CopyFrom( HpsiMuT );
-          DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
+          cu_HpsiMuT.copyFrom( HpsiMuT );
+          DEVICE_BLAS::gemm( blas::Layout::ColMajor,  cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
               cu_psiRow.Data(), ntotLocal, cu_HpsiMuT.Data(), numOccTotal, 
               &one, cu_ResRow.Data(), ntotLocal );
-          cu_ResRow.CopyTo(ResRow);
+          cu_ResRow.copyTo(ResRow);
 
           /*
-             blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
+             blas::gemm( blas::Layout::ColMajor,  blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numOccTotal, numOccTotal, 1.0, 
              HpsiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
              0.0, ResRow.Data(), ntotLocal );
-             blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, -1.0, 
+             blas::gemm( blas::Layout::ColMajor,  blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numOccTotal, numOccTotal, -1.0, 
              psiRow.Data(), ntotLocal, HpsiMuT.Data(), numOccTotal, 
              1.0, ResRow.Data(), ntotLocal );
              SetValue( ResCol, 0.0 );
@@ -1059,15 +1059,15 @@ SCF::IterateWavefun    ( )
           // The next position of dfMat, dvMat
           Int inext = phiIter - ((phiIter-1)/ mixMaxDim_) * mixMaxDim_;
 
-          blas::Copy( ntot * numOccLocal, PcCol.Data(), 1, vOpt.Data(), 1 );
+          blas::copy( ntot * numOccLocal, PcCol.Data(), 1, vOpt.Data(), 1 );
 
           if( phiIter > 1 ){
             // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
             // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
-            blas::Scal( ntot * numOccLocal, -1.0, dfMat_.VecData(ipos-1), 1 );
-            blas::Axpy( ntot * numOccLocal, 1.0, ResCol.Data(), 1, dfMat_.VecData(ipos-1), 1 );
-            blas::Scal( ntot * numOccLocal, -1.0, dvMat_.VecData(ipos-1), 1 );
-            blas::Axpy( ntot * numOccLocal, 1.0, PcCol.Data(), 1, dvMat_.VecData(ipos-1), 1 );
+            blas::scal( ntot * numOccLocal, -1.0, dfMat_.VecData(ipos-1), 1 );
+            blas::axpy( ntot * numOccLocal, 1.0, ResCol.Data(), 1, dfMat_.VecData(ipos-1), 1 );
+            blas::scal( ntot * numOccLocal, -1.0, dvMat_.VecData(ipos-1), 1 );
+            blas::axpy( ntot * numOccLocal, 1.0, PcCol.Data(), 1, dvMat_.VecData(ipos-1), 1 );
 
             // Calculating pseudoinverse
             DblNumMat dfMatTemp(ntot * numOccLocal, mixMaxDim_);
@@ -1076,24 +1076,24 @@ SCF::IterateWavefun    ( )
             SetValue( dfMatTemp, 0.0 );
             SetValue( gammas, 0.0 );
 
-            Int rank;
+            int64_t rank;
             // FIXME Magic number
             Real rcond = 1e-9;
 
             // gammas    = res;
-            blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, gammas.Data(), 1 );
-            lapack::Lacpy( 'A', ntot * numOccLocal, mixMaxDim_, dfMat_.Data(), ntot * numOccLocal, 
+            blas::copy( ntot * numOccLocal, ResCol.Data(), 1, gammas.Data(), 1 );
+            lapack::lacpy( lapack::MatrixType::General, ntot * numOccLocal, mixMaxDim_, dfMat_.Data(), ntot * numOccLocal, 
                 dfMatTemp.Data(), ntot * numOccLocal );
 
             // May need different strategy in a parallel setup
             if(0){  
 
-              lapack::SVDLeastSquare( ntot * numOccLocal, iterused, 1, 
+              lapack::gelss( ntot * numOccLocal, iterused, 1, 
                   dfMatTemp.Data(), ntot * numOccLocal,
                   gammas.Data(), ntot * numOccLocal,
                   S.Data(), rcond, &rank );
 
-              blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
+              blas::gemv( blas::Layout::ColMajor, blas::Op::NoTrans, ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
                   ntot * numOccLocal, gammas.Data(), 1, 1.0, vOpt.Data(), 1 );
 
             }
@@ -1104,7 +1104,7 @@ SCF::IterateWavefun    ( )
               DblNumMat XTXTemp(iterused, iterused);
 
               SetValue( XTXTemp, 0.0 );
-              blas::Gemm( 'T', 'N', iterused, iterused, ntot * numOccLocal, 1.0, 
+              blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, iterused, iterused, ntot * numOccLocal, 1.0, 
                   dfMatTemp.Data(), ntot * numOccLocal, dfMatTemp.Data(), ntot * numOccLocal, 
                   0.0, XTXTemp.Data(), iterused );
 
@@ -1117,7 +1117,7 @@ SCF::IterateWavefun    ( )
               //blas::Gemv('T', ntot * numOccLocal, iterused, 1.0, dfMatTemp.Data(),
               //    ntot * numOccLocal, gammas.Data(), 1, 0.0, gammasTemp1.Data(), 1 );
 
-              blas::Gemm( 'T', 'N', iterused, I_ONE, ntot * numOccLocal, 1.0, 
+              blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, iterused, I_ONE, ntot * numOccLocal, 1.0, 
                   dfMatTemp.Data(), ntot * numOccLocal, gammas.Data(), ntot * numOccLocal, 
                   0.0, gammasTemp1.Data(), iterused );
 
@@ -1126,15 +1126,15 @@ SCF::IterateWavefun    ( )
               MPI_Allreduce( gammasTemp1.Data(), gammasTemp2.Data(), 
                   iterused, MPI_DOUBLE, MPI_SUM, mpi_comm );
 
-              lapack::SVDLeastSquare( iterused, iterused, 1, 
+              lapack::gelss( iterused, iterused, 1, 
                   XTX.Data(), iterused,
                   gammasTemp2.Data(), iterused,
                   S.Data(), rcond, &rank );
 
-              //blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
+              //blas::gemv( blas::Layout::ColMajor, blas::Op::NoTrans, ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
               //    ntot * numOccLocal, gammasTemp2.Data(), 1, 1.0, vOpt.Data(), 1 );
 
-              blas::Gemm( 'N', 'N', ntot * numOccLocal, I_ONE, iterused, -1.0, 
+              blas::gemm( blas::Layout::ColMajor,  blas::Op::NoTrans, blas::Op::NoTrans, ntot * numOccLocal, I_ONE, iterused, -1.0, 
                   dvMat_.Data(), ntot * numOccLocal, gammasTemp2.Data(), iterused, 
                   1.0, vOpt.Data(), ntot * numOccLocal );
 
@@ -1147,15 +1147,15 @@ SCF::IterateWavefun    ( )
           // Update dfMat, dvMat, vMix 
           // dfMat(:, inext-1) = Res(:)
           // dvMat(:, inext-1) = Pc(:)
-          blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, 
+          blas::copy( ntot * numOccLocal, ResCol.Data(), 1, 
               dfMat_.VecData(inext-1), 1 );
-          blas::Copy( ntot * numOccLocal, PcCol.Data(),  1, 
+          blas::copy( ntot * numOccLocal, PcCol.Data(),  1, 
               dvMat_.VecData(inext-1), 1 );
 
           // Orthogonalize vOpt to obtain psiPc. 
           // psiPc has the same size
           SetValue( psiPcCol, 0.0 );
-          blas::Copy( ntot * numOccLocal, vOpt.Data(), 1, psiPcCol.Data(), 1 );
+          blas::copy( ntot * numOccLocal, vOpt.Data(), 1, psiPcCol.Data(), 1 );
           //lapack::Orth( ntot, numOccLocal, psiPcCol.Data(), ntotLocal );
 
           // Orthogonalization through Cholesky factorization
@@ -1165,43 +1165,43 @@ SCF::IterateWavefun    ( )
             SCALAPACK(pdgemr2d)(&Ng, &No, psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
                 psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
 
-            cu_psiPcRow.CopyFrom( psiPcRow );
+            cu_psiPcRow.copyFrom( psiPcRow );
 
             DblNumMat XTX(numOccTotal, numOccTotal);
             DblNumMat XTXTemp(numOccTotal, numOccTotal);
             deviceDblNumMat cu_XTXTemp(numOccTotal, numOccTotal);
 
-            DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
+            DEVICE_BLAS::gemm( blas::Layout::ColMajor,  cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
                 ntotLocal, cu_psiPcRow.Data(), ntotLocal, &zero, cu_XTXTemp.Data(), numOccTotal );
-            cu_XTXTemp.CopyTo(XTXTemp);
+            cu_XTXTemp.copyTo(XTXTemp);
 
             /*
-               blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiPcRow.Data(), 
+               blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, psiPcRow.Data(), 
                ntotLocal, psiPcRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
                SetValue( XTX, 0.0 );
              */
             MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
 
             //if ( mpirank == 0) {
-            //  lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
+            //  lapack::potrf( lapack::Uplo::Upper, numOccTotal, XTX.Data(), numOccTotal );
             //}
             //MPI_Bcast(XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, 0, mpi_comm);
 
-            cu_XTXTemp.CopyFrom(XTX);
+            cu_XTXTemp.copyFrom(XTX);
 #ifdef USE_MAGMA
             MAGMA::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
 #else
             device_solver::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
 #endif
 
-            DEVICE_BLAS::Trsm( right, up, cu_transN, nondiag, 
+            DEVICE_BLAS::trsm( right, up, cu_transN, nondiag, 
                 ntotLocal, numOccTotal, &one, cu_XTXTemp.Data(), numOccTotal, cu_psiPcRow.Data(),
                 ntotLocal);
-            cu_psiPcRow.CopyTo( psiPcRow );
+            cu_psiPcRow.copyTo( psiPcRow );
 
             // X <- X * U^{-1} is orthogonal
             /*
-               blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
+               blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Upper, blas::Op::NoTrans, blas::Diag::NonUnit, ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
                psiPcRow.Data(), ntotLocal );
                SetValue( psiPcCol, 0.0 );
              */
@@ -1269,7 +1269,7 @@ SCF::IterateWavefun    ( )
       // Compute the total potential
       GetTime( timeSta );
       ham.CalculateVtot( vtotNew_ );
-      blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
+      blas::copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
 
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1299,7 +1299,7 @@ SCF::IterateWavefun    ( )
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
       InnerSolve( phiIter );
-      blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
+      blas::copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
 
 
       EVdw_ = 0.0;
@@ -1520,7 +1520,7 @@ SCF::IterateWavefun    ( )
     DblNumMat psiRow( ntotLocal, numStateTotal );
     SetValue( psiRow, 0.0 );
 
-    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+    lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
     //AlltoallForward (psiCol, psiRow, mpi_comm);
     SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
         psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
@@ -1528,7 +1528,7 @@ SCF::IterateWavefun    ( )
     DblNumMat psiTemp(ntotLocal, numOccTotal);
     SetValue( psiTemp, 0.0 );
 
-    lapack::Lacpy( 'A', ntotLocal, numOccTotal, psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal );
+    lapack::lacpy( lapack::MatrixType::General, ntotLocal, numOccTotal, psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal );
 
     // Phi loop
     for( Int phiIter = 1; phiIter <= scfPhiMaxIter_; phiIter++ ){
@@ -1536,7 +1536,7 @@ SCF::IterateWavefun    ( )
       GetTime( timePhiIterStart );
 
       SetValue( psiCol, 0.0 );
-      lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+      lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
       SetValue( psiRow, 0.0 );
       //AlltoallForward (psiCol, psiRow, mpi_comm);
       SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
@@ -1546,7 +1546,7 @@ SCF::IterateWavefun    ( )
 
         DblNumMat psiMuTTemp(numOccTotal, numOccTotal);
         SetValue( psiMuTTemp, 0.0 );
-        blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
+        blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, 
             psiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
             0.0, psiMuTTemp.Data(), numOccTotal );
 
@@ -1567,7 +1567,7 @@ SCF::IterateWavefun    ( )
       }
 #endif
 
-      blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
+      blas::gemm( blas::Layout::ColMajor,  blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numOccTotal, numOccTotal, 1.0, 
           psiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
           0.0, PcRow.Data(), ntotLocal );
 
@@ -1597,7 +1597,7 @@ SCF::IterateWavefun    ( )
           DblNumMat HpsiMuTTemp(numOccTotal,numOccTotal);
           SetValue( HpsiMuTTemp, 0.0 );
 
-          blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
+          blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, 
               HpsiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
               0.0, HpsiMuTTemp.Data(), numOccTotal );
 
@@ -1608,10 +1608,10 @@ SCF::IterateWavefun    ( )
 
         }//if
 
-        blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
+        blas::gemm( blas::Layout::ColMajor,  blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numOccTotal, numOccTotal, 1.0, 
             HpsiRow.Data(), ntotLocal, psiMuT.Data(), numOccTotal, 
             0.0, ResRow.Data(), ntotLocal );
-        blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, -1.0, 
+        blas::gemm( blas::Layout::ColMajor,  blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numOccTotal, numOccTotal, -1.0, 
             psiRow.Data(), ntotLocal, HpsiMuT.Data(), numOccTotal, 
             1.0, ResRow.Data(), ntotLocal );
 
@@ -1633,15 +1633,15 @@ SCF::IterateWavefun    ( )
         // The next position of dfMat, dvMat
         Int inext = phiIter - ((phiIter-1)/ mixMaxDim_) * mixMaxDim_;
 
-        blas::Copy( ntot * numOccLocal, PcCol.Data(), 1, vOpt.Data(), 1 );
+        blas::copy( ntot * numOccLocal, PcCol.Data(), 1, vOpt.Data(), 1 );
 
         if( phiIter > 1 ){
           // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
           // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
-          blas::Scal( ntot * numOccLocal, -1.0, dfMat_.VecData(ipos-1), 1 );
-          blas::Axpy( ntot * numOccLocal, 1.0, ResCol.Data(), 1, dfMat_.VecData(ipos-1), 1 );
-          blas::Scal( ntot * numOccLocal, -1.0, dvMat_.VecData(ipos-1), 1 );
-          blas::Axpy( ntot * numOccLocal, 1.0, PcCol.Data(), 1, dvMat_.VecData(ipos-1), 1 );
+          blas::scal( ntot * numOccLocal, -1.0, dfMat_.VecData(ipos-1), 1 );
+          blas::axpy( ntot * numOccLocal, 1.0, ResCol.Data(), 1, dfMat_.VecData(ipos-1), 1 );
+          blas::scal( ntot * numOccLocal, -1.0, dvMat_.VecData(ipos-1), 1 );
+          blas::axpy( ntot * numOccLocal, 1.0, PcCol.Data(), 1, dvMat_.VecData(ipos-1), 1 );
 
           // Calculating pseudoinverse
           DblNumMat dfMatTemp(ntot * numOccLocal, mixMaxDim_);
@@ -1650,24 +1650,24 @@ SCF::IterateWavefun    ( )
           SetValue( dfMatTemp, 0.0 );
           SetValue( gammas, 0.0 );
 
-          Int rank;
+          int64_t rank;
           // FIXME Magic number
           Real rcond = 1e-9;
 
           // gammas    = res;
-          blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, gammas.Data(), 1 );
-          lapack::Lacpy( 'A', ntot * numOccLocal, mixMaxDim_, dfMat_.Data(), ntot * numOccLocal, 
+          blas::copy( ntot * numOccLocal, ResCol.Data(), 1, gammas.Data(), 1 );
+          lapack::lacpy( lapack::MatrixType::General, ntot * numOccLocal, mixMaxDim_, dfMat_.Data(), ntot * numOccLocal, 
               dfMatTemp.Data(), ntot * numOccLocal );
 
           // May need different strategy in a parallel setup
           if(0){  
 
-            lapack::SVDLeastSquare( ntot * numOccLocal, iterused, 1, 
+            lapack::gelss( ntot * numOccLocal, iterused, 1, 
                 dfMatTemp.Data(), ntot * numOccLocal,
                 gammas.Data(), ntot * numOccLocal,
                 S.Data(), rcond, &rank );
 
-            blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
+            blas::gemv( blas::Layout::ColMajor, blas::Op::NoTrans, ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
                 ntot * numOccLocal, gammas.Data(), 1, 1.0, vOpt.Data(), 1 );
 
           }
@@ -1680,7 +1680,7 @@ SCF::IterateWavefun    ( )
             Int lld_ntotnumOccLocal = std::max( ntot * numOccLocal, 1 );
 
             SetValue( XTXTemp, 0.0 );
-            blas::Gemm( 'T', 'N', iterused, iterused, ntot * numOccLocal, 1.0, 
+            blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, iterused, iterused, ntot * numOccLocal, 1.0, 
                 dfMatTemp.Data(), lld_ntotnumOccLocal, dfMatTemp.Data(), 
                 lld_ntotnumOccLocal, 0.0, XTXTemp.Data(), iterused );
 
@@ -1693,7 +1693,7 @@ SCF::IterateWavefun    ( )
             //blas::Gemv('T', ntot * numOccLocal, iterused, 1.0, dfMatTemp.Data(),
             //    ntot * numOccLocal, gammas.Data(), 1, 0.0, gammasTemp1.Data(), 1 );
 
-            blas::Gemm( 'T', 'N', iterused, I_ONE, ntot * numOccLocal, 1.0, 
+            blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, iterused, I_ONE, ntot * numOccLocal, 1.0, 
                 dfMatTemp.Data(), lld_ntotnumOccLocal, gammas.Data(), 
                 lld_ntotnumOccLocal, 0.0, gammasTemp1.Data(), iterused );
 
@@ -1702,15 +1702,15 @@ SCF::IterateWavefun    ( )
             MPI_Allreduce( gammasTemp1.Data(), gammasTemp2.Data(), 
                 iterused, MPI_DOUBLE, MPI_SUM, mpi_comm );
 
-            lapack::SVDLeastSquare( iterused, iterused, 1, 
+            lapack::gelss( iterused, iterused, 1, 
                 XTX.Data(), iterused,
                 gammasTemp2.Data(), iterused,
                 S.Data(), rcond, &rank );
 
-            //blas::Gemv('N', ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
+            //blas::gemv( blas::Layout::ColMajor, blas::Op::NoTrans, ntot * numOccLocal, iterused, -1.0, dvMat_.Data(),
             //    ntot * numOccLocal, gammasTemp2.Data(), 1, 1.0, vOpt.Data(), 1 );
 
-            blas::Gemm( 'N', 'N', ntot * numOccLocal, I_ONE, iterused, -1.0, 
+            blas::gemm( blas::Layout::ColMajor,  blas::Op::NoTrans, blas::Op::NoTrans, ntot * numOccLocal, I_ONE, iterused, -1.0, 
                 dvMat_.Data(), lld_ntotnumOccLocal, gammasTemp2.Data(), iterused, 
                 1.0, vOpt.Data(), lld_ntotnumOccLocal );
 
@@ -1723,15 +1723,15 @@ SCF::IterateWavefun    ( )
         // Update dfMat, dvMat, vMix 
         // dfMat(:, inext-1) = Res(:)
         // dvMat(:, inext-1) = Pc(:)
-        blas::Copy( ntot * numOccLocal, ResCol.Data(), 1, 
+        blas::copy( ntot * numOccLocal, ResCol.Data(), 1, 
             dfMat_.VecData(inext-1), 1 );
-        blas::Copy( ntot * numOccLocal, PcCol.Data(),  1, 
+        blas::copy( ntot * numOccLocal, PcCol.Data(),  1, 
             dvMat_.VecData(inext-1), 1 );
 
         // Orthogonalize vOpt to obtain psiPc. 
         // psiPc has the same size
         SetValue( psiPcCol, 0.0 );
-        blas::Copy( ntot * numOccLocal, vOpt.Data(), 1, psiPcCol.Data(), 1 );
+        blas::copy( ntot * numOccLocal, vOpt.Data(), 1, psiPcCol.Data(), 1 );
         //lapack::Orth( ntot, numOccLocal, psiPcCol.Data(), ntotLocal );
 
         // Orthogonalization through Cholesky factorization
@@ -1744,18 +1744,18 @@ SCF::IterateWavefun    ( )
           DblNumMat XTX(numOccTotal, numOccTotal);
           DblNumMat XTXTemp(numOccTotal, numOccTotal);
 
-          blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiPcRow.Data(), 
+          blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, psiPcRow.Data(), 
               ntotLocal, psiPcRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
           SetValue( XTX, 0.0 );
           MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
 
           if ( mpirank == 0) {
-            lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
+            lapack::potrf( lapack::Uplo::Upper, numOccTotal, XTX.Data(), numOccTotal );
           }
           MPI_Bcast(XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, 0, mpi_comm);
 
           // X <- X * U^{-1} is orthogonal
-          blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
+          blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Upper, blas::Op::NoTrans, blas::Diag::NonUnit, ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
               psiPcRow.Data(), ntotLocal );
 
           SetValue( psiPcCol, 0.0 );
@@ -1769,7 +1769,7 @@ SCF::IterateWavefun    ( )
       DblNumMat psiPcColTemp(ntot, numStateLocal);
       SetValue( psiPcColTemp, 0.0 );
 
-      lapack::Lacpy( 'A', ntot, numOccLocal, psiPcCol.Data(), ntot, psiPcColTemp.Data(), ntot );
+      lapack::lacpy( lapack::MatrixType::General, ntot, numOccLocal, psiPcCol.Data(), ntot, psiPcColTemp.Data(), ntot );
 
       // Construct the new Hamiltonian operator
       Spinor spnPsiPc(fft.domain, 1, numStateTotal,
@@ -1820,7 +1820,7 @@ SCF::IterateWavefun    ( )
       // Compute the total potential
       GetTime( timeSta );
       ham.CalculateVtot( vtotNew_ );
-      blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
+      blas::copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
 
       GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1850,7 +1850,7 @@ SCF::IterateWavefun    ( )
         timeEnd - timeSta << " [s]" << std::endl << std::endl;
 
       InnerSolve( phiIter );
-      blas::Copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
+      blas::copy( ntotFine, vtotNew_.Data(), 1, ham.Vtot().Data(), 1 );
 
 
       CalculateEnergy();
@@ -2446,7 +2446,7 @@ SCF::AndersonMix    (
 
   res = vOld;
   // res(:) = vOld(:) - vNew(:) is the residual
-  blas::Axpy( ntot, -1.0, vNew.Data(), 1, res.Data(), 1 );
+  blas::axpy( ntot, -1.0, vNew.Data(), 1, res.Data(), 1 );
 
   vOpt = vOld;
   resOpt = res;
@@ -2454,10 +2454,10 @@ SCF::AndersonMix    (
   if( iter > 1 ){
     // dfMat(:, ipos-1) = res(:) - dfMat(:, ipos-1);
     // dvMat(:, ipos-1) = vOld(:) - dvMat(:, ipos-1);
-    blas::Scal( ntot, -1.0, dfMat.VecData(ipos-1), 1 );
-    blas::Axpy( ntot, 1.0, res.Data(), 1, dfMat.VecData(ipos-1), 1 );
-    blas::Scal( ntot, -1.0, dvMat.VecData(ipos-1), 1 );
-    blas::Axpy( ntot, 1.0, vOld.Data(), 1, dvMat.VecData(ipos-1), 1 );
+    blas::scal( ntot, -1.0, dfMat.VecData(ipos-1), 1 );
+    blas::axpy( ntot, 1.0, res.Data(), 1, dfMat.VecData(ipos-1), 1 );
+    blas::scal( ntot, -1.0, dvMat.VecData(ipos-1), 1 );
+    blas::axpy( ntot, 1.0, vOld.Data(), 1, dvMat.VecData(ipos-1), 1 );
 
 
     // Calculating pseudoinverse
@@ -2465,7 +2465,7 @@ SCF::AndersonMix    (
     DblNumMat dfMatTemp;
     DblNumVec gammas, S;
 
-    Int rank;
+    int64_t rank;
     // FIXME Magic number
     Real rcond = 1e-12;
 
@@ -2474,7 +2474,7 @@ SCF::AndersonMix    (
     gammas    = res;
     dfMatTemp = dfMat;
 
-    lapack::SVDLeastSquare( ntot, iterused, 1, 
+    lapack::gelss( ntot, iterused, 1, 
         dfMatTemp.Data(), ntot, gammas.Data(), ntot,
         S.Data(), rcond, &rank );
 
@@ -2482,10 +2482,10 @@ SCF::AndersonMix    (
     Print( statusOFS, "  Rcond = ", rcond );
     // Update vOpt, resOpt. 
 
-    blas::Gemv('N', ntot, nrow, -1.0, dvMat.Data(),
+    blas::gemv( blas::Layout::ColMajor, blas::Op::NoTrans, ntot, nrow, -1.0, dvMat.Data(),
         ntot, gammas.Data(), 1, 1.0, vOpt.Data(), 1 );
 
-    blas::Gemv('N', ntot, iterused, -1.0, dfMat.Data(),
+    blas::gemv( blas::Layout::ColMajor, blas::Op::NoTrans, ntot, iterused, -1.0, dfMat.Data(),
         ntot, gammas.Data(), 1, 1.0, resOpt.Data(), 1 );
   }
 
@@ -2503,14 +2503,14 @@ SCF::AndersonMix    (
   // Update dfMat, dvMat, vMix 
   // dfMat(:, inext-1) = res(:)
   // dvMat(:, inext-1) = vOld(:)
-  blas::Copy( ntot, res.Data(), 1, 
+  blas::copy( ntot, res.Data(), 1, 
       dfMat.VecData(inext-1), 1 );
-  blas::Copy( ntot, vOld.Data(),  1, 
+  blas::copy( ntot, vOld.Data(),  1, 
       dvMat.VecData(inext-1), 1 );
 
   // vMix(:) = vOpt(:) - mixStepLength * precRes(:)
   vMix = vOpt;
-  blas::Axpy( ntot, -mixStepLength, precResOpt.Data(), 1, vMix.Data(), 1 );
+  blas::axpy( ntot, -mixStepLength, precResOpt.Data(), 1, vMix.Data(), 1 );
 
 
   return ;

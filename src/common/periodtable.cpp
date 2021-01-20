@@ -46,8 +46,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include "periodtable.hpp"
 #include "esdf.hpp"
 #include "utility.hpp"
-#include "blas.hpp"
-#include "lapack.hpp"
+#include <blas.hh>
+#include <lapack.hh>
 
 #ifdef DG_HAS_CONFIG
 #include "config.hpp"
@@ -1999,7 +1999,7 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
           // just copy the vectors to the right place
           for( int j = 0; j < nproj_l; j++ ){
             weights[ptsample_.NONLOCAL+idx[j]] = D_block(j,j);
-            blas::Copy( upf_mesh_size, upf_vnl.VecData(idx[j]), 1, 
+            blas::copy( upf_mesh_size, upf_vnl.VecData(idx[j]), 1, 
                 samples.VecData(ptsample_.NONLOCAL+idx[j]), 1);
           }
         }
@@ -2009,18 +2009,19 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
           DblNumMat upf_vnl_block(upf_mesh_size, nproj_l);
           DblNumMat res_block(upf_mesh_size, nproj_l);
           for( int j = 0; j < nproj_l; j++ ){
-            blas::Copy( upf_mesh_size, upf_vnl.VecData(idx[j]), 1, 
+            blas::copy( upf_mesh_size, upf_vnl.VecData(idx[j]), 1, 
                 upf_vnl_block.VecData(j), 1);
           }
-          lapack::Syevd( 'V', 'U', nproj_l, D_block.Data(), nproj_l,
-              weights_block.Data() );
+          lapack::syevd( lapack::Job::Vec, lapack::Uplo::Upper, 
+              nproj_l, D_block.Data(), nproj_l, weights_block.Data() );
           // Now D_block stores the eigenvectors 
-          blas::Gemm( 'N', 'N', upf_mesh_size, nproj_l, nproj_l, 1.0,
+          blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, 
+              upf_mesh_size, nproj_l, nproj_l, 1.0,
               upf_vnl_block.Data(), upf_mesh_size, D_block.Data(), nproj_l,
               0.0, res_block.Data(), upf_mesh_size );
           for( int j = 0; j < nproj_l; j++ ){
             weights[ptsample_.NONLOCAL+idx[j]] = weights_block[j];
-            blas::Copy( upf_mesh_size, res_block.VecData(j), 1, 
+            blas::copy( upf_mesh_size, res_block.VecData(j), 1, 
                 samples.VecData(ptsample_.NONLOCAL+idx[j]), 1);
           }
         }

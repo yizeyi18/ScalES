@@ -51,6 +51,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2014-07-15 Parallelization of PWDFT.
 /// @date 2016-03-07 Refactoring PWDFT to include geometry optimization
 /// and molecular dynamics.
+#include <blas.hh>
+#include <lapack.hh>
+
 #include "pwdft.hpp"
 
 using namespace dgdft;
@@ -369,7 +372,7 @@ int main(int argc, char **argv)
           // densityHist[0] = omega*ham.Density()+(1.0-omega)*densityHist[0];
           //                    Real omega = 4.0/7.0;
           //                    blas::Scal( densityHist[0].Size(), 1.0-omega, densityHist[0].Data(), 1 );
-          //                    blas::Axpy( densityHist[0].Size(), omega, ham.Density().Data(),
+          //                    blas::axpy( densityHist[0].Size(), omega, ham.Density().Data(),
           //                            1, densityHist[0].Data(), 1 );
 
           // Compute the extrapolation coefficient
@@ -381,7 +384,7 @@ int main(int argc, char **argv)
           DblNumMat& denCurVec  = ham.Density();
           SetValue( denCurVec, 0.0 );
           for( Int l = 0; l < maxHist; l++ ){
-            blas::Axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
+            blas::axpy( denCurVec.Size(), denCoef[l], densityHist[l].Data(),
                 1, denCurVec.Data(), 1 );
           } // for (l)
         } // density extrapolation
@@ -520,7 +523,7 @@ int main(int argc, char **argv)
                 SetValue( psiCol, 0.0 );
                 DblNumMat psiRow( ntotLocal, numStateTotal );
                 SetValue( psiRow, 0.0 );
-                lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+                lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
                 //AlltoallForward (psiCol, psiRow, mpi_comm);
                 SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
                     psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
@@ -529,14 +532,14 @@ int main(int argc, char **argv)
                 SetValue( psiRefCol, 0.0 );
                 DblNumMat psiRefRow( ntotLocal, numStateTotal );
                 SetValue( psiRefRow, 0.0 );
-                lapack::Lacpy( 'A', ntot, numStateLocal, wavefunHist[0].Data(), ntot, psiRefCol.Data(), ntot );
+                lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, wavefunHist[0].Data(), ntot, psiRefCol.Data(), ntot );
                 //AlltoallForward (psiRefCol, psiRefRow, mpi_comm);
                 SCALAPACK(pdgemr2d)(&Ng, &Ne, psiRefCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
                     psiRefRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
 
                 DblNumMat Temp1(numOccTotal, numOccTotal);
                 SetValue( Temp1, 0.0 );
-                blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
+                blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, 
                     psiRow.Data(), ntotLocal, psiRefRow.Data(), ntotLocal, 
                     0.0, Temp1.Data(), numOccTotal );
 
@@ -552,7 +555,7 @@ int main(int argc, char **argv)
                 DblNumMat psiSCFRow( ntotLocal, numStateTotal );
                 SetValue( psiSCFRow, 0.0 );
 
-                blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
+                blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numOccTotal, numOccTotal, 1.0, 
                     psiRow.Data(), ntotLocal, Temp2.Data(), numOccTotal, 
                     0.0, psiSCFRow.Data(), ntotLocal );
 
@@ -593,7 +596,7 @@ int main(int argc, char **argv)
                 SetValue( psiCol, 0.0 );
                 DblNumMat psiRow( ntotLocal, numOccTotal );
                 SetValue( psiRow, 0.0 );
-                lapack::Lacpy( 'A', ntot, numOccLocal, wavefunHist[0].Data(), ntot, psiCol.Data(), ntot );
+                lapack::lacpy( lapack::MatrixType::General, ntot, numOccLocal, wavefunHist[0].Data(), ntot, psiCol.Data(), ntot );
                 //AlltoallForward (psiCol, psiRow, mpi_comm);
                 SCALAPACK(pdgemr2d)(&Ng, &No, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
                     psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
@@ -601,25 +604,25 @@ int main(int argc, char **argv)
                 DblNumMat XTX(numOccTotal, numOccTotal);
                 DblNumMat XTXTemp(numOccTotal, numOccTotal);
 
-                blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiRow.Data(), 
+                blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, psiRow.Data(), 
                     ntotLocal, psiRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
                 SetValue( XTX, 0.0 );
                 MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
 
                 if ( mpirank == 0) {
-                  lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
+                  lapack::potrf( lapack::Uplo::Upper, numOccTotal, XTX.Data(), numOccTotal );
                 }
                 MPI_Bcast(XTX.Data(), numOccTotal * numOccTotal, MPI_DOUBLE, 0, mpi_comm);
 
                 // X <- X * U^{-1} is orthogonal
-                blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
+                blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Upper, blas::Op::NoTrans, blas::Diag::NonUnit, ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
                     psiRow.Data(), ntotLocal );
 
                 SetValue( psiCol, 0.0 );
                 //AlltoallBackward (psiRow, psiCol, mpi_comm);
                 SCALAPACK(pdgemr2d)(&Ng, &No, psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
                     psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
-                lapack::Lacpy( 'A', ntot, numOccLocal, psiCol.Data(), ntot, psi.Wavefun().Data(), ntot );
+                lapack::lacpy( lapack::MatrixType::General, ntot, numOccLocal, psiCol.Data(), ntot, psi.Wavefun().Data(), ntot );
               } // if
 
 
@@ -759,7 +762,7 @@ int main(int argc, char **argv)
                 SetValue( psiCol, 0.0 );
                 DblNumMat psiRow( ntotLocal, numStateTotal );
                 SetValue( psiRow, 0.0 );
-                lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+                lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
                 //AlltoallForward (psiCol, psiRow, mpi_comm);
                 SCALAPACK(pdgemr2d)(&Ng, &Ne, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
                     psiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
@@ -768,14 +771,14 @@ int main(int argc, char **argv)
                 SetValue( psiRefCol, 0.0 );
                 DblNumMat psiRefRow( ntotLocal, numStateTotal );
                 SetValue( psiRefRow, 0.0 );
-                lapack::Lacpy( 'A', ntot, numStateLocal, wavefunPre.Data(), ntot, psiRefCol.Data(), ntot );
+                lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, wavefunPre.Data(), ntot, psiRefCol.Data(), ntot );
                 //AlltoallForward (psiRefCol, psiRefRow, mpi_comm);
                 SCALAPACK(pdgemr2d)(&Ng, &Ne, psiRefCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
                     psiRefRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
 
                 DblNumMat Temp1(numOccTotal, numOccTotal);
                 SetValue( Temp1, 0.0 );
-                blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, 
+                blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, 
                     psiRow.Data(), ntotLocal, psiRefRow.Data(), ntotLocal, 
                     0.0, Temp1.Data(), numOccTotal );
 
@@ -787,7 +790,7 @@ int main(int argc, char **argv)
                 DblNumMat psiSCFRow( ntotLocal, numStateTotal );
                 SetValue( psiSCFRow, 0.0 );
 
-                blas::Gemm( 'N', 'N', ntotLocal, numOccTotal, numOccTotal, 1.0, 
+                blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numOccTotal, numOccTotal, 1.0, 
                     psiRow.Data(), ntotLocal, Temp2.Data(), numOccTotal, 
                     0.0, psiSCFRow.Data(), ntotLocal );
 
@@ -840,7 +843,7 @@ int main(int argc, char **argv)
               // Reevaluate the predictor
               SetValue( wavefunPre, 0.0 );
               for( Int l = 0; l < maxHist; l++ ){
-                blas::Axpy( wavefunPre.Size(), denCoef[l], wavefunHist[l].Data(),
+                blas::axpy( wavefunPre.Size(), denCoef[l], wavefunHist[l].Data(),
                     1, wavefunPre.Data(), 1 );
               } // for (l)
 
@@ -851,7 +854,7 @@ int main(int argc, char **argv)
                 SetValue( psiCol, 0.0 );
                 DblNumMat psiRow( ntotLocal, numOccTotal );
                 SetValue( psiRow, 0.0 );
-                lapack::Lacpy( 'A', ntot, numOccLocal, wavefunPre.Data(), ntot, psiCol.Data(), ntot );
+                lapack::lacpy( lapack::MatrixType::General, ntot, numOccLocal, wavefunPre.Data(), ntot, psiCol.Data(), ntot );
                 //AlltoallForward (psiCol, psiRow, mpi_comm);
                 SCALAPACK(pdgemr2d)(&Ng, &No, psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
                     psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
@@ -859,25 +862,25 @@ int main(int argc, char **argv)
                 DblNumMat XTX(numOccTotal, numOccTotal);
                 DblNumMat XTXTemp(numOccTotal, numOccTotal);
 
-                blas::Gemm( 'T', 'N', numOccTotal, numOccTotal, ntotLocal, 1.0, psiRow.Data(), 
+                blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, psiRow.Data(), 
                     ntotLocal, psiRow.Data(), ntotLocal, 0.0, XTXTemp.Data(), numOccTotal );
                 SetValue( XTX, 0.0 );
                 MPI_Allreduce(XTXTemp.Data(), XTX.Data(), numOccTotal * numOccTotal, MPI_DOUBLE, MPI_SUM, mpi_comm);
 
                 if ( mpirank == 0) {
-                  lapack::Potrf( 'U', numOccTotal, XTX.Data(), numOccTotal );
+                  lapack::potrf( lapack::Uplo::Upper, numOccTotal, XTX.Data(), numOccTotal );
                 }
                 MPI_Bcast(XTX.Data(), numOccTotal * numOccTotal, MPI_DOUBLE, 0, mpi_comm);
 
                 // X <- X * U^{-1} is orthogonal
-                blas::Trsm( 'R', 'U', 'N', 'N', ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
+                blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Upper, blas::Op::NoTrans, blas::Diag::NonUnit, ntotLocal, numOccTotal, 1.0, XTX.Data(), numOccTotal, 
                     psiRow.Data(), ntotLocal );
 
                 SetValue( psiCol, 0.0 );
                 //AlltoallBackward (psiRow, psiCol, mpi_comm);
                 SCALAPACK(pdgemr2d)(&Ng, &No, psiRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, 
                     psiCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, &contxt1DCol );
-                lapack::Lacpy( 'A', ntot, numOccLocal, psiCol.Data(), ntot, psi.Wavefun().Data(), ntot );
+                lapack::lacpy( lapack::MatrixType::General, ntot, numOccLocal, psiCol.Data(), ntot, psi.Wavefun().Data(), ntot );
               } // if
 
 

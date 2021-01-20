@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012 The Regents of the University of California,
+   copyright (c) 2012 The Regents of the University of California,
    through Lawrence Berkeley National Laboratory.  
 
 Author: Lin Lin and Wei Hu
@@ -46,8 +46,9 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2012-10-06
 #include  "spinor.hpp"
 #include  "utility.hpp"
-#include  "blas.hpp"
-#include  "lapack.hpp"
+#include  <blas.hh>
+#include  <lapack.hh>
+#include "linalg_extensions.hpp"
 #include  "scalapack.hpp"
 #include  "mpi_interf.hpp"
 
@@ -215,7 +216,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& Hpsi)
     for (Int j=0; j<ncom; j++) {
       // For c2r and r2c transforms, the default is to DESTROY the
       // input, therefore a copy of the original matrix is necessary. 
-      blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
+      blas::copy( ntot, wavefun_.VecData(j,k), 1, 
           reinterpret_cast<Real*>(fft.inputVecR2C.Data()), 1 );
 
       FFTWExecute ( fft, fft.forwardPlanR2C );
@@ -227,7 +228,7 @@ Spinor::AddTeterPrecond (Fourier* fftPtr, NumTns<Real>& Hpsi)
 
       FFTWExecute ( fft, fft.backwardPlanR2C);
 
-      blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, Hpsi.VecData(j,k), 1 );
+      blas::axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, Hpsi.VecData(j,k), 1 );
     }
   }
   //#ifdef _USE_OPENMP_
@@ -267,7 +268,7 @@ Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot,
       SetValue( psiUpdateFine, 0.0 );
 
       SetValue( fft.inputComplexVec, Z_ZERO );
-      blas::Copy( ntot, wavefun_.VecData(j,k), 1,
+      blas::copy( ntot, wavefun_.VecData(j,k), 1,
           reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2 );
 
       // Fourier transform of wavefunction saved in fft.outputComplexVec
@@ -285,7 +286,7 @@ Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot,
         }
         FFTWExecute( fft, fft.backwardPlanFine );
 
-        blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+        blas::copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
             2, psiFine.Data(), 1 );
       }
 
@@ -341,7 +342,7 @@ Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot,
       // The computation order is also important
       {
         SetValue( fft.inputComplexVecFine, Z_ZERO ); // Do not forget this
-        blas::Copy( ntotFine, psiUpdateFine.Data(), 1,
+        blas::copy( ntotFine, psiUpdateFine.Data(), 1,
             reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()), 2 );
         FFTWExecute( fft, fft.forwardPlanFine );
 
@@ -358,7 +359,7 @@ Spinor::AddMultSpinor ( Fourier& fft, const DblNumVec& vtot,
       // Inverse Fourier transform to save back to the output vector
       FFTWExecute( fft, fft.backwardPlan );
 
-      blas::Axpy( ntot, 1.0, reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2,
+      blas::axpy( ntot, 1.0, reinterpret_cast<Real*>(fft.inputComplexVec.Data()), 2,
           Hpsi.VecData(j,k), 1 );
     }
   }
@@ -435,7 +436,7 @@ Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot,
 
         // For c2r and r2c transforms, the default is to DESTROY the
         // input, therefore a copy of the original vector is necessary. 
-        blas::Copy( ntot, wavefun_.VecData(j,k), 1, 
+        blas::copy( ntot, wavefun_.VecData(j,k), 1, 
             fft.inputVecR2C.Data(), 1 );
 
         GetTime( timeSta );
@@ -465,7 +466,7 @@ Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot,
         iterFFTFine = iterFFTFine + 1;
         timeFFTFine = timeFFTFine + ( timeEnd - timeSta );
 
-        blas::Copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
+        blas::copy( ntotFine, fft.inputVecR2CFine.Data(), 1, psiFine.Data(), 1 );
 
       }  // if (1)
 
@@ -528,7 +529,7 @@ Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot,
       //      }
       //SetValue( fft.inputComplexVecFine, Z_ZERO );
       SetValue( fft.inputVecR2CFine, 0.0 );
-      blas::Copy( ntotFine, psiUpdateFine.Data(), 1, fft.inputVecR2CFine.Data(), 1 );
+      blas::copy( ntotFine, psiUpdateFine.Data(), 1, fft.inputVecR2CFine.Data(), 1 );
 
       // Fine to coarse grid
       // Note the update is important since the Laplacian contribution is already taken into account.
@@ -571,7 +572,7 @@ Spinor::AddMultSpinorR2C ( Fourier& fft, const DblNumVec& vtot,
       // Inverse Fourier transform to save back to the output vector
       //fftw_execute( fft.backwardPlan );
 
-      blas::Axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, Hpsi.VecData(j,k), 1 );
+      blas::axpy( ntot, 1.0, fft.inputVecR2C.Data(), 1, Hpsi.VecData(j,k), 1 );
 
     } // j++
   } // k++
@@ -785,16 +786,16 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //        DblNumMat G(numStateTotal, numPre);
 //        // Generate orthonormal Gaussian random matrix 
 //        GaussianRandom(G);
-//        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+//        Orth( numStateTotal, numPre, G.Data(), numStateTotal );
 //
-//        blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
+//        blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numPre, numStateTotal, 1.0, 
 //            phi.Data(), ntot, G.Data(), numStateTotal, 0.0,
 //            phiG.Data(), ntot );
 //
 //        GaussianRandom(G);
-//        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+//        Orth( numStateTotal, numPre, G.Data(), numStateTotal );
 //
-//        blas::Gemm( 'N', 'N', ntot, numPre, numStateTotal, 1.0, 
+//        blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numPre, numStateTotal, 1.0, 
 //            wavefun_.Data(), ntot, G.Data(), numStateTotal, 0.0,
 //            psiG.Data(), ntot );
 //      }
@@ -818,7 +819,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //      // Q factor does not need to be used
 //      Real timeQRCPSta, timeQRCPEnd;
 //      GetTime( timeQRCPSta );
-//      lapack::QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
+//      QRCP( numPre*numPre, ntot, MG.Data(), numPre*numPre, 
 //          pivQR_.Data(), tau.Data() );
 //      GetTime( timeQRCPEnd );
 //#if ( _DEBUGlevel_ >= 0 )
@@ -870,10 +871,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //        }
 //      }
 //
-//      blas::Gemm( 'N', 'N', ntot, numMu_, numStateTotal, 1.0, 
+//      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numMu_, numStateTotal, 1.0, 
 //          wavefun_.Data(), ntot, psiMu.Data(), numStateTotal, 0.0,
 //          PcolPsiMu.Data(), ntot );
-//      blas::Gemm( 'N', 'N', ntot, numMu_, numStateTotal, 1.0, 
+//      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numMu_, numStateTotal, 1.0, 
 //          phi.Data(), ntot, phiMu.Data(), numStateTotal, 0.0,
 //          PcolPhiMu.Data(), ntot );
 //
@@ -899,10 +900,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //      // If overflow / underflow, reduce numMu_
 //      lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
 //
-//      blas::Trsm( 'R', 'L', 'T', 'N', ntot, numMu_, 1.0, 
+//      blas::Trsm( 'R', 'L', blas::Op::Trans, blas::Op::NoTrans, ntot, numMu_, 1.0, 
 //          PcolMuNu.Data(), numMu_, Xi.Data(), ntot );
 //
-//      blas::Trsm( 'R', 'L', 'N', 'N', ntot, numMu_, 1.0, 
+//      blas::Trsm( 'R', 'L', blas::Op::NoTrans, blas::Op::NoTrans, ntot, numMu_, 1.0, 
 //          PcolMuNu.Data(), numMu_, Xi.Data(), ntot );
 //
 //      GetTime( timeEnd );
@@ -921,7 +922,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //    {
 //      GetTime( timeSta );
 //      for( Int mu = 0; mu < numMu_; mu++ ){
-//        blas::Copy( ntot,  Xi.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
+//        blas::copy( ntot,  Xi.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
 //
 //        FFTWExecute ( fft, fft.forwardPlanR2C );
 //
@@ -931,7 +932,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //
 //        FFTWExecute ( fft, fft.backwardPlanR2C );
 //
-//        blas::Copy( ntot, fft.inputVecR2C.Data(), 1, Xi.VecData(mu), 1 );
+//        blas::copy( ntot, fft.inputVecR2C.Data(), 1, Xi.VecData(mu), 1 );
 //      } // for (mu)
 //
 //      GetTime( timeEnd );
@@ -955,7 +956,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //      }
 //
 //      // NOTE: Hpsi must be zero in order to compute the M matrix later
-//      blas::Gemm( 'N', 'T', ntot, numStateTotal, numMu_, 1.0, 
+//      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, ntot, numStateTotal, numMu_, 1.0, 
 //          Xi.Data(), ntot, psiMu.Data(), numStateTotal, 1.0,
 //          Hpsi.Data(), ntot ); 
 //
@@ -974,7 +975,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 //      // NOTE: No measure factor vol / ntot due to the normalization
 //      // factor of psi
 //      GetTime( timeSta );
-//      blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, -1.0,
+//      blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numStateTotal, numStateTotal, ntot, -1.0,
 //          wavefun_.Data(), ntot, Hpsi.Data(), ntot, 0.0, 
 //          VxMat.Data(), numStateTotal );
 //
@@ -999,8 +1000,8 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
   DblNumMat Q(numStateTotal, numStateTotal);
   DblNumMat phiSave(ntot, numStateTotal);
   DblNumMat psiSave(ntot, numStateTotal);
-  lapack::Lacpy( 'A', ntot, numStateTotal, phi.Data(), ntot, phiSave.Data(), ntot );
-  lapack::Lacpy( 'A', ntot, numStateTotal, wavefun_.Data(), ntot, psiSave.Data(), ntot );
+  lapack::lacpy( lapack::MatrixType::General, ntot, numStateTotal, phi.Data(), ntot, phiSave.Data(), ntot );
+  lapack::lacpy( lapack::MatrixType::General, ntot, numStateTotal, wavefun_.Data(), ntot, psiSave.Data(), ntot );
 
   if(1){
     if( mpisize > 1 )
@@ -1011,17 +1012,17 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     // SCDM using sequential QRCP
     DblNumMat R(numStateTotal, ntot);
-    lapack::QRCP( numStateTotal, ntot, phiT.Data(), Q.Data(), R.Data(), numStateTotal, 
+    QRCP( numStateTotal, ntot, phiT.Data(), Q.Data(), R.Data(), numStateTotal, 
         permPhi.Data() );
 
     // Make a copy before GEMM
 
     // Rotate phi
-    blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, 1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numStateTotal, numStateTotal, 1.0, 
         phiSave.Data(), ntot, Q.Data(), numStateTotal, 0.0,
         phi.Data(), ntot );
     // Rotate psi
-    blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, 1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numStateTotal, numStateTotal, 1.0, 
         psiSave.Data(), ntot, Q.Data(), numStateTotal, 0.0,
         wavefun_.Data(), ntot );
   }
@@ -1099,8 +1100,8 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     DblNumMat psiRow( ntotLocal, numStateTotal );
     SetValue( psiRow, 0.0 );
 
-    lapack::Lacpy( 'A', ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
-    lapack::Lacpy( 'A', ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
+    lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
+    lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
 
     auto bdist = 
       make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
@@ -1128,16 +1129,16 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       // multiplication with orthonormalized random Gaussian matrices
       if ( mpirank == 0) {
         GaussianRandom(G);
-        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+        Orth( numStateTotal, numPre, G.Data(), numStateTotal );
       }
 
       MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
 
-      //blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
+      //blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numPre, numStateTotal, 1.0, 
       //    phiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
       //    localphiGRow.Data(), ntotLocal );
 
-      blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
+      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numPre, numStateTotal, 1.0, 
           psiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
           localpsiGRow.Data(), ntotLocal );
 
@@ -1186,7 +1187,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       GetTime( timeQRCPSta );
 
       if(0){  
-        lapack::QRCP( numStateTotal*numPre, ntotMG, MG.Data(), numStateTotal*numPre, 
+        QRCP( numStateTotal*numPre, ntotMG, MG.Data(), numStateTotal*numPre, 
             pivQR_.Data(), tau.Data() );
       }//
 
@@ -1371,10 +1372,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     GetTime( timeSta1 );
 
-    blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numMu_, numStateTotal, 1.0, 
         psiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 0.0,
         PcolPsiMu.Data(), ntotLocal );
-    blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numMu_, numStateTotal, 1.0, 
         phiRow.Data(), ntotLocal, phiMu.Data(), numStateTotal, 0.0,
         PcolPhiMu.Data(), ntotLocal );
 
@@ -1406,7 +1407,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     DblNumMat PcolPsiPhiMu(ntotLocal, numMu_);
     SetValue( PcolPsiPhiMu, 0.0 );
 
-    blas::Gemm( 'N', 'N', ntotLocal, numMu_, numStateTotal, 1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numMu_, numStateTotal, 1.0, 
         psiphiRow.Data(), ntotLocal, psiphiMu.Data(), numStateTotal, 0.0,
         PcolPsiPhiMu.Data(), ntotLocal );
 
@@ -1473,7 +1474,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     if(0){
       if ( mpirank == 0) {
-        lapack::Potrf( 'L', numMu_, PcolMuNu.Data(), numMu_ );
+        lapack::potrf( lapack::Uplo::Lower, numMu_, PcolMuNu.Data(), numMu_ );
       }
     } // if(0)
 
@@ -1561,10 +1562,10 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     }
 
-    blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numMu_, 1.0, 
+    blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Lower, blas::Op::Trans, blas::Diag::NonUnit, ntotLocal, numMu_, 1.0, 
         PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
 
-    blas::Trsm( 'R', 'L', 'N', 'N', ntotLocal, numMu_, 1.0, 
+    blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Lower, blas::Op::NoTrans, blas::Diag::NonUnit, ntotLocal, numMu_, 1.0, 
         PcolMuNu.Data(), numMu_, XiRow.Data(), ntotLocal );
 
     GetTime( timeEnd1 );
@@ -1594,7 +1595,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
     {
       GetTime( timeSta );
       for( Int mu = 0; mu < numMuLocal; mu++ ){
-        blas::Copy( ntot,  XiCol.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
+        blas::copy( ntot,  XiCol.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
 
         FFTWExecute ( fft, fft.forwardPlanR2C );
 
@@ -1604,7 +1605,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
         FFTWExecute ( fft, fft.backwardPlanR2C );
 
-        blas::Copy( ntot, fft.inputVecR2C.Data(), 1, XiCol.VecData(mu), 1 );
+        blas::copy( ntot, fft.inputVecR2C.Data(), 1, XiCol.VecData(mu), 1 );
 
       } // for (mu)
 
@@ -1635,7 +1636,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       }
 
       // NOTE: Hpsi must be zero in order to compute the M matrix later
-      blas::Gemm( 'N', 'T', ntotLocal, numStateTotal, numMu_, 1.0, 
+      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::Trans, ntotLocal, numStateTotal, numMu_, 1.0, 
           XiRow.Data(), ntotLocal, psiMu.Data(), numStateTotal, 1.0,
           HpsiRow.Data(), ntotLocal ); 
 
@@ -1650,13 +1651,13 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
         // Remove the self-contribution
         for (Int mu = 0; mu < numMu_; mu++) {
-          blas::Axpy( ntotLocal, -phiMu(i,mu), phiRow.VecData(i),
+          blas::axpy( ntotLocal, -phiMu(i,mu), phiRow.VecData(i),
               1, PcolPhiMui.VecData(mu), 1 );
         }
 
         DblNumMat XiRowTemp(ntotLocal, numMu_);
         SetValue( XiRowTemp, 0.0 );
-        lapack::Lacpy( 'A', ntotLocal, numMu_, XiRow.Data(), ntotLocal, XiRowTemp.Data(), ntotLocal );
+        lapack::lacpy( lapack::MatrixType::General, ntotLocal, numMu_, XiRow.Data(), ntotLocal, XiRowTemp.Data(), ntotLocal );
 
         Real* xiPtr = XiRowTemp.Data();
         Real* PcolPhiMuiPtr = PcolPhiMui.Data();
@@ -1666,7 +1667,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
 
         for ( Int mu = 0; mu < numMu_; mu++ ){
-          blas::Axpy( ntotLocal, psiMu(i,mu), XiRowTemp.VecData(mu),
+          blas::axpy( ntotLocal, psiMu(i,mu), XiRowTemp.VecData(mu),
               1, HpsiRow.VecData(i), 1 );
         }
 
@@ -1706,7 +1707,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     } //if(1)
 
-    lapack::Lacpy( 'A', ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
+    lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
 
     GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -1716,9 +1717,9 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
 
     // Unrotate if SCDM is used
     if(1){
-      lapack::Lacpy( 'A', ntot, numStateTotal, phiSave.Data(), ntot, 
+      lapack::lacpy( lapack::MatrixType::General, ntot, numStateTotal, phiSave.Data(), ntot, 
           phi.Data(), ntot );
-      lapack::Lacpy( 'A', ntot, numStateTotal, psiSave.Data(), ntot, 
+      lapack::lacpy( lapack::MatrixType::General, ntot, numStateTotal, psiSave.Data(), ntot, 
           wavefun_.Data(), ntot );
     }
 
@@ -1740,7 +1741,7 @@ void Spinor::AddMultSpinorEXXDF ( Fourier& fft,
       SetValue( HpsiRow, 0.0 );
       bdist.redistribute_col_to_row( HpsiCol, HpsiRow );
 
-      blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal, -1.0,
+      blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numStateTotal, numStateTotal, ntotLocal, -1.0,
           psiRow.Data(), ntotLocal, HpsiRow.Data(), ntotLocal, 0.0, 
           VxMatTemp.Data(), numStateTotal );
 
@@ -2087,8 +2088,8 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
   DblNumMat psiCol( ntot, numStateLocal );
   SetValue( psiCol, 0.0 );
 
-  lapack::Lacpy( 'A', ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
-  lapack::Lacpy( 'A', ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
+  lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
+  lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
 
   // Computing the indices is optional
 
@@ -2134,7 +2135,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     // multiplication with orthonormalized random Gaussian matrices
     if ( mpirank == 0) {
       GaussianRandom(G);
-      lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+      Orth( numStateTotal, numPre, G.Data(), numStateTotal );
     }
 
     GetTime( timeSta1 );
@@ -2149,11 +2150,11 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
 
     GetTime( timeSta1 );
 
-    blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numPre, numStateTotal, 1.0, 
         phiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
         localphiGRow.Data(), ntotLocal );
 
-    blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numPre, numStateTotal, 1.0, 
         psiRow.Data(), ntotLocal, G.Data(), numStateTotal, 0.0,
         localpsiGRow.Data(), ntotLocal );
 
@@ -2313,7 +2314,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     GetTime( timeQRCPSta );
 
     if(0){  
-      lapack::QRCP( numPre*numPre, ntotMG, MG.Data(), numPre*numPre, 
+      QRCP( numPre*numPre, ntotMG, MG.Data(), numPre*numPre, 
           pivQR_.Data(), tau.Data() );
     }//
 
@@ -2795,7 +2796,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
     DblNumMat PMuNu2DTemp(nrowsNuNu2D, ncolsNuNu2D);
     SetValue( PMuNu2DTemp, 0.0 );
 
-    lapack::Lacpy( 'A', nrowsNuNu2D, ncolsNuNu2D, PMuNu2D.Data(), nrowsNuNu2D, PMuNu2DTemp.Data(), nrowsNuNu2D );
+    lapack::lacpy( lapack::MatrixType::General, nrowsNuNu2D, ncolsNuNu2D, PMuNu2D.Data(), nrowsNuNu2D, PMuNu2DTemp.Data(), nrowsNuNu2D );
 
     SCALAPACK(pdtradd)("U", "T", &Nu, &Nu, 
         &D_ONE,
@@ -2814,7 +2815,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
         Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
 
     SetValue( Xi2D, 0.0 );
-    lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
+    lapack::lacpy( lapack::MatrixType::General, nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
 
     GetTime( timeEnd1 );
 
@@ -2854,7 +2855,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
         Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
 
     SetValue( Xi2D, 0.0 );
-    lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
+    lapack::lacpy( lapack::MatrixType::General, nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
 
     GetTime( timeEnd1 );
 
@@ -2950,7 +2951,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
 
     GetTime( timeSta );
     for( Int mu = 0; mu < numMuLocal; mu++ ){
-      blas::Copy( ntot,  XiCol.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
+      blas::copy( ntot,  XiCol.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
 
       FFTWExecute ( fft, fft.forwardPlanR2C );
 
@@ -2960,7 +2961,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
 
       FFTWExecute ( fft, fft.backwardPlanR2C );
 
-      blas::Copy( ntot, fft.inputVecR2C.Data(), 1, XiCol.VecData(mu), 1 );
+      blas::copy( ntot, fft.inputVecR2C.Data(), 1, XiCol.VecData(mu), 1 );
 
     } // for (mu)
 
@@ -3039,7 +3040,7 @@ void Spinor::AddMultSpinorEXXDF6 ( Fourier& fft,
   SCALAPACK(pdgemr2d)(&Ng, &Ne, Hpsi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
       HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt2 );
 
-  lapack::Lacpy( 'A', ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
+  lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
 
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
@@ -3432,8 +3433,8 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
   DblNumMat psiCol( ntot, numStateLocal );
   SetValue( psiCol, 0.0 );
 
-  lapack::Lacpy( 'A', ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
-  lapack::Lacpy( 'A', ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
+  lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, phi.Data(), ntot, phiCol.Data(), ntot );
+  lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, wavefun_.Data(), ntot, psiCol.Data(), ntot );
 
   // Computing the indices is optional
 
@@ -3491,7 +3492,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
       DblNumMat G(numStateTotal, numPre);
       if ( mpirank == 0 ) {
         GaussianRandom(G);
-        lapack::Orth( numStateTotal, numPre, G.Data(), numStateTotal );
+        Orth( numStateTotal, numPre, G.Data(), numStateTotal );
         statusOFS << "Random projection initialzied." << std::endl << std::endl;
       }
       MPI_Bcast(G.Data(), numStateTotal * numPre, MPI_DOUBLE, 0, domain_.comm);
@@ -3509,11 +3510,11 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 
     GetTime( timeSta1 );
 
-    blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numPre, numStateTotal, 1.0, 
         phiRow.Data(), ntotLocal, G_.Data(), numStateTotal, 0.0,
         localphiGRow.Data(), ntotLocal );
 
-    blas::Gemm( 'N', 'N', ntotLocal, numPre, numStateTotal, 1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numPre, numStateTotal, 1.0, 
         psiRow.Data(), ntotLocal, G_.Data(), numStateTotal, 0.0,
         localpsiGRow.Data(), ntotLocal );
 
@@ -3670,7 +3671,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     GetTime( timeQRCPSta );
 
     if(0){  
-      lapack::QRCP( numPre*numPre, ntotMG, MG.Data(), numPre*numPre, 
+      QRCP( numPre*numPre, ntotMG, MG.Data(), numPre*numPre, 
           pivQR_.Data(), tau.Data() );
     }//
 
@@ -4102,7 +4103,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
     DblNumMat PMuNu2DTemp(nrowsNuNu2D, ncolsNuNu2D);
     SetValue( PMuNu2DTemp, 0.0 );
 
-    lapack::Lacpy( 'A', nrowsNuNu2D, ncolsNuNu2D, PMuNu2D.Data(), nrowsNuNu2D, PMuNu2DTemp.Data(), nrowsNuNu2D );
+    lapack::lacpy( lapack::MatrixType::General, nrowsNuNu2D, ncolsNuNu2D, PMuNu2D.Data(), nrowsNuNu2D, PMuNu2DTemp.Data(), nrowsNuNu2D );
 
     SCALAPACK(pdtradd)("U", "T", &Nu, &Nu, 
         &D_ONE,
@@ -4121,7 +4122,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
         Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
 
     SetValue( Xi2D, 0.0 );
-    lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
+    lapack::lacpy( lapack::MatrixType::General, nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
 
     GetTime( timeEnd1 );
 
@@ -4161,7 +4162,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
         Xi2DTemp.Data(), &I_ONE, &I_ONE, desc_NgNu2D);
 
     SetValue( Xi2D, 0.0 );
-    lapack::Lacpy( 'A', nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
+    lapack::lacpy( lapack::MatrixType::General, nrowsNgNu2D, ncolsNgNu2D, Xi2DTemp.Data(), nrowsNgNu2D, Xi2D.Data(), nrowsNgNu2D );
 
     GetTime( timeEnd1 );
 
@@ -4257,7 +4258,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 
     GetTime( timeSta );
     for( Int mu = 0; mu < numMuLocal; mu++ ){
-      blas::Copy( ntot,  XiCol.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
+      blas::copy( ntot,  XiCol.VecData(mu), 1, fft.inputVecR2C.Data(), 1 );
 
       FFTWExecute ( fft, fft.forwardPlanR2C );
 
@@ -4267,7 +4268,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
 
       FFTWExecute ( fft, fft.backwardPlanR2C );
 
-      blas::Copy( ntot, fft.inputVecR2C.Data(), 1, XiCol.VecData(mu), 1 );
+      blas::copy( ntot, fft.inputVecR2C.Data(), 1, XiCol.VecData(mu), 1 );
 
     } // for (mu)
 
@@ -4346,7 +4347,7 @@ void Spinor::AddMultSpinorEXXDF7 ( Fourier& fft,
   SCALAPACK(pdgemr2d)(&Ng, &Ne, Hpsi2D.Data(), &I_ONE, &I_ONE, desc_NgNe2D, 
       HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, &contxt2 );
 
-  lapack::Lacpy( 'A', ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
+  lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, HpsiCol.Data(), ntot, Hpsi.Data(), ntot );
 
   GetTime( timeEnd );
 #if ( _DEBUGlevel_ >= 0 )
