@@ -288,17 +288,17 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
   // calculate the number of occupied states
   // need to distinguish the number of charges carried by the ion and that 
   // carried by the electron
-  Int nZion = 0, nelec = 0;
+  Int nZval = 0, nelec = 0;
   for (Int a=0; a<numAtom; a++) {
     Int atype  = atomList_[a].type;
     if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
       ErrorHandling( "Cannot find the atom type." );
     }
-    nZion = nZion + ptable.Zion(atype);
+    nZval = nZval + ptable.Zval(atype);
   }
 
   // add the extra electron
-  nelec = nZion + esdfParam.extraElectron;
+  nelec = nZval + esdfParam.extraElectron;
 
   // FIXME Deal with the case when this is a buffer calculation and the
   // number of electrons is not a even number.
@@ -475,12 +475,12 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
         numOccupiedState_ );
 
     // adjustment should be multiplicative
-    Real fac = nZion / sumrho;
+    Real fac = nZval / sumrho;
     for (Int i=0; i<ntotFine; i++) 
       pseudoCharge_(i) *= fac; 
 
     Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
-        (Real) nZion );
+        (Real) nZval );
 
 //    statusOFS << "vLocalSR = " << vLocalSR_  << std::endl;
 //    statusOFS << "pseudoCharge = " << pseudoCharge_ << std::endl;
@@ -573,7 +573,7 @@ void Hamiltonian::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
     if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
       ErrorHandling( "Cannot find the atom type." );
     }
-    nelec = nelec + ptable.Zion(atype);
+    nelec = nelec + ptable.Zval(atype);
   }
   // add the extra electron
   nelec = nelec + esdfParam.extraElectron;
@@ -3208,7 +3208,7 @@ Hamiltonian::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
 
     for(Int a=0; a< atomList.size() ; a++) {
       Int type_a = atomList[a].type;
-      Real Zion_a = ptable.Zion(type_a);
+      Real Zval_a = ptable.Zval(type_a);
       Real RGaussian_a = ptable.RGaussian(type_a);
 
       for(Int b=a; b< atomList.size() ; b++) {
@@ -3217,7 +3217,7 @@ Hamiltonian::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
         bool same_atom = (a==b);
 
         Int type_b = atomList[b].type;
-        Real Zion_b = ptable.Zion(type_b);
+        Real Zval_b = ptable.Zval(type_b);
         Real RGaussian_b = ptable.RGaussian(type_b);
 
         Real radius_ab = std::sqrt ( RGaussian_a*RGaussian_a + RGaussian_b*RGaussian_b );
@@ -3256,8 +3256,8 @@ Hamiltonian::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
                 pos_ab_image[2] = pos_ab[2] + ic2*dm.length[2];
 
                 Real r_ab = pos_ab_image.l2();
-                Real esr_term = Zion_a * Zion_b * std::erfc(r_ab / radius_ab) / r_ab;
-                Real desr_erfc = 2.0 * Zion_a * Zion_b *
+                Real esr_term = Zval_a * Zval_b * std::erfc(r_ab / radius_ab) / r_ab;
+                Real desr_erfc = 2.0 * Zval_a * Zval_b *
                   std::exp(-(r_ab / radius_ab)*(r_ab / radius_ab))/(radius_ab*std::sqrt(PI));
                 // desrdr = (1/r) d Esr / dr
                 Real desrdr = - fac * (esr_term+desr_erfc) / ( r_ab*r_ab );

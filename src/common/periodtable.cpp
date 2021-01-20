@@ -57,9 +57,15 @@ such enhancements or derivative works thereof, in binary and source code form.
 
 namespace  dgdft{
 
+using namespace dgdft::PseudoComponent;
+using namespace dgdft::esdf;
+
+
 
 // *********************************************************************
-// The following comes from the UPF2QSO subroutine.
+// The following are modified based on the UPF2QSO subroutine in Qbox
+// So the format is slightly different from the rest of PeriodTable
+// Some properties like configurations are not used
 // *********************************************************************
 struct Element
 {
@@ -67,8 +73,15 @@ struct Element
   std::string symbol;
   std::string config;
   double mass;
-  Element(int zz, std::string s, std::string c, double m) : z(zz), symbol(s), config(c),
-    mass(m) {}
+  double rgaussian;
+  double vsrcut;
+  double vnlcut;
+  double rhoatomcut;
+  Element(int znuc, std::string s, std::string c, double m, 
+      double sr = 4.0, double rgauss = 0.5, 
+      double nl = 3.0, double rhoatom = 6.0 ) : 
+    z(znuc), symbol(s), config(c), mass(m), 
+    vsrcut(sr), rgaussian(rgauss), vnlcut(nl), rhoatomcut(rhoatom) {}
 };
 
 class ElementTable
@@ -89,8 +102,16 @@ class ElementTable
   double mass(std::string symbol) const;
   int size(void) const;
 
+
+  double rgaussian(std::string symbol) const { return etable[z(symbol)-1].rgaussian; };
+  double vsrcut(std::string symbol) const { return etable[z(symbol)-1].vsrcut; };
+  double vnlcut(std::string symbol) const { return etable[z(symbol)-1].vnlcut; };
+  double rhoatomcut(std::string symbol) const { return etable[z(symbol)-1].rhoatomcut; };
 };
 
+// LL: FIXME 01/14/2021 The cutoff values should be carefully tested and
+// added to the table to override the default values, at least for elements of interest
+// this require plotting the pseudopotential 
 ElementTable::ElementTable(void)
 {
   etable.push_back(Element(1,"H","1s1",1.00794));
@@ -198,8 +219,6 @@ ElementTable::ElementTable(void)
 }
 
 
-
-/// the following code are merged from the UPF2QSO package
 int ElementTable::z(std::string symbol) const
 {
   std::map<std::string,int>::const_iterator i = zmap.find(symbol);
@@ -207,40 +226,34 @@ int ElementTable::z(std::string symbol) const
   return (*i).second;
 }
 
-////////////////////////////////////////////////////////////////////////////////
 std::string ElementTable::symbol(int z) const
 {
   assert(z>0 && z<=etable.size());
   return etable[z-1].symbol;
 }
 
-////////////////////////////////////////////////////////////////////////////////
 std::string ElementTable::configuration(int z) const
 {
   assert(z>0 && z<=etable.size());
   return etable[z-1].config;
 }
 
-////////////////////////////////////////////////////////////////////////////////
 std::string ElementTable::configuration(std::string symbol) const
 {
   return etable[z(symbol)-1].config;
 }
 
-////////////////////////////////////////////////////////////////////////////////
 double ElementTable::mass(int z) const
 {
   assert(z>0 && z<=etable.size());
   return etable[z-1].mass;
 }
 
-////////////////////////////////////////////////////////////////////////////////
 double ElementTable::mass(std::string symbol) const
 {
   return etable[z(symbol)-1].mass;
 }
 
-////////////////////////////////////////////////////////////////////////////////
 int ElementTable::size(void) const
 {
   return etable.size();
@@ -248,8 +261,45 @@ int ElementTable::size(void) const
 
 
 
-using namespace dgdft::PseudoComponent;
-using namespace dgdft::esdf;
+// *********************************************************************
+// Some utility routines
+// *********************************************************************
+
+// The potential due to a Gaussian compensation charge
+inline Real VGaussian(Real rad, Real Zval, Real RGaussian){
+  Real EPS = 1e-12;
+
+  if( rad < EPS )
+    return Zval / RGaussian * 2.0 / std::sqrt(PI);
+  else
+    return Zval / rad * std::erf(rad / RGaussian);
+}
+
+// A smooth transition function 
+// \[
+// g(x)=\frac{f((b-x)/c)}{f((x-a)/c)+f((b-x)/c)}
+// \]
+// where
+// f(x)=e^{-5/x}, x>0
+// f(x)=0,        x<=0
+// c=(b-a)/2
+// 
+// this function satisfies
+// g(x) = 1, x <= a
+// g(x) = 0, x >= b 
+// 0<g(x)<1, a<x<b
+// g((a+b)/2) = 1/2
+// g'((a+b)/2) \propto -1/(b-a)
+inline Real SmoothTransition(Real x, Real a, Real b){
+  if( a >= b )
+    ErrorHandling("Smooth transition function must have a<b");
+
+  Real c = (b-a) * 0.5;
+  auto f = [](auto x){ return ( x > 0.0 ) ? std::exp(-2.5/x) : 0.0; };
+  Real g = f((b-x)/ c) / (f((b-x)/ c) + f((x-a)/ c));
+  return g;
+}
+
 
 // *********************************************************************
 // PTEntry
@@ -329,11 +379,9 @@ void PeriodTable::Setup( )
   {
     ptparam_.ZNUC   = 0;
     ptparam_.MASS   = 1;
-    ptparam_.ZION   = 2;
+    ptparam_.ZVAL   = 2;
     ptparam_.RGAUSSIAN = 3;
   }
-
-  Real EPS = 1e-12;
 
   {
     // all the readins are in the samples in the old version, 
@@ -379,28 +427,36 @@ void PeriodTable::Setup( )
     deserialize( ptemap_, vStreamTemp, all);
   }
 
-
-
-  // Processing of Vlocal data
+  // Post-processing Vlocal data 
+  // 1. Remove the contribution from the Gaussian compensation charge so
+  //    that vlocal is indeed short ranged
+  // 2. LL: FIXME 01/14/2021  Add a smooth transition function to make vlocal compactly supported.
+  //    If this works the smooth transition function should be applied to other functions
+  //    with real space cutoffs as well.
   for(auto& mi: ptemap_) {
     Int type = mi.first;    
     PTEntry& ptcur = mi.second;
     DblNumVec& params = ptcur.params;
     DblNumMat& samples = ptcur.samples;
     Int nspl = samples.m();
-    Real Zion = params(ptparam_.ZION);
+    Real Zval = params(ptparam_.ZVAL);
     Real RGaussian = params(ptparam_.RGAUSSIAN);
     DblNumVec rad(nspl, false, samples.VecData(ptsample_.RADIAL_GRID));
     DblNumVec vlocal(nspl, false, samples.VecData(ptsample_.VLOCAL));
-    // Remove the pseudocharge contribution
+
     for(Int i = 0; i < rad.m(); i++){
-      if( rad[i] < EPS )
-        vlocal[i] += Zion / RGaussian * 2.0 / std::sqrt(PI);
-      else
-        vlocal[i] += Zion / rad[i] * std::erf(rad[i] / RGaussian);
+      vlocal[i] += VGaussian(rad[i], Zval, RGaussian);
     }
-    //      statusOFS << "RGaussian = " << RGaussian << std::endl;
-    //      statusOFS << "VLocal SR for type " << type << " = " << vlocal << std::endl;
+    // Multiply the smooth transition function
+    Real Rzero = this->RcutVLocal( type );
+    assert(Rzero > 1.0);
+    for(Int i = 0; i < rad.m(); i++){
+      vlocal[i] *= SmoothTransition(rad[i], Rzero-1.0, Rzero);
+    }
+#if 0
+    statusOFS << "radial grid = " << rad << std::endl;
+    statusOFS << "VLocal SR for type " << type << " = " << vlocal << std::endl;
+#endif
   }
 
 
@@ -413,7 +469,7 @@ void PeriodTable::Setup( )
     std::map< Int, std::vector<DblNumVec> > spltmp;
     for(Int g=1; g<samples.n(); g++) {
       Int nspl = samples.m();
-      DblNumVec rad(nspl, true, samples.VecData(0));
+      DblNumVec rad(nspl, true, samples.VecData(ptsample_.RADIAL_GRID));
       DblNumVec a(nspl, true, samples.VecData(g));
       DblNumVec b(nspl), c(nspl), d(nspl);
       spline(nspl, rad.Data(), a.Data(), b.Data(), c.Data(), d.Data());
@@ -1302,7 +1358,7 @@ PeriodTable::CalculateVLocal(
   // short range potential
   Real Rzero = this->RcutVLocal( type );
   Real RGaussian = this->RGaussian( type );
-  Real Zion = this->Zion( type );
+  Real Zval = this->Zval( type );
 
   // Initialize
   {
@@ -1387,7 +1443,7 @@ PeriodTable::CalculateVLocal(
 
     // Gaussian pseudocharge
     SetValue(dv, D_ZERO);
-    Real fac = Zion / std::pow(std::sqrt(PI) * RGaussian,3);
+    Real fac = Zval / std::pow(std::sqrt(PI) * RGaussian,3);
     for(Int g=0; g<idx.size(); g++) {
       // FIXME derivatives later
       if( rad[g]> MIN_RADIAL ) {
@@ -1415,8 +1471,8 @@ Real PeriodTable::SelfIonInteraction(Int type)
 {
   Real eself;
   Real RGaussian = this->RGaussian( type );
-  Real Zion = this->Zion( type );
-  eself = Zion * Zion / ( std::sqrt(2.0 * PI) * RGaussian );
+  Real Zval = this->Zval( type );
+  eself = Zval * Zval / ( std::sqrt(2.0 * PI) * RGaussian );
   
   return eself;
 }         // -----  end of method PeriodTable::CalculateVLocal  ----- 
@@ -1456,6 +1512,9 @@ Real MaxForce( const std::vector<Atom>& atomList ){
   return maxForce;
 }
 
+// LL: FIXME 01/14/2021 After Reading UPF, should print out relevant
+// information for each pseudopotential for debugging purposes. This can
+// also be useful information for the user
 void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
 {
 
@@ -1467,14 +1526,13 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
 
   params.Resize(5); // in the order of the ParamPT
   
-  Real EPS = 1e-12;
-
   ElementTable etable;
 
   std::string buf,s;
   std::istringstream is;
 
   // Determine if UPF file is specified as a KW
+  // LL: FIXME 01/14/2021 Change the name KW?
   auto kw_pos = file_name.find("KW:");
   if( kw_pos != std::string::npos ) {
   #ifdef DG_PP_ONCV_PATH
@@ -1488,6 +1546,9 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
   #else
     ErrorHandling(" KW for UPF Files Requires -DDG_PP_ONCV_PATH=...");
   #endif
+  }
+  else{
+    statusOFS << " * Reading from standard UPF file " << file_name << std::endl;
   }
 
   // determine UPF version
@@ -1567,19 +1628,10 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
     upf_symbol.erase(remove_if(upf_symbol.begin(), upf_symbol.end(), isspace), upf_symbol.end());
 
     // get atomic number and mass
-    atom = etable.z(upf_symbol);
-    params[ptparam_.ZNUC] = atom;
-    params[ptparam_.MASS] = etable.mass(upf_symbol);
-
     // check if potential is norm-conserving or semi-local
     std::string pseudo_type = get_attr(tag,"pseudo_type");
 #if 0
     statusOFS << " pseudo_type = " << pseudo_type << std::endl;
-    if ( pseudo_type!="NC" && pseudo_type!="SL" )
-    {
-      statusOFS << " pseudo_type must be NC or SL" << std::endl;
-      return 1;
-    }
 #endif
 
     // NLCC flag
@@ -1610,30 +1662,19 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
 #if 0
     statusOFS << " upf_zval = " << upf_zval << std::endl;
 #endif
+    
+    atom = etable.z(upf_symbol);
+    params[ptparam_.ZNUC] = atom;
+    params[ptparam_.MASS] = etable.mass(upf_symbol);
+    params[ptparam_.ZVAL] = upf_zval;
+    // RGaussian determines the radius of the Gaussian compensation
+    // charge. 
+    // TODO The correction due to the overlap of Gaussian // charges
+    // should also be implemented .
+    params[ptparam_.RGAUSSIAN] = etable.rgaussian(upf_symbol); 
 
-    double rhocut;
-    buf = get_attr(tag,"rho_cutoff");
-    is.clear();
-    is.str(buf);
-    is >> rhocut;
-    // for SG15, the default value for rhocut is 6.01.
-    // Some pseudopotentials do not provide the value of rhocut. 
-    // In such a case also set it to 6.01
-    if( rhocut < EPS )
-      rhocut = 6.01;
 
-#if 0
-    statusOFS << " rhocut = " << rhocut << std::endl;
-#endif
 
-    // LL: FIXME 01/06/2021 RGaussian determines the radius of the
-    // Gaussian compensation charge.  It should be given by a table
-    // according to the element type, and carefully tested. 
-    //
-    // The correction due to the overlap of Gaussian charges should also
-    // be implemented.
-    params[ptparam_.ZION] = upf_zval;
-    params[ptparam_.RGAUSSIAN] = 1.0; 
 
     // max angular momentum
     int upf_lmax;
@@ -1721,6 +1762,18 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
     SetValue( types, 0);
     SetValue( cutoffs, 0.0);
 
+
+    // Set cutoff values from etable
+    // NOTE that in ONCV, rho_cutoff is simply the largest grid point in
+    // rad and does not have more information. In HGH, rho_cutoff is not
+    // even provided. So do not read it here.
+
+    cutoffs[ptsample_.VLOCAL] = etable.vsrcut(upf_symbol);
+    cutoffs[ptsample_.RHOATOM] = etable.rhoatomcut(upf_symbol);
+    // cutoffs[ptsample_.DRV_VLOCAL] = vsrcut;
+    // cutoffs[ptsample_.DRV_RHOATOM] = rhoatomcut;
+
+
     std::vector<int> upf_l(upf_nwf);
 
     // read mesh
@@ -1741,20 +1794,6 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
     for( int i = 0; i < upf_mesh_size; i++)
       samples(i, ptsample_.RADIAL_GRID) = upf_r[i];
     types[0] = 9;
-    // LL: FIXME 01/06/2021 
-    // rhoatomcut should be given by a table according to the element
-    // type and be tested. This presumably plays a less important role
-    // since it only provides the initial guess of the electron density
-    // from individual atoms and could be wrong anyway.
-    double rhoatomcut = 6.0;
-
-    // LL: FIXME 01/14/2021 is cutoffs[ptsample_.RADIAL_GRID] ever used?
-    cutoffs[ptsample_.RADIAL_GRID] = rhocut;
-    cutoffs[ptsample_.VLOCAL] = rhocut;
-    cutoffs[ptsample_.DRV_VLOCAL] = rhocut;
-
-    cutoffs[ptsample_.RHOATOM] = rhoatomcut;
-    cutoffs[ptsample_.DRV_RHOATOM] = rhoatomcut;
 
     // NLCC not used
     std::vector<double> upf_nlcc;
@@ -1801,15 +1840,18 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
 
     // Nonlocal pseudopotential
     {
+      Real EPS = 1e-12;
+
       find_start_element("PP_NONLOCAL", upfin);
       DblNumMat upf_vnl(upf_mesh_size, upf_nproj);
       SetValue(upf_vnl, 0.0);
       std::vector<int> upf_proj_l(upf_nproj);
 
-      // nonlocal potential cutoff read from the pseduopotential file below. 
-      // 1.0 is just initial value. This number is the max of the cutoff
-      // over all projectors associated with an atom type
-      double nlcut = 1.0;
+      // nonlocal potential cutoff. 
+      // The value in etable provides the default value. 
+      // if the value read from the UPF file is larger, will use the value 
+      // from the UPF file instead
+      double vnlcut = etable.vnlcut(upf_symbol);
 
       for ( int j = 0; j < upf_nproj; j++ )
       {
@@ -1832,17 +1874,17 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
         statusOFS << " index = " << index << std::endl;
 #endif
 
-        // define nlcut (cutoff radius for nonlocal pseudopotential) as
+        // define vnlcut (cutoff radius for nonlocal pseudopotential) as
         // the largest cutoff among all pseudopotentials
         buf = get_attr(tag,"cutoff_radius");
         is.clear();
         is.str(buf);
         Real cutoff_radius;
         is >> cutoff_radius;
-        nlcut = std::max(nlcut, cutoff_radius);
+        vnlcut = std::max(vnlcut, cutoff_radius);
 
 #if 0
-        statusOFS << " current cutoff radius for nonlocal = " << nlcut << std::endl;
+        statusOFS << " current cutoff radius for nonlocal = " << vnlcut << std::endl;
 #endif
 
         buf = get_attr(tag,"angular_momentum");
@@ -1881,7 +1923,7 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
           seval(upf_vnl.VecData(j), upf_r.size(), &upf_r[0], n, &r[0], spla.Data(), splb.Data(),
               splc.Data(), spld.Data());
         }
-      }
+      } // for j
 
 
       tag = find_start_element("PP_DIJ", upfin);
@@ -1912,7 +1954,7 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
       for ( int j = 0; j < upf_nproj; j++ )
       {
         types[ptsample_.NONLOCAL + j] = upf_proj_l[j];
-        cutoffs[ptsample_.NONLOCAL+j] = nlcut;
+        cutoffs[ptsample_.NONLOCAL+j] = vnlcut;
       }
       // Convert DIJ to a matrix
       DblNumMat nonlocalD(upf_nproj, upf_nproj);
@@ -1930,6 +1972,7 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
       // Post processing nonlocal pseudopotential by diagonalizing
       // nonlocalD and combine the vectors in upf_vnl. This is done by
       // diagonalizing each angular momentum block
+
       for ( int l = 0; l <= upf_lmax; l++ ){
         // extract the relevant index
         std::vector<Int> idx;
@@ -2014,6 +2057,17 @@ void PeriodTable::ReadUPF( std::string file_name, PTEntry& tempEntry, Int& atom)
        seval(samples.VecData(ptsample_.RHOATOM), upf_r.size(), &upf_r[0], n, &r[0], spla.Data(), splb.Data(),
            splc.Data(), spld.Data());
     }
+  }
+
+  // Output information of the pseudopotential
+  {
+    Print( statusOFS, "zval                = ", params[ptparam_.ZVAL] );
+    Print( statusOFS, "mass                = ", params[ptparam_.MASS] );
+    Print( statusOFS, "RGaussian           = ", params[ptparam_.RGAUSSIAN] );
+    Print( statusOFS, "vsrcut              = ", cutoffs[ptsample_.VLOCAL] );
+    Print( statusOFS, "rhoatomcut          = ", cutoffs[ptsample_.RHOATOM] );
+    Print( statusOFS, "vnlcut              = ", cutoffs[ptsample_.NONLOCAL] );
+    Print( statusOFS, "" );
   }
 }
 
