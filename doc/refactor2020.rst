@@ -220,12 +220,12 @@ Target: refactor2020 for PWDFT
   the GPU version, this is replaced by reorder_evals_revecs. In the GPU
   based version pregterg_gpu, this is done by reorder_v, and
   subsequently redistribute the work for unconverged eigenvectors only.
-  - [d] in LOBPCG
+  - [x] in LOBPCG
   - [ ] in PPCG
   - [ ] in Chebyshev
 
 - [p] The locking strategy in LOBPCG / PPCG. (David)
-  - [d] in LOBPCG
+  - [x] in LOBPCG
   - [ ] in PPCG
 
 - [ ] Cleanup the AddMultSpinorEXXDF7 routine using the ScaLAPACK class.
@@ -248,9 +248,9 @@ Target: refactor2020 for PWDFT
     3. In case pdgemr2d is needed in the end, it needs to be
            encapsulated.
 
-    a. [d] clean interface with bdist.redistribute_col_to_row (David). 
+    a. [x] clean interface with bdist.redistribute_col_to_row (David). 
     b. [p] Get rid of AlltoallForward / AlltoallBackward (David)
-           [d] in CPU code
+           [x] in CPU code
            [ ] in GPU code
     c. [ ] test the performance of different implementations of bdist (Wei)
 
@@ -285,7 +285,7 @@ Plans for further developments in PWDFT
 
 - [d] HDF5 output of orbitals etc.
 
-- [d] the blas.cpp / lapack.cpp shoulod be replaced by ``blas++`` and
+- [x] the blas.cpp / lapack.cpp shoulod be replaced by ``blas++`` and
   ``lapack++``. For now keep the scalapack interface as is. Recently
   looked into Slate. It seems still primitive.
 
