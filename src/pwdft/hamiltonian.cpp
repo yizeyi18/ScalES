@@ -2150,7 +2150,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
   Real timeSta, timeEnd;
   Real timeSta1, timeEnd1;
 
-  Real timegemm = 0.0;
+  Real timeGemm = 0.0;
   Real timeAlltoallv = 0.0;
   Real timeAllreduce = 0.0;
 
@@ -2267,7 +2267,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
             psiRow.Data(), ntotLocal, 0.0,
             MTemp.Data(), numStateTotal );
         GetTime( timeEnd1 );
-        timegemm = timegemm + ( timeEnd1 - timeSta1 );
+        timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
 
         DblNumMat M(numStateTotal, numStateTotal);
         SetValue( M, 0.0 );
@@ -2288,7 +2288,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
             M.Data(), numStateTotal, 0.0, 
             HpsiRow.Data(), ntotLocal );
         GetTime( timeEnd1 );
-        timegemm = timegemm + ( timeEnd1 - timeSta1 );
+        timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
 
         GetTime( timeSta1 );
         bdist.redistribute_row_to_col(HpsiRow, HpsiCol);
@@ -2306,7 +2306,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
           }
         }
         GetTime( timeEnd1 );
-        timegemm = timegemm + ( timeEnd1 - timeSta1 );
+        timeGemm = timeGemm + ( timeEnd1 - timeSta1 );
 
       } //if(1)
 
@@ -2321,7 +2321,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
     statusOFS << "Time for updating hybrid Spinor is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
     statusOFS << "Time for gemm is " <<
-      timegemm << " [s]" << std::endl << std::endl;
+      timeGemm << " [s]" << std::endl << std::endl;
     statusOFS << "Time for Alltoallv is " <<
       timeAlltoallv << " [s]" << std::endl << std::endl;
     statusOFS << "Time for Allreduce is " <<

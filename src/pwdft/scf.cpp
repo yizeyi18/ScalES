@@ -896,7 +896,7 @@ SCF::IterateWavefun    ( )
         deviceDblNumMat cu_HpsiRow(ntotLocal, numStateTotal);
         deviceDblNumMat cu_ResRow(ntotLocal, numOccTotal);
         deviceDblNumMat cu_psiPcRow(ntotLocal, numStateTotal);
-        cu_psiTemp.copyFrom( psiTemp);
+        cu_psiTemp.CopyFrom( psiTemp);
 
         char right  = 'R';
         char up     = 'U';
@@ -920,11 +920,11 @@ SCF::IterateWavefun    ( )
           SetValue( psiMuTTemp, 0.0 );
 
           deviceDblNumMat cu_psiMuTTemp(numOccTotal, numOccTotal);
-          cu_psiRow.copyFrom(psiRow);
-          DEVICE_BLAS::gemm( blas::Layout::ColMajor,  cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, 
+          cu_psiRow.CopyFrom(psiRow);
+          DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, 
               &one, cu_psiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
               &zero, cu_psiMuTTemp.Data(), numOccTotal );
-          cu_psiMuTTemp.copyTo( psiMuTTemp );
+          cu_psiMuTTemp.CopyTo( psiMuTTemp );
 
           /*
              blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, 
@@ -947,11 +947,11 @@ SCF::IterateWavefun    ( )
           statusOFS << "Spsi = " << s << std::endl;
         }
 #endif
-        cu_psiMuT.copyFrom( psiMuT);
-        DEVICE_BLAS::gemm( blas::Layout::ColMajor,  cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
+        cu_psiMuT.CopyFrom( psiMuT);
+        DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
             cu_psiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
             &zero, cu_PcRow.Data(), ntotLocal );
-        cu_PcRow.copyTo( PcRow );
+        cu_PcRow.CopyTo( PcRow );
 
         /*
            blas::gemm( blas::Layout::ColMajor,  blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numOccTotal, numOccTotal, 1.0, 
@@ -977,13 +977,13 @@ SCF::IterateWavefun    ( )
           device_memcpy_HOST2DEVICE(cu_psi.Data(), psi.Wavefun().Data(), ntot*numStateLocal*sizeof(Real) );
           deviceNumTns<Real> tnsTemp(ntot, 1, numStateLocal, false, cu_HpsiCol.Data());
           // there are two sets of grid for Row parallelization. 
-          // the old fashioned split and the scalapack split.
+          // the old fashioned split and the Scalapack split.
           // note that they turns out to be different ones in that: 
-          // scalapack divide the Psi by blocks, and old way is continuous.  
+          // Scalapack divide the Psi by blocks, and old way is continuous.  
           // this is error prone.
           Spinor spnTemp(fft.domain, ncom, noccTotal, noccLocal, false, cu_psi.Data(), true);
           ham.MultSpinor_old( spnTemp, tnsTemp, fft );
-          cu_HpsiCol.copyTo(HpsiCol);
+          cu_HpsiCol.CopyTo(HpsiCol);
 
           // remember to reset the vtot
           device_reset_vtot_flag();
@@ -994,11 +994,11 @@ SCF::IterateWavefun    ( )
           SCALAPACK(pdgemr2d)(&Ng, &Ne, HpsiCol.Data(), &I_ONE, &I_ONE, desc_NgNe1DCol, 
               HpsiRow.Data(), &I_ONE, &I_ONE, desc_NgNe1DRow, &contxt1DCol );
 
-          cu_HpsiRow.copyFrom(HpsiRow);
+          cu_HpsiRow.CopyFrom(HpsiRow);
 
           // perform the ACE operator here
           //ham.ACEOperator( cu_psiRow, fft, cu_HpsiRow );
-          //cu_HpsiRow.copyTo(HpsiRow);
+          //cu_HpsiRow.CopyTo(HpsiRow);
 
           if(1){
 
@@ -1006,10 +1006,10 @@ SCF::IterateWavefun    ( )
             deviceDblNumMat cu_HpsiMuTTemp(numOccTotal,numOccTotal);
             //SetValue( HpsiMuTTemp, 0.0 );
 
-            DEVICE_BLAS::gemm( blas::Layout::ColMajor,  cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, 
+            DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, 
                 cu_HpsiRow.Data(), ntotLocal, cu_psiTemp.Data(), ntotLocal, 
                 &zero, cu_HpsiMuTTemp.Data(), numOccTotal );
-            cu_HpsiMuTTemp.copyTo(HpsiMuTTemp);
+            cu_HpsiMuTTemp.CopyTo(HpsiMuTTemp);
             /*
                blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, 
                HpsiRow.Data(), ntotLocal, psiTemp.Data(), ntotLocal, 
@@ -1022,15 +1022,15 @@ SCF::IterateWavefun    ( )
 
           }//if
 
-          DEVICE_BLAS::gemm( blas::Layout::ColMajor,  cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
+          DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &one, 
               cu_HpsiRow.Data(), ntotLocal, cu_psiMuT.Data(), numOccTotal, 
               &zero, cu_ResRow.Data(), ntotLocal );
 
-          cu_HpsiMuT.copyFrom( HpsiMuT );
-          DEVICE_BLAS::gemm( blas::Layout::ColMajor,  cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
+          cu_HpsiMuT.CopyFrom( HpsiMuT );
+          DEVICE_BLAS::Gemm( cu_transN, cu_transN, ntotLocal, numOccTotal, numOccTotal, &minus_one, 
               cu_psiRow.Data(), ntotLocal, cu_HpsiMuT.Data(), numOccTotal, 
               &one, cu_ResRow.Data(), ntotLocal );
-          cu_ResRow.copyTo(ResRow);
+          cu_ResRow.CopyTo(ResRow);
 
           /*
              blas::gemm( blas::Layout::ColMajor,  blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numOccTotal, numOccTotal, 1.0, 
@@ -1165,15 +1165,15 @@ SCF::IterateWavefun    ( )
             SCALAPACK(pdgemr2d)(&Ng, &No, psiPcCol.Data(), &I_ONE, &I_ONE, desc_NgNo1DCol, 
                 psiPcRow.Data(), &I_ONE, &I_ONE, desc_NgNo1DRow, &contxt1DCol );
 
-            cu_psiPcRow.copyFrom( psiPcRow );
+            cu_psiPcRow.CopyFrom( psiPcRow );
 
             DblNumMat XTX(numOccTotal, numOccTotal);
             DblNumMat XTXTemp(numOccTotal, numOccTotal);
             deviceDblNumMat cu_XTXTemp(numOccTotal, numOccTotal);
 
-            DEVICE_BLAS::gemm( blas::Layout::ColMajor,  cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
+            DEVICE_BLAS::Gemm( cu_transT, cu_transN, numOccTotal, numOccTotal, ntotLocal, &one, cu_psiPcRow.Data(), 
                 ntotLocal, cu_psiPcRow.Data(), ntotLocal, &zero, cu_XTXTemp.Data(), numOccTotal );
-            cu_XTXTemp.copyTo(XTXTemp);
+            cu_XTXTemp.CopyTo(XTXTemp);
 
             /*
                blas::gemm( blas::Layout::ColMajor,  blas::Op::Trans, blas::Op::NoTrans, numOccTotal, numOccTotal, ntotLocal, 1.0, psiPcRow.Data(), 
@@ -1187,17 +1187,17 @@ SCF::IterateWavefun    ( )
             //}
             //MPI_Bcast(XTX.Data(), numOccTotal*numOccTotal, MPI_DOUBLE, 0, mpi_comm);
 
-            cu_XTXTemp.copyFrom(XTX);
+            cu_XTXTemp.CopyFrom(XTX);
 #ifdef USE_MAGMA
             MAGMA::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
 #else
             device_solver::Potrf('U', numOccTotal, cu_XTXTemp.Data(), numOccTotal);
 #endif
 
-            DEVICE_BLAS::trsm( right, up, cu_transN, nondiag, 
+            DEVICE_BLAS::Trsm( right, up, cu_transN, nondiag, 
                 ntotLocal, numOccTotal, &one, cu_XTXTemp.Data(), numOccTotal, cu_psiPcRow.Data(),
                 ntotLocal);
-            cu_psiPcRow.copyTo( psiPcRow );
+            cu_psiPcRow.CopyTo( psiPcRow );
 
             // X <- X * U^{-1} is orthogonal
             /*
