@@ -53,7 +53,6 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "domain.hpp"
 #include  "fourier.hpp"
 #include  "utility.hpp"
-#include  "lapack.hpp"
 #include  "esdf.hpp"
 
 #ifdef DEVICE

@@ -45,7 +45,7 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2011-11-01
 /// @date 2014-02-01 Dual grid implementation.
 #include  "fourier.hpp"
-#include  "blas.hpp"
+#include  <blas.hh>
 #include  "esdf.hpp"
 
 namespace dgdft{
@@ -520,7 +520,7 @@ void FFTWExecute ( Fourier& fft, fftw_plan& plan ){
   {
     fftw_execute( fft.backwardPlan );
     fac = 1.0 / vol;
-    blas::Scal( ntot, fac, fft.inputComplexVec.Data(), 1);
+    blas::scal( ntot, fac, fft.inputComplexVec.Data(), 1);
     //    for( Int i = 0; i < ntot; i++ ){
     //      fft.inputComplexVec(i) *=  fac;
     //    }
@@ -533,7 +533,7 @@ void FFTWExecute ( Fourier& fft, fftw_plan& plan ){
     //    for( Int i = 0; i < ntot; i++ ){
     //      fft.outputComplexVec(i) *=  fac;
     //    }
-    blas::Scal( ntot, fac, fft.outputComplexVec.Data(), 1);
+    blas::scal( ntot, fac, fft.outputComplexVec.Data(), 1);
   }
 
   if ( plan == fft.backwardPlanR2C )
@@ -544,7 +544,7 @@ void FFTWExecute ( Fourier& fft, fftw_plan& plan ){
     //        reinterpret_cast<fftw_complex*>(fft.outputVecR2C.Data() ),
     //        fft.inputVecR2C.Data() );
     fac = 1.0 / vol;
-    blas::Scal( ntot, fac, fft.inputVecR2C.Data(), 1);
+    blas::scal( ntot, fac, fft.inputVecR2C.Data(), 1);
     //    for( Int i = 0; i < ntot; i++ ){
     //      fft.inputVecR2C(i) *=  fac;
     //    }
@@ -561,7 +561,7 @@ void FFTWExecute ( Fourier& fft, fftw_plan& plan ){
     //      fft.outputVecR2C(i) *=  fac;
     //    }
     fac = vol / double(ntot);
-    blas::Scal( ntotR2C, fac, fft.outputVecR2C.Data(), 1);
+    blas::scal( ntotR2C, fac, fft.outputVecR2C.Data(), 1);
   }
 
   if ( plan == fft.backwardPlanFine )
@@ -571,7 +571,7 @@ void FFTWExecute ( Fourier& fft, fftw_plan& plan ){
     //    for( Int i = 0; i < ntotFine; i++ ){
     //      fft.inputComplexVecFine(i) *=  fac;
     //    }
-    blas::Scal( ntotFine, fac, fft.inputComplexVecFine.Data(), 1);
+    blas::scal( ntotFine, fac, fft.inputComplexVecFine.Data(), 1);
   }
 
   if ( plan == fft.forwardPlanFine )
@@ -581,7 +581,7 @@ void FFTWExecute ( Fourier& fft, fftw_plan& plan ){
     //    for( Int i = 0; i < ntotFine; i++ ){
     //      fft.outputComplexVecFine(i) *=  fac;
     //    }
-    blas::Scal( ntotFine, fac, fft.outputComplexVecFine.Data(), 1);
+    blas::scal( ntotFine, fac, fft.outputComplexVecFine.Data(), 1);
   }
 
   if ( plan == fft.backwardPlanR2CFine )
@@ -595,7 +595,7 @@ void FFTWExecute ( Fourier& fft, fftw_plan& plan ){
     //    for( Int i = 0; i < ntotFine; i++ ){
     //      fft.inputVecR2CFine(i) *=  fac;
     //    }
-    blas::Scal( ntotFine, fac, fft.inputVecR2CFine.Data(), 1);
+    blas::scal( ntotFine, fac, fft.inputVecR2CFine.Data(), 1);
   }
 
   if ( plan == fft.forwardPlanR2CFine )
@@ -609,7 +609,7 @@ void FFTWExecute ( Fourier& fft, fftw_plan& plan ){
     //    for( Int i = 0; i < ntotR2CFine; i++ ){
     //      fft.outputVecR2CFine(i) *=  fac;
     //    }
-    blas::Scal( ntotR2CFine, fac, fft.outputVecR2CFine.Data(), 1);
+    blas::scal( ntotR2CFine, fac, fft.outputVecR2CFine.Data(), 1);
   }
 
   return ;

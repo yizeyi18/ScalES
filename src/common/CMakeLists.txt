@@ -1,10 +1,10 @@
 
 set( DG_COMMON_SRC
-     blas.cpp  
+#     blas.cpp  
      esdf.cpp 
      fourier.cpp  
      global.cpp  
-     lapack.cpp  
+#     lapack.cpp  
      mpi_interf.cpp  
      periodtable.cpp  
      scalapack.cpp  

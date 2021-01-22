@@ -5,8 +5,6 @@
 #include "nummat_impl.hpp"
 #include "utility.hpp"
 
-#include "lapack.hpp"
-
 namespace dgdft {
 
 template <typename T>

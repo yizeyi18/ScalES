@@ -50,6 +50,9 @@
 #include  "utility.hpp"
 #include  <algorithm>		// std::min
 
+#include  <blas.hh>
+#include  <lapack.hh>
+
 namespace dgdft{
 
 using namespace dgdft::esdf;
@@ -703,8 +706,8 @@ void IonDynamics::BarzilaiBorweinOpt    ( Int ionIter )
       }
     }
     // Note the minus sign
-    Real step = - blas::Dot( DIM*numAtom, sVec.Data(), 1, yVec.Data(), 1 ) / 
-      blas::Dot( DIM*numAtom, yVec.Data(), 1, yVec.Data(), 1 );
+    Real step = - blas::dot( DIM*numAtom, sVec.Data(), 1, yVec.Data(), 1 ) / 
+      blas::dot( DIM*numAtom, yVec.Data(), 1, yVec.Data(), 1 );
 
     for( Int a = 0; a < numAtom; a++ ){
       // Update the atomic position
@@ -752,9 +755,9 @@ void IonDynamics::PGBBOpt ( Int ionIter )
       }
     }
 
-    Real sy = blas::Dot( DIM*numAtom, sVec.Data(), 1, yVec.Data(), 1 );
-    Real ss = blas::Dot( DIM*numAtom, sVec.Data(), 1, sVec.Data(), 1 );
-    Real yy = blas::Dot( DIM*numAtom, yVec.Data(), 1, yVec.Data(), 1 );
+    Real sy = blas::dot( DIM*numAtom, sVec.Data(), 1, yVec.Data(), 1 );
+    Real ss = blas::dot( DIM*numAtom, sVec.Data(), 1, sVec.Data(), 1 );
+    Real yy = blas::dot( DIM*numAtom, yVec.Data(), 1, yVec.Data(), 1 );
 
     if( ionIter % 2 == 0 )
       geoOptVars_.tau = ss / std::abs(sy);

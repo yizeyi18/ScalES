@@ -51,8 +51,6 @@ such enhancements or derivative works thereof, in binary and source code form.
 #include  "numvec_impl.hpp"
 #include  "periodtable.hpp"
 #include  "esdf.hpp"
-#include  "blas.hpp"
-#include  "lapack.hpp"
 
 using namespace std;
 

@@ -45,8 +45,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2012-09-16
 /// @date 2020-09-19
 #include  "hamiltonian.hpp"
-#include  "blas.hpp"
-#include  "lapack.hpp"
+#include  <blas.hh>
+#include  <lapack.hh>
 
 #include "block_distributor_decl.hpp"
 
@@ -288,17 +288,17 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
   // calculate the number of occupied states
   // need to distinguish the number of charges carried by the ion and that 
   // carried by the electron
-  Int nZion = 0, nelec = 0;
+  Int nZval = 0, nelec = 0;
   for (Int a=0; a<numAtom; a++) {
     Int atype  = atomList_[a].type;
     if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
       ErrorHandling( "Cannot find the atom type." );
     }
-    nZion = nZion + ptable.Zion(atype);
+    nZval = nZval + ptable.Zval(atype);
   }
 
   // add the extra electron
-  nelec = nZion + esdfParam.extraElectron;
+  nelec = nZval + esdfParam.extraElectron;
 
   // FIXME Deal with the case when this is a buffer calculation and the
   // number of electrons is not a even number.
@@ -475,12 +475,12 @@ Hamiltonian::CalculatePseudoPotential    ( PeriodTable &ptable ){
         numOccupiedState_ );
 
     // adjustment should be multiplicative
-    Real fac = nZion / sumrho;
+    Real fac = nZval / sumrho;
     for (Int i=0; i<ntotFine; i++) 
       pseudoCharge_(i) *= fac; 
 
     Print( statusOFS, "After adjustment, Sum of Pseudocharge        = ", 
-        (Real) nZion );
+        (Real) nZval );
 
 //    statusOFS << "vLocalSR = " << vLocalSR_  << std::endl;
 //    statusOFS << "pseudoCharge = " << pseudoCharge_ << std::endl;
@@ -573,7 +573,7 @@ void Hamiltonian::CalculateAtomDensity ( PeriodTable &ptable, Fourier &fft ){
     if( ptable.ptemap().find(atype) == ptable.ptemap().end() ){
       ErrorHandling( "Cannot find the atom type." );
     }
-    nelec = nelec + ptable.Zion(atype);
+    nelec = nelec + ptable.Zval(atype);
   }
   // add the extra electron
   nelec = nelec + esdfParam.extraElectron;
@@ -738,7 +738,7 @@ Hamiltonian::CalculateDensity ( const Spinor &psi, const DblNumVec &occrate, Rea
   Real val1 = val;
 
   // Scale the density
-  blas::Scal( ntotFine, (numSpin_ * Real(numOccupiedState_) * Real(ntotFine)) / ( vol * val ), 
+  blas::scal( ntotFine, (numSpin_ * Real(numOccupiedState_) * Real(ntotFine)) / ( vol * val ), 
       density_.VecData(RHO), 1 );
 
   // Double check (can be neglected)
@@ -784,9 +784,9 @@ Hamiltonian::CalculateGradDensity ( Fourier& fft , bool garbage)
     fftw_execute( fft.mpiforwardPlanFine );
 
     Real fac = vol / double(ntotFine);
-    blas::Scal( ntotLocal, fac, fft.outputComplexVecLocal.Data(), 1);
+    blas::scal( ntotLocal, fac, fft.outputComplexVecLocal.Data(), 1);
 
-    blas::Copy( ntotLocal, fft.outputComplexVecLocal.Data(), 1,
+    blas::copy( ntotLocal, fft.outputComplexVecLocal.Data(), 1,
         cpxVec.Data(), 1 );
   }
 
@@ -835,7 +835,7 @@ Hamiltonian::CalculateGradDensity ( Fourier& fft , bool garbage)
 
           fftw_execute( fft.mpibackwardPlanFine );
           Real fac = 1.0 / vol;
-          blas::Scal( ntotLocal, fac, fft.inputComplexVecLocal.Data(), 1);
+          blas::scal( ntotLocal, fac, fft.inputComplexVecLocal.Data(), 1);
           
           for( Int i = 0; i < ntotLocal; i++ )
             temp(i) = fft.inputComplexVecLocal(i).real();
@@ -892,7 +892,7 @@ Hamiltonian::CalculateGradDensity ( Fourier& fft )
   FFTWExecute ( fft, fft.forwardPlanFine );
 
   CpxNumVec  cpxVec( ntotFine );
-  blas::Copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
+  blas::copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
       cpxVec.Data(), 1 );
 
   // Compute the derivative of the Density via Fourier
@@ -1168,7 +1168,7 @@ void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
 
           fftw_execute( fft.mpiforwardPlanFine );
           fac = vol / double(ntot);
-          blas::Scal( ntotLocal, fac, fft.outputComplexVecLocal.Data(), 1);
+          blas::scal( ntotLocal, fac, fft.outputComplexVecLocal.Data(), 1);
 
           CpxNumVec& ik = fft.ikFine[d];
 
@@ -1182,7 +1182,7 @@ void Hamiltonian::CalculateXC    ( Real &val, Fourier& fft, bool garbage)
 
           fftw_execute( fft.mpibackwardPlanFine );
           fac = 1.0 / vol;
-          blas::Scal( ntotLocal, fac, fft.inputComplexVecLocal.Data(), 1);
+          blas::scal( ntotLocal, fac, fft.inputComplexVecLocal.Data(), 1);
 
           for( Int i = 0; i < ntotLocal; i++ ){
             vxcTemp3(i) = fft.inputComplexVecLocal(i).real();
@@ -1682,7 +1682,7 @@ void Hamiltonian::CalculateHartree( Fourier& fft, bool extra) {
   
     fftw_execute( fft.mpiforwardPlanFine );
     Real fac = vol / double(ntot);
-    blas::Scal( ntotLocal, fac, fft.outputComplexVecLocal.Data(), 1);
+    blas::scal( ntotLocal, fac, fft.outputComplexVecLocal.Data(), 1);
   
     //FFTWExecute ( fft, fft.forwardPlanFine );
   
@@ -1700,7 +1700,7 @@ void Hamiltonian::CalculateHartree( Fourier& fft, bool extra) {
     //FFTWExecute ( fft, fft.backwardPlanFine );
     fftw_execute( fft.mpibackwardPlanFine );
     fac = 1.0 / vol;
-    blas::Scal( ntotLocal, fac, fft.inputComplexVecLocal.Data(), 1);
+    blas::scal( ntotLocal, fac, fft.inputComplexVecLocal.Data(), 1);
   
     DblNumVec temp;
     temp.Resize(ntotLocal);
@@ -1826,8 +1826,8 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
     SetValue( totalCharge, 0.0 );
 
     // totalCharge = density_ - pseudoCharge_
-    blas::Copy( ntotFine, density_.VecData(0), 1, totalCharge.Data(), 1 );
-    blas::Axpy( ntotFine, -1.0, pseudoCharge_.Data(),1,
+    blas::copy( ntotFine, density_.VecData(0), 1, totalCharge.Data(), 1 );
+    blas::axpy( ntotFine, -1.0, pseudoCharge_.Data(),1,
         totalCharge.Data(), 1 );
 
     // Total charge in the Fourier space
@@ -1843,7 +1843,7 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
     timeFFTTotal += timeFFTEnd - timeFFTSta;
 
 
-    blas::Copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
+    blas::copy( ntotFine, fft.outputComplexVecFine.Data(), 1,
         totalChargeFourier.Data(), 1 );
 
     // Compute the derivative of the Hartree potential via Fourier
@@ -2005,9 +2005,9 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
       //      for( Int i = 0; i < domain_.NumGridTotalFine(); i++ ){
       //        psiFine(i) = fft.inputComplexVecFine(i).real() * fac;
       //      }
-      blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+      blas::copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
           2, psiFine.Data(), 1 );
-      blas::Scal( ntotFine, fac, psiFine.Data(), 1 );
+      blas::scal( ntotFine, fac, psiFine.Data(), 1 );
 
       // derivative of psi on a fine grid
       for( Int d = 0; d < DIM; d++ ){
@@ -2027,9 +2027,9 @@ Hamiltonian::CalculateForce    ( Spinor& psi, Fourier& fft  )
         //        for( Int i = 0; i < domain_.NumGridTotalFine(); i++ ){
         //          psiDrvFine[d](i) = fft.inputComplexVecFine(i).real() * fac;
         //        }
-        blas::Copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
+        blas::copy( ntotFine, reinterpret_cast<Real*>(fft.inputComplexVecFine.Data()),
             2, psiDrvFine[d].Data(), 1 );
-        blas::Scal( ntotFine, fac, psiDrvFine[d].Data(), 1 );
+        blas::scal( ntotFine, fac, psiDrvFine[d].Data(), 1 );
 
       } // for (d)
 
@@ -2169,7 +2169,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
         SetValue( fft.inputVecR2C, 0.0 );
         SetValue( fft.outputVecR2C, Z_ZERO );
 
-        blas::Copy( ntot, wavefun.VecData(j,k), 1,
+        blas::copy( ntot, wavefun.VecData(j,k), 1,
             fft.inputVecR2C.Data(), 1 );
         FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
 
@@ -2181,7 +2181,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
         }
 
         FFTWExecute ( fft, fft.backwardPlanR2C );
-        blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
+        blas::copy( ntot,  fft.inputVecR2C.Data(), 1,
             wavefun.VecData(j,k), 1 );
 
       }
@@ -2208,11 +2208,11 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
       //      if(0)
       //      {
       //        DblNumMat M(numStateTotal, numStateTotal);
-      //        blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 1.0,
+      //        blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numStateTotal, numStateTotal, ntot, 1.0,
       //            vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
       //            0.0, M.Data(), M.m() );
       //        // Minus sign comes from that all eigenvalues are negative
-      //        blas::Gemm( 'N', 'N', ntot, numStateTotal, numStateTotal, -1.0,
+      //        blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numStateTotal, numStateTotal, -1.0,
       //            vexxProj_.Data(), ntot, M.Data(), numStateTotal,
       //            1.0, Hpsi.Data(), ntot );
       //      }
@@ -2246,8 +2246,8 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
         DblNumMat vexxProjRow( ntotLocal, numStateTotal );
         SetValue( vexxProjRow, 0.0 );
 
-        lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
-        lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
+        lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+        lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
 
         GetTime( timeSta1 );
         auto bdist = 
@@ -2262,7 +2262,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
         SetValue( MTemp, 0.0 );
 
         GetTime( timeSta1 );
-        blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
+        blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numStateTotal, numStateTotal, ntotLocal,
             1.0, vexxProjRow.Data(), ntotLocal, 
             psiRow.Data(), ntotLocal, 0.0,
             MTemp.Data(), numStateTotal );
@@ -2283,7 +2283,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
         SetValue( HpsiRow, 0.0 );
 
         GetTime( timeSta1 );
-        blas::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, 
+        blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numStateTotal, numStateTotal, 
             -1.0, vexxProjRow.Data(), ntotLocal, 
             M.Data(), numStateTotal, 0.0, 
             HpsiRow.Data(), ntotLocal );
@@ -2320,7 +2320,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
 #if ( _DEBUGlevel_ >= 0 )
     statusOFS << "Time for updating hybrid Spinor is " <<
       timeEnd - timeSta << " [s]" << std::endl << std::endl;
-    statusOFS << "Time for Gemm is " <<
+    statusOFS << "Time for gemm is " <<
       timeGemm << " [s]" << std::endl << std::endl;
     statusOFS << "Time for Alltoallv is " <<
       timeAlltoallv << " [s]" << std::endl << std::endl;
@@ -2341,7 +2341,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
         SetValue( fft.inputVecR2C, 0.0 );
         SetValue( fft.outputVecR2C, Z_ZERO );
 
-        blas::Copy( ntot, Hpsi.VecData(j,k), 1,
+        blas::copy( ntot, Hpsi.VecData(j,k), 1,
             fft.inputVecR2C.Data(), 1 );
         FFTWExecute ( fft, fft.forwardPlanR2C ); // So outputVecR2C contains the FFT result now
 
@@ -2353,7 +2353,7 @@ Hamiltonian::MultSpinor    ( Spinor& psi, NumTns<Real>& Hpsi, Fourier& fft )
         }
 
         FFTWExecute ( fft, fft.backwardPlanR2C );
-        blas::Copy( ntot,  fft.inputVecR2C.Data(), 1,
+        blas::copy( ntot,  fft.inputVecR2C.Data(), 1,
             Hpsi.VecData(j,k), 1 );
 
       }
@@ -2493,12 +2493,12 @@ Hamiltonian::SetPhiEXX    (const Spinor& psi, Fourier& fft)
     for (Int j=0; j<ncom; j++) {
 
       Real fac = std::sqrt( double(ntot) / vol );
-      blas::Copy( ntot, wavefun.VecData(j,k), 1, phiEXX_.VecData(j,k), 1 );
-      blas::Scal( ntot, fac, phiEXX_.VecData(j,k), 1 );
+      blas::copy( ntot, wavefun.VecData(j,k), 1, phiEXX_.VecData(j,k), 1 );
+      blas::scal( ntot, fac, phiEXX_.VecData(j,k), 1 );
 
       if(0){
         DblNumVec psiTemp(ntot);
-        blas::Copy( ntot, phiEXX_.VecData(j,k), 1, psiTemp.Data(), 1 );
+        blas::copy( ntot, phiEXX_.VecData(j,k), 1, psiTemp.Data(), 1 );
         statusOFS << "int (phi^2) dx = " << Energy(psiTemp)*vol / double(ntot) << std::endl;
       }
 
@@ -2543,7 +2543,7 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
     // FIXME
     Real SVDTolerance = 1e-4;
     // M = Phi'*vexxPsi
-    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numStateTotal, numStateTotal, ntot, 
         1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
         0.0, M.Data(), numStateTotal );
 
@@ -2552,7 +2552,8 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
     DblNumVec  S( numStateTotal );
     SetValue( S, 0.0 );
 
-    lapack::QRSVD( numStateTotal, numStateTotal, M.Data(), numStateTotal,
+    lapack::gesvd( lapack::Job::SomeVec, lapack::Job::SomeVec,
+        numStateTotal, numStateTotal, M.Data(), numStateTotal,
         S.Data(), U.Data(), U.m(), VT.Data(), VT.m() );
 
 
@@ -2568,11 +2569,11 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
     }
     statusOFS << "rank of Phi'*VPhi matrix = " << rankM << std::endl;
     for( Int g = 0; g < rankM; g++ ){
-      blas::Scal( numStateTotal, 1.0 / S[g], U.VecData(g), 1 );
+      blas::scal( numStateTotal, 1.0 / S[g], U.VecData(g), 1 );
     }
 
     vexxProj_.Resize( ntot, rankM );
-    blas::Gemm( 'N', 'N', ntot, rankM, numStateTotal, 1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, rankM, numStateTotal, 1.0, 
         vexxPsi.Data(), ntot, U.Data(), numStateTotal, 0.0,
         vexxProj_.Data(), ntot );
   }
@@ -2581,17 +2582,17 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
   if(0){
     // M = -Phi'*vexxPsi. The minus sign comes from vexx is a negative
     // semi-definite matrix.
-    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntot, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numStateTotal, numStateTotal, ntot, 
         -1.0, psi.Wavefun().Data(), ntot, vexxPsi.Data(), ntot,
         0.0, M.Data(), numStateTotal );
 
-    lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+    lapack::potrf(lapack::Uplo::Lower, numStateTotal, M.Data(), numStateTotal);
 
-    blas::Trsm( 'R', 'L', 'T', 'N', ntot, numStateTotal, 1.0, 
+    blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Lower, blas::Op::Trans, blas::Diag::NonUnit, ntot, numStateTotal, 1.0, 
         M.Data(), numStateTotal, vexxPsi.Data(), ntot );
 
     vexxProj_.Resize( ntot, numStateTotal );
-    blas::Copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
+    blas::copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
   }
 
   if(1){ //For MPI
@@ -2624,8 +2625,8 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
     SetValue( localVexxPsiRow, 0.0 );
 
     // Initialize
-    lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, localPsiCol.Data(), ntot );
-    lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
+    lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi.Wavefun().Data(), ntot, localPsiCol.Data(), ntot );
+    lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
 
     auto bdist = 
       make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
@@ -2636,7 +2637,7 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
     DblNumMat MTemp( numStateTotal, numStateTotal );
     SetValue( MTemp, 0.0 );
 
-    blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
+    blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numStateTotal, numStateTotal, ntotLocal,
         -1.0, localPsiRow.Data(), ntotLocal, 
         localVexxPsiRow.Data(), ntotLocal, 0.0,
         MTemp.Data(), numStateTotal );
@@ -2645,12 +2646,12 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
     MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
 
     if ( mpirank == 0) {
-      lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+      lapack::potrf(lapack::Uplo::Lower, numStateTotal, M.Data(), numStateTotal);
     }
 
     MPI_Bcast(M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_.comm);
 
-    blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numStateTotal, 1.0, 
+    blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Lower, blas::Op::Trans, blas::Diag::NonUnit, ntotLocal, numStateTotal, 1.0, 
         M.Data(), numStateTotal, localVexxPsiRow.Data(), ntotLocal );
 
     vexxProj_.Resize( ntot, numStateLocal );
@@ -2662,7 +2663,7 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
   // Sanity check. For debugging only
   //  if(0){
   //  // Make sure U and VT are the same. Should be an identity matrix
-  //    blas::Gemm( 'N', 'N', numStateTotal, numStateTotal, numStateTotal, 1.0, 
+  //    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, numStateTotal, numStateTotal, numStateTotal, 1.0, 
   //        VT.Data(), numStateTotal, U.Data(), numStateTotal, 0.0,
   //        M.Data(), numStateTotal );
   //    statusOFS << "M = " << M << std::endl;
@@ -2671,11 +2672,11 @@ Hamiltonian::CalculateVexxACE ( Spinor& psi, Fourier& fft )
   //    Int numProj = rankM;
   //    DblNumMat Mt(numProj, numStateTotal);
   //    
-  //    blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+  //    blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numProj, numStateTotal, ntot, 1.0,
   //        vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
   //        0.0, Mt.Data(), Mt.m() );
   //    // Minus sign comes from that all eigenvalues are negative
-  //    blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+  //    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numStateTotal, numProj, -1.0,
   //        vexxProj_.Data(), ntot, Mt.Data(), numProj,
   //        0.0, vpsit.Data(), ntot );
   //
@@ -2726,13 +2727,13 @@ Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
   
   // Implementation based on Cholesky
   if(0){
-    lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+    lapack::potrf(lapack::Uplo::Lower, numStateTotal, M.Data(), numStateTotal);
 
-    blas::Trsm( 'R', 'L', 'T', 'N', ntot, numStateTotal, 1.0, 
+    blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Lower, blas::Op::Trans, blas::Diag::NonUnit, ntot, numStateTotal, 1.0, 
         M.Data(), numStateTotal, vexxPsi.Data(), ntot );
 
     vexxProj_.Resize( ntot, numStateTotal );
-    blas::Copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
+    blas::copy( ntot * numStateTotal, vexxPsi.Data(), 1, vexxProj_.Data(), 1 );
   }
 
   if(1){ //For MPI
@@ -2759,7 +2760,7 @@ Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
     SetValue( localVexxPsiRow, 0.0 );
 
     // Initialize
-    lapack::Lacpy( 'A', ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
+    lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, vexxPsi.Data(), ntot, localVexxPsiCol.Data(), ntot );
 
     auto bdist = 
       make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
@@ -2767,12 +2768,12 @@ Hamiltonian::CalculateVexxACEDF ( Spinor& psi, Fourier& fft, bool isFixColumnDF 
     bdist.redistribute_col_to_row( localVexxPsiCol, localVexxPsiRow );
 
     if ( mpirank == 0) {
-      lapack::Potrf('L', numStateTotal, M.Data(), numStateTotal);
+      lapack::potrf(lapack::Uplo::Lower, numStateTotal, M.Data(), numStateTotal);
     }
 
     MPI_Bcast(M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, 0, domain_.comm);
 
-    blas::Trsm( 'R', 'L', 'T', 'N', ntotLocal, numStateTotal, 1.0, 
+    blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Lower, blas::Op::Trans, blas::Diag::NonUnit, ntotLocal, numStateTotal, 1.0, 
         M.Data(), numStateTotal, localVexxPsiRow.Data(), ntotLocal );
 
     vexxProj_.Resize( ntot, numStateLocal );
@@ -2840,11 +2841,11 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
       NumTns<Real>  vexxPsi( ntot, 1, numStateLocalPhi );
       SetValue( vexxPsi, 0.0 );
 
-      blas::Gemm( 'T', 'N', numProj, numStateTotal, ntot, 1.0,
+      blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numProj, numStateTotal, ntot, 1.0,
           vexxProj_.Data(), ntot, psi.Wavefun().Data(), ntot, 
           0.0, M.Data(), M.m() );
       // Minus sign comes from that all eigenvalues are negative
-      blas::Gemm( 'N', 'N', ntot, numStateTotal, numProj, -1.0,
+      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntot, numStateTotal, numProj, -1.0,
           vexxProj_.Data(), ntot, M.Data(), numProj,
           0.0, vexxPsi.Data(), ntot );
 
@@ -2892,8 +2893,8 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
       DblNumMat vexxPsiRow( ntotLocal, numStateTotal );
       SetValue( vexxPsiRow, 0.0 );
 
-      lapack::Lacpy( 'A', ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
-      lapack::Lacpy( 'A', ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
+      lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, psi.Wavefun().Data(), ntot, psiCol.Data(), ntot );
+      lapack::lacpy( lapack::MatrixType::General, ntot, numStateLocal, vexxProj_.Data(), ntot, vexxProjCol.Data(), ntot );
 
       auto bdist = 
         make_block_distributor<double>( BlockDistAlg::HostGeneric, domain_.comm,
@@ -2904,7 +2905,7 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
       DblNumMat MTemp( numStateTotal, numStateTotal );
       SetValue( MTemp, 0.0 );
 
-      blas::Gemm( 'T', 'N', numStateTotal, numStateTotal, ntotLocal,
+      blas::gemm( blas::Layout::ColMajor, blas::Op::Trans, blas::Op::NoTrans, numStateTotal, numStateTotal, ntotLocal,
           1.0, vexxProjRow.Data(), ntotLocal, 
           psiRow.Data(), ntotLocal, 0.0,
           MTemp.Data(), numStateTotal );
@@ -2914,7 +2915,7 @@ Hamiltonian::CalculateEXXEnergy    ( Spinor& psi, Fourier& fft )
 
       MPI_Allreduce( MTemp.Data(), M.Data(), numStateTotal * numStateTotal, MPI_DOUBLE, MPI_SUM, domain_.comm );
 
-      blas::Gemm( 'N', 'N', ntotLocal, numStateTotal, numStateTotal, -1.0,
+      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, ntotLocal, numStateTotal, numStateTotal, -1.0,
           vexxProjRow.Data(), ntotLocal, M.Data(), numStateTotal,
           0.0, vexxPsiRow.Data(), ntotLocal );
 
@@ -3208,7 +3209,7 @@ Hamiltonian::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
 
     for(Int a=0; a< atomList.size() ; a++) {
       Int type_a = atomList[a].type;
-      Real Zion_a = ptable.Zion(type_a);
+      Real Zval_a = ptable.Zval(type_a);
       Real RGaussian_a = ptable.RGaussian(type_a);
 
       for(Int b=a; b< atomList.size() ; b++) {
@@ -3217,7 +3218,7 @@ Hamiltonian::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
         bool same_atom = (a==b);
 
         Int type_b = atomList[b].type;
-        Real Zion_b = ptable.Zion(type_b);
+        Real Zval_b = ptable.Zval(type_b);
         Real RGaussian_b = ptable.RGaussian(type_b);
 
         Real radius_ab = std::sqrt ( RGaussian_a*RGaussian_a + RGaussian_b*RGaussian_b );
@@ -3256,8 +3257,8 @@ Hamiltonian::CalculateIonSelfEnergyAndForce    ( PeriodTable &ptable )
                 pos_ab_image[2] = pos_ab[2] + ic2*dm.length[2];
 
                 Real r_ab = pos_ab_image.l2();
-                Real esr_term = Zion_a * Zion_b * std::erfc(r_ab / radius_ab) / r_ab;
-                Real desr_erfc = 2.0 * Zion_a * Zion_b *
+                Real esr_term = Zval_a * Zval_b * std::erfc(r_ab / radius_ab) / r_ab;
+                Real desr_erfc = 2.0 * Zval_a * Zval_b *
                   std::exp(-(r_ab / radius_ab)*(r_ab / radius_ab))/(radius_ab*std::sqrt(PI));
                 // desrdr = (1/r) d Esr / dr
                 Real desrdr = - fac * (esr_term+desr_erfc) / ( r_ab*r_ab );

@@ -47,8 +47,8 @@ such enhancements or derivative works thereof, in binary and source code form.
 #define _PWDFT_HPP_
 
 #include  "environment.hpp"
-#include  "blas.hpp"
-#include  "lapack.hpp"
+//#include  "blas.hpp"
+//#include  "lapack.hpp"
 #include  "scalapack.hpp"
 #include  "mpi_interf.hpp"
 #include  "numvec_impl.hpp"

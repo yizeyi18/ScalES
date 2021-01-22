@@ -51,12 +51,13 @@ such enhancements or derivative works thereof, in binary and source code form.
 /// @date 2016-04-07 Add Chebyshev filtering.
 #include  "eigensolver.hpp"
 #include  "utility.hpp"
-#include  "blas.hpp"
-#include  "lapack.hpp"
+#include  <blas.hh>
+#include  <lapack.hh>
 #include  "scalapack.hpp"
 #include  "mpi_interf.hpp"
 
 #include "block_distributor_decl.hpp"
+#include "linalg_extensions.hpp"
 
 #include <numeric>
 
@@ -123,7 +124,8 @@ void row_dist_inner_replicate( int64_t  NLocal,
                                MPI_Comm comm ) {
 
   // Compute Local GEMM
-  blas::Gemm( 'C', 'N', K, L, NLocal, T(1.), XLocal, LDXLocal,
+  blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, 
+              K, L, NLocal, T(1.), XLocal, LDXLocal,
               YLocal, LDYLocal, T(0.), M, K );
 
   // Reduce In Place
@@ -150,12 +152,14 @@ void replicated_cholesky_qr_row_dist( int64_t NLocal,
   // XXX: POTRF is replicatable, no reason to waste communication post replicated
   //      inner product
   if( mpi_rank == 0 ) {
-    lapack::Potrf( 'U', K, R, K );
+    lapack::potrf( lapack::Uplo::Upper, K, R, K );
   }
   MPI_Bcast( R, K*K, MPI_DOUBLE, 0, comm );
 
   // X <- X * U**-1
-  blas::Trsm( 'R', 'U', 'N', 'N', NLocal, K, T(1.), R, K, XLocal, LDXLocal );
+  blas::trsm( blas::Layout::ColMajor, 
+              blas::Side::Right, blas::Uplo::Upper, blas::Op::NoTrans, blas::Diag::NonUnit, 
+              NLocal, K, T(1.), R, K, XLocal, LDXLocal );
 
 }
 
@@ -263,8 +267,8 @@ EigenSolver::LOBPCGSolveReal    (
   }
 
   // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
-  // GemmT: blas::Gemm( 'T', 'N')
-  // GemmN: blas::Gemm( 'N', 'N')
+  // GemmT: blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans)
+  // GemmN: blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans)
   // Alltoallv: row-partition to column partition via MPI_Alltoallv 
   // Spinor: Applying the Hamiltonian matrix 
   // Mpirank0: Serial calculation part
@@ -439,7 +443,8 @@ EigenSolver::LOBPCGSolveReal    (
     [&]( Int _k, Int _l, Real _ALPHA, const Real* _X, const Real* _C, Int _LDC,
          Real _BETA, Real* _XP ) {
 
-    blas::Gemm( 'N', 'N', heightLocal, _l, _k, _ALPHA, _X, heightLocal,
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, 
+                heightLocal, _l, _k, _ALPHA, _X, heightLocal,
                 _C, _LDC, _BETA, _XP, heightLocal );
 
   };
@@ -534,7 +539,7 @@ EigenSolver::LOBPCGSolveReal    (
   SetValue( eigValS, 0.0 );
 
   // Initialize X by the data in psi
-  lapack::Lacpy( 'A', height, widthLocal, psiPtr_->Wavefun().Data(), height, 
+  lapack::lacpy( lapack::MatrixType::General, height, widthLocal, psiPtr_->Wavefun().Data(), height, 
       Xcol.Data(), height );
 
 
@@ -601,12 +606,12 @@ EigenSolver::LOBPCGSolveReal    (
     // AMat(1:width,1:width) <- X' * (AX)
     // Save a copy in XTX and A_XTAX
     profile_dist_inner( width, width, X.Data(), AX.Data(), XTX.Data() );
-    lapack::Lacpy( 'A', width, width, XTX.Data(), width, A_XTAX, lda );
+    lapack::lacpy( lapack::MatrixType::General, width, width, XTX.Data(), width, A_XTAX, lda );
 
     // Compute the residual  R = AX - X*(X'*AX)
 
     // R <- AX
-    lapack::Lacpy( 'A', heightLocal, width, AX.Data(), heightLocal, 
+    lapack::lacpy( lapack::MatrixType::General, heightLocal, width, AX.Data(), heightLocal, 
                    Xtemp.Data(), heightLocal );
 
     // R <- R - X * (X'*AX)
@@ -671,8 +676,8 @@ EigenSolver::LOBPCGSolveReal    (
         return resNorm(i) > resNorm(j);
       });
 
-      lapack::ColPermute( true, heightLocal, width, Xtemp.Data(), heightLocal,
-                          res_perm.data() );
+      ColPermute( true, heightLocal, width, Xtemp.Data(), heightLocal,
+                  res_perm.data() );
     }
 
 
@@ -694,8 +699,8 @@ EigenSolver::LOBPCGSolveReal    (
                                normP.Data(), mpi_comm );
 
     for( Int k = 0; k < width; ++k ) {
-      blas::Scal( heightLocal, 1./normP(k), P.VecData(k),  1 );
-      blas::Scal( heightLocal, 1./normP(k), AP.VecData(k), 1 );
+      blas::scal( heightLocal, 1./normP(k), P.VecData(k),  1 );
+      blas::scal( heightLocal, 1./normP(k), AP.VecData(k), 1 );
     }
 
 
@@ -710,29 +715,29 @@ EigenSolver::LOBPCGSolveReal    (
 
     // Compute X' * AW (active only)
     profile_dist_inner( width, nActive, X.Data(), AW.Data(), XTXtemp.Data() );
-    lapack::Lacpy( 'A', width, nActive, XTXtemp.Data(), width, A_XTAW, lda );
+    lapack::lacpy( lapack::MatrixType::General, width, nActive, XTXtemp.Data(), width, A_XTAW, lda );
 
     // Compute W' * AW (active only)
     profile_dist_inner( nActive, nActive, W.Data(), AW.Data(), XTXtemp.Data() );
-    lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
+    lapack::lacpy( lapack::MatrixType::General, nActive, nActive, XTXtemp.Data(), nActive, 
                    A_WTAW, lda );
 
     if( numSet == 3 ){
 
       // Compute X' * AP (active only)
       profile_dist_inner( width, nActive, X.Data(), AP.Data(), XTXtemp.Data() );
-      lapack::Lacpy( 'A', width, nActive, XTXtemp.Data(), width, A_XTAP, lda );
+      lapack::lacpy( lapack::MatrixType::General, width, nActive, XTXtemp.Data(), width, A_XTAP, lda );
 
       // Compute W' * AP (active only)
       profile_dist_inner( nActive, nActive, W.Data(), AP.Data(), 
                           XTXtemp.Data() );
-      lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
+      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, XTXtemp.Data(), nActive, 
                      A_WTAP, lda );
 
       // Compute P' * AP (active only)
       profile_dist_inner( nActive, nActive, P.Data(), AP.Data(), 
                           XTXtemp.Data() );
-      lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
+      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, XTXtemp.Data(), nActive, 
                      A_PTAP, lda );
 
     }
@@ -743,15 +748,15 @@ EigenSolver::LOBPCGSolveReal    (
     // Compute X'*X
     // XXX: Isn't this I?
     profile_dist_inner( width, width, X.Data(), X.Data(), XTXtemp.Data() );
-    lapack::Lacpy( 'A', width, width, XTXtemp.Data(), width, B_XTX, lda );
+    lapack::lacpy( lapack::MatrixType::General, width, width, XTXtemp.Data(), width, B_XTX, lda );
 
     // Compute X'*W (active only)
     profile_dist_inner( width, nActive, X.Data(), W.Data(), XTXtemp.Data() );
-    lapack::Lacpy( 'A', width, nActive, XTXtemp.Data(), width, B_XTW, lda );
+    lapack::lacpy( lapack::MatrixType::General, width, nActive, XTXtemp.Data(), width, B_XTW, lda );
 
     // Compute W'*W (active only)
     profile_dist_inner( nActive, nActive, W.Data(), W.Data(), XTXtemp.Data() );
-    lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
+    lapack::lacpy( lapack::MatrixType::General, nActive, nActive, XTXtemp.Data(), nActive, 
                    B_WTW, lda );
 
 
@@ -759,18 +764,18 @@ EigenSolver::LOBPCGSolveReal    (
 
       // Compute X'*P (active only)
       profile_dist_inner( width, nActive, X.Data(), P.Data(), XTXtemp.Data() );
-      lapack::Lacpy( 'A', width, nActive, XTXtemp.Data(), width, B_XTP, lda );
+      lapack::lacpy( lapack::MatrixType::General, width, nActive, XTXtemp.Data(), width, B_XTP, lda );
 
       // Compute W'*P (active only)
       profile_dist_inner( nActive, nActive, W.Data(), P.Data(), 
                           XTXtemp.Data() );
-      lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
+      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, XTXtemp.Data(), nActive, 
                      B_WTP, lda );
 
       // Compute P'*P (active only)
       profile_dist_inner( nActive, nActive, P.Data(), P.Data(), 
                           XTXtemp.Data() );
-      lapack::Lacpy( 'A', nActive, nActive, XTXtemp.Data(), nActive, 
+      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, XTXtemp.Data(), nActive, 
                      B_PTP, lda );
 
     } // if( numSet == 3 )
@@ -778,13 +783,13 @@ EigenSolver::LOBPCGSolveReal    (
 #if ( _DEBUGlevel_ >= 2 )
     {
       DblNumMat WTW( nActive, nActive );
-      lapack::Lacpy( 'A', nActive, nActive, B_WTW, lda, 
+      lapack::lacpy( lapack::MatrixType::General, nActive, nActive, B_WTW, lda, 
                      WTW.Data(), nActive );
       statusOFS << "W'*W = " << WTW << std::endl;
       if( numSet == 3 )
       {
         DblNumMat PTP( nActive, nActive );
-        lapack::Lacpy( 'A', nActive, nActive, B_PTP, lda, 
+        lapack::lacpy( lapack::MatrixType::General, nActive, nActive, B_PTP, lda, 
                        PTP.Data(), nActive );
         statusOFS << "P'*P = " << PTP << std::endl;
       }
@@ -812,7 +817,8 @@ EigenSolver::LOBPCGSolveReal    (
     // Solve Rayleigh-Ritz problem
     // TODO: Handle ScaLAPACK path
     if( mpirank == 0 ) {
-      lapack::Sygvd( 1, 'V', 'U', numCol, A_XTAX, lda, B_XTX, lda,
+      lapack::sygvd( 1, lapack::Job::Vec, lapack::Uplo::Upper, 
+                     numCol, A_XTAX, lda, B_XTX, lda,
                      eigValS.Data() );
     }
 
@@ -830,11 +836,11 @@ EigenSolver::LOBPCGSolveReal    (
       basis_update( nActive, width, 1.0, W.Data(), C_W, lda, 1.0, Xtemp.Data() );
 
       // Save the result into X
-      lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal, 
                      X.Data(), heightLocal );
 
       // P <- W 
-      lapack::Lacpy( 'A', heightLocal, nActive, W.Data(), heightLocal, 
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, nActive, W.Data(), heightLocal, 
                      P.Data(), heightLocal );
 
     } else { //numSet == 3
@@ -844,13 +850,13 @@ EigenSolver::LOBPCGSolveReal    (
       basis_update( nActive, width, 1.0, W.Data(), C_W, lda, 0.0, Xtemp.Data() );
       basis_update( nActive, width, 1.0, P.Data(), C_P, lda, 1.0, Xtemp.Data() );
 
-      lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal, 
                      P.Data(), heightLocal );
 
       // Update the eigenvectors
       // X <- X * C_X + P
       basis_update( width, width, 1.0, X.Data(), C_X, lda, 1.0, Xtemp.Data() );
-      lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal,
                      X.Data(), heightLocal );
 
     } // if ( numSet == 2 )
@@ -863,11 +869,11 @@ EigenSolver::LOBPCGSolveReal    (
       basis_update( width,   width, 1.0, AX.Data(), C_X, lda, 0.0, Xtemp.Data() );
       basis_update( nActive, width, 1.0, AW.Data(), C_W, lda, 1.0, Xtemp.Data() );
 
-      lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal,
                      AX.Data(), heightLocal );
 
       // AP <- AW
-      lapack::Lacpy( 'A', heightLocal, nActive, AW.Data(), heightLocal,
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, nActive, AW.Data(), heightLocal,
                      AP.Data(), heightLocal );
 
     } else { // numSet == 3
@@ -876,12 +882,12 @@ EigenSolver::LOBPCGSolveReal    (
       basis_update( nActive, width, 1.0, AW.Data(), C_W, lda, 0.0, Xtemp.Data() );
       basis_update( nActive, width, 1.0, AP.Data(), C_P, lda, 1.0, Xtemp.Data() );
 
-      lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal, 
                      AP.Data(), heightLocal );
 
       // AX <- AX * C_X + AP
       basis_update( width, width, 1.0, AX.Data(), C_X, lda, 1.0, Xtemp.Data() );
-      lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal, 
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal, 
                      AX.Data(), heightLocal );
 
     } // if ( numSet == 2 )
@@ -907,7 +913,7 @@ EigenSolver::LOBPCGSolveReal    (
 
   if ( mpirank == 0 ){
     GetTime( timeSta );
-    lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
+    lapack::syevd( lapack::Job::Vec, lapack::Uplo::Upper, width, XTX.Data(), width, eigValS.Data() );
     GetTime( timeEnd );
     iterMpirank0 = iterMpirank0 + 1;
     timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
@@ -921,7 +927,7 @@ EigenSolver::LOBPCGSolveReal    (
   basis_update( width, width, 1.0, X.Data(), XTX.Data(), width, 
                 0.0, Xtemp.Data() );
 
-  lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
+  lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal,
                  X.Data(), heightLocal );
 
 #if ( _DEBUGlevel_ >= 2 )
@@ -941,7 +947,7 @@ EigenSolver::LOBPCGSolveReal    (
   // Redistribute X Row -> Col
   profile_row_to_col( X, Xcol );
 
-  lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
+  lapack::lacpy( lapack::MatrixType::General, height, widthLocal, Xcol.Data(), height, 
       psiPtr_->Wavefun().Data(), height );
 
   if( isConverged ){
@@ -1016,8 +1022,8 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
   // b) Normalize this vector : Current data distribution is height * widthLocal ( = 1)
   double temp_spinor_v_norm = 0.0, *v_access_ptr =  temp_spinor_v.Wavefun().Data();
 
-  temp_spinor_v_norm = blas::Nrm2(height, temp_spinor_v.Wavefun().Data(), 1);
-  blas::Scal( height , ( 1.0 /  temp_spinor_v_norm), temp_spinor_v.Wavefun().Data(), 1);
+  temp_spinor_v_norm = blas::nrm2(height, temp_spinor_v.Wavefun().Data(), 1);
+  blas::scal( height , ( 1.0 /  temp_spinor_v_norm), temp_spinor_v.Wavefun().Data(), 1);
 
   // c) Compute the Hamiltonian * vector product
   // Applying the Hamiltonian matrix
@@ -1045,8 +1051,8 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
 
   double alpha, beta;
 
-  alpha = blas::Dot( height, temp_spinor_f.Wavefun().Data(), 1, temp_spinor_v.Wavefun().Data(), 1 );
-  blas::Axpy(height, (-alpha), temp_spinor_v.Wavefun().Data(), 1, temp_spinor_f.Wavefun().Data(), 1);
+  alpha = blas::dot( height, temp_spinor_f.Wavefun().Data(), 1, temp_spinor_v.Wavefun().Data(), 1 );
+  blas::axpy(height, (-alpha), temp_spinor_v.Wavefun().Data(), 1, temp_spinor_f.Wavefun().Data(), 1);
 
   DblNumMat matT( Num_Lanczos_Steps, Num_Lanczos_Steps );
   SetValue(matT, 0.0);
@@ -1056,27 +1062,27 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
 
   for(Int j = 1; j < Num_Lanczos_Steps; j ++)
   {
-    beta = blas::Nrm2(height, temp_spinor_f.Wavefun().Data(), 1);
+    beta = blas::nrm2(height, temp_spinor_f.Wavefun().Data(), 1);
 
     // v0 = v
-    blas::Copy( height, temp_spinor_v.Wavefun().Data(), 1, temp_spinor_v0.Wavefun().Data(), 1 );
+    blas::copy( height, temp_spinor_v.Wavefun().Data(), 1, temp_spinor_v0.Wavefun().Data(), 1 );
 
     // v = f / beta
-    blas::Copy( height, temp_spinor_f.Wavefun().Data(), 1, temp_spinor_v.Wavefun().Data(), 1 );
-    blas::Scal( height , ( 1.0 /  beta), temp_spinor_v.Wavefun().Data(), 1);
+    blas::copy( height, temp_spinor_f.Wavefun().Data(), 1, temp_spinor_v.Wavefun().Data(), 1 );
+    blas::scal( height , ( 1.0 /  beta), temp_spinor_v.Wavefun().Data(), 1);
 
     // f = H * v
     SetValue( temp_spinor_f.Wavefun(), 0.0);
     hamPtr_->MultSpinor( temp_spinor_v, tnsTemp_spinor_f, *fftPtr_ );
 
     // f = f - beta * v0
-    blas::Axpy(height, (-beta), temp_spinor_v0.Wavefun().Data(), 1, temp_spinor_f.Wavefun().Data(), 1);
+    blas::axpy(height, (-beta), temp_spinor_v0.Wavefun().Data(), 1, temp_spinor_f.Wavefun().Data(), 1);
 
     // alpha = f' * v
-    alpha = blas::Dot( height, temp_spinor_f.Wavefun().Data(), 1, temp_spinor_v.Wavefun().Data(), 1 );
+    alpha = blas::dot( height, temp_spinor_f.Wavefun().Data(), 1, temp_spinor_v.Wavefun().Data(), 1 );
 
     // f = f - alpha * v
-    blas::Axpy(height, (-alpha), temp_spinor_v.Wavefun().Data(), 1, temp_spinor_f.Wavefun().Data(), 1);
+    blas::axpy(height, (-alpha), temp_spinor_v.Wavefun().Data(), 1, temp_spinor_f.Wavefun().Data(), 1);
 
     matT(j, j - 1) = beta;
     matT(j - 1, j) = beta;
@@ -1088,13 +1094,13 @@ double EigenSolver::Cheby_Upper_bound_estimator(DblNumVec& ritz_values, int Num_
 
 
   // Solve the eigenvalue problem for the Ritz values
-  lapack::Syevd( 'N', 'U', Num_Lanczos_Steps, matT.Data(), Num_Lanczos_Steps, ritz_values.Data() );
+  lapack::syevd( lapack::Job::NoVec, lapack::Uplo::Upper, Num_Lanczos_Steps, matT.Data(), Num_Lanczos_Steps, ritz_values.Data() );
 
   // Compute the upper bound on each process
-  double b_up= ritz_values(Num_Lanczos_Steps - 1) + blas::Nrm2(height, temp_spinor_f.Wavefun().Data(), 1);
+  double b_up= ritz_values(Num_Lanczos_Steps - 1) + blas::nrm2(height, temp_spinor_f.Wavefun().Data(), 1);
 
 
-  //statusOFS << std::endl << std::endl << " In estimator here : " << ritz_values(Num_Lanczos_Steps - 1) << '\t' << blas::Nrm2(height, //temp_spinor_f.Wavefun().Data(), 1) << std::endl;
+  //statusOFS << std::endl << std::endl << " In estimator here : " << ritz_values(Num_Lanczos_Steps - 1) << '\t' << blas::nrm2(height, //temp_spinor_f.Wavefun().Data(), 1) << std::endl;
   //statusOFS << std::endl << " Ritz values in estimator here : " << ritz_values ;
 
   // Need to synchronize the Ritz values and the upper bound across the processes
@@ -1176,7 +1182,7 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
     tau = 2.0 / sigma;
 
     // Step 2: Copy the required band into X
-    blas::Copy( height, psiPtr_->Wavefun().Data() + local_band_iter * height, 1, spinor_X.Wavefun().Data(), 1 );
+    blas::copy( height, psiPtr_->Wavefun().Data() + local_band_iter * height, 1, spinor_X.Wavefun().Data(), 1 );
 
     // Step 3: Compute Y = (H * X - c * X) * (sigma / e)
 
@@ -1186,9 +1192,9 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
     SetValue( spinor_Y.Wavefun(), 0.0); // Y = 0
     hamPtr_->MultSpinor( spinor_X, tns_spinor_Y, *fftPtr_ ); // Y = H * X
 
-    blas::Axpy(height, (-c), spinor_X.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1); // Y = Y - c * X
+    blas::axpy(height, (-c), spinor_X.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1); // Y = Y - c * X
 
-    blas::Scal( height , ( sigma / e), spinor_Y.Wavefun().Data(), 1); // Y = Y * (sigma/e)
+    blas::scal( height , ( sigma / e), spinor_Y.Wavefun().Data(), 1); // Y = Y * (sigma/e)
 
     // Begin filtering
     for(Int filter_iter = 2; filter_iter <= m; filter_iter ++)
@@ -1200,23 +1206,23 @@ void EigenSolver::Chebyshev_filter_scaled(int m, double a, double b, double a_L)
       SetValue( spinor_Yt.Wavefun(), 0.0); // Yt = 0
       hamPtr_->MultSpinor( spinor_Y, tns_spinor_Yt, *fftPtr_ ); // Yt = H * Y
 
-      blas::Axpy(height, (-c), spinor_Y.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); // Yt = Yt - c * Y
+      blas::axpy(height, (-c), spinor_Y.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); // Yt = Yt - c * Y
 
-      blas::Scal(height , ( 2.0 * sigma_new / e), spinor_Yt.Wavefun().Data(), 1); // Yt = Yt * (2.0 * sigma_new / e)
+      blas::scal(height , ( 2.0 * sigma_new / e), spinor_Yt.Wavefun().Data(), 1); // Yt = Yt * (2.0 * sigma_new / e)
 
       // Yt = Yt - (sigma * sigma_new) * X
-      blas::Axpy(height, (-sigma * sigma_new), spinor_X.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); 
+      blas::axpy(height, (-sigma * sigma_new), spinor_X.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); 
 
       // Step 5: Re-assignments
-      blas::Copy( height, spinor_Y.Wavefun().Data(), 1, spinor_X.Wavefun().Data(), 1 ); // X = Y
-      blas::Copy( height, spinor_Yt.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1 );// Y = Yt
+      blas::copy( height, spinor_Y.Wavefun().Data(), 1, spinor_X.Wavefun().Data(), 1 ); // X = Y
+      blas::copy( height, spinor_Yt.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1 );// Y = Yt
       sigma = sigma_new;
 
     }
 
 
     // Step : Copy back the processed band into X
-    blas::Copy( height, spinor_X.Wavefun().Data(), 1, psiPtr_->Wavefun().Data() + local_band_iter * height, 1 );
+    blas::copy( height, spinor_X.Wavefun().Data(), 1, psiPtr_->Wavefun().Data() + local_band_iter * height, 1 );
     statusOFS << std::endl << " Band " << local_band_iter << " completed.";
   }
 
@@ -1294,7 +1300,7 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
     c = (a + b) / 2.0;
 
     // Step 2: Copy the required band into X
-    blas::Copy( height, psiPtr_->Wavefun().Data() + local_band_iter * height, 1, spinor_X.Wavefun().Data(), 1 );
+    blas::copy( height, psiPtr_->Wavefun().Data() + local_band_iter * height, 1, spinor_X.Wavefun().Data(), 1 );
 
     // Step 3: Compute Y = (H * X - c * X) * (1.0 / e)
     // Set the first wavefunction filter since we are starting from a random guess
@@ -1303,9 +1309,9 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
     SetValue( spinor_Y.Wavefun(), 0.0); // Y = 0
     hamPtr_->MultSpinor( spinor_X, tns_spinor_Y, *fftPtr_ ); // Y = H * X
 
-    blas::Axpy(height, (-c), spinor_X.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1); // Y = Y - c * X
+    blas::axpy(height, (-c), spinor_X.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1); // Y = Y - c * X
 
-    blas::Scal( height , ( 1.0 / e), spinor_Y.Wavefun().Data(), 1); // Y = Y * (sigma/e)
+    blas::scal( height , ( 1.0 / e), spinor_Y.Wavefun().Data(), 1); // Y = Y * (sigma/e)
 
     // Begin filtering
     for(Int filter_iter = 2; filter_iter <= m; filter_iter ++)
@@ -1316,22 +1322,22 @@ void EigenSolver::Chebyshev_filter(int m, double a, double b)
       SetValue( spinor_Yt.Wavefun(), 0.0); // Yt = 0
       hamPtr_->MultSpinor( spinor_Y, tns_spinor_Yt, *fftPtr_ ); // Yt = H * Y
 
-      blas::Axpy(height, (-c), spinor_Y.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); // Yt = Yt - c * Y
+      blas::axpy(height, (-c), spinor_Y.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); // Yt = Yt - c * Y
 
-      blas::Scal(height , ( 2.0  / e), spinor_Yt.Wavefun().Data(), 1); // Yt = Yt * (2.0 * sigma_new / e)
+      blas::scal(height , ( 2.0  / e), spinor_Yt.Wavefun().Data(), 1); // Yt = Yt * (2.0 * sigma_new / e)
 
       // Yt = Yt -  X
-      blas::Axpy(height, (-1.0), spinor_X.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); 
+      blas::axpy(height, (-1.0), spinor_X.Wavefun().Data(), 1, spinor_Yt.Wavefun().Data(), 1); 
 
       // Step 5: Re-assignments
-      blas::Copy( height, spinor_Y.Wavefun().Data(), 1, spinor_X.Wavefun().Data(), 1 ); // X = Y
-      blas::Copy( height, spinor_Yt.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1 );// Y = Yt
+      blas::copy( height, spinor_Y.Wavefun().Data(), 1, spinor_X.Wavefun().Data(), 1 ); // X = Y
+      blas::copy( height, spinor_Yt.Wavefun().Data(), 1, spinor_Y.Wavefun().Data(), 1 );// Y = Yt
 
     }
 
 
     // Step 6 : Copy back the processed band into X
-    blas::Copy( height, spinor_X.Wavefun().Data(), 1, psiPtr_->Wavefun().Data() + local_band_iter * height, 1 );
+    blas::copy( height, spinor_X.Wavefun().Data(), 1, psiPtr_->Wavefun().Data() + local_band_iter * height, 1 );
     //statusOFS << std::endl << " Band " << local_band_iter << " completed.";
   }
 
@@ -1395,8 +1401,8 @@ EigenSolver::FirstChebyStep    (
   }    
 
   // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
-  // GemmT: blas::Gemm( 'T', 'N')
-  // GemmN: blas::Gemm( 'N', 'N')
+  // GemmT: blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans)
+  // GemmN: blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans)
   // Alltoallv: row-partition to column partition via MPI_Alltoallv 
   // Spinor: Applying the Hamiltonian matrix 
   // Mpirank0: Serial calculation part
@@ -1558,7 +1564,7 @@ EigenSolver::FirstChebyStep    (
 
     GetTime( extra_timeSta );
     statusOFS << std::endl << " Orthonormalizing  ... "; 
-    lapack::Lacpy( 'A', height, widthLocal, psiPtr_->Wavefun().Data(), height, 
+    lapack::lacpy( lapack::MatrixType::General, height, widthLocal, psiPtr_->Wavefun().Data(), height, 
         Xcol.Data(), height );
 
     GetTime( timeSta );
@@ -1585,7 +1591,7 @@ EigenSolver::FirstChebyStep    (
     // ~~ Orthogonalization through Cholesky factorization
     // Compute square_mat = X^T * X for Cholesky
     GetTime( timeSta );
-    blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, width, width, heightLocal, 1.0, X.Data(), 
         heightLocal, X.Data(), heightLocal, 0.0, square_mat_temp.Data(), width );
     SetValue( square_mat, 0.0 );
     MPI_Allreduce( square_mat_temp.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
@@ -1647,7 +1653,7 @@ EigenSolver::FirstChebyStep    (
       // This is the non-scalable part and should be fixed later
       if ( mpirank == 0) {
         GetTime( timeSta );
-        lapack::Potrf( 'U', width, square_mat.Data(), width );
+        lapack::potrf( lapack::Uplo::Upper, width, square_mat.Data(), width );
         GetTime( timeEnd );
         iterMpirank0 = iterMpirank0 + 1;
         timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
@@ -1662,7 +1668,7 @@ EigenSolver::FirstChebyStep    (
     // Do a solve with the Cholesky factor
     // X = X * U^{-1} is orthogonal, where U is the Cholesky factor
     GetTime( timeSta );
-    blas::Trsm( 'R', 'U', 'N', 'N', heightLocal, width, 1.0, square_mat.Data(), width, 
+    blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Upper, blas::Op::NoTrans, blas::Diag::NonUnit, heightLocal, width, 1.0, square_mat.Data(), width, 
         X.Data(), heightLocal );
     GetTime( timeEnd );
     iterTrsm = iterTrsm + 1;
@@ -1749,7 +1755,7 @@ EigenSolver::FirstChebyStep    (
     // ~~ Now compute the matrix for the projected problem
     //square_mat = X' * (HX)
     GetTime( timeSta );
-    blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
+    blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, width, width, heightLocal, 1.0, X.Data(),
         heightLocal, HX.Data(), heightLocal, 0.0, square_mat_temp.Data(), width );
     SetValue(square_mat , 0.0 );
     MPI_Allreduce( square_mat_temp.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
@@ -1826,7 +1832,7 @@ EigenSolver::FirstChebyStep    (
       if ( mpirank == 0 ) {
 
         GetTime( timeSta );
-        lapack::Syevd( 'V', 'U', width, square_mat.Data(), width, eig_vals_Raleigh_Ritz.Data() );
+        lapack::syevd( lapack::Job::Vec, lapack::Uplo::Upper, width, square_mat.Data(), width, eig_vals_Raleigh_Ritz.Data() );
         GetTime( timeEnd );
 
         iterMpirank0 = iterMpirank0 + 1;
@@ -1851,11 +1857,11 @@ EigenSolver::FirstChebyStep    (
     // Results are finally stored in X
 
     // ~~ So copy X to HX 
-    lapack::Lacpy( 'A', heightLocal, width, X.Data(),  heightLocal, HX.Data(), heightLocal );
+    lapack::lacpy( lapack::MatrixType::General, heightLocal, width, X.Data(),  heightLocal, HX.Data(), heightLocal );
 
     // ~~ Gemm: X <-- HX (= X) * Q
     GetTime( timeSta );
-    blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, HX.Data(),
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, width, width, 1.0, HX.Data(),
         heightLocal, square_mat.Data(), width, 0.0, X.Data(), heightLocal );    
     GetTime( timeEnd );
     iterGemmT = iterGemmT + 1;
@@ -1880,7 +1886,7 @@ EigenSolver::FirstChebyStep    (
     timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
     // ~~ Copy Xcol to psiPtr_
-    lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
+    lapack::lacpy( lapack::MatrixType::General, height, widthLocal, Xcol.Data(), height, 
         psiPtr_->Wavefun().Data(), height );
 
     // Step 3e : Reset the upper and lower bounds using the results of
@@ -1955,7 +1961,7 @@ EigenSolver::FirstChebyStep    (
 
       //square_mat = X' * (HX)
       GetTime( timeSta );
-      blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
+      blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, width, width, heightLocal, 1.0, X.Data(),
           heightLocal, HX.Data(), heightLocal, 0.0, square_mat_temp.Data(), width );
       SetValue(square_mat , 0.0 );
       MPI_Allreduce( square_mat_temp.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
@@ -1970,12 +1976,12 @@ EigenSolver::FirstChebyStep    (
       DblNumMat  Res( heightLocal, width);
 
       // Set Res <-- X
-      lapack::Lacpy( 'A', heightLocal, width, HX.Data(),  heightLocal, Res.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, width, HX.Data(),  heightLocal, Res.Data(), heightLocal );
 
 
       // ~~ Gemm: Res <-- X * Q - Res (= X)
       GetTime( timeSta );
-      blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
+      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, width, width, 1.0, X.Data(),
           heightLocal, square_mat.Data(), width, -1.0, Res.Data(), heightLocal );    
       GetTime( timeEnd );
       iterGemmT = iterGemmT + 1;
@@ -2099,8 +2105,8 @@ EigenSolver::GeneralChebyStep    (
   }    
 
   // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
-  // GemmT: blas::Gemm( 'T', 'N')
-  // GemmN: blas::Gemm( 'N', 'N')
+  // GemmT: blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans)
+  // GemmN: blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans)
   // Alltoallv: row-partition to column partition via MPI_Alltoallv 
   // Spinor: Applying the Hamiltonian matrix 
   // Mpirank0: Serial calculation part
@@ -2258,7 +2264,7 @@ EigenSolver::GeneralChebyStep    (
 
   GetTime( extra_timeSta );
   statusOFS << std::endl << " Orthonormalizing  ... "; 
-  lapack::Lacpy( 'A', height, widthLocal, psiPtr_->Wavefun().Data(), height, 
+  lapack::lacpy( lapack::MatrixType::General, height, widthLocal, psiPtr_->Wavefun().Data(), height, 
       Xcol.Data(), height );
 
   GetTime( timeSta );
@@ -2285,7 +2291,7 @@ EigenSolver::GeneralChebyStep    (
   // ~~ Orthogonalization through Cholesky factorization
   // Compute square_mat = X^T * X for Cholesky
   GetTime( timeSta );
-  blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(), 
+  blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, width, width, heightLocal, 1.0, X.Data(), 
       heightLocal, X.Data(), heightLocal, 0.0, square_mat_temp.Data(), width );
   SetValue( square_mat, 0.0 );
   MPI_Allreduce( square_mat_temp.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
@@ -2347,7 +2353,7 @@ EigenSolver::GeneralChebyStep    (
     // This is the non-scalable part and should be fixed later
     if ( mpirank == 0) {
       GetTime( timeSta );
-      lapack::Potrf( 'U', width, square_mat.Data(), width );
+      lapack::potrf( lapack::Uplo::Upper, width, square_mat.Data(), width );
       GetTime( timeEnd );
       iterMpirank0 = iterMpirank0 + 1;
       timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
@@ -2362,7 +2368,7 @@ EigenSolver::GeneralChebyStep    (
   // Do a solve with the Cholesky factor
   // X = X * U^{-1} is orthogonal, where U is the Cholesky factor
   GetTime( timeSta );
-  blas::Trsm( 'R', 'U', 'N', 'N', heightLocal, width, 1.0, square_mat.Data(), width, 
+  blas::trsm( blas::Layout::ColMajor, blas::Side::Right, blas::Uplo::Upper, blas::Op::NoTrans, blas::Diag::NonUnit, heightLocal, width, 1.0, square_mat.Data(), width, 
       X.Data(), heightLocal );
   GetTime( timeEnd );
   iterTrsm = iterTrsm + 1;
@@ -2449,7 +2455,7 @@ EigenSolver::GeneralChebyStep    (
   // ~~ Now compute the matrix for the projected problem
   //square_mat = X' * (HX)
   GetTime( timeSta );
-  blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
+  blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, width, width, heightLocal, 1.0, X.Data(),
       heightLocal, HX.Data(), heightLocal, 0.0, square_mat_temp.Data(), width );
   SetValue(square_mat , 0.0 );
   MPI_Allreduce( square_mat_temp.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
@@ -2526,7 +2532,7 @@ EigenSolver::GeneralChebyStep    (
     if ( mpirank == 0 ) {
 
       GetTime( timeSta );
-      lapack::Syevd( 'V', 'U', width, square_mat.Data(), width, eig_vals_Raleigh_Ritz.Data() );
+      lapack::syevd( lapack::Job::Vec, lapack::Uplo::Upper, width, square_mat.Data(), width, eig_vals_Raleigh_Ritz.Data() );
       GetTime( timeEnd );
 
       iterMpirank0 = iterMpirank0 + 1;
@@ -2550,11 +2556,11 @@ EigenSolver::GeneralChebyStep    (
   // Results are finally stored in X
 
   // ~~ So copy X to HX 
-  lapack::Lacpy( 'A', heightLocal, width, X.Data(),  heightLocal, HX.Data(), heightLocal );
+  lapack::lacpy( lapack::MatrixType::General, heightLocal, width, X.Data(),  heightLocal, HX.Data(), heightLocal );
 
   // ~~ Gemm: X <-- HX (= X) * Q
   GetTime( timeSta );
-  blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, HX.Data(),
+  blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, width, width, 1.0, HX.Data(),
       heightLocal, square_mat.Data(), width, 0.0, X.Data(), heightLocal );    
   GetTime( timeEnd );
   iterGemmT = iterGemmT + 1;
@@ -2579,7 +2585,7 @@ EigenSolver::GeneralChebyStep    (
   timeAlltoallv = timeAlltoallv + ( timeEnd - timeSta );
 
   // ~~ Copy Xcol to psiPtr_ to save the eigenvectors
-  lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
+  lapack::lacpy( lapack::MatrixType::General, height, widthLocal, Xcol.Data(), height, 
       psiPtr_->Wavefun().Data(), height );
 
   GetTime( extra_timeEnd );
@@ -2649,7 +2655,7 @@ EigenSolver::GeneralChebyStep    (
 
     //square_mat = X' * (HX)
     GetTime( timeSta );
-    blas::Gemm( 'T', 'N', width, width, heightLocal, 1.0, X.Data(),
+    blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, width, width, heightLocal, 1.0, X.Data(),
         heightLocal, HX.Data(), heightLocal, 0.0, square_mat_temp.Data(), width );
     SetValue(square_mat , 0.0 );
     MPI_Allreduce( square_mat_temp.Data(), square_mat.Data(), width*width, MPI_DOUBLE, MPI_SUM, mpi_comm );
@@ -2664,12 +2670,12 @@ EigenSolver::GeneralChebyStep    (
     DblNumMat  Res( heightLocal, width);
 
     // Set Res <-- X
-    lapack::Lacpy( 'A', heightLocal, width, HX.Data(),  heightLocal, Res.Data(), heightLocal );
+    lapack::lacpy( lapack::MatrixType::General, heightLocal, width, HX.Data(),  heightLocal, Res.Data(), heightLocal );
 
 
     // ~~ Gemm: Res <-- X * Q - Res (= X)
     GetTime( timeSta );
-    blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, width, width, 1.0, X.Data(),
         heightLocal, square_mat.Data(), width, -1.0, Res.Data(), heightLocal );    
     GetTime( timeEnd );
     iterGemmT = iterGemmT + 1;
@@ -2777,8 +2783,8 @@ EigenSolver::PPCGSolveReal    (
   }
 
   // Time for GemmT, GemmN, Alltoallv, Spinor, Mpirank0 
-  // GemmT: blas::Gemm( 'T', 'N')
-  // GemmN: blas::Gemm( 'N', 'N')
+  // GemmT: blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans)
+  // GemmN: blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans)
   // Alltoallv: row-partition to column partition via MPI_Alltoallv 
   // Spinor: Applying the Hamiltonian matrix 
   // Mpirank0: Serial calculation part
@@ -2978,7 +2984,7 @@ EigenSolver::PPCGSolveReal    (
 
   // Initialize X by the data in psi
   GetTime( timeSta );
-  lapack::Lacpy( 'A', height, widthLocal, psiPtr_->Wavefun().Data(), height, 
+  lapack::lacpy( lapack::MatrixType::General, height, widthLocal, psiPtr_->Wavefun().Data(), height, 
       Xcol.Data(), height );
   GetTime( timeEnd );
   iterCopy = iterCopy + 1;
@@ -3041,13 +3047,13 @@ EigenSolver::PPCGSolveReal    (
     // Compute the residual.
     // R <- AX - X*(X'*AX)
     GetTime( timeSta );
-    lapack::Lacpy( 'A', heightLocal, width, AX.Data(), heightLocal, Xtemp.Data(), heightLocal );
+    lapack::lacpy( lapack::MatrixType::General, heightLocal, width, AX.Data(), heightLocal, Xtemp.Data(), heightLocal );
     GetTime( timeEnd );
     iterCopy = iterCopy + 1;
     timeCopy = timeCopy + ( timeEnd - timeSta );
 
     GetTime( timeSta );
-    blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, width, width, -1.0, 
         X.Data(), heightLocal, XTX.Data(), width, 1.0, Xtemp.Data(), heightLocal );
     GetTime( timeEnd );
     iterGemmN = iterGemmN + 1;
@@ -3146,7 +3152,7 @@ EigenSolver::PPCGSolveReal    (
 
 
     GetTime( timeSta );
-    blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, width, width, -1.0, 
         X.Data(), heightLocal, XTX.Data(), width, 1.0, W.Data(), heightLocal );
     GetTime( timeEnd );
     iterGemmN = iterGemmN + 1;
@@ -3154,7 +3160,7 @@ EigenSolver::PPCGSolveReal    (
 
 
     GetTime( timeSta );
-    blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
+    blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, width, width, -1.0, 
         AX.Data(), heightLocal, XTX.Data(), width, 1.0, AW.Data(), heightLocal );
     GetTime( timeEnd );
     iterGemmN = iterGemmN + 1;
@@ -3172,8 +3178,8 @@ EigenSolver::PPCGSolveReal    (
     MPI_Allreduce( &normLocal[0], &normGlobal[0], width, MPI_DOUBLE, MPI_SUM, mpi_comm );
     for( Int k = numLockedLocal; k < width; k++ ){
       Real norm = std::sqrt( normGlobal[k] );
-      blas::Scal( heightLocal, 1.0 / norm, W.VecData(k), 1 );
-      blas::Scal( heightLocal, 1.0 / norm, AW.VecData(k), 1 );
+      blas::scal( heightLocal, 1.0 / norm, W.VecData(k), 1 );
+      blas::scal( heightLocal, 1.0 / norm, AW.VecData(k), 1 );
     }
     GetTime( timeEnd );
     iterOther = iterOther + 2;
@@ -3192,14 +3198,14 @@ EigenSolver::PPCGSolveReal    (
                                         mpi_comm );
 
       GetTime( timeSta );
-      blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
+      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, width, width, -1.0, 
           X.Data(), heightLocal, XTX.Data(), width, 1.0, P.Data(), heightLocal );
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
       GetTime( timeSta );
-      blas::Gemm( 'N', 'N', heightLocal, width, width, -1.0, 
+      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, width, width, -1.0, 
           AX.Data(), heightLocal, XTX.Data(), width, 1.0, AP.Data(), heightLocal );
       GetTime( timeEnd );
       iterGemmN = iterGemmN + 1;
@@ -3214,8 +3220,8 @@ EigenSolver::PPCGSolveReal    (
       MPI_Allreduce( &normLocal[0], &normGlobal[0], width, MPI_DOUBLE, MPI_SUM, mpi_comm );
       for( Int k = numLockedLocal; k < width; k++ ){
         Real norm = std::sqrt( normGlobal[k] );
-        blas::Scal( heightLocal, 1.0 / norm, P.VecData(k), 1 );
-        blas::Scal( heightLocal, 1.0 / norm, AP.VecData(k), 1 );
+        blas::scal( heightLocal, 1.0 / norm, P.VecData(k), 1 );
+        blas::scal( heightLocal, 1.0 / norm, AP.VecData(k), 1 );
       }
       GetTime( timeEnd );
       iterOther = iterOther + 2;
@@ -3250,7 +3256,7 @@ EigenSolver::PPCGSolveReal    (
       // Compute AMatAllLoc and BMatAllLoc            
       // AMatAllLoc
       GetTime( timeSta );
-      blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
+      blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, sbSize, sbSize, heightLocal, 1.0, x.Data(),
           heightLocal, ax.Data(), heightLocal, 
           0.0, &AMatAllLocal(0,3*sbSize*k), 3*sbSize );
       GetTime( timeEnd );
@@ -3258,7 +3264,7 @@ EigenSolver::PPCGSolveReal    (
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       GetTime( timeSta );
-      blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
+      blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, sbSize, sbSize, heightLocal, 1.0, w.Data(),
           heightLocal, aw.Data(), heightLocal, 
           0.0, &AMatAllLocal(sbSize,3*sbSize*k+sbSize), 3*sbSize );
       GetTime( timeEnd );
@@ -3266,7 +3272,7 @@ EigenSolver::PPCGSolveReal    (
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       GetTime( timeSta );
-      blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
+      blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, sbSize, sbSize, heightLocal, 1.0, x.Data(),
           heightLocal, aw.Data(), heightLocal, 
           0.0, &AMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize );
       GetTime( timeEnd );
@@ -3275,7 +3281,7 @@ EigenSolver::PPCGSolveReal    (
 
       // BMatAllLoc            
       GetTime( timeSta );
-      blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
+      blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, sbSize, sbSize, heightLocal, 1.0, x.Data(),
           heightLocal, x.Data(), heightLocal, 
           0.0, &BMatAllLocal(0,3*sbSize*k), 3*sbSize );
       GetTime( timeEnd );
@@ -3283,7 +3289,7 @@ EigenSolver::PPCGSolveReal    (
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       GetTime( timeSta );
-      blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
+      blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, sbSize, sbSize, heightLocal, 1.0, w.Data(),
           heightLocal, w.Data(), heightLocal, 
           0.0, &BMatAllLocal(sbSize,3*sbSize*k+sbSize), 3*sbSize );
       GetTime( timeEnd );
@@ -3291,7 +3297,7 @@ EigenSolver::PPCGSolveReal    (
       timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
       GetTime( timeSta );
-      blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
+      blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, sbSize, sbSize, heightLocal, 1.0, x.Data(),
           heightLocal, w.Data(), heightLocal, 
           0.0, &BMatAllLocal(0,3*sbSize*k+sbSize), 3*sbSize );
       GetTime( timeEnd );
@@ -3305,7 +3311,7 @@ EigenSolver::PPCGSolveReal    (
 
         // AMatAllLoc
         GetTime( timeSta );
-        blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, p.Data(),
+        blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, sbSize, sbSize, heightLocal, 1.0, p.Data(),
             heightLocal, ap.Data(), heightLocal, 
             0.0, &AMatAllLocal(2*sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
         GetTime( timeEnd );
@@ -3313,7 +3319,7 @@ EigenSolver::PPCGSolveReal    (
         timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
         GetTime( timeSta );
-        blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
+        blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, sbSize, sbSize, heightLocal, 1.0, x.Data(),
             heightLocal, ap.Data(), heightLocal, 
             0.0, &AMatAllLocal(0, 3*sbSize*k+2*sbSize), 3*sbSize );
         GetTime( timeEnd );
@@ -3321,7 +3327,7 @@ EigenSolver::PPCGSolveReal    (
         timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
         GetTime( timeSta );
-        blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
+        blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, sbSize, sbSize, heightLocal, 1.0, w.Data(),
             heightLocal, ap.Data(), heightLocal, 
             0.0, &AMatAllLocal(sbSize, 3*sbSize*k+2*sbSize), 3*sbSize );
         GetTime( timeEnd );
@@ -3330,7 +3336,7 @@ EigenSolver::PPCGSolveReal    (
 
         // BMatAllLoc
         GetTime( timeSta );
-        blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, p.Data(),
+        blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, sbSize, sbSize, heightLocal, 1.0, p.Data(),
             heightLocal, p.Data(), heightLocal, 
             0.0, &BMatAllLocal(2*sbSize,3*sbSize*k+2*sbSize), 3*sbSize );
         GetTime( timeEnd );
@@ -3338,7 +3344,7 @@ EigenSolver::PPCGSolveReal    (
         timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
         GetTime( timeSta );
-        blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, x.Data(),
+        blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, sbSize, sbSize, heightLocal, 1.0, x.Data(),
             heightLocal, p.Data(), heightLocal, 
             0.0, &BMatAllLocal(0, 3*sbSize*k+2*sbSize), 3*sbSize );
         GetTime( timeEnd );
@@ -3346,7 +3352,7 @@ EigenSolver::PPCGSolveReal    (
         timeGemmT = timeGemmT + ( timeEnd - timeSta );
 
         GetTime( timeSta );
-        blas::Gemm( 'T', 'N', sbSize, sbSize, heightLocal, 1.0, w.Data(),
+        blas::gemm( blas::Layout::ColMajor, blas::Op::ConjTrans, blas::Op::NoTrans, sbSize, sbSize, heightLocal, 1.0, w.Data(),
             heightLocal, p.Data(), heightLocal, 
             0.0, &BMatAllLocal(sbSize, 3*sbSize*k+2*sbSize), 3*sbSize );
         GetTime( timeEnd );
@@ -3378,8 +3384,8 @@ EigenSolver::PPCGSolveReal    (
 
       // small eigensolve
       GetTime( timeSta );
-      lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &AMatAll(0,3*sbSize*k), 3*sbSize, AMat.Data(), 3*sbSize );
-      lapack::Lacpy( 'A', 3*sbSize, 3*sbSize, &BMatAll(0,3*sbSize*k), 3*sbSize, BMat.Data(), 3*sbSize );
+      lapack::lacpy( lapack::MatrixType::General, 3*sbSize, 3*sbSize, &AMatAll(0,3*sbSize*k), 3*sbSize, AMat.Data(), 3*sbSize );
+      lapack::lacpy( lapack::MatrixType::General, 3*sbSize, 3*sbSize, &BMatAll(0,3*sbSize*k), 3*sbSize, BMat.Data(), 3*sbSize );
       GetTime( timeEnd );
       iterCopy = iterCopy + 2;
       timeCopy = timeCopy + ( timeEnd - timeSta );
@@ -3392,7 +3398,7 @@ EigenSolver::PPCGSolveReal    (
 
       Int dim = (numSet == 3) ? 3*sbSize : 2*sbSize;
       GetTime( timeSta );
-      lapack::Sygvd(1, 'V', 'U', dim, AMat.Data(), 3*sbSize, BMat.Data(), 3*sbSize, eigs);
+      lapack::sygvd(1, lapack::Job::Vec, lapack::Uplo::Upper, dim, AMat.Data(), 3*sbSize, BMat.Data(), 3*sbSize, eigs);
       GetTime( timeEnd );
       iterSygvd = iterSygvd + 1;
       timeSygvd = timeSygvd + ( timeEnd - timeSta );
@@ -3406,8 +3412,8 @@ EigenSolver::PPCGSolveReal    (
       DblNumMat ap( heightLocal, sbSize, false, AP.VecData(sbSize*k) );
 
       GetTime( timeSta );
-      lapack::Lacpy( 'A', sbSize, sbSize, &AMat(0,0), 3*sbSize, cx.Data(), sbSize );
-      lapack::Lacpy( 'A', sbSize, sbSize, &AMat(sbSize,0), 3*sbSize, cw.Data(), sbSize );
+      lapack::lacpy( lapack::MatrixType::General, sbSize, sbSize, &AMat(0,0), 3*sbSize, cx.Data(), sbSize );
+      lapack::lacpy( lapack::MatrixType::General, sbSize, sbSize, &AMat(sbSize,0), 3*sbSize, cw.Data(), sbSize );
       GetTime( timeEnd );
       iterCopy = iterCopy + 2;
       timeCopy = timeCopy + ( timeEnd - timeSta );
@@ -3416,14 +3422,14 @@ EigenSolver::PPCGSolveReal    (
       if( numSet == 3 ){
 
         GetTime( timeSta );
-        lapack::Lacpy( 'A', sbSize, sbSize, &AMat(2*sbSize,0), 3*sbSize, cp.Data(), sbSize );
+        lapack::lacpy( lapack::MatrixType::General, sbSize, sbSize, &AMat(2*sbSize,0), 3*sbSize, cp.Data(), sbSize );
         GetTime( timeEnd );
         iterCopy = iterCopy + 1;
         timeCopy = timeCopy + ( timeEnd - timeSta );
 
         // tmp <- p*cp 
         GetTime( timeSta );
-        blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+        blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, sbSize, sbSize, 1.0,
             p.Data(), heightLocal, cp.Data(), sbSize,
             0.0, tmp.Data(), heightLocal );
         GetTime( timeEnd );
@@ -3432,7 +3438,7 @@ EigenSolver::PPCGSolveReal    (
 
         // p <- w*cw + tmp
         GetTime( timeSta );
-        blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+        blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, sbSize, sbSize, 1.0,
             w.Data(), heightLocal, cw.Data(), sbSize,
             1.0, tmp.Data(), heightLocal );
         GetTime( timeEnd );
@@ -3440,14 +3446,14 @@ EigenSolver::PPCGSolveReal    (
         timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
         GetTime( timeSta );
-        lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, p.Data(), heightLocal );
+        lapack::lacpy( lapack::MatrixType::General, heightLocal, sbSize, tmp.Data(), heightLocal, p.Data(), heightLocal );
         GetTime( timeEnd );
         iterCopy = iterCopy + 1;
         timeCopy = timeCopy + ( timeEnd - timeSta );
 
         // tmp <- ap*cp 
         GetTime( timeSta );
-        blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+        blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, sbSize, sbSize, 1.0,
             ap.Data(), heightLocal, cp.Data(), sbSize,
             0.0, tmp.Data(), heightLocal );
         GetTime( timeEnd );
@@ -3456,14 +3462,14 @@ EigenSolver::PPCGSolveReal    (
 
         // ap <- aw*cw + tmp
         GetTime( timeSta );
-        blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+        blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, sbSize, sbSize, 1.0,
             aw.Data(), heightLocal, cw.Data(), sbSize,
             1.0, tmp.Data(), heightLocal );
         GetTime( timeEnd );
         iterGemmN = iterGemmN + 1;
         timeGemmN = timeGemmN + ( timeEnd - timeSta );
         GetTime( timeSta );
-        lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ap.Data(), heightLocal );
+        lapack::lacpy( lapack::MatrixType::General, heightLocal, sbSize, tmp.Data(), heightLocal, ap.Data(), heightLocal );
         GetTime( timeEnd );
         iterCopy = iterCopy + 1;
         timeCopy = timeCopy + ( timeEnd - timeSta );
@@ -3471,7 +3477,7 @@ EigenSolver::PPCGSolveReal    (
       }else{
         // p <- w*cw
         GetTime( timeSta );
-        blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+        blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, sbSize, sbSize, 1.0,
             w.Data(), heightLocal, cw.Data(), sbSize,
             0.0, p.Data(), heightLocal );
         GetTime( timeEnd );
@@ -3479,7 +3485,7 @@ EigenSolver::PPCGSolveReal    (
         timeGemmN = timeGemmN + ( timeEnd - timeSta );
         // ap <- aw*cw
         GetTime( timeSta );
-        blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+        blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, sbSize, sbSize, 1.0,
             aw.Data(), heightLocal, cw.Data(), sbSize,
             0.0, ap.Data(), heightLocal );
         GetTime( timeEnd );
@@ -3489,13 +3495,13 @@ EigenSolver::PPCGSolveReal    (
 
       // x <- x*cx + p
       GetTime( timeSta );
-      lapack::Lacpy( 'A', heightLocal, sbSize, p.Data(), heightLocal, tmp.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, sbSize, p.Data(), heightLocal, tmp.Data(), heightLocal );
       GetTime( timeEnd );
       iterCopy = iterCopy + 1;
       timeCopy = timeCopy + ( timeEnd - timeSta );
 
       GetTime( timeSta );
-      blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, sbSize, sbSize, 1.0,
           x.Data(), heightLocal, cx.Data(), sbSize,
           1.0, tmp.Data(), heightLocal );
       GetTime( timeEnd );
@@ -3503,20 +3509,20 @@ EigenSolver::PPCGSolveReal    (
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
       GetTime( timeSta );
-      lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, x.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, sbSize, tmp.Data(), heightLocal, x.Data(), heightLocal );
       GetTime( timeEnd );
       iterCopy = iterCopy + 1;
       timeCopy = timeCopy + ( timeEnd - timeSta );
 
       // ax <- ax*cx + ap
       GetTime( timeSta );
-      lapack::Lacpy( 'A', heightLocal, sbSize, ap.Data(), heightLocal, tmp.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, sbSize, ap.Data(), heightLocal, tmp.Data(), heightLocal );
       GetTime( timeEnd );
       iterCopy = iterCopy + 1;
       timeCopy = timeCopy + ( timeEnd - timeSta );
 
       GetTime( timeSta );
-      blas::Gemm( 'N', 'N', heightLocal, sbSize, sbSize, 1.0,
+      blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, sbSize, sbSize, 1.0,
           ax.Data(), heightLocal, cx.Data(), sbSize,
           1.0, tmp.Data(), heightLocal );
       GetTime( timeEnd );
@@ -3524,7 +3530,7 @@ EigenSolver::PPCGSolveReal    (
       timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
       GetTime( timeSta );
-      lapack::Lacpy( 'A', heightLocal, sbSize, tmp.Data(), heightLocal, ax.Data(), heightLocal );
+      lapack::lacpy( lapack::MatrixType::General, heightLocal, sbSize, tmp.Data(), heightLocal, ax.Data(), heightLocal );
       GetTime( timeEnd );
       iterCopy = iterCopy + 1;
       timeCopy = timeCopy + ( timeEnd - timeSta );
@@ -3619,7 +3625,7 @@ EigenSolver::PPCGSolveReal    (
   {
     if ( mpirank == 0 ){
       GetTime( timeSta );
-      lapack::Syevd( 'V', 'U', width, XTX.Data(), width, eigValS.Data() );
+      lapack::syevd( lapack::Job::Vec, lapack::Uplo::Upper, width, XTX.Data(), width, eigValS.Data() );
       GetTime( timeEnd );
       iterMpirank0 = iterMpirank0 + 1;
       timeMpirank0 = timeMpirank0 + ( timeEnd - timeSta );
@@ -3639,14 +3645,14 @@ EigenSolver::PPCGSolveReal    (
 
   GetTime( timeSta );
   // X <- X*C
-  blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, X.Data(),
+  blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, width, width, 1.0, X.Data(),
       heightLocal, XTX.Data(), width, 0.0, Xtemp.Data(), heightLocal );
   GetTime( timeEnd );
   iterGemmN = iterGemmN + 1;
   timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
   GetTime( timeSta );
-  lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
+  lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal,
       X.Data(), heightLocal );
   GetTime( timeEnd );
   iterCopy = iterCopy + 1;
@@ -3655,14 +3661,14 @@ EigenSolver::PPCGSolveReal    (
 
   GetTime( timeSta );
   // AX <- AX*C
-  blas::Gemm( 'N', 'N', heightLocal, width, width, 1.0, AX.Data(),
+  blas::gemm( blas::Layout::ColMajor, blas::Op::NoTrans, blas::Op::NoTrans, heightLocal, width, width, 1.0, AX.Data(),
       heightLocal, XTX.Data(), width, 0.0, Xtemp.Data(), heightLocal );
   GetTime( timeEnd );
   iterGemmN = iterGemmN + 1;
   timeGemmN = timeGemmN + ( timeEnd - timeSta );
 
   GetTime( timeSta );
-  lapack::Lacpy( 'A', heightLocal, width, Xtemp.Data(), heightLocal,
+  lapack::lacpy( lapack::MatrixType::General, heightLocal, width, Xtemp.Data(), heightLocal,
       AX.Data(), heightLocal );
   GetTime( timeEnd );
   iterCopy = iterCopy + 1;
@@ -3758,7 +3764,7 @@ EigenSolver::PPCGSolveReal    (
   bdist.redistribute_row_to_col( X, Xcol );
 
   GetTime( timeSta );
-  lapack::Lacpy( 'A', height, widthLocal, Xcol.Data(), height, 
+  lapack::lacpy( lapack::MatrixType::General, height, widthLocal, Xcol.Data(), height, 
       psiPtr_->Wavefun().Data(), height );
   GetTime( timeEnd );
   iterCopy = iterCopy + 1;

@@ -5,7 +5,7 @@
 #include "nummat_impl.hpp"
 #include "utility.hpp"
 
-#include "lapack.hpp"
+#include <lapack.hh>
 
 namespace dgdft {
 
@@ -67,7 +67,7 @@ public:
     for( Int irank = 0; irank < this->comm_size_; ++irank ) {
       Int col_rank_local = this->NBlock_;
       if( irank < this->NRem_ ) col_rank_local++;
-      lapack::Lacpy( 'F', this->MLocal_, col_rank_local, 
+      lapack::lacpy( lapack::MatrixType::General, this->MLocal_, col_rank_local, 
                      &row_data(0,irank), this->comm_size_*this->MLocal_, 
                      &recvbuf_(recvbuf_off), this->MLocal_ ); 
 
@@ -90,7 +90,7 @@ public:
       Int row_rank_local = this->MBlock_;
       if( irank < this->MRem_ ) row_rank_local++;
       
-      lapack::Lacpy( 'F', row_rank_local, this->NLocal_, 
+      lapack::lacpy( lapack::MatrixType::General, row_rank_local, this->NLocal_, 
                      &sendbuf_(sendbuf_off), row_rank_local,
                      &col_data(row_offset,0), col_data.m() );
 
@@ -120,7 +120,8 @@ public:
       Int row_rank_local = this->MBlock_;
       if( irank < this->MRem_ ) row_rank_local++;
       
-      lapack::Lacpy( 'F', row_rank_local, this->NLocal_, &col_data(row_offset,0),
+      lapack::lacpy( lapack::MatrixType::General, row_rank_local, 
+                     this->NLocal_, &col_data(row_offset,0),
                      col_data.m(), &sendbuf_(sendbuf_off), row_rank_local );
 
       sendbuf_off += this->NLocal_ * row_rank_local;
@@ -138,7 +139,7 @@ public:
     for( Int irank = 0; irank < this->comm_size_; ++irank ) {
       Int col_rank_local = this->NBlock_;
       if( irank < this->NRem_ ) col_rank_local++;
-      lapack::Lacpy( 'F', this->MLocal_, col_rank_local, 
+      lapack::lacpy( lapack::MatrixType::General, this->MLocal_, col_rank_local, 
                      &recvbuf_(recvbuf_off), this->MLocal_, 
                      &row_data(0,irank), this->comm_size_*this->MLocal_ );
 

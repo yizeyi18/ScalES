@@ -519,9 +519,24 @@ inline Int Print(std::ostream &os, std::string name, Int val) {
     << std::endl;
   return 0;
 };
+inline Int Print(std::ostream &os, std::string name, int64_t val) {
+  os << std::setiosflags(std::ios::left)
+    << std::setw(LENGTH_VAR_NAME) << name
+    << std::setw(LENGTH_VAR_DATA) << val
+    << std::endl;
+  return 0;
+};
 
 
 inline Int Print(std::ostream &os, const char *name, Int val) {
+  os << std::setiosflags(std::ios::left)
+    << std::setw(LENGTH_VAR_NAME) << std::string(name)
+    << std::setw(LENGTH_VAR_DATA) << val
+    << std::endl;
+  return 0;
+};
+
+inline Int Print(std::ostream &os, const char *name, int64_t val) {
   os << std::setiosflags(std::ios::left)
     << std::setw(LENGTH_VAR_NAME) << std::string(name)
     << std::setw(LENGTH_VAR_DATA) << val
