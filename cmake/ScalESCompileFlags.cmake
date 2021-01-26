@@ -3,7 +3,7 @@
 #
 #   Author: David Williams-Young
 #   
-#   This file is part of DGDFT. All rights reserved.
+#   This file is part of ScalES. All rights reserved.
 #   
 #   Redistribution and use in source and binary forms, with or without
 #   modification, are permitted provided that the following conditions are met:
@@ -41,34 +41,46 @@
 #
 
 
-# Handle MPI 
-find_package( MPI REQUIRED )
 
-add_library( DGDFT::parallel_cxx     INTERFACE IMPORTED )
-add_library( DGDFT::parallel_c       INTERFACE IMPORTED )
-add_library( DGDFT::parallel_fortran INTERFACE IMPORTED )
 
-target_link_libraries( DGDFT::parallel_cxx     INTERFACE MPI::MPI_CXX     )
-target_link_libraries( DGDFT::parallel_c       INTERFACE MPI::MPI_C       )
-target_link_libraries( DGDFT::parallel_fortran INTERFACE MPI::MPI_Fortran )
+add_library( ScalES::compile_definitions INTERFACE IMPORTED )
 
-# Handle OpenMP
-if( DGDFT_ENABLE_OPENMP )
+# C++14
+#target_compile_features( ScalES::compile_definitions INTERFACE cxx_std_14 )
 
-  find_package( OpenMP REQUIRED )
+# Performance Profiling
+if( ScalES_ENABLE_PROFILE )
+  target_compile_options( ScalES::compile_definitions INTERFACE -g -pg )
+endif( ScalES_ENABLE_PROFILE )
 
-  target_link_libraries( DGDFT::parallel_cxx     INTERFACE OpenMP::OpenMP_CXX     )
-  target_link_libraries( DGDFT::parallel_c       INTERFACE OpenMP::OpenMP_C       )
-  target_link_libraries( DGDFT::parallel_fortran INTERFACE OpenMP::OpenMP_Fortran )
+
+# Handle DEBUG / RELEASE flags
+if( CMAKE_BUILD_TYPE MATCHES Release )
+
+  target_compile_definitions( ScalES::compile_definitions INTERFACE "-D RELEASE" )
+
+else()
+
+  if( NOT ScalES_DEBUG_LEVEL )
+    set( ScalES_DEBUG_LEVEL 1 )
+  endif( NOT ScalES_DEBUG_LEVEL )
+
+  target_compile_definitions( ScalES::compile_definitions INTERFACE "-D DEBUG=${ScalES_DEBUG_LEVEL}" )
 
 endif()
 
-# Handle CUDA Toolkit
-if( DGDFT_ENABLE_CUDA )
 
-  find_package( CUDAToolkit REQUIRED )
 
-  add_library( DGDFT::cuda INTERFACE IMPORTED )
-  target_link_libraries( DGDFT::cuda INTERFACE CUDA::cublas CUDA::cufft CUDA::cusolver )
-  
+# COMPLEX flags
+if( ScalES_ENABLE_COMPLEX )
+  target_compile_definitions( ScalES::compile_definitions INTERFACE "-D CPX" )
 endif()
+
+# DEVICE flags
+if( ScalES_ENABLE_DEVICE )
+  target_compile_definitions( ScalES::compile_definitions INTERFACE "-D DEVICE" )
+endif()
+if( ScalES_ENABLE_GPUDIRECT )
+  target_compile_definitions( ScalES::compile_definitions INTERFACE "-D GPUDIRECT" )
+endif()
+

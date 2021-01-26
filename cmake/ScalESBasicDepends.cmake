@@ -3,7 +3,7 @@
 #
 #   Author: David Williams-Young
 #   
-#   This file is part of DGDFT. All rights reserved.
+#   This file is part of ScalES. All rights reserved.
 #   
 #   Redistribution and use in source and binary forms, with or without
 #   modification, are permitted provided that the following conditions are met:
@@ -41,46 +41,34 @@
 #
 
 
+# Handle MPI 
+find_package( MPI REQUIRED )
 
+add_library( ScalES::parallel_cxx     INTERFACE IMPORTED )
+add_library( ScalES::parallel_c       INTERFACE IMPORTED )
+add_library( ScalES::parallel_fortran INTERFACE IMPORTED )
 
-add_library( DGDFT::compile_definitions INTERFACE IMPORTED )
+target_link_libraries( ScalES::parallel_cxx     INTERFACE MPI::MPI_CXX     )
+target_link_libraries( ScalES::parallel_c       INTERFACE MPI::MPI_C       )
+target_link_libraries( ScalES::parallel_fortran INTERFACE MPI::MPI_Fortran )
 
-# C++14
-#target_compile_features( DGDFT::compile_definitions INTERFACE cxx_std_14 )
+# Handle OpenMP
+if( ScalES_ENABLE_OPENMP )
 
-# Performance Profiling
-if( DGDFT_ENABLE_PROFILE )
-  target_compile_options( DGDFT::compile_definitions INTERFACE -g -pg )
-endif( DGDFT_ENABLE_PROFILE )
+  find_package( OpenMP REQUIRED )
 
-
-# Handle DEBUG / RELEASE flags
-if( CMAKE_BUILD_TYPE MATCHES Release )
-
-  target_compile_definitions( DGDFT::compile_definitions INTERFACE "-D RELEASE" )
-
-else()
-
-  if( NOT DGDFT_DEBUG_LEVEL )
-    set( DGDFT_DEBUG_LEVEL 1 )
-  endif( NOT DGDFT_DEBUG_LEVEL )
-
-  target_compile_definitions( DGDFT::compile_definitions INTERFACE "-D DEBUG=${DGDFT_DEBUG_LEVEL}" )
+  target_link_libraries( ScalES::parallel_cxx     INTERFACE OpenMP::OpenMP_CXX     )
+  target_link_libraries( ScalES::parallel_c       INTERFACE OpenMP::OpenMP_C       )
+  target_link_libraries( ScalES::parallel_fortran INTERFACE OpenMP::OpenMP_Fortran )
 
 endif()
 
+# Handle CUDA Toolkit
+if( ScalES_ENABLE_CUDA )
 
+  find_package( CUDAToolkit REQUIRED )
 
-# COMPLEX flags
-if( DGDFT_ENABLE_COMPLEX )
-  target_compile_definitions( DGDFT::compile_definitions INTERFACE "-D CPX" )
+  add_library( ScalES::cuda INTERFACE IMPORTED )
+  target_link_libraries( ScalES::cuda INTERFACE CUDA::cublas CUDA::cufft CUDA::cusolver )
+  
 endif()
-
-# DEVICE flags
-if( DGDFT_ENABLE_DEVICE )
-  target_compile_definitions( DGDFT::compile_definitions INTERFACE "-D DEVICE" )
-endif()
-if( DGDFT_ENABLE_GPUDIRECT )
-  target_compile_definitions( DGDFT::compile_definitions INTERFACE "-D GPUDIRECT" )
-endif()
-

@@ -1,7 +1,7 @@
 #   Copyright (c) 2020 The Regents of the University of California,
 #   through Lawrence Berkeley National Laboratory.  
 #   
-#   This file is part of DGDFT. All rights reserved.
+#   This file is part of ScalES. All rights reserved.
 #   
 #   Redistribution and use in source and binary forms, with or without
 #   modification, are permitted provided that the following conditions are met:
@@ -41,27 +41,27 @@ cmake_minimum_required( VERSION 3.17 ) # Require CMake 3.17+
 
 # Set up project definition + version information
 # TODO: Get version number
-project( DGDFT VERSION 0.0.0 LANGUAGES CXX C Fortran )
+project( ScalES VERSION 0.0.0 LANGUAGES CXX C Fortran )
 
 
-# General DGDFT Options
-option( DGDFT_ENABLE_COMPLEX   "Enable Complex Arithmetic"    OFF )
-option( DGDFT_ENABLE_OPENMP    "Enable OpenMP Parallelism"    ON  )
-option( DGDFT_ENABLE_PROFILE   "Enable Performance Profiling" OFF )
-option( DGDFT_ENABLE_PEXSI     "Enable PEXSI Bindings"        OFF )
+# General ScalES Options
+option( ScalES_ENABLE_COMPLEX   "Enable Complex Arithmetic"    OFF )
+option( ScalES_ENABLE_OPENMP    "Enable OpenMP Parallelism"    ON  )
+option( ScalES_ENABLE_PROFILE   "Enable Performance Profiling" OFF )
+option( ScalES_ENABLE_PEXSI     "Enable PEXSI Bindings"        OFF )
 
-# GPU Related DGDFT Options
-option( DGDFT_ENABLE_CUDA  "Enable CUDA Bindings"  OFF )
-option( DGDFT_ENABLE_MAGMA "Enable MAGMA Bingings" OFF )
+# GPU Related ScalES Options
+option( ScalES_ENABLE_CUDA  "Enable CUDA Bindings"  OFF )
+option( ScalES_ENABLE_MAGMA "Enable MAGMA Bingings" OFF )
 
 # If CUDA enabled, enable device bindings
-if( DGDFT_ENABLE_CUDA )
-  set( DGDFT_ENABLE_DEVICE ON CACHE BOOL "Enable Device Bindings" )
+if( ScalES_ENABLE_CUDA )
+  set( ScalES_ENABLE_DEVICE ON CACHE BOOL "Enable Device Bindings" )
 endif()
 
 
 # If CUDA enabled, enable CUDA as a language
-if( DGDFT_ENABLE_CUDA )
+if( ScalES_ENABLE_CUDA )
   enable_language( CUDA )
 endif()
 
@@ -90,15 +90,15 @@ endif()
 
 
 # Setup Dependencies / Flags
-include( DGDFTCompileFlags ) # Compile Flags
-include( DGDFTBasicDepends ) # Basic Dependencies
-include( DGDFTTPLDepends   ) # TPL Dependencies
+include( ScalESCompileFlags ) # Compile Flags
+include( ScalESBasicDepends ) # Basic Dependencies
+include( ScalESTPLDepends   ) # TPL Dependencies
 
 
 # External Utilities
 add_subdirectory( external )
 
-# Build libdgdft etc
+# Build libscales etc
 add_subdirectory( src )
 
 # Build pw/dg executables

@@ -1,10 +1,10 @@
 # BLAS / LAPACK
 find_package( ScaLAPACK REQUIRED )
 
-add_library( DGDFT::linalg INTERFACE IMPORTED )
-#target_link_libraries( DGDFT::linalg INTERFACE ScaLAPACK::ScaLAPACK )
+add_library( ScalES::linalg INTERFACE IMPORTED )
+#target_link_libraries( ScalES::linalg INTERFACE ScaLAPACK::ScaLAPACK )
 #if( BLAS_FORTRAN_UNDERSCORE )
-#  target_compile_definitions( DGDFT::linalg INTERFACE "-D Add_" )
+#  target_compile_definitions( ScalES::linalg INTERFACE "-D Add_" )
 #endif()
 
 # BLAS++/LAPACK++
@@ -20,4 +20,4 @@ FetchContent_MakeAvailable( blaspp )
 FetchContent_MakeAvailable( lapackpp )
 target_compile_definitions( lapackpp PUBLIC LAPACK_COMPLEX_CPP )
 
-target_link_libraries( DGDFT::linalg INTERFACE lapackpp ScaLAPACK::ScaLAPACK ) 
+target_link_libraries( ScalES::linalg INTERFACE lapackpp ScaLAPACK::ScaLAPACK ) 

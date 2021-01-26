@@ -3,7 +3,7 @@
 #
 #   Author: David Williams-Young
 #   
-#   This file is part of DGDFT. All rights reserved.
+#   This file is part of ScalES. All rights reserved.
 #   
 #   Redistribution and use in source and binary forms, with or without
 #   modification, are permitted provided that the following conditions are met:
@@ -40,28 +40,28 @@
 #   such enhancements or derivative works thereof, in binary and source code form.
 #
 
-include( dgdft-linalg )
-include( dgdft-libxc  )
+include( scales-linalg )
+include( scales-libxc  )
 
 
 find_package( FFTW3 REQUIRED COMPONENTS MPI )
 
 
-add_library( DGDFT::tpl_depends INTERFACE IMPORTED )
-target_link_libraries( DGDFT::tpl_depends INTERFACE Libxc::xc        )
-target_link_libraries( DGDFT::tpl_depends INTERFACE FFTW3::FFTW3_MPI )
-target_link_libraries( DGDFT::tpl_depends INTERFACE DGDFT::linalg    )
+add_library( ScalES::tpl_depends INTERFACE IMPORTED )
+target_link_libraries( ScalES::tpl_depends INTERFACE Libxc::xc        )
+target_link_libraries( ScalES::tpl_depends INTERFACE FFTW3::FFTW3_MPI )
+target_link_libraries( ScalES::tpl_depends INTERFACE ScalES::linalg    )
 
 # PEXSI
-if( DGDFT_ENABLE_PEXSI )
+if( ScalES_ENABLE_PEXSI )
 
   # Find and link to PEXSI, handles SuperLU/ParMETIS/SymPACK
   find_package( PEXSI REQUIRED )
 
-  add_library( DGDFT::PEXSI INTERFACE IMPORTED )
-  target_link_libraries( DGDFT::PEXSI INTERFACE PEXSI::PEXSI )
-  target_compile_definitions( DGDFT::PEXSI INTERFACE "-D PEXSI" )
+  add_library( ScalES::PEXSI INTERFACE IMPORTED )
+  target_link_libraries( ScalES::PEXSI INTERFACE PEXSI::PEXSI )
+  target_compile_definitions( ScalES::PEXSI INTERFACE "-D PEXSI" )
 
-  target_link_libraries( DGDFT::tpl_depends INTERFACE DGDFT::PEXSI )
+  target_link_libraries( ScalES::tpl_depends INTERFACE ScalES::PEXSI )
 
 endif()
