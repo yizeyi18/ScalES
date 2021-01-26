@@ -151,8 +151,6 @@ Target: refactor2020 for PWDFT
 
 - [p] LOBPCG should be reimplemented. There are two options: one is for safety (slower but accurate), and the other is for production (faster but may break).
 
-- [ ] The ScaLAPACK diagonalization should be replaced by ELPA. More specifically, the diagonalization / PEXSI interface should be replaced by the ELSI interafce.
-
 - [p] A consistent method to specify the input / to print the input
   parameters in pw/dg/td. so far only moves things to common/. Will see
   whether a cleaner solution is needed when organizing dg and td.
@@ -163,7 +161,7 @@ Target: refactor2020 for PWDFT
   is the lattice constant. In PW the mapping has been removed. Double
   check this with DG/TD.
 
-- [ ] Remove the legacy support of the spin-orbit coupling
+- [p] Remove the legacy support of the spin-orbit coupling
   pseudopotential (not supported by UPF anyway)
 
 - [x] Add support for the HGH pseudopotential. This requires
@@ -182,11 +180,11 @@ Target: refactor2020 for PWDFT
        `<beta_J|psi>`, and then add `|beta_I>D_{IJ}<beta_J|psi>` to psi.
        We may add an if statement on `D_{IJ} != 0` to skip certain I's
        to reduce cost. This may affect other parts of the code such as
-       DG. 
+       DG (discarded)
     
   Neither change is very simple, so we first need to decide whether we
   do need to support pseudopotentials where DIJ has off-diagonal
-  entries (like HGH). Currently option 1 seems easier.
+  entries (like HGH). Currently option 1 is implemented.
 
 - [ ] Clean up the PWDFT source code, and make it more modular at the
   high level (after fixing geometry optimization). Create a separate
@@ -203,7 +201,9 @@ Target: refactor2020 for PWDFT
 
 - [ ] Clean up the GPU part of the code to remove redundant copying.
   Also find a better way to remove the added argument `garbage` to
-  distinguish the GPU and non-GPU versions of the same function. (Weile)
+  distinguish the GPU and non-GPU versions of the same function. These
+  functions will be removed and combined into a single interface using
+  CPU/GPU (Weile)
 
 
 - [ ] Dynamic truncation criterion for eigensolver. In particular, the
@@ -233,7 +233,7 @@ Target: refactor2020 for PWDFT
   keep other EXXDF routines (David will first look at 2D distribution,
   and then pass to Weile)
 
-- [ ] Make a decision about the best way to proceed with row<->col
+- [x] Make a decision about the best way to proceed with row<->col
   transformation among the methods of 
   
     a. the new bdist.redistribute_col_to_row and
@@ -254,27 +254,40 @@ Target: refactor2020 for PWDFT
            [ ] in GPU code
     c. [ ] test the performance of different implementations of bdist (Wei)
 
+- [ ] Systematically test the cutoff values for commonly used
+  pseudopotentials and put them in the etable structure in
+  periodtable.cpp
+
 - [ ] pcdiis: cleanup the row<->col transformation. (Wei)
 
 - [ ] Rename the project to Scalable Electronic Structure (ScalES,
-  pronounced as "scales"). Change namespace etc, legal part etc
+  pronounced as "scales"). Change namespace etc, legal part etc 
 
 - [ ] The value of RGaussian should be properly set and tested for
   elements in the periodic table. In particular it should be checked
   that the overlap is not an issue (or better, implement the correction
   to the overlapping Gaussian charges in the self-interaction energy
   part c.f. Martin appendix). This may already be an issue, but would
-  DEFINITELY be needed when changing to non-orthorhombic cells (see
+  likely be needed when changing to non-orthorhombic cells (see
   periodtable.cpp for more information under FIXME)
 
 - [ ] The wavefun format, instead of (ir, icom, iband), maybe it is
   better to rearrange it to be (ir, iband, icom). By letting the last
   component of the tensor to be the component, we may use it for spin /
-  k-points laters.
+  k-points laters. (Wei)
 
+- [ ] Absorb localing partitioning of rows / columns into bdist (David)
+
+- [ ] ACE: VexxProj applied to only unlocked vectors? (Do it after
+  locking for eigensolver)
 
 Plans for further developments in PWDFT
 =======================================
+
+- [ ] Further cleaning up periodtable.cpp (absorbing etable as an
+  attribute to the PeriodTable class etc). This is not urgent.
+
+- [ ] The ScaLAPACK diagonalization should be replaced by ELPA. More specifically, the diagonalization / PEXSI interface should be replaced by the ELSI interafce.
 
 - [d] OpenMP support? (most have been deleted so far)
 
